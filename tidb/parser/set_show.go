@@ -58,9 +58,9 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		}
 		// Build assignment: NAMES = charset
 		stmt.Assignments = append(stmt.Assignments, &nodes.Assignment{
-			Loc:    nodes.Loc{Start: charsetLoc, End: p.pos()},
-			Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: charsetLoc, End: p.pos()}, Column: "NAMES"},
-			Value:  &nodes.StringLit{Loc: nodes.Loc{Start: charsetLoc, End: p.pos()}, Value: charset},
+			Loc:    nodes.Loc{Start: charsetLoc, End: p.prev.End},
+			Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: charsetLoc, End: p.prev.End}, Column: "NAMES"},
+			Value:  &nodes.StringLit{Loc: nodes.Loc{Start: charsetLoc, End: p.prev.End}, Value: charset},
 		})
 		// Optional COLLATE (not valid with DEFAULT, but we parse it anyway)
 		if _, ok := p.match(kwCOLLATE); ok {
@@ -69,12 +69,12 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 				return nil, err
 			}
 			stmt.Assignments = append(stmt.Assignments, &nodes.Assignment{
-				Loc:    nodes.Loc{Start: collLoc, End: p.pos()},
-				Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: collLoc, End: p.pos()}, Column: "COLLATE"},
-				Value:  &nodes.StringLit{Loc: nodes.Loc{Start: collLoc, End: p.pos()}, Value: collation},
+				Loc:    nodes.Loc{Start: collLoc, End: p.prev.End},
+				Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: collLoc, End: p.prev.End}, Column: "COLLATE"},
+				Value:  &nodes.StringLit{Loc: nodes.Loc{Start: collLoc, End: p.prev.End}, Value: collation},
 			})
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -108,11 +108,11 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 				}
 			}
 			stmt.Assignments = append(stmt.Assignments, &nodes.Assignment{
-				Loc:    nodes.Loc{Start: charsetLoc, End: p.pos()},
-				Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: charsetLoc, End: p.pos()}, Column: "CHARACTER SET"},
-				Value:  &nodes.StringLit{Loc: nodes.Loc{Start: charsetLoc, End: p.pos()}, Value: charset},
+				Loc:    nodes.Loc{Start: charsetLoc, End: p.prev.End},
+				Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: charsetLoc, End: p.prev.End}, Column: "CHARACTER SET"},
+				Value:  &nodes.StringLit{Loc: nodes.Loc{Start: charsetLoc, End: p.prev.End}, Value: charset},
 			})
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 	}
@@ -194,7 +194,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		p.advance() // consume ','
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -274,7 +274,7 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 		stmt.RetainCurrentPassword = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -324,7 +324,7 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 			col.Table = name
 			col.Column = name2
 		}
-		col.Loc.End = p.pos()
+		col.Loc.End = p.prev.End
 	}
 
 	// Expect '=' or ':='
@@ -344,7 +344,7 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 	}
 
 	return &nodes.Assignment{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Column: col,
 		Value:  val,
 	}, nil
@@ -386,7 +386,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			stmt.Type = "COUNT WARNINGS"
 			p.advance()
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -570,7 +570,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 					p.match(')')
 				}
 				stmt.ForUser = &nodes.UserSpec{
-					Loc:  nodes.Loc{Start: start, End: p.pos()},
+					Loc:  nodes.Loc{Start: start, End: p.prev.End},
 					Name: "CURRENT_USER",
 				}
 			} else {
@@ -820,7 +820,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			return nil, err
 		}
 		stmt.From = &nodes.TableRef{
-			Loc:  nodes.Loc{Start: nameLoc, End: p.pos()},
+			Loc:  nodes.Loc{Start: nameLoc, End: p.prev.End},
 			Name: engineName,
 		}
 		if p.cur.Type == kwSTATUS {
@@ -1120,7 +1120,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowProfileOptions(stmt); err != nil {
 				return nil, err
 			}
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 
@@ -1128,7 +1128,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if p.cur.Type == kwREPLICAS {
 			stmt.Type = "REPLICAS"
 			p.advance()
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 
@@ -1148,7 +1148,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 						p.match(')')
 					}
 					stmt.ForUser = &nodes.UserSpec{
-						Loc:  nodes.Loc{Start: start, End: p.pos()},
+						Loc:  nodes.Loc{Start: start, End: p.prev.End},
 						Name: "CURRENT_USER",
 					}
 				} else {
@@ -1220,7 +1220,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1444,7 +1444,7 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	}
 
 	return &nodes.UseStmt{
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 		Database: name,
 	}, nil
 }
@@ -1495,9 +1495,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			}
 			showStmt.Like = colExpr
 		}
-		showStmt.Loc.End = p.pos()
+		showStmt.Loc.End = p.prev.End
 		stmt.Stmt = showStmt
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -1546,7 +1546,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			stmt.ForConnection = p.cur.Ival
 			p.advance()
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -1613,7 +1613,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, err
 		}
 		showStmt := &nodes.ShowStmt{
-			Loc:  nodes.Loc{Start: ref.Loc.Start, End: p.pos()},
+			Loc:  nodes.Loc{Start: ref.Loc.Start, End: p.prev.End},
 			Type: "COLUMNS",
 			From: ref,
 		}
@@ -1628,10 +1628,10 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			}
 			showStmt.Like = colExpr
 		}
-		showStmt.Loc.End = p.pos()
+		showStmt.Loc.End = p.prev.End
 		stmt.Stmt = showStmt
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

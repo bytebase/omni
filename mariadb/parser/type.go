@@ -401,7 +401,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			}
 			if dt.Name != "" {
 				p.advance()
-				dt.Loc.End = p.pos()
+				dt.Loc.End = p.prev.End
 				return dt, nil
 			}
 		}
@@ -414,7 +414,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 	}
 
-	dt.Loc.End = p.pos()
+	dt.Loc.End = p.prev.End
 	return dt, nil
 }
 

@@ -127,7 +127,7 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		stmt.Limit = limit
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -175,7 +175,7 @@ func (p *Parser) parseForPortionOf() (*nodes.ForPortionOf, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.ForPortionOf{
-		Loc:        nodes.Loc{Start: start, End: p.pos()},
+		Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		PeriodName: name,
 		From:       from,
 		To:         to,
@@ -203,7 +203,7 @@ func (p *Parser) parseOptionalTableAlias(tref *nodes.TableRef) error {
 		return err
 	}
 	tref.Alias = alias
-	tref.Loc.End = p.pos()
+	tref.Loc.End = p.prev.End
 	return nil
 }
 
@@ -267,11 +267,11 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 						return nil, err
 					}
 					tblRef.Alias = alias
-					tblRef.Loc.End = p.pos()
+					tblRef.Loc.End = p.prev.End
 				} else if p.cur.Type == tokIDENT {
 					alias, _, _ := p.parseIdent()
 					tblRef.Alias = alias
-					tblRef.Loc.End = p.pos()
+					tblRef.Loc.End = p.prev.End
 				}
 				// Optional PARTITION (p0, p1, ...)
 				if p.cur.Type == kwPARTITION {
@@ -281,7 +281,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 						return nil, err
 					}
 					tblRef.Partitions = parts
-					tblRef.Loc.End = p.pos()
+					tblRef.Loc.End = p.prev.End
 				}
 			}
 		}
@@ -376,7 +376,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		stmt.Returning = ret
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -431,7 +431,7 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 	}
 
 	return &nodes.Assignment{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Column: col,
 		Value:  val,
 	}, nil
@@ -487,7 +487,7 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 			// name.* -- skip the .* suffix
 			p.advance() // consume '.'
 			p.advance() // consume '*'
-			ref.Loc.End = p.pos()
+			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
 		// schema.table or schema.table.*
@@ -515,6 +515,6 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 		}
 	}
 
-	ref.Loc.End = p.pos()
+	ref.Loc.End = p.prev.End
 	return ref, nil
 }

@@ -15,8 +15,7 @@ import (
 //	    [DEFAULT] CHARACTER SET [=] charset_name
 //	    | [DEFAULT] COLLATE [=] collation_name
 //	    | [DEFAULT] ENCRYPTION [=] {'Y' | 'N'}
-func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateDatabaseStmt(start int) (*nodes.CreateDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
 
 	stmt := &nodes.CreateDatabaseStmt{Loc: nodes.Loc{Start: start}}
@@ -69,8 +68,7 @@ func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
 //
 //	ALTER {DATABASE | SCHEMA} [db_name]
 //	    alter_option ...
-func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
 
 	stmt := &nodes.AlterDatabaseStmt{Loc: nodes.Loc{Start: start}}
@@ -105,8 +103,7 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-database.html
 //
 //	DROP {DATABASE | SCHEMA} [IF EXISTS] db_name
-func (p *Parser) parseDropDatabaseStmt() (*nodes.DropDatabaseStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropDatabaseStmt(start int) (*nodes.DropDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
 
 	stmt := &nodes.DropDatabaseStmt{Loc: nodes.Loc{Start: start}}
@@ -156,7 +153,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "READ ONLY",
 				Value: val,
 			}, true, nil
@@ -176,7 +173,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 				return nil, false, err
 			}
 			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "CHARACTER SET",
 				Value: val,
 			}, true, nil
@@ -189,7 +186,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			return nil, false, err
 		}
 		return &nodes.DatabaseOption{
-			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "CHARACTER SET",
 			Value: val,
 		}, true, nil
@@ -201,7 +198,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			return nil, false, err
 		}
 		return &nodes.DatabaseOption{
-			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "COLLATE",
 			Value: val,
 		}, true, nil
@@ -212,7 +209,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "ENCRYPTION",
 				Value: val,
 			}, true, nil

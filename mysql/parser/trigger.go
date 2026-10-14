@@ -15,8 +15,7 @@ import (
 //	    ON tbl_name FOR EACH ROW
 //	    [trigger_order]
 //	    trigger_body
-func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateTriggerStmt(start int) (*nodes.CreateTriggerStmt, error) {
 	p.advance() // consume TRIGGER
 
 	// Completion: after CREATE TRIGGER, identifier context.
@@ -119,13 +118,14 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 	// Optional trigger_order: { FOLLOWS | PRECEDES } other_trigger_name
 	if p.cur.Type == kwFOLLOWS || p.cur.Type == kwPRECEDES {
 		follows := p.cur.Type == kwFOLLOWS
+		orderStart := p.pos()
 		p.advance()
 		trigName, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Order = &nodes.TriggerOrder{
-			Loc:         nodes.Loc{Start: start, End: p.pos()},
+			Loc:         nodes.Loc{Start: orderStart, End: p.prev.End},
 			Follows:     follows,
 			TriggerName: trigName,
 		}
@@ -155,8 +155,7 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 //	    [ENABLE | DISABLE | DISABLE ON SLAVE]
 //	    [COMMENT 'string']
 //	    DO event_body
-func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateEventStmt(start int) (*nodes.CreateEventStmt, error) {
 	p.advance() // consume EVENT
 
 	// Completion: after CREATE EVENT, identifier context.

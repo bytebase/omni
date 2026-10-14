@@ -74,7 +74,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		if p.cur.Type == kwUSER {
 			return p.parseRenameUserStmt(start)
 		}
-		return p.parseRenameTableStmt()
+		return p.parseRenameTableStmt(start)
 
 	case kwSET:
 		return p.parseSetStmt()
@@ -112,7 +112,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		if p.cur.Type == kwINSTANCE {
 			return p.parseLockInstanceStmt(start)
 		}
-		return p.parseLockTablesStmt()
+		return p.parseLockTablesStmt(start)
 
 	case kwUNLOCK:
 		start := p.pos()
@@ -120,7 +120,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		if p.cur.Type == kwINSTANCE {
 			return p.parseUnlockInstanceStmt(start)
 		}
-		return p.parseUnlockTablesStmt()
+		return p.parseUnlockTablesStmt(start)
 
 	case kwGRANT:
 		return p.parseGrantStmt()
@@ -435,22 +435,22 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(temporary)
+		return p.parseCreateTableStmt(start, temporary)
 
 	case kwINDEX:
-		return p.parseCreateIndexStmt(false, false, false)
+		return p.parseCreateIndexStmt(start, false, false, false)
 
 	case kwUNIQUE:
 		p.advance()
 		if p.cur.Type == kwINDEX {
-			return p.parseCreateIndexStmt(true, false, false)
+			return p.parseCreateIndexStmt(start, true, false, false)
 		}
 		return nil, &ParseError{Message: "expected INDEX after UNIQUE", Position: p.cur.Loc}
 
 	case kwFULLTEXT:
 		p.advance()
 		// p.cur is now INDEX or KEY; parseCreateIndexStmt consumes it
-		return p.parseCreateIndexStmt(false, true, false)
+		return p.parseCreateIndexStmt(start, false, true, false)
 
 	case kwSPATIAL:
 		p.advance()
@@ -458,39 +458,39 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		if p.cur.Type == kwREFERENCE {
 			return p.parseCreateSpatialRefSysStmt(start, orReplace)
 		}
-		return p.parseCreateIndexStmt(false, false, true)
+		return p.parseCreateIndexStmt(start, false, false, true)
 
 	case kwVIEW:
-		return p.parseCreateViewStmt(orReplace)
+		return p.parseCreateViewStmt(start, orReplace)
 
 	case kwDATABASE, kwSCHEMA:
-		return p.parseCreateDatabaseStmt()
+		return p.parseCreateDatabaseStmt(start)
 
 	case kwAGGREGATE:
 		// CREATE AGGREGATE FUNCTION — loadable UDF
 		p.advance() // consume AGGREGATE
 		if p.cur.Type == kwFUNCTION {
-			return p.parseCreateLoadableFunction(true)
+			return p.parseCreateLoadableFunction(start, true)
 		}
 		return nil, &ParseError{Message: "expected FUNCTION after AGGREGATE", Position: p.cur.Loc}
 
 	case kwFUNCTION:
-		return p.parseCreateFunctionStmt(false)
+		return p.parseCreateFunctionStmt(start, false)
 
 	case kwPROCEDURE:
-		return p.parseCreateFunctionStmt(true)
+		return p.parseCreateFunctionStmt(start, true)
 
 	case kwTRIGGER:
-		return p.parseCreateTriggerStmt()
+		return p.parseCreateTriggerStmt(start)
 
 	case kwEVENT:
-		return p.parseCreateEventStmt()
+		return p.parseCreateEventStmt(start)
 
 	case kwUSER:
-		return p.parseCreateUserStmt()
+		return p.parseCreateUserStmt(start)
 
 	case kwROLE:
-		return p.parseCreateRoleStmt()
+		return p.parseCreateRoleStmt(start)
 
 	case kwTABLESPACE:
 		return p.parseCreateTablespaceStmt(start, false)
@@ -503,11 +503,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwALGORITHM:
 		// Only CREATE VIEW uses ALGORITHM
-		return p.parseCreateViewStmt(orReplace)
+		return p.parseCreateViewStmt(start, orReplace)
 
 	case kwSQL:
 		// CREATE SQL SECURITY {DEFINER|INVOKER} VIEW — delegate to CREATE VIEW
-		return p.parseCreateViewStmt(orReplace)
+		return p.parseCreateViewStmt(start, orReplace)
 
 	case kwDEFINER:
 		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
@@ -525,7 +525,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// Now dispatch on the object keyword
 		switch p.cur.Type {
 		case kwVIEW:
-			stmt, err := p.parseCreateViewStmt(orReplace)
+			stmt, err := p.parseCreateViewStmt(start, orReplace)
 			if err != nil {
 				return nil, err
 			}
@@ -537,7 +537,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		case kwFUNCTION:
-			stmt, err := p.parseCreateFunctionStmt(false)
+			stmt, err := p.parseCreateFunctionStmt(start, false)
 			if err != nil {
 				return nil, err
 			}
@@ -546,7 +546,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		case kwPROCEDURE:
-			stmt, err := p.parseCreateFunctionStmt(true)
+			stmt, err := p.parseCreateFunctionStmt(start, true)
 			if err != nil {
 				return nil, err
 			}
@@ -555,7 +555,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		case kwTRIGGER:
-			stmt, err := p.parseCreateTriggerStmt()
+			stmt, err := p.parseCreateTriggerStmt(start)
 			if err != nil {
 				return nil, err
 			}
@@ -564,7 +564,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		case kwEVENT:
-			stmt, err := p.parseCreateEventStmt()
+			stmt, err := p.parseCreateEventStmt(start)
 			if err != nil {
 				return nil, err
 			}
@@ -613,13 +613,13 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseAlterTableStmt()
+		return p.parseAlterTableStmt(start)
 
 	case kwDATABASE, kwSCHEMA:
-		return p.parseAlterDatabaseStmt()
+		return p.parseAlterDatabaseStmt(start)
 
 	case kwUSER:
-		return p.parseAlterUserStmt()
+		return p.parseAlterUserStmt(start)
 
 	case kwTABLESPACE:
 		return p.parseAlterTablespaceStmt(start, false)
@@ -628,15 +628,15 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return p.parseAlterServerStmt(start)
 
 	case kwVIEW:
-		return p.parseAlterViewStmt()
+		return p.parseAlterViewStmt(start)
 
 	case kwALGORITHM:
 		// ALTER ALGORITHM = ... VIEW — delegate to ALTER VIEW parser
-		return p.parseAlterViewStmt()
+		return p.parseAlterViewStmt(start)
 
 	case kwSQL:
 		// ALTER SQL SECURITY {DEFINER|INVOKER} VIEW — delegate to ALTER VIEW
-		return p.parseAlterViewStmt()
+		return p.parseAlterViewStmt(start)
 
 	case kwDEFINER:
 		// ALTER DEFINER = user {VIEW|EVENT}
@@ -653,7 +653,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		}
 		switch p.cur.Type {
 		case kwVIEW:
-			stmt, err := p.parseAlterViewStmt()
+			stmt, err := p.parseAlterViewStmt(start)
 			if err != nil {
 				return nil, err
 			}
@@ -665,7 +665,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		case kwEVENT:
-			stmt, err := p.parseAlterEventStmt()
+			stmt, err := p.parseAlterEventStmt(start)
 			if err != nil {
 				return nil, err
 			}
@@ -678,13 +678,13 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		}
 
 	case kwEVENT:
-		return p.parseAlterEventStmt()
+		return p.parseAlterEventStmt(start)
 
 	case kwFUNCTION:
-		return p.parseAlterRoutineStmt(false)
+		return p.parseAlterRoutineStmt(start, false)
 
 	case kwPROCEDURE:
-		return p.parseAlterRoutineStmt(true)
+		return p.parseAlterRoutineStmt(start, true)
 
 	case kwLOGFILE:
 		return p.parseAlterLogfileGroupStmt(start)
@@ -735,34 +735,34 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseDropTableStmt(temporary)
+		return p.parseDropTableStmt(start, temporary)
 
 	case kwINDEX:
-		return p.parseDropIndexStmt()
+		return p.parseDropIndexStmt(start)
 
 	case kwVIEW:
-		return p.parseDropViewStmt()
+		return p.parseDropViewStmt(start)
 
 	case kwDATABASE, kwSCHEMA:
-		return p.parseDropDatabaseStmt()
+		return p.parseDropDatabaseStmt(start)
 
 	case kwUSER:
-		return p.parseDropUserStmt()
+		return p.parseDropUserStmt(start)
 
 	case kwROLE:
-		return p.parseDropRoleStmt()
+		return p.parseDropRoleStmt(start)
 
 	case kwFUNCTION:
-		return p.parseDropRoutineStmt(false)
+		return p.parseDropRoutineStmt(start, false)
 
 	case kwPROCEDURE:
-		return p.parseDropRoutineStmt(true)
+		return p.parseDropRoutineStmt(start, true)
 
 	case kwTRIGGER:
-		return p.parseDropTriggerStmt()
+		return p.parseDropTriggerStmt(start)
 
 	case kwEVENT:
-		return p.parseDropEventStmt()
+		return p.parseDropEventStmt(start)
 
 	case kwTABLESPACE:
 		return p.parseDropTablespaceStmt(start, false)
@@ -789,7 +789,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 			return nil, err
 		}
 		return &nodes.DeallocateStmt{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: name,
 		}, nil
 

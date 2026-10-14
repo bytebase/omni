@@ -724,13 +724,13 @@ func TestParseArithmetic(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"1 + 2", "{BINEXPR :op + :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
-		{"1 - 2", "{BINEXPR :op - :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
-		{"1 * 2", "{BINEXPR :op * :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
-		{"1 / 2", "{BINEXPR :op / :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
-		{"10 DIV 3", "{BINEXPR :op DIV :loc 3 :left {INT_LIT :val 10 :loc 0} :right {INT_LIT :val 3 :loc 7}}"},
-		{"10 % 3", "{BINEXPR :op %% :loc 3 :left {INT_LIT :val 10 :loc 0} :right {INT_LIT :val 3 :loc 5}}"},
-		{"10 MOD 3", "{BINEXPR :op %% :loc 3 :left {INT_LIT :val 10 :loc 0} :right {INT_LIT :val 3 :loc 7}}"},
+		{"1 + 2", "{BINEXPR :op + :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
+		{"1 - 2", "{BINEXPR :op - :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
+		{"1 * 2", "{BINEXPR :op * :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
+		{"1 / 2", "{BINEXPR :op / :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
+		{"10 DIV 3", "{BINEXPR :op DIV :loc 0 :left {INT_LIT :val 10 :loc 0} :right {INT_LIT :val 3 :loc 7}}"},
+		{"10 % 3", "{BINEXPR :op %% :loc 0 :left {INT_LIT :val 10 :loc 0} :right {INT_LIT :val 3 :loc 5}}"},
+		{"10 MOD 3", "{BINEXPR :op %% :loc 0 :left {INT_LIT :val 10 :loc 0} :right {INT_LIT :val 3 :loc 7}}"},
 		{"-1", "{UNARY :op - :loc 0 :operand {INT_LIT :val 1 :loc 1}}"},
 		{"~5", "{UNARY :op ~ :loc 0 :operand {INT_LIT :val 5 :loc 1}}"},
 	}
@@ -752,14 +752,14 @@ func TestParseComparison(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"1 = 2", "{BINEXPR :op = :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
-		{"1 <> 2", "{BINEXPR :op <> :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
-		{"1 != 2", "{BINEXPR :op <> :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
-		{"1 < 2", "{BINEXPR :op < :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
-		{"1 > 2", "{BINEXPR :op > :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
-		{"1 <= 2", "{BINEXPR :op <= :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
-		{"1 >= 2", "{BINEXPR :op >= :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
-		{"1 <=> 2", "{BINEXPR :op <=> :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 6}}"},
+		{"1 = 2", "{BINEXPR :op = :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
+		{"1 <> 2", "{BINEXPR :op <> :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
+		{"1 != 2", "{BINEXPR :op <> :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
+		{"1 < 2", "{BINEXPR :op < :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
+		{"1 > 2", "{BINEXPR :op > :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 4}}"},
+		{"1 <= 2", "{BINEXPR :op <= :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
+		{"1 >= 2", "{BINEXPR :op >= :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
+		{"1 <=> 2", "{BINEXPR :op <=> :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 6}}"},
 	}
 
 	for _, tt := range tests {
@@ -779,8 +779,8 @@ func TestParseLogical(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"1 AND 2", "{BINEXPR :op AND :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 6}}"},
-		{"1 OR 2", "{BINEXPR :op OR :loc 2 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
+		{"1 AND 2", "{BINEXPR :op AND :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 6}}"},
+		{"1 OR 2", "{BINEXPR :op OR :loc 0 :left {INT_LIT :val 1 :loc 0} :right {INT_LIT :val 2 :loc 5}}"},
 		{"NOT 1", "{UNARY :op NOT :loc 0 :operand {INT_LIT :val 1 :loc 4}}"},
 	}
 
@@ -2049,8 +2049,9 @@ func parseCreateDatabase(t *testing.T, input string) *ast.CreateDatabaseStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance()
+	start := p.pos()
 	p.advance() // consume CREATE
-	stmt, err := p.parseCreateDatabaseStmt()
+	stmt, err := p.parseCreateDatabaseStmt(start)
 	if err != nil {
 		t.Fatalf("parseCreateDatabaseStmt(%q) error: %v", input, err)
 	}
@@ -2106,8 +2107,9 @@ func parseAlterDatabase(t *testing.T, input string) *ast.AlterDatabaseStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance()
+	start := p.pos()
 	p.advance() // consume ALTER
-	stmt, err := p.parseAlterDatabaseStmt()
+	stmt, err := p.parseAlterDatabaseStmt(start)
 	if err != nil {
 		t.Fatalf("parseAlterDatabaseStmt(%q) error: %v", input, err)
 	}
@@ -2192,8 +2194,9 @@ func parseDropDatabase(t *testing.T, input string) *ast.DropDatabaseStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance()
+	start := p.pos()
 	p.advance() // consume DROP
-	stmt, err := p.parseDropDatabaseStmt()
+	stmt, err := p.parseDropDatabaseStmt(start)
 	if err != nil {
 		t.Fatalf("parseDropDatabaseStmt(%q) error: %v", input, err)
 	}
@@ -2230,13 +2233,14 @@ func parseDropTable(t *testing.T, input string) *ast.DropTableStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance() // p.cur = DROP
+	start := p.pos()
 	p.advance() // p.cur = TABLE or TEMPORARY
 	temporary := false
 	if p.cur.Type == kwTEMPORARY {
 		temporary = true
 		p.advance() // p.cur = TABLE
 	}
-	stmt, err := p.parseDropTableStmt(temporary)
+	stmt, err := p.parseDropTableStmt(start, temporary)
 	if err != nil {
 		t.Fatalf("parseDropTableStmt(%q) error: %v", input, err)
 	}
@@ -2272,8 +2276,9 @@ func parseDropIndex(t *testing.T, input string) *ast.DropIndexStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance()
+	start := p.pos()
 	p.advance() // consume DROP, now at INDEX
-	stmt, err := p.parseDropIndexStmt()
+	stmt, err := p.parseDropIndexStmt(start)
 	if err != nil {
 		t.Fatalf("parseDropIndexStmt(%q) error: %v", input, err)
 	}
@@ -2296,8 +2301,9 @@ func parseDropView(t *testing.T, input string) *ast.DropViewStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance()
+	start := p.pos()
 	p.advance() // consume DROP, now at VIEW
-	stmt, err := p.parseDropViewStmt()
+	stmt, err := p.parseDropViewStmt(start)
 	if err != nil {
 		t.Fatalf("parseDropViewStmt(%q) error: %v", input, err)
 	}
@@ -2363,8 +2369,9 @@ func parseRenameTable(t *testing.T, input string) *ast.RenameTableStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance()
+	start := p.pos()
 	p.advance() // consume RENAME, now at TABLE
-	stmt, err := p.parseRenameTableStmt()
+	stmt, err := p.parseRenameTableStmt(start)
 	if err != nil {
 		t.Fatalf("parseRenameTableStmt(%q) error: %v", input, err)
 	}
@@ -2528,8 +2535,9 @@ func parseLockTables(t *testing.T, input string) *ast.LockTablesStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance()
+	start := p.pos()
 	p.advance() // consume LOCK, now at TABLES
-	stmt, err := p.parseLockTablesStmt()
+	stmt, err := p.parseLockTablesStmt(start)
 	if err != nil {
 		t.Fatalf("parseLockTablesStmt(%q) error: %v", input, err)
 	}
@@ -2582,12 +2590,13 @@ func parseCreateView(t *testing.T, input string, orReplace bool) *ast.CreateView
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance() // prime lexer
+	start := p.pos()
 	p.advance() // skip CREATE
 	if orReplace {
 		p.advance() // OR
 		p.advance() // REPLACE
 	}
-	stmt, err := p.parseCreateViewStmt(orReplace)
+	stmt, err := p.parseCreateViewStmt(start, orReplace)
 	if err != nil {
 		t.Fatalf("parseCreateViewStmt(%q) error: %v", input, err)
 	}
@@ -2657,6 +2666,7 @@ func parseCreateTable(t *testing.T, input string) *ast.CreateTableStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance() // prime lexer
+	start := p.pos()
 	p.advance() // skip CREATE
 	temporary := false
 	// handle CREATE TEMPORARY TABLE
@@ -2664,7 +2674,7 @@ func parseCreateTable(t *testing.T, input string) *ast.CreateTableStmt {
 		p.advance()
 		temporary = true
 	}
-	stmt, err := p.parseCreateTableStmt(temporary)
+	stmt, err := p.parseCreateTableStmt(start, temporary)
 	if err != nil {
 		t.Fatalf("parseCreateTableStmt(%q) error: %v", input, err)
 	}
@@ -3410,8 +3420,9 @@ func parseAlterTable(t *testing.T, input string) *ast.AlterTableStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance() // prime lexer
+	start := p.pos()
 	p.advance() // skip ALTER
-	stmt, err := p.parseAlterTableStmt()
+	stmt, err := p.parseAlterTableStmt(start)
 	if err != nil {
 		t.Fatalf("parseAlterTableStmt(%q) error: %v", input, err)
 	}
@@ -4248,6 +4259,7 @@ func parseCreateIndex(t *testing.T, input string) *ast.CreateIndexStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance() // prime lexer
+	start := p.pos()
 	p.advance() // skip CREATE
 	unique := false
 	fulltext := false
@@ -4262,7 +4274,7 @@ func parseCreateIndex(t *testing.T, input string) *ast.CreateIndexStmt {
 		p.advance()
 		spatial = true
 	}
-	stmt, err := p.parseCreateIndexStmt(unique, fulltext, spatial)
+	stmt, err := p.parseCreateIndexStmt(start, unique, fulltext, spatial)
 	if err != nil {
 		t.Fatalf("parseCreateIndexStmt(%q) error: %v", input, err)
 	}
@@ -5104,8 +5116,9 @@ func TestParseCreateUser(t *testing.T) {
 	t.Run("simple", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE USER testuser")}
 		p.advance()
+		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateUserStmt()
+		stmt, err := p.parseCreateUserStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5120,8 +5133,9 @@ func TestParseCreateUser(t *testing.T) {
 	t.Run("if not exists", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE USER IF NOT EXISTS testuser")}
 		p.advance()
+		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateUserStmt()
+		stmt, err := p.parseCreateUserStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5133,8 +5147,9 @@ func TestParseCreateUser(t *testing.T) {
 	t.Run("identified by", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE USER testuser IDENTIFIED BY 'secret'")}
 		p.advance()
+		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateUserStmt()
+		stmt, err := p.parseCreateUserStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5147,8 +5162,9 @@ func TestParseCreateUser(t *testing.T) {
 func TestParseDropUser(t *testing.T) {
 	p := &Parser{lexer: NewLexer("DROP USER testuser")}
 	p.advance()
+	start := p.pos()
 	p.advance() // skip DROP
-	stmt, err := p.parseDropUserStmt()
+	stmt, err := p.parseDropUserStmt(start)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -5165,8 +5181,9 @@ func TestParseCreateFunction(t *testing.T) {
 	t.Run("simple function", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE FUNCTION myfunc(a INT) RETURNS INT RETURN a + 1")}
 		p.advance()
+		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(false)
+		stmt, err := p.parseCreateFunctionStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5187,8 +5204,9 @@ func TestParseCreateFunction(t *testing.T) {
 	t.Run("function no params", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE FUNCTION myfunc() RETURNS INT RETURN 1")}
 		p.advance()
+		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(false)
+		stmt, err := p.parseCreateFunctionStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5202,8 +5220,9 @@ func TestParseCreateProcedure(t *testing.T) {
 	t.Run("simple procedure", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE PROCEDURE myproc(IN x INT, OUT y INT) BEGIN SELECT x INTO y; END")}
 		p.advance()
+		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(true)
+		stmt, err := p.parseCreateFunctionStmt(start, true)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5641,8 +5660,9 @@ func TestParseCreateTrigger(t *testing.T) {
 	t.Run("simple trigger", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET @a = 1")}
 		p.advance()
+		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateTriggerStmt()
+		stmt, err := p.parseCreateTriggerStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5663,8 +5683,9 @@ func TestParseCreateTrigger(t *testing.T) {
 	t.Run("after update", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE TRIGGER trg AFTER UPDATE ON t FOR EACH ROW SET @a = 1")}
 		p.advance()
+		start := p.pos()
 		p.advance()
-		stmt, err := p.parseCreateTriggerStmt()
+		stmt, err := p.parseCreateTriggerStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5681,8 +5702,9 @@ func TestParseCreateEvent(t *testing.T) {
 	t.Run("at schedule", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE EVENT myevent ON SCHEDULE AT '2025-01-01 00:00:00' DO SELECT 1")}
 		p.advance()
+		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateEventStmt()
+		stmt, err := p.parseCreateEventStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5697,8 +5719,9 @@ func TestParseCreateEvent(t *testing.T) {
 	t.Run("if not exists", func(t *testing.T) {
 		p := &Parser{lexer: NewLexer("CREATE EVENT IF NOT EXISTS myevent ON SCHEDULE AT '2025-01-01' DO SELECT 1")}
 		p.advance()
+		start := p.pos()
 		p.advance()
-		stmt, err := p.parseCreateEventStmt()
+		stmt, err := p.parseCreateEventStmt(start)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -6910,15 +6933,15 @@ func TestParseCreateRole(t *testing.T) {
 	}{
 		{
 			sql:  "CREATE ROLE myrole",
-			want: "{CREATE_ROLE :loc 7 :roles myrole}",
+			want: "{CREATE_ROLE :loc 0 :roles myrole}",
 		},
 		{
 			sql:  "CREATE ROLE IF NOT EXISTS myrole",
-			want: "{CREATE_ROLE :loc 7 :if_not_exists true :roles myrole}",
+			want: "{CREATE_ROLE :loc 0 :if_not_exists true :roles myrole}",
 		},
 		{
 			sql:  "CREATE ROLE role1, role2, role3",
-			want: "{CREATE_ROLE :loc 7 :roles role1, role2, role3}",
+			want: "{CREATE_ROLE :loc 0 :roles role1, role2, role3}",
 		},
 	}
 	for _, tt := range tests {
@@ -6939,15 +6962,15 @@ func TestParseDropRole(t *testing.T) {
 	}{
 		{
 			sql:  "DROP ROLE myrole",
-			want: "{DROP_ROLE :loc 5 :roles myrole}",
+			want: "{DROP_ROLE :loc 0 :roles myrole}",
 		},
 		{
 			sql:  "DROP ROLE IF EXISTS myrole",
-			want: "{DROP_ROLE :loc 5 :if_exists true :roles myrole}",
+			want: "{DROP_ROLE :loc 0 :if_exists true :roles myrole}",
 		},
 		{
 			sql:  "DROP ROLE role1, role2",
-			want: "{DROP_ROLE :loc 5 :roles role1, role2}",
+			want: "{DROP_ROLE :loc 0 :roles role1, role2}",
 		},
 	}
 	for _, tt := range tests {
@@ -7292,19 +7315,19 @@ func TestParseIfElse(t *testing.T) {
 	}{
 		{
 			sql:  "IF x > 0 THEN SELECT 1; END IF",
-			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :loc 5 :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})})}",
+			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :loc 3 :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})})}",
 		},
 		{
 			sql:  "IF x > 0 THEN SELECT 1; ELSE SELECT 2; END IF",
-			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :loc 5 :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :else ({SELECT :loc 29 :targets ({INT_LIT :val 2 :loc 36})})}",
+			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :loc 3 :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :else ({SELECT :loc 29 :targets ({INT_LIT :val 2 :loc 36})})}",
 		},
 		{
 			sql:  "IF x > 0 THEN SELECT 1; ELSEIF x > 1 THEN SELECT 2; END IF",
-			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :loc 5 :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :elseifs ({ELSEIF :loc 24 :cond {BINEXPR :op > :loc 33 :left {COLREF :loc 31 :col x} :right {INT_LIT :val 1 :loc 35}} :then ({SELECT :loc 42 :targets ({INT_LIT :val 2 :loc 49})})})}",
+			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :loc 3 :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :elseifs ({ELSEIF :loc 24 :cond {BINEXPR :op > :loc 31 :left {COLREF :loc 31 :col x} :right {INT_LIT :val 1 :loc 35}} :then ({SELECT :loc 42 :targets ({INT_LIT :val 2 :loc 49})})})}",
 		},
 		{
 			sql:  "IF x > 0 THEN SELECT 1; ELSEIF x > 1 THEN SELECT 2; ELSE SELECT 3; END IF",
-			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :loc 5 :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :elseifs ({ELSEIF :loc 24 :cond {BINEXPR :op > :loc 33 :left {COLREF :loc 31 :col x} :right {INT_LIT :val 1 :loc 35}} :then ({SELECT :loc 42 :targets ({INT_LIT :val 2 :loc 49})})}) :else ({SELECT :loc 57 :targets ({INT_LIT :val 3 :loc 64})})}",
+			want: "{IF_STMT :loc 0 :cond {BINEXPR :op > :loc 3 :left {COLREF :loc 3 :col x} :right {INT_LIT :val 0 :loc 7}} :then ({SELECT :loc 14 :targets ({INT_LIT :val 1 :loc 21})}) :elseifs ({ELSEIF :loc 24 :cond {BINEXPR :op > :loc 31 :left {COLREF :loc 31 :col x} :right {INT_LIT :val 1 :loc 35}} :then ({SELECT :loc 42 :targets ({INT_LIT :val 2 :loc 49})})}) :else ({SELECT :loc 57 :targets ({INT_LIT :val 3 :loc 64})})}",
 		},
 	}
 	for _, tt := range tests {
@@ -7334,11 +7357,11 @@ func TestParseCaseStmt(t *testing.T) {
 		},
 		{
 			sql:  "CASE WHEN x > 0 THEN SELECT 1; WHEN x > 1 THEN SELECT 2; END CASE",
-			want: "{CASE_STMT :loc 0 :whens ({WHEN :loc 5 :cond {BINEXPR :op > :loc 12 :left {COLREF :loc 10 :col x} :right {INT_LIT :val 0 :loc 14}} :then ({SELECT :loc 21 :targets ({INT_LIT :val 1 :loc 28})})} {WHEN :loc 31 :cond {BINEXPR :op > :loc 38 :left {COLREF :loc 36 :col x} :right {INT_LIT :val 1 :loc 40}} :then ({SELECT :loc 47 :targets ({INT_LIT :val 2 :loc 54})})})}",
+			want: "{CASE_STMT :loc 0 :whens ({WHEN :loc 5 :cond {BINEXPR :op > :loc 10 :left {COLREF :loc 10 :col x} :right {INT_LIT :val 0 :loc 14}} :then ({SELECT :loc 21 :targets ({INT_LIT :val 1 :loc 28})})} {WHEN :loc 31 :cond {BINEXPR :op > :loc 36 :left {COLREF :loc 36 :col x} :right {INT_LIT :val 1 :loc 40}} :then ({SELECT :loc 47 :targets ({INT_LIT :val 2 :loc 54})})})}",
 		},
 		{
 			sql:  "CASE WHEN x > 0 THEN SELECT 1; ELSE SELECT 2; END CASE",
-			want: "{CASE_STMT :loc 0 :whens ({WHEN :loc 5 :cond {BINEXPR :op > :loc 12 :left {COLREF :loc 10 :col x} :right {INT_LIT :val 0 :loc 14}} :then ({SELECT :loc 21 :targets ({INT_LIT :val 1 :loc 28})})}) :else ({SELECT :loc 36 :targets ({INT_LIT :val 2 :loc 43})})}",
+			want: "{CASE_STMT :loc 0 :whens ({WHEN :loc 5 :cond {BINEXPR :op > :loc 10 :left {COLREF :loc 10 :col x} :right {INT_LIT :val 0 :loc 14}} :then ({SELECT :loc 21 :targets ({INT_LIT :val 1 :loc 28})})}) :else ({SELECT :loc 36 :targets ({INT_LIT :val 2 :loc 43})})}",
 		},
 	}
 	for _, tt := range tests {
@@ -7364,11 +7387,11 @@ func TestParseWhile(t *testing.T) {
 	}{
 		{
 			sql:  "WHILE x > 0 DO SELECT 1; END WHILE",
-			want: "{WHILE :loc 0 :cond {BINEXPR :op > :loc 8 :left {COLREF :loc 6 :col x} :right {INT_LIT :val 0 :loc 10}} :stmts ({SELECT :loc 15 :targets ({INT_LIT :val 1 :loc 22})})}",
+			want: "{WHILE :loc 0 :cond {BINEXPR :op > :loc 6 :left {COLREF :loc 6 :col x} :right {INT_LIT :val 0 :loc 10}} :stmts ({SELECT :loc 15 :targets ({INT_LIT :val 1 :loc 22})})}",
 		},
 		{
 			sql:  "lbl: WHILE x > 0 DO SELECT 1; END WHILE lbl",
-			want: "{WHILE :loc 0 :label lbl :end_label lbl :cond {BINEXPR :op > :loc 13 :left {COLREF :loc 11 :col x} :right {INT_LIT :val 0 :loc 15}} :stmts ({SELECT :loc 20 :targets ({INT_LIT :val 1 :loc 27})})}",
+			want: "{WHILE :loc 0 :label lbl :end_label lbl :cond {BINEXPR :op > :loc 11 :left {COLREF :loc 11 :col x} :right {INT_LIT :val 0 :loc 15}} :stmts ({SELECT :loc 20 :targets ({INT_LIT :val 1 :loc 27})})}",
 		},
 	}
 	for _, tt := range tests {
@@ -7394,11 +7417,11 @@ func TestParseRepeat(t *testing.T) {
 	}{
 		{
 			sql:  "REPEAT SELECT 1; UNTIL x > 0 END REPEAT",
-			want: "{REPEAT :loc 0 :stmts ({SELECT :loc 7 :targets ({INT_LIT :val 1 :loc 14})}) :until {BINEXPR :op > :loc 25 :left {COLREF :loc 23 :col x} :right {INT_LIT :val 0 :loc 27}}}",
+			want: "{REPEAT :loc 0 :stmts ({SELECT :loc 7 :targets ({INT_LIT :val 1 :loc 14})}) :until {BINEXPR :op > :loc 23 :left {COLREF :loc 23 :col x} :right {INT_LIT :val 0 :loc 27}}}",
 		},
 		{
 			sql:  "lbl: REPEAT SELECT 1; UNTIL x > 0 END REPEAT lbl",
-			want: "{REPEAT :loc 0 :label lbl :end_label lbl :stmts ({SELECT :loc 12 :targets ({INT_LIT :val 1 :loc 19})}) :until {BINEXPR :op > :loc 30 :left {COLREF :loc 28 :col x} :right {INT_LIT :val 0 :loc 32}}}",
+			want: "{REPEAT :loc 0 :label lbl :end_label lbl :stmts ({SELECT :loc 12 :targets ({INT_LIT :val 1 :loc 19})}) :until {BINEXPR :op > :loc 28 :left {COLREF :loc 28 :col x} :right {INT_LIT :val 0 :loc 32}}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7548,7 +7571,7 @@ func TestParseReturn(t *testing.T) {
 		},
 		{
 			sql:  "RETURN x + 1",
-			want: "{RETURN :loc 0 :expr {BINEXPR :op + :loc 9 :left {COLREF :loc 7 :col x} :right {INT_LIT :val 1 :loc 11}}}",
+			want: "{RETURN :loc 0 :expr {BINEXPR :op + :loc 7 :left {COLREF :loc 7 :col x} :right {INT_LIT :val 1 :loc 11}}}",
 		},
 	}
 	for _, tt := range tests {
@@ -8070,11 +8093,11 @@ func TestParseAlterView(t *testing.T) {
 	}{
 		{
 			sql:  "ALTER VIEW v AS SELECT 1",
-			want: "{ALTER_VIEW :loc 6 :name {TABLEREF :loc 11 :name v} :select {SELECT :loc 16 :targets ({INT_LIT :val 1 :loc 23})}}",
+			want: "{ALTER_VIEW :loc 0 :name {TABLEREF :loc 11 :name v} :select {SELECT :loc 16 :targets ({INT_LIT :val 1 :loc 23})}}",
 		},
 		{
 			sql:  "ALTER ALGORITHM = MERGE VIEW v AS SELECT 1",
-			want: "{ALTER_VIEW :loc 6 :algorithm MERGE :name {TABLEREF :loc 29 :name v} :select {SELECT :loc 34 :targets ({INT_LIT :val 1 :loc 41})}}",
+			want: "{ALTER_VIEW :loc 0 :algorithm MERGE :name {TABLEREF :loc 29 :name v} :select {SELECT :loc 34 :targets ({INT_LIT :val 1 :loc 41})}}",
 		},
 	}
 	for _, tt := range tests {
@@ -8132,15 +8155,15 @@ func TestParseDropRoutineStmt(t *testing.T) {
 	}{
 		{
 			sql:  "DROP FUNCTION f1",
-			want: "{DROP_ROUTINE :loc 5 :name {TABLEREF :loc 14 :name f1}}",
+			want: "{DROP_ROUTINE :loc 0 :name {TABLEREF :loc 14 :name f1}}",
 		},
 		{
 			sql:  "DROP FUNCTION IF EXISTS f1",
-			want: "{DROP_ROUTINE :loc 5 :if_exists true :name {TABLEREF :loc 24 :name f1}}",
+			want: "{DROP_ROUTINE :loc 0 :if_exists true :name {TABLEREF :loc 24 :name f1}}",
 		},
 		{
 			sql:  "DROP PROCEDURE p1",
-			want: "{DROP_ROUTINE :loc 5 :is_procedure true :name {TABLEREF :loc 15 :name p1}}",
+			want: "{DROP_ROUTINE :loc 0 :is_procedure true :name {TABLEREF :loc 15 :name p1}}",
 		},
 	}
 	for _, tt := range tests {
@@ -8157,11 +8180,11 @@ func TestParseDropTriggerStmtBatch39(t *testing.T) {
 	}{
 		{
 			sql:  "DROP TRIGGER tr1",
-			want: "{DROP_TRIGGER :loc 5 :name {TABLEREF :loc 13 :name tr1}}",
+			want: "{DROP_TRIGGER :loc 0 :name {TABLEREF :loc 13 :name tr1}}",
 		},
 		{
 			sql:  "DROP TRIGGER IF EXISTS mydb.tr1",
-			want: "{DROP_TRIGGER :loc 5 :if_exists true :name {TABLEREF :loc 23 :schema mydb :name tr1}}",
+			want: "{DROP_TRIGGER :loc 0 :if_exists true :name {TABLEREF :loc 23 :schema mydb :name tr1}}",
 		},
 	}
 	for _, tt := range tests {
@@ -8178,11 +8201,11 @@ func TestParseDropEventStmtBatch39(t *testing.T) {
 	}{
 		{
 			sql:  "DROP EVENT ev1",
-			want: "{DROP_EVENT :loc 5 :name ev1}",
+			want: "{DROP_EVENT :loc 0 :name ev1}",
 		},
 		{
 			sql:  "DROP EVENT IF EXISTS ev1",
-			want: "{DROP_EVENT :loc 5 :if_exists true :name ev1}",
+			want: "{DROP_EVENT :loc 0 :if_exists true :name ev1}",
 		},
 	}
 	for _, tt := range tests {

@@ -19,8 +19,7 @@ import (
 //	    VIEW view_name [(column_list)]
 //	    AS select_statement
 //	    [WITH [CASCADED | LOCAL] CHECK OPTION]
-func (p *Parser) parseCreateViewStmt(orReplace bool) (*nodes.CreateViewStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateViewStmt, error) {
 	stmt := &nodes.CreateViewStmt{
 		Loc:       nodes.Loc{Start: start},
 		OrReplace: orReplace,

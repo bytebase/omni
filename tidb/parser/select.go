@@ -79,7 +79,7 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 			return nil, err
 		}
 
-		cte.Loc.End = p.pos()
+		cte.Loc.End = p.prev.End
 		ctes = append(ctes, cte)
 
 		if p.cur.Type != ',' {
@@ -112,6 +112,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		stmt.Loc.Start = start
 		return stmt, nil
 
 	case kwUPDATE:
@@ -119,6 +120,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		stmt.Loc.Start = start
 		return stmt, nil
 
 	case kwDELETE:
@@ -126,6 +128,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		stmt.Loc.Start = start
 		return stmt, nil
 
 	default:
@@ -193,7 +196,7 @@ func (p *Parser) parseSelectClauseAndTrailing(start int, ctes []*nodes.CommonTab
 		}
 	}
 
-	body.Loc.End = p.pos()
+	body.Loc.End = p.prev.End
 	return body, nil
 }
 
@@ -366,7 +369,7 @@ func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 		return nil, err
 	}
 	return &nodes.SelectStmt{
-		Loc:         nodes.Loc{Start: start, End: p.pos()},
+		Loc:         nodes.Loc{Start: start, End: p.prev.End},
 		ParenSource: inner,
 	}, nil
 }
@@ -638,7 +641,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.Into = into
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -718,7 +721,7 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 
 	if alias != "" {
 		return &nodes.ResTarget{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: alias,
 			Val:  expr,
 		}, nil
@@ -803,14 +806,14 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 	return refs, nil
 }
 
-func foldTableReferenceList(refs []nodes.TableExpr, end int) nodes.TableExpr {
+func foldTableReferenceList(refs []nodes.TableExpr) nodes.TableExpr {
 	if len(refs) == 0 {
 		return nil
 	}
 	left := refs[0]
 	for i := 1; i < len(refs); i++ {
 		left = &nodes.JoinClause{
-			Loc:   nodes.Loc{Start: tableExprLoc(left), End: end},
+			Loc:   nodes.Loc{Start: tableExprLoc(left).Start, End: tableExprLoc(refs[i]).End},
 			Type:  nodes.JoinInner,
 			Left:  left,
 			Right: refs[i],
@@ -870,7 +873,7 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 		}
 
 		join := &nodes.JoinClause{
-			Loc:   nodes.Loc{Start: tableExprLoc(left)},
+			Loc:   nodes.Loc{Start: tableExprLoc(left).Start},
 			Type:  jt,
 			Left:  left,
 			Right: right,
@@ -894,7 +897,7 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			join.Condition = &nodes.OnCondition{
-				Loc:  nodes.Loc{Start: condStart, End: p.pos()},
+				Loc:  nodes.Loc{Start: condStart, End: p.prev.End},
 				Expr: cond,
 			}
 		} else if _, ok := p.match(kwUSING); ok {
@@ -923,10 +926,10 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
-			join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.pos()}, Columns: cols}
+			join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Columns: cols}
 		}
 
-		join.Loc.End = p.pos()
+		join.Loc.End = p.prev.End
 		left = join
 	}
 
@@ -1123,7 +1126,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 			sub.Columns = cols
 		}
 
-		sub.Loc.End = p.pos()
+		sub.Loc.End = p.prev.End
 		return sub, nil
 	}
 
@@ -1176,7 +1179,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 				sub.Columns = cols
 			}
 
-			sub.Loc.End = p.pos()
+			sub.Loc.End = p.prev.End
 			return sub, nil
 		}
 
@@ -1189,7 +1192,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		return foldTableReferenceList(refs, p.pos()), nil
+		return foldTableReferenceList(refs), nil
 	}
 
 	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
@@ -1203,7 +1206,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	if p.cur.Type == kwDUAL {
 		tok := p.advance()
 		return &nodes.TableRef{
-			Loc:  nodes.Loc{Start: tok.Loc, End: p.pos()},
+			Loc:  nodes.Loc{Start: tok.Loc, End: p.prev.End},
 			Name: "dual",
 		}, nil
 	}
@@ -1289,7 +1292,7 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 	}
 
 	return &nodes.JsonTableExpr{
-		Loc:     nodes.Loc{Start: start, End: p.pos()},
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		Expr:    expr,
 		Path:    path,
 		Columns: cols,
@@ -1345,7 +1348,7 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 			return nil, err
 		}
 		return &nodes.JsonTableColumn{
-			Loc:        nodes.Loc{Start: start, End: p.pos()},
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 			Nested:     true,
 			NestedPath: nestedPath,
 			NestedCols: nestedCols,
@@ -1368,7 +1371,7 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		p.advance()
 		p.match(kwORDINALITY)
 		col.Ordinality = true
-		col.Loc.End = p.pos()
+		col.Loc.End = p.prev.End
 		return col, nil
 	}
 
@@ -1428,7 +1431,7 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		}
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prev.End
 	return col, nil
 }
 
@@ -1467,7 +1470,7 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 			p.match(kwASC)
 		}
 
-		item.Loc.End = p.pos()
+		item.Loc.End = p.prev.End
 		items = append(items, item)
 
 		if p.cur.Type != ',' {
@@ -1523,7 +1526,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 		limit.Offset = offset
 	}
 
-	limit.Loc.End = p.pos()
+	limit.Loc.End = p.prev.End
 	return limit, nil
 }
 
@@ -1585,7 +1588,7 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 		fu.SkipLocked = true
 	}
 
-	fu.Loc.End = p.pos()
+	fu.Loc.End = p.prev.End
 	return fu, nil
 }
 
@@ -1607,7 +1610,7 @@ func (p *Parser) parseLockInShareMode() (*nodes.ForUpdate, error) {
 	}
 
 	return &nodes.ForUpdate{
-		Loc:             nodes.Loc{Start: start, End: p.pos()},
+		Loc:             nodes.Loc{Start: start, End: p.prev.End},
 		Share:           true,
 		LockInShareMode: true,
 	}, nil
@@ -1737,7 +1740,7 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	into.Loc.End = p.pos()
+	into.Loc.End = p.prev.End
 	return into, nil
 }
 
@@ -1794,19 +1797,19 @@ func (p *Parser) parseParenIdentListWithCompletion(completionRule string) ([]str
 	return names, nil
 }
 
-// tableExprLoc returns the start location of a TableExpr.
-func tableExprLoc(te nodes.TableExpr) int {
+// tableExprLoc returns the location of a TableExpr.
+func tableExprLoc(te nodes.TableExpr) nodes.Loc {
 	switch t := te.(type) {
 	case *nodes.TableRef:
-		return t.Loc.Start
+		return t.Loc
 	case *nodes.JoinClause:
-		return t.Loc.Start
+		return t.Loc
 	case *nodes.SubqueryExpr:
-		return t.Loc.Start
+		return t.Loc
 	case *nodes.JsonTableExpr:
-		return t.Loc.Start
+		return t.Loc
 	}
-	return 0
+	return nodes.NoLoc()
 }
 
 // parseNamedWindowList parses WINDOW window_name AS (window_spec) [, ...].
@@ -1877,7 +1880,7 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		wd.Loc.End = p.pos()
+		wd.Loc.End = p.prev.End
 		defs = append(defs, wd)
 
 		if p.cur.Type != ',' {
@@ -1951,7 +1954,7 @@ func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
 		stmt.Into = into
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2020,7 +2023,7 @@ func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
 		stmt.Limit = limit
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2032,7 +2035,7 @@ func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
 		return nil, err
 	}
 	return &nodes.SubqueryExpr{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Select: sel,
 	}, nil
 }
@@ -2152,6 +2155,6 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 		return nil, err
 	}
 
-	hint.Loc.End = p.pos()
+	hint.Loc.End = p.prev.End
 	return hint, nil
 }
