@@ -28,6 +28,12 @@ type Parser struct {
 	// or names a column (false). decideCaseTokens fills it in one pass.
 	caseKinds map[int]bool
 
+	// groupFroms tells, for each parenthesized group from the first TRIM
+	// call atTrimSyntax met to the end of the range, by the offset of the
+	// token after its '(', whether a FROM stands at the group's own depth.
+	// decideGroupFroms fills it in one pass.
+	groupFroms map[int]bool
+
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
 	typeMods typeModMode

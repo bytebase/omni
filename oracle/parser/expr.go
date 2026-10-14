@@ -1162,6 +1162,17 @@ func (p *Parser) atTrimSyntax() bool {
 			return true
 		}
 	}
+	// Nested calls ask about nested groups: one pass over the rest of the
+	// range answers them all, which scanning each call's group anew would
+	// make quadratic in the nesting.
+	if p.prev.Type == '(' {
+		if _, ok := p.groupFroms[p.cur.Loc]; !ok {
+			p.groupFroms = decideGroupFroms(p.source, p.prev.Loc, p.lexer.end)
+		}
+		if from, ok := p.groupFroms[p.cur.Loc]; ok {
+			return from
+		}
+	}
 	lex := NewLexerRange(p.source, p.cur.Loc, p.lexer.end)
 	depth := 1
 	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
@@ -1179,6 +1190,45 @@ func (p *Parser) atTrimSyntax() bool {
 		}
 	}
 	return false
+}
+
+// decideGroupFroms lexes source[start:end] and reports, for each
+// parenthesized group, by the offset of the token after its '(', whether a
+// FROM stands at the group's own depth before its ')'.
+func decideGroupFroms(source string, start, end int) map[int]bool {
+	type group struct {
+		key  int
+		from bool
+	}
+	froms := map[int]bool{}
+	var open []group
+	lex := NewLexerRange(source, start, end)
+	opened := false
+	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
+		if opened {
+			open[len(open)-1].key = tok.Loc
+			opened = false
+		}
+		switch tok.Type {
+		case '(':
+			open = append(open, group{key: -1})
+			opened = true
+		case ')':
+			if len(open) == 0 {
+				return froms
+			}
+			g := open[len(open)-1]
+			open = open[:len(open)-1]
+			if g.key >= 0 {
+				froms[g.key] = g.from
+			}
+		case kwFROM:
+			if len(open) > 0 {
+				open[len(open)-1].from = true
+			}
+		}
+	}
+	return froms
 }
 
 // parseExtractExpr parses Oracle EXTRACT(datetime_field FROM expr).

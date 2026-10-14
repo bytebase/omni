@@ -3,6 +3,7 @@ package parser
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/oracle/ast"
 )
@@ -279,4 +280,18 @@ func TestQualifiedExpressionTree(t *testing.T) {
 	if loop.Iteration.Iterands.Len() != 2 || ctl.Kind != "PAIRS OF" || ctl.Expr == nil || loop.LowerBound != nil {
 		t.Errorf("pairs loop = %+v, control %+v", loop, ctl)
 	}
+}
+
+// TestNestedTrimCost checks that telling TRIM's own syntax from a call
+// takes one pass for nested calls: 4,000 nested TRIM calls took 1.5 s when
+// each call scanned its group anew.
+func TestNestedTrimCost(t *testing.T) {
+	sql := "SELECT " + strings.Repeat("TRIM(", 4000) + "'x'" + strings.Repeat(")", 4000) + " FROM dual"
+	start := time.Now()
+	ParseAndCheck(t, sql)
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("Parse through 4,000 nested TRIM calls took %v", elapsed)
+	}
+	ParseAndCheck(t, "SELECT TRIM(TRIM(LEADING 'x' FROM TRIM('x' FROM 'xa')) FROM 'b') FROM dual")
+	ParseAndCheck(t, "BEGIN v := trim(1 => 2); END;")
 }
