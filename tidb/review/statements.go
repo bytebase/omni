@@ -121,7 +121,9 @@ func skipTrivia(sql string, start, end int) int {
 			for i < end && sql[i] != '\n' {
 				i++
 			}
-		case strings.HasPrefix(sql[i:end], "/*") && !strings.HasPrefix(sql[i:end], "/*!"):
+		// MySQL's /*! ... */ and TiDB's /*T! ... */ are executable comments,
+		// whose text TiDB runs.
+		case strings.HasPrefix(sql[i:end], "/*") && !strings.HasPrefix(sql[i:end], "/*!") && !strings.HasPrefix(sql[i:end], "/*T!"):
 			j := strings.Index(sql[i+2:end], "*/")
 			if j < 0 {
 				return i

@@ -253,6 +253,11 @@ func TestDisallowDropObject(t *testing.T) {
 			sql:  "DROP USER 'a\nb'@'%';",
 			want: []finding{{0, "DROP USER 'a\nb'@'%'", "drops user a\\nb@%", []int{0}}},
 		},
+		{
+			name: "a statement in a TiDB executable comment",
+			sql:  "/*T! DROP TABLE t2 */;",
+			want: []finding{{0, "/*T! DROP TABLE t2 */", "drops table t2", []int{0}}},
+		},
 	})
 }
 
