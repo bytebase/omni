@@ -286,24 +286,42 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 		return nil, parseErr1153
 	}
 
+	// A routine takes its arguments in parentheses, which it needs even
+	// without any (ORA-06576 on Oracle 23ai for CALL k.p), in positional,
+	// named, or mixed notation. No positional argument follows a named one
+	// (PLS-00312), and none is left out (ORA-00936 for (1,) and (,1)).
+	if stmt.Name != nil && stmt.Name.Name != "" && p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		named := false
+		for p.cur.Type != ')' || len(stmt.Args.Items) > 0 {
 			arg, parseErr1154 := p.parseExpr()
 			if parseErr1154 != nil {
 				return nil, parseErr1154
 			}
-			if arg != nil {
-				stmt.Args.Items = append(stmt.Args.Items, arg)
+			if arg == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
+			if p.cur.Type == tokASSOC {
+				if arg, parseErr1154 = p.parseNamedArgExpr(arg); parseErr1154 != nil {
+					return nil, parseErr1154
+				}
+				named = true
+			} else if named {
+				return nil, p.syntaxErrorAtNode(arg)
+			}
+			stmt.Args.Items = append(stmt.Args.Items, arg)
 			if p.cur.Type != ',' {
 				break
 			}
 			p.advance()
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 
 	// INTO :bind_variable

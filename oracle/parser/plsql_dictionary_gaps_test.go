@@ -81,6 +81,38 @@ func TestTriggerCallBody(t *testing.T) {
 	if call := parseOne[*ast.CallStmt](t, "CALL app.audit_pkg.record_change(1)"); call.Name.Schema != "APP" || call.Package != "AUDIT_PKG" || call.Name.Name != "RECORD_CHANGE" {
 		t.Errorf("CALL = %#v", call)
 	}
+}
+
+// TestCallStmtArguments checks the argument list of a CALL statement
+// against Oracle 23ai: it is in parentheses even when empty (ORA-06576 for
+// CALL k.p), in positional, named, or mixed notation, with no positional
+// argument after a named one (PLS-00312) and none left out (ORA-00936).
+func TestCallStmtArguments(t *testing.T) {
+	for _, sql := range []string{
+		"CALL app.audit_pkg.record_change()",
+		"CALL app.audit_pkg.record_change(1, 2)",
+		"CALL app.audit_pkg.record_change(x => 1)",
+		"CALL app.audit_pkg.record_change(1, y => 2)",
+		"CALL k.p(y => 2)",
+		"CALL f(1) INTO :x",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"CALL app.audit_pkg.record_change",
+		"CALL k.p",
+		"CALL app.audit_pkg.record_change(1,)",
+		"CALL app.audit_pkg.record_change(,1)",
+		"CALL app.audit_pkg.record_change(1,,2)",
+		"CALL app.audit_pkg.record_change(x => 1, 2)",
+		"CALL k.p(1",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	call := parseOne[*ast.CallStmt](t, "CALL k.p(1, y => 2)")
+	if named, ok := call.Args.Items[1].(*ast.NamedArgExpr); !ok || named.Name != "Y" {
+		t.Errorf("second argument = %#v, want named argument Y", call.Args.Items[1])
+	}
 
 	trigger := parseOne[*ast.CreateTriggerStmt](t, "CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a, y => 'x')")
 	call, ok := trigger.Body.(*ast.CallStmt)
