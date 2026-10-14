@@ -169,6 +169,11 @@ func TestRequireIsNull(t *testing.T) {
 			},
 		},
 		{
+			name: "a comparison with a line comment inside it",
+			sql:  "SELECT * FROM t WHERE n -- note\n = NULL;",
+			want: []finding{{0, "n -- note\n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
+		{
 			name: "a bracketed name with an escaped bracket",
 			sql:  "SELECT * FROM t WHERE [a]]  b] =\n NULL;",
 			want: []finding{{0, "[a]]  b] =\n NULL", `"[a]]  b] = NULL" is never true; use IS NULL`, []int{0}}},

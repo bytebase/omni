@@ -77,8 +77,16 @@ func reviewTargets(ctx context.Context, stmts []statement, work targetWork, targ
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			sem <- struct{}{}
+			// A canceled review starts no more targets.
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
 			defer func() { <-sem }()
+			if ctx.Err() != nil {
+				return
+			}
 			findings, err := reviewGroup(stmts, work, groups[i])
 			outcomes[i] = outcome{findings: findings, err: err}
 		}()
