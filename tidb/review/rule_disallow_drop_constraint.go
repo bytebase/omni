@@ -144,10 +144,13 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 							touch(v.Table, cmd.Constraint.Name, cmd.Constraint.Type == ast.ConstrUnique)
 						}
 					case ast.ATRenameIndex:
+						// The new name keeps what the change knows of the old.
+						old, known := find(v.Table, cmd.Name)
 						touch(v.Table, cmd.Name, false)
-						touch(v.Table, cmd.NewName, false)
+						touch(v.Table, cmd.NewName, known && sameCase(old.table, v.Table) && old.unique)
 					case ast.ATRenameTable:
-						replace(&ast.TableRef{Name: cmd.NewName})
+						// The new name stays in the table's database.
+						replace(&ast.TableRef{Schema: v.Table.Schema, Name: cmd.NewName})
 					}
 					var msg string
 					switch dropKindOf(sql, cmd) {

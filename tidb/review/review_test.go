@@ -136,6 +136,10 @@ func TestSyntax(t *testing.T) {
 			sql:  "SELECT 1;\nSELEC 2;\nSELEC 3;",
 			want: []finding{{1, "", `syntax error at or near "SELEC"`, []int{0}}},
 		},
+		{
+			name: "a feature comment for a feature TiDB does not support",
+			sql:  "/*T![unsupported_feature_xyz] WEIRD STUFF */;\nSELECT 1;",
+		},
 	})
 }
 
@@ -309,6 +313,16 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{0, "DROP INDEX uk_code", "drops unique key uk_code of t", []int{0}}},
 		},
 		{
+			name: "a table of another database renamed to a synced table's name",
+			sql:  "ALTER TABLE other.src RENAME TO t;\nDROP INDEX uk_code ON shop.t;",
+			want: []finding{{1, "DROP INDEX uk_code ON shop.t", "drops unique key uk_code of shop.t", []int{0}}},
+		},
+		{
+			name: "a unique index the change renames",
+			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nALTER TABLE nokey RENAME INDEX ux TO uy;\nDROP INDEX uy ON nokey;",
+			want: []finding{{2, "DROP INDEX uy ON nokey", "drops unique key uy of nokey", []int{0}}},
+		},
+		{
 			name: "a check constraint of an index's name",
 			sql:  "ALTER TABLE t ADD CONSTRAINT uk_code CHECK (n > 0);\nDROP INDEX uk_code ON t;",
 			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
@@ -438,9 +452,21 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{2, "WITH x AS (SELECT 3 AS id) UPDATE t SET n = 3 WHERE id IN (SELECT id FROM x)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
 		},
 		{
-			name:   "five statements over five tables, or a multi-table UPDATE",
+			name:   "five statements over five tables",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 1;\nUPDATE plain SET v = 1 WHERE id = 1;\nDELETE FROM nokey WHERE a = 1;\nUPDATE trig SET id = 2 WHERE id = 1;",
+			change: backup,
+		},
+		{
+			name:   "six certain statements over two tables, with one not certain",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nUPDATE t SET n = 3 WHERE id = 3;\nUPDATE p SET note = '' WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 2;\nUPDATE p SET note = '' WHERE id = 3;\nUPDATE t JOIN p ON p.id = t.p_id SET t.n = 1 WHERE t.id = 4;",
+			change: backup,
+			want:   []finding{{-1, "", "prior backup cannot back up more than 5 statements over more than one table", []int{0}}},
+		},
+		{
+			name:   "five statements over five tables and a multi-table UPDATE, past the limit",
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 1;\nUPDATE plain SET v = 1 WHERE id = 1;\nDELETE FROM nokey WHERE a = 1;\nUPDATE trig SET id = 2 WHERE id = 1;\nUPDATE t JOIN p ON p.id = t.p_id SET t.n = 1 WHERE t.id = 2;",
 			change: backup,
+			want:   []finding{{-1, "", "prior backup cannot back up more than 5 statements over more than one table", []int{0}}},
 		},
 		{
 			name:   "a table the change creates",

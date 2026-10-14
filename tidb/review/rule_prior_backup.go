@@ -2,6 +2,7 @@ package review
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/review"
@@ -157,7 +158,10 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 		with bool
 	}
 	var all []copied
-	certain := true
+	// uncertain counts the statements whose tables to copy are not
+	// certain, each at least one; with is whether any statement has a
+	// WITH clause.
+	uncertain, with := 0, false
 	for i := range stmts {
 		s := &stmts[i]
 		var loc ast.Loc
@@ -169,9 +173,10 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 		default:
 			continue
 		}
+		with = with || loc.Start > s.loc.Start
 		refs, _ := backupTargets(s)
 		if len(refs) == 0 {
-			certain = false
+			uncertain++
 			continue
 		}
 		for _, ref := range refs {
@@ -187,7 +192,18 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 			all = append(all, copied{s, in, ref.Name, loc.Start > s.loc.Start})
 		}
 	}
-	if !certain || len(all) <= maxMixedTables {
+	if len(all)+uncertain <= maxMixedTables {
+		return
+	}
+	// With some tables not certain, which statement Bytebase's check stops
+	// at is not known, but two certain tables past the limit fail it, when
+	// no statement's WITH clause may fail it first.
+	if uncertain > 0 {
+		if !with && slices.ContainsFunc(all, func(c copied) bool {
+			return !strings.EqualFold(c.db, all[0].db) || !strings.EqualFold(c.name, all[0].name)
+		}) {
+			r.report(review.PriorBackup, -1, review.Range{}, fmt.Sprintf("prior backup cannot back up more than %d statements over more than one table", maxMixedTables))
+		}
 		return
 	}
 	first := all[0]

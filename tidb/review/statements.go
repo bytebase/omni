@@ -27,7 +27,9 @@ type statement struct {
 func statementRanges(sql string) []review.Range {
 	var ranges []review.Range
 	for _, seg := range parser.Split(sql) {
-		if seg.Empty() {
+		// A segment the lexer reads no token from, such as a TiDB feature
+		// comment for a feature it does not support, is empty.
+		if seg.Empty() || len(parser.Tokenize(sql[seg.ByteStart:seg.ByteEnd])) == 0 {
 			continue
 		}
 		ranges = append(ranges, review.Range{Start: seg.ByteStart, End: seg.ByteEnd})
