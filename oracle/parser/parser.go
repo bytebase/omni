@@ -333,7 +333,15 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 		case failure == nil:
 			failure = err
 		}
-		read += max(p.prev.End-stmtLoc, 0)
+		// The attempt read the text up to where it failed, which may lie
+		// past the last token it parsed: comments and the code a directive
+		// skips before an $ERROR.
+		reached := p.prev.End
+		var failed *ParseError
+		if errors.As(err, &failed) {
+			reached = max(reached, failed.Position)
+		}
+		read += max(reached-stmtLoc, 0)
 		decided := (*p.lexer.ccDecisions)[snap.decisions:]
 		limit = max(limit, ccMinAttempts+ccAttemptsPerDecision*len(decided))
 		open := p.lexer.openDecisions()

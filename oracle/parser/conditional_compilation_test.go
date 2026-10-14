@@ -766,6 +766,29 @@ func TestConditionalCompilationSelections(t *testing.T) {
 		t.Errorf("Parse through 1,000 failing groups allocated %d MB", allocated>>20)
 	}
 
+	// A branch that opens with $ERROR is never selected, so 800 such
+	// groups take no retry; when the $ERROR comes later, the retries charge
+	// the text up to it, skipped text and comments included, to the
+	// budget, which bounds the search.
+	comment := "/* " + strings.Repeat("x", 2000) + " */ "
+	for _, branch := range []string{comment + "$ERROR 'x' $END", "NULL; " + comment + "$ERROR 'x' $END"} {
+		var groups strings.Builder
+		for i := range 800 {
+			fmt.Fprintf(&groups, "$IF $$x%d $THEN %s $ELSE $END ", i, branch)
+		}
+		sql := "BEGIN " + groups.String() + "NULL; END;"
+		start = time.Now()
+		_, err := Parse(sql)
+		if elapsed := time.Since(start); elapsed > 2*time.Second {
+			t.Errorf("Parse through 800 groups with %.20q took %v", branch, elapsed)
+		}
+		if strings.HasPrefix(branch, "/*") && err != nil {
+			t.Errorf("Parse through 800 groups opening with $ERROR = %v", err)
+		}
+	}
+	ParseShouldFail(t, "BEGIN $IF $$x $THEN $ERROR 'x' $END $ELSIF $$y $THEN $ERROR 'y' $END $ELSE $ERROR 'z' $END $END NULL; END;")
+	ParseAndCheck(t, "BEGIN $IF $$x $THEN $ERROR 'x' $END $ELSIF $$y $THEN NULL; $END NULL; END;")
+
 	// One environment gives a condition one value: a selection decides a
 	// repeated one once (Oracle 23ai rejects the first block under TRUE,
 	// FALSE, and no value of $$x), but $$PLSQL_LINE, which differs from

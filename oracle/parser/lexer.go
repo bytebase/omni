@@ -486,6 +486,14 @@ func (l *Lexer) selectBranch(tok Token) bool {
 			}
 			return l.openLevel(false, dep)
 		case ccUnknown:
+			// A branch that opens with $ERROR raises whenever it is
+			// selected, so no selection that compiles takes it: it is
+			// passed over as if its condition were FALSE, with no
+			// decision to vary. $IF DBMS_DB_VERSION.VER_LE_12 $THEN
+			// $ERROR 'unsupported' $END $END costs no retry.
+			if l.branchOpensWithError() {
+				break
+			}
 			undecided = true
 			if passed == pass {
 				l.noteDecision(at, passed, true)
@@ -514,6 +522,14 @@ func (l *Lexer) selectBranch(tok Token) bool {
 		}
 		tok = end // $ELSIF
 	}
+}
+
+// branchOpensWithError reports whether the branch after the $THEN just
+// read opens with an $ERROR directive, comments aside.
+func (l *Lexer) branchOpensWithError() bool {
+	c := *l
+	tok := c.nextRaw()
+	return tok.Type == tokDIRECTIVE && tok.Str == "$ERROR"
 }
 
 // skipCondition skips the condition after the $IF or $ELSIF at tok up to
