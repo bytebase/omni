@@ -3892,7 +3892,7 @@ func (p *Parser) typeSignature(tn *nodes.TypeName) string {
 		return ""
 	}
 	var sig strings.Builder
-	lex := NewLexerRange(p.source, tn.Loc.Start, tn.Loc.End)
+	lex := selectionLexer(p.source, tn.Loc.Start, tn.Loc.End, p.lexer.ccChoices, p.lexer.ccFacts)
 	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
 		typ := tok.Type
 		if typ == tokQIDENT {

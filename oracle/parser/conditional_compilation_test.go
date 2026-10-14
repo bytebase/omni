@@ -693,6 +693,11 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	// its group: the selection that compiles here, with $$a unset in Oracle
 	// 23ai, is TRIM('a' FROM 'b').
 	ParseAndCheck(t, "DECLARE x VARCHAR2(10); BEGIN x := TRIM('a' $IF $$a $THEN , 'b' $ELSE FROM 'b' $END); $IF $$a $THEN garbage garbage; $END END;")
+	// So does every lookahead past the parser's own lexer: EXTRACT's FROM
+	// after the field, and IMMEDIATE after ( EXECUTE in an iteration
+	// control. Oracle 23ai compiles both blocks with $$f and $$g unset.
+	ParseAndCheck(t, "DECLARE TYPE extract IS TABLE OF NUMBER; year NUMBER := 1; v extract; BEGIN v := EXTRACT(YEAR $IF $$f $THEN FROM SYSDATE $ELSE , 2 $END); $IF $$f $THEN $ERROR 'no' $END $END END;")
+	ParseAndCheck(t, "DECLARE TYPE nt IS TABLE OF NUMBER; s VARCHAR2(100) := 'SELECT 1 FROM dual'; execute nt := nt(1); BEGIN FOR i IN VALUES OF (EXECUTE $IF $$g $THEN IMMEDIATE s $END) LOOP NULL; END LOOP; $IF $$g $THEN $ERROR 'no' $END $END END;")
 
 	// A string literal holds 32767 bytes, in code a directive skips too
 	// (PLS-00172, ORA-01704), and a static concatenation as many (PLS-00174).

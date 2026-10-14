@@ -757,6 +757,14 @@ func selectionLexer(source string, start, end int, choices *ccChoices, facts *cc
 	return lexer
 }
 
+// selectionLexer returns a selectionLexer for a lookahead from start to the
+// end of the parser's range, under the selection the parser attempts.
+// Every lookahead past the parser's own lexer takes one: a fresh
+// NewLexerRange would read the first branch of each undecided $IF.
+func (p *Parser) selectionLexer(start int) *Lexer {
+	return selectionLexer(p.source, start, p.lexer.end, p.lexer.ccChoices, p.lexer.ccFacts)
+}
+
 // decideCaseTokens lexes source[start:end], under the selection of
 // conditional compilation branches choices names and the facts it made
 // before start, and reports, for each CASE token, whether it opens a CASE
@@ -1186,7 +1194,7 @@ func (p *Parser) atExtractDatetime() bool {
 	switch field.Str {
 	case "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND",
 		"TIMEZONE_HOUR", "TIMEZONE_MINUTE", "TIMEZONE_REGION", "TIMEZONE_ABBR":
-		return NewLexerRange(p.source, field.End, p.lexer.end).NextToken().Type == kwFROM
+		return p.selectionLexer(field.End).NextToken().Type == kwFROM
 	}
 	return false
 }
@@ -1212,7 +1220,7 @@ func (p *Parser) atTrimSyntax() bool {
 			return from
 		}
 	}
-	lex := selectionLexer(p.source, p.cur.Loc, p.lexer.end, p.lexer.ccChoices, p.lexer.ccFacts)
+	lex := p.selectionLexer(p.cur.Loc)
 	depth := 1
 	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
 		switch tok.Type {
