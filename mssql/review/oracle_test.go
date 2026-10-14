@@ -227,6 +227,7 @@ func TestPriorBackupAgainstMSSQL(t *testing.T) {
 		{"a column the SET clause names, not copied", "ALTER TABLE t ADD gone INT;\nUPDATE t SET gone = 1 WHERE id = 1;", true},
 		{"a column sp_rename renames to", "EXEC sp_rename 'dbo.nokey.a', 'b', 'COLUMN';\nDELETE FROM dbo.nokey WHERE b = 1;", true},
 		{"a FROM list without the target", "UPDATE dbo.t SET n = p.id FROM dbo.p AS p;", true},
+		{"an alias of the target's name that cannot bind it qualified", "UPDATE dbo.t SET n = t.id FROM dbo.p AS t;", true},
 		{"a FROM list with the target's name under an alias", "UPDATE dbo.t SET n = s.id FROM dbo.p AS t2 JOIN s.t2 AS s ON s.id = t2.id;", true},
 		{"a table sp_rename renames to", "EXEC sp_rename 'dbo.nokey', 'n8';\nUPDATE dbo.n8 SET a = 2 WHERE a = 1;", true},
 		{"a table a CREATE SCHEMA makes", "CREATE SCHEMA s3 CREATE TABLE s3.n6 (id INT);\nUPDATE s3.n6 SET id = 2 WHERE id = 1;", true},

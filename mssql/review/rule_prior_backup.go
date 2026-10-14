@@ -202,7 +202,8 @@ func fromNames(from *ast.List, ref *ast.TableRef) bool {
 			case v == ref:
 				names = true
 			case v.Alias != "":
-				names = names || sameName(v.Alias, ref.Object)
+				// An alias names only an unqualified target.
+				names = names || ref.Schema == "" && ref.Database == "" && ref.Server == "" && sameName(v.Alias, ref.Object)
 			default:
 				names = names || sameObject(v, ref)
 			}
@@ -319,6 +320,16 @@ func madeByChange(stmts []statement) changeMade {
 				m.relations = append(m.relations, v.IntoTable)
 			}
 		case *ast.CreateSynonymStmt:
+			if v.Name != nil {
+				m.relations = append(m.relations, v.Name)
+			}
+		case *ast.CreateTableAsSelectStmt:
+			// CREATE TABLE AS SELECT of Azure Synapse.
+			if v.Name != nil {
+				m.relations = append(m.relations, v.Name)
+			}
+		case *ast.CreateTableCloneStmt:
+			// CREATE TABLE ... AS CLONE OF of Microsoft Fabric.
 			if v.Name != nil {
 				m.relations = append(m.relations, v.Name)
 			}

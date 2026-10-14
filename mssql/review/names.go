@@ -35,6 +35,16 @@ func regularIdent(name string) bool {
 	return true
 }
 
+// dotted writes a name the parser keeps as one dotted string, such as
+// schema.object, part by part.
+func dotted(name string) string {
+	parts := strings.Split(name, ".")
+	for i, p := range parts {
+		parts[i] = ident(p)
+	}
+	return strings.Join(parts, ".")
+}
+
 // sameQualifiers reports whether two references write the same server,
 // database, and schema, or both none: a reference without a schema means
 // the session's default schema, which the review does not know.

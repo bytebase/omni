@@ -65,11 +65,22 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 			report(v.Loc, kind, names...)
 		case *ast.SecurityStmt:
 			if strings.EqualFold(v.Action, "DROP") {
-				report(v.Loc, strings.ToLower(v.ObjectType), ident(v.Name))
+				names := []string{dotted(v.Name)}
+				// DROP EVENT NOTIFICATION n1, n2 keeps the rest apart.
+				if v.Options != nil {
+					for _, item := range v.Options.Items {
+						if o, ok := item.(*ast.EventNotificationOption); ok {
+							for _, extra := range o.ExtraNames {
+								names = append(names, dotted(extra))
+							}
+						}
+					}
+				}
+				report(v.Loc, strings.ToLower(v.ObjectType), names...)
 			}
 		case *ast.ServiceBrokerStmt:
 			if strings.EqualFold(v.Action, "DROP") {
-				report(v.Loc, strings.ToLower(v.ObjectType), ident(v.Name))
+				report(v.Loc, strings.ToLower(v.ObjectType), dotted(v.Name))
 			}
 		case *ast.SecurityKeyStmt:
 			if strings.EqualFold(v.Action, "DROP") {

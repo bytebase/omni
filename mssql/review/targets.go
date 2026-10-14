@@ -135,7 +135,8 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 	}
 	if x.schema != nil {
 		for _, d := range work.drops {
-			if usesDatabase(stmts, d.position) {
+			// A USE in a block of the statement itself counts too.
+			if usesDatabase(stmts, d.position+1) {
 				continue
 			}
 			t := x.table(d.alter.Name)
@@ -149,7 +150,7 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 			reportDrop(stmts, d.position, &stmts[d.position], d.loc, d.alter, kind, d.name, d.nested, work.on, r)
 		}
 		for _, rn := range work.renames {
-			if usesDatabase(stmts, rn.position) {
+			if usesDatabase(stmts, rn.position+1) {
 				continue
 			}
 			if kind := x.relationKind(rn.name); kind != "" {

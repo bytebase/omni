@@ -245,6 +245,15 @@ func TestDisallowDropObject(t *testing.T) {
 			sql:  "DROP STATISTICS t.s1, dbo.t.s2;",
 			want: []finding{{0, "DROP STATISTICS t.s1, dbo.t.s2", "drops statistics t.s1, dbo.t.s2", []int{0}}},
 		},
+		{
+			name: "dotted and listed names of DROP",
+			sql:  "DROP EXTERNAL TABLE dbo.t;\nDROP EVENT NOTIFICATION n1, n2 ON SERVER;\nDROP QUEUE dbo.q;",
+			want: []finding{
+				{0, "DROP EXTERNAL TABLE dbo.t", "drops external table dbo.t", []int{0}},
+				{1, "DROP EVENT NOTIFICATION n1, n2 ON SERVER", "drops event notification n1, n2", []int{0}},
+				{2, "DROP QUEUE dbo.q", "drops queue dbo.q", []int{0}},
+			},
+		},
 	})
 }
 
@@ -316,6 +325,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 		{
 			name: "a USE in a block",
 			sql:  "BEGIN USE other; END;\nALTER TABLE t DROP CONSTRAINT ck_n;",
+		},
+		{
+			name: "a USE before a drop in the same block",
+			sql:  "BEGIN USE other; ALTER TABLE t DROP CONSTRAINT ck_n; END;",
 		},
 		{
 			name: "a constraint defined on a table of another database",
@@ -456,6 +469,15 @@ func TestPriorBackup(t *testing.T) {
 			want: []finding{
 				{1, "UPDATE dbo.n9 SET a = 2 WHERE a = 1", "prior backup runs before the change, when dbo.n9 does not exist yet", []int{0}},
 				{3, "UPDATE dbo.t SET code = '' WHERE m2 = 1", "prior backup runs before the change, when column m2 of dbo.t does not exist yet", []int{0}},
+			},
+		},
+		{
+			name:   "tables CTAS and CLONE make, and an alias that cannot bind a qualified target",
+			sql:    "CREATE TABLE n10 WITH (DISTRIBUTION = ROUND_ROBIN) AS SELECT 1 AS id;\nUPDATE n10 SET id = 2 WHERE id = 1;\nUPDATE dbo.t SET n = t.id FROM dbo.p AS t;",
+			change: backup,
+			want: []finding{
+				{1, "UPDATE n10 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n10 does not exist yet", []int{0}},
+				{2, "UPDATE dbo.t SET n = t.id FROM dbo.p AS t", "prior backup selects dbo.t.* from the statement's FROM list, which does not name it", []int{0}},
 			},
 		},
 		{
