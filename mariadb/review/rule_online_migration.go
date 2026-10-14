@@ -220,7 +220,7 @@ func isTrue(v string) bool {
 //
 // gh-ost also refuses a view, and a table whose unique keys are all of
 // expressions, which its key query cannot see, or all hold a nullable
-// column: it takes the primary key, else a unique key without one, first,
+// column, or a FLOAT or JSON one, which it skips: it takes the primary key, else a unique key without one, first,
 // and bails out on a nullable key without allow-nullable-unique-key, a
 // flag Bytebase does not pass.
 func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaIndex, r *reporter) {
@@ -252,8 +252,10 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	switch {
 	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() && !functionalKey(tbl, i) }):
 		at("online migration needs a primary or unique key on " + name + ", which has none")
-	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() && !nullableKey(tbl, i) }):
-		at("online migration needs a primary key or a unique key of NOT NULL columns on " + name + ", which has none")
+	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool {
+		return (i.GetPrimary() || i.GetUnique() && !nullableKey(tbl, i)) && !floatOrJSONKey(tbl, i)
+	}):
+		at("online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on " + name + ", which has none")
 	}
 	if len(tbl.GetForeignKeys()) > 0 {
 		at("online migration does not support " + name + ", which has a foreign key")
@@ -279,6 +281,23 @@ func functionalKey(t *metadata.TableMetadata, idx *metadata.IndexMetadata) bool 
 		}
 	}
 	return true
+}
+
+// floatOrJSONKey reports whether an index holds a column whose type gh-ost
+// will not copy by, FLOAT or JSON: it skips such a key.
+//
+// gh-ost (bytebase/gh-ost2): go/logic/inspect.go — applyColumnTypes,
+// InspectOriginalAndGhostTables.
+func floatOrJSONKey(t *metadata.TableMetadata, idx *metadata.IndexMetadata) bool {
+	for _, part := range idx.GetExpressions() {
+		for _, c := range t.GetColumns() {
+			typ := strings.ToLower(c.GetType())
+			if strings.EqualFold(c.GetName(), part) && (strings.Contains(typ, "float") || strings.Contains(typ, "json")) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // nullableKey reports whether an index certainly holds a nullable column:
