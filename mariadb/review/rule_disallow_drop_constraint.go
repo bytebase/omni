@@ -60,8 +60,10 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		return index{}, false
 	}
 	// inBody is whether the statement read is a routine, trigger, or
-	// event definition.
-	inBody := false
+	// event definition, and foreign whether that body resolves an
+	// unqualified table in a database the definition names, which may not
+	// be the target's.
+	inBody, foreign := false, false
 	touch := func(ref *ast.TableRef, name string, unique bool) {
 		if name != "" {
 			touched = append(touched, index{ref, name, unique, inBody})
@@ -93,6 +95,9 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 	}
 	var open []droppedIndex
 	droppedName := func(pos int, s *statement, loc ast.Loc, ref *ast.TableRef, name string) {
+		if foreign && ref.Schema == "" {
+			return
+		}
 		i, ok := find(ref, name)
 		switch {
 		case ok && !sameCase(i.table, ref):
@@ -109,9 +114,15 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		// A routine, trigger, or event definition changes nothing until
 		// its body runs: what the body does only keeps its own later
 		// drops from being judged, then is forgotten.
-		inBody = false
+		inBody, foreign = false, false
 		var keptTouched []index
 		var keptReplaced []*ast.TableRef
+		switch v := s.node.(type) {
+		case *ast.CreateFunctionStmt:
+			foreign = v.Name != nil && v.Name.Schema != ""
+		case *ast.CreateTriggerStmt:
+			foreign = v.Table != nil && v.Table.Schema != ""
+		}
 		switch s.node.(type) {
 		case *ast.CreateFunctionStmt, *ast.CreateTriggerStmt, *ast.CreateEventStmt, *ast.AlterEventStmt:
 			inBody = true
