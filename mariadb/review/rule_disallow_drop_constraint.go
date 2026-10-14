@@ -37,13 +37,18 @@ type droppedIndex struct {
 // where table names are case-sensitive, or the database differs, it is
 // another table. What a routine,
 // trigger, or event body does runs only when it runs, so the body's own
-// drops are reported, read against what the body did before them, but the
-// body touches no index the rest of the change reads.
+// drops are reported, except one of an index the body itself touched or
+// on a table it made, and the body touches no index the rest of the
+// change reads.
 func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []droppedIndex {
 	type index struct {
 		table  *ast.TableRef
 		name   string
 		unique bool
+		// unsure is an index a routine, trigger, or event body touched:
+		// which of its statements ran before a later one depends on the
+		// body's control flow, so a drop of it is not judged.
+		unsure bool
 	}
 	var touched []index
 	find := func(ref *ast.TableRef, name string) (index, bool) {
@@ -54,9 +59,12 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		}
 		return index{}, false
 	}
+	// inBody is whether the statement read is a routine, trigger, or
+	// event definition.
+	inBody := false
 	touch := func(ref *ast.TableRef, name string, unique bool) {
 		if name != "" {
-			touched = append(touched, index{ref, name, unique})
+			touched = append(touched, index{ref, name, unique, inBody})
 		}
 	}
 	// forget drops what the change touched on a table of the name, which
@@ -88,6 +96,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		i, ok := find(ref, name)
 		switch {
 		case ok && !sameCase(i.table, ref):
+		case ok && i.unsure:
 		case ok && i.unique:
 			r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), "drops unique key "+ident(name)+" of "+table(ref))
 		case !ok && !isReplaced(ref):
@@ -98,14 +107,14 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 	for pos := range stmts {
 		s := &stmts[pos]
 		// A routine, trigger, or event definition changes nothing until
-		// its body runs: what the body does is followed through the body,
-		// then forgotten.
-		body := false
+		// its body runs: what the body does only keeps its own later
+		// drops from being judged, then is forgotten.
+		inBody = false
 		var keptTouched []index
 		var keptReplaced []*ast.TableRef
 		switch s.node.(type) {
 		case *ast.CreateFunctionStmt, *ast.CreateTriggerStmt, *ast.CreateEventStmt, *ast.AlterEventStmt:
-			body = true
+			inBody = true
 			keptTouched, keptReplaced = slices.Clone(touched), slices.Clone(replaced)
 		}
 		ast.Inspect(s.node, func(n ast.Node) bool {
@@ -202,7 +211,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 			}
 			return true
 		})
-		if body {
+		if inBody {
 			touched, replaced = keptTouched, keptReplaced
 		}
 	}
