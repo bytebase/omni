@@ -967,6 +967,10 @@ func (p *Parser) parsePackageFuncDecl(level subprogramLevel) (*nodes.CreateFunct
 
 // parseParameterList parses a parenthesized parameter list: ( param1, param2, ... )
 func (p *Parser) parseParameterList() (*nodes.List, error) {
+	// A parameter's default is a PL/SQL expression: Oracle 23ai takes
+	// PROCEDURE p (x pkg.ai := pkg.ai(1 => 2)).
+	defer p.restorePLSQLCode(p.setPLSQLCode(true))
+
 	params := &nodes.List{}
 	p.advance() // consume '('
 

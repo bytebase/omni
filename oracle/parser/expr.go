@@ -1029,13 +1029,20 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			})
 		}
-		if name1 == "EXTRACT" {
+		// A quoted name is the user's, never the special function it spells
+		// (ORA-00907 on Oracle 23ai for "EXTRACT"(YEAR FROM SYSDATE)). An
+		// unquoted one is special in its own syntax alone: EXTRACT in its
+		// datetime form, and XMLQUERY and XMLCAST in SQL, which PL/SQL code
+		// does not call (PLS-00306, PLS-00122). Otherwise the call may
+		// construct a local type of that name, as Oracle 23ai compiles
+		// TYPE extract IS TABLE OF NUMBER ...; x extract := extract(1 => 2).
+		switch {
+		case p.quotedAt(start):
+		case name1 == "EXTRACT" && p.atExtractDatetime():
 			return p.parseExtractExpr(start)
-		}
-		if name1 == "XMLQUERY" {
+		case name1 == "XMLQUERY" && !p.plsqlCode:
 			return p.parseXMLQueryExpr(start)
-		}
-		if name1 == "XMLCAST" {
+		case name1 == "XMLCAST" && !p.plsqlCode:
 			return p.parseXMLCastExpr(start)
 		}
 		// But first check if this looks like a schema-qualified function: name.name(
@@ -1130,6 +1137,100 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
+// atExtractDatetime reports whether the arguments after the current '('
+// are EXTRACT's datetime form: a field, then FROM.
+func (p *Parser) atExtractDatetime() bool {
+	field := p.peekNext()
+	if field.Type == tokQIDENT {
+		return false
+	}
+	switch field.Str {
+	case "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND",
+		"TIMEZONE_HOUR", "TIMEZONE_MINUTE", "TIMEZONE_REGION", "TIMEZONE_ABBR":
+		return NewLexerRange(p.source, field.End, p.lexer.end).NextToken().Type == kwFROM
+	}
+	return false
+}
+
+// atTrimSyntax reports whether the arguments of a call, from the current
+// token after its '(', take TRIM's own syntax: LEADING, TRAILING, or BOTH
+// first, or a FROM among them. TRIM(x) reads alike either way.
+func (p *Parser) atTrimSyntax() bool {
+	if p.cur.Type != tokQIDENT {
+		switch p.cur.Str {
+		case "LEADING", "TRAILING", "BOTH":
+			return true
+		}
+	}
+	// Nested calls ask about nested groups: one pass over the rest of the
+	// range answers them all, which scanning each call's group anew would
+	// make quadratic in the nesting.
+	if p.prev.Type == '(' {
+		if _, ok := p.groupFroms[p.cur.Loc]; !ok {
+			p.groupFroms = decideGroupFroms(p.source, p.prev.Loc, p.lexer.end)
+		}
+		if from, ok := p.groupFroms[p.cur.Loc]; ok {
+			return from
+		}
+	}
+	lex := NewLexerRange(p.source, p.cur.Loc, p.lexer.end)
+	depth := 1
+	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth--; depth == 0 {
+				return false
+			}
+		case kwFROM:
+			if depth == 1 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// decideGroupFroms lexes source[start:end] and reports, for each
+// parenthesized group, by the offset of the token after its '(', whether a
+// FROM stands at the group's own depth before its ')'.
+func decideGroupFroms(source string, start, end int) map[int]bool {
+	type group struct {
+		key  int
+		from bool
+	}
+	froms := map[int]bool{}
+	var open []group
+	lex := NewLexerRange(source, start, end)
+	opened := false
+	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
+		if opened {
+			open[len(open)-1].key = tok.Loc
+			opened = false
+		}
+		switch tok.Type {
+		case '(':
+			open = append(open, group{key: -1})
+			opened = true
+		case ')':
+			if len(open) == 0 {
+				return froms
+			}
+			g := open[len(open)-1]
+			open = open[:len(open)-1]
+			if g.key >= 0 {
+				froms[g.key] = g.from
+			}
+		case kwFROM:
+			if len(open) > 0 {
+				open[len(open)-1].from = true
+			}
+		}
+	}
+	return froms
+}
+
 // parseExtractExpr parses Oracle EXTRACT(datetime_field FROM expr).
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/EXTRACT-datetime.html
@@ -1137,36 +1238,6 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 //	EXTRACT({ YEAR | MONTH | DAY | HOUR | MINUTE | SECOND } FROM expr)
 func (p *Parser) parseExtractExpr(start int) (nodes.ExprNode, error) {
 	p.advance() // consume '('
-
-	if !(p.isIntervalField() && p.peekNext().Type == kwFROM) {
-		fc := &nodes.FuncCallExpr{
-			FuncName: &nodes.ObjectName{Name: "EXTRACT", Loc: nodes.Loc{Start: start, End: p.prev.End}},
-			Args:     &nodes.List{},
-			Loc:      nodes.Loc{Start: start},
-		}
-		if p.cur.Type != ')' {
-			for {
-				arg, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if arg == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				fc.Args.Items = append(fc.Args.Items, arg)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-		}
-		if p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		fc.Loc.End = p.prev.End
-		return p.parseFuncCallPostfix(fc)
-	}
 
 	field, parseErr713 := p.parseIdentifier()
 	if parseErr713 != nil {
@@ -1314,6 +1385,11 @@ func (p *Parser) parseOuterJoinIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 	return cr, nil
 }
 
+// quotedAt reports whether the source has a quoted identifier at offset.
+func (p *Parser) quotedAt(offset int) bool {
+	return offset >= 0 && offset < len(p.source) && p.source[offset] == '"'
+}
+
 // parseFuncCall parses a function call after the name has been consumed.
 // The opening '(' is the current token.
 func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, error) {
@@ -1351,7 +1427,11 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		p.advance()
 	}
 
-	if schema == "" && name == "TRIM" {
+	// TRIM's own syntax makes the builtin; otherwise the call may name a
+	// type or function of the user's (Oracle 23ai compiles TRIM(1 => 2)
+	// and "TRIM"(1 => 2) for a local collection type of that name).
+	builtinTrim := schema == "" && name == "TRIM" && !p.quotedAt(start) && p.atTrimSyntax()
+	if builtinTrim {
 		if err := p.parseTrimFuncArgs(fc); err != nil {
 			return nil, err
 		}
@@ -1361,43 +1441,68 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		return p.parseFuncCallPostfix(fc)
 	}
 
-	// Arguments. A positional argument after a named one is PLS-00312 on
-	// Oracle 23ai, in SQL and PL/SQL calls alike.
+	// Arguments. In PL/SQL they are also the explicit choices of a
+	// qualified expression, t('k' => v), t(1..3 => 0), t(FOR i IN 1..3 => i).
+	// A positional argument, a SEQUENCE iterator choice among them, after
+	// a named one or an explicit choice is PLS-00312 on Oracle 23ai, and a
+	// choice after OTHERS is PLS-00851; a named argument after OTHERS =>
+	// makes OTHERS a parameter's name.
 	if p.cur.Type != ')' {
-		sawNamed := false
+		sawNamed, sawOthers := false, false
 		for {
-			arg, parseErr714 := p.parseExpr()
+			var arg nodes.ExprNode
+			var parseErr714 error
+			argStart := p.pos()
+			if p.plsqlCode && p.atQualifiedChoice() {
+				arg, parseErr714 = p.parseChoiceAssoc(nil, argStart)
+			} else {
+				arg, parseErr714 = p.parseExpr()
+			}
 			if parseErr714 != nil {
 				return nil, parseErr714
 			}
-			if p.cur.Type == tokASSOC {
+			if arg == nil {
+				// An argument left out, as in f(1,) or f(,1): Oracle 23ai
+				// rejects both (ORA-00936 in SQL, PLS-00103 in PL/SQL).
+				return nil, p.syntaxErrorAtCur()
+			}
+			if p.plsqlCode && p.continuesQualifiedChoice(arg) {
+				if arg, parseErr714 = p.parseChoiceAssoc(arg, argStart); parseErr714 != nil {
+					return nil, parseErr714
+				}
+			} else if p.cur.Type == tokASSOC {
 				named, err := p.parseNamedArgExpr(arg)
 				if err != nil {
 					return nil, err
 				}
 				arg = named
-				sawNamed = true
-			} else if sawNamed && arg != nil {
+			}
+			if sawOthers {
+				// After OTHERS =>, a named argument says OTHERS named a
+				// parameter, as Oracle 23ai calls p(others => 1, b => 2);
+				// any other argument follows the OTHERS choice of a
+				// qualified expression (PLS-00851).
+				if _, named := arg.(*nodes.NamedArgExpr); !named {
+					return nil, p.syntaxErrorAtNode(arg)
+				}
+				last := len(fc.Args.Items) - 1
+				others := fc.Args.Items[last].(*nodes.ChoiceAssocExpr)
+				fc.Args.Items[last] = &nodes.NamedArgExpr{Name: "OTHERS", Expr: others.Value, Loc: others.Loc}
+				sawOthers = false
+			}
+			positional := true
+			switch a := arg.(type) {
+			case *nodes.NamedArgExpr:
+				positional = false
+			case *nodes.ChoiceAssocExpr:
+				positional = a.Sequence
+				sawOthers = a.Others
+			}
+			if positional && sawNamed {
 				return nil, p.syntaxErrorAtNode(arg)
 			}
-			if schema == "" && name == "TRIM" && p.cur.Type == kwFROM {
-				if arg != nil {
-					fc.Args.Items = append(fc.Args.Items, arg)
-				}
-				p.advance()
-				source, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if source == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				fc.Args.Items = append(fc.Args.Items, source)
-				break
-			}
-			if arg != nil {
-				fc.Args.Items = append(fc.Args.Items, arg)
-			}
+			sawNamed = sawNamed || !positional
+			fc.Args.Items = append(fc.Args.Items, arg)
 			if p.cur.Type != ',' {
 				break
 			}
@@ -2350,6 +2455,11 @@ func (p *Parser) parseCursorExpr() (nodes.ExprNode, error) {
 		return &nodes.CursorExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 	}
 	p.advance() // consume '('
+	// PL/SQL has no cursor expression outside the SQL it embeds (PLS-00103
+	// on Oracle 23ai at the SELECT, PLS-00405 for a positional argument).
+	if p.plsqlCode {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	subSel, parseErr746 := p.parseSelectStmt()
 	if parseErr746 != nil {

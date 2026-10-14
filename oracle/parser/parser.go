@@ -33,6 +33,12 @@ type Parser struct {
 	// decideParenQueries fills it in one pass.
 	parenQueries map[int]parenQuery
 
+	// groupFroms tells, for each parenthesized group from the first TRIM
+	// call atTrimSyntax met to the end of the range, by the offset of the
+	// token after its '(', whether a FROM stands at the group's own depth.
+	// decideGroupFroms fills it in one pass.
+	groupFroms map[int]bool
+
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
 	typeMods typeModMode
@@ -68,6 +74,24 @@ type Parser struct {
 	// inAnonymousBlock is set while a top-level anonymous block is parsed:
 	// Oracle 23ai rejects RESULT_CACHE on any subprogram in one (PLS-00999).
 	inAnonymousBlock bool
+
+	// plsqlCode is set while a PL/SQL declaration or statement is parsed,
+	// and cleared in the SQL statements it embeds: the expressions of
+	// PL/SQL alone take the choices of a qualified expression.
+	plsqlCode bool
+}
+
+// setPLSQLCode sets plsqlCode and returns its previous value, for
+// restorePLSQLCode: defer p.restorePLSQLCode(p.setPLSQLCode(true)).
+func (p *Parser) setPLSQLCode(plsql bool) bool {
+	saved := p.plsqlCode
+	p.plsqlCode = plsql
+	return saved
+}
+
+// restorePLSQLCode restores plsqlCode to what setPLSQLCode returned.
+func (p *Parser) restorePLSQLCode(saved bool) {
+	p.plsqlCode = saved
 }
 
 // parseAnonymousBlock parses a top-level anonymous block, noting that its

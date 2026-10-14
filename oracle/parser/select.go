@@ -53,6 +53,8 @@ import (
 //	qualify_clause:
 //	    QUALIFY condition
 func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
+	defer p.restorePLSQLCode(p.setPLSQLCode(false))
+
 	start := p.pos()
 	sel := &nodes.SelectStmt{
 		TargetList: &nodes.List{},

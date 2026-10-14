@@ -82,6 +82,8 @@ const (
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
 func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
+	defer p.restorePLSQLCode(p.setPLSQLCode(false))
+
 	start := p.pos()
 	p.advance() // consume UPDATE
 
@@ -599,6 +601,8 @@ func selectListHasStar(list *nodes.List) bool {
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
 func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
+	defer p.restorePLSQLCode(p.setPLSQLCode(false))
+
 	start := p.pos()
 	p.advance() // consume DELETE
 
