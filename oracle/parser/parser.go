@@ -340,8 +340,8 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 			p.restore(snap)
 			p.lexer.ccChoices = sel.choices
 			p.lexer.ccFacts = &ccFacts{byCond: map[string]ccFact{}}
-			// The CASE pre-scan read another selection.
-			p.caseKinds = nil
+			// The CASE and TRIM pre-scans read another selection.
+			p.caseKinds, p.groupFroms = nil, nil
 		}
 		stmt, err := p.parseCheckedStmt(textStart, stmtLoc)
 		if err == nil && p.ccDelimiters {

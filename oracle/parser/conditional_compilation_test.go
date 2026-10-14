@@ -689,6 +689,10 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	// The CASE pre-scan reads the selection being parsed, where a column
 	// may be named CASE (Oracle 23ai compiles this block).
 	ParseAndCheck(t, "DECLARE x NUMBER; BEGIN x := CASE WHEN 1=1 THEN 1 END; $IF $$flag $THEN $ERROR 'bad' $END $ELSE SELECT case + 1 INTO x FROM t; $END END;")
+	// So does the TRIM pre-scan, which tells TRIM's own syntax by a FROM in
+	// its group: the selection that compiles here, with $$a unset in Oracle
+	// 23ai, is TRIM('a' FROM 'b').
+	ParseAndCheck(t, "DECLARE x VARCHAR2(10); BEGIN x := TRIM('a' $IF $$a $THEN , 'b' $ELSE FROM 'b' $END); $IF $$a $THEN garbage garbage; $END END;")
 
 	// A string literal holds 32767 bytes, in code a directive skips too
 	// (PLS-00172, ORA-01704), and a static concatenation as many (PLS-00174).
