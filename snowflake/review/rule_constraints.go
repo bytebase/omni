@@ -237,7 +237,8 @@ func (c *constraintLog) alterTable(later settlers, pos int, s *statement, v *ast
 			c.replace(v.Name)
 			c.replace(a.NewName)
 		case ast.AlterTableDropConstraint:
-			judgePK := top && !addsPrimaryKey(v) && !later.after(pos, v.Name)
+			// IF EXISTS may find no table to drop the key of.
+			judgePK := top && !v.IfExists && !addsPrimaryKey(v) && !later.after(pos, v.Name)
 			switch {
 			case a.IsPrimaryKey:
 				if on[review.DisallowDropConstraint] {
@@ -409,7 +410,9 @@ func settlersOf(sql string, stmts []statement) settlers {
 		ast.Inspect(stmts[pos].node, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.CreateTableStmt:
-				if !v.IfNotExists && !v.Temporary && !v.Volatile {
+				// CREATE OR ALTER changes the table it finds to match, so it
+				// settles it only when the definition may give it a key.
+				if !v.IfNotExists && !v.Temporary && !v.Volatile && (!v.OrAlter || createsPrimaryKey(v) || n == stmts[pos].node && mentionsPrimaryKey(sql, &stmts[pos])) {
 					add(pos, v.Name)
 				}
 			case *ast.AlterTableStmt:

@@ -295,6 +295,11 @@ func TestRequireIsNull(t *testing.T) {
 				{1, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}},
 			},
 		},
+		{
+			name: "RECLUSTER WHERE",
+			sql:  "ALTER TABLE t RECLUSTER WHERE n = NULL;",
+			want: []finding{{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
 	})
 }
 
@@ -490,6 +495,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 		{
 			name: "settled by a column added PRIMARY KEY with another inline constraint",
 			sql:  "CREATE TABLE a (x INT);\nALTER TABLE a ADD COLUMN id INT PRIMARY KEY UNIQUE;",
+		},
+		{
+			name: "not settled by a keyless CREATE OR ALTER, nor judged under IF EXISTS",
+			sql:  "CREATE TABLE a (id INT);\nCREATE OR ALTER TABLE a (id INT);\nALTER TABLE IF EXISTS missing DROP PRIMARY KEY;",
+			want: []finding{{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}}},
 		},
 		{
 			name: "not settled by a schema of another database",

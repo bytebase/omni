@@ -112,6 +112,12 @@ func predicates(root ast.Node) []ast.Node {
 			}
 		case *ast.CreateDynamicTableStmt:
 			add(v.ImmutableWhere)
+		case *ast.AlterTableStmt:
+			for _, a := range v.Actions {
+				if a != nil {
+					add(a.ReclusterWhere)
+				}
+			}
 		case *ast.CreateTaskStmt:
 			add(v.When)
 		case *ast.AlterTaskStmt:
