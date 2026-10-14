@@ -444,6 +444,34 @@ type NamedArgExpr struct {
 func (n *NamedArgExpr) nodeTag()  {}
 func (n *NamedArgExpr) exprNode() {}
 
+// ChoiceAssocExpr is an explicit choice of a PL/SQL qualified expression,
+// an argument of the type's constructor: choices => value, or an iterator
+// choice FOR iterator [ INDEX expr | SEQUENCE ] => value. A choice naming
+// one identifier (a => 1) is a NamedArgExpr.
+type ChoiceAssocExpr struct {
+	Choices  *List          // index or key expressions and *ChoiceRange, joined by |
+	Others   bool           // OTHERS
+	Iterator *PLSQLIterator // FOR iterator of an iterator choice
+	Index    ExprNode       // INDEX expr of an index iterator choice
+	Sequence bool           // SEQUENCE iterator choice
+	Value    ExprNode
+	Loc      Loc
+}
+
+func (n *ChoiceAssocExpr) nodeTag()  {}
+func (n *ChoiceAssocExpr) exprNode() {}
+
+// ChoiceRange is a range of indexes, lower .. upper, in a qualified
+// expression's choice.
+type ChoiceRange struct {
+	Lower ExprNode
+	Upper ExprNode
+	Loc   Loc
+}
+
+func (n *ChoiceRange) nodeTag()  {}
+func (n *ChoiceRange) exprNode() {}
+
 // FieldAccessExpr represents field access on an expression (e.g., collection(i).field).
 type FieldAccessExpr struct {
 	Expr  ExprNode
@@ -2441,22 +2469,71 @@ func (n *PLSQLElsIf) nodeTag() {}
 
 // PLSQLLoop represents a LOOP/WHILE/FOR statement.
 type PLSQLLoop struct {
-	Type        PLSQLLoopType // loop type
-	Label       string        // loop label
-	Condition   ExprNode      // WHILE condition
-	Iterator    string        // FOR iterator variable
-	LowerBound  ExprNode      // FOR lower bound
-	UpperBound  ExprNode      // FOR upper bound
-	Reverse     bool          // REVERSE
-	CursorName  string        // cursor name (for cursor FOR loop)
-	CursorArgs  *List         // cursor arguments
-	CursorQuery StmtNode      // query source for cursor FOR loop
-	Statements  *List         // loop body
-	Loc         Loc           // start location
+	Type        PLSQLLoopType  // loop type
+	Label       string         // loop label
+	Condition   ExprNode       // WHILE condition
+	Iterator    string         // FOR iterator variable
+	LowerBound  ExprNode       // FOR lower bound
+	UpperBound  ExprNode       // FOR upper bound
+	Reverse     bool           // REVERSE
+	CursorName  string         // cursor name (for cursor FOR loop)
+	CursorArgs  *List          // cursor arguments
+	CursorQuery StmtNode       // query source for cursor FOR loop
+	Iteration   *PLSQLIterator // FOR iterator the fields above cannot hold (Oracle 21c)
+	Statements  *List          // loop body
+	Loc         Loc            // start location
 }
 
 func (n *PLSQLLoop) nodeTag()  {}
 func (n *PLSQLLoop) stmtNode() {}
+
+// PLSQLIterator is the iterator of a FOR loop or of an iterator choice:
+// iterand [, iterand] IN iteration_control [, iteration_control]...
+type PLSQLIterator struct {
+	Iterands *List // *PLSQLIterand
+	Controls *List // *PLSQLIterationControl
+	Loc      Loc
+}
+
+func (n *PLSQLIterator) nodeTag() {}
+
+// PLSQLIterand declares a FOR iterand: name [ MUTABLE | IMMUTABLE ] [ datatype ].
+type PLSQLIterand struct {
+	Name       string
+	Mutability string    // MUTABLE, IMMUTABLE, or empty
+	DataType   *TypeName // nil when not declared
+	Loc        Loc
+}
+
+func (n *PLSQLIterand) nodeTag() {}
+
+// PLSQLIterationControl is one qualified iteration control of a FOR
+// iterator: [ REVERSE ] control [ WHILE condition ] [ WHEN condition ].
+type PLSQLIterationControl struct {
+	Kind    string   // RANGE, EXPR (a single expression or a cursor), REPEAT, VALUES OF, INDICES OF, or PAIRS OF
+	Reverse bool     // REVERSE
+	Lower   ExprNode // RANGE lower bound
+	Upper   ExprNode // RANGE upper bound
+	Step    ExprNode // RANGE BY step
+	Expr    ExprNode // the expression, cursor, or collection of the other kinds
+	While   ExprNode // WHILE condition
+	When    ExprNode // WHEN condition
+	Loc     Loc
+}
+
+func (n *PLSQLIterationControl) nodeTag() {}
+
+// DynamicSQLExpr is the dynamic SQL an iteration control iterates over:
+// ( EXECUTE IMMEDIATE dynamic_sql_stmt [ USING bind_argument [, ...] ] ).
+type DynamicSQLExpr struct {
+	SQL        ExprNode // the statement text
+	Using      *List    // USING bind arguments
+	UsingModes []string // IN, OUT, IN OUT, or empty, parallel to Using
+	Loc        Loc
+}
+
+func (n *DynamicSQLExpr) nodeTag()  {}
+func (n *DynamicSQLExpr) exprNode() {}
 
 // PLSQLReturn represents a RETURN statement.
 type PLSQLReturn struct {
@@ -2809,10 +2886,11 @@ func (n *LockTableStmt) stmtNode() {}
 //
 //	CALL [schema.]routine_name ( [args] ) [INTO :bind_variable]
 type CallStmt struct {
-	Name *ObjectName // routine name
-	Args *List       // argument list
-	Into ExprNode    // INTO bind variable
-	Loc  Loc
+	Name    *ObjectName // routine name, with its schema
+	Package string      // package or type of the routine, for schema.package.routine; "" otherwise
+	Args    *List       // argument list
+	Into    ExprNode    // INTO bind variable
+	Loc     Loc
 }
 
 func (n *CallStmt) nodeTag()  {}

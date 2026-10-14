@@ -238,6 +238,12 @@ ref_271	select	reject	SELECT 1 FROM dual WHERE $$x IS NULL	inquiry directive out
 ref_272	plsql	accept	BEGIN $IF NOT TRUE $THEN garbage garbage; $ELSE NULL; $END END;	static Boolean condition folded to FALSE
 ref_273	plsql	reject	BEGIN $IF 1 + 2 $THEN NULL; $END END;	numeric conditional compilation condition (PLS-00382)
 ref_274	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_ccp_{run} $IF TRUE $THEN IS $END BEGIN NULL; END;	directive right after a unit's name (ORA-00911)
+ref_275	plsql	accept	DECLARE TYPE t IS TABLE OF BOOLEAN INDEX BY VARCHAR2(30); x t := t('A' => TRUE, 'B' => FALSE); BEGIN NULL; END;	qualified expression with string keys
+ref_276	plsql	accept	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1|2 => 5, 4..6 => 7, FOR i IN 10..12 => i); BEGIN NULL; END;	choice list, range, and iterator choices
+ref_277	plsql	accept	BEGIN FOR i IN 1..10 BY 2 WHEN i > 3 LOOP NULL; END LOOP; END;	FOR loop with BY and WHEN
+ref_278	plsql	reject	BEGIN FOR i, j IN 1..3 LOOP NULL; END LOOP; END;	two iterands without PAIRS OF (PLS-00856)
+ref_279	select	reject	SELECT UPPER(1 => 'x') FROM dual	choice in a SQL call (ORA-00907)
+ref_280	plsql	reject	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1 => 10, 20); BEGIN NULL; END;	positional value after a choice (PLS-00312)
 ref_281	plsql	accept	BEGIN $IF 1 + 1 = 3 $THEN garbage garbage; $ELSE NULL; $END END;	arithmetic folded in a static condition
 ref_282	plsql	reject	BEGIN $IF ABS(1) $THEN NULL; $END END;	numeric function as a condition (PLS-00382)
 ref_283	plsql	reject	BEGIN $IF TRUE $THEN :n := 1; $END END;	bind variable inside a directive (PLS-00110)
