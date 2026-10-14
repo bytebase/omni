@@ -279,10 +279,10 @@ func textOf(sql string, loc ast.Loc) string {
 
 // changeMade is what the change makes, which the backup, run before all of
 // it, cannot see: the tables, views, and synonyms it creates, SELECT INTO,
-// CREATE SCHEMA, BEGIN ... END, and sp_rename among them, and the columns
-// it adds, renames to with sp_rename, or declares on a table it creates, by the
-// table as written. A statement that may make nothing, IF NOT EXISTS, is
-// left out, and so is what the change makes after a USE.
+// CREATE SCHEMA, BEGIN ... END, sp_rename, and RENAME OBJECT among them,
+// and the columns it adds, renames to, or declares on a table it creates,
+// by the table as written. A statement that may make nothing, IF NOT
+// EXISTS, is left out, and so is what the change makes after a USE.
 type changeMade struct {
 	relations []*ast.TableRef
 	columns   []madeColumn
@@ -329,6 +329,18 @@ func madeByChange(stmts []statement) changeMade {
 					visit(e)
 				}
 			}
+		case *ast.RenameStmt:
+			// RENAME OBJECT, of Azure Synapse and PDW, in the object's schema.
+			if v.Name == nil || strings.EqualFold(v.ObjectType, "DATABASE") {
+				return
+			}
+			if v.ColumnName != "" {
+				m.columns = append(m.columns, madeColumn{v.Name, v.NewColumnName})
+				return
+			}
+			to := *v.Name
+			to.Object = v.NewName
+			m.relations = append(m.relations, &to)
 		case *ast.ExecStmt:
 			// A column or an object sp_rename renames to, in the target's
 			// database.

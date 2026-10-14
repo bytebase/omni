@@ -450,6 +450,15 @@ func TestPriorBackup(t *testing.T) {
 			},
 		},
 		{
+			name:   "a table and a column RENAME OBJECT renames to",
+			sql:    "RENAME OBJECT dbo.nokey TO n9;\nUPDATE dbo.n9 SET a = 2 WHERE a = 1;\nRENAME OBJECT dbo.t COLUMN n TO m2;\nUPDATE dbo.t SET code = '' WHERE m2 = 1;",
+			change: backup,
+			want: []finding{
+				{1, "UPDATE dbo.n9 SET a = 2 WHERE a = 1", "prior backup runs before the change, when dbo.n9 does not exist yet", []int{0}},
+				{3, "UPDATE dbo.t SET code = '' WHERE m2 = 1", "prior backup runs before the change, when column m2 of dbo.t does not exist yet", []int{0}},
+			},
+		},
+		{
 			name:   "a table a BEGIN block makes",
 			sql:    "BEGIN CREATE TABLE n7 (id INT PRIMARY KEY); END;\nUPDATE n7 SET id = 2 WHERE id = 1;",
 			change: backup,
