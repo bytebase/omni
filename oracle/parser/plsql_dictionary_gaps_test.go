@@ -95,6 +95,10 @@ func TestCallStmtArguments(t *testing.T) {
 		"CALL app.audit_pkg.record_change(1, y => 2)",
 		"CALL k.p(y => 2)",
 		"CALL f(1) INTO :x",
+		// A database link's name may hold dots (ORA-04054 only for a
+		// link that does not exist).
+		"CALL app.pkg.proc@remote.example.com()",
+		"CALL pkg.proc@remote.example.com()",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -106,6 +110,11 @@ func TestCallStmtArguments(t *testing.T) {
 		"CALL app.audit_pkg.record_change(1,,2)",
 		"CALL app.audit_pkg.record_change(x => 1, 2)",
 		"CALL k.p(1",
+		// A name follows every dot (ORA-03050).
+		"CALL app. .proc()",
+		"CALL app.(1)",
+		"CALL app.pkg.proc@remote.()",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app. /*x*/ .proc",
 	} {
 		ParseShouldFail(t, sql)
 	}

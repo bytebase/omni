@@ -226,29 +226,47 @@ func (p *Parser) parseLockMode() (string, error) {
 //	[ schema . ] [ { type_name | package_name } . ] routine_name [ @dblink_name ]
 func (p *Parser) parseRoutineName() (*nodes.ObjectName, string, error) {
 	name, err := p.parseObjectName()
-	if err != nil || name == nil || name.Name == "" || name.DBLink != "" || p.cur.Type != '.' {
+	if err != nil || name == nil || name.Name == "" {
 		return name, "", err
 	}
-	p.advance() // consume .
-	routine, err := p.parseIdentifier()
-	if err != nil {
-		return nil, "", err
-	}
-	if routine == "" {
+	// A name follows every dot (ORA-03050 for CALL app. .proc()).
+	if p.prev.Type == '.' {
 		return nil, "", p.syntaxErrorAtCur()
 	}
-	pkg := name.Name
-	name.Name = routine
-	if p.cur.Type == '@' {
-		p.advance() // consume @
-		link, err := p.parseIdentifier()
+	pkg := ""
+	if name.DBLink == "" && p.cur.Type == '.' {
+		p.advance() // consume .
+		routine, err := p.parseIdentifier()
 		if err != nil {
 			return nil, "", err
 		}
-		if link == "" {
+		if routine == "" {
 			return nil, "", p.syntaxErrorAtCur()
 		}
-		name.DBLink = link
+		pkg, name.Name = name.Name, routine
+		if p.cur.Type == '@' {
+			p.advance() // consume @
+			if name.DBLink, err = p.parseIdentifier(); err != nil {
+				return nil, "", err
+			}
+			if name.DBLink == "" {
+				return nil, "", p.syntaxErrorAtCur()
+			}
+		}
+	}
+	// A database link's name may hold dots: Oracle 23ai parses CALL
+	// app.pkg.proc@remote.example.com(), and reports a missing link only
+	// then (ORA-04054).
+	for name.DBLink != "" && p.cur.Type == '.' {
+		p.advance() // consume .
+		part, err := p.parseIdentifier()
+		if err != nil {
+			return nil, "", err
+		}
+		if part == "" {
+			return nil, "", p.syntaxErrorAtCur()
+		}
+		name.DBLink += "." + part
 	}
 	name.Loc.End = p.prev.End
 	return name, pkg, nil
