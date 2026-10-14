@@ -148,7 +148,9 @@ func relationKindAt(stmts []statement, schemas []string, pos int, k tableKey, x 
 				}
 			}
 		case *ast.DropStmt:
-			if v.Names == nil {
+			// An index, a cluster, a trigger, and the like have names of
+			// their own namespaces, which a table's or view's does not share.
+			if v.Names == nil || !sharesTableNamespace(v.ObjectType) {
 				continue
 			}
 			for _, item := range v.Names.Items {
@@ -204,4 +206,17 @@ func relationKindAt(stmts []statement, schemas []string, pos int, k tableKey, x 
 		return ""
 	}
 	return x.relationKind(k)
+}
+
+// sharesTableNamespace reports whether a DROP's object kind names objects
+// of the namespace tables and views share in a schema.
+//
+// oracle: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/Database-Object-Names-and-Qualifiers.html (Schema Object Namespaces)
+func sharesTableNamespace(t ast.ObjectType) bool {
+	switch t {
+	case ast.OBJECT_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATERIALIZED_VIEW, ast.OBJECT_SEQUENCE,
+		ast.OBJECT_SYNONYM, ast.OBJECT_PACKAGE, ast.OBJECT_PROCEDURE, ast.OBJECT_FUNCTION, ast.OBJECT_TYPE:
+		return true
+	}
+	return false
 }

@@ -120,6 +120,16 @@ func conditions(root ast.Node) []ast.Node {
 		case *ast.HierarchicalClause:
 			add(v.StartWith)
 			add(v.ConnectBy)
+		case *ast.ModelRulesClause:
+			add(v.Until)
+		case *ast.MatchRecognizeClause:
+			if v.Definitions != nil {
+				for _, item := range v.Definitions.Items {
+					if t, ok := item.(*ast.ResTarget); ok {
+						add(t.Expr)
+					}
+				}
+			}
 		case *ast.UpdateStmt:
 			add(v.WhereClause)
 		case *ast.DeleteStmt:

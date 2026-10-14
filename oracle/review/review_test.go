@@ -229,6 +229,11 @@ func TestRequireIsNull(t *testing.T) {
 				{1, "new.n = NULL", `"new.n = NULL" is never true; use IS NULL`, []int{0}},
 			},
 		},
+		{
+			name: "MATCH_RECOGNIZE DEFINE",
+			sql:  "SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id PATTERN (a) DEFINE a AS a.n = NULL);",
+			want: []finding{{0, "a.n = NULL", `"a.n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
 	})
 }
 
@@ -322,6 +327,11 @@ func TestDisallowRename(t *testing.T) {
 			name: "after the session moves to another schema",
 			sql:  "ALTER SESSION SET CURRENT_SCHEMA = other;\nRENAME t TO t3;",
 		},
+		{
+			name: "a DROP of another namespace does not hide the table",
+			sql:  "DROP INDEX t;\nRENAME t TO t2;",
+			want: []finding{{1, "RENAME t TO t2", "renames table T to T2", []int{0}}},
+		},
 	})
 }
 
@@ -407,6 +417,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 			},
 		},
 		{
+			name: "not settled by IF NOT EXISTS",
+			sql:  "CREATE TABLE a (id NUMBER);\nCREATE TABLE IF NOT EXISTS a (id NUMBER PRIMARY KEY);",
+			want: []finding{{0, "CREATE TABLE a (id NUMBER)", "creates table A without a primary key", []int{0}}},
+		},
+		{
 			name: "settled by a later key, drop, rename, or create",
 			sql:  "CREATE TABLE a (id NUMBER);\nALTER TABLE a ADD CONSTRAINT pk_a PRIMARY KEY (id);\nCREATE TABLE b (id NUMBER);\nDROP TABLE b;\nCREATE TABLE c (id NUMBER);\nRENAME c TO c2;\nCREATE TABLE d (id NUMBER);\nALTER TABLE d MODIFY (id PRIMARY KEY);\nCREATE TABLE e (id NUMBER);\nALTER TABLE e ADD (k NUMBER PRIMARY KEY);",
 		},
@@ -459,6 +474,17 @@ func TestPriorBackup(t *testing.T) {
 	backup := review.Change{PriorBackup: true, MaxBackupSize: 1 << 20}
 	runCases(t, review.PriorBackup, []ruleCase{
 		{name: "a plain backup", sql: "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM p WHERE id = 2;\nALTER TABLE nokey ADD (b NUMBER);", change: backup},
+		{
+			name:   "a database name with a single quote",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;",
+			change: backup,
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				s := shop()
+				s.Name = "S'HOP"
+				return s
+			}(), BackupDatabaseExists: true}},
+			want: []finding{{-1, "", "prior backup writes the database name S'HOP unescaped into a quoted comment, which its single quote breaks", []int{0}}},
+		},
 		{
 			name:    "no BBDATAARCHIVE",
 			sql:     "UPDATE t SET n = 1 WHERE id = 1;",
@@ -583,6 +609,14 @@ func TestConstraintScanLosesTrack(t *testing.T) {
 		{
 			name: "a renamed table keeps the names of its constraints",
 			sql:  "ALTER TABLE nokey ADD CONSTRAINT c1 CHECK (a > 0);\nRENAME nokey TO nk;\nCREATE TABLE nokey (a NUMBER CONSTRAINT c1 CHECK (a > 0));\nALTER TABLE nokey DROP CONSTRAINT c1;",
+		},
+		{
+			name: "FLASHBACK TABLE to a time, and DROP USER without CASCADE, keep the scan",
+			sql:  "FLASHBACK TABLE t TO TIMESTAMP SYSTIMESTAMP;\nDROP USER missing;\nALTER TABLE t DROP CONSTRAINT ck_n DROP CONSTRAINT fk_p;",
+			want: []finding{
+				{2, "DROP CONSTRAINT ck_n", "drops check constraint CK_N of T", []int{0}},
+				{2, "DROP CONSTRAINT fk_p", "drops foreign key FK_P of T", []int{0}},
+			},
 		},
 		{
 			name: "FLASHBACK TABLE restores a table",

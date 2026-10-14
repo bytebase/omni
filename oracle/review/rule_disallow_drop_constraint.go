@@ -76,8 +76,9 @@ func scanConstraints(sql string, stmts []statement, x schemaIndex, on map[review
 			s.drop(v, cur)
 		case *ast.AdminDDLStmt:
 			// DROP USER ... CASCADE drops the schema's tables, and the
-			// foreign keys other schemas' tables have on them.
-			if strings.EqualFold(v.Action, "DROP") && v.ObjectType == ast.OBJECT_USER && v.Name != nil {
+			// foreign keys other schemas' tables have on them. The parser
+			// does not record CASCADE; the statement's tokens tell.
+			if strings.EqualFold(v.Action, "DROP") && v.ObjectType == ast.OBJECT_USER && v.Name != nil && cascades(s.sql, st.loc) {
 				s.settleWhere(func(k tableKey) bool { return k.schema == v.Name.Name || k.schema == "" || k.schema == unknownSchema })
 				s.cascaded = true
 			}
@@ -88,6 +89,9 @@ func scanConstraints(sql string, stmts []statement, x schemaIndex, on map[review
 		case *ast.FlashbackTableStmt:
 			// FLASHBACK TABLE ... TO BEFORE DROP restores a table, its
 			// constraints renamed; the other forms change its rows.
+			if !v.ToBeforeDrop {
+				break
+			}
 			for _, name := range v.Tables {
 				keys := []tableKey{keyIn(name, cur)}
 				if v.Rename != "" {
@@ -202,8 +206,9 @@ func (s *constraintScan) createTable(st *statement, v *ast.CreateTableStmt, rng 
 		return
 	}
 	k := keyIn(v.Name, cur)
-	s.settle(k)
 	declared := tableConstraints(v)
+	// IF NOT EXISTS of a table the change made does nothing, so it does not
+	// settle the table.
 	if v.IfNotExists {
 		s.touch(k, func(t *tableState) { t.replaced, t.unsure = true, true })
 		for _, c := range declared {
@@ -213,6 +218,7 @@ func (s *constraintScan) createTable(st *statement, v *ast.CreateTableStmt, rng 
 		}
 		return
 	}
+	s.settle(k)
 	// The name was free when the table was made: what the change defined
 	// on a table of the name before is gone with it.
 	for _, d := range s.defined {

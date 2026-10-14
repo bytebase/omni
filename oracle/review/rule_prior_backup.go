@@ -165,6 +165,11 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 	if x.schema != nil && x.schema.GetName() != "" {
 		db = x.schema.GetName()
 	}
+	// The comment Bytebase sets on each copy holds the task's database
+	// name unescaped, in quotes.
+	if strings.Contains(db, "'") && len(backupDMLs(stmts)) > 0 {
+		r.report(review.PriorBackup, -1, review.Range{}, "prior backup writes the database name "+escapeLines(db)+" unescaped into a quoted comment, which its single quote breaks")
+	}
 	type group struct {
 		first    backupDML
 		size     int
@@ -284,6 +289,10 @@ func madeByChange(stmts []statement) changeMade {
 				}
 			}
 		case *ast.CreateViewStmt:
+			if v.Name != nil && !v.OrReplace && !v.IfNotExists {
+				m.relations = append(m.relations, key(v.Name))
+			}
+		case *ast.CreateJsonDualityViewStmt:
 			if v.Name != nil && !v.OrReplace && !v.IfNotExists {
 				m.relations = append(m.relations, key(v.Name))
 			}
