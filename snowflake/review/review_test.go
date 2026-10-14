@@ -218,6 +218,10 @@ func TestRequireWhere(t *testing.T) {
 			name: "a routine body and EXECUTE IMMEDIATE are text",
 			sql:  "CREATE PROCEDURE pr() RETURNS INT LANGUAGE SQL AS $$ BEGIN DELETE FROM t; RETURN 1; END $$;\nEXECUTE IMMEDIATE 'DELETE FROM t';",
 		},
+		{
+			name: "a statement under EXPLAIN, which does not run it",
+			sql:  "EXPLAIN UPDATE t SET n = 1;\nEXPLAIN DELETE FROM t;",
+		},
 	})
 }
 
