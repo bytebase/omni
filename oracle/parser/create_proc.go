@@ -317,10 +317,10 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			return err
 		}
 		// An ordinary pipelined function returns a collection (PLS-00630 for a
-		// predefined scalar or %ROWTYPE result) and is not result-cached
+		// predefined scalar, REF, or %ROWTYPE result) and is not result-cached
 		// (PLS-00999); a named result type is left to the engine.
 		if stmt.Pipelined && stmt.Polymorphic == "" {
-			if _, scalar := p.predefinedTypeName(stmt.ReturnType); scalar {
+			if _, scalar := p.predefinedTypeName(stmt.ReturnType); scalar || stmt.ReturnType != nil && stmt.ReturnType.IsRef {
 				return p.syntaxErrorAtTok(*pipelinedTok)
 			}
 			if resultCacheTok != nil {
@@ -542,14 +542,14 @@ func (p *Parser) notResultCacheable(tn *nodes.TypeName) bool {
 
 // mayBeCharacterType reports whether tn may hold character data: it is not a
 // predefined non-character type (the national character types count as
-// character types) and not a %ROWTYPE record. A SQL macro returns such a
+// character types), a REF, or a %ROWTYPE record. A SQL macro returns such a
 // type (PLS-00776), and item%CHARSET takes its character set from one
 // (PLS-00550). A name the text does not settle is left to the engine.
 func (p *Parser) mayBeCharacterType(tn *nodes.TypeName) bool {
 	if tn == nil {
 		return true
 	}
-	if tn.IsPercRowtype {
+	if tn.IsPercRowtype || tn.IsRef {
 		return false
 	}
 	switch lead := p.predefinedTypeLead(tn); lead {

@@ -237,6 +237,26 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *AlterTypeMethod:
+		for _, item := range n.Params {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Return != nil {
+			Walk(v, n.Return)
+		}
+		if n.ParallelSpec != nil {
+			Walk(v, n.ParallelSpec)
+		}
+		walkList(v, n.Streaming)
+		walkList(v, n.ReliesOn)
+		if n.Implementation != nil {
+			Walk(v, n.Implementation)
+		}
+		if n.CallSpec != nil {
+			Walk(v, n.CallSpec)
+		}
 	case *AlterTypeStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -251,13 +271,10 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
-		for _, item := range n.MethodParams {
+		for _, item := range n.Methods {
 			if item != nil {
 				Walk(v, item)
 			}
-		}
-		if n.MethodReturn != nil {
-			Walk(v, n.MethodReturn)
 		}
 		Walk(v, n.LimitValue)
 		if n.ElementType != nil {
@@ -725,6 +742,10 @@ func walkChildren(v Visitor, node Node) {
 	case *CreateTypeStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		walkList(v, n.AccessibleBy)
+		if n.Under != nil {
+			Walk(v, n.Under)
 		}
 		walkList(v, n.Attributes)
 		walkList(v, n.Methods)
