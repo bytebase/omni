@@ -406,6 +406,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		for _, t := range []int{
 			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, // TiDB has no CREATE FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: CREATE PLACEMENT POLICY
+			kwSEQUENCE,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -473,6 +474,14 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwPLACEMENT:
 		// CREATE [OR REPLACE] PLACEMENT POLICY [IF NOT EXISTS] name opts
 		return p.parseCreatePlacementPolicyStmt(start, orReplace)
+
+	case kwSEQUENCE:
+		// TiDB v8.5.5 has no CREATE OR REPLACE SEQUENCE and no CREATE
+		// TEMPORARY SEQUENCE (parser.y:15462); both reject at SEQUENCE.
+		if orReplace || temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCreateSequenceStmt(start)
 
 	case kwAGGREGATE:
 		// TiDB v8.5.0 has no CREATE [AGGREGATE] FUNCTION (stored or loadable
@@ -580,6 +589,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		for _, t := range []int{
 			kwTABLE, kwDATABASE, kwVIEW, // TiDB has no ALTER FUNCTION/PROCEDURE/EVENT
 			kwPLACEMENT, // TiDB: ALTER PLACEMENT POLICY
+			kwSEQUENCE,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -605,6 +615,9 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwPLACEMENT:
 		// ALTER PLACEMENT POLICY [IF EXISTS] name opts
 		return p.parseAlterPlacementPolicyStmt(start)
+
+	case kwSEQUENCE:
+		return p.parseAlterSequenceStmt(start)
 
 	case kwUSER:
 		return p.parseAlterUserStmt()
@@ -696,6 +709,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		for _, t := range []int{
 			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, kwIF, // TiDB has no DROP FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: DROP PLACEMENT POLICY
+			kwSEQUENCE,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -733,6 +747,13 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	case kwPLACEMENT:
 		// DROP PLACEMENT POLICY [IF EXISTS] name
 		return p.parseDropPlacementPolicyStmt(start)
+
+	case kwSEQUENCE:
+		// TiDB v8.5.5 has no DROP TEMPORARY SEQUENCE (parser.y:15575).
+		if temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseDropSequenceStmt(start)
 
 	case kwUSER:
 		return p.parseDropUserStmt()

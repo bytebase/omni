@@ -918,6 +918,18 @@ const (
 	kwBATCH
 	kwDRY
 	kwRUN
+
+	// TiDB CREATE/ALTER/DROP SEQUENCE keywords — all unreserved upstream
+	// (parser.y:7077-7085). CACHE, MAXVALUE, NO, RESTART, and START
+	// already exist.
+	kwSEQUENCE
+	kwINCREMENT
+	kwMINVALUE
+	kwNOMINVALUE
+	kwNOMAXVALUE
+	kwNOCACHE
+	kwCYCLE
+	kwNOCYCLE
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1763,6 +1775,16 @@ var keywords = map[string]int{
 	"batch": kwBATCH,
 	"dry":   kwDRY,
 	"run":   kwRUN,
+
+	// TiDB CREATE/ALTER/DROP SEQUENCE keywords.
+	"sequence":   kwSEQUENCE,
+	"increment":  kwINCREMENT,
+	"minvalue":   kwMINVALUE,
+	"nominvalue": kwNOMINVALUE,
+	"nomaxvalue": kwNOMAXVALUE,
+	"nocache":    kwNOCACHE,
+	"cycle":      kwCYCLE,
+	"nocycle":    kwNOCYCLE,
 }
 
 // Token represents a lexical token.

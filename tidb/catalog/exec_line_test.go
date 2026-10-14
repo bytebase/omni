@@ -47,3 +47,30 @@ func TestExecResultLineWithDelimiter(t *testing.T) {
 		}
 	}
 }
+
+// TestExecResultLineSequence pins the line of sequence DDL, which the
+// catalog does not model: Exec accepts it without error and reports where
+// each statement starts.
+func TestExecResultLineSequence(t *testing.T) {
+	sql := "CREATE TABLE t1 (id INT);\nCREATE SEQUENCE s1 START WITH 10;\n\nALTER SEQUENCE s1 RESTART;\nDROP SEQUENCE IF EXISTS s1, s2;"
+
+	c := New()
+	c.Exec("CREATE DATABASE test; USE test;", nil) //nolint:errcheck
+
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		t.Fatalf("Exec error: %v", err)
+	}
+	if len(results) != 4 {
+		t.Fatalf("got %d results, want 4", len(results))
+	}
+	wantLines := []int{1, 2, 4, 5}
+	for i, r := range results {
+		if r.Error != nil {
+			t.Errorf("result[%d].Error = %v, want nil", i, r.Error)
+		}
+		if r.Line != wantLines[i] {
+			t.Errorf("result[%d].Line = %d, want %d", i, r.Line, wantLines[i])
+		}
+	}
+}

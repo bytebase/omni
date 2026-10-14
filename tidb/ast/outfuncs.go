@@ -147,6 +147,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDropPlacementPolicyStmt(sb, n)
 	case *PlacementPolicyOption:
 		writePlacementPolicyOption(sb, n)
+	case *CreateSequenceStmt:
+		writeCreateSequenceStmt(sb, n)
+	case *AlterSequenceStmt:
+		writeAlterSequenceStmt(sb, n)
+	case *DropSequenceStmt:
+		writeDropSequenceStmt(sb, n)
+	case *SequenceOption:
+		writeSequenceOption(sb, n)
 	case *DropIndexStmt:
 		writeDropIndexStmt(sb, n)
 	case *DropViewStmt:
@@ -2097,6 +2105,107 @@ func writePlacementPolicyOption(sb *strings.Builder, n *PlacementPolicyOption) {
 		fmt.Fprintf(sb, " :int_value %d", n.IntValue)
 	} else {
 		fmt.Fprintf(sb, " :value %q", n.Value)
+	}
+	sb.WriteString("}")
+}
+
+func writeCreateSequenceStmt(sb *strings.Builder, n *CreateSequenceStmt) {
+	sb.WriteString("{CREATE_SEQUENCE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	writeSequenceOptions(sb, n.Options)
+	if len(n.TableOptions) > 0 {
+		sb.WriteString(" :table_options ")
+		for i, o := range n.TableOptions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterSequenceStmt(sb *strings.Builder, n *AlterSequenceStmt) {
+	sb.WriteString("{ALTER_SEQUENCE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	writeSequenceOptions(sb, n.Options)
+	sb.WriteString("}")
+}
+
+func writeDropSequenceStmt(sb *strings.Builder, n *DropSequenceStmt) {
+	sb.WriteString("{DROP_SEQUENCE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if len(n.Sequences) > 0 {
+		sb.WriteString(" :sequences ")
+		for i, s := range n.Sequences {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeSequenceOptions(sb *strings.Builder, opts []*SequenceOption) {
+	if len(opts) == 0 {
+		return
+	}
+	sb.WriteString(" :options ")
+	for i, o := range opts {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, o)
+	}
+}
+
+func writeSequenceOption(sb *strings.Builder, n *SequenceOption) {
+	sb.WriteString("{SEQUENCE_OPTION")
+	switch n.Type {
+	case SequenceOptionIncrementBy:
+		fmt.Fprintf(sb, " :increment_by %d", n.Value)
+	case SequenceOptionStartWith:
+		fmt.Fprintf(sb, " :start_with %d", n.Value)
+	case SequenceOptionMinValue:
+		fmt.Fprintf(sb, " :minvalue %d", n.Value)
+	case SequenceOptionNoMinValue:
+		sb.WriteString(" :nominvalue")
+	case SequenceOptionMaxValue:
+		fmt.Fprintf(sb, " :maxvalue %d", n.Value)
+	case SequenceOptionNoMaxValue:
+		sb.WriteString(" :nomaxvalue")
+	case SequenceOptionCache:
+		fmt.Fprintf(sb, " :cache %d", n.Value)
+	case SequenceOptionNoCache:
+		sb.WriteString(" :nocache")
+	case SequenceOptionCycle:
+		sb.WriteString(" :cycle")
+	case SequenceOptionNoCycle:
+		sb.WriteString(" :nocycle")
+	case SequenceOptionRestart:
+		sb.WriteString(" :restart")
+	case SequenceOptionRestartWith:
+		fmt.Fprintf(sb, " :restart_with %d", n.Value)
+	default:
+		fmt.Fprintf(sb, " :type ?%d", n.Type)
 	}
 	sb.WriteString("}")
 }
