@@ -164,6 +164,20 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		}
 	}
 	ParseAndCheck(t, "(SELECT a FROM t) FOR UPDATE")
+	// No set operation takes a FOR UPDATE (ORA-01786 at FOR).
+	for _, sql := range []string{
+		"SELECT a FROM t EXCEPT SELECT a FROM t FOR UPDATE",
+		"SELECT a FROM t UNION SELECT a FROM t FOR UPDATE",
+		"SELECT a FROM t MINUS ALL SELECT a FROM t FOR UPDATE OF a",
+		"(SELECT a FROM t) UNION (SELECT a FROM t) FOR UPDATE",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "FOR UPDATE") {
+			t.Errorf("Parse(%q) = %v, want an error at FOR UPDATE", sql, err)
+		}
+	}
+	ParseAndCheck(t, "SELECT a FROM t UNION SELECT a FROM t ORDER BY 1 FETCH FIRST 1 ROWS ONLY")
 
 	// No query block selects * without FROM, wherever it stands, and the
 	// error is at its SELECT (ORA-54058); but for the one block of an

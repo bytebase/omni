@@ -547,7 +547,16 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) error {
 	}
 	var err error
 	sel.Rarg, err = p.parseSelectStmt()
-	return err
+	if err != nil {
+		return err
+	}
+	// The set operation locks no rows: Oracle 23ai rejects a FOR UPDATE
+	// after any operator with ORA-01786 at FOR, as for SELECT a FROM t
+	// EXCEPT SELECT a FROM t FOR UPDATE.
+	if lock := trailingForUpdate(sel.Rarg); lock != nil {
+		return p.syntaxErrorAtNode(lock)
+	}
+	return nil
 }
 
 // parseSelectList parses the select list (target expressions).
