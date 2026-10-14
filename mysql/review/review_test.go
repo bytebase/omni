@@ -547,6 +547,16 @@ func TestPriorBackup(t *testing.T) {
 			want:    []finding{{-1, "", "prior backup needs database bbdataarchive, which does not exist", []int{0}}},
 		},
 		{
+			name:    "a target without a synced schema",
+			sql:     "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;",
+			change:  backup,
+			targets: []review.Target{{}},
+			want: []finding{
+				{-1, "", "prior backup needs database bbdataarchive, which does not exist", []int{0}},
+				{1, "DELETE FROM t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on t", []int{0}},
+			},
+		},
+		{
 			name:   "over the size limit",
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;",
 			change: review.Change{PriorBackup: true, MaxBackupSize: 10},
