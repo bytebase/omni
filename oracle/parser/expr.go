@@ -735,7 +735,7 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 // expression is parsed twice to decide.
 func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
 	if p.caseKinds == nil {
-		p.caseKinds = decideCaseTokens(p.source, p.cur.Loc, p.lexer.end, p.lexer.ccChoices, p.lexer.ccFacts)
+		p.caseKinds = decideCaseTokens(p.selectionLexer(p.cur.Loc))
 	}
 	opensExpression, decided := p.caseKinds[p.cur.Loc]
 	if decided && !opensExpression {
@@ -744,38 +744,22 @@ func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
 	return p.parseCaseExpr()
 }
 
-// selectionLexer returns a lexer for a pre-scan of source[start:end] that
-// reads the conditional compilation branches the parser's own lexer reads:
-// those of the selection it attempts, with the facts it holds so far. The
-// pre-scan starts at the token the parser stands on, maybe inside a
-// branch, so a misplaced directive does not stop it (ccLenient).
-func selectionLexer(source string, start, end int, choices *ccChoices, facts *ccFacts) *Lexer {
-	lexer := NewLexerRange(source, start, end)
-	lexer.ccLenient = true
-	lexer.ccChoices = choices
-	lexer.ccFacts = facts.clone()
-	return lexer
-}
-
-// selectionLexer returns a selectionLexer for a lookahead from start to the
-// end of the parser's range, under the selection the parser attempts.
-// Every lookahead past the parser's own lexer takes one: a fresh
-// NewLexerRange would read the first branch of each undecided $IF.
+// selectionLexer returns a lookahead from start to the end of the parser's
+// range, under the selection the parser attempts (Lexer.lookahead).
 func (p *Parser) selectionLexer(start int) *Lexer {
-	return selectionLexer(p.source, start, p.lexer.end, p.lexer.ccChoices, p.lexer.ccFacts)
+	return p.lexer.lookahead(start, p.lexer.end)
 }
 
-// decideCaseTokens lexes source[start:end], under the selection of
-// conditional compilation branches choices names and the facts it made
-// before start, and reports, for each CASE token, whether it opens a CASE
-// expression. A CASE opens one when the first token
-// after it that can end an operand at its own depth is WHEN: the scan skips
+// decideCaseTokens reads the tokens of lexer, a lookahead under the
+// selection of conditional compilation branches the parser attempts, and
+// reports, for each CASE token, whether it opens a CASE expression. A CASE
+// opens one when the first token after it that can end an operand at its
+// own depth is WHEN: the scan skips
 // parenthesized groups and the CASE expressions that start after it, and
 // stops at WHEN, THEN, ELSE, END, ')', ',', ';', and the reserved words that
 // begin a clause. Deciding right to left with a jump table (stop) visits each
 // token a constant number of times.
-func decideCaseTokens(source string, start, end int, choices *ccChoices, facts *ccFacts) map[int]bool {
-	lexer := selectionLexer(source, start, end, choices, facts)
+func decideCaseTokens(lexer *Lexer) map[int]bool {
 	var toks []Token
 	for {
 		tok := lexer.NextToken()
@@ -1214,7 +1198,7 @@ func (p *Parser) atTrimSyntax() bool {
 	// make quadratic in the nesting.
 	if p.prev.Type == '(' {
 		if _, ok := p.groupFroms[p.cur.Loc]; !ok {
-			p.groupFroms = decideGroupFroms(p.source, p.prev.Loc, p.lexer.end, p.lexer.ccChoices, p.lexer.ccFacts)
+			p.groupFroms = decideGroupFroms(p.selectionLexer(p.prev.Loc))
 		}
 		if from, ok := p.groupFroms[p.cur.Loc]; ok {
 			return from
@@ -1239,18 +1223,17 @@ func (p *Parser) atTrimSyntax() bool {
 	return false
 }
 
-// decideGroupFroms lexes source[start:end] under the selection of
-// conditional compilation branches the parser attempts, and reports, for
-// each parenthesized group, by the offset of the token after its '(',
-// whether a FROM stands at the group's own depth before its ')'.
-func decideGroupFroms(source string, start, end int, choices *ccChoices, facts *ccFacts) map[int]bool {
+// decideGroupFroms reads the tokens of lex, a lookahead under the
+// selection of conditional compilation branches the parser attempts, and
+// reports, for each parenthesized group, by the offset of the token after
+// its '(', whether a FROM stands at the group's own depth before its ')'.
+func decideGroupFroms(lex *Lexer) map[int]bool {
 	type group struct {
 		key  int
 		from bool
 	}
 	froms := map[int]bool{}
 	var open []group
-	lex := selectionLexer(source, start, end, choices, facts)
 	opened := false
 	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
 		if opened {

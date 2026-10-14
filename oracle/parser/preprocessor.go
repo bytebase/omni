@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -28,7 +29,7 @@ func staticCondition(source string, loc nodes.Loc) (ccValue, bool) {
 	if err != nil || expr == nil || sub.cur.Type != tokEOF || sub.staticConditionFault(expr) != nil {
 		return ccUnknown, false
 	}
-	switch staticTruthOf(source, expr) {
+	switch newStaticEval(source).staticTruthOf(expr) {
 	case truthTrue:
 		return ccTrue, true
 	case truthFalse, truthNull:
@@ -47,16 +48,72 @@ const (
 	truthNull
 )
 
+// staticEval evaluates the static expressions of one condition, each node
+// once. A node's value, type, and nullness follow from its operands', and
+// staticRaise asks about every node: computing them anew for each made a
+// condition of 401 summed literals take 2.8 s, and nested NVL calls, which
+// ask several questions of each argument, exponential time. It keeps no
+// character value, only its length and nullness (textInfo), so nested
+// character functions over a long value hold one copy at a time.
+type staticEval struct {
+	source   string
+	truths   map[nodes.ExprNode]staticTruth
+	nulls    map[nodes.ExprNode]staticNullness
+	numbers  map[nodes.ExprNode]staticValue
+	numTypes map[nodes.ExprNode]numType
+	texts    map[nodes.ExprNode]textInfo
+	empties  map[nodes.ExprNode]bool
+}
+
+// staticNullness is what staticNull finds of a node.
+type staticNullness struct{ null, ok bool }
+
+// staticValue is what staticNumber finds of a node.
+type staticValue struct {
+	value *big.Rat
+	ok    bool
+}
+
+// textInfo is what staticText finds of a node, but for the value itself:
+// its length in bytes, whether it is NULL, and whether the text settles it.
+type textInfo struct {
+	length   int
+	null, ok bool
+}
+
+// newStaticEval returns an evaluator for a condition in source.
+func newStaticEval(source string) *staticEval {
+	return &staticEval{
+		source:   source,
+		truths:   map[nodes.ExprNode]staticTruth{},
+		nulls:    map[nodes.ExprNode]staticNullness{},
+		numbers:  map[nodes.ExprNode]staticValue{},
+		numTypes: map[nodes.ExprNode]numType{},
+		texts:    map[nodes.ExprNode]textInfo{},
+		empties:  map[nodes.ExprNode]bool{},
+	}
+}
+
 // staticTruthOf evaluates expr as a static Boolean expression.
-func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
+func (ev *staticEval) staticTruthOf(expr nodes.ExprNode) staticTruth {
+	t, seen := ev.truths[expr]
+	if !seen {
+		t = ev.truthOf(expr)
+		ev.truths[expr] = t
+	}
+	return t
+}
+
+// truthOf computes staticTruthOf.
+func (ev *staticEval) truthOf(expr nodes.ExprNode) staticTruth {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return staticTruthOf(source, e.Expr)
+		return ev.staticTruthOf(e.Expr)
 	case *nodes.NullLiteral:
 		return truthNull
 	case *nodes.ColumnRef:
 		// TRUE and FALSE, not a quoted "TRUE".
-		if e.Schema != "" || e.Table != "" || e.Loc.Start < 0 || e.Loc.Start >= len(source) || source[e.Loc.Start] == '"' {
+		if e.Schema != "" || e.Table != "" || e.Loc.Start < 0 || e.Loc.Start >= len(ev.source) || ev.source[e.Loc.Start] == '"' {
 			return truthUnknown
 		}
 		switch e.Column {
@@ -66,15 +123,15 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 			return truthFalse
 		}
 	case *nodes.BoolExpr:
-		return staticBoolExpr(source, e)
+		return ev.staticBoolExpr(e)
 	case *nodes.FuncCallExpr:
 		// STANDARD's NVL and XOR, the Boolean functions a static
 		// expression may call.
 		if !isStaticBooleanFunction(e) {
 			return truthUnknown
 		}
-		a := staticTruthOf(source, e.Args.Items[0].(nodes.ExprNode))
-		b := staticTruthOf(source, e.Args.Items[1].(nodes.ExprNode))
+		a := ev.staticTruthOf(e.Args.Items[0].(nodes.ExprNode))
+		b := ev.staticTruthOf(e.Args.Items[1].(nodes.ExprNode))
 		switch e.FuncName.Name {
 		case "NVL":
 			if a == truthNull {
@@ -96,7 +153,7 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 		if e.Test != "NULL" {
 			return truthUnknown
 		}
-		null, ok := staticNull(source, e.Expr)
+		null, ok := ev.staticNull(e.Expr)
 		switch {
 		case !ok:
 			return truthUnknown
@@ -105,8 +162,8 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 		}
 		return truthFalse
 	case *nodes.BinaryExpr:
-		left, lnull, lok := staticComparable(source, e.Left)
-		right, rnull, rok := staticComparable(source, e.Right)
+		left, lnull, lok := ev.staticComparable(e.Left)
+		right, rnull, rok := ev.staticComparable(e.Right)
 		switch {
 		case !isComparison(e.Op) || !lok || !rok:
 			return truthUnknown
@@ -150,11 +207,11 @@ func isComparison(op string) bool {
 // staticComparable returns the value of a static number or Boolean that
 // a comparison or IS NULL tests, a Boolean as 0 for FALSE and 1 for TRUE;
 // null when it is NULL; and false when the text does not settle it.
-func staticComparable(source string, expr nodes.ExprNode) (value *big.Rat, null bool, ok bool) {
-	if v, ok := staticNumber(expr); ok {
+func (ev *staticEval) staticComparable(expr nodes.ExprNode) (value *big.Rat, null bool, ok bool) {
+	if v, ok := ev.staticNumber(expr); ok {
 		return v, v == nil, true
 	}
-	switch staticTruthOf(source, expr) {
+	switch ev.staticTruthOf(expr) {
 	case truthTrue:
 		return big.NewRat(1, 1), false, true
 	case truthFalse:
@@ -171,21 +228,31 @@ func staticComparable(source string, expr nodes.ExprNode) (value *big.Rat, null 
 // (NULL when both operands are), NVL, and the functions that keep their
 // argument's nullness: UPPER, LOWER, INITCAP, TO_CHAR, TO_NCHAR, and CHR
 // ('x' IS NULL and 'a' || NULL IS NULL are FALSE).
-func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
-	if _, null, ok := staticComparable(source, expr); ok {
+func (ev *staticEval) staticNull(expr nodes.ExprNode) (null bool, ok bool) {
+	r, seen := ev.nulls[expr]
+	if !seen {
+		r.null, r.ok = ev.nullOf(expr)
+		ev.nulls[expr] = r
+	}
+	return r.null, r.ok
+}
+
+// nullOf computes staticNull.
+func (ev *staticEval) nullOf(expr nodes.ExprNode) (null bool, ok bool) {
+	if _, null, ok := ev.staticComparable(expr); ok {
 		return null, true
 	}
-	if _, null, ok := staticText(expr); ok {
-		return null, true
+	if info := ev.textInfo(expr); info.ok {
+		return info.null, true
 	}
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return staticNull(source, e.Expr)
+		return ev.staticNull(e.Expr)
 	case *nodes.StringLiteral:
 		return e.Val == "", true
 	case *nodes.BinaryExpr:
 		if e.Op == "||" {
-			return staticConcatNull(source, e.Left, e.Right)
+			return ev.staticConcatNull(e.Left, e.Right)
 		}
 	case *nodes.FuncCallExpr:
 		if e.Args == nil {
@@ -194,10 +261,10 @@ func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
 		args := e.Args.Items
 		switch name := staticFunctionName(e); {
 		case name == "CONCAT" && len(args) == 2:
-			return staticConcatNull(source, args[0].(nodes.ExprNode), args[1].(nodes.ExprNode))
+			return ev.staticConcatNull(args[0].(nodes.ExprNode), args[1].(nodes.ExprNode))
 		case name == "NVL" && len(args) == 2:
-			first, firstOK := staticNull(source, args[0].(nodes.ExprNode))
-			second, secondOK := staticNull(source, args[1].(nodes.ExprNode))
+			first, firstOK := ev.staticNull(args[0].(nodes.ExprNode))
+			second, secondOK := ev.staticNull(args[1].(nodes.ExprNode))
 			switch {
 			case firstOK && !first:
 				return false, true
@@ -206,17 +273,17 @@ func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
 			}
 		case len(args) == 1 && (name == "UPPER" || name == "LOWER" || name == "INITCAP" ||
 			name == "TO_CHAR" || name == "TO_NCHAR" || name == "CHR"):
-			return staticNull(source, args[0].(nodes.ExprNode))
+			return ev.staticNull(args[0].(nodes.ExprNode))
 		case (name == "RPAD" || name == "LPAD") && (len(args) == 2 || len(args) == 3):
 			// NULL when an argument is or the length is under 1.
 			nonNull := true
 			for i, arg := range args {
-				null, ok := staticNull(source, arg.(nodes.ExprNode))
+				null, ok := ev.staticNull(arg.(nodes.ExprNode))
 				if ok && null {
 					return true, true
 				}
 				if i == 1 {
-					if n, ok := staticNumber(arg.(nodes.ExprNode)); ok && n != nil && roundRat(n, "ROUND").Sign() <= 0 {
+					if n, ok := ev.staticNumber(arg.(nodes.ExprNode)); ok && n != nil && roundRat(n, "ROUND").Sign() <= 0 {
 						return true, true
 					}
 				}
@@ -239,10 +306,55 @@ func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
 // (position 0 counts as 1 and a negative one from the end), and RPAD and
 // LPAD (which cut the text to their length); numeric arguments round to
 // whole numbers, as Oracle 23ai rounds them (SUBSTR('abc', 3.9) is NULL).
-func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
+func (ev *staticEval) staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
+	text, null, ok = ev.textOf(expr)
+	ev.texts[expr] = textInfo{length: len(text), null: null, ok: ok}
+	return text, null, ok
+}
+
+// textInfo returns what staticText finds of expr but the value: what it
+// found before, or what the operands make of || and CONCAT, which join
+// them, and of UPPER, LOWER, INITCAP, TO_CHAR, and TO_NCHAR, which keep
+// their argument's length and nullness, without building any value.
+func (ev *staticEval) textInfo(expr nodes.ExprNode) textInfo {
+	if info, seen := ev.texts[expr]; seen {
+		return info
+	}
+	var info textInfo
+	if left, right, ok := concatOperands(expr); ok {
+		l, r := ev.textInfo(left), ev.textInfo(right)
+		if l.ok && r.ok && l.length+r.length <= 32767 {
+			info = textInfo{length: l.length + r.length, null: l.null && r.null, ok: true}
+		}
+	} else if arg := sameLengthArg(expr); arg != nil {
+		info = ev.textInfo(arg)
+	} else {
+		ev.staticText(expr)
+		return ev.texts[expr]
+	}
+	ev.texts[expr] = info
+	return info
+}
+
+// sameLengthArg returns the argument of UPPER, LOWER, INITCAP, TO_CHAR, or
+// TO_NCHAR of one, whose value has the length and nullness of the call's.
+func sameLengthArg(expr nodes.ExprNode) nodes.ExprNode {
+	call, ok := unparen(expr).(*nodes.FuncCallExpr)
+	if !ok || call.Args == nil || call.Args.Len() != 1 {
+		return nil
+	}
+	switch staticFunctionName(call) {
+	case "UPPER", "LOWER", "INITCAP", "TO_CHAR", "TO_NCHAR":
+		return call.Args.Items[0].(nodes.ExprNode)
+	}
+	return nil
+}
+
+// textOf computes staticText.
+func (ev *staticEval) textOf(expr nodes.ExprNode) (text string, null bool, ok bool) {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return staticText(e.Expr)
+		return ev.staticText(e.Expr)
 	case *nodes.NullLiteral:
 		return "", true, true
 	case *nodes.StringLiteral:
@@ -254,17 +366,17 @@ func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
 		return e.Val, e.Val == "", true
 	case *nodes.NumberLiteral, *nodes.UnaryExpr, *nodes.BinaryExpr:
 		if b, ok := e.(*nodes.BinaryExpr); ok && b.Op == "||" {
-			return staticConcat(b.Left, b.Right)
+			return ev.concatText(b)
 		}
-		if staticNumType(e) != numPLSInteger {
+		if ev.staticNumType(e) != numPLSInteger {
 			break
 		}
-		if v, ok := staticNumber(e); ok && v != nil && plsInteger(v) {
+		if v, ok := ev.staticNumber(e); ok && v != nil && plsInteger(v) {
 			return strconv.FormatInt(v.Num().Int64(), 10), false, true
 		}
 	case *nodes.FuncCallExpr:
-		if staticNumType(e) == numPLSInteger {
-			if v, ok := staticNumber(e); ok && v != nil && plsInteger(v) {
+		if ev.staticNumType(e) == numPLSInteger {
+			if v, ok := ev.staticNumber(e); ok && v != nil && plsInteger(v) {
 				return strconv.FormatInt(v.Num().Int64(), 10), false, true
 			}
 		}
@@ -277,15 +389,15 @@ func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
 		}
 		switch name := staticFunctionName(e); {
 		case name == "CONCAT" && len(args) == 2:
-			return staticConcat(args[0], args[1])
+			return ev.concatText(e)
 		case name == "NVL" && len(args) == 2:
-			first, null, ok := staticText(args[0])
+			first, null, ok := ev.staticText(args[0])
 			if !ok || !null {
 				return first, null, ok
 			}
-			return staticText(args[1])
+			return ev.staticText(args[1])
 		case (name == "UPPER" || name == "LOWER" || name == "INITCAP" || name == "TO_CHAR" || name == "TO_NCHAR") && len(args) == 1:
-			text, null, ok := staticText(args[0])
+			text, null, ok := ev.staticText(args[0])
 			if !ok || null {
 				return "", null, ok
 			}
@@ -308,19 +420,19 @@ func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
 			}
 			return text, false, true
 		case name == "CHR" && len(args) == 1:
-			n, null, ok := staticWhole(args[0])
+			n, null, ok := ev.staticWhole(args[0])
 			if ok && !null && (n < 1 || n >= utf8.RuneSelf) {
 				return "", false, false
 			}
 			return string(rune(n)), null, ok
 		case (name == "SUBSTR" || name == "SUBSTRB" || name == "SUBSTRC") && (len(args) == 2 || len(args) == 3):
-			text, null, ok := staticText(args[0])
+			text, null, ok := ev.staticText(args[0])
 			if !ok || null {
 				return "", null, ok
 			}
 			var whole []int64
 			for _, arg := range args[1:] {
-				n, null, ok := staticWhole(arg)
+				n, null, ok := ev.staticWhole(arg)
 				if !ok || null {
 					return "", null, ok
 				}
@@ -342,11 +454,11 @@ func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
 			}
 			return text[start:end], false, true
 		case (name == "RPAD" || name == "LPAD") && (len(args) == 2 || len(args) == 3):
-			text, null, ok := staticText(args[0])
+			text, null, ok := ev.staticText(args[0])
 			if !ok || null {
 				return "", null, ok
 			}
-			n, null, ok := staticWhole(args[1])
+			n, null, ok := ev.staticWhole(args[1])
 			switch {
 			case !ok || null:
 				return "", null, ok
@@ -357,7 +469,7 @@ func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
 			}
 			pad := " "
 			if len(args) == 3 {
-				if pad, null, ok = staticText(args[2]); !ok || null {
+				if pad, null, ok = ev.staticText(args[2]); !ok || null {
 					return "", null, ok
 				}
 			}
@@ -374,21 +486,51 @@ func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
 	return "", false, false
 }
 
-// staticConcat returns left || right: NULL when both are. Past 32767
-// bytes it raises (staticRaises) and is no value.
-func staticConcat(left, right nodes.ExprNode) (text string, null bool, ok bool) {
-	l, lnull, lok := staticText(left)
-	r, rnull, rok := staticText(right)
-	if !lok || !rok || len(l)+len(r) > 32767 {
-		return "", false, false
+// concatText returns the value of a || or CONCAT expression: NULL when
+// every operand is. Past 32767 bytes it raises (staticRaises) and is no
+// value. The operands of a chain of them join in one pass: building each
+// prefix of 'a' || 'b' || ... in turn copied the text once per operand.
+func (ev *staticEval) concatText(expr nodes.ExprNode) (text string, null bool, ok bool) {
+	var b strings.Builder
+	null = true
+	stack := []nodes.ExprNode{expr}
+	for len(stack) > 0 {
+		e := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if left, right, ok := concatOperands(e); ok {
+			stack = append(stack, right, left)
+			continue
+		}
+		part, partNull, ok := ev.staticText(e)
+		if !ok || b.Len()+len(part) > 32767 {
+			return "", false, false
+		}
+		b.WriteString(part)
+		null = null && partNull
 	}
-	return l + r, lnull && rnull, true
+	return b.String(), null, true
+}
+
+// concatOperands returns the operands of expr when it is || or CONCAT of
+// two, parenthesized or not.
+func concatOperands(expr nodes.ExprNode) (left, right nodes.ExprNode, ok bool) {
+	switch e := unparen(expr).(type) {
+	case *nodes.BinaryExpr:
+		if e.Op == "||" {
+			return e.Left, e.Right, true
+		}
+	case *nodes.FuncCallExpr:
+		if staticFunctionName(e) == "CONCAT" && e.Args != nil && e.Args.Len() == 2 {
+			return e.Args.Items[0].(nodes.ExprNode), e.Args.Items[1].(nodes.ExprNode), true
+		}
+	}
+	return nil, nil, false
 }
 
 // staticWhole returns a static number rounded to a whole PLS_INTEGER, as
 // a character function's numeric argument rounds.
-func staticWhole(expr nodes.ExprNode) (n int64, null bool, ok bool) {
-	v, ok := staticNumber(expr)
+func (ev *staticEval) staticWhole(expr nodes.ExprNode) (n int64, null bool, ok bool) {
+	v, ok := ev.staticNumber(expr)
 	switch {
 	case !ok:
 		return 0, false, false
@@ -417,10 +559,20 @@ const (
 // ASCII; any other literal, /, **, MOD, ROUND, and the other functions are
 // NUMBER (TO_CHAR(1 + 1) and TO_CHAR(LENGTH('ab')) compile, TO_CHAR(4 / 2),
 // TO_CHAR(MOD(5, 2)), and TO_CHAR(-2147483648) raise).
-func staticNumType(expr nodes.ExprNode) numType {
+func (ev *staticEval) staticNumType(expr nodes.ExprNode) numType {
+	t, seen := ev.numTypes[expr]
+	if !seen {
+		t = ev.numTypeOf(expr)
+		ev.numTypes[expr] = t
+	}
+	return t
+}
+
+// numTypeOf computes staticNumType.
+func (ev *staticEval) numTypeOf(expr nodes.ExprNode) numType {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return staticNumType(e.Expr)
+		return ev.staticNumType(e.Expr)
 	case *nodes.NumberLiteral:
 		if _, ok := plsIntegerLiteral(e); ok {
 			return numPLSInteger
@@ -428,12 +580,12 @@ func staticNumType(expr nodes.ExprNode) numType {
 		return numNumber
 	case *nodes.UnaryExpr:
 		if e.Op == "-" || e.Op == "+" {
-			return staticNumType(e.Operand)
+			return ev.staticNumType(e.Operand)
 		}
 	case *nodes.BinaryExpr:
 		switch e.Op {
 		case "+", "-", "*":
-			return joinNumTypes(staticNumType(e.Left), staticNumType(e.Right))
+			return joinNumTypes(ev.staticNumType(e.Left), ev.staticNumType(e.Right))
 		case "/", "**":
 			return numNumber
 		}
@@ -446,9 +598,9 @@ func staticNumType(expr nodes.ExprNode) numType {
 		case "LENGTH", "LENGTHB", "LENGTHC", "ASCII":
 			return numPLSInteger
 		case "ABS", "SIGN", "BITAND", "NVL":
-			t := staticNumType(args[0].(nodes.ExprNode))
+			t := ev.staticNumType(args[0].(nodes.ExprNode))
 			for _, arg := range args[1:] {
-				t = joinNumTypes(t, staticNumType(arg.(nodes.ExprNode)))
+				t = joinNumTypes(t, ev.staticNumType(arg.(nodes.ExprNode)))
 			}
 			return t
 		default:
@@ -503,9 +655,9 @@ func isASCIIAlnum(c byte) bool {
 }
 
 // staticConcatNull reports whether left || right is NULL: when both are.
-func staticConcatNull(source string, left, right nodes.ExprNode) (null bool, ok bool) {
-	lnull, lok := staticNull(source, left)
-	rnull, rok := staticNull(source, right)
+func (ev *staticEval) staticConcatNull(left, right nodes.ExprNode) (null bool, ok bool) {
+	lnull, lok := ev.staticNull(left)
+	rnull, rok := ev.staticNull(right)
 	switch {
 	case lok && !lnull, rok && !rnull:
 		return false, true
@@ -516,12 +668,12 @@ func staticConcatNull(source string, left, right nodes.ExprNode) (null bool, ok 
 }
 
 // staticBoolExpr evaluates NOT, AND, and OR in three-valued logic.
-func staticBoolExpr(source string, e *nodes.BoolExpr) staticTruth {
+func (ev *staticEval) staticBoolExpr(e *nodes.BoolExpr) staticTruth {
 	if e.Args == nil || e.Args.Len() == 0 {
 		return truthUnknown
 	}
 	if e.Boolop == nodes.BOOL_NOT {
-		switch staticTruthOf(source, e.Args.Items[0].(nodes.ExprNode)) {
+		switch ev.staticTruthOf(e.Args.Items[0].(nodes.ExprNode)) {
 		case truthTrue:
 			return truthFalse
 		case truthFalse:
@@ -539,7 +691,7 @@ func staticBoolExpr(source string, e *nodes.BoolExpr) staticTruth {
 	}
 	result := other
 	for _, item := range e.Args.Items {
-		switch v := staticTruthOf(source, item.(nodes.ExprNode)); v {
+		switch v := ev.staticTruthOf(item.(nodes.ExprNode)); v {
 		case dominant:
 			return dominant
 		case truthUnknown:
@@ -558,16 +710,30 @@ func staticBoolExpr(source string, e *nodes.BoolExpr) staticTruth {
 // arithmetic over values it settles (Oracle 23ai selects the $ELSE of
 // $IF 1 + 1 = 3), or a static numeric function (staticNumericCall). Each
 // value is rounded as Oracle's NUMBER holds it (oracleNumber).
-func staticNumber(expr nodes.ExprNode) (*big.Rat, bool) {
+func (ev *staticEval) staticNumber(expr nodes.ExprNode) (*big.Rat, bool) {
+	r, seen := ev.numbers[expr]
+	if !seen {
+		r.value, r.ok = ev.numberOf(expr)
+		ev.numbers[expr] = r
+	}
+	if r.value == nil {
+		return nil, r.ok
+	}
+	// A copy, as the callers compute in place.
+	return new(big.Rat).Set(r.value), r.ok
+}
+
+// numberOf computes staticNumber.
+func (ev *staticEval) numberOf(expr nodes.ExprNode) (*big.Rat, bool) {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return staticNumber(e.Expr)
+		return ev.staticNumber(e.Expr)
 	case *nodes.NullLiteral:
 		return nil, true
 	case *nodes.NumberLiteral:
 		return staticLiteral(e.Val)
 	case *nodes.UnaryExpr:
-		v, ok := staticNumber(e.Operand)
+		v, ok := ev.staticNumber(e.Operand)
 		switch {
 		case !ok || e.Op != "-" && e.Op != "+":
 			return nil, false
@@ -576,15 +742,15 @@ func staticNumber(expr nodes.ExprNode) (*big.Rat, bool) {
 		}
 		return v.Neg(v), true
 	case *nodes.FuncCallExpr:
-		return staticNumericCall(e)
+		return ev.staticNumericCall(e)
 	case *nodes.BinaryExpr:
 		switch e.Op {
 		case "+", "-", "*", "/", "**":
 		default:
 			return nil, false
 		}
-		left, lok := staticNumber(e.Left)
-		right, rok := staticNumber(e.Right)
+		left, lok := ev.staticNumber(e.Left)
+		right, rok := ev.staticNumber(e.Right)
 		switch {
 		case !lok || !rok:
 			return nil, false
@@ -616,7 +782,7 @@ func staticNumber(expr nodes.ExprNode) (*big.Rat, bool) {
 // LENGTH and LENGTHC of a string literal, and NVL of numbers. A NULL
 // argument makes each NULL (Oracle 23ai selects the $ELSE of
 // $IF ABS(-1) = 2).
-func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
+func (ev *staticEval) staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 	if call.FuncName == nil || call.Args == nil {
 		return nil, false
 	}
@@ -631,34 +797,35 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 	// ASCII read an ASCII one alike in every character set.
 	if (name == "LENGTH" || name == "LENGTHB" || name == "LENGTHC" || name == "ASCII") && call.Args.Len() == 1 {
 		arg := call.Args.Items[0].(nodes.ExprNode)
-		if null, ok := staticNull("", arg); ok && null {
+		if null, ok := ev.staticNull(arg); ok && null {
 			return nil, true
 		}
 		if lit, ok := arg.(*nodes.StringLiteral); ok && (name == "LENGTH" || name == "LENGTHC") {
 			return big.NewRat(int64(utf8.RuneCountInString(lit.Val)), 1), true
 		}
-		text, null, ok := staticText(arg)
+		info := ev.textInfo(arg)
 		switch {
-		case !ok:
+		case !info.ok:
 			return nil, false
-		case null:
+		case info.null:
 			return nil, true
 		case name == "ASCII":
+			text, _, _ := ev.staticText(arg)
 			return big.NewRat(int64(text[0]), 1), true
 		}
-		return big.NewRat(int64(len(text)), 1), true
+		return big.NewRat(int64(info.length), 1), true
 	}
 	if name == "NVL" && call.Args.Len() == 2 {
-		v, ok := staticNumber(call.Args.Items[0].(nodes.ExprNode))
+		v, ok := ev.staticNumber(call.Args.Items[0].(nodes.ExprNode))
 		if !ok || v != nil {
 			return v, ok
 		}
-		return staticNumber(call.Args.Items[1].(nodes.ExprNode))
+		return ev.staticNumber(call.Args.Items[1].(nodes.ExprNode))
 	}
 	var args []*big.Rat
 	null := false
 	for _, item := range call.Args.Items {
-		v, ok := staticNumber(item.(nodes.ExprNode))
+		v, ok := ev.staticNumber(item.(nodes.ExprNode))
 		if !ok {
 			return nil, false
 		}
@@ -872,13 +1039,35 @@ func oracleNumber(r *big.Rat) (*big.Rat, bool) {
 	return n, true
 }
 
-// pow10 returns 10^e.
+// pow10 returns 10^e, which its callers only read: from a table for the
+// exponents NUMBER's rounding and ROUND's scales use, as computing one per
+// rounding was most of a long condition's cost.
 func pow10(e int) *big.Rat {
+	pow10Once.Do(func() {
+		ten, p := big.NewInt(10), big.NewInt(1)
+		for i := 0; i <= pow10Bound; i++ {
+			pow10Table[pow10Bound+i] = new(big.Rat).SetInt(p)
+			pow10Table[pow10Bound-i] = new(big.Rat).SetFrac(big.NewInt(1), p)
+			p = new(big.Int).Mul(p, ten)
+		}
+	})
+	if e >= -pow10Bound && e <= pow10Bound {
+		return pow10Table[pow10Bound+e]
+	}
 	if e < 0 {
 		return new(big.Rat).Inv(pow10(-e))
 	}
 	return new(big.Rat).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(e)), nil))
 }
+
+// pow10Bound bounds the exponents pow10Table holds, past NUMBER's range
+// (1e-130 to 1e126) and ROUND's scales (-200 to 200) both.
+const pow10Bound = 400
+
+var (
+	pow10Once  sync.Once
+	pow10Table [2*pow10Bound + 1]*big.Rat
+)
 
 // roundRat rounds r to a whole number the way CEIL, FLOOR, TRUNC, or ROUND
 // (half away from zero) does.
@@ -1150,16 +1339,16 @@ func (p *Parser) staticConditionFault(expr nodes.ExprNode) nodes.ExprNode {
 	if kind != kindBoolean && kind != kindAny {
 		return expr
 	}
-	return staticRaise(expr)
+	return newStaticEval(p.source).staticRaise(expr)
 }
 
 // staticRaise returns the operation in expr that certainly raises an
 // exception, which makes the condition no static expression (PLS-00174 on
 // Oracle 23ai for $IF FALSE AND 1 / 0 = 0, short-circuit or not).
-func staticRaise(expr nodes.ExprNode) nodes.ExprNode {
+func (ev *staticEval) staticRaise(expr nodes.ExprNode) nodes.ExprNode {
 	var bad nodes.ExprNode
 	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if e, ok := n.(nodes.ExprNode); ok && bad == nil && staticRaises(e) {
+		if e, ok := n.(nodes.ExprNode); ok && bad == nil && ev.staticRaises(e) {
 			bad = e
 		}
 		return bad == nil
@@ -1177,7 +1366,7 @@ func staticRaise(expr nodes.ExprNode) nodes.ExprNode {
 // string as an operand (staticEmpty); and a numeric literal past NUMBER's
 // range (numberOverflows; PLS-00569 for $IF 1e126 > 0). EXP, SINH, and
 // COSH past NUMBER's range raise nothing.
-func staticRaises(e nodes.ExprNode) bool {
+func (ev *staticEval) staticRaises(e nodes.ExprNode) bool {
 	var name string
 	var args []nodes.ExprNode
 	switch e := e.(type) {
@@ -1211,7 +1400,7 @@ func staticRaises(e nodes.ExprNode) bool {
 	// SUBSTR('a', '') raise, TO_CHAR('') IS NULL and UPPER(NULL) do not).
 	if name != "TO_CHAR" && name != "TO_NCHAR" && name != "NVL" {
 		for _, arg := range args {
-			if staticEmpty(arg) {
+			if ev.staticEmpty(arg) {
 				return true
 			}
 		}
@@ -1231,7 +1420,7 @@ func staticRaises(e nodes.ExprNode) bool {
 		}
 	}
 	for _, arg := range converted {
-		if staticNumType(arg) == numNumber {
+		if ev.staticNumType(arg) == numNumber {
 			return true
 		}
 	}
@@ -1240,15 +1429,14 @@ func staticRaises(e nodes.ExprNode) bool {
 	// A static character value holds 32767 bytes at most (Oracle 23ai raises
 	// for RPAD('a', 32767) || 'b').
 	if (name == "||" || name == "CONCAT") && len(args) == 2 {
-		l, _, lok := staticText(args[0])
-		r, _, rok := staticText(args[1])
-		if lok && rok && len(l)+len(r) > 32767 {
+		l, r := ev.textInfo(args[0]), ev.textInfo(args[1])
+		if l.ok && r.ok && l.length+r.length > 32767 {
 			return true
 		}
 	}
-	if (name == "+" || name == "-" || name == "*") && staticNumType(args[0]) == numPLSInteger && staticNumType(args[1]) == numPLSInteger {
-		a, aok := staticNumber(args[0])
-		b, bok := staticNumber(args[1])
+	if (name == "+" || name == "-" || name == "*") && ev.staticNumType(args[0]) == numPLSInteger && ev.staticNumType(args[1]) == numPLSInteger {
+		a, aok := ev.staticNumber(args[0])
+		b, bok := ev.staticNumber(args[1])
 		if aok && bok && a != nil && b != nil {
 			exact := new(big.Rat).Mul(a, b)
 			switch name {
@@ -1263,9 +1451,9 @@ func staticRaises(e nodes.ExprNode) bool {
 	// The arguments' values, when the text settles each and none is NULL.
 	values := make([]*big.Rat, len(args))
 	for i, arg := range args {
-		if v, ok := staticNumber(arg); ok && v != nil {
+		if v, ok := ev.staticNumber(arg); ok && v != nil {
 			values[i] = v
-		} else if null, ok := staticNull("", arg); !ok || null {
+		} else if null, ok := ev.staticNull(arg); !ok || null {
 			return false
 		}
 	}
@@ -1311,10 +1499,20 @@ func unparen(expr nodes.ExprNode) nodes.ExprNode {
 // staticEmpty reports whether expr is an empty string: an empty literal,
 // plain, q-quoted, or national, or TO_CHAR, TO_NCHAR, or NVL that yield
 // one.
-func staticEmpty(expr nodes.ExprNode) bool {
+func (ev *staticEval) staticEmpty(expr nodes.ExprNode) bool {
+	empty, seen := ev.empties[expr]
+	if !seen {
+		empty = ev.emptyOf(expr)
+		ev.empties[expr] = empty
+	}
+	return empty
+}
+
+// emptyOf computes staticEmpty.
+func (ev *staticEval) emptyOf(expr nodes.ExprNode) bool {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return staticEmpty(e.Expr)
+		return ev.staticEmpty(e.Expr)
 	case *nodes.StringLiteral:
 		return e.Val == ""
 	case *nodes.FuncCallExpr:
@@ -1324,13 +1522,13 @@ func staticEmpty(expr nodes.ExprNode) bool {
 		args := e.Args.Items
 		switch staticFunctionName(e) {
 		case "TO_CHAR", "TO_NCHAR":
-			return len(args) == 1 && staticEmpty(args[0].(nodes.ExprNode))
+			return len(args) == 1 && ev.staticEmpty(args[0].(nodes.ExprNode))
 		case "NVL":
 			if len(args) != 2 {
 				return false
 			}
-			null, ok := staticNull("", args[0].(nodes.ExprNode))
-			return ok && null && staticEmpty(args[1].(nodes.ExprNode))
+			null, ok := ev.staticNull(args[0].(nodes.ExprNode))
+			return ok && null && ev.staticEmpty(args[1].(nodes.ExprNode))
 		}
 	}
 	return false

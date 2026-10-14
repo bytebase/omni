@@ -126,6 +126,10 @@ type Lexer struct {
 	// copies of the lexer that look ahead share it.
 	cc *ccRecord
 
+	// newlines indexes the newlines of input for lineStart. The parser's
+	// lexer, its copies, and its lookaheads share it.
+	newlines *newlineIndex
+
 	// Error
 	Err error
 }
@@ -202,29 +206,33 @@ type ccFact struct {
 // records is the one the others would.
 type ccFacts struct {
 	byCond map[string]ccFact
+
+	// base holds the facts an overlay reads through and records apart
+	// from.
+	base *ccFacts
 }
 
-// clone returns a copy of the facts, for a lexer that records no decisions
-// to read and add to apart: one that recorded a fact without its decision
-// would leave the parser no decision to vary.
-func (f *ccFacts) clone() *ccFacts {
+// overlay returns facts that read through f and record apart from it, for
+// a lexer that records no decisions: one that recorded a fact without its
+// decision would leave the parser no decision to vary. Reading through,
+// not copying, keeps a lookahead's cost apart from how many facts the
+// statement made: copying 4,000 facts for each of 4,000 EXTRACT lookaheads
+// allocated 1.26 GB.
+func (f *ccFacts) overlay() *ccFacts {
 	if f == nil {
 		return nil
 	}
-	c := &ccFacts{byCond: make(map[string]ccFact, len(f.byCond))}
-	for cond, fact := range f.byCond {
-		c.byCond[cond] = fact
-	}
-	return c
+	return &ccFacts{base: f}
 }
 
 // fact returns the fact about the condition cond.
 func (l *Lexer) fact(cond string) (ccFact, bool) {
-	if l.ccFacts == nil {
-		return ccFact{}, false
+	for f := l.ccFacts; f != nil; f = f.base {
+		if fact, ok := f.byCond[cond]; ok {
+			return fact, true
+		}
 	}
-	f, ok := l.ccFacts.byCond[cond]
-	return f, ok
+	return ccFact{}, false
 }
 
 // noteFact records that the condition cond holds or not, as decided at the
@@ -233,12 +241,66 @@ func (l *Lexer) noteFact(cond string, holds bool, by int) {
 	if cond == "" {
 		return
 	}
+	if _, ok := l.fact(cond); ok {
+		return
+	}
 	if l.ccFacts == nil {
-		l.ccFacts = &ccFacts{byCond: map[string]ccFact{}}
+		l.ccFacts = &ccFacts{}
 	}
-	if _, ok := l.ccFacts.byCond[cond]; !ok {
-		l.ccFacts.byCond[cond] = ccFact{holds: holds, by: by}
+	if l.ccFacts.byCond == nil {
+		l.ccFacts.byCond = map[string]ccFact{}
 	}
+	l.ccFacts.byCond[cond] = ccFact{holds: holds, by: by}
+}
+
+// lookahead returns a lexer for a pre-scan of l's input from start to end
+// that reads the conditional compilation branches l reads: those of the
+// selection l attempts, with the facts it holds so far. The pre-scan starts
+// at the token the parser stands on, maybe inside a branch, so a misplaced
+// directive does not stop it (ccLenient). Every lookahead past the
+// parser's own lexer takes one: a fresh NewLexerRange would read the first
+// branch of each undecided $IF.
+func (l *Lexer) lookahead(start, end int) *Lexer {
+	lexer := NewLexerRange(l.input, start, end)
+	lexer.ccLenient = true
+	lexer.ccChoices = l.ccChoices
+	lexer.ccFacts = l.ccFacts.overlay()
+	lexer.newlines = l.newlines
+	return lexer
+}
+
+// newlineIndex holds the offsets of the newlines in a lexer's input, in
+// order, once lineStart first needs them; the lexers that read one input
+// share it.
+type newlineIndex struct {
+	built bool
+	at    []int
+}
+
+// lineStart returns the offset of the last newline before loc, or -1 when
+// loc is on the first line. A search per $$PLSQL_LINE back through the
+// text made 20,000 of them on one line take 7.7 s.
+func (l *Lexer) lineStart(loc int) int {
+	if l.newlines == nil {
+		l.newlines = &newlineIndex{}
+	}
+	ix := l.newlines
+	if !ix.built {
+		for i := 0; ; {
+			n := strings.IndexByte(l.input[i:], '\n')
+			if n < 0 {
+				break
+			}
+			ix.at = append(ix.at, i+n)
+			i += n + 1
+		}
+		ix.built = true
+	}
+	i := sort.SearchInts(ix.at, loc)
+	if i == 0 {
+		return -1
+	}
+	return ix.at[i-1]
 }
 
 // ccChoices is a branch selection to make: the $IF at offset at passes over
@@ -587,7 +649,7 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 		}
 		if next.Type == tokINQUIRY && next.Str == "$$PLSQL_LINE" {
 			// The line it stands on, by where that starts.
-			next.Str += "@" + strconv.Itoa(strings.LastIndexByte(l.input[:next.Loc], '\n'))
+			next.Str += "@" + strconv.Itoa(l.lineStart(next.Loc))
 		}
 		key = append(key, next)
 		if tokens == 0 {

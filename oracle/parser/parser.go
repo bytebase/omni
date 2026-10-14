@@ -215,6 +215,7 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	}
 	p.lexer.cc = &ccRecord{}
 	p.lexer.ccDecisions = &[]ccDecision{}
+	p.lexer.newlines = &newlineIndex{}
 	p.lexer.literalLimit = 32767
 	p.lexer.numberLimit = true
 	p.advance()

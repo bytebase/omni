@@ -796,6 +796,44 @@ func TestConditionalCompilationSelections(t *testing.T) {
 		}
 	}
 	ParseShouldFail(t, "BEGIN $IF $$x $THEN $ERROR 'x' $END $ELSIF $$y $THEN $ERROR 'y' $END $ELSE $ERROR 'z' $END $END NULL; END;")
+
+	// A lookahead reads the statement's facts through instead of copying
+	// them: 4,000 undecided conditions before 4,000 EXTRACT calls allocated
+	// 1.26 GB. $$PLSQL_LINE finds its line in an index: 20,000 of them on
+	// one line took 7.7 s.
+	var extracts strings.Builder
+	for i := range 4000 {
+		fmt.Fprintf(&extracts, "$IF $$x%d $THEN NULL; $END\n", i)
+	}
+	extracts.WriteString(strings.Repeat("n := EXTRACT(YEAR FROM SYSDATE);\n", 4000))
+	runtime.ReadMemStats(&before)
+	ParseAndCheck(t, "DECLARE n NUMBER; BEGIN "+extracts.String()+"END;")
+	runtime.ReadMemStats(&after)
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 200<<20 {
+		t.Errorf("Parse through 4,000 conditions and 4,000 EXTRACT calls allocated %d MB", allocated>>20)
+	}
+	start = time.Now()
+	ParseAndCheck(t, "BEGIN "+strings.Repeat("$IF $$PLSQL_LINE = 1 $THEN NULL; $END ", 20000)+"NULL; END;")
+	if elapsed := time.Since(start); elapsed > 4*time.Second {
+		t.Errorf("Parse through 20,000 $$PLSQL_LINE conditions on one line took %v", elapsed)
+	}
+
+	// A static condition evaluates each node once: 401 summed literals took
+	// 2.8 s, nested NVL calls time exponential in their depth, and nested
+	// character functions copied their value at each level.
+	for _, cond := range []string{
+		strings.TrimSuffix(strings.Repeat("1+", 5001), "+") + " = 5001",
+		strings.Repeat("NVL(", 1000) + "NULL" + strings.Repeat(", 1)", 1000) + " = 1",
+		"LENGTH(" + strings.TrimSuffix(strings.Repeat("'a'||", 10000), "||") + ") = 10000",
+		"LENGTH(" + strings.Repeat("UPPER(LOWER(", 1000) + "RPAD('a', 32767)" + strings.Repeat("))", 1000) + ") = 32767",
+	} {
+		start = time.Now()
+		ParseAndCheck(t, "BEGIN $IF "+cond+" $THEN NULL; $END END;")
+		if elapsed := time.Since(start); elapsed > 2*time.Second {
+			t.Errorf("Parse through the condition %.30q... took %v", cond, elapsed)
+		}
+	}
+
 	// The condition of a passed-over $ERROR branch does not hold where it
 	// recurs: no environment compiles this block.
 	ParseShouldFail(t, "BEGIN $IF $$x $THEN $ERROR 'bad' $END $END $IF $$x $THEN NULL; $ELSE garbage garbage; $END END;")
