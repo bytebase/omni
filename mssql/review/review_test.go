@@ -332,6 +332,19 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "BEGIN TRAN;\nALTER TABLE t ADD CONSTRAINT df_x CHECK (n >= 0);\nROLLBACK;\nALTER TABLE t DROP CONSTRAINT df_x;",
 		},
 		{
+			name: "a definition a rollback in control flow may undo",
+			sql:  "BEGIN TRAN;\nALTER TABLE t DROP CONSTRAINT df_n;\nALTER TABLE t ADD CONSTRAINT df_n CHECK (n >= 0);\nIF 1 = 1 ROLLBACK;\nALTER TABLE t DROP CONSTRAINT df_n;",
+		},
+		{
+			name: "an unqualified name only a schema other than dbo holds",
+			sql:  "ALTER TABLE t3 DROP CONSTRAINT ck_a;\nALTER TABLE audit.t3 DROP CONSTRAINT ck_a;",
+			targets: []review.Target{{Schema: &metadata.DatabaseSchemaMetadata{Name: "shop", Schemas: []*metadata.SchemaMetadata{
+				{Name: "dbo"},
+				{Name: "audit", Tables: []*metadata.TableMetadata{{Name: "t3", CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck_a"}}}}},
+			}}}},
+			want: []finding{{1, "ck_a", "drops check constraint ck_a of audit.t3", []int{0}}},
+		},
+		{
 			name: "a USE in a block",
 			sql:  "BEGIN USE other; END;\nALTER TABLE t DROP CONSTRAINT ck_n;",
 		},

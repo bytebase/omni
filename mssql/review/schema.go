@@ -25,10 +25,11 @@ func (x schemaIndex) inDatabase(ref *ast.TableRef) bool {
 }
 
 // table returns the synced table a reference means: in the schema it
-// names, or, unqualified, the one table of the name in any schema. It
-// returns nil when the reference may mean another database, or no table,
-// or several: an unqualified name resolves by the session's default
-// schema, which the review does not know.
+// names, or, unqualified, the one table of the name in any schema when
+// that schema is dbo. It returns nil when the reference may mean another
+// database, or no table, or several, or an unqualified name only another
+// schema holds: SQL Server resolves an unqualified name in the session's
+// default schema, which the review does not know, and then in dbo.
 func (x schemaIndex) table(ref *ast.TableRef) *metadata.TableMetadata {
 	if x.schema == nil || !x.inDatabase(ref) {
 		return nil
@@ -40,7 +41,7 @@ func (x schemaIndex) table(ref *ast.TableRef) *metadata.TableMetadata {
 		}
 		for _, t := range s.GetTables() {
 			if sameName(t.GetName(), ref.Object) {
-				if found != nil {
+				if found != nil || !resolves(ref, s) {
 					return nil
 				}
 				found = t
@@ -50,8 +51,16 @@ func (x schemaIndex) table(ref *ast.TableRef) *metadata.TableMetadata {
 	return found
 }
 
+// resolves reports whether a reference to an object of the synced schema
+// is known to mean it: the reference names the schema, or the schema is
+// dbo, where an unqualified name resolves when the default schema holds
+// none of the name.
+func resolves(ref *ast.TableRef, s *metadata.SchemaMetadata) bool {
+	return ref.Schema != "" || sameName(s.GetName(), "dbo")
+}
+
 // relationKind returns "table" or "view" for the synced relation a
-// reference may mean, "" for none or more than one.
+// reference means, as table resolves it, "" for none or more than one.
 func (x schemaIndex) relationKind(ref *ast.TableRef) string {
 	if x.schema == nil || !x.inDatabase(ref) {
 		return ""
@@ -63,7 +72,7 @@ func (x schemaIndex) relationKind(ref *ast.TableRef) string {
 		}
 		for _, t := range s.GetTables() {
 			if sameName(t.GetName(), ref.Object) {
-				if kind != "" {
+				if kind != "" || !resolves(ref, s) {
 					return ""
 				}
 				kind = "table"
@@ -71,7 +80,7 @@ func (x schemaIndex) relationKind(ref *ast.TableRef) string {
 		}
 		for _, v := range s.GetViews() {
 			if sameName(v.GetName(), ref.Object) {
-				if kind != "" {
+				if kind != "" || !resolves(ref, s) {
 					return ""
 				}
 				kind = "view"
