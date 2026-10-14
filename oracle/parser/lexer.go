@@ -56,6 +56,7 @@ type Lexer struct {
 	input string
 	pos   int
 	start int
+	begin int // where the lexed range starts within input
 	end   int // exclusive bound of the lexed range within input
 
 	// ccDepth counts the conditional compilation $IF directives whose
@@ -275,25 +276,28 @@ func (l *Lexer) lookahead(start, end int) *Lexer {
 	return lexer
 }
 
-// newlineIndex holds the offsets of the newlines in a lexer's input, in
-// order, once lineStart first needs them; the lexers that read one input
+// newlineIndex holds the offsets of the newlines in input[base:limit], in
+// order, once lineStart first needs them; the lexers that read one range
 // share it.
 type newlineIndex struct {
-	built bool
-	at    []int
+	built       bool
+	base, limit int
+	at          []int
 }
 
-// lineStart returns the offset of the last newline before loc, or -1 when
-// loc is on the first line. A search per $$PLSQL_LINE back through the
-// text made 20,000 of them on one line take 7.7 s.
+// lineStart returns what identifies the line that holds loc: the offset of
+// the last newline before it, or, on the line the indexed range starts on,
+// one before the range. A search per $$PLSQL_LINE back through the text
+// made 20,000 of them on one line take 7.7 s, and an index of the whole
+// script per segment Parse reads made 8,000 segments take 6.9 s.
 func (l *Lexer) lineStart(loc int) int {
 	if l.newlines == nil {
-		l.newlines = &newlineIndex{}
+		l.newlines = &newlineIndex{base: l.begin, limit: l.end}
 	}
 	ix := l.newlines
 	if !ix.built {
-		for i := 0; ; {
-			n := strings.IndexByte(l.input[i:], '\n')
+		for i := ix.base; i < ix.limit; {
+			n := strings.IndexByte(l.input[i:ix.limit], '\n')
 			if n < 0 {
 				break
 			}
@@ -304,7 +308,7 @@ func (l *Lexer) lineStart(loc int) int {
 	}
 	i := sort.SearchInts(ix.at, loc)
 	if i == 0 {
-		return -1
+		return ix.base - 1
 	}
 	return ix.at[i-1]
 }
@@ -363,6 +367,7 @@ func NewLexerRange(input string, start, end int) *Lexer {
 	return &Lexer{
 		input: input,
 		pos:   start,
+		begin: start,
 		end:   end,
 	}
 }
@@ -668,31 +673,36 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 
 // conditionKey returns what identifies the condition of tokens among a
 // unit's conditions: its tokens, without parentheses around the whole of
-// it, so ($$x) is $$x.
+// it, so ($$x) is $$x. Each token is spelled with its type and the length
+// of its text, so no text spells other tokens: LENGTH('a 1007:|| 1002:b')
+// and LENGTH('a'||'b') differ.
 func conditionKey(tokens []Token) string {
-	for len(tokens) > 2 && tokens[0].Type == '(' && tokens[len(tokens)-1].Type == ')' {
-		depth, outer := 0, true
-		for i, tok := range tokens[:len(tokens)-1] {
-			switch tok.Type {
-			case '(':
-				depth++
-			case ')':
-				depth--
-			}
-			if depth == 0 && i > 0 {
-				// The first '(' closes before the end: (a) OR (b).
-				outer = false
-				break
+	// closes[i] is the index of the ')' that closes the '(' at i, or -1.
+	// The outer pairs come off in one pass: (((...((x))...))) restarted
+	// the depth scan for each before.
+	closes := make([]int, len(tokens))
+	var open []int
+	for i, tok := range tokens {
+		closes[i] = -1
+		switch tok.Type {
+		case '(':
+			open = append(open, i)
+		case ')':
+			if len(open) > 0 {
+				closes[open[len(open)-1]] = i
+				open = open[:len(open)-1]
 			}
 		}
-		if !outer {
-			break
-		}
-		tokens = tokens[1 : len(tokens)-1]
+	}
+	strip := 0
+	// A pair is around the whole of what remains when its '(' closes at the
+	// end, not before it: (a) OR (b) keeps its parentheses.
+	for n := len(tokens); n-2*strip > 2 && tokens[strip].Type == '(' && closes[strip] == n-1-strip; {
+		strip++
 	}
 	var key strings.Builder
-	for _, tok := range tokens {
-		fmt.Fprintf(&key, "%d:%s ", tok.Type, tok.Str)
+	for _, tok := range tokens[strip : len(tokens)-strip] {
+		fmt.Fprintf(&key, "%d:%d:%s", tok.Type, len(tok.Str), tok.Str)
 	}
 	return key.String()
 }

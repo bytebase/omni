@@ -823,6 +823,29 @@ func TestConditionalCompilationSelections(t *testing.T) {
 		t.Errorf("Parse through 20,000 $$PLSQL_LINE conditions on one line took %v", elapsed)
 	}
 
+	// Outer parentheses come off a condition's key in one pass: 16,000
+	// pairs around $$x took 1.7 s. Each segment indexes the lines of its own
+	// range alone: indexing the whole script per segment made 8,000 of them
+	// take 7.1 s.
+	start = time.Now()
+	ParseAndCheck(t, "BEGIN $IF "+strings.Repeat("(", 16000)+"$$x"+strings.Repeat(")", 16000)+" $THEN NULL; $END END;")
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("Parse through a condition in 16,000 parentheses took %v", elapsed)
+	}
+	script := strings.Repeat("BEGIN $IF $$PLSQL_LINE = 1 $THEN NULL; $END END;\n/\n", 8000)
+	start = time.Now()
+	for _, seg := range Split(script) {
+		if seg.Empty() {
+			continue
+		}
+		if _, err := ParseRange(script, seg.ByteStart, seg.ByteEnd); err != nil {
+			t.Fatalf("ParseRange(%q) = %v", script[seg.ByteStart:seg.ByteEnd], err)
+		}
+	}
+	if elapsed := time.Since(start); elapsed > 3*time.Second {
+		t.Errorf("ParseRange through 8,000 segments took %v", elapsed)
+	}
+
 	// A static condition evaluates each node once: 401 summed literals took
 	// 2.8 s, nested NVL calls time exponential in their depth, and nested
 	// character functions copied their value at each level.
@@ -851,6 +874,10 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	// FALSE, and no value of $$x), but $$PLSQL_LINE, which differs from
 	// line to line.
 	ParseShouldFail(t, "BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END $IF $$x $THEN garbage garbage; $ELSE NULL; $END END;")
+	// Conditions that differ are told apart, whatever their text holds:
+	// Oracle 23ai compiles this block under PLSQL_CCFLAGS = 'n:2', where
+	// the first condition is FALSE and the second TRUE.
+	ParseAndCheck(t, "BEGIN $IF LENGTH('a 1007:|| 1002:b') = $$n $THEN garbage garbage; $ELSE NULL; $END $IF LENGTH('a'||'b') = $$n $THEN NULL; $ELSE garbage garbage; $END END;")
 	// Parentheses around the whole of a condition aside.
 	ParseShouldFail(t, "BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END $IF ($$x) $THEN garbage garbage; $ELSE NULL; $END END;")
 	ParseShouldFail(t, "BEGIN $IF ($$x) $THEN NULL; $ELSE garbage garbage; $END $IF (($$x)) $THEN garbage garbage; $ELSE NULL; $END END;")
