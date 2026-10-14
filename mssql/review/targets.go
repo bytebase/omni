@@ -149,6 +149,11 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 			if usesDatabase(stmts, d.position+1) {
 				continue
 			}
+			// A constraint the change renamed to the name is not the synced
+			// one of that name.
+			if renamedTo(stmts, d.position, d.loc.Start, d.name) {
+				continue
+			}
 			t := x.table(d.alter.Name)
 			if t == nil {
 				continue
@@ -209,4 +214,24 @@ func droppedBefore(stmts []statement, pos, at int, ref *ast.TableRef) bool {
 		})
 	}
 	return dropped
+}
+
+// renamedTo reports whether the change, before offset at in statement pos,
+// gives something the name with sp_rename.
+func renamedTo(stmts []statement, pos, at int, name string) bool {
+	renamed := false
+	for i := 0; i <= pos && !renamed; i++ {
+		ast.Inspect(stmts[i].node, func(n ast.Node) bool {
+			if i == pos && ast.NodeLoc(n).End > at {
+				return !renamed
+			}
+			if v, ok := n.(*ast.ExecStmt); ok {
+				if _, newName, _, ok := spRename(v); ok && sameName(newName, name) {
+					renamed = true
+				}
+			}
+			return !renamed
+		})
+	}
+	return renamed
 }
