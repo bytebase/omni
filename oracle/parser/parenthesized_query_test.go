@@ -182,9 +182,51 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	}
 	ParseAndCheck(t, "SELECT a FROM t UNION SELECT a FROM t ORDER BY 1 FETCH FIRST 1 ROWS ONLY")
 
+	// A subquery that stands for a value or a condition takes no plain
+	// ORDER BY either, parenthesized or not (ORA-00907, here at its first
+	// item); a row-limited one, an inline view, MERGE USING, CURSOR, and the
+	// query of a cursor FOR loop do.
+	for _, sql := range []string{
+		"SELECT 1 FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER BY 1)",
+		"SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) ORDER BY 1)",
+		"SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual ORDER BY 1))",
+		"SELECT 1 FROM dual WHERE 1 IN (SELECT 1 FROM dual UNION SELECT 2 FROM dual ORDER BY 1)",
+		"SELECT 1 FROM dual WHERE (1, 1) IN (SELECT 1, 1 FROM dual ORDER BY 1)",
+		"SELECT 1 FROM dual WHERE EXISTS ((SELECT 1 FROM dual) ORDER BY 1)",
+		"SELECT 1 FROM dual WHERE 1 = ANY (SELECT 1 FROM dual ORDER BY 1)",
+		"SELECT ((SELECT 1 FROM dual) ORDER BY 1) FROM dual",
+		"SELECT ABS((SELECT 1 FROM dual ORDER BY 1)) FROM dual",
+		"SELECT 1 FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER SIBLINGS BY 1)",
+		"UPDATE t SET (a, b) = (SELECT 1, 2 FROM dual ORDER BY 1)",
+		"DECLARE n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER BY 1); END;",
+		"BEGIN FOR r IN (SELECT (SELECT 1 FROM dual ORDER BY 1) a FROM dual) LOOP NULL; END LOOP; END;",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasSuffix(sql[:pe.Position], "BY ") {
+			t.Errorf("Parse(%q) = %v, want an error at the ORDER BY", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) ORDER BY 1 FETCH FIRST 1 ROWS ONLY)",
+		"SELECT 1 FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER BY 1 OFFSET 0 ROWS)",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT 1 FROM dual ORDER BY 1 FETCH FIRST 1 ROWS ONLY)",
+		"SELECT CURSOR(SELECT 1 FROM dual ORDER BY 1) FROM dual",
+		"SELECT * FROM (SELECT 1 a FROM dual ORDER BY 1)",
+		"MERGE INTO t USING (SELECT 1 a FROM dual ORDER BY 1) s ON (t.a = s.a) WHEN MATCHED THEN UPDATE SET t.b = 1",
+		"BEGIN FOR r IN (SELECT 1 a FROM dual ORDER BY 1) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN (SELECT 1 a FROM dual UNION SELECT 2 FROM dual ORDER BY 1) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN ((SELECT 1 a FROM dual) ORDER BY 1) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN (SELECT 1 a FROM dual WHERE 1 IN (SELECT 1 FROM dual) ORDER BY 1) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN VALUES OF (SELECT 1 a FROM dual ORDER BY 1) LOOP NULL; END LOOP; END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+
 	// No query block selects * without FROM, wherever it stands, and the
 	// error is at its SELECT (ORA-54058); but for the one block of an
-	// EXISTS subquery, whose select list Oracle does not expand.
+	// EXISTS subquery, whose select list Oracle does not expand unless a
+	// row-limiting clause follows it.
 	for _, sql := range []string{
 		"CREATE TABLE t AS (SELECT *)",
 		"CREATE VIEW v AS (SELECT *)",
@@ -196,6 +238,10 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"SELECT 1 FROM dual WHERE EXISTS (SELECT * UNION SELECT 1 FROM dual)",
 		"SELECT 1 FROM dual WHERE EXISTS (SELECT 1 FROM dual UNION SELECT *)",
 		"SELECT 1 FROM dual WHERE EXISTS (SELECT * FROM (SELECT *))",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT * FETCH FIRST 1 ROWS ONLY)",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT * OFFSET 0 ROWS)",
+		"SELECT 1 FROM dual WHERE EXISTS ((SELECT *) FETCH FIRST 1 ROWS ONLY)",
+		"SELECT 1 FROM dual WHERE EXISTS ((SELECT *) OFFSET 0 ROWS)",
 		"MERGE INTO t USING (SELECT *) s ON (1 = 1) WHEN MATCHED THEN UPDATE SET t.a = 1",
 		"BEGIN FOR r IN (SELECT *) LOOP NULL; END LOOP; END;",
 	} {
@@ -220,6 +266,8 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"SELECT 1 FROM dual WHERE NOT EXISTS (SELECT *)",
 		"INSERT INTO t SELECT 1 FROM dual WHERE EXISTS (SELECT *)",
 		"DECLARE n NUMBER; BEGIN SELECT 1 INTO n FROM dual WHERE EXISTS (SELECT *); END;",
+		"SELECT 1 FROM dual WHERE EXISTS ((SELECT *))",
+		"SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FROM dual) SELECT *)",
 	} {
 		ParseAndCheck(t, sql)
 	}

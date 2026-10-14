@@ -128,7 +128,9 @@ func (p *Parser) parseIterationControl() (*nodes.PLSQLIterationControl, error) {
 		ctl.Expr, err = p.parseDynamicSQLSource()
 	default:
 		var expr nodes.ExprNode
+		p.queryIterand = p.cur.Type == '('
 		expr, err = p.parseRequiredExpr()
+		p.queryIterand = false
 		if err != nil {
 			return nil, err
 		}
@@ -178,6 +180,8 @@ func (p *Parser) parseIterationSource() (nodes.ExprNode, error) {
 	if p.atDynamicSQLSource() {
 		return p.parseDynamicSQLSource()
 	}
+	p.queryIterand = p.cur.Type == '('
+	defer func() { p.queryIterand = false }()
 	return p.parseRequiredExpr()
 }
 

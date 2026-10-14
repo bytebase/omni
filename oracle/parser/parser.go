@@ -39,6 +39,12 @@ type Parser struct {
 	// decideGroupFroms fills it in one pass.
 	groupFroms map[int]bool
 
+	// queryIterand is set while the iteration control of a FOR loop that
+	// opens with '(' is parsed: a query there is a cursor's, which may end
+	// in a plain ORDER BY (Oracle 23ai runs FOR r IN (SELECT a FROM t ORDER
+	// BY a) LOOP). parseParenExpr takes it for its own parentheses alone.
+	queryIterand bool
+
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
 	typeMods typeModMode
@@ -306,8 +312,9 @@ func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 // block's start, its SELECT or its WITH, wherever it stands: CREATE TABLE ... AS (SELECT *), a view,
 // an INSERT, a subquery, an inline view, a WITH element, MERGE USING, or a
 // cursor FOR loop. The subquery of EXISTS is the exception when it is one
-// query block, as Oracle does not expand its select list: WHERE EXISTS
-// (SELECT *) runs, and EXISTS (SELECT * UNION SELECT 1 FROM dual) fails.
+// query block with no row-limiting clause, as Oracle does not expand its
+// select list: WHERE EXISTS (SELECT *) runs, and EXISTS (SELECT * UNION
+// SELECT 1 FROM dual) and EXISTS (SELECT * FETCH FIRST 1 ROWS ONLY) fail.
 func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
 	exempt := map[*nodes.SelectStmt]bool{}
 	var bad *nodes.SelectStmt
@@ -317,7 +324,7 @@ func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
 		}
 		switch n := n.(type) {
 		case *nodes.ExistsExpr:
-			if sel, ok := n.Subquery.(*nodes.SelectStmt); ok && sel.Larg == nil && sel.Op == nodes.SETOP_NONE {
+			if sel, ok := n.Subquery.(*nodes.SelectStmt); ok && sel.Larg == nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
 				exempt[sel] = true
 			}
 		case *nodes.SelectStmt:
