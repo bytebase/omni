@@ -401,6 +401,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterTypeStmt(sb, n)
 	case *TypeAttribute:
 		writeTypeAttribute(sb, n)
+	case *AlterTypeMethod:
+		writeAlterTypeMethod(sb, n)
 	case *SetRoleStmt:
 		writeSetRoleStmt(sb, n)
 	case *SetConstraintsStmt:
@@ -671,6 +673,9 @@ func writeTypeName(sb *strings.Builder, n *TypeName) {
 	}
 	if n.IsPercRowtype {
 		sb.WriteString(" :pctRowtype true")
+	}
+	if n.IsRef {
+		sb.WriteString(" :ref true")
 	}
 	if n.ArrayBounds != nil {
 		sb.WriteString(" :arrayBounds ")
@@ -3149,6 +3154,29 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
 	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.OID != "" {
+		sb.WriteString(fmt.Sprintf(" :oid %q", n.OID))
+	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
+	}
+	if n.AuthID != "" {
+		sb.WriteString(fmt.Sprintf(" :authid %q", n.AuthID))
+	}
+	if n.AccessibleBy != nil {
+		sb.WriteString(" :accessibleBy ")
+		writeNode(sb, n.AccessibleBy)
+	}
+	if n.Under != nil {
+		sb.WriteString(" :under ")
+		writeNode(sb, n.Under)
+	}
 	if n.Attributes != nil {
 		sb.WriteString(" :attributes ")
 		writeNode(sb, n.Attributes)
@@ -3164,6 +3192,9 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 	if n.VarraySize != nil {
 		sb.WriteString(" :varraySize ")
 		writeNode(sb, n.VarraySize)
+	}
+	if n.ElementNotNull {
+		sb.WriteString(" :elementNotNull true")
 	}
 	if n.IsBody {
 		sb.WriteString(" :isBody true")
@@ -6668,28 +6699,15 @@ func writeAlterTypeStmt(sb *strings.Builder, n *AlterTypeStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if n.MethodKind != "" {
-		sb.WriteString(fmt.Sprintf(" :methodKind %q", n.MethodKind))
-	}
-	if n.MethodType != "" {
-		sb.WriteString(fmt.Sprintf(" :methodType %q", n.MethodType))
-	}
-	if n.MethodName != "" {
-		sb.WriteString(fmt.Sprintf(" :methodName %q", n.MethodName))
-	}
-	if len(n.MethodParams) > 0 {
-		sb.WriteString(" :methodParams (")
-		for i, p := range n.MethodParams {
+	if len(n.Methods) > 0 {
+		sb.WriteString(" :methods (")
+		for i, m := range n.Methods {
 			if i > 0 {
 				sb.WriteString(" ")
 			}
-			writeNode(sb, p)
+			writeNode(sb, m)
 		}
 		sb.WriteString(")")
-	}
-	if n.MethodReturn != nil {
-		sb.WriteString(" :methodReturn ")
-		writeNode(sb, n.MethodReturn)
 	}
 	if n.LimitValue != nil {
 		sb.WriteString(" :limitValue ")
@@ -6730,12 +6748,84 @@ func writeAlterTypeStmt(sb *strings.Builder, n *AlterTypeStmt) {
 
 func writeTypeAttribute(sb *strings.Builder, n *TypeAttribute) {
 	sb.WriteString("{TYPE_ATTR")
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
 	if n.Name != "" {
 		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
 	}
 	if n.DataType != nil {
 		sb.WriteString(" :dataType ")
 		writeNode(sb, n.DataType)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterTypeMethod(sb *strings.Builder, n *AlterTypeMethod) {
+	sb.WriteString("{ALTER_TYPE_METHOD")
+	sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	if len(n.Modifiers) > 0 {
+		sb.WriteString(fmt.Sprintf(" :modifiers %q", n.Modifiers))
+	}
+	sb.WriteString(fmt.Sprintf(" :kind %q :type %q :name %q", n.Kind, n.Type, n.Name))
+	if len(n.Params) > 0 {
+		sb.WriteString(" :params (")
+		for i, p := range n.Params {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, p)
+		}
+		sb.WriteString(")")
+	}
+	if n.Return != nil {
+		sb.WriteString(" :return ")
+		writeNode(sb, n.Return)
+	}
+	if n.Deterministic {
+		sb.WriteString(" :deterministic true")
+	}
+	if n.Pipelined {
+		sb.WriteString(" :pipelined true")
+	}
+	if n.Polymorphic != "" {
+		sb.WriteString(fmt.Sprintf(" :polymorphic %q", n.Polymorphic))
+	}
+	if n.Parallel {
+		sb.WriteString(" :parallel true")
+	}
+	if n.ParallelSpec != nil {
+		sb.WriteString(" :parallelSpec ")
+		writeNode(sb, n.ParallelSpec)
+	}
+	if n.Streaming != nil && n.Streaming.Len() > 0 {
+		sb.WriteString(" :streaming ")
+		writeNode(sb, n.Streaming)
+	}
+	if n.ResultCache {
+		sb.WriteString(" :resultCache true")
+	}
+	if n.ReliesOn != nil && n.ReliesOn.Len() > 0 {
+		sb.WriteString(" :reliesOn ")
+		writeNode(sb, n.ReliesOn)
+	}
+	if n.Aggregate {
+		sb.WriteString(" :aggregate true")
+	}
+	if n.Implementation != nil {
+		sb.WriteString(" :implementation ")
+		writeNode(sb, n.Implementation)
+	}
+	if n.SqlMacro {
+		sb.WriteString(" :sqlMacro true")
+	}
+	if n.SqlMacroType != "" {
+		sb.WriteString(fmt.Sprintf(" :sqlMacroType %q", n.SqlMacroType))
+	}
+	if n.CallSpec != nil {
+		sb.WriteString(" :callSpec ")
+		writeNode(sb, n.CallSpec)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

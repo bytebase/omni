@@ -187,6 +187,31 @@ ref_185	plsql	reject	DECLARE FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETU
 ref_186	plsql	reject	DECLARE FUNCTION f RETURN NUMBER PARALLEL_ENABLE IS BEGIN RETURN 1; END; BEGIN NULL; END;	PARALLEL_ENABLE on a nested function (PLS-00712)
 ref_187	plsql	reject	DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a numeric parameter (PLS-00550)
 ref_188	plsql	accept	DECLARE CURSOR c (a VARCHAR2, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a character parameter
+ref_189	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyf_{run} FORCE AS OBJECT (a NUMBER)	FORCE before AS OBJECT
+ref_190	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyh_{run} SHARING = NONE FORCE AUTHID CURRENT_USER ACCESSIBLE BY (PACKAGE omni_x) AS OBJECT (a NUMBER) NOT FINAL	every type heading clause, in order
+ref_191	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyi_{run}	incomplete type
+ref_192	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyu_{run} UNDER omni_missing_base (b NUMBER, MEMBER FUNCTION f RETURN NUMBER) NOT FINAL	object subtype
+ref_193	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyue_{run} UNDER omni_missing_base ()	object subtype with an empty element list
+ref_194	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyc_{run} AS TABLE OF (NUMBER NOT NULL) NOT PERSISTABLE	parenthesized collection element with PERSISTABLE
+ref_195	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyv_{run} AS VARYING ARRAY(3) OF VARCHAR2(ORA_MAX_NAME_LEN) NOT NULL	VARYING ARRAY with a PL/SQL size and NOT NULL
+ref_196	plsql_body	accept	CREATE OR REPLACE TYPE omni_tya_{run} AS OBJECT (a CHARACTER(1 BYTE), b CHARACTER VARYING(3), c NATIONAL CHARACTER VARYING(3), d DOUBLE PRECISION, e VARCHAR2(ORA_MAX_NAME_LEN), f VARCHAR2(10) CHARACTER SET NCHAR_CS, g REF omni_missing_t, h CHARACTER LARGE OBJECT)	ANSI, REF, and character set attribute datatypes
+ref_197	ddl	accept	CREATE TABLE omni_ansi_{run} (a CHARACTER(1 BYTE), b DOUBLE PRECISION, c NATIONAL CHARACTER VARYING(3), d NCHAR VARYING(3), e LONG VARCHAR)	ANSI column datatypes
+ref_198	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyf_{run} FORCE	incomplete type with FORCE
+ref_199	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyo_{run} OBJECT (a NUMBER)	object type without AS
+ref_200	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyu_{run} AS UNDER omni_x (b NUMBER)	AS before UNDER
+ref_201	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyn_{run} UNDER omni_x	subtype without an element list
+ref_202	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_typ_{run} AS TABLE OF NUMBER NOT PERSISTABLE	PERSISTABLE on an unparenthesized element
+ref_203	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyfo_{run} AUTHID DEFINER FORCE AS OBJECT (a NUMBER)	FORCE after AUTHID
+ref_204	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tys_{run} SHARING NONE AS OBJECT (a NUMBER)	SHARING without = (ORA-02000)
+ref_205	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyd_{run} AS OBJECT (a DOUBLE)	DOUBLE without PRECISION
+ref_206	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tyb_{run} MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;	type body without IS or AS
+ref_207	ddl	reject	CREATE TABLE omni_bad_long_{run} (a LONG RAW(10))	size on a LONG RAW column (ORA-03074)
+ref_208	ddl	reject	CREATE TABLE omni_bad_clo_{run} (a CHARACTER LARGE OBJECT)	CHARACTER LARGE OBJECT column (ORA-03062)
+ref_216	ddl	reject	CREATE TABLE omni_bad_refty_{run} (x REF omni_u%TYPE)	REF to an attribute (ORA-00911)
+ref_217	ddl	reject	CREATE TABLE omni_bad_vary_{run} (x CHARACTER VARYING)	CHARACTER VARYING column without a size (ORA-00906)
+ref_218	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyvs_{run} AS OBJECT (x CHARACTER VARYING, y NATIONAL CHARACTER VARYING)	VARYING attribute without a size
+ref_223	plsql	reject	DECLARE x LONG(10, 2); BEGIN NULL; END;	LONG with a scale (PLS-00572)
+ref_224	plsql	reject	DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;	REF with a character set (PLS-00550)
 ref_225	select	accept	(SELECT 1 FROM dual) UNION ALL (SELECT 2 FROM dual) ORDER BY 1	parenthesized set operands
 ref_226	select	accept	SELECT * FROM ((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual)) x	parenthesized set operation as an inline view
 ref_227	select	accept	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) UNION (SELECT 2 FROM dual))	parenthesized set operation as an IN subquery
@@ -199,7 +224,17 @@ ref_233	select	reject	(WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w) UNION S
 ref_234	select	reject	SELECT 1 FROM dual ORDER BY 1 UNION SELECT 2 FROM dual	set operator after ORDER BY (ORA-03048)
 ref_235	select	reject	SELECT 1 except FROM dual	EXCEPT where an alias would stand (ORA-00928)
 ref_236	ddl	reject	CREATE TABLE omni_bad_ctas_{run} AS (SELECT 1 a FROM dual ORDER BY 1)	CTAS with ORDER BY inside the parentheses (ORA-00907)
+ref_247	plsql_body	accept	CREATE OR REPLACE TYPE omni_np_{run} AS OBJECT (x PLS_INTEGER, y LONG) NOT PERSISTABLE	PL/SQL-only attributes in a NOT PERSISTABLE type
+ref_248	plsql_body	accept	CREATE OR REPLACE TYPE omni_npc_{run} AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE	PL/SQL-only element in a NOT PERSISTABLE collection
+ref_249	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_oid_{run} OID 'ABC' AS OBJECT (a NUMBER)	OID that is not 32 hexadecimal digits (ORA-02304)
+ref_250	ddl	reject	CREATE TABLE omni_bad_nch_{run} (x NCHAR(2 CHAR))	CHAR length semantics on NCHAR in SQL (ORA-00907)
 ref_251	select	accept	SELECT x.a FROM (((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual))) x	alias after redundant inline-view parentheses
 ref_252	select	reject	(SELECT 1 FROM dual EXCEPT)	set operator without a right operand (ORA-00928)
 ref_257	select	reject	(SELECT *) UNION SELECT 1 FROM dual	parenthesized operand selecting * without FROM (ORA-54058)
 ref_260	select	reject	SELECT 1 FROM dual MINUS ALL WITH w AS (SELECT 2 x FROM dual) SELECT x FROM w	WITH clause on a set operation branch (ORA-32034)
+ref_284	ddl	reject	CREATE TABLE omni_bad_dec_{run} (x DEC(0))	NUMBER precision outside 1 to 38 (ORA-01727)
+ref_285	ddl	reject	CREATE TABLE omni_bad_scale_{run} (x NUMBER(5, 128))	NUMBER scale outside -84 to 127 (ORA-01728)
+ref_286	select	reject	SELECT CAST(1 AS FLOAT(127)) FROM dual	FLOAT precision outside 1 to 126 (ORA-01724)
+ref_287	ddl	reject	CREATE TABLE omni_bad_tsp_{run} (x TIMESTAMP(10))	fractional-second precision outside 0 to 9 (ORA-30088)
+ref_288	ddl	accept	CREATE TABLE omni_numr_{run} (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))	precision and scale bounds
+ref_289	ddl	reject	CREATE TABLE omni_bad_rlnk_{run} (n NUMBER REFERENCES omni_missing@omni_lnk (a))	referenced table over a database link (ORA-02021)

@@ -532,7 +532,13 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		before := stmt.Columns.Len() + stmt.Constraints.Len()
 		// Check if this is a table-level constraint
-		if p.isTableConstraintStart() {
+		if p.isOutOfLineRefConstraintStart() {
+			tc, err := p.parseOutOfLineRefConstraint()
+			if err != nil {
+				return err
+			}
+			stmt.Constraints.Items = append(stmt.Constraints.Items, tc)
+		} else if p.isTableConstraintStart() {
 			tc, parseErr495 := p.parseTableConstraint()
 			if parseErr495 != nil {
 				return parseErr495
@@ -562,15 +568,22 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 			return p.syntaxErrorAtCur()
 		}
 	}
-	return nil
+	return p.checkOutOfLineRefConstraints(stmt, true)
 }
 
 // isTableConstraintStart checks if the current position starts a table-level constraint.
 func (p *Parser) isTableConstraintStart() bool {
 	switch p.cur.Type {
 	case kwCONSTRAINT:
-		next := p.peekNext()
-		return !isOracleTypeToken(next.Type)
+		// A column named CONSTRAINT takes a reserved datatype word alone:
+		// Oracle 23ai reads CONSTRAINT NUMBER as a column and CONSTRAINT
+		// NCHAR(1), CLOB, or REF u as a constraint (ORA-03050, ORA-00931).
+		switch p.peekNext().Type {
+		case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT, kwCHAR, kwVARCHAR2, kwVARCHAR,
+			kwDATE, kwRAW, kwLONG, kwROWID:
+			return false
+		}
+		return true
 	case kwPRIMARY, kwFOREIGN:
 		// PRIMARY and FOREIGN are not reserved: without KEY they start a
 		// column definition (engine-checked by TestOracleNonReservedKeywordsAsColumns).
@@ -654,7 +667,8 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 // isTypeName returns true if the current token can begin a type name.
 func (p *Parser) isTypeName() bool {
-	if isOracleTypeToken(p.cur.Type) {
+	// REF object_type is a column datatype (Oracle 23ai).
+	if isOracleTypeToken(p.cur.Type) || p.cur.Type == kwREF {
 		return true
 	}
 	// User-defined type: identifier that is NOT a constraint keyword
@@ -824,6 +838,14 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 			p.advance()
 			col.Invisible = true
 
+		case kwWITH:
+			if p.peekNext().Type != kwROWID {
+				return nil
+			}
+			if err := p.parseInlineRefConstraint(col); err != nil {
+				return err
+			}
+
 		case kwCONSTRAINT:
 			cc, parseErr504 := p.parseColumnConstraint()
 			if parseErr504 != nil {
@@ -884,6 +906,14 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 			// Handle SORT, VISIBLE, ENCRYPT, DECRYPT, COLLATE as identifier-like keywords
 			if p.isIdentLike() {
 				switch p.cur.Str {
+				case "SCOPE":
+					// The keyword, not a quoted "SCOPE" (ORA-03062 on Oracle 23ai).
+					if !p.isKeywordStr("SCOPE") {
+						return p.syntaxErrorAtCur()
+					}
+					if err := p.parseInlineRefConstraint(col); err != nil {
+						return err
+					}
 				case "SORT":
 					p.advance()
 					col.Sort = true
@@ -919,6 +949,250 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 		}
 	}
 	return nil
+}
+
+// parseInlineRefConstraint parses the SCOPE IS or WITH ROWID constraint of
+// a REF column. Oracle 23ai rejects one on another column (ORA-22893) and
+// a second SCOPE (ORA-22888).
+//
+//	SCOPE IS [ schema . ] scope_table | WITH ROWID
+func (p *Parser) parseInlineRefConstraint(col *nodes.ColumnDef) error {
+	if col.TypeName == nil || !col.TypeName.IsRef {
+		return p.syntaxErrorAtCur()
+	}
+	cc := &nodes.ColumnConstraint{Loc: nodes.Loc{Start: p.pos()}}
+	if p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+		p.advance() // consume ROWID
+		cc.Type = nodes.CONSTRAINT_WITH_ROWID
+	} else {
+		for _, item := range col.Constraints.Items {
+			if other, ok := item.(*nodes.ColumnConstraint); ok && other.Type == nodes.CONSTRAINT_SCOPE {
+				return p.syntaxErrorAtCur()
+			}
+		}
+		p.advance() // consume SCOPE
+		if p.cur.Type != kwIS {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		table, err := p.parseRefScopeTable()
+		if err != nil {
+			return err
+		}
+		cc.Type = nodes.CONSTRAINT_SCOPE
+		cc.RefTable = table
+	}
+	cc.Loc.End = p.prev.End
+	col.Constraints.Items = append(col.Constraints.Items, cc)
+	return nil
+}
+
+// parseRefScopeTable parses the scope table of a REF column, which is
+// local (ORA-25124 on Oracle 23ai for one over a database link).
+func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
+	table, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	// A schema names its table (ORA-00903 for SCOPE IS s.), and an @ its
+	// database link (ORA-01729 for SCOPE IS o@).
+	if table.Name == "" || p.prev.Type == '.' || p.prev.Type == '@' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if table.DBLink != "" {
+		return nil, p.syntaxErrorAtNode(table)
+	}
+	return table, nil
+}
+
+// checkOutOfLineRefConstraints checks the REF constraints of stmt that
+// span its relational properties, as Oracle 23ai does. A constraint names
+// a column of the table, which may come before or after it, or an
+// attribute of an object column (o.r); a quoted name ("O.R") is a column.
+// An attribute's column is of an object type (ORA-02337 for a scalar or
+// REF one). A SCOPE or WITH ROWID constraint names a REF (ORA-22893), and
+// a REF column or attribute has one SCOPE (ORA-22888) and not both a SCOPE
+// and a referential constraint (ORA-22896). A REF is in no key (ORA-02329,
+// ORA-02267 for a composite foreign key), has one referential constraint
+// (ORA-30771), and that one names the object table alone (ORA-30726 for a
+// column list). An attribute counts as a REF where a SCOPE or WITH ROWID
+// constraint names it; otherwise its type is the engine's to resolve. When
+// stmt holds every column of the table, complete, as a CREATE TABLE does,
+// a table constraint names one of them, or an attribute of one (ORA-00904
+// on Oracle 23ai for SCOPE FOR (missing), FOREIGN KEY (missing), and
+// UNIQUE (missing.x)); ALTER TABLE ADD may name a column the table already
+// has.
+func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt, complete bool) error {
+	type target struct {
+		name      string
+		attribute bool
+	}
+	type constraint struct {
+		node       nodes.Node
+		typ        nodes.ConstraintType
+		keys       []target
+		refColumns *nodes.List
+	}
+	columns := map[string]*nodes.ColumnDef{}
+	refs := map[target]bool{}
+	var constraints []constraint
+	for _, item := range stmt.Columns.Items {
+		col, ok := item.(*nodes.ColumnDef)
+		if !ok {
+			continue
+		}
+		columns[col.Name] = col
+		key := target{name: col.Name}
+		refs[key] = col.TypeName != nil && col.TypeName.IsRef
+		for _, cItem := range col.Constraints.Items {
+			if cc, ok := cItem.(*nodes.ColumnConstraint); ok {
+				constraints = append(constraints, constraint{cc, cc.Type, []target{key}, cc.RefColumns})
+			}
+		}
+	}
+	for _, item := range stmt.Constraints.Items {
+		tc, ok := item.(*nodes.TableConstraint)
+		if !ok || tc.Columns == nil {
+			continue
+		}
+		c := constraint{node: tc, typ: tc.Type, refColumns: tc.RefColumns}
+		for _, cItem := range tc.Columns.Items {
+			column, ok := cItem.(*nodes.String)
+			if !ok {
+				continue
+			}
+			parts := p.attributePaths[column]
+			root := column.Str
+			if parts != nil {
+				root = parts[0]
+			}
+			if complete && columns[root] == nil {
+				return p.syntaxErrorAtNode(tc)
+			}
+			// The attribute of a column of a type that has none.
+			if parts != nil && columns[root] != nil && p.scalarColumn(columns[root]) {
+				return p.syntaxErrorAtNode(tc)
+			}
+			// An attribute is keyed by its names, which a quoted one may
+			// join with dots alike: o."R.X" is not "O.R".x.
+			key := target{name: column.Str}
+			if parts != nil {
+				key = target{name: strings.Join(parts, "\x00"), attribute: true}
+			}
+			c.keys = append(c.keys, key)
+		}
+		constraints = append(constraints, c)
+	}
+	for _, c := range constraints {
+		if (c.typ == nodes.CONSTRAINT_SCOPE || c.typ == nodes.CONSTRAINT_WITH_ROWID) && len(c.keys) == 1 {
+			refs[c.keys[0]] = true
+		}
+	}
+	scoped := map[target]bool{}
+	references := map[target]int{}
+	for _, c := range constraints {
+		if len(c.keys) != 1 {
+			// No REF in a composite key.
+			if c.typ == nodes.CONSTRAINT_PRIMARY || c.typ == nodes.CONSTRAINT_UNIQUE || c.typ == nodes.CONSTRAINT_FOREIGN {
+				for _, key := range c.keys {
+					if refs[key] {
+						return p.syntaxErrorAtNode(c.node)
+					}
+				}
+			}
+			continue
+		}
+		key := c.keys[0]
+		col := columns[key.name]
+		if key.attribute {
+			col = nil
+		}
+		switch c.typ {
+		case nodes.CONSTRAINT_PRIMARY, nodes.CONSTRAINT_UNIQUE:
+			if refs[key] {
+				return p.syntaxErrorAtNode(c.node)
+			}
+		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
+			if col != nil && (col.TypeName == nil || !col.TypeName.IsRef) {
+				return p.syntaxErrorAtNode(c.node)
+			}
+			if c.typ == nodes.CONSTRAINT_SCOPE {
+				if scoped[key] || references[key] > 0 {
+					return p.syntaxErrorAtNode(c.node)
+				}
+				scoped[key] = true
+			}
+		case nodes.CONSTRAINT_FOREIGN:
+			if scoped[key] || refs[key] && (references[key] > 0 || c.refColumns != nil && c.refColumns.Len() > 0) {
+				return p.syntaxErrorAtNode(c.node)
+			}
+			references[key]++
+		}
+	}
+	return nil
+}
+
+// scalarColumn reports whether col is of a datatype the text shows to
+// have no attributes: a REF, or a predefined SQL datatype.
+func (p *Parser) scalarColumn(col *nodes.ColumnDef) bool {
+	if col.TypeName == nil {
+		return false
+	}
+	lead := p.predefinedTypeSpelling(col.TypeName)
+	return col.TypeName.IsRef || plsqlNonCharacterTypes[lead] || lead == "CHAR" || lead == "CHARACTER" ||
+		lead == "VARCHAR2" || lead == "VARCHAR" || lead == "CLOB"
+}
+
+// isOutOfLineRefConstraintStart reports whether a table's relational
+// property here is SCOPE FOR ( column ) or REF ( column ).
+func (p *Parser) isOutOfLineRefConstraintStart() bool {
+	return p.isKeywordStr("SCOPE") && p.peekNext().Type == kwFOR || p.cur.Type == kwREF && p.peekNext().Type == '('
+}
+
+// parseOutOfLineRefConstraint parses the out-of-line constraint of a REF
+// column.
+//
+//	SCOPE FOR ( column ) IS [ schema . ] scope_table | REF ( column ) WITH ROWID
+func (p *Parser) parseOutOfLineRefConstraint() (*nodes.TableConstraint, error) {
+	tc := &nodes.TableConstraint{Loc: nodes.Loc{Start: p.pos()}}
+	scope := p.cur.Type != kwREF
+	p.advance() // consume SCOPE or REF
+	if scope {
+		p.advance() // consume FOR
+	}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	column, err := p.parseColumnPath()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	tc.Columns = &nodes.List{Items: []nodes.Node{column}}
+	if scope {
+		if p.cur.Type != kwIS {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if tc.RefTable, err = p.parseRefScopeTable(); err != nil {
+			return nil, err
+		}
+		tc.Type = nodes.CONSTRAINT_SCOPE
+	} else {
+		if p.cur.Type != kwWITH || p.peekNext().Type != kwROWID {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume WITH
+		p.advance() // consume ROWID
+		tc.Type = nodes.CONSTRAINT_WITH_ROWID
+	}
+	tc.Loc.End = p.prev.End
+	return tc, nil
 }
 
 func (p *Parser) parseVirtualColumnExpression(col *nodes.ColumnDef) error {
@@ -1074,7 +1348,10 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
 	return nil
 }
 
-// parseColumnConstraint parses a named column constraint: CONSTRAINT name <constraint_body>.
+// parseColumnConstraint parses a named column constraint: CONSTRAINT name
+// <constraint_body>. A [ NOT ] NULL body is left to the caller; no other
+// clause follows a name (ORA-02253 on Oracle 23ai for CONSTRAINT c DEFAULT
+// 1, ORA-22890 for CONSTRAINT c SCOPE IS t and CONSTRAINT c WITH ROWID).
 func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 	start := p.pos()
 	p.advance() // consume CONSTRAINT
@@ -1092,6 +1369,9 @@ func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 		return nil, parseErr524
 	}
 	if cc == nil {
+		if p.cur.Type != kwNULL && (p.cur.Type != kwNOT || p.peekNext().Type != kwNULL) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return nil, nil
 	}
 	cc.Name = name
@@ -1139,12 +1419,9 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 		p.advance() // consume REFERENCES
 		cc.Type = nodes.CONSTRAINT_FOREIGN
 		var parseErr526 error
-		cc.RefTable, parseErr526 = p.parseObjectName()
+		cc.RefTable, parseErr526 = p.parseReferencedTable()
 		if parseErr526 != nil {
 			return nil, parseErr526
-		}
-		if cc.RefTable == nil || cc.RefTable.Name == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == '(' {
 			p.advance()
@@ -1303,8 +1580,10 @@ func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
+		// A column, or an attribute of an object column (o.ref_attr), as in
+		// the out-of-line REF constraint.
 		var parseErr533 error
-		tc.Columns, parseErr533 = p.parseIdentifierListAsStrings()
+		tc.Columns, parseErr533 = p.parseColumnPathList()
 		if parseErr533 != nil {
 			return nil, parseErr533
 		}
@@ -1317,12 +1596,9 @@ func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 		}
 		p.advance()
 		var parseErr534 error
-		tc.RefTable, parseErr534 = p.parseObjectName()
+		tc.RefTable, parseErr534 = p.parseReferencedTable()
 		if parseErr534 != nil {
 			return nil, parseErr534
-		}
-		if tc.RefTable == nil || tc.RefTable.Name == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == '(' {
 			p.advance()
@@ -1380,6 +1656,72 @@ func (p *Parser) parseIdentifierList() (*nodes.List, error) {
 		p.advance() // consume ','
 	}
 	return list, nil
+}
+
+// parseColumnPathList parses a comma-separated list of columns, each
+// possibly a dotted attribute path (o.r), as *String nodes.
+func (p *Parser) parseColumnPathList() (*nodes.List, error) {
+	list := &nodes.List{}
+	for {
+		column, err := p.parseColumnPath()
+		if err != nil {
+			return nil, err
+		}
+		list.Items = append(list.Items, column)
+		if p.cur.Type != ',' {
+			return list, nil
+		}
+		p.advance() // consume ','
+	}
+}
+
+// parseColumnPath parses a column, or an attribute of an object column
+// (o.r), whose names it records in p.attributePaths, as a *String of the
+// names joined by dots.
+func (p *Parser) parseColumnPath() (*nodes.String, error) {
+	var parts []string
+	for {
+		part, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if part == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parts = append(parts, part)
+		if p.cur.Type != '.' {
+			break
+		}
+		p.advance()
+	}
+	column := &nodes.String{Str: strings.Join(parts, ".")}
+	if len(parts) > 1 {
+		if p.attributePaths == nil {
+			p.attributePaths = map[*nodes.String][]string{}
+		}
+		p.attributePaths[column] = parts
+	}
+	return column, nil
+}
+
+// parseReferencedTable parses the table a referential constraint
+// references. A referential constraint is DDL on that table, which Oracle
+// 23ai never runs over a database link (ORA-02021).
+func (p *Parser) parseReferencedTable() (*nodes.ObjectName, error) {
+	table, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	// A schema names its table (ORA-00903 for REFERENCES s.).
+	if table == nil || table.Name == "" || p.prev.Type == '.' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	// The table is local, with no database link and no bare @ (ORA-02021
+	// for REFERENCES o@ on Oracle 23ai).
+	if table.DBLink != "" || p.prev.Type == '@' {
+		return nil, p.syntaxErrorAtNode(table)
+	}
+	return table, nil
 }
 
 // parseIdentifierListAsStrings parses a comma-separated list of identifiers,
