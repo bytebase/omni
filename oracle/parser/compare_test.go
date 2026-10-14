@@ -838,7 +838,7 @@ func TestNodeToString(t *testing.T) {
 func TestParseJsonExpressions(t *testing.T) {
 	tests := []string{
 		// JSON_OBJECT
-		"SELECT JSON_OBJECT('name', e.name, 'salary', e.salary) FROM employees e",
+		"SELECT JSON_OBJECT('name' VALUE e.name, 'salary' VALUE e.salary) FROM employees e",
 		// JSON_ARRAY
 		"SELECT JSON_ARRAY(1, 2, 3) FROM dual",
 		// JSON_VALUE

@@ -223,10 +223,29 @@ ref_221	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbk_{run} AS MEMB
 ref_222	plsql_body	reject	CREATE OR REPLACE PACKAGE BODY omni_bad_pie_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION END;	package initialization EXCEPTION without a handler
 ref_223	plsql	reject	DECLARE x LONG(10, 2); BEGIN NULL; END;	LONG with a scale (PLS-00572)
 ref_224	plsql	reject	DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;	REF with a character set (PLS-00550)
+ref_237	select	accept	SELECT JSON_OBJECT(KEY 'a' VALUE 1, KEY 'b' VALUE 'x' RETURNING VARCHAR2(100) STRICT WITH UNIQUE KEYS) FROM dual	JSON_OBJECT with KEY entries and every clause
+ref_238	select	accept	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy DESC NULL ON NULL RETURNING CLOB STRICT) FROM dual	JSON_ARRAYAGG with ORDER BY and clauses
+ref_239	select	accept	SELECT JSON_OBJECTAGG(KEY dummy VALUE 1 ABSENT ON NULL RETURNING CLOB) FROM dual	JSON_OBJECTAGG with KEY and clauses
+ref_240	select	accept	SELECT JSON_SERIALIZE('{}' RETURNING CLOB PRETTY ASCII ORDERED NULL ON ERROR) FROM dual	JSON_SERIALIZE with its flags
+ref_241	select	accept	SELECT JSON_ARRAY(SELECT 1 FROM dual NULL ON NULL) FROM dual	JSON_ARRAY of a subquery
+ref_242	select	reject	SELECT JSON_OBJECT('a' 1) FROM dual	JSON_OBJECT entry without VALUE (ORA-02000)
+ref_243	select	reject	SELECT JSON_OBJECT('a' VALUE 1 STRICT RETURNING CLOB) FROM dual	JSON_OBJECT clauses out of order (ORA-02000)
+ref_244	select	reject	SELECT JSON_ARRAYAGG(dummy RETURNING CLOB ORDER BY dummy) FROM dual	JSON_ARRAYAGG ORDER BY after RETURNING (ORA-02000)
+ref_245	select	reject	SELECT JSON_SERIALIZE('{}' PRETTY RETURNING CLOB) FROM dual	JSON_SERIALIZE RETURNING after PRETTY (ORA-00907)
+ref_246	select	reject	SELECT JSON_OBJECTAGG(dummy VALUE 1, 'b' VALUE 2) FROM dual	JSON_OBJECTAGG with two entries (ORA-02000)
 ref_247	plsql_body	accept	CREATE OR REPLACE TYPE omni_np_{run} AS OBJECT (x PLS_INTEGER, y LONG) NOT PERSISTABLE	PL/SQL-only attributes in a NOT PERSISTABLE type
 ref_248	plsql_body	accept	CREATE OR REPLACE TYPE omni_npc_{run} AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE	PL/SQL-only element in a NOT PERSISTABLE collection
 ref_249	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_oid_{run} OID 'ABC' AS OBJECT (a NUMBER)	OID that is not 32 hexadecimal digits (ORA-02304)
 ref_250	ddl	reject	CREATE TABLE omni_bad_nch_{run} (x NCHAR(2 CHAR))	CHAR length semantics on NCHAR in SQL (ORA-00907)
+ref_253	select	accept	SELECT JSON_OBJECT(* RETURNING CLOB) FROM dual	JSON_OBJECT(*) with a clause
+ref_254	select	accept	SELECT JSON_OBJECT(KEY 'VALUE' VALUE 1) FROM dual	literal key spelled VALUE
+ref_255	select	reject	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy,) FROM dual	trailing comma in JSON_ARRAYAGG ORDER BY (ORA-00936)
+ref_256	select	reject	SELECT JSON_OBJECTAGG(* VALUE 1) FROM dual	wildcard JSON_OBJECTAGG key (ORA-00936)
+ref_258	select	reject	SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2()) FROM dual	RETURNING datatype without its size (ORA-00910)
+ref_259	select	accept	SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)	quoted "*" column as a JSON_OBJECTAGG key
+ref_261	select	accept	SELECT JSON_OBJECT('a':dummy) FROM dual	colon separator right before the value
+ref_262	select	accept	SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual	WITH TYPENAME after the unique-keys clause
+ref_263	select	reject	SELECT JSON_OBJECT(dummy STRICT) FROM dual	STRICT right after a column entry (ORA-02000)
 ref_264	plsql	accept	DECLARE $IF DBMS_DB_VERSION.VERSION >= 12 $THEN a NUMBER; $ELSE a VARCHAR2(10); $END BEGIN NULL; END;	conditional compilation around declarations
 ref_265	plsql	accept	BEGIN $IF FALSE $THEN garbage garbage; $ELSE NULL; $END END;	code of a branch not selected is not parsed
 ref_266	plsql	accept	BEGIN DBMS_OUTPUT.PUT_LINE($$PLSQL_LINE || $$PLSQL_UNIT); END;	inquiry directives in an expression
