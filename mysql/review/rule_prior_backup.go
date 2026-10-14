@@ -324,8 +324,8 @@ func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x sc
 			continue
 		}
 		// A WITH clause before the statement, which the parser does not
-		// keep, may name queries the statement reads.
-		if s.with {
+		// keep, or one in a subquery, may name queries the statement reads.
+		if s.with || holdsCTE(s.node) {
 			continue
 		}
 		if msg := backupReadsMade(s.node, x, m); msg != "" {
@@ -581,4 +581,17 @@ func dbOf(x schemaIndex, ref *ast.TableRef) string {
 		return x.schema.GetName()
 	}
 	return ref.Schema
+}
+
+// holdsCTE reports whether a statement defines a common table expression
+// anywhere, whose name may hide a table of the same name.
+func holdsCTE(n ast.Node) bool {
+	found := false
+	ast.Inspect(n, func(n ast.Node) bool {
+		if _, ok := n.(*ast.CommonTableExpr); ok {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
