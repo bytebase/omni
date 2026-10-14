@@ -207,9 +207,20 @@ ref_205	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyd_{run} AS OBJECT (a
 ref_206	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tyb_{run} MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;	type body without IS or AS
 ref_207	ddl	reject	CREATE TABLE omni_bad_long_{run} (a LONG RAW(10))	size on a LONG RAW column (ORA-03074)
 ref_208	ddl	reject	CREATE TABLE omni_bad_clo_{run} (a CHARACTER LARGE OBJECT)	CHARACTER LARGE OBJECT column (ORA-03062)
+ref_209	plsql_body	accept	CREATE OR REPLACE PACKAGE BODY omni_pi_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;	package body initialization section
+ref_210	plsql_body	reject	CREATE OR REPLACE PACKAGE BODY omni_bad_pi_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN END;	empty package initialization section
+ref_211	plsql_body	reject	CREATE OR REPLACE PACKAGE omni_bad_pis_{run} AS c NUMBER; BEGIN NULL; END;	initialization section in a package specification
+ref_212	plsql_body	accept	CREATE OR REPLACE TYPE BODY omni_tbm_{run} AS FINAL INSTANTIABLE CONSTRUCTOR FUNCTION omni_tbm_{run} (x NUMBER) RETURN SELF AS RESULT IS BEGIN RETURN; END; END;	inheritance clauses on a type body method
+ref_213	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbm_{run} AS FINAL END;	type body modifier without a method
+ref_214	plsql	accept	DECLARE n NUMBER; BEGIN FOR i IN 1..SQL%BULK_EXCEPTIONS.COUNT LOOP n := SQL%BULK_EXCEPTIONS(i).ERROR_CODE + SQL%BULK_ROWCOUNT(i); END LOOP; END;	bulk cursor attributes
+ref_215	plsql	reject	DECLARE n NUMBER; BEGIN n := SQL%BULK_EXCEPTIONS(1, 2).ERROR_CODE; END;	bulk cursor attribute with two indexes (PLS-00431)
 ref_216	ddl	reject	CREATE TABLE omni_bad_refty_{run} (x REF omni_u%TYPE)	REF to an attribute (ORA-00911)
 ref_217	ddl	reject	CREATE TABLE omni_bad_vary_{run} (x CHARACTER VARYING)	CHARACTER VARYING column without a size (ORA-00906)
 ref_218	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyvs_{run} AS OBJECT (x CHARACTER VARYING, y NATIONAL CHARACTER VARYING)	VARYING attribute without a size
+ref_219	plsql	reject	BEGIN NULL; EXCEPTION END;	EXCEPTION without a handler
+ref_220	plsql	reject	BEGIN DBMS_OUTPUT.PUT_LINE(a => 'x', 'y'); END;	positional argument after a named one (PLS-00312)
+ref_221	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbk_{run} AS MEMBER END;	type body method kind without a subprogram
+ref_222	plsql_body	reject	CREATE OR REPLACE PACKAGE BODY omni_bad_pie_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION END;	package initialization EXCEPTION without a handler
 ref_223	plsql	reject	DECLARE x LONG(10, 2); BEGIN NULL; END;	LONG with a scale (PLS-00572)
 ref_224	plsql	reject	DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;	REF with a character set (PLS-00550)
 ref_247	plsql_body	accept	CREATE OR REPLACE TYPE omni_np_{run} AS OBJECT (x PLS_INTEGER, y LONG) NOT PERSISTABLE	PL/SQL-only attributes in a NOT PERSISTABLE type

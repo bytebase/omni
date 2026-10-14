@@ -201,9 +201,13 @@ func (p *Parser) startsCursorAttributePostfix() bool {
 	return p.isCursorAttributeToken(next)
 }
 
+// isCursorAttributeToken reports whether tok names a cursor attribute. The
+// bulk attributes of the implicit cursor are collections:
+// SQL%BULK_ROWCOUNT(i), SQL%BULK_EXCEPTIONS(i).ERROR_CODE, and
+// SQL%BULK_EXCEPTIONS.COUNT parse on Oracle 23ai.
 func (p *Parser) isCursorAttributeToken(tok Token) bool {
 	switch tok.Str {
-	case "FOUND", "ISOPEN", "NOTFOUND", "ROWCOUNT":
+	case "FOUND", "ISOPEN", "NOTFOUND", "ROWCOUNT", "BULK_ROWCOUNT", "BULK_EXCEPTIONS":
 		return tok.Type == tokIDENT || tok.Type == tokQIDENT || tok.Type >= 2000
 	default:
 		return false
@@ -220,11 +224,24 @@ func (p *Parser) parseCursorAttributePostfix(left nodes.ExprNode) (nodes.ExprNod
 	if attr == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
-	return &nodes.CursorAttributeExpr{
+	expr := &nodes.CursorAttributeExpr{
 		Cursor:    left,
 		Attribute: attr,
-		Loc:       nodes.Loc{Start: start, End: p.prev.End},
-	}, nil
+		Loc:       nodes.Loc{Start: start},
+	}
+	if (attr == "BULK_ROWCOUNT" || attr == "BULK_EXCEPTIONS") && p.cur.Type == '(' {
+		p.advance() // consume '('
+		expr.Index, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr.Index == nil || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume ')'
+	}
+	expr.Loc.End = p.prev.End
+	return expr, nil
 }
 
 func (p *Parser) startsAtTimeZoneExpr() bool {
