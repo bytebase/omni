@@ -240,6 +240,15 @@ func TestRequireIsNull(t *testing.T) {
 func TestDisallowDropObject(t *testing.T) {
 	runCases(t, review.DisallowDropObject, []ruleCase{
 		{
+			name: "ALTER TYPE DROP ATTRIBUTE",
+			sql:  "ALTER TYPE person_t DROP ATTRIBUTE (phone) CASCADE INCLUDING TABLE DATA;\nALTER TYPE hr.addr_t DROP ATTRIBUTE (zip, city) CASCADE;\nALTER TYPE person_t ADD ATTRIBUTE (email VARCHAR2(80)) CASCADE;",
+			want: []finding{
+				{0, "phone", "drops attribute PHONE of type PERSON_T", []int{0}},
+				{1, "zip", "drops attribute ZIP of type HR.ADDR_T", []int{0}},
+				{1, "city", "drops attribute CITY of type HR.ADDR_T", []int{0}},
+			},
+		},
+		{
 			name: "every DROP",
 			sql:  "DROP TABLE IF EXISTS t CASCADE CONSTRAINTS PURGE;\nDROP VIEW v;\nDROP INDEX shop.ix_n;\nDROP PROCEDURE pr;\nDROP PACKAGE BODY pk;\nDROP PUBLIC SYNONYM ps;\nDROP MATERIALIZED VIEW LOG ON t;\nDROP USER u CASCADE;\nDROP TABLESPACE ts INCLUDING CONTENTS;\nDROP AUDIT POLICY ap;",
 			want: []finding{

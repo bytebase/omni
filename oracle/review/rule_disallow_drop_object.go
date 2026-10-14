@@ -67,7 +67,8 @@ var objectKinds = map[ast.ObjectType]string{
 // object kind, IF EXISTS or not, and the ALTER TABLE clauses that drop a
 // part of a table: DROP COLUMN, DROP UNUSED COLUMNS and COLUMNS CONTINUE,
 // DROP PARTITION, DROP SUBPARTITION, and DROP PERIOD, each anchoring its
-// clause. Dropping a constraint belongs to DisallowDropConstraint. SET
+// clause, and ALTER TYPE ... DROP ATTRIBUTE, each attribute anchoring its
+// name. Dropping a constraint belongs to DisallowDropConstraint. SET
 // UNUSED, which hides a column for a later DROP UNUSED COLUMNS to remove,
 // drops nothing itself. A DROP runs inside PL/SQL only as the text of an
 // EXECUTE IMMEDIATE, which is not read.
@@ -143,6 +144,13 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			case ast.AT_DROP_PERIOD:
 				report(cmd.Loc, "period "+ident(cmd.ColumnName)+" of "+table)
 			}
+		}
+	case *ast.AlterTypeStmt:
+		if v.Action != "DROP_ATTRIBUTE" {
+			return
+		}
+		for _, a := range v.Attributes {
+			report(a.Loc, "attribute "+ident(a.Name)+" of type "+objectName(v.Name))
 		}
 	}
 }
