@@ -558,6 +558,11 @@ func TestPriorBackup(t *testing.T) {
 			},
 		},
 		{
+			name:   "a table the change makes in place of a synonym it drops",
+			sql:    "DROP SYNONYM n2;\nCREATE TABLE n2 (id NUMBER PRIMARY KEY);\nUPDATE shop.n2 SET id = 2 WHERE id = 1;",
+			change: backup,
+		},
+		{
 			name:   "a table the change makes, unqualified in a lone statement, which a public synonym may resolve",
 			sql:    "CREATE TABLE n2 (id NUMBER PRIMARY KEY);\nUPDATE n2 SET id = 2 WHERE id = 1;",
 			change: backup,

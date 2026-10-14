@@ -250,6 +250,10 @@ func longColumns(x schemaIndex, k tableKey) []string {
 type changeMade struct {
 	relations []tableKey
 	columns   []madeColumn
+	// synonyms are the synonyms the change drops. The synced schema lists
+	// no synonyms, so a name one held before the change may resolve when
+	// the backup runs, whatever the change makes of it.
+	synonyms []tableKey
 }
 
 type madeColumn struct {
@@ -280,6 +284,15 @@ func madeByChange(stmts []statement) changeMade {
 	}
 	for i := range stmts {
 		switch v := stmts[i].node.(type) {
+		case *ast.DropStmt:
+			if v.ObjectType != ast.OBJECT_SYNONYM || v.Names == nil {
+				continue
+			}
+			for _, item := range v.Names.Items {
+				if name, ok := item.(*ast.ObjectName); ok {
+					m.synonyms = append(m.synonyms, key(name))
+				}
+			}
 		case *ast.CreateTableStmt:
 			addTable(v)
 		case *ast.CreateSchemaStmt:
@@ -349,6 +362,11 @@ func sameTable(made tableKey, ref *ast.ObjectName, x schemaIndex) bool {
 }
 
 func (m changeMade) madeRelation(ref *ast.ObjectName, x schemaIndex) bool {
+	for _, s := range m.synonyms {
+		if sameTable(s, ref, x) {
+			return false
+		}
+	}
 	for _, made := range m.relations {
 		if sameTable(made, ref, x) {
 			return true
