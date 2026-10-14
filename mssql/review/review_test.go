@@ -216,6 +216,14 @@ func TestRequireIsNull(t *testing.T) {
 func TestDisallowDropObject(t *testing.T) {
 	runCases(t, review.DisallowDropObject, []ruleCase{
 		{
+			name: "Service Broker objects, whose names are one part",
+			sql:  "DROP MESSAGE TYPE [//Adventure-Works.com/Expenses];\nDROP QUEUE dbo.q;",
+			want: []finding{
+				{0, "DROP MESSAGE TYPE [//Adventure-Works.com/Expenses]", "drops message type [//Adventure-Works.com/Expenses]", []int{0}},
+				{1, "DROP QUEUE dbo.q", "drops queue dbo.q", []int{0}},
+			},
+		},
+		{
 			name: "indexes of the same name on two tables",
 			sql:  "DROP INDEX ix ON dbo.t, ix ON dbo.p;\nDROP INDEX t.ix_n;",
 			want: []finding{
@@ -305,6 +313,10 @@ func TestDisallowRename(t *testing.T) {
 			want: []finding{{0, "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN'", "renames column [ c ] of dbo.t to d", []int{0}}},
 		},
 		{
+			name: "sp_rename of a name the change dropped and reused",
+			sql:  "DROP TABLE dbo.t;\nGO\nCREATE PROCEDURE dbo.t AS SELECT 1;\nGO\nEXEC sp_rename 'dbo.t', 'new', 'OBJECT';",
+		},
+		{
 			name: "sp_rename through another database",
 			sql:  "EXEC other.sys.sp_rename 't', 'x';",
 		},
@@ -353,6 +365,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "a constraint dropped, added back as another kind, and dropped again in control flow",
 			sql:  "IF 1 = 1 BEGIN ALTER TABLE t DROP CONSTRAINT ck_n; ALTER TABLE t ADD CONSTRAINT ck_n DEFAULT 0 FOR n; ALTER TABLE t DROP CONSTRAINT ck_n; END;\nALTER TABLE t DROP CONSTRAINT ck_n;",
 			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
+		},
+		{
+			name: "a rollback to a savepoint, which keeps what came before it",
+			sql:  "BEGIN TRAN;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t ADD CONSTRAINT ck_n DEFAULT 0 FOR n;\nSAVE TRAN keep;\nROLLBACK TRAN keep;\nALTER TABLE t DROP CONSTRAINT ck_n;",
+			want: []finding{{1, "ck_n", "drops check constraint ck_n of t", []int{0}}},
 		},
 		{
 			name: "a rollback in a procedure body, which does not run",

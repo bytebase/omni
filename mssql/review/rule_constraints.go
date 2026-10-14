@@ -75,6 +75,14 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		}
 		return defined{}, false, ambiguous
 	}
+	// rolledBack marks every definition so far unsure: a rollback may
+	// undo all of them, or, to a savepoint or after a BEGIN TRAN the
+	// change runs later, only some.
+	rolledBack := func() {
+		for i := range made {
+			made[i].unsure = true
+		}
+	}
 	var open []droppedConstraint
 	drop := func(pos int, s *statement, v *ast.AlterTableStmt, a *ast.AlterTableAction, nested bool) {
 		if a.Constraint == nil || a.Constraint.Name == "" {
@@ -146,8 +154,7 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 			// What the change defined before is of another database.
 			made = nil
 		case *ast.RollbackTransStmt:
-			// A rollback may undo what the change defined.
-			made = nil
+			rolledBack()
 		case *ast.CreateSchemaStmt:
 			if v.Elements != nil {
 				for _, e := range v.Elements.Items {
@@ -167,7 +174,7 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 			ast.Inspect(n, func(n ast.Node) bool {
 				if _, ok := n.(*ast.RollbackTransStmt); ok {
 					if !routine {
-						made = nil
+						rolledBack()
 					}
 					return true
 				}

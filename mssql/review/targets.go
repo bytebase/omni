@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/review"
 )
 
@@ -153,10 +154,37 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 			if usesDatabase(stmts, rn.position+1) {
 				continue
 			}
+			// An object the change dropped before may have been replaced
+			// by one of another kind.
+			if droppedBefore(stmts, rn.position, rn.name) {
+				continue
+			}
 			if kind := x.relationKind(rn.name); kind != "" {
 				r.report(review.DisallowRename, rn.statement, rangeOf(rn.loc), "renames "+kind+" "+object(rn.name)+" to "+ident(rn.newName))
 			}
 		}
 	}
 	return r.findings, nil
+}
+
+// droppedBefore reports whether a statement before pos drops an object
+// the reference may mean, so that the synced schema no longer tells what
+// the name holds.
+func droppedBefore(stmts []statement, pos int, ref *ast.TableRef) bool {
+	dropped := false
+	for i := 0; i < pos && !dropped; i++ {
+		ast.Inspect(stmts[i].node, func(n ast.Node) bool {
+			v, ok := n.(*ast.DropStmt)
+			if !ok || v.Names == nil {
+				return !dropped
+			}
+			for _, item := range v.Names.Items {
+				if t, ok := item.(*ast.TableRef); ok && sameObject(t, ref) {
+					dropped = true
+				}
+			}
+			return !dropped
+		})
+	}
+	return dropped
 }

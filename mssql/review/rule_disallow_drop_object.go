@@ -89,7 +89,13 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 			}
 		case *ast.ServiceBrokerStmt:
 			if strings.EqualFold(v.Action, "DROP") {
-				report(v.Loc, strings.ToLower(v.ObjectType), dotted(v.Name))
+				// Only a queue's name has a schema; the others are one
+				// part, often a URI with dots in it.
+				name := ident(v.Name)
+				if strings.EqualFold(v.ObjectType, "QUEUE") {
+					name = dotted(v.Name)
+				}
+				report(v.Loc, strings.ToLower(v.ObjectType), name)
 			}
 		case *ast.SecurityKeyStmt:
 			if strings.EqualFold(v.Action, "DROP") {
