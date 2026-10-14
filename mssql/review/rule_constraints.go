@@ -151,11 +151,19 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 			}
 		default:
 			// What a routine body or a control-flow statement adds runs
-			// only when it runs, so only its drops are read, and a rollback
-			// in it may undo what the change defined.
+			// only when it runs, so only its drops are read. A rollback in
+			// control flow may undo what the change defined; one in a
+			// routine body does not run while the change defines it.
+			routine := false
+			switch n.(type) {
+			case *ast.CreateProcedureStmt, *ast.CreateFunctionStmt, *ast.CreateTriggerStmt:
+				routine = true
+			}
 			ast.Inspect(n, func(n ast.Node) bool {
 				if _, ok := n.(*ast.RollbackTransStmt); ok {
-					made = nil
+					if !routine {
+						made = nil
+					}
 					return true
 				}
 				v, ok := n.(*ast.AlterTableStmt)

@@ -350,6 +350,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "BEGIN TRAN;\nALTER TABLE t ADD CONSTRAINT df_x CHECK (n >= 0);\nROLLBACK;\nALTER TABLE t DROP CONSTRAINT df_x;",
 		},
 		{
+			name: "a rollback in a procedure body, which does not run",
+			sql:  "ALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t ADD CONSTRAINT ck_n DEFAULT 0 FOR n;\nGO\nCREATE PROCEDURE pr AS ROLLBACK;\nGO\nALTER TABLE t DROP CONSTRAINT ck_n;",
+			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
+		},
+		{
 			name: "a definition a rollback in control flow may undo",
 			sql:  "BEGIN TRAN;\nALTER TABLE t DROP CONSTRAINT df_n;\nALTER TABLE t ADD CONSTRAINT df_n CHECK (n >= 0);\nIF 1 = 1 ROLLBACK;\nALTER TABLE t DROP CONSTRAINT df_n;",
 		},
