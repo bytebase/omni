@@ -19,6 +19,9 @@ type statement struct {
 	// loc is the statement's absolute byte range in the input, from its
 	// first token to its last, without the trailing delimiter.
 	loc ast.Loc
+	// with is whether the statement starts with a WITH clause, which the
+	// parser does not keep on an UPDATE or DELETE node.
+	with bool
 }
 
 // statementRanges lists every non-empty statement's byte range, from the
@@ -62,7 +65,8 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 			// the location of a CREATE, ALTER, or DROP statement after its
 			// first keyword.
 			r := ranges[index]
-			stmts = append(stmts, statement{index: index, node: node, loc: contentLoc(sql, r.Start, r.End)})
+			content := contentLoc(sql, r.Start, r.End)
+			stmts = append(stmts, statement{index: index, node: node, loc: content, with: startsWithWith(sql[content.Start:content.End])})
 			found[index] = true
 		}
 	}
@@ -105,6 +109,15 @@ func contentLoc(sql string, start, end int) ast.Loc {
 		end--
 	}
 	return ast.Loc{Start: start, End: end}
+}
+
+// startsWithWith reports whether a statement's text starts with the WITH
+// keyword, inside a /*! ... */ comment after its version number.
+func startsWithWith(text string) bool {
+	if strings.HasPrefix(text, "/*!") {
+		text = strings.TrimLeft(strings.TrimLeft(text[3:], "0123456789"), " \t\n\r\f\v")
+	}
+	return len(text) >= 4 && strings.EqualFold(text[:4], "WITH") && (len(text) == 4 || !isWordByte(text[4]))
 }
 
 // skipTrivia returns the offset of the first byte in [start, end) that is
