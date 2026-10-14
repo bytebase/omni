@@ -185,8 +185,13 @@ func splitParts(s string) []string {
 				part.WriteByte(s[i])
 				i++
 			}
+			// Spaces around a bare name are not part of it; inside
+			// delimiters they are.
+			bare := strings.TrimSpace(part.String())
+			part.Reset()
+			part.WriteString(bare)
 		}
-		p := strings.TrimSpace(part.String())
+		p := part.String()
 		if p == "" {
 			return nil
 		}

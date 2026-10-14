@@ -300,6 +300,11 @@ func TestDisallowRename(t *testing.T) {
 			},
 		},
 		{
+			name: "sp_rename of a column whose name keeps spaces inside brackets",
+			sql:  "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN';",
+			want: []finding{{0, "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN'", "renames column [ c ] of dbo.t to d", []int{0}}},
+		},
+		{
 			name: "sp_rename through another database",
 			sql:  "EXEC other.sys.sp_rename 't', 'x';",
 		},
@@ -445,6 +450,11 @@ func TestOnlineMigration(t *testing.T) {
 func TestPriorBackup(t *testing.T) {
 	backup := review.Change{PriorBackup: true, MaxBackupSize: 1 << 20}
 	runCases(t, review.PriorBackup, []ruleCase{
+		{
+			name:   "a table the change makes in another database, or in place of a synonym it drops",
+			sql:    "CREATE TABLE other.dbo.n (id INT);\nUPDATE n SET id = 2 WHERE id = 1;\nDROP SYNONYM n3;\nCREATE TABLE n3 (id INT);\nUPDATE n3 SET id = 2 WHERE id = 1;",
+			change: backup,
+		},
 		{name: "a plain backup", sql: "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM p WHERE id = 2;", change: backup},
 		{
 			name:    "no bbdataarchive",

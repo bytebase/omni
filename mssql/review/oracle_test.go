@@ -40,8 +40,10 @@ var mssqlOracle struct {
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	if mssqlOracle.container != nil {
+	if mssqlOracle.db != nil {
 		_ = mssqlOracle.db.Close()
+	}
+	if mssqlOracle.container != nil {
 		_ = testcontainers.TerminateContainer(mssqlOracle.container)
 	}
 	os.Exit(code)

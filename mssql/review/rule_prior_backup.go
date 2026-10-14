@@ -287,6 +287,10 @@ func textOf(sql string, loc ast.Loc) string {
 type changeMade struct {
 	relations []*ast.TableRef
 	columns   []madeColumn
+	// synonyms are the synonyms the change drops. The synced schema lists
+	// no synonyms, so a name one held before the change may resolve when
+	// the backup runs, whatever the change makes of it.
+	synonyms []*ast.TableRef
 }
 
 type madeColumn struct {
@@ -299,6 +303,14 @@ func madeByChange(stmts []statement) changeMade {
 	var visit func(n ast.Node)
 	visit = func(n ast.Node) {
 		switch v := n.(type) {
+		case *ast.DropStmt:
+			if v.ObjectType == ast.DropSynonym && v.Names != nil {
+				for _, item := range v.Names.Items {
+					if ref, ok := item.(*ast.TableRef); ok {
+						m.synonyms = append(m.synonyms, ref)
+					}
+				}
+			}
 		case *ast.CreateTableStmt:
 			if v.IfNotExists || v.Name == nil {
 				return
@@ -391,18 +403,26 @@ func madeByChange(stmts []statement) changeMade {
 	return m
 }
 
-func (m changeMade) madeRelation(ref *ast.TableRef) bool {
+// madeRelation reports whether the change makes the relation a reference
+// of the target's database means: one it makes in another database is
+// not, and neither is a name a synonym the change drops held before.
+func (m changeMade) madeRelation(ref *ast.TableRef, x schemaIndex) bool {
+	for _, s := range m.synonyms {
+		if sameObject(s, ref) {
+			return false
+		}
+	}
 	for _, made := range m.relations {
-		if sameObject(made, ref) {
+		if x.inDatabase(made) && sameObject(made, ref) {
 			return true
 		}
 	}
 	return false
 }
 
-func (m changeMade) madeColumnOn(ref *ast.TableRef, column string) bool {
+func (m changeMade) madeColumnOn(ref *ast.TableRef, column string, x schemaIndex) bool {
 	for _, made := range m.columns {
-		if sameName(made.column, column) && sameObject(made.table, ref) {
+		if sameName(made.column, column) && x.inDatabase(made.table) && sameObject(made.table, ref) {
 			return true
 		}
 	}
@@ -448,7 +468,7 @@ func backupReadsMade(d dmlTarget, x schemaIndex, m changeMade) string {
 	}
 	var missing *ast.TableRef
 	check := func(n ast.Node) bool {
-		if ref, ok := n.(*ast.TableRef); ok && missing == nil && x.inDatabase(ref) && !strings.HasPrefix(ref.Object, "#") && m.madeRelation(ref) && !x.holdsRelation(ref) {
+		if ref, ok := n.(*ast.TableRef); ok && missing == nil && x.inDatabase(ref) && !strings.HasPrefix(ref.Object, "#") && m.madeRelation(ref, x) && !x.holdsRelation(ref) {
 			missing = ref
 		}
 		return true
@@ -531,7 +551,7 @@ func columnMissing(from []ast.Node, where ast.ExprNode, x schemaIndex, m changeM
 		if src.columns == nil || src.columns[strings.ToLower(column)] || src.ref == nil {
 			return
 		}
-		if m.madeColumnOn(src.ref, column) {
+		if m.madeColumnOn(src.ref, column, x) {
 			msg = "prior backup runs before the change, when column " + ident(column) + " of " + object(src.ref) + " does not exist yet"
 		}
 	}
