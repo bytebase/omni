@@ -130,8 +130,25 @@
     "blocked_by": null,
     "cluster": "C1",
     "priority": "high",
-    "proof_notes": "\u00a75.3 two-proof bar (Phase 4 \u00a74.1 lock-in). (a) Caller-context: parseParenTableRef is reached only from parseTableRefPrimary's '(' arm for the joined_table vs select_with_parens fork (select.go parseTableRefPrimary). The parenBeginsSubquery T3 snapshot scanner classifies the paren content by looking past the leading '(' at depth-1 tokens: SELECT/VALUES/WITH/TABLE (or a following '(' that recursively satisfies the scan) \u2192 select_with_parens; otherwise \u2192 joined_table. Any content not matching joined_table is rejected (no silent bare-relation acceptance). (b) Empirical proof \u2014 \u22655 pinned tests spanning all dispatch arms: paren_multi_join_test.go TestParseParenMultiJoin (lines 23-55, 11 scenarios covering plain/aliased/column-list/double/triple nested joined_table, subquery-operand joined_table, and the BYT-9315 pg_get_viewdef shape), TestParseParenMultiJoinAST (lines 60-92, left-nested JoinExpr shape), TestParseParenSetOpInSubquery (lines 100-118, 5 scenarios select_with_parens arm), TestParseParenTableRefRejectsNonJoined (lines 125-143, 3 rejection scenarios for `(a)` / `((a))` / `((SELECT 1) x)`), TestParseParenSubqueryStillWorks (lines 145-155, 5 scenarios single/double/triple paren-wrapped SELECT + VALUES + WITH + TABLE). Anti-regression fence: paren_oracle_from_joined_test.go, paren_oracle_from_subquery_test.go, paren_oracle_from_degenerate_test.go, paren_oracle_from_mixed_test.go all drive PG 17 container oracle probes; pgregress `join.sql`, `subselect.sql`, and the full pgregress corpus run end-to-end.",
+    "proof_notes": "\u00a75.3 two-proof bar (Phase 4 \u00a74.1 lock-in). (a) Caller-context: parseParenTableRef is reached only from parseTableRefPrimary's '(' arm for the joined_table vs select_with_parens fork (select.go parseTableRefPrimary). The parenBeginsSubquery T3 snapshot scanner classifies the paren content by looking past the leading '(' at depth-1 tokens: SELECT/VALUES/WITH/TABLE (or a following '(' that recursively satisfies the scan) \u2192 select_with_parens; otherwise \u2192 joined_table. Any content not matching joined_table is rejected (no silent bare-relation acceptance). (b) Empirical proof \u2014 \u22655 pinned tests spanning all dispatch arms: paren_multi_join_test.go TestParseParenMultiJoin (lines 23-55, 11 scenarios covering plain/aliased/column-list/double/triple nested joined_table, subquery-operand joined_table, and the BYT-9315 pg_get_viewdef shape), TestParseParenMultiJoinAST (lines 60-92, left-nested JoinExpr shape), TestParseParenSetOpInSubquery (lines 100-118, 5 scenarios select_with_parens arm), TestParseParenTableRefRejectsNonJoined (lines 125-143, 3 rejection scenarios for `(a)` / `((a))` / `((SELECT 1) x)`), TestParseParenSubqueryStillWorks (lines 145-155, 5 scenarios single/double/triple paren-wrapped SELECT + VALUES + WITH + TABLE). Anti-regression fence: paren_oracle_from_joined_test.go, paren_oracle_from_subquery_test.go, paren_oracle_from_degenerate_test.go, paren_oracle_from_mixed_test.go all drive PG 17 container oracle probes; pgregress `join.sql`, `subselect.sql`, and the full pgregress corpus run end-to-end. 2026-10-14: parenBeginsSubquery answers from the parenIsSubquery memo that consumeMatchedParenIsSubquery (row select.go:1330) fills for every '(' it passes, so nested groups parse in linear time; nested_paren_test.go TestNestedParensStayLinear guards it.",
     "suspicion_notes": null
+  },
+  {
+    "site": "select.go:1330",
+    "function": "consumeMatchedParenIsSubquery",
+    "nonterminals": [
+      "select_with_parens",
+      "joined_table"
+    ],
+    "ambiguity_present": true,
+    "current_technique": "T3",
+    "pg_reference": "gram.y:13446,13554",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C1",
+    "priority": "high",
+    "proof_notes": "2026-10-14: the scanner behind parseParenTableRef's parenBeginsSubquery check (row select.go:1162). Caller-context: called from parenBeginsSubquery inside a snapshotTokenStreamAndCompletion scope when the '(' at p.cur has no parenIsSubquery entry, and recursively for every nested '('. A block is select_with_parens iff its first token is SELECT/VALUES/WITH/TABLE, or it opens with a nested block that is select_with_parens followed by ')' or a set-op; otherwise joined_table. Nested blocks after the first are now classified by recursion instead of skipped by a depth counter, and every verdict is recorded in parenIsSubquery, so parenBeginsSubquery at an inner '(' costs O(1). Proof: paren_multi_join_test.go TestParseParenMultiJoin, TestParseParenMultiJoinAST, TestParseParenSetOpInSubquery, TestParseParenTableRefRejectsNonJoined, TestParseParenSubqueryStillWorks; PG 17 oracle fences paren_oracle_from_joined_test.go, paren_oracle_from_subquery_test.go, paren_oracle_from_mixed_test.go, paren_oracle_fuzz_test.go; nested_paren_test.go TestNestedParensStayLinear (20,000-deep join group and right-deep and left-deep join groups within 2s).",
+    "suspicion_notes": "Memo entries are keyed by the byte offset of a '(' and assume the tokens after an offset never change within one parse. Anything that replaces the lexer mid-parse must clear them, as pg/parser's resetLexerTo does."
   },
   {
     "site": "select.go:1225",
@@ -357,7 +374,43 @@
     "blocked_by": null,
     "cluster": "C2",
     "priority": "high",
-    "proof_notes": "P1 2026-04-23: genericized the Phase 1 IN-clause lookahead for any parenthesized expression body whose first token is itself '('. The T3 snapshot/restore scan tracks top-level paren depth: top-level comma => expr/list, top-level set-op or SELECT option continuation (UNION/INTERSECT/EXCEPT/ORDER/LIMIT/OFFSET/FETCH/FOR) => select_with_parens, top-level non-SELECT operator (for example `((SELECT max(x)) - interval '1 day')`) => expression, and single wrapped SELECT-start falls through to the T8 FIRST-set probe. Completion-mode guard remains because snapshotTokenStream does not capture candidate state. Proof: view_body_select_surface_test.go TestViewBodyParenthesizedSetOpSubquery covers parenthesized set-op subqueries and the minimized scalar-subquery arithmetic regressions `((SELECT max(x) FROM t) - '1 day'::interval)` / `((SELECT max(x) FROM t) + '2 days'::interval)`; paren_in_expr_test.go still covers the original IN caller.",
+    "proof_notes": "P1 2026-04-23: genericized the Phase 1 IN-clause lookahead for any parenthesized expression body whose first token is itself '('. The T3 snapshot/restore scan tracks top-level paren depth: top-level comma => expr/list, top-level set-op or SELECT option continuation (UNION/INTERSECT/EXCEPT/ORDER/LIMIT/OFFSET/FETCH/FOR) => select_with_parens, top-level non-SELECT operator (for example `((SELECT max(x)) - interval '1 day')`) => expression, and single wrapped SELECT-start falls through to the T8 FIRST-set probe. Completion-mode guard remains because snapshotTokenStream does not capture candidate state. Proof: view_body_select_surface_test.go TestViewBodyParenthesizedSetOpSubquery covers parenthesized set-op subqueries and the minimized scalar-subquery arithmetic regressions `((SELECT max(x) FROM t) - '1 day'::interval)` / `((SELECT max(x) FROM t) + '2 days'::interval)`; paren_in_expr_test.go still covers the original IN caller. 2026-10-14: the depth scan and the single-element probe moved into scanParenGroups and firstTokenPastParens (rows expr.go:805, expr.go:831), which memoize their answer per '(' so nested parens parse in linear time; nested_paren_test.go TestNestedParensStayLinear guards it.",
+    "suspicion_notes": null
+  },
+  {
+    "site": "expr.go:805",
+    "function": "scanParenGroups",
+    "nonterminals": [
+      "select_with_parens",
+      "expr_list",
+      "a_expr"
+    ],
+    "ambiguity_present": true,
+    "current_technique": "T3",
+    "pg_reference": "gram.y:12682-12688,14973-14998",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C2",
+    "priority": "high",
+    "proof_notes": "2026-10-14: the depth scan of lookaheadParenContentIsSubquery (row expr.go:813), split out so its result is memoized; the decision rules are unchanged. Caller-context: called only from lookaheadParenContentIsSubquery, outside completion mode, when the '(' at p.cur has no parenAfter entry. It returns the first depth-0 token past the balanced groups starting at p.cur (',' => expr_list, set-op or SELECT option => select_with_parens, ')' => single element, anything else => expression) and records for every '(' it passes the token after its matching ')' (EOF if unclosed), so the question asked again at each nesting level costs O(1). Proof: paren_in_expr_test.go TestParenInExprDispatch (nested-paren IN scenarios incl. IN ((SELECT 1)), IN ((SELECT 1) UNION (SELECT 2)), IN ((SELECT 1),(SELECT 2))), TestParenInExprSubqueryAST, TestParenInExprExprListAST; view_body_select_surface_test.go TestViewBodyParenthesizedSetOpSubquery (parenthesized set-op subqueries and scalar-subquery arithmetic); paren_oracle_in_test.go (PG 17 oracle); nested_paren_test.go TestNestedParensStayLinear (20,000-deep scalar, condition, IN list, right-deep, unclosed, subquery and subquery-comparison shapes parse within 2s).",
+    "suspicion_notes": "Memo entries are keyed by the byte offset of a '(' and assume the tokens after an offset never change within one parse. Anything that replaces the lexer mid-parse must clear them, as pg/parser's resetLexerTo does."
+  },
+  {
+    "site": "expr.go:831",
+    "function": "firstTokenPastParens",
+    "nonterminals": [
+      "select_with_parens",
+      "expr_list",
+      "a_expr"
+    ],
+    "ambiguity_present": true,
+    "current_technique": "T3+T8",
+    "pg_reference": "gram.y:12682-12688,14973-14998",
+    "aligned": "yes",
+    "blocked_by": null,
+    "cluster": "C2",
+    "priority": "high",
+    "proof_notes": "2026-10-14: the single-element probe of lookaheadParenContentIsSubquery (row expr.go:813), split out so its result is reused. Caller-context: called only from lookaheadParenContentIsSubquery, outside completion mode, once the deciding token is the matching ')'. It returns the first non-'(' token at or after p.cur, whose isSelectStartToken verdict picks select_with_parens over expression. Every '(' of a run shares that token, so the last run walked (parenRunStart, parenRunPast) answers any '(' inside it without a scan. Proof: paren_in_expr_test.go TestParenInExprDispatch (nested-paren IN scenarios incl. IN ((SELECT 1)), IN ((SELECT 1) UNION (SELECT 2)), IN ((SELECT 1),(SELECT 2))), TestParenInExprSubqueryAST, TestParenInExprExprListAST; view_body_select_surface_test.go TestViewBodyParenthesizedSetOpSubquery (parenthesized set-op subqueries and scalar-subquery arithmetic); paren_oracle_in_test.go (PG 17 oracle); nested_paren_test.go TestNestedParensStayLinear (20,000-deep scalar, condition, IN list, right-deep, unclosed, subquery and subquery-comparison shapes parse within 2s).",
     "suspicion_notes": null
   },
   {
