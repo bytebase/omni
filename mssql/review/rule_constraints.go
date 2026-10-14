@@ -54,6 +54,9 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		table *ast.TableRef
 		name  string
 		kind  ast.ConstraintType
+		// unsure is a definition in control flow or a routine body,
+		// which may or may not have run when a later drop does.
+		unsure bool
 	}
 	var made []defined
 	// find returns the latest definition of the name on the table, by a
@@ -84,6 +87,8 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		case !found:
 			open = append(open, droppedConstraint{s.index, pos, a.Loc, v, a.Constraint.Name, nested})
 			return
+		case d.unsure:
+			return
 		}
 		reportDrop(stmts, pos, s, a.Loc, v, d.kind, a.Constraint.Name, nested, on, r)
 	}
@@ -98,7 +103,7 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		case *ast.CreateTableStmt:
 			for _, c := range tableConstraints(v) {
 				if c.Name != "" {
-					made = append(made, defined{v.Name, c.Name, c.Type})
+					made = append(made, defined{table: v.Name, name: c.Name, kind: c.Type})
 				}
 			}
 			// A FileTable has a primary key in its fixed schema.
@@ -117,13 +122,13 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 				switch a.Type {
 				case ast.ATAddConstraint:
 					if a.Constraint != nil && a.Constraint.Name != "" {
-						made = append(made, defined{v.Name, a.Constraint.Name, a.Constraint.Type})
+						made = append(made, defined{table: v.Name, name: a.Constraint.Name, kind: a.Constraint.Type})
 					}
 				case ast.ATAddColumn:
 					if a.Column != nil && a.Column.Constraints != nil {
 						for _, item := range a.Column.Constraints.Items {
 							if c, ok := item.(*ast.ConstraintDef); ok && c.Name != "" {
-								made = append(made, defined{v.Name, c.Name, c.Type})
+								made = append(made, defined{table: v.Name, name: c.Name, kind: c.Type})
 							}
 						}
 					}
@@ -171,8 +176,15 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 					return true
 				}
 				for _, item := range v.Actions.Items {
-					if a, ok := item.(*ast.AlterTableAction); ok && a.Type == ast.ATDropConstraint {
+					a, ok := item.(*ast.AlterTableAction)
+					switch {
+					case !ok:
+					case a.Type == ast.ATDropConstraint:
 						drop(pos, s, v, a, true)
+					case a.Type == ast.ATAddConstraint && a.Constraint != nil && a.Constraint.Name != "":
+						// A later drop of the name is of this definition or
+						// the one before, as the flow runs.
+						made = append(made, defined{table: v.Name, name: a.Constraint.Name, kind: a.Constraint.Type, unsure: true})
 					}
 				}
 				return true
