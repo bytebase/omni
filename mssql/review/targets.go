@@ -151,7 +151,7 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 			}
 			// A constraint the change renamed to the name is not the synced
 			// one of that name.
-			if renamedTo(stmts, d.position, d.loc.Start, d.name) {
+			if renamedTo(stmts, d.position, d.loc.Start, d.name) || droppedBefore(stmts, d.position, d.loc.Start, d.alter.Name) {
 				continue
 			}
 			t := x.table(d.alter.Name)
@@ -182,8 +182,9 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 }
 
 // droppedBefore reports whether the change, before offset at in statement
-// pos, drops an object the reference may mean, or renames it away, so
-// that the synced schema no longer tells what the name holds.
+// pos, drops an object the reference may mean, renames it away, or moves
+// an object of its name between schemas, so that the synced schema no
+// longer tells what the name holds.
 func droppedBefore(stmts []statement, pos, at int, ref *ast.TableRef) bool {
 	dropped := false
 	for i := 0; i <= pos && !dropped; i++ {
@@ -203,6 +204,12 @@ func droppedBefore(stmts []statement, pos, at int, ref *ast.TableRef) bool {
 				}
 			case *ast.RenameStmt:
 				dropped = dropped || v.ColumnName == "" && sameObject(v.Name, ref)
+			case *ast.AlterSchemaStmt:
+				if v.TransferType == "" || strings.EqualFold(v.TransferType, "OBJECT") {
+					if t := parseObjectName(v.TransferEntity); t != nil && sameName(t.Object, ref.Object) {
+						dropped = true
+					}
+				}
 			case *ast.ExecStmt:
 				if name, _, kind, ok := spRename(v); ok && (kind == "" || strings.EqualFold(kind, "OBJECT")) {
 					if t := parseObjectName(name); t != nil && sameObject(t, ref) {

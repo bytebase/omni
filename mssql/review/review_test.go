@@ -392,6 +392,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
 		},
 		{
+			name: "a table of the name moved in from another schema",
+			sql:  "ALTER SCHEMA archive TRANSFER dbo.t;\nALTER SCHEMA dbo TRANSFER staging.t;\nALTER TABLE dbo.t DROP CONSTRAINT ck_n;",
+		},
+		{
 			name: "a constraint the change renames to a synced constraint's name",
 			sql:  "EXEC sp_rename 'dbo.t.ck_n', 'old_ck', 'OBJECT';\nEXEC sp_rename 'dbo.t.df_n', 'ck_n', 'OBJECT';\nALTER TABLE dbo.t DROP CONSTRAINT ck_n;",
 		},
