@@ -475,6 +475,12 @@ func TestOnlineMigration(t *testing.T) {
 			want:   []finding{{0, "CHANGE COLUMN v `v w` INT", "gh-ost renames column v to `v w` only with approve-renamed-columns, which Bytebase does not pass", []int{0}}},
 		},
 		{
+			name:   "a column kept by CHANGE, a name with a space in it",
+			sql:    "ALTER TABLE plain CHANGE COLUMN `v w` `v w` BIGINT;",
+			change: ghost,
+			want:   []finding{{0, "CHANGE COLUMN `v w` `v w` BIGINT", "gh-ost splits column name `v w` at whitespace and reads CHANGE as a rename, which it takes only with approve-renamed-columns", []int{0}}},
+		},
+		{
 			name:   "a column renamed by RENAME COLUMN",
 			sql:    "ALTER TABLE plain RENAME COLUMN v TO w;",
 			change: ghost,
