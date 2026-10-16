@@ -407,6 +407,8 @@ func TestScanRulesAgainstMariaDB(t *testing.T) {
 		{"a unique index dropped by name", "ALTER TABLE t DROP INDEX uk_code;\nDROP INDEX idx_n ON t;", true},
 		{"a unique key the change makes, then drops", "ALTER TABLE nokey ADD UNIQUE KEY uk_a (a);\nALTER TABLE nokey DROP INDEX uk_a;", true},
 		{"DROP INDEX of the primary key", "DROP INDEX `PRIMARY` ON plain;", true},
+		{"DROP CONSTRAINT PRIMARY KEY", "ALTER TABLE plain DROP CONSTRAINT PRIMARY KEY;", true},
+		{"drops under IF EXISTS of what exists", "ALTER TABLE t DROP CONSTRAINT IF EXISTS ck_n, DROP FOREIGN KEY IF EXISTS fk_p;\nALTER TABLE t DROP INDEX IF EXISTS uk_code;", true},
 		{"a table created without a key", "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);", true},
 		{"CREATE TABLE AS SELECT, which copies no key", "CREATE TABLE c AS SELECT id, v FROM plain;\nCREATE TABLE d (PRIMARY KEY (id)) AS SELECT id FROM plain;", true},
 		{"a key added later", "CREATE TABLE a (id INT);\nALTER TABLE a ADD PRIMARY KEY (id);", true},

@@ -22,11 +22,12 @@ import (
 //	    | ADD [CONSTRAINT [symbol]] UNIQUE [INDEX | KEY] [index_name] (key_part,...) [index_option] ...
 //	    | ADD [CONSTRAINT [symbol]] FOREIGN KEY [index_name] (col,...) reference_definition
 //	    | ADD [CONSTRAINT [symbol]] CHECK (expr)
-//	    | DROP [COLUMN] col_name
-//	    | DROP {INDEX | KEY} index_name
-//	    | DROP PRIMARY KEY
-//	    | DROP FOREIGN KEY fk_symbol
-//	    | DROP CHECK symbol
+//	    | DROP [COLUMN] [IF EXISTS] col_name
+//	    | DROP {INDEX | KEY} [IF EXISTS] index_name
+//	    | DROP [CONSTRAINT] PRIMARY KEY
+//	    | DROP FOREIGN KEY [IF EXISTS] fk_symbol
+//	    | DROP CONSTRAINT [IF EXISTS] symbol
+//	    | DROP PARTITION [IF EXISTS] partition_names
 //	    | MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name]
 //	    | CHANGE [COLUMN] old_col_name new_col_name column_definition [FIRST | AFTER col_name]
 //	    | ALTER [COLUMN] col_name {SET DEFAULT {literal | (expr)} | DROP DEFAULT}
@@ -510,13 +511,19 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 }
 
 // parseAlterDrop parses DROP operations.
+//
+// Ref: https://mariadb.com/kb/en/alter-table/ and the DROP arms of
+// alter_list_item in MariaDB 11.8 sql/sql_yacc.yy. Each named table element
+// takes opt_if_exists_table_element; PRIMARY KEY does not. MariaDB has no
+// DROP CHECK (MySQL 8.0 syntax): a CHECK constraint is dropped with DROP
+// CONSTRAINT, and CHECK, being reserved, cannot name a column.
 func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume DROP
 
 	// Completion: after DROP, offer what can be dropped.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwFOREIGN, kwPRIMARY, kwCHECK, kwCONSTRAINT, kwPARTITION} {
+		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwFOREIGN, kwPRIMARY, kwCONSTRAINT, kwPARTITION} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -551,9 +558,14 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return nil, p.syntaxErrorAtCur()
 
 	case kwPARTITION:
-		// DROP PARTITION partition_names
+		// DROP PARTITION [IF EXISTS] partition_names
 		p.advance()
 		cmd.Type = nodes.ATDropPartition
+		ifExists, err := p.parseOptIfExists()
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfExists = ifExists
 		names, err := p.parseIdentList()
 		if err != nil {
 			return nil, err
@@ -572,97 +584,77 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return cmd, nil
 
 	case kwINDEX, kwKEY:
-		// DROP {INDEX | KEY} index_name
+		// DROP {INDEX | KEY} [IF EXISTS] index_name
 		p.advance()
 		cmd.Type = nodes.ATDropIndex
-		// Completion: after DROP INDEX, offer index_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("index_ref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
+		return p.parseAlterDropName(cmd, "index_ref")
 
 	case kwFOREIGN:
-		// DROP FOREIGN KEY fk_symbol
+		// DROP FOREIGN KEY [IF EXISTS] fk_symbol
 		p.advance()
 		p.match(kwKEY)
 		cmd.Type = nodes.ATDropConstraint
-		// Completion: after DROP FOREIGN KEY, offer constraint_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("constraint_ref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
-
-	case kwCHECK:
-		// DROP CHECK symbol
-		p.advance()
-		cmd.Type = nodes.ATDropConstraint
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
+		return p.parseAlterDropName(cmd, "constraint_ref")
 
 	case kwCONSTRAINT:
-		// DROP CONSTRAINT symbol
 		p.advance()
+		// DROP CONSTRAINT PRIMARY KEY (opt_constraint_no_id PRIMARY_SYM KEY_SYM)
+		if p.cur.Type == kwPRIMARY {
+			p.advance()
+			if _, err := p.expect(kwKEY); err != nil {
+				return nil, err
+			}
+			cmd.Type = nodes.ATDropConstraint
+			cmd.Name = "PRIMARY"
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
+		// DROP CONSTRAINT [IF EXISTS] symbol
 		cmd.Type = nodes.ATDropConstraint
-		// Completion: after DROP CONSTRAINT, offer constraint_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("constraint_ref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
+		return p.parseAlterDropName(cmd, "constraint_ref")
 
 	default:
 		// DROP [COLUMN] [IF EXISTS] col_name
 		cmd.Type = nodes.ATDropColumn
 		p.match(kwCOLUMN)
-		// Completion: after DROP COLUMN, offer columnref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		if p.cur.Type == kwIF {
-			p.advance()
-			if _, err := p.expect(kwEXISTS_KW); err != nil {
-				return nil, err
-			}
-			cmd.IfExists = true
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
+		return p.parseAlterDropName(cmd, "columnref")
 	}
+}
+
+// parseAlterDropName parses [IF EXISTS] name, the tail of a DROP of a named
+// table element, into cmd. rule is the completion candidate for the name.
+func (p *Parser) parseAlterDropName(cmd *nodes.AlterTableCmd, rule string) (*nodes.AlterTableCmd, error) {
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	cmd.IfExists = ifExists
+	// Completion: offer the element name, with or without IF EXISTS before it.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate(rule)
+		return nil, &ParseError{Message: "collecting"}
+	}
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Name = name
+	cmd.Loc.End = p.prev.End
+	return cmd, nil
+}
+
+// parseOptIfExists parses an optional IF EXISTS and reports whether it was
+// present.
+func (p *Parser) parseOptIfExists() (bool, error) {
+	if p.cur.Type != kwIF {
+		return false, nil
+	}
+	p.advance()
+	if _, err := p.expect(kwEXISTS_KW); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // parseAlterModify parses MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name].

@@ -1735,12 +1735,6 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 			"t_child_dfk",
 		},
 		{
-			"drop_check",
-			"CREATE TABLE t_drop_chk (id INT PRIMARY KEY, age INT, CONSTRAINT chk_age CHECK (age > 0))",
-			"ALTER TABLE t_drop_chk DROP CHECK chk_age",
-			"t_drop_chk",
-		},
-		{
 			"drop_constraint_generic",
 			"CREATE TABLE t_drop_con (id INT PRIMARY KEY, val INT, CONSTRAINT chk_val CHECK (val >= 0))",
 			"ALTER TABLE t_drop_con DROP CONSTRAINT chk_val",
@@ -1767,7 +1761,6 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 				"t_parent_fk", "t_child_fk",
 				"t_parent_dfk", "t_child_dfk",
 				"t_add_chk",
-				"t_drop_chk",
 				"t_drop_con",
 				"t_chk_ne",
 				"t_chk_enf",

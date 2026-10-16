@@ -185,6 +185,7 @@ func (n *ForPortionOf) nodeTag() {}
 // CreateTableStmt represents a CREATE TABLE statement.
 type CreateTableStmt struct {
 	Loc         Loc
+	OrReplace   bool // CREATE OR REPLACE TABLE: drops an existing table first
 	IfNotExists bool
 	Temporary   bool
 	Table       *TableRef

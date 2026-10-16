@@ -6,32 +6,41 @@ import (
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
-// parseCreateTableStmt parses a CREATE TABLE statement.
+// parseCreateTableStmt parses a CREATE TABLE statement. start is the offset of
+// CREATE; the caller has consumed CREATE [OR REPLACE] [TEMPORARY].
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-table.html
+// Ref: https://mariadb.com/kb/en/create-table/
 //
-//	CREATE [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name
+//	CREATE [OR REPLACE] [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name
 //	    (create_definition,...) [table_options] [partition_options]
-//	CREATE [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name
+//	CREATE [OR REPLACE] [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name
 //	    LIKE old_tbl_name
-//	CREATE [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name
+//	CREATE [OR REPLACE] [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name
 //	    [AS] query_expression
-func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateTableStmt, error) {
+func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*nodes.CreateTableStmt, error) {
 	p.advance() // consume TABLE
 
 	stmt := &nodes.CreateTableStmt{
 		Loc:       nodes.Loc{Start: start},
+		OrReplace: orReplace,
 		Temporary: temporary,
 	}
 
 	// IF NOT EXISTS
 	if p.cur.Type == kwIF {
+		ifPos := p.pos()
 		p.advance()
 		if _, err := p.expect(kwNOT); err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(kwEXISTS_KW); err != nil {
 			return nil, err
+		}
+		// MariaDB rejects the pair while parsing: the create_or_replace ...
+		// TABLE_SYM opt_if_not_exists action in sql_yacc.yy calls
+		// LEX::check_create_options, which raises ER_WRONG_USAGE (1221).
+		if orReplace {
+			return nil, &ParseError{Message: "Incorrect usage of OR REPLACE and IF NOT EXISTS", Position: ifPos}
 		}
 		stmt.IfNotExists = true
 	}
