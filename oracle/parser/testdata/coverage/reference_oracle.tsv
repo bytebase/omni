@@ -207,15 +207,51 @@ ref_205	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyd_{run} AS OBJECT (a
 ref_206	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tyb_{run} MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;	type body without IS or AS
 ref_207	ddl	reject	CREATE TABLE omni_bad_long_{run} (a LONG RAW(10))	size on a LONG RAW column (ORA-03074)
 ref_208	ddl	reject	CREATE TABLE omni_bad_clo_{run} (a CHARACTER LARGE OBJECT)	CHARACTER LARGE OBJECT column (ORA-03062)
+ref_209	plsql_body	accept	CREATE OR REPLACE PACKAGE BODY omni_pi_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;	package body initialization section
+ref_210	plsql_body	reject	CREATE OR REPLACE PACKAGE BODY omni_bad_pi_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN END;	empty package initialization section
+ref_211	plsql_body	reject	CREATE OR REPLACE PACKAGE omni_bad_pis_{run} AS c NUMBER; BEGIN NULL; END;	initialization section in a package specification
+ref_212	plsql_body	accept	CREATE OR REPLACE TYPE BODY omni_tbm_{run} AS FINAL INSTANTIABLE CONSTRUCTOR FUNCTION omni_tbm_{run} (x NUMBER) RETURN SELF AS RESULT IS BEGIN RETURN; END; END;	inheritance clauses on a type body method
+ref_213	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbm_{run} AS FINAL END;	type body modifier without a method
+ref_214	plsql	accept	DECLARE n NUMBER; BEGIN FOR i IN 1..SQL%BULK_EXCEPTIONS.COUNT LOOP n := SQL%BULK_EXCEPTIONS(i).ERROR_CODE + SQL%BULK_ROWCOUNT(i); END LOOP; END;	bulk cursor attributes
+ref_215	plsql	reject	DECLARE n NUMBER; BEGIN n := SQL%BULK_EXCEPTIONS(1, 2).ERROR_CODE; END;	bulk cursor attribute with two indexes (PLS-00431)
 ref_216	ddl	reject	CREATE TABLE omni_bad_refty_{run} (x REF omni_u%TYPE)	REF to an attribute (ORA-00911)
 ref_217	ddl	reject	CREATE TABLE omni_bad_vary_{run} (x CHARACTER VARYING)	CHARACTER VARYING column without a size (ORA-00906)
 ref_218	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyvs_{run} AS OBJECT (x CHARACTER VARYING, y NATIONAL CHARACTER VARYING)	VARYING attribute without a size
+ref_219	plsql	reject	BEGIN NULL; EXCEPTION END;	EXCEPTION without a handler
+ref_220	plsql	reject	BEGIN DBMS_OUTPUT.PUT_LINE(a => 'x', 'y'); END;	positional argument after a named one (PLS-00312)
+ref_221	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbk_{run} AS MEMBER END;	type body method kind without a subprogram
+ref_222	plsql_body	reject	CREATE OR REPLACE PACKAGE BODY omni_bad_pie_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION END;	package initialization EXCEPTION without a handler
 ref_223	plsql	reject	DECLARE x LONG(10, 2); BEGIN NULL; END;	LONG with a scale (PLS-00572)
 ref_224	plsql	reject	DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;	REF with a character set (PLS-00550)
+ref_237	select	accept	SELECT JSON_OBJECT(KEY 'a' VALUE 1, KEY 'b' VALUE 'x' RETURNING VARCHAR2(100) STRICT WITH UNIQUE KEYS) FROM dual	JSON_OBJECT with KEY entries and every clause
+ref_238	select	accept	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy DESC NULL ON NULL RETURNING CLOB STRICT) FROM dual	JSON_ARRAYAGG with ORDER BY and clauses
+ref_239	select	accept	SELECT JSON_OBJECTAGG(KEY dummy VALUE 1 ABSENT ON NULL RETURNING CLOB) FROM dual	JSON_OBJECTAGG with KEY and clauses
+ref_240	select	accept	SELECT JSON_SERIALIZE('{}' RETURNING CLOB PRETTY ASCII ORDERED NULL ON ERROR) FROM dual	JSON_SERIALIZE with its flags
+ref_241	select	accept	SELECT JSON_ARRAY(SELECT 1 FROM dual NULL ON NULL) FROM dual	JSON_ARRAY of a subquery
+ref_242	select	reject	SELECT JSON_OBJECT('a' 1) FROM dual	JSON_OBJECT entry without VALUE (ORA-02000)
+ref_243	select	reject	SELECT JSON_OBJECT('a' VALUE 1 STRICT RETURNING CLOB) FROM dual	JSON_OBJECT clauses out of order (ORA-02000)
+ref_244	select	reject	SELECT JSON_ARRAYAGG(dummy RETURNING CLOB ORDER BY dummy) FROM dual	JSON_ARRAYAGG ORDER BY after RETURNING (ORA-02000)
+ref_245	select	reject	SELECT JSON_SERIALIZE('{}' PRETTY RETURNING CLOB) FROM dual	JSON_SERIALIZE RETURNING after PRETTY (ORA-00907)
+ref_246	select	reject	SELECT JSON_OBJECTAGG(dummy VALUE 1, 'b' VALUE 2) FROM dual	JSON_OBJECTAGG with two entries (ORA-02000)
 ref_247	plsql_body	accept	CREATE OR REPLACE TYPE omni_np_{run} AS OBJECT (x PLS_INTEGER, y LONG) NOT PERSISTABLE	PL/SQL-only attributes in a NOT PERSISTABLE type
 ref_248	plsql_body	accept	CREATE OR REPLACE TYPE omni_npc_{run} AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE	PL/SQL-only element in a NOT PERSISTABLE collection
 ref_249	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_oid_{run} OID 'ABC' AS OBJECT (a NUMBER)	OID that is not 32 hexadecimal digits (ORA-02304)
 ref_250	ddl	reject	CREATE TABLE omni_bad_nch_{run} (x NCHAR(2 CHAR))	CHAR length semantics on NCHAR in SQL (ORA-00907)
+ref_253	select	accept	SELECT JSON_OBJECT(* RETURNING CLOB) FROM dual	JSON_OBJECT(*) with a clause
+ref_254	select	accept	SELECT JSON_OBJECT(KEY 'VALUE' VALUE 1) FROM dual	literal key spelled VALUE
+ref_255	select	reject	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy,) FROM dual	trailing comma in JSON_ARRAYAGG ORDER BY (ORA-00936)
+ref_256	select	reject	SELECT JSON_OBJECTAGG(* VALUE 1) FROM dual	wildcard JSON_OBJECTAGG key (ORA-00936)
+ref_258	select	reject	SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2()) FROM dual	RETURNING datatype without its size (ORA-00910)
+ref_259	select	accept	SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)	quoted "*" column as a JSON_OBJECTAGG key
+ref_261	select	accept	SELECT JSON_OBJECT('a':dummy) FROM dual	colon separator right before the value
+ref_262	select	accept	SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual	WITH TYPENAME after the unique-keys clause
+ref_263	select	reject	SELECT JSON_OBJECT(dummy STRICT) FROM dual	STRICT right after a column entry (ORA-02000)
+ref_275	plsql	accept	DECLARE TYPE t IS TABLE OF BOOLEAN INDEX BY VARCHAR2(30); x t := t('A' => TRUE, 'B' => FALSE); BEGIN NULL; END;	qualified expression with string keys
+ref_276	plsql	accept	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1|2 => 5, 4..6 => 7, FOR i IN 10..12 => i); BEGIN NULL; END;	choice list, range, and iterator choices
+ref_277	plsql	accept	BEGIN FOR i IN 1..10 BY 2 WHEN i > 3 LOOP NULL; END LOOP; END;	FOR loop with BY and WHEN
+ref_278	plsql	reject	BEGIN FOR i, j IN 1..3 LOOP NULL; END LOOP; END;	two iterands without PAIRS OF (PLS-00856)
+ref_279	select	reject	SELECT UPPER(1 => 'x') FROM dual	choice in a SQL call (ORA-00907)
+ref_280	plsql	reject	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1 => 10, 20); BEGIN NULL; END;	positional value after a choice (PLS-00312)
 ref_284	ddl	reject	CREATE TABLE omni_bad_dec_{run} (x DEC(0))	NUMBER precision outside 1 to 38 (ORA-01727)
 ref_285	ddl	reject	CREATE TABLE omni_bad_scale_{run} (x NUMBER(5, 128))	NUMBER scale outside -84 to 127 (ORA-01728)
 ref_286	select	reject	SELECT CAST(1 AS FLOAT(127)) FROM dual	FLOAT precision outside 1 to 126 (ORA-01724)

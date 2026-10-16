@@ -707,6 +707,15 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 	p.inPackageBody = stmt.IsBody
 	p.typeScopes = append(p.typeScopes, map[string]bool{})
 	stmt.Body, parseErr469 = p.parsePackageBody()
+	if parseErr469 == nil && p.cur.Type == kwBEGIN {
+		// Only a body has an initialization section (PLS-00103 on Oracle
+		// 23ai for a specification).
+		if !stmt.IsBody {
+			parseErr469 = p.syntaxErrorAtCur()
+		} else {
+			stmt.InitBlock, parseErr469 = p.parsePackageInitialization()
+		}
+	}
 	p.typeScopes = p.typeScopes[:len(p.typeScopes)-1]
 	p.inPackageBody = savedInBody
 	if parseErr469 !=
@@ -715,7 +724,7 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		nil {
 		return nil, parseErr469
 	}
-	if err := p.checkPackageCharsetScopes(subprogramName(stmt.Name), stmt.Body); err != nil {
+	if err := p.checkPackageCharsetScopes(subprogramName(stmt.Name), stmt.Body, stmt.InitBlock); err != nil {
 		return nil, err
 	}
 	// A package holding a SQL macro has definer's rights: Oracle 23ai
@@ -793,6 +802,33 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 	}
 
 	return decls, nil
+}
+
+// parsePackageInitialization parses the initialization section that may
+// end a package body, the current token at BEGIN, up to the package's END.
+// It holds at least one statement (PLS-00103 on Oracle 23ai for BEGIN END).
+//
+//	BEGIN statement... [ EXCEPTION exception_handler... ]
+func (p *Parser) parsePackageInitialization() (*nodes.PLSQLBlock, error) {
+	block := &nodes.PLSQLBlock{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // consume BEGIN
+	stmts, err := p.parsePLSQLStatements()
+	if err != nil {
+		return nil, err
+	}
+	if stmts == nil || stmts.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	block.Statements = stmts
+	if p.cur.Type == kwEXCEPTION {
+		p.advance() // consume EXCEPTION
+		block.Exceptions, err = p.parsePLSQLExceptionHandlers()
+		if err != nil {
+			return nil, err
+		}
+	}
+	block.Loc.End = p.prev.End
+	return block, nil
 }
 
 // parsePackageProcDecl parses a PROCEDURE declaration or definition inside a package.
@@ -931,6 +967,10 @@ func (p *Parser) parsePackageFuncDecl(level subprogramLevel) (*nodes.CreateFunct
 
 // parseParameterList parses a parenthesized parameter list: ( param1, param2, ... )
 func (p *Parser) parseParameterList() (*nodes.List, error) {
+	// A parameter's default is a PL/SQL expression: Oracle 23ai takes
+	// PROCEDURE p (x pkg.ai := pkg.ai(1 => 2)).
+	defer p.restorePLSQLCode(p.setPLSQLCode(true))
+
 	params := &nodes.List{}
 	p.advance() // consume '('
 

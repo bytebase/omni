@@ -218,6 +218,80 @@ func (p *Parser) parseLockMode() (string, error) {
 	return mode, nil
 }
 
+// parseRoutineName parses the routine a CALL names, with up to three
+// components: Oracle 23ai calls schema.package.routine as package.routine.
+// The middle one is the package or type, returned apart from name, which
+// holds the schema and the routine.
+//
+//	[ schema . ] [ { type_name | package_name } . ] routine_name [ @dblink_name ]
+func (p *Parser) parseRoutineName() (*nodes.ObjectName, string, error) {
+	// A name follows the dot before an @ too (ORA-03050 for CALL
+	// app.@link()).
+	if ahead := p.peekAhead(2); ahead[0].Type == '.' && ahead[1].Type == '@' {
+		return nil, "", p.syntaxErrorAtTok(ahead[1])
+	}
+	// No component is a reserved word unquoted (ORA-01747 for CALL
+	// app.pkg.SELECT()).
+	name, err := p.parseReservedCheckedObjectName()
+	if err != nil || name == nil || name.Name == "" {
+		return name, "", err
+	}
+	// A name follows every dot (ORA-03050 for CALL app. .proc()) and a
+	// database link every @ (ORA-01729 for CALL app.pkg@.proc()).
+	if p.prev.Type == '.' || p.prev.Type == '@' {
+		return nil, "", p.syntaxErrorAtCur()
+	}
+	pkg := ""
+	if name.DBLink == "" && p.cur.Type == '.' {
+		p.advance() // consume .
+		routine, err := p.parseObjectNameIdentifier()
+		if err != nil {
+			return nil, "", err
+		}
+		if routine == "" {
+			return nil, "", p.syntaxErrorAtCur()
+		}
+		pkg, name.Name = name.Name, routine
+		if p.cur.Type == '@' {
+			p.advance() // consume @
+			if name.DBLink, err = p.parseIdentifier(); err != nil {
+				return nil, "", err
+			}
+			if name.DBLink == "" {
+				return nil, "", p.syntaxErrorAtCur()
+			}
+		}
+	}
+	// A database link's name may hold dots and end in a connection
+	// qualifier: Oracle 23ai parses CALL app.pkg.proc@remote.example.com()
+	// and ...@remote@instance(), and reports a missing link only then
+	// (ORA-04054).
+	for name.DBLink != "" && p.cur.Type == '.' {
+		p.advance() // consume .
+		part, err := p.parseIdentifier()
+		if err != nil {
+			return nil, "", err
+		}
+		if part == "" {
+			return nil, "", p.syntaxErrorAtCur()
+		}
+		name.DBLink += "." + part
+	}
+	if name.DBLink != "" && p.cur.Type == '@' {
+		p.advance() // consume @
+		qualifier, err := p.parseIdentifier()
+		if err != nil {
+			return nil, "", err
+		}
+		if qualifier == "" {
+			return nil, "", p.syntaxErrorAtCur()
+		}
+		name.DBLink += "@" + qualifier
+	}
+	name.Loc.End = p.prev.End
+	return name, pkg, nil
+}
+
 // parseCallStmt parses a CALL statement.
 //
 // BNF: oracle/parser/bnf/CALL.bnf
@@ -242,7 +316,7 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 	}
 	var parseErr1153 error
 
-	stmt.Name, parseErr1153 = p.parseObjectName()
+	stmt.Name, stmt.Package, parseErr1153 = p.parseRoutineName()
 	if parseErr1153 !=
 
 		// Arguments
@@ -250,33 +324,58 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 		return nil, parseErr1153
 	}
 
+	// A routine takes its arguments in parentheses, which it needs even
+	// without any (ORA-06576 on Oracle 23ai for CALL k.p), in positional,
+	// named, or mixed notation. No positional argument follows a named one
+	// (PLS-00312), and none is left out (ORA-00936 for (1,) and (,1)).
+	if stmt.Name != nil && stmt.Name.Name != "" && p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == '(' {
 		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		named := false
+		for p.cur.Type != ')' || len(stmt.Args.Items) > 0 {
 			arg, parseErr1154 := p.parseExpr()
 			if parseErr1154 != nil {
 				return nil, parseErr1154
 			}
-			if arg != nil {
-				stmt.Args.Items = append(stmt.Args.Items, arg)
+			if arg == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
+			if p.cur.Type == tokASSOC {
+				if arg, parseErr1154 = p.parseNamedArgExpr(arg); parseErr1154 != nil {
+					return nil, parseErr1154
+				}
+				named = true
+			} else if named {
+				return nil, p.syntaxErrorAtNode(arg)
+			}
+			stmt.Args.Items = append(stmt.Args.Items, arg)
 			if p.cur.Type != ',' {
 				break
 			}
 			p.advance()
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 
-	// INTO :bind_variable
+	// INTO :bind_variable, a host variable alone (ORA-00921 for INTO
+	// with nothing, ORA-01745 for INTO 1).
 	if p.cur.Type == kwINTO {
 		p.advance()
 		var parseErr1155 error
 		stmt.Into, parseErr1155 = p.parseExpr()
 		if parseErr1155 != nil {
 			return nil, parseErr1155
+		}
+		if _, ok := stmt.Into.(*nodes.BindVariable); !ok {
+			if stmt.Into == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			return nil, p.syntaxErrorAtNode(stmt.Into)
 		}
 	}
 

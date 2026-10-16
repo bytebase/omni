@@ -59,13 +59,17 @@ const (
 	TRIGGER   = kwTRIGGER
 )
 
-var reverseOracleKeywordMap map[int]string
+// reverseOracleKeywordMap maps a keyword token type to its uppercase spelling.
+// It is built at package init and only read afterwards, so concurrent callers
+// of TokenName need no locking.
+var reverseOracleKeywordMap = buildReverseOracleKeywordMap()
 
-func initReverseOracleKeywordMap() {
-	reverseOracleKeywordMap = make(map[int]string, len(oracleKeywords))
+func buildReverseOracleKeywordMap() map[int]string {
+	m := make(map[int]string, len(oracleKeywords))
 	for word, tok := range oracleKeywords {
-		reverseOracleKeywordMap[tok] = strings.ToUpper(word)
+		m[tok] = strings.ToUpper(word)
 	}
+	return m
 }
 
 // TokenName returns the SQL keyword string for a token type, or "" when the
@@ -73,9 +77,6 @@ func initReverseOracleKeywordMap() {
 func TokenName(tokenType int) string {
 	if tokenType > 0 && tokenType < 256 {
 		return string(rune(tokenType))
-	}
-	if reverseOracleKeywordMap == nil {
-		initReverseOracleKeywordMap()
 	}
 	if name, ok := reverseOracleKeywordMap[tokenType]; ok {
 		return name
@@ -90,9 +91,6 @@ func TokenName(tokenType int) string {
 // IsReservedKeyword reports whether word is an Oracle SQL reserved word that
 // cannot be used as a nonquoted identifier.
 func IsReservedKeyword(word string) bool {
-	if reverseOracleKeywordMap == nil {
-		initReverseOracleKeywordMap()
-	}
 	tok, ok := oracleKeywords[strings.ToUpper(word)]
 	if !ok {
 		return false

@@ -849,44 +849,48 @@ func IsReserved(kind TokenKind) bool {
 // out-of-range values rather than treating any kind >= 700 as a reserved keyword.
 const maxKeywordKind = kwZONE
 
-// tokenNames is lazily initialized by TokenName.
-var tokenNames map[TokenKind]string
+// tokenNames maps a TokenKind to its display name. It is built at package
+// init and only read afterwards, so concurrent callers of TokenName need no
+// locking.
+var tokenNames = buildTokenNames()
+
+func buildTokenNames() map[TokenKind]string {
+	m := make(map[TokenKind]string, len(keywordMap)+32)
+	for name, k := range keywordMap {
+		m[k] = strings.ToUpper(name)
+	}
+	m[tokEOF] = "EOF"
+	m[tokInvalid] = "INVALID"
+	m[tokInteger] = "INTEGER_VALUE"
+	m[tokDecimal] = "DECIMAL_VALUE"
+	m[tokDouble] = "DOUBLE_VALUE"
+	m[tokString] = "STRING"
+	m[tokUnicodeString] = "UNICODE_STRING"
+	m[tokBinaryLiteral] = "BINARY_LITERAL"
+	m[tokIdent] = "IDENTIFIER"
+	m[tokQuotedIdent] = "QUOTED_IDENTIFIER"
+	m[tokBackquotedIdent] = "BACKQUOTED_IDENTIFIER"
+	m[tokDigitIdent] = "DIGIT_IDENTIFIER"
+	m[tokQuestion] = "?"
+	m[tokNotEq] = "<>"
+	m[tokLessEq] = "<="
+	m[tokGreaterEq] = ">="
+	m[tokConcat] = "||"
+	m[tokArrow] = "->"
+	m[tokLeftArrow] = "<-"
+	m[tokDoubleArrow] = "=>"
+	m[tokLCurlyHyphen] = "{-"
+	m[tokRCurlyHyphen] = "-}"
+	// kwSTRING aliases the literal text STRING; pin its display name so the
+	// map iteration above cannot leave it keyed on a different spelling.
+	m[kwSTRING] = "STRING"
+	return m
+}
 
 // TokenName returns a human-readable name for a TokenKind, suitable for error
 // messages. Keyword kinds yield their uppercase spelling; single-byte ASCII
 // kinds yield the character itself.
 func TokenName(kind TokenKind) string {
-	if tokenNames == nil {
-		tokenNames = make(map[TokenKind]string, len(keywordMap)+32)
-		for name, k := range keywordMap {
-			tokenNames[k] = strings.ToUpper(name)
-		}
-		tokenNames[tokEOF] = "EOF"
-		tokenNames[tokInvalid] = "INVALID"
-		tokenNames[tokInteger] = "INTEGER_VALUE"
-		tokenNames[tokDecimal] = "DECIMAL_VALUE"
-		tokenNames[tokDouble] = "DOUBLE_VALUE"
-		tokenNames[tokString] = "STRING"
-		tokenNames[tokUnicodeString] = "UNICODE_STRING"
-		tokenNames[tokBinaryLiteral] = "BINARY_LITERAL"
-		tokenNames[tokIdent] = "IDENTIFIER"
-		tokenNames[tokQuotedIdent] = "QUOTED_IDENTIFIER"
-		tokenNames[tokBackquotedIdent] = "BACKQUOTED_IDENTIFIER"
-		tokenNames[tokDigitIdent] = "DIGIT_IDENTIFIER"
-		tokenNames[tokQuestion] = "?"
-		tokenNames[tokNotEq] = "<>"
-		tokenNames[tokLessEq] = "<="
-		tokenNames[tokGreaterEq] = ">="
-		tokenNames[tokConcat] = "||"
-		tokenNames[tokArrow] = "->"
-		tokenNames[tokLeftArrow] = "<-"
-		tokenNames[tokDoubleArrow] = "=>"
-		tokenNames[tokLCurlyHyphen] = "{-"
-		tokenNames[tokRCurlyHyphen] = "-}"
-		// kwSTRING aliases the literal text STRING; pin its display name so the
-		// map iteration above cannot leave it keyed on a different spelling.
-		tokenNames[kwSTRING] = "STRING"
-	}
 	if name, ok := tokenNames[kind]; ok {
 		return name
 	}

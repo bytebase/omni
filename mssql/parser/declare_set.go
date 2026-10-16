@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -52,6 +53,46 @@ var setOptions = newOptionSet(
 	"LOCK_TIMEOUT",
 	"QUERY_GOVERNOR_COST_LIMIT",
 	"CONTEXT_INFO",
+)
+
+// setOnOffListOptions are the setOptions that may share one ON or OFF with
+// others in a list: SET ANSI_NULLS, QUOTED_IDENTIFIER OFF. SQL Server 2022
+// rejects SHOWPLAN_ALL, SHOWPLAN_TEXT, and SHOWPLAN_XML in a list ("The SET
+// SHOWPLAN statements must be the only statements in the batch") and does not
+// recognize DISABLE_DEF_CNST_CHK, so neither is listed here.
+var setOnOffListOptions = newOptionSet(
+	kwNOCOUNT,
+	kwXACT_ABORT,
+).withIdents(
+	"QUOTED_IDENTIFIER",
+	"CONCAT_NULL_YIELDS_NULL",
+	"CURSOR_CLOSE_ON_COMMIT",
+	"ARITHABORT",
+	"ARITHIGNORE",
+	"FMTONLY",
+	"NOEXEC",
+	"NUMERIC_ROUNDABORT",
+	"PARSEONLY",
+	"ANSI_DEFAULTS",
+	"ANSI_NULL_DFLT_OFF",
+	"ANSI_NULL_DFLT_ON",
+	"ANSI_NULLS",
+	"ANSI_PADDING",
+	"ANSI_WARNINGS",
+	"FORCEPLAN",
+	"IMPLICIT_TRANSACTIONS",
+	"REMOTE_PROC_TRANSACTIONS",
+	"NO_BROWSETABLE",
+)
+
+// setStatisticsOptions are the options of SET STATISTICS, which may also be
+// listed: SET STATISTICS IO, TIME ON.
+var setStatisticsOptions = newOptionSet(
+	kwTIME,
+	kwXML,
+).withIdents(
+	"IO",
+	"PROFILE",
 )
 
 // parseDeclareStmt parses a DECLARE statement.
@@ -217,8 +258,9 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 // SET session options:
 //
 //	SET { option_name } { ON | OFF | value }
+//	SET option_name [ , ...n ] { ON | OFF }
 //	SET IDENTITY_INSERT table_name { ON | OFF }
-//	SET STATISTICS { IO | TIME | PROFILE | XML } { ON | OFF }
+//	SET STATISTICS { IO | TIME | PROFILE | XML } [ , ...n ] { ON | OFF }
 func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 	p.advance() // consume SET
@@ -292,11 +334,18 @@ func (p *Parser) parseSetStmt() (nodes.StmtNode, error) {
 //
 // BNF: mssql/parser/bnf/set-transact-sql.bnf
 // BNF: mssql/parser/bnf/set-transaction-isolation-level-transact-sql.bnf
+// BNF: mssql/parser/bnf/set-ansi-defaults-transact-sql.bnf (predicateSetStatement)
+// BNF: mssql/parser/bnf/set-statistics-transact-sql.bnf (setStatisticsStatement)
 //
 //	SET TRANSACTION ISOLATION LEVEL
 //	    { READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SNAPSHOT | SERIALIZABLE }
 //	SET IDENTITY_INSERT table_name { ON | OFF }
 //	SET { option_name } { ON | OFF | value }
+//	SET option_name [ , ...n ] { ON | OFF }
+//	SET STATISTICS { IO | TIME | PROFILE | XML } [ , ...n ] { ON | OFF }
+//
+// The list form is the one the indexed views reference uses:
+// https://learn.microsoft.com/en-us/sql/relational-databases/views/create-indexed-views
 func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 	stmt := &nodes.SetOptionStmt{
 		Loc: nodes.Loc{Start: loc, End: -1},
@@ -342,6 +391,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 			level = "SNAPSHOT"
 		}
 		stmt.Value = &nodes.ColumnRef{Column: level, Loc: nodes.Loc{Start: valLoc, End: p.prevEnd()}}
+		stmt.Options = []string{stmt.Option}
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
@@ -372,6 +422,7 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 			}
 		}
 		stmt.Value = &nodes.ColumnRef{Column: tableName + " " + onoff, Loc: nodes.Loc{Start: valLoc, End: -1}}
+		stmt.Options = []string{stmt.Option}
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
@@ -412,37 +463,90 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 			p.advance()
 			stmt.Value = &nodes.ColumnRef{Column: "OFF", Loc: nodes.Loc{Start: offLoc, End: -1}}
 		}
+		stmt.Options = []string{stmt.Option}
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
 
 	// Generic option name — validated against setOptions
-	if p.isValidOption(setOptions) {
-		stmt.Option = strings.ToUpper(p.cur.Str)
-		p.advance()
-
-		// STATISTICS IO|TIME|PROFILE|XML (multi-word option)
-		if stmt.Option == "STATISTICS" && p.isIdentLike() {
-			stmt.Option = stmt.Option + " " + strings.ToUpper(p.cur.Str)
-			p.advance()
-		}
-
-		if p.cur.Type == kwON {
-			onLoc := p.pos()
-			p.advance()
-			stmt.Value = &nodes.ColumnRef{Column: "ON", Loc: nodes.Loc{Start: onLoc, End: -1}}
-		} else if p.cur.Type == kwOFF {
-			offLoc := p.pos()
-			p.advance()
-			stmt.Value = &nodes.ColumnRef{Column: "OFF", Loc: nodes.Loc{Start: offLoc, End: -1}}
-		} else if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
-			// Could be SET ROWCOUNT n, SET LANGUAGE ..., SET DATEFORMAT ..., etc.
-			stmt.Value, _ = p.parseExpr()
-		}
-	} else {
+	if !p.isValidOption(setOptions) {
 		return nil, p.newParseError(p.cur.Loc, "expected SET option name")
+	}
+	name := p.cur
+	listOptions, listPrefix := setOnOffListOptions, ""
+	stmt.Option = strings.ToUpper(p.cur.Str)
+	p.advance()
+
+	// STATISTICS IO|TIME|PROFILE|XML (multi-word option)
+	if stmt.Option == "STATISTICS" && p.isIdentLike() {
+		name = p.cur
+		listOptions, listPrefix = setStatisticsOptions, "STATISTICS "
+		stmt.Option = stmt.Option + " " + strings.ToUpper(p.cur.Str)
+		p.advance()
+	}
+	stmt.Options = []string{stmt.Option}
+
+	// SET option_name, option_name [, ...] { ON | OFF }
+	if p.cur.Type == ',' {
+		if !p.isSetListOption(name, listOptions) {
+			return nil, p.newParseError(name.Loc, fmt.Sprintf("SET %s cannot be listed with other options", stmt.Option))
+		}
+		for p.cur.Type == ',' {
+			p.advance() // consume ,
+			if !p.isSetListOption(p.cur, listOptions) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Options = append(stmt.Options, listPrefix+strings.ToUpper(p.cur.Str))
+			p.advance()
+		}
+		onOff := p.parseSetOnOff()
+		if onOff == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Value = onOff
+		stmt.Loc.End = p.prevEnd()
+		return stmt, nil
+	}
+
+	if onOff := p.parseSetOnOff(); onOff != nil {
+		stmt.Value = onOff
+	} else if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
+		// Could be SET ROWCOUNT n, SET LANGUAGE ..., SET DATEFORMAT ..., etc.
+		stmt.Value, _ = p.parseExpr()
 	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// isSetListOption reports whether tok names an option of opts that may appear
+// in a list of SET options. SQL Server does not accept a delimited name there:
+// it rejects SET ANSI_NULLS, [QUOTED_IDENTIFIER] ON.
+func (p *Parser) isSetListOption(tok Token, opts optionSet) bool {
+	if !p.isValidOptionToken(opts, tok) {
+		return false
+	}
+	if tok.Type == tokIDENT && tok.Loc >= 0 && tok.Loc < len(p.source) {
+		if c := p.source[tok.Loc]; c == '[' || c == '"' {
+			return false
+		}
+	}
+	return true
+}
+
+// parseSetOnOff consumes ON or OFF and returns it as a ColumnRef, or returns
+// nil when the current token is neither.
+func (p *Parser) parseSetOnOff() *nodes.ColumnRef {
+	var value string
+	switch p.cur.Type {
+	case kwON:
+		value = "ON"
+	case kwOFF:
+		value = "OFF"
+	default:
+		return nil
+	}
+	loc := p.pos()
+	p.advance()
+	return &nodes.ColumnRef{Column: value, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
 }

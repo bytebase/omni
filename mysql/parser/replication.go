@@ -751,7 +751,7 @@ groupReplDone:
 //	STOP GROUP_REPLICATION
 func (p *Parser) parseStopGroupReplicationStmt(start int) (*nodes.StopGroupReplicationStmt, error) {
 	stmt := &nodes.StopGroupReplicationStmt{
-		Loc: nodes.Loc{Start: start, End: p.pos()},
+		Loc: nodes.Loc{Start: start, End: p.prev.End},
 	}
 	return stmt, nil
 }

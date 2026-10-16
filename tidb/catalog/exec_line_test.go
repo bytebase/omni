@@ -25,6 +25,30 @@ func TestExecResultLine(t *testing.T) {
 	}
 }
 
+// TestExecResultLineSplitKeyword pins a statement's line to its first
+// keyword when the object keyword follows on the next line.
+func TestExecResultLineSplitKeyword(t *testing.T) {
+	sql := "CREATE\nTABLE t1 (id INT);\nALTER\nTABLE t1 ADD COLUMN c INT;\nDROP\nTABLE t1;"
+
+	c := New()
+	c.Exec("CREATE DATABASE test; USE test;", nil) //nolint:errcheck
+
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		t.Fatalf("Exec error: %v", err)
+	}
+
+	if len(results) != 3 {
+		t.Fatalf("got %d results, want 3", len(results))
+	}
+	wantLines := []int{1, 3, 5}
+	for i, r := range results {
+		if r.Line != wantLines[i] {
+			t.Errorf("result[%d].Line = %d, want %d", i, r.Line, wantLines[i])
+		}
+	}
+}
+
 func TestExecResultLineWithDelimiter(t *testing.T) {
 	sql := "DELIMITER ;;\nCREATE TABLE t1 (id INT);;\nDELIMITER ;\nCREATE TABLE t2 (id INT);"
 

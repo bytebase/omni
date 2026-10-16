@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
@@ -27,92 +29,92 @@ const (
 // All other registered keywords default to kwCatUnambiguous and will be
 // refined to their correct ambiguous category in later sections.
 var keywordCategories = map[int]keywordCategory{
-	kwSELECT:     kwCatReserved,
-	kwINSERT:     kwCatReserved,
-	kwUPDATE:     kwCatReserved,
-	kwDELETE:     kwCatReserved,
-	kwFROM:       kwCatReserved,
-	kwWHERE:      kwCatReserved,
-	kwCREATE:     kwCatReserved,
-	kwDROP:       kwCatReserved,
-	kwALTER:      kwCatReserved,
-	kwTABLE:      kwCatReserved,
-	kwINTO:       kwCatReserved,
-	kwVALUES:     kwCatReserved,
-	kwSET:        kwCatReserved,
-	kwJOIN:       kwCatReserved,
-	kwLEFT:       kwCatReserved,
-	kwRIGHT:      kwCatReserved,
-	kwINNER:      kwCatReserved,
-	kwOUTER:      kwCatReserved,
-	kwON:         kwCatReserved,
-	kwAND:        kwCatReserved,
-	kwOR:         kwCatReserved,
-	kwNOT:        kwCatReserved,
-	kwNULL:       kwCatReserved,
-	kwTRUE:       kwCatReserved,
-	kwFALSE:      kwCatReserved,
-	kwIN:         kwCatReserved,
-	kwBETWEEN:    kwCatReserved,
-	kwLIKE:       kwCatReserved,
-	kwORDER:      kwCatReserved,
-	kwGROUP:      kwCatReserved,
-	kwBY:         kwCatReserved,
-	kwHAVING:     kwCatReserved,
-	kwLIMIT:      kwCatReserved,
-	kwAS:         kwCatReserved,
-	kwIS:         kwCatReserved,
-	kwEXISTS_KW:  kwCatReserved,
-	kwCASE:       kwCatReserved,
-	kwWHEN:       kwCatReserved,
-	kwTHEN:       kwCatReserved,
-	kwELSE:       kwCatReserved,
-	kwEND:        kwCatAmbiguous2, // demoted from reserved — MySQL 8.0 ambiguous_2 (not label)
-	kwIF:         kwCatReserved,
-	kwFOR:        kwCatReserved,
-	kwWHILE:      kwCatReserved,
-	kwINDEX:      kwCatReserved,
-	kwKEY:        kwCatReserved,
-	kwPRIMARY:    kwCatReserved,
-	kwFOREIGN:    kwCatReserved,
-	kwREFERENCES: kwCatReserved,
-	kwCONSTRAINT: kwCatReserved,
-	kwUNIQUE:     kwCatReserved,
-	kwCHECK:      kwCatReserved,
-	kwDEFAULT:    kwCatReserved,
-	kwCOLUMN:     kwCatReserved,
-	kwADD:        kwCatReserved,
-	kwCHANGE:     kwCatReserved,
-	kwRENAME:     kwCatReserved,
-	kwGRANT:      kwCatReserved,
-	kwREVOKE:     kwCatReserved,
-	kwALL:        kwCatReserved,
-	kwDISTINCT:   kwCatReserved,
-	kwUNION:      kwCatReserved,
-	kwINTERSECT:      kwCatReserved,
-	kwEXCEPT:         kwCatReserved,
-	kwACCESSIBLE:     kwCatReserved,
-	kwASENSITIVE:     kwCatReserved,
-	kwCUBE:           kwCatReserved,
-	kwCUME_DIST:      kwCatReserved,
-	kwDENSE_RANK:     kwCatReserved,
-	kwDUAL:           kwCatReserved,
-	kwFIRST_VALUE:    kwCatReserved,
-	kwGROUPING:       kwCatReserved,
-	kwINSENSITIVE:    kwCatReserved,
-	kwLAG:            kwCatReserved,
-	kwLAST_VALUE:     kwCatReserved,
-	kwLEAD:           kwCatReserved,
-	kwNTH_VALUE:      kwCatReserved,
-	kwNTILE:          kwCatReserved,
-	kwOF:             kwCatReserved,
-	kwOPTIMIZER_COSTS: kwCatReserved,
-	kwPERCENT_RANK:   kwCatReserved,
-	kwRANK:           kwCatReserved,
-	kwROW_NUMBER:     kwCatReserved,
-	kwSENSITIVE:      kwCatReserved,
-	kwSPECIFIC:       kwCatReserved,
-	kwUSAGE:          kwCatReserved,
+	kwSELECT:             kwCatReserved,
+	kwINSERT:             kwCatReserved,
+	kwUPDATE:             kwCatReserved,
+	kwDELETE:             kwCatReserved,
+	kwFROM:               kwCatReserved,
+	kwWHERE:              kwCatReserved,
+	kwCREATE:             kwCatReserved,
+	kwDROP:               kwCatReserved,
+	kwALTER:              kwCatReserved,
+	kwTABLE:              kwCatReserved,
+	kwINTO:               kwCatReserved,
+	kwVALUES:             kwCatReserved,
+	kwSET:                kwCatReserved,
+	kwJOIN:               kwCatReserved,
+	kwLEFT:               kwCatReserved,
+	kwRIGHT:              kwCatReserved,
+	kwINNER:              kwCatReserved,
+	kwOUTER:              kwCatReserved,
+	kwON:                 kwCatReserved,
+	kwAND:                kwCatReserved,
+	kwOR:                 kwCatReserved,
+	kwNOT:                kwCatReserved,
+	kwNULL:               kwCatReserved,
+	kwTRUE:               kwCatReserved,
+	kwFALSE:              kwCatReserved,
+	kwIN:                 kwCatReserved,
+	kwBETWEEN:            kwCatReserved,
+	kwLIKE:               kwCatReserved,
+	kwORDER:              kwCatReserved,
+	kwGROUP:              kwCatReserved,
+	kwBY:                 kwCatReserved,
+	kwHAVING:             kwCatReserved,
+	kwLIMIT:              kwCatReserved,
+	kwAS:                 kwCatReserved,
+	kwIS:                 kwCatReserved,
+	kwEXISTS_KW:          kwCatReserved,
+	kwCASE:               kwCatReserved,
+	kwWHEN:               kwCatReserved,
+	kwTHEN:               kwCatReserved,
+	kwELSE:               kwCatReserved,
+	kwEND:                kwCatAmbiguous2, // demoted from reserved — MySQL 8.0 ambiguous_2 (not label)
+	kwIF:                 kwCatReserved,
+	kwFOR:                kwCatReserved,
+	kwWHILE:              kwCatReserved,
+	kwINDEX:              kwCatReserved,
+	kwKEY:                kwCatReserved,
+	kwPRIMARY:            kwCatReserved,
+	kwFOREIGN:            kwCatReserved,
+	kwREFERENCES:         kwCatReserved,
+	kwCONSTRAINT:         kwCatReserved,
+	kwUNIQUE:             kwCatReserved,
+	kwCHECK:              kwCatReserved,
+	kwDEFAULT:            kwCatReserved,
+	kwCOLUMN:             kwCatReserved,
+	kwADD:                kwCatReserved,
+	kwCHANGE:             kwCatReserved,
+	kwRENAME:             kwCatReserved,
+	kwGRANT:              kwCatReserved,
+	kwREVOKE:             kwCatReserved,
+	kwALL:                kwCatReserved,
+	kwDISTINCT:           kwCatReserved,
+	kwUNION:              kwCatReserved,
+	kwINTERSECT:          kwCatReserved,
+	kwEXCEPT:             kwCatReserved,
+	kwACCESSIBLE:         kwCatReserved,
+	kwASENSITIVE:         kwCatReserved,
+	kwCUBE:               kwCatReserved,
+	kwCUME_DIST:          kwCatReserved,
+	kwDENSE_RANK:         kwCatReserved,
+	kwDUAL:               kwCatReserved,
+	kwFIRST_VALUE:        kwCatReserved,
+	kwGROUPING:           kwCatReserved,
+	kwINSENSITIVE:        kwCatReserved,
+	kwLAG:                kwCatReserved,
+	kwLAST_VALUE:         kwCatReserved,
+	kwLEAD:               kwCatReserved,
+	kwNTH_VALUE:          kwCatReserved,
+	kwNTILE:              kwCatReserved,
+	kwOF:                 kwCatReserved,
+	kwOPTIMIZER_COSTS:    kwCatReserved,
+	kwPERCENT_RANK:       kwCatReserved,
+	kwRANK:               kwCatReserved,
+	kwROW_NUMBER:         kwCatReserved,
+	kwSENSITIVE:          kwCatReserved,
+	kwSPECIFIC:           kwCatReserved,
+	kwUSAGE:              kwCatReserved,
 	kwVARYING:            kwCatReserved,
 	kwDAY_HOUR:           kwCatReserved,
 	kwDAY_MICROSECOND:    kwCatReserved,
@@ -265,34 +267,34 @@ var keywordCategories = map[int]keywordCategory{
 	kwGENERATE:           kwCatUnambiguous,
 	// Section 1.5: Ambiguous category classifications
 	// Ambiguous 1 (not label, not role)
-	kwEXECUTE:     kwCatAmbiguous1,
+	kwEXECUTE: kwCatAmbiguous1,
 	// Ambiguous 2 (not label)
-	kwBEGIN:       kwCatAmbiguous2,
-	kwCOMMIT:      kwCatAmbiguous2,
-	kwCONTAINS:    kwCatAmbiguous2,
-	kwDO:          kwCatAmbiguous2,
-	kwFLUSH:       kwCatAmbiguous2,
-	kwFOLLOWS:     kwCatAmbiguous2,
-	kwPRECEDES:    kwCatAmbiguous2,
-	kwPREPARE:     kwCatAmbiguous2,
-	kwREPAIR:      kwCatAmbiguous2,
-	kwRESET:       kwCatAmbiguous2,
-	kwROLLBACK:    kwCatAmbiguous2,
-	kwSAVEPOINT:   kwCatAmbiguous2,
-	kwSLAVE:       kwCatAmbiguous2,
-	kwSTART:       kwCatAmbiguous2,
-	kwSTOP:        kwCatAmbiguous2,
-	kwTRUNCATE:    kwCatAmbiguous2,
-	kwXA:          kwCatAmbiguous2,
+	kwBEGIN:     kwCatAmbiguous2,
+	kwCOMMIT:    kwCatAmbiguous2,
+	kwCONTAINS:  kwCatAmbiguous2,
+	kwDO:        kwCatAmbiguous2,
+	kwFLUSH:     kwCatAmbiguous2,
+	kwFOLLOWS:   kwCatAmbiguous2,
+	kwPRECEDES:  kwCatAmbiguous2,
+	kwPREPARE:   kwCatAmbiguous2,
+	kwREPAIR:    kwCatAmbiguous2,
+	kwRESET:     kwCatAmbiguous2,
+	kwROLLBACK:  kwCatAmbiguous2,
+	kwSAVEPOINT: kwCatAmbiguous2,
+	kwSLAVE:     kwCatAmbiguous2,
+	kwSTART:     kwCatAmbiguous2,
+	kwSTOP:      kwCatAmbiguous2,
+	kwTRUNCATE:  kwCatAmbiguous2,
+	kwXA:        kwCatAmbiguous2,
 	// Ambiguous 3 (not role)
 	kwEVENT:       kwCatAmbiguous3,
 	kwPROCESS:     kwCatAmbiguous3,
 	kwRELOAD:      kwCatAmbiguous3,
 	kwREPLICATION: kwCatAmbiguous3,
 	// Ambiguous 4 (not lvalue)
-	kwGLOBAL:      kwCatAmbiguous4,
-	kwSESSION:     kwCatAmbiguous4,
-	kwLOCAL:               kwCatAmbiguous4,
+	kwGLOBAL:  kwCatAmbiguous4,
+	kwSESSION: kwCatAmbiguous4,
+	kwLOCAL:   kwCatAmbiguous4,
 	// --- 253 missing keyword categories (non-unambiguous only) ---
 	kwASCII:               kwCatAmbiguous2,
 	kwBIT_AND:             kwCatUnambiguous,
@@ -382,7 +384,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwINT:                 kwCatReserved,
 	kwINTEGER:             kwCatReserved,
 	kwITERATE:             kwCatReserved,
-	kwJSON_TABLE:           kwCatReserved,
+	kwJSON_TABLE:          kwCatReserved,
 	kwKEYS:                kwCatReserved,
 	kwLATERAL:             kwCatReserved,
 	kwLEADING:             kwCatReserved,
@@ -450,28 +452,28 @@ var keywordCategories = map[int]keywordCategory{
 	kwZEROFILL:            kwCatReserved,
 	// --- Section 3.2: Missing ambiguous classifications ---
 	// Ambiguous 2 (not label)
-	kwBINLOG:              kwCatAmbiguous2,
-	kwCACHE:               kwCatAmbiguous2,
-	kwCHARSET:             kwCatAmbiguous2,
-	kwCHECKSUM:            kwCatAmbiguous2,
-	kwCLONE:               kwCatAmbiguous2,
-	kwCOMMENT:             kwCatAmbiguous2,
-	kwDEALLOCATE:          kwCatAmbiguous2,
-	kwHANDLER:             kwCatAmbiguous2,
-	kwHELP:                kwCatAmbiguous2,
-	kwIMPORT:              kwCatAmbiguous2,
-	kwINSTALL:             kwCatAmbiguous2,
-	kwLANGUAGE:            kwCatAmbiguous2,
-	kwNO:                  kwCatAmbiguous2,
-	kwUNINSTALL:           kwCatAmbiguous2,
+	kwBINLOG:     kwCatAmbiguous2,
+	kwCACHE:      kwCatAmbiguous2,
+	kwCHARSET:    kwCatAmbiguous2,
+	kwCHECKSUM:   kwCatAmbiguous2,
+	kwCLONE:      kwCatAmbiguous2,
+	kwCOMMENT:    kwCatAmbiguous2,
+	kwDEALLOCATE: kwCatAmbiguous2,
+	kwHANDLER:    kwCatAmbiguous2,
+	kwHELP:       kwCatAmbiguous2,
+	kwIMPORT:     kwCatAmbiguous2,
+	kwINSTALL:    kwCatAmbiguous2,
+	kwLANGUAGE:   kwCatAmbiguous2,
+	kwNO:         kwCatAmbiguous2,
+	kwUNINSTALL:  kwCatAmbiguous2,
 	// Ambiguous 1 (not label, not role)
-	kwRESTART:             kwCatAmbiguous1,
-	kwSHUTDOWN:            kwCatAmbiguous1,
+	kwRESTART:  kwCatAmbiguous1,
+	kwSHUTDOWN: kwCatAmbiguous1,
 	// Ambiguous 3 (not role)
-	kwNONE:                kwCatAmbiguous3,
-	kwRESOURCE:            kwCatAmbiguous3,
+	kwNONE:     kwCatAmbiguous3,
+	kwRESOURCE: kwCatAmbiguous3,
 	// Ambiguous 4 (not lvalue)
-	kwPERSIST:             kwCatAmbiguous4,
+	kwPERSIST: kwCatAmbiguous4,
 
 	// TiDB-specific keywords.
 	kwAUTO_RANDOM:       kwCatUnambiguous,
@@ -533,6 +535,13 @@ var keywordCategories = map[int]keywordCategory{
 func isReserved(t int) bool {
 	cat, ok := keywordCategories[t]
 	return ok && cat == kwCatReserved
+}
+
+// IsReservedKeyword reports whether s is a reserved keyword, which cannot be
+// an unquoted identifier.
+func IsReservedKeyword(s string) bool {
+	tok, ok := keywords[strings.ToLower(s)]
+	return ok && isReserved(tok)
 }
 
 // isIdentKeyword returns true if the token type is a non-reserved keyword that
@@ -750,7 +759,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 			ref.Table = name
 			ref.Column = ""
 			ref.Star = true
-			ref.Loc.End = p.pos()
+			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
 
@@ -769,7 +778,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 				ref.Table = name2
 				ref.Column = ""
 				ref.Star = true
-				ref.Loc.End = p.pos()
+				ref.Loc.End = p.prev.End
 				return ref, nil
 			}
 
@@ -780,7 +789,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 			ref.Schema = name
 			ref.Table = name2
 			ref.Column = name3
-			ref.Loc.End = p.pos()
+			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
 
@@ -789,7 +798,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 		ref.Column = name2
 	}
 
-	ref.Loc.End = p.pos()
+	ref.Loc.End = p.prev.End
 	return ref, nil
 }
 
@@ -831,7 +840,7 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 		ref.Name = name2
 	}
 
-	ref.Loc.End = p.pos()
+	ref.Loc.End = p.prev.End
 	return ref, nil
 }
 
@@ -853,7 +862,7 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 			return nil, err
 		}
 		ref.Partitions = parts
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	}
 
 	// Optional AS alias. Unlike MySQL, TiDB does NOT accept a string literal as
@@ -865,13 +874,13 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 			return nil, err
 		}
 		ref.Alias = alias
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	} else if p.isIdentToken() {
 		// Alias without AS keyword — accepts non-reserved keywords,
 		// matching MySQL's grammar: opt_table_alias: [AS] ident
 		alias, _, _ := p.parseIdentifier()
 		ref.Alias = alias
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	}
 
 	// Optional index hints: USE/FORCE/IGNORE {INDEX|KEY} ...
@@ -881,7 +890,7 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 			return nil, err
 		}
 		ref.IndexHints = hints
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	}
 
 	return ref, nil
@@ -937,7 +946,7 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 					return nil, err
 				}
 				ref.Name = name
-				ref.Loc.End = p.pos()
+				ref.Loc.End = p.prev.End
 				return ref, nil
 			}
 		}
@@ -948,7 +957,7 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 			return nil, err
 		}
 		ref.Name = name
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 		return ref, nil
 	}
 
@@ -960,7 +969,7 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 			Loc:  nodes.Loc{Start: tok.Loc},
 			Name: tok.Str[1:],
 		}
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 		return ref, nil
 	}
 

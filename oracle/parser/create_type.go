@@ -439,19 +439,19 @@ func (p *Parser) parseTypeBodyMember(inSpec bool) (*nodes.TypeBodyMember, error)
 		Loc: nodes.Loc{Start: start},
 	}
 
-	if inSpec {
-		// OVERRIDING comes first, once, and takes no NOT (PLS-00103 on
-		// Oracle 23ai for NOT OVERRIDING or OVERRIDING after another clause).
-		if p.isKeywordStr("OVERRIDING") {
-			member.Modifiers = append(member.Modifiers, "OVERRIDING")
-			p.advance() // consume OVERRIDING
-		}
-		mods, err := p.parseTypeModifiers(methodInheritanceClauses)
-		if err != nil {
-			return nil, err
-		}
-		member.Modifiers = append(member.Modifiers, mods...)
+	// Inheritance clauses may precede a method in a specification and in a
+	// body alike (FINAL INSTANTIABLE CONSTRUCTOR FUNCTION compiles in a type
+	// body on Oracle 23ai). OVERRIDING comes first, once, and takes no NOT
+	// (PLS-00103 for NOT OVERRIDING or OVERRIDING after another clause).
+	if p.isKeywordStr("OVERRIDING") {
+		member.Modifiers = append(member.Modifiers, "OVERRIDING")
+		p.advance() // consume OVERRIDING
 	}
+	mods, err := p.parseTypeModifiers(methodInheritanceClauses)
+	if err != nil {
+		return nil, err
+	}
+	member.Modifiers = append(member.Modifiers, mods...)
 
 	// Determine the kind prefix
 	kindTok := p.cur
@@ -489,12 +489,12 @@ func (p *Parser) parseTypeBodyMember(inSpec bool) (*nodes.TypeBodyMember, error)
 		p.advance() // consume CONSTRUCTOR
 
 	default:
-		if inSpec {
+		if inSpec || len(member.Modifiers) > 0 {
 			return nil, p.syntaxErrorAtCur()
 		}
 		return nil, nil
 	}
-	if inSpec && methodModifiersConflict(member.Modifiers, member.Kind) {
+	if methodModifiersConflict(member.Modifiers, member.Kind) {
 		return nil, p.syntaxErrorAtTok(kindTok)
 	}
 
@@ -518,10 +518,9 @@ func (p *Parser) parseTypeBodyMember(inSpec bool) (*nodes.TypeBodyMember, error)
 			return nil, parseErr581
 		}
 	default:
-		if inSpec {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return nil, nil
+		// A method kind, in a specification or a body, is followed by its
+		// subprogram (PLS-00103 on Oracle 23ai for MEMBER END).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	member.Loc.End = p.prev.End

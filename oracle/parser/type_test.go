@@ -331,3 +331,28 @@ func TestParseTypeCharWithByteSemantic(t *testing.T) {
 		})
 	}
 }
+
+// TestParseTypeModifierShapes checks the parenthesized modifiers of SQL
+// datatypes against Oracle 23ai: each accepted CAST parses there, and each
+// rejected one fails with ORA-00907, or with the range errors ORA-00910,
+// ORA-01727, ORA-01728, and ORA-30088 for an empty modifier.
+func TestParseTypeModifierShapes(t *testing.T) {
+	for _, typ := range []string{
+		"VARCHAR2(5 BYTE)", "VARCHAR2(5 CHAR)", "NUMBER(*)", "NUMBER(*,2)",
+		"NUMBER(5,2)", "NUMBER(5,-2)", "FLOAT(5)", "FLOAT(*)", "DECIMAL(5,2)",
+		"DECIMAL(*,2)", "TIMESTAMP(3)", "INTERVAL DAY(2) TO SECOND(3)", "RAW(10)",
+	} {
+		ParseAndCheck(t, "SELECT CAST(NULL AS "+typ+") FROM dual")
+	}
+	for _, typ := range []string{
+		"VARCHAR2()", "VARCHAR2(BYTE)", "VARCHAR2(CHAR)", "VARCHAR2(5 BYTE CHAR)",
+		"CHAR()", "CHAR(5,2)", "NCHAR()", "NVARCHAR2()", "NUMBER()", "NUMBER(,)",
+		"NUMBER(5,)", "NUMBER(,2)", "NUMBER(5,+2)", "FLOAT()", "FLOAT(5,2)",
+		"INTEGER(5)", "SMALLINT(5)", "DECIMAL()", "TIMESTAMP()", "TIMESTAMP(3,2)",
+		"TIMESTAMP(*)", "INTERVAL YEAR() TO MONTH", "INTERVAL YEAR TO MONTH(2)",
+		"INTERVAL DAY(2) TO SECOND()", "INTERVAL DAY(2,3) TO SECOND", "RAW()",
+		"RAW(10,2)", "NUMBER(5",
+	} {
+		ParseShouldFail(t, "SELECT CAST(NULL AS "+typ+") FROM dual")
+	}
+}

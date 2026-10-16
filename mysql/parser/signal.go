@@ -311,7 +311,7 @@ func (p *Parser) parseSignalInfoItem() (*nodes.SignalInfoItem, error) {
 	}
 
 	return &nodes.SignalInfoItem{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Name:  name,
 		Value: val,
 	}, nil
@@ -352,7 +352,7 @@ func (p *Parser) parseDiagnosticsItem() (*nodes.DiagnosticsItem, error) {
 			return nil, err
 		}
 		target = &nodes.ColumnRef{
-			Loc:    nodes.Loc{Start: start, End: p.pos()},
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			Column: name,
 		}
 	} else {
@@ -380,7 +380,7 @@ func (p *Parser) parseDiagnosticsItem() (*nodes.DiagnosticsItem, error) {
 	}
 
 	return &nodes.DiagnosticsItem{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Target: target,
 		Name:   name,
 	}, nil
