@@ -438,7 +438,7 @@ func (p *Parser) parseDeclareCursorStmt(start int, name string) (*nodes.DeclareC
 	}
 
 	stmt := &nodes.DeclareCursorStmt{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Name:   name,
 		Select: sel,
 	}
@@ -605,7 +605,7 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 		}
 
 		stmt.ElseIfs = append(stmt.ElseIfs, &nodes.ElseIf{
-			Loc:      nodes.Loc{Start: eiStart, End: p.pos()},
+			Loc:      nodes.Loc{Start: eiStart, End: p.prev.End},
 			Cond:     eiCond,
 			ThenList: eiThenList,
 		})
@@ -690,7 +690,7 @@ func (p *Parser) parseCaseStmt() (*nodes.CaseStmtNode, error) {
 		}
 
 		stmt.Whens = append(stmt.Whens, &nodes.CaseStmtWhen{
-			Loc:      nodes.Loc{Start: whenStart, End: p.pos()},
+			Loc:      nodes.Loc{Start: whenStart, End: p.prev.End},
 			Cond:     whenCond,
 			ThenList: whenThenList,
 		})
@@ -894,7 +894,7 @@ func (p *Parser) parseLeaveStmt() (*nodes.LeaveStmt, error) {
 	}
 
 	return &nodes.LeaveStmt{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Label: label,
 	}, nil
 }
@@ -913,7 +913,7 @@ func (p *Parser) parseIterateStmt() (*nodes.IterateStmt, error) {
 	}
 
 	return &nodes.IterateStmt{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Label: label,
 	}, nil
 }
@@ -934,7 +934,7 @@ func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 	}
 
 	return &nodes.ReturnStmt{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Expr: expr,
 	}, nil
 }
@@ -951,7 +951,7 @@ func (p *Parser) parseOpenCursorStmt() (*nodes.OpenCursorStmt, error) {
 		return nil, err
 	}
 	return &nodes.OpenCursorStmt{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Name: name,
 	}, nil
 }
@@ -999,7 +999,7 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	}
 
 	return &nodes.FetchCursorStmt{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Name: name,
 		Into: vars,
 	}, nil
@@ -1017,7 +1017,7 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 		return nil, err
 	}
 	return &nodes.CloseCursorStmt{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Name: name,
 	}, nil
 }

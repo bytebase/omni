@@ -1904,6 +1904,10 @@ func TestParseAlterTableBnfReview(t *testing.T) {
 		if !action0.IfExists {
 			t.Error("expected IfExists=true on first drop column action")
 		}
+		// IF EXISTS covers only col1: SQL Server fails when col2 is missing.
+		if actions[1].(*ast.AlterTableAction).IfExists {
+			t.Error("expected IfExists=false on second drop column action")
+		}
 	})
 
 	t.Run("drop constraint if exists", func(t *testing.T) {

@@ -35,8 +35,7 @@ import (
 //	    | [DEFAULT] CHARACTER SET [=] charset_name [COLLATE [=] collation_name]
 //	    | ALGORITHM [=] {DEFAULT | INSTANT | INPLACE | COPY}
 //	    | LOCK [=] {DEFAULT | NONE | SHARED | EXCLUSIVE}
-func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	p.advance() // consume TABLE
 
 	// Completion: after ALTER TABLE, offer table_ref.

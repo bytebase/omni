@@ -335,7 +335,7 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 	}
 
 	return &nodes.Assignment{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Column: col,
 		Value:  val,
 	}, nil

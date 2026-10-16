@@ -18,8 +18,7 @@ import (
 //	    VIEW view_name [(column_list)]
 //	    AS select_statement
 //	    [WITH [CASCADED | LOCAL] CHECK OPTION]
-func (p *Parser) parseAlterViewStmt() (*nodes.AlterViewStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 	stmt := &nodes.AlterViewStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -149,8 +148,7 @@ func (p *Parser) parseAlterViewStmt() (*nodes.AlterViewStmt, error) {
 //	    [ENABLE | DISABLE | DISABLE ON SLAVE]
 //	    [COMMENT 'string']
 //	    [DO event_body]
-func (p *Parser) parseAlterEventStmt() (*nodes.AlterEventStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 	p.advance() // consume EVENT
 
 	// Completion: after ALTER EVENT, offer event_ref.
@@ -261,8 +259,7 @@ func (p *Parser) parseAlterEventStmt() (*nodes.AlterEventStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-procedure.html
 //
 //	ALTER {FUNCTION | PROCEDURE} sp_name [characteristic ...]
-func (p *Parser) parseAlterRoutineStmt(isProcedure bool) (*nodes.AlterRoutineStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterRoutineStmt(start int, isProcedure bool) (*nodes.AlterRoutineStmt, error) {
 	p.advance() // consume FUNCTION or PROCEDURE
 
 	// Completion: after ALTER FUNCTION/PROCEDURE, offer function_ref/procedure_ref.
@@ -308,8 +305,7 @@ func (p *Parser) parseAlterRoutineStmt(isProcedure bool) (*nodes.AlterRoutineStm
 // The caller has already consumed DROP. The current token is FUNCTION or PROCEDURE.
 //
 //	DROP {FUNCTION | PROCEDURE} [IF EXISTS] sp_name
-func (p *Parser) parseDropRoutineStmt(isProcedure bool) (*nodes.DropRoutineStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropRoutineStmt(start int, isProcedure bool) (*nodes.DropRoutineStmt, error) {
 	p.advance() // consume FUNCTION or PROCEDURE
 
 	stmt := &nodes.DropRoutineStmt{
@@ -350,8 +346,7 @@ func (p *Parser) parseDropRoutineStmt(isProcedure bool) (*nodes.DropRoutineStmt,
 // The caller has already consumed DROP. The current token is TRIGGER.
 //
 //	DROP TRIGGER [IF EXISTS] [schema_name.]trigger_name
-func (p *Parser) parseDropTriggerStmt() (*nodes.DropTriggerStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropTriggerStmt(start int) (*nodes.DropTriggerStmt, error) {
 	p.advance() // consume TRIGGER
 
 	stmt := &nodes.DropTriggerStmt{
@@ -387,8 +382,7 @@ func (p *Parser) parseDropTriggerStmt() (*nodes.DropTriggerStmt, error) {
 // The caller has already consumed DROP. The current token is EVENT.
 //
 //	DROP EVENT [IF EXISTS] event_name
-func (p *Parser) parseDropEventStmt() (*nodes.DropEventStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropEventStmt(start int) (*nodes.DropEventStmt, error) {
 	p.advance() // consume EVENT
 
 	stmt := &nodes.DropEventStmt{

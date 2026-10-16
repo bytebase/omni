@@ -317,7 +317,11 @@ func (p *Parser) parseReturnStmt() (*nodes.ReturnStmt, error) {
 	// Optional return expression
 	if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwEND &&
 		p.cur.Type != kwELSE && p.cur.Type != kwGO {
-		stmt.Value, _ = p.parseExpr()
+		var err error
+		stmt.Value, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -400,11 +404,19 @@ func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 	if p.cur.Type == kwDELAY {
 		stmt.WaitType = "DELAY"
 		p.advance()
-		stmt.Value, _ = p.parseExpr()
+		var err error
+		stmt.Value, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	} else if p.cur.Type == kwTIME {
 		stmt.WaitType = "TIME"
 		p.advance()
-		stmt.Value, _ = p.parseExpr()
+		var err error
+		stmt.Value, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	} else if p.cur.Type == '(' {
 		// Parenthesized form: WAITFOR ( receive_statement | get_conversation_group_statement )
 		p.advance() // consume '('
@@ -413,12 +425,18 @@ func (p *Parser) parseWaitForStmt() (*nodes.WaitForStmt, error) {
 			return nil, err
 		}
 		stmt.InnerStmt = innerStmt
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		// Optional: , TIMEOUT timeout
 		if _, ok := p.match(','); ok {
 			if p.cur.Type == kwTIMEOUT {
 				p.advance()
-				stmt.Timeout, _ = p.parseExpr()
+				var err error
+				stmt.Timeout, err = p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}

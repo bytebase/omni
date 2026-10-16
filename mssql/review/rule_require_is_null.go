@@ -1,6 +1,7 @@
 package review
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/mssql/ast"
@@ -105,11 +106,13 @@ func (a ansiNulls) after(n ast.Node) (ansiNulls, bool) {
 }
 
 // ansiNullsSet returns the ANSI_NULLS setting a statement makes: SET
-// ANSI_NULLS, or SET ANSI_DEFAULTS, which sets it too. ok is false for
-// another statement.
+// ANSI_NULLS, or SET ANSI_DEFAULTS, which sets it too, alone or in a list
+// of options sharing one ON or OFF. ok is false for another statement.
 func ansiNullsSet(n ast.Node) (on, ok bool) {
 	v, isSet := n.(*ast.SetOptionStmt)
-	if !isSet || !strings.EqualFold(v.Option, "ANSI_NULLS") && !strings.EqualFold(v.Option, "ANSI_DEFAULTS") {
+	if !isSet || !slices.ContainsFunc(v.Options, func(name string) bool {
+		return strings.EqualFold(name, "ANSI_NULLS") || strings.EqualFold(name, "ANSI_DEFAULTS")
+	}) {
 		return false, false
 	}
 	var value string

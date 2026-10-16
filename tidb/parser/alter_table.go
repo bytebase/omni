@@ -35,8 +35,7 @@ import (
 //	    | [DEFAULT] CHARACTER SET [=] charset_name [COLLATE [=] collation_name]
 //	    | ALGORITHM [=] {DEFAULT | INSTANT | INPLACE | COPY}
 //	    | LOCK [=] {DEFAULT | NONE | SHARED | EXCLUSIVE}
-func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	p.advance() // consume TABLE
 
 	// Completion: after ALTER TABLE, offer table_ref.
@@ -89,7 +88,7 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 		p.advance() // consume ','
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -151,7 +150,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			return nil, err
 		}
 		cmd.Name = val
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwLOCK:
@@ -163,7 +162,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			return nil, err
 		}
 		cmd.Name = val
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwCOALESCE:
@@ -250,13 +249,13 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 				return nil, err
 			}
 			p.match(kwTABLESPACE)
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		// DISCARD TABLESPACE
 		p.match(kwTABLESPACE)
 		cmd.Type = nodes.ATDiscardTablespace
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwIMPORT:
@@ -268,19 +267,19 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 				return nil, err
 			}
 			p.match(kwTABLESPACE)
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		// IMPORT TABLESPACE
 		p.match(kwTABLESPACE)
 		cmd.Type = nodes.ATImportTablespace
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwFORCE:
 		p.advance()
 		cmd.Type = nodes.ATForce
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwORDER:
@@ -293,7 +292,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			return nil, err
 		}
 		cmd.OrderByItems = items
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwENABLE:
@@ -301,7 +300,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwKEYS)
 		cmd.Type = nodes.ATEnableKeys
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwDISABLE:
@@ -309,7 +308,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwKEYS)
 		cmd.Type = nodes.ATDisableKeys
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwWITH:
@@ -317,7 +316,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwVALIDATION)
 		cmd.Type = nodes.ATWithValidation
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwWITHOUT:
@@ -325,7 +324,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwVALIDATION)
 		cmd.Type = nodes.ATWithoutValidation
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwPARTITION:
@@ -337,7 +336,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			}
 			cmd.Type = nodes.ATPartitionBy
 			cmd.PartitionBy = part
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		return nil, &ParseError{
@@ -351,13 +350,13 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			// TiDB: REMOVE TTL
 			p.advance()
 			cmd.Type = nodes.ATRemoveTTL
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		// REMOVE PARTITIONING
 		p.match(kwPARTITIONING)
 		cmd.Type = nodes.ATRemovePartitioning
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwSET:
@@ -383,7 +382,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			cmd.Type = nodes.ATSetTiFlashReplica
 			cmd.TiFlashReplica = count
 			cmd.TiFlashLocationLabels = labels
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		return nil, p.syntaxErrorAtCur()
@@ -391,13 +390,13 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	case kwSECONDARY_LOAD:
 		p.advance()
 		cmd.Type = nodes.ATSecondaryLoad
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwSECONDARY_UNLOAD:
 		p.advance()
 		cmd.Type = nodes.ATSecondaryUnload
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	default:
@@ -409,7 +408,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		if ok {
 			cmd.Type = nodes.ATTableOption
 			cmd.Option = opt
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		return nil, &ParseError{
@@ -456,7 +455,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -468,7 +467,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			return nil, err
 		}
 		cmd.Constraint = constr
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -500,7 +499,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -515,7 +514,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return nil, err
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -542,7 +541,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.PartitionNames = names
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwPRIMARY:
@@ -551,7 +550,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		p.match(kwKEY)
 		cmd.Type = nodes.ATDropConstraint
 		cmd.Name = "PRIMARY"
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwINDEX, kwKEY:
@@ -569,7 +568,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Name = name
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwFOREIGN:
@@ -588,7 +587,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Name = name
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwCHECK:
@@ -600,7 +599,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Name = name
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwCONSTRAINT:
@@ -618,7 +617,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Name = name
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	default:
@@ -643,7 +642,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Name = name
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 }
@@ -672,7 +671,7 @@ func (p *Parser) parseAlterModify(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		return nil, err
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -708,7 +707,7 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		return nil, err
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -741,7 +740,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		} else if _, ok := p.match(kwINVISIBLE); ok {
 			cmd.Type = nodes.ATAlterIndexInvisible
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -764,7 +763,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			p.advance()
 			cmd.NewName = "ENFORCED"
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -787,7 +786,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			p.advance()
 			cmd.NewName = "ENFORCED"
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -845,7 +844,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		}
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -916,7 +915,7 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		cmd.NewName = newName
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -950,7 +949,7 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 		cmd.NewName = collation
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -984,7 +983,7 @@ func (p *Parser) parseAlterPartitionNamesOrAll(cmd *nodes.AlterTableCmd, cmdType
 		}
 		cmd.PartitionNames = names
 	}
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -1003,7 +1002,7 @@ func (p *Parser) parseAlterCoalescePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 		cmd.Number = int(p.cur.Ival)
 		p.advance()
 	}
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -1050,7 +1049,7 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -1099,7 +1098,7 @@ func (p *Parser) parseAlterExchangePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 		cmd.WithValidation = &v
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 

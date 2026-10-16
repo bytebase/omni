@@ -198,6 +198,11 @@ func TestRequireIsNull(t *testing.T) {
 			want: []finding{{8, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
 		},
 		{
+			name: "ANSI_NULLS set in a list of options",
+			sql:  "SET QUOTED_IDENTIFIER, ANSI_NULLS OFF;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_PADDING, ANSI_NULLS ON;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_PADDING, ANSI_DEFAULTS OFF;\nSELECT * FROM t WHERE n = NULL;",
+			want: []finding{{3, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
+		{
 			name: "ANSI_NULLS set back ON in a block after a condition",
 			sql:  "BEGIN IF @x = 1 SET ANSI_NULLS OFF; SET ANSI_NULLS ON; END;\nSELECT * FROM t WHERE n = NULL;",
 			want: []finding{{1, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
@@ -265,6 +270,14 @@ func TestDisallowDropObject(t *testing.T) {
 				{7, "DROP USER u", "drops user u", []int{0}},
 				{8, "n", "drops column n of t", []int{0}},
 				{8, "code", "drops column code of t", []int{0}},
+			},
+		},
+		{
+			name: "a column after a constraint in one DROP",
+			sql:  "ALTER TABLE t DROP CONSTRAINT uk_code, COLUMN n, code;",
+			want: []finding{
+				{0, "n", "drops column n of t", []int{0}},
+				{0, "code", "drops column code of t", []int{0}},
 			},
 		},
 		{name: "a constraint belongs to DisallowDropConstraint", sql: "ALTER TABLE t DROP CONSTRAINT ck_n;"},
@@ -366,6 +379,16 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{0, "pk_t", "drops primary key pk_t of t", []int{0}},
 				{0, "fk_p", "drops foreign key fk_p of t", []int{0}},
 				{1, "uk_code", "drops unique constraint uk_code of dbo.t", []int{0}},
+				{2, "ck_n", "drops check constraint ck_n of t", []int{0}},
+			},
+		},
+		{
+			name: "an item that restates CONSTRAINT or COLUMN",
+			sql:  "ALTER TABLE t DROP CONSTRAINT pk_t, CONSTRAINT fk_p;\nALTER TABLE t DROP CONSTRAINT uk_code, COLUMN n;\nALTER TABLE t DROP COLUMN code, CONSTRAINT IF EXISTS ck_n, df_n;",
+			want: []finding{
+				{0, "pk_t", "drops primary key pk_t of t", []int{0}},
+				{0, "fk_p", "drops foreign key fk_p of t", []int{0}},
+				{1, "uk_code", "drops unique constraint uk_code of t", []int{0}},
 				{2, "ck_n", "drops check constraint ck_n of t", []int{0}},
 			},
 		},

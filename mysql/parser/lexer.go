@@ -1713,73 +1713,107 @@ type Lexer struct {
 	// or quoted identifier). A malformed token that runs to EOF without its closing
 	// delimiter must never index past the buffer; instead the scan stops at EOF and
 	// records the error here, which the parser surfaces as a clean ParseError.
-	// errPos is stored in ORIGINAL-input coordinates (see spliceGaps).
 	errMsg string
 	errPos int
 	hasErr bool
 
-	// spliceGaps records byte ranges removed from l.input by executable-comment
-	// splices, so a position in the mutated buffer maps back to the original input.
-	// Splicing /*!NNNNN ... */ into just its inner content deletes two disjoint
-	// runs — the leading "/*!NNNNN" and the trailing "*/" — at two different mutated
-	// offsets. A position maps back by adding the sizes of every gap that begins at
-	// or before it (see originalPos): a position INSIDE the retained body is shifted
-	// only by the leading gap, one AFTER the body by both.
-	spliceGaps []spliceGap
+	// execStack holds every executable comment (/*! ... */) the lexer is inside,
+	// innermost last. The lexer reads a comment's body in place rather than
+	// copying it into a new buffer, so every token keeps its byte offset in the
+	// input; skipWhitespaceAndComments steps over a comment's closing "*/" when it
+	// reaches it. A push never writes into a shared backing array, so a Lexer
+	// copied by value (saveScan) keeps its own stack.
+	execStack []execComment
+
+	// execMarkers records, in input order, the comment syntax the lexer stepped
+	// over to read an executable comment's body: each "/*!NNNNN" opener and each
+	// closing "*/". expandedText leaves these bytes out.
+	execMarkers []execMarker
 }
 
-// spliceGap is one run of bytes removed from l.input at mutated offset `at`.
-type spliceGap struct {
-	at      int // offset in the mutated buffer where the bytes were removed
-	removed int // number of bytes removed there
+// execComment is an executable comment the lexer is inside: start is the offset
+// of its "/*!", close the offset of its closing "*/".
+type execComment struct {
+	start, close int
 }
 
-// originalPos maps a position in the current (spliced) l.input back to an offset
-// in the original input by adding every gap that starts at or before it.
-func (l *Lexer) originalPos(pos int) int {
-	orig := pos
-	for _, g := range l.spliceGaps {
-		if g.at <= pos {
-			orig += g.removed
-		}
-	}
-	return orig
-}
-
-// shiftGapsForSplice keeps existing spliceGaps in current-buffer coordinates when a
-// splice deletes two disjoint byte ranges from the CURRENT buffer: the leading run
-// [l.pos, vpos) and the trailing run [closeStart, closeStart+2) (vpos <= closeStart).
-// Both membership tests are evaluated against each gap's pre-splice offset and the
-// combined left-shift is applied once, so the two deletions don't interfere. Any gap
-// recorded by an earlier splice that lies to the right of a deleted range (e.g. an
-// outer comment's trailing "*/" when this is a nested comment inside its body) moves
-// left accordingly, preventing its at from drifting stale.
-func (l *Lexer) shiftGapsForSplice(leadStart, leadEnd, tailStart int) {
-	lead := leadEnd - leadStart
-	for i := range l.spliceGaps {
-		at := l.spliceGaps[i].at
-		shift := 0
-		if at >= leadEnd { // past the leading run [leadStart, leadEnd)
-			shift += lead
-		}
-		if at >= tailStart+2 { // past the trailing "*/" [tailStart, tailStart+2)
-			shift += 2
-		}
-		l.spliceGaps[i].at = at - shift
-	}
+// execMarker is a run of executable-comment syntax, [start, end) in l.input.
+type execMarker struct {
+	start, end int
 }
 
 // setError records the first lexing error and ignores any later ones. Because the
 // lexer scans strictly left-to-right, the first error recorded is also the leftmost
-// (earliest) in the input. pos is a position in the current (possibly spliced)
-// l.input; it is translated back to original-input coordinates.
+// (earliest) in the input.
 func (l *Lexer) setError(msg string, pos int) {
 	if l.hasErr {
 		return
 	}
 	l.hasErr = true
 	l.errMsg = msg
-	l.errPos = l.originalPos(pos)
+	l.errPos = pos
+}
+
+// enterExecComment steps over the opener [l.pos, bodyStart) of an executable
+// comment whose closing "*/" starts at closeStart, leaving the lexer at the
+// first byte of the body.
+func (l *Lexer) enterExecComment(bodyStart, closeStart int) {
+	l.execMarkers = append(l.execMarkers, execMarker{l.pos, bodyStart})
+	n := len(l.execStack)
+	l.execStack = append(l.execStack[:n:n], execComment{l.pos, closeStart})
+	l.pos = bodyStart
+}
+
+// skipExecClose steps over the "*/" that closes the innermost executable comment
+// when the lexer stands on it, and reports whether it did. A close the lexer has
+// already passed was swallowed by a token (a string or a line comment holding
+// the "*/"), which leaves the comment open; MySQL rejects that, so it is an
+// unterminated comment.
+func (l *Lexer) skipExecClose() bool {
+	for n := len(l.execStack); n > 0; n-- {
+		c := l.execStack[n-1]
+		if c.close > l.pos {
+			return false
+		}
+		l.execStack = l.execStack[:n-1]
+		if c.close < l.pos {
+			l.setError("unterminated comment", c.start)
+			continue
+		}
+		l.execMarkers = append(l.execMarkers, execMarker{c.close, c.close + 2})
+		l.pos += 2
+		return true
+	}
+	return false
+}
+
+// expandedText returns l.input[start:end] as the server reads it: without the
+// executable-comment syntax the lexer stepped over in that range. Body text
+// captured across an executable comment (a view's SELECT, a trigger body from
+// mysqldump) therefore holds only the SQL inside it.
+func (l *Lexer) expandedText(start, end int) string {
+	var sb strings.Builder
+	cut := false
+	for _, m := range l.execMarkers {
+		if m.start >= end {
+			break
+		}
+		if m.end <= start {
+			continue
+		}
+		cut = true
+		if m.start > start {
+			sb.WriteString(l.input[start:m.start])
+		}
+		start = m.end
+	}
+	if !cut {
+		return l.input[start:end]
+	}
+	if start < end {
+		sb.WriteString(l.input[start:end])
+	}
+	return sb.String()
 }
 
 // NewLexer creates a new MySQL lexer for the given input.
@@ -1910,7 +1944,13 @@ func (l *Lexer) nextToken() Token {
 }
 
 func (l *Lexer) skipWhitespaceAndComments() {
-	for l.pos < len(l.input) {
+	for {
+		if len(l.execStack) > 0 && l.skipExecClose() {
+			continue
+		}
+		if l.pos >= len(l.input) {
+			return
+		}
 		ch := l.input[l.pos]
 
 		// Whitespace
@@ -1977,30 +2017,14 @@ func (l *Lexer) skipWhitespaceAndComments() {
 				}
 				if closeStart < 0 {
 					// Unterminated executable comment: no closing */ before EOF.
-					// Do NOT slice past the buffer (the historical `l.input[end+2:]`
-					// panicked here). Consume to EOF and record a clean lex error.
+					// Consume to EOF and record a clean lex error.
 					l.setError("unterminated comment", commentStart)
 					l.pos = len(l.input)
 					return
 				}
-				// Extract the inner content and splice it into the input,
-				// replacing the conditional comment with its content. closeStart+2
-				// is in-bounds because closeStart points at '*' and closeStart+1 at '/'.
-				inner := l.input[vpos:closeStart]
-				// This splice deletes two disjoint byte ranges from the CURRENT
-				// buffer: the leading "/*!NNNNN" at [l.pos, vpos) and the trailing
-				// "*/" at [closeStart, closeStart+2). All spliceGaps.at values are kept
-				// in current-buffer coordinates, so first shift any earlier gaps that
-				// sit to the right of these ranges (nested-comment case), then record
-				// this splice's own two gaps. After the leading run is removed the
-				// trailing "*/" sits at l.pos+len(inner).
-				l.shiftGapsForSplice(l.pos, vpos, closeStart)
-				if leading := vpos - l.pos; leading > 0 {
-					l.spliceGaps = append(l.spliceGaps, spliceGap{at: l.pos, removed: leading})
-				}
-				l.spliceGaps = append(l.spliceGaps, spliceGap{at: l.pos + len(inner), removed: 2})
-				l.input = l.input[:l.pos] + inner + l.input[closeStart+2:]
-				// Don't advance l.pos — re-scan from the start of the inner content.
+				// Lex the body in place: step over "/*!NNNNN" and remember where
+				// the comment closes, so tokens keep their offsets in the input.
+				l.enterExecComment(vpos, closeStart)
 				continue
 			}
 

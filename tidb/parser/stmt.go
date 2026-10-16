@@ -77,7 +77,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		if p.cur.Type == kwUSER {
 			return p.parseRenameUserStmt(start)
 		}
-		return p.parseRenameTableStmt()
+		return p.parseRenameTableStmt(start)
 
 	case kwSET:
 		return p.parseSetStmt()
@@ -115,7 +115,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		if p.cur.Type == kwINSTANCE {
 			return p.parseLockInstanceStmt(start)
 		}
-		return p.parseLockTablesStmt()
+		return p.parseLockTablesStmt(start)
 
 	case kwUNLOCK:
 		start := p.pos()
@@ -123,7 +123,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		if p.cur.Type == kwINSTANCE {
 			return p.parseUnlockInstanceStmt(start)
 		}
-		return p.parseUnlockTablesStmt()
+		return p.parseUnlockTablesStmt(start)
 
 	case kwGRANT:
 		return p.parseGrantStmt()
@@ -311,7 +311,7 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 		}
 		p.advance()
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -357,7 +357,7 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 			p.advance()
 		}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -406,6 +406,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		for _, t := range []int{
 			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, // TiDB has no CREATE FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: CREATE PLACEMENT POLICY
+			kwSEQUENCE,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -439,22 +440,22 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(temporary)
+		return p.parseCreateTableStmt(start, temporary)
 
 	case kwINDEX:
-		return p.parseCreateIndexStmt(false, false, false)
+		return p.parseCreateIndexStmt(start, false, false, false)
 
 	case kwUNIQUE:
 		p.advance()
 		if p.cur.Type == kwINDEX {
-			return p.parseCreateIndexStmt(true, false, false)
+			return p.parseCreateIndexStmt(start, true, false, false)
 		}
 		return nil, &ParseError{Message: "expected INDEX after UNIQUE", Position: p.cur.Loc}
 
 	case kwFULLTEXT:
 		p.advance()
 		// p.cur is now INDEX or KEY; parseCreateIndexStmt consumes it
-		return p.parseCreateIndexStmt(false, true, false)
+		return p.parseCreateIndexStmt(start, false, true, false)
 
 	case kwSPATIAL:
 		p.advance()
@@ -462,17 +463,25 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		if p.cur.Type == kwREFERENCE {
 			return p.parseCreateSpatialRefSysStmt(start, orReplace)
 		}
-		return p.parseCreateIndexStmt(false, false, true)
+		return p.parseCreateIndexStmt(start, false, false, true)
 
 	case kwVIEW:
-		return p.parseCreateViewStmt(orReplace)
+		return p.parseCreateViewStmt(start, orReplace)
 
 	case kwDATABASE, kwSCHEMA:
-		return p.parseCreateDatabaseStmt()
+		return p.parseCreateDatabaseStmt(start)
 
 	case kwPLACEMENT:
 		// CREATE [OR REPLACE] PLACEMENT POLICY [IF NOT EXISTS] name opts
 		return p.parseCreatePlacementPolicyStmt(start, orReplace)
+
+	case kwSEQUENCE:
+		// TiDB v8.5.5 has no CREATE OR REPLACE SEQUENCE and no CREATE
+		// TEMPORARY SEQUENCE (parser.y:15462); both reject at SEQUENCE.
+		if orReplace || temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCreateSequenceStmt(start)
 
 	case kwAGGREGATE:
 		// TiDB v8.5.0 has no CREATE [AGGREGATE] FUNCTION (stored or loadable
@@ -488,7 +497,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			// TiDB v8.5.0 has no CREATE OR REPLACE PROCEDURE.
 			return nil, p.syntaxErrorAtCur()
 		}
-		return p.parseCreateFunctionStmt(true)
+		return p.parseCreateFunctionStmt(start, true)
 
 	case kwTRIGGER:
 		// TiDB v8.5.0 has no CREATE TRIGGER.
@@ -499,10 +508,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 
 	case kwUSER:
-		return p.parseCreateUserStmt()
+		return p.parseCreateUserStmt(start)
 
 	case kwROLE:
-		return p.parseCreateRoleStmt()
+		return p.parseCreateRoleStmt(start)
 
 	case kwTABLESPACE:
 		return p.parseCreateTablespaceStmt(start, false)
@@ -515,11 +524,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwALGORITHM:
 		// Only CREATE VIEW uses ALGORITHM
-		return p.parseCreateViewStmt(orReplace)
+		return p.parseCreateViewStmt(start, orReplace)
 
 	case kwSQL:
 		// CREATE SQL SECURITY {DEFINER|INVOKER} VIEW — delegate to CREATE VIEW
-		return p.parseCreateViewStmt(orReplace)
+		return p.parseCreateViewStmt(start, orReplace)
 
 	case kwDEFINER:
 		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
@@ -537,7 +546,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// Now dispatch on the object keyword
 		switch p.cur.Type {
 		case kwVIEW:
-			stmt, err := p.parseCreateViewStmt(orReplace)
+			stmt, err := p.parseCreateViewStmt(start, orReplace)
 			if err != nil {
 				return nil, err
 			}
@@ -580,6 +589,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		for _, t := range []int{
 			kwTABLE, kwDATABASE, kwVIEW, // TiDB has no ALTER FUNCTION/PROCEDURE/EVENT
 			kwPLACEMENT, // TiDB: ALTER PLACEMENT POLICY
+			kwSEQUENCE,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -597,17 +607,20 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseAlterTableStmt()
+		return p.parseAlterTableStmt(start)
 
 	case kwDATABASE, kwSCHEMA:
-		return p.parseAlterDatabaseStmt()
+		return p.parseAlterDatabaseStmt(start)
 
 	case kwPLACEMENT:
 		// ALTER PLACEMENT POLICY [IF EXISTS] name opts
 		return p.parseAlterPlacementPolicyStmt(start)
 
+	case kwSEQUENCE:
+		return p.parseAlterSequenceStmt(start)
+
 	case kwUSER:
-		return p.parseAlterUserStmt()
+		return p.parseAlterUserStmt(start)
 
 	case kwTABLESPACE:
 		return p.parseAlterTablespaceStmt(start, false)
@@ -616,15 +629,15 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return p.parseAlterServerStmt(start)
 
 	case kwVIEW:
-		return p.parseAlterViewStmt()
+		return p.parseAlterViewStmt(start)
 
 	case kwALGORITHM:
 		// ALTER ALGORITHM = ... VIEW — delegate to ALTER VIEW parser
-		return p.parseAlterViewStmt()
+		return p.parseAlterViewStmt(start)
 
 	case kwSQL:
 		// ALTER SQL SECURITY {DEFINER|INVOKER} VIEW — delegate to ALTER VIEW
-		return p.parseAlterViewStmt()
+		return p.parseAlterViewStmt(start)
 
 	case kwDEFINER:
 		// ALTER DEFINER = user {VIEW|EVENT}
@@ -641,7 +654,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		}
 		switch p.cur.Type {
 		case kwVIEW:
-			stmt, err := p.parseAlterViewStmt()
+			stmt, err := p.parseAlterViewStmt(start)
 			if err != nil {
 				return nil, err
 			}
@@ -696,6 +709,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		for _, t := range []int{
 			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, kwIF, // TiDB has no DROP FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: DROP PLACEMENT POLICY
+			kwSEQUENCE,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -719,33 +733,40 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseDropTableStmt(temporary)
+		return p.parseDropTableStmt(start, temporary)
 
 	case kwINDEX:
-		return p.parseDropIndexStmt()
+		return p.parseDropIndexStmt(start)
 
 	case kwVIEW:
-		return p.parseDropViewStmt()
+		return p.parseDropViewStmt(start)
 
 	case kwDATABASE, kwSCHEMA:
-		return p.parseDropDatabaseStmt()
+		return p.parseDropDatabaseStmt(start)
 
 	case kwPLACEMENT:
 		// DROP PLACEMENT POLICY [IF EXISTS] name
 		return p.parseDropPlacementPolicyStmt(start)
 
+	case kwSEQUENCE:
+		// TiDB v8.5.5 has no DROP TEMPORARY SEQUENCE (parser.y:15575).
+		if temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseDropSequenceStmt(start)
+
 	case kwUSER:
-		return p.parseDropUserStmt()
+		return p.parseDropUserStmt(start)
 
 	case kwROLE:
-		return p.parseDropRoleStmt()
+		return p.parseDropRoleStmt(start)
 
 	case kwFUNCTION:
 		// TiDB v8.5.0 has no stored functions — DROP FUNCTION rejects.
 		return nil, p.syntaxErrorAtCur()
 
 	case kwPROCEDURE:
-		return p.parseDropRoutineStmt(true)
+		return p.parseDropRoutineStmt(start, true)
 
 	case kwTRIGGER:
 		// TiDB v8.5.0 has no triggers — DROP TRIGGER rejects.
@@ -780,7 +801,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 			return nil, err
 		}
 		return &nodes.DeallocateStmt{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: name,
 		}, nil
 

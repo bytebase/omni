@@ -94,7 +94,11 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 			p.addTokenCandidate(kwSELECT)
 			return nil, errCollecting
 		}
-		stmt.Query, _ = p.parseSelectStmtWithCTE()
+		var err error
+		stmt.Query, err = p.parseSelectStmtWithCTE()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Optional: FOR { READ_ONLY | UPDATE [ OF column_name [,...n] ] }
@@ -268,10 +272,18 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 		orientation = "LAST"
 	case p.matchIdentCI("ABSOLUTE"):
 		orientation = "ABSOLUTE"
-		stmt.FetchOffset, _ = p.parseExpr()
+		var err error
+		stmt.FetchOffset, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	case p.matchIdentCI("RELATIVE"):
 		orientation = "RELATIVE"
-		stmt.FetchOffset, _ = p.parseExpr()
+		var err error
+		stmt.FetchOffset, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if orientation != "" {

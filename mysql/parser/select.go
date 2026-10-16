@@ -112,6 +112,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		stmt.Loc.Start = start
 		return stmt, nil
 
 	case kwUPDATE:
@@ -119,6 +120,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		stmt.Loc.Start = start
 		return stmt, nil
 
 	case kwDELETE:
@@ -126,6 +128,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		stmt.Loc.Start = start
 		return stmt, nil
 
 	default:
@@ -478,12 +481,22 @@ func (p *Parser) restoreScan(s scanState) {
 // In each case MySQL's grammar distinguishes by whether the innermost head is a
 // query primary (SELECT/WITH/TABLE/VALUES) or not; a fixed one-token lookahead
 // on '(' cannot, so we scan past the parens speculatively and rewind.
+//
+// Every '(' of a run shares the run's answer, and the parser asks again at each
+// nesting level as it descends, so the last scan is cached: a '(' starting
+// between the run's first '(' and the token past it is in that run. Without
+// the cache, n nested parens cost O(n²) token scans.
 func (p *Parser) firstTokenPastParens() Token {
+	if p.cur.Type == '(' && p.cur.Loc >= p.parenRunStart && p.cur.Loc < p.parenRunPast.Loc {
+		return p.parenRunPast
+	}
 	saved := p.saveScan()
 	defer p.restoreScan(saved)
+	start := p.cur.Loc
 	for p.cur.Type == '(' {
 		p.advance()
 	}
+	p.parenRunStart, p.parenRunPast = start, p.cur
 	return p.cur
 }
 
@@ -496,8 +509,26 @@ func (p *Parser) firstTokenPastParens() Token {
 // 2" — so the parens materialize as a real node. The unconditional delegation to
 // parseSelectNoParens left-factors the grammar so a nested "((...))" and a
 // parenthesized set-op operand are parsed by the same path.
+//
+// The result depends only on where the parse starts, so a failure is recorded
+// (see parenQueryFail) and returned again without reparsing. Completion mode
+// collects candidates along the way and always reparses.
 func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 	start := p.pos()
+	if err, ok := p.parenQueryFail[start]; ok {
+		return nil, err
+	}
+	sel, err := p.parseSelectWithParensAt(start)
+	if err != nil && !p.completing {
+		if p.parenQueryFail == nil {
+			p.parenQueryFail = make(map[int]error)
+		}
+		p.parenQueryFail[start] = err
+	}
+	return sel, err
+}
+
+func (p *Parser) parseSelectWithParensAt(start int) (*nodes.SelectStmt, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -509,7 +540,7 @@ func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 		return nil, err
 	}
 	return &nodes.SelectStmt{
-		Loc:         nodes.Loc{Start: start, End: p.pos()},
+		Loc:         nodes.Loc{Start: start, End: p.prev.End},
 		ParenSource: inner,
 	}, nil
 }
@@ -861,7 +892,7 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 
 	if alias != "" {
 		return &nodes.ResTarget{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: alias,
 			Val:  expr,
 		}, nil
@@ -946,14 +977,14 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 	return refs, nil
 }
 
-func foldTableReferenceList(refs []nodes.TableExpr, end int) nodes.TableExpr {
+func foldTableReferenceList(refs []nodes.TableExpr) nodes.TableExpr {
 	if len(refs) == 0 {
 		return nil
 	}
 	left := refs[0]
 	for i := 1; i < len(refs); i++ {
 		left = &nodes.JoinClause{
-			Loc:   nodes.Loc{Start: tableExprLoc(left), End: end},
+			Loc:   nodes.Loc{Start: tableExprLoc(left).Start, End: tableExprLoc(refs[i]).End},
 			Type:  nodes.JoinInner,
 			Left:  left,
 			Right: refs[i],
@@ -1013,7 +1044,7 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 		}
 
 		join := &nodes.JoinClause{
-			Loc:   nodes.Loc{Start: tableExprLoc(left)},
+			Loc:   nodes.Loc{Start: tableExprLoc(left).Start},
 			Type:  jt,
 			Left:  left,
 			Right: right,
@@ -1037,7 +1068,7 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			join.Condition = &nodes.OnCondition{
-				Loc:  nodes.Loc{Start: condStart, End: p.pos()},
+				Loc:  nodes.Loc{Start: condStart, End: p.prev.End},
 				Expr: cond,
 			}
 		} else if _, ok := p.match(kwUSING); ok {
@@ -1066,7 +1097,7 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
-			join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.pos()}, Columns: cols}
+			join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Columns: cols}
 		}
 
 		join.Loc.End = p.prev.End
@@ -1260,7 +1291,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		return foldTableReferenceList(refs, p.pos()), nil
+		return foldTableReferenceList(refs), nil
 	}
 
 	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
@@ -1274,7 +1305,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	if p.cur.Type == kwDUAL {
 		tok := p.advance()
 		return &nodes.TableRef{
-			Loc:  nodes.Loc{Start: tok.Loc, End: p.pos()},
+			Loc:  nodes.Loc{Start: tok.Loc, End: p.prev.End},
 			Name: "dual",
 		}, nil
 	}
@@ -1359,7 +1390,7 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 	}
 
 	return &nodes.JsonTableExpr{
-		Loc:     nodes.Loc{Start: start, End: p.pos()},
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		Expr:    expr,
 		Path:    path,
 		Columns: cols,
@@ -1415,7 +1446,7 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 			return nil, err
 		}
 		return &nodes.JsonTableColumn{
-			Loc:        nodes.Loc{Start: start, End: p.pos()},
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 			Nested:     true,
 			NestedPath: nestedPath,
 			NestedCols: nestedCols,
@@ -1680,7 +1711,7 @@ func (p *Parser) parseLockInShareMode() (*nodes.ForUpdate, error) {
 	}
 
 	return &nodes.ForUpdate{
-		Loc:             nodes.Loc{Start: start, End: p.pos()},
+		Loc:             nodes.Loc{Start: start, End: p.prev.End},
 		Share:           true,
 		LockInShareMode: true,
 	}, nil
@@ -1945,7 +1976,7 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 					return nil, err
 				}
 				into.Vars = append(into.Vars, &nodes.VariableRef{
-					Loc:  nodes.Loc{Start: nameStart, End: p.pos()},
+					Loc:  nodes.Loc{Start: nameStart, End: p.prev.End},
 					Name: name,
 				})
 			} else {
@@ -2015,19 +2046,19 @@ func (p *Parser) parseParenIdentListWithCompletion(completionRule string) ([]str
 	return names, nil
 }
 
-// tableExprLoc returns the start location of a TableExpr.
-func tableExprLoc(te nodes.TableExpr) int {
+// tableExprLoc returns the location of a TableExpr.
+func tableExprLoc(te nodes.TableExpr) nodes.Loc {
 	switch t := te.(type) {
 	case *nodes.TableRef:
-		return t.Loc.Start
+		return t.Loc
 	case *nodes.JoinClause:
-		return t.Loc.Start
+		return t.Loc
 	case *nodes.SubqueryExpr:
-		return t.Loc.Start
+		return t.Loc
 	case *nodes.JsonTableExpr:
-		return t.Loc.Start
+		return t.Loc
 	}
-	return 0
+	return nodes.NoLoc()
 }
 
 // parseNamedWindowList parses WINDOW window_name AS (window_spec) [, ...].
@@ -2276,7 +2307,7 @@ func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
 		sel = sel.ParenSource
 	}
 	return &nodes.SubqueryExpr{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Select: sel,
 	}, nil
 }

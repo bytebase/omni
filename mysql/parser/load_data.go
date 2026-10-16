@@ -251,7 +251,7 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.SetList = append(stmt.SetList, &nodes.Assignment{
-				Loc:    nodes.Loc{Start: col.Loc.Start, End: p.pos()},
+				Loc:    nodes.Loc{Start: col.Loc.Start, End: p.prev.End},
 				Column: col,
 				Value:  val,
 			})
