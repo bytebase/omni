@@ -112,14 +112,29 @@ func startsWithWith(sql string, loc ast.Loc) bool {
 }
 
 // inFeatureGate reports whether an offset lies inside a TiDB
-// /*T![feature] ... */ comment that opens the range.
+// /*T![feature] ... */ comment that opens the range. The comment ends at
+// the "*/" that closes it by depth, past any comment nested in it, as the
+// lexer and TiDB read it.
 func inFeatureGate(sql string, r review.Range, offset int) bool {
 	i := skipTrivia(sql, r.Start, r.End)
 	if !strings.HasPrefix(sql[i:r.End], "/*T![") {
 		return false
 	}
-	j := strings.Index(sql[i:r.End], "*/")
-	return j < 0 || offset < i+j
+	depth := 1
+	for j := i + len("/*T!["); j+1 < r.End; j++ {
+		switch {
+		case sql[j] == '/' && sql[j+1] == '*':
+			depth++
+			j++
+		case sql[j] == '*' && sql[j+1] == '/':
+			depth--
+			if depth == 0 {
+				return offset < j
+			}
+			j++
+		}
+	}
+	return true
 }
 
 // skipTrivia returns the offset of the first byte in [start, end) that is
