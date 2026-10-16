@@ -624,13 +624,13 @@ func (p *Parser) tryRowFields() (fields []RowField, closeTok Token, ok bool) {
 }
 
 // parserCheckpoint captures enough parser+lexer state to rewind a speculative
-// parse. The lexer is fully described by its byte position and pending error
-// count (its input and baseOffset are immutable); the parser adds its current,
-// previous, and buffered-lookahead tokens.
+// parse. The lexer is fully described by its byte position (its input and
+// baseOffset are immutable, and its errors follow from its position); the
+// parser adds its current, previous, and buffered-lookahead tokens.
 type parserCheckpoint struct {
 	lexPos   int
 	lexStart int
-	lexErrs  int
+	lexErrs  int // lex errors of the tokens lexed by the checkpoint
 	cur      Token
 	prev     Token
 	nextBuf  Token
@@ -643,7 +643,7 @@ func (p *Parser) checkpoint() parserCheckpoint {
 	return parserCheckpoint{
 		lexPos:   p.lexer.pos,
 		lexStart: p.lexer.start,
-		lexErrs:  len(p.lexer.errors),
+		lexErrs:  p.lexer.errorCount(),
 		cur:      p.cur,
 		prev:     p.prev,
 		nextBuf:  p.nextBuf,
@@ -652,14 +652,12 @@ func (p *Parser) checkpoint() parserCheckpoint {
 	}
 }
 
-// restore rewinds the parser/lexer to a previously taken checkpoint, discarding
-// any lex errors recorded after it (a speculative parse must not leak errors).
+// restore rewinds the parser/lexer to a previously taken checkpoint. The lex
+// errors recorded after it start past its position, so they no longer count
+// (a speculative parse must not leak errors).
 func (p *Parser) restore(c parserCheckpoint) {
 	p.lexer.pos = c.lexPos
 	p.lexer.start = c.lexStart
-	if len(p.lexer.errors) > c.lexErrs {
-		p.lexer.errors = p.lexer.errors[:c.lexErrs]
-	}
 	p.cur = c.cur
 	p.prev = c.prev
 	p.nextBuf = c.nextBuf

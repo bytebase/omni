@@ -334,7 +334,26 @@ func (p *Parser) parseQueryNoWith(with *WithClause, start int) (*Query, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.finishQueryNoWith(with, start, body)
+}
 
+// parseQueryNoWithAfter parses the rest of a queryNoWith whose first query
+// primary, first, is already parsed.
+func (p *Parser) parseQueryNoWithAfter(first QueryNode) (*Query, error) {
+	left, err := p.finishIntersectTerm(first)
+	if err != nil {
+		return nil, err
+	}
+	body, err := p.finishQueryTerm(left)
+	if err != nil {
+		return nil, err
+	}
+	return p.finishQueryNoWith(nil, first.Span().Start, body)
+}
+
+// finishQueryNoWith parses the ORDER BY / OFFSET / LIMIT / FETCH tail of a
+// queryNoWith whose queryTerm, body, is already parsed.
+func (p *Parser) finishQueryNoWith(with *WithClause, start int, body QueryNode) (*Query, error) {
 	q := &Query{
 		With: with,
 		Body: body,
