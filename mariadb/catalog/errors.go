@@ -17,6 +17,12 @@ const (
 	ErrUnknownDatabase                   = 1049
 	ErrDupTable                          = 1050
 	ErrUnknownTable                      = 1051
+	ErrNonUniqTable                      = 1066
+	ErrUpdateTableUsed                   = 1093
+	ErrCantReopenTable                   = 1137
+	ErrWrongObject                       = 1347
+	ErrRowIsReferenced                   = 1451
+	ErrIsAView                           = 1965
 	ErrDupColumn                         = 1060
 	ErrDupKeyName                        = 1061
 	ErrDupEntry                          = 1062
@@ -80,6 +86,12 @@ var sqlStateMap = map[int]string{
 	ErrUnknownDatabase:                   "42000",
 	ErrDupTable:                          "42S01",
 	ErrUnknownTable:                      "42S02",
+	ErrNonUniqTable:                      "42000",
+	ErrUpdateTableUsed:                   "HY000",
+	ErrCantReopenTable:                   "HY000",
+	ErrWrongObject:                       "HY000",
+	ErrRowIsReferenced:                   "23000",
+	ErrIsAView:                           "42S02",
 	ErrDupColumn:                         "42S21",
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
@@ -219,6 +231,41 @@ func errNoSuchColumn(name, context string) error {
 func errUnknownTable(db, name string) error {
 	return &Error{Code: ErrUnknownTable, SQLState: sqlState(ErrUnknownTable),
 		Message: fmt.Sprintf("Unknown table '%s.%s'", db, name)}
+}
+
+// The six errors below are the ones CREATE OR REPLACE TABLE and CREATE
+// TABLE ... LIKE raise in MariaDB; messages as mariadb:11.8.8 prints them.
+
+func errNonUniqTable(name string) error {
+	return &Error{Code: ErrNonUniqTable, SQLState: sqlState(ErrNonUniqTable),
+		Message: fmt.Sprintf("Not unique table/alias: '%s'", name)}
+}
+
+func errUpdateTableUsed(name, operation string) error {
+	return &Error{Code: ErrUpdateTableUsed, SQLState: sqlState(ErrUpdateTableUsed),
+		Message: fmt.Sprintf("Table '%s' is specified twice, both as a target for '%s' and as a separate source for data", name, operation)}
+}
+
+func errCantReopenTable(alias string) error {
+	return &Error{Code: ErrCantReopenTable, SQLState: sqlState(ErrCantReopenTable),
+		Message: fmt.Sprintf("Can't reopen table: '%s'", alias)}
+}
+
+func errWrongObject(db, name, kind string) error {
+	return &Error{Code: ErrWrongObject, SQLState: sqlState(ErrWrongObject),
+		Message: fmt.Sprintf("'%s.%s' is not of type '%s'", db, name, kind)}
+}
+
+// errRowIsReferenced is what MariaDB reports when CREATE OR REPLACE TABLE
+// would drop a table another table's foreign key references.
+func errRowIsReferenced() error {
+	return &Error{Code: ErrRowIsReferenced, SQLState: sqlState(ErrRowIsReferenced),
+		Message: "Cannot delete or update a parent row: a foreign key constraint fails"}
+}
+
+func errIsAView(db, name string) error {
+	return &Error{Code: ErrIsAView, SQLState: sqlState(ErrIsAView),
+		Message: fmt.Sprintf("'%s.%s' is a view", db, name)}
 }
 
 func errFKCannotDropParent(table, fkName, refTable string) error {
