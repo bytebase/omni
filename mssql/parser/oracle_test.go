@@ -20,8 +20,10 @@ type parserOracle struct {
 
 // sharedMSSQL is the package-wide SQL Server 2022 oracle. SQL Server takes
 // 15-20s to boot, so one container serves every test in the package instead
-// of one per test. The tests only ever run SET PARSEONLY ON checks, which
-// execute nothing, so there is no state to isolate between them.
+// of one per test. The tests run SET PARSEONLY ON checks, which execute
+// nothing, or execute inside a transaction they roll back
+// (TestAlterTableDropListEffectOracle), so there is no state to isolate
+// between them.
 //
 // Every check runs on conn, a single dedicated session. Going through the
 // *sql.DB pool would not work: database/sql calls ResetSession when it hands
