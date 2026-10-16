@@ -61,12 +61,7 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 			if index >= len(ranges) {
 				continue
 			}
-			// The statement's range is its segment's text: the parser starts
-			// the location of a CREATE, ALTER, or DROP statement after its
-			// first keyword.
-			r := ranges[index]
-			content := contentLoc(sql, r.Start, r.End)
-			stmts = append(stmts, statement{index: index, node: node, loc: content, with: startsWithWith(sql[content.Start:content.End])})
+			stmts = append(stmts, statement{index: index, node: node, loc: loc, with: startsWithWith(sql, loc)})
 			found[index] = true
 		}
 	}
@@ -100,26 +95,14 @@ func nodeLoc(n ast.Node) ast.Loc {
 	return loc
 }
 
-// contentLoc is the range of a statement's text without the whitespace
-// and comments before it, and the whitespace and semicolon after it. A
-// /*! ... */ comment is not skipped: MariaDB runs the text inside it.
-func contentLoc(sql string, start, end int) ast.Loc {
-	start = skipTrivia(sql, start, end)
-	for end > start && (isSpace(sql[end-1]) || sql[end-1] == ';') {
-		end--
-	}
-	return ast.Loc{Start: start, End: end}
-}
-
 // startsWithWith reports whether a statement's text starts with the WITH
-// keyword, inside a /*! ... */ comment after its version number and any
-// comment.
-func startsWithWith(text string) bool {
-	if strings.HasPrefix(text, "/*!") {
-		text = strings.TrimLeft(text[3:], "0123456789")
-		text = text[skipTrivia(text, 0, len(text)):]
+// keyword.
+func startsWithWith(sql string, loc ast.Loc) bool {
+	if loc.Start < 0 || loc.End > len(sql) || loc.End-loc.Start < 4 {
+		return false
 	}
-	return len(text) >= 4 && strings.EqualFold(text[:4], "WITH") && (len(text) == 4 || !isWordByte(text[4]))
+	text := sql[loc.Start:loc.End]
+	return strings.EqualFold(text[:4], "WITH") && (len(text) == 4 || !isWordByte(text[4]))
 }
 
 // skipTrivia returns the offset of the first byte in [start, end) that is
@@ -174,7 +157,7 @@ func syntaxFinding(err error, ranges []review.Range) *review.Finding {
 // produced no statement for. The parser gives no message for it, so the
 // finding names the first token of the text the way a syntax error does.
 func unparsedFinding(sql string, index int, r review.Range) *review.Finding {
-	start := contentLoc(sql, r.Start, r.End).Start
+	start := skipTrivia(sql, r.Start, r.End)
 	text := sql[start:r.End]
 	if i := strings.IndexAny(text, " \t\r\n\f\v"); i >= 0 {
 		text = text[:i]
@@ -199,56 +182,16 @@ func statementAt(ranges []review.Range, offset int) int {
 
 // anchor returns the range a finding on a statement node anchors: the
 // statement's own range for the statement itself, and otherwise the
-// node's location, which for a statement of a routine body may start
-// after its leading CREATE, ALTER, or DROP, extended back over it.
-func anchor(sql string, s *statement, n ast.Node, loc ast.Loc) review.Range {
+// node's location.
+func anchor(s *statement, n ast.Node, loc ast.Loc) review.Range {
 	if n == s.node {
 		return rangeOf(s.loc)
-	}
-	i := loc.Start
-	for i > 0 && i <= len(sql) && isSpace(sql[i-1]) {
-		i--
-	}
-	j := i
-	for j > 0 && isWordByte(sql[j-1]) {
-		j--
-	}
-	switch strings.ToUpper(sql[j:i]) {
-	case "CREATE", "ALTER", "DROP":
-		loc.Start = j
 	}
 	return rangeOf(loc)
 }
 
 func isWordByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '$'
-}
-
-// spanOf returns the range a comparison covers. The parser starts a binary
-// expression's location at its operator and may end it past the space
-// after it, and gives a NULL literal no location: the left operand's
-// location, or a NULL just before the operator, widens it to the whole
-// comparison, and trailing space is cut.
-func spanOf(sql string, v *ast.BinaryExpr) review.Range {
-	loc := v.Loc
-	if l := nodeLoc(v.Left); l.End > l.Start && l.Start < loc.Start {
-		loc.Start = l.Start
-	} else if isNull(v.Left) {
-		i := loc.Start
-		for i > 0 && isSpace(sql[i-1]) {
-			i--
-		}
-		if i >= 4 && strings.EqualFold(sql[i-4:i], "NULL") {
-			loc.Start = i - 4
-		}
-	}
-	if r := nodeLoc(v.Right); r.End > r.Start && r.End > loc.End {
-		loc.End = r.End
-	}
-	for loc.End > loc.Start && loc.End <= len(sql) && isSpace(sql[loc.End-1]) {
-		loc.End--
-	}
-	return rangeOf(loc)
 }
 
 // rangeOf converts a node's location to a finding range, the zero range

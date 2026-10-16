@@ -40,7 +40,7 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 				if v.Op == ast.BinOpNe {
 					fix = "IS NOT NULL"
 				}
-				rng := spanOf(sql, v)
+				rng := rangeOf(v.Loc)
 				text := "= NULL"
 				if v.Op == ast.BinOpNe {
 					text = "<> NULL"

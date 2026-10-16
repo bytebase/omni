@@ -28,7 +28,7 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			r.report(review.DisallowDropObject, s.index, rng, msg)
 		}
 		report := func(loc ast.Loc, kind string, names ...string) {
-			reportAt(anchor(sql, s, n, loc), kind, names...)
+			reportAt(anchor(s, n, loc), kind, names...)
 		}
 		switch v := n.(type) {
 		case *ast.DropTableStmt:
