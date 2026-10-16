@@ -26,24 +26,11 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		Temporary: temporary,
 	}
 
-	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		ifPos := p.pos()
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS_KW); err != nil {
-			return nil, err
-		}
-		// MariaDB rejects the pair while parsing: the create_or_replace ...
-		// TABLE_SYM opt_if_not_exists action in sql_yacc.yy calls
-		// LEX::check_create_options, which raises ER_WRONG_USAGE (1221).
-		if orReplace {
-			return nil, &ParseError{Message: "Incorrect usage of OR REPLACE and IF NOT EXISTS", Position: ifPos}
-		}
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Completion: after CREATE TABLE, identifier context (no specific candidates).
 	p.checkCursor()
