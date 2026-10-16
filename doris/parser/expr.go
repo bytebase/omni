@@ -1000,44 +1000,88 @@ func (p *Parser) parseParenExprOrSubquery() (ast.Node, error) {
 // parseSubqueryPlaceholder consumes tokens until the matching closing ')' for
 // a subquery expression and returns a SubqueryExpr with the raw text.
 // startOffset is the byte offset of the opening '(' token.
+//
+// Strict mode validates every body (validateRawQueries). It first parses the
+// body in place: a body that parses as a query ending at the matching ')',
+// recording no error on the way, is valid and is not parsed again. Validating
+// it afterwards instead reparsed the text of every nested body once per
+// level, so n nested subqueries cost O(n²). A body that fails here is scanned
+// raw and validated afterwards as before, so its errors are unchanged.
 func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, error) {
-	depth := 1
 	subStart := p.cur.Loc.Start
-	var subEnd int
-	for depth > 0 && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case int('('):
-			depth++
-		case int(')'):
-			depth--
-			if depth == 0 {
-				subEnd = p.cur.Loc.Start
+	if p.strictTrailing {
+		cp := p.save()
+		n, err := p.parseStmt()
+		if err == nil && isQueryBody(n) && p.cur.Kind == int(')') &&
+			len(p.errors) == cp.errLen && len(p.lexer.errors) == cp.lexErrLen {
+			return p.finishSubqueryPlaceholder(startOffset, subStart), nil
+		}
+		p.restore(cp)
+	}
+	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+		if p.cur.Kind == int('(') {
+			p.skipParenGroup()
+			if p.cur.Kind == tokEOF {
 				break
 			}
 		}
-		if depth > 0 {
-			p.advance()
-		}
+		p.advance()
 	}
-
-	if depth != 0 {
+	p.recordParenGroupEnd(startOffset)
+	if p.cur.Kind == tokEOF {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "unterminated subquery",
 		}
 	}
+	sub := p.finishSubqueryPlaceholder(startOffset, subStart)
+	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart})
+	return sub, nil
+}
 
-	rawText := p.input[subStart-p.baseOffset : subEnd-p.baseOffset]
+// skipParenGroup moves from the '(' at p.cur to its matching ')', left as
+// p.cur, or to EOF when it never closes. A group scanned before is jumped
+// over (see parenGroupEnd).
+func (p *Parser) skipParenGroup() {
+	open := p.cur.Loc.Start
+	if r, ok := p.parenGroupEnd[open]; ok {
+		p.replayParen(r)
+		return
+	}
+	p.advance() // consume '('
+	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+		if p.cur.Kind == int('(') {
+			p.skipParenGroup()
+			if p.cur.Kind == tokEOF {
+				break
+			}
+		}
+		p.advance()
+	}
+	p.recordParenGroupEnd(open)
+}
+
+// recordParenGroupEnd records the current token, the matching ')' or EOF, as
+// the end of the '(' group at absolute offset open.
+func (p *Parser) recordParenGroupEnd(open int) {
+	if p.parenGroupEnd == nil {
+		p.parenGroupEnd = make(map[int]parenReplay)
+	}
+	p.parenGroupEnd[open] = p.recordParenReplay(open)
+}
+
+// finishSubqueryPlaceholder consumes the ')' that closes a subquery body
+// starting at subStart and returns its placeholder.
+func (p *Parser) finishSubqueryPlaceholder(startOffset, subStart int) *ast.SubqueryExpr {
+	rawText := p.input[subStart-p.baseOffset : p.cur.Loc.Start-p.baseOffset]
 	closeTok := p.advance() // consume ')'
 
 	trimmedFromStart := len(rawText) - len(strings.TrimLeft(rawText, " \t\r\n"))
-	sub := &ast.SubqueryExpr{
+	return &ast.SubqueryExpr{
 		RawText:   strings.TrimSpace(rawText),
 		TextStart: subStart + trimmedFromStart,
 		Loc:       ast.Loc{Start: startOffset, End: closeTok.Loc.End},
 	}
-	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart})
-	return sub, nil
 }
 
 // parseCaseExpr parses a CASE expression (simple or searched).

@@ -34,9 +34,49 @@ type Parser struct {
 
 	// rawQueries lists every query body this parse captured as raw text
 	// without parsing it (subquery placeholders, the CTAS query), in source
-	// order, so the strict entry point can validate them. restore truncates
-	// it, so an abandoned speculative parse leaves nothing behind.
+	// order, so the strict entry point can validate them. In strict mode a
+	// subquery body that parsed in place is already valid and is not listed.
+	// restore truncates it, so an abandoned speculative parse leaves nothing
+	// behind.
 	rawQueries []rawQuery
+
+	// parenGroupEnd records where the raw scan of each '(' group ended (its
+	// matching ')', or EOF), by the offset of the '('. A subquery body whose
+	// in-place parse fails is scanned raw, and so is every enclosing body
+	// whose parse fails after it; jumping over the groups already scanned
+	// keeps that linear.
+	parenGroupEnd map[int]parenReplay
+}
+
+// parenReplay is the state the raw scan of a '(' group left behind, with the
+// lex errors it recorded past that '(', so replaying it is indistinguishable
+// from scanning again.
+type parenReplay struct {
+	end     parserCheckpoint
+	lexErrs []LexError
+}
+
+// recordParenReplay captures the current state as the end of a scan that
+// started at the '(' at absolute offset open.
+func (p *Parser) recordParenReplay(open int) parenReplay {
+	rel := open - p.baseOffset
+	i := len(p.lexer.errors)
+	for i > 0 && p.lexer.errors[i-1].Loc.Start > rel {
+		i--
+	}
+	return parenReplay{end: p.save(), lexErrs: append([]LexError(nil), p.lexer.errors[i:]...)}
+}
+
+// replayParen moves the parser to the end state r records, adding the lex
+// errors a rescan would record from the current lexer position on.
+func (p *Parser) replayParen(r parenReplay) {
+	for _, e := range r.lexErrs {
+		if e.Loc.Start >= p.lexer.pos {
+			p.lexer.errors = append(p.lexer.errors, e)
+		}
+	}
+	p.lexer.pos, p.lexer.start = r.end.lexPos, r.end.lexStart
+	p.cur, p.prev, p.nextBuf, p.hasNext = r.end.cur, r.end.prev, r.end.nextBuf, r.end.hasNext
 }
 
 // rawQuery is a query body captured as raw text: the text and the absolute
@@ -890,6 +930,15 @@ func dedupeErrors(errs []ParseError) []ParseError {
 	return out
 }
 
+// isQueryBody reports whether a statement may stand as a subquery body.
+func isQueryBody(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+		return true
+	}
+	return false
+}
+
 // validateRawQueries strictly parses every query body this parse captured as
 // raw text and returns the errors in the outer statement's coordinates. A body
 // must be exactly one query (SELECT, a set operation, or a grouped query): the
@@ -918,9 +967,7 @@ func (p *Parser) validateRawQueries() []ParseError {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 			continue
 		}
-		switch res.File.Stmts[0].(type) {
-		case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
-		default:
+		if !isQueryBody(res.File.Stmts[0]) {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 		}
 	}
