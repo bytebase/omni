@@ -92,6 +92,20 @@ CREATE TABLE u (id int, name text);
 CREATE TABLE o (id int, uid int);
 CREATE VIEW v AS SELECT u.name FROM u WHERE u.id IN (SELECT uid FROM o);
 ALTER TABLE u DROP COLUMN id;`},
+		{"view reads a column through a join", `
+CREATE TABLE t (a int, x int);
+CREATE TABLE u (b int, x int);
+CREATE VIEW v AS SELECT a FROM t JOIN u ON true;
+CREATE VIEW w AS SELECT x FROM t JOIN u USING (x);
+CREATE VIEW z AS SELECT b FROM (t JOIN u USING (x)) j;
+ALTER TABLE t DROP COLUMN a;
+ALTER TABLE u DROP COLUMN b;
+ALTER TABLE t DROP COLUMN x;
+ALTER TABLE u DROP COLUMN x;
+ALTER TABLE t ALTER COLUMN a TYPE bigint;
+DROP VIEW v, z;
+ALTER TABLE t DROP COLUMN a;
+ALTER TABLE u ALTER COLUMN b TYPE bigint;`},
 		{"view reads every column of a subquery", `
 CREATE TABLE t (a int, b int);
 CREATE VIEW v AS SELECT x FROM (SELECT a AS x, b AS y FROM t) s;
@@ -160,6 +174,12 @@ CREATE TRIGGER tg BEFORE UPDATE OF b ON p FOR EACH ROW EXECUTE FUNCTION f();
 ALTER TABLE p DROP COLUMN a;
 ALTER TABLE p DROP COLUMN b;
 ALTER TABLE p DROP COLUMN b CASCADE;`},
+		{"drop column of a sub-partition key", `
+CREATE TABLE p (a int, b int) PARTITION BY RANGE (a);
+CREATE TABLE p1 PARTITION OF p FOR VALUES FROM (0) TO (10) PARTITION BY RANGE (b);
+ALTER TABLE p DROP COLUMN b;
+ALTER TABLE p DROP COLUMN b CASCADE;
+ALTER TABLE p DROP COLUMN a;`},
 		{"drop referenced column cascades to partition foreign keys", `
 CREATE TABLE t (id int PRIMARY KEY, k int);
 CREATE TABLE p (id int, tid int REFERENCES t (id)) PARTITION BY RANGE (id);

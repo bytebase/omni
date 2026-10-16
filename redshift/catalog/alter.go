@@ -1263,15 +1263,8 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 
 	// Cannot drop a column named in partition key.
 	// pg: src/backend/commands/tablecmds.c — ATExecDropColumn (partition key check)
-	if rel.PartitionInfo != nil {
-		for _, keyAttNum := range rel.PartitionInfo.KeyAttNums {
-			if keyAttNum == col.AttNum {
-				return &Error{
-					Code:    CodeInvalidObjectDefinition,
-					Message: fmt.Sprintf("cannot drop column named in partition key"),
-				}
-			}
-		}
+	if err := checkNotPartitionKey(rel, col); err != nil {
+		return err
 	}
 
 	// Drop the objects that depend on this column. Those linked only by
@@ -1948,15 +1941,13 @@ func (c *Catalog) renumberColumns(rel *Relation) {
 }
 
 // checkChildColumnDrops refuses a DROP COLUMN that a direct child of rel would
-// refuse under RESTRICT: the child's column has no other parent or local
-// definition, so it goes too, and something depends on it.
+// refuse: the child's column has no other parent or local definition, so it
+// goes too, and it is in the child's partition key, or something depends on
+// it and there is no CASCADE.
 //
 // pg: src/backend/commands/tablecmds.c — ATExecDropColumn deletes the
 // column of every child within the same statement
 func (c *Catalog) checkChildColumnDrops(rel *Relation, colName string, cascade bool) error {
-	if cascade {
-		return nil
-	}
 	for _, childOID := range c.findChildRelations(rel.OID) {
 		child := c.relationByOID[childOID]
 		if child == nil {
@@ -1970,8 +1961,29 @@ func (c *Catalog) checkChildColumnDrops(rel *Relation, colName string, cascade b
 		if col.InhCount > 1 || col.InhCount == 1 && col.IsLocal {
 			continue
 		}
-		if hasNormalDependent(c.relationDependents(child.OID, col.AttNum)) {
+		if err := checkNotPartitionKey(child, col); err != nil {
+			return err
+		}
+		if !cascade && hasNormalDependent(c.relationDependents(child.OID, col.AttNum)) {
 			return errDependentObjects("column", colName)
+		}
+	}
+	return nil
+}
+
+// checkNotPartitionKey refuses dropping a column of rel's partition key.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecDropColumn (has_partition_attrs)
+func checkNotPartitionKey(rel *Relation, col *Column) error {
+	if rel.PartitionInfo == nil {
+		return nil
+	}
+	for _, keyAttNum := range rel.PartitionInfo.KeyAttNums {
+		if keyAttNum == col.AttNum {
+			return &Error{
+				Code:    CodeInvalidTableDefinition,
+				Message: fmt.Sprintf("cannot drop column %q because it is part of the partition key of relation %q", col.Name, rel.Name),
+			}
 		}
 	}
 	return nil

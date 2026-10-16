@@ -571,11 +571,13 @@ func (c *Catalog) recordViewVarDepsQ(viewOID uint32, levels []*Query, expr Analy
 }
 
 // recordViewVarDep records the view's dependency on the table column a Var
-// reads. A Var of a subquery or CTE needs nothing here: recordViewQueryDeps
-// walks every target entry of both. A whole-row Var (AttNum 0) adds no
-// column dependency.
+// reads. A Var of a join's output resolves to the join input it comes from.
+// A Var of a subquery or CTE needs nothing here: recordViewQueryDeps walks
+// every target entry of both. A whole-row Var (AttNum 0) adds no column
+// dependency.
 //
-// pg: src/backend/catalog/dependency.c — find_expr_references_walker (Var)
+// pg: src/backend/catalog/dependency.c — find_expr_references_walker (Var,
+// including the RTE_JOIN case through joinaliasvars)
 func (c *Catalog) recordViewVarDep(viewOID uint32, levels []*Query, v *VarExpr) {
 	if v == nil || v.AttNum <= 0 || v.LevelsUp < 0 || v.LevelsUp >= len(levels) {
 		return
@@ -584,7 +586,108 @@ func (c *Catalog) recordViewVarDep(viewOID uint32, levels []*Query, v *VarExpr) 
 	if v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
 		return
 	}
-	if rte := q.RangeTable[v.RangeIdx]; rte.Kind == RTERelation && rte.RelOID != 0 {
-		c.recordDependency('r', viewOID, 0, 'r', rte.RelOID, int32(v.AttNum), DepNormal)
+	switch rte := q.RangeTable[v.RangeIdx]; rte.Kind {
+	case RTERelation:
+		if rte.RelOID != 0 {
+			c.recordDependency('r', viewOID, 0, 'r', rte.RelOID, int32(v.AttNum), DepNormal)
+		}
+	case RTEJoin:
+		var jn *JoinExprNode
+		if q.JoinTree != nil {
+			for _, item := range q.JoinTree.FromList {
+				if jn = findJoinExprNode(item, v.RangeIdx); jn != nil {
+					break
+				}
+			}
+		}
+		if jn == nil {
+			return
+		}
+		if srcs := joinColumnSources(q, jn); int(v.AttNum) <= len(srcs) {
+			src := srcs[v.AttNum-1]
+			c.recordViewVarDep(viewOID, levels, &VarExpr{RangeIdx: src.rtIdx, AttNum: src.attNum, LevelsUp: v.LevelsUp})
+		}
 	}
+}
+
+// joinColumnSource is the range table entry and column a join output column
+// comes from.
+type joinColumnSource struct {
+	rtIdx  int
+	attNum int16
+}
+
+// findJoinExprNode finds the JOIN in a FROM item whose range table entry is
+// rtIdx.
+func findJoinExprNode(jn JoinNode, rtIdx int) *JoinExprNode {
+	j, ok := jn.(*JoinExprNode)
+	if !ok {
+		return nil
+	}
+	if j.RTIndex == rtIdx {
+		return j
+	}
+	if found := findJoinExprNode(j.Left, rtIdx); found != nil {
+		return found
+	}
+	return findJoinExprNode(j.Right, rtIdx)
+}
+
+// joinColumnSources lists where each output column of a FROM item comes
+// from, in the order the analyzer builds a join's columns: the left input's,
+// then the right input's without the first column of each USING name. A
+// merged USING column resolves to its left input; the USING condition reads
+// both.
+//
+// pg: src/backend/parser/parse_clause.c — transformFromClauseItem
+// (extractRemainingColumns); see collectJoinColumns in analyze.go
+func joinColumnSources(q *Query, jn JoinNode) []joinColumnSource {
+	switch v := jn.(type) {
+	case *RangeTableRef:
+		if v.RTIndex < 0 || v.RTIndex >= len(q.RangeTable) {
+			return nil
+		}
+		srcs := make([]joinColumnSource, len(q.RangeTable[v.RTIndex].ColNames))
+		for i := range srcs {
+			srcs[i] = joinColumnSource{rtIdx: v.RTIndex, attNum: int16(i + 1)}
+		}
+		return srcs
+	case *JoinExprNode:
+		srcs := joinColumnSources(q, v.Left)
+		right := joinColumnSources(q, v.Right)
+		if len(v.UsingClause) == 0 {
+			return append(srcs, right...)
+		}
+		names := joinNodeColumnNames(q, v.Right)
+		exclude := make(map[string]bool, len(v.UsingClause))
+		for _, name := range v.UsingClause {
+			exclude[name] = true
+		}
+		for i, src := range right {
+			if i < len(names) && exclude[names[i]] {
+				delete(exclude, names[i])
+				continue
+			}
+			srcs = append(srcs, src)
+		}
+		return srcs
+	}
+	return nil
+}
+
+// joinNodeColumnNames returns the output column names of a FROM item.
+func joinNodeColumnNames(q *Query, jn JoinNode) []string {
+	var rtIdx int
+	switch v := jn.(type) {
+	case *RangeTableRef:
+		rtIdx = v.RTIndex
+	case *JoinExprNode:
+		rtIdx = v.RTIndex
+	default:
+		return nil
+	}
+	if rtIdx < 0 || rtIdx >= len(q.RangeTable) {
+		return nil
+	}
+	return q.RangeTable[rtIdx].ColNames
 }
