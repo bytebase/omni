@@ -66,7 +66,11 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 			if next.Type == '(' {
 				p.advance() // consume WITH
 				p.advance() // consume (
-				withClause, _ = p.parseRowsetWithClause()
+				var err error
+				withClause, err = p.parseRowsetWithClause()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -115,14 +119,19 @@ func (p *Parser) parseRowsetWithClause() (*nodes.List, error) {
 			p.addRuleCandidate("type_name")
 			return nil, errCollecting
 		}
-		dt, _ := p.parseDataType()
+		dt, err := p.parseDataType()
+		if err != nil {
+			return nil, err
+		}
 		col := &nodes.ColumnDef{
 			Name:     colName,
 			DataType: dt,
 		}
 		// Optional path expression (string literal or XPath)
 		if p.cur.Type != ',' && p.cur.Type != ')' {
-			p.parseExpr()
+			if _, err := p.parseExpr(); err != nil {
+				return nil, err
+			}
 		}
 		return col, nil
 	})
