@@ -448,14 +448,41 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atSetNotNull(rel, atc.Name)
 
 	case nodes.AT_DropColumn:
-		// The drop reaches the children after this relation: refuse it here
-		// if a child's part would fail, so a failed statement changes nothing.
-		if recurse && !recursing {
-			if err := c.checkChildColumnDrops(rel, atc.Name, cascade); err != nil {
-				return err
+		_, had := rel.colByName[atc.Name]
+		if had && !recursing {
+			if recurse {
+				// The drop reaches the children after this relation: refuse
+				// it here if a child's part would fail, so a failed statement
+				// changes nothing.
+				if err := c.checkChildColumnDrops(rel, atc.Name, cascade); err != nil {
+					return err
+				}
+			} else if rel.RelKind == 'p' && len(c.findChildRelations(rel.OID)) > 0 {
+				// pg: src/backend/commands/tablecmds.c — ATExecDropColumn
+				return &Error{
+					Code:    CodeInvalidTableDefinition,
+					Message: "cannot drop column from only the partitioned table when partitions exist",
+				}
 			}
 		}
-		return c.atDropColumn(schema, rel, atc.Name, cascade, atc.Missing_ok, recursing)
+		if err := c.atDropColumn(schema, rel, atc.Name, cascade, atc.Missing_ok, recursing); err != nil {
+			return err
+		}
+		if had && !recurse && !recursing {
+			// ALTER TABLE ONLY: the children keep the column as their own.
+			// pg: src/backend/commands/tablecmds.c — ATExecDropColumn
+			for _, childOID := range c.findChildRelations(rel.OID) {
+				child := c.relationByOID[childOID]
+				if child == nil {
+					continue
+				}
+				if idx, ok := child.colByName[atc.Name]; ok && child.Columns[idx].InhCount > 0 {
+					child.Columns[idx].InhCount--
+					child.Columns[idx].IsLocal = true
+				}
+			}
+		}
+		return nil
 
 	case nodes.AT_AddConstraint:
 		con, ok := atc.Def.(*nodes.Constraint)
