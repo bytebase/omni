@@ -316,6 +316,26 @@ func (p *Parser) parseRelation() (Relation, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.finishRelation(left)
+}
+
+// parseRelationAfter parses the rest of a relation whose relation primary is
+// already parsed: its alias, MATCH_RECOGNIZE, TABLESAMPLE, and joins.
+func (p *Parser) parseRelationAfter(primary Relation) (Relation, error) {
+	rel, err := p.finishAliasedRelation(primary)
+	if err != nil {
+		return nil, err
+	}
+	rel, err = p.finishSampledRelation(rel)
+	if err != nil {
+		return nil, err
+	}
+	return p.finishRelation(rel)
+}
+
+// finishRelation parses the join suffixes of a relation whose first
+// sampledRelation, left, is already parsed.
+func (p *Parser) finishRelation(left Relation) (Relation, error) {
 	for {
 		joined, ok, err := p.tryParseJoinSuffix(left)
 		if err != nil {
@@ -511,9 +531,15 @@ func (p *Parser) parseSampledRelation() (Relation, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.finishSampledRelation(rel)
+}
+
+// finishSampledRelation parses the MATCH_RECOGNIZE and TABLESAMPLE suffixes of
+// a sampledRelation whose aliasedRelation, rel, is already parsed.
+func (p *Parser) finishSampledRelation(rel Relation) (Relation, error) {
 	// patternRecognition: an optional MATCH_RECOGNIZE clause on the aliasedRelation
 	// (parser-match-recognize node). A no-op when MATCH_RECOGNIZE is absent.
-	rel, err = p.parsePatternRecognitionSuffix(rel)
+	rel, err := p.parsePatternRecognitionSuffix(rel)
 	if err != nil {
 		return nil, err
 	}
@@ -574,7 +600,12 @@ func (p *Parser) parseAliasedRelation() (Relation, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.finishAliasedRelation(primary)
+}
 
+// finishAliasedRelation parses the optional alias of an aliasedRelation whose
+// relation primary is already parsed.
+func (p *Parser) finishAliasedRelation(primary Relation) (Relation, error) {
 	alias, cols, end, ok, err := p.tryParseRelationAlias()
 	if err != nil {
 		return nil, err
@@ -832,30 +863,88 @@ func (p *Parser) parseLateral() (Relation, error) {
 //     `((a JOIN b ON …) JOIN c ON …)` is a nested parenthesized relation. Both
 //     start `((`, and the deciding token lies arbitrarily deep, so a checkpoint
 //     speculates: try a query first; if that fails (or does not land on the
-//     matching ')'), rewind and parse a relation.
+//     matching ')'), parse a relation (see finishNestedParenRelation).
 //   - anything else (an identifier table name, UNNEST, LATERAL, TABLE(func)) →
 //     a relation.
+//
+// A failure is recorded by the offset of the '(' and replayed when the parse
+// is tried there again (see parenRelationFail).
 func (p *Parser) parseParenRelationOrSubquery() (Relation, error) {
+	open := p.cur.Loc.Start
+	if f, ok := p.parenRelationFail[open]; ok {
+		p.replayParen(f.parenReplay)
+		return nil, f.err
+	}
+	rel, err := p.parseParenRelationOrSubqueryAt()
+	if err != nil {
+		if p.parenRelationFail == nil {
+			p.parenRelationFail = make(map[int]parenFailure)
+		}
+		p.parenRelationFail[open] = parenFailure{err: err, parenReplay: p.recordParenReplay()}
+	}
+	return rel, err
+}
+
+// parseParenRelationOrSubqueryAt parses the '(' relation primary for
+// parseParenRelationOrSubquery, which records its failures.
+func (p *Parser) parseParenRelationOrSubqueryAt() (Relation, error) {
 	openTok := p.advance() // consume '('
 
 	switch {
 	case p.startsQueryRelation():
 		return p.finishSubqueryRelation(openTok.Loc.Start)
 	case p.cur.Kind == int('('):
-		// Ambiguous `((…`. Speculatively read a query; fall back to a relation.
-		cp := p.checkpoint()
-		if q, err := p.parseQuery(); err == nil && p.cur.Kind == int(')') {
-			closeTok := p.advance() // consume ')'
-			return &SubqueryRelation{
-				Query: q,
-				Loc:   ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End},
-			}, nil
-		}
-		p.restore(cp)
-		return p.finishParenRelation(openTok.Loc.Start)
+		return p.finishNestedParenRelation(openTok.Loc.Start)
 	default:
 		return p.finishParenRelation(openTok.Loc.Start)
 	}
+}
+
+// finishNestedParenRelation parses the ambiguous `(…` after the opening '(' of
+// a relation (startOffset is its byte offset) when it opens another '('.
+//
+// A query here begins with that inner '(' as its first query primary, a
+// `( queryNoWith )`; when the inner '(' holds no query, the outer parens hold
+// a relation and are reparsed as one. When the inner '(' does hold a query
+// but the tokens after it do not complete a query ending at the outer ')',
+// as in `((SELECT 1) x)`, the outer parens hold a relation whose primary is
+// that same subquery: a relation primary `( query )` reads the same tokens
+// as the query primary `( queryNoWith )` whenever the query primary parses.
+// The relation then continues from the subquery instead of reparsing it,
+// which in `((SELECT * FROM ((SELECT * FROM t) x)) x)` reparsed the next
+// level at every level, doubling the work each time.
+func (p *Parser) finishNestedParenRelation(startOffset int) (Relation, error) {
+	cp := p.checkpoint()
+	first, innerEnd, err := p.parseParenQueryWithEnd()
+	if err != nil {
+		p.restore(cp)
+		return p.finishParenRelation(startOffset)
+	}
+	afterFirst := p.checkpoint()
+	if q, err := p.parseQueryNoWithAfter(first); err == nil && p.cur.Kind == int(')') {
+		closeTok := p.advance() // consume ')'
+		return &SubqueryRelation{
+			Query: q,
+			Loc:   ast.Loc{Start: startOffset, End: closeTok.Loc.End},
+		}, nil
+	}
+	p.restore(afterFirst)
+	// The subquery's query is first.Inner with its own end, not the end a
+	// ParenQuery gives it; first itself is discarded.
+	query := *first.Inner
+	query.Loc.End = innerEnd
+	inner, err := p.parseRelationAfter(&SubqueryRelation{Query: &query, Loc: first.Loc})
+	if err != nil {
+		return nil, err
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	return &ParenRelation{
+		Inner: inner,
+		Loc:   ast.Loc{Start: startOffset, End: closeTok.Loc.End},
+	}, nil
 }
 
 // finishSubqueryRelation parses `query )` after the opening '(' of a relation

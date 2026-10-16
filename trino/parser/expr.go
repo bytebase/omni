@@ -969,7 +969,7 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 	subStart := p.cur.Loc.Start
 	if p.strictTrailing {
 		cp := p.checkpoint()
-		if _, err := p.parseQuery(); err == nil && p.cur.Kind == int(')') && len(p.lexer.errors) == cp.lexErrs {
+		if _, err := p.parseQuery(); err == nil && p.cur.Kind == int(')') && p.lexer.errorCount() == cp.lexErrs {
 			return p.finishSubqueryPlaceholder(startOffset, subStart, kind), nil
 		}
 		p.restore(cp)
@@ -1020,7 +1020,7 @@ func (p *Parser) recordParenGroupEnd(open int) {
 	if p.parenGroupEnd == nil {
 		p.parenGroupEnd = make(map[int]parenReplay)
 	}
-	p.parenGroupEnd[open] = p.recordParenReplay(open)
+	p.parenGroupEnd[open] = p.recordParenReplay()
 }
 
 // finishSubqueryPlaceholder consumes the ')' that closes a subquery body
