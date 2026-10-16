@@ -111,17 +111,30 @@ func startsWithWith(sql string, loc ast.Loc) bool {
 	return strings.EqualFold(text[:4], "WITH") && (len(text) == 4 || !isWordByte(text[4]))
 }
 
-// inFeatureGate reports whether an offset lies inside a TiDB
-// /*T![feature] ... */ comment that opens the range. The comment ends at
-// the "*/" that closes it by depth, past any comment nested in it, as the
-// lexer and TiDB read it.
+// inFeatureGate reports whether an offset lies inside one of the TiDB
+// /*T![feature] ... */ comments that open the range, read past comments
+// and other gates before it. A gate ends at the "*/" that closes it by
+// depth, past any comment nested in it, as the lexer and TiDB read it.
 func inFeatureGate(sql string, r review.Range, offset int) bool {
-	i := skipTrivia(sql, r.Start, r.End)
-	if !strings.HasPrefix(sql[i:r.End], "/*T![") {
-		return false
+	i := r.Start
+	for {
+		i = skipTrivia(sql, i, r.End)
+		if i >= offset || !strings.HasPrefix(sql[i:r.End], "/*T![") {
+			return false
+		}
+		end := gateEnd(sql, i, r.End)
+		if offset < end {
+			return true
+		}
+		i = end + len("*/")
 	}
+}
+
+// gateEnd returns the offset of the "*/" that closes the /*T![ comment at
+// start by depth, or end when none does.
+func gateEnd(sql string, start, end int) int {
 	depth := 1
-	for j := i + len("/*T!["); j+1 < r.End; j++ {
+	for j := start + len("/*T!["); j+1 < end; j++ {
 		switch {
 		case sql[j] == '/' && sql[j+1] == '*':
 			depth++
@@ -129,12 +142,12 @@ func inFeatureGate(sql string, r review.Range, offset int) bool {
 		case sql[j] == '*' && sql[j+1] == '/':
 			depth--
 			if depth == 0 {
-				return offset < j
+				return j
 			}
 			j++
 		}
 	}
-	return true
+	return end
 }
 
 // skipTrivia returns the offset of the first byte in [start, end) that is
