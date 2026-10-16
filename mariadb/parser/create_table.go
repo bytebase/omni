@@ -310,6 +310,42 @@ func (p *Parser) parsePeriodForCols() (name, startCol, endCol string, err error)
 	return name, startCol, endCol, nil
 }
 
+// parseAlterDropPeriod parses the DROP PERIOD arms of alter_list_item in
+// MariaDB 11.8 sql/sql_yacc.yy into an ATDropPeriod. PERIOD is the current
+// token.
+//
+//	DROP PERIOD_SYM FOR_SYSTEM_TIME_SYM
+//	DROP PERIOD_SYM opt_if_exists_table_element FOR_SYM ident
+//
+// The first drops the system-versioning period, the second an
+// application-time period. MariaDB's lexer merges FOR and an unquoted
+// SYSTEM_TIME into one FOR_SYSTEM_TIME_SYM token, which the IF EXISTS arm does
+// not take, so IF EXISTS FOR SYSTEM_TIME is 1064; a quoted `SYSTEM_TIME` stays
+// an ident there. The period name follows the identifier rule (non-reserved
+// keywords allowed).
+func (p *Parser) parseAlterDropPeriod(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
+	p.advance() // PERIOD
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+	if ifExists && p.atUnquotedKeyword("SYSTEM_TIME") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Type = nodes.ATDropPeriod
+	cmd.IfExists = ifExists
+	cmd.PeriodName = name
+	cmd.Loc.End = p.prev.End
+	return cmd, nil
+}
+
 // parseRowBound parses ROW START | ROW END (the system-versioning period bound a
 // generated column carries). ROW is the current token.
 func (p *Parser) parseRowBound() (nodes.RowBoundKind, error) {
@@ -860,6 +896,18 @@ func (p *Parser) parseReferenceAction() nodes.ReferenceAction {
 // (e.g. `PERSISTENT`) is a quoted identifier, not the keyword, and must not match
 // — MariaDB rejects a quoted keyword in a keyword position (1064).
 func (p *Parser) matchUnquotedKeyword(kw string) bool {
+	if !p.atUnquotedKeyword(kw) {
+		return false
+	}
+	p.advance()
+	return true
+}
+
+// atUnquotedKeyword reports whether the current token is an UNQUOTED
+// identifier equal (case-insensitively) to kw, without consuming it. The lexer
+// gives a backtick-quoted identifier the same tokIDENT as an unquoted one, so
+// the source text tells them apart.
+func (p *Parser) atUnquotedKeyword(kw string) bool {
 	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, kw) {
 		return false
 	}
@@ -867,11 +915,7 @@ func (p *Parser) matchUnquotedKeyword(kw string) bool {
 	// split segment, so subtract baseOffset before indexing (cf. the offset
 	// helpers in parser.go). A leading backtick means the keyword was quoted.
 	off := p.cur.Loc - p.lexer.baseOffset
-	if off >= 0 && off < len(p.lexer.input) && p.lexer.input[off] == '`' {
-		return false
-	}
-	p.advance()
-	return true
+	return !(off >= 0 && off < len(p.lexer.input) && p.lexer.input[off] == '`')
 }
 
 // parseGeneratedColumn parses a GENERATED ALWAYS AS (expr) [VIRTUAL|STORED].
