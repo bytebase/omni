@@ -141,7 +141,8 @@ func TestLexer_ValidCommentsAndDelimiters_StillParse(t *testing.T) {
 		{"backslash_escape_string", "SELECT 'line1\\nline2'"},
 		{"backtick_user_variable", "SELECT @`v`"},
 		// A valid, terminated executable comment followed by more SQL that also
-		// happens to be valid — exercises the splice path without any error.
+		// happens to be valid — exercises the executable-comment path without
+		// any error.
 		{"exec_comment_then_string", "/*!  */ SELECT 'abc'"},
 	}
 	for _, tc := range cases {
@@ -154,13 +155,12 @@ func TestLexer_ValidCommentsAndDelimiters_StillParse(t *testing.T) {
 	}
 }
 
-// TestLexer_ErrorPosition_AfterSplice guards that a lexer error carries the correct
-// position in ORIGINAL-input coordinates after an executable-comment splice shortens
-// the buffer. Two distinct cases must both be right: an error INSIDE the retained
-// comment body (shifted only by the leading "/*!NNNNN") and one AFTER the whole
-// comment (shifted by both the leading run and the trailing "*/"). The `want` in each
-// case is the byte offset of the opening single quote in the ORIGINAL string.
-func TestLexer_ErrorPosition_AfterSplice(t *testing.T) {
+// TestLexer_ErrorPosition_AroundExecComment guards that a lexer error carries its
+// byte offset in the input when executable comments precede or enclose it. Two
+// distinct cases must both be right: an error INSIDE a comment body and one AFTER
+// the whole comment. The `want` in each case is the byte offset of the opening
+// single quote in the input.
+func TestLexer_ErrorPosition_AroundExecComment(t *testing.T) {
 	cases := []struct {
 		name string
 		sql  string
@@ -170,15 +170,13 @@ func TestLexer_ErrorPosition_AfterSplice(t *testing.T) {
 		{"after_body_bare", "/*!  */ SELECT 'abc", 15},
 		{"after_body_versioned", "/*!50100  */ SELECT 'x", 20},
 		{"after_body_double_splice", "/*!  */ /*!  */ SELECT 'x", 23},
-		// Inside the retained body of a terminated executable comment: the trailing
-		// */ is removed but sits AFTER the error, so it must not shift the position.
+		// Inside the body of a terminated executable comment: the string swallows
+		// the comment's closing */ and runs to EOF unterminated.
 		{"inside_body_bare", "/*! SELECT 'abc */", 11},
 		{"inside_body_versioned", "/*!50100 SELECT 'x */", 16},
 		{"inside_body_nested_comment", "/*! /* c */ SELECT 'x */", 19},
-		// Nested EXECUTABLE comment: the inner /*! ... */ splices inside the outer
-		// body, shortening the buffer to the left of the outer comment's trailing
-		// */. The outer trailing gap must be re-mapped or the position drifts 2 bytes
-		// too early (regression guard for the nested-splice coordinate-space bug).
+		// Nested EXECUTABLE comment: the inner /*! ... */ closes inside the outer
+		// body, and the error follows the outer comment's own */.
 		{"nested_exec_then_string", "/*! /*! SELECT 1 */ */'x", 22},
 		{"nested_exec_then_string_ws", "/*! /*! SELECT 1 */ */ 'x", 23},
 	}
@@ -199,8 +197,8 @@ func TestLexer_ErrorPosition_AfterSplice(t *testing.T) {
 	}
 }
 
-// TestLexer_VersionedPartitionComment_ParsesPartition proves the executable-comment
-// splice still exposes the inner SQL for a valid /*!50100 ... */ partition clause —
+// TestLexer_VersionedPartitionComment_ParsesPartition proves the lexer still
+// reads the inner SQL of a valid /*!50100 ... */ partition clause —
 // i.e. the fix hardened the unterminated case without dropping the terminated one.
 // The PARTITION BY wrapped in /*!50100 ... */ must be parsed as real SQL, so the
 // resulting CREATE TABLE carries a partition clause.
