@@ -440,7 +440,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atSetNotNull(rel, atc.Name)
 
 	case nodes.AT_DropColumn:
-		return c.atDropColumn(schema, rel, atc.Name, cascade, atc.Missing_ok)
+		return c.atDropColumn(schema, rel, atc.Name, cascade, atc.Missing_ok, recursing)
 
 	case nodes.AT_AddConstraint:
 		con, ok := atc.Def.(*nodes.Constraint)
@@ -1226,10 +1226,11 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 	return nil
 }
 
-// atDropColumn drops a column from a relation.
+// atDropColumn drops a column from a relation. recursing is set when the
+// drop reaches an inheritance child or partition from its parent.
 //
 // pg: src/backend/commands/tablecmds.c — ATExecDropColumn
-func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, cascade, ifExists bool) error {
+func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, cascade, ifExists, recursing bool) error {
 	idx, exists := rel.colByName[colName]
 	if !exists {
 		if ifExists {
@@ -1238,11 +1239,17 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 		return errUndefinedColumn(colName)
 	}
 
-	// Block dropping inherited columns that are not locally defined.
+	// Don't drop inherited columns, unless recursing. A child column that
+	// another parent or a local definition also provides survives the
+	// parent's drop with one fewer parent.
 	col := rel.Columns[idx]
-	if col.InhCount > 0 && !col.IsLocal {
+	if recursing && (col.InhCount > 1 || col.InhCount == 1 && col.IsLocal) {
+		col.InhCount--
+		return nil
+	}
+	if !recursing && col.InhCount > 0 {
 		return &Error{
-			Code:    CodeInvalidObjectDefinition,
+			Code:    CodeInvalidTableDefinition,
 			Message: fmt.Sprintf("cannot drop inherited column %q", colName),
 		}
 	}
@@ -1260,16 +1267,43 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 		}
 	}
 
-	// Check for dependent views (NORMAL dependencies — require CASCADE).
-	// pg: DEPENDENCY_NORMAL entries are rejected under DROP_RESTRICT.
-	if deps := c.findNormalDependents('r', rel.OID); len(deps) > 0 {
-		if !cascade {
-			return errDependentObjects("column", colName)
-		}
-		c.dropDependents('r', rel.OID)
+	// Drop the objects that depend on this column. Those linked only by
+	// NORMAL entries (views, generated columns, foreign keys referencing the
+	// column, triggers naming it) need CASCADE; those with an AUTO entry
+	// (its indexes, constraints and owned sequences) go with it regardless.
+	//
+	// pg: src/backend/commands/tablecmds.c — ATExecDropColumn (performDeletion
+	// of the column); src/backend/catalog/dependency.c — reportDependentObjects
+	deps := c.relationDependents(rel.OID, col.AttNum)
+	if hasNormalDependent(deps) && !cascade {
+		return errDependentObjects("column", colName)
 	}
+	var depCols []string
+	for _, d := range deps {
+		if d.ObjType == 'r' && d.ObjOID == rel.OID {
+			// A generated column of this table reads the column.
+			if d.ObjSubID >= 1 && int(d.ObjSubID) <= len(rel.Columns) {
+				depCols = append(depCols, rel.Columns[d.ObjSubID-1].Name)
+			}
+			continue
+		}
+		if d.ObjType == 'r' && d.ObjSubID != 0 {
+			continue
+		}
+		c.dropDependentObject(d.ObjType, d.ObjOID)
+	}
+	// Drop dependent columns by name: each drop renumbers the columns after it.
+	for _, name := range depCols {
+		if err := c.atDropColumn(schema, rel, name, true, true, recursing); err != nil {
+			return err
+		}
+	}
+	idx = rel.colByName[colName]
+	col = rel.Columns[idx]
 
-	// Drop indexes and constraints that reference this column.
+	// Drop indexes and constraints that reference this column. Their
+	// dependency entries normally cover them; this also catches those that
+	// record none on the column (constraints cloned to a partition).
 	//
 	// pg: src/backend/catalog/dependency.c — reportDependentObjects
 	// Indexes and constraints have DEPENDENCY_AUTO on the column.
@@ -1317,6 +1351,7 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 	// Remove the column.
 	rel.Columns = append(rel.Columns[:idx], rel.Columns[idx+1:]...)
 	c.renumberColumns(rel)
+	c.shiftAttnumsAfterDrop(rel, attNum)
 	return nil
 }
 
@@ -1491,11 +1526,29 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, newType TypeN
 			"cannot alter type of a column used as identity"))
 	}
 
-	// Block if any view depends on this relation.
-	if deps := c.findNormalDependents('r', rel.OID); len(deps) > 0 {
-		return &Error{
-			Code:    CodeFeatureNotSupported,
-			Message: "cannot alter type of a column used by a view or rule",
+	// Block if a view, a generated column or a trigger reads this column.
+	// Indexes and constraints on it are rebuilt.
+	// pg: src/backend/commands/tablecmds.c — RememberAllDependentForRebuilding
+	for _, d := range c.relationDependents(rel.OID, col.AttNum) {
+		switch d.ObjType {
+		case 'r':
+			if d.ObjOID == rel.OID {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: "cannot alter type of a column used by a generated column",
+				}
+			}
+			if dep := c.relationByOID[d.ObjOID]; dep != nil && (dep.RelKind == 'v' || dep.RelKind == 'm') {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: "cannot alter type of a column used by a view or rule",
+				}
+			}
+		case 'g':
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "cannot alter type of a column used in a trigger definition",
+			}
 		}
 	}
 
@@ -1884,6 +1937,92 @@ func (c *Catalog) renumberColumns(rel *Relation) {
 	for i, col := range rel.Columns {
 		col.AttNum = int16(i + 1)
 		rel.colByName[col.Name] = i
+	}
+}
+
+// shiftAttnumsAfterDrop moves the stored references to the columns that
+// followed the dropped column attnum down by one, as renumberColumns moved
+// the columns. PostgreSQL keeps a dropped column's attnum and renumbers
+// nothing; the catalog compacts Columns instead, so every attnum it keeps
+// for the relation (dependency entries, constraint and index keys, owned
+// sequences, trigger columns, the partition key, column comments) must move
+// with it. The dropped column's own comment goes with it.
+//
+// Slices are replaced rather than edited in place: a constraint cloned to a
+// partition shares its parent's slices.
+func (c *Catalog) shiftAttnumsAfterDrop(rel *Relation, attnum int16) {
+	shift := func(a int16) int16 {
+		if a > attnum {
+			return a - 1
+		}
+		return a
+	}
+	shiftAll := func(as []int16) []int16 {
+		if as == nil {
+			return nil
+		}
+		out := make([]int16, len(as))
+		for i, a := range as {
+			out[i] = shift(a)
+		}
+		return out
+	}
+
+	// The dropped column's own entries go: those of its generation
+	// expression, and any left on it after its dependents were dropped.
+	n := 0
+	for _, d := range c.deps {
+		if d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(attnum) ||
+			d.RefType == 'r' && d.RefOID == rel.OID && d.RefSubID == int32(attnum) {
+			continue
+		}
+		if d.RefType == 'r' && d.RefOID == rel.OID && d.RefSubID > int32(attnum) {
+			d.RefSubID--
+		}
+		if d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID > int32(attnum) {
+			d.ObjSubID--
+		}
+		c.deps[n] = d
+		n++
+	}
+	c.deps = c.deps[:n]
+	for _, con := range c.consByRel[rel.OID] {
+		con.Columns = shiftAll(con.Columns)
+		con.FKDelSetCols = shiftAll(con.FKDelSetCols)
+	}
+	for _, con := range c.constraints {
+		if con.Type == ConstraintFK && con.FRelOID == rel.OID {
+			con.FColumns = shiftAll(con.FColumns)
+		}
+	}
+	for _, idx := range c.indexesByRel[rel.OID] {
+		idx.Columns = shiftAll(idx.Columns)
+	}
+	for _, seq := range c.sequenceByOID {
+		if seq.OwnerRelOID == rel.OID {
+			seq.OwnerAttNum = shift(seq.OwnerAttNum)
+		}
+	}
+	for _, trig := range c.triggersByRel[rel.OID] {
+		trig.Columns = shiftAll(trig.Columns)
+	}
+	if rel.PartitionInfo != nil {
+		rel.PartitionInfo.KeyAttNums = shiftAll(rel.PartitionInfo.KeyAttNums)
+	}
+
+	moved := make(map[commentKey]string)
+	for k, text := range c.comments {
+		if k.ObjType != 'r' || k.ObjOID != rel.OID || k.SubID < attnum {
+			continue
+		}
+		delete(c.comments, k)
+		if k.SubID > attnum {
+			k.SubID--
+			moved[k] = text
+		}
+	}
+	for k, text := range moved {
+		c.comments[k] = text
 	}
 }
 

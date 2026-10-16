@@ -881,8 +881,10 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 			}
 		}
 
-		// Check for normal dependents.
-		if deps := c.findNormalDependents('r', rel.OID); len(deps) > 0 {
+		// Check for normal dependents. The relation's own constraints,
+		// indexes and generated columns go with it.
+		// pg: src/backend/catalog/dependency.c — reportDependentObjects
+		if hasNormalDependent(c.relationDependents(rel.OID, 0)) {
 			if !cascade {
 				kind := "table"
 				if removeType == nodes.OBJECT_VIEW {

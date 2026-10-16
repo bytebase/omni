@@ -122,3 +122,66 @@ func TestDropSchemaCascadeCleansAllDeps(t *testing.T) {
 		}
 	}
 }
+
+// DROP COLUMN checks the dependents of the dropped column, not of the whole
+// table: a CHECK on another column does not block it. Verified against
+// PostgreSQL 17 by TestDependencyPG17Oracle.
+func TestDropColumnBesideCheckOnAnotherColumn(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE TABLE t (id int PRIMARY KEY, n int CHECK (n > 0))`)
+	execSQL(t, c, `ALTER TABLE t DROP COLUMN id`)
+
+	rel := c.GetRelation("", "t")
+	if len(rel.Columns) != 1 || rel.Columns[0].Name != "n" || rel.Columns[0].AttNum != 1 {
+		t.Fatalf("columns after drop: %+v", rel.Columns)
+	}
+	cons := c.ConstraintsOf(rel.OID)
+	if len(cons) != 1 || cons[0].Name != "t_n_check" {
+		t.Fatalf("constraints after drop: want only t_n_check, got %d", len(cons))
+	}
+	if len(cons[0].Columns) != 1 || cons[0].Columns[0] != 1 {
+		t.Errorf("t_n_check columns: got %v, want [1]", cons[0].Columns)
+	}
+	// The CHECK goes with its own column.
+	execSQL(t, c, `ALTER TABLE t DROP COLUMN n`)
+	if cons := c.ConstraintsOf(rel.OID); len(cons) != 0 {
+		t.Errorf("constraints after dropping n: got %d, want 0", len(cons))
+	}
+}
+
+// A generated column depends on the column it reads: DROP COLUMN refuses it,
+// and CASCADE drops it. CASCADE used to recurse without end on the table's
+// own dependency entry.
+func TestDropColumnCascadeToGeneratedColumn(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE TABLE t (a int, b int GENERATED ALWAYS AS (a * 2) STORED, c int)`)
+	assertErrorCode(t, execSQLErr(c, `ALTER TABLE t DROP COLUMN a`), CodeDependentObjects)
+	execSQL(t, c, `ALTER TABLE t DROP COLUMN a CASCADE`)
+
+	rel := c.GetRelation("", "t")
+	if len(rel.Columns) != 1 || rel.Columns[0].Name != "c" {
+		t.Fatalf("columns after cascade: %+v", rel.Columns)
+	}
+	execSQL(t, c, `DROP TABLE t`)
+}
+
+// Dropping a column renumbers the ones after it; what refers to them by
+// attnum moves along, so a later drop finds the right dependents.
+func TestDropColumnShiftsLaterAttnums(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE TABLE t (a int, b int, c int, d int UNIQUE)`)
+	execSQL(t, c, `CREATE VIEW v AS SELECT c FROM t`)
+	execSQL(t, c, `COMMENT ON COLUMN t.c IS 'c'`)
+	execSQL(t, c, `ALTER TABLE t DROP COLUMN a`)
+	execSQL(t, c, `ALTER TABLE t DROP COLUMN b`)
+
+	rel := c.GetRelation("", "t")
+	if got, ok := c.GetComment('r', rel.OID, 1); !ok || got != "c" {
+		t.Errorf("comment on c (attnum 1): got %q, %v", got, ok)
+	}
+	assertErrorCode(t, execSQLErr(c, `ALTER TABLE t DROP COLUMN c`), CodeDependentObjects)
+	execSQL(t, c, `ALTER TABLE t DROP COLUMN d`)
+	if idx := c.IndexesOf(rel.OID); len(idx) != 0 {
+		t.Errorf("indexes after dropping d: got %d, want 0", len(idx))
+	}
+}

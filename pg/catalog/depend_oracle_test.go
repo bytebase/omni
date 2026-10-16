@@ -23,6 +23,158 @@ type dependencyOracleCase struct {
 
 func dependencyOracleCases() []dependencyOracleCase {
 	return []dependencyOracleCase{
+		// DROP COLUMN checks and drops the dependents of that column only.
+		{"drop column beside a check on another column", `
+CREATE TABLE t (id int PRIMARY KEY, n int CHECK (n > 0));
+ALTER TABLE t DROP COLUMN id;`},
+		{"drop column takes its check", `
+CREATE TABLE t (id int PRIMARY KEY, n int CHECK (n > 0));
+ALTER TABLE t DROP COLUMN n;
+ALTER TABLE t ADD CONSTRAINT t_n_check CHECK (id > 0);`},
+		{"drop column takes a check on two columns", `
+CREATE TABLE t (a int, b int, CHECK (a < b));
+ALTER TABLE t DROP COLUMN a;`},
+		{"key dropped with its column", `
+CREATE TABLE t (id int PRIMARY KEY, code text UNIQUE, n int);
+ALTER TABLE t DROP COLUMN id;
+ALTER TABLE t DROP COLUMN code;`},
+		{"drop column takes expression and partial indexes", `
+CREATE TABLE t (a int, name text);
+CREATE INDEX t_lower ON t (lower(name));
+CREATE INDEX t_part ON t (a) WHERE name IS NOT NULL;
+ALTER TABLE t DROP COLUMN name;`},
+		{"drop column takes its serial sequence", `
+CREATE TABLE t (a int, b serial);
+ALTER TABLE t DROP COLUMN b;`},
+		{"drop column refuses a generated column", `
+CREATE TABLE t (a int, b int GENERATED ALWAYS AS (a * 2) STORED);
+ALTER TABLE t DROP COLUMN a;`},
+		{"drop column cascades to a generated column", `
+CREATE TABLE t (a int, b int GENERATED ALWAYS AS (a * 2) STORED, c int);
+ALTER TABLE t DROP COLUMN a CASCADE;`},
+		{"drop generated column then its source", `
+CREATE TABLE t (a int, b int GENERATED ALWAYS AS (a * 2) STORED);
+ALTER TABLE t DROP COLUMN b;
+ALTER TABLE t DROP COLUMN a;`},
+		{"drop column ignores a view on other columns", `
+CREATE TABLE t (a int, b int);
+CREATE VIEW v AS SELECT a FROM t;
+ALTER TABLE t DROP COLUMN b;`},
+		{"drop column cascades to the views reading it", `
+CREATE TABLE t (a int, b int);
+CREATE VIEW v AS SELECT a FROM t;
+CREATE VIEW vv AS SELECT a FROM v;
+CREATE VIEW w AS SELECT b FROM t;
+ALTER TABLE t DROP COLUMN a;
+ALTER TABLE t DROP COLUMN a CASCADE;`},
+		{"view reads a column in ORDER BY", `
+CREATE TABLE t (a int, b int);
+CREATE VIEW v AS SELECT a FROM t ORDER BY b;
+ALTER TABLE t DROP COLUMN b;`},
+		{"view reads a column in HAVING", `
+CREATE TABLE t (a int, b int);
+CREATE VIEW v AS SELECT a, count(*) FROM t GROUP BY a HAVING max(b) > 0;
+ALTER TABLE t DROP COLUMN b;`},
+		{"view reads a column in JOIN ON", `
+CREATE TABLE u (id int, name text);
+CREATE TABLE o (id int, uid int);
+CREATE VIEW v AS SELECT u.name FROM u JOIN o ON o.uid = u.id;
+ALTER TABLE o DROP COLUMN uid;
+ALTER TABLE o DROP COLUMN id;`},
+		{"view reads a column in a correlated subquery", `
+CREATE TABLE u (id int, name text);
+CREATE TABLE o (id int, uid int);
+CREATE VIEW v AS SELECT u.name FROM u WHERE EXISTS (SELECT 1 FROM o WHERE o.uid = u.id);
+ALTER TABLE u DROP COLUMN id;
+ALTER TABLE o DROP COLUMN id;`},
+		{"view reads a column left of IN", `
+CREATE TABLE u (id int, name text);
+CREATE TABLE o (id int, uid int);
+CREATE VIEW v AS SELECT u.name FROM u WHERE u.id IN (SELECT uid FROM o);
+ALTER TABLE u DROP COLUMN id;`},
+		{"view reads every column of a subquery", `
+CREATE TABLE t (a int, b int);
+CREATE VIEW v AS SELECT x FROM (SELECT a AS x, b AS y FROM t) s;
+ALTER TABLE t DROP COLUMN b;`},
+		{"drop column refuses a foreign key on it", `
+CREATE TABLE t (id int PRIMARY KEY, n int);
+CREATE TABLE c (tid int REFERENCES t (id));
+ALTER TABLE t DROP COLUMN id;
+ALTER TABLE t DROP COLUMN n;
+ALTER TABLE t DROP COLUMN id CASCADE;`},
+		{"drop column of a self-referencing key", `
+CREATE TABLE t (id int PRIMARY KEY, parent int REFERENCES t (id));
+ALTER TABLE t DROP COLUMN id;
+ALTER TABLE t DROP COLUMN parent;`},
+		{"drop column refuses a trigger on it", `
+CREATE TABLE t (a int, b int);
+CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$;
+CREATE TRIGGER tg BEFORE UPDATE OF b ON t FOR EACH ROW EXECUTE FUNCTION f();
+ALTER TABLE t DROP COLUMN b;
+ALTER TABLE t DROP COLUMN a;`},
+		{"drop columns one after another", `
+CREATE TABLE t (a int, b int, c int, d int, e int);
+CREATE VIEW v AS SELECT c FROM t;
+CREATE UNIQUE INDEX t_e ON t (e);
+COMMENT ON COLUMN t.b IS 'b';
+COMMENT ON COLUMN t.c IS 'c';
+COMMENT ON COLUMN t.e IS 'e';
+ALTER TABLE t DROP COLUMN a;
+ALTER TABLE t DROP COLUMN b;
+ALTER TABLE t DROP COLUMN c;
+ALTER TABLE t DROP COLUMN d;
+ALTER TABLE t DROP COLUMN e;`},
+		{"drop column of an inheritance parent", `
+CREATE TABLE p (id int, x int, y int);
+CREATE TABLE c (y int) INHERITS (p);
+ALTER TABLE c DROP COLUMN x;
+ALTER TABLE c DROP COLUMN y;
+ALTER TABLE p DROP COLUMN x;
+ALTER TABLE p DROP COLUMN y;
+ALTER TABLE c DROP COLUMN y;`},
+		{"drop column of a partitioned table", `
+CREATE TABLE p (id int, x int, y int) PARTITION BY RANGE (id);
+CREATE TABLE p1 PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE TABLE p2 (id int, x int, y int);
+ALTER TABLE p ATTACH PARTITION p2 FOR VALUES FROM (10) TO (20);
+ALTER TABLE p1 DROP COLUMN x;
+ALTER TABLE p DROP COLUMN x;`},
+
+		// DROP TABLE takes the table's own constraints and columns with it.
+		{"drop table with checks, generated columns and a self key", `
+CREATE TABLE t (id int PRIMARY KEY, n int CHECK (n > 0), m int GENERATED ALWAYS AS (n * 2) STORED, parent int REFERENCES t (id));
+DROP TABLE t;`},
+		{"drop table with a column trigger", `
+CREATE TABLE t (a int, b int);
+CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$;
+CREATE TRIGGER tg BEFORE UPDATE OF b ON t FOR EACH ROW EXECUTE FUNCTION f();
+DROP TABLE t;`},
+		{"drop table cascades to a view on a generated column", `
+CREATE TABLE t (a int, b int GENERATED ALWAYS AS (a * 2) STORED);
+CREATE VIEW v AS SELECT b FROM t;
+DROP TABLE t;
+DROP TABLE t CASCADE;`},
+
+		// ALTER COLUMN TYPE rebuilds constraints but refuses views,
+		// generated columns and triggers reading the column.
+		{"alter column type", `
+CREATE TABLE t (id int, n int CHECK (n > 0), m int, g int GENERATED ALWAYS AS (m * 2) STORED, k int, w int);
+CREATE VIEW v AS SELECT k FROM t;
+CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$;
+CREATE TRIGGER tg BEFORE UPDATE OF w ON t FOR EACH ROW EXECUTE FUNCTION f();
+ALTER TABLE t ALTER COLUMN id TYPE bigint;
+ALTER TABLE t ALTER COLUMN n TYPE bigint;
+ALTER TABLE t ALTER COLUMN m TYPE bigint;
+ALTER TABLE t ALTER COLUMN k TYPE bigint;
+ALTER TABLE t ALTER COLUMN w TYPE bigint;`},
+
+		// A CHECK reading one column is named after it.
+		{"check constraint names", `
+CREATE TABLE t (c int CHECK (c > 0), d int, CHECK (d > 0), CHECK (c < d));
+ALTER TABLE t DROP CONSTRAINT t_c_check;
+ALTER TABLE t DROP CONSTRAINT t_d_check;
+ALTER TABLE t DROP CONSTRAINT t_check;`},
+
 		// An index and the constraint it backs share their name.
 		{"renamed index renames its constraint", `
 CREATE TABLE t (id int PRIMARY KEY, code text CONSTRAINT t_code_key UNIQUE);

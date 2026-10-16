@@ -389,11 +389,23 @@ func (c *Catalog) dropViewDependents(refType byte, refOID uint32) {
 //
 // pg: src/backend/catalog/dependency.c — recordDependencyOnExpr
 func (c *Catalog) recordViewDepsQ(viewOID uint32, q *Query) {
+	c.recordViewQueryDeps(viewOID, q, nil)
+}
+
+// recordViewQueryDeps records the dependencies of one query level of a view:
+// the relations in its range table, and what every expression of the level
+// references, including the columns its Vars read. outer holds the enclosing
+// levels, innermost last, to resolve Vars with LevelsUp > 0.
+//
+// pg: src/backend/catalog/dependency.c — find_expr_references_walker, which
+// reaches every part of a Query through query_tree_walker
+func (c *Catalog) recordViewQueryDeps(viewOID uint32, q *Query, outer []*Query) {
 	if q == nil {
 		return
 	}
+	levels := append(outer[:len(outer):len(outer)], q)
 
-	// Record deps from range table (tables, subqueries).
+	// Record deps from range table (tables, subqueries, functions in FROM).
 	for _, rte := range q.RangeTable {
 		switch rte.Kind {
 		case RTERelation:
@@ -401,136 +413,178 @@ func (c *Catalog) recordViewDepsQ(viewOID uint32, q *Query) {
 				c.recordDependency('r', viewOID, 0, 'r', rte.RelOID, 0, DepNormal)
 			}
 		case RTESubquery:
-			c.recordViewDepsQ(viewOID, rte.Subquery)
+			c.recordViewQueryDeps(viewOID, rte.Subquery, levels)
+		case RTEFunction:
+			for _, fe := range rte.FuncExprs {
+				c.recordViewExprDeps(viewOID, levels, fe)
+			}
 		}
 	}
 
 	// Recurse into set-op branches.
 	if q.SetOp != SetOpNone {
-		c.recordViewDepsQ(viewOID, q.LArg)
-		c.recordViewDepsQ(viewOID, q.RArg)
+		c.recordViewQueryDeps(viewOID, q.LArg, levels)
+		c.recordViewQueryDeps(viewOID, q.RArg, levels)
 	}
 
 	// Recurse into CTEs.
 	for _, cte := range q.CTEList {
-		c.recordViewDepsQ(viewOID, cte.Query)
+		c.recordViewQueryDeps(viewOID, cte.Query, levels)
 	}
 
+	// Junk entries carry the ORDER BY, GROUP BY, DISTINCT ON and window
+	// expressions that are not in the output.
 	for _, te := range q.TargetList {
-		if te.ResJunk {
-			continue
+		c.recordViewExprDeps(viewOID, levels, te.Expr)
+	}
+	if q.JoinTree != nil {
+		for _, jn := range q.JoinTree.FromList {
+			c.recordViewJoinDeps(viewOID, levels, jn)
 		}
-		c.recordDependencyOnExpr('r', viewOID, te.Expr, DepNormal)
-		c.recordViewVarDepsQ(viewOID, q, te.Expr)
+		c.recordViewExprDeps(viewOID, levels, q.JoinTree.Quals)
 	}
-	if q.JoinTree != nil && q.JoinTree.Quals != nil {
-		c.recordDependencyOnExpr('r', viewOID, q.JoinTree.Quals, DepNormal)
-		c.recordViewVarDepsQ(viewOID, q, q.JoinTree.Quals)
-	}
+	c.recordViewExprDeps(viewOID, levels, q.HavingQual)
+	c.recordViewExprDeps(viewOID, levels, q.LimitCount)
+	c.recordViewExprDeps(viewOID, levels, q.LimitOffset)
 }
 
-func (c *Catalog) recordViewVarDepsQ(viewOID uint32, q *Query, expr AnalyzedExpr) {
-	if q == nil || expr == nil {
+// recordViewJoinDeps records the dependencies of the JOIN ON (or USING)
+// conditions in a FROM item.
+func (c *Catalog) recordViewJoinDeps(viewOID uint32, levels []*Query, jn JoinNode) {
+	j, ok := jn.(*JoinExprNode)
+	if !ok {
 		return
+	}
+	c.recordViewJoinDeps(viewOID, levels, j.Left)
+	c.recordViewJoinDeps(viewOID, levels, j.Right)
+	c.recordViewExprDeps(viewOID, levels, j.Quals)
+}
+
+// recordViewExprDeps records what one expression of a view references: the
+// functions and types it uses, and the columns it reads.
+func (c *Catalog) recordViewExprDeps(viewOID uint32, levels []*Query, expr AnalyzedExpr) {
+	if expr == nil {
+		return
+	}
+	c.recordDependencyOnExpr('r', viewOID, expr, DepNormal)
+	c.recordViewVarDepsQ(viewOID, levels, expr)
+}
+
+// recordViewVarDepsQ records a column dependency for each Var in expr, and
+// the dependencies of the subqueries it contains.
+func (c *Catalog) recordViewVarDepsQ(viewOID uint32, levels []*Query, expr AnalyzedExpr) {
+	if expr == nil {
+		return
+	}
+	walk := func(e AnalyzedExpr) { c.recordViewVarDepsQ(viewOID, levels, e) }
+	walkAll := func(es []AnalyzedExpr) {
+		for _, e := range es {
+			walk(e)
+		}
 	}
 	switch v := expr.(type) {
 	case *VarExpr:
-		c.recordViewVarDep(viewOID, q, v)
+		c.recordViewVarDep(viewOID, levels, v)
 	case *FuncCallExpr:
-		for _, arg := range v.Args {
-			c.recordViewVarDepsQ(viewOID, q, arg)
-		}
+		walkAll(v.Args)
 	case *AggExpr:
-		for _, arg := range v.Args {
-			c.recordViewVarDepsQ(viewOID, q, arg)
-		}
+		walkAll(v.Args)
 	case *OpExpr:
-		c.recordViewVarDepsQ(viewOID, q, v.Left)
-		c.recordViewVarDepsQ(viewOID, q, v.Right)
+		walk(v.Left)
+		walk(v.Right)
 	case *DistinctExprQ:
-		c.recordViewVarDepsQ(viewOID, q, v.Left)
-		c.recordViewVarDepsQ(viewOID, q, v.Right)
+		walk(v.Left)
+		walk(v.Right)
 	case *ScalarArrayOpExpr:
-		c.recordViewVarDepsQ(viewOID, q, v.Left)
-		c.recordViewVarDepsQ(viewOID, q, v.Right)
+		walk(v.Left)
+		walk(v.Right)
 	case *NullIfExprQ:
-		for _, arg := range v.Args {
-			c.recordViewVarDepsQ(viewOID, q, arg)
-		}
+		walkAll(v.Args)
 	case *CoalesceExprQ:
-		for _, arg := range v.Args {
-			c.recordViewVarDepsQ(viewOID, q, arg)
-		}
+		walkAll(v.Args)
 	case *MinMaxExprQ:
-		for _, arg := range v.Args {
-			c.recordViewVarDepsQ(viewOID, q, arg)
-		}
+		walkAll(v.Args)
 	case *BoolExprQ:
-		for _, arg := range v.Args {
-			c.recordViewVarDepsQ(viewOID, q, arg)
-		}
+		walkAll(v.Args)
 	case *NullTestExpr:
-		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+		walk(v.Arg)
 	case *BooleanTestExpr:
-		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+		walk(v.Arg)
 	case *CaseExprQ:
-		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+		walk(v.Arg)
 		for _, w := range v.When {
-			c.recordViewVarDepsQ(viewOID, q, w.Condition)
-			c.recordViewVarDepsQ(viewOID, q, w.Result)
+			walk(w.Condition)
+			walk(w.Result)
 		}
-		c.recordViewVarDepsQ(viewOID, q, v.Default)
+		walk(v.Default)
 	case *ArrayExprQ:
-		for _, elem := range v.Elements {
-			c.recordViewVarDepsQ(viewOID, q, elem)
-		}
+		walkAll(v.Elements)
 	case *RowExprQ:
-		for _, arg := range v.Args {
-			c.recordViewVarDepsQ(viewOID, q, arg)
-		}
+		walkAll(v.Args)
 	case *RelabelExpr:
-		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+		walk(v.Arg)
 	case *CoerceViaIOExpr:
-		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+		walk(v.Arg)
 	case *CoerceToDomainExpr:
-		c.recordViewVarDepsQ(viewOID, q, v.Arg)
+		walk(v.Arg)
+	case *CollateExprQ:
+		walk(v.Arg)
+	case *FieldSelectExprQ:
+		walk(v.Arg)
 	case *SubscriptingRefExpr:
-		c.recordViewVarDepsQ(viewOID, q, v.ContainerExpr)
-		for _, idx := range v.SubscriptExprs {
-			c.recordViewVarDepsQ(viewOID, q, idx)
-		}
-		for _, idx := range v.LowerExprs {
-			c.recordViewVarDepsQ(viewOID, q, idx)
-		}
+		walk(v.ContainerExpr)
+		walkAll(v.SubscriptExprs)
+		walkAll(v.LowerExprs)
+	case *NamedArgExprQ:
+		walk(v.Arg)
+	case *ArrayCoerceExprQ:
+		walk(v.Arg)
+		walk(v.ElemExpr)
+	case *RowCompareExprQ:
+		walkAll(v.LArgs)
+		walkAll(v.RArgs)
+	case *ConvertRowtypeExprQ:
+		walk(v.Arg)
+	case *FieldStoreExprQ:
+		walk(v.Arg)
+		walkAll(v.NewVals)
+	case *GroupingFuncExpr:
+		walkAll(v.Args)
+	case *XmlExprQ:
+		walkAll(v.NamedArgs)
+		walkAll(v.Args)
+	case *JsonConstructorExprQ:
+		walkAll(v.Args)
+	case *JsonExprQ:
+		walk(v.Expr)
+	case *JsonIsPredicateExpr:
+		walk(v.Expr)
+	case *JsonValueExprQ:
+		walk(v.Expr)
 	case *SubLinkExpr:
-		c.recordViewDepsQ(viewOID, v.SubQuery)
+		walk(v.TestExpr)
+		c.recordViewQueryDeps(viewOID, v.SubQuery, levels)
 	case *WindowFuncExpr:
-		for _, arg := range v.Args {
-			c.recordViewVarDepsQ(viewOID, q, arg)
-		}
-		c.recordViewVarDepsQ(viewOID, q, v.AggFilter)
+		walkAll(v.Args)
+		walk(v.AggFilter)
 	}
 }
 
-func (c *Catalog) recordViewVarDep(viewOID uint32, q *Query, v *VarExpr) {
-	if v == nil || v.LevelsUp != 0 || v.AttNum <= 0 || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
+// recordViewVarDep records the view's dependency on the table column a Var
+// reads. A Var of a subquery or CTE needs nothing here: recordViewQueryDeps
+// walks every target entry of both. A whole-row Var (AttNum 0) adds no
+// column dependency.
+//
+// pg: src/backend/catalog/dependency.c — find_expr_references_walker (Var)
+func (c *Catalog) recordViewVarDep(viewOID uint32, levels []*Query, v *VarExpr) {
+	if v == nil || v.AttNum <= 0 || v.LevelsUp < 0 || v.LevelsUp >= len(levels) {
 		return
 	}
-	rte := q.RangeTable[v.RangeIdx]
-	colIdx := int(v.AttNum - 1)
-	switch rte.Kind {
-	case RTERelation:
+	q := levels[len(levels)-1-v.LevelsUp]
+	if v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
+		return
+	}
+	if rte := q.RangeTable[v.RangeIdx]; rte.Kind == RTERelation && rte.RelOID != 0 {
 		c.recordDependency('r', viewOID, 0, 'r', rte.RelOID, int32(v.AttNum), DepNormal)
-	case RTESubquery:
-		if rte.Subquery != nil && colIdx < len(rte.Subquery.TargetList) {
-			c.recordViewVarDepsQ(viewOID, rte.Subquery, rte.Subquery.TargetList[colIdx].Expr)
-		}
-	case RTECTE:
-		if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) {
-			cte := q.CTEList[rte.CTEIndex]
-			if cte.Query != nil && colIdx < len(cte.Query.TargetList) {
-				c.recordViewVarDepsQ(viewOID, cte.Query, cte.Query.TargetList[colIdx].Expr)
-			}
-		}
 	}
 }
