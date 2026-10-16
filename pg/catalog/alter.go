@@ -905,18 +905,56 @@ func (c *Catalog) renameIndex(stmt *nodes.RenameStmt) error {
 	if idx == nil {
 		return errUndefinedObject("index", idxName)
 	}
+	return c.renameIndexRelation(schema, idx, newName)
+}
 
-	// Check for duplicate name (index or relation).
-	if _, exists := schema.Indexes[newName]; exists {
-		return errDuplicateObject("index", newName)
-	}
-	if _, exists := schema.Relations[newName]; exists {
+// renameIndexRelation renames an index and the PRIMARY KEY, UNIQUE or
+// EXCLUDE constraint it backs, if any. PostgreSQL refuses a name any
+// relation of the schema holds, then one another constraint of the table
+// holds; both are checked before either object changes.
+//
+// pg: src/backend/commands/tablecmds.c — RenameRelationInternal (renames the
+// index's constraint through RenameConstraintById)
+func (c *Catalog) renameIndexRelation(schema *Schema, idx *Index, newName string) error {
+	_, isRel := schema.Relations[newName]
+	_, isIdx := schema.Indexes[newName]
+	_, isSeq := schema.Sequences[newName]
+	if isRel || isIdx || isSeq {
 		return errDuplicateTable(newName)
 	}
+	con := c.constraints[idx.ConstraintOID]
+	if con != nil {
+		if err := c.checkConstraintNameFree(con.RelOID, newName); err != nil {
+			return err
+		}
+	}
 
-	delete(schema.Indexes, idxName)
+	delete(schema.Indexes, idx.Name)
 	idx.Name = newName
 	schema.Indexes[newName] = idx
+	if con != nil {
+		con.Name = newName
+	}
+	return nil
+}
+
+// checkConstraintNameFree refuses newName when a constraint of the relation
+// relOID already holds it.
+//
+// pg: src/backend/catalog/pg_constraint.c — RenameConstraintById
+func (c *Catalog) checkConstraintNameFree(relOID uint32, newName string) error {
+	for _, con := range c.consByRel[relOID] {
+		if con.Name == newName {
+			relName := ""
+			if rel := c.relationByOID[relOID]; rel != nil {
+				relName = rel.Name
+			}
+			return &Error{
+				Code:    CodeDuplicateObject,
+				Message: fmt.Sprintf("constraint %q for relation %q already exists", newName, relName),
+			}
+		}
+	}
 	return nil
 }
 
@@ -1000,24 +1038,34 @@ func (c *Catalog) renameConstraint(stmt *nodes.RenameStmt) error {
 	oldName := stmt.Subname
 	newName := stmt.Newname
 
-	// Check for duplicate constraint name on this relation.
+	var target *Constraint
 	for _, con := range c.consByRel[rel.OID] {
-		if con.Name == newName {
-			return errDuplicateObject("constraint", newName)
+		if con.Name == oldName {
+			target = con
+			break
+		}
+	}
+	if target == nil {
+		return &Error{
+			Code:    CodeUndefinedObject,
+			Message: fmt.Sprintf("constraint %q of relation %q does not exist", oldName, relName),
 		}
 	}
 
-	// Find and rename.
-	for _, con := range c.consByRel[rel.OID] {
-		if con.Name == oldName {
-			con.Name = newName
-			return nil
+	// pg: src/backend/commands/tablecmds.c — rename_constraint_internal
+	// renames a PRIMARY KEY, UNIQUE or EXCLUDE constraint through its index,
+	// which renames both.
+	if target.Type == ConstraintPK || target.Type == ConstraintUnique || target.Type == ConstraintExclude {
+		if idx := c.indexes[target.IndexOID]; idx != nil {
+			return c.renameIndexRelation(idx.Schema, idx, newName)
 		}
 	}
-	return &Error{
-		Code:    CodeUndefinedObject,
-		Message: fmt.Sprintf("constraint %q of relation %q does not exist", oldName, relName),
+
+	if err := c.checkConstraintNameFree(rel.OID, newName); err != nil {
+		return err
 	}
+	target.Name = newName
+	return nil
 }
 
 // renameFunction renames a user-defined function.
