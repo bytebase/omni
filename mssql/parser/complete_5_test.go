@@ -127,6 +127,28 @@ func TestCollect_AlterTable(t *testing.T) {
 			wantRules: []string{"constraint_name"},
 		},
 		{
+			name:      "ALTER TABLE t DROP COLUMN IF EXISTS |",
+			sql:       "ALTER TABLE t DROP COLUMN IF EXISTS ",
+			wantRules: []string{"columnref"},
+		},
+		{
+			name:      "ALTER TABLE t DROP CONSTRAINT c, |",
+			sql:       "ALTER TABLE t DROP CONSTRAINT c, ",
+			wantRules: []string{"constraint_name"},
+			wantToks:  []int{kwCOLUMN, kwCONSTRAINT},
+		},
+		{
+			name:      "ALTER TABLE t DROP COLUMN a, |",
+			sql:       "ALTER TABLE t DROP COLUMN a, ",
+			wantRules: []string{"columnref"},
+			wantToks:  []int{kwCOLUMN, kwCONSTRAINT},
+		},
+		{
+			name:      "ALTER TABLE t DROP CONSTRAINT c, COLUMN |",
+			sql:       "ALTER TABLE t DROP CONSTRAINT c, COLUMN ",
+			wantRules: []string{"columnref"},
+		},
+		{
 			name:      "ALTER TABLE t ALTER COLUMN |",
 			sql:       "ALTER TABLE t ALTER COLUMN ",
 			wantRules: []string{"columnref"},

@@ -24,11 +24,19 @@ type StmtNode interface {
 	stmtNode()
 }
 
-// Loc represents a source location range (byte offsets).
-// Zero values mean "not yet set" (parsers must explicitly set Start and End).
+// Loc is a node's source range as byte offsets into the text given to the
+// parser. Start is the offset of the node's first token; End is exclusive
+// and is the end of its last token, so it never covers the whitespace or
+// comments that follow. A location that is not known is NoLoc(), never the
+// zero value.
 type Loc struct {
-	Start int // inclusive start byte offset, 0 if not yet set
-	End   int // exclusive end byte offset, 0 if not yet set
+	Start int // inclusive start byte offset (-1 if unknown)
+	End   int // exclusive end byte offset (-1 if unknown)
+}
+
+// NoLoc returns a Loc with both Start and End set to -1 (unknown).
+func NoLoc() Loc {
+	return Loc{Start: -1, End: -1}
 }
 
 // LocStart returns the start byte offset.

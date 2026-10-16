@@ -60,7 +60,7 @@ func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -107,7 +107,7 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitStmt, error) {
 		stmt.Release = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -150,7 +150,7 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 			return nil, err
 		}
 		stmt.Savepoint = name
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -174,7 +174,7 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 		stmt.Release = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -199,7 +199,7 @@ func (p *Parser) parseSavepointStmt() (*nodes.SavepointStmt, error) {
 	}
 
 	return &nodes.SavepointStmt{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Name: name,
 	}, nil
 }
@@ -226,7 +226,7 @@ func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 	}
 
 	return &nodes.SavepointStmt{
-		Loc:     nodes.Loc{Start: start, End: p.pos()},
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		Name:    name,
 		Release: true,
 	}, nil
@@ -244,8 +244,7 @@ func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 //	    READ [LOCAL]
 //	  | [LOW_PRIORITY] WRITE
 //	}
-func (p *Parser) parseLockTablesStmt() (*nodes.LockTablesStmt, error) {
-	start := p.pos()
+func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 	p.advance() // consume TABLES
 
 	// Completion: after LOCK TABLES, offer table_ref.
@@ -292,7 +291,7 @@ func (p *Parser) parseLockTablesStmt() (*nodes.LockTablesStmt, error) {
 			lt.LockType = "WRITE"
 		}
 
-		lt.Loc.End = p.pos()
+		lt.Loc.End = p.prev.End
 		stmt.Tables = append(stmt.Tables, lt)
 
 		if p.cur.Type != ',' {
@@ -301,7 +300,7 @@ func (p *Parser) parseLockTablesStmt() (*nodes.LockTablesStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -310,12 +309,11 @@ func (p *Parser) parseLockTablesStmt() (*nodes.LockTablesStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/lock-tables.html
 //
 //	UNLOCK {TABLE | TABLES}
-func (p *Parser) parseUnlockTablesStmt() (*nodes.UnlockTablesStmt, error) {
-	start := p.pos()
+func (p *Parser) parseUnlockTablesStmt(start int) (*nodes.UnlockTablesStmt, error) {
 	p.advance() // consume TABLES
 
 	return &nodes.UnlockTablesStmt{
-		Loc: nodes.Loc{Start: start, End: p.pos()},
+		Loc: nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
 }
 
@@ -388,7 +386,7 @@ func (p *Parser) parseSetTransactionStmt(start int, scope string) (*nodes.SetTra
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -491,7 +489,7 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 

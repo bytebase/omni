@@ -96,6 +96,6 @@ func (p *Parser) parseBatchStmt() (*nodes.BatchStmt, error) {
 	}
 	stmt.DML = dml
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

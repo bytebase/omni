@@ -18,8 +18,7 @@ import (
 //	    VIEW view_name [(column_list)]
 //	    AS select_statement
 //	    [WITH [CASCADED | LOCAL] CHECK OPTION]
-func (p *Parser) parseAlterViewStmt() (*nodes.AlterViewStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 	stmt := &nodes.AlterViewStmt{
 		Loc: nodes.Loc{Start: start},
 	}
@@ -133,7 +132,7 @@ func (p *Parser) parseAlterViewStmt() (*nodes.AlterViewStmt, error) {
 		stmt.CheckOption = checkOption
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -250,7 +249,7 @@ func (p *Parser) parseAlterEventStmt() (*nodes.AlterEventStmt, error) {
 		stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -300,7 +299,7 @@ func (p *Parser) parseAlterRoutineStmt(isProcedure bool) (*nodes.AlterRoutineStm
 		stmt.Characteristics = append(stmt.Characteristics, ch)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -308,8 +307,7 @@ func (p *Parser) parseAlterRoutineStmt(isProcedure bool) (*nodes.AlterRoutineStm
 // The caller has already consumed DROP. The current token is FUNCTION or PROCEDURE.
 //
 //	DROP {FUNCTION | PROCEDURE} [IF EXISTS] sp_name
-func (p *Parser) parseDropRoutineStmt(isProcedure bool) (*nodes.DropRoutineStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropRoutineStmt(start int, isProcedure bool) (*nodes.DropRoutineStmt, error) {
 	p.advance() // consume FUNCTION or PROCEDURE
 
 	stmt := &nodes.DropRoutineStmt{
@@ -342,7 +340,7 @@ func (p *Parser) parseDropRoutineStmt(isProcedure bool) (*nodes.DropRoutineStmt,
 	}
 	stmt.Name = ref
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -379,7 +377,7 @@ func (p *Parser) parseDropTriggerStmt() (*nodes.DropTriggerStmt, error) {
 	}
 	stmt.Name = ref
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -416,6 +414,6 @@ func (p *Parser) parseDropEventStmt() (*nodes.DropEventStmt, error) {
 	}
 	stmt.Name = name
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

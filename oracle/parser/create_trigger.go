@@ -183,18 +183,13 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 		return stmt, nil
 	}
 
-	// Body: CALL routine_name | plsql_block
+	// Body: CALL routine [ ( argument [, argument ]... ) ] | plsql_block
 	if p.isIdentLikeStr("CALL") {
-		p.advance() // consume CALL
-		// Parse the routine name as an object name, wrap as a simple expression
-		callName, parseErr570 := p.parseObjectName()
-		if parseErr570 != nil {
-			return nil, parseErr570
+		call, err := p.parseTriggerCall()
+		if err != nil {
+			return nil, err
 		}
-		stmt.Body = &nodes.PLSQLBlock{
-			Label: "CALL:" + callName.Name,
-			Loc:   callName.Loc,
-		}
+		stmt.Body = call
 	} else if p.cur.Type == kwDECLARE || p.cur.Type == kwBEGIN || p.cur.Type == tokLABELOPEN {
 		block, parseErr571 := p.parsePLSQLBlock()
 		if parseErr571 != nil {
@@ -299,4 +294,63 @@ func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) error {
 		}
 	}
 	return nil
+}
+
+// parseTriggerCall parses the CALL body of a trigger, the current token at
+// CALL. The arguments are expressions, :OLD and :NEW references among them,
+// in positional or named notation. Oracle 23ai rejects an empty argument
+// list (ORA-00936), an INTO clause (ORA-00911), and a ';' after the call
+// (PLS-00103), takes schema.package.routine, and rejects a database link
+// (ORA-00911 for CALL p@lnk).
+//
+//	CALL [ schema . ] [ package . ] routine [ ( argument [, argument ]... ) ]
+func (p *Parser) parseTriggerCall() (*nodes.CallStmt, error) {
+	call := &nodes.CallStmt{Args: &nodes.List{}, Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // consume CALL
+	name, pkg, err := p.parseRoutineName()
+	if err != nil {
+		return nil, err
+	}
+	// The routine has a name (ORA-03050 for CALL (1)).
+	if name == nil || name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if name.DBLink != "" {
+		return nil, p.syntaxErrorAtNode(name)
+	}
+	call.Name, call.Package = name, pkg
+	if p.cur.Type == '(' {
+		p.advance() // consume (
+		named := false
+		for {
+			arg, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if arg == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if p.cur.Type == tokASSOC {
+				if arg, err = p.parseNamedArgExpr(arg); err != nil {
+					return nil, err
+				}
+				named = true
+			} else if named {
+				// PLS-00312: a positional parameter association may not
+				// follow a named association
+				return nil, p.syntaxErrorAtNode(arg)
+			}
+			call.Args.Items = append(call.Args.Items, arg)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ,
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume )
+	}
+	call.Loc.End = p.prev.End
+	return call, nil
 }

@@ -225,6 +225,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *NamedArgExpr:
 		return v.Loc
+	case *ChoiceAssocExpr:
+		return v.Loc
+	case *ChoiceRange:
+		return v.Loc
 	case *FieldAccessExpr:
 		return v.Loc
 	case *CursorAttributeExpr:
@@ -506,6 +510,14 @@ func NodeLoc(n Node) Loc {
 	case *PLSQLWhen:
 		return v.Loc
 	case *PLSQLLoop:
+		return v.Loc
+	case *PLSQLIterator:
+		return v.Loc
+	case *PLSQLIterand:
+		return v.Loc
+	case *PLSQLIterationControl:
+		return v.Loc
+	case *DynamicSQLExpr:
 		return v.Loc
 	case *PLSQLForall:
 		return v.Loc

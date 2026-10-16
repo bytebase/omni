@@ -711,20 +711,30 @@ func (p *Parser) parseInExpr(left nodes.Node, negated bool) (nodes.Node, error) 
 // site).
 //
 // Strategy: track paren balance relative to the IN's opening '(' (we
-// treat "depth 0" as being just inside that opening paren). Walk the
-// token stream and look at tokens at depth 0 — if we see:
+// treat "depth 0" as being just inside that opening paren). The deciding
+// token is the first one at depth 0 past the balanced groups the content
+// opens with:
 //
-//   - ',' at depth 0  → expr_list (elements separated by top-level comma).
+//   - ',' → expr_list (elements separated by top-level comma).
 //     This is the `IN ((select 1), (select 2))` case from partition_prune.sql
 //     where each list element is itself a parenthesized sub-select expression,
 //     parsed as a normal a_expr rather than the list being one subquery.
-//   - UNION / INTERSECT / EXCEPT at depth 0 → subquery (set-op, invalid
-//     in expr_list). This catches `IN ((SELECT 1) UNION (SELECT 2))`.
-//   - ')' at depth 0 → end of IN parens with a single element; look at
-//     what was the very first non-'(' token we saw inside. If it was a
-//     SELECT-start keyword, it's a subquery; otherwise expr_list.
+//   - UNION / INTERSECT / EXCEPT, or a SELECT option clause (ORDER / LIMIT /
+//     OFFSET / FETCH / FOR) → subquery (invalid in expr_list). This catches
+//     `IN ((SELECT 1) UNION (SELECT 2))`.
+//   - ')' → end of IN parens with a single element; look at the first
+//     non-'(' token inside. If it is a SELECT-start keyword, it's a
+//     subquery; otherwise expr_list.
 //   - EOF → malformed input; return false and let the expr_list branch
 //     surface the real parse error.
+//   - anything else → an ordinary expression such as
+//     `((SELECT max(x)) - interval '1 day')`.
+//
+// The parser asks again at every nesting level as it descends, and each
+// answer depends only on the input, so a scan records the deciding token of
+// every '(' it passes (scanParenGroups) and the first-token probe keeps the
+// last run of '(' it walked (firstTokenPastParens). Rescanning instead made
+// n nested parens cost O(n²).
 //
 // Uses snapshotTokenStream / restoreTokenStream per pg/parser's
 // backtracking discipline (see CLAUDE.md §Backtracking discipline and
@@ -752,74 +762,89 @@ func (p *Parser) lookaheadParenContentIsSubquery() bool {
 	if p.completing {
 		return false
 	}
+	next := p.cur
+	for next.Type == '(' {
+		after, ok := p.parenAfter[next.Loc]
+		if !ok {
+			next = p.scanParenGroups()
+			break
+		}
+		next = after
+	}
+	switch next.Type {
+	case ')':
+		// Single element: subquery iff its first non-'(' token is
+		// SELECT-start.
+		return isSelectStartToken(p.firstTokenPastParens().Type)
+	case UNION, INTERSECT, EXCEPT, ORDER, LIMIT, OFFSET, FETCH, FOR:
+		// Top-level SELECT continuation on the paren content —
+		// subquery branch. Expr-list elements can't contain top-level
+		// set ops or SELECT option clauses.
+		return true
+	default:
+		// ',' (expr_list), an ordinary expression, or EOF before the
+		// matching ')' (malformed; the expr_list branch reports it).
+		return false
+	}
+}
+
+// scanParenGroups returns the first token at depth 0 past the balanced
+// groups that start at p.cur, without consuming input. On the way it
+// records in parenAfter, for every '(' it passes, the token after its
+// matching ')' (EOF for a '(' never closed). Only called outside
+// completion mode: see lookaheadParenContentIsSubquery.
+func (p *Parser) scanParenGroups() Token {
 	snap := p.snapshotTokenStream()
 	defer p.restoreTokenStream(snap)
-
-	// Pass 1: find the first event at depth 0 (relative to the IN's
-	// '(' — we are already just past it). Depth starts at 0; '('
-	// deepens, ')' shallows. A top-level ',' commits to expr_list; a
-	// top-level UNION/INTERSECT/EXCEPT commits to subquery; depth
-	// going below zero (the matching ')' of the IN) means single
-	// element and we fall through to pass 2.
-	depth := 0
-	for p.cur.Type != 0 { // 0 == lex_EOF
-		switch p.cur.Type {
-		case '(':
-			depth++
-		case ')':
-			if depth == 0 {
-				// Reached the IN's matching ')' — single element
-				// form. Break out to pass 2 to decide via FIRST-set
-				// probe of the element content.
-				goto singleElement
+	if p.parenAfter == nil {
+		p.parenAfter = make(map[int]Token)
+	}
+	var open []int
+	for {
+		switch {
+		case p.cur.Type == '(':
+			open = append(open, p.cur.Loc)
+		case p.cur.Type == 0: // EOF
+			for _, loc := range open {
+				p.parenAfter[loc] = p.cur
 			}
-			depth--
-		case ',':
-			if depth == 0 {
-				// Top-level comma → expr_list, even when individual
-				// elements are parenthesized sub-selects (the pg
-				// partition_prune.sql pattern `IN ((SELECT 1),
-				// (SELECT 2))`).
-				return false
-			}
-		case UNION, INTERSECT, EXCEPT, ORDER, LIMIT, OFFSET, FETCH, FOR:
-			if depth == 0 {
-				// Top-level SELECT continuation on the paren content —
-				// subquery branch. Expr-list elements can't contain
-				// top-level set ops or SELECT option clauses.
-				return true
-			}
-		default:
-			if depth == 0 {
-				// The content is not a single wrapped select and not a
-				// SELECT continuation; treat it as an ordinary expression
-				// such as `((SELECT max(x)) - interval '1 day')`.
-				return false
-			}
+			return p.cur
+		case len(open) == 0:
+			return p.cur
+		case p.cur.Type == ')':
+			loc := open[len(open)-1]
+			open = open[:len(open)-1]
+			p.advance()
+			p.parenAfter[loc] = p.cur
+			continue
 		}
 		p.advance()
 	}
-	// EOF before finding a matching ')' — malformed. Let the
-	// expr_list branch surface the error.
-	return false
+}
 
-singleElement:
-	// Pass 2: single-element case. Roll back to the original position
-	// and walk past any leading '(' to peek at the element's first
-	// non-'(' token. Subquery iff SELECT-start. The outer-function
-	// defer will restore again, but since we restored to the same
-	// anchor, the final state is unchanged.
-	p.restoreTokenStream(snap)
+// firstTokenPastParens returns the first token at or after p.cur that is
+// not '(', without consuming input. Every '(' of a run shares the answer,
+// so the last run walked is kept: a '(' starting between the run's first
+// '(' and the token past it is in that run. Only called outside completion
+// mode: see lookaheadParenContentIsSubquery.
+func (p *Parser) firstTokenPastParens() Token {
+	if p.cur.Type == '(' && p.cur.Loc >= p.parenRunStart && p.cur.Loc < p.parenRunPast.Loc {
+		return p.parenRunPast
+	}
+	snap := p.snapshotTokenStream()
+	defer p.restoreTokenStream(snap)
+	start := p.cur.Loc
 	for p.cur.Type == '(' {
 		p.advance()
 	}
-	return isSelectStartToken(p.cur.Type)
+	p.parenRunStart, p.parenRunPast = start, p.cur
+	return p.cur
 }
 
 // isSelectStartToken returns true for SELECT / VALUES / WITH / TABLE —
 // the FIRST set of select_with_parens's body. Mirrors isSelectStart
 // but for a bare token type rather than p.cur (used from
-// lookaheadParenContentIsSubquery after backtrack state has been captured).
+// lookaheadParenContentIsSubquery on a token it looked ahead to).
 func isSelectStartToken(tok int) bool {
 	switch tok {
 	case SELECT, VALUES, WITH, TABLE:

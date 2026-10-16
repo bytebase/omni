@@ -9,8 +9,8 @@
 
 ## Summary
 
-- **96 total dispatch sites** (71 `(` opens, 25 `)` closes)
-- **7 ambiguity-present sites:** all aligned (Phase 0 + Phase 1 §§1.1–1.4 + P1 2026-04-23)
+- **99 total dispatch sites** (74 `(` opens, 25 `)` closes)
+- **10 ambiguity-present sites:** all aligned (Phase 0 + Phase 1 §§1.1–1.4 + P1 2026-04-23 + the 2026-10-14 linear-time scanners)
 - **89 non-ambiguous sites:** aligned via grammar structure (unconditional `expect('(')` / `expect(')')` or T1 peek on optional list)
 - **0 unclear** (was 1: `expr.go:1610` parseArraySubscript ARRAY subquery contract — locked in by §1.4 with 6 empirical tests + caller-context proof; see paren_array_expr_test.go)
 
@@ -18,8 +18,8 @@
 
 | Cluster | File(s) | Sites | Ambiguity-present | Misaligned |
 |---------|---------|-------|-------------------|------------|
-| C1 | select.go | 14 | 3 | 0 |
-| C2 | expr.go | 26 | 4 | 0 |
+| C1 | select.go | 15 | 4 | 0 |
+| C2 | expr.go | 28 | 6 | 0 |
 | C3 | type.go | 9 | 0 | 0 |
 | C4 | create_table.go, create_index.go, define.go | 14 | 0 | 0 |
 | C5 | (11 utility files — see §5.1 unbounded-tail note in PLAN) | 33 | 0 | 0 |
@@ -45,6 +45,7 @@ All previously attention-listed sites are resolved (Phase 1 BATCH 1 §§1.1–1.
 | select.go:166 | parseSelectClausePrimary | select_with_parens | yes | T5 | yes | high | Left-factored to parseSelectNoParens |
 | select.go:770 | parseCommonTableExpr | name_list | no | T1 | yes | med | Optional paren for column names |
 | select.go:1162 | parseParenTableRef | select_with_parens, joined_table | yes | T3 | yes | high | Phase 0: parenBeginsSubquery scanner |
+| select.go:1330 | consumeMatchedParenIsSubquery | select_with_parens, joined_table | yes | T3 | yes | high | 2026-10-14: parenBeginsSubquery's scanner; records the verdict of every '(' it passes in parenIsSubquery so nested groups parse in linear time. Tests: paren_multi_join_test.go, nested_paren_test.go TestNestedParensStayLinear. |
 | select.go:1225 | parseJoinedTable | joined_table | no | T6 | yes | high | Phase 0: T6/T7 dedicated nonterminal |
 | select.go:1347 | parseLateralTableRef | select_with_parens, xmltable, json_table, func_table | yes | T6+T7 | yes | high | §1.2 landed: four disjoint leads ('(' / XMLTABLE / JSON_TABLE / ROWS / default) routed via dedicated arms; post-parse ColumnRef rejection closes `LATERAL <relation>` gap. Caller-context: only reachable from parseTableRefPrimary's LATERAL arm. Tests: paren_lateral_ref_test.go TestParenLateralRefDispatch (12 scenarios: 10 accept, 2 reject) + AST-shape tests for subquery/func_table/rows-from/xmltable/json_table/alias-coldeflist/ordinality. |
 | select.go:1504 | parseRelationExpr | func_table | no | T1 | yes | med | After identifier; '(' always func_table |
@@ -77,6 +78,8 @@ All previously attention-listed sites are resolved (Phase 1 BATCH 1 §§1.1–1.
 | expr.go:1862 | parseExtractExpr | extract_expr | no | none | yes | low | Check for empty extract parens |
 | expr.go:1878 | parseExtractExpr | extract_expr | no | none | yes | low | Expect closing paren |
 | expr.go:813 | lookaheadParenContentIsSubquery | select_with_parens / expr_list / a_expr | yes | T3+T8 | yes | high | P1: shared top-level scanner for nested-paren subquery-vs-expression dispatch; see JSON proof notes. |
+| expr.go:805 | scanParenGroups | select_with_parens / expr_list / a_expr | yes | T3 | yes | high | 2026-10-14: lookaheadParenContentIsSubquery's depth scan; records the token after every '(' block it passes in parenAfter so nested parens parse in linear time. Tests: paren_in_expr_test.go, nested_paren_test.go TestNestedParensStayLinear. |
+| expr.go:831 | firstTokenPastParens | select_with_parens / expr_list / a_expr | yes | T3+T8 | yes | high | 2026-10-14: lookaheadParenContentIsSubquery's single-element probe; keeps the last run of '(' it walked. Tests: paren_in_expr_test.go, nested_paren_test.go TestNestedParensStayLinear. |
 | expr.go:1695 | parseParenExprOrRow | select_with_parens / a_expr / implicit_row | yes | T3+T8 | yes | high | P1: expression parens now accept parenthesized set-op subqueries without misclassifying scalar-subquery arithmetic. |
 | expr.go:2053 | parseInExpr | in_expr | yes | T3+T8 | yes | high | §1.1 landed, refreshed P1: fast-path T8 plus shared lookaheadParenContentIsSubquery scanner for the `IN ((...))` ambiguous case. Tests: paren_in_expr_test.go TestParenInExprDispatch (20 scenarios) + AST-shape tests. |
 | expr.go:2112 | parseSubqueryExprList | IN_SUBLINK | no | none | yes | med | After IN; unconditional |

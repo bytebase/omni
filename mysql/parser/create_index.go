@@ -14,8 +14,7 @@ import (
 //	    ON tbl_name (key_part,...)
 //	    [index_option] ...
 //	    [algorithm_option | lock_option] ...
-func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) (*nodes.CreateIndexStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spatial bool) (*nodes.CreateIndexStmt, error) {
 	p.advance() // consume INDEX
 
 	stmt := &nodes.CreateIndexStmt{
@@ -167,7 +166,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			return nil, err
 		}
 		col.Expr = &nodes.ColumnRef{
-			Loc:    nodes.Loc{Start: start, End: p.pos()},
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			Column: colName,
 		}
 
@@ -247,13 +246,14 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	case p.cur.Type == kwKEY_BLOCK_SIZE:
 		p.advance()
 		p.match('=') // optional =
+		valStart := p.pos()
 		if p.cur.Type == tokICONST {
 			val := p.cur.Ival
 			p.advance()
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "KEY_BLOCK_SIZE",
-				Value: &nodes.IntLit{Loc: nodes.Loc{Start: start}, Value: val},
+				Value: &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: val},
 			}, true, nil
 		}
 		// Could be an identifier value
@@ -262,21 +262,22 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			return nil, false, err
 		}
 		return &nodes.IndexOption{
-			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "KEY_BLOCK_SIZE",
-			Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: v},
+			Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: v},
 		}, true, nil
 
 	case p.cur.Type == kwUSING:
 		p.advance()
+		valStart := p.pos()
 		typeName, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, false, err
 		}
 		return &nodes.IndexOption{
-			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "USING",
-			Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: typeName},
+			Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: typeName},
 		}, true, nil
 
 	case p.cur.Type == kwWITH:
@@ -284,14 +285,15 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		if next.Type == kwPARSER {
 			p.advance() // consume WITH
 			p.advance() // consume PARSER
+			valStart := p.pos()
 			parserName, _, err := p.parseIdent()
 			if err != nil {
 				return nil, false, err
 			}
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "PARSER",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: parserName},
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: parserName},
 			}, true, nil
 		}
 		return nil, false, nil
@@ -302,9 +304,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "COMMENT",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: val},
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}, Value: val},
 			}, true, nil
 		}
 		return nil, false, &ParseError{Message: "expected string after COMMENT", Position: p.cur.Loc}
@@ -312,14 +314,14 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	case p.cur.Type == kwVISIBLE:
 		p.advance()
 		return &nodes.IndexOption{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: "VISIBLE",
 		}, true, nil
 
 	case p.cur.Type == kwINVISIBLE:
 		p.advance()
 		return &nodes.IndexOption{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: "INVISIBLE",
 		}, true, nil
 
@@ -330,9 +332,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "ENGINE_ATTRIBUTE",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: val},
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}, Value: val},
 			}, true, nil
 		}
 		return nil, false, &ParseError{Message: "expected string after ENGINE_ATTRIBUTE", Position: p.cur.Loc}
@@ -344,9 +346,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "SECONDARY_ENGINE_ATTRIBUTE",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: val},
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}, Value: val},
 			}, true, nil
 		}
 		return nil, false, &ParseError{Message: "expected string after SECONDARY_ENGINE_ATTRIBUTE", Position: p.cur.Loc}

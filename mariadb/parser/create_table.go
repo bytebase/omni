@@ -73,7 +73,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return nil, err
 		}
 		stmt.Like = likeRef
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -85,7 +85,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return nil, err
 		}
 		stmt.Select = sel
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -101,7 +101,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 				return nil, err
 			}
 			stmt.Select = sel
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 		// Check for CREATE TABLE ... (LIKE old_tbl_name) — parenthesized LIKE
@@ -116,7 +116,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 
@@ -137,7 +137,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return nil, err
 		}
 		stmt.Select = sel
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -189,7 +189,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		stmt.Select = sel
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -382,7 +382,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prev.End
 	return col, nil
 }
 
@@ -424,7 +424,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			return false, err
 		}
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrNotNull,
 		})
 		return true, nil
@@ -432,7 +432,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	case kwNULL:
 		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrNull,
 		})
 		return true, nil
@@ -445,7 +445,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		}
 		col.DefaultValue = expr
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrDefault,
 			Expr: expr,
 		})
@@ -455,7 +455,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		p.advance()
 		col.AutoIncrement = true
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrAutoIncrement,
 		})
 		return true, nil
@@ -464,7 +464,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		p.advance()
 		p.match(kwKEY) // optional KEY
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrUnique,
 		})
 		return true, nil
@@ -475,7 +475,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			return false, err
 		}
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrPrimaryKey,
 		})
 		return true, nil
@@ -484,7 +484,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		// Bare KEY means PRIMARY KEY
 		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrPrimaryKey,
 		})
 		return true, nil
@@ -496,7 +496,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			p.advance()
 		}
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrComment,
 		})
 		return true, nil
@@ -508,7 +508,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			return false, err
 		}
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrCollate,
 			Name: collName,
 		})
@@ -525,7 +525,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	case kwVISIBLE:
 		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrVisible,
 		})
 		return true, nil
@@ -533,7 +533,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	case kwINVISIBLE:
 		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrInvisible,
 		})
 		return true, nil
@@ -554,7 +554,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			return false, err
 		}
 		cc := &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrCheck,
 			Expr: expr,
 		}
@@ -568,7 +568,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 		}
-		cc.Loc.End = p.pos()
+		cc.Loc.End = p.prev.End
 		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
@@ -598,7 +598,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			if err != nil {
 				return false, err
 			}
-			col.Generated = &nodes.GeneratedColumn{Loc: nodes.Loc{Start: start, End: p.pos()}, RowBound: rb}
+			col.Generated = &nodes.GeneratedColumn{Loc: nodes.Loc{Start: start, End: p.prev.End}, RowBound: rb}
 			return true, nil
 		}
 		return false, nil
@@ -659,7 +659,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		}
 		col.ColumnFormat = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrColumnFormat,
 			Name: val,
 		})
@@ -681,7 +681,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		}
 		col.Storage = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrStorage,
 			Name: val,
 		})
@@ -699,7 +699,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		}
 		col.EngineAttribute = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrEngineAttribute,
 			Name: val,
 		})
@@ -715,7 +715,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		}
 		col.SecondaryEngineAttribute = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrSecondaryEngineAttribute,
 			Name: val,
 		})
@@ -753,7 +753,7 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		return &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.pos()}, Expr: expr}, nil
+		return &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Expr: expr}, nil
 	}
 	expr, err := p.parseExpr()
 	if err != nil {
@@ -821,7 +821,7 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 		}
 	}
 
-	constr.Loc.End = p.pos()
+	constr.Loc.End = p.prev.End
 	return constr, nil
 }
 
@@ -895,7 +895,7 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &nodes.GeneratedColumn{Loc: nodes.Loc{Start: start, End: p.pos()}, RowBound: rb}, nil
+		return &nodes.GeneratedColumn{Loc: nodes.Loc{Start: start, End: p.prev.End}, RowBound: rb}, nil
 	}
 
 	// (expr)
@@ -921,7 +921,7 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	}
 
 	gen := &nodes.GeneratedColumn{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Expr: expr,
 	}
 
@@ -935,7 +935,7 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 		gen.Stored = true
 	}
 
-	gen.Loc.End = p.pos()
+	gen.Loc.End = p.prev.End
 	return gen, nil
 }
 
@@ -968,7 +968,7 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 	}
 
 	gen := &nodes.GeneratedColumn{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Expr: expr,
 	}
 
@@ -982,7 +982,7 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 		gen.Stored = true
 	}
 
-	gen.Loc.End = p.pos()
+	gen.Loc.End = p.prev.End
 	return gen, nil
 }
 
@@ -1177,7 +1177,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 	}
 
-	constr.Loc.End = p.pos()
+	constr.Loc.End = p.prev.End
 	return constr, nil
 }
 
@@ -1238,7 +1238,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "ENGINE", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ENGINE", Value: val}, true, nil
 
 	case kwWITH:
 		// WITH SYSTEM VERSIONING — system-versioned table option. VERSIONING is
@@ -1250,7 +1250,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 				return nil, false, p.syntaxErrorAtCur()
 			}
 			p.advance() // VERSIONING
-			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "SYSTEM VERSIONING"}, true, nil
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SYSTEM VERSIONING"}, true, nil
 		}
 		return nil, false, nil
 
@@ -1261,7 +1261,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "AUTO_INCREMENT", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "AUTO_INCREMENT", Value: val}, true, nil
 
 	case kwDEFAULT:
 		// DEFAULT CHARSET or DEFAULT CHARACTER SET or DEFAULT COLLATE
@@ -1279,7 +1279,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "CHARSET", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHARSET", Value: val}, true, nil
 
 	case kwCHARACTER:
 		p.advance()
@@ -1289,7 +1289,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			if err != nil {
 				return nil, false, err
 			}
-			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "CHARACTER SET", Value: val}, true, nil
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHARACTER SET", Value: val}, true, nil
 		}
 		return nil, false, nil
 
@@ -1300,7 +1300,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "COLLATE", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COLLATE", Value: val}, true, nil
 
 	case kwCOMMENT:
 		p.advance()
@@ -1310,7 +1310,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			val = p.cur.Str
 			p.advance()
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "COMMENT", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COMMENT", Value: val}, true, nil
 
 	case kwROW_FORMAT:
 		p.advance()
@@ -1319,7 +1319,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "ROW_FORMAT", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ROW_FORMAT", Value: val}, true, nil
 
 	case kwCONNECTION:
 		p.advance()
@@ -1329,7 +1329,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			val = p.cur.Str
 			p.advance()
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "CONNECTION", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CONNECTION", Value: val}, true, nil
 
 	case kwPASSWORD:
 		p.advance()
@@ -1339,7 +1339,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			val = p.cur.Str
 			p.advance()
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "PASSWORD", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PASSWORD", Value: val}, true, nil
 
 	case kwSTORAGE:
 		p.advance()
@@ -1348,14 +1348,14 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "STORAGE", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "STORAGE", Value: val}, true, nil
 
 	case kwSTART:
 		// START TRANSACTION (used for versioned tables)
 		if next := p.peekNext(); next.Type == kwTRANSACTION {
 			p.advance() // consume START
 			p.advance() // consume TRANSACTION
-			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "START TRANSACTION", Value: ""}, true, nil
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "START TRANSACTION", Value: ""}, true, nil
 		}
 		return nil, false, nil
 
@@ -1367,7 +1367,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "CHECKSUM", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHECKSUM", Value: val}, true, nil
 
 	case kwTABLESPACE:
 		// TABLESPACE tablespace_name [STORAGE {DISK | MEMORY}]
@@ -1377,7 +1377,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		opt := &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "TABLESPACE", Value: val}
+		opt := &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "TABLESPACE", Value: val}
 		if p.cur.Type == kwSTORAGE {
 			p.advance()
 			storageVal, err := p.consumeOptionValue()
@@ -1386,7 +1386,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			}
 			opt.Storage = storageVal
 		}
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prev.End
 		return opt, true, nil
 
 	case kwENCRYPTION:
@@ -1397,7 +1397,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "ENCRYPTION", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ENCRYPTION", Value: val}, true, nil
 
 	case kwUNION:
 		// UNION [=] (tbl_name[,tbl_name]...)
@@ -1407,14 +1407,14 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			names, err := p.parseParenIdentList()
 			if err == nil {
 				val := strings.Join(names, ",")
-				return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "UNION", Value: val}, true, nil
+				return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNION", Value: val}, true, nil
 			}
 		}
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "UNION", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNION", Value: val}, true, nil
 
 	case kwINDEX:
 		// INDEX DIRECTORY [=] 'path' (as table option)
@@ -1426,7 +1426,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			if err != nil {
 				return nil, false, err
 			}
-			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "INDEX DIRECTORY", Value: val}, true, nil
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "INDEX DIRECTORY", Value: val}, true, nil
 		}
 		return nil, false, nil
 
@@ -1440,7 +1440,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			if err != nil {
 				return nil, false, err
 			}
-			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA DIRECTORY", Value: val}, true, nil
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA DIRECTORY", Value: val}, true, nil
 		}
 		return nil, false, nil
 	}
@@ -1454,7 +1454,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
 	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
@@ -1470,7 +1470,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
 	// Generic MariaDB table option: `IDENT = value`. MariaDB's parser accepts an
@@ -1487,7 +1487,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
 	return nil, false, nil
@@ -1807,7 +1807,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
-	part.Loc.End = p.pos()
+	part.Loc.End = p.prev.End
 	return part, nil
 }
 
@@ -2025,7 +2025,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		}
 	}
 
-	pd.Loc.End = p.pos()
+	pd.Loc.End = p.prev.End
 	return pd, nil
 }
 
@@ -2055,6 +2055,6 @@ func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
 		}
 		spd.Options = append(spd.Options, opt)
 	}
-	spd.Loc.End = p.pos()
+	spd.Loc.End = p.prev.End
 	return spd, nil
 }
