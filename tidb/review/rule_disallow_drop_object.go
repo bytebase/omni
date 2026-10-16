@@ -38,6 +38,8 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			report(v.Loc, kind, tables(v.Tables))
 		case *ast.DropViewStmt:
 			report(v.Loc, "view", tables(v.Views))
+		case *ast.DropSequenceStmt:
+			report(v.Loc, "sequence", tables(v.Sequences))
 		case *ast.DropDatabaseStmt:
 			report(v.Loc, "database", ident(v.Name))
 		case *ast.DropIndexStmt:

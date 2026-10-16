@@ -240,6 +240,14 @@ func TestDisallowDropObject(t *testing.T) {
 			},
 		},
 		{
+			name: "sequences",
+			sql:  "DROP SEQUENCE s;\nDROP SEQUENCE IF EXISTS s1, shop.s2;",
+			want: []finding{
+				{0, "DROP SEQUENCE s", "drops sequence s", []int{0}},
+				{1, "DROP SEQUENCE IF EXISTS s1, shop.s2", "drops sequence s1, shop.s2", []int{0}},
+			},
+		},
+		{
 			name: "constraints belong to DisallowDropConstraint",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p, DROP CHECK ck_n, DROP CONSTRAINT uk_code;\nDROP INDEX `PRIMARY` ON t;",
 		},
