@@ -9,22 +9,22 @@ import (
 
 // Index represents an index on a relation.
 type Index struct {
-	OID            uint32
-	Name           string
-	Schema         *Schema
-	RelOID         uint32
-	Columns        []int16 // attnums (0 = expression column)
-	IsUnique       bool
-	IsPrimary      bool
-	IsClustered    bool   // indisclustered
-	IsReplicaIdent bool   // indisreplident
-	ConstraintOID  uint32 // 0 if standalone
-	AccessMethod   string // "btree" (default), "hash", "gist", "gin", "brin"
-	NKeyColumns    int    // number of key columns (rest are INCLUDE); 0 = all are key
-	WhereClause       string   // analyzed WHERE predicate text; empty = no partial index
-	IndOption         []int16  // per-column flags: bit0=DESC, bit1=NULLS_FIRST
-	NullsNotDistinct  bool     // NULLS NOT DISTINCT for unique indexes
-	Exprs             []string // deparsed expressions for expression columns (attnum=0)
+	OID              uint32
+	Name             string
+	Schema           *Schema
+	RelOID           uint32
+	Columns          []int16 // attnums (0 = expression column)
+	IsUnique         bool
+	IsPrimary        bool
+	IsClustered      bool     // indisclustered
+	IsReplicaIdent   bool     // indisreplident
+	ConstraintOID    uint32   // 0 if standalone
+	AccessMethod     string   // "btree" (default), "hash", "gist", "gin", "brin"
+	NKeyColumns      int      // number of key columns (rest are INCLUDE); 0 = all are key
+	WhereClause      string   // analyzed WHERE predicate text; empty = no partial index
+	IndOption        []int16  // per-column flags: bit0=DESC, bit1=NULLS_FIRST
+	NullsNotDistinct bool     // NULLS NOT DISTINCT for unique indexes
+	Exprs            []string // deparsed expressions for expression columns (attnum=0)
 }
 
 // DefineIndex creates a new index on a relation.
@@ -103,6 +103,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var attnums []int16
 	var indOption []int16
 	var exprTexts []string // deparsed expressions for expression columns
+	var analyzedExprs []AnalyzedExpr
 	if stmt.IndexParams != nil {
 		for _, item := range stmt.IndexParams.Items {
 			elem, ok := item.(*nodes.IndexElem)
@@ -119,6 +120,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 					if aErr == nil {
 						rte := c.buildRelationRTE(rel)
 						exprTexts = append(exprTexts, c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, true))
+						analyzedExprs = append(analyzedExprs, analyzed)
 					} else {
 						return fmt.Errorf("failed to analyze index expression: %w", aErr)
 					}
@@ -213,11 +215,13 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 
 	// Analyze and deparse WHERE clause.
 	whereClause := ""
+	var analyzedWhere AnalyzedExpr
 	if stmt.WhereClause != nil {
 		analyzed, aErr := c.AnalyzeStandaloneExpr(stmt.WhereClause, rel)
 		if aErr == nil {
 			rte := c.buildRelationRTE(rel)
 			whereClause = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, true)
+			analyzedWhere = analyzed
 		} else {
 			return fmt.Errorf("failed to analyze index WHERE clause: %w", aErr)
 		}
@@ -269,6 +273,14 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		if attnum != 0 { // 0 = expression column, no column dep
 			c.recordDependency('i', idx.OID, 0, 'r', rel.OID, int32(attnum), DepAuto)
 		}
+	}
+	// pg: index_create() — expressions and predicate depend AUTO on the
+	// columns they read and NORMAL on everything else they reference.
+	for _, e := range analyzedExprs {
+		c.recordDependencyOnSingleRelExpr('i', idx.OID, e, rel.OID, DepNormal, DepAuto)
+	}
+	if analyzedWhere != nil {
+		c.recordDependencyOnSingleRelExpr('i', idx.OID, analyzedWhere, rel.OID, DepNormal, DepAuto)
 	}
 
 	return nil

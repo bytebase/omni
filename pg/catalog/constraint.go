@@ -446,8 +446,28 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 }
 
 func (c *Catalog) addCheckConstraint(rel *Relation, def ConstraintDef) error {
-	// Extract referenced columns for conkey tracking.
-	cols := extractCheckExprColumns(rel, def.CheckExpr)
+	// Analyze the CHECK expression if we have the raw AST node.
+	// pg: src/backend/commands/tablecmds.c — cookConstraint (CHECK analysis)
+	var analyzed AnalyzedExpr
+	if def.RawCheckExpr != nil {
+		if rawExprContainsSubLink(def.RawCheckExpr) {
+			return &Error{Code: CodeFeatureNotSupported,
+				Message: "cannot use subquery in check constraint"}
+		}
+		if a, err := c.AnalyzeStandaloneExpr(def.RawCheckExpr, rel); err == nil {
+			analyzed = a
+		}
+	}
+
+	// Extract referenced columns for conkey tracking: the columns the
+	// analyzed expression reads, or a text scan when there is none.
+	// pg: src/backend/catalog/heap.c — StoreRelCheck (pull_var_clause)
+	var cols []int16
+	if analyzed != nil {
+		cols = c.exprColumns(analyzed, rel.OID)
+	} else {
+		cols = extractCheckExprColumns(rel, def.CheckExpr)
+	}
 
 	// pg: src/backend/catalog/heap.c — ChooseConstraintName
 	// PG includes column name when exactly one column is referenced:
@@ -494,18 +514,10 @@ func (c *Catalog) addCheckConstraint(rel *Relation, def ConstraintDef) error {
 		ConIsLocal: true,
 	}
 
-	// Analyze the CHECK expression if we have the raw AST node.
-	// pg: src/backend/commands/tablecmds.c — cookConstraint (CHECK analysis)
-	if def.RawCheckExpr != nil {
-		if rawExprContainsSubLink(def.RawCheckExpr) {
-			return &Error{Code: CodeFeatureNotSupported,
-				Message: "cannot use subquery in check constraint"}
-		}
-		if analyzed, err := c.AnalyzeStandaloneExpr(def.RawCheckExpr, rel); err == nil && analyzed != nil {
-			con.CheckAnalyzed = analyzed
-			rte := c.buildRelationRTE(rel)
-			con.CheckExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
-		}
+	if analyzed != nil {
+		con.CheckAnalyzed = analyzed
+		rte := c.buildRelationRTE(rel)
+		con.CheckExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
 	}
 
 	c.registerConstraint(rel.OID, con)
@@ -833,59 +845,77 @@ func (c *Catalog) lookupFKSupportingIndex(relOID uint32, cols []int16) uint32 {
 
 // dropDependents drops all objects that have a DepNormal dependency on the given referent.
 // This is used for CASCADE behavior (e.g., dropping FK constraints from referencing tables).
+// The referent's entries on itself (a generated column reading another column
+// of its table) are skipped: the referent goes with them.
 func (c *Catalog) dropDependents(refType byte, refOID uint32) {
 	deps := c.findNormalDependents(refType, refOID)
 	for _, dep := range deps {
-		switch dep.ObjType {
-		case 'c':
-			con := c.constraints[dep.ObjOID]
-			if con == nil {
-				continue
-			}
-			// Find the schema of the owning relation to remove indexes.
-			if ownerRel := c.relationByOID[con.RelOID]; ownerRel != nil {
-				c.removeConstraint(ownerRel.Schema, con)
-			}
-		case 'r':
-			rel := c.relationByOID[dep.ObjOID]
-			if rel == nil {
-				continue
-			}
-			// Recursively drop dependents (e.g., views depending on this view).
-			c.dropDependents('r', rel.OID)
-			c.removeRelation(rel.Schema, rel.Name, rel)
-		case 'i':
-			idx := c.indexes[dep.ObjOID]
-			if idx == nil {
-				continue
-			}
-			c.removeIndex(idx.Schema, idx.Name, idx)
-		case 's':
-			seq := c.sequenceByOID[dep.ObjOID]
-			if seq == nil {
-				continue
-			}
-			c.removeSequence(seq.Schema, seq)
-		case 'f':
-			up := c.userProcs[dep.ObjOID]
-			if up == nil {
-				continue
-			}
-			c.dropDependents('f', up.OID)
-			c.removeFunction(up.OID, up.Name)
-		case 'g':
-			trig := c.triggers[dep.ObjOID]
-			if trig == nil {
-				continue
-			}
-			c.removeTrigger(trig)
-		case 'E':
-			evt := c.eventTriggers[dep.ObjOID]
-			if evt == nil {
-				continue
-			}
-			c.removeEventTrigger(evt)
+		if dep.ObjType == refType && dep.ObjOID == refOID {
+			continue
 		}
+		c.dropDependentObject(dep.ObjType, dep.ObjOID)
+	}
+}
+
+// dropDependentObject drops one dependent found by dropDependents or
+// relationDependents, with the objects that depend on it in turn.
+func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
+	switch objType {
+	case 'c':
+		con := c.constraints[objOID]
+		if con == nil {
+			return
+		}
+		// Find the schema of the owning relation to remove indexes.
+		if ownerRel := c.relationByOID[con.RelOID]; ownerRel != nil {
+			c.removeConstraint(ownerRel.Schema, con)
+		}
+	case 'r':
+		rel := c.relationByOID[objOID]
+		if rel == nil {
+			return
+		}
+		// Recursively drop dependents (e.g., views depending on this view).
+		c.dropDependents('r', rel.OID)
+		c.removeRelation(rel.Schema, rel.Name, rel)
+	case 'i':
+		idx := c.indexes[objOID]
+		if idx == nil {
+			return
+		}
+		// An index that backs a constraint goes with it.
+		// pg: src/backend/catalog/dependency.c — findDependentObjects
+		// (DEPENDENCY_INTERNAL: delete the owning object instead)
+		if con := c.constraints[idx.ConstraintOID]; con != nil {
+			c.dropDependentObject('c', con.OID)
+			return
+		}
+		c.removeIndex(idx.Schema, idx.Name, idx)
+	case 's':
+		seq := c.sequenceByOID[objOID]
+		if seq == nil {
+			return
+		}
+		c.removeSequence(seq.Schema, seq)
+	case 'f':
+		up := c.userProcs[objOID]
+		if up == nil {
+			return
+		}
+		c.dropDependents('f', up.OID)
+		c.removeFunction(up.OID, up.Name)
+	case 'g':
+		trig := c.triggers[objOID]
+		if trig == nil {
+			return
+		}
+		c.removeTrigger(trig)
+	case 'E':
+		evt := c.eventTriggers[objOID]
+		if evt == nil {
+			return
+		}
+		c.removeEventTrigger(evt)
 	}
 }
 

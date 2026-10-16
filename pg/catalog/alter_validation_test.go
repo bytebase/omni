@@ -159,10 +159,12 @@ func TestDropInheritedColumn(t *testing.T) {
 	child.Columns[0].IsLocal = false
 
 	// Try to drop inherited column from child -- should error.
+	// pg: src/backend/commands/tablecmds.c — ATExecDropColumn
+	// (ERRCODE_INVALID_TABLE_DEFINITION)
 	err := c.AlterTableStmt(makeAlterTableStmt("", "child",
 		makeATDropColumn("a", false, false),
 	))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }
 
 func TestExecuteTruncateOnView(t *testing.T) {
