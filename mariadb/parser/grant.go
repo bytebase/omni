@@ -62,7 +62,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 				stmt.WithAdmin = true
 			}
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -99,7 +99,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 				stmt.WithGrant = true
 			}
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -230,7 +230,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -298,7 +298,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 				}
 				stmt.IgnoreUnknownUser = true
 			}
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 	}
@@ -328,7 +328,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			}
 			stmt.IgnoreUnknownUser = true
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -363,7 +363,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			}
 			stmt.IgnoreUnknownUser = true
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -407,7 +407,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		stmt.IgnoreUnknownUser = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -598,13 +598,13 @@ func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 			p.advance() // consume '.'
 			// *.*
 			ref := &nodes.TableRef{
-				Loc:    nodes.Loc{Start: start, End: p.pos()},
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 				Schema: "*",
 				Name:   "*",
 			}
 			if p.cur.Type == '*' {
 				p.advance()
-				ref.Loc.End = p.pos()
+				ref.Loc.End = p.prev.End
 			} else {
 				// *.tbl_name (unusual but handle)
 				name, _, err := p.parseIdent()
@@ -612,13 +612,13 @@ func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 					return nil, err
 				}
 				ref.Name = name
-				ref.Loc.End = p.pos()
+				ref.Loc.End = p.prev.End
 			}
 			target.Name = ref
 		} else {
 			// Just *
 			target.Name = &nodes.TableRef{
-				Loc:  nodes.Loc{Start: start, End: p.pos()},
+				Loc:  nodes.Loc{Start: start, End: p.prev.End},
 				Name: "*",
 			}
 		}
@@ -631,7 +631,7 @@ func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 		target.Name = ref
 	}
 
-	target.Loc.End = p.pos()
+	target.Loc.End = p.prev.End
 	return target, nil
 }
 
@@ -665,7 +665,7 @@ func (p *Parser) parseGrantPrivLevel() (*nodes.TableRef, error) {
 		}
 	}
 
-	ref.Loc.End = p.pos()
+	ref.Loc.End = p.prev.End
 	return ref, nil
 }
 
@@ -744,8 +744,7 @@ func (p *Parser) parseUserName() (string, error) {
 //	    [WITH resource_option [resource_option] ...]
 //	    [password_option | lock_option] ...
 //	    [COMMENT 'comment_string' | ATTRIBUTE 'json_object']
-func (p *Parser) parseCreateUserStmt() (*nodes.CreateUserStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 	p.advance() // consume USER
 
 	stmt := &nodes.CreateUserStmt{Loc: nodes.Loc{Start: start}}
@@ -812,7 +811,7 @@ func (p *Parser) parseCreateUserStmt() (*nodes.CreateUserStmt, error) {
 		&stmt.Comment, &stmt.Attribute,
 	)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -821,8 +820,7 @@ func (p *Parser) parseCreateUserStmt() (*nodes.CreateUserStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-user.html
 //
 //	DROP USER [IF EXISTS] user [, user] ...
-func (p *Parser) parseDropUserStmt() (*nodes.DropUserStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropUserStmt(start int) (*nodes.DropUserStmt, error) {
 	p.advance() // consume USER
 
 	stmt := &nodes.DropUserStmt{Loc: nodes.Loc{Start: start}}
@@ -841,7 +839,7 @@ func (p *Parser) parseDropUserStmt() (*nodes.DropUserStmt, error) {
 	}
 	stmt.Users = users
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -852,8 +850,7 @@ func (p *Parser) parseDropUserStmt() (*nodes.DropUserStmt, error) {
 //	ALTER USER user_spec [, user_spec] ...
 //	    [REQUIRE {NONE | tls_option [[AND] tls_option] ...}]
 //	    [WITH resource_option [resource_option] ...]
-func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	p.advance() // consume USER
 
 	stmt := &nodes.AlterUserStmt{Loc: nodes.Loc{Start: start}}
@@ -868,6 +865,7 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 	// Check for ALTER USER USER() ... (user_func_auth_option or registration_option)
 	if p.cur.Type == kwUSER && p.peekNext().Type == '(' {
 		stmt.IsUserFunc = true
+		userStart := p.pos()
 		p.advance() // consume USER
 		p.advance() // consume (
 		p.match(')')
@@ -879,12 +877,12 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 				return nil, err
 			}
 			stmt.RegistrationOp = op
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 
 		// user_func_auth_option: IDENTIFIED BY 'auth_string' [REPLACE ...] [RETAIN ...] | DISCARD OLD PASSWORD
-		userSpec := &nodes.UserSpec{Loc: nodes.Loc{Start: start}, Name: "USER()"}
+		userSpec := &nodes.UserSpec{Loc: nodes.Loc{Start: userStart}, Name: "USER()"}
 		if p.cur.Type == kwIDENTIFIED {
 			if err := p.parseUserAuthOption(userSpec); err != nil {
 				return nil, err
@@ -912,9 +910,9 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 			p.advance()
 			userSpec.DiscardOldPassword = true
 		}
-		userSpec.Loc.End = p.pos()
+		userSpec.Loc.End = p.prev.End
 		stmt.Users = append(stmt.Users, userSpec)
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -935,7 +933,7 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 				return nil, err
 			}
 			stmt.RegistrationOp = op
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 	}
@@ -949,7 +947,7 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 				return nil, err
 			}
 			stmt.FactorOps = ops
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 	}
@@ -977,7 +975,7 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 				}
 				stmt.DefaultRoles = roles
 			}
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 	}
@@ -1018,7 +1016,7 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 		&stmt.Comment, &stmt.Attribute,
 	)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1079,7 +1077,7 @@ func (p *Parser) parseRegistrationOption() (*nodes.RegistrationOp, error) {
 		p.advance()
 	}
 
-	op.Loc.End = p.pos()
+	op.Loc.End = p.prev.End
 	return op, nil
 }
 
@@ -1125,7 +1123,7 @@ func (p *Parser) parseFactorOps() ([]*nodes.FactorOp, error) {
 			}
 		}
 
-		op.Loc.End = p.pos()
+		op.Loc.End = p.prev.End
 		ops = append(ops, op)
 	}
 	return ops, nil
@@ -1283,7 +1281,7 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 		if err := p.parseUserAuthOption(factor); err != nil {
 			return nil, err
 		}
-		factor.Loc.End = p.pos()
+		factor.Loc.End = p.prev.End
 		spec.AuthFactors = append(spec.AuthFactors, factor)
 	}
 
@@ -1328,15 +1326,14 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 		}
 	}
 
-	spec.Loc.End = p.pos()
+	spec.Loc.End = p.prev.End
 	return spec, nil
 }
 
 // parseCreateRoleStmt parses a CREATE ROLE statement.
 //
 //	CREATE ROLE [IF NOT EXISTS] role [, role] ...
-func (p *Parser) parseCreateRoleStmt() (*nodes.CreateRoleStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
 	p.advance() // consume ROLE
 
 	stmt := &nodes.CreateRoleStmt{Loc: nodes.Loc{Start: start}}
@@ -1356,15 +1353,14 @@ func (p *Parser) parseCreateRoleStmt() (*nodes.CreateRoleStmt, error) {
 	}
 	stmt.Roles = roles
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
 // parseDropRoleStmt parses a DROP ROLE statement.
 //
 //	DROP ROLE [IF EXISTS] role [, role] ...
-func (p *Parser) parseDropRoleStmt() (*nodes.DropRoleStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	p.advance() // consume ROLE
 
 	stmt := &nodes.DropRoleStmt{Loc: nodes.Loc{Start: start}}
@@ -1383,7 +1379,7 @@ func (p *Parser) parseDropRoleStmt() (*nodes.DropRoleStmt, error) {
 	}
 	stmt.Roles = roles
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1468,7 +1464,7 @@ func (p *Parser) parseSetDefaultRoleStmt(start int) (*nodes.SetDefaultRoleStmt, 
 	}
 	stmt.To = users
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1506,7 +1502,7 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 		stmt.Roles = roles
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1543,7 +1539,7 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 			return nil, err
 		}
 
-		pair.Loc.End = p.pos()
+		pair.Loc.End = p.prev.End
 		stmt.Pairs = append(stmt.Pairs, pair)
 
 		if p.cur.Type != ',' {
@@ -1552,7 +1548,7 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1635,7 +1631,7 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 				p.advance()
 			}
 		default:
-			req.Loc.End = p.pos()
+			req.Loc.End = p.prev.End
 			return req, nil
 		}
 
@@ -1694,7 +1690,7 @@ func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
 		}
 	}
 	if res != nil {
-		res.Loc.End = p.pos()
+		res.Loc.End = p.prev.End
 	}
 	return res
 }
@@ -1887,6 +1883,6 @@ func (p *Parser) parseSetResourceGroupStmt(start int) (*nodes.SetResourceGroupSt
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

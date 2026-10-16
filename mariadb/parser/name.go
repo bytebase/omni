@@ -724,7 +724,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 			ref.Table = name
 			ref.Column = ""
 			ref.Star = true
-			ref.Loc.End = p.pos()
+			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
 
@@ -743,7 +743,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 				ref.Table = name2
 				ref.Column = ""
 				ref.Star = true
-				ref.Loc.End = p.pos()
+				ref.Loc.End = p.prev.End
 				return ref, nil
 			}
 
@@ -754,7 +754,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 			ref.Schema = name
 			ref.Table = name2
 			ref.Column = name3
-			ref.Loc.End = p.pos()
+			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
 
@@ -763,7 +763,7 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 		ref.Column = name2
 	}
 
-	ref.Loc.End = p.pos()
+	ref.Loc.End = p.prev.End
 	return ref, nil
 }
 
@@ -805,7 +805,7 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 		ref.Name = name2
 	}
 
-	ref.Loc.End = p.pos()
+	ref.Loc.End = p.prev.End
 	return ref, nil
 }
 
@@ -829,7 +829,7 @@ func (p *Parser) parseTableRefWithAlias(allowSystemTime bool) (*nodes.TableRef, 
 			return nil, err
 		}
 		ref.Partitions = parts
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	}
 
 	// FOR SYSTEM_TIME temporal suffix (system-versioned time travel). It attaches
@@ -842,7 +842,7 @@ func (p *Parser) parseTableRefWithAlias(allowSystemTime bool) (*nodes.TableRef, 
 			return nil, err
 		}
 		ref.SystemTime = st
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	}
 
 	// Optional AS alias
@@ -852,13 +852,13 @@ func (p *Parser) parseTableRefWithAlias(allowSystemTime bool) (*nodes.TableRef, 
 			return nil, err
 		}
 		ref.Alias = alias
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	} else if p.isIdentToken() || p.cur.Type == tokSCONST {
 		// Alias without AS keyword — accepts non-reserved keywords and string
 		// literals, matching MySQL's opt_table_alias: [AS] ident_or_text
 		alias, _, _ := p.parseIdentOrText()
 		ref.Alias = alias
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	}
 
 	// Optional index hints: USE/FORCE/IGNORE {INDEX|KEY} ...
@@ -868,7 +868,7 @@ func (p *Parser) parseTableRefWithAlias(allowSystemTime bool) (*nodes.TableRef, 
 			return nil, err
 		}
 		ref.IndexHints = hints
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 	}
 
 	return ref, nil
@@ -924,7 +924,7 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 					return nil, err
 				}
 				ref.Name = name
-				ref.Loc.End = p.pos()
+				ref.Loc.End = p.prev.End
 				return ref, nil
 			}
 		}
@@ -935,7 +935,7 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 			return nil, err
 		}
 		ref.Name = name
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 		return ref, nil
 	}
 
@@ -947,7 +947,7 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 			Loc:  nodes.Loc{Start: tok.Loc},
 			Name: tok.Str[1:],
 		}
-		ref.Loc.End = p.pos()
+		ref.Loc.End = p.prev.End
 		return ref, nil
 	}
 

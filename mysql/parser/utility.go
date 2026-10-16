@@ -2053,7 +2053,7 @@ func (p *Parser) parseLockInstanceStmt(start int) (*nodes.LockInstanceStmt, erro
 	p.advance() // consume BACKUP
 
 	stmt := &nodes.LockInstanceStmt{
-		Loc: nodes.Loc{Start: start, End: p.pos()},
+		Loc: nodes.Loc{Start: start, End: p.prev.End},
 	}
 	return stmt, nil
 }
@@ -2064,7 +2064,7 @@ func (p *Parser) parseUnlockInstanceStmt(start int) (*nodes.UnlockInstanceStmt, 
 	p.advance() // consume INSTANCE
 
 	stmt := &nodes.UnlockInstanceStmt{
-		Loc: nodes.Loc{Start: start, End: p.pos()},
+		Loc: nodes.Loc{Start: start, End: p.prev.End},
 	}
 	return stmt, nil
 }

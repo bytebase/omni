@@ -35,24 +35,27 @@ func (p *Parser) parseExpr() (nodes.ExprNode, error) {
 
 // parseExprPrec parses an expression with the given minimum precedence.
 func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
+	start := p.pos()
 	left, err := p.parsePrefixExpr()
 	if err != nil {
 		return nil, err
 	}
-	return p.parseInfixExprPrec(left, minPrec)
+	return p.parseInfixExprPrec(left, start, minPrec)
 }
 
 // parseInfixExprPrec continues Pratt parsing with an already-parsed left
-// operand, folding infix operators of at least minPrec. Split from
+// operand, folding infix operators of at least minPrec. start is the offset
+// of the left operand's first token, where every folded expression starts.
+// Split from
 // parseExprPrec so callers that produce the leading primary themselves — a
 // parenthesized query expression that turns out to be the left operand of a
 // scalar expression, `((SELECT ...) = 0)` — can resume the operator loop.
-func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, minPrec int) (nodes.ExprNode, error) {
+func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int) (nodes.ExprNode, error) {
 	var err error
 	for {
 		// MEMBER OF special handling (not in infixPrecedence since it's keyword-based)
 		if p.cur.Type == kwMEMBER {
-			left, err = p.parseMemberOfExpr(left)
+			left, err = p.parseMemberOfExpr(left, start)
 			if err != nil {
 				return nil, err
 			}
@@ -67,35 +70,35 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, minPrec int) (nodes.Exp
 		// Handle special infix operators
 		switch {
 		case p.cur.Type == kwIS:
-			left, err = p.parseIsExpr(left)
+			left, err = p.parseIsExpr(left, start)
 			if err != nil {
 				return nil, err
 			}
 			continue
 
 		case p.cur.Type == kwBETWEEN || (p.cur.Type == kwNOT && p.peekNext().Type == kwBETWEEN):
-			left, err = p.parseBetweenExpr(left)
+			left, err = p.parseBetweenExpr(left, start)
 			if err != nil {
 				return nil, err
 			}
 			continue
 
 		case p.cur.Type == kwIN || (p.cur.Type == kwNOT && p.peekNext().Type == kwIN):
-			left, err = p.parseInExpr(left)
+			left, err = p.parseInExpr(left, start)
 			if err != nil {
 				return nil, err
 			}
 			continue
 
 		case p.cur.Type == kwLIKE || (p.cur.Type == kwNOT && p.peekNext().Type == kwLIKE):
-			left, err = p.parseLikeExpr(left)
+			left, err = p.parseLikeExpr(left, start)
 			if err != nil {
 				return nil, err
 			}
 			continue
 
 		case p.cur.Type == kwSOUNDS:
-			left, err = p.parseSoundsLikeExpr(left)
+			left, err = p.parseSoundsLikeExpr(left, start)
 			if err != nil {
 				return nil, err
 			}
@@ -103,21 +106,20 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, minPrec int) (nodes.Exp
 
 		case p.cur.Type == kwREGEXP || p.cur.Type == kwRLIKE ||
 			(p.cur.Type == kwNOT && (p.peekNext().Type == kwREGEXP || p.peekNext().Type == kwRLIKE)):
-			left, err = p.parseRegexpExpr(left)
+			left, err = p.parseRegexpExpr(left, start)
 			if err != nil {
 				return nil, err
 			}
 			continue
 
 		case p.cur.Type == kwCOLLATE:
-			colStart := p.pos()
 			p.advance() // consume COLLATE
 			collation, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
 			}
 			left = &nodes.CollateExpr{
-				Loc:       nodes.Loc{Start: colStart, End: p.pos()},
+				Loc:       nodes.Loc{Start: start, End: p.prev.End},
 				Expr:      left,
 				Collation: collation,
 			}
@@ -125,7 +127,6 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, minPrec int) (nodes.Exp
 		}
 
 		// Regular binary operator
-		opStart := p.pos()
 		// Capture original operator text for auto-alias when it differs from canonical form.
 		var originalOp string
 		switch {
@@ -162,7 +163,7 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, minPrec int) (nodes.Exp
 			sub.Loc.End = p.prev.End
 			sub.Quantifier = quantifier
 			left = &nodes.BinaryExpr{
-				Loc:        nodes.Loc{Start: opStart, End: p.pos()},
+				Loc:        nodes.Loc{Start: start, End: p.prev.End},
 				Op:         binOp,
 				Left:       left,
 				Right:      sub,
@@ -183,7 +184,7 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, minPrec int) (nodes.Exp
 		}
 
 		left = &nodes.BinaryExpr{
-			Loc:        nodes.Loc{Start: opStart, End: p.pos()},
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 			Op:         binOp,
 			Left:       left,
 			Right:      right,
@@ -340,7 +341,7 @@ func (p *Parser) parseUnaryExpr(op nodes.UnaryOp) (nodes.ExprNode, error) {
 	}
 
 	return &nodes.UnaryExpr{
-		Loc:     nodes.Loc{Start: start, End: p.pos()},
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		Op:      op,
 		Operand: operand,
 	}, nil
@@ -368,7 +369,7 @@ func (p *Parser) foldAdjacentStringLits(lit *nodes.StringLit) {
 		sb.WriteString(next.Str)
 	}
 	lit.Value = sb.String()
-	lit.Loc.End = p.pos()
+	lit.Loc.End = p.prev.End
 }
 
 // parsePrimaryExpr parses atoms: literals, column refs, subqueries, func calls, parenthesized exprs.
@@ -380,45 +381,45 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		// an unsigned literal beyond int64 range (e.g. BIGINT UNSIGNED DEFAULT
 		// 18446744073709551615), so consumers that must round-trip the literal exactly
 		// (column defaults) read Text instead of the truncated Value.
-		return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Ival, Text: tok.Str}, nil
+		return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival, Text: tok.Str}, nil
 
 	case tokFCONST:
 		tok := p.advance()
-		return &nodes.FloatLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Str}, nil
+		return &nodes.FloatLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}, nil
 
 	case tokSCONST:
 		tok := p.advance()
-		lit := &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Str}
+		lit := &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}
 		p.foldAdjacentStringLits(lit)
 		return lit, nil
 
 	case tokXCONST:
 		tok := p.advance()
-		return &nodes.HexLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Str}, nil
+		return &nodes.HexLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}, nil
 
 	case tokBCONST:
 		tok := p.advance()
-		return &nodes.BitLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Str}, nil
+		return &nodes.BitLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}, nil
 
 	case kwTRUE:
 		tok := p.advance()
-		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc}, Value: true}, nil
+		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: true}, nil
 
 	case kwFALSE:
 		tok := p.advance()
-		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc}, Value: false}, nil
+		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: false}, nil
 
 	case kwON:
 		tok := p.advance()
-		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc}, Value: true}, nil
+		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: true}, nil
 
 	case kwOFF:
 		tok := p.advance()
-		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc}, Value: false}, nil
+		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: false}, nil
 
 	case kwNULL:
 		tok := p.advance()
-		return &nodes.NullLit{Loc: nodes.Loc{Start: tok.Loc}}, nil
+		return &nodes.NullLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
 
 	case kwDEFAULT:
 		return p.parseDefaultExpr()
@@ -458,7 +459,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case '*':
 		tok := p.advance()
-		return &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}}, nil
+		return &nodes.StarExpr{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}}, nil
 
 	case '(':
 		return p.parseParenExpr()
@@ -519,7 +520,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			typeTok := p.advance() // consume DATE/TIME/TIMESTAMP keyword
 			valTok := p.advance()  // consume the string literal
 			return &nodes.TemporalLit{
-				Loc:   nodes.Loc{Start: typeTok.Loc, End: valTok.Loc + len(valTok.Str) + 2},
+				Loc:   nodes.Loc{Start: typeTok.Loc, End: valTok.End},
 				Type:  strings.ToUpper(typeTok.Str),
 				Value: valTok.Str,
 			}, nil
@@ -534,7 +535,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			charsetTok := p.advance() // consume the charset identifier
 			strTok := p.advance()     // consume the string literal
 			lit := &nodes.StringLit{
-				Loc:     nodes.Loc{Start: charsetTok.Loc, End: strTok.Loc + len(strTok.Str) + 2},
+				Loc:     nodes.Loc{Start: charsetTok.Loc, End: strTok.End},
 				Value:   strTok.Str,
 				Charset: charsetTok.Str,
 			}
@@ -581,7 +582,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		if p.cur.Type == '*' {
 			p.advance()
 			return &nodes.ColumnRef{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Table: name,
 				Star:  true,
 			}, nil
@@ -611,7 +612,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			if p.cur.Type == '*' {
 				p.advance()
 				return &nodes.ColumnRef{
-					Loc:    nodes.Loc{Start: start, End: p.pos()},
+					Loc:    nodes.Loc{Start: start, End: p.prev.End},
 					Schema: name,
 					Table:  name2,
 					Star:   true,
@@ -622,7 +623,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				return nil, err
 			}
 			return &nodes.ColumnRef{
-				Loc:    nodes.Loc{Start: start, End: p.pos()},
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 				Schema: name,
 				Table:  name2,
 				Column: name3,
@@ -631,7 +632,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 
 		// table.col
 		return &nodes.ColumnRef{
-			Loc:    nodes.Loc{Start: start, End: p.pos()},
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			Table:  name,
 			Column: name2,
 		}, nil
@@ -639,7 +640,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 
 	// Plain column ref
 	return &nodes.ColumnRef{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Column: name,
 	}, nil
 }
@@ -796,8 +797,7 @@ overCheck:
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html
 //
 //	value MEMBER OF(json_array)
-func (p *Parser) parseMemberOfExpr(value nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+func (p *Parser) parseMemberOfExpr(value nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	p.advance() // consume MEMBER
 
 	// Expect OF
@@ -824,7 +824,7 @@ func (p *Parser) parseMemberOfExpr(value nodes.ExprNode) (nodes.ExprNode, error)
 	}
 
 	return &nodes.MemberOfExpr{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Value: value,
 		Array: array,
 	}, nil
@@ -841,7 +841,7 @@ func (p *Parser) parseOverClause() (*nodes.WindowDef, error) {
 			return nil, err
 		}
 		return &nodes.WindowDef{
-			Loc:     nodes.Loc{Start: start, End: p.pos()},
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 			RefName: name,
 		}, nil
 	}
@@ -1188,7 +1188,7 @@ func (p *Parser) parseTimeUnitKeyword(simpleOnly bool) (*nodes.KeywordArg, error
 		return nil, &ParseError{Message: "invalid time unit: " + tok.Str, Position: tok.Loc}
 	}
 	return &nodes.KeywordArg{
-		Loc:     nodes.Loc{Start: tok.Loc, End: p.pos()},
+		Loc:     nodes.Loc{Start: tok.Loc, End: p.prev.End},
 		Keyword: unit,
 	}, nil
 }
@@ -1257,7 +1257,7 @@ func (p *Parser) parseGetFormatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		return nil, &ParseError{Message: "invalid GET_FORMAT type: " + tok.Str, Position: tok.Loc}
 	}
 	fc.Args = append(fc.Args, &nodes.KeywordArg{
-		Loc:     nodes.Loc{Start: tok.Loc, End: p.pos()},
+		Loc:     nodes.Loc{Start: tok.Loc, End: p.prev.End},
 		Keyword: kind,
 	})
 	if _, err := p.expect(','); err != nil {
@@ -1338,7 +1338,7 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 			return nil, err
 		}
 		dt := &nodes.DataType{
-			Loc:    nodes.Loc{Start: typeTok.Loc, End: p.pos()},
+			Loc:    nodes.Loc{Start: typeTok.Loc, End: p.prev.End},
 			Name:   "CHAR",
 			Length: int(lenTok.Ival),
 		}
@@ -1348,7 +1348,7 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 			dt.Charset = "binary"
 			asBinary = true
 			ws.Expr = &nodes.CastExpr{
-				Loc:      nodes.Loc{Start: typeTok.Loc, End: p.pos()},
+				Loc:      nodes.Loc{Start: typeTok.Loc, End: p.prev.End},
 				Expr:     arg,
 				TypeName: dt,
 			}
@@ -1594,6 +1594,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	// (SELECT 2))` — or a scalar expression whose first primary is a
 	// parenthesized subquery — `((SELECT 1) = 0)`, `(((SELECT 1) = 0))`.
 	if p.isQueryExpressionStart() {
+		subStart := p.pos()
 		sub, outcome, err := p.parseSubqueryHead()
 		if outcome == subqueryHeadScalar {
 			specErr = err
@@ -1615,7 +1616,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 			// (oracle-probed; the stock sys.metrics view stores this shape).
 			// Resume the infix loop with the subquery as the parsed primary
 			// and fall through to the shared row-constructor / ')' handling.
-			expr, err = p.parseInfixExprPrec(sub, precAssign)
+			expr, err = p.parseInfixExprPrec(sub, subStart, precAssign)
 			if err != nil {
 				return nil, err
 			}
@@ -1657,7 +1658,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, furthestErr(err, specErr)
 		}
-		row.Loc.End = p.pos()
+		row.Loc.End = p.prev.End
 		return row, nil
 	}
 
@@ -1666,7 +1667,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	}
 
 	return &nodes.ParenExpr{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Expr: expr,
 	}, nil
 }
@@ -1714,7 +1715,7 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 	}
 
 	return &nodes.CastExpr{
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 		Expr:     expr,
 		TypeName: dt,
 		Array:    isArray,
@@ -1761,7 +1762,7 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 	}
 
 	return &nodes.ExtractExpr{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Unit: unit.Keyword,
 		Expr: expr,
 	}, nil
@@ -1784,7 +1785,7 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		p.advance()
 		p.match(kwINTEGER)
 		p.match(kwINT)
-		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "SIGNED"}, nil
+		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SIGNED"}, nil
 	}
 
 	// UNSIGNED [INTEGER]
@@ -1792,7 +1793,7 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		p.advance()
 		p.match(kwINTEGER)
 		p.match(kwINT)
-		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "UNSIGNED"}, nil
+		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNSIGNED"}, nil
 	}
 
 	return p.parseDataType()
@@ -1856,8 +1857,7 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 }
 
 // parseIsExpr parses IS [NOT] NULL / TRUE / FALSE / UNKNOWN.
-func (p *Parser) parseIsExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+func (p *Parser) parseIsExpr(left nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	p.advance() // consume IS
 
 	// Completion: after IS, offer NULL/NOT/TRUE/FALSE/UNKNOWN.
@@ -1911,8 +1911,7 @@ func (p *Parser) parseIsExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 }
 
 // parseBetweenExpr parses [NOT] BETWEEN low AND high.
-func (p *Parser) parseBetweenExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+func (p *Parser) parseBetweenExpr(left nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	not := false
 	if _, ok := p.match(kwNOT); ok {
 		not = true
@@ -1934,7 +1933,7 @@ func (p *Parser) parseBetweenExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 	}
 
 	return &nodes.BetweenExpr{
-		Loc:  nodes.Loc{Start: start, End: p.pos()},
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		Not:  not,
 		Expr: left,
 		Low:  low,
@@ -1943,8 +1942,7 @@ func (p *Parser) parseBetweenExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 }
 
 // parseInExpr parses [NOT] IN (value_list) or [NOT] IN (subquery).
-func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	not := false
 	if _, ok := p.match(kwNOT); ok {
 		not = true
@@ -1967,6 +1965,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 	// `IN (((SELECT 1) = 1))` (all accepted by MySQL 8.0.32 and 5.7.25).
 	var specErr error // discarded speculative error (subqueryHeadScalar only)
 	if p.isQueryExpressionStart() {
+		subStart := p.pos()
 		sub, outcome, err := p.parseSubqueryHead()
 		if outcome == subqueryHeadScalar {
 			specErr = err
@@ -1984,7 +1983,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 			// The query expression starts the first VALUE-LIST element:
 			// resume the infix loop for that element and seed the shared
 			// value-list loop below with it.
-			first, err := p.parseInfixExprPrec(sub, precAssign)
+			first, err := p.parseInfixExprPrec(sub, subStart, precAssign)
 			if err != nil {
 				return nil, err
 			}
@@ -2020,8 +2019,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 }
 
 // parseLikeExpr parses [NOT] LIKE pattern [ESCAPE escape_char].
-func (p *Parser) parseLikeExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	not := false
 	if _, ok := p.match(kwNOT); ok {
 		not = true
@@ -2053,8 +2051,7 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 }
 
 // parseRegexpExpr parses [NOT] REGEXP pattern.
-func (p *Parser) parseRegexpExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+func (p *Parser) parseRegexpExpr(left nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	not := false
 	if _, ok := p.match(kwNOT); ok {
 		not = true
@@ -2068,7 +2065,7 @@ func (p *Parser) parseRegexpExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 
 	// Represent as BinaryExpr with BinOpRegexp
 	expr := &nodes.BinaryExpr{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Op:    nodes.BinOpRegexp,
 		Left:  left,
 		Right: pattern,
@@ -2076,7 +2073,7 @@ func (p *Parser) parseRegexpExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 
 	if not {
 		return &nodes.UnaryExpr{
-			Loc:     nodes.Loc{Start: start, End: p.pos()},
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 			Op:      nodes.UnaryNot,
 			Operand: expr,
 		}, nil
@@ -2134,7 +2131,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		ce.Whens = append(ce.Whens, &nodes.CaseWhen{
-			Loc:    nodes.Loc{Start: whenStart, End: p.pos()},
+			Loc:    nodes.Loc{Start: whenStart, End: p.prev.End},
 			Cond:   cond,
 			Result: result,
 		})
@@ -2189,7 +2186,7 @@ func (p *Parser) parseExistsExpr() (nodes.ExprNode, error) {
 	}
 
 	return &nodes.ExistsExpr{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Select: sub.Select,
 	}, nil
 }
@@ -2232,7 +2229,7 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	}
 
 	return &nodes.IntervalExpr{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Value: val,
 		Unit:  upper,
 	}, nil
@@ -2382,8 +2379,7 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 //	expr1 SOUNDS LIKE expr2
 //
 // This is equivalent to SOUNDEX(expr1) = SOUNDEX(expr2).
-func (p *Parser) parseSoundsLikeExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+func (p *Parser) parseSoundsLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	p.advance() // consume SOUNDS
 
 	if _, err := p.expect(kwLIKE); err != nil {
@@ -2396,7 +2392,7 @@ func (p *Parser) parseSoundsLikeExpr(left nodes.ExprNode) (nodes.ExprNode, error
 	}
 
 	return &nodes.BinaryExpr{
-		Loc:   nodes.Loc{Start: start, End: p.pos()},
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Op:    nodes.BinOpSoundsLike,
 		Left:  left,
 		Right: right,
@@ -2504,7 +2500,7 @@ func (p *Parser) parseValuesFunc() (nodes.ExprNode, error) {
 	}
 
 	fc := &nodes.FuncCallExpr{
-		Loc:       nodes.Loc{Start: start, End: p.pos()},
+		Loc:       nodes.Loc{Start: start, End: p.prev.End},
 		Name:      "VALUES",
 		HasParens: true,
 		Args:      []nodes.ExprNode{col},

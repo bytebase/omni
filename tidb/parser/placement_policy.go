@@ -55,7 +55,7 @@ func (p *Parser) parseCreatePlacementPolicyStmt(start int, orReplace bool) (node
 	}
 	stmt.Options = opts
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -103,7 +103,7 @@ func (p *Parser) parseAlterPlacementPolicyStmt(start int) (nodes.Node, error) {
 	}
 	stmt.Options = opts
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -144,7 +144,7 @@ func (p *Parser) parseDropPlacementPolicyStmt(start int) (nodes.Node, error) {
 		return nil, err
 	}
 	stmt.Name = name
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -285,6 +285,6 @@ func (p *Parser) parsePlacementOption() (*nodes.PlacementPolicyOption, error) {
 		opt.Value = fmt.Sprintf("%d", p.cur.Ival)
 		p.advance()
 	}
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prev.End
 	return opt, nil
 }

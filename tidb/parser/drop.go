@@ -10,8 +10,7 @@ import (
 //
 //	DROP [TEMPORARY] TABLE [IF EXISTS] tbl_name [, tbl_name] ...
 //	    [RESTRICT | CASCADE]
-func (p *Parser) parseDropTableStmt(temporary bool) (*nodes.DropTableStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTableStmt, error) {
 	p.advance() // consume TABLE
 
 	stmt := &nodes.DropTableStmt{
@@ -55,7 +54,7 @@ func (p *Parser) parseDropTableStmt(temporary bool) (*nodes.DropTableStmt, error
 		stmt.Cascade = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -65,8 +64,7 @@ func (p *Parser) parseDropTableStmt(temporary bool) (*nodes.DropTableStmt, error
 //
 //	DROP INDEX index_name ON tbl_name
 //	    [algorithm_option | lock_option] ...
-func (p *Parser) parseDropIndexStmt() (*nodes.DropIndexStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	p.advance() // consume INDEX
 
 	// Completion: after DROP INDEX, offer index_ref.
@@ -116,7 +114,7 @@ func (p *Parser) parseDropIndexStmt() (*nodes.DropIndexStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -125,8 +123,7 @@ func (p *Parser) parseDropIndexStmt() (*nodes.DropIndexStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-view.html
 //
 //	DROP VIEW [IF EXISTS] view_name [, view_name] ... [RESTRICT | CASCADE]
-func (p *Parser) parseDropViewStmt() (*nodes.DropViewStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropViewStmt(start int) (*nodes.DropViewStmt, error) {
 	p.advance() // consume VIEW
 
 	stmt := &nodes.DropViewStmt{Loc: nodes.Loc{Start: start}}
@@ -167,7 +164,7 @@ func (p *Parser) parseDropViewStmt() (*nodes.DropViewStmt, error) {
 		stmt.Cascade = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -196,7 +193,7 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 	}
 
 	stmt := &nodes.TruncateStmt{
-		Loc:    nodes.Loc{Start: start, End: p.pos()},
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Tables: []*nodes.TableRef{ref},
 	}
 	return stmt, nil
@@ -207,8 +204,7 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/rename-table.html
 //
 //	RENAME TABLE tbl_name TO new_tbl_name [, tbl_name2 TO new_tbl_name2] ...
-func (p *Parser) parseRenameTableStmt() (*nodes.RenameTableStmt, error) {
-	start := p.pos()
+func (p *Parser) parseRenameTableStmt(start int) (*nodes.RenameTableStmt, error) {
 	// Already consumed RENAME
 	p.match(kwTABLE)
 
@@ -241,7 +237,7 @@ func (p *Parser) parseRenameTableStmt() (*nodes.RenameTableStmt, error) {
 			return nil, err
 		}
 		stmt.Pairs = append(stmt.Pairs, &nodes.RenameTablePair{
-			Loc: nodes.Loc{Start: pairStart, End: p.pos()},
+			Loc: nodes.Loc{Start: pairStart, End: p.prev.End},
 			Old: old,
 			New: newRef,
 		})
@@ -251,6 +247,6 @@ func (p *Parser) parseRenameTableStmt() (*nodes.RenameTableStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
