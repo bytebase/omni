@@ -141,7 +141,7 @@ func TestExecCommentLoc_SlicesSource(t *testing.T) {
 		},
 		{
 			sql:  "CREATE TABLE t (id BIGINT /*T![auto_rand] AUTO_RANDOM(5) */ PRIMARY KEY)",
-			want: []string{"CreateTableStmt: TABLE t (id BIGINT /*T![auto_rand] AUTO_RANDOM(5) */ PRIMARY KEY)", "ColumnConstraint: PRIMARY KEY"},
+			want: []string{"CreateTableStmt: CREATE TABLE t (id BIGINT /*T![auto_rand] AUTO_RANDOM(5) */ PRIMARY KEY)", "ColumnConstraint: PRIMARY KEY"},
 		},
 	}
 	for _, tc := range cases {
