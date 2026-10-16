@@ -170,7 +170,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 				}
 			case *ast.DropIndexStmt:
 				loc := v.Loc
-				if rng := anchor(sql, s, n, v.Loc); rng.End > rng.Start {
+				if rng := anchor(s, n, v.Loc); rng.End > rng.Start {
 					loc = ast.Loc{Start: rng.Start, End: rng.End}
 				}
 				if sameName(v.Name, "PRIMARY") {

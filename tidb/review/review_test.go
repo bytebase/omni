@@ -256,7 +256,7 @@ func TestDisallowDropObject(t *testing.T) {
 		{
 			name: "a statement in a TiDB executable comment",
 			sql:  "/*T! DROP TABLE t2 */;",
-			want: []finding{{0, "/*T! DROP TABLE t2 */", "drops table t2", []int{0}}},
+			want: []finding{{0, "DROP TABLE t2", "drops table t2", []int{0}}},
 		},
 	})
 }
@@ -493,6 +493,12 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nWITH x AS (SELECT 3 AS id) UPDATE t SET n = 3 WHERE id IN (SELECT id FROM x);\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\nUPDATE t SET n = 6 WHERE id = 6;",
 			change: backup,
 			want:   []finding{{2, "WITH x AS (SELECT 3 AS id) UPDATE t SET n = 3 WHERE id IN (SELECT id FROM x)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
+		},
+		{
+			name:   "more than five statements on one table, one with WITH in a feature gate",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\n/*T![clustered_index] WITH x AS (SELECT 3 AS id) UPDATE t SET n = 3 WHERE id IN (SELECT id FROM x) */;\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\nUPDATE t SET n = 6 WHERE id = 6;\n/*T![unsupported_feature_xyz] x */ WITH y AS (SELECT 7 AS id) UPDATE t SET n = 7 WHERE id IN (SELECT id FROM y);",
+			change: backup,
+			want:   []finding{{6, "WITH y AS (SELECT 7 AS id) UPDATE t SET n = 7 WHERE id IN (SELECT id FROM y)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
 		},
 		{
 			name:   "past the limit with a WITH clause on a statement not certain",
