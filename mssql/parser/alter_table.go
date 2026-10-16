@@ -355,15 +355,36 @@ func (p *Parser) parseAlterTableAddPeriod() ([]nodes.Node, error) {
 	return []nodes.Node{action}, nil
 }
 
-// parseAlterTableDrop parses DROP with comma-separated columns/constraints,
-// or DROP PERIOD FOR SYSTEM_TIME.
+// parseAlterTableDrop parses DROP and its comma-separated items.
 //
-//	DROP [ {
-//	    [ CONSTRAINT ] [ IF EXISTS ]
-//	    { constraint_name [ WITH ( <drop_clustered_constraint_option> [ ,...n ] ) ] } [ ,...n ]
-//	  | COLUMN [ IF EXISTS ] { column_name } [ ,...n ]
-//	  | PERIOD FOR SYSTEM_TIME
-//	} [ ,...n ] ]
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql
+//
+//	DROP
+//	 [ {
+//	     [ CONSTRAINT ] [ IF EXISTS ]
+//	     { constraint_name [ WITH ( <drop_clustered_constraint_option> [ ,...n ] ) ] } [ ,...n ]
+//	   | COLUMN [ IF EXISTS ] { column_name } [ ,...n ]
+//	   | PERIOD FOR SYSTEM_TIME
+//	 } [ ,...n ] ]
+//
+// The outer [ ,...n ] lets an item restate CONSTRAINT or COLUMN, so one DROP
+// mixes kinds: DROP CONSTRAINT ck_n, COLUMN n. Where the grammar leaves the
+// reading of an item open, SQL Server 2022 settles it item by item (pinned in
+// TestAlterTableDropListOracle and TestAlterTableDropListEffectOracle):
+//   - DROP takes at least one item, though the grammar brackets them.
+//   - An item without a keyword drops what the item before it dropped: a
+//     column after COLUMN, a period after PERIOD FOR SYSTEM_TIME, a constraint
+//     when it comes first. DROP COLUMN a, ck drops a column named ck.
+//   - IF EXISTS follows only a CONSTRAINT or COLUMN written in the same item,
+//     and covers only that item: DROP IF EXISTS ck is a syntax error, and
+//     DROP COLUMN IF EXISTS a, b fails when b does not exist.
+//   - WITH ( ... ) may follow any name not introduced by COLUMN, whatever kind
+//     the item inherits: DROP COLUMN a, b WITH (ONLINE = ON) parses.
+//   - PERIOD is a name unless FOR follows it: DROP PERIOD drops a constraint
+//     named PERIOD.
+//
+// Each action's Loc spans its name and WITH options; the keywords before the
+// name are not part of it. A PERIOD FOR SYSTEM_TIME action spans those words.
 func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 	p.advance() // consume DROP
 
@@ -376,149 +397,121 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 	}
 
 	var actions []nodes.Node
+	kind := nodes.ATDropConstraint
+	for {
+		action, err := p.parseAlterTableDropItem(&kind)
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, action)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+		// Completion: after ALTER TABLE t DROP ... , → a keyword or a name of
+		// the kind the item would inherit.
+		if p.collectMode() {
+			p.addTokenCandidate(kwCOLUMN)
+			p.addTokenCandidate(kwCONSTRAINT)
+			p.addDropNameCandidate(kind)
+			return nil, errCollecting
+		}
+	}
+	return actions, nil
+}
 
-	// DROP PERIOD FOR SYSTEM_TIME
-	if p.cur.Type == kwPERIOD {
+// parseAlterTableDropItem parses one item of an ALTER TABLE ... DROP list.
+// kind is the kind of the item before it, which an item without a keyword
+// inherits; the item's own kind is stored back into it.
+func (p *Parser) parseAlterTableDropItem(kind *nodes.AlterTableActionType) (*nodes.AlterTableAction, error) {
+	// PERIOD FOR SYSTEM_TIME
+	if p.cur.Type == kwPERIOD && p.peekNext().Type == kwFOR {
 		loc := p.pos()
 		p.advance() // consume PERIOD
-		if p.cur.Type == kwFOR {
-			p.advance() // consume FOR
+		p.advance() // consume FOR
+		if _, err := p.expect(kwSYSTEM_TIME); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == kwSYSTEM_TIME {
-			p.advance()
-		}
-		action := &nodes.AlterTableAction{
+		*kind = nodes.ATDropPeriod
+		return &nodes.AlterTableAction{
 			Type: nodes.ATDropPeriod,
-			Loc:  nodes.Loc{Start: loc, End: -1},
-		}
-		action.Loc.End = p.prevEnd()
-		return []nodes.Node{action}, nil
+			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+		}, nil
 	}
 
-	if p.cur.Type == kwCOLUMN {
-		p.advance() // consume COLUMN
-		// Completion: after ALTER TABLE t DROP COLUMN → columnref
+	keyword := p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCOLUMN
+	if keyword {
+		if p.cur.Type == kwCONSTRAINT {
+			*kind = nodes.ATDropConstraint
+		} else {
+			*kind = nodes.ATDropColumn
+		}
+		p.advance() // consume CONSTRAINT or COLUMN
+		// Completion: after ALTER TABLE t DROP COLUMN/CONSTRAINT → a name
 		if p.collectMode() {
-			p.addRuleCandidate("columnref")
+			p.addDropNameCandidate(*kind)
 			return nil, errCollecting
 		}
-		// IF EXISTS
-		ifExists := false
-		if p.cur.Type == kwIF {
-			next := p.peekNext()
-			if next.Type == kwEXISTS {
-				p.advance() // IF
-				p.advance() // EXISTS
-				ifExists = true
-			}
-		}
-		// Parse comma-separated column names
-		for {
-			loc := p.pos()
-			action := &nodes.AlterTableAction{
-				Type:     nodes.ATDropColumn,
-				IfExists: ifExists,
-				Loc:      nodes.Loc{Start: loc, End: -1},
-			}
-			name, nameOK := p.parseIdentifier()
-			if !nameOK {
-				return nil, p.unexpectedToken()
-			}
-			action.ColName = name
-			action.Loc.End = p.prevEnd()
-			actions = append(actions, action)
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-	} else if p.cur.Type == kwCONSTRAINT {
-		p.advance() // consume CONSTRAINT
-		// Completion: after ALTER TABLE t DROP CONSTRAINT → constraint_name
+	}
+	ifExists := false
+	if keyword && p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
+		p.advance() // consume IF
+		p.advance() // consume EXISTS
+		ifExists = true
+		// Completion: after ... IF EXISTS → a name
 		if p.collectMode() {
-			p.addRuleCandidate("constraint_name")
+			p.addDropNameCandidate(*kind)
 			return nil, errCollecting
 		}
-		// IF EXISTS
-		ifExists := false
-		if p.cur.Type == kwIF {
-			next := p.peekNext()
-			if next.Type == kwEXISTS {
-				p.advance() // IF
-				p.advance() // EXISTS
-				ifExists = true
-			}
-		}
-		// Parse comma-separated constraint names with optional WITH (drop_clustered_constraint_option)
-		for {
-			loc := p.pos()
-			action := &nodes.AlterTableAction{
-				Type:     nodes.ATDropConstraint,
-				IfExists: ifExists,
-				Loc:      nodes.Loc{Start: loc, End: -1},
-			}
-			action.Constraint = &nodes.ConstraintDef{
-				Loc: nodes.Loc{Start: p.pos(), End: -1},
-			}
-			name, _ := p.parseIdentifier()
-			action.Constraint.Name = name
-			action.Constraint.Loc.End = p.prevEnd()
-			// Optional WITH ( <drop_clustered_constraint_option> [,...n] )
-			if p.cur.Type == kwWITH {
-				p.advance() // consume WITH
-				if p.cur.Type == '(' {
-					var err error
-					action.Options, err = p.parseKeyValueOptionList()
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
-			action.Loc.End = p.prevEnd()
-			actions = append(actions, action)
-			if _, ok := p.match(','); !ok {
-				break
-			}
-		}
-	} else {
-		// No COLUMN or CONSTRAINT keyword - implicit DROP CONSTRAINT (legacy)
-		// IF EXISTS
-		ifExists := false
-		if p.cur.Type == kwIF {
-			next := p.peekNext()
-			if next.Type == kwEXISTS {
-				p.advance() // IF
-				p.advance() // EXISTS
-				ifExists = true
-			}
-		}
-		loc := p.pos()
-		action := &nodes.AlterTableAction{
-			Type:     nodes.ATDropConstraint,
-			IfExists: ifExists,
-			Loc:      nodes.Loc{Start: loc, End: -1},
-		}
+	}
+
+	loc := p.pos()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.unexpectedToken()
+	}
+	action := &nodes.AlterTableAction{
+		Type:     *kind,
+		IfExists: ifExists,
+		Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
+	}
+	switch *kind {
+	case nodes.ATDropColumn:
+		action.ColName = name
+	case nodes.ATDropConstraint:
 		action.Constraint = &nodes.ConstraintDef{
-			Loc: nodes.Loc{Start: p.pos(), End: -1},
+			Name: name,
+			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
 		}
-		name, _ := p.parseIdentifier()
-		action.Constraint.Name = name
-		action.Constraint.Loc.End = p.prevEnd()
-		// Optional WITH ( <drop_clustered_constraint_option> [,...n] )
-		if p.cur.Type == kwWITH {
-			p.advance() // consume WITH
-			if p.cur.Type == '(' {
-				var err error
-				action.Options, err = p.parseKeyValueOptionList()
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-		action.Loc.End = p.prevEnd()
-		actions = append(actions, action)
+	case nodes.ATDropPeriod:
+		action.Names = &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
 	}
 
-	return actions, nil
+	// Optional WITH ( <drop_clustered_constraint_option> [,...n] ), refused
+	// after COLUMN.
+	if p.cur.Type == kwWITH && (!keyword || *kind != nodes.ATDropColumn) {
+		p.advance() // consume WITH
+		if p.cur.Type != '(' {
+			return nil, p.unexpectedToken()
+		}
+		var err error
+		action.Options, err = p.parseKeyValueOptionList()
+		if err != nil {
+			return nil, err
+		}
+		action.Loc.End = p.prevEnd()
+	}
+	return action, nil
+}
+
+// addDropNameCandidate offers the names an ALTER TABLE ... DROP item of the
+// kind takes.
+func (p *Parser) addDropNameCandidate(kind nodes.AlterTableActionType) {
+	switch kind {
+	case nodes.ATDropColumn:
+		p.addRuleCandidate("columnref")
+	case nodes.ATDropConstraint:
+		p.addRuleCandidate("constraint_name")
+	}
 }
 
 // parseAlterTableAlterColumn parses ALTER COLUMN with extended options.
@@ -608,12 +601,12 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 	col.Loc.End = p.prevEnd()
 
 	action := &nodes.AlterTableAction{
-		Type:    nodes.ATAlterColumn,
-		ColName: name,
-		Column:  col,
-		DataType: col.DataType,
+		Type:      nodes.ATAlterColumn,
+		ColName:   name,
+		Column:    col,
+		DataType:  col.DataType,
 		Collation: col.Collation,
-		Loc:     nodes.Loc{Start: loc, End: -1},
+		Loc:       nodes.Loc{Start: loc, End: -1},
 	}
 
 	// [ WITH ( ONLINE = ON | OFF ) ]

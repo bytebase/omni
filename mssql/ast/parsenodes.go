@@ -514,7 +514,7 @@ type AlterTableAction struct {
 	Collation  string   // ALTER COLUMN ... COLLATE collation_name
 	Options    *List    // generic options list (e.g., SET options, REBUILD options, WITH options)
 	TargetName *TableRef // SWITCH ... TO target_table
-	Names      *List    // constraint/trigger name list for CHECK/NOCHECK/ENABLE/DISABLE
+	Names      *List    // constraint/trigger name list for CHECK/NOCHECK/ENABLE/DISABLE; ADD PERIOD's two columns; the period name of a DROP item that inherits ATDropPeriod
 	Partition  ExprNode // SWITCH PARTITION n / REBUILD PARTITION = n
 	TargetPart ExprNode // SWITCH TO ... PARTITION n
 	WithCheck  string   // "CHECK" or "NOCHECK" prefix for WITH { CHECK | NOCHECK }
@@ -546,7 +546,7 @@ const (
 	ATEnableFiletableNamespace    // ENABLE FILETABLE_NAMESPACE
 	ATDisableFiletableNamespace   // DISABLE FILETABLE_NAMESPACE
 	ATAddPeriod                   // ADD PERIOD FOR SYSTEM_TIME (start_col, end_col)
-	ATDropPeriod                  // DROP PERIOD FOR SYSTEM_TIME
+	ATDropPeriod                  // DROP PERIOD FOR SYSTEM_TIME, or a bare name after it in the DROP list (in Names)
 	ATSplitRange                  // SPLIT RANGE (boundary_value)
 	ATMergeRange                  // MERGE RANGE (boundary_value)
 )

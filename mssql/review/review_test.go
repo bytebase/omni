@@ -272,6 +272,14 @@ func TestDisallowDropObject(t *testing.T) {
 				{8, "code", "drops column code of t", []int{0}},
 			},
 		},
+		{
+			name: "a column after a constraint in one DROP",
+			sql:  "ALTER TABLE t DROP CONSTRAINT uk_code, COLUMN n, code;",
+			want: []finding{
+				{0, "n", "drops column n of t", []int{0}},
+				{0, "code", "drops column code of t", []int{0}},
+			},
+		},
 		{name: "a constraint belongs to DisallowDropConstraint", sql: "ALTER TABLE t DROP CONSTRAINT ck_n;"},
 		{
 			name: "a name with a line break",
@@ -371,6 +379,16 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{0, "pk_t", "drops primary key pk_t of t", []int{0}},
 				{0, "fk_p", "drops foreign key fk_p of t", []int{0}},
 				{1, "uk_code", "drops unique constraint uk_code of dbo.t", []int{0}},
+				{2, "ck_n", "drops check constraint ck_n of t", []int{0}},
+			},
+		},
+		{
+			name: "an item that restates CONSTRAINT or COLUMN",
+			sql:  "ALTER TABLE t DROP CONSTRAINT pk_t, CONSTRAINT fk_p;\nALTER TABLE t DROP CONSTRAINT uk_code, COLUMN n;\nALTER TABLE t DROP COLUMN code, CONSTRAINT IF EXISTS ck_n, df_n;",
+			want: []finding{
+				{0, "pk_t", "drops primary key pk_t of t", []int{0}},
+				{0, "fk_p", "drops foreign key fk_p of t", []int{0}},
+				{1, "uk_code", "drops unique constraint uk_code of t", []int{0}},
 				{2, "ck_n", "drops check constraint ck_n of t", []int{0}},
 			},
 		},
