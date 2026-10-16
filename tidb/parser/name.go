@@ -516,6 +516,18 @@ var keywordCategories = map[int]keywordCategory{
 	kwBATCH: kwCatUnambiguous,
 	kwDRY:   kwCatUnambiguous,
 	kwRUN:   kwCatUnambiguous,
+
+	// TiDB sequence keywords (parser.y:7077-7085) — all unreserved
+	// upstream, so `CREATE SEQUENCE sequence` and a column named cycle
+	// stay valid.
+	kwSEQUENCE:   kwCatUnambiguous,
+	kwINCREMENT:  kwCatUnambiguous,
+	kwMINVALUE:   kwCatUnambiguous,
+	kwNOMINVALUE: kwCatUnambiguous,
+	kwNOMAXVALUE: kwCatUnambiguous,
+	kwNOCACHE:    kwCatUnambiguous,
+	kwCYCLE:      kwCatUnambiguous,
+	kwNOCYCLE:    kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

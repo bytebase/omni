@@ -240,6 +240,12 @@ func stmtLocStart(node nodes.Node) int {
 		return s.Loc.Start
 	case *nodes.DropPlacementPolicyStmt:
 		return s.Loc.Start
+	case *nodes.CreateSequenceStmt:
+		return s.Loc.Start
+	case *nodes.AlterSequenceStmt:
+		return s.Loc.Start
+	case *nodes.DropSequenceStmt:
+		return s.Loc.Start
 	case *nodes.DropTableStmt:
 		return s.Loc.Start
 	case *nodes.DropDatabaseStmt:

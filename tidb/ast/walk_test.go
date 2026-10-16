@@ -148,6 +148,7 @@ func allKnownNodes() []Node {
 		&DropUserStmt{}, &DropRoleStmt{}, &DropServerStmt{},
 		&DropTablespaceStmt{}, &DropResourceGroupStmt{}, &DropSpatialRefSysStmt{},
 		&DropLogfileGroupStmt{},
+		&CreateSequenceStmt{}, &AlterSequenceStmt{}, &DropSequenceStmt{}, &SequenceOption{},
 		&TruncateStmt{}, &RenameTableStmt{}, &RenameUserStmt{},
 		&SetStmt{}, &SetTransactionStmt{}, &SetPasswordStmt{},
 		&SetRoleStmt{}, &SetDefaultRoleStmt{}, &SetResourceGroupStmt{},

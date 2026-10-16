@@ -209,6 +209,39 @@ func TestTiDBKeywords_CreateDatabaseTiFlash(t *testing.T) {
 	}
 }
 
+// TestTiDBKeywords_Sequence asserts that SEQUENCE follows CREATE, ALTER,
+// and DROP, and that the sequence option keywords are offered inside the
+// statements: RESTART only for ALTER, COMMENT and ENGINE only for CREATE.
+func TestTiDBKeywords_Sequence(t *testing.T) {
+	cat := catalog.New()
+
+	tests := []struct {
+		sql     string
+		want    []string
+		notWant []string
+	}{
+		{"CREATE ", []string{"SEQUENCE"}, nil},
+		{"ALTER ", []string{"SEQUENCE"}, nil},
+		{"DROP ", []string{"SEQUENCE"}, nil},
+		{"CREATE SEQUENCE s START 1 ", []string{"INCREMENT", "MINVALUE", "NOCACHE", "CYCLE", "NO", "COMMENT", "ENGINE"}, []string{"RESTART"}},
+		{"ALTER SEQUENCE s ", []string{"RESTART", "INCREMENT", "NOCYCLE"}, []string{"COMMENT", "ENGINE"}},
+		{"CREATE SEQUENCE s NO ", []string{"MINVALUE", "MAXVALUE", "CACHE", "CYCLE"}, []string{"START"}},
+	}
+	for _, tt := range tests {
+		candidates := Complete(tt.sql, len(tt.sql), cat)
+		for _, w := range tt.want {
+			if !containsText(candidates, w) {
+				t.Errorf("%q: expected %s; got: %v", tt.sql, w, candidateTexts(candidates))
+			}
+		}
+		for _, w := range tt.notWant {
+			if containsText(candidates, w) {
+				t.Errorf("%q: unexpected %s; got: %v", tt.sql, w, candidateTexts(candidates))
+			}
+		}
+	}
+}
+
 // candidateTexts extracts the text of each candidate for error messages.
 func candidateTexts(cs []Candidate) []string {
 	out := make([]string, 0, len(cs))
