@@ -1443,46 +1443,50 @@ func IsReserved(kind TokenKind) bool {
 	return kind >= 700 && !nonReservedKeywords[kind]
 }
 
-// tokenNames is lazily initialized by TokenName.
-var tokenNames map[TokenKind]string
+// tokenNames maps a TokenKind to its display name. It is built at package
+// init and only read afterwards, so concurrent callers of TokenName need no
+// locking.
+var tokenNames = buildTokenNames()
+
+func buildTokenNames() map[TokenKind]string {
+	m := make(map[TokenKind]string, len(keywordMap)+20)
+	for name, k := range keywordMap {
+		m[k] = strings.ToUpper(name)
+	}
+	m[tokEOF] = "EOF"
+	m[tokInvalid] = "INVALID"
+	m[tokInt] = "INT"
+	m[tokFloat] = "FLOAT"
+	m[tokString] = "STRING"
+	m[tokIdent] = "IDENT"
+	m[tokQuotedIdent] = "QUOTED_IDENT"
+	m[tokHexLiteral] = "HEX_LITERAL"
+	m[tokBitLiteral] = "BIT_LITERAL"
+	m[tokPlaceholder] = "PLACEHOLDER"
+	m[tokLessEq] = "<="
+	m[tokGreaterEq] = ">="
+	m[tokNotEq] = "<>"
+	m[tokNullSafeEq] = "<=>"
+	m[tokLogicalAnd] = "&&"
+	m[tokDoublePipes] = "||"
+	m[tokShiftLeft] = "<<"
+	m[tokShiftRight] = ">>"
+	m[tokArrow] = "->"
+	m[tokDoubleAt] = "@@"
+	m[tokAssign] = ":="
+	m[tokDotDotDot] = "..."
+	m[tokHintStart] = "HINT_START"
+	m[tokHintEnd] = "HINT_END"
+	// Fix non-determinism for aliases that map multiple strings
+	// to the same TokenKind (e.g., "char"/"character" -> kwCHAR).
+	m[kwCHAR] = "CHAR"
+	m[kwTYPECAST] = "TYPECAST"
+	m[kwCONVERT_LSC] = "CONVERT_LSC"
+	return m
+}
 
 // TokenName returns a human-readable name for a TokenKind.
 func TokenName(kind TokenKind) string {
-	if tokenNames == nil {
-		tokenNames = make(map[TokenKind]string, len(keywordMap)+20)
-		for name, k := range keywordMap {
-			tokenNames[k] = strings.ToUpper(name)
-		}
-		tokenNames[tokEOF] = "EOF"
-		tokenNames[tokInvalid] = "INVALID"
-		tokenNames[tokInt] = "INT"
-		tokenNames[tokFloat] = "FLOAT"
-		tokenNames[tokString] = "STRING"
-		tokenNames[tokIdent] = "IDENT"
-		tokenNames[tokQuotedIdent] = "QUOTED_IDENT"
-		tokenNames[tokHexLiteral] = "HEX_LITERAL"
-		tokenNames[tokBitLiteral] = "BIT_LITERAL"
-		tokenNames[tokPlaceholder] = "PLACEHOLDER"
-		tokenNames[tokLessEq] = "<="
-		tokenNames[tokGreaterEq] = ">="
-		tokenNames[tokNotEq] = "<>"
-		tokenNames[tokNullSafeEq] = "<=>"
-		tokenNames[tokLogicalAnd] = "&&"
-		tokenNames[tokDoublePipes] = "||"
-		tokenNames[tokShiftLeft] = "<<"
-		tokenNames[tokShiftRight] = ">>"
-		tokenNames[tokArrow] = "->"
-		tokenNames[tokDoubleAt] = "@@"
-		tokenNames[tokAssign] = ":="
-		tokenNames[tokDotDotDot] = "..."
-		tokenNames[tokHintStart] = "HINT_START"
-		tokenNames[tokHintEnd] = "HINT_END"
-		// Fix non-determinism for aliases that map multiple strings
-		// to the same TokenKind (e.g., "char"/"character" -> kwCHAR).
-		tokenNames[kwCHAR] = "CHAR"
-		tokenNames[kwTYPECAST] = "TYPECAST"
-		tokenNames[kwCONVERT_LSC] = "CONVERT_LSC"
-	}
 	if name, ok := tokenNames[kind]; ok {
 		return name
 	}
