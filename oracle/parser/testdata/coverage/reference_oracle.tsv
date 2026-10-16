@@ -223,6 +223,18 @@ ref_221	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbk_{run} AS MEMB
 ref_222	plsql_body	reject	CREATE OR REPLACE PACKAGE BODY omni_bad_pie_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION END;	package initialization EXCEPTION without a handler
 ref_223	plsql	reject	DECLARE x LONG(10, 2); BEGIN NULL; END;	LONG with a scale (PLS-00572)
 ref_224	plsql	reject	DECLARE x REF omni_missing_t CHARACTER SET NCHAR_CS; BEGIN NULL; END;	REF with a character set (PLS-00550)
+ref_225	select	accept	(SELECT 1 FROM dual) UNION ALL (SELECT 2 FROM dual) ORDER BY 1	parenthesized set operands
+ref_226	select	accept	SELECT * FROM ((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual)) x	parenthesized set operation as an inline view
+ref_227	select	accept	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) UNION (SELECT 2 FROM dual))	parenthesized set operation as an IN subquery
+ref_228	select	accept	SELECT 1 FROM dual EXCEPT ALL SELECT 2 FROM dual	EXCEPT ALL
+ref_229	ddl	accept	CREATE TABLE omni_ctas_{run} AS (SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual)	CTAS with parenthesized set operands
+ref_230	plsql	accept	DECLARE CURSOR c IS (SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual); BEGIN NULL; END;	cursor with parenthesized set operands
+ref_231	plsql	accept	BEGIN FOR r IN ((SELECT 1 a FROM dual) UNION ALL (SELECT 2 FROM dual)) LOOP NULL; END LOOP; END;	cursor FOR loop over a parenthesized set operation
+ref_232	select	reject	(SELECT 1 a FROM dual ORDER BY 1)	ORDER BY inside a parenthesized query (ORA-00907)
+ref_233	select	reject	(WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w) UNION SELECT 1 FROM dual	WITH inside a parenthesized set operand (ORA-32034)
+ref_234	select	reject	SELECT 1 FROM dual ORDER BY 1 UNION SELECT 2 FROM dual	set operator after ORDER BY (ORA-03048)
+ref_235	select	reject	SELECT 1 except FROM dual	EXCEPT where an alias would stand (ORA-00928)
+ref_236	ddl	reject	CREATE TABLE omni_bad_ctas_{run} AS (SELECT 1 a FROM dual ORDER BY 1)	CTAS with ORDER BY inside the parentheses (ORA-00907)
 ref_237	select	accept	SELECT JSON_OBJECT(KEY 'a' VALUE 1, KEY 'b' VALUE 'x' RETURNING VARCHAR2(100) STRICT WITH UNIQUE KEYS) FROM dual	JSON_OBJECT with KEY entries and every clause
 ref_238	select	accept	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy DESC NULL ON NULL RETURNING CLOB STRICT) FROM dual	JSON_ARRAYAGG with ORDER BY and clauses
 ref_239	select	accept	SELECT JSON_OBJECTAGG(KEY dummy VALUE 1 ABSENT ON NULL RETURNING CLOB) FROM dual	JSON_OBJECTAGG with KEY and clauses
@@ -237,12 +249,16 @@ ref_247	plsql_body	accept	CREATE OR REPLACE TYPE omni_np_{run} AS OBJECT (x PLS_
 ref_248	plsql_body	accept	CREATE OR REPLACE TYPE omni_npc_{run} AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE	PL/SQL-only element in a NOT PERSISTABLE collection
 ref_249	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_oid_{run} OID 'ABC' AS OBJECT (a NUMBER)	OID that is not 32 hexadecimal digits (ORA-02304)
 ref_250	ddl	reject	CREATE TABLE omni_bad_nch_{run} (x NCHAR(2 CHAR))	CHAR length semantics on NCHAR in SQL (ORA-00907)
+ref_251	select	accept	SELECT x.a FROM (((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual))) x	alias after redundant inline-view parentheses
+ref_252	select	reject	(SELECT 1 FROM dual EXCEPT)	set operator without a right operand (ORA-00928)
 ref_253	select	accept	SELECT JSON_OBJECT(* RETURNING CLOB) FROM dual	JSON_OBJECT(*) with a clause
 ref_254	select	accept	SELECT JSON_OBJECT(KEY 'VALUE' VALUE 1) FROM dual	literal key spelled VALUE
 ref_255	select	reject	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy,) FROM dual	trailing comma in JSON_ARRAYAGG ORDER BY (ORA-00936)
 ref_256	select	reject	SELECT JSON_OBJECTAGG(* VALUE 1) FROM dual	wildcard JSON_OBJECTAGG key (ORA-00936)
+ref_257	select	reject	(SELECT *) UNION SELECT 1 FROM dual	parenthesized operand selecting * without FROM (ORA-54058)
 ref_258	select	reject	SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2()) FROM dual	RETURNING datatype without its size (ORA-00910)
 ref_259	select	accept	SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)	quoted "*" column as a JSON_OBJECTAGG key
+ref_260	select	reject	SELECT 1 FROM dual MINUS ALL WITH w AS (SELECT 2 x FROM dual) SELECT x FROM w	WITH clause on a set operation branch (ORA-32034)
 ref_261	select	accept	SELECT JSON_OBJECT('a':dummy) FROM dual	colon separator right before the value
 ref_262	select	accept	SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual	WITH TYPENAME after the unique-keys clause
 ref_263	select	reject	SELECT JSON_OBJECT(dummy STRICT) FROM dual	STRICT right after a column entry (ORA-02000)
@@ -258,3 +274,20 @@ ref_286	select	reject	SELECT CAST(1 AS FLOAT(127)) FROM dual	FLOAT precision out
 ref_287	ddl	reject	CREATE TABLE omni_bad_tsp_{run} (x TIMESTAMP(10))	fractional-second precision outside 0 to 9 (ORA-30088)
 ref_288	ddl	accept	CREATE TABLE omni_numr_{run} (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))	precision and scale bounds
 ref_289	ddl	reject	CREATE TABLE omni_bad_rlnk_{run} (n NUMBER REFERENCES omni_missing@omni_lnk (a))	referenced table over a database link (ORA-02021)
+ref_295	select	reject	SELECT 1 FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER BY 1)	ORDER BY in a condition subquery (ORA-00907)
+ref_296	select	reject	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) ORDER BY 1)	ORDER BY after a parenthesized operand in a condition subquery (ORA-00907)
+ref_297	select	reject	SELECT ((SELECT 1 FROM dual) ORDER BY 1) FROM dual	ORDER BY in a scalar subquery (ORA-00907)
+ref_298	select	accept	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) ORDER BY 1 FETCH FIRST 1 ROWS ONLY)	row-limited ORDER BY in a condition subquery
+ref_299	plsql	accept	BEGIN FOR r IN ((SELECT 1 a FROM dual) ORDER BY 1) LOOP NULL; END LOOP; END;	ORDER BY in a cursor FOR loop query
+ref_300	select	reject	SELECT 1 FROM dual WHERE EXISTS (SELECT * FETCH FIRST 1 ROWS ONLY)	row-limited star without FROM in EXISTS (ORA-54058)
+ref_301	select	reject	SELECT 1 + except FROM dual	EXCEPT is reserved in SQL (ORA-00936)
+ref_302	select	reject	SELECT * FROM except	EXCEPT as a table name (ORA-00903)
+ref_303	plsql	accept	DECLARE except NUMBER := 1; x NUMBER; BEGIN x := except + 1; except := x; END;	PL/SQL does not reserve EXCEPT
+ref_304	select	accept	SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FROM dual) (SELECT *))	star without FROM in EXISTS behind a WITH clause
+ref_305	select	reject	SELECT 1 FROM dual WHERE EXISTS ((SELECT dummy FROM dual) FOR UPDATE)	FOR UPDATE in an expression subquery (ORA-00907)
+ref_306	select	reject	WITH w AS (SELECT dummy FROM dual FOR UPDATE) SELECT * FROM w	FOR UPDATE in a WITH element (ORA-00907)
+ref_307	plsql	accept	BEGIN FOR r IN (SELECT dummy FROM dual FOR UPDATE) LOOP NULL; END LOOP; END;	FOR UPDATE in a cursor FOR loop query
+ref_308	plsql	accept	BEGIN FOR r IN ((SELECT dummy FROM dual) FOR UPDATE) LOOP NULL; END LOOP; END;	FOR UPDATE after a parenthesized cursor FOR loop query
+ref_309	plsql	reject	BEGIN FOR i IN (SELECT 1 FROM dual) + 1 LOOP NULL; END LOOP; END;	a FOR loop query stands alone (PLS-00103)
+ref_310	select	reject	SELECT (SELECT d.*) FROM dual d	table.* without FROM (ORA-00904)
+ref_311	select	accept	SELECT 1 FROM dual d WHERE EXISTS (SELECT d.*)	table.* without FROM in EXISTS

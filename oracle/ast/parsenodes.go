@@ -8,7 +8,8 @@ package ast
 // Enums
 // ---------------------------------------------------------------------------
 
-// SetOperation represents types of set operations (UNION, INTERSECT, MINUS).
+// SetOperation represents types of set operations (UNION, INTERSECT, MINUS,
+// EXCEPT).
 type SetOperation int
 
 const (
@@ -16,6 +17,7 @@ const (
 	SETOP_UNION
 	SETOP_INTERSECT
 	SETOP_MINUS
+	SETOP_EXCEPT // EXCEPT, the 23ai synonym of MINUS
 )
 
 // JoinType represents types of joins.

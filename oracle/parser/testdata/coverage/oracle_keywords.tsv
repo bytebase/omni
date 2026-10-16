@@ -79,7 +79,7 @@ kw_077	ENABLE	2064	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword cl
 kw_078	END	2065	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_079	ERRORS	2066	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_080	ESCAPE	2067	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
-kw_081	EXCEPT	2307	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
+kw_081	EXCEPT	2307	clause-starter	reject	reject	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_082	EXCEPTION	2068	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_083	EXCLUSIVE	2069	reserved	reject	reject	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_084	EXECUTE	2070	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy

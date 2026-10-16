@@ -182,7 +182,9 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		}
 	}
 
-	if p.cur.Type == '(' {
+	// A column list, unless the parentheses hold the subquery:
+	// INSERT INTO t (SELECT ...) compiles on Oracle 23ai.
+	if p.cur.Type == '(' && !p.atQuery() {
 		var parseErr779 error
 		stmt.Columns, parseErr779 = p.parseParenColumnList()
 		if parseErr779 !=

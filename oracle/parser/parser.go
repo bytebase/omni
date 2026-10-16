@@ -28,11 +28,26 @@ type Parser struct {
 	// or names a column (false). decideCaseTokens fills it in one pass.
 	caseKinds map[int]bool
 
+	// parenQueries tells, for each '(' from the first one a query lookup
+	// met to the end of the range, how its group reads as a query.
+	// decideParenQueries fills it in one pass.
+	parenQueries map[int]parenQuery
+
 	// groupFroms tells, for each parenthesized group from the first TRIM
 	// call atTrimSyntax met to the end of the range, by the offset of the
 	// token after its '(', whether a FROM stands at the group's own depth.
 	// decideGroupFroms fills it in one pass.
 	groupFroms map[int]bool
+
+	// queryIterand is set while the iteration control of a FOR loop that
+	// opens with '(' is parsed: a query there is a cursor's, which may end
+	// in a plain ORDER BY (Oracle 23ai runs FOR r IN (SELECT a FROM t ORDER
+	// BY a) LOOP). parseParenExpr takes it for its own parentheses alone,
+	// and records the query in iterandQuery and the token after it in
+	// iterandAfter, for parseIterandExpr to check it stands alone.
+	queryIterand bool
+	iterandQuery *nodes.SubqueryExpr
+	iterandAfter Token
 
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
@@ -155,6 +170,19 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		if stmt == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+		if lock := lockedSubquery(stmt); lock != nil {
+			return nil, p.syntaxErrorAtNode(lock)
+		}
+		if sel := sourcelessStar(stmt); sel != nil {
+			// At the block's start, its SELECT or its WITH, past the
+			// parentheses its span takes.
+			lex := NewLexerRange(p.source, sel.Loc.Start, sel.Loc.End)
+			tok := lex.NextToken()
+			for tok.Type == '(' {
+				tok = lex.NextToken()
+			}
+			return nil, p.syntaxErrorAtTok(tok)
+		}
 
 		raw := &nodes.RawStmt{
 			Stmt: stmt,
@@ -266,7 +294,7 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	switch s := stmt.(type) {
 	case *nodes.SelectStmt:
-		return (s.FromClause == nil || s.FromClause.Len() == 0) && selectTargetListContainsStar(s.TargetList)
+		return querySelectsSourcelessStar(s)
 	case *nodes.DropStmt:
 		if s.ObjectType == nodes.OBJECT_DATABASE && (s.Names == nil || s.Names.Len() == 0) {
 			return false
@@ -286,20 +314,120 @@ func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	}
 }
 
-func selectTargetListContainsStar(list *nodes.List) bool {
-	if list == nil {
+// sourcelessStar returns the first query block in stmt that selects *
+// without a FROM clause, which Oracle 23ai rejects with ORA-54058 at the
+// block's start, its SELECT or its WITH, wherever it stands: CREATE TABLE ... AS (SELECT *), a view,
+// an INSERT, a subquery, an inline view, a WITH element, MERGE USING, or a
+// cursor FOR loop. The subquery of EXISTS is the exception when it is one
+// query block with no row-limiting clause, as Oracle does not expand its
+// select list: WHERE EXISTS (SELECT *) runs, and EXISTS (SELECT * UNION
+// SELECT 1 FROM dual) and EXISTS (SELECT * FETCH FIRST 1 ROWS ONLY) fail.
+func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
+	exempt := map[*nodes.SelectStmt]bool{}
+	var bad *nodes.SelectStmt
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		if bad != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *nodes.ExistsExpr:
+			sel, ok := n.Subquery.(*nodes.SelectStmt)
+			// A WITH clause before a parenthesized block wraps it, one
+			// block still: Oracle 23ai runs EXISTS (WITH w AS (...)
+			// (SELECT *)).
+			for ok && sel.Larg != nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
+				sel = sel.Larg
+			}
+			if ok && sel.Larg == nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
+				exempt[sel] = true
+			}
+		case *nodes.SelectStmt:
+			// A set operation holds its first block itself, Larg nil, or
+			// wraps a parenthesized one in Larg.
+			if n.Larg == nil && !exempt[n] &&
+				(n.FromClause == nil || n.FromClause.Len() == 0) && selectTargetListContainsStar(n.TargetList) {
+				bad = n
+			}
+		}
+		return true
+	})
+	return bad
+}
+
+// lockedSubquery returns the FOR UPDATE clause that ends a subquery in
+// stmt. Oracle 23ai locks rows for a top-level query and a cursor's alone:
+// it rejects FOR UPDATE in an expression subquery, an inline view or a
+// DML target, a WITH element, MERGE USING, CURSOR(...), INSERT ... SELECT,
+// and CREATE TABLE or VIEW ... AS (ORA-00907, ORA-03048), and runs it in a
+// cursor declaration, OPEN FOR, and a FOR loop's query, VALUES OF (...)
+// too. A subquery it does not list keeps its FOR UPDATE.
+func lockedSubquery(stmt nodes.Node) nodes.Node {
+	var lock nodes.Node
+	check := func(query nodes.StmtNode) {
+		if sel, ok := query.(*nodes.SelectStmt); ok && lock == nil {
+			lock = trailingForUpdate(sel)
+		}
+	}
+	iterands := map[*nodes.SubqueryExpr]bool{}
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		if lock != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *nodes.PLSQLIterationControl:
+			if sub, ok := n.Expr.(*nodes.SubqueryExpr); ok {
+				iterands[sub] = true
+			}
+		case *nodes.SubqueryExpr:
+			if !iterands[n] {
+				check(n.Subquery)
+			}
+		case *nodes.ExistsExpr:
+			check(n.Subquery)
+		case *nodes.CursorExpr:
+			check(n.Subquery)
+		case *nodes.SubqueryRef:
+			check(n.Subquery)
+		case *nodes.CTE:
+			check(n.Query)
+		case *nodes.InsertStmt:
+			if n.Select != nil {
+				check(n.Select)
+			}
+			check(n.Subquery)
+		case *nodes.CreateTableStmt:
+			check(n.AsQuery)
+		case *nodes.CreateViewStmt:
+			check(n.Query)
+		}
+		return true
+	})
+	return lock
+}
+
+// querySelectsSourcelessStar reports whether a query block of query selects
+// * without a FROM clause, which Oracle 23ai rejects with ORA-54058. A set
+// operation's operands and a parenthesized operand's wrapper are searched:
+// (SELECT *) UNION SELECT 1 FROM dual fails like SELECT * alone.
+func querySelectsSourcelessStar(query *nodes.SelectStmt) bool {
+	if query == nil {
 		return false
 	}
-	for _, item := range list.Items {
-		target, ok := item.(*nodes.ResTarget)
-		if !ok {
-			continue
-		}
-		if _, ok := target.Expr.(*nodes.Star); ok {
+	if query.Larg != nil {
+		if querySelectsSourcelessStar(query.Larg) {
 			return true
 		}
+	} else if (query.FromClause == nil || query.FromClause.Len() == 0) && selectTargetListContainsStar(query.TargetList) {
+		return true
 	}
-	return false
+	return querySelectsSourcelessStar(query.Rarg)
+}
+
+// selectTargetListContainsStar reports whether list selects * or table.*:
+// Oracle 23ai rejects (SELECT x.*) as it does (SELECT *) (ORA-00904), and
+// runs EXISTS (SELECT x.*).
+func selectTargetListContainsStar(list *nodes.List) bool {
+	return list != nil && selectListHasStar(list)
 }
 
 // parseStmt dispatches to statement-specific parsers.
@@ -307,7 +435,7 @@ func selectTargetListContainsStar(list *nodes.List) bool {
 // fail at the earliest invalid token while preserving partial-node Loc data.
 func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
-	case kwSELECT, kwWITH:
+	case kwSELECT, kwWITH, '(':
 		return p.parseSelectStmt()
 	case kwINSERT:
 		return p.parseInsertStmt()
