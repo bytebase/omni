@@ -1337,9 +1337,16 @@ func (p *Parser) parseJoinedTable() (nodes.Node, error) {
 // paren-block that is itself select_with_parens (recursive). Any JOIN-
 // family keyword at depth 1, or any trailing tokens after a nested
 // paren-block, routes to the joined_table path.
+//
+// The parser asks again at every nesting level as it descends, so the
+// verdict of every '(' the scan passes is kept in parenIsSubquery.
+// Rescanning instead made n nested groups cost O(n²).
 func (p *Parser) parenBeginsSubquery() bool {
 	if p.cur.Type != '(' {
 		return false
+	}
+	if isSubquery, ok := p.parenIsSubquery[p.cur.Loc]; ok {
+		return isSubquery
 	}
 	snap := p.snapshotTokenStreamAndCompletion()
 	defer p.restoreTokenStreamAndCompletion(snap)
@@ -1349,11 +1356,13 @@ func (p *Parser) parenBeginsSubquery() bool {
 // consumeMatchedParenIsSubquery: p.cur is at '('. Consumes through
 // the matched ')' (inclusive) and returns true iff the paren block is
 // a select_with_parens. Must only be called inside a snapshot/restore
-// scope because it mutates the token stream.
+// scope because it mutates the token stream. Every '(' in the block is
+// classified on the way and its verdict recorded in parenIsSubquery.
 func (p *Parser) consumeMatchedParenIsSubquery() bool {
-	if p.cur.Type != '(' || p.cur.Type == 0 {
+	if p.cur.Type != '(' {
 		return false
 	}
+	open := p.cur.Loc
 	p.advance() // consume '('
 
 	var isSubquery bool
@@ -1388,21 +1397,22 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 		isSubquery = false
 	}
 
-	// Consume through the matching outer ')'.
-	depth := 1
-	for depth > 0 && p.cur.Type != 0 {
-		switch p.cur.Type {
-		case '(':
-			depth++
-		case ')':
-			depth--
-			if depth == 0 {
-				p.advance()
-				return isSubquery
-			}
+	// Consume through the matching outer ')', classifying each nested
+	// '(' on the way.
+	for p.cur.Type != ')' && p.cur.Type != 0 {
+		if p.cur.Type == '(' {
+			p.consumeMatchedParenIsSubquery()
+			continue
 		}
 		p.advance()
 	}
+	if p.cur.Type == ')' {
+		p.advance()
+	}
+	if p.parenIsSubquery == nil {
+		p.parenIsSubquery = make(map[int]bool)
+	}
+	p.parenIsSubquery[open] = isSubquery
 	return isSubquery
 }
 

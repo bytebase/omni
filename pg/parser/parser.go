@@ -21,6 +21,16 @@ type Parser struct {
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
 
+	// Memos for the paren classifiers, keyed by the byte offset of a '('.
+	// The parser asks again at every nesting level as it descends, and each
+	// answer depends only on the input, so a scan records what it learns
+	// about every '(' it passes. Without them, n nested parens cost O(n²)
+	// token scans.
+	parenAfter      map[int]Token // token after the '(' block's matching ')'
+	parenIsSubquery map[int]bool  // consumeMatchedParenIsSubquery's verdict
+	parenRunStart   int           // offset of the '(' run walked last
+	parenRunPast    Token         // first token past that run
+
 	// Completion mode fields.
 	completing   bool          // true when collecting completion candidates
 	cursorOff    int           // byte offset of the cursor in source
@@ -1446,5 +1456,8 @@ func (p *Parser) resetLexerTo(off int) {
 	lx.EscapeStringWarning = p.lexer.EscapeStringWarning
 	p.lexer = lx
 	p.hasNext = false
+	// The paren memos describe tokens of the lexer just replaced.
+	p.parenAfter, p.parenIsSubquery = nil, nil
+	p.parenRunStart, p.parenRunPast = 0, Token{}
 	p.advance()
 }
