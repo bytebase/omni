@@ -246,6 +246,14 @@ func TestDisallowDropObject(t *testing.T) {
 			},
 		},
 		{
+			name: "IF EXISTS does not exempt a subcommand",
+			sql:  "ALTER TABLE t DROP INDEX IF EXISTS idx_n, DROP PARTITION IF EXISTS p0;",
+			want: []finding{
+				{0, "DROP INDEX IF EXISTS idx_n", "drops index idx_n of t", []int{0}},
+				{0, "DROP PARTITION IF EXISTS p0", "drops partition p0 of t", []int{0}},
+			},
+		},
+		{
 			name: "constraints belong to DisallowDropConstraint",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p, DROP CONSTRAINT ck_n, DROP CONSTRAINT uk_code;\nDROP INDEX `PRIMARY` ON t;",
 		},
@@ -312,6 +320,15 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{0, "DROP CONSTRAINT ck_n", "drops constraint ck_n of t", []int{0}},
 				{0, "DROP CONSTRAINT uk_code", "drops constraint uk_code of t", []int{0}},
 				{1, "DROP INDEX `PRIMARY` ON p", "drops the primary key of p", []int{0}},
+			},
+		},
+		{
+			name: "DROP CONSTRAINT PRIMARY KEY, and IF EXISTS",
+			sql:  "ALTER TABLE t DROP CONSTRAINT PRIMARY KEY, DROP CONSTRAINT IF EXISTS ck_n, DROP FOREIGN KEY IF EXISTS fk_p;",
+			want: []finding{
+				{0, "DROP CONSTRAINT PRIMARY KEY", "drops the primary key of t", []int{0}},
+				{0, "DROP CONSTRAINT IF EXISTS ck_n", "drops constraint ck_n of t", []int{0}},
+				{0, "DROP FOREIGN KEY IF EXISTS fk_p", "drops foreign key fk_p of t", []int{0}},
 			},
 		},
 		{
@@ -438,6 +455,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name: "a primary key dropped and not added back",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY;\nALTER TABLE p DROP PRIMARY KEY, ADD PRIMARY KEY (id, note);\nALTER TABLE trig DROP PRIMARY KEY;\nALTER TABLE trig ADD PRIMARY KEY (id);",
 			want: []finding{{0, "DROP PRIMARY KEY", "removes the primary key of t, and the change adds none back", []int{0}}},
+		},
+		{
+			name: "a primary key dropped as a constraint",
+			sql:  "ALTER TABLE t DROP CONSTRAINT PRIMARY KEY;",
+			want: []finding{{0, "DROP CONSTRAINT PRIMARY KEY", "removes the primary key of t, and the change adds none back", []int{0}}},
 		},
 	})
 }

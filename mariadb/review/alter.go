@@ -27,10 +27,10 @@ const (
 )
 
 // dropKindOf returns what an ALTER TABLE subcommand drops, dropNone for
-// one that drops nothing. The parser gives DROP PRIMARY KEY, DROP FOREIGN
-// KEY, and DROP CONSTRAINT one command type; the keyword after DROP in the
-// subcommand's own text tells them apart. MariaDB has no DROP CHECK, which
-// is MySQL's.
+// one that drops nothing. The parser gives DROP [CONSTRAINT] PRIMARY KEY,
+// DROP FOREIGN KEY, and DROP CONSTRAINT one command type; the keywords
+// after DROP in the subcommand's own text tell them apart. MariaDB has no
+// DROP CHECK, which is MySQL's.
 func dropKindOf(sql string, cmd *ast.AlterTableCmd) dropKind {
 	switch cmd.Type {
 	case ast.ATDropColumn:
@@ -48,30 +48,36 @@ func dropKindOf(sql string, cmd *ast.AlterTableCmd) dropKind {
 	case ast.ATDropPeriod:
 		return dropPeriod
 	case ast.ATDropConstraint:
-		switch wordAfterDrop(sql, cmd.Loc) {
+		switch wordAfterDrop(sql, cmd.Loc, 0) {
 		case "PRIMARY":
 			return dropPrimaryKey
 		case "FOREIGN":
 			return dropForeignKey
 		case "CONSTRAINT":
+			// DROP CONSTRAINT PRIMARY KEY. A constraint named `PRIMARY`
+			// keeps its quotes here, and is not the primary key.
+			if wordAfterDrop(sql, cmd.Loc, 1) == "PRIMARY" {
+				return dropPrimaryKey
+			}
 			return dropConstraint
 		}
 	}
 	return dropNone
 }
 
-// wordAfterDrop returns the word that follows DROP in the text of a
-// location, upper-cased, "" when the text does not start with DROP.
-func wordAfterDrop(sql string, loc ast.Loc) string {
+// wordAfterDrop returns word i, counted from 0, of the words that follow
+// DROP in the text of a location, upper-cased, "" when the text does not
+// start with DROP or has no such word.
+func wordAfterDrop(sql string, loc ast.Loc, i int) string {
 	if loc.Start < 0 || loc.End > len(sql) || loc.End <= loc.Start {
 		return ""
 	}
 	text := sql[loc.Start:loc.End]
 	tokens := parser.Tokenize(text)
-	if len(tokens) < 2 || !strings.EqualFold(tokenText(text, tokens[0]), "DROP") {
+	if len(tokens) < i+2 || !strings.EqualFold(tokenText(text, tokens[0]), "DROP") {
 		return ""
 	}
-	return strings.ToUpper(tokenText(text, tokens[1]))
+	return strings.ToUpper(tokenText(text, tokens[i+1]))
 }
 
 func tokenText(text string, tok parser.Token) string {
