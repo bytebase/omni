@@ -15,7 +15,7 @@ import (
 // It runs statement by statement on PostgreSQL 17 and on the catalog: each
 // statement must be accepted by both, or rejected by both with the same
 // SQLSTATE, and the schema must end with the same relations, columns,
-// column comments, constraints and constraint indexes.
+// column comments, triggers, constraints and constraint indexes.
 type dependencyOracleCase struct {
 	name string
 	sql  string
@@ -140,6 +140,32 @@ ALTER TABLE p ATTACH PARTITION p2 FOR VALUES FROM (10) TO (20);
 ALTER TABLE p1 DROP COLUMN x;
 ALTER TABLE p DROP COLUMN x;`},
 
+		{"drop column refused by a view on an inheritance child", `
+CREATE TABLE p (id int, a int);
+CREATE TABLE c () INHERITS (p);
+CREATE VIEW v AS SELECT a FROM c;
+ALTER TABLE p DROP COLUMN a;`},
+		{"drop column refused by a view on a partition", `
+CREATE TABLE p (id int, a int) PARTITION BY RANGE (id);
+CREATE TABLE p1 PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE VIEW v AS SELECT a FROM p1;
+ALTER TABLE p DROP COLUMN a;
+ALTER TABLE p DROP COLUMN a CASCADE;`},
+		{"drop column of a partitioned table with an index and a trigger", `
+CREATE TABLE p (id int, a int, b int) PARTITION BY RANGE (id);
+CREATE TABLE p1 PARTITION OF p FOR VALUES FROM (0) TO (10);
+CREATE INDEX p_a ON p (a);
+CREATE FUNCTION f() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RETURN NEW; END$$;
+CREATE TRIGGER tg BEFORE UPDATE OF b ON p FOR EACH ROW EXECUTE FUNCTION f();
+ALTER TABLE p DROP COLUMN a;
+ALTER TABLE p DROP COLUMN b;
+ALTER TABLE p DROP COLUMN b CASCADE;`},
+		{"drop referenced column cascades to partition foreign keys", `
+CREATE TABLE t (id int PRIMARY KEY, k int);
+CREATE TABLE p (id int, tid int REFERENCES t (id)) PARTITION BY RANGE (id);
+CREATE TABLE p1 PARTITION OF p FOR VALUES FROM (0) TO (10);
+ALTER TABLE t DROP COLUMN id;
+ALTER TABLE t DROP COLUMN id CASCADE;`},
 		// DROP TABLE takes the table's own constraints and columns with it.
 		{"drop table with checks, generated columns and a self key", `
 CREATE TABLE t (id int PRIMARY KEY, n int CHECK (n > 0), m int GENERATED ALWAYS AS (n * 2) STORED, parent int REFERENCES t (id));
@@ -157,6 +183,10 @@ DROP TABLE t CASCADE;`},
 
 		// ALTER COLUMN TYPE rebuilds constraints but refuses views,
 		// generated columns and triggers reading the column.
+		{"alter type of a referenced key", `
+CREATE TABLE t (id int PRIMARY KEY);
+CREATE TABLE c (tid int REFERENCES t (id));
+ALTER TABLE t ALTER COLUMN id TYPE bigint;`},
 		{"alter column type", `
 CREATE TABLE t (id int, n int CHECK (n > 0), m int, g int GENERATED ALWAYS AS (m * 2) STORED, k int, w int);
 CREATE VIEW v AS SELECT k FROM t;
@@ -287,8 +317,8 @@ func catalogSQLState(err error) string {
 	return "?"
 }
 
-// pgSchemaState lists the relations, columns with their comments, and
-// constraints of schema on PostgreSQL, sorted.
+// pgSchemaState lists the relations, columns with their comments, triggers
+// and constraints of schema on PostgreSQL, sorted.
 func pgSchemaState(oracle *loaderCompatOracle, conn *sql.Conn, schema string) ([]string, error) {
 	const q = `
 SELECT CASE WHEN c.relkind IN ('i', 'I') THEN 'index ' || c.relname
@@ -303,6 +333,11 @@ FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid
      JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = $1 AND c.relkind IN ('r', 'p', 'v', 'm')
       AND a.attnum > 0 AND NOT a.attisdropped
+UNION ALL
+SELECT 'trigger ' || r.relname || '.' || tg.tgname
+FROM pg_trigger tg JOIN pg_class r ON r.oid = tg.tgrelid
+     JOIN pg_namespace n ON n.oid = r.relnamespace
+WHERE n.nspname = $1 AND NOT tg.tgisinternal
 UNION ALL
 SELECT 'constraint ' || r.relname || '.' || con.conname
        || CASE WHEN con.contype IN ('p', 'u', 'x') THEN ' index ' || i.relname ELSE '' END
@@ -343,6 +378,9 @@ func catalogSchemaState(c *Catalog) []string {
 				line += " comment " + text
 			}
 			state = append(state, line)
+		}
+		for _, trig := range c.triggersByRel[rel.OID] {
+			state = append(state, "trigger "+name+"."+trig.Name)
 		}
 		for _, con := range c.consByRel[rel.OID] {
 			line := "constraint " + name + "." + con.Name

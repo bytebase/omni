@@ -440,6 +440,13 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atSetNotNull(rel, atc.Name)
 
 	case nodes.AT_DropColumn:
+		// The drop reaches the children after this relation: refuse it here
+		// if a child's part would fail, so a failed statement changes nothing.
+		if recurse && !recursing {
+			if err := c.checkChildColumnDrops(rel, atc.Name, cascade); err != nil {
+				return err
+			}
+		}
 		return c.atDropColumn(schema, rel, atc.Name, cascade, atc.Missing_ok, recursing)
 
 	case nodes.AT_AddConstraint:
@@ -1938,6 +1945,36 @@ func (c *Catalog) renumberColumns(rel *Relation) {
 		col.AttNum = int16(i + 1)
 		rel.colByName[col.Name] = i
 	}
+}
+
+// checkChildColumnDrops refuses a DROP COLUMN that a direct child of rel would
+// refuse under RESTRICT: the child's column has no other parent or local
+// definition, so it goes too, and something depends on it.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecDropColumn deletes the
+// column of every child within the same statement
+func (c *Catalog) checkChildColumnDrops(rel *Relation, colName string, cascade bool) error {
+	if cascade {
+		return nil
+	}
+	for _, childOID := range c.findChildRelations(rel.OID) {
+		child := c.relationByOID[childOID]
+		if child == nil {
+			continue
+		}
+		idx, ok := child.colByName[colName]
+		if !ok {
+			continue
+		}
+		col := child.Columns[idx]
+		if col.InhCount > 1 || col.InhCount == 1 && col.IsLocal {
+			continue
+		}
+		if hasNormalDependent(c.relationDependents(child.OID, col.AttNum)) {
+			return errDependentObjects("column", colName)
+		}
+	}
+	return nil
 }
 
 // shiftAttnumsAfterDrop moves the stored references to the columns that

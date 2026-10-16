@@ -108,6 +108,18 @@ func (c *Catalog) relationDependents(relOID uint32, attnum int16) []dependentObj
 	return result
 }
 
+// recordColumnDependencies records a dependency of an object on each column
+// of the relation relOID in attnums; 0, an expression column, is skipped.
+// Objects cloned to a partition or a LIKE copy record these as their source
+// does, so a DROP COLUMN finds them.
+func (c *Catalog) recordColumnDependencies(objType byte, objOID, relOID uint32, attnums []int16, depType DepType) {
+	for _, attnum := range attnums {
+		if attnum != 0 {
+			c.recordDependency(objType, objOID, 0, 'r', relOID, int32(attnum), depType)
+		}
+	}
+}
+
 // hasNormalDependent reports whether any of deps needs CASCADE to drop.
 func hasNormalDependent(deps []dependentObject) bool {
 	for _, d := range deps {
