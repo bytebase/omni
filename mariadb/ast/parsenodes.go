@@ -332,6 +332,7 @@ func (s *DropTableStmt) stmtNode() {}
 // CreateIndexStmt represents a CREATE INDEX statement.
 type CreateIndexStmt struct {
 	Loc         Loc
+	OrReplace   bool // CREATE OR REPLACE INDEX: drops an existing index of that name first
 	Unique      bool
 	Fulltext    bool
 	Spatial     bool
@@ -390,6 +391,7 @@ func (s *CreateViewStmt) stmtNode() {}
 // CreateDatabaseStmt represents a CREATE DATABASE statement.
 type CreateDatabaseStmt struct {
 	Loc         Loc
+	OrReplace   bool // CREATE OR REPLACE DATABASE: drops an existing database first
 	IfNotExists bool
 	Name        string
 	Options     []*DatabaseOption
@@ -1435,6 +1437,7 @@ func (t *GrantTarget) nodeTag() {}
 // CreateUserStmt represents a CREATE USER statement.
 type CreateUserStmt struct {
 	Loc          Loc
+	OrReplace    bool // CREATE OR REPLACE USER: drops an existing account first
 	IfNotExists  bool
 	Users        []*UserSpec
 	DefaultRoles []string        // DEFAULT ROLE role [, role] ...
@@ -1557,6 +1560,7 @@ func (u *UserSpec) nodeTag() {}
 // CreateRoleStmt represents a CREATE ROLE statement.
 type CreateRoleStmt struct {
 	Loc         Loc
+	OrReplace   bool // CREATE OR REPLACE ROLE: drops an existing role first
 	IfNotExists bool
 	Roles       []string
 }
@@ -1625,7 +1629,7 @@ func (s *RevokeRoleStmt) stmtNode() {}
 // CreateFunctionStmt represents a CREATE FUNCTION or CREATE PROCEDURE.
 type CreateFunctionStmt struct {
 	Loc             Loc
-	OrReplace       bool
+	OrReplace       bool // CREATE OR REPLACE {FUNCTION | PROCEDURE}: replaces an existing routine
 	IfNotExists     bool
 	IsProcedure     bool
 	IsAggregate     bool // CREATE AGGREGATE FUNCTION (loadable UDF)
@@ -1664,6 +1668,7 @@ func (c *RoutineCharacteristic) nodeTag() {}
 // CreateTriggerStmt represents a CREATE TRIGGER statement.
 type CreateTriggerStmt struct {
 	Loc         Loc
+	OrReplace   bool // CREATE OR REPLACE TRIGGER: drops an existing trigger first
 	Definer     string
 	IfNotExists bool
 	Name        string
@@ -1690,6 +1695,7 @@ func (o *TriggerOrder) nodeTag() {}
 // CreateEventStmt represents a CREATE EVENT statement.
 type CreateEventStmt struct {
 	Loc          Loc
+	OrReplace    bool // CREATE OR REPLACE EVENT: drops an existing event first
 	IfNotExists  bool
 	Definer      string
 	Name         string
@@ -2521,6 +2527,8 @@ func (s *DropTablespaceStmt) stmtNode() {}
 // CreateServerStmt represents a CREATE SERVER statement.
 type CreateServerStmt struct {
 	Loc         Loc
+	OrReplace   bool     // CREATE OR REPLACE SERVER: drops an existing server first
+	IfNotExists bool     // IF NOT EXISTS
 	Name        string   // server name
 	WrapperName string   // FOREIGN DATA WRAPPER name
 	Options     []string // OPTIONS values
@@ -2592,7 +2600,6 @@ func (s *DropLogfileGroupStmt) stmtNode() {}
 // CreateSpatialRefSysStmt represents a CREATE SPATIAL REFERENCE SYSTEM statement.
 type CreateSpatialRefSysStmt struct {
 	Loc          Loc
-	OrReplace    bool   // OR REPLACE
 	IfNotExists  bool   // IF NOT EXISTS
 	SRID         int64  // spatial reference system ID
 	Name         string // NAME 'srs_name'

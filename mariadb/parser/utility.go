@@ -1486,13 +1486,18 @@ func (p *Parser) parseServerOptions() ([]string, error) {
 
 // parseCreateServerStmt parses a CREATE SERVER statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-server.html
+// Ref: https://mariadb.com/kb/en/create-server/
 //
-//	CREATE SERVER server_name
+//	CREATE [OR REPLACE] SERVER [IF NOT EXISTS] server_name
 //	  FOREIGN DATA WRAPPER wrapper_name
 //	  OPTIONS (option [, option] ...)
-func (p *Parser) parseCreateServerStmt(start int) (*nodes.CreateServerStmt, error) {
+func (p *Parser) parseCreateServerStmt(start int, orReplace bool) (*nodes.CreateServerStmt, error) {
 	p.advance() // consume SERVER
+
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
+	}
 
 	name, _, err := p.parseIdentifier()
 	if err != nil {
@@ -1511,6 +1516,8 @@ func (p *Parser) parseCreateServerStmt(start int) (*nodes.CreateServerStmt, erro
 
 	stmt := &nodes.CreateServerStmt{
 		Loc:         nodes.Loc{Start: start},
+		OrReplace:   orReplace,
+		IfNotExists: ifNotExists,
 		Name:        name,
 		WrapperName: wrapperName,
 	}
@@ -1590,7 +1597,6 @@ func (p *Parser) parseDropServerStmt(start int) (*nodes.DropServerStmt, error) {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/create-spatial-reference-system.html
 //
-//	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM srid srs_attribute ...
 //	CREATE SPATIAL REFERENCE SYSTEM [IF NOT EXISTS] srid srs_attribute ...
 //
 //	srs_attribute: {
@@ -1599,7 +1605,10 @@ func (p *Parser) parseDropServerStmt(start int) (*nodes.DropServerStmt, error) {
 //	| ORGANIZATION 'org_name' IDENTIFIED BY srid
 //	| DESCRIPTION 'description'
 //	}
-func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes.CreateSpatialRefSysStmt, error) {
+//
+// MariaDB 11.8 has no such statement (1064). MySQL's OR REPLACE form is
+// rejected by parseCreateDispatch.
+func (p *Parser) parseCreateSpatialRefSysStmt(start int) (*nodes.CreateSpatialRefSysStmt, error) {
 	// SPATIAL already consumed; consume REFERENCE SYSTEM
 	// Current token should be REFERENCE (as ident)
 	if p.cur.Type != kwREFERENCE {
@@ -1618,18 +1627,13 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 	}
 	p.advance() // consume SYSTEM
 
-	stmt := &nodes.CreateSpatialRefSysStmt{
-		Loc:       nodes.Loc{Start: start},
-		OrReplace: orReplace,
-	}
+	stmt := &nodes.CreateSpatialRefSysStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional IF NOT EXISTS (only when not OR REPLACE)
-	if !orReplace && p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(false)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// SRID (integer)
 	if p.cur.Type != tokICONST {

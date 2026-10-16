@@ -6,31 +6,25 @@ import (
 
 // parseCreateDatabaseStmt parses a CREATE DATABASE/SCHEMA statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-database.html
+// Ref: https://mariadb.com/kb/en/create-database/
 //
-//	CREATE {DATABASE | SCHEMA} [IF NOT EXISTS] db_name
+//	CREATE [OR REPLACE] {DATABASE | SCHEMA} [IF NOT EXISTS] db_name
 //	    [create_option] ...
 //
 //	create_option:
 //	    [DEFAULT] CHARACTER SET [=] charset_name
 //	    | [DEFAULT] COLLATE [=] collation_name
 //	    | [DEFAULT] ENCRYPTION [=] {'Y' | 'N'}
-func (p *Parser) parseCreateDatabaseStmt(start int) (*nodes.CreateDatabaseStmt, error) {
+func (p *Parser) parseCreateDatabaseStmt(start int, orReplace bool) (*nodes.CreateDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
 
-	stmt := &nodes.CreateDatabaseStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.CreateDatabaseStmt{Loc: nodes.Loc{Start: start}, OrReplace: orReplace}
 
-	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS_KW); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Completion: after CREATE DATABASE [IF NOT EXISTS], identifier context.
 	p.checkCursor()

@@ -23,7 +23,6 @@ var sequenceOracleCorpus = []string{
 	"CREATE SEQUENCE cs_plain",
 	"CREATE SEQUENCE IF NOT EXISTS cs_ine",
 	"CREATE OR REPLACE SEQUENCE cs_cor",
-	"CREATE OR REPLACE SEQUENCE IF NOT EXISTS cs_both",
 	"CREATE TEMPORARY SEQUENCE cs_tmp",
 	// --- START / INCREMENT: WITH | BY | = | bare | signed ---
 	"CREATE OR REPLACE SEQUENCE cs1 START WITH 1000",
