@@ -2960,12 +2960,13 @@ func (p *Parser) parseJsonEntry(name string, fc *nodes.FuncCallExpr) error {
 			return p.syntaxErrorAtCur()
 		}
 		return p.parseOptionalFormatJSON()
-	case *nodes.FuncCallExpr, *nodes.CastExpr, *nodes.TreatExpr:
-		// An object instance names its own keys, so a call, CAST, or TREAT
-		// that may return one stands alone, its clauses after it: Oracle
-		// 23ai takes JSON_OBJECT(t(1)) for an object type t and rejects
-		// JSON_OBJECT(UPPER('a')) on the type (ORA-02000), and rejects two
-		// such entries.
+	case *nodes.FuncCallExpr, *nodes.CastExpr, *nodes.TreatExpr, *nodes.BindVariable:
+		// An object instance names its own keys, so a call, CAST, TREAT, or
+		// bind variable that may hold one stands alone, its clauses after
+		// it: Oracle 23ai takes JSON_OBJECT(t(1)) for an object type t and
+		// JSON_OBJECT(:o WITH TYPENAME) with an object bound to :o, rejects
+		// JSON_OBJECT(UPPER('a')) on the type (ORA-02000) and a scalar bound
+		// to :o when it binds, and rejects two such entries.
 		if keyKeyword || len(fc.Args.Items) > 1 || p.cur.Type != ')' && !p.atJSONConstructorClause() {
 			return p.syntaxErrorAtCur()
 		}
