@@ -2594,11 +2594,15 @@ func (n *DropStatisticsStmt) stmtNode() {}
 // SetOptionStmt represents SET session options like SET NOCOUNT ON/OFF,
 // SET ANSI_NULLS ON/OFF, SET TRANSACTION ISOLATION LEVEL, etc.
 //
+// A list of ON/OFF options shares one value, as in
+// SET ANSI_NULLS, QUOTED_IDENTIFIER ON or SET STATISTICS IO, TIME ON.
+//
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/set-statements-transact-sql
 type SetOptionStmt struct {
-	Option string   // option name (e.g., "NOCOUNT", "ANSI_NULLS", "TRANSACTION ISOLATION LEVEL READ COMMITTED")
-	Value  ExprNode // ON/OFF or other value; may be a ColumnRef("ON"/"OFF") or literal
-	Loc    Loc
+	Option  string   // option name (e.g., "NOCOUNT", "ANSI_NULLS", "TRANSACTION ISOLATION LEVEL READ COMMITTED"); the first of Options
+	Options []string // every option name the statement sets, in written order (e.g., ["ANSI_NULLS", "QUOTED_IDENTIFIER"], ["STATISTICS IO", "STATISTICS TIME"])
+	Value   ExprNode // ON/OFF or other value; may be a ColumnRef("ON"/"OFF") or literal
+	Loc     Loc
 }
 
 func (n *SetOptionStmt) nodeTag()  {}
