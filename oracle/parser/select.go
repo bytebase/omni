@@ -140,6 +140,9 @@ func (p *Parser) parseSelectAfterKeyword(sel *nodes.SelectStmt) (*nodes.SelectSt
 			nil {
 			return nil, parseErr943
 		}
+		if err := p.checkTargets(sel.IntoVars); err != nil {
+			return nil, err
+		}
 	}
 
 	if p.cur.Type == kwFROM {

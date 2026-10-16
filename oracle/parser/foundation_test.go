@@ -118,11 +118,15 @@ func TestFoundationTokenEndSpans(t *testing.T) {
 	}{
 		{"'abc'", tokSCONST, "'abc'"},
 		{`"MixedCase"`, tokQIDENT, `"MixedCase"`},
-		{"/*+ FULL(t) */ SELECT 1", tokHINT, "/*+ FULL(t) */"},
+		{"SELECT /*+ FULL(t) */ 1", tokHINT, "/*+ FULL(t) */"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.text, func(t *testing.T) {
-			tok := NewLexer(tc.sql).NextToken()
+			lex := NewLexer(tc.sql)
+			tok := lex.NextToken()
+			if tok.Type == kwSELECT {
+				tok = lex.NextToken()
+			}
 			if tok.Type != tc.typ {
 				t.Fatalf("token type = %d, want %d", tok.Type, tc.typ)
 			}

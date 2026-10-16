@@ -61,12 +61,35 @@ func Split(sql string) []Segment {
 	}
 
 	lexer := NewLexer(sql)
+	lexer.ccLenient = true
+	lexer.ccSplit = true
 	stmtStart := 0
 	var segments []Segment
 	state := splitState{}
+	// unitSegment is the segment of a PL/SQL unit that ended at its ';'.
+	// Directives right after it are the unit's, to their $END with the
+	// code they select: Oracle 23ai compiles BEGIN NULL; END; $IF TRUE
+	// $THEN $END as one block, and rejects BEGIN NULL; END; $IF TRUE $THEN
+	// NULL; $END at NULL (PLS-00103).
+	unitSegment := -1
 
 	for {
+		// A directive outside a unit is stray, but for the ones right after
+		// a unit's END.
+		lexer.ccStray = !state.inPLSQL && unitSegment < 0
 		tok := lexer.NextToken()
+		if unitSegment >= 0 {
+			for lexer.ccDepth > 0 && tok.Type != tokEOF && lexer.Err == nil {
+				tok = lexer.NextToken()
+			}
+			if end := lexer.ccSkipEnd; end > stmtStart && end <= tok.Loc {
+				seg := &segments[unitSegment]
+				seg.ByteEnd = end
+				seg.Text = sql[seg.ByteStart:end]
+				stmtStart = end
+			}
+			unitSegment = -1
+		}
 		if tok.Type == tokEOF {
 			break
 		}
@@ -143,9 +166,13 @@ func Split(sql string) []Segment {
 					if !state.endPending && !state.callSpecKeepsSemicolon() {
 						end = tok.Loc
 					}
+					before := len(segments)
 					segments = appendSegmentWithKind(segments, sql, stmtStart, end, state.segmentKind())
 					stmtStart = tok.End
 					state.reset()
+					if len(segments) > before {
+						unitSegment = len(segments) - 1
+					}
 				} else {
 					state.afterPLSQLSemicolon()
 				}
