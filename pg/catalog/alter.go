@@ -1360,6 +1360,19 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 	rel.Columns = append(rel.Columns[:idx], rel.Columns[idx+1:]...)
 	c.renumberColumns(rel)
 	c.shiftAttnumsAfterDrop(rel, attNum)
+
+	// AlterTableStmt hands the drop to rel's children; a child passes it on
+	// to its own, one level at a time as PostgreSQL does.
+	// pg: src/backend/commands/tablecmds.c — ATExecDropColumn (children loop)
+	if recursing {
+		for _, childOID := range c.findChildRelations(rel.OID) {
+			if child := c.relationByOID[childOID]; child != nil {
+				if err := c.atDropColumn(child.Schema, child, colName, cascade, true, true); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -1959,10 +1972,10 @@ func (c *Catalog) renumberColumns(rel *Relation) {
 	}
 }
 
-// checkChildColumnDrops refuses a DROP COLUMN that a direct child of rel would
-// refuse: the child's column has no other parent or local definition, so it
-// goes too, and it is in the child's partition key, or something depends on
-// it and there is no CASCADE.
+// checkChildColumnDrops refuses a DROP COLUMN that a descendant of rel would
+// refuse: the descendant's column has no other parent or local definition,
+// so it goes too, and it is in the descendant's partition key, or something
+// depends on it and there is no CASCADE.
 //
 // pg: src/backend/commands/tablecmds.c — ATExecDropColumn deletes the
 // column of every child within the same statement
@@ -1985,6 +1998,9 @@ func (c *Catalog) checkChildColumnDrops(rel *Relation, colName string, cascade b
 		}
 		if !cascade && hasNormalDependent(c.relationDependents(child.OID, col.AttNum)) {
 			return errDependentObjects("column", colName)
+		}
+		if err := c.checkChildColumnDrops(child, colName, cascade); err != nil {
+			return err
 		}
 	}
 	return nil

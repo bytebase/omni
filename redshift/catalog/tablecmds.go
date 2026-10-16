@@ -1571,9 +1571,22 @@ func (c *Catalog) cloneRowTriggersToPartition(parent, partition *Relation) {
 			Args:              partArgs,
 		}
 
+		c.triggers[partTrig.OID] = partTrig
 		c.triggersByRel[partition.OID] = append(c.triggersByRel[partition.OID], partTrig)
 		c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, 0, DepAuto)
-		c.recordColumnDependencies('g', partTrig.OID, partition.OID, partCols, DepNormal)
+		// The clone depends on the columns its source does: those it is
+		// UPDATE OF and those its WHEN condition reads.
+		var colDeps []DepEntry
+		for _, d := range c.deps {
+			if d.ObjType == 'g' && d.ObjOID == trig.OID && d.RefType == 'r' && d.RefOID == parent.OID && d.RefSubID > 0 {
+				colDeps = append(colDeps, d)
+			}
+		}
+		for _, d := range colDeps {
+			if m := c.mapColumnAttnums(parent, partition, []int16{int16(d.RefSubID)}); len(m) == 1 && m[0] != 0 {
+				c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, int32(m[0]), d.DepType)
+			}
+		}
 		if partTrig.FuncOID != 0 {
 			c.recordDependency('g', partTrig.OID, 0, 'f', partTrig.FuncOID, 0, DepNormal)
 		}
