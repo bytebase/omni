@@ -328,6 +328,10 @@ func attachTrailingClauses(node ast.Node, orderBy []*ast.OrderByItem, limit, off
 // freely: '(' followed by a SELECT query, a WITH query, or another
 // parenthesized operand, then ')'.
 func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	openTok, err := p.expect(int('('))
 	if err != nil {
 		return nil, err
@@ -680,6 +684,10 @@ func (p *Parser) parseFromItem() (ast.Node, error) {
 //   - ( → subquery or parenthesized from-item
 //   - otherwise → parseTableRef (ObjectName + alias)
 func (p *Parser) parsePrimarySource() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	startLoc := p.cur.Loc
 
 	// Parenthesized: subquery

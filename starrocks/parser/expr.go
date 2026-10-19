@@ -42,6 +42,10 @@ func (p *Parser) parseExpr() (ast.Node, error) {
 
 // parseExprPrec parses an expression with the given minimum binding power.
 func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parsePrefixExpr()
 	if err != nil {
 		return nil, err
@@ -425,6 +429,9 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			if err == nil && p.cur.Kind == int('{') {
 				return p.finishMapLiteral(start, mapType)
 			}
+			if isNestingError(err) {
+				return nil, err
+			}
 			p.restore(saved)
 		}
 		return p.parseIdentExpr()
@@ -438,6 +445,9 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			elemType, err := p.parseDataType()
 			if err == nil && p.cur.Kind == int('[') {
 				return p.finishArrayLiteral(start, elemType)
+			}
+			if isNestingError(err) {
+				return nil, err
 			}
 			p.restore(saved)
 		}
@@ -1157,30 +1167,58 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, e
 		}
 	}
 	sub := p.finishSubqueryPlaceholder(startOffset, subStart)
-	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart})
+	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart, depth: p.depth})
 	return sub, nil
 }
 
 // skipParenGroup moves from the '(' at p.cur to its matching ')', left as
 // p.cur, or to EOF when it never closes. A group scanned before is jumped
 // over (see parenGroupEnd).
+//
+// The scan keeps the groups it is inside on a stack of its own rather than
+// recursing per nested group, which overflowed the Go stack on a few hundred
+// kilobytes of '('. It records the same group ends in the same order.
 func (p *Parser) skipParenGroup() {
-	open := p.cur.Loc.Start
-	if r, ok := p.parenGroupEnd[open]; ok {
-		p.replayParen(r)
-		return
-	}
-	p.advance() // consume '('
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		if p.cur.Kind == int('(') {
-			p.skipParenGroup()
-			if p.cur.Kind == tokEOF {
-				break
+	var open []int // the '(' offset of each group being scanned, innermost last
+	for {
+		// p.cur is the '(' of a group to skip: jump over it when it was
+		// scanned before, enter it otherwise.
+		if r, ok := p.parenGroupEnd[p.cur.Loc.Start]; ok {
+			p.replayParen(r)
+		} else {
+			open = append(open, p.cur.Loc.Start)
+			p.advance() // consume '('
+			p.advanceToParen()
+			if p.cur.Kind == int('(') {
+				continue
 			}
+			p.recordParenGroupEnd(open[len(open)-1])
+			open = open[:len(open)-1]
 		}
+		// The group skipped last ended at p.cur, its ')' or EOF. Resume the
+		// groups around it, innermost first, until one meets another '('.
+		for len(open) > 0 {
+			if p.cur.Kind != tokEOF {
+				p.advance() // consume the ')' that closed the inner group
+				p.advanceToParen()
+				if p.cur.Kind == int('(') {
+					break
+				}
+			}
+			p.recordParenGroupEnd(open[len(open)-1])
+			open = open[:len(open)-1]
+		}
+		if len(open) == 0 {
+			return
+		}
+	}
+}
+
+// advanceToParen moves to the next '(' or ')', or to EOF.
+func (p *Parser) advanceToParen() {
+	for p.cur.Kind != int('(') && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
 		p.advance()
 	}
-	p.recordParenGroupEnd(open)
 }
 
 // recordParenGroupEnd records the current token, the matching ')' or EOF, as

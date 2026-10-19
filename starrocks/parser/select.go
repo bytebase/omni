@@ -272,6 +272,10 @@ func (p *Parser) parseSetOpOperand() (ast.Node, error) {
 //	( SELECT ... )
 //	( SELECT ... UNION SELECT ... )
 func (p *Parser) parseParenSelect() (*ast.ParenSelect, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	openTok := p.advance() // consume '('
 
 	var inner ast.Node
@@ -676,6 +680,10 @@ func (p *Parser) parseFromItem() (ast.Node, error) {
 //   - ( → VALUES inline-table, subquery, or parenthesized from-item
 //   - otherwise → a table reference or a table function (ObjectName + alias)
 func (p *Parser) parsePrimarySource() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	startLoc := p.cur.Loc
 
 	// Parenthesized: subquery

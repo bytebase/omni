@@ -46,6 +46,8 @@ type Parser struct {
 	// whose parse fails after it; jumping over the groups already scanned
 	// keeps that linear.
 	parenGroupEnd map[int]parenReplay
+
+	depth int // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // parenReplay is the state the raw scan of a '(' group left behind, with the
@@ -81,9 +83,14 @@ func (p *Parser) replayParen(r parenReplay) {
 
 // rawQuery is a query body captured as raw text: the text and the absolute
 // byte offset of its first character in the parser's input.
+// rawQuery is a query body captured as raw text: the text, the absolute
+// byte offset of its first character in the parser's input, and the nesting
+// depth it was captured at, which the nested parse that validates it starts
+// from so the depth limit counts the levels around it too.
 type rawQuery struct {
 	text  string
 	start int
+	depth int
 }
 
 // nextToken returns the next token from the lexer, transparently skipping
@@ -293,6 +300,10 @@ func (p *Parser) unknownStatementError() *ParseError {
 // The dispatch switch itself is not expected to change — only the bodies
 // of individual case branches.
 func (p *Parser) parseStmt() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Kind {
 	// DDL
 	case kwCREATE:
@@ -768,7 +779,7 @@ type ParseResult struct {
 // statements parsed successfully — even in the error case, the File may
 // be non-empty.
 func Parse(input string) (*ast.File, error) {
-	result := parseAll(input, true)
+	result := parseAll(input, true, 0)
 	if len(result.Errors) == 0 {
 		return result.File, nil
 	}
@@ -784,19 +795,20 @@ func Parse(input string) (*ast.File, error) {
 // yields whatever prefix parsed. Completion and other partial-input callers
 // depend on this tolerance — do not add the strict trailing-token check here.
 func ParseBestEffort(input string) *ParseResult {
-	return parseAll(input, false)
+	return parseAll(input, false, 0)
 }
 
 // parseAll is the shared implementation behind Parse and ParseBestEffort:
 // Split the input, parse each segment, collect nodes and errors.
 // strictTrailing selects whether parseSingle rejects unconsumed trailing
-// tokens.
-func parseAll(input string, strictTrailing bool) *ParseResult {
+// tokens. depth is the nesting depth the parse starts at: zero for a
+// statement, and for a raw query body the depth it was captured at.
+func parseAll(input string, strictTrailing bool, depth int) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
 	for _, seg := range Split(input) {
-		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing)
+		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing, depth)
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
@@ -840,13 +852,14 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 // segText is the statement text (without the trailing ; delimiter); it comes
 // from Segment.Text. baseOffset is the byte offset of segText within the
 // original input — passed to NewLexerWithOffset so token Loc values are
-// absolute.
-func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node, []ParseError) {
+// absolute. depth is the nesting depth the parse starts at (see parseAll).
+func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int) (ast.Node, []ParseError) {
 	p := &Parser{
 		lexer:          NewLexerWithOffset(segText, baseOffset),
 		input:          segText,
 		baseOffset:     baseOffset,
 		strictTrailing: strictTrailing,
+		depth:          depth,
 	}
 	p.advance() // prime cur with the first token
 
@@ -947,7 +960,9 @@ func isQueryBody(n ast.Node) bool {
 // must be exactly one query (SELECT, a set operation, or a grouped query): the
 // engine rejects an empty body, a comment-only body, several statements, and
 // a non-query statement in that position. Nested placeholders are validated
-// by the inner strict parse.
+// by the inner strict parse, which starts at the depth the body was captured
+// at: starting from zero, it counted a body's levels apart from the levels
+// around it, so nested bodies escaped the limit.
 func (p *Parser) validateRawQueries() []ParseError {
 	var out []ParseError
 	for _, q := range p.rawQueries {
@@ -955,7 +970,7 @@ func (p *Parser) validateRawQueries() []ParseError {
 			out = append(out, ParseError{Position: q.start, End: q.start, Message: "subquery must contain exactly one query"})
 			continue
 		}
-		res := parseAll(q.text, true)
+		res := parseAll(q.text, true, q.depth)
 		if len(res.Errors) > 0 {
 			for _, e := range res.Errors {
 				e.Position += q.start
