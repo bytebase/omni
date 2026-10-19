@@ -32,8 +32,9 @@ import (
 //     table or column the target lacks fails, and so is any other SET,
 //     which may name a variable the server lacks or refuses to set. A
 //     finding before it stands, unless a statement that may give its table
-//     a key back, rename the table, drop it, or create a table of its name
-//     withdraws the finding.
+//     a key back, rename the table, or drop it withdraws the finding; one
+//     that creates a table of its name, or renames one onto it, fails while
+//     the table exists.
 //   - A statement that may change any table, such as a CALL or an event,
 //     or a drop of the target's database, ends the judging and withdraws
 //     every finding.
@@ -58,7 +59,7 @@ const (
 	dropsColumns stepKind = iota
 	// namesTables is any other statement on a table, which ends the
 	// judging and withdraws a finding on the tables it may give a key
-	// back, rename, drop, or create.
+	// back, rename, or drop.
 	namesTables
 	// dropsDatabase is a DROP DATABASE, which withdraws every finding when
 	// it drops the target's.
@@ -91,15 +92,9 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			} else {
 				st.kind, st.tables = namesTables, alterSettles(v)
 			}
-		case *ast.CreateTableStmt:
-			st.kind = namesTables
-			// IF NOT EXISTS of a table that exists does nothing, and a temporary
-			// table leaves the table of its name as it is.
-			if !v.IfNotExists && !v.Temporary {
-				st.tables = []*ast.TableRef{v.Table}
-			}
-		case *ast.CreateIndexStmt, *ast.DropIndexStmt:
-			// CREATE INDEX makes no primary key.
+		case *ast.CreateTableStmt, *ast.CreateIndexStmt, *ast.DropIndexStmt:
+			// CREATE INDEX makes no primary key, and CREATE TABLE of a name
+			// fails while a table of it exists.
 			st.kind = namesTables
 		case *ast.DropTableStmt:
 			st.kind = namesTables
@@ -110,8 +105,10 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 		case *ast.RenameTableStmt:
 			st.kind = namesTables
 			for _, pair := range v.Pairs {
+				// A table renamed onto a name fails while a table of it
+				// exists.
 				if pair != nil {
-					st.tables = append(st.tables, pair.Old, pair.New)
+					st.tables = append(st.tables, pair.Old)
 				}
 			}
 		case *ast.DropDatabaseStmt:
@@ -214,22 +211,15 @@ func leftDefault(sql string, cmd *ast.AlterTableCmd) bool {
 }
 
 // alterSettles returns the tables an ALTER TABLE may give a primary key
-// back or rename: its own, and the one it renames to.
+// back or rename away: its own, when it does. A rename onto a name fails
+// while a table of it exists.
 func alterSettles(v *ast.AlterTableStmt) []*ast.TableRef {
-	if v.Table == nil {
+	if v.Table == nil || !slices.ContainsFunc(v.Commands, func(cmd *ast.AlterTableCmd) bool {
+		return cmd != nil && (cmd.Type == ast.ATRenameTable || addsPrimaryKey(cmd))
+	}) {
 		return nil
 	}
-	var names []*ast.TableRef
-	for _, cmd := range v.Commands {
-		switch {
-		case cmd == nil:
-		case cmd.Type == ast.ATRenameTable:
-			names = append(names, v.Table, renamedTo(cmd))
-		case addsPrimaryKey(cmd):
-			names = append(names, v.Table)
-		}
-	}
-	return names
+	return []*ast.TableRef{v.Table}
 }
 
 // renamedTo is the table an ALTER TABLE ... RENAME subcommand renames to.
@@ -281,17 +271,18 @@ func setPasses(v *ast.SetStmt) bool {
 // literal reports whether an expression is a literal the server takes for
 // a user variable as it is: a number, or a sign of one; a string without a
 // character set introducer; a hexadecimal or bit value; TRUE, FALSE, or
-// NULL. The parser takes X'4' and b'2', which the server refuses as
-// malformed, and 1e400, which overflows a double.
+// NULL. The parser takes X'4', b'2', and 0X41, which the server refuses
+// as malformed, and 1e400, which overflows a double.
 func literal(e ast.ExprNode) bool {
 	switch x := e.(type) {
 	case *ast.StringLit:
 		return x.Charset == ""
 	case *ast.HexLit:
-		digits, prefixed := strings.CutPrefix(strings.ToLower(x.Value), "0x")
-		return (prefixed && digits != "" || !prefixed && len(digits)%2 == 0) && strings.Trim(digits, "0123456789abcdef") == ""
+		// The 0x and 0b prefixes are lowercase: 0X41 is a name.
+		digits, prefixed := strings.CutPrefix(x.Value, "0x")
+		return (prefixed && digits != "" || !prefixed && len(digits)%2 == 0) && strings.Trim(digits, "0123456789abcdefABCDEF") == ""
 	case *ast.BitLit:
-		digits, prefixed := strings.CutPrefix(strings.ToLower(x.Value), "0b")
+		digits, prefixed := strings.CutPrefix(x.Value, "0b")
 		return (!prefixed || digits != "") && strings.Trim(digits, "01") == ""
 	case *ast.BoolLit, *ast.NullLit:
 		return true
@@ -319,10 +310,11 @@ func number(e ast.ExprNode) bool {
 }
 
 // onOrOff reports whether an expression is a value of a boolean system
-// variable: ON, OFF, TRUE, FALSE, 1, or 0.
+// variable: ON, OFF, TRUE, FALSE, 1, 0, or DEFAULT, which sets the
+// session's value to the global one.
 func onOrOff(e ast.ExprNode) bool {
 	switch x := e.(type) {
-	case *ast.BoolLit:
+	case *ast.BoolLit, *ast.DefaultExpr:
 		return true
 	case *ast.IntLit:
 		return x.Value == 0 || x.Value == 1

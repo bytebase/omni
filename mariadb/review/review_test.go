@@ -606,7 +606,7 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		},
 		{
 			name: "a statement after on the table, which may give it a key back, or on another",
-			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE plain ADD PRIMARY KEY (v);\nRENAME TABLE k9 TO k1;\nCREATE INDEX i ON nokey (a);",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE plain ADD PRIMARY KEY (v);\nRENAME TABLE k1 TO k9;\nCREATE INDEX i ON nokey (a);",
 			want: []finding{lost(2, "DROP COLUMN id", "k2")},
 		},
 		{
@@ -636,7 +636,7 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "a temporary table of its name dropped before", sql: "DROP TEMPORARY TABLE IF EXISTS plain;\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "statements before that cannot fail",
-			sql:  "BEGIN;\nSAVEPOINT s;\nSET @x = 1, @sql_require_primary_key = 'a', foreign_key_checks = OFF, @@session.unique_checks = 0, @h = X'41', @h2 = 0x41, @b = b'101', @b2 = 0b1, @n = -1, @f = - +2.5e3;\nANALYZE TABLE missing;\nCOMMIT;\nUNLOCK TABLES;\nROLLBACK;\nALTER TABLE plain DROP COLUMN id;",
+			sql:  "BEGIN;\nSAVEPOINT s;\nSET @x = 1, @sql_require_primary_key = 'a', foreign_key_checks = OFF, @@session.unique_checks = 0, @h = X'41', @h2 = 0x41, @b = b'101', @b2 = 0b1, @n = -1, @f = - +2.5e3, @h3 = X'aB', @h4 = 0xaB, @b3 = B'01', unique_checks = DEFAULT;\nANALYZE TABLE missing;\nCOMMIT;\nUNLOCK TABLES;\nROLLBACK;\nALTER TABLE plain DROP COLUMN id;",
 			want: []finding{lost(7, "DROP COLUMN id", "plain")},
 		},
 		{name: "a row inserted before", sql: "INSERT INTO nokey VALUES (1);\nALTER TABLE plain DROP COLUMN id;"},
@@ -662,6 +662,9 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(1, "DROP COLUMN id", "plain")},
 		},
 		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", sql: "SET @x = 0X41;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a bit value of an uppercase prefix before", sql: "SET @x = 0B01;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to DEFAULT before", sql: "SET @x = DEFAULT;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a malformed bit value before", sql: "SET @x = b'102';\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a double out of range before", sql: "SET @x = -1e400;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a sign of a string before", sql: "SET @x = -'a';\nALTER TABLE plain DROP COLUMN id;"},
@@ -678,8 +681,9 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(0, "DROP COLUMN id", "plain")},
 		},
 		{
-			name: "the key, before its table dropped, made, renamed, or renamed onto",
-			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;\nDROP TABLE plain;\nCREATE TABLE k1 (a INT PRIMARY KEY);\nALTER TABLE k2 RENAME TO k9;\nALTER TABLE nokey RENAME TO k3;",
+			name: "the key, before its table dropped or renamed, or before a table of its name made or renamed onto it, which fail",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;\nALTER TABLE gen2 DROP COLUMN id;\nDROP TABLE plain;\nALTER TABLE k2 RENAME TO k9;\nCREATE TABLE k1 (a INT PRIMARY KEY);\nALTER TABLE nokey RENAME TO k3;\nRENAME TABLE pair TO gen2;",
+			want: []finding{lost(1, "DROP COLUMN id", "k1"), lost(3, "DROP COLUMN id", "k3"), lost(4, "DROP COLUMN id", "gen2")},
 		},
 		{name: "a column a unique key of it and another column holds", sql: "ALTER TABLE uq DROP COLUMN id;"},
 		{name: "a column a unique key of it and another column holds, beside a unique key of the other", sql: "ALTER TABLE uqv DROP COLUMN id;"},

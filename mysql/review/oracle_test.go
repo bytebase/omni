@@ -736,7 +736,7 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "a column the table lacks inserted into before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "INSERT INTO x (missing) VALUES (1);\nALTER TABLE x DROP COLUMN id", err: "Unknown column", key: "id"},
 		{name: "the database's tables shown before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SHOW TABLES FROM shop;\nALTER TABLE x DROP COLUMN id"},
 		{name: "a rollback to a savepoint the transaction lacks before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "BEGIN;\nROLLBACK TO SAVEPOINT nosuch;\nALTER TABLE x DROP COLUMN id", err: "does not exist", key: "id"},
-		{name: "statements that cannot fail before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "BEGIN;\nSAVEPOINT s;\nROLLBACK;\nCOMMIT;\nUNLOCK TABLES;\nANALYZE TABLE missing;\nANALYZE TABLE x UPDATE HISTOGRAM ON missing;\nSET foreign_key_checks = OFF, @@session.unique_checks = 0, @x = 'a', @h = X'41', @b = b'101', @n = -1.5e3;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "statements that cannot fail before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "BEGIN;\nSAVEPOINT s;\nROLLBACK;\nCOMMIT;\nUNLOCK TABLES;\nANALYZE TABLE missing;\nANALYZE TABLE x UPDATE HISTOGRAM ON missing;\nSET foreign_key_checks = OFF, @@session.unique_checks = 0, @x = 'a', @h = X'41', @b = b'101', @n = -1.5e3, @h2 = X'aB', @h3 = 0xaB, @b2 = B'01', foreign_key_checks = DEFAULT, unique_checks = DEFAULT;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "sql_require_primary_key set with a variable the server reads only before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_require_primary_key = OFF, version = 'x';\nALTER TABLE x DROP COLUMN id", err: "read only variable", key: "id"},
 		// A unique key of it and another column narrows to the other, which
 		// fails when its values repeat.
@@ -753,6 +753,10 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "a scope for a system variable before a user variable", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION foreign_key_checks = 1, @x = 1;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a unique key of it and another column, beside a unique key of the other", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT NOT NULL, w INT, UNIQUE KEY u (v), UNIQUE KEY uv (id, v)); INSERT INTO x VALUES (1, 1, 1), (2, 2, 2)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a unique key of it and a prefix of another column, beside a unique key of the other", setup: "CREATE TABLE x (id INT PRIMARY KEY, v VARCHAR(20) NOT NULL, UNIQUE KEY u (v), UNIQUE KEY uv (id, v(2))); INSERT INTO x VALUES (1, 'xx1'), (2, 'xx2')", change: "ALTER TABLE x DROP COLUMN id", err: "Duplicate entry", key: "id"},
+		{name: "a table made of its name after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TABLE x (id INT PRIMARY KEY)", err: "already exists", reported: true},
+		{name: "a table renamed onto it after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nRENAME TABLE y TO x", err: "already exists", reported: true},
+		{name: "a table altered to be renamed onto it after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE y RENAME TO x", err: "already exists", reported: true},
+		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @x = 0X41;\nALTER TABLE x DROP COLUMN id", err: "Unknown column", key: "id"},
 		{name: "a read-only transaction started before, which the drop commits", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "START TRANSACTION READ ONLY;\nALTER TABLE x DROP COLUMN id", reported: true},
 		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
 		// of each holds; another value may be refused.
@@ -807,7 +811,10 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 			if reported != tt.reported {
 				t.Errorf("reported = %v, want %v", reported, tt.reported)
 			}
-			if reported && (failed != nil || tt.key != "") && !tt.unseen {
+			// A finding is wrong when x keeps its key, whether the change stops
+			// before the drop or not; a statement after the drop that fails
+			// leaves it dropped.
+			if reported && tt.key != "" && !tt.unseen {
 				t.Errorf("reported, but x keeps its key")
 			}
 		})
