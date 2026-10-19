@@ -167,12 +167,13 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		return nil
 	})
 	// A key part is its column, or the expression of a functional one in
-	// parentheses.
+	// parentheses, and its length -1 when it is not a prefix.
 	indexes := make(map[[2]string]*metadata.IndexMetadata)
-	query(`SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')')) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`, func(r *sql.Rows) error {
+	query(`SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')')), COALESCE(SUB_PART, -1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`, func(r *sql.Rows) error {
 		var tbl, idx, part string
 		var nonUnique int
-		if err := r.Scan(&tbl, &idx, &nonUnique, &part); err != nil {
+		var length int64
+		if err := r.Scan(&tbl, &idx, &nonUnique, &part, &length); err != nil {
 			return err
 		}
 		t, ok := tables[tbl]
@@ -186,6 +187,7 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 			t.Indexes = append(t.Indexes, i)
 		}
 		i.Expressions = append(i.Expressions, part)
+		i.KeyLength = append(i.KeyLength, length)
 		return nil
 	})
 	// A foreign key names the table it references without its database.
@@ -652,6 +654,9 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "one column of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (1, 2, 2)", change: "ALTER TABLE x DROP COLUMN a", key: "b"},
 		{name: "one column of a key of two, the other repeating", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN a", err: "Duplicate entry", key: "a,b"},
 		{name: "both columns of a key of two, in two statements", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b))", change: "ALTER TABLE x DROP COLUMN a;\nALTER TABLE x DROP COLUMN b"},
+		{name: "both columns of a key of two, in two statements, a unique key of the other keeping its values apart", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b), UNIQUE KEY ub (b)); INSERT INTO x VALUES (1, 1, 1), (1, 2, 2)", change: "ALTER TABLE x DROP COLUMN a;\nALTER TABLE x DROP COLUMN b", reported: true},
+		{name: "both columns of a key of two, in two statements, a unique key of a prefix of the other keeping its values apart", setup: "CREATE TABLE x (a INT, b VARCHAR(20), v INT, PRIMARY KEY (a, b), UNIQUE KEY ub (b(2))); INSERT INTO x VALUES (1, 'aa1', 1), (1, 'bb2', 2)", change: "ALTER TABLE x DROP COLUMN a;\nALTER TABLE x DROP COLUMN b", reported: true},
+		{name: "one column of a key of two whose other is a prefix, beside a unique key of the whole other", setup: "CREATE TABLE x (a INT, b VARCHAR(20), v INT, PRIMARY KEY (a, b(2)), UNIQUE KEY ub (b)); INSERT INTO x VALUES (1, 'xx1', 1), (2, 'xx2', 2)", change: "ALTER TABLE x DROP COLUMN a", err: "Duplicate entry", key: "a,b"},
 		{name: "both columns of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN b, DROP COLUMN a", reported: true},
 		// Statements of DROP COLUMN alone are followed through the columns they
 		// drop and what read them.
@@ -731,7 +736,7 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "a column the table lacks inserted into before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "INSERT INTO x (missing) VALUES (1);\nALTER TABLE x DROP COLUMN id", err: "Unknown column", key: "id"},
 		{name: "the database's tables shown before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SHOW TABLES FROM shop;\nALTER TABLE x DROP COLUMN id"},
 		{name: "a rollback to a savepoint the transaction lacks before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "BEGIN;\nROLLBACK TO SAVEPOINT nosuch;\nALTER TABLE x DROP COLUMN id", err: "does not exist", key: "id"},
-		{name: "statements that cannot fail before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "BEGIN;\nSAVEPOINT s;\nROLLBACK;\nCOMMIT;\nUNLOCK TABLES;\nANALYZE TABLE missing;\nANALYZE TABLE x UPDATE HISTOGRAM ON missing;\nSET foreign_key_checks = OFF, @@session.unique_checks = 0, @x = 'a';\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "statements that cannot fail before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "BEGIN;\nSAVEPOINT s;\nROLLBACK;\nCOMMIT;\nUNLOCK TABLES;\nANALYZE TABLE missing;\nANALYZE TABLE x UPDATE HISTOGRAM ON missing;\nSET foreign_key_checks = OFF, @@session.unique_checks = 0, @x = 'a', @h = X'41', @b = b'101', @n = -1.5e3;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "sql_require_primary_key set with a variable the server reads only before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_require_primary_key = OFF, version = 'x';\nALTER TABLE x DROP COLUMN id", err: "read only variable", key: "id"},
 		// A unique key of it and another column narrows to the other, which
 		// fails when its values repeat.
@@ -742,6 +747,8 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "a column out of the key dropped before from a table partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (id INT PRIMARY KEY, v INT) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a column out of any key dropped before from a table without a primary key partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (u INT NOT NULL, v INT, w INT, UNIQUE KEY uu (u)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "the unique key's column dropped before from a table without a primary key partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (u INT NOT NULL, v INT, w INT, UNIQUE KEY uu (u)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN u;\nALTER TABLE x DROP COLUMN id", err: "Field in list of fields for partition function not found", key: "id"},
+		{name: "a user variable set to a double out of range before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @x = 1e400;\nALTER TABLE x DROP COLUMN id", err: "Illegal double", key: "id"},
+		{name: "a user variable set to a malformed hexadecimal value before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @x = X'4';\nALTER TABLE x DROP COLUMN id", err: "You have an error in your SQL syntax", key: "id"},
 		{name: "a read-only transaction started before, which the drop commits", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "START TRANSACTION READ ONLY;\nALTER TABLE x DROP COLUMN id", reported: true},
 		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
 		// of each holds; another value may be refused.

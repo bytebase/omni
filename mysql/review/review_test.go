@@ -426,20 +426,29 @@ func TestRequirePrimaryKey(t *testing.T) {
 
 // keyed is shop with tables for the primary key a DROP COLUMN drops: k1 to
 // k3 with a key on id and a column v; pair with a key of two columns, pchk
-// with one whose check reads both; gen with a generated column, gen2 with
-// one that names the key only in a literal, chk with a check of the key and
-// v, solo with a check of the key alone, fx with a functional index, and
-// part with partitioning, each reading the key; kpart partitioned by KEY (),
-// which reads the key, and kpart0, without a key, by KEY (), which reads its
-// unique key and not its other index; inv whose other column is invisible,
-// and inv2 with a visible one too; defx whose other column's default reads
-// the key, and deflit whose literal default names it; uq with a unique key
-// of the key and v, uq1 with one of the key alone, and kv with a key of v
-// and the key that is not unique; and self with a foreign key to itself.
+// with one whose check reads both, and pairu, pairq, pairp, pairn, pairw,
+// and pairk with one beside a unique key of b: of whole columns, of a prefix
+// of b in the unique key, of a prefix of b in the key, of lengths not given,
+// beside one of b and v, and beside one of b that is not unique; gen with a
+// generated column, gen2 with one that names the key only in a literal, chk
+// with a check of the key and v, solo with a check of the key alone, fx with
+// a functional index, and part with partitioning, each reading the key;
+// kpart partitioned by KEY (), which reads the key, and kpart0, without a
+// key, by KEY (), which reads its unique key and not its other index; inv
+// whose other column is invisible, and inv2 with a visible one too; defx
+// whose other column's default reads the key, and deflit whose literal
+// default names it; uq with a unique key of the key and v, uq1 with one of
+// the key alone, and kv with a key of v and the key that is not unique; and
+// self with a foreign key to itself.
 func keyed() []review.Target {
 	s := shop()
 	pk := func(columns ...string) []*metadata.IndexMetadata {
 		return []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: columns}}
+	}
+	// pairKey is a key of a and b, of the lengths given, beside another
+	// index.
+	pairKey := func(lengths []int64, other *metadata.IndexMetadata) []*metadata.IndexMetadata {
+		return []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"a", "b"}, KeyLength: lengths}, other}
 	}
 	tables := &s.Schemas[0].Tables
 	for _, name := range []string{"k1", "k2", "k3"} {
@@ -447,6 +456,12 @@ func keyed() []review.Target {
 	}
 	*tables = append(*tables,
 		&metadata.TableMetadata{Name: "pair", Columns: columns("a", "b", "v"), Indexes: pk("a", "b")},
+		&metadata.TableMetadata{Name: "pairu", Columns: columns("a", "b", "v"), Indexes: pairKey([]int64{-1, -1}, &metadata.IndexMetadata{Name: "ub", Unique: true, Expressions: []string{"b"}, KeyLength: []int64{-1}})},
+		&metadata.TableMetadata{Name: "pairq", Columns: columns("a", "b", "v"), Indexes: pairKey([]int64{-1, -1}, &metadata.IndexMetadata{Name: "ub", Unique: true, Expressions: []string{"b"}, KeyLength: []int64{5}})},
+		&metadata.TableMetadata{Name: "pairp", Columns: columns("a", "b", "v"), Indexes: pairKey([]int64{-1, 10}, &metadata.IndexMetadata{Name: "ub", Unique: true, Expressions: []string{"b"}, KeyLength: []int64{-1}})},
+		&metadata.TableMetadata{Name: "pairn", Columns: columns("a", "b", "v"), Indexes: pairKey(nil, &metadata.IndexMetadata{Name: "ub", Unique: true, Expressions: []string{"b"}})},
+		&metadata.TableMetadata{Name: "pairw", Columns: columns("a", "b", "v"), Indexes: pairKey([]int64{-1, -1}, &metadata.IndexMetadata{Name: "ubv", Unique: true, Expressions: []string{"b", "v"}, KeyLength: []int64{-1, -1}})},
+		&metadata.TableMetadata{Name: "pairk", Columns: columns("a", "b", "v"), Indexes: pairKey([]int64{-1, -1}, &metadata.IndexMetadata{Name: "kb", Expressions: []string{"b"}, KeyLength: []int64{-1}})},
 		&metadata.TableMetadata{Name: "pchk", Columns: columns("a", "b", "v"), Indexes: pk("a", "b"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`a` < `b`)"}}},
 		&metadata.TableMetadata{
 			Name:    "gen",
@@ -515,6 +530,15 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		// What the server refuses, or what follows a drop of only some columns
 		// of the key, is not known: no drop after it is judged, and a finding
 		// before it stands.
+		{
+			name: "both columns of a key of two over two statements, a unique key of the other keeping its values apart",
+			sql:  "ALTER TABLE pairu DROP COLUMN a;\nALTER TABLE pairu DROP COLUMN b;\nALTER TABLE pairq DROP COLUMN a;\nALTER TABLE pairq DROP COLUMN b;",
+			want: []finding{lost(1, "DROP COLUMN b", "pairu"), lost(3, "DROP COLUMN b", "pairq")},
+		},
+		{name: "one column of a key of two whose other is a prefix, beside a unique key of it", sql: "ALTER TABLE pairp DROP COLUMN a;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "one column of a key of two whose lengths the synced schema lacks, beside a unique key of the other", sql: "ALTER TABLE pairn DROP COLUMN a;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "one column of a key of two, beside a unique key of the other and a column out of the key", sql: "ALTER TABLE pairw DROP COLUMN a;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "one column of a key of two, beside a key of the other that is not unique", sql: "ALTER TABLE pairk DROP COLUMN a;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "some columns of the key", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP COLUMN a;\nALTER TABLE k1 DROP COLUMN id;", want: []finding{lost(0, "DROP COLUMN id", "plain")}},
 		{name: "a column the table lacks", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN missing;\nALTER TABLE k1 DROP COLUMN id;"},
 		{name: "one column twice", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN ID;"},
@@ -587,7 +611,7 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "a temporary table of its name dropped before", sql: "DROP TEMPORARY TABLE IF EXISTS plain;\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "statements before that cannot fail",
-			sql:  "BEGIN;\nSAVEPOINT s;\nSET @x = 1, @sql_require_primary_key = 'a', foreign_key_checks = OFF, @@session.unique_checks = 0;\nANALYZE TABLE missing;\nANALYZE TABLE nokey UPDATE HISTOGRAM ON missing;\nCOMMIT;\nUNLOCK TABLES;\nROLLBACK;\nALTER TABLE plain DROP COLUMN id;",
+			sql:  "BEGIN;\nSAVEPOINT s;\nSET @x = 1, @sql_require_primary_key = 'a', foreign_key_checks = OFF, @@session.unique_checks = 0, @h = X'41', @h2 = 0x41, @b = b'101', @b2 = 0b1, @n = -1, @f = - +2.5e3;\nANALYZE TABLE missing;\nANALYZE TABLE nokey UPDATE HISTOGRAM ON missing;\nCOMMIT;\nUNLOCK TABLES;\nROLLBACK;\nALTER TABLE plain DROP COLUMN id;",
 			want: []finding{lost(8, "DROP COLUMN id", "plain")},
 		},
 		{name: "a row inserted before", sql: "INSERT INTO nokey VALUES (1);\nALTER TABLE plain DROP COLUMN id;"},
@@ -605,6 +629,10 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "foreign_key_checks set globally by its name before", sql: "SET @@global.foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "foreign_key_checks set to a value it lacks before", sql: "SET foreign_key_checks = 2;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a query before", sql: "SET @x = (SELECT a FROM nokey);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a malformed bit value before", sql: "SET @x = b'102';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a double out of range before", sql: "SET @x = -1e400;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a sign of a string before", sql: "SET @x = -'a';\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a string with a character set before", sql: "SET @x = _utf8mb4'a';\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "the character set set before", sql: "SET NAMES utf8mb4;\nALTER TABLE plain DROP COLUMN id;"},
 		{

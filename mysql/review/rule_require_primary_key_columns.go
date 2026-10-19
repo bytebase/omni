@@ -2,6 +2,7 @@ package review
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -269,14 +270,42 @@ func setPasses(v *ast.SetStmt) bool {
 	return len(v.Assignments) > 0
 }
 
-// literal reports whether an expression is a literal, which a user
-// variable takes as it is.
+// literal reports whether an expression is a literal the server takes for
+// a user variable as it is: a number, or a sign of one; a string without a
+// character set introducer; a hexadecimal or bit value; TRUE, FALSE, or
+// NULL. The parser takes X'4' and b'2', which the server refuses as
+// malformed, and 1e400, which overflows a double.
 func literal(e ast.ExprNode) bool {
 	switch x := e.(type) {
-	case *ast.IntLit, *ast.FloatLit, *ast.BoolLit, *ast.NullLit:
-		return true
 	case *ast.StringLit:
 		return x.Charset == ""
+	case *ast.HexLit:
+		digits, prefixed := strings.CutPrefix(strings.ToLower(x.Value), "0x")
+		return (prefixed && digits != "" || !prefixed && len(digits)%2 == 0) && strings.Trim(digits, "0123456789abcdef") == ""
+	case *ast.BitLit:
+		digits, prefixed := strings.CutPrefix(strings.ToLower(x.Value), "0b")
+		return (!prefixed || digits != "") && strings.Trim(digits, "01") == ""
+	case *ast.BoolLit, *ast.NullLit:
+		return true
+	}
+	return number(e)
+}
+
+// number reports whether an expression is a number the server holds, or a
+// sign of one. Digits alone always fit, as a decimal or a double; an
+// exponent out of a double's range does not.
+func number(e ast.ExprNode) bool {
+	switch x := e.(type) {
+	case *ast.IntLit:
+		return true
+	case *ast.FloatLit:
+		if !strings.ContainsAny(x.Value, "eE") {
+			return true
+		}
+		_, err := strconv.ParseFloat(x.Value, 64)
+		return err == nil
+	case *ast.UnaryExpr:
+		return (x.Op == ast.UnaryMinus || x.Op == ast.UnaryPlus) && number(x.Operand)
 	}
 	return false
 }
@@ -381,7 +410,7 @@ type referencingKey struct {
 // the table no visible column; and when something depends on a column it
 // drops. A drop of only some columns of a key of several shrinks the key
 // to the rest, which fails when its values repeat: what follows is not
-// known.
+// known, unless a unique key keeps them apart.
 func (j *columnJudge) dropColumns(t *metadata.TableMetadata, drops []*ast.AlterTableCmd, before []string) (columns []string, lost *ast.AlterTableCmd, runs bool) {
 	in := func(list []string, column string) bool {
 		return slices.ContainsFunc(list, func(c string) bool { return sameName(c, column) })
@@ -424,11 +453,45 @@ func (j *columnJudge) dropColumns(t *metadata.TableMetadata, drops []*ast.AlterT
 	switch {
 	case taken == 0:
 	case taken < len(key):
-		return nil, nil, false
+		if !keptApart(t, gone) {
+			return nil, nil, false
+		}
 	default:
 		lost = effective[slices.IndexFunc(effective, func(cmd *ast.AlterTableCmd) bool { return in(key, cmd.Name) })]
 	}
 	return columns, lost, true
+}
+
+// keptApart reports whether a unique key of the table keeps the values of
+// its primary key apart once the key narrows to the columns not gone: one
+// whose every part is a column the narrowed key holds whole. Values a
+// unique key keeps apart, even by prefixes, the whole columns keep apart
+// too; a key part whose length the synced schema does not give may be a
+// prefix, which need not.
+func keptApart(t *metadata.TableMetadata, gone func(string) bool) bool {
+	i := slices.IndexFunc(t.GetIndexes(), (*metadata.IndexMetadata).GetPrimary)
+	if i < 0 {
+		return false
+	}
+	pk := t.GetIndexes()[i]
+	whole := func(idx *metadata.IndexMetadata, part int) bool {
+		lengths := idx.GetKeyLength()
+		return part < len(lengths) && lengths[part] <= 0
+	}
+	holds := func(column string) bool {
+		for n, part := range pk.GetExpressions() {
+			if sameName(part, column) {
+				return !gone(part) && whole(pk, n)
+			}
+		}
+		return false
+	}
+	return slices.ContainsFunc(t.GetIndexes(), func(idx *metadata.IndexMetadata) bool {
+		if !idx.GetUnique() || idx.GetPrimary() || len(idx.GetExpressions()) == 0 {
+			return false
+		}
+		return !slices.ContainsFunc(idx.GetExpressions(), func(part string) bool { return !holds(part) })
+	})
 }
 
 // primaryKeyColumns returns the columns of the synced table's primary

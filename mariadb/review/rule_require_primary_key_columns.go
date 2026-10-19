@@ -2,6 +2,7 @@ package review
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/mariadb/ast"
@@ -275,14 +276,42 @@ func setPasses(v *ast.SetStmt) bool {
 	return len(v.Assignments) > 0
 }
 
-// literal reports whether an expression is a literal, which a user
-// variable takes as it is.
+// literal reports whether an expression is a literal the server takes for
+// a user variable as it is: a number, or a sign of one; a string without a
+// character set introducer; a hexadecimal or bit value; TRUE, FALSE, or
+// NULL. The parser takes X'4' and b'2', which the server refuses as
+// malformed, and 1e400, which overflows a double.
 func literal(e ast.ExprNode) bool {
 	switch x := e.(type) {
-	case *ast.IntLit, *ast.FloatLit, *ast.BoolLit, *ast.NullLit:
-		return true
 	case *ast.StringLit:
 		return x.Charset == ""
+	case *ast.HexLit:
+		digits, prefixed := strings.CutPrefix(strings.ToLower(x.Value), "0x")
+		return (prefixed && digits != "" || !prefixed && len(digits)%2 == 0) && strings.Trim(digits, "0123456789abcdef") == ""
+	case *ast.BitLit:
+		digits, prefixed := strings.CutPrefix(strings.ToLower(x.Value), "0b")
+		return (!prefixed || digits != "") && strings.Trim(digits, "01") == ""
+	case *ast.BoolLit, *ast.NullLit:
+		return true
+	}
+	return number(e)
+}
+
+// number reports whether an expression is a number the server holds, or a
+// sign of one. Digits alone always fit, as a decimal or a double; an
+// exponent out of a double's range does not.
+func number(e ast.ExprNode) bool {
+	switch x := e.(type) {
+	case *ast.IntLit:
+		return true
+	case *ast.FloatLit:
+		if !strings.ContainsAny(x.Value, "eE") {
+			return true
+		}
+		_, err := strconv.ParseFloat(x.Value, 64)
+		return err == nil
+	case *ast.UnaryExpr:
+		return (x.Op == ast.UnaryMinus || x.Op == ast.UnaryPlus) && number(x.Operand)
 	}
 	return false
 }

@@ -631,7 +631,7 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "a temporary table of its name dropped before", sql: "DROP TEMPORARY TABLE IF EXISTS plain;\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "statements before that cannot fail",
-			sql:  "BEGIN;\nSAVEPOINT s;\nSET @x = 1, @sql_require_primary_key = 'a', foreign_key_checks = OFF, @@session.unique_checks = 0;\nANALYZE TABLE missing;\nCOMMIT;\nUNLOCK TABLES;\nROLLBACK;\nALTER TABLE plain DROP COLUMN id;",
+			sql:  "BEGIN;\nSAVEPOINT s;\nSET @x = 1, @sql_require_primary_key = 'a', foreign_key_checks = OFF, @@session.unique_checks = 0, @h = X'41', @h2 = 0x41, @b = b'101', @b2 = 0b1, @n = -1, @f = - +2.5e3;\nANALYZE TABLE missing;\nCOMMIT;\nUNLOCK TABLES;\nROLLBACK;\nALTER TABLE plain DROP COLUMN id;",
 			want: []finding{lost(7, "DROP COLUMN id", "plain")},
 		},
 		{name: "a row inserted before", sql: "INSERT INTO nokey VALUES (1);\nALTER TABLE plain DROP COLUMN id;"},
@@ -650,6 +650,10 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "foreign_key_checks set globally by its name before", sql: "SET @@global.foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "foreign_key_checks set to a value it lacks before", sql: "SET foreign_key_checks = 2;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a query before", sql: "SET @x = (SELECT a FROM nokey);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a malformed bit value before", sql: "SET @x = b'102';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a double out of range before", sql: "SET @x = -1e400;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a sign of a string before", sql: "SET @x = -'a';\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a string with a character set before", sql: "SET @x = _utf8mb4'a';\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "the character set set before", sql: "SET NAMES utf8mb4;\nALTER TABLE plain DROP COLUMN id;"},
 		{
