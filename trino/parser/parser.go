@@ -62,7 +62,14 @@ type Parser struct {
 	// nested `((((t))))` FROM group and rewinds when it fails, and the next
 	// level down fails on the same tokens; recording the failures keeps that
 	// linear.
-	parenQueryFail map[int]parenQueryFailure
+	parenQueryFail map[int]parenFailure
+
+	// parenRelationFail holds every parseParenRelationOrSubquery failure by
+	// the offset of its '('. When a FROM group nested in a derived table
+	// fails, as in `((SELECT * FROM ((SELECT * FROM t WHERE) x)) x)`, the
+	// derived table's query fails with it and every level above reparses the
+	// group as a relation; recording the failures keeps that linear.
+	parenRelationFail map[int]parenFailure
 
 	// parenGroupEnd records where the raw scan of each '(' group ended (its
 	// matching ')', or EOF), by the offset of the '('. A subquery body whose
@@ -72,40 +79,30 @@ type Parser struct {
 	parenGroupEnd map[int]parenReplay
 }
 
-// parenReplay is the state a scan or parse starting at a '(' left behind,
-// with the lex errors it recorded past that '(', so replaying it is
-// indistinguishable from running it again.
+// parenReplay is the state a scan or parse starting at a '(' left behind.
+// The lex errors on the way follow from the lexer position (see Lexer), so
+// replaying it is indistinguishable from running it again.
 type parenReplay struct {
-	end     parserCheckpoint
-	lexErrs []LexError
+	end parserCheckpoint
 }
 
-// parenQueryFailure is a recorded parseParenQuery failure: its error and
-// where the failed parse stopped.
-type parenQueryFailure struct {
+// parenFailure is a recorded parseParenQuery or parseParenRelationOrSubquery
+// failure: its error and where the failed parse stopped. The raw query bodies
+// the parse captured are not kept: a caller that receives a parse error
+// either rewinds past them or fails the statement, and neither reads them.
+type parenFailure struct {
 	err error
 	parenReplay
 }
 
 // recordParenReplay captures the current state as the end of a scan or parse
-// that started at the '(' at absolute offset open.
-func (p *Parser) recordParenReplay(open int) parenReplay {
-	rel := open - p.baseOffset
-	i := len(p.lexer.errors)
-	for i > 0 && p.lexer.errors[i-1].Loc.Start > rel {
-		i--
-	}
-	return parenReplay{end: p.checkpoint(), lexErrs: append([]LexError(nil), p.lexer.errors[i:]...)}
+// that started at a '('.
+func (p *Parser) recordParenReplay() parenReplay {
+	return parenReplay{end: p.checkpoint()}
 }
 
-// replayParen moves the parser to the end state r records, adding the lex
-// errors a rerun would record from the current lexer position on.
+// replayParen moves the parser to the end state r records.
 func (p *Parser) replayParen(r parenReplay) {
-	for _, e := range r.lexErrs {
-		if e.Loc.Start >= p.lexer.pos {
-			p.lexer.errors = append(p.lexer.errors, e)
-		}
-	}
 	p.lexer.pos, p.lexer.start = r.end.lexPos, r.end.lexStart
 	p.cur, p.prev, p.nextBuf, p.hasNext = r.end.cur, r.end.prev, r.end.nextBuf, r.end.hasNext
 }

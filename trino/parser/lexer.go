@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 
@@ -18,10 +19,17 @@ import (
 // proceed with best-effort recovery (Trino's own grammar keeps an UNRECOGNIZED_
 // catch-all for exactly this reason). The lexer never panics on malformed
 // input.
+//
+// The parser moves pos back to rewind a speculative parse and forward to
+// replay a recorded one. Lexing is a function of position, so errors are
+// recorded once, the first time their bytes are lexed, and the errors of the
+// tokens lexed so far are those that start before pos (see errorCount).
+// Rewinding and replaying therefore never copy or truncate the error list.
 type Lexer struct {
 	input      string
 	pos        int // current byte offset
 	start      int // start byte of the token currently being scanned
+	reach      int // furthest byte offset lexed; errors before it are recorded
 	errors     []LexError
 	baseOffset int // added to every emitted Loc (and to error Locs)
 }
@@ -38,14 +46,15 @@ func NewLexerWithOffset(input string, baseOffset int) *Lexer {
 	return &Lexer{input: input, baseOffset: baseOffset}
 }
 
-// Errors returns all lex errors collected so far, with positions shifted by
-// baseOffset when applicable.
+// Errors returns the lex errors of the tokens lexed so far, with positions
+// shifted by baseOffset when applicable.
 func (l *Lexer) Errors() []LexError {
+	errs := l.errors[:l.errorCount()]
 	if l.baseOffset == 0 {
-		return l.errors
+		return errs
 	}
-	shifted := make([]LexError, len(l.errors))
-	for i, e := range l.errors {
+	shifted := make([]LexError, len(errs))
+	for i, e := range errs {
 		shifted[i] = LexError{
 			Msg: e.Msg,
 			Loc: ast.Loc{Start: e.Loc.Start + l.baseOffset, End: e.Loc.End + l.baseOffset},
@@ -69,9 +78,16 @@ func Tokenize(input string) ([]Token, []LexError) {
 	return tokens, l.Errors()
 }
 
+// errorCount returns how many recorded errors start before pos: the errors of
+// the tokens lexed so far. Errors are recorded in position order.
+func (l *Lexer) errorCount() int {
+	return sort.Search(len(l.errors), func(i int) bool { return l.errors[i].Loc.Start >= l.pos })
+}
+
 // NextToken returns the next token, with positions shifted by baseOffset.
 func (l *Lexer) NextToken() Token {
 	tok := l.nextTokenInner()
+	l.reach = max(l.reach, l.pos)
 	if l.baseOffset != 0 {
 		tok.Loc.Start += l.baseOffset
 		tok.Loc.End += l.baseOffset
@@ -138,6 +154,9 @@ func isIdentCont(ch byte) bool {
 }
 
 func (l *Lexer) addError(msg string, start, end int) {
+	if start < l.reach {
+		return // lexed again after a rewind; recorded the first time
+	}
 	l.errors = append(l.errors, LexError{Msg: msg, Loc: ast.Loc{Start: start, End: end}})
 }
 
