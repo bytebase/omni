@@ -315,3 +315,4 @@ ref_313	ddl	reject	CREATE MATERIALIZED ZONEMAP omni_bad_zm_{run} AS SELECT SYS_O
 ref_314	select	accept	SELECT dummy FROM dual FETCH FIRST 1 ROW ONLY FOR UPDATE	FOR UPDATE after FETCH FIRST n ROWS ONLY
 ref_315	select	reject	SELECT dummy FROM dual FOR UPDATE FETCH FIRST 1 ROW ONLY	FOR UPDATE before the row limit (ORA-03049)
 ref_316	select	reject	(SELECT dummy FROM dual OFFSET 1 ROWS) FOR UPDATE	FOR UPDATE over an OFFSET (ORA-02014)
+ref_317	plsql	reject	DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR (SELECT dummy FROM dual); CLOSE c; END;	parenthesized OPEN FOR query (PLS-00103)

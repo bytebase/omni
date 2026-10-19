@@ -247,6 +247,23 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	} {
 		ParseAndCheck(t, sql)
 	}
+	// OPEN FOR takes a query bare, parenthesized not even whole (PLS-00103
+	// at its SELECT on Oracle 23ai), and a parenthesized string as dynamic
+	// SQL.
+	for _, sql := range []string{
+		"DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR (SELECT q FROM s); CLOSE c; END;",
+		"DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR ((SELECT q FROM s) ORDER BY q); CLOSE c; END;",
+		"DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR ((SELECT q FROM s) UNION (SELECT q FROM u)); CLOSE c; END;",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "SELECT q FROM s") {
+			t.Errorf("Parse(%q) = %v, want an error at the first SELECT", sql, err)
+		}
+	}
+	ParseAndCheck(t, "DECLARE c SYS_REFCURSOR; s VARCHAR2(100); BEGIN OPEN c FOR (('SELECT 1 FROM dual' || s)); CLOSE c; END;")
+	ParseAndCheck(t, "DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR SELECT q FROM s UNION SELECT q FROM u; CLOSE c; END;")
+
 	// A FOR loop's query stands alone, the whole of its iteration control
 	// (PLS-00103 at what follows it).
 	for _, tc := range []struct{ sql, at string }{
