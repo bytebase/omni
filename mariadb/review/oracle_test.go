@@ -743,6 +743,9 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		{name: "a table renamed onto it after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nRENAME TABLE y TO x", err: "already exists", reported: true},
 		{name: "a table altered to be renamed onto it after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE y RENAME TO x", err: "already exists", reported: true},
 		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @x = 0X41;\nALTER TABLE x DROP COLUMN id", err: "Unknown column", key: "id"},
+		{name: "foreign_key_checks set with := before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET foreign_key_checks := OFF;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "CREATE OR REPLACE TABLE of its name after, which gives it a key", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE OR REPLACE TABLE x (id INT PRIMARY KEY)", key: "id"},
+		{name: "CREATE OR REPLACE DATABASE of its database after, which drops it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET foreign_key_checks = 0;\nALTER TABLE x DROP COLUMN id;\nCREATE OR REPLACE DATABASE shop"},
 		{name: "a read-only transaction started before, which the drop commits", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "START TRANSACTION READ ONLY;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "an application-time period of it and another column, both dropped", setup: "CREATE TABLE x (s DATE, e DATE, v INT, PRIMARY KEY (s), PERIOD FOR p (s, e))", change: "ALTER TABLE x DROP COLUMN s, DROP COLUMN e", err: "Unknown column 's' in 'p'", key: "s"},
 		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
@@ -752,8 +755,11 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		{name: "with ALGORITHM=INPLACE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INPLACE", err: "ALGORITHM=INPLACE is not supported", key: "id"},
 		{name: "with LOCK=NONE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, LOCK=NONE"},
 		{name: "with a quoted DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=`DEFAULT`"},
-		// A statement the rule cannot bound ends the judging.
-		{name: "a USE before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id"},
+		// A USE of the target's database passes; one of another ends the
+		// judging, and a name without a database after it is that database's.
+		{name: "a USE of its database before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a USE of a database the server lacks before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE nosuch_db;\nALTER TABLE x DROP COLUMN id", err: "Unknown database", key: "id"},
+		{name: "a key added after a USE of another database, to a table of its name there", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (id INT, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nUSE other;\nALTER TABLE x ADD PRIMARY KEY (v)", reported: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

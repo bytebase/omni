@@ -35,6 +35,9 @@ import (
 //     a key back, rename the table, or drop it withdraws the finding; one
 //     that creates a table of its name, or renames one onto it, fails while
 //     the table exists.
+//   - A USE of the target's database passes. A USE of another ends the
+//     judging, and a name without a database after it is not the
+//     target's: the USE either moves the change there or fails.
 //   - A statement that may change any table, such as a CALL or an event,
 //     or a drop of the target's database, ends the judging and withdraws
 //     every finding.
@@ -64,6 +67,8 @@ const (
 	// dropsDatabase is a DROP DATABASE, which withdraws every finding when
 	// it drops the target's.
 	dropsDatabase
+	// uses is a USE, which moves names without a database to its database.
+	uses
 	// barrier is any other statement the rule cannot follow.
 	barrier
 	// stops is a statement that may change any table.
@@ -140,14 +145,15 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			}
 			st.kind = barrier
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.TableStmt, *ast.ValuesStmt, *ast.DoStmt,
-			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.SetTransactionStmt, *ast.UseStmt:
+			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.SetTransactionStmt:
 			// It changes no schema object, but may fail: on a table or column
 			// the target lacks; for TRUNCATE, on a table a foreign key
 			// references; for SET TRANSACTION, inside a transaction. Under LOCK
 			// TABLES, an ALTER TABLE of a table it did not lock for writing
-			// fails, and after USE, a name without a database may mean another
-			// table.
+			// fails.
 			st.kind = barrier
+		case *ast.UseStmt:
+			st.kind, st.database = uses, v.Database
 		case *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.DropViewStmt, *ast.CreateTriggerStmt, *ast.DropTriggerStmt,
 			*ast.CreateFunctionStmt, *ast.AlterRoutineStmt, *ast.DropRoutineStmt, *ast.DropEventStmt,
 			*ast.CreateDatabaseStmt, *ast.AlterDatabaseStmt,
@@ -332,8 +338,9 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 	var findings []found
 	dropped := make(map[*metadata.TableMetadata][]string)
 	j := &columnJudge{x: x}
-	// judging is whether the rule still judges drops.
-	judging := true
+	// judging is whether the rule still judges drops, and moved whether a
+	// USE has moved names without a database out of the target's.
+	judging, moved := true, false
 	for _, s := range c.steps {
 		switch s.kind {
 		case stops:
@@ -343,12 +350,16 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 				return
 			}
 			judging = false
+		case uses:
+			if moved = !x.same(s.database, x.schema.GetName()); moved {
+				judging = false
+			}
 		case barrier:
 			judging = false
 		case namesTables:
 			judging = false
 			for _, ref := range s.tables {
-				if t := x.table(ref, false); t != nil {
+				if t := x.table(ref, moved); t != nil {
 					findings = slices.DeleteFunc(findings, func(f found) bool { return f.table == t })
 				}
 			}
@@ -357,7 +368,7 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 				continue
 			}
 			ref := s.tables[0]
-			t := x.table(ref, false)
+			t := x.table(ref, moved)
 			// A table the synced schema does not hold may be missing, and the
 			// statement then fails.
 			if t == nil {
@@ -554,8 +565,18 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 		if expr != "" {
 			return reads(expr, column)
 		}
-		if key := primaryKeyColumns(t); key != nil {
-			return has(key)
+		if primaryKeyColumns(t) != nil {
+			// A part of the key that is a prefix of its column is left out.
+			//
+			// mysql: https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations.html
+			pk := t.GetIndexes()[slices.IndexFunc(t.GetIndexes(), (*metadata.IndexMetadata).GetPrimary)]
+			lengths := pk.GetKeyLength()
+			for n, part := range pk.GetExpressions() {
+				if sameName(part, column) && (n >= len(lengths) || lengths[n] <= 0) {
+					return true
+				}
+			}
+			return false
 		}
 		return !slices.ContainsFunc(t.GetIndexes(), (*metadata.IndexMetadata).GetUnique) ||
 			slices.ContainsFunc(t.GetIndexes(), func(idx *metadata.IndexMetadata) bool { return idx.GetUnique() && has(idx.GetExpressions()) })

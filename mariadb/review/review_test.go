@@ -620,9 +620,20 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		},
 		{
 			name: "a finding before a statement the rule cannot follow, withdrawn by a later statement on its table",
-			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE plain ADD PRIMARY KEY (v);",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nCREATE VIEW v1 AS SELECT 1;\nALTER TABLE plain ADD PRIMARY KEY (v);",
 			want: []finding{lost(1, "DROP COLUMN id", "k1")},
 		},
+		{
+			name: "findings before a USE of another database, after which a name without one is not the target's, but one with it is",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE plain ADD PRIMARY KEY (v);\nALTER TABLE shop.k1 ADD PRIMARY KEY (v);",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, after a USE of the target's database, and not after one naming it in another case, where names compare with case",
+			sql:  "USE shop;\nALTER TABLE plain DROP COLUMN id;\nUSE SHOP;\nALTER TABLE k1 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "a USE of another database, then of the target's, before", sql: "USE other;\nUSE shop;\nALTER TABLE plain DROP COLUMN id;"},
 		// Any statement but one of DROP COLUMN alone or one that changes no
 		// schema object may fail: no drop after it is judged.
 		{name: "another table altered before", sql: "ALTER TABLE nokey ADD COLUMN w INT;\nALTER TABLE plain DROP COLUMN id;"},
@@ -662,6 +673,22 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(1, "DROP COLUMN id", "plain")},
 		},
 		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, before CREATE OR REPLACE TABLE of its name, which drops it, or of a temporary table",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nCREATE OR REPLACE TABLE plain (id INT PRIMARY KEY);\nCREATE OR REPLACE TEMPORARY TABLE k1 (id INT PRIMARY KEY);",
+			want: []finding{lost(1, "DROP COLUMN id", "k1")},
+		},
+		{name: "the key, before CREATE OR REPLACE DATABASE of the target's", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE OR REPLACE DATABASE shop;"},
+		{
+			name: "the key, before CREATE DATABASE of the target's, which fails, or CREATE OR REPLACE DATABASE of another",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE DATABASE shop;\nCREATE OR REPLACE DATABASE other;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, after foreign_key_checks set with :=",
+			sql:  "SET foreign_key_checks := OFF;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
 		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", sql: "SET @x = 0X41;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a bit value of an uppercase prefix before", sql: "SET @x = 0B01;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to DEFAULT before", sql: "SET @x = DEFAULT;\nALTER TABLE plain DROP COLUMN id;"},

@@ -463,6 +463,8 @@ func keyed() []review.Target {
 		&metadata.TableMetadata{Name: "pairn", Columns: columns("a", "b", "v"), Indexes: pairKey(nil, &metadata.IndexMetadata{Name: "ub", Unique: true, Expressions: []string{"b"}})},
 		&metadata.TableMetadata{Name: "pairw", Columns: columns("a", "b", "v"), Indexes: pairKey([]int64{-1, -1}, &metadata.IndexMetadata{Name: "ubv", Unique: true, Expressions: []string{"b", "v"}, KeyLength: []int64{-1, -1}})},
 		&metadata.TableMetadata{Name: "pairk", Columns: columns("a", "b", "v"), Indexes: pairKey([]int64{-1, -1}, &metadata.IndexMetadata{Name: "kb", Expressions: []string{"b"}, KeyLength: []int64{-1}})},
+		&metadata.TableMetadata{Name: "kpref", Columns: columns("a", "b", "v"), Indexes: pairKey([]int64{10, -1}, &metadata.IndexMetadata{Name: "ub", Unique: true, Expressions: []string{"b"}, KeyLength: []int64{-1}}), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
+		&metadata.TableMetadata{Name: "kprefn", Columns: columns("a", "b", "v"), Indexes: pairKey(nil, &metadata.IndexMetadata{Name: "ub", Unique: true, Expressions: []string{"b"}, KeyLength: []int64{-1}}), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
 		&metadata.TableMetadata{Name: "pchk", Columns: columns("a", "b", "v"), Indexes: pk("a", "b"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`a` < `b`)"}}},
 		&metadata.TableMetadata{
 			Name:    "gen",
@@ -563,6 +565,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "a column a functional index reads", sql: "ALTER TABLE fx DROP COLUMN id;"},
 		{name: "a column the table is partitioned by", sql: "ALTER TABLE part DROP COLUMN id;"},
 		{name: "a column of a table partitioned by KEY ()", sql: "ALTER TABLE kpart DROP COLUMN id;"},
+		{
+			name: "the key, after a column of the key held by a prefix dropped from a table partitioned by KEY (), which leaves the prefix out",
+			sql:  "ALTER TABLE kpref DROP COLUMN a;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "a column of the key of a table partitioned by KEY (), of lengths the synced schema lacks", sql: "ALTER TABLE kprefn DROP COLUMN a;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "the unique key's column of a table without a primary key partitioned by KEY ()", sql: "ALTER TABLE kpart0 DROP COLUMN u;\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "the key, after a column out of any key dropped from a table without a primary key partitioned by KEY ()",
@@ -606,9 +614,20 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		},
 		{
 			name: "a finding before a statement the rule cannot follow, withdrawn by a later statement on its table",
-			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE plain ADD PRIMARY KEY (v);",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nCREATE VIEW v1 AS SELECT 1;\nALTER TABLE plain ADD PRIMARY KEY (v);",
 			want: []finding{lost(1, "DROP COLUMN id", "k1")},
 		},
+		{
+			name: "findings before a USE of another database, after which a name without one is not the target's, but one with it is",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE plain ADD PRIMARY KEY (v);\nALTER TABLE shop.k1 ADD PRIMARY KEY (v);",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, after a USE of the target's database, and not after one naming it in another case, where names compare with case",
+			sql:  "USE shop;\nALTER TABLE plain DROP COLUMN id;\nUSE SHOP;\nALTER TABLE k1 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "a USE of another database, then of the target's, before", sql: "USE other;\nUSE shop;\nALTER TABLE plain DROP COLUMN id;"},
 		// Any statement but one of DROP COLUMN alone or one that changes no
 		// schema object may fail: no drop after it is judged.
 		{name: "another table altered before", sql: "ALTER TABLE nokey ADD COLUMN w INT;\nALTER TABLE plain DROP COLUMN id;"},
@@ -647,6 +666,11 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(1, "DROP COLUMN id", "plain")},
 		},
 		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, after foreign_key_checks set with :=",
+			sql:  "SET foreign_key_checks := OFF;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
 		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", sql: "SET @x = 0X41;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a bit value of an uppercase prefix before", sql: "SET @x = 0B01;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to DEFAULT before", sql: "SET @x = DEFAULT;\nALTER TABLE plain DROP COLUMN id;"},

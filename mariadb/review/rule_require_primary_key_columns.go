@@ -35,6 +35,9 @@ import (
 //     a key back, rename the table, or drop it withdraws the finding; one
 //     that creates a table of its name, or renames one onto it, fails while
 //     the table exists.
+//   - A USE of the target's database passes. A USE of another ends the
+//     judging, and a name without a database after it is not the
+//     target's: the USE either moves the change there or fails.
 //   - A statement that may change any table, such as a CALL or an event,
 //     or a drop of the target's database, ends the judging and withdraws
 //     every finding.
@@ -64,6 +67,8 @@ const (
 	// dropsDatabase is a DROP DATABASE, which withdraws every finding when
 	// it drops the target's.
 	dropsDatabase
+	// uses is a USE, which moves names without a database to its database.
+	uses
 	// barrier is any other statement the rule cannot follow.
 	barrier
 	// stops is a statement that may change any table.
@@ -92,9 +97,17 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			} else {
 				st.kind, st.tables = namesTables, alterSettles(v)
 			}
-		case *ast.CreateTableStmt, *ast.CreateIndexStmt, *ast.DropIndexStmt:
-			// CREATE INDEX makes no primary key, and CREATE TABLE of a name
-			// fails while a table of it exists.
+		case *ast.CreateTableStmt:
+			st.kind = namesTables
+			// CREATE TABLE of a name fails while a table of it exists, but
+			// CREATE OR REPLACE TABLE drops it first.
+			//
+			// mariadb: https://mariadb.com/docs/server/reference/sql-statements/data-definition/create/create-table — CREATE OR REPLACE
+			if v.OrReplace && !v.Temporary {
+				st.tables = []*ast.TableRef{v.Table}
+			}
+		case *ast.CreateIndexStmt, *ast.DropIndexStmt:
+			// CREATE INDEX makes no primary key.
 			st.kind = namesTables
 		case *ast.DropTableStmt:
 			st.kind = namesTables
@@ -113,6 +126,13 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			}
 		case *ast.DropDatabaseStmt:
 			st.kind, st.database = dropsDatabase, v.Name
+		case *ast.CreateDatabaseStmt:
+			// CREATE OR REPLACE DATABASE drops one of its name first.
+			if v.OrReplace {
+				st.kind, st.database = dropsDatabase, v.Name
+			} else {
+				st.kind = barrier
+			}
 		case *ast.SetStmt:
 			if setPasses(v) {
 				continue
@@ -146,17 +166,18 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			}
 			st.kind = barrier
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.TableStmt, *ast.ValuesStmt, *ast.DoStmt,
-			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.SetTransactionStmt, *ast.UseStmt:
+			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.SetTransactionStmt:
 			// It changes no schema object, but may fail: on a table or column
 			// the target lacks; for TRUNCATE, on a table a foreign key
 			// references; for SET TRANSACTION, inside a transaction. Under LOCK
 			// TABLES, an ALTER TABLE of a table it did not lock for writing
-			// fails, and after USE, a name without a database may mean another
-			// table.
+			// fails.
 			st.kind = barrier
+		case *ast.UseStmt:
+			st.kind, st.database = uses, v.Database
 		case *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.DropViewStmt, *ast.CreateTriggerStmt, *ast.DropTriggerStmt,
 			*ast.CreateFunctionStmt, *ast.AlterRoutineStmt, *ast.DropRoutineStmt, *ast.DropEventStmt,
-			*ast.CreateDatabaseStmt, *ast.AlterDatabaseStmt,
+			*ast.AlterDatabaseStmt,
 			*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt, *ast.SetPasswordStmt, *ast.GrantStmt, *ast.RevokeStmt,
 			*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt:
 			// It changes no table, but may fail. A trigger or a function cannot
@@ -338,8 +359,9 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 	var findings []found
 	dropped := make(map[*metadata.TableMetadata][]string)
 	j := &columnJudge{x: x}
-	// judging is whether the rule still judges drops.
-	judging := true
+	// judging is whether the rule still judges drops, and moved whether a
+	// USE has moved names without a database out of the target's.
+	judging, moved := true, false
 	for _, s := range c.steps {
 		switch s.kind {
 		case stops:
@@ -349,12 +371,16 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 				return
 			}
 			judging = false
+		case uses:
+			if moved = !x.same(s.database, x.schema.GetName()); moved {
+				judging = false
+			}
 		case barrier:
 			judging = false
 		case namesTables:
 			judging = false
 			for _, ref := range s.tables {
-				if t := x.table(ref, false); t != nil {
+				if t := x.table(ref, moved); t != nil {
 					findings = slices.DeleteFunc(findings, func(f found) bool { return f.table == t })
 				}
 			}
@@ -363,7 +389,7 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 				continue
 			}
 			ref := s.tables[0]
-			t := x.table(ref, false)
+			t := x.table(ref, moved)
 			// A table the synced schema does not hold may be missing, and the
 			// statement then fails.
 			if t == nil {
