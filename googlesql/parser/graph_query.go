@@ -855,6 +855,10 @@ func (p *Parser) parseGraphPattern() (*ast.GraphPattern, error) {
 //
 //	[<var> =] [(ANY|ALL) [SHORTEST]] [<mode> [PATH|PATHS]] <path_pattern_expr>
 func (p *Parser) parseGraphPathPattern() (*ast.GraphPathPattern, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	pp := &ast.GraphPathPattern{Loc: p.cur.Loc}
 	start := p.cur.Loc.Start
 
@@ -1467,6 +1471,10 @@ func (p *Parser) parseLabelAnd() (*ast.GraphLabelExpr, error) {
 // parseLabelUnary parses a `!`-prefixed label expression (right-recursive) or a
 // label primary.
 func (p *Parser) parseLabelUnary() (*ast.GraphLabelExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	if p.cur.Type == int('!') {
 		bang := p.advance() // !
 		operand, err := p.parseLabelUnary()
