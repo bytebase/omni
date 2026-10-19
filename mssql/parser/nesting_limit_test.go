@@ -7,6 +7,8 @@ import (
 	"time"
 
 	mssqldrv "github.com/microsoft/go-mssqldb"
+
+	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
 func nest(n int, open, mid, closing string) string {
@@ -157,18 +159,14 @@ func TestNestingLimitCompletion(t *testing.T) {
 	}
 }
 
-// TestFlatChainsDoNotNest: a flat chain parses in a loop and does not count
-// toward the nesting limit. SQL Server 2022 accepts 50,000 UNION operands
-// and 50,000 statements in a block (TestNestingLimitBelowServer probes it).
-func TestFlatChainsDoNotNest(t *testing.T) {
+// TestFlatListsStayShallow: statements and other flat lists are parsed by
+// a loop and add no depth, so neither limit applies to their length.
+func TestFlatListsStayShallow(t *testing.T) {
 	for name, sql := range map[string]string{
-		"UNION":               "SELECT 1" + strings.Repeat(" UNION SELECT 1", 200000),
-		"UNION ALL":           "SELECT 1" + strings.Repeat(" UNION ALL SELECT 1", 200000),
-		"mixed set ops":       "SELECT 1" + strings.Repeat(" EXCEPT SELECT 1 INTERSECT SELECT 1", 100000),
-		"AND":                 "SELECT 1 WHERE 1 = 1" + strings.Repeat(" AND 1 = 1", 200000),
-		"addition":            "SELECT 1" + strings.Repeat(" + 1", 200000),
 		"statements":          strings.Repeat("SELECT 1; ", 200000),
 		"statements in block": "BEGIN " + strings.Repeat("SELECT 1; ", 200000) + "END",
+		"select list":         "SELECT 1" + strings.Repeat(", 1", 200000),
+		"IN list":             "SELECT 1 WHERE 1 IN (1" + strings.Repeat(", 1", 200000) + ")",
 	} {
 		err, ok := parseWithin(sql, 10*time.Second)
 		if !ok {
@@ -189,6 +187,98 @@ func TestLexerLoopsOverComments(t *testing.T) {
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// treeHeight returns how many nodes deep the tree under root is.
+func treeHeight(root nodes.Node) int {
+	lo, hi := 1, 1
+	for treeHeightExceeds(root, hi) {
+		lo, hi = hi+1, hi*2
+	}
+	for lo < hi {
+		mid := (lo + hi) / 2
+		if treeHeightExceeds(root, mid) {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+	return lo
+}
+
+// chainShapes build left-deep chains of n terms: the parser builds each with
+// a loop, so only the tree, not the parse, gets deep.
+var chainShapes = []struct {
+	name string
+	sql  func(n int) string
+}{
+	{"sum", func(n int) string { return "SELECT " + strings.Repeat("1 + ", n) + "1" }},
+	{"subtraction", func(n int) string { return "SELECT " + strings.Repeat("1 - ", n) + "1" }},
+	{"concatenation", func(n int) string { return "SELECT " + strings.Repeat("'a' + ", n) + "'a'" }},
+	{"bitwise operators", func(n int) string { return "SELECT " + strings.Repeat("1 & 1 | ", n) + "1 ^ 1" }},
+	{"product", func(n int) string { return "SELECT " + strings.Repeat("1 * ", n) + "1" }},
+	{"modulo", func(n int) string { return "SELECT " + strings.Repeat("1 % ", n) + "1" }},
+	{"AND", func(n int) string { return "SELECT 1 WHERE " + strings.Repeat("a = 1 AND ", n) + "a = 1" }},
+	{"OR", func(n int) string { return "SELECT 1 WHERE " + strings.Repeat("a = 1 OR ", n) + "a = 1" }},
+	{"COLLATE", func(n int) string { return "SELECT 'a'" + strings.Repeat(" COLLATE Latin1_General_CI_AS", n) }},
+	{"AT TIME ZONE", func(n int) string { return "SELECT d" + strings.Repeat(" AT TIME ZONE 'UTC'", n) + " FROM t" }},
+	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
+	{"EXCEPT and INTERSECT", func(n int) string {
+		return strings.Repeat("SELECT 1 EXCEPT SELECT 1 INTERSECT ", n) + "SELECT 1"
+	}},
+	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON 1 = 1", n) }},
+	{"outer joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" LEFT OUTER JOIN t ON 1 = 1", n) }},
+	{"cross joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" CROSS JOIN t", n) }},
+	{"APPLY", func(n int) string {
+		return "SELECT * FROM t" + strings.Repeat(" CROSS APPLY f() AS x OUTER APPLY f() AS y", n)
+	}},
+}
+
+// TestTreeHeightLimit: a left-deep chain whose tree is deeper than
+// maxTreeHeight is rejected at the statement, because every consumer that
+// walks the tree recursively would overflow the stack on it (NodeToString
+// did at a million-term sum, review at three million ANDs). A chain within
+// the limit still parses, though it is longer than maxNestingDepth: the
+// parser itself does not recurse per term.
+func TestTreeHeightLimit(t *testing.T) {
+	for _, tc := range chainShapes {
+		if err, ok := parseWithin(tc.sql(maxTreeHeight/4), 10*time.Second); !ok || err != nil {
+			t.Errorf("%s: %d terms: err = %v, finished = %v", tc.name, maxTreeHeight/4, err, ok)
+		}
+		err, ok := parseWithin("SELECT 1; "+tc.sql(maxTreeHeight+1), 10*time.Second)
+		var pe *ParseError
+		if !ok || !errors.As(err, &pe) || pe.Message != "statement is nested too deeply" || pe.Position != len("SELECT 1; ") {
+			t.Errorf("%s: %d terms: err = %v, finished = %v, want the nesting error at the statement",
+				tc.name, maxTreeHeight+1, err, ok)
+		}
+	}
+}
+
+// TestTreeHeightPerByte: treeTooHigh skips statements shorter than
+// maxTreeHeight/16 bytes, on the ground that no construct adds more than 16
+// levels of tree per byte of text. Check that across the recursive
+// constructs and the chains, and that the measured height of a chain grows
+// with its length, as the recursive consumers' depth does.
+func TestTreeHeightPerByte(t *testing.T) {
+	height := func(name, sql string) int {
+		list, err := Parse(sql)
+		if err != nil || list == nil || len(list.Items) == 0 {
+			return 0
+		}
+		h := treeHeight(list.Items[0])
+		if h > 16*len(sql) {
+			t.Errorf("%s: tree %d deep from %d bytes", name, h, len(sql))
+		}
+		return h
+	}
+	for _, tc := range nestingCases {
+		height(tc.name, tc.sql(1000))
+	}
+	for _, tc := range chainShapes {
+		if h := height(tc.name, tc.sql(1000)); h < 1000 {
+			t.Errorf("%s: 1,000 terms measured %d deep, want at least 1,000", tc.name, h)
 		}
 	}
 }
@@ -230,8 +320,10 @@ func TestNestingLimitBelowServer(t *testing.T) {
 			t.Errorf("%s: omni: %v", tc.name, err)
 		}
 	}
+	// Flat chains and lists are not nesting: both accept 50,000 terms.
 	for name, sql := range map[string]string{
 		"UNION":               "SELECT 1" + strings.Repeat(" UNION SELECT 1", 50000),
+		"AND":                 "SELECT 1 WHERE " + strings.Repeat("1 = 1 AND ", 50000) + "1 = 1",
 		"statements in block": "BEGIN " + strings.Repeat("SELECT 1; ", 50000) + "END",
 	} {
 		serverErr, err := oracle.parseError(sql)
@@ -241,5 +333,17 @@ func TestNestingLimitBelowServer(t *testing.T) {
 		if serverErr != nil {
 			t.Errorf("%s: SQL Server: %v, want it accepted", name, serverErr)
 		}
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("%s: omni: %v", name, err)
+		}
+	}
+	// A long sum already exhausts SQL Server's own stack (maxTreeHeight).
+	serverErr, err := oracle.parseError("SELECT " + strings.Repeat("1 + ", 50000) + "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var me mssqldrv.Error
+	if !errors.As(serverErr, &me) || me.Number != 8631 {
+		t.Errorf("50,000-term sum: SQL Server: %v, want Msg 8631", serverErr)
 	}
 }

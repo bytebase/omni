@@ -70,6 +70,7 @@ func Parse(sql string) (*nodes.List, error) {
 		if p.lexer.Err != nil {
 			return nil, p.lexerError()
 		}
+		stmtStart := p.cur.Loc
 		stmt, err := p.parseStmt()
 		if err != nil {
 			return nil, err
@@ -86,6 +87,9 @@ func Parse(sql string) (*nodes.List, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
+		}
+		if treeTooHigh(stmt, p.prev.End-stmtStart) {
+			return nil, nestedTooDeeply(stmtStart)
 		}
 		stmts = append(stmts, stmt)
 	}
