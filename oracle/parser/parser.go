@@ -483,7 +483,7 @@ func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error
 	if p.lexer.Err != nil {
 		return nil, p.lexerError()
 	}
-	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || isIncompleteParsedStmt(stmt)) {
+	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || p.isIncompleteParsedStmt(stmt)) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if stmt == nil {
@@ -681,10 +681,10 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 	return false
 }
 
-func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
+func (p *Parser) isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	switch s := stmt.(type) {
 	case *nodes.SelectStmt:
-		return querySelectsSourcelessStar(s)
+		return p.endsAwaitingFrom(s)
 	case *nodes.DropStmt:
 		if s.ObjectType == nodes.OBJECT_DATABASE && (s.Names == nil || s.Names.Len() == 0) {
 			return false
@@ -804,22 +804,19 @@ func lockedSubquery(stmt nodes.Node) nodes.Node {
 	return lock
 }
 
-// querySelectsSourcelessStar reports whether a query block of query selects
-// * without a FROM clause, which Oracle 23ai rejects with ORA-54058. A set
-// operation's operands and a parenthesized operand's wrapper are searched:
-// (SELECT *) UNION SELECT 1 FROM dual fails like SELECT * alone.
-func querySelectsSourcelessStar(query *nodes.SelectStmt) bool {
-	if query == nil {
+// endsAwaitingFrom reports whether the last query block of query, where
+// the text ends, selects * with no FROM after it yet: SELECT * and SELECT
+// 1 FROM dual UNION SELECT * end unfinished. A parenthesized block is
+// whole, and sourcelessStar reports it: SELECT 1 FROM dual UNION (SELECT
+// *) fails at its SELECT.
+func (p *Parser) endsAwaitingFrom(query *nodes.SelectStmt) bool {
+	for query.Rarg != nil {
+		query = query.Rarg
+	}
+	if query.Larg != nil || query.Loc.Start >= 0 && query.Loc.Start < len(p.source) && p.source[query.Loc.Start] == '(' {
 		return false
 	}
-	if query.Larg != nil {
-		if querySelectsSourcelessStar(query.Larg) {
-			return true
-		}
-	} else if (query.FromClause == nil || query.FromClause.Len() == 0) && selectTargetListContainsStar(query.TargetList) {
-		return true
-	}
-	return querySelectsSourcelessStar(query.Rarg)
+	return (query.FromClause == nil || query.FromClause.Len() == 0) && selectTargetListContainsStar(query.TargetList)
 }
 
 // selectTargetListContainsStar reports whether list selects * or table.*:

@@ -396,6 +396,27 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 			t.Errorf("Parse(%q) = %v, want an error at its SELECT", sql, err)
 		}
 	}
+	// The text may end in a parenthesized block, which is whole: the error
+	// is at its SELECT, ';' or not. An unparenthesized one there has yet to
+	// get its FROM, and the error is at the end.
+	for _, sql := range []string{
+		"SELECT 1 FROM dual UNION (SELECT *)",
+		"SELECT 1 FROM dual UNION (SELECT *);",
+		"(SELECT *) UNION SELECT 1 FROM dual",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "SELECT *") {
+			t.Errorf("Parse(%q) = %v, want an error at SELECT *", sql, err)
+		}
+	}
+	for _, sql := range []string{"SELECT *", "SELECT 1 FROM dual UNION SELECT *"} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || pe.Position != len(sql) {
+			t.Errorf("Parse(%q) = %v, want an error at the end", sql, err)
+		}
+	}
 	// A block with a WITH clause starts there, where Oracle reports it.
 	const withStar = "CREATE VIEW v AS WITH w AS (SELECT 1 FROM dual) SELECT * ORDER BY 1"
 	var pe *ParseError
@@ -430,6 +451,9 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"SELECT x. FROM (WITH w AS (SELECT 1 c FROM dual) (SELECT c AS left_name FROM w)) x",
 		"SELECT x. FROM (WITH w (c) AS (SELECT 1 FROM dual), v AS (SELECT 2 d FROM dual) ((SELECT c AS left_name FROM w) UNION (SELECT d FROM v))) x",
 		"SELECT x. FROM (WITH w AS (SELECT 1 c FROM dual) SELECT c AS left_name FROM w) x",
+		// The first operand, parenthesized, though one at the query's own
+		// depth follows.
+		"SELECT x. FROM ((SELECT c1 AS left_name FROM t) UNION SELECT c2 FROM u) x",
 	} {
 		scope := CollectCompletion(sql, len("SELECT x.")).Scope
 		if scope == nil || len(scope.LocalReferences) != 1 || len(scope.LocalReferences[0].Columns) != 1 || scope.LocalReferences[0].Columns[0] != "LEFT_NAME" {

@@ -907,12 +907,13 @@ func firstOracleNonTerminator(tokens []Token) int {
 }
 
 // oracleQuerySelect returns the SELECT whose list names the columns of the
-// query tokens hold, and the tokens[lo:hi] it stands in: the first SELECT
-// at the query's own depth or, when none stands there and a parenthesized
-// first operand opens the query, ((SELECT c1 FROM t) UNION (SELECT c2 FROM
-// u)), that operand's, as deep as the wrappers go. One pass finds where
-// each leading '(' closes and the first SELECT inside it at its own depth:
-// peeling a wrapper at a time scanned the query once per wrapper.
+// query tokens hold, and the tokens[lo:hi] it stands in: that of the first
+// operand, the first SELECT at the query's own depth or, when a
+// parenthesized operand opens the query, ((SELECT c1 FROM t) UNION (SELECT
+// c2 FROM u)), the first inside it, as deep as the wrappers go. One pass
+// finds where each leading '(' closes and the first SELECT inside it at
+// its own depth: peeling a wrapper at a time scanned the query once per
+// wrapper.
 func oracleQuerySelect(tokens []Token) (lo, hi, selectIdx int) {
 	if len(tokens) > 0 && tokens[0].Type == kwWITH {
 		// After its WITH clause a query may open with a parenthesized
@@ -974,18 +975,16 @@ func oracleQuerySelect(tokens []Token) (lo, hi, selectIdx int) {
 			}
 		}
 	}
-	for d := 0; d <= run; d++ {
-		if d > 0 && closes[d-1] < 0 {
-			break
-		}
-		if first[d] >= 0 {
-			if d == 0 {
-				return 0, len(tokens), first[0]
-			}
-			return d, closes[d-1], first[d]
-		}
+	// The first operand names the columns, so a query that opens with '('
+	// takes its query from inside those parentheses, past any later operand
+	// at its own depth: ((SELECT a FROM t) UNION SELECT b FROM u) names A.
+	switch {
+	case run > 0 && closes[run-1] < 0, first[run] < 0:
+		return 0, 0, -1
+	case run == 0:
+		return 0, len(tokens), first[0]
 	}
-	return 0, 0, -1
+	return run, closes[run-1], first[run]
 }
 
 func oracleMatchingParen(tokens []Token, openIdx int) int {
