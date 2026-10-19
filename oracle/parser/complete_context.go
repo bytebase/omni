@@ -906,6 +906,60 @@ func firstOracleNonTerminator(tokens []Token) int {
 	return -1
 }
 
+// oracleQuerySelect returns the SELECT whose list names the columns of the
+// query tokens hold, and the tokens[lo:hi] it stands in: the first SELECT
+// at the query's own depth or, when none stands there and a parenthesized
+// first operand opens the query, ((SELECT c1 FROM t) UNION (SELECT c2 FROM
+// u)), that operand's, as deep as the wrappers go. One pass finds where
+// each leading '(' closes and the first SELECT inside it at its own depth:
+// peeling a wrapper at a time scanned the query once per wrapper.
+func oracleQuerySelect(tokens []Token) (lo, hi, selectIdx int) {
+	run := 0
+	for run < len(tokens) && tokens[run].Type == '(' {
+		run++
+	}
+	// closes[d] is where the d-th leading '(' closes, or -1; first[d] is
+	// the first SELECT at depth d while the leading ones before it are
+	// open, or -1.
+	closes, first := make([]int, run), make([]int, run+1)
+	for d := range first {
+		first[d] = -1
+		if d < run {
+			closes[d] = -1
+		}
+	}
+	depth := 0
+	for i, tok := range tokens {
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+				if depth < run && closes[depth] < 0 {
+					closes[depth] = i
+				}
+			}
+		case kwSELECT:
+			if depth <= run && first[depth] < 0 && (depth == 0 || closes[depth-1] < 0) {
+				first[depth] = i
+			}
+		}
+	}
+	for d := 0; d <= run; d++ {
+		if d > 0 && closes[d-1] < 0 {
+			break
+		}
+		if first[d] >= 0 {
+			if d == 0 {
+				return 0, len(tokens), first[0]
+			}
+			return d, closes[d-1], first[d]
+		}
+	}
+	return 0, 0, -1
+}
+
 func oracleMatchingParen(tokens []Token, openIdx int) int {
 	if openIdx < 0 || openIdx >= len(tokens) || tokens[openIdx].Type != '(' {
 		return -1
@@ -1063,37 +1117,14 @@ func extractOracleNameList(tokens []Token) []string {
 }
 
 func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReference) []string {
-	selectIdx := -1
-	depth := 0
-	for i, tok := range tokens {
-		switch tok.Type {
-		case '(':
-			depth++
-			continue
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-			continue
-		}
-		if depth == 0 && tok.Type == kwSELECT {
-			selectIdx = i
-			break
-		}
-	}
+	lo, hi, selectIdx := oracleQuerySelect(tokens)
 	if selectIdx < 0 {
-		// A query whose first operand is parenthesized, ((SELECT c1 FROM t)
-		// UNION (SELECT c2 FROM u)), takes that operand's columns.
-		if len(tokens) > 0 && tokens[0].Type == '(' {
-			if closeIdx := oracleMatchingParen(tokens, 0); closeIdx > 0 {
-				return extractOracleSelectListColumns(tokens[1:closeIdx], ctes)
-			}
-		}
 		return nil
 	}
+	tokens, selectIdx = tokens[lo:hi], selectIdx-lo
 	var names []string
 	targetStart := selectIdx + 1
-	depth = 0
+	depth := 0
 	closedTargetList := false
 	for i := selectIdx + 1; i < len(tokens); i++ {
 		tok := tokens[i]
