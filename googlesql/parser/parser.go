@@ -614,9 +614,28 @@ func (p *Parser) parseStmtWithSubqueries(parse func() (ast.Node, error)) (ast.No
 // Diagnose still surfaces a malformed embedded subquery) but never abort the
 // outer parse. The walk descends into the filled subqueries too, so arbitrarily
 // nested subqueries are completed.
+//
+// The walk runs before parseSingle measures the tree's height (the tree is
+// not complete until the bodies are attached), so it keeps its own stack
+// instead of recursing, and stops past maxTreeHeight levels: parseSingle
+// rejects a tree that deep.
 func (p *Parser) fillSubqueries(node ast.Node) {
-	ast.Inspect(node, func(n ast.Node) bool {
-		switch sq := n.(type) {
+	if node == nil {
+		return
+	}
+	type level struct {
+		node  ast.Node
+		depth int
+	}
+	stack := []level{{node, 1}}
+	var kids childLister
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if top.depth > maxTreeHeight {
+			return
+		}
+		switch sq := top.node.(type) {
 		case *ast.SubqueryExpr:
 			if sq.Query == nil {
 				sq.Query = p.fillSubquery(sq.RawText, sq.TextStart, sq.Loc)
@@ -630,8 +649,13 @@ func (p *Parser) fillSubqueries(node ast.Node) {
 				sq.Query = p.fillSubquery(sq.RawText, sq.TextStart, sq.Loc)
 			}
 		}
-		return true
-	})
+		// Push the children last first, so they are visited in order, as a
+		// recursive pre-order walk visits them.
+		kids.list(top.node)
+		for i := len(kids.children) - 1; i >= 0; i-- {
+			stack = append(stack, level{kids.children[i], top.depth + 1})
+		}
+	}
 }
 
 // fillSubquery re-parses one captured body, or attaches the parse
@@ -854,6 +878,7 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 		strictTrailing: strictTrailing,
 	}
 	p.advance() // prime cur with the first token
+	first := p.cur
 
 	var result ast.Node
 	if p.cur.Type != tokEOF {
@@ -874,6 +899,12 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 					Message: err.Error(),
 				})
 			}
+		} else if treeTooHigh(node, len(segText)) {
+			// A left-deep chain parsed by a loop is shallow to parse but deep
+			// as a tree, and every consumer that walks the tree recursively
+			// would overflow the stack on it.
+			p.errors = append(p.errors, *nestedTooDeeply(first.Loc))
+			node = nil
 		} else if strictTrailing && p.cur.Type != tokEOF {
 			// The grammar root is `stmts EOF` (antlr_rules.md §1): a complete
 			// statement must be followed by end-of-input. parseStmt succeeded but

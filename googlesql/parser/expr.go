@@ -67,10 +67,14 @@ const (
 func ParseExpression(input string) (ast.Node, []ParseError) {
 	p := &Parser{lexer: NewLexer(input), input: input}
 	p.advance()
+	first := p.cur
 
 	node, err := p.parseExpr()
 	if err != nil {
 		return nil, errToSlice(err)
+	}
+	if treeTooHigh(node, len(input)) {
+		return nil, []ParseError{*nestedTooDeeply(first.Loc)}
 	}
 	if p.cur.Type != tokEOF {
 		text := p.cur.Str

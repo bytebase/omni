@@ -1,9 +1,12 @@
 package parser
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/googlesql/ast"
 )
 
 // raiseNestingLimit lifts maxNestingDepth for a test that nests deeper on
@@ -46,59 +49,64 @@ func parseWithin(sql string, limit time.Duration) (finished bool, err error) {
 	}
 }
 
+func nest(n int, open, mid, closing string) string {
+	return strings.Repeat(open, n) + mid + strings.Repeat(closing, n)
+}
+
+// nestingShapes are the constructs the parser descends into recursively,
+// n levels deep.
+var nestingShapes = []struct {
+	name string
+	sql  func(n int) string
+}{
+	{"parenthesized expression", func(n int) string { return "SELECT " + nest(n, "(", "1", ")") }},
+	{"unary minus", func(n int) string { return "SELECT " + strings.Repeat("- ", n) + "1" }},
+	{"NOT", func(n int) string { return "SELECT " + strings.Repeat("NOT ", n) + "true" }},
+	{"right-deep operators", func(n int) string { return "SELECT " + nest(n, "1 + (", "1", ")") }},
+	{"function call", func(n int) string { return "SELECT " + nest(n, "f(", "1", ")") }},
+	{"CAST", func(n int) string { return "SELECT " + nest(n, "CAST(", "1", " AS INT64)") }},
+	{"CASE", func(n int) string { return "SELECT " + nest(n, "CASE WHEN ", "true", " THEN 1 END") }},
+	{"array constructor", func(n int) string { return "SELECT " + nest(n, "ARRAY[", "1", "]") }},
+	{"STRUCT constructor", func(n int) string { return "SELECT " + nest(n, "STRUCT(", "1", ")") }},
+	{"tuple", func(n int) string { return "SELECT " + nest(n, "(1, ", "1", ")") }},
+	{"subscript", func(n int) string { return "SELECT " + nest(n, "a[", "0", "]") }},
+	{"braced constructor", func(n int) string { return "SELECT NEW t {" + nest(n, "a {", "b: 1", "}") + "}" }},
+	{"scalar subquery", func(n int) string { return nest(n, "SELECT (", "SELECT 1", ")") }},
+	{"EXISTS", func(n int) string { return nest(n, "SELECT EXISTS (", "SELECT 1", ")") }},
+	{"IN subquery", func(n int) string { return nest(n, "SELECT 1 IN (", "SELECT 1", ")") }},
+	{"ARRAY subquery", func(n int) string { return nest(n, "SELECT ARRAY(", "SELECT 1", ")") }},
+	{"invalid subquery bodies", func(n int) string { return nest(n, "SELECT (", "SELECT 1", " x y)") }},
+	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT 1", ") x") }},
+	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t JOIN ", "t", " ON true)") }},
+	{"parenthesized query", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
+	{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION ALL (", "SELECT 1", ")") }},
+	{"CTE", func(n int) string { return nest(n, "WITH c AS (", "SELECT 1", ") SELECT * FROM c") }},
+	{"ARRAY type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "ARRAY<", "INT64", ">") + ")" }},
+	{"STRUCT type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "STRUCT<a ", "INT64", ">") + ")" }},
+	{"BEGIN block", func(n int) string { return nest(n, "BEGIN ", "SELECT 1;", " END;") }},
+	{"IF", func(n int) string { return nest(n, "IF true THEN ", "SELECT 1;", " END IF;") }},
+	{"LOOP", func(n int) string { return nest(n, "LOOP ", "SELECT 1;", " END LOOP;") }},
+	{"nested DML", func(n int) string {
+		return "UPDATE t SET " + nest(n, "(UPDATE a SET ", "x = 1", " WHERE true)") + " WHERE true"
+	}},
+	{"graph label negation", func(n int) string { return "GRAPH g MATCH (n IS " + strings.Repeat("!", n) + "a) RETURN n" }},
+	{"graph label group", func(n int) string { return "GRAPH g MATCH (n IS " + nest(n, "(", "a", ")") + ") RETURN n" }},
+	{"graph path", func(n int) string { return "GRAPH g MATCH " + nest(n, "(", "(n)", ")") + " RETURN n" }},
+	{"unclosed parentheses", func(n int) string { return "SELECT " + strings.Repeat("(", n) }},
+	{"unclosed subqueries", func(n int) string { return strings.Repeat("SELECT (", n) }},
+	{"unclosed EXISTS", func(n int) string {
+		return "SELECT 1 FROM t WHERE " + strings.Repeat("EXISTS (SELECT 1 FROM t WHERE ", n)
+	}},
+	{"unclosed join groups", func(n int) string { return "SELECT * FROM " + strings.Repeat("(", n) }},
+	{"unclosed BEGIN blocks", func(n int) string { return strings.Repeat("BEGIN ", n) + "SELECT 1" }},
+}
+
 // TestNestingLimit: every construct the parser descends into recursively
 // stops at maxNestingDepth with an error instead of overflowing the Go stack,
 // which killed the process: half a megabyte of '(' was enough. The same
 // constructs nested 1,000 deep still parse.
 func TestNestingLimit(t *testing.T) {
-	nest := func(n int, open, mid, closing string) string {
-		return strings.Repeat(open, n) + mid + strings.Repeat(closing, n)
-	}
-	for _, tc := range []struct {
-		name string
-		sql  func(n int) string
-	}{
-		{"parenthesized expression", func(n int) string { return "SELECT " + nest(n, "(", "1", ")") }},
-		{"unary minus", func(n int) string { return "SELECT " + strings.Repeat("- ", n) + "1" }},
-		{"NOT", func(n int) string { return "SELECT " + strings.Repeat("NOT ", n) + "true" }},
-		{"right-deep operators", func(n int) string { return "SELECT " + nest(n, "1 + (", "1", ")") }},
-		{"function call", func(n int) string { return "SELECT " + nest(n, "f(", "1", ")") }},
-		{"CAST", func(n int) string { return "SELECT " + nest(n, "CAST(", "1", " AS INT64)") }},
-		{"CASE", func(n int) string { return "SELECT " + nest(n, "CASE WHEN ", "true", " THEN 1 END") }},
-		{"array constructor", func(n int) string { return "SELECT " + nest(n, "ARRAY[", "1", "]") }},
-		{"STRUCT constructor", func(n int) string { return "SELECT " + nest(n, "STRUCT(", "1", ")") }},
-		{"tuple", func(n int) string { return "SELECT " + nest(n, "(1, ", "1", ")") }},
-		{"subscript", func(n int) string { return "SELECT " + nest(n, "a[", "0", "]") }},
-		{"braced constructor", func(n int) string { return "SELECT NEW t {" + nest(n, "a {", "b: 1", "}") + "}" }},
-		{"scalar subquery", func(n int) string { return nest(n, "SELECT (", "SELECT 1", ")") }},
-		{"EXISTS", func(n int) string { return nest(n, "SELECT EXISTS (", "SELECT 1", ")") }},
-		{"IN subquery", func(n int) string { return nest(n, "SELECT 1 IN (", "SELECT 1", ")") }},
-		{"ARRAY subquery", func(n int) string { return nest(n, "SELECT ARRAY(", "SELECT 1", ")") }},
-		{"invalid subquery bodies", func(n int) string { return nest(n, "SELECT (", "SELECT 1", " x y)") }},
-		{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT 1", ") x") }},
-		{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t JOIN ", "t", " ON true)") }},
-		{"parenthesized query", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
-		{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION ALL (", "SELECT 1", ")") }},
-		{"CTE", func(n int) string { return nest(n, "WITH c AS (", "SELECT 1", ") SELECT * FROM c") }},
-		{"ARRAY type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "ARRAY<", "INT64", ">") + ")" }},
-		{"STRUCT type", func(n int) string { return "SELECT CAST(NULL AS " + nest(n, "STRUCT<a ", "INT64", ">") + ")" }},
-		{"BEGIN block", func(n int) string { return nest(n, "BEGIN ", "SELECT 1;", " END;") }},
-		{"IF", func(n int) string { return nest(n, "IF true THEN ", "SELECT 1;", " END IF;") }},
-		{"LOOP", func(n int) string { return nest(n, "LOOP ", "SELECT 1;", " END LOOP;") }},
-		{"nested DML", func(n int) string {
-			return "UPDATE t SET " + nest(n, "(UPDATE a SET ", "x = 1", " WHERE true)") + " WHERE true"
-		}},
-		{"graph label negation", func(n int) string { return "GRAPH g MATCH (n IS " + strings.Repeat("!", n) + "a) RETURN n" }},
-		{"graph label group", func(n int) string { return "GRAPH g MATCH (n IS " + nest(n, "(", "a", ")") + ") RETURN n" }},
-		{"graph path", func(n int) string { return "GRAPH g MATCH " + nest(n, "(", "(n)", ")") + " RETURN n" }},
-		{"unclosed parentheses", func(n int) string { return "SELECT " + strings.Repeat("(", n) }},
-		{"unclosed subqueries", func(n int) string { return strings.Repeat("SELECT (", n) }},
-		{"unclosed EXISTS", func(n int) string {
-			return "SELECT 1 FROM t WHERE " + strings.Repeat("EXISTS (SELECT 1 FROM t WHERE ", n)
-		}},
-		{"unclosed join groups", func(n int) string { return "SELECT * FROM " + strings.Repeat("(", n) }},
-		{"unclosed BEGIN blocks", func(n int) string { return strings.Repeat("BEGIN ", n) + "SELECT 1" }},
-	} {
+	for _, tc := range nestingShapes {
 		if !strings.HasPrefix(tc.name, "unclosed") && !strings.HasPrefix(tc.name, "invalid") {
 			if _, err := Parse(tc.sql(1000)); err != nil {
 				t.Errorf("%s: 1,000 levels: %v", tc.name, err)
@@ -145,5 +153,92 @@ func TestNestingLimitCountsReparsedBodies(t *testing.T) {
 	sql := "SELECT " + strings.Repeat("f(SELECT ", 1000) + "1" + strings.Repeat(")", 1000)
 	if _, err := Parse(sql); !hasNestingError(err) {
 		t.Errorf("1,000 nested bare SELECT arguments: err = %v, want the nesting error", err)
+	}
+}
+
+// treeHeight returns how many nodes deep the tree under root is.
+func treeHeight(root ast.Node) int {
+	lo, hi := 1, 1
+	for treeHeightExceeds(root, hi) {
+		lo, hi = hi+1, hi*2
+	}
+	for lo < hi {
+		mid := (lo + hi) / 2
+		if treeHeightExceeds(root, mid) {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+	return lo
+}
+
+// chainShapes build left-deep chains of n terms: the parser builds each with
+// a loop, so only the tree, not the parse, gets deep.
+var chainShapes = []struct {
+	name string
+	sql  func(n int) string
+}{
+	{"sum", func(n int) string { return "SELECT " + strings.Repeat("1+", n) + "1" }},
+	{"concatenation", func(n int) string { return "SELECT " + strings.Repeat("'a'||", n) + "'a'" }},
+	{"OR", func(n int) string { return "SELECT 1 FROM t WHERE " + strings.Repeat("a OR ", n) + "a" }},
+	{"AND", func(n int) string { return "SELECT 1 FROM t WHERE " + strings.Repeat("a AND ", n) + "a" }},
+	{"field access", func(n int) string { return "SELECT (a)" + strings.Repeat(".b", n) }},
+	{"subscripts", func(n int) string { return "SELECT a" + strings.Repeat("[0]", n) }},
+	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
+	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON true", n) }},
+	{"comma joins in a group", func(n int) string { return "SELECT * FROM (t" + strings.Repeat(", t", n) + ")" }},
+	{"graph label OR", func(n int) string { return "GRAPH g MATCH (n IS a" + strings.Repeat("|a", n) + ") RETURN n" }},
+	{"graph label AND", func(n int) string { return "GRAPH g MATCH (n IS a" + strings.Repeat("&a", n) + ") RETURN n" }},
+	// A subquery's body joins the statement's tree only when the parse
+	// attaches it, after the rest of the tree is built.
+	{"sum in a subquery", func(n int) string { return "SELECT (SELECT " + strings.Repeat("1+", n) + "1)" }},
+	{"sum in a block", func(n int) string { return "BEGIN SELECT " + strings.Repeat("1+", n) + "1; END" }},
+}
+
+// TestTreeHeightLimit: a left-deep chain longer than maxTreeHeight is
+// rejected, because every consumer that walks the tree recursively would
+// overflow the stack on it (Parse itself did, filling subqueries, at 800,000
+// terms of 1+1+...). A chain within the limit still parses.
+func TestTreeHeightLimit(t *testing.T) {
+	for _, tc := range chainShapes {
+		if _, err := Parse(tc.sql(maxTreeHeight / 4)); err != nil {
+			t.Errorf("%s: %d terms: %v", tc.name, maxTreeHeight/4, err)
+		}
+		sql := tc.sql(maxTreeHeight + 1)
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || pe.Message != nestingErrorMessage || pe.Position != 0 {
+			t.Errorf("%s: %d terms: err = %v, want the nesting error at the statement", tc.name, maxTreeHeight+1, err)
+		}
+		// Best effort drops the statement too: its tree is what overflows.
+		if res := ParseBestEffort(sql); len(res.File.Stmts) != 0 || !hasNestingError(ParseErrors(res.Errors)) {
+			t.Errorf("%s: %d terms: best effort kept %d statements, errors %v", tc.name, maxTreeHeight+1, len(res.File.Stmts), res.Errors)
+		}
+	}
+	if _, errs := ParseExpression(strings.Repeat("1+", maxTreeHeight+1) + "1"); len(errs) != 1 || errs[0].Message != nestingErrorMessage {
+		t.Errorf("ParseExpression: %d terms: errs = %v, want the nesting error", maxTreeHeight+1, errs)
+	}
+}
+
+// TestTreeHeightPerByte: treeTooHigh skips statements shorter than
+// maxTreeHeight/16 bytes, on the ground that no construct adds more than 16
+// levels of tree per byte of text. Check that across the recursive
+// constructs and the chains.
+func TestTreeHeightPerByte(t *testing.T) {
+	check := func(name, sql string) {
+		file, err := Parse(sql)
+		if err != nil || len(file.Stmts) == 0 {
+			return
+		}
+		if h := treeHeight(file.Stmts[0]); h > 16*len(sql) {
+			t.Errorf("%s: tree %d deep from %d bytes", name, h, len(sql))
+		}
+	}
+	for _, tc := range nestingShapes {
+		check(tc.name, tc.sql(1000))
+	}
+	for _, tc := range chainShapes {
+		check(tc.name, tc.sql(1000))
 	}
 }
