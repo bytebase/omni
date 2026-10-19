@@ -15,6 +15,10 @@ import (
 //	        cte_name [(col_name [, col_name] ...)] AS (subquery)
 //	        [, cte_name [(col_name [, col_name] ...)] AS (subquery)] ...
 func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// Record CTE position for completion context (before consuming WITH).
 	if p.completing {
 		p.addCTEPosition(p.pos())
@@ -252,6 +256,10 @@ func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 // (INTERSECT binds tighter than UNION/EXCEPT). minPrec is the minimum operator
 // precedence this call will consume; the top-level no_parens call passes 0.
 func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parseSelectClausePrimary()
 	if err != nil {
 		return nil, err
@@ -1126,6 +1134,10 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 
 // parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
 func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// LATERAL (SELECT ...) — LATERAL derived table
 	if p.cur.Type == kwLATERAL {
 		latStart := p.pos()
@@ -1374,6 +1386,10 @@ func (p *Parser) parseJsonTableColumns() ([]*nodes.JsonTableColumn, error) {
 
 // parseJsonTableColumn parses a single JSON_TABLE column definition.
 func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	start := p.pos()
 
 	// NESTED [PATH] path COLUMNS (column_list)

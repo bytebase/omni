@@ -19,6 +19,8 @@ type Parser struct {
 	parenRunStart int
 	parenRunPast  Token
 
+	depth int // nesting depth of the productions being parsed (see enterNesting)
+
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
 	cursorOff  int           // byte offset of the cursor in source

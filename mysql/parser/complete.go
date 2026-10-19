@@ -157,8 +157,14 @@ func collectSingle(sql string, cursorOffset int) *CandidateSet {
 			break
 		}
 		prevLoc := p.cur.Loc
-		p.parseStmt() //nolint:errcheck
+		_, err := p.parseStmt()
 		if p.cur.Type == tokEOF || p.collectMode() {
+			break
+		}
+		if isNestingError(err) {
+			// Completion is best effort: the rest of a statement nested past
+			// the limit contributes nothing. Resuming at each of its remaining
+			// tokens would descend to the limit again every time.
 			break
 		}
 		if p.cur.Loc == prevLoc {

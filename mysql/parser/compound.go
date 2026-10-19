@@ -157,6 +157,10 @@ func checkLabelMatch(beginLabel, endLabel string, endLabelPos int) error {
 // parseCompoundStmtOrStmt tries to parse compound statements (DECLARE, labeled blocks,
 // flow control) and falls back to regular statement parsing.
 func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// DECLARE
 	if p.cur.Type == kwDECLARE {
 		return p.parseDeclareStmt()

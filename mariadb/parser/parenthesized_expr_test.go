@@ -92,6 +92,7 @@ func TestParenthesizedExprOracle(t *testing.T) {
 // rescanning the rest of the run each time made 10,000 nested parens take two
 // seconds. Each shape below takes milliseconds when linear.
 func TestNestedParenRunStaysLinear(t *testing.T) {
+	raiseNestingLimit(t)
 	const depth = 20000
 	open, closing := strings.Repeat("(", depth), strings.Repeat(")", depth)
 	for _, tc := range []struct {
