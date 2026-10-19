@@ -108,6 +108,9 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		if p.lexer.Err != nil {
 			return nil, p.lexerError()
 		}
+		if treeTooHigh(stmt, p.prev.End-stmtStart) {
+			return nil, nestedTooDeeply(stmtStart)
+		}
 		raw := &nodes.RawStmt{
 			Stmt: stmt,
 			Loc:  nodes.Loc{Start: stmtStart, End: p.prev.End},
