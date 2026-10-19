@@ -52,9 +52,59 @@ type Parser struct {
 	// rawQueries lists every query body this parse captured as raw text
 	// without parsing it (expression subquery placeholders, SHOW STATS FOR
 	// (query)), in source order, so the strict entry point can validate them.
-	// restore truncates it, so an abandoned speculative parse leaves nothing
-	// behind.
+	// In strict mode an expression subquery body that parsed in place is
+	// already valid and is not listed. restore truncates it, so an abandoned
+	// speculative parse leaves nothing behind.
 	rawQueries []rawQuery
+
+	// parenQueryFail holds every parseParenQuery failure by the offset of its
+	// '('. parseParenRelationOrSubquery speculates a query at each level of a
+	// nested `((((t))))` FROM group and rewinds when it fails, and the next
+	// level down fails on the same tokens; recording the failures keeps that
+	// linear.
+	parenQueryFail map[int]parenFailure
+
+	// parenRelationFail holds every parseParenRelationOrSubquery failure by
+	// the offset of its '('. When a FROM group nested in a derived table
+	// fails, as in `((SELECT * FROM ((SELECT * FROM t WHERE) x)) x)`, the
+	// derived table's query fails with it and every level above reparses the
+	// group as a relation; recording the failures keeps that linear.
+	parenRelationFail map[int]parenFailure
+
+	// parenGroupEnd records where the raw scan of each '(' group ended (its
+	// matching ')', or EOF), by the offset of the '('. A subquery body whose
+	// in-place parse fails is scanned raw, and so is every enclosing body
+	// whose parse fails after it; jumping over the groups already scanned
+	// keeps that linear.
+	parenGroupEnd map[int]parenReplay
+}
+
+// parenReplay is the state a scan or parse starting at a '(' left behind.
+// The lex errors on the way follow from the lexer position (see Lexer), so
+// replaying it is indistinguishable from running it again.
+type parenReplay struct {
+	end parserCheckpoint
+}
+
+// parenFailure is a recorded parseParenQuery or parseParenRelationOrSubquery
+// failure: its error and where the failed parse stopped. The raw query bodies
+// the parse captured are not kept: a caller that receives a parse error
+// either rewinds past them or fails the statement, and neither reads them.
+type parenFailure struct {
+	err error
+	parenReplay
+}
+
+// recordParenReplay captures the current state as the end of a scan or parse
+// that started at a '('.
+func (p *Parser) recordParenReplay() parenReplay {
+	return parenReplay{end: p.checkpoint()}
+}
+
+// replayParen moves the parser to the end state r records.
+func (p *Parser) replayParen(r parenReplay) {
+	p.lexer.pos, p.lexer.start = r.end.lexPos, r.end.lexStart
+	p.cur, p.prev, p.nextBuf, p.hasNext = r.end.cur, r.end.prev, r.end.nextBuf, r.end.hasNext
 }
 
 // rawQuery is a query body captured as raw text: the text and the absolute

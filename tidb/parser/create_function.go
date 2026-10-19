@@ -47,12 +47,13 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	if _, err := p.expect(kwRETURNS); err != nil {
 		return nil, err
 	}
+	retStart := p.pos()
 	retType, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Returns = &nodes.DataType{
-		Loc:  nodes.Loc{Start: p.pos()},
+		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},
 		Name: retType,
 	}
 
@@ -66,7 +67,7 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	stmt.Soname = p.cur.Str
 	p.advance()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -80,8 +81,7 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 //	    [characteristic ...] routine_body
 //	CREATE [DEFINER = user] FUNCTION sp_name ([func_parameter[,...]])
 //	    RETURNS type_name [characteristic ...] routine_body
-func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctionStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.CreateFunctionStmt, error) {
 	p.advance() // consume FUNCTION or PROCEDURE
 
 	// Completion: after CREATE FUNCTION / CREATE PROCEDURE, identifier context.
@@ -186,7 +186,7 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -225,7 +225,7 @@ func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
 	}
 	param.TypeName = dt
 
-	param.Loc.End = p.pos()
+	param.Loc.End = p.prev.End
 	return param, nil
 }
 
@@ -240,7 +240,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			val := p.cur.Str
 			p.advance()
 			return &nodes.RoutineCharacteristic{
-				Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "COMMENT", Value: val,
+				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COMMENT", Value: val,
 			}, true, nil
 		}
 		return nil, false, nil
@@ -252,13 +252,13 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			return nil, false, err
 		}
 		return &nodes.RoutineCharacteristic{
-			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "LANGUAGE", Value: name,
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "LANGUAGE", Value: name,
 		}, true, nil
 
 	case p.cur.Type == kwDETERMINISTIC:
 		p.advance()
 		return &nodes.RoutineCharacteristic{
-			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DETERMINISTIC", Value: "YES",
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DETERMINISTIC", Value: "YES",
 		}, true, nil
 
 	case p.cur.Type == kwNOT:
@@ -268,7 +268,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			p.advance()
 			p.advance()
 			return &nodes.RoutineCharacteristic{
-				Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DETERMINISTIC", Value: "NO",
+				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DETERMINISTIC", Value: "NO",
 			}, true, nil
 		}
 		return nil, false, nil
@@ -282,7 +282,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 				return nil, false, err
 			}
 			return &nodes.RoutineCharacteristic{
-				Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "SQL SECURITY", Value: name,
+				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SQL SECURITY", Value: name,
 			}, true, nil
 		}
 		return nil, false, nil
@@ -291,7 +291,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 		p.advance()
 		p.match(kwSQL)
 		return &nodes.RoutineCharacteristic{
-			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA ACCESS", Value: "CONTAINS SQL",
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "CONTAINS SQL",
 		}, true, nil
 
 	case p.cur.Type == kwNO:
@@ -299,7 +299,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			p.advance()
 			p.advance()
 			return &nodes.RoutineCharacteristic{
-				Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA ACCESS", Value: "NO SQL",
+				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "NO SQL",
 			}, true, nil
 		}
 		return nil, false, nil
@@ -311,7 +311,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			p.advance()
 		}
 		return &nodes.RoutineCharacteristic{
-			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA ACCESS", Value: "READS SQL DATA",
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "READS SQL DATA",
 		}, true, nil
 
 	case p.cur.Type == kwMODIFIES:
@@ -321,7 +321,7 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 			p.advance()
 		}
 		return &nodes.RoutineCharacteristic{
-			Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "DATA ACCESS", Value: "MODIFIES SQL DATA",
+			Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "DATA ACCESS", Value: "MODIFIES SQL DATA",
 		}, true, nil
 	}
 

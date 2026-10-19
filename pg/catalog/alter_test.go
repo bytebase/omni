@@ -854,7 +854,10 @@ func TestRenameConstraintDuplicate(t *testing.T) {
 
 	// Try to rename PK to the unique constraint's name.
 	err := c.ExecRenameStmt(makeRenameConstraintStmt("", "t", cons[0].Name, cons[1].Name))
-	assertErrorCode(t, err, CodeDuplicateObject)
+	// The PK is renamed through its index, and the unique constraint's index
+	// already holds the name: PostgreSQL reports the relation (42P07).
+	// pg: src/backend/commands/tablecmds.c — rename_constraint_internal
+	assertErrorCode(t, err, CodeDuplicateTable)
 }
 
 // --- Phase 1 new DDL statement tests ---
@@ -1427,4 +1430,22 @@ func TestRenameAttributeNonexistent(t *testing.T) {
 
 	err := c.ExecRenameStmt(makeRenameAttributeStmt("", "mytype", "nosuch", "z"))
 	assertErrorCode(t, err, CodeUndefinedColumn)
+}
+
+// Renaming an index renames the constraint it backs, and renaming such a
+// constraint renames its index. Verified against PostgreSQL 17 by
+// TestDependencyPG17Oracle.
+//
+// pg: src/backend/commands/tablecmds.c — RenameRelationInternal,
+// rename_constraint_internal
+func TestRenameIndexAndItsConstraint(t *testing.T) {
+	c := New()
+	execSQL(t, c, `CREATE TABLE t (id int PRIMARY KEY, code text CONSTRAINT t_code_key UNIQUE)`)
+	execSQL(t, c, `ALTER INDEX t_code_key RENAME TO t_code_uk`)
+	execSQL(t, c, `ALTER TABLE t DROP CONSTRAINT t_code_uk`)
+
+	execSQL(t, c, `ALTER TABLE t RENAME CONSTRAINT t_pkey TO t_pk`)
+	assertErrorCode(t, execSQLErr(c, `DROP INDEX t_pkey`), CodeUndefinedObject)
+	execSQL(t, c, `ALTER INDEX t_pk RENAME TO t_pk2`)
+	execSQL(t, c, `ALTER TABLE t DROP CONSTRAINT t_pk2`)
 }

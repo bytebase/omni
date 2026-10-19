@@ -515,6 +515,9 @@ func (p *Parser) parseReturningClause() (*nodes.List, bool, error) {
 			nil {
 			return nil, false, parseErr797
 		}
+		if err := p.checkTargets(binds); err != nil {
+			return nil, false, err
+		}
 
 		list.Items = append(list.Items, binds.Items...)
 	}

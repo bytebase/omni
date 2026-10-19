@@ -22,11 +22,12 @@ import (
 //	    | ADD [CONSTRAINT [symbol]] UNIQUE [INDEX | KEY] [index_name] (key_part,...) [index_option] ...
 //	    | ADD [CONSTRAINT [symbol]] FOREIGN KEY [index_name] (col,...) reference_definition
 //	    | ADD [CONSTRAINT [symbol]] CHECK (expr)
-//	    | DROP [COLUMN] col_name
-//	    | DROP {INDEX | KEY} index_name
-//	    | DROP PRIMARY KEY
-//	    | DROP FOREIGN KEY fk_symbol
-//	    | DROP CHECK symbol
+//	    | DROP [COLUMN] [IF EXISTS] col_name
+//	    | DROP {INDEX | KEY} [IF EXISTS] index_name
+//	    | DROP [CONSTRAINT] PRIMARY KEY
+//	    | DROP FOREIGN KEY [IF EXISTS] fk_symbol
+//	    | DROP CONSTRAINT [IF EXISTS] symbol
+//	    | DROP PARTITION [IF EXISTS] partition_names
 //	    | MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name]
 //	    | CHANGE [COLUMN] old_col_name new_col_name column_definition [FIRST | AFTER col_name]
 //	    | ALTER [COLUMN] col_name {SET DEFAULT {literal | (expr)} | DROP DEFAULT}
@@ -37,8 +38,7 @@ import (
 //	    | [DEFAULT] CHARACTER SET [=] charset_name [COLLATE [=] collation_name]
 //	    | ALGORITHM [=] {DEFAULT | INSTANT | INPLACE | COPY}
 //	    | LOCK [=] {DEFAULT | NONE | SHARED | EXCLUSIVE}
-func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	p.advance() // consume TABLE
 
 	// Completion: after ALTER TABLE, offer table_ref.
@@ -86,7 +86,7 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 		p.advance() // consume ','
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -143,7 +143,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			return nil, err
 		}
 		cmd.Name = val
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwLOCK:
@@ -155,7 +155,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			return nil, err
 		}
 		cmd.Name = val
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwCOALESCE:
@@ -242,13 +242,13 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 				return nil, err
 			}
 			p.match(kwTABLESPACE)
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		// DISCARD TABLESPACE
 		p.match(kwTABLESPACE)
 		cmd.Type = nodes.ATDiscardTablespace
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwIMPORT:
@@ -260,19 +260,19 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 				return nil, err
 			}
 			p.match(kwTABLESPACE)
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		// IMPORT TABLESPACE
 		p.match(kwTABLESPACE)
 		cmd.Type = nodes.ATImportTablespace
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwFORCE:
 		p.advance()
 		cmd.Type = nodes.ATForce
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwORDER:
@@ -285,7 +285,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			return nil, err
 		}
 		cmd.OrderByItems = items
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwENABLE:
@@ -293,7 +293,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwKEYS)
 		cmd.Type = nodes.ATEnableKeys
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwDISABLE:
@@ -301,7 +301,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwKEYS)
 		cmd.Type = nodes.ATDisableKeys
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwWITH:
@@ -309,7 +309,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwVALIDATION)
 		cmd.Type = nodes.ATWithValidation
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwWITHOUT:
@@ -317,7 +317,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwVALIDATION)
 		cmd.Type = nodes.ATWithoutValidation
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwPARTITION:
@@ -329,7 +329,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			}
 			cmd.Type = nodes.ATPartitionBy
 			cmd.PartitionBy = part
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		return nil, &ParseError{
@@ -342,19 +342,19 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match(kwPARTITIONING)
 		cmd.Type = nodes.ATRemovePartitioning
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwSECONDARY_LOAD:
 		p.advance()
 		cmd.Type = nodes.ATSecondaryLoad
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwSECONDARY_UNLOAD:
 		p.advance()
 		cmd.Type = nodes.ATSecondaryUnload
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	default:
@@ -366,7 +366,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		if ok {
 			cmd.Type = nodes.ATTableOption
 			cmd.Option = opt
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		return nil, &ParseError{
@@ -400,7 +400,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			}
 			cmd.Number = int(p.cur.Ival)
 			p.advance()
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		if _, err := p.expect('('); err != nil {
@@ -423,7 +423,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -435,7 +435,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			return nil, err
 		}
 		cmd.Constraint = constr
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -444,7 +444,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		p.advance() // SYSTEM
 		p.advance() // VERSIONING
 		cmd.Type = nodes.ATAddSystemVersioning
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -459,7 +459,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		cmd.PeriodName = name
 		cmd.PeriodStartCol = startCol
 		cmd.PeriodEndCol = endCol
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -491,7 +491,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -506,37 +506,35 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return nil, err
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
 // parseAlterDrop parses DROP operations.
+//
+// Ref: https://mariadb.com/kb/en/alter-table/ and the DROP arms of
+// alter_list_item in MariaDB 11.8 sql/sql_yacc.yy. Each named table element
+// takes opt_if_exists_table_element; PRIMARY KEY does not. MariaDB has no
+// DROP CHECK (MySQL 8.0 syntax): a CHECK constraint is dropped with DROP
+// CONSTRAINT, and CHECK, being reserved, cannot name a column.
 func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume DROP
 
 	// Completion: after DROP, offer what can be dropped.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwFOREIGN, kwPRIMARY, kwCHECK, kwCONSTRAINT, kwPARTITION} {
+		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwFOREIGN, kwPRIMARY, kwCONSTRAINT, kwPARTITION} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// DROP PERIOD FOR <name> (PERIOD is non-reserved, intercepted here):
-	// SYSTEM_TIME for the system-versioning period, else application-time. The
-	// period name follows the identifier rule (non-reserved keywords allowed).
-	if p.atPeriodForSystemTime() {
-		p.advance() // PERIOD
-		p.advance() // FOR
-		name, _, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Type = nodes.ATDropPeriod
-		cmd.PeriodName = name
-		cmd.Loc.End = p.pos()
-		return cmd, nil
+	// DROP PERIOD (PERIOD is non-reserved, intercepted here). MariaDB's parser
+	// takes an unquoted PERIOD right after DROP as the start of a DROP PERIOD
+	// arm, never as a column name, so `DROP period` is 1064; a column of that
+	// name is dropped as `period`, COLUMN period, or IF EXISTS period.
+	if p.atUnquotedKeyword("PERIOD") {
+		return p.parseAlterDropPeriod(cmd)
 	}
 
 	switch p.cur.Type {
@@ -546,124 +544,133 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			p.advance() // SYSTEM
 			p.advance() // VERSIONING
 			cmd.Type = nodes.ATDropSystemVersioning
-			cmd.Loc.End = p.pos()
+			cmd.Loc.End = p.prev.End
 			return cmd, nil
 		}
 		return nil, p.syntaxErrorAtCur()
 
 	case kwPARTITION:
-		// DROP PARTITION partition_names
+		// DROP PARTITION [IF EXISTS] partition_names
 		p.advance()
 		cmd.Type = nodes.ATDropPartition
+		ifExists, err := p.parseOptIfExists()
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfExists = ifExists
 		names, err := p.parseIdentList()
 		if err != nil {
 			return nil, err
 		}
 		cmd.PartitionNames = names
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwPRIMARY:
 		// DROP PRIMARY KEY
 		p.advance()
-		p.match(kwKEY)
+		if err := p.expectDropKey(); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDropConstraint
 		cmd.Name = "PRIMARY"
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
 	case kwINDEX, kwKEY:
-		// DROP {INDEX | KEY} index_name
+		// DROP {INDEX | KEY} [IF EXISTS] index_name
 		p.advance()
 		cmd.Type = nodes.ATDropIndex
-		// Completion: after DROP INDEX, offer index_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("index_ref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Loc.End = p.pos()
-		return cmd, nil
+		return p.parseAlterDropName(cmd, "index_ref")
 
 	case kwFOREIGN:
-		// DROP FOREIGN KEY fk_symbol
+		// DROP FOREIGN KEY [IF EXISTS] fk_symbol
 		p.advance()
-		p.match(kwKEY)
-		cmd.Type = nodes.ATDropConstraint
-		// Completion: after DROP FOREIGN KEY, offer constraint_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("constraint_ref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
+		if err := p.expectDropKey(); err != nil {
 			return nil, err
 		}
-		cmd.Name = name
-		cmd.Loc.End = p.pos()
-		return cmd, nil
-
-	case kwCHECK:
-		// DROP CHECK symbol
-		p.advance()
 		cmd.Type = nodes.ATDropConstraint
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Loc.End = p.pos()
-		return cmd, nil
+		return p.parseAlterDropName(cmd, "constraint_ref")
 
 	case kwCONSTRAINT:
-		// DROP CONSTRAINT symbol
 		p.advance()
-		cmd.Type = nodes.ATDropConstraint
-		// Completion: after DROP CONSTRAINT, offer constraint_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("constraint_ref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Loc.End = p.pos()
-		return cmd, nil
-
-	default:
-		// DROP [COLUMN] [IF EXISTS] col_name
-		cmd.Type = nodes.ATDropColumn
-		p.match(kwCOLUMN)
-		// Completion: after DROP COLUMN, offer columnref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		if p.cur.Type == kwIF {
+		// DROP CONSTRAINT PRIMARY KEY (opt_constraint_no_id PRIMARY_SYM KEY_SYM)
+		if p.cur.Type == kwPRIMARY {
 			p.advance()
-			if _, err := p.expect(kwEXISTS_KW); err != nil {
+			if _, err := p.expect(kwKEY); err != nil {
 				return nil, err
 			}
-			cmd.IfExists = true
+			cmd.Type = nodes.ATDropConstraint
+			cmd.Name = "PRIMARY"
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
 		}
-		name, _, err := p.parseIdentifier()
-		if err != nil {
+		// DROP CONSTRAINT [IF EXISTS] symbol
+		cmd.Type = nodes.ATDropConstraint
+		return p.parseAlterDropName(cmd, "constraint_ref")
+
+	default:
+		// DROP [COLUMN] [IF EXISTS] col_name [RESTRICT | CASCADE]
+		cmd.Type = nodes.ATDropColumn
+		p.match(kwCOLUMN)
+		if _, err := p.parseAlterDropName(cmd, "columnref"); err != nil {
 			return nil, err
 		}
-		cmd.Name = name
-		cmd.Loc.End = p.pos()
+		// opt_restrict follows the column arm only; its action is a no-op
+		// for ALTER TABLE.
+		if _, ok := p.match(kwRESTRICT, kwCASCADE); ok {
+			cmd.Loc.End = p.prev.End
+		}
 		return cmd, nil
 	}
+}
+
+// parseAlterDropName parses [IF EXISTS] name, the tail of a DROP of a named
+// table element, into cmd. rule is the completion candidate for the name.
+func (p *Parser) parseAlterDropName(cmd *nodes.AlterTableCmd, rule string) (*nodes.AlterTableCmd, error) {
+	ifExists, err := p.parseOptIfExists()
+	if err != nil {
+		return nil, err
+	}
+	cmd.IfExists = ifExists
+	// Completion: offer the element name, with or without IF EXISTS before it.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate(rule)
+		return nil, &ParseError{Message: "collecting"}
+	}
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	cmd.Name = name
+	cmd.Loc.End = p.prev.End
+	return cmd, nil
+}
+
+// parseOptIfExists parses an optional IF EXISTS and reports whether it was
+// present.
+func (p *Parser) parseOptIfExists() (bool, error) {
+	if p.cur.Type != kwIF {
+		return false, nil
+	}
+	p.advance()
+	if _, err := p.expect(kwEXISTS_KW); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// expectDropKey consumes the KEY that DROP PRIMARY and DROP FOREIGN require.
+func (p *Parser) expectDropKey() error {
+	// Completion: after DROP PRIMARY or DROP FOREIGN, offer KEY.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwKEY)
+		return &ParseError{Message: "collecting"}
+	}
+	_, err := p.expect(kwKEY)
+	return err
 }
 
 // parseAlterModify parses MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name].
@@ -690,7 +697,7 @@ func (p *Parser) parseAlterModify(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		return nil, err
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -726,7 +733,7 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		return nil, err
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -759,7 +766,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		} else if _, ok := p.match(kwINVISIBLE); ok {
 			cmd.Type = nodes.ATAlterIndexInvisible
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -782,7 +789,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			p.advance()
 			cmd.NewName = "ENFORCED"
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -805,7 +812,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			p.advance()
 			cmd.NewName = "ENFORCED"
 		}
-		cmd.Loc.End = p.pos()
+		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
 
@@ -863,7 +870,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		}
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -934,7 +941,7 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		cmd.NewTable = newTable
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -968,7 +975,7 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 		cmd.NewName = collation
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -1002,7 +1009,7 @@ func (p *Parser) parseAlterPartitionNamesOrAll(cmd *nodes.AlterTableCmd, cmdType
 		}
 		cmd.PartitionNames = names
 	}
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -1021,7 +1028,7 @@ func (p *Parser) parseAlterCoalescePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 		cmd.Number = int(p.cur.Ival)
 		p.advance()
 	}
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -1068,7 +1075,7 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 
@@ -1117,7 +1124,7 @@ func (p *Parser) parseAlterExchangePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 		cmd.WithValidation = &v
 	}
 
-	cmd.Loc.End = p.pos()
+	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
 

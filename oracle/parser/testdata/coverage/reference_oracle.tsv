@@ -262,18 +262,37 @@ ref_260	select	reject	SELECT 1 FROM dual MINUS ALL WITH w AS (SELECT 2 x FROM du
 ref_261	select	accept	SELECT JSON_OBJECT('a':dummy) FROM dual	colon separator right before the value
 ref_262	select	accept	SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual	WITH TYPENAME after the unique-keys clause
 ref_263	select	reject	SELECT JSON_OBJECT(dummy STRICT) FROM dual	STRICT right after a column entry (ORA-02000)
+ref_264	plsql	accept	DECLARE $IF DBMS_DB_VERSION.VERSION >= 12 $THEN a NUMBER; $ELSE a VARCHAR2(10); $END BEGIN NULL; END;	conditional compilation around declarations
+ref_265	plsql	accept	BEGIN $IF FALSE $THEN garbage garbage; $ELSE NULL; $END END;	code of a branch not selected is not parsed
+ref_266	plsql	accept	BEGIN DBMS_OUTPUT.PUT_LINE($$PLSQL_LINE || $$PLSQL_UNIT); END;	inquiry directives in an expression
+ref_267	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_cc_{run} AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;	conditional compilation in a package heading
+ref_268	plsql	reject	BEGIN NULL; $END END;	$END outside $IF (PLS-00176)
+ref_269	plsql	reject	BEGIN $IF $$x $THEN NULL; $ELSE NULL; $ELSE NULL; $END END;	second $ELSE (PLS-00176)
+ref_270	plsql	reject	BEGIN $IF TRUE $THEN $ERROR 'x' $END $END NULL; END;	$ERROR in a selected branch (PLS-00179)
+ref_271	select	reject	SELECT 1 FROM dual WHERE $$x IS NULL	inquiry directive outside PL/SQL (ORA-00911)
+ref_272	plsql	accept	BEGIN $IF NOT TRUE $THEN garbage garbage; $ELSE NULL; $END END;	static Boolean condition folded to FALSE
+ref_273	plsql	reject	BEGIN $IF 1 + 2 $THEN NULL; $END END;	numeric conditional compilation condition (PLS-00382)
+ref_274	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_ccp_{run} $IF TRUE $THEN IS $END BEGIN NULL; END;	directive right after a unit's name (ORA-00911)
 ref_275	plsql	accept	DECLARE TYPE t IS TABLE OF BOOLEAN INDEX BY VARCHAR2(30); x t := t('A' => TRUE, 'B' => FALSE); BEGIN NULL; END;	qualified expression with string keys
 ref_276	plsql	accept	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1|2 => 5, 4..6 => 7, FOR i IN 10..12 => i); BEGIN NULL; END;	choice list, range, and iterator choices
 ref_277	plsql	accept	BEGIN FOR i IN 1..10 BY 2 WHEN i > 3 LOOP NULL; END LOOP; END;	FOR loop with BY and WHEN
 ref_278	plsql	reject	BEGIN FOR i, j IN 1..3 LOOP NULL; END LOOP; END;	two iterands without PAIRS OF (PLS-00856)
 ref_279	select	reject	SELECT UPPER(1 => 'x') FROM dual	choice in a SQL call (ORA-00907)
 ref_280	plsql	reject	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1 => 10, 20); BEGIN NULL; END;	positional value after a choice (PLS-00312)
+ref_281	plsql	accept	BEGIN $IF 1 + 1 = 3 $THEN garbage garbage; $ELSE NULL; $END END;	arithmetic folded in a static condition
+ref_282	plsql	reject	BEGIN $IF ABS(1) $THEN NULL; $END END;	numeric function as a condition (PLS-00382)
+ref_283	plsql	reject	BEGIN $IF TRUE $THEN :n := 1; $END END;	bind variable inside a directive (PLS-00110)
 ref_284	ddl	reject	CREATE TABLE omni_bad_dec_{run} (x DEC(0))	NUMBER precision outside 1 to 38 (ORA-01727)
 ref_285	ddl	reject	CREATE TABLE omni_bad_scale_{run} (x NUMBER(5, 128))	NUMBER scale outside -84 to 127 (ORA-01728)
 ref_286	select	reject	SELECT CAST(1 AS FLOAT(127)) FROM dual	FLOAT precision outside 1 to 126 (ORA-01724)
 ref_287	ddl	reject	CREATE TABLE omni_bad_tsp_{run} (x TIMESTAMP(10))	fractional-second precision outside 0 to 9 (ORA-30088)
 ref_288	ddl	accept	CREATE TABLE omni_numr_{run} (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))	precision and scale bounds
 ref_289	ddl	reject	CREATE TABLE omni_bad_rlnk_{run} (n NUMBER REFERENCES omni_missing@omni_lnk (a))	referenced table over a database link (ORA-02021)
+ref_290	plsql	accept	BEGIN $IF 1 / 3 * 3 = 1 $THEN garbage garbage; $ELSE NULL; $END END;	NUMBER rounding in a static comparison
+ref_291	plsql	accept	BEGIN $IF TRUE = FALSE OR ROUND(1.24, 1) = 1.3 $THEN garbage garbage; $ELSE NULL; $END END;	Boolean comparison and ROUND to a scale folded
+ref_292	plsql	reject	BEGIN $IF debug $THEN NULL; $END END;	unqualified name in a static condition (PLS-00201)
+ref_293	plsql	reject	DECLARE PROCEDURE p(a NUMBER) IS BEGIN NULL; END; BEGIN p($$PLSQL_LINE => 1); END;	inquiry directive as a parameter name (PLS-00306)
+ref_294	plsql	reject	DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE FROM dual; END;	inquiry directive as an INTO target (ORA-32551)
 ref_295	select	reject	SELECT 1 FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER BY 1)	ORDER BY in a condition subquery (ORA-00907)
 ref_296	select	reject	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) ORDER BY 1)	ORDER BY after a parenthesized operand in a condition subquery (ORA-00907)
 ref_297	select	reject	SELECT ((SELECT 1 FROM dual) ORDER BY 1) FROM dual	ORDER BY in a scalar subquery (ORA-00907)

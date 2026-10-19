@@ -1889,6 +1889,88 @@ type PlacementPolicyOption struct {
 
 func (o *PlacementPolicyOption) nodeTag() {}
 
+// CreateSequenceStmt represents a TiDB CREATE SEQUENCE statement:
+//
+//	CREATE SEQUENCE [IF NOT EXISTS] [schema.]name
+//	    [sequence_option ...] [table_option [[,] table_option] ...]
+//
+// The grammar takes any table option. TiDB's DDL keeps COMMENT, ignores
+// ENGINE, and rejects the rest with error 8227 (pkg/ddl/sequence.go
+// buildSequenceInfo), which is not a syntax error.
+// Ref: TiDB v8.5.5 parser.y:15462-15471.
+type CreateSequenceStmt struct {
+	Loc          Loc
+	IfNotExists  bool
+	Name         *TableRef
+	Options      []*SequenceOption
+	TableOptions []*TableOption
+}
+
+func (s *CreateSequenceStmt) nodeTag()  {}
+func (s *CreateSequenceStmt) stmtNode() {}
+
+// AlterSequenceStmt represents a TiDB ALTER SEQUENCE statement:
+//
+//	ALTER SEQUENCE [IF EXISTS] [schema.]name alter_sequence_option ...
+//
+// At least one option is required, RESTART is ALTER-only, and ALTER takes
+// no table options.
+// Ref: TiDB v8.5.5 parser.y:15598-15632.
+type AlterSequenceStmt struct {
+	Loc      Loc
+	IfExists bool
+	Name     *TableRef
+	Options  []*SequenceOption
+}
+
+func (s *AlterSequenceStmt) nodeTag()  {}
+func (s *AlterSequenceStmt) stmtNode() {}
+
+// DropSequenceStmt represents a TiDB DROP SEQUENCE [IF EXISTS] name
+// [, name] ... statement.
+// Ref: TiDB v8.5.5 parser.y:15575-15582.
+type DropSequenceStmt struct {
+	Loc       Loc
+	IfExists  bool
+	Sequences []*TableRef
+}
+
+func (s *DropSequenceStmt) nodeTag()  {}
+func (s *DropSequenceStmt) stmtNode() {}
+
+// SequenceOptionType enumerates the options of SequenceOption and
+// AlterSequenceOption (TiDB v8.5.5 parser.y:15489-15553, 15618-15632).
+type SequenceOptionType int
+
+const (
+	SequenceOptionIncrementBy SequenceOptionType = iota // INCREMENT [BY | =] n
+	SequenceOptionStartWith                             // START [WITH | =] n
+	SequenceOptionMinValue                              // MINVALUE [=] n
+	SequenceOptionNoMinValue                            // NOMINVALUE | NO MINVALUE
+	SequenceOptionMaxValue                              // MAXVALUE [=] n
+	SequenceOptionNoMaxValue                            // NOMAXVALUE | NO MAXVALUE
+	SequenceOptionCache                                 // CACHE [=] n
+	SequenceOptionNoCache                               // NOCACHE | NO CACHE
+	SequenceOptionCycle                                 // CYCLE
+	SequenceOptionNoCycle                               // NOCYCLE | NO CYCLE
+	SequenceOptionRestart                               // RESTART (ALTER only)
+	SequenceOptionRestartWith                           // RESTART [WITH | =] n (ALTER only)
+)
+
+// SequenceOption is one CREATE or ALTER SEQUENCE option. The list keeps
+// source order and repeats because TiDB applies options in order, so a
+// later option overrides an earlier one (pkg/ddl/sequence.go
+// handleSequenceOptions, alterSequenceOptions).
+type SequenceOption struct {
+	Loc  Loc
+	Type SequenceOptionType
+	// Value is the signed integer of INCREMENT, START, MINVALUE, MAXVALUE,
+	// CACHE, and RESTART WITH; it is 0 for the other options.
+	Value int64
+}
+
+func (o *SequenceOption) nodeTag() {}
+
 // DropIndexStmt represents a DROP INDEX statement.
 type DropIndexStmt struct {
 	Loc       Loc

@@ -2243,41 +2243,104 @@ func (p *Parser) parseSubqueryBody(start int) (ast.Node, int, error) {
 // parseSubqueryBodyRaw consumes a balanced parenthesized query body — the
 // current token is the first token inside the already-consumed '(' — up to and
 // including the matching ')'. It returns the inner source text (between the
-// parens, trimmed) and the end offset past the ')'. The inner query is NOT
-// parsed: the query/SELECT grammar is owned by the downstream parser-select
-// node (which depends on this one), so the expression node only records the
-// span so it accepts every subquery-bearing form the oracle accepts and so
-// parser-select can re-parse RawText when it lands.
+// parens, trimmed) and the end offset past the ')'. The expression node holds
+// the text; fillSubqueries attaches the parsed query later.
+//
+// It first parses the body in place as a query. A body that parses ending at
+// the ')', with no diagnostic on the way, is recorded in parsedSubqueries for
+// fillSubqueries, which otherwise reparses the text and with it every nested
+// body once per level. A body that fails is scanned raw as before and
+// reparsed by fillSubqueries, so its errors are unchanged.
 //
 // Balance tracks ( ) [ ] { } so a nested subquery, array, or struct inside the
 // query does not prematurely close it. An unterminated body (EOF before the
 // matching ')') is a syntax error.
 func (p *Parser) parseSubqueryBodyRaw(start int) (raw string, textStart, end int, err error) {
 	innerStart := p.cur.Loc.Start
-	depth := 1
+	if q, ok := p.parseSubqueryInPlace(); ok {
+		raw, textStart, end = p.finishSubqueryBody(innerStart, p.prev.Loc.End)
+		p.recordParsedSubquery(textStart, q)
+		return raw, textStart, end, nil
+	}
 	innerEnd := innerStart
-	for {
-		if p.cur.Type == tokEOF {
-			return "", 0, 0, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: unterminated subquery (expected ')')"}
-		}
-		switch p.cur.Type {
-		case int('('), int('['), int('{'):
-			depth++
-		case int(')'), int(']'), int('}'):
-			depth--
-			if depth == 0 {
-				closeTok := p.advance() // consume the matching ')'
-				sliced := p.input[absIndex(p, innerStart):absIndex(p, innerEnd)]
-				inner := strings.TrimSpace(sliced)
-				// The absolute start of the trimmed body, so a re-parse error
-				// lands on the offending token in the outer text.
-				textStart = innerStart + strings.Index(sliced, inner)
-				return inner, textStart, closeTok.Loc.End, nil
+	for !isCloseBracket(p.cur.Type) && p.cur.Type != tokEOF {
+		if isOpenBracket(p.cur.Type) {
+			p.skipBracketGroup()
+			if p.cur.Type == tokEOF {
+				break
 			}
 		}
 		innerEnd = p.cur.Loc.End
 		p.advance()
 	}
+	if p.cur.Type == tokEOF {
+		return "", 0, 0, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: unterminated subquery (expected ')')"}
+	}
+	raw, textStart, end = p.finishSubqueryBody(innerStart, innerEnd)
+	return raw, textStart, end, nil
+}
+
+// parseSubqueryInPlace parses the query body at p.cur the way reparseSubquery
+// parses its text: with no column-schema context, and failing on any
+// diagnostic the nested parser would have dropped. On success p.cur is the
+// ')' that closes the body; otherwise the parser is left where it started.
+func (p *Parser) parseSubqueryInPlace() (ast.Node, bool) {
+	cp := p.checkpoint()
+	inArrayColumnSchema := p.inArrayColumnSchema
+	p.inArrayColumnSchema = false
+	q, err := p.parseQuery()
+	p.inArrayColumnSchema = inArrayColumnSchema
+	if err == nil && p.cur.Type == int(')') && len(p.errors) == cp.errLen {
+		return q, true
+	}
+	p.restore(cp)
+	return nil, false
+}
+
+// skipBracketGroup moves from the opening bracket at p.cur to the closing
+// bracket that balances it, left as p.cur, or to EOF when none does. A group
+// scanned before is jumped over (see bracketGroupEnd).
+func (p *Parser) skipBracketGroup() {
+	open := p.cur.Loc.Start
+	if end, ok := p.bracketGroupEnd[open]; ok {
+		p.cur, p.prev, p.nextBuf, p.hasNext = end.cur, end.prev, end.nextBuf, end.hasNext
+		p.lexer.pos, p.lexer.start = end.lexPos, end.lexStart
+		return
+	}
+	p.advance() // consume the opening bracket
+	for !isCloseBracket(p.cur.Type) && p.cur.Type != tokEOF {
+		if isOpenBracket(p.cur.Type) {
+			p.skipBracketGroup()
+			if p.cur.Type == tokEOF {
+				break
+			}
+		}
+		p.advance()
+	}
+	if p.bracketGroupEnd == nil {
+		p.bracketGroupEnd = make(map[int]parserCheckpoint)
+	}
+	p.bracketGroupEnd[open] = p.checkpoint()
+}
+
+// finishSubqueryBody consumes the ')' that closes a body whose tokens span
+// [innerStart, innerEnd) and returns its trimmed text, the text's absolute
+// start, and the offset past the ')'.
+func (p *Parser) finishSubqueryBody(innerStart, innerEnd int) (raw string, textStart, end int) {
+	closeTok := p.advance() // consume the matching ')'
+	sliced := p.input[absIndex(p, innerStart):absIndex(p, innerEnd)]
+	inner := strings.TrimSpace(sliced)
+	// The absolute start of the trimmed body, so a re-parse error lands on
+	// the offending token in the outer text.
+	return inner, innerStart + strings.Index(sliced, inner), closeTok.Loc.End
+}
+
+func isOpenBracket(t int) bool {
+	return t == int('(') || t == int('[') || t == int('{')
+}
+
+func isCloseBracket(t int) bool {
+	return t == int(')') || t == int(']') || t == int('}')
 }
 
 // absIndex converts an absolute source offset to an index into p.input, which

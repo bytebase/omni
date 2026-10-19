@@ -56,6 +56,12 @@ func (p *Parser) parseQueryTerm() (QueryNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.finishQueryTerm(left)
+}
+
+// finishQueryTerm parses the UNION/EXCEPT chain of a queryTerm whose first
+// operand, left, is already parsed.
+func (p *Parser) finishQueryTerm(left QueryNode) (QueryNode, error) {
 	for p.cur.Kind == kwUNION || p.cur.Kind == kwEXCEPT {
 		opTok := p.advance() // consume UNION / EXCEPT
 		quant := p.parseSetQuantifier()
@@ -82,6 +88,12 @@ func (p *Parser) parseIntersectTerm() (QueryNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.finishIntersectTerm(left)
+}
+
+// finishIntersectTerm parses the INTERSECT chain of an intersect term whose
+// first operand, left, is already parsed.
+func (p *Parser) finishIntersectTerm(left QueryNode) (QueryNode, error) {
 	for p.cur.Kind == kwINTERSECT {
 		opTok := p.advance() // consume INTERSECT
 		quant := p.parseSetQuantifier()
@@ -175,21 +187,50 @@ func (p *Parser) parseValuesQuery() (*ValuesQuery, error) {
 // A WITH inside the parentheses is NOT a queryNoWith, so it is reported as a
 // syntax error (Trino rejects `(WITH … SELECT …)` in this position; a CTE there
 // must be a relation subquery `( query )`, handled in relation.go).
+//
+// The result depends only on where the parse starts, so a failure is recorded
+// (see parenQueryFail) and replayed instead of parsing again.
 func (p *Parser) parseParenQuery() (*ParenQuery, error) {
+	q, _, err := p.parseParenQueryWithEnd()
+	return q, err
+}
+
+// parseParenQueryWithEnd is parseParenQuery that also returns where the inner
+// query ends on its own: a ParenQuery extends its Inner's end to the ')'.
+func (p *Parser) parseParenQueryWithEnd() (*ParenQuery, int, error) {
+	open := p.cur.Loc.Start
+	if f, ok := p.parenQueryFail[open]; ok {
+		p.replayParen(f.parenReplay)
+		return nil, 0, f.err
+	}
+	q, innerEnd, err := p.parseParenQueryAt()
+	if err != nil {
+		if p.parenQueryFail == nil {
+			p.parenQueryFail = make(map[int]parenFailure)
+		}
+		p.parenQueryFail[open] = parenFailure{err: err, parenReplay: p.recordParenReplay()}
+	}
+	return q, innerEnd, err
+}
+
+// parseParenQueryAt parses `( queryNoWith )` for parseParenQueryWithEnd, which
+// records its failures.
+func (p *Parser) parseParenQueryAt() (*ParenQuery, int, error) {
 	openTok := p.advance() // consume '('
 	inner, err := p.parseQueryNoWith(nil, p.cur.Loc.Start)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
+	innerEnd := inner.Loc.End
 	inner.Loc.End = closeTok.Loc.Start
 	return &ParenQuery{
 		Inner: inner,
 		Loc:   ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End},
-	}, nil
+	}, innerEnd, nil
 }
 
 // queryPrimaryError reports a token that cannot begin a queryPrimary (SELECT /

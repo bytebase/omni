@@ -24,24 +24,53 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 
-	// Check for duplicate table or view with the same name.
-	if db.Tables[key] != nil {
-		if stmt.IfNotExists {
-			return nil
-		}
-		return errDupTable(tableName)
+	// A LIKE source that names the target itself is rejected as a repeated
+	// table (1066) before anything is looked up: CREATE [OR REPLACE] TABLE
+	// t LIKE t fails whether t exists or not, IF NOT EXISTS included.
+	// Verified on mariadb:11.8.8.
+	if stmt.Like != nil && c.refNamesTable(stmt.Like, db.Name, key) {
+		return errNonUniqTable(stmt.Like.Name)
 	}
-	if db.Views[key] != nil {
-		return errDupTable(tableName)
+
+	// replaced is the table CREATE OR REPLACE drops; srcTbl is the source
+	// of CREATE TABLE ... LIKE.
+	var replaced, srcTbl *Table
+	if stmt.OrReplace {
+		replaced, srcTbl, err = c.checkCreateOrReplace(db, tableName, key, stmt)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Check for duplicate table or view with the same name.
+		if db.Tables[key] != nil {
+			if stmt.IfNotExists {
+				return nil
+			}
+			return errDupTable(tableName)
+		}
+		if db.Views[key] != nil {
+			return errDupTable(tableName)
+		}
+		if stmt.Like != nil {
+			if srcTbl, err = c.likeSource(stmt.Like); err != nil {
+				return err
+			}
+		}
 	}
 
 	// CREATE TABLE ... LIKE
 	if stmt.Like != nil {
-		return c.createTableLike(db, tableName, key, stmt)
+		c.dropReplacedTable(db, replaced)
+		return c.createTableLike(db, tableName, key, srcTbl, stmt)
 	}
 
-	// CREATE TABLE ... AS SELECT (CTAS) — not supported yet, skip silently
+	// CREATE TABLE ... AS SELECT (CTAS) is not modeled: the catalog cannot
+	// derive the columns of the SELECT, so it creates no table. OR REPLACE
+	// still drops the table it replaces, so the catalog holds no table of
+	// the name after either form, rather than a definition MariaDB no
+	// longer has.
 	if stmt.Select != nil && len(stmt.Columns) == 0 {
+		c.dropReplacedTable(db, replaced)
 		return nil
 	}
 
@@ -124,6 +153,27 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 	if tblCharsetExplicit && tblCollationExplicit && !charsetMatchesCollation(tbl.Charset, tbl.Collation) {
 		return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
+	}
+	if replaced != nil {
+		// What validateColumnDefSemantics checks and MariaDB also rejects (a
+		// precision out of range, M < D, NOT NULL DEFAULT NULL, ON UPDATE on
+		// a non-temporal column) MariaDB rejects while parsing, and the old
+		// table survives. What fails once the definition is put together (no
+		// column, a duplicate column or key, a second primary key, a foreign
+		// key) fails after the old table is dropped, and so it does here.
+		// MariaDB also rejects a malformed literal default ('not-a-date',
+		// 1067) after the drop; the catalog does not check those.
+		for _, colDef := range stmt.Columns {
+			if err := validateColumnDefSemantics(colDef); err != nil {
+				return err
+			}
+		}
+		c.dropReplacedTable(db, replaced)
+	}
+	// A definition without columns, CREATE TABLE r or one of only keys or
+	// checks, is 1113 in MariaDB, after OR REPLACE has dropped the old table.
+	if len(stmt.Columns) == 0 {
+		return errTableMustHaveColumns()
 	}
 	// Track whether we have a primary key (to detect multiple PKs).
 	hasPK := false
@@ -2601,20 +2651,196 @@ func escapeEnumValue(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
 
+// likeSource resolves the source table of CREATE TABLE ... LIKE. MariaDB
+// reports a source in an unknown database as a missing table (1146), and a
+// view as not a base table (1347).
+func (c *Catalog) likeSource(ref *nodes.TableRef) (*Table, error) {
+	dbName := ref.Schema
+	if dbName == "" {
+		dbName = c.currentDB
+	}
+	if dbName == "" {
+		return nil, errNoDatabaseSelected()
+	}
+	srcDB := c.GetDatabase(dbName)
+	if srcDB == nil {
+		return nil, errNoSuchTable(dbName, ref.Name)
+	}
+	if tbl := srcDB.GetTable(ref.Name); tbl != nil {
+		return tbl, nil
+	}
+	if srcDB.Views[toLower(ref.Name)] != nil {
+		return nil, errWrongObject(srcDB.Name, ref.Name, "BASE TABLE")
+	}
+	return nil, errNoSuchTable(srcDB.Name, ref.Name)
+}
+
+// refNamesTable reports whether ref, resolved against the current
+// database, names table key of database dbName.
+func (c *Catalog) refNamesTable(ref *nodes.TableRef, dbName, key string) bool {
+	schema := ref.Schema
+	if schema == "" {
+		schema = c.currentDB
+	}
+	return schema != "" && toLower(schema) == toLower(dbName) && toLower(ref.Name) == key
+}
+
+// checkCreateOrReplace runs the checks MariaDB makes before CREATE OR
+// REPLACE [TEMPORARY] TABLE drops anything, in its order, and returns the
+// table to drop (nil when none of the name exists) and, for LIKE, the
+// source table. A failure here leaves the existing table in place.
+// Verified against mariadb:11.8.8; see
+// https://mariadb.com/kb/en/create-table/#create-or-replace.
+//
+// OR REPLACE replaces only a table of its own kind: OR REPLACE TABLE a base
+// table, OR REPLACE TEMPORARY TABLE a temporary one. MariaDB lets a
+// temporary table shadow a base table or view of the same name, but the
+// catalog keeps one table per name, so where the other kind holds the name
+// it reports a duplicate, as plain CREATE [TEMPORARY] TABLE does.
+func (c *Catalog) checkCreateOrReplace(db *Database, tableName, key string, stmt *nodes.CreateTableStmt) (replaced, srcTbl *Table, err error) {
+	// The LIKE source is opened before the target is looked at.
+	if stmt.Like != nil {
+		if srcTbl, err = c.likeSource(stmt.Like); err != nil {
+			return nil, nil, err
+		}
+	}
+	existing := db.Tables[key]
+	if stmt.Temporary {
+		if db.Views[key] != nil || (existing != nil && !existing.Temporary) {
+			return nil, nil, errDupTable(tableName)
+		}
+		if existing == nil {
+			return nil, srcTbl, nil
+		}
+		// The SELECT cannot read the temporary table it replaces.
+		if ref := c.selectTableRef(stmt.Select, db.Name, key); ref != nil {
+			alias := ref.Alias
+			if alias == "" {
+				alias = ref.Name
+			}
+			return nil, nil, errCantReopenTable(alias)
+		}
+		return existing, srcTbl, nil
+	}
+	if db.Views[key] != nil {
+		return nil, nil, errIsAView(db.Name, tableName)
+	}
+	if existing == nil {
+		return nil, srcTbl, nil
+	}
+	if existing.Temporary {
+		return nil, nil, errDupTable(tableName)
+	}
+	// The SELECT cannot read the table it replaces (1093). MariaDB checks
+	// this only when the table exists; otherwise the SELECT fails on the
+	// missing table, which the catalog, not modeling the SELECT, does not
+	// report.
+	if c.selectTableRef(stmt.Select, db.Name, key) != nil {
+		return nil, nil, errUpdateTableUsed(tableName, "CREATE")
+	}
+	// As with DROP TABLE, a table another table's foreign key references
+	// cannot be dropped while foreign_key_checks is on: 1451.
+	if c.foreignKeyChecks {
+		if child, _ := c.findFKReference(db.Name, existing.Name); child != nil {
+			return nil, nil, errRowIsReferenced()
+		}
+	}
+	return existing, srcTbl, nil
+}
+
+// selectTableRef returns the first table reference in sel, at any depth
+// (FROM, joins, derived tables, subqueries, set operations, CTE bodies),
+// that names table key of database dbName; nil when there is none or sel
+// is nil. An unqualified name that matches a CTE visible where it stands
+// reads the CTE, and is skipped. Views are not expanded: MariaDB also
+// refuses a SELECT that reads the table through a view (1443), the catalog
+// does not.
+func (c *Catalog) selectTableRef(sel *nodes.SelectStmt, dbName, key string) *nodes.TableRef {
+	if sel == nil {
+		return nil
+	}
+	return c.queryTableRef(sel, dbName, key, nil)
+}
+
+// queryTableRef is selectTableRef for one query, given the CTE names visible
+// around it. The CTEs of a query's WITH clause are visible in its body, set
+// operations and subqueries included. A body of a WITH RECURSIVE clause sees
+// every CTE of the clause; a body of a plain WITH sees only the CTEs before
+// it, so WITH t AS (SELECT * FROM t) reads table t. Verified on
+// mariadb:11.8.8.
+func (c *Catalog) queryTableRef(sel *nodes.SelectStmt, dbName, key string, outer map[string]bool) *nodes.TableRef {
+	scope := outer
+	if len(sel.CTEs) > 0 {
+		scope = make(map[string]bool, len(outer)+len(sel.CTEs))
+		for name := range outer {
+			scope[name] = true
+		}
+		recursive := sel.CTEs[0].Recursive
+		if recursive {
+			for _, cte := range sel.CTEs {
+				scope[toLower(cte.Name)] = true
+			}
+		}
+		for _, cte := range sel.CTEs {
+			if cte.Select != nil {
+				if ref := c.queryTableRef(cte.Select, dbName, key, scope); ref != nil {
+					return ref
+				}
+			}
+			if !recursive {
+				scope[toLower(cte.Name)] = true
+			}
+		}
+	}
+	var found *nodes.TableRef
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if found != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *nodes.SelectStmt:
+			if n == sel {
+				return true
+			}
+			found = c.queryTableRef(n, dbName, key, scope)
+			return false
+		case *nodes.CommonTableExpr:
+			// Walked above, each with the names its body sees.
+			return false
+		case *nodes.ForUpdate:
+			// Lock targets name FROM entries; they read nothing themselves.
+			return false
+		case *nodes.TableRef:
+			if n.Schema == "" && scope[toLower(n.Name)] {
+				return true
+			}
+			if c.refNamesTable(n, dbName, key) {
+				found = n
+			}
+		}
+		return true
+	})
+	return found
+}
+
+// dropReplacedTable drops the table CREATE OR REPLACE replaces, with its
+// triggers, as DROP TABLE does in MariaDB. A nil table is a no-op.
+func (c *Catalog) dropReplacedTable(db *Database, tbl *Table) {
+	if tbl == nil {
+		return
+	}
+	key := toLower(tbl.Name)
+	delete(db.Tables, key)
+	for name, trg := range db.Triggers {
+		if toLower(trg.Table) == key {
+			delete(db.Triggers, name)
+		}
+	}
+}
+
 // createTableLike implements CREATE TABLE t2 LIKE t1.
 // It copies the structure (columns, indexes, constraints) from the source table.
-func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nodes.CreateTableStmt) error {
-	// Resolve source table.
-	srcDBName := stmt.Like.Schema
-	srcDB, err := c.resolveDatabase(srcDBName)
-	if err != nil {
-		return err
-	}
-	srcTbl := srcDB.GetTable(stmt.Like.Name)
-	if srcTbl == nil {
-		return errNoSuchTable(srcDB.Name, stmt.Like.Name)
-	}
-
+func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *Table, stmt *nodes.CreateTableStmt) error {
 	tbl := &Table{
 		Name:              tableName,
 		Database:          db,

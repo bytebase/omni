@@ -121,8 +121,12 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_OBJECT('a' VALUE 1 WITHOUT TYPENAME WITH UNIQUE KEYS) FROM dual",
 		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING VARCHAR2(10) TRUNCATE STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual",
 		"SELECT JSON_OBJECT(x WITHOUT UNIQUE KEYS WITH TYPENAME) FROM t",
-		// An object instance alone, from a call, CAST, or TREAT.
+		// An object instance alone, from a call, CAST, TREAT, or a bind
+		// (Oracle 23ai runs these with an object bound to :o).
 		"SELECT JSON_OBJECT(t(1) WITH TYPENAME) FROM dual",
+		"SELECT JSON_OBJECT(:o) FROM dual",
+		"SELECT JSON_OBJECT(:o WITH TYPENAME) FROM dual",
+		"SELECT JSON_OBJECT(:1 ABSENT ON NULL RETURNING VARCHAR2(200)) FROM dual",
 		"SELECT JSON_OBJECT(CAST(NULL AS t)) FROM dual",
 		"SELECT JSON_OBJECT(TREAT(x AS t)) FROM s",
 		// Whether a call returns an object is the engine's to resolve:
@@ -236,8 +240,11 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_OBJECT(dummy STRICT) FROM dual",
 		"SELECT JSON_OBJECT(dummy TRUNCATE) FROM dual",
 		"SELECT JSON_OBJECT('a' VALUE 1, dummy STRICT) FROM dual",
-		// An object instance stands alone (ORA-02000).
+		// An object instance stands alone (ORA-02000, for binds when they
+		// bind).
 		"SELECT JSON_OBJECT(t(1), t(2)) FROM dual",
+		"SELECT JSON_OBJECT(:o, :p) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1, :o) FROM dual",
 		// Only a LOB takes VALUE or REFERENCE (ORA-02000), and WITH
 		// TYPENAME follows a bare object instance (ORA-03050 for (o)).
 		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING VARCHAR2(100) VALUE) FROM dual",

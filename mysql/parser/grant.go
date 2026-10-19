@@ -598,7 +598,7 @@ func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 			p.advance() // consume '.'
 			// *.*
 			ref := &nodes.TableRef{
-				Loc:    nodes.Loc{Start: start, End: p.pos()},
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 				Schema: "*",
 				Name:   "*",
 			}
@@ -618,7 +618,7 @@ func (p *Parser) parseGrantTarget() (*nodes.GrantTarget, error) {
 		} else {
 			// Just *
 			target.Name = &nodes.TableRef{
-				Loc:  nodes.Loc{Start: start, End: p.pos()},
+				Loc:  nodes.Loc{Start: start, End: p.prev.End},
 				Name: "*",
 			}
 		}
@@ -744,8 +744,7 @@ func (p *Parser) parseUserName() (string, error) {
 //	    [WITH resource_option [resource_option] ...]
 //	    [password_option | lock_option] ...
 //	    [COMMENT 'comment_string' | ATTRIBUTE 'json_object']
-func (p *Parser) parseCreateUserStmt() (*nodes.CreateUserStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 	p.advance() // consume USER
 
 	stmt := &nodes.CreateUserStmt{Loc: nodes.Loc{Start: start}}
@@ -821,8 +820,7 @@ func (p *Parser) parseCreateUserStmt() (*nodes.CreateUserStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-user.html
 //
 //	DROP USER [IF EXISTS] user [, user] ...
-func (p *Parser) parseDropUserStmt() (*nodes.DropUserStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropUserStmt(start int) (*nodes.DropUserStmt, error) {
 	p.advance() // consume USER
 
 	stmt := &nodes.DropUserStmt{Loc: nodes.Loc{Start: start}}
@@ -852,8 +850,7 @@ func (p *Parser) parseDropUserStmt() (*nodes.DropUserStmt, error) {
 //	ALTER USER user_spec [, user_spec] ...
 //	    [REQUIRE {NONE | tls_option [[AND] tls_option] ...}]
 //	    [WITH resource_option [resource_option] ...]
-func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	p.advance() // consume USER
 
 	stmt := &nodes.AlterUserStmt{Loc: nodes.Loc{Start: start}}
@@ -868,6 +865,7 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 	// Check for ALTER USER USER() ... (user_func_auth_option or registration_option)
 	if p.cur.Type == kwUSER && p.peekNext().Type == '(' {
 		stmt.IsUserFunc = true
+		userStart := p.pos()
 		p.advance() // consume USER
 		p.advance() // consume (
 		p.match(')')
@@ -884,7 +882,7 @@ func (p *Parser) parseAlterUserStmt() (*nodes.AlterUserStmt, error) {
 		}
 
 		// user_func_auth_option: IDENTIFIED BY 'auth_string' [REPLACE ...] [RETAIN ...] | DISCARD OLD PASSWORD
-		userSpec := &nodes.UserSpec{Loc: nodes.Loc{Start: start}, Name: "USER()"}
+		userSpec := &nodes.UserSpec{Loc: nodes.Loc{Start: userStart}, Name: "USER()"}
 		if p.cur.Type == kwIDENTIFIED {
 			if err := p.parseUserAuthOption(userSpec); err != nil {
 				return nil, err
@@ -1335,8 +1333,7 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 // parseCreateRoleStmt parses a CREATE ROLE statement.
 //
 //	CREATE ROLE [IF NOT EXISTS] role [, role] ...
-func (p *Parser) parseCreateRoleStmt() (*nodes.CreateRoleStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
 	p.advance() // consume ROLE
 
 	stmt := &nodes.CreateRoleStmt{Loc: nodes.Loc{Start: start}}
@@ -1363,8 +1360,7 @@ func (p *Parser) parseCreateRoleStmt() (*nodes.CreateRoleStmt, error) {
 // parseDropRoleStmt parses a DROP ROLE statement.
 //
 //	DROP ROLE [IF EXISTS] role [, role] ...
-func (p *Parser) parseDropRoleStmt() (*nodes.DropRoleStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	p.advance() // consume ROLE
 
 	stmt := &nodes.DropRoleStmt{Loc: nodes.Loc{Start: start}}

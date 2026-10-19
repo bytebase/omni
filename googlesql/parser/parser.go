@@ -63,6 +63,45 @@ type Parser struct {
 	// parameter is not a column schema (oracle: STRUCT<v ARRAY<…>(vector_length=>…)>
 	// rejects). It is never set for a CAST target or any general `type` position.
 	inArrayColumnSchema bool
+
+	// parsedSubqueries holds, by the offset of its body, every expression
+	// subquery parseSubqueryBodyRaw parsed in place. fillSubqueries attaches
+	// these instead of reparsing the body text, which reparsed every nested
+	// body once per level, so n nested subqueries cost O(n²).
+	parsedSubqueries map[int]ast.Node
+
+	// bracketGroupEnd records where the raw scan of each bracket group ended
+	// (its closing bracket, or EOF), by the offset of the opening bracket. A
+	// body whose in-place parse fails is scanned raw, and so is every
+	// enclosing body whose parse fails after it; jumping over the groups
+	// already scanned keeps that linear.
+	bracketGroupEnd map[int]parserCheckpoint
+}
+
+// parserCheckpoint is the parser and lexer position a speculative parse
+// rewinds to. The lexer's own errors are not kept: lex diagnostics come from
+// the separate whole-input pass in parseAll.
+type parserCheckpoint struct {
+	cur, prev, nextBuf Token
+	hasNext            bool
+	lexPos, lexStart   int
+	errLen             int
+}
+
+// checkpoint captures the current position.
+func (p *Parser) checkpoint() parserCheckpoint {
+	return parserCheckpoint{
+		cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext,
+		lexPos: p.lexer.pos, lexStart: p.lexer.start,
+		errLen: len(p.errors),
+	}
+}
+
+// restore rewinds to c, dropping the errors recorded since.
+func (p *Parser) restore(c parserCheckpoint) {
+	p.cur, p.prev, p.nextBuf, p.hasNext = c.cur, c.prev, c.nextBuf, c.hasNext
+	p.lexer.pos, p.lexer.start = c.lexPos, c.lexStart
+	p.errors = p.errors[:c.errLen]
 }
 
 // advance consumes the current token and moves to the next one. Returns the
@@ -521,17 +560,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 // expression-embedded subquery node (SubqueryExpr / ExistsExpr /
 // ArraySubqueryExpr) that the expressions node left as RawText-only.
 //
-// The subquery seam: the expressions node (a dependency, frozen) captures
-// `(SELECT …)`, `EXISTS(…)`, and `ARRAY(…)` subqueries as RawText with Query nil
-// (it does not own the query grammar). parser-select owns the query grammar, so
-// after the top-level query parses, fillSubqueries walks the produced tree and
-// re-parses each subquery's RawText into a real *QueryStmt, attaching it to the
-// node's Query field. This is done as a post-pass (rather than inline) because
-// the expressions parser already consumed those tokens; re-parsing RawText is
-// the only seam available without editing the frozen expressions node, and it
-// yields a complete tree for the downstream query-span extractor. Subquery
-// RawText is a balanced parenthesized query (the expressions node scanned it
-// with bracket balancing), so it always re-parses cleanly; a re-parse error is
+// The subquery seam: the expressions node captures `(SELECT …)`, `EXISTS(…)`,
+// and `ARRAY(…)` subqueries as RawText with Query nil. After the top-level
+// query parses, fillSubqueries walks the produced tree and gives each one a
+// real *QueryStmt in its Query field: the parse parseSubqueryBodyRaw made of
+// the body in place, or else a re-parse of RawText. This is a post-pass so
+// that only statements that fill their subqueries get them, and it yields a
+// complete tree for the downstream query-span extractor. A re-parse error is
 // surfaced as a diagnostic but does not discard the outer statement.
 func (p *Parser) parseQueryStatement() (ast.Node, error) {
 	q, err := p.parseQuery()
@@ -591,10 +626,15 @@ func (p *Parser) fillSubqueries(node ast.Node) {
 	})
 }
 
-// fillSubquery re-parses one captured body. An empty or comment-only body
-// (`EXISTS()`, `ARRAY(/* c */)`) is not a query; the grammar requires one, so
-// it is recorded as a syntax error at the node instead of silently skipped.
+// fillSubquery re-parses one captured body, or attaches the parse
+// parseSubqueryBodyRaw already made of it in place. An empty or comment-only
+// body (`EXISTS()`, `ARRAY(/* c */)`) is not a query; the grammar requires
+// one, so it is recorded as a syntax error at the node instead of silently
+// skipped.
 func (p *Parser) fillSubquery(raw string, textStart int, loc ast.Loc) ast.Node {
+	if q, ok := p.parsedSubqueries[textStart]; ok && raw != "" {
+		return q
+	}
 	if raw == "" {
 		p.errors = append(p.errors, ParseError{Position: loc.Start, End: loc.End, Message: "syntax error: expected a query inside the parentheses"})
 		return nil
@@ -608,7 +648,7 @@ func (p *Parser) fillSubquery(raw string, textStart int, loc ast.Loc) ast.Node {
 // base, so every position and error it produces is in the outer text's
 // coordinates. A parse failure records the error and returns nil (the node
 // keeps RawText, so round-trip still works). The returned QueryStmt's own
-// embedded subqueries are filled recursively.
+// embedded subqueries are filled by the fillSubqueries walk that attaches it.
 func (p *Parser) reparseSubquery(raw string, textStart int) ast.Node {
 	base := textStart
 	if base < 0 {
@@ -642,9 +682,23 @@ func (p *Parser) reparseSubquery(raw string, textStart int) ast.Node {
 		p.errors = append(p.errors, *sub.syntaxErrorAtCur())
 		return nil
 	}
-	// Recurse into the freshly-parsed subquery to fill its own nested subqueries.
-	p.fillSubqueries(q)
+	// fillSubqueries goes on to walk q once it is attached and fills q's own
+	// subqueries, using the ones the nested parser made in place. Filling them
+	// here as well walked q twice and reported a failing nested body once per
+	// enclosing level.
+	for off, nested := range sub.parsedSubqueries {
+		p.recordParsedSubquery(off, nested)
+	}
 	return q
+}
+
+// recordParsedSubquery keeps q, a subquery body parsed in place at absolute
+// offset off, for fillSubquery.
+func (p *Parser) recordParsedSubquery(off int, q ast.Node) {
+	if p.parsedSubqueries == nil {
+		p.parsedSubqueries = make(map[int]ast.Node)
+	}
+	p.parsedSubqueries[off] = q
 }
 
 // ParseResult holds the outcome of a best-effort parse. File contains every

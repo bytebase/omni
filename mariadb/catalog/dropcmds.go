@@ -34,6 +34,17 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 // checkFKReferences returns an error if any table in any database has a
 // foreign key constraint that references the given table.
 func (c *Catalog) checkFKReferences(dbName, tableName string) error {
+	if child, con := c.findFKReference(dbName, tableName); child != nil {
+		return errFKCannotDropParent(tableName, con.Name, child.Name)
+	}
+	return nil
+}
+
+// findFKReference returns a table other than the given one, in any
+// database, with a foreign key that references the given table, and that
+// foreign key; nil when there is none. A foreign key of the table to
+// itself does not count: dropping the table drops it too.
+func (c *Catalog) findFKReference(dbName, tableName string) (*Table, *Constraint) {
 	dbKey := toLower(dbName)
 	tblKey := toLower(tableName)
 	for _, db := range c.databases {
@@ -51,12 +62,12 @@ func (c *Catalog) checkFKReferences(dbName, tableName string) error {
 					refDB = db.Name
 				}
 				if toLower(refDB) == dbKey && toLower(con.RefTable) == tblKey {
-					return errFKCannotDropParent(tableName, con.Name, tbl.Name)
+					return tbl, con
 				}
 			}
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {

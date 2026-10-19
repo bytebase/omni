@@ -1558,7 +1558,9 @@ func (p *Parser) parseForXmlOptions(fc *nodes.ForClause) error {
 					fc.RootName = p.cur.Str
 					p.advance()
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return err
+				}
 			}
 		case p.matchIdentCI("XMLDATA"):
 			fc.XmlData = true
@@ -1570,7 +1572,9 @@ func (p *Parser) parseForXmlOptions(fc *nodes.ForClause) error {
 					fc.XmlSchemaURI = p.cur.Str
 					p.advance()
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return err
+				}
 			}
 		case p.matchIdentCI("ELEMENTS"):
 			fc.Elements = true
@@ -1617,7 +1621,9 @@ func (p *Parser) parseForJsonOptions(fc *nodes.ForClause) error {
 					fc.RootName = p.cur.Str
 					p.advance()
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return err
+				}
 			}
 		case p.matchIdentCI("INCLUDE_NULL_VALUES"):
 			fc.IncludeNullValues = true

@@ -6,32 +6,25 @@ import (
 
 // parseCreateDatabaseStmt parses a CREATE DATABASE/SCHEMA statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-database.html
+// Ref: https://mariadb.com/kb/en/create-database/
 //
-//	CREATE {DATABASE | SCHEMA} [IF NOT EXISTS] db_name
+//	CREATE [OR REPLACE] {DATABASE | SCHEMA} [IF NOT EXISTS] db_name
 //	    [create_option] ...
 //
 //	create_option:
 //	    [DEFAULT] CHARACTER SET [=] charset_name
 //	    | [DEFAULT] COLLATE [=] collation_name
 //	    | [DEFAULT] ENCRYPTION [=] {'Y' | 'N'}
-func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateDatabaseStmt(start int, orReplace bool) (*nodes.CreateDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
 
-	stmt := &nodes.CreateDatabaseStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.CreateDatabaseStmt{Loc: nodes.Loc{Start: start}, OrReplace: orReplace}
 
-	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS_KW); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Completion: after CREATE DATABASE [IF NOT EXISTS], identifier context.
 	p.checkCursor()
@@ -59,7 +52,7 @@ func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
 		stmt.Options = append(stmt.Options, opt)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -69,8 +62,7 @@ func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
 //
 //	ALTER {DATABASE | SCHEMA} [db_name]
 //	    alter_option ...
-func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
 
 	stmt := &nodes.AlterDatabaseStmt{Loc: nodes.Loc{Start: start}}
@@ -96,7 +88,7 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 		stmt.Options = append(stmt.Options, opt)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -105,8 +97,7 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-database.html
 //
 //	DROP {DATABASE | SCHEMA} [IF EXISTS] db_name
-func (p *Parser) parseDropDatabaseStmt() (*nodes.DropDatabaseStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropDatabaseStmt(start int) (*nodes.DropDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
 
 	stmt := &nodes.DropDatabaseStmt{Loc: nodes.Loc{Start: start}}
@@ -134,7 +125,7 @@ func (p *Parser) parseDropDatabaseStmt() (*nodes.DropDatabaseStmt, error) {
 	}
 	stmt.Name = name
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -156,7 +147,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "READ ONLY",
 				Value: val,
 			}, true, nil
@@ -176,7 +167,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 				return nil, false, err
 			}
 			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "CHARACTER SET",
 				Value: val,
 			}, true, nil
@@ -189,7 +180,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			return nil, false, err
 		}
 		return &nodes.DatabaseOption{
-			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "CHARACTER SET",
 			Value: val,
 		}, true, nil
@@ -201,7 +192,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			return nil, false, err
 		}
 		return &nodes.DatabaseOption{
-			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "COLLATE",
 			Value: val,
 		}, true, nil
@@ -212,7 +203,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "ENCRYPTION",
 				Value: val,
 			}, true, nil

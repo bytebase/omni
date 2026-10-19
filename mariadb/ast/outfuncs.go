@@ -798,6 +798,9 @@ func writeForPortionOf(sb *strings.Builder, n *ForPortionOf) {
 func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	sb.WriteString("{CREATE_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :if_not_exists true")
 	}
@@ -911,6 +914,9 @@ func writeDropTableStmt(sb *strings.Builder, n *DropTableStmt) {
 func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	sb.WriteString("{CREATE_INDEX")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
 	if n.Unique {
 		sb.WriteString(" :unique true")
 	}
@@ -995,6 +1001,9 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 func writeCreateDatabaseStmt(sb *strings.Builder, n *CreateDatabaseStmt) {
 	sb.WriteString("{CREATE_DATABASE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :if_not_exists true")
 	}
@@ -1325,6 +1334,9 @@ func writeRevokeStmt(sb *strings.Builder, n *RevokeStmt) {
 func writeCreateUserStmt(sb *strings.Builder, n *CreateUserStmt) {
 	sb.WriteString("{CREATE_USER")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :if_not_exists true")
 	}
@@ -1495,6 +1507,9 @@ func writeAlterUserStmt(sb *strings.Builder, n *AlterUserStmt) {
 func writeCreateRoleStmt(sb *strings.Builder, n *CreateRoleStmt) {
 	sb.WriteString("{CREATE_ROLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :if_not_exists true")
 	}
@@ -1648,6 +1663,9 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 	sb.WriteString("{CREATE_TRIGGER")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
 	if n.Definer != "" {
 		fmt.Fprintf(sb, " :definer %s", n.Definer)
 	}
@@ -1684,6 +1702,9 @@ func writeCreateTriggerStmt(sb *strings.Builder, n *CreateTriggerStmt) {
 func writeCreateEventStmt(sb *strings.Builder, n *CreateEventStmt) {
 	sb.WriteString("{CREATE_EVENT")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :if_not_exists true")
 	}
@@ -4302,6 +4323,12 @@ func writeDropTablespaceStmt(sb *strings.Builder, n *DropTablespaceStmt) {
 func writeCreateServerStmt(sb *strings.Builder, n *CreateServerStmt) {
 	sb.WriteString("{CREATE_SERVER")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
 	if n.WrapperName != "" {
 		fmt.Fprintf(sb, " :wrapper %s", n.WrapperName)
@@ -4409,9 +4436,6 @@ func writeDropLogfileGroupStmt(sb *strings.Builder, n *DropLogfileGroupStmt) {
 func writeCreateSpatialRefSysStmt(sb *strings.Builder, n *CreateSpatialRefSysStmt) {
 	sb.WriteString("{CREATE_SPATIAL_REF_SYS")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if n.OrReplace {
-		sb.WriteString(" :or_replace true")
-	}
 	if n.IfNotExists {
 		sb.WriteString(" :if_not_exists true")
 	}

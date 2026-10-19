@@ -14,6 +14,18 @@ type Parser struct {
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
 
+	// parenRunStart and parenRunPast cache the last firstTokenPastParens scan:
+	// the offset of the run's first '(' and the first token past the run.
+	parenRunStart int
+	parenRunPast  Token
+
+	// parenQueryFail holds every parseSelectWithParens failure by the offset
+	// of its '('. parseSubqueryHead speculates a query at each level of a
+	// nested `((((SELECT 1) = 0) = 0) = 0)` and rewinds when it fails, and the
+	// next level down fails on the same tokens; recording the failures keeps
+	// that linear.
+	parenQueryFail map[int]error
+
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
 	cursorOff  int           // byte offset of the cursor in source
@@ -171,7 +183,8 @@ func (p *Parser) pos() int {
 	return p.cur.Loc
 }
 
-// inputText returns a substring of the original input between start and end byte positions.
+// inputText returns the input between start and end byte positions, without the
+// executable-comment syntax (/*!NNNNN, */) the lexer stepped over in that range.
 // start and end are absolute (include baseOffset), so we subtract it to index into the segment text.
 func (p *Parser) inputText(start, end int) string {
 	start -= p.lexer.baseOffset
@@ -185,7 +198,7 @@ func (p *Parser) inputText(start, end int) string {
 	if start >= end {
 		return ""
 	}
-	return p.lexer.input[start:end]
+	return p.lexer.expandedText(start, end)
 }
 
 // ParseError represents a parse error with position information.

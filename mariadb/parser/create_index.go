@@ -5,37 +5,32 @@ import (
 )
 
 // parseCreateIndexStmt parses a CREATE INDEX statement.
-// Called when p.cur is at the INDEX keyword (after consuming CREATE [UNIQUE|FULLTEXT|SPATIAL]).
+// Called when p.cur is at the INDEX keyword (after consuming CREATE [OR REPLACE]
+// [UNIQUE|FULLTEXT|SPATIAL]).
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-index.html
+// Ref: https://mariadb.com/kb/en/create-index/
 //
-//	CREATE [UNIQUE | FULLTEXT | SPATIAL] INDEX index_name
+//	CREATE [OR REPLACE] [UNIQUE | FULLTEXT | SPATIAL] INDEX [IF NOT EXISTS] index_name
 //	    [index_type]
 //	    ON tbl_name (key_part,...)
 //	    [index_option] ...
 //	    [algorithm_option | lock_option] ...
-func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) (*nodes.CreateIndexStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, spatial bool) (*nodes.CreateIndexStmt, error) {
 	p.advance() // consume INDEX
 
 	stmt := &nodes.CreateIndexStmt{
-		Loc:      nodes.Loc{Start: start},
-		Unique:   unique,
-		Fulltext: fulltext,
-		Spatial:  spatial,
+		Loc:       nodes.Loc{Start: start},
+		OrReplace: orReplace,
+		Unique:    unique,
+		Fulltext:  fulltext,
+		Spatial:   spatial,
 	}
 
-	// IF NOT EXISTS (MySQL 8.0.27+)
-	if p.cur.Type == kwIF {
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS_KW); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// index_name
 	name, _, err := p.parseIdent()
@@ -112,7 +107,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) 
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -156,7 +151,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			return nil, err
 		}
 		col.Expr = &nodes.ColumnRef{
-			Loc:    nodes.Loc{Start: start, End: p.pos()},
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			Column: colName,
 		}
 
@@ -196,7 +191,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 		col.WithoutOverlaps = true
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prev.End
 	return col, nil
 }
 
@@ -285,13 +280,14 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	case p.cur.Type == kwKEY_BLOCK_SIZE:
 		p.advance()
 		p.match('=') // optional =
+		valStart := p.pos()
 		if p.cur.Type == tokICONST {
 			val := p.cur.Ival
 			p.advance()
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "KEY_BLOCK_SIZE",
-				Value: &nodes.IntLit{Loc: nodes.Loc{Start: start}, Value: val},
+				Value: &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: val},
 			}, true, nil
 		}
 		// Could be an identifier value
@@ -300,21 +296,22 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			return nil, false, err
 		}
 		return &nodes.IndexOption{
-			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "KEY_BLOCK_SIZE",
-			Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: v},
+			Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: v},
 		}, true, nil
 
 	case p.cur.Type == kwUSING:
 		p.advance()
+		valStart := p.pos()
 		typeName, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return nil, false, err
 		}
 		return &nodes.IndexOption{
-			Loc:   nodes.Loc{Start: start, End: p.pos()},
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "USING",
-			Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: typeName},
+			Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: typeName},
 		}, true, nil
 
 	case p.cur.Type == kwWITH:
@@ -322,14 +319,15 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		if next.Type == kwPARSER {
 			p.advance() // consume WITH
 			p.advance() // consume PARSER
+			valStart := p.pos()
 			parserName, _, err := p.parseIdent()
 			if err != nil {
 				return nil, false, err
 			}
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "PARSER",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: parserName},
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: parserName},
 			}, true, nil
 		}
 		return nil, false, nil
@@ -340,9 +338,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "COMMENT",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: val},
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}, Value: val},
 			}, true, nil
 		}
 		return nil, false, &ParseError{Message: "expected string after COMMENT", Position: p.cur.Loc}
@@ -350,14 +348,14 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	case p.cur.Type == kwVISIBLE:
 		p.advance()
 		return &nodes.IndexOption{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: "VISIBLE",
 		}, true, nil
 
 	case p.cur.Type == kwINVISIBLE:
 		p.advance()
 		return &nodes.IndexOption{
-			Loc:  nodes.Loc{Start: start, End: p.pos()},
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: "INVISIBLE",
 		}, true, nil
 
@@ -368,9 +366,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "ENGINE_ATTRIBUTE",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: val},
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}, Value: val},
 			}, true, nil
 		}
 		return nil, false, &ParseError{Message: "expected string after ENGINE_ATTRIBUTE", Position: p.cur.Loc}
@@ -382,9 +380,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			val := p.cur.Str
 			p.advance()
 			return &nodes.IndexOption{
-				Loc:   nodes.Loc{Start: start, End: p.pos()},
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
 				Name:  "SECONDARY_ENGINE_ATTRIBUTE",
-				Value: &nodes.StringLit{Loc: nodes.Loc{Start: start}, Value: val},
+				Value: &nodes.StringLit{Loc: nodes.Loc{Start: p.prev.Loc, End: p.prev.End}, Value: val},
 			}, true, nil
 		}
 		return nil, false, &ParseError{Message: "expected string after SECONDARY_ENGINE_ATTRIBUTE", Position: p.cur.Loc}

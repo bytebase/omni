@@ -159,10 +159,12 @@ func TestDropInheritedColumn(t *testing.T) {
 	child.Columns[0].IsLocal = false
 
 	// Try to drop inherited column from child -- should error.
+	// pg: src/backend/commands/tablecmds.c — ATExecDropColumn
+	// (ERRCODE_INVALID_TABLE_DEFINITION)
 	err := c.AlterTableStmt(makeAlterTableStmt("", "child",
 		makeATDropColumn("a", false, false),
 	))
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }
 
 func TestExecuteTruncateOnView(t *testing.T) {
@@ -238,5 +240,8 @@ func TestRenameConstraintDuplicateValidation(t *testing.T) {
 
 	// Try to rename the first constraint to the second constraint's name.
 	err := c.ExecRenameStmt(makeRenameConstraintStmt("", "t", cons[0].Name, cons[1].Name))
-	assertErrorCode(t, err, CodeDuplicateObject)
+	// The PK is renamed through its index, and the unique constraint's index
+	// already holds the name: PostgreSQL reports the relation (42P07).
+	// pg: src/backend/commands/tablecmds.c — rename_constraint_internal
+	assertErrorCode(t, err, CodeDuplicateTable)
 }

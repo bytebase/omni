@@ -14,6 +14,15 @@ type Parser struct {
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
 
+	// Memos for the paren classifiers, keyed by the byte offset of a '('. The
+	// parser asks again at every nesting level as it descends, and each answer
+	// depends only on the input, so a scan records what it learns about every
+	// '(' it passes. Without them, n nested parens cost O(n²) token scans.
+	parenAfter      map[int]Token // token after the '(' block's matching ')'
+	parenIsSubquery map[int]bool  // consumeMatchedParenIsSubquery's verdict
+	parenRunStart   int           // offset of the '(' run scanned last
+	parenRunPast    Token         // first token past that run
+
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
 	cursorOff  int           // byte offset of the cursor in source
@@ -161,7 +170,8 @@ func (p *Parser) pos() int {
 	return p.cur.Loc
 }
 
-// inputText returns a substring of the original input between start and end byte positions.
+// inputText returns the input between start and end byte positions, without the
+// executable-comment syntax (/*!NNNNN, /*T![feature], */) the lexer stepped over in that range.
 // start and end are absolute (include baseOffset), so we subtract it to index into the segment text.
 func (p *Parser) inputText(start, end int) string {
 	start -= p.lexer.baseOffset
@@ -175,7 +185,7 @@ func (p *Parser) inputText(start, end int) string {
 	if start >= end {
 		return ""
 	}
-	return p.lexer.input[start:end]
+	return p.lexer.expandedText(start, end)
 }
 
 // ParseError represents a parse error with position information.
@@ -323,4 +333,3 @@ func extractLineStatic(input string, offset int) string {
 	}
 	return line
 }
-

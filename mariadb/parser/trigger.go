@@ -8,15 +8,14 @@ import (
 
 // parseCreateTriggerStmt parses a CREATE TRIGGER statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
+// Ref: https://mariadb.com/kb/en/create-trigger/
 //
-//	CREATE [DEFINER = user] TRIGGER [IF NOT EXISTS] trigger_name
+//	CREATE [OR REPLACE] [DEFINER = user] TRIGGER [IF NOT EXISTS] trigger_name
 //	    trigger_time trigger_event
 //	    ON tbl_name FOR EACH ROW
 //	    [trigger_order]
 //	    trigger_body
-func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateTriggerStmt(start int, orReplace bool) (*nodes.CreateTriggerStmt, error) {
 	p.advance() // consume TRIGGER
 
 	// Completion: after CREATE TRIGGER, identifier context.
@@ -26,15 +25,13 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	stmt := &nodes.CreateTriggerStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.CreateTriggerStmt{Loc: nodes.Loc{Start: start}, OrReplace: orReplace}
 
-	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Trigger name
 	name, _, err := p.parseIdent()
@@ -119,13 +116,14 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 	// Optional trigger_order: { FOLLOWS | PRECEDES } other_trigger_name
 	if p.cur.Type == kwFOLLOWS || p.cur.Type == kwPRECEDES {
 		follows := p.cur.Type == kwFOLLOWS
+		orderStart := p.pos()
 		p.advance()
 		trigName, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Order = &nodes.TriggerOrder{
-			Loc:         nodes.Loc{Start: start, End: p.pos()},
+			Loc:         nodes.Loc{Start: orderStart, End: p.prev.End},
 			Follows:     follows,
 			TriggerName: trigName,
 		}
@@ -141,22 +139,21 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
 // parseCreateEventStmt parses a CREATE EVENT statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-event.html
+// Ref: https://mariadb.com/kb/en/create-event/
 //
-//	CREATE [DEFINER = user] EVENT [IF NOT EXISTS] event_name
+//	CREATE [OR REPLACE] [DEFINER = user] EVENT [IF NOT EXISTS] event_name
 //	    ON SCHEDULE schedule
 //	    [ON COMPLETION [NOT] PRESERVE]
 //	    [ENABLE | DISABLE | DISABLE ON SLAVE]
 //	    [COMMENT 'string']
 //	    DO event_body
-func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateEventStmt(start int, orReplace bool) (*nodes.CreateEventStmt, error) {
 	p.advance() // consume EVENT
 
 	// Completion: after CREATE EVENT, identifier context.
@@ -166,15 +163,13 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	stmt := &nodes.CreateEventStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.CreateEventStmt{Loc: nodes.Loc{Start: start}, OrReplace: orReplace}
 
-	// IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Event name
 	name, _, err := p.parseIdent()
@@ -263,7 +258,7 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -328,7 +323,7 @@ func (p *Parser) parseEventSchedule() (*nodes.EventSchedule, error) {
 		}
 	}
 
-	sched.Loc.End = p.pos()
+	sched.Loc.End = p.prev.End
 	sched.RawText = strings.TrimSpace(p.inputText(start, sched.Loc.End))
 	return sched, nil
 }

@@ -5,18 +5,11 @@ LBACSYS.LBAC_BIN_LABEL:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parame
 LBACSYS.LBAC_LABEL:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	2:4	syntax error at or near "OPAQUE"
 LBACSYS.LBAC_LABEL_LIST:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	3:4	syntax error at or near "OPAQUE"
 LBACSYS.LBAC_PRIVS:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	2:4	syntax error at or near "OPAQUE"
-SYS.DBMS_HCS_LOG:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 23 segments
-SYS.DBMS_LOB:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 219 segments
-SYS.DBMS_MLE:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 96 segments
 SYS.DBMS_REPORT:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	175:22	syntax error at or near ".."
-SYS.DBMS_SQL:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 600 segments
-SYS.DBMS_UTILITY:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 99 segments
 SYS.PLITBLM:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	20:29	syntax error at or near ")"
 SYS.STANDARD:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	4:19	syntax error at or near "("
 SYS.UTL_LMS:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	59:33	syntax error at or near ".."
-SYS.UTL_RECOMP:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 18 segments
 SYS.STANDARD:PACKAGE BODY	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	85:11	syntax error at or near "'IS NAN'"
-SYS.DBMS_KAFKA_DROP_USER:TRIGGER	conditional compilation ($IF/$END)	57:7	syntax error at or near "$"
 SYS.ANYDATA:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	2:4	syntax error at or near "OPAQUE"
 SYS.ANYDATASET:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	2:4	syntax error at or near "OPAQUE"
 SYS.ANYTYPE:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	2:4	syntax error at or near "OPAQUE"

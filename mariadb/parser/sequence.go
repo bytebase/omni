@@ -54,8 +54,7 @@ func (o *sequenceOptions) isEmpty() bool {
 // parseCreateSequenceStmt parses CREATE [OR REPLACE] SEQUENCE [IF NOT EXISTS].
 // The CREATE keyword (and any OR REPLACE / TEMPORARY) is already consumed by the
 // dispatcher; orReplace is propagated in. p.cur is the SEQUENCE keyword.
-func (p *Parser) parseCreateSequenceStmt(orReplace, temporary bool) (*nodes.CreateSequenceStmt, error) {
-	start := p.pos()
+func (p *Parser) parseCreateSequenceStmt(start int, orReplace, temporary bool) (*nodes.CreateSequenceStmt, error) {
 	p.advance() // consume SEQUENCE
 
 	stmt := &nodes.CreateSequenceStmt{
@@ -64,16 +63,11 @@ func (p *Parser) parseCreateSequenceStmt(orReplace, temporary bool) (*nodes.Crea
 		Temporary: temporary,
 	}
 
-	if p.cur.Type == kwIF {
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS_KW); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Completion: sequence name is a new identifier (no candidates).
 	p.checkCursor()
@@ -102,14 +96,13 @@ func (p *Parser) parseCreateSequenceStmt(orReplace, temporary bool) (*nodes.Crea
 	stmt.NoCache = opts.noCache
 	stmt.Cycle = opts.cycle
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
 // parseAlterSequenceStmt parses ALTER SEQUENCE [IF EXISTS] name with any-order
 // options. p.cur is the SEQUENCE keyword (ALTER already consumed).
-func (p *Parser) parseAlterSequenceStmt() (*nodes.AlterSequenceStmt, error) {
-	start := p.pos()
+func (p *Parser) parseAlterSequenceStmt(start int) (*nodes.AlterSequenceStmt, error) {
 	p.advance() // consume SEQUENCE
 
 	stmt := &nodes.AlterSequenceStmt{Loc: nodes.Loc{Start: start}}
@@ -155,14 +148,13 @@ func (p *Parser) parseAlterSequenceStmt() (*nodes.AlterSequenceStmt, error) {
 	stmt.NoCache = opts.noCache
 	stmt.Cycle = opts.cycle
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
 // parseDropSequenceStmt parses DROP SEQUENCE [IF EXISTS] name [, name ...].
 // p.cur is the SEQUENCE keyword (DROP and any TEMPORARY already consumed).
-func (p *Parser) parseDropSequenceStmt(temporary bool) (*nodes.DropSequenceStmt, error) {
-	start := p.pos()
+func (p *Parser) parseDropSequenceStmt(start int, temporary bool) (*nodes.DropSequenceStmt, error) {
 	p.advance() // consume SEQUENCE
 
 	stmt := &nodes.DropSequenceStmt{Loc: nodes.Loc{Start: start}, Temporary: temporary}
@@ -193,7 +185,7 @@ func (p *Parser) parseDropSequenceStmt(temporary bool) (*nodes.DropSequenceStmt,
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -333,10 +325,10 @@ func (p *Parser) parseSequenceValue() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	tok := p.advance()
-	lit := &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Ival}
+	lit := &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}
 	if neg {
 		return &nodes.UnaryExpr{
-			Loc:        nodes.Loc{Start: start, End: p.pos()},
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 			Op:         nodes.UnaryMinus,
 			Operand:    lit,
 			OriginalOp: "-",
@@ -387,7 +379,7 @@ func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
 		return nil, err
 	}
 	return &nodes.NextValueForExpr{
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 		Sequence: seq,
 	}, nil
 }
@@ -408,7 +400,7 @@ func (p *Parser) parsePreviousValueFor() (nodes.ExprNode, error) {
 		return nil, err
 	}
 	return &nodes.PreviousValueForExpr{
-		Loc:      nodes.Loc{Start: start, End: p.pos()},
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 		Sequence: seq,
 	}, nil
 }

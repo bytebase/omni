@@ -3469,6 +3469,16 @@ func writeDropStatisticsStmt(sb *strings.Builder, n *DropStatisticsStmt) {
 func writeSetOptionStmt(sb *strings.Builder, n *SetOptionStmt) {
 	sb.WriteString("{SETOPTION")
 	fmt.Fprintf(sb, " :option \"%s\"", escapeString(n.Option))
+	if len(n.Options) > 1 {
+		sb.WriteString(" :options (")
+		for i, name := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "\"%s\"", escapeString(name))
+		}
+		sb.WriteString(")")
+	}
 	if n.Value != nil {
 		sb.WriteString(" :value ")
 		writeNode(sb, n.Value)

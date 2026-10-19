@@ -63,12 +63,11 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 			if index >= len(ranges) {
 				continue
 			}
-			// The statement's range is its segment's text: the parser starts
-			// the location of a CREATE, ALTER, or DROP statement after its
-			// first keyword.
-			r := ranges[index]
-			content := contentLoc(sql, r.Start, r.End)
-			stmts = append(stmts, statement{index: index, node: node, loc: content, with: startsWithWith(sql[content.Start:content.End])})
+			// A WITH inside a /*T![feature] ... */ gate is not read: its text
+			// runs only where TiDB supports the feature, so leaving it
+			// unjudged can only miss a finding.
+			with := startsWithWith(sql, loc) && !inFeatureGate(sql, ranges[index], loc.Start)
+			stmts = append(stmts, statement{index: index, node: node, loc: loc, with: with})
 			found[index] = true
 		}
 	}
@@ -102,32 +101,53 @@ func nodeLoc(n ast.Node) ast.Loc {
 	return loc
 }
 
-// contentLoc is the range of a statement's text without the whitespace
-// and comments before it, and the whitespace and semicolon after it. A
-// /*! ... */ comment is not skipped: TiDB runs the text inside it.
-func contentLoc(sql string, start, end int) ast.Loc {
-	start = skipTrivia(sql, start, end)
-	for end > start && (isSpace(sql[end-1]) || sql[end-1] == ';') {
-		end--
+// startsWithWith reports whether a statement's text starts with the WITH
+// keyword.
+func startsWithWith(sql string, loc ast.Loc) bool {
+	if loc.Start < 0 || loc.End > len(sql) || loc.End-loc.Start < 4 {
+		return false
 	}
-	return ast.Loc{Start: start, End: end}
+	text := sql[loc.Start:loc.End]
+	return strings.EqualFold(text[:4], "WITH") && (len(text) == 4 || !isWordByte(text[4]))
 }
 
-// startsWithWith reports whether a statement's text starts with the WITH
-// keyword, inside a /*! ... */ comment after its version number and any
-// comment, or a
-// TiDB /*T! ... */ one. A /*T![feature] ... */ gate, which runs its text
-// only where TiDB supports the feature, is not read.
-func startsWithWith(text string) bool {
-	switch {
-	case strings.HasPrefix(text, "/*!"):
-		text = strings.TrimLeft(text[3:], "0123456789")
-		text = text[skipTrivia(text, 0, len(text)):]
-	case strings.HasPrefix(text, "/*T!") && !strings.HasPrefix(text, "/*T!["):
-		text = text[4:]
-		text = text[skipTrivia(text, 0, len(text)):]
+// inFeatureGate reports whether an offset lies inside one of the TiDB
+// /*T![feature] ... */ comments that open the range, read past comments
+// and other gates before it. A gate ends at the "*/" that closes it by
+// depth, past any comment nested in it, as the lexer and TiDB read it.
+func inFeatureGate(sql string, r review.Range, offset int) bool {
+	i := r.Start
+	for {
+		i = skipTrivia(sql, i, r.End)
+		if i >= offset || !strings.HasPrefix(sql[i:r.End], "/*T![") {
+			return false
+		}
+		end := gateEnd(sql, i, r.End)
+		if offset < end {
+			return true
+		}
+		i = end + len("*/")
 	}
-	return len(text) >= 4 && strings.EqualFold(text[:4], "WITH") && (len(text) == 4 || !isWordByte(text[4]))
+}
+
+// gateEnd returns the offset of the "*/" that closes the /*T![ comment at
+// start by depth, or end when none does.
+func gateEnd(sql string, start, end int) int {
+	depth := 1
+	for j := start + len("/*T!["); j+1 < end; j++ {
+		switch {
+		case sql[j] == '/' && sql[j+1] == '*':
+			depth++
+			j++
+		case sql[j] == '*' && sql[j+1] == '/':
+			depth--
+			if depth == 0 {
+				return j
+			}
+			j++
+		}
+	}
+	return end
 }
 
 // skipTrivia returns the offset of the first byte in [start, end) that is
@@ -184,7 +204,7 @@ func syntaxFinding(err error, ranges []review.Range) *review.Finding {
 // produced no statement for. The parser gives no message for it, so the
 // finding names the first token of the text the way a syntax error does.
 func unparsedFinding(sql string, index int, r review.Range) *review.Finding {
-	start := contentLoc(sql, r.Start, r.End).Start
+	start := skipTrivia(sql, r.Start, r.End)
 	text := sql[start:r.End]
 	if i := strings.IndexAny(text, " \t\r\n\f\v"); i >= 0 {
 		text = text[:i]
@@ -209,56 +229,16 @@ func statementAt(ranges []review.Range, offset int) int {
 
 // anchor returns the range a finding on a statement node anchors: the
 // statement's own range for the statement itself, and otherwise the
-// node's location, which for a statement of a routine body may start
-// after its leading CREATE, ALTER, or DROP, extended back over it.
-func anchor(sql string, s *statement, n ast.Node, loc ast.Loc) review.Range {
+// node's location.
+func anchor(s *statement, n ast.Node, loc ast.Loc) review.Range {
 	if n == s.node {
 		return rangeOf(s.loc)
-	}
-	i := loc.Start
-	for i > 0 && i <= len(sql) && isSpace(sql[i-1]) {
-		i--
-	}
-	j := i
-	for j > 0 && isWordByte(sql[j-1]) {
-		j--
-	}
-	switch strings.ToUpper(sql[j:i]) {
-	case "CREATE", "ALTER", "DROP":
-		loc.Start = j
 	}
 	return rangeOf(loc)
 }
 
 func isWordByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '$'
-}
-
-// spanOf returns the range a comparison covers. The parser starts a binary
-// expression's location at its operator and may end it past the space
-// after it, and gives a NULL literal no location: the left operand's
-// location, or a NULL just before the operator, widens it to the whole
-// comparison, and trailing space is cut.
-func spanOf(sql string, v *ast.BinaryExpr) review.Range {
-	loc := v.Loc
-	if l := nodeLoc(v.Left); l.End > l.Start && l.Start < loc.Start {
-		loc.Start = l.Start
-	} else if isNull(v.Left) {
-		i := loc.Start
-		for i > 0 && isSpace(sql[i-1]) {
-			i--
-		}
-		if i >= 4 && strings.EqualFold(sql[i-4:i], "NULL") {
-			loc.Start = i - 4
-		}
-	}
-	if r := nodeLoc(v.Right); r.End > r.Start && r.End > loc.End {
-		loc.End = r.End
-	}
-	for loc.End > loc.Start && loc.End <= len(sql) && isSpace(sql[loc.End-1]) {
-		loc.End--
-	}
-	return rangeOf(loc)
 }
 
 // rangeOf converts a node's location to a finding range, the zero range

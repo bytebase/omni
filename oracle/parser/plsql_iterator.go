@@ -208,7 +208,7 @@ func (p *Parser) atDynamicSQLSource() bool {
 		return false
 	}
 	next := p.peekNext()
-	return next.Type == kwEXECUTE && NewLexerRange(p.source, next.End, p.lexer.end).NextToken().Type == kwIMMEDIATE
+	return next.Type == kwEXECUTE && p.selectionLexer(next.End).NextToken().Type == kwIMMEDIATE
 }
 
 // parseDynamicSQLSource parses the dynamic SQL of an iteration control

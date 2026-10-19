@@ -146,12 +146,13 @@ type parenQuery struct {
 	leads, continues bool
 }
 
-// decideParenQueries lexes source[start:end] and reports, for each '('
-// whose group leads to a query, whether a query continues after the group.
-// Matching parentheses with a stack and finding the first token after a
-// run of '(' right to left visit each token a constant number of times.
-func decideParenQueries(source string, start, end int) map[int]parenQuery {
-	lexer := NewLexerRange(source, start, end)
+// decideParenQueries reads the tokens of lexer, a lookahead under the
+// selection of conditional compilation branches the parser attempts, and
+// reports, for each '(' whose group leads to a query, whether a query
+// continues after the group. Matching parentheses with a stack and finding
+// the first token after a run of '(' right to left visit each token a
+// constant number of times.
+func decideParenQueries(lexer *Lexer) map[int]parenQuery {
 	var toks []Token
 	for {
 		tok := lexer.NextToken()
@@ -217,7 +218,7 @@ func decideParenQueries(source string, start, end int) map[int]parenQuery {
 // query.
 func (p *Parser) parenQueryAt(loc int) parenQuery {
 	if p.parenQueries == nil {
-		p.parenQueries = decideParenQueries(p.source, p.cur.Loc, p.lexer.end)
+		p.parenQueries = decideParenQueries(p.selectionLexer(p.cur.Loc))
 	}
 	return p.parenQueries[loc]
 }
@@ -359,6 +360,9 @@ func (p *Parser) parseSelectAfterKeyword(sel *nodes.SelectStmt) (*nodes.SelectSt
 			// FROM
 			nil {
 			return nil, parseErr943
+		}
+		if err := p.checkTargets(sel.IntoVars); err != nil {
+			return nil, err
 		}
 	}
 
