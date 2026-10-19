@@ -174,6 +174,35 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		}
 	}
 	ParseAndCheck(t, "(SELECT a FROM t) FOR UPDATE")
+	// FOR UPDATE follows the row limiting clause (ORA-03049 before it) and
+	// locks the rows of FETCH FIRST n ROWS ONLY alone: an OFFSET, a PERCENT,
+	// or an ORDER BY with the row limit fails (ORA-02014), parenthesized or
+	// not.
+	for _, sql := range []string{
+		"SELECT a FROM t FETCH FIRST 1 ROW ONLY FOR UPDATE",
+		"SELECT a FROM t FETCH NEXT 2 ROWS ONLY FOR UPDATE SKIP LOCKED",
+		"(SELECT a FROM t FETCH FIRST 1 ROW ONLY) FOR UPDATE",
+		"(SELECT a FROM t) FETCH FIRST 1 ROW ONLY FOR UPDATE",
+		"DECLARE CURSOR c IS SELECT a FROM t FETCH FIRST 10 ROWS ONLY FOR UPDATE SKIP LOCKED; BEGIN NULL; END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"SELECT a FROM t FETCH FIRST 50 PERCENT ROWS ONLY FOR UPDATE",
+		"SELECT a FROM t ORDER BY a FETCH FIRST 1 ROW ONLY FOR UPDATE",
+		"SELECT a FROM t OFFSET 1 ROWS FOR UPDATE",
+		"SELECT a FROM t OFFSET 1 ROWS FETCH NEXT 1 ROW ONLY FOR UPDATE",
+		"(SELECT a FROM t ORDER BY a FETCH FIRST 1 ROW ONLY) FOR UPDATE",
+		"(SELECT a FROM t) ORDER BY a FETCH FIRST 1 ROW ONLY FOR UPDATE",
+		"(SELECT a FROM t OFFSET 1 ROWS) FOR UPDATE",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "FOR UPDATE") {
+			t.Errorf("Parse(%q) = %v, want an error at FOR UPDATE", sql, err)
+		}
+	}
+	ParseShouldFail(t, "SELECT a FROM t FOR UPDATE FETCH FIRST 1 ROW ONLY")
 	// Nor does any subquery but a cursor's lock rows (ORA-00907, ORA-03048
 	// at FOR): Oracle 23ai takes FOR UPDATE on a top-level query, a cursor
 	// declaration, OPEN FOR, and a FOR loop's query alone.

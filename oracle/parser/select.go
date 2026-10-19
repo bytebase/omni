@@ -123,8 +123,9 @@ func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectSt
 		return nil, err
 	}
 	// A set operation locks no rows, parenthesized whole too (ORA-01786
-	// at FOR for (SELECT a FROM t UNION SELECT a FROM t) FOR UPDATE).
-	if sel.ForUpdate != nil && isSetQuery(inner) {
+	// at FOR for (SELECT a FROM t UNION SELECT a FROM t) FOR UPDATE), nor
+	// does a row limit that unlockableRowLimit refuses.
+	if sel.ForUpdate != nil && (isSetQuery(inner) || unlockableRowLimit(inner)) {
 		return nil, p.syntaxErrorAtNode(sel.ForUpdate)
 	}
 	if sel.WithClause == nil && sel.OrderBy == nil && sel.ForUpdate == nil && sel.FetchFirst == nil && sel.Op == nodes.SETOP_NONE {
@@ -257,6 +258,22 @@ func isSetQuery(query *nodes.SelectStmt) bool {
 	for ; query != nil; query = query.Larg {
 		if query.Op != nodes.SETOP_NONE {
 			return true
+		}
+	}
+	return false
+}
+
+// unlockableRowLimit reports whether query, or a parenthesized one it
+// wraps, limits its rows in a way FOR UPDATE cannot lock: Oracle 23ai locks
+// the rows of FETCH FIRST n ROWS ONLY, and rejects an OFFSET, a PERCENT, or
+// an ORDER BY with the row limit (ORA-02014).
+func unlockableRowLimit(query *nodes.SelectStmt) bool {
+	for ; query != nil; query = query.Larg {
+		if fetch := query.FetchFirst; fetch != nil && (fetch.Offset != nil || fetch.Percent || query.OrderBy != nil) {
+			return true
+		}
+		if query.Op != nodes.SETOP_NONE {
+			return false
 		}
 	}
 	return false
@@ -501,7 +518,8 @@ func (p *Parser) parseSelectAfterKeyword(sel *nodes.SelectStmt) (*nodes.SelectSt
 }
 
 // parseQueryTail parses what may follow a query block or a parenthesized
-// subquery into sel: the ORDER BY, FOR UPDATE, and row limiting clauses,
+// subquery into sel: the ORDER BY, row limiting, and FOR UPDATE clauses, in
+// that order (ORA-03049 on Oracle 23ai for FOR UPDATE FETCH FIRST ...),
 // then a set operator and the query on its right.
 func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) error {
 	if p.cur.Type == kwORDER {
@@ -523,19 +541,22 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) error {
 		}
 	}
 
+	if p.cur.Type == kwOFFSET || p.cur.Type == kwFETCH {
+		var err error
+		sel.FetchFirst, err = p.parseFetchFirstClause()
+		if err != nil {
+			return err
+		}
+	}
+
 	if p.cur.Type == kwFOR {
 		var err error
 		sel.ForUpdate, err = p.parseForUpdateClause()
 		if err != nil {
 			return err
 		}
-	}
-
-	if p.cur.Type == kwOFFSET || p.cur.Type == kwFETCH {
-		var err error
-		sel.FetchFirst, err = p.parseFetchFirstClause()
-		if err != nil {
-			return err
+		if unlockableRowLimit(sel) {
+			return p.syntaxErrorAtNode(sel.ForUpdate)
 		}
 	}
 
