@@ -103,6 +103,10 @@ func (p *Parser) parseAnd() (nodes.ExprNode, error) {
 //	         | fulltext_predicate   -- CONTAINS(...) / FREETEXT(...)
 //	         | comparison_expr
 func (p *Parser) parseNot() (nodes.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	if p.cur.Type == kwNOT {
 		loc := p.pos()
 		p.advance()
@@ -584,6 +588,10 @@ func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 //
 //	unary_expr = ('+' | '-' | '~') unary_expr | primary_expr
 func (p *Parser) parseUnary() (nodes.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	if p.cur.Type == '+' || p.cur.Type == '-' || p.cur.Type == '~' {
 		loc := p.pos()
 		var op nodes.UnaryOp
