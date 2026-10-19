@@ -2051,7 +2051,7 @@ func parseCreateDatabase(t *testing.T, input string) *ast.CreateDatabaseStmt {
 	p.advance()
 	start := p.pos()
 	p.advance() // consume CREATE
-	stmt, err := p.parseCreateDatabaseStmt(start)
+	stmt, err := p.parseCreateDatabaseStmt(start, false)
 	if err != nil {
 		t.Fatalf("parseCreateDatabaseStmt(%q) error: %v", input, err)
 	}
@@ -4274,7 +4274,7 @@ func parseCreateIndex(t *testing.T, input string) *ast.CreateIndexStmt {
 		p.advance()
 		spatial = true
 	}
-	stmt, err := p.parseCreateIndexStmt(start, unique, fulltext, spatial)
+	stmt, err := p.parseCreateIndexStmt(start, false, unique, fulltext, spatial)
 	if err != nil {
 		t.Fatalf("parseCreateIndexStmt(%q) error: %v", input, err)
 	}
@@ -5118,7 +5118,7 @@ func TestParseCreateUser(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateUserStmt(start)
+		stmt, err := p.parseCreateUserStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5135,7 +5135,7 @@ func TestParseCreateUser(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateUserStmt(start)
+		stmt, err := p.parseCreateUserStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5149,7 +5149,7 @@ func TestParseCreateUser(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateUserStmt(start)
+		stmt, err := p.parseCreateUserStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5183,7 +5183,7 @@ func TestParseCreateFunction(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(start, false)
+		stmt, err := p.parseCreateFunctionStmt(start, false, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5206,7 +5206,7 @@ func TestParseCreateFunction(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(start, false)
+		stmt, err := p.parseCreateFunctionStmt(start, false, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5222,7 +5222,7 @@ func TestParseCreateProcedure(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateFunctionStmt(start, true)
+		stmt, err := p.parseCreateFunctionStmt(start, false, true)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5662,7 +5662,7 @@ func TestParseCreateTrigger(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateTriggerStmt(start)
+		stmt, err := p.parseCreateTriggerStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5685,7 +5685,7 @@ func TestParseCreateTrigger(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance()
-		stmt, err := p.parseCreateTriggerStmt(start)
+		stmt, err := p.parseCreateTriggerStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5704,7 +5704,7 @@ func TestParseCreateEvent(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance() // skip CREATE
-		stmt, err := p.parseCreateEventStmt(start)
+		stmt, err := p.parseCreateEventStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -5721,7 +5721,7 @@ func TestParseCreateEvent(t *testing.T) {
 		p.advance()
 		start := p.pos()
 		p.advance()
-		stmt, err := p.parseCreateEventStmt(start)
+		stmt, err := p.parseCreateEventStmt(start, false)
 		if err != nil {
 			t.Fatalf("error: %v", err)
 		}
@@ -7965,10 +7965,6 @@ func TestParseCreateSpatialRefSys(t *testing.T) {
 		{
 			sql:  "CREATE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[\"Greek\",DATUM[\"Greek\"]]'",
 			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :srid 4120 :name "Greek" :definition "GEOGCS[\"Greek\",DATUM[\"Greek\"]]"}`,
-		},
-		{
-			sql:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek'",
-			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :or_replace true :srid 4120 :name "Greek"}`,
 		},
 		{
 			sql:  "CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 4120 NAME 'Greek'",

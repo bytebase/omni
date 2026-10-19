@@ -3,6 +3,8 @@ package parser
 import (
 	"sort"
 	"strings"
+
+	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
 // Exported token aliases used by completion callers and tests.
@@ -100,16 +102,184 @@ func IsReservedKeyword(word string) bool {
 
 // Tokenize runs the Oracle lexer and returns all non-EOF tokens.
 func Tokenize(sql string) []Token {
+	// Completion sees every branch of a conditional compilation directive:
+	// the caret may stand in one the preprocessor would not select.
 	lex := NewLexer(sql)
 	var tokens []Token
 	for {
-		tok := lex.NextToken()
+		tok := lex.nextRaw()
 		if tok.Type == tokEOF {
 			break
 		}
 		tokens = append(tokens, tok)
 	}
 	return tokens
+}
+
+// completionTokens returns the tokens completion at caret reads: the code
+// with each conditional compilation directive resolved, so that candidates
+// and scope come from one variant of it. Of each $IF it keeps the branch
+// that holds the caret, and otherwise the branch the preprocessor selects,
+// the first whose condition the text does not settle; an $ERROR goes. A
+// condition or $ERROR message that holds the caret is kept.
+func completionTokens(sql string, caret int) []Token {
+	r := &ccResolver{sql: sql, toks: Tokenize(sql), caret: caret}
+	for r.pos < len(r.toks) {
+		r.code(true)
+		r.pos++ // a stray $THEN, $ELSIF, $ELSE, or $END
+	}
+	return r.out
+}
+
+// ccResolver resolves the directives of raw tokens for completionTokens.
+// It reads each $IF's structure once, into groups, so that resolving the
+// branches nested in a kept one reads no token again.
+type ccResolver struct {
+	sql    string
+	toks   []Token
+	pos    int
+	caret  int
+	out    []Token
+	groups map[int]*ccGroup
+}
+
+// ccBranch is a branch of an $IF: its condition, unset for $ELSE, and its
+// body, the tokens toks[body:end] at bytes from to to.
+type ccBranch struct {
+	cond      nodes.Loc
+	hasCond   bool
+	body, end int
+	from, to  int
+}
+
+// ccGroup is the structure of an $IF: its branches, the token after its
+// $END, the tokens of a condition that holds the caret, and whether a
+// condition is left without its $THEN.
+type ccGroup struct {
+	branches              []ccBranch
+	after                 int
+	caretFrom, caretTo    int
+	unterminatedCondition bool
+}
+
+// code reads code up to the $THEN, $ELSIF, $ELSE, or $END that ends it,
+// emitting its tokens when emit is set.
+func (r *ccResolver) code(emit bool) {
+	for r.pos < len(r.toks) {
+		tok := r.toks[r.pos]
+		if tok.Type != tokDIRECTIVE {
+			if emit {
+				r.out = append(r.out, tok)
+			}
+			r.pos++
+			continue
+		}
+		switch tok.Str {
+		case "$IF":
+			r.pos++
+			r.ifGroup(emit)
+		case "$ERROR":
+			// Its message goes, but where the caret is in it.
+			start := r.pos + 1
+			for r.pos++; r.pos < len(r.toks) && !(r.toks[r.pos].Type == tokDIRECTIVE && r.toks[r.pos].Str == "$END"); r.pos++ {
+			}
+			to := len(r.sql)
+			if r.pos < len(r.toks) {
+				to = r.toks[r.pos].Loc
+			}
+			if emit && tok.End <= r.caret && r.caret <= to {
+				r.out = append(r.out, r.toks[start:r.pos]...)
+			}
+			r.pos++
+		default:
+			return
+		}
+	}
+}
+
+// ifGroup reads an $IF after its $IF token, through its $END, emitting the
+// branch it keeps when emit is set: a condition that holds the caret,
+// which stands for the whole $IF, or else the branch choose picks.
+func (r *ccResolver) ifGroup(emit bool) {
+	g := r.group(r.pos)
+	switch {
+	case !emit:
+	case g.caretFrom >= 0:
+		r.out = append(r.out, r.toks[g.caretFrom:g.caretTo]...)
+	case !g.unterminatedCondition:
+		if i := r.choose(g.branches); i >= 0 {
+			r.pos = g.branches[i].body
+			r.code(true)
+		}
+	}
+	r.pos = g.after
+}
+
+// group returns the structure of the $IF whose condition starts at token
+// start, reading it the first time.
+func (r *ccResolver) group(start int) *ccGroup {
+	if g, ok := r.groups[start]; ok {
+		return g
+	}
+	g := &ccGroup{caretFrom: -1}
+	r.pos = start
+	for directive := "$IF"; directive == "$IF" || directive == "$ELSIF" || directive == "$ELSE"; {
+		b := ccBranch{cond: nodes.Loc{Start: -1, End: -1}, hasCond: directive != "$ELSE"}
+		if b.hasCond {
+			from := r.pos
+			for r.pos < len(r.toks) && r.toks[r.pos].Type != tokDIRECTIVE {
+				r.pos++
+			}
+			if r.pos > from {
+				b.cond = nodes.Loc{Start: r.toks[from].Loc, End: r.toks[r.pos-1].End}
+			}
+			to := len(r.sql)
+			if r.pos < len(r.toks) {
+				to = r.toks[r.pos].Loc
+			}
+			if g.caretFrom < 0 && r.toks[from-1].End <= r.caret && r.caret <= to {
+				g.caretFrom, g.caretTo = from, r.pos
+			}
+			if r.pos == len(r.toks) || r.toks[r.pos].Str != "$THEN" {
+				// A condition still being written, or a malformed one.
+				g.unterminatedCondition = true
+				break
+			}
+			r.pos++ // consume $THEN
+		}
+		b.body, b.from = r.pos, r.toks[r.pos-1].End
+		r.code(false)
+		b.end, b.to, directive = r.pos, len(r.sql), ""
+		if r.pos < len(r.toks) {
+			b.to, directive = r.toks[r.pos].Loc, r.toks[r.pos].Str
+			r.pos++
+		}
+		g.branches = append(g.branches, b)
+	}
+	g.after = r.pos
+	if r.groups == nil {
+		r.groups = map[int]*ccGroup{}
+	}
+	r.groups[start] = g
+	return g
+}
+
+// choose returns the index of the branch to keep, or -1 for none.
+func (r *ccResolver) choose(branches []ccBranch) int {
+	for i, b := range branches {
+		if b.from <= r.caret && r.caret <= b.to {
+			return i
+		}
+	}
+	for i, b := range branches {
+		if !b.hasCond || b.cond.Start < 0 {
+			return i
+		}
+		if value, ok := staticCondition(r.sql, b.cond); !ok || value != ccFalse {
+			return i
+		}
+	}
+	return -1
 }
 
 // RuleCandidate represents a grammar rule candidate at the completion cursor.
@@ -179,7 +349,7 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 
 	prefix := completionPrefix(sql, cursorOffset)
 	collectOffset := cursorOffset - len(prefix)
-	cs, _ := collectOracleCandidates(sql, Tokenize(sql), collectOffset, prefix)
+	cs, _ := collectOracleCandidates(sql, completionTokens(sql, cursorOffset), collectOffset, prefix)
 	return cs
 }
 

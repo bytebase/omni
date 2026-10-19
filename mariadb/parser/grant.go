@@ -735,27 +735,25 @@ func (p *Parser) parseUserName() (string, error) {
 
 // parseCreateUserStmt parses a CREATE USER statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-user.html
+// Ref: https://mariadb.com/kb/en/create-user/
 //
-//	CREATE USER [IF NOT EXISTS]
+//	CREATE [OR REPLACE] USER [IF NOT EXISTS]
 //	    user [auth_option] [, user [auth_option]] ...
 //	    DEFAULT ROLE role [, role ] ...
 //	    [REQUIRE {NONE | tls_option [[AND] tls_option] ...}]
 //	    [WITH resource_option [resource_option] ...]
 //	    [password_option | lock_option] ...
 //	    [COMMENT 'comment_string' | ATTRIBUTE 'json_object']
-func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
+func (p *Parser) parseCreateUserStmt(start int, orReplace bool) (*nodes.CreateUserStmt, error) {
 	p.advance() // consume USER
 
-	stmt := &nodes.CreateUserStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.CreateUserStmt{Loc: nodes.Loc{Start: start}, OrReplace: orReplace}
 
-	// [IF NOT EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// user_spec [, user_spec] ...
 	for {
@@ -1332,19 +1330,17 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 
 // parseCreateRoleStmt parses a CREATE ROLE statement.
 //
-//	CREATE ROLE [IF NOT EXISTS] role [, role] ...
-func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
+//	CREATE [OR REPLACE] ROLE [IF NOT EXISTS] role [, role] ...
+func (p *Parser) parseCreateRoleStmt(start int, orReplace bool) (*nodes.CreateRoleStmt, error) {
 	p.advance() // consume ROLE
 
-	stmt := &nodes.CreateRoleStmt{Loc: nodes.Loc{Start: start}}
+	stmt := &nodes.CreateRoleStmt{Loc: nodes.Loc{Start: start}, OrReplace: orReplace}
 
-	// [IF NOT EXISTS]
-	if p.cur.Type == kwIF {
-		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// role [, role] ...
 	roles, err := p.parseUserList()

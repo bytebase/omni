@@ -881,8 +881,10 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 			}
 		}
 
-		// Check for normal dependents.
-		if deps := c.findNormalDependents('r', rel.OID); len(deps) > 0 {
+		// Check for normal dependents. The relation's own constraints,
+		// indexes and generated columns go with it.
+		// pg: src/backend/catalog/dependency.c — reportDependentObjects
+		if hasNormalDependent(c.relationDependents(rel.OID, 0)) {
 			if !cascade {
 				kind := "table"
 				if removeType == nodes.OBJECT_VIEW {
@@ -1505,11 +1507,13 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 				partIdx.ConstraintOID = conOID
 				c.registerConstraint(partition.OID, partCon)
 				c.recordDependency('c', conOID, 0, 'r', partition.OID, 0, DepAuto)
+				c.recordColumnDependencies('c', conOID, partition.OID, partConAttnums, DepAuto)
 			}
 		}
 
 		c.registerIndex(schema, partIdx)
 		c.recordDependency('i', partIdx.OID, 0, 'r', partition.OID, 0, DepAuto)
+		c.recordColumnDependencies('i', partIdx.OID, partition.OID, partAttnums, DepAuto)
 
 		// Force NOT NULL on PK columns.
 		if idx.IsPrimary {
@@ -1567,8 +1571,22 @@ func (c *Catalog) cloneRowTriggersToPartition(parent, partition *Relation) {
 			Args:              partArgs,
 		}
 
+		c.triggers[partTrig.OID] = partTrig
 		c.triggersByRel[partition.OID] = append(c.triggersByRel[partition.OID], partTrig)
 		c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, 0, DepAuto)
+		// The clone depends on the columns its source does: those it is
+		// UPDATE OF and those its WHEN condition reads.
+		var colDeps []DepEntry
+		for _, d := range c.deps {
+			if d.ObjType == 'g' && d.ObjOID == trig.OID && d.RefType == 'r' && d.RefOID == parent.OID && d.RefSubID > 0 {
+				colDeps = append(colDeps, d)
+			}
+		}
+		for _, d := range colDeps {
+			if m := c.mapColumnAttnums(parent, partition, []int16{int16(d.RefSubID)}); len(m) == 1 && m[0] != 0 {
+				c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, int32(m[0]), d.DepType)
+			}
+		}
 		if partTrig.FuncOID != 0 {
 			c.recordDependency('g', partTrig.OID, 0, 'f', partTrig.FuncOID, 0, DepNormal)
 		}
@@ -1619,8 +1637,10 @@ func (c *Catalog) cloneForeignKeyConstraints(schema *Schema, parent, partition *
 
 		c.registerConstraint(partition.OID, partCon)
 		c.recordDependency('c', partCon.OID, 0, 'r', partition.OID, 0, DepAuto)
+		c.recordColumnDependencies('c', partCon.OID, partition.OID, partLocalAttnums, DepAuto)
 		if con.FRelOID != 0 {
 			c.recordDependency('c', partCon.OID, 0, 'r', con.FRelOID, 0, DepNormal)
+			c.recordColumnDependencies('c', partCon.OID, con.FRelOID, con.FColumns, DepNormal)
 		}
 	}
 }
@@ -1730,11 +1750,13 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 				newIdx.ConstraintOID = conOID
 				c.registerConstraint(dst.OID, newCon)
 				c.recordDependency('c', conOID, 0, 'r', dst.OID, 0, DepAuto)
+				c.recordColumnDependencies('c', conOID, dst.OID, conAttnums, DepAuto)
 			}
 		}
 
 		c.registerIndex(schema, newIdx)
 		c.recordDependency('i', newIdx.OID, 0, 'r', dst.OID, 0, DepAuto)
+		c.recordColumnDependencies('i', newIdx.OID, dst.OID, dstAttnums, DepAuto)
 
 		// Force NOT NULL on PK columns.
 		if idx.IsPrimary {

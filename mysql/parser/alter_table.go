@@ -484,6 +484,12 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 }
 
 // parseAlterDrop parses DROP operations.
+//
+// Ref: the DROP arms of alter_list_item in MySQL 8.0.46 sql/sql_yacc.yy:
+// DROP opt_column ident opt_restrict, DROP FOREIGN KEY ident, DROP PRIMARY
+// KEY, DROP key_or_index ident, DROP CHECK ident, DROP CONSTRAINT ident. KEY
+// is required after PRIMARY and FOREIGN, and only a column takes RESTRICT or
+// CASCADE. No arm takes IF EXISTS, which is MariaDB syntax.
 func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume DROP
 
@@ -512,7 +518,9 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	case kwPRIMARY:
 		// DROP PRIMARY KEY
 		p.advance()
-		p.match(kwKEY)
+		if err := p.expectDropKey(); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDropConstraint
 		cmd.Name = "PRIMARY"
 		cmd.Loc.End = p.prev.End
@@ -539,7 +547,9 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	case kwFOREIGN:
 		// DROP FOREIGN KEY fk_symbol
 		p.advance()
-		p.match(kwKEY)
+		if err := p.expectDropKey(); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDropConstraint
 		// Completion: after DROP FOREIGN KEY, offer constraint_ref.
 		p.checkCursor()
@@ -586,7 +596,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return cmd, nil
 
 	default:
-		// DROP [COLUMN] [IF EXISTS] col_name
+		// DROP [COLUMN] col_name [RESTRICT | CASCADE]
 		cmd.Type = nodes.ATDropColumn
 		p.match(kwCOLUMN)
 		// Completion: after DROP COLUMN, offer columnref.
@@ -595,21 +605,28 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			p.addRuleCandidate("columnref")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		if p.cur.Type == kwIF {
-			p.advance()
-			if _, err := p.expect(kwEXISTS_KW); err != nil {
-				return nil, err
-			}
-			cmd.IfExists = true
-		}
 		name, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
 		cmd.Name = name
+		// opt_restrict: the grammar action ignores it.
+		p.match(kwRESTRICT, kwCASCADE)
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
+}
+
+// expectDropKey consumes the KEY that DROP PRIMARY and DROP FOREIGN require.
+func (p *Parser) expectDropKey() error {
+	// Completion: after DROP PRIMARY or DROP FOREIGN, offer KEY.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwKEY)
+		return &ParseError{Message: "collecting"}
+	}
+	_, err := p.expect(kwKEY)
+	return err
 }
 
 // parseAlterModify parses MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name].

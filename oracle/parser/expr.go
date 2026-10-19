@@ -152,6 +152,11 @@ func (p *Parser) startsDotPostfix() bool {
 }
 
 func (p *Parser) parseDotPostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
+	// An inquiry directive is a literal: no field or method (PLS-00103 on
+	// Oracle 23ai for $$PLSQL_LINE.y and ($$PLSQL_LINE).y).
+	if p.isInquiryRef(left) {
+		return nil, p.syntaxErrorAtCur()
+	}
 	start := exprLocStart(left, p.pos())
 	p.advance() // consume '.'
 	memberStart := p.pos()
@@ -215,6 +220,11 @@ func (p *Parser) isCursorAttributeToken(tok Token) bool {
 }
 
 func (p *Parser) parseCursorAttributePostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
+	// An inquiry directive is a literal, no cursor (PLS-00103 for
+	// $$PLSQL_LINE%FOUND and ($$PLSQL_LINE)%FOUND).
+	if p.isInquiryRef(left) {
+		return nil, p.syntaxErrorAtCur()
+	}
 	start := exprLocStart(left, p.pos())
 	p.advance() // consume '%'
 	attr, err := p.parseIdentifier()
@@ -358,10 +368,15 @@ func (p *Parser) parseBinaryInfix(left nodes.ExprNode, prec int, op string) (nod
 		}, nil
 	}
 
-	// Right-associative for exponentiation
+	// Right-associative for exponentiation, whose right operand takes no
+	// sign of its own (PLS-00103 on Oracle 23ai for 2 ** -1; 2 ** (-1)
+	// compiles).
 	nextPrec := prec + 1
 	if op == "**" {
 		nextPrec = prec
+		if p.cur.Type == '-' || p.cur.Type == '+' {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	right, parseErr702 := p.parseExprPrec(nextPrec)
@@ -606,6 +621,15 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case tokBIND:
 		return p.parseBindVariable()
 
+	case tokINQUIRY:
+		// An inquiry directive is a literal the compiler substitutes
+		// ($$PLSQL_LINE, $$PLSQL_UNIT): no name, no call, no field.
+		tok := p.advance()
+		return &nodes.ColumnRef{
+			Column: tok.Str,
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
+
 	case '*':
 		p.advance()
 		return &nodes.Star{
@@ -711,7 +735,7 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 // expression is parsed twice to decide.
 func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
 	if p.caseKinds == nil {
-		p.caseKinds = decideCaseTokens(p.source, p.cur.Loc, p.lexer.end)
+		p.caseKinds = decideCaseTokens(p.selectionLexer(p.cur.Loc))
 	}
 	opensExpression, decided := p.caseKinds[p.cur.Loc]
 	if decided && !opensExpression {
@@ -720,15 +744,22 @@ func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
 	return p.parseCaseExpr()
 }
 
-// decideCaseTokens lexes source[start:end] and reports, for each CASE token,
-// whether it opens a CASE expression. A CASE opens one when the first token
-// after it that can end an operand at its own depth is WHEN: the scan skips
+// selectionLexer returns a lookahead from start to the end of the parser's
+// range, under the selection the parser attempts (Lexer.lookahead).
+func (p *Parser) selectionLexer(start int) *Lexer {
+	return p.lexer.lookahead(start, p.lexer.end)
+}
+
+// decideCaseTokens reads the tokens of lexer, a lookahead under the
+// selection of conditional compilation branches the parser attempts, and
+// reports, for each CASE token, whether it opens a CASE expression. A CASE
+// opens one when the first token after it that can end an operand at its
+// own depth is WHEN: the scan skips
 // parenthesized groups and the CASE expressions that start after it, and
 // stops at WHEN, THEN, ELSE, END, ')', ',', ';', and the reserved words that
 // begin a clause. Deciding right to left with a jump table (stop) visits each
 // token a constant number of times.
-func decideCaseTokens(source string, start, end int) map[int]bool {
-	lexer := NewLexerRange(source, start, end)
+func decideCaseTokens(lexer *Lexer) map[int]bool {
 	var toks []Token
 	for {
 		tok := lexer.NextToken()
@@ -1147,7 +1178,7 @@ func (p *Parser) atExtractDatetime() bool {
 	switch field.Str {
 	case "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND",
 		"TIMEZONE_HOUR", "TIMEZONE_MINUTE", "TIMEZONE_REGION", "TIMEZONE_ABBR":
-		return NewLexerRange(p.source, field.End, p.lexer.end).NextToken().Type == kwFROM
+		return p.selectionLexer(field.End).NextToken().Type == kwFROM
 	}
 	return false
 }
@@ -1167,13 +1198,13 @@ func (p *Parser) atTrimSyntax() bool {
 	// make quadratic in the nesting.
 	if p.prev.Type == '(' {
 		if _, ok := p.groupFroms[p.cur.Loc]; !ok {
-			p.groupFroms = decideGroupFroms(p.source, p.prev.Loc, p.lexer.end)
+			p.groupFroms = decideGroupFroms(p.selectionLexer(p.prev.Loc))
 		}
 		if from, ok := p.groupFroms[p.cur.Loc]; ok {
 			return from
 		}
 	}
-	lex := NewLexerRange(p.source, p.cur.Loc, p.lexer.end)
+	lex := p.selectionLexer(p.cur.Loc)
 	depth := 1
 	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
 		switch tok.Type {
@@ -1192,17 +1223,17 @@ func (p *Parser) atTrimSyntax() bool {
 	return false
 }
 
-// decideGroupFroms lexes source[start:end] and reports, for each
-// parenthesized group, by the offset of the token after its '(', whether a
-// FROM stands at the group's own depth before its ')'.
-func decideGroupFroms(source string, start, end int) map[int]bool {
+// decideGroupFroms reads the tokens of lex, a lookahead under the
+// selection of conditional compilation branches the parser attempts, and
+// reports, for each parenthesized group, by the offset of the token after
+// its '(', whether a FROM stands at the group's own depth before its ')'.
+func decideGroupFroms(lex *Lexer) map[int]bool {
 	type group struct {
 		key  int
 		from bool
 	}
 	froms := map[int]bool{}
 	var open []group
-	lex := NewLexerRange(source, start, end)
 	opened := false
 	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
 		if opened {
@@ -1374,6 +1405,11 @@ func (p *Parser) parseOuterJoinIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 	next := p.peekNext()
 	if next.Type != '+' {
 		return expr, nil
+	}
+	// An inquiry directive is a literal, no column (ORA-03048 on Oracle
+	// 23ai for $$PLSQL_LINE(+)).
+	if p.isInquiryRef(cr) {
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume '('
 	p.advance() // consume '+'
@@ -1589,8 +1625,10 @@ func (p *Parser) isTrimModeArg(arg nodes.ExprNode) bool {
 }
 
 func (p *Parser) parseNamedArgExpr(arg nodes.ExprNode) (nodes.ExprNode, error) {
+	// An inquiry directive is a literal, no parameter name ($$PLSQL_LINE
+	// => 1 is PLS-00306 on Oracle 23ai).
 	ref, ok := arg.(*nodes.ColumnRef)
-	if !ok || ref.Schema != "" || ref.Table != "" || ref.Column == "" {
+	if !ok || ref.Schema != "" || ref.Table != "" || ref.Column == "" || p.isInquiryRef(ref) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	start := ref.Loc.Start

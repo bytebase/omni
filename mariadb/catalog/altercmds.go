@@ -192,7 +192,12 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.PeriodEndCol = cmd.PeriodEndCol
 		return nil
 	case nodes.ATDropPeriod:
-		if !isSystemTimePeriodName(cmd.PeriodName) {
+		// IF EXISTS exists only in the application-time arm, DROP PERIOD
+		// [IF EXISTS] FOR ident; DROP PERIOD FOR SYSTEM_TIME takes none, and
+		// the parser rejects an unquoted SYSTEM_TIME after IF EXISTS. So
+		// IF EXISTS FOR `SYSTEM_TIME` names an application-time period, which
+		// MariaDB 11.8.8 skips when absent, even on a system-versioned table.
+		if cmd.IfExists || !isSystemTimePeriodName(cmd.PeriodName) {
 			return c.alterDropAppPeriod(tbl, cmd)
 		}
 		// Check period presence first so the result is independent of command
@@ -242,11 +247,15 @@ func (c *Catalog) alterAddAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error 
 }
 
 // alterDropAppPeriod removes the application-time period: 1091 if no such period
-// exists. A WITHOUT OVERLAPS key still referencing it is caught by the
-// final-state pass (4156), so a later DROP KEY in the same statement can remove
-// the dependency first. The period columns keep their NOT NULL. Grounded vs 11.8.8.
+// exists, or nothing with IF EXISTS (MariaDB leaves note 1091). A WITHOUT
+// OVERLAPS key still referencing it is caught by the final-state pass (4156),
+// so a later DROP KEY in the same statement can remove the dependency first.
+// The period columns keep their NOT NULL. Grounded vs 11.8.8.
 func (c *Catalog) alterDropAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.AppPeriodName == "" || !strings.EqualFold(tbl.AppPeriodName, cmd.PeriodName) {
+		if cmd.IfExists {
+			return nil
+		}
 		return errCantDropPeriod(cmd.PeriodName) // 1091
 	}
 	tbl.AppPeriodName = ""

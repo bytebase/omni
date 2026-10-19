@@ -4,6 +4,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
@@ -70,10 +71,97 @@ type Parser struct {
 	// Oracle 23ai rejects RESULT_CACHE on any subprogram in one (PLS-00999).
 	inAnonymousBlock bool
 
+	// ccDirective, ccCondition, and ccBind index the first entries of the
+	// lexer's conditional compilation record that no statement has checked
+	// yet; ccAfterUnit says the last statement parsed is a PL/SQL unit, and
+	// ccAfterBlock that it is an anonymous block.
+	ccDirective  int
+	ccCondition  int
+	ccBind       int
+	ccAfterUnit  bool
+	ccAfterBlock bool
+
+	// ccDelimiters is set when the parentheses of the input balance under
+	// no single selection of conditional compilation branches the text
+	// settles, so each statement checks them under the selection it parses
+	// with.
+	ccDelimiters bool
+
 	// plsqlCode is set while a PL/SQL declaration or statement is parsed,
 	// and cleared in the SQL statements it embeds: the expressions of
 	// PL/SQL alone take the choices of a qualified expression.
 	plsqlCode bool
+}
+
+// checkConditionalCompilation checks the conditional compilation of stmt,
+// whose text runs from start, after the previous statement, to end, its
+// first token at first. Oracle preprocesses a PL/SQL unit alone, whose text
+// runs on after its END: Oracle 23ai takes BEGIN NULL; END; $IF TRUE $THEN
+// $END. It rejects a directive or an inquiry directive in any other
+// statement, before one, or too early in one (firstDirectiveTooEarly) with
+// ORA-00911, and one in an object type specification with PLS-00180. In a
+// unit, the condition of each $IF and $ELSIF the lexer evaluated is a
+// Boolean expression (checkDirectiveCondition).
+func (p *Parser) checkConditionalCompilation(stmt nodes.StmtNode, start, first, end int) error {
+	cc := p.lexer.cc
+	if cc == nil {
+		return nil
+	}
+	unit := isPreprocessedUnit(stmt)
+	for ; p.ccDirective < len(cc.directives) && cc.directives[p.ccDirective] < end; p.ccDirective++ {
+		loc := cc.directives[p.ccDirective]
+		if loc < first && !p.ccAfterUnit || loc >= first && (!unit || p.firstDirectiveTooEarly(stmt, loc)) {
+			return p.syntaxErrorAtDirective(loc)
+		}
+	}
+	p.ccAfterUnit = unit
+	// An anonymous block takes no bind variable inside a directive
+	// (PLS-00110), in a selected branch or not; one before stmt's first
+	// token is in the text of the statement before it.
+	afterBlock := p.ccAfterBlock
+	_, block := stmt.(*nodes.PLSQLBlock)
+	p.ccAfterBlock = block
+	for ; p.ccBind < len(cc.binds) && cc.binds[p.ccBind] < end; p.ccBind++ {
+		if loc := cc.binds[p.ccBind]; loc < first && afterBlock || loc >= first && block {
+			return p.syntaxErrorAtTok(NewLexerRange(p.source, loc, len(p.source)).nextRaw())
+		}
+	}
+	return p.checkDirectiveConditions(end)
+}
+
+// checkDirectiveConditions checks the recorded conditions that start
+// before end.
+func (p *Parser) checkDirectiveConditions(end int) error {
+	cc := p.lexer.cc
+	for ; p.ccCondition < len(cc.conditions) && cc.conditions[p.ccCondition].Start < end; p.ccCondition++ {
+		if err := p.checkDirectiveCondition(cc.conditions[p.ccCondition]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// isPreprocessedUnit reports whether stmt is a PL/SQL unit, whose text
+// Oracle preprocesses before compiling it.
+func isPreprocessedUnit(stmt nodes.StmtNode) bool {
+	switch s := stmt.(type) {
+	case *nodes.PLSQLBlock, *nodes.CreateProcedureStmt, *nodes.CreateFunctionStmt,
+		*nodes.CreatePackageStmt, *nodes.CreateTriggerStmt:
+		return true
+	case *nodes.CreateTypeStmt:
+		return s.IsBody
+	}
+	return false
+}
+
+// syntaxErrorAtDirective returns a syntax error at the preprocessor token
+// that starts at loc.
+func (p *Parser) syntaxErrorAtDirective(loc int) *ParseError {
+	end := loc + 1
+	for end < len(p.source) && (p.source[end] == '$' || isIdentCont(p.source[end])) {
+		end++
+	}
+	return p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: loc, End: end})
 }
 
 // setPLSQLCode sets plsqlCode and returns its previous value, for
@@ -115,23 +203,33 @@ func Parse(sql string) (*nodes.List, error) {
 // is an offset into source, so a caller that split a script can parse each
 // segment with absolute positions without copying or padding the text.
 func ParseRange(source string, start, end int) (*nodes.List, error) {
-	if err := validateBalancedDelimiters(source, start, end); err != nil {
+	undecided, err := validateBalancedDelimiters(source, start, end)
+	if err != nil {
 		return nil, err
 	}
 
 	p := &Parser{
-		lexer:  NewLexerRange(source, start, end),
-		source: source,
+		lexer:        NewLexerRange(source, start, end),
+		source:       source,
+		ccDelimiters: undecided,
 	}
+	p.lexer.cc = &ccRecord{}
+	p.lexer.ccDecisions = &[]ccDecision{}
+	p.lexer.newlines = &newlineIndex{base: p.lexer.begin, limit: p.lexer.end}
+	p.lexer.literalLimit = 32767
+	p.lexer.numberLimit = true
 	p.advance()
 
 	var stmts []nodes.Node
 	needSeparator := false
+	// textStart is where the text of the next statement begins.
+	textStart := start
 	for p.cur.Type != tokEOF {
 		// Skip semicolons
 		if p.cur.Type == ';' {
 			p.advance()
 			needSeparator = false
+			textStart = p.prev.End
 			continue
 		}
 		if needSeparator {
@@ -142,19 +240,11 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		}
 
 		stmtLoc := p.pos()
-		stmt, err := p.parseStmt()
+		stmt, err := p.parseStmtSelections(textStart, stmtLoc)
 		if err != nil {
 			return nil, err
 		}
-		if p.lexer.Err != nil {
-			return nil, p.lexerError()
-		}
-		if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || isIncompleteParsedStmt(stmt)) {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if stmt == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
+		textStart = p.prev.End
 
 		raw := &nodes.RawStmt{
 			Stmt: stmt,
@@ -163,6 +253,22 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		stmts = append(stmts, raw)
 		needSeparator = true
 	}
+	if p.lexer.Err != nil {
+		return nil, p.lexerError()
+	}
+	// A directive after the last statement belongs to it, if it is a unit.
+	if cc := p.lexer.cc; p.ccDirective < len(cc.directives) && !p.ccAfterUnit {
+		return nil, p.syntaxErrorAtDirective(cc.directives[p.ccDirective])
+	}
+	if err := p.checkDirectiveConditions(end); err != nil {
+		return nil, err
+	}
+	// So are its bind variables, which an anonymous block takes none of
+	// inside a directive (PLS-00110).
+	if cc := p.lexer.cc; p.ccAfterBlock && p.ccBind < len(cc.binds) {
+		loc := cc.binds[p.ccBind]
+		return nil, p.syntaxErrorAtTok(NewLexerRange(p.source, loc, len(p.source)).nextRaw())
+	}
 
 	if len(stmts) == 0 {
 		return &nodes.List{}, nil
@@ -170,8 +276,291 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	return &nodes.List{Items: stmts}, nil
 }
 
-func validateBalancedDelimiters(sql string, start, end int) error {
+// The branch selections parseStmtSelections tries for one statement are
+// bounded: ccMinAttempts, then up to ccExhaustiveAttempts or
+// ccAttemptsPerDecision for each undecided $IF an attempt met, whichever
+// is more, while those attempts have read no more than ccMaxSearchBytes of
+// text in all. The selections grow exponentially with the undecided $IF
+// directives, so some bound is needed. Within it, a statement with up to
+// ten undecided two-way $IF directives is searched exhaustively, a failure
+// the search can place takes one attempt per $IF to vary, and the byte
+// budget keeps the search's time linear in the text: about a second and a
+// half for a statement of a thousand undecided $IF directives that no
+// selection parses.
+const (
+	ccMinAttempts         = 64
+	ccExhaustiveAttempts  = 1024
+	ccAttemptsPerDecision = 2
+	ccMaxSearchBytes      = 16 << 20
+)
+
+// ccSelection is a branch selection for parseStmtSelections to try: the
+// choices to make, and the first decision it may vary for the selections
+// after it. The ones before are its ancestors' to vary.
+type ccSelection struct {
+	choices *ccChoices
+	from    int
+}
+
+// parseStmtSelections parses the statement at the current token, with the
+// checks that follow it, under each selection of the conditional
+// compilation branches whose conditions the text does not settle, until
+// one parses. Oracle 23ai compiles a unit under the selection its
+// environment settles (the database version, PLSQL_CCFLAGS, package
+// constants), which may be any of them, so a unit fails only when every
+// selection does: $IF $$x $THEN garbage $ELSE NULL; $END parses, and
+// $IF $$x $THEN $ERROR 'a' $END $ELSE $ERROR 'b' $END $END fails. One
+// environment gives a condition one value, so a selection decides a
+// repeated condition once (ccFact).
+//
+// The selections form a tree, searched depth first: the first takes each
+// undecided $IF's first undecided branch, and a failed one leads to those
+// that pass over one more branch of one of its decisions, keeping the
+// choices before it. Those that the selections of the levels holding the
+// failure depend on come first, the last first, then the others, the last
+// first. Every selection that keeps those decisions meets an $ERROR the
+// levels hold, so a failure at one leads to none that vary only later
+// decisions. Of the failures, the one that got furthest is reported.
+func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, error) {
+	p.lexer.ccFacts = nil
+	snap := p.snapshot()
+	defer func() { p.lexer.ccChoices = nil }()
+	// Each attempt records its own facts, which the lexer's copies share.
+	p.lexer.ccFacts = &ccFacts{byCond: map[string]ccFact{}}
+	var failure error
+	furthest := -1
+	pending := []ccSelection{{}}
+	limit, read := ccExhaustiveAttempts, 0
+	for attempt := 0; len(pending) > 0 && attempt < limit; attempt++ {
+		if attempt >= ccMinAttempts && read > ccMaxSearchBytes {
+			break
+		}
+		sel := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if attempt > 0 {
+			p.restore(snap)
+			p.lexer.ccChoices = sel.choices
+			p.lexer.ccFacts = &ccFacts{byCond: map[string]ccFact{}}
+			// The CASE and TRIM pre-scans read another selection.
+			p.caseKinds, p.groupFroms = nil, nil
+		}
+		stmt, err := p.parseCheckedStmt(textStart, stmtLoc)
+		if err == nil && p.ccDelimiters {
+			err = checkSelectionDelimiters(p.source, stmtLoc, p.prev.End, sel.choices)
+		}
+		if err == nil {
+			return stmt, nil
+		}
+		var pe *ParseError
+		switch {
+		case errors.As(err, &pe) && pe.Position > furthest:
+			failure, furthest = err, pe.Position
+		case failure == nil:
+			failure = err
+		}
+		// The attempt read the text up to where it failed, which may lie
+		// past the last token it parsed: comments and the code a directive
+		// skips before an $ERROR.
+		reached := p.prev.End
+		var failed *ParseError
+		if errors.As(err, &failed) {
+			reached = max(reached, failed.Position)
+		}
+		read += max(reached-stmtLoc, 0)
+		decided := (*p.lexer.ccDecisions)[snap.decisions:]
+		limit = max(limit, ccMinAttempts+ccAttemptsPerDecision*len(decided))
+		open := p.lexer.openDecisions()
+		if de, ok := p.lexer.Err.(*directiveError); ok && de.raised {
+			last := -1
+			for _, at := range open {
+				last = max(last, at)
+			}
+			n := 0
+			for n < len(decided) && decided[n].at <= last {
+				n++
+			}
+			decided = decided[:n]
+		}
+		pending = append(pending, nextSelections(decided, sel.from, open)...)
+	}
+	// Outside a PL/SQL unit, a directive is the first error, before its
+	// condition and the code after it (ORA-00911 on Oracle 23ai for SELECT
+	// $IF 1 $THEN 1 $END FROM dual).
+	if cc := p.lexer.cc; cc != nil && len(cc.directives) > snap.directives {
+		if loc := cc.directives[snap.directives]; loc >= stmtLoc && loc < furthest && !startsPreprocessedUnit(p.source, stmtLoc, p.lexer.end) {
+			return nil, p.syntaxErrorAtDirective(loc)
+		}
+	}
+	return nil, failure
+}
+
+// startsPreprocessedUnit reports whether the statement at source[start:end]
+// is a PL/SQL unit Oracle preprocesses (isPreprocessedUnit), by its first
+// words: an anonymous block, or CREATE of a procedure, function, package,
+// trigger, or type body.
+func startsPreprocessedUnit(source string, start, end int) bool {
+	lex := NewLexerRange(source, start, end)
+	word := func(tok Token, w string) bool { return tok.Type != tokQIDENT && tok.Str == w }
+	tok := lex.nextRaw()
+	switch tok.Type {
+	case kwDECLARE, kwBEGIN, tokLABELOPEN:
+		return true
+	case kwCREATE:
+	default:
+		return false
+	}
+	tok = lex.nextRaw()
+	if tok.Type == kwOR {
+		lex.nextRaw() // REPLACE
+		tok = lex.nextRaw()
+	}
+	if word(tok, "EDITIONABLE") || word(tok, "NONEDITIONABLE") {
+		tok = lex.nextRaw()
+	}
+	switch tok.Type {
+	case kwPROCEDURE, kwFUNCTION, kwPACKAGE, kwTRIGGER:
+		return true
+	case kwTYPE:
+		return word(lex.nextRaw(), "BODY")
+	}
+	return false
+}
+
+// nextSelections returns the selections that follow a failed one whose
+// undecided $IF directives decided records in order, from the decision
+// from on: for each decision that can pass over one more undecided branch,
+// the selection that does, keeping the choices before it; those after it,
+// which the new choice may move or remove, start over. They come in the
+// reverse of the order to try them: the decisions at offsets open, which
+// the selections of the levels holding the failure depend on, are tried
+// first, the last of them first, then the others, the last first.
+func nextSelections(decided []ccDecision, from int, open []int) []ccSelection {
+	isOpen := make(map[int]bool, len(open))
+	for _, at := range open {
+		isOpen[at] = true
+	}
+	// The decisions are recorded once, for every selection to share; the
+	// lexer reuses the slice it records them in.
+	decided = append([]ccDecision(nil), decided...)
+	var others, held []ccSelection
+	for i := from; i < len(decided); i++ {
+		if !decided[i].more {
+			continue
+		}
+		choices := &ccChoices{decided: decided[:i], at: decided[i].at, pass: decided[i].passed + 1}
+		if isOpen[decided[i].at] {
+			held = append(held, ccSelection{choices: choices, from: i})
+		} else {
+			others = append(others, ccSelection{choices: choices, from: i})
+		}
+	}
+	return append(others, held...)
+}
+
+// parseCheckedStmt parses one statement and checks it: its lexing, its
+// end, its conditional compilation, and that a ';' or the end follows.
+func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error) {
+	stmt, err := p.parseStmt()
+	if err != nil {
+		return nil, err
+	}
+	if p.lexer.Err != nil {
+		return nil, p.lexerError()
+	}
+	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || isIncompleteParsedStmt(stmt)) {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if stmt == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := p.checkConditionalCompilation(stmt, textStart, stmtLoc, p.prev.End); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != ';' && p.cur.Type != tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return stmt, nil
+}
+
+// nextSelection returns the branch choices of the selection that follows
+// the one whose undecided $IF directives decided records in order, or nil
+// when none is left: the last $IF that can pass over one more undecided
+// branch does, those before it keep their choices, and those after it,
+// which the new choice may move or remove, start over.
+func nextSelection(decided []ccDecision) map[int]int {
+	for i := len(decided) - 1; i >= 0; i-- {
+		if decided[i].more {
+			choices := map[int]int{decided[i].at: decided[i].passed + 1}
+			for _, d := range decided[:i] {
+				choices[d.at] = d.passed
+			}
+			return choices
+		}
+	}
+	return nil
+}
+
+// parseSnapshot is the parser's state at the start of a statement, for
+// parseStmtSelections to parse it again.
+type parseSnapshot struct {
+	parser                        Parser
+	lexer                         Lexer
+	directives, conditions, binds int
+	decisions                     int
+}
+
+// snapshot returns the parser's state.
+func (p *Parser) snapshot() parseSnapshot {
+	s := parseSnapshot{parser: *p, lexer: *p.lexer}
+	if cc := p.lexer.cc; cc != nil {
+		s.directives, s.conditions, s.binds = len(cc.directives), len(cc.conditions), len(cc.binds)
+	}
+	if d := p.lexer.ccDecisions; d != nil {
+		s.decisions = len(*d)
+	}
+	return s
+}
+
+// restore returns the parser to the state s.
+func (p *Parser) restore(s parseSnapshot) {
+	lexer := p.lexer
+	*p = s.parser
+	p.lexer = lexer
+	*lexer = s.lexer
+	if cc := lexer.cc; cc != nil {
+		cc.directives, cc.conditions, cc.binds = cc.directives[:s.directives], cc.conditions[:s.conditions], cc.binds[:s.binds]
+	}
+	if d := lexer.ccDecisions; d != nil {
+		*d = (*d)[:s.decisions]
+	}
+}
+
+// validateBalancedDelimiters checks that the parentheses of sql[start:end]
+// balance, under the first selection of conditional compilation branches.
+// Past a condition the text does not settle, they need balance under the
+// selection each statement parses with, which may be another: it reports
+// undecided, and parseStmtSelections checks each statement
+// (checkSelectionDelimiters).
+func validateBalancedDelimiters(sql string, start, end int) (undecided bool, err error) {
+	var decided []ccDecision
 	lexer := NewLexerRange(sql, start, end)
+	lexer.ccDecisions = &decided
+	err = scanDelimiters(lexer, sql, end, func() bool { return len(decided) == 0 })
+	return len(decided) > 0 || lexer.Err != nil, err
+}
+
+// checkSelectionDelimiters checks that the parentheses of the statement at
+// sql[start:end] balance under the selection choices names.
+func checkSelectionDelimiters(sql string, start, end int, choices *ccChoices) error {
+	lexer := NewLexerRange(sql, start, end)
+	lexer.ccChoices = choices
+	return scanDelimiters(lexer, sql, end, func() bool { return true })
+}
+
+// scanDelimiters checks the parentheses of the tokens lexer returns up to
+// end, reporting an imbalance only while settled says the selection the
+// lexer reads is the one to check.
+func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) error {
 	depth := 0
 	var javaHead embeddedSourceHead
 	var prev1, prev2, prev3 Token
@@ -197,7 +586,7 @@ func validateBalancedDelimiters(sql string, start, end int) error {
 		case ';':
 			javaHead = embeddedSourceHead{}
 		case tokEOF:
-			if depth > 0 {
+			if depth > 0 && settled() {
 				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
 			}
 			return nil
@@ -205,7 +594,7 @@ func validateBalancedDelimiters(sql string, start, end int) error {
 			depth++
 		case ')':
 			depth--
-			if depth < 0 {
+			if depth < 0 && settled() {
 				text := ")"
 				return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
 			}
@@ -533,6 +922,10 @@ func (p *Parser) lexerError() *ParseError {
 	tok := p.cur
 	if tok.Type == tokEOF && p.prev.Type != 0 {
 		tok = p.prev
+	}
+	var directive *directiveError
+	if errors.As(p.lexer.Err, &directive) {
+		tok = directive.tok
 	}
 	text := p.tokenText(tok)
 	msg := p.lexer.Err.Error()
