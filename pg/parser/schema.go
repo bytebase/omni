@@ -246,12 +246,14 @@ func (p *Parser) parseSchemaStmtCreateOptTemp(orReplaceConsumed bool) (nodes.Nod
 			}
 			ifNotExists = true
 		}
+		nameStart := p.pos()
 		names, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
 		}
+		nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 		if p.cur.Type == '(' {
-			node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+			node, err := p.parseCreateTableOrCTASAfterParen(names, nameLoc, relpersistence, ifNotExists)
 			if err != nil {
 				return node, err
 			}
@@ -266,13 +268,13 @@ func (p *Parser) parseSchemaStmtCreateOptTemp(orReplaceConsumed bool) (nodes.Nod
 			return node, nil
 		}
 		if p.cur.Type == AS || p.cur.Type == USING {
-			stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
+			stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 			if stmt != nil {
 				stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 			}
 			return stmt, err
 		}
-		stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
+		stmt, err := p.finishCreateStmt(names, nameLoc, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		}

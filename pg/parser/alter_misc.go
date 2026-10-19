@@ -176,10 +176,12 @@ func (p *Parser) parseOptNo() bool {
 func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // start of ALTER
 	p.advance()       // consume TYPE
+	nameStart := p.pos()
 	names, err := p.parseAnyName()
 	if err != nil {
 		return nil, err
 	}
+	nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 
 	switch p.cur.Type {
 	case ADD_P:
@@ -193,13 +195,13 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 			return stmt, err
 		}
 		// ALTER TYPE name ADD ATTRIBUTE ... (AlterCompositeTypeStmt)
-		return p.parseAlterCompositeType(names, loc)
+		return p.parseAlterCompositeType(names, nameLoc, loc)
 	case DROP:
 		// ALTER TYPE name DROP ATTRIBUTE ... (AlterCompositeTypeStmt)
-		return p.parseAlterCompositeType(names, loc)
+		return p.parseAlterCompositeType(names, nameLoc, loc)
 	case ALTER:
 		// ALTER TYPE name ALTER ATTRIBUTE ... (AlterCompositeTypeStmt)
-		return p.parseAlterCompositeType(names, loc)
+		return p.parseAlterCompositeType(names, nameLoc, loc)
 	case RENAME:
 		p.advance() // consume RENAME
 		switch p.cur.Type {
@@ -233,7 +235,7 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 			}, nil
 		case ATTRIBUTE:
 			// ALTER TYPE name RENAME ATTRIBUTE name TO name opt_drop_behavior
-			return p.parseAlterCompositeTypeRename(names, loc)
+			return p.parseAlterCompositeTypeRename(names, nameLoc, loc)
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -331,13 +333,14 @@ func (p *Parser) parseAlterEnumAddValue(typname *nodes.List) (*nodes.AlterEnumSt
 }
 
 // parseAlterCompositeType parses AlterCompositeTypeStmt (ALTER TYPE name alter_type_cmds).
-// Current token is ADD/DROP/ALTER. loc is the byte offset of the ALTER keyword.
-func (p *Parser) parseAlterCompositeType(names *nodes.List, loc int) (*nodes.AlterTableStmt, error) {
+// Current token is ADD/DROP/ALTER. nameLoc is the span of the type name and
+// loc is the byte offset of the ALTER keyword.
+func (p *Parser) parseAlterCompositeType(names *nodes.List, nameLoc nodes.Loc, loc int) (*nodes.AlterTableStmt, error) {
 	cmds, err := p.parseAlterTypeCmds()
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromCompositeType(names)
+	rv := makeRangeVarFromCompositeType(names, nameLoc)
 	return &nodes.AlterTableStmt{
 		Relation: rv,
 		Cmds:     cmds,
@@ -347,8 +350,9 @@ func (p *Parser) parseAlterCompositeType(names *nodes.List, loc int) (*nodes.Alt
 }
 
 // parseAlterCompositeTypeRename parses ALTER TYPE name RENAME ATTRIBUTE name TO name opt_drop_behavior.
-// RENAME has been consumed. Current token is ATTRIBUTE. loc is the byte offset of the ALTER keyword.
-func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List, loc int) (*nodes.RenameStmt, error) {
+// RENAME has been consumed. Current token is ATTRIBUTE. nameLoc is the span of
+// the type name and loc is the byte offset of the ALTER keyword.
+func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List, nameLoc nodes.Loc, loc int) (*nodes.RenameStmt, error) {
 	p.advance() // consume ATTRIBUTE
 	subname, err := p.parseName()
 	if err != nil {
@@ -365,7 +369,7 @@ func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List, loc int) (*nod
 	return &nodes.RenameStmt{
 		RenameType:   nodes.OBJECT_ATTRIBUTE,
 		RelationType: nodes.OBJECT_TYPE,
-		Relation:     makeRangeVarFromAnyName(names),
+		Relation:     makeRangeVarFromAnyName(names, nameLoc),
 		Subname:      subname,
 		Newname:      newname,
 		Behavior:     nodes.DropBehavior(behavior),
@@ -373,11 +377,12 @@ func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List, loc int) (*nod
 	}, nil
 }
 
-// makeRangeVarFromCompositeType creates a RangeVar from composite type names with Inh=true.
-func makeRangeVarFromCompositeType(names *nodes.List) *nodes.RangeVar {
+// makeRangeVarFromCompositeType creates a RangeVar from composite type names
+// with Inh=true. loc is the span of the name in the source text.
+func makeRangeVarFromCompositeType(names *nodes.List, loc nodes.Loc) *nodes.RangeVar {
 	rv := &nodes.RangeVar{
 		Inh: true,
-		Loc: nodes.NoLoc(),
+		Loc: loc,
 	}
 	if names != nil && len(names.Items) > 0 {
 		switch len(names.Items) {
@@ -1602,11 +1607,12 @@ func (p *Parser) parseAlterTriggerDependsOnExtension() (nodes.Node, error) {
 		return nil, err
 	}
 	// qualified_name
+	relStart := p.pos()
 	relname, err := p.parseAnyName()
 	if err != nil {
 		return nil, err
 	}
-	rel := makeRangeVarFromAnyName(relname)
+	rel := makeRangeVarFromAnyName(relname, nodes.Loc{Start: relStart, End: p.prev.End})
 
 	// Dispatch: RENAME TO vs [NO] DEPENDS ON EXTENSION
 	if p.cur.Type == RENAME {
@@ -1670,11 +1676,12 @@ func (p *Parser) parseAlterRuleStmt() (nodes.Node, error) {
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
+	relStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	rel := makeRangeVarFromNames(names)
+	rel := makeRangeVarFromNames(names, nodes.Loc{Start: relStart, End: p.prev.End})
 	if _, err := p.expect(RENAME); err != nil {
 		return nil, err
 	}

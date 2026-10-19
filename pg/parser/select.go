@@ -1005,9 +1005,8 @@ func (p *Parser) parseOptTempTableName() (*nodes.RangeVar, error) {
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
 	rv.Relpersistence = persistence
-	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	return rv, nil
 }
 
@@ -1617,8 +1616,7 @@ func (p *Parser) parseRelationOrFuncTable() (nodes.Node, error) {
 			names := &nodes.List{Items: []nodes.Node{
 				&nodes.String{Str: name}, &nodes.String{Str: attr}, &nodes.String{Str: attr2},
 			}}
-			rv3 := makeRangeVarFromNames(names)
-			rv3.Loc = nodes.Loc{Start: loc, End: p.pos()}
+			rv3 := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
 			return p.finishRelationTable(rv3), nil
 		}
 
@@ -1626,22 +1624,20 @@ func (p *Parser) parseRelationOrFuncTable() (nodes.Node, error) {
 		names := &nodes.List{Items: []nodes.Node{
 			&nodes.String{Str: name}, &nodes.String{Str: attr},
 		}}
-		rv2 := makeRangeVarFromNames(names)
-		rv2.Loc = nodes.Loc{Start: loc, End: p.pos()}
+		rv2 := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
 		return p.finishRelationTable(rv2), nil
 	}
 
 	// Simple relation name
 	names := &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
 
 	// Check for '*' (include child tables) — relation_expr: qualified_name '*'
 	if p.cur.Type == '*' {
 		p.advance()
 		rv.Inh = true
+		rv.Loc.End = p.prev.End
 	}
-
-	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	return p.finishRelationTable(rv), nil
 }
 
@@ -1733,18 +1729,16 @@ func (p *Parser) parseRelationExpr() (*nodes.RangeVar, error) {
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
-			rv := makeRangeVarFromNames(names)
+			rv := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
 			rv.Inh = false
-			rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 			return rv, nil
 		}
 		names, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
 		}
-		rv := makeRangeVarFromNames(names)
+		rv := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
 		rv.Inh = false
-		rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 		return rv, nil
 	}
 
@@ -1752,15 +1746,14 @@ func (p *Parser) parseRelationExpr() (*nodes.RangeVar, error) {
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
 
 	// Check for '*' (include child tables)
 	if p.cur.Type == '*' {
 		p.advance()
 		rv.Inh = true
+		rv.Loc.End = p.prev.End
 	}
-
-	rv.Loc = nodes.Loc{Start: loc, End: p.pos()}
 	return rv, nil
 }
 

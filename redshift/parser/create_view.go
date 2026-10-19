@@ -36,11 +36,12 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 	}
 
 	// qualified_name
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	rv.Relpersistence = relpersistence
 
 	var aliases *nodes.List
@@ -87,7 +88,7 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 			Loc:    nodes.NoLoc(),
 		}
 		rt := &nodes.ResTarget{Val: cr, Loc: nodes.NoLoc()}
-		fromRv := &nodes.RangeVar{Relname: rv.Relname, Inh: true, Relpersistence: 'p'}
+		fromRv := &nodes.RangeVar{Relname: rv.Relname, Inh: true, Relpersistence: 'p', Loc: nodes.NoLoc()}
 		sel := &nodes.SelectStmt{
 			TargetList: &nodes.List{Items: []nodes.Node{rt}},
 			FromClause: &nodes.List{Items: []nodes.Node{fromRv}},
@@ -253,7 +254,7 @@ func (p *Parser) parseCreateAsTarget() (*nodes.IntoClause, error) {
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: loc, End: p.prev.End})
 
 	colNames, _ := p.parseOptColumnList()
 	accessMethod := p.parseOptAccessMethod()
@@ -336,7 +337,7 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: loc, End: p.prev.End})
 
 	colNames, _ := p.parseOptColumnList()
 	accessMethod := p.parseOptAccessMethod()
@@ -436,11 +437,12 @@ func (p *Parser) parseRefreshMatViewStmt() (*nodes.RefreshMatViewStmt, error) {
 	}
 
 	// qualified_name
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// opt_with_data
 	withData := p.parseOptWithData()

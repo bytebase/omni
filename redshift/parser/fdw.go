@@ -291,11 +291,12 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 		}
 		ifNotExists = true
 	}
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	rv.Relpersistence = 'p'
 
 	if p.cur.Type == PARTITION {
@@ -303,11 +304,12 @@ func (p *Parser) parseCreateForeignTableStmt() (nodes.Node, error) {
 		if _, err := p.expect(OF); err != nil {
 			return nil, err
 		}
+		inhStart := p.pos()
 		inhNames, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
 		}
-		inhRv := makeRangeVarFromNames(inhNames)
+		inhRv := makeRangeVarFromNames(inhNames, nodes.Loc{Start: inhStart, End: p.prev.End})
 		var tableElts *nodes.List
 		if p.cur.Type == '(' {
 			p.advance()
