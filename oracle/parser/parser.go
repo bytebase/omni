@@ -356,9 +356,10 @@ func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
 
 // lockedSubquery returns the FOR UPDATE clause that ends a subquery in
 // stmt. Oracle 23ai locks rows for a top-level query and a cursor's alone:
-// it rejects FOR UPDATE in an expression subquery, an inline view or a
-// DML target, a WITH element, MERGE USING, CURSOR(...), INSERT ... SELECT,
-// and CREATE TABLE or VIEW ... AS (ORA-00907, ORA-03048), and runs it in a
+// it rejects FOR UPDATE in an expression subquery, an inline view (LATERAL
+// and APPLY ones too) or a DML target, a WITH element, MERGE USING,
+// CURSOR(...), INSERT ... SELECT, and CREATE TABLE or VIEW ... AS
+// (ORA-00907, ORA-03048), and runs it in a
 // cursor declaration, OPEN FOR, and a FOR loop's query, VALUES OF (...)
 // too. A subquery it does not list keeps its FOR UPDATE.
 func lockedSubquery(stmt nodes.Node) nodes.Node {
@@ -387,6 +388,8 @@ func lockedSubquery(stmt nodes.Node) nodes.Node {
 		case *nodes.CursorExpr:
 			check(n.Subquery)
 		case *nodes.SubqueryRef:
+			check(n.Subquery)
+		case *nodes.LateralRef:
 			check(n.Subquery)
 		case *nodes.CTE:
 			check(n.Query)

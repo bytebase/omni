@@ -182,6 +182,9 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"SELECT 1 FROM dual WHERE 1 IN (SELECT a FROM t FOR UPDATE)",
 		"SELECT (SELECT a FROM t FOR UPDATE) FROM dual",
 		"SELECT * FROM (SELECT a FROM t FOR UPDATE)",
+		"SELECT * FROM dual d, LATERAL (SELECT dummy FROM dual FOR UPDATE)",
+		"SELECT * FROM dual d CROSS APPLY (SELECT dummy FROM dual FOR UPDATE)",
+		"SELECT * FROM dual d OUTER APPLY (SELECT dummy FROM dual FOR UPDATE)",
 		"WITH w AS (SELECT a FROM t FOR UPDATE) SELECT * FROM w",
 		"MERGE INTO t USING (SELECT a FROM t FOR UPDATE) s ON (t.a = s.a) WHEN MATCHED THEN UPDATE SET t.a = 1",
 		"INSERT INTO t SELECT a FROM t FOR UPDATE",
@@ -351,11 +354,13 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	// An inline view whose first operand is parenthesized exposes that
 	// operand's columns, as an unparenthesized one does.
 	// MULTISET EXCEPT is an operator inside the select list, not a set
-	// operator ending it.
+	// operator ending it, but for a column named MULTISET a query follows.
 	for _, sql := range []string{
 		"SELECT x. FROM ((SELECT c1 AS left_name FROM t) UNION (SELECT c2 FROM u)) x",
 		"SELECT x. FROM (SELECT c1 AS left_name FROM t UNION SELECT c2 FROM u) x",
 		"SELECT x. FROM (SELECT a MULTISET EXCEPT b AS left_name FROM t) x",
+		"SELECT x. FROM (SELECT a MULTISET EXCEPT DISTINCT b AS left_name FROM t) x",
+		"SELECT x. FROM (SELECT c1 left_name FROM t EXCEPT SELECT c FROM u) x",
 	} {
 		scope := CollectCompletion(sql, len("SELECT x.")).Scope
 		if scope == nil || len(scope.LocalReferences) != 1 || len(scope.LocalReferences[0].Columns) != 1 || scope.LocalReferences[0].Columns[0] != "LEFT_NAME" {
@@ -373,6 +378,11 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	}
 	// Reserved, EXCEPT still follows MULTISET.
 	ParseAndCheck(t, "SELECT a MULTISET EXCEPT b FROM t")
+
+	if scope := CollectCompletion("SELECT x. FROM (SELECT multiset EXCEPT SELECT c FROM t) x", len("SELECT x.")).Scope; scope == nil ||
+		len(scope.LocalReferences) != 1 || len(scope.LocalReferences[0].Columns) != 1 || scope.LocalReferences[0].Columns[0] != "MULTISET" {
+		t.Errorf("CollectCompletion past a column named MULTISET: scope = %+v, want X with MULTISET", scope)
+	}
 
 	// Completion takes EXCEPT as the set operator it is, as MINUS.
 	for _, op := range []string{"EXCEPT", "MINUS"} {

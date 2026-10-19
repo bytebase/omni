@@ -188,12 +188,25 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 // multisetOperatorsAsWords retypes the EXCEPT of MULTISET EXCEPT, an
 // operator inside an expression, as a word, so the scans that end a select
 // list or a query at a set operator pass over it: SELECT a MULTISET EXCEPT
-// b AS c FROM t names its column C.
+// b AS c FROM t names its column C. An EXCEPT a query follows is the set
+// operator, after a column named MULTISET too: SELECT multiset EXCEPT
+// SELECT c FROM t.
 func multisetOperatorsAsWords(tokens []Token) []Token {
 	for i := 1; i < len(tokens); i++ {
-		if tokens[i].Type == kwEXCEPT && tokens[i-1].Type == kwMULTISET {
-			tokens[i].Type = tokIDENT
+		if tokens[i].Type != kwEXCEPT || tokens[i-1].Type != kwMULTISET {
+			continue
 		}
+		next := i + 1
+		if next < len(tokens) && (tokens[next].Type == kwALL || tokens[next].Type == kwDISTINCT) {
+			next++
+		}
+		for next < len(tokens) && tokens[next].Type == '(' {
+			next++
+		}
+		if next < len(tokens) && (tokens[next].Type == kwSELECT || tokens[next].Type == kwWITH) {
+			continue
+		}
+		tokens[i].Type = tokIDENT
 	}
 	return tokens
 }
