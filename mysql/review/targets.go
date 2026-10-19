@@ -147,6 +147,6 @@ func reviewGroup(sql string, stmts []statement, work targetWork, g targetGroup) 
 	for _, d := range work.drops {
 		checkDroppedIndex(stmts, d, x, r)
 	}
-	checkColumnDrops(stmts, work.columns, x, r)
+	checkColumnDrops(work.columns, x, r)
 	return r.findings, nil
 }

@@ -612,10 +612,11 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 // error it stops the change with, if any, and the key x has after. MariaDB
 // drops an index with the last of its columns, so a drop of every column of
 // the key leaves x without one, and refuses a drop of only some columns of
-// a key of several. A RequirePrimaryKey
-// finding must match: reported only when the change ran and x ended it
-// without a key, except where the server refuses for something the synced
-// schema does not hold.
+// a key of several. A RequirePrimaryKey finding must match: reported only
+// when the change ran and x ended it without a key, except where the server
+// refuses for something the synced schema does not hold. The rule judges
+// only statements of DROP COLUMN alone, so where another statement is on x
+// it stays silent, whatever the server does.
 //
 // mariadb: https://mariadb.com/docs/server/reference/sql-statements/data-definition/alter/alter-table — DROP COLUMN
 func TestColumnDropAgainstMariaDB(t *testing.T) {
@@ -637,157 +638,57 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 	}{
 		// (a) A key of one column goes with it.
 		{name: "a key of one column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1), (2, 2)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a key of one column, under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN IF EXISTS id", reported: true},
 		{name: "a key of one AUTO_INCREMENT column", setup: "CREATE TABLE x (id INT AUTO_INCREMENT PRIMARY KEY, v INT); INSERT INTO x (v) VALUES (1), (2)", change: "ALTER TABLE x DROP id", reported: true},
 		{name: "a key of a column prefix", setup: "CREATE TABLE x (s VARCHAR(50), v INT, PRIMARY KEY (s(10)))", change: "ALTER TABLE x DROP COLUMN s", reported: true},
 		{name: "a key of one column, with a unique key on a NOT NULL column left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT NOT NULL, UNIQUE KEY uv (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		// (b) A key of two columns refuses to lose one, and goes when the
 		// statement drops both.
 		{name: "one column of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (1, 2, 2)", change: "ALTER TABLE x DROP COLUMN a", err: "Key column 'a' doesn't exist", key: "a,b"},
-		{name: "both columns of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN b, DROP COLUMN a", reported: true},
 		{name: "both columns of a key of two, in two statements", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b))", change: "ALTER TABLE x DROP COLUMN a;\nALTER TABLE x DROP COLUMN b", err: "Key column 'a' doesn't exist", key: "a,b"},
-		// (c) What depends on the column decides whether the server drops it.
+		{name: "both columns of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN b, DROP COLUMN a", reported: true},
+		// Statements of DROP COLUMN alone are followed through the columns they
+		// drop and what read them.
+		{name: "another column dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT)", change: "ALTER TABLE x DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a generated column reading it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN g;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a generated column reading it, dropped too", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN g", reported: true},
+		{name: "a check of it alone", setup: "CREATE TABLE x (id INT PRIMARY KEY CHECK (id > 0), v INT)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a check of both columns of the key, both dropped", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b), CONSTRAINT ck CHECK (a < b))", change: "ALTER TABLE x DROP COLUMN a, DROP COLUMN b", reported: true},
+		{name: "a key of one column, under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN IF EXISTS id", reported: true},
+		{name: "a key of one column, under IF EXISTS twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN IF EXISTS id, DROP COLUMN IF EXISTS id", reported: true},
+		{name: "with a column the table lacks, under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN IF EXISTS missing", reported: true},
+		{name: "another index holds it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY iv (v, id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a view or a trigger reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE VIEW xv AS SELECT id FROM x; CREATE TRIGGER xt BEFORE INSERT ON x FOR EACH ROW SET NEW.v = NEW.id", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a foreign key of another table references another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE ch (x_v INT, CONSTRAINT fk_ch FOREIGN KEY (x_v) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a foreign key of the table holds another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (v) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a statement on another table, or one that changes no table, before or after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE y ADD COLUMN b INT;\nALTER TABLE x DROP COLUMN id;\nINSERT INTO x VALUES (1);\nCREATE VIEW xv AS SELECT v FROM x", reported: true},
+		// (c) What depends on the column decides whether the server drops it;
+		// a drop it refuses ends the judging.
 		{name: "a foreign key of another table references it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
 		{name: "a foreign key of another table references it, with foreign_key_checks off", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "SET foreign_key_checks = 0;\nALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
 		{name: "a foreign key of another database references it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.ch (x_id INT, CONSTRAINT fk_och FOREIGN KEY (x_id) REFERENCES shop.x (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id", reported: true, unseen: true},
-		{name: "a foreign key of another table references another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE ch (x_v INT, CONSTRAINT fk_ch FOREIGN KEY (x_v) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a foreign key of the table holds it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
-		{name: "a foreign key of the table holds another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (v) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a generated column reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN id", err: "Unknown column 'id' in 'GENERATED ALWAYS AS'", key: "id"},
-		{name: "a generated column reads it, and goes too", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN g", reported: true},
-		{name: "a check reads it alone", setup: "CREATE TABLE x (id INT PRIMARY KEY CHECK (id > 0), v INT)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a check reads it and another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT ck CHECK (id < v))", change: "ALTER TABLE x DROP COLUMN id", err: "Unknown column 'id' in 'CHECK'", key: "id"},
-		{name: "a check reads both columns of the key, both dropped", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b), CONSTRAINT ck CHECK (a < b))", change: "ALTER TABLE x DROP COLUMN a, DROP COLUMN b", reported: true},
-		{name: "another index holds it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY iv (v, id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a view or a trigger reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE VIEW xv AS SELECT id FROM x; CREATE TRIGGER xt BEFORE INSERT ON x FOR EACH ROW SET NEW.v = NEW.id", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "the table is partitioned by it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT) PARTITION BY HASH (id) PARTITIONS 2", change: "ALTER TABLE x DROP COLUMN id", err: "Unknown column 'id' in 'PARTITION BY'", key: "id"},
 		{name: "the table is partitioned by KEY (), its primary key", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE x DROP COLUMN id", err: "Field in list of fields for partition function not found", key: "id"},
 		{name: "it is the only column", setup: "CREATE TABLE x (id INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id", err: "You can't delete all columns", key: "id"},
-		// The key keeps a column of the dropped one's name the statement
-		// adds back; a subcommand that names a column of the key is not
-		// judged.
+		{name: "with a column the table lacks", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN missing", err: "Can't DROP COLUMN `missing`", key: "id"},
+		{name: "twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN id", err: "Can't DROP COLUMN `id`", key: "id"},
+		// Any other statement on the table leaves it out: a drop after is not
+		// judged, and a finding before is withdrawn, though the server may
+		// drop the key.
 		{name: "it is added back under its name", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD COLUMN id INT", key: "id"},
 		{name: "a key is added back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD PRIMARY KEY (v)", key: "v"},
 		{name: "a later statement adds a key back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x ADD PRIMARY KEY (v)", key: "v"},
-		// What an earlier statement, or the statement itself, drops no longer
-		// keeps the column.
-		{name: "a generated column reading it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN g;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a foreign key of the table holding it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES p (id))", change: "ALTER TABLE x DROP FOREIGN KEY fk_x;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a foreign key of the table holding it, dropped by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES p (id))", change: "ALTER TABLE x DROP FOREIGN KEY fk_x, DROP COLUMN id", reported: true},
-		{name: "a foreign key referencing it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "ALTER TABLE ch DROP FOREIGN KEY fk_ch;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a table holding a foreign key referencing it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "DROP TABLE ch;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a check reading it and another column, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT ck CHECK (id < v))", change: "ALTER TABLE x DROP CONSTRAINT ck;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a check reading it and another column, dropped by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT ck CHECK (id < v))", change: "ALTER TABLE x DROP CONSTRAINT ck, DROP COLUMN id", reported: true},
-		// A temporary table of the name, dropped, leaves the table as it was.
-		{name: "a temporary table of its name dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TEMPORARY TABLE IF EXISTS x;\nALTER TABLE x DROP COLUMN id", reported: true},
-		// A column the statement adds keeps the table from losing its last
-		// one. One an earlier statement added is not followed: not judged.
-		{name: "the only column, with another added by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY)", change: "ALTER TABLE x ADD COLUMN v INT, DROP COLUMN id", reported: true},
-		{name: "the only column, with another added before", setup: "CREATE TABLE x (id INT PRIMARY KEY)", change: "ALTER TABLE x ADD COLUMN v INT;\nALTER TABLE x DROP COLUMN id"},
-		// A drop of a column the table does not have fails the statement,
-		// but under IF EXISTS.
-		{name: "with a column the table does not have", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN missing", err: "Can't DROP COLUMN `missing`", key: "id"},
-		{name: "with a column the table does not have, under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN IF EXISTS missing", reported: true},
-		{name: "twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN id", err: "Can't DROP COLUMN `id`", key: "id"},
-		// Another database dropped leaves the target's tables as they are.
-		{name: "another database dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP DATABASE IF EXISTS other;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "another database dropped after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nDROP DATABASE IF EXISTS other", reported: true},
-		// What a statement does to a table of another database, or of a name
-		// that differs in case where names compare with case, leaves the
-		// target's table as it was.
-		{name: "a table of its name in another database, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (a INT PRIMARY KEY)", change: "DROP TABLE IF EXISTS other.x;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a table of its name in another database, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other", change: "CREATE TABLE other.x (a INT PRIMARY KEY);\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a table of its name in another database, renamed before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (a INT PRIMARY KEY)", change: "RENAME TABLE other.x TO other.y;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a table of its name in another database, given a key after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (a INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE other.x ADD PRIMARY KEY (a)", reported: true},
-		{name: "a table of its name in another case, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE X (a INT PRIMARY KEY);\nALTER TABLE x DROP COLUMN id", reported: true},
-		// Another subcommand of the statement the server refuses fails it.
-		{name: "with a column the table has, added", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD COLUMN v INT, DROP COLUMN id", err: "Duplicate column name 'v'", key: "id"},
-		{name: "with one column added twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD COLUMN w INT, ADD COLUMN w INT, DROP COLUMN id", err: "Duplicate column name 'w'", key: "id"},
-		{name: "with a column the table does not have, modified", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x MODIFY missing INT, DROP COLUMN id", err: "Unknown column 'missing'", key: "id"},
-		{name: "with a column changed to a name the table has", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT)", change: "ALTER TABLE x CHANGE v w INT, DROP COLUMN id", err: "Duplicate column name 'w'", key: "id"},
-		{name: "with a column changed or renamed", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, u INT)", change: "ALTER TABLE x CHANGE v w INT, RENAME COLUMN u TO s, DROP COLUMN id", reported: true},
-		// What a statement the server refuses drops stays: the change stops
-		// there.
-		{name: "a generated column reading it, dropped by a statement that fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN g, DROP COLUMN missing;\nALTER TABLE x DROP COLUMN id", err: "Can't DROP COLUMN `missing`", key: "id"},
-		// A DROP TABLE under IF EXISTS passes over a table the database lacks,
-		// and the server refuses to drop a table a foreign key of a table it
-		// keeps references.
-		{name: "a table holding a foreign key referencing it, dropped with one the database lacks under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "DROP TABLE IF EXISTS ch, missing;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a table holding a foreign key referencing it, which another table references, dropped", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id)); CREATE TABLE gch (ch_k INT, CONSTRAINT fk_gch FOREIGN KEY (ch_k) REFERENCES ch (k))", change: "DROP TABLE ch;\nALTER TABLE x DROP COLUMN id", err: "Cannot delete or update a parent row", key: "id"},
-		{name: "a table holding a foreign key referencing it, dropped before the table referencing it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id)); CREATE TABLE gch (ch_k INT, CONSTRAINT fk_gch FOREIGN KEY (ch_k) REFERENCES ch (k))", change: "DROP TABLE ch, gch;\nALTER TABLE x DROP COLUMN id", err: "Cannot delete or update a parent row", key: "id"},
-		{name: "a table holding a foreign key referencing it, dropped after the table referencing it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id)); CREATE TABLE gch (ch_k INT, CONSTRAINT fk_gch FOREIGN KEY (ch_k) REFERENCES ch (k))", change: "DROP TABLE gch, ch;\nALTER TABLE x DROP COLUMN id", reported: true},
-		// The server refuses an index or a foreign key the statement adds
-		// under a name in use, on a column the table lacks once it ran, or
-		// with no index its referenced columns lead, and the rename of an
-		// index the table lacks.
-		{name: "with an index added under a name the table uses", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY iv (v))", change: "ALTER TABLE x DROP COLUMN id, ADD INDEX iv (v)", err: "Duplicate key name 'iv'", key: "id"},
-		{name: "with one index name added twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD INDEX i1 (v), ADD INDEX i1 (v), DROP COLUMN id", err: "Duplicate key name 'i1'", key: "id"},
-		{name: "with an index added on the column it drops", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD INDEX i1 (id), DROP COLUMN id", err: "Key column 'id' doesn't exist", key: "id"},
-		{name: "with a foreign key added under a name the database uses", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE t2 (a INT, CONSTRAINT fk_dup FOREIGN KEY (a) REFERENCES par (id)); CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD CONSTRAINT fk_dup FOREIGN KEY (v) REFERENCES par (id), DROP COLUMN id", err: "errno: 121", key: "id"},
-		{name: "with a foreign key added whose referenced columns lead no index", setup: "CREATE TABLE par (id INT PRIMARY KEY, w INT); CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD CONSTRAINT fk_w FOREIGN KEY (v) REFERENCES par (w), DROP COLUMN id", err: "errno: 150", key: "id"},
-		{name: "with an index the table lacks renamed", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x RENAME INDEX missing TO iw, DROP COLUMN id", err: "Key 'missing' doesn't exist", key: "id"},
-		{name: "with an index dropped and added back, one renamed, and a unique key and a foreign key added", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT, KEY iv (v), KEY iw (w))", change: "ALTER TABLE x DROP INDEX iv, ADD INDEX iv (v), RENAME INDEX iw TO iz, ADD UNIQUE KEY uv (v), ADD CONSTRAINT fk_ok FOREIGN KEY (v) REFERENCES par (id), DROP COLUMN id", reported: true},
-		// A stored generated column the change makes an ordinary one reads
-		// nothing; the server refuses to make a virtual one ordinary.
-		{name: "a stored generated column reading it, made ordinary by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x MODIFY COLUMN g INT, DROP COLUMN id", reported: true},
-		{name: "a stored generated column reading it, made ordinary before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x MODIFY COLUMN g INT;\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a stored generated column reading it, changed to an ordinary one", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x CHANGE COLUMN g g2 INT, DROP COLUMN id", reported: true},
-		{name: "a virtual generated column reading it, made ordinary by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) VIRTUAL)", change: "ALTER TABLE x MODIFY COLUMN g INT, DROP COLUMN id", err: "This is not yet supported for generated columns", key: "id"},
-		// A foreign key of the table to itself references an index the
-		// statement keeps whole.
-		{name: "with a foreign key to itself added, to a unique key it keeps", setup: "CREATE TABLE x (id INT PRIMARY KEY, p_id INT, code INT, UNIQUE KEY uk (code))", change: "ALTER TABLE x DROP COLUMN id, ADD CONSTRAINT fk_self FOREIGN KEY (p_id) REFERENCES x (code)", reported: true},
-		{name: "with a foreign key to itself added, to a column with no index", setup: "CREATE TABLE x (id INT PRIMARY KEY, p_id INT, code INT)", change: "ALTER TABLE x DROP COLUMN id, ADD CONSTRAINT fk_self FOREIGN KEY (p_id) REFERENCES x (code)", err: "errno: 150", key: "id"},
-		{name: "with a foreign key to itself added, to a key the statement adds", setup: "CREATE TABLE x (id INT PRIMARY KEY, p_id INT, code INT)", change: "ALTER TABLE x ADD UNIQUE KEY uk (code), ADD CONSTRAINT fk_self FOREIGN KEY (p_id) REFERENCES x (code), DROP COLUMN id", err: "errno: 150", key: "id"},
-		{name: "with a foreign key to itself added, to an index the statement drops", setup: "CREATE TABLE x (id INT PRIMARY KEY, p_id INT, code INT, UNIQUE KEY uk (code))", change: "ALTER TABLE x DROP INDEX uk, DROP COLUMN id, ADD CONSTRAINT fk_self FOREIGN KEY (p_id) REFERENCES x (code)", err: "errno: 150", key: "id"},
-		{name: "with a foreign key to itself added, to an index the statement takes a column after the referenced ones from", setup: "CREATE TABLE x (id INT PRIMARY KEY, p_id INT, code INT, KEY ic (code, id))", change: "ALTER TABLE x DROP COLUMN id, ADD CONSTRAINT fk_self FOREIGN KEY (p_id) REFERENCES x (code)", reported: true},
-		{name: "with a foreign key to itself added, to an index the statement takes a leading column from", setup: "CREATE TABLE x (id INT PRIMARY KEY, p_id INT, code INT, KEY ic (id, code))", change: "ALTER TABLE x DROP COLUMN id, ADD CONSTRAINT fk_self FOREIGN KEY (p_id) REFERENCES x (code)", err: "errno: 150", key: "id"},
-		// A new generation expression replaces what a column read; the
-		// server keeps a column stored or not, and refuses an expression of
-		// the column it drops.
-		{name: "a stored generated column reading it, given one reading another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x MODIFY COLUMN g INT AS (v + 1) STORED, DROP COLUMN id", reported: true},
-		{name: "a virtual generated column reading it, given one reading another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) VIRTUAL)", change: "ALTER TABLE x MODIFY COLUMN g INT AS (v + 1) VIRTUAL, DROP COLUMN id", reported: true},
-		{name: "a stored generated column reading it, changed to one of a new name reading another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x CHANGE COLUMN g g2 INT AS (v + 1) STORED, DROP COLUMN id", reported: true},
-		{name: "an ordinary column made a stored generated one", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, c INT)", change: "ALTER TABLE x MODIFY COLUMN c INT AS (v + 1) STORED, DROP COLUMN id", reported: true},
-		{name: "a generated column reading another column, added", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD COLUMN g INT AS (v + 1) VIRTUAL, DROP COLUMN id", reported: true},
-		{name: "a stored generated column made virtual", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x MODIFY COLUMN g INT AS (v + 1) VIRTUAL, DROP COLUMN id", err: "This is not yet supported for generated columns", key: "id"},
-		{name: "an ordinary column made a virtual generated one", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, c INT)", change: "ALTER TABLE x MODIFY COLUMN c INT AS (v + 1) VIRTUAL, DROP COLUMN id", err: "This is not yet supported for generated columns", key: "id"},
-		{name: "a stored generated column given one reading the column it drops", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x MODIFY COLUMN g INT AS (id + 2) STORED, DROP COLUMN id", err: "Unknown column 'id' in 'GENERATED ALWAYS AS'", key: "id"},
-		{name: "a generated column reading it, added", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD COLUMN g INT AS (id + 1) STORED, DROP COLUMN id", err: "Unknown column 'id' in 'GENERATED ALWAYS AS'", key: "id"},
-		// A database holds a foreign key name once; another database may
-		// hold it too.
-		{name: "with a foreign key added under a name a statement before gave one in another database", setup: "CREATE TABLE x (id INT PRIMARY KEY, p_id INT); CREATE TABLE par (id INT PRIMARY KEY); CREATE DATABASE other; CREATE TABLE other.par (id INT PRIMARY KEY)", change: "CREATE TABLE other.c (a INT PRIMARY KEY, CONSTRAINT fk_new FOREIGN KEY (a) REFERENCES other.par (id));\nALTER TABLE x DROP COLUMN id, ADD CONSTRAINT fk_new FOREIGN KEY (p_id) REFERENCES par (id)", reported: true},
-		// A column's REFERENCES makes a foreign key on MariaDB, unlike MySQL.
-		{name: "a column's REFERENCES to it, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE c (k INT REFERENCES x (id), PRIMARY KEY (k));\nALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
-		{name: "a column's REFERENCES to it, added before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE c (k INT PRIMARY KEY)", change: "ALTER TABLE c ADD COLUMN r INT REFERENCES x (id);\nALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
-		// A check the change adds reads the columns it names; one of the
-		// column alone, which the server takes with it, is not judged.
-		{name: "a check of another column, added before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1)", change: "ALTER TABLE x ADD CHECK (v > 0);\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a check of another column, added by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1)", change: "ALTER TABLE x ADD CHECK (v > 0), DROP COLUMN id", reported: true},
-		{name: "a check of a column added with it, before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD COLUMN w INT CHECK (w > 0);\nALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a check of it and another column, added before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 2)", change: "ALTER TABLE x ADD CHECK (id < v);\nALTER TABLE x DROP COLUMN id", err: "Unknown column 'id' in 'CHECK'", key: "id"},
-		{name: "a check of it alone, added before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 2)", change: "ALTER TABLE x ADD CHECK (id > 0);\nALTER TABLE x DROP COLUMN id"},
-		{name: "with a check added of a column the table lacks", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD CHECK (missing > 0), DROP COLUMN id", err: "Unknown column 'missing'", key: "id"},
-		{name: "with a check added under a name another table uses", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT, CONSTRAINT ck1 CHECK (w > 0), CONSTRAINT fk1 FOREIGN KEY (w) REFERENCES par (id)); CREATE TABLE y (a INT, CONSTRAINT cky CHECK (a > 0))", change: "ALTER TABLE x ADD CONSTRAINT cky CHECK (v > 0), DROP COLUMN id", reported: true},
-		{name: "with a check added under a name a foreign key of the table uses", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT, CONSTRAINT ck1 CHECK (w > 0), CONSTRAINT fk1 FOREIGN KEY (w) REFERENCES par (id)); CREATE TABLE y (a INT, CONSTRAINT cky CHECK (a > 0))", change: "ALTER TABLE x ADD CONSTRAINT fk1 CHECK (v > 0), DROP COLUMN id", err: "Duplicate CHECK constraint name 'fk1'", key: "id"},
-		{name: "with one check name added twice", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT, CONSTRAINT ck1 CHECK (w > 0), CONSTRAINT fk1 FOREIGN KEY (w) REFERENCES par (id)); CREATE TABLE y (a INT, CONSTRAINT cky CHECK (a > 0))", change: "ALTER TABLE x ADD CONSTRAINT c2 CHECK (v > 0), ADD CONSTRAINT c2 CHECK (v < 9), DROP COLUMN id", err: "Duplicate CHECK constraint name 'c2'", key: "id"},
-		// A column goes after one the table keeps, or one the statement adds
-		// or renames to before it.
-		{name: "with a column added after one the table lacks", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD COLUMN w INT AFTER missing", err: "Unknown column 'missing'", key: "id"},
-		{name: "with a column added after the column it drops", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD COLUMN w INT AFTER id", err: "Unknown column 'id'", key: "id"},
-		{name: "with a column placed after a renamed one, by its old name", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT)", change: "ALTER TABLE x CHANGE v v2 INT, MODIFY w INT AFTER v, DROP COLUMN id", err: "Unknown column 'v'", key: "id"},
-		{name: "with a column added after one the statement adds later", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD COLUMN b INT AFTER a, ADD COLUMN a INT, DROP COLUMN id", err: "Unknown column 'a'", key: "id"},
-		{name: "with columns placed after one the statement adds before, one renamed to, and first", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT)", change: "ALTER TABLE x ADD COLUMN a INT, ADD COLUMN b INT AFTER a, CHANGE v v2 INT, MODIFY w INT AFTER v2, ADD COLUMN z INT FIRST, DROP COLUMN id", reported: true},
-		// The server drops an index or a constraint once; a foreign key and
-		// the index of its name are two.
-		{name: "with an index dropped twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY iv (v))", change: "ALTER TABLE x DROP INDEX iv, DROP INDEX iv, DROP COLUMN id", err: "Can't DROP INDEX `iv`", key: "id"},
-		{name: "with a foreign key dropped as a constraint and as a foreign key", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk FOREIGN KEY (v) REFERENCES par (id))", change: "ALTER TABLE x DROP CONSTRAINT fk, DROP FOREIGN KEY fk, DROP COLUMN id", err: "Can't DROP FOREIGN KEY `fk`", key: "id"},
-		{name: "with a unique key dropped as an index and as a constraint", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v))", change: "ALTER TABLE x DROP INDEX uv, DROP CONSTRAINT uv, DROP COLUMN id", err: "Can't DROP INDEX `uv`", key: "id"},
-
-		{name: "with a check dropped twice as a constraint", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT ck CHECK (v > 0))", change: "ALTER TABLE x DROP CONSTRAINT ck, DROP CONSTRAINT ck, DROP COLUMN id", err: "Can't DROP CONSTRAINT `ck`", key: "id"},
-		{name: "with a foreign key and the index of its name dropped", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk FOREIGN KEY (v) REFERENCES par (id))", change: "ALTER TABLE x DROP FOREIGN KEY fk, DROP INDEX fk, DROP COLUMN id", reported: true},
-		// A later statement that adds a key back but fails stops the change
-		// before its end, which the rule, as pg/review does, does not judge.
 		{name: "a later statement that adds a key back, but fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x DROP COLUMN missing, ADD PRIMARY KEY (v)", err: "Can't DROP COLUMN `missing`"},
+		{name: "a check of another column added before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1)", change: "ALTER TABLE x ADD CHECK (v > 0);\nALTER TABLE x DROP COLUMN id"},
+		{name: "a foreign key to it added and dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT)", change: "ALTER TABLE ch ADD CONSTRAINT f FOREIGN KEY (x_id) REFERENCES x (id);\nALTER TABLE ch DROP FOREIGN KEY f;\nALTER TABLE x DROP COLUMN id"},
+		{name: "a table CREATE TABLE IF NOT EXISTS leaves, whose foreign key would reference it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE c (k INT PRIMARY KEY)", change: "CREATE TABLE IF NOT EXISTS c (k INT PRIMARY KEY, FOREIGN KEY (k) REFERENCES x (id));\nALTER TABLE x DROP COLUMN id"},
+		{name: "a temporary table of its name dropped twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TEMPORARY TABLE IF EXISTS x;\nDROP TEMPORARY TABLE x;\nALTER TABLE x DROP COLUMN id", err: "Unknown table", key: "id"},
+		{name: "a column's REFERENCES to it, which MariaDB makes a foreign key of, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE c (k INT REFERENCES x (id), PRIMARY KEY (k));\nALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
+		{name: "with a partition dropped", setup: "CREATE TABLE x (id INT, v INT, PRIMARY KEY (id)) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)", change: "ALTER TABLE x DROP COLUMN id, DROP PARTITION p0", err: "You have an error in your SQL syntax", key: "id"},
+		// A statement the rule cannot bound ends the judging.
+		{name: "a USE before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

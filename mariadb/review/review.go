@@ -98,7 +98,8 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 		work.drops = checkDisallowDropConstraint(sql, stmts, r)
 	}
 	if on[review.RequirePrimaryKey] {
-		work.columns = checkRequirePrimaryKey(sql, stmts, r)
+		checkRequirePrimaryKey(sql, stmts, r)
+		work.columns = columnDropSteps(sql, stmts)
 	}
 	if work.backup {
 		work.made = madeByChange(stmts)

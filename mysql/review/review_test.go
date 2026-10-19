@@ -424,23 +424,19 @@ func TestRequirePrimaryKey(t *testing.T) {
 	})
 }
 
-// keyed is shop with tables for the primary key a DROP COLUMN drops:
-// k1 to k7 with a key on id and a column v; pair with a key of two
-// columns; gen with a generated column, chk with a check of the key and
-// v, solo with a check of the key alone, fx with a functional index, and
-// part with partitioning, each reading the key; kpart partitioned by KEY
-// (), which reads the key; self with a foreign key to itself; par2,
-// referenced by ch2, which gch2 references; selfk with an index led by
-// code and followed by the key; fkt with a foreign key to fkp and the
-// index of its name; and sgen and vgen with a
-// stored and a virtual generated column reading the key.
+// keyed is shop with tables for the primary key a DROP COLUMN drops: k1
+// to k3 with a key on id and a column v; pair with a key of two columns;
+// gen with a generated column, chk with a check of the key and v, solo
+// with a check of the key alone, fx with a functional index, and part with
+// partitioning, each reading the key; kpart partitioned by KEY (), which
+// reads the key; and self with a foreign key to itself.
 func keyed() []review.Target {
 	s := shop()
 	pk := func(columns ...string) []*metadata.IndexMetadata {
 		return []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: columns}}
 	}
 	tables := &s.Schemas[0].Tables
-	for _, name := range []string{"k1", "k2", "k3", "k4", "k5", "k6", "k7"} {
+	for _, name := range []string{"k1", "k2", "k3"} {
 		*tables = append(*tables, &metadata.TableMetadata{Name: name, Columns: columns("id", "v"), Indexes: pk("id")})
 	}
 	*tables = append(*tables,
@@ -452,7 +448,7 @@ func keyed() []review.Target {
 		},
 		&metadata.TableMetadata{Name: "chk", Columns: columns("id", "v"), Indexes: pk("id"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`ID` < `v`)"}}},
 		&metadata.TableMetadata{Name: "solo", Columns: columns("id", "v"), Indexes: pk("id"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`id` > 0)"}}},
-		&metadata.TableMetadata{Name: "fx", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "fxi", Expressions: []string{"(`id` + `v`)"}})},
+		&metadata.TableMetadata{Name: "fx", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "fxi", Expressions: []string{"((`id` + `v`))"}})},
 		&metadata.TableMetadata{Name: "part", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Expression: "`id`"}}},
 		&metadata.TableMetadata{Name: "kpart", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
 		&metadata.TableMetadata{
@@ -461,45 +457,16 @@ func keyed() []review.Target {
 			Indexes:     pk("id"),
 			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_up", Columns: []string{"up"}, ReferencedTable: "self", ReferencedColumns: []string{"id"}}},
 		},
-		&metadata.TableMetadata{Name: "selfk", Columns: columns("id", "p_id", "code"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "ic", Expressions: []string{"code", "id"}})},
-		&metadata.TableMetadata{
-			Name:        "fkt",
-			Columns:     columns("id", "v"),
-			Indexes:     append(pk("id"), &metadata.IndexMetadata{Name: "fk_f", Expressions: []string{"v"}}),
-			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_f", Columns: []string{"v"}, ReferencedTable: "fkp", ReferencedColumns: []string{"id"}}},
-		},
-		&metadata.TableMetadata{Name: "fkp", Columns: columns("id"), Indexes: pk("id")},
-		&metadata.TableMetadata{Name: "par2", Columns: columns("id", "v"), Indexes: pk("id")},
-		&metadata.TableMetadata{
-			Name:        "ch2",
-			Columns:     columns("k", "par_id"),
-			Indexes:     pk("k"),
-			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_ch2", Columns: []string{"par_id"}, ReferencedTable: "par2", ReferencedColumns: []string{"id"}}},
-		},
-		&metadata.TableMetadata{
-			Name:        "gch2",
-			Columns:     columns("ch_k"),
-			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_gch2", Columns: []string{"ch_k"}, ReferencedTable: "ch2", ReferencedColumns: []string{"k"}}},
-		},
-		&metadata.TableMetadata{
-			Name:    "sgen",
-			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "(`id` + 1)"}}},
-			Indexes: pk("id"),
-		},
-		&metadata.TableMetadata{
-			Name:    "vgen",
-			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: "(`id` + 1)"}}},
-			Indexes: pk("id"),
-		},
 	)
 	return []review.Target{{Schema: s, BackupDatabaseExists: true}}
 }
 
 // TestRequirePrimaryKeyColumnDrop checks DROP COLUMN against the synced
-// primary key: dropping every column of the key drops it, and dropping some
-// leaves it on the rest. A drop the server may refuse, or one of a column
-// or key the change touched before, is not judged. Every case that reports
-// nothing names a table whose drop would be reported otherwise.
+// primary key. An ALTER TABLE of DROP COLUMN subcommands alone is judged:
+// dropping every column of the key drops it, and a drop the server refuses,
+// or one of only some columns of the key, ends the judging. Any other
+// statement on a table leaves the table out, and one the rule cannot bound
+// ends the judging.
 func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 	lost := func(statement int, text, table string) finding {
 		return finding{statement, text, "removes the primary key of " + table + ", and the change adds none back", []int{0}}
@@ -507,282 +474,80 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 	cases := []ruleCase{
 		{
 			name: "every column of the key",
-			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP b, DROP COLUMN a;\nALTER TABLE shop.t ADD COLUMN w INT, DROP COLUMN id;",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP b, DROP COLUMN a;\nALTER TABLE shop.t DROP COLUMN id, DROP COLUMN code;",
 			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP b", "pair"), lost(2, "DROP COLUMN id", "shop.t")},
 		},
 		{
-			name: "some columns of the key, or none",
-			sql:  "ALTER TABLE pair DROP COLUMN a;\nALTER TABLE plain DROP COLUMN v;\nALTER TABLE nokey ADD COLUMN b INT, DROP COLUMN a;",
+			name: "no column of the key",
+			sql:  "ALTER TABLE plain DROP COLUMN v;\nALTER TABLE nokey ADD COLUMN b INT;\nALTER TABLE nokey DROP COLUMN a;\nALTER TABLE k1 DROP COLUMN id;",
+			want: []finding{lost(3, "DROP COLUMN id", "k1")},
 		},
 		{
-			name: "settled by a key added back, a rename, a drop, or a table of the name",
-			sql: "ALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k1 ADD PRIMARY KEY (v);\nALTER TABLE k2 DROP COLUMN id, ADD PRIMARY KEY (v);\nALTER TABLE k3 DROP COLUMN id;\nRENAME TABLE k3 TO k3_old;" +
-				"\nALTER TABLE k4 DROP COLUMN id;\nDROP TABLE k4;\nALTER TABLE k5 DROP COLUMN id;\nCREATE TABLE k5 (id INT PRIMARY KEY);\nALTER TABLE k6 DROP COLUMN id;\nALTER TABLE k6 RENAME TO k6_old;" +
-				"\nALTER TABLE k7 DROP COLUMN id;\nALTER TABLE k7 MODIFY v INT PRIMARY KEY;\nALTER TABLE pair DROP a, DROP b;\nDROP DATABASE shop;",
+			name: "the key, after columns statements before dropped, and what read them",
+			sql:  "ALTER TABLE t DROP COLUMN code;\nALTER TABLE t DROP COLUMN id;\nALTER TABLE gen DROP COLUMN g;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE solo DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "t"), lost(3, "DROP COLUMN id", "gen"), lost(4, "DROP COLUMN id", "solo")},
 		},
 		{
-			name: "the key dropped by the statement too, reported once",
-			sql:  "ALTER TABLE plain DROP PRIMARY KEY, DROP COLUMN id;",
-			want: []finding{lost(0, "DROP PRIMARY KEY", "plain")},
+			name: "the key, before statements that change no table",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nINSERT INTO plain VALUES (1);\nCREATE VIEW v1 AS SELECT v FROM plain;\nCREATE PROCEDURE pr() ALTER TABLE plain ADD PRIMARY KEY (v);\nSET @x = 1;\nCREATE DATABASE d;\nDROP DATABASE other;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		// What the server refuses, or what follows a drop of only some columns
+		// of the key, is not known: nothing after it is judged, and nothing
+		// before it reported.
+		{name: "some columns of the key", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP COLUMN a;\nALTER TABLE k1 DROP COLUMN id;"},
+		{name: "a column the table lacks", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN missing;\nALTER TABLE k1 DROP COLUMN id;"},
+		{name: "one column twice", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN ID;"},
+		{name: "every column of the table", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN v;"},
+		{name: "a column a foreign key of another table references", sql: "ALTER TABLE p DROP COLUMN id;"},
+		{name: "a column a foreign key of the table holds", sql: "ALTER TABLE t DROP COLUMN id, DROP COLUMN p_id;"},
+		{name: "a column a foreign key of the table to itself references", sql: "ALTER TABLE self DROP COLUMN id;"},
+		{name: "a column a generated column reads", sql: "ALTER TABLE gen DROP COLUMN id;"},
+		{name: "a column a check reads with another", sql: "ALTER TABLE chk DROP COLUMN id;"},
+		{name: "a column a functional index reads", sql: "ALTER TABLE fx DROP COLUMN id;"},
+		{name: "a column the table is partitioned by", sql: "ALTER TABLE part DROP COLUMN id;"},
+		{name: "a column of a table partitioned by KEY ()", sql: "ALTER TABLE kpart DROP COLUMN id;"},
+		{name: "a column of a table the synced schema lacks", sql: "ALTER TABLE missing DROP COLUMN id;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a column of a table of another database", sql: "ALTER TABLE other.plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN id;"},
+		// Any other statement on a table leaves the table out: no later drop
+		// of it is judged, and a finding on it is withdrawn.
+		{
+			name: "another statement on the table before",
+			sql:  "ALTER TABLE plain ADD COLUMN w INT;\nALTER TABLE plain DROP COLUMN id;\nCREATE TABLE c (x INT PRIMARY KEY, FOREIGN KEY (x) REFERENCES k1 (id));\nALTER TABLE k1 DROP COLUMN id;\nDROP TEMPORARY TABLE IF EXISTS k2;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;",
+			want: []finding{lost(6, "DROP COLUMN id", "k3")},
 		},
 		{
-			name: "a table the change made, dropped, or renamed before",
-			sql: "CREATE TEMPORARY TABLE k1 (id INT PRIMARY KEY, v INT);\nALTER TABLE k1 DROP COLUMN id;\nDROP TABLE IF EXISTS k2;\nALTER TABLE k2 DROP COLUMN id;\nRENAME TABLE k3 TO k3_old, k3_new TO k3;\nALTER TABLE k3 DROP COLUMN id;" +
-				"\nALTER TABLE x RENAME TO k4;\nALTER TABLE k4 DROP COLUMN id;\nCREATE TABLE IF NOT EXISTS k5 (id INT);\nALTER TABLE k5 DROP COLUMN id;",
+			name: "a foreign key added to the table, or a table renamed to its name, before",
+			sql:  "ALTER TABLE nokey ADD CONSTRAINT fk_a FOREIGN KEY (a) REFERENCES k1 (id);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k9 RENAME TO k2;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;",
+			want: []finding{lost(4, "DROP COLUMN id", "k3")},
 		},
 		{
-			name: "a temporary table of its name dropped before, which leaves the table as it was",
-			sql:  "DROP TEMPORARY TABLE IF EXISTS k6;\nALTER TABLE k6 DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "k6")},
+			name: "another subcommand of the statement",
+			sql:  "ALTER TABLE plain DROP COLUMN id, ADD COLUMN w INT;\nALTER TABLE k1 DROP COLUMN id, ALTER CHECK missing ENFORCED;\nALTER TABLE k2 DROP PRIMARY KEY, DROP COLUMN id;",
+			want: []finding{{2, "DROP PRIMARY KEY", "removes the primary key of k2, and the change adds none back", []int{0}}},
 		},
 		{
-			name: "a table of a database the change dropped before",
-			sql:  "DROP DATABASE IF EXISTS shop;\nALTER TABLE pair DROP a, DROP b;",
+			name: "another statement on the table after, which may give it a key back",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain ADD PRIMARY KEY (v);\nALTER TABLE k1 DROP COLUMN id;\nRENAME TABLE k9 TO k1;\nALTER TABLE k2 DROP COLUMN id;\nCREATE INDEX i ON k2 (v);\nALTER TABLE k3 DROP COLUMN id;\nTRUNCATE TABLE nokey;",
+			want: []finding{lost(6, "DROP COLUMN id", "k3")},
 		},
 		{
-			name: "another database dropped before or after",
-			sql:  "DROP DATABASE IF EXISTS other;\nALTER TABLE plain DROP COLUMN id;\nALTER TABLE shop.k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nDROP DATABASE other;\nALTER TABLE other.k3 DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "plain"), lost(2, "DROP COLUMN id", "shop.k1"), lost(3, "DROP COLUMN id", "k2")},
+			name: "a column's REFERENCES, which MySQL ignores",
+			sql:  "CREATE TABLE c (x INT PRIMARY KEY REFERENCES k1 (id));\nALTER TABLE k1 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k1")},
 		},
-		{
-			name: "the target's database dropped after",
-			sql:  "ALTER TABLE k4 DROP COLUMN id;\nALTER TABLE shop.k5 DROP COLUMN id;\nDROP DATABASE shop;",
-		},
-		{
-			name: "a key or column the change touched before",
-			sql: "ALTER TABLE k1 DROP PRIMARY KEY;\nALTER TABLE k1 ADD PRIMARY KEY (id);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE pair DROP COLUMN a;\nALTER TABLE pair DROP COLUMN b;\nALTER TABLE k2 MODIFY id BIGINT;\nALTER TABLE k2 DROP COLUMN id;" +
-				"\nALTER TABLE k3 ADD COLUMN w INT, DROP COLUMN id, ADD COLUMN id INT;\nDROP INDEX `PRIMARY` ON k4;\nALTER TABLE k4 DROP COLUMN id;\nALTER TABLE k5 CHANGE v w INT;\nALTER TABLE k5 DROP COLUMN w, DROP COLUMN id;",
-			want: []finding{lost(8, "DROP INDEX `PRIMARY` ON k4", "k4")},
-		},
-		{
-			name: "a column the change touched before, not of the key, or an index of columns",
-			sql:  "ALTER TABLE k1 ADD COLUMN w INT;\nALTER TABLE k1 MODIFY v BIGINT;\nALTER TABLE k1 DROP COLUMN id;\nCREATE INDEX iv ON k2 (v, id);\nALTER TABLE k2 ADD UNIQUE KEY uv (v);\nALTER TABLE k2 DROP COLUMN id;",
-			want: []finding{lost(2, "DROP COLUMN id", "k1"), lost(5, "DROP COLUMN id", "k2")},
-		},
-		{
-			name: "something the change made before that may read a column it drops",
-			sql: "ALTER TABLE nokey ADD CONSTRAINT fk_a FOREIGN KEY (a) REFERENCES k1 (id);\nALTER TABLE k1 DROP COLUMN id;\nCREATE TABLE c (x INT PRIMARY KEY, FOREIGN KEY (x) REFERENCES k2 (id));\nALTER TABLE k2 DROP COLUMN id;" +
-				"\nALTER TABLE k3 ADD COLUMN g INT AS (id + 1);\nALTER TABLE k3 DROP COLUMN id;\nALTER TABLE k4 ADD CHECK (id > 0);\nALTER TABLE k4 DROP COLUMN id;\nCREATE INDEX fi ON k5 ((id + v));\nALTER TABLE k5 DROP COLUMN id;" +
-				"\nALTER TABLE k6 PARTITION BY HASH (id) PARTITIONS 2;\nALTER TABLE k6 DROP COLUMN id;\nALTER TABLE plain ADD FOREIGN KEY (id) REFERENCES p (id);\nALTER TABLE plain DROP COLUMN id;",
-		},
-		{
-			name: "a column's REFERENCES, which MySQL ignores, made before",
-			sql:  "ALTER TABLE nokey ADD COLUMN r INT REFERENCES k7 (id);\nALTER TABLE k7 DROP COLUMN id;\nCREATE TABLE c (x INT PRIMARY KEY REFERENCES k5 (id));\nALTER TABLE k5 DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "k7"), lost(3, "DROP COLUMN id", "k5")},
-		},
-		{
-			name: "something the synced schema holds that depends on a column it drops",
-			sql:  "ALTER TABLE p DROP COLUMN id;\nALTER TABLE t DROP COLUMN id, DROP COLUMN p_id;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE chk DROP COLUMN id;\nALTER TABLE fx DROP COLUMN id;\nALTER TABLE part DROP COLUMN id;\nALTER TABLE kpart DROP COLUMN id;\nALTER TABLE self DROP COLUMN id;",
-		},
-		{
-			name: "a check of the key alone, or a generated column, the drop takes with it",
-			sql:  "ALTER TABLE solo DROP COLUMN id;\nALTER TABLE gen DROP COLUMN g, DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "solo"), lost(1, "DROP COLUMN id", "gen")},
-		},
-		{
-			name: "every column of the table, which the server refuses to drop",
-			sql:  "ALTER TABLE plain DROP COLUMN id, DROP COLUMN v;\nALTER TABLE nokey ADD COLUMN v INT;\nALTER TABLE trig DROP COLUMN id;",
-		},
-		{
-			name: "every column of the table, with one the statement adds",
-			sql:  "ALTER TABLE trig ADD COLUMN v INT, DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "trig")},
-		},
-		{
-			name: "a column the table does not have, or one twice, which the server refuses to drop",
-			sql:  "ALTER TABLE plain DROP COLUMN id, DROP COLUMN missing;\nALTER TABLE k1 DROP COLUMN id, DROP COLUMN ID;",
-		},
-		{
-			name: "something the synced schema holds that the change dropped before, or the statement drops",
-			sql: "ALTER TABLE gen DROP COLUMN g;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;\nALTER TABLE chk DROP CHECK ck, DROP COLUMN id;" +
-				"\nDROP INDEX fxi ON fx;\nALTER TABLE fx DROP COLUMN id;\nALTER TABLE self DROP CONSTRAINT fk_up, DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "gen"), lost(3, "DROP COLUMN id", "p"), lost(4, "DROP COLUMN id", "chk"), lost(6, "DROP COLUMN id", "fx"), lost(7, "DROP COLUMN id", "self")},
-		},
-		{
-			name: "a table holding a foreign key to it, dropped before",
-			sql:  "DROP TABLE t;\nALTER TABLE p DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "p")},
-		},
-		{
-			name: "a table of its name in another database, made, dropped, renamed, altered, or given a key",
-			sql: "DROP TABLE IF EXISTS other.plain;\nALTER TABLE plain DROP COLUMN id;\nCREATE TABLE other.k1 (id INT PRIMARY KEY);\nALTER TABLE k1 DROP COLUMN id;\nRENAME TABLE other.k2 TO other.k9;\nALTER TABLE k2 DROP COLUMN id;" +
-				"\nALTER TABLE other.k5 ADD CHECK (a > 0);\nALTER TABLE k5 DROP COLUMN id;\nALTER TABLE other.k6 MODIFY id BIGINT;\nALTER TABLE k6 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;\nALTER TABLE other.k3 ADD PRIMARY KEY (a);",
-			want: []finding{lost(1, "DROP COLUMN id", "plain"), lost(3, "DROP COLUMN id", "k1"), lost(5, "DROP COLUMN id", "k2"), lost(7, "DROP COLUMN id", "k5"), lost(9, "DROP COLUMN id", "k6"), lost(10, "DROP COLUMN id", "k3")},
-		},
-		{
-			name: "a table of its name made after a USE, which may be the target's",
-			sql:  "USE other;\nCREATE TABLE k7 (a INT PRIMARY KEY);\nALTER TABLE shop.k7 DROP COLUMN id;",
-		},
-		{
-			name: "another subcommand the server refuses: a column the table has added, one added twice, a column it lacks changed, or one renamed to a name it has",
-			sql:  "ALTER TABLE plain ADD COLUMN v INT, DROP COLUMN id;\nALTER TABLE k1 ADD COLUMN w INT, ADD COLUMN w INT, DROP COLUMN id;\nALTER TABLE k2 MODIFY missing INT, DROP COLUMN id;\nALTER TABLE t CHANGE code n INT, DROP COLUMN id;",
-		},
-		{
-			name: "another subcommand that changes or renames a column",
-			sql:  "ALTER TABLE k3 CHANGE v w INT, DROP COLUMN id;\nALTER TABLE k4 MODIFY v BIGINT, DROP COLUMN id;\nALTER TABLE k5 RENAME COLUMN v TO w, DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "k3"), lost(1, "DROP COLUMN id", "k4"), lost(2, "DROP COLUMN id", "k5")},
-		},
-		{
-			name: "what a statement the server refuses drops, which stays",
-			sql:  "ALTER TABLE gen DROP COLUMN g, DROP COLUMN missing;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE t DROP FOREIGN KEY fk_p, DROP FOREIGN KEY missing;\nALTER TABLE p DROP COLUMN id;",
-		},
-		{
-			name: "a table holding a foreign key to it, dropped by a statement that also drops a table the database lacks",
-			sql:  "DROP TABLE t, missing;\nALTER TABLE p DROP COLUMN id;",
-		},
-		{
-			name: "a table holding a foreign key to it, dropped under IF EXISTS with one the database lacks",
-			sql:  "DROP TABLE IF EXISTS t, missing;\nALTER TABLE p DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "p")},
-		},
-		{name: "a table holding a foreign key to it, dropped under IF EXISTS with a view", sql: "DROP TABLE IF EXISTS t, pv;\nALTER TABLE p DROP COLUMN id;"},
-		{name: "a table holding a foreign key to it, which another table references, dropped", sql: "DROP TABLE ch2;\nALTER TABLE par2 DROP COLUMN id;"},
-		{
-			name: "a table holding a foreign key to it, dropped before the table referencing it, which MySQL drops together",
-			sql:  "DROP TABLE ch2, gch2;\nALTER TABLE par2 DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "par2")},
-		},
-		{
-			name: "a table holding a foreign key to it, dropped after the table referencing it",
-			sql:  "DROP TABLE gch2, ch2;\nALTER TABLE par2 DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "par2")},
-		},
-		{
-			name: "another subcommand the server refuses: an index under a name in use or twice, or on a column it drops; a foreign key under a name in use, or with no index to reference; or the rename of an index the table lacks",
-			sql: "ALTER TABLE t DROP COLUMN id, ADD INDEX idx_n (n);\nALTER TABLE k1 ADD INDEX i1 (v), ADD INDEX i1 (v), DROP COLUMN id;\nALTER TABLE k2 ADD INDEX i1 (id), DROP COLUMN id;" +
-				"\nALTER TABLE k3 ADD CONSTRAINT fk_p FOREIGN KEY (v) REFERENCES p (id), DROP COLUMN id;\nALTER TABLE k4 ADD CONSTRAINT fk_v FOREIGN KEY (v) REFERENCES plain (v), DROP COLUMN id;\nALTER TABLE k5 RENAME INDEX missing TO iw, DROP COLUMN id;",
-		},
-		{
-			name: "an index or a foreign key under a name a statement before made",
-			sql:  "CREATE INDEX ix ON k6 (v);\nALTER TABLE k6 ADD INDEX ix (v), DROP COLUMN id;\nALTER TABLE k1 ADD CONSTRAINT fk_n FOREIGN KEY (v) REFERENCES p (id);\nALTER TABLE k7 ADD CONSTRAINT fk_n FOREIGN KEY (v) REFERENCES plain (id), DROP COLUMN id;",
-		},
-		{
-			name: "another subcommand that drops and adds back an index, renames one, or adds a unique key or a foreign key",
-			sql:  "ALTER TABLE t DROP INDEX idx_n, ADD INDEX idx_n (n), RENAME INDEX uk_code TO uk_c, ADD UNIQUE KEY un (n), ADD CONSTRAINT fk_t FOREIGN KEY (p_id) REFERENCES p (id), DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "t")},
-		},
-		{
-			name: "a stored generated column reading it, made ordinary by the statement or changed to an ordinary one",
-			sql:  "ALTER TABLE sgen MODIFY g INT, DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "sgen")},
-		},
-		{
-			name: "a stored generated column reading it, made ordinary before",
-			sql:  "ALTER TABLE sgen CHANGE g g2 INT;\nALTER TABLE sgen DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "sgen")},
-		},
-		{name: "a virtual generated column reading it, made ordinary, which the server refuses", sql: "ALTER TABLE vgen MODIFY g INT, DROP COLUMN id;"},
-		{name: "a generated column of unknown kind, made ordinary", sql: "ALTER TABLE gen MODIFY g INT, DROP COLUMN id;"},
-		{
-			name: "a foreign key of the table to itself, to a unique key it keeps",
-			sql:  "ALTER TABLE t DROP COLUMN id, ADD CONSTRAINT fk_self FOREIGN KEY (p_id) REFERENCES t (code);",
-			want: []finding{lost(0, "DROP COLUMN id", "t")},
-		},
-		{
-			name: "a foreign key of the table to itself, to an index the statement takes a column after the referenced ones from",
-			sql:  "ALTER TABLE selfk DROP COLUMN id, ADD CONSTRAINT fk_s FOREIGN KEY (p_id) REFERENCES selfk (code);",
-			want: []finding{lost(0, "DROP COLUMN id", "selfk")},
-		},
-		{
-			name: "a foreign key of the table to itself, to a column with no index, to a key the statement adds, or to a column it drops",
-			sql:  "ALTER TABLE k1 ADD CONSTRAINT fk_s1 FOREIGN KEY (v) REFERENCES k1 (v), DROP COLUMN id;\nALTER TABLE k2 ADD UNIQUE KEY uv (v), ADD CONSTRAINT fk_s2 FOREIGN KEY (v) REFERENCES k2 (v), DROP COLUMN id;\nALTER TABLE pair DROP a, DROP b, ADD CONSTRAINT fk_s3 FOREIGN KEY (v) REFERENCES pair (a);",
-		},
-		{
-			name: "a foreign key of the table to itself, to an index the statement drops",
-			sql:  "ALTER TABLE t DROP INDEX uk_code, DROP COLUMN id, ADD CONSTRAINT fk_s FOREIGN KEY (p_id) REFERENCES t (code);",
-		},
-		{
-			name: "a generated column reading it, given an expression of another column, of the same storage",
-			sql:  "ALTER TABLE sgen MODIFY g INT AS (v + 1) STORED, DROP COLUMN id;\nALTER TABLE vgen CHANGE g g2 INT AS (v + 1) VIRTUAL, DROP COLUMN id;\nALTER TABLE k3 ADD COLUMN g INT AS (v + 1), DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "sgen"), lost(1, "DROP COLUMN id", "vgen"), lost(2, "DROP COLUMN id", "k3")},
-		},
-		{
-			name: "a generated column made of another storage, or given an expression of the column the statement drops",
-			sql:  "ALTER TABLE sgen MODIFY g INT AS (v + 1) VIRTUAL, DROP COLUMN id;\nALTER TABLE vgen MODIFY g INT AS (v + 1) STORED, DROP COLUMN id;\nALTER TABLE k1 MODIFY v INT AS (id + 1) STORED, DROP COLUMN id;\nALTER TABLE k2 MODIFY v INT AS (id + 1) VIRTUAL, DROP COLUMN id;",
-		},
-		{
-			name: "an ordinary column made a virtual generated one",
-			sql:  "ALTER TABLE k5 MODIFY v INT AS (1) VIRTUAL, DROP COLUMN id;",
-		},
-		{
-			name: "a foreign key under a name a statement before gave one in another database",
-			sql:  "ALTER TABLE other.k1 ADD CONSTRAINT fk_o FOREIGN KEY (v) REFERENCES other.p (id);\nALTER TABLE k7 ADD CONSTRAINT fk_o FOREIGN KEY (v) REFERENCES plain (id), DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "k7")},
-		},
-		{
-			name: "a check of another column, added before or by the statement",
-			sql:  "ALTER TABLE k1 ADD CHECK (v > 0);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 ADD CONSTRAINT ck_k2 CHECK (v > 0), DROP COLUMN id;\nALTER TABLE k3 ADD COLUMN w INT CHECK (w > 0), DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "k1"), lost(2, "DROP COLUMN id", "k2"), lost(3, "DROP COLUMN id", "k3")},
-		},
-		{
-			name: "a check of the column, added before or by the statement",
-			sql:  "ALTER TABLE k1 ADD CHECK (id > 0);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 ADD CHECK (id < v), DROP COLUMN id;",
-		},
-		{
-			name: "a check under a name the database uses, or one twice, or of a column the table lacks",
-			sql:  "ALTER TABLE plain ADD CONSTRAINT ck_n CHECK (v > 0), DROP COLUMN id;\nALTER TABLE k1 ADD CONSTRAINT c2 CHECK (v > 0), ADD CONSTRAINT c2 CHECK (v < 9), DROP COLUMN id;\nALTER TABLE k2 ADD CHECK (missing > 0), DROP COLUMN id;\nALTER TABLE k3 ADD CONSTRAINT ck_o CHECK (v > 0);\nALTER TABLE k4 ADD CONSTRAINT ck_o CHECK (v > 0), DROP COLUMN id;",
-		},
-		{
-			name: "a check under a name a statement before gave one in another database",
-			sql:  "ALTER TABLE other.k3 ADD CONSTRAINT ck_o CHECK (v > 0);\nALTER TABLE k4 ADD CONSTRAINT ck_o CHECK (v > 0), DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "k4")},
-		},
-		{
-			name: "a check under a name a foreign key or an index of the table uses, or one the statement drops",
-			sql:  "ALTER TABLE t ADD CONSTRAINT fk_p CHECK (n > 1), ADD CONSTRAINT uk_code CHECK (n > 2), DROP CHECK ck_n, ADD CONSTRAINT ck_n CHECK (n > 3), DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "t")},
-		},
-		{
-			name: "a column placed after one the table lacks once the subcommand before it ran",
-			sql:  "ALTER TABLE plain DROP COLUMN id, ADD COLUMN w INT AFTER missing;\nALTER TABLE k1 DROP COLUMN id, ADD COLUMN w INT AFTER id;\nALTER TABLE k2 CHANGE v v2 INT, ADD COLUMN w INT AFTER v, DROP COLUMN id;\nALTER TABLE k6 ADD COLUMN b INT AFTER a, ADD COLUMN a INT, DROP COLUMN id;",
-		},
-		{
-			name: "a column placed after one the table keeps, adds, or renames to, or first",
-			sql:  "ALTER TABLE k3 ADD COLUMN a INT, ADD COLUMN b INT AFTER a, DROP COLUMN id;\nALTER TABLE k4 CHANGE v v2 INT, ADD COLUMN w INT AFTER v2, DROP COLUMN id;\nALTER TABLE k5 ADD COLUMN w INT AFTER v, MODIFY v INT FIRST, DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "k3"), lost(1, "DROP COLUMN id", "k4"), lost(2, "DROP COLUMN id", "k5")},
-		},
-		{
-			name: "an index or a constraint dropped twice",
-			sql:  "ALTER TABLE t DROP INDEX idx_n, DROP INDEX idx_n, DROP COLUMN id;\nALTER TABLE fkt DROP FOREIGN KEY fk_f, DROP CONSTRAINT fk_f, DROP COLUMN id;\nALTER TABLE chk DROP CONSTRAINT ck, DROP CONSTRAINT ck, DROP COLUMN id;",
-		},
-		{
-			name: "a foreign key and the index of its name dropped",
-			sql:  "ALTER TABLE fkt DROP FOREIGN KEY fk_f, DROP INDEX fk_f, DROP COLUMN id;",
-			want: []finding{lost(0, "DROP COLUMN id", "fkt")},
-		},
-		{
-			name: "a functional index of another column, made before or by the statement",
-			sql:  "CREATE INDEX fv ON k1 ((v + 1));\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 ADD INDEX fv ((v + 1)), DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "k1"), lost(2, "DROP COLUMN id", "k2")},
-		},
-		{
-			name: "a functional index of the column, or of one the table lacks, added by the statement",
-			sql:  "ALTER TABLE k3 ADD INDEX fv ((id + 1)), DROP COLUMN id;\nALTER TABLE k4 ADD INDEX fv ((missing + 1)), DROP COLUMN id;",
-		},
-		{name: "a later statement that adds a key back, but fails, which stops the change before its end", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);"},
-		{name: "an index of the name of a generated column, dropped before", sql: "ALTER TABLE gen DROP INDEX g;\nALTER TABLE gen DROP COLUMN id;"},
-		{name: "a foreign key of the name, dropped from a table of another database", sql: "ALTER TABLE other.t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
-		{name: "a foreign key of the name, dropped from a table named in another case", sql: "ALTER TABLE T DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
-		{name: "a foreign key of the name, dropped from a temporary table the change made", sql: "CREATE TEMPORARY TABLE t (id INT);\nALTER TABLE t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
-		{name: "a check dropped after", sql: "ALTER TABLE chk DROP COLUMN id;\nALTER TABLE chk DROP CHECK ck;"},
-		{name: "a functional index dropped after a USE", sql: "USE other;\nDROP INDEX fxi ON fx;\nALTER TABLE shop.fx DROP COLUMN id;"},
-		{
-			name: "a table of another database, after a USE, or in a routine body",
-			sql:  "ALTER TABLE other.plain DROP COLUMN id;\nCREATE PROCEDURE pr() ALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE pair DROP a, DROP b;\nALTER TABLE shop.plain DROP COLUMN id;",
-			want: []finding{lost(4, "DROP COLUMN id", "shop.plain")},
-		},
+		// A statement the rule cannot bound ends the judging.
+		{name: "a USE", sql: "USE other;\nALTER TABLE shop.plain DROP COLUMN id;"},
+		{name: "a CALL after the drop", sql: "ALTER TABLE plain DROP COLUMN id;\nCALL pr();"},
+		{name: "sql_require_primary_key set", sql: "SET SESSION sql_require_primary_key = ON;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "an event", sql: "CREATE EVENT ev ON SCHEDULE EVERY 1 DAY DO ALTER TABLE plain ADD PRIMARY KEY (v);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "the target's database dropped after", sql: "ALTER TABLE plain DROP COLUMN id;\nDROP DATABASE shop;"},
 	}
 	for i := range cases {
 		cases[i].targets = keyed()
 	}
 	runCases(t, review.RequirePrimaryKey, cases)
 	runCases(t, review.RequirePrimaryKey, []ruleCase{
-		{
-			name:    "a table of its name in another case made before, where names compare with case and where not",
-			sql:     "CREATE TABLE PLAIN (a INT PRIMARY KEY);\nALTER TABLE plain DROP COLUMN id;",
-			targets: []review.Target{{Schema: shop()}, {Schema: shop(), LowerCaseTableNames: 1}},
-			want:    []finding{{1, "DROP COLUMN id", "removes the primary key of plain, and the change adds none back", []int{0}}},
-		},
 		{
 			name:    "a table named in another case, where names compare with case and where not",
 			sql:     "ALTER TABLE PLAIN DROP COLUMN ID;",
