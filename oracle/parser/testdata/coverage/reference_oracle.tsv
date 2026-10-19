@@ -310,3 +310,5 @@ ref_308	plsql	accept	BEGIN FOR r IN ((SELECT dummy FROM dual) FOR UPDATE) LOOP N
 ref_309	plsql	reject	BEGIN FOR i IN (SELECT 1 FROM dual) + 1 LOOP NULL; END LOOP; END;	a FOR loop query stands alone (PLS-00103)
 ref_310	select	reject	SELECT (SELECT d.*) FROM dual d	table.* without FROM (ORA-00904)
 ref_311	select	accept	SELECT 1 FROM dual d WHERE EXISTS (SELECT d.*)	table.* without FROM in EXISTS
+ref_312	select	reject	SELECT JSON_ARRAY(SELECT 1 FROM dual UNION SELECT 2 FROM dual) FROM dual	set operation in a JSON_ARRAY subquery (ORA-40932)
+ref_313	ddl	reject	CREATE MATERIALIZED ZONEMAP omni_bad_zm_{run} AS SELECT SYS_OP_ZONE_ID(rowid), MIN(dummy), MAX(dummy) FROM dual GROUP BY SYS_OP_ZONE_ID(rowid) FOR UPDATE	FOR UPDATE in a zone map query (ORA-03048)

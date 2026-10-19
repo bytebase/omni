@@ -2907,6 +2907,11 @@ func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		// The subquery holds no set operation (ORA-40932 on Oracle 23ai,
+		// at the end of it).
+		if isSetQuery(sub) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		fc.Args.Items = append(fc.Args.Items, &nodes.SubqueryExpr{
 			Subquery: sub,
 			Loc:      nodes.Loc{Start: sub.Loc.Start, End: p.prev.End},
