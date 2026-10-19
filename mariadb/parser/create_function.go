@@ -5,29 +5,28 @@ import (
 )
 
 // parseCreateLoadableFunction parses a CREATE [AGGREGATE] FUNCTION for loadable UDFs.
-// The caller has already consumed CREATE (and AGGREGATE if present).
+// The caller has already consumed CREATE [OR REPLACE] (and AGGREGATE if present).
 // The current token is FUNCTION.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-function-loadable.html
+// Ref: https://mariadb.com/kb/en/create-function-udf/
 //
-//	CREATE [AGGREGATE] FUNCTION [IF NOT EXISTS] function_name
+//	CREATE [OR REPLACE] [AGGREGATE] FUNCTION [IF NOT EXISTS] function_name
 //	    RETURNS {STRING|INTEGER|REAL|DECIMAL}
 //	    SONAME shared_library_name
-func (p *Parser) parseCreateLoadableFunction(start int, isAggregate bool) (*nodes.CreateFunctionStmt, error) {
+func (p *Parser) parseCreateLoadableFunction(start int, orReplace, isAggregate bool) (*nodes.CreateFunctionStmt, error) {
 	p.advance() // consume FUNCTION
 
 	stmt := &nodes.CreateFunctionStmt{
 		Loc:         nodes.Loc{Start: start},
+		OrReplace:   orReplace,
 		IsAggregate: isAggregate,
 	}
 
-	// Optional IF NOT EXISTS
-	if p.cur.Type == kwIF {
-		p.advance() // consume IF
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Function name
 	ref, err := p.parseTableRef()
@@ -71,16 +70,17 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 }
 
 // parseCreateFunctionStmt parses a CREATE FUNCTION or CREATE PROCEDURE statement.
-// The caller has already consumed CREATE and set isProcedure.
+// The caller has already consumed CREATE [OR REPLACE] [DEFINER = user] and set
+// isProcedure.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-procedure.html
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-function.html
+// Ref: https://mariadb.com/kb/en/create-procedure/
+// Ref: https://mariadb.com/kb/en/create-function/
 //
-//	CREATE [DEFINER = user] PROCEDURE sp_name ([proc_parameter[,...]])
-//	    [characteristic ...] routine_body
-//	CREATE [DEFINER = user] FUNCTION sp_name ([func_parameter[,...]])
-//	    RETURNS type_name [characteristic ...] routine_body
-func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.CreateFunctionStmt, error) {
+//	CREATE [OR REPLACE] [DEFINER = user] PROCEDURE [IF NOT EXISTS] sp_name
+//	    ([proc_parameter[,...]]) [characteristic ...] routine_body
+//	CREATE [OR REPLACE] [DEFINER = user] FUNCTION [IF NOT EXISTS] sp_name
+//	    ([func_parameter[,...]]) RETURNS type_name [characteristic ...] routine_body
+func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool) (*nodes.CreateFunctionStmt, error) {
 	p.advance() // consume FUNCTION or PROCEDURE
 
 	// Completion: after CREATE FUNCTION / CREATE PROCEDURE, identifier context.
@@ -92,16 +92,15 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 
 	stmt := &nodes.CreateFunctionStmt{
 		Loc:         nodes.Loc{Start: start},
+		OrReplace:   orReplace,
 		IsProcedure: isProcedure,
 	}
 
-	// Optional IF NOT EXISTS (MySQL 8.0.29+, applies to both FUNCTION and PROCEDURE)
-	if p.cur.Type == kwIF {
-		p.advance() // consume IF
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Function/procedure name
 	ref, err := p.parseTableRef()

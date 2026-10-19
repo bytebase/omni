@@ -63,16 +63,11 @@ func (p *Parser) parseCreateSequenceStmt(start int, orReplace, temporary bool) (
 		Temporary: temporary,
 	}
 
-	if p.cur.Type == kwIF {
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS_KW); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// Completion: sequence name is a new identifier (no candidates).
 	p.checkCursor()

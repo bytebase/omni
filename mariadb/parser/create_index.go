@@ -5,36 +5,32 @@ import (
 )
 
 // parseCreateIndexStmt parses a CREATE INDEX statement.
-// Called when p.cur is at the INDEX keyword (after consuming CREATE [UNIQUE|FULLTEXT|SPATIAL]).
+// Called when p.cur is at the INDEX keyword (after consuming CREATE [OR REPLACE]
+// [UNIQUE|FULLTEXT|SPATIAL]).
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-index.html
+// Ref: https://mariadb.com/kb/en/create-index/
 //
-//	CREATE [UNIQUE | FULLTEXT | SPATIAL] INDEX index_name
+//	CREATE [OR REPLACE] [UNIQUE | FULLTEXT | SPATIAL] INDEX [IF NOT EXISTS] index_name
 //	    [index_type]
 //	    ON tbl_name (key_part,...)
 //	    [index_option] ...
 //	    [algorithm_option | lock_option] ...
-func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spatial bool) (*nodes.CreateIndexStmt, error) {
+func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, spatial bool) (*nodes.CreateIndexStmt, error) {
 	p.advance() // consume INDEX
 
 	stmt := &nodes.CreateIndexStmt{
-		Loc:      nodes.Loc{Start: start},
-		Unique:   unique,
-		Fulltext: fulltext,
-		Spatial:  spatial,
+		Loc:       nodes.Loc{Start: start},
+		OrReplace: orReplace,
+		Unique:    unique,
+		Fulltext:  fulltext,
+		Spatial:   spatial,
 	}
 
-	// IF NOT EXISTS (MySQL 8.0.27+)
-	if p.cur.Type == kwIF {
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS_KW); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
 	}
+	stmt.IfNotExists = ifNotExists
 
 	// index_name
 	name, _, err := p.parseIdent()
