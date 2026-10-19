@@ -529,20 +529,12 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// DROP PERIOD FOR <name> (PERIOD is non-reserved, intercepted here):
-	// SYSTEM_TIME for the system-versioning period, else application-time. The
-	// period name follows the identifier rule (non-reserved keywords allowed).
-	if p.atPeriodForSystemTime() {
-		p.advance() // PERIOD
-		p.advance() // FOR
-		name, _, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Type = nodes.ATDropPeriod
-		cmd.PeriodName = name
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
+	// DROP PERIOD (PERIOD is non-reserved, intercepted here). MariaDB's parser
+	// takes an unquoted PERIOD right after DROP as the start of a DROP PERIOD
+	// arm, never as a column name, so `DROP period` is 1064; a column of that
+	// name is dropped as `period`, COLUMN period, or IF EXISTS period.
+	if p.atUnquotedKeyword("PERIOD") {
+		return p.parseAlterDropPeriod(cmd)
 	}
 
 	switch p.cur.Type {
