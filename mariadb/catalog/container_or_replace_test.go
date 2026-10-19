@@ -36,6 +36,8 @@ var orReplaceMessageCodes = map[int]bool{
 	ErrRowIsReferenced: true,
 	ErrIsAView:         true,
 	ErrNoSuchTable:     true,
+
+	ErrTableMustHaveColumns: true,
 }
 
 var orReplaceCases = []orReplaceCase{
@@ -203,6 +205,56 @@ var orReplaceCases = []orReplaceCase{
 		},
 		codes: []int{0, 0, 0, 0, 0},
 		check: []string{"orp2.src"},
+	},
+	{
+		// A CTE hides the table only in the query blocks it is visible in: a
+		// plain WITH body sees the CTEs before it, not itself or later ones.
+		name: "refuses a SELECT that reads the table outside the CTE of its name",
+		stmts: []string{
+			"CREATE TABLE src (a INT)",
+			"CREATE OR REPLACE TABLE src AS SELECT * FROM src WHERE EXISTS (WITH src AS (SELECT 1) SELECT * FROM src)",
+			"CREATE OR REPLACE TABLE src AS WITH src AS (SELECT * FROM src) SELECT * FROM src",
+			"CREATE OR REPLACE TABLE src AS WITH c1 AS (SELECT * FROM src), src AS (SELECT 1 AS a) SELECT * FROM c1",
+			"CREATE OR REPLACE TABLE src AS SELECT (WITH src AS (SELECT 1 AS a) SELECT a FROM src) AS x, (SELECT COUNT(*) FROM src) AS y",
+		},
+		codes: []int{0, 1093, 1093, 1093, 1093},
+		check: []string{"src"},
+	},
+	{
+		// As above, the replaced tables are not compared: the catalog does
+		// not model CREATE TABLE AS SELECT.
+		name: "accepts a SELECT whose every reference of the name reads a visible CTE",
+		stmts: []string{
+			"CREATE TABLE s1 (a INT)",
+			"CREATE OR REPLACE TABLE s1 AS WITH RECURSIVE s1 AS (SELECT 1 AS a UNION SELECT a + 1 FROM s1 WHERE a < 3) SELECT * FROM s1",
+			"CREATE TABLE s2 (a INT)",
+			"CREATE OR REPLACE TABLE s2 AS WITH s2 AS (SELECT 1 AS a), c1 AS (SELECT * FROM s2) SELECT * FROM c1",
+			"CREATE TABLE s3 (a INT)",
+			"CREATE OR REPLACE TABLE s3 AS SELECT * FROM (WITH s3 AS (SELECT 1 AS a) SELECT * FROM s3) d",
+			"CREATE TABLE s4 (a INT)",
+			"CREATE OR REPLACE TABLE s4 AS WITH s4 AS (SELECT 1 AS a) SELECT * FROM s4 WHERE EXISTS (SELECT 1 FROM s4)",
+			"CREATE TABLE s5 (a INT)",
+			"CREATE OR REPLACE TABLE s5 AS WITH s5 AS (SELECT 1 AS a) SELECT * FROM s5 UNION SELECT a FROM s5",
+			"CREATE TABLE s6 (a INT)",
+			"CREATE OR REPLACE TABLE s6 AS WITH RECURSIVE c1 AS (SELECT * FROM s6), s6 AS (SELECT 1 AS a) SELECT * FROM c1",
+		},
+		codes: []int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	},
+	{
+		// A table needs a column: 1113, raised after OR REPLACE has dropped
+		// the old table and its trigger.
+		name: "a definition without columns is 1113",
+		stmts: []string{
+			"CREATE TABLE r (id INT)",
+			"CREATE TRIGGER r_bi BEFORE INSERT ON r FOR EACH ROW SET NEW.id = 1",
+			"CREATE OR REPLACE TABLE r",
+			"CREATE TABLE r2 (id INT)",
+			"CREATE OR REPLACE TABLE r2 (INDEX (id))",
+			"CREATE TABLE r3",
+			"CREATE TABLE r4 (CHECK (1 > 0))",
+		},
+		codes: []int{0, 0, 1113, 0, 1113, 1113, 1113},
+		check: []string{"r", "r2", "r3", "r4"},
 	},
 	{
 		name: "replaces a table with CREATE TABLE AS SELECT of declared columns",

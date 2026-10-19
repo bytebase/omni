@@ -155,19 +155,25 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
 	}
 	if replaced != nil {
-		// MariaDB rejects most of what validateColumnDefSemantics checks (a
-		// precision out of range, NOT NULL DEFAULT NULL) while parsing, and
-		// the old table survives. What fails once the definition is put
-		// together (a duplicate column or key, a second primary key, a
-		// foreign key) fails after the old table is dropped, and so it does
-		// here. One check lands on the wrong side: MariaDB rejects a
-		// malformed temporal default (1067) after the drop.
+		// What validateColumnDefSemantics checks and MariaDB also rejects (a
+		// precision out of range, M < D, NOT NULL DEFAULT NULL, ON UPDATE on
+		// a non-temporal column) MariaDB rejects while parsing, and the old
+		// table survives. What fails once the definition is put together (no
+		// column, a duplicate column or key, a second primary key, a foreign
+		// key) fails after the old table is dropped, and so it does here.
+		// MariaDB also rejects a malformed literal default ('not-a-date',
+		// 1067) after the drop; the catalog does not check those.
 		for _, colDef := range stmt.Columns {
 			if err := validateColumnDefSemantics(colDef); err != nil {
 				return err
 			}
 		}
 		c.dropReplacedTable(db, replaced)
+	}
+	// A definition without columns, CREATE TABLE r or one of only keys or
+	// checks, is 1113 in MariaDB, after OR REPLACE has dropped the old table.
+	if len(stmt.Columns) == 0 {
+		return errTableMustHaveColumns()
 	}
 	// Track whether we have a primary key (to detect multiple PKs).
 	hasPK := false
@@ -2745,31 +2751,67 @@ func (c *Catalog) checkCreateOrReplace(db *Database, tableName, key string, stmt
 // selectTableRef returns the first table reference in sel, at any depth
 // (FROM, joins, derived tables, subqueries, set operations, CTE bodies),
 // that names table key of database dbName; nil when there is none or sel
-// is nil. An unqualified name that matches a CTE of the statement reads the
-// CTE, and is skipped. Views are not expanded: MariaDB also refuses a
-// SELECT that reads the table through a view (1443), the catalog does not.
+// is nil. An unqualified name that matches a CTE visible where it stands
+// reads the CTE, and is skipped. Views are not expanded: MariaDB also
+// refuses a SELECT that reads the table through a view (1443), the catalog
+// does not.
 func (c *Catalog) selectTableRef(sel *nodes.SelectStmt, dbName, key string) *nodes.TableRef {
 	if sel == nil {
 		return nil
 	}
-	ctes := make(map[string]bool)
-	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if cte, ok := n.(*nodes.CommonTableExpr); ok {
-			ctes[toLower(cte.Name)] = true
+	return c.queryTableRef(sel, dbName, key, nil)
+}
+
+// queryTableRef is selectTableRef for one query, given the CTE names visible
+// around it. The CTEs of a query's WITH clause are visible in its body, set
+// operations and subqueries included. A body of a WITH RECURSIVE clause sees
+// every CTE of the clause; a body of a plain WITH sees only the CTEs before
+// it, so WITH t AS (SELECT * FROM t) reads table t. Verified on
+// mariadb:11.8.8.
+func (c *Catalog) queryTableRef(sel *nodes.SelectStmt, dbName, key string, outer map[string]bool) *nodes.TableRef {
+	scope := outer
+	if len(sel.CTEs) > 0 {
+		scope = make(map[string]bool, len(outer)+len(sel.CTEs))
+		for name := range outer {
+			scope[name] = true
 		}
-		return true
-	})
+		recursive := sel.CTEs[0].Recursive
+		if recursive {
+			for _, cte := range sel.CTEs {
+				scope[toLower(cte.Name)] = true
+			}
+		}
+		for _, cte := range sel.CTEs {
+			if cte.Select != nil {
+				if ref := c.queryTableRef(cte.Select, dbName, key, scope); ref != nil {
+					return ref
+				}
+			}
+			if !recursive {
+				scope[toLower(cte.Name)] = true
+			}
+		}
+	}
 	var found *nodes.TableRef
 	nodes.Inspect(sel, func(n nodes.Node) bool {
 		if found != nil {
 			return false
 		}
 		switch n := n.(type) {
+		case *nodes.SelectStmt:
+			if n == sel {
+				return true
+			}
+			found = c.queryTableRef(n, dbName, key, scope)
+			return false
+		case *nodes.CommonTableExpr:
+			// Walked above, each with the names its body sees.
+			return false
 		case *nodes.ForUpdate:
 			// Lock targets name FROM entries; they read nothing themselves.
 			return false
 		case *nodes.TableRef:
-			if n.Schema == "" && ctes[toLower(n.Name)] {
+			if n.Schema == "" && scope[toLower(n.Name)] {
 				return true
 			}
 			if c.refNamesTable(n, dbName, key) {

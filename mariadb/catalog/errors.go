@@ -23,6 +23,7 @@ const (
 	ErrWrongObject                       = 1347
 	ErrRowIsReferenced                   = 1451
 	ErrIsAView                           = 1965
+	ErrTableMustHaveColumns              = 1113
 	ErrDupColumn                         = 1060
 	ErrDupKeyName                        = 1061
 	ErrDupEntry                          = 1062
@@ -92,6 +93,7 @@ var sqlStateMap = map[int]string{
 	ErrWrongObject:                       "HY000",
 	ErrRowIsReferenced:                   "23000",
 	ErrIsAView:                           "42S02",
+	ErrTableMustHaveColumns:              "42000",
 	ErrDupColumn:                         "42S21",
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
@@ -266,6 +268,12 @@ func errRowIsReferenced() error {
 func errIsAView(db, name string) error {
 	return &Error{Code: ErrIsAView, SQLState: sqlState(ErrIsAView),
 		Message: fmt.Sprintf("'%s.%s' is a view", db, name)}
+}
+
+// errTableMustHaveColumns is CREATE TABLE of a definition without columns.
+func errTableMustHaveColumns() error {
+	return &Error{Code: ErrTableMustHaveColumns, SQLState: sqlState(ErrTableMustHaveColumns),
+		Message: "A table must have at least 1 column"}
 }
 
 func errFKCannotDropParent(table, fkName, refTable string) error {
