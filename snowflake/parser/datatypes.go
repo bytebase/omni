@@ -12,6 +12,10 @@ import (
 //
 // Handles all forms from the legacy SnowflakeParser.g4 data_type rule.
 func (p *Parser) parseDataType() (*ast.TypeName, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	tok := p.cur
 
 	switch tok.Type {

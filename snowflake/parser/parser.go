@@ -41,6 +41,7 @@ type Parser struct {
 	// checked against maxScriptDepth so a pathologically deep (or adversarial)
 	// body cannot blow the Go stack. See scripting.go.
 	scriptDepth int
+	depth       int // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // advance consumes the current token and moves to the next one.
@@ -209,6 +210,10 @@ func (p *Parser) unknownStatementError() *ParseError {
 // When Tier 7 Snowflake Scripting support lands, F2 gains those constants and
 // this switch gains matching cases.
 func (p *Parser) parseStmt() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Type {
 	// DDL (6 cases)
 	case kwCREATE:
