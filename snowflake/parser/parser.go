@@ -505,7 +505,11 @@ func parseSegment(segText string, baseOffset int, strictTrailing bool) (ast.Node
 
 	var result ast.Node
 	if p.cur.Type != tokEOF {
+		first := p.cur.Loc
 		node, err := p.parseTopStmt()
+		if err == nil && treeTooHigh(node, p.prev.Loc.End-first.Start) {
+			node, err = nil, nestedTooDeeply(first)
+		}
 		if err != nil {
 			if pe, ok := err.(*ParseError); ok {
 				p.errors = append(p.errors, *pe)

@@ -1925,7 +1925,11 @@ func ParseExpr(input string) (ast.Node, []ParseError) {
 	}
 	p.advance()
 
+	first := p.cur.Loc
 	node, err := p.parseExpr()
+	if err == nil && treeTooHigh(node, p.prev.Loc.End-first.Start) {
+		node, err = nil, nestedTooDeeply(first)
+	}
 	if err != nil {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}

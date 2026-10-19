@@ -329,7 +329,11 @@ func ParseDataType(input string) (*ast.TypeName, []ParseError) {
 	}
 	p.advance()
 
+	first := p.cur.Loc
 	dt, err := p.parseDataType()
+	if err == nil && treeTooHigh(dt, p.prev.Loc.End-first.Start) {
+		dt, err = nil, nestedTooDeeply(first)
+	}
 	if err != nil {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
