@@ -914,6 +914,34 @@ func firstOracleNonTerminator(tokens []Token) int {
 // each leading '(' closes and the first SELECT inside it at its own depth:
 // peeling a wrapper at a time scanned the query once per wrapper.
 func oracleQuerySelect(tokens []Token) (lo, hi, selectIdx int) {
+	if len(tokens) > 0 && tokens[0].Type == kwWITH {
+		// After its WITH clause a query may open with a parenthesized
+		// operand, WITH w AS (SELECT c FROM t) (SELECT c FROM w): the first
+		// '(' at its own depth after a ')' that ends a WITH element.
+		depth := 0
+		for i, tok := range tokens {
+			switch tok.Type {
+			case kwSELECT:
+				if depth == 0 {
+					return 0, len(tokens), i
+				}
+			case '(':
+				if depth == 0 && i > 0 && tokens[i-1].Type == ')' {
+					lo, hi, selectIdx = oracleQuerySelect(tokens[i:])
+					if selectIdx < 0 {
+						return 0, 0, -1
+					}
+					return lo + i, hi + i, selectIdx + i
+				}
+				depth++
+			case ')':
+				if depth > 0 {
+					depth--
+				}
+			}
+		}
+		return 0, 0, -1
+	}
 	run := 0
 	for run < len(tokens) && tokens[run].Type == '(' {
 		run++

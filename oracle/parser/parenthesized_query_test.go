@@ -237,6 +237,8 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"CREATE TABLE c AS SELECT a FROM t FOR UPDATE",
 		"CREATE MATERIALIZED ZONEMAP z AS SELECT SYS_OP_ZONE_ID(rowid), MIN(a), MAX(a) FROM t GROUP BY SYS_OP_ZONE_ID(rowid) FOR UPDATE",
 		"CREATE MATERIALIZED ZONEMAP z AS (SELECT SYS_OP_ZONE_ID(rowid), MIN(a), MAX(a) FROM t GROUP BY SYS_OP_ZONE_ID(rowid)) FOR UPDATE",
+		"CREATE JSON RELATIONAL DUALITY VIEW v AS (SELECT JSON_OBJECT('_id' VALUE e.id) FROM e e) FOR UPDATE",
+		"CREATE JSON RELATIONAL DUALITY VIEW v AS SELECT JSON_OBJECT('_id' VALUE e.id) FROM e e FOR UPDATE",
 		"UPDATE (SELECT a FROM t FOR UPDATE) SET a = 1",
 		"DELETE FROM (SELECT a FROM t FOR UPDATE)",
 		"UPDATE t SET a = (SELECT 1 FROM dual FOR UPDATE)",
@@ -424,6 +426,10 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"SELECT x. FROM (SELECT a MULTISET EXCEPT b AS left_name FROM t) x",
 		"SELECT x. FROM (SELECT a MULTISET EXCEPT DISTINCT b AS left_name FROM t) x",
 		"SELECT x. FROM (SELECT c1 left_name FROM t EXCEPT SELECT c FROM u) x",
+		// After a WITH clause too.
+		"SELECT x. FROM (WITH w AS (SELECT 1 c FROM dual) (SELECT c AS left_name FROM w)) x",
+		"SELECT x. FROM (WITH w (c) AS (SELECT 1 FROM dual), v AS (SELECT 2 d FROM dual) ((SELECT c AS left_name FROM w) UNION (SELECT d FROM v))) x",
+		"SELECT x. FROM (WITH w AS (SELECT 1 c FROM dual) SELECT c AS left_name FROM w) x",
 	} {
 		scope := CollectCompletion(sql, len("SELECT x.")).Scope
 		if scope == nil || len(scope.LocalReferences) != 1 || len(scope.LocalReferences[0].Columns) != 1 || scope.LocalReferences[0].Columns[0] != "LEFT_NAME" {
