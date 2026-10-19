@@ -187,7 +187,9 @@ func TestPhase2_DropColumnPartitionKey(t *testing.T) {
 
 	alterStmts := parseStmts(t, "ALTER TABLE t DROP COLUMN id")
 	err := c.ProcessUtility(alterStmts[0])
-	assertErrorCode(t, err, CodeInvalidObjectDefinition)
+	// pg: src/backend/commands/tablecmds.c — ATExecDropColumn
+	// (ERRCODE_INVALID_TABLE_DEFINITION)
+	assertErrorCode(t, err, CodeInvalidTableDefinition)
 }
 
 // TestPhase2_TruncateOnlyPartitioned tests TRUNCATE ONLY on partitioned table.
