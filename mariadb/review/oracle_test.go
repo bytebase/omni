@@ -90,7 +90,10 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 	}
 	t.Cleanup(func() { conn.Close() })
 	for _, stmt := range []string{
-		// other may reference shop, which it then keeps from being dropped.
+		// A case may have turned foreign key checks off on the pooled
+		// connection; other may reference shop, which it then keeps from
+		// being dropped.
+		"SET foreign_key_checks = 1",
 		"DROP DATABASE IF EXISTS other", "DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive",
 		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase,
 	} {
@@ -139,15 +142,19 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		order = append(order, name)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
-		var tbl, col, gen string
-		if err := r.Scan(&tbl, &col, &gen); err != nil {
+	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, ''), EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, col, gen, extra string
+		if err := r.Scan(&tbl, &col, &gen, &extra); err != nil {
 			return err
 		}
 		if t, ok := tables[tbl]; ok {
 			c := &metadata.ColumnMetadata{Name: col}
-			if gen != "" {
-				c.Generation = &metadata.GenerationMetadata{Expression: gen}
+			switch {
+			case gen == "":
+			case strings.Contains(strings.ToUpper(extra), "VIRTUAL GENERATED"):
+				c.Generation = &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: gen}
+			case strings.Contains(strings.ToUpper(extra), "STORED GENERATED"):
+				c.Generation = &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: gen}
 			}
 			t.Columns = append(t.Columns, c)
 		}
@@ -702,6 +709,33 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		// What a statement the server refuses drops stays: the change stops
 		// there.
 		{name: "a generated column reading it, dropped by a statement that fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN g, DROP COLUMN missing;\nALTER TABLE x DROP COLUMN id", err: "Can't DROP COLUMN `missing`", key: "id"},
+		// A DROP TABLE under IF EXISTS passes over a table the database lacks,
+		// and the server refuses to drop a table a foreign key of a table it
+		// keeps references.
+		{name: "a table holding a foreign key referencing it, dropped with one the database lacks under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "DROP TABLE IF EXISTS ch, missing;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a table holding a foreign key referencing it, which another table references, dropped", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id)); CREATE TABLE gch (ch_k INT, CONSTRAINT fk_gch FOREIGN KEY (ch_k) REFERENCES ch (k))", change: "DROP TABLE ch;\nALTER TABLE x DROP COLUMN id", err: "Cannot delete or update a parent row", key: "id"},
+		{name: "a table holding a foreign key referencing it, dropped before the table referencing it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id)); CREATE TABLE gch (ch_k INT, CONSTRAINT fk_gch FOREIGN KEY (ch_k) REFERENCES ch (k))", change: "DROP TABLE ch, gch;\nALTER TABLE x DROP COLUMN id", err: "Cannot delete or update a parent row", key: "id"},
+		{name: "a table holding a foreign key referencing it, dropped after the table referencing it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id)); CREATE TABLE gch (ch_k INT, CONSTRAINT fk_gch FOREIGN KEY (ch_k) REFERENCES ch (k))", change: "DROP TABLE gch, ch;\nALTER TABLE x DROP COLUMN id", reported: true},
+		// The server refuses an index or a foreign key the statement adds
+		// under a name in use, on a column the table lacks once it ran, or
+		// with no index its referenced columns lead, and the rename of an
+		// index the table lacks.
+		{name: "with an index added under a name the table uses", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY iv (v))", change: "ALTER TABLE x DROP COLUMN id, ADD INDEX iv (v)", err: "Duplicate key name 'iv'", key: "id"},
+		{name: "with one index name added twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD INDEX i1 (v), ADD INDEX i1 (v), DROP COLUMN id", err: "Duplicate key name 'i1'", key: "id"},
+		{name: "with an index added on the column it drops", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD INDEX i1 (id), DROP COLUMN id", err: "Key column 'id' doesn't exist", key: "id"},
+		{name: "with a foreign key added under a name the database uses", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE t2 (a INT, CONSTRAINT fk_dup FOREIGN KEY (a) REFERENCES par (id)); CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD CONSTRAINT fk_dup FOREIGN KEY (v) REFERENCES par (id), DROP COLUMN id", err: "errno: 121", key: "id"},
+		{name: "with a foreign key added whose referenced columns lead no index", setup: "CREATE TABLE par (id INT PRIMARY KEY, w INT); CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD CONSTRAINT fk_w FOREIGN KEY (v) REFERENCES par (w), DROP COLUMN id", err: "errno: 150", key: "id"},
+		{name: "with an index the table lacks renamed", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x RENAME INDEX missing TO iw, DROP COLUMN id", err: "Key 'missing' doesn't exist", key: "id"},
+		{name: "with an index dropped and added back, one renamed, and a unique key and a foreign key added", setup: "CREATE TABLE par (id INT PRIMARY KEY); CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT, KEY iv (v), KEY iw (w))", change: "ALTER TABLE x DROP INDEX iv, ADD INDEX iv (v), RENAME INDEX iw TO iz, ADD UNIQUE KEY uv (v), ADD CONSTRAINT fk_ok FOREIGN KEY (v) REFERENCES par (id), DROP COLUMN id", reported: true},
+		// A stored generated column the change makes an ordinary one reads
+		// nothing; the server refuses to make a virtual one ordinary.
+		{name: "a stored generated column reading it, made ordinary by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x MODIFY COLUMN g INT, DROP COLUMN id", reported: true},
+		{name: "a stored generated column reading it, made ordinary before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x MODIFY COLUMN g INT;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a stored generated column reading it, changed to an ordinary one", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x CHANGE COLUMN g g2 INT, DROP COLUMN id", reported: true},
+		{name: "a virtual generated column reading it, made ordinary by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) VIRTUAL)", change: "ALTER TABLE x MODIFY COLUMN g INT, DROP COLUMN id", err: "This is not yet supported for generated columns", key: "id"},
+		// A later statement that adds a key back but fails stops the change
+		// before its end, which the rule, as pg/review does, does not judge.
+		{name: "a later statement that adds a key back, but fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x DROP COLUMN missing, ADD PRIMARY KEY (v)", err: "Can't DROP COLUMN `missing`"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

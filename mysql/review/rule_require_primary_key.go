@@ -59,17 +59,38 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			}
 		}
 	}
-	out := columnDrops{removals: make(map[[2]string][]removal), touched: make(seen), anyColumn: make(seen), gone: make(seen), settles: make(seen)}
+	out := columnDrops{
+		removals: make(map[[2]string][]removal), touched: make(seen), anyColumn: make(seen), gone: make(seen), settles: make(seen),
+		indexes: make(seen), referenced: make(seen), foreignKeys: make(map[string]int),
+	}
 	// A statement's touches come at twice its position, before its own
-	// column drops, at the next.
-	touch := func(position int, touches ...columnTouch) {
+	// column drops, at the next. A touch of a table other than the one
+	// the statement makes or alters is one a foreign key references.
+	touch := func(position int, own *ast.TableRef, touches ...columnTouch) {
 		for _, t := range touches {
 			if t.column == "" {
 				out.anyColumn.add(t.table, "", position)
 			} else {
 				out.touched.add(t.table, t.column, position)
 			}
+			if t.table != own {
+				out.referenced.add(t.table, "", position)
+			}
 		}
+	}
+	// named records the names of the indexes and foreign keys a statement
+	// makes or renames.
+	named := func(position int, ref *ast.TableRef, c *ast.Constraint) {
+		if c == nil || c.Name == "" {
+			return
+		}
+		if c.Type == ast.ConstrForeignKey {
+			if _, ok := out.foreignKeys[nameKey(c.Name)]; !ok {
+				out.foreignKeys[nameKey(c.Name)] = position
+			}
+			return
+		}
+		out.indexes.add(ref, c.Name, position)
 	}
 	// record adds a statement that drops by name, with what it drops.
 	record := func(d dropStatement) {
@@ -89,6 +110,9 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			for _, n := range d.named {
 				removed(ref, n.kind, n.name)
 			}
+			for _, column := range d.plain {
+				removed(ref, dropGeneration, column)
+			}
 		}
 	}
 	for i := range stmts {
@@ -96,7 +120,10 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 		switch v := s.node.(type) {
 		case *ast.CreateTableStmt:
 			out.gone.add(v.Table, "", i)
-			touch(2*i, createTouches(v)...)
+			touch(2*i, v.Table, createTouches(v)...)
+			for _, c := range v.Constraints {
+				named(2*i, v.Table, c)
+			}
 			// IF NOT EXISTS of a table the change made does nothing, and a
 			// temporary table leaves the table of its name as it is.
 			if !v.IfNotExists && !v.Temporary {
@@ -126,8 +153,15 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 					d.named = append(d.named, namedDrop{kind, cmd.Name, cmd.IfExists})
 				}
 				if kind != dropColumn {
-					touch(2*i, alterTouches(sql, v.Table, cmd)...)
-					d.addColumns(cmd)
+					touch(2*i, v.Table, alterTouches(sql, v.Table, cmd)...)
+					d.note(cmd)
+					if cmd.Type == ast.ATAddConstraint || cmd.Type == ast.ATAddIndex {
+						named(2*i, v.Table, cmd.Constraint)
+					}
+					if cmd.Type == ast.ATRenameIndex {
+						out.indexes.add(v.Table, cmd.Name, 2*i)
+						out.indexes.add(v.Table, cmd.NewName, 2*i)
+					}
 				}
 				switch {
 				case addsPrimaryKey(cmd):
@@ -152,23 +186,24 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			if dropped != nil && !adds && !renames {
 				add(&pending{ref: v.Table, index: s.index, rng: rangeOf(dropped.Loc), message: "removes the primary key of " + table(v.Table) + ", and the change adds none back"})
 			}
-			if len(d.columns) > 0 || len(d.named) > 0 {
+			if len(d.columns) > 0 || len(d.named) > 0 || len(d.plain) > 0 {
 				d.judged = len(d.columns) > 0 && dropped == nil && !adds && !renames
 				record(d)
 			}
 			for _, cmd := range d.columns {
-				touch(2*i+1, columnTouch{v.Table, cmd.Name})
+				touch(2*i+1, v.Table, columnTouch{v.Table, cmd.Name})
 			}
 		case *ast.CreateIndexStmt:
 			if functionalParts(v.Columns) {
-				touch(2*i, columnTouch{table: v.Table})
+				touch(2*i, v.Table, columnTouch{table: v.Table})
 			}
+			out.indexes.add(v.Table, v.IndexName, 2*i)
 		case *ast.DropIndexStmt:
 			if !sameName(v.Name, "PRIMARY") {
 				record(dropStatement{statement: s.index, position: i, tables: []*ast.TableRef{v.Table}, named: []namedDrop{{kind: dropIndex, name: v.Name}}})
 				break
 			}
-			touch(2*i, columnTouch{table: v.Table})
+			touch(2*i, v.Table, columnTouch{table: v.Table})
 			add(&pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: "removes the primary key of " + table(v.Table) + ", and the change adds none back"})
 		case *ast.DropTableStmt:
 			// DROP TEMPORARY TABLE drops no permanent table, and leaves the
@@ -176,7 +211,7 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			if v.Temporary {
 				break
 			}
-			record(dropStatement{statement: s.index, position: i, tables: v.Tables, dropsTable: true})
+			record(dropStatement{statement: s.index, position: i, tables: v.Tables, dropsTable: true, ifExists: v.IfExists})
 			for _, ref := range v.Tables {
 				out.gone.add(ref, "", i)
 				out.settles.add(ref, "", i)
@@ -226,8 +261,18 @@ type columnDrops struct {
 	// dropped, or renamed, under each name, and settles those it may have
 	// given a key, dropped, renamed, or made, at the statement's position.
 	touched, anyColumn, gone, settles seen
-	databases                         []string
+	// indexes is the indexes a statement made or renamed, under each name,
+	// by table, at twice the statement's position; foreignKeys the first
+	// such position of each foreign key name, which a database holds once;
+	// and referenced the tables a foreign key a statement made references.
+	indexes, referenced seen
+	foreignKeys         map[string]int
+	databases           []string
 }
+
+// dropGeneration is a MODIFY or CHANGE COLUMN that gives a column a
+// definition without a generation expression, which then reads nothing.
+const dropGeneration dropKind = -1
 
 // any reports whether the change has a column drop to judge.
 func (c columnDrops) any() bool {
@@ -242,16 +287,23 @@ type dropStatement struct {
 	// statement's place in the parsed list.
 	statement int
 	position  int
-	// tables are the tables it alters, or, with dropsTable, drops.
+	// tables are the tables it alters, or, with dropsTable, drops; with
+	// ifExists, a table the database lacks is passed over.
 	tables     []*ast.TableRef
 	dropsTable bool
+	ifExists   bool
 	// columns are the DROP COLUMN subcommands, in order, and named the
 	// drops of an index or a constraint.
 	columns []*ast.AlterTableCmd
 	named   []namedDrop
-	// adds are the columns the other subcommands add, renamed names the
-	// new names they give columns, and needs the columns they change.
-	adds, renamed, needs []string
+	// The other subcommands: adds are the columns they add, renames the
+	// columns they give a new name, needs the columns they change, and
+	// plain those they give a definition without a generation expression;
+	// keys are the indexes and foreign keys they add, and indexRenames the
+	// indexes they rename.
+	adds, needs, plain    []string
+	renames, indexRenames [][2]string
+	keys                  []*ast.Constraint
 	// judged is an ALTER TABLE whose column drops may take the primary
 	// key: it drops columns, and no key, adds no key, and renames no
 	// table.
@@ -266,9 +318,9 @@ type namedDrop struct {
 	ifExists bool
 }
 
-// addColumns records the columns an ALTER TABLE subcommand adds, renames,
-// or changes, which must not exist, or must.
-func (d *dropStatement) addColumns(cmd *ast.AlterTableCmd) {
+// note records what an ALTER TABLE subcommand other than a drop adds,
+// renames, or changes, which the table must have, or must not.
+func (d *dropStatement) note(cmd *ast.AlterTableCmd) {
 	switch cmd.Type {
 	case ast.ATAddColumn:
 		for _, col := range append([]*ast.ColumnDef{cmd.Column}, cmd.Columns...) {
@@ -276,13 +328,22 @@ func (d *dropStatement) addColumns(cmd *ast.AlterTableCmd) {
 				d.adds = append(d.adds, col.Name)
 			}
 		}
-	case ast.ATModifyColumn, ast.ATAlterColumnDefault, ast.ATAlterColumnSetNotNull, ast.ATAlterColumnDropNotNull, ast.ATAlterColumnVisible, ast.ATAlterColumnInvisible:
+	case ast.ATAlterColumnDefault, ast.ATAlterColumnSetNotNull, ast.ATAlterColumnDropNotNull, ast.ATAlterColumnVisible, ast.ATAlterColumnInvisible:
 		d.needs = append(d.needs, cmd.Name)
-	case ast.ATChangeColumn, ast.ATRenameColumn:
+	case ast.ATModifyColumn, ast.ATChangeColumn, ast.ATRenameColumn:
 		d.needs = append(d.needs, cmd.Name)
-		if !sameName(cmd.NewName, cmd.Name) {
-			d.renamed = append(d.renamed, cmd.NewName)
+		if cmd.Type != ast.ATModifyColumn && !sameName(cmd.NewName, cmd.Name) {
+			d.renames = append(d.renames, [2]string{cmd.Name, cmd.NewName})
 		}
+		if cmd.Column != nil && cmd.Column.Generated == nil {
+			d.plain = append(d.plain, cmd.Name)
+		}
+	case ast.ATAddConstraint, ast.ATAddIndex:
+		if c := cmd.Constraint; c != nil && c.Type != ast.ConstrPrimaryKey && c.Type != ast.ConstrCheck {
+			d.keys = append(d.keys, c)
+		}
+	case ast.ATRenameIndex:
+		d.indexRenames = append(d.indexRenames, [2]string{cmd.Name, cmd.NewName})
 	}
 }
 
@@ -555,14 +616,20 @@ func (j *judge) touched(name, column string, upTo int) bool {
 // statementRuns reports whether the statement is known to run on the
 // target: each table it names is the synced one, and nothing the synced
 // schema, or an earlier statement, tells keeps a subcommand from running.
-// Its other subcommands, which add or change, are judged by the columns
-// they name. The server refuses an ALTER TABLE that drops a column the
-// table does not have without IF EXISTS, or one twice, or every column of
-// the table and adds none, or a column something depends on; that changes
-// a column the table does not have, or one the statement drops; that adds
-// a column the table has and the statement keeps, or one twice; or that
-// drops an index or a constraint the table does not have without IF
-// EXISTS.
+// The server refuses an ALTER TABLE that drops a column the table does not
+// have without IF EXISTS, or one twice, or every column of the table and
+// adds none, or a column something depends on; that changes a column the
+// table does not have, or one the statement drops, or makes a virtual
+// generated column an ordinary one; that adds a column the table has and
+// the statement keeps, or one twice; that adds an index under a name the
+// table uses, or one twice, or a key on a column the table lacks once the
+// statement ran, or a foreign key under a name the database uses, or one
+// whose referenced columns lead no index; that renames an index the table
+// does not have; or that drops an index or a constraint the table does
+// not have without IF EXISTS. It refuses a DROP TABLE of a table the
+// database lacks without IF EXISTS, or one a foreign key of another table
+// references. Other failures, such as a type error or rows a key rejects,
+// are not known before the statement runs.
 func (j *judge) statementRuns(i int) bool {
 	if j.runs[i] != 0 {
 		return j.runs[i] > 0
@@ -577,7 +644,7 @@ func (j *judge) statementRuns(i int) bool {
 func (j *judge) knownToRun(i int) bool {
 	d := j.c.statements[i]
 	if d.dropsTable {
-		return !slices.ContainsFunc(d.tables, func(ref *ast.TableRef) bool { return ref == nil || j.synced(ref, d.position) == nil })
+		return j.dropsTables(d, i)
 	}
 	ref := d.tables[0]
 	t := j.synced(ref, d.position)
@@ -587,6 +654,7 @@ func (j *judge) knownToRun(i int) bool {
 	if first, _, ok := j.c.anyColumn.within(ref.Name, "", j.mayBe(ref.Name)); ok && first <= 2*d.position {
 		return false
 	}
+	is := func(name string) func(string) bool { return func(n string) bool { return sameName(n, name) } }
 	hasColumn := func(column string) bool {
 		return slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return sameName(c.GetName(), column) })
 	}
@@ -605,9 +673,19 @@ func (j *judge) knownToRun(i int) bool {
 			return false
 		}
 	}
-	named := append(slices.Clone(d.adds), d.renamed...)
-	for k, column := range named {
-		if hasColumn(column) && !drops(column) || slices.ContainsFunc(named[:k], func(prev string) bool { return sameName(prev, column) }) || j.touched(ref.Name, column, 2*d.position-1) {
+	for _, column := range d.plain {
+		for _, c := range t.GetColumns() {
+			if g := c.GetGeneration(); sameName(c.GetName(), column) && g != nil && g.GetType() != metadata.GenerationMetadata_TYPE_STORED {
+				return false
+			}
+		}
+	}
+	made := slices.Clone(d.adds)
+	for _, r := range d.renames {
+		made = append(made, r[1])
+	}
+	for k, column := range made {
+		if hasColumn(column) && !drops(column) || slices.ContainsFunc(made[:k], is(column)) || j.touched(ref.Name, column, 2*d.position-1) {
 			return false
 		}
 	}
@@ -619,12 +697,165 @@ func (j *judge) knownToRun(i int) bool {
 			return false
 		}
 	}
+	// The columns and indexes the table has once the statement ran.
+	renamedAway := func(column string) bool {
+		return slices.ContainsFunc(d.renames, func(r [2]string) bool { return sameName(r[0], column) })
+	}
+	hasAfter := func(column string) bool {
+		return hasColumn(column) && !drops(column) && !renamedAway(column) || slices.ContainsFunc(made, is(column))
+	}
+	droppedIndex := func(name string) bool {
+		return slices.ContainsFunc(d.named, func(n namedDrop) bool {
+			return (n.kind == dropIndex || n.kind == dropConstraint) && sameName(n.name, name)
+		}) ||
+			slices.ContainsFunc(d.indexRenames, func(r [2]string) bool { return sameName(r[0], name) })
+	}
+	syncedIndex := func(name string) bool {
+		return slices.ContainsFunc(t.GetIndexes(), func(idx *metadata.IndexMetadata) bool { return sameName(idx.GetName(), name) })
+	}
+	indexTouched := func(name string) bool {
+		first, _, ok := j.c.indexes.within(ref.Name, name, j.mayBe(ref.Name))
+		return ok && first < 2*d.position
+	}
+	var indexes []string
+	for _, r := range d.indexRenames {
+		if sameName(r[0], "PRIMARY") || !syncedIndex(r[0]) || indexTouched(r[0]) || j.removed(t.GetName(), r[0], i, false, dropIndex, dropConstraint) {
+			return false
+		}
+		indexes = append(indexes, r[1])
+	}
+	for _, c := range d.keys {
+		for _, column := range c.Columns {
+			if !hasAfter(column) || j.touched(ref.Name, column, 2*d.position-1) {
+				return false
+			}
+		}
+		if c.Type == ast.ConstrForeignKey {
+			if !j.referencesIndex(c, t, d.position, i) || c.Name != "" && j.foreignKeyTaken(c.Name, t, d, i) {
+				return false
+			}
+			continue
+		}
+		if c.Name != "" {
+			indexes = append(indexes, c.Name)
+		}
+	}
+	for k, name := range indexes {
+		if syncedIndex(name) && !droppedIndex(name) || indexTouched(name) || slices.ContainsFunc(indexes[:k], is(name)) {
+			return false
+		}
+	}
 	for _, cmd := range d.columns {
 		if j.keepsColumn(t, cmd.Name, drops, i) {
 			return false
 		}
 	}
 	return true
+}
+
+// dropsTables reports whether a DROP TABLE is known to run: each table it
+// names is a synced one, or, under IF EXISTS, one the database certainly
+// lacks; no foreign key a statement before made may reference one; and no
+// foreign key of a table the statement keeps references one. MySQL drops
+// the tables of the statement together.
+func (j *judge) dropsTables(d dropStatement, i int) bool {
+	var tables []*metadata.TableMetadata
+	for _, ref := range d.tables {
+		if ref == nil {
+			return false
+		}
+		switch t := j.synced(ref, d.position); {
+		case t != nil:
+			tables = append(tables, t)
+		case !d.ifExists || !j.lacks(ref, d.position):
+			return false
+		}
+		if first, _, ok := j.c.referenced.within(ref.Name, "", j.mayBe(ref.Name)); ok && first < 2*d.position {
+			return false
+		}
+	}
+	for _, t := range tables {
+		for _, r := range j.referencing[nameKey(t.GetName())] {
+			if r.table == t || slices.Contains(tables, r.table) || !j.x.same(r.fk.GetReferencedTable(), t.GetName()) ||
+				j.removed(r.table.GetName(), r.fk.GetName(), i, false, dropForeignKey, dropConstraint) {
+				continue
+			}
+			return false
+		}
+	}
+	return true
+}
+
+// lacks reports whether a reference of a statement certainly names no
+// table or view of the target: it names the target's database, which no
+// USE before it moved, the database holds no relation of the name, and no
+// statement before it made, dropped, or renamed a table it may mean.
+func (j *judge) lacks(ref *ast.TableRef, position int) bool {
+	if ref.Schema == "" && j.firstUse < position || ref.Schema != "" && !j.x.same(ref.Schema, j.x.schema.GetName()) || j.x.hasRelation(ref.Name) {
+		return false
+	}
+	first, _, ok := j.c.gone.within(ref.Name, "", j.mayBe(ref.Name))
+	return !ok || first >= position
+}
+
+// referencesIndex reports whether the table a foreign key of a statement
+// references is a synced one other than the table it alters, with an
+// index that the referenced columns lead and no statement before dropped,
+// and no statement before touched those columns or any of the table.
+func (j *judge) referencesIndex(c *ast.Constraint, own *metadata.TableMetadata, position, i int) bool {
+	if c.RefTable == nil || len(c.RefColumns) == 0 {
+		return false
+	}
+	rt := j.synced(c.RefTable, position)
+	if rt == nil || rt == own {
+		return false
+	}
+	if first, _, ok := j.c.anyColumn.within(c.RefTable.Name, "", j.mayBe(c.RefTable.Name)); ok && first < 2*position {
+		return false
+	}
+	for _, column := range c.RefColumns {
+		if j.touched(c.RefTable.Name, column, 2*position-1) {
+			return false
+		}
+	}
+	return slices.ContainsFunc(rt.GetIndexes(), func(idx *metadata.IndexMetadata) bool {
+		parts := idx.GetExpressions()
+		if len(parts) < len(c.RefColumns) {
+			return false
+		}
+		for k, column := range c.RefColumns {
+			if !sameName(parts[k], column) {
+				return false
+			}
+		}
+		return !j.removed(rt.GetName(), idx.GetName(), i, false, dropIndex, dropConstraint)
+	})
+}
+
+// foreignKeyTaken reports whether a foreign key name may name one the
+// database holds when the statement runs: one of a synced table the
+// statement does not drop, and no statement before dropped, or one a
+// statement before made.
+func (j *judge) foreignKeyTaken(name string, own *metadata.TableMetadata, d dropStatement, i int) bool {
+	if first, ok := j.c.foreignKeys[nameKey(name)]; ok && first < 2*d.position {
+		return true
+	}
+	for _, s := range j.x.schema.GetSchemas() {
+		for _, t := range s.GetTables() {
+			for _, fk := range t.GetForeignKeys() {
+				if !sameName(fk.GetName(), name) || j.removed(t.GetName(), name, i, false, dropForeignKey, dropConstraint) {
+					continue
+				}
+				if t == own && slices.ContainsFunc(d.named, func(n namedDrop) bool {
+					return (n.kind == dropForeignKey || n.kind == dropConstraint) && sameName(n.name, name)
+				}) {
+					continue
+				}
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // holds reports whether the synced table has an index or a constraint of
@@ -745,7 +976,7 @@ func (j *judge) keepsColumn(t *metadata.TableMetadata, column string, drops func
 		}
 	}
 	for _, c := range t.GetColumns() {
-		if g := c.GetGeneration(); g != nil && !drops(c.GetName()) && !removed(t.GetName(), c.GetName(), dropColumn) && mentions(g.GetExpression(), column) {
+		if g := c.GetGeneration(); g != nil && !drops(c.GetName()) && !removed(t.GetName(), c.GetName(), dropColumn, dropGeneration) && mentions(g.GetExpression(), column) {
 			return true
 		}
 	}

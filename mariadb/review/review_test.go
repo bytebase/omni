@@ -470,7 +470,8 @@ func TestRequirePrimaryKey(t *testing.T) {
 // column, chk with a check of the key and v, solo with a check of the key
 // alone, and part with partitioning, each reading the key; kpart
 // partitioned by KEY (), which reads the key; and self with a foreign key
-// to itself.
+// to itself; par2, referenced by ch2, which gch2 references; and sgen and
+// vgen with a stored and a virtual generated column reading the key.
 func keyed() []review.Target {
 	s := shop()
 	pk := func(columns ...string) []*metadata.IndexMetadata {
@@ -497,6 +498,28 @@ func keyed() []review.Target {
 			Columns:     columns("id", "up"),
 			Indexes:     pk("id"),
 			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_up", Columns: []string{"up"}, ReferencedTable: "self", ReferencedColumns: []string{"id"}}},
+		},
+		&metadata.TableMetadata{Name: "par2", Columns: columns("id", "v"), Indexes: pk("id")},
+		&metadata.TableMetadata{
+			Name:        "ch2",
+			Columns:     columns("k", "par_id"),
+			Indexes:     pk("k"),
+			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_ch2", Columns: []string{"par_id"}, ReferencedTable: "par2", ReferencedColumns: []string{"id"}}},
+		},
+		&metadata.TableMetadata{
+			Name:        "gch2",
+			Columns:     columns("ch_k"),
+			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_gch2", Columns: []string{"ch_k"}, ReferencedTable: "ch2", ReferencedColumns: []string{"k"}}},
+		},
+		&metadata.TableMetadata{
+			Name:    "sgen",
+			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "(`id` + 1)"}}},
+			Indexes: pk("id"),
+		},
+		&metadata.TableMetadata{
+			Name:    "vgen",
+			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: "(`id` + 1)"}}},
+			Indexes: pk("id"),
 		},
 	)
 	return []review.Target{{Schema: s, BackupDatabaseExists: true}}
@@ -632,6 +655,49 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			name: "a table holding a foreign key to it, dropped by a statement that also drops a table the database lacks",
 			sql:  "DROP TABLE t, missing;\nALTER TABLE p DROP COLUMN id;",
 		},
+		{
+			name: "a table holding a foreign key to it, dropped under IF EXISTS with one the database lacks",
+			sql:  "DROP TABLE IF EXISTS t, missing;\nALTER TABLE p DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "p")},
+		},
+		{name: "a table holding a foreign key to it, dropped under IF EXISTS with a view", sql: "DROP TABLE IF EXISTS t, pv;\nALTER TABLE p DROP COLUMN id;"},
+		{name: "a table holding a foreign key to it, which another table references, dropped", sql: "DROP TABLE ch2;\nALTER TABLE par2 DROP COLUMN id;"},
+		{
+			name: "a table holding a foreign key to it, dropped before the table referencing it, which MariaDB refuses, dropping them in order",
+			sql:  "DROP TABLE ch2, gch2;\nALTER TABLE par2 DROP COLUMN id;",
+		},
+		{
+			name: "a table holding a foreign key to it, dropped after the table referencing it",
+			sql:  "DROP TABLE gch2, ch2;\nALTER TABLE par2 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "par2")},
+		},
+		{
+			name: "another subcommand the server refuses: an index under a name in use or twice, or on a column it drops; a foreign key under a name in use, or with no index to reference; or the rename of an index the table lacks",
+			sql: "ALTER TABLE t DROP COLUMN id, ADD INDEX idx_n (n);\nALTER TABLE k1 ADD INDEX i1 (v), ADD INDEX i1 (v), DROP COLUMN id;\nALTER TABLE k2 ADD INDEX i1 (id), DROP COLUMN id;" +
+				"\nALTER TABLE k3 ADD CONSTRAINT fk_p FOREIGN KEY (v) REFERENCES p (id), DROP COLUMN id;\nALTER TABLE k4 ADD CONSTRAINT fk_v FOREIGN KEY (v) REFERENCES plain (v), DROP COLUMN id;\nALTER TABLE k5 RENAME INDEX missing TO iw, DROP COLUMN id;",
+		},
+		{
+			name: "an index or a foreign key under a name a statement before made",
+			sql:  "CREATE INDEX ix ON k6 (v);\nALTER TABLE k6 ADD INDEX ix (v), DROP COLUMN id;\nALTER TABLE k1 ADD CONSTRAINT fk_n FOREIGN KEY (v) REFERENCES p (id);\nALTER TABLE k7 ADD CONSTRAINT fk_n FOREIGN KEY (v) REFERENCES plain (id), DROP COLUMN id;",
+		},
+		{
+			name: "another subcommand that drops and adds back an index, renames one, or adds a unique key or a foreign key",
+			sql:  "ALTER TABLE t DROP INDEX idx_n, ADD INDEX idx_n (n), RENAME INDEX uk_code TO uk_c, ADD UNIQUE KEY un (n), ADD CONSTRAINT fk_t FOREIGN KEY (p_id) REFERENCES p (id), DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "t")},
+		},
+		{
+			name: "a stored generated column reading it, made ordinary by the statement or changed to an ordinary one",
+			sql:  "ALTER TABLE sgen MODIFY g INT, DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "sgen")},
+		},
+		{
+			name: "a stored generated column reading it, made ordinary before",
+			sql:  "ALTER TABLE sgen CHANGE g g2 INT;\nALTER TABLE sgen DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "sgen")},
+		},
+		{name: "a virtual generated column reading it, made ordinary, which the server refuses", sql: "ALTER TABLE vgen MODIFY g INT, DROP COLUMN id;"},
+		{name: "a generated column of unknown kind, made ordinary", sql: "ALTER TABLE gen MODIFY g INT, DROP COLUMN id;"},
+		{name: "a later statement that adds a key back, but fails, which stops the change before its end", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);"},
 		{name: "an index of the name of a generated column, dropped before", sql: "ALTER TABLE gen DROP INDEX g;\nALTER TABLE gen DROP COLUMN id;"},
 		{name: "a foreign key of the name, dropped from a table of another database", sql: "ALTER TABLE other.t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
 		{name: "a foreign key of the name, dropped from a table named in another case", sql: "ALTER TABLE T DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
