@@ -865,7 +865,16 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 
 	var result ast.Node
 	if p.cur.Kind != tokEOF {
+		first := p.cur
 		node, err := p.parseStmt()
+		// A tree too deep for a recursive walk is dropped here, before
+		// anything (the raw query validation below, or the caller) walks it.
+		if node != nil && treeTooHigh(node, len(segText)) {
+			node = nil
+			if err == nil {
+				err = nestedTooDeeply(first.Loc)
+			}
+		}
 		if err != nil {
 			if pe, ok := err.(*ParseError); ok {
 				p.errors = append(p.errors, *pe)
