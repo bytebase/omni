@@ -18,18 +18,21 @@ import (
 //   - An ALTER TABLE whose every subcommand is DROP COLUMN, or ALGORITHM
 //     or LOCK left at DEFAULT, is followed exactly: the columns it drops,
 //     whether the server refuses it, and whether it takes the key.
-//   - A statement that changes no schema object and fails only on data the
-//     review does not see, such as DML, a session or transaction
-//     statement, or table maintenance, which reports a missing table in
-//     its result, passes, as in pg/review. DML that names a table the
-//     target lacks ends the judging, as pg/review's scan stops at a query
-//     of a missing relation.
+//   - A statement that cannot fail and changes no schema object passes: a
+//     transaction statement, but one of a savepoint the transaction may
+//     lack or one that ends the session; UNLOCK TABLES; table maintenance,
+//     which reports a missing table in its result; and a SET of user
+//     variables to literals, or of the session's foreign_key_checks or
+//     unique_checks.
 //   - Any other statement, and a drop the server refuses or may refuse,
 //     ends the judging of later drops, as pg/review's scan ends at a
 //     statement it cannot follow: the rule cannot establish that it runs,
-//     and one that fails stops the change. A finding before it stands,
-//     unless a statement on its table that may give it a key back, rename
-//     it, or drop it withdraws the finding.
+//     and one that fails stops the change. DML is one, since a query of a
+//     table or column the target lacks fails, and so is any other SET,
+//     which may name a variable the server lacks or refuses to set. A
+//     finding before it stands, unless a statement that may give its table
+//     a key back, rename the table, drop it, or create a table of its name
+//     withdraws the finding.
 //   - A statement that may change any table, such as a CALL or an event,
 //     or a drop of the target's database, ends the judging and withdraws
 //     every finding.
@@ -53,17 +56,12 @@ const (
 	// dropsColumns is an ALTER TABLE whose every subcommand is DROP COLUMN.
 	dropsColumns stepKind = iota
 	// namesTables is any other statement on a table, which ends the
-	// judging and withdraws a finding on the tables it changes.
+	// judging and withdraws a finding on the tables it may give a key
+	// back, rename, drop, or create.
 	namesTables
 	// dropsDatabase is a DROP DATABASE, which withdraws every finding when
 	// it drops the target's.
 	dropsDatabase
-	// requiresKey is a SET of sql_require_primary_key or
-	// sql_generate_invisible_primary_key for the session.
-	requiresKey
-	// queries is DML, which ends the judging when it names a table the
-	// target lacks.
-	queries
 	// barrier is any other statement the rule cannot follow.
 	barrier
 	// stops is a statement that may change any table.
@@ -77,10 +75,6 @@ type step struct {
 	tables    []*ast.TableRef
 	drops     []*ast.AlterTableCmd
 	database  string
-	// settings are what a requiresKey step sets.
-	settings []keySetting
-	// node is the statement a queries step is.
-	node ast.Node
 }
 
 // columnDropSteps reads the change's top-level statements into steps.
@@ -94,16 +88,24 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			if drops, ok := onlyColumnDrops(sql, v); ok {
 				st.kind, st.tables, st.drops = dropsColumns, []*ast.TableRef{v.Table}, drops
 			} else {
-				st.kind, st.tables = namesTables, alterNames(v)
+				st.kind, st.tables = namesTables, alterSettles(v)
 			}
 		case *ast.CreateTableStmt:
-			st.kind, st.tables = namesTables, []*ast.TableRef{v.Table}
-		case *ast.CreateIndexStmt:
-			st.kind, st.tables = namesTables, []*ast.TableRef{v.Table}
-		case *ast.DropIndexStmt:
-			st.kind, st.tables = namesTables, []*ast.TableRef{v.Table}
+			st.kind = namesTables
+			// IF NOT EXISTS of a table that exists does nothing, and a temporary
+			// table leaves the table of its name as it is.
+			if !v.IfNotExists && !v.Temporary {
+				st.tables = []*ast.TableRef{v.Table}
+			}
+		case *ast.CreateIndexStmt, *ast.DropIndexStmt:
+			// CREATE INDEX makes no primary key.
+			st.kind = namesTables
 		case *ast.DropTableStmt:
-			st.kind, st.tables = namesTables, v.Tables
+			st.kind = namesTables
+			// DROP TEMPORARY TABLE drops no permanent table.
+			if !v.Temporary {
+				st.tables = v.Tables
+			}
 		case *ast.RenameTableStmt:
 			st.kind = namesTables
 			for _, pair := range v.Pairs {
@@ -114,26 +116,39 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 		case *ast.DropDatabaseStmt:
 			st.kind, st.database = dropsDatabase, v.Name
 		case *ast.SetStmt:
-			settings := keySettings(v)
-			if len(settings) == 0 {
+			if setPasses(v) {
 				continue
 			}
-			st.kind, st.settings = requiresKey, settings
-		case *ast.UseStmt:
+			st.kind = barrier
+		case *ast.BeginStmt, *ast.UnlockTablesStmt,
+			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt:
+			continue
+		case *ast.CommitStmt:
+			// COMMIT RELEASE ends the session.
+			if !v.Release {
+				continue
+			}
+			st.kind = barrier
+		case *ast.RollbackStmt:
+			// ROLLBACK TO a savepoint the transaction lacks fails.
+			if !v.Release && v.Savepoint == "" {
+				continue
+			}
+			st.kind = barrier
+		case *ast.SavepointStmt:
+			// RELEASE of a savepoint the transaction lacks fails.
+			if !v.Release {
+				continue
+			}
 			st.kind = barrier
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.TableStmt, *ast.ValuesStmt, *ast.DoStmt,
-			*ast.ExplainStmt, *ast.ShowStmt:
-			st.kind, st.node = queries, v
-		case *ast.HelpStmt, *ast.BeginStmt, *ast.CommitStmt, *ast.RollbackStmt, *ast.SavepointStmt, *ast.SetTransactionStmt, *ast.UnlockTablesStmt,
-			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt:
-			// It changes no schema object and names no table, or reports a
-			// missing one in its result.
-			continue
-		case *ast.TruncateStmt, *ast.LockTablesStmt:
-			// It changes no schema object, but fails on a table the target
-			// lacks or, for TRUNCATE, one a foreign key references; under
-			// LOCK TABLES, an ALTER TABLE of a table it did not lock for
-			// writing fails.
+			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.SetTransactionStmt, *ast.UseStmt:
+			// It changes no schema object, but may fail: on a table or column
+			// the target lacks; for TRUNCATE, on a table a foreign key
+			// references; for SET TRANSACTION, inside a transaction. Under LOCK
+			// TABLES, an ALTER TABLE of a table it did not lock for writing
+			// fails, and after USE, a name without a database may mean another
+			// table.
 			st.kind = barrier
 		case *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.DropViewStmt, *ast.CreateTriggerStmt, *ast.DropTriggerStmt,
 			*ast.CreateFunctionStmt, *ast.AlterRoutineStmt, *ast.DropRoutineStmt, *ast.DropEventStmt,
@@ -191,16 +206,20 @@ func leftDefault(sql string, cmd *ast.AlterTableCmd) bool {
 	return len(tokens) > 0 && strings.EqualFold(tokenText(text, tokens[len(tokens)-1]), "DEFAULT")
 }
 
-// alterNames returns the tables an ALTER TABLE changes: its own, and the
-// one it renames to.
-func alterNames(v *ast.AlterTableStmt) []*ast.TableRef {
+// alterSettles returns the tables an ALTER TABLE may give a primary key
+// back or rename: its own, and the one it renames to.
+func alterSettles(v *ast.AlterTableStmt) []*ast.TableRef {
 	if v.Table == nil {
 		return nil
 	}
-	names := []*ast.TableRef{v.Table}
+	var names []*ast.TableRef
 	for _, cmd := range v.Commands {
-		if cmd != nil && cmd.Type == ast.ATRenameTable {
-			names = append(names, renamedTo(cmd))
+		switch {
+		case cmd == nil:
+		case cmd.Type == ast.ATRenameTable:
+			names = append(names, v.Table, renamedTo(cmd))
+		case addsPrimaryKey(cmd):
+			names = append(names, v.Table)
 		}
 	}
 	return names
@@ -218,64 +237,62 @@ func renamedTo(cmd *ast.AlterTableCmd) *ast.TableRef {
 	return &ast.TableRef{Name: cmd.NewName}
 }
 
-// keyRequired reports whether a session setting refuses, or may refuse, a
-// statement that leaves a table without a primary key.
-func keyRequired(settings map[string]bool) bool {
-	for _, on := range settings {
-		if on {
-			return true
+// setPasses reports whether a SET cannot fail: every assignment sets a
+// user variable to a literal, or the session's foreign_key_checks or
+// unique_checks, which need no privilege, to on or off. Any other may name
+// a variable the server lacks, one it reads only, or one that needs a
+// privilege, and a failed assignment fails the statement.
+//
+// mysql: https://dev.mysql.com/doc/refman/8.0/en/set-variable.html
+func setPasses(v *ast.SetStmt) bool {
+	for _, a := range v.Assignments {
+		if a == nil || a.Column == nil || a.Column.Table != "" {
+			return false
 		}
+		name, scope := strings.ToLower(a.Column.Column), strings.ToUpper(v.Scope)
+		if strings.HasPrefix(name, "@") && !strings.HasPrefix(name, "@@") {
+			if !literal(a.Value) {
+				return false
+			}
+			continue
+		}
+		if strings.HasPrefix(name, "@@") {
+			name = strings.TrimPrefix(name, "@@")
+			if dot := strings.IndexByte(name, '.'); dot >= 0 {
+				name, scope = name[dot+1:], strings.ToUpper(name[:dot])
+			}
+		}
+		if name != "foreign_key_checks" && name != "unique_checks" || scope != "" && scope != "SESSION" && scope != "LOCAL" || !onOrOff(a.Value) {
+			return false
+		}
+	}
+	return len(v.Assignments) > 0
+}
+
+// literal reports whether an expression is a literal, which a user
+// variable takes as it is.
+func literal(e ast.ExprNode) bool {
+	switch x := e.(type) {
+	case *ast.IntLit, *ast.FloatLit, *ast.BoolLit, *ast.NullLit:
+		return true
+	case *ast.StringLit:
+		return x.Charset == ""
 	}
 	return false
 }
 
-// keySetting is what a SET does to one of the session's settings under
-// which the server refuses a statement that leaves a table without a
-// primary key: on or off, when known.
-type keySetting struct {
-	name      string
-	on, known bool
-}
-
-// keySettings reads what a SET does to the session's
-// sql_require_primary_key and sql_generate_invisible_primary_key; under
-// either, on, the server refuses a statement that leaves a table without a
-// primary key. A GLOBAL or PERSIST assignment leaves the session as it is,
-// and a user variable of the name is another variable. DEFAULT, or an
-// expression, sets a value the change does not tell.
-//
-// mysql: https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_sql_require_primary_key
-// mysql: https://dev.mysql.com/doc/refman/8.0/en/create-table-gipks.html
-func keySettings(v *ast.SetStmt) []keySetting {
-	var out []keySetting
-	for _, a := range v.Assignments {
-		if a == nil || a.Column == nil {
-			continue
-		}
-		name, scope := strings.ToLower(a.Column.Column), strings.ToUpper(v.Scope)
-		if strings.HasPrefix(name, "@@") {
-			name = strings.TrimPrefix(name, "@@")
-			for _, s := range []string{"global.", "persist.", "persist_only.", "session.", "local."} {
-				if strings.HasPrefix(name, s) {
-					name, scope = strings.TrimPrefix(name, s), strings.ToUpper(strings.TrimSuffix(s, "."))
-				}
-			}
-		}
-		if name != "sql_require_primary_key" && name != "sql_generate_invisible_primary_key" || scope == "GLOBAL" || scope == "PERSIST" || scope == "PERSIST_ONLY" {
-			continue
-		}
-		k := keySetting{name: name}
-		switch x := a.Value.(type) {
-		case *ast.BoolLit:
-			k.on, k.known = x.Value, true
-		case *ast.IntLit:
-			k.on, k.known = x.Value != 0, x.Value == 0 || x.Value == 1
-		case *ast.StringLit:
-			k.on, k.known = strings.EqualFold(x.Value, "ON"), strings.EqualFold(x.Value, "ON") || strings.EqualFold(x.Value, "OFF")
-		}
-		out = append(out, k)
+// onOrOff reports whether an expression is a value of a boolean system
+// variable: ON, OFF, TRUE, FALSE, 1, or 0.
+func onOrOff(e ast.ExprNode) bool {
+	switch x := e.(type) {
+	case *ast.BoolLit:
+		return true
+	case *ast.IntLit:
+		return x.Value == 0 || x.Value == 1
+	case *ast.StringLit:
+		return x.Charset == "" && (strings.EqualFold(x.Value, "ON") || strings.EqualFold(x.Value, "OFF"))
 	}
-	return out
+	return false
 }
 
 // checkColumnDrops judges the change's column drops against one target.
@@ -292,10 +309,8 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 	var findings []found
 	dropped := make(map[*metadata.TableMetadata][]string)
 	j := &columnJudge{x: x}
-	// judging is whether the rule still judges drops, and requireKey holds
-	// the session settings under which the server refuses one that takes a
-	// table's key, or may, when the value is not known.
-	judging, requireKey := true, make(map[string]bool)
+	// judging is whether the rule still judges drops.
+	judging := true
 	for _, s := range c.steps {
 		switch s.kind {
 		case stops:
@@ -307,14 +322,6 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 			judging = false
 		case barrier:
 			judging = false
-		case queries:
-			if judging && namesMissing(s.node, x) {
-				judging = false
-			}
-		case requiresKey:
-			for _, k := range s.settings {
-				requireKey[k.name] = k.on || !k.known
-			}
 		case namesTables:
 			judging = false
 			for _, ref := range s.tables {
@@ -335,7 +342,7 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 				continue
 			}
 			columns, lost, runs := j.dropColumns(t, s.drops, dropped[t])
-			if !runs || lost != nil && keyRequired(requireKey) {
+			if !runs {
 				judging = false
 				continue
 			}
@@ -348,20 +355,6 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 	for _, f := range findings {
 		r.report(review.RequirePrimaryKey, f.statement, f.rng, f.message)
 	}
-}
-
-// namesMissing reports whether a statement names a table the target may
-// lack: one of another database, or one of the name the synced schema
-// holds no table or view of. A CTE's name counts as a table.
-func namesMissing(n ast.Node, x schemaIndex) bool {
-	missing := false
-	ast.Inspect(n, func(n ast.Node) bool {
-		if ref, ok := n.(*ast.TableRef); ok && !missing {
-			missing = ref.Schema != "" && !x.same(ref.Schema, x.schema.GetName()) || !x.hasRelation(ref.Name)
-		}
-		return !missing
-	})
-	return missing
 }
 
 // columnJudge judges the column drops of one target.
@@ -457,17 +450,18 @@ func primaryKeyColumns(t *metadata.TableMetadata) []string {
 	return key
 }
 
-// keepsColumn reports whether something the synced schema holds may keep
-// the server from dropping a column of the table, given the columns gone
-// with this statement or before it: a foreign key of the table that holds
-// it, or one of the database that references it; a generated column not
-// gone that may read it, or whose expression default may; a check that
-// reads it and another column; a
-// functional index part that may read it; or the table's partitioning or
-// subpartitioning, by an expression that may read it or by KEY (), which
-// reads the primary key. A check that reads the column alone goes with
-// it. A foreign key names the table it references without its database,
-// so one that may reference a table of another database counts.
+// keepsColumn reports whether something the synced schema holds may keep the
+// server from dropping a column of the table, given the columns gone with
+// this statement or before it: a foreign key of the table that holds it, or
+// one of the database that references it; a generated column not gone that
+// may read it, or whose expression default may; a check that reads it and
+// another column; a unique key of it and a part not gone, which narrows to
+// the rest and fails when their values repeat; a functional index part that
+// may read it; or the table's partitioning or subpartitioning, by an
+// expression that may read it or by KEY (), which reads the primary key. A
+// check that reads the column alone goes with it. A foreign key names the
+// table it references without its database, so one that may reference a
+// table of another database counts.
 func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone func(string) bool) bool {
 	has := func(list []string) bool {
 		return slices.ContainsFunc(list, func(c string) bool { return sameName(c, column) })
@@ -497,6 +491,9 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 		}
 	}
 	for _, idx := range t.GetIndexes() {
+		if idx.GetUnique() && !idx.GetPrimary() && has(idx.GetExpressions()) && slices.ContainsFunc(idx.GetExpressions(), func(part string) bool { return !gone(part) }) {
+			return true
+		}
 		for _, part := range idx.GetExpressions() {
 			if !sameName(part, column) && reads(part, column) {
 				return true
