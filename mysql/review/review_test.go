@@ -431,11 +431,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 // v, solo with a check of the key alone, fx with a functional index, and
 // part with partitioning, each reading the key; kpart partitioned by KEY (),
 // which reads the key, and kpart0, without a key, by KEY (), which reads its
-// unique key; inv whose other column is invisible, and inv2 with a visible
-// one too; defx whose other column's default reads the key, and deflit whose
-// literal default names it; uq with a unique key of the key and v, uq1 with
-// one of the key alone, and kv with a key of v and the key that is not
-// unique; and self with a foreign key to itself.
+// unique key and not its other index; inv whose other column is invisible,
+// and inv2 with a visible one too; defx whose other column's default reads
+// the key, and deflit whose literal default names it; uq with a unique key
+// of the key and v, uq1 with one of the key alone, and kv with a key of v
+// and the key that is not unique; and self with a foreign key to itself.
 func keyed() []review.Target {
 	s := shop()
 	pk := func(columns ...string) []*metadata.IndexMetadata {
@@ -463,7 +463,7 @@ func keyed() []review.Target {
 		&metadata.TableMetadata{Name: "fx", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "fxi", Expressions: []string{"((`id` + `v`))"}})},
 		&metadata.TableMetadata{Name: "part", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Expression: "`id`"}}},
 		&metadata.TableMetadata{Name: "kpart", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
-		&metadata.TableMetadata{Name: "kpart0", Columns: columns("u", "v"), Indexes: []*metadata.IndexMetadata{{Name: "uu", Unique: true, Expressions: []string{"u"}}}, Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
+		&metadata.TableMetadata{Name: "kpart0", Columns: columns("u", "v", "w"), Indexes: []*metadata.IndexMetadata{{Name: "uu", Unique: true, Expressions: []string{"u"}}, {Name: "iv", Expressions: []string{"v"}}}, Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
 		&metadata.TableMetadata{Name: "inv", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", IsInvisible: true}}, Indexes: pk("id")},
 		&metadata.TableMetadata{Name: "inv2", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", IsInvisible: true}, {Name: "w"}}, Indexes: pk("id")},
 		&metadata.TableMetadata{Name: "defx", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", Default: "((`id` + 1))"}}, Indexes: pk("id")},
@@ -528,7 +528,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "a column a functional index reads", sql: "ALTER TABLE fx DROP COLUMN id;"},
 		{name: "a column the table is partitioned by", sql: "ALTER TABLE part DROP COLUMN id;"},
 		{name: "a column of a table partitioned by KEY ()", sql: "ALTER TABLE kpart DROP COLUMN id;"},
-		{name: "a column of a table without a primary key partitioned by KEY ()", sql: "ALTER TABLE kpart0 DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "the unique key's column of a table without a primary key partitioned by KEY ()", sql: "ALTER TABLE kpart0 DROP COLUMN u;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, after a column out of any key dropped from a table without a primary key partitioned by KEY ()",
+			sql:  "ALTER TABLE kpart0 DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
 		{
 			name: "the key, after a column out of the key dropped from a table partitioned by KEY ()",
 			sql:  "ALTER TABLE kpart DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;",

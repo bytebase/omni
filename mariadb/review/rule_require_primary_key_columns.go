@@ -504,13 +504,16 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 		}
 	}
 	// KEY () is synced with no expression, and reads the primary key, or,
-	// without one, a unique key.
+	// without one, a unique key: a column of none of them is not read.
 	partitionedBy := func(expr string) bool {
-		if expr == "" {
-			key := primaryKeyColumns(t)
-			return key == nil || has(key)
+		if expr != "" {
+			return reads(expr, column)
 		}
-		return reads(expr, column)
+		if key := primaryKeyColumns(t); key != nil {
+			return has(key)
+		}
+		return !slices.ContainsFunc(t.GetIndexes(), (*metadata.IndexMetadata).GetUnique) ||
+			slices.ContainsFunc(t.GetIndexes(), func(idx *metadata.IndexMetadata) bool { return idx.GetUnique() && has(idx.GetExpressions()) })
 	}
 	for _, p := range t.GetPartitions() {
 		if partitionedBy(p.GetExpression()) {
