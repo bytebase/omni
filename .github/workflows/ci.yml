@@ -25,6 +25,7 @@ jobs:
       PAREN_FUZZ_SIZE: '10000'
       SPLITTEST_N: '1000000'
       S3DIFF_N: '2000'
+      WALK_SWEEP_N: '500'
     services:
       trino:
         # The trino oracle tests need a live Trino; the runner waits for the

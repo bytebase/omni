@@ -1,0 +1,286 @@
+package review
+
+import (
+	"strings"
+
+	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/review/walk"
+)
+
+// The spaces WalkThrough keeps facts in. A relation and a type are held by
+// a schema, a column, a constraint, and the primary key by a table; the
+// primary key space has one key per table, named "".
+const (
+	spaceSchema     = "schema"
+	spaceRelation   = "relation"
+	spaceType       = "type"
+	spaceColumn     = "column"
+	spaceConstraint = "constraint"
+	spacePrimaryKey = "primary key"
+)
+
+// The kinds of a relation: every name in pg_class's namespace of a schema.
+const (
+	relTable     = "table" // ordinary or partitioned
+	relView      = "view"
+	relMatview   = "materialized view"
+	relSequence  = "sequence"
+	relIndex     = "index"
+	relForeign   = "foreign table"
+	relComposite = "composite type"
+)
+
+// The kinds of a column and a constraint.
+const (
+	kindColumn = "column"
+
+	conPrimary   = "primary key"
+	conUnique    = "unique"
+	conForeign   = "foreign key"
+	conCheck     = "check"
+	conExclusion = "exclusion"
+)
+
+// tempSchema is the name that stands for the session's temporary schema.
+const tempSchema = "pg_temp"
+
+// systemColumns are the system columns every table has, which a user
+// column cannot be named after (PostgreSQL 12 and later; oid stopped
+// being one when WITH OIDS went).
+//
+// pg: src/backend/catalog/heap.c — SysAtt
+var systemColumns = map[string]bool{
+	"tableoid": true, "cmax": true, "xmax": true, "cmin": true, "xmin": true, "ctid": true,
+}
+
+// pgSnapshot is a target's synced schema as WalkThrough trusts it. It
+// answers Present for what Bytebase's sync lists and Absent only where
+// that sync is complete; everywhere else it answers Unknown.
+//
+// What the sync leaves out, from bytebase/backend/plugin/db/pg/sync.go and
+// backend/plugin/parser/pg/system_objects.go:
+//   - the system schemas (pg_catalog, information_schema, pg_toast*,
+//     pg_temp*, and the TimescaleDB, Citus, pg_cron, pg_partman, and
+//     squeeze schemas);
+//   - tables and views by name (systemTables, systemViews, and the
+//     g_columnar_ and google_db_advisor_ view prefixes): every listed
+//     name begins with pg_ or one of those prefixes;
+//   - the schema of a partition, which the metadata keeps under its
+//     parent, and a partition's columns;
+//   - domains, range types, and base types;
+//   - NOT NULL constraints, which PostgreSQL 18 names (t_a_not_null).
+//
+// So a schema's absence is trusted unless its name is a system one, a
+// relation's in a synced schema unless its name is one the sync drops or
+// a partition's or a partition index's, which may sit in any schema, and
+// a column's in a synced table or foreign table. A type's, a
+// constraint's, and a primary key's absence is never trusted.
+type pgSnapshot struct {
+	schemas   map[string]bool
+	relations map[[2]string]string
+	types     map[[2]string]bool
+	// columns lists the columns of the tables and foreign tables whose
+	// columns the sync lists in full.
+	columns     map[[2]string]map[string]bool
+	constraints map[[2]string]map[string]string
+	primaryKeys map[[2]string]bool
+	// anywhere lists the partition and partition index names, Unknown in
+	// every schema.
+	anywhere map[string]bool
+	// inSchema lists the relations and types each schema holds.
+	inSchema map[string][]walk.Key
+}
+
+// newPgSnapshot reads a target's synced schema. A nil schema gives a
+// snapshot that knows nothing.
+func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
+	s := &pgSnapshot{
+		schemas:     make(map[string]bool),
+		relations:   make(map[[2]string]string),
+		types:       make(map[[2]string]bool),
+		columns:     make(map[[2]string]map[string]bool),
+		constraints: make(map[[2]string]map[string]string),
+		primaryKeys: make(map[[2]string]bool),
+		anywhere:    make(map[string]bool),
+		inSchema:    make(map[string][]walk.Key),
+	}
+	if db == nil {
+		return s
+	}
+	for _, schema := range db.GetSchemas() {
+		name := schema.GetName()
+		if trustedSchemaName(name) {
+			s.schemas[name] = true
+		}
+		rel := func(n, kind string) {
+			s.relations[[2]string{name, n}] = kind
+			s.inSchema[name] = append(s.inSchema[name], relKey(name, n))
+		}
+		rowType := func(n string) {
+			s.types[[2]string{name, n}] = true
+			s.inSchema[name] = append(s.inSchema[name], typeKey(name, n))
+		}
+		for _, t := range schema.GetTables() {
+			key := [2]string{name, t.GetName()}
+			rel(t.GetName(), relTable)
+			rowType(t.GetName())
+			cols := make(map[string]bool, len(t.GetColumns()))
+			for _, c := range t.GetColumns() {
+				cols[c.GetName()] = true
+			}
+			s.columns[key] = cols
+			cons := make(map[string]string)
+			for _, idx := range t.GetIndexes() {
+				rel(idx.GetName(), relIndex)
+				switch {
+				case idx.GetPrimary():
+					cons[idx.GetName()] = conPrimary
+					s.primaryKeys[key] = true
+				case idx.GetIsConstraint() && idx.GetUnique():
+					cons[idx.GetName()] = conUnique
+				}
+			}
+			for _, fk := range t.GetForeignKeys() {
+				cons[fk.GetName()] = conForeign
+			}
+			for _, c := range t.GetCheckConstraints() {
+				cons[c.GetName()] = conCheck
+			}
+			for _, x := range t.GetExcludeConstraints() {
+				cons[x.GetName()] = conExclusion
+			}
+			s.constraints[key] = cons
+			s.addPartitions(t.GetPartitions())
+		}
+		for _, t := range schema.GetExternalTables() {
+			rel(t.GetName(), relForeign)
+			rowType(t.GetName())
+			cols := make(map[string]bool, len(t.GetColumns()))
+			for _, c := range t.GetColumns() {
+				cols[c.GetName()] = true
+			}
+			s.columns[[2]string{name, t.GetName()}] = cols
+		}
+		for _, v := range schema.GetViews() {
+			rel(v.GetName(), relView)
+			rowType(v.GetName())
+		}
+		for _, v := range schema.GetMaterializedViews() {
+			rel(v.GetName(), relMatview)
+			rowType(v.GetName())
+			for _, idx := range v.GetIndexes() {
+				rel(idx.GetName(), relIndex)
+			}
+		}
+		for _, q := range schema.GetSequences() {
+			rel(q.GetName(), relSequence)
+		}
+		for _, c := range schema.GetCompositeTypes() {
+			rel(c.GetName(), relComposite)
+			rowType(c.GetName())
+		}
+		for _, e := range schema.GetEnumTypes() {
+			rowType(e.GetName())
+		}
+	}
+	return s
+}
+
+func (s *pgSnapshot) addPartitions(partitions []*metadata.TablePartitionMetadata) {
+	for _, p := range partitions {
+		s.anywhere[p.GetName()] = true
+		for _, idx := range p.GetIndexes() {
+			s.anywhere[idx.GetName()] = true
+		}
+		s.addPartitions(p.GetSubpartitions())
+	}
+}
+
+// trustedSchemaName reports whether the sync lists a schema of this name
+// whenever it exists: every name but the system ones, which it skips, and
+// the pg_ names PostgreSQL reserves for them.
+func trustedSchemaName(name string) bool {
+	if strings.HasPrefix(name, "pg_") {
+		return false
+	}
+	switch name {
+	case "information_schema", "rw_catalog",
+		"timescaledb_information", "timescaledb_experimental",
+		"_timescaledb_cache", "_timescaledb_catalog", "_timescaledb_internal", "_timescaledb_config",
+		"squeeze", "citus", "citus_internal", "columnar", "columnar_internal", "cron", "partman":
+		return false
+	}
+	return true
+}
+
+// trustedRelationName reports whether the sync lists a relation of this
+// name in a synced schema whenever it exists.
+func trustedRelationName(name string) bool {
+	return !strings.HasPrefix(name, "pg_") &&
+		!strings.HasPrefix(name, "g_columnar_") &&
+		!strings.HasPrefix(name, "google_db_advisor_")
+}
+
+// Lookup implements walk.Snapshot.
+func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
+	switch k.Space {
+	case spaceSchema:
+		switch {
+		case s.schemas[k.Name]:
+			return walk.Present, ""
+		case trustedSchemaName(k.Name) && k.Parent == "":
+			return walk.Absent, ""
+		}
+	case spaceRelation:
+		schema := k.Parent
+		if schema == tempSchema {
+			// The change runs on a session of its own, which starts with
+			// no temporary relations.
+			return walk.Absent, ""
+		}
+		if kind, ok := s.relations[[2]string{schema, k.Name}]; ok {
+			return walk.Present, kind
+		}
+		if s.schemas[schema] && trustedRelationName(k.Name) && !s.anywhere[k.Name] {
+			return walk.Absent, ""
+		}
+	case spaceType:
+		if s.types[[2]string{k.Parent, k.Name}] {
+			return walk.Present, ""
+		}
+	case spaceColumn:
+		table, ok := splitTable(k.Parent)
+		if !ok || systemColumns[k.Name] {
+			// A system column is in no column list; the lowering judges
+			// the statements that name one from the text.
+			break
+		}
+		if cols, ok := s.columns[table]; ok {
+			if cols[k.Name] {
+				return walk.Present, kindColumn
+			}
+			return walk.Absent, ""
+		}
+	case spaceConstraint:
+		if table, ok := splitTable(k.Parent); ok {
+			if kind, ok := s.constraints[table][k.Name]; ok {
+				return walk.Present, kind
+			}
+		}
+	case spacePrimaryKey:
+		if table, ok := splitTable(k.Parent); ok && s.primaryKeys[table] {
+			return walk.Present, ""
+		}
+	}
+	return walk.Unknown, ""
+}
+
+// splitTable reads the (schema, table) a column or constraint parent
+// names.
+func splitTable(parent string) ([2]string, bool) {
+	names := walk.Names(parent)
+	if len(names) != 2 {
+		return [2]string{}, false
+	}
+	return [2]string{names[0], names[1]}, true
+}

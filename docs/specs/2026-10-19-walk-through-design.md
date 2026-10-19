@@ -17,7 +17,7 @@ Bytebase's v1 rule (`bytebase/backend/plugin/schema/pg/walk_through.go`) does th
 
 - The claim is conditional on purpose. A statement can fail for reasons the walk does not look at, such as data, types, or permissions. In that case the change stops earlier than the finding, and the finding still holds: fix the earlier statement and statement k still fails.
 - **At most one WALK_THROUGH finding per target:** the first failure the walk can establish. The change stops there when it runs. A statement that failed did nothing, and nothing says what the corrected statement will do, so nothing after it can be claimed. Bytebase v1 also reports only the first failure.
-- The message uses PostgreSQL's wording. It names the object as the SQL wrote it, quoted the way `pg/review`'s other rules quote names (contract: one line, no target name), for example `relation orders already exists`. The anchor is the name in the statement when the parser gives it a location, and the whole statement otherwise.
+- The message uses PostgreSQL's wording. It names the object as the SQL wrote it, quoted the way `pg/review`'s other rules quote names (contract: one line, no target name), for example `relation orders already exists`. The anchor is the name in the statement.
 
 ## 3. Idea: an existence ledger, not a simulator
 
