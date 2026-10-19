@@ -569,7 +569,9 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	case kwPRIMARY:
 		// DROP PRIMARY KEY
 		p.advance()
-		p.match(kwKEY)
+		if err := p.expectDropKey(); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDropConstraint
 		cmd.Name = "PRIMARY"
 		cmd.Loc.End = p.prev.End
@@ -584,7 +586,9 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	case kwFOREIGN:
 		// DROP FOREIGN KEY [IF EXISTS] fk_symbol
 		p.advance()
-		p.match(kwKEY)
+		if err := p.expectDropKey(); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDropConstraint
 		return p.parseAlterDropName(cmd, "constraint_ref")
 
@@ -606,10 +610,18 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return p.parseAlterDropName(cmd, "constraint_ref")
 
 	default:
-		// DROP [COLUMN] [IF EXISTS] col_name
+		// DROP [COLUMN] [IF EXISTS] col_name [RESTRICT | CASCADE]
 		cmd.Type = nodes.ATDropColumn
 		p.match(kwCOLUMN)
-		return p.parseAlterDropName(cmd, "columnref")
+		if _, err := p.parseAlterDropName(cmd, "columnref"); err != nil {
+			return nil, err
+		}
+		// opt_restrict follows the column arm only; its action is a no-op
+		// for ALTER TABLE.
+		if _, ok := p.match(kwRESTRICT, kwCASCADE); ok {
+			cmd.Loc.End = p.prev.End
+		}
+		return cmd, nil
 	}
 }
 
@@ -647,6 +659,18 @@ func (p *Parser) parseOptIfExists() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// expectDropKey consumes the KEY that DROP PRIMARY and DROP FOREIGN require.
+func (p *Parser) expectDropKey() error {
+	// Completion: after DROP PRIMARY or DROP FOREIGN, offer KEY.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwKEY)
+		return &ParseError{Message: "collecting"}
+	}
+	_, err := p.expect(kwKEY)
+	return err
 }
 
 // parseAlterModify parses MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name].

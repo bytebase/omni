@@ -519,6 +519,11 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 }
 
 // parseAlterDrop parses DROP operations.
+//
+// Ref: the DROP arms of AlterTableSpec in TiDB v8.5.5 pkg/parser/parser.y:
+// "DROP" ColumnKeywordOpt IfExists ColumnName RestrictOrCascadeOpt, "DROP"
+// "PRIMARY" "KEY", "DROP" "FOREIGN" "KEY" Symbol. KEY is required after
+// PRIMARY and FOREIGN, and only a column takes RESTRICT or CASCADE.
 func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume DROP
 
@@ -547,7 +552,9 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	case kwPRIMARY:
 		// DROP PRIMARY KEY
 		p.advance()
-		p.match(kwKEY)
+		if err := p.expectDropKey(); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDropConstraint
 		cmd.Name = "PRIMARY"
 		cmd.Loc.End = p.prev.End
@@ -574,7 +581,9 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	case kwFOREIGN:
 		// DROP FOREIGN KEY fk_symbol
 		p.advance()
-		p.match(kwKEY)
+		if err := p.expectDropKey(); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATDropConstraint
 		// Completion: after DROP FOREIGN KEY, offer constraint_ref.
 		p.checkCursor()
@@ -621,7 +630,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return cmd, nil
 
 	default:
-		// DROP [COLUMN] [IF EXISTS] col_name
+		// DROP [COLUMN] [IF EXISTS] col_name [RESTRICT | CASCADE]
 		cmd.Type = nodes.ATDropColumn
 		p.match(kwCOLUMN)
 		// Completion: after DROP COLUMN, offer columnref.
@@ -642,9 +651,23 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Name = name
+		// RestrictOrCascadeOpt: the grammar action ignores it.
+		p.match(kwRESTRICT, kwCASCADE)
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
+}
+
+// expectDropKey consumes the KEY that DROP PRIMARY and DROP FOREIGN require.
+func (p *Parser) expectDropKey() error {
+	// Completion: after DROP PRIMARY or DROP FOREIGN, offer KEY.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwKEY)
+		return &ParseError{Message: "collecting"}
+	}
+	_, err := p.expect(kwKEY)
+	return err
 }
 
 // parseAlterModify parses MODIFY [COLUMN] col_name column_definition [FIRST | AFTER col_name].
