@@ -265,13 +265,14 @@ func isSetQuery(query *nodes.SelectStmt) bool {
 
 // unlockable reports whether FOR UPDATE cannot lock the rows of query, or
 // of a parenthesized query it wraps. Oracle 23ai rejects it over DISTINCT,
-// UNIQUE, or GROUP BY (ORA-01786), and over any row limit but FETCH FIRST n
+// UNIQUE, GROUP BY, or a CURSOR expression in the select list (ORA-01786),
+// and over any row limit but FETCH FIRST n
 // ROWS ONLY: an OFFSET, a PERCENT, WITH TIES, or an ORDER BY with the row
 // limit (ORA-02014). An aggregate's name is the catalog's to tell, and
 // Oracle's to reject.
 func unlockable(query *nodes.SelectStmt) bool {
 	for ; query != nil; query = query.Larg {
-		if query.Distinct || query.UniqueKw || query.GroupClause != nil && query.GroupClause.Len() > 0 {
+		if query.Distinct || query.UniqueKw || query.GroupClause != nil && query.GroupClause.Len() > 0 || selectsCursor(query.TargetList) {
 			return true
 		}
 		if fetch := query.FetchFirst; fetch != nil && (fetch.Offset != nil || fetch.Percent || fetch.WithTies || query.OrderBy != nil) {
@@ -282,6 +283,24 @@ func unlockable(query *nodes.SelectStmt) bool {
 		}
 	}
 	return false
+}
+
+// selectsCursor reports whether a CURSOR expression stands in list, a
+// select list, outside the subqueries it holds.
+func selectsCursor(list *nodes.List) bool {
+	found := false
+	if list != nil {
+		nodes.Inspect(list, func(n nodes.Node) bool {
+			switch n.(type) {
+			case *nodes.CursorExpr:
+				found = true
+			case *nodes.SelectStmt:
+				return false
+			}
+			return !found
+		})
+	}
+	return found
 }
 
 // trailingForUpdate returns the FOR UPDATE clause that ends query, its own
