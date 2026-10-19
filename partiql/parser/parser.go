@@ -248,6 +248,7 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
+	first := p.cur
 	expr, err := p.parseExprTop()
 	if err != nil {
 		return nil, err
@@ -267,6 +268,9 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 			Message:  fmt.Sprintf("unexpected token %q after expression", p.cur.Str),
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
+	}
+	if treeTooHigh(expr, p.prev.Loc.End-first.Loc.Start) {
+		return nil, nestedTooDeeply(first)
 	}
 	return expr, nil
 }
@@ -697,6 +701,7 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
+	first := p.cur
 	var stmt ast.StmtNode
 	var err error
 	switch p.cur.Type {
@@ -758,6 +763,9 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 			Message:  fmt.Sprintf("unexpected token %q after statement", p.cur.Str),
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
+	}
+	if treeTooHigh(stmt, p.prev.Loc.End-first.Loc.Start) {
+		return nil, nestedTooDeeply(first)
 	}
 	return stmt, nil
 }

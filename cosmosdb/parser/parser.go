@@ -57,6 +57,10 @@ func Parse(sql string) (*nodes.List, error) {
 		}
 	}
 
+	if treeTooHigh(stmt, stmt.Loc.End-stmt.Loc.Start) {
+		return nil, &ParseError{Message: nestingErrorMessage, Position: stmt.Loc.Start}
+	}
+
 	raw := &nodes.RawStmt{
 		Stmt:         stmt,
 		StmtLocation: stmt.Loc.Start,

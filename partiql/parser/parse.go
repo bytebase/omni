@@ -36,7 +36,7 @@ func (p *Parser) parseScript() (*ast.List, error) {
 	}
 
 	// Parse the first root.
-	stmt, err := p.parseRoot()
+	stmt, err := p.parseCheckedRoot()
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (p *Parser) parseScript() (*ast.List, error) {
 		if p.cur.Type == tokEOF {
 			break
 		}
-		stmt, err = p.parseRoot()
+		stmt, err = p.parseCheckedRoot()
 		if err != nil {
 			return nil, err
 		}
@@ -75,6 +75,20 @@ func (p *Parser) parseScript() (*ast.List, error) {
 	}
 
 	return &ast.List{Items: stmts}, nil
+}
+
+// parseCheckedRoot parses one root and rejects it when its tree is more than
+// maxTreeHeight nodes deep (see treeTooHigh).
+func (p *Parser) parseCheckedRoot() (ast.StmtNode, error) {
+	first := p.cur
+	stmt, err := p.parseRoot()
+	if err != nil {
+		return nil, err
+	}
+	if treeTooHigh(stmt, p.prev.Loc.End-first.Loc.Start) {
+		return nil, nestedTooDeeply(first)
+	}
+	return stmt, nil
 }
 
 // parseRoot implements the root grammar rule:
