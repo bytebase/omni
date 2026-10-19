@@ -89,6 +89,9 @@ type Parser struct {
 	speculating int
 	primaryMemo map[int]exprReplay
 	typeMemo    map[int]typeReplay
+
+	depth      int         // nesting depth of the productions being parsed (see enterNesting)
+	nestingErr *ParseError // the first nesting failure; the statement fails with it
 }
 
 // parenReplay is the state a scan or parse starting at a '(' left behind.
@@ -146,12 +149,14 @@ type typeReplay struct {
 }
 
 // rawQuery is a query body captured as raw text: the text and the absolute
-// byte offset of its first character in the parser's input. A recorded
+// byte offset of its first character in the parser's input, and the nesting
+// depth it was captured at, where its validation starts. A recorded
 // primary expression's bodies are kept as one rawQuery holding them in group,
 // so recording a primary copies only the entries its own parse appended.
 type rawQuery struct {
 	text  string
 	start int
+	depth int
 	group []rawQuery
 }
 
@@ -317,6 +322,10 @@ func (p *Parser) unknownStatementError() *ParseError {
 // exist yet. Later nodes will introduce the inner switches (compare
 // doris/parser.go's CREATE/DROP/ALTER fan-out) as they add object parsers.
 func (p *Parser) parseStmt() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Kind {
 	// --- Query (rootQuery / queryPrimary leading tokens) ---
 	// SELECT / WITH / TABLE / VALUES / '(' all begin a query; parser-select's
@@ -524,7 +533,7 @@ type ParseResult struct {
 // consumer that read the File without the errors analyzed less than the
 // engine would execute.
 func Parse(input string) (*ast.File, error) {
-	result := parseAll(input, true)
+	result := parseAll(input, true, 0)
 	if len(result.Errors) == 0 {
 		return result.File, nil
 	}
@@ -538,19 +547,21 @@ func Parse(input string) (*ast.File, error) {
 // type classification, and query span extraction all read Parse. Do not add
 // the strict trailing-token check here.
 func ParseBestEffort(input string) *ParseResult {
-	return parseAll(input, false)
+	return parseAll(input, false, 0)
 }
 
 // parseAll is the shared implementation behind Parse and ParseBestEffort:
 // Split the input, parse each segment, collect nodes and errors.
 // strictTrailing selects whether parseSingle rejects unconsumed trailing
-// tokens.
-func parseAll(input string, strictTrailing bool) *ParseResult {
+// tokens. depth is the nesting depth the statements start at: 0, or for text
+// this parse validates on behalf of an enclosing statement, the depth there,
+// so the nesting limit counts the enclosing levels too.
+func parseAll(input string, strictTrailing bool, depth int) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
 	for _, seg := range Split(input) {
-		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing)
+		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing, depth)
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
@@ -596,18 +607,26 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 // to NewLexerWithOffset so token and error Loc values stay absolute.
 // strictTrailing selects whether a statement that parsed without consuming the
 // whole segment is rejected (node dropped) or kept as the parsed prefix.
-func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node, []ParseError) {
+// depth is the nesting depth the statement starts at (see parseAll).
+func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int) (ast.Node, []ParseError) {
 	p := &Parser{
 		lexer:          NewLexerWithOffset(segText, baseOffset),
 		input:          segText,
 		baseOffset:     baseOffset,
 		strictTrailing: strictTrailing,
+		depth:          depth,
 	}
 	p.advance() // prime cur with the first token
 
 	var result ast.Node
 	if p.cur.Kind != tokEOF {
 		node, err := p.parseStmt()
+		if p.nestingErr != nil {
+			// The statement nests too deeply on some reading, even when a
+			// speculative parse fell back to another reading that got through:
+			// it fails with the first nesting error (see enterNesting).
+			node, err = nil, p.nestingErr
+		}
 		if err != nil {
 			if pe, ok := err.(*ParseError); ok {
 				p.errors = append(p.errors, *pe)
@@ -701,7 +720,7 @@ func (p *Parser) validateSubqueries() []ParseError {
 			out = append(out, ParseError{Position: q.start, End: q.start, Message: "subquery must contain exactly one query"})
 			return
 		}
-		res := parseAll(q.text, true)
+		res := parseAll(q.text, true, q.depth)
 		if len(res.Errors) > 0 {
 			for _, e := range res.Errors {
 				e.Position += q.start

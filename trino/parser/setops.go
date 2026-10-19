@@ -126,6 +126,10 @@ func (p *Parser) parseSetQuantifier() string {
 // parseQueryPrimary parses a `queryPrimary`: a SELECT block, `TABLE
 // qualifiedName`, `VALUES …`, or a parenthesized `( queryNoWith )`.
 func (p *Parser) parseQueryPrimary() (QueryNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Kind {
 	case kwSELECT:
 		return p.parseQuerySpecification()

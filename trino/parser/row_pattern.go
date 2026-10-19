@@ -209,6 +209,10 @@ type PatternQuantifier struct {
 // match_recognize.go's PATTERN ( … ) and PERMUTE / grouped / excluded
 // sub-patterns.
 func (p *Parser) parseRowPattern() (RowPattern, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parsePatternConcat()
 	if err != nil {
 		return nil, err

@@ -299,6 +299,10 @@ var _ ast.Node = (*QueryStmt)(nil)
 // WITH FUNCTION) introduces a CTE list parsed by parseWithClause (ctes.go); the
 // body is then a queryNoWith.
 func (p *Parser) parseQuery() (*Query, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	var with *WithClause
 	start := p.cur.Loc.Start
 	if p.cur.Kind == kwWITH {

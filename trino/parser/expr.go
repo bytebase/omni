@@ -320,6 +320,9 @@ func ParseExpression(input string) (Expr, []ParseError) {
 	p.advance()
 
 	expr, err := p.parseExpr()
+	if p.nestingErr != nil {
+		err = p.nestingErr // see parseSingle
+	}
 	if err != nil {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
@@ -404,6 +407,10 @@ func (p *Parser) parseAnd() (Expr, error) {
 // nests) or falls through to the predicated value expression. NOT binds looser
 // than every predicate/arithmetic operator: `NOT a = b` is `NOT (a = b)`.
 func (p *Parser) parseNot() (Expr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	if p.cur.Kind == kwNOT {
 		notTok := p.advance() // consume NOT
 		operand, err := p.parseNot()
@@ -520,6 +527,10 @@ func (p *Parser) parseMultiplicative() (Expr, error) {
 // parseUnary parses a prefix `+`/`-` (arithmeticUnary, right-recursive so
 // `- - 1` nests) or falls through to the AT-TIME-ZONE postfix layer.
 func (p *Parser) parseUnary() (Expr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	if p.cur.Kind == int('+') || p.cur.Kind == int('-') {
 		opTok := p.advance()
 		operand, err := p.parseUnary()
@@ -1035,30 +1046,55 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unterminated subquery"}
 	}
 	sub := p.finishSubqueryPlaceholder(startOffset, subStart, kind)
-	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart})
+	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart, depth: p.depth})
 	return sub, nil
 }
 
 // skipParenGroup moves from the '(' at p.cur to its matching ')', left as
 // p.cur, or to EOF when it never closes. A group scanned before is jumped
-// over (see parenGroupEnd).
+// over (see parenGroupEnd), and every group scanned is recorded there, the
+// nested ones first.
+//
+// It keeps the groups it is inside on a stack of its own instead of calling
+// itself for each nested group: the scan runs over bodies the parse could
+// not read, nested arbitrarily deep, and a call per level overflowed the Go
+// stack.
 func (p *Parser) skipParenGroup() {
-	open := p.cur.Loc.Start
-	if r, ok := p.parenGroupEnd[open]; ok {
-		p.replayParen(r)
-		return
-	}
-	p.advance() // consume '('
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		if p.cur.Kind == int('(') {
-			p.skipParenGroup()
-			if p.cur.Kind == tokEOF {
+	var opens []int // offsets of the '(' groups being scanned, innermost last
+	for {
+		// p.cur is a '(': jump over its group when it was scanned before,
+		// leaving p.cur at the group's end, else enter it.
+		if r, ok := p.parenGroupEnd[p.cur.Loc.Start]; ok {
+			p.replayParen(r)
+			if len(opens) == 0 {
+				return
+			}
+			if p.cur.Kind != tokEOF {
+				p.advance() // consume the nested group's ')'
+			}
+		} else {
+			opens = append(opens, p.cur.Loc.Start)
+			p.advance() // consume '('
+		}
+		// Scan the innermost group up to a nested '(' to enter, or to its
+		// end; an ended group returns the scan to the group around it.
+		for {
+			for p.cur.Kind != int(')') && p.cur.Kind != tokEOF && p.cur.Kind != int('(') {
+				p.advance()
+			}
+			if p.cur.Kind == int('(') {
 				break
 			}
+			p.recordParenGroupEnd(opens[len(opens)-1])
+			opens = opens[:len(opens)-1]
+			if len(opens) == 0 {
+				return
+			}
+			if p.cur.Kind != tokEOF {
+				p.advance() // consume the nested group's ')'
+			}
 		}
-		p.advance()
 	}
-	p.recordParenGroupEnd(open)
 }
 
 // recordParenGroupEnd records the current token, the matching ')' or EOF, as

@@ -162,7 +162,18 @@ func (p *Parser) parsePrepareStmt() (ast.Node, error) {
 	// inner statement FORM is recognized (its concrete parser is a later DAG
 	// node) — that counts as syntactically valid here, and the check tightens
 	// automatically as those parsers land. See bodyHasHardError.
-	if err := bodyHasHardError(body); err != nil {
+	if err := bodyHasHardError(body, p.depth); err != nil {
+		if err.Message == nestingTooDeep {
+			// The body nests too deeply counting the PREPAREs around it: the
+			// statement as a whole does, so it fails with the nesting error
+			// itself, in this parse's coordinates.
+			e := ParseError{Position: bodyStart + err.Position, End: err.End, Message: err.Message}
+			if e.End >= 0 {
+				e.End += bodyStart
+			}
+			p.nestingErr = &e
+			return nil, &e
+		}
 		return nil, &ParseError{Position: bodyLoc.Start, End: bodyLoc.End, Message: "invalid statement after PREPARE ... FROM: " + err.Error()}
 	}
 
@@ -180,9 +191,12 @@ func (p *Parser) parsePrepareStmt() (ast.Node, error) {
 // recognized by the dispatch but its body parser is a later DAG node. Any other
 // error — an unknown leading keyword, a lex error, or (once the statement
 // parsers land) a genuine inner syntax error — is a hard error.
-func bodyHasHardError(body string) error {
-	_, err := Parse(body)
-	errs := AllErrors(err)
+//
+// depth is the nesting depth of the PREPARE: the body is parsed from there,
+// so PREPAREs nested in each other count toward the nesting limit and their
+// validations cannot recurse without bound.
+func bodyHasHardError(body string, depth int) *ParseError {
+	errs := parseAll(body, true, depth).Errors
 	for i := range errs {
 		if !strings.Contains(errs[i].Message, "not yet supported") {
 			return &errs[i]
