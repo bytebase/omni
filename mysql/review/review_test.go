@@ -555,8 +555,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			name: "something the change made before that may read a column it drops",
 			sql: "ALTER TABLE nokey ADD CONSTRAINT fk_a FOREIGN KEY (a) REFERENCES k1 (id);\nALTER TABLE k1 DROP COLUMN id;\nCREATE TABLE c (x INT PRIMARY KEY, FOREIGN KEY (x) REFERENCES k2 (id));\nALTER TABLE k2 DROP COLUMN id;" +
 				"\nALTER TABLE k3 ADD COLUMN g INT AS (id + 1);\nALTER TABLE k3 DROP COLUMN id;\nALTER TABLE k4 ADD CHECK (id > 0);\nALTER TABLE k4 DROP COLUMN id;\nCREATE INDEX fi ON k5 ((id + v));\nALTER TABLE k5 DROP COLUMN id;" +
-				"\nALTER TABLE k6 PARTITION BY HASH (id) PARTITIONS 2;\nALTER TABLE k6 DROP COLUMN id;\nALTER TABLE nokey ADD COLUMN r INT REFERENCES k7 (id);\nALTER TABLE k7 DROP COLUMN id;" +
-				"\nALTER TABLE plain ADD FOREIGN KEY (id) REFERENCES p (id);\nALTER TABLE plain DROP COLUMN id;",
+				"\nALTER TABLE k6 PARTITION BY HASH (id) PARTITIONS 2;\nALTER TABLE k6 DROP COLUMN id;\nALTER TABLE plain ADD FOREIGN KEY (id) REFERENCES p (id);\nALTER TABLE plain DROP COLUMN id;",
+		},
+		{
+			name: "a column's REFERENCES, which MySQL ignores, made before",
+			sql:  "ALTER TABLE nokey ADD COLUMN r INT REFERENCES k7 (id);\nALTER TABLE k7 DROP COLUMN id;\nCREATE TABLE c (x INT PRIMARY KEY REFERENCES k5 (id));\nALTER TABLE k5 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k7"), lost(3, "DROP COLUMN id", "k5")},
 		},
 		{
 			name: "something the synced schema holds that depends on a column it drops",
@@ -696,6 +700,29 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			name: "a foreign key under a name a statement before gave one in another database",
 			sql:  "ALTER TABLE other.k1 ADD CONSTRAINT fk_o FOREIGN KEY (v) REFERENCES other.p (id);\nALTER TABLE k7 ADD CONSTRAINT fk_o FOREIGN KEY (v) REFERENCES plain (id), DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "k7")},
+		},
+		{
+			name: "a check of another column, added before or by the statement",
+			sql:  "ALTER TABLE k1 ADD CHECK (v > 0);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 ADD CONSTRAINT ck_k2 CHECK (v > 0), DROP COLUMN id;\nALTER TABLE k3 ADD COLUMN w INT CHECK (w > 0), DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k1"), lost(2, "DROP COLUMN id", "k2"), lost(3, "DROP COLUMN id", "k3")},
+		},
+		{
+			name: "a check of the column, added before or by the statement",
+			sql:  "ALTER TABLE k1 ADD CHECK (id > 0);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 ADD CHECK (id < v), DROP COLUMN id;",
+		},
+		{
+			name: "a check under a name the database uses, or one twice, or of a column the table lacks",
+			sql:  "ALTER TABLE plain ADD CONSTRAINT ck_n CHECK (v > 0), DROP COLUMN id;\nALTER TABLE k1 ADD CONSTRAINT c2 CHECK (v > 0), ADD CONSTRAINT c2 CHECK (v < 9), DROP COLUMN id;\nALTER TABLE k2 ADD CHECK (missing > 0), DROP COLUMN id;\nALTER TABLE k3 ADD CONSTRAINT ck_o CHECK (v > 0);\nALTER TABLE k4 ADD CONSTRAINT ck_o CHECK (v > 0), DROP COLUMN id;",
+		},
+		{
+			name: "a check under a name a statement before gave one in another database",
+			sql:  "ALTER TABLE other.k3 ADD CONSTRAINT ck_o CHECK (v > 0);\nALTER TABLE k4 ADD CONSTRAINT ck_o CHECK (v > 0), DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k4")},
+		},
+		{
+			name: "a check under a name a foreign key or an index of the table uses, or one the statement drops",
+			sql:  "ALTER TABLE t ADD CONSTRAINT fk_p CHECK (n > 1), ADD CONSTRAINT uk_code CHECK (n > 2), DROP CHECK ck_n, ADD CONSTRAINT ck_n CHECK (n > 3), DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "t")},
 		},
 		{name: "a later statement that adds a key back, but fails, which stops the change before its end", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);"},
 		{name: "an index of the name of a generated column, dropped before", sql: "ALTER TABLE gen DROP INDEX g;\nALTER TABLE gen DROP COLUMN id;"},

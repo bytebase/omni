@@ -734,6 +734,28 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:  "ALTER TABLE other.k1 ADD CONSTRAINT fk_o FOREIGN KEY (v) REFERENCES other.p (id);\nALTER TABLE k7 ADD CONSTRAINT fk_o FOREIGN KEY (v) REFERENCES plain (id), DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "k7")},
 		},
+		{
+			name: "a check of another column, added before or by the statement",
+			sql:  "ALTER TABLE k1 ADD CHECK (v > 0);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 ADD CONSTRAINT ck_k2 CHECK (v > 0), DROP COLUMN id;\nALTER TABLE k3 ADD COLUMN w INT CHECK (w > 0), DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k1"), lost(2, "DROP COLUMN id", "k2"), lost(3, "DROP COLUMN id", "k3")},
+		},
+		{
+			name: "a check of the column, added before or by the statement",
+			sql:  "ALTER TABLE k1 ADD CHECK (id > 0);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 ADD CHECK (id < v), DROP COLUMN id;",
+		},
+		{
+			name: "a check under a name the table, or a foreign key of it, uses, or one twice, or of a column the table lacks",
+			sql:  "ALTER TABLE t ADD CONSTRAINT ck_n CHECK (n > 1), DROP COLUMN id;\nALTER TABLE k1 ADD CONSTRAINT c2 CHECK (v > 0), ADD CONSTRAINT c2 CHECK (v < 9), DROP COLUMN id;\nALTER TABLE k2 ADD CHECK (missing > 0), DROP COLUMN id;\nALTER TABLE self ADD CONSTRAINT fk_up CHECK (up > 0), DROP COLUMN id;",
+		},
+		{
+			name: "a foreign key under a name a check of the table uses",
+			sql:  "ALTER TABLE solo ADD CONSTRAINT ck FOREIGN KEY (v) REFERENCES p (id), DROP COLUMN id;",
+		},
+		{
+			name: "a check under a name another table, or an index of the table, uses, or one the statement drops",
+			sql:  "ALTER TABLE plain ADD CONSTRAINT ck_n CHECK (v > 0), ADD CONSTRAINT PRIMARY_x CHECK (v > 1), DROP COLUMN id;\nALTER TABLE t ADD CONSTRAINT uk_code CHECK (n > 2), DROP CONSTRAINT ck_n, ADD CONSTRAINT ck_n CHECK (n > 3), DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP COLUMN id", "t")},
+		},
 		{name: "a later statement that adds a key back, but fails, which stops the change before its end", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);"},
 		{name: "an index of the name of a generated column, dropped before", sql: "ALTER TABLE gen DROP INDEX g;\nALTER TABLE gen DROP COLUMN id;"},
 		{name: "a foreign key of the name, dropped from a table of another database", sql: "ALTER TABLE other.t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
