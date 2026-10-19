@@ -113,7 +113,7 @@ func reviewDialect(ctx context.Context, sql string, opts review.Options, targets
 		work.drops = checkDisallowDropConstraint(sql, stmts, r)
 	}
 	if on[review.RequirePrimaryKey] {
-		checkRequirePrimaryKey(sql, stmts, r)
+		work.columns = checkRequirePrimaryKey(sql, stmts, r)
 	}
 	if work.backup {
 		work.made = madeByChange(stmts)

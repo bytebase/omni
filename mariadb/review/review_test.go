@@ -464,6 +464,142 @@ func TestRequirePrimaryKey(t *testing.T) {
 	})
 }
 
+// keyed is shop with tables for the primary key a DROP COLUMN drops:
+// k1 to k7 with a key on id and a column v; pair with a key of two
+// columns, and pchk with one whose check reads both; gen with a generated
+// column, chk with a check of the key and v, solo with a check of the key
+// alone, and part with partitioning, each reading the key; kpart
+// partitioned by KEY (), which reads the key; and self with a foreign key
+// to itself.
+func keyed() []review.Target {
+	s := shop()
+	pk := func(columns ...string) []*metadata.IndexMetadata {
+		return []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: columns}}
+	}
+	tables := &s.Schemas[0].Tables
+	for _, name := range []string{"k1", "k2", "k3", "k4", "k5", "k6", "k7"} {
+		*tables = append(*tables, &metadata.TableMetadata{Name: name, Columns: columns("id", "v"), Indexes: pk("id")})
+	}
+	*tables = append(*tables,
+		&metadata.TableMetadata{Name: "pair", Columns: columns("a", "b", "v"), Indexes: pk("a", "b")},
+		&metadata.TableMetadata{Name: "pchk", Columns: columns("a", "b", "v"), Indexes: pk("a", "b"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "`a` < `b`"}}},
+		&metadata.TableMetadata{
+			Name:    "gen",
+			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "(`id` + 1)"}}},
+			Indexes: pk("id"),
+		},
+		&metadata.TableMetadata{Name: "chk", Columns: columns("id", "v"), Indexes: pk("id"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`ID` < `v`)"}}},
+		&metadata.TableMetadata{Name: "solo", Columns: columns("id", "v"), Indexes: pk("id"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`id` > 0)"}}},
+		&metadata.TableMetadata{Name: "part", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Expression: "`id`"}}},
+		&metadata.TableMetadata{Name: "kpart", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
+		&metadata.TableMetadata{
+			Name:        "self",
+			Columns:     columns("id", "up"),
+			Indexes:     pk("id"),
+			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_up", Columns: []string{"up"}, ReferencedTable: "self", ReferencedColumns: []string{"id"}}},
+		},
+	)
+	return []review.Target{{Schema: s, BackupDatabaseExists: true}}
+}
+
+// TestRequirePrimaryKeyColumnDrop checks DROP COLUMN against the synced
+// primary key: dropping every column of the key drops it, and MariaDB
+// refuses to drop some. A drop the server may refuse, or one of a column
+// or key the change touched before, is not judged. Every case that reports
+// nothing names a table whose drop would be reported otherwise.
+func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
+	lost := func(statement int, text, table string) finding {
+		return finding{statement, text, "removes the primary key of " + table + ", and the change adds none back", []int{0}}
+	}
+	cases := []ruleCase{
+		{
+			name: "every column of the key",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP b, DROP COLUMN a;\nALTER TABLE shop.t ADD COLUMN w INT, DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN IF EXISTS id;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP b", "pair"), lost(2, "DROP COLUMN id", "shop.t"), lost(3, "DROP COLUMN IF EXISTS id", "k1")},
+		},
+		{
+			name: "some columns of the key, or none",
+			sql:  "ALTER TABLE pair DROP COLUMN a;\nALTER TABLE plain DROP COLUMN v;\nALTER TABLE nokey ADD COLUMN b INT, DROP COLUMN a;",
+		},
+		{
+			name: "settled by a key added back, a rename, a drop, or a table of the name",
+			sql: "ALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k1 ADD PRIMARY KEY (v);\nALTER TABLE k2 DROP COLUMN id, ADD PRIMARY KEY (v);\nALTER TABLE k3 DROP COLUMN id;\nRENAME TABLE k3 TO k3_old;" +
+				"\nALTER TABLE k4 DROP COLUMN id;\nDROP TABLE k4;\nALTER TABLE k5 DROP COLUMN id;\nCREATE TABLE k5 (id INT PRIMARY KEY);\nALTER TABLE k6 DROP COLUMN id;\nALTER TABLE k6 RENAME TO k6_old;" +
+				"\nALTER TABLE k7 DROP COLUMN id;\nALTER TABLE k7 MODIFY v INT PRIMARY KEY;\nALTER TABLE pair DROP a, DROP b;\nDROP DATABASE shop;",
+		},
+		{
+			name: "the key dropped by the statement too, reported once",
+			sql:  "ALTER TABLE plain DROP PRIMARY KEY, DROP COLUMN id;",
+			want: []finding{lost(0, "DROP PRIMARY KEY", "plain")},
+		},
+		{
+			name: "a table the change made, dropped, or renamed before",
+			sql: "CREATE TEMPORARY TABLE k1 (id INT PRIMARY KEY, v INT);\nALTER TABLE k1 DROP COLUMN id;\nDROP TABLE IF EXISTS k2;\nALTER TABLE k2 DROP COLUMN id;\nRENAME TABLE k3 TO k3_old, k3_new TO k3;\nALTER TABLE k3 DROP COLUMN id;" +
+				"\nALTER TABLE x RENAME TO k4;\nALTER TABLE k4 DROP COLUMN id;\nCREATE TABLE IF NOT EXISTS k5 (id INT);\nALTER TABLE k5 DROP COLUMN id;\nDROP TEMPORARY TABLE IF EXISTS k6;\nALTER TABLE k6 DROP COLUMN id;",
+		},
+		{
+			name: "a table of a database the change dropped before",
+			sql:  "DROP DATABASE IF EXISTS shop;\nALTER TABLE pair DROP a, DROP b;",
+		},
+		{
+			name: "a key or column the change touched before",
+			sql: "ALTER TABLE k1 DROP PRIMARY KEY;\nALTER TABLE k1 ADD PRIMARY KEY (id);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE pair DROP COLUMN a;\nALTER TABLE pair DROP COLUMN b;\nALTER TABLE k2 MODIFY id BIGINT;\nALTER TABLE k2 DROP COLUMN id;" +
+				"\nALTER TABLE k3 ADD COLUMN w INT, DROP COLUMN id, ADD COLUMN id INT;\nDROP INDEX `PRIMARY` ON k4;\nALTER TABLE k4 DROP COLUMN id;\nALTER TABLE k5 CHANGE v w INT;\nALTER TABLE k5 DROP COLUMN w, DROP COLUMN id;",
+			want: []finding{lost(8, "DROP INDEX `PRIMARY` ON k4", "k4")},
+		},
+		{
+			name: "a column the change touched before, not of the key, or an index of columns",
+			sql:  "ALTER TABLE k1 ADD COLUMN w INT;\nALTER TABLE k1 MODIFY v BIGINT;\nALTER TABLE k1 DROP COLUMN id;\nCREATE INDEX iv ON k2 (v, id);\nALTER TABLE k2 ADD UNIQUE KEY uv (v);\nALTER TABLE k2 DROP COLUMN id;",
+			want: []finding{lost(2, "DROP COLUMN id", "k1"), lost(5, "DROP COLUMN id", "k2")},
+		},
+		{
+			name: "something the change made before that may read a column it drops",
+			sql: "ALTER TABLE nokey ADD CONSTRAINT fk_a FOREIGN KEY (a) REFERENCES k1 (id);\nALTER TABLE k1 DROP COLUMN id;\nCREATE TABLE c (x INT PRIMARY KEY, FOREIGN KEY (x) REFERENCES k2 (id));\nALTER TABLE k2 DROP COLUMN id;" +
+				"\nALTER TABLE k3 ADD COLUMN g INT AS (id + 1);\nALTER TABLE k3 DROP COLUMN id;\nALTER TABLE k4 ADD CHECK (id > 0);\nALTER TABLE k4 DROP COLUMN id;\nALTER TABLE k5 ADD COLUMN g INT AS (id * 2) PERSISTENT;\nALTER TABLE k5 DROP COLUMN id;" +
+				"\nALTER TABLE k6 PARTITION BY HASH (id) PARTITIONS 2;\nALTER TABLE k6 DROP COLUMN id;\nALTER TABLE nokey ADD COLUMN r INT REFERENCES k7 (id);\nALTER TABLE k7 DROP COLUMN id;" +
+				"\nALTER TABLE plain ADD FOREIGN KEY (id) REFERENCES p (id);\nALTER TABLE plain DROP COLUMN id;",
+		},
+		{
+			name: "something the synced schema holds that depends on a column it drops",
+			sql:  "ALTER TABLE p DROP COLUMN id;\nALTER TABLE t DROP COLUMN id, DROP COLUMN p_id;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE chk DROP COLUMN id;\nALTER TABLE part DROP COLUMN id;\nALTER TABLE kpart DROP COLUMN id;\nALTER TABLE self DROP COLUMN id;",
+		},
+		{
+			name: "a check or a generated column of only the columns the drop takes, which goes with them",
+			sql:  "ALTER TABLE solo DROP COLUMN id;\nALTER TABLE gen DROP COLUMN g, DROP COLUMN id;\nALTER TABLE pchk DROP a, DROP b;",
+			want: []finding{lost(0, "DROP COLUMN id", "solo"), lost(1, "DROP COLUMN id", "gen"), lost(2, "DROP a", "pchk")},
+		},
+		{
+			name: "every column of the table, which the server refuses to drop",
+			sql:  "ALTER TABLE plain DROP COLUMN id, DROP COLUMN v;",
+		},
+		{
+			name: "a table of another database, after a USE, or in a routine body",
+			sql:  "ALTER TABLE other.plain DROP COLUMN id;\nCREATE PROCEDURE pr() ALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE pair DROP a, DROP b;\nALTER TABLE shop.plain DROP COLUMN id;",
+			want: []finding{lost(4, "DROP COLUMN id", "shop.plain")},
+		},
+	}
+	for i := range cases {
+		cases[i].targets = keyed()
+	}
+	runCases(t, review.RequirePrimaryKey, cases)
+	runCases(t, review.RequirePrimaryKey, []ruleCase{
+		{
+			name:    "a table named in another case, where names compare with case and where not",
+			sql:     "ALTER TABLE PLAIN DROP COLUMN ID;",
+			targets: []review.Target{{Schema: shop()}, {Schema: shop(), LowerCaseTableNames: 1}},
+			want:    []finding{{0, "DROP COLUMN ID", "removes the primary key of PLAIN, and the change adds none back", []int{1}}},
+		},
+		{
+			name: "targets whose keys differ",
+			sql:  "ALTER TABLE pair DROP COLUMN a;",
+			targets: []review.Target{keyed()[0], {Schema: &metadata.DatabaseSchemaMetadata{Name: "shop", Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{
+				{Name: "pair", Columns: columns("a", "b"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"a"}}}},
+			}}}}}, {}},
+			want: []finding{{0, "DROP COLUMN a", "removes the primary key of pair, and the change adds none back", []int{1}}},
+		},
+	})
+}
+
 func TestOnlineMigration(t *testing.T) {
 	ghost := review.Change{OnlineMigration: true}
 	runCases(t, review.OnlineMigration, []ruleCase{

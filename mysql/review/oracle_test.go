@@ -90,7 +90,8 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 	}
 	t.Cleanup(func() { conn.Close() })
 	for _, stmt := range []string{
-		"DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive", "DROP DATABASE IF EXISTS other",
+		// other may reference shop, which it then keeps from being dropped.
+		"DROP DATABASE IF EXISTS other", "DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive",
 		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase,
 	} {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
@@ -101,8 +102,12 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 }
 
 // syncSchema reads the shop database into metadata, the parts the rules
-// read: tables with their columns, indexes, foreign keys, checks, and
-// triggers, and views.
+// read, as Bytebase syncs them: tables with their columns and generation
+// expressions, indexes with their key parts, foreign keys with their
+// columns, checks with their expressions, triggers, and partitions; and
+// views.
+//
+// bytebase: backend/plugin/db/mysql/sync.go — SyncDBSchema
 func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	ctx := context.Background()
@@ -134,44 +139,72 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		order = append(order, name)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
-		var tbl, col string
-		if err := r.Scan(&tbl, &col); err != nil {
+	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, col, gen string
+		if err := r.Scan(&tbl, &col, &gen); err != nil {
 			return err
 		}
 		if t, ok := tables[tbl]; ok {
-			t.Columns = append(t.Columns, &metadata.ColumnMetadata{Name: col})
+			c := &metadata.ColumnMetadata{Name: col}
+			if gen != "" {
+				c.Generation = &metadata.GenerationMetadata{Expression: gen}
+			}
+			t.Columns = append(t.Columns, c)
 		}
 		return nil
 	})
-	query(`SELECT TABLE_NAME, INDEX_NAME, MIN(NON_UNIQUE) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'shop' GROUP BY TABLE_NAME, INDEX_NAME ORDER BY TABLE_NAME, INDEX_NAME`, func(r *sql.Rows) error {
-		var tbl, idx string
+	// A key part is its column, or the expression of a functional one in
+	// parentheses.
+	indexes := make(map[[2]string]*metadata.IndexMetadata)
+	query(`SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')')) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`, func(r *sql.Rows) error {
+		var tbl, idx, part string
 		var nonUnique int
-		if err := r.Scan(&tbl, &idx, &nonUnique); err != nil {
+		if err := r.Scan(&tbl, &idx, &nonUnique, &part); err != nil {
 			return err
 		}
-		if t, ok := tables[tbl]; ok {
-			t.Indexes = append(t.Indexes, &metadata.IndexMetadata{Name: idx, Primary: idx == "PRIMARY", Unique: nonUnique == 0})
+		t, ok := tables[tbl]
+		if !ok {
+			return nil
 		}
+		i, ok := indexes[[2]string{tbl, idx}]
+		if !ok {
+			i = &metadata.IndexMetadata{Name: idx, Primary: idx == "PRIMARY", Unique: nonUnique == 0}
+			indexes[[2]string{tbl, idx}] = i
+			t.Indexes = append(t.Indexes, i)
+		}
+		i.Expressions = append(i.Expressions, part)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop'`, func(r *sql.Rows) error {
-		var tbl, name, ref string
-		if err := r.Scan(&tbl, &name, &ref); err != nil {
+	// A foreign key names the table it references without its database.
+	foreignKeys := make(map[[2]string]*metadata.ForeignKeyMetadata)
+	query(`SELECT TABLE_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, COLUMN_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE
+		WHERE TABLE_SCHEMA = 'shop' AND POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, name, ref, col, refCol string
+		if err := r.Scan(&tbl, &name, &ref, &col, &refCol); err != nil {
 			return err
 		}
-		if t, ok := tables[tbl]; ok {
-			t.ForeignKeys = append(t.ForeignKeys, &metadata.ForeignKeyMetadata{Name: name, ReferencedTable: ref})
+		t, ok := tables[tbl]
+		if !ok {
+			return nil
 		}
+		fk, ok := foreignKeys[[2]string{tbl, name}]
+		if !ok {
+			fk = &metadata.ForeignKeyMetadata{Name: name, ReferencedTable: ref}
+			foreignKeys[[2]string{tbl, name}] = fk
+			t.ForeignKeys = append(t.ForeignKeys, fk)
+		}
+		fk.Columns = append(fk.Columns, col)
+		fk.ReferencedColumns = append(fk.ReferencedColumns, refCol)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop' AND CONSTRAINT_TYPE = 'CHECK'`, func(r *sql.Rows) error {
-		var tbl, name string
-		if err := r.Scan(&tbl, &name); err != nil {
+	query(`SELECT c.TABLE_NAME, c.CONSTRAINT_NAME, k.CHECK_CLAUSE FROM information_schema.TABLE_CONSTRAINTS c JOIN information_schema.CHECK_CONSTRAINTS k
+		ON k.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND k.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE c.CONSTRAINT_SCHEMA = 'shop' AND c.CONSTRAINT_TYPE = 'CHECK'`, func(r *sql.Rows) error {
+		var tbl, name, clause string
+		if err := r.Scan(&tbl, &name, &clause); err != nil {
 			return err
 		}
 		if t, ok := tables[tbl]; ok {
-			t.CheckConstraints = append(t.CheckConstraints, &metadata.CheckConstraintMetadata{Name: name})
+			t.CheckConstraints = append(t.CheckConstraints, &metadata.CheckConstraintMetadata{Name: name, Expression: clause})
 		}
 		return nil
 	})
@@ -182,6 +215,17 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		if t, ok := tables[tbl]; ok {
 			t.Triggers = append(t.Triggers, &metadata.TriggerMetadata{Name: name})
+		}
+		return nil
+	})
+	query(`SELECT TABLE_NAME, PARTITION_NAME, COALESCE(PARTITION_EXPRESSION, '') FROM information_schema.PARTITIONS
+		WHERE TABLE_SCHEMA = 'shop' AND PARTITION_NAME IS NOT NULL ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, name, expr string
+		if err := r.Scan(&tbl, &name, &expr); err != nil {
+			return err
+		}
+		if t, ok := tables[tbl]; ok {
+			t.Partitions = append(t.Partitions, &metadata.TablePartitionMetadata{Name: name, Expression: expr})
 		}
 		return nil
 	})
@@ -552,4 +596,127 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 		}
 	}
 	return want
+}
+
+// TestColumnDropAgainstMySQL runs ALTER TABLE ... DROP COLUMN on a table
+// x's primary key on MySQL, and pins what the server does with it: the
+// error it stops the change with, if any, and the key x has after. MySQL
+// removes a dropped column from every index, and drops an index with the
+// last of its columns, so a drop of every column of the key leaves x
+// without one, and a drop of some leaves it on the rest. A RequirePrimaryKey
+// finding must match: reported only when the change ran and x ended it
+// without a key, except where the server refuses for something the synced
+// schema does not hold.
+//
+// mysql: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html#alter-table-add-drop-column
+func TestColumnDropAgainstMySQL(t *testing.T) {
+	db := startMySQL(t)
+	tests := []struct {
+		name   string
+		setup  string
+		change string
+		// err is a part of the error the server stops the change with, ""
+		// when the change runs, and key the columns of x's primary key after,
+		// "" when it has none.
+		err string
+		key string
+		// reported is whether the review reports x's key removed, and unseen
+		// that the server refuses the change for something the synced schema
+		// does not hold.
+		reported bool
+		unseen   bool
+	}{
+		// (a) A key of one column goes with it.
+		{name: "a key of one column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1), (2, 2)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a key of one AUTO_INCREMENT column", setup: "CREATE TABLE x (id INT AUTO_INCREMENT PRIMARY KEY, v INT); INSERT INTO x (v) VALUES (1), (2)", change: "ALTER TABLE x DROP id", reported: true},
+		{name: "a key of a column prefix", setup: "CREATE TABLE x (s VARCHAR(50), v INT, PRIMARY KEY (s(10)))", change: "ALTER TABLE x DROP COLUMN s", reported: true},
+		{name: "a key of one column, with a unique key on a NOT NULL column left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT NOT NULL, UNIQUE KEY uv (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		// (b) A key of two columns shrinks to the other, which fails when its
+		// values repeat, or goes when the statement drops both.
+		{name: "one column of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (1, 2, 2)", change: "ALTER TABLE x DROP COLUMN a", key: "b"},
+		{name: "one column of a key of two, the other repeating", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN a", err: "Duplicate entry", key: "a,b"},
+		{name: "both columns of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN b, DROP COLUMN a", reported: true},
+		// The second statement drops the key, but its column is one the
+		// first touched: not judged.
+		{name: "both columns of a key of two, in two statements", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b))", change: "ALTER TABLE x DROP COLUMN a;\nALTER TABLE x DROP COLUMN b"},
+		// (c) What depends on the column decides whether the server drops it.
+		{name: "a foreign key of another table references it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
+		{name: "a foreign key of another table references it, with foreign_key_checks off", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "SET foreign_key_checks = 0;\nALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
+		{name: "a foreign key of another database references it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.ch (x_id INT, CONSTRAINT fk_och FOREIGN KEY (x_id) REFERENCES shop.x (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id", reported: true, unseen: true},
+		{name: "a foreign key of another table references another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE ch (x_v INT, CONSTRAINT fk_ch FOREIGN KEY (x_v) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a foreign key of the table holds it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
+		{name: "a foreign key of the table holds another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (v) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a generated column reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN id", err: "has a generated column dependency", key: "id"},
+		{name: "a generated column reads it, and goes too", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN g", reported: true},
+		{name: "a check reads it alone", setup: "CREATE TABLE x (id INT PRIMARY KEY CHECK (id > 0), v INT)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a check reads it and another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT ck CHECK (id < v))", change: "ALTER TABLE x DROP COLUMN id", err: "hence column cannot be dropped", key: "id"},
+		{name: "a check reads both columns of the key, both dropped", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b), CONSTRAINT ck CHECK (a < b))", change: "ALTER TABLE x DROP COLUMN a, DROP COLUMN b", err: "hence column cannot be dropped", key: "a,b"},
+		{name: "a functional index reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY fx ((id + v)))", change: "ALTER TABLE x DROP COLUMN id", err: "has a functional index dependency", key: "id"},
+		{name: "another index holds it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY iv (v, id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a view or a trigger reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE VIEW xv AS SELECT id FROM x; CREATE TRIGGER xt BEFORE INSERT ON x FOR EACH ROW SET NEW.v = NEW.id", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "the table is partitioned by it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT) PARTITION BY HASH (id) PARTITIONS 2", change: "ALTER TABLE x DROP COLUMN id", err: "has a partitioning function dependency", key: "id"},
+		{name: "the table is partitioned by KEY (), its primary key", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE x DROP COLUMN id", err: "Field in list of fields for partition function not found", key: "id"},
+		{name: "it is the only column", setup: "CREATE TABLE x (id INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id", err: "You can't delete all columns", key: "id"},
+		// The key keeps a column of the dropped one's name the statement
+		// adds back; a subcommand that names a column of the key is not
+		// judged.
+		{name: "it is added back under its name", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD COLUMN id INT", key: "id"},
+		{name: "a key is added back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD PRIMARY KEY (v)", key: "v"},
+		{name: "a later statement adds a key back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x ADD PRIMARY KEY (v)", key: "v"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := resetOracle(t, db)
+			ctx := context.Background()
+			if _, err := conn.ExecContext(ctx, tt.setup); err != nil {
+				t.Fatalf("setup: %v", err)
+			}
+			schema := syncSchema(t, conn)
+			result, err := Review(ctx, tt.change, review.Options{Rules: []review.Rule{review.RequirePrimaryKey}},
+				[]review.Target{{Schema: schema, LowerCaseTableNames: lowerCaseTableNames(t, conn)}})
+			if err != nil {
+				t.Fatalf("Review: %v", err)
+			}
+			reported := false
+			for _, f := range result.Findings {
+				if f.Rule == review.Syntax {
+					t.Fatalf("syntax: %s", f.Message)
+				}
+				reported = true
+			}
+			var failed error
+			for _, s := range parseChange(t, tt.change) {
+				if _, failed = conn.ExecContext(ctx, tt.change[s.loc.Start:s.loc.End]); failed != nil {
+					break
+				}
+			}
+			switch {
+			case tt.err == "" && failed != nil:
+				t.Errorf("the change fails: %v", failed)
+			case tt.err != "" && (failed == nil || !strings.Contains(failed.Error(), tt.err)):
+				t.Errorf("the change ends with %v, want an error with %q", failed, tt.err)
+			}
+			if key := primaryKeyOf(t, conn, "x"); key != tt.key {
+				t.Errorf("key of x after the change = %q, want %q", key, tt.key)
+			}
+			if reported != tt.reported {
+				t.Errorf("reported = %v, want %v", reported, tt.reported)
+			}
+			if reported && (failed != nil || tt.key != "") && !tt.unseen {
+				t.Errorf("reported, but x keeps its key")
+			}
+		})
+	}
+}
+
+// primaryKeyOf reads the columns of a shop table's primary key, comma
+// separated, "" when it has none.
+func primaryKeyOf(t *testing.T, conn *sql.Conn, table string) string {
+	t.Helper()
+	var key sql.NullString
+	if err := conn.QueryRowContext(context.Background(), `SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) FROM information_schema.STATISTICS
+		WHERE TABLE_SCHEMA = 'shop' AND TABLE_NAME = ? AND INDEX_NAME = 'PRIMARY'`, table).Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	return key.String
 }
