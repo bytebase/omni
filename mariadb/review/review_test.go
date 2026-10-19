@@ -605,6 +605,33 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:  "DROP TABLE t;\nALTER TABLE p DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "p")},
 		},
+		{
+			name: "a table of its name in another database, made, dropped, renamed, altered, or given a key",
+			sql: "DROP TABLE IF EXISTS other.plain;\nALTER TABLE plain DROP COLUMN id;\nCREATE TABLE other.k1 (id INT PRIMARY KEY);\nALTER TABLE k1 DROP COLUMN id;\nRENAME TABLE other.k2 TO other.k9;\nALTER TABLE k2 DROP COLUMN id;" +
+				"\nALTER TABLE other.k5 ADD CHECK (a > 0);\nALTER TABLE k5 DROP COLUMN id;\nALTER TABLE other.k6 MODIFY id BIGINT;\nALTER TABLE k6 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;\nALTER TABLE other.k3 ADD PRIMARY KEY (a);",
+			want: []finding{lost(1, "DROP COLUMN id", "plain"), lost(3, "DROP COLUMN id", "k1"), lost(5, "DROP COLUMN id", "k2"), lost(7, "DROP COLUMN id", "k5"), lost(9, "DROP COLUMN id", "k6"), lost(10, "DROP COLUMN id", "k3")},
+		},
+		{
+			name: "a table of its name made after a USE, which may be the target's",
+			sql:  "USE other;\nCREATE TABLE k7 (a INT PRIMARY KEY);\nALTER TABLE shop.k7 DROP COLUMN id;",
+		},
+		{
+			name: "another subcommand the server refuses: a column the table has added, one added twice, a column it lacks changed, or one renamed to a name it has",
+			sql:  "ALTER TABLE plain ADD COLUMN v INT, DROP COLUMN id;\nALTER TABLE k1 ADD COLUMN w INT, ADD COLUMN w INT, DROP COLUMN id;\nALTER TABLE k2 MODIFY missing INT, DROP COLUMN id;\nALTER TABLE t CHANGE code n INT, DROP COLUMN id;",
+		},
+		{
+			name: "another subcommand that changes or renames a column",
+			sql:  "ALTER TABLE k3 CHANGE v w INT, DROP COLUMN id;\nALTER TABLE k4 MODIFY v BIGINT, DROP COLUMN id;\nALTER TABLE k5 RENAME COLUMN v TO w, DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "k3"), lost(1, "DROP COLUMN id", "k4"), lost(2, "DROP COLUMN id", "k5")},
+		},
+		{
+			name: "what a statement the server refuses drops, which stays",
+			sql:  "ALTER TABLE gen DROP COLUMN g, DROP COLUMN missing;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE t DROP FOREIGN KEY fk_p, DROP FOREIGN KEY missing;\nALTER TABLE p DROP COLUMN id;",
+		},
+		{
+			name: "a table holding a foreign key to it, dropped by a statement that also drops a table the database lacks",
+			sql:  "DROP TABLE t, missing;\nALTER TABLE p DROP COLUMN id;",
+		},
 		{name: "an index of the name of a generated column, dropped before", sql: "ALTER TABLE gen DROP INDEX g;\nALTER TABLE gen DROP COLUMN id;"},
 		{name: "a foreign key of the name, dropped from a table of another database", sql: "ALTER TABLE other.t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
 		{name: "a foreign key of the name, dropped from a table named in another case", sql: "ALTER TABLE T DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
@@ -622,6 +649,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 	}
 	runCases(t, review.RequirePrimaryKey, cases)
 	runCases(t, review.RequirePrimaryKey, []ruleCase{
+		{
+			name:    "a table of its name in another case made before, where names compare with case and where not",
+			sql:     "CREATE TABLE PLAIN (a INT PRIMARY KEY);\nALTER TABLE plain DROP COLUMN id;",
+			targets: []review.Target{{Schema: shop()}, {Schema: shop(), LowerCaseTableNames: 1}},
+			want:    []finding{{1, "DROP COLUMN id", "removes the primary key of plain, and the change adds none back", []int{0}}},
+		},
 		{
 			name:    "a table named in another case, where names compare with case and where not",
 			sql:     "ALTER TABLE PLAIN DROP COLUMN ID;",

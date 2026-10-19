@@ -25,7 +25,7 @@ type targetWork struct {
 }
 
 func (w targetWork) any() bool {
-	return w.backup || w.online || len(w.drops) > 0 || len(w.columns.list) > 0
+	return w.backup || w.online || len(w.drops) > 0 || w.columns.any()
 }
 
 // schemaTarget is what the rules read of a target.

@@ -686,6 +686,23 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		// Another database dropped leaves the target's tables as they are.
 		{name: "another database dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP DATABASE IF EXISTS other;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "another database dropped after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nDROP DATABASE IF EXISTS other", reported: true},
+		// What a statement does to a table of another database, or of a name
+		// that differs in case where names compare with case, leaves the
+		// target's table as it was.
+		{name: "a table of its name in another database, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (a INT PRIMARY KEY)", change: "DROP TABLE IF EXISTS other.x;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a table of its name in another database, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other", change: "CREATE TABLE other.x (a INT PRIMARY KEY);\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a table of its name in another database, renamed before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (a INT PRIMARY KEY)", change: "RENAME TABLE other.x TO other.y;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a table of its name in another database, given a key after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (a INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE other.x ADD PRIMARY KEY (a)", reported: true},
+		{name: "a table of its name in another case, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE X (a INT PRIMARY KEY);\nALTER TABLE x DROP COLUMN id", reported: true},
+		// Another subcommand of the statement the server refuses fails it.
+		{name: "with a column the table has, added", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD COLUMN v INT, DROP COLUMN id", err: "Duplicate column name 'v'", key: "id"},
+		{name: "with one column added twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ADD COLUMN w INT, ADD COLUMN w INT, DROP COLUMN id", err: "Duplicate column name 'w'", key: "id"},
+		{name: "with a column the table does not have, modified", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x MODIFY missing INT, DROP COLUMN id", err: "Unknown column 'missing'", key: "id"},
+		{name: "with a column changed to a name the table has", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT)", change: "ALTER TABLE x CHANGE v w INT, DROP COLUMN id", err: "Duplicate column name 'w'", key: "id"},
+		{name: "with a column changed or renamed", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, u INT)", change: "ALTER TABLE x CHANGE v w INT, RENAME COLUMN u TO s, DROP COLUMN id", reported: true},
+		// What a statement the server refuses drops stays: the change stops
+		// there.
+		{name: "a generated column reading it, dropped by a statement that fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN g, DROP COLUMN missing;\nALTER TABLE x DROP COLUMN id", err: "Can't DROP 'missing'", key: "id"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

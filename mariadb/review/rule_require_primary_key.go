@@ -24,11 +24,10 @@ import (
 //
 // An ALTER TABLE that drops columns takes the primary key with it when it
 // drops every column of the key, which only the synced schema tells. The
-// rule returns each top-level one for checkColumnDrops to judge against
-// every target, unless the statement also drops or adds a primary key or
-// renames the table, or an earlier statement made, dropped, or renamed a
-// table of its name; with it go what the change does to columns, what it
-// drops by name, and the databases it drops.
+// rule returns, for checkColumnDrops to judge against every target, each
+// top-level statement that drops something by name, and what the change
+// does to tables and columns by name: which table a name means, and
+// whether a statement runs, depend on the target.
 //
 // Without simulating the change, the rule follows the table by name. A
 // later statement that may give it a key, drop it or its database, rename
@@ -40,8 +39,6 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 		rng     review.Range
 		message string
 		settled bool
-		// drop is an ALTER TABLE whose DROP COLUMN the targets judge.
-		drop *columnDrop
 	}
 	var list []*pending
 	// byName holds the pending tables by name, which settle looks up.
@@ -62,49 +59,49 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			}
 		}
 	}
-	out := columnDrops{touched: newSeen(), removals: make(map[[2]string][]removal)}
-	// gone holds the tables an earlier statement made, dropped, or
-	// renamed, under each name, and goneDatabases the databases one
-	// dropped: a table of such a name may not be the synced one. anyColumn
-	// holds the tables a statement touched any column, or the primary key,
-	// of.
-	gone, anyColumn := newSeen(), newSeen()
-	goneDatabases := make(map[string]bool)
-	isGone := func(ref *ast.TableRef) bool {
-		_, made := gone.first(ref, "")
-		// A table named without a database, the targets tell.
-		return made || ref.Schema != "" && goneDatabases[nameKey(ref.Schema)]
-	}
+	out := columnDrops{removals: make(map[[2]string][]removal), touched: make(seen), anyColumn: make(seen), gone: make(seen), settles: make(seen)}
 	// A statement's touches come at twice its position, before its own
 	// column drops, at the next.
 	touch := func(position int, touches ...columnTouch) {
 		for _, t := range touches {
 			if t.column == "" {
-				anyColumn.add(t.table, "", position)
+				out.anyColumn.add(t.table, "", position)
 			} else {
 				out.touched.add(t.table, t.column, position)
 			}
 		}
 	}
-	// remove records what a statement drops by name, of a table the change
-	// has not made, dropped, or renamed before.
-	remove := func(position int, ref *ast.TableRef, kind dropKind, name string) {
-		if ref == nil || isGone(ref) {
-			return
+	// record adds a statement that drops by name, with what it drops.
+	record := func(d dropStatement) {
+		k := len(out.statements)
+		out.statements = append(out.statements, d)
+		removed := func(ref *ast.TableRef, kind dropKind, name string) {
+			key := [2]string{nameKey(ref.Name), nameKey(name)}
+			out.removals[key] = append(out.removals[key], removal{ref, kind, k})
 		}
-		k := [2]string{nameKey(ref.Name), nameKey(name)}
-		out.removals[k] = append(out.removals[k], removal{ref, kind, position})
+		for _, ref := range d.tables {
+			if d.dropsTable {
+				removed(ref, dropNone, "")
+			}
+			for _, cmd := range d.columns {
+				removed(ref, dropColumn, cmd.Name)
+			}
+			for _, n := range d.named {
+				removed(ref, n.kind, n.name)
+			}
+		}
 	}
 	for i := range stmts {
 		s := &stmts[i]
 		switch v := s.node.(type) {
 		case *ast.CreateTableStmt:
-			gone.add(v.Table, "", i)
+			out.gone.add(v.Table, "", i)
 			touch(2*i, createTouches(v)...)
 			// IF NOT EXISTS of a table the change made does nothing, and a
 			// temporary table leaves the table of its name as it is.
 			if !v.IfNotExists && !v.Temporary {
 				settle(v.Table)
+				out.settles.add(v.Table, "", i)
 			}
 			if v.Table == nil || v.Temporary || v.IfNotExists || v.Like != nil || createsPrimaryKey(v) {
 				continue
@@ -114,9 +111,9 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			if v.Table == nil {
 				continue
 			}
-			adds, renames, addsColumn := false, false, false
+			adds, renames := false, false
 			var dropped *ast.AlterTableCmd
-			var drops []*ast.AlterTableCmd
+			d := dropStatement{statement: s.index, position: i, tables: []*ast.TableRef{v.Table}}
 			for _, cmd := range v.Commands {
 				if cmd == nil {
 					continue
@@ -124,20 +121,21 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 				kind := dropKindOf(sql, cmd)
 				switch kind {
 				case dropColumn:
-					drops = append(drops, cmd)
+					d.columns = append(d.columns, cmd)
 				case dropIndex, dropForeignKey, dropConstraint:
-					remove(i, v.Table, kind, cmd.Name)
+					d.named = append(d.named, namedDrop{kind, cmd.Name, cmd.IfExists})
 				}
 				if kind != dropColumn {
 					touch(2*i, alterTouches(sql, v.Table, cmd)...)
+					d.addColumns(cmd)
 				}
 				switch {
 				case addsPrimaryKey(cmd):
 					adds = true
-				case cmd.Type == ast.ATAddColumn:
-					addsColumn = true
 				case cmd.Type == ast.ATRenameTable:
 					renames = true
+					out.gone.add(renamedTo(v.Table, cmd), "", i)
+					out.settles.add(renamedTo(v.Table, cmd), "", i)
 				// DROP PRIMARY KEY, or DROP INDEX `PRIMARY`; a check or foreign
 				// key quoted as PRIMARY is not the primary key.
 				case dropped == nil && kind == dropPrimaryKey:
@@ -146,22 +144,20 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			}
 			if adds || renames {
 				settle(v.Table)
+				out.settles.add(v.Table, "", i)
+			}
+			if renames {
+				out.gone.add(v.Table, "", i)
 			}
 			if dropped != nil && !adds && !renames {
 				add(&pending{ref: v.Table, index: s.index, rng: rangeOf(dropped.Loc), message: "removes the primary key of " + table(v.Table) + ", and the change adds none back"})
 			}
-			if _, unsure := anyColumn.first(v.Table, ""); len(drops) > 0 && dropped == nil && !adds && !renames && !unsure && !isGone(v.Table) {
-				add(&pending{ref: v.Table, drop: &columnDrop{statement: s.index, position: i, table: v.Table, drops: drops, addsColumn: addsColumn}})
+			if len(d.columns) > 0 || len(d.named) > 0 {
+				d.judged = len(d.columns) > 0 && dropped == nil && !adds && !renames
+				record(d)
 			}
-			for _, cmd := range drops {
-				remove(i, v.Table, dropColumn, cmd.Name)
+			for _, cmd := range d.columns {
 				touch(2*i+1, columnTouch{v.Table, cmd.Name})
-			}
-			for _, cmd := range v.Commands {
-				if cmd != nil && cmd.Type == ast.ATRenameTable {
-					gone.add(v.Table, "", i)
-					gone.add(renamedTo(v.Table, cmd), "", i)
-				}
 			}
 		case *ast.CreateIndexStmt:
 			if functionalParts(v.Columns) {
@@ -169,7 +165,7 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			}
 		case *ast.DropIndexStmt:
 			if !sameName(v.Name, "PRIMARY") {
-				remove(i, v.Table, dropIndex, v.Name)
+				record(dropStatement{statement: s.index, position: i, tables: []*ast.TableRef{v.Table}, named: []namedDrop{{kind: dropIndex, name: v.Name}}})
 				break
 			}
 			touch(2*i, columnTouch{table: v.Table})
@@ -180,38 +176,34 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 			if v.Temporary {
 				break
 			}
+			record(dropStatement{statement: s.index, position: i, tables: v.Tables, dropsTable: true})
 			for _, ref := range v.Tables {
-				remove(i, ref, dropNone, "")
-				gone.add(ref, "", i)
+				out.gone.add(ref, "", i)
+				out.settles.add(ref, "", i)
 				settle(ref)
 			}
 		case *ast.RenameTableStmt:
 			for _, pair := range v.Pairs {
 				if pair != nil {
-					gone.add(pair.Old, "", i)
-					gone.add(pair.New, "", i)
-					settle(pair.Old)
-					settle(pair.New)
+					for _, ref := range []*ast.TableRef{pair.Old, pair.New} {
+						out.gone.add(ref, "", i)
+						out.settles.add(ref, "", i)
+						settle(ref)
+					}
 				}
 			}
 		case *ast.DropDatabaseStmt:
-			goneDatabases[nameKey(v.Name)] = true
 			out.databases = append(out.databases, v.Name)
-			// A table without a database may be in the one dropped; for a
-			// column drop, the targets tell.
+			// A table without a database may be in the one dropped.
 			for _, p := range list {
-				if p.ref != nil && (p.ref.Schema == "" && p.drop == nil || p.ref.Schema != "" && sameName(p.ref.Schema, v.Name)) {
+				if p.ref != nil && (p.ref.Schema == "" || sameName(p.ref.Schema, v.Name)) {
 					p.settled = true
 				}
 			}
 		}
 	}
 	for _, p := range list {
-		switch {
-		case p.settled:
-		case p.drop != nil:
-			out.list = append(out.list, *p.drop)
-		default:
+		if !p.settled {
 			r.report(review.RequirePrimaryKey, p.index, p.rng, p.message)
 		}
 	}
@@ -219,33 +211,79 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 }
 
 // columnDrops is what the targets judge of a change's column drops: the
-// ALTER TABLE statements, what the change did to columns, what it drops by
-// name, which a drop no longer depends on, and the databases it drops,
-// which may hold a table named without one.
+// top-level statements that drop something by name, in order, what they
+// drop, what the change did to tables and columns, and the databases it
+// drops.
 type columnDrops struct {
-	list []columnDrop
+	statements []dropStatement
+	// removals holds what the statements drop, by table and object name;
+	// a table a DROP TABLE drops is under the name "".
+	removals map[[2]string][]removal
 	// touched is the columns a statement named, or made something depend
-	// on, at twice the statement's position, its own column drops at the
-	// next.
-	touched   seen
-	removals  map[[2]string][]removal
-	databases []string
+	// on, and anyColumn the tables a statement touched any column, or the
+	// primary key, of, each at twice the statement's position, its own
+	// column drops at the next. gone is the tables a statement made,
+	// dropped, or renamed, under each name, and settles those it may have
+	// given a key, dropped, renamed, or made, at the statement's position.
+	touched, anyColumn, gone, settles seen
+	databases                         []string
 }
 
-// columnDrop is a top-level ALTER TABLE that drops columns of a table the
-// change did not make, drop, or rename before it, nor touch any column or
-// the primary key of. Whether it drops the table's primary key depends on
-// the key's columns, which the target's synced schema holds.
-type columnDrop struct {
+// any reports whether the change has a column drop to judge.
+func (c columnDrops) any() bool {
+	return slices.ContainsFunc(c.statements, func(d dropStatement) bool { return d.judged })
+}
+
+// dropStatement is a top-level statement that drops something by name:
+// an ALTER TABLE with a DROP subcommand of a column, an index, or a
+// constraint, a DROP INDEX, or a DROP TABLE.
+type dropStatement struct {
 	// statement is the index in Result.Statements, and position the
 	// statement's place in the parsed list.
 	statement int
 	position  int
-	table     *ast.TableRef
-	// drops are the statement's DROP COLUMN subcommands, in order, and
-	// addsColumn whether it adds a column too.
-	drops      []*ast.AlterTableCmd
-	addsColumn bool
+	// tables are the tables it alters, or, with dropsTable, drops.
+	tables     []*ast.TableRef
+	dropsTable bool
+	// columns are the DROP COLUMN subcommands, in order, and named the
+	// drops of an index or a constraint.
+	columns []*ast.AlterTableCmd
+	named   []namedDrop
+	// adds are the columns the other subcommands add, renamed names the
+	// new names they give columns, and needs the columns they change.
+	adds, renamed, needs []string
+	// judged is an ALTER TABLE whose column drops may take the primary
+	// key: it drops columns, and no key, adds no key, and renames no
+	// table.
+	judged bool
+}
+
+// namedDrop is a DROP subcommand of an index or a constraint, of the kind
+// dropKindOf tells.
+type namedDrop struct {
+	kind     dropKind
+	name     string
+	ifExists bool
+}
+
+// addColumns records the columns an ALTER TABLE subcommand adds, renames,
+// or changes, which must not exist, or must.
+func (d *dropStatement) addColumns(cmd *ast.AlterTableCmd) {
+	switch cmd.Type {
+	case ast.ATAddColumn:
+		for _, col := range append([]*ast.ColumnDef{cmd.Column}, cmd.Columns...) {
+			if col != nil {
+				d.adds = append(d.adds, col.Name)
+			}
+		}
+	case ast.ATModifyColumn, ast.ATAlterColumnDefault, ast.ATAlterColumnSetNotNull, ast.ATAlterColumnDropNotNull, ast.ATAlterColumnVisible, ast.ATAlterColumnInvisible:
+		d.needs = append(d.needs, cmd.Name)
+	case ast.ATChangeColumn, ast.ATRenameColumn:
+		d.needs = append(d.needs, cmd.Name)
+		if !sameName(cmd.NewName, cmd.Name) {
+			d.renamed = append(d.renamed, cmd.NewName)
+		}
+	}
 }
 
 // columnTouch is a column of a table a statement names, or may make
@@ -256,53 +294,58 @@ type columnTouch struct {
 	column string
 }
 
-// removal is a column, index, or constraint of a table a top-level
-// statement drops by name, of the kind dropKindOf tells; dropNone is the
-// table itself, with all it holds.
+// removal is a column, index, or constraint of a table a statement of
+// columnDrops.statements drops by name, of the kind dropKindOf tells;
+// dropNone is the table itself, with all it holds.
 type removal struct {
-	table    *ast.TableRef
-	kind     dropKind
-	position int
+	table     *ast.TableRef
+	kind      dropKind
+	statement int
 }
 
-// seen records the first position at which a statement did something to
-// a table of a name, and to a column of it or, with "", to the table.
-// first answers for a reference the earliest of them that may have meant
-// its table: one named without a database may mean a table of any.
-type seen struct {
-	byName   map[[2]string]int
-	bySchema map[[3]string]int
-}
+// seen records, by table name and a column of the table or "" for the
+// table, the first and last positions at which a statement did something
+// to a table of each spelling of the name, in the database it named or
+// none.
+type seen map[[2]string]map[tableName]span
 
-func newSeen() seen {
-	return seen{byName: make(map[[2]string]int), bySchema: make(map[[3]string]int)}
-}
+type tableName struct{ schema, name string }
+
+type span struct{ first, last int }
 
 func (s seen) add(ref *ast.TableRef, column string, position int) {
 	if ref == nil {
 		return
 	}
 	k := [2]string{nameKey(ref.Name), nameKey(column)}
-	if _, ok := s.byName[k]; !ok {
-		s.byName[k] = position
+	if s[k] == nil {
+		s[k] = make(map[tableName]span)
 	}
-	ks := [3]string{k[0], k[1], nameKey(ref.Schema)}
-	if _, ok := s.bySchema[ks]; !ok {
-		s.bySchema[ks] = position
+	n := tableName{ref.Schema, ref.Name}
+	sp, ok := s[k][n]
+	if !ok {
+		sp.first = position
 	}
+	sp.last = position
+	s[k][n] = sp
 }
 
-func (s seen) first(ref *ast.TableRef, column string) (int, bool) {
-	k := [2]string{nameKey(ref.Name), nameKey(column)}
-	if ref.Schema == "" {
-		p, ok := s.byName[k]
-		return p, ok
+// within returns the first and last positions at which a statement did
+// something to a table that may be the one of the name, as match tells.
+func (s seen) within(name, column string, match func(tableName) bool) (first, last int, ok bool) {
+	for n, sp := range s[[2]string{nameKey(name), nameKey(column)}] {
+		if !match(n) {
+			continue
+		}
+		if !ok || sp.first < first {
+			first = sp.first
+		}
+		if !ok || sp.last > last {
+			last = sp.last
+		}
+		ok = true
 	}
-	p, ok := s.bySchema[[3]string{k[0], k[1], ""}]
-	if q, found := s.bySchema[[3]string{k[0], k[1], nameKey(ref.Schema)}]; found && (!ok || q < p) {
-		p, ok = q, true
-	}
-	return p, ok
+	return first, last, ok
 }
 
 // nameKey is the key two names sameName matches share.
@@ -437,85 +480,221 @@ func functionalParts(parts []*ast.IndexColumn) bool {
 }
 
 // checkColumnDrops judges the change's column drops against one target.
-// A change that drops the target's database leaves no table named without
-// a database to judge: before a drop, the drop fails, and after, the
-// table is gone.
+// A change that drops the target's database leaves none of its tables to
+// judge: a drop before it fails, and the table it drops is gone after.
 func checkColumnDrops(stmts []statement, c columnDrops, x schemaIndex, r *reporter) {
-	firstUse := beforeUse(stmts)
-	dropsTarget := slices.ContainsFunc(c.databases, func(db string) bool { return x.same(db, x.schema.GetName()) })
-	for _, d := range c.list {
-		if dropsTarget && d.table.Schema == "" {
-			continue
-		}
-		// removed reports whether the change dropped, by the statement or
-		// before it, the object of a table of the target, of one of the
-		// kinds, or the table.
-		removed := func(tableName, name string, kinds ...dropKind) bool {
-			for _, key := range [][2]string{{nameKey(tableName), nameKey(name)}, {nameKey(tableName), ""}} {
-				for _, rm := range c.removals[key] {
-					inTarget := rm.table.Schema == "" && rm.position <= firstUse || rm.table.Schema != "" && x.same(rm.table.Schema, x.schema.GetName())
-					if rm.position <= d.position && inTarget && x.same(rm.table.Name, tableName) && (rm.kind == dropNone || key[1] != "" && slices.Contains(kinds, rm.kind)) {
-						return true
-					}
+	if !c.any() || slices.ContainsFunc(c.databases, func(db string) bool { return x.same(db, x.schema.GetName()) }) {
+		return
+	}
+	j := &judge{c: c, x: x, firstUse: beforeUse(stmts), runs: make([]int8, len(c.statements)), referencing: make(map[string][]referencingKey)}
+	for _, s := range x.schema.GetSchemas() {
+		for _, t := range s.GetTables() {
+			for _, fk := range t.GetForeignKeys() {
+				if db := fk.GetReferencedSchema(); db == "" || x.same(db, x.schema.GetName()) {
+					k := nameKey(fk.GetReferencedTable())
+					j.referencing[k] = append(j.referencing[k], referencingKey{t, fk})
 				}
 			}
-			return false
 		}
-		touched := func(column string) bool {
-			p, ok := c.touched.first(d.table, column)
-			return ok && p <= 2*d.position
+	}
+	for i, d := range c.statements {
+		if d.judged && j.statementRuns(i) {
+			j.checkColumnDrop(d, r)
 		}
-		checkColumnDrop(d, firstUse < d.position, x, touched, removed, r)
 	}
 }
 
-// checkColumnDrop reports an ALTER TABLE that drops every column of the
-// primary key of the target's synced table: MariaDB drops an index with
-// the last of its columns, and refuses to drop only some columns of a key
-// of several. The table is found as MariaDB resolves it, and not at all
-// when a USE before the statement may have moved the current database.
-// The drop is not judged when an earlier statement, or another subcommand
-// of the statement, touched a column of the key or one the statement
-// drops, or when the server refuses it: it drops a column the table does
-// not have without IF EXISTS, or one twice, or every column of the table
-// and adds none, or something the synced schema holds, and the change has
-// not dropped, depends on a column it drops. A foreign key of another
-// database, which the synced schema does not hold, refuses it too.
+// judge answers for one target what the change's statements that drop by
+// name do: runs memoizes, by statement, whether it is known to run, 1, or
+// not, -1.
+type judge struct {
+	c           columnDrops
+	x           schemaIndex
+	firstUse    int
+	runs        []int8
+	referencing map[string][]referencingKey
+}
+
+// referencingKey is a foreign key of a table of the synced schema, by the
+// table it references.
+type referencingKey struct {
+	table *metadata.TableMetadata
+	fk    *metadata.ForeignKeyMetadata
+}
+
+// mayBe reports whether a table a statement named may be the target's
+// table of the name: named alike, as the target compares names, in the
+// target's database or in none, which a USE may have moved.
+func (j *judge) mayBe(name string) func(tableName) bool {
+	return func(n tableName) bool {
+		return j.x.same(n.name, name) && (n.schema == "" || j.x.same(n.schema, j.x.schema.GetName()))
+	}
+}
+
+// synced returns the synced table a reference of a statement certainly
+// means, nil when a USE before it may have moved the current database, or
+// an earlier statement made, dropped, or renamed a table it may mean.
+func (j *judge) synced(ref *ast.TableRef, position int) *metadata.TableMetadata {
+	t := j.x.table(ref, j.firstUse < position)
+	if t == nil {
+		return nil
+	}
+	if first, _, ok := j.c.gone.within(ref.Name, "", j.mayBe(ref.Name)); ok && first < position {
+		return nil
+	}
+	return t
+}
+
+// touched reports whether a statement at a position up to the given one,
+// doubled, touched a column of the target's table of the name.
+func (j *judge) touched(name, column string, upTo int) bool {
+	first, _, ok := j.c.touched.within(name, column, j.mayBe(name))
+	return ok && first <= upTo
+}
+
+// statementRuns reports whether the statement is known to run on the
+// target: each table it names is the synced one, and nothing the synced
+// schema, or an earlier statement, tells keeps a subcommand from running.
+// Its other subcommands, which add or change, are judged by the columns
+// they name. The server refuses an ALTER TABLE that drops a column the
+// table does not have without IF EXISTS, or one twice, or every column of
+// the table and adds none, or a column something depends on; that changes
+// a column the table does not have, or one the statement drops; that adds
+// a column the table has and the statement keeps, or one twice; or that
+// drops an index or a constraint the table does not have without IF
+// EXISTS.
+func (j *judge) statementRuns(i int) bool {
+	if j.runs[i] != 0 {
+		return j.runs[i] > 0
+	}
+	j.runs[i] = -1
+	if j.knownToRun(i) {
+		j.runs[i] = 1
+	}
+	return j.runs[i] > 0
+}
+
+func (j *judge) knownToRun(i int) bool {
+	d := j.c.statements[i]
+	if d.dropsTable {
+		return !slices.ContainsFunc(d.tables, func(ref *ast.TableRef) bool { return ref == nil || j.synced(ref, d.position) == nil })
+	}
+	ref := d.tables[0]
+	t := j.synced(ref, d.position)
+	if t == nil {
+		return false
+	}
+	if first, _, ok := j.c.anyColumn.within(ref.Name, "", j.mayBe(ref.Name)); ok && first <= 2*d.position {
+		return false
+	}
+	hasColumn := func(column string) bool {
+		return slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return sameName(c.GetName(), column) })
+	}
+	drops := func(column string) bool {
+		return slices.ContainsFunc(d.columns, func(cmd *ast.AlterTableCmd) bool { return sameName(cmd.Name, column) })
+	}
+	for k, cmd := range d.columns {
+		twice := slices.ContainsFunc(d.columns[:k], func(prev *ast.AlterTableCmd) bool { return sameName(prev.Name, cmd.Name) })
+		if !hasColumn(cmd.Name) && !cmd.IfExists || twice || j.touched(ref.Name, cmd.Name, 2*d.position) {
+			return false
+		}
+	}
+	// What an earlier statement touched, the synced schema no longer tells.
+	for _, column := range d.needs {
+		if !hasColumn(column) || drops(column) || j.touched(ref.Name, column, 2*d.position-1) {
+			return false
+		}
+	}
+	named := append(slices.Clone(d.adds), d.renamed...)
+	for k, column := range named {
+		if hasColumn(column) && !drops(column) || slices.ContainsFunc(named[:k], func(prev string) bool { return sameName(prev, column) }) || j.touched(ref.Name, column, 2*d.position-1) {
+			return false
+		}
+	}
+	if len(d.columns) > 0 && len(d.adds) == 0 && !slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return !drops(c.GetName()) }) {
+		return false
+	}
+	for _, n := range d.named {
+		if !n.ifExists && !j.holds(t, n, i) {
+			return false
+		}
+	}
+	for _, cmd := range d.columns {
+		if j.keepsColumn(t, cmd.Name, drops, i) {
+			return false
+		}
+	}
+	return true
+}
+
+// holds reports whether the synced table has an index or a constraint of
+// the name a DROP subcommand drops, of a kind it drops, which no
+// statement before the given one is known to have dropped.
+func (j *judge) holds(t *metadata.TableMetadata, n namedDrop, i int) bool {
+	before := func(kinds ...dropKind) bool { return j.removed(t.GetName(), n.name, i, false, kinds...) }
+	index := slices.ContainsFunc(t.GetIndexes(), func(idx *metadata.IndexMetadata) bool { return !idx.GetPrimary() && sameName(idx.GetName(), n.name) })
+	fk := slices.ContainsFunc(t.GetForeignKeys(), func(fk *metadata.ForeignKeyMetadata) bool { return sameName(fk.GetName(), n.name) })
+	check := slices.ContainsFunc(t.GetCheckConstraints(), func(c *metadata.CheckConstraintMetadata) bool { return sameName(c.GetName(), n.name) })
+	switch n.kind {
+	case dropIndex:
+		return index && !before(dropIndex, dropConstraint)
+	case dropForeignKey:
+		return fk && !before(dropForeignKey, dropConstraint)
+	case dropConstraint:
+		return (index || fk || check) && !before(dropIndex, dropForeignKey, dropConstraint)
+	}
+	return false
+}
+
+// removed reports whether a statement known to run, up to the given one
+// or, with !upTo, before it, dropped the object of the name of the
+// target's table, of one of the kinds, or the table. The given statement
+// itself counts as running: what it drops is judged with it.
+func (j *judge) removed(tableName, name string, i int, upTo bool, kinds ...dropKind) bool {
+	for _, key := range [][2]string{{nameKey(tableName), nameKey(name)}, {nameKey(tableName), ""}} {
+		for _, rm := range j.c.removals[key] {
+			if rm.statement > i || rm.statement == i && !upTo || !j.x.same(rm.table.Name, tableName) {
+				continue
+			}
+			if rm.kind != dropNone && (key[1] == "" || !slices.Contains(kinds, rm.kind)) {
+				continue
+			}
+			if rm.statement == i || j.statementRuns(rm.statement) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// checkColumnDrop reports an ALTER TABLE, known to run, that drops every
+// column of the primary key of the target's synced table: MariaDB drops
+// an index with the last of its columns, and refuses to drop only some
+// columns of a key of several. A later statement that may give the table a key, drop
+// it, rename it, or make a table of its name settles it. A foreign key of
+// another database, which the synced schema does not hold, refuses the
+// drop too.
 //
 // mariadb: https://mariadb.com/docs/server/reference/sql-statements/data-definition/alter/alter-table — DROP COLUMN
-func checkColumnDrop(d columnDrop, moved bool, x schemaIndex, touched func(string) bool, removed func(string, string, ...dropKind) bool, r *reporter) {
-	t := x.table(d.table, moved)
-	key := primaryKeyColumns(t)
+func (j *judge) checkColumnDrop(d dropStatement, r *reporter) {
+	ref := d.tables[0]
+	key := primaryKeyColumns(j.synced(ref, d.position))
 	if key == nil {
 		return
 	}
-	drops := func(column string) bool {
-		return slices.ContainsFunc(d.drops, func(cmd *ast.AlterTableCmd) bool { return sameName(cmd.Name, column) })
+	dropsKey := func(cmd *ast.AlterTableCmd) bool {
+		return slices.ContainsFunc(key, func(c string) bool { return sameName(c, cmd.Name) })
 	}
 	for _, column := range key {
-		if !drops(column) || touched(column) {
+		if !slices.ContainsFunc(d.columns, func(cmd *ast.AlterTableCmd) bool { return sameName(cmd.Name, column) }) {
 			return
 		}
 	}
-	for i, cmd := range d.drops {
-		synced := slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return sameName(c.GetName(), cmd.Name) })
-		twice := slices.ContainsFunc(d.drops[:i], func(prev *ast.AlterTableCmd) bool { return sameName(prev.Name, cmd.Name) })
-		if !synced && !cmd.IfExists || twice || touched(cmd.Name) {
-			return
-		}
-	}
-	if !d.addsColumn && !slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return !drops(c.GetName()) }) {
+	if _, last, ok := j.c.settles.within(ref.Name, "", j.mayBe(ref.Name)); ok && last > d.position {
 		return
 	}
-	for _, cmd := range d.drops {
-		if x.keepsColumn(t, cmd.Name, drops, removed) {
-			return
-		}
-	}
-	at := d.drops[slices.IndexFunc(d.drops, func(cmd *ast.AlterTableCmd) bool {
-		return slices.ContainsFunc(key, func(c string) bool { return sameName(c, cmd.Name) })
-	})]
-	r.report(review.RequirePrimaryKey, d.statement, rangeOf(at.Loc), "removes the primary key of "+table(d.table)+", and the change adds none back")
+	at := d.columns[slices.IndexFunc(d.columns, dropsKey)]
+	r.report(review.RequirePrimaryKey, d.statement, rangeOf(at.Loc), "removes the primary key of "+table(ref)+", and the change adds none back")
 }
 
 // primaryKeyColumns returns the columns of the synced table's primary
@@ -537,35 +716,31 @@ func primaryKeyColumns(t *metadata.TableMetadata) []string {
 	return key
 }
 
-// keepsColumn reports whether something the synced schema holds, and the
-// change has not dropped, may keep the server from dropping a column of
-// the table, given the columns the statement drops: a foreign key of the
-// table that holds it, or one of the database that references it; a
-// generated column the statement keeps that may read it; a check that
-// reads it and a column the statement keeps; or the table's partitioning
-// or subpartitioning, by an expression that may read it or by KEY (),
-// which reads the primary key. A check that reads only columns the
-// statement drops goes with them. A foreign key names the table it
-// references without its database, so one that may reference a table of
-// another database counts. MariaDB has no functional index.
-func (x schemaIndex) keepsColumn(t *metadata.TableMetadata, column string, drops func(string) bool, removed func(string, string, ...dropKind) bool) bool {
+// keepsColumn reports whether something the synced schema holds, and no
+// statement up to the given one is known to have dropped, may keep the
+// server from dropping a column of the table, given the columns the
+// statement drops: a foreign key of the table that holds it, or one of the
+// database that references it, or the table holding one; a generated
+// column the statement keeps that may read it; a check that reads it and
+// a column the statement keeps; or the table's partitioning or
+// subpartitioning, by an expression that may read it or by KEY (), which
+// reads the primary key. A check that reads only columns the statement
+// drops goes with them. A foreign key names the table it references
+// without its database, so one that may reference a table of another
+// database counts. MariaDB has no functional index.
+func (j *judge) keepsColumn(t *metadata.TableMetadata, column string, drops func(string) bool, i int) bool {
 	has := func(list []string) bool {
 		return slices.ContainsFunc(list, func(c string) bool { return sameName(c, column) })
 	}
+	removed := func(table, name string, kinds ...dropKind) bool { return j.removed(table, name, i, true, kinds...) }
 	for _, fk := range t.GetForeignKeys() {
 		if has(fk.GetColumns()) && !removed(t.GetName(), fk.GetName(), dropForeignKey, dropConstraint) {
 			return true
 		}
 	}
-	for _, s := range x.schema.GetSchemas() {
-		for _, other := range s.GetTables() {
-			for _, fk := range other.GetForeignKeys() {
-				db := fk.GetReferencedSchema()
-				if (db == "" || x.same(db, x.schema.GetName())) && x.same(fk.GetReferencedTable(), t.GetName()) && has(fk.GetReferencedColumns()) &&
-					!removed(other.GetName(), fk.GetName(), dropForeignKey, dropConstraint) {
-					return true
-				}
-			}
+	for _, ref := range j.referencing[nameKey(t.GetName())] {
+		if j.x.same(ref.fk.GetReferencedTable(), t.GetName()) && has(ref.fk.GetReferencedColumns()) && !removed(ref.table.GetName(), ref.fk.GetName(), dropForeignKey, dropConstraint) {
+			return true
 		}
 	}
 	for _, c := range t.GetColumns() {
