@@ -403,6 +403,9 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"SELECT 1 FROM dual UNION (SELECT *)",
 		"SELECT 1 FROM dual UNION (SELECT *);",
 		"(SELECT *) UNION SELECT 1 FROM dual",
+		// The first failing block, though the last awaits its FROM.
+		"(SELECT *) UNION SELECT *",
+		"SELECT * UNION SELECT *",
 	} {
 		_, err := Parse(sql)
 		var pe *ParseError

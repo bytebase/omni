@@ -483,7 +483,7 @@ func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error
 	if p.lexer.Err != nil {
 		return nil, p.lexerError()
 	}
-	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || p.isIncompleteParsedStmt(stmt)) {
+	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || p.isIncompleteParsedStmt(stmt)) && !p.failsBeforeEnd(stmt) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if stmt == nil {
@@ -813,10 +813,32 @@ func (p *Parser) endsAwaitingFrom(query *nodes.SelectStmt) bool {
 	for query.Rarg != nil {
 		query = query.Rarg
 	}
-	if query.Larg != nil || query.Loc.Start >= 0 && query.Loc.Start < len(p.source) && p.source[query.Loc.Start] == '(' {
+	if query.Larg != nil || p.parenthesizedBlock(query) {
 		return false
 	}
 	return (query.FromClause == nil || query.FromClause.Len() == 0) && selectTargetListContainsStar(query.TargetList)
+}
+
+// parenthesizedBlock reports whether the span of the query block sel opens
+// with its parentheses, as a parenthesized operand's does.
+func (p *Parser) parenthesizedBlock(sel *nodes.SelectStmt) bool {
+	return sel.Loc.Start >= 0 && sel.Loc.Start < len(p.source) && p.source[sel.Loc.Start] == '('
+}
+
+// failsBeforeEnd reports whether stmt holds a query block that selects *
+// without FROM (sourcelessStar) other than one still open where the text
+// ends, which may yet get its FROM: (SELECT *) UNION SELECT * fails at its
+// first block, unfinished or not.
+func (p *Parser) failsBeforeEnd(stmt nodes.StmtNode) bool {
+	if stmt == nil {
+		return false
+	}
+	bad := sourcelessStar(stmt)
+	if bad == nil {
+		return false
+	}
+	open := bad.Op == nodes.SETOP_NONE && bad.Larg == nil && !p.parenthesizedBlock(bad) && bad.Loc.End == p.prev.End
+	return !open
 }
 
 // selectTargetListContainsStar reports whether list selects * or table.*:
