@@ -31,6 +31,8 @@ type Parser struct {
 	parenRunStart   int           // offset of the '(' run walked last
 	parenRunPast    Token         // first token past that run
 
+	depth int // nesting depth of the productions being parsed (see enterNesting)
+
 	// Completion mode fields.
 	completing   bool          // true when collecting completion candidates
 	cursorOff    int           // byte offset of the cursor in source
@@ -412,6 +414,10 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 // The current token is CREATE. We peek at the next token to determine which
 // CREATE sub-statement to parse.
 func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	createLoc := p.pos() // byte offset of CREATE keyword
 	// In collect mode, check if the next token is at/past cursor.
 	// We need to peek ahead because CREATE has not been consumed yet.

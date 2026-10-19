@@ -1179,6 +1179,10 @@ func (p *Parser) parseJsonTableColumnDefinitionList() (*nodes.List, error) {
 //	| ColId Typename [FORMAT JSON] [EXISTS] [PATH Sconst] [wrapper] [quotes] [behavior]
 //	| NESTED [PATH] Sconst [AS name] COLUMNS '(' column_list ')'
 func (p *Parser) parseJsonTableColumnDefinition() (*nodes.JsonTableColumn, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// NESTED path
 	if p.cur.Type == NESTED {
 		p.advance() // consume NESTED

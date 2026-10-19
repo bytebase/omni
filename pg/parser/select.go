@@ -23,6 +23,10 @@ const (
 //	    | select_clause opt_sort_clause select_limit opt_for_locking_clause
 //	    | with_clause select_clause ...
 func (p *Parser) parseSelectNoParens() (*nodes.SelectStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	loc := p.pos()
 	// 1. Optional WITH clause
 	var withClause *nodes.WithClause
@@ -118,6 +122,10 @@ func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 //	    simple_select
 //	    | select_with_parens
 func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parseSelectClausePrimary()
 	if err != nil {
 		return nil, err
@@ -1057,6 +1065,10 @@ func (p *Parser) parseFromListFull() (*nodes.List, error) {
 //	    | xmltable opt_alias_clause
 //	    | json_table opt_alias_clause
 func (p *Parser) parseTableRef() (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parseTableRefPrimary()
 	if err != nil {
 		return nil, err
@@ -1288,6 +1300,14 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
+	if p.depth >= maxNestingDepth {
+		// Too deep to classify. The parse descends through these parens
+		// itself and fails at the same limit before it needs the verdict.
+		p.skipMatchedParen()
+		return false
+	}
+	p.depth++
+	defer p.leaveNesting()
 	open := p.cur.Loc
 	p.advance() // consume '('
 
@@ -1340,6 +1360,24 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 	}
 	p.parenIsSubquery[open] = isSubquery
 	return isSubquery
+}
+
+// skipMatchedParen consumes from the '(' at p.cur through its matching ')',
+// or to end of input.
+func (p *Parser) skipMatchedParen() {
+	depth := 0
+	for p.cur.Type != 0 {
+		switch p.cur.Type {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+		p.advance()
+		if depth == 0 {
+			return
+		}
+	}
 }
 
 // parseLateralTableRef handles LATERAL prefix.
@@ -2262,6 +2300,10 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 //	    | rollup_clause
 //	    | grouping_sets_clause
 func (p *Parser) parseGroupByItem() (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Type {
 	case '(':
 		// empty_grouping_set: '(' ')'

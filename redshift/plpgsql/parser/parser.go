@@ -18,6 +18,7 @@ type Parser struct {
 	prev    pgparser.Token
 	nextBuf pgparser.Token
 	hasNext bool
+	depth   int // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // newParser creates a new PL/pgSQL parser for the given source text.
@@ -497,6 +498,10 @@ func (p *Parser) parseBlock(label string) (*ast.PLBlock, error) {
 
 // parseStmtList parses statements until END, EXCEPTION, ELSE, ELSIF, WHEN.
 func (p *Parser) parseStmtList() ([]ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	var stmts []ast.Node
 	for {
 		// Skip standalone semicolons

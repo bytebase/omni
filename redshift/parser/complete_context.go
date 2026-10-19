@@ -386,6 +386,11 @@ func (p *completionScopeParser) parseParenFromPrimary(i int, depth int, end int,
 	if closeIdx < 0 || closeIdx >= end {
 		return nil, i + 1, false
 	}
+	if depth >= maxNestingDepth {
+		// Completion is best effort: a group nested this deep contributes
+		// no references, rather than recursing until the stack overflows.
+		return nil, closeIdx + 1, true
+	}
 	if i+1 < closeIdx && isSelectLikeStart(p.tokens[i+1].Type) {
 		alias, cols, next, aliasLoc := p.parseAlias(closeIdx+1, depth, end)
 		loc := nodes.Loc{Start: p.tokens[i].Loc, End: p.tokens[closeIdx].End}
