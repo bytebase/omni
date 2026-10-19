@@ -657,7 +657,7 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		{name: "a generated column reading it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN g;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a generated column reading it, dropped too", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN g", reported: true},
 		{name: "a check of it alone", setup: "CREATE TABLE x (id INT PRIMARY KEY CHECK (id > 0), v INT)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a check of both columns of the key, both dropped", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b), CONSTRAINT ck CHECK (a < b))", change: "ALTER TABLE x DROP COLUMN a, DROP COLUMN b", reported: true},
+		{name: "a check of both columns of the key, both dropped, which the synced schema does not tell from an application-time period", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b), CONSTRAINT ck CHECK (a < b))", change: "ALTER TABLE x DROP COLUMN a, DROP COLUMN b"},
 		{name: "a key of one column, under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN IF EXISTS id", reported: true},
 		{name: "a key of one column, under IF EXISTS twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN IF EXISTS id, DROP COLUMN IF EXISTS id", reported: true},
 		{name: "with a column the table lacks, under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN IF EXISTS missing", reported: true},
@@ -730,6 +730,9 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		{name: "a unique key of it and another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY u (id, v)); INSERT INTO x VALUES (1, 1), (2, 2)", change: "ALTER TABLE x DROP COLUMN id", err: "Key column 'id' doesn't exist", key: "id"},
 		{name: "a unique key of it and another column, both dropped", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT, UNIQUE KEY u (id, v)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN v", reported: true},
 		{name: "a unique key of it alone", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY u (id)); INSERT INTO x VALUES (1, 1), (2, 1)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a column out of the key dropped before from a table partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (id INT PRIMARY KEY, v INT) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a read-only transaction started before, which the drop commits", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "START TRANSACTION READ ONLY;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "an application-time period of it and another column, both dropped", setup: "CREATE TABLE x (s DATE, e DATE, v INT, PRIMARY KEY (s), PERIOD FOR p (s, e))", change: "ALTER TABLE x DROP COLUMN s, DROP COLUMN e", err: "Unknown column 's' in 'p'", key: "s"},
 		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
 		// of each holds; another value may be refused.
 		{name: "with ALGORITHM and LOCK left at DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=DEFAULT, LOCK DEFAULT", reported: true},

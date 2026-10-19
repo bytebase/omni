@@ -458,10 +458,10 @@ func primaryKeyColumns(t *metadata.TableMetadata) []string {
 // another column; a unique key of it and a part not gone, which narrows to
 // the rest and fails when their values repeat; a functional index part that
 // may read it; or the table's partitioning or subpartitioning, by an
-// expression that may read it or by KEY (), which reads the primary key. A
-// check that reads the column alone goes with it. A foreign key names the
-// table it references without its database, so one that may reference a
-// table of another database counts.
+// expression that may read it or by KEY (), which reads the primary key, or
+// a unique key of a table without one. A check that reads the column alone
+// goes with it. A foreign key names the table it references without its
+// database, so one that may reference a table of another database counts.
 func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone func(string) bool) bool {
 	has := func(list []string) bool {
 		return slices.ContainsFunc(list, func(c string) bool { return sameName(c, column) })
@@ -500,12 +500,21 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 			}
 		}
 	}
+	// KEY () is synced with no expression, and reads the primary key, or,
+	// without one, a unique key.
+	partitionedBy := func(expr string) bool {
+		if expr == "" {
+			key := primaryKeyColumns(t)
+			return key == nil || has(key)
+		}
+		return reads(expr, column)
+	}
 	for _, p := range t.GetPartitions() {
-		if p.GetExpression() == "" || reads(p.GetExpression(), column) {
+		if partitionedBy(p.GetExpression()) {
 			return true
 		}
 		for _, sub := range p.GetSubpartitions() {
-			if sub.GetExpression() == "" || reads(sub.GetExpression(), column) {
+			if partitionedBy(sub.GetExpression()) {
 				return true
 			}
 		}

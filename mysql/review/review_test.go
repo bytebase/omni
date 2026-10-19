@@ -425,14 +425,17 @@ func TestRequirePrimaryKey(t *testing.T) {
 }
 
 // keyed is shop with tables for the primary key a DROP COLUMN drops: k1 to
-// k3 with a key on id and a column v; pair with a key of two columns; gen
-// with a generated column, gen2 with one that names the key only in a
-// literal, chk with a check of the key and v, solo with a check of the key
-// alone, fx with a functional index, and part with partitioning, each
-// reading the key; kpart partitioned by KEY (), which reads the key; inv
-// whose other column is invisible, and inv2 with a visible one too; defx
-// whose other column's default reads the key, and deflit whose literal
-// default names it; and self with a foreign key to itself.
+// k3 with a key on id and a column v; pair with a key of two columns, pchk
+// with one whose check reads both; gen with a generated column, gen2 with
+// one that names the key only in a literal, chk with a check of the key and
+// v, solo with a check of the key alone, fx with a functional index, and
+// part with partitioning, each reading the key; kpart partitioned by KEY (),
+// which reads the key, and kpart0, without a key, by KEY (), which reads its
+// unique key; inv whose other column is invisible, and inv2 with a visible
+// one too; defx whose other column's default reads the key, and deflit whose
+// literal default names it; uq with a unique key of the key and v, uq1 with
+// one of the key alone, and kv with a key of v and the key that is not
+// unique; and self with a foreign key to itself.
 func keyed() []review.Target {
 	s := shop()
 	pk := func(columns ...string) []*metadata.IndexMetadata {
@@ -444,6 +447,7 @@ func keyed() []review.Target {
 	}
 	*tables = append(*tables,
 		&metadata.TableMetadata{Name: "pair", Columns: columns("a", "b", "v"), Indexes: pk("a", "b")},
+		&metadata.TableMetadata{Name: "pchk", Columns: columns("a", "b", "v"), Indexes: pk("a", "b"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`a` < `b`)"}}},
 		&metadata.TableMetadata{
 			Name:    "gen",
 			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "(`id` + 1)"}}},
@@ -459,6 +463,7 @@ func keyed() []review.Target {
 		&metadata.TableMetadata{Name: "fx", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "fxi", Expressions: []string{"((`id` + `v`))"}})},
 		&metadata.TableMetadata{Name: "part", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Expression: "`id`"}}},
 		&metadata.TableMetadata{Name: "kpart", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
+		&metadata.TableMetadata{Name: "kpart0", Columns: columns("u", "v"), Indexes: []*metadata.IndexMetadata{{Name: "uu", Unique: true, Expressions: []string{"u"}}}, Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
 		&metadata.TableMetadata{Name: "inv", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", IsInvisible: true}}, Indexes: pk("id")},
 		&metadata.TableMetadata{Name: "inv2", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", IsInvisible: true}, {Name: "w"}}, Indexes: pk("id")},
 		&metadata.TableMetadata{Name: "defx", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", Default: "((`id` + 1))"}}, Indexes: pk("id")},
@@ -519,9 +524,21 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "a column a foreign key of the table to itself references", sql: "ALTER TABLE self DROP COLUMN id;"},
 		{name: "a column a generated column reads", sql: "ALTER TABLE gen DROP COLUMN id;"},
 		{name: "a column a check reads with another", sql: "ALTER TABLE chk DROP COLUMN id;"},
+		{name: "every column of the key, which a check reads", sql: "ALTER TABLE pchk DROP a, DROP b;"},
 		{name: "a column a functional index reads", sql: "ALTER TABLE fx DROP COLUMN id;"},
 		{name: "a column the table is partitioned by", sql: "ALTER TABLE part DROP COLUMN id;"},
 		{name: "a column of a table partitioned by KEY ()", sql: "ALTER TABLE kpart DROP COLUMN id;"},
+		{name: "a column of a table without a primary key partitioned by KEY ()", sql: "ALTER TABLE kpart0 DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, after a column out of the key dropped from a table partitioned by KEY ()",
+			sql:  "ALTER TABLE kpart DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, after a read-only transaction started, which the drop commits",
+			sql:  "START TRANSACTION READ ONLY;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
 		{name: "every visible column of the table", sql: "ALTER TABLE inv DROP COLUMN id;"},
 		{name: "a column an expression default reads", sql: "ALTER TABLE defx DROP COLUMN id;"},
 		{name: "a column of a table the synced schema lacks", sql: "ALTER TABLE missing DROP COLUMN id;\nALTER TABLE plain DROP COLUMN id;"},

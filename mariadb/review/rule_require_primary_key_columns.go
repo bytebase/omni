@@ -458,13 +458,18 @@ func primaryKeyColumns(t *metadata.TableMetadata) []string {
 // server from dropping a column of the table, given the columns gone with
 // this statement or before it: a foreign key of the table that holds it, or
 // one of the database that references it; a generated column not gone that
-// may read it, or whose default may name it; a check that reads it and a
-// column not gone; a unique key of it and a column not gone, which MariaDB
-// refuses to narrow; or the table's partitioning or subpartitioning, by an
-// expression that may read it or by KEY (), which reads the primary key. A
-// check that reads only columns gone goes with them. A foreign key names the
-// table it references without its database, so one that may reference a
-// table of another database counts. MariaDB has no functional index.
+// may read it, or whose default may name it; a check that reads it and
+// another column, which MariaDB drops when every column it reads goes, but
+// which may be an application-time period, synced as a check of its two
+// columns, that keeps them; a unique key of it and a column not gone, which
+// MariaDB refuses to narrow; or the table's partitioning or subpartitioning,
+// by an expression that may read it or by KEY (), which reads the primary
+// key, or a unique key of a table without one. A check that reads the column
+// alone goes with it. A foreign key names the table it references without
+// its database, so one that may reference a table of another database
+// counts. MariaDB has no functional index.
+//
+// mariadb: https://mariadb.com/docs/server/reference/sql-structure/temporal-tables/application-time-periods
 func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone func(string) bool) bool {
 	has := func(list []string) bool {
 		return slices.ContainsFunc(list, func(c string) bool { return sameName(c, column) })
@@ -489,7 +494,7 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 	}
 	for _, c := range t.GetCheckConstraints() {
 		reads, ok := expressionColumns(c.GetExpression())
-		if !ok && mentions(c.GetExpression(), column) || has(reads) && slices.ContainsFunc(reads, func(r string) bool { return !gone(r) }) {
+		if !ok && mentions(c.GetExpression(), column) || has(reads) && slices.ContainsFunc(reads, func(r string) bool { return !sameName(r, column) }) {
 			return true
 		}
 	}
@@ -498,12 +503,21 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 			return true
 		}
 	}
+	// KEY () is synced with no expression, and reads the primary key, or,
+	// without one, a unique key.
+	partitionedBy := func(expr string) bool {
+		if expr == "" {
+			key := primaryKeyColumns(t)
+			return key == nil || has(key)
+		}
+		return reads(expr, column)
+	}
 	for _, p := range t.GetPartitions() {
-		if p.GetExpression() == "" || reads(p.GetExpression(), column) {
+		if partitionedBy(p.GetExpression()) {
 			return true
 		}
 		for _, sub := range p.GetSubpartitions() {
-			if sub.GetExpression() == "" || reads(sub.GetExpression(), column) {
+			if partitionedBy(sub.GetExpression()) {
 				return true
 			}
 		}
