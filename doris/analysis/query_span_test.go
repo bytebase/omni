@@ -3,6 +3,7 @@ package analysis
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/doris/parser"
 )
@@ -836,5 +837,38 @@ func TestGetQuerySpan_LateralViewGeneratorSubquery(t *testing.T) {
 	}
 	if containsSig(sigs, tableSig{Table: "tmp"}) {
 		t.Errorf("lateral alias misreported as a table (got %+v)", sigs)
+	}
+}
+
+// TestGetQuerySpanNestedSubqueriesStayLinear: the strict parse already parses
+// every subquery body in place, and the span walks that tree. Parsing each
+// body again from its raw text did it once per level, so 2,000 nested
+// subqueries took 4s; these take milliseconds.
+func TestGetQuerySpanNestedSubqueriesStayLinear(t *testing.T) {
+	const depth = 2000
+	nest := func(innermost, wrap string) string {
+		open, closing, _ := strings.Cut(wrap, "?")
+		return strings.Repeat(open, depth) + innermost + strings.Repeat(closing, depth)
+	}
+	for _, tc := range []struct{ name, sql string }{
+		{"scalar", nest("SELECT 1", "SELECT (?)")},
+		{"derived table", nest("SELECT * FROM t", "SELECT * FROM (?) x")},
+		{"EXISTS", nest("SELECT 1 FROM t", "SELECT 1 FROM t WHERE EXISTS (?)")},
+		{"IN", nest("SELECT a FROM t", "SELECT a FROM t WHERE a IN (?)")},
+		{"WITH", "SELECT * FROM (" + nest("SELECT * FROM t", "WITH c AS (?) SELECT * FROM c, t") + ") x"},
+	} {
+		done := make(chan error, 1)
+		go func() {
+			_, err := GetQuerySpan(tc.sql)
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: GetQuerySpan through %d nested subqueries took over 2s", tc.name, depth)
+		}
 	}
 }

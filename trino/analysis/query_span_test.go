@@ -3,6 +3,7 @@ package analysis
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/trino/parser"
 )
@@ -841,6 +842,58 @@ func TestGetQuerySpan_NonQuerySubqueryFailsClosed(t *testing.T) {
 	} {
 		if _, err := GetQuerySpan(sql); err == nil {
 			t.Errorf("GetQuerySpan(%q) accepted a non-query subquery body", sql)
+		}
+	}
+}
+
+// TestGetQuerySpanNestedSubqueriesStayLinear: the strict parse already parses
+// every subquery body in place, and the span walks that tree. Parsing each
+// body again from its raw text did it once per level, so 2,000 nested
+// subqueries took 9s; these take milliseconds.
+func TestGetQuerySpanNestedSubqueriesStayLinear(t *testing.T) {
+	const depth = 2000
+	nest := func(innermost, wrap string) string {
+		open, closing, _ := strings.Cut(wrap, "?")
+		return strings.Repeat(open, depth) + innermost + strings.Repeat(closing, depth)
+	}
+	for _, tc := range []struct{ name, sql string }{
+		{"scalar", nest("SELECT 1", "SELECT (?)")},
+		{"derived table", nest("SELECT * FROM t", "SELECT * FROM (?) x")},
+		{"EXISTS", nest("SELECT 1 FROM t", "SELECT 1 FROM t WHERE EXISTS (?)")},
+		{"IN", nest("SELECT a FROM t", "SELECT a FROM t WHERE a IN (?)")},
+		{"WITH", "SELECT * FROM (" + nest("SELECT * FROM t", "WITH c AS (?) SELECT * FROM c, t") + ") x"},
+	} {
+		done := make(chan error, 1)
+		go func() {
+			_, err := GetQuerySpan(tc.sql)
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: GetQuerySpan through %d nested subqueries took over 2s", tc.name, depth)
+		}
+	}
+}
+
+// TestGetQuerySpanSubqueryTableLocsAreOuter: a table read inside a subquery is
+// located in the statement the caller passed, like any other table. It used to
+// be located in the subquery's own text.
+func TestGetQuerySpanSubqueryTableLocsAreOuter(t *testing.T) {
+	sql := "SELECT (SELECT a FROM secret) FROM t WHERE EXISTS (SELECT 1 FROM (SELECT * FROM inner_t) x)"
+	span, err := GetQuerySpan(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(span.AccessTables) != 3 {
+		t.Fatalf("AccessTables = %+v, want 3 tables", span.AccessTables)
+	}
+	for _, ta := range span.AccessTables {
+		if got := sql[ta.Loc.Start:ta.Loc.End]; got != ta.Table {
+			t.Errorf("table %s located at %v, which holds %q", ta.Table, ta.Loc, got)
 		}
 	}
 }

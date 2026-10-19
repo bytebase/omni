@@ -48,7 +48,7 @@ func resolveDerivedLineage(stmt ast.Node, span *QuerySpan, vs *viewState) {
 	// The root CTE scope carries the catalog-aware resolution state (nil
 	// disables catalog resolution); buildCTEDefs propagates it to nested
 	// scopes.
-	root := &cteDefs{views: vs}
+	root := &cteDefs{views: vs, defined: make(map[string]int)}
 	// Recompute the outermost query's column lineage with relation-scope
 	// resolution (derived tables, CTEs, UNNEST, scalar subqueries, set-operation
 	// arm merging, and star expansion) and fold it into the primary walk's
@@ -174,10 +174,18 @@ type cteDefs struct {
 	defs   map[string][]outCol
 	parent *cteDefs
 	views  *viewState
+	// defined counts, across every scope chained to the same root, the
+	// scopes defining each name. A name no scope defines, such as a base
+	// table's, is answered without walking the chain: walking it for every
+	// table made n nested WITH clauses O(n²).
+	defined map[string]int
 }
 
 func (c *cteDefs) lookup(name string) ([]outCol, bool) {
 	key := strings.ToLower(name)
+	if c == nil || c.defined[key] == 0 {
+		return nil, false
+	}
 	for cur := c; cur != nil; cur = cur.parent {
 		if cols, ok := cur.defs[key]; ok {
 			return cols, true
@@ -187,14 +195,13 @@ func (c *cteDefs) lookup(name string) ([]outCol, bool) {
 }
 
 // viewState returns the catalog-aware resolution state carried by this scope
-// chain, or nil when there is none (catalog-less analysis).
+// chain, or nil when there is none (catalog-less analysis). Every scope copies
+// its parent's, so the root's state is on each scope.
 func (c *cteDefs) viewState() *viewState {
-	for cur := c; cur != nil; cur = cur.parent {
-		if cur.views != nil {
-			return cur.views
-		}
+	if c == nil {
+		return nil
 	}
-	return nil
+	return c.views
 }
 
 // buildCTEDefs resolves a query's WITH clause into a cteDefs scope chained to
@@ -209,6 +216,10 @@ func buildCTEDefs(q *parser.Query, parent *cteDefs) *cteDefs {
 	d := &cteDefs{defs: make(map[string][]outCol), parent: parent}
 	if parent != nil {
 		d.views = parent.views
+		d.defined = parent.defined
+	}
+	if d.defined == nil {
+		d.defined = make(map[string]int)
 	}
 	for i := range q.With.CTEs {
 		nq := q.With.CTEs[i]
@@ -218,7 +229,11 @@ func buildCTEDefs(q *parser.Query, parent *cteDefs) *cteDefs {
 		}
 		cols := resolveQueryCols(nq.Query, d)
 		cols = applyColumnAliases(cols, nq.ColumnAliases)
-		d.defs[strings.ToLower(name)] = cols
+		key := strings.ToLower(name)
+		if _, ok := d.defs[key]; !ok {
+			d.defined[key]++
+		}
+		d.defs[key] = cols
 	}
 	return d
 }
@@ -737,7 +752,8 @@ func (s *rscope) resolveExprRefs(expr parser.Expr) []ColumnRef {
 
 // scalarSubquerySources recovers the resolved base-column sources of a scalar
 // subquery used as a value (e.g. SELECT (SELECT phone FROM customer) AS sp). The
-// subquery's raw text is re-parsed and its output columns resolved (recursively,
+// subquery's query (the tree the strict parse built in place, or else its raw
+// text parsed again) has its output columns resolved (recursively,
 // in the enclosing CTE scope); the union of those columns' sources is the
 // lineage feeding the enclosing expression. EXISTS subqueries yield a boolean and
 // are skipped. Best-effort: a correlated reference to an outer column is not
@@ -750,16 +766,23 @@ func scalarSubquerySources(sub *parser.SubqueryExpr, cte *cteDefs) []ColumnRef {
 	// parse (analyzeSubqueryText), so by the time lineage resolution runs every
 	// placeholder body parses; an error here is unreachable and yields no
 	// sources rather than a partial tree's.
-	file, err := parser.Parse(sub.RawText)
-	if err != nil || file == nil {
-		return nil
+	queries := []*parser.Query{sub.Query}
+	if sub.Query == nil {
+		file, err := parser.Parse(sub.RawText)
+		if err != nil || file == nil {
+			return nil
+		}
+		queries = queries[:0]
+		for _, stmt := range file.Stmts {
+			if qs, ok := stmt.(*parser.QueryStmt); ok {
+				queries = append(queries, qs.Query)
+			}
+		}
 	}
 	var out []ColumnRef
-	for _, stmt := range file.Stmts {
-		if qs, ok := stmt.(*parser.QueryStmt); ok {
-			for _, c := range resolveQueryCols(qs.Query, cte) {
-				out = append(out, c.sources...)
-			}
+	for _, q := range queries {
+		for _, c := range resolveQueryCols(q, cte) {
+			out = append(out, c.sources...)
 		}
 	}
 	return out
