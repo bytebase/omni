@@ -198,8 +198,8 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) columnDr
 				touch(2*i+1, v.Table, columnTouch{v.Table, cmd.Name})
 			}
 		case *ast.CreateIndexStmt:
-			if functionalParts(v.Columns) {
-				touch(2*i, v.Table, columnTouch{table: v.Table})
+			for _, column := range functionalReads(v.Columns) {
+				touch(2*i, v.Table, columnTouch{v.Table, column})
 			}
 			out.indexes.add(v.Table, v.IndexName, 2*i)
 		case *ast.DropIndexStmt:
@@ -319,10 +319,20 @@ type dropStatement struct {
 	renames, indexRenames [][2]string
 	keys                  []*ast.Constraint
 	checks                []addedCheck
+	// afters are the columns ADD, MODIFY, and CHANGE COLUMN place a column
+	// after, with how many adds and renames came before.
+	afters []after
 	// judged is an ALTER TABLE whose column drops may take the primary
 	// key: it drops columns, and no key, adds no key, and renames no
 	// table.
 	judged bool
+}
+
+// after is the column a subcommand places a column after, and the number
+// of columns the statement added and renamed before the subcommand.
+type after struct {
+	column        string
+	adds, renames int
 }
 
 // addedCheck is a check a subcommand adds, by its name, "" when the server
@@ -374,6 +384,9 @@ type namedDrop struct {
 func (d *dropStatement) note(cmd *ast.AlterTableCmd) {
 	for _, c := range columnChecks(cmd) {
 		d.checks = append(d.checks, addedCheck{c.Name, c.Expr})
+	}
+	if cmd.After != "" && (cmd.Type == ast.ATAddColumn || cmd.Type == ast.ATModifyColumn || cmd.Type == ast.ATChangeColumn) {
+		d.afters = append(d.afters, after{cmd.After, len(d.adds), len(d.renames)})
 	}
 	switch cmd.Type {
 	case ast.ATAddColumn:
@@ -488,12 +501,12 @@ func renamedTo(from *ast.TableRef, cmd *ast.AlterTableCmd) *ast.TableRef {
 
 // alterTouches returns what an ALTER TABLE subcommand does that a later
 // DROP COLUMN of the table depends on: the columns it adds, drops,
-// changes, or renames, and those a generation expression or a check it
-// gives reads; the columns a foreign key it adds holds, and those it
-// references, but not a column's REFERENCES, which MySQL ignores; and any
-// column, when it adds or drops a primary key, adds a
-// functional index, or partitions the table, any of which may read a
-// column the server then refuses to drop.
+// changes, or renames, and those a generation expression, a check, or a
+// functional index part it gives reads; the columns a foreign key it adds
+// holds, and those it references, but not a column's REFERENCES, which
+// MySQL ignores; and any column, when it adds or drops a primary key or
+// partitions the table, either of which may read a column the server then
+// refuses to drop.
 func alterTouches(sql string, ref *ast.TableRef, cmd *ast.AlterTableCmd) []columnTouch {
 	anyColumn := []columnTouch{{table: ref}}
 	if addsPrimaryKey(cmd) || dropKindOf(sql, cmd) == dropPrimaryKey {
@@ -548,7 +561,7 @@ func alterTouches(sql string, ref *ast.TableRef, cmd *ast.AlterTableCmd) []colum
 			add(c.Columns...)
 			out = append(out, referenceTouches(c.RefTable, c.RefColumns)...)
 		case functionalParts(c.IndexColumns):
-			return anyColumn
+			add(functionalReads(c.IndexColumns)...)
 		}
 	case ast.ATPartitionBy, ast.ATRemovePartitioning:
 		return anyColumn
@@ -595,6 +608,21 @@ func referenceTouches(ref *ast.TableRef, columns []string) []columnTouch {
 		out = append(out, columnTouch{ref, c})
 	}
 	return out
+}
+
+// functionalReads returns the columns the expressions among the key parts
+// of an index read.
+func functionalReads(parts []*ast.IndexColumn) []string {
+	var columns []string
+	for _, p := range parts {
+		if p == nil || p.Expr == nil {
+			continue
+		}
+		if _, column := p.Expr.(*ast.ColumnRef); p.Functional || !column {
+			columns = append(columns, expressionReads(p.Expr)...)
+		}
+	}
+	return columns
 }
 
 // functionalParts reports whether a key part of an index is an expression
@@ -693,7 +721,9 @@ func (j *judge) touched(name, column string, upTo int) bool {
 //   - changes a column the table does not have, or one the statement
 //     drops, or makes an ordinary or stored column a virtual one, or a
 //     virtual one anything else;
-//   - adds a column the table has and the statement keeps, or one twice;
+//   - adds a column the table has and the statement keeps, or one twice,
+//     or places a column after one the table lacks once the subcommand
+//     before it ran;
 //   - adds an index under a name the table uses, or one twice, or a key on
 //     a column the table lacks once the statement ran;
 //   - adds a foreign key under a name the database uses, or one
@@ -702,7 +732,8 @@ func (j *judge) touched(name, column string, upTo int) bool {
 //     under a name the database uses, or one twice;
 //   - renames an index the table does not have; or
 //   - drops an index or a constraint the table does not have without IF
-//     EXISTS.
+//     EXISTS, or one twice, though a foreign key and the index of its
+//     name are two.
 //
 // It refuses a DROP TABLE of a table the database lacks without IF
 // EXISTS, or one a foreign key of another table references. Other
@@ -785,8 +816,12 @@ func (j *judge) knownToRun(i int) bool {
 	if len(d.columns) > 0 && len(d.adds) == 0 && !slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return !drops(c.GetName()) }) {
 		return false
 	}
-	for _, n := range d.named {
-		if !n.ifExists && !j.holds(t, n, i) {
+	for k, n := range d.named {
+		twice := slices.ContainsFunc(d.named[:k], func(prev namedDrop) bool {
+			pair := [2]dropKind{prev.kind, n.kind}
+			return sameName(prev.name, n.name) && pair != [2]dropKind{dropForeignKey, dropIndex} && pair != [2]dropKind{dropIndex, dropForeignKey}
+		})
+		if twice || !n.ifExists && !j.holds(t, n, i) {
 			return false
 		}
 	}
@@ -796,6 +831,16 @@ func (j *judge) knownToRun(i int) bool {
 	}
 	hasAfter := func(column string) bool {
 		return hasColumn(column) && !drops(column) && !renamedAway(column) || slices.ContainsFunc(made, is(column))
+	}
+	// A column goes after one the table keeps, or one the statement added
+	// or renamed to before.
+	for _, a := range d.afters {
+		kept := hasColumn(a.column) && !drops(a.column) && !renamedAway(a.column)
+		made := slices.ContainsFunc(d.adds[:a.adds], is(a.column)) ||
+			slices.ContainsFunc(d.renames[:a.renames], func(r [2]string) bool { return sameName(r[1], a.column) })
+		if !kept && !made || j.touched(ref.Name, a.column, 2*d.position-1) {
+			return false
+		}
 	}
 	droppedIndex := func(name string) bool {
 		return slices.ContainsFunc(d.named, func(n namedDrop) bool {
@@ -818,7 +863,7 @@ func (j *judge) knownToRun(i int) bool {
 		indexes = append(indexes, r[1])
 	}
 	for _, c := range d.keys {
-		for _, column := range c.Columns {
+		for _, column := range append(slices.Clone(c.Columns), functionalReads(c.IndexColumns)...) {
 			if !hasAfter(column) || j.touched(ref.Name, column, 2*d.position-1) {
 				return false
 			}

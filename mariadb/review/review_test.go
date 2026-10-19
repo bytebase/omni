@@ -500,6 +500,13 @@ func keyed() []review.Target {
 			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_up", Columns: []string{"up"}, ReferencedTable: "self", ReferencedColumns: []string{"id"}}},
 		},
 		&metadata.TableMetadata{Name: "selfk", Columns: columns("id", "p_id", "code"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "ic", Expressions: []string{"code", "id"}})},
+		&metadata.TableMetadata{
+			Name:        "fkt",
+			Columns:     columns("id", "v"),
+			Indexes:     append(pk("id"), &metadata.IndexMetadata{Name: "fk_f", Expressions: []string{"v"}}),
+			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_f", Columns: []string{"v"}, ReferencedTable: "fkp", ReferencedColumns: []string{"id"}}},
+		},
+		&metadata.TableMetadata{Name: "fkp", Columns: columns("id"), Indexes: pk("id")},
 		&metadata.TableMetadata{Name: "par2", Columns: columns("id", "v"), Indexes: pk("id")},
 		&metadata.TableMetadata{
 			Name:        "ch2",
@@ -755,6 +762,28 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			name: "a check under a name another table, or an index of the table, uses, or one the statement drops",
 			sql:  "ALTER TABLE plain ADD CONSTRAINT ck_n CHECK (v > 0), ADD CONSTRAINT PRIMARY_x CHECK (v > 1), DROP COLUMN id;\nALTER TABLE t ADD CONSTRAINT uk_code CHECK (n > 2), DROP CONSTRAINT ck_n, ADD CONSTRAINT ck_n CHECK (n > 3), DROP COLUMN id;",
 			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP COLUMN id", "t")},
+		},
+		{
+			name: "a column placed after one the table lacks once the subcommand before it ran",
+			sql:  "ALTER TABLE plain DROP COLUMN id, ADD COLUMN w INT AFTER missing;\nALTER TABLE k1 DROP COLUMN id, ADD COLUMN w INT AFTER id;\nALTER TABLE k2 CHANGE v v2 INT, ADD COLUMN w INT AFTER v, DROP COLUMN id;\nALTER TABLE k6 ADD COLUMN b INT AFTER a, ADD COLUMN a INT, DROP COLUMN id;",
+		},
+		{
+			name: "a column placed after one the table keeps, adds, or renames to, or first",
+			sql:  "ALTER TABLE k3 ADD COLUMN a INT, ADD COLUMN b INT AFTER a, DROP COLUMN id;\nALTER TABLE k4 CHANGE v v2 INT, ADD COLUMN w INT AFTER v2, DROP COLUMN id;\nALTER TABLE k5 ADD COLUMN w INT AFTER v, MODIFY v INT FIRST, DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "k3"), lost(1, "DROP COLUMN id", "k4"), lost(2, "DROP COLUMN id", "k5")},
+		},
+		{
+			name: "an index or a constraint dropped twice",
+			sql:  "ALTER TABLE t DROP INDEX idx_n, DROP INDEX idx_n, DROP COLUMN id;\nALTER TABLE fkt DROP FOREIGN KEY fk_f, DROP CONSTRAINT fk_f, DROP COLUMN id;\nALTER TABLE chk DROP CONSTRAINT ck, DROP CONSTRAINT ck, DROP COLUMN id;",
+		},
+		{
+			name: "a foreign key and the index of its name dropped",
+			sql:  "ALTER TABLE fkt DROP FOREIGN KEY fk_f, DROP INDEX fk_f, DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "fkt")},
+		},
+		{
+			name: "a functional index, which MariaDB does not have, made before",
+			sql:  "CREATE INDEX fv ON k1 ((v + 1));\nALTER TABLE k1 DROP COLUMN id;",
 		},
 		{name: "a later statement that adds a key back, but fails, which stops the change before its end", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);"},
 		{name: "an index of the name of a generated column, dropped before", sql: "ALTER TABLE gen DROP INDEX g;\nALTER TABLE gen DROP COLUMN id;"},
