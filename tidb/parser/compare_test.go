@@ -7281,10 +7281,6 @@ func TestParseCreateSpatialRefSys(t *testing.T) {
 			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :srid 4120 :name "Greek" :definition "GEOGCS[\"Greek\",DATUM[\"Greek\"]]"}`,
 		},
 		{
-			sql:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek'",
-			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :or_replace true :srid 4120 :name "Greek"}`,
-		},
-		{
 			sql:  "CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 4120 NAME 'Greek'",
 			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :if_not_exists true :srid 4120 :name "Greek"}`,
 		},

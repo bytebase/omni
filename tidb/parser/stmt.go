@@ -413,15 +413,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	orReplace := false
-	temporary := false
-
-	// OR REPLACE
 	if p.cur.Type == kwOR {
-		p.advance()
-		p.match(kwREPLACE)
-		orReplace = true
+		return p.parseCreateOrReplace(start)
 	}
+
+	temporary := false
 
 	// UNDO TABLESPACE
 	if p.cur.Type == kwUNDO {
@@ -461,24 +457,24 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		p.advance()
 		// Distinguish SPATIAL REFERENCE SYSTEM from SPATIAL INDEX
 		if p.cur.Type == kwREFERENCE {
-			return p.parseCreateSpatialRefSysStmt(start, orReplace)
+			return p.parseCreateSpatialRefSysStmt(start, false)
 		}
 		return p.parseCreateIndexStmt(start, false, false, true)
 
 	case kwVIEW:
-		return p.parseCreateViewStmt(start, orReplace)
+		return p.parseCreateViewStmt(start, false)
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseCreateDatabaseStmt(start)
 
 	case kwPLACEMENT:
-		// CREATE [OR REPLACE] PLACEMENT POLICY [IF NOT EXISTS] name opts
-		return p.parseCreatePlacementPolicyStmt(start, orReplace)
+		// CREATE PLACEMENT POLICY [IF NOT EXISTS] name opts
+		return p.parseCreatePlacementPolicyStmt(start, false)
 
 	case kwSEQUENCE:
-		// TiDB v8.5.5 has no CREATE OR REPLACE SEQUENCE and no CREATE
-		// TEMPORARY SEQUENCE (parser.y:15462); both reject at SEQUENCE.
-		if orReplace || temporary {
+		// TiDB v8.5.5 has no CREATE TEMPORARY SEQUENCE (parser.y:15462); it
+		// rejects at SEQUENCE. OR REPLACE is refused in parseCreateOrReplace.
+		if temporary {
 			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseCreateSequenceStmt(start)
@@ -493,10 +489,6 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 
 	case kwPROCEDURE:
-		if orReplace {
-			// TiDB v8.5.0 has no CREATE OR REPLACE PROCEDURE.
-			return nil, p.syntaxErrorAtCur()
-		}
 		return p.parseCreateFunctionStmt(start, true)
 
 	case kwTRIGGER:
@@ -524,11 +516,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwALGORITHM:
 		// Only CREATE VIEW uses ALGORITHM
-		return p.parseCreateViewStmt(start, orReplace)
+		return p.parseCreateViewStmt(start, false)
 
 	case kwSQL:
 		// CREATE SQL SECURITY {DEFINER|INVOKER} VIEW — delegate to CREATE VIEW
-		return p.parseCreateViewStmt(start, orReplace)
+		return p.parseCreateViewStmt(start, false)
 
 	case kwDEFINER:
 		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
@@ -546,7 +538,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// Now dispatch on the object keyword
 		switch p.cur.Type {
 		case kwVIEW:
-			stmt, err := p.parseCreateViewStmt(start, orReplace)
+			stmt, err := p.parseCreateViewStmt(start, false)
 			if err != nil {
 				return nil, err
 			}
@@ -575,6 +567,35 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			Message:  "unexpected token after CREATE",
 			Position: p.cur.Loc,
 		}
+	}
+}
+
+// parseCreateOrReplace parses CREATE OR REPLACE. CREATE is consumed and p.cur
+// is OR. TiDB v8.5.5 takes OR REPLACE only before a view and before
+// PLACEMENT POLICY; on any other object, and before TEMPORARY, the statement
+// fails at the keyword that follows OR REPLACE. Unlike MySQL 8.0, TiDB has no
+// CREATE OR REPLACE SPATIAL REFERENCE SYSTEM.
+//
+// Ref: TiDB v8.5.5 parser.y:5099 (CreateViewStmt: "CREATE" OrReplace
+// ViewAlgorithm ViewDefiner ViewSQLSecurity "VIEW" ...) and parser.y:15428
+// (CreatePolicyStmt: "CREATE" OrReplace "PLACEMENT" "POLICY" IfNotExists ...),
+// the only two rules that use OrReplace.
+func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
+	p.advance() // consume OR
+	if p.cur.Type != kwREPLACE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume REPLACE
+
+	switch p.cur.Type {
+	case kwVIEW, kwALGORITHM, kwDEFINER, kwSQL:
+		// parseCreateViewStmt reads ALGORITHM, DEFINER, and SQL SECURITY in
+		// that order and fails at whatever stands where VIEW belongs.
+		return p.parseCreateViewStmt(start, true)
+	case kwPLACEMENT:
+		return p.parseCreatePlacementPolicyStmt(start, true)
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 

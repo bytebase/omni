@@ -408,15 +408,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	orReplace := false
-	temporary := false
-
-	// OR REPLACE
 	if p.cur.Type == kwOR {
-		p.advance()
-		p.match(kwREPLACE)
-		orReplace = true
+		return p.parseCreateOrReplace(start)
 	}
+
+	temporary := false
 
 	// UNDO TABLESPACE
 	if p.cur.Type == kwUNDO {
@@ -456,12 +452,12 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		p.advance()
 		// Distinguish SPATIAL REFERENCE SYSTEM from SPATIAL INDEX
 		if p.cur.Type == kwREFERENCE {
-			return p.parseCreateSpatialRefSysStmt(start, orReplace)
+			return p.parseCreateSpatialRefSysStmt(start, false)
 		}
 		return p.parseCreateIndexStmt(start, false, false, true)
 
 	case kwVIEW:
-		return p.parseCreateViewStmt(start, orReplace)
+		return p.parseCreateViewStmt(start, false)
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseCreateDatabaseStmt(start)
@@ -503,11 +499,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwALGORITHM:
 		// Only CREATE VIEW uses ALGORITHM
-		return p.parseCreateViewStmt(start, orReplace)
+		return p.parseCreateViewStmt(start, false)
 
 	case kwSQL:
 		// CREATE SQL SECURITY {DEFINER|INVOKER} VIEW — delegate to CREATE VIEW
-		return p.parseCreateViewStmt(start, orReplace)
+		return p.parseCreateViewStmt(start, false)
 
 	case kwDEFINER:
 		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
@@ -525,7 +521,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// Now dispatch on the object keyword
 		switch p.cur.Type {
 		case kwVIEW:
-			stmt, err := p.parseCreateViewStmt(start, orReplace)
+			stmt, err := p.parseCreateViewStmt(start, false)
 			if err != nil {
 				return nil, err
 			}
@@ -585,6 +581,40 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			Message:  "unexpected token after CREATE",
 			Position: p.cur.Loc,
 		}
+	}
+}
+
+// parseCreateOrReplace parses CREATE OR REPLACE. CREATE is consumed and p.cur
+// is OR. MySQL 8.0 takes OR REPLACE only before a view and before SPATIAL
+// REFERENCE SYSTEM; on any other object, and before TEMPORARY, the statement
+// fails at the keyword that follows OR REPLACE.
+//
+// Ref: mysql-server 8.0 sql/sql_yacc.yy — view_replace_or_algorithm (the view
+// head: OR REPLACE [ALGORITHM = ...] [DEFINER = ...] [SQL SECURITY ...] VIEW)
+// and the CREATE OR_SYM REPLACE_SYM SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM
+// branch of create, which takes no IF NOT EXISTS.
+// https://dev.mysql.com/doc/refman/8.0/en/create-view.html
+// https://dev.mysql.com/doc/refman/8.0/en/create-spatial-reference-system.html
+func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
+	p.advance() // consume OR
+	if p.cur.Type != kwREPLACE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume REPLACE
+
+	switch p.cur.Type {
+	case kwVIEW, kwALGORITHM, kwDEFINER, kwSQL:
+		// parseCreateViewStmt reads ALGORITHM, DEFINER, and SQL SECURITY in
+		// that order and fails at whatever stands where VIEW belongs.
+		return p.parseCreateViewStmt(start, true)
+	case kwSPATIAL:
+		p.advance() // consume SPATIAL
+		if p.cur.Type != kwREFERENCE {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCreateSpatialRefSysStmt(start, true)
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
