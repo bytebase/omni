@@ -90,10 +90,10 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 	}
 	t.Cleanup(func() { conn.Close() })
 	for _, stmt := range []string{
-		// A case may have turned foreign key checks off on the pooled
-		// connection; other may reference shop, which it then keeps from
-		// being dropped.
-		"SET foreign_key_checks = 1",
+		// A case may have turned foreign key checks off, or primary keys
+		// required, on the pooled connection; other may reference shop,
+		// which it then keeps from being dropped.
+		"SET foreign_key_checks = 1", "SET sql_require_primary_key = OFF",
 		"DROP DATABASE IF EXISTS other", "DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive",
 		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase,
 	} {
@@ -142,13 +142,17 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		order = append(order, name)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, ''), EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
-		var tbl, col, gen, extra string
-		if err := r.Scan(&tbl, &col, &gen, &extra); err != nil {
+	// An expression default is synced in parentheses, a literal one
+	// quoted, and an invisible column marked so.
+	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, ''), EXTRA,
+		COALESCE(CASE WHEN EXTRA LIKE '%DEFAULT_GENERATED%' THEN CONCAT('(', COLUMN_DEFAULT, ')') ELSE QUOTE(COLUMN_DEFAULT) END, '')
+		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, col, gen, extra, def string
+		if err := r.Scan(&tbl, &col, &gen, &extra, &def); err != nil {
 			return err
 		}
 		if t, ok := tables[tbl]; ok {
-			c := &metadata.ColumnMetadata{Name: col}
+			c := &metadata.ColumnMetadata{Name: col, Default: def, IsInvisible: strings.Contains(strings.ToUpper(extra), "INVISIBLE")}
 			switch {
 			case gen == "":
 			case strings.Contains(strings.ToUpper(extra), "VIRTUAL GENERATED"):
@@ -687,6 +691,21 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "with a check the table lacks altered", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ALTER CHECK missing ENFORCED, DROP COLUMN id", err: "Check constraint 'missing' is not found", key: "id"},
 		{name: "a column's REFERENCES to it, which MySQL ignores, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE c (k INT REFERENCES x (id), PRIMARY KEY (k));\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "with a partition dropped", setup: "CREATE TABLE x (id INT, v INT, PRIMARY KEY (id)) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)", change: "ALTER TABLE x DROP COLUMN id, DROP PARTITION p0", err: "You have an error in your SQL syntax", key: "id"},
+		// The session's sql_require_primary_key refuses a drop that takes the
+		// key while it is on, and only then.
+		{name: "sql_require_primary_key on after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nSET SESSION sql_require_primary_key = ON", reported: true},
+		{name: "sql_require_primary_key off before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_require_primary_key = OFF;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "sql_require_primary_key on before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_require_primary_key = ON;\nALTER TABLE x DROP COLUMN id", err: "Unable to create or change a table without a primary key", key: "id"},
+		{name: "a user variable named sql_require_primary_key set before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @sql_require_primary_key = 1;\nALTER TABLE x DROP COLUMN id", reported: true},
+		// The server keeps a visible column, and refuses a drop an expression
+		// default depends on; a literal default depends on nothing.
+		{name: "only an invisible column left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT INVISIBLE)", change: "ALTER TABLE x DROP COLUMN id", err: "at least one visible column", key: "id"},
+		{name: "an invisible column and a visible one left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT INVISIBLE, w INT)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "an expression default reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT DEFAULT (id + 1))", change: "ALTER TABLE x DROP COLUMN id", err: "has a default value expression dependency", key: "id"},
+		{name: "a literal default names it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v VARCHAR(10) DEFAULT 'id')", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		// A table of another database renamed without a database lands in the
+		// current one.
+		{name: "a table of another database renamed to its name before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.t (a INT PRIMARY KEY)", change: "ALTER TABLE other.t RENAME TO x;\nALTER TABLE x DROP COLUMN id", err: "Table 'x' already exists", key: "id"},
 		// A statement the rule cannot bound ends the judging.
 		{name: "a USE before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id"},
 	}

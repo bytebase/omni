@@ -429,7 +429,10 @@ func TestRequirePrimaryKey(t *testing.T) {
 // gen with a generated column, chk with a check of the key and v, solo
 // with a check of the key alone, fx with a functional index, and part with
 // partitioning, each reading the key; kpart partitioned by KEY (), which
-// reads the key; and self with a foreign key to itself.
+// reads the key; inv whose other column is invisible, and inv2 with a
+// visible one too; defx whose other column's default reads the key, and
+// deflit whose literal default names it; and self with a foreign key to
+// itself.
 func keyed() []review.Target {
 	s := shop()
 	pk := func(columns ...string) []*metadata.IndexMetadata {
@@ -451,6 +454,10 @@ func keyed() []review.Target {
 		&metadata.TableMetadata{Name: "fx", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "fxi", Expressions: []string{"((`id` + `v`))"}})},
 		&metadata.TableMetadata{Name: "part", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Expression: "`id`"}}},
 		&metadata.TableMetadata{Name: "kpart", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
+		&metadata.TableMetadata{Name: "inv", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", IsInvisible: true}}, Indexes: pk("id")},
+		&metadata.TableMetadata{Name: "inv2", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", IsInvisible: true}, {Name: "w"}}, Indexes: pk("id")},
+		&metadata.TableMetadata{Name: "defx", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", Default: "((`id` + 1))"}}, Indexes: pk("id")},
+		&metadata.TableMetadata{Name: "deflit", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", Default: "'id'"}}, Indexes: pk("id")},
 		&metadata.TableMetadata{
 			Name:        "self",
 			Columns:     columns("id", "up"),
@@ -493,9 +500,9 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(0, "DROP COLUMN id", "plain")},
 		},
 		// What the server refuses, or what follows a drop of only some columns
-		// of the key, is not known: nothing after it is judged, and nothing
-		// before it reported.
-		{name: "some columns of the key", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP COLUMN a;\nALTER TABLE k1 DROP COLUMN id;"},
+		// of the key, is not known: no drop after it is judged, and a finding
+		// before it stands.
+		{name: "some columns of the key", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP COLUMN a;\nALTER TABLE k1 DROP COLUMN id;", want: []finding{lost(0, "DROP COLUMN id", "plain")}},
 		{name: "a column the table lacks", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN missing;\nALTER TABLE k1 DROP COLUMN id;"},
 		{name: "one column twice", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN ID;"},
 		{name: "every column of the table", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN v;"},
@@ -507,6 +514,8 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "a column a functional index reads", sql: "ALTER TABLE fx DROP COLUMN id;"},
 		{name: "a column the table is partitioned by", sql: "ALTER TABLE part DROP COLUMN id;"},
 		{name: "a column of a table partitioned by KEY ()", sql: "ALTER TABLE kpart DROP COLUMN id;"},
+		{name: "every visible column of the table", sql: "ALTER TABLE inv DROP COLUMN id;"},
+		{name: "a column an expression default reads", sql: "ALTER TABLE defx DROP COLUMN id;"},
 		{name: "a column of a table the synced schema lacks", sql: "ALTER TABLE missing DROP COLUMN id;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a column of a table of another database", sql: "ALTER TABLE other.plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN id;"},
 		// Any other statement on a table leaves the table out: no later drop
@@ -532,6 +541,20 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(6, "DROP COLUMN id", "k3")},
 		},
 		{
+			name: "every column of the key, with an invisible one left besides a visible one",
+			sql:  "ALTER TABLE inv2 DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "inv2")},
+		},
+		{
+			name: "a table of another database renamed to its name, before or after, which lands in the current database",
+			sql:  "ALTER TABLE other.t RENAME TO k1;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE other.t2 RENAME TO k2;",
+		},
+		{
+			name: "a finding before a statement the rule cannot follow, withdrawn by a later statement on its table",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE plain ADD PRIMARY KEY (v);",
+			want: []finding{lost(1, "DROP COLUMN id", "k1")},
+		},
+		{
 			name: "a column's REFERENCES, which MySQL ignores",
 			sql:  "CREATE TABLE c (x INT PRIMARY KEY REFERENCES k1 (id));\nALTER TABLE k1 DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "k1")},
@@ -539,7 +562,23 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		// A statement the rule cannot bound ends the judging.
 		{name: "a USE", sql: "USE other;\nALTER TABLE shop.plain DROP COLUMN id;"},
 		{name: "a CALL after the drop", sql: "ALTER TABLE plain DROP COLUMN id;\nCALL pr();"},
-		{name: "sql_require_primary_key set", sql: "SET SESSION sql_require_primary_key = ON;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "sql_require_primary_key set on before", sql: "SET SESSION sql_require_primary_key = ON;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "sql_require_primary_key set to its default before", sql: "SET sql_require_primary_key = DEFAULT;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "sql_require_primary_key set to its default, then off, before",
+			sql:  "SET sql_require_primary_key = DEFAULT;\nALTER TABLE t DROP COLUMN code;\nSET sql_require_primary_key = OFF;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(3, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "sql_require_primary_key set on after, off before, globally, or as a user variable",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nSET sql_require_primary_key = ON;\nALTER TABLE t DROP COLUMN code;\nSET @@session.sql_require_primary_key = 0;\nALTER TABLE k2 DROP COLUMN id;\nSET GLOBAL sql_require_primary_key = ON;\nSET @sql_require_primary_key = 1;\nALTER TABLE k3 DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(4, "DROP COLUMN id", "k2"), lost(7, "DROP COLUMN id", "k3")},
+		},
+		{
+			name: "a literal default that names the column",
+			sql:  "ALTER TABLE deflit DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "deflit")},
+		},
 		{name: "an event", sql: "CREATE EVENT ev ON SCHEDULE EVERY 1 DAY DO ALTER TABLE plain ADD PRIMARY KEY (v);\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "the target's database dropped after", sql: "ALTER TABLE plain DROP COLUMN id;\nDROP DATABASE shop;"},
 	}

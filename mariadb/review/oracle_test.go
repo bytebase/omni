@@ -142,13 +142,16 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		order = append(order, name)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, ''), EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
-		var tbl, col, gen, extra string
-		if err := r.Scan(&tbl, &col, &gen, &extra); err != nil {
+	// A default is synced quoted, and an invisible column, which Bytebase
+	// does not read on MariaDB, as any other.
+	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, ''), EXTRA, COALESCE(QUOTE(COLUMN_DEFAULT), '')
+		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, col, gen, extra, def string
+		if err := r.Scan(&tbl, &col, &gen, &extra, &def); err != nil {
 			return err
 		}
 		if t, ok := tables[tbl]; ok {
-			c := &metadata.ColumnMetadata{Name: col}
+			c := &metadata.ColumnMetadata{Name: col, Default: def}
 			switch {
 			case gen == "":
 			case strings.Contains(strings.ToUpper(extra), "VIRTUAL GENERATED"):
@@ -687,6 +690,16 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		{name: "a temporary table of its name dropped twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TEMPORARY TABLE IF EXISTS x;\nDROP TEMPORARY TABLE x;\nALTER TABLE x DROP COLUMN id", err: "Unknown table", key: "id"},
 		{name: "a column's REFERENCES to it, which MariaDB makes a foreign key of, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE c (k INT REFERENCES x (id), PRIMARY KEY (k));\nALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
 		{name: "with a partition dropped", setup: "CREATE TABLE x (id INT, v INT, PRIMARY KEY (id)) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)", change: "ALTER TABLE x DROP COLUMN id, DROP PARTITION p0", err: "You have an error in your SQL syntax", key: "id"},
+		// The server keeps a column, visible or not, which the synced schema
+		// does not tell on MariaDB, and refuses a drop a default depends on;
+		// the synced default does not tell a literal from an expression.
+		{name: "only an invisible column left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT INVISIBLE)", change: "ALTER TABLE x DROP COLUMN id", err: "A table must have at least 1 column", key: "id", reported: true, unseen: true},
+		{name: "an invisible column and a visible one left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT INVISIBLE, w INT)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "an expression default reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT DEFAULT (id + 1))", change: "ALTER TABLE x DROP COLUMN id", err: "Unknown column 'id' in 'DEFAULT'", key: "id"},
+		{name: "a literal default names it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v VARCHAR(10) DEFAULT 'id')", change: "ALTER TABLE x DROP COLUMN id"},
+		// A table of another database renamed without a database lands in the
+		// current one.
+		{name: "a table of another database renamed to its name before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.t (a INT PRIMARY KEY)", change: "ALTER TABLE other.t RENAME TO x;\nALTER TABLE x DROP COLUMN id", err: "Table 'x' already exists", key: "id"},
 		// A statement the rule cannot bound ends the judging.
 		{name: "a USE before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id"},
 	}
