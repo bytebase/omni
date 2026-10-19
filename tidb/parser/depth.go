@@ -1,6 +1,10 @@
 package parser
 
-import "errors"
+import (
+	"errors"
+
+	nodes "github.com/bytebase/omni/tidb/ast"
+)
 
 // maxNestingDepth bounds how deeply the parser may descend into nested
 // constructs: expressions, queries, table references, stored-program blocks,
@@ -18,7 +22,7 @@ var maxNestingDepth = 10000
 // defers leaveNesting.
 func (p *Parser) enterNesting() error {
 	if p.depth >= maxNestingDepth {
-		return &ParseError{Message: nestingErrorMessage, Position: p.cur.Loc}
+		return nestedTooDeeply(p.cur.Loc)
 	}
 	p.depth++
 	return nil
@@ -28,8 +32,95 @@ func (p *Parser) leaveNesting() { p.depth-- }
 
 const nestingErrorMessage = "statement is nested too deeply"
 
-// isNestingError reports whether err is enterNesting's failure.
+// nestedTooDeeply is the error for a statement past maxNestingDepth or
+// maxTreeHeight, at byte offset pos.
+func nestedTooDeeply(pos int) *ParseError {
+	return &ParseError{Message: nestingErrorMessage, Position: pos}
+}
+
+// isNestingError reports whether err is nestedTooDeeply's error.
 func isNestingError(err error) bool {
 	var pe *ParseError
 	return errors.As(err, &pe) && pe.Message == nestingErrorMessage
+}
+
+// maxTreeHeight bounds how deep the finished tree of one statement may be. A
+// left-deep chain (1 + 1 + ..., SELECT 1 UNION ALL SELECT 1 ..., a OR b OR
+// ..., t JOIN t ...) is parsed by a loop, so it never reaches
+// maxNestingDepth, yet each term adds a level to the tree, and the code that
+// walks a tree recursively (ast.Walk, NodeToString, deparse, the catalog,
+// review) overflows the stack on a long enough chain.
+// TiDB 8.5 accepts 200,000-term sums and AND and OR chains, so a chain
+// longer than 100,000 terms is rejected here where TiDB accepts it.
+const maxTreeHeight = 100000
+
+// treeTooHigh reports whether stmt, parsed from textLen bytes, is more than
+// maxTreeHeight nodes deep. No construct adds more than 16 levels of tree
+// per byte of text (TestTreeHeightPerByte checks this), so a shorter
+// statement cannot be too deep and is not walked. The walk keeps its own
+// stack.
+func treeTooHigh(stmt nodes.Node, textLen int) bool {
+	if textLen < maxTreeHeight/16 {
+		return false
+	}
+	return treeHeightExceeds(stmt, maxTreeHeight)
+}
+
+// treeHeightExceeds reports whether the tree under root is more than limit
+// nodes deep, root counting as one.
+func treeHeightExceeds(root nodes.Node, limit int) bool {
+	type level struct {
+		node  nodes.Node
+		depth int
+	}
+	stack := []level{{root, 1}}
+	var kids childLister
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if top.depth > limit {
+			return true
+		}
+		kids.entered, kids.children = false, kids.children[:0]
+		nodes.Walk(&kids, top.node)
+		// Walk skips the rows of INSERT ... VALUES and of a VALUES
+		// statement, which NodeToString and deparse recurse into.
+		var rows [][]nodes.ExprNode
+		switch n := top.node.(type) {
+		case *nodes.InsertStmt:
+			rows = n.Values
+		case *nodes.ValuesStmt:
+			rows = n.Rows
+		}
+		for _, row := range rows {
+			for _, e := range row {
+				if e != nil {
+					kids.children = append(kids.children, e)
+				}
+			}
+		}
+		for _, child := range kids.children {
+			stack = append(stack, level{child, top.depth + 1})
+		}
+	}
+	return false
+}
+
+// childLister is a Visitor that lets Walk enter only the node it starts at,
+// so Walk lists that node's children without descending into them.
+type childLister struct {
+	entered  bool
+	children []nodes.Node
+}
+
+func (c *childLister) Visit(n nodes.Node) nodes.Visitor {
+	if n == nil {
+		return nil
+	}
+	if !c.entered {
+		c.entered = true
+		return c
+	}
+	c.children = append(c.children, n)
+	return nil
 }
