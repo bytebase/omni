@@ -114,6 +114,10 @@ func reviewDialect(ctx context.Context, sql string, opts review.Options, targets
 	}
 	if on[review.RequirePrimaryKey] {
 		work.columns = checkRequirePrimaryKey(sql, stmts, r)
+		// OceanBase refuses to drop a column of the primary key.
+		if d.oceanBase {
+			work.columns = columnDrops{}
+		}
 	}
 	if work.backup {
 		work.made = madeByChange(stmts)

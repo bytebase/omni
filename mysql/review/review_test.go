@@ -430,7 +430,8 @@ func TestRequirePrimaryKey(t *testing.T) {
 // v, solo with a check of the key alone, fx with a functional index, and
 // part with partitioning, each reading the key; kpart partitioned by KEY
 // (), which reads the key; self with a foreign key to itself; par2,
-// referenced by ch2, which gch2 references; and sgen and vgen with a
+// referenced by ch2, which gch2 references; selfk with an index led by
+// code and followed by the key; and sgen and vgen with a
 // stored and a virtual generated column reading the key.
 func keyed() []review.Target {
 	s := shop()
@@ -459,6 +460,7 @@ func keyed() []review.Target {
 			Indexes:     pk("id"),
 			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_up", Columns: []string{"up"}, ReferencedTable: "self", ReferencedColumns: []string{"id"}}},
 		},
+		&metadata.TableMetadata{Name: "selfk", Columns: columns("id", "p_id", "code"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "ic", Expressions: []string{"code", "id"}})},
 		&metadata.TableMetadata{Name: "par2", Columns: columns("id", "v"), Indexes: pk("id")},
 		&metadata.TableMetadata{
 			Name:        "ch2",
@@ -659,6 +661,42 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		},
 		{name: "a virtual generated column reading it, made ordinary, which the server refuses", sql: "ALTER TABLE vgen MODIFY g INT, DROP COLUMN id;"},
 		{name: "a generated column of unknown kind, made ordinary", sql: "ALTER TABLE gen MODIFY g INT, DROP COLUMN id;"},
+		{
+			name: "a foreign key of the table to itself, to a unique key it keeps",
+			sql:  "ALTER TABLE t DROP COLUMN id, ADD CONSTRAINT fk_self FOREIGN KEY (p_id) REFERENCES t (code);",
+			want: []finding{lost(0, "DROP COLUMN id", "t")},
+		},
+		{
+			name: "a foreign key of the table to itself, to an index the statement takes a column after the referenced ones from",
+			sql:  "ALTER TABLE selfk DROP COLUMN id, ADD CONSTRAINT fk_s FOREIGN KEY (p_id) REFERENCES selfk (code);",
+			want: []finding{lost(0, "DROP COLUMN id", "selfk")},
+		},
+		{
+			name: "a foreign key of the table to itself, to a column with no index, to a key the statement adds, or to a column it drops",
+			sql:  "ALTER TABLE k1 ADD CONSTRAINT fk_s1 FOREIGN KEY (v) REFERENCES k1 (v), DROP COLUMN id;\nALTER TABLE k2 ADD UNIQUE KEY uv (v), ADD CONSTRAINT fk_s2 FOREIGN KEY (v) REFERENCES k2 (v), DROP COLUMN id;\nALTER TABLE pair DROP a, DROP b, ADD CONSTRAINT fk_s3 FOREIGN KEY (v) REFERENCES pair (a);",
+		},
+		{
+			name: "a foreign key of the table to itself, to an index the statement drops",
+			sql:  "ALTER TABLE t DROP INDEX uk_code, DROP COLUMN id, ADD CONSTRAINT fk_s FOREIGN KEY (p_id) REFERENCES t (code);",
+		},
+		{
+			name: "a generated column reading it, given an expression of another column, of the same storage",
+			sql:  "ALTER TABLE sgen MODIFY g INT AS (v + 1) STORED, DROP COLUMN id;\nALTER TABLE vgen CHANGE g g2 INT AS (v + 1) VIRTUAL, DROP COLUMN id;\nALTER TABLE k3 ADD COLUMN g INT AS (v + 1), DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "sgen"), lost(1, "DROP COLUMN id", "vgen"), lost(2, "DROP COLUMN id", "k3")},
+		},
+		{
+			name: "a generated column made of another storage, or given an expression of the column the statement drops",
+			sql:  "ALTER TABLE sgen MODIFY g INT AS (v + 1) VIRTUAL, DROP COLUMN id;\nALTER TABLE vgen MODIFY g INT AS (v + 1) STORED, DROP COLUMN id;\nALTER TABLE k1 MODIFY v INT AS (id + 1) STORED, DROP COLUMN id;\nALTER TABLE k2 MODIFY v INT AS (id + 1) VIRTUAL, DROP COLUMN id;",
+		},
+		{
+			name: "an ordinary column made a virtual generated one",
+			sql:  "ALTER TABLE k5 MODIFY v INT AS (1) VIRTUAL, DROP COLUMN id;",
+		},
+		{
+			name: "a foreign key under a name a statement before gave one in another database",
+			sql:  "ALTER TABLE other.k1 ADD CONSTRAINT fk_o FOREIGN KEY (v) REFERENCES other.p (id);\nALTER TABLE k7 ADD CONSTRAINT fk_o FOREIGN KEY (v) REFERENCES plain (id), DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k7")},
+		},
 		{name: "a later statement that adds a key back, but fails, which stops the change before its end", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);"},
 		{name: "an index of the name of a generated column, dropped before", sql: "ALTER TABLE gen DROP INDEX g;\nALTER TABLE gen DROP COLUMN id;"},
 		{name: "a foreign key of the name, dropped from a table of another database", sql: "ALTER TABLE other.t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
