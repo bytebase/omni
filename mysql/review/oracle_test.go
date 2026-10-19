@@ -716,6 +716,23 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "a database the server lacks dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP DATABASE missing_db;\nALTER TABLE x DROP COLUMN id", err: "Can't drop database", key: "id"},
 		{name: "sql_generate_invisible_primary_key on before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_generate_invisible_primary_key = ON;\nALTER TABLE x DROP COLUMN id", err: "sql_generate_invisible_primary_key=ON mode", key: "id"},
 		{name: "sql_generate_invisible_primary_key on, then off, before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_generate_invisible_primary_key = ON;\nSET SESSION sql_generate_invisible_primary_key = OFF;\nALTER TABLE x DROP COLUMN id", reported: true},
+		// TRUNCATE and LOCK TABLES change no schema object, but fail, or make a
+		// later ALTER TABLE fail; DML fails on a table the database lacks. A
+		// finding before them stands.
+		{name: "a truncate of a table a foreign key references before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE tp (a INT PRIMARY KEY); CREATE TABLE tc (a INT, FOREIGN KEY (a) REFERENCES tp (a))", change: "TRUNCATE TABLE tp;\nALTER TABLE x DROP COLUMN id", err: "Cannot truncate a table referenced in a foreign key constraint", key: "id"},
+		{name: "a truncate after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nTRUNCATE TABLE x", reported: true},
+		{name: "tables locked for reading before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "LOCK TABLES x READ;\nALTER TABLE x DROP COLUMN id;\nUNLOCK TABLES", err: "was locked with a READ lock", key: "id"},
+		{name: "another table locked before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "LOCK TABLES y WRITE;\nALTER TABLE x DROP COLUMN id;\nUNLOCK TABLES", err: "was not locked with LOCK TABLES", key: "id"},
+		{name: "tables locked after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nLOCK TABLES x READ;\nUNLOCK TABLES", reported: true},
+		{name: "a row inserted before into a table the database lacks", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "INSERT INTO missing VALUES (1);\nALTER TABLE x DROP COLUMN id", err: "doesn't exist", key: "id"},
+		{name: "rows of the table updated before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1)", change: "UPDATE x SET v = id + 1 WHERE id IN (SELECT id FROM (SELECT id FROM x) d);\nALTER TABLE x DROP COLUMN id", reported: true},
+		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
+		// of each holds; another value may be refused.
+		{name: "with ALGORITHM and LOCK left at DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=DEFAULT, LOCK DEFAULT", reported: true},
+		{name: "with ALGORITHM set to INSTANT, then DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INSTANT, ALGORITHM=DEFAULT"},
+		{name: "with ALGORITHM=INPLACE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INPLACE", err: "ALGORITHM=INPLACE is not supported", key: "id"},
+		{name: "with LOCK=NONE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, LOCK=NONE", err: "LOCK=NONE is not supported", key: "id"},
+		{name: "with a quoted DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=`DEFAULT`", err: "Unknown ALGORITHM", key: "id"},
 		// A statement the rule cannot bound ends the judging.
 		{name: "a USE before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id"},
 	}
@@ -744,6 +761,11 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 				if _, failed = conn.ExecContext(ctx, tt.change[s.loc.Start:s.loc.End]); failed != nil {
 					break
 				}
+			}
+			// A change that fails may leave tables locked, which would keep the
+			// next case from dropping the database.
+			if _, err := conn.ExecContext(ctx, "UNLOCK TABLES"); err != nil {
+				t.Fatal(err)
 			}
 			switch {
 			case tt.err == "" && failed != nil:

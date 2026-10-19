@@ -15,12 +15,15 @@ import (
 // judges such a drop against each target with a closed model of the
 // change, read in order:
 //
-//   - An ALTER TABLE whose every subcommand is DROP COLUMN is followed
-//     exactly: the columns it drops, whether the server refuses it, and
-//     whether it takes the key.
-//   - A statement that changes no schema object, such as DML, a session
-//     statement, or table maintenance, passes: whether it fails depends on
-//     data the review does not see, as in pg/review.
+//   - An ALTER TABLE whose every subcommand is DROP COLUMN, or ALGORITHM
+//     or LOCK left at DEFAULT, is followed exactly: the columns it drops,
+//     whether the server refuses it, and whether it takes the key.
+//   - A statement that changes no schema object and fails only on data the
+//     review does not see, such as DML, a session or transaction
+//     statement, or table maintenance, which reports a missing table in
+//     its result, passes, as in pg/review. DML that names a table the
+//     target lacks ends the judging, as pg/review's scan stops at a query
+//     of a missing relation.
 //   - Any other statement, and a drop the server refuses or may refuse,
 //     ends the judging of later drops, as pg/review's scan ends at a
 //     statement it cannot follow: the rule cannot establish that it runs,
@@ -55,6 +58,9 @@ const (
 	// dropsDatabase is a DROP DATABASE, which withdraws every finding when
 	// it drops the target's.
 	dropsDatabase
+	// queries is DML, which ends the judging when it names a table the
+	// target lacks.
+	queries
 	// barrier is any other statement the rule cannot follow.
 	barrier
 	// stops is a statement that may change any table.
@@ -68,6 +74,8 @@ type step struct {
 	tables    []*ast.TableRef
 	drops     []*ast.AlterTableCmd
 	database  string
+	// node is the statement a queries step is.
+	node ast.Node
 }
 
 // columnDropSteps reads the change's top-level statements into steps.
@@ -109,11 +117,19 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 		case *ast.UseStmt:
 			st.kind = barrier
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.TableStmt, *ast.ValuesStmt, *ast.DoStmt,
-			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt,
-			*ast.BeginStmt, *ast.CommitStmt, *ast.RollbackStmt, *ast.SavepointStmt, *ast.SetTransactionStmt,
-			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt, *ast.TruncateStmt:
-			// It changes no schema object.
+			*ast.ExplainStmt, *ast.ShowStmt:
+			st.kind, st.node = queries, v
+		case *ast.HelpStmt, *ast.BeginStmt, *ast.CommitStmt, *ast.RollbackStmt, *ast.SavepointStmt, *ast.SetTransactionStmt, *ast.UnlockTablesStmt,
+			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt:
+			// It changes no schema object and names no table, or reports a
+			// missing one in its result.
 			continue
+		case *ast.TruncateStmt, *ast.LockTablesStmt:
+			// It changes no schema object, but fails on a table the target
+			// lacks or, for TRUNCATE, one a foreign key references; under
+			// LOCK TABLES, an ALTER TABLE of a table it did not lock for
+			// writing fails.
+			st.kind = barrier
 		case *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.DropViewStmt, *ast.CreateTriggerStmt, *ast.DropTriggerStmt,
 			*ast.CreateFunctionStmt, *ast.AlterRoutineStmt, *ast.DropRoutineStmt, *ast.DropEventStmt,
 			*ast.CreateDatabaseStmt, *ast.AlterDatabaseStmt,
@@ -140,12 +156,34 @@ func onlyColumnDrops(sql string, v *ast.AlterTableStmt) ([]*ast.AlterTableCmd, b
 	}
 	var drops []*ast.AlterTableCmd
 	for _, cmd := range v.Commands {
+		if cmd != nil && leftDefault(sql, cmd) {
+			continue
+		}
 		if cmd == nil || dropKindOf(sql, cmd) != dropColumn {
 			return nil, false
 		}
 		drops = append(drops, cmd)
 	}
 	return drops, len(drops) > 0
+}
+
+// leftDefault reports whether a subcommand is ALGORITHM = DEFAULT or LOCK =
+// DEFAULT, the same as leaving it out. The last ALGORITHM and the last LOCK
+// of a statement are the ones that hold, so a statement with no other
+// value for them runs as without. A quoted DEFAULT is a string, which
+// the server refuses, or a name, which the rule does not judge.
+//
+// mariadb: https://mariadb.com/docs/server/reference/sql-statements/data-definition/alter/alter-table — ALGORITHM, LOCK
+func leftDefault(sql string, cmd *ast.AlterTableCmd) bool {
+	if cmd.Type != ast.ATAlgorithm && cmd.Type != ast.ATLock {
+		return false
+	}
+	if cmd.Loc.Start < 0 || cmd.Loc.End > len(sql) || cmd.Loc.End <= cmd.Loc.Start {
+		return false
+	}
+	text := sql[cmd.Loc.Start:cmd.Loc.End]
+	tokens := parser.Tokenize(text)
+	return len(tokens) > 0 && strings.EqualFold(tokenText(text, tokens[len(tokens)-1]), "DEFAULT")
 }
 
 // alterNames returns the tables an ALTER TABLE changes: its own, and the
@@ -220,6 +258,10 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 			judging = false
 		case barrier:
 			judging = false
+		case queries:
+			if judging && namesMissing(s.node, x) {
+				judging = false
+			}
 		case namesTables:
 			judging = false
 			for _, ref := range s.tables {
@@ -253,6 +295,20 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 	for _, f := range findings {
 		r.report(review.RequirePrimaryKey, f.statement, f.rng, f.message)
 	}
+}
+
+// namesMissing reports whether a statement names a table the target may
+// lack: one of another database, or one of the name the synced schema
+// holds no table or view of. A CTE's name counts as a table.
+func namesMissing(n ast.Node, x schemaIndex) bool {
+	missing := false
+	ast.Inspect(n, func(n ast.Node) bool {
+		if ref, ok := n.(*ast.TableRef); ok && !missing {
+			missing = ref.Schema != "" && !x.same(ref.Schema, x.schema.GetName()) || !x.hasRelation(ref.Name)
+		}
+		return !missing
+	})
+	return missing
 }
 
 // columnJudge judges the column drops of one target.
