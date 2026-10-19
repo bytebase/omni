@@ -108,6 +108,10 @@ func (p *Parser) parseMathOp02() (ast.ExprNode, error) {
 //	sign=(PLUS|MINUS) rhs=valueExpr
 //	| parent_=exprPrimary
 func (p *Parser) parseValueExpr() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	if p.cur.Type == tokPLUS || p.cur.Type == tokMINUS {
 		start := p.cur.Loc.Start
 		op := ast.UnOpPos
@@ -450,6 +454,10 @@ func (p *Parser) parseAnd() (ast.ExprNode, error) {
 //	<assoc=right> NOT rhs=exprNot
 //	| parent_=exprPredicate
 func (p *Parser) parseNot() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	if p.cur.Type == tokNOT {
 		start := p.cur.Loc.Start
 		p.advance()
@@ -573,6 +581,10 @@ func exprToStmt(expr ast.ExprNode) ast.StmtNode {
 //
 // Grammar: exprSelect (lines 456-467).
 func (p *Parser) parseSelectExpr() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Type {
 	case tokSELECT:
 		return p.parseSFWQuery()

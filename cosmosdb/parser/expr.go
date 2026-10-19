@@ -27,6 +27,10 @@ const (
 
 // parseExpr is the main Pratt expression parser.
 func (p *Parser) parseExpr(minPrec int) (nodes.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parsePrefixExpr()
 	if err != nil {
 		return nil, err

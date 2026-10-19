@@ -10,6 +10,10 @@ import (
 // parseExpression parses a value expression (document, array, literal, helper, identifier),
 // including optional postfix .method(args) chains (e.g., Binary.createFromBase64("...")).
 func (p *Parser) parseExpression() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	node, err := p.parseValue()
 	if err != nil {
 		return nil, err

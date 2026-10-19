@@ -14,6 +14,7 @@ type Parser struct {
 	prev    Token // previous token
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
+	depth   int   // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // ParseResult holds the outcome of a best-effort parse.

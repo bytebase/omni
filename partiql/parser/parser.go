@@ -48,12 +48,14 @@ func (e *ParseError) Error() string {
 //   - prev:    most recently consumed token, used to compute end Locs
 //   - nextBuf: one-token lookahead buffer for peekNext()
 //   - hasNext: true when nextBuf holds a valid token
+//   - depth:   nesting depth of the productions being parsed (see enterNesting)
 type Parser struct {
 	lexer   *Lexer
 	cur     Token
 	prev    Token
 	nextBuf Token
 	hasNext bool
+	depth   int
 }
 
 // NewParser creates a Parser that reads from the given input string.

@@ -12,8 +12,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strings"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	hjson "github.com/hjson/hjson-go/v4"
@@ -155,6 +155,8 @@ type state struct {
 	requestStartOffset int
 	// requestEndOffset is the byte offset of the first character of the next request.
 	requestEndOffset int
+	// depth is the nesting depth of the body values being parsed (see enterNesting).
+	depth int
 }
 
 func newState(text string) *state {
@@ -425,6 +427,10 @@ func (s *state) object() (map[string]any, error) {
 }
 
 func (s *state) value() (any, error) {
+	if err := s.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer s.leaveNesting()
 	if err := s.white(); err != nil {
 		return nil, err
 	}

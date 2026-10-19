@@ -25,6 +25,7 @@ type Parser struct {
 	prev    Token
 	nextBuf Token
 	hasNext bool
+	depth   int // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // Parse parses a single Cosmos DB SQL SELECT statement and returns a List of RawStmt.
@@ -186,6 +187,10 @@ func (p *Parser) parseIntLiteral() (int, int, error) {
 
 // parseSelect parses a complete SELECT statement.
 func (p *Parser) parseSelect() (*nodes.SelectStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	startLoc := p.pos()
 	if _, err := p.expect(tokSELECT); err != nil {
 		return nil, err

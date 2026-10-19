@@ -15,6 +15,7 @@ type Parser struct {
 	prev    Token
 	nextBuf Token
 	hasNext bool
+	depth   int // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // Parse parses a CQL input containing one or more statements and returns a List of RawStmt.

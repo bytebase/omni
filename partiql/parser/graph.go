@@ -338,6 +338,10 @@ func (p *Parser) tryPathVariable() (*ast.VarRef, bool, error) {
 //
 // Grammar: graphPart (PartiQLParser.g4:324-328).
 func (p *Parser) parseGraphParts(requireOne bool) ([]ast.PatternNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	var parts []ast.PatternNode
 	for {
 		switch {
