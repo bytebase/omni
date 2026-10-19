@@ -1,5 +1,12 @@
 package parser
 
+import (
+	"reflect"
+	"sync"
+
+	"github.com/bytebase/omni/trino/ast"
+)
+
 // maxNestingDepth bounds how deeply the parser may descend into nested
 // constructs: expressions, queries, relations, types, row patterns, routine
 // statements, and the statements that hold another statement. Without a
@@ -40,3 +47,118 @@ func (p *Parser) enterNesting() error {
 }
 
 func (p *Parser) leaveNesting() { p.depth-- }
+
+// maxTreeHeight bounds how deep the finished tree of one statement may be. A
+// left-deep chain (1 + 1 + ..., SELECT 1 UNION ALL SELECT 1 ..., t JOIN t ON
+// true JOIN ...) is parsed by a loop, so it never reaches maxNestingDepth,
+// yet each term adds a level to the tree, and the code that walks a tree
+// recursively (trino/analysis, DataType.String) overflowed the stack on
+// chains of a few million terms. It is a variable only so tests that nest
+// deeper than maxNestingDepth on purpose can raise it along with that.
+var maxTreeHeight = 100000
+
+// treeTooHigh reports whether root, a statement, expression, or type parsed
+// from textLen bytes, is more than maxTreeHeight nodes deep. No construct
+// adds more than 16 levels of tree per byte of text (TestTreeHeightPerByte
+// checks this), so a shorter one cannot be too deep and is not walked.
+func (p *Parser) treeTooHigh(root any, textLen int) bool {
+	if textLen < maxTreeHeight/16 {
+		return false
+	}
+	return treeHeight(root, maxTreeHeight) > maxTreeHeight
+}
+
+// treeHeight returns how many nodes deep the tree under root is, root
+// counting as one, or limit+1 as soon as it is deeper than limit. The walk
+// keeps its own stack, so the tree's height does not matter to the Go stack.
+//
+// The nodes are the structs of this package and trino/ast (the expressions,
+// queries, relations, types, and the rest live here, and ast.Walk does not
+// reach them), and a node's children are the nodes its exported fields hold:
+// through a pointer, an interface, a struct value, or a slice of any of them.
+// A subquery placeholder's body counts below it through SubqueryExpr.Query,
+// the tree the strict parse built in place, which trino/analysis walks from
+// inside the statement's.
+func treeHeight(root any, limit int) int {
+	type level struct {
+		node  reflect.Value // a node struct
+		depth int
+	}
+	var stack []level
+	push := func(v reflect.Value, depth int) {
+		for v.Kind() == reflect.Interface || v.Kind() == reflect.Pointer {
+			if v.IsNil() {
+				return
+			}
+			v = v.Elem()
+		}
+		if v.Kind() == reflect.Struct && isTreeNode(v.Type()) {
+			stack = append(stack, level{v, depth})
+		}
+	}
+	height := 0
+	push(reflect.ValueOf(root), 1)
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if top.depth > height {
+			height = top.depth
+			if height > limit {
+				return limit + 1
+			}
+		}
+		for _, i := range treeChildFields(top.node.Type()) {
+			f := top.node.Field(i)
+			if f.Kind() == reflect.Slice || f.Kind() == reflect.Array {
+				for j := 0; j < f.Len(); j++ {
+					push(f.Index(j), top.depth+1)
+				}
+				continue
+			}
+			push(f, top.depth+1)
+		}
+	}
+	return height
+}
+
+var (
+	parserPkg        = reflect.TypeOf(Parser{}).PkgPath()
+	astPkg           = reflect.TypeOf(ast.File{}).PkgPath()
+	locType          = reflect.TypeOf(ast.Loc{})
+	childFieldsCache sync.Map // reflect.Type -> []int
+)
+
+// isTreeNode reports whether t, a struct type, is a tree node.
+func isTreeNode(t reflect.Type) bool {
+	return (t.PkgPath() == parserPkg || t.PkgPath() == astPkg) && t != locType
+}
+
+// treeChildFields lists the exported fields of the node struct t that can
+// hold a node.
+func treeChildFields(t reflect.Type) []int {
+	if f, ok := childFieldsCache.Load(t); ok {
+		return f.([]int)
+	}
+	var fields []int
+	for i := 0; i < t.NumField(); i++ {
+		if f := t.Field(i); f.IsExported() && canHoldTreeNode(f.Type) {
+			fields = append(fields, i)
+		}
+	}
+	childFieldsCache.Store(t, fields)
+	return fields
+}
+
+// canHoldTreeNode reports whether a field of type t can hold a node.
+func canHoldTreeNode(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Pointer, reflect.Slice, reflect.Array:
+		return canHoldTreeNode(t.Elem())
+	case reflect.Interface:
+		return t.PkgPath() == parserPkg || t.PkgPath() == astPkg
+	case reflect.Struct:
+		return isTreeNode(t)
+	default:
+		return false
+	}
+}

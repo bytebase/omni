@@ -70,6 +70,7 @@ func TestNestedParensStayLinear(t *testing.T) {
 // Each level of nesting read the level inside it both ways, so 24 levels took
 // 20 seconds, doubling with each level added; these finish in milliseconds.
 func TestSpeculativeReadingsStayLinear(t *testing.T) {
+	raiseNestingLimit(t)
 	const depth = 20000
 	nest := func(open, mid, closing string) string {
 		return strings.Repeat(open, depth) + mid + strings.Repeat(closing, depth)

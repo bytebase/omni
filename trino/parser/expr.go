@@ -322,6 +322,8 @@ func ParseExpression(input string) (Expr, []ParseError) {
 	expr, err := p.parseExpr()
 	if p.nestingErr != nil {
 		err = p.nestingErr // see parseSingle
+	} else if err == nil && p.treeTooHigh(expr, len(input)) {
+		err = &ParseError{Position: expr.Span().Start, End: expr.Span().Start, Message: nestingTooDeep}
 	}
 	if err != nil {
 		if pe, ok := err.(*ParseError); ok {

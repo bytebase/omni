@@ -620,12 +620,16 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 
 	var result ast.Node
 	if p.cur.Kind != tokEOF {
+		first := p.cur
 		node, err := p.parseStmt()
 		if p.nestingErr != nil {
 			// The statement nests too deeply on some reading, even when a
 			// speculative parse fell back to another reading that got through:
 			// it fails with the first nesting error (see enterNesting).
 			node, err = nil, p.nestingErr
+		} else if err == nil && p.treeTooHigh(node, len(segText)) {
+			// Checked before anything below walks the tree.
+			node, err = nil, &ParseError{Position: first.Loc.Start, End: first.Loc.End, Message: nestingTooDeep}
 		}
 		if err != nil {
 			if pe, ok := err.(*ParseError); ok {

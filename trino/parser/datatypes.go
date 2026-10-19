@@ -938,6 +938,8 @@ func ParseDataType(input string) (*DataType, []ParseError) {
 	dt, err := p.parseType()
 	if p.nestingErr != nil {
 		err = p.nestingErr // see parseSingle
+	} else if err == nil && p.treeTooHigh(dt, len(input)) {
+		err = &ParseError{Position: dt.Loc.Start, End: dt.Loc.Start, Message: nestingTooDeep}
 	}
 	if err != nil {
 		if pe, ok := err.(*ParseError); ok {
