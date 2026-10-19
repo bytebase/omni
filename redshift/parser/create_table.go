@@ -40,11 +40,12 @@ func (p *Parser) parseCreateStmt() (*nodes.CreateStmt, error) {
 	}
 
 	// qualified_name
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	rv.Relpersistence = relpersistence
 
 	stmt := &nodes.CreateStmt{
@@ -133,11 +134,12 @@ func (p *Parser) parseOptTemp() byte {
 // parseCreateStmtPartitionOf parses the PARTITION OF variant of CREATE TABLE.
 func (p *Parser) parseCreateStmtPartitionOf(stmt *nodes.CreateStmt, relpersistence byte) (*nodes.CreateStmt, error) {
 	// parent table name
+	parentStart := p.pos()
 	parentNames, err := p.parseQualifiedName()
 	if err != nil {
 		return stmt, err
 	}
-	parentRv := makeRangeVarFromNames(parentNames)
+	parentRv := makeRangeVarFromNames(parentNames, nodes.Loc{Start: parentStart, End: p.prev.End})
 	parentRv.Relpersistence = relpersistence
 
 	// Optional '(' TypedTableElementList ')'
@@ -561,6 +563,7 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		}, nil
 	case REFERENCES:
 		p.advance()
+		refStart := p.pos()
 		refNames, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
@@ -568,7 +571,7 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 		if !p.collectMode() && refNames == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
-		refRv := makeRangeVarFromNames(refNames)
+		refRv := makeRangeVarFromNames(refNames, nodes.Loc{Start: refStart, End: p.prev.End})
 		pkAttrs, _ := p.parseOptColumnList()
 		matchType, err := p.parseKeyMatch()
 		if err != nil {
@@ -858,8 +861,9 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 		fkAttrs := p.parseColumnList()
 		p.expect(')')
 		p.expect(REFERENCES)
+		refStart := p.pos()
 		refNames, _ := p.parseQualifiedName()
-		refRv := makeRangeVarFromNames(refNames)
+		refRv := makeRangeVarFromNames(refNames, nodes.Loc{Start: refStart, End: p.prev.End})
 		pkAttrs, _ := p.parseOptColumnList()
 		matchType, err := p.parseKeyMatch()
 		if err != nil {
@@ -1037,6 +1041,7 @@ func (p *Parser) parseWhereClauseOpt() nodes.Node {
 func (p *Parser) parseTableLikeClause() (*nodes.TableLikeClause, error) {
 	likeLoc := p.pos()
 	p.advance() // LIKE
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
@@ -1044,7 +1049,7 @@ func (p *Parser) parseTableLikeClause() (*nodes.TableLikeClause, error) {
 	if !p.collectMode() && names == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	var opts uint32
 	for p.cur.Type == INCLUDING || p.cur.Type == EXCLUDING {
 		isIncluding := p.cur.Type == INCLUDING

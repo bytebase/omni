@@ -300,8 +300,7 @@ func (l *Lexer) lexInitial() Token {
 		}
 		// Just 'U&' without quote - return 'u' as identifier
 		l.pos++
-		ident := l.downcase("u")
-		return Token{Type: lex_IDENT, Str: ident, Loc: l.start}
+		return Token{Type: lex_IDENT, Str: "u", Loc: l.start}
 	}
 
 	// Standard quoted string: '...'
@@ -689,8 +688,9 @@ func (l *Lexer) lexQuoteContinue() Token {
 			return Token{Type: lex_EOF, Loc: l.start}
 		}
 
-		// It's an identifier
-		return Token{Type: lex_IDENT, Str: decoded, Loc: l.start}
+		// It's an identifier. It is truncated only now, after de-escaping,
+		// as base_yylex (src/backend/parser/parser.c) does for UIDENT.
+		return Token{Type: lex_IDENT, Str: truncateIdentifier(decoded), Loc: l.start}
 	default:
 		return Token{Type: lex_SCONST, Str: str, Loc: l.start}
 	}
@@ -753,7 +753,9 @@ func (l *Lexer) lexDelimitedIdent() Token {
 				l.Err = fmt.Errorf("zero-length delimited identifier")
 				return Token{Type: lex_EOF, Loc: l.start}
 			}
-			return Token{Type: lex_IDENT, Str: str, Loc: l.start}
+			// A delimited identifier keeps its case but is truncated like
+			// any other (scan.l, <xd>{xdstop}).
+			return Token{Type: lex_IDENT, Str: truncateIdentifier(str), Loc: l.start}
 		}
 
 		l.literalbuf.WriteByte(ch)
@@ -1104,20 +1106,69 @@ func (l *Lexer) lexIdent() Token {
 		return Token{Type: kw.Token, Str: kw.Name, Loc: l.start}
 	}
 
-	// Convert to lowercase for non-keywords
-	ident = l.downcase(ident)
-
-	// Truncate if too long
-	if len(ident) >= 63 { // NAMEDATALEN
-		ident = ident[:63]
-	}
-
-	return Token{Type: lex_IDENT, Str: ident, Loc: l.start}
+	// Not a keyword: downcase and truncate, as downcase_truncate_identifier
+	// (src/backend/parser/scansup.c) does.
+	return Token{Type: lex_IDENT, Str: truncateIdentifier(downcaseIdentifier(ident)), Loc: l.start}
 }
 
-// downcase converts an identifier to lowercase.
-func (l *Lexer) downcase(s string) string {
-	return strings.ToLower(s)
+// namedatalen is PostgreSQL's NAMEDATALEN. An identifier keeps at most
+// namedatalen-1 bytes.
+const namedatalen = 64
+
+// downcaseIdentifier lowercases the ASCII letters A-Z and leaves every other
+// byte as it is. downcase_identifier (src/backend/parser/scansup.c) applies
+// tolower() to a high-bit byte only in a single-byte server encoding; in
+// UTF-8 a multibyte character keeps its case, so ÄB folds to Äb.
+func downcaseIdentifier(s string) string {
+	i := 0
+	for i < len(s) && (s[i] < 'A' || s[i] > 'Z') {
+		i++
+	}
+	if i == len(s) {
+		return s
+	}
+	b := []byte(s)
+	for ; i < len(b); i++ {
+		if 'A' <= b[i] && b[i] <= 'Z' {
+			b[i] += 'a' - 'A'
+		}
+	}
+	return string(b)
+}
+
+// truncateIdentifier clips an identifier of namedatalen bytes or more to the
+// longest prefix of at most namedatalen-1 bytes that ends on a character
+// boundary, as truncate_identifier (src/backend/parser/scansup.c) does
+// through pg_mbcliplen.
+func truncateIdentifier(s string) string {
+	if len(s) < namedatalen {
+		return s
+	}
+	n := 0
+	for {
+		l := utf8LeadLen(s[n])
+		if n+l > namedatalen-1 {
+			return s[:n]
+		}
+		n += l
+	}
+}
+
+// utf8LeadLen returns the byte length of the UTF-8 character that lead
+// starts, reading the lead byte alone as pg_utf_mblen (src/common/wchar.c)
+// does. A byte that cannot lead a character counts as one.
+func utf8LeadLen(lead byte) int {
+	switch {
+	case lead&0x80 == 0:
+		return 1
+	case lead&0xe0 == 0xc0:
+		return 2
+	case lead&0xf0 == 0xe0:
+		return 3
+	case lead&0xf8 == 0xf0:
+		return 4
+	}
+	return 1
 }
 
 // Character classification functions

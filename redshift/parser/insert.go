@@ -43,7 +43,7 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) (*nodes.InsertStm
 	if names == nil {
 		return nil, nil // collect-mode: parseQualifiedName already emitted rule candidates
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: rvLoc, End: p.prev.End})
 	if p.cur.Type == AS {
 		aliasLoc := p.pos()
 		p.advance()
@@ -52,8 +52,8 @@ func (p *Parser) parseInsertStmt(withClause *nodes.WithClause) (*nodes.InsertStm
 			return nil, err
 		}
 		rv.Alias = &nodes.Alias{Aliasname: alias, Loc: nodes.Loc{Start: aliasLoc, End: p.prev.End}}
+		rv.Loc.End = p.prev.End
 	}
-	rv.Loc = nodes.Loc{Start: rvLoc, End: p.pos()}
 
 	if p.collectMode() {
 		// After table name, valid continuations for insert_rest:

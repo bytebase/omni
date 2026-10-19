@@ -101,10 +101,12 @@ func (p *Parser) parseDefineStmtOperator(stmtLoc int) (nodes.Node, error) {
 // stmtLoc is the byte offset of CREATE.
 func (p *Parser) parseDefineStmtType(stmtLoc int) (nodes.Node, error) {
 	p.advance() // consume TYPE
+	typeStart := p.pos()
 	typeName, err := p.parseAnyName()
 	if err != nil {
 		return nil, err
 	}
+	typeLoc := nodes.Loc{Start: typeStart, End: p.prev.End}
 
 	switch p.cur.Type {
 	case AS:
@@ -143,7 +145,7 @@ func (p *Parser) parseDefineStmtType(stmtLoc int) (nodes.Node, error) {
 				return nil, err
 			}
 			return &nodes.CompositeTypeStmt{
-				Typevar:    makeRangeVarFromAnyName(typeName),
+				Typevar:    makeRangeVarFromAnyName(typeName, typeLoc),
 				Coldeflist: coldeflist,
 				Loc:        nodes.Loc{Start: stmtLoc, End: p.prev.End},
 			}, nil

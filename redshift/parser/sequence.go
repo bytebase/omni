@@ -28,11 +28,12 @@ func (p *Parser) parseCreateSeqStmt(startLoc int, relpersistence byte) (nodes.No
 		ifNotExists = true
 	}
 
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	rv.Relpersistence = relpersistence
 
 	options, err := p.parseOptSeqOptList()

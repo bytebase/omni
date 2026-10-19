@@ -18,8 +18,9 @@ func (p *Parser) parseCreateTrigStmt(replace bool) (*nodes.CreateTrigStmt, error
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
+	relStart := p.pos()
 	relNames, _ := p.parseQualifiedName()
-	relation := makeRangeVarFromAnyName(relNames)
+	relation := makeRangeVarFromAnyName(relNames, nodes.Loc{Start: relStart, End: p.prev.End})
 	transitionRels := p.parseTriggerReferencing()
 	row := p.parseTriggerForSpec()
 	whenClause, err := p.parseTriggerWhen()
@@ -67,13 +68,15 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
+	relStart := p.pos()
 	relNames, _ := p.parseQualifiedName()
-	relation := makeRangeVarFromAnyName(relNames)
+	relation := makeRangeVarFromAnyName(relNames, nodes.Loc{Start: relStart, End: p.prev.End})
 	var constrrel *nodes.RangeVar
 	if p.cur.Type == FROM {
 		p.advance()
+		fromStart := p.pos()
 		fromNames, _ := p.parseQualifiedName()
-		constrrel = makeRangeVarFromAnyName(fromNames)
+		constrrel = makeRangeVarFromAnyName(fromNames, nodes.Loc{Start: fromStart, End: p.prev.End})
 	}
 	casBits, err := p.parseKindAttributes("TRIGGER", true, false, false)
 	if err != nil {
