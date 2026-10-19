@@ -124,8 +124,8 @@ func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectSt
 	}
 	// A set operation locks no rows, parenthesized whole too (ORA-01786
 	// at FOR for (SELECT a FROM t UNION SELECT a FROM t) FOR UPDATE), nor
-	// does a row limit that unlockableRowLimit refuses.
-	if sel.ForUpdate != nil && (isSetQuery(inner) || unlockableRowLimit(inner)) {
+	// does a query unlockable refuses.
+	if sel.ForUpdate != nil && (isSetQuery(inner) || unlockable(inner)) {
 		return nil, p.syntaxErrorAtNode(sel.ForUpdate)
 	}
 	if sel.WithClause == nil && sel.OrderBy == nil && sel.ForUpdate == nil && sel.FetchFirst == nil && sel.Op == nodes.SETOP_NONE {
@@ -263,13 +263,18 @@ func isSetQuery(query *nodes.SelectStmt) bool {
 	return false
 }
 
-// unlockableRowLimit reports whether query, or a parenthesized one it
-// wraps, limits its rows in a way FOR UPDATE cannot lock: Oracle 23ai locks
-// the rows of FETCH FIRST n ROWS ONLY, and rejects an OFFSET, a PERCENT, or
-// an ORDER BY with the row limit (ORA-02014).
-func unlockableRowLimit(query *nodes.SelectStmt) bool {
+// unlockable reports whether FOR UPDATE cannot lock the rows of query, or
+// of a parenthesized query it wraps. Oracle 23ai rejects it over DISTINCT,
+// UNIQUE, or GROUP BY (ORA-01786), and over any row limit but FETCH FIRST n
+// ROWS ONLY: an OFFSET, a PERCENT, WITH TIES, or an ORDER BY with the row
+// limit (ORA-02014). An aggregate's name is the catalog's to tell, and
+// Oracle's to reject.
+func unlockable(query *nodes.SelectStmt) bool {
 	for ; query != nil; query = query.Larg {
-		if fetch := query.FetchFirst; fetch != nil && (fetch.Offset != nil || fetch.Percent || query.OrderBy != nil) {
+		if query.Distinct || query.UniqueKw || query.GroupClause != nil && query.GroupClause.Len() > 0 {
+			return true
+		}
+		if fetch := query.FetchFirst; fetch != nil && (fetch.Offset != nil || fetch.Percent || fetch.WithTies || query.OrderBy != nil) {
 			return true
 		}
 		if query.Op != nodes.SETOP_NONE {
@@ -555,7 +560,7 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) error {
 		if err != nil {
 			return err
 		}
-		if unlockableRowLimit(sel) {
+		if unlockable(sel) {
 			return p.syntaxErrorAtNode(sel.ForUpdate)
 		}
 	}

@@ -176,14 +176,15 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	ParseAndCheck(t, "(SELECT a FROM t) FOR UPDATE")
 	// FOR UPDATE follows the row limiting clause (ORA-03049 before it) and
 	// locks the rows of FETCH FIRST n ROWS ONLY alone: an OFFSET, a PERCENT,
-	// or an ORDER BY with the row limit fails (ORA-02014), parenthesized or
-	// not.
+	// WITH TIES, or an ORDER BY with the row limit fails (ORA-02014), and so
+	// do DISTINCT, UNIQUE, and GROUP BY (ORA-01786), parenthesized or not.
 	for _, sql := range []string{
 		"SELECT a FROM t FETCH FIRST 1 ROW ONLY FOR UPDATE",
 		"SELECT a FROM t FETCH NEXT 2 ROWS ONLY FOR UPDATE SKIP LOCKED",
 		"(SELECT a FROM t FETCH FIRST 1 ROW ONLY) FOR UPDATE",
 		"(SELECT a FROM t) FETCH FIRST 1 ROW ONLY FOR UPDATE",
 		"DECLARE CURSOR c IS SELECT a FROM t FETCH FIRST 10 ROWS ONLY FOR UPDATE SKIP LOCKED; BEGIN NULL; END;",
+		"SELECT a FROM t WHERE a IN (SELECT DISTINCT b FROM u GROUP BY b) FOR UPDATE",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -195,6 +196,13 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"(SELECT a FROM t ORDER BY a FETCH FIRST 1 ROW ONLY) FOR UPDATE",
 		"(SELECT a FROM t) ORDER BY a FETCH FIRST 1 ROW ONLY FOR UPDATE",
 		"(SELECT a FROM t OFFSET 1 ROWS) FOR UPDATE",
+		"SELECT a FROM t FETCH FIRST 1 ROWS WITH TIES FOR UPDATE",
+		"(SELECT a FROM t FETCH FIRST 1 ROWS WITH TIES) FOR UPDATE",
+		"SELECT DISTINCT a FROM t FOR UPDATE",
+		"SELECT UNIQUE a FROM t FOR UPDATE",
+		"(SELECT DISTINCT a FROM t) FOR UPDATE",
+		"SELECT a FROM t GROUP BY a FOR UPDATE",
+		"(SELECT a FROM t GROUP BY a) FOR UPDATE",
 	} {
 		_, err := Parse(sql)
 		var pe *ParseError
