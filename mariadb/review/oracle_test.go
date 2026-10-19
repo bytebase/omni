@@ -746,12 +746,17 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		{name: "foreign_key_checks set with := before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET foreign_key_checks := OFF;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "CREATE OR REPLACE TABLE of its name after, which gives it a key", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE OR REPLACE TABLE x (id INT PRIMARY KEY)", key: "id"},
 		{name: "CREATE OR REPLACE DATABASE of its database after, which drops it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET foreign_key_checks = 0;\nALTER TABLE x DROP COLUMN id;\nCREATE OR REPLACE DATABASE shop"},
+		{name: "tables flushed after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nFLUSH TABLES", reported: true},
+		{name: "tables flushed with a read lock before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "FLUSH TABLES WITH READ LOCK;\nALTER TABLE x DROP COLUMN id", err: "conflicting read lock", key: "id"},
+		{name: "a column of only some unique keys dropped before from a table without a primary key partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (u INT NOT NULL, v INT NOT NULL, w INT, UNIQUE KEY uu (u), UNIQUE KEY uv (u, v)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", err: "Key column 'v' doesn't exist", key: "id"},
 		{name: "a read-only transaction started before, which the drop commits", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "START TRANSACTION READ ONLY;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "an application-time period of it and another column, both dropped", setup: "CREATE TABLE x (s DATE, e DATE, v INT, PRIMARY KEY (s), PERIOD FOR p (s, e))", change: "ALTER TABLE x DROP COLUMN s, DROP COLUMN e", err: "Unknown column 's' in 'p'", key: "s"},
 		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
 		// of each holds; another value may be refused.
 		{name: "with ALGORITHM and LOCK left at DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=DEFAULT, LOCK DEFAULT", reported: true},
-		{name: "with ALGORITHM set to INSTANT, then DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INSTANT, ALGORITHM=DEFAULT"},
+		{name: "with ALGORITHM set to INSTANT, then DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INSTANT, ALGORITHM=DEFAULT", reported: true},
+		{name: "with ALGORITHM set to INSTANT before LOCK left at DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INSTANT, LOCK=DEFAULT", err: "ALGORITHM=INSTANT is not supported", key: "id"},
+		{name: "with ALGORITHM set to DEFAULT, then INSTANT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=DEFAULT, ALGORITHM=INSTANT", err: "ALGORITHM=INSTANT is not supported", key: "id"},
 		{name: "with ALGORITHM=INPLACE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INPLACE", err: "ALGORITHM=INPLACE is not supported", key: "id"},
 		{name: "with LOCK=NONE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, LOCK=NONE"},
 		{name: "with a quoted DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=`DEFAULT`"},

@@ -471,8 +471,9 @@ func TestRequirePrimaryKey(t *testing.T) {
 // literal, chk with a check of the key and v, solo with a check of the key
 // alone, and part with partitioning, each reading the key; kpart partitioned
 // by KEY (), which reads the key, and kpart0, without a key, by KEY (),
-// which reads its unique key and not its other index; inv whose other column
-// is invisible, and inv2 with a visible one too; defx whose other column's
+// which reads its unique key and not its other index, and kpart2 by KEY ()
+// with a unique key of u and one of u and v; inv whose other column is
+// invisible, and inv2 with a visible one too; defx whose other column's
 // default reads the key, and deflit whose literal default names it; uq with
 // a unique key of the key and v, uqv with one of the key and v beside one of
 // v, uq1 with one of the key alone, and kv with a key of v and the key that
@@ -515,6 +516,10 @@ func keyed() []review.Target {
 			{Name: "u", Unique: true, Expressions: []string{"v"}, KeyLength: []int64{-1}},
 			{Name: "uv", Unique: true, Expressions: []string{"id", "v"}, KeyLength: []int64{-1, -1}},
 		}},
+		&metadata.TableMetadata{Name: "kpart2", Columns: columns("u", "v", "w"), Indexes: []*metadata.IndexMetadata{
+			{Name: "uu", Unique: true, Expressions: []string{"u"}, KeyLength: []int64{-1}},
+			{Name: "uv", Unique: true, Expressions: []string{"u", "v"}, KeyLength: []int64{-1, -1}},
+		}, Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
 		&metadata.TableMetadata{Name: "uq1", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "u", Unique: true, Expressions: []string{"id"}})},
 		&metadata.TableMetadata{
 			Name:        "self",
@@ -577,6 +582,7 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "every column of the key, which a check reads, as an application-time period's may", sql: "ALTER TABLE pchk DROP a, DROP b;"},
 		{name: "a column the table is partitioned by", sql: "ALTER TABLE part DROP COLUMN id;"},
 		{name: "a column of a table partitioned by KEY ()", sql: "ALTER TABLE kpart DROP COLUMN id;"},
+		{name: "a column of only some unique keys of a table without a primary key partitioned by KEY (), which MariaDB refuses to narrow", sql: "ALTER TABLE kpart2 DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "the unique key's column of a table without a primary key partitioned by KEY ()", sql: "ALTER TABLE kpart0 DROP COLUMN u;\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "the key, after a column out of any key dropped from a table without a primary key partitioned by KEY ()",
@@ -654,6 +660,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "a histogram of MySQL's, which MariaDB refuses, updated before", sql: "ANALYZE TABLE nokey UPDATE HISTOGRAM ON a;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a query before", sql: "SELECT a FROM nokey;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "the database's tables shown before", sql: "SHOW TABLES FROM shop;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "tables flushed before", sql: "FLUSH TABLES WITH READ LOCK;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, before tables flushed",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nFLUSH TABLES;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
 		{name: "a table truncated before", sql: "TRUNCATE TABLE nokey;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "tables locked before", sql: "LOCK TABLES plain WRITE;\nALTER TABLE plain DROP COLUMN id;\nUNLOCK TABLES;"},
 		{name: "a rollback to a savepoint before", sql: "BEGIN;\nROLLBACK TO SAVEPOINT s;\nALTER TABLE plain DROP COLUMN id;"},
@@ -720,11 +732,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(1, "DROP COLUMN id", "uq1"), lost(2, "DROP COLUMN id", "uq"), lost(3, "DROP COLUMN id", "kv")},
 		},
 		{
-			name: "the key, with ALGORITHM or LOCK left at DEFAULT",
-			sql:  "ALTER TABLE plain DROP COLUMN id, ALGORITHM=DEFAULT;\nALTER TABLE k1 LOCK DEFAULT, DROP COLUMN id, algorithm = default, LOCK=DEFAULT;\nALTER TABLE k2 DROP COLUMN id, ALGORITHM=INSTANT, ALGORITHM=DEFAULT;",
-			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP COLUMN id", "k1")},
+			name: "the key, with ALGORITHM or LOCK left at DEFAULT, last or alone, and not before another value",
+			sql:  "ALTER TABLE plain DROP COLUMN id, ALGORITHM=DEFAULT;\nALTER TABLE k1 LOCK DEFAULT, DROP COLUMN id, algorithm = default, LOCK=DEFAULT;\nALTER TABLE k2 DROP COLUMN id, ALGORITHM=INSTANT, LOCK=NONE, ALGORITHM=DEFAULT, LOCK=DEFAULT;\nALTER TABLE k3 DROP COLUMN id, ALGORITHM=DEFAULT, ALGORITHM=INSTANT;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP COLUMN id", "k1"), lost(2, "DROP COLUMN id", "k2")},
 		},
 		{name: "the key, with LOCK set to another value", sql: "ALTER TABLE plain DROP COLUMN id, LOCK=SHARED;"},
+		{name: "the key, with ALGORITHM set to another value before LOCK left at DEFAULT", sql: "ALTER TABLE plain DROP COLUMN id, ALGORITHM=INSTANT, LOCK=DEFAULT;"},
 		{name: "the key, with a quoted DEFAULT", sql: "ALTER TABLE plain DROP COLUMN id, ALGORITHM=`DEFAULT`;"},
 		{
 			name: "a generated column whose expression names the column only in a literal",

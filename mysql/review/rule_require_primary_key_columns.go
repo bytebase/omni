@@ -145,12 +145,12 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			}
 			st.kind = barrier
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.TableStmt, *ast.ValuesStmt, *ast.DoStmt,
-			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.SetTransactionStmt:
+			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.FlushStmt, *ast.SetTransactionStmt:
 			// It changes no schema object, but may fail: on a table or column
 			// the target lacks; for TRUNCATE, on a table a foreign key
 			// references; for SET TRANSACTION, inside a transaction. Under LOCK
 			// TABLES, an ALTER TABLE of a table it did not lock for writing
-			// fails.
+			// fails, and after FLUSH TABLES WITH READ LOCK, any does.
 			st.kind = barrier
 		case *ast.UseStmt:
 			st.kind, st.database = uses, v.Database
@@ -179,8 +179,12 @@ func onlyColumnDrops(sql string, v *ast.AlterTableStmt) ([]*ast.AlterTableCmd, b
 		return nil, false
 	}
 	var drops []*ast.AlterTableCmd
+	// The last ALGORITHM and the last LOCK of a statement hold, and either
+	// at DEFAULT is the same as left out.
+	last := make(map[ast.AlterTableCmdType]bool)
 	for _, cmd := range v.Commands {
-		if cmd != nil && leftDefault(sql, cmd) {
+		if cmd != nil && (cmd.Type == ast.ATAlgorithm || cmd.Type == ast.ATLock) {
+			last[cmd.Type] = leftDefault(sql, cmd)
 			continue
 		}
 		if cmd == nil || dropKindOf(sql, cmd) != dropColumn {
@@ -188,13 +192,16 @@ func onlyColumnDrops(sql string, v *ast.AlterTableStmt) ([]*ast.AlterTableCmd, b
 		}
 		drops = append(drops, cmd)
 	}
+	for _, isDefault := range last {
+		if !isDefault {
+			return nil, false
+		}
+	}
 	return drops, len(drops) > 0
 }
 
 // leftDefault reports whether a subcommand is ALGORITHM = DEFAULT or LOCK =
-// DEFAULT, the same as leaving it out. The last ALGORITHM and the last LOCK
-// of a statement are the ones that hold, so a statement with no other
-// value for them runs as without. A quoted DEFAULT is a string, which
+// DEFAULT, the same as leaving it out. A quoted DEFAULT is a string, which
 // the server refuses, or a name, which it does not know.
 //
 // mysql: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html#alter-table-performance
@@ -578,8 +585,10 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 			}
 			return false
 		}
-		return !slices.ContainsFunc(t.GetIndexes(), (*metadata.IndexMetadata).GetUnique) ||
-			slices.ContainsFunc(t.GetIndexes(), func(idx *metadata.IndexMetadata) bool { return idx.GetUnique() && has(idx.GetExpressions()) })
+		// The partitioning columns are in every unique key.
+		//
+		// mysql: https://dev.mysql.com/doc/refman/8.0/en/partitioning-limitations-partitioning-keys-unique-keys.html
+		return !slices.ContainsFunc(t.GetIndexes(), func(idx *metadata.IndexMetadata) bool { return idx.GetUnique() && !has(idx.GetExpressions()) })
 	}
 	for _, p := range t.GetPartitions() {
 		if partitionedBy(p.GetExpression()) {
