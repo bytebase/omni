@@ -514,8 +514,8 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 	cases := []ruleCase{
 		{
 			name: "every column of the key",
-			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP b, DROP COLUMN a;\nALTER TABLE shop.t ADD COLUMN w INT, DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN IF EXISTS id;",
-			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP b", "pair"), lost(2, "DROP COLUMN id", "shop.t"), lost(3, "DROP COLUMN IF EXISTS id", "k1")},
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP b, DROP COLUMN a;\nALTER TABLE shop.t ADD COLUMN w INT, DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN IF EXISTS id;\nALTER TABLE k2 DROP COLUMN id, DROP COLUMN IF EXISTS missing;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP b", "pair"), lost(2, "DROP COLUMN id", "shop.t"), lost(3, "DROP COLUMN IF EXISTS id", "k1"), lost(4, "DROP COLUMN id", "k2")},
 		},
 		{
 			name: "some columns of the key, or none",
@@ -535,11 +535,25 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{
 			name: "a table the change made, dropped, or renamed before",
 			sql: "CREATE TEMPORARY TABLE k1 (id INT PRIMARY KEY, v INT);\nALTER TABLE k1 DROP COLUMN id;\nDROP TABLE IF EXISTS k2;\nALTER TABLE k2 DROP COLUMN id;\nRENAME TABLE k3 TO k3_old, k3_new TO k3;\nALTER TABLE k3 DROP COLUMN id;" +
-				"\nALTER TABLE x RENAME TO k4;\nALTER TABLE k4 DROP COLUMN id;\nCREATE TABLE IF NOT EXISTS k5 (id INT);\nALTER TABLE k5 DROP COLUMN id;\nDROP TEMPORARY TABLE IF EXISTS k6;\nALTER TABLE k6 DROP COLUMN id;",
+				"\nALTER TABLE x RENAME TO k4;\nALTER TABLE k4 DROP COLUMN id;\nCREATE TABLE IF NOT EXISTS k5 (id INT);\nALTER TABLE k5 DROP COLUMN id;",
+		},
+		{
+			name: "a temporary table of its name dropped before, which leaves the table as it was",
+			sql:  "DROP TEMPORARY TABLE IF EXISTS k6;\nALTER TABLE k6 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k6")},
 		},
 		{
 			name: "a table of a database the change dropped before",
 			sql:  "DROP DATABASE IF EXISTS shop;\nALTER TABLE pair DROP a, DROP b;",
+		},
+		{
+			name: "another database dropped before or after",
+			sql:  "DROP DATABASE IF EXISTS other;\nALTER TABLE plain DROP COLUMN id;\nALTER TABLE shop.k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nDROP DATABASE other;\nALTER TABLE other.k3 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain"), lost(2, "DROP COLUMN id", "shop.k1"), lost(3, "DROP COLUMN id", "k2")},
+		},
+		{
+			name: "the target's database dropped after",
+			sql:  "ALTER TABLE k4 DROP COLUMN id;\nALTER TABLE shop.k5 DROP COLUMN id;\nDROP DATABASE shop;",
 		},
 		{
 			name: "a key or column the change touched before",
@@ -570,8 +584,33 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		},
 		{
 			name: "every column of the table, which the server refuses to drop",
-			sql:  "ALTER TABLE plain DROP COLUMN id, DROP COLUMN v;",
+			sql:  "ALTER TABLE plain DROP COLUMN id, DROP COLUMN v;\nALTER TABLE nokey ADD COLUMN v INT;\nALTER TABLE trig DROP COLUMN id;",
 		},
+		{
+			name: "every column of the table, with one the statement adds",
+			sql:  "ALTER TABLE trig ADD COLUMN v INT, DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "trig")},
+		},
+		{
+			name: "a column the table does not have, or one twice, which the server refuses to drop",
+			sql:  "ALTER TABLE plain DROP COLUMN id, DROP COLUMN missing;\nALTER TABLE k1 DROP COLUMN id, DROP COLUMN ID;",
+		},
+		{
+			name: "something the synced schema holds that the change dropped before, or the statement drops",
+			sql:  "ALTER TABLE gen DROP COLUMN g;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;\nALTER TABLE chk DROP CONSTRAINT ck, DROP COLUMN id;\nALTER TABLE self DROP CONSTRAINT fk_up, DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "gen"), lost(3, "DROP COLUMN id", "p"), lost(4, "DROP COLUMN id", "chk"), lost(5, "DROP COLUMN id", "self")},
+		},
+		{
+			name: "a table holding a foreign key to it, dropped before",
+			sql:  "DROP TABLE t;\nALTER TABLE p DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "p")},
+		},
+		{name: "an index of the name of a generated column, dropped before", sql: "ALTER TABLE gen DROP INDEX g;\nALTER TABLE gen DROP COLUMN id;"},
+		{name: "a foreign key of the name, dropped from a table of another database", sql: "ALTER TABLE other.t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
+		{name: "a foreign key of the name, dropped from a table named in another case", sql: "ALTER TABLE T DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
+		{name: "a foreign key of the name, dropped from a temporary table the change made", sql: "CREATE TEMPORARY TABLE t (id INT);\nALTER TABLE t DROP FOREIGN KEY fk_p;\nALTER TABLE p DROP COLUMN id;"},
+		{name: "a check dropped after", sql: "ALTER TABLE chk DROP COLUMN id;\nALTER TABLE chk DROP CONSTRAINT ck;"},
+		{name: "a foreign key dropped after a USE", sql: "USE other;\nALTER TABLE t DROP FOREIGN KEY fk_p;\nALTER TABLE shop.p DROP COLUMN id;"},
 		{
 			name: "a table of another database, after a USE, or in a routine body",
 			sql:  "ALTER TABLE other.plain DROP COLUMN id;\nCREATE PROCEDURE pr() ALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE pair DROP a, DROP b;\nALTER TABLE shop.plain DROP COLUMN id;",

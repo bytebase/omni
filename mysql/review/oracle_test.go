@@ -663,6 +663,29 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "it is added back under its name", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD COLUMN id INT", key: "id"},
 		{name: "a key is added back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD PRIMARY KEY (v)", key: "v"},
 		{name: "a later statement adds a key back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x ADD PRIMARY KEY (v)", key: "v"},
+		// What an earlier statement, or the statement itself, drops no longer
+		// keeps the column.
+		{name: "a generated column reading it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN g;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a foreign key of the table holding it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES p (id))", change: "ALTER TABLE x DROP FOREIGN KEY fk_x;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a foreign key of the table holding it, dropped by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES p (id))", change: "ALTER TABLE x DROP FOREIGN KEY fk_x, DROP COLUMN id", reported: true},
+		{name: "a foreign key referencing it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "ALTER TABLE ch DROP FOREIGN KEY fk_ch;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a table holding a foreign key referencing it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "DROP TABLE ch;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a check reading it and another column, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT ck CHECK (id < v))", change: "ALTER TABLE x DROP CHECK ck;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a check reading it and another column, dropped by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT ck CHECK (id < v))", change: "ALTER TABLE x DROP CONSTRAINT ck, DROP COLUMN id", reported: true},
+		{name: "a functional index reading it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY fx ((id + v)))", change: "DROP INDEX fx ON x;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a functional index reading it, dropped by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY fx ((id + v)))", change: "ALTER TABLE x DROP INDEX fx, DROP COLUMN id", reported: true},
+		// A temporary table of the name, dropped, leaves the table as it was.
+		{name: "a temporary table of its name dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TEMPORARY TABLE IF EXISTS x;\nALTER TABLE x DROP COLUMN id", reported: true},
+		// A column the statement adds keeps the table from losing its last
+		// one. One an earlier statement added is not followed: not judged.
+		{name: "the only column, with another added by the statement", setup: "CREATE TABLE x (id INT PRIMARY KEY)", change: "ALTER TABLE x ADD COLUMN v INT, DROP COLUMN id", reported: true},
+		{name: "the only column, with another added before", setup: "CREATE TABLE x (id INT PRIMARY KEY)", change: "ALTER TABLE x ADD COLUMN v INT;\nALTER TABLE x DROP COLUMN id"},
+		// A drop of a column the table does not have fails the statement.
+		{name: "with a column the table does not have", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN missing", err: "Can't DROP 'missing'", key: "id"},
+		{name: "twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN id", err: "Can't DROP 'id'", key: "id"},
+		// Another database dropped leaves the target's tables as they are.
+		{name: "another database dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP DATABASE IF EXISTS other;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "another database dropped after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nDROP DATABASE IF EXISTS other", reported: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -21,11 +21,11 @@ type targetWork struct {
 	made    changeMade
 	online  bool
 	drops   []droppedIndex
-	columns []columnDrop
+	columns columnDrops
 }
 
 func (w targetWork) any() bool {
-	return w.backup || w.online || len(w.drops) > 0 || len(w.columns) > 0
+	return w.backup || w.online || len(w.drops) > 0 || len(w.columns.list) > 0
 }
 
 // schemaTarget is what the rules read of a target.
@@ -147,8 +147,6 @@ func reviewGroup(sql string, stmts []statement, work targetWork, g targetGroup) 
 	for _, d := range work.drops {
 		checkDroppedIndex(stmts, d, x, r)
 	}
-	for _, d := range work.columns {
-		checkColumnDrop(stmts, d, x, r)
-	}
+	checkColumnDrops(stmts, work.columns, x, r)
 	return r.findings, nil
 }
