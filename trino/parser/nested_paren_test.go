@@ -62,3 +62,53 @@ func TestNestedParensStayLinear(t *testing.T) {
 		}
 	}
 }
+
+// TestSpeculativeReadingsStayLinear guards the records behind the readings the
+// parser abandons for another reading of the same tokens: SUBSTRING and
+// POSITION, TRIM, a JSON_OBJECT member's KEY, and a ROW type's field list.
+// Each level of nesting read the level inside it both ways, so 24 levels took
+// 20 seconds, doubling with each level added; these finish in milliseconds.
+func TestSpeculativeReadingsStayLinear(t *testing.T) {
+	const depth = 20000
+	nest := func(open, mid, closing string) string {
+		return strings.Repeat(open, depth) + mid + strings.Repeat(closing, depth)
+	}
+	castTo := func(typ string) string { return "SELECT CAST(NULL AS " + typ + ")" }
+	for _, tc := range []struct {
+		name    string
+		sql     string
+		wantErr bool
+	}{
+		{"SUBSTRING call", "SELECT " + nest("substring(", "x", ", 1)"), false},
+		{"SUBSTRING call with a predicate", "SELECT " + nest("substring(", "x", " IS DISTINCT FROM 1, 1)"), false},
+		{"failing SUBSTRING call", "SELECT " + nest("substring(", "x +", ", 1)"), true},
+		{"failing SUBSTRING FROM", "SELECT " + nest("substring(", "x", " FROM 1 FOR)"), true},
+		{"SUBSTRING with raw bodies", "SELECT " + nest("substring(", "x", ", (SELECT 1 1))"), true},
+		{"POSITION call", "SELECT " + nest("position(", "'a'", ", 'b')"), false},
+		{"failing POSITION IN", "SELECT " + nest("position(", "'a'", " IN)"), true},
+		{"TRIM call", "SELECT " + nest("trim(", "x", ", 'a')"), false},
+		{"failing TRIM call", "SELECT " + nest("trim(", "x", ", )"), true},
+		{"JSON_OBJECT KEY expression", "SELECT " + nest("JSON_OBJECT(KEY - ", "1", " : 1)"), false},
+		{"JSON_OBJECT KEY call", "SELECT " + nest("JSON_OBJECT(KEY (", "1", ") : 1)"), false},
+		{"failing JSON_OBJECT KEY", "SELECT " + nest("JSON_OBJECT(KEY - ", "1", " VALUE)"), true},
+		{"ROW type with integers", castTo(nest("ROW(", "bigint", ", 1)")), false},
+		{"ROW type with a trailing name", castTo(nest("ROW(", "bigint", " x)")), true},
+		{"failing ROW type", castTo(nest("ROW(", "bigint", ", )")), true},
+		{"routine parameter ROW type", "CREATE FUNCTION f(a " + nest("ROW(", "bigint", ", 1)") + ") RETURNS bigint RETURN 1", false},
+	} {
+		done := make(chan error, 1)
+		go func() {
+			_, err := Parse(tc.sql)
+			ParseBestEffort(tc.sql)
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: Parse and ParseBestEffort through %d nested levels took over 2s", tc.name, depth)
+		}
+	}
+}

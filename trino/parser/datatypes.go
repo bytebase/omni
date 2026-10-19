@@ -362,7 +362,26 @@ func (f RowField) writeTo(b *strings.Builder) {
 //
 // The postfix `type ARRAY [n]` is left-recursive in the grammar; it is parsed
 // here by consuming a base type and then looping over trailing ARRAY suffixes.
+//
+// A speculative reading records the result, and the reading tried after it
+// replays the record (see Parser.speculating).
 func (p *Parser) parseType() (*DataType, error) {
+	start := p.cur.Loc.Start
+	if r, ok := p.typeMemo[start]; ok {
+		p.replayTo(r.end)
+		return r.typ, r.err
+	}
+	typ, err := p.parseTypeUnrecorded()
+	if p.speculating > 0 && p.cur.Loc.Start != start {
+		if p.typeMemo == nil {
+			p.typeMemo = make(map[int]typeReplay)
+		}
+		p.typeMemo[start] = typeReplay{typ: typ, err: err, end: p.checkpoint()}
+	}
+	return typ, err
+}
+
+func (p *Parser) parseTypeUnrecorded() (*DataType, error) {
 	base, err := p.parseBaseType()
 	if err != nil {
 		return nil, err
@@ -575,7 +594,10 @@ func (p *Parser) parseRowType() (*DataType, error) {
 
 	// Reading 1 — rowType (no integer fields).
 	cp := p.checkpoint()
-	if fields, closeTok, ok := p.tryRowFields(); ok {
+	p.speculating++
+	fields, closeTok, ok := p.tryRowFields()
+	p.speculating--
+	if ok {
 		return &DataType{
 			Kind:   TypeRow,
 			Name:   "ROW",

@@ -567,12 +567,49 @@ func (p *Parser) parseAtTimeZonePostfix() (Expr, error) {
 // a loop after the atom. It dispatches keyword-led atoms (CASE, CAST, ARRAY,
 // ROW, special functions, …) and otherwise reads a literal / parameter /
 // identifier-or-function / parenthesized form via parsePrimaryAtom.
+//
+// A speculative reading records the result, and the reading tried after it
+// replays the record (see Parser.speculating).
 func (p *Parser) parsePrimary() (Expr, error) {
+	start := p.cur.Loc.Start
+	if r, ok := p.primaryMemo[start]; ok {
+		p.replayTo(r.end)
+		if r.raws != nil {
+			p.rawQueries = append(p.rawQueries, rawQuery{group: r.raws})
+		}
+		return r.expr, r.err
+	}
+	raws := len(p.rawQueries)
+	expr, err := p.parsePrimaryUnrecorded()
+	if p.speculating > 0 && p.cur.Loc.Start != start {
+		p.recordPrimary(start, raws, expr, err)
+	}
+	return expr, err
+}
+
+func (p *Parser) parsePrimaryUnrecorded() (Expr, error) {
 	atom, err := p.parsePrimaryAtom()
 	if err != nil {
 		return nil, err
 	}
 	return p.parsePostfix(atom)
+}
+
+// recordPrimary records the primary expression that started at start, whose
+// parse found raws query bodies already captured. The bodies it captured are
+// folded into one group entry, so an enclosing record copies one entry for
+// this whole primary instead of every body inside it.
+func (p *Parser) recordPrimary(start, raws int, expr Expr, err error) {
+	r := exprReplay{expr: expr, err: err}
+	if err == nil && len(p.rawQueries) > raws {
+		r.raws = append([]rawQuery(nil), p.rawQueries[raws:]...)
+		p.rawQueries = append(p.rawQueries[:raws], rawQuery{group: r.raws})
+	}
+	r.end = p.checkpoint()
+	if p.primaryMemo == nil {
+		p.primaryMemo = make(map[int]exprReplay)
+	}
+	p.primaryMemo[start] = r
 }
 
 // parsePostfix consumes zero or more `[ index ]` subscripts and `. field`
