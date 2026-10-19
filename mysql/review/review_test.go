@@ -424,15 +424,15 @@ func TestRequirePrimaryKey(t *testing.T) {
 	})
 }
 
-// keyed is shop with tables for the primary key a DROP COLUMN drops: k1
-// to k3 with a key on id and a column v; pair with a key of two columns;
-// gen with a generated column, chk with a check of the key and v, solo
-// with a check of the key alone, fx with a functional index, and part with
-// partitioning, each reading the key; kpart partitioned by KEY (), which
-// reads the key; inv whose other column is invisible, and inv2 with a
-// visible one too; defx whose other column's default reads the key, and
-// deflit whose literal default names it; and self with a foreign key to
-// itself.
+// keyed is shop with tables for the primary key a DROP COLUMN drops: k1 to
+// k3 with a key on id and a column v; pair with a key of two columns; gen
+// with a generated column, gen2 with one that names the key only in a
+// literal, chk with a check of the key and v, solo with a check of the key
+// alone, fx with a functional index, and part with partitioning, each
+// reading the key; kpart partitioned by KEY (), which reads the key; inv
+// whose other column is invisible, and inv2 with a visible one too; defx
+// whose other column's default reads the key, and deflit whose literal
+// default names it; and self with a foreign key to itself.
 func keyed() []review.Target {
 	s := shop()
 	pk := func(columns ...string) []*metadata.IndexMetadata {
@@ -447,6 +447,11 @@ func keyed() []review.Target {
 		&metadata.TableMetadata{
 			Name:    "gen",
 			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "(`id` + 1)"}}},
+			Indexes: pk("id"),
+		},
+		&metadata.TableMetadata{
+			Name:    "gen2",
+			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "concat(_latin1'id',`v`)"}}},
 			Indexes: pk("id"),
 		},
 		&metadata.TableMetadata{Name: "chk", Columns: columns("id", "v"), Indexes: pk("id"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`ID` < `v`)"}}},
@@ -486,8 +491,8 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		},
 		{
 			name: "no column of the key",
-			sql:  "ALTER TABLE plain DROP COLUMN v;\nALTER TABLE nokey ADD COLUMN b INT;\nALTER TABLE nokey DROP COLUMN a;\nALTER TABLE k1 DROP COLUMN id;",
-			want: []finding{lost(3, "DROP COLUMN id", "k1")},
+			sql:  "ALTER TABLE plain DROP COLUMN v;\nALTER TABLE k1 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k1")},
 		},
 		{
 			name: "the key, after columns statements before dropped, and what read them",
@@ -495,7 +500,7 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(1, "DROP COLUMN id", "t"), lost(3, "DROP COLUMN id", "gen"), lost(4, "DROP COLUMN id", "solo")},
 		},
 		{
-			name: "the key, before statements that change no table",
+			name: "the key, before statements the rule passes or cannot follow",
 			sql:  "ALTER TABLE plain DROP COLUMN id;\nINSERT INTO plain VALUES (1);\nCREATE VIEW v1 AS SELECT v FROM plain;\nCREATE PROCEDURE pr() ALTER TABLE plain ADD PRIMARY KEY (v);\nSET @x = 1;\nCREATE DATABASE d;\nDROP DATABASE other;",
 			want: []finding{lost(0, "DROP COLUMN id", "plain")},
 		},
@@ -521,24 +526,14 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		// Any other statement on a table leaves the table out: no later drop
 		// of it is judged, and a finding on it is withdrawn.
 		{
-			name: "another statement on the table before",
-			sql:  "ALTER TABLE plain ADD COLUMN w INT;\nALTER TABLE plain DROP COLUMN id;\nCREATE TABLE c (x INT PRIMARY KEY, FOREIGN KEY (x) REFERENCES k1 (id));\nALTER TABLE k1 DROP COLUMN id;\nDROP TEMPORARY TABLE IF EXISTS k2;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;",
-			want: []finding{lost(6, "DROP COLUMN id", "k3")},
-		},
-		{
-			name: "a foreign key added to the table, or a table renamed to its name, before",
-			sql:  "ALTER TABLE nokey ADD CONSTRAINT fk_a FOREIGN KEY (a) REFERENCES k1 (id);\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k9 RENAME TO k2;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;",
-			want: []finding{lost(4, "DROP COLUMN id", "k3")},
-		},
-		{
 			name: "another subcommand of the statement",
 			sql:  "ALTER TABLE plain DROP COLUMN id, ADD COLUMN w INT;\nALTER TABLE k1 DROP COLUMN id, ALTER CHECK missing ENFORCED;\nALTER TABLE k2 DROP PRIMARY KEY, DROP COLUMN id;",
 			want: []finding{{2, "DROP PRIMARY KEY", "removes the primary key of k2, and the change adds none back", []int{0}}},
 		},
 		{
-			name: "another statement on the table after, which may give it a key back",
-			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain ADD PRIMARY KEY (v);\nALTER TABLE k1 DROP COLUMN id;\nRENAME TABLE k9 TO k1;\nALTER TABLE k2 DROP COLUMN id;\nCREATE INDEX i ON k2 (v);\nALTER TABLE k3 DROP COLUMN id;\nTRUNCATE TABLE nokey;",
-			want: []finding{lost(6, "DROP COLUMN id", "k3")},
+			name: "a statement after on the table, which may give it a key back, or on another",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE plain ADD PRIMARY KEY (v);\nRENAME TABLE k9 TO k1;\nCREATE INDEX i ON nokey (a);",
+			want: []finding{lost(2, "DROP COLUMN id", "k2")},
 		},
 		{
 			name: "every column of the key, with an invisible one left besides a visible one",
@@ -554,10 +549,32 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE plain ADD PRIMARY KEY (v);",
 			want: []finding{lost(1, "DROP COLUMN id", "k1")},
 		},
+		// Any statement but one of DROP COLUMN alone or one that changes no
+		// schema object may fail: no drop after it is judged.
+		{name: "another table altered before", sql: "ALTER TABLE nokey ADD COLUMN w INT;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a table made before", sql: "CREATE TABLE c (x INT PRIMARY KEY);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "an index made on another table before", sql: "CREATE INDEX i ON nokey (a);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a table the database lacks dropped before", sql: "DROP TABLE missing;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "another database dropped before", sql: "DROP DATABASE other;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a view made before", sql: "CREATE VIEW v1 AS SELECT 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a procedure made before", sql: "CREATE PROCEDURE pr() SELECT 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user made before", sql: "CREATE USER u;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a temporary table of its name dropped before", sql: "DROP TEMPORARY TABLE IF EXISTS plain;\nALTER TABLE plain DROP COLUMN id;"},
 		{
-			name: "a column's REFERENCES, which MySQL ignores",
-			sql:  "CREATE TABLE c (x INT PRIMARY KEY REFERENCES k1 (id));\nALTER TABLE k1 DROP COLUMN id;",
-			want: []finding{lost(1, "DROP COLUMN id", "k1")},
+			name: "statements before that change no schema object",
+			sql:  "INSERT INTO nokey VALUES (1);\nSELECT 1;\nSET @x = 1;\nTRUNCATE TABLE nokey;\nANALYZE TABLE plain;\nBEGIN;\nCOMMIT;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(7, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "a generated column whose expression names the column only in a literal",
+			sql:  "ALTER TABLE gen2 DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "gen2")},
+		},
+		{name: "sql_generate_invisible_primary_key set on before", sql: "SET SESSION sql_generate_invisible_primary_key = ON;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "sql_generate_invisible_primary_key set on, then off, before",
+			sql:  "SET sql_generate_invisible_primary_key = ON;\nSET @@session.sql_generate_invisible_primary_key = OFF;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(2, "DROP COLUMN id", "plain")},
 		},
 		// A statement the rule cannot bound ends the judging.
 		{name: "a USE", sql: "USE other;\nALTER TABLE shop.plain DROP COLUMN id;"},

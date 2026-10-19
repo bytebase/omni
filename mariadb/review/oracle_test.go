@@ -152,6 +152,8 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		if t, ok := tables[tbl]; ok {
 			c := &metadata.ColumnMetadata{Name: col, Default: def}
+			// Bytebase unescapes the quotes the server escapes.
+			gen = strings.ReplaceAll(gen, `\'`, `'`)
 			switch {
 			case gen == "":
 			case strings.Contains(strings.ToUpper(extra), "VIRTUAL GENERATED"):
@@ -663,7 +665,8 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		{name: "a view or a trigger reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE VIEW xv AS SELECT id FROM x; CREATE TRIGGER xt BEFORE INSERT ON x FOR EACH ROW SET NEW.v = NEW.id", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a foreign key of another table references another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE ch (x_v INT, CONSTRAINT fk_ch FOREIGN KEY (x_v) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a foreign key of the table holds another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (v) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a statement on another table, or one that changes no table, before or after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE y ADD COLUMN b INT;\nALTER TABLE x DROP COLUMN id;\nINSERT INTO x VALUES (1);\nCREATE VIEW xv AS SELECT v FROM x", reported: true},
+		{name: "a statement that changes no schema object before, and statements on another table or none after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "INSERT INTO y VALUES (1);\nALTER TABLE x DROP COLUMN id;\nALTER TABLE y ADD COLUMN b INT;\nINSERT INTO x VALUES (1);\nCREATE VIEW xv AS SELECT v FROM x", reported: true},
+		{name: "a generated column naming it only in a literal", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g VARCHAR(20) AS (CONCAT('id', v)))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		// (c) What depends on the column decides whether the server drops it;
 		// a drop it refuses ends the judging.
 		{name: "a foreign key of another table references it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
@@ -700,6 +703,11 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		// A table of another database renamed without a database lands in the
 		// current one.
 		{name: "a table of another database renamed to its name before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.t (a INT PRIMARY KEY)", change: "ALTER TABLE other.t RENAME TO x;\nALTER TABLE x DROP COLUMN id", err: "Table 'x' already exists", key: "id"},
+		// A statement but one of DROP COLUMN alone or one that changes no schema
+		// object may fail, which stops the change: no drop after it is judged.
+		{name: "a statement on another table before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE y ADD COLUMN b INT;\nALTER TABLE x DROP COLUMN id"},
+		{name: "a table the database lacks dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TABLE missing;\nALTER TABLE x DROP COLUMN id", err: "Unknown table", key: "id"},
+		{name: "a database the server lacks dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP DATABASE missing_db;\nALTER TABLE x DROP COLUMN id", err: "Can't drop database", key: "id"},
 		// A statement the rule cannot bound ends the judging.
 		{name: "a USE before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id"},
 	}

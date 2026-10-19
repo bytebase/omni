@@ -18,18 +18,18 @@ import (
 //   - An ALTER TABLE whose every subcommand is DROP COLUMN is followed
 //     exactly: the columns it drops, whether the server refuses it, and
 //     whether it takes the key.
-//   - A statement that changes no table, such as DML or the definition of a
-//     view, a trigger, or a routine, passes.
-//   - Any other statement on a table leaves that table out: the rule judges
-//     no later drop of it, and withdraws a finding on it, since the
-//     statement may give it a key back.
-//   - A statement the rule cannot follow that changes no table, such as a
-//     USE or a drop the server refuses or may refuse, ends the judging of
-//     later drops, as pg/review's scan ends at a statement it cannot
-//     follow; a finding before it stands unless a later statement on its
-//     table withdraws it.
+//   - A statement that changes no schema object, such as DML, a session
+//     statement, or table maintenance, passes: whether it fails depends on
+//     data the review does not see, as in pg/review.
+//   - Any other statement, and a drop the server refuses or may refuse,
+//     ends the judging of later drops, as pg/review's scan ends at a
+//     statement it cannot follow: the rule cannot establish that it runs,
+//     and one that fails stops the change. A finding before it stands,
+//     unless a statement on its table that may give it a key back, rename
+//     it, or drop it withdraws the finding.
 //   - A statement that may change any table, such as a CALL or an event,
-//     ends the judging and withdraws every finding.
+//     or a drop of the target's database, ends the judging and withdraws
+//     every finding.
 //
 // mariadb: https://mariadb.com/docs/server/reference/sql-statements/data-definition/alter/alter-table — DROP COLUMN
 
@@ -49,15 +49,13 @@ type stepKind int
 const (
 	// dropsColumns is an ALTER TABLE whose every subcommand is DROP COLUMN.
 	dropsColumns stepKind = iota
-	// namesTables is any other statement on the tables it names.
+	// namesTables is any other statement on a table, which ends the
+	// judging and withdraws a finding on the tables it changes.
 	namesTables
-	// dropsDatabase is a DROP DATABASE, which ends the judging when it
-	// drops the target's.
+	// dropsDatabase is a DROP DATABASE, which withdraws every finding when
+	// it drops the target's.
 	dropsDatabase
-	// requiresKey is a SET of sql_require_primary_key for the session, to
-	// on.
-	requiresKey
-	// barrier is a statement the rule cannot follow that changes no table.
+	// barrier is any other statement the rule cannot follow.
 	barrier
 	// stops is a statement that may change any table.
 	stops
@@ -70,8 +68,6 @@ type step struct {
 	tables    []*ast.TableRef
 	drops     []*ast.AlterTableCmd
 	database  string
-	// on is the value a requiresKey step sets.
-	on bool
 }
 
 // columnDropSteps reads the change's top-level statements into steps.
@@ -88,14 +84,12 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 				st.kind, st.tables = namesTables, alterNames(v)
 			}
 		case *ast.CreateTableStmt:
-			st.kind, st.tables = namesTables, createNames(v)
+			st.kind, st.tables = namesTables, []*ast.TableRef{v.Table}
 		case *ast.CreateIndexStmt:
 			st.kind, st.tables = namesTables, []*ast.TableRef{v.Table}
 		case *ast.DropIndexStmt:
 			st.kind, st.tables = namesTables, []*ast.TableRef{v.Table}
 		case *ast.DropTableStmt:
-			st.kind, st.tables = namesTables, v.Tables
-		case *ast.TruncateStmt:
 			st.kind, st.tables = namesTables, v.Tables
 		case *ast.RenameTableStmt:
 			st.kind = namesTables
@@ -117,15 +111,17 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.TableStmt, *ast.ValuesStmt, *ast.DoStmt,
 			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt,
 			*ast.BeginStmt, *ast.CommitStmt, *ast.RollbackStmt, *ast.SavepointStmt, *ast.SetTransactionStmt,
-			*ast.CreateViewStmt, *ast.AlterViewStmt, *ast.DropViewStmt, *ast.CreateTriggerStmt, *ast.DropTriggerStmt,
+			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt, *ast.TruncateStmt:
+			// It changes no schema object.
+			continue
+		case *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.DropViewStmt, *ast.CreateTriggerStmt, *ast.DropTriggerStmt,
 			*ast.CreateFunctionStmt, *ast.AlterRoutineStmt, *ast.DropRoutineStmt, *ast.DropEventStmt,
 			*ast.CreateDatabaseStmt, *ast.AlterDatabaseStmt,
-			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt,
 			*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt, *ast.SetPasswordStmt, *ast.GrantStmt, *ast.RevokeStmt,
 			*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt:
-			// It changes no table. A trigger or a function cannot run DDL, and
-			// a procedure runs only when called.
-			continue
+			// It changes no table, but may fail. A trigger or a function cannot
+			// run DDL, and a procedure runs only when called.
+			st.kind = barrier
 		default:
 			// CALL, PREPARE and EXECUTE, an event, which runs on its own
 			// schedule, and whatever else may change any table.
@@ -152,52 +148,16 @@ func onlyColumnDrops(sql string, v *ast.AlterTableStmt) ([]*ast.AlterTableCmd, b
 	return drops, len(drops) > 0
 }
 
-// alterNames returns the tables an ALTER TABLE names: its own, the one it
-// renames to, and those a foreign key it adds references, a column's
-// REFERENCES among them, which MariaDB makes a foreign key of.
+// alterNames returns the tables an ALTER TABLE changes: its own, and the
+// one it renames to.
 func alterNames(v *ast.AlterTableStmt) []*ast.TableRef {
 	if v.Table == nil {
 		return nil
 	}
 	names := []*ast.TableRef{v.Table}
 	for _, cmd := range v.Commands {
-		switch {
-		case cmd == nil:
-		case cmd.Type == ast.ATRenameTable:
+		if cmd != nil && cmd.Type == ast.ATRenameTable {
 			names = append(names, renamedTo(cmd))
-		case cmd.Constraint != nil && cmd.Constraint.Type == ast.ConstrForeignKey && cmd.Constraint.RefTable != nil:
-			names = append(names, cmd.Constraint.RefTable)
-		}
-		if cmd != nil {
-			names = append(names, columnReferences(append([]*ast.ColumnDef{cmd.Column}, cmd.Columns...))...)
-		}
-	}
-	return names
-}
-
-// createNames returns the tables a CREATE TABLE names: its own, and those
-// its foreign keys reference, a column's REFERENCES among them.
-func createNames(v *ast.CreateTableStmt) []*ast.TableRef {
-	names := []*ast.TableRef{v.Table}
-	for _, c := range v.Constraints {
-		if c != nil && c.Type == ast.ConstrForeignKey && c.RefTable != nil {
-			names = append(names, c.RefTable)
-		}
-	}
-	return append(names, columnReferences(v.Columns)...)
-}
-
-// columnReferences returns the tables the REFERENCES of columns name.
-func columnReferences(cols []*ast.ColumnDef) []*ast.TableRef {
-	var names []*ast.TableRef
-	for _, col := range cols {
-		if col == nil {
-			continue
-		}
-		for _, c := range col.Constraints {
-			if c != nil && c.Type == ast.ColConstrReferences && c.RefTable != nil {
-				names = append(names, c.RefTable)
-			}
 		}
 	}
 	return names
@@ -216,15 +176,20 @@ func renamedTo(cmd *ast.AlterTableCmd) *ast.TableRef {
 }
 
 // setsRequirePrimaryKey reports whether a SET assigns the system variable
-// sql_require_primary_key, which MariaDB does not have; a user variable of
-// the name is another variable.
+// sql_require_primary_key or sql_generate_invisible_primary_key, which
+// MariaDB does not have; a user variable of the name is another variable.
 func setsRequirePrimaryKey(v *ast.SetStmt) bool {
 	return slices.ContainsFunc(v.Assignments, func(a *ast.Assignment) bool {
 		if a == nil || a.Column == nil {
 			return false
 		}
 		name := strings.ToLower(a.Column.Column)
-		return !strings.HasPrefix(name, "@") && name == "sql_require_primary_key" || strings.HasPrefix(name, "@@") && strings.HasSuffix(name, "sql_require_primary_key")
+		for _, variable := range []string{"sql_require_primary_key", "sql_generate_invisible_primary_key"} {
+			if name == variable || strings.HasPrefix(name, "@@") && strings.HasSuffix(name, variable) {
+				return true
+			}
+		}
+		return false
 	})
 }
 
@@ -241,11 +206,9 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 	}
 	var findings []found
 	dropped := make(map[*metadata.TableMetadata][]string)
-	left := make(map[*metadata.TableMetadata]bool)
 	j := &columnJudge{x: x}
-	// judging is whether the rule still judges drops, and requireKey
-	// whether the session refuses one that takes a table's key.
-	judging, requireKey := true, false
+	// judging is whether the rule still judges drops.
+	judging := true
 	for _, s := range c.steps {
 		switch s.kind {
 		case stops:
@@ -254,14 +217,13 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 			if x.same(s.database, x.schema.GetName()) {
 				return
 			}
+			judging = false
 		case barrier:
 			judging = false
-		case requiresKey:
-			requireKey = s.on
 		case namesTables:
+			judging = false
 			for _, ref := range s.tables {
 				if t := x.table(ref, false); t != nil {
-					left[t] = true
 					findings = slices.DeleteFunc(findings, func(f found) bool { return f.table == t })
 				}
 			}
@@ -277,11 +239,8 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 				judging = false
 				continue
 			}
-			if left[t] {
-				continue
-			}
 			columns, lost, runs := j.dropColumns(t, s.drops, dropped[t])
-			if !runs || lost != nil && requireKey {
+			if !runs {
 				judging = false
 				continue
 			}
@@ -411,7 +370,7 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 		}
 	}
 	for _, c := range t.GetColumns() {
-		if g := c.GetGeneration(); g != nil && !gone(c.GetName()) && mentions(g.GetExpression(), column) {
+		if g := c.GetGeneration(); g != nil && !gone(c.GetName()) && reads(g.GetExpression(), column) {
 			return true
 		}
 		// The synced default does not tell an expression from a literal: one
@@ -427,11 +386,11 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 		}
 	}
 	for _, p := range t.GetPartitions() {
-		if p.GetExpression() == "" || mentions(p.GetExpression(), column) {
+		if p.GetExpression() == "" || reads(p.GetExpression(), column) {
 			return true
 		}
 		for _, sub := range p.GetSubpartitions() {
-			if sub.GetExpression() == "" || mentions(sub.GetExpression(), column) {
+			if sub.GetExpression() == "" || reads(sub.GetExpression(), column) {
 				return true
 			}
 		}
@@ -478,6 +437,16 @@ func expressionColumns(expr string) (columns []string, ok bool) {
 		return true
 	})
 	return columns, true
+}
+
+// reads reports whether an expression of the synced schema reads a column:
+// one it names, when it parses, which a literal of the text does not; when
+// it does not, one it may name.
+func reads(expr, column string) bool {
+	if columns, ok := expressionColumns(expr); ok {
+		return slices.ContainsFunc(columns, func(c string) bool { return sameName(c, column) })
+	}
+	return mentions(expr, column)
 }
 
 // mentions reports whether an expression may name a column: the name,

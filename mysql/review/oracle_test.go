@@ -93,7 +93,7 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 		// A case may have turned foreign key checks off, or primary keys
 		// required, on the pooled connection; other may reference shop,
 		// which it then keeps from being dropped.
-		"SET foreign_key_checks = 1", "SET sql_require_primary_key = OFF",
+		"SET foreign_key_checks = 1", "SET sql_require_primary_key = OFF", "SET sql_generate_invisible_primary_key = OFF",
 		"DROP DATABASE IF EXISTS other", "DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive",
 		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase,
 	} {
@@ -153,6 +153,8 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		if t, ok := tables[tbl]; ok {
 			c := &metadata.ColumnMetadata{Name: col, Default: def, IsInvisible: strings.Contains(strings.ToUpper(extra), "INVISIBLE")}
+			// Bytebase unescapes the quotes the server escapes.
+			gen = strings.ReplaceAll(gen, `\'`, `'`)
 			switch {
 			case gen == "":
 			case strings.Contains(strings.ToUpper(extra), "VIRTUAL GENERATED"):
@@ -662,7 +664,8 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "a view or a trigger reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE VIEW xv AS SELECT id FROM x; CREATE TRIGGER xt BEFORE INSERT ON x FOR EACH ROW SET NEW.v = NEW.id", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a foreign key of another table references another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE ch (x_v INT, CONSTRAINT fk_ch FOREIGN KEY (x_v) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "a foreign key of the table holds another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (v) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
-		{name: "a statement on another table, or one that changes no table, before or after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE y ADD COLUMN b INT;\nALTER TABLE x DROP COLUMN id;\nINSERT INTO x VALUES (1);\nCREATE VIEW xv AS SELECT v FROM x", reported: true},
+		{name: "a statement that changes no schema object before, and statements on another table or none after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "INSERT INTO y VALUES (1);\nALTER TABLE x DROP COLUMN id;\nALTER TABLE y ADD COLUMN b INT;\nINSERT INTO x VALUES (1);\nCREATE VIEW xv AS SELECT v FROM x", reported: true},
+		{name: "a generated column naming it only in a literal", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g VARCHAR(20) AS (CONCAT('id', v)))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
 		// (c) What depends on the column decides whether the server drops it;
 		// a drop it refuses ends the judging.
 		{name: "a foreign key of another table references it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
@@ -689,7 +692,7 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "a table CREATE TABLE IF NOT EXISTS leaves, whose foreign key would reference it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE c (k INT PRIMARY KEY)", change: "CREATE TABLE IF NOT EXISTS c (k INT PRIMARY KEY, FOREIGN KEY (k) REFERENCES x (id));\nALTER TABLE x DROP COLUMN id"},
 		{name: "a temporary table of its name dropped twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TEMPORARY TABLE IF EXISTS x;\nDROP TEMPORARY TABLE x;\nALTER TABLE x DROP COLUMN id", err: "Unknown table", key: "id"},
 		{name: "with a check the table lacks altered", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ALTER CHECK missing ENFORCED, DROP COLUMN id", err: "Check constraint 'missing' is not found", key: "id"},
-		{name: "a column's REFERENCES to it, which MySQL ignores, made before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE c (k INT REFERENCES x (id), PRIMARY KEY (k));\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a table made before whose column's REFERENCES, which MySQL ignores, names it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE c (k INT REFERENCES x (id), PRIMARY KEY (k));\nALTER TABLE x DROP COLUMN id"},
 		{name: "with a partition dropped", setup: "CREATE TABLE x (id INT, v INT, PRIMARY KEY (id)) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)", change: "ALTER TABLE x DROP COLUMN id, DROP PARTITION p0", err: "You have an error in your SQL syntax", key: "id"},
 		// The session's sql_require_primary_key refuses a drop that takes the
 		// key while it is on, and only then.
@@ -706,6 +709,13 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		// A table of another database renamed without a database lands in the
 		// current one.
 		{name: "a table of another database renamed to its name before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.t (a INT PRIMARY KEY)", change: "ALTER TABLE other.t RENAME TO x;\nALTER TABLE x DROP COLUMN id", err: "Table 'x' already exists", key: "id"},
+		// A statement but one of DROP COLUMN alone or one that changes no schema
+		// object may fail, which stops the change: no drop after it is judged.
+		{name: "a statement on another table before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE y ADD COLUMN b INT;\nALTER TABLE x DROP COLUMN id"},
+		{name: "a table the database lacks dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TABLE missing;\nALTER TABLE x DROP COLUMN id", err: "Unknown table", key: "id"},
+		{name: "a database the server lacks dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP DATABASE missing_db;\nALTER TABLE x DROP COLUMN id", err: "Can't drop database", key: "id"},
+		{name: "sql_generate_invisible_primary_key on before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_generate_invisible_primary_key = ON;\nALTER TABLE x DROP COLUMN id", err: "sql_generate_invisible_primary_key=ON mode", key: "id"},
+		{name: "sql_generate_invisible_primary_key on, then off, before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_generate_invisible_primary_key = ON;\nSET SESSION sql_generate_invisible_primary_key = OFF;\nALTER TABLE x DROP COLUMN id", reported: true},
 		// A statement the rule cannot bound ends the judging.
 		{name: "a USE before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id"},
 	}
