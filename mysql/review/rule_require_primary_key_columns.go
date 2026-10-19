@@ -246,13 +246,15 @@ func renamedTo(cmd *ast.AlterTableCmd) *ast.TableRef {
 //
 // mysql: https://dev.mysql.com/doc/refman/8.0/en/set-variable.html
 func setPasses(v *ast.SetStmt) bool {
-	for _, a := range v.Assignments {
+	for i, a := range v.Assignments {
 		if a == nil || a.Column == nil || a.Column.Table != "" {
 			return false
 		}
 		name, scope := strings.ToLower(a.Column.Column), strings.ToUpper(v.Scope)
 		if strings.HasPrefix(name, "@") && !strings.HasPrefix(name, "@@") {
-			if !literal(a.Value) {
+			// A scope names the system variable after it, and the parser
+			// takes SET SESSION @x = 1, which the server refuses.
+			if i == 0 && v.Scope != "" || !literal(a.Value) {
 				return false
 			}
 			continue
@@ -453,7 +455,7 @@ func (j *columnJudge) dropColumns(t *metadata.TableMetadata, drops []*ast.AlterT
 	switch {
 	case taken == 0:
 	case taken < len(key):
-		if !keptApart(t, gone) {
+		if !keptApart(t, t.GetIndexes()[slices.IndexFunc(t.GetIndexes(), (*metadata.IndexMetadata).GetPrimary)], gone) {
 			return nil, nil, false
 		}
 	default:
@@ -462,35 +464,25 @@ func (j *columnJudge) dropColumns(t *metadata.TableMetadata, drops []*ast.AlterT
 	return columns, lost, true
 }
 
-// keptApart reports whether a unique key of the table keeps the values of
-// its primary key apart once the key narrows to the columns not gone: one
-// whose every part is a column the narrowed key holds whole. Values a
-// unique key keeps apart, even by prefixes, the whole columns keep apart
-// too; a key part whose length the synced schema does not give may be a
-// prefix, which need not.
-func keptApart(t *metadata.TableMetadata, gone func(string) bool) bool {
-	i := slices.IndexFunc(t.GetIndexes(), (*metadata.IndexMetadata).GetPrimary)
-	if i < 0 {
-		return false
-	}
-	pk := t.GetIndexes()[i]
-	whole := func(idx *metadata.IndexMetadata, part int) bool {
-		lengths := idx.GetKeyLength()
-		return part < len(lengths) && lengths[part] <= 0
-	}
+// keptApart reports whether another unique key of the table keeps apart
+// the values of a unique key, the primary key among them, once it narrows
+// to its parts not gone: one whose every part is a column the narrowed key
+// holds whole, which the narrowed key, losing a part, is not. Values a unique key keeps apart, even by prefixes, the
+// whole columns keep apart too; a part whose length the synced schema does
+// not give may be a prefix, which need not.
+func keptApart(t *metadata.TableMetadata, narrowed *metadata.IndexMetadata, gone func(string) bool) bool {
+	lengths := narrowed.GetKeyLength()
 	holds := func(column string) bool {
-		for n, part := range pk.GetExpressions() {
+		for n, part := range narrowed.GetExpressions() {
 			if sameName(part, column) {
-				return !gone(part) && whole(pk, n)
+				return !gone(part) && n < len(lengths) && lengths[n] <= 0
 			}
 		}
 		return false
 	}
 	return slices.ContainsFunc(t.GetIndexes(), func(idx *metadata.IndexMetadata) bool {
-		if !idx.GetUnique() || idx.GetPrimary() || len(idx.GetExpressions()) == 0 {
-			return false
-		}
-		return !slices.ContainsFunc(idx.GetExpressions(), func(part string) bool { return !holds(part) })
+		return idx.GetUnique() && len(idx.GetExpressions()) > 0 &&
+			!slices.ContainsFunc(idx.GetExpressions(), func(part string) bool { return !holds(part) })
 	})
 }
 
@@ -519,12 +511,13 @@ func primaryKeyColumns(t *metadata.TableMetadata) []string {
 // one of the database that references it; a generated column not gone that
 // may read it, or whose expression default may; a check that reads it and
 // another column; a unique key of it and a part not gone, which narrows to
-// the rest and fails when their values repeat; a functional index part that
-// may read it; or the table's partitioning or subpartitioning, by an
-// expression that may read it or by KEY (), which reads the primary key, or
-// a unique key of a table without one. A check that reads the column alone
-// goes with it. A foreign key names the table it references without its
-// database, so one that may reference a table of another database counts.
+// the rest and fails when their values repeat, unless another unique key
+// keeps them apart; a functional index part that may read it; or the table's
+// partitioning or subpartitioning, by an expression that may read it or by
+// KEY (), which reads the primary key, or a unique key of a table without
+// one. A check that reads the column alone goes with it. A foreign key names
+// the table it references without its database, so one that may reference a
+// table of another database counts.
 func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone func(string) bool) bool {
 	has := func(list []string) bool {
 		return slices.ContainsFunc(list, func(c string) bool { return sameName(c, column) })
@@ -554,7 +547,7 @@ func (j *columnJudge) keepsColumn(t *metadata.TableMetadata, column string, gone
 		}
 	}
 	for _, idx := range t.GetIndexes() {
-		if idx.GetUnique() && !idx.GetPrimary() && has(idx.GetExpressions()) && slices.ContainsFunc(idx.GetExpressions(), func(part string) bool { return !gone(part) }) {
+		if idx.GetUnique() && !idx.GetPrimary() && has(idx.GetExpressions()) && slices.ContainsFunc(idx.GetExpressions(), func(part string) bool { return !gone(part) }) && !keptApart(t, idx, gone) {
 			return true
 		}
 		for _, part := range idx.GetExpressions() {

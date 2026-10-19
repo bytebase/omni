@@ -252,13 +252,15 @@ func renamedTo(cmd *ast.AlterTableCmd) *ast.TableRef {
 //
 // mariadb: https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/set-commands/set
 func setPasses(v *ast.SetStmt) bool {
-	for _, a := range v.Assignments {
+	for i, a := range v.Assignments {
 		if a == nil || a.Column == nil || a.Column.Table != "" {
 			return false
 		}
 		name, scope := strings.ToLower(a.Column.Column), strings.ToUpper(v.Scope)
 		if strings.HasPrefix(name, "@") && !strings.HasPrefix(name, "@@") {
-			if !literal(a.Value) {
+			// A scope names the system variable after it, and the parser
+			// takes SET SESSION @x = 1, which the server refuses.
+			if i == 0 && v.Scope != "" || !literal(a.Value) {
 				return false
 			}
 			continue

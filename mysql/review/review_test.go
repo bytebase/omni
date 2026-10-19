@@ -437,9 +437,10 @@ func TestRequirePrimaryKey(t *testing.T) {
 // key, by KEY (), which reads its unique key and not its other index; inv
 // whose other column is invisible, and inv2 with a visible one too; defx
 // whose other column's default reads the key, and deflit whose literal
-// default names it; uq with a unique key of the key and v, uq1 with one of
-// the key alone, and kv with a key of v and the key that is not unique; and
-// self with a foreign key to itself.
+// default names it; uq with a unique key of the key and v, uqv with one of
+// the key and v beside one of v, uqvp the same with a prefix of v, uq1 with
+// one of the key alone, and kv with a key of v and the key that is not
+// unique; and self with a foreign key to itself.
 func keyed() []review.Target {
 	s := shop()
 	pk := func(columns ...string) []*metadata.IndexMetadata {
@@ -485,6 +486,16 @@ func keyed() []review.Target {
 		&metadata.TableMetadata{Name: "deflit", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", Default: "'id'"}}, Indexes: pk("id")},
 		&metadata.TableMetadata{Name: "uq", Columns: columns("id", "v", "w", "x"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "u", Unique: true, Expressions: []string{"id", "v"}})},
 		&metadata.TableMetadata{Name: "kv", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "k", Expressions: []string{"v", "id"}})},
+		&metadata.TableMetadata{Name: "uqv", Columns: columns("id", "v", "w"), Indexes: []*metadata.IndexMetadata{
+			{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}, KeyLength: []int64{-1}},
+			{Name: "u", Unique: true, Expressions: []string{"v"}, KeyLength: []int64{-1}},
+			{Name: "uv", Unique: true, Expressions: []string{"id", "v"}, KeyLength: []int64{-1, -1}},
+		}},
+		&metadata.TableMetadata{Name: "uqvp", Columns: columns("id", "v", "w"), Indexes: []*metadata.IndexMetadata{
+			{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}, KeyLength: []int64{-1}},
+			{Name: "u", Unique: true, Expressions: []string{"v"}, KeyLength: []int64{-1}},
+			{Name: "uv", Unique: true, Expressions: []string{"id", "v"}, KeyLength: []int64{-1, 5}},
+		}},
 		&metadata.TableMetadata{Name: "uq1", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "u", Unique: true, Expressions: []string{"id"}})},
 		&metadata.TableMetadata{
 			Name:        "self",
@@ -629,6 +640,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "foreign_key_checks set globally by its name before", sql: "SET @@global.foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "foreign_key_checks set to a value it lacks before", sql: "SET foreign_key_checks = 2;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a query before", sql: "SET @x = (SELECT a FROM nokey);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set under a scope before", sql: "SET SESSION @x = 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, after a scope for a system variable before a user variable",
+			sql:  "SET SESSION foreign_key_checks = 1, @x = 1;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
 		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a malformed bit value before", sql: "SET @x = b'102';\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a double out of range before", sql: "SET @x = -1e400;\nALTER TABLE plain DROP COLUMN id;"},
@@ -650,6 +667,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;\nDROP TABLE plain;\nCREATE TABLE k1 (a INT PRIMARY KEY);\nALTER TABLE k2 RENAME TO k9;\nALTER TABLE nokey RENAME TO k3;",
 		},
 		{name: "a column a unique key of it and another column holds", sql: "ALTER TABLE uq DROP COLUMN id;"},
+		{
+			name: "every column of the key, with a unique key of it and another column whose rest another unique key keeps apart",
+			sql:  "ALTER TABLE uqv DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "uqv")},
+		},
+		{name: "a column a unique key of it and a prefix of another column holds, beside a unique key of the other", sql: "ALTER TABLE uqvp DROP COLUMN id;\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "every column of the key, with a unique key of it alone, or of it and another column dropped too, or another key of it and another column",
 			sql:  "ALTER TABLE uq DROP COLUMN w;\nALTER TABLE uq1 DROP COLUMN id;\nALTER TABLE uq DROP COLUMN id, DROP COLUMN v;\nALTER TABLE kv DROP COLUMN id;",
