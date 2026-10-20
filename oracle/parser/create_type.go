@@ -87,7 +87,7 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 		p.advance()
 	}
 	if p.cur.Type != ';' {
-		return nil, p.syntaxErrorAtCur()
+		return nil, p.missingSemicolonError("END")
 	}
 	p.advance()
 

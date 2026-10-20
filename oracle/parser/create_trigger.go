@@ -171,7 +171,7 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 						p.advance() // consume trigger name
 					}
 					if p.cur.Type != ';' {
-						return nil, p.syntaxErrorAtCur()
+						return nil, p.missingSemicolonError("END")
 					}
 					p.advance() // consume ;
 					break

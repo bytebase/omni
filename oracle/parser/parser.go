@@ -6,6 +6,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
@@ -1059,6 +1060,55 @@ func (p *Parser) syntaxErrorAtCur() *ParseError {
 		return p.lexerError()
 	}
 	return p.syntaxErrorAtTok(p.cur)
+}
+
+// missingSemicolonError reports a required ';' that is missing. It points
+// at the current token, where Oracle reports PLS-00103 expecting ';', and
+// names what the ';' ends: "syntax error at end of input: expected ';' after
+// END". A unit written without its final ';' fails this way, as it does on
+// Oracle and in SQL*Plus, which send the text without adding one.
+func (p *Parser) missingSemicolonError(after string) *ParseError {
+	err := p.syntaxErrorAtCur()
+	if p.lexer.Err != nil {
+		return err
+	}
+	err.Message += ": expected ';' after " + after
+	return err
+}
+
+// missingSemicolonBetween reports the token after a statement or declaration
+// that does not end with ';'. It names the missing ';' only where that is the
+// likely mistake: the token closes the list (one of closers, or the end of
+// input), or it starts a new line with a word, as when a line's ';' is
+// forgotten. Elsewhere the item may have stopped early on syntax the parser
+// does not take, and a hint to add ';' would mislead, so the error stays
+// plain.
+func (p *Parser) missingSemicolonBetween(after string, closers ...int) *ParseError {
+	if p.cur.Type == tokEOF || p.startsLineWithWord() {
+		return p.missingSemicolonError(after)
+	}
+	for _, closer := range closers {
+		if p.cur.Type == closer {
+			return p.missingSemicolonError(after)
+		}
+	}
+	return p.syntaxErrorAtCur()
+}
+
+// startsLineWithWord reports whether the current token is the first on a
+// line after the previous token and begins with a letter, a quoted
+// identifier, or a label.
+func (p *Parser) startsLineWithWord() bool {
+	if p.prev.End > p.cur.Loc || p.cur.Loc > len(p.source) ||
+		!strings.Contains(p.source[p.prev.End:p.cur.Loc], "\n") {
+		return false
+	}
+	text := p.tokenText(p.cur)
+	if text == "" {
+		return false
+	}
+	c := text[0]
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '"' || strings.HasPrefix(text, "<<")
 }
 
 // syntaxErrorAtTok returns a PG-style syntax error for tok.

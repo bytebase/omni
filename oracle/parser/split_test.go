@@ -173,6 +173,34 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			// SQL*Plus 23.26 ends a unit at a "/" line even when its END
+			// lacks the ';': the unit compiles with PLS-00103 and the next
+			// statement runs on its own, rather than inside the unit text.
+			name: "unit missing its final semicolon ends at the slash line",
+			sql: "CREATE OR REPLACE PROCEDURE p AS\n" +
+				"BEGIN\n" +
+				"  NULL;\n" +
+				"END p\n" +
+				"/\n" +
+				"SELECT 1 FROM dual;\n" +
+				"CREATE OR REPLACE PACKAGE pk AS\n" +
+				"  PROCEDURE q;\n" +
+				"END\n" +
+				"/\n" +
+				"BEGIN\n" +
+				"  NULL;\n" +
+				"END\n" +
+				"/\n" +
+				"SELECT 2 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE PROCEDURE p AS\nBEGIN\n  NULL;\nEND p",
+				"\nSELECT 1 FROM dual",
+				"\nCREATE OR REPLACE PACKAGE pk AS\n  PROCEDURE q;\nEND",
+				"\nBEGIN\n  NULL;\nEND",
+				"\nSELECT 2 FROM dual",
+			},
+		},
+		{
 			name: "create function with slash operator on its own line",
 			sql: "CREATE OR REPLACE FUNCTION f RETURN NUMBER IS\n" +
 				"BEGIN\n" +

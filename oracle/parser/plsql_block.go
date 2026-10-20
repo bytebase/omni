@@ -88,7 +88,7 @@ func (p *Parser) parsePLSQLBlock() (*nodes.PLSQLBlock, error) {
 	// END [label] ends with ';', for a nested block and for a whole unit
 	// alike: Oracle compiles BEGIN NULL; END with PLS-00103.
 	if p.cur.Type != ';' {
-		return nil, p.syntaxErrorAtCur()
+		return nil, p.missingSemicolonError("END")
 	}
 	p.advance() // consume ;
 
@@ -111,7 +111,7 @@ func (p *Parser) parsePLSQLDeclarations() (*nodes.List, error) {
 		}
 		if p.prev.Type != ';' {
 			// Every declaration ends with ';' (PLS-00103 otherwise).
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.missingSemicolonBetween("the previous declaration", kwBEGIN, kwEND)
 		}
 		decls.Items = append(decls.Items, decl)
 	}
@@ -391,7 +391,7 @@ func (p *Parser) parsePLSQLStatements() (*nodes.List, error) {
 		// this check the words after a statement that stopped early parsed
 		// as further procedure calls.
 		if p.prev.Type != ';' {
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.missingSemicolonBetween("the previous statement", kwEND, kwEXCEPTION, kwELSIF, kwELSE, kwWHEN)
 		}
 		stmts.Items = append(stmts.Items, stmt)
 	}
@@ -1829,7 +1829,10 @@ func (p *Parser) consumeEndKeyword(kw int) error {
 		p.advance() // consume label
 	}
 	if p.cur.Type != ';' {
-		return p.syntaxErrorAtCur()
+		if kw == kwIF {
+			return p.missingSemicolonError("END IF")
+		}
+		return p.missingSemicolonError("END CASE")
 	}
 	p.advance()
 	return nil
@@ -1900,7 +1903,7 @@ func (p *Parser) parsePLSQLSubtypeDecl() (*nodes.PLSQLSubtypeDecl, error) {
 	decl.NotNull = p.consumeNotNull()
 
 	if p.cur.Type != ';' {
-		return nil, p.syntaxErrorAtCur()
+		return nil, p.missingSemicolonError("the SUBTYPE declaration")
 	}
 	p.advance()
 	decl.Loc.End = p.prev.End

@@ -601,7 +601,7 @@ func (p *Parser) parseImplementationType(stmt *nodes.CreateFunctionStmt) error {
 // clause list ends at the type name: only its ';' follows.
 func (p *Parser) finishTypeImplementedFunction(stmt *nodes.CreateFunctionStmt) (*nodes.CreateFunctionStmt, error) {
 	if p.cur.Type != ';' {
-		return nil, p.syntaxErrorAtCur()
+		return nil, p.missingSemicolonError("the implementation type")
 	}
 	p.advance()
 	stmt.Loc.End = p.prev.End
@@ -746,7 +746,7 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		p.advance() // consume name
 	}
 	if p.cur.Type != ';' {
-		return nil, p.syntaxErrorAtCur()
+		return nil, p.missingSemicolonError("END")
 	}
 	p.advance() // consume ;
 
@@ -795,8 +795,11 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 		if parseErr472 != nil {
 			return nil, parseErr472
 		}
-		if decl == nil || p.prev.Type != ';' {
+		if decl == nil {
 			return nil, p.syntaxErrorAtCur()
+		}
+		if p.prev.Type != ';' {
+			return nil, p.missingSemicolonBetween("the previous declaration", kwBEGIN, kwEND)
 		}
 		decls.Items = append(decls.Items, decl)
 	}
@@ -1488,7 +1491,7 @@ func (p *Parser) finishCallSpec(spec *nodes.CallSpec, terminated bool) (*nodes.C
 		return spec, nil
 	}
 	if p.cur.Type != ';' {
-		return nil, p.syntaxErrorAtCur()
+		return nil, p.missingSemicolonError("the call spec")
 	}
 	p.advance() // consume ;
 	return spec, nil

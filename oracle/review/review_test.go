@@ -139,9 +139,24 @@ func TestSyntax(t *testing.T) {
 			sql:  "SELECT 1 FROM dual;\nSELEC 2;\nSELEC 3;",
 			want: []finding{{1, "", `syntax error at or near "SELEC"`, []int{0}}},
 		},
+		{
+			// Oracle and SQL*Plus compile the unit with PLS-00103: neither
+			// adds the ';' after END. The "/" still ends the unit.
+			name: "a PL/SQL unit missing its final semicolon",
+			sql:  "CREATE OR REPLACE PROCEDURE p AS\nBEGIN\n  NULL;\nEND\n/\nSELECT 1 FROM dual;",
+			want: []finding{{0, "", `syntax error at end of input: expected ';' after END`, []int{0}}},
+		},
 	})
+	unit := "CREATE OR REPLACE PROCEDURE p AS\nBEGIN\n  NULL;\nEND\n/\nSELECT 1 FROM dual;"
+	result, err := Review(context.Background(), unit, review.Options{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Statements) != 2 {
+		t.Errorf("Statements = %v, want the unit and the SELECT after its \"/\"", result.Statements)
+	}
 	sql := "SELECT 1 FROM dual;\nSELEC 2;\nSELECT 3 FROM dual;"
-	result, err := Review(context.Background(), sql, review.Options{}, nil)
+	result, err = Review(context.Background(), sql, review.Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
