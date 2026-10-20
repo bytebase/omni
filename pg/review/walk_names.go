@@ -82,7 +82,8 @@ func hasRowType(kind string) bool {
 // resolved is where a name resolves now: a fact and, when Present, the
 // key it resolved to and its kind. Absent means the name resolves
 // nowhere; missingSchema then names the schema the SQL wrote when it is
-// the schema that certainly does not exist. keys lists every key the
+// the schema that certainly does not exist. fail is set when the name
+// itself certainly fails, whatever exists. keys lists every key the
 // answer read, which the within-statement rule compares against what the
 // statement changes.
 type resolved struct {
@@ -90,7 +91,23 @@ type resolved struct {
 	key           walk.Key
 	kind          string
 	missingSchema string
+	fail          string
 	keys          []walk.Key
+}
+
+// crossDatabase reports whether a name's catalog is another database,
+// which PostgreSQL refuses before it looks anything up, IF EXISTS or not
+// (0A000, verified on PostgreSQL 17). A catalog naming the current
+// database is allowed.
+//
+// pg: src/backend/catalog/namespace.c — RangeVarGetRelidExtended,
+// RangeVarGetCreationNamespace
+func (w *walker) crossDatabase(catalog string) bool {
+	return catalog != "" && w.database != "" && catalog != w.database
+}
+
+func crossDatabaseMessage(written string) string {
+	return "cross-database references are not implemented: " + written
 }
 
 // searchPath returns the current search path with "$user" expanded, or
@@ -126,13 +143,17 @@ func (w *walker) searchPath() ([]string, bool) {
 // recomputeNamespacePath (pg_temp, then pg_catalog, unless the path lists
 // them)
 func (b *builder) relation(catalog, schema, name string) resolved {
+	if b.w.crossDatabase(catalog) {
+		return resolved{fail: crossDatabaseMessage(qualified([]string{catalog, schema, name}))}
+	}
 	rel, ok := walkName(name)
 	if !ok || (catalog != "" && catalog != b.w.database) {
 		return resolved{}
 	}
 	if schema != "" {
 		s, ok := walkName(schema)
-		if !ok {
+		if !ok || s == "pg_catalog" {
+			// pg_catalog the SQL names is not judged; see inSchema.
 			return resolved{}
 		}
 		return b.inSchema(s, rel)
@@ -169,9 +190,15 @@ func (b *builder) relation(catalog, schema, name string) resolved {
 	return resolved{fact: walk.Absent, keys: keys}
 }
 
-// inSchema resolves a relation in one named schema. pg_catalog is never
-// synced; every relation it holds has a name beginning pg_ (verified on
-// PostgreSQL 17), so another name is certainly not there.
+// inSchema resolves a relation in one schema. pg_catalog is never synced.
+// Every relation it holds has a name beginning pg_ (verified on
+// PostgreSQL 17): PostgreSQL refuses to create any other there, to a
+// superuser and an extension script alike, unless a superuser sets
+// allow_system_table_mods. The walk assumes that developer setting is
+// off, so a name the search path looks up there implicitly, without pg_,
+// is not there. Judging every unqualified name Unknown instead would cost
+// every unqualified "does not exist". A name the SQL qualifies with
+// pg_catalog is not judged at all.
 func (b *builder) inSchema(schema, rel string) resolved {
 	if schema == tempSchema {
 		k := relKey(tempSchema, rel)
@@ -247,7 +274,7 @@ func (b *builder) creationSchema(schema string, temp bool) created {
 	if schema != "" {
 		s, ok := walkName(schema)
 		switch {
-		case !ok, temp && s != tempSchema:
+		case !ok, temp && s != tempSchema, s == "pg_catalog":
 			return created{}
 		case s == tempSchema:
 			return created{fact: walk.Present, schema: tempSchema}

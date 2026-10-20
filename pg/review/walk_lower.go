@@ -123,7 +123,10 @@ func missing(r resolved, written string) string {
 // schema that does not exist is 3F000).
 func (b *builder) exists(rv *ast.RangeVar, missingOK bool) resolved {
 	r := b.rangeVar(rv)
-	if r.fact == walk.Absent && !missingOK {
+	switch {
+	case r.fail != "":
+		b.failAt(rangeOf(rv.Loc), nil, r.fail)
+	case r.fact == walk.Absent && !missingOK:
 		b.failAt(rangeOf(rv.Loc), r.keys, missing(r, relation(rv)))
 	}
 	return r
@@ -136,7 +139,10 @@ func (b *builder) exists(rv *ast.RangeVar, missingOK bool) resolved {
 // pg: src/backend/parser/parse_relation.c — parserOpenTable
 func (b *builder) opened(rv *ast.RangeVar) resolved {
 	r := b.rangeVar(rv)
-	if r.fact == walk.Absent {
+	switch {
+	case r.fail != "":
+		b.failAt(rangeOf(rv.Loc), nil, r.fail)
+	case r.fact == walk.Absent:
 		b.failAt(rangeOf(rv.Loc), r.keys, "relation "+relation(rv)+" does not exist")
 	}
 	return r
@@ -155,6 +161,16 @@ func (b *builder) existsOfKind(rv *ast.RangeVar, kind, word string) {
 	if r := b.exists(rv, false); r.fact == walk.Present {
 		b.need(r.key, walk.Present, []string{kind}, &walkNote{rng: rangeOf(rv.Loc), present: relation(rv) + " is not a " + word})
 	}
+}
+
+// crossDatabase fails a statement that creates in another database
+// (0A000).
+func (b *builder) crossDatabase(rv *ast.RangeVar) bool {
+	if !b.w.crossDatabase(rv.Catalogname) {
+		return false
+	}
+	b.failAt(rangeOf(rv.Loc), nil, crossDatabaseMessage(relation(rv)))
+	return true
 }
 
 // roleName returns the role a RoleSpec names, or "" when unknown.
@@ -323,6 +339,9 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	}
 	generated = generated || unnamedIndexes
 
+	if b.crossDatabase(rv) {
+		return true
+	}
 	c := b.creationSchema(rv.Schemaname, temp)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.fail) // 3F000
@@ -382,6 +401,10 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 					return true
 				}
 			}
+		}
+		if msg, rng, ok := duplicateConstraint(rv, cons); ok {
+			b.failAt(rng, nil, msg)
+			return true
 		}
 	}
 
@@ -454,6 +477,39 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	return true
 }
 
+// duplicateConstraint finds two constraints a CREATE TABLE names alike,
+// which PostgreSQL refuses (verified on PostgreSQL 17): two keys collide
+// on their index's name (42P07), two checks on the check (42710), and any
+// other pair on the constraint (42710). A NOT NULL constraint is left
+// out: PostgreSQL 18 names it and refuses a second constraint of its name,
+// while 17 ignores the name.
+//
+// pg: src/backend/catalog/heap.c — AddRelationNewConstraints;
+// src/backend/catalog/index.c — index_create
+func duplicateConstraint(rv *ast.RangeVar, cons []*ast.Constraint) (string, review.Range, bool) {
+	seen := make(map[string]string)
+	for _, con := range cons {
+		kind := constraintKind(con.Contype)
+		if kind == "" || con.Conname == "" {
+			continue
+		}
+		prev, ok := seen[con.Conname]
+		if !ok {
+			seen[con.Conname] = kind
+			continue
+		}
+		msg := "constraint " + ident(con.Conname) + " for relation " + relation(rv) + " already exists"
+		switch {
+		case indexBacked(prev) && indexBacked(kind):
+			msg = "relation " + ident(con.Conname) + " already exists"
+		case prev == conCheck && kind == conCheck:
+			msg = "check constraint " + ident(con.Conname) + " already exists"
+		}
+		return msg, rangeOf(con.Loc), true
+	}
+	return "", review.Range{}, false
+}
+
 // sameRelation reports whether a reference may name the relation a
 // CREATE TABLE creates. PostgreSQL resolves a foreign key's table after
 // creating the new one, so a reference of the same name, however
@@ -501,8 +557,13 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 	rng := rangeOf(con.Loc)
 	switch con.Contype {
 	case ast.CONSTR_NOTNULL:
-		// PostgreSQL 18 names a NOT NULL constraint.
-		b.mayAdd(walk.Scope{Space: spaceConstraint, Parent: parent, Prefix: generatedPrefix(t.Name)})
+		// PostgreSQL 18 records a NOT NULL constraint, under the name the
+		// SQL gives it or one it generates; 17 records none.
+		if name, ok := walkName(con.Conname); ok {
+			b.set(constraintKey(t, name), walk.Unknown, "")
+		} else {
+			b.mayAdd(walk.Scope{Space: spaceConstraint, Parent: parent, Prefix: generatedPrefix(t.Name)})
+		}
 		if inh {
 			b.mayAdd(walk.Scope{Space: spaceConstraint, Deep: true})
 		}
@@ -660,6 +721,9 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 		b.placeUnknown(rv.Relname, false)
 		return true
 	}
+	if b.crossDatabase(rv) {
+		return true
+	}
 	c := b.creationSchema(rv.Schemaname, temp)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.fail)
@@ -675,8 +739,10 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 	if !v.Replace {
 		b.need(k, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + relation(rv) + " already exists"}) // 42P07
 		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})    // 42710
-		b.made(k)
 	}
+	// OR REPLACE may create the view as well as replace it; holds asks
+	// the ledger whether it is still there.
+	b.made(k)
 	b.set(k, walk.Present, relView)
 	b.set(tk, walk.Present, "")
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
@@ -702,6 +768,9 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 	rv := into.Rel
 	rng := rangeOf(rv.Loc)
 	temp := rv.Relpersistence == ast.RELPERSISTENCE_TEMP
+	if b.crossDatabase(rv) {
+		return true
+	}
 	c := b.creationSchema(rv.Schemaname, temp)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.fail)
@@ -757,6 +826,9 @@ func (b *builder) createSequence(v *ast.CreateSeqStmt) bool {
 	}
 	rng := rangeOf(rv.Loc)
 	temp := rv.Relpersistence == ast.RELPERSISTENCE_TEMP
+	if b.crossDatabase(rv) {
+		return true
+	}
 	c := b.creationSchema(rv.Schemaname, temp)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.fail)
@@ -795,6 +867,9 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 		return false
 	}
 	rng := rangeOf(rv.Loc)
+	if b.crossDatabase(rv) {
+		return true
+	}
 	c := b.creationSchema(rv.Schemaname, false)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.fail)
@@ -881,6 +956,8 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	r := b.exists(v.Relation, v.Missing_ok)
 	objType := ast.ObjectType(v.ObjType)
 	switch {
+	case r.fail != "":
+		return true
 	case r.fact == walk.Absent:
 		return true // a notice under IF EXISTS
 	case r.fact == walk.Unknown, objType != ast.OBJECT_TABLE && objType != ast.OBJECT_FOREIGN_TABLE, !hasColumns(r.kind):
@@ -1122,10 +1199,10 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 // keep their names; an index's constraint takes the index's new name.
 func (b *builder) renameRelation(v *ast.RenameStmt) bool {
 	r := b.exists(v.Relation, v.MissingOk)
-	switch r.fact {
-	case walk.Absent:
+	switch {
+	case r.fail != "", r.fact == walk.Absent:
 		return true
-	case walk.Unknown:
+	case r.fact == walk.Unknown:
 		return false
 	}
 	newName, ok := walkName(v.Newname)
@@ -1191,10 +1268,10 @@ func (b *builder) renamed(from, to walk.Key) {
 // pg: src/backend/commands/tablecmds.c — renameatt_internal
 func (b *builder) renameColumn(v *ast.RenameStmt) bool {
 	r := b.exists(v.Relation, v.MissingOk)
-	switch r.fact {
-	case walk.Absent:
+	switch {
+	case r.fail != "", r.fact == walk.Absent:
 		return true
-	case walk.Unknown:
+	case r.fact == walk.Unknown:
 		return false
 	}
 	rng := b.anchor()
@@ -1242,10 +1319,10 @@ func (b *builder) renameColumn(v *ast.RenameStmt) bool {
 // new name too, and the inheritance children's constraint follows.
 func (b *builder) renameConstraint(v *ast.RenameStmt) bool {
 	r := b.exists(v.Relation, v.MissingOk)
-	switch r.fact {
-	case walk.Absent:
+	switch {
+	case r.fail != "", r.fact == walk.Absent:
 		return true
-	case walk.Unknown:
+	case r.fact == walk.Unknown:
 		return false
 	}
 	rng := b.anchor()
@@ -1344,10 +1421,10 @@ func (b *builder) setSchema(v *ast.AlterObjectSchemaStmt) bool {
 		return false
 	}
 	r := b.exists(v.Relation, v.MissingOk)
-	switch r.fact {
-	case walk.Absent:
+	switch {
+	case r.fail != "", r.fact == walk.Absent:
 		return true
-	case walk.Unknown:
+	case r.fact == walk.Unknown:
 		return false
 	}
 	ns, ok := walkName(v.Newschema)
@@ -1451,6 +1528,10 @@ func (b *builder) dropRelation(kind ast.ObjectType, parts []string, missingOK bo
 	want := dropKinds[kind]
 	written := qualified(parts)
 	r := b.nameList(parts)
+	if r.fail != "" {
+		b.fail(nil, walk.Absent, r.fail)
+		return
+	}
 	switch r.fact {
 	case walk.Absent:
 		if missingOK {
@@ -1621,10 +1702,12 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 	case commentKinds[kind].kind != "":
 		want := commentKinds[kind]
 		r := b.nameList(parts)
-		switch r.fact {
-		case walk.Absent:
+		switch {
+		case r.fail != "":
+			b.fail(nil, walk.Absent, r.fail)
+		case r.fact == walk.Absent:
 			b.fail(r.keys, walk.Absent, missing(r, qualified(parts))) // 42P01
-		case walk.Present:
+		case r.fact == walk.Present:
 			b.need(r.key, walk.Present, []string{want.kind}, &walkNote{rng: b.anchor(), present: qualified(parts) + " is not " + want.article + " " + want.word}) // 42809
 		}
 	case kind == ast.OBJECT_COLUMN:
@@ -1633,10 +1716,12 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 		}
 		table := parts[:len(parts)-1]
 		r := b.nameList(table)
-		switch r.fact {
-		case walk.Absent:
+		switch {
+		case r.fail != "":
+			b.fail(nil, walk.Absent, r.fail)
+		case r.fact == walk.Absent:
 			b.fail(r.keys, walk.Absent, missing(r, qualified(table)))
-		case walk.Present:
+		case r.fact == walk.Present:
 			if col, ok := walkName(parts[len(parts)-1]); ok && !systemColumns[col] && hasColumns(r.kind) {
 				b.need(columnKey(r.key, col), walk.Present, nil, &walkNote{rng: b.anchor(), absent: "column " + ident(parts[len(parts)-1]) + " of relation " + qualified(table) + " does not exist"}) // 42703
 			}

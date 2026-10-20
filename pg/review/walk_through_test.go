@@ -67,8 +67,16 @@ func TestWalkThroughOtherSpecs(t *testing.T) {
 		t.Errorf("findings = %+v, want none", got)
 	}
 
-	// The same schema with and without other specs is two inputs.
+	// The other spec may have added a trigger that DML fires.
+	if got := walkFindings(t, "CREATE TABLE public.x (a int);\nINSERT INTO public.x VALUES (1);\nCREATE TABLE public.x (b int);", other); len(got) != 0 {
+		t.Errorf("findings after DML = %+v, want none", got)
+	}
 	alone := review.Target{Schema: other.Schema, SessionUser: "u"}
+	if got := walkFindings(t, "CREATE TABLE public.x (a int);\nINSERT INTO public.x VALUES (1);\nCREATE TABLE public.x (b int);", alone); len(got) != 1 || got[0].Statement != 2 {
+		t.Errorf("findings = %+v, want the second CREATE", got)
+	}
+
+	// The same schema with and without other specs is two inputs.
 	got = walkFindings(t, "CREATE TABLE t (a int);", alone, other, alone)
 	if len(got) != 1 || len(got[0].Targets) != 2 || got[0].Targets[0] != 0 || got[0].Targets[1] != 2 {
 		t.Errorf("findings = %+v, want one on targets 0 and 2", got)

@@ -21,7 +21,11 @@ import (
 // With another spec of the plan changing the same database, which
 // Bytebase does not order against this one, the synced schema may not be
 // what the change meets: the walk then trusts no synced fact and judges
-// the change by its own statements alone.
+// the change by its own statements alone. The other spec may also have
+// added a DML trigger, so DML ends the walk then. That it added no event
+// trigger is assumed, as the walk assumes user code reached only
+// implicitly changes no schema: stopping at every DDL statement would
+// leave such a change nothing to report.
 func checkWalkThrough(ctx context.Context, stmts []statement, target review.Target, r *reporter) error {
 	v, err := walkThrough(ctx, stmts, target)
 	if err != nil || v == nil {
@@ -50,6 +54,7 @@ func walkThrough(ctx context.Context, stmts []statement, target review.Target) (
 	var snap walk.Snapshot = w.pg
 	if target.OtherSpecs {
 		snap = nil
+		w.triggered = true
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }

@@ -102,6 +102,8 @@ var walkCases = []walkCase{
 	{name: "drop a constraint", change: "ALTER TABLE t DROP CONSTRAINT nosuch;\nALTER TABLE t DROP CONSTRAINT t_n_check;\nALTER TABLE t DROP CONSTRAINT t_n_check;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_n_check;\nALTER TABLE t ADD CONSTRAINT t_n_check CHECK (n > 2);"},
 	{name: "drop a key and its index", change: "ALTER TABLE t DROP CONSTRAINT t_code_key;\nCREATE TABLE t_code_key (a int);\nALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nALTER TABLE t ADD PRIMARY KEY (n);", complete: true},
 	{name: "rename a constraint", change: "ALTER TABLE t RENAME CONSTRAINT t_n_check TO t_n_check2;\nALTER TABLE t DROP CONSTRAINT t_n_check;\nALTER TABLE t RENAME CONSTRAINT t_code_key TO t_code_uk;\nCREATE TABLE t_code_key (a int);\nCREATE TABLE t_code_uk (a int);", complete: true},
+	{name: "duplicate constraint names in one CREATE TABLE", change: "CREATE TABLE d1 (a int, CONSTRAINT c CHECK (true), CONSTRAINT c CHECK (false));\nCREATE TABLE d2 (a int, b int, CONSTRAINT c UNIQUE (a), CONSTRAINT c UNIQUE (b));\nCREATE TABLE d3 (a int, b int, CONSTRAINT c UNIQUE (a), CONSTRAINT c PRIMARY KEY (b));\nCREATE TABLE d4 (a int, CONSTRAINT c CHECK (a > 0), CONSTRAINT c UNIQUE (a));\nCREATE TABLE d5 (a int CONSTRAINT c REFERENCES p, CONSTRAINT c CHECK (a > 0));\nCREATE TABLE d6 (a int CONSTRAINT c REFERENCES p, b int CONSTRAINT c REFERENCES p);\nCREATE TABLE d7 (a int CONSTRAINT c CHECK (a > 0), b int CONSTRAINT c CHECK (b > 0));\nCREATE TABLE d1 (a int);", complete: true},
+	{name: "a NOT NULL constraint's name is PostgreSQL 18's alone", change: "CREATE TABLE d8 (a int CONSTRAINT c NOT NULL, CONSTRAINT c CHECK (a > 0));\nCREATE TABLE d9 (a int CONSTRAINT nn NOT NULL);\nALTER TABLE d9 DROP CONSTRAINT nn;\nALTER TABLE nokey ADD COLUMN b int CONSTRAINT nn2 NOT NULL;\nALTER TABLE nokey DROP CONSTRAINT nn2;\nALTER TABLE nokey DROP CONSTRAINT nn2;"},
 	{name: "PostgreSQL 18 names NOT NULL constraints", change: "ALTER TABLE nokey ALTER COLUMN a SET NOT NULL;\nALTER TABLE nokey DROP CONSTRAINT nokey_a_not_null;\nCREATE TABLE x (a int NOT NULL);\nALTER TABLE x DROP CONSTRAINT x_a_not_null;"},
 
 	// Renames and moves.
@@ -118,6 +120,9 @@ var walkCases = []walkCase{
 	{name: "a schema the sync skips exists once something is created in it", change: "CREATE SCHEMA cron;\nCREATE TABLE cron.x (a int);\nCREATE TABLE cron.x (a int);", complete: true},
 	{name: "temporary relations shadow", change: "CREATE TEMP TABLE t (x int);\nALTER TABLE t ADD COLUMN x int;\nALTER TABLE t ADD COLUMN code text;\nCREATE TEMP TABLE t (y int);\nCREATE VIEW tv2 AS SELECT * FROM t;\nCREATE TABLE tv2 (a int);", complete: true},
 	{name: "pg_dump's search path", change: "SELECT pg_catalog.set_config('search_path', '', false);\nCREATE TABLE x (a int);\nCREATE TABLE public.t (a int);\nALTER TABLE t ADD COLUMN b int;\nSELECT pg_catalog.set_config('search_path', 's', false);\nCREATE TABLE t (a int);", complete: true},
+	{name: "a view OR REPLACE creates holds its schema", change: "CREATE SCHEMA sv;\nCREATE OR REPLACE VIEW sv.v AS SELECT 1 AS x;\nDROP SCHEMA sv;\nCREATE TABLE sv.t (a int);", complete: true},
+	{name: "another database", change: "CREATE TABLE other.public.x (a int);\nALTER TABLE other.public.t ADD COLUMN b int;\nDROP TABLE IF EXISTS other.public.t;\nINSERT INTO other.public.t VALUES (1);\nCOMMENT ON TABLE other.public.t IS 'x';\nCREATE TABLE omni_review.public.x (a int);\nCREATE TABLE omni_review.public.x (a int);\nCREATE TABLE x (a int);", complete: true},
+	{name: "pg_catalog the SQL names is not judged", change: "DROP TABLE pg_catalog.foo;\nALTER TABLE pg_catalog.foo ADD COLUMN a int;\nCREATE TABLE pg_catalog.foo (a int);\nCREATE TABLE foo (a int);\nALTER TABLE nosuch ADD COLUMN a int;"},
 	{name: "a role's schema", change: "CREATE SCHEMA AUTHORIZATION bob;\nSET ROLE bob;\nCREATE TABLE x (a int);\nRESET ROLE;\nCREATE TABLE bob.x (a int);\nCREATE TABLE x (a int);", complete: true},
 
 	// Where the walk stops.
@@ -138,7 +143,18 @@ var walkCases = []walkCase{
 }
 
 func TestWalkThroughAgainstPostgres(t *testing.T) {
-	db := startPostgres(t)
+	runWalkCases(t, startPostgres(t))
+}
+
+// TestWalkThroughAgainstPostgres18 runs the same cases on PostgreSQL 18,
+// whose NOT NULL constraints have names: a fact the walk relies on must
+// hold on every version Bytebase supports.
+func TestWalkThroughAgainstPostgres18(t *testing.T) {
+	runWalkCases(t, startPostgresImage(t, "postgres:18-alpine"))
+}
+
+func runWalkCases(t *testing.T, db *sql.DB) {
+	t.Helper()
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -168,7 +184,8 @@ func TestWalkThroughAgainstPostgres(t *testing.T) {
 // TestWalkThroughSweep runs random changes over a small pool of names, so
 // creations, drops, renames, and generated names collide often, on
 // random starting schemas. Precision must hold on every one; recall is
-// logged. WALK_SWEEP_N sets the number of changes.
+// logged. WALK_SWEEP_N sets the number of changes, WALK_SWEEP_SEED the
+// seed, and WALK_SWEEP_IMAGE the PostgreSQL image.
 func TestWalkThroughSweep(t *testing.T) {
 	n := 40
 	if v := os.Getenv("WALK_SWEEP_N"); v != "" {
@@ -181,13 +198,22 @@ func TestWalkThroughSweep(t *testing.T) {
 	if v := os.Getenv("WALK_SWEEP_SEED"); v != "" {
 		seed, _ = strconv.ParseInt(v, 10, 64)
 	}
-	db := startPostgres(t)
+	image := "postgres:17-alpine"
+	if v := os.Getenv("WALK_SWEEP_IMAGE"); v != "" {
+		image = v
+	}
+	db := startPostgresImage(t, image)
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	var version string
+	if err := conn.QueryRowContext(ctx, "SHOW server_version").Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("PostgreSQL %s", version)
 	rng := rand.New(rand.NewSource(seed))
 	var found, rejected int
 	for i := range n {
@@ -277,10 +303,10 @@ func runChange(t *testing.T, conn *sql.Conn, change string, onReject func(accept
 				t.Fatalf("%s: %v", stmt, err)
 			}
 			o.state, o.msg = pgErr.Code, pgErr.Message
+			// 42601 is not only a syntax error: PostgreSQL raises it for
+			// some semantic refusals too (SET DEFAULT on an identity
+			// column). Text the parser refuses shows as a Syntax finding.
 			exec("ROLLBACK TO SAVEPOINT walk_oracle")
-			if o.state == "42601" {
-				t.Fatalf("the server rejects %q as a syntax error: %s", o.text, o.msg)
-			}
 			onReject(accepted, o)
 		} else {
 			accepted = append(accepted, stmt)
@@ -488,8 +514,11 @@ func walkStates(msg string) []string {
 		return []string{"0A000"}
 	case strings.HasPrefix(msg, "multiple primary keys"):
 		return []string{"42P16"}
-	case strings.HasPrefix(msg, "constraint ") && strings.HasSuffix(msg, " already exists"):
+	case strings.HasPrefix(msg, "constraint ") && strings.HasSuffix(msg, " already exists"),
+		strings.HasPrefix(msg, "check constraint ") && strings.HasSuffix(msg, " already exists"):
 		return []string{"42710"}
+	case strings.HasPrefix(msg, "cross-database references are not implemented"):
+		return []string{"0A000"}
 	case strings.HasPrefix(msg, "cannot drop schema"):
 		return []string{"2BP01"}
 	case strings.HasPrefix(msg, "unacceptable schema name"):

@@ -137,7 +137,7 @@ Assumptions about how Bytebase runs the change, which the walk relies on and whi
 | Statement | Checks | Effects of success |
 | --- | --- | --- |
 | `CREATE SCHEMA [IF NOT EXISTS] s` (no elements) | s Absent (42P06); name not `pg_*` (42939) | s Present; every space under s Absent |
-| `CREATE [TEMP] TABLE [IF NOT EXISTS] t (...)` | creation schema Present (3F000); relation t Absent (42P07); type t Absent (42710); within the statement: duplicate column (42701), two primary keys (42P16), duplicate constraint name (42710 / 42P07) | t Present(table). For a plain column list, its columns become exact and the column space is authoritative. With `LIKE`/`INHERITS`/`OF`/`PARTITION OF`, the columns are Unknown. Named constraints become Present; an index-backed one also takes its name in the relation space. Generated names (serial sequence, key indexes, unnamed constraints): `MayAdd(relation of schema, prefix = t[:16])` and `MayAdd(constraint of t)`. |
+| `CREATE [TEMP] TABLE [IF NOT EXISTS] t (...)` | creation schema Present (3F000); relation t Absent (42P07); type t Absent (42710); within the statement: duplicate column (42701), two primary keys (42P16), two constraints of one name (42P07 for two keys, else 42710; NOT NULL left out, as only PostgreSQL 18 names it); a database other than the current one (0A000, for any statement that names one) | t Present(table). For a plain column list, its columns become exact and the column space is authoritative. With `LIKE`/`INHERITS`/`OF`/`PARTITION OF`, the columns are Unknown. Named constraints become Present; an index-backed one also takes its name in the relation space. Generated names (serial sequence, key indexes, unnamed constraints): `MayAdd(relation of schema, prefix = t[:16])` and `MayAdd(constraint of t)`. |
 | `CREATE [UNIQUE] INDEX [CONCURRENTLY] [IF NOT EXISTS] [i] ON t` | t Present with kind table, partitioned, or matview (42P01 / 42809); i Absent in t's schema (42P07) | i Present(index), or a prefix `MayAdd` when unnamed |
 | `CREATE [MATERIALIZED] VIEW v`, `CREATE SEQUENCE q`, `CREATE TYPE` (enum, composite), `CREATE DOMAIN` | creation schema Present; relation Absent (not for enum or domain); type Absent (not for sequences); none for `CREATE OR REPLACE VIEW` | Present. A view's columns stay Unknown. A view of a temporary relation lands in `pg_temp`, so once the change has made one, an unqualified view is placed nowhere. |
 | `ALTER TABLE [IF EXISTS] [ONLY] t ...` | t Present (42P01) | per subcommand: |
@@ -165,6 +165,7 @@ Assumptions about how Bytebase runs the change, which the walk relies on and whi
 Name resolution, from PostgreSQL's namespace rules:
 
 - **Unqualified references** search `pg_temp`, then `pg_catalog` unless the path lists it, then the path. A name starting with `pg_` resolves as Unknown, since a sync gap or a catalog name could match. Verified: `DROP TABLE pg_class` reaches `pg_catalog.pg_class`, and every `pg_catalog` relation name starts with `pg_`.
+- **Assumed: `allow_system_table_mods` is off.** That `pg_catalog` holds no other name rests on PostgreSQL refusing to create a relation there, to a superuser and an extension script alike (verified on PostgreSQL 17). Only a superuser who sets that developer setting can. Treating the implicitly searched `pg_catalog` as Unknown instead would turn every unqualified "does not exist" into Unknown. A name the SQL qualifies with `pg_catalog` is never judged.
 - **Unqualified creations** go to the first path schema that exists. When the path is known and none of its schemas exists, that is a certain 3F000.
 - **`$user`** expands to the current user. An unknown user makes it Unknown.
 
@@ -178,6 +179,7 @@ The 16-byte prefix for generated names comes from `makeObjectName`: it truncates
 - **DML triggers.** A DML statement or `TRUNCATE` stops the walk after its checks if any table in the snapshot or the change has a trigger. Triggers that create partitions on INSERT are a real pattern.
 - **What may hold user code the sync does not show.** Bytebase syncs no triggers of partitions or foreign tables, so a database with either counts as having triggers. A rule on a table or view counts as a trigger, since its action may call a function.
 - **pg_dump's header.** `SELECT pg_catalog.set_config('search_path', '', false)` sets a known path, possibly empty, as the scan already reads it. Any other `set_config` call makes the path unknown.
+- **Another spec of the plan** (`OtherSpecs`) may have added a DML trigger, so DML ends the walk then (§8.1).
 - **Accepted assumption.** User code reached only implicitly (column defaults, CHECK expressions, policies, user-defined operators, domain checks) is assumed not to change the schema. This is the line `pg/review`'s scan already draws. The stricter alternative is to stop after any DML whenever a user function exists, which would end the walk at the first DML in most real databases.
 
 ### 5.4 Not covered (declined by scope)
@@ -219,7 +221,7 @@ The second matters under `OtherSpecs` and for schemas the sync skips. A creation
    - It generates random DDL over a small name pool: two schemas, tables `a/b/c`, names that collide with generated ones (`a_id_seq`, `a_pkey`), columns, `IF [NOT] EXISTS`, serial and keys, unnamed indexes, renames, `SET SCHEMA`, `CASCADE`, `SET search_path`, `TEMP`, and types.
    - It applies the same oracle as the curated test. Precision must be 100%. Recall is logged, not asserted.
    - This is what earns "never wrong" and keeps it earned.
-4. **Version-sensitive facts** are spot-checked on 12 and 18 when they are added. The NOT NULL constraint names in §5.1 are the example.
+4. **Version-sensitive facts.** The curated cases also run on `postgres:18-alpine` (`TestWalkThroughAgainstPostgres18`), whose NOT NULL constraints have names, and `WALK_SWEEP_IMAGE` points the sweep at any image. Facts for older versions are spot-checked when they are added.
 
 ## 7. Other engines
 
@@ -257,7 +259,7 @@ Bytebase reviews each spec against the same synced schema (`reviewrun.groupRevie
 - Note: `deriveTargets` skips release specs, so the V2 review run sees only UI specs today. Releases are checked only by `CheckRelease`.
 
 Decision:
-- **UI specs (v1):** add a flag the caller sets when another spec of the same plan changes the same database, e.g. `Target.OtherSpecs bool`. The caller has every spec of the plan in `deriveTargets`, so it can compute this per target. With the flag set, the walk runs on an all-Unknown snapshot, and only the change's own facts count (the same table created twice; a drop followed by a use). Replay is impossible, because there is no order to replay in.
+- **UI specs (v1):** add a flag the caller sets when another spec of the same plan changes the same database, e.g. `Target.OtherSpecs bool`. The caller has every spec of the plan in `deriveTargets`, so it can compute this per target. With the flag set, the walk runs on an all-Unknown snapshot, and only the change's own facts count (the same table created twice; a drop followed by a use). Replay is impossible, because there is no order to replay in. The other spec may also have added a DML trigger, so DML ends the walk under the flag. That it added no event trigger is an accepted assumption, the same line as user code reached only implicitly (§5.3): stopping before every DDL statement would leave such a change nothing to report.
 - **GitOps, when V2 takes over release checks:** pass the release's earlier unapplied files in order, e.g. `Target.Before []string`. The walk replays them without reporting and then walks the file. This matches what v1 does with `FinalMetadata`. If a replayed file reaches a stop statement, the walk falls back to an all-Unknown snapshot.
 - **Possible refinement for UI specs:** pass the other specs' SQL and apply their effects as May-effects in any order: every key they may create becomes `MayAdd`, and every key they may drop becomes `MayRemove`. That keeps the snapshot facts for names they do not touch. This is not needed for v1.
 
@@ -312,3 +314,8 @@ Probed on `postgres:17-alpine` (and `postgres:18-alpine` where noted) on 2026-10
 | generated names, 60-byte table and column | `<29>_<29>_idx`, `<56>_id_seq`, `<58>_pkey`, ... |
 | unnamed index whose generated name is taken | ok, named `t_a_idx1` |
 | PG 18: `DROP CONSTRAINT t_a_not_null` | ok (PG 17: ERROR does not exist) |
+| PG 18: `CREATE TABLE t (a int CONSTRAINT foo NOT NULL); ALTER TABLE t DROP CONSTRAINT foo` | ok (PG 17: ERROR does not exist) |
+| PG 18: `CONSTRAINT c NOT NULL` and `CONSTRAINT c CHECK` in one CREATE TABLE | ERROR 23505 (PG 17: ok) |
+| two CHECKs named `c` / two UNIQUEs, or UNIQUE and PRIMARY KEY / CHECK and UNIQUE, FK and CHECK | ERROR 42710 check constraint "c" already exists / 42P07 relation "c" already exists / 42710 constraint "c" for relation "x" already exists |
+| `CREATE TABLE pg_catalog.foo` as a superuser | ERROR permission denied, system catalog modifications are currently disallowed; ok after `SET allow_system_table_mods = on` |
+| `CREATE TABLE other.public.x`, `ALTER TABLE other.public.x`, `DROP TABLE IF EXISTS other.public.x` | ERROR 0A000 cross-database references are not implemented (the current database's name is accepted) |
