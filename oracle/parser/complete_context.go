@@ -108,7 +108,7 @@ func CollectCompletion(sql string, cursorOffset int) *CompletionContext {
 	}
 	prefix := completionPrefix(sql, cursorOffset)
 	collectOffset := cursorOffset - len(prefix)
-	tokens := completionTokens(sql, cursorOffset)
+	tokens := multisetOperatorsAsWords(completionTokens(sql, cursorOffset))
 	candidates, intent := collectOracleCandidates(sql, tokens, collectOffset, prefix)
 	scope, ctes := collectOracleScopeAndCTEs(tokens, cursorOffset)
 	stmtLoc := oracleCompletionStatementLoc(sql, tokens, cursorOffset)
@@ -465,7 +465,7 @@ func markOracleUnsupportedTransform(tokens []Token, ref RangeReference, start in
 			ref.UnsupportedReason = "model"
 			return ref
 		case ',', kwJOIN, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART,
-			kwUNION, kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH:
+			kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH:
 			return ref
 		}
 	}
@@ -514,7 +514,7 @@ func oracleSelectArmBounds(tokens []Token, selectIdx int, selectDepth int) (int,
 			if depth > 0 {
 				depth--
 			}
-		case kwUNION, kwINTERSECT, kwMINUS:
+		case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
 			if depth == selectDepth {
 				start = i + 1
 			}
@@ -530,7 +530,7 @@ func oracleSelectArmBounds(tokens []Token, selectIdx int, selectDepth int) (int,
 		}
 		if i > selectIdx && depth == selectDepth {
 			switch tok.Type {
-			case kwUNION, kwINTERSECT, kwMINUS:
+			case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
 				end = i
 				return start, end
 			}
@@ -906,6 +906,87 @@ func firstOracleNonTerminator(tokens []Token) int {
 	return -1
 }
 
+// oracleQuerySelect returns the SELECT whose list names the columns of the
+// query tokens hold, and the tokens[lo:hi] it stands in: that of the first
+// operand, the first SELECT at the query's own depth or, when a
+// parenthesized operand opens the query, ((SELECT c1 FROM t) UNION (SELECT
+// c2 FROM u)), the first inside it, as deep as the wrappers go. One pass
+// finds where each leading '(' closes and the first SELECT inside it at
+// its own depth: peeling a wrapper at a time scanned the query once per
+// wrapper.
+func oracleQuerySelect(tokens []Token) (lo, hi, selectIdx int) {
+	if len(tokens) > 0 && tokens[0].Type == kwWITH {
+		// After its WITH clause a query may open with a parenthesized
+		// operand, WITH w AS (SELECT c FROM t) (SELECT c FROM w): the first
+		// '(' at its own depth after a ')' that ends a WITH element.
+		depth := 0
+		for i, tok := range tokens {
+			switch tok.Type {
+			case kwSELECT:
+				if depth == 0 {
+					return 0, len(tokens), i
+				}
+			case '(':
+				if depth == 0 && i > 0 && tokens[i-1].Type == ')' {
+					lo, hi, selectIdx = oracleQuerySelect(tokens[i:])
+					if selectIdx < 0 {
+						return 0, 0, -1
+					}
+					return lo + i, hi + i, selectIdx + i
+				}
+				depth++
+			case ')':
+				if depth > 0 {
+					depth--
+				}
+			}
+		}
+		return 0, 0, -1
+	}
+	run := 0
+	for run < len(tokens) && tokens[run].Type == '(' {
+		run++
+	}
+	// closes[d] is where the d-th leading '(' closes, or -1; first[d] is
+	// the first SELECT at depth d while the leading ones before it are
+	// open, or -1.
+	closes, first := make([]int, run), make([]int, run+1)
+	for d := range first {
+		first[d] = -1
+		if d < run {
+			closes[d] = -1
+		}
+	}
+	depth := 0
+	for i, tok := range tokens {
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+				if depth < run && closes[depth] < 0 {
+					closes[depth] = i
+				}
+			}
+		case kwSELECT:
+			if depth <= run && first[depth] < 0 && (depth == 0 || closes[depth-1] < 0) {
+				first[depth] = i
+			}
+		}
+	}
+	// The first operand names the columns, so a query that opens with '('
+	// takes its query from inside those parentheses, past any later operand
+	// at its own depth: ((SELECT a FROM t) UNION SELECT b FROM u) names A.
+	switch {
+	case run > 0 && closes[run-1] < 0, first[run] < 0:
+		return 0, 0, -1
+	case run == 0:
+		return 0, len(tokens), first[0]
+	}
+	return run, closes[run-1], first[run]
+}
+
 func oracleMatchingParen(tokens []Token, openIdx int) int {
 	if openIdx < 0 || openIdx >= len(tokens) || tokens[openIdx].Type != '(' {
 		return -1
@@ -1063,30 +1144,14 @@ func extractOracleNameList(tokens []Token) []string {
 }
 
 func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReference) []string {
-	selectIdx := -1
-	depth := 0
-	for i, tok := range tokens {
-		switch tok.Type {
-		case '(':
-			depth++
-			continue
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-			continue
-		}
-		if depth == 0 && tok.Type == kwSELECT {
-			selectIdx = i
-			break
-		}
-	}
+	lo, hi, selectIdx := oracleQuerySelect(tokens)
 	if selectIdx < 0 {
 		return nil
 	}
+	tokens, selectIdx = tokens[lo:hi], selectIdx-lo
 	var names []string
 	targetStart := selectIdx + 1
-	depth = 0
+	depth := 0
 	closedTargetList := false
 	for i := selectIdx + 1; i < len(tokens); i++ {
 		tok := tokens[i]
@@ -1100,7 +1165,7 @@ func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReferen
 			}
 			continue
 		}
-		if depth == 0 && (tok.Type == kwFROM || tok.Type == kwUNION || tok.Type == kwINTERSECT || tok.Type == kwMINUS) {
+		if depth == 0 && (tok.Type == kwFROM || tok.Type == kwUNION || tok.Type == kwINTERSECT || tok.Type == kwMINUS || tok.Type == kwEXCEPT) {
 			names = append(names, extractOracleTargetColumn(tokens[targetStart:i], tokens, selectIdx, ctes)...)
 			closedTargetList = true
 			break
@@ -1223,7 +1288,7 @@ func oracleTokenIsIdentLikeStr(tok Token, value string) bool {
 func oracleIsFromClauseBoundary(tokenType int) bool {
 	switch tokenType {
 	case kwWHERE, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART, kwUNION,
-		kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH, kwMODEL, kwPIVOT, kwUNPIVOT:
+		kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH, kwMODEL, kwPIVOT, kwUNPIVOT:
 		return true
 	default:
 		return false
@@ -1233,7 +1298,7 @@ func oracleIsFromClauseBoundary(tokenType int) bool {
 func isOracleCompletionClauseBoundary(tokenType int) bool {
 	switch tokenType {
 	case kwWHERE, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART, kwUNION,
-		kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH, kwJOIN, kwON, kwUSING,
+		kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH, kwJOIN, kwON, kwUSING,
 		kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwINNER, kwOUTER, kwMODEL, kwPIVOT, kwUNPIVOT:
 		return true
 	default:

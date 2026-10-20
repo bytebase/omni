@@ -408,9 +408,12 @@ func (p *Parser) parseQuantifiedComparisonOperand() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+	if p.atQueryStart() {
 		subquery, err := p.parseSelectStmt()
 		if err != nil {
+			return nil, err
+		}
+		if err := p.checkExpressionSubquery(subquery); err != nil {
 			return nil, err
 		}
 		fc.Args.Items = append(fc.Args.Items, &nodes.SubqueryExpr{
@@ -715,7 +718,10 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		// columns in practice and start their clauses only after a complete
 		// expression or table reference, never where an operand begins.
 		// TestOracleNonReservedKeywordsAsColumns checks them on the engine.
-		if isOracleClauseStarterKeyword(p.cur.Type) && isOracleSQLReservedKeyword(p.cur) {
+		// PL/SQL does not reserve EXCEPT, SQL's set operator alone: Oracle
+		// 23ai compiles x := except + 1 for a variable except.
+		if isOracleClauseStarterKeyword(p.cur.Type) && isOracleSQLReservedKeyword(p.cur) &&
+			(p.cur.Type != kwEXCEPT || !p.plsqlCode) {
 			return nil, nil
 		}
 		if p.isIdentLike() {
@@ -1949,24 +1955,49 @@ func (p *Parser) parseWithinGroup() (*nodes.List, error) {
 	return orderBy, nil
 }
 
+// checkExpressionSubquery rejects an ORDER BY that ends sub, a subquery
+// that stands for a value or a condition, with no row-limiting clause after
+// it. Oracle 23ai fails 1 IN (SELECT 1 FROM dual ORDER BY 1), EXISTS
+// ((SELECT 1 FROM dual) ORDER BY 1), = ANY (...), a scalar subquery, and
+// UPDATE ... SET a = (...) with ORA-00907, and runs any of them with
+// OFFSET or FETCH after the ORDER BY. An inline view, a WITH element, MERGE
+// USING, CURSOR(...), and a cursor FOR loop's query take a plain one.
+func (p *Parser) checkExpressionSubquery(sub *nodes.SelectStmt) error {
+	if sort := trailingOrderBy(sub); sort != nil {
+		return p.syntaxErrorAtNode(sort)
+	}
+	return nil
+}
+
 // parseParenExpr parses a parenthesized expression or subquery.
 func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
+	iterand := p.queryIterand
+	p.queryIterand = false
 	p.advance() // consume '('
 
-	// Detect scalar subquery: (SELECT ...)
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+	// Detect a subquery: (SELECT ...), or ((SELECT ...) UNION ...)
+	if p.atQueryStart() {
 		sub, parseErr728 := p.parseSelectStmt()
 		if parseErr728 != nil {
 			return nil, parseErr728
 		}
+		if !iterand {
+			if err := p.checkExpressionSubquery(sub); err != nil {
+				return nil, err
+			}
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
-		return &nodes.SubqueryExpr{
+		expr := &nodes.SubqueryExpr{
 			Subquery: sub,
 			Loc:      nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
+		}
+		if iterand {
+			p.iterandQuery, p.iterandAfter = expr, p.cur
+		}
+		return expr, nil
 	}
 
 	inner, parseErr729 := p.parseExpr()
@@ -2226,15 +2257,18 @@ func (p *Parser) parseExistsExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	// Parse the inner SELECT statement.
-	if p.cur.Type != kwSELECT && p.cur.Type != kwWITH {
+	// Parse the inner query.
+	if !p.atQuery() {
 		return nil, p.syntaxErrorAtCur()
 	}
-	var parseErr739 error
-	expr.Subquery, parseErr739 = p.parseSelectStmt()
+	sub, parseErr739 := p.parseSelectStmt()
 	if parseErr739 != nil {
 		return nil, parseErr739
 	}
+	if err := p.checkExpressionSubquery(sub); err != nil {
+		return nil, err
+	}
+	expr.Subquery = sub
 	if p.cur.Type != ')' {
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -2396,11 +2430,14 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, err
 
 	if p.cur.Type == '(' {
 		p.advance()
-		// IN (SELECT ...) or IN (WITH ...) — subquery
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+		// IN (SELECT ...), IN (WITH ...), or IN ((SELECT ...) UNION ...)
+		if p.atQueryStart() {
 			sub, parseErr742 := p.parseSelectStmt()
 			if parseErr742 != nil {
 				return nil, parseErr742
+			}
+			if err := p.checkExpressionSubquery(sub); err != nil {
+				return nil, err
 			}
 			subExpr := &nodes.SubqueryExpr{
 				Subquery: sub,
@@ -2869,6 +2906,11 @@ func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 		sub, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
+		}
+		// The subquery holds no set operation (ORA-40932 on Oracle 23ai,
+		// at the end of it).
+		if isSetQuery(sub) {
+			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args.Items = append(fc.Args.Items, &nodes.SubqueryExpr{
 			Subquery: sub,

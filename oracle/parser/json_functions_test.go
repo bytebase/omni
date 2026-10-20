@@ -71,6 +71,7 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_ARRAY(SELECT 1 FROM dual NULL ON NULL) FROM dual",
 		"SELECT JSON_ARRAY(SELECT 1 FROM dual STRICT) FROM dual",
 		"SELECT JSON_ARRAY(SELECT 1 FROM dual ORDER BY 1) FROM dual",
+		"SELECT JSON_ARRAY((SELECT 1 FROM dual)) FROM dual",
 		// JSON_ARRAYAGG.
 		"SELECT JSON_ARRAYAGG(dummy) FROM dual",
 		"SELECT JSON_ARRAYAGG(ALL dummy) FROM dual",
@@ -172,6 +173,11 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_ARRAY(1 RETURNING CLOB NULL ON NULL) FROM dual",
 		"SELECT JSON_ARRAY(1 WITH UNIQUE KEYS) FROM dual",
 		"SELECT JSON_ARRAY(SELECT 1 FROM dual RETURNING CLOB) FROM dual",
+		// The subquery holds no set operation (ORA-40932), parenthesized
+		// operands neither (ORA-02000).
+		"SELECT JSON_ARRAY(SELECT 1 FROM dual UNION SELECT 2 FROM dual) FROM dual",
+		"SELECT JSON_ARRAY(SELECT 1 FROM dual MINUS SELECT 2 FROM dual) FROM dual",
+		"SELECT JSON_ARRAY((SELECT 1 FROM dual) UNION (SELECT 2 FROM dual)) FROM dual",
 		"SELECT JSON_ARRAY(SELECT 1 FROM dual ABSENT ON NULL) FROM dual",
 		// The aggregates: one argument, no DISTINCT (ORA-30482), clauses in
 		// order, no OVER or KEEP (ORA-30483, ORA-00923, ORA-00939).

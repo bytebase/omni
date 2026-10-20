@@ -289,24 +289,13 @@ func (p *Parser) parsePLSQLCursorDecl() (*nodes.PLSQLCursorDecl, error) {
 		p.advance()
 	}
 
-	// SELECT statement
-	if p.cur.Type == '(' && (p.peekNext().Type == kwSELECT || p.peekNext().Type == kwWITH) {
-		p.advance()
+	// The query: SELECT, WITH, or a parenthesized subquery, which may be
+	// an operand of a set operator: CURSOR c IS (SELECT ...) UNION (SELECT
+	// ...) compiles on Oracle 23ai.
+	if p.atQuery() {
 		var parseErr840 error
 		decl.Query, parseErr840 = p.parseSelectStmt()
 		if parseErr840 != nil {
-			return nil, parseErr840
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	} else if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-		var parseErr840 error
-		decl.Query, parseErr840 = p.parseSelectStmt()
-		if parseErr840 !=
-
-			// Semicolon
-			nil {
 			return nil, parseErr840
 		}
 	}
@@ -1166,6 +1155,17 @@ func (p *Parser) parsePLSQLOpen() (*nodes.PLSQLOpen, error) {
 			if parseErr873 != nil {
 				return nil, parseErr873
 			}
+		} else if p.cur.Type == '(' && p.parenQueryAt(p.cur.Loc).leads {
+			// The query stands bare: Oracle 23ai rejects OPEN c FOR (SELECT
+			// ...) and ((SELECT ...) UNION (SELECT ...)) at the SELECT
+			// (PLS-00103). A parenthesized string, ('SELECT ...' || s), is
+			// dynamic SQL.
+			lex := p.selectionLexer(p.cur.Loc)
+			tok := lex.NextToken()
+			for tok.Type == '(' {
+				tok = lex.NextToken()
+			}
+			return nil, p.syntaxErrorAtTok(tok)
 		} else {
 			var parseErr873 error
 			o.ForExpr, parseErr873 = p.parseExpr()

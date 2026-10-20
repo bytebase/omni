@@ -703,6 +703,11 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	// control. Oracle 23ai compiles both blocks with $$f and $$g unset.
 	ParseAndCheck(t, "DECLARE TYPE extract IS TABLE OF NUMBER; year NUMBER := 1; v extract; BEGIN v := EXTRACT(YEAR $IF $$f $THEN FROM SYSDATE $ELSE , 2 $END); $IF $$f $THEN $ERROR 'no' $END $END END;")
 	ParseAndCheck(t, "DECLARE TYPE nt IS TABLE OF NUMBER; s VARCHAR2(100) := 'SELECT 1 FROM dual'; execute nt := nt(1); BEGIN FOR i IN VALUES OF (EXECUTE $IF $$g $THEN IMMEDIATE s $END) LOOP NULL; END LOOP; $IF $$g $THEN $ERROR 'no' $END $END END;")
+	// And the lookahead that tells a parenthesized query from an
+	// expression: Oracle 23ai compiles both blocks with $$a unset, the first
+	// with a set operation after the group, the second with an IN list.
+	ParseAndCheck(t, "DECLARE n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM dual WHERE 1 IN ((SELECT 1 FROM dual) $IF $$a $THEN , 2 $ELSE UNION SELECT 2 FROM dual $END); $IF $$a $THEN $ERROR 'x' $END $END END;")
+	ParseAndCheck(t, "DECLARE n NUMBER; BEGIN SELECT COUNT(*) INTO n FROM dual WHERE 1 IN ((SELECT 1 FROM dual) $IF $$a $THEN UNION SELECT 2 FROM dual $ELSE , 2 $END); $IF $$a $THEN $ERROR 'x' $END $END END;")
 
 	// A string literal holds 32767 bytes, in code a directive skips too
 	// (PLS-00172, ORA-01704), and a static concatenation as many (PLS-00174).

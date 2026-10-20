@@ -349,8 +349,34 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 
 	prefix := completionPrefix(sql, cursorOffset)
 	collectOffset := cursorOffset - len(prefix)
-	cs, _ := collectOracleCandidates(sql, completionTokens(sql, cursorOffset), collectOffset, prefix)
+	cs, _ := collectOracleCandidates(sql, multisetOperatorsAsWords(completionTokens(sql, cursorOffset)), collectOffset, prefix)
 	return cs
+}
+
+// multisetOperatorsAsWords retypes the EXCEPT of MULTISET EXCEPT, an
+// operator inside an expression, as a word, so the scans that end a select
+// list or a query at a set operator pass over it: SELECT a MULTISET EXCEPT
+// b AS c FROM t names its column C. An EXCEPT a query follows is the set
+// operator, after a column named MULTISET too: SELECT multiset EXCEPT
+// SELECT c FROM t.
+func multisetOperatorsAsWords(tokens []Token) []Token {
+	for i := 1; i < len(tokens); i++ {
+		if tokens[i].Type != kwEXCEPT || tokens[i-1].Type != kwMULTISET {
+			continue
+		}
+		next := i + 1
+		if next < len(tokens) && (tokens[next].Type == kwALL || tokens[next].Type == kwDISTINCT) {
+			next++
+		}
+		for next < len(tokens) && tokens[next].Type == '(' {
+			next++
+		}
+		if next < len(tokens) && (tokens[next].Type == kwSELECT || tokens[next].Type == kwWITH) {
+			continue
+		}
+		tokens[i].Type = tokIDENT
+	}
+	return tokens
 }
 
 func collectOracleCandidates(_ string, allTokens []Token, collectOffset int, prefix string) (*CandidateSet, *CompletionIntent) {
@@ -1083,7 +1109,7 @@ func oracleCursorInOrderingExpression(tokens []Token, offset int) bool {
 		switch before[i].Type {
 		case kwGROUP, kwORDER:
 			return i+1 < len(before) && before[i+1].Type == kwBY
-		case kwWHERE, kwFROM, kwJOIN, kwHAVING, kwON, kwUNION, kwINTERSECT, kwMINUS:
+		case kwWHERE, kwFROM, kwJOIN, kwHAVING, kwON, kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
 			return false
 		}
 	}
@@ -1149,7 +1175,7 @@ func oracleCursorInTableRef(tokens []Token, offset int) bool {
 		case kwFROM, kwJOIN:
 			lastClause = tokens[i].Type
 		case kwWHERE, kwON, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART,
-			kwUNION, kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH:
+			kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH:
 			lastClause = tokens[i].Type
 		}
 	}
@@ -1199,7 +1225,7 @@ func oracleCursorAfterFromRelation(tokens []Token, offset int) bool {
 		case kwFROM, kwJOIN:
 			lastFromOrJoin = i
 			lastBoundary = -1
-		case kwWHERE, kwON, kwUSING, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT, kwMINUS:
+		case kwWHERE, kwON, kwUSING, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
 			lastBoundary = i
 		}
 	}
