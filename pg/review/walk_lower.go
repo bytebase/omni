@@ -1203,6 +1203,14 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return true
 	}
 	b.repeated(v.Relation, cmds)
+	b.drops = make(map[string]bool)
+	for _, cmd := range cmds {
+		if ast.AlterTableType(cmd.Subtype) == ast.AT_DropColumn {
+			if k, ok := storedKey(cmd.Name); ok {
+				b.drops[k] = true
+			}
+		}
+	}
 	for _, cmd := range passOrder(cmds) {
 		b.next()
 		if !b.alterTableCmd(v.Relation, r.key, cmd) {
@@ -1393,11 +1401,21 @@ func (b *builder) constraintExists(rv *ast.RangeVar, t walk.Key, written string,
 // pg: src/backend/commands/tablecmds.c — check_for_column_name_collision
 func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, ifNotExists, inh bool) {
 	rng := rangeOf(def.Loc)
+	// A column the statement drops is gone when this one is added, so IF
+	// NOT EXISTS adds it (verified on PostgreSQL 17 and 18).
+	dropped := false
+	if k, ok := storedKey(def.Colname); ok {
+		dropped = b.drops[k]
+	}
 	name, ok := walkName(def.Colname)
 	if !ok {
 		b.mayAdd(walk.Scope{Space: spaceColumn, Parent: tableOf(t)})
 		if inh {
 			b.mayAdd(walk.Scope{Space: spaceColumn, Deep: true})
+		}
+		if ifNotExists && !dropped {
+			b.mayConstrain(t, def, inh)
+			return
 		}
 		b.columnConstraints(t, rv, def, inh)
 		return
@@ -1408,8 +1426,11 @@ func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, if
 	}
 	ck := columnKey(t, name)
 	prior, _ := b.l.Lookup(ck)
-	if !ifNotExists {
+	switch {
+	case !ifNotExists:
 		b.need(ck, walk.Absent, nil, &walkNote{rng: rng, present: "column " + ident(def.Colname) + " of relation " + relation(rv) + " already exists"}) // 42701
+		prior = walk.Absent
+	case dropped:
 		prior = walk.Absent
 	}
 	if prior == walk.Present {

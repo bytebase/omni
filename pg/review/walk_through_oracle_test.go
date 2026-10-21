@@ -157,6 +157,9 @@ var walkCases = []walkCase{
 	{name: "TRUNCATE ONLY of a partition", change: "TRUNCATE ONLY s.parted_1;\nTRUNCATE parted;"},
 	{name: "one ALTER drops before it adds", change: "ALTER TABLE t ADD CONSTRAINT t_n_check CHECK (n > 1), DROP CONSTRAINT t_n_check;\nALTER TABLE t DROP CONSTRAINT t_n_check;\nALTER TABLE nokey ADD COLUMN a int, DROP COLUMN a;\nALTER TABLE nokey DROP COLUMN a;\nALTER TABLE t ADD CONSTRAINT t_code_key UNIQUE (n), DROP CONSTRAINT t_code_key;\nCREATE TABLE t_code_key (a int);"},
 	{name: "a dropped schema takes its partition state", change: "CREATE SCHEMA ps;\nCREATE TABLE ps.p (k int) PARTITION BY RANGE (k);\nCREATE TABLE ps.p1 PARTITION OF ps.p FOR VALUES FROM (0) TO (10);\nDROP SCHEMA ps CASCADE;\nCREATE SCHEMA ps;\nCREATE TABLE ps.q (k int);\nALTER TABLE ps.q RENAME TO p;\nTRUNCATE ONLY ps.p;"},
+	{name: "ADD COLUMN IF NOT EXISTS of an unreadable name may skip its constraints", change: "CREATE TABLE x (\"é\" int);\nALTER TABLE x ADD COLUMN IF NOT EXISTS \"é\" int CONSTRAINT uq UNIQUE;\nCREATE TABLE uq (a int);"},
+	{name: "set_config of a setting named at run time", change: "SELECT pg_catalog.set_config('work' || '_mem', '4MB', false);\nCREATE TABLE x (a int);"},
+	{name: "ADD COLUMN IF NOT EXISTS after the statement drops the column", change: "ALTER TABLE nokey DROP COLUMN a, ADD COLUMN IF NOT EXISTS a integer;\nALTER TABLE nokey DROP COLUMN a;\nALTER TABLE nokey ADD COLUMN IF NOT EXISTS a int CONSTRAINT nk_u UNIQUE, DROP COLUMN IF EXISTS a;\nCREATE TABLE nk_u (z int);", complete: true},
 	{name: "a role's schema", change: "CREATE SCHEMA AUTHORIZATION bob;\nSET ROLE bob;\nCREATE TABLE x (a int);\nRESET ROLE;\nCREATE TABLE bob.x (a int);\nCREATE TABLE x (a int);", complete: true},
 
 	// Where the walk stops.
@@ -894,7 +897,8 @@ func sweepChange(rng *rand.Rand, n int) string {
 			c := col()
 			stmt = pick(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s int, DROP COLUMN %s", table(), col(), col()),
 				fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s%s int, ADD COLUMN %s%s int", table(), maybe("IF NOT EXISTS "), c, maybe("IF NOT EXISTS "), c),
-				fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s%s, DROP COLUMN %s%s", table(), maybe("IF EXISTS "), c, maybe("IF EXISTS "), c))
+				fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s%s, DROP COLUMN %s%s", table(), maybe("IF EXISTS "), c, maybe("IF EXISTS "), c),
+				fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s%s, ADD COLUMN IF NOT EXISTS %s int%s", table(), maybe("IF EXISTS "), c, c, maybe(" CONSTRAINT k UNIQUE")))
 		case 37:
 			stmt = pick(fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (x) REFERENCES %s (id)", table(), con(), table()),
 				fmt.Sprintf("ALTER TABLE %s ADD %sUNIQUE USING INDEX %s", table(), pick("", "CONSTRAINT "+con()+" ", "CONSTRAINT "+idx()+" "), idx()))
