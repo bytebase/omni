@@ -274,9 +274,11 @@ func (w *walker) callsUserCode(n ast.Node) bool {
 // builder lowers one statement. A statement is made of parts, one per
 // subcommand or object, each with its own checks and effects. A check or
 // failure on a key another part also changes is dropped: PostgreSQL does
-// not apply the parts in the order written (ALTER TABLE runs its
-// subcommands in passes, so ADD COLUMN a, DROP COLUMN a fails while DROP
-// COLUMN a, ADD COLUMN a succeeds, verified on PostgreSQL 17).
+// not apply the parts in the order written. ALTER TABLE runs its
+// subcommands in passes, so ADD COLUMN a, DROP COLUMN a drops a first: it
+// fails where a is missing and leaves a new a where a exists (verified on
+// PostgreSQL 17 and 18). Effects apply in the order of the parts, which
+// passOrder puts in PostgreSQL's.
 type builder struct {
 	w    *walker
 	l    *walk.Ledger

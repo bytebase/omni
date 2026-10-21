@@ -253,14 +253,17 @@ func (b *builder) made(k walk.Key) {
 // relation that had them is gone or replaced: a later drop of the parent
 // must not reach whatever takes the name next.
 func (b *builder) unlisted(k walk.Key) {
-	b.session(func() {
-		w := b.w
-		delete(w.partitions, k)
-		delete(w.partitioned, k)
-		for parent, children := range w.partitions {
-			w.partitions[parent] = slices.DeleteFunc(children, func(c walk.Key) bool { return c == k })
-		}
-	})
+	b.session(func() { b.w.unlist(k) })
+}
+
+// unlist forgets k as a partitioned table, its partitions, and k as a
+// partition.
+func (w *walker) unlist(k walk.Key) {
+	delete(w.partitions, k)
+	delete(w.partitioned, k)
+	for parent, children := range w.partitions {
+		w.partitions[parent] = slices.DeleteFunc(children, func(c walk.Key) bool { return c == k })
+	}
 }
 
 // placeUnknown records a new object whose schema the walk cannot tell:
@@ -1200,13 +1203,34 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return true
 	}
 	b.repeated(v.Relation, cmds)
-	for _, cmd := range cmds {
+	for _, cmd := range passOrder(cmds) {
 		b.next()
 		if !b.alterTableCmd(v.Relation, r.key, cmd) {
 			return false
 		}
 	}
 	return true
+}
+
+// passOrder returns the subcommands with the drops first, each group in
+// the order written. PostgreSQL runs every DROP COLUMN and DROP
+// CONSTRAINT before anything else, so ADD CONSTRAINT c ..., DROP
+// CONSTRAINT c drops the c the table had and leaves the new one (verified
+// on PostgreSQL 17 and 18). Other passes change no name another
+// subcommand of the statement sets.
+//
+// pg: src/backend/commands/tablecmds.c — AlterTablePass (AT_PASS_DROP)
+func passOrder(cmds []*ast.AlterTableCmd) []*ast.AlterTableCmd {
+	out := make([]*ast.AlterTableCmd, 0, len(cmds))
+	for _, drops := range []bool{true, false} {
+		for _, cmd := range cmds {
+			sub := ast.AlterTableType(cmd.Subtype)
+			if (sub == ast.AT_DropColumn || sub == ast.AT_DropConstraint) == drops {
+				out = append(out, cmd)
+			}
+		}
+	}
+	return out
 }
 
 // repeated fails an ALTER TABLE that adds, or drops, one column twice,
@@ -1606,10 +1630,15 @@ func (b *builder) renameRelation(v *ast.RenameStmt) bool {
 }
 
 // renamed moves what the walker keeps by relation key. The relation
-// holds its schema under the new name, listed or made.
+// holds its schema under the new name, listed or made, and takes nothing
+// a relation that had the name before left there.
 func (b *builder) renamed(from, to walk.Key) {
 	b.session(func() {
 		w := b.w
+		if from == to {
+			return
+		}
+		w.unlist(to)
 		if !slices.Contains(w.made, from) {
 			w.made = append(w.made, to)
 		}
@@ -2011,6 +2040,23 @@ func (b *builder) dropSchema(parts []string, missingOK, cascade bool) bool {
 	}
 	b.set(k, walk.Absent, "")
 	b.clear(walk.Scope{Parent: walk.Path(name), Deep: true})
+	b.session(func() {
+		// What it held is gone, and so is the partition state of it.
+		w := b.w
+		in := func(k walk.Key) bool { return k.Parent == walk.Path(name) }
+		for k := range w.partitioned {
+			if in(k) {
+				delete(w.partitioned, k)
+			}
+		}
+		for parent, children := range w.partitions {
+			if in(parent) {
+				delete(w.partitions, parent)
+				continue
+			}
+			w.partitions[parent] = slices.DeleteFunc(children, in)
+		}
+	})
 	return true
 }
 
