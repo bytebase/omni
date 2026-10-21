@@ -162,6 +162,8 @@ var walkCases = []walkCase{
 	{name: "ADD COLUMN IF NOT EXISTS after the statement drops the column", change: "ALTER TABLE nokey DROP COLUMN a, ADD COLUMN IF NOT EXISTS a integer;\nALTER TABLE nokey DROP COLUMN a;\nALTER TABLE nokey ADD COLUMN IF NOT EXISTS a int CONSTRAINT nk_u UNIQUE, DROP COLUMN IF EXISTS a;\nCREATE TABLE nk_u (z int);", complete: true},
 	{name: "ADD COLUMN IF NOT EXISTS after the statement adds the column", change: "ALTER TABLE nokey ADD COLUMN b int, ADD COLUMN IF NOT EXISTS b int CONSTRAINT uq UNIQUE;\nCREATE TABLE uq (a int);\nALTER TABLE nokey ADD COLUMN IF NOT EXISTS c int, ADD COLUMN IF NOT EXISTS c int CONSTRAINT uq2 UNIQUE;\nCREATE TABLE uq2 (a int);\nALTER TABLE nokey DROP COLUMN c, ADD COLUMN c int, ADD COLUMN IF NOT EXISTS c int CONSTRAINT uq3 UNIQUE;\nCREATE TABLE uq3 (a int);"},
 	{name: "a partition proves its parent partitioned", extra: "CREATE TABLE ep (k int) PARTITION BY RANGE (k);", change: "CREATE TABLE ep1 PARTITION OF ep FOR VALUES FROM (0) TO (10);\nTRUNCATE ONLY ep;", complete: true},
+	{name: "a multi-object DROP looks every object up first", change: "DROP TABLE nokey, q;\nDROP SEQUENCE q, nokey;\nDROP TABLE nokey, nosuch CASCADE;\nDROP TABLE nosuch, nokey;\nDROP TABLE nokey, nokey;\nCREATE TABLE nokey (a int);", complete: true},
+	{name: "DROP DOMAIN of a type that is no domain", change: "DROP DOMAIN public.mood;\nDROP DOMAIN IF EXISTS public.pair;\nDROP DOMAIN public.nokey;\nCREATE DOMAIN public.dd AS int;\nDROP DOMAIN public.dd;\nCREATE TYPE public.e2 AS ENUM ('a');\nDROP DOMAIN public.e2;\nDROP TYPE public.e2;\nCREATE DOMAIN public.d2 AS int;\nDROP TYPE public.d2;", complete: true},
 	{name: "a role's schema", change: "CREATE SCHEMA AUTHORIZATION bob;\nSET ROLE bob;\nCREATE TABLE x (a int);\nRESET ROLE;\nCREATE TABLE bob.x (a int);\nCREATE TABLE x (a int);", complete: true},
 
 	// Where the walk stops.
@@ -494,6 +496,9 @@ func verifyClaim(t *testing.T, conn *sql.Conn, v *walk.Violation, msg string) (b
 		}
 		return true, ""
 	case spaceType:
+		if present && v.Kind == typOther {
+			return ask(`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = `+schemaOID+` AND typname = $2 AND typtype <> 'd')`, names[0], k.Name), fmt.Sprintf("type %s.%s is a domain or missing", names[0], k.Name)
+		}
 		return ask(`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = `+schemaOID+` AND typname = $2) = $3`, names[0], k.Name, present), fmt.Sprintf("type %s.%s present=%v", names[0], k.Name, !present)
 	case spaceColumn, spaceConstraint, spacePrimaryKey:
 		rel := `(SELECT c.oid FROM pg_class c WHERE c.relnamespace = ` + schemaOID + ` AND c.relname = $2)`
@@ -870,7 +875,7 @@ func sweepChange(rng *rand.Rand, n int) string {
 		case 22:
 			stmt = fmt.Sprintf("CREATE TYPE %s AS ENUM ('a')", table())
 		case 23:
-			stmt = fmt.Sprintf("DROP TYPE %s%s%s", maybe("IF EXISTS "), pick("public.", "s1.")+pick("a", "e", "v"), maybe(" CASCADE"))
+			stmt = fmt.Sprintf("DROP %s %s%s%s", pick("TYPE", "TYPE", "DOMAIN"), maybe("IF EXISTS "), pick("", "public.", "s1.")+pick("a", "e", "v", "i"), maybe(" CASCADE"))
 		case 24:
 			stmt = fmt.Sprintf("CREATE SCHEMA %s%s", maybe("IF NOT EXISTS "), pick("s1", "s2", "s3"))
 		case 25:

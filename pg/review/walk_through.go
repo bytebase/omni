@@ -294,6 +294,9 @@ type builder struct {
 	// columns its ADD COLUMN subcommands so far add, in the order written.
 	drops map[string]bool
 	added map[string]bool
+	// lookups is true when the statement looks every name up before it
+	// changes any, so no part's effect reaches another part's checks.
+	lookups bool
 }
 
 type partCheck struct {
@@ -389,6 +392,9 @@ func (b *builder) anchor() review.Range {
 
 // touched reports whether a part other than part changes the key.
 func (b *builder) touched(k walk.Key, part int) bool {
+	if b.lookups {
+		return false
+	}
 	for _, e := range b.effects {
 		if e.part == part {
 			continue

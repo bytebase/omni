@@ -30,9 +30,9 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.CompositeTypeStmt:
 		return b.createCompositeType(v)
 	case *ast.CreateEnumStmt:
-		return b.createType(nameParts(v.TypeName))
+		return b.createType(nameParts(v.TypeName), typOther)
 	case *ast.CreateDomainStmt:
-		return b.createType(nameParts(v.Domainname))
+		return b.createType(nameParts(v.Domainname), typDomain)
 	case *ast.AlterTableStmt:
 		return b.alterTable(v)
 	case *ast.RenameStmt:
@@ -464,7 +464,7 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	switch prior {
 	case walk.Absent:
 		b.set(k, walk.Present, relTable)
-		b.set(tk, walk.Present, "")
+		b.set(tk, walk.Present, typOther)
 		b.clear(walk.Scope{Parent: parent, Deep: true})
 		if !plain {
 			b.forget(walk.Scope{Space: spaceColumn, Parent: parent})
@@ -926,7 +926,7 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 	// the ledger whether it is still there.
 	b.made(k)
 	b.set(k, walk.Present, relView)
-	b.set(tk, walk.Present, "")
+	b.set(tk, walk.Present, typOther)
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
 	if temp || c.schema == tempSchema {
 		b.session(func() { b.w.temporary = true })
@@ -1071,7 +1071,7 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 	b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})    // 42710
 	b.need(k, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + relation(rv) + " already exists"}) // 42P07
 	b.set(k, walk.Present, relComposite)
-	b.set(tk, walk.Present, "")
+	b.set(tk, walk.Present, typOther)
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
 	b.made(k)
 	return true
@@ -1079,7 +1079,7 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 
 // createType follows CREATE TYPE ... AS ENUM and CREATE DOMAIN, which
 // take a name in the type namespace alone.
-func (b *builder) createType(parts []string) bool {
+func (b *builder) createType(parts []string, kind string) bool {
 	schema, written, ok := splitName(parts)
 	if !ok {
 		return false
@@ -1096,7 +1096,7 @@ func (b *builder) createType(parts []string) bool {
 	}
 	tk := typeKey(c.schema, name)
 	b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: "type " + qualified(parts) + " already exists"}) // 42710
-	b.set(tk, walk.Present, "")
+	b.set(tk, walk.Present, kind)
 	b.made(tk)
 	return true
 }
@@ -1934,6 +1934,13 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 	if v.Objects == nil {
 		return false
 	}
+	// Every object is looked up before any is dropped, so each check
+	// holds against the state before the statement, whatever another
+	// object's drop does (verified on PostgreSQL 17 and 18).
+	//
+	// pg: src/backend/commands/tablecmds.c — RemoveRelations;
+	// src/backend/commands/dropcmds.c — RemoveObjects
+	b.lookups = true
 	if v.Concurrent && kind == ast.OBJECT_INDEX {
 		// Refused before any name is looked up, IF EXISTS or not (0A000,
 		// verified on PostgreSQL 17 and 18 outside a transaction, as
@@ -1960,11 +1967,19 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 	case kind == ast.OBJECT_TYPE || kind == ast.OBJECT_DOMAIN:
 		for _, obj := range v.Objects.Items {
 			b.next()
-			tn, ok := obj.(*ast.TypeName)
-			if !ok {
+			// The parser gives each name as a list of strings.
+			var list *ast.List
+			switch o := obj.(type) {
+			case *ast.List:
+				list = o
+			case *ast.TypeName:
+				list = o.Names
+			}
+			parts := nameParts(list)
+			if list == nil || len(parts) != len(list.Items) {
 				return false
 			}
-			b.dropType(nameParts(tn.Names), v.Missing_ok)
+			b.dropType(parts, v.Missing_ok, kind == ast.OBJECT_DOMAIN)
 		}
 	case dropKinds[kind].kind != "":
 		for _, obj := range v.Objects.Items {
@@ -2115,7 +2130,7 @@ func (b *builder) holds(schema string) (walk.Key, bool) {
 // dropType follows DROP TYPE and DROP DOMAIN. An unqualified type name may
 // be one of pg_catalog's, which the walk does not know, so only a
 // qualified one is placed.
-func (b *builder) dropType(parts []string, missingOK bool) {
+func (b *builder) dropType(parts []string, missingOK, domain bool) {
 	schema, written, ok := splitName(parts)
 	name, ok2 := walkName(written)
 	s, ok3 := walkName(schema)
@@ -2142,8 +2157,14 @@ func (b *builder) dropType(parts []string, missingOK bool) {
 		return
 	}
 	tk := typeKey(s, name)
-	if !missingOK {
-		b.need(tk, walk.Present, nil, &walkNote{rng: b.anchor(), absent: "type " + qualified(parts) + " does not exist"}) // 42704
+	note := &walkNote{rng: b.anchor(), absent: "type " + qualified(parts) + " does not exist", present: qualified(parts) + " is not a domain"} // 42704
+	switch f, _ := b.l.Lookup(tk); {
+	case domain && (f == walk.Present || !missingOK):
+		// DROP DOMAIN drops a domain and no other type, IF EXISTS or not
+		// (42809, verified on PostgreSQL 17 and 18).
+		b.need(tk, walk.Present, []string{typDomain}, note)
+	case !missingOK:
+		b.need(tk, walk.Present, nil, note)
 	}
 	b.set(tk, walk.Absent, "")
 	rk := relKey(s, name)

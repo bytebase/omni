@@ -34,6 +34,11 @@ const (
 const (
 	kindColumn = "column"
 
+	// Kinds in the type space: a domain, or a type known to be no domain.
+	// A type of unknown kind has none.
+	typDomain = "domain"
+	typOther  = "type"
+
 	conPrimary   = "primary key"
 	conUnique    = "unique"
 	conForeign   = "foreign key"
@@ -246,7 +251,8 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		}
 	case spaceType:
 		if s.types[[2]string{k.Parent, k.Name}] {
-			return walk.Present, ""
+			// The sync lists no domain.
+			return walk.Present, typOther
 		}
 	case spaceColumn:
 		table, ok := splitTable(k.Parent)
