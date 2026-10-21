@@ -95,15 +95,31 @@ type resolved struct {
 	keys          []walk.Key
 }
 
-// crossDatabase reports whether a name's catalog is another database,
-// which PostgreSQL refuses before it looks anything up, IF EXISTS or not
-// (0A000, verified on PostgreSQL 17). A catalog naming the current
-// database is allowed.
+// crossDatabase reports whether a name's catalog is certainly another
+// database, which PostgreSQL refuses before it looks anything up, IF
+// EXISTS or not (0A000, verified on PostgreSQL 17). A catalog naming the
+// current database is allowed; the names compare as stored, so a longer
+// spelling truncated to the current database's name is that database
+// (verified on PostgreSQL 17).
 //
 // pg: src/backend/catalog/namespace.c — RangeVarGetRelidExtended,
 // RangeVarGetCreationNamespace
 func (w *walker) crossDatabase(catalog string) bool {
-	return catalog != "" && w.database != "" && catalog != w.database
+	if catalog == "" || w.database == "" {
+		return false
+	}
+	n, ok := walkName(catalog)
+	return ok && n != w.database
+}
+
+// currentDatabase reports whether a catalog the SQL wrote is certainly
+// the current database, or there is none.
+func (w *walker) currentDatabase(catalog string) bool {
+	if catalog == "" {
+		return true
+	}
+	n, ok := walkName(catalog)
+	return ok && n == w.database
 }
 
 func crossDatabaseMessage(written string) string {
@@ -147,7 +163,7 @@ func (b *builder) relation(catalog, schema, name string) resolved {
 		return resolved{fail: crossDatabaseMessage(qualified([]string{catalog, schema, name}))}
 	}
 	rel, ok := walkName(name)
-	if !ok || (catalog != "" && catalog != b.w.database) {
+	if !ok || !b.w.currentDatabase(catalog) {
 		return resolved{}
 	}
 	if schema != "" {

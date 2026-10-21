@@ -398,21 +398,20 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 			b.exists(p, false)
 		}
 		for _, con := range cons {
-			if con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && !mayBeSelf(con.Pktable, name, c.schema) {
+			if con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && !b.mayBeSelf(con.Pktable, name, c.schema) {
 				b.exists(con.Pktable, false)
 			}
 		}
 		// Within the statement, judged from the text alone.
 		if !partitionOf && v.OfTypename == nil {
-			// Names compare as PostgreSQL stores them, truncated.
 			seen := make(map[string]bool, len(cols))
 			for _, col := range cols {
-				n, ok := walkName(col.Colname)
+				n, ok := storedKey(col.Colname)
 				if !ok {
 					continue
 				}
 				if seen[n] {
-					b.failAt(rangeOf(col.Loc), nil, "column "+ident(n)+" specified more than once") // 42701
+					b.failAt(rangeOf(col.Loc), nil, "column "+ident(col.Colname)+" specified more than once") // 42701
 					return true
 				}
 				seen[n] = true
@@ -511,6 +510,20 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	return true
 }
 
+// storedKey is a key two names share exactly when PostgreSQL stores them
+// alike: the stored name, or, for a name walkName cannot read, the
+// spelling itself, which stores alike only when it is identical (a
+// non-ASCII name; verified on PostgreSQL 17).
+func storedKey(name string) (string, bool) {
+	if name == "" {
+		return "", false
+	}
+	if n, ok := walkName(name); ok {
+		return n, true
+	}
+	return "\x00" + name, true
+}
+
 // duplicateConstraint finds two constraints a CREATE TABLE names alike,
 // which PostgreSQL refuses (verified on PostgreSQL 17): two keys collide
 // on their index's name (42P07), two checks on the check (42710), and any
@@ -524,12 +537,13 @@ func duplicateConstraint(rv *ast.RangeVar, cons []*ast.Constraint) (string, revi
 	seen := make(map[string]string)
 	for _, con := range cons {
 		kind := constraintKind(con.Contype)
-		if kind == "" || con.Conname == "" {
+		key, ok := storedKey(con.Conname)
+		if kind == "" || !ok {
 			continue
 		}
-		prev, ok := seen[con.Conname]
+		prev, ok := seen[key]
 		if !ok {
-			seen[con.Conname] = kind
+			seen[key] = kind
 			continue
 		}
 		msg := "constraint " + ident(con.Conname) + " for relation " + relation(rv) + " already exists"
@@ -548,11 +562,15 @@ func duplicateConstraint(rv *ast.RangeVar, cons []*ast.Constraint) (string, revi
 // a CREATE TABLE creates, name in schema. PostgreSQL resolves the
 // reference after creating the table, so one of the same name, written
 // without a schema or with that schema, may be the table itself; one
-// that names another schema is not (verified on PostgreSQL 17).
+// that names another schema, or another database, is not (verified on
+// PostgreSQL 17).
 //
 // pg: src/backend/parser/parse_utilcmd.c — transformFKConstraints (the
 // constraints are added once the table exists)
-func mayBeSelf(ref *ast.RangeVar, name, schema string) bool {
+func (b *builder) mayBeSelf(ref *ast.RangeVar, name, schema string) bool {
+	if b.w.crossDatabase(ref.Catalogname) {
+		return false
+	}
 	if n, ok := walkName(ref.Relname); !ok || n != name {
 		return !ok
 	}
@@ -634,12 +652,8 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 		b.set(pk, walk.Present, "")
 	}
 	if con.Indexname != "" {
-		// USING INDEX: the index becomes the constraint's, under its name.
-		if n, ok := walkName(con.Indexname); ok {
-			b.set(relKey(s, n), walk.Unknown, "")
-		} else {
-			b.mayRemove(walk.Scope{Space: spaceRelation, Parent: walk.Path(s)})
-		}
+		b.usingIndex(t, rv, con, kind, alter)
+		return
 	}
 	partitionIndexes := indexBacked(kind) && b.w.partitioned[t]
 	if partitionIndexes {
@@ -674,6 +688,49 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 	}
 	if inh && ((con.Contype == ast.CONSTR_CHECK && !con.IsNoInherit) || partitionIndexes) {
 		b.mayAdd(walk.Scope{Space: spaceConstraint, Deep: true, Prefix: name})
+	}
+	b.set(ck, walk.Present, kind)
+}
+
+// usingIndex lowers ADD CONSTRAINT ... USING INDEX: an existing index of
+// the table's schema becomes the constraint's, renamed to the
+// constraint's name when it has another (verified on PostgreSQL 17: the
+// index must exist, 42704, and be an index, 42809, and a new name must be
+// free, 42P07).
+//
+// pg: src/backend/parser/parse_utilcmd.c — transformIndexConstraint;
+// src/backend/commands/tablecmds.c — ATExecAddIndexConstraint
+func (b *builder) usingIndex(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, kind string, alter bool) {
+	s := schemaOfKey(t)
+	rng := rangeOf(con.Loc)
+	idx, ok := walkName(con.Indexname)
+	if !ok {
+		b.forget(walk.Scope{Space: spaceRelation, Parent: walk.Path(s)})
+		b.forget(walk.Scope{Space: spaceConstraint, Parent: tableOf(t)})
+		return
+	}
+	ik := relKey(s, idx)
+	b.need(ik, walk.Present, []string{relIndex}, &walkNote{rng: rng, absent: "index " + ident(con.Indexname) + " does not exist", present: ident(con.Indexname) + " is not an index"})
+	name, written := idx, con.Indexname
+	if con.Conname != "" {
+		n, ok := walkName(con.Conname)
+		if !ok {
+			b.forget(walk.Scope{Space: spaceRelation, Parent: walk.Path(s)})
+			b.forget(walk.Scope{Space: spaceConstraint, Parent: tableOf(t)})
+			return
+		}
+		name, written = n, con.Conname
+	}
+	if name != idx {
+		nk := relKey(s, name)
+		b.need(nk, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + ident(written) + " already exists"}) // 42P07
+		b.set(ik, walk.Absent, "")
+		b.set(nk, walk.Present, relIndex)
+		b.forget(walk.Scope{Parent: tableOf(nk), Deep: true})
+	}
+	ck := constraintKey(t, name)
+	if alter {
+		b.need(ck, walk.Absent, nil, &walkNote{rng: rng, present: "constraint " + ident(written) + " for relation " + relation(rv) + " already exists"}) // 42710
 	}
 	b.set(ck, walk.Present, kind)
 }
@@ -716,6 +773,12 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 	}
 	s := walk.Path(schemaOfKey(r.key))
 	if b.w.partitioned[r.key] {
+		if v.Concurrent {
+			// Unsupported (0A000, verified on PostgreSQL 17 and 18 outside
+			// a transaction, as Bytebase runs CONCURRENTLY).
+			b.failAt(rangeOf(v.Relation.Loc), nil, "cannot create index on partitioned table "+relation(v.Relation)+" concurrently")
+			return true
+		}
 		// Each partition gets an index of its own, in its own schema.
 		b.mayAdd(walk.Scope{Space: spaceRelation, Deep: true})
 	}
@@ -837,6 +900,10 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 		prior = walk.Absent
 	case prior == walk.Present:
 		return true
+	case prior == walk.Absent:
+		// IF NOT EXISTS looks at the relation alone (verified on
+		// PostgreSQL 17).
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"}) // 42710
 	}
 	parent := tableOf(k)
 	if prior == walk.Absent {

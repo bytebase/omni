@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -40,6 +41,42 @@ func TestWalkThroughReportsTheFirstFailure(t *testing.T) {
 	got = walkFindings(t, "CREATE TABLE public.\"t\" (a int);", review.Target{Schema: walkSchema(), SessionUser: "u"})
 	if want := (review.Range{Start: 13, End: 23}); len(got) != 1 || got[0].Range != want {
 		t.Errorf("findings = %+v, want one at %+v", got, want)
+	}
+}
+
+// PostgreSQL truncates a catalog name like any other, so a longer
+// spelling of a 63-byte database name is that database (verified on
+// PostgreSQL 17).
+func TestWalkThroughLongDatabaseName(t *testing.T) {
+	schema := walkSchema()
+	schema.Name = strings.Repeat("d", 63)
+	long := `"` + schema.Name + `xyz"`
+	got := walkFindings(t, "CREATE TABLE "+long+".public.x (a int);\nCREATE TABLE "+long+".public.x (a int);", review.Target{Schema: schema, SessionUser: "u"})
+	if len(got) != 1 || got[0].Statement != 1 || got[0].Message != "relation "+schema.Name+".public.x already exists" {
+		t.Errorf("findings = %+v, want the second CREATE's", got)
+	}
+	got = walkFindings(t, "CREATE TABLE other.public.x (a int);", review.Target{Schema: schema, SessionUser: "u"})
+	if len(got) != 1 || got[0].Message != "cross-database references are not implemented: other.public.x" {
+		t.Errorf("findings = %+v, want the cross-database reference", got)
+	}
+}
+
+// PostgreSQL refuses CREATE INDEX CONCURRENTLY on a partitioned table
+// (0A000, verified on PostgreSQL 17 and 18 outside a transaction, as
+// Bytebase runs it; the oracle runs inside one, where 25001 comes first).
+func TestWalkThroughConcurrentIndexOnPartitionedTable(t *testing.T) {
+	schema := walkSchema()
+	schema.Schemas[0].Tables = append(schema.Schemas[0].Tables, &metadata.TableMetadata{
+		Name:       "parted",
+		Columns:    []*metadata.ColumnMetadata{{Name: "k"}},
+		Partitions: []*metadata.TablePartitionMetadata{{Name: "parted_1"}},
+	})
+	got := walkFindings(t, "CREATE INDEX CONCURRENTLY parted_k ON parted (k);", review.Target{Schema: schema, SessionUser: "u"})
+	if len(got) != 1 || got[0].Message != "cannot create index on partitioned table parted concurrently" {
+		t.Errorf("findings = %+v", got)
+	}
+	if got := walkFindings(t, "CREATE INDEX CONCURRENTLY t_a ON t (a);", review.Target{Schema: schema, SessionUser: "u"}); len(got) != 0 {
+		t.Errorf("findings on a plain table = %+v", got)
 	}
 }
 

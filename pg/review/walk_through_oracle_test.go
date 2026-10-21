@@ -128,6 +128,12 @@ var walkCases = []walkCase{
 	{name: "a key named like its new table", change: "CREATE TABLE g1 (a int CONSTRAINT g1 UNIQUE);\nCREATE TABLE g2 (a int, CONSTRAINT g2 PRIMARY KEY (a));\nCREATE TABLE g3 (a int CONSTRAINT g3 CHECK (a > 0));\nCREATE TABLE g1 (a int);", complete: true},
 	{name: "a dropped partition's name is no longer the parent's", change: "CREATE TABLE ph (k int) PARTITION BY RANGE (k);\nCREATE TABLE pc PARTITION OF ph FOR VALUES FROM (0) TO (10);\nDROP TABLE pc;\nCREATE TABLE pc (a int);\nDROP TABLE ph;\nALTER TABLE pc ADD COLUMN b int;\nALTER TABLE pc ADD COLUMN b int;", complete: true},
 	{name: "a routine holds its schema, which the walk does not follow", change: "CREATE SCHEMA sf;\nCREATE FUNCTION sf.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP SCHEMA sf;\nCREATE TABLE sf.t (a int);"},
+	{name: "a foreign key into another database is not the new table", change: "CREATE TABLE public.x5 (id int PRIMARY KEY, r int REFERENCES other.public.x5);\nCREATE TABLE public.x5 (id int);", complete: true},
+	{name: "constraint names compare truncated", change: "CREATE TABLE y1 (a int, CONSTRAINT \"" + strings.Repeat("k", 63) + "A\" CHECK (a > 0), CONSTRAINT \"" + strings.Repeat("k", 63) + "B\" CHECK (a > 1));\nCREATE TABLE y1 (a int);", complete: true},
+	{name: "identical non-ASCII column names", change: "CREATE TABLE z1 (\"é\" int, \"é\" text);\nCREATE TABLE z2 (é int, é text);\nCREATE TABLE z1 (a int);", complete: true},
+	{name: "USING INDEX attaches an existing index", change: "CREATE UNIQUE INDEX u ON nokey (a);\nALTER TABLE nokey ADD CONSTRAINT u UNIQUE USING INDEX u;\nALTER TABLE nokey ADD CONSTRAINT u UNIQUE USING INDEX u;\nCREATE UNIQUE INDEX u2 ON t (n);\nALTER TABLE t ADD CONSTRAINT u3 UNIQUE USING INDEX u2;\nCREATE TABLE u2 (a int);\nCREATE TABLE u3 (a int);\nALTER TABLE nokey ADD CONSTRAINT c9 UNIQUE USING INDEX nosuch;\nALTER TABLE nokey ADD CONSTRAINT c10 UNIQUE USING INDEX t;", complete: true},
+	{name: "IF NOT EXISTS CREATE TABLE AS meets a type", change: "CREATE TABLE IF NOT EXISTS mood AS SELECT 1 AS x;\nCREATE MATERIALIZED VIEW IF NOT EXISTS mood AS SELECT 1 AS x;\nCREATE TABLE IF NOT EXISTS tv AS SELECT 1 AS x;", complete: true},
+	{name: "CREATE INDEX CONCURRENTLY on a partitioned table", change: "CREATE INDEX CONCURRENTLY parted_kc ON parted (k);"},
 	{name: "a view OR REPLACE creates holds its schema", change: "CREATE SCHEMA sv;\nCREATE OR REPLACE VIEW sv.v AS SELECT 1 AS x;\nDROP SCHEMA sv;\nCREATE TABLE sv.t (a int);", complete: true},
 	{name: "another database", change: "CREATE TABLE other.public.x (a int);\nALTER TABLE other.public.t ADD COLUMN b int;\nDROP TABLE IF EXISTS other.public.t;\nINSERT INTO other.public.t VALUES (1);\nCOMMENT ON TABLE other.public.t IS 'x';\nCREATE TABLE omni_review.public.x (a int);\nCREATE TABLE omni_review.public.x (a int);\nCREATE TABLE x (a int);", complete: true},
 	{name: "pg_catalog the SQL names is not judged", change: "DROP TABLE pg_catalog.foo;\nALTER TABLE pg_catalog.foo ADD COLUMN a int;\nCREATE TABLE pg_catalog.foo (a int);\nCREATE TABLE foo (a int);\nALTER TABLE nosuch ADD COLUMN a int;"},
@@ -789,7 +795,7 @@ func sweepChange(rng *rand.Rand, n int) string {
 		case 3:
 			stmt = fmt.Sprintf("CREATE TABLE %s (LIKE %s INCLUDING ALL)", table(), table())
 		case 4:
-			stmt = fmt.Sprintf("CREATE TABLE %s AS SELECT 1 AS x", table())
+			stmt = fmt.Sprintf("CREATE TABLE %s%s AS SELECT 1 AS x", maybe("IF NOT EXISTS "), table())
 		case 5, 6:
 			stmt = fmt.Sprintf("DROP TABLE %s%s%s", maybe("IF EXISTS "), table(), maybe(" CASCADE"))
 		case 7:
@@ -856,7 +862,8 @@ func sweepChange(rng *rand.Rand, n int) string {
 				fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s%s int, ADD COLUMN %s%s int", table(), maybe("IF NOT EXISTS "), c, maybe("IF NOT EXISTS "), c),
 				fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s%s, DROP COLUMN %s%s", table(), maybe("IF EXISTS "), c, maybe("IF EXISTS "), c))
 		case 37:
-			stmt = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (x) REFERENCES %s (id)", table(), con(), table())
+			stmt = pick(fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (x) REFERENCES %s (id)", table(), con(), table()),
+				fmt.Sprintf("ALTER TABLE %s ADD %sUNIQUE USING INDEX %s", table(), pick("", "CONSTRAINT "+con()+" ", "CONSTRAINT "+idx()+" "), idx()))
 		case 38:
 			stmt = fmt.Sprintf("CREATE TABLE %s (id int CONSTRAINT %s PRIMARY KEY, x int CONSTRAINT %s UNIQUE, y int REFERENCES %s)", table(), con(), con(), table())
 		case 39:
