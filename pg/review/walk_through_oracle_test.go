@@ -120,6 +120,14 @@ var walkCases = []walkCase{
 	{name: "a schema the sync skips exists once something is created in it", change: "CREATE SCHEMA cron;\nCREATE TABLE cron.x (a int);\nCREATE TABLE cron.x (a int);", complete: true},
 	{name: "temporary relations shadow", change: "CREATE TEMP TABLE t (x int);\nALTER TABLE t ADD COLUMN x int;\nALTER TABLE t ADD COLUMN code text;\nCREATE TEMP TABLE t (y int);\nCREATE VIEW tv2 AS SELECT * FROM t;\nCREATE TABLE tv2 (a int);", complete: true},
 	{name: "pg_dump's search path", change: "SELECT pg_catalog.set_config('search_path', '', false);\nCREATE TABLE x (a int);\nCREATE TABLE public.t (a int);\nALTER TABLE t ADD COLUMN b int;\nSELECT pg_catalog.set_config('search_path', 's', false);\nCREATE TABLE t (a int);", complete: true},
+	{name: "a foreign key naming another schema is not the new table", change: "CREATE TABLE public.x2 (id int REFERENCES missing.x2);\nCREATE TABLE public.x2 (id int);\nSET search_path = s, public;\nCREATE TABLE x3 (id int PRIMARY KEY, r int REFERENCES public.x3);\nCREATE TABLE x4 (id int PRIMARY KEY, r int REFERENCES s.x4);", complete: true},
+	{name: "one column added or dropped twice in one ALTER", change: "ALTER TABLE nokey ADD COLUMN b int, ADD COLUMN b int;\nALTER TABLE nokey ADD COLUMN IF NOT EXISTS b int, ADD COLUMN IF NOT EXISTS b int;\nALTER TABLE t DROP COLUMN p_id, DROP COLUMN p_id;\nALTER TABLE t DROP COLUMN IF EXISTS n, DROP COLUMN IF EXISTS n;\nALTER TABLE t DROP COLUMN xmin, DROP COLUMN xmin;\nALTER TABLE t ADD COLUMN xmin int, ADD COLUMN xmin int;", complete: true},
+	{name: "SET SCHEMA to the relation's own schema is a no-op", change: "ALTER TABLE public.nokey SET SCHEMA public;\nALTER TABLE nokey ADD COLUMN a int;", complete: true},
+	{name: "ALTER SEQUENCE needs a sequence", change: "ALTER SEQUENCE public.nokey RESTART;\nALTER SEQUENCE IF EXISTS t_n_idx RESTART;\nALTER SEQUENCE q RESTART;", complete: true},
+	{name: "column names compare truncated", change: "CREATE TABLE e1 (\"" + strings.Repeat("c", 63) + "A\" int, \"" + strings.Repeat("c", 63) + "B\" int);\nCREATE TABLE e2 (a int);", complete: true},
+	{name: "a key named like its new table", change: "CREATE TABLE g1 (a int CONSTRAINT g1 UNIQUE);\nCREATE TABLE g2 (a int, CONSTRAINT g2 PRIMARY KEY (a));\nCREATE TABLE g3 (a int CONSTRAINT g3 CHECK (a > 0));\nCREATE TABLE g1 (a int);", complete: true},
+	{name: "a dropped partition's name is no longer the parent's", change: "CREATE TABLE ph (k int) PARTITION BY RANGE (k);\nCREATE TABLE pc PARTITION OF ph FOR VALUES FROM (0) TO (10);\nDROP TABLE pc;\nCREATE TABLE pc (a int);\nDROP TABLE ph;\nALTER TABLE pc ADD COLUMN b int;\nALTER TABLE pc ADD COLUMN b int;", complete: true},
+	{name: "a routine holds its schema, which the walk does not follow", change: "CREATE SCHEMA sf;\nCREATE FUNCTION sf.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP SCHEMA sf;\nCREATE TABLE sf.t (a int);"},
 	{name: "a view OR REPLACE creates holds its schema", change: "CREATE SCHEMA sv;\nCREATE OR REPLACE VIEW sv.v AS SELECT 1 AS x;\nDROP SCHEMA sv;\nCREATE TABLE sv.t (a int);", complete: true},
 	{name: "another database", change: "CREATE TABLE other.public.x (a int);\nALTER TABLE other.public.t ADD COLUMN b int;\nDROP TABLE IF EXISTS other.public.t;\nINSERT INTO other.public.t VALUES (1);\nCOMMENT ON TABLE other.public.t IS 'x';\nCREATE TABLE omni_review.public.x (a int);\nCREATE TABLE omni_review.public.x (a int);\nCREATE TABLE x (a int);", complete: true},
 	{name: "pg_catalog the SQL names is not judged", change: "DROP TABLE pg_catalog.foo;\nALTER TABLE pg_catalog.foo ADD COLUMN a int;\nCREATE TABLE pg_catalog.foo (a int);\nCREATE TABLE foo (a int);\nALTER TABLE nosuch ADD COLUMN a int;"},
@@ -505,7 +513,7 @@ func walkStates(msg string) []string {
 		return []string{"42703"}
 	case strings.HasSuffix(msg, " does not exist"):
 		return []string{"42P01"}
-	case strings.Contains(msg, " is not a"), strings.HasPrefix(msg, "cannot create index on relation"):
+	case strings.Contains(msg, " is not a"), strings.HasPrefix(msg, "cannot create index on relation"), strings.HasPrefix(msg, "cannot open relation"):
 		return []string{"42809"}
 	case strings.HasPrefix(msg, "column ") && (strings.HasSuffix(msg, " already exists") || strings.HasSuffix(msg, " specified more than once")),
 		strings.HasSuffix(msg, " conflicts with a system column name"):
@@ -835,7 +843,7 @@ func sweepChange(rng *rand.Rand, n int) string {
 		case 31:
 			stmt = fmt.Sprintf("TRUNCATE %s", table())
 		case 32:
-			stmt = pick("CREATE TABLE pt (x int) PARTITION BY RANGE (x)", "CREATE TABLE pt_1 PARTITION OF pt FOR VALUES FROM (0) TO (10)", "CREATE TABLE s1.pt_2 PARTITION OF pt FOR VALUES FROM (10) TO (20)", "DROP TABLE pt")
+			stmt = pick("CREATE TABLE pt (x int) PARTITION BY RANGE (x)", "CREATE TABLE pt_1 PARTITION OF pt FOR VALUES FROM (0) TO (10)", "CREATE TABLE s1.pt_2 PARTITION OF pt FOR VALUES FROM (10) TO (20)", "DROP TABLE pt", "DROP TABLE pt_1", "CREATE TABLE pt_1 (x int)", "ALTER TABLE pt_1 ADD COLUMN y int")
 		case 33:
 			stmt = fmt.Sprintf("CREATE TABLE %s (z int) INHERITS (%s)", table(), table())
 		case 34:
@@ -843,7 +851,10 @@ func sweepChange(rng *rand.Rand, n int) string {
 		case 35:
 			stmt = pick(fmt.Sprintf("GRANT SELECT ON %s TO PUBLIC", table()), fmt.Sprintf("LOCK TABLE %s", table()))
 		case 36:
-			stmt = fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s int, DROP COLUMN %s", table(), col(), col())
+			c := col()
+			stmt = pick(fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s int, DROP COLUMN %s", table(), col(), col()),
+				fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s%s int, ADD COLUMN %s%s int", table(), maybe("IF NOT EXISTS "), c, maybe("IF NOT EXISTS "), c),
+				fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s%s, DROP COLUMN %s%s", table(), maybe("IF EXISTS "), c, maybe("IF EXISTS "), c))
 		case 37:
 			stmt = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (x) REFERENCES %s (id)", table(), con(), table())
 		case 38:

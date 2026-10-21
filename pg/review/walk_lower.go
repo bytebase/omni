@@ -1,6 +1,7 @@
 package review
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
@@ -49,7 +50,11 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.LockStmt:
 		return b.lock(v)
 	case *ast.AlterSeqStmt:
-		b.exists(v.Sequence, v.MissingOk)
+		// Another kind of relation fails, under IF EXISTS too (42809,
+		// verified on PostgreSQL 17).
+		if r := b.exists(v.Sequence, v.MissingOk); r.fact == walk.Present {
+			b.need(r.key, walk.Present, []string{relSequence}, &walkNote{rng: rangeOf(v.Sequence.Loc), present: "cannot open relation " + relation(v.Sequence)})
+		}
 		return true
 	case *ast.RefreshMatViewStmt:
 		b.existsOfKind(v.Relation, relMatview, "materialized view")
@@ -229,9 +234,25 @@ func (b *builder) createSchema(v *ast.CreateSchemaStmt) bool {
 }
 
 // made records an object the change created, which a later DROP SCHEMA
-// without CASCADE finds.
+// without CASCADE finds. A new object is no partition the walker listed
+// under that name before.
 func (b *builder) made(k walk.Key) {
 	b.session(func() { b.w.made = append(b.w.made, k) })
+	b.unlisted(k)
+}
+
+// unlisted forgets k as a partition, and its own partitions, once the
+// relation that had them is gone or replaced: a later drop of the parent
+// must not reach whatever takes the name next.
+func (b *builder) unlisted(k walk.Key) {
+	b.session(func() {
+		w := b.w
+		delete(w.partitions, k)
+		delete(w.partitioned, k)
+		for parent, children := range w.partitions {
+			w.partitions[parent] = slices.DeleteFunc(children, func(c walk.Key) bool { return c == k })
+		}
+	})
 }
 
 // placeUnknown records a new object whose schema the walk cannot tell:
@@ -377,19 +398,24 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 			b.exists(p, false)
 		}
 		for _, con := range cons {
-			if con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && !sameRelation(con.Pktable, rv) {
+			if con.Contype == ast.CONSTR_FOREIGN && con.Pktable != nil && !mayBeSelf(con.Pktable, name, c.schema) {
 				b.exists(con.Pktable, false)
 			}
 		}
 		// Within the statement, judged from the text alone.
 		if !partitionOf && v.OfTypename == nil {
+			// Names compare as PostgreSQL stores them, truncated.
 			seen := make(map[string]bool, len(cols))
 			for _, col := range cols {
-				if col.Colname != "" && seen[col.Colname] {
-					b.failAt(rangeOf(col.Loc), nil, "column "+ident(col.Colname)+" specified more than once") // 42701
+				n, ok := walkName(col.Colname)
+				if !ok {
+					continue
+				}
+				if seen[n] {
+					b.failAt(rangeOf(col.Loc), nil, "column "+ident(n)+" specified more than once") // 42701
 					return true
 				}
-				seen[col.Colname] = true
+				seen[n] = true
 			}
 		}
 		primaries := 0
@@ -405,6 +431,14 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 		if msg, rng, ok := duplicateConstraint(rv, cons); ok {
 			b.failAt(rng, nil, msg)
 			return true
+		}
+		// A key's index takes the name in the relation namespace the
+		// table already holds (42P07, verified on PostgreSQL 17).
+		for _, con := range cons {
+			if n, ok := walkName(con.Conname); ok && n == name && indexBacked(constraintKind(con.Contype)) {
+				b.failAt(rangeOf(con.Loc), nil, "relation "+ident(con.Conname)+" already exists")
+				return true
+			}
 		}
 	}
 
@@ -510,15 +544,23 @@ func duplicateConstraint(rv *ast.RangeVar, cons []*ast.Constraint) (string, revi
 	return "", review.Range{}, false
 }
 
-// sameRelation reports whether a reference may name the relation a
-// CREATE TABLE creates. PostgreSQL resolves a foreign key's table after
-// creating the new one, so a reference of the same name, however
-// qualified, may be the table itself.
+// mayBeSelf reports whether a foreign key's reference may name the table
+// a CREATE TABLE creates, name in schema. PostgreSQL resolves the
+// reference after creating the table, so one of the same name, written
+// without a schema or with that schema, may be the table itself; one
+// that names another schema is not (verified on PostgreSQL 17).
 //
 // pg: src/backend/parser/parse_utilcmd.c — transformFKConstraints (the
 // constraints are added once the table exists)
-func sameRelation(ref, rv *ast.RangeVar) bool {
-	return ref.Relname == rv.Relname
+func mayBeSelf(ref *ast.RangeVar, name, schema string) bool {
+	if n, ok := walkName(ref.Relname); !ok || n != name {
+		return !ok
+	}
+	if ref.Schemaname == "" {
+		return true
+	}
+	s, ok := walkName(ref.Schemaname)
+	return !ok || s == schema
 }
 
 // constraintKind is the constraint space's kind of a constraint type.
@@ -971,6 +1013,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		}
 		return true
 	}
+	b.repeatedColumns(v.Relation, cmds)
 	for _, cmd := range cmds {
 		b.next()
 		if !b.alterTableCmd(v.Relation, r.key, cmd) {
@@ -978,6 +1021,44 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		}
 	}
 	return true
+}
+
+// repeatedColumns fails an ALTER TABLE that adds, or drops, one column
+// twice. Subcommands of one kind run in the order written, so the second
+// fails, whatever the table held, unless it says IF NOT EXISTS or IF
+// EXISTS (42701, 42703, verified on PostgreSQL 17). A system column's
+// name fails for being one, which its subcommand reports.
+func (b *builder) repeatedColumns(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
+	added := make(map[string]bool)
+	dropped := make(map[string]bool)
+	for _, cmd := range cmds {
+		switch ast.AlterTableType(cmd.Subtype) {
+		case ast.AT_AddColumn:
+			def, ok := cmd.Def.(*ast.ColumnDef)
+			if !ok {
+				continue
+			}
+			n, ok := walkName(def.Colname)
+			if !ok || systemColumns[n] {
+				continue
+			}
+			if added[n] && !cmd.Missing_ok {
+				b.failAt(rangeOf(def.Loc), nil, "column "+ident(n)+" of relation "+relation(rv)+" already exists")
+				return
+			}
+			added[n] = true
+		case ast.AT_DropColumn:
+			n, ok := walkName(cmd.Name)
+			if !ok || systemColumns[n] {
+				continue
+			}
+			if dropped[n] && !cmd.Missing_ok {
+				b.failAt(rangeOf(cmd.Loc), nil, "column "+ident(n)+" of relation "+relation(rv)+" does not exist")
+				return
+			}
+			dropped[n] = true
+		}
+	}
 }
 
 func (b *builder) alterTableCmd(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableCmd) bool {
@@ -1594,6 +1675,7 @@ func (b *builder) dropped(k walk.Key, kind string) {
 	for _, child := range b.w.partitions[k] {
 		b.dropped(child, relTable)
 	}
+	b.unlisted(k)
 }
 
 // dropSchema follows DROP SCHEMA. Without CASCADE it fails while the
