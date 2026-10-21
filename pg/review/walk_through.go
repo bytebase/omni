@@ -106,8 +106,9 @@ type walker struct {
 	// temporary is true once the change made a temporary relation: a view
 	// of one becomes temporary itself, wherever the SQL put it.
 	temporary bool
-	// made lists the relations and types the change created, which a
-	// DROP SCHEMA without CASCADE finds.
+	// made lists the relations and types the change created, or moved
+	// to a name the synced schema does not list, which a DROP SCHEMA
+	// without CASCADE finds.
 	made []walk.Key
 }
 

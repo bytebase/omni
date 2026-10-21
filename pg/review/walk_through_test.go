@@ -113,6 +113,15 @@ func TestWalkThroughOtherSpecs(t *testing.T) {
 		t.Errorf("findings = %+v, want the second CREATE", got)
 	}
 
+	// IF NOT EXISTS on a table that may exist may leave it an ordinary
+	// table, which takes CONCURRENTLY (verified on PostgreSQL 17 and 18).
+	if got := walkFindings(t, "CREATE TABLE IF NOT EXISTS public.y (a int) PARTITION BY RANGE (a);\nCREATE INDEX CONCURRENTLY y_a ON public.y (a);", other); len(got) != 0 {
+		t.Errorf("findings = %+v, want none", got)
+	}
+	if got := walkFindings(t, "CREATE TABLE public.z (a int) PARTITION BY RANGE (a);\nCREATE INDEX CONCURRENTLY z_a ON public.z (a);", other); len(got) != 1 || got[0].Statement != 1 {
+		t.Errorf("findings = %+v, want the CREATE INDEX", got)
+	}
+
 	// The same schema with and without other specs is two inputs.
 	got = walkFindings(t, "CREATE TABLE t (a int);", alone, other, alone)
 	if len(got) != 1 || len(got[0].Targets) != 2 || got[0].Targets[0] != 0 || got[0].Targets[1] != 2 {

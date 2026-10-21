@@ -137,6 +137,14 @@ var walkCases = []walkCase{
 	{name: "a view OR REPLACE creates holds its schema", change: "CREATE SCHEMA sv;\nCREATE OR REPLACE VIEW sv.v AS SELECT 1 AS x;\nDROP SCHEMA sv;\nCREATE TABLE sv.t (a int);", complete: true},
 	{name: "another database", change: "CREATE TABLE other.public.x (a int);\nALTER TABLE other.public.t ADD COLUMN b int;\nDROP TABLE IF EXISTS other.public.t;\nINSERT INTO other.public.t VALUES (1);\nCOMMENT ON TABLE other.public.t IS 'x';\nCREATE TABLE omni_review.public.x (a int);\nCREATE TABLE omni_review.public.x (a int);\nCREATE TABLE x (a int);", complete: true},
 	{name: "pg_catalog the SQL names is not judged", change: "DROP TABLE pg_catalog.foo;\nALTER TABLE pg_catalog.foo ADD COLUMN a int;\nCREATE TABLE pg_catalog.foo (a int);\nCREATE TABLE foo (a int);\nALTER TABLE nosuch ADD COLUMN a int;"},
+	{name: "IF NOT EXISTS partitioning of a table that may exist", change: "CREATE TABLE ph (k int) PARTITION BY RANGE (k);\nCREATE TABLE IF NOT EXISTS s.parted_1 PARTITION OF ph FOR VALUES FROM (0) TO (10);\nDROP TABLE ph;\nCOMMENT ON TABLE s.parted_1 IS 'x';\nCREATE TABLE IF NOT EXISTS s.parted_1 (k int) PARTITION BY RANGE (k);\nCREATE INDEX CONCURRENTLY pk1 ON s.parted_1 (k);"},
+	{name: "IF NOT EXISTS keys of a table that may exist", change: "CREATE TABLE t2 (id serial);\nCREATE TABLE IF NOT EXISTS t2x (a int CONSTRAINT uq UNIQUE, b int GENERATED ALWAYS AS IDENTITY (SEQUENCE NAME iseq));\nALTER INDEX uq RENAME TO uq2;\nALTER SEQUENCE iseq RESTART;"},
+	{name: "ADD COLUMN IF NOT EXISTS of a column that may exist may skip its constraints", change: "CREATE TABLE x (LIKE t);\nALTER TABLE x ADD COLUMN IF NOT EXISTS code text CONSTRAINT uq3 UNIQUE;\nCREATE TABLE uq3 (a int);\nALTER TABLE x ADD COLUMN IF NOT EXISTS p_id int REFERENCES nosuch;\nALTER TABLE x ADD PRIMARY KEY (id);\nALTER TABLE x ADD COLUMN IF NOT EXISTS n int PRIMARY KEY;"},
+	{name: "OR REPLACE VIEW of a relation that is no view", change: "CREATE OR REPLACE VIEW nokey AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW q AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW t_n_idx AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW mv AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW pair AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW mood AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW nokey AS SELECT * FROM nosuch;\nCREATE OR REPLACE VIEW tv AS SELECT code FROM t;\nDROP VIEW tv;", complete: true},
+	{name: "one constraint name added twice in one ALTER", change: "ALTER TABLE nokey ADD CONSTRAINT c CHECK (true), ADD CONSTRAINT c CHECK (false);\nALTER TABLE nokey ADD CONSTRAINT c UNIQUE (a), ADD CONSTRAINT c PRIMARY KEY (a);\nALTER TABLE nokey ADD CONSTRAINT c CHECK (true), ADD CONSTRAINT c UNIQUE (a);\nALTER TABLE nokey ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES p, ADD CONSTRAINT c CHECK (true);\nALTER TABLE nokey ADD COLUMN d int CONSTRAINT c UNIQUE, ADD CONSTRAINT c CHECK (true);\nALTER TABLE nokey ADD COLUMN IF NOT EXISTS a int CONSTRAINT c UNIQUE, ADD CONSTRAINT c CHECK (true);\nALTER TABLE nokey ADD CONSTRAINT c2 CHECK (zz > 0), ADD CONSTRAINT c2 CHECK (true);\nCREATE TABLE c (a int);", complete: true},
+	{name: "a renamed or moved relation still holds its schema", change: "CREATE SCHEMA s2;\nALTER SCHEMA s RENAME TO s3;\nDROP SCHEMA s3;\nALTER TABLE s3.t RENAME TO u;\nDROP SCHEMA s3;\nALTER TABLE s3.u SET SCHEMA s2;\nDROP SCHEMA s2;", complete: true},
+	{name: "a new table's system column names", change: "CREATE TABLE x (ctid int);\nCREATE TABLE x (a int, tableoid int);\nCREATE TABLE x (xmin int, xmax int);\nCREATE TABLE IF NOT EXISTS x (cmin int);\nCREATE TABLE x (cmax int) INHERITS (p);\nCREATE TABLE x (ctid nosuchtype);\nCREATE TABLE x (\"CTID\" int, oid int);\nCREATE TABLE IF NOT EXISTS x (ctid int);\nCREATE TABLE IF NOT EXISTS s.parted_1 (ctid int);", complete: true},
+	{name: "an unqualified self-reference follows the search path", change: "SET search_path = s;\nCREATE TABLE public.x (id int PRIMARY KEY, r int REFERENCES x (id));\nSET search_path = s, public;\nCREATE TABLE public.x (id int PRIMARY KEY, r int REFERENCES x (id));\nCREATE TEMP TABLE y (id int PRIMARY KEY, r int REFERENCES y (id));", complete: true},
 	{name: "a role's schema", change: "CREATE SCHEMA AUTHORIZATION bob;\nSET ROLE bob;\nCREATE TABLE x (a int);\nRESET ROLE;\nCREATE TABLE bob.x (a int);\nCREATE TABLE x (a int);", complete: true},
 
 	// Where the walk stops.
@@ -433,6 +441,11 @@ func verifyClaim(t *testing.T, conn *sql.Conn, v *walk.Violation, msg string) (b
 		case strings.HasPrefix(msg, "cannot drop schema "):
 			name := strings.TrimSuffix(strings.TrimPrefix(msg, "cannot drop schema "), " because other objects depend on it")
 			return ask(`SELECT EXISTS (SELECT 1 FROM pg_class WHERE relnamespace = to_regnamespace($1)) OR EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = to_regnamespace($1))`, name), "schema " + name + " is empty"
+		case strings.HasPrefix(msg, "cannot create index on partitioned table "):
+			// The oracle runs in a transaction, where CONCURRENTLY fails
+			// first for being in one.
+			name := strings.TrimSuffix(strings.TrimPrefix(msg, "cannot create index on partitioned table "), " concurrently")
+			return ask(`SELECT EXISTS (SELECT 1 FROM pg_class WHERE oid = to_regclass($1) AND relkind = 'p')`, name), name + " is not partitioned"
 		}
 		return true, ""
 	}
@@ -787,7 +800,7 @@ func sweepChange(rng *rand.Rand, n int) string {
 	var b strings.Builder
 	for range n {
 		var stmt string
-		switch rng.Intn(46) {
+		switch rng.Intn(49) {
 		case 0, 1:
 			stmt = fmt.Sprintf("CREATE TABLE %s%s (id serial PRIMARY KEY, x int%s, y text)", maybe("IF NOT EXISTS "), table(), maybe(" UNIQUE"))
 		case 2:
@@ -880,6 +893,18 @@ func sweepChange(rng *rand.Rand, n int) string {
 			stmt = fmt.Sprintf("CREATE INDEX %s ON %s ((x + 1))", pick("", idx()), table())
 		case 45:
 			stmt = fmt.Sprintf("CREATE TEMP TABLE %s (x int) ON COMMIT DROP", pick("a", "b", "j"))
+		case 46:
+			stmt = pick(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (x int) PARTITION BY RANGE (x)", table()),
+				fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s PARTITION OF pt FOR VALUES FROM (20) TO (30)", table()),
+				fmt.Sprintf("CREATE INDEX %s%s ON %s (x)", maybe("CONCURRENTLY "), idx(), table()))
+		case 47:
+			kinds := []string{"UNIQUE (x)", "CHECK (x > 0)", "PRIMARY KEY (x)", "FOREIGN KEY (x) REFERENCES a (id)"}
+			stmt = pick(fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s %s, ADD CONSTRAINT %s %s", table(), con(), pick(kinds...), con(), pick(kinds...)),
+				fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s%s int CONSTRAINT %s %s", table(), maybe("IF NOT EXISTS "), col(), con(), pick("UNIQUE", "PRIMARY KEY", "CHECK (true)")))
+		case 48:
+			n := pick("a", "b", "c")
+			stmt = pick(fmt.Sprintf("CREATE TABLE %s%s (%s int, y int)", maybe("IF NOT EXISTS "), table(), pick("ctid", "tableoid", "cmin", "x")),
+				fmt.Sprintf("CREATE TABLE %s%s (id int PRIMARY KEY, r int REFERENCES %s (id))", schema(), n, n))
 		}
 		b.WriteString(stmt)
 		b.WriteString(";\n")

@@ -402,7 +402,9 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 				b.exists(con.Pktable, false)
 			}
 		}
-		// Within the statement, judged from the text alone.
+		// Within the statement, judged from the text alone. A repeated
+		// column fails before a system column's name does (verified on
+		// PostgreSQL 17 and 18).
 		if !partitionOf && v.OfTypename == nil {
 			seen := make(map[string]bool, len(cols))
 			for _, col := range cols {
@@ -415,6 +417,12 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 					return true
 				}
 				seen[n] = true
+			}
+			for _, col := range cols {
+				if n, ok := walkName(col.Colname); ok && systemColumns[n] {
+					b.failAt(rangeOf(col.Loc), nil, "column name "+ident(col.Colname)+" conflicts with a system column name") // 42701
+					return true
+				}
 			}
 		}
 		primaries := 0
@@ -470,10 +478,17 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	case walk.Unknown:
 		// It existed already or was created: either way a relation is
 		// there, of a kind and with contents unknown. One that existed
-		// may have no row type: a sequence or an index.
+		// may have no row type: a sequence or an index. The indexes and
+		// sequences of the keys may or may not be there.
 		b.set(k, walk.Present, "")
 		b.set(tk, walk.Unknown, "")
 		b.forget(walk.Scope{Parent: parent, Deep: true})
+		b.mayIndex(k, cons)
+		if v.Partspec != nil || partitionOf {
+			// Partitioned, or a partition a drop of its parent takes,
+			// only if it was created.
+			b.set(k, walk.Unknown, "")
+		}
 	}
 	if generated {
 		b.mayAdd(walk.Scope{Space: spaceRelation, Parent: walk.Path(c.schema), Prefix: generatedPrefix(name)})
@@ -483,11 +498,13 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	}
 	if v.Partspec != nil {
 		b.session(func() {
-			b.w.partitioned[k] = true
+			if prior == walk.Absent {
+				b.w.partitioned[k] = true
+			}
 			b.w.anyPartitioned = true
 		})
 	}
-	if partitionOf {
+	if partitionOf && prior == walk.Absent {
 		var parentKey walk.Key
 		if len(parents) == 1 {
 			if r := b.rangeVar(parents[0]); r.fact == walk.Present {
@@ -561,9 +578,10 @@ func duplicateConstraint(rv *ast.RangeVar, cons []*ast.Constraint) (string, revi
 // mayBeSelf reports whether a foreign key's reference may name the table
 // a CREATE TABLE creates, name in schema. PostgreSQL resolves the
 // reference after creating the table, so one of the same name, written
-// without a schema or with that schema, may be the table itself; one
-// that names another schema, or another database, is not (verified on
-// PostgreSQL 17).
+// with that schema or without one where the search path reaches it, may
+// be the table itself; one that names another schema, or another
+// database, or that the search path does not reach, is not (verified on
+// PostgreSQL 17 and 18).
 //
 // pg: src/backend/parser/parse_utilcmd.c — transformFKConstraints (the
 // constraints are added once the table exists)
@@ -575,7 +593,10 @@ func (b *builder) mayBeSelf(ref *ast.RangeVar, name, schema string) bool {
 		return !ok
 	}
 	if ref.Schemaname == "" {
-		return true
+		// Unqualified, it finds the new table only where the search path
+		// reaches its schema; pg_temp is searched first.
+		path, ok := b.w.searchPath()
+		return !ok || schema == tempSchema || containsString(path, schema)
 	}
 	s, ok := walkName(ref.Schemaname)
 	return !ok || s == schema
@@ -750,6 +771,35 @@ func (b *builder) columnConstraints(t walk.Key, rv *ast.RangeVar, def *ast.Colum
 	}
 }
 
+// mayIndex records the indexes and sequences that constraints of table t
+// may or may not create, where a statement may skip them: a name they
+// take may now be in use.
+func (b *builder) mayIndex(t walk.Key, cons []*ast.Constraint) {
+	s := walk.Path(schemaOfKey(t))
+	for _, con := range cons {
+		switch {
+		case con.Contype == ast.CONSTR_IDENTITY && con.Options != nil && len(con.Options.Items) > 0:
+			// The sequence may be named anywhere.
+			b.mayAdd(walk.Scope{Space: spaceRelation, Deep: true})
+		case con.Contype == ast.CONSTR_IDENTITY:
+			b.mayAdd(walk.Scope{Space: spaceRelation, Parent: s, Prefix: generatedPrefix(t.Name)})
+		case indexBacked(constraintKind(con.Contype)):
+			if b.w.partitioned[t] {
+				b.mayAdd(walk.Scope{Space: spaceRelation, Deep: true})
+			}
+			name, ok := walkName(con.Conname)
+			switch {
+			case ok:
+				b.set(relKey(schemaOfKey(t), name), walk.Unknown, "")
+			case con.Conname == "":
+				b.mayAdd(walk.Scope{Space: spaceRelation, Parent: s, Prefix: generatedPrefix(t.Name)})
+			default:
+				b.mayAdd(walk.Scope{Space: spaceRelation, Parent: s})
+			}
+		}
+	}
+}
+
 // createIndex follows CREATE INDEX. The index goes to its table's schema.
 //
 // pg: src/backend/commands/indexcmds.c — DefineIndex (an index only on a
@@ -841,9 +891,17 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 	}
 	k := relKey(c.schema, name)
 	tk := typeKey(c.schema, name)
-	if !v.Replace {
+	switch prior, _ := b.l.Lookup(k); {
+	case !v.Replace:
 		b.need(k, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + relation(rv) + " already exists"}) // 42P07
 		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})    // 42710
+	case prior == walk.Present:
+		// OR REPLACE replaces a view and nothing else (42809, verified on
+		// PostgreSQL 17 and 18).
+		b.need(k, walk.Present, []string{relView}, &walkNote{rng: rng, present: relation(rv) + " is not a view"})
+	case prior == walk.Absent:
+		// It creates the view, whose row type takes the name (42710).
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})
 	}
 	// OR REPLACE may create the view as well as replace it; holds asks
 	// the ledger whether it is still there.
@@ -1080,7 +1138,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		}
 		return true
 	}
-	b.repeatedColumns(v.Relation, cmds)
+	b.repeated(v.Relation, cmds)
 	for _, cmd := range cmds {
 		b.next()
 		if !b.alterTableCmd(v.Relation, r.key, cmd) {
@@ -1090,12 +1148,52 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	return true
 }
 
-// repeatedColumns fails an ALTER TABLE that adds, or drops, one column
-// twice. Subcommands of one kind run in the order written, so the second
-// fails, whatever the table held, unless it says IF NOT EXISTS or IF
-// EXISTS (42701, 42703, verified on PostgreSQL 17). A system column's
-// name fails for being one, which its subcommand reports.
-func (b *builder) repeatedColumns(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
+// repeated fails an ALTER TABLE that adds, or drops, one column twice,
+// or adds two primary keys or two constraints of one name, whatever the
+// table held (verified on PostgreSQL 17 and 18):
+//
+//   - A second primary key fails as the subcommands are prepared, before
+//     any runs (42P16).
+//   - Subcommands of one kind run in the order written, so the second
+//     column fails unless it says IF NOT EXISTS or IF EXISTS (42701,
+//     42703). A system column's name fails for being one, which its
+//     subcommand reports. Columns are added before constraints.
+//   - Two keys collide on their indexes' name (42P07), and any other pair
+//     on the constraint's (42710), whichever pass adds each.
+//
+// A NOT NULL constraint is left out, as in duplicateConstraint, and so
+// are an index USING INDEX attaches and the constraints of a column ADD
+// COLUMN IF NOT EXISTS may skip.
+//
+// pg: src/backend/parser/parse_utilcmd.c — transformIndexConstraints
+func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
+	var cons []*ast.Constraint
+	for _, cmd := range cmds {
+		switch ast.AlterTableType(cmd.Subtype) {
+		case ast.AT_AddConstraint:
+			if con, ok := cmd.Def.(*ast.Constraint); ok {
+				cons = append(cons, con)
+			}
+		case ast.AT_AddColumn:
+			if def, ok := cmd.Def.(*ast.ColumnDef); ok && !cmd.Missing_ok && def.Constraints != nil {
+				for _, item := range def.Constraints.Items {
+					if con, ok := item.(*ast.Constraint); ok {
+						cons = append(cons, con)
+					}
+				}
+			}
+		}
+	}
+	primaries := 0
+	for _, con := range cons {
+		if con.Contype == ast.CONSTR_PRIMARY {
+			primaries++
+			if primaries > 1 {
+				b.failAt(rangeOf(con.Loc), nil, "multiple primary keys for table "+relation(rv)+" are not allowed")
+				return
+			}
+		}
+	}
 	added := make(map[string]bool)
 	dropped := make(map[string]bool)
 	for _, cmd := range cmds {
@@ -1125,6 +1223,25 @@ func (b *builder) repeatedColumns(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 			}
 			dropped[n] = true
 		}
+	}
+	named := make(map[string]string)
+	for _, con := range cons {
+		kind := constraintKind(con.Contype)
+		key, ok := storedKey(con.Conname)
+		if kind == "" || !ok || con.Indexname != "" {
+			continue
+		}
+		prev, ok := named[key]
+		if !ok {
+			named[key] = kind
+			continue
+		}
+		msg := "constraint " + ident(con.Conname) + " for relation " + relation(rv) + " already exists"
+		if indexBacked(prev) && indexBacked(kind) {
+			msg = "relation " + ident(con.Conname) + " already exists"
+		}
+		b.failAt(rangeOf(con.Loc), nil, msg)
+		return
 	}
 }
 
@@ -1205,7 +1322,39 @@ func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, if
 		b.mayAdd(walk.Scope{Space: spaceColumn, Deep: true, Prefix: name})
 	}
 	b.set(ck, walk.Present, kindColumn)
+	if prior == walk.Unknown {
+		// The column may be there already and the subcommand a notice:
+		// its constraints may or may not be added, and nothing they need
+		// is checked.
+		b.mayConstrain(t, def, inh)
+		return
+	}
 	b.columnConstraints(t, rv, def, inh)
+}
+
+// mayConstrain records the constraints of a column ADD COLUMN IF NOT
+// EXISTS may or may not add.
+func (b *builder) mayConstrain(t walk.Key, def *ast.ColumnDef, inh bool) {
+	if isSerial(def.TypeName) {
+		b.mayAdd(walk.Scope{Space: spaceRelation, Parent: walk.Path(schemaOfKey(t)), Prefix: generatedPrefix(t.Name)})
+	}
+	if def.Constraints == nil || len(def.Constraints.Items) == 0 {
+		return
+	}
+	var cons []*ast.Constraint
+	for _, item := range def.Constraints.Items {
+		if con, ok := item.(*ast.Constraint); ok {
+			cons = append(cons, con)
+			if con.Contype == ast.CONSTR_PRIMARY {
+				b.set(primaryKeyOf(t), walk.Unknown, "")
+			}
+		}
+	}
+	b.mayIndex(t, cons)
+	b.mayAdd(walk.Scope{Space: spaceConstraint, Parent: tableOf(t)})
+	if inh {
+		b.mayAdd(walk.Scope{Space: spaceConstraint, Deep: true})
+	}
 }
 
 // dropColumn follows DROP COLUMN, which drops the column's indexes and
@@ -1383,10 +1532,14 @@ func (b *builder) renameRelation(v *ast.RenameStmt) bool {
 	return true
 }
 
-// renamed moves what the walker keeps by relation key.
+// renamed moves what the walker keeps by relation key. The relation
+// holds its schema under the new name, listed or made.
 func (b *builder) renamed(from, to walk.Key) {
 	b.session(func() {
 		w := b.w
+		if !slices.Contains(w.made, from) {
+			w.made = append(w.made, to)
+		}
 		if w.partitioned[from] {
 			delete(w.partitioned, from)
 			w.partitioned[to] = true
@@ -1548,6 +1701,10 @@ func (b *builder) renameSchema(v *ast.RenameStmt) bool {
 		w.partitions = partitions
 		for i, k := range w.made {
 			w.made[i] = rekey(k)
+		}
+		// What the synced schema listed in it is there under the new name.
+		for _, k := range w.pg.inSchema[oldName] {
+			w.made = append(w.made, rekey(k))
 		}
 	})
 	return true
