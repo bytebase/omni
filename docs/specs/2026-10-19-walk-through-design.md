@@ -167,6 +167,7 @@ Name resolution, from PostgreSQL's namespace rules:
 
 - **Unqualified references** search `pg_temp`, then `pg_catalog` unless the path lists it, then the path. A name starting with `pg_` resolves as Unknown, since a sync gap or a catalog name could match. Verified: `DROP TABLE pg_class` reaches `pg_catalog.pg_class`, and every `pg_catalog` relation name starts with `pg_`.
 - **Assumed: `allow_system_table_mods` is off.** That `pg_catalog` holds no other name rests on PostgreSQL refusing to create a relation there, to a superuser and an extension script alike (verified on PostgreSQL 17). Only a superuser who sets that developer setting can. Treating the implicitly searched `pg_catalog` as Unknown instead would turn every unqualified "does not exist" into Unknown. A name the SQL qualifies with `pg_catalog` is never judged.
+- **Assumed: the role running the change may use every schema of its search path.** PostgreSQL leaves out of the effective path a schema the role lacks USAGE on (verified on PostgreSQL 17 and 18: with `search_path = locked, public` and no USAGE on `locked`, `CREATE TABLE t` lands in `public`). The metadata carries no schema grants, and Bytebase runs a change as the role that owns or administers the database. Judging every unqualified name Unknown instead would cost nearly every finding on one.
 - **Unqualified creations** go to the first path schema that exists. When the path is known and none of its schemas exists, that is a certain 3F000.
 - **`$user`** expands to the current user. An unknown user makes it Unknown.
 
@@ -175,7 +176,7 @@ The 16-byte prefix for generated names comes from `makeObjectName`: it truncates
 ### 5.3 Where the walk stops
 
 - **Event triggers.** If the target has an enabled event trigger, the walk stops at the first statement one may fire on. This reuses `scan.triggerFires`.
-- **Procedural code.** `DO` and `CALL` stop the walk.
+- **Procedural code.** `DO` and `CALL` stop the walk, and so does `REFRESH MATERIALIZED VIEW` after its checks: it runs the view's stored query, which may call a function that changes the schema (verified).
 - **User functions.** A statement that calls a function the snapshot or the change defines, or calls `set_config`, stops the walk after its checks.
 - **DML triggers.** A DML statement or `TRUNCATE` stops the walk after its checks if any table in the snapshot or the change has a trigger. Triggers that create partitions on INSERT are a real pattern.
 - **What may hold user code the sync does not show.** Bytebase syncs no triggers of partitions or foreign tables, so a database with either counts as having triggers. A rule on a table or view counts as a trigger, since its action may call a function.
@@ -203,7 +204,7 @@ Each of these needs the change simulated, or facts the metadata does not carry. 
 
 **Size budget:** the core within about 400 lines and the PostgreSQL v1 lowering within about 1,500. A review loop that pushes past that is a scope decision for a person, not a fix. See `pg/review/rule_prior_backup.go`, which grew to 2,882 lines and was cut back to about 1,175.
 
-As first written, v1 overshoots this budget: the core is about 440 lines, and the PostgreSQL side about 2,800. After ten review rounds, the PostgreSQL side is about 3,480 lines (lowering about 2,360, names and resolution about 370, snapshot about 290, walker about 440). Most of the excess is breadth of the §5.2 table rather than depth: each form is short. Trimming forms costs only recall, so the budget now stands at the delivered size, and growth beyond it is a person's decision.
+As first written, v1 overshoots this budget: the core is about 440 lines, and the PostgreSQL side about 2,800. After eleven review rounds, the PostgreSQL side is about 3,480 lines (lowering about 2,360, names and resolution about 370, snapshot about 290, walker about 440). Most of the excess is breadth of the §5.2 table rather than depth: each form is short. Trimming forms costs only recall, so the budget now stands at the delivered size, and growth beyond it is a person's decision.
 
 Two inferences keep the walk useful where the snapshot is silent:
 

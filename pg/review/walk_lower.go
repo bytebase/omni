@@ -58,6 +58,9 @@ func (b *builder) statement(n ast.Node) bool {
 		return true
 	case *ast.RefreshMatViewStmt:
 		b.existsOfKind(v.Relation, relMatview, "materialized view")
+		// It runs the view's stored query, which may call a function
+		// that changes the schema (verified on PostgreSQL 17 and 18).
+		b.last = true
 		return true
 	case *ast.CreatePolicyStmt:
 		b.exists(v.Table, false)

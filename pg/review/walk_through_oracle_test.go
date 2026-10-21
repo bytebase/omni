@@ -164,6 +164,7 @@ var walkCases = []walkCase{
 	{name: "a partition proves its parent partitioned", extra: "CREATE TABLE ep (k int) PARTITION BY RANGE (k);", change: "CREATE TABLE ep1 PARTITION OF ep FOR VALUES FROM (0) TO (10);\nTRUNCATE ONLY ep;", complete: true},
 	{name: "a multi-object DROP looks every object up first", change: "DROP TABLE nokey, q;\nDROP SEQUENCE q, nokey;\nDROP TABLE nokey, nosuch CASCADE;\nDROP TABLE nosuch, nokey;\nDROP TABLE nokey, nokey;\nCREATE TABLE nokey (a int);", complete: true},
 	{name: "DROP DOMAIN of a type that is no domain", change: "DROP DOMAIN public.mood;\nDROP DOMAIN IF EXISTS public.pair;\nDROP DOMAIN public.nokey;\nCREATE DOMAIN public.dd AS int;\nDROP DOMAIN public.dd;\nCREATE TYPE public.e2 AS ENUM ('a');\nDROP DOMAIN public.e2;\nDROP TYPE public.e2;\nCREATE DOMAIN public.d2 AS int;\nDROP TYPE public.d2;", complete: true},
+	{name: "REFRESH runs the view's query", change: "CREATE TABLE victim (a int);\nCREATE FUNCTION kill() RETURNS int LANGUAGE plpgsql AS $$ BEGIN DROP TABLE public.victim; RETURN 1; END $$;\nCREATE MATERIALIZED VIEW mvk AS SELECT public.kill() AS x WITH NO DATA;\nREFRESH MATERIALIZED VIEW mvk;\nCREATE TABLE victim (a int);"},
 	{name: "a role's schema", change: "CREATE SCHEMA AUTHORIZATION bob;\nSET ROLE bob;\nCREATE TABLE x (a int);\nRESET ROLE;\nCREATE TABLE bob.x (a int);\nCREATE TABLE x (a int);", complete: true},
 
 	// Where the walk stops.
