@@ -527,7 +527,13 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 			// partition unseen.
 			b.set(k, walk.Unknown, "")
 		} else {
-			b.session(func() { b.w.partitions[parentKey] = append(b.w.partitions[parentKey], k) })
+			// Only a partitioned table takes a partition, and the sync
+			// shows one without partitions as an ordinary table.
+			b.session(func() {
+				b.w.partitions[parentKey] = append(b.w.partitions[parentKey], k)
+				b.w.partitioned[parentKey] = true
+				b.w.anyPartitioned = true
+			})
 		}
 	}
 	if v.OnCommit == ast.ONCOMMIT_DROP {
@@ -1204,6 +1210,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	b.repeated(v.Relation, cmds)
 	b.drops = make(map[string]bool)
+	b.added = make(map[string]bool)
 	for _, cmd := range cmds {
 		if ast.AlterTableType(cmd.Subtype) == ast.AT_DropColumn {
 			if k, ok := storedKey(cmd.Name); ok {
@@ -1405,6 +1412,12 @@ func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, if
 	// NOT EXISTS adds it (verified on PostgreSQL 17 and 18).
 	dropped := false
 	if k, ok := storedKey(def.Colname); ok {
+		if ifNotExists && b.added[k] {
+			// An earlier subcommand added it: this one is a notice
+			// (verified on PostgreSQL 17 and 18).
+			return
+		}
+		b.added[k] = true
 		dropped = b.drops[k]
 	}
 	name, ok := walkName(def.Colname)

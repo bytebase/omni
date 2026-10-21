@@ -290,8 +290,10 @@ type builder struct {
 	effects []effect
 	last    bool
 	// drops lists, by storedKey, the columns an ALTER TABLE drops, which
-	// are gone before any column is added (passOrder).
+	// are gone before any column is added (passOrder); added lists the
+	// columns its ADD COLUMN subcommands so far add, in the order written.
 	drops map[string]bool
+	added map[string]bool
 }
 
 type partCheck struct {

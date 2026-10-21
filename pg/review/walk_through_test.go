@@ -78,6 +78,20 @@ func TestWalkThroughConcurrentIndexOnPartitionedTable(t *testing.T) {
 	if got := walkFindings(t, "CREATE INDEX CONCURRENTLY t_a ON t (a);", review.Target{Schema: schema, SessionUser: "u"}); len(got) != 0 {
 		t.Errorf("findings on a plain table = %+v", got)
 	}
+	// The sync shows a partitioned table without partitions as an ordinary
+	// one; a partition the change creates proves it partitioned. Its
+	// index then takes the partition's matching index, which goes with it
+	// (verified on PostgreSQL 17 and 18).
+	empty := walkSchema()
+	empty.Schemas[0].Tables = append(empty.Schemas[0].Tables, &metadata.TableMetadata{Name: "ep", Columns: []*metadata.ColumnMetadata{{Name: "k"}}})
+	alone := review.Target{Schema: empty, SessionUser: "u"}
+	if got := walkFindings(t, "CREATE TABLE ep1 PARTITION OF ep FOR VALUES FROM (0) TO (10);\nCREATE INDEX ci ON ep1 (k);\nCREATE INDEX pi ON ep (k);\nDROP INDEX pi;\nCREATE INDEX ci ON ep1 (k);", alone); len(got) != 0 {
+		t.Errorf("findings = %+v, want none", got)
+	}
+	if got := walkFindings(t, "CREATE TABLE ep1 PARTITION OF ep FOR VALUES FROM (0) TO (10);\nCREATE INDEX CONCURRENTLY pk ON ep (k);", alone); len(got) != 1 || got[0].Statement != 1 {
+		t.Errorf("findings = %+v, want the CREATE INDEX", got)
+	}
+
 	// DROP INDEX CONCURRENTLY takes one index and no CASCADE (0A000).
 	for sql, want := range map[string]string{
 		"DROP INDEX CONCURRENTLY IF EXISTS x, y;":      "DROP INDEX CONCURRENTLY does not support dropping multiple objects",
