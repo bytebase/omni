@@ -831,7 +831,9 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 	}
 	s := walk.Path(schemaOfKey(r.key))
 	if b.w.partitioned[r.key] {
-		if v.Concurrent {
+		// A relation of unknown kind may have replaced the partitioned
+		// table: only a known table is judged.
+		if v.Concurrent && r.kind == relTable {
 			// Unsupported (0A000, verified on PostgreSQL 17 and 18 outside
 			// a transaction, as Bytebase runs CONCURRENTLY).
 			b.failAt(rangeOf(v.Relation.Loc), nil, "cannot create index on partitioned table "+relation(v.Relation)+" concurrently")
@@ -1869,6 +1871,21 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 	if v.Objects == nil {
 		return false
 	}
+	if v.Concurrent && kind == ast.OBJECT_INDEX {
+		// Refused before any name is looked up, IF EXISTS or not (0A000,
+		// verified on PostgreSQL 17 and 18 outside a transaction, as
+		// Bytebase runs CONCURRENTLY).
+		//
+		// pg: src/backend/commands/tablecmds.c — RemoveRelations
+		switch {
+		case len(v.Objects.Items) != 1:
+			b.fail(nil, walk.Present, "DROP INDEX CONCURRENTLY does not support dropping multiple objects")
+			return true
+		case cascade:
+			b.fail(nil, walk.Present, "DROP INDEX CONCURRENTLY does not support CASCADE")
+			return true
+		}
+	}
 	switch {
 	case kind == ast.OBJECT_SCHEMA:
 		for _, obj := range v.Objects.Items {
@@ -2153,7 +2170,16 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 			if !ok {
 				continue
 			}
-			if r := b.exists(rv, false); r.fact == walk.Present {
+			r := b.exists(rv, false)
+			switch {
+			case r.fact != walk.Present:
+			case !rv.Inh && r.kind == relTable && b.w.partitioned[r.key]:
+				// ONLY leaves a partitioned table nothing to truncate
+				// (42809, verified on PostgreSQL 17 and 18).
+				//
+				// pg: src/backend/commands/tablecmds.c — ExecuteTruncate
+				b.failAt(rangeOf(rv.Loc), []walk.Key{r.key}, "cannot truncate only a partitioned table: "+relation(rv))
+			default:
 				b.need(r.key, walk.Present, []string{relTable, relForeign}, &walkNote{rng: rangeOf(rv.Loc), present: relation(rv) + " is not a table"})
 			}
 		}

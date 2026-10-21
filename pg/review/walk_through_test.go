@@ -78,6 +78,18 @@ func TestWalkThroughConcurrentIndexOnPartitionedTable(t *testing.T) {
 	if got := walkFindings(t, "CREATE INDEX CONCURRENTLY t_a ON t (a);", review.Target{Schema: schema, SessionUser: "u"}); len(got) != 0 {
 		t.Errorf("findings on a plain table = %+v", got)
 	}
+	// DROP INDEX CONCURRENTLY takes one index and no CASCADE (0A000).
+	for sql, want := range map[string]string{
+		"DROP INDEX CONCURRENTLY IF EXISTS x, y;":      "DROP INDEX CONCURRENTLY does not support dropping multiple objects",
+		"DROP INDEX CONCURRENTLY IF EXISTS x CASCADE;": "DROP INDEX CONCURRENTLY does not support CASCADE",
+	} {
+		if got := walkFindings(t, sql, review.Target{Schema: schema, SessionUser: "u"}); len(got) != 1 || got[0].Message != want {
+			t.Errorf("%s: findings = %+v, want %q", sql, got, want)
+		}
+	}
+	if got := walkFindings(t, "DROP INDEX CONCURRENTLY IF EXISTS x;", review.Target{Schema: schema, SessionUser: "u"}); len(got) != 0 {
+		t.Errorf("findings on one index = %+v", got)
+	}
 }
 
 func TestWalkThroughWithoutASchema(t *testing.T) {

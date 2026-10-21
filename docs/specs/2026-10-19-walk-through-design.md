@@ -150,10 +150,10 @@ Assumptions about how Bytebase runs the change, which the walk relies on and whi
 | — `SET/RESET (...)`, `OWNER TO`, `SET/DROP DEFAULT`, `ENABLE/DISABLE TRIGGER`, `REPLICA IDENTITY`, `SET [UN]LOGGED`, `VALIDATE CONSTRAINT`, `CLUSTER ON`, `SET TABLESPACE` | none beyond t | none |
 | — any other subcommand (`ATTACH/DETACH PARTITION`, `INHERIT`, `OF`, ...) | | stop |
 | `ALTER INDEX/SEQUENCE/VIEW/MATERIALIZED VIEW [IF EXISTS] x RENAME TO n / SET SCHEMA s` | x Present, of the form's kind as above, but RENAME by ALTER INDEX or ALTER TABLE takes anything but a composite type, and SET SCHEMA by ALTER TABLE no index either (42809); n Absent | `Move` |
-| `DROP TABLE/VIEW/MATERIALIZED VIEW/INDEX/SEQUENCE/FOREIGN TABLE/TYPE [IF EXISTS] x, ... [CASCADE]` | each x Present (42P01 / 42704, in PG's per-kind wording) unless IF EXISTS; **a different kind fails even with IF EXISTS** (42809, verified) | x and its columns, constraints, and synced indexes Absent; owned sequences (`SequenceMetadata` owner) Absent; a change-created table's generated names become a prefix `MayRemove`; CASCADE is a `MayRemove` over every space |
+| `DROP TABLE/VIEW/MATERIALIZED VIEW/INDEX/SEQUENCE/FOREIGN TABLE/TYPE [IF EXISTS] x, ... [CASCADE]` | each x Present (42P01 / 42704, in PG's per-kind wording) unless IF EXISTS; **a different kind fails even with IF EXISTS** (42809, verified); `DROP INDEX CONCURRENTLY` of more than one index or with CASCADE (0A000, before any lookup) | x and its columns, constraints, and synced indexes Absent; owned sequences (`SequenceMetadata` owner) Absent; a change-created table's generated names become a prefix `MayRemove`; CASCADE is a `MayRemove` over every space |
 | `DROP SCHEMA [IF EXISTS] s [CASCADE]` | s Present (3F000); without CASCADE, s certainly holds an object the sync lists or the change made, renamed, or moved there (2BP01, verified) | s and everything under it Absent; CASCADE is a `MayRemove` over every space |
 | `ALTER SCHEMA s RENAME TO n` | s Present; n Absent (42P06) | `Move` |
-| `COMMENT ON`, `GRANT/REVOKE ... ON TABLE`, `TRUNCATE` | object Present (42P01) | none |
+| `COMMENT ON`, `GRANT/REVOKE ... ON TABLE`, `TRUNCATE` | object Present (42P01); `TRUNCATE ONLY` of a known partitioned table (42809) | none |
 | `ALTER SEQUENCE [IF EXISTS] q` | q Present, and a sequence even under IF EXISTS (42809) | none |
 | `INSERT/UPDATE/DELETE/MERGE` | the target Present (42P01). A CTE name is never a target (verified). | none; see §5.3 |
 | `SELECT` | none | none; see §5.3 |
@@ -197,11 +197,11 @@ Each of these needs the change simulated, or facts the metadata does not carry. 
 - `OR REPLACE` compatibility;
 - `CREATE SCHEMA` elements;
 - which table an index belongs to (`USING INDEX` of another table's index, 55000). Keeping that exact across renames, moves, and drops is state of its own, and under §2 a later finding assumes the statement succeeded, which it does only on the table's own index;
-- dependency failures (2BP01 for `DROP TABLE` with FK or view dependents, `DROP COLUMN` with view dependents). These are v2 candidates, since the FK and view-dependency metadata could support them as Present facts.
+- dependency failures (2BP01 for `DROP TABLE` with FK or view dependents, `DROP COLUMN` with view dependents, `DROP INDEX` of an index a constraint requires). These are v2 candidates, since the FK and view-dependency metadata could support them as Present facts.
 
 **Size budget:** the core within about 400 lines and the PostgreSQL v1 lowering within about 1,500. A review loop that pushes past that is a scope decision for a person, not a fix. See `pg/review/rule_prior_backup.go`, which grew to 2,882 lines and was cut back to about 1,175.
 
-As first written, v1 overshoots this budget: the core is about 440 lines, and the PostgreSQL side about 2,800. After five review rounds, the PostgreSQL side is about 3,340 lines (lowering about 2,240, names and resolution about 370, snapshot about 290, walker about 440). Most of the excess is breadth of the §5.2 table rather than depth: each form is short. Trimming forms costs only recall, so the budget now stands at the delivered size, and growth beyond it is a person's decision.
+As first written, v1 overshoots this budget: the core is about 440 lines, and the PostgreSQL side about 2,800. After six review rounds, the PostgreSQL side is about 3,370 lines (lowering about 2,270, names and resolution about 370, snapshot about 290, walker about 440). Most of the excess is breadth of the §5.2 table rather than depth: each form is short. Trimming forms costs only recall, so the budget now stands at the delivered size, and growth beyond it is a person's decision.
 
 Two inferences keep the walk useful where the snapshot is silent:
 

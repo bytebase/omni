@@ -152,6 +152,9 @@ var walkCases = []walkCase{
 		extra:  "CREATE FUNCTION s.set_config(text, text, boolean) RETURNS text LANGUAGE sql AS $$ SELECT 'x'::text $$;",
 		change: "SET search_path = s, pg_catalog, public;\nSELECT set_config('search_path', 'public', false);\nCREATE TABLE x (a int);\nCREATE TABLE public.x (a int);",
 	},
+	{name: "DROP INDEX CONCURRENTLY drops one index without CASCADE", change: "DROP INDEX CONCURRENTLY t_n_idx, mv_id_idx;\nDROP INDEX CONCURRENTLY t_n_idx CASCADE;\nDROP INDEX CONCURRENTLY IF EXISTS x, y;\nDROP INDEX CONCURRENTLY IF EXISTS x CASCADE;"},
+	{name: "TRUNCATE ONLY of a partitioned table", change: "TRUNCATE ONLY parted;\nTRUNCATE nosuch, ONLY parted;\nTRUNCATE ONLY parted, nosuch;\nTRUNCATE ONLY public.parted;", complete: true},
+	{name: "TRUNCATE ONLY of a partition", change: "TRUNCATE ONLY s.parted_1;\nTRUNCATE parted;"},
 	{name: "a role's schema", change: "CREATE SCHEMA AUTHORIZATION bob;\nSET ROLE bob;\nCREATE TABLE x (a int);\nRESET ROLE;\nCREATE TABLE bob.x (a int);\nCREATE TABLE x (a int);", complete: true},
 
 	// Where the walk stops.
@@ -452,6 +455,9 @@ func verifyClaim(t *testing.T, conn *sql.Conn, v *walk.Violation, msg string) (b
 		case strings.HasPrefix(msg, "cannot drop schema "):
 			name := strings.TrimSuffix(strings.TrimPrefix(msg, "cannot drop schema "), " because other objects depend on it")
 			return ask(`SELECT EXISTS (SELECT 1 FROM pg_class WHERE relnamespace = to_regnamespace($1)) OR EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = to_regnamespace($1))`, name), "schema " + name + " is empty"
+		case strings.HasPrefix(msg, "cannot truncate only a partitioned table: "):
+			name := strings.TrimPrefix(msg, "cannot truncate only a partitioned table: ")
+			return ask(`SELECT EXISTS (SELECT 1 FROM pg_class WHERE oid = to_regclass($1) AND relkind = 'p')`, name), name + " is not partitioned"
 		case strings.HasPrefix(msg, "cannot create index on partitioned table "):
 			// The oracle runs in a transaction, where CONCURRENTLY fails
 			// first for being in one.
@@ -544,7 +550,8 @@ func walkStates(msg string) []string {
 	case strings.HasSuffix(msg, " does not exist"):
 		return []string{"42P01"}
 	case strings.Contains(msg, " is not a"), strings.HasPrefix(msg, "cannot create index on relation"), strings.HasPrefix(msg, "cannot open relation"),
-		strings.HasSuffix(msg, " is a composite type"), strings.HasPrefix(msg, "cannot change schema of index"):
+		strings.HasSuffix(msg, " is a composite type"), strings.HasPrefix(msg, "cannot change schema of index"),
+		strings.HasPrefix(msg, "cannot truncate only a partitioned table"):
 		return []string{"42809"}
 	case strings.HasPrefix(msg, "column ") && (strings.HasSuffix(msg, " already exists") || strings.HasSuffix(msg, " specified more than once")),
 		strings.HasSuffix(msg, " conflicts with a system column name"):
@@ -556,7 +563,7 @@ func walkStates(msg string) []string {
 	case strings.HasPrefix(msg, "constraint ") && strings.HasSuffix(msg, " already exists"),
 		strings.HasPrefix(msg, "check constraint ") && strings.HasSuffix(msg, " already exists"):
 		return []string{"42710"}
-	case strings.HasPrefix(msg, "cross-database references are not implemented"):
+	case strings.HasPrefix(msg, "cross-database references are not implemented"), strings.HasPrefix(msg, "DROP INDEX CONCURRENTLY does not support"):
 		return []string{"0A000"}
 	case strings.HasPrefix(msg, "cannot drop schema"):
 		return []string{"2BP01"}
@@ -872,7 +879,7 @@ func sweepChange(rng *rand.Rand, n int) string {
 		case 30:
 			stmt = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES", table())
 		case 31:
-			stmt = fmt.Sprintf("TRUNCATE %s", table())
+			stmt = fmt.Sprintf("TRUNCATE %s%s", maybe("ONLY "), table())
 		case 32:
 			stmt = pick("CREATE TABLE pt (x int) PARTITION BY RANGE (x)", "CREATE TABLE pt_1 PARTITION OF pt FOR VALUES FROM (0) TO (10)", "CREATE TABLE s1.pt_2 PARTITION OF pt FOR VALUES FROM (10) TO (20)", "DROP TABLE pt", "DROP TABLE pt_1", "CREATE TABLE pt_1 (x int)", "ALTER TABLE pt_1 ADD COLUMN y int")
 		case 33:
@@ -923,7 +930,8 @@ func sweepChange(rng *rand.Rand, n int) string {
 				fmt.Sprintf("ALTER %s %s%s SET SCHEMA %s", obj(), maybe("IF EXISTS "), table(), pick("public", "s1", "s2")),
 				fmt.Sprintf("ALTER %s %s OWNER TO postgres", obj(), table()),
 				fmt.Sprintf("ALTER INDEX %s SET TABLESPACE pg_default", table()),
-				fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s%s, DROP CONSTRAINT %s%s", table(), maybe("IF EXISTS "), con(), maybe("IF EXISTS "), con()))
+				fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s%s, DROP CONSTRAINT %s%s", table(), maybe("IF EXISTS "), con(), maybe("IF EXISTS "), con()),
+				fmt.Sprintf("DROP INDEX CONCURRENTLY %s%s%s", maybe("IF EXISTS "), table(), pick("", ", "+idx(), " CASCADE")))
 		}
 		b.WriteString(stmt)
 		b.WriteString(";\n")
