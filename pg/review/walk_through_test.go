@@ -122,6 +122,18 @@ func TestWalkThroughOtherSpecs(t *testing.T) {
 		t.Errorf("findings = %+v, want the CREATE INDEX", got)
 	}
 
+	// The other spec may have replaced a synced partitioned table with an
+	// ordinary one.
+	parted := walkSchema()
+	parted.Schemas[0].Tables = append(parted.Schemas[0].Tables, &metadata.TableMetadata{
+		Name:       "p",
+		Columns:    []*metadata.ColumnMetadata{{Name: "k"}},
+		Partitions: []*metadata.TablePartitionMetadata{{Name: "p_1"}},
+	})
+	if got := walkFindings(t, "CREATE TABLE IF NOT EXISTS public.p (k int);\nCREATE INDEX CONCURRENTLY p_k ON public.p (k);", review.Target{Schema: parted, SessionUser: "u", OtherSpecs: true}); len(got) != 0 {
+		t.Errorf("findings = %+v, want none", got)
+	}
+
 	// The same schema with and without other specs is two inputs.
 	got = walkFindings(t, "CREATE TABLE t (a int);", alone, other, alone)
 	if len(got) != 1 || len(got[0].Targets) != 2 || got[0].Targets[0] != 0 || got[0].Targets[1] != 2 {

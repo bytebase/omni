@@ -77,8 +77,10 @@ func (b *builder) statement(n ast.Node) bool {
 		if calls := searchPathCalls(v); len(calls) > 0 {
 			// pg_dump's SELECT pg_catalog.set_config('search_path', '',
 			// false) sets a path the walk reads; any other call of it
-			// leaves the path unknown.
-			if path, ok := dumpSearchPath(v, calls); ok {
+			// leaves the path unknown. Unqualified, set_config may be a
+			// user function a schema before pg_catalog on the path holds
+			// (verified on PostgreSQL 17 and 18).
+			if path, ok := dumpSearchPath(v, calls); ok && qualifiedCatalog(calls[0]) {
 				known := append([]string{}, path...)
 				b.session(func() { b.w.path = known })
 				return true
@@ -114,6 +116,12 @@ func (b *builder) statement(n ast.Node) bool {
 		return true
 	}
 	return false
+}
+
+// qualifiedCatalog reports whether a call names pg_catalog's function.
+func qualifiedCatalog(fc *ast.FuncCall) bool {
+	parts := nameParts(fc.Funcname)
+	return len(parts) == 2 && parts[0] == "pg_catalog"
 }
 
 // missing is the message for a relation that resolves nowhere.
@@ -1104,6 +1112,54 @@ var atColumn = map[ast.AlterTableType]bool{
 	ast.AT_AddIdentity: true, ast.AT_SetIdentity: true, ast.AT_DropIdentity: true, ast.AT_AlterColumnGenericOptions: true,
 }
 
+// alterForm is the form of ALTER of a relation wrongKind judges.
+type alterForm int
+
+const (
+	formAlter alterForm = iota
+	formRename
+	formSetSchema
+)
+
+// anyRelation lists every relation kind the walk keeps.
+var anyRelation = []string{relTable, relView, relMatview, relSequence, relIndex, relForeign, relComposite}
+
+// wrongKind checks that an ALTER of a relation names one of a kind it
+// takes, and reports whether the relation is certainly of another (42809,
+// verified on PostgreSQL 17 and 18, IF EXISTS or not). ALTER VIEW,
+// MATERIALIZED VIEW, SEQUENCE, and FOREIGN TABLE take their own kind
+// only, and ALTER INDEX an index only but for RENAME. ALTER TABLE takes
+// any relation but a composite type, for compatibility, and moves no
+// index to another schema.
+//
+// pg: src/backend/commands/tablecmds.c — RangeVarCallbackForAlterRelation,
+// AlterTableNamespace
+func (b *builder) wrongKind(r resolved, rv *ast.RangeVar, obj ast.ObjectType, form alterForm) bool {
+	if r.fact != walk.Present || r.kind == "" {
+		return false
+	}
+	note := &walkNote{rng: rangeOf(rv.Loc)}
+	var kinds []string
+	switch want, own := dropKinds[obj]; {
+	case own && obj != ast.OBJECT_TABLE && (obj != ast.OBJECT_INDEX || form != formRename):
+		kinds = []string{want.kind}
+		note.present = relation(rv) + " is not " + want.article + " " + want.word
+	case r.kind == relComposite:
+		kinds = slices.DeleteFunc(slices.Clone(anyRelation), func(k string) bool { return k == relComposite })
+		note.present = relation(rv) + " is a composite type"
+	case r.kind == relIndex && form == formSetSchema:
+		kinds = slices.DeleteFunc(slices.Clone(anyRelation), func(k string) bool { return k == relComposite || k == relIndex })
+		note.present = "cannot change schema of index " + relation(rv)
+	default:
+		return false
+	}
+	if slices.Contains(kinds, r.kind) {
+		return false
+	}
+	b.need(r.key, walk.Present, kinds, note)
+	return true
+}
+
 // alterTable follows ALTER TABLE and the ALTER INDEX, VIEW, SEQUENCE,
 // MATERIALIZED VIEW, and FOREIGN TABLE statements that share its form.
 // Each subcommand is a part of its own.
@@ -1122,6 +1178,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.last = b.w.callsUserCode(v)
 	r := b.exists(v.Relation, v.Missing_ok)
 	objType := ast.ObjectType(v.ObjType)
+	if b.wrongKind(r, v.Relation, objType, formAlter) {
+		return true
+	}
 	switch {
 	case r.fail != "":
 		return true
@@ -1149,15 +1208,16 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 }
 
 // repeated fails an ALTER TABLE that adds, or drops, one column twice,
-// or adds two primary keys or two constraints of one name, whatever the
-// table held (verified on PostgreSQL 17 and 18):
+// drops one constraint twice, or adds two primary keys or two
+// constraints of one name, whatever the table held (verified on PostgreSQL 17 and 18):
 //
 //   - A second primary key fails as the subcommands are prepared, before
 //     any runs (42P16).
 //   - Subcommands of one kind run in the order written, so the second
-//     column fails unless it says IF NOT EXISTS or IF EXISTS (42701,
-//     42703). A system column's name fails for being one, which its
-//     subcommand reports. Columns are added before constraints.
+//     column, or the second drop of a constraint, fails unless it says IF
+//     NOT EXISTS or IF EXISTS (42701, 42703, 42704). Names compare as
+//     storedKey keeps them. A system column's name fails for being one,
+//     which its subcommand reports. Columns are added before constraints.
 //   - Two keys collide on their indexes' name (42P07), and any other pair
 //     on the constraint's (42710), whichever pass adds each.
 //
@@ -1196,6 +1256,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 	}
 	added := make(map[string]bool)
 	dropped := make(map[string]bool)
+	droppedCons := make(map[string]bool)
 	for _, cmd := range cmds {
 		switch ast.AlterTableType(cmd.Subtype) {
 		case ast.AT_AddColumn:
@@ -1203,25 +1264,35 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 			if !ok {
 				continue
 			}
-			n, ok := walkName(def.Colname)
+			n, ok := storedKey(def.Colname)
 			if !ok || systemColumns[n] {
 				continue
 			}
 			if added[n] && !cmd.Missing_ok {
-				b.failAt(rangeOf(def.Loc), nil, "column "+ident(n)+" of relation "+relation(rv)+" already exists")
+				b.failAt(rangeOf(def.Loc), nil, "column "+ident(def.Colname)+" of relation "+relation(rv)+" already exists")
 				return
 			}
 			added[n] = true
 		case ast.AT_DropColumn:
-			n, ok := walkName(cmd.Name)
+			n, ok := storedKey(cmd.Name)
 			if !ok || systemColumns[n] {
 				continue
 			}
 			if dropped[n] && !cmd.Missing_ok {
-				b.failAt(rangeOf(cmd.Loc), nil, "column "+ident(n)+" of relation "+relation(rv)+" does not exist")
+				b.failAt(rangeOf(cmd.Loc), nil, "column "+ident(cmd.Name)+" of relation "+relation(rv)+" does not exist")
 				return
 			}
 			dropped[n] = true
+		case ast.AT_DropConstraint:
+			n, ok := storedKey(cmd.Name)
+			if !ok {
+				continue
+			}
+			if droppedCons[n] && !cmd.Missing_ok {
+				b.failAt(rangeOf(cmd.Loc), nil, "constraint "+ident(cmd.Name)+" of relation "+relation(rv)+" does not exist")
+				return
+			}
+			droppedCons[n] = true
 		}
 	}
 	named := make(map[string]string)
@@ -1497,7 +1568,7 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 func (b *builder) renameRelation(v *ast.RenameStmt) bool {
 	r := b.exists(v.Relation, v.MissingOk)
 	switch {
-	case r.fail != "", r.fact == walk.Absent:
+	case r.fail != "", r.fact == walk.Absent, b.wrongKind(r, v.Relation, v.RenameType, formRename):
 		return true
 	case r.fact == walk.Unknown:
 		return false
@@ -1727,7 +1798,7 @@ func (b *builder) setSchema(v *ast.AlterObjectSchemaStmt) bool {
 	}
 	r := b.exists(v.Relation, v.MissingOk)
 	switch {
-	case r.fail != "", r.fact == walk.Absent:
+	case r.fail != "", r.fact == walk.Absent, b.wrongKind(r, v.Relation, v.ObjectType, formSetSchema):
 		return true
 	case r.fact == walk.Unknown:
 		return false

@@ -53,8 +53,11 @@ func walkThrough(ctx context.Context, stmts []statement, target review.Target) (
 	w := newWalker(stmts, target)
 	var snap walk.Snapshot = w.pg
 	if target.OtherSpecs {
+		// Another spec may have replaced a synced partitioned table with
+		// an ordinary one; anyPartitioned stays, as it only stops more.
 		snap = nil
 		w.triggered = true
+		w.partitioned = make(map[walk.Key]bool)
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }

@@ -145,6 +145,13 @@ var walkCases = []walkCase{
 	{name: "a renamed or moved relation still holds its schema", change: "CREATE SCHEMA s2;\nALTER SCHEMA s RENAME TO s3;\nDROP SCHEMA s3;\nALTER TABLE s3.t RENAME TO u;\nDROP SCHEMA s3;\nALTER TABLE s3.u SET SCHEMA s2;\nDROP SCHEMA s2;", complete: true},
 	{name: "a new table's system column names", change: "CREATE TABLE x (ctid int);\nCREATE TABLE x (a int, tableoid int);\nCREATE TABLE x (xmin int, xmax int);\nCREATE TABLE IF NOT EXISTS x (cmin int);\nCREATE TABLE x (cmax int) INHERITS (p);\nCREATE TABLE x (ctid nosuchtype);\nCREATE TABLE x (\"CTID\" int, oid int);\nCREATE TABLE IF NOT EXISTS x (ctid int);\nCREATE TABLE IF NOT EXISTS s.parted_1 (ctid int);", complete: true},
 	{name: "an unqualified self-reference follows the search path", change: "SET search_path = s;\nCREATE TABLE public.x (id int PRIMARY KEY, r int REFERENCES x (id));\nSET search_path = s, public;\nCREATE TABLE public.x (id int PRIMARY KEY, r int REFERENCES x (id));\nCREATE TEMP TABLE y (id int PRIMARY KEY, r int REFERENCES y (id));", complete: true},
+	{name: "an ALTER of a relation needs its kind", change: "ALTER VIEW nokey OWNER TO postgres;\nALTER MATERIALIZED VIEW tv OWNER TO postgres;\nALTER SEQUENCE nokey OWNER TO postgres;\nALTER INDEX nokey SET TABLESPACE pg_default;\nALTER INDEX IF EXISTS q SET TABLESPACE pg_default;\nALTER FOREIGN TABLE nokey ADD COLUMN zz int;\nALTER TABLE pair OWNER TO postgres;\nALTER TABLE tv OWNER TO postgres;\nALTER INDEX t_n_idx SET TABLESPACE pg_default;\nALTER VIEW nokey RENAME TO u;\nALTER SEQUENCE tv RENAME TO u;\nALTER TABLE pair RENAME TO u;\nALTER INDEX nokey RENAME TO u;\nALTER VIEW mv SET SCHEMA s;\nALTER TABLE t_n_idx SET SCHEMA s;\nALTER TABLE pair SET SCHEMA s;\nALTER TABLE q SET SCHEMA s;\nCREATE TABLE u (a int);\nCREATE TABLE s.q (a int);", complete: true},
+	{name: "one ALTER repeats an unreadable column or a constraint drop", change: "ALTER TABLE nokey ADD COLUMN \"é\" int, ADD COLUMN \"é\" int;\nALTER TABLE nokey ADD COLUMN \"é\" int;\nALTER TABLE nokey DROP COLUMN \"é\", DROP COLUMN \"é\";\nALTER TABLE t DROP CONSTRAINT t_n_check, DROP CONSTRAINT t_n_check;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_n_check, DROP CONSTRAINT t_n_check;\nALTER TABLE t DROP CONSTRAINT t_n_check, DROP CONSTRAINT IF EXISTS t_n_check;\nALTER TABLE t DROP CONSTRAINT t_n_check;", complete: true},
+	{
+		name:   "an unqualified set_config may be a user function",
+		extra:  "CREATE FUNCTION s.set_config(text, text, boolean) RETURNS text LANGUAGE sql AS $$ SELECT 'x'::text $$;",
+		change: "SET search_path = s, pg_catalog, public;\nSELECT set_config('search_path', 'public', false);\nCREATE TABLE x (a int);\nCREATE TABLE public.x (a int);",
+	},
 	{name: "a role's schema", change: "CREATE SCHEMA AUTHORIZATION bob;\nSET ROLE bob;\nCREATE TABLE x (a int);\nRESET ROLE;\nCREATE TABLE bob.x (a int);\nCREATE TABLE x (a int);", complete: true},
 
 	// Where the walk stops.
@@ -432,6 +439,10 @@ func verifyClaim(t *testing.T, conn *sql.Conn, v *walk.Violation, msg string) (b
 		case strings.HasPrefix(msg, "schema ") && strings.HasSuffix(msg, " does not exist"):
 			name := strings.TrimSuffix(strings.TrimPrefix(msg, "schema "), " does not exist")
 			return ask(`SELECT to_regnamespace($1) IS NULL`, name), "schema " + name + " exists"
+		case strings.Contains(msg, " of relation "):
+			// A column or constraint one ALTER drops twice: a claim
+			// about the text.
+			return true, ""
 		case strings.HasSuffix(msg, " does not exist"):
 			words := strings.TrimSuffix(msg, " does not exist")
 			name := words[strings.LastIndex(words, " ")+1:]
@@ -532,7 +543,8 @@ func walkStates(msg string) []string {
 		return []string{"42703"}
 	case strings.HasSuffix(msg, " does not exist"):
 		return []string{"42P01"}
-	case strings.Contains(msg, " is not a"), strings.HasPrefix(msg, "cannot create index on relation"), strings.HasPrefix(msg, "cannot open relation"):
+	case strings.Contains(msg, " is not a"), strings.HasPrefix(msg, "cannot create index on relation"), strings.HasPrefix(msg, "cannot open relation"),
+		strings.HasSuffix(msg, " is a composite type"), strings.HasPrefix(msg, "cannot change schema of index"):
 		return []string{"42809"}
 	case strings.HasPrefix(msg, "column ") && (strings.HasSuffix(msg, " already exists") || strings.HasSuffix(msg, " specified more than once")),
 		strings.HasSuffix(msg, " conflicts with a system column name"):
@@ -800,7 +812,7 @@ func sweepChange(rng *rand.Rand, n int) string {
 	var b strings.Builder
 	for range n {
 		var stmt string
-		switch rng.Intn(49) {
+		switch rng.Intn(50) {
 		case 0, 1:
 			stmt = fmt.Sprintf("CREATE TABLE %s%s (id serial PRIMARY KEY, x int%s, y text)", maybe("IF NOT EXISTS "), table(), maybe(" UNIQUE"))
 		case 2:
@@ -905,6 +917,13 @@ func sweepChange(rng *rand.Rand, n int) string {
 			n := pick("a", "b", "c")
 			stmt = pick(fmt.Sprintf("CREATE TABLE %s%s (%s int, y int)", maybe("IF NOT EXISTS "), table(), pick("ctid", "tableoid", "cmin", "x")),
 				fmt.Sprintf("CREATE TABLE %s%s (id int PRIMARY KEY, r int REFERENCES %s (id))", schema(), n, n))
+		case 49:
+			obj := func() string { return pick("TABLE", "VIEW", "MATERIALIZED VIEW", "SEQUENCE") }
+			stmt = pick(fmt.Sprintf("ALTER %s %s%s RENAME TO %s", pick(obj(), "INDEX"), maybe("IF EXISTS "), table(), pick("a", "b", "v", "i")),
+				fmt.Sprintf("ALTER %s %s%s SET SCHEMA %s", obj(), maybe("IF EXISTS "), table(), pick("public", "s1", "s2")),
+				fmt.Sprintf("ALTER %s %s OWNER TO postgres", obj(), table()),
+				fmt.Sprintf("ALTER INDEX %s SET TABLESPACE pg_default", table()),
+				fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s%s, DROP CONSTRAINT %s%s", table(), maybe("IF EXISTS "), con(), maybe("IF EXISTS "), con()))
 		}
 		b.WriteString(stmt)
 		b.WriteString(";\n")
