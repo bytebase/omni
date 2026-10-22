@@ -151,11 +151,17 @@ Review asks for these are declined with this list:
 
 ## 9. Decisions to make before code
 
-- **M1. `foreign_key_checks` at the session's start.**
-  - (a) Assume on, the server default: foreign key targets are checked until the change turns them off.
-  - (b) Check foreign key targets only after the change sets `foreign_key_checks = 1`.
+- **M1. `foreign_key_checks` at the session's start.** What Bytebase does (origin/main b555065095):
+  - **Execution** sets no session variable itself, so the session starts with the server's global default.
+  - **The plain MySQL connection** (not RDS IAM or Cloud SQL) appends a data source's extra connection parameters to the DSN (`plugin/db/mysql/mysql.go`). go-sql-driver/mysql sends a parameter it does not know as `SET <name>=<value>` on connect. A data source configured with `foreign_key_checks=0` therefore runs every migration with the checks off, and so does a global default a DBA turned off.
+  - **The schema dump** (`GetDatabaseDefinition`) wraps its DDL in `SET FOREIGN_KEY_CHECKS=0` and restores it at the end. That is in the change's text, which the walk follows.
+  - **v1's walk-through** runs its catalog with `foreign_key_checks = 0` (`plugin/schema/mysql/walk_through.go`), so v1 never reports a missing foreign key target.
+  - **Options:**
+    - (a) Assume on: this would report a false failure on a data source configured with the checks off.
+    - (b) Check foreign key targets only after the change sets `foreign_key_checks = 1`.
+    - (c) Bytebase's MySQL sync reads `foreign_key_checks` over the admin connection, as it reads `lower_case_table_names` (`getServerVariable`, `SHOW VARIABLES`, which gives the session value, the extra parameters included). It is stored beside `MysqlLowerCaseTableNames` and passed as a new `Target.ForeignKeyChecks`.
 
-  Recommended: (a), as an accepted assumption beside D6. Bytebase sets no session variables for a migration, and a global default of off is a DBA's deliberate choice.
+  Recommended: (c), with (b) until the field lands. This is the pattern of D2: a session setting the target cannot know is read where Bytebase connects, not assumed.
 - **M2. MySQL 5.7 in the CI oracle.**
   - (a) No: 5.7 facts stay in the Appendix as probes, with the claims that differ kept text-only.
   - (b) Yes: a third container, without `Digester`, because 5.7 is not atomic.
