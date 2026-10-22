@@ -2953,13 +2953,13 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		// gram.y: func_expr — WITHIN GROUP takes no other ORDER BY,
-		// DISTINCT, or VARIADIC.
+		// gram.y: func_expr — WITHIN GROUP takes no other ORDER BY or
+		// VARIADIC. Unlike PostgreSQL, Redshift allows DISTINCT with it:
+		// LISTAGG(DISTINCT x, ',') WITHIN GROUP (ORDER BY x).
+		// https://docs.aws.amazon.com/redshift/latest/dg/r_LISTAGG.html
 		switch {
 		case fc.AggOrder != nil:
 			return nil, &ParseError{Message: "cannot use multiple ORDER BY clauses with WITHIN GROUP", Position: withinLoc}
-		case fc.AggDistinct:
-			return nil, &ParseError{Message: "cannot use DISTINCT with WITHIN GROUP", Position: withinLoc}
 		case fc.FuncVariadic:
 			return nil, &ParseError{Message: "cannot use VARIADIC with WITHIN GROUP", Position: withinLoc}
 		}

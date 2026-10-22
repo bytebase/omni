@@ -462,12 +462,16 @@ func (c *Catalog) recordViewQueryDeps(viewOID uint32, q *Query, outer []*Query) 
 	c.recordViewExprDeps(viewOID, levels, q.LimitOffset)
 }
 
-// lacksCollation reports whether expr is a column of a collatable type with
-// no collation: an output column of a UNION ALL whose inputs' collations
-// conflict, or a plain reference to one through a subquery, CTE, or join. An
-// expression computed from such a column takes its type's default
-// collation, as in PostgreSQL, so it has one. levels holds the query expr
+// lacksCollation reports whether expr is of a collatable type with no
+// collation: an output column of a UNION ALL whose inputs' collations
+// conflict, a plain reference to one through a subquery, CTE, or join, or a
+// scalar subquery returning one. A column reference with no collation gives
+// an expression over it its type's default collation, but a scalar subquery
+// passes its missing collation on, as in PostgreSQL, so an expression over
+// it lacks one too unless a COLLATE settles it. levels holds the query expr
 // belongs to last, after the queries enclosing it.
+//
+// pg: src/backend/parser/parse_collate.c — assign_collations_walker (Var, SubLink)
 func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
 	q := levels[len(levels)-1]
 	switch v := expr.(type) {
@@ -506,8 +510,40 @@ func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
 			return false
 		}
 		return c.lacksCollation(append(levels[:len(levels):len(levels)], sub), output[v.AttNum-1].Expr)
+	case *SubLinkExpr:
+		if v.SubLinkType != SubLinkExprType || v.SubQuery == nil {
+			return false
+		}
+		output := nonJunkTargetEntries(v.SubQuery.TargetList)
+		return len(output) > 0 && c.lacksCollation(append(levels[:len(levels):len(levels)], v.SubQuery), output[0].Expr)
+	case *ConstExpr, *ParamExpr, *CollateExprQ:
+		return false
+	}
+	if c.typeCollation(expr.exprType()) == 0 {
+		return false
+	}
+	if _, ok := explicitCollation(expr); ok {
+		return false
+	}
+	for _, child := range AnalyzedExprChildren(expr) {
+		if _, ok := child.(*SubLinkExpr); !ok && !isComputedExpr(child) {
+			continue
+		}
+		if c.lacksCollation(levels, child) {
+			return true
+		}
 	}
 	return false
+}
+
+// isComputedExpr reports whether e is computed from other expressions, as
+// opposed to a column reference, constant, or parameter.
+func isComputedExpr(e AnalyzedExpr) bool {
+	switch e.(type) {
+	case *VarExpr, *ConstExpr, *ParamExpr, *SetOpColumnExpr:
+		return false
+	}
+	return true
 }
 
 // recordViewJoinDeps records the dependencies of the JOIN ON (or USING)

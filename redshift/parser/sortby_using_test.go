@@ -40,16 +40,22 @@ func TestSortByUsingOperator(t *testing.T) {
 }
 
 // TestWithinGroupClause checks that WITHIN GROUP requires its ORDER BY and
-// rejects another ORDER BY, DISTINCT, and VARIADIC, as in the pg parser.
+// rejects another ORDER BY and VARIADIC, as in the pg parser, but takes
+// DISTINCT, as Redshift's LISTAGG does.
 //
 // gram.y: within_group_clause; func_expr (the checks on WITHIN GROUP)
+// https://docs.aws.amazon.com/redshift/latest/dg/r_LISTAGG.html
 func TestWithinGroupClause(t *testing.T) {
-	if _, err := Parse("SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY 1)"); err != nil {
-		t.Fatal(err)
+	for _, sql := range []string{
+		"SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY 1)",
+		"SELECT LISTAGG(DISTINCT product_category, ',') WITHIN GROUP (ORDER BY product_category) FROM t",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("%s: %v", sql, err)
+		}
 	}
 	for _, sql := range []string{
 		"SELECT percentile_cont(0.5) WITHIN GROUP ()",
-		"SELECT percentile_cont(DISTINCT 0.5) WITHIN GROUP (ORDER BY 1)",
 		"SELECT percentile_cont(VARIADIC ARRAY[0.5]) WITHIN GROUP (ORDER BY 1)",
 		"SELECT percentile_cont(0.5 ORDER BY 1) WITHIN GROUP (ORDER BY 1)",
 	} {

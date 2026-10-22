@@ -1882,7 +1882,7 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 			}
 		}
 	}
-	retType := ac.catalog.resolveReturnType(proc, retArgTypes)
+	retType := ac.catalog.resolveReturnType(proc, ac.catalog.withDefaultArgTypes(proc, retArgTypes))
 
 	if err := checkFuncCallClauses(fc, funcName, proc, ac.catalog.aggKind(proc), aggOrder, aggFilter); err != nil {
 		return nil, err
@@ -4671,6 +4671,29 @@ func candidateArgTypesForCall(proc *BuiltinProc, nargs int, explicitVariadic boo
 		argTypes[i] = variadicType
 	}
 	return argTypes, true
+}
+
+// withDefaultArgTypes fills the parameters a call leaves to their defaults
+// with the types of the default expressions, which count when a polymorphic
+// result type is resolved. argTypes is in parameter order, with 0 for a
+// parameter a named call skips.
+//
+// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (argdefaults in actual_arg_types)
+func (c *Catalog) withDefaultArgTypes(proc *BuiltinProc, argTypes []uint32) []uint32 {
+	n := int(proc.NArgs)
+	up := c.userProcs[proc.OID]
+	if up == nil || len(up.ArgDefaultTypes) == 0 || len(argTypes) > n {
+		return argTypes
+	}
+	out := make([]uint32, n)
+	copy(out, argTypes)
+	first := n - len(up.ArgDefaultTypes)
+	for pos := max(first, 0); pos < n; pos++ {
+		if out[pos] == 0 {
+			out[pos] = up.ArgDefaultTypes[pos-first]
+		}
+	}
+	return out
 }
 
 // callArgNames returns the name of each argument of a call, "" for a

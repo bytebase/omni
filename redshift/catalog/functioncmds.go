@@ -32,6 +32,9 @@ type UserProc struct {
 	// AggNumDirectArgs is pg_aggregate.aggnumdirectargs: the number of
 	// direct arguments of an ordered-set or hypothetical-set aggregate.
 	AggNumDirectArgs int16
+	// ArgDefaultTypes is the type of each parameter default, for the last
+	// NArgDefaults input parameters; nil when one could not be analyzed.
+	ArgDefaultTypes []uint32
 }
 
 // CreateFunctionStmt creates a user-defined function or procedure from a pgparser AST.
@@ -605,6 +608,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// Record dependencies from default expressions.
 	// pg: src/backend/commands/functioncmds.c — CreateFunction (recordDependencyOnExpr for defaults)
 	if stmt.Parameters != nil {
+		var defaultTypes []uint32
+		analyzedAll := true
 		for _, item := range stmt.Parameters.Items {
 			fp, ok := item.(*nodes.FunctionParameter)
 			if !ok || fp.Defexpr == nil {
@@ -613,7 +618,13 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			analyzed, err := c.AnalyzeExprNoContext(fp.Defexpr)
 			if err == nil && analyzed != nil {
 				c.recordDependencyOnExpr('f', procOID, analyzed, DepNormal)
+				defaultTypes = append(defaultTypes, analyzed.exprType())
+			} else {
+				analyzedAll = false
 			}
+		}
+		if analyzedAll && len(defaultTypes) == int(nArgDefaults) {
+			up.ArgDefaultTypes = defaultTypes
 		}
 	}
 
