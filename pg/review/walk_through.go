@@ -2,7 +2,6 @@ package review
 
 import (
 	"context"
-	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -280,176 +279,52 @@ func (w *walker) callsUserCode(n ast.Node) bool {
 // PostgreSQL 17 and 18). Effects apply in the order of the parts, which
 // passOrder puts in PostgreSQL's.
 type builder struct {
+	walk.Builder
 	w    *walker
 	l    *walk.Ledger
 	stmt *statement
 
-	part    int
-	checks  []partCheck
-	fails   []partFail
-	effects []effect
-	last    bool
 	// drops lists, by storedKey, the columns an ALTER TABLE drops, which
 	// are gone before any column is added (passOrder); added lists the
 	// columns its ADD COLUMN subcommands so far add, in the order written.
 	drops map[string]bool
 	added map[string]bool
-	// lookups is true when the statement looks every name up before it
-	// changes any, so no part's effect reaches another part's checks.
-	lookups bool
-}
-
-type partCheck struct {
-	part  int
-	check walk.Check
-}
-
-type partFail struct {
-	part int
-	keys []walk.Key
-	v    walk.Violation
-}
-
-type effectKind uint8
-
-const (
-	effSet effectKind = iota
-	effClear
-	effMayAdd
-	effMayRemove
-	effMove
-	effSession
-)
-
-type effect struct {
-	part  int
-	kind  effectKind
-	key   walk.Key
-	fact  walk.Fact
-	what  string
-	scope walk.Scope
-	from  string
-	to    string
-	fn    func()
 }
 
 // next starts the statement's next part.
-func (b *builder) next() { b.part++ }
+func (b *builder) next() { b.Next() }
 
 // need adds a check: the key must be want, and of one of kinds when
 // Present. A check of an Unknown fact never fails.
 func (b *builder) need(k walk.Key, want walk.Fact, kinds []string, note *walkNote) {
-	b.checks = append(b.checks, partCheck{b.part, walk.Check{Key: k, Want: want, Kinds: kinds, Note: note}})
+	b.Need(k, want, kinds, note)
 }
 
 // fail records that the statement certainly fails, as the lowering
 // established from the keys it read, with message.
 func (b *builder) fail(keys []walk.Key, got walk.Fact, message string) {
-	note := &walkNote{rng: b.anchor(), absent: message, present: message}
-	b.fails = append(b.fails, partFail{b.part, keys, walk.Violation{Check: walk.Check{Note: note}, Got: got}})
+	b.Fail(keys, got, &walkNote{rng: b.anchor(), absent: message, present: message})
 }
 
 // failAt is fail with its own anchor.
 func (b *builder) failAt(rng review.Range, keys []walk.Key, message string) {
-	note := &walkNote{rng: rng, absent: message, present: message}
-	b.fails = append(b.fails, partFail{b.part, keys, walk.Violation{Check: walk.Check{Note: note}, Got: walk.Absent}})
+	b.Fail(keys, walk.Absent, &walkNote{rng: rng, absent: message, present: message})
 }
 
-func (b *builder) set(k walk.Key, f walk.Fact, kind string) {
-	b.effects = append(b.effects, effect{part: b.part, kind: effSet, key: k, fact: f, what: kind})
-}
-
-func (b *builder) clear(s walk.Scope) {
-	b.effects = append(b.effects, effect{part: b.part, kind: effClear, scope: s})
-}
-
-func (b *builder) mayAdd(s walk.Scope) {
-	b.effects = append(b.effects, effect{part: b.part, kind: effMayAdd, scope: s})
-}
-
-func (b *builder) mayRemove(s walk.Scope) {
-	b.effects = append(b.effects, effect{part: b.part, kind: effMayRemove, scope: s})
-}
-
-func (b *builder) forget(s walk.Scope) {
-	b.mayAdd(s)
-	b.mayRemove(s)
-}
-
-func (b *builder) move(from, to string) {
-	b.effects = append(b.effects, effect{part: b.part, kind: effMove, from: from, to: to})
-}
+func (b *builder) set(k walk.Key, f walk.Fact, kind string) { b.Set(k, f, kind) }
+func (b *builder) clear(s walk.Scope)                       { b.Clear(s) }
+func (b *builder) mayAdd(s walk.Scope)                      { b.MayAdd(s) }
+func (b *builder) mayRemove(s walk.Scope)                   { b.MayRemove(s) }
+func (b *builder) forget(s walk.Scope)                      { b.Forget(s) }
+func (b *builder) move(from, to string)                     { b.Move(from, to) }
 
 // session changes the walker's session state when the statement succeeds.
-func (b *builder) session(fn func()) {
-	b.effects = append(b.effects, effect{part: b.part, kind: effSession, fn: fn})
-}
+func (b *builder) session(fn func()) { b.Session(fn) }
 
 // anchor is the statement's own range, for a finding about all of it.
 func (b *builder) anchor() review.Range {
 	return rangeOf(b.stmt.loc)
 }
 
-// touched reports whether a part other than part changes the key.
-func (b *builder) touched(k walk.Key, part int) bool {
-	if b.lookups {
-		return false
-	}
-	for _, e := range b.effects {
-		if e.part == part {
-			continue
-		}
-		switch e.kind {
-		case effSet:
-			if e.key == k {
-				return true
-			}
-		case effClear, effMayAdd, effMayRemove:
-			if e.scope.Contains(k) {
-				return true
-			}
-		case effMove:
-			if walk.Under(k.Parent, e.from) || walk.Under(k.Parent, e.to) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // step assembles the walk.Step.
-func (b *builder) step() *walk.Step {
-	s := &walk.Step{Last: b.last}
-	for _, f := range b.fails {
-		if !slices.ContainsFunc(f.keys, func(k walk.Key) bool { return b.touched(k, f.part) }) {
-			v := f.v
-			s.Fail = &v
-			break
-		}
-	}
-	for _, c := range b.checks {
-		if !b.touched(c.check.Key, c.part) {
-			s.Checks = append(s.Checks, c.check)
-		}
-	}
-	effects := b.effects
-	s.Apply = func(l *walk.Ledger) {
-		for _, e := range effects {
-			switch e.kind {
-			case effSet:
-				l.Set(e.key, e.fact, e.what)
-			case effClear:
-				l.Clear(e.scope)
-			case effMayAdd:
-				l.MayAdd(e.scope)
-			case effMayRemove:
-				l.MayRemove(e.scope)
-			case effMove:
-				l.Move(e.from, e.to)
-			case effSession:
-				e.fn()
-			}
-		}
-	}
-	return s
-}
+func (b *builder) step() *walk.Step { return b.Step() }
