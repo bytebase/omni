@@ -108,7 +108,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	// pg: src/backend/commands/view.c — DefineVirtualRelation
 	if analyzedQuery != nil {
 		for i, te := range nonJunkTargetEntries(analyzedQuery.TargetList) {
-			if i < len(cols) && c.lacksCollation(analyzedQuery, te.Expr) {
+			if i < len(cols) && c.lacksCollation([]*Query{analyzedQuery}, te.Expr) {
 				return &Error{
 					Code:    CodeIndeterminateCollation,
 					Message: fmt.Sprintf("could not determine which collation to use for view column %q", cols[i].Name),
@@ -466,8 +466,10 @@ func (c *Catalog) recordViewQueryDeps(viewOID uint32, q *Query, outer []*Query) 
 // no collation: an output column of a UNION ALL whose inputs' collations
 // conflict, or a plain reference to one through a subquery, CTE, or join. An
 // expression computed from such a column takes its type's default
-// collation, as in PostgreSQL, so it has one.
-func (c *Catalog) lacksCollation(q *Query, expr AnalyzedExpr) bool {
+// collation, as in PostgreSQL, so it has one. levels holds the query expr
+// belongs to last, after the queries enclosing it.
+func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
+	q := levels[len(levels)-1]
 	switch v := expr.(type) {
 	case *SetOpColumnExpr:
 		return v.Collation == 0 && c.typeCollation(v.TypeOID) != 0
@@ -481,12 +483,18 @@ func (c *Catalog) lacksCollation(q *Query, expr AnalyzedExpr) bool {
 		case RTESubquery:
 			sub = rte.Subquery
 		case RTECTE:
-			if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) {
-				sub = q.CTEList[rte.CTEIndex].Query
+			// The CTE may belong to an enclosing query; find it by name,
+			// innermost first, as the analyzer resolved it.
+			for i := len(levels) - 1; i >= 0 && sub == nil; i-- {
+				for _, cte := range levels[i].CTEList {
+					if cte.Name == rte.CTEName {
+						sub = cte.Query
+					}
+				}
 			}
 		case RTEJoin:
 			if int(v.AttNum) <= len(rte.JoinAliasVars) {
-				return c.lacksCollation(q, rte.JoinAliasVars[v.AttNum-1])
+				return c.lacksCollation(levels, rte.JoinAliasVars[v.AttNum-1])
 			}
 			return false
 		}
@@ -497,7 +505,7 @@ func (c *Catalog) lacksCollation(q *Query, expr AnalyzedExpr) bool {
 		if int(v.AttNum) > len(output) {
 			return false
 		}
-		return c.lacksCollation(sub, output[v.AttNum-1].Expr)
+		return c.lacksCollation(append(levels[:len(levels):len(levels)], sub), output[v.AttNum-1].Expr)
 	}
 	return false
 }
