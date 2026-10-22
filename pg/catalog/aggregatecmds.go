@@ -265,6 +265,9 @@ func (c *Catalog) DefineAggregate(stmt *nodes.DefineStmt) error {
 		Body:     "aggregate_dummy",
 		AggKind:  aggKind,
 	}
+	if numDirectArgs > 0 {
+		up.AggNumDirectArgs = int16(numDirectArgs)
+	}
 	c.userProcs[procOID] = up
 
 	// Record dependencies.

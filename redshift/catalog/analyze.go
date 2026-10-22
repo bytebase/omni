@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -152,9 +153,6 @@ func (ac *analyzeCtx) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
 // two different non-default ones conflict: a UNION ALL column then has no
 // collation, and the other operations fail. conflict reports that case.
 //
-// Only a COLLATE at the top of an input counts as explicit; PostgreSQL also
-// carries explicit strength up through the expressions above a COLLATE.
-//
 // pg: src/backend/parser/analyze.c — transformSetOperationTree (rescolcoll)
 // pg: src/backend/parser/parse_collate.c — select_common_collation
 func (c *Catalog) setOpCollation(l, r AnalyzedExpr, noneOK bool) (coll uint32, conflict bool, err error) {
@@ -184,18 +182,33 @@ func (c *Catalog) setOpCollation(l, r AnalyzedExpr, noneOK bool) (coll uint32, c
 }
 
 // explicitCollation reports the collation name of an expression whose
-// collation is set by a COLLATE clause.
+// collation comes from a COLLATE clause: the clause itself, or an expression
+// whose collation is derived from an input that has it. A column, constant,
+// parameter, or subquery result carries no explicit collation.
+//
+// pg: src/backend/parser/parse_collate.c — assign_collations_walker (COLLATE_EXPLICIT)
 func explicitCollation(e AnalyzedExpr) (string, bool) {
-	for {
-		switch v := e.(type) {
-		case *RelabelExpr:
-			e = v.Arg
-		case *CollateExprQ:
-			return v.CollName, true
-		default:
-			return "", false
+	switch v := e.(type) {
+	case *CollateExprQ:
+		return v.CollName, true
+	case *RelabelExpr:
+		return explicitCollation(v.Arg)
+	case *VarExpr, *ConstExpr, *ParamExpr, *SubLinkExpr, *SetOpColumnExpr:
+		return "", false
+	}
+	coll := e.exprCollation()
+	if coll == 0 {
+		return "", false
+	}
+	for _, child := range AnalyzedExprChildren(e) {
+		if child.exprCollation() != coll {
+			continue
+		}
+		if name, ok := explicitCollation(child); ok {
+			return name, true
 		}
 	}
+	return "", false
 }
 
 func nonJunkTargetEntries(tlist []*TargetEntry) []*TargetEntry {
@@ -688,14 +701,16 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 		}
 		lUsed[lIdx], rUsed[rIdx] = true, true
 		lVar, rVar := ac.nsColumnVar(lRT, lIdx), ac.nsColumnVar(rRT, rIdx)
-		conds = append(conds, &OpExpr{
-			OpOID:      ac.catalog.findEqualityOp(lVar.exprType(), rVar.exprType()),
-			OpName:     "=",
-			ResultType: BOOLOID,
-			Left:       lVar,
-			Right:      rVar,
-		})
-		merged = append(merged, mergedJoinColumn(jt, lVar, rVar))
+		cond, err := ac.usingCondition(lVar, rVar)
+		if err != nil {
+			return nil, err
+		}
+		conds = append(conds, cond)
+		col, err := ac.mergedJoinColumn(jt, lVar, rVar)
+		if err != nil {
+			return nil, err
+		}
+		merged = append(merged, col)
 	}
 	switch {
 	case len(conds) == 1:
@@ -769,22 +784,68 @@ func usingColumnIndex(names []string, name, side string) (int, error) {
 	return idx, nil
 }
 
-// mergedJoinColumn is the value a USING column has in the join's output: the
-// left input's column, the right one's for a RIGHT JOIN, and COALESCE of
-// both for a FULL JOIN. The coercion PostgreSQL adds when the two columns'
-// types differ is not modeled; the column keeps the type of the input it
-// comes from (the left one for FULL JOIN).
+// usingCondition builds the condition l = r of a USING column, resolving =
+// as an operator expression does.
+//
+// pg: src/backend/parser/parse_clause.c — transformJoinUsingClause
+func (ac *analyzeCtx) usingCondition(l, r *VarExpr) (AnalyzedExpr, error) {
+	op, lType, rType, err := ac.catalog.resolveOperator("=", l.TypeOID, r.TypeOID, false)
+	if err != nil {
+		return nil, err
+	}
+	if op.Result != BOOLOID {
+		return nil, &Error{Code: CodeDatatypeMismatch, Message: fmt.Sprintf("argument of JOIN/USING must be type boolean, not type %s", ac.catalog.typeName(op.Result))}
+	}
+	var left, right AnalyzedExpr = l, r
+	if lType != l.TypeOID {
+		if left, err = ac.catalog.coerceToTargetType(l, l.TypeOID, lType, 'i'); err != nil {
+			return nil, err
+		}
+	}
+	if rType != r.TypeOID {
+		if right, err = ac.catalog.coerceToTargetType(r, r.TypeOID, rType, 'i'); err != nil {
+			return nil, err
+		}
+	}
+	return &OpExpr{OpOID: op.OID, OpName: op.Name, ResultType: op.Result, Left: left, Right: right}, nil
+}
+
+// mergedJoinColumn is the value a USING column has in the join's output.
+// Both inputs are coerced to their common type; an inner join takes an input
+// that needed no coercion, preferring the left, a LEFT or RIGHT JOIN takes
+// the left or right input, and a FULL JOIN takes COALESCE of both.
 //
 // pg: src/backend/parser/parse_clause.c — buildMergedJoinVar
-func mergedJoinColumn(jt JoinType, l, r *VarExpr) AnalyzedExpr {
-	switch jt {
-	case JoinRight:
-		return r
-	case JoinFull:
-		return &CoalesceExprQ{Args: []AnalyzedExpr{l, r}, ResultType: l.TypeOID, Collation: l.Collation}
-	default:
-		return l
+func (ac *analyzeCtx) mergedJoinColumn(jt JoinType, l, r *VarExpr) (AnalyzedExpr, error) {
+	common, err := ac.catalog.selectCommonType([]AnalyzedExpr{l, r}, "JOIN/USING")
+	if err != nil {
+		return nil, err
 	}
+	var lNode, rNode AnalyzedExpr = l, r
+	if l.TypeOID != common {
+		if lNode, err = ac.catalog.coerceToTargetType(l, l.TypeOID, common, 'i'); err != nil {
+			return nil, err
+		}
+	}
+	if r.TypeOID != common {
+		if rNode, err = ac.catalog.coerceToTargetType(r, r.TypeOID, common, 'i'); err != nil {
+			return nil, err
+		}
+	}
+	switch jt {
+	case JoinLeft:
+		return lNode, nil
+	case JoinRight:
+		return rNode, nil
+	case JoinFull:
+		return &CoalesceExprQ{Args: []AnalyzedExpr{lNode, rNode}, ResultType: common, Collation: resolveCollation(lNode, rNode)}, nil
+	}
+	if _, ok := lNode.(*VarExpr); !ok {
+		if _, ok := rNode.(*VarExpr); ok {
+			return rNode, nil
+		}
+	}
+	return lNode, nil
 }
 
 // joinNodeRTIndex returns the range table entry of a FROM item.
@@ -1809,6 +1870,12 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 		return nil, err
 	}
 
+	if proc.Kind == 'a' && fc.AggWithinGroup && ac.catalog.aggKind(proc) == 'h' {
+		if err := ac.catalog.unifyHypotheticalArgs(args, argTypes, nDirect); err != nil {
+			return nil, err
+		}
+	}
+
 	// Insert coercions for mismatched argument types.
 	// Skip coercion when the target type is polymorphic — polymorphic types
 	// accept any actual type without coercion.
@@ -1887,6 +1954,13 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 			if aggColl == 0 {
 				aggColl = ac.catalog.typeCollation(retType)
 			}
+		}
+		if fc.AggWithinGroup {
+			if err := ac.catalog.checkOrderedSetArgs(proc, funcName, argTypes, nDirect, len(aggOrder)); err != nil {
+				return nil, err
+			}
+		} else if err := matchAggOrderToArgs(args, aggOrder, fc.AggDistinct); err != nil {
+			return nil, err
 		}
 		return newAggExpr(fc, proc.OID, funcName, retType, aggColl, args, nDirect, aggOrder, aggFilter), nil
 	}
@@ -1999,6 +2073,120 @@ func checkFuncCallClauses(fc *nodes.FuncCall, name string, proc *BuiltinProc, ag
 	return nil
 }
 
+// checkOrderedSetArgs checks that an ordered-set or hypothetical-set
+// aggregate call has the number of direct arguments the aggregate declares.
+// A hypothetical-set aggregate whose direct and aggregated arguments are
+// both variadic needs one direct argument per ordering column.
+//
+// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (AGGKIND_IS_ORDERED_SET)
+func (c *Catalog) checkOrderedSetArgs(proc *BuiltinProc, name string, argTypes []uint32, nDirect, nOrder int) error {
+	catDirect := c.aggNumDirectArgs(proc)
+	if catDirect < 0 {
+		return nil
+	}
+	pronargs := int(proc.NArgs)
+	nvargs := nDirect + nOrder - pronargs + 1
+	ok := nDirect == catDirect
+	if proc.Variadic != 0 && catDirect >= pronargs {
+		if c.aggKind(proc) == 'h' {
+			ok = nvargs == 2*nOrder
+		} else {
+			ok = nvargs > nOrder
+		}
+	}
+	if !ok {
+		return errUndefinedFunction(name, argTypes)
+	}
+	return nil
+}
+
+// matchAggOrderToArgs resolves each ORDER BY expression of an aggregate call
+// that is one of its arguments, ignoring the implicit casts the argument
+// got, to that argument, as PostgreSQL sorts by the argument itself. With
+// DISTINCT every ORDER BY expression must be an argument.
+//
+// pg: src/backend/parser/parse_agg.c — transformAggregateCall
+// pg: src/backend/parser/parse_clause.c — findTargetlistEntrySQL99
+func matchAggOrderToArgs(args []AnalyzedExpr, aggOrder []*AggSortBy, distinct bool) error {
+	for _, sb := range aggOrder {
+		found := false
+		for _, arg := range args {
+			if reflect.DeepEqual(sb.Expr, stripImplicitCoercions(arg)) {
+				sb.Expr = arg
+				found = true
+				break
+			}
+		}
+		if !found && distinct {
+			return &Error{Code: CodeInvalidColumnReference, Message: "in an aggregate with DISTINCT, ORDER BY expressions must appear in argument list"}
+		}
+	}
+	return nil
+}
+
+// unifyHypotheticalArgs coerces each hypothetical direct argument of a
+// hypothetical-set aggregate call and its ordering column to their common
+// type, preferring the ordering column's.
+//
+// pg: src/backend/parser/parse_func.c — unify_hypothetical_args
+func (c *Catalog) unifyHypotheticalArgs(args []AnalyzedExpr, argTypes []uint32, nDirect int) error {
+	nOrder := len(args) - nDirect
+	nonHypothetical := nDirect - nOrder
+	if nonHypothetical < 0 {
+		return nil
+	}
+	for h := nonHypothetical; h < nDirect; h++ {
+		a := nDirect + h - nonHypothetical
+		common, err := c.selectCommonType([]AnalyzedExpr{args[a], args[h]}, "WITHIN GROUP")
+		if err != nil {
+			return err
+		}
+		for _, i := range []int{h, a} {
+			if argTypes[i] == common {
+				continue
+			}
+			if args[i], err = c.coerceToTargetType(args[i], argTypes[i], common, 'i'); err != nil {
+				return err
+			}
+			argTypes[i] = common
+		}
+	}
+	return nil
+}
+
+// stripImplicitCoercions removes the implicit casts at the top of an
+// expression.
+//
+// pg: src/backend/nodes/nodeFuncs.c — strip_implicit_coercions
+func stripImplicitCoercions(e AnalyzedExpr) AnalyzedExpr {
+	for {
+		switch v := e.(type) {
+		case *RelabelExpr:
+			if v.Format != 'i' {
+				return e
+			}
+			e = v.Arg
+		case *CoerceViaIOExpr:
+			if v.Format != 'i' {
+				return e
+			}
+			e = v.Arg
+		case *ArrayCoerceExprQ:
+			if v.Format != 'i' {
+				return e
+			}
+			e = v.Arg
+		case *FuncCallExpr:
+			if v.CoerceFormat != 'i' || len(v.Args) == 0 {
+				return e
+			}
+			e = v.Args[0]
+		default:
+			return e
+		}
+	}
+}
+
 func errNotOrderedSetAggregate(name string) error {
 	return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%s is not an ordered-set aggregate, so it cannot have WITHIN GROUP", name)}
 }
@@ -2057,17 +2245,24 @@ func (ac *analyzeCtx) transformAggOrder(list *nodes.List) ([]*AggSortBy, error) 
 		case nodes.SORTBY_DESC:
 			desc = true
 		case nodes.SORTBY_USING:
-			// Only the type's own < and > can be kept, as ASC and DESC.
+			// Only the built-in < and >, unqualified or in pg_catalog, can
+			// be kept, as ASC and DESC.
+			var parts []string
+			if sb.UseOp != nil {
+				for _, item := range sb.UseOp.Items {
+					parts = append(parts, stringVal(item))
+				}
+			}
 			op := ""
-			if sb.UseOp != nil && len(sb.UseOp.Items) > 0 {
-				op = stringVal(sb.UseOp.Items[len(sb.UseOp.Items)-1])
+			if len(parts) == 1 || (len(parts) == 2 && parts[0] == "pg_catalog") {
+				op = parts[len(parts)-1]
 			}
 			switch op {
 			case "<":
 			case ">":
 				desc = true
 			default:
-				return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("ORDER BY USING %s in an aggregate call is not supported", op)}
+				return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("ORDER BY USING %s in an aggregate call is not supported", strings.Join(parts, "."))}
 			}
 		}
 		nullsFirst := desc

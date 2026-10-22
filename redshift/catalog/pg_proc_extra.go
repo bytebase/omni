@@ -79,23 +79,26 @@ var builtinProcArgNames = map[uint32][]string{
 	6212: {"mean", "stddev"},                                                               // random_normal(double precision,double precision)
 }
 
-// builtinOrderedSetAggKinds is pg_aggregate.aggkind for each built-in
-// ordered-set ('o') and hypothetical-set ('h') aggregate. Every other
-// built-in aggregate is a normal one ('n').
+// builtinOrderedSetAggs is pg_aggregate.aggkind and aggnumdirectargs for
+// each built-in ordered-set ('o') and hypothetical-set ('h') aggregate.
+// Every other built-in aggregate is a normal one ('n').
 //
 // pg: src/include/catalog/pg_aggregate.dat
-var builtinOrderedSetAggKinds = map[uint32]byte{
-	3972: 'o', // percentile_disc(double precision,anyelement)
-	3974: 'o', // percentile_cont(double precision,double precision)
-	3976: 'o', // percentile_cont(double precision,interval)
-	3978: 'o', // percentile_disc(double precision[],anyelement)
-	3980: 'o', // percentile_cont(double precision[],double precision)
-	3982: 'o', // percentile_cont(double precision[],interval)
-	3984: 'o', // mode(anyelement)
-	3986: 'h', // rank("any")
-	3988: 'h', // percent_rank("any")
-	3990: 'h', // cume_dist("any")
-	3992: 'h', // dense_rank("any")
+var builtinOrderedSetAggs = map[uint32]struct {
+	kind      byte
+	numDirect int
+}{
+	3972: {'o', 1}, // percentile_disc(double precision,anyelement)
+	3974: {'o', 1}, // percentile_cont(double precision,double precision)
+	3976: {'o', 1}, // percentile_cont(double precision,interval)
+	3978: {'o', 1}, // percentile_disc(double precision[],anyelement)
+	3980: {'o', 1}, // percentile_cont(double precision[],double precision)
+	3982: {'o', 1}, // percentile_cont(double precision[],interval)
+	3984: {'o', 0}, // mode(anyelement)
+	3986: {'h', 1}, // rank("any")
+	3988: {'h', 1}, // percent_rank("any")
+	3990: {'h', 1}, // cume_dist("any")
+	3992: {'h', 1}, // dense_rank("any")
 }
 
 func init() {
@@ -123,10 +126,25 @@ func (c *Catalog) aggKind(proc *BuiltinProc) byte {
 
 // builtinAggKind returns pg_aggregate.aggkind for a built-in aggregate.
 func builtinAggKind(proc *BuiltinProc) byte {
-	if kind, ok := builtinOrderedSetAggKinds[proc.OID]; ok {
-		return kind
+	if agg, ok := builtinOrderedSetAggs[proc.OID]; ok {
+		return agg.kind
 	}
 	return 'n'
+}
+
+// aggNumDirectArgs returns pg_aggregate.aggnumdirectargs for an ordered-set
+// or hypothetical-set aggregate, or -1 for any other.
+func (c *Catalog) aggNumDirectArgs(proc *BuiltinProc) int {
+	if proc.OID >= FirstNormalObjectId {
+		if up := c.userProcs[proc.OID]; up != nil && up.AggKind != 0 && up.AggKind != 'n' {
+			return int(up.AggNumDirectArgs)
+		}
+		return -1
+	}
+	if agg, ok := builtinOrderedSetAggs[proc.OID]; ok {
+		return agg.numDirect
+	}
+	return -1
 }
 
 // countStarOID returns the OID of count(*), the zero-argument count.

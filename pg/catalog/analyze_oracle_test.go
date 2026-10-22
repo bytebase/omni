@@ -127,6 +127,11 @@ const analyzeOracleSchema = `
 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+	CREATE TABLE tt (id text);
+	CREATE TABLE b8 (id bigint, q text);
+	CREATE TABLE js1 (j json);
+	CREATE TABLE js2 (j json);
+	CREATE TABLE vc (v varchar);
 `
 
 // TestAnalyzeViewsMatchPostgres creates each view in PostgreSQL and in omni
@@ -169,6 +174,17 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 		{"setop_collation_default_first", `SELECT d FROM cc UNION SELECT c FROM cc`},
 		{"setop_collation_explicit", `SELECT c COLLATE "POSIX" AS c FROM cc UNION SELECT p FROM cp`},
 		{"setop_collation_nested", `(SELECT c FROM cc UNION ALL SELECT p FROM cp) UNION ALL SELECT d FROM cc`},
+		{"setop_collation_explicit_expr", `SELECT (d COLLATE "C") || '' AS d FROM cc UNION SELECT p FROM cp`},
+		{"setop_collation_implicit_expr", `SELECT d || '' AS d FROM cc UNION SELECT p FROM cp`},
+		{"natural_coerced", `SELECT * FROM t NATURAL JOIN b8`},
+		{"using_coerced_left", `SELECT * FROM t LEFT JOIN b8 USING (id)`},
+		{"using_coerced_right", `SELECT * FROM b8 RIGHT JOIN t USING (id)`},
+		{"using_coerced_full", `SELECT * FROM t FULL JOIN b8 USING (id)`},
+		{"distinct_agg_order", `SELECT array_agg(DISTINCT x ORDER BY x DESC) AS a, array_agg(DISTINCT lower(x) ORDER BY lower(x)) AS l, array_agg(DISTINCT id::text ORDER BY id::text) AS i FROM t`},
+		{"distinct_agg_order_coerced", `SELECT string_agg(DISTINCT v, ',' ORDER BY v) AS s FROM vc`},
+		{"hypothetical_two_columns", `SELECT rank(1, 'a') WITHIN GROUP (ORDER BY id, x) AS r FROM t`},
+		{"hypothetical_coerced", `SELECT rank(1.5) WITHIN GROUP (ORDER BY id) AS r, percent_rank('5') WITHIN GROUP (ORDER BY x) AS p FROM t`},
+		{"agg_order_matches_arg", `SELECT string_agg(v, ',' ORDER BY v) AS s, string_agg(v, ',' ORDER BY v || '') AS s2, array_agg(id ORDER BY id + 1) AS a FROM vc, t`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ddl := analyzeOracleSchema + "CREATE VIEW v AS " + tc.query + ";"
@@ -281,6 +297,25 @@ func TestAnalyzeErrorsMatchPostgres(t *testing.T) {
 		`SELECT c FROM cc UNION ALL SELECT p FROM cp`,
 		`SELECT c COLLATE "POSIX" FROM cc UNION ALL SELECT d COLLATE "C" FROM cc`,
 		`SELECT c COLLATE "C" FROM cc UNION SELECT p FROM cp`,
+		`SELECT (d COLLATE "C") || '' FROM cc UNION SELECT p FROM cp`,
+		`SELECT (d COLLATE "C") || '' FROM cc UNION ALL SELECT (p COLLATE "POSIX") || '' FROM cp`,
+		`SELECT upper(c) FROM cc UNION SELECT p FROM cp`,
+		`SELECT * FROM t NATURAL JOIN tt`,
+		`SELECT * FROM t JOIN tt USING (id)`,
+		`SELECT * FROM js1 NATURAL JOIN js2`,
+		`SELECT * FROM t NATURAL JOIN b8`,
+		`SELECT my_os() WITHIN GROUP (ORDER BY 0.5::float8, id) FROM t`,
+		`SELECT percentile_cont() WITHIN GROUP (ORDER BY 0.5::float8, 1.0::float8)`,
+		`SELECT mode(1) WITHIN GROUP (ORDER BY id) FROM t`,
+		`SELECT rank(1, 2) WITHIN GROUP (ORDER BY id) FROM t`,
+		`SELECT rank(1) WITHIN GROUP (ORDER BY id, id) FROM t`,
+		`SELECT rank(1, 2) WITHIN GROUP (ORDER BY id, id) FROM t`,
+		`SELECT array_agg(DISTINCT x ORDER BY masked) FROM t`,
+		`SELECT string_agg(DISTINCT x, ',' ORDER BY ',') FROM t`,
+		`SELECT array_agg(DISTINCT x ORDER BY x DESC) FROM t`,
+		`SELECT string_agg(DISTINCT v, ',' ORDER BY v) FROM vc`,
+		`SELECT array_agg(DISTINCT id::text ORDER BY id::text) FROM t`,
+		`SELECT array_agg(id ORDER BY id USING OPERATOR(pg_catalog.>)) FROM t`,
 	} {
 		t.Run(query, func(t *testing.T) {
 			// EXPLAIN analyzes and plans the query without running it.
@@ -363,8 +398,8 @@ func TestAnalyzeViewDependenciesMatchPostgres(t *testing.T) {
 }
 
 // TestBuiltinProcExtrasMatchPostgres checks the default counts and parameter
-// names of every built-in function, and builtinOrderedSetAggKinds, against
-// pg_proc and pg_aggregate.
+// names of every built-in function, and the kind and direct-argument count
+// of every built-in aggregate, against pg_proc and pg_aggregate.
 func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 	o := startAnalyzeOracle(t)
 	byOID := make(map[uint32]*BuiltinProc, len(BuiltinProcs))
@@ -401,15 +436,17 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 		t.Fatal("no built-in function matched pg_proc")
 	}
 
-	rows, err = o.db.QueryContext(o.ctx, `SELECT aggfnoid::oid, aggkind FROM pg_aggregate WHERE aggfnoid::oid < 16384`)
+	rows, err = o.db.QueryContext(o.ctx, `SELECT aggfnoid::oid, aggkind, aggnumdirectargs FROM pg_aggregate WHERE aggfnoid::oid < 16384`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer rows.Close()
+	c := New()
 	for rows.Next() {
 		var oid uint32
 		var kind string
-		if err := rows.Scan(&oid, &kind); err != nil {
+		var numDirect int
+		if err := rows.Scan(&oid, &kind, &numDirect); err != nil {
 			t.Fatal(err)
 		}
 		p := byOID[oid]
@@ -418,6 +455,11 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 		}
 		if got := builtinAggKind(p); string(got) != kind {
 			t.Errorf("%s (OID %d): aggregate kind %q, pg_aggregate.aggkind %q", p.Name, oid, got, kind)
+		}
+		if kind != "n" {
+			if got := c.aggNumDirectArgs(p); got != numDirect {
+				t.Errorf("%s (OID %d): %d direct arguments, pg_aggregate.aggnumdirectargs %d", p.Name, oid, got, numDirect)
+			}
 		}
 	}
 }

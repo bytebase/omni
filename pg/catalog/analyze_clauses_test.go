@@ -297,3 +297,15 @@ func TestAnalyzeOpaqueUnknownFunctions(t *testing.T) {
 		t.Errorf("WHERE reads %v", got)
 	}
 }
+
+func TestAnalyzeRejectsQualifiedAggSortOperator(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	var catErr *Error
+	_, err := analyzeWithOptions(t, c, `SELECT array_agg(id ORDER BY id USING OPERATOR(my_schema.>)) FROM t`, AnalyzeOptions{})
+	if !errors.As(err, &catErr) || catErr.Code != CodeFeatureNotSupported {
+		t.Fatalf("got %v, want 0A000: a user operator's ordering cannot be kept as ASC or DESC", err)
+	}
+	if _, err := analyzeWithOptions(t, c, `SELECT array_agg(id ORDER BY id USING OPERATOR(pg_catalog.>)) FROM t`, AnalyzeOptions{}); err != nil {
+		t.Fatal(err)
+	}
+}
