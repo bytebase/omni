@@ -108,7 +108,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	// pg: src/backend/commands/view.c — DefineVirtualRelation
 	if analyzedQuery != nil {
 		for i, te := range nonJunkTargetEntries(analyzedQuery.TargetList) {
-			if sc, ok := te.Expr.(*SetOpColumnExpr); ok && sc.Collation == 0 && c.typeCollation(sc.TypeOID) != 0 && i < len(cols) {
+			if i < len(cols) && c.lacksCollation(analyzedQuery, te.Expr) {
 				return &Error{
 					Code:    CodeIndeterminateCollation,
 					Message: fmt.Sprintf("could not determine which collation to use for view column %q", cols[i].Name),
@@ -460,6 +460,46 @@ func (c *Catalog) recordViewQueryDeps(viewOID uint32, q *Query, outer []*Query) 
 	c.recordViewExprDeps(viewOID, levels, q.HavingQual)
 	c.recordViewExprDeps(viewOID, levels, q.LimitCount)
 	c.recordViewExprDeps(viewOID, levels, q.LimitOffset)
+}
+
+// lacksCollation reports whether expr is a column of a collatable type with
+// no collation: an output column of a UNION ALL whose inputs' collations
+// conflict, or a plain reference to one through a subquery, CTE, or join. An
+// expression computed from such a column takes its type's default
+// collation, as in PostgreSQL, so it has one.
+func (c *Catalog) lacksCollation(q *Query, expr AnalyzedExpr) bool {
+	switch v := expr.(type) {
+	case *SetOpColumnExpr:
+		return v.Collation == 0 && c.typeCollation(v.TypeOID) != 0
+	case *VarExpr:
+		if q == nil || v.LevelsUp != 0 || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) || v.AttNum <= 0 {
+			return false
+		}
+		rte := q.RangeTable[v.RangeIdx]
+		var sub *Query
+		switch rte.Kind {
+		case RTESubquery:
+			sub = rte.Subquery
+		case RTECTE:
+			if rte.CTEIndex >= 0 && rte.CTEIndex < len(q.CTEList) {
+				sub = q.CTEList[rte.CTEIndex].Query
+			}
+		case RTEJoin:
+			if int(v.AttNum) <= len(rte.JoinAliasVars) {
+				return c.lacksCollation(q, rte.JoinAliasVars[v.AttNum-1])
+			}
+			return false
+		}
+		if sub == nil {
+			return false
+		}
+		output := nonJunkTargetEntries(sub.TargetList)
+		if int(v.AttNum) > len(output) {
+			return false
+		}
+		return c.lacksCollation(sub, output[v.AttNum-1].Expr)
+	}
+	return false
 }
 
 // recordViewJoinDeps records the dependencies of the JOIN ON (or USING)

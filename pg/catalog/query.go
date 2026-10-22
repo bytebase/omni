@@ -286,8 +286,26 @@ type CoalesceExprQ struct {
 	Collation  uint32 // result collation
 }
 
-func (c *CoalesceExprQ) exprType() uint32      { return c.ResultType }
-func (c *CoalesceExprQ) exprTypMod() int32     { return -1 }
+func (c *CoalesceExprQ) exprType() uint32 { return c.ResultType }
+
+// exprTypMod is the typmod every input agrees on, or -1.
+//
+// pg: src/backend/nodes/nodeFuncs.c — exprTypmod (CoalesceExpr)
+func (c *CoalesceExprQ) exprTypMod() int32 {
+	if len(c.Args) == 0 || c.Args[0].exprType() != c.ResultType {
+		return -1
+	}
+	typmod := c.Args[0].exprTypMod()
+	if typmod < 0 {
+		return -1
+	}
+	for _, arg := range c.Args[1:] {
+		if arg.exprType() != c.ResultType || arg.exprTypMod() != typmod {
+			return -1
+		}
+	}
+	return typmod
+}
 func (c *CoalesceExprQ) exprCollation() uint32 { return c.Collation }
 
 // BoolExprQ represents an analyzed boolean expression (AND/OR/NOT).

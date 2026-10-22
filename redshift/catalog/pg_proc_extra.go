@@ -101,6 +101,17 @@ var builtinOrderedSetAggs = map[uint32]struct {
 	3992: {'h', 1}, // dense_rank("any")
 }
 
+// builtinTypesWithoutBtreeOrder holds the built-in types that have < and >
+// operators but no default btree operator class, so they cannot be sorted.
+//
+// pg: src/include/catalog/pg_opclass.dat
+var builtinTypesWithoutBtreeOrder = map[uint32]bool{
+	601: true, // lseg
+	602: true, // path
+	603: true, // box
+	718: true, // circle
+}
+
 func init() {
 	for i := range BuiltinProcs {
 		if n, ok := builtinProcArgDefaults[BuiltinProcs[i].OID]; ok {

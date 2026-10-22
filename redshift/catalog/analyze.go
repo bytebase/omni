@@ -821,16 +821,27 @@ func (ac *analyzeCtx) mergedJoinColumn(jt JoinType, l, r *VarExpr) (AnalyzedExpr
 	if err != nil {
 		return nil, err
 	}
-	var lNode, rNode AnalyzedExpr = l, r
-	if l.TypeOID != common {
-		if lNode, err = ac.catalog.coerceToTargetType(l, l.TypeOID, common, 'i'); err != nil {
-			return nil, err
-		}
+	// pg: src/backend/parser/parse_coerce.c — select_common_typmod
+	typmod := int32(-1)
+	if l.TypeOID == common && r.TypeOID == common && l.TypeMod == r.TypeMod {
+		typmod = l.TypeMod
 	}
-	if r.TypeOID != common {
-		if rNode, err = ac.catalog.coerceToTargetType(r, r.TypeOID, common, 'i'); err != nil {
-			return nil, err
+	toCommon := func(v *VarExpr) (AnalyzedExpr, error) {
+		switch {
+		case v.TypeOID != common:
+			return ac.catalog.coerceToTargetType(v, v.TypeOID, common, 'i')
+		case v.TypeMod != typmod:
+			return &RelabelExpr{Arg: v, ResultType: common, TypeMod: typmod, Collation: v.Collation, Format: 'i'}, nil
 		}
+		return v, nil
+	}
+	lNode, err := toCommon(l)
+	if err != nil {
+		return nil, err
+	}
+	rNode, err := toCommon(r)
+	if err != nil {
+		return nil, err
 	}
 	switch jt {
 	case JoinLeft:
@@ -1915,6 +1926,15 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 	if err := checkFuncCallClauses(fc, funcName, proc, ac.catalog.aggKind(proc), aggOrder, aggFilter); err != nil {
 		return nil, err
 	}
+	// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (argnames)
+	if argNames != nil {
+		switch proc.Kind {
+		case 'a':
+			return nil, &Error{Code: CodeFeatureNotSupported, Message: "aggregates cannot use named arguments"}
+		case 'w':
+			return nil, &Error{Code: CodeFeatureNotSupported, Message: "window functions cannot use named arguments"}
+		}
+	}
 
 	// Window function: has OVER clause.
 	// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (window function path)
@@ -2188,13 +2208,16 @@ func (c *Catalog) prepareAggSort(aggOrder []*AggSortBy) error {
 }
 
 // hasOrderingOp reports whether a type can be sorted with op, < or >: it has
-// the operator, or for an array its element type can be sorted. PostgreSQL
-// further requires the operator to belong to a btree operator family, which
-// the catalog does not record; the few types that have < but no btree
-// family, such as box, are accepted.
+// the operator and a default btree operator class, or for an array its
+// element type can be sorted. The catalog does not record operator classes,
+// so the built-in types whose < and > are not btree members are listed in
+// builtinTypesWithoutBtreeOrder; a user-defined type with < is accepted.
 func (c *Catalog) hasOrderingOp(typ uint32, op string) bool {
 	if t := c.typeByOID[typ]; t != nil && t.Category == 'A' && t.Elem != 0 {
 		return c.hasOrderingOp(t.Elem, op)
+	}
+	if builtinTypesWithoutBtreeOrder[typ] {
+		return false
 	}
 	_, _, _, err := c.resolveOperator(op, typ, typ, false)
 	return err == nil

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -132,6 +133,10 @@ const analyzeOracleSchema = `
 	CREATE TABLE js1 (j json);
 	CREATE TABLE js2 (j json);
 	CREATE TABLE vc (v varchar);
+	CREATE TABLE bx (b box);
+	CREATE TABLE v1 (k varchar(10), a int);
+	CREATE TABLE v2 (k varchar(10), b int);
+	CREATE TABLE v3 (k varchar(20), c int);
 `
 
 // TestAnalyzeViewsMatchPostgres creates each view in PostgreSQL and in omni
@@ -184,6 +189,10 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 		{"distinct_agg_order_coerced", `SELECT string_agg(DISTINCT v, ',' ORDER BY v) AS s FROM vc`},
 		{"hypothetical_two_columns", `SELECT rank(1, 'a') WITHIN GROUP (ORDER BY id, x) AS r FROM t`},
 		{"hypothetical_coerced", `SELECT rank(1.5) WITHIN GROUP (ORDER BY id) AS r, percent_rank('5') WITHIN GROUP (ORDER BY x) AS p FROM t`},
+		{"full_using_same_typmod", `SELECT * FROM v1 FULL JOIN v2 USING (k)`},
+		{"full_using_typmod_differs", `SELECT * FROM v1 FULL JOIN v3 USING (k)`},
+		{"inner_using_typmod_differs", `SELECT * FROM v1 JOIN v3 USING (k)`},
+		{"coalesce_typmod", `SELECT coalesce(v1.k, v2.k) AS k FROM v1, v2`},
 		{"filter_unknown_literal", `SELECT sum(id) FILTER (WHERE 'true') AS s, count(*) FILTER (WHERE NULL) AS c FROM t`},
 		{"agg_order_unknown_literal", `SELECT array_agg(1 ORDER BY 'a') AS a FROM t`},
 		{"agg_order_matches_arg", `SELECT string_agg(v, ',' ORDER BY v) AS s, string_agg(v, ',' ORDER BY v || '') AS s2, array_agg(id ORDER BY id + 1) AS a FROM vc, t`},
@@ -195,7 +204,7 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 			if err := conn.QueryRowContext(o.ctx, "SELECT pg_get_viewdef('v'::regclass, true)").Scan(&pgDef); err != nil {
 				t.Fatal(err)
 			}
-			rows, err := conn.QueryContext(o.ctx, `SELECT attname, atttypid, attcollation FROM pg_attribute
+			rows, err := conn.QueryContext(o.ctx, `SELECT attname, atttypid, atttypmod, attcollation FROM pg_attribute
 				WHERE attrelid = 'v'::regclass AND attnum > 0 ORDER BY attnum`)
 			if err != nil {
 				t.Fatal(err)
@@ -204,10 +213,11 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 			for rows.Next() {
 				var name string
 				var typ, coll uint32
-				if err := rows.Scan(&name, &typ, &coll); err != nil {
+				var typmod int32
+				if err := rows.Scan(&name, &typ, &typmod, &coll); err != nil {
 					t.Fatal(err)
 				}
-				pgCols = append(pgCols, fmt.Sprintf("%s %d %d", name, typ, coll))
+				pgCols = append(pgCols, fmt.Sprintf("%s %d(%d) %d", name, typ, typmod, coll))
 			}
 			rows.Close()
 
@@ -228,7 +238,7 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 			}
 			var cols []string
 			for _, col := range rel.Columns {
-				cols = append(cols, fmt.Sprintf("%s %d %d", col.Name, col.TypeOID, col.Collation))
+				cols = append(cols, fmt.Sprintf("%s %d(%d) %d", col.Name, col.TypeOID, col.TypeMod, col.Collation))
 			}
 			if strings.Join(cols, ", ") != strings.Join(pgCols, ", ") {
 				t.Errorf("view columns differ\nomni:     %v\npostgres: %v", cols, pgCols)
@@ -335,6 +345,11 @@ func TestAnalyzeErrorsMatchPostgres(t *testing.T) {
 		`SELECT concat()`,
 		`SELECT json_build_array()`,
 		`SELECT json_build_object()`,
+		`SELECT json_object_agg(key => x, value => id) FROM t`,
+		`SELECT string_agg(x, delimiter => ',') FROM t`,
+		`SELECT ntile(num_buckets => 2) OVER () FROM t`,
+		`SELECT array_agg(b ORDER BY b) FROM bx`,
+		`SELECT array_agg(1 ORDER BY ARRAY[b]) FROM bx`,
 	} {
 		t.Run(query, func(t *testing.T) {
 			// EXPLAIN analyzes and plans the query without running it.
@@ -361,6 +376,11 @@ func TestAnalyzeDDLMatchesPostgres(t *testing.T) {
 		`CREATE VIEW v AS SELECT c AS renamed FROM cc UNION ALL SELECT p FROM cp`,
 		`CREATE VIEW v (renamed) AS SELECT c FROM cc UNION ALL SELECT p FROM cp`,
 		`CREATE VIEW v AS SELECT c FROM cc UNION ALL SELECT d FROM cc`,
+		`CREATE VIEW v AS SELECT c FROM (SELECT c FROM cc UNION ALL SELECT p FROM cp) s`,
+		`CREATE VIEW v AS WITH s AS (SELECT c FROM cc UNION ALL SELECT p FROM cp) SELECT c FROM s`,
+		`CREATE VIEW v AS SELECT s.c FROM (SELECT c FROM cc UNION ALL SELECT p FROM cp) s JOIN t ON true`,
+		`CREATE VIEW v AS SELECT upper(c) AS u FROM (SELECT c FROM cc UNION ALL SELECT p FROM cp) s`,
+		`CREATE VIEW v AS SELECT c || '' AS w FROM (SELECT c FROM cc UNION ALL SELECT p FROM cp) s`,
 		`CREATE AGGREGATE my_bad(int) (sfunc = two_sfunc, stype = int, hypothetical)`,
 		`CREATE AGGREGATE my_hyp(int ORDER BY int) (sfunc = os_sfunc, stype = int, hypothetical)`,
 	} {
@@ -453,6 +473,26 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 	rows.Close()
 	if seen == 0 {
 		t.Fatal("no built-in function matched pg_proc")
+	}
+
+	rows, err = o.db.QueryContext(o.ctx, `SELECT t.oid FROM pg_type t
+		WHERE EXISTS (SELECT 1 FROM pg_operator o WHERE o.oprname IN ('<', '>') AND o.oprleft = t.oid AND o.oprright = t.oid)
+		AND NOT EXISTS (SELECT 1 FROM pg_opclass c JOIN pg_am a ON a.oid = c.opcmethod
+			WHERE a.amname = 'btree' AND c.opcdefault AND c.opcintype = t.oid)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unordered := map[uint32]bool{}
+	for rows.Next() {
+		var oid uint32
+		if err := rows.Scan(&oid); err != nil {
+			t.Fatal(err)
+		}
+		unordered[oid] = true
+	}
+	rows.Close()
+	if !maps.Equal(unordered, builtinTypesWithoutBtreeOrder) {
+		t.Errorf("types with < or > but no default btree class: postgres %v, builtinTypesWithoutBtreeOrder %v", unordered, builtinTypesWithoutBtreeOrder)
 	}
 
 	rows, err = o.db.QueryContext(o.ctx, `SELECT aggfnoid::oid, aggkind, aggnumdirectargs FROM pg_aggregate WHERE aggfnoid::oid < 16384`)
