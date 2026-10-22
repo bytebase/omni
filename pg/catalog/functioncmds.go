@@ -493,6 +493,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		parallel = 'u'
 	}
 
+	defaultTypes := c.paramDefaultTypes(stmt.Parameters, argOIDs, int(nArgDefaults))
+
 	// Check for existing function with same signature.
 	existing := c.findExactProc(schema, name, argOIDs)
 	if existing != nil {
@@ -507,6 +509,25 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		// Replace the body and attributes.
 		up := c.userProcs[existing.OID]
 		if up != nil {
+			// A replacement may add parameter defaults, but not remove one
+			// or change one's type.
+			// pg: src/backend/catalog/pg_proc.c — ProcedureCreate (pronargdefaults)
+			if old := int(up.NArgDefaults); old > 0 {
+				if int(nArgDefaults) < old {
+					return errInvalidFunctionDefinition("cannot remove parameter defaults from existing function")
+				}
+				if up.ArgDefaultTypes != nil && defaultTypes != nil {
+					added := len(defaultTypes) - old
+					for i, typ := range up.ArgDefaultTypes {
+						if defaultTypes[added+i] != typ {
+							return errInvalidFunctionDefinition("cannot change data type of existing parameter default value")
+						}
+					}
+				}
+			}
+			up.NArgDefaults = nArgDefaults
+			up.ArgDefaultTypes = defaultTypes
+			existing.NArgDefaults = nArgDefaults
 			up.Volatile = volatile
 			up.Parallel = parallel
 			up.IsStrict = isStrict
@@ -608,8 +629,6 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	// Record dependencies from default expressions.
 	// pg: src/backend/commands/functioncmds.c — CreateFunction (recordDependencyOnExpr for defaults)
 	if stmt.Parameters != nil {
-		var defaultTypes []uint32
-		analyzedAll := true
 		for _, item := range stmt.Parameters.Items {
 			fp, ok := item.(*nodes.FunctionParameter)
 			if !ok || fp.Defexpr == nil {
@@ -618,15 +637,10 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			analyzed, err := c.AnalyzeExprNoContext(fp.Defexpr)
 			if err == nil && analyzed != nil {
 				c.recordDependencyOnExpr('f', procOID, analyzed, DepNormal)
-				defaultTypes = append(defaultTypes, analyzed.exprType())
-			} else {
-				analyzedAll = false
 			}
 		}
-		if analyzedAll && len(defaultTypes) == int(nArgDefaults) {
-			up.ArgDefaultTypes = defaultTypes
-		}
 	}
+	up.ArgDefaultTypes = defaultTypes
 
 	// Record dependencies from SQL function body.
 	// pg: src/backend/catalog/pg_proc.c — ProcedureCreate
@@ -641,6 +655,41 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 	}
 
 	return nil
+}
+
+// paramDefaultTypes returns the type of each parameter default, in order,
+// as PostgreSQL stores it: the parameter's type, or for a polymorphic
+// parameter the default expression's own type. Defaults belong to the last
+// nDefaults input parameters. It returns nil when a default cannot be
+// analyzed.
+//
+// pg: src/backend/commands/functioncmds.c — interpret_function_parameter_list (coerce_to_specific_type)
+func (c *Catalog) paramDefaultTypes(params *nodes.List, argOIDs []uint32, nDefaults int) []uint32 {
+	if params == nil || nDefaults == 0 || nDefaults > len(argOIDs) {
+		return nil
+	}
+	var types []uint32
+	for _, item := range params.Items {
+		fp, ok := item.(*nodes.FunctionParameter)
+		if !ok || fp.Defexpr == nil {
+			continue
+		}
+		analyzed, err := c.AnalyzeExprNoContext(fp.Defexpr)
+		if err != nil || analyzed == nil {
+			return nil
+		}
+		types = append(types, analyzed.exprType())
+	}
+	if len(types) != nDefaults {
+		return nil
+	}
+	first := len(argOIDs) - nDefaults
+	for i := range types {
+		if pt := argOIDs[first+i]; !isPolymorphic(pt) {
+			types[i] = pt
+		}
+	}
+	return types
 }
 
 func createFunctionStmtIsProcedure(stmt *nodes.CreateFunctionStmt) bool {

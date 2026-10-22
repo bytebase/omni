@@ -473,12 +473,17 @@ func (c *Catalog) recordViewQueryDeps(viewOID uint32, q *Query, outer []*Query) 
 //
 // pg: src/backend/parser/parse_collate.c — assign_collations_walker (Var, SubLink)
 func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
-	q := levels[len(levels)-1]
 	switch v := expr.(type) {
 	case *SetOpColumnExpr:
 		return v.Collation == 0 && c.typeCollation(v.TypeOID) != 0
 	case *VarExpr:
-		if q == nil || v.LevelsUp != 0 || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) || v.AttNum <= 0 {
+		// An outer reference reads a column of an enclosing query.
+		owner := len(levels) - 1 - v.LevelsUp
+		if v.LevelsUp < 0 || owner < 0 || v.AttNum <= 0 {
+			return false
+		}
+		q, outer := levels[owner], levels[:owner+1:owner+1]
+		if q == nil || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
 			return false
 		}
 		rte := q.RangeTable[v.RangeIdx]
@@ -489,8 +494,8 @@ func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
 		case RTECTE:
 			// The CTE may belong to an enclosing query; find it by name,
 			// innermost first, as the analyzer resolved it.
-			for i := len(levels) - 1; i >= 0 && sub == nil; i-- {
-				for _, cte := range levels[i].CTEList {
+			for i := len(outer) - 1; i >= 0 && sub == nil; i-- {
+				for _, cte := range outer[i].CTEList {
 					if cte.Name == rte.CTEName {
 						sub = cte.Query
 					}
@@ -498,7 +503,7 @@ func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
 			}
 		case RTEJoin:
 			if int(v.AttNum) <= len(rte.JoinAliasVars) {
-				return c.lacksCollation(levels, rte.JoinAliasVars[v.AttNum-1])
+				return c.lacksCollation(outer, rte.JoinAliasVars[v.AttNum-1])
 			}
 			return false
 		}
@@ -509,7 +514,7 @@ func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
 		if int(v.AttNum) > len(output) {
 			return false
 		}
-		return c.lacksCollation(append(levels[:len(levels):len(levels)], sub), output[v.AttNum-1].Expr)
+		return c.lacksCollation(append(outer, sub), output[v.AttNum-1].Expr)
 	case *SubLinkExpr:
 		if v.SubLinkType != SubLinkExprType || v.SubQuery == nil {
 			return false

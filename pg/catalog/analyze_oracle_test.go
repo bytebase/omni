@@ -128,6 +128,8 @@ const analyzeOracleSchema = `
 	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
 	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
 	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
+	CREATE FUNCTION f2(a int, b int DEFAULT 1) RETURNS int LANGUAGE sql AS 'select $1';
+	CREATE FUNCTION f3(a int, b int) RETURNS int LANGUAGE sql AS 'select $1';
 	CREATE TABLE tt (id text);
 	CREATE TABLE b8 (id bigint, q text);
 	CREATE TABLE js1 (j json);
@@ -390,6 +392,13 @@ func TestAnalyzeDDLMatchesPostgres(t *testing.T) {
 		`CREATE VIEW v AS SELECT (SELECT c FROM cc UNION ALL SELECT p FROM cp LIMIT 1) COLLATE "C" AS x`,
 		`CREATE VIEW v AS SELECT (SELECT c FROM cc UNION ALL SELECT p FROM cp LIMIT 1) = 'a' AS x`,
 		`CREATE VIEW v AS SELECT (SELECT c FROM cc UNION SELECT d FROM cc LIMIT 1) AS x`,
+		`CREATE VIEW v AS SELECT (SELECT s.c) AS x FROM (SELECT c FROM cc UNION ALL SELECT p FROM cp) s`,
+		`CREATE VIEW v AS SELECT (SELECT upper(s.c)) AS x FROM (SELECT c FROM cc UNION ALL SELECT p FROM cp) s`,
+		`CREATE OR REPLACE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::text) RETURNS anyelement LANGUAGE sql AS 'select $2'`,
+		`CREATE OR REPLACE FUNCTION f2(a int, b int) RETURNS int LANGUAGE sql AS 'select $1'`,
+		`CREATE OR REPLACE FUNCTION f2(a int, b int DEFAULT 2) RETURNS int LANGUAGE sql AS 'select $1'`,
+		`CREATE OR REPLACE FUNCTION f2(a int DEFAULT 0, b int DEFAULT 2) RETURNS int LANGUAGE sql AS 'select $1'; CREATE VIEW v AS SELECT f2() AS r`,
+		`CREATE OR REPLACE FUNCTION f3(a int, b int DEFAULT 5) RETURNS int LANGUAGE sql AS 'select $1'; CREATE VIEW v AS SELECT f3(1) AS r`,
 		`CREATE AGGREGATE my_bad(int) (sfunc = two_sfunc, stype = int, hypothetical)`,
 		`CREATE AGGREGATE my_hyp(int ORDER BY int) (sfunc = os_sfunc, stype = int, hypothetical)`,
 	} {
@@ -402,8 +411,10 @@ func TestAnalyzeDDLMatchesPostgres(t *testing.T) {
 				t.Fatal(err)
 			}
 			results, err := c.Exec(ddl, &ExecOptions{ContinueOnError: true})
-			if err == nil && len(results) > 0 {
-				err = results[0].Error
+			for _, r := range results {
+				if err == nil {
+					err = r.Error
+				}
 			}
 			if got, want := sqlState(t, err), sqlState(t, pgErr); got != want {
 				t.Errorf("omni: %q (%v), postgres: %q (%v)", got, err, want, pgErr)
