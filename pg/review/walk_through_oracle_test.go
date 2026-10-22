@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -18,6 +16,7 @@ import (
 	"github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
+	"github.com/bytebase/omni/review/walk/walktest"
 )
 
 // walkBase is the schema the curated WalkThrough cases start from: one of
@@ -223,27 +222,44 @@ func runWalkCases(t *testing.T, db *sql.DB) {
 	t.Logf("found %d of the %d statements the server rejects", found, rejected)
 }
 
+// TestWalkThroughOracleChecksClaims holds the oracle itself to its job:
+// a claim the catalog contradicts must not hold.
+func TestWalkThroughOracleChecksClaims(t *testing.T) {
+	db := startPostgres(t)
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	resetWalk(t, conn, walkBase)
+	nokey := relKey("public", "nokey")
+	for _, tt := range []struct {
+		name string
+		v    walk.Violation
+		msg  string
+		want bool
+	}{
+		{"an existing relation claimed absent", walk.Violation{Keys: []walk.Key{schemaKey("public"), nokey}, Facts: []walk.Fact{walk.Present, walk.Absent}}, "relation nokey does not exist", false},
+		{"an existing relation claimed present", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "", true},
+		{"a missing schema claimed present", walk.Violation{Keys: []walk.Key{schemaKey("nosuch")}, Facts: []walk.Fact{walk.Present}}, "", false},
+		{"a table claimed a view", walk.Violation{Check: walk.Check{Key: nokey}, Got: walk.Present, Kind: relView}, "nokey is not a table", false},
+		{"a table claimed a table", walk.Violation{Check: walk.Check{Key: nokey}, Got: walk.Present, Kind: relTable}, "", true},
+		{"an ordinary table claimed partitioned", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "cannot truncate only a partitioned table: nokey", false},
+		{"a claim about the text", walk.Violation{}, "column a specified more than once", true},
+	} {
+		if got, why := verifyClaim(t, conn, &tt.v, tt.msg); got != tt.want {
+			t.Errorf("%s: holds = %v (%s), want %v", tt.name, got, why, tt.want)
+		}
+	}
+}
+
 // TestWalkThroughSweep runs random changes over a small pool of names, so
 // creations, drops, renames, and generated names collide often, on
 // random starting schemas. Precision must hold on every one; recall is
 // logged. WALK_SWEEP_N sets the number of changes, WALK_SWEEP_SEED the
 // seed, and WALK_SWEEP_IMAGE the PostgreSQL image.
 func TestWalkThroughSweep(t *testing.T) {
-	n := 40
-	if v := os.Getenv("WALK_SWEEP_N"); v != "" {
-		var err error
-		if n, err = strconv.Atoi(v); err != nil {
-			t.Fatalf("WALK_SWEEP_N: %v", err)
-		}
-	}
-	seed := int64(20261019)
-	if v := os.Getenv("WALK_SWEEP_SEED"); v != "" {
-		seed, _ = strconv.ParseInt(v, 10, 64)
-	}
-	image := "postgres:17-alpine"
-	if v := os.Getenv("WALK_SWEEP_IMAGE"); v != "" {
-		image = v
-	}
+	n, seed, image := walktest.SweepParams(t, 40, 20261019, "postgres:17-alpine")
 	db := startPostgresImage(t, image)
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
@@ -303,114 +319,82 @@ func splitStatements(sql string) []string {
 	return out
 }
 
-// outcome is how the server took one statement: accepted, or rejected
-// with a SQLSTATE.
-type outcome struct {
-	text  string
-	state string
-	msg   string
+// pgEngine is the oracle's PostgreSQL side of one change: a connection
+// inside a transaction judgeWalk rolls back, where each statement runs in
+// a savepoint, so a rejected one does nothing and the next runs as the
+// change would after it if it had been left out.
+type pgEngine struct {
+	conn   *sql.Conn
+	target review.Target
 }
 
-// runChange runs a change on the server statement by statement, each in a
-// savepoint of one transaction it rolls back at the end, so a rejected
-// statement does nothing and the next one runs as the change would after
-// it if it had been left out. onReject sees each rejected statement with
-// the server as it was right before it, and the statements accepted
-// before it.
-func runChange(t *testing.T, conn *sql.Conn, change string, onReject func(accepted []string, o outcome)) []outcome {
+func (e *pgEngine) exec(t testing.TB, q string) {
 	t.Helper()
-	ctx := context.Background()
-	exec := func(q string) {
-		t.Helper()
-		if _, err := conn.ExecContext(ctx, q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
+	if _, err := e.conn.ExecContext(context.Background(), q); err != nil {
+		t.Fatalf("%s: %v", q, err)
 	}
-	exec("BEGIN")
-	defer exec("ROLLBACK")
-	var out []outcome
-	var accepted []string
-	for _, stmt := range splitStatements(change) {
-		o := outcome{text: stmt}
-		upper := strings.ToUpper(stmt)
-		if strings.HasPrefix(upper, "BEGIN") || strings.HasPrefix(upper, "COMMIT") {
-			out = append(out, o)
-			accepted = append(accepted, stmt)
-			continue
-		}
-		exec("SAVEPOINT walk_oracle")
-		if _, err := conn.ExecContext(ctx, stmt); err != nil {
-			var pgErr *pgconn.PgError
-			if !errors.As(err, &pgErr) {
-				t.Fatalf("%s: %v", stmt, err)
-			}
-			o.state, o.msg = pgErr.Code, pgErr.Message
-			// 42601 is not only a syntax error: PostgreSQL raises it for
-			// some semantic refusals too (SET DEFAULT on an identity
-			// column). Text the parser refuses shows as a Syntax finding.
-			exec("ROLLBACK TO SAVEPOINT walk_oracle")
-			onReject(accepted, o)
-		} else {
-			accepted = append(accepted, stmt)
-		}
-		exec("RELEASE SAVEPOINT walk_oracle")
-		out = append(out, o)
-	}
-	return out
 }
 
-// judgeWalk runs the change on the server and holds the walk to it. For
-// each statement the server rejects, the walk over the statements it
-// accepted before it, then that statement, may report nothing or that
-// statement. What it reports must be true: either the server rejects the
-// statement with the SQLSTATE the message stands for, or the server's
-// catalog, as it was right before the statement, shows the fact the
-// finding claims (the statement then fails for a reason PostgreSQL checks
-// first, and for this one too). The walk over the statements the server
-// accepts must report nothing. With complete, every rejected statement
-// must be found. It returns how many rejected statements the walk found
-// and how many there were.
+func (e *pgEngine) Statements(change string) []string { return splitStatements(change) }
+
+func (e *pgEngine) Exec(t testing.TB, stmt string) walktest.Outcome {
+	t.Helper()
+	// The change already runs in the oracle's transaction.
+	upper := strings.ToUpper(stmt)
+	if strings.HasPrefix(upper, "BEGIN") || strings.HasPrefix(upper, "COMMIT") {
+		return walktest.Outcome{}
+	}
+	e.exec(t, "SAVEPOINT walk_oracle")
+	defer e.exec(t, "RELEASE SAVEPOINT walk_oracle")
+	if _, err := e.conn.ExecContext(context.Background(), stmt); err != nil {
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+		// 42601 is not only a syntax error: PostgreSQL raises it for some
+		// semantic refusals too (SET DEFAULT on an identity column). Text
+		// the parser refuses shows as a Syntax finding.
+		e.exec(t, "ROLLBACK TO SAVEPOINT walk_oracle")
+		return walktest.Outcome{Code: pgErr.Code, Message: pgErr.Message}
+	}
+	return walktest.Outcome{}
+}
+
+func (e *pgEngine) Report(t testing.TB, change string) *walktest.Finding {
+	t.Helper()
+	f := walkFinding(t, change, e.target)
+	if f == nil {
+		return nil
+	}
+	return &walktest.Finding{Statement: f.Statement, Message: f.Message}
+}
+
+func (e *pgEngine) Violation(t testing.TB, change string) *walk.Violation {
+	t.Helper()
+	return walkViolation(t, change, e.target)
+}
+
+func (e *pgEngine) Codes(message string) []string { return walkStates(message) }
+
+func (e *pgEngine) Holds(t testing.TB, v *walk.Violation, message string) (bool, string) {
+	t.Helper()
+	return verifyClaim(t, e.conn, v, message)
+}
+
+// judgeWalk runs the change on the server and holds the walk to it
+// (walktest.Judge), in a transaction it rolls back. It returns how many
+// rejected statements the walk found and how many there were.
 func judgeWalk(t *testing.T, conn *sql.Conn, schema *metadata.DatabaseSchemaMetadata, user, change string, complete bool) (found, rejected int) {
 	t.Helper()
-	target := review.Target{Schema: schema, SessionUser: user}
-	outcomes := runChange(t, conn, change, func(accepted []string, o outcome) {
-		rejected++
-		text := strings.Join(append(append([]string{}, accepted...), o.text), "\n")
-		f := walkFinding(t, text, target)
-		switch {
-		case f == nil:
-			if complete {
-				t.Errorf("missed the rejection of %q (%s: %s)", o.text, o.state, o.msg)
-			}
-			return
-		case f.Statement != len(accepted):
-			t.Errorf("reported %q on statement %d, which the server accepts; it rejects %q (%s: %s)", f.Message, f.Statement, o.text, o.state, o.msg)
-			return
-		}
-		found++
-		if containsString(walkStates(f.Message), o.state) {
-			return
-		}
-		v := walkViolation(t, text, target)
-		if ok, why := verifyClaim(t, conn, v, f.Message); !ok {
-			t.Errorf("reported %q on %q, which the server rejects with %s (%s), and the claim does not hold: %s", f.Message, o.text, o.state, o.msg, why)
-		}
-	})
-	var accepted []string
-	for _, o := range outcomes {
-		if o.state == "" {
-			accepted = append(accepted, o.text)
-		}
-	}
-	if f := walkFinding(t, strings.Join(accepted, "\n"), target); f != nil {
-		t.Errorf("reported %q on statement %d of a change the server runs:\n%s", f.Message, f.Statement, strings.Join(accepted, "\n"))
-	}
-	return found, rejected
+	e := &pgEngine{conn: conn, target: review.Target{Schema: schema, SessionUser: user}}
+	e.exec(t, "BEGIN")
+	defer e.exec(t, "ROLLBACK")
+	return walktest.Judge(t, e, change, complete)
 }
 
 // walkViolation returns the walk's violation for a change, with the key
 // and fact it claims.
-func walkViolation(t *testing.T, sql string, target review.Target) *walk.Violation {
+func walkViolation(t testing.TB, sql string, target review.Target) *walk.Violation {
 	t.Helper()
 	stmts, syntax := parse(sql, statementRanges(sql))
 	if syntax != nil {
@@ -432,51 +416,55 @@ var relkinds = map[string]string{
 	"i": relIndex, "I": relIndex, "f": relForeign, "c": relComposite,
 }
 
-// verifyClaim checks the fact a finding claims against the server's
-// catalog, as it is now. A claim about the SQL's own text holds by
-// itself.
-func verifyClaim(t *testing.T, conn *sql.Conn, v *walk.Violation, msg string) (bool, string) {
+// verifyClaim checks the facts a finding claims against the server's
+// catalog, as it is now, key by key (walktest.Claims). A claim about the
+// SQL's own text holds by itself. Two claims rest on what the walker
+// keeps beside the ledger, that a table is partitioned, which the catalog
+// confirms too.
+func verifyClaim(t testing.TB, conn *sql.Conn, v *walk.Violation, msg string) (bool, string) {
+	t.Helper()
+	for _, prefix := range []string{"cannot truncate only a partitioned table: ", "cannot create index on partitioned table "} {
+		if !strings.HasPrefix(msg, prefix) {
+			continue
+		}
+		// The oracle runs in a transaction, where CONCURRENTLY fails first
+		// for being in one.
+		name := strings.TrimSuffix(strings.TrimPrefix(msg, prefix), " concurrently")
+		if !catalogAsk(t, conn, `SELECT EXISTS (SELECT 1 FROM pg_class WHERE oid = to_regclass($1) AND relkind = 'p')`, name) {
+			return false, name + " is not partitioned"
+		}
+	}
+	for _, c := range walktest.Claims(v) {
+		if ok, why := claimHolds(t, conn, c); !ok {
+			return false, why
+		}
+	}
+	return true, ""
+}
+
+func catalogAsk(t testing.TB, conn *sql.Conn, q string, args ...any) bool {
+	t.Helper()
+	var ok bool
+	if err := conn.QueryRowContext(context.Background(), q, args...).Scan(&ok); err != nil {
+		t.Fatalf("%s: %v", q, err)
+	}
+	return ok
+}
+
+// claimHolds checks one fact against the catalog. An Unknown fact claims
+// nothing.
+func claimHolds(t testing.TB, conn *sql.Conn, c walktest.Claim) (bool, string) {
 	t.Helper()
 	ctx := context.Background()
 	ask := func(q string, args ...any) bool {
 		t.Helper()
-		var ok bool
-		if err := conn.QueryRowContext(ctx, q, args...).Scan(&ok); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-		return ok
+		return catalogAsk(t, conn, q, args...)
 	}
-	k := v.Check.Key
-	if k == (walk.Key{}) {
-		switch {
-		case strings.HasPrefix(msg, "schema ") && strings.HasSuffix(msg, " does not exist"):
-			name := strings.TrimSuffix(strings.TrimPrefix(msg, "schema "), " does not exist")
-			return ask(`SELECT to_regnamespace($1) IS NULL`, name), "schema " + name + " exists"
-		case strings.Contains(msg, " of relation "):
-			// A column or constraint one ALTER drops twice: a claim
-			// about the text.
-			return true, ""
-		case strings.HasSuffix(msg, " does not exist"):
-			words := strings.TrimSuffix(msg, " does not exist")
-			name := words[strings.LastIndex(words, " ")+1:]
-			return ask(`SELECT to_regclass($1) IS NULL`, name), name + " exists"
-		case msg == "no schema has been selected to create in":
-			return ask(`SELECT current_schema() IS NULL`), "the search path has a schema"
-		case strings.HasPrefix(msg, "cannot drop schema "):
-			name := strings.TrimSuffix(strings.TrimPrefix(msg, "cannot drop schema "), " because other objects depend on it")
-			return ask(`SELECT EXISTS (SELECT 1 FROM pg_class WHERE relnamespace = to_regnamespace($1)) OR EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = to_regnamespace($1))`, name), "schema " + name + " is empty"
-		case strings.HasPrefix(msg, "cannot truncate only a partitioned table: "):
-			name := strings.TrimPrefix(msg, "cannot truncate only a partitioned table: ")
-			return ask(`SELECT EXISTS (SELECT 1 FROM pg_class WHERE oid = to_regclass($1) AND relkind = 'p')`, name), name + " is not partitioned"
-		case strings.HasPrefix(msg, "cannot create index on partitioned table "):
-			// The oracle runs in a transaction, where CONCURRENTLY fails
-			// first for being in one.
-			name := strings.TrimSuffix(strings.TrimPrefix(msg, "cannot create index on partitioned table "), " concurrently")
-			return ask(`SELECT EXISTS (SELECT 1 FROM pg_class WHERE oid = to_regclass($1) AND relkind = 'p')`, name), name + " is not partitioned"
-		}
+	k := c.Key
+	if c.Fact == walk.Unknown {
 		return true, ""
 	}
-	present := v.Got == walk.Present
+	present := c.Fact == walk.Present
 	names := walk.Names(k.Parent)
 	schemaOID := `(CASE WHEN $1 = 'pg_temp' THEN pg_my_temp_schema() ELSE (SELECT oid FROM pg_namespace WHERE nspname = $1) END)`
 	switch k.Space {
@@ -492,12 +480,12 @@ func verifyClaim(t *testing.T, conn *sql.Conn, v *walk.Violation, msg string) (b
 			return !kind.Valid, fmt.Sprintf("relation %s.%s exists", names[0], k.Name)
 		case !kind.Valid:
 			return false, fmt.Sprintf("relation %s.%s does not exist", names[0], k.Name)
-		case v.Kind != "" && relkinds[kind.String] != v.Kind:
-			return false, fmt.Sprintf("relation %s.%s is %s, not %s", names[0], k.Name, relkinds[kind.String], v.Kind)
+		case c.Kind != "" && relkinds[kind.String] != c.Kind:
+			return false, fmt.Sprintf("relation %s.%s is %s, not %s", names[0], k.Name, relkinds[kind.String], c.Kind)
 		}
 		return true, ""
 	case spaceType:
-		if present && v.Kind == typOther {
+		if present && c.Kind == typOther {
 			return ask(`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = `+schemaOID+` AND typname = $2 AND typtype <> 'd')`, names[0], k.Name), fmt.Sprintf("type %s.%s is a domain or missing", names[0], k.Name)
 		}
 		return ask(`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = `+schemaOID+` AND typname = $2) = $3`, names[0], k.Name, present), fmt.Sprintf("type %s.%s present=%v", names[0], k.Name, !present)
@@ -517,7 +505,7 @@ func verifyClaim(t *testing.T, conn *sql.Conn, v *walk.Violation, msg string) (b
 	return false, "unknown space " + k.Space
 }
 
-func walkFinding(t *testing.T, sql string, target review.Target) *review.Finding {
+func walkFinding(t testing.TB, sql string, target review.Target) *review.Finding {
 	t.Helper()
 	if strings.TrimSpace(sql) == "" {
 		return nil
