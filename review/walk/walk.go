@@ -354,12 +354,17 @@ type Check struct {
 }
 
 // Violation is a check the ledger certainly contradicts: Got is the fact
-// found, Absent or Present, and Kind the kind found when Present.
+// found, Absent or Present, and Kind the kind found when Present. For a
+// failure the engine established itself, Keys are the keys it read and
+// Facts their facts as the ledger held them, which an oracle can confirm
+// one by one; a failure with no keys rests on the statement's text alone.
 type Violation struct {
 	Statement int
 	Check     Check
 	Got       Fact
 	Kind      string
+	Keys      []Key
+	Facts     []Fact
 }
 
 // Violates judges one check against the ledger. A check is violated only
@@ -422,6 +427,10 @@ func Run(ctx context.Context, n int, snap Snapshot, lower Lower) (*Violation, er
 		if step.Fail != nil {
 			v := *step.Fail
 			v.Statement = i
+			v.Facts = make([]Fact, len(v.Keys))
+			for j, k := range v.Keys {
+				v.Facts[j], _ = l.Lookup(k)
+			}
 			return &v, nil
 		}
 		for _, c := range step.Checks {

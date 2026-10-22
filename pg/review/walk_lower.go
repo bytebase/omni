@@ -60,7 +60,7 @@ func (b *builder) statement(n ast.Node) bool {
 		b.existsOfKind(v.Relation, relMatview, "materialized view")
 		// It runs the view's stored query, which may call a function
 		// that changes the schema (verified on PostgreSQL 17 and 18).
-		b.last = true
+		b.Last = true
 		return true
 	case *ast.CreatePolicyStmt:
 		b.exists(v.Table, false)
@@ -90,7 +90,7 @@ func (b *builder) statement(n ast.Node) bool {
 			}
 			b.session(func() { b.w.path = nil })
 		}
-		b.last = b.w.callsUserCode(v)
+		b.Last = b.w.callsUserCode(v)
 		return true
 	case *ast.VariableSetStmt:
 		return b.setVariable(v)
@@ -825,7 +825,7 @@ func (b *builder) mayIndex(t walk.Key, cons []*ast.Constraint) {
 // pg: src/backend/commands/indexcmds.c — DefineIndex (an index only on a
 // table, a partitioned table, or a materialized view, 42809)
 func (b *builder) createIndex(v *ast.IndexStmt) bool {
-	b.last = b.w.callsUserCode(v)
+	b.Last = b.w.callsUserCode(v)
 	r := b.exists(v.Relation, false)
 	if r.fact == walk.Present {
 		b.need(r.key, walk.Present, []string{relTable, relMatview}, &walkNote{rng: rangeOf(v.Relation.Loc), present: "cannot create index on relation " + relation(v.Relation)})
@@ -948,7 +948,7 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 		return false
 	}
 	if !into.SkipData && b.w.callsUserCode(query) {
-		b.last = true
+		b.Last = true
 	}
 	rv := into.Rel
 	rng := rangeOf(rv.Loc)
@@ -1189,7 +1189,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		}
 		cmds = append(cmds, cmd)
 	}
-	b.last = b.w.callsUserCode(v)
+	b.Last = b.w.callsUserCode(v)
 	r := b.exists(v.Relation, v.Missing_ok)
 	objType := ast.ObjectType(v.ObjType)
 	if b.wrongKind(r, v.Relation, objType, formAlter) {
@@ -1943,7 +1943,7 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 	//
 	// pg: src/backend/commands/tablecmds.c — RemoveRelations;
 	// src/backend/commands/dropcmds.c — RemoveObjects
-	b.lookups = true
+	b.Order = walk.Lookups
 	if v.Concurrent && kind == ast.OBJECT_INDEX {
 		// Refused before any name is looked up, IF EXISTS or not (0A000,
 		// verified on PostgreSQL 17 and 18 outside a transaction, as
@@ -2288,7 +2288,7 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 			}
 		}
 	}
-	b.last = b.w.triggered
+	b.Last = b.w.triggered
 	return true
 }
 
@@ -2312,7 +2312,7 @@ func (b *builder) dml(rv *ast.RangeVar, n ast.Node) bool {
 	if rv != nil {
 		b.opened(rv)
 	}
-	b.last = b.w.triggered || b.w.callsUserCode(n)
+	b.Last = b.w.triggered || b.w.callsUserCode(n)
 	return true
 }
 
