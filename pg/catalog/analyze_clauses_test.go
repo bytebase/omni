@@ -1,0 +1,272 @@
+package catalog
+
+import (
+	"errors"
+	"slices"
+	"testing"
+
+	pg "github.com/bytebase/omni/pg"
+	nodes "github.com/bytebase/omni/pg/ast"
+)
+
+const analyzeClausesSchema = `
+	CREATE TABLE t (id int, masked text, x text);
+	CREATE TABLE u (id int, y text);
+	CREATE TABLE w (id int, x text, z int);
+`
+
+func newAnalyzeClausesCatalog(t *testing.T) *Catalog {
+	t.Helper()
+	c := New()
+	if _, err := c.Exec(analyzeClausesSchema, nil); err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func analyzeWithOptions(t *testing.T, c *Catalog, sql string, opts AnalyzeOptions) (*Query, error) {
+	t.Helper()
+	stmts, err := pg.Parse(sql)
+	if err != nil {
+		t.Fatalf("parse %q: %v", sql, err)
+	}
+	if len(stmts) != 1 {
+		t.Fatalf("want one statement in %q, got %d", sql, len(stmts))
+	}
+	sel, ok := stmts[0].AST.(*nodes.SelectStmt)
+	if !ok {
+		t.Fatalf("%q is not a SELECT", sql)
+	}
+	return c.AnalyzeSelectStmtWithOptions(sel, opts)
+}
+
+// readColumns names every table column an expression reads, as
+// "table.column", resolving Vars of joins through their alias expressions.
+func readColumns(q *Query, expr AnalyzedExpr) []string {
+	var cols []string
+	var visit func(e AnalyzedExpr) bool
+	visit = func(e AnalyzedExpr) bool {
+		v, ok := e.(*VarExpr)
+		if !ok || v.LevelsUp != 0 || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
+			return true
+		}
+		rte := q.RangeTable[v.RangeIdx]
+		switch rte.Kind {
+		case RTERelation:
+			cols = append(cols, rte.RelName+"."+rte.ColNames[v.AttNum-1])
+		case RTEJoin:
+			WalkAnalyzedExpr(rte.JoinAliasVars[v.AttNum-1], visit)
+		}
+		return true
+	}
+	WalkAnalyzedExpr(expr, visit)
+	slices.Sort(cols)
+	return slices.Compact(cols)
+}
+
+// targetExpr returns the expression of output column i (0-based), skipping
+// the junk entries ORDER BY, GROUP BY, and window clauses add.
+func targetExpr(t *testing.T, q *Query, i int) AnalyzedExpr {
+	t.Helper()
+	output := nonJunkTargetEntries(q.TargetList)
+	if i >= len(output) {
+		t.Fatalf("query has %d output columns, want column %d", len(output), i+1)
+	}
+	return output[i].Expr
+}
+
+func TestAnalyzeAggregateKeepsFilterAndOrder(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT
+		sum(id) FILTER (WHERE masked = 'a'),
+		count(*) FILTER (WHERE masked IS NULL),
+		string_agg(x, ',' ORDER BY masked DESC NULLS LAST)
+		FROM t`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range [][]string{
+		{"t.id", "t.masked"},
+		{"t.masked"},
+		{"t.masked", "t.x"},
+	} {
+		if got := readColumns(q, targetExpr(t, q, i)); !slices.Equal(got, want) {
+			t.Errorf("target %d reads %v, want %v", i+1, got, want)
+		}
+	}
+
+	count := targetExpr(t, q, 1).(*AggExpr)
+	if count.AggFuncOID != 2803 {
+		t.Errorf("count(*) resolved to OID %d, want 2803", count.AggFuncOID)
+	}
+	agg := targetExpr(t, q, 2).(*AggExpr)
+	if len(agg.Args) != 2 || len(agg.AggOrder) != 1 || agg.AggWithinGroup {
+		t.Fatalf("string_agg: %d args, %d order items, within group %v", len(agg.Args), len(agg.AggOrder), agg.AggWithinGroup)
+	}
+	if sb := agg.AggOrder[0]; !sb.Descending || sb.NullsFirst {
+		t.Errorf("ORDER BY masked DESC NULLS LAST analyzed as descending=%v nullsFirst=%v", sb.Descending, sb.NullsFirst)
+	}
+}
+
+func TestAnalyzeWithinGroupSplitsDirectArgs(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY id) FROM t`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	agg := targetExpr(t, q, 0).(*AggExpr)
+	if agg.AggFuncOID != 3974 || !agg.AggWithinGroup || len(agg.Args) != 1 || len(agg.AggOrder) != 1 {
+		t.Fatalf("got OID %d, within group %v, %d direct args, %d order items", agg.AggFuncOID, agg.AggWithinGroup, len(agg.Args), len(agg.AggOrder))
+	}
+	// Both the direct argument and the ordering are coerced to the
+	// aggregate's float8 parameters.
+	if got := agg.Args[0].exprType(); got != FLOAT8OID {
+		t.Errorf("direct argument type %d, want float8", got)
+	}
+	if got := agg.AggOrder[0].Expr.exprType(); got != FLOAT8OID {
+		t.Errorf("ordering type %d, want float8", got)
+	}
+	if got := readColumns(q, agg); !slices.Equal(got, []string{"t.id"}) {
+		t.Errorf("reads %v, want [t.id]", got)
+	}
+}
+
+func TestAnalyzeNaturalJoin(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT *, id FROM t NATURAL JOIN w`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	jn := q.JoinTree.FromList[0].(*JoinExprNode)
+	if !slices.Equal(jn.UsingClause, []string{"id", "x"}) {
+		t.Errorf("USING columns %v, want [id x]", jn.UsingClause)
+	}
+	if got := readColumns(q, jn.Quals); !slices.Equal(got, []string{"t.id", "t.x", "w.id", "w.x"}) {
+		t.Errorf("join condition reads %v", got)
+	}
+	var names []string
+	for _, te := range q.TargetList {
+		names = append(names, te.ResName)
+	}
+	if want := []string{"id", "x", "masked", "z", "id"}; !slices.Equal(names, want) {
+		t.Errorf("output columns %v, want %v", names, want)
+	}
+	// The merged column of an inner join is the left input's.
+	v := targetExpr(t, q, 4).(*VarExpr)
+	if v.RangeIdx != 0 || v.AttNum != 1 {
+		t.Errorf("unqualified id analyzed as RangeIdx %d AttNum %d, want t.id", v.RangeIdx, v.AttNum)
+	}
+}
+
+func TestAnalyzeUsingColumnSides(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT id FROM t RIGHT JOIN u USING (id)`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := readColumns(q, targetExpr(t, q, 0)); !slices.Equal(got, []string{"u.id"}) {
+		t.Errorf("RIGHT JOIN USING column reads %v, want [u.id]", got)
+	}
+
+	q, err = analyzeWithOptions(t, c, `SELECT id FROM t FULL JOIN u USING (id)`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := targetExpr(t, q, 0).(*VarExpr)
+	if q.RangeTable[v.RangeIdx].Kind != RTEJoin {
+		t.Fatalf("FULL JOIN USING column analyzed as a Var of %v, want the join", q.RangeTable[v.RangeIdx].Kind)
+	}
+	if _, ok := q.RangeTable[v.RangeIdx].JoinAliasVars[v.AttNum-1].(*CoalesceExprQ); !ok {
+		t.Errorf("FULL JOIN USING column alias is %T, want COALESCE", q.RangeTable[v.RangeIdx].JoinAliasVars[v.AttNum-1])
+	}
+	if got := readColumns(q, v); !slices.Equal(got, []string{"t.id", "u.id"}) {
+		t.Errorf("FULL JOIN USING column reads %v, want both inputs", got)
+	}
+}
+
+func TestAnalyzeJoinColumnsResolveToInputs(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT y, masked FROM t JOIN u ON t.id = u.id`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []string{"u.y", "t.masked"} {
+		v := targetExpr(t, q, i).(*VarExpr)
+		if rte := q.RangeTable[v.RangeIdx]; rte.Kind != RTERelation || rte.RelName+"."+rte.ColNames[v.AttNum-1] != want {
+			t.Errorf("target %d is a Var of %s (kind %v), want %s", i+1, rte.RelName, rte.Kind, want)
+		}
+	}
+}
+
+func TestAnalyzeSetOpOutputColumns(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT id, x FROM t UNION SELECT id, y FROM u`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, te := range q.TargetList {
+		col, ok := te.Expr.(*SetOpColumnExpr)
+		if !ok {
+			t.Fatalf("output column %d is %T, want *SetOpColumnExpr", i+1, te.Expr)
+		}
+		if int(col.ResNo) != i+1 {
+			t.Errorf("output column %d has ResNo %d", i+1, col.ResNo)
+		}
+	}
+	if coll := q.TargetList[1].Expr.exprCollation(); coll != DEFAULT_COLLATION_OID {
+		t.Errorf("text output column collation %d, want default", coll)
+	}
+}
+
+func TestAnalyzeBuiltinArgDefaults(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT jsonb_path_exists('{}'::jsonb, '$.a'), jsonb_set('{}'::jsonb, '{a}', '1'), random_normal()`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []uint32{4005, 3305, 6212} {
+		if f := targetExpr(t, q, i).(*FuncCallExpr); f.FuncOID != want {
+			t.Errorf("target %d resolved to OID %d, want %d", i+1, f.FuncOID, want)
+		}
+	}
+	if got := targetExpr(t, q, 0).(*FuncCallExpr).Args[1].exprType(); got != JSONPATHOID {
+		t.Errorf("jsonb_path_exists path argument type %d, want jsonpath", got)
+	}
+}
+
+func TestAnalyzeOpaqueUnknownFunctions(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	sql := `SELECT levenshtein(x, 'a'), my_agg(x ORDER BY masked) FILTER (WHERE id > 1),
+		my_win(x) OVER (PARTITION BY masked), lower(x, 1)
+		FROM t WHERE levenshtein(x, masked) < 3`
+	var catErr *Error
+	if _, err := analyzeWithOptions(t, c, sql, AnalyzeOptions{}); !errors.As(err, &catErr) || catErr.Code != CodeUndefinedFunction {
+		t.Fatalf("without the option: %v, want 42883", err)
+	}
+
+	q, err := analyzeWithOptions(t, c, sql, AnalyzeOptions{OpaqueUnknownFunctions: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f, ok := targetExpr(t, q, 0).(*FuncCallExpr); !ok || f.FuncOID != 0 || f.FuncName != "levenshtein" || f.ResultType != UNKNOWNOID {
+		t.Errorf("levenshtein analyzed as %#v", targetExpr(t, q, 0))
+	}
+	if a, ok := targetExpr(t, q, 1).(*AggExpr); !ok || a.AggFuncOID != 0 || len(a.AggOrder) != 1 || a.AggFilter == nil {
+		t.Errorf("my_agg analyzed as %#v", targetExpr(t, q, 1))
+	}
+	if w, ok := targetExpr(t, q, 2).(*WindowFuncExpr); !ok || w.FuncOID != 0 {
+		t.Errorf("my_win analyzed as %#v", targetExpr(t, q, 2))
+	}
+	// A known name with no matching overload is opaque too.
+	if f, ok := targetExpr(t, q, 3).(*FuncCallExpr); !ok || f.FuncOID != 0 {
+		t.Errorf("lower(x, 1) analyzed as %#v", targetExpr(t, q, 3))
+	}
+	for i, want := range [][]string{{"t.x"}, {"t.id", "t.masked", "t.x"}, {"t.x"}, {"t.x"}} {
+		if got := readColumns(q, targetExpr(t, q, i)); !slices.Equal(got, want) {
+			t.Errorf("target %d reads %v, want %v", i+1, got, want)
+		}
+	}
+	if got := readColumns(q, q.JoinTree.Quals); !slices.Equal(got, []string{"t.masked", "t.x"}) {
+		t.Errorf("WHERE reads %v", got)
+	}
+}

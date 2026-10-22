@@ -31,7 +31,7 @@ const (
 	JoinLeft
 	JoinRight
 	JoinFull
-	JoinCross
+	JoinCross // not produced by the analyzer: a CROSS JOIN is JoinInner with no Quals
 )
 
 // BoolOpType identifies a boolean operator.
@@ -167,15 +167,47 @@ type AggExpr struct {
 	AggFuncOID  uint32
 	AggName     string // for deparse
 	ResultType  uint32
-	Collation   uint32 // result collation
-	Args        []AnalyzedExpr
-	AggStar     bool // count(*)
+	Collation   uint32         // result collation
+	Args        []AnalyzedExpr // the arguments in parentheses; for WITHIN GROUP, the direct arguments
+	AggStar     bool           // count(*)
 	AggDistinct bool
+	// AggOrder is the ORDER BY inside the call, or for an ordered-set
+	// aggregate the WITHIN GROUP ordering, whose expressions are then the
+	// aggregated arguments.
+	AggOrder       []*AggSortBy
+	AggWithinGroup bool         // AggOrder came from WITHIN GROUP
+	AggFilter      AnalyzedExpr // FILTER (WHERE ...), may be nil
 }
 
 func (a *AggExpr) exprType() uint32      { return a.ResultType }
 func (a *AggExpr) exprTypMod() int32     { return -1 }
 func (a *AggExpr) exprCollation() uint32 { return a.Collation }
+
+// AggSortBy is one ORDER BY item of an aggregate call.
+//
+// pg: src/include/nodes/primnodes.h — Aggref.aggorder (SortGroupClause over Aggref.args)
+type AggSortBy struct {
+	Expr       AnalyzedExpr
+	Descending bool
+	NullsFirst bool
+}
+
+// SetOpColumnExpr is an output column of a set operation: column ResNo of
+// both LArg and RArg, coerced to their common type. PostgreSQL represents it
+// as a Var of the leftmost leaf query; the analyzed Query of a set operation
+// has no range table entry for its leaves, so it uses this node instead.
+//
+// pg: src/backend/parser/analyze.c — transformSetOperationStmt (targetlist)
+type SetOpColumnExpr struct {
+	ResNo     int16 // 1-based position in the output of LArg and RArg
+	TypeOID   uint32
+	TypeMod   int32
+	Collation uint32
+}
+
+func (s *SetOpColumnExpr) exprType() uint32      { return s.TypeOID }
+func (s *SetOpColumnExpr) exprTypMod() int32     { return s.TypeMod }
+func (s *SetOpColumnExpr) exprCollation() uint32 { return s.Collation }
 
 // OpExpr represents a resolved operator expression.
 //
@@ -610,17 +642,23 @@ const (
 // pg: src/include/nodes/parsenodes.h — RangeTblEntry
 type RangeTableEntry struct {
 	Kind          RTEKind
-	RelOID        uint32              // for RTERelation
-	RelName       string              // original table name
-	SchemaName    string              // schema name (for deparse)
-	Alias         string              // user-provided alias (empty = none)
-	ERef          string              // effective reference name for deparse
-	ColNames      []string            // column names visible from this RTE
-	ColTypes      []uint32            // column type OIDs
-	ColTypMods    []int32             // column type modifiers
-	ColCollations []uint32            // column collation OIDs
-	Subquery      *Query              // for RTESubquery
-	JoinType      JoinType            // for RTEJoin
+	RelOID        uint32   // for RTERelation
+	RelName       string   // original table name
+	SchemaName    string   // schema name (for deparse)
+	Alias         string   // user-provided alias (empty = none)
+	ERef          string   // effective reference name for deparse
+	ColNames      []string // column names visible from this RTE
+	ColTypes      []uint32 // column type OIDs
+	ColTypMods    []int32  // column type modifiers
+	ColCollations []uint32 // column collation OIDs
+	Subquery      *Query   // for RTESubquery
+	JoinType      JoinType // for RTEJoin
+	// JoinAliasVars is, for RTEJoin, the expression each output column
+	// stands for: a Var of an input when the column equals one, or
+	// COALESCE(left, right) for a column a FULL JOIN USING merges. A
+	// reference to a column that equals an input Var is analyzed as that
+	// Var, so only those COALESCE columns are read through the join entry.
+	JoinAliasVars []AnalyzedExpr
 	Lateral       bool                // LATERAL subquery or function
 	CTEName       string              // for RTECTE: name of referenced CTE
 	CTEIndex      int                 // for RTECTE: index into Query.CTEList
@@ -667,8 +705,8 @@ type JoinExprNode struct {
 	JoinType    JoinType
 	Left        JoinNode
 	Right       JoinNode
-	Quals       AnalyzedExpr // ON condition
-	UsingClause []string     // USING column names (for deparse)
+	Quals       AnalyzedExpr // ON condition, or the equalities of the USING columns
+	UsingClause []string     // USING column names; for NATURAL, the names both inputs have
 	RTIndex     int          // this join's RTE index
 }
 

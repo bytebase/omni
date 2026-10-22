@@ -3026,6 +3026,7 @@ func (p *Parser) parseSortBy() (nodes.Node, error) {
 		return nil, err
 	}
 	dir := nodes.SORTBY_DEFAULT
+	var useOp *nodes.List
 	if p.cur.Type == ASC {
 		p.advance()
 		dir = nodes.SORTBY_ASC
@@ -3033,10 +3034,14 @@ func (p *Parser) parseSortBy() (nodes.Node, error) {
 		p.advance()
 		dir = nodes.SORTBY_DESC
 	} else if p.cur.Type == USING {
+		// gram.y: sortby — a_expr USING qual_all_Op opt_nulls_order
 		p.advance()
 		dir = nodes.SORTBY_USING
-		// consume operator
-		p.parseAllOp()
+		op, err := p.parseQualAllOp()
+		if err != nil {
+			return nil, err
+		}
+		useOp = op.(*nodes.List)
 	}
 
 	nullsOrder := nodes.SORTBY_NULLS_DEFAULT
@@ -3055,6 +3060,7 @@ func (p *Parser) parseSortBy() (nodes.Node, error) {
 		Node:        expr,
 		SortbyDir:   dir,
 		SortbyNulls: nullsOrder,
+		UseOp:       useOp,
 		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }

@@ -14,7 +14,7 @@ import "fmt"
 type SetOpType int
 
 const (
-	SetOpNone         SetOpType = iota
+	SetOpNone SetOpType = iota
 	SetOpUnion
 	SetOpUnionAll
 	SetOpIntersect
@@ -31,7 +31,7 @@ const (
 	JoinLeft
 	JoinRight
 	JoinFull
-	JoinCross
+	JoinCross // not produced by the analyzer: a CROSS JOIN is JoinInner with no Quals
 )
 
 // BoolOpType identifies a boolean operator.
@@ -57,26 +57,26 @@ type ResultColumn struct {
 //
 // pg: src/include/nodes/parsenodes.h — Query
 type Query struct {
-	TargetList   []*TargetEntry
-	RangeTable   []*RangeTableEntry
-	JoinTree     *JoinTree
-	GroupClause  []*SortGroupClause
-	HavingQual   AnalyzedExpr
-	SortClause   []*SortGroupClause
-	LimitCount   AnalyzedExpr
-	LimitOffset  AnalyzedExpr
-	SetOp        SetOpType       // SetOpNone for simple SELECT
-	AllSetOp     bool            // true for ALL variants
-	LArg         *Query          // left side of set op
-	RArg         *Query          // right side of set op
-	Distinct     bool            // SELECT DISTINCT
-	DistinctOn   []*SortGroupClause
-	HasAggs      bool
-	CTEList      []*CommonTableExprQ // WITH clause CTEs
-	WindowClause []*WindowClauseQ    // WINDOW clause
-	IsRecursive  bool                // WITH RECURSIVE
-	GroupingSets    []*GroupingSetQ      // GROUPING SETS/ROLLUP/CUBE (nil for plain GROUP BY)
-	LockingClauses []*LockingClauseQ    // FOR UPDATE/SHARE clauses
+	TargetList     []*TargetEntry
+	RangeTable     []*RangeTableEntry
+	JoinTree       *JoinTree
+	GroupClause    []*SortGroupClause
+	HavingQual     AnalyzedExpr
+	SortClause     []*SortGroupClause
+	LimitCount     AnalyzedExpr
+	LimitOffset    AnalyzedExpr
+	SetOp          SetOpType // SetOpNone for simple SELECT
+	AllSetOp       bool      // true for ALL variants
+	LArg           *Query    // left side of set op
+	RArg           *Query    // right side of set op
+	Distinct       bool      // SELECT DISTINCT
+	DistinctOn     []*SortGroupClause
+	HasAggs        bool
+	CTEList        []*CommonTableExprQ // WITH clause CTEs
+	WindowClause   []*WindowClauseQ    // WINDOW clause
+	IsRecursive    bool                // WITH RECURSIVE
+	GroupingSets   []*GroupingSetQ     // GROUPING SETS/ROLLUP/CUBE (nil for plain GROUP BY)
+	LockingClauses []*LockingClauseQ   // FOR UPDATE/SHARE clauses
 }
 
 // TargetEntry represents a column in the SELECT list.
@@ -166,15 +166,47 @@ type AggExpr struct {
 	AggFuncOID  uint32
 	AggName     string // for deparse
 	ResultType  uint32
-	Collation   uint32 // result collation
-	Args        []AnalyzedExpr
-	AggStar     bool // count(*)
+	Collation   uint32         // result collation
+	Args        []AnalyzedExpr // the arguments in parentheses; for WITHIN GROUP, the direct arguments
+	AggStar     bool           // count(*)
 	AggDistinct bool
+	// AggOrder is the ORDER BY inside the call, or for an ordered-set
+	// aggregate the WITHIN GROUP ordering, whose expressions are then the
+	// aggregated arguments.
+	AggOrder       []*AggSortBy
+	AggWithinGroup bool         // AggOrder came from WITHIN GROUP
+	AggFilter      AnalyzedExpr // FILTER (WHERE ...), may be nil
 }
 
 func (a *AggExpr) exprType() uint32      { return a.ResultType }
 func (a *AggExpr) exprTypMod() int32     { return -1 }
 func (a *AggExpr) exprCollation() uint32 { return a.Collation }
+
+// AggSortBy is one ORDER BY item of an aggregate call.
+//
+// pg: src/include/nodes/primnodes.h — Aggref.aggorder (SortGroupClause over Aggref.args)
+type AggSortBy struct {
+	Expr       AnalyzedExpr
+	Descending bool
+	NullsFirst bool
+}
+
+// SetOpColumnExpr is an output column of a set operation: column ResNo of
+// both LArg and RArg, coerced to their common type. PostgreSQL represents it
+// as a Var of the leftmost leaf query; the analyzed Query of a set operation
+// has no range table entry for its leaves, so it uses this node instead.
+//
+// pg: src/backend/parser/analyze.c — transformSetOperationStmt (targetlist)
+type SetOpColumnExpr struct {
+	ResNo     int16 // 1-based position in the output of LArg and RArg
+	TypeOID   uint32
+	TypeMod   int32
+	Collation uint32
+}
+
+func (s *SetOpColumnExpr) exprType() uint32      { return s.TypeOID }
+func (s *SetOpColumnExpr) exprTypMod() int32     { return s.TypeMod }
+func (s *SetOpColumnExpr) exprCollation() uint32 { return s.Collation }
 
 // OpExpr represents a resolved operator expression.
 //
@@ -183,7 +215,7 @@ type OpExpr struct {
 	OpOID      uint32
 	OpName     string // for deparse
 	ResultType uint32
-	Collation  uint32 // result collation
+	Collation  uint32       // result collation
 	Left       AnalyzedExpr // nil for prefix
 	Right      AnalyzedExpr
 }
@@ -326,7 +358,7 @@ type NullIfExprQ struct {
 	ResultType uint32
 }
 
-func (n *NullIfExprQ) exprType() uint32 { return n.ResultType }
+func (n *NullIfExprQ) exprType() uint32  { return n.ResultType }
 func (n *NullIfExprQ) exprTypMod() int32 { return -1 }
 func (n *NullIfExprQ) exprCollation() uint32 {
 	if len(n.Args) > 0 {
@@ -491,9 +523,9 @@ func (r *RowExprQ) exprCollation() uint32 { return 0 }
 //
 // pg: src/include/nodes/primnodes.h — CollateExpr
 type CollateExprQ struct {
-	Arg       AnalyzedExpr
-	CollOID   uint32 // collation OID (0 if not resolved)
-	CollName  string // collation name for deparse
+	Arg      AnalyzedExpr
+	CollOID  uint32 // collation OID (0 if not resolved)
+	CollName string // collation name for deparse
 }
 
 func (c *CollateExprQ) exprType() uint32      { return c.Arg.exprType() }
@@ -578,17 +610,17 @@ type CommonTableExprQ struct {
 type GroupingSetQ struct {
 	Kind    GroupingSetKind
 	Content []*SortGroupClause // the columns in this set
-	Sets    []*GroupingSetQ     // for GROUPING SETS containing nested sets
+	Sets    []*GroupingSetQ    // for GROUPING SETS containing nested sets
 }
 
 // GroupingSetKind identifies the type of grouping set.
 type GroupingSetKind int
 
 const (
-	GroupingSetSimple   GroupingSetKind = iota // plain GROUP BY column
-	GroupingSetRollup                          // ROLLUP(...)
-	GroupingSetCube                            // CUBE(...)
-	GroupingSetSets                            // GROUPING SETS((...), (...))
+	GroupingSetSimple GroupingSetKind = iota // plain GROUP BY column
+	GroupingSetRollup                        // ROLLUP(...)
+	GroupingSetCube                          // CUBE(...)
+	GroupingSetSets                          // GROUPING SETS((...), (...))
 )
 
 // --- Range Table and Join Tree types ---
@@ -609,22 +641,28 @@ const (
 // pg: src/include/nodes/parsenodes.h — RangeTblEntry
 type RangeTableEntry struct {
 	Kind          RTEKind
-	RelOID        uint32    // for RTERelation
-	RelName       string    // original table name
-	SchemaName    string    // schema name (for deparse)
-	Alias         string    // user-provided alias (empty = none)
-	ERef          string    // effective reference name for deparse
-	ColNames      []string  // column names visible from this RTE
-	ColTypes      []uint32  // column type OIDs
-	ColTypMods    []int32   // column type modifiers
-	ColCollations []uint32  // column collation OIDs
-	Subquery      *Query    // for RTESubquery
-	JoinType      JoinType  // for RTEJoin
-	Lateral       bool      // LATERAL subquery or function
-	CTEName       string    // for RTECTE: name of referenced CTE
-	CTEIndex      int       // for RTECTE: index into Query.CTEList
-	FuncExprs     []AnalyzedExpr // for RTEFunction: function call expressions
-	Ordinality    bool           // for RTEFunction: WITH ORDINALITY
+	RelOID        uint32   // for RTERelation
+	RelName       string   // original table name
+	SchemaName    string   // schema name (for deparse)
+	Alias         string   // user-provided alias (empty = none)
+	ERef          string   // effective reference name for deparse
+	ColNames      []string // column names visible from this RTE
+	ColTypes      []uint32 // column type OIDs
+	ColTypMods    []int32  // column type modifiers
+	ColCollations []uint32 // column collation OIDs
+	Subquery      *Query   // for RTESubquery
+	JoinType      JoinType // for RTEJoin
+	// JoinAliasVars is, for RTEJoin, the expression each output column
+	// stands for: a Var of an input when the column equals one, or
+	// COALESCE(left, right) for a column a FULL JOIN USING merges. A
+	// reference to a column that equals an input Var is analyzed as that
+	// Var, so only those COALESCE columns are read through the join entry.
+	JoinAliasVars []AnalyzedExpr
+	Lateral       bool                // LATERAL subquery or function
+	CTEName       string              // for RTECTE: name of referenced CTE
+	CTEIndex      int                 // for RTECTE: index into Query.CTEList
+	FuncExprs     []AnalyzedExpr      // for RTEFunction: function call expressions
+	Ordinality    bool                // for RTEFunction: WITH ORDINALITY
 	Tablesample   *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
 }
 
@@ -666,8 +704,8 @@ type JoinExprNode struct {
 	JoinType    JoinType
 	Left        JoinNode
 	Right       JoinNode
-	Quals       AnalyzedExpr // ON condition
-	UsingClause []string     // USING column names (for deparse)
+	Quals       AnalyzedExpr // ON condition, or the equalities of the USING columns
+	UsingClause []string     // USING column names; for NATURAL, the names both inputs have
 	RTIndex     int          // this join's RTE index
 }
 
@@ -788,8 +826,8 @@ type SubscriptingRefExpr struct {
 	LowerExprs     []AnalyzedExpr // lower bounds for slice (nil entries = open)
 }
 
-func (s *SubscriptingRefExpr) exprType() uint32      { return s.ResultType }
-func (s *SubscriptingRefExpr) exprTypMod() int32      { return -1 }
+func (s *SubscriptingRefExpr) exprType() uint32  { return s.ResultType }
+func (s *SubscriptingRefExpr) exprTypMod() int32 { return -1 }
 func (s *SubscriptingRefExpr) exprCollation() uint32 {
 	if s.ContainerExpr != nil {
 		return s.ContainerExpr.exprCollation()
@@ -820,8 +858,8 @@ type ArrayCoerceExprQ struct {
 	Format     byte         // 'e'=explicit, 'i'=implicit
 }
 
-func (a *ArrayCoerceExprQ) exprType() uint32      { return a.ResultType }
-func (a *ArrayCoerceExprQ) exprTypMod() int32      { return -1 }
+func (a *ArrayCoerceExprQ) exprType() uint32  { return a.ResultType }
+func (a *ArrayCoerceExprQ) exprTypMod() int32 { return -1 }
 func (a *ArrayCoerceExprQ) exprCollation() uint32 {
 	if a.Arg != nil {
 		return a.Arg.exprCollation()
@@ -850,8 +888,8 @@ type CoerceToDomainExpr struct {
 	TypeMod    int32
 }
 
-func (c *CoerceToDomainExpr) exprType() uint32      { return c.ResultType }
-func (c *CoerceToDomainExpr) exprTypMod() int32     { return c.TypeMod }
+func (c *CoerceToDomainExpr) exprType() uint32  { return c.ResultType }
+func (c *CoerceToDomainExpr) exprTypMod() int32 { return c.TypeMod }
 func (c *CoerceToDomainExpr) exprCollation() uint32 {
 	if c.Arg != nil {
 		return c.Arg.exprCollation()
@@ -863,10 +901,10 @@ func (c *CoerceToDomainExpr) exprCollation() uint32 {
 //
 // pg: src/include/nodes/primnodes.h — RowCompareExpr
 type RowCompareExprQ struct {
-	RCType int              // comparison type: 1=<, 2=<=, 3=>=, 4=>, 5==, 6=<>
-	LArgs  []AnalyzedExpr   // left-side expressions
-	RArgs  []AnalyzedExpr   // right-side expressions
-	OpNos  []uint32         // operator OIDs per column
+	RCType int            // comparison type: 1=<, 2=<=, 3=>=, 4=>, 5==, 6=<>
+	LArgs  []AnalyzedExpr // left-side expressions
+	RArgs  []AnalyzedExpr // right-side expressions
+	OpNos  []uint32       // operator OIDs per column
 }
 
 func (r *RowCompareExprQ) exprType() uint32      { return BOOLOID }
@@ -979,14 +1017,14 @@ const (
 //
 // pg: src/include/nodes/primnodes.h — XmlExpr
 type XmlExprQ struct {
-	Op         int            // XmlOp* constant
-	Name       string         // name in xml(NAME foo ...) syntaxes
-	NamedArgs  []AnalyzedExpr // non-XML expressions for xml_attributes
-	ArgNames   []string       // parallel list of attribute names
-	Args       []AnalyzedExpr // list of expressions
-	Xmloption  int            // DOCUMENT or CONTENT
-	TypeOID    uint32         // result type
-	TypeMod    int32          // result type modifier
+	Op        int            // XmlOp* constant
+	Name      string         // name in xml(NAME foo ...) syntaxes
+	NamedArgs []AnalyzedExpr // non-XML expressions for xml_attributes
+	ArgNames  []string       // parallel list of attribute names
+	Args      []AnalyzedExpr // list of expressions
+	Xmloption int            // DOCUMENT or CONTENT
+	TypeOID   uint32         // result type
+	TypeMod   int32          // result type modifier
 }
 
 func (x *XmlExprQ) exprType() uint32      { return x.TypeOID }
@@ -1017,7 +1055,7 @@ type JsonConstructorExprQ struct {
 }
 
 func (j *JsonConstructorExprQ) exprType() uint32      { return j.ResultType }
-func (j *JsonConstructorExprQ) exprTypMod() int32      { return -1 }
+func (j *JsonConstructorExprQ) exprTypMod() int32     { return -1 }
 func (j *JsonConstructorExprQ) exprCollation() uint32 { return j.Collation }
 
 // JsonExprOp identifies the kind of JSON function expression.
@@ -1034,14 +1072,14 @@ const (
 // pg: src/include/nodes/primnodes.h — JsonExpr (PG16+)
 type JsonExprQ struct {
 	Op         JsonExprOpQ
-	Expr       AnalyzedExpr   // context item expression
-	Path       string         // JSON path string
+	Expr       AnalyzedExpr // context item expression
+	Path       string       // JSON path string
 	ResultType uint32
 	Collation  uint32
 }
 
 func (j *JsonExprQ) exprType() uint32      { return j.ResultType }
-func (j *JsonExprQ) exprTypMod() int32      { return -1 }
+func (j *JsonExprQ) exprTypMod() int32     { return -1 }
 func (j *JsonExprQ) exprCollation() uint32 { return j.Collation }
 
 // JsonIsPredicateExpr represents expr IS [NOT] JSON [OBJECT|ARRAY|SCALAR].
@@ -1049,13 +1087,13 @@ func (j *JsonExprQ) exprCollation() uint32 { return j.Collation }
 // pg: src/include/nodes/primnodes.h — JsonIsPredicate (PG16+)
 type JsonIsPredicateExpr struct {
 	Expr       AnalyzedExpr
-	ItemType   int  // 0=ANY, 1=OBJECT, 2=ARRAY, 3=SCALAR
+	ItemType   int // 0=ANY, 1=OBJECT, 2=ARRAY, 3=SCALAR
 	UniqueKeys bool
 	IsNot      bool
 }
 
 func (j *JsonIsPredicateExpr) exprType() uint32      { return BOOLOID }
-func (j *JsonIsPredicateExpr) exprTypMod() int32      { return -1 }
+func (j *JsonIsPredicateExpr) exprTypMod() int32     { return -1 }
 func (j *JsonIsPredicateExpr) exprCollation() uint32 { return 0 }
 
 // JsonValueExprQ represents a JSON value expression with optional FORMAT clause.
@@ -1067,7 +1105,7 @@ type JsonValueExprQ struct {
 }
 
 func (j *JsonValueExprQ) exprType() uint32      { return j.ResultType }
-func (j *JsonValueExprQ) exprTypMod() int32      { return -1 }
+func (j *JsonValueExprQ) exprTypMod() int32     { return -1 }
 func (j *JsonValueExprQ) exprCollation() uint32 { return 0 }
 
 // --- FOR UPDATE/SHARE Locking ---
@@ -1076,7 +1114,7 @@ func (j *JsonValueExprQ) exprCollation() uint32 { return 0 }
 type LockClauseStrength int
 
 const (
-	LockNone         LockClauseStrength = iota
+	LockNone LockClauseStrength = iota
 	LockForKeyShare
 	LockForShare
 	LockForNoKeyUpdate
@@ -1087,9 +1125,9 @@ const (
 type LockWaitPolicy int
 
 const (
-	LockWaitBlock    LockWaitPolicy = iota // default: wait for lock
-	LockWaitSkip                           // SKIP LOCKED
-	LockWaitError                          // NOWAIT
+	LockWaitBlock LockWaitPolicy = iota // default: wait for lock
+	LockWaitSkip                        // SKIP LOCKED
+	LockWaitError                       // NOWAIT
 )
 
 // LockingClauseQ represents a FOR UPDATE/SHARE clause.
@@ -1107,14 +1145,14 @@ type LockingClauseQ struct {
 type SubPlanExpr struct{}
 
 func (s *SubPlanExpr) exprType() uint32      { return UNKNOWNOID }
-func (s *SubPlanExpr) exprTypMod() int32      { return -1 }
+func (s *SubPlanExpr) exprTypMod() int32     { return -1 }
 func (s *SubPlanExpr) exprCollation() uint32 { return 0 }
 
 // AlternativeSubPlanExpr is a plan-internal stub (never in user DDL).
 type AlternativeSubPlanExpr struct{}
 
 func (a *AlternativeSubPlanExpr) exprType() uint32      { return UNKNOWNOID }
-func (a *AlternativeSubPlanExpr) exprTypMod() int32      { return -1 }
+func (a *AlternativeSubPlanExpr) exprTypMod() int32     { return -1 }
 func (a *AlternativeSubPlanExpr) exprCollation() uint32 { return 0 }
 
 // MergeSupportFuncExpr is a plan-internal stub for MERGE actions.
@@ -1123,7 +1161,7 @@ type MergeSupportFuncExpr struct {
 }
 
 func (m *MergeSupportFuncExpr) exprType() uint32      { return m.ResultType }
-func (m *MergeSupportFuncExpr) exprTypMod() int32      { return -1 }
+func (m *MergeSupportFuncExpr) exprTypMod() int32     { return -1 }
 func (m *MergeSupportFuncExpr) exprCollation() uint32 { return 0 }
 
 // InferenceElemExpr is a plan-internal stub for ON CONFLICT inference.
@@ -1133,19 +1171,19 @@ type InferenceElemExpr struct {
 }
 
 func (i *InferenceElemExpr) exprType() uint32      { return i.ResultType }
-func (i *InferenceElemExpr) exprTypMod() int32      { return -1 }
+func (i *InferenceElemExpr) exprTypMod() int32     { return -1 }
 func (i *InferenceElemExpr) exprCollation() uint32 { return 0 }
 
 // PartitionBoundSpecExpr is a plan-internal stub for partition bound specs.
 type PartitionBoundSpecExpr struct {
-	Strategy   byte           // 'r' range, 'l' list, 'h' hash
+	Strategy   byte // 'r' range, 'l' list, 'h' hash
 	LowerBound []AnalyzedExpr
 	UpperBound []AnalyzedExpr
 	ListValues []AnalyzedExpr
 }
 
 func (p *PartitionBoundSpecExpr) exprType() uint32      { return UNKNOWNOID }
-func (p *PartitionBoundSpecExpr) exprTypMod() int32      { return -1 }
+func (p *PartitionBoundSpecExpr) exprTypMod() int32     { return -1 }
 func (p *PartitionBoundSpecExpr) exprCollation() uint32 { return 0 }
 
 // isPolymorphic returns true if the given OID is a polymorphic pseudo-type.

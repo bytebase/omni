@@ -172,76 +172,48 @@ func collectExprColumns(c *catalog.Catalog, q *catalog.Query, expr catalog.Analy
 }
 
 func walkExpr(c *catalog.Catalog, q *catalog.Query, expr catalog.AnalyzedExpr, seen map[ColumnResource]bool, cols *[]ColumnResource) {
-	switch v := expr.(type) {
-	case nil:
-	case *catalog.VarExpr:
-		resolveVar(c, q, v, seen, cols)
-	case *catalog.FuncCallExpr:
-		for _, arg := range v.Args {
-			walkExpr(c, q, arg, seen, cols)
-		}
-	case *catalog.AggExpr:
-		for _, arg := range v.Args {
-			walkExpr(c, q, arg, seen, cols)
-		}
-	case *catalog.OpExpr:
-		walkExpr(c, q, v.Left, seen, cols)
-		walkExpr(c, q, v.Right, seen, cols)
-	case *catalog.BoolExprQ:
-		for _, arg := range v.Args {
-			walkExpr(c, q, arg, seen, cols)
-		}
-	case *catalog.CaseExprQ:
-		walkExpr(c, q, v.Arg, seen, cols)
-		for _, w := range v.When {
-			walkExpr(c, q, w.Condition, seen, cols)
-			walkExpr(c, q, w.Result, seen, cols)
-		}
-		walkExpr(c, q, v.Default, seen, cols)
-	case *catalog.CoalesceExprQ:
-		for _, arg := range v.Args {
-			walkExpr(c, q, arg, seen, cols)
-		}
-	case *catalog.SubLinkExpr:
-		walkExpr(c, q, v.TestExpr, seen, cols)
-		if v.SubQuery != nil {
-			for _, te := range v.SubQuery.TargetList {
-				if te != nil && !te.ResJunk {
-					walkExpr(c, v.SubQuery, te.Expr, seen, cols)
+	catalog.WalkAnalyzedExpr(expr, func(e catalog.AnalyzedExpr) bool {
+		switch v := e.(type) {
+		case *catalog.VarExpr:
+			resolveVar(c, q, v, seen, cols)
+		case *catalog.SetOpColumnExpr:
+			// An output column of a set operation reads that column of
+			// both branches.
+			for _, branch := range []*catalog.Query{q.LArg, q.RArg} {
+				if te := outputEntry(branch, int(v.ResNo)); te != nil {
+					walkExpr(c, branch, te.Expr, seen, cols)
 				}
 			}
+		case *catalog.SubLinkExpr:
+			walkExpr(c, q, v.TestExpr, seen, cols)
+			if v.SubQuery != nil {
+				for _, te := range v.SubQuery.TargetList {
+					if te != nil && !te.ResJunk {
+						walkExpr(c, v.SubQuery, te.Expr, seen, cols)
+					}
+				}
+			}
+			return false
 		}
-	case *catalog.RelabelExpr:
-		walkExpr(c, q, v.Arg, seen, cols)
-	case *catalog.CoerceViaIOExpr:
-		walkExpr(c, q, v.Arg, seen, cols)
-	case *catalog.RowExprQ:
-		for _, arg := range v.Args {
-			walkExpr(c, q, arg, seen, cols)
-		}
-	case *catalog.WindowFuncExpr:
-		for _, arg := range v.Args {
-			walkExpr(c, q, arg, seen, cols)
-		}
-		walkExpr(c, q, v.AggFilter, seen, cols)
-	case *catalog.NullIfExprQ:
-		for _, arg := range v.Args {
-			walkExpr(c, q, arg, seen, cols)
-		}
-	case *catalog.MinMaxExprQ:
-		for _, arg := range v.Args {
-			walkExpr(c, q, arg, seen, cols)
-		}
-	case *catalog.ArrayExprQ:
-		for _, elem := range v.Elements {
-			walkExpr(c, q, elem, seen, cols)
-		}
-	case *catalog.ScalarArrayOpExpr:
-		walkExpr(c, q, v.Left, seen, cols)
-		walkExpr(c, q, v.Right, seen, cols)
-	case *catalog.CollateExprQ:
-		walkExpr(c, q, v.Arg, seen, cols)
+		return true
+	})
+}
+
+// outputEntry returns the target entry of output column resNo (1-based) of
+// q, skipping junk entries.
+func outputEntry(q *catalog.Query, resNo int) *catalog.TargetEntry {
+	if q == nil {
+		return nil
 	}
+	for _, te := range q.TargetList {
+		if te == nil || te.ResJunk {
+			continue
+		}
+		if resNo--; resNo == 0 {
+			return te
+		}
+	}
+	return nil
 }
 
 func resolveVar(c *catalog.Catalog, q *catalog.Query, v *catalog.VarExpr, seen map[ColumnResource]bool, cols *[]ColumnResource) {
@@ -275,6 +247,12 @@ func resolveVar(c *catalog.Catalog, q *catalog.Query, v *catalog.VarExpr, seen m
 			if cte.Query != nil && colIdx >= 0 && colIdx < len(cte.Query.TargetList) {
 				walkExpr(c, cte.Query, cte.Query.TargetList[colIdx].Expr, seen, cols)
 			}
+		}
+	case catalog.RTEJoin:
+		// Only a FULL JOIN USING column references the join itself; it
+		// reads both inputs.
+		if colIdx >= 0 && colIdx < len(rte.JoinAliasVars) {
+			walkExpr(c, q, rte.JoinAliasVars[colIdx], seen, cols)
 		}
 	}
 }
