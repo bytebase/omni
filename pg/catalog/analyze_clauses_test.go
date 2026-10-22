@@ -296,6 +296,12 @@ func TestAnalyzeOpaqueUnknownFunctions(t *testing.T) {
 	if got := readColumns(q, q.JoinTree.Quals); !slices.Equal(got, []string{"t.masked", "t.x"}) {
 		t.Errorf("WHERE reads %v", got)
 	}
+
+	// The non-recursive term of a recursive CTE is analyzed with the
+	// options too.
+	if _, err := analyzeWithOptions(t, c, `WITH RECURSIVE r(n) AS (SELECT ext(id)::int FROM t UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r`, AnalyzeOptions{OpaqueUnknownFunctions: true}); err != nil {
+		t.Errorf("recursive CTE seed: %v", err)
+	}
 }
 
 func TestAnalyzeRejectsQualifiedAggSortOperator(t *testing.T) {

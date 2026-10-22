@@ -184,6 +184,8 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 		{"distinct_agg_order_coerced", `SELECT string_agg(DISTINCT v, ',' ORDER BY v) AS s FROM vc`},
 		{"hypothetical_two_columns", `SELECT rank(1, 'a') WITHIN GROUP (ORDER BY id, x) AS r FROM t`},
 		{"hypothetical_coerced", `SELECT rank(1.5) WITHIN GROUP (ORDER BY id) AS r, percent_rank('5') WITHIN GROUP (ORDER BY x) AS p FROM t`},
+		{"filter_unknown_literal", `SELECT sum(id) FILTER (WHERE 'true') AS s, count(*) FILTER (WHERE NULL) AS c FROM t`},
+		{"agg_order_unknown_literal", `SELECT array_agg(1 ORDER BY 'a') AS a FROM t`},
 		{"agg_order_matches_arg", `SELECT string_agg(v, ',' ORDER BY v) AS s, string_agg(v, ',' ORDER BY v || '') AS s2, array_agg(id ORDER BY id + 1) AS a FROM vc, t`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -316,6 +318,23 @@ func TestAnalyzeErrorsMatchPostgres(t *testing.T) {
 		`SELECT string_agg(DISTINCT v, ',' ORDER BY v) FROM vc`,
 		`SELECT array_agg(DISTINCT id::text ORDER BY id::text) FROM t`,
 		`SELECT array_agg(id ORDER BY id USING OPERATOR(pg_catalog.>)) FROM t`,
+		`SELECT sum(id) FILTER (WHERE id) FROM t`,
+		`SELECT sum(id) FILTER (WHERE x) FROM t`,
+		`SELECT sum(id) FILTER (WHERE 'true') FROM t`,
+		`SELECT count(*) FILTER (WHERE id) OVER () FROM t`,
+		`SELECT count(*) FILTER (WHERE id) FROM t`,
+		`SELECT array_agg(1 ORDER BY j) FROM js1`,
+		`SELECT array_agg(1 ORDER BY j DESC) FROM js1`,
+		`SELECT array_agg(1 ORDER BY j USING <) FROM js1`,
+		`SELECT array_agg(1 ORDER BY ARRAY[j]) FROM js1`,
+		`SELECT array_agg(1 ORDER BY ARRAY[x]) FROM t`,
+		`SELECT array_agg(1 ORDER BY x::varchar) FROM t`,
+		`SELECT array_agg(1 ORDER BY 'a') FROM t`,
+		`SELECT mode() WITHIN GROUP (ORDER BY j) FROM js1`,
+		`SELECT num_nulls()`,
+		`SELECT concat()`,
+		`SELECT json_build_array()`,
+		`SELECT json_build_object()`,
 	} {
 		t.Run(query, func(t *testing.T) {
 			// EXPLAIN analyzes and plans the query without running it.

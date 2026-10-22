@@ -1813,6 +1813,9 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 		if err != nil {
 			return nil, err
 		}
+		if aggFilter, err = ac.catalog.coerceToBoolean(aggFilter, "FILTER"); err != nil {
+			return nil, err
+		}
 	}
 
 	// count(*) special case.
@@ -1962,7 +1965,11 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 		} else if err := matchAggOrderToArgs(args, aggOrder, fc.AggDistinct); err != nil {
 			return nil, err
 		}
-		return newAggExpr(fc, proc.OID, funcName, retType, aggColl, args, nDirect, aggOrder, aggFilter), nil
+		agg := newAggExpr(fc, proc.OID, funcName, retType, aggColl, args, nDirect, aggOrder, aggFilter)
+		if err := ac.catalog.prepareAggSort(agg.AggOrder); err != nil {
+			return nil, err
+		}
+		return agg, nil
 	}
 
 	if proc.RetSet && ac.exprKind == analyzeExprKindColumnDefault {
@@ -2152,6 +2159,61 @@ func (c *Catalog) unifyHypotheticalArgs(args []AnalyzedExpr, argTypes []uint32, 
 		}
 	}
 	return nil
+}
+
+// prepareAggSort readies the ORDER BY items of an aggregate call for
+// sorting: an unknown literal is sorted as text, and every item's type must
+// have the ordering operator its direction uses.
+//
+// pg: src/backend/parser/parse_clause.c — addTargetToSortList
+func (c *Catalog) prepareAggSort(aggOrder []*AggSortBy) error {
+	for _, sb := range aggOrder {
+		typ := sb.Expr.exprType()
+		if typ == UNKNOWNOID {
+			coerced, err := c.coerceToTargetType(sb.Expr, UNKNOWNOID, TEXTOID, 'i')
+			if err != nil {
+				return err
+			}
+			sb.Expr, typ = coerced, TEXTOID
+		}
+		op := "<"
+		if sb.Descending {
+			op = ">"
+		}
+		if !c.hasOrderingOp(typ, op) {
+			return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("could not identify an ordering operator for type %s", c.typeName(typ))}
+		}
+	}
+	return nil
+}
+
+// hasOrderingOp reports whether a type can be sorted with op, < or >: it has
+// the operator, or for an array its element type can be sorted. PostgreSQL
+// further requires the operator to belong to a btree operator family, which
+// the catalog does not record; the few types that have < but no btree
+// family, such as box, are accepted.
+func (c *Catalog) hasOrderingOp(typ uint32, op string) bool {
+	if t := c.typeByOID[typ]; t != nil && t.Category == 'A' && t.Elem != 0 {
+		return c.hasOrderingOp(t.Elem, op)
+	}
+	_, _, _, err := c.resolveOperator(op, typ, typ, false)
+	return err == nil
+}
+
+// coerceToBoolean casts the expression of a boolean clause, such as FILTER,
+// to boolean, or fails when it has no cast in assignment context.
+//
+// pg: src/backend/parser/parse_coerce.c — coerce_to_boolean
+func (c *Catalog) coerceToBoolean(expr AnalyzedExpr, construct string) (AnalyzedExpr, error) {
+	typ := expr.exprType()
+	if typ == BOOLOID {
+		return expr, nil
+	}
+	coerced, err := c.coerceToTargetTypeWithFormat(expr, typ, BOOLOID, 'a', 'i')
+	if err != nil {
+		return nil, &Error{Code: CodeDatatypeMismatch, Message: fmt.Sprintf("argument of %s must be type boolean, not type %s", construct, c.typeName(typ))}
+	}
+	return coerced, nil
 }
 
 // stripImplicitCoercions removes the implicit casts at the top of an
@@ -3808,7 +3870,7 @@ func (ac *analyzeCtx) analyzeCTEs(withClause *nodes.WithClause) error {
 			}
 
 			// 2. Analyze only the non-recursive term (larg).
-			nrQuery, err := ac.catalog.analyzeSelectStmt(sub.Larg)
+			nrQuery, err := ac.catalog.analyzeSelectStmtWithOptions(sub.Larg, ac.opts)
 			if err != nil {
 				return err
 			}
