@@ -25,6 +25,7 @@ import (
 // Rules lists the rules this package implements, in evaluation order.
 var Rules = []review.Rule{
 	review.Syntax,
+	review.WalkThrough,
 	review.OnlineMigration,
 	review.RequireIsNull,
 	review.RequireWhere,
@@ -88,8 +89,8 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 			checkDisallowRename(s, r)
 		}
 	}
-	if backup, scans := targetWork(stmts, on, opts.Change); backup || scans {
-		findings, failures, err := reviewTargets(ctx, stmts, on, backup, scans, targets)
+	if todo := targetWork(stmts, on, opts.Change); todo.any() {
+		findings, failures, err := reviewTargets(ctx, stmts, on, todo, targets)
 		if err != nil {
 			return nil, err
 		}

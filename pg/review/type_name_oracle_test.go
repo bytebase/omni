@@ -97,6 +97,13 @@ func assertFormatType(t *testing.T, conn *sql.Conn, spellings []string) {
 // startPostgres starts the PostgreSQL the oracle tests of this package ask.
 func startPostgres(t *testing.T) *sql.DB {
 	t.Helper()
+	return startPostgresImage(t, "postgres:17-alpine")
+}
+
+// startPostgresImage starts PostgreSQL from the image, for the cases a
+// version decides.
+func startPostgresImage(t *testing.T, image string) *sql.DB {
+	t.Helper()
 	ctx := context.Background()
 	var container *tcpg.PostgresContainer
 	var setupErr error
@@ -107,7 +114,7 @@ func startPostgres(t *testing.T) *sql.DB {
 			}
 		}()
 		var err error
-		container, err = tcpg.Run(ctx, "postgres:17-alpine",
+		container, err = tcpg.Run(ctx, image,
 			tcpg.WithDatabase("omni_review"),
 			tcpg.WithUsername("postgres"),
 			tcpg.WithPassword("test"),

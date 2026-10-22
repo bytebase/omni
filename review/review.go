@@ -118,6 +118,11 @@ type Target struct {
 	// server variable (0: names are case-sensitive; 1 or 2: not), an
 	// instance property the schema does not carry. Other engines ignore it.
 	LowerCaseTableNames int
+	// OtherSpecs is true when another spec of the same plan also changes
+	// this database. Bytebase does not order such specs: the other may run
+	// first, so Schema need not be what this change meets. WalkThrough then
+	// judges the change by its own statements alone.
+	OtherSpecs bool
 }
 
 // Result is one review of one SQL text against its targets.
