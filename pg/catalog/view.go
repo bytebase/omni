@@ -103,6 +103,20 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
+	// A UNION ALL column whose inputs' collations conflict has none, which
+	// a view column of a collatable type cannot take.
+	// pg: src/backend/commands/view.c — DefineVirtualRelation
+	if analyzedQuery != nil {
+		for i, te := range nonJunkTargetEntries(analyzedQuery.TargetList) {
+			if sc, ok := te.Expr.(*SetOpColumnExpr); ok && sc.Collation == 0 && c.typeCollation(sc.TypeOID) != 0 && i < len(cols) {
+				return &Error{
+					Code:    CodeIndeterminateCollation,
+					Message: fmt.Sprintf("could not determine which collation to use for view column %q", cols[i].Name),
+				}
+			}
+		}
+	}
+
 	// Check for existing relation with the same name.
 	if existing, exists := schema.Relations[viewName]; exists {
 		if !stmt.Replace {

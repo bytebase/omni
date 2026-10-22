@@ -2,7 +2,7 @@ package catalog
 
 // Facts about built-in functions that pg_proc.dat, the source of
 // pg_proc_generated.go, does not hold. TestBuiltinProcExtrasMatchPostgres
-// checks both tables against a PostgreSQL 18 server.
+// checks these tables against a PostgreSQL 18 server.
 
 // builtinProcArgDefaults is pg_proc.pronargdefaults for each built-in
 // function that has parameter defaults. PostgreSQL declares those defaults in
@@ -49,6 +49,36 @@ var builtinProcArgDefaults = map[uint32]int16{
 	6212: 2, // random_normal(double precision,double precision)
 }
 
+// builtinProcArgNames is pg_proc.proargnames for each built-in function
+// whose parameter names, like its defaults, only system_functions.sql
+// declares.
+//
+// pg: src/backend/catalog/system_functions.sql
+var builtinProcArgNames = map[uint32][]string{
+	1177: {"target", "path", "vars", "silent"},                                             // jsonb_path_exists_tz(jsonb,jsonpath,jsonb,boolean)
+	1179: {"target", "path", "vars", "silent"},                                             // jsonb_path_query_tz(jsonb,jsonpath,jsonb,boolean)
+	1180: {"target", "path", "vars", "silent"},                                             // jsonb_path_query_array_tz(jsonb,jsonpath,jsonb,boolean)
+	2023: {"target", "path", "vars", "silent"},                                             // jsonb_path_query_first_tz(jsonb,jsonpath,jsonb,boolean)
+	2030: {"target", "path", "vars", "silent"},                                             // jsonb_path_match_tz(jsonb,jsonpath,jsonb,boolean)
+	2172: {"label", "fast"},                                                                // pg_backup_start(text,boolean)
+	3261: {"target", "strip_in_arrays"},                                                    // json_strip_nulls(json,boolean)
+	3262: {"target", "strip_in_arrays"},                                                    // jsonb_strip_nulls(jsonb,boolean)
+	3305: {"jsonb_in", "path", "replacement", "create_if_missing"},                         // jsonb_set(jsonb,text[],jsonb,boolean)
+	3577: {"transactional", "prefix", "message", "flush"},                                  // pg_logical_emit_message(boolean,text,text,boolean)
+	3578: {"transactional", "prefix", "message", "flush"},                                  // pg_logical_emit_message(boolean,text,bytea,boolean)
+	3579: {"jsonb_in", "path", "replacement", "insert_after"},                              // jsonb_insert(jsonb,text[],jsonb,boolean)
+	3775: {"target"},                                                                       // pg_stat_reset_shared(text)
+	3960: {"base", "from_json", "use_json_as_text"},                                        // json_populate_record(anyelement,json,boolean)
+	3961: {"base", "from_json", "use_json_as_text"},                                        // json_populate_recordset(anyelement,json,boolean)
+	4005: {"target", "path", "vars", "silent"},                                             // jsonb_path_exists(jsonb,jsonpath,jsonb,boolean)
+	4006: {"target", "path", "vars", "silent"},                                             // jsonb_path_query(jsonb,jsonpath,jsonb,boolean)
+	4007: {"target", "path", "vars", "silent"},                                             // jsonb_path_query_array(jsonb,jsonpath,jsonb,boolean)
+	4008: {"target", "path", "vars", "silent"},                                             // jsonb_path_query_first(jsonb,jsonpath,jsonb,boolean)
+	4009: {"target", "path", "vars", "silent"},                                             // jsonb_path_match(jsonb,jsonpath,jsonb,boolean)
+	5054: {"jsonb_in", "path", "replacement", "create_if_missing", "null_value_treatment"}, // jsonb_set_lax(jsonb,text[],jsonb,boolean,text)
+	6212: {"mean", "stddev"},                                                               // random_normal(double precision,double precision)
+}
+
 // builtinOrderedSetAggKinds is pg_aggregate.aggkind for each built-in
 // ordered-set ('o') and hypothetical-set ('h') aggregate. Every other
 // built-in aggregate is a normal one ('n').
@@ -73,16 +103,26 @@ func init() {
 		if n, ok := builtinProcArgDefaults[BuiltinProcs[i].OID]; ok {
 			BuiltinProcs[i].NArgDefaults = n
 		}
+		if names, ok := builtinProcArgNames[BuiltinProcs[i].OID]; ok {
+			BuiltinProcs[i].ArgNames = names
+		}
 	}
 }
 
-// builtinAggKind returns pg_aggregate.aggkind for a built-in aggregate, or 0
-// for one created by CREATE AGGREGATE, whose kind the catalog does not
-// record.
-func builtinAggKind(proc *BuiltinProc) byte {
+// aggKind returns pg_aggregate.aggkind for an aggregate: 'n' normal, 'o'
+// ordered-set, 'h' hypothetical-set.
+func (c *Catalog) aggKind(proc *BuiltinProc) byte {
 	if proc.OID >= FirstNormalObjectId {
-		return 0
+		if up := c.userProcs[proc.OID]; up != nil && up.AggKind != 0 {
+			return up.AggKind
+		}
+		return 'n'
 	}
+	return builtinAggKind(proc)
+}
+
+// builtinAggKind returns pg_aggregate.aggkind for a built-in aggregate.
+func builtinAggKind(proc *BuiltinProc) byte {
 	if kind, ok := builtinOrderedSetAggKinds[proc.OID]; ok {
 		return kind
 	}

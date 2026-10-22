@@ -234,6 +234,33 @@ func TestAnalyzeBuiltinArgDefaults(t *testing.T) {
 	}
 }
 
+func TestAnalyzeNamedArgsAndVariadicDefaults(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT
+		jsonb_path_exists(path => '$.a', target => '{}'::jsonb),
+		make_interval(1, mins => id),
+		pg_logical_slot_get_changes('slot', NULL, NULL)
+		FROM t`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := targetExpr(t, q, 0).(*FuncCallExpr)
+	if f.FuncOID != 4005 {
+		t.Fatalf("jsonb_path_exists resolved to OID %d", f.FuncOID)
+	}
+	// Each named argument records its parameter and is coerced to its type.
+	path, target := f.Args[0].(*NamedArgExprQ), f.Args[1].(*NamedArgExprQ)
+	if path.ArgNum != 1 || target.ArgNum != 0 || path.exprType() != JSONPATHOID {
+		t.Errorf("path => ArgNum %d type %d, target => ArgNum %d", path.ArgNum, path.exprType(), target.ArgNum)
+	}
+	if mi := targetExpr(t, q, 1).(*FuncCallExpr); mi.FuncOID != 3464 || mi.Args[1].(*NamedArgExprQ).ArgNum != 5 {
+		t.Errorf("make_interval(1, mins => id) analyzed as %#v", mi)
+	}
+	if f := targetExpr(t, q, 2).(*FuncCallExpr); f.FuncOID != 3782 {
+		t.Errorf("pg_logical_slot_get_changes resolved to OID %d, want 3782", f.FuncOID)
+	}
+}
+
 func TestAnalyzeOpaqueUnknownFunctions(t *testing.T) {
 	c := newAnalyzeClausesCatalog(t)
 	sql := `SELECT levenshtein(x, 'a'), my_agg(x ORDER BY masked) FILTER (WHERE id > 1),

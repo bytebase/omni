@@ -2932,6 +2932,7 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node
 
 	// within_group_clause: WITHIN GROUP '(' sort_clause ')'
 	if p.cur.Type == WITHIN {
+		withinLoc := p.pos()
 		p.advance()
 		if _, err := p.expect(GROUP_P); err != nil {
 			return nil, err
@@ -2939,20 +2940,30 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == ORDER {
-			p.advance()
-			if _, err := p.expect(BY); err != nil {
-				return nil, err
-			}
-			var err error
-			fc.AggOrder, err = p.parseSortByList()
-			if err != nil {
-				return nil, err
-			}
+		if _, err := p.expect(ORDER); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(BY); err != nil {
+			return nil, err
+		}
+		order, err := p.parseSortByList()
+		if err != nil {
+			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		// gram.y: func_expr — WITHIN GROUP takes no other ORDER BY,
+		// DISTINCT, or VARIADIC.
+		switch {
+		case fc.AggOrder != nil:
+			return nil, &ParseError{Message: "cannot use multiple ORDER BY clauses with WITHIN GROUP", Position: withinLoc}
+		case fc.AggDistinct:
+			return nil, &ParseError{Message: "cannot use DISTINCT with WITHIN GROUP", Position: withinLoc}
+		case fc.FuncVariadic:
+			return nil, &ParseError{Message: "cannot use VARIADIC with WITHIN GROUP", Position: withinLoc}
+		}
+		fc.AggOrder = order
 		fc.AggWithinGroup = true
 	}
 

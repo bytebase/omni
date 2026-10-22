@@ -743,11 +743,30 @@ func (c *Catalog) collationName(oid uint32) string {
 		return "default"
 	case 950:
 		return "C"
+	case 951:
+		return "POSIX"
 	case 0:
 		return ""
 	default:
 		return fmt.Sprintf("collation(%d)", oid)
 	}
+}
+
+// builtinCollationOID returns the OID of a collation whose OID is fixed in
+// every PostgreSQL database, or 0 for any other name, whose OID the catalog
+// does not know.
+//
+// pg: src/include/catalog/pg_collation.dat
+func builtinCollationOID(name string) uint32 {
+	switch name {
+	case "default":
+		return DEFAULT_COLLATION_OID
+	case "C":
+		return C_COLLATION_OID
+	case "POSIX":
+		return 951
+	}
+	return 0
 }
 
 // selectCommonCollation picks a common collation for set operations.
@@ -786,11 +805,15 @@ func (c *Catalog) resolveReturnType(proc *BuiltinProc, argTypes []uint32) uint32
 
 	// Find the actual type from polymorphic parameter matching.
 	for i, paramOID := range proc.ArgTypes {
+		if i >= len(argTypes) {
+			// The remaining parameters take their defaults.
+			break
+		}
 		if !isPolymorphic(paramOID) {
 			continue
 		}
 		actualType := argTypes[i]
-		if actualType == UNKNOWNOID {
+		if actualType == UNKNOWNOID || actualType == 0 {
 			continue
 		}
 

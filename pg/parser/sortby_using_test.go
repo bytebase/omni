@@ -57,3 +57,27 @@ func TestSortByUsingOperator(t *testing.T) {
 		})
 	}
 }
+
+// TestWithinGroupClause checks that WITHIN GROUP requires its ORDER BY and
+// rejects another ORDER BY, DISTINCT, and VARIADIC, as PostgreSQL does.
+//
+// gram.y: within_group_clause; func_expr (the checks on WITHIN GROUP)
+func TestWithinGroupClause(t *testing.T) {
+	o := StartParenOracle(t)
+	for _, sql := range []string{
+		"SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY 1)",
+		"SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY 1) FILTER (WHERE true)",
+		"SELECT percentile_cont(0.5) WITHIN GROUP ()",
+		"SELECT percentile_cont(DISTINCT 0.5) WITHIN GROUP (ORDER BY 1)",
+		"SELECT percentile_cont(VARIADIC ARRAY[0.5]) WITHIN GROUP (ORDER BY 1)",
+		"SELECT percentile_cont(0.5 ORDER BY 1) WITHIN GROUP (ORDER BY 1)",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			pgStatus, _, pgMsg := classifyPG(context.Background(), o, sql)
+			_, err := Parse(sql)
+			if (pgStatus == PGAccept) != (err == nil) {
+				t.Errorf("omni error %v, postgres %v %s", err, pgStatus, pgMsg)
+			}
+		})
+	}
+}

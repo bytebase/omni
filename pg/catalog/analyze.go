@@ -122,8 +122,12 @@ func (ac *analyzeCtx) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
 		// i+1 of both branches. Never shown by the deparser.
 		var coll uint32
 		if ac.catalog.typeCollation(common) != 0 {
-			coll = selectCommonCollation(lte.Expr.exprCollation(), rte.Expr.exprCollation())
-			if coll == 0 {
+			var conflict bool
+			coll, conflict, err = ac.catalog.setOpCollation(lte.Expr, rte.Expr, op == SetOpUnion && stmt.All)
+			if err != nil {
+				return nil, err
+			}
+			if coll == 0 && !conflict {
 				coll = ac.catalog.typeCollation(common)
 			}
 		}
@@ -140,6 +144,58 @@ func (ac *analyzeCtx) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
 	q.LArg = lQuery
 	q.RArg = rQuery
 	return q, nil
+}
+
+// setOpCollation merges the collations of a set operation's two input
+// columns. An explicit COLLATE wins, and two different explicit ones are an
+// error. Of two implicit collations a non-default one beats the default, and
+// two different non-default ones conflict: a UNION ALL column then has no
+// collation, and the other operations fail. conflict reports that case.
+//
+// Only a COLLATE at the top of an input counts as explicit; PostgreSQL also
+// carries explicit strength up through the expressions above a COLLATE.
+//
+// pg: src/backend/parser/analyze.c — transformSetOperationTree (rescolcoll)
+// pg: src/backend/parser/parse_collate.c — select_common_collation
+func (c *Catalog) setOpCollation(l, r AnalyzedExpr, noneOK bool) (coll uint32, conflict bool, err error) {
+	lColl, rColl := l.exprCollation(), r.exprCollation()
+	lName, lExplicit := explicitCollation(l)
+	rName, rExplicit := explicitCollation(r)
+	switch {
+	case lExplicit && rExplicit:
+		if lName != rName {
+			return 0, false, &Error{Code: CodeCollationMismatch, Message: fmt.Sprintf("collation mismatch between explicit collations %q and %q", lName, rName)}
+		}
+		return lColl, false, nil
+	case lExplicit:
+		return lColl, false, nil
+	case rExplicit:
+		return rColl, false, nil
+	}
+	switch {
+	case lColl == rColl || rColl == 0 || rColl == DEFAULT_COLLATION_OID:
+		return lColl, false, nil
+	case lColl == 0 || lColl == DEFAULT_COLLATION_OID:
+		return rColl, false, nil
+	case noneOK:
+		return 0, true, nil
+	}
+	return 0, false, &Error{Code: CodeCollationMismatch, Message: fmt.Sprintf("collation mismatch between implicit collations %q and %q", c.collationName(lColl), c.collationName(rColl))}
+}
+
+// explicitCollation reports the collation name of an expression whose
+// collation is set by a COLLATE clause.
+func explicitCollation(e AnalyzedExpr) (string, bool) {
+	for {
+		switch v := e.(type) {
+		case *RelabelExpr:
+			e = v.Arg
+		case *CollateExprQ:
+			return v.CollName, true
+		default:
+			return "", false
+		}
+	}
 }
 
 func nonJunkTargetEntries(tlist []*TargetEntry) []*TargetEntry {
@@ -1646,6 +1702,10 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 			argTypes = append(argTypes, sb.Expr.exprType())
 		}
 	}
+	argNames, err := callArgNames(args)
+	if err != nil {
+		return nil, err
+	}
 	// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (agg_filter)
 	var aggFilter AnalyzedExpr
 	if fc.AggFilter != nil {
@@ -1701,7 +1761,7 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 		return nil, errUndefinedFunction(funcName, argTypes)
 	}
 
-	proc, matchedArgTypes, err := ac.catalog.resolveFuncOverload(procs, argTypes, fc.AggStar, fc.FuncVariadic)
+	proc, matchedArgTypes, err := ac.catalog.resolveFuncOverload(procs, argTypes, argNames, fc.AggStar, fc.FuncVariadic)
 	if err != nil {
 		var catErr *Error
 		if ac.opts.OpaqueUnknownFunctions && errors.As(err, &catErr) && catErr.Code == CodeUndefinedFunction {
@@ -1715,16 +1775,35 @@ func (ac *analyzeCtx) transformFuncCall(fc *nodes.FuncCall) (AnalyzedExpr, error
 	// accept any actual type without coercion.
 	for i := range args {
 		if i < int(proc.NArgs) && argTypes[i] != matchedArgTypes[i] && !isPolymorphic(matchedArgTypes[i]) {
-			args[i], err = ac.catalog.coerceToTargetType(args[i], argTypes[i], matchedArgTypes[i], 'i')
+			if na, ok := args[i].(*NamedArgExprQ); ok {
+				na.Arg, err = ac.catalog.coerceToTargetType(na.Arg, argTypes[i], matchedArgTypes[i], 'i')
+			} else {
+				args[i], err = ac.catalog.coerceToTargetType(args[i], argTypes[i], matchedArgTypes[i], 'i')
+			}
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	retType := ac.catalog.resolveReturnType(proc, argTypes)
+	// A named argument records the parameter it fills, and the return type
+	// is resolved from the arguments in parameter order.
+	// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (argnumber)
+	retArgTypes := argTypes
+	if argNames != nil {
+		if positions, ok := namedCallPositions(proc, argNames, fc.FuncVariadic); ok {
+			retArgTypes = make([]uint32, proc.NArgs)
+			for i, pos := range positions {
+				retArgTypes[pos] = argTypes[i]
+				if na, ok := args[i].(*NamedArgExprQ); ok {
+					na.ArgNum = pos
+				}
+			}
+		}
+	}
+	retType := ac.catalog.resolveReturnType(proc, retArgTypes)
 
-	if err := checkFuncCallClauses(fc, funcName, proc, aggOrder, aggFilter); err != nil {
+	if err := checkFuncCallClauses(fc, funcName, proc, ac.catalog.aggKind(proc), aggOrder, aggFilter); err != nil {
 		return nil, err
 	}
 
@@ -1826,7 +1905,7 @@ func newAggExpr(fc *nodes.FuncCall, oid uint32, name string, retType, coll uint3
 //
 // pg: src/backend/parser/parse_func.c — ParseFuncOrColumn
 // pg: src/backend/parser/parse_agg.c — transformWindowFuncCall
-func checkFuncCallClauses(fc *nodes.FuncCall, name string, proc *BuiltinProc, aggOrder []*AggSortBy, aggFilter AnalyzedExpr) error {
+func checkFuncCallClauses(fc *nodes.FuncCall, name string, proc *BuiltinProc, aggKind byte, aggOrder []*AggSortBy, aggFilter AnalyzedExpr) error {
 	wrongType := func(format string, a ...any) error {
 		return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf(format, a...)}
 	}
@@ -1835,10 +1914,10 @@ func checkFuncCallClauses(fc *nodes.FuncCall, name string, proc *BuiltinProc, ag
 	}
 	switch proc.Kind {
 	case 'a':
-		switch kind := builtinAggKind(proc); {
-		case kind == 'n' && fc.AggWithinGroup:
+		switch {
+		case aggKind == 'n' && fc.AggWithinGroup:
 			return errNotOrderedSetAggregate(name)
-		case (kind == 'o' || kind == 'h') && !fc.AggWithinGroup:
+		case aggKind != 'n' && !fc.AggWithinGroup:
 			return wrongType("WITHIN GROUP is required for ordered-set aggregate %s", name)
 		}
 		if fc.Over != nil {
@@ -3354,6 +3433,7 @@ func (ac *analyzeCtx) transformCollateClause(cc *nodes.CollateClause) (AnalyzedE
 
 	return &CollateExprQ{
 		Arg:      arg,
+		CollOID:  builtinCollationOID(collName),
 		CollName: collName,
 	}, nil
 }
@@ -4195,11 +4275,24 @@ func (c *Catalog) resolveOpWithCoercionFull(name string, leftType, rightType uin
 // and the resolved argument types (after resolving UNKNOWN).
 //
 // pg: src/backend/parser/parse_func.c — FuncnameGetCandidates + func_select_candidate
-func (c *Catalog) resolveFuncOverload(procs []*BuiltinProc, argTypes []uint32, hasStar bool, explicitVariadic bool) (*BuiltinProc, []uint32, error) {
-	// 1. Build candidates filtered by arg count.
+func (c *Catalog) resolveFuncOverload(procs []*BuiltinProc, argTypes []uint32, argNames []string, hasStar bool, explicitVariadic bool) (*BuiltinProc, []uint32, error) {
+	// 1. Build candidates filtered by arg count, and by argument names for a
+	// call in named or mixed notation.
 	var candidates []funcCandidate
 	for _, p := range procs {
-		candArgTypes, ok := candidateArgTypesForCall(p, len(argTypes), explicitVariadic)
+		var candArgTypes []uint32
+		ok := false
+		if argNames != nil {
+			var positions []int
+			if positions, ok = namedCallPositions(p, argNames, explicitVariadic); ok {
+				candArgTypes = make([]uint32, len(positions))
+				for i, pos := range positions {
+					candArgTypes[i] = p.ArgTypes[pos]
+				}
+			}
+		} else {
+			candArgTypes, ok = candidateArgTypesForCall(p, len(argTypes), explicitVariadic)
+		}
 		if !ok {
 			continue
 		}
@@ -4273,9 +4366,15 @@ func candidateArgTypesForCall(proc *BuiltinProc, nargs int, explicitVariadic boo
 		return proc.ArgTypes[:procNArgs], true
 	}
 
-	minArgs := procNArgs
-	if nargs < minArgs {
-		return nil, false
+	// With fewer arguments than parameters, a variadic function is matched
+	// without expanding its variadic parameter, the omitted trailing ones
+	// taking their defaults.
+	// pg: src/backend/catalog/namespace.c — FuncnameGetCandidates
+	if nargs < procNArgs {
+		if nargs+int(proc.NArgDefaults) < procNArgs {
+			return nil, false
+		}
+		return proc.ArgTypes[:nargs], true
 	}
 	fixedArgs := procNArgs - 1
 	if fixedArgs < 0 {
@@ -4292,6 +4391,79 @@ func candidateArgTypesForCall(proc *BuiltinProc, nargs int, explicitVariadic boo
 		argTypes[i] = variadicType
 	}
 	return argTypes, true
+}
+
+// callArgNames returns the name of each argument of a call, "" for a
+// positional one, or nil when no argument is named. Positional arguments must
+// come first, and no name may repeat.
+//
+// pg: src/backend/parser/parse_func.c — ParseFuncOrColumn (argnames)
+func callArgNames(args []AnalyzedExpr) ([]string, error) {
+	var names []string
+	for i, arg := range args {
+		na, ok := arg.(*NamedArgExprQ)
+		if !ok {
+			if names != nil {
+				return nil, &Error{Code: CodeSyntaxError, Message: "positional argument cannot follow named argument"}
+			}
+			continue
+		}
+		if slices.Contains(names, na.Name) {
+			return nil, &Error{Code: CodeSyntaxError, Message: fmt.Sprintf("argument name %q used more than once", na.Name)}
+		}
+		if names == nil {
+			names = make([]string, i, len(args))
+		}
+		names = append(names, na.Name)
+	}
+	return names, nil
+}
+
+// namedCallPositions matches a call in named or mixed notation against proc.
+// argNames holds each argument's name, "" for a positional one. Positional
+// arguments fill the first parameters and each named one the input parameter
+// of that name; every parameter left unfilled must have a default. It
+// returns the parameter each argument fills, in call order. A variadic
+// function matches only when the call passes VARIADIC explicitly.
+//
+// pg: src/backend/catalog/namespace.c — FuncnameGetCandidates (argnames),
+// MatchNamedCall
+func namedCallPositions(proc *BuiltinProc, argNames []string, explicitVariadic bool) ([]int, bool) {
+	nargs, pronargs := len(argNames), int(proc.NArgs)
+	if proc.ArgNames == nil || (proc.Variadic != 0 && !explicitVariadic) ||
+		nargs > pronargs || nargs+int(proc.NArgDefaults) < pronargs {
+		return nil, false
+	}
+	// The names of the input parameters, in order.
+	var inNames []string
+	for i, name := range proc.ArgNames {
+		if proc.ArgModes != nil && i < len(proc.ArgModes) {
+			if mode := proc.ArgModes[i]; mode != 'i' && mode != 'b' && mode != 'v' {
+				continue
+			}
+		}
+		inNames = append(inNames, name)
+	}
+	given := make([]bool, pronargs)
+	positions := make([]int, nargs)
+	for i, name := range argNames {
+		pos := i
+		if name != "" {
+			pos = slices.Index(inNames, name)
+		}
+		if pos < 0 || pos >= pronargs || given[pos] {
+			return nil, false
+		}
+		given[pos] = true
+		positions[i] = pos
+	}
+	firstDefault := pronargs - int(proc.NArgDefaults)
+	for pos := 0; pos < firstDefault; pos++ {
+		if !given[pos] {
+			return nil, false
+		}
+	}
+	return positions, true
 }
 
 // buildResolvedArgs constructs the resolved argument type slice from the matched candidate.

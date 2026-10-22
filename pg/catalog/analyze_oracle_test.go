@@ -120,6 +120,13 @@ const analyzeOracleSchema = `
 	CREATE TABLE w (id int, x text, z int);
 	CREATE TABLE p (a int, b text, c int);
 	CREATE TABLE q (c int, b text, d int);
+	CREATE VIEW cc AS SELECT x COLLATE "C" AS c, y AS d FROM t, u;
+	CREATE VIEW cp AS SELECT y COLLATE "POSIX" AS p FROM u;
+	CREATE FUNCTION os_sfunc(int, int) RETURNS int LANGUAGE sql AS 'select 1';
+	CREATE AGGREGATE my_os(float8 ORDER BY int) (sfunc = os_sfunc, stype = int);
+	CREATE FUNCTION two_sfunc(int, int, int) RETURNS int LANGUAGE sql AS 'select 1';
+	CREATE AGGREGATE two_arg(int, int) (sfunc = two_sfunc, stype = int);
+	CREATE FUNCTION poly_def(a int, b anyelement DEFAULT NULL::int) RETURNS anyelement LANGUAGE sql AS 'select $2';
 `
 
 // TestAnalyzeViewsMatchPostgres creates each view in PostgreSQL and in omni
@@ -155,6 +162,13 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 		{"using_unqualified", `SELECT y, id FROM t JOIN u USING (id)`},
 		{"setop", `SELECT id, x FROM t UNION SELECT id, y FROM u`},
 		{"builtin_defaults", `SELECT jsonb_path_exists('{}'::jsonb, '$."a"') AS e, jsonb_set('{}'::jsonb, '{a}', '1') AS s, random_normal() AS r`},
+		{"named_args", `SELECT make_interval(days => 1) AS a, jsonb_path_exists('{}'::jsonb, '$."a"', silent => true) AS b, make_interval(1, mins => id) AS c FROM t`},
+		{"named_args_reordered", `SELECT jsonb_path_exists(path => '$."a"', target => '{}'::jsonb) AS e`},
+		{"user_ordered_set", `SELECT my_os(0.5) WITHIN GROUP (ORDER BY id) AS m FROM t`},
+		{"setop_collation_nondefault", `SELECT c FROM cc UNION SELECT d FROM cc`},
+		{"setop_collation_default_first", `SELECT d FROM cc UNION SELECT c FROM cc`},
+		{"setop_collation_explicit", `SELECT c COLLATE "POSIX" AS c FROM cc UNION SELECT p FROM cp`},
+		{"setop_collation_nested", `(SELECT c FROM cc UNION ALL SELECT p FROM cp) UNION ALL SELECT d FROM cc`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ddl := analyzeOracleSchema + "CREATE VIEW v AS " + tc.query + ";"
@@ -245,13 +259,69 @@ func TestAnalyzeErrorsMatchPostgres(t *testing.T) {
 		`SELECT 1 FROM t NATURAL JOIN u JOIN w ON y = w.x AND z > 0`,
 		`SELECT 1 FROM t, u JOIN w ON y = w.x`,
 		`SELECT 1 FROM t JOIN u ON y = (SELECT max(x) FROM w WHERE w.id = u.id)`,
+		`SELECT pg_logical_slot_get_changes('slot', NULL, NULL)`,
+		`SELECT pg_logical_slot_get_changes('slot', NULL)`,
+		`SELECT poly_def(1)`,
+		`SELECT poly_def(1, 'x'::text)`,
+		`SELECT jsonb_path_exists('{}'::jsonb, '$.a', silent => true)`,
+		`SELECT jsonb_path_exists(target => '{}'::jsonb, path => '$.a')`,
+		`SELECT jsonb_path_exists('{}'::jsonb, silent => true)`,
+		`SELECT jsonb_path_exists('{}'::jsonb, '$.a', target => '{}')`,
+		`SELECT make_interval(days => 1, days => 2)`,
+		`SELECT make_interval(days => 1, 2)`,
+		`SELECT make_interval(nope => 1)`,
+		`SELECT format(formatstr => 'x')`,
+		`SELECT percentile_cont(fraction => 0.5) WITHIN GROUP (ORDER BY id) FROM t`,
+		`SELECT my_os(0.5, id) FROM t`,
+		`SELECT two_arg(id) WITHIN GROUP (ORDER BY id) FROM t`,
+		`SELECT two_arg(id, id) FROM t`,
+		`SELECT c FROM cc UNION SELECT p FROM cp`,
+		`SELECT c FROM cc EXCEPT ALL SELECT p FROM cp`,
+		`SELECT c FROM cc INTERSECT SELECT d FROM cc`,
+		`SELECT c FROM cc UNION ALL SELECT p FROM cp`,
+		`SELECT c COLLATE "POSIX" FROM cc UNION ALL SELECT d COLLATE "C" FROM cc`,
+		`SELECT c COLLATE "C" FROM cc UNION SELECT p FROM cp`,
 	} {
 		t.Run(query, func(t *testing.T) {
-			rows, pgErr := conn.QueryContext(o.ctx, query)
+			// EXPLAIN analyzes and plans the query without running it.
+			rows, pgErr := conn.QueryContext(o.ctx, "EXPLAIN "+query)
 			if pgErr == nil {
 				rows.Close()
 			}
 			_, err := analyzeWithOptions(t, c, query, AnalyzeOptions{})
+			if got, want := sqlState(t, err), sqlState(t, pgErr); got != want {
+				t.Errorf("omni: %q (%v), postgres: %q (%v)", got, err, want, pgErr)
+			}
+		})
+	}
+}
+
+// TestAnalyzeDDLMatchesPostgres checks that omni accepts or rejects each DDL
+// statement as PostgreSQL does: a view column with no collation, which a
+// UNION ALL of conflicting collations yields, and a hypothetical-set
+// aggregate that is not ordered-set.
+func TestAnalyzeDDLMatchesPostgres(t *testing.T) {
+	o := startAnalyzeOracle(t)
+	for _, ddl := range []string{
+		`CREATE VIEW v AS SELECT c FROM cc UNION ALL SELECT p FROM cp`,
+		`CREATE VIEW v AS SELECT c AS renamed FROM cc UNION ALL SELECT p FROM cp`,
+		`CREATE VIEW v (renamed) AS SELECT c FROM cc UNION ALL SELECT p FROM cp`,
+		`CREATE VIEW v AS SELECT c FROM cc UNION ALL SELECT d FROM cc`,
+		`CREATE AGGREGATE my_bad(int) (sfunc = two_sfunc, stype = int, hypothetical)`,
+		`CREATE AGGREGATE my_hyp(int ORDER BY int) (sfunc = os_sfunc, stype = int, hypothetical)`,
+	} {
+		t.Run(ddl, func(t *testing.T) {
+			conn := o.session(t, analyzeOracleSchema)
+			_, pgErr := conn.ExecContext(o.ctx, ddl)
+
+			c := New()
+			if _, err := c.Exec(analyzeOracleSchema, nil); err != nil {
+				t.Fatal(err)
+			}
+			results, err := c.Exec(ddl, &ExecOptions{ContinueOnError: true})
+			if err == nil && len(results) > 0 {
+				err = results[0].Error
+			}
 			if got, want := sqlState(t, err), sqlState(t, pgErr); got != want {
 				t.Errorf("omni: %q (%v), postgres: %q (%v)", got, err, want, pgErr)
 			}
@@ -292,8 +362,9 @@ func TestAnalyzeViewDependenciesMatchPostgres(t *testing.T) {
 	}
 }
 
-// TestBuiltinProcExtrasMatchPostgres checks builtinProcArgDefaults and
-// builtinOrderedSetAggKinds against pg_proc and pg_aggregate.
+// TestBuiltinProcExtrasMatchPostgres checks the default counts and parameter
+// names of every built-in function, and builtinOrderedSetAggKinds, against
+// pg_proc and pg_aggregate.
 func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 	o := startAnalyzeOracle(t)
 	byOID := make(map[uint32]*BuiltinProc, len(BuiltinProcs))
@@ -301,7 +372,7 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 		byOID[BuiltinProcs[i].OID] = &BuiltinProcs[i]
 	}
 
-	rows, err := o.db.QueryContext(o.ctx, `SELECT oid, pronargdefaults FROM pg_proc WHERE oid < 16384`)
+	rows, err := o.db.QueryContext(o.ctx, `SELECT oid, pronargdefaults, array_to_string(proargnames, ',') FROM pg_proc WHERE oid < 16384`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +380,8 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 	for rows.Next() {
 		var oid uint32
 		var n int16
-		if err := rows.Scan(&oid, &n); err != nil {
+		var names sql.NullString
+		if err := rows.Scan(&oid, &n, &names); err != nil {
 			t.Fatal(err)
 		}
 		p := byOID[oid]
@@ -319,6 +391,9 @@ func TestBuiltinProcExtrasMatchPostgres(t *testing.T) {
 		seen++
 		if p.NArgDefaults != n {
 			t.Errorf("%s (OID %d): NArgDefaults %d, pg_proc.pronargdefaults %d", p.Name, oid, p.NArgDefaults, n)
+		}
+		if (p.ArgNames != nil) != names.Valid || strings.Join(p.ArgNames, ",") != names.String {
+			t.Errorf("%s (OID %d): ArgNames %q, pg_proc.proargnames %q", p.Name, oid, p.ArgNames, names.String)
 		}
 	}
 	rows.Close()

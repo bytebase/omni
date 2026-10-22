@@ -50,6 +50,7 @@ const (
 	CodeForeignKeyViolation          = "23503"
 	CodeUniqueViolation              = "23505"
 	CodeIndeterminateCollation       = "42P22"
+	CodeCollationMismatch            = "42P21"
 	CodeObjectNotInPrerequisiteState = "55000"
 	CodeInvalidGrantOperation        = "0LP01"
 	CodeProgramLimitExceeded         = "54000"

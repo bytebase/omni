@@ -28,6 +28,7 @@ type UserProc struct {
 	ArgModes     []byte   // 'i','o','b','v','t' per parameter; nil if all IN
 	AllArgTypes  []uint32 // all parameter types (IN+OUT+INOUT); nil if no OUT params
 	NArgDefaults int16    // count of input parameters with defaults
+	AggKind      byte     // for an aggregate, pg_aggregate.aggkind: 'n' normal, 'o' ordered-set, 'h' hypothetical-set
 }
 
 // CreateFunctionStmt creates a user-defined function or procedure from a pgparser AST.

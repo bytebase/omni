@@ -38,3 +38,23 @@ func TestSortByUsingOperator(t *testing.T) {
 		}
 	}
 }
+
+// TestWithinGroupClause checks that WITHIN GROUP requires its ORDER BY and
+// rejects another ORDER BY, DISTINCT, and VARIADIC, as in the pg parser.
+//
+// gram.y: within_group_clause; func_expr (the checks on WITHIN GROUP)
+func TestWithinGroupClause(t *testing.T) {
+	if _, err := Parse("SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY 1)"); err != nil {
+		t.Fatal(err)
+	}
+	for _, sql := range []string{
+		"SELECT percentile_cont(0.5) WITHIN GROUP ()",
+		"SELECT percentile_cont(DISTINCT 0.5) WITHIN GROUP (ORDER BY 1)",
+		"SELECT percentile_cont(VARIADIC ARRAY[0.5]) WITHIN GROUP (ORDER BY 1)",
+		"SELECT percentile_cont(0.5 ORDER BY 1) WITHIN GROUP (ORDER BY 1)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("%s: parsed, want a syntax error", sql)
+		}
+	}
+}
