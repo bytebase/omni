@@ -694,6 +694,11 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 
 	var usingClause []string
 	if je.IsNatural {
+		for _, idx := range append(joinNodeBaseRTEs(left), joinNodeBaseRTEs(right)...) {
+			if rte := ac.query.RangeTable[idx]; rte.UnknownColumns {
+				return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("cannot match the NATURAL JOIN columns of function %q, whose columns are unknown", rte.ERef)}
+			}
+		}
 		for _, name := range lNames {
 			if slices.Contains(rNames, name) {
 				usingClause = append(usingClause, name)
@@ -1778,51 +1783,68 @@ func joinNodeBaseRTEs(jn JoinNode) []int {
 // findColumnRef resolves a column name to a VarExpr among the columns the
 // query levels have.
 func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error) {
+	// Within an ON condition only the join's inputs are visible at this
+	// level. Other FROM items are hidden, and the search goes on to the
+	// enclosing levels.
+	// pg: src/backend/parser/parse_clause.c — transformJoinOnClause
+	var visible map[int]bool
+	if ac.onNamespace != nil {
+		visible = map[int]bool{}
+		for _, jn := range ac.onNamespace {
+			for _, i := range joinNodeAllRTEs(jn) {
+				visible[i] = true
+			}
+		}
+	}
+	inScope := func(i int) bool { return visible == nil || visible[i] }
+
 	fromItems := ac.onNamespace
 	if fromItems == nil && ac.query.JoinTree != nil {
 		fromItems = ac.query.JoinTree.FromList
 	}
 	if tableName == "" && len(fromItems) > 0 {
-		var found *VarExpr
+		var cands []*VarExpr
 		for _, jn := range fromItems {
-			v, ambiguous := ac.findVarInVisibleJoinNode(jn, colName)
-			if ambiguous {
-				return nil, errAmbiguousColumn(colName)
-			}
-			if v == nil {
-				continue
-			}
-			if found != nil {
-				return nil, errAmbiguousColumn(colName)
-			}
-			found = v
+			cands = append(cands, ac.findVarsInRTE(joinNodeRTIndex(jn), colName)...)
 		}
-		if found != nil {
-			return found, nil
+		if len(cands) > 0 {
+			return ac.pickColumn(cands, colName)
 		}
 	}
 
-	var found *VarExpr
+	var cands []*VarExpr
+	ownsTable := false
 	for rtIdx, rte := range ac.query.RangeTable {
-		if tableName != "" && rte.ERef != tableName {
+		if !inScope(rtIdx) || (tableName != "" && rte.ERef != tableName) {
 			continue
 		}
+		ownsTable = tableName != ""
 		for colIdx, cn := range rte.ColNames {
 			if cn == colName {
 				v := makeRTEColumnVar(rtIdx, rte, colIdx)
-				if found != nil {
-					return nil, errAmbiguousColumn(colName)
-				}
-				found = v
 				if tableName != "" {
-					return found, nil // exact table match, no ambiguity possible
+					return v, nil // exact table match, no ambiguity possible
 				}
+				cands = append(cands, v)
 			}
 		}
 	}
+	if len(cands) > 0 {
+		return ac.pickColumn(cands, colName)
+	}
+	// A table name this level has is this level's, even when the column is
+	// missing: it shadows an enclosing level's table of the same name.
+	// pg: src/backend/parser/parse_relation.c — refnameNamespaceItem
+	if ownsTable {
+		return nil, errUndefinedColumn(colName)
+	}
 
-	if tableName == "" && found == nil {
+	var found *VarExpr
+	if tableName == "" {
 		for rtIdx, rte := range ac.query.RangeTable {
+			if !inScope(rtIdx) {
+				continue
+			}
 			if v := ac.makeScalarFunctionWholeRowVar(rtIdx, rte, colName); v != nil {
 				if found != nil {
 					return nil, errAmbiguousColumn(colName)
@@ -1859,21 +1881,48 @@ func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error)
 
 	if found == nil {
 		if tableName != "" {
-			// Check if table exists at all in the range table.
-			tableFound := false
-			for _, rte := range ac.query.RangeTable {
-				if rte.ERef == tableName {
-					tableFound = true
-					break
-				}
-			}
-			if !tableFound {
-				return nil, errUndefinedTable(tableName)
-			}
+			// No visible table has the name; one an ON condition hides
+			// is not found either.
+			return nil, errUndefinedTable(tableName)
 		}
 		return nil, errUndefinedColumn(colName)
 	}
 	return found, nil
+}
+
+// pickColumn chooses among the columns an unqualified name matches at one
+// query level. A column of a function whose columns are unknown exists only
+// because the query named it, so a real column of the name wins over it,
+// whatever order the references come in; two of the same kind are
+// ambiguous.
+func (ac *analyzeCtx) pickColumn(cands []*VarExpr, colName string) (*VarExpr, error) {
+	if len(cands) > 1 {
+		var real []*VarExpr
+		for _, v := range cands {
+			if !ac.query.RangeTable[v.RangeIdx].UnknownColumns {
+				real = append(real, v)
+			}
+		}
+		if len(real) > 0 {
+			cands = real
+		}
+	}
+	if len(cands) > 1 {
+		return nil, errAmbiguousColumn(colName)
+	}
+	return cands[0], nil
+}
+
+// joinNodeAllRTEs lists the range table entries of a FROM item: its
+// relations, subqueries, and functions, and its joins.
+func joinNodeAllRTEs(jn JoinNode) []int {
+	switch n := jn.(type) {
+	case *RangeTableRef:
+		return []int{n.RTIndex}
+	case *JoinExprNode:
+		return append([]int{n.RTIndex}, append(joinNodeAllRTEs(n.Left), joinNodeAllRTEs(n.Right)...)...)
+	}
+	return nil
 }
 
 func (ac *analyzeCtx) resolveColumnRefAboveLocal(tableName, colName string) (*VarExpr, error) {
@@ -1897,34 +1946,19 @@ func (ac *analyzeCtx) resolveColumnRefAboveLocal(tableName, colName string) (*Va
 	}, nil
 }
 
-func (ac *analyzeCtx) findVarInVisibleJoinNode(jn JoinNode, colName string) (*VarExpr, bool) {
-	switch v := jn.(type) {
-	case *RangeTableRef:
-		return ac.findVarInRTE(v.RTIndex, colName)
-	case *JoinExprNode:
-		return ac.findVarInRTE(v.RTIndex, colName)
-	default:
-		return nil, false
-	}
-}
-
-func (ac *analyzeCtx) findVarInRTE(rtIdx int, colName string) (*VarExpr, bool) {
+// findVarsInRTE returns the Var of each column of range table entry rtIdx
+// named colName.
+func (ac *analyzeCtx) findVarsInRTE(rtIdx int, colName string) []*VarExpr {
 	if rtIdx < 0 || rtIdx >= len(ac.query.RangeTable) {
-		return nil, false
+		return nil
 	}
-	rte := ac.query.RangeTable[rtIdx]
-	var found *VarExpr
-	for colIdx, cn := range rte.ColNames {
-		if cn != colName {
-			continue
+	var vars []*VarExpr
+	for colIdx, cn := range ac.query.RangeTable[rtIdx].ColNames {
+		if cn == colName {
+			vars = append(vars, ac.nsColumnVar(rtIdx, colIdx))
 		}
-		v := ac.nsColumnVar(rtIdx, colIdx)
-		if found != nil {
-			return nil, true
-		}
-		found = v
 	}
-	return found, false
+	return vars
 }
 
 func makeRTEColumnVar(rtIdx int, rte *RangeTableEntry, colIdx int) *VarExpr {

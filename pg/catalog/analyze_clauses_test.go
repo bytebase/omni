@@ -446,14 +446,52 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 		}
 	}
 
-	// A column named through a join is in the join's output, so an
-	// unqualified reference to it is ambiguous, as in a comma join.
+	// A real column of an unqualified name wins over a function column the
+	// query named, whatever the order of the references and the join.
 	for _, sql := range []string{
 		`SELECT f.id, id FROM t CROSS JOIN unknown_rows() f`,
+		`SELECT id, f.id FROM t CROSS JOIN unknown_rows() f`,
 		`SELECT f.id, id FROM t, unknown_rows() f`,
+		`SELECT id, f.id FROM t, unknown_rows() f`,
 	} {
-		if _, err := analyzeWithOptions(t, c, sql, opaque); !errors.As(err, &catErr) || catErr.Code != CodeAmbiguousColumn {
-			t.Errorf("%s: %v, want 42702", sql, err)
+		q, err := analyzeWithOptions(t, c, sql, opaque)
+		if err != nil {
+			t.Errorf("%s: %v", sql, err)
+			continue
+		}
+		var id AnalyzedExpr
+		for _, te := range nonJunkTargetEntries(q.TargetList) {
+			if v, ok := te.Expr.(*VarExpr); ok && !q.RangeTable[v.RangeIdx].UnknownColumns {
+				id = v
+			}
+		}
+		if got := readColumns(q, id); !slices.Equal(got, []string{"t.id"}) {
+			t.Errorf("%s: id reads %v, want [t.id]", sql, got)
+		}
+	}
+	// Two functions' columns of one name are still ambiguous.
+	if _, err := analyzeWithOptions(t, c, `SELECT f.a, g.a, a FROM unknown_rows() f CROSS JOIN other_rows() g`, opaque); !errors.As(err, &catErr) || catErr.Code != CodeAmbiguousColumn {
+		t.Errorf("a over two functions' columns: %v, want 42702", err)
+	}
+
+	// An alias this level has owns a qualified reference: the column is
+	// the inner function's, not the outer table's of the same alias.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.masked FROM unknown_rows() f) FROM t f`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := targetExpr(t, q, 0).(*SubLinkExpr).SubQuery.TargetList[0].Expr.(*VarExpr); v.LevelsUp != 0 {
+		t.Errorf("f.masked in the subquery reads the outer t (LevelsUp %d)", v.LevelsUp)
+	}
+
+	// An ON condition cannot see an alias-seeded column of another FROM
+	// item, and a NATURAL join cannot match unknown columns.
+	for _, sql := range []string{
+		`SELECT 1 FROM unknown_rows() f(x), t JOIN u ON f.x = t.id`,
+		`SELECT f.id, id FROM unknown_rows() f NATURAL JOIN t`,
+	} {
+		if _, err := analyzeWithOptions(t, c, sql, opaque); err == nil {
+			t.Errorf("%s: analyzed, want an error", sql)
 		}
 	}
 
