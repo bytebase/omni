@@ -194,6 +194,7 @@ func TestAnalyzeViewsMatchPostgres(t *testing.T) {
 		{"coldeflist", `SELECT * FROM json_to_record('{"a":1}') AS x(a int, b text)`},
 		{"coldeflist_typmod", `SELECT x.a, x.b, x.c FROM json_to_recordset('[]') AS x(a int, b varchar(5), c numeric(10, 2))`},
 		{"coldeflist_rows_from", `SELECT * FROM ROWS FROM (json_to_record('{}') AS (a int), generate_series(1, 2)) AS z(a, g)`},
+		{"coldeflist_collate", `SELECT * FROM json_to_record('{}') AS x(a text COLLATE "C", b text COLLATE "default", c text COLLATE "POSIX", d int)`},
 		{"coldeflist_no_alias", `SELECT a FROM json_to_record('{"a":1}') AS (a int)`},
 		{"polymorphic_default", `SELECT poly_def(1) AS r, poly_def(1, 'x'::text) AS s, poly_def(a => 2) AS n`},
 		{"full_using_same_typmod", `SELECT * FROM v1 FULL JOIN v2 USING (k)`},

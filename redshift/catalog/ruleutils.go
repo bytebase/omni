@@ -624,6 +624,14 @@ func (d *deparseCtx) getColDefList(names []string, def *funcColDef) {
 		d.buf.WriteString(quoteIdentifier(name))
 		d.buf.WriteByte(' ')
 		d.buf.WriteString(d.catalog.formatType(typ, def.typmods[i]))
+		// A collation other than the type's default is printed; one the
+		// catalog cannot resolve is printed as named.
+		if cn := def.collNames[i]; cn != "" {
+			if oid := builtinCollationOID(cn); oid == 0 || oid != d.catalog.typeCollation(typ) {
+				d.buf.WriteString(" COLLATE ")
+				d.buf.WriteString(quoteIdentifier(cn))
+			}
+		}
 	}
 	d.buf.WriteByte(')')
 }

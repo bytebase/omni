@@ -1035,11 +1035,21 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		if err := ac.appendColumnsFromColdefList(coldeflist, &colNames, &colTypes, &colTypMods, &colCollations); err != nil {
 			return err
 		}
-		colDefs[i] = &funcColDef{
-			names:   slices.Clone(colNames[start:]),
-			types:   slices.Clone(colTypes[start:]),
-			typmods: slices.Clone(colTypMods[start:]),
+		def := &funcColDef{
+			names:      slices.Clone(colNames[start:]),
+			types:      slices.Clone(colTypes[start:]),
+			typmods:    slices.Clone(colTypMods[start:]),
+			collations: slices.Clone(colCollations[start:]),
 		}
+		for _, item := range coldeflist.Items {
+			cd, _ := item.(*nodes.ColumnDef)
+			name := ""
+			if cd != nil {
+				name = collateClauseName(cd.CollClause)
+			}
+			def.collNames = append(def.collNames, name)
+		}
+		colDefs[i] = def
 		return nil
 	}
 	for i, fexpr := range funcExprs {
@@ -1206,12 +1216,24 @@ func (ac *analyzeCtx) appendColumnsFromColdefList(
 			_, name := typeNameParts(coldef.TypeName)
 			typmod = encodeTypModByName(resolveAlias(name), rawMods)
 		}
+		coll := ac.catalog.typeCollation(typeOID)
+		if oid := builtinCollationOID(collateClauseName(coldef.CollClause)); oid != 0 && coll != 0 {
+			coll = oid
+		}
 		*colNames = append(*colNames, coldef.Colname)
 		*colTypes = append(*colTypes, typeOID)
 		*colTypMods = append(*colTypMods, typmod)
-		*colCollations = append(*colCollations, ac.catalog.typeCollation(typeOID))
+		*colCollations = append(*colCollations, coll)
 	}
 	return nil
+}
+
+// collateClauseName returns the collation a COLLATE clause names, or "".
+func collateClauseName(cc *nodes.CollateClause) string {
+	if cc == nil || cc.Collname == nil || len(cc.Collname.Items) == 0 {
+		return ""
+	}
+	return stringVal(cc.Collname.Items[len(cc.Collname.Items)-1])
 }
 
 func (ac *analyzeCtx) appendOutputParamColumns(
@@ -1710,7 +1732,7 @@ func (ac *analyzeCtx) addUnknownColumn(tableName, colName string) (v *VarExpr, a
 	if ac.usingJoinNames(idx, colName) {
 		return nil, true
 	}
-	return ac.appendUnknownColumn(idx, colName), false
+	return ac.appendUnknownColumn(idx, colName, true), false
 }
 
 // usingJoinNames reports whether a USING join over range table entry idx
@@ -1743,9 +1765,10 @@ func (ac *analyzeCtx) usingJoinNames(idx int, colName string, extra ...JoinNode)
 	return false
 }
 
-// addUnknownColumnIn adds colName to the one function whose columns are
-// unknown among the base relations of jn, and reports whether there was one.
-// extra holds join inputs not yet in the join tree.
+// addUnknownColumnIn adds colName, which a USING list names, to the one
+// function whose columns are unknown among the base relations of jn, and
+// reports whether there was one. extra holds join inputs not yet in the
+// join tree.
 func (ac *analyzeCtx) addUnknownColumnIn(jn JoinNode, colName string, extra ...JoinNode) bool {
 	idx := -1
 	for _, i := range joinNodeBaseRTEs(jn) {
@@ -1760,15 +1783,16 @@ func (ac *analyzeCtx) addUnknownColumnIn(jn JoinNode, colName string, extra ...J
 	if idx < 0 || ac.usingJoinNames(idx, colName, extra...) {
 		return false
 	}
-	ac.appendUnknownColumn(idx, colName, extra...)
+	ac.appendUnknownColumn(idx, colName, false, extra...)
 	return true
 }
 
 // appendUnknownColumn adds a column to the function at range table entry idx
 // and to every join over it, which outputs it last, so an unqualified
-// reference through a join sees it as a comma join would. extra holds join
+// reference through a join sees it as a comma join would. inferred marks a
+// column only a reference named, not an alias or USING. extra holds join
 // inputs not yet in the join tree.
-func (ac *analyzeCtx) appendUnknownColumn(idx int, colName string, extra ...JoinNode) *VarExpr {
+func (ac *analyzeCtx) appendUnknownColumn(idx int, colName string, inferred bool, extra ...JoinNode) *VarExpr {
 	addColumn := func(rte *RangeTableEntry) {
 		rte.ColNames = append(rte.ColNames, colName)
 		rte.ColTypes = append(rte.ColTypes, UNKNOWNOID)
@@ -1777,6 +1801,10 @@ func (ac *analyzeCtx) appendUnknownColumn(idx int, colName string, extra ...Join
 	}
 	rte := ac.query.RangeTable[idx]
 	addColumn(rte)
+	for len(rte.inferredCols) < len(rte.ColNames)-1 {
+		rte.inferredCols = append(rte.inferredCols, false)
+	}
+	rte.inferredCols = append(rte.inferredCols, inferred)
 	v := makeRTEColumnVar(idx, rte, len(rte.ColNames)-1)
 
 	seen := map[int]bool{}
@@ -1923,26 +1951,29 @@ func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error)
 }
 
 // pickColumn chooses among the columns an unqualified name matches at one
-// query level. A column of a function whose columns are unknown exists only
-// because the query named it, so a real column of the name wins over it,
-// whatever order the references come in. Without a real one, the name is
-// ambiguous when another visible function whose columns are unknown could
-// have it too, as it is before either has gained the column.
+// query level. A column a reference alone added to a function whose columns
+// are unknown is inferred: any other column wins over it, whatever order
+// the references come in, since the query text does not say the function
+// has it. Columns the text does say exist, a table's or those an alias,
+// column definition list, or USING names, are matched alike, so two of them
+// are ambiguous. With only inferred candidates, the name is also ambiguous
+// while another visible function whose columns are unknown lacks it but
+// could have it, as it is before either has gained the column.
 func (ac *analyzeCtx) pickColumn(cands []*VarExpr, colName string, visible map[int]bool) (*VarExpr, error) {
-	var real []*VarExpr
+	var concrete []*VarExpr
 	owners := map[int]bool{}
 	for _, v := range cands {
-		if ac.query.RangeTable[v.RangeIdx].UnknownColumns {
+		if ac.query.RangeTable[v.RangeIdx].inferredColumn(v.AttNum) {
 			owners[v.RangeIdx] = true
 		} else {
-			real = append(real, v)
+			concrete = append(concrete, v)
 		}
 	}
-	if len(real) > 0 {
-		cands = real
+	if len(concrete) > 0 {
+		cands = concrete
 	} else {
 		for i, rte := range ac.query.RangeTable {
-			if rte.UnknownColumns && !owners[i] && (visible == nil || visible[i]) {
+			if rte.UnknownColumns && !owners[i] && !slices.Contains(rte.ColNames, colName) && (visible == nil || visible[i]) {
 				return nil, errAmbiguousColumn(colName)
 			}
 		}

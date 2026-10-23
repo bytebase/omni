@@ -426,8 +426,16 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 			t.Errorf("%s: analyzed, want an error", sql)
 		}
 	}
-	if _, err := analyzeWithOptions(t, c, `SELECT f.a, g.a FROM unknown_rows() f, other_rows() g`, opaque); err != nil {
-		t.Errorf("qualified names over two unknown functions: %v", err)
+	// Columns the query text says exist, by alias or USING, resolve like a
+	// table's: over inferred ones, and merged by USING into one.
+	for _, sql := range []string{
+		`SELECT f.a, g.a FROM unknown_rows() f, other_rows() g`,
+		`SELECT a FROM unknown_rows() f(a), other_rows() g`,
+		`SELECT id FROM unknown_rows() f JOIN other_rows() g USING (id)`,
+	} {
+		if _, err := analyzeWithOptions(t, c, sql, opaque); err != nil {
+			t.Errorf("%s: %v", sql, err)
+		}
 	}
 
 	// A USING name is a column of the function, on either side.
@@ -497,7 +505,8 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 		`SELECT f.id FROM (t CROSS JOIN unknown_rows() f) JOIN u USING (id)`,
 		`SELECT f.a, a FROM unknown_rows() f, other_rows() g`,
 		`SELECT a, f.a FROM unknown_rows() f, other_rows() g`,
-		`SELECT a FROM unknown_rows() f(a), other_rows() g`,
+		`SELECT id FROM t, unknown_rows() f(id)`,
+		`SELECT id FROM t, (unknown_rows() f JOIN u USING (id))`,
 	} {
 		if _, err := analyzeWithOptions(t, c, sql, opaque); err == nil {
 			t.Errorf("%s: analyzed, want an error", sql)

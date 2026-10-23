@@ -688,18 +688,30 @@ type RangeTableEntry struct {
 	// query has named, its alias columns first, all of unknown type.
 	UnknownColumns bool
 	aliasColumns   int // for UnknownColumns: how many of ColNames the alias gave
+	// inferredCols marks, for UnknownColumns, the columns added only
+	// because a reference named them, as opposed to an alias or USING.
+	inferredCols []bool
 	// funcColDefs holds, for RTEFunction, each function's column
 	// definition list, or nil for a function without one.
 	funcColDefs []*funcColDef
+}
+
+// inferredColumn reports whether column attNum of an UnknownColumns entry
+// exists only because a reference named it.
+func (rte *RangeTableEntry) inferredColumn(attNum int16) bool {
+	i := int(attNum) - 1
+	return rte.UnknownColumns && i >= 0 && i < len(rte.inferredCols) && rte.inferredCols[i]
 }
 
 // funcColDef is the column definition list a function in FROM was given.
 //
 // pg: src/include/nodes/parsenodes.h — RangeTblFunction (funccolnames, funccoltypes, funccoltypmods)
 type funcColDef struct {
-	names   []string
-	types   []uint32
-	typmods []int32
+	names      []string
+	types      []uint32
+	typmods    []int32
+	collations []uint32
+	collNames  []string // the COLLATE clause's name, or "" without one
 }
 
 // TablesampleClauseQ represents a TABLESAMPLE clause on a relation.
