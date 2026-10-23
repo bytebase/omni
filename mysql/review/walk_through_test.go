@@ -97,6 +97,14 @@ func TestWalkThroughMySQLCase(t *testing.T) {
 	// A trigger is claimed taken only by its own spelling: 5.7 compares
 	// trigger names with case.
 	noFinding(t, "CREATE TRIGGER TR BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", sensitive)
+	// On 5.7, TR beside tr is a second trigger, and DROP TRIGGER TR leaves
+	// tr (verified); the oracle runs no 5.7.
+	noFinding(t, "CREATE TRIGGER TR BEFORE UPDATE ON nokey FOR EACH ROW SET NEW.a = 1;\nDROP TRIGGER TR;\nDROP TRIGGER tr;", sensitive)
+	noFinding(t, "DROP TRIGGER TR;\nDROP TRIGGER tr;", sensitive)
+	both := walkSchema()
+	both.Schemas[0].Tables[0].Triggers = append(both.Schemas[0].Tables[0].Triggers, &metadata.TriggerMetadata{Name: "TR"})
+	noFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER TR;", review.Target{Schema: both})
+	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger tr does not exist", sensitive)
 	// A name outside ASCII is never absent.
 	noFinding(t, "ALTER TABLE t DROP COLUMN `é`;", sensitive)
 }

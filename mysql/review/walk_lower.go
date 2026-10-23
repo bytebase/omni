@@ -434,8 +434,9 @@ func (b *builder) mayAddForeignKeys(r tableRef) {
 }
 
 // foreignKeyTarget checks a foreign key's referenced table while the
-// session checks foreign keys: it must be a base table (1824, a view too;
-// 1215 on 5.7). A table that refers to itself needs nothing.
+// session checks foreign keys: it must be a base table (1824, a view or a
+// temporary table too, which shadows none here; 1215 on 5.7; verified). A
+// table that refers to itself needs nothing.
 func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
 	if b.w.fkChecks != review.SwitchOn || c.RefTable == nil {
 		return
@@ -444,7 +445,5 @@ func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
 	if st != refOK || t.db == r.db && t.name == r.name {
 		return
 	}
-	if f, temp, _ := b.resolve(t); !temp && f != walk.Unknown {
-		b.need(relKey(t.db, t.name), walk.Present, []string{relTable}, t.rng, "Foreign key target table "+t.written+" does not exist", "Foreign key target "+t.written+" is not a base table")
-	}
+	b.need(relKey(t.db, t.name), walk.Present, []string{relTable}, t.rng, "Foreign key target table "+t.written+" does not exist", "Foreign key target "+t.written+" is not a base table")
 }

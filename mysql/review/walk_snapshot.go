@@ -143,7 +143,13 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 			s.tableForeignKeys[tk] = fks
 			for _, tr := range t.GetTriggers() {
 				if k, ok := nameKey(spaceTrigger, tr.GetName(), foldTables); ok {
-					s.triggers[k] = tr.GetName()
+					// 5.7 keeps case variants apart: a key two triggers
+					// share has no one spelling.
+					if spelling, seen := s.triggers[k]; seen && spelling != tr.GetName() {
+						s.triggers[k] = ""
+					} else {
+						s.triggers[k] = tr.GetName()
+					}
 					s.triggered[tk] = true
 				}
 			}

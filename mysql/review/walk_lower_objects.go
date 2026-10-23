@@ -146,10 +146,17 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	tk := objKey(spaceTrigger, r.db, k)
 	f, spelling := b.l.Lookup(tk)
 	switch {
-	case v.IfNotExists && f != walk.Absent:
+	case f == walk.Present && spelling == v.Name:
+		if !v.IfNotExists {
+			b.need(tk, walk.Absent, nil, rng, "", "Trigger "+ident(v.Name)+" already exists") // 1359
+		}
+	case f == walk.Present:
+		// A case variant, or a spelling the walk does not have: 8.0 and
+		// 8.4 refuse it (1359), and 5.7 keeps both under the one key
+		// (verified).
+		b.Set(tk, walk.Unknown, "")
+	case f == walk.Unknown:
 		b.Set(tk, walk.Present, "")
-	case !v.IfNotExists && f == walk.Present && spelling == v.Name:
-		b.need(tk, walk.Absent, nil, rng, "", "Trigger "+ident(v.Name)+" already exists") // 1359
 	default:
 		b.Set(tk, walk.Present, v.Name)
 	}
@@ -158,48 +165,63 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	return true
 }
 
+// dropTrigger follows DROP TRIGGER, which drops the trigger of the
+// spelling on 5.7 and of any case variant on 8.0 and 8.4: the key is
+// Absent after it only when it held that one spelling.
 func (b *builder) dropTrigger(v *ast.DropTriggerStmt) bool {
-	k, db, ok := b.dbObject(spaceTrigger, v.Name)
-	if !ok {
-		return false
+	k, db, st := b.dbObject(spaceTrigger, v.Name)
+	if st != refOK {
+		return st == refFailed
 	}
 	tk := objKey(spaceTrigger, db, k)
 	if !v.IfExists {
 		b.need(tk, walk.Present, nil, b.anchor(), "Trigger "+ident(v.Name.Name)+" does not exist", "") // 1360
 	}
-	b.Set(tk, walk.Absent, "")
+	if f, spelling := b.l.Lookup(tk); f == walk.Present && spelling == v.Name.Name || f == walk.Absent {
+		b.Set(tk, walk.Absent, "")
+	} else {
+		b.Set(tk, walk.Unknown, "")
+	}
 	return true
 }
 
-// dbObject resolves the name of a trigger or routine, which a database may
-// qualify.
-func (b *builder) dbObject(space string, tr *ast.TableRef) (string, string, bool) {
+// dbObject resolves the name of a trigger, routine, or event, which a
+// database may qualify. With no database selected, an unqualified name
+// fails, IF EXISTS or not (1046, verified).
+func (b *builder) dbObject(space string, tr *ast.TableRef) (string, string, refState) {
 	if tr == nil {
-		return "", "", false
+		return "", "", refUnknown
 	}
 	k, ok := b.key(space, tr.Name)
 	if !ok {
-		return "", "", false
+		return "", "", refUnknown
 	}
 	if tr.Schema != "" {
 		db, ok := b.key(spaceDatabase, tr.Schema)
-		return k, db, ok
+		if !ok {
+			return "", "", refUnknown
+		}
+		return k, db, refOK
 	}
-	if b.w.lost || b.w.noDatabase {
-		return "", "", false
+	switch {
+	case b.w.lost:
+		return "", "", refUnknown
+	case b.w.noDatabase:
+		b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, noDatabaseMessage)
+		return "", "", refFailed
 	}
-	return k, b.w.current, true
+	return k, b.w.current, refOK
 }
 
 // createdObject resolves the name of a routine or event a statement
 // creates, or an event is renamed to: a database it names must exist
 // (1049, verified).
-func (b *builder) createdObject(space string, tr *ast.TableRef) (string, string, bool) {
-	k, db, ok := b.dbObject(space, tr)
-	if ok && tr.Schema != "" {
+func (b *builder) createdObject(space string, tr *ast.TableRef) (string, string, refState) {
+	k, db, st := b.dbObject(space, tr)
+	if st == refOK && tr.Schema != "" {
 		b.databaseNeeds(db, tr.Schema, b.anchor())
 	}
-	return k, db, ok
+	return k, db, st
 }
 
 func routineSpace(procedure bool) (string, string) {
@@ -215,9 +237,9 @@ func (b *builder) createRoutine(v *ast.CreateFunctionStmt) bool {
 		return true
 	}
 	space, word := routineSpace(v.IsProcedure)
-	k, db, ok := b.createdObject(space, v.Name)
-	if !ok {
-		return false
+	k, db, st := b.createdObject(space, v.Name)
+	if st != refOK {
+		return st == refFailed
 	}
 	if b.tooLong(v.Name.Name, b.anchor()) {
 		return true
@@ -235,7 +257,7 @@ func (b *builder) createRoutine(v *ast.CreateFunctionStmt) bool {
 
 func (b *builder) alterRoutine(v *ast.AlterRoutineStmt) bool {
 	space, word := routineSpace(v.IsProcedure)
-	if k, db, ok := b.dbObject(space, v.Name); ok {
+	if k, db, st := b.dbObject(space, v.Name); st == refOK {
 		b.need(objKey(space, db, k), walk.Present, nil, b.anchor(), word+ident(v.Name.Name)+" does not exist", "") // 1305
 	}
 	return true
@@ -247,9 +269,9 @@ func (b *builder) alterRoutine(v *ast.AlterRoutineStmt) bool {
 // stored one when both exist (verified on 8.0 and 8.4).
 func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 	space, word := routineSpace(v.IsProcedure)
-	k, db, ok := b.dbObject(space, v.Name)
-	if !ok {
-		return false
+	k, db, st := b.dbObject(space, v.Name)
+	if st != refOK {
+		return st == refFailed
 	}
 	rk := objKey(space, db, k)
 	if !v.IsProcedure && v.Name.Schema == "" {
@@ -265,25 +287,18 @@ func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 	return true
 }
 
-// event resolves an event name, which a database may qualify; a created
-// one's database must exist.
-func (b *builder) event(name string, created bool) (walk.Key, bool) {
-	tr := &ast.TableRef{Name: name}
-	if i := strings.IndexByte(name, '.'); i > 0 {
-		tr = &ast.TableRef{Schema: name[:i], Name: name[i+1:]}
-	}
-	resolve := b.dbObject
-	if created {
-		resolve = b.createdObject
-	}
-	k, db, ok := resolve(spaceEvent, tr)
-	return objKey(spaceEvent, db, k), ok
+// event resolves an event name. The parser takes no qualified one, so
+// the name is one identifier, a period and all: `shop.e` is an event of
+// the current database (verified).
+func (b *builder) event(name string) (walk.Key, refState) {
+	k, db, st := b.dbObject(spaceEvent, &ast.TableRef{Name: name})
+	return objKey(spaceEvent, db, k), st
 }
 
 func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
-	ek, ok := b.event(v.Name, true)
-	if !ok {
-		return false
+	ek, st := b.event(v.Name)
+	if st != refOK {
+		return st == refFailed
 	}
 	if !v.IfNotExists {
 		b.need(ek, walk.Absent, nil, b.anchor(), "", "Event "+ident(v.Name)+" already exists") // 1537
@@ -293,15 +308,15 @@ func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
 }
 
 func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
-	ek, ok := b.event(v.Name, false)
-	if !ok {
-		return false
+	ek, st := b.event(v.Name)
+	if st != refOK {
+		return st == refFailed
 	}
 	b.need(ek, walk.Present, nil, b.anchor(), "Event "+ident(v.Name)+" does not exist", "") // 1539
 	if v.RenameTo != "" {
-		nk, ok := b.event(v.RenameTo, true)
-		if !ok {
-			return false
+		nk, st := b.event(v.RenameTo)
+		if st != refOK {
+			return st == refFailed
 		}
 		if nk != ek {
 			b.need(nk, walk.Absent, nil, b.anchor(), "", "Event "+ident(v.RenameTo)+" already exists") // 1537
@@ -313,9 +328,9 @@ func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
 }
 
 func (b *builder) dropEvent(v *ast.DropEventStmt) bool {
-	ek, ok := b.event(v.Name, false)
-	if !ok {
-		return false
+	ek, st := b.event(v.Name)
+	if st != refOK {
+		return st == refFailed
 	}
 	if !v.IfExists {
 		b.need(ek, walk.Present, nil, b.anchor(), "Event "+ident(v.Name)+" does not exist", "") // 1539

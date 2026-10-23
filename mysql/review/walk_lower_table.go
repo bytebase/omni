@@ -238,6 +238,10 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if twice("drop index", spaceIndex, c.Name, rng, "Index "+ident(c.Name)+" is dropped twice from table "+r.written) {
 				return true
 			}
+		case ast.ATDropConstraint:
+			if dropKindOf(b.w.sql, c) == dropPrimaryKey && twice("drop index", spaceIndex, "PRIMARY", rng, "Index PRIMARY is dropped twice from table "+r.written) {
+				return true
+			}
 		case ast.ATAddConstraint, ast.ATAddIndex:
 			con := c.Constraint
 			if con == nil {
@@ -520,7 +524,9 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 		}
 		switch {
 		case f == walk.Present && kind == relView:
-		case f == walk.Present && kind == "":
+		case f == walk.Present && kind == "", f == walk.Unknown && v.IfExists:
+			// It may be a view, which DROP TABLE IF EXISTS leaves with a
+			// note (verified).
 			b.Set(k, walk.Unknown, "")
 			b.Forget(path)
 			b.droppedOwned(r)
