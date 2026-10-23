@@ -509,6 +509,9 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 		`SELECT id FROM t, (unknown_rows() f JOIN u USING (id))`,
 		`SELECT f.a, (SELECT a FROM unknown_one() g, unknown_two() h) FROM unknown_outer() f`,
 		`SELECT (SELECT a FROM unknown_one() g, unknown_two() h), f.a FROM unknown_outer() f`,
+		`SELECT f.a FROM unknown_rows() AS f(a, a)`,
+		`SELECT ordinality FROM unknown_rows() WITH ORDINALITY`,
+		`SELECT 1 FROM ROWS FROM (unknown_rows(), generate_series(1, 2))`,
 	} {
 		if _, err := analyzeWithOptions(t, c, sql, opaque); err == nil {
 			t.Errorf("%s: analyzed, want an error", sql)
@@ -528,6 +531,24 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 	q, err = analyzeWithOptions(t, c, `SELECT (SELECT a FROM unknown_one() f, unknown_two() g) FROM unknown_outer() h`, opaque)
 	if err == nil {
 		t.Errorf("ambiguous inner name: analyzed, h has columns %v", q.RangeTable[0].ColNames)
+	}
+
+	// A column definition list fixes the width ROWS FROM needs.
+	if _, err := analyzeWithOptions(t, c, `SELECT * FROM ROWS FROM (unknown_rows() AS (a int), generate_series(1, 2)) AS z(a, g)`, opaque); err != nil {
+		t.Errorf("ROWS FROM with a column definition list: %v", err)
+	}
+
+	// A column inferred before a join enclosing it was installed is
+	// reused when a USING above names it, not added a second time.
+	q, err = analyzeWithOptions(t, c, `SELECT f.x FROM ((unknown_rows() f CROSS JOIN u) CROSS JOIN LATERAL generate_series(1, f.x::int) g) JOIN w USING (x)`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := columns(q, "f"); !slices.Equal(got, []string{"x"}) {
+		t.Errorf("f has columns %v, want [x]", got)
+	}
+	if v := targetExpr(t, q, 0).(*VarExpr); v.AttNum != 1 {
+		t.Errorf("f.x is attribute %d, want 1", v.AttNum)
 	}
 
 	// A nearer function takes a name an enclosing function only inferred.
