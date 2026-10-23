@@ -90,8 +90,12 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 	}
 	t.Cleanup(func() { conn.Close() })
 	for _, stmt := range []string{
-		"DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive", "DROP DATABASE IF EXISTS other",
-		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase,
+		// Databases drop with foreign key checks off, since a table of one may
+		// reference another's, and the checks go back on after. A case may
+		// have required primary keys on the pooled connection.
+		"SET foreign_key_checks = 0", "SET sql_require_primary_key = OFF", "SET sql_generate_invisible_primary_key = OFF",
+		"DROP DATABASE IF EXISTS other", "DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive",
+		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase, "SET foreign_key_checks = 1",
 	} {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
@@ -101,8 +105,12 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 }
 
 // syncSchema reads the shop database into metadata, the parts the rules
-// read: tables with their columns, indexes, foreign keys, checks, and
-// triggers, and views.
+// read, as Bytebase syncs them: tables with their columns and generation
+// expressions, indexes with their key parts, foreign keys with their
+// columns, checks with their expressions, triggers, and partitions; and
+// views.
+//
+// bytebase: backend/plugin/db/mysql/sync.go — SyncDBSchema
 func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	ctx := context.Background()
@@ -134,44 +142,84 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		order = append(order, name)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
-		var tbl, col string
-		if err := r.Scan(&tbl, &col); err != nil {
+	// An expression default is synced in parentheses, a literal one
+	// quoted, and an invisible column marked so.
+	query(`SELECT TABLE_NAME, COLUMN_NAME, COALESCE(GENERATION_EXPRESSION, ''), EXTRA,
+		COALESCE(CASE WHEN EXTRA LIKE '%DEFAULT_GENERATED%' THEN CONCAT('(', COLUMN_DEFAULT, ')') ELSE QUOTE(COLUMN_DEFAULT) END, '')
+		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, col, gen, extra, def string
+		if err := r.Scan(&tbl, &col, &gen, &extra, &def); err != nil {
 			return err
 		}
 		if t, ok := tables[tbl]; ok {
-			t.Columns = append(t.Columns, &metadata.ColumnMetadata{Name: col})
+			c := &metadata.ColumnMetadata{Name: col, Default: def, IsInvisible: strings.Contains(strings.ToUpper(extra), "INVISIBLE")}
+			// Bytebase unescapes the quotes the server escapes.
+			gen = strings.ReplaceAll(gen, `\'`, `'`)
+			switch {
+			case gen == "":
+			case strings.Contains(strings.ToUpper(extra), "VIRTUAL GENERATED"):
+				c.Generation = &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_VIRTUAL, Expression: gen}
+			case strings.Contains(strings.ToUpper(extra), "STORED GENERATED"):
+				c.Generation = &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: gen}
+			}
+			t.Columns = append(t.Columns, c)
 		}
 		return nil
 	})
-	query(`SELECT TABLE_NAME, INDEX_NAME, MIN(NON_UNIQUE) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'shop' GROUP BY TABLE_NAME, INDEX_NAME ORDER BY TABLE_NAME, INDEX_NAME`, func(r *sql.Rows) error {
-		var tbl, idx string
+	// A key part is its column, or the expression of a functional one in
+	// parentheses, and its length -1 when it is not a prefix.
+	indexes := make(map[[2]string]*metadata.IndexMetadata)
+	query(`SELECT TABLE_NAME, INDEX_NAME, NON_UNIQUE, COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')')), COALESCE(SUB_PART, -1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX`, func(r *sql.Rows) error {
+		var tbl, idx, part string
 		var nonUnique int
-		if err := r.Scan(&tbl, &idx, &nonUnique); err != nil {
+		var length int64
+		if err := r.Scan(&tbl, &idx, &nonUnique, &part, &length); err != nil {
 			return err
 		}
-		if t, ok := tables[tbl]; ok {
-			t.Indexes = append(t.Indexes, &metadata.IndexMetadata{Name: idx, Primary: idx == "PRIMARY", Unique: nonUnique == 0})
+		t, ok := tables[tbl]
+		if !ok {
+			return nil
 		}
+		i, ok := indexes[[2]string{tbl, idx}]
+		if !ok {
+			i = &metadata.IndexMetadata{Name: idx, Primary: idx == "PRIMARY", Unique: nonUnique == 0}
+			indexes[[2]string{tbl, idx}] = i
+			t.Indexes = append(t.Indexes, i)
+		}
+		i.Expressions = append(i.Expressions, part)
+		i.KeyLength = append(i.KeyLength, length)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop'`, func(r *sql.Rows) error {
-		var tbl, name, ref string
-		if err := r.Scan(&tbl, &name, &ref); err != nil {
+	// A foreign key names the table it references without its database.
+	foreignKeys := make(map[[2]string]*metadata.ForeignKeyMetadata)
+	query(`SELECT TABLE_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, COLUMN_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE
+		WHERE TABLE_SCHEMA = 'shop' AND POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL ORDER BY TABLE_NAME, CONSTRAINT_NAME, ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, name, ref, col, refCol string
+		if err := r.Scan(&tbl, &name, &ref, &col, &refCol); err != nil {
 			return err
 		}
-		if t, ok := tables[tbl]; ok {
-			t.ForeignKeys = append(t.ForeignKeys, &metadata.ForeignKeyMetadata{Name: name, ReferencedTable: ref})
+		t, ok := tables[tbl]
+		if !ok {
+			return nil
 		}
+		fk, ok := foreignKeys[[2]string{tbl, name}]
+		if !ok {
+			fk = &metadata.ForeignKeyMetadata{Name: name, ReferencedTable: ref}
+			foreignKeys[[2]string{tbl, name}] = fk
+			t.ForeignKeys = append(t.ForeignKeys, fk)
+		}
+		fk.Columns = append(fk.Columns, col)
+		fk.ReferencedColumns = append(fk.ReferencedColumns, refCol)
 		return nil
 	})
-	query(`SELECT TABLE_NAME, CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop' AND CONSTRAINT_TYPE = 'CHECK'`, func(r *sql.Rows) error {
-		var tbl, name string
-		if err := r.Scan(&tbl, &name); err != nil {
+	query(`SELECT c.TABLE_NAME, c.CONSTRAINT_NAME, k.CHECK_CLAUSE FROM information_schema.TABLE_CONSTRAINTS c JOIN information_schema.CHECK_CONSTRAINTS k
+		ON k.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND k.CONSTRAINT_NAME = c.CONSTRAINT_NAME WHERE c.CONSTRAINT_SCHEMA = 'shop' AND c.CONSTRAINT_TYPE = 'CHECK'`, func(r *sql.Rows) error {
+		var tbl, name, clause string
+		if err := r.Scan(&tbl, &name, &clause); err != nil {
 			return err
 		}
 		if t, ok := tables[tbl]; ok {
-			t.CheckConstraints = append(t.CheckConstraints, &metadata.CheckConstraintMetadata{Name: name})
+			t.CheckConstraints = append(t.CheckConstraints, &metadata.CheckConstraintMetadata{Name: name, Expression: clause})
 		}
 		return nil
 	})
@@ -182,6 +230,17 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		if t, ok := tables[tbl]; ok {
 			t.Triggers = append(t.Triggers, &metadata.TriggerMetadata{Name: name})
+		}
+		return nil
+	})
+	query(`SELECT TABLE_NAME, PARTITION_NAME, COALESCE(PARTITION_EXPRESSION, '') FROM information_schema.PARTITIONS
+		WHERE TABLE_SCHEMA = 'shop' AND PARTITION_NAME IS NOT NULL ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var tbl, name, expr string
+		if err := r.Scan(&tbl, &name, &expr); err != nil {
+			return err
+		}
+		if t, ok := tables[tbl]; ok {
+			t.Partitions = append(t.Partitions, &metadata.TablePartitionMetadata{Name: name, Expression: expr})
 		}
 		return nil
 	})
@@ -552,4 +611,245 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 		}
 	}
 	return want
+}
+
+// TestColumnDropAgainstMySQL runs ALTER TABLE ... DROP COLUMN on a table
+// x's primary key on MySQL, and pins what the server does with it: the
+// error it stops the change with, if any, and the key x has after. MySQL
+// removes a dropped column from every index, and drops an index with the
+// last of its columns, so a drop of every column of the key leaves x
+// without one, and a drop of some leaves it on the rest. A RequirePrimaryKey
+// finding must match: reported only when the change ran and x ended it
+// without a key, except where the server refuses for something the synced
+// schema does not hold. The rule judges only statements of DROP COLUMN
+// alone, so where another statement is on x it stays silent, whatever the
+// server does.
+//
+// mysql: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html#alter-table-add-drop-column
+func TestColumnDropAgainstMySQL(t *testing.T) {
+	db := startMySQL(t)
+	tests := []struct {
+		name   string
+		setup  string
+		change string
+		// err is a part of the error the server stops the change with, ""
+		// when the change runs, and key the columns of x's primary key after,
+		// "" when it has none.
+		err string
+		key string
+		// reported is whether the review reports x's key removed, and unseen
+		// that the server refuses the change for something the synced schema
+		// does not hold.
+		reported bool
+		unseen   bool
+	}{
+		// (a) A key of one column goes with it.
+		{name: "a key of one column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1), (2, 2)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a key of one AUTO_INCREMENT column", setup: "CREATE TABLE x (id INT AUTO_INCREMENT PRIMARY KEY, v INT); INSERT INTO x (v) VALUES (1), (2)", change: "ALTER TABLE x DROP id", reported: true},
+		{name: "a key of a column prefix", setup: "CREATE TABLE x (s VARCHAR(50), v INT, PRIMARY KEY (s(10)))", change: "ALTER TABLE x DROP COLUMN s", reported: true},
+		{name: "a key of one column, with a unique key on a NOT NULL column left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT NOT NULL, UNIQUE KEY uv (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		// (b) A key of two columns shrinks to the other, which fails when its
+		// values repeat, or goes when the statement drops both. The rule does
+		// not follow a key that shrinks, so it judges nothing after.
+		{name: "one column of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (1, 2, 2)", change: "ALTER TABLE x DROP COLUMN a", key: "b"},
+		{name: "one column of a key of two, the other repeating", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN a", err: "Duplicate entry", key: "a,b"},
+		{name: "both columns of a key of two, in two statements", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b))", change: "ALTER TABLE x DROP COLUMN a;\nALTER TABLE x DROP COLUMN b"},
+		{name: "both columns of a key of two, in two statements, a unique key of the other keeping its values apart", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b), UNIQUE KEY ub (b)); INSERT INTO x VALUES (1, 1, 1), (1, 2, 2)", change: "ALTER TABLE x DROP COLUMN a;\nALTER TABLE x DROP COLUMN b", reported: true},
+		{name: "both columns of a key of two, in two statements, a unique key of a prefix of the other keeping its values apart", setup: "CREATE TABLE x (a INT, b VARCHAR(20), v INT, PRIMARY KEY (a, b), UNIQUE KEY ub (b(2))); INSERT INTO x VALUES (1, 'aa1', 1), (1, 'bb2', 2)", change: "ALTER TABLE x DROP COLUMN a;\nALTER TABLE x DROP COLUMN b", reported: true},
+		{name: "one column of a key of two whose other is a prefix, beside a unique key of the whole other", setup: "CREATE TABLE x (a INT, b VARCHAR(20), v INT, PRIMARY KEY (a, b(2)), UNIQUE KEY ub (b)); INSERT INTO x VALUES (1, 'xx1', 1), (2, 'xx2', 2)", change: "ALTER TABLE x DROP COLUMN a", err: "Duplicate entry", key: "a,b"},
+		{name: "both columns of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN b, DROP COLUMN a", reported: true},
+		// Statements of DROP COLUMN alone are followed through the columns they
+		// drop and what read them.
+		{name: "another column dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT)", change: "ALTER TABLE x DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a generated column reading it, dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN g;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a generated column reading it, dropped too", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1) STORED)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN g", reported: true},
+		{name: "a check of it alone", setup: "CREATE TABLE x (id INT PRIMARY KEY CHECK (id > 0), v INT)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a check of both columns of the key, both dropped", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b), CONSTRAINT ck CHECK (a < b))", change: "ALTER TABLE x DROP COLUMN a, DROP COLUMN b", err: "hence column cannot be dropped", key: "a,b"},
+		{name: "another index holds it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY iv (v, id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a view or a trigger reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE VIEW xv AS SELECT id FROM x; CREATE TRIGGER xt BEFORE INSERT ON x FOR EACH ROW SET NEW.v = NEW.id", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a foreign key of another table references another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE ch (x_v INT, CONSTRAINT fk_ch FOREIGN KEY (x_v) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a foreign key of the table holds another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (v) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "statements on another table, on it that give it no key, or on none after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nINSERT INTO y VALUES (1);\nALTER TABLE y ADD COLUMN b INT;\nCREATE INDEX iv ON x (v);\nALTER TABLE x ADD COLUMN w INT;\nINSERT INTO x (v) VALUES (1);\nCREATE VIEW xv AS SELECT v FROM x", reported: true},
+		{name: "a generated column naming it only in a literal", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g VARCHAR(20) AS (CONCAT('id', v)))", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		// (c) What depends on the column decides whether the server drops it;
+		// a drop it refuses ends the judging.
+		{name: "a foreign key of another table references it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
+		{name: "a foreign key of another table references it, with foreign_key_checks off", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (x_id INT, CONSTRAINT fk_ch FOREIGN KEY (x_id) REFERENCES x (id))", change: "SET foreign_key_checks = 0;\nALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
+		{name: "a foreign key of another database references it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.ch (x_id INT, CONSTRAINT fk_och FOREIGN KEY (x_id) REFERENCES shop.x (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id", reported: true, unseen: true},
+		{name: "a foreign key of the table holds it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT fk_x FOREIGN KEY (id) REFERENCES p (id))", change: "ALTER TABLE x DROP COLUMN id", err: "needed in a foreign key constraint", key: "id"},
+		{name: "a generated column reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, g INT AS (id + 1))", change: "ALTER TABLE x DROP COLUMN id", err: "has a generated column dependency", key: "id"},
+		{name: "a check reads it and another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, CONSTRAINT ck CHECK (id < v))", change: "ALTER TABLE x DROP COLUMN id", err: "hence column cannot be dropped", key: "id"},
+		{name: "a functional index reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, KEY fx ((id + v)))", change: "ALTER TABLE x DROP COLUMN id", err: "has a functional index dependency", key: "id"},
+		{name: "the table is partitioned by it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT) PARTITION BY HASH (id) PARTITIONS 2", change: "ALTER TABLE x DROP COLUMN id", err: "has a partitioning function dependency", key: "id"},
+		{name: "the table is partitioned by KEY (), its primary key", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE x DROP COLUMN id", err: "Field in list of fields for partition function not found", key: "id"},
+		{name: "it is the only column", setup: "CREATE TABLE x (id INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id", err: "You can't delete all columns", key: "id"},
+		{name: "with a column the table lacks", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN missing", err: "Can't DROP 'missing'", key: "id"},
+		{name: "twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN id", err: "Can't DROP 'id'", key: "id"},
+		// Any other statement on the table leaves it out: a drop after is not
+		// judged, and a finding before is withdrawn, though the server may
+		// drop the key.
+		{name: "it is added back under its name", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD COLUMN id INT", key: "id"},
+		{name: "a key is added back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD PRIMARY KEY (v)", key: "v"},
+		{name: "a later statement adds a key back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x ADD PRIMARY KEY (v)", key: "v"},
+		{name: "a later statement that adds a key back, but fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x DROP COLUMN missing, ADD PRIMARY KEY (v)", err: "Can't DROP 'missing'", reported: true},
+		{name: "a check of another column added before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1)", change: "ALTER TABLE x ADD CHECK (v > 0);\nALTER TABLE x DROP COLUMN id"},
+		{name: "a foreign key to it added and dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT)", change: "ALTER TABLE ch ADD CONSTRAINT f FOREIGN KEY (x_id) REFERENCES x (id);\nALTER TABLE ch DROP FOREIGN KEY f;\nALTER TABLE x DROP COLUMN id"},
+		{name: "a table CREATE TABLE IF NOT EXISTS leaves, whose foreign key would reference it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE c (k INT PRIMARY KEY)", change: "CREATE TABLE IF NOT EXISTS c (k INT PRIMARY KEY, FOREIGN KEY (k) REFERENCES x (id));\nALTER TABLE x DROP COLUMN id"},
+		{name: "a temporary table of its name dropped twice", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TEMPORARY TABLE IF EXISTS x;\nDROP TEMPORARY TABLE x;\nALTER TABLE x DROP COLUMN id", err: "Unknown table", key: "id"},
+		{name: "with a check the table lacks altered", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x ALTER CHECK missing ENFORCED, DROP COLUMN id", err: "Check constraint 'missing' is not found", key: "id"},
+		{name: "a table made before whose column's REFERENCES, which MySQL ignores, names it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "CREATE TABLE c (k INT REFERENCES x (id), PRIMARY KEY (k));\nALTER TABLE x DROP COLUMN id"},
+		{name: "with a partition dropped", setup: "CREATE TABLE x (id INT, v INT, PRIMARY KEY (id)) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN MAXVALUE)", change: "ALTER TABLE x DROP COLUMN id, DROP PARTITION p0", err: "You have an error in your SQL syntax", key: "id"},
+		// The session's sql_require_primary_key refuses a drop that takes the
+		// key while it is on, and only then.
+		{name: "sql_require_primary_key on after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nSET SESSION sql_require_primary_key = ON", reported: true},
+		{name: "sql_require_primary_key off before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_require_primary_key = OFF;\nALTER TABLE x DROP COLUMN id"},
+		{name: "sql_require_primary_key on before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_require_primary_key = ON;\nALTER TABLE x DROP COLUMN id", err: "Unable to create or change a table without a primary key", key: "id"},
+		{name: "a user variable named sql_require_primary_key set before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @sql_require_primary_key = 1;\nALTER TABLE x DROP COLUMN id", reported: true},
+		// The server keeps a visible column, and refuses a drop an expression
+		// default depends on; a literal default depends on nothing.
+		{name: "only an invisible column left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT INVISIBLE)", change: "ALTER TABLE x DROP COLUMN id", err: "at least one visible column", key: "id"},
+		{name: "an invisible column and a visible one left", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT INVISIBLE, w INT)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "an expression default reads it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT DEFAULT (id + 1))", change: "ALTER TABLE x DROP COLUMN id", err: "has a default value expression dependency", key: "id"},
+		{name: "a literal default names it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v VARCHAR(10) DEFAULT 'id')", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		// A table of another database renamed without a database lands in the
+		// current one.
+		{name: "a table of another database renamed to its name before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.t (a INT PRIMARY KEY)", change: "ALTER TABLE other.t RENAME TO x;\nALTER TABLE x DROP COLUMN id", err: "Table 'x' already exists", key: "id"},
+		// A statement but one of DROP COLUMN alone or one that changes no schema
+		// object may fail, which stops the change: no drop after it is judged.
+		{name: "a statement on another table before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE y ADD COLUMN b INT;\nALTER TABLE x DROP COLUMN id"},
+		{name: "a table the database lacks dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP TABLE missing;\nALTER TABLE x DROP COLUMN id", err: "Unknown table", key: "id"},
+		{name: "a database the server lacks dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "DROP DATABASE missing_db;\nALTER TABLE x DROP COLUMN id", err: "Can't drop database", key: "id"},
+		{name: "sql_generate_invisible_primary_key on before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_generate_invisible_primary_key = ON;\nALTER TABLE x DROP COLUMN id", err: "sql_generate_invisible_primary_key=ON mode", key: "id"},
+		{name: "sql_generate_invisible_primary_key on, then off, before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_generate_invisible_primary_key = ON;\nSET SESSION sql_generate_invisible_primary_key = OFF;\nALTER TABLE x DROP COLUMN id"},
+		// TRUNCATE and LOCK TABLES change no schema object, but fail, or make a
+		// later ALTER TABLE fail; DML fails on a table the database lacks. A
+		// finding before them stands.
+		{name: "a truncate of a table a foreign key references before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE tp (a INT PRIMARY KEY); CREATE TABLE tc (a INT, FOREIGN KEY (a) REFERENCES tp (a))", change: "TRUNCATE TABLE tp;\nALTER TABLE x DROP COLUMN id", err: "Cannot truncate a table referenced in a foreign key constraint", key: "id"},
+		{name: "a truncate after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nTRUNCATE TABLE x", reported: true},
+		{name: "tables locked for reading before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "LOCK TABLES x READ;\nALTER TABLE x DROP COLUMN id;\nUNLOCK TABLES", err: "was locked with a READ lock", key: "id"},
+		{name: "another table locked before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "LOCK TABLES y WRITE;\nALTER TABLE x DROP COLUMN id;\nUNLOCK TABLES", err: "was not locked with LOCK TABLES", key: "id"},
+		{name: "tables locked after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nLOCK TABLES x READ;\nUNLOCK TABLES", reported: true},
+		{name: "a row inserted before into a table the database lacks", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "INSERT INTO missing VALUES (1);\nALTER TABLE x DROP COLUMN id", err: "doesn't exist", key: "id"},
+		{name: "rows of the table updated before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1)", change: "UPDATE x SET v = id + 1 WHERE id IN (SELECT id FROM (SELECT id FROM x) d);\nALTER TABLE x DROP COLUMN id"},
+		// Only a statement that cannot fail passes: DML fails on a column the
+		// table lacks, and a SET on any assignment the server refuses.
+		{name: "a column the table lacks inserted into before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "INSERT INTO x (missing) VALUES (1);\nALTER TABLE x DROP COLUMN id", err: "Unknown column", key: "id"},
+		{name: "the database's tables shown before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SHOW TABLES FROM shop;\nALTER TABLE x DROP COLUMN id"},
+		{name: "a rollback to a savepoint the transaction lacks before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "BEGIN;\nROLLBACK TO SAVEPOINT nosuch;\nALTER TABLE x DROP COLUMN id", err: "does not exist", key: "id"},
+		{name: "statements that cannot fail before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "BEGIN;\nSAVEPOINT s;\nROLLBACK;\nCOMMIT;\nUNLOCK TABLES;\nANALYZE TABLE missing;\nANALYZE TABLE x UPDATE HISTOGRAM ON missing;\nSET foreign_key_checks = OFF, @@session.unique_checks = 0, @x = 'a', @h = X'41', @b = b'101', @n = -1.5e3, @h2 = X'aB', @h3 = 0xaB, @b2 = B'01', foreign_key_checks = DEFAULT, unique_checks = DEFAULT;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "sql_require_primary_key set with a variable the server reads only before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION sql_require_primary_key = OFF, version = 'x';\nALTER TABLE x DROP COLUMN id", err: "read only variable", key: "id"},
+		// A unique key of it and another column narrows to the other, which
+		// fails when its values repeat.
+		{name: "a unique key of it and another column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY u (id, v)); INSERT INTO x VALUES (1, 1), (2, 2)", change: "ALTER TABLE x DROP COLUMN id"},
+		{name: "a unique key of it and another column, the other repeating", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY u (id, v)); INSERT INTO x VALUES (1, 1), (2, 1)", change: "ALTER TABLE x DROP COLUMN id", err: "Duplicate entry", key: "id"},
+		{name: "a unique key of it and another column, both dropped", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, w INT, UNIQUE KEY u (id, v)); INSERT INTO x VALUES (1, 1, 1), (2, 1, 2)", change: "ALTER TABLE x DROP COLUMN id, DROP COLUMN v", reported: true},
+		{name: "a unique key of it alone", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY u (id)); INSERT INTO x VALUES (1, 1), (2, 1)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a column out of the key dropped before from a table partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (id INT PRIMARY KEY, v INT) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a column out of any key dropped before from a table without a primary key partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (u INT NOT NULL, v INT, w INT, UNIQUE KEY uu (u)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "the unique key's column dropped before from a table without a primary key partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (u INT NOT NULL, v INT, w INT, UNIQUE KEY uu (u)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN u;\nALTER TABLE x DROP COLUMN id", err: "Field in list of fields for partition function not found", key: "id"},
+		{name: "a user variable set to a double out of range before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @x = 1e400;\nALTER TABLE x DROP COLUMN id", err: "Illegal double", key: "id"},
+		{name: "a user variable set to a malformed hexadecimal value before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @x = X'4';\nALTER TABLE x DROP COLUMN id", err: "You have an error in your SQL syntax", key: "id"},
+		{name: "a user variable set under a scope before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION @x = 1;\nALTER TABLE x DROP COLUMN id", err: "You have an error in your SQL syntax", key: "id"},
+		{name: "a scope for a system variable before a user variable", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET SESSION foreign_key_checks = 1, @x = 1;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a unique key of it and another column, beside a unique key of the other", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT NOT NULL, w INT, UNIQUE KEY u (v), UNIQUE KEY uv (id, v)); INSERT INTO x VALUES (1, 1, 1), (2, 2, 2)", change: "ALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a unique key of it and a prefix of another column, beside a unique key of the other", setup: "CREATE TABLE x (id INT PRIMARY KEY, v VARCHAR(20) NOT NULL, UNIQUE KEY u (v), UNIQUE KEY uv (id, v(2))); INSERT INTO x VALUES (1, 'xx1'), (2, 'xx2')", change: "ALTER TABLE x DROP COLUMN id", err: "Duplicate entry", key: "id"},
+		{name: "a table made of its name after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TABLE x (id INT PRIMARY KEY)", err: "already exists", reported: true},
+		{name: "a table renamed onto it after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nRENAME TABLE y TO x", err: "already exists", reported: true},
+		{name: "a table altered to be renamed onto it after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE y RENAME TO x", err: "already exists", reported: true},
+		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET @x = 0X41;\nALTER TABLE x DROP COLUMN id", err: "Unknown column", key: "id"},
+		{name: "foreign_key_checks set with := before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "SET foreign_key_checks := OFF;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a column of the key held by a prefix dropped before from a table partitioned by KEY (), which leaves the prefix out", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (a VARCHAR(20), b INT, v INT, PRIMARY KEY (a(10), b), UNIQUE KEY ub (b)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN a;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "tables flushed after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nFLUSH TABLES", reported: true},
+		{name: "tables flushed with a read lock before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "FLUSH TABLES WITH READ LOCK;\nALTER TABLE x DROP COLUMN id", err: "conflicting read lock", key: "id"},
+		{name: "a column of only some unique keys dropped before from a table without a primary key partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (u INT NOT NULL, v INT NOT NULL, w INT, UNIQUE KEY uu (u), UNIQUE KEY uv (u, v)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a rename onto a table the database holds after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nRENAME TABLE x TO y", err: "already exists", reported: true},
+		{name: "a key added back and a rename onto a table the database holds after, which fail", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x ADD PRIMARY KEY (v), RENAME TO y", err: "already exists", reported: true},
+		{name: "a rename after onto a table an earlier pair moves away", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nRENAME TABLE y TO y2, x TO y"},
+		{name: "a temporary table of its name made after, given a key, and dropped", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE x (a INT);\nALTER TABLE x ADD PRIMARY KEY (a);\nDROP TABLE x", reported: true},
+		{name: "a temporary table of its name dropped after, and then it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE x (a INT);\nDROP TABLE x;\nDROP TABLE x"},
+		{name: "a drop after of it, which a foreign key of the database refuses", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE c (xv INT, FOREIGN KEY (xv) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id;\nDROP TABLE x", err: "Cannot drop table"},
+		{name: "a drop after of it, which a foreign key naming a table of its name in another database does not refuse", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (id INT PRIMARY KEY); CREATE TABLE c (xid INT, FOREIGN KEY (xid) REFERENCES other.x (id))", change: "ALTER TABLE x DROP COLUMN id;\nDROP TABLE x"},
+		{name: "a rename of its name onto a table the database holds after, while a temporary table of its name exists, and then a drop of it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE x (a INT);\nRENAME TABLE x TO y;\nDROP TABLE x", err: "already exists"},
+		{name: "a read-only transaction started before, which the drop commits", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "START TRANSACTION READ ONLY;\nALTER TABLE x DROP COLUMN id", reported: true},
+		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
+		// of each holds; another value may be refused.
+		{name: "with ALGORITHM and LOCK left at DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=DEFAULT, LOCK DEFAULT", reported: true},
+		{name: "with ALGORITHM set to INSTANT, then DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INSTANT, ALGORITHM=DEFAULT", reported: true},
+		{name: "with ALGORITHM set to INSTANT before LOCK left at DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INSTANT, LOCK=DEFAULT", err: "ALGORITHM=INSTANT is not supported", key: "id"},
+		{name: "with ALGORITHM set to DEFAULT, then INSTANT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=DEFAULT, ALGORITHM=INSTANT", err: "ALGORITHM=INSTANT is not supported", key: "id"},
+		{name: "with ALGORITHM=INPLACE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=INPLACE", err: "ALGORITHM=INPLACE is not supported", key: "id"},
+		{name: "with LOCK=NONE", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, LOCK=NONE", err: "LOCK=NONE is not supported", key: "id"},
+		{name: "with a quoted DEFAULT", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ALGORITHM=`DEFAULT`", err: "Unknown ALGORITHM", key: "id"},
+		// A USE of the target's database passes; one of another ends the
+		// judging, and a name without a database after it is that database's.
+		{name: "a USE of its database before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE shop;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a USE of a database the server lacks before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "USE nosuch_db;\nALTER TABLE x DROP COLUMN id", err: "Unknown database", key: "id"},
+		{name: "a key added after a USE of another database, to a table of its name there", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (id INT, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nUSE other;\nALTER TABLE x ADD PRIMARY KEY (v)", reported: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := resetOracle(t, db)
+			ctx := context.Background()
+			if _, err := conn.ExecContext(ctx, tt.setup); err != nil {
+				t.Fatalf("setup: %v", err)
+			}
+			schema := syncSchema(t, conn)
+			result, err := Review(ctx, tt.change, review.Options{Rules: []review.Rule{review.RequirePrimaryKey}},
+				[]review.Target{{Schema: schema, LowerCaseTableNames: lowerCaseTableNames(t, conn)}})
+			if err != nil {
+				t.Fatalf("Review: %v", err)
+			}
+			reported := false
+			for _, f := range result.Findings {
+				if f.Rule == review.Syntax {
+					t.Fatalf("syntax: %s", f.Message)
+				}
+				reported = true
+			}
+			var failed error
+			for _, s := range parseChange(t, tt.change) {
+				if _, failed = conn.ExecContext(ctx, tt.change[s.loc.Start:s.loc.End]); failed != nil {
+					break
+				}
+			}
+			// A change that fails may leave tables locked, which would keep the
+			// next case from dropping the database, or temporary tables, which
+			// belong to the pooled session and outlive the database.
+			for _, stmt := range []string{"UNLOCK TABLES", "DROP TEMPORARY TABLE IF EXISTS shop.x, shop.y"} {
+				if _, err := conn.ExecContext(ctx, stmt); err != nil {
+					t.Fatal(err)
+				}
+			}
+			switch {
+			case tt.err == "" && failed != nil:
+				t.Errorf("the change fails: %v", failed)
+			case tt.err != "" && (failed == nil || !strings.Contains(failed.Error(), tt.err)):
+				t.Errorf("the change ends with %v, want an error with %q", failed, tt.err)
+			}
+			if key := primaryKeyOf(t, conn, "x"); key != tt.key {
+				t.Errorf("key of x after the change = %q, want %q", key, tt.key)
+			}
+			if reported != tt.reported {
+				t.Errorf("reported = %v, want %v", reported, tt.reported)
+			}
+			// A finding is wrong when x keeps its key, whether the change stops
+			// before the drop or not; a statement after the drop that fails
+			// leaves it dropped.
+			if reported && tt.key != "" && !tt.unseen {
+				t.Errorf("reported, but x keeps its key")
+			}
+		})
+	}
+}
+
+// primaryKeyOf reads the columns of a shop table's primary key, comma
+// separated, "" when it has none.
+func primaryKeyOf(t *testing.T, conn *sql.Conn, table string) string {
+	t.Helper()
+	var key sql.NullString
+	if err := conn.QueryRowContext(context.Background(), `SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) FROM information_schema.STATISTICS
+		WHERE TABLE_SCHEMA = 'shop' AND TABLE_NAME = ? AND INDEX_NAME = 'PRIMARY'`, table).Scan(&key); err != nil {
+		t.Fatal(err)
+	}
+	return key.String
 }

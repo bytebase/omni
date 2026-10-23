@@ -464,6 +464,391 @@ func TestRequirePrimaryKey(t *testing.T) {
 	})
 }
 
+// keyed is shop with tables for the primary key a DROP COLUMN drops: k1 to
+// k3 with a key on id and a column v; pair with a key of two columns, pchk
+// with one whose check reads both, as an application-time period's does; gen
+// with a generated column, gen2 with one that names the key only in a
+// literal, chk with a check of the key and v, solo with a check of the key
+// alone, and part with partitioning, each reading the key; kpart partitioned
+// by KEY (), which reads the key, and kpart0, without a key, by KEY (),
+// which reads its unique key and not its other index, and kpart2 by KEY ()
+// with a unique key of u and one of u and v; inv whose other column is
+// invisible, and inv2 with a visible one too; defx whose other column's
+// default reads the key, and deflit whose literal default names it; uq with
+// a unique key of the key and v, uqv with one of the key and v beside one of
+// v, uq1 with one of the key alone, and kv with a key of v and the key that
+// is not unique; and self with a foreign key to itself.
+func keyed() []review.Target {
+	s := shop()
+	pk := func(columns ...string) []*metadata.IndexMetadata {
+		return []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: columns}}
+	}
+	tables := &s.Schemas[0].Tables
+	for _, name := range []string{"k1", "k2", "k3"} {
+		*tables = append(*tables, &metadata.TableMetadata{Name: name, Columns: columns("id", "v"), Indexes: pk("id")})
+	}
+	*tables = append(*tables,
+		&metadata.TableMetadata{Name: "pair", Columns: columns("a", "b", "v"), Indexes: pk("a", "b")},
+		&metadata.TableMetadata{Name: "pchk", Columns: columns("a", "b", "v"), Indexes: pk("a", "b"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "`a` < `b`"}}},
+		&metadata.TableMetadata{
+			Name:    "gen",
+			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "(`id` + 1)"}}},
+			Indexes: pk("id"),
+		},
+		&metadata.TableMetadata{
+			Name:    "gen2",
+			Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v"}, {Name: "g", Generation: &metadata.GenerationMetadata{Expression: "concat('id',`v`)"}}},
+			Indexes: pk("id"),
+		},
+		&metadata.TableMetadata{Name: "chk", Columns: columns("id", "v"), Indexes: pk("id"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`ID` < `v`)"}}},
+		&metadata.TableMetadata{Name: "solo", Columns: columns("id", "v"), Indexes: pk("id"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck", Expression: "(`id` > 0)"}}},
+		&metadata.TableMetadata{Name: "part", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Expression: "`id`"}}},
+		&metadata.TableMetadata{Name: "kpart", Columns: columns("id", "v"), Indexes: pk("id"), Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
+		&metadata.TableMetadata{Name: "kpart0", Columns: columns("u", "v", "w"), Indexes: []*metadata.IndexMetadata{{Name: "uu", Unique: true, Expressions: []string{"u"}}, {Name: "iv", Expressions: []string{"v"}}}, Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
+		&metadata.TableMetadata{Name: "inv", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", IsInvisible: true}}, Indexes: pk("id")},
+		&metadata.TableMetadata{Name: "inv2", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", IsInvisible: true}, {Name: "w"}}, Indexes: pk("id")},
+		&metadata.TableMetadata{Name: "defx", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", Default: "'(`id` + 1)'"}}, Indexes: pk("id")},
+		&metadata.TableMetadata{Name: "deflit", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "v", Default: "'\\'id\\''"}}, Indexes: pk("id")},
+		&metadata.TableMetadata{Name: "uq", Columns: columns("id", "v", "w", "x"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "u", Unique: true, Expressions: []string{"id", "v"}})},
+		&metadata.TableMetadata{Name: "kv", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "k", Expressions: []string{"v", "id"}})},
+		&metadata.TableMetadata{Name: "uqv", Columns: columns("id", "v", "w"), Indexes: []*metadata.IndexMetadata{
+			{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}, KeyLength: []int64{-1}},
+			{Name: "u", Unique: true, Expressions: []string{"v"}, KeyLength: []int64{-1}},
+			{Name: "uv", Unique: true, Expressions: []string{"id", "v"}, KeyLength: []int64{-1, -1}},
+		}},
+		&metadata.TableMetadata{Name: "kpart2", Columns: columns("u", "v", "w"), Indexes: []*metadata.IndexMetadata{
+			{Name: "uu", Unique: true, Expressions: []string{"u"}, KeyLength: []int64{-1}},
+			{Name: "uv", Unique: true, Expressions: []string{"u", "v"}, KeyLength: []int64{-1, -1}},
+		}, Partitions: []*metadata.TablePartitionMetadata{{Name: "p0", Type: metadata.TablePartitionMetadata_KEY}}},
+		&metadata.TableMetadata{Name: "uq1", Columns: columns("id", "v"), Indexes: append(pk("id"), &metadata.IndexMetadata{Name: "u", Unique: true, Expressions: []string{"id"}})},
+		&metadata.TableMetadata{
+			Name:        "self",
+			Columns:     columns("id", "up"),
+			Indexes:     pk("id"),
+			ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk_up", Columns: []string{"up"}, ReferencedTable: "self", ReferencedColumns: []string{"id"}}},
+		},
+	)
+	return []review.Target{{Schema: s, BackupDatabaseExists: true}}
+}
+
+// TestRequirePrimaryKeyColumnDrop checks DROP COLUMN against the synced
+// primary key. An ALTER TABLE of DROP COLUMN subcommands alone is judged:
+// dropping every column of the key drops it, and a drop the server refuses,
+// among them one of only some columns of the key, ends the judging. Any other
+// statement on a table leaves the table out, and one the rule cannot bound
+// ends the judging.
+func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
+	lost := func(statement int, text, table string) finding {
+		return finding{statement, text, "removes the primary key of " + table + ", and the change adds none back", []int{0}}
+	}
+	cases := []ruleCase{
+		{
+			name: "every column of the key",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP b, DROP COLUMN a;\nALTER TABLE shop.t DROP COLUMN id, DROP COLUMN code;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP b", "pair"), lost(2, "DROP COLUMN id", "shop.t")},
+		},
+		{
+			name: "no column of the key",
+			sql:  "ALTER TABLE plain DROP COLUMN v;\nALTER TABLE k1 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "k1")},
+		},
+		{
+			name: "the key, after columns statements before dropped, and what read them",
+			sql:  "ALTER TABLE t DROP COLUMN code;\nALTER TABLE t DROP COLUMN id;\nALTER TABLE gen DROP COLUMN g;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE solo DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "t"), lost(3, "DROP COLUMN id", "gen"), lost(4, "DROP COLUMN id", "solo")},
+		},
+		{
+			name: "a column under IF EXISTS, twice, or one the table lacks",
+			sql:  "ALTER TABLE k1 DROP COLUMN IF EXISTS id, DROP COLUMN IF EXISTS id;\nALTER TABLE k2 DROP COLUMN IF EXISTS missing, DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN IF EXISTS id", "k1"), lost(1, "DROP COLUMN id", "k2")},
+		},
+		{
+			name: "the key, before statements the rule passes or cannot follow",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nINSERT INTO plain VALUES (1);\nCREATE VIEW v1 AS SELECT v FROM plain;\nCREATE PROCEDURE pr() ALTER TABLE plain ADD PRIMARY KEY (v);\nSET @x = 1;\nCREATE DATABASE d;\nDROP DATABASE other;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		// What the server refuses, or what follows a drop of only some columns
+		// of the key, is not known: no drop after it is judged, and a finding
+		// before it stands.
+		{name: "some columns of the key", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE pair DROP COLUMN a;\nALTER TABLE k1 DROP COLUMN id;", want: []finding{lost(0, "DROP COLUMN id", "plain")}},
+		{name: "a column the table lacks", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN missing;\nALTER TABLE k1 DROP COLUMN id;"},
+		{name: "one column twice", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN ID;"},
+		{name: "every column of the table", sql: "ALTER TABLE plain DROP COLUMN id, DROP COLUMN v;"},
+		{name: "a column a foreign key of another table references", sql: "ALTER TABLE p DROP COLUMN id;"},
+		{name: "a column a foreign key of the table holds", sql: "ALTER TABLE t DROP COLUMN id, DROP COLUMN p_id;"},
+		{name: "a column a foreign key of the table to itself references", sql: "ALTER TABLE self DROP COLUMN id;"},
+		{name: "a column a generated column reads", sql: "ALTER TABLE gen DROP COLUMN id;"},
+		{name: "a column a check reads with another", sql: "ALTER TABLE chk DROP COLUMN id;"},
+		{name: "every column of the key, which a check reads, as an application-time period's may", sql: "ALTER TABLE pchk DROP a, DROP b;"},
+		{name: "a column the table is partitioned by", sql: "ALTER TABLE part DROP COLUMN id;"},
+		{name: "a column of a table partitioned by KEY ()", sql: "ALTER TABLE kpart DROP COLUMN id;"},
+		{name: "a column of only some unique keys of a table without a primary key partitioned by KEY (), which MariaDB refuses to narrow", sql: "ALTER TABLE kpart2 DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "the unique key's column of a table without a primary key partitioned by KEY ()", sql: "ALTER TABLE kpart0 DROP COLUMN u;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, after a column out of any key dropped from a table without a primary key partitioned by KEY ()",
+			sql:  "ALTER TABLE kpart0 DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, after a column out of the key dropped from a table partitioned by KEY ()",
+			sql:  "ALTER TABLE kpart DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, after a read-only transaction started, which the drop commits",
+			sql:  "START TRANSACTION READ ONLY;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "every visible column of the table", sql: "ALTER TABLE inv DROP COLUMN id;"},
+		{name: "a column an expression default reads", sql: "ALTER TABLE defx DROP COLUMN id;"},
+		{name: "a column of a table the synced schema lacks", sql: "ALTER TABLE missing DROP COLUMN id;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a column of a table of another database", sql: "ALTER TABLE other.plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN id;"},
+		// Any other statement on a table leaves the table out: no later drop
+		// of it is judged, and a finding on it is withdrawn.
+		{
+			name: "another subcommand of the statement",
+			sql:  "ALTER TABLE plain DROP COLUMN id, ADD COLUMN w INT;\nALTER TABLE k1 DROP COLUMN id, DROP PARTITION p0;\nALTER TABLE k2 DROP PRIMARY KEY, DROP COLUMN id;",
+			want: []finding{{2, "DROP PRIMARY KEY", "removes the primary key of k2, and the change adds none back", []int{0}}},
+		},
+		{
+			name: "a statement after on the table, which may give it a key back, or on another",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE plain ADD PRIMARY KEY (v);\nRENAME TABLE k1 TO k9;\nCREATE INDEX i ON nokey (a);",
+			want: []finding{lost(2, "DROP COLUMN id", "k2")},
+		},
+		{
+			name: "every column of the key, with an invisible one left besides a visible one",
+			sql:  "ALTER TABLE inv2 DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "inv2")},
+		},
+		{
+			name: "a table of another database renamed to its name, before or after, which lands in the current database",
+			sql:  "ALTER TABLE other.t RENAME TO k1;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE other.t2 RENAME TO k2;",
+		},
+		{
+			name: "a finding before a statement the rule cannot follow, withdrawn by a later statement on its table",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nCREATE VIEW v1 AS SELECT 1;\nALTER TABLE plain ADD PRIMARY KEY (v);",
+			want: []finding{lost(1, "DROP COLUMN id", "k1")},
+		},
+		{
+			name: "findings before a USE of another database, after which a name without one is not the target's, but one with it is",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nUSE other;\nALTER TABLE plain ADD PRIMARY KEY (v);\nALTER TABLE shop.k1 ADD PRIMARY KEY (v);",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, after a USE of the target's database, and not after one naming it in another case, where names compare with case",
+			sql:  "USE shop;\nALTER TABLE plain DROP COLUMN id;\nUSE SHOP;\nALTER TABLE k1 DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "a USE of another database, then of the target's, before", sql: "USE other;\nUSE shop;\nALTER TABLE plain DROP COLUMN id;"},
+		// Any statement but one of DROP COLUMN alone or one that changes no
+		// schema object may fail: no drop after it is judged.
+		{name: "another table altered before", sql: "ALTER TABLE nokey ADD COLUMN w INT;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a table made before", sql: "CREATE TABLE c (x INT PRIMARY KEY);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "an index made on another table before", sql: "CREATE INDEX i ON nokey (a);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a table the database lacks dropped before", sql: "DROP TABLE missing;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "another database dropped before", sql: "DROP DATABASE other;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a view made before", sql: "CREATE VIEW v1 AS SELECT 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a procedure made before", sql: "CREATE PROCEDURE pr() SELECT 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user made before", sql: "CREATE USER u;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a temporary table of its name dropped before", sql: "DROP TEMPORARY TABLE IF EXISTS plain;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "statements before that cannot fail",
+			sql:  "BEGIN;\nSAVEPOINT s;\nSET @x = 1, @sql_require_primary_key = 'a', foreign_key_checks = OFF, @@session.unique_checks = 0, @h = X'41', @h2 = 0x41, @b = b'101', @b2 = 0b1, @n = -1, @f = - +2.5e3, @h3 = X'aB', @h4 = 0xaB, @b3 = B'01', unique_checks = DEFAULT;\nANALYZE TABLE missing;\nCOMMIT;\nUNLOCK TABLES;\nROLLBACK;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(7, "DROP COLUMN id", "plain")},
+		},
+		{name: "a row inserted before", sql: "INSERT INTO nokey VALUES (1);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a histogram of MySQL's, which MariaDB refuses, updated before", sql: "ANALYZE TABLE nokey UPDATE HISTOGRAM ON a;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a query before", sql: "SELECT a FROM nokey;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "the database's tables shown before", sql: "SHOW TABLES FROM shop;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "tables flushed before", sql: "FLUSH TABLES WITH READ LOCK;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, before tables flushed",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nFLUSH TABLES;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "a table truncated before", sql: "TRUNCATE TABLE nokey;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "tables locked before", sql: "LOCK TABLES plain WRITE;\nALTER TABLE plain DROP COLUMN id;\nUNLOCK TABLES;"},
+		{name: "a rollback to a savepoint before", sql: "BEGIN;\nROLLBACK TO SAVEPOINT s;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a savepoint released before", sql: "BEGIN;\nSAVEPOINT s;\nRELEASE SAVEPOINT s;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a commit that ends the session before", sql: "COMMIT RELEASE;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a rollback that ends the session before", sql: "ROLLBACK RELEASE;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "the transaction's characteristics set before", sql: "SET TRANSACTION ISOLATION LEVEL READ COMMITTED;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "foreign_key_checks set with another variable before", sql: "SET foreign_key_checks = 0, version = 'x';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "foreign_key_checks set globally before", sql: "SET GLOBAL foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "foreign_key_checks set globally by its name before", sql: "SET @@global.foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "foreign_key_checks set to a value it lacks before", sql: "SET foreign_key_checks = 2;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a query before", sql: "SET @x = (SELECT a FROM nokey);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set under a scope before", sql: "SET SESSION @x = 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, after a scope for a system variable before a user variable",
+			sql:  "SET SESSION foreign_key_checks = 1, @x = 1;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, before CREATE OR REPLACE TABLE of its name, which drops it, or of a temporary table",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nCREATE OR REPLACE TABLE plain (id INT PRIMARY KEY);\nCREATE OR REPLACE TEMPORARY TABLE k1 (id INT PRIMARY KEY);",
+			want: []finding{lost(1, "DROP COLUMN id", "k1")},
+		},
+		{name: "the key, before CREATE OR REPLACE DATABASE of the target's", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE OR REPLACE DATABASE shop;"},
+		{
+			name: "the key, before CREATE DATABASE of the target's, which fails, or CREATE OR REPLACE DATABASE of another",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE DATABASE shop;\nCREATE OR REPLACE DATABASE other;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, after foreign_key_checks set with :=",
+			sql:  "SET foreign_key_checks := OFF;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", sql: "SET @x = 0X41;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a bit value of an uppercase prefix before", sql: "SET @x = 0B01;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to DEFAULT before", sql: "SET @x = DEFAULT;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a malformed bit value before", sql: "SET @x = b'102';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a double out of range before", sql: "SET @x = -1e400;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a sign of a string before", sql: "SET @x = -'a';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a user variable set to a string with a character set before", sql: "SET @x = _utf8mb4'a';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "the character set set before", sql: "SET NAMES utf8mb4;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, before a truncate, tables locked, DML, a SHOW, or a SET that may fail",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nTRUNCATE TABLE plain;\nLOCK TABLES plain READ;\nUNLOCK TABLES;\nINSERT INTO missing VALUES (1);\nSELECT * FROM missing;\nSHOW TABLES FROM shop;\nSET TRANSACTION READ ONLY;\nSET sql_require_primary_key = ON;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before statements on its table that give it no key",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE INDEX iv ON plain (v);\nALTER TABLE plain ADD COLUMN w INT;\nDROP INDEX iv ON plain;\nCREATE TEMPORARY TABLE plain (a INT);\nDROP TEMPORARY TABLE plain;\nCREATE TABLE IF NOT EXISTS plain (a INT);",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before its table dropped or renamed, or before a table of its name made or renamed onto it, which fail",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;\nALTER TABLE gen2 DROP COLUMN id;\nDROP TABLE plain;\nALTER TABLE k2 RENAME TO k9;\nCREATE TABLE k1 (a INT PRIMARY KEY);\nALTER TABLE nokey RENAME TO k3;\nRENAME TABLE pair TO gen2;",
+			want: []finding{lost(1, "DROP COLUMN id", "k1"), lost(3, "DROP COLUMN id", "k3"), lost(4, "DROP COLUMN id", "gen2")},
+		},
+		// A statement the rule shows to fail withdraws nothing, and the change
+		// stops at it.
+		{
+			name: "the key, before an ALTER TABLE that drops a column the table lacks and adds a key back",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before an ALTER TABLE that drops a column dropped before and adds a key back",
+			sql:  "ALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN ID, ADD PRIMARY KEY (v);",
+			want: []finding{lost(0, "DROP COLUMN id", "k1")},
+		},
+		{
+			name: "the key, before a column dropped by a statement the rule does not judge, then dropped again with a key added back",
+			sql:  "ALTER TABLE t DROP COLUMN id;\nCREATE VIEW v1 AS SELECT 1;\nALTER TABLE t DROP COLUMN code;\nALTER TABLE t DROP COLUMN code, ADD PRIMARY KEY (n);",
+			want: []finding{lost(0, "DROP COLUMN id", "t")},
+		},
+		{
+			name: "the key, before an ALTER TABLE that fails, and not after it",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing;\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "the key, before a column added and then dropped with a key added back", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain ADD COLUMN missing INT;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);"},
+		{
+			name: "the key, before a rename onto a table the target holds, or onto itself",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO k1;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before an ALTER TABLE that adds a key back and renames onto a table the target holds",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain ADD PRIMARY KEY (v), RENAME TO k1;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before a rename of it onto itself",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before a rename that fails, and not a drop after it",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO k1;\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "the key, before a rename onto a table renamed away before", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE k1 TO k9;\nRENAME TABLE plain TO k1;"},
+		{name: "the key, before a rename onto a table an earlier pair moves away", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE k1 TO k9, plain TO k1;"},
+		{name: "the key, before an ALTER TABLE that renames it onto itself", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain RENAME TO plain;"},
+		{name: "the key, before a rename onto a table dropped before", sql: "ALTER TABLE plain DROP COLUMN id;\nDROP TABLE k1;\nRENAME TABLE plain TO k1;"},
+		{name: "the key, before a rename onto a table of another database", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO other.k1;"},
+		// A temporary table of the name takes an ALTER TABLE and a DROP TABLE.
+		{
+			name: "the key, before a temporary table of its name made, given a key, and dropped",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nALTER TABLE plain ADD PRIMARY KEY (x);\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "the key, before a temporary table of its name dropped, and then the table", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TABLE plain;\nDROP TABLE plain;"},
+		{name: "the key, before a temporary table of its name dropped as one, and then the table", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TEMPORARY TABLE plain;\nDROP TABLE plain;"},
+		{name: "the key, before a temporary table of its name renamed away, and then the table dropped", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nALTER TABLE plain RENAME TO p2;\nDROP TABLE plain;"},
+		{name: "the key, before a RENAME TABLE of its name onto a table the target holds, while a temporary table of its name exists", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nRENAME TABLE plain TO k1;\nDROP TABLE plain;"},
+		{name: "the key, before a RENAME TABLE of its name, though a temporary table of it exists", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nRENAME TABLE plain TO p2;"},
+		{name: "the key, before a temporary table of its name made in another database, and the table dropped", sql: "ALTER TABLE plain DROP COLUMN id;\nUSE other;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TABLE shop.plain;"},
+		// A DROP TABLE a foreign key keeps from running is not shown to fail: the
+		// synced schema does not give the database the foreign key references.
+		{name: "the key, before a DROP TABLE of it, which a foreign key of another table may name", sql: "ALTER TABLE p DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;\nDROP TABLE plain;"},
+		{name: "the key, before an ALTER TABLE that drops a column the table lacks under IF EXISTS and adds a key back", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN IF EXISTS missing, ADD PRIMARY KEY (v);"},
+		{
+			name: "the key, before a temporary table of its name made by CREATE OR REPLACE and dropped",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE OR REPLACE TEMPORARY TABLE plain (x INT);\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "a column a unique key of it and another column holds", sql: "ALTER TABLE uq DROP COLUMN id;"},
+		{name: "a column a unique key of it and another column holds, beside a unique key of the other", sql: "ALTER TABLE uqv DROP COLUMN id;"},
+		{
+			name: "every column of the key, with a unique key of it alone, or of it and another column dropped too, or another key of it and another column",
+			sql:  "ALTER TABLE uq DROP COLUMN w;\nALTER TABLE uq1 DROP COLUMN id;\nALTER TABLE uq DROP COLUMN id, DROP COLUMN v;\nALTER TABLE kv DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "uq1"), lost(2, "DROP COLUMN id", "uq"), lost(3, "DROP COLUMN id", "kv")},
+		},
+		{
+			name: "the key, with ALGORITHM or LOCK left at DEFAULT, last or alone, and not before another value",
+			sql:  "ALTER TABLE plain DROP COLUMN id, ALGORITHM=DEFAULT;\nALTER TABLE k1 LOCK DEFAULT, DROP COLUMN id, algorithm = default, LOCK=DEFAULT;\nALTER TABLE k2 DROP COLUMN id, ALGORITHM=INSTANT, LOCK=NONE, ALGORITHM=DEFAULT, LOCK=DEFAULT;\nALTER TABLE k3 DROP COLUMN id, ALGORITHM=DEFAULT, ALGORITHM=INSTANT;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain"), lost(1, "DROP COLUMN id", "k1"), lost(2, "DROP COLUMN id", "k2")},
+		},
+		{name: "the key, with LOCK set to another value", sql: "ALTER TABLE plain DROP COLUMN id, LOCK=SHARED;"},
+		{name: "the key, with ALGORITHM set to another value before LOCK left at DEFAULT", sql: "ALTER TABLE plain DROP COLUMN id, ALGORITHM=INSTANT, LOCK=DEFAULT;"},
+		{name: "the key, with a quoted DEFAULT", sql: "ALTER TABLE plain DROP COLUMN id, ALGORITHM=`DEFAULT`;"},
+		{
+			name: "a generated column whose expression names the column only in a literal",
+			sql:  "ALTER TABLE gen2 DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "gen2")},
+		},
+		{name: "sql_generate_invisible_primary_key, which MariaDB lacks, set", sql: "SET sql_generate_invisible_primary_key = OFF;\nALTER TABLE plain DROP COLUMN id;"},
+		// A statement the rule cannot bound ends the judging.
+		{name: "a USE", sql: "USE other;\nALTER TABLE shop.plain DROP COLUMN id;"},
+		{name: "a CALL after the drop", sql: "ALTER TABLE plain DROP COLUMN id;\nCALL pr();"},
+		{name: "sql_require_primary_key, which MariaDB lacks, set", sql: "SET SESSION sql_require_primary_key = OFF;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "a user variable named like sql_require_primary_key",
+			sql:  "SET @sql_require_primary_key = 1;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "a literal default that names the column, which the synced schema does not tell from an expression", sql: "ALTER TABLE deflit DROP COLUMN id;"},
+		{name: "an event", sql: "CREATE EVENT ev ON SCHEDULE EVERY 1 DAY DO ALTER TABLE plain ADD PRIMARY KEY (v);\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "the target's database dropped after", sql: "ALTER TABLE plain DROP COLUMN id;\nDROP DATABASE shop;"},
+	}
+	for i := range cases {
+		cases[i].targets = keyed()
+	}
+	runCases(t, review.RequirePrimaryKey, cases)
+	runCases(t, review.RequirePrimaryKey, []ruleCase{
+		{
+			name:    "a table named in another case, where names compare with case and where not",
+			sql:     "ALTER TABLE PLAIN DROP COLUMN ID;",
+			targets: []review.Target{{Schema: shop()}, {Schema: shop(), LowerCaseTableNames: 1}},
+			want:    []finding{{0, "DROP COLUMN ID", "removes the primary key of PLAIN, and the change adds none back", []int{1}}},
+		},
+		{
+			name: "targets whose keys differ",
+			sql:  "ALTER TABLE pair DROP COLUMN a;",
+			targets: []review.Target{keyed()[0], {Schema: &metadata.DatabaseSchemaMetadata{Name: "shop", Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{
+				{Name: "pair", Columns: columns("a", "b"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Expressions: []string{"a"}}}},
+			}}}}}, {}},
+			want: []finding{{0, "DROP COLUMN a", "removes the primary key of pair, and the change adds none back", []int{1}}},
+		},
+	})
+}
+
 func TestOnlineMigration(t *testing.T) {
 	ghost := review.Change{OnlineMigration: true}
 	runCases(t, review.OnlineMigration, []ruleCase{

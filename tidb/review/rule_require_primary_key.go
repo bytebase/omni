@@ -16,6 +16,12 @@ import (
 // temporary table are not judged, and neither is a statement inside a
 // routine body, which runs only when called.
 //
+// An ALTER TABLE ... DROP COLUMN never takes the primary key: TiDB refuses
+// to drop a column of the primary key, so, unlike MySQL's, the rule reads
+// nothing of the synced schema for one.
+//
+// tidb: https://docs.pingcap.com/tidb/stable/sql-statement-drop-column#mysql-compatibility
+//
 // Without simulating the change, the rule follows the table by name. A
 // later statement that may give it a key, drop it or its database, rename
 // it, or create a table of its name settles it, and it is not reported.
