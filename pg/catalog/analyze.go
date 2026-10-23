@@ -479,7 +479,33 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		}
 	}
 
+	orderTargetList(q)
 	return q, nil
+}
+
+// orderTargetList puts a query's output columns before the junk entries its
+// ORDER BY, GROUP BY, and window clauses added, and numbers every entry by
+// its position. A window's PARTITION BY and ORDER BY entries are added while
+// the target list is being transformed; PostgreSQL adds them only after it,
+// so an output column's position, which a Var of the query's output uses
+// as AttNum, is its index in TargetList. Clauses refer to entries by
+// TLESortGroupRef, which moving an entry keeps.
+//
+// pg: src/backend/parser/analyze.c — transformSelectStmt
+// (transformWindowDefinitions after transformTargetList)
+func orderTargetList(q *Query) {
+	ordered := make([]*TargetEntry, 0, len(q.TargetList))
+	for _, junk := range []bool{false, true} {
+		for _, te := range q.TargetList {
+			if te.ResJunk == junk {
+				ordered = append(ordered, te)
+			}
+		}
+	}
+	for i, te := range ordered {
+		te.ResNo = int16(i + 1)
+	}
+	q.TargetList = ordered
 }
 
 // analyzeCtx holds state during query analysis.
@@ -2956,6 +2982,7 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 		q.Distinct = true
 	}
 
+	orderTargetList(q)
 	return q, nil
 }
 

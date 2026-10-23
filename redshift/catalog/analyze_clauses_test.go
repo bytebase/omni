@@ -315,3 +315,35 @@ func TestAnalyzeRejectsQualifiedAggSortOperator(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestAnalyzeJunkEntriesFollowOutputColumns checks that the junk entries a
+// window's PARTITION BY and ORDER BY add come after the output columns, so
+// a subquery column's AttNum indexes its target entry.
+func TestAnalyzeJunkEntriesFollowOutputColumns(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT a.x2 FROM (
+		SELECT id, sum(id) OVER (PARTITION BY masked ORDER BY x) AS s, x AS x2 FROM t ORDER BY masked || x
+	) a`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub := q.RangeTable[0].Subquery
+	var names []string
+	for i, te := range sub.TargetList {
+		if int(te.ResNo) != i+1 {
+			t.Errorf("entry %d has ResNo %d", i, te.ResNo)
+		}
+		if !te.ResJunk {
+			names = append(names, te.ResName)
+		} else if len(names) < 3 {
+			t.Errorf("junk entry %q at %d precedes an output column", te.ResName, i)
+		}
+	}
+	if !slices.Equal(names, []string{"id", "s", "x2"}) {
+		t.Errorf("output columns %v", names)
+	}
+	v := targetExpr(t, q, 0).(*VarExpr)
+	if got := readColumns(sub, sub.TargetList[v.AttNum-1].Expr); !slices.Equal(got, []string{"t.x"}) {
+		t.Errorf("a.x2 (AttNum %d) reads %v through TargetList[AttNum-1], want [t.x]", v.AttNum, got)
+	}
+}
