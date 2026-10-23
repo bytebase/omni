@@ -488,7 +488,16 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			}
 		case RTEFunction:
 			// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_item RTE_FUNCTION case
-			if len(rte.FuncExprs) == 1 {
+			colDef := func(i int) *funcColDef {
+				if i < len(rte.funcColDefs) {
+					return rte.funcColDefs[i]
+				}
+				return nil
+			}
+			// A lone function prints its column definition list as its
+			// alias list, unless WITH ORDINALITY needs ROWS FROM for it.
+			single := len(rte.FuncExprs) == 1 && (colDef(0) == nil || !rte.Ordinality)
+			if single {
 				d.getRuleExpr(rte.FuncExprs[0], false)
 			} else {
 				d.buf.WriteString("ROWS FROM(")
@@ -497,6 +506,10 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 						d.buf.WriteString(", ")
 					}
 					d.getRuleExpr(fe, false)
+					if def := colDef(i); def != nil {
+						d.buf.WriteString(" AS ")
+						d.getColDefList(def.names, def)
+					}
 				}
 				d.buf.WriteByte(')')
 			}
@@ -513,10 +526,20 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			if refname != "" {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(refname))
-				// pg: get_column_alias_list — always print for function RTEs
-				if len(rte.ColNames) > 0 {
+				// pg: get_column_alias_list — always print for function RTEs.
+				// For a function whose columns are unknown, only the names
+				// its alias gave are positional; the rest were inferred
+				// from references.
+				colNames := rte.ColNames
+				if rte.UnknownColumns {
+					colNames = colNames[:min(rte.aliasColumns, len(colNames))]
+				}
+				if def := colDef(0); single && def != nil {
+					// The column definition list is also the alias list.
+					d.getColDefList(colNames[:min(len(def.types), len(colNames))], def)
+				} else if len(colNames) > 0 {
 					d.buf.WriteByte('(')
-					for i, cn := range rte.ColNames {
+					for i, cn := range colNames {
 						if i > 0 {
 							d.buf.WriteString(", ")
 						}
@@ -582,6 +605,45 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			d.buf.WriteByte(')')
 		}
 	}
+}
+
+// getColDefList deparses a function's column definition list, naming its
+// columns names.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_coldeflist
+func (d *deparseCtx) getColDefList(names []string, def *funcColDef) {
+	d.buf.WriteByte('(')
+	for i, typ := range def.types {
+		if i > 0 {
+			d.buf.WriteString(", ")
+		}
+		name := def.names[i]
+		if i < len(names) {
+			name = names[i]
+		}
+		d.buf.WriteString(quoteIdentifier(name))
+		d.buf.WriteByte(' ')
+		d.buf.WriteString(d.catalog.formatType(typ, def.typmods[i]))
+		// A collation other than the type's default is printed: a built-in
+		// one by its name, any other as written, qualified if it was.
+		if parts := def.collNames[i]; len(parts) > 0 {
+			oid := builtinCollationOIDOf(parts)
+			switch {
+			case oid != 0 && oid != d.catalog.typeCollation(typ):
+				d.buf.WriteString(" COLLATE ")
+				d.buf.WriteString(quoteIdentifier(parts[len(parts)-1]))
+			case oid == 0:
+				d.buf.WriteString(" COLLATE ")
+				for j, part := range parts {
+					if j > 0 {
+						d.buf.WriteByte('.')
+					}
+					d.buf.WriteString(quoteIdentifier(part))
+				}
+			}
+		}
+	}
+	d.buf.WriteByte(')')
 }
 
 // getRuleExpr deparses an analyzed expression node.

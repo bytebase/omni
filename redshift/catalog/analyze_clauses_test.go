@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	pg "github.com/bytebase/omni/redshift"
@@ -313,5 +314,267 @@ func TestAnalyzeRejectsQualifiedAggSortOperator(t *testing.T) {
 	}
 	if _, err := analyzeWithOptions(t, c, `SELECT array_agg(id ORDER BY id USING OPERATOR(pg_catalog.>)) FROM t`, AnalyzeOptions{}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestAnalyzeJunkEntriesFollowOutputColumns checks that the junk entries a
+// window's PARTITION BY and ORDER BY add come after the output columns, so
+// a subquery column's AttNum indexes its target entry.
+func TestAnalyzeJunkEntriesFollowOutputColumns(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	q, err := analyzeWithOptions(t, c, `SELECT a.x2 FROM (
+		SELECT id, sum(id) OVER (PARTITION BY masked ORDER BY x) AS s, x AS x2 FROM t ORDER BY masked || x
+	) a`, AnalyzeOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub := q.RangeTable[0].Subquery
+	var names []string
+	for i, te := range sub.TargetList {
+		if int(te.ResNo) != i+1 {
+			t.Errorf("entry %d has ResNo %d", i, te.ResNo)
+		}
+		if !te.ResJunk {
+			names = append(names, te.ResName)
+		} else if len(names) < 3 {
+			t.Errorf("junk entry %q at %d precedes an output column", te.ResName, i)
+		}
+	}
+	if !slices.Equal(names, []string{"id", "s", "x2"}) {
+		t.Errorf("output columns %v", names)
+	}
+	v := targetExpr(t, q, 0).(*VarExpr)
+	if got := readColumns(sub, sub.TargetList[v.AttNum-1].Expr); !slices.Equal(got, []string{"t.x"}) {
+		t.Errorf("a.x2 (AttNum %d) reads %v through TargetList[AttNum-1], want [t.x]", v.AttNum, got)
+	}
+}
+
+// TestAnalyzeOpaqueFunctionsInFrom checks how OpaqueUnknownFunctions
+// analyzes a function in FROM that the catalog does not know.
+func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	opaque := AnalyzeOptions{OpaqueUnknownFunctions: true}
+	columns := func(q *Query, name string) []string {
+		for _, rte := range q.RangeTable {
+			if rte.ERef == name {
+				if !rte.UnknownColumns {
+					t.Errorf("%s does not have UnknownColumns", name)
+				}
+				return rte.ColNames
+			}
+		}
+		t.Fatalf("no range table entry %s", name)
+		return nil
+	}
+
+	// Without the option, the call fails as in PostgreSQL.
+	var catErr *Error
+	if _, err := analyzeWithOptions(t, c, `SELECT 1 FROM t CROSS JOIN unknown_rows() f`, AnalyzeOptions{}); !errors.As(err, &catErr) || catErr.Code != CodeUndefinedFunction {
+		t.Fatalf("without the option: %v, want 42883", err)
+	}
+
+	// Each column the query names becomes a column of the function; a
+	// name a table has stays the table's.
+	q, err := analyzeWithOptions(t, c, `SELECT t.x, f.a, id, b FROM t CROSS JOIN LATERAL unknown_rows(t.id) f WHERE f.c > 1`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := columns(q, "f"); !slices.Equal(got, []string{"a", "b", "c"}) {
+		t.Errorf("f has columns %v, want [a b c]", got)
+	}
+	if got := readColumns(q, targetExpr(t, q, 2)); !slices.Equal(got, []string{"t.id"}) {
+		t.Errorf("id reads %v, want [t.id]", got)
+	}
+	fn := q.RangeTable[1].FuncExprs[0].(*FuncCallExpr)
+	if got := readColumns(q, fn); !slices.Equal(got, []string{"t.id"}) {
+		t.Errorf("the function call reads %v, want [t.id]", got)
+	}
+
+	// The alias names the first columns; a correlated reference adds one
+	// at the level that owns the function.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.extra), a FROM unknown_rows() AS f(a, b)`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := columns(q, "f"); !slices.Equal(got, []string{"a", "b", "extra"}) {
+		t.Errorf("f has columns %v, want [a b extra]", got)
+	}
+	sub := targetExpr(t, q, 0).(*SubLinkExpr).SubQuery
+	if v := sub.TargetList[0].Expr.(*VarExpr); v.LevelsUp != 1 || v.AttNum != 3 {
+		t.Errorf("f.extra in the subquery is %#v, want LevelsUp 1 AttNum 3", v)
+	}
+
+	// A column definition list gives the exact columns, so * works.
+	q, err = analyzeWithOptions(t, c, `SELECT * FROM unknown_rows() AS f(a int, b text)`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(q.TargetList) != 2 || q.RangeTable[0].UnknownColumns || q.TargetList[1].Expr.exprType() != TEXTOID {
+		t.Errorf("column definition list gave %d columns, UnknownColumns %v", len(q.TargetList), q.RangeTable[0].UnknownColumns)
+	}
+
+	for _, sql := range []string{
+		// * cannot list unknown columns.
+		`SELECT * FROM t CROSS JOIN unknown_rows() f`,
+		`SELECT f.* FROM unknown_rows() f`,
+		// An unqualified name two such functions could have is unresolved.
+		`SELECT a FROM unknown_rows() f, other_rows() g`,
+		// ORDINALITY follows columns whose number is unknown.
+		`SELECT f.a FROM unknown_rows() WITH ORDINALITY f`,
+	} {
+		if _, err := analyzeWithOptions(t, c, sql, opaque); err == nil {
+			t.Errorf("%s: analyzed, want an error", sql)
+		}
+	}
+	// Columns the query text says exist, by alias or USING, resolve like a
+	// table's: over inferred ones, and merged by USING into one.
+	for _, sql := range []string{
+		`SELECT f.a, g.a FROM unknown_rows() f, other_rows() g`,
+		`SELECT a FROM unknown_rows() f(a), other_rows() g`,
+		`SELECT id FROM unknown_rows() f JOIN other_rows() g USING (id)`,
+	} {
+		if _, err := analyzeWithOptions(t, c, sql, opaque); err != nil {
+			t.Errorf("%s: %v", sql, err)
+		}
+	}
+
+	// A USING name is a column of the function, on either side.
+	for _, sql := range []string{
+		`SELECT id FROM unknown_rows() f JOIN t USING (id)`,
+		`SELECT id FROM t JOIN unknown_rows() f USING (id)`,
+		`SELECT x FROM (unknown_rows() f CROSS JOIN u) JOIN t USING (x)`,
+	} {
+		q, err := analyzeWithOptions(t, c, sql, opaque)
+		if err != nil {
+			t.Errorf("%s: %v", sql, err)
+			continue
+		}
+		if jn := q.JoinTree.FromList[0].(*JoinExprNode); jn.Quals == nil {
+			t.Errorf("%s: no join condition", sql)
+		}
+	}
+
+	// A real column of an unqualified name wins over a function column the
+	// query named, whatever the order of the references and the join.
+	for _, sql := range []string{
+		`SELECT f.id, id FROM t CROSS JOIN unknown_rows() f`,
+		`SELECT id, f.id FROM t CROSS JOIN unknown_rows() f`,
+		`SELECT f.id, id FROM t, unknown_rows() f`,
+		`SELECT id, f.id FROM t, unknown_rows() f`,
+	} {
+		q, err := analyzeWithOptions(t, c, sql, opaque)
+		if err != nil {
+			t.Errorf("%s: %v", sql, err)
+			continue
+		}
+		var id AnalyzedExpr
+		for _, te := range nonJunkTargetEntries(q.TargetList) {
+			if v, ok := te.Expr.(*VarExpr); ok && !q.RangeTable[v.RangeIdx].UnknownColumns {
+				id = v
+			}
+		}
+		if got := readColumns(q, id); !slices.Equal(got, []string{"t.id"}) {
+			t.Errorf("%s: id reads %v, want [t.id]", sql, got)
+		}
+	}
+	// Two functions' columns of one name are still ambiguous.
+	if _, err := analyzeWithOptions(t, c, `SELECT f.a, g.a, a FROM unknown_rows() f CROSS JOIN other_rows() g`, opaque); !errors.As(err, &catErr) || catErr.Code != CodeAmbiguousColumn {
+		t.Errorf("a over two functions' columns: %v, want 42702", err)
+	}
+
+	// An alias this level has owns a qualified reference: the column is
+	// the inner function's, not the outer table's of the same alias.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.masked FROM unknown_rows() f) FROM t f`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := targetExpr(t, q, 0).(*SubLinkExpr).SubQuery.TargetList[0].Expr.(*VarExpr); v.LevelsUp != 0 {
+		t.Errorf("f.masked in the subquery reads the outer t (LevelsUp %d)", v.LevelsUp)
+	}
+
+	// An ON condition cannot see an alias-seeded column of another FROM
+	// item, and a NATURAL join cannot match unknown columns. A local alias
+	// shadows an enclosing function's; a USING join that matched a name
+	// keeps a function below it from gaining it; and an unqualified name
+	// stays ambiguous while another function could have it, whatever the
+	// order of the references.
+	for _, sql := range []string{
+		`SELECT 1 FROM unknown_rows() f(x), t JOIN u ON f.x = t.id`,
+		`SELECT f.id, id FROM unknown_rows() f NATURAL JOIN t`,
+		`SELECT (SELECT f.zz FROM u f) FROM unknown_rows() f`,
+		`SELECT f.id FROM (t CROSS JOIN unknown_rows() f) JOIN u USING (id)`,
+		`SELECT f.a, a FROM unknown_rows() f, other_rows() g`,
+		`SELECT a, f.a FROM unknown_rows() f, other_rows() g`,
+		`SELECT id FROM t, unknown_rows() f(id)`,
+		`SELECT id FROM t, (unknown_rows() f JOIN u USING (id))`,
+		`SELECT f.a, (SELECT a FROM unknown_one() g, unknown_two() h) FROM unknown_outer() f`,
+		`SELECT (SELECT a FROM unknown_one() g, unknown_two() h), f.a FROM unknown_outer() f`,
+		`SELECT f.a FROM unknown_rows() AS f(a, a)`,
+		`SELECT ordinality FROM unknown_rows() WITH ORDINALITY`,
+		`SELECT 1 FROM ROWS FROM (unknown_rows(), generate_series(1, 2))`,
+	} {
+		if _, err := analyzeWithOptions(t, c, sql, opaque); err == nil {
+			t.Errorf("%s: analyzed, want an error", sql)
+		}
+	}
+
+	// An ON condition sees only the join's inputs.
+	if _, err := analyzeWithOptions(t, c, `SELECT 1 FROM unknown_rows() f, t JOIN u ON f.x = t.id`, opaque); err == nil {
+		t.Error("f.x outside the ON condition's join: analyzed, want an error")
+	}
+	if _, err := analyzeWithOptions(t, c, `SELECT 1 FROM t JOIN unknown_rows() f ON f.x = t.id`, opaque); err != nil {
+		t.Errorf("f.x inside the ON condition's join: %v", err)
+	}
+
+	// A name two functions at the inner level could own is unresolved,
+	// not taken by an enclosing level's function.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT a FROM unknown_one() f, unknown_two() g) FROM unknown_outer() h`, opaque)
+	if err == nil {
+		t.Errorf("ambiguous inner name: analyzed, h has columns %v", q.RangeTable[0].ColNames)
+	}
+
+	// A column definition list fixes the width ROWS FROM needs.
+	if _, err := analyzeWithOptions(t, c, `SELECT * FROM ROWS FROM (unknown_rows() AS (a int), generate_series(1, 2)) AS z(a, g)`, opaque); err != nil {
+		t.Errorf("ROWS FROM with a column definition list: %v", err)
+	}
+
+	// A column inferred before a join enclosing it was installed is
+	// reused when a USING above names it, not added a second time.
+	q, err = analyzeWithOptions(t, c, `SELECT f.x FROM ((unknown_rows() f CROSS JOIN u) CROSS JOIN LATERAL generate_series(1, f.x::int) g) JOIN w USING (x)`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := columns(q, "f"); !slices.Equal(got, []string{"x"}) {
+		t.Errorf("f has columns %v, want [x]", got)
+	}
+	if v := targetExpr(t, q, 0).(*VarExpr); v.AttNum != 1 {
+		t.Errorf("f.x is attribute %d, want 1", v.AttNum)
+	}
+
+	// A nearer function takes a name an enclosing function only inferred.
+	q, err = analyzeWithOptions(t, c, `SELECT f.a, (SELECT a FROM unknown_one() g) FROM unknown_outer() f`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := targetExpr(t, q, 1).(*SubLinkExpr).SubQuery.TargetList[0].Expr.(*VarExpr); v.LevelsUp != 0 {
+		t.Errorf("inner a reads the outer f (LevelsUp %d), want the inner g", v.LevelsUp)
+	}
+
+	// Deparse gives only the alias's column names, which are positional.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.b FROM ext_rows() f), (SELECT g.c FROM ext_rows() AS g(a, b)),
+		(SELECT h.a FROM ext_rows() AS h(a int, b varchar(5))),
+		(SELECT k.a FROM ext_rows() AS k(a text COLLATE tenant.mycoll, b text COLLATE pg_catalog."C"))`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []string{
+		"FROM ext_rows() f)",
+		"FROM ext_rows() g(a, b))",
+		"FROM ext_rows() h(a integer, b character varying(5)))",
+		`FROM ext_rows() k(a text COLLATE tenant.mycoll, b text COLLATE "C"))`,
+	} {
+		if got := c.DeparseExpr(targetExpr(t, q, i), q.RangeTable, false); !strings.Contains(got, want) {
+			t.Errorf("target %d deparses as %s, want %s", i+1, got, want)
+		}
 	}
 }

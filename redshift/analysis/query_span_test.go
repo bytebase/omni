@@ -241,3 +241,14 @@ CREATE TABLE right_t (id int, status text);
 	span = mustQuerySpan(t, c, `SELECT s.v FROM (SELECT secret AS v FROM left_t UNION SELECT status FROM right_t) s`)
 	assertColumnsEqual(t, span.Results[0].SourceColumns, secret, status)
 }
+
+func TestQuerySpanSubqueryColumnAfterWindow(t *testing.T) {
+	c := catalog.New()
+	if _, err := c.Exec(`CREATE TABLE left_t (id int, name text, secret text);`, nil); err != nil {
+		t.Fatal(err)
+	}
+	// The window's PARTITION BY entry must not shift the subquery's
+	// later columns.
+	span := mustQuerySpan(t, c, `SELECT s.v FROM (SELECT id, sum(id) OVER (PARTITION BY name) AS w, secret AS v FROM left_t) s`)
+	assertColumnsEqual(t, span.Results[0].SourceColumns, ColumnResource{Schema: "public", Table: "left_t", Column: "secret"})
+}

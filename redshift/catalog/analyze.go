@@ -518,7 +518,33 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		}
 	}
 
+	orderTargetList(q)
 	return q, nil
+}
+
+// orderTargetList puts a query's output columns before the junk entries its
+// ORDER BY, GROUP BY, and window clauses added, and numbers every entry by
+// its position. A window's PARTITION BY and ORDER BY entries are added while
+// the target list is being transformed; PostgreSQL adds them only after it,
+// so an output column's position, which a Var of the query's output uses
+// as AttNum, is its index in TargetList. Clauses refer to entries by
+// TLESortGroupRef, which moving an entry keeps.
+//
+// pg: src/backend/parser/analyze.c — transformSelectStmt
+// (transformWindowDefinitions after transformTargetList)
+func orderTargetList(q *Query) {
+	ordered := make([]*TargetEntry, 0, len(q.TargetList))
+	for _, junk := range []bool{false, true} {
+		for _, te := range q.TargetList {
+			if te.ResJunk == junk {
+				ordered = append(ordered, te)
+			}
+		}
+	}
+	for i, te := range ordered {
+		te.ResNo = int16(i + 1)
+	}
+	q.TargetList = ordered
 }
 
 // analyzeCtx holds state during query analysis.
@@ -668,6 +694,11 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 
 	var usingClause []string
 	if je.IsNatural {
+		for _, idx := range append(joinNodeBaseRTEs(left), joinNodeBaseRTEs(right)...) {
+			if rte := ac.query.RangeTable[idx]; rte.UnknownColumns {
+				return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("cannot match the NATURAL JOIN columns of function %q, whose columns are unknown", rte.ERef)}
+			}
+		}
 		for _, name := range lNames {
 			if slices.Contains(rNames, name) {
 				usingClause = append(usingClause, name)
@@ -678,6 +709,20 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 			if s, ok := item.(*nodes.String); ok {
 				usingClause = append(usingClause, s.Str)
 			}
+		}
+	}
+
+	// Under OpaqueUnknownFunctions, a USING name that a function with
+	// unknown columns could have names one of its columns.
+	if ac.opts.OpaqueUnknownFunctions && !je.IsNatural {
+		for _, name := range usingClause {
+			if !slices.Contains(lNames, name) {
+				ac.addUnknownColumnIn(left, name, left, right)
+			}
+			if !slices.Contains(rNames, name) {
+				ac.addUnknownColumnIn(right, name, left, right)
+			}
+			lNames, rNames = ac.query.RangeTable[lRT].ColNames, ac.query.RangeTable[rRT].ColNames
 		}
 	}
 
@@ -1022,9 +1067,53 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 	var colTypMods []int32
 	var colCollations []uint32
 
+	unknownColumns := false
+	colDefs := make([]*funcColDef, len(funcExprs))
+	addColDefList := func(i int, coldeflist *nodes.List) error {
+		start := len(colNames)
+		if err := ac.appendColumnsFromColdefList(coldeflist, &colNames, &colTypes, &colTypMods, &colCollations); err != nil {
+			return err
+		}
+		def := &funcColDef{
+			names:      slices.Clone(colNames[start:]),
+			types:      slices.Clone(colTypes[start:]),
+			typmods:    slices.Clone(colTypMods[start:]),
+			collations: slices.Clone(colCollations[start:]),
+		}
+		for _, item := range coldeflist.Items {
+			cd, _ := item.(*nodes.ColumnDef)
+			var name []string
+			if cd != nil {
+				name = collateClauseName(cd.CollClause)
+			}
+			def.collNames = append(def.collNames, name)
+		}
+		colDefs[i] = def
+		return nil
+	}
 	for i, fexpr := range funcExprs {
 		retType := fexpr.exprType()
 		cls := ac.catalog.getTypeFuncClass(retType)
+
+		// Under OpaqueUnknownFunctions, a function the catalog does not
+		// know has the columns its column definition list gives, or else
+		// unknown ones, which only a lone function without ORDINALITY can
+		// have: the query's column references then name them.
+		if f, ok := fexpr.(*FuncCallExpr); ok && f.FuncOID == 0 && retType == UNKNOWNOID && ac.opts.OpaqueUnknownFunctions {
+			if coldeflist := recordFunctionColdefList(rf, funcColdefLists, i, len(funcExprs)); coldeflist != nil {
+				if err := addColDefList(i, coldeflist); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if len(funcExprs) == 1 && !rf.Ordinality {
+				unknownColumns = true
+				continue
+			}
+			// ROWS FROM and WITH ORDINALITY place columns after this
+			// function's, whose number is unknown.
+			return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("function %s, whose columns are unknown, needs a column definition list in ROWS FROM or WITH ORDINALITY", funcNames[i])}
+		}
 
 		switch cls {
 		case typeFuncScalar:
@@ -1062,7 +1151,7 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		case typeFuncRecord:
 			coldeflist := recordFunctionColdefList(rf, funcColdefLists, i, len(funcExprs))
 			if coldeflist != nil {
-				if err := ac.appendColumnsFromColdefList(coldeflist, &colNames, &colTypes, &colTypMods, &colCollations); err != nil {
+				if err := addColDefList(i, coldeflist); err != nil {
 					return nil, err
 				}
 				continue
@@ -1090,6 +1179,19 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		colCollations = append(colCollations, 0)
 	}
 
+	// The alias of a function whose columns are unknown names its first
+	// columns.
+	aliasColumns := 0
+	if unknownColumns && rf.Alias != nil && rf.Alias.Colnames != nil {
+		aliasColumns = len(rf.Alias.Colnames.Items)
+		for _, item := range rf.Alias.Colnames.Items {
+			colNames = append(colNames, stringVal(item))
+			colTypes = append(colTypes, UNKNOWNOID)
+			colTypMods = append(colTypMods, -1)
+			colCollations = append(colCollations, 0)
+		}
+	}
+
 	// Apply explicit column aliases from rf.Alias.Colnames.
 	if rf.Alias != nil && rf.Alias.Colnames != nil {
 		for i, item := range rf.Alias.Colnames.Items {
@@ -1104,16 +1206,19 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 
 	rtIdx := len(ac.query.RangeTable)
 	rte := &RangeTableEntry{
-		Kind:          RTEFunction,
-		Alias:         alias,
-		ERef:          eref,
-		ColNames:      colNames,
-		ColTypes:      colTypes,
-		ColTypMods:    colTypMods,
-		ColCollations: colCollations,
-		FuncExprs:     funcExprs,
-		Ordinality:    rf.Ordinality,
-		Lateral:       rf.Lateral,
+		Kind:           RTEFunction,
+		Alias:          alias,
+		ERef:           eref,
+		ColNames:       colNames,
+		ColTypes:       colTypes,
+		ColTypMods:     colTypMods,
+		ColCollations:  colCollations,
+		FuncExprs:      funcExprs,
+		Ordinality:     rf.Ordinality,
+		Lateral:        rf.Lateral,
+		UnknownColumns: unknownColumns,
+		aliasColumns:   aliasColumns,
+		funcColDefs:    colDefs,
 	}
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
@@ -1137,22 +1242,64 @@ func (ac *analyzeCtx) appendColumnsFromColdefList(
 	colTypMods *[]int32,
 	colCollations *[]uint32,
 ) error {
+	seen := map[string]bool{}
 	for _, item := range coldeflist.Items {
 		coldef, ok := item.(*nodes.ColumnDef)
 		if !ok {
 			return fmt.Errorf("invalid column definition in function column definition list")
 		}
+		// pg: src/backend/parser/parse_relation.c — addRangeTableEntryForFunction
+		// (CheckAttributeNamesTypes on the column definition list)
+		if seen[coldef.Colname] {
+			return &Error{Code: CodeDuplicateColumn, Message: fmt.Sprintf("column name %q specified more than once", coldef.Colname)}
+		}
+		seen[coldef.Colname] = true
 		typ := convertTypeNameToInternal(coldef.TypeName)
 		typeOID, typmod, err := ac.catalog.ResolveType(typ)
 		if err != nil {
 			return err
 		}
+		// The type's modifiers encode as a column's do, varchar(5) as 9.
+		// pg: src/backend/parser/parse_type.c — typenameTypeMod
+		if rawMods := extractRawTypmods(coldef.TypeName.Typmods); len(rawMods) > 0 {
+			_, name := typeNameParts(coldef.TypeName)
+			typmod = encodeTypModByName(resolveAlias(name), rawMods)
+		}
+		coll := ac.catalog.typeCollation(typeOID)
+		if oid := builtinCollationOIDOf(collateClauseName(coldef.CollClause)); oid != 0 && coll != 0 {
+			coll = oid
+		}
 		*colNames = append(*colNames, coldef.Colname)
 		*colTypes = append(*colTypes, typeOID)
 		*colTypMods = append(*colTypMods, typmod)
-		*colCollations = append(*colCollations, ac.catalog.typeCollation(typeOID))
+		*colCollations = append(*colCollations, coll)
 	}
 	return nil
+}
+
+// collateClauseName returns the name a COLLATE clause gives, its schema
+// first when it is qualified, or nil without a clause.
+func collateClauseName(cc *nodes.CollateClause) []string {
+	if cc == nil || cc.Collname == nil {
+		return nil
+	}
+	var parts []string
+	for _, item := range cc.Collname.Items {
+		parts = append(parts, stringVal(item))
+	}
+	return parts
+}
+
+// builtinCollationOIDOf resolves a possibly qualified collation name to a
+// fixed built-in OID, or 0: only an unqualified or pg_catalog name can be one.
+func builtinCollationOIDOf(parts []string) uint32 {
+	switch {
+	case len(parts) == 1:
+		return builtinCollationOID(parts[0])
+	case len(parts) == 2 && parts[0] == "pg_catalog":
+		return builtinCollationOID(parts[1])
+	}
+	return 0
 }
 
 func (ac *analyzeCtx) appendOutputParamColumns(
@@ -1337,6 +1484,13 @@ func (ac *analyzeCtx) transformTargetEntry(rt *nodes.ResTarget, startIdx int) ([
 // pg: src/backend/parser/parse_target.c — ExpandAllTables / expandNSItemAttrs
 func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEntry, error) {
 	tableName := starTableName(cr)
+
+	// The columns of a function whose columns are unknown cannot be listed.
+	for _, rte := range ac.query.RangeTable {
+		if rte.UnknownColumns && (tableName == "" || rte.ERef == tableName) {
+			return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("cannot expand * over function %q, whose columns are unknown", rte.ERef)}
+		}
+	}
 
 	var entries []*TargetEntry
 	hasSource := false
@@ -1552,52 +1706,326 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 // resolveColumnRef resolves a column name to a VarExpr.
 // If the column is not found in the current query's range table, and a parent
 // context exists, it searches the parent for correlated subquery references.
+// resolveColumnRef resolves a column name to a VarExpr, searching this
+// query level and then the enclosing ones. Under
+// AnalyzeOptions.OpaqueUnknownFunctions, a name no level has becomes a
+// column of a function in FROM whose columns are unknown, innermost level
+// first: the one named, or for an unqualified name the only one at that
+// level.
 func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, error) {
+	v, err := ac.findColumnRef(tableName, colName)
+	if !ac.opts.OpaqueUnknownFunctions {
+		return v, err
+	}
+	// limit bounds the levels the inference searches, -1 for all of them.
+	limit := -1
+	var catErr *Error
+	switch {
+	case err == nil:
+		// An enclosing level's inferred column is no better than one a
+		// nearer function could have, so the nearer levels come first.
+		if v.LevelsUp == 0 || !ac.inferredAt(v) {
+			return v, nil
+		}
+		limit = v.LevelsUp
+	case !errors.As(err, &catErr) || (catErr.Code != CodeUndefinedColumn && catErr.Code != CodeUndefinedTable):
+		return v, err
+	}
+	levelsUp := 0
+	for ctx := ac; ctx != nil && (limit < 0 || levelsUp < limit); ctx = ctx.parent {
+		w, ambiguous := ctx.addUnknownColumn(tableName, colName)
+		if ambiguous {
+			// More than one function here could own the name; an
+			// enclosing level's must not take it.
+			if err == nil {
+				return nil, errAmbiguousColumn(colName)
+			}
+			return nil, err
+		}
+		if w != nil {
+			w.LevelsUp = levelsUp
+			return w, nil
+		}
+		if tableName != "" && ctx.hasVisibleAlias(tableName) {
+			// The alias is this level's: an enclosing level's function
+			// of the same alias is shadowed.
+			return nil, err
+		}
+		levelsUp++
+		if ctx.disallowParentCols && ctx.parent != nil {
+			// A FROM subquery that is not LATERAL cannot see its
+			// parent's columns, only those above it.
+			ctx = ctx.parent
+			levelsUp++
+		}
+	}
+	return v, err
+}
+
+// inferredAt reports whether v, a Var of an enclosing query level, is a column
+// a reference alone added to a function there.
+func (ac *analyzeCtx) inferredAt(v *VarExpr) bool {
+	ctx := ac
+	for i := 0; i < v.LevelsUp && ctx != nil; i++ {
+		ctx = ctx.parent
+	}
+	if ctx == nil || v.RangeIdx < 0 || v.RangeIdx >= len(ctx.query.RangeTable) {
+		return false
+	}
+	return ctx.query.RangeTable[v.RangeIdx].inferredColumn(v.AttNum)
+}
+
+// visibleRTEs returns the range table entries visible at this query level,
+// or nil when all are: within an ON condition, only the join's inputs.
+//
+// pg: src/backend/parser/parse_clause.c — transformJoinOnClause
+func (ac *analyzeCtx) visibleRTEs() map[int]bool {
+	if ac.onNamespace == nil {
+		return nil
+	}
+	visible := map[int]bool{}
+	for _, jn := range ac.onNamespace {
+		for _, i := range joinNodeAllRTEs(jn) {
+			visible[i] = true
+		}
+	}
+	return visible
+}
+
+// hasVisibleAlias reports whether a range table entry visible at this level
+// has the reference name name.
+func (ac *analyzeCtx) hasVisibleAlias(name string) bool {
+	visible := ac.visibleRTEs()
+	for i, rte := range ac.query.RangeTable {
+		if rte.ERef == name && (visible == nil || visible[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+// addUnknownColumn adds colName as a column, of unknown type, of the function
+// at this query level whose columns are unknown: the one tableName names, or
+// the only one. Within a JOIN's ON condition only the join's inputs count.
+// It reports ambiguous when more than one function could own the name.
+func (ac *analyzeCtx) addUnknownColumn(tableName, colName string) (v *VarExpr, ambiguous bool) {
+	inScope := ac.visibleRTEs()
+	idx := -1
+	for i, rte := range ac.query.RangeTable {
+		if !rte.UnknownColumns || (tableName != "" && rte.ERef != tableName) || (inScope != nil && !inScope[i]) {
+			continue
+		}
+		if idx >= 0 {
+			return nil, true
+		}
+		idx = i
+	}
+	if idx < 0 {
+		return nil, false
+	}
+	if ac.usingJoinNames(idx, colName) {
+		return nil, true
+	}
+	return ac.appendUnknownColumn(idx, colName, true), false
+}
+
+// usingJoinNames reports whether a USING join over range table entry idx
+// already matched colName against its inputs' columns. A function's column
+// of that name, found later, would make the join's match ambiguous, so it
+// cannot be inferred.
+func (ac *analyzeCtx) usingJoinNames(idx int, colName string, extra ...JoinNode) bool {
+	var visit func(jn JoinNode) (contains, names bool)
+	visit = func(jn JoinNode) (bool, bool) {
+		switch n := jn.(type) {
+		case *RangeTableRef:
+			return n.RTIndex == idx, false
+		case *JoinExprNode:
+			lc, ln := visit(n.Left)
+			rc, rn := visit(n.Right)
+			contains := lc || rc
+			return contains, ln || rn || (contains && slices.Contains(n.UsingClause, colName))
+		}
+		return false, false
+	}
+	roots := append(append([]JoinNode(nil), ac.onNamespace...), extra...)
+	if ac.query.JoinTree != nil {
+		roots = append(roots, ac.query.JoinTree.FromList...)
+	}
+	for _, jn := range roots {
+		if _, names := visit(jn); names {
+			return true
+		}
+	}
+	return false
+}
+
+// addUnknownColumnIn adds colName, which a USING list names, to the one
+// function whose columns are unknown among the base relations of jn, and
+// reports whether there was one. extra holds join inputs not yet in the
+// join tree.
+func (ac *analyzeCtx) addUnknownColumnIn(jn JoinNode, colName string, extra ...JoinNode) bool {
+	idx := -1
+	for _, i := range joinNodeBaseRTEs(jn) {
+		if !ac.query.RangeTable[i].UnknownColumns {
+			continue
+		}
+		if idx >= 0 {
+			return false
+		}
+		idx = i
+	}
+	if idx < 0 || ac.usingJoinNames(idx, colName, extra...) {
+		return false
+	}
+	ac.appendUnknownColumn(idx, colName, false, extra...)
+	return true
+}
+
+// appendUnknownColumn adds a column to the function at range table entry idx
+// and to every join over it, which outputs it last, so an unqualified
+// reference through a join sees it as a comma join would. inferred marks a
+// column only a reference named, not an alias or USING. extra holds join
+// inputs not yet in the join tree.
+func (ac *analyzeCtx) appendUnknownColumn(idx int, colName string, inferred bool, extra ...JoinNode) *VarExpr {
+	addColumn := func(rte *RangeTableEntry) {
+		rte.ColNames = append(rte.ColNames, colName)
+		rte.ColTypes = append(rte.ColTypes, UNKNOWNOID)
+		rte.ColTypMods = append(rte.ColTypMods, -1)
+		rte.ColCollations = append(rte.ColCollations, 0)
+	}
+	rte := ac.query.RangeTable[idx]
+	for len(rte.inferredCols) < len(rte.ColNames) {
+		rte.inferredCols = append(rte.inferredCols, false)
+	}
+	// A column the function already has is reused: a join built before
+	// the column was added, and not yet in the join tree, may lack it.
+	colIdx := slices.Index(rte.ColNames, colName)
+	if colIdx < 0 {
+		addColumn(rte)
+		rte.inferredCols = append(rte.inferredCols, inferred)
+		colIdx = len(rte.ColNames) - 1
+	} else if !inferred {
+		rte.inferredCols[colIdx] = false
+	}
+	v := makeRTEColumnVar(idx, rte, colIdx)
+	refersToV := func(e AnalyzedExpr) bool {
+		found := false
+		WalkAnalyzedExpr(e, func(e AnalyzedExpr) bool {
+			if w, ok := e.(*VarExpr); ok && w.RangeIdx == v.RangeIdx && w.AttNum == v.AttNum && w.LevelsUp == 0 {
+				found = true
+			}
+			return !found
+		})
+		return found
+	}
+
+	seen := map[int]bool{}
+	var visit func(jn JoinNode) bool
+	visit = func(jn JoinNode) bool {
+		switch n := jn.(type) {
+		case *RangeTableRef:
+			return n.RTIndex == idx
+		case *JoinExprNode:
+			l, r := visit(n.Left), visit(n.Right)
+			if (l || r) && !seen[n.RTIndex] && n.RTIndex < len(ac.query.RangeTable) {
+				seen[n.RTIndex] = true
+				join := ac.query.RangeTable[n.RTIndex]
+				if !slices.ContainsFunc(join.JoinAliasVars, refersToV) {
+					addColumn(join)
+					alias := *v
+					join.JoinAliasVars = append(join.JoinAliasVars, &alias)
+				}
+			}
+			return l || r
+		}
+		return false
+	}
+	roots := append(append([]JoinNode(nil), ac.onNamespace...), extra...)
+	if ac.query.JoinTree != nil {
+		roots = append(roots, ac.query.JoinTree.FromList...)
+	}
+	for _, jn := range roots {
+		visit(jn)
+	}
+	return v
+}
+
+// joinNodeBaseRTEs lists the range table entries of the relations, subqueries,
+// and functions a FROM item joins.
+func joinNodeBaseRTEs(jn JoinNode) []int {
+	switch n := jn.(type) {
+	case *RangeTableRef:
+		return []int{n.RTIndex}
+	case *JoinExprNode:
+		return append(joinNodeBaseRTEs(n.Left), joinNodeBaseRTEs(n.Right)...)
+	}
+	return nil
+}
+
+// findColumnRef resolves a column name to a VarExpr among the columns the
+// query levels have.
+func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error) {
+	// Within an ON condition only the join's inputs are visible at this
+	// level. Other FROM items are hidden, and the search goes on to the
+	// enclosing levels.
+	// pg: src/backend/parser/parse_clause.c — transformJoinOnClause
+	visible := ac.visibleRTEs()
+	inScope := func(i int) bool { return visible == nil || visible[i] }
+
 	fromItems := ac.onNamespace
 	if fromItems == nil && ac.query.JoinTree != nil {
 		fromItems = ac.query.JoinTree.FromList
 	}
 	if tableName == "" && len(fromItems) > 0 {
-		var found *VarExpr
+		var cands []*VarExpr
 		for _, jn := range fromItems {
-			v, ambiguous := ac.findVarInVisibleJoinNode(jn, colName)
-			if ambiguous {
+			cands = append(cands, ac.findVarsInRTE(joinNodeRTIndex(jn), colName)...)
+		}
+		if len(cands) > 0 {
+			return ac.pickColumn(cands, colName, visible)
+		}
+	}
+
+	var cands []*VarExpr
+	ownsTable := false
+	for rtIdx, rte := range ac.query.RangeTable {
+		if !inScope(rtIdx) || (tableName != "" && rte.ERef != tableName) {
+			continue
+		}
+		ownsTable = tableName != ""
+		var inTable []*VarExpr
+		for colIdx, cn := range rte.ColNames {
+			if cn == colName {
+				inTable = append(inTable, makeRTEColumnVar(rtIdx, rte, colIdx))
+			}
+		}
+		if tableName != "" && len(inTable) > 0 {
+			// A table's own columns of one name, as a subquery or alias
+			// list can give, make a qualified reference ambiguous.
+			// pg: src/backend/parser/parse_relation.c — scanNSItemForColumn
+			if len(inTable) > 1 {
 				return nil, errAmbiguousColumn(colName)
 			}
-			if v == nil {
-				continue
-			}
-			if found != nil {
-				return nil, errAmbiguousColumn(colName)
-			}
-			found = v
+			return inTable[0], nil
 		}
-		if found != nil {
-			return found, nil
-		}
+		cands = append(cands, inTable...)
+	}
+	if len(cands) > 0 {
+		return ac.pickColumn(cands, colName, visible)
+	}
+	// A table name this level has is this level's, even when the column is
+	// missing: it shadows an enclosing level's table of the same name.
+	// pg: src/backend/parser/parse_relation.c — refnameNamespaceItem
+	if ownsTable {
+		return nil, errUndefinedColumn(colName)
 	}
 
 	var found *VarExpr
-	for rtIdx, rte := range ac.query.RangeTable {
-		if tableName != "" && rte.ERef != tableName {
-			continue
-		}
-		for colIdx, cn := range rte.ColNames {
-			if cn == colName {
-				v := makeRTEColumnVar(rtIdx, rte, colIdx)
-				if found != nil {
-					return nil, errAmbiguousColumn(colName)
-				}
-				found = v
-				if tableName != "" {
-					return found, nil // exact table match, no ambiguity possible
-				}
-			}
-		}
-	}
-
-	if tableName == "" && found == nil {
+	if tableName == "" {
 		for rtIdx, rte := range ac.query.RangeTable {
+			if !inScope(rtIdx) {
+				continue
+			}
 			if v := ac.makeScalarFunctionWholeRowVar(rtIdx, rte, colName); v != nil {
 				if found != nil {
 					return nil, errAmbiguousColumn(colName)
@@ -1616,7 +2044,7 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 		if ac.disallowParentCols {
 			outerVar, err = ac.parent.resolveColumnRefAboveLocal(tableName, colName)
 		} else {
-			outerVar, err = ac.parent.resolveColumnRef(tableName, colName)
+			outerVar, err = ac.parent.findColumnRef(tableName, colName)
 		}
 		if err != nil {
 			return nil, err
@@ -1634,21 +2062,59 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 
 	if found == nil {
 		if tableName != "" {
-			// Check if table exists at all in the range table.
-			tableFound := false
-			for _, rte := range ac.query.RangeTable {
-				if rte.ERef == tableName {
-					tableFound = true
-					break
-				}
-			}
-			if !tableFound {
-				return nil, errUndefinedTable(tableName)
-			}
+			// No visible table has the name; one an ON condition hides
+			// is not found either.
+			return nil, errUndefinedTable(tableName)
 		}
 		return nil, errUndefinedColumn(colName)
 	}
 	return found, nil
+}
+
+// pickColumn chooses among the columns an unqualified name matches at one
+// query level. A column a reference alone added to a function whose columns
+// are unknown is inferred: any other column wins over it, whatever order
+// the references come in, since the query text does not say the function
+// has it. Columns the text does say exist, a table's or those an alias,
+// column definition list, or USING names, are matched alike, so two of them
+// are ambiguous. With only inferred candidates, the name is also ambiguous
+// while another visible function whose columns are unknown lacks it but
+// could have it, as it is before either has gained the column.
+func (ac *analyzeCtx) pickColumn(cands []*VarExpr, colName string, visible map[int]bool) (*VarExpr, error) {
+	var concrete []*VarExpr
+	owners := map[int]bool{}
+	for _, v := range cands {
+		if ac.query.RangeTable[v.RangeIdx].inferredColumn(v.AttNum) {
+			owners[v.RangeIdx] = true
+		} else {
+			concrete = append(concrete, v)
+		}
+	}
+	if len(concrete) > 0 {
+		cands = concrete
+	} else {
+		for i, rte := range ac.query.RangeTable {
+			if rte.UnknownColumns && !owners[i] && !slices.Contains(rte.ColNames, colName) && (visible == nil || visible[i]) {
+				return nil, errAmbiguousColumn(colName)
+			}
+		}
+	}
+	if len(cands) > 1 {
+		return nil, errAmbiguousColumn(colName)
+	}
+	return cands[0], nil
+}
+
+// joinNodeAllRTEs lists the range table entries of a FROM item: its
+// relations, subqueries, and functions, and its joins.
+func joinNodeAllRTEs(jn JoinNode) []int {
+	switch n := jn.(type) {
+	case *RangeTableRef:
+		return []int{n.RTIndex}
+	case *JoinExprNode:
+		return append([]int{n.RTIndex}, append(joinNodeAllRTEs(n.Left), joinNodeAllRTEs(n.Right)...)...)
+	}
+	return nil
 }
 
 func (ac *analyzeCtx) resolveColumnRefAboveLocal(tableName, colName string) (*VarExpr, error) {
@@ -1658,7 +2124,7 @@ func (ac *analyzeCtx) resolveColumnRefAboveLocal(tableName, colName string) (*Va
 		}
 		return nil, errUndefinedColumn(colName)
 	}
-	outerVar, err := ac.parent.resolveColumnRef(tableName, colName)
+	outerVar, err := ac.parent.findColumnRef(tableName, colName)
 	if err != nil {
 		return nil, err
 	}
@@ -1672,34 +2138,19 @@ func (ac *analyzeCtx) resolveColumnRefAboveLocal(tableName, colName string) (*Va
 	}, nil
 }
 
-func (ac *analyzeCtx) findVarInVisibleJoinNode(jn JoinNode, colName string) (*VarExpr, bool) {
-	switch v := jn.(type) {
-	case *RangeTableRef:
-		return ac.findVarInRTE(v.RTIndex, colName)
-	case *JoinExprNode:
-		return ac.findVarInRTE(v.RTIndex, colName)
-	default:
-		return nil, false
-	}
-}
-
-func (ac *analyzeCtx) findVarInRTE(rtIdx int, colName string) (*VarExpr, bool) {
+// findVarsInRTE returns the Var of each column of range table entry rtIdx
+// named colName.
+func (ac *analyzeCtx) findVarsInRTE(rtIdx int, colName string) []*VarExpr {
 	if rtIdx < 0 || rtIdx >= len(ac.query.RangeTable) {
-		return nil, false
+		return nil
 	}
-	rte := ac.query.RangeTable[rtIdx]
-	var found *VarExpr
-	for colIdx, cn := range rte.ColNames {
-		if cn != colName {
-			continue
+	var vars []*VarExpr
+	for colIdx, cn := range ac.query.RangeTable[rtIdx].ColNames {
+		if cn == colName {
+			vars = append(vars, ac.nsColumnVar(rtIdx, colIdx))
 		}
-		v := ac.nsColumnVar(rtIdx, colIdx)
-		if found != nil {
-			return nil, true
-		}
-		found = v
 	}
-	return found, false
+	return vars
 }
 
 func makeRTEColumnVar(rtIdx int, rte *RangeTableEntry, colIdx int) *VarExpr {
@@ -2995,6 +3446,7 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 		q.Distinct = true
 	}
 
+	orderTargetList(q)
 	return q, nil
 }
 
@@ -5181,7 +5633,10 @@ type AnalyzeOptions struct {
 	// so their columns stay visible. The call becomes a WindowFuncExpr when
 	// it has OVER; an AggExpr when it has *, DISTINCT, ORDER BY, WITHIN
 	// GROUP, or FILTER; and a FuncCallExpr otherwise. Its function OID is 0
-	// and its result type is unknown (UNKNOWNOID). Use it to read lineage,
+	// and its result type is unknown (UNKNOWNOID). In FROM, such a function
+	// has the columns its column definition list gives; otherwise its
+	// RangeTableEntry has UnknownColumns set, and each column the query
+	// names is added to it. A * over it fails. Use it to read lineage,
 	// never to decide whether PostgreSQL accepts the query.
 	OpaqueUnknownFunctions bool
 }
