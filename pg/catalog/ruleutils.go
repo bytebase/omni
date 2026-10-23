@@ -488,7 +488,16 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			}
 		case RTEFunction:
 			// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_item RTE_FUNCTION case
-			if len(rte.FuncExprs) == 1 {
+			colDef := func(i int) *funcColDef {
+				if i < len(rte.funcColDefs) {
+					return rte.funcColDefs[i]
+				}
+				return nil
+			}
+			// A lone function prints its column definition list as its
+			// alias list, unless WITH ORDINALITY needs ROWS FROM for it.
+			single := len(rte.FuncExprs) == 1 && (colDef(0) == nil || !rte.Ordinality)
+			if single {
 				d.getRuleExpr(rte.FuncExprs[0], false)
 			} else {
 				d.buf.WriteString("ROWS FROM(")
@@ -497,6 +506,10 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 						d.buf.WriteString(", ")
 					}
 					d.getRuleExpr(fe, false)
+					if def := colDef(i); def != nil {
+						d.buf.WriteString(" AS ")
+						d.getColDefList(def.names, def)
+					}
 				}
 				d.buf.WriteByte(')')
 			}
@@ -521,7 +534,10 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 				if rte.UnknownColumns {
 					colNames = colNames[:min(rte.aliasColumns, len(colNames))]
 				}
-				if len(colNames) > 0 {
+				if def := colDef(0); single && def != nil {
+					// The column definition list is also the alias list.
+					d.getColDefList(colNames[:min(len(def.types), len(colNames))], def)
+				} else if len(colNames) > 0 {
 					d.buf.WriteByte('(')
 					for i, cn := range colNames {
 						if i > 0 {
@@ -589,6 +605,27 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			d.buf.WriteByte(')')
 		}
 	}
+}
+
+// getColDefList deparses a function's column definition list, naming its
+// columns names.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_coldeflist
+func (d *deparseCtx) getColDefList(names []string, def *funcColDef) {
+	d.buf.WriteByte('(')
+	for i, typ := range def.types {
+		if i > 0 {
+			d.buf.WriteString(", ")
+		}
+		name := def.names[i]
+		if i < len(names) {
+			name = names[i]
+		}
+		d.buf.WriteString(quoteIdentifier(name))
+		d.buf.WriteByte(' ')
+		d.buf.WriteString(d.catalog.formatType(typ, def.typmods[i]))
+	}
+	d.buf.WriteByte(')')
 }
 
 // getRuleExpr deparses an analyzed expression node.

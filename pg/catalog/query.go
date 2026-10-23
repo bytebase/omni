@@ -688,6 +688,18 @@ type RangeTableEntry struct {
 	// query has named, its alias columns first, all of unknown type.
 	UnknownColumns bool
 	aliasColumns   int // for UnknownColumns: how many of ColNames the alias gave
+	// funcColDefs holds, for RTEFunction, each function's column
+	// definition list, or nil for a function without one.
+	funcColDefs []*funcColDef
+}
+
+// funcColDef is the column definition list a function in FROM was given.
+//
+// pg: src/include/nodes/parsenodes.h — RangeTblFunction (funccolnames, funccoltypes, funccoltypmods)
+type funcColDef struct {
+	names   []string
+	types   []uint32
+	typmods []int32
 }
 
 // TablesampleClauseQ represents a TABLESAMPLE clause on a relation.

@@ -485,10 +485,19 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 	}
 
 	// An ON condition cannot see an alias-seeded column of another FROM
-	// item, and a NATURAL join cannot match unknown columns.
+	// item, and a NATURAL join cannot match unknown columns. A local alias
+	// shadows an enclosing function's; a USING join that matched a name
+	// keeps a function below it from gaining it; and an unqualified name
+	// stays ambiguous while another function could have it, whatever the
+	// order of the references.
 	for _, sql := range []string{
 		`SELECT 1 FROM unknown_rows() f(x), t JOIN u ON f.x = t.id`,
 		`SELECT f.id, id FROM unknown_rows() f NATURAL JOIN t`,
+		`SELECT (SELECT f.zz FROM u f) FROM unknown_rows() f`,
+		`SELECT f.id FROM (t CROSS JOIN unknown_rows() f) JOIN u USING (id)`,
+		`SELECT f.a, a FROM unknown_rows() f, other_rows() g`,
+		`SELECT a, f.a FROM unknown_rows() f, other_rows() g`,
+		`SELECT a FROM unknown_rows() f(a), other_rows() g`,
 	} {
 		if _, err := analyzeWithOptions(t, c, sql, opaque); err == nil {
 			t.Errorf("%s: analyzed, want an error", sql)
@@ -511,11 +520,11 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 	}
 
 	// Deparse gives only the alias's column names, which are positional.
-	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.b FROM ext_rows() f), (SELECT g.c FROM ext_rows() AS g(a, b))`, opaque)
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.b FROM ext_rows() f), (SELECT g.c FROM ext_rows() AS g(a, b)), (SELECT h.a FROM ext_rows() AS h(a int, b varchar(5)))`, opaque)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range []string{"FROM ext_rows() f)", "FROM ext_rows() g(a, b))"} {
+	for i, want := range []string{"FROM ext_rows() f)", "FROM ext_rows() g(a, b))", "FROM ext_rows() h(a integer, b character varying(5)))"} {
 		if got := c.DeparseExpr(targetExpr(t, q, i), q.RangeTable, false); !strings.Contains(got, want) {
 			t.Errorf("target %d deparses as %s, want %s", i+1, got, want)
 		}
