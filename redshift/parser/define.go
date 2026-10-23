@@ -351,7 +351,10 @@ func (p *Parser) parseQualAllOp() (nodes.Node, error) {
 		}
 		return op, nil
 	}
-	opStr, _ := p.parseAllOp()
+	opStr, err := p.parseAllOp()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: []nodes.Node{&nodes.String{Str: opStr}}}, nil
 }
 

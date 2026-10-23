@@ -24,21 +24,22 @@ func (c *Catalog) DefineAggregate(stmt *nodes.DefineStmt) error {
 	// Parse parameters from the DefElem list.
 	// pg: src/backend/commands/aggregatecmds.c — DefineAggregate (line 95-230)
 	var (
-		transfuncName  string
-		finalfuncName  string
-		combinefuncName string
-		serialfuncName  string
-		deserialfuncName string
-		mtransfuncName  string
+		transfuncName     string
+		finalfuncName     string
+		combinefuncName   string
+		serialfuncName    string
+		deserialfuncName  string
+		mtransfuncName    string
 		minvtransfuncName string
-		mfinalfuncName  string
-		transTypeName   *nodes.TypeName
-		msTransTypeName *nodes.TypeName
-		baseTypeName    *nodes.TypeName
-		initCond        string
-		mInitCond       string
-		sortOperatorName string
-		parallelStr     string
+		mfinalfuncName    string
+		transTypeName     *nodes.TypeName
+		msTransTypeName   *nodes.TypeName
+		baseTypeName      *nodes.TypeName
+		initCond          string
+		mInitCond         string
+		sortOperatorName  string
+		parallelStr       string
+		hypothetical      bool
 	)
 
 	if stmt.Definition != nil {
@@ -93,7 +94,7 @@ func (c *Catalog) DefineAggregate(stmt *nodes.DefineStmt) error {
 			case "parallel":
 				parallelStr = strings.ToLower(defElemString(de))
 			case "hypothetical":
-				// Accepted, not tracked.
+				hypothetical = true
 			default:
 				c.addWarning(CodeSyntaxError,
 					fmt.Sprintf("aggregate attribute \"%s\" not recognized", de.Defname))
@@ -118,6 +119,9 @@ func (c *Catalog) DefineAggregate(stmt *nodes.DefineStmt) error {
 	// pg: src/backend/commands/aggregatecmds.c — DefineAggregate (line 235-320)
 	// ---------------------------------------------------------------
 	var argOIDs []uint32
+	// The number of direct arguments, which an ordered-set aggregate's
+	// argument list ends with; -1 for a normal aggregate.
+	numDirectArgs := int64(-1)
 
 	if stmt.Oldstyle || stmt.Args == nil {
 		// Old-style syntax: use basetype DefElem.
@@ -167,7 +171,7 @@ func (c *Catalog) DefineAggregate(stmt *nodes.DefineStmt) error {
 				}
 				argOIDs = append(argOIDs, oid)
 			case *nodes.Integer:
-				// ORDER BY sentinel (-1), skip.
+				numDirectArgs = v.Ival
 			}
 		}
 	}
@@ -181,6 +185,18 @@ func (c *Catalog) DefineAggregate(stmt *nodes.DefineStmt) error {
 	}
 	if transfuncName == "" {
 		return errInvalidObjectDefinition("aggregate sfunc must be specified")
+	}
+
+	// pg: src/backend/commands/aggregatecmds.c — DefineAggregate (aggKind)
+	aggKind := byte('n')
+	if numDirectArgs >= 0 {
+		aggKind = 'o'
+	}
+	if hypothetical {
+		if aggKind != 'o' {
+			return errInvalidFunctionDefinition("only ordered-set aggregates can be hypothetical")
+		}
+		aggKind = 'h'
 	}
 
 	// Resolve state type.
@@ -247,6 +263,10 @@ func (c *Catalog) DefineAggregate(stmt *nodes.DefineStmt) error {
 		Parallel: parallel,
 		Language: "internal",
 		Body:     "aggregate_dummy",
+		AggKind:  aggKind,
+	}
+	if numDirectArgs > 0 {
+		up.AggNumDirectArgs = int16(numDirectArgs)
 	}
 	c.userProcs[procOID] = up
 

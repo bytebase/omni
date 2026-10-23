@@ -293,7 +293,8 @@ func (p *Parser) parseDefElem() (*nodes.DefElem, error) {
 }
 
 // parseDefArg parses def_arg:
-//   func_type | reserved_keyword | qual_all_Op | NumericOnly | Sconst | NONE
+//
+//	func_type | reserved_keyword | qual_all_Op | NumericOnly | Sconst | NONE
 func (p *Parser) parseDefArg() (nodes.Node, error) {
 	if p.cur.Type == NONE {
 		p.advance()
@@ -350,7 +351,10 @@ func (p *Parser) parseQualAllOp() (nodes.Node, error) {
 		}
 		return op, nil
 	}
-	opStr, _ := p.parseAllOp()
+	opStr, err := p.parseAllOp()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: []nodes.Node{&nodes.String{Str: opStr}}}, nil
 }
 
@@ -977,7 +981,7 @@ func (p *Parser) parseTableFuncElement() (*nodes.ColumnDef, error) {
 		Colname:  colname,
 		TypeName: typename,
 		IsLocal:  true,
-		Loc: nodes.NoLoc(),
+		Loc:      nodes.NoLoc(),
 	}
 	if p.cur.Type == COLLATE {
 		p.advance()
@@ -987,7 +991,7 @@ func (p *Parser) parseTableFuncElement() (*nodes.ColumnDef, error) {
 		}
 		coldef.CollClause = &nodes.CollateClause{
 			Collname: collname,
-			Loc: nodes.NoLoc(),
+			Loc:      nodes.NoLoc(),
 		}
 	}
 	return coldef, nil
