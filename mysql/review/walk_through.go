@@ -84,6 +84,8 @@ type walker struct {
 	anyTrigger  bool
 	functions   map[walk.Key]bool
 	anyFunction bool
+	// ignoresFKs lists the tables whose engine may ignore foreign keys.
+	ignoresFKs map[walk.Key]bool
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
@@ -98,9 +100,13 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		fkChecks:   t.ForeignKeyChecks,
 		triggered:  make(map[walk.Key]bool),
 		functions:  make(map[walk.Key]bool),
+		ignoresFKs: make(map[walk.Key]bool),
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true
+	}
+	for name := range snap.ignoresFKs {
+		w.ignoresFKs[relKey(snap.db, name)] = true
 	}
 	for name := range snap.functions {
 		w.functions[objKey(spaceFunction, snap.db, name)] = true
@@ -123,6 +129,41 @@ type builder struct {
 	w *walker
 	l *walk.Ledger
 	s *statement
+	// fks is set when the statement's table keeps the foreign keys it
+	// names (keepsFKs). Until a lowering sets it, the statement claims
+	// nothing of foreign keys and leaves their names Unknown.
+	fks bool
+	// early is set while ALTER TABLE lowers its drops and renames, which
+	// run together against the table as it was; arrived holds the column
+	// and index names they bring in (leave, arrive).
+	early   bool
+	arrived map[walk.Key]bool
+}
+
+// leave records that an ALTER TABLE subcommand takes a column or index
+// name away. Among the drops and renames, a name another of them brings
+// in stays, whatever their order: a swap of two columns or indexes keeps
+// both, and RENAME INDEX i TO j, DROP INDEX j leaves j (verified). It is
+// still an effect on the name, so the touched rule leaves out the other
+// subcommand's check of it.
+func (b *builder) leave(k walk.Key) {
+	if b.early && b.arrived[k] {
+		b.Set(k, walk.Present, "")
+		return
+	}
+	b.Set(k, walk.Absent, "")
+}
+
+// arrive records that an ALTER TABLE subcommand renames a column or index
+// to a name.
+func (b *builder) arrive(k walk.Key) {
+	b.Set(k, walk.Present, "")
+	if b.early {
+		if b.arrived == nil {
+			b.arrived = make(map[walk.Key]bool)
+		}
+		b.arrived[k] = true
+	}
 }
 
 func (b *builder) anchor() review.Range { return rangeOf(b.s.loc) }
@@ -169,6 +210,31 @@ func objKey(space, db, name string) walk.Key {
 // database, and on the table.
 func fkKeys(r tableRef, name string) (walk.Key, walk.Key) {
 	return objKey(spaceForeignKey, r.db, name), walk.Key{Space: spaceTableForeignKey, Parent: tablePath(r.db, r.name), Name: name}
+}
+
+// keepsFKs reports whether a table engine keeps foreign keys: InnoDB and
+// NDB do. Another engine parses and ignores them: it accepts a foreign
+// key to a missing table, a name another one has, and DROP FOREIGN KEY of
+// any name (verified with MyISAM on 8.0 and 8.4). An empty engine is the
+// server's default, assumed InnoDB (spec §3).
+func keepsFKs(engine string) bool {
+	switch strings.ToLower(engine) {
+	case "", "innodb", "ndb", "ndbcluster":
+		return true
+	}
+	return false
+}
+
+// engineOf returns the ENGINE a statement's table options name, "" for
+// none.
+func engineOf(opts []*ast.TableOption) string {
+	engine := ""
+	for _, o := range opts {
+		if o != nil && strings.EqualFold(o.Name, "ENGINE") {
+			engine = strings.Trim(o.Value, "`'\"")
+		}
+	}
+	return engine
 }
 
 // generatedFKs returns the prefix of the foreign key names MySQL generates

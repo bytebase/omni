@@ -52,6 +52,14 @@ Never trusted Absent:
 
 **Accepted assumption (engines design D6):** the admin user sees every object of its database, since `information_schema` lists only what it may see.
 
+**Foreign keys need an engine that keeps them.** InnoDB and NDB do. MyISAM and the other engines parse a foreign key and ignore it. They accept one to a missing table, a name another table's foreign key has, and `DROP FOREIGN KEY` of any name. So the walk claims nothing of a table's foreign keys, and leaves the names it writes Unknown:
+- when the sync lists the table with another engine;
+- when the change creates the table with another `ENGINE`, or `LIKE` a table the walk does not know to keep them;
+- after `ALTER TABLE ... ENGINE=` another engine;
+- within an `ALTER TABLE` that sets any engine.
+
+**Assumption (flagged for confirmation, 2026-10-23):** a table created with no `ENGINE` gets InnoDB, MySQL's `default_storage_engine` since 5.5. Bytebase could pass the server's setting in `Target` as it will `foreign_key_checks` (M1).
+
 **OceanBase** (`ReviewOceanBase`) will use the same lowering, with less authority: its sync lists no CHECK constraints or partitions. Its oracle is DSN-gated (D4). Until it lands (§9 M3), WALK_THROUGH reports nothing for OceanBase.
 
 ## 4. Statement semantics the lowering follows
@@ -60,6 +68,8 @@ Never trusted Absent:
 - DROP, RENAME, CHANGE, and MODIFY of a column or index are judged against the table as it was. `ADD z, DROP z` fails with 1091, and `ADD a, DROP a` succeeds where a exists and leaves a new a.
 - ADD COLUMN sees the table after them. Index columns resolve against the final columns, so `ADD INDEX k (q), ADD q` succeeds.
 - This is `walk.Passes`, with the drops and renames lowered first.
+- The drops and renames take effect together. A swap of two columns or indexes keeps both, `RENAME COLUMN a TO b, RENAME COLUMN b TO y` leaves b and y, and `RENAME INDEX i TO j, DROP INDEX j` leaves j. A name one of them brings in stays Present, whatever their order.
+- Two subcommands that rename or change columns to one name fail (1060), as does an ADD of that name. So do two inline `PRIMARY KEY`s across `ADD COLUMN`, `MODIFY`, `CHANGE`, and `ADD PRIMARY KEY` (1068), and a second `DROP FOREIGN KEY` of one name (1091).
 - A second DROP of one column or index fails with 1091, and a second ADD with 1060 or 1061.
 
 **`DROP TABLE a, b` looks every name up first** (`walk.Lookups`).
@@ -80,6 +90,7 @@ Never trusted Absent:
 
 **Foreign keys:**
 - A foreign key to a missing table or column fails only while `foreign_key_checks` is on (1824, 3734; 1215 on 5.7). So does one to a view or to a temporary table, which shadows no base table there (1824).
+- An unqualified parent table is in the child's database, not the current one.
 - `DROP FOREIGN KEY f` fails when f is another table's (1091). Two foreign keys of one name in a statement fail (1826, or 1061 for the index each would add).
 - The walk tracks `SET foreign_key_checks` in the change; see decision M1 for the session's start.
 
@@ -149,6 +160,8 @@ Review asks for these are declined with this list:
 
 - CHECK constraints: names, existence, and violations;
 - dependency failures: dropping a referenced table (3730), an index a foreign key needs (1553), a column a foreign key uses;
+- renames a table's own objects refuse, which the walk cannot list: a table with a trigger moved to another database (1435), and a rename whose `<b>_ibfk_` names another foreign key already has;
+- `ALTER TABLE ... ENGINE=` of a table in a foreign key (3776);
 - columns named in index or foreign key definitions (1072, 3734), and in views, defaults, generated columns, and queries;
 - relation references inside queries and view bodies;
 - data-dependent failures: duplicate keys, NULL into NOT NULL, conversions under the SQL mode;
@@ -265,6 +278,15 @@ MySQL 5.7.44, 8.0.46 (`lower_case_table_names` 0 and 1), and 8.4.13. "All" means
     - `DROP TABLE IF EXISTS q.v` of a view is a note, and `DROP VIEW q.v` then succeeds.
     - With no database selected, `CREATE`/`DROP`/`ALTER` of an unqualified procedure, function, trigger, or event fail with 1046, `IF EXISTS` too.
     - `DROP PRIMARY KEY, DROP PRIMARY KEY` and `DROP PRIMARY KEY, DROP INDEX `` `PRIMARY` ``` fail with 1091.
+  - Codex round 3, on 8.0.46 and 8.4.13:
+    - `DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1` fails with 1091.
+    - `RENAME COLUMN a TO z, RENAME COLUMN b TO z`, `CHANGE a z, CHANGE b z`, `ADD z, RENAME COLUMN a TO z`, and `CHANGE a z, ADD Z` fail with 1060. A swap of two columns succeeds and keeps both, as does a swap of two indexes. `CHANGE a a ..., CHANGE a a ...` and `MODIFY a, MODIFY a` fail with 1054.
+    - `MODIFY a ... PRIMARY KEY, MODIFY b ... PRIMARY KEY` on a keyless table, `CHANGE a a ... PRIMARY KEY, ADD PRIMARY KEY (b)`, and `MODIFY ... PRIMARY KEY, ADD COLUMN ... PRIMARY KEY` fail with 1068.
+    - `CREATE TABLE q.child (... REFERENCES parent ...)` with shop current resolves q.parent.
+    - `CREATE TABLE x (..., CONSTRAINT fk1 FOREIGN KEY ...)` with fk1 on another table fails with 1826.
+    - MyISAM accepts a foreign key to a missing table, two of one name, one whose name an InnoDB table's has, and `DROP FOREIGN KEY` of any name. It keeps no constraint, only the index named after it; `CREATE TABLE ... LIKE` copies the engine.
+    - `ALTER TABLE ... ENGINE=MyISAM` fails with 3776 for a table that has or is the parent of a foreign key. A foreign key to a MyISAM parent fails with 1824.
+    - `RENAME TABLE tg TO q.tg` of a table with a trigger fails with 1435.
 - **No failure:**
   - `ANALYZE`, `OPTIMIZE`, and `CHECK TABLE` of a missing table return a row rather than fail.
   - After `LOCK TABLES t WRITE`, DML on another table fails with 1100.

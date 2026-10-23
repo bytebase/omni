@@ -1,6 +1,8 @@
 package review
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
@@ -36,6 +38,21 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if f == walk.Absent || kind == relView {
 		return true
 	}
+	// The table keeps foreign keys as its engine does; a statement that
+	// changes the engine claims nothing of them.
+	rel := relKey(r.db, r.name)
+	engine, sets := alterEngine(v)
+	b.fks = !sets && !b.w.ignoresFKs[rel]
+	if sets {
+		ignores := !keepsFKs(engine)
+		b.Session(func() {
+			if ignores {
+				b.w.ignoresFKs[rel] = true
+			} else {
+				delete(b.w.ignoresFKs, rel)
+			}
+		})
+	}
 	if b.alterTextFails(v, r) {
 		return true
 	}
@@ -50,6 +67,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 				continue
 			}
 			b.Next()
+			b.early = early
 			if !b.alterCmd(r, c) {
 				return false
 			}
@@ -60,6 +78,16 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return b.alterRename(r, rename)
 	}
 	return true
+}
+
+// alterEngine returns the ENGINE an ALTER TABLE sets, if it sets one.
+func alterEngine(v *ast.AlterTableStmt) (string, bool) {
+	for _, c := range v.Commands {
+		if c.Type == ast.ATTableOption && c.Option != nil && strings.EqualFold(c.Option.Name, "ENGINE") {
+			return engineOf([]*ast.TableOption{c.Option}), true
+		}
+	}
+	return "", false
 }
 
 // alterEarly reports whether a subcommand is judged against the table as
@@ -111,7 +139,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		}
 		ck := colKey(r.db, r.name, k)
 		b.need(ck, walk.Present, nil, rng, "Column "+ident(c.Name)+" does not exist in table "+r.written, "") // 1091
-		b.Set(ck, walk.Absent, "")
+		b.leave(ck)
 		// An index loses the column, and goes with its last one.
 		b.MayRemove(walk.Scope{Space: spaceIndex, Parent: tablePath(r.db, r.name)})
 	case ast.ATModifyColumn:
@@ -147,9 +175,14 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			if !ok {
 				return false
 			}
+			fk, own := fkKeys(r, k)
+			if !b.fks {
+				b.Set(fk, walk.Unknown, "")
+				b.Set(own, walk.Unknown, "")
+				break
+			}
 			// The name must be the table's: another table's foreign key of
 			// the name fails as a missing one does (1091, verified).
-			fk, own := fkKeys(r, k)
 			msg := "Foreign key " + ident(c.Name) + " does not exist in table " + r.written
 			b.need(fk, walk.Present, nil, rng, msg, "")  // 1091
 			b.need(own, walk.Present, nil, rng, msg, "") // 1091
@@ -177,9 +210,9 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		b.need(fk, walk.Present, nil, rng, "Index "+ident(c.Name)+" does not exist in table "+r.written, "") // 1091
 		if from != to {
 			b.need(tk, walk.Absent, nil, rng, "", "Index "+ident(c.NewName)+" already exists in table "+r.written) // 1061
-			b.Set(fk, walk.Absent, "")
+			b.leave(fk)
+			b.arrive(tk)
 		}
-		b.Set(tk, walk.Present, "")
 	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible:
 		k, ok := b.key(spaceIndex, c.Name)
 		if !ok {
@@ -239,7 +272,32 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				return true
 			}
 		case ast.ATDropConstraint:
-			if dropKindOf(b.w.sql, c) == dropPrimaryKey && twice("drop index", spaceIndex, "PRIMARY", rng, "Index PRIMARY is dropped twice from table "+r.written) {
+			switch dropKindOf(b.w.sql, c) {
+			case dropPrimaryKey:
+				if twice("drop index", spaceIndex, "PRIMARY", rng, "Index PRIMARY is dropped twice from table "+r.written) {
+					return true
+				}
+			case dropForeignKey:
+				if b.fks && twice("drop foreign key", spaceForeignKey, c.Name, rng, "Foreign key "+ident(c.Name)+" is dropped twice from table "+r.written) {
+					return true
+				}
+			}
+		case ast.ATChangeColumn, ast.ATRenameColumn, ast.ATModifyColumn:
+			// A column a CHANGE or RENAME names is one more the statement
+			// adds (1060, verified).
+			to := c.NewName
+			if c.Column != nil {
+				to = c.Column.Name
+				for _, cc := range c.Column.Constraints {
+					if cc.Type == ast.ColConstrPrimaryKey {
+						primaries++
+					}
+				}
+			}
+			from, ok1 := b.key(spaceColumn, c.Name)
+			dest, ok2 := b.key(spaceColumn, to)
+			if c.Type != ast.ATModifyColumn && ok1 && ok2 && from != dest &&
+				twice("add column", spaceColumn, to, rng, "Column "+ident(to)+" is added twice to table "+r.written) {
 				return true
 			}
 		case ast.ATAddConstraint, ast.ATAddIndex:
@@ -255,7 +313,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				primaries++
 			case ast.ConstrForeignKey:
 				// 1826, or 1061 for the index each would add (verified).
-				if twice("add foreign key", spaceForeignKey, con.Name, rng, "Foreign key "+ident(con.Name)+" is added twice to table "+r.written) {
+				if b.fks && twice("add foreign key", spaceForeignKey, con.Name, rng, "Foreign key "+ident(con.Name)+" is added twice to table "+r.written) {
 					return true
 				}
 			case ast.ConstrCheck:
@@ -323,9 +381,9 @@ func (b *builder) renameColumn(r tableRef, from, to string, rng review.Range) bo
 	b.need(fc, walk.Present, nil, rng, "Column "+ident(from)+" does not exist in table "+r.written, "") // 1054
 	if fk != tk {
 		b.need(tc, walk.Absent, nil, rng, "", "Column "+ident(to)+" already exists in table "+r.written) // 1060
-		b.Set(fc, walk.Absent, "")
+		b.leave(fc)
+		b.arrive(tc)
 	}
-	b.Set(tc, walk.Present, "")
 	return true
 }
 
@@ -349,6 +407,9 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 	case ast.ConstrCheck:
 		return
 	case ast.ConstrForeignKey:
+		if !b.fks {
+			break
+		}
 		if k, ok := b.key(spaceForeignKey, c.Name); ok {
 			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", "Foreign key "+ident(c.Name)+" already exists in the database") // 1826; 1022 on 5.7
 		}
@@ -374,7 +435,7 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range) bool 
 	} else {
 		b.need(ik, walk.Present, nil, rng, "Index "+ident(name)+" does not exist in table "+r.written, "") // 1091
 	}
-	b.Set(ik, walk.Absent, "")
+	b.leave(ik)
 	return true
 }
 
@@ -430,6 +491,13 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 	b.Session(func() {
 		if b.w.triggered[fk] {
 			b.w.triggered[tk] = true
+		}
+		ignores := b.w.ignoresFKs[fk]
+		delete(b.w.ignoresFKs, fk)
+		if ignores {
+			b.w.ignoresFKs[tk] = true
+		} else {
+			delete(b.w.ignoresFKs, tk)
 		}
 	})
 }

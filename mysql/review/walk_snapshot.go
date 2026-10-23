@@ -93,6 +93,9 @@ type mysqlSnapshot struct {
 	events           map[string]bool
 	// triggered lists the relation keys of the tables with a trigger.
 	triggered map[string]bool
+	// ignoresFKs lists those of the tables whose engine ignores foreign
+	// keys.
+	ignoresFKs map[string]bool
 }
 
 func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mysqlSnapshot {
@@ -107,6 +110,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 		functions:        make(map[string]bool),
 		events:           make(map[string]bool),
 		triggered:        make(map[string]bool),
+		ignoresFKs:       make(map[string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	set := func(m map[string]bool, space, name string) {
@@ -121,6 +125,9 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 				continue
 			}
 			s.relations[tk] = relTable
+			if !keepsFKs(t.GetEngine()) {
+				s.ignoresFKs[tk] = true
+			}
 			cols := make(map[string]bool)
 			for _, c := range t.GetColumns() {
 				set(cols, spaceColumn, c.GetName())

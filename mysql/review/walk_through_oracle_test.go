@@ -61,8 +61,12 @@ var walkCases = []walkCase{
 	// ALTER TABLE.
 	{name: "ALTER TABLE drops first", change: "ALTER TABLE t ADD COLUMN a int, DROP COLUMN a;\nALTER TABLE t DROP INDEX i, ADD INDEX i (b);\nALTER TABLE t DROP COLUMN a;\nALTER TABLE t DROP COLUMN a;\nALTER TABLE t RENAME COLUMN b TO c, ADD COLUMN b int;\nALTER TABLE t DROP COLUMN zz, ADD COLUMN y int;", complete: true},
 	{name: "ALTER TABLE subcommands", change: "ALTER TABLE nosuch ADD COLUMN a int;\nALTER TABLE v ADD COLUMN a int;\nALTER TABLE t ADD COLUMN A int;\nALTER TABLE t ADD COLUMN c int AFTER nosuch;\nALTER TABLE t DROP COLUMN nosuch;\nALTER TABLE t MODIFY COLUMN nosuch int;\nALTER TABLE t CHANGE nosuch c int;\nALTER TABLE t CHANGE a b int;\nALTER TABLE t ALTER COLUMN nosuch SET DEFAULT 1;\nALTER TABLE t ADD INDEX I (b);\nALTER TABLE t ADD INDEX `PRIMARY` (b);\nALTER TABLE t DROP INDEX nosuch;\nALTER TABLE t ADD PRIMARY KEY (a);\nALTER TABLE t RENAME INDEX nosuch TO j;\nALTER TABLE t RENAME INDEX i TO PRIMARY2;\nALTER TABLE t ALTER INDEX nosuch INVISIBLE;", complete: true},
-	{name: "repeated subcommands", change: "ALTER TABLE t ADD COLUMN c int, ADD COLUMN c int;\nALTER TABLE t DROP COLUMN a, DROP COLUMN a;\nALTER TABLE t ADD INDEX k (a), ADD INDEX k (b);\nALTER TABLE nokey ADD PRIMARY KEY (a), ADD PRIMARY KEY (a);\nALTER TABLE t DROP INDEX i, DROP INDEX i;\nALTER TABLE t DROP PRIMARY KEY, DROP PRIMARY KEY;\nALTER TABLE t DROP PRIMARY KEY, DROP INDEX `PRIMARY`;", complete: true},
-	{name: "foreign keys", change: "CREATE TABLE y0 (a int, FOREIGN KEY (a) REFERENCES v (id));\nALTER TABLE nokey DROP FOREIGN KEY fk1;\nALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE t DROP FOREIGN KEY nosuch;\nALTER TABLE t DROP FOREIGN KEY fk1;\nALTER TABLE t DROP FOREIGN KEY fk1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nCREATE TABLE w (id int PRIMARY KEY, p int, FOREIGN KEY (p) REFERENCES w (id));", complete: true},
+	{name: "repeated subcommands", change: "ALTER TABLE t ADD COLUMN c int, ADD COLUMN c int;\nALTER TABLE t DROP COLUMN a, DROP COLUMN a;\nALTER TABLE t ADD INDEX k (a), ADD INDEX k (b);\nALTER TABLE nokey ADD PRIMARY KEY (a), ADD PRIMARY KEY (a);\nALTER TABLE t DROP INDEX i, DROP INDEX i;\nALTER TABLE t DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1;\nALTER TABLE t DROP PRIMARY KEY, DROP PRIMARY KEY;\nALTER TABLE t DROP PRIMARY KEY, DROP INDEX `PRIMARY`;", complete: true},
+	{name: "foreign keys", change: "CREATE TABLE y0 (a int, FOREIGN KEY (a) REFERENCES v (id));\nCREATE TABLE y00 (a int, CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id));\nALTER TABLE nokey DROP FOREIGN KEY fk1;\nALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE t DROP FOREIGN KEY nosuch;\nALTER TABLE t DROP FOREIGN KEY fk1;\nALTER TABLE t DROP FOREIGN KEY fk1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nCREATE TABLE w (id int PRIMARY KEY, p int, FOREIGN KEY (p) REFERENCES w (id));", complete: true},
+	{name: "an unqualified parent is in the child's database", change: "CREATE DATABASE q;\nCREATE TABLE q.parent (id int PRIMARY KEY);\nCREATE TABLE q.child (id int, FOREIGN KEY (id) REFERENCES parent (id));\nALTER TABLE q.child ADD CONSTRAINT c2 FOREIGN KEY (id) REFERENCES parent (id);\nCREATE TABLE q.orphan (id int, FOREIGN KEY (id) REFERENCES nosuch (id));", complete: true},
+	// An engine other than InnoDB parses foreign keys and ignores them.
+	{name: "an engine that ignores foreign keys", setup: "CREATE TABLE my (id int PRIMARY KEY, a int) ENGINE=MyISAM;", change: "ALTER TABLE my DROP FOREIGN KEY nosuch;\nALTER TABLE my ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES nosuch (id);\nCREATE TABLE m2 (a int, CONSTRAINT mf FOREIGN KEY (a) REFERENCES nosuch (id), CONSTRAINT mf FOREIGN KEY (a) REFERENCES r (id)) ENGINE=MyISAM;\nCREATE TABLE ok (a int, CONSTRAINT mf FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE m3 LIKE my;\nALTER TABLE m3 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);\nCREATE TABLE inn (id int PRIMARY KEY, a int);\nALTER TABLE inn ENGINE=MyISAM;\nALTER TABLE inn ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES nosuch (id);\nALTER TABLE inn DROP FOREIGN KEY whatever;\nALTER TABLE inn ENGINE=InnoDB;\nALTER TABLE inn DROP FOREIGN KEY whatever;"},
+	{name: "column names a statement adds", setup: "CREATE TABLE cols (a int, b int, c int);", change: "ALTER TABLE cols RENAME COLUMN a TO z, RENAME COLUMN b TO z;\nALTER TABLE cols CHANGE a z int, CHANGE b z int;\nALTER TABLE cols ADD COLUMN z int, RENAME COLUMN a TO z;\nALTER TABLE cols CHANGE a z int, ADD COLUMN Z int;\nALTER TABLE cols RENAME COLUMN a TO b, RENAME COLUMN b TO a;\nALTER TABLE cols ADD COLUMN b2 int AFTER b;\nALTER TABLE cols RENAME COLUMN a TO b, RENAME COLUMN b TO y;\nALTER TABLE cols ADD COLUMN y2 int AFTER y, ADD COLUMN b3 int AFTER b;\nALTER TABLE cols ADD COLUMN a int;\nALTER TABLE cols ADD KEY i (a), ADD KEY j (b);\nALTER TABLE cols RENAME INDEX i TO j, RENAME INDEX j TO i;\nALTER TABLE cols DROP INDEX i, DROP INDEX j;\nALTER TABLE cols ADD KEY i (a), ADD KEY j (b);\nALTER TABLE cols RENAME INDEX i TO j, DROP INDEX j;\nALTER TABLE cols DROP INDEX j;\nALTER TABLE cols DROP INDEX j;\nALTER TABLE cols CHANGE a A int, ADD COLUMN d int;\nALTER TABLE cols MODIFY a int PRIMARY KEY, MODIFY b int PRIMARY KEY;\nALTER TABLE cols CHANGE a a int PRIMARY KEY, ADD PRIMARY KEY (b);\nALTER TABLE cols MODIFY a int NOT NULL PRIMARY KEY, ADD COLUMN e int PRIMARY KEY;", complete: true},
 	{name: "a temporary table is no parent", change: "CREATE TEMPORARY TABLE tp (id int PRIMARY KEY);\nCREATE TABLE y1 (a int, FOREIGN KEY (a) REFERENCES tp (id));\nCREATE TEMPORARY TABLE r (id int PRIMARY KEY);\nCREATE TABLE y2 (a int, FOREIGN KEY (a) REFERENCES r (id));", complete: true},
 	{name: "foreign keys named twice", change: "CREATE TABLE x (a int, b int, CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), CONSTRAINT f FOREIGN KEY (b) REFERENCES r (id));\nCREATE TABLE x (a int, b int, CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), CONSTRAINT F FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE x (a int, b int);\nALTER TABLE x ADD CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), ADD CONSTRAINT F FOREIGN KEY (b) REFERENCES r (id);", complete: true},
 	// RENAME TABLE renames the foreign keys named <table>_ibfk_...
@@ -553,8 +557,8 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 }
 
 // walkSync reads shop into the metadata Bytebase's MySQL sync produces for
-// what WalkThrough reads: base tables with their columns, indexes, foreign
-// keys, and triggers, views, routines, and events.
+// what WalkThrough reads: base tables with their engines, columns, indexes,
+// foreign keys, and triggers, views, routines, and events.
 //
 // bytebase: backend/plugin/db/mysql/sync.go
 func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
@@ -589,6 +593,13 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 	})
 	query("SELECT 'EVENT', EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = 'shop'", func(_, name string) {
 		s.Events = append(s.Events, &metadata.EventMetadata{Name: name})
+	})
+	query("SELECT TABLE_NAME, ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' AND TABLE_TYPE = 'BASE TABLE'", func(name, engine string) {
+		for _, t := range s.Tables {
+			if t.Name == name {
+				t.Engine = engine
+			}
+		}
 	})
 	return out
 }

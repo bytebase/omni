@@ -1,6 +1,8 @@
 package review
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
@@ -196,17 +198,23 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if v.Table.Schema != "" {
 		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
 	}
+	// The new table keeps foreign keys as its ENGINE does, or for LIKE as
+	// its source's does, which the walk must know.
+	b.fks = !v.Temporary && keepsFKs(engineOf(v.Options))
 	// The LIKE source is checked even when IF NOT EXISTS finds the table
 	// (verified).
 	if v.Like != nil {
+		b.fks = false
 		src, st := b.ref(v.Like)
 		switch st {
 		case refFailed:
 			return true
 		case refOK:
-			if f, temp, _ := b.resolve(src); !temp && f != walk.Unknown {
+			f, temp, kind := b.resolve(src)
+			if !temp && f != walk.Unknown {
 				b.tableNeeds(src)
 			}
+			b.fks = !v.Temporary && !temp && f == walk.Present && kind == relTable && !b.w.ignoresFKs[relKey(src.db, src.name)]
 		}
 	}
 	// A stored function the query calls may create or drop temporary
@@ -251,12 +259,29 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if b.tableTextFails(v, r) {
 		return true
 	}
-	for _, c := range v.Constraints {
-		if c.Type == ast.ConstrForeignKey {
+	if b.fks {
+		for _, c := range v.Constraints {
+			if c.Type != ast.ConstrForeignKey {
+				continue
+			}
+			// A foreign key's name is the database's (1826, verified).
+			if n, ok := b.key(spaceForeignKey, c.Name); ok {
+				b.need(objKey(spaceForeignKey, r.db, n), walk.Absent, nil, rangeOf(c.Loc), "", "Foreign key "+ident(c.Name)+" already exists in the database") // 1826; 1022 on 5.7
+			}
 			b.foreignKeyTarget(r, c)
 		}
 	}
 	b.created(v, r)
+	// A table that may have been there keeps an engine the walk does not
+	// know.
+	ignores := !b.fks || prior == walk.Unknown
+	b.Session(func() {
+		if ignores {
+			b.w.ignoresFKs[k] = true
+		} else {
+			delete(b.w.ignoresFKs, k)
+		}
+	})
 	if prior == walk.Unknown {
 		b.Next()
 		b.Set(k, walk.Present, "")
@@ -316,7 +341,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			primaries++
 			continue
 		case ast.ConstrForeignKey:
-			if k, ok := b.key(spaceForeignKey, c.Name); ok {
+			if k, ok := b.key(spaceForeignKey, c.Name); ok && b.fks {
 				if foreignKeys[k] {
 					b.fail(rangeOf(c.Loc), nil, "Foreign key "+ident(c.Name)+" is specified twice in table "+r.written)
 					return true
@@ -407,11 +432,18 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 		return true
 	case ast.ConstrCheck:
 	case ast.ConstrForeignKey:
-		if k, ok := b.key(spaceForeignKey, c.Name); ok {
+		// An engine that ignores foreign keys still adds the index (verified).
+		k, ok := b.key(spaceForeignKey, c.Name)
+		switch {
+		case ok && b.fks:
 			fk, own := fkKeys(r, k)
 			b.Set(fk, walk.Present, "")
 			b.Set(own, walk.Present, "")
-		} else {
+		case ok:
+			fk, own := fkKeys(r, k)
+			b.Set(fk, walk.Unknown, "")
+			b.Set(own, walk.Unknown, "")
+		default:
 			b.mayAddForeignKeys(r)
 		}
 		b.MayAdd(indexes)
@@ -441,9 +473,18 @@ func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
 	if b.w.fkChecks != review.SwitchOn || c.RefTable == nil {
 		return
 	}
-	t, st := b.ref(c.RefTable)
+	// An unqualified parent is in the child's database (verified).
+	ref := *c.RefTable
+	if ref.Schema == "" {
+		ref.Schema = r.db
+		if strings.HasPrefix(r.db, nonASCII) {
+			return
+		}
+	}
+	t, st := b.ref(&ref)
 	if st != refOK || t.db == r.db && t.name == r.name {
 		return
 	}
+	t.written = table(c.RefTable)
 	b.need(relKey(t.db, t.name), walk.Present, []string{relTable}, t.rng, "Foreign key target table "+t.written+" does not exist", "Foreign key target "+t.written+" is not a base table")
 }
