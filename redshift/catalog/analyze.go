@@ -1082,7 +1082,7 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		}
 		for _, item := range coldeflist.Items {
 			cd, _ := item.(*nodes.ColumnDef)
-			name := ""
+			var name []string
 			if cd != nil {
 				name = collateClauseName(cd.CollClause)
 			}
@@ -1256,7 +1256,7 @@ func (ac *analyzeCtx) appendColumnsFromColdefList(
 			typmod = encodeTypModByName(resolveAlias(name), rawMods)
 		}
 		coll := ac.catalog.typeCollation(typeOID)
-		if oid := builtinCollationOID(collateClauseName(coldef.CollClause)); oid != 0 && coll != 0 {
+		if oid := builtinCollationOIDOf(collateClauseName(coldef.CollClause)); oid != 0 && coll != 0 {
 			coll = oid
 		}
 		*colNames = append(*colNames, coldef.Colname)
@@ -1267,12 +1267,29 @@ func (ac *analyzeCtx) appendColumnsFromColdefList(
 	return nil
 }
 
-// collateClauseName returns the collation a COLLATE clause names, or "".
-func collateClauseName(cc *nodes.CollateClause) string {
-	if cc == nil || cc.Collname == nil || len(cc.Collname.Items) == 0 {
-		return ""
+// collateClauseName returns the name a COLLATE clause gives, its schema
+// first when it is qualified, or nil without a clause.
+func collateClauseName(cc *nodes.CollateClause) []string {
+	if cc == nil || cc.Collname == nil {
+		return nil
 	}
-	return stringVal(cc.Collname.Items[len(cc.Collname.Items)-1])
+	var parts []string
+	for _, item := range cc.Collname.Items {
+		parts = append(parts, stringVal(item))
+	}
+	return parts
+}
+
+// builtinCollationOIDOf resolves a possibly qualified collation name to a
+// fixed built-in OID, or 0: only an unqualified or pg_catalog name can be one.
+func builtinCollationOIDOf(parts []string) uint32 {
+	switch {
+	case len(parts) == 1:
+		return builtinCollationOID(parts[0])
+	case len(parts) == 2 && parts[0] == "pg_catalog":
+		return builtinCollationOID(parts[1])
+	}
+	return 0
 }
 
 func (ac *analyzeCtx) appendOutputParamColumns(
@@ -1687,22 +1704,37 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 // level.
 func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, error) {
 	v, err := ac.findColumnRef(tableName, colName)
+	if !ac.opts.OpaqueUnknownFunctions {
+		return v, err
+	}
+	// limit bounds the levels the inference searches, -1 for all of them.
+	limit := -1
 	var catErr *Error
-	if err == nil || !ac.opts.OpaqueUnknownFunctions || !errors.As(err, &catErr) ||
-		(catErr.Code != CodeUndefinedColumn && catErr.Code != CodeUndefinedTable) {
+	switch {
+	case err == nil:
+		// An enclosing level's inferred column is no better than one a
+		// nearer function could have, so the nearer levels come first.
+		if v.LevelsUp == 0 || !ac.inferredAt(v) {
+			return v, nil
+		}
+		limit = v.LevelsUp
+	case !errors.As(err, &catErr) || (catErr.Code != CodeUndefinedColumn && catErr.Code != CodeUndefinedTable):
 		return v, err
 	}
 	levelsUp := 0
-	for ctx := ac; ctx != nil; ctx = ctx.parent {
-		v, ambiguous := ctx.addUnknownColumn(tableName, colName)
+	for ctx := ac; ctx != nil && (limit < 0 || levelsUp < limit); ctx = ctx.parent {
+		w, ambiguous := ctx.addUnknownColumn(tableName, colName)
 		if ambiguous {
 			// More than one function here could own the name; an
 			// enclosing level's must not take it.
+			if err == nil {
+				return nil, errAmbiguousColumn(colName)
+			}
 			return nil, err
 		}
-		if v != nil {
-			v.LevelsUp = levelsUp
-			return v, nil
+		if w != nil {
+			w.LevelsUp = levelsUp
+			return w, nil
 		}
 		if tableName != "" && ctx.hasVisibleAlias(tableName) {
 			// The alias is this level's: an enclosing level's function
@@ -1718,6 +1750,19 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 		}
 	}
 	return v, err
+}
+
+// inferredAt reports whether v, a Var of an enclosing query level, is a column
+// a reference alone added to a function there.
+func (ac *analyzeCtx) inferredAt(v *VarExpr) bool {
+	ctx := ac
+	for i := 0; i < v.LevelsUp && ctx != nil; i++ {
+		ctx = ctx.parent
+	}
+	if ctx == nil || v.RangeIdx < 0 || v.RangeIdx >= len(ctx.query.RangeTable) {
+		return false
+	}
+	return ctx.query.RangeTable[v.RangeIdx].inferredColumn(v.AttNum)
 }
 
 // visibleRTEs returns the range table entries visible at this query level,

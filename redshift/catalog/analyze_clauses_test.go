@@ -507,6 +507,8 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 		`SELECT a, f.a FROM unknown_rows() f, other_rows() g`,
 		`SELECT id FROM t, unknown_rows() f(id)`,
 		`SELECT id FROM t, (unknown_rows() f JOIN u USING (id))`,
+		`SELECT f.a, (SELECT a FROM unknown_one() g, unknown_two() h) FROM unknown_outer() f`,
+		`SELECT (SELECT a FROM unknown_one() g, unknown_two() h), f.a FROM unknown_outer() f`,
 	} {
 		if _, err := analyzeWithOptions(t, c, sql, opaque); err == nil {
 			t.Errorf("%s: analyzed, want an error", sql)
@@ -528,12 +530,28 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 		t.Errorf("ambiguous inner name: analyzed, h has columns %v", q.RangeTable[0].ColNames)
 	}
 
-	// Deparse gives only the alias's column names, which are positional.
-	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.b FROM ext_rows() f), (SELECT g.c FROM ext_rows() AS g(a, b)), (SELECT h.a FROM ext_rows() AS h(a int, b varchar(5)))`, opaque)
+	// A nearer function takes a name an enclosing function only inferred.
+	q, err = analyzeWithOptions(t, c, `SELECT f.a, (SELECT a FROM unknown_one() g) FROM unknown_outer() f`, opaque)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i, want := range []string{"FROM ext_rows() f)", "FROM ext_rows() g(a, b))", "FROM ext_rows() h(a integer, b character varying(5)))"} {
+	if v := targetExpr(t, q, 1).(*SubLinkExpr).SubQuery.TargetList[0].Expr.(*VarExpr); v.LevelsUp != 0 {
+		t.Errorf("inner a reads the outer f (LevelsUp %d), want the inner g", v.LevelsUp)
+	}
+
+	// Deparse gives only the alias's column names, which are positional.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.b FROM ext_rows() f), (SELECT g.c FROM ext_rows() AS g(a, b)),
+		(SELECT h.a FROM ext_rows() AS h(a int, b varchar(5))),
+		(SELECT k.a FROM ext_rows() AS k(a text COLLATE tenant.mycoll, b text COLLATE pg_catalog."C"))`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []string{
+		"FROM ext_rows() f)",
+		"FROM ext_rows() g(a, b))",
+		"FROM ext_rows() h(a integer, b character varying(5)))",
+		`FROM ext_rows() k(a text COLLATE tenant.mycoll, b text COLLATE "C"))`,
+	} {
 		if got := c.DeparseExpr(targetExpr(t, q, i), q.RangeTable, false); !strings.Contains(got, want) {
 			t.Errorf("target %d deparses as %s, want %s", i+1, got, want)
 		}

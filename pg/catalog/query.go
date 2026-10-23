@@ -711,7 +711,7 @@ type funcColDef struct {
 	types      []uint32
 	typmods    []int32
 	collations []uint32
-	collNames  []string // the COLLATE clause's name, or "" without one
+	collNames  [][]string // the COLLATE clause's name, schema first when qualified; nil without one
 }
 
 // TablesampleClauseQ represents a TABLESAMPLE clause on a relation.

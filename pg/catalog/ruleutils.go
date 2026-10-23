@@ -624,12 +624,22 @@ func (d *deparseCtx) getColDefList(names []string, def *funcColDef) {
 		d.buf.WriteString(quoteIdentifier(name))
 		d.buf.WriteByte(' ')
 		d.buf.WriteString(d.catalog.formatType(typ, def.typmods[i]))
-		// A collation other than the type's default is printed; one the
-		// catalog cannot resolve is printed as named.
-		if cn := def.collNames[i]; cn != "" {
-			if oid := builtinCollationOID(cn); oid == 0 || oid != d.catalog.typeCollation(typ) {
+		// A collation other than the type's default is printed: a built-in
+		// one by its name, any other as written, qualified if it was.
+		if parts := def.collNames[i]; len(parts) > 0 {
+			oid := builtinCollationOIDOf(parts)
+			switch {
+			case oid != 0 && oid != d.catalog.typeCollation(typ):
 				d.buf.WriteString(" COLLATE ")
-				d.buf.WriteString(quoteIdentifier(cn))
+				d.buf.WriteString(quoteIdentifier(parts[len(parts)-1]))
+			case oid == 0:
+				d.buf.WriteString(" COLLATE ")
+				for j, part := range parts {
+					if j > 0 {
+						d.buf.WriteByte('.')
+					}
+					d.buf.WriteString(quoteIdentifier(part))
+				}
 			}
 		}
 	}
