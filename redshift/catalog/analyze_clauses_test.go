@@ -347,3 +347,85 @@ func TestAnalyzeJunkEntriesFollowOutputColumns(t *testing.T) {
 		t.Errorf("a.x2 (AttNum %d) reads %v through TargetList[AttNum-1], want [t.x]", v.AttNum, got)
 	}
 }
+
+// TestAnalyzeOpaqueFunctionsInFrom checks how OpaqueUnknownFunctions
+// analyzes a function in FROM that the catalog does not know.
+func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
+	c := newAnalyzeClausesCatalog(t)
+	opaque := AnalyzeOptions{OpaqueUnknownFunctions: true}
+	columns := func(q *Query, name string) []string {
+		for _, rte := range q.RangeTable {
+			if rte.ERef == name {
+				if !rte.UnknownColumns {
+					t.Errorf("%s does not have UnknownColumns", name)
+				}
+				return rte.ColNames
+			}
+		}
+		t.Fatalf("no range table entry %s", name)
+		return nil
+	}
+
+	// Without the option, the call fails as in PostgreSQL.
+	var catErr *Error
+	if _, err := analyzeWithOptions(t, c, `SELECT 1 FROM t CROSS JOIN unknown_rows() f`, AnalyzeOptions{}); !errors.As(err, &catErr) || catErr.Code != CodeUndefinedFunction {
+		t.Fatalf("without the option: %v, want 42883", err)
+	}
+
+	// Each column the query names becomes a column of the function; a
+	// name a table has stays the table's.
+	q, err := analyzeWithOptions(t, c, `SELECT t.x, f.a, id, b FROM t CROSS JOIN LATERAL unknown_rows(t.id) f WHERE f.c > 1`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := columns(q, "f"); !slices.Equal(got, []string{"a", "b", "c"}) {
+		t.Errorf("f has columns %v, want [a b c]", got)
+	}
+	if got := readColumns(q, targetExpr(t, q, 2)); !slices.Equal(got, []string{"t.id"}) {
+		t.Errorf("id reads %v, want [t.id]", got)
+	}
+	fn := q.RangeTable[1].FuncExprs[0].(*FuncCallExpr)
+	if got := readColumns(q, fn); !slices.Equal(got, []string{"t.id"}) {
+		t.Errorf("the function call reads %v, want [t.id]", got)
+	}
+
+	// The alias names the first columns; a correlated reference adds one
+	// at the level that owns the function.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.extra), a FROM unknown_rows() AS f(a, b)`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := columns(q, "f"); !slices.Equal(got, []string{"a", "b", "extra"}) {
+		t.Errorf("f has columns %v, want [a b extra]", got)
+	}
+	sub := targetExpr(t, q, 0).(*SubLinkExpr).SubQuery
+	if v := sub.TargetList[0].Expr.(*VarExpr); v.LevelsUp != 1 || v.AttNum != 3 {
+		t.Errorf("f.extra in the subquery is %#v, want LevelsUp 1 AttNum 3", v)
+	}
+
+	// A column definition list gives the exact columns, so * works.
+	q, err = analyzeWithOptions(t, c, `SELECT * FROM unknown_rows() AS f(a int, b text)`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(q.TargetList) != 2 || q.RangeTable[0].UnknownColumns || q.TargetList[1].Expr.exprType() != TEXTOID {
+		t.Errorf("column definition list gave %d columns, UnknownColumns %v", len(q.TargetList), q.RangeTable[0].UnknownColumns)
+	}
+
+	for _, sql := range []string{
+		// * cannot list unknown columns.
+		`SELECT * FROM t CROSS JOIN unknown_rows() f`,
+		`SELECT f.* FROM unknown_rows() f`,
+		// An unqualified name two such functions could have is unresolved.
+		`SELECT a FROM unknown_rows() f, other_rows() g`,
+		// ORDINALITY follows columns whose number is unknown.
+		`SELECT f.a FROM unknown_rows() WITH ORDINALITY f`,
+	} {
+		if _, err := analyzeWithOptions(t, c, sql, opaque); err == nil {
+			t.Errorf("%s: analyzed, want an error", sql)
+		}
+	}
+	if _, err := analyzeWithOptions(t, c, `SELECT f.a, g.a FROM unknown_rows() f, other_rows() g`, opaque); err != nil {
+		t.Errorf("qualified names over two unknown functions: %v", err)
+	}
+}

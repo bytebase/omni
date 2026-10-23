@@ -682,6 +682,11 @@ type RangeTableEntry struct {
 	FuncExprs     []AnalyzedExpr      // for RTEFunction: function call expressions
 	Ordinality    bool                // for RTEFunction: WITH ORDINALITY
 	Tablesample   *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
+	// UnknownColumns marks an RTEFunction for a function the catalog does
+	// not know, analyzed under AnalyzeOptions.OpaqueUnknownFunctions with
+	// no column definition list. ColNames then holds only the columns the
+	// query has named, its alias columns first, all of unknown type.
+	UnknownColumns bool
 }
 
 // TablesampleClauseQ represents a TABLESAMPLE clause on a relation.

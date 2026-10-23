@@ -1048,9 +1048,27 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 	var colTypMods []int32
 	var colCollations []uint32
 
+	unknownColumns := false
 	for i, fexpr := range funcExprs {
 		retType := fexpr.exprType()
 		cls := ac.catalog.getTypeFuncClass(retType)
+
+		// Under OpaqueUnknownFunctions, a function the catalog does not
+		// know has the columns its column definition list gives, or else
+		// unknown ones, which only a lone function without ORDINALITY can
+		// have: the query's column references then name them.
+		if f, ok := fexpr.(*FuncCallExpr); ok && f.FuncOID == 0 && retType == UNKNOWNOID && ac.opts.OpaqueUnknownFunctions {
+			if coldeflist := recordFunctionColdefList(rf, funcColdefLists, i, len(funcExprs)); coldeflist != nil {
+				if err := ac.appendColumnsFromColdefList(coldeflist, &colNames, &colTypes, &colTypMods, &colCollations); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			if len(funcExprs) == 1 && !rf.Ordinality {
+				unknownColumns = true
+				continue
+			}
+		}
 
 		switch cls {
 		case typeFuncScalar:
@@ -1116,6 +1134,17 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		colCollations = append(colCollations, 0)
 	}
 
+	// The alias of a function whose columns are unknown names its first
+	// columns.
+	if unknownColumns && rf.Alias != nil && rf.Alias.Colnames != nil {
+		for _, item := range rf.Alias.Colnames.Items {
+			colNames = append(colNames, stringVal(item))
+			colTypes = append(colTypes, UNKNOWNOID)
+			colTypMods = append(colTypMods, -1)
+			colCollations = append(colCollations, 0)
+		}
+	}
+
 	// Apply explicit column aliases from rf.Alias.Colnames.
 	if rf.Alias != nil && rf.Alias.Colnames != nil {
 		for i, item := range rf.Alias.Colnames.Items {
@@ -1130,16 +1159,17 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 
 	rtIdx := len(ac.query.RangeTable)
 	rte := &RangeTableEntry{
-		Kind:          RTEFunction,
-		Alias:         alias,
-		ERef:          eref,
-		ColNames:      colNames,
-		ColTypes:      colTypes,
-		ColTypMods:    colTypMods,
-		ColCollations: colCollations,
-		FuncExprs:     funcExprs,
-		Ordinality:    rf.Ordinality,
-		Lateral:       rf.Lateral,
+		Kind:           RTEFunction,
+		Alias:          alias,
+		ERef:           eref,
+		ColNames:       colNames,
+		ColTypes:       colTypes,
+		ColTypMods:     colTypMods,
+		ColCollations:  colCollations,
+		FuncExprs:      funcExprs,
+		Ordinality:     rf.Ordinality,
+		Lateral:        rf.Lateral,
+		UnknownColumns: unknownColumns,
 	}
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
@@ -1364,6 +1394,13 @@ func (ac *analyzeCtx) transformTargetEntry(rt *nodes.ResTarget, startIdx int) ([
 func (ac *analyzeCtx) expandStar(cr *nodes.ColumnRef, startIdx int) ([]*TargetEntry, error) {
 	tableName := starTableName(cr)
 
+	// The columns of a function whose columns are unknown cannot be listed.
+	for _, rte := range ac.query.RangeTable {
+		if rte.UnknownColumns && (tableName == "" || rte.ERef == tableName) {
+			return nil, &Error{Code: CodeFeatureNotSupported, Message: fmt.Sprintf("cannot expand * over function %q, whose columns are unknown", rte.ERef)}
+		}
+	}
+
 	var entries []*TargetEntry
 	hasSource := false
 
@@ -1578,7 +1615,64 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 // resolveColumnRef resolves a column name to a VarExpr.
 // If the column is not found in the current query's range table, and a parent
 // context exists, it searches the parent for correlated subquery references.
+// resolveColumnRef resolves a column name to a VarExpr, searching this
+// query level and then the enclosing ones. Under
+// AnalyzeOptions.OpaqueUnknownFunctions, a name no level has becomes a
+// column of a function in FROM whose columns are unknown, innermost level
+// first: the one named, or for an unqualified name the only one at that
+// level.
 func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, error) {
+	v, err := ac.findColumnRef(tableName, colName)
+	var catErr *Error
+	if err == nil || !ac.opts.OpaqueUnknownFunctions || !errors.As(err, &catErr) ||
+		(catErr.Code != CodeUndefinedColumn && catErr.Code != CodeUndefinedTable) {
+		return v, err
+	}
+	levelsUp := 0
+	for ctx := ac; ctx != nil; ctx = ctx.parent {
+		if v := ctx.addUnknownColumn(tableName, colName); v != nil {
+			v.LevelsUp = levelsUp
+			return v, nil
+		}
+		levelsUp++
+		if ctx.disallowParentCols && ctx.parent != nil {
+			// A FROM subquery that is not LATERAL cannot see its
+			// parent's columns, only those above it.
+			ctx = ctx.parent
+			levelsUp++
+		}
+	}
+	return v, err
+}
+
+// addUnknownColumn adds colName as a column, of unknown type, of the function
+// at this query level whose columns are unknown: the one tableName names, or
+// the only one. It returns nil when there is none or more than one.
+func (ac *analyzeCtx) addUnknownColumn(tableName, colName string) *VarExpr {
+	idx := -1
+	for i, rte := range ac.query.RangeTable {
+		if !rte.UnknownColumns || (tableName != "" && rte.ERef != tableName) {
+			continue
+		}
+		if idx >= 0 {
+			return nil
+		}
+		idx = i
+	}
+	if idx < 0 {
+		return nil
+	}
+	rte := ac.query.RangeTable[idx]
+	rte.ColNames = append(rte.ColNames, colName)
+	rte.ColTypes = append(rte.ColTypes, UNKNOWNOID)
+	rte.ColTypMods = append(rte.ColTypMods, -1)
+	rte.ColCollations = append(rte.ColCollations, 0)
+	return makeRTEColumnVar(idx, rte, len(rte.ColNames)-1)
+}
+
+// findColumnRef resolves a column name to a VarExpr among the columns the
+// query levels have.
+func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error) {
 	fromItems := ac.onNamespace
 	if fromItems == nil && ac.query.JoinTree != nil {
 		fromItems = ac.query.JoinTree.FromList
@@ -1642,7 +1736,7 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 		if ac.disallowParentCols {
 			outerVar, err = ac.parent.resolveColumnRefAboveLocal(tableName, colName)
 		} else {
-			outerVar, err = ac.parent.resolveColumnRef(tableName, colName)
+			outerVar, err = ac.parent.findColumnRef(tableName, colName)
 		}
 		if err != nil {
 			return nil, err
@@ -1684,7 +1778,7 @@ func (ac *analyzeCtx) resolveColumnRefAboveLocal(tableName, colName string) (*Va
 		}
 		return nil, errUndefinedColumn(colName)
 	}
-	outerVar, err := ac.parent.resolveColumnRef(tableName, colName)
+	outerVar, err := ac.parent.findColumnRef(tableName, colName)
 	if err != nil {
 		return nil, err
 	}
@@ -5208,7 +5302,10 @@ type AnalyzeOptions struct {
 	// so their columns stay visible. The call becomes a WindowFuncExpr when
 	// it has OVER; an AggExpr when it has *, DISTINCT, ORDER BY, WITHIN
 	// GROUP, or FILTER; and a FuncCallExpr otherwise. Its function OID is 0
-	// and its result type is unknown (UNKNOWNOID). Use it to read lineage,
+	// and its result type is unknown (UNKNOWNOID). In FROM, such a function
+	// has the columns its column definition list gives; otherwise its
+	// RangeTableEntry has UnknownColumns set, and each column the query
+	// names is added to it. A * over it fails. Use it to read lineage,
 	// never to decide whether PostgreSQL accepts the query.
 	OpaqueUnknownFunctions bool
 }
