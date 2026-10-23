@@ -90,12 +90,12 @@ func resetOracle(t *testing.T, db *sql.DB) *sql.Conn {
 	}
 	t.Cleanup(func() { conn.Close() })
 	for _, stmt := range []string{
-		// A case may have turned foreign key checks off, or primary keys
-		// required, on the pooled connection; other may reference shop,
-		// which it then keeps from being dropped.
-		"SET foreign_key_checks = 1", "SET sql_require_primary_key = OFF", "SET sql_generate_invisible_primary_key = OFF",
+		// Databases drop with foreign key checks off, since a table of one may
+		// reference another's, and the checks go back on after. A case may
+		// have required primary keys on the pooled connection.
+		"SET foreign_key_checks = 0", "SET sql_require_primary_key = OFF", "SET sql_generate_invisible_primary_key = OFF",
 		"DROP DATABASE IF EXISTS other", "DROP DATABASE IF EXISTS shop", "DROP DATABASE IF EXISTS bbdataarchive",
-		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase,
+		"CREATE DATABASE shop", "CREATE DATABASE bbdataarchive", "USE shop", oracleBase, "SET foreign_key_checks = 1",
 	} {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
@@ -691,7 +691,7 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "it is added back under its name", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD COLUMN id INT", key: "id"},
 		{name: "a key is added back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD PRIMARY KEY (v)", key: "v"},
 		{name: "a later statement adds a key back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x ADD PRIMARY KEY (v)", key: "v"},
-		{name: "a later statement that adds a key back, but fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x DROP COLUMN missing, ADD PRIMARY KEY (v)", err: "Can't DROP 'missing'"},
+		{name: "a later statement that adds a key back, but fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x DROP COLUMN missing, ADD PRIMARY KEY (v)", err: "Can't DROP 'missing'", reported: true},
 		{name: "a check of another column added before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); INSERT INTO x VALUES (1, 1)", change: "ALTER TABLE x ADD CHECK (v > 0);\nALTER TABLE x DROP COLUMN id"},
 		{name: "a foreign key to it added and dropped before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE ch (k INT PRIMARY KEY, x_id INT)", change: "ALTER TABLE ch ADD CONSTRAINT f FOREIGN KEY (x_id) REFERENCES x (id);\nALTER TABLE ch DROP FOREIGN KEY f;\nALTER TABLE x DROP COLUMN id"},
 		{name: "a table CREATE TABLE IF NOT EXISTS leaves, whose foreign key would reference it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE c (k INT PRIMARY KEY)", change: "CREATE TABLE IF NOT EXISTS c (k INT PRIMARY KEY, FOREIGN KEY (k) REFERENCES x (id));\nALTER TABLE x DROP COLUMN id"},
@@ -762,6 +762,14 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 		{name: "tables flushed after", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nFLUSH TABLES", reported: true},
 		{name: "tables flushed with a read lock before", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "FLUSH TABLES WITH READ LOCK;\nALTER TABLE x DROP COLUMN id", err: "conflicting read lock", key: "id"},
 		{name: "a column of only some unique keys dropped before from a table without a primary key partitioned by KEY ()", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE kp (u INT NOT NULL, v INT NOT NULL, w INT, UNIQUE KEY uu (u), UNIQUE KEY uv (u, v)) PARTITION BY KEY () PARTITIONS 2", change: "ALTER TABLE kp DROP COLUMN v;\nALTER TABLE x DROP COLUMN id", reported: true},
+		{name: "a rename onto a table the database holds after, which fails", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nRENAME TABLE x TO y", err: "already exists", reported: true},
+		{name: "a key added back and a rename onto a table the database holds after, which fail", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nALTER TABLE x ADD PRIMARY KEY (v), RENAME TO y", err: "already exists", reported: true},
+		{name: "a rename after onto a table an earlier pair moves away", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nRENAME TABLE y TO y2, x TO y"},
+		{name: "a temporary table of its name made after, given a key, and dropped", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE x (a INT);\nALTER TABLE x ADD PRIMARY KEY (a);\nDROP TABLE x", reported: true},
+		{name: "a temporary table of its name dropped after, and then it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE x (a INT);\nDROP TABLE x;\nDROP TABLE x"},
+		{name: "a drop after of it, which a foreign key of the database refuses", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE c (xv INT, FOREIGN KEY (xv) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id;\nDROP TABLE x", err: "Cannot drop table"},
+		{name: "a drop after of it, which a foreign key naming a table of its name in another database does not refuse", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (id INT PRIMARY KEY); CREATE TABLE c (xid INT, FOREIGN KEY (xid) REFERENCES other.x (id))", change: "ALTER TABLE x DROP COLUMN id;\nDROP TABLE x"},
+		{name: "a rename of its name onto a table the database holds after, while a temporary table of its name exists, and then a drop of it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE x (a INT);\nRENAME TABLE x TO y;\nDROP TABLE x", err: "already exists"},
 		{name: "a read-only transaction started before, which the drop commits", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "START TRANSACTION READ ONLY;\nALTER TABLE x DROP COLUMN id", reported: true},
 		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
 		// of each holds; another value may be refused.
@@ -805,9 +813,12 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 				}
 			}
 			// A change that fails may leave tables locked, which would keep the
-			// next case from dropping the database.
-			if _, err := conn.ExecContext(ctx, "UNLOCK TABLES"); err != nil {
-				t.Fatal(err)
+			// next case from dropping the database, or temporary tables, which
+			// belong to the pooled session and outlive the database.
+			for _, stmt := range []string{"UNLOCK TABLES", "DROP TEMPORARY TABLE IF EXISTS shop.x, shop.y"} {
+				if _, err := conn.ExecContext(ctx, stmt); err != nil {
+					t.Fatal(err)
+				}
 			}
 			switch {
 			case tt.err == "" && failed != nil:

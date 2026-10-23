@@ -710,6 +710,69 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k2 DROP COLUMN id;\nALTER TABLE k3 DROP COLUMN id;\nALTER TABLE gen2 DROP COLUMN id;\nDROP TABLE plain;\nALTER TABLE k2 RENAME TO k9;\nCREATE TABLE k1 (a INT PRIMARY KEY);\nALTER TABLE nokey RENAME TO k3;\nRENAME TABLE pair TO gen2;",
 			want: []finding{lost(1, "DROP COLUMN id", "k1"), lost(3, "DROP COLUMN id", "k3"), lost(4, "DROP COLUMN id", "gen2")},
 		},
+		// A statement the rule shows to fail withdraws nothing, and the change
+		// stops at it.
+		{
+			name: "the key, before an ALTER TABLE that drops a column the table lacks and adds a key back",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before an ALTER TABLE that drops a column dropped before and adds a key back",
+			sql:  "ALTER TABLE k1 DROP COLUMN id;\nALTER TABLE k1 DROP COLUMN ID, ADD PRIMARY KEY (v);",
+			want: []finding{lost(0, "DROP COLUMN id", "k1")},
+		},
+		{
+			name: "the key, before a column dropped by a statement the rule does not judge, then dropped again with a key added back",
+			sql:  "ALTER TABLE t DROP COLUMN id;\nCREATE VIEW v1 AS SELECT 1;\nALTER TABLE t DROP COLUMN code;\nALTER TABLE t DROP COLUMN code, ADD PRIMARY KEY (n);",
+			want: []finding{lost(0, "DROP COLUMN id", "t")},
+		},
+		{
+			name: "the key, before an ALTER TABLE that fails, and not after it",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain DROP COLUMN missing;\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "the key, before a column added and then dropped with a key added back", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain ADD COLUMN missing INT;\nALTER TABLE plain DROP COLUMN missing, ADD PRIMARY KEY (v);"},
+		{
+			name: "the key, before a rename onto a table the target holds, or onto itself",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO k1;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before an ALTER TABLE that adds a key back and renames onto a table the target holds",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain ADD PRIMARY KEY (v), RENAME TO k1;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before a rename of it onto itself",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before a rename that fails, and not a drop after it",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO k1;\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "the key, before a rename onto a table renamed away before", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE k1 TO k9;\nRENAME TABLE plain TO k1;"},
+		{name: "the key, before a rename onto a table an earlier pair moves away", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE k1 TO k9, plain TO k1;"},
+		{name: "the key, before an ALTER TABLE that renames it onto itself", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain RENAME TO plain;"},
+		{name: "the key, before a rename onto a table dropped before", sql: "ALTER TABLE plain DROP COLUMN id;\nDROP TABLE k1;\nRENAME TABLE plain TO k1;"},
+		{name: "the key, before a rename onto a table of another database", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO other.k1;"},
+		// A temporary table of the name takes an ALTER TABLE and a DROP TABLE.
+		{
+			name: "the key, before a temporary table of its name made, given a key, and dropped",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nALTER TABLE plain ADD PRIMARY KEY (x);\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "the key, before a temporary table of its name dropped, and then the table", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TABLE plain;\nDROP TABLE plain;"},
+		{name: "the key, before a temporary table of its name dropped as one, and then the table", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TEMPORARY TABLE plain;\nDROP TABLE plain;"},
+		{name: "the key, before a temporary table of its name renamed away, and then the table dropped", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nALTER TABLE plain RENAME TO p2;\nDROP TABLE plain;"},
+		{name: "the key, before a RENAME TABLE of its name onto a table the target holds, while a temporary table of its name exists", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nRENAME TABLE plain TO k1;\nDROP TABLE plain;"},
+		{name: "the key, before a RENAME TABLE of its name, though a temporary table of it exists", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nRENAME TABLE plain TO p2;"},
+		{name: "the key, before a temporary table of its name made in another database, and the table dropped", sql: "ALTER TABLE plain DROP COLUMN id;\nUSE other;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TABLE shop.plain;"},
+		// A DROP TABLE a foreign key keeps from running is not shown to fail: the
+		// synced schema does not give the database the foreign key references.
+		{name: "the key, before a DROP TABLE of it, which a foreign key of another table may name", sql: "ALTER TABLE p DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;\nDROP TABLE plain;"},
 		{name: "a column a unique key of it and another column holds", sql: "ALTER TABLE uq DROP COLUMN id;"},
 		{
 			name: "every column of the key, with a unique key of it and another column whose rest another unique key keeps apart",

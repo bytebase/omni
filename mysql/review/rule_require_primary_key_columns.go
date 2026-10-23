@@ -32,9 +32,17 @@ import (
 //     table or column the target lacks fails, and so is any other SET,
 //     which may name a variable the server lacks or refuses to set. A
 //     finding before it stands, unless a statement that may give its table
-//     a key back, rename the table, or drop it withdraws the finding; one
-//     that creates a table of its name, or renames one onto it, fails while
-//     the table exists.
+//     a key back, rename the table, or drop it withdraws the finding. A
+//     temporary table of the name takes an ALTER TABLE or a DROP TABLE
+//     instead, and CREATE TABLE of the name, or a rename onto it, fails
+//     while the table exists.
+//   - A statement the rule shows to fail withdraws nothing, and the change
+//     stops at it: an ALTER TABLE that drops a column the table lacks, and
+//     a rename onto a table the target holds, while no statement the rule
+//     does not follow has named either table. A DROP TABLE of a table a
+//     foreign key references is not shown to fail: the synced schema does
+//     not give the database a foreign key references, which may be
+//     another's.
 //   - A USE of the target's database passes. A USE of another ends the
 //     judging, and a name without a database after it is not the
 //     target's: the USE either moves the change there or fails.
@@ -61,8 +69,7 @@ const (
 	// dropsColumns is an ALTER TABLE whose every subcommand is DROP COLUMN.
 	dropsColumns stepKind = iota
 	// namesTables is any other statement on a table, which ends the
-	// judging and withdraws a finding on the tables it may give a key
-	// back, rename, or drop.
+	// judging; tableState tells which findings it withdraws.
 	namesTables
 	// dropsDatabase is a DROP DATABASE, which withdraws every finding when
 	// it drops the target's.
@@ -82,6 +89,8 @@ type step struct {
 	tables    []*ast.TableRef
 	drops     []*ast.AlterTableCmd
 	database  string
+	// node is the statement a namesTables step is.
+	node ast.Node
 }
 
 // columnDropSteps reads the change's top-level statements into steps.
@@ -95,27 +104,10 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			if drops, ok := onlyColumnDrops(sql, v); ok {
 				st.kind, st.tables, st.drops = dropsColumns, []*ast.TableRef{v.Table}, drops
 			} else {
-				st.kind, st.tables = namesTables, alterSettles(v)
+				st.kind, st.node = namesTables, v
 			}
-		case *ast.CreateTableStmt, *ast.CreateIndexStmt, *ast.DropIndexStmt:
-			// CREATE INDEX makes no primary key, and CREATE TABLE of a name
-			// fails while a table of it exists.
-			st.kind = namesTables
-		case *ast.DropTableStmt:
-			st.kind = namesTables
-			// DROP TEMPORARY TABLE drops no permanent table.
-			if !v.Temporary {
-				st.tables = v.Tables
-			}
-		case *ast.RenameTableStmt:
-			st.kind = namesTables
-			for _, pair := range v.Pairs {
-				// A table renamed onto a name fails while a table of it
-				// exists.
-				if pair != nil {
-					st.tables = append(st.tables, pair.Old)
-				}
-			}
+		case *ast.CreateTableStmt, *ast.CreateIndexStmt, *ast.DropIndexStmt, *ast.DropTableStmt, *ast.RenameTableStmt:
+			st.kind, st.node = namesTables, v
 		case *ast.DropDatabaseStmt:
 			st.kind, st.database = dropsDatabase, v.Name
 		case *ast.SetStmt:
@@ -215,18 +207,6 @@ func leftDefault(sql string, cmd *ast.AlterTableCmd) bool {
 	text := sql[cmd.Loc.Start:cmd.Loc.End]
 	tokens := parser.Tokenize(text)
 	return len(tokens) > 0 && strings.EqualFold(tokenText(text, tokens[len(tokens)-1]), "DEFAULT")
-}
-
-// alterSettles returns the tables an ALTER TABLE may give a primary key
-// back or rename away: its own, when it does. A rename onto a name fails
-// while a table of it exists.
-func alterSettles(v *ast.AlterTableStmt) []*ast.TableRef {
-	if v.Table == nil || !slices.ContainsFunc(v.Commands, func(cmd *ast.AlterTableCmd) bool {
-		return cmd != nil && (cmd.Type == ast.ATRenameTable || addsPrimaryKey(cmd))
-	}) {
-		return nil
-	}
-	return []*ast.TableRef{v.Table}
 }
 
 // renamedTo is the table an ALTER TABLE ... RENAME subcommand renames to.
@@ -345,9 +325,10 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 	var findings []found
 	dropped := make(map[*metadata.TableMetadata][]string)
 	j := &columnJudge{x: x}
-	// judging is whether the rule still judges drops, and moved whether a
-	// USE has moved names without a database out of the target's.
-	judging, moved := true, false
+	w := &tableState{x: x, touched: make(map[*metadata.TableMetadata]bool), shadowed: make(map[*metadata.TableMetadata]bool), gone: make(map[*metadata.TableMetadata][]string)}
+	// judging is whether the rule still judges drops.
+	judging := true
+read:
 	for _, s := range c.steps {
 		switch s.kind {
 		case stops:
@@ -358,43 +339,228 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 			}
 			judging = false
 		case uses:
-			if moved = !x.same(s.database, x.schema.GetName()); moved {
+			if w.moved = !x.same(s.database, x.schema.GetName()); w.moved {
 				judging = false
 			}
 		case barrier:
 			judging = false
 		case namesTables:
 			judging = false
-			for _, ref := range s.tables {
-				if t := x.table(ref, moved); t != nil {
-					findings = slices.DeleteFunc(findings, func(f found) bool { return f.table == t })
+			// The change stops at a statement that fails, and what stands
+			// before it is the change's.
+			if w.fails(s.node) {
+				break read
+			}
+			for _, t := range w.settles(s.node) {
+				findings = slices.DeleteFunc(findings, func(f found) bool { return f.table == t })
+			}
+			w.touch(s.node)
+		case dropsColumns:
+			ref := s.tables[0]
+			t := w.table(ref)
+			// So does one that drops a column a known table lacks.
+			if _, ok := w.known(ref); ok && w.dropsLacking(t, s.drops) {
+				break read
+			}
+			if judging {
+				var columns []string
+				var lost *ast.AlterTableCmd
+				runs := false
+				// A table the synced schema does not hold may be missing, and
+				// the statement then fails.
+				if t != nil {
+					columns, lost, runs = j.dropColumns(t, s.drops, dropped[t])
+				}
+				if judging = runs; runs {
+					dropped[t] = append(dropped[t], columns...)
+					if lost != nil {
+						findings = append(findings, found{t, s.statement, rangeOf(lost.Loc), "removes the primary key of " + table(ref) + ", and the change adds none back"})
+					}
 				}
 			}
-		case dropsColumns:
-			if !judging {
-				continue
-			}
-			ref := s.tables[0]
-			t := x.table(ref, moved)
-			// A table the synced schema does not hold may be missing, and the
-			// statement then fails.
-			if t == nil {
-				judging = false
-				continue
-			}
-			columns, lost, runs := j.dropColumns(t, s.drops, dropped[t])
-			if !runs {
-				judging = false
-				continue
-			}
-			dropped[t] = append(dropped[t], columns...)
-			if lost != nil {
-				findings = append(findings, found{t, s.statement, rangeOf(lost.Loc), "removes the primary key of " + table(ref) + ", and the change adds none back"})
+			// The table lacks the columns the statement names after it, or
+			// the change stops at it.
+			if t != nil {
+				for _, cmd := range s.drops {
+					w.gone[t] = append(w.gone[t], cmd.Name)
+				}
 			}
 		}
 	}
 	for _, f := range findings {
 		r.report(review.RequirePrimaryKey, f.statement, f.rng, f.message)
+	}
+}
+
+// tableState is what the rule knows of the target's tables as it reads the
+// change past the statements it follows. Only a statement it does not
+// follow that names a synced table leaves the table unknown: the
+// statements it passes and its barriers change no table, and a DROP COLUMN
+// only takes columns away, or fails and stops the change.
+type tableState struct {
+	x schemaIndex
+	// moved is whether a USE has moved names without a database out of the
+	// target's.
+	moved bool
+	// touched holds the synced tables a statement the rule does not follow
+	// has named, and shadowed those a temporary table of their name hides.
+	touched, shadowed map[*metadata.TableMetadata]bool
+	// gone holds the columns DROP COLUMN statements have named, which the
+	// table lacks after them.
+	gone map[*metadata.TableMetadata][]string
+}
+
+func (w *tableState) table(ref *ast.TableRef) *metadata.TableMetadata {
+	return w.x.table(ref, w.moved)
+}
+
+// known returns the synced table a reference means, and whether the rule
+// knows it as the synced schema holds it, but for the columns DROP COLUMN
+// took away.
+func (w *tableState) known(ref *ast.TableRef) (*metadata.TableMetadata, bool) {
+	t := w.table(ref)
+	return t, t != nil && !w.touched[t]
+}
+
+// lacks reports whether a known table lacks a column.
+func (w *tableState) lacks(t *metadata.TableMetadata, column string) bool {
+	return !slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return sameName(c.GetName(), column) }) ||
+		slices.ContainsFunc(w.gone[t], func(c string) bool { return sameName(c, column) })
+}
+
+// dropsLacking reports whether subcommands of an ALTER TABLE of a known
+// table drop a column it lacks, without IF EXISTS, which fails the
+// statement whatever else it does.
+func (w *tableState) dropsLacking(t *metadata.TableMetadata, cmds []*ast.AlterTableCmd) bool {
+	return slices.ContainsFunc(cmds, func(cmd *ast.AlterTableCmd) bool {
+		return cmd != nil && cmd.Type == ast.ATDropColumn && !cmd.IfExists && w.lacks(t, cmd.Name)
+	})
+}
+
+// fails reports whether a statement the rule does not follow fails for
+// certain: an ALTER TABLE of a known table that drops a column the table
+// lacks, whatever else it does, or that renames the table onto another
+// known table; and a RENAME TABLE with a pair onto a known table no earlier
+// pair moves away, the table itself among them. A temporary table of
+// either name, which the statement may mean, leaves the statement unknown.
+//
+// mysql: https://dev.mysql.com/doc/refman/8.0/en/rename-table.html
+func (w *tableState) fails(n ast.Node) bool {
+	switch v := n.(type) {
+	case *ast.AlterTableStmt:
+		t, ok := w.known(v.Table)
+		if !ok {
+			return false
+		}
+		if w.dropsLacking(t, v.Commands) {
+			return true
+		}
+		for _, cmd := range v.Commands {
+			if cmd != nil && cmd.Type == ast.ATRenameTable {
+				if d, ok := w.known(renamedTo(cmd)); ok && d != t {
+					return true
+				}
+			}
+		}
+	case *ast.RenameTableStmt:
+		away := make(map[*metadata.TableMetadata]bool)
+		for _, pair := range v.Pairs {
+			if pair == nil {
+				continue
+			}
+			// MariaDB renames a temporary table of the name, which may take a
+			// name a table holds.
+			o := w.table(pair.Old)
+			if o != nil && w.shadowed[o] {
+				return false
+			}
+			if d, ok := w.known(pair.New); ok && !away[d] {
+				return true
+			}
+			if o != nil {
+				away[o] = true
+			}
+		}
+	}
+	return false
+}
+
+// settles returns the synced tables a statement the rule does not follow may
+// give a primary key back, rename away, or drop, whose findings it
+// withdraws. A temporary table of the name takes an ALTER TABLE, and a DROP
+// TABLE drops it before the synced table; RENAME TABLE renames the synced
+// table, though a temporary table of its name exists.
+func (w *tableState) settles(n ast.Node) []*metadata.TableMetadata {
+	var out []*metadata.TableMetadata
+	switch v := n.(type) {
+	case *ast.AlterTableStmt:
+		t := w.table(v.Table)
+		if t != nil && !w.shadowed[t] && slices.ContainsFunc(v.Commands, func(cmd *ast.AlterTableCmd) bool {
+			return cmd != nil && (cmd.Type == ast.ATRenameTable || addsPrimaryKey(cmd))
+		}) {
+			out = append(out, t)
+		}
+	case *ast.DropTableStmt:
+		// DROP TEMPORARY TABLE drops no synced table.
+		if v.Temporary {
+			break
+		}
+		for _, ref := range v.Tables {
+			if t := w.table(ref); t != nil && !w.shadowed[t] {
+				out = append(out, t)
+			}
+		}
+	case *ast.RenameTableStmt:
+		for _, pair := range v.Pairs {
+			if pair == nil {
+				continue
+			}
+			if t := w.table(pair.Old); t != nil {
+				out = append(out, t)
+			}
+		}
+	}
+	return out
+}
+
+// touch records the tables a statement the rule does not follow names,
+// which it no longer knows, and the temporary tables of their names it
+// makes, moves, or drops. A rename onto a known table fails, and one onto
+// a table an earlier pair moved away names it as a source.
+func (w *tableState) touch(n ast.Node) {
+	mark := func(ref *ast.TableRef) *metadata.TableMetadata {
+		t := w.table(ref)
+		if t != nil {
+			w.touched[t] = true
+		}
+		return t
+	}
+	switch v := n.(type) {
+	case *ast.AlterTableStmt:
+		// A rename moves a temporary table of the name away.
+		if t := mark(v.Table); t != nil && slices.ContainsFunc(v.Commands, func(cmd *ast.AlterTableCmd) bool { return cmd != nil && cmd.Type == ast.ATRenameTable }) {
+			w.shadowed[t] = false
+		}
+	case *ast.CreateTableStmt:
+		if t := mark(v.Table); t != nil && v.Temporary {
+			w.shadowed[t] = true
+		}
+	case *ast.CreateIndexStmt:
+		mark(v.Table)
+	case *ast.DropIndexStmt:
+		mark(v.Table)
+	case *ast.DropTableStmt:
+		for _, ref := range v.Tables {
+			if t := mark(ref); t != nil {
+				w.shadowed[t] = false
+			}
+		}
+	case *ast.RenameTableStmt:
+		for _, pair := range v.Pairs {
+			if pair != nil {
+				mark(pair.Old)
+			}
+		}
 	}
 }
 
