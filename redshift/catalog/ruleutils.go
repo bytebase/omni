@@ -513,10 +513,17 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			if refname != "" {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(refname))
-				// pg: get_column_alias_list — always print for function RTEs
-				if len(rte.ColNames) > 0 {
+				// pg: get_column_alias_list — always print for function RTEs.
+				// For a function whose columns are unknown, only the names
+				// its alias gave are positional; the rest were inferred
+				// from references.
+				colNames := rte.ColNames
+				if rte.UnknownColumns {
+					colNames = colNames[:min(rte.aliasColumns, len(colNames))]
+				}
+				if len(colNames) > 0 {
 					d.buf.WriteByte('(')
-					for i, cn := range rte.ColNames {
+					for i, cn := range colNames {
 						if i > 0 {
 							d.buf.WriteString(", ")
 						}

@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	pg "github.com/bytebase/omni/pg"
@@ -427,5 +428,58 @@ func TestAnalyzeOpaqueFunctionsInFrom(t *testing.T) {
 	}
 	if _, err := analyzeWithOptions(t, c, `SELECT f.a, g.a FROM unknown_rows() f, other_rows() g`, opaque); err != nil {
 		t.Errorf("qualified names over two unknown functions: %v", err)
+	}
+
+	// A USING name is a column of the function, on either side.
+	for _, sql := range []string{
+		`SELECT id FROM unknown_rows() f JOIN t USING (id)`,
+		`SELECT id FROM t JOIN unknown_rows() f USING (id)`,
+		`SELECT x FROM (unknown_rows() f CROSS JOIN u) JOIN t USING (x)`,
+	} {
+		q, err := analyzeWithOptions(t, c, sql, opaque)
+		if err != nil {
+			t.Errorf("%s: %v", sql, err)
+			continue
+		}
+		if jn := q.JoinTree.FromList[0].(*JoinExprNode); jn.Quals == nil {
+			t.Errorf("%s: no join condition", sql)
+		}
+	}
+
+	// A column named through a join is in the join's output, so an
+	// unqualified reference to it is ambiguous, as in a comma join.
+	for _, sql := range []string{
+		`SELECT f.id, id FROM t CROSS JOIN unknown_rows() f`,
+		`SELECT f.id, id FROM t, unknown_rows() f`,
+	} {
+		if _, err := analyzeWithOptions(t, c, sql, opaque); !errors.As(err, &catErr) || catErr.Code != CodeAmbiguousColumn {
+			t.Errorf("%s: %v, want 42702", sql, err)
+		}
+	}
+
+	// An ON condition sees only the join's inputs.
+	if _, err := analyzeWithOptions(t, c, `SELECT 1 FROM unknown_rows() f, t JOIN u ON f.x = t.id`, opaque); err == nil {
+		t.Error("f.x outside the ON condition's join: analyzed, want an error")
+	}
+	if _, err := analyzeWithOptions(t, c, `SELECT 1 FROM t JOIN unknown_rows() f ON f.x = t.id`, opaque); err != nil {
+		t.Errorf("f.x inside the ON condition's join: %v", err)
+	}
+
+	// A name two functions at the inner level could own is unresolved,
+	// not taken by an enclosing level's function.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT a FROM unknown_one() f, unknown_two() g) FROM unknown_outer() h`, opaque)
+	if err == nil {
+		t.Errorf("ambiguous inner name: analyzed, h has columns %v", q.RangeTable[0].ColNames)
+	}
+
+	// Deparse gives only the alias's column names, which are positional.
+	q, err = analyzeWithOptions(t, c, `SELECT (SELECT f.b FROM ext_rows() f), (SELECT g.c FROM ext_rows() AS g(a, b))`, opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []string{"FROM ext_rows() f)", "FROM ext_rows() g(a, b))"} {
+		if got := c.DeparseExpr(targetExpr(t, q, i), q.RangeTable, false); !strings.Contains(got, want) {
+			t.Errorf("target %d deparses as %s, want %s", i+1, got, want)
+		}
 	}
 }

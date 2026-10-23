@@ -707,6 +707,20 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 		}
 	}
 
+	// Under OpaqueUnknownFunctions, a USING name that a function with
+	// unknown columns could have names one of its columns.
+	if ac.opts.OpaqueUnknownFunctions && !je.IsNatural {
+		for _, name := range usingClause {
+			if !slices.Contains(lNames, name) {
+				ac.addUnknownColumnIn(left, name, left, right)
+			}
+			if !slices.Contains(rNames, name) {
+				ac.addUnknownColumnIn(right, name, left, right)
+			}
+			lNames, rNames = ac.query.RangeTable[lRT].ColNames, ac.query.RangeTable[rRT].ColNames
+		}
+	}
+
 	// Each USING column compares the two inputs' columns of that name and
 	// is output once, merged.
 	var quals AnalyzedExpr
@@ -1136,7 +1150,9 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 
 	// The alias of a function whose columns are unknown names its first
 	// columns.
+	aliasColumns := 0
 	if unknownColumns && rf.Alias != nil && rf.Alias.Colnames != nil {
+		aliasColumns = len(rf.Alias.Colnames.Items)
 		for _, item := range rf.Alias.Colnames.Items {
 			colNames = append(colNames, stringVal(item))
 			colTypes = append(colTypes, UNKNOWNOID)
@@ -1170,6 +1186,7 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		Ordinality:     rf.Ordinality,
 		Lateral:        rf.Lateral,
 		UnknownColumns: unknownColumns,
+		aliasColumns:   aliasColumns,
 	}
 	ac.query.RangeTable = append(ac.query.RangeTable, rte)
 
@@ -1630,7 +1647,13 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 	}
 	levelsUp := 0
 	for ctx := ac; ctx != nil; ctx = ctx.parent {
-		if v := ctx.addUnknownColumn(tableName, colName); v != nil {
+		v, ambiguous := ctx.addUnknownColumn(tableName, colName)
+		if ambiguous {
+			// More than one function here could own the name; an
+			// enclosing level's must not take it.
+			return nil, err
+		}
+		if v != nil {
 			v.LevelsUp = levelsUp
 			return v, nil
 		}
@@ -1647,27 +1670,109 @@ func (ac *analyzeCtx) resolveColumnRef(tableName, colName string) (*VarExpr, err
 
 // addUnknownColumn adds colName as a column, of unknown type, of the function
 // at this query level whose columns are unknown: the one tableName names, or
-// the only one. It returns nil when there is none or more than one.
-func (ac *analyzeCtx) addUnknownColumn(tableName, colName string) *VarExpr {
+// the only one. Within a JOIN's ON condition only the join's inputs count.
+// It reports ambiguous when more than one function could own the name.
+func (ac *analyzeCtx) addUnknownColumn(tableName, colName string) (v *VarExpr, ambiguous bool) {
+	var inScope map[int]bool
+	if ac.onNamespace != nil {
+		inScope = map[int]bool{}
+		for _, jn := range ac.onNamespace {
+			for _, idx := range joinNodeBaseRTEs(jn) {
+				inScope[idx] = true
+			}
+		}
+	}
 	idx := -1
 	for i, rte := range ac.query.RangeTable {
-		if !rte.UnknownColumns || (tableName != "" && rte.ERef != tableName) {
+		if !rte.UnknownColumns || (tableName != "" && rte.ERef != tableName) || (inScope != nil && !inScope[i]) {
 			continue
 		}
 		if idx >= 0 {
-			return nil
+			return nil, true
 		}
 		idx = i
 	}
 	if idx < 0 {
-		return nil
+		return nil, false
+	}
+	return ac.appendUnknownColumn(idx, colName), false
+}
+
+// addUnknownColumnIn adds colName to the one function whose columns are
+// unknown among the base relations of jn, and reports whether there was one.
+// extra holds join inputs not yet in the join tree.
+func (ac *analyzeCtx) addUnknownColumnIn(jn JoinNode, colName string, extra ...JoinNode) bool {
+	idx := -1
+	for _, i := range joinNodeBaseRTEs(jn) {
+		if !ac.query.RangeTable[i].UnknownColumns {
+			continue
+		}
+		if idx >= 0 {
+			return false
+		}
+		idx = i
+	}
+	if idx < 0 {
+		return false
+	}
+	ac.appendUnknownColumn(idx, colName, extra...)
+	return true
+}
+
+// appendUnknownColumn adds a column to the function at range table entry idx
+// and to every join over it, which outputs it last, so an unqualified
+// reference through a join sees it as a comma join would. extra holds join
+// inputs not yet in the join tree.
+func (ac *analyzeCtx) appendUnknownColumn(idx int, colName string, extra ...JoinNode) *VarExpr {
+	addColumn := func(rte *RangeTableEntry) {
+		rte.ColNames = append(rte.ColNames, colName)
+		rte.ColTypes = append(rte.ColTypes, UNKNOWNOID)
+		rte.ColTypMods = append(rte.ColTypMods, -1)
+		rte.ColCollations = append(rte.ColCollations, 0)
 	}
 	rte := ac.query.RangeTable[idx]
-	rte.ColNames = append(rte.ColNames, colName)
-	rte.ColTypes = append(rte.ColTypes, UNKNOWNOID)
-	rte.ColTypMods = append(rte.ColTypMods, -1)
-	rte.ColCollations = append(rte.ColCollations, 0)
-	return makeRTEColumnVar(idx, rte, len(rte.ColNames)-1)
+	addColumn(rte)
+	v := makeRTEColumnVar(idx, rte, len(rte.ColNames)-1)
+
+	seen := map[int]bool{}
+	var visit func(jn JoinNode) bool
+	visit = func(jn JoinNode) bool {
+		switch n := jn.(type) {
+		case *RangeTableRef:
+			return n.RTIndex == idx
+		case *JoinExprNode:
+			l, r := visit(n.Left), visit(n.Right)
+			if (l || r) && !seen[n.RTIndex] && n.RTIndex < len(ac.query.RangeTable) {
+				seen[n.RTIndex] = true
+				join := ac.query.RangeTable[n.RTIndex]
+				addColumn(join)
+				alias := *v
+				join.JoinAliasVars = append(join.JoinAliasVars, &alias)
+			}
+			return l || r
+		}
+		return false
+	}
+	roots := append(append([]JoinNode(nil), ac.onNamespace...), extra...)
+	if ac.query.JoinTree != nil {
+		roots = append(roots, ac.query.JoinTree.FromList...)
+	}
+	for _, jn := range roots {
+		visit(jn)
+	}
+	return v
+}
+
+// joinNodeBaseRTEs lists the range table entries of the relations, subqueries,
+// and functions a FROM item joins.
+func joinNodeBaseRTEs(jn JoinNode) []int {
+	switch n := jn.(type) {
+	case *RangeTableRef:
+		return []int{n.RTIndex}
+	case *JoinExprNode:
+		return append(joinNodeBaseRTEs(n.Left), joinNodeBaseRTEs(n.Right)...)
+	}
+	return nil
 }
 
 // findColumnRef resolves a column name to a VarExpr among the columns the

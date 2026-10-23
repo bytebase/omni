@@ -687,6 +687,7 @@ type RangeTableEntry struct {
 	// no column definition list. ColNames then holds only the columns the
 	// query has named, its alias columns first, all of unknown type.
 	UnknownColumns bool
+	aliasColumns   int // for UnknownColumns: how many of ColNames the alias gave
 }
 
 // TablesampleClauseQ represents a TABLESAMPLE clause on a relation.
