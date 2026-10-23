@@ -62,7 +62,8 @@ type Engine interface {
 // Digester is an Engine whose server commits DDL as it runs it, with no
 // savepoint to undo a rejected statement. Judge then checks that a
 // rejected statement changed nothing, by a digest of the catalog taken
-// before and after it.
+// before and after it. The digest after a rejected statement is the one
+// before the next.
 type Digester interface {
 	Digest(t testing.TB) string
 }
@@ -97,18 +98,23 @@ func Judge(t testing.TB, e Engine, change string, complete bool) (found, rejecte
 	t.Helper()
 	digester, _ := e.(Digester)
 	var accepted []string
+	var before string
+	unchanged := false
 	for _, stmt := range e.Statements(change) {
-		var before string
-		if digester != nil {
+		if digester != nil && !unchanged {
 			before = digester.Digest(t)
 		}
+		unchanged = false
 		o := e.Exec(t, stmt)
 		if o.Code == "" {
 			accepted = append(accepted, stmt)
 			continue
 		}
-		if digester != nil && digester.Digest(t) != before {
-			t.Fatalf("the server rejected %q (%s: %s) but changed the database", stmt, o.Code, o.Message)
+		if digester != nil {
+			if digester.Digest(t) != before {
+				t.Fatalf("the server rejected %q (%s: %s) but changed the database", stmt, o.Code, o.Message)
+			}
+			unchanged = true
 		}
 		rejected++
 		text := strings.Join(append(slices.Clone(accepted), stmt), "\n")
