@@ -118,12 +118,27 @@ type Target struct {
 	// server variable (0: names are case-sensitive; 1 or 2: not), an
 	// instance property the schema does not carry. Other engines ignore it.
 	LowerCaseTableNames int
+	// ForeignKeyChecks is the MySQL family's foreign_key_checks as the
+	// admin connection that runs the change reads it: the server default
+	// or what the data source's connection parameters set. WalkThrough
+	// checks a foreign key's target only while it is on. Other engines
+	// ignore it.
+	ForeignKeyChecks Switch
 	// OtherSpecs is true when another spec of the same plan also changes
 	// this database. Bytebase does not order such specs: the other may run
 	// first, so Schema need not be what this change meets. WalkThrough then
 	// judges the change by its own statements alone.
 	OtherSpecs bool
 }
+
+// Switch is a server setting that is on, off, or not known.
+type Switch uint8
+
+const (
+	SwitchUnknown Switch = iota
+	SwitchOn
+	SwitchOff
+)
 
 // Result is one review of one SQL text against its targets.
 type Result struct {

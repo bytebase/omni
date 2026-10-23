@@ -20,10 +20,11 @@ type targetWork struct {
 	made   changeMade
 	online bool
 	drops  []droppedIndex
+	walks  bool
 }
 
 func (w targetWork) any() bool {
-	return w.backup || w.online || len(w.drops) > 0
+	return w.backup || w.online || len(w.drops) > 0 || w.walks
 }
 
 // schemaTarget is what the rules read of a target.
@@ -31,6 +32,12 @@ type schemaTarget struct {
 	schema              *metadata.DatabaseSchemaMetadata
 	backupExists        bool
 	lowerCaseTableNames int
+	otherSpecs          bool
+	foreignKeyChecks    review.Switch
+}
+
+func targetKey(t review.Target) schemaTarget {
+	return schemaTarget{t.Schema, t.BackupDatabaseExists, t.LowerCaseTableNames, t.OtherSpecs, t.ForeignKeyChecks}
 }
 
 // targetGroup is the targets with the same inputs, reviewed once.
@@ -40,15 +47,15 @@ type targetGroup struct {
 }
 
 // groupTargets folds targets passing the same schema, backup database
-// presence, and lower_case_table_names into one group each, in first-seen
-// order. The rules read nothing else of a target. Equal schemas passed as
-// different values are reviewed apart: comparing them would cost more
-// than reviewing them.
+// presence, lower_case_table_names, other specs, and foreign_key_checks
+// into one group each, in first-seen order. The rules read nothing else
+// of a target. Equal schemas passed as different values are reviewed
+// apart: comparing them would cost more than reviewing them.
 func groupTargets(targets []review.Target) []targetGroup {
 	var groups []targetGroup
 	byKey := make(map[schemaTarget]int)
 	for i, t := range targets {
-		k := schemaTarget{t.Schema, t.BackupDatabaseExists, t.LowerCaseTableNames}
+		k := targetKey(t)
 		g, ok := byKey[k]
 		if !ok {
 			g = len(groups)
@@ -80,7 +87,7 @@ func reviewTargets(ctx context.Context, sql string, stmts []statement, work targ
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			findings, err := reviewGroup(sql, stmts, work, groups[i])
+			findings, err := reviewGroup(ctx, sql, stmts, work, groups[i])
 			outcomes[i] = outcome{findings: findings, err: err}
 		}()
 	}
@@ -126,7 +133,7 @@ func reviewTargets(ctx context.Context, sql string, stmts []statement, work targ
 
 // reviewGroup evaluates one distinct target. A panic is the group's
 // failure, not the review's.
-func reviewGroup(sql string, stmts []statement, work targetWork, g targetGroup) (findings []review.Finding, err error) {
+func reviewGroup(ctx context.Context, sql string, stmts []statement, work targetWork, g targetGroup) (findings []review.Finding, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			findings, err = nil, fmt.Errorf("review panicked: %v", p)
@@ -134,7 +141,12 @@ func reviewGroup(sql string, stmts []statement, work targetWork, g targetGroup) 
 	}()
 	r := &reporter{targets: g.indices}
 	t := g.target
-	x := newSchemaIndex(schemaTarget{t.Schema, t.BackupDatabaseExists, t.LowerCaseTableNames})
+	x := newSchemaIndex(targetKey(t))
+	if work.walks {
+		if err := checkWalkThrough(ctx, sql, stmts, t, r); err != nil {
+			return nil, err
+		}
+	}
 	if work.online {
 		checkOnlineMigrationTarget(stmts, t, x, r)
 	}
