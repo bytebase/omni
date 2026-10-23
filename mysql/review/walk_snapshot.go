@@ -9,20 +9,27 @@ import (
 
 // The walk's spaces (docs/specs/2026-10-22-walk-through-mysql.md §2). A
 // database is a key of the root; a relation, temporary table, foreign key,
-// trigger, routine, or event a key of its database's path; a column or an
-// index a key of its table's path.
+// trigger, routine, or event a key of its database's path; a column, an
+// index, or a table's foreign key a key of its table's path. A foreign key
+// has two keys: its name is unique in the database (1826), and DROP
+// FOREIGN KEY finds it only on its own table (1091).
 const (
-	spaceDatabase   = "database"
-	spaceRelation   = "relation"
-	spaceTemporary  = "temporary"
-	spaceColumn     = "column"
-	spaceIndex      = "index"
-	spaceForeignKey = "foreign key"
-	spaceTrigger    = "trigger"
-	spaceProcedure  = "procedure"
-	spaceFunction   = "function"
-	spaceEvent      = "event"
+	spaceDatabase        = "database"
+	spaceRelation        = "relation"
+	spaceTemporary       = "temporary"
+	spaceColumn          = "column"
+	spaceIndex           = "index"
+	spaceForeignKey      = "foreign key"
+	spaceTableForeignKey = "table foreign key"
+	spaceTrigger         = "trigger"
+	spaceProcedure       = "procedure"
+	spaceFunction        = "function"
+	spaceEvent           = "event"
 )
+
+// gipkColumn is the column of an invisible primary key
+// (sql_generate_invisible_primary_key), which the sync may not list.
+const gipkColumn = "my_row_id"
 
 // Relation kinds: tables and views share one space.
 const (
@@ -78,25 +85,28 @@ type mysqlSnapshot struct {
 	columns     map[string]map[string]bool
 	indexes     map[string]map[string]bool
 	foreignKeys map[string]bool
-	triggers    map[string]string // key → the spelling the sync lists
-	procedures  map[string]bool
-	functions   map[string]bool
-	events      map[string]bool
+	// tableForeignKeys holds each table's foreign keys.
+	tableForeignKeys map[string]map[string]bool
+	triggers         map[string]string // key → the spelling the sync lists
+	procedures       map[string]bool
+	functions        map[string]bool
+	events           map[string]bool
 	// triggered lists the relation keys of the tables with a trigger.
 	triggered map[string]bool
 }
 
 func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mysqlSnapshot {
 	s := &mysqlSnapshot{
-		relations:   make(map[string]string),
-		columns:     make(map[string]map[string]bool),
-		indexes:     make(map[string]map[string]bool),
-		foreignKeys: make(map[string]bool),
-		triggers:    make(map[string]string),
-		procedures:  make(map[string]bool),
-		functions:   make(map[string]bool),
-		events:      make(map[string]bool),
-		triggered:   make(map[string]bool),
+		relations:        make(map[string]string),
+		columns:          make(map[string]map[string]bool),
+		indexes:          make(map[string]map[string]bool),
+		foreignKeys:      make(map[string]bool),
+		triggers:         make(map[string]string),
+		tableForeignKeys: make(map[string]map[string]bool),
+		procedures:       make(map[string]bool),
+		functions:        make(map[string]bool),
+		events:           make(map[string]bool),
+		triggered:        make(map[string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	set := func(m map[string]bool, space, name string) {
@@ -125,9 +135,12 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 				set(idx, spaceIndex, i.GetName())
 			}
 			s.indexes[tk] = idx
+			fks := make(map[string]bool)
 			for _, fk := range t.GetForeignKeys() {
 				set(s.foreignKeys, spaceForeignKey, fk.GetName())
+				set(fks, spaceForeignKey, fk.GetName())
 			}
+			s.tableForeignKeys[tk] = fks
 			for _, tr := range t.GetTriggers() {
 				if k, ok := nameKey(spaceTrigger, tr.GetName(), foldTables); ok {
 					s.triggers[k] = tr.GetName()
@@ -189,18 +202,21 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 			return walk.Present, kind
 		}
 		return absent()
-	case spaceColumn, spaceIndex:
+	case spaceColumn, spaceIndex, spaceTableForeignKey:
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}
-		m, ok := s.columns[path[1]]
-		if k.Space == spaceIndex {
-			m, ok = s.indexes[path[1]]
-			if k.Name == primaryIndex && !m[primaryIndex] {
-				// An invisible primary key the sync may not list.
-				return walk.Unknown, ""
-			}
+		if (k.Name == primaryIndex && k.Space == spaceIndex || k.Name == gipkColumn && k.Space == spaceColumn) && !s.indexes[path[1]][primaryIndex] {
+			// An invisible primary key and its column, which the sync
+			// does not list under show_gipk_in_create_table_and_information_schema=OFF
+			// (verified on 8.0 and 8.4).
+			return walk.Unknown, ""
 		}
+		m, ok := map[string]map[string]map[string]bool{
+			spaceColumn:          s.columns,
+			spaceIndex:           s.indexes,
+			spaceTableForeignKey: s.tableForeignKeys,
+		}[k.Space][path[1]]
 		if !ok {
 			return walk.Unknown, ""
 		}

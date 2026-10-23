@@ -12,6 +12,7 @@ Status: decided 2026-10-23; §9 records the decisions. Step 2 of [the engines de
   - A temporary table shadows a base table of its name for every statement but `CREATE TABLE`.
   - `DROP TEMPORARY TABLE` never drops a base table.
   - `DROP TABLE` drops the temporary table first.
+  - A temporary table outlives `DROP DATABASE` of its database; one cannot be created in a missing database (1049).
 - **Server settings the walk reads:** `Target.LowerCaseTableNames`, and `Target.ForeignKeyChecks` (§9 M1). It reads no other.
 
 ## 2. Spaces
@@ -23,7 +24,8 @@ Status: decided 2026-10-23; §9 records the decisions. Step 2 of [the engines de
 | temporary | database | as tables | shadows relation for resolution |
 | column | table | ASCII case-insensitive | exists (1060), missing (1054, 1091) |
 | index | table | ASCII case-insensitive; `PRIMARY` reserved (1280) | exists (1061), missing (1091) |
-| foreign key | database | ASCII case-insensitive | exists (1826 on 8.0+, 1022 on 5.7), missing (1091) |
+| foreign key | database | ASCII case-insensitive | exists (1826 on 8.0+, 1022 on 5.7) |
+| table foreign key: the same names, by owner | table | ASCII case-insensitive | missing (1091): `DROP FOREIGN KEY` finds only its own table's |
 | trigger | database | case-sensitive on 5.7, insensitive on 8.0 | exists only on the exact spelling (1359), missing only when no ASCII case variant exists (1360) |
 | procedure, function: two spaces | database | ASCII case-insensitive | exists (1304), missing (1305) |
 | event | database | ASCII case-insensitive | exists (1537), missing (1539) |
@@ -43,9 +45,10 @@ Present is trusted from the sync. Absent is trusted for:
 - **foreign key names,** triggers, routines, and events of the target database.
 
 Never trusted Absent:
-- **the primary key:** a server with `sql_generate_invisible_primary_key=ON` gives a table created without one a hidden key. With `show_gipk_in_create_table_and_information_schema=OFF`, the sync does not see it (verified: the hidden key then fails `ADD PRIMARY KEY` with 1068 and `DROP PRIMARY KEY` with 1235);
+- **the primary key and its column `my_row_id`, of a table the sync lists without one:** a server with `sql_generate_invisible_primary_key=ON` gives a table created without one a hidden key. With `show_gipk_in_create_table_and_information_schema=OFF`, the sync does not see it (verified: the hidden key then fails `ADD PRIMARY KEY` with 1068 and `DROP PRIMARY KEY` with 1235);
 - **another database's objects;**
-- **CHECK constraints.**
+- **CHECK constraints;**
+- **a function an unqualified `DROP FUNCTION` names:** it drops a loadable function of the name first, which the sync does not list (§4).
 
 **Accepted assumption (engines design D6):** the admin user sees every object of its database, since `information_schema` lists only what it may see.
 
@@ -66,6 +69,8 @@ Never trusted Absent:
 **`RENAME TABLE a TO b, c TO d` runs its pairs in order,** so a swap through a temporary name succeeds.
 - Each pair is a part, its effects applied in order (`walk.Passes`). A pair's check on a name another pair changes is left out.
 - A missing source fails, and the rename is undone on every version.
+- A view cannot move to another database (1450).
+- Foreign keys named `<a>_ibfk_...` become `<b>_ibfk_...`, generated or not; other names stay.
 
 **`CREATE TABLE IF NOT EXISTS t`** is a notice when t exists, as a table or a view. Its `LIKE` source is checked first, so a missing source fails even then (1146).
 
@@ -74,7 +79,8 @@ Never trusted Absent:
 - `TRUNCATE` of a view fails with 1146.
 
 **Foreign keys:**
-- A foreign key to a missing table or column fails only while `foreign_key_checks` is on (1824, 3734; 1215 on 5.7).
+- A foreign key to a missing table or column fails only while `foreign_key_checks` is on (1824, 3734; 1215 on 5.7). So does one to a view (1824).
+- `DROP FOREIGN KEY f` fails when f is another table's (1091). Two foreign keys of one name in a statement fail (1826, or 1061 for the index each would add).
 - The walk tracks `SET foreign_key_checks` in the change; see decision M1 for the session's start.
 
 **Generated names:**
@@ -83,6 +89,8 @@ Never trusted Absent:
 - an unnamed CHECK is `<table>_chk_<n>`.
 
 These are May-effects on the table's index space and on the database's foreign key prefix.
+
+**Loadable functions:** an unqualified `DROP FUNCTION f` drops a loadable function named f when one exists, and the stored function only when none does. It succeeds with no stored f, and with both it leaves the stored one. `DROP FUNCTION db.f` names the stored function alone.
 
 **Dependency failures happen, but the walk makes no claim about them:**
 - `DROP TABLE` of a table a foreign key references (3730);
@@ -94,30 +102,31 @@ Views are not dependencies: dropping a table a view reads succeeds.
 
 | Statement | Checks | Effects |
 | --- | --- | --- |
-| `CREATE DATABASE [IF NOT EXISTS] d` | d Absent (1007) | d Present, everything under it Absent |
-| `DROP DATABASE [IF EXISTS] d` | d Present (1008) | d Absent, everything under it Absent; dropping the current database leaves none selected |
+| `CREATE DATABASE [IF NOT EXISTS] d` | d Absent (1007) | d Present, everything under it Absent but temporary tables |
+| `DROP DATABASE [IF EXISTS] d` | d Present (1008) | d Absent, everything under it Absent but temporary tables; dropping the current database leaves none selected |
+| `ALTER DATABASE [d]` | d Present (1049); with no name, a database selected (1046) | none |
 | `USE d` | d Present (1049) | current database |
-| `CREATE [TEMPORARY] TABLE [IF NOT EXISTS] t (...)` | database Present (1049) or selected (1046); t Absent (1050), skipped for a temporary table; within the statement: duplicate column (1060), duplicate index name (1061), two primary keys (1068), index named `PRIMARY` (1280), identifier too long (1059); a foreign key's target Present while `foreign_key_checks` is on (1824) | t Present (table) with exact columns, its named indexes and foreign keys Present; generated names as May-effects |
+| `CREATE [TEMPORARY] TABLE [IF NOT EXISTS] t (...)` | database Present (1049) or selected (1046); t Absent (1050), the temporary one for a temporary table; within the statement: duplicate column (1060), duplicate index name (1061), duplicate foreign key name (1826, 1061), two primary keys (1068), index named `PRIMARY` (1280), identifier too long (1059); a foreign key's target a base table while `foreign_key_checks` is on (1824) | t Present (table) with exact columns, its named indexes and foreign keys Present; generated names as May-effects |
 | `CREATE TABLE t LIKE s`, `CREATE TABLE t AS SELECT` | s Present (1146), even with IF NOT EXISTS; t Absent (1050) | t Present with unknown columns and indexes |
 | `ALTER TABLE t ...` | t Present (1146) and a table (1347); per subcommand: | per subcommand, drops first: |
 | — `ADD COLUMN c [FIRST, AFTER x]` | c Absent (1060); x Present (1054) | c Present; inline keys as in CREATE TABLE |
 | — `DROP COLUMN c` | c Present (1091) | c Absent; indexes on it May-removed |
 | — `CHANGE a b`, `MODIFY a`, `RENAME COLUMN a TO b` | a Present (1054); b Absent unless b is a (1060) | a moves to b |
 | — `ADD INDEX/KEY/UNIQUE/FULLTEXT/SPATIAL [i]`, `ADD PRIMARY KEY`, `ADD FOREIGN KEY [f]` | i Absent (1061); a primary key the table certainly has (1068); f Absent in the database (1826); the target Present while `foreign_key_checks` is on | i, f Present; generated names May-added |
-| — `DROP INDEX i`, `DROP KEY i`, `DROP PRIMARY KEY`, `DROP FOREIGN KEY f` | i Present (1091); f Present (1091) | i, f Absent |
+| — `DROP INDEX i`, `DROP KEY i`, `DROP PRIMARY KEY`, `DROP FOREIGN KEY f` | i Present (1091); f Present on t (1091) | i, f Absent |
 | — `RENAME INDEX a TO b` | a Present (1091); b Absent (1061) | a moves to b |
 | — `RENAME [TO] t2` | t2 Absent (1050); its database Present (1049; 1025 on 5.7) | t moves to t2 |
 | — table options, `ALGORITHM`, `LOCK`, `ENGINE`, `COMMENT`, `ALTER COLUMN SET/DROP DEFAULT`, `ALTER INDEX VISIBLE`, `CONVERT TO`, `FORCE` | none beyond t | none |
 | — partitions, `DISCARD/IMPORT TABLESPACE`, `ADD/DROP/ALTER CHECK`, `ORDER BY`, `ENABLE/DISABLE KEYS` | none beyond t | none: they change no name the walk keeps (§7) |
 | — `DROP CONSTRAINT c` | none | c's foreign key and index Unknown: c may name either, or a CHECK |
 | — anything else | | ends the walk |
-| `RENAME TABLE a TO b, ...` | per pair: a Present (1146), b Absent (1050), b's database Present (1049) | each pair moves in order |
+| `RENAME TABLE a TO b, ...` | per pair: a Present (1146), b Absent (1050), b's database Present (1049); a view stays in its database (1450) | each pair moves in order, with its `<a>_ibfk_` foreign keys renamed |
 | `DROP [TEMPORARY] TABLE [IF EXISTS] a, ...` | each a Present unless IF EXISTS, and a table (1051) | a and what it holds Absent |
 | `TRUNCATE [TABLE] t` | t Present and a table (1146) | none |
 | `CREATE [UNIQUE] INDEX i ON t`, `DROP INDEX i ON t` | t Present (1146) and a table (1347); i Absent (1061) / Present (1091) | i Present / Absent |
 | `CREATE [OR REPLACE] VIEW v`, `ALTER VIEW v` | v Absent (1050), or a view for OR REPLACE (1347); ALTER: v Present (1146) | v Present (view) |
 | `DROP VIEW [IF EXISTS] v, ...` | each v Present (1051) and a view (1347) | v Absent |
-| `CREATE/DROP TRIGGER`, `PROCEDURE`, `FUNCTION`, `EVENT [IF [NOT] EXISTS]` | name Absent / Present per §2 (1359/1360, 1304/1305, 1537/1539); a trigger's table Present (1146) | name Present / Absent; a trigger marks its table (§6) |
+| `CREATE/DROP TRIGGER`, `PROCEDURE`, `FUNCTION`, `EVENT [IF [NOT] EXISTS]` | name Absent / Present per §2 (1359/1360, 1304/1305, 1537/1539), but not for an unqualified `DROP FUNCTION` (§4); a trigger's table Present (1146); a routine's or event's database Present (1049) | name Present / Absent, Unknown for an unqualified `DROP FUNCTION`; a trigger marks its table (§6) |
 | `INSERT`, `REPLACE`, `UPDATE`, `DELETE`, `LOAD DATA` | each target relation Present (1146) | none; see §6 |
 | `SELECT`, `DO`, `VALUES`, `TABLE`, `EXPLAIN`, `SET` (other than `foreign_key_checks`), `SHOW`, `ANALYZE/OPTIMIZE/CHECK/CHECKSUM/REPAIR TABLE`, `FLUSH`, `GRANT/REVOKE` and the user and role statements, `BEGIN/COMMIT/SAVEPOINT/RELEASE`, `UNLOCK TABLES` | none | none, unless it may call a stored function (§6) |
 | `SET foreign_key_checks = 0/1` | none | session state |
@@ -126,8 +135,8 @@ Views are not dependencies: dropping a table a view reads succeeds.
 
 - `CALL`, `PREPARE`, `EXECUTE`, `DEALLOCATE`, `HANDLER`, `XA`, `ROLLBACK [TO SAVEPOINT]`, `LOCK TABLES`, and anything not in §5.
 - **Temporary tables are forgotten, and the walk goes on,** after a statement that may run code which creates or drops one:
-  - DML, after its checks, on a table that has a trigger (synced or created by the change), on a view or a table the walk does not know, or on any table while triggers are unknown (`OtherSpecs`). Cascaded foreign key actions fire no triggers (verified), so only the statement's own target tables count.
-  - A statement that may call a stored function: a qualified call, a call to a function of the target database, or any call while functions are unknown (`OtherSpecs`).
+  - DML, after its checks, on a table that has a trigger (synced or created by the change), on any table while triggers are unknown (`OtherSpecs`), and on a view, a join, or a table the walk does not know, which may be another database's, with triggers the walk does not know. Cascaded foreign key actions fire no triggers (verified), so only the statement's own target tables count.
+  - A statement that may call a stored function, `CREATE TABLE ... AS SELECT` included: a qualified call, a call to a function of the target database, or any call while functions are unknown (`OtherSpecs`).
   - Neither a trigger nor a stored function may run a statement that commits: `CREATE FUNCTION` with `CREATE TABLE` in its body fails with 1422, while one that creates or drops a temporary table runs (verified on 8.0). So nothing else is forgotten.
 - A routine or event body is not walked; its `CREATE` is lowered for the name alone.
 - **Accepted assumption (D6):** events do not change the schema while the change runs.
@@ -236,6 +245,17 @@ MySQL 5.7.44, 8.0.46 (`lower_case_table_names` 0 and 1), and 8.4.13. "All" means
   - `CREATE TRIGGER/PROCEDURE IF NOT EXISTS` are 8.0+.
 - **Invisible primary key:** with it on, a table created without a key gets one, and `show_gipk_in_create_table_and_information_schema` (on by default) decides whether `information_schema` lists it. On the hidden key, `DROP PRIMARY KEY` fails with 1235, `ADD PRIMARY KEY` with 1068, and `ADD COLUMN my_row_id` with 1060.
 - **Triggers:** a cascaded `ON DELETE CASCADE` delete does not fire the child table's trigger.
+- **Verified on 8.0.46 and 8.4.13 in PR review (2026-10-23):**
+  - `ALTER TABLE u DROP FOREIGN KEY f` with f on another table fails with 1091.
+  - `RENAME TABLE g TO h` and `ALTER TABLE h RENAME TO k` rename `g_ibfk_1` and a user-named `g_ibfk_9` to `h_...` and then `k_...`, within a database and across; other names stay.
+  - Two foreign keys named f in one `CREATE TABLE` or `ALTER TABLE` fail with 1826, or with 1061 when each needs an index of its own.
+  - `REFERENCES v (...)` to a view fails with 1824. `RENAME TABLE v TO q.v` of a view fails with 1450.
+  - A temporary table survives `DROP DATABASE` of its database, and `DROP TEMPORARY TABLE` finds it after the database is created again. `CREATE TEMPORARY TABLE` in a missing database fails with 1049. Its definition is checked like a base table's (1060, 1061, 1068); `IF NOT EXISTS` on an existing one is a note even then.
+  - `CREATE PROCEDURE`, `CREATE FUNCTION`, `CREATE EVENT`, `CREATE VIEW`, and `ALTER EVENT ... RENAME TO` into a missing database fail with 1049. `ALTER DATABASE` naming none fails with 1046 after `DROP DATABASE` of the current one.
+  - `DROP VIEW IF EXISTS t` of a table is a note (1347), not an error.
+  - With `show_gipk_in_create_table_and_information_schema=OFF`, `information_schema` lists neither the hidden key nor `my_row_id`, and `ADD x AFTER my_row_id` succeeds.
+  - A stored function cannot run a statement that commits (1422), but may create or drop a temporary table, and so may one called from `CREATE TABLE ... AS SELECT`; so may a trigger of another database.
+  - Unqualified `DROP FUNCTION f` drops a loadable function of the name (`locking_service.so`) before a stored one; `DROP FUNCTION shop.f` drops only the stored one (1305 without it).
 - **No failure:**
   - `ANALYZE`, `OPTIMIZE`, and `CHECK TABLE` of a missing table return a row rather than fail.
   - After `LOCK TABLES t WRITE`, DML on another table fails with 1100.

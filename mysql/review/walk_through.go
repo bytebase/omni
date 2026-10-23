@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"strings"
 
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/review"
@@ -162,6 +163,25 @@ func idxKey(db, table, name string) walk.Key {
 // objKey keys a foreign key, trigger, routine, or event of a database.
 func objKey(space, db, name string) walk.Key {
 	return walk.Key{Space: space, Parent: walk.Path(db), Name: name}
+}
+
+// fkKeys returns a table's foreign key's two keys: its name in the
+// database, and on the table.
+func fkKeys(r tableRef, name string) (walk.Key, walk.Key) {
+	return objKey(spaceForeignKey, r.db, name), walk.Key{Space: spaceTableForeignKey, Parent: tablePath(r.db, r.name), Name: name}
+}
+
+// generatedFKs returns the prefix of the foreign key names MySQL generates
+// for a table, <table>_ibfk_<n>; RENAME TABLE renames every foreign key
+// whose name begins with it along with the table (verified on 8.0 and
+// 8.4). For a name outside ASCII it returns "", which takes in every name:
+// such a foreign key's key is its exact spelling, which the table's key
+// need not be.
+func generatedFKs(table string) string {
+	if strings.HasPrefix(table, nonASCII) {
+		return ""
+	}
+	return strings.ToLower(table) + "_ibfk_"
 }
 
 func (b *builder) key(space, name string) (string, bool) {

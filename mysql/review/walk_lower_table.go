@@ -147,14 +147,21 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			if !ok {
 				return false
 			}
-			fk := objKey(spaceForeignKey, r.db, k)
-			b.need(fk, walk.Present, nil, rng, "Foreign key "+ident(c.Name)+" does not exist in table "+r.written, "") // 1091
+			// The name must be the table's: another table's foreign key of
+			// the name fails as a missing one does (1091, verified).
+			fk, own := fkKeys(r, k)
+			msg := "Foreign key " + ident(c.Name) + " does not exist in table " + r.written
+			b.need(fk, walk.Present, nil, rng, msg, "")  // 1091
+			b.need(own, walk.Present, nil, rng, msg, "") // 1091
 			b.Set(fk, walk.Absent, "")
+			b.Set(own, walk.Absent, "")
 		case dropCheck:
 		case dropConstraint:
 			// The foreign key, unique key, or check of the name.
 			if k, ok := b.key(spaceForeignKey, c.Name); ok {
-				b.Set(objKey(spaceForeignKey, r.db, k), walk.Unknown, "")
+				fk, own := fkKeys(r, k)
+				b.Set(fk, walk.Unknown, "")
+				b.Set(own, walk.Unknown, "")
 				b.Set(idxKey(r.db, r.name, k), walk.Unknown, "")
 			}
 		default:
@@ -242,7 +249,12 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			switch con.Type {
 			case ast.ConstrPrimaryKey:
 				primaries++
-			case ast.ConstrForeignKey, ast.ConstrCheck:
+			case ast.ConstrForeignKey:
+				// 1826, or 1061 for the index each would add (verified).
+				if twice("add foreign key", spaceForeignKey, con.Name, rng, "Foreign key "+ident(con.Name)+" is added twice to table "+r.written) {
+					return true
+				}
+			case ast.ConstrCheck:
 			default:
 				if k, ok := b.key(spaceIndex, con.Name); ok && k == primaryIndex {
 					b.fail(rng, nil, "Index name PRIMARY is reserved for the primary key")
@@ -393,7 +405,8 @@ func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd) bool {
 // so, to another database, do its foreign keys and triggers, under names
 // the walk does not list.
 func (b *builder) moveTable(from, to tableRef, kind string) {
-	b.Move(tablePath(from.db, from.name), tablePath(to.db, to.name))
+	toPath := tablePath(to.db, to.name)
+	b.Move(tablePath(from.db, from.name), toPath)
 	b.Set(relKey(from.db, from.name), walk.Absent, "")
 	b.Set(relKey(to.db, to.name), walk.Present, kind)
 	if from.db != to.db {
@@ -402,6 +415,13 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 			b.MayAdd(walk.Scope{Space: space, Parent: walk.Path(to.db)})
 		}
 	}
+	// The foreign keys named <from>_ibfk_... become <to>_ibfk_...
+	// (verified on 8.0 and 8.4).
+	old, renamed := generatedFKs(from.name), generatedFKs(to.name)
+	b.MayRemove(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(from.db), Prefix: old})
+	b.MayAdd(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(to.db), Prefix: renamed})
+	b.MayRemove(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: old})
+	b.MayAdd(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: renamed})
 	fk, tk := relKey(from.db, from.name), relKey(to.db, to.name)
 	b.Session(func() {
 		if b.w.triggered[fk] {
@@ -439,6 +459,10 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 		b.need(fk, walk.Present, nil, from.rng, "Table "+from.written+" does not exist", "") // 1146; 1017 on 5.7
 		if p.New.Schema != "" {
 			b.databaseNeeds(to.db, p.New.Schema, to.rng) // 1049; 1025 on 5.7
+		}
+		if kind == relView && from.db != to.db {
+			b.fail(to.rng, []walk.Key{fk}, "View "+from.written+" cannot move to another database") // 1450 (verified)
+			return true
 		}
 		b.need(relKey(to.db, to.name), walk.Absent, nil, to.rng, "", "Table "+to.written+" already exists") // 1050
 		b.moveTable(from, to, kind)

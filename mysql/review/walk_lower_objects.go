@@ -191,6 +191,17 @@ func (b *builder) dbObject(space string, tr *ast.TableRef) (string, string, bool
 	return k, b.w.current, true
 }
 
+// createdObject resolves the name of a routine or event a statement
+// creates, or an event is renamed to: a database it names must exist
+// (1049, verified).
+func (b *builder) createdObject(space string, tr *ast.TableRef) (string, string, bool) {
+	k, db, ok := b.dbObject(space, tr)
+	if ok && tr.Schema != "" {
+		b.databaseNeeds(db, tr.Schema, b.anchor())
+	}
+	return k, db, ok
+}
+
 func routineSpace(procedure bool) (string, string) {
 	if procedure {
 		return spaceProcedure, "PROCEDURE "
@@ -204,7 +215,7 @@ func (b *builder) createRoutine(v *ast.CreateFunctionStmt) bool {
 		return true
 	}
 	space, word := routineSpace(v.IsProcedure)
-	k, db, ok := b.dbObject(space, v.Name)
+	k, db, ok := b.createdObject(space, v.Name)
 	if !ok {
 		return false
 	}
@@ -230,6 +241,10 @@ func (b *builder) alterRoutine(v *ast.AlterRoutineStmt) bool {
 	return true
 }
 
+// dropRoutine follows DROP PROCEDURE and DROP FUNCTION. An unqualified
+// DROP FUNCTION drops a loadable function of the name first, which the
+// sync does not list: it succeeds with no stored function, and leaves the
+// stored one when both exist (verified on 8.0 and 8.4).
 func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 	space, word := routineSpace(v.IsProcedure)
 	k, db, ok := b.dbObject(space, v.Name)
@@ -237,6 +252,12 @@ func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 		return false
 	}
 	rk := objKey(space, db, k)
+	if !v.IsProcedure && v.Name.Schema == "" {
+		if f, _ := b.l.Lookup(rk); f == walk.Present {
+			b.Set(rk, walk.Unknown, "")
+		}
+		return true
+	}
 	if !v.IfExists {
 		b.need(rk, walk.Present, nil, b.anchor(), word+ident(v.Name.Name)+" does not exist", "") // 1305
 	}
@@ -244,18 +265,23 @@ func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 	return true
 }
 
-// event resolves an event name, which a database may qualify.
-func (b *builder) event(name string) (walk.Key, bool) {
+// event resolves an event name, which a database may qualify; a created
+// one's database must exist.
+func (b *builder) event(name string, created bool) (walk.Key, bool) {
 	tr := &ast.TableRef{Name: name}
 	if i := strings.IndexByte(name, '.'); i > 0 {
 		tr = &ast.TableRef{Schema: name[:i], Name: name[i+1:]}
 	}
-	k, db, ok := b.dbObject(spaceEvent, tr)
+	resolve := b.dbObject
+	if created {
+		resolve = b.createdObject
+	}
+	k, db, ok := resolve(spaceEvent, tr)
 	return objKey(spaceEvent, db, k), ok
 }
 
 func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
-	ek, ok := b.event(v.Name)
+	ek, ok := b.event(v.Name, true)
 	if !ok {
 		return false
 	}
@@ -267,13 +293,13 @@ func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
 }
 
 func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
-	ek, ok := b.event(v.Name)
+	ek, ok := b.event(v.Name, false)
 	if !ok {
 		return false
 	}
 	b.need(ek, walk.Present, nil, b.anchor(), "Event "+ident(v.Name)+" does not exist", "") // 1539
 	if v.RenameTo != "" {
-		nk, ok := b.event(v.RenameTo)
+		nk, ok := b.event(v.RenameTo, true)
 		if !ok {
 			return false
 		}
@@ -287,7 +313,7 @@ func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
 }
 
 func (b *builder) dropEvent(v *ast.DropEventStmt) bool {
-	ek, ok := b.event(v.Name)
+	ek, ok := b.event(v.Name, false)
 	if !ok {
 		return false
 	}
@@ -313,15 +339,19 @@ func singleTarget(exprs []ast.TableExpr) []*ast.TableRef {
 // must exist (1146), as a table, a temporary table, or a view. A trigger
 // it fires, or a stored function it calls, may create or drop temporary
 // tables; nothing else (spec §6).
+//
+// A table the walk does not know, a view's base tables, and the tables of
+// a join may be in another database, whose triggers the walk does not
+// know either.
 func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
-	fires := targets == nil && (b.w.anyTrigger || len(b.w.triggered) > 0)
+	fires := targets == nil
 	for _, t := range targets {
 		r, st := b.ref(t)
 		switch st {
 		case refFailed:
 			return true
 		case refUnknown:
-			fires = fires || b.w.anyTrigger || len(b.w.triggered) > 0
+			fires = true
 			continue
 		}
 		f, temp, kind := b.resolve(r)
@@ -330,8 +360,7 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 		case f == walk.Absent:
 			b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, "Table "+r.written+" does not exist", "") // 1146
 		case f == walk.Unknown, kind != relTable:
-			// A view's base tables may fire their triggers.
-			fires = fires || b.w.anyTrigger || len(b.w.triggered) > 0
+			fires = true
 		default:
 			fires = fires || b.w.anyTrigger || b.w.triggered[relKey(r.db, r.name)]
 		}

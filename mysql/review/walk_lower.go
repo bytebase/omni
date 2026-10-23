@@ -1,8 +1,6 @@
 package review
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
@@ -116,7 +114,7 @@ func (b *builder) createDatabase(v *ast.CreateDatabaseStmt) bool {
 	switch prior {
 	case walk.Absent:
 		b.Set(k, walk.Present, "")
-		b.Clear(walk.Scope{Parent: walk.Path(d), Deep: true})
+		b.clearDatabase(d)
 	case walk.Unknown:
 		b.Set(k, walk.Present, "")
 	}
@@ -133,15 +131,29 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 		b.need(k, walk.Present, nil, b.anchor(), "Database "+ident(v.Name)+" does not exist", "") // 1008
 	}
 	b.Set(k, walk.Absent, "")
-	b.Clear(walk.Scope{Parent: walk.Path(d), Deep: true})
+	b.clearDatabase(d)
 	if !b.w.lost && d == b.w.current {
 		b.Session(func() { b.w.noDatabase = true })
 	}
 	return true
 }
 
+// clearDatabase records that a database holds nothing, temporary tables
+// aside: a session's temporary tables outlive DROP DATABASE of theirs
+// (verified on 8.0 and 8.4).
+func (b *builder) clearDatabase(d string) {
+	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
+		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
+	}
+}
+
+// alterDatabase follows ALTER DATABASE, of the current database when it
+// names none, which fails once that is dropped (1046, verified).
 func (b *builder) alterDatabase(v *ast.AlterDatabaseStmt) bool {
 	if v.Name == "" {
+		if b.w.noDatabase && !b.w.lost {
+			b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, noDatabaseMessage)
+		}
 		return true
 	}
 	d, ok := b.key(spaceDatabase, v.Name)
@@ -197,15 +209,28 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			}
 		}
 	}
+	// A stored function the query calls may create or drop temporary
+	// tables (verified).
+	if v.Select != nil && b.callsStoredFunction(v.Select) {
+		b.forgetTemporary()
+	}
 	if v.Temporary {
 		tk := tempKey(r.db, r.name)
 		prior, _ := b.l.Lookup(tk)
 		if !v.IfNotExists {
 			b.need(tk, walk.Absent, nil, r.rng, "", "Table "+r.written+" already exists") // 1050
 		}
-		if prior != walk.Present || !v.IfNotExists {
-			b.Set(tk, walk.Present, relTable)
+		if v.IfNotExists && prior != walk.Absent {
+			// A note when the table exists, its text unread (verified).
+			if prior == walk.Unknown {
+				b.Set(tk, walk.Present, relTable)
+			}
+			return true
 		}
+		if b.tableTextFails(v, r) {
+			return true
+		}
+		b.Set(tk, walk.Present, relTable)
 		return true
 	}
 	k := relKey(r.db, r.name)
@@ -259,8 +284,9 @@ func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 }
 
 // tableTextFails fails a CREATE TABLE its text alone refutes (verified):
-// a column named twice (1060), two indexes of one name (1061), two primary
-// keys (1068), or an index named PRIMARY (1280).
+// a column named twice (1060), two indexes of one name (1061), two foreign
+// keys of one name (1826, or 1061 for the index each would add), two
+// primary keys (1068), or an index named PRIMARY (1280).
 func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 	columns := make(map[string]bool)
 	for _, c := range v.Columns {
@@ -276,6 +302,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 	}
 	primaries := 0
 	indexes := make(map[string]bool)
+	foreignKeys := make(map[string]bool)
 	for _, c := range v.Columns {
 		for _, cc := range c.Constraints {
 			if cc.Type == ast.ColConstrPrimaryKey {
@@ -288,7 +315,16 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		case ast.ConstrPrimaryKey:
 			primaries++
 			continue
-		case ast.ConstrForeignKey, ast.ConstrCheck:
+		case ast.ConstrForeignKey:
+			if k, ok := b.key(spaceForeignKey, c.Name); ok {
+				if foreignKeys[k] {
+					b.fail(rangeOf(c.Loc), nil, "Foreign key "+ident(c.Name)+" is specified twice in table "+r.written)
+					return true
+				}
+				foreignKeys[k] = true
+			}
+			continue
+		case ast.ConstrCheck:
 			continue
 		}
 		k, ok := b.key(spaceIndex, c.Name)
@@ -335,7 +371,7 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 	}
 	if !primary {
 		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Unknown, "")
-		b.Set(colKey(r.db, r.name, "my_row_id"), walk.Unknown, "")
+		b.Set(colKey(r.db, r.name, gipkColumn), walk.Unknown, "")
 	}
 }
 
@@ -372,7 +408,9 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 	case ast.ConstrCheck:
 	case ast.ConstrForeignKey:
 		if k, ok := b.key(spaceForeignKey, c.Name); ok {
-			b.Set(objKey(spaceForeignKey, r.db, k), walk.Present, "")
+			fk, own := fkKeys(r, k)
+			b.Set(fk, walk.Present, "")
+			b.Set(own, walk.Present, "")
 		} else {
 			b.mayAddForeignKeys(r)
 		}
@@ -387,15 +425,17 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 	return false
 }
 
-// mayAddForeignKeys records a foreign key of a generated name, which
-// begins with the table's name: <table>_ibfk_<n>.
+// mayAddForeignKeys records a foreign key of a generated name,
+// <table>_ibfk_<n>.
 func (b *builder) mayAddForeignKeys(r tableRef) {
-	b.MayAdd(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(r.db), Prefix: strings.ToLower(strings.TrimPrefix(r.name, nonASCII))})
+	p := generatedFKs(r.name)
+	b.MayAdd(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(r.db), Prefix: p})
+	b.MayAdd(walk.Scope{Space: spaceTableForeignKey, Parent: tablePath(r.db, r.name), Prefix: p})
 }
 
 // foreignKeyTarget checks a foreign key's referenced table while the
-// session checks foreign keys (1824; 1215 on 5.7): a table that refers to
-// itself needs nothing.
+// session checks foreign keys: it must be a base table (1824, a view too;
+// 1215 on 5.7). A table that refers to itself needs nothing.
 func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
 	if b.w.fkChecks != review.SwitchOn || c.RefTable == nil {
 		return
@@ -405,6 +445,6 @@ func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
 		return
 	}
 	if f, temp, _ := b.resolve(t); !temp && f != walk.Unknown {
-		b.need(relKey(t.db, t.name), walk.Present, nil, t.rng, "Foreign key target table "+t.written+" does not exist", "")
+		b.need(relKey(t.db, t.name), walk.Present, []string{relTable}, t.rng, "Foreign key target table "+t.written+" does not exist", "Foreign key target "+t.written+" is not a base table")
 	}
 }

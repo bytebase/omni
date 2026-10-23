@@ -24,11 +24,12 @@ import (
 )
 
 // walkBase is the shop database the curated cases start from: tables with
-// keys and a foreign key, a table with a trigger, a view, a routine of
-// each kind, and an event.
+// keys and foreign keys, one of a generated name, a table with a trigger,
+// a view, a routine of each kind, and an event.
 const walkBase = `
 CREATE TABLE r (id int PRIMARY KEY);
 CREATE TABLE t (id int PRIMARY KEY, a int, b int, KEY i (a), CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES r (id));
+CREATE TABLE child (id int PRIMARY KEY, b int, FOREIGN KEY (b) REFERENCES r (id));
 CREATE TABLE nokey (a int);
 CREATE TABLE trg (a int);
 CREATE TRIGGER tr BEFORE INSERT ON trg FOR EACH ROW SET NEW.a = 1;
@@ -38,8 +39,10 @@ CREATE FUNCTION f() RETURNS int DETERMINISTIC RETURN 1;
 CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 `
 
+// walkCase is a change on walkBase, after setup when it has one.
 type walkCase struct {
 	name     string
+	setup    string
 	change   string
 	complete bool
 }
@@ -47,7 +50,8 @@ type walkCase struct {
 var walkCases = []walkCase{
 	// Databases and USE.
 	{name: "databases", change: "CREATE DATABASE shop;\nCREATE DATABASE q;\nCREATE DATABASE q;\nCREATE DATABASE IF NOT EXISTS q;\nDROP DATABASE IF EXISTS nosuch;\nUSE nosuch;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);\nDROP DATABASE q;\nCREATE TABLE q.y (a int);", complete: true},
-	{name: "no database selected", change: "DROP DATABASE shop;\nCREATE TABLE x (a int);"},
+	{name: "no database selected", change: "DROP DATABASE shop;\nALTER DATABASE CHARACTER SET utf8mb4;\nCREATE TABLE x (a int);", complete: true},
+	{name: "objects in a dropped database", change: "CREATE DATABASE z;\nDROP DATABASE z;\nCREATE PROCEDURE z.p() SELECT 1;\nCREATE FUNCTION z.f() RETURNS int DETERMINISTIC RETURN 1;\nCREATE VIEW z.w AS SELECT 1 AS a;\nCREATE TEMPORARY TABLE z.tmp (a int);", complete: true},
 	{name: "USE moves unqualified names", change: "CREATE DATABASE q;\nUSE q;\nCREATE TABLE t (a int);\nCREATE TABLE t (a int);\nUSE shop;\nCREATE TABLE t (a int);", complete: true},
 	// Tables.
 	{name: "create a table that exists", change: "CREATE TABLE t (a int);\nCREATE TABLE v (a int);\nCREATE TABLE IF NOT EXISTS t (a int);\nCREATE TABLE IF NOT EXISTS v (a int);\nCREATE TABLE IF NOT EXISTS v LIKE nosuch;\nCREATE TABLE x LIKE nosuch;", complete: true},
@@ -58,17 +62,27 @@ var walkCases = []walkCase{
 	{name: "ALTER TABLE drops first", change: "ALTER TABLE t ADD COLUMN a int, DROP COLUMN a;\nALTER TABLE t DROP INDEX i, ADD INDEX i (b);\nALTER TABLE t DROP COLUMN a;\nALTER TABLE t DROP COLUMN a;\nALTER TABLE t RENAME COLUMN b TO c, ADD COLUMN b int;\nALTER TABLE t DROP COLUMN zz, ADD COLUMN y int;", complete: true},
 	{name: "ALTER TABLE subcommands", change: "ALTER TABLE nosuch ADD COLUMN a int;\nALTER TABLE v ADD COLUMN a int;\nALTER TABLE t ADD COLUMN A int;\nALTER TABLE t ADD COLUMN c int AFTER nosuch;\nALTER TABLE t DROP COLUMN nosuch;\nALTER TABLE t MODIFY COLUMN nosuch int;\nALTER TABLE t CHANGE nosuch c int;\nALTER TABLE t CHANGE a b int;\nALTER TABLE t ALTER COLUMN nosuch SET DEFAULT 1;\nALTER TABLE t ADD INDEX I (b);\nALTER TABLE t ADD INDEX `PRIMARY` (b);\nALTER TABLE t DROP INDEX nosuch;\nALTER TABLE t ADD PRIMARY KEY (a);\nALTER TABLE t RENAME INDEX nosuch TO j;\nALTER TABLE t RENAME INDEX i TO PRIMARY2;\nALTER TABLE t ALTER INDEX nosuch INVISIBLE;", complete: true},
 	{name: "repeated subcommands", change: "ALTER TABLE t ADD COLUMN c int, ADD COLUMN c int;\nALTER TABLE t DROP COLUMN a, DROP COLUMN a;\nALTER TABLE t ADD INDEX k (a), ADD INDEX k (b);\nALTER TABLE nokey ADD PRIMARY KEY (a), ADD PRIMARY KEY (a);\nALTER TABLE t DROP INDEX i, DROP INDEX i;", complete: true},
-	{name: "foreign keys", change: "ALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE t DROP FOREIGN KEY nosuch;\nALTER TABLE t DROP FOREIGN KEY fk1;\nALTER TABLE t DROP FOREIGN KEY fk1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nCREATE TABLE w (id int PRIMARY KEY, p int, FOREIGN KEY (p) REFERENCES w (id));", complete: true},
+	{name: "foreign keys", change: "CREATE TABLE y0 (a int, FOREIGN KEY (a) REFERENCES v (id));\nALTER TABLE nokey DROP FOREIGN KEY fk1;\nALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE t DROP FOREIGN KEY nosuch;\nALTER TABLE t DROP FOREIGN KEY fk1;\nALTER TABLE t DROP FOREIGN KEY fk1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nCREATE TABLE w (id int PRIMARY KEY, p int, FOREIGN KEY (p) REFERENCES w (id));", complete: true},
+	{name: "foreign keys named twice", change: "CREATE TABLE x (a int, b int, CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), CONSTRAINT f FOREIGN KEY (b) REFERENCES r (id));\nCREATE TABLE x (a int, b int, CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), CONSTRAINT F FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE x (a int, b int);\nALTER TABLE x ADD CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), ADD CONSTRAINT F FOREIGN KEY (b) REFERENCES r (id);", complete: true},
+	// RENAME TABLE renames the foreign keys named <table>_ibfk_...
+	{name: "renamed generated foreign key names", change: "CREATE TABLE g (id int PRIMARY KEY, b int, FOREIGN KEY (b) REFERENCES r (id));\nRENAME TABLE g TO h;\nALTER TABLE nokey ADD CONSTRAINT g_ibfk_1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE h DROP FOREIGN KEY h_ibfk_1;\nALTER TABLE h DROP FOREIGN KEY h_ibfk_1;\nRENAME TABLE child TO kid;\nALTER TABLE kid DROP FOREIGN KEY kid_ibfk_1;\nALTER TABLE kid DROP FOREIGN KEY kid_ibfk_1;\nALTER TABLE kid RENAME TO c2;\nCREATE TABLE child (id int PRIMARY KEY, b int, CONSTRAINT child_ibfk_1 FOREIGN KEY (b) REFERENCES r (id));", complete: true},
 	{name: "a table with no primary key may get an invisible one", change: "CREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;\nALTER TABLE g ADD PRIMARY KEY (a);"},
+	{name: "the sync may not list an invisible primary key", setup: "SET GLOBAL show_gipk_in_create_table_and_information_schema = OFF;\nSET SESSION sql_generate_invisible_primary_key = ON;\nCREATE TABLE gk (a int);", change: "ALTER TABLE gk ADD COLUMN x int AFTER my_row_id;\nALTER TABLE gk ADD COLUMN my_row_id int;\nALTER TABLE gk ADD PRIMARY KEY (a);"},
+	{name: "a view stays in its database", change: "CREATE DATABASE q;\nRENAME TABLE v TO q.v;\nDROP VIEW v;", complete: true},
 	{name: "RENAME", change: "RENAME TABLE nosuch TO x;\nRENAME TABLE t TO r;\nRENAME TABLE t TO tmp, r TO t, tmp TO r;\nALTER TABLE r ADD COLUMN a int;\nALTER TABLE t RENAME TO r;\nALTER TABLE t RENAME TO t2;\nALTER TABLE t ADD COLUMN zz int;\nCREATE DATABASE q;\nRENAME TABLE nokey TO q.nokey;\nCREATE TABLE q.nokey (a int);", complete: true},
 	// DROP and TRUNCATE.
 	{name: "DROP TABLE", change: "DROP TABLE t, nosuch;\nDROP TABLE v;\nDROP TABLE IF EXISTS nosuch, nokey;\nDROP TABLE nokey;\nDROP VIEW t;\nDROP VIEW nosuch;\nDROP VIEW IF EXISTS nosuch, v;\nDROP VIEW v;\nTRUNCATE TABLE nosuch;\nTRUNCATE TABLE v;", complete: true},
+	{name: "a temporary table's definition", change: "CREATE TEMPORARY TABLE tmp (a int, a int);\nCREATE TEMPORARY TABLE tmp (a int, KEY k (a), KEY k (a));\nCREATE TEMPORARY TABLE tmp (a int PRIMARY KEY, PRIMARY KEY (a));\nCREATE TEMPORARY TABLE tmp (a int);\nCREATE TEMPORARY TABLE IF NOT EXISTS tmp (a int, a int);\nCREATE TEMPORARY TABLE tmp (a int);", complete: true},
+	{name: "temporary tables outlive their database", change: "CREATE DATABASE q;\nCREATE TEMPORARY TABLE q.tmp (a int);\nDROP DATABASE q;\nCREATE DATABASE q;\nDROP TEMPORARY TABLE q.tmp;\nDROP TEMPORARY TABLE q.tmp;", complete: true},
 	{name: "temporary tables", change: "CREATE TEMPORARY TABLE t (z int);\nALTER TABLE nokey ADD COLUMN z int;\nINSERT INTO t (z) VALUES (1);\nDROP TABLE t;\nINSERT INTO t (id) VALUES (1);\nDROP TEMPORARY TABLE t;\nDROP TEMPORARY TABLE IF EXISTS t;\nCREATE TEMPORARY TABLE tt (a int);\nCREATE TEMPORARY TABLE tt (a int);\nTRUNCATE TABLE tt;", complete: true},
 	// Indexes, views, triggers, routines, events.
 	{name: "CREATE and DROP INDEX", change: "CREATE INDEX k ON nosuch (a);\nCREATE INDEX k ON v (id);\nCREATE INDEX i ON t (b);\nCREATE INDEX `PRIMARY` ON t (b);\nDROP INDEX nosuch ON t;\nDROP INDEX i ON nosuch;\nDROP INDEX i ON t;\nDROP INDEX i ON t;", complete: true},
-	{name: "views", change: "CREATE VIEW t AS SELECT 1 AS a;\nCREATE VIEW v AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW t AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW v AS SELECT 1 AS a;\nALTER VIEW nosuch AS SELECT 1 AS a;\nALTER VIEW t AS SELECT 1 AS a;", complete: true},
+	{name: "views", change: "CREATE VIEW t AS SELECT 1 AS a;\nCREATE VIEW v AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW t AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW v AS SELECT 1 AS a;\nALTER VIEW nosuch AS SELECT 1 AS a;\nALTER VIEW t AS SELECT 1 AS a;\nDROP VIEW IF EXISTS t;\nDROP VIEW t;", complete: true},
 	{name: "triggers", change: "CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;\nCREATE TRIGGER tr2 BEFORE INSERT ON nosuch FOR EACH ROW SET NEW.a = 1;\nDROP TRIGGER nosuch;\nDROP TRIGGER tr;\nDROP TRIGGER tr;\nCREATE TRIGGER TR BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", complete: true},
-	{name: "routines and events", change: "CREATE PROCEDURE p() SELECT 1;\nCREATE PROCEDURE P() SELECT 1;\nCREATE FUNCTION p() RETURNS int DETERMINISTIC RETURN 1;\nCREATE FUNCTION f() RETURNS int DETERMINISTIC RETURN 1;\nDROP PROCEDURE nosuch;\nDROP FUNCTION nosuch;\nALTER PROCEDURE nosuch COMMENT 'x';\nCREATE EVENT E ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nDROP EVENT nosuch;\nALTER EVENT nosuch COMMENT 'x';\nALTER EVENT e RENAME TO e2;\nDROP EVENT e;", complete: true},
+	{name: "routines and events", change: "CREATE PROCEDURE p() SELECT 1;\nCREATE PROCEDURE P() SELECT 1;\nCREATE FUNCTION p() RETURNS int DETERMINISTIC RETURN 1;\nCREATE FUNCTION f() RETURNS int DETERMINISTIC RETURN 1;\nDROP PROCEDURE nosuch;\nDROP FUNCTION shop.nosuch;\nALTER PROCEDURE nosuch COMMENT 'x';\nCREATE EVENT E ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nDROP EVENT nosuch;\nALTER EVENT nosuch COMMENT 'x';\nALTER EVENT e RENAME TO e2;\nDROP EVENT e;", complete: true},
+	// An unqualified DROP FUNCTION drops a loadable function of the name
+	// first, which the sync does not list.
+	{name: "loadable functions", change: "CREATE FUNCTION service_get_read_locks RETURNS INT SONAME 'locking_service.so';\nDROP FUNCTION service_get_read_locks;\nDROP FUNCTION shop.service_get_read_locks;\nCREATE FUNCTION service_get_read_locks RETURNS INT SONAME 'locking_service.so';\nCREATE FUNCTION service_get_read_locks() RETURNS int DETERMINISTIC RETURN 1;\nDROP FUNCTION service_get_read_locks;\nDROP FUNCTION shop.service_get_read_locks;\nDROP FUNCTION shop.service_get_read_locks;", complete: true},
 	// DML.
 	{name: "DML targets", change: "INSERT INTO nosuch VALUES (1);\nUPDATE nosuch SET a = 1;\nDELETE FROM nosuch;\nREPLACE INTO nosuch VALUES (1);\nINSERT INTO v VALUES (1);\nINSERT INTO nokey VALUES (1);", complete: true},
 	// Name case: tables and databases fold only under lower_case_table_names
@@ -76,9 +90,12 @@ var walkCases = []walkCase{
 	{name: "name case", change: "CREATE TABLE T (a int);\nDROP TABLE NOKEY;\nCREATE DATABASE Q;\nCREATE DATABASE q;\nCREATE TABLE Q.x (a int);\nCREATE TABLE q.X (a int);\nALTER TABLE R ADD COLUMN ID int;\nCREATE VIEW V AS SELECT 1 AS a;\nDROP PROCEDURE P;\nDROP FUNCTION F;\nDROP EVENT E;\nDROP TRIGGER TR;\nCREATE TRIGGER Tr BEFORE INSERT ON r FOR EACH ROW SET NEW.id = 1;", complete: true},
 	// What the walk leaves Unknown by design (spec §6): databases other than
 	// the target, the tables a query reads, generated index names, foreign
-	// key names held per database, a primary key GIPK may have added, and a
-	// key two parts of one ALTER TABLE both change.
-	{name: "unknown by design", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT * FROM nosuch;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nCREATE TABLE y (a int, CONSTRAINT fy FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE z LIKE y;\nALTER TABLE z DROP FOREIGN KEY fy;\nALTER TABLE nokey DROP PRIMARY KEY;\nALTER TABLE t ADD COLUMN z int, DROP COLUMN z;\nALTER TABLE t ADD INDEX j (b), DROP INDEX j;\nALTER TABLE t ADD COLUMN x int, RENAME COLUMN x TO y;"},
+	// key names held per database, a primary key GIPK may have added, a key
+	// two parts of one ALTER TABLE both change, and a function an
+	// unqualified DROP FUNCTION may find loaded.
+	{name: "unknown by design", change: "DROP FUNCTION nosuch;\nDROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT * FROM nosuch;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nCREATE TABLE y (a int, CONSTRAINT fy FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE z LIKE y;\nALTER TABLE z DROP FOREIGN KEY fy;\nALTER TABLE nokey DROP PRIMARY KEY;\nALTER TABLE t ADD COLUMN z int, DROP COLUMN z;\nALTER TABLE t ADD INDEX j (b), DROP INDEX j;\nALTER TABLE t ADD COLUMN x int, RENAME COLUMN x TO y;"},
+	{name: "a trigger of another database may create a temporary table", setup: "DROP TRIGGER tr;\nCREATE DATABASE q;\nCREATE TABLE q.o (a int);\nCREATE TRIGGER q.ot BEFORE INSERT ON q.o FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shop.made (a int);", change: "INSERT INTO q.o VALUES (1);\nDROP TEMPORARY TABLE made;\nDROP TEMPORARY TABLE made;"},
+	{name: "a query's function may create a temporary table", setup: "CREATE FUNCTION mk() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS made (a int); RETURN 1; END;", change: "CREATE TABLE c AS SELECT mk() AS x;\nDROP TEMPORARY TABLE made;\nDROP TEMPORARY TABLE made;"},
 	{name: "a trigger may create a temporary table", change: "CREATE TRIGGER tt BEFORE INSERT ON nokey FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shadow (a int);\nINSERT INTO nokey VALUES (1);\nINSERT INTO shadow VALUES (1);\nDROP TABLE shadow;"},
 }
 
@@ -162,7 +179,7 @@ func runWalkCases(t *testing.T, s walkServer) {
 	var found, rejected int
 	for _, tt := range walkCases {
 		t.Run(tt.name, func(t *testing.T) {
-			resetWalk(t, db, walkBase)
+			resetWalk(t, db, walkBase+tt.setup)
 			f, r := judgeWalk(t, db, s, tt.change, tt.complete)
 			found += f
 			rejected += r
@@ -188,10 +205,28 @@ func resetWalk(t *testing.T, db *sql.DB, base string) {
 		names = append(names, n)
 	}
 	rows.Close()
+	var udfs []string
+	rows, err = db.QueryContext(ctx, "SELECT name FROM mysql.func")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		udfs = append(udfs, n)
+	}
+	rows.Close()
 	conn := session(t, db)
-	stmts := []string{"SET foreign_key_checks = 0"}
+	stmts := []string{"SET foreign_key_checks = 0", "SET GLOBAL show_gipk_in_create_table_and_information_schema = ON"}
 	for _, n := range names {
 		stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(n, "`", "``")+"`")
+	}
+	// A loadable function is the server's, not a database's; with every
+	// database gone, DROP FUNCTION drops it.
+	for _, n := range udfs {
+		stmts = append(stmts, "DROP FUNCTION `"+strings.ReplaceAll(n, "`", "``")+"`")
 	}
 	stmts = append(stmts, "SET foreign_key_checks = 1", "CREATE DATABASE shop", "USE shop")
 	for _, q := range stmts {
@@ -312,7 +347,13 @@ var walkCodes = []struct {
 	codes []string
 }{
 	{func(m string) bool { return strings.HasPrefix(m, "Temporary table ") }, []string{"1051"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Foreign key target table ") }, []string{"1824", "1215"}},
+	{func(m string) bool { return strings.HasPrefix(m, "Foreign key target ") }, []string{"1824", "1215"}},
+	{func(m string) bool {
+		return strings.HasPrefix(m, "Foreign key ") && (strings.Contains(m, " specified twice ") || strings.Contains(m, " added twice "))
+	}, []string{"1826", "1061"}},
+	{func(m string) bool {
+		return strings.HasPrefix(m, "View ") && strings.HasSuffix(m, " cannot move to another database")
+	}, []string{"1450"}},
 	{func(m string) bool {
 		return strings.HasPrefix(m, "Foreign key ") && strings.HasSuffix(m, " already exists in the database")
 	}, []string{"1826", "1022"}},
@@ -430,10 +471,14 @@ func (e *mysqlEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 			return true, relView
 		}
 		return true, relTable
-	case spaceColumn, spaceIndex:
+	case spaceColumn, spaceIndex, spaceTableForeignKey:
 		table, column := "information_schema.COLUMNS", "COLUMN_NAME"
-		if k.Space == spaceIndex {
+		switch k.Space {
+		case spaceIndex:
 			table, column = "information_schema.STATISTICS", "INDEX_NAME"
+		case spaceTableForeignKey:
+			table, column = "information_schema.REFERENTIAL_CONSTRAINTS", "CONSTRAINT_NAME"
+			return count("SELECT COUNT(*) FROM "+table+" WHERE "+eq("CONSTRAINT_SCHEMA", tableFolds)+" AND "+eq("TABLE_NAME", tableFolds)+" AND "+eq(column, nameFolds), unmark(names[0]), unmark(names[1]), name), ""
 		}
 		return count("SELECT COUNT(*) FROM "+table+" WHERE "+eq("TABLE_SCHEMA", tableFolds)+" AND "+eq("TABLE_NAME", tableFolds)+" AND "+eq(column, nameFolds), unmark(names[0]), unmark(names[1]), name), ""
 	}
