@@ -13,6 +13,12 @@ import (
 // but for PRIOR_BACKUP, which Bytebase does not take on OceanBase, and
 // WALK_THROUGH, which waits for an oracle run against OceanBase.
 //
+// REQUIRE_PRIMARY_KEY does not judge a DROP COLUMN against the synced
+// key, as the MySQL rule does: OceanBase refuses to drop a column of the
+// primary key, so the statement never takes the key.
+//
+// oceanbase: https://github.com/oceanbase/oceanbase-doc/blob/V4.3.5/en-US/700.reference/500.sql-reference/100.sql-syntax/200.common-tenant-of-mysql-mode/600.sql-statement-of-mysql-mode/1600.alter-table-of-mysql-mode.md — DROP [COLUMN]
+//
 // ONLINE_MIGRATION is the MySQL rule too: Bytebase runs gh-ost on any
 // engine whose sheet has the directive. OceanBase 4.4 reports log_bin ON
 // with ROW binlogs, which gh-ost checks, but its observer rejects SHOW

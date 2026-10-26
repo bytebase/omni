@@ -99,6 +99,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 	}
 	if on[review.RequirePrimaryKey] {
 		checkRequirePrimaryKey(sql, stmts, r)
+		work.columns = columnDropSteps(sql, stmts)
 	}
 	if work.backup {
 		work.made = madeByChange(stmts)

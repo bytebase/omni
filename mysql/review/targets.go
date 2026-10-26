@@ -13,18 +13,20 @@ import (
 
 // targetWork is what the rules that read a target have to look at in
 // this change: the prior backup and online migration a change asks for,
-// and the DROP INDEX statements the SQL alone cannot classify. The other
-// rules depend on the SQL alone and run once for every target.
+// and the DROP INDEX and DROP COLUMN statements the SQL alone cannot
+// classify. The other rules depend on the SQL alone and run once for
+// every target.
 type targetWork struct {
-	backup bool
-	made   changeMade
-	online bool
-	drops  []droppedIndex
-	walks  bool
+	backup  bool
+	made    changeMade
+	online  bool
+	drops   []droppedIndex
+	columns columnDrops
+	walks   bool
 }
 
 func (w targetWork) any() bool {
-	return w.backup || w.online || len(w.drops) > 0 || w.walks
+	return w.backup || w.online || len(w.drops) > 0 || w.columns.any() || w.walks
 }
 
 // schemaTarget is what the rules read of a target.
@@ -157,5 +159,6 @@ func reviewGroup(ctx context.Context, sql string, stmts []statement, work target
 	for _, d := range work.drops {
 		checkDroppedIndex(stmts, d, x, r)
 	}
+	checkColumnDrops(work.columns, x, r)
 	return r.findings, nil
 }

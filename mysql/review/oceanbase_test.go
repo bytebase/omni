@@ -33,6 +33,17 @@ func TestReviewOceanBase(t *testing.T) {
 			sql:  "UPDATE t SET n = 1 WHERE id = 1;",
 		},
 		{
+			name: "a column of the primary key dropped, which OceanBase refuses",
+			rule: review.RequirePrimaryKey,
+			sql:  "ALTER TABLE plain DROP COLUMN id;",
+		},
+		{
+			name: "the primary key dropped",
+			rule: review.RequirePrimaryKey,
+			sql:  "ALTER TABLE plain DROP PRIMARY KEY;",
+			want: []finding{{0, "DROP PRIMARY KEY", "removes the primary key of plain, and the change adds none back", []int{0}}},
+		},
+		{
 			name: "the MySQL rules",
 			rule: review.RequireWhere,
 			sql:  "DELETE FROM t;",

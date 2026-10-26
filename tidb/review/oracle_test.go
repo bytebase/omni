@@ -583,3 +583,59 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 	}
 	return want
 }
+
+// TestColumnDropAgainstTiDB runs ALTER TABLE ... DROP COLUMN on a table
+// x's primary key on TiDB, and pins that the server refuses it, whatever
+// the key's columns and clustering, so x keeps its key and the review
+// reports nothing.
+//
+// tidb: https://docs.pingcap.com/tidb/stable/sql-statement-drop-column#mysql-compatibility
+func TestColumnDropAgainstTiDB(t *testing.T) {
+	db := startTiDB(t)
+	tests := []struct {
+		name   string
+		setup  string
+		change string
+		// err is a part of the error the server stops the change with, and
+		// key the columns of x's primary key, which it keeps.
+		err string
+		key string
+	}{
+		{name: "a key of one integer column", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id", err: "Unsupported drop integer primary key", key: "id"},
+		{name: "a key of one integer column, nonclustered", setup: "CREATE TABLE x (id INT, v INT, PRIMARY KEY (id) NONCLUSTERED)", change: "ALTER TABLE x DROP COLUMN id", err: "Primary Key covered", key: "id"},
+		{name: "a key of one string column", setup: "CREATE TABLE x (s VARCHAR(20) PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN s", err: "Primary Key covered", key: "s"},
+		{name: "a key of one column, under IF EXISTS", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN IF EXISTS id", err: "Unsupported drop integer primary key", key: "id"},
+		{name: "one column of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b))", change: "ALTER TABLE x DROP COLUMN a", err: "Primary Key covered", key: "a,b"},
+		{name: "both columns of a key of two", setup: "CREATE TABLE x (a INT, b INT, v INT, PRIMARY KEY (a, b) NONCLUSTERED)", change: "ALTER TABLE x DROP COLUMN a, DROP COLUMN b", err: "Primary Key covered", key: "a,b"},
+		{name: "a key added back", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id, ADD PRIMARY KEY (v)", err: "Unsupported drop integer primary key", key: "id"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := resetOracle(t, db)
+			ctx := context.Background()
+			if _, err := conn.ExecContext(ctx, tt.setup); err != nil {
+				t.Fatalf("setup: %v", err)
+			}
+			schema := syncSchema(t, conn)
+			result, err := Review(ctx, tt.change, review.Options{Rules: []review.Rule{review.RequirePrimaryKey}},
+				[]review.Target{{Schema: schema, LowerCaseTableNames: lowerCaseTableNames(t, conn)}})
+			if err != nil {
+				t.Fatalf("Review: %v", err)
+			}
+			for _, f := range result.Findings {
+				t.Errorf("reported %s: %s", f.Rule, f.Message)
+			}
+			if _, err := conn.ExecContext(ctx, tt.change); err == nil || !strings.Contains(err.Error(), tt.err) {
+				t.Errorf("the change ends with %v, want an error with %q", err, tt.err)
+			}
+			var key sql.NullString
+			if err := conn.QueryRowContext(ctx, `SELECT GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) FROM information_schema.STATISTICS
+				WHERE TABLE_SCHEMA = 'shop' AND TABLE_NAME = 'x' AND INDEX_NAME = 'PRIMARY'`).Scan(&key); err != nil {
+				t.Fatal(err)
+			}
+			if key.String != tt.key {
+				t.Errorf("key of x after the change = %q, want %q", key.String, tt.key)
+			}
+		})
+	}
+}
