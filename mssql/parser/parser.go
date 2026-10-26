@@ -2638,6 +2638,15 @@ func (p *Parser) peekNext() Token {
 	return p.nextBuf
 }
 
+// peekSecond returns the token after the next one without consuming either.
+func (p *Parser) peekSecond() Token {
+	p.peekNext()
+	pos, start, lexErr := p.lexer.pos, p.lexer.start, p.lexer.Err
+	tok := p.lexer.NextToken()
+	p.lexer.pos, p.lexer.start, p.lexer.Err = pos, start, lexErr
+	return tok
+}
+
 // match checks if the current token type matches any of the given types.
 // If it matches, the token is consumed and returned with ok=true.
 func (p *Parser) match(types ...int) (Token, bool) {
