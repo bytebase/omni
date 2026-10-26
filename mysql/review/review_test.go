@@ -753,6 +753,19 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO k1;\nDROP TABLE plain;",
 			want: []finding{lost(0, "DROP COLUMN id", "plain")},
 		},
+		{
+			name: "the key, before a rename with a pair onto a name an earlier pair moved a table back onto",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE k1 TO spare, plain TO k1, k2 TO k1;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before a rename with a pair onto a name an earlier pair made",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO spare, k1 TO spare;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "the key, before a rename with pairs onto one name of another database", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO other.spare, k1 TO other.spare;"},
+		{name: "the key, before a USE of another database and a rename with pairs onto one name there", sql: "ALTER TABLE plain DROP COLUMN id;\nUSE other;\nRENAME TABLE shop.plain TO spare, k1 TO spare;"},
+		{name: "the key, before a rename with a pair onto a name an earlier pair made and a later one moved away", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO spare, spare TO s2, k1 TO spare;"},
 		{name: "the key, before a rename onto a table renamed away before", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE k1 TO k9;\nRENAME TABLE plain TO k1;"},
 		{name: "the key, before a rename onto a table an earlier pair moves away", sql: "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE k1 TO k9, plain TO k1;"},
 		{name: "the key, before an ALTER TABLE that renames it onto itself", sql: "ALTER TABLE plain DROP COLUMN id;\nALTER TABLE plain RENAME TO plain;"},
@@ -829,6 +842,12 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:     "ALTER TABLE PLAIN DROP COLUMN ID;",
 			targets: []review.Target{{Schema: shop()}, {Schema: shop(), LowerCaseTableNames: 1}},
 			want:    []finding{{0, "DROP COLUMN ID", "removes the primary key of PLAIN, and the change adds none back", []int{1}}},
+		},
+		{
+			name:    "a rename with pairs onto one name in two cases, which collide only where names compare without case",
+			sql:     "ALTER TABLE plain DROP COLUMN id;\nRENAME TABLE plain TO Spare, k1 TO spare;",
+			targets: []review.Target{{Schema: keyed()[0].Schema}, {Schema: keyed()[0].Schema, LowerCaseTableNames: 1}},
+			want:    []finding{{0, "DROP COLUMN id", "removes the primary key of plain, and the change adds none back", []int{1}}},
 		},
 		{
 			name: "targets whose keys differ",

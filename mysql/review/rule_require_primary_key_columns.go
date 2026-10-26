@@ -422,6 +422,18 @@ func (w *tableState) known(ref *ast.TableRef) (*metadata.TableMetadata, bool) {
 	return t, t != nil && !w.touched[t]
 }
 
+// nameKey returns a reference's name as the target's database compares
+// it, and whether the reference names that database.
+func (w *tableState) nameKey(ref *ast.TableRef) (string, bool) {
+	if ref == nil || ref.Schema == "" && w.moved || ref.Schema != "" && !w.x.same(ref.Schema, w.x.schema.GetName()) {
+		return "", false
+	}
+	if w.x.caseSensitive {
+		return ref.Name, true
+	}
+	return strings.ToLower(ref.Name), true
+}
+
 // lacks reports whether a known table lacks a column.
 func (w *tableState) lacks(t *metadata.TableMetadata, column string) bool {
 	return !slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return sameName(c.GetName(), column) }) ||
@@ -439,10 +451,11 @@ func (w *tableState) dropsLacking(t *metadata.TableMetadata, cmds []*ast.AlterTa
 
 // fails reports whether a statement the rule does not follow fails for
 // certain: an ALTER TABLE of a known table that drops a column the table
-// lacks, whatever else it does, or that renames the table onto another
-// known table; and a RENAME TABLE with a pair onto a known table no earlier
-// pair moves away, the table itself among them. A temporary table of
-// either name, which the statement may mean, leaves the statement unknown.
+// lacks, whatever else it does, or that renames the table onto another known
+// table; and a RENAME TABLE with a pair onto a name a known table holds, or
+// an earlier pair renamed a table onto, that no pair between renames away,
+// the table itself among them. A temporary table of either name, which the
+// statement may mean, leaves the statement unknown.
 //
 // mysql: https://dev.mysql.com/doc/refman/8.0/en/rename-table.html
 func (w *tableState) fails(n ast.Node) bool {
@@ -463,22 +476,33 @@ func (w *tableState) fails(n ast.Node) bool {
 			}
 		}
 	case *ast.RenameTableStmt:
-		away := make(map[*metadata.TableMetadata]bool)
+		// The pairs run in order: a name a known table holds, or one a pair
+		// renamed a table onto, is taken until a pair renames it away.
+		taken := make(map[string]bool)
 		for _, pair := range v.Pairs {
 			if pair == nil {
 				continue
 			}
 			// MariaDB renames a temporary table of the name, which may take a
 			// name a table holds.
-			o := w.table(pair.Old)
-			if o != nil && w.shadowed[o] {
+			if o := w.table(pair.Old); o != nil && w.shadowed[o] {
 				return false
 			}
-			if d, ok := w.known(pair.New); ok && !away[d] {
-				return true
+			d, inTarget := w.nameKey(pair.New)
+			if inTarget {
+				held, seen := taken[d]
+				if !seen {
+					_, held = w.known(pair.New)
+				}
+				if held {
+					return true
+				}
 			}
-			if o != nil {
-				away[o] = true
+			if o, ok := w.nameKey(pair.Old); ok {
+				taken[o] = false
+			}
+			if inTarget {
+				taken[d] = true
 			}
 		}
 	}
