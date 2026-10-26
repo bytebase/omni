@@ -2600,8 +2600,10 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 		return &nodes.TableHint{Name: "NOWAIT", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 	}
 
-	// All remaining hints are identifiers (not lexer keywords)
-	if !p.isIdentLike() {
+	// All remaining hints are identifiers (not lexer keywords). SQL Server
+	// takes them only undelimited: WITH ([READPAST]) and ("ROWLOCK") are
+	// errors, as in ScriptDOM's simpleTableHint (bnf/TSql170.g).
+	if !p.isIdentLike() || p.isDelimited(p.cur) {
 		return nil, nil
 	}
 
