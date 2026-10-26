@@ -837,13 +837,19 @@ func (p *Parser) parseFromClause() (*nodes.List, error) {
 // is t JOIN (t1 JOIN t2 ON c1) ON c2, and its ON is required. The right
 // operand of CROSS JOIN and APPLY is a single table source. ScriptDOM's
 // qualifiedJoin and unqualifiedJoin (bnf/TSql170.g) encode the same split.
+//
+// PIVOT and UNPIVOT follow a table source the way a join does and wrap
+// everything to their left: t JOIN t1 ON c PIVOT (...) p pivots the join, and
+// so does t CROSS JOIN t1 PIVOT (...) p, where SQL Server cannot bind t's
+// columns outside p. ScriptDOM's selectTableReferenceAdditionalElement lists
+// them beside joinElement.
 func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 	return p.parseTableSourceJoins(false)
 }
 
-// parseTableSourceJoins parses a primary table source and the joins that
-// follow it. onPending is true for the right operand of a qualified join,
-// whose ON clause comes after the joins parsed here.
+// parseTableSourceJoins parses a primary table source and the joins, PIVOTs,
+// and UNPIVOTs that follow it. onPending is true for the right operand of a
+// qualified join, whose ON clause comes after the joins parsed here.
 func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) {
 	left, err := p.parsePrimaryTableSource()
 	if err != nil {
@@ -855,29 +861,23 @@ func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) 
 
 	// Completion: after primary table source → JOIN keyword candidates
 	if p.collectMode() {
-		if onPending {
-			p.addTokenCandidate(kwON)
-		}
-		p.addTokenCandidate(kwJOIN)
-		p.addTokenCandidate(kwINNER)
-		p.addTokenCandidate(kwLEFT)
-		p.addTokenCandidate(kwRIGHT)
-		p.addTokenCandidate(kwCROSS)
-		p.addTokenCandidate(kwFULL)
-		p.addTokenCandidate(kwOUTER)
-		p.addTokenCandidate(kwWHERE)
-		p.addTokenCandidate(kwORDER)
-		p.addTokenCandidate(kwGROUP)
-		p.addTokenCandidate(kwHAVING)
-		p.addTokenCandidate(kwUNION)
-		p.addTokenCandidate(kwFOR)
-		p.addTokenCandidate(kwOPTION)
-		p.addTokenCandidate(kwAPPLY)
-		return nil, errCollecting
+		return nil, p.collectAfterTableSource(onPending)
 	}
 
-	// Parse joins
+	// Parse joins, PIVOT, and UNPIVOT
 	for {
+		if p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+			left, err = p.parsePivotUnpivot(left)
+			if err != nil {
+				return nil, err
+			}
+			// Completion: after PIVOT or UNPIVOT → JOIN keyword candidates
+			if p.collectMode() {
+				return nil, p.collectAfterTableSource(onPending)
+			}
+			continue
+		}
+
 		joinLoc := p.pos()
 		jt, hint, ok, err := p.matchJoinType()
 		if err != nil {
@@ -942,6 +942,31 @@ func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) 
 	return left, nil
 }
 
+// collectAfterTableSource adds the completion candidates that may follow a
+// table source in FROM and returns errCollecting. onPending adds the ON that
+// the enclosing qualified join still owes.
+func (p *Parser) collectAfterTableSource(onPending bool) error {
+	if onPending {
+		p.addTokenCandidate(kwON)
+	}
+	p.addTokenCandidate(kwJOIN)
+	p.addTokenCandidate(kwINNER)
+	p.addTokenCandidate(kwLEFT)
+	p.addTokenCandidate(kwRIGHT)
+	p.addTokenCandidate(kwCROSS)
+	p.addTokenCandidate(kwFULL)
+	p.addTokenCandidate(kwOUTER)
+	p.addTokenCandidate(kwWHERE)
+	p.addTokenCandidate(kwORDER)
+	p.addTokenCandidate(kwGROUP)
+	p.addTokenCandidate(kwHAVING)
+	p.addTokenCandidate(kwUNION)
+	p.addTokenCandidate(kwFOR)
+	p.addTokenCandidate(kwOPTION)
+	p.addTokenCandidate(kwAPPLY)
+	return errCollecting
+}
+
 // parseParenthesizedJoin parses a joined table in parentheses. The current
 // token is '(' and the token after it does not begin a query expression.
 //
@@ -950,8 +975,11 @@ func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) 
 // The content must hold at least one join: SQL Server rejects FROM (t1) and
 // (SELECT 1) s in parentheses without a join, and an alias after the closing
 // parenthesis. ScriptDOM's joinParenthesis and joinTableReference
-// (bnf/TSql170.g) encode the same rule. The JoinClause returned spans the
-// parentheses.
+// (bnf/TSql170.g) encode the same rule. The content must also end with a
+// join: SQL Server rejects (t1 JOIN t2 ON c PIVOT (...) p), where the PIVOT
+// wraps the join, but accepts a PIVOT that another join follows. ScriptDOM
+// allows no PIVOT there at all, which is narrower than SQL Server. The
+// JoinClause returned spans the parentheses.
 func (p *Parser) parseParenthesizedJoin() (nodes.TableExpr, error) {
 	loc := p.pos()
 	p.advance() // consume '('
@@ -976,7 +1004,7 @@ func (p *Parser) parseParenthesizedJoin() (nodes.TableExpr, error) {
 		return nil, err
 	}
 	join.Loc = nodes.Loc{Start: loc, End: p.prevEnd()}
-	return p.parsePivotUnpivot(join)
+	return join, nil
 }
 
 // parsePrimaryTableSource parses a base table, subquery, or function call as table source.
@@ -1033,9 +1061,9 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 				Columns: cols,
 				Loc:     nodes.Loc{Start: loc, End: -1},
 			}
-			return p.parsePivotUnpivot(result)
+			return result, nil
 		}
-		return p.parsePivotUnpivot(inner)
+		return inner, nil
 	}
 
 	// Rowset functions: OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
@@ -1077,7 +1105,7 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.parsePivotUnpivot(tvf)
+		return tvf, nil
 	}
 
 	// TABLESAMPLE
@@ -1104,7 +1132,7 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 				return nil, err
 			}
 		}
-		return p.parsePivotUnpivot(result)
+		return result, nil
 	}
 
 	// Alias
@@ -1123,18 +1151,16 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		ref.Loc.End = p.prevEnd()
 	}
 
-	return p.parsePivotUnpivot(ref)
+	return ref, nil
 }
 
-// parsePivotUnpivot checks for and parses PIVOT or UNPIVOT after a table source.
+// parsePivotUnpivot parses the PIVOT or UNPIVOT at the current token, which
+// wraps source.
 func (p *Parser) parsePivotUnpivot(source nodes.TableExpr) (nodes.TableExpr, error) {
 	if p.cur.Type == kwPIVOT {
 		return p.parsePivotExpr(source)
 	}
-	if p.cur.Type == kwUNPIVOT {
-		return p.parseUnpivotExpr(source)
-	}
-	return source, nil
+	return p.parseUnpivotExpr(source)
 }
 
 // pivotStart returns where a PIVOT or UNPIVOT table source starts: at its
