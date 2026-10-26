@@ -3001,12 +3001,14 @@ func (n *MethodCallExpr) exprNode() {}
 
 // ---------- Batch 35: PIVOT/UNPIVOT ----------
 
-// PivotExpr represents a PIVOT operation.
+// PivotExpr represents a PIVOT operation. Every column position holds a
+// ColumnRef because SQL Server parses a multi-part name there; it rejects a
+// prefix on an IN column only when it binds the query.
 type PivotExpr struct {
-	Source   TableExpr // source table
-	AggFunc  ExprNode  // aggregate function call (e.g., SUM(Amount))
-	ForCol   string    // FOR column name
-	InValues *List     // IN list of column values (as String nodes)
+	Source   TableExpr  // source table
+	AggFunc  ExprNode   // aggregate function call (e.g., SUM(Amount)), a *FuncCallExpr with ColumnRef arguments
+	ForCol   *ColumnRef // FOR column
+	InValues *List      // IN list of output column names (*ColumnRef)
 	Alias    string
 	Loc      Loc
 }
@@ -3014,12 +3016,14 @@ type PivotExpr struct {
 func (n *PivotExpr) nodeTag()   {}
 func (n *PivotExpr) tableExpr() {}
 
-// UnpivotExpr represents an UNPIVOT operation.
+// UnpivotExpr represents an UNPIVOT operation. ValueCol and ForCol name new
+// columns, but SQL Server parses a multi-part name there and rejects a
+// prefix only when it binds the query, so they are ColumnRefs.
 type UnpivotExpr struct {
-	Source   TableExpr // source table
-	ValueCol string    // value column name
-	ForCol   string    // FOR column name
-	InCols   *List     // IN list of column names (as String nodes)
+	Source   TableExpr  // source table
+	ValueCol *ColumnRef // value column
+	ForCol   *ColumnRef // FOR column
+	InCols   *List      // IN list of source columns (*ColumnRef)
 	Alias    string
 	Loc      Loc
 }

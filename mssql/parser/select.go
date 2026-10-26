@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -1173,7 +1174,16 @@ func pivotStart(source nodes.TableExpr, keyword int) int {
 	return keyword
 }
 
-// parsePivotExpr parses PIVOT (agg_func(col) FOR pivot_col IN ([v1],[v2],...)) AS alias.
+// parsePivotExpr parses the PIVOT at the current token, which wraps source.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-using-pivot-and-unpivot
+//
+//	PIVOT ( aggregate_function ( value_column [ , ...n ] )
+//	    FOR pivot_column IN ( column_name [ , ...n ] ) ) [ AS ] table_alias
+//
+// Every part is required. ScriptDOM's pivotedTableReference (bnf/TSql170.g)
+// has the same shape; SQL Server 2022 settles what each part takes, see
+// parsePivotAggregate, parsePivotColumn, and parsePivotAlias.
 func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error) {
 	loc := pivotStart(source, p.pos())
 	p.advance() // consume PIVOT
@@ -1193,57 +1203,46 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error
 		return nil, errCollecting
 	}
 
-	// Parse aggregate function call
-	var err error
-	pivot.AggFunc, err = p.parseExpr()
+	agg, err := p.parsePivotAggregate()
 	if err != nil {
 		return nil, err
 	}
-
-	// FOR column
-	if _, ok := p.match(kwFOR); ok {
-		if name, ok := p.parseIdentifier(); ok {
-			pivot.ForCol = name
-		}
+	pivot.AggFunc = agg
+	if err := p.expectPivotKeyword(kwFOR); err != nil {
+		return nil, err
 	}
-
-	// IN ([v1], [v2], ...)
-	if _, ok := p.match(kwIN); ok {
-		if _, err := p.expect('('); err == nil {
-			vals, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
-				if p.collectMode() {
-					p.addRuleCandidate("columnref")
-					return nil, errCollecting
-				}
-				name, ok := p.parseIdentifier()
-				if !ok {
-					return nil, p.unexpectedToken()
-				}
-				return &nodes.String{Str: name}, nil
-			})
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			pivot.InValues = &nodes.List{Items: vals}
-		}
+	if pivot.ForCol, err = p.parsePivotColumn(); err != nil {
+		return nil, err
 	}
-
+	if err := p.expectPivotKeyword(kwIN); err != nil {
+		return nil, err
+	}
+	if pivot.InValues, err = p.parsePivotColumnList(); err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-
-	// AS alias
-	alias := p.parseOptionalAlias()
-	pivot.Alias = alias
+	if pivot.Alias, err = p.parsePivotAlias(); err != nil {
+		return nil, err
+	}
 
 	pivot.Loc.End = p.prevEnd()
 	return pivot, nil
 }
 
-// parseUnpivotExpr parses UNPIVOT (value_col FOR pivot_col IN ([c1],[c2],...)) AS alias.
+// parseUnpivotExpr parses the UNPIVOT at the current token, which wraps
+// source.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-using-pivot-and-unpivot
+//
+//	UNPIVOT ( value_column FOR pivot_column IN ( column_name [ , ...n ] ) )
+//	    [ AS ] table_alias
+//
+// Every part is required. ScriptDOM's unpivotedTableReference
+// (bnf/TSql170.g) takes a single identifier for value_column and
+// pivot_column, but SQL Server parses a multi-part name there too and
+// rejects a prefix only when it binds the query.
 func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, error) {
 	loc := pivotStart(source, p.pos())
 	p.advance() // consume UNPIVOT
@@ -1257,58 +1256,214 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, e
 		return nil, err
 	}
 
-	// Completion: inside UNPIVOT (...) → column context
+	var err error
+	if unpivot.ValueCol, err = p.parsePivotColumn(); err != nil {
+		return nil, err
+	}
+	if err := p.expectPivotKeyword(kwFOR); err != nil {
+		return nil, err
+	}
+	if unpivot.ForCol, err = p.parsePivotColumn(); err != nil {
+		return nil, err
+	}
+	if err := p.expectPivotKeyword(kwIN); err != nil {
+		return nil, err
+	}
+	if unpivot.InCols, err = p.parsePivotColumnList(); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	if unpivot.Alias, err = p.parsePivotAlias(); err != nil {
+		return nil, err
+	}
+
+	unpivot.Loc.End = p.prevEnd()
+	return unpivot, nil
+}
+
+// pivotAggregates are the built-in aggregates PIVOT takes by an unqualified
+// name. SQL Server 2022 rejects every other unqualified name, GROUPING and
+// ABS among them, with "is not a recognized aggregate function" even under
+// SET PARSEONLY ON.
+var pivotAggregates = map[string]bool{
+	"APPROX_COUNT_DISTINCT":  true,
+	"APPROX_PERCENTILE_CONT": true,
+	"APPROX_PERCENTILE_DISC": true,
+	"AVG":                    true,
+	"CHECKSUM_AGG":           true,
+	"COUNT":                  true,
+	"COUNT_BIG":              true,
+	"MAX":                    true,
+	"MIN":                    true,
+	"STDEV":                  true,
+	"STDEVP":                 true,
+	"STRING_AGG":             true,
+	"SUM":                    true,
+	"VAR":                    true,
+	"VARP":                   true,
+}
+
+// parsePivotAggregate parses the aggregate function call of a PIVOT.
+//
+//	aggregate_function ( value_column [ , ...n ] )
+//
+// aggregate_function is one of pivotAggregates, undelimited, or a
+// user-defined aggregate qualified by its schema and at most its database:
+// SQL Server rejects [MAX](c) and srv.db.dbo.agg(c). Each argument is a
+// column (parsePivotColumn); SQL Server rejects *, DISTINCT, literals,
+// variables, and other expressions there, but leaves the argument count to
+// binding.
+func (p *Parser) parsePivotAggregate() (*nodes.FuncCallExpr, error) {
+	loc := p.pos()
+	first := p.cur
+	var parts []string
+	for {
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
+		}
+		parts = append(parts, name)
+		if p.cur.Type != '.' || len(parts) == 3 {
+			break
+		}
+		p.advance() // consume '.'
+		// Completion: after a dot in the aggregate name → func_name
+		if p.collectMode() {
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
+	}
+	name := &nodes.TableRef{
+		Object: parts[len(parts)-1],
+		Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
+	}
+	switch len(parts) {
+	case 1:
+		if p.isDelimited(first) {
+			return nil, p.newParseError(first.Loc, fmt.Sprintf("syntax error at or near \"%s\"", p.tokenText(first)))
+		}
+		if !pivotAggregates[strings.ToUpper(parts[0])] {
+			return nil, p.newParseError(first.Loc, fmt.Sprintf("'%s' is not a recognized aggregate function", parts[0]))
+		}
+	case 2:
+		name.Schema = parts[0]
+	case 3:
+		name.Database = parts[0]
+		name.Schema = parts[1]
+	}
+	args, err := p.parsePivotColumnList()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.FuncCallExpr{
+		Name: name,
+		Args: args,
+		Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+	}, nil
+}
+
+// isDelimited reports whether tok is a bracketed or double-quoted identifier.
+func (p *Parser) isDelimited(tok Token) bool {
+	if tok.Type != tokIDENT || tok.Loc < 0 || tok.Loc >= len(p.source) {
+		return false
+	}
+	c := p.source[tok.Loc]
+	return c == '[' || c == '"'
+}
+
+// parsePivotColumn parses a column of a PIVOT or UNPIVOT: a name of one to
+// four parts. SQL Server parses a prefix on every column and rejects it, where
+// the column is a new one, only when it binds the query. It rejects a fifth
+// part, an empty part (db..c), a pseudo-column such as $IDENTITY or
+// IDENTITYCOL, and anything else that is not a name.
+func (p *Parser) parsePivotColumn() (*nodes.ColumnRef, error) {
+	// Completion: at a PIVOT or UNPIVOT column → columnref
 	if p.collectMode() {
 		p.addRuleCandidate("columnref")
 		return nil, errCollecting
 	}
-
-	// value column name
-	if name, ok := p.parseIdentifier(); ok {
-		unpivot.ValueCol = name
-	}
-
-	// FOR column
-	if _, ok := p.match(kwFOR); ok {
-		if name, ok := p.parseIdentifier(); ok {
-			unpivot.ForCol = name
+	loc := p.pos()
+	var parts []string
+	for {
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
+		}
+		parts = append(parts, name)
+		if p.cur.Type != '.' || len(parts) == 4 {
+			break
+		}
+		p.advance() // consume '.'
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, errCollecting
 		}
 	}
-
-	// IN ([c1], [c2], ...)
-	if _, ok := p.match(kwIN); ok {
-		if _, err := p.expect('('); err == nil {
-			cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
-				if p.collectMode() {
-					p.addRuleCandidate("columnref")
-					return nil, errCollecting
-				}
-				name, ok := p.parseIdentifier()
-				if !ok {
-					return nil, p.unexpectedToken()
-				}
-				return &nodes.String{Str: name}, nil
-			})
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			unpivot.InCols = &nodes.List{Items: cols}
-		}
+	ref := &nodes.ColumnRef{
+		Column: parts[len(parts)-1],
+		Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
 	}
+	switch len(parts) {
+	case 2:
+		ref.Table = parts[0]
+	case 3:
+		ref.Schema, ref.Table = parts[0], parts[1]
+	case 4:
+		ref.Database, ref.Schema, ref.Table = parts[0], parts[1], parts[2]
+	}
+	return ref, nil
+}
 
+// parsePivotColumnList parses a parenthesized, non-empty list of columns.
+//
+//	( column [ , ...n ] )
+func (p *Parser) parsePivotColumnList() (*nodes.List, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		return p.parsePivotColumn()
+	})
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	return &nodes.List{Items: cols}, nil
+}
 
-	// AS alias
-	alias := p.parseOptionalAlias()
-	unpivot.Alias = alias
+// expectPivotKeyword consumes FOR or IN, which PIVOT and UNPIVOT require,
+// and offers it as a completion candidate at the cursor.
+func (p *Parser) expectPivotKeyword(kw int) error {
+	if p.collectMode() {
+		p.addTokenCandidate(kw)
+		return errCollecting
+	}
+	_, err := p.expect(kw)
+	return err
+}
 
-	unpivot.Loc.End = p.prevEnd()
-	return unpivot, nil
+// parsePivotAlias parses the alias PIVOT and UNPIVOT require.
+//
+//	[ AS ] table_alias
+//
+// SQL Server takes WINDOW here, which parseOptionalAlias leaves for a WINDOW
+// clause.
+func (p *Parser) parsePivotAlias() (string, error) {
+	// Completion: before the alias → AS
+	if p.collectMode() {
+		p.addTokenCandidate(kwAS)
+		return "", errCollecting
+	}
+	p.match(kwAS)
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.unexpectedToken()
+	}
+	return name, nil
 }
 
 // parseTableSampleClause parses TABLESAMPLE (size PERCENT|ROWS) [REPEATABLE (seed)].
