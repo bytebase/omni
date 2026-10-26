@@ -129,12 +129,20 @@ func (o *parserOracle) canParse(sql string) (bool, error) {
 // parseError returns SQL Server's error for sql under SET PARSEONLY ON, or
 // nil when SQL Server accepts the syntax. The second result reports a failure
 // of the oracle itself.
+//
+// SET QUOTED_IDENTIFIER takes effect while a batch is parsed, even under SET
+// PARSEONLY ON, so a check of SET QUOTED_IDENTIFIER OFF would turn every
+// later "x" into a string. Each check restores it, and every check starts
+// from the default session.
 func (o *parserOracle) parseError(sql string) (parseErr error, err error) {
 	_, err = o.conn.ExecContext(o.ctx, "SET PARSEONLY ON")
 	if err != nil {
 		return nil, fmt.Errorf("SET PARSEONLY ON: %w", err)
 	}
-	defer o.conn.ExecContext(o.ctx, "SET PARSEONLY OFF") //nolint:errcheck
+	defer func() {
+		o.conn.ExecContext(o.ctx, "SET PARSEONLY OFF")        //nolint:errcheck
+		o.conn.ExecContext(o.ctx, "SET QUOTED_IDENTIFIER ON") //nolint:errcheck
+	}()
 
 	_, parseErr = o.conn.ExecContext(o.ctx, sql)
 	return parseErr, nil
