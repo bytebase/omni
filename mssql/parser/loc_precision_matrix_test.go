@@ -119,6 +119,8 @@ var locPrecisionMatrixExactSliceCases = []locMatrixCase{
 	{name: "freetext predicate", sql: "SELECT * FROM t WHERE FREETEXT(c, 'term')", typeName: "FullTextPredicate", want: "FREETEXT(c, 'term')"},
 	{name: "containstable ref", sql: "SELECT * FROM CONTAINSTABLE(t, c, 'term') ct", typeName: "FullTextTableRef", want: "CONTAINSTABLE(t, c, 'term') ct"},
 	{name: "semantic similarity ref", sql: "SELECT * FROM SEMANTICSIMILARITYTABLE(t, c, source_key) s", typeName: "SemanticTableRef", want: "SEMANTICSIMILARITYTABLE(t, c, source_key) s"},
+	{name: "pivot expr", sql: "SELECT * FROM t PIVOT (MAX(a) FOR b IN ([1])) p", typeName: "PivotExpr", want: "t PIVOT (MAX(a) FOR b IN ([1])) p"},
+	{name: "unpivot expr", sql: "SELECT * FROM t UNPIVOT (v FOR b IN (c1, c2)) u", typeName: "UnpivotExpr", want: "t UNPIVOT (v FOR b IN (c1, c2)) u"},
 
 	// SELECT clauses.
 	{name: "res target alias", sql: "SELECT a AS x", typeName: "ResTarget", want: "a AS x"},

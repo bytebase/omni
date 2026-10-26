@@ -821,7 +821,30 @@ func (p *Parser) parseFromClause() (*nodes.List, error) {
 }
 
 // parseTableSource parses a single table source (table, subquery, join).
+//
+// BNF: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-transact-sql
+//
+//	<joined_table> ::=
+//	{
+//	    <table_source> <join_type> <table_source> ON <search_condition>
+//	    | <table_source> CROSS JOIN <table_source>
+//	    | left_table_source { CROSS | OUTER } APPLY right_table_source
+//	    | [ ( ] <joined_table> [ ) ]
+//	}
+//
+// The right operand of a qualified join (INNER, LEFT, RIGHT, FULL) is a
+// whole table source with joins of its own, so t JOIN t1 JOIN t2 ON c1 ON c2
+// is t JOIN (t1 JOIN t2 ON c1) ON c2, and its ON is required. The right
+// operand of CROSS JOIN and APPLY is a single table source. ScriptDOM's
+// qualifiedJoin and unqualifiedJoin (bnf/TSql170.g) encode the same split.
 func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
+	return p.parseTableSourceJoins(false)
+}
+
+// parseTableSourceJoins parses a primary table source and the joins that
+// follow it. onPending is true for the right operand of a qualified join,
+// whose ON clause comes after the joins parsed here.
+func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) {
 	left, err := p.parsePrimaryTableSource()
 	if err != nil {
 		return nil, err
@@ -832,6 +855,9 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 
 	// Completion: after primary table source → JOIN keyword candidates
 	if p.collectMode() {
+		if onPending {
+			p.addTokenCandidate(kwON)
+		}
 		p.addTokenCandidate(kwJOIN)
 		p.addTokenCandidate(kwINNER)
 		p.addTokenCandidate(kwLEFT)
@@ -853,7 +879,10 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 	// Parse joins
 	for {
 		joinLoc := p.pos()
-		jt, ok := p.matchJoinType()
+		jt, hint, ok, err := p.matchJoinType()
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			break
 		}
@@ -862,7 +891,13 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 			p.addRuleCandidate("table_ref")
 			return nil, errCollecting
 		}
-		right, err := p.parsePrimaryTableSource()
+		qualified := jt != nodes.JoinCross && jt != nodes.JoinCrossApply && jt != nodes.JoinOuterApply
+		var right nodes.TableExpr
+		if qualified {
+			right, err = p.parseTableSourceJoins(true)
+		} else {
+			right, err = p.parsePrimaryTableSource()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -875,28 +910,29 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 		}
 		join := &nodes.JoinClause{
 			Type:  jt,
+			Hint:  hint,
 			Left:  left,
 			Right: right,
 			Loc:   nodes.Loc{Start: start, End: -1},
 		}
-		// ON condition (not for CROSS JOIN / CROSS APPLY / OUTER APPLY)
-		if jt != nodes.JoinCross && jt != nodes.JoinCrossApply && jt != nodes.JoinOuterApply {
-			if _, ok := p.match(kwON); ok {
-				// Completion: after ON → columnref
-				if p.collectMode() {
-					p.addRuleCandidate("columnref")
-					p.addRuleCandidate("func_name")
-					return nil, errCollecting
-				}
-				p.enterSearchCondition()
-				join.Condition, err = p.parseExpr()
-				p.leaveSearchCondition()
-				if err != nil {
-					return nil, err
-				}
-				if join.Condition == nil {
-					return nil, p.unexpectedToken()
-				}
+		if qualified {
+			if _, err := p.expect(kwON); err != nil {
+				return nil, err
+			}
+			// Completion: after ON → columnref
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				p.addRuleCandidate("func_name")
+				return nil, errCollecting
+			}
+			p.enterSearchCondition()
+			join.Condition, err = p.parseExpr()
+			p.leaveSearchCondition()
+			if err != nil {
+				return nil, err
+			}
+			if join.Condition == nil {
+				return nil, p.unexpectedToken()
 			}
 		}
 		join.Loc.End = p.prevEnd()
@@ -904,6 +940,43 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 	}
 
 	return left, nil
+}
+
+// parseParenthesizedJoin parses a joined table in parentheses. The current
+// token is '(' and the token after it does not begin a query expression.
+//
+//	[ ( ] <joined_table> [ ) ]
+//
+// The content must hold at least one join: SQL Server rejects FROM (t1) and
+// (SELECT 1) s in parentheses without a join, and an alias after the closing
+// parenthesis. ScriptDOM's joinParenthesis and joinTableReference
+// (bnf/TSql170.g) encode the same rule. The JoinClause returned spans the
+// parentheses.
+func (p *Parser) parseParenthesizedJoin() (nodes.TableExpr, error) {
+	loc := p.pos()
+	p.advance() // consume '('
+
+	// Completion: after '(' in FROM → a derived table or a joined table
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		p.addTokenCandidate(kwVALUES)
+		p.addRuleCandidate("table_ref")
+		return nil, errCollecting
+	}
+
+	inner, err := p.parseTableSource()
+	if err != nil {
+		return nil, err
+	}
+	join, ok := inner.(*nodes.JoinClause)
+	if !ok {
+		return nil, p.unexpectedToken()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	join.Loc = nodes.Loc{Start: loc, End: p.prevEnd()}
+	return p.parsePivotUnpivot(join)
 }
 
 // parsePrimaryTableSource parses a base table, subquery, or function call as table source.
@@ -914,8 +987,13 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		return nil, errCollecting
 	}
 
-	// Parenthesised derived table: (SELECT ...) or (VALUES ...)
+	// Parenthesised derived table: (SELECT ...) or (VALUES ...). A derived
+	// table's query expression starts with SELECT, and WITH is rejected by
+	// parseSelectStmt; any other token after '(' starts a joined table.
 	if p.cur.Type == '(' {
+		if next := p.peekNext().Type; next != kwSELECT && next != kwVALUES && next != kwWITH {
+			return p.parseParenthesizedJoin()
+		}
 		loc := p.pos()
 		p.advance()
 
@@ -1059,9 +1137,19 @@ func (p *Parser) parsePivotUnpivot(source nodes.TableExpr) (nodes.TableExpr, err
 	return source, nil
 }
 
+// pivotStart returns where a PIVOT or UNPIVOT table source starts: at its
+// source, which is a child of the node, or at the keyword when the source has
+// no position.
+func pivotStart(source nodes.TableExpr, keyword int) int {
+	if start := nodes.NodeLoc(source).Start; start >= 0 {
+		return start
+	}
+	return keyword
+}
+
 // parsePivotExpr parses PIVOT (agg_func(col) FOR pivot_col IN ([v1],[v2],...)) AS alias.
 func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error) {
-	loc := p.pos()
+	loc := pivotStart(source, p.pos())
 	p.advance() // consume PIVOT
 
 	pivot := &nodes.PivotExpr{
@@ -1131,7 +1219,7 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error
 
 // parseUnpivotExpr parses UNPIVOT (value_col FOR pivot_col IN ([c1],[c2],...)) AS alias.
 func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, error) {
-	loc := p.pos()
+	loc := pivotStart(source, p.pos())
 	p.advance() // consume UNPIVOT
 
 	unpivot := &nodes.UnpivotExpr{
@@ -1355,50 +1443,122 @@ func (p *Parser) isBareAliasExcluded() bool {
 	return false
 }
 
-// matchJoinType matches and consumes a join keyword sequence, returning the join type.
-func (p *Parser) matchJoinType() (nodes.JoinType, bool) {
+// joinHintTokens are the join hints that are keywords, offered as
+// completion candidates.
+var joinHintTokens = []int{kwLOOP, kwHASH, kwMERGE, kwREMOTE}
+
+// joinHint returns the join hint the current token names, or "" when it
+// names none.
+//
+//	<join_hint> ::= { LOOP | HASH | MERGE | REMOTE }
+//
+// SQL Server's parser also accepts REDUCE, REPLICATE, and REDISTRIBUTE, the
+// distributed join hints of Azure Synapse. They are not keywords, and like
+// the others they match only unquoted: SQL Server rejects INNER [HASH] JOIN.
+func (p *Parser) joinHint() string {
 	switch p.cur.Type {
-	case kwINNER:
-		p.advance()
-		_, _ = p.expect(kwJOIN)
-		return nodes.JoinInner, true
+	case kwLOOP:
+		return "LOOP"
+	case kwHASH:
+		return "HASH"
+	case kwMERGE:
+		return "MERGE"
+	case kwREMOTE:
+		return "REMOTE"
+	case tokIDENT:
+		raw := p.source[p.cur.Loc:p.cur.End]
+		for _, hint := range []string{"REDUCE", "REPLICATE", "REDISTRIBUTE"} {
+			if strings.EqualFold(raw, hint) {
+				return hint
+			}
+		}
+	}
+	return ""
+}
+
+// matchJoinType consumes the join operator at the current token and returns
+// its type and join hint. ok is false, with nothing consumed, when the
+// current token does not start a join operator.
+//
+// BNF: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-transact-sql
+//
+//	<join_type> ::=
+//	    [ { INNER | { { LEFT | RIGHT | FULL } [ OUTER ] } } [ <join_hint> ] ]
+//	    JOIN
+//
+// A join hint needs the join type before it: in t HASH JOIN t1, HASH is the
+// alias of t. SQL Server accepts REMOTE only after INNER.
+func (p *Parser) matchJoinType() (jt nodes.JoinType, hint string, ok bool, err error) {
+	switch p.cur.Type {
 	case kwJOIN:
 		p.advance()
-		return nodes.JoinInner, true
+		return nodes.JoinInner, "", true, nil
+	case kwINNER:
+		jt = nodes.JoinInner
 	case kwLEFT:
-		p.advance()
-		p.match(kwOUTER)
-		_, _ = p.expect(kwJOIN)
-		return nodes.JoinLeft, true
+		jt = nodes.JoinLeft
 	case kwRIGHT:
-		p.advance()
-		p.match(kwOUTER)
-		_, _ = p.expect(kwJOIN)
-		return nodes.JoinRight, true
+		jt = nodes.JoinRight
 	case kwFULL:
-		p.advance()
-		p.match(kwOUTER)
-		_, _ = p.expect(kwJOIN)
-		return nodes.JoinFull, true
+		jt = nodes.JoinFull
 	case kwCROSS:
 		p.advance()
+		// Completion: after CROSS → JOIN or APPLY
+		if p.collectMode() {
+			p.addTokenCandidate(kwJOIN)
+			p.addTokenCandidate(kwAPPLY)
+			return 0, "", false, errCollecting
+		}
 		// CROSS JOIN vs CROSS APPLY
 		if _, ok := p.match(kwAPPLY); ok {
-			return nodes.JoinCrossApply, true
+			return nodes.JoinCrossApply, "", true, nil
 		}
-		_, _ = p.expect(kwJOIN)
-		return nodes.JoinCross, true
+		if _, err := p.expect(kwJOIN); err != nil {
+			return 0, "", false, err
+		}
+		return nodes.JoinCross, "", true, nil
 	case kwOUTER:
 		// OUTER APPLY
 		if p.peekNext().Type == kwAPPLY {
 			p.advance() // consume OUTER
 			p.advance() // consume APPLY
-			return nodes.JoinOuterApply, true
+			return nodes.JoinOuterApply, "", true, nil
 		}
-		return 0, false
+		return 0, "", false, nil
 	default:
-		return 0, false
+		return 0, "", false, nil
 	}
+	p.advance() // consume INNER, LEFT, RIGHT, or FULL
+	if jt != nodes.JoinInner {
+		// Completion: after LEFT / RIGHT / FULL → OUTER, a join hint, or JOIN
+		if p.collectMode() {
+			p.addTokenCandidate(kwOUTER)
+		}
+		p.match(kwOUTER)
+	}
+	// Completion: before the optional join hint → a join hint or JOIN
+	if p.collectMode() {
+		for _, tok := range joinHintTokens {
+			p.addTokenCandidate(tok)
+		}
+		p.addTokenCandidate(kwJOIN)
+		return 0, "", false, errCollecting
+	}
+	if hint = p.joinHint(); hint != "" {
+		if hint == "REMOTE" && jt != nodes.JoinInner {
+			return 0, "", false, p.unexpectedToken()
+		}
+		p.advance()
+		// Completion: after the join hint → JOIN
+		if p.collectMode() {
+			p.addTokenCandidate(kwJOIN)
+			return 0, "", false, errCollecting
+		}
+	}
+	if _, err := p.expect(kwJOIN); err != nil {
+		return 0, "", false, err
+	}
+	return jt, hint, true, nil
 }
 
 // parseForClause parses FOR BROWSE, FOR XML, or FOR JSON.
