@@ -106,3 +106,33 @@ WHERE NOT EXISTS (
 		}
 	}
 }
+
+// TestParseSetOperationText checks that a statement whose query is a set
+// operation ends where its last operand does. The set operation's Loc used
+// to end at -1, so the statement took the rest of the script and the
+// statement after it came back empty.
+func TestParseSetOperationText(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want []string
+	}{
+		{"SELECT 1 UNION SELECT 2; SELECT 3", []string{"SELECT 1 UNION SELECT 2;", " SELECT 3"}},
+		{"(SELECT 1) UNION (SELECT 2) ORDER BY 1; (SELECT 3)", []string{"(SELECT 1) UNION (SELECT 2) ORDER BY 1;", " (SELECT 3)"}},
+		{"SELECT 1 UNION (SELECT 2)\nSELECT 3", []string{"SELECT 1 UNION (SELECT 2)", "\nSELECT 3"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.sql, func(t *testing.T) {
+			stmts, err := Parse(tc.sql)
+			if err != nil {
+				t.Fatalf("Parse error: %v", err)
+			}
+			var got []string
+			for _, s := range stmts {
+				got = append(got, s.Text)
+			}
+			if strings.Join(got, "|") != strings.Join(tc.want, "|") {
+				t.Errorf("statement texts = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

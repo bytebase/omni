@@ -424,22 +424,32 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 		}
 		stmt.ExternalName = p.parseMethodSpecifier()
 	} else if p.cur.Type == kwRETURN {
-		// Inline table-valued function: RETURN [ ( ] select_stmt [ ) ]
-		// The select_statement may carry its own CTE list, with or without
-		// the parentheses (SQL Server 2022 oracle).
+		// Inline table-valued function:
+		//
+		//	RETURN { [ WITH <cte> ] <query_expression>
+		//	       | ( WITH <cte> <query_expression> ) }
+		//
+		// RETURN (SELECT ...) is the first form, a parenthesized query
+		// expression; the second puts the CTE list inside the parentheses
+		// (functionReturnClauseRelational in bnf/TSql170.g, SQL Server 2022
+		// oracle).
 		retLoc := p.pos()
 		p.advance() // consume RETURN
-		hasParen := false
-		if p.cur.Type == '(' {
-			hasParen = true
-			p.advance()
+		cteInParens := p.cur.Type == '(' && p.peekNext().Type == kwWITH
+		if cteInParens {
+			p.advance() // consume '('
 		}
-		selectStmt, err := p.parseSelectStmtWithCTE()
+		selectStmt, err := p.parseSelectStmtWithCTE(querySubquery)
 		if err != nil {
 			return nil, err
 		}
-		if hasParen {
-			p.match(')')
+		if selectStmt == nil {
+			return nil, p.unexpectedToken()
+		}
+		if cteInParens {
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 		stmt.Body = &nodes.ReturnStmt{
 			Value: &nodes.SubqueryExpr{Query: selectStmt, Loc: nodes.Loc{Start: retLoc, End: -1}},

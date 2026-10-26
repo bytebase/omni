@@ -257,7 +257,10 @@ func (p *Parser) parseCreateExternalTableStmt() (*nodes.SecurityStmt, error) {
 // parseCreateExternalTableOrCETAS dispatches between CREATE EXTERNAL TABLE and CETAS.
 // If the statement has AS <select_statement> after the WITH clause, it's CETAS.
 func (p *Parser) parseCreateExternalTableOrCETAS(createLoc int) (nodes.StmtNode, error) {
-	cetasStmt, _ := p.parseCreateExternalTableAsSelectStmt()
+	cetasStmt, err := p.parseCreateExternalTableAsSelectStmt()
+	if err != nil {
+		return nil, err
+	}
 	// If it parsed a query, it's CETAS
 	if cetasStmt.Query != nil {
 		cetasStmt.Loc.Start = createLoc
@@ -1052,4 +1055,3 @@ func (p *Parser) parseExternalFileSpec() []nodes.Node {
 	p.match(')') // consume ')'
 	return opts
 }
-
