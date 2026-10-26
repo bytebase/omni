@@ -58,7 +58,7 @@ Never trusted Absent:
 - after `ALTER TABLE ... ENGINE=` another engine;
 - within an `ALTER TABLE` that sets any engine.
 
-**Assumption (flagged for confirmation, 2026-10-23):** a table created with no `ENGINE` gets InnoDB, MySQL's `default_storage_engine` since 5.5. Bytebase could pass the server's setting in `Target` as it will `foreign_key_checks` (M1).
+**Accepted assumption (2026-10-26):** a table created with no `ENGINE` gets InnoDB, MySQL's `default_storage_engine` since 5.5. Should it ever need checking, Bytebase could pass the server's setting in `Target`, as it will `foreign_key_checks` (M1).
 
 **OceanBase** (`ReviewOceanBase`) will use the same lowering, with less authority: its sync lists no CHECK constraints or partitions. Its oracle is DSN-gated (D4). Until it lands (§9 M3), WALK_THROUGH reports nothing for OceanBase.
 
