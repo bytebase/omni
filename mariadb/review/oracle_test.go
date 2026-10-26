@@ -759,6 +759,10 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 		{name: "a drop after of it, which a foreign key of the database refuses", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT, UNIQUE KEY uv (v)); CREATE TABLE c (xv INT, FOREIGN KEY (xv) REFERENCES x (v))", change: "ALTER TABLE x DROP COLUMN id;\nDROP TABLE x", err: "foreign key constraint fails"},
 		{name: "a drop after of it, which a foreign key naming a table of its name in another database does not refuse", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE DATABASE other; CREATE TABLE other.x (id INT PRIMARY KEY); CREATE TABLE c (xid INT, FOREIGN KEY (xid) REFERENCES other.x (id))", change: "ALTER TABLE x DROP COLUMN id;\nDROP TABLE x"},
 		{name: "a rename of its name onto a table the database holds after, while a temporary table of its name exists, and then a drop of it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT); CREATE TABLE y (a INT PRIMARY KEY)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE x (a INT);\nRENAME TABLE x TO y;\nDROP TABLE x"},
+		{name: "a temporary table renamed onto its name after, and dropped", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE tmp (a INT);\nALTER TABLE tmp RENAME TO x;\nDROP TABLE x", reported: true},
+		{name: "a RENAME TABLE of a temporary table onto its name after, which MariaDB renames, and a drop of it", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nCREATE TEMPORARY TABLE tmp (a INT);\nRENAME TABLE tmp TO x;\nDROP TABLE x", reported: true},
+		{name: "a statement prepared and deallocated after, which runs nothing", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "ALTER TABLE x DROP COLUMN id;\nPREPARE s FROM 'ALTER TABLE x ADD PRIMARY KEY (v)';\nDEALLOCATE PREPARE s", reported: true},
+		{name: "a statement prepared before of a table the database lacks", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "PREPARE s FROM 'SELECT * FROM missing';\nALTER TABLE x DROP COLUMN id", err: "doesn't exist", key: "id"},
 		{name: "a read-only transaction started before, which the drop commits", setup: "CREATE TABLE x (id INT PRIMARY KEY, v INT)", change: "START TRANSACTION READ ONLY;\nALTER TABLE x DROP COLUMN id", reported: true},
 		{name: "an application-time period of it and another column, both dropped", setup: "CREATE TABLE x (s DATE, e DATE, v INT, PRIMARY KEY (s), PERIOD FOR p (s, e))", change: "ALTER TABLE x DROP COLUMN s, DROP COLUMN e", err: "Unknown column 's' in 'p'", key: "s"},
 		// ALGORITHM and LOCK left at DEFAULT are as if left out, and the last
@@ -805,7 +809,7 @@ func TestColumnDropAgainstMariaDB(t *testing.T) {
 			// A change that fails may leave tables locked, which would keep the
 			// next case from dropping the database, or temporary tables, which
 			// belong to the pooled session and outlive the database.
-			for _, stmt := range []string{"UNLOCK TABLES", "DROP TEMPORARY TABLE IF EXISTS shop.x, shop.y"} {
+			for _, stmt := range []string{"UNLOCK TABLES", "DROP TEMPORARY TABLE IF EXISTS shop.x, shop.y, shop.tmp"} {
 				if _, err := conn.ExecContext(ctx, stmt); err != nil {
 					t.Fatal(err)
 				}

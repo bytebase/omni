@@ -150,12 +150,15 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			}
 			st.kind = barrier
 		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.TableStmt, *ast.ValuesStmt, *ast.DoStmt,
-			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.FlushStmt, *ast.SetTransactionStmt:
+			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.FlushStmt, *ast.SetTransactionStmt,
+			*ast.PrepareStmt, *ast.DeallocateStmt:
 			// It changes no schema object, but may fail: on a table or column
 			// the target lacks; for TRUNCATE, on a table a foreign key
-			// references; for SET TRANSACTION, inside a transaction. Under LOCK
-			// TABLES, an ALTER TABLE of a table it did not lock for writing
-			// fails, and after FLUSH TABLES WITH READ LOCK, any does.
+			// references; for SET TRANSACTION, inside a transaction; for
+			// DEALLOCATE PREPARE, on a statement not prepared. PREPARE runs
+			// nothing. Under LOCK TABLES, an ALTER TABLE of a table it did not
+			// lock for writing fails, and after FLUSH TABLES WITH READ LOCK,
+			// any does.
 			st.kind = barrier
 		case *ast.UseStmt:
 			st.kind, st.database = uses, v.Database
@@ -168,7 +171,7 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			// run DDL, and a procedure runs only when called.
 			st.kind = barrier
 		default:
-			// CALL, PREPARE and EXECUTE, an event, which runs on its own
+			// CALL and EXECUTE, an event, which runs on its own
 			// schedule, and whatever else may change any table.
 			st.kind = stops
 		}
@@ -338,7 +341,7 @@ func checkColumnDrops(c columnDrops, x schemaIndex, r *reporter) {
 	var findings []found
 	dropped := make(map[*metadata.TableMetadata][]string)
 	j := &columnJudge{x: x}
-	w := &tableState{x: x, touched: make(map[*metadata.TableMetadata]bool), shadowed: make(map[*metadata.TableMetadata]bool), gone: make(map[*metadata.TableMetadata][]string)}
+	w := &tableState{x: x, touched: make(map[*metadata.TableMetadata]bool), temporary: make(map[string]bool), gone: make(map[*metadata.TableMetadata][]string)}
 	// judging is whether the rule still judges drops.
 	judging := true
 read:
@@ -416,8 +419,11 @@ type tableState struct {
 	// target's.
 	moved bool
 	// touched holds the synced tables a statement the rule does not follow
-	// has named, and shadowed those a temporary table of their name hides.
-	touched, shadowed map[*metadata.TableMetadata]bool
+	// has named.
+	touched map[*metadata.TableMetadata]bool
+	// temporary holds the names in the target's database a temporary table
+	// of the change has, which hides a synced table of the name.
+	temporary map[string]bool
 	// gone holds the columns DROP COLUMN statements have named, which the
 	// table lacks after them.
 	gone map[*metadata.TableMetadata][]string
@@ -429,10 +435,31 @@ func (w *tableState) table(ref *ast.TableRef) *metadata.TableMetadata {
 
 // known returns the synced table a reference means, and whether the rule
 // knows it as the synced schema holds it, but for the columns DROP COLUMN
-// took away.
+// took away. A temporary table of the name, which the reference may mean,
+// leaves it unknown.
 func (w *tableState) known(ref *ast.TableRef) (*metadata.TableMetadata, bool) {
 	t := w.table(ref)
-	return t, t != nil && !w.touched[t]
+	return t, t != nil && !w.touched[t] && !w.shadowed(ref)
+}
+
+// shadowed reports whether a temporary table of the change has the name a
+// reference gives in the target's database.
+func (w *tableState) shadowed(ref *ast.TableRef) bool {
+	k, ok := w.nameKey(ref)
+	return ok && w.temporary[k]
+}
+
+// moveTemporary records that a temporary table of a name, if the change
+// has one, is renamed to another.
+func (w *tableState) moveTemporary(from, to *ast.TableRef) {
+	if !w.shadowed(from) {
+		return
+	}
+	k, _ := w.nameKey(from)
+	w.temporary[k] = false
+	if k, ok := w.nameKey(to); ok {
+		w.temporary[k] = true
+	}
 }
 
 // nameKey returns a reference's name as the target's database compares
@@ -498,7 +525,7 @@ func (w *tableState) fails(n ast.Node) bool {
 			}
 			// MariaDB renames a temporary table of the name, which may take a
 			// name a table holds.
-			if o := w.table(pair.Old); o != nil && w.shadowed[o] {
+			if w.shadowed(pair.Old) {
 				return false
 			}
 			d, inTarget := w.nameKey(pair.New)
@@ -533,7 +560,7 @@ func (w *tableState) settles(n ast.Node) []*metadata.TableMetadata {
 	switch v := n.(type) {
 	case *ast.AlterTableStmt:
 		t := w.table(v.Table)
-		if t != nil && !w.shadowed[t] && slices.ContainsFunc(v.Commands, func(cmd *ast.AlterTableCmd) bool {
+		if t != nil && !w.shadowed(v.Table) && slices.ContainsFunc(v.Commands, func(cmd *ast.AlterTableCmd) bool {
 			return cmd != nil && (cmd.Type == ast.ATRenameTable || addsPrimaryKey(cmd))
 		}) {
 			out = append(out, t)
@@ -551,7 +578,7 @@ func (w *tableState) settles(n ast.Node) []*metadata.TableMetadata {
 			break
 		}
 		for _, ref := range v.Tables {
-			if t := w.table(ref); t != nil && !w.shadowed[t] {
+			if t := w.table(ref); t != nil && !w.shadowed(ref) {
 				out = append(out, t)
 			}
 		}
@@ -569,41 +596,48 @@ func (w *tableState) settles(n ast.Node) []*metadata.TableMetadata {
 }
 
 // touch records the tables a statement the rule does not follow names,
-// which it no longer knows, and the temporary tables of their names it
-// makes, moves, or drops. A rename onto a known table fails, and one onto
-// a table an earlier pair moved away names it as a source.
+// which it no longer knows, and the temporary tables it makes, renames, or
+// drops. A rename onto a known table fails, and one onto a table an earlier
+// pair moved away names it as a source.
 func (w *tableState) touch(n ast.Node) {
-	mark := func(ref *ast.TableRef) *metadata.TableMetadata {
-		t := w.table(ref)
-		if t != nil {
+	mark := func(ref *ast.TableRef) {
+		if t := w.table(ref); t != nil {
 			w.touched[t] = true
 		}
-		return t
 	}
 	switch v := n.(type) {
 	case *ast.AlterTableStmt:
-		// A rename moves a temporary table of the name away.
-		if t := mark(v.Table); t != nil && slices.ContainsFunc(v.Commands, func(cmd *ast.AlterTableCmd) bool { return cmd != nil && cmd.Type == ast.ATRenameTable }) {
-			w.shadowed[t] = false
+		mark(v.Table)
+		// ALTER TABLE takes a temporary table of the name, and may rename it
+		// onto the name of a synced table.
+		for _, cmd := range v.Commands {
+			if cmd != nil && cmd.Type == ast.ATRenameTable {
+				w.moveTemporary(v.Table, renamedTo(cmd))
+			}
 		}
 	case *ast.CreateTableStmt:
-		if t := mark(v.Table); t != nil && v.Temporary {
-			w.shadowed[t] = true
+		mark(v.Table)
+		if k, ok := w.nameKey(v.Table); ok && v.Temporary {
+			w.temporary[k] = true
 		}
 	case *ast.CreateIndexStmt:
 		mark(v.Table)
 	case *ast.DropIndexStmt:
 		mark(v.Table)
 	case *ast.DropTableStmt:
+		// DROP TABLE drops a temporary table of the name first.
 		for _, ref := range v.Tables {
-			if t := mark(ref); t != nil {
-				w.shadowed[t] = false
+			mark(ref)
+			if k, ok := w.nameKey(ref); ok {
+				w.temporary[k] = false
 			}
 		}
 	case *ast.RenameTableStmt:
 		for _, pair := range v.Pairs {
 			if pair != nil {
 				mark(pair.Old)
+				// MariaDB renames a temporary table of the name.
+				w.moveTemporary(pair.Old, pair.New)
 			}
 		}
 	}

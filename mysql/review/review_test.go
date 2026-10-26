@@ -780,9 +780,32 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "the key, before a temporary table of its name dropped, and then the table", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TABLE plain;\nDROP TABLE plain;"},
 		{name: "the key, before a temporary table of its name dropped as one, and then the table", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TEMPORARY TABLE plain;\nDROP TABLE plain;"},
 		{name: "the key, before a temporary table of its name renamed away, and then the table dropped", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nALTER TABLE plain RENAME TO p2;\nDROP TABLE plain;"},
-		{name: "the key, before a RENAME TABLE of its name onto a table the target holds, while a temporary table of its name exists", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nRENAME TABLE plain TO k1;\nDROP TABLE plain;"},
+		{
+			name: "the key, before a RENAME TABLE of its name onto a table the target holds, which MySQL runs on it, though a temporary table of its name exists",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nRENAME TABLE plain TO k1;\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
 		{name: "the key, before a RENAME TABLE of its name, though a temporary table of it exists", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE plain (x INT);\nRENAME TABLE plain TO p2;"},
 		{name: "the key, before a temporary table of its name made in another database, and the table dropped", sql: "ALTER TABLE plain DROP COLUMN id;\nUSE other;\nCREATE TEMPORARY TABLE plain (x INT);\nDROP TABLE shop.plain;"},
+		{
+			name: "the key, before a temporary table renamed onto its name, given a key, and dropped",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE tmp (x INT);\nALTER TABLE tmp RENAME TO plain;\nALTER TABLE plain ADD PRIMARY KEY (x);\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "the key, before a temporary table renamed onto its name and dropped, and then the table", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE tmp (x INT);\nALTER TABLE tmp RENAME TO plain;\nDROP TABLE plain;\nDROP TABLE plain;"},
+		{name: "the key, before a temporary table renamed onto its name loses a column the table lacks, and then both are dropped", sql: "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE tmp (missing INT, y INT);\nALTER TABLE tmp RENAME TO plain;\nALTER TABLE plain DROP COLUMN missing;\nDROP TABLE plain;\nDROP TABLE plain;"},
+		{
+			name: "the key, before a RENAME TABLE of a temporary table onto its name, which MySQL does not rename, and fails",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE TEMPORARY TABLE tmp (x INT);\nRENAME TABLE tmp TO plain;\nDROP TABLE plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
+			name: "the key, before a statement prepared and deallocated, which runs nothing",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nPREPARE s FROM 'ALTER TABLE plain ADD PRIMARY KEY (v)';\nDEALLOCATE PREPARE s;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "a statement prepared before, which may fail", sql: "PREPARE s FROM 'SELECT 1';\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "the key, before a prepared statement executed", sql: "ALTER TABLE plain DROP COLUMN id;\nEXECUTE s;"},
 		// A DROP TABLE a foreign key keeps from running is not shown to fail: the
 		// synced schema does not give the database the foreign key references.
 		{name: "the key, before a DROP TABLE of it, which a foreign key of another table may name", sql: "ALTER TABLE p DROP COLUMN v;\nALTER TABLE plain DROP COLUMN id;\nDROP TABLE plain;"},
