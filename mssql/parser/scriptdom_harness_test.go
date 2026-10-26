@@ -327,7 +327,7 @@ func withCols(l *ast.List) []any {
 	}
 	out := make([]any, 0, len(l.Items))
 	for _, it := range l.Items {
-		cd, ok := it.(*ast.ColumnDef)
+		cd, ok := it.(*ast.RowsetColumnDef)
 		if !ok {
 			return nil
 		}

@@ -266,6 +266,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeOutputClause(sb, n)
 	case *ColumnDef:
 		writeColumnDef(sb, n)
+	case *RowsetColumnDef:
+		writeRowsetColumnDef(sb, n)
 	case *EncryptedWithSpec:
 		writeEncryptedWithSpec(sb, n)
 	case *GeneratedAlwaysSpec:
@@ -2638,6 +2640,26 @@ func writeOutputClause(sb *strings.Builder, n *OutputClause) {
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
+}
+
+func writeRowsetColumnDef(sb *strings.Builder, n *RowsetColumnDef) {
+	sb.WriteString("{ROWSETCOLUMNDEF")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
+	}
+	if n.Collation != "" {
+		sb.WriteString(fmt.Sprintf(" :collation \"%s\"", escapeString(n.Collation)))
+	}
+	if n.Path != nil {
+		sb.WriteString(" :path ")
+		writeNode(sb, n.Path)
+	}
+	if n.AsJSON {
+		sb.WriteString(" :asJSON true")
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
 func writeColumnDef(sb *strings.Builder, n *ColumnDef) {

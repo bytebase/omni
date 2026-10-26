@@ -59,18 +59,16 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		}
 		fc.Loc.End = p.prevEnd()
 
-		// WITH clause for OPENJSON and OPENXML
+		// WITH schema: OPENJSON and OPENXML only. SQL Server rejects WITH
+		// after OPENQUERY and OPENROWSET.
 		var withClause *nodes.List
-		if p.cur.Type == kwWITH {
-			next := p.peekNext()
-			if next.Type == '(' {
-				p.advance() // consume WITH
-				p.advance() // consume (
-				var err error
-				withClause, err = p.parseRowsetWithClause()
-				if err != nil {
-					return nil, err
-				}
+		isJSON := strings.EqualFold(funcName, "OPENJSON")
+		if (isJSON || strings.EqualFold(funcName, "OPENXML")) && p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+			p.advance() // consume WITH
+			p.advance() // consume (
+			withClause, err = p.parseRowsetWithClause(isJSON)
+			if err != nil {
+				return nil, err
 			}
 		}
 
@@ -106,11 +104,17 @@ func isRowsetObjectArg(funcName string, argIndex int) bool {
 	}
 }
 
-// parseRowsetWithClause parses the WITH (...) column definitions for OPENJSON/OPENXML.
-// The opening '(' has already been consumed.
-func (p *Parser) parseRowsetWithClause() (*nodes.List, error) {
+// parseRowsetWithClause parses the WITH schema of OPENJSON (isJSON) or
+// OPENXML. The opening '(' has already been consumed.
+//
+//	column_name data_type [ COLLATE collation_name ] [ column_path ] [ AS JSON ]
+//
+// SQL Server requires the data type, and takes the collation only
+// undelimited, the path only as a string literal, and AS JSON only in
+// OPENJSON, in this order.
+func (p *Parser) parseRowsetWithClause(isJSON bool) (*nodes.List, error) {
 	cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
-		// column_name data_type [path]
+		loc := p.pos()
 		colName, ok := p.parseIdentifier()
 		if !ok {
 			return nil, p.unexpectedToken()
@@ -123,16 +127,36 @@ func (p *Parser) parseRowsetWithClause() (*nodes.List, error) {
 		if err != nil {
 			return nil, err
 		}
-		col := &nodes.ColumnDef{
+		if dt == nil {
+			return nil, p.unexpectedToken()
+		}
+		col := &nodes.RowsetColumnDef{
 			Name:     colName,
 			DataType: dt,
+			Loc:      nodes.Loc{Start: loc, End: -1},
 		}
-		// Optional path expression (string literal or XPath)
-		if p.cur.Type != ',' && p.cur.Type != ')' {
-			if _, err := p.parseExpr(); err != nil {
-				return nil, err
+		if _, ok := p.match(kwCOLLATE); ok {
+			if !p.isIdentLike() || p.source[p.cur.Loc] == '[' || p.source[p.cur.Loc] == '"' {
+				return nil, p.unexpectedToken()
+			}
+			col.Collation = p.cur.Str
+			p.advance()
+		}
+		if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
+			tok := p.advance()
+			col.Path = &nodes.Literal{
+				Type:    nodes.LitString,
+				Str:     tok.Str,
+				IsNChar: tok.Type == tokNSCONST,
+				Loc:     nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
 			}
 		}
+		if isJSON && p.cur.Type == kwAS && p.peekNext().Type == kwJSON {
+			p.advance() // consume AS
+			p.advance() // consume JSON
+			col.AsJSON = true
+		}
+		col.Loc.End = p.prevEnd()
 		return col, nil
 	})
 	if err != nil {

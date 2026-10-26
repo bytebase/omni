@@ -668,6 +668,13 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Columns)
 	case *RollupExpr:
 		walkList(v, n.Args)
+	case *RowsetColumnDef:
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
 	case *SecurityKeyStmt:
 		walkList(v, n.Options)
 	case *SecurityPolicyStmt:
