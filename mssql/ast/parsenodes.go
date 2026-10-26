@@ -2008,7 +2008,8 @@ type TableRef struct {
 	Schema   string
 	Object   string
 	Alias    string
-	Hints    *List // table hints: WITH (NOLOCK), WITH (INDEX(...)), etc.
+	Hints    *List           // table hints: WITH (NOLOCK), WITH (INDEX(...)), etc.
+	Temporal *TemporalClause // FOR SYSTEM_TIME
 	Loc      Loc
 }
 
@@ -3064,6 +3065,20 @@ func (n *UnpivotExpr) nodeTag()   {}
 func (n *UnpivotExpr) tableExpr() {}
 
 // ---------- Batch 36: TABLESAMPLE ----------
+
+// TemporalClause is FOR SYSTEM_TIME on a table, which reads the history of
+// a temporal table.
+//
+//	FOR SYSTEM_TIME { AS OF t | FROM t TO t | BETWEEN t AND t
+//	    | CONTAINED IN ( t , t ) | ALL }
+type TemporalClause struct {
+	Kind  string   // "AS OF", "FROM", "BETWEEN", "CONTAINED IN", or "ALL"
+	Start ExprNode // a Literal or VariableRef; nil for ALL
+	End   ExprNode // for FROM, BETWEEN, and CONTAINED IN
+	Loc   Loc
+}
+
+func (n *TemporalClause) nodeTag() {}
 
 // TableSampleClause represents TABLESAMPLE on a table reference.
 type TableSampleClause struct {

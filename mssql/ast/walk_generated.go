@@ -782,6 +782,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.IntValue)
 	case *TableRef:
 		walkList(v, n.Hints)
+		if n.Temporal != nil {
+			Walk(v, n.Temporal)
+		}
 	case *TableSampleClause:
 		Walk(v, n.Size)
 		Walk(v, n.Repeatable)
@@ -793,6 +796,9 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Args {
 			Walk(v, item)
 		}
+	case *TemporalClause:
+		Walk(v, n.Start)
+		Walk(v, n.End)
 	case *ThrowStmt:
 		Walk(v, n.ErrorNumber)
 		Walk(v, n.Message)
