@@ -109,15 +109,17 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 }
 
 // parseOpenXMLWithTable parses the table after OPENXML ... WITH whose columns
-// OPENXML takes. SQL Server takes a name of one to three parts and rejects a
-// remote table: "OPENXML does not support retrieving schema from remote
-// tables".
+// OPENXML takes. SQL Server takes a name of one to three parts that ends with
+// the table, and rejects a remote table: "OPENXML does not support retrieving
+// schema from remote tables".
 func (p *Parser) parseOpenXMLWithTable() (*nodes.TableRef, error) {
 	ref, err := p.parseTableRef()
 	if err != nil {
 		return nil, err
 	}
-	if ref == nil {
+	if ref == nil || ref.Object == "" {
+		// parseTableRef leaves Object empty for a name that ends with a dot,
+		// as in WITH dbo.
 		return nil, p.unexpectedToken()
 	}
 	if ref.Server != "" {
