@@ -1108,38 +1108,36 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		return tvf, nil
 	}
 
-	// TABLESAMPLE
-	if p.cur.Type == kwTABLESAMPLE {
-		ts, err := p.parseTableSampleClause()
-		if err != nil {
-			return nil, err
-		}
-		alias := p.parseOptionalAlias()
-		if alias != "" {
-			ref.Alias = alias
-		}
-		result := &nodes.AliasedTableRef{
-			Table:       ref,
-			Alias:       ref.Alias,
-			TableSample: ts,
-			Loc:         ref.Loc,
-		}
-		// Table hints after TABLESAMPLE
-		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			var err error
-			result.Hints, err = p.parseTableHints()
-			if err != nil {
-				return nil, err
-			}
-		}
-		return result, nil
-	}
-
 	// Alias
 	alias := p.parseOptionalAlias()
 	if alias != "" {
 		ref.Alias = alias
 		ref.Loc.End = p.prevEnd()
+	}
+
+	// TABLESAMPLE follows the alias and precedes the table hints:
+	// t AS s TABLESAMPLE (10 PERCENT) WITH (NOLOCK). SQL Server rejects an
+	// alias after it, and ScriptDOM's schemaObjectTableReference
+	// (bnf/TSql170.g) has the same order.
+	if p.cur.Type == kwTABLESAMPLE {
+		ts, err := p.parseTableSampleClause()
+		if err != nil {
+			return nil, err
+		}
+		result := &nodes.AliasedTableRef{
+			Table:       ref,
+			Alias:       ref.Alias,
+			TableSample: ts,
+			Loc:         nodes.Loc{Start: ref.Loc.Start, End: -1},
+		}
+		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+			result.Hints, err = p.parseTableHints()
+			if err != nil {
+				return nil, err
+			}
+		}
+		result.Loc.End = p.prevEnd()
+		return result, nil
 	}
 
 	// Table hints: WITH (NOLOCK), WITH (INDEX(idx1)), etc.
@@ -1311,13 +1309,26 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, e
 	return unpivot, nil
 }
 
-// parseTableSampleClause parses TABLESAMPLE (size PERCENT|ROWS) [REPEATABLE (seed)].
+// parseTableSampleClause parses a TABLESAMPLE clause.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-transact-sql
+//
+//	TABLESAMPLE [ SYSTEM ] ( sample_number [ PERCENT | ROWS ] )
+//	    [ REPEATABLE ( repeat_seed ) ]
+//
+// SQL Server takes SYSTEM and REPEATABLE only undelimited, and requires the
+// sample number and the seed: it rejects TABLESAMPLE (), (PERCENT), and a
+// REPEATABLE without its parenthesized seed.
 func (p *Parser) parseTableSampleClause() (*nodes.TableSampleClause, error) {
 	loc := p.pos()
 	p.advance() // consume TABLESAMPLE
 
 	ts := &nodes.TableSampleClause{
 		Loc: nodes.Loc{Start: loc, End: -1},
+	}
+
+	if _, ok := p.match(kwSYSTEM); ok {
+		ts.System = true
 	}
 
 	if _, err := p.expect('('); err != nil {
@@ -1328,6 +1339,9 @@ func (p *Parser) parseTableSampleClause() (*nodes.TableSampleClause, error) {
 	ts.Size, err = p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if ts.Size == nil {
+		return nil, p.unexpectedToken()
 	}
 
 	// PERCENT or ROWS
@@ -1342,15 +1356,19 @@ func (p *Parser) parseTableSampleClause() (*nodes.TableSampleClause, error) {
 	}
 
 	// REPEATABLE (seed)
-	if p.matchIdentCI("REPEATABLE") {
-		if _, err := p.expect('('); err == nil {
-			ts.Repeatable, err = p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
+	if _, ok := p.match(kwREPEATABLE); ok {
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		ts.Repeatable, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if ts.Repeatable == nil {
+			return nil, p.unexpectedToken()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1404,15 +1422,18 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr,
 
 // parseOptionalAlias parses an optional alias (AS name or just name).
 // Reserved keywords (CoreKeyword) cannot be unquoted aliases — a bracketed
-// form like `AS [FROM]` is already tokIDENT at the lexer level.
+// form like `AS [FROM]` is already tokIDENT at the lexer level. An AS that
+// no name follows is left in place, so the caller rejects it as SQL Server
+// does: FROM t AS WHERE ... and t AS TABLESAMPLE (...) are syntax errors.
 func (p *Parser) parseOptionalAlias() string {
-	if _, ok := p.match(kwAS); ok {
-		if p.isIdentLike() {
-			name := p.cur.Str
-			p.advance()
-			return name
+	if p.cur.Type == kwAS {
+		if next := p.peekNext().Type; next != tokIDENT && !isContextKeyword(next) {
+			return ""
 		}
-		return ""
+		p.advance() // consume AS
+		name := p.cur.Str
+		p.advance()
+		return name
 	}
 	// Bare alias - accept identifiers and context keywords, but NOT clause/statement keywords
 	if p.isIdentLike() && !p.isSelectClauseIdent() && !p.isBareAliasExcluded() {

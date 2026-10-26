@@ -3889,6 +3889,9 @@ func writeUnpivotExpr(sb *strings.Builder, n *UnpivotExpr) {
 
 func writeTableSampleClause(sb *strings.Builder, n *TableSampleClause) {
 	sb.WriteString("{TABLESAMPLE")
+	if n.System {
+		sb.WriteString(" :system true")
+	}
 	if n.Size != nil {
 		sb.WriteString(" :size ")
 		writeNode(sb, n.Size)
