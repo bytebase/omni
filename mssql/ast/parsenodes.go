@@ -2148,7 +2148,7 @@ const (
 type AliasedTableRef struct {
 	Table       TableExpr          // TableRef, SubqueryExpr, etc.
 	Alias       string
-	Columns     *List              // alias column list
+	Columns     *List              // alias column list (*String), or the WITH schema of OPENJSON and OPENXML (*RowsetColumnDef)
 	TableSample *TableSampleClause // optional TABLESAMPLE clause
 	Hints       *List              // table hints: WITH (NOLOCK), etc.
 	Loc         Loc
@@ -2156,6 +2156,23 @@ type AliasedTableRef struct {
 
 func (n *AliasedTableRef) nodeTag()   {}
 func (n *AliasedTableRef) tableExpr() {}
+
+// RowsetColumnDef is a column of the WITH schema of OPENJSON or OPENXML.
+//
+//	column_name data_type [ COLLATE collation_name ] [ column_path ] [ AS JSON ]
+//
+// Path is the JSON path of OPENJSON or the XPath pattern of OPENXML, a
+// string literal. AsJSON is OPENJSON only.
+type RowsetColumnDef struct {
+	Name      string
+	DataType  *DataType
+	Collation string
+	Path      *Literal
+	AsJSON    bool
+	Loc       Loc
+}
+
+func (n *RowsetColumnDef) nodeTag() {}
 
 // ---------- Window / OVER clause ----------
 
