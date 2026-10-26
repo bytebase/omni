@@ -68,6 +68,18 @@ type Digester interface {
 	Digest(t testing.TB) string
 }
 
+// PartialRejecter is a Digester whose server may change the database in
+// a statement it rejects: MariaDB's DROP TABLE a, missing drops a before
+// it fails on missing. Where the digest shows such a change, Judge still
+// counts and judges the statement, but a finding on it must name the
+// error code the server gave, since the catalog no longer shows the facts
+// as they were before it. Judge then judges nothing more of the change:
+// the server's state no longer follows from the statements it accepted.
+type PartialRejecter interface {
+	Digester
+	RejectsPartially()
+}
+
 // Claim is one fact a violation rests on: a key and the fact the walk
 // read for it, with the kind it found when that is part of the claim.
 type Claim struct {
@@ -97,6 +109,7 @@ func Claims(v *walk.Violation) []Claim {
 func Judge(t testing.TB, e Engine, change string, complete bool) (found, rejected int) {
 	t.Helper()
 	digester, _ := e.(Digester)
+	_, partial := e.(PartialRejecter)
 	var accepted []string
 	var before string
 	unchanged := false
@@ -110,38 +123,60 @@ func Judge(t testing.TB, e Engine, change string, complete bool) (found, rejecte
 			accepted = append(accepted, stmt)
 			continue
 		}
+		changed := false
 		if digester != nil {
 			if digester.Digest(t) != before {
-				t.Fatalf("the server rejected %q (%s: %s) but changed the database", stmt, o.Code, o.Message)
+				if !partial {
+					t.Fatalf("the server rejected %q (%s: %s) but changed the database", stmt, o.Code, o.Message)
+				}
+				changed = true
 			}
 			unchanged = true
 		}
 		rejected++
-		text := strings.Join(append(slices.Clone(accepted), stmt), "\n")
-		f := e.Report(t, text)
-		switch {
-		case f == nil:
-			if complete {
-				t.Errorf("missed the rejection of %q (%s: %s)", stmt, o.Code, o.Message)
-			}
-			continue
-		case f.Statement != len(accepted):
-			t.Errorf("reported %q on statement %d, which the server accepts; it rejects %q (%s: %s)", f.Message, f.Statement, stmt, o.Code, o.Message)
-			continue
+		if judgeRejected(t, e, accepted, stmt, o, complete, changed) {
+			found++
 		}
-		found++
-		if slices.Contains(e.Codes(f.Message), o.Code) {
-			continue
-		}
-		v := e.Violation(t, text)
-		if ok, why := e.Holds(t, v, f.Message); !ok {
-			t.Errorf("reported %q on %q, which the server rejects with %s (%s), and the claim does not hold: %s", f.Message, stmt, o.Code, o.Message, why)
+		if changed {
+			break
 		}
 	}
 	if f := e.Report(t, strings.Join(accepted, "\n")); f != nil {
 		t.Errorf("reported %q on statement %d of a change the server runs:\n%s", f.Message, f.Statement, strings.Join(accepted, "\n"))
 	}
 	return found, rejected
+}
+
+// judgeRejected judges the walk over the accepted statements and one the
+// server rejected, and reports whether the walk found it. When the server
+// changed the database in rejecting it, only the error code can confirm a
+// finding.
+func judgeRejected(t testing.TB, e Engine, accepted []string, stmt string, o Outcome, complete, changed bool) bool {
+	t.Helper()
+	text := strings.Join(append(slices.Clone(accepted), stmt), "\n")
+	f := e.Report(t, text)
+	switch {
+	case f == nil:
+		if complete {
+			t.Errorf("missed the rejection of %q (%s: %s)", stmt, o.Code, o.Message)
+		}
+		return false
+	case f.Statement != len(accepted):
+		t.Errorf("reported %q on statement %d, which the server accepts; it rejects %q (%s: %s)", f.Message, f.Statement, stmt, o.Code, o.Message)
+		return false
+	}
+	if slices.Contains(e.Codes(f.Message), o.Code) {
+		return true
+	}
+	if changed {
+		t.Errorf("reported %q on %q, which the server rejects with %s (%s) after changing the database, so the claim cannot be checked", f.Message, stmt, o.Code, o.Message)
+		return true
+	}
+	v := e.Violation(t, text)
+	if ok, why := e.Holds(t, v, f.Message); !ok {
+		t.Errorf("reported %q on %q, which the server rejects with %s (%s), and the claim does not hold: %s", f.Message, stmt, o.Code, o.Message, why)
+	}
+	return true
 }
 
 // SweepParams reads a sweep's size, seed, and server image from
