@@ -24,9 +24,9 @@ import (
 )
 
 // Rules lists the rules this package implements, in evaluation order.
-// WalkThrough is not implemented.
 var Rules = []review.Rule{
 	review.Syntax,
+	review.WalkThrough,
 	review.OnlineMigration,
 	review.RequireIsNull,
 	review.RequireWhere,
@@ -90,7 +90,10 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 			checkDisallowRename(s, r)
 		}
 	}
-	work := targetWork{backup: on[review.PriorBackup] && opts.Change.PriorBackup}
+	work := targetWork{
+		backup: on[review.PriorBackup] && opts.Change.PriorBackup,
+		walks:  on[review.WalkThrough],
+	}
 	if on[review.DisallowDropConstraint] {
 		work.drops = checkDisallowDropConstraint(sql, stmts, r)
 	}
