@@ -616,6 +616,9 @@ func walkChildren(v Visitor, node Node) {
 	case *PivotExpr:
 		Walk(v, n.Source)
 		Walk(v, n.AggFunc)
+		if n.ForCol != nil {
+			Walk(v, n.ForCol)
+		}
 		walkList(v, n.InValues)
 	case *PredictStmt:
 		Walk(v, n.Model)
@@ -809,6 +812,12 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Operand)
 	case *UnpivotExpr:
 		Walk(v, n.Source)
+		if n.ValueCol != nil {
+			Walk(v, n.ValueCol)
+		}
+		if n.ForCol != nil {
+			Walk(v, n.ForCol)
+		}
 		walkList(v, n.InCols)
 	case *UpdateStatisticsStmt:
 		if n.Table != nil {

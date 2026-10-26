@@ -11,9 +11,10 @@ import (
 // joinNestingCases covers how joins nest in a FROM clause. The right operand
 // of INNER, LEFT, RIGHT, and FULL JOIN is a table source with joins of its
 // own and is followed by a required ON; the right operand of CROSS JOIN and
-// APPLY is a single table source; a joined table may be parenthesized; and a
-// join hint sits between the join type and JOIN. shape is the outermost
-// JoinClause of an accepted statement, printed by joinShape.
+// APPLY is a single table source; a joined table may be parenthesized; a
+// join hint sits between the join type and JOIN; and PIVOT and UNPIVOT wrap
+// everything to their left. shape is the outermost JoinClause, PivotExpr, or
+// UnpivotExpr of an accepted statement, printed by joinShape.
 var joinNestingCases = []struct {
 	name    string
 	sql     string
@@ -44,7 +45,7 @@ var joinNestingCases = []struct {
 	{"paren_values_first", "SELECT * FROM ((VALUES (1)) v(a) JOIN t2 ON v.a = t2.a)", true, "(derived AS v JOIN t2)"},
 	{"paren_after_comma", "SELECT * FROM t, (t1 JOIN t2 ON t1.a = t2.a)", true, "(t1 JOIN t2)"},
 	{"paren_then_apply", "SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a) CROSS APPLY (SELECT 1 AS x) ca", true, "((t1 JOIN t2) CROSS APPLY derived AS ca)"},
-	{"paren_then_pivot", "SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a) PIVOT (MAX(col) FOR a IN ([1])) p", true, "(t1 JOIN t2)"},
+	{"paren_then_pivot", "SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a) PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t1 JOIN t2) PIVOT p)"},
 	{"table_hint_inside_right", "SELECT * FROM t JOIN t1 WITH (NOLOCK) JOIN t2 ON t1.a = t2.a ON t.a = t1.a", true, "(t JOIN (t1 JOIN t2))"},
 	{"aliases_inside_right", "SELECT * FROM t AS x JOIN t1 y JOIN t2 AS z ON y.a = z.a ON x.a = y.a", true, "(t AS x JOIN (t1 AS y JOIN t2 AS z))"},
 	{"update_from_paren", "UPDATE t SET a = 1 FROM t JOIN (t1 JOIN t2 ON t1.a = t2.a) ON t.a = t1.a", true, "(t JOIN (t1 JOIN t2))"},
@@ -103,6 +104,65 @@ var joinNestingCases = []struct {
 	{"hint_quoted", `SELECT * FROM t INNER "REDUCE" JOIN t1 ON t.a = t1.a`, false, ""},
 	{"hint_with_argument", "SELECT * FROM t INNER REDISTRIBUTE(2) JOIN t1 ON t.a = t1.a", false, ""},
 	{"hint_twice", "SELECT * FROM t INNER HASH LOOP JOIN t1 ON t.a = t1.a", false, ""},
+
+	// PIVOT and UNPIVOT follow a table source like a join and wrap everything
+	// to their left, CROSS JOIN and APPLY included: SQL Server binds no column
+	// of t outside p in t CROSS JOIN t1 PIVOT (...) p. Inside a qualified
+	// join's right operand they wrap only that operand.
+	{"pivot_after_join", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t JOIN t1) PIVOT p)"},
+	{"pivot_after_join_as", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) AS p", true, "((t JOIN t1) PIVOT p)"},
+	{"unpivot_after_join", "SELECT * FROM t JOIN t1 ON t.a = t1.a UNPIVOT (v FOR c IN (a, col)) u", true, "((t JOIN t1) UNPIVOT u)"},
+	{"unpivot_after_left_join", "SELECT * FROM t LEFT JOIN t1 ON t.a = t1.a UNPIVOT (v FOR c IN (a, col)) u", true, "((t LEFT t1) UNPIVOT u)"},
+	{"pivot_after_hinted_join", "SELECT * FROM t INNER HASH JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t JOIN HASH t1) PIVOT p)"},
+	{"pivot_after_join_chain", "SELECT * FROM t JOIN t1 ON t.a = t1.a JOIN t2 ON t1.a = t2.a PIVOT (MAX(col) FOR a IN ([1])) p", true, "(((t JOIN t1) JOIN t2) PIVOT p)"},
+	{"pivot_after_cross_join", "SELECT * FROM t CROSS JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t CROSS t1) PIVOT p)"},
+	{"pivot_after_cross_apply", "SELECT * FROM t CROSS APPLY (SELECT 1 AS x) ca PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t CROSS APPLY derived AS ca) PIVOT p)"},
+	{"unpivot_after_outer_apply", "SELECT * FROM t OUTER APPLY (SELECT 1 AS x) oa UNPIVOT (v FOR c IN (a, col)) u", true, "((t OUTER APPLY derived AS oa) UNPIVOT u)"},
+	{"pivot_inside_right", "SELECT * FROM t JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) p ON t.a = p.a", true, "(t JOIN (t1 PIVOT p))"},
+	{"pivot_after_join_inside_right", "SELECT * FROM t JOIN t1 JOIN t2 ON t1.a = t2.a PIVOT (MAX(col) FOR a IN ([1])) p ON t.a = p.a", true, "(t JOIN ((t1 JOIN t2) PIVOT p))"},
+	{"pivot_then_join_inside_right", "SELECT * FROM t JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) p JOIN t2 ON p.a = t2.a ON t.a = p.a", true, "(t JOIN ((t1 PIVOT p) JOIN t2))"},
+	{"unpivot_after_pivot_inside_right", "SELECT * FROM t JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) p UNPIVOT (v FOR c IN (a, col)) u ON t.a = u.a", true, "(t JOIN ((t1 PIVOT p) UNPIVOT u))"},
+	{"pivot_after_cross_join_inside_right", "SELECT * FROM t JOIN t1 CROSS JOIN t2 PIVOT (MAX(col) FOR a IN ([1])) p ON t.a = p.a", true, "(t JOIN ((t1 CROSS t2) PIVOT p))"},
+	{"join_after_pivot", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p JOIN t2 ON p.a = t2.a", true, "(((t JOIN t1) PIVOT p) JOIN t2)"},
+	{"cross_join_after_pivot", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p CROSS JOIN t2", true, "(((t JOIN t1) PIVOT p) CROSS t2)"},
+	{"join_after_cross_join_pivot", "SELECT * FROM t CROSS JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) p JOIN t2 ON p.a = t2.a", true, "(((t CROSS t1) PIVOT p) JOIN t2)"},
+	{"pivot_twice_after_join", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p PIVOT (MAX(col) FOR a IN ([2])) q", true, "(((t JOIN t1) PIVOT p) PIVOT q)"},
+	{"unpivot_after_pivot_after_join", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p UNPIVOT (v FOR c IN (a, col)) u", true, "(((t JOIN t1) PIVOT p) UNPIVOT u)"},
+	{"unpivot_after_join_after_pivot", "SELECT * FROM t1 PIVOT (MAX(col) FOR a IN ([1])) p JOIN t2 ON p.a = t2.a UNPIVOT (v FOR c IN (a, col)) u", true, "(((t1 PIVOT p) JOIN t2) UNPIVOT u)"},
+	{"pivot_after_join_then_where", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p WHERE p.a = 1", true, "((t JOIN t1) PIVOT p)"},
+	{"pivot_after_join_then_comma", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p, t2", true, "((t JOIN t1) PIVOT p)"},
+	{"pivot_after_join_after_comma", "SELECT * FROM t, t1 JOIN t2 ON t1.a = t2.a PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t1 JOIN t2) PIVOT p)"},
+	{"paren_then_pivot_then_join", "SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a) PIVOT (MAX(col) FOR a IN ([1])) p JOIN t3 ON p.a = t3.a", true, "(((t1 JOIN t2) PIVOT p) JOIN t3)"},
+	{"pivot_after_openjson", "SELECT * FROM OPENJSON('[]') j PIVOT (MAX(col) FOR a IN ([1])) p", true, "(derived AS j PIVOT p)"},
+	{"pivot_after_apply_openjson", "SELECT * FROM t JOIN t1 ON t.a = t1.a CROSS APPLY OPENJSON('[]') j PIVOT (MAX(col) FOR a IN ([1])) p", true, "(((t JOIN t1) CROSS APPLY derived AS j) PIVOT p)"},
+	{"pivot_after_table_variable", "DECLARE @tv TABLE (a INT, col INT); SELECT * FROM @tv v PIVOT (MAX(col) FOR a IN ([1])) p", true, "(@tv AS v PIVOT p)"},
+	{"pivot_after_cross_join_table_variable", "DECLARE @tv TABLE (a INT, col INT); SELECT * FROM t CROSS JOIN @tv v PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t CROSS @tv AS v) PIVOT p)"},
+	{"update_from_pivot_after_join", "UPDATE t SET a = 1 FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t JOIN t1) PIVOT p)"},
+	{"delete_from_pivot_after_join", "DELETE t FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p", true, "((t JOIN t1) PIVOT p)"},
+	{"merge_using_pivot_after_join", "MERGE INTO dbo.t USING t1 JOIN t2 ON t1.a = t2.a PIVOT (MAX(col) FOR a IN ([1])) p ON dbo.t.a = p.a WHEN MATCHED THEN DELETE;", true, "((t1 JOIN t2) PIVOT p)"},
+
+	// A parenthesized joined table may hold a PIVOT or UNPIVOT but must end
+	// with a join.
+	{"paren_pivot_then_join", "SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a PIVOT (MAX(col) FOR a IN ([1])) p JOIN t3 ON p.a = t3.a)", true, "(((t1 JOIN t2) PIVOT p) JOIN t3)"},
+	{"paren_pivot_first", "SELECT * FROM (t1 PIVOT (MAX(col) FOR a IN ([1])) p JOIN t2 ON p.a = t2.a)", true, "((t1 PIVOT p) JOIN t2)"},
+	{"paren_unpivot_first", "SELECT * FROM (t1 UNPIVOT (v FOR c IN (a, col)) u JOIN t2 ON u.a = t2.a)", true, "((t1 UNPIVOT u) JOIN t2)"},
+	{"paren_pivot_inside_right", "SELECT * FROM (t1 JOIN t2 PIVOT (MAX(col) FOR a IN ([1])) p ON t1.a = p.a)", true, "(t1 JOIN (t2 PIVOT p))"},
+	{"paren_cross_join_pivot_cross_join", "SELECT * FROM (t1 CROSS JOIN t2 PIVOT (MAX(col) FOR a IN ([1])) p CROSS JOIN t3)", true, "(((t1 CROSS t2) PIVOT p) CROSS t3)"},
+	{"paren_paren_pivot_then_join", "SELECT * FROM ((t1 JOIN t2 ON t1.a = t2.a) PIVOT (MAX(col) FOR a IN ([1])) p JOIN t3 ON p.a = t3.a)", true, "(((t1 JOIN t2) PIVOT p) JOIN t3)"},
+	{"paren_right_pivot_first", "SELECT * FROM t JOIN (t1 PIVOT (MAX(col) FOR a IN ([1])) p JOIN t2 ON p.a = t2.a) ON t.a = p.a", true, "(t JOIN ((t1 PIVOT p) JOIN t2))"},
+	{"paren_ends_with_pivot", "SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a PIVOT (MAX(col) FOR a IN ([1])) p)", false, ""},
+	{"paren_ends_with_unpivot", "SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a UNPIVOT (v FOR c IN (a, col)) u)", false, ""},
+	{"paren_right_ends_with_pivot", "SELECT * FROM t JOIN (t1 JOIN t2 ON t1.a = t2.a PIVOT (MAX(col) FOR a IN ([1])) p) ON t.a = p.a", false, ""},
+	{"paren_cross_join_ends_with_pivot", "SELECT * FROM (t1 CROSS JOIN t2 PIVOT (MAX(col) FOR a IN ([1])) p)", false, ""},
+	{"paren_single_pivot", "SELECT * FROM (t1 PIVOT (MAX(col) FOR a IN ([1])) p)", false, ""},
+	{"paren_paren_join_then_pivot", "SELECT * FROM ((t1 JOIN t2 ON t1.a = t2.a) PIVOT (MAX(col) FOR a IN ([1])) p)", false, ""},
+
+	// A PIVOT after a join takes nothing a join or a table name would.
+	{"pivot_after_join_then_on", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p ON t.a = t1.a", false, ""},
+	{"pivot_inside_right_missing_on", "SELECT * FROM t JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) p", false, ""},
+	{"pivot_after_join_table_hint", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p WITH (NOLOCK)", false, ""},
+	{"pivot_after_join_column_list", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p (x)", false, ""},
+	{"pivot_after_join_unfinished", "SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT", false, ""},
 }
 
 var joinTypeNames = map[ast.JoinType]string{
@@ -116,7 +176,7 @@ var joinTypeNames = map[ast.JoinType]string{
 }
 
 // joinShape prints a table source as its join tree, one parenthesized group
-// per JoinClause.
+// per JoinClause, PivotExpr, and UnpivotExpr.
 func joinShape(n ast.Node) string {
 	switch v := n.(type) {
 	case *ast.JoinClause:
@@ -125,16 +185,41 @@ func joinShape(n ast.Node) string {
 			op += " " + v.Hint
 		}
 		return "(" + joinShape(v.Left) + " " + op + " " + joinShape(v.Right) + ")"
+	case *ast.PivotExpr:
+		return "(" + joinShape(v.Source) + " PIVOT " + v.Alias + ")"
+	case *ast.UnpivotExpr:
+		return "(" + joinShape(v.Source) + " UNPIVOT " + v.Alias + ")"
 	case *ast.TableRef:
 		if v.Alias != "" {
 			return v.Object + " AS " + v.Alias
 		}
 		return v.Object
+	case *ast.TableVarRef:
+		return v.Name + " AS " + v.Alias
 	case *ast.AliasedTableRef:
 		return "derived AS " + v.Alias
 	default:
 		return fmt.Sprintf("%T", n)
 	}
+}
+
+// outermostJoin returns the first JoinClause, PivotExpr, or UnpivotExpr in
+// pre-order, which is the outermost one of the first table source that has
+// one.
+func outermostJoin(root ast.Node) ast.Node {
+	var found ast.Node
+	ast.Inspect(root, func(n ast.Node) bool {
+		if found != nil {
+			return false
+		}
+		switch n.(type) {
+		case *ast.JoinClause, *ast.PivotExpr, *ast.UnpivotExpr:
+			found = n
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // TestJoinNesting checks that omni accepts the join forms SQL Server accepts,
@@ -152,9 +237,9 @@ func TestJoinNesting(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Parse(%q) failed: %v", tc.sql, err)
 			}
-			join := nthNodeByType(list, "JoinClause", 0)
+			join := outermostJoin(list)
 			if join == nil {
-				t.Fatalf("no JoinClause in %s", ast.NodeToString(list))
+				t.Fatalf("no JoinClause, PivotExpr, or UnpivotExpr in %s", ast.NodeToString(list))
 			}
 			if got := joinShape(join); got != tc.shape {
 				t.Errorf("join tree = %s, want %s", got, tc.shape)
@@ -225,6 +310,49 @@ func TestJoinNestingLoc(t *testing.T) {
 	}
 }
 
+// TestJoinPivotLoc checks the span of a PIVOT or UNPIVOT among joins: it
+// starts at its source, so it covers the joins it wraps, and a join that
+// takes it as the left operand starts where it does.
+func TestJoinPivotLoc(t *testing.T) {
+	const pivot = "PIVOT (MAX(col) FOR a IN ([1])) p"
+	tests := []struct {
+		sql   string
+		node  string
+		index int // node of that type in pre-order
+		want  string
+	}{
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a " + pivot, "PivotExpr", 0, "t JOIN t1 ON t.a = t1.a " + pivot},
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a " + pivot, "JoinClause", 0, "t JOIN t1 ON t.a = t1.a"},
+		{"SELECT * FROM t LEFT JOIN t1 ON t.a = t1.a UNPIVOT (v FOR c IN (a, col)) u WHERE u.a = 1", "UnpivotExpr", 0, "t LEFT JOIN t1 ON t.a = t1.a UNPIVOT (v FOR c IN (a, col)) u"},
+		{"SELECT * FROM t CROSS JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) AS p", "PivotExpr", 0, "t CROSS JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) AS p"},
+		{"SELECT * FROM t JOIN t1 JOIN t2 ON t1.a = t2.a " + pivot + " ON t.a = p.a", "JoinClause", 0, "t JOIN t1 JOIN t2 ON t1.a = t2.a " + pivot + " ON t.a = p.a"},
+		{"SELECT * FROM t JOIN t1 JOIN t2 ON t1.a = t2.a " + pivot + " ON t.a = p.a", "PivotExpr", 0, "t1 JOIN t2 ON t1.a = t2.a " + pivot},
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a " + pivot + " JOIN t2 ON p.a = t2.a", "JoinClause", 0, "t JOIN t1 ON t.a = t1.a " + pivot + " JOIN t2 ON p.a = t2.a"},
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a " + pivot + " JOIN t2 ON p.a = t2.a", "PivotExpr", 0, "t JOIN t1 ON t.a = t1.a " + pivot},
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a " + pivot + " PIVOT (MAX(col) FOR a IN ([2])) q", "PivotExpr", 0, "t JOIN t1 ON t.a = t1.a " + pivot + " PIVOT (MAX(col) FOR a IN ([2])) q"},
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a " + pivot + " PIVOT (MAX(col) FOR a IN ([2])) q", "PivotExpr", 1, "t JOIN t1 ON t.a = t1.a " + pivot},
+		{"SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a " + pivot + " JOIN t3 ON p.a = t3.a)", "JoinClause", 0, "(t1 JOIN t2 ON t1.a = t2.a " + pivot + " JOIN t3 ON p.a = t3.a)"},
+		{"SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a " + pivot + " JOIN t3 ON p.a = t3.a)", "PivotExpr", 0, "t1 JOIN t2 ON t1.a = t2.a " + pivot},
+		{"SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a) " + pivot, "PivotExpr", 0, "(t1 JOIN t2 ON t1.a = t2.a) " + pivot},
+	}
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("%s#%d/%s", tc.node, tc.index, tc.want), func(t *testing.T) {
+			list, err := Parse(tc.sql)
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tc.sql, err)
+			}
+			n := nthNodeByType(list, tc.node, tc.index)
+			if n == nil {
+				t.Fatalf("no %s #%d in %s", tc.node, tc.index, ast.NodeToString(list))
+			}
+			if got := locText(t, tc.sql, ast.NodeLoc(n)); got != tc.want {
+				t.Errorf("%s #%d text = %q, want %q", tc.node, tc.index, got, tc.want)
+			}
+			assertChildLocsWithinParent(t, tc.sql, list)
+		})
+	}
+}
+
 // TestJoinNestingErrorPosition checks that a missing ON or JOIN is reported
 // at the token that stands in its place.
 func TestJoinNestingErrorPosition(t *testing.T) {
@@ -238,6 +366,9 @@ func TestJoinNestingErrorPosition(t *testing.T) {
 		{"SELECT * FROM (t1)", `syntax error at or near ")"`},
 		{"SELECT * FROM t INNER t1 ON t.a = t1.a", `syntax error at or near "t1"`},
 		{"SELECT * FROM t CROSS t1", `syntax error at or near "t1"`},
+		{"SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a PIVOT (MAX(col) FOR a IN ([1])) p)", `syntax error at or near ")"`},
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p ON t.a = t1.a", `syntax error at or near "ON"`},
+		{"SELECT * FROM t JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) p", "syntax error at end of input"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.sql, func(t *testing.T) {
@@ -270,6 +401,9 @@ func TestJoinNestingCompletion(t *testing.T) {
 		{"SELECT * FROM (", []int{kwSELECT, kwVALUES}, []string{"table_ref"}},
 		{"SELECT * FROM t JOIN (", []int{kwSELECT, kwVALUES}, []string{"table_ref"}},
 		{"SELECT * FROM t JOIN (t1 JOIN t2 ON ", nil, []string{"columnref"}},
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (", nil, []string{"func_name"}},
+		{"SELECT * FROM t JOIN t1 ON t.a = t1.a PIVOT (MAX(col) FOR a IN ([1])) p ", []int{kwJOIN, kwCROSS, kwWHERE}, nil},
+		{"SELECT * FROM t JOIN t1 PIVOT (MAX(col) FOR a IN ([1])) p ", []int{kwON, kwJOIN}, nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.sql+"|", func(t *testing.T) {

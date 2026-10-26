@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -837,13 +838,19 @@ func (p *Parser) parseFromClause() (*nodes.List, error) {
 // is t JOIN (t1 JOIN t2 ON c1) ON c2, and its ON is required. The right
 // operand of CROSS JOIN and APPLY is a single table source. ScriptDOM's
 // qualifiedJoin and unqualifiedJoin (bnf/TSql170.g) encode the same split.
+//
+// PIVOT and UNPIVOT follow a table source the way a join does and wrap
+// everything to their left: t JOIN t1 ON c PIVOT (...) p pivots the join, and
+// so does t CROSS JOIN t1 PIVOT (...) p, where SQL Server cannot bind t's
+// columns outside p. ScriptDOM's selectTableReferenceAdditionalElement lists
+// them beside joinElement.
 func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 	return p.parseTableSourceJoins(false)
 }
 
-// parseTableSourceJoins parses a primary table source and the joins that
-// follow it. onPending is true for the right operand of a qualified join,
-// whose ON clause comes after the joins parsed here.
+// parseTableSourceJoins parses a primary table source and the joins, PIVOTs,
+// and UNPIVOTs that follow it. onPending is true for the right operand of a
+// qualified join, whose ON clause comes after the joins parsed here.
 func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) {
 	left, err := p.parsePrimaryTableSource()
 	if err != nil {
@@ -855,29 +862,23 @@ func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) 
 
 	// Completion: after primary table source → JOIN keyword candidates
 	if p.collectMode() {
-		if onPending {
-			p.addTokenCandidate(kwON)
-		}
-		p.addTokenCandidate(kwJOIN)
-		p.addTokenCandidate(kwINNER)
-		p.addTokenCandidate(kwLEFT)
-		p.addTokenCandidate(kwRIGHT)
-		p.addTokenCandidate(kwCROSS)
-		p.addTokenCandidate(kwFULL)
-		p.addTokenCandidate(kwOUTER)
-		p.addTokenCandidate(kwWHERE)
-		p.addTokenCandidate(kwORDER)
-		p.addTokenCandidate(kwGROUP)
-		p.addTokenCandidate(kwHAVING)
-		p.addTokenCandidate(kwUNION)
-		p.addTokenCandidate(kwFOR)
-		p.addTokenCandidate(kwOPTION)
-		p.addTokenCandidate(kwAPPLY)
-		return nil, errCollecting
+		return nil, p.collectAfterTableSource(onPending)
 	}
 
-	// Parse joins
+	// Parse joins, PIVOT, and UNPIVOT
 	for {
+		if p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+			left, err = p.parsePivotUnpivot(left)
+			if err != nil {
+				return nil, err
+			}
+			// Completion: after PIVOT or UNPIVOT → JOIN keyword candidates
+			if p.collectMode() {
+				return nil, p.collectAfterTableSource(onPending)
+			}
+			continue
+		}
+
 		joinLoc := p.pos()
 		jt, hint, ok, err := p.matchJoinType()
 		if err != nil {
@@ -942,6 +943,31 @@ func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) 
 	return left, nil
 }
 
+// collectAfterTableSource adds the completion candidates that may follow a
+// table source in FROM and returns errCollecting. onPending adds the ON that
+// the enclosing qualified join still owes.
+func (p *Parser) collectAfterTableSource(onPending bool) error {
+	if onPending {
+		p.addTokenCandidate(kwON)
+	}
+	p.addTokenCandidate(kwJOIN)
+	p.addTokenCandidate(kwINNER)
+	p.addTokenCandidate(kwLEFT)
+	p.addTokenCandidate(kwRIGHT)
+	p.addTokenCandidate(kwCROSS)
+	p.addTokenCandidate(kwFULL)
+	p.addTokenCandidate(kwOUTER)
+	p.addTokenCandidate(kwWHERE)
+	p.addTokenCandidate(kwORDER)
+	p.addTokenCandidate(kwGROUP)
+	p.addTokenCandidate(kwHAVING)
+	p.addTokenCandidate(kwUNION)
+	p.addTokenCandidate(kwFOR)
+	p.addTokenCandidate(kwOPTION)
+	p.addTokenCandidate(kwAPPLY)
+	return errCollecting
+}
+
 // parseParenthesizedJoin parses a joined table in parentheses. The current
 // token is '(' and the token after it does not begin a query expression.
 //
@@ -950,8 +976,11 @@ func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) 
 // The content must hold at least one join: SQL Server rejects FROM (t1) and
 // (SELECT 1) s in parentheses without a join, and an alias after the closing
 // parenthesis. ScriptDOM's joinParenthesis and joinTableReference
-// (bnf/TSql170.g) encode the same rule. The JoinClause returned spans the
-// parentheses.
+// (bnf/TSql170.g) encode the same rule. The content must also end with a
+// join: SQL Server rejects (t1 JOIN t2 ON c PIVOT (...) p), where the PIVOT
+// wraps the join, but accepts a PIVOT that another join follows. ScriptDOM
+// allows no PIVOT there at all, which is narrower than SQL Server. The
+// JoinClause returned spans the parentheses.
 func (p *Parser) parseParenthesizedJoin() (nodes.TableExpr, error) {
 	loc := p.pos()
 	p.advance() // consume '('
@@ -976,7 +1005,7 @@ func (p *Parser) parseParenthesizedJoin() (nodes.TableExpr, error) {
 		return nil, err
 	}
 	join.Loc = nodes.Loc{Start: loc, End: p.prevEnd()}
-	return p.parsePivotUnpivot(join)
+	return join, nil
 }
 
 // parsePrimaryTableSource parses a base table, subquery, or function call as table source.
@@ -1033,9 +1062,9 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 				Columns: cols,
 				Loc:     nodes.Loc{Start: loc, End: -1},
 			}
-			return p.parsePivotUnpivot(result)
+			return result, nil
 		}
-		return p.parsePivotUnpivot(inner)
+		return inner, nil
 	}
 
 	// Rowset functions: OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
@@ -1077,34 +1106,7 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.parsePivotUnpivot(tvf)
-	}
-
-	// TABLESAMPLE
-	if p.cur.Type == kwTABLESAMPLE {
-		ts, err := p.parseTableSampleClause()
-		if err != nil {
-			return nil, err
-		}
-		alias := p.parseOptionalAlias()
-		if alias != "" {
-			ref.Alias = alias
-		}
-		result := &nodes.AliasedTableRef{
-			Table:       ref,
-			Alias:       ref.Alias,
-			TableSample: ts,
-			Loc:         ref.Loc,
-		}
-		// Table hints after TABLESAMPLE
-		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			var err error
-			result.Hints, err = p.parseTableHints()
-			if err != nil {
-				return nil, err
-			}
-		}
-		return p.parsePivotUnpivot(result)
+		return tvf, nil
 	}
 
 	// Alias
@@ -1112,6 +1114,31 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 	if alias != "" {
 		ref.Alias = alias
 		ref.Loc.End = p.prevEnd()
+	}
+
+	// TABLESAMPLE follows the alias and precedes the table hints:
+	// t AS s TABLESAMPLE (10 PERCENT) WITH (NOLOCK). SQL Server rejects an
+	// alias after it, and ScriptDOM's schemaObjectTableReference
+	// (bnf/TSql170.g) has the same order.
+	if p.cur.Type == kwTABLESAMPLE {
+		ts, err := p.parseTableSampleClause()
+		if err != nil {
+			return nil, err
+		}
+		result := &nodes.AliasedTableRef{
+			Table:       ref,
+			Alias:       ref.Alias,
+			TableSample: ts,
+			Loc:         nodes.Loc{Start: ref.Loc.Start, End: -1},
+		}
+		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+			result.Hints, err = p.parseTableHints()
+			if err != nil {
+				return nil, err
+			}
+		}
+		result.Loc.End = p.prevEnd()
+		return result, nil
 	}
 
 	// Table hints: WITH (NOLOCK), WITH (INDEX(idx1)), etc.
@@ -1123,18 +1150,16 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		ref.Loc.End = p.prevEnd()
 	}
 
-	return p.parsePivotUnpivot(ref)
+	return ref, nil
 }
 
-// parsePivotUnpivot checks for and parses PIVOT or UNPIVOT after a table source.
+// parsePivotUnpivot parses the PIVOT or UNPIVOT at the current token, which
+// wraps source.
 func (p *Parser) parsePivotUnpivot(source nodes.TableExpr) (nodes.TableExpr, error) {
 	if p.cur.Type == kwPIVOT {
 		return p.parsePivotExpr(source)
 	}
-	if p.cur.Type == kwUNPIVOT {
-		return p.parseUnpivotExpr(source)
-	}
-	return source, nil
+	return p.parseUnpivotExpr(source)
 }
 
 // pivotStart returns where a PIVOT or UNPIVOT table source starts: at its
@@ -1147,7 +1172,16 @@ func pivotStart(source nodes.TableExpr, keyword int) int {
 	return keyword
 }
 
-// parsePivotExpr parses PIVOT (agg_func(col) FOR pivot_col IN ([v1],[v2],...)) AS alias.
+// parsePivotExpr parses the PIVOT at the current token, which wraps source.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-using-pivot-and-unpivot
+//
+//	PIVOT ( aggregate_function ( value_column [ , ...n ] )
+//	    FOR pivot_column IN ( column_name [ , ...n ] ) ) [ AS ] table_alias
+//
+// Every part is required. ScriptDOM's pivotedTableReference (bnf/TSql170.g)
+// has the same shape; SQL Server 2022 settles what each part takes, see
+// parsePivotAggregate, parsePivotColumn, and parsePivotAlias.
 func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error) {
 	loc := pivotStart(source, p.pos())
 	p.advance() // consume PIVOT
@@ -1167,57 +1201,46 @@ func (p *Parser) parsePivotExpr(source nodes.TableExpr) (*nodes.PivotExpr, error
 		return nil, errCollecting
 	}
 
-	// Parse aggregate function call
-	var err error
-	pivot.AggFunc, err = p.parseExpr()
+	agg, err := p.parsePivotAggregate()
 	if err != nil {
 		return nil, err
 	}
-
-	// FOR column
-	if _, ok := p.match(kwFOR); ok {
-		if name, ok := p.parseIdentifier(); ok {
-			pivot.ForCol = name
-		}
+	pivot.AggFunc = agg
+	if err := p.expectPivotKeyword(kwFOR); err != nil {
+		return nil, err
 	}
-
-	// IN ([v1], [v2], ...)
-	if _, ok := p.match(kwIN); ok {
-		if _, err := p.expect('('); err == nil {
-			vals, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
-				if p.collectMode() {
-					p.addRuleCandidate("columnref")
-					return nil, errCollecting
-				}
-				name, ok := p.parseIdentifier()
-				if !ok {
-					return nil, p.unexpectedToken()
-				}
-				return &nodes.String{Str: name}, nil
-			})
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			pivot.InValues = &nodes.List{Items: vals}
-		}
+	if pivot.ForCol, err = p.parsePivotColumn(); err != nil {
+		return nil, err
 	}
-
+	if err := p.expectPivotKeyword(kwIN); err != nil {
+		return nil, err
+	}
+	if pivot.InValues, err = p.parsePivotColumnList(); err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-
-	// AS alias
-	alias := p.parseOptionalAlias()
-	pivot.Alias = alias
+	if pivot.Alias, err = p.parsePivotAlias(); err != nil {
+		return nil, err
+	}
 
 	pivot.Loc.End = p.prevEnd()
 	return pivot, nil
 }
 
-// parseUnpivotExpr parses UNPIVOT (value_col FOR pivot_col IN ([c1],[c2],...)) AS alias.
+// parseUnpivotExpr parses the UNPIVOT at the current token, which wraps
+// source.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-using-pivot-and-unpivot
+//
+//	UNPIVOT ( value_column FOR pivot_column IN ( column_name [ , ...n ] ) )
+//	    [ AS ] table_alias
+//
+// Every part is required. ScriptDOM's unpivotedTableReference
+// (bnf/TSql170.g) takes a single identifier for value_column and
+// pivot_column, but SQL Server parses a multi-part name there too and
+// rejects a prefix only when it binds the query.
 func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, error) {
 	loc := pivotStart(source, p.pos())
 	p.advance() // consume UNPIVOT
@@ -1231,67 +1254,236 @@ func (p *Parser) parseUnpivotExpr(source nodes.TableExpr) (*nodes.UnpivotExpr, e
 		return nil, err
 	}
 
-	// Completion: inside UNPIVOT (...) → column context
-	if p.collectMode() {
-		p.addRuleCandidate("columnref")
-		return nil, errCollecting
+	var err error
+	if unpivot.ValueCol, err = p.parsePivotColumn(); err != nil {
+		return nil, err
 	}
-
-	// value column name
-	if name, ok := p.parseIdentifier(); ok {
-		unpivot.ValueCol = name
+	if err := p.expectPivotKeyword(kwFOR); err != nil {
+		return nil, err
 	}
-
-	// FOR column
-	if _, ok := p.match(kwFOR); ok {
-		if name, ok := p.parseIdentifier(); ok {
-			unpivot.ForCol = name
-		}
+	if unpivot.ForCol, err = p.parsePivotColumn(); err != nil {
+		return nil, err
 	}
-
-	// IN ([c1], [c2], ...)
-	if _, ok := p.match(kwIN); ok {
-		if _, err := p.expect('('); err == nil {
-			cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
-				if p.collectMode() {
-					p.addRuleCandidate("columnref")
-					return nil, errCollecting
-				}
-				name, ok := p.parseIdentifier()
-				if !ok {
-					return nil, p.unexpectedToken()
-				}
-				return &nodes.String{Str: name}, nil
-			})
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			unpivot.InCols = &nodes.List{Items: cols}
-		}
+	if err := p.expectPivotKeyword(kwIN); err != nil {
+		return nil, err
 	}
-
+	if unpivot.InCols, err = p.parsePivotColumnList(); err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-
-	// AS alias
-	alias := p.parseOptionalAlias()
-	unpivot.Alias = alias
+	if unpivot.Alias, err = p.parsePivotAlias(); err != nil {
+		return nil, err
+	}
 
 	unpivot.Loc.End = p.prevEnd()
 	return unpivot, nil
 }
 
-// parseTableSampleClause parses TABLESAMPLE (size PERCENT|ROWS) [REPEATABLE (seed)].
+// pivotAggregates are the built-in aggregates PIVOT takes by an unqualified
+// name. SQL Server 2022 rejects every other unqualified name, GROUPING and
+// ABS among them, with "is not a recognized aggregate function" even under
+// SET PARSEONLY ON.
+var pivotAggregates = map[string]bool{
+	"APPROX_COUNT_DISTINCT":  true,
+	"APPROX_PERCENTILE_CONT": true,
+	"APPROX_PERCENTILE_DISC": true,
+	"AVG":                    true,
+	"CHECKSUM_AGG":           true,
+	"COUNT":                  true,
+	"COUNT_BIG":              true,
+	"MAX":                    true,
+	"MIN":                    true,
+	"STDEV":                  true,
+	"STDEVP":                 true,
+	"STRING_AGG":             true,
+	"SUM":                    true,
+	"VAR":                    true,
+	"VARP":                   true,
+}
+
+// parsePivotAggregate parses the aggregate function call of a PIVOT.
+//
+//	aggregate_function ( value_column [ , ...n ] )
+//
+// aggregate_function is one of pivotAggregates, undelimited, or a
+// user-defined aggregate qualified by its schema and at most its database:
+// SQL Server rejects [MAX](c) and srv.db.dbo.agg(c). Each argument is a
+// column (parsePivotColumn); SQL Server rejects *, DISTINCT, literals,
+// variables, and other expressions there, but leaves the argument count to
+// binding.
+func (p *Parser) parsePivotAggregate() (*nodes.FuncCallExpr, error) {
+	loc := p.pos()
+	first := p.cur
+	var parts []string
+	for {
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
+		}
+		parts = append(parts, name)
+		if p.cur.Type != '.' || len(parts) == 3 {
+			break
+		}
+		p.advance() // consume '.'
+		// Completion: after a dot in the aggregate name → func_name
+		if p.collectMode() {
+			p.addRuleCandidate("func_name")
+			return nil, errCollecting
+		}
+	}
+	name := &nodes.TableRef{
+		Object: parts[len(parts)-1],
+		Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
+	}
+	switch len(parts) {
+	case 1:
+		if p.isDelimited(first) {
+			return nil, p.newParseError(first.Loc, fmt.Sprintf("syntax error at or near \"%s\"", p.tokenText(first)))
+		}
+		if !pivotAggregates[strings.ToUpper(parts[0])] {
+			return nil, p.newParseError(first.Loc, fmt.Sprintf("'%s' is not a recognized aggregate function", parts[0]))
+		}
+	case 2:
+		name.Schema = parts[0]
+	case 3:
+		name.Database = parts[0]
+		name.Schema = parts[1]
+	}
+	args, err := p.parsePivotColumnList()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.FuncCallExpr{
+		Name: name,
+		Args: args,
+		Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+	}, nil
+}
+
+// isDelimited reports whether tok is a bracketed or double-quoted identifier.
+func (p *Parser) isDelimited(tok Token) bool {
+	if tok.Type != tokIDENT || tok.Loc < 0 || tok.Loc >= len(p.source) {
+		return false
+	}
+	c := p.source[tok.Loc]
+	return c == '[' || c == '"'
+}
+
+// parsePivotColumn parses a column of a PIVOT or UNPIVOT: a name of one to
+// four parts. SQL Server parses a prefix on every column and rejects it, where
+// the column is a new one, only when it binds the query. It rejects a fifth
+// part, an empty part (db..c), a pseudo-column such as $IDENTITY or
+// IDENTITYCOL, and anything else that is not a name.
+func (p *Parser) parsePivotColumn() (*nodes.ColumnRef, error) {
+	// Completion: at a PIVOT or UNPIVOT column → columnref
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		return nil, errCollecting
+	}
+	loc := p.pos()
+	var parts []string
+	for {
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
+		}
+		parts = append(parts, name)
+		if p.cur.Type != '.' || len(parts) == 4 {
+			break
+		}
+		p.advance() // consume '.'
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, errCollecting
+		}
+	}
+	ref := &nodes.ColumnRef{
+		Column: parts[len(parts)-1],
+		Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
+	}
+	switch len(parts) {
+	case 2:
+		ref.Table = parts[0]
+	case 3:
+		ref.Schema, ref.Table = parts[0], parts[1]
+	case 4:
+		ref.Database, ref.Schema, ref.Table = parts[0], parts[1], parts[2]
+	}
+	return ref, nil
+}
+
+// parsePivotColumnList parses a parenthesized, non-empty list of columns.
+//
+//	( column [ , ...n ] )
+func (p *Parser) parsePivotColumnList() (*nodes.List, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
+		return p.parsePivotColumn()
+	})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: cols}, nil
+}
+
+// expectPivotKeyword consumes FOR or IN, which PIVOT and UNPIVOT require,
+// and offers it as a completion candidate at the cursor.
+func (p *Parser) expectPivotKeyword(kw int) error {
+	if p.collectMode() {
+		p.addTokenCandidate(kw)
+		return errCollecting
+	}
+	_, err := p.expect(kw)
+	return err
+}
+
+// parsePivotAlias parses the alias PIVOT and UNPIVOT require.
+//
+//	[ AS ] table_alias
+//
+// SQL Server takes WINDOW here, which parseOptionalAlias leaves for a WINDOW
+// clause.
+func (p *Parser) parsePivotAlias() (string, error) {
+	// Completion: before the alias → AS
+	if p.collectMode() {
+		p.addTokenCandidate(kwAS)
+		return "", errCollecting
+	}
+	p.match(kwAS)
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.unexpectedToken()
+	}
+	return name, nil
+}
+
+// parseTableSampleClause parses a TABLESAMPLE clause.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-transact-sql
+//
+//	TABLESAMPLE [ SYSTEM ] ( sample_number [ PERCENT | ROWS ] )
+//	    [ REPEATABLE ( repeat_seed ) ]
+//
+// SQL Server takes SYSTEM and REPEATABLE only undelimited, and requires the
+// sample number and the seed: it rejects TABLESAMPLE (), (PERCENT), and a
+// REPEATABLE without its parenthesized seed.
 func (p *Parser) parseTableSampleClause() (*nodes.TableSampleClause, error) {
 	loc := p.pos()
 	p.advance() // consume TABLESAMPLE
 
 	ts := &nodes.TableSampleClause{
 		Loc: nodes.Loc{Start: loc, End: -1},
+	}
+
+	if _, ok := p.match(kwSYSTEM); ok {
+		ts.System = true
 	}
 
 	if _, err := p.expect('('); err != nil {
@@ -1302,6 +1494,9 @@ func (p *Parser) parseTableSampleClause() (*nodes.TableSampleClause, error) {
 	ts.Size, err = p.parseExpr()
 	if err != nil {
 		return nil, err
+	}
+	if ts.Size == nil {
+		return nil, p.unexpectedToken()
 	}
 
 	// PERCENT or ROWS
@@ -1316,15 +1511,19 @@ func (p *Parser) parseTableSampleClause() (*nodes.TableSampleClause, error) {
 	}
 
 	// REPEATABLE (seed)
-	if p.matchIdentCI("REPEATABLE") {
-		if _, err := p.expect('('); err == nil {
-			ts.Repeatable, err = p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
+	if _, ok := p.match(kwREPEATABLE); ok {
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		ts.Repeatable, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if ts.Repeatable == nil {
+			return nil, p.unexpectedToken()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1378,15 +1577,18 @@ func (p *Parser) parseTableValuedFunction(ref *nodes.TableRef) (nodes.TableExpr,
 
 // parseOptionalAlias parses an optional alias (AS name or just name).
 // Reserved keywords (CoreKeyword) cannot be unquoted aliases — a bracketed
-// form like `AS [FROM]` is already tokIDENT at the lexer level.
+// form like `AS [FROM]` is already tokIDENT at the lexer level. An AS that
+// no name follows is left in place, so the caller rejects it as SQL Server
+// does: FROM t AS WHERE ... and t AS TABLESAMPLE (...) are syntax errors.
 func (p *Parser) parseOptionalAlias() string {
-	if _, ok := p.match(kwAS); ok {
-		if p.isIdentLike() {
-			name := p.cur.Str
-			p.advance()
-			return name
+	if p.cur.Type == kwAS {
+		if next := p.peekNext().Type; next != tokIDENT && !isContextKeyword(next) {
+			return ""
 		}
-		return ""
+		p.advance() // consume AS
+		name := p.cur.Str
+		p.advance()
+		return name
 	}
 	// Bare alias - accept identifiers and context keywords, but NOT clause/statement keywords
 	if p.isIdentLike() && !p.isSelectClauseIdent() && !p.isBareAliasExcluded() {

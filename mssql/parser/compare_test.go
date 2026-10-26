@@ -1334,11 +1334,11 @@ func TestParseSelect(t *testing.T) {
 		if !ok {
 			t.Errorf("expected *UnpivotExpr in FROM, got %T", stmt.FromClause.Items[0])
 		}
-		if unpvt.ValueCol != "val" {
-			t.Errorf("expected ValueCol=val, got %s", unpvt.ValueCol)
+		if unpvt.ValueCol == nil || unpvt.ValueCol.Column != "val" {
+			t.Errorf("expected ValueCol=val, got %v", unpvt.ValueCol)
 		}
-		if unpvt.ForCol != "col" {
-			t.Errorf("expected ForCol=col, got %s", unpvt.ForCol)
+		if unpvt.ForCol == nil || unpvt.ForCol.Column != "col" {
+			t.Errorf("expected ForCol=col, got %v", unpvt.ForCol)
 		}
 		if unpvt.Alias != "unpvt" {
 			t.Errorf("expected Alias=unpvt, got %s", unpvt.Alias)

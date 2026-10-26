@@ -3874,8 +3874,9 @@ func writePivotExpr(sb *strings.Builder, n *PivotExpr) {
 		sb.WriteString(" :aggFunc ")
 		writeNode(sb, n.AggFunc)
 	}
-	if n.ForCol != "" {
-		fmt.Fprintf(sb, " :forCol \"%s\"", escapeString(n.ForCol))
+	if n.ForCol != nil {
+		sb.WriteString(" :forCol ")
+		writeNode(sb, n.ForCol)
 	}
 	if n.InValues != nil {
 		sb.WriteString(" :inValues ")
@@ -3893,11 +3894,13 @@ func writeUnpivotExpr(sb *strings.Builder, n *UnpivotExpr) {
 		sb.WriteString(" :source ")
 		writeNode(sb, n.Source)
 	}
-	if n.ValueCol != "" {
-		fmt.Fprintf(sb, " :valueCol \"%s\"", escapeString(n.ValueCol))
+	if n.ValueCol != nil {
+		sb.WriteString(" :valueCol ")
+		writeNode(sb, n.ValueCol)
 	}
-	if n.ForCol != "" {
-		fmt.Fprintf(sb, " :forCol \"%s\"", escapeString(n.ForCol))
+	if n.ForCol != nil {
+		sb.WriteString(" :forCol ")
+		writeNode(sb, n.ForCol)
 	}
 	if n.InCols != nil {
 		sb.WriteString(" :inCols ")
@@ -3911,6 +3914,9 @@ func writeUnpivotExpr(sb *strings.Builder, n *UnpivotExpr) {
 
 func writeTableSampleClause(sb *strings.Builder, n *TableSampleClause) {
 	sb.WriteString("{TABLESAMPLE")
+	if n.System {
+		sb.WriteString(" :system true")
+	}
 	if n.Size != nil {
 		sb.WriteString(" :size ")
 		writeNode(sb, n.Size)

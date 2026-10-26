@@ -274,11 +274,6 @@ func TestSetOptionListOracle(t *testing.T) {
 			if err != nil {
 				t.Fatalf("oracle error: %v", err)
 			}
-			// QUOTED_IDENTIFIER takes effect while the batch is parsed, even
-			// under SET PARSEONLY ON, so restore it for the tests that follow.
-			if _, err := oracle.conn.ExecContext(oracle.ctx, "SET QUOTED_IDENTIFIER ON"); err != nil {
-				t.Fatalf("restore QUOTED_IDENTIFIER: %v", err)
-			}
 			if ssAccepts != tc.accept {
 				t.Errorf("SQL Server %s, test expects %s\n  SQL: %s",
 					boolToAcceptReject(ssAccepts), boolToAcceptReject(tc.accept), tc.sql)
