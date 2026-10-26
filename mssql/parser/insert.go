@@ -131,12 +131,16 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 			return nil, err
 		}
 		stmt.Source = vc
-	case p.cur.Type == kwSELECT || p.cur.Type == kwWITH:
-		sel, err := p.parseSelectStmt()
+	case p.cur.Type == kwSELECT || p.cur.Type == '(':
+		sel, err := p.parseQueryExpr(queryInsert, false)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Source = sel
+	case p.cur.Type == kwWITH:
+		// An INSERT's CTE list comes before INSERT; SQL Server reports a
+		// syntax error at a WITH in its source.
+		return nil, p.unexpectedToken()
 	case p.cur.Type == kwEXEC || p.cur.Type == kwEXECUTE:
 		execStmt, err := p.parseExecStmt()
 		if err != nil {

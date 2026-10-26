@@ -7,9 +7,43 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
-// parseSelectStmt parses a SELECT statement in a nested position: a derived
-// table, a scalar/EXISTS/IN/quantified subquery, a CTE body, a set-operation
-// operand, or the source of an INSERT.
+// queryMode is the position of a query expression, which decides where
+// ORDER BY, OFFSET, FOR, and OPTION may appear in it. SQL Server 2022 and
+// ScriptDOM agree on the split (bnf/TSql170.g: select and selectInsertSource
+// over queryExpression for statements, subqueryExpression for nested
+// positions).
+//
+// Outside parentheses a query specification parses all four clauses and
+// INTO in every mode, a known leniency: SQL Server rejects ORDER BY before a
+// set operator, OPTION in a subquery, and INTO outside a SELECT statement.
+// The modes bind the parenthesized forms.
+type queryMode int
+
+const (
+	// querySubquery is a nested position: a derived table, a scalar,
+	// EXISTS, IN, or quantified subquery, a CTE body, a view body, or an
+	// inline table-valued function's RETURN. A query specification carries
+	// its own ORDER BY, OFFSET, and FOR, and nothing follows the ')' of a
+	// parenthesized query expression.
+	querySubquery queryMode = iota
+	// querySelect is the query of a SELECT statement. ORDER BY, OFFSET,
+	// FOR, and OPTION follow the whole query expression, so a query
+	// specification inside parentheses carries none of them; any of its
+	// query specifications may carry INTO.
+	querySelect
+	// queryStatement is the query of a cursor or of the CREATE ... TABLE AS
+	// SELECT family: like querySelect, but without INTO (SQL Server: "an
+	// INTO clause is not allowed in a cursor declaration").
+	queryStatement
+	// queryInsert is the source of an INSERT: like queryStatement, except
+	// that only ORDER BY and OFFSET follow the query expression. OPTION
+	// belongs to the INSERT, and SQL Server rejects FOR there.
+	queryInsert
+)
+
+// parseSelectStmt parses a query expression in a nested position: a derived
+// table, a scalar/EXISTS/IN/quantified subquery, a CTE body, or a
+// set-operation operand.
 //
 // BNF: mssql/parser/bnf/select-transact-sql.bnf
 //
@@ -44,19 +78,135 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	if p.cur.Type == kwWITH {
 		return nil, p.unexpectedToken()
 	}
-	if p.cur.Type != kwSELECT {
-		return nil, nil
-	}
-	return p.parseSelectStmtAfterWith(p.pos(), nil)
+	return p.parseQueryExpr(querySubquery, false)
 }
 
-// parseSelectStmtWithCTE parses [ WITH <cte> [ , ...n ] ] SELECT ... for the
-// object bodies whose select_statement carries its own CTE list in T-SQL:
-// CREATE/ALTER VIEW, an inline table-valued function's RETURN, DECLARE
-// CURSOR FOR, and the CREATE ... TABLE AS SELECT family. Statement-level
-// WITH is handled by parseWithStmt, and nested query expressions must use
-// parseSelectStmt, which rejects a leading WITH.
-func (p *Parser) parseSelectStmtWithCTE() (*nodes.SelectStmt, error) {
+// parseQueryExpr parses a query expression in mode: query specifications and
+// parenthesized query expressions joined by UNION, EXCEPT, and INTERSECT.
+// inParens is true inside the parentheses of a parenthesized query
+// expression. It returns nil, nil when the current token starts neither a
+// query specification nor a parenthesized query expression.
+func (p *Parser) parseQueryExpr(mode queryMode, inParens bool) (*nodes.SelectStmt, error) {
+	switch p.cur.Type {
+	case kwSELECT:
+		return p.parseSelectStmtAfterWith(p.pos(), nil, mode, inParens)
+	case '(':
+		return p.parseParenQueryExpr(p.pos(), nil, mode, inParens)
+	}
+	return nil, nil
+}
+
+// parseParenQueryExpr parses a parenthesized query expression and the set
+// operations that follow it. The current token is '('. loc and withClause
+// are the start and the CTE list of a statement whose query starts here.
+//
+//	( <query_expression> )
+//
+// The SelectStmt inside the parentheses stands for them, its Loc widened to
+// span them. In a statement's query (every mode but querySubquery), when no
+// set operator follows, the clauses after the parentheses are recorded on
+// it, as an unparenthesized query specification records them on itself.
+func (p *Parser) parseParenQueryExpr(loc int, withClause *nodes.WithClause, mode queryMode, inParens bool) (*nodes.SelectStmt, error) {
+	p.advance() // consume '('
+
+	// Completion: after '(' that opens a query expression → SELECT
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		return nil, errCollecting
+	}
+
+	stmt, err := p.parseQueryExpr(mode, true)
+	if err != nil {
+		return nil, err
+	}
+	if stmt == nil {
+		return nil, p.unexpectedToken()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	stmt.WithClause = withClause
+	stmt.Loc = nodes.Loc{Start: loc, End: p.prevEnd()}
+
+	if inParens || mode == querySubquery || isSetOperator(p.cur.Type) {
+		return p.parseSetOperation(stmt, mode, inParens)
+	}
+	if err := p.parseQueryTail(stmt, mode); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prevEnd()
+	return stmt, nil
+}
+
+// parseQueryTail parses the clauses that follow a statement's parenthesized
+// query expression into stmt.
+//
+//	[ ORDER BY <order_by_expression> [ <offset_fetch> ] ]
+//	[ <FOR Clause> ]
+//	[ OPTION ( <query_hint> [ , ...n ] ) ]
+//
+// An INSERT source (queryInsert) takes ORDER BY and OFFSET only.
+func (p *Parser) parseQueryTail(stmt *nodes.SelectStmt, mode queryMode) error {
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return err
+		}
+		// Completion: after ORDER BY → columnref context
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return errCollecting
+		}
+		orderBy, err := p.parseOrderByList()
+		if err != nil {
+			return err
+		}
+		if orderBy == nil || len(orderBy.Items) == 0 {
+			return p.unexpectedToken()
+		}
+		stmt.OrderByClause = orderBy
+		if p.cur.Type == kwOFFSET {
+			if err := p.parseOffsetFetch(stmt); err != nil {
+				return err
+			}
+		}
+	}
+	if mode == queryInsert {
+		return nil
+	}
+	if p.cur.Type == kwFOR {
+		if next := p.peekNext().Type; next == kwXML || next == kwJSON || next == kwBROWSE {
+			forClause, err := p.parseForClause()
+			if err != nil {
+				return err
+			}
+			stmt.ForClause = forClause
+		}
+	}
+	if p.cur.Type == kwOPTION {
+		option, err := p.parseOptionClause()
+		if err != nil {
+			return err
+		}
+		stmt.OptionClause = option
+	}
+	return nil
+}
+
+// isSetOperator reports whether t is UNION, INTERSECT, or EXCEPT.
+func isSetOperator(t int) bool {
+	return t == kwUNION || t == kwINTERSECT || t == kwEXCEPT
+}
+
+// parseSelectStmtWithCTE parses [ WITH <cte> [ , ...n ] ] <query_expression>
+// for the object bodies whose select_statement carries its own CTE list in
+// T-SQL: CREATE/ALTER VIEW, an inline table-valued function's RETURN,
+// DECLARE CURSOR FOR, and the CREATE ... TABLE AS SELECT family. mode is the
+// body's position. Statement-level WITH is handled by parseWithStmt, and
+// nested query expressions must use parseSelectStmt, which rejects a leading
+// WITH.
+func (p *Parser) parseSelectStmtWithCTE(mode queryMode) (*nodes.SelectStmt, error) {
 	loc := p.pos()
 
 	// WITH clause (CTE)
@@ -67,27 +217,32 @@ func (p *Parser) parseSelectStmtWithCTE() (*nodes.SelectStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		if p.cur.Type != kwSELECT {
+		if p.cur.Type != kwSELECT && p.cur.Type != '(' {
 			// The CTE list has been consumed, so returning nil here would
 			// silently drop it and leave the caller with a typed-nil
-			// statement. A WITH that is not followed by SELECT is only
-			// legal at statement level (WITH ... INSERT/UPDATE/DELETE/MERGE),
-			// which parseWithStmt handles before ever reaching here.
+			// statement. A WITH that is not followed by a query expression
+			// is only legal at statement level (WITH ...
+			// INSERT/UPDATE/DELETE/MERGE), which parseWithStmt handles
+			// before ever reaching here.
 			return nil, p.unexpectedToken()
 		}
 	}
 
-	if p.cur.Type != kwSELECT {
-		return nil, nil
+	switch p.cur.Type {
+	case kwSELECT:
+		return p.parseSelectStmtAfterWith(loc, withClause, mode, false)
+	case '(':
+		return p.parseParenQueryExpr(loc, withClause, mode, false)
 	}
-	return p.parseSelectStmtAfterWith(loc, withClause)
+	return nil, nil
 }
 
-// parseSelectStmtAfterWith parses a SELECT statement whose optional WITH
-// clause has already been consumed. loc is the start of the whole statement
-// (the WITH keyword when present, otherwise SELECT). The current token must
-// be SELECT.
-func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause) (*nodes.SelectStmt, error) {
+// parseSelectStmtAfterWith parses a query specification whose statement's
+// optional WITH clause has already been consumed, and the set operations
+// that follow it. loc is the start of the whole statement (the WITH keyword
+// when present, otherwise SELECT). The current token must be SELECT. mode
+// and inParens are as in parseQueryExpr.
+func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause, mode queryMode, inParens bool) (*nodes.SelectStmt, error) {
 	// Entering a SELECT (top-level or subquery) resets the search-condition
 	// depth so that the select list / scalar subexpressions are parsed as
 	// scalar expressions even if we entered from an outer WHERE or HAVING.
@@ -155,8 +310,11 @@ func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause)
 		return nil, p.unexpectedToken()
 	}
 
-	// INTO
-	if _, ok := p.match(kwINTO); ok {
+	// INTO. Inside parentheses SQL Server takes it only in a SELECT
+	// statement's query, (SELECT 1 INTO #t) UNION (SELECT 2), and rejects
+	// it in a cursor, an INSERT source, or a subquery.
+	if p.cur.Type == kwINTO && (mode == querySelect || !inParens) {
+		p.advance()
 		stmt.IntoTable, err = p.parseTableRef()
 		if err != nil {
 			return nil, err
@@ -283,6 +441,14 @@ func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause)
 		}
 	}
 
+	// Inside the parentheses of a statement's query, a query specification
+	// ends here: ORDER BY, OFFSET, FOR, and OPTION follow the whole query
+	// expression, and SQL Server rejects them inside.
+	if inParens && mode != querySubquery {
+		stmt.Loc.End = p.prevEnd()
+		return p.parseSetOperation(stmt, mode, inParens)
+	}
+
 	// ORDER BY
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -314,40 +480,8 @@ func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause)
 
 	// OFFSET ... FETCH
 	if p.cur.Type == kwOFFSET {
-		p.advance()
-		// Completion: after OFFSET → numeric context (no specific candidates)
-		stmt.OffsetClause, err = p.parseExpr()
-		if err != nil {
+		if err := p.parseOffsetFetch(stmt); err != nil {
 			return nil, err
-		}
-		// Consume optional ROWS/ROW
-		if p.cur.Type == kwROWS || p.cur.Type == kwROW {
-			p.advance()
-		}
-		// FETCH NEXT n ROWS ONLY
-		if p.cur.Type == kwFETCH {
-			fetchLoc := p.pos()
-			p.advance()
-			// NEXT or FIRST
-			if p.cur.Type == kwNEXT || p.cur.Type == kwFIRST {
-				p.advance()
-			}
-			count, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			// ROWS/ROW
-			if p.cur.Type == kwROWS || p.cur.Type == kwROW {
-				p.advance()
-			}
-			// ONLY
-			if p.cur.Type == kwONLY {
-				p.advance()
-			}
-			stmt.FetchClause = &nodes.FetchClause{
-				Count: count,
-				Loc:   nodes.Loc{Start: fetchLoc, End: p.prevEnd()},
-			}
 		}
 	}
 
@@ -373,17 +507,59 @@ func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause)
 		}
 	}
 
-	// UNION / INTERSECT / EXCEPT
-	if p.cur.Type == kwUNION || p.cur.Type == kwINTERSECT || p.cur.Type == kwEXCEPT {
-		return p.parseSetOperation(stmt)
-	}
-
 	stmt.Loc.End = p.prevEnd()
-	return stmt, nil
+	return p.parseSetOperation(stmt, mode, inParens)
 }
 
-// parseSetOperation parses UNION/INTERSECT/EXCEPT.
-func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, error) {
+// parseOffsetFetch parses an OFFSET clause and the FETCH that may follow it
+// into stmt. The current token is OFFSET.
+func (p *Parser) parseOffsetFetch(stmt *nodes.SelectStmt) error {
+	p.advance()
+	// Completion: after OFFSET → numeric context (no specific candidates)
+	var err error
+	stmt.OffsetClause, err = p.parseExpr()
+	if err != nil {
+		return err
+	}
+	// Consume optional ROWS/ROW
+	if p.cur.Type == kwROWS || p.cur.Type == kwROW {
+		p.advance()
+	}
+	// FETCH NEXT n ROWS ONLY
+	if p.cur.Type == kwFETCH {
+		fetchLoc := p.pos()
+		p.advance()
+		// NEXT or FIRST
+		if p.cur.Type == kwNEXT || p.cur.Type == kwFIRST {
+			p.advance()
+		}
+		count, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		// ROWS/ROW
+		if p.cur.Type == kwROWS || p.cur.Type == kwROW {
+			p.advance()
+		}
+		// ONLY
+		if p.cur.Type == kwONLY {
+			p.advance()
+		}
+		stmt.FetchClause = &nodes.FetchClause{
+			Count: count,
+			Loc:   nodes.Loc{Start: fetchLoc, End: p.prevEnd()},
+		}
+	}
+	return nil
+}
+
+// parseSetOperation parses the set operation that follows the query primary
+// left, when one follows, and returns left otherwise. mode and inParens are
+// those of the query expression, which its right operand shares.
+//
+// The right operand is parsed as a whole query expression, so a chain of
+// set operations nests to the right. The node spans both operands.
+func (p *Parser) parseSetOperation(left *nodes.SelectStmt, mode queryMode, inParens bool) (*nodes.SelectStmt, error) {
 	var op nodes.SetOperation
 	switch p.cur.Type {
 	case kwUNION:
@@ -392,6 +568,8 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 		op = nodes.SetOpIntersect
 	case kwEXCEPT:
 		op = nodes.SetOpExcept
+	default:
+		return left, nil
 	}
 	p.advance()
 
@@ -412,7 +590,7 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 		}
 	}
 
-	right, err := p.parseSelectStmt()
+	right, err := p.parseQueryExpr(mode, inParens)
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +602,7 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 		All:  all,
 		Larg: left,
 		Rarg: right,
-		Loc:  left.Loc,
+		Loc:  nodes.Loc{Start: left.Loc.Start, End: p.prevEnd()},
 	}, nil
 }
 
@@ -942,8 +1120,83 @@ func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) 
 	return left, nil
 }
 
+// parenBeginsQuery reports whether the '(' at p.cur opens a parenthesized
+// query expression rather than a parenthesized joined table or expression.
+// The next token alone cannot tell:
+//
+//	((SELECT 1)) s                      — derived table
+//	((SELECT 1) UNION (SELECT 2)) s     — derived table
+//	((SELECT 1) s JOIN t ON s.a = t.a)  — joined table
+//	((SELECT 1) + 1)                    — expression
+//
+// so when a '(' follows, it scans the block through its matching ')'. The
+// block holds a query expression when its content starts with SELECT, or
+// with a nested block that holds one followed by ')' or a set operator.
+// WITH counts as SELECT so that parseSelectStmt reports it where it stands.
+//
+// The parser asks again at every nesting level as it descends, so the scan
+// records the verdict for every '(' it passes in parenIsQuery. Rescanning
+// instead would make n nested groups cost O(n²).
+func (p *Parser) parenBeginsQuery() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	switch p.peekNext().Type {
+	case kwSELECT, kwWITH:
+		return true
+	case '(':
+	default:
+		return false
+	}
+	if isQuery, ok := p.parenIsQuery[p.cur.Loc]; ok {
+		return isQuery
+	}
+	lexPos, lexErr := p.lexer.pos, p.lexer.Err
+	cur, prev, nextBuf, hasNext, collecting := p.cur, p.prev, p.nextBuf, p.hasNext, p.collecting
+	defer func() {
+		p.lexer.pos, p.lexer.Err = lexPos, lexErr
+		p.cur, p.prev, p.nextBuf, p.hasNext, p.collecting = cur, prev, nextBuf, hasNext, collecting
+	}()
+	return p.scanParenIsQuery()
+}
+
+// scanParenIsQuery consumes the block at the current '(' through its
+// matching ')' and returns parenBeginsQuery's verdict for it, recording the
+// verdict for every '(' in the block in parenIsQuery. It moves the token
+// stream, so only parenBeginsQuery calls it.
+func (p *Parser) scanParenIsQuery() bool {
+	open := p.cur.Loc
+	p.advance() // consume '('
+
+	isQuery := false
+	switch p.cur.Type {
+	case kwSELECT, kwWITH:
+		isQuery = true
+	case '(':
+		nested := p.scanParenIsQuery()
+		isQuery = nested && (p.cur.Type == ')' || isSetOperator(p.cur.Type))
+	}
+
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.cur.Type == '(' {
+			p.scanParenIsQuery()
+			continue
+		}
+		p.advance()
+	}
+	if p.cur.Type == ')' {
+		p.advance()
+	}
+	if p.parenIsQuery == nil {
+		p.parenIsQuery = make(map[int]bool)
+	}
+	p.parenIsQuery[open] = isQuery
+	return isQuery
+}
+
 // parseParenthesizedJoin parses a joined table in parentheses. The current
-// token is '(' and the token after it does not begin a query expression.
+// token is '(' and the block it opens holds neither a query expression nor
+// VALUES.
 //
 //	[ ( ] <joined_table> [ ) ]
 //
@@ -987,11 +1240,12 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		return nil, errCollecting
 	}
 
-	// Parenthesised derived table: (SELECT ...) or (VALUES ...). A derived
-	// table's query expression starts with SELECT, and WITH is rejected by
-	// parseSelectStmt; any other token after '(' starts a joined table.
+	// Parenthesised derived table: (SELECT ...), ((SELECT ...) UNION ...), or
+	// (VALUES ...). WITH is rejected by parseSelectStmt. Any other content
+	// is a joined table: ((SELECT 1) s JOIN t ON ...) is a joined table,
+	// ((SELECT 1)) s a derived table.
 	if p.cur.Type == '(' {
-		if next := p.peekNext().Type; next != kwSELECT && next != kwVALUES && next != kwWITH {
+		if p.peekNext().Type != kwVALUES && !p.parenBeginsQuery() {
 			return p.parseParenthesizedJoin()
 		}
 		loc := p.pos()

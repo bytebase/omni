@@ -95,7 +95,7 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 			return nil, errCollecting
 		}
 		var err error
-		stmt.Query, err = p.parseSelectStmtWithCTE()
+		stmt.Query, err = p.parseSelectStmtWithCTE(queryStatement)
 		if err != nil {
 			return nil, err
 		}

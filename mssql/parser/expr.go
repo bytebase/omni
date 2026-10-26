@@ -237,6 +237,11 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.advance()
 		}
 		p.advance() // consume IN
+		// IN takes a subquery when its parentheses hold a query
+		// expression: IN ((SELECT a FROM t)) may return many rows, while
+		// IN ((SELECT a FROM t), 2) is a list of scalar subqueries (SQL
+		// Server 2022).
+		isQuery := p.parenBeginsQuery()
 		if _, err := p.expect('('); err != nil {
 			return left, nil
 		}
@@ -248,7 +253,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			return nil, errCollecting
 		}
 		// Check for subquery: IN (SELECT ...)
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+		if isQuery {
 			sub, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
@@ -700,6 +705,7 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}, nil
 	case '(':
 		loc := p.pos()
+		isQuery := p.parenBeginsQuery()
 		p.advance()
 		// Completion: after ( in expression → columnref, func_name, subquery keywords
 		if p.collectMode() {
@@ -708,8 +714,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			p.addTokenCandidate(kwSELECT)
 			return nil, errCollecting
 		}
-		// Scalar subquery: (SELECT ...)
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+		// Scalar subquery: (SELECT ...), or a parenthesized query
+		// expression such as ((SELECT 1) UNION (SELECT 2)).
+		if isQuery {
 			sub, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err

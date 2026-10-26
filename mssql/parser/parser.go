@@ -20,6 +20,10 @@ type Parser struct {
 	nextBuf Token  // buffered next token for 2-token lookahead
 	hasNext bool   // whether nextBuf is valid
 
+	// parenIsQuery memoizes parenBeginsQuery's verdict, keyed by the byte
+	// offset of a '('.
+	parenIsQuery map[int]bool
+
 	// Completion mode fields.
 	completing bool          // true when running in completion mode
 	cursorOff  int           // byte offset of the cursor
@@ -138,7 +142,9 @@ func (p *Parser) parseWithStmt() (nodes.StmtNode, error) {
 
 	switch p.cur.Type {
 	case kwSELECT:
-		return p.parseSelectStmtAfterWith(loc, withClause)
+		return p.parseSelectStmtAfterWith(loc, withClause, querySelect, false)
+	case '(':
+		return p.parseParenQueryExpr(loc, withClause, querySelect, false)
 	case kwINSERT:
 		stmt, err := p.parseInsertStmt()
 		if err != nil {
@@ -187,8 +193,8 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	p.checkCursor()
 
 	switch p.cur.Type {
-	case kwSELECT:
-		return p.parseSelectStmt()
+	case kwSELECT, '(':
+		return p.parseQueryExpr(querySelect, false)
 	case kwWITH:
 		return p.parseWithStmt()
 	case kwINSERT:
@@ -2480,7 +2486,7 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			if dropStmt.ObjectType == nodes.DropFulltextIndex {
 				// DROP FULLTEXT INDEX ON table_name
 				if _, ok := p.match(kwON); ok {
-					if ref , _ := p.parseTableRef(); ref != nil {
+					if ref, _ := p.parseTableRef(); ref != nil {
 						nameItems = append(nameItems, ref)
 					}
 				}
