@@ -58,8 +58,13 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		tv := p.parseVariableDmlTarget()
 		// MERGE allows alias after the target even for variable targets
 		// (SqlScriptDOM mergeSpecification parses alias separately from dmlTarget).
-		if alias := p.parseOptionalAlias(); alias != "" {
+		alias, err := p.parseMergeTargetAlias()
+		if err != nil {
+			return nil, err
+		}
+		if alias != "" {
 			tv.Alias = alias
+			tv.Loc.End = p.prevEnd()
 		}
 		stmt.Target = tv
 	} else {
@@ -79,24 +84,33 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 				return nil, err
 			}
 			target.Hints = hints
+			target.Loc.End = p.prevEnd()
 		}
 
-		if alias := p.parseOptionalAlias(); alias != "" {
+		alias, err := p.parseMergeTargetAlias()
+		if err != nil {
+			return nil, err
+		}
+		if alias != "" {
 			target.Alias = alias
+			target.Loc.End = p.prevEnd()
 		}
 	}
 
-	// USING source (USING is not a reserved keyword)
-	if p.cur.Type == kwUSING {
-		p.advance()
-		// Completion: after USING → table_ref
-		if p.collectMode() {
-			p.addRuleCandidate("table_ref")
-			return nil, errCollecting
-		}
+	// USING source. The source parses its own alias.
+	// Completion: after the target → USING
+	if p.collectMode() {
+		p.addTokenCandidate(kwUSING)
+		return nil, errCollecting
 	}
-
-	// Parse source table
+	if _, err := p.expect(kwUSING); err != nil {
+		return nil, err
+	}
+	// Completion: after USING → table_ref
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return nil, errCollecting
+	}
 	source, err := p.parseTableSource()
 	if err != nil {
 		return nil, err
@@ -106,29 +120,24 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 	}
 	stmt.Source = source
 
-	// Source alias
-	sourceAlias := p.parseOptionalAlias()
-	if sourceAlias != "" {
-		stmt.SourceAlias = sourceAlias
-	}
-
 	// ON condition
-	if _, ok := p.match(kwON); ok {
-		// Completion: after ON in MERGE → columnref
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			p.addRuleCandidate("func_name")
-			return nil, errCollecting
-		}
-		cond, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if cond == nil {
-			return nil, p.newParseError(p.cur.Loc, "expected condition after ON")
-		}
-		stmt.OnCondition = cond
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
+	// Completion: after ON in MERGE → columnref
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, errCollecting
+	}
+	cond, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if cond == nil {
+		return nil, p.newParseError(p.cur.Loc, "expected condition after ON")
+	}
+	stmt.OnCondition = cond
 
 	// WHEN clauses
 	var whenClauses []nodes.Node
@@ -140,6 +149,10 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		if wc != nil {
 			whenClauses = append(whenClauses, wc)
 		}
+	}
+	// SQL Server requires at least one WHEN clause.
+	if len(whenClauses) == 0 {
+		return nil, p.unexpectedToken()
 	}
 	stmt.WhenClauses = &nodes.List{Items: whenClauses}
 
@@ -163,6 +176,20 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// parseMergeTargetAlias parses the optional alias of a MERGE target. USING
+// ends the target: SQL Server takes neither a bare USING nor AS USING as the
+// alias, only a delimited [USING].
+func (p *Parser) parseMergeTargetAlias() (string, error) {
+	if p.cur.Type == kwUSING {
+		return "", nil
+	}
+	if p.cur.Type == kwAS && p.peekNext().Type == kwUSING {
+		p.advance() // consume AS
+		return "", p.unexpectedToken()
+	}
+	return p.parseOptionalAlias(), nil
 }
 
 // parseMergeWhenClause parses a single WHEN clause in MERGE.

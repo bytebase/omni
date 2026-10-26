@@ -1142,26 +1142,67 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 			TableSample: ts,
 			Loc:         nodes.Loc{Start: ref.Loc.Start, End: -1},
 		}
-		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			result.Hints, err = p.parseTableHints()
-			if err != nil {
-				return nil, err
-			}
+		if result.Hints, err = p.parseNamedTableHints(alias != ""); err != nil {
+			return nil, err
 		}
 		result.Loc.End = p.prevEnd()
 		return result, nil
 	}
 
-	// Table hints: WITH (NOLOCK), WITH (INDEX(idx1)), etc.
-	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-		ref.Hints, err = p.parseTableHints()
-		if err != nil {
-			return nil, err
-		}
+	// Table hints: WITH (NOLOCK), WITH (INDEX(idx1)), or t s (NOLOCK)
+	if ref.Hints, err = p.parseNamedTableHints(alias != ""); err != nil {
+		return nil, err
+	}
+	if ref.Hints != nil {
 		ref.Loc.End = p.prevEnd()
 	}
 
 	return ref, nil
+}
+
+// parseNamedTableHints parses the table hints after a named table, or
+// returns nil when there are none: WITH ( hint [ , ...n ] ), or after an
+// alias one hint in parentheses without WITH, which SQL Server still takes:
+// FROM t s (NOLOCK). Without an alias, t (NOLOCK) reaches
+// parseTableValuedFunction instead.
+func (p *Parser) parseNamedTableHints(hasAlias bool) (*nodes.List, error) {
+	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+		return p.parseTableHints()
+	}
+	if hasAlias && p.cur.Type == '(' {
+		return p.parseOldStyleTableHint()
+	}
+	return nil, nil
+}
+
+// parseOldStyleTableHint parses one table hint in parentheses after a table
+// alias. The current token is '('. SQL Server takes a single hint without
+// arguments there and requires WITH for anything else: FROM t s (NOLOCK,
+// READPAST), t s (INDEX(1)), and t s (FORCESEEK(1 (a))) are errors, and so
+// is any other '(' after an alias, such as t s (SELECT 1).
+func (p *Parser) parseOldStyleTableHint() (*nodes.List, error) {
+	p.advance() // consume (
+
+	// Completion: inside ( ... ) after an alias → table hint keywords
+	if p.collectMode() {
+		p.addRuleCandidate("table_hint")
+		return nil, errCollecting
+	}
+
+	hint, err := p.parseTableHint()
+	if err != nil {
+		return nil, err
+	}
+	if hint == nil {
+		return nil, p.unexpectedToken()
+	}
+	if hint.Name == "INDEX" || hint.Name == "SPATIAL_WINDOW_MAX_CELLS" || hint.IndexValues != nil {
+		return nil, p.newParseError(hint.Loc.Start, fmt.Sprintf("table hint %s requires WITH", hint.Name))
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: []nodes.Node{hint}}, nil
 }
 
 // parsePivotUnpivot parses the PIVOT or UNPIVOT at the current token, which
@@ -1740,10 +1781,18 @@ func (p *Parser) parseAliasAndOptionalColumnList() (string, *nodes.List, error) 
 	return alias, &nodes.List{Items: cols}, nil
 }
 
-// isSelectClauseIdent returns true if the current token is a contextual
-// keyword that starts a SELECT clause and should not be consumed as a bare alias.
+// isSelectClauseIdent reports whether the current token, a context keyword
+// that could be a bare alias, starts a clause of the query instead. WINDOW
+// starts a WINDOW clause only as WINDOW name AS; SQL Server 2022 takes it as
+// a table alias anywhere else, as in FROM t window WHERE ... and FROM t
+// window WINDOW w AS (...). (ScriptDOM's TSql170 grammar no longer takes
+// WINDOW as an alias, but the engine omni is checked against does.)
 func (p *Parser) isSelectClauseIdent() bool {
-	return p.cur.Type == kwWINDOW
+	if p.cur.Type != kwWINDOW {
+		return false
+	}
+	next := p.peekNext().Type
+	return (next == tokIDENT || isContextKeyword(next)) && p.peekSecond().Type == kwAS
 }
 
 // isBareAliasExcluded returns true if the current token is a context keyword
@@ -2551,8 +2600,10 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 		return &nodes.TableHint{Name: "NOWAIT", Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 	}
 
-	// All remaining hints are identifiers (not lexer keywords)
-	if !p.isIdentLike() {
+	// All remaining hints are identifiers (not lexer keywords). SQL Server
+	// takes them only undelimited: WITH ([READPAST]) and ("ROWLOCK") are
+	// errors, as in ScriptDOM's simpleTableHint (bnf/TSql170.g).
+	if !p.isIdentLike() || p.isDelimited(p.cur) {
 		return nil, nil
 	}
 

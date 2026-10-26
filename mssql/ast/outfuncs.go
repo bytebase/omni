@@ -727,9 +727,6 @@ func writeMergeStmt(sb *strings.Builder, n *MergeStmt) {
 		sb.WriteString(" :source ")
 		writeNode(sb, n.Source)
 	}
-	if n.SourceAlias != "" {
-		sb.WriteString(fmt.Sprintf(" :sourceAlias \"%s\"", escapeString(n.SourceAlias)))
-	}
 	if n.OnCondition != nil {
 		sb.WriteString(" :on ")
 		writeNode(sb, n.OnCondition)
