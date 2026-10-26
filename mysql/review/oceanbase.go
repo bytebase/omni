@@ -10,7 +10,8 @@ import (
 // MySQL mode, for every target, as Review does for MySQL. Bytebase reads
 // OceanBase as the MySQL dialect: it parses it with the MySQL parser and
 // reviews it with the MySQL advisors, so every rule here is the MySQL one,
-// but for PRIOR_BACKUP, which Bytebase does not take on OceanBase.
+// but for PRIOR_BACKUP, which Bytebase does not take on OceanBase, and
+// WALK_THROUGH, which waits for an oracle run against OceanBase.
 //
 // REQUIRE_PRIMARY_KEY does not judge a DROP COLUMN against the synced
 // key, as the MySQL rule does: OceanBase refuses to drop a column of the

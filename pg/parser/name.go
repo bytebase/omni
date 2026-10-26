@@ -621,27 +621,31 @@ func (p *Parser) parseMathOp() (string, bool) {
 //	    qualified_name
 //	    | qualified_name_list ',' qualified_name
 func (p *Parser) parseQualifiedNameList() (*nodes.List, error) {
+	start := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	result := &nodes.List{Items: []nodes.Node{makeRangeVarFromNames(names)}}
+	result := &nodes.List{Items: []nodes.Node{makeRangeVarFromNames(names, nodes.Loc{Start: start, End: p.prev.End})}}
 
 	for p.cur.Type == ',' {
 		p.advance()
+		start = p.pos()
 		names, err = p.parseQualifiedName()
 		if err != nil {
 			return nil, err
 		}
-		result.Items = append(result.Items, makeRangeVarFromNames(names))
+		result.Items = append(result.Items, makeRangeVarFromNames(names, nodes.Loc{Start: start, End: p.prev.End}))
 	}
 
 	return result, nil
 }
 
 // makeRangeVarFromNames creates a RangeVar from a list of name String nodes.
-func makeRangeVarFromNames(names *nodes.List) *nodes.RangeVar {
-	rv := &nodes.RangeVar{Inh: true, Relpersistence: 'p', Loc: nodes.NoLoc()}
+// loc is the span of the name in the source text, from its first token
+// through its last.
+func makeRangeVarFromNames(names *nodes.List, loc nodes.Loc) *nodes.RangeVar {
+	rv := &nodes.RangeVar{Inh: true, Relpersistence: 'p', Loc: loc}
 	if names != nil && len(names.Items) > 0 {
 		switch len(names.Items) {
 		case 1:
@@ -658,12 +662,14 @@ func makeRangeVarFromNames(names *nodes.List) *nodes.RangeVar {
 	return rv
 }
 
-// makeRangeVarFromAnyName creates a RangeVar from an any_name list with Loc = NoLoc().
-func makeRangeVarFromAnyName(names *nodes.List) *nodes.RangeVar {
+// makeRangeVarFromAnyName creates a RangeVar from an any_name list. loc is
+// the span of the name in the source text, from its first token through its
+// last.
+func makeRangeVarFromAnyName(names *nodes.List, loc nodes.Loc) *nodes.RangeVar {
 	rv := &nodes.RangeVar{
 		Inh:            true,
 		Relpersistence: 'p',
-		Loc:            nodes.NoLoc(),
+		Loc:            loc,
 	}
 	if names == nil {
 		return rv

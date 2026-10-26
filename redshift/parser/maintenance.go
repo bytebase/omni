@@ -225,7 +225,7 @@ func (p *Parser) parseVacuumRelation() *nodes.VacuumRelation {
 	if err != nil {
 		return nil
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: loc, End: p.prev.End})
 	cols, _ := p.parseOptColumnList()
 	return &nodes.VacuumRelation{
 		Relation: rv,
@@ -256,13 +256,14 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 
 		// Check if a qualified_name follows
 		if p.isColId() {
+			nameStart := p.pos()
 			names, err := p.parseQualifiedName()
 			if err != nil {
 				// shape-III-partial fix: propagate the error instead of silently
 				// returning a ClusterStmt with nil Relation.
 				return nil, err
 			}
-			rv := makeRangeVarFromNames(names)
+			rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 			idxName := p.parseClusterIndexSpecification()
 			return &nodes.ClusterStmt{
 				Relation:  rv,
@@ -298,12 +299,14 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 	// backwards-compatible syntax "CLUSTER [VERBOSE] name ON qualified_name".
 	// Otherwise it's "CLUSTER [VERBOSE] qualified_name [USING name]".
 
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		// shape-III-partial fix: propagate the error instead of silently
 		// returning a ClusterStmt with nil Relation.
 		return nil, err
 	}
+	nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 
 	if p.cur.Type == ON {
 		// Backwards-compatible: CLUSTER [VERBOSE] name ON qualified_name
@@ -313,11 +316,12 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 		if names != nil && len(names.Items) == 1 {
 			indexName = names.Items[0].(*nodes.String).Str
 		}
+		tableStart := p.pos()
 		tableNames, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
 		}
-		rv := makeRangeVarFromNames(tableNames)
+		rv := makeRangeVarFromNames(tableNames, nodes.Loc{Start: tableStart, End: p.prev.End})
 		n := &nodes.ClusterStmt{
 			Relation:  rv,
 			Indexname: indexName,
@@ -330,7 +334,7 @@ func (p *Parser) parseClusterStmt() (nodes.Node, error) {
 	}
 
 	// CLUSTER [VERBOSE] qualified_name [USING name]
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nameLoc)
 	idxName := p.parseClusterIndexSpecification()
 	n := &nodes.ClusterStmt{
 		Relation:  rv,
@@ -392,11 +396,12 @@ func (p *Parser) parseReindexStmt() (nodes.Node, error) {
 			params = appendParamsList(params, makeDefElem("concurrently", nil))
 		}
 
+		nameStart := p.pos()
 		names, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
 		}
-		rv := makeRangeVarFromNames(names)
+		rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 		return &nodes.ReindexStmt{
 			Kind:     kind,
 			Relation: rv,

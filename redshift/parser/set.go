@@ -714,19 +714,21 @@ func (p *Parser) parseConstraintsSetStmt() (nodes.Node, error) {
 
 // parseConstraintsNameList parses a qualified_name_list for SET CONSTRAINTS.
 func (p *Parser) parseConstraintsNameList() *nodes.List {
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil
 	}
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	items := []nodes.Node{rv}
 	for p.cur.Type == ',' {
 		p.advance()
+		nameStart = p.pos()
 		n, err := p.parseQualifiedName()
 		if err != nil {
 			break
 		}
-		items = append(items, makeRangeVarFromNames(n))
+		items = append(items, makeRangeVarFromNames(n, nodes.Loc{Start: nameStart, End: p.prev.End}))
 	}
 	return &nodes.List{Items: items}
 }

@@ -31,7 +31,7 @@ const (
 	JoinLeft
 	JoinRight
 	JoinFull
-	JoinCross
+	JoinCross // not produced by the analyzer: a CROSS JOIN is JoinInner with no Quals
 )
 
 // BoolOpType identifies a boolean operator.
@@ -167,15 +167,47 @@ type AggExpr struct {
 	AggFuncOID  uint32
 	AggName     string // for deparse
 	ResultType  uint32
-	Collation   uint32 // result collation
-	Args        []AnalyzedExpr
-	AggStar     bool // count(*)
+	Collation   uint32         // result collation
+	Args        []AnalyzedExpr // the arguments in parentheses; for WITHIN GROUP, the direct arguments
+	AggStar     bool           // count(*)
 	AggDistinct bool
+	// AggOrder is the ORDER BY inside the call, or for an ordered-set
+	// aggregate the WITHIN GROUP ordering, whose expressions are then the
+	// aggregated arguments.
+	AggOrder       []*AggSortBy
+	AggWithinGroup bool         // AggOrder came from WITHIN GROUP
+	AggFilter      AnalyzedExpr // FILTER (WHERE ...), may be nil
 }
 
 func (a *AggExpr) exprType() uint32      { return a.ResultType }
 func (a *AggExpr) exprTypMod() int32     { return -1 }
 func (a *AggExpr) exprCollation() uint32 { return a.Collation }
+
+// AggSortBy is one ORDER BY item of an aggregate call.
+//
+// pg: src/include/nodes/primnodes.h — Aggref.aggorder (SortGroupClause over Aggref.args)
+type AggSortBy struct {
+	Expr       AnalyzedExpr
+	Descending bool
+	NullsFirst bool
+}
+
+// SetOpColumnExpr is an output column of a set operation: column ResNo of
+// both LArg and RArg, coerced to their common type. PostgreSQL represents it
+// as a Var of the leftmost leaf query; the analyzed Query of a set operation
+// has no range table entry for its leaves, so it uses this node instead.
+//
+// pg: src/backend/parser/analyze.c — transformSetOperationStmt (targetlist)
+type SetOpColumnExpr struct {
+	ResNo     int16 // 1-based position in the output of LArg and RArg
+	TypeOID   uint32
+	TypeMod   int32
+	Collation uint32
+}
+
+func (s *SetOpColumnExpr) exprType() uint32      { return s.TypeOID }
+func (s *SetOpColumnExpr) exprTypMod() int32     { return s.TypeMod }
+func (s *SetOpColumnExpr) exprCollation() uint32 { return s.Collation }
 
 // OpExpr represents a resolved operator expression.
 //
@@ -255,8 +287,26 @@ type CoalesceExprQ struct {
 	Collation  uint32 // result collation
 }
 
-func (c *CoalesceExprQ) exprType() uint32      { return c.ResultType }
-func (c *CoalesceExprQ) exprTypMod() int32     { return -1 }
+func (c *CoalesceExprQ) exprType() uint32 { return c.ResultType }
+
+// exprTypMod is the typmod every input agrees on, or -1.
+//
+// pg: src/backend/nodes/nodeFuncs.c — exprTypmod (CoalesceExpr)
+func (c *CoalesceExprQ) exprTypMod() int32 {
+	if len(c.Args) == 0 || c.Args[0].exprType() != c.ResultType {
+		return -1
+	}
+	typmod := c.Args[0].exprTypMod()
+	if typmod < 0 {
+		return -1
+	}
+	for _, arg := range c.Args[1:] {
+		if arg.exprType() != c.ResultType || arg.exprTypMod() != typmod {
+			return -1
+		}
+	}
+	return typmod
+}
 func (c *CoalesceExprQ) exprCollation() uint32 { return c.Collation }
 
 // BoolExprQ represents an analyzed boolean expression (AND/OR/NOT).
@@ -610,23 +660,59 @@ const (
 // pg: src/include/nodes/parsenodes.h — RangeTblEntry
 type RangeTableEntry struct {
 	Kind          RTEKind
-	RelOID        uint32              // for RTERelation
-	RelName       string              // original table name
-	SchemaName    string              // schema name (for deparse)
-	Alias         string              // user-provided alias (empty = none)
-	ERef          string              // effective reference name for deparse
-	ColNames      []string            // column names visible from this RTE
-	ColTypes      []uint32            // column type OIDs
-	ColTypMods    []int32             // column type modifiers
-	ColCollations []uint32            // column collation OIDs
-	Subquery      *Query              // for RTESubquery
-	JoinType      JoinType            // for RTEJoin
+	RelOID        uint32   // for RTERelation
+	RelName       string   // original table name
+	SchemaName    string   // schema name (for deparse)
+	Alias         string   // user-provided alias (empty = none)
+	ERef          string   // effective reference name for deparse
+	ColNames      []string // column names visible from this RTE
+	ColTypes      []uint32 // column type OIDs
+	ColTypMods    []int32  // column type modifiers
+	ColCollations []uint32 // column collation OIDs
+	Subquery      *Query   // for RTESubquery
+	JoinType      JoinType // for RTEJoin
+	// JoinAliasVars is, for RTEJoin, the expression each output column
+	// stands for: a Var of an input when the column equals one, or
+	// COALESCE(left, right) for a column a FULL JOIN USING merges. A
+	// reference to a column that equals an input Var is analyzed as that
+	// Var, so only those COALESCE columns are read through the join entry.
+	JoinAliasVars []AnalyzedExpr
 	Lateral       bool                // LATERAL subquery or function
 	CTEName       string              // for RTECTE: name of referenced CTE
 	CTEIndex      int                 // for RTECTE: index into Query.CTEList
 	FuncExprs     []AnalyzedExpr      // for RTEFunction: function call expressions
 	Ordinality    bool                // for RTEFunction: WITH ORDINALITY
 	Tablesample   *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
+	// UnknownColumns marks an RTEFunction for a function the catalog does
+	// not know, analyzed under AnalyzeOptions.OpaqueUnknownFunctions with
+	// no column definition list. ColNames then holds only the columns the
+	// query has named, its alias columns first, all of unknown type.
+	UnknownColumns bool
+	aliasColumns   int // for UnknownColumns: how many of ColNames the alias gave
+	// inferredCols marks, for UnknownColumns, the columns added only
+	// because a reference named them, as opposed to an alias or USING.
+	inferredCols []bool
+	// funcColDefs holds, for RTEFunction, each function's column
+	// definition list, or nil for a function without one.
+	funcColDefs []*funcColDef
+}
+
+// inferredColumn reports whether column attNum of an UnknownColumns entry
+// exists only because a reference named it.
+func (rte *RangeTableEntry) inferredColumn(attNum int16) bool {
+	i := int(attNum) - 1
+	return rte.UnknownColumns && i >= 0 && i < len(rte.inferredCols) && rte.inferredCols[i]
+}
+
+// funcColDef is the column definition list a function in FROM was given.
+//
+// pg: src/include/nodes/parsenodes.h — RangeTblFunction (funccolnames, funccoltypes, funccoltypmods)
+type funcColDef struct {
+	names      []string
+	types      []uint32
+	typmods    []int32
+	collations []uint32
+	collNames  [][]string // the COLLATE clause's name, schema first when qualified; nil without one
 }
 
 // TablesampleClauseQ represents a TABLESAMPLE clause on a relation.
@@ -667,8 +753,8 @@ type JoinExprNode struct {
 	JoinType    JoinType
 	Left        JoinNode
 	Right       JoinNode
-	Quals       AnalyzedExpr // ON condition
-	UsingClause []string     // USING column names (for deparse)
+	Quals       AnalyzedExpr // ON condition, or the equalities of the USING columns
+	UsingClause []string     // USING column names; for NATURAL, the names both inputs have
 	RTIndex     int          // this join's RTE index
 }
 
@@ -706,11 +792,30 @@ func (c *Catalog) collationName(oid uint32) string {
 		return "default"
 	case 950:
 		return "C"
+	case 951:
+		return "POSIX"
 	case 0:
 		return ""
 	default:
 		return fmt.Sprintf("collation(%d)", oid)
 	}
+}
+
+// builtinCollationOID returns the OID of a collation whose OID is fixed in
+// every PostgreSQL database, or 0 for any other name, whose OID the catalog
+// does not know.
+//
+// pg: src/include/catalog/pg_collation.dat
+func builtinCollationOID(name string) uint32 {
+	switch name {
+	case "default":
+		return DEFAULT_COLLATION_OID
+	case "C":
+		return C_COLLATION_OID
+	case "POSIX":
+		return 951
+	}
+	return 0
 }
 
 // selectCommonCollation picks a common collation for set operations.
@@ -749,11 +854,15 @@ func (c *Catalog) resolveReturnType(proc *BuiltinProc, argTypes []uint32) uint32
 
 	// Find the actual type from polymorphic parameter matching.
 	for i, paramOID := range proc.ArgTypes {
+		if i >= len(argTypes) {
+			// The remaining parameters take their defaults.
+			break
+		}
 		if !isPolymorphic(paramOID) {
 			continue
 		}
 		actualType := argTypes[i]
-		if actualType == UNKNOWNOID {
+		if actualType == UNKNOWNOID || actualType == 0 {
 			continue
 		}
 

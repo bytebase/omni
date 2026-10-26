@@ -70,12 +70,274 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		}
 	}
 
+	if p.cur.Type == '(' {
+		return p.parseParenthesizedQuery(sel)
+	}
 	if p.cur.Type != kwSELECT {
 		sel.Loc.End = p.prev.End
 		return sel, nil
 	}
 	p.advance() // consume SELECT
 	return p.parseSelectAfterKeyword(sel)
+}
+
+// parseParenthesizedQuery parses a query whose first operand is a
+// parenthesized subquery, the current token at '(', into sel, which holds
+// any WITH clause before it.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
+//
+//	( subquery ) [ order_by_clause ] [ for_update_clause ] [ row_limiting_clause ]
+//	| ( subquery ) { UNION [ ALL ] | INTERSECT [ ALL ] | MINUS [ ALL ] | EXCEPT [ ALL ] } subquery
+//
+// Oracle 23ai rejects a WITH clause inside the parentheses (ORA-32034), an
+// ORDER BY that ends the parenthesized subquery with no row-limiting clause
+// after it (ORA-00907, for ... ORDER BY 1 FOR UPDATE too), and a FOR UPDATE
+// that ends it (ORA-00907 for (SELECT a FROM t FOR UPDATE) UNION ...),
+// wherever the parenthesized subquery stands; an inline view in FROM is a table
+// reference, which takes both. Without anything around the parentheses the
+// query is the subquery itself; otherwise sel is a wrapper whose Larg is
+// the subquery.
+func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectStmt, error) {
+	open := p.pos()
+	p.advance() // consume '('
+	if p.cur.Type != kwSELECT && p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	inner, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	if sort := trailingOrderBy(inner); sort != nil {
+		return nil, p.syntaxErrorAtNode(sort)
+	}
+	if lock := trailingForUpdate(inner); lock != nil {
+		return nil, p.syntaxErrorAtNode(lock)
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume ')'
+
+	if err := p.parseQueryTail(sel); err != nil {
+		return nil, err
+	}
+	// A set operation locks no rows, parenthesized whole too (ORA-01786
+	// at FOR for (SELECT a FROM t UNION SELECT a FROM t) FOR UPDATE), nor
+	// does a query unlockable refuses.
+	if sel.ForUpdate != nil && (isSetQuery(inner) || unlockable(inner)) {
+		return nil, p.syntaxErrorAtNode(sel.ForUpdate)
+	}
+	if sel.WithClause == nil && sel.OrderBy == nil && sel.ForUpdate == nil && sel.FetchFirst == nil && sel.Op == nodes.SETOP_NONE {
+		// The query spans its parentheses, so a consumer that edits or
+		// quotes it by position keeps them.
+		inner.Loc = nodes.Loc{Start: open, End: p.prev.End}
+		return inner, nil
+	}
+	sel.Larg = inner
+	sel.Loc.End = p.prev.End
+	return sel, nil
+}
+
+// parenQuery says how a parenthesized group reads as a query: whether the
+// first token after its '(' and any '(' that follow is SELECT or WITH
+// (leads), and whether a set operator, ORDER BY, OFFSET, or FETCH follows
+// its ')' (continues).
+type parenQuery struct {
+	leads, continues bool
+}
+
+// decideParenQueries reads the tokens of lexer, a lookahead under the
+// selection of conditional compilation branches the parser attempts, and
+// reports, for each '(' whose group leads to a query, whether a query
+// continues after the group. Matching parentheses with a stack and finding
+// the first token after a run of '(' right to left visit each token a
+// constant number of times.
+func decideParenQueries(lexer *Lexer) map[int]parenQuery {
+	var toks []Token
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == tokEOF || lexer.Err != nil {
+			break
+		}
+		toks = append(toks, tok)
+	}
+	n := len(toks)
+
+	// closing[i] is the index of the ')' that closes the '(' at i, or n.
+	closing := make([]int, n)
+	var open []int
+	for i, tok := range toks {
+		switch tok.Type {
+		case '(':
+			closing[i] = n
+			open = append(open, i)
+		case ')':
+			if len(open) > 0 {
+				closing[open[len(open)-1]] = i
+				open = open[:len(open)-1]
+			}
+		}
+	}
+
+	// first[i] is the index of the first token from i on that is not '('.
+	first := make([]int, n+1)
+	first[n] = n
+	for i := n - 1; i >= 0; i-- {
+		first[i] = i
+		if toks[i].Type == '(' {
+			first[i] = first[i+1]
+		}
+	}
+
+	queries := make(map[int]parenQuery)
+	for i, tok := range toks {
+		if tok.Type != '(' {
+			continue
+		}
+		f := first[i+1]
+		if f == n || (toks[f].Type != kwSELECT && toks[f].Type != kwWITH) {
+			continue
+		}
+		q := parenQuery{leads: true}
+		if c := closing[i]; c+1 < n {
+			switch toks[c+1].Type {
+			case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT, kwORDER, kwOFFSET, kwFETCH:
+				q.continues = true
+			case kwFOR:
+				// FOR UPDATE, of a cursor's query: FOR r IN ((SELECT a
+				// FROM t) FOR UPDATE) LOOP.
+				q.continues = c+2 < n && toks[c+2].Type == kwUPDATE
+			}
+		}
+		queries[tok.Loc] = q
+	}
+	return queries
+}
+
+// parenQueryAt returns how the group of the '(' at offset loc reads as a
+// query.
+func (p *Parser) parenQueryAt(loc int) parenQuery {
+	if p.parenQueries == nil {
+		p.parenQueries = decideParenQueries(p.selectionLexer(p.cur.Loc))
+	}
+	return p.parenQueries[loc]
+}
+
+// atQueryStart reports whether the current token starts a query where an
+// expression or a table reference may stand as well: SELECT, WITH, or a
+// parenthesized subquery that a set operator, ORDER BY, OFFSET, or FETCH
+// follows, as in ((SELECT ...) UNION (SELECT ...)). A parenthesized
+// subquery alone stays an expression, ((SELECT ...)) + 1, or a table
+// reference, ((SELECT ...) v JOIN t ON ...).
+func (p *Parser) atQueryStart() bool {
+	switch p.cur.Type {
+	case kwSELECT, kwWITH:
+		return true
+	case '(':
+		return p.parenQueryAt(p.cur.Loc).continues
+	}
+	return false
+}
+
+// atQuery reports whether the current token starts a query where only a
+// query may stand: SELECT, WITH, or a parenthesized subquery.
+func (p *Parser) atQuery() bool {
+	switch p.cur.Type {
+	case kwSELECT, kwWITH:
+		return true
+	case '(':
+		return p.parenQueryAt(p.cur.Loc).leads
+	}
+	return false
+}
+
+// isSetQuery reports whether query is a set operation, possibly wrapped in
+// parentheses.
+func isSetQuery(query *nodes.SelectStmt) bool {
+	for ; query != nil; query = query.Larg {
+		if query.Op != nodes.SETOP_NONE {
+			return true
+		}
+	}
+	return false
+}
+
+// unlockable reports whether FOR UPDATE cannot lock the rows of query, or
+// of a parenthesized query it wraps. Oracle 23ai rejects it over DISTINCT,
+// UNIQUE, GROUP BY, or a CURSOR expression in the select list (ORA-01786),
+// and over any row limit but FETCH FIRST n
+// ROWS ONLY: an OFFSET, a PERCENT, WITH TIES, or an ORDER BY with the row
+// limit (ORA-02014). An aggregate's name is the catalog's to tell, and
+// Oracle's to reject.
+func unlockable(query *nodes.SelectStmt) bool {
+	for ; query != nil; query = query.Larg {
+		if query.Distinct || query.UniqueKw || query.GroupClause != nil && query.GroupClause.Len() > 0 || selectsCursor(query.TargetList) {
+			return true
+		}
+		if fetch := query.FetchFirst; fetch != nil && (fetch.Offset != nil || fetch.Percent || fetch.WithTies || query.OrderBy != nil) {
+			return true
+		}
+		if query.Op != nodes.SETOP_NONE {
+			return false
+		}
+	}
+	return false
+}
+
+// selectsCursor reports whether a CURSOR expression stands in list, a
+// select list, outside the subqueries it holds.
+func selectsCursor(list *nodes.List) bool {
+	found := false
+	if list != nil {
+		nodes.Inspect(list, func(n nodes.Node) bool {
+			switch n.(type) {
+			case *nodes.CursorExpr:
+				found = true
+			case *nodes.SelectStmt:
+				return false
+			}
+			return !found
+		})
+	}
+	return found
+}
+
+// trailingForUpdate returns the FOR UPDATE clause that ends query, its own
+// or that of the last operand of its set operation, or nil.
+func trailingForUpdate(query *nodes.SelectStmt) nodes.Node {
+	for query != nil {
+		if query.ForUpdate != nil {
+			return query.ForUpdate
+		}
+		if query.Op == nodes.SETOP_NONE {
+			return nil
+		}
+		query = query.Rarg
+	}
+	return nil
+}
+
+// trailingOrderBy returns the first item of the ORDER BY that ends query, if
+// one does: the query's own, or that of the last operand of its set
+// operation.
+func trailingOrderBy(query *nodes.SelectStmt) nodes.Node {
+	for query != nil {
+		if query.OrderBy != nil && query.OrderBy.Len() > 0 {
+			// One a row-limiting clause follows is that clause's: Oracle
+			// 23ai runs (SELECT ... ORDER BY d FETCH FIRST 10 ROWS ONLY)
+			// UNION ALL ..., with OFFSET too.
+			if query.FetchFirst != nil {
+				return nil
+			}
+			return query.OrderBy.Items[0]
+		}
+		if query.Op == nodes.SETOP_NONE {
+			return nil
+		}
+		query = query.Rarg
+	}
+	return nil
 }
 
 // parseSelectAfterKeyword parses the rest of a query block into sel, from the
@@ -271,6 +533,19 @@ func (p *Parser) parseSelectAfterKeyword(sel *nodes.SelectStmt) (*nodes.SelectSt
 		}
 	}
 
+	if err := p.parseQueryTail(sel); err != nil {
+		return nil, err
+	}
+
+	sel.Loc.End = p.prev.End
+	return sel, nil
+}
+
+// parseQueryTail parses what may follow a query block or a parenthesized
+// subquery into sel: the ORDER BY, row limiting, and FOR UPDATE clauses, in
+// that order (ORA-03049 on Oracle 23ai for FOR UPDATE FETCH FIRST ...),
+// then a set operator and the query on its right.
+func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) error {
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if p.isIdentLikeStr("SIBLINGS") {
@@ -280,91 +555,79 @@ func (p *Parser) parseSelectAfterKeyword(sel *nodes.SelectStmt) (*nodes.SelectSt
 		if p.cur.Type == kwBY {
 			p.advance()
 		}
-		var parseErr954 error
-		sel.OrderBy, parseErr954 = p.parseOrderByList()
-		if parseErr954 != nil {
-			return nil, parseErr954
+		var err error
+		sel.OrderBy, err = p.parseOrderByList()
+		if err != nil {
+			return err
 		}
 		if sel.OrderBy.Len() == 0 {
-
-			return sel, p.syntaxErrorAtCur(
-
-			// FOR UPDATE
-			)
-		}
-	}
-
-	if p.cur.Type == kwFOR {
-		var parseErr955 error
-		sel.ForUpdate, parseErr955 = p.parseForUpdateClause()
-		if parseErr955 !=
-
-			// OFFSET / FETCH FIRST
-			nil {
-			return nil, parseErr955
+			return p.syntaxErrorAtCur()
 		}
 	}
 
 	if p.cur.Type == kwOFFSET || p.cur.Type == kwFETCH {
-		var parseErr956 error
-		sel.FetchFirst, parseErr956 = p.parseFetchFirstClause()
-		if parseErr956 !=
-
-			// Set operations: UNION, INTERSECT, MINUS
-			nil {
-			return nil, parseErr956
+		var err error
+		sel.FetchFirst, err = p.parseFetchFirstClause()
+		if err != nil {
+			return err
 		}
 	}
 
+	if p.cur.Type == kwFOR {
+		var err error
+		sel.ForUpdate, err = p.parseForUpdateClause()
+		if err != nil {
+			return err
+		}
+		if unlockable(sel) {
+			return p.syntaxErrorAtNode(sel.ForUpdate)
+		}
+	}
+
+	// Set operations: UNION, INTERSECT, MINUS, EXCEPT, each with ALL in
+	// 23ai. None follows an ORDER BY, FOR UPDATE, or row limiting clause
+	// (ORA-03048 on Oracle 23ai).
+	switch p.cur.Type {
+	case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
+		if sel.OrderBy != nil || sel.ForUpdate != nil || sel.FetchFirst != nil {
+			return p.syntaxErrorAtCur()
+		}
+	}
 	switch p.cur.Type {
 	case kwUNION:
-		p.advance()
 		sel.Op = nodes.SETOP_UNION
-		if p.cur.Type == kwALL {
-			sel.SetAll = true
-			p.advance()
-		}
-		if p.cur.Type == tokEOF {
-
-			return sel, p.syntaxErrorAtCur()
-		}
-		var parseErr957 error
-		sel.Rarg, parseErr957 = p.parseSelectStmt()
-		if parseErr957 != nil {
-			return nil, parseErr957
-		}
 	case kwINTERSECT:
-		p.advance()
 		sel.Op = nodes.SETOP_INTERSECT
-		if p.cur.Type == kwALL {
-			sel.SetAll = true
-			p.advance()
-		}
-		if p.cur.Type == tokEOF {
-
-			return sel, p.syntaxErrorAtCur()
-		}
-		var parseErr958 error
-		sel.Rarg, parseErr958 = p.parseSelectStmt()
-		if parseErr958 != nil {
-			return nil, parseErr958
-		}
 	case kwMINUS:
-		p.advance()
 		sel.Op = nodes.SETOP_MINUS
-		if p.cur.Type == tokEOF {
-
-			return sel, p.syntaxErrorAtCur()
-		}
-		var parseErr959 error
-		sel.Rarg, parseErr959 = p.parseSelectStmt()
-		if parseErr959 != nil {
-			return nil, parseErr959
-		}
+	case kwEXCEPT:
+		sel.Op = nodes.SETOP_EXCEPT
+	default:
+		return nil
 	}
-
-	sel.Loc.End = p.prev.End
-	return sel, nil
+	p.advance()
+	if p.cur.Type == kwALL {
+		sel.SetAll = true
+		p.advance()
+	}
+	// A query follows the operator (ORA-00928 on Oracle 23ai for UNION ),
+	// UNION (1), or UNION at the end), without a WITH clause of its own
+	// (ORA-32034 for UNION WITH w AS (...) SELECT ...).
+	if p.cur.Type == kwWITH || !p.atQuery() {
+		return p.syntaxErrorAtCur()
+	}
+	var err error
+	sel.Rarg, err = p.parseSelectStmt()
+	if err != nil {
+		return err
+	}
+	// The set operation locks no rows: Oracle 23ai rejects a FOR UPDATE
+	// after any operator with ORA-01786 at FOR, as for SELECT a FROM t
+	// EXCEPT SELECT a FROM t FOR UPDATE.
+	if lock := trailingForUpdate(sel.Rarg); lock != nil {
+		return p.syntaxErrorAtNode(lock)
+	}
+	return nil
 }
 
 // parseSelectList parses the select list (target expressions).
@@ -398,7 +661,7 @@ func (p *Parser) parseSelectList() (*nodes.List, error) {
 func (p *Parser) isSelectListTerminator() bool {
 	switch p.cur.Type {
 	case tokEOF, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION,
-		kwINTERSECT, kwMINUS, kwFOR, kwCONNECT, kwSTART:
+		kwINTERSECT, kwMINUS, kwEXCEPT, kwFOR, kwCONNECT, kwSTART:
 		return true
 	default:
 		return false
@@ -455,7 +718,7 @@ func (p *Parser) isAliasCandidate() bool {
 	// Disallow clause-starting keywords as implicit aliases
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT,
-		kwMINUS, kwFOR, kwCONNECT, kwSTART, kwFETCH, kwOFFSET, kwON,
+		kwMINUS, kwEXCEPT, kwFOR, kwCONNECT, kwSTART, kwFETCH, kwOFFSET, kwON,
 		kwLEFT, kwRIGHT, kwINNER, kwOUTER, kwCROSS, kwFULL, kwNATURAL,
 		kwJOIN, kwWHEN, kwTHEN, kwELSE, kwEND, kwAND, kwOR, kwNOT,
 		kwIS, kwIN, kwBETWEEN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4,
@@ -718,7 +981,7 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 	// Subquery: ( SELECT ... )
 	if p.cur.Type == '(' {
 		next := p.peekNext()
-		if next.Type == kwSELECT || next.Type == kwWITH {
+		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' && p.parenQueryAt(next.Loc).continues {
 			return p.parseSubqueryRef(start)
 		}
 		return p.parseParenthesizedTableRef(start)
@@ -855,7 +1118,7 @@ func (p *Parser) isTableAliasCandidate() bool {
 	}
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT,
-		kwMINUS, kwFOR, kwCONNECT, kwSTART, kwFETCH, kwOFFSET, kwON,
+		kwMINUS, kwEXCEPT, kwFOR, kwCONNECT, kwSTART, kwFETCH, kwOFFSET, kwON,
 		kwLEFT, kwRIGHT, kwINNER, kwOUTER, kwCROSS, kwFULL, kwNATURAL,
 		kwJOIN, kwWHEN, kwTHEN, kwELSE, kwEND, kwAND, kwOR, kwNOT,
 		kwIS, kwIN, kwBETWEEN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4,
@@ -935,6 +1198,25 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 		return p.parsePivotSuffix(tref)
 	}
 
+	// An inline view inside redundant parentheses takes its alias after
+	// them: FROM ((SELECT ...)) x and FROM (((q) UNION (q))) x compile on
+	// Oracle 23ai.
+	if sub, ok := tref.(*nodes.SubqueryRef); ok && sub.Alias == nil {
+		if p.cur.Type == kwAS {
+			p.advance()
+			alias, err := p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			sub.Alias = alias
+		} else if p.isTableAliasCandidate() {
+			alias, err := p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			sub.Alias = alias
+		}
+	}
 	if aliasable, ok := tref.(*nodes.TableRef); ok {
 		if p.cur.Type == kwAS {
 			p.advance()

@@ -6,6 +6,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
@@ -29,11 +30,26 @@ type Parser struct {
 	// or names a column (false). decideCaseTokens fills it in one pass.
 	caseKinds map[int]bool
 
+	// parenQueries tells, for each '(' from the first one a query lookup
+	// met to the end of the range, how its group reads as a query.
+	// decideParenQueries fills it in one pass.
+	parenQueries map[int]parenQuery
+
 	// groupFroms tells, for each parenthesized group from the first TRIM
 	// call atTrimSyntax met to the end of the range, by the offset of the
 	// token after its '(', whether a FROM stands at the group's own depth.
 	// decideGroupFroms fills it in one pass.
 	groupFroms map[int]bool
+
+	// queryIterand is set while the iteration control of a FOR loop that
+	// opens with '(' is parsed: a query there is a cursor's, which may end
+	// in a plain ORDER BY (Oracle 23ai runs FOR r IN (SELECT a FROM t ORDER
+	// BY a) LOOP). parseParenExpr takes it for its own parentheses alone,
+	// and records the query in iterandQuery and the token after it in
+	// iterandAfter, for parseIterandExpr to check it stands alone.
+	queryIterand bool
+	iterandQuery *nodes.SubqueryExpr
+	iterandAfter Token
 
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
@@ -341,8 +357,9 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 			p.restore(snap)
 			p.lexer.ccChoices = sel.choices
 			p.lexer.ccFacts = &ccFacts{byCond: map[string]ccFact{}}
-			// The CASE and TRIM pre-scans read another selection.
-			p.caseKinds, p.groupFroms = nil, nil
+			// The CASE, TRIM, and parenthesized-query pre-scans read
+			// another selection.
+			p.caseKinds, p.groupFroms, p.parenQueries = nil, nil, nil
 		}
 		stmt, err := p.parseCheckedStmt(textStart, stmtLoc)
 		if err == nil && p.ccDelimiters {
@@ -467,11 +484,24 @@ func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error
 	if p.lexer.Err != nil {
 		return nil, p.lexerError()
 	}
-	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || isIncompleteParsedStmt(stmt)) {
+	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || p.isIncompleteParsedStmt(stmt)) && !p.failsBeforeEnd(stmt) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if stmt == nil {
 		return nil, p.syntaxErrorAtCur()
+	}
+	if lock := lockedSubquery(stmt); lock != nil {
+		return nil, p.syntaxErrorAtNode(lock)
+	}
+	if sel := sourcelessStar(stmt); sel != nil {
+		// At the block's start, its SELECT or its WITH, past the
+		// parentheses its span takes.
+		lex := p.lexer.lookahead(sel.Loc.Start, sel.Loc.End)
+		tok := lex.NextToken()
+		for tok.Type == '(' {
+			tok = lex.NextToken()
+		}
+		return nil, p.syntaxErrorAtTok(tok)
 	}
 	if err := p.checkConditionalCompilation(stmt, textStart, stmtLoc, p.prev.End); err != nil {
 		return nil, err
@@ -652,10 +682,10 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 	return false
 }
 
-func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
+func (p *Parser) isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	switch s := stmt.(type) {
 	case *nodes.SelectStmt:
-		return (s.FromClause == nil || s.FromClause.Len() == 0) && selectTargetListContainsStar(s.TargetList)
+		return p.endsAwaitingFrom(s)
 	case *nodes.DropStmt:
 		if s.ObjectType == nodes.OBJECT_DATABASE && (s.Names == nil || s.Names.Len() == 0) {
 			return false
@@ -675,20 +705,148 @@ func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	}
 }
 
-func selectTargetListContainsStar(list *nodes.List) bool {
-	if list == nil {
+// sourcelessStar returns the first query block in stmt that selects *
+// without a FROM clause, which Oracle 23ai rejects with ORA-54058 at the
+// block's start, its SELECT or its WITH, wherever it stands: CREATE TABLE ... AS (SELECT *), a view,
+// an INSERT, a subquery, an inline view, a WITH element, MERGE USING, or a
+// cursor FOR loop. The subquery of EXISTS is the exception when it is one
+// query block with no row-limiting clause, as Oracle does not expand its
+// select list: WHERE EXISTS (SELECT *) runs, and EXISTS (SELECT * UNION
+// SELECT 1 FROM dual) and EXISTS (SELECT * FETCH FIRST 1 ROWS ONLY) fail.
+func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
+	exempt := map[*nodes.SelectStmt]bool{}
+	var bad *nodes.SelectStmt
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		if bad != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *nodes.ExistsExpr:
+			sel, ok := n.Subquery.(*nodes.SelectStmt)
+			// A WITH clause before a parenthesized block wraps it, one
+			// block still: Oracle 23ai runs EXISTS (WITH w AS (...)
+			// (SELECT *)).
+			for ok && sel.Larg != nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
+				sel = sel.Larg
+			}
+			if ok && sel.Larg == nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
+				exempt[sel] = true
+			}
+		case *nodes.SelectStmt:
+			// A set operation holds its first block itself, Larg nil, or
+			// wraps a parenthesized one in Larg.
+			if n.Larg == nil && !exempt[n] &&
+				(n.FromClause == nil || n.FromClause.Len() == 0) && selectTargetListContainsStar(n.TargetList) {
+				bad = n
+			}
+		}
+		return true
+	})
+	return bad
+}
+
+// lockedSubquery returns the FOR UPDATE clause that ends a subquery in
+// stmt. Oracle 23ai locks rows for a top-level query and a cursor's alone:
+// it rejects FOR UPDATE in an expression subquery, an inline view (LATERAL
+// and APPLY ones too) or a DML target, a WITH element, a MODEL REFERENCE,
+// MERGE USING, CURSOR(...), INSERT ... SELECT, and CREATE TABLE, VIEW, JSON
+// DUALITY VIEW, or MATERIALIZED ZONEMAP ... AS (ORA-00907, ORA-03048), and
+// runs it in a cursor declaration, OPEN FOR, and a FOR loop's query,
+// VALUES OF (...) too. A subquery it does not list keeps its FOR UPDATE.
+func lockedSubquery(stmt nodes.Node) nodes.Node {
+	var lock nodes.Node
+	check := func(query nodes.StmtNode) {
+		if sel, ok := query.(*nodes.SelectStmt); ok && lock == nil {
+			lock = trailingForUpdate(sel)
+		}
+	}
+	iterands := map[*nodes.SubqueryExpr]bool{}
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		if lock != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *nodes.PLSQLIterationControl:
+			if sub, ok := n.Expr.(*nodes.SubqueryExpr); ok {
+				iterands[sub] = true
+			}
+		case *nodes.SubqueryExpr:
+			if !iterands[n] {
+				check(n.Subquery)
+			}
+		case *nodes.ExistsExpr:
+			check(n.Subquery)
+		case *nodes.CursorExpr:
+			check(n.Subquery)
+		case *nodes.SubqueryRef:
+			check(n.Subquery)
+		case *nodes.LateralRef:
+			check(n.Subquery)
+		case *nodes.ModelRefModel:
+			check(n.Subquery)
+		case *nodes.CTE:
+			check(n.Query)
+		case *nodes.InsertStmt:
+			if n.Select != nil {
+				check(n.Select)
+			}
+			check(n.Subquery)
+		case *nodes.CreateTableStmt:
+			check(n.AsQuery)
+		case *nodes.CreateViewStmt:
+			check(n.Query)
+		case *nodes.CreateMaterializedZonemapStmt:
+			check(n.AsQuery)
+		case *nodes.CreateJsonDualityViewStmt:
+			check(n.Query)
+		}
+		return true
+	})
+	return lock
+}
+
+// endsAwaitingFrom reports whether the last query block of query, where
+// the text ends, selects * with no FROM after it yet: SELECT * and SELECT
+// 1 FROM dual UNION SELECT * end unfinished. A parenthesized block is
+// whole, and sourcelessStar reports it: SELECT 1 FROM dual UNION (SELECT
+// *) fails at its SELECT.
+func (p *Parser) endsAwaitingFrom(query *nodes.SelectStmt) bool {
+	for query.Rarg != nil {
+		query = query.Rarg
+	}
+	if query.Larg != nil || p.parenthesizedBlock(query) {
 		return false
 	}
-	for _, item := range list.Items {
-		target, ok := item.(*nodes.ResTarget)
-		if !ok {
-			continue
-		}
-		if _, ok := target.Expr.(*nodes.Star); ok {
-			return true
-		}
+	return (query.FromClause == nil || query.FromClause.Len() == 0) && selectTargetListContainsStar(query.TargetList)
+}
+
+// parenthesizedBlock reports whether the span of the query block sel opens
+// with its parentheses, as a parenthesized operand's does.
+func (p *Parser) parenthesizedBlock(sel *nodes.SelectStmt) bool {
+	return sel.Loc.Start >= 0 && sel.Loc.Start < len(p.source) && p.source[sel.Loc.Start] == '('
+}
+
+// failsBeforeEnd reports whether stmt holds a query block that selects *
+// without FROM (sourcelessStar) other than one still open where the text
+// ends, which may yet get its FROM: (SELECT *) UNION SELECT * fails at its
+// first block, unfinished or not.
+func (p *Parser) failsBeforeEnd(stmt nodes.StmtNode) bool {
+	if stmt == nil {
+		return false
 	}
-	return false
+	bad := sourcelessStar(stmt)
+	if bad == nil {
+		return false
+	}
+	open := bad.Op == nodes.SETOP_NONE && bad.Larg == nil && !p.parenthesizedBlock(bad) && bad.Loc.End == p.prev.End
+	return !open
+}
+
+// selectTargetListContainsStar reports whether list selects * or table.*:
+// Oracle 23ai rejects (SELECT x.*) as it does (SELECT *) (ORA-00904), and
+// runs EXISTS (SELECT x.*).
+func selectTargetListContainsStar(list *nodes.List) bool {
+	return list != nil && selectListHasStar(list)
 }
 
 // parseStmt dispatches to statement-specific parsers.
@@ -696,7 +854,7 @@ func selectTargetListContainsStar(list *nodes.List) bool {
 // fail at the earliest invalid token while preserving partial-node Loc data.
 func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
-	case kwSELECT, kwWITH:
+	case kwSELECT, kwWITH, '(':
 		return p.parseSelectStmt()
 	case kwINSERT:
 		return p.parseInsertStmt()
@@ -902,6 +1060,55 @@ func (p *Parser) syntaxErrorAtCur() *ParseError {
 		return p.lexerError()
 	}
 	return p.syntaxErrorAtTok(p.cur)
+}
+
+// missingSemicolonError reports a required ';' that is missing. It points
+// at the current token, where Oracle reports PLS-00103 expecting ';', and
+// names what the ';' ends: "syntax error at end of input: expected ';' after
+// END". A unit written without its final ';' fails this way, as it does on
+// Oracle and in SQL*Plus, which send the text without adding one.
+func (p *Parser) missingSemicolonError(after string) *ParseError {
+	err := p.syntaxErrorAtCur()
+	if p.lexer.Err != nil {
+		return err
+	}
+	err.Message += ": expected ';' after " + after
+	return err
+}
+
+// missingSemicolonBetween reports the token after a statement or declaration
+// that does not end with ';'. It names the missing ';' only where that is the
+// likely mistake: the token closes the list (one of closers, or the end of
+// input), or it starts a new line with a word, as when a line's ';' is
+// forgotten. Elsewhere the item may have stopped early on syntax the parser
+// does not take, and a hint to add ';' would mislead, so the error stays
+// plain.
+func (p *Parser) missingSemicolonBetween(after string, closers ...int) *ParseError {
+	if p.cur.Type == tokEOF || p.startsLineWithWord() {
+		return p.missingSemicolonError(after)
+	}
+	for _, closer := range closers {
+		if p.cur.Type == closer {
+			return p.missingSemicolonError(after)
+		}
+	}
+	return p.syntaxErrorAtCur()
+}
+
+// startsLineWithWord reports whether the current token is the first on a
+// line after the previous token and begins with a letter, a quoted
+// identifier, or a label.
+func (p *Parser) startsLineWithWord() bool {
+	if p.prev.End > p.cur.Loc || p.cur.Loc > len(p.source) ||
+		!strings.Contains(p.source[p.prev.End:p.cur.Loc], "\n") {
+		return false
+	}
+	text := p.tokenText(p.cur)
+	if text == "" {
+		return false
+	}
+	c := text[0]
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '"' || strings.HasPrefix(text, "<<")
 }
 
 // syntaxErrorAtTok returns a PG-style syntax error for tok.

@@ -129,8 +129,9 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 	}
 
 	// qualified_name
+	nameStart := p.pos()
 	names, _ := p.parseQualifiedName()
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
 	if p.cur.Type == RENAME {
@@ -155,6 +156,7 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 		if _, err := p.expect(PARTITION); err != nil {
 			return nil, err
 		}
+		partStart := p.pos()
 		partNames, err := p.parseQualifiedName()
 		if err != nil {
 			return nil, err
@@ -162,7 +164,7 @@ func (p *Parser) parseAlterIndex(alterLoc int) (nodes.Node, error) {
 		if !p.collectMode() && partNames == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
-		partRv := makeRangeVarFromAnyName(partNames)
+		partRv := makeRangeVarFromAnyName(partNames, nodes.Loc{Start: partStart, End: p.prev.End})
 		cmd := &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AttachPartition),
 			Def: &nodes.PartitionCmd{
@@ -225,11 +227,13 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 		missingOk = true
 	}
 
+	nameStart := p.pos()
 	names, _ := p.parseQualifiedName()
+	nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 
 	// Check for RENAME (produces RenameStmt, uses makeRangeVarFromAnyName)
 	if p.cur.Type == RENAME {
-		rv := makeRangeVarFromAnyName(names)
+		rv := makeRangeVarFromAnyName(names, nameLoc)
 		p.advance()
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
@@ -246,7 +250,7 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 
 	// Check for SET SCHEMA (produces AlterObjectSchemaStmt)
 	if p.cur.Type == SET && p.peekNext().Type == SCHEMA {
-		rv := makeRangeVarFromAnyName(names)
+		rv := makeRangeVarFromAnyName(names, nameLoc)
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
 		newschema, _ := p.parseName()
@@ -264,7 +268,7 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 	// DefElem shape as the bare LOGGED/UNLOGGED SeqOptElem (Defname="logged",
 	// Arg=Boolean{true/false}) so downstream consumers stay uniform.
 	if p.cur.Type == SET && (p.peekNext().Type == LOGGED || p.peekNext().Type == UNLOGGED) {
-		rv := makeRangeVarFromNames(names)
+		rv := makeRangeVarFromNames(names, nameLoc)
 		p.advance() // consume SET
 		logged := p.cur.Type == LOGGED
 		p.advance() // consume LOGGED or UNLOGGED
@@ -279,7 +283,7 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 
 	// OWNER TO goes through alter_table_cmds in the yacc grammar
 	if p.cur.Type == OWNER {
-		rv := makeRangeVarFromAnyName(names)
+		rv := makeRangeVarFromAnyName(names, nameLoc)
 		cmds, err := p.parseAlterTableCmds()
 		if err != nil {
 			return nil, err
@@ -294,7 +298,7 @@ func (p *Parser) parseAlterSequence(alterLoc int) (nodes.Node, error) {
 	}
 
 	// AlterSeqStmt: ALTER SEQUENCE name SeqOptList
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nameLoc)
 	options, err := p.parseSeqOptList()
 	if err != nil {
 		return nil, err
@@ -320,8 +324,9 @@ func (p *Parser) parseAlterView(alterLoc int) (nodes.Node, error) {
 		missingOk = true
 	}
 
+	nameStart := p.pos()
 	names, _ := p.parseQualifiedName()
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
 	if p.cur.Type == RENAME {
@@ -375,8 +380,9 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 		missingOk = true
 	}
 
+	nameStart := p.pos()
 	names, _ := p.parseQualifiedName()
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// Check for RENAME
 	if p.cur.Type == RENAME {
@@ -1679,6 +1685,7 @@ func (p *Parser) parseAlterTableValidate() *nodes.AlterTableCmd {
 // parseAlterTableInherit handles INHERIT qualified_name.
 func (p *Parser) parseAlterTableInherit() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume INHERIT
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
@@ -1686,7 +1693,7 @@ func (p *Parser) parseAlterTableInherit() (*nodes.AlterTableCmd, error) {
 	if names == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_AddInherit),
 		Def:     rv,
@@ -1700,8 +1707,9 @@ func (p *Parser) parseAlterTableNo() *nodes.AlterTableCmd {
 	switch p.cur.Type {
 	case INHERIT:
 		p.advance()
+		nameStart := p.pos()
 		names, _ := p.parseQualifiedName()
-		rv := makeRangeVarFromAnyName(names)
+		rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_DropInherit),
 			Def:     rv,
@@ -1724,8 +1732,9 @@ func (p *Parser) parseAlterTableAttach() *nodes.AlterTableCmd {
 	partLoc := p.pos()
 	p.advance() // consume ATTACH
 	p.expect(PARTITION)
+	nameStart := p.pos()
 	names, _ := p.parseQualifiedName()
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	bound := p.parseForValues()
 	return &nodes.AlterTableCmd{
 		Subtype: int(nodes.AT_AttachPartition),
@@ -1742,8 +1751,9 @@ func (p *Parser) parseAlterTableDetach() *nodes.AlterTableCmd {
 	partLoc := p.pos()
 	p.advance() // consume DETACH
 	p.expect(PARTITION)
+	nameStart := p.pos()
 	names, _ := p.parseQualifiedName()
-	rv := makeRangeVarFromAnyName(names)
+	rv := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	if p.cur.Type == CONCURRENTLY {
 		p.advance()

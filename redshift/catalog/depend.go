@@ -210,14 +210,13 @@ func (c *Catalog) recordDependencyOnSingleRelExprForObject(
 	}
 }
 
-// walkExprRefsWithRel extends walkExprRefs to also resolve VarExpr nodes.
-// VarExpr references to the given relOID are added with per-column SubIDs.
+// walkExprRefsWithRel collects the objects an expression references: the
+// functions it calls (directly or through an operator) and the sequence a
+// nextval() names. With a nonzero relOID it also adds a per-column reference
+// to relOID for each Var of the current query level.
 //
 // pg: find_expr_references_walker — Var case (lines 1710-1751)
 func (c *Catalog) walkExprRefsWithRel(expr AnalyzedExpr, relOID uint32, refs *[]depRef, seen map[depRef]bool) {
-	if expr == nil {
-		return
-	}
 	addRef := func(t byte, oid uint32, subID int32) {
 		if oid == 0 || oid < FirstNormalObjectId {
 			return
@@ -228,157 +227,49 @@ func (c *Catalog) walkExprRefsWithRel(expr AnalyzedExpr, relOID uint32, refs *[]
 			*refs = append(*refs, r)
 		}
 	}
-
-	switch v := expr.(type) {
-	case *VarExpr:
-		// pg: find_expr_references_walker — Var case
-		// A whole-row Var (attno=0) adds no column dependency.
-		// Otherwise add a per-column reference to the relation.
-		if v.AttNum > 0 && v.LevelsUp == 0 {
-			addRef('r', relOID, int32(v.AttNum))
-		}
-	case *FuncCallExpr:
-		addRef('f', v.FuncOID, 0)
-		if seqOID := c.nextvalSequenceOID(v); seqOID != 0 {
-			addRef('s', seqOID, 0)
-		}
-		for _, arg := range v.Args {
-			c.walkExprRefsWithRel(arg, relOID, refs, seen)
-		}
-	case *AggExpr:
-		addRef('f', v.AggFuncOID, 0)
-		for _, arg := range v.Args {
-			c.walkExprRefsWithRel(arg, relOID, refs, seen)
-		}
-	case *OpExpr:
-		if op := c.operByOID[v.OpOID]; op != nil {
+	addOperRef := func(opOID uint32) {
+		if op := c.operByOID[opOID]; op != nil {
 			addRef('f', op.Code, 0)
 		}
-		c.walkExprRefsWithRel(v.Left, relOID, refs, seen)
-		c.walkExprRefsWithRel(v.Right, relOID, refs, seen)
-	case *DistinctExprQ:
-		if op := c.operByOID[v.OpOID]; op != nil {
-			addRef('f', op.Code, 0)
-		}
-		c.walkExprRefsWithRel(v.Left, relOID, refs, seen)
-		c.walkExprRefsWithRel(v.Right, relOID, refs, seen)
-	case *ScalarArrayOpExpr:
-		if op := c.operByOID[v.OpOID]; op != nil {
-			addRef('f', op.Code, 0)
-		}
-		c.walkExprRefsWithRel(v.Left, relOID, refs, seen)
-		c.walkExprRefsWithRel(v.Right, relOID, refs, seen)
-	case *NullIfExprQ:
-		if op := c.operByOID[v.OpOID]; op != nil {
-			addRef('f', op.Code, 0)
-		}
-		for _, arg := range v.Args {
-			c.walkExprRefsWithRel(arg, relOID, refs, seen)
-		}
-	case *CoerceViaIOExpr:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *RelabelExpr:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *BoolExprQ:
-		for _, arg := range v.Args {
-			c.walkExprRefsWithRel(arg, relOID, refs, seen)
-		}
-	case *CaseExprQ:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-		for _, w := range v.When {
-			c.walkExprRefsWithRel(w.Condition, relOID, refs, seen)
-			c.walkExprRefsWithRel(w.Result, relOID, refs, seen)
-		}
-		c.walkExprRefsWithRel(v.Default, relOID, refs, seen)
-	case *CoalesceExprQ:
-		for _, arg := range v.Args {
-			c.walkExprRefsWithRel(arg, relOID, refs, seen)
-		}
-	case *MinMaxExprQ:
-		for _, arg := range v.Args {
-			c.walkExprRefsWithRel(arg, relOID, refs, seen)
-		}
-	case *NullTestExpr:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *BooleanTestExpr:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *SubLinkExpr:
-		c.walkExprRefsWithRel(v.TestExpr, relOID, refs, seen)
-		if v.SubQuery != nil {
-			for _, te := range v.SubQuery.TargetList {
-				c.walkExprRefsWithRel(te.Expr, relOID, refs, seen)
-			}
-		}
-	case *ArrayExprQ:
-		for _, elem := range v.Elements {
-			c.walkExprRefsWithRel(elem, relOID, refs, seen)
-		}
-	case *RowExprQ:
-		for _, arg := range v.Args {
-			c.walkExprRefsWithRel(arg, relOID, refs, seen)
-		}
-	case *CollateExprQ:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *FieldSelectExprQ:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *WindowFuncExpr:
-		addRef('f', v.FuncOID, 0)
-		for _, arg := range v.Args {
-			c.walkExprRefsWithRel(arg, relOID, refs, seen)
-		}
-		c.walkExprRefsWithRel(v.AggFilter, relOID, refs, seen)
-	case *SubscriptingRefExpr:
-		c.walkExprRefsWithRel(v.ContainerExpr, relOID, refs, seen)
-		for _, e := range v.SubscriptExprs {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-		for _, e := range v.LowerExprs {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-	case *NamedArgExprQ:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *ArrayCoerceExprQ:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-		c.walkExprRefsWithRel(v.ElemExpr, relOID, refs, seen)
-	case *CoerceToDomainExpr:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *RowCompareExprQ:
-		for _, e := range v.LArgs {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-		for _, e := range v.RArgs {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-	case *ConvertRowtypeExprQ:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-	case *FieldStoreExprQ:
-		c.walkExprRefsWithRel(v.Arg, relOID, refs, seen)
-		for _, e := range v.NewVals {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-	case *GroupingFuncExpr:
-		for _, e := range v.Args {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-	case *XmlExprQ:
-		for _, e := range v.NamedArgs {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-		for _, e := range v.Args {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-	case *JsonConstructorExprQ:
-		for _, e := range v.Args {
-			c.walkExprRefsWithRel(e, relOID, refs, seen)
-		}
-	case *JsonExprQ:
-		c.walkExprRefsWithRel(v.Expr, relOID, refs, seen)
-	case *JsonIsPredicateExpr:
-		c.walkExprRefsWithRel(v.Expr, relOID, refs, seen)
-	case *JsonValueExprQ:
-		c.walkExprRefsWithRel(v.Expr, relOID, refs, seen)
-		// ConstExpr, CoerceToDomainValueExpr, SQLValueFuncExpr — no references
 	}
+
+	WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+		switch v := e.(type) {
+		case *VarExpr:
+			// pg: find_expr_references_walker — Var case
+			// A whole-row Var (attno=0) adds no column dependency.
+			// Otherwise add a per-column reference to the relation.
+			if relOID != 0 && v.AttNum > 0 && v.LevelsUp == 0 {
+				addRef('r', relOID, int32(v.AttNum))
+			}
+		case *FuncCallExpr:
+			addRef('f', v.FuncOID, 0)
+			if seqOID := c.nextvalSequenceOID(v); seqOID != 0 {
+				addRef('s', seqOID, 0)
+			}
+		case *AggExpr:
+			addRef('f', v.AggFuncOID, 0)
+		case *WindowFuncExpr:
+			addRef('f', v.FuncOID, 0)
+		case *OpExpr:
+			addOperRef(v.OpOID)
+		case *DistinctExprQ:
+			addOperRef(v.OpOID)
+		case *ScalarArrayOpExpr:
+			addOperRef(v.OpOID)
+		case *NullIfExprQ:
+			addOperRef(v.OpOID)
+		case *SubLinkExpr:
+			c.walkExprRefsWithRel(v.TestExpr, relOID, refs, seen)
+			if v.SubQuery != nil {
+				for _, te := range v.SubQuery.TargetList {
+					c.walkExprRefsWithRel(te.Expr, relOID, refs, seen)
+				}
+			}
+			return false
+		}
+		return true
+	})
 }
 
 // depRef is an object reference found in an expression tree.
@@ -397,119 +288,8 @@ func (c *Catalog) findExprReferences(expr AnalyzedExpr) []depRef {
 	}
 	var refs []depRef
 	seen := make(map[depRef]bool)
-	c.walkExprRefs(expr, &refs, seen)
+	c.walkExprRefsWithRel(expr, 0, &refs, seen)
 	return refs
-}
-
-func (c *Catalog) walkExprRefs(expr AnalyzedExpr, refs *[]depRef, seen map[depRef]bool) {
-	if expr == nil {
-		return
-	}
-	addRef := func(t byte, oid uint32) {
-		if oid == 0 || oid < FirstNormalObjectId {
-			return
-		}
-		r := depRef{refType: t, refOID: oid}
-		if !seen[r] {
-			seen[r] = true
-			*refs = append(*refs, r)
-		}
-	}
-
-	switch v := expr.(type) {
-	case *FuncCallExpr:
-		addRef('f', v.FuncOID)
-		if seqOID := c.nextvalSequenceOID(v); seqOID != 0 {
-			addRef('s', seqOID)
-		}
-		for _, arg := range v.Args {
-			c.walkExprRefs(arg, refs, seen)
-		}
-	case *AggExpr:
-		addRef('f', v.AggFuncOID)
-		for _, arg := range v.Args {
-			c.walkExprRefs(arg, refs, seen)
-		}
-	case *OpExpr:
-		// pg: OpExpr — record dependency on the operator's function
-		if op := c.operByOID[v.OpOID]; op != nil {
-			addRef('f', op.Code)
-		}
-		c.walkExprRefs(v.Left, refs, seen)
-		c.walkExprRefs(v.Right, refs, seen)
-	case *DistinctExprQ:
-		if op := c.operByOID[v.OpOID]; op != nil {
-			addRef('f', op.Code)
-		}
-		c.walkExprRefs(v.Left, refs, seen)
-		c.walkExprRefs(v.Right, refs, seen)
-	case *ScalarArrayOpExpr:
-		if op := c.operByOID[v.OpOID]; op != nil {
-			addRef('f', op.Code)
-		}
-		c.walkExprRefs(v.Left, refs, seen)
-		c.walkExprRefs(v.Right, refs, seen)
-	case *NullIfExprQ:
-		if op := c.operByOID[v.OpOID]; op != nil {
-			addRef('f', op.Code)
-		}
-		for _, arg := range v.Args {
-			c.walkExprRefs(arg, refs, seen)
-		}
-	case *CoerceViaIOExpr:
-		c.walkExprRefs(v.Arg, refs, seen)
-	case *RelabelExpr:
-		c.walkExprRefs(v.Arg, refs, seen)
-	case *BoolExprQ:
-		for _, arg := range v.Args {
-			c.walkExprRefs(arg, refs, seen)
-		}
-	case *CaseExprQ:
-		c.walkExprRefs(v.Arg, refs, seen)
-		for _, w := range v.When {
-			c.walkExprRefs(w.Condition, refs, seen)
-			c.walkExprRefs(w.Result, refs, seen)
-		}
-		c.walkExprRefs(v.Default, refs, seen)
-	case *CoalesceExprQ:
-		for _, arg := range v.Args {
-			c.walkExprRefs(arg, refs, seen)
-		}
-	case *MinMaxExprQ:
-		for _, arg := range v.Args {
-			c.walkExprRefs(arg, refs, seen)
-		}
-	case *NullTestExpr:
-		c.walkExprRefs(v.Arg, refs, seen)
-	case *BooleanTestExpr:
-		c.walkExprRefs(v.Arg, refs, seen)
-	case *SubLinkExpr:
-		c.walkExprRefs(v.TestExpr, refs, seen)
-		if v.SubQuery != nil {
-			for _, te := range v.SubQuery.TargetList {
-				c.walkExprRefs(te.Expr, refs, seen)
-			}
-		}
-	case *ArrayExprQ:
-		for _, elem := range v.Elements {
-			c.walkExprRefs(elem, refs, seen)
-		}
-	case *RowExprQ:
-		for _, arg := range v.Args {
-			c.walkExprRefs(arg, refs, seen)
-		}
-	case *CollateExprQ:
-		c.walkExprRefs(v.Arg, refs, seen)
-	case *FieldSelectExprQ:
-		c.walkExprRefs(v.Arg, refs, seen)
-	case *WindowFuncExpr:
-		addRef('f', v.FuncOID)
-		for _, arg := range v.Args {
-			c.walkExprRefs(arg, refs, seen)
-		}
-		c.walkExprRefs(v.AggFilter, refs, seen)
-		// VarExpr, ConstExpr, CoerceToDomainValueExpr, SQLValueFuncExpr — no references
-	}
 }
 
 // removeDepsOn removes all dependency entries where the given object is the referent (Ref).

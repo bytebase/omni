@@ -743,14 +743,16 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 		ifNotExists = true
 	}
 
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
+	nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 
 	// Determine if this is CTAS or regular CREATE TABLE.
 	if p.cur.Type == '(' {
-		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		node, err := p.parseCreateTableOrCTASAfterParen(names, nameLoc, relpersistence, ifNotExists)
 		if err != nil {
 			return node, err
 		}
@@ -767,7 +769,7 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 
 	// No '(' - check for AS (CTAS with no column list), PARTITION, OF
 	if p.cur.Type == AS || p.cur.Type == USING {
-		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		}
@@ -775,7 +777,7 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	}
 
 	// Must be PARTITION OF, OF, or error
-	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
+	stmt, err := p.finishCreateStmt(names, nameLoc, relpersistence, ifNotExists)
 	if stmt != nil {
 		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	}
@@ -823,13 +825,15 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 		ifNotExists = true
 	}
 
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
+	nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 
 	if p.cur.Type == '(' {
-		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		node, err := p.parseCreateTableOrCTASAfterParen(names, nameLoc, relpersistence, ifNotExists)
 		if err != nil {
 			return node, err
 		}
@@ -845,14 +849,14 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 	}
 
 	if p.cur.Type == AS || p.cur.Type == USING {
-		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		}
 		return stmt, err
 	}
 
-	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
+	stmt, err := p.finishCreateStmt(names, nameLoc, relpersistence, ifNotExists)
 	if stmt != nil {
 		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	}
@@ -876,14 +880,16 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 		ifNotExists = true
 	}
 
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
+	nameLoc := nodes.Loc{Start: nameStart, End: p.prev.End}
 
 	// Determine if this is CTAS or regular CREATE TABLE.
 	if p.cur.Type == '(' {
-		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
+		node, err := p.parseCreateTableOrCTASAfterParen(names, nameLoc, relpersistence, ifNotExists)
 		if err != nil {
 			return node, err
 		}
@@ -900,7 +906,7 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 
 	// No '(' - check for AS or USING (CTAS with no column list)
 	if p.cur.Type == AS || p.cur.Type == USING {
-		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
+		stmt, err := p.finishCTAS(names, nameLoc, nil, relpersistence, ifNotExists)
 		if stmt != nil {
 			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		}
@@ -908,7 +914,7 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 	}
 
 	// PARTITION OF, OF, etc.
-	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
+	stmt, err := p.finishCreateStmt(names, nameLoc, relpersistence, ifNotExists)
 	if stmt != nil {
 		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 	}
@@ -923,7 +929,7 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 // In CTAS, the column list is just names (no types). In CREATE TABLE, we have
 // full table element definitions. We can distinguish them by looking at what
 // follows the first identifier inside the parens.
-func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersistence byte, ifNotExists bool) (nodes.Node, error) {
+func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nodes.Loc, relpersistence byte, ifNotExists bool) (nodes.Node, error) {
 	// Save state: we're at '('
 	// We need to look ahead to determine if this is CTAS or CREATE TABLE.
 	// Strategy: parse as CREATE TABLE (which expects '(' TableElementList ')').
@@ -945,7 +951,7 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 
 	// We need to just parse it as CREATE TABLE. The existing parseCreateStmt
 	// code handles everything after names are parsed.
-	rv := makeRangeVarFromNames(names)
+	rv := makeRangeVarFromNames(names, nameLoc)
 	rv.Relpersistence = relpersistence
 
 	stmt := &nodes.CreateStmt{
@@ -1028,7 +1034,7 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, relpersiste
 			}
 			p.expect(')')
 			colList := &nodes.List{Items: colNames}
-			return p.finishCTAS(names, colList, relpersistence, ifNotExists)
+			return p.finishCTAS(names, nameLoc, colList, relpersistence, ifNotExists)
 		}
 
 		// It's a CREATE TABLE. Restore: push current token into lookahead
@@ -1086,14 +1092,16 @@ func (p *Parser) isCreateTableElement() bool {
 // finishCTAS completes parsing a CTAS statement after names and optional column
 // list have been parsed. Handles OptAccessMethod, OptWith, OnCommitOption,
 // OptTableSpace, AS, SelectStmt, and opt_with_data.
-func (p *Parser) finishCTAS(names *nodes.List, colNames *nodes.List, relpersistence byte, ifNotExists bool) (*nodes.CreateTableAsStmt, error) {
-	rv := makeRangeVarFromAnyName(names)
+func (p *Parser) finishCTAS(names *nodes.List, nameLoc nodes.Loc, colNames *nodes.List, relpersistence byte, ifNotExists bool) (*nodes.CreateTableAsStmt, error) {
+	rv := makeRangeVarFromAnyName(names, nameLoc)
 	rv.Relpersistence = relpersistence
 
 	accessMethod := p.parseOptAccessMethod()
 	options := p.parseOptWith()
 	onCommit := p.parseOnCommitOption()
 	tableSpace := p.parseOptTableSpace()
+	// create_as_target ends here, before AS.
+	intoLoc := nodes.Loc{Start: nameLoc.Start, End: p.prev.End}
 
 	// AS
 	p.expect(AS)
@@ -1131,7 +1139,7 @@ func (p *Parser) finishCTAS(names *nodes.List, colNames *nodes.List, relpersiste
 		OnCommit:       onCommit,
 		TableSpaceName: tableSpace,
 		SkipData:       !withData,
-		Loc:            rv.Loc,
+		Loc:            intoLoc,
 	}
 
 	return &nodes.CreateTableAsStmt{
@@ -1144,8 +1152,8 @@ func (p *Parser) finishCTAS(names *nodes.List, colNames *nodes.List, relpersiste
 
 // finishCreateStmt completes parsing a regular CREATE TABLE after the name
 // has been parsed. Handles PARTITION OF, OF, etc.
-func (p *Parser) finishCreateStmt(names *nodes.List, relpersistence byte, ifNotExists bool) (*nodes.CreateStmt, error) {
-	rv := makeRangeVarFromNames(names)
+func (p *Parser) finishCreateStmt(names *nodes.List, nameLoc nodes.Loc, relpersistence byte, ifNotExists bool) (*nodes.CreateStmt, error) {
+	rv := makeRangeVarFromNames(names, nameLoc)
 	rv.Relpersistence = relpersistence
 
 	stmt := &nodes.CreateStmt{

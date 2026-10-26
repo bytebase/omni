@@ -9,7 +9,6 @@ SYS.DBMS_REPORT:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters
 SYS.PLITBLM:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	20:29	syntax error at or near ")"
 SYS.STANDARD:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	4:19	syntax error at or near "("
 SYS.UTL_LMS:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	59:33	syntax error at or near ".."
-SYS.DBMS_HADOOP_INTERNAL:PACKAGE BODY	unclassified	254:7	syntax error at or near "union"
 SYS.STANDARD:PACKAGE BODY	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	85:11	syntax error at or near "'IS NAN'"
 SYS.ANYDATA:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	2:4	syntax error at or near "OPAQUE"
 SYS.ANYDATASET:TYPE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)	2:4	syntax error at or near "OPAQUE"

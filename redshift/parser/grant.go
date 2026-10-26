@@ -421,18 +421,20 @@ func (p *Parser) parseRedshiftGrantRoleNameList() (*nodes.List, error) {
 }
 
 func (p *Parser) parseGrantObjectAnyNameList() *nodes.List {
+	nameStart := p.pos()
 	name, err := p.parseAnyName()
 	if err != nil {
 		return nil
 	}
-	result := &nodes.List{Items: []nodes.Node{makeRangeVarFromAnyName(name)}}
+	result := &nodes.List{Items: []nodes.Node{makeRangeVarFromAnyName(name, nodes.Loc{Start: nameStart, End: p.prev.End})}}
 	for p.cur.Type == ',' {
 		p.advance()
+		nameStart = p.pos()
 		name, err = p.parseAnyName()
 		if err != nil {
 			break
 		}
-		result.Items = append(result.Items, makeRangeVarFromAnyName(name))
+		result.Items = append(result.Items, makeRangeVarFromAnyName(name, nodes.Loc{Start: nameStart, End: p.prev.End}))
 	}
 	return result
 }
@@ -1415,11 +1417,12 @@ func (p *Parser) parseCreatePolicyStmt() (nodes.Node, error) {
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	table := makeRangeVarFromNames(names)
+	table := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	permissive := true
 	if p.cur.Type == AS {
 		p.advance()
@@ -1480,11 +1483,12 @@ func (p *Parser) parseAlterPolicyStmt() (nodes.Node, error) {
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	table := makeRangeVarFromNames(names)
+	table := makeRangeVarFromNames(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 	// ALTER POLICY name ON qualified_name RENAME TO name
 	if p.cur.Type == RENAME {
 		p.advance()

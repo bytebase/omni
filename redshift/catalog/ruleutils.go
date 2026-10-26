@@ -488,7 +488,16 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			}
 		case RTEFunction:
 			// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_item RTE_FUNCTION case
-			if len(rte.FuncExprs) == 1 {
+			colDef := func(i int) *funcColDef {
+				if i < len(rte.funcColDefs) {
+					return rte.funcColDefs[i]
+				}
+				return nil
+			}
+			// A lone function prints its column definition list as its
+			// alias list, unless WITH ORDINALITY needs ROWS FROM for it.
+			single := len(rte.FuncExprs) == 1 && (colDef(0) == nil || !rte.Ordinality)
+			if single {
 				d.getRuleExpr(rte.FuncExprs[0], false)
 			} else {
 				d.buf.WriteString("ROWS FROM(")
@@ -497,6 +506,10 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 						d.buf.WriteString(", ")
 					}
 					d.getRuleExpr(fe, false)
+					if def := colDef(i); def != nil {
+						d.buf.WriteString(" AS ")
+						d.getColDefList(def.names, def)
+					}
 				}
 				d.buf.WriteByte(')')
 			}
@@ -513,10 +526,20 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			if refname != "" {
 				d.buf.WriteByte(' ')
 				d.buf.WriteString(quoteIdentifier(refname))
-				// pg: get_column_alias_list — always print for function RTEs
-				if len(rte.ColNames) > 0 {
+				// pg: get_column_alias_list — always print for function RTEs.
+				// For a function whose columns are unknown, only the names
+				// its alias gave are positional; the rest were inferred
+				// from references.
+				colNames := rte.ColNames
+				if rte.UnknownColumns {
+					colNames = colNames[:min(rte.aliasColumns, len(colNames))]
+				}
+				if def := colDef(0); single && def != nil {
+					// The column definition list is also the alias list.
+					d.getColDefList(colNames[:min(len(def.types), len(colNames))], def)
+				} else if len(colNames) > 0 {
 					d.buf.WriteByte('(')
-					for i, cn := range rte.ColNames {
+					for i, cn := range colNames {
 						if i > 0 {
 							d.buf.WriteString(", ")
 						}
@@ -571,12 +594,56 @@ func (d *deparseCtx) getFromClauseItem(jn JoinNode, query *Query) {
 			if !d.prettyParen {
 				d.buf.WriteByte(')')
 			}
+		} else if v.JoinType != JoinInner && v.JoinType != JoinCross {
+			// An outer join with no condition, such as a NATURAL LEFT JOIN
+			// whose inputs share no column name, was not printed as CROSS
+			// JOIN, so it needs an ON.
+			d.buf.WriteString(" ON TRUE")
 		}
 
 		if !d.prettyParen {
 			d.buf.WriteByte(')')
 		}
 	}
+}
+
+// getColDefList deparses a function's column definition list, naming its
+// columns names.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_from_clause_coldeflist
+func (d *deparseCtx) getColDefList(names []string, def *funcColDef) {
+	d.buf.WriteByte('(')
+	for i, typ := range def.types {
+		if i > 0 {
+			d.buf.WriteString(", ")
+		}
+		name := def.names[i]
+		if i < len(names) {
+			name = names[i]
+		}
+		d.buf.WriteString(quoteIdentifier(name))
+		d.buf.WriteByte(' ')
+		d.buf.WriteString(d.catalog.formatType(typ, def.typmods[i]))
+		// A collation other than the type's default is printed: a built-in
+		// one by its name, any other as written, qualified if it was.
+		if parts := def.collNames[i]; len(parts) > 0 {
+			oid := builtinCollationOIDOf(parts)
+			switch {
+			case oid != 0 && oid != d.catalog.typeCollation(typ):
+				d.buf.WriteString(" COLLATE ")
+				d.buf.WriteString(quoteIdentifier(parts[len(parts)-1]))
+			case oid == 0:
+				d.buf.WriteString(" COLLATE ")
+				for j, part := range parts {
+					if j > 0 {
+						d.buf.WriteByte('.')
+					}
+					d.buf.WriteString(quoteIdentifier(part))
+				}
+			}
+		}
+	}
+	d.buf.WriteByte(')')
 }
 
 // getRuleExpr deparses an analyzed expression node.
@@ -727,6 +794,25 @@ func (d *deparseCtx) getVariableReturningName(v *VarExpr) string {
 
 	colName := rte.ColNames[colIdx]
 
+	// pg: get_variable — a column of an unnamed join prints as the input
+	// column it stands for, or bare when it stands for none, as a FULL JOIN
+	// USING column does.
+	if rte.Kind == RTEJoin && rte.Alias == "" {
+		if colIdx < len(rte.JoinAliasVars) {
+			if av, ok := rte.JoinAliasVars[colIdx].(*VarExpr); ok {
+				return d.getVariableReturningName(&VarExpr{
+					RangeIdx: av.RangeIdx,
+					AttNum:   av.AttNum,
+					TypeOID:  av.TypeOID,
+					TypeMod:  av.TypeMod,
+					LevelsUp: v.LevelsUp + av.LevelsUp,
+				})
+			}
+		}
+		d.buf.WriteString(quoteIdentifier(colName))
+		return colName
+	}
+
 	// For outer references, always use prefix.
 	// For local references: pg: varprefix = (parentnamespace != NIL || list_length(query->rtable) != 1)
 	needPrefix := v.LevelsUp > 0 || d.hasParentNamespace || len(d.query.RangeTable) != 1
@@ -875,12 +961,10 @@ func (d *deparseCtx) getFuncExpr(f *FuncCallExpr, showImplicit bool) {
 func (d *deparseCtx) getAggExpr(a *AggExpr) {
 	d.buf.WriteString(a.AggName)
 	d.buf.WriteByte('(')
-	if a.AggStar {
-		d.buf.WriteByte('*')
-	} else {
-		if a.AggDistinct {
-			d.buf.WriteString("DISTINCT ")
-		}
+	if a.AggDistinct {
+		d.buf.WriteString("DISTINCT ")
+	}
+	writeArgs := func() {
 		for i, arg := range a.Args {
 			if i > 0 {
 				d.buf.WriteString(", ")
@@ -888,7 +972,74 @@ func (d *deparseCtx) getAggExpr(a *AggExpr) {
 			d.getRuleExpr(arg, true)
 		}
 	}
+	switch {
+	case a.AggWithinGroup:
+		writeArgs()
+		d.buf.WriteString(") WITHIN GROUP (ORDER BY ")
+		d.getAggOrderBy(a.AggOrder)
+	case a.AggStar:
+		d.buf.WriteByte('*')
+	default:
+		writeArgs()
+		if len(a.AggOrder) > 0 {
+			d.buf.WriteString(" ORDER BY ")
+			d.getAggOrderBy(a.AggOrder)
+		}
+	}
+	if a.AggFilter != nil {
+		d.buf.WriteString(") FILTER (WHERE ")
+		d.getRuleExpr(a.AggFilter, false)
+	}
 	d.buf.WriteByte(')')
+}
+
+// getAggOrderBy deparses the ORDER BY items of an aggregate call.
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_rule_orderby
+func (d *deparseCtx) getAggOrderBy(items []*AggSortBy) {
+	for i, sb := range items {
+		if i > 0 {
+			d.buf.WriteString(", ")
+		}
+		d.getSortExpr(sb.Expr)
+		if sb.Descending {
+			d.buf.WriteString(" DESC")
+			// DESC defaults to NULLS FIRST, so only show NULLS LAST.
+			if !sb.NullsFirst {
+				d.buf.WriteString(" NULLS LAST")
+			}
+		} else if sb.NullsFirst {
+			// ASC is default, so only show NULLS FIRST.
+			d.buf.WriteString(" NULLS FIRST")
+		}
+	}
+}
+
+// getSortExpr deparses a sort expression. A constant carries its type, since
+// a bare integer would read as a column number; a function-like expression
+// is parenthesized, since it could read as CUBE() or ROLLUP().
+//
+// pg: src/backend/utils/adt/ruleutils.c — get_rule_sortgroupclause
+func (d *deparseCtx) getSortExpr(expr AnalyzedExpr) {
+	switch v := expr.(type) {
+	case *ConstExpr:
+		d.getConstExpr(v, 1)
+	case *VarExpr:
+		d.getRuleExpr(v, true)
+	default:
+		needParen := d.prettyParen
+		switch expr.(type) {
+		case *FuncCallExpr, *AggExpr, *WindowFuncExpr, *JsonConstructorExprQ:
+			needParen = true
+		}
+		if needParen {
+			d.buf.WriteByte('(')
+		}
+		d.getRuleExpr(expr, true)
+		if needParen {
+			d.buf.WriteByte(')')
+		}
+	}
 }
 
 // getOpExpr deparses an operator expression.

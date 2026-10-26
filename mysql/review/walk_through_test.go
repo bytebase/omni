@@ -1,0 +1,234 @@
+package review
+
+import (
+	"context"
+	"testing"
+
+	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/review"
+	"github.com/bytebase/omni/review/walk"
+	"github.com/bytebase/omni/review/walk/walktest"
+)
+
+// walkSchema is the synced shop database the unit tests walk on.
+func walkSchema() *metadata.DatabaseSchemaMetadata {
+	cols := func(names ...string) []*metadata.ColumnMetadata {
+		var out []*metadata.ColumnMetadata
+		for _, n := range names {
+			out = append(out, &metadata.ColumnMetadata{Name: n})
+		}
+		return out
+	}
+	return &metadata.DatabaseSchemaMetadata{
+		Name: "shop",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{
+				{
+					Name:        "t",
+					Columns:     cols("id", "a"),
+					Indexes:     []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true}, {Name: "i"}},
+					ForeignKeys: []*metadata.ForeignKeyMetadata{{Name: "fk1", ReferencedTable: "r"}},
+					Triggers:    []*metadata.TriggerMetadata{{Name: "tr"}},
+				},
+				{Name: "r", Columns: cols("id"), Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true}}},
+				{Name: "nokey", Columns: cols("a")},
+			},
+			Views:      []*metadata.ViewMetadata{{Name: "v"}},
+			Procedures: []*metadata.ProcedureMetadata{{Name: "p"}},
+			Functions:  []*metadata.FunctionMetadata{{Name: "f"}},
+			Events:     []*metadata.EventMetadata{{Name: "e"}},
+		}},
+	}
+}
+
+func walkFindings(t *testing.T, sql string, targets ...review.Target) []review.Finding {
+	t.Helper()
+	result, err := Review(context.Background(), sql, review.Options{Rules: []review.Rule{review.WalkThrough}}, targets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result.Findings
+}
+
+// oneFinding asserts the change's one WALK_THROUGH finding.
+func oneFinding(t *testing.T, sql string, statement int, message string, target review.Target) {
+	t.Helper()
+	got := walkFindings(t, sql, target)
+	if len(got) != 1 || got[0].Statement != statement || got[0].Message != message {
+		t.Errorf("%s\nfindings = %+v, want statement %d: %q", sql, got, statement, message)
+	}
+}
+
+func noFinding(t *testing.T, sql string, target review.Target) {
+	t.Helper()
+	if got := walkFindings(t, sql, target); len(got) != 0 {
+		t.Errorf("%s\nfindings = %+v, want none", sql, got)
+	}
+}
+
+func TestWalkThroughMySQL(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE t (a int);", 1, "Table t already exists", shop)
+	oneFinding(t, "ALTER TABLE nosuch ADD COLUMN b int;", 0, "Table nosuch does not exist", shop)
+	oneFinding(t, "ALTER TABLE v ADD COLUMN b int;", 0, "v is not a base table", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN A int;", 0, "Column A already exists in table t", shop)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", shop)
+	oneFinding(t, "ALTER TABLE t ADD INDEX I (a);", 0, "Index I already exists in table t", shop)
+	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (a);", 0, "Table t already has a primary key", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);", 0, "Foreign key FK1 already exists in the database", shop)
+	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table nosuch does not exist", shop)
+	oneFinding(t, "DROP VIEW t;", 0, "t is not a view", shop)
+	oneFinding(t, "CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", 0, "Trigger tr already exists", shop)
+	oneFinding(t, "DROP PROCEDURE nosuch;", 0, "PROCEDURE nosuch does not exist", shop)
+	oneFinding(t, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1;", 0, "Event e already exists", shop)
+	// ALTER TABLE judges drops against the table as it was.
+	noFinding(t, "ALTER TABLE t ADD COLUMN a int, DROP COLUMN a;\nALTER TABLE t DROP COLUMN a;", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN b int, ADD COLUMN b int;", 0, "Column b is added twice to table t", shop)
+	// RENAME TABLE runs its pairs in order.
+	noFinding(t, "RENAME TABLE t TO tmp, r TO t, tmp TO r;\nALTER TABLE r ADD COLUMN zz int;\nALTER TABLE t ADD COLUMN zz int;", shop)
+	oneFinding(t, "RENAME TABLE t TO u;\nCREATE TABLE u (a int);", 1, "Table u already exists", shop)
+}
+
+func TestWalkThroughMySQLCase(t *testing.T) {
+	sensitive := review.Target{Schema: walkSchema()}
+	folded := review.Target{Schema: walkSchema(), LowerCaseTableNames: 1}
+	noFinding(t, "CREATE TABLE T (a int);", sensitive)
+	oneFinding(t, "CREATE TABLE T (a int);", 0, "Table T already exists", folded)
+	// A trigger is claimed taken only by its own spelling: 5.7 compares
+	// trigger names with case.
+	noFinding(t, "CREATE TRIGGER TR BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", sensitive)
+	// On 5.7, TR beside tr is a second trigger, and DROP TRIGGER TR leaves
+	// tr (verified); the oracle runs no 5.7.
+	noFinding(t, "CREATE TRIGGER TR BEFORE UPDATE ON nokey FOR EACH ROW SET NEW.a = 1;\nDROP TRIGGER TR;\nDROP TRIGGER tr;", sensitive)
+	noFinding(t, "DROP TRIGGER TR;\nDROP TRIGGER tr;", sensitive)
+	both := walkSchema()
+	both.Schemas[0].Tables[0].Triggers = append(both.Schemas[0].Tables[0].Triggers, &metadata.TriggerMetadata{Name: "TR"})
+	noFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER TR;", review.Target{Schema: both})
+	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger tr does not exist", sensitive)
+	// A name outside ASCII is never absent.
+	noFinding(t, "ALTER TABLE t DROP COLUMN `é`;", sensitive)
+}
+
+func TestWalkThroughMySQLSession(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	// Another database is unknown, until the change makes it.
+	noFinding(t, "USE other;\nCREATE TABLE t (a int);", shop)
+	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 2, "Table q.x already exists", shop)
+	oneFinding(t, "DROP DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database selected", shop)
+	// A temporary table shadows the base table.
+	noFinding(t, "CREATE TEMPORARY TABLE nosuch (a int);\nALTER TABLE t ADD COLUMN zz int;\nINSERT INTO nosuch VALUES (1);", shop)
+	oneFinding(t, "DROP TEMPORARY TABLE t;", 0, "Temporary table t does not exist", shop)
+	// A trigger may create a temporary table of any name.
+	noFinding(t, "INSERT INTO t VALUES (1, 1);\nINSERT INTO nosuch VALUES (1);", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES (1);\nINSERT INTO nosuch VALUES (1);", 1, "Table nosuch does not exist", shop)
+	// A foreign key's target is checked only while the checks are on.
+	noFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", shop)
+	oneFinding(t, "SET foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
+	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
+	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 0, "Foreign key target table nosuch does not exist", on)
+	noFinding(t, "SET FOREIGN_KEY_CHECKS = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
+	// With another spec of the plan, only the change's own facts count.
+	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
+	noFinding(t, "CREATE TABLE t (a int);", other)
+	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE x (a int);", 1, "Table x already exists", other)
+}
+
+func TestWalkThroughOceanBaseWaits(t *testing.T) {
+	result, err := ReviewOceanBase(context.Background(), "CREATE TABLE t (a int);", review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{{Schema: walkSchema()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 0 {
+		t.Errorf("findings = %+v, want none", result.Findings)
+	}
+}
+
+// walkForms are the statement forms of the MySQL spec's §5 table, each on
+// walkSchema. A form the table lists must lower.
+var walkForms = []walktest.Form{
+	{SQL: "CREATE DATABASE q;"},
+	{SQL: "CREATE DATABASE IF NOT EXISTS shop;"},
+	{SQL: "DROP DATABASE IF EXISTS q;"},
+	{SQL: "ALTER DATABASE shop CHARACTER SET utf8mb4;"},
+	{SQL: "USE shop;"},
+	{SQL: "CREATE TABLE x (a int PRIMARY KEY, b int UNIQUE, KEY k (b), CONSTRAINT fx FOREIGN KEY (a) REFERENCES r (id), CHECK (a > 0));"},
+	{SQL: "CREATE TABLE IF NOT EXISTS t (a int);"},
+	{SQL: "CREATE TEMPORARY TABLE tmp (a int);"},
+	{SQL: "CREATE TABLE x LIKE t;"},
+	{SQL: "CREATE TABLE x AS SELECT 1 AS a;"},
+	{SQL: "ALTER TABLE t ADD COLUMN b int AFTER a, ADD COLUMN (c int, d int);"},
+	{SQL: "ALTER TABLE t DROP COLUMN a;"},
+	{SQL: "ALTER TABLE t MODIFY COLUMN a bigint;"},
+	{SQL: "ALTER TABLE t CHANGE a b int;"},
+	{SQL: "ALTER TABLE t RENAME COLUMN a TO b;"},
+	{SQL: "ALTER TABLE t ALTER COLUMN a SET DEFAULT 1;"},
+	{SQL: "ALTER TABLE t ADD INDEX k (a), ADD UNIQUE (a), ADD FULLTEXT INDEX ft (a);"},
+	{SQL: "ALTER TABLE nokey ADD PRIMARY KEY (a);"},
+	{SQL: "ALTER TABLE nokey ADD CONSTRAINT fk2 FOREIGN KEY (a) REFERENCES r (id);"},
+	{SQL: "ALTER TABLE t ADD CONSTRAINT c CHECK (a > 0);"},
+	{SQL: "ALTER TABLE t DROP INDEX i, DROP KEY i2;"},
+	{SQL: "ALTER TABLE t DROP PRIMARY KEY;"},
+	{SQL: "ALTER TABLE t DROP FOREIGN KEY fk1;"},
+	{SQL: "ALTER TABLE t DROP CHECK c;"},
+	{SQL: "ALTER TABLE t DROP CONSTRAINT c;"},
+	{SQL: "ALTER TABLE t RENAME INDEX i TO j;"},
+	{SQL: "ALTER TABLE t ALTER INDEX i INVISIBLE;"},
+	{SQL: "ALTER TABLE t RENAME TO t2;"},
+	{SQL: "ALTER TABLE t ENGINE = InnoDB, COMMENT 'x', ALGORITHM = INPLACE, LOCK = NONE;"},
+	{SQL: "ALTER TABLE t CONVERT TO CHARACTER SET utf8mb4;"},
+	{SQL: "ALTER TABLE t FORCE;"},
+	{SQL: "RENAME TABLE t TO t2, r TO r2;"},
+	{SQL: "DROP TABLE IF EXISTS t, nosuch;"},
+	{SQL: "DROP TEMPORARY TABLE IF EXISTS tmp;"},
+	{SQL: "TRUNCATE TABLE t;"},
+	{SQL: "CREATE UNIQUE INDEX k ON t (a);"},
+	{SQL: "DROP INDEX i ON t;"},
+	{SQL: "CREATE VIEW w AS SELECT 1 AS a;"},
+	{SQL: "CREATE OR REPLACE VIEW v AS SELECT 1 AS a;"},
+	{SQL: "ALTER VIEW v AS SELECT 2 AS a;"},
+	{SQL: "DROP VIEW IF EXISTS v, w;"},
+	{SQL: "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;"},
+	{SQL: "DROP TRIGGER IF EXISTS tr;"},
+	{SQL: "CREATE PROCEDURE p2() SELECT 1;"},
+	{SQL: "CREATE FUNCTION f2() RETURNS int DETERMINISTIC RETURN 1;"},
+	{SQL: "ALTER PROCEDURE p COMMENT 'x';"},
+	{SQL: "DROP FUNCTION IF EXISTS f;"},
+	{SQL: "CREATE EVENT e2 ON SCHEDULE EVERY 1 DAY DO SELECT 1;"},
+	{SQL: "ALTER EVENT e RENAME TO e2;"},
+	{SQL: "DROP EVENT IF EXISTS e;"},
+	{SQL: "INSERT INTO nokey VALUES (1);"},
+	{SQL: "REPLACE INTO nokey VALUES (1);"},
+	{SQL: "UPDATE nokey SET a = 1;"},
+	{SQL: "DELETE FROM nokey;"},
+	{SQL: "SELECT 1;"},
+	{SQL: "SET foreign_key_checks = 0;\nSET @@session.foreign_key_checks = ON;\nSET NAMES utf8mb4;"},
+	{SQL: "BEGIN;\nSAVEPOINT a;\nRELEASE SAVEPOINT a;\nCOMMIT;"},
+	{SQL: "SHOW TABLES;\nANALYZE TABLE t;\nOPTIMIZE TABLE t;\nCHECK TABLE t;"},
+	{SQL: "GRANT SELECT ON shop.t TO 'u'@'%';"},
+}
+
+func TestWalkThroughMySQLLowersEveryForm(t *testing.T) {
+	walktest.Coverage(t, walkForms, func(t *testing.T, sql string) (n, lowered int, last bool) {
+		t.Helper()
+		ranges := statementRanges(sql)
+		stmts, syntax := parse(sql, ranges)
+		if syntax != nil {
+			t.Fatalf("syntax: %s\n%s", syntax.Message, sql)
+		}
+		w := newWalker(sql, stmts, review.Target{Schema: walkSchema()})
+		l := walk.NewLedger(w.snap)
+		for i := range stmts {
+			s := w.lower(i, l)
+			if s == nil {
+				return len(stmts), i, false
+			}
+			if s.Last {
+				return len(stmts), i + 1, true
+			}
+			if s.Apply != nil {
+				s.Apply(l)
+			}
+		}
+		return len(stmts), len(stmts), false
+	})
+}

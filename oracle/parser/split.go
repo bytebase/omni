@@ -587,8 +587,15 @@ func (s *splitState) plsqlCanEndAtSemicolon() bool {
 	return false
 }
 
+// plsqlCanEndAtSlashDelimiter reports whether a line holding only "/" ends
+// the PL/SQL unit being split: one implemented without END (a call spec, a
+// trigger's CALL routine, a wrapped unit), or one whose outermost END is
+// missing its ';'. SQL*Plus 23.26 ends the unit at any such line; in the
+// second case the unit does not take the statements after the "/" either,
+// though Oracle compiles it with PLS-00103. Inside a body a "/" line can be
+// a division operator, which Oracle compiles, so it ends nothing there.
 func (s *splitState) plsqlCanEndAtSlashDelimiter() bool {
-	return s.callSpecStarted
+	return s.callSpecStarted || s.endPending && s.closedOutermost
 }
 
 func (s *splitState) afterPLSQLSemicolon() {

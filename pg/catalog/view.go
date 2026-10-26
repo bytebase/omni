@@ -103,6 +103,20 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
+	// A UNION ALL column whose inputs' collations conflict has none, which
+	// a view column of a collatable type cannot take.
+	// pg: src/backend/commands/view.c — DefineVirtualRelation
+	if analyzedQuery != nil {
+		for i, te := range nonJunkTargetEntries(analyzedQuery.TargetList) {
+			if i < len(cols) && c.lacksCollation([]*Query{analyzedQuery}, te.Expr) {
+				return &Error{
+					Code:    CodeIndeterminateCollation,
+					Message: fmt.Sprintf("could not determine which collation to use for view column %q", cols[i].Name),
+				}
+			}
+		}
+	}
+
 	// Check for existing relation with the same name.
 	if existing, exists := schema.Relations[viewName]; exists {
 		if !stmt.Replace {
@@ -448,6 +462,95 @@ func (c *Catalog) recordViewQueryDeps(viewOID uint32, q *Query, outer []*Query) 
 	c.recordViewExprDeps(viewOID, levels, q.LimitOffset)
 }
 
+// lacksCollation reports whether expr is of a collatable type with no
+// collation: an output column of a UNION ALL whose inputs' collations
+// conflict, a plain reference to one through a subquery, CTE, or join, or a
+// scalar subquery returning one. A column reference with no collation gives
+// an expression over it its type's default collation, but a scalar subquery
+// passes its missing collation on, as in PostgreSQL, so an expression over
+// it lacks one too unless a COLLATE settles it. levels holds the query expr
+// belongs to last, after the queries enclosing it.
+//
+// pg: src/backend/parser/parse_collate.c — assign_collations_walker (Var, SubLink)
+func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
+	switch v := expr.(type) {
+	case *SetOpColumnExpr:
+		return v.Collation == 0 && c.typeCollation(v.TypeOID) != 0
+	case *VarExpr:
+		// An outer reference reads a column of an enclosing query.
+		owner := len(levels) - 1 - v.LevelsUp
+		if v.LevelsUp < 0 || owner < 0 || v.AttNum <= 0 {
+			return false
+		}
+		q, outer := levels[owner], levels[:owner+1:owner+1]
+		if q == nil || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
+			return false
+		}
+		rte := q.RangeTable[v.RangeIdx]
+		var sub *Query
+		switch rte.Kind {
+		case RTESubquery:
+			sub = rte.Subquery
+		case RTECTE:
+			// The CTE may belong to an enclosing query; find it by name,
+			// innermost first, as the analyzer resolved it.
+			for i := len(outer) - 1; i >= 0 && sub == nil; i-- {
+				for _, cte := range outer[i].CTEList {
+					if cte.Name == rte.CTEName {
+						sub = cte.Query
+					}
+				}
+			}
+		case RTEJoin:
+			if int(v.AttNum) <= len(rte.JoinAliasVars) {
+				return c.lacksCollation(outer, rte.JoinAliasVars[v.AttNum-1])
+			}
+			return false
+		}
+		if sub == nil {
+			return false
+		}
+		output := nonJunkTargetEntries(sub.TargetList)
+		if int(v.AttNum) > len(output) {
+			return false
+		}
+		return c.lacksCollation(append(outer, sub), output[v.AttNum-1].Expr)
+	case *SubLinkExpr:
+		if v.SubLinkType != SubLinkExprType || v.SubQuery == nil {
+			return false
+		}
+		output := nonJunkTargetEntries(v.SubQuery.TargetList)
+		return len(output) > 0 && c.lacksCollation(append(levels[:len(levels):len(levels)], v.SubQuery), output[0].Expr)
+	case *ConstExpr, *ParamExpr, *CollateExprQ:
+		return false
+	}
+	if c.typeCollation(expr.exprType()) == 0 {
+		return false
+	}
+	if _, ok := explicitCollation(expr); ok {
+		return false
+	}
+	for _, child := range AnalyzedExprChildren(expr) {
+		if _, ok := child.(*SubLinkExpr); !ok && !isComputedExpr(child) {
+			continue
+		}
+		if c.lacksCollation(levels, child) {
+			return true
+		}
+	}
+	return false
+}
+
+// isComputedExpr reports whether e is computed from other expressions, as
+// opposed to a column reference, constant, or parameter.
+func isComputedExpr(e AnalyzedExpr) bool {
+	switch e.(type) {
+	case *VarExpr, *ConstExpr, *ParamExpr, *SetOpColumnExpr:
+		return false
+	}
+	return true
+}
+
 // recordViewJoinDeps records the dependencies of the JOIN ON (or USING)
 // conditions in a FROM item.
 func (c *Catalog) recordViewJoinDeps(viewOID uint32, levels []*Query, jn JoinNode) {
@@ -473,107 +576,24 @@ func (c *Catalog) recordViewExprDeps(viewOID uint32, levels []*Query, expr Analy
 // recordViewVarDepsQ records a column dependency for each Var in expr, and
 // the dependencies of the subqueries it contains.
 func (c *Catalog) recordViewVarDepsQ(viewOID uint32, levels []*Query, expr AnalyzedExpr) {
-	if expr == nil {
-		return
-	}
-	walk := func(e AnalyzedExpr) { c.recordViewVarDepsQ(viewOID, levels, e) }
-	walkAll := func(es []AnalyzedExpr) {
-		for _, e := range es {
-			walk(e)
+	WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
+		switch v := e.(type) {
+		case *VarExpr:
+			c.recordViewVarDep(viewOID, levels, v)
+		case *SubLinkExpr:
+			c.recordViewVarDepsQ(viewOID, levels, v.TestExpr)
+			c.recordViewQueryDeps(viewOID, v.SubQuery, levels)
+			return false
 		}
-	}
-	switch v := expr.(type) {
-	case *VarExpr:
-		c.recordViewVarDep(viewOID, levels, v)
-	case *FuncCallExpr:
-		walkAll(v.Args)
-	case *AggExpr:
-		walkAll(v.Args)
-	case *OpExpr:
-		walk(v.Left)
-		walk(v.Right)
-	case *DistinctExprQ:
-		walk(v.Left)
-		walk(v.Right)
-	case *ScalarArrayOpExpr:
-		walk(v.Left)
-		walk(v.Right)
-	case *NullIfExprQ:
-		walkAll(v.Args)
-	case *CoalesceExprQ:
-		walkAll(v.Args)
-	case *MinMaxExprQ:
-		walkAll(v.Args)
-	case *BoolExprQ:
-		walkAll(v.Args)
-	case *NullTestExpr:
-		walk(v.Arg)
-	case *BooleanTestExpr:
-		walk(v.Arg)
-	case *CaseExprQ:
-		walk(v.Arg)
-		for _, w := range v.When {
-			walk(w.Condition)
-			walk(w.Result)
-		}
-		walk(v.Default)
-	case *ArrayExprQ:
-		walkAll(v.Elements)
-	case *RowExprQ:
-		walkAll(v.Args)
-	case *RelabelExpr:
-		walk(v.Arg)
-	case *CoerceViaIOExpr:
-		walk(v.Arg)
-	case *CoerceToDomainExpr:
-		walk(v.Arg)
-	case *CollateExprQ:
-		walk(v.Arg)
-	case *FieldSelectExprQ:
-		walk(v.Arg)
-	case *SubscriptingRefExpr:
-		walk(v.ContainerExpr)
-		walkAll(v.SubscriptExprs)
-		walkAll(v.LowerExprs)
-	case *NamedArgExprQ:
-		walk(v.Arg)
-	case *ArrayCoerceExprQ:
-		walk(v.Arg)
-		walk(v.ElemExpr)
-	case *RowCompareExprQ:
-		walkAll(v.LArgs)
-		walkAll(v.RArgs)
-	case *ConvertRowtypeExprQ:
-		walk(v.Arg)
-	case *FieldStoreExprQ:
-		walk(v.Arg)
-		walkAll(v.NewVals)
-	case *GroupingFuncExpr:
-		walkAll(v.Args)
-	case *XmlExprQ:
-		walkAll(v.NamedArgs)
-		walkAll(v.Args)
-	case *JsonConstructorExprQ:
-		walkAll(v.Args)
-	case *JsonExprQ:
-		walk(v.Expr)
-	case *JsonIsPredicateExpr:
-		walk(v.Expr)
-	case *JsonValueExprQ:
-		walk(v.Expr)
-	case *SubLinkExpr:
-		walk(v.TestExpr)
-		c.recordViewQueryDeps(viewOID, v.SubQuery, levels)
-	case *WindowFuncExpr:
-		walkAll(v.Args)
-		walk(v.AggFilter)
-	}
+		return true
+	})
 }
 
 // recordViewVarDep records the view's dependency on the table column a Var
-// reads. A Var of a join's output resolves to the join input it comes from.
-// A Var of a subquery or CTE needs nothing here: recordViewQueryDeps walks
-// every target entry of both. A whole-row Var (AttNum 0) adds no column
+// reads. A Var of a join's output resolves through the join's alias
+// expression, which for a FULL JOIN USING column reads both inputs. A Var of
+// a subquery or CTE needs nothing here: recordViewQueryDeps walks every
+// target entry of both. A whole-row Var (AttNum 0) adds no column
 // dependency.
 //
 // pg: src/backend/catalog/dependency.c — find_expr_references_walker (Var,
@@ -592,102 +612,14 @@ func (c *Catalog) recordViewVarDep(viewOID uint32, levels []*Query, v *VarExpr) 
 			c.recordDependency('r', viewOID, 0, 'r', rte.RelOID, int32(v.AttNum), DepNormal)
 		}
 	case RTEJoin:
-		var jn *JoinExprNode
-		if q.JoinTree != nil {
-			for _, item := range q.JoinTree.FromList {
-				if jn = findJoinExprNode(item, v.RangeIdx); jn != nil {
-					break
-				}
-			}
-		}
-		if jn == nil {
+		if int(v.AttNum) > len(rte.JoinAliasVars) {
 			return
 		}
-		if srcs := joinColumnSources(q, jn); int(v.AttNum) <= len(srcs) {
-			src := srcs[v.AttNum-1]
-			c.recordViewVarDep(viewOID, levels, &VarExpr{RangeIdx: src.rtIdx, AttNum: src.attNum, LevelsUp: v.LevelsUp})
-		}
-	}
-}
-
-// joinColumnSource is the range table entry and column a join output column
-// comes from.
-type joinColumnSource struct {
-	rtIdx  int
-	attNum int16
-}
-
-// findJoinExprNode finds the JOIN in a FROM item whose range table entry is
-// rtIdx.
-func findJoinExprNode(jn JoinNode, rtIdx int) *JoinExprNode {
-	j, ok := jn.(*JoinExprNode)
-	if !ok {
-		return nil
-	}
-	if j.RTIndex == rtIdx {
-		return j
-	}
-	if found := findJoinExprNode(j.Left, rtIdx); found != nil {
-		return found
-	}
-	return findJoinExprNode(j.Right, rtIdx)
-}
-
-// joinColumnSources lists where each output column of a FROM item comes
-// from, in the order the analyzer builds a join's columns: the left input's,
-// then the right input's without the first column of each USING name. A
-// merged USING column resolves to its left input; the USING condition reads
-// both.
-//
-// pg: src/backend/parser/parse_clause.c — transformFromClauseItem
-// (extractRemainingColumns); see collectJoinColumns in analyze.go
-func joinColumnSources(q *Query, jn JoinNode) []joinColumnSource {
-	switch v := jn.(type) {
-	case *RangeTableRef:
-		if v.RTIndex < 0 || v.RTIndex >= len(q.RangeTable) {
-			return nil
-		}
-		srcs := make([]joinColumnSource, len(q.RangeTable[v.RTIndex].ColNames))
-		for i := range srcs {
-			srcs[i] = joinColumnSource{rtIdx: v.RTIndex, attNum: int16(i + 1)}
-		}
-		return srcs
-	case *JoinExprNode:
-		srcs := joinColumnSources(q, v.Left)
-		right := joinColumnSources(q, v.Right)
-		if len(v.UsingClause) == 0 {
-			return append(srcs, right...)
-		}
-		names := joinNodeColumnNames(q, v.Right)
-		exclude := make(map[string]bool, len(v.UsingClause))
-		for _, name := range v.UsingClause {
-			exclude[name] = true
-		}
-		for i, src := range right {
-			if i < len(names) && exclude[names[i]] {
-				delete(exclude, names[i])
-				continue
+		WalkAnalyzedExpr(rte.JoinAliasVars[v.AttNum-1], func(e AnalyzedExpr) bool {
+			if av, ok := e.(*VarExpr); ok {
+				c.recordViewVarDep(viewOID, levels, &VarExpr{RangeIdx: av.RangeIdx, AttNum: av.AttNum, LevelsUp: v.LevelsUp + av.LevelsUp})
 			}
-			srcs = append(srcs, src)
-		}
-		return srcs
+			return true
+		})
 	}
-	return nil
-}
-
-// joinNodeColumnNames returns the output column names of a FROM item.
-func joinNodeColumnNames(q *Query, jn JoinNode) []string {
-	var rtIdx int
-	switch v := jn.(type) {
-	case *RangeTableRef:
-		rtIdx = v.RTIndex
-	case *JoinExprNode:
-		rtIdx = v.RTIndex
-	default:
-		return nil
-	}
-	if rtIdx < 0 || rtIdx >= len(q.RangeTable) {
-		return nil
-	}
-	return q.RangeTable[rtIdx].ColNames
 }

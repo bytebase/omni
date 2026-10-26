@@ -3,8 +3,6 @@
 
 package parser
 
-import "strings"
-
 // KeywordCategory represents the PostgreSQL keyword category.
 type KeywordCategory int
 
@@ -528,8 +526,10 @@ var keywordMap = func() map[string]*Keyword {
 	return m
 }()
 
-// LookupKeyword looks up a keyword by name (case-insensitive).
-// Returns nil if not found.
+// LookupKeyword looks up a keyword by name, ignoring the case of ASCII
+// letters only, as ScanKeywordLookup (src/common/kwlookup.c) does: a
+// non-ASCII character never folds into a keyword, so "\u212Aey" (Kelvin
+// sign) is not KEY. Returns nil if not found.
 func LookupKeyword(name string) *Keyword {
-	return keywordMap[strings.ToLower(name)]
+	return keywordMap[downcaseIdentifier(name)]
 }

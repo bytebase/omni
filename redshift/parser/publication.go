@@ -561,11 +561,12 @@ func (p *Parser) parseCreateRuleStmt(replace bool, stmtLoc int) (nodes.Node, err
 	}
 
 	// qualified_name -> RangeVar
+	nameStart := p.pos()
 	names, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
-	rel := makeRangeVarFromAnyName(names)
+	rel := makeRangeVarFromAnyName(names, nodes.Loc{Start: nameStart, End: p.prev.End})
 
 	// where_clause (optional)
 	whereClause, err := p.parseWhereClause()

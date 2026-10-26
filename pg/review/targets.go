@@ -12,21 +12,32 @@ import (
 	"github.com/bytebase/omni/review"
 )
 
-// targetWork reports which of the rules that read a target have
-// something to look at in this change: the prior backup check when the
-// change asks for a backup and has an UPDATE or DELETE to back up, and
-// the scan when a statement can give it a finding. The others depend on
-// the SQL alone and run once for every target.
-func targetWork(stmts []statement, on map[review.Rule]bool, change review.Change) (backup, scans bool) {
+// work is what the rules that read a target have to do in this change.
+type work struct {
+	// backup is the prior backup check, when the change asks for a backup
+	// and has an UPDATE or DELETE to back up; scans is the scan, when a
+	// statement can give it a finding; walks is WalkThrough.
+	backup, scans, walks bool
+}
+
+func (w work) any() bool { return w.backup || w.scans || w.walks }
+
+// targetWork reports which of the rules that read a target have something
+// to look at in this change. The others depend on the SQL alone and run
+// once for every target.
+func targetWork(stmts []statement, on map[review.Rule]bool, change review.Change) work {
+	var w work
 	if on[review.PriorBackup] && change.PriorBackup {
 		for i := range stmts {
 			switch stmts[i].node.(type) {
 			case *ast.UpdateStmt, *ast.DeleteStmt:
-				backup = true
+				w.backup = true
 			}
 		}
 	}
-	return backup, needsScan(stmts, on)
+	w.scans = needsScan(stmts, on)
+	w.walks = on[review.WalkThrough] && len(stmts) > 0
+	return w
 }
 
 // needsScan reports whether a statement of the change can give the scan
@@ -79,19 +90,20 @@ type targetGroup struct {
 	target  review.Target
 }
 
-// groupTargets folds targets passing the same schema and session user into
-// one group each, in first-seen order. The rules read nothing else of a
-// target. Equal schemas passed as different values are reviewed apart:
+// groupTargets folds targets passing the same schema, session user, and
+// OtherSpecs into one group each, in first-seen order. The rules read
+// nothing else of a target. Equal schemas passed as different values are reviewed apart:
 // comparing them would cost more than reviewing them.
 func groupTargets(targets []review.Target) []targetGroup {
 	type key struct {
 		schema *metadata.DatabaseSchemaMetadata
 		user   string
+		other  bool
 	}
 	var groups []targetGroup
 	byKey := make(map[key]int)
 	for i, t := range targets {
-		k := key{t.Schema, t.SessionUser}
+		k := key{t.Schema, t.SessionUser, t.OtherSpecs}
 		g, ok := byKey[k]
 		if !ok {
 			g = len(groups)
@@ -108,7 +120,7 @@ func groupTargets(targets []review.Target) []targetGroup {
 // statement, range, message) so equal findings from different targets
 // become one finding listing them all. A group that could not be
 // evaluated becomes a failure per target.
-func reviewTargets(ctx context.Context, stmts []statement, on map[review.Rule]bool, backup, scans bool, targets []review.Target) ([]review.Finding, []review.TargetFailure, error) {
+func reviewTargets(ctx context.Context, stmts []statement, on map[review.Rule]bool, todo work, targets []review.Target) ([]review.Finding, []review.TargetFailure, error) {
 	groups := groupTargets(targets)
 	type outcome struct {
 		findings []review.Finding
@@ -123,7 +135,7 @@ func reviewTargets(ctx context.Context, stmts []statement, on map[review.Rule]bo
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			findings, err := reviewGroup(ctx, stmts, on, backup, scans, groups[i])
+			findings, err := reviewGroup(ctx, stmts, on, todo, groups[i])
 			outcomes[i] = outcome{findings: findings, err: err}
 		}()
 	}
@@ -167,18 +179,23 @@ func reviewTargets(ctx context.Context, stmts []statement, on map[review.Rule]bo
 
 // reviewGroup evaluates one distinct target. A panic is the group's
 // failure, not the review's.
-func reviewGroup(ctx context.Context, stmts []statement, on map[review.Rule]bool, backup, scans bool, g targetGroup) (findings []review.Finding, err error) {
+func reviewGroup(ctx context.Context, stmts []statement, on map[review.Rule]bool, todo work, g targetGroup) (findings []review.Finding, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			findings, err = nil, fmt.Errorf("review panicked: %v", p)
 		}
 	}()
 	r := &reporter{targets: g.indices}
-	if backup {
+	if todo.backup {
 		checkPriorBackupTarget(stmts, g.target.Schema, g.target.SessionUser, r)
 	}
-	if scans {
+	if todo.scans {
 		if err := scanTarget(ctx, stmts, on, g.target, r); err != nil {
+			return nil, err
+		}
+	}
+	if todo.walks {
+		if err := checkWalkThrough(ctx, stmts, g.target, r); err != nil {
 			return nil, err
 		}
 	}

@@ -3206,6 +3206,11 @@ func dumpSearchPath(n ast.Node, calls []*ast.FuncCall) ([]string, bool) {
 	if !ok || target.Val != calls[0] || calls[0].Args == nil || len(calls[0].Args.Items) != 3 {
 		return nil, false
 	}
+	// searchPathCalls keeps a call whose setting name is not a constant;
+	// only one naming search_path sets the path.
+	if name, ok := constString(calls[0].Args.Items[0]); !ok || !strings.EqualFold(name, "search_path") {
+		return nil, false
+	}
 	value, ok := constString(calls[0].Args.Items[1])
 	if !ok {
 		return nil, false

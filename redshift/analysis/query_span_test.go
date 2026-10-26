@@ -208,3 +208,47 @@ func assertColumnsEqual(t *testing.T, got []ColumnResource, want ...ColumnResour
 		}
 	}
 }
+
+func TestQuerySpanJoinColumnsAndClauses(t *testing.T) {
+	c := catalog.New()
+	if _, err := c.Exec(`
+CREATE TABLE left_t (id int, name text, secret text);
+CREATE TABLE right_t (id int, status text);
+`, nil); err != nil {
+		t.Fatal(err)
+	}
+	leftID := ColumnResource{Schema: "public", Table: "left_t", Column: "id"}
+	rightID := ColumnResource{Schema: "public", Table: "right_t", Column: "id"}
+	secret := ColumnResource{Schema: "public", Table: "left_t", Column: "secret"}
+	status := ColumnResource{Schema: "public", Table: "right_t", Column: "status"}
+
+	// An unqualified column of a join reads the input it comes from; a FULL
+	// JOIN USING column reads both inputs.
+	span := mustQuerySpan(t, c, `SELECT status, id FROM left_t FULL JOIN right_t USING (id)`)
+	assertResult(t, span.Results[0], "status", true, []ColumnResource{status})
+	assertResult(t, span.Results[1], "id", true, []ColumnResource{leftID, rightID})
+
+	span = mustQuerySpan(t, c, `SELECT id, status FROM left_t NATURAL JOIN right_t`)
+	assertResult(t, span.Results[0], "id", true, []ColumnResource{leftID})
+	assertColumnsEqual(t, span.PredicateColumns, leftID, rightID)
+
+	// FILTER and the ORDER BY of an aggregate are read too.
+	span = mustQuerySpan(t, c, `SELECT count(*) FILTER (WHERE secret = 'x') AS n, string_agg(name, ',' ORDER BY secret) AS s FROM left_t`)
+	assertColumnsEqual(t, span.Results[0].SourceColumns, secret)
+	assertColumnsEqual(t, span.Results[1].SourceColumns, ColumnResource{Schema: "public", Table: "left_t", Column: "name"}, secret)
+
+	// A set operation in FROM reads the column from both branches.
+	span = mustQuerySpan(t, c, `SELECT s.v FROM (SELECT secret AS v FROM left_t UNION SELECT status FROM right_t) s`)
+	assertColumnsEqual(t, span.Results[0].SourceColumns, secret, status)
+}
+
+func TestQuerySpanSubqueryColumnAfterWindow(t *testing.T) {
+	c := catalog.New()
+	if _, err := c.Exec(`CREATE TABLE left_t (id int, name text, secret text);`, nil); err != nil {
+		t.Fatal(err)
+	}
+	// The window's PARTITION BY entry must not shift the subquery's
+	// later columns.
+	span := mustQuerySpan(t, c, `SELECT s.v FROM (SELECT id, sum(id) OVER (PARTITION BY name) AS w, secret AS v FROM left_t) s`)
+	assertColumnsEqual(t, span.Results[0].SourceColumns, ColumnResource{Schema: "public", Table: "left_t", Column: "secret"})
+}
