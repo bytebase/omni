@@ -2115,9 +2115,12 @@ func (n *DataType) nodeTag() {}
 
 // ---------- FROM / JOIN nodes ----------
 
-// JoinClause represents a JOIN expression.
+// JoinClause represents a JOIN expression. A parenthesized joined table,
+// such as the right operand of t JOIN (t1 JOIN t2 ON ...) ON ..., is the
+// JoinClause itself, with Loc covering the parentheses.
 type JoinClause struct {
 	Type      JoinType
+	Hint      string // join hint (LOOP, HASH, MERGE, REMOTE, REDUCE, REPLICATE, REDISTRIBUTE); "" when absent
 	Left      TableExpr
 	Right     TableExpr
 	Condition ExprNode // ON condition

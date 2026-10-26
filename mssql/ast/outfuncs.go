@@ -2381,6 +2381,10 @@ func writeDataType(sb *strings.Builder, n *DataType) {
 func writeJoinClause(sb *strings.Builder, n *JoinClause) {
 	sb.WriteString("{JOIN")
 	sb.WriteString(fmt.Sprintf(" :type %d", n.Type))
+	if n.Hint != "" {
+		sb.WriteString(" :hint ")
+		sb.WriteString(n.Hint)
+	}
 	if n.Left != nil {
 		sb.WriteString(" :left ")
 		writeNode(sb, n.Left)
