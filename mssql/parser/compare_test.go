@@ -1394,7 +1394,7 @@ func TestParseSelect(t *testing.T) {
 			"SELECT * FROM OPENQUERY(LinkedServer, 'SELECT 1') AS t",
 			"SELECT * FROM OPENJSON(@json) AS t",
 			"SELECT * FROM OPENXML(@hdoc, '/root/row') AS t",
-			"SELECT * FROM OPENDATASOURCE('SQLNCLI', 'Data Source=srv') AS t",
+			"SELECT * FROM OPENDATASOURCE('SQLNCLI', 'Data Source=srv').db.dbo.tbl AS t",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {
@@ -23851,7 +23851,7 @@ func TestParseUtilityAdminDropBnfReview(t *testing.T) {
 	})
 
 	t.Run("opendatasource", func(t *testing.T) {
-		sql := "SELECT * FROM OPENDATASOURCE('SQLNCLI', 'Data Source=server;Integrated Security=SSPI')"
+		sql := "SELECT * FROM OPENDATASOURCE('SQLNCLI', 'Data Source=server;Integrated Security=SSPI').db.dbo.t"
 		_ = ParseAndCheck(t, sql)
 	})
 

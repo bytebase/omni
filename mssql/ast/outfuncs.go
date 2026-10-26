@@ -238,6 +238,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeJoinClause(sb, n)
 	case *AliasedTableRef:
 		writeAliasedTableRef(sb, n)
+	case *AdHocTableRef:
+		writeAdHocTableRef(sb, n)
 	case *TableHint:
 		writeTableHint(sb, n)
 	case *OverClause:
@@ -2420,6 +2422,10 @@ func writeAliasedTableRef(sb *strings.Builder, n *AliasedTableRef) {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
 	}
+	if n.WithTable != nil {
+		sb.WriteString(" :withTable ")
+		writeNode(sb, n.WithTable)
+	}
 	if n.TableSample != nil {
 		sb.WriteString(" :tablesample ")
 		writeNode(sb, n.TableSample)
@@ -2430,6 +2436,22 @@ func writeAliasedTableRef(sb *strings.Builder, n *AliasedTableRef) {
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
+}
+
+func writeAdHocTableRef(sb *strings.Builder, n *AdHocTableRef) {
+	sb.WriteString("{ADHOCTABLE")
+	if n.DataSource != nil {
+		sb.WriteString(" :dataSource ")
+		writeNode(sb, n.DataSource)
+	}
+	if n.Object != nil {
+		sb.WriteString(" :object ")
+		writeNode(sb, n.Object)
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias \"%s\"", escapeString(n.Alias))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
 func writeTableHint(sb *strings.Builder, n *TableHint) {

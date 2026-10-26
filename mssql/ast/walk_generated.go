@@ -6,9 +6,19 @@ package ast
 // for each child. This function is generated from parsenodes.go.
 func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
+	case *AdHocTableRef:
+		if n.DataSource != nil {
+			Walk(v, n.DataSource)
+		}
+		if n.Object != nil {
+			Walk(v, n.Object)
+		}
 	case *AliasedTableRef:
 		Walk(v, n.Table)
 		walkList(v, n.Columns)
+		if n.WithTable != nil {
+			Walk(v, n.WithTable)
+		}
 		if n.TableSample != nil {
 			Walk(v, n.TableSample)
 		}

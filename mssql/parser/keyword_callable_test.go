@@ -89,7 +89,7 @@ var callableKeywordManifest = []callableKeyword{
 	//
 	// The accept samples below are the minimal legal shape that exercises
 	// each keyword's dispatch in parsePrimaryTableSource. Richer forms
-	// (OPENROWSET BULK, OPENDATASOURCE.db.schema.tbl chains) are separately
+	// (OPENROWSET BULK, WITH schemas) are separately
 	// tested elsewhere and are out of scope for this regression guard.
 	{keyword: "OPENROWSET", role: roleRowsetTable, acceptSample: "SELECT * FROM OPENROWSET('SQLNCLI', 'srv', 'SELECT 1')"},
 	{keyword: "OPENQUERY", role: roleRowsetTable, acceptSample: "SELECT * FROM OPENQUERY(srv, 'SELECT 1')"},
@@ -97,7 +97,7 @@ var callableKeywordManifest = []callableKeyword{
 	// OPENJSON(...)` parses as a generic FunctionCall there, so omni
 	// mirrors that behavior. Special-path dispatch in FROM.
 	{keyword: "OPENJSON", role: roleRowsetTable, acceptSample: "SELECT * FROM OPENJSON(@j)", alsoScalar: true},
-	{keyword: "OPENDATASOURCE", role: roleRowsetTable, acceptSample: "SELECT * FROM OPENDATASOURCE('SQLNCLI', 'conn')"},
+	{keyword: "OPENDATASOURCE", role: roleRowsetTable, acceptSample: "SELECT * FROM OPENDATASOURCE('SQLNCLI', 'conn').db.dbo.t"},
 	{keyword: "OPENXML", role: roleRowsetTable, acceptSample: "SELECT * FROM OPENXML(@h, 'x')"},
 	// --- roleFullTextTable ---
 	{keyword: "CONTAINSTABLE", role: roleFullTextTable, acceptSample: "SELECT * FROM CONTAINSTABLE(t, b, 'foo') ct"},

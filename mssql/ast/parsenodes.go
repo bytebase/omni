@@ -2149,6 +2149,7 @@ type AliasedTableRef struct {
 	Table       TableExpr          // TableRef, SubqueryExpr, etc.
 	Alias       string
 	Columns     *List              // alias column list (*String), or the WITH schema of OPENJSON and OPENXML (*RowsetColumnDef)
+	WithTable   *TableRef          // OPENXML WITH table_name: the table whose columns OPENXML takes
 	TableSample *TableSampleClause // optional TABLESAMPLE clause
 	Hints       *List              // table hints: WITH (NOLOCK), etc.
 	Loc         Loc
@@ -2156,6 +2157,20 @@ type AliasedTableRef struct {
 
 func (n *AliasedTableRef) nodeTag()   {}
 func (n *AliasedTableRef) tableExpr() {}
+
+// AdHocTableRef is a table on an ad hoc data source, named in place of a
+// linked server.
+//
+//	OPENDATASOURCE ( provider_name , init_string ) . database . schema . object
+type AdHocTableRef struct {
+	DataSource *FuncCallExpr // OPENDATASOURCE ( provider_name , init_string )
+	Object     *TableRef     // database.schema.object; Database and Schema may be empty
+	Alias      string
+	Loc        Loc
+}
+
+func (n *AdHocTableRef) nodeTag()   {}
+func (n *AdHocTableRef) tableExpr() {}
 
 // RowsetColumnDef is a column of the WITH schema of OPENJSON or OPENXML.
 //
