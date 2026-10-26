@@ -1312,9 +1312,14 @@ func (p *Parser) parseCreateExternalTableAsSelectStmt() (*nodes.CreateExternalTa
 	// AS <select_statement>
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			stmt.Query, _ = p.parseSelectStmtWithCTE(queryStatement)
+		query, err := p.parseSelectStmtWithCTE(queryStatement)
+		if err != nil {
+			return nil, err
 		}
+		if query == nil {
+			return nil, p.unexpectedToken()
+		}
+		stmt.Query = query
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -1572,9 +1577,14 @@ func (p *Parser) parseCreateRemoteTableAsSelectStmt() (*nodes.CreateRemoteTableA
 	// AS <select_statement>
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			stmt.Query, _ = p.parseSelectStmtWithCTE(queryStatement)
+		query, err := p.parseSelectStmtWithCTE(queryStatement)
+		if err != nil {
+			return nil, err
 		}
+		if query == nil {
+			return nil, p.unexpectedToken()
+		}
+		stmt.Query = query
 	}
 
 	stmt.Loc.End = p.prevEnd()

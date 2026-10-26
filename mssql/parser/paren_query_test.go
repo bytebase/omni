@@ -274,6 +274,89 @@ var parenQueryCases = []struct {
 	{"tvf_missing_query", "CREATE FUNCTION f() RETURNS TABLE AS RETURN", false, ""},
 }
 
+// parenQueryTableAsSelectCases covers the query of CREATE EXTERNAL TABLE AS
+// SELECT (CETAS) and CREATE REMOTE TABLE AS SELECT (CRTAS), a statement's
+// query that may start with '('. The SQL Server 2022 oracle rejects every
+// CREATE EXTERNAL TABLE (the container has no PolyBase), so the CETAS cases
+// are checked against ScriptDOM (ctasCreateExternalTableStatement in
+// bnf/TSql170.g) instead. ScriptDOM does not parse CRTAS, a Parallel Data
+// Warehouse statement whose reference page gives the same AS
+// <select_statement>.
+var parenQueryTableAsSelectCases = []struct {
+	name    string
+	sql     string
+	accepts bool
+	shape   string
+}{
+	{"cetas", cetas + "SELECT 1 AS a", true, "1 AS a"},
+	{"cetas_paren", cetas + "(SELECT 1 AS a)", true, "1 AS a"},
+	{"cetas_paren_double", cetas + "((SELECT 1 AS a))", true, "1 AS a"},
+	{"cetas_union_parens", cetas + "(SELECT 1 AS a) UNION (SELECT 2)", true, "(1 AS a UNION 2)"},
+	{"cetas_cte_paren", cetas + "WITH c AS (SELECT 1 a) (SELECT a FROM c)", true, "WITH[1 a] a"},
+	{"cetas_order", cetas + "(SELECT 1 AS a) ORDER BY a", true, "1 AS a ORDER BY"},
+	{"cetas_option", cetas + "(SELECT 1 AS a) OPTION (MAXDOP 1)", true, "1 AS a OPTION"},
+	{"cetas_top_order_inside", cetas + "(SELECT TOP 1 a FROM t ORDER BY a)", false, ""},
+	{"cetas_missing_query", cetas, false, ""},
+	{"crtas", crtas + "SELECT 1 AS a", true, "1 AS a"},
+	{"crtas_paren", crtas + "(SELECT 1 AS a)", true, "1 AS a"},
+	{"crtas_union_parens", crtas + "(SELECT 1 AS a) UNION (SELECT 2)", true, "(1 AS a UNION 2)"},
+	{"crtas_missing_query", crtas, false, ""},
+}
+
+const (
+	cetas = "CREATE EXTERNAL TABLE t2 WITH (LOCATION = 'x', DATA_SOURCE = ds, FILE_FORMAT = ff) AS "
+	crtas = "CREATE REMOTE TABLE dbo.t2 AT ('Data Source = x') AS "
+)
+
+// TestParenQueryTableAsSelect checks that a CETAS or CRTAS takes its whole
+// query, parenthesized or not, as one statement.
+func TestParenQueryTableAsSelect(t *testing.T) {
+	for _, tc := range parenQueryTableAsSelectCases {
+		t.Run(tc.name, func(t *testing.T) {
+			list, err := Parse(tc.sql)
+			if !tc.accepts {
+				if err == nil {
+					t.Fatalf("Parse(%q) succeeded, want a syntax error:\n%s", tc.sql, ast.NodeToString(list))
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tc.sql, err)
+			}
+			if len(list.Items) != 1 {
+				t.Fatalf("Parse(%q) returned %d statements, want 1:\n%s", tc.sql, len(list.Items), ast.NodeToString(list))
+			}
+			switch list.Items[0].(type) {
+			case *ast.CreateExternalTableAsSelectStmt, *ast.CreateRemoteTableAsSelectStmt:
+			default:
+				t.Fatalf("statement is %T, want a CETAS or CRTAS", list.Items[0])
+			}
+			if got := queryShape(tc.sql, list); got != tc.shape {
+				t.Errorf("query shape = %s, want %s", got, tc.shape)
+			}
+		})
+	}
+}
+
+// TestParenQueryTableAsSelectScriptDOM checks accept/reject parity with
+// ScriptDOM for the CETAS cases in parenQueryTableAsSelectCases.
+func TestParenQueryTableAsSelectScriptDOM(t *testing.T) {
+	h := getHarness(t)
+
+	for _, tc := range parenQueryTableAsSelectCases {
+		if !strings.HasPrefix(tc.sql, cetas) {
+			continue
+		}
+		t.Run(tc.name, func(t *testing.T) {
+			errs, _ := h.Shape(t, tc.sql)["errors"].([]any)
+			if sdAccepts := len(errs) == 0; sdAccepts != tc.accepts {
+				t.Errorf("table says ScriptDOM %s but it %s (%v):\n  SQL: %s",
+					boolToAcceptReject(tc.accepts), boolToAcceptReject(sdAccepts), errs, tc.sql)
+			}
+		})
+	}
+}
+
 var setOpNames = map[ast.SetOperation]string{
 	ast.SetOpUnion:     "UNION",
 	ast.SetOpIntersect: "INTERSECT",
