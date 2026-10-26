@@ -410,6 +410,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writePivotExpr(sb, n)
 	case *UnpivotExpr:
 		writeUnpivotExpr(sb, n)
+	case *TemporalClause:
+		writeTemporalClause(sb, n)
 	case *TableSampleClause:
 		writeTableSampleClause(sb, n)
 	case *GroupingSetsExpr:
@@ -2351,8 +2353,26 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 		sb.WriteString(" :hints ")
 		writeNode(sb, n.Hints)
 	}
+	if n.Temporal != nil {
+		sb.WriteString(" :temporal ")
+		writeNode(sb, n.Temporal)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
+}
+
+func writeTemporalClause(sb *strings.Builder, n *TemporalClause) {
+	sb.WriteString("{FORSYSTEMTIME")
+	fmt.Fprintf(sb, " :kind \"%s\"", escapeString(n.Kind))
+	if n.Start != nil {
+		sb.WriteString(" :start ")
+		writeNode(sb, n.Start)
+	}
+	if n.End != nil {
+		sb.WriteString(" :end ")
+		writeNode(sb, n.End)
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
 func writeDataType(sb *strings.Builder, n *DataType) {

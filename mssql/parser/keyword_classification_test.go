@@ -263,6 +263,7 @@ var sqlServerContextKeywords = []string{
 	"concat",
 	"configuration",
 	"connection",
+	"contained",
 	"containment",
 	"context",
 	"contract",

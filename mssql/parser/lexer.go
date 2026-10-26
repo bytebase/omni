@@ -120,6 +120,7 @@ const (
 	kwCONFIGURATION
 	kwCONNECTION
 	kwCONSTRAINT
+	kwCONTAINED
 	kwCONTAINMENT
 	kwCONTAINS
 	kwCONTAINSTABLE
@@ -623,7 +624,7 @@ func init() {
 		"collate": kwCOLLATE, "collection": kwCOLLECTION, "column": kwCOLUMN, "column_set": kwCOLUMN_SET,
 		"columnstore": kwCOLUMNSTORE, "commit": kwCOMMIT, "committed": kwCOMMITTED, "compute": kwCOMPUTE,
 		"concat": kwCONCAT, "configuration": kwCONFIGURATION, "connection": kwCONNECTION, "constraint": kwCONSTRAINT,
-		"containment": kwCONTAINMENT, "contains": kwCONTAINS, "containstable": kwCONTAINSTABLE, "context": kwCONTEXT,
+		"contained": kwCONTAINED, "containment": kwCONTAINMENT, "contains": kwCONTAINS, "containstable": kwCONTAINSTABLE, "context": kwCONTEXT,
 		"continue": kwCONTINUE, "contract": kwCONTRACT, "conversation": kwCONVERSATION, "convert": kwCONVERT,
 		"cookie": kwCOOKIE, "copy": kwCOPY, "counter": kwCOUNTER, "create": kwCREATE,
 		"credential": kwCREDENTIAL, "cross": kwCROSS, "cryptographic": kwCRYPTOGRAPHIC, "cube": kwCUBE,
@@ -859,6 +860,7 @@ var keywordClassification = map[int]Keyword{
 		kwCONFIGURATION: {Name: "CONFIGURATION", Token: kwCONFIGURATION, Category: ContextKeyword},
 		kwCONNECTION: {Name: "CONNECTION", Token: kwCONNECTION, Category: ContextKeyword},
 		kwCONSTRAINT: {Name: "CONSTRAINT", Token: kwCONSTRAINT, Category: CoreKeyword},
+		kwCONTAINED: {Name: "CONTAINED", Token: kwCONTAINED, Category: ContextKeyword},
 		kwCONTAINMENT: {Name: "CONTAINMENT", Token: kwCONTAINMENT, Category: ContextKeyword},
 		kwCONTAINS: {Name: "CONTAINS", Token: kwCONTAINS, Category: CoreKeyword},
 		kwCONTAINSTABLE: {Name: "CONTAINSTABLE", Token: kwCONTAINSTABLE, Category: CoreKeyword},

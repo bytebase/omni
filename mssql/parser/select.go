@@ -1109,6 +1109,17 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		return tvf, nil
 	}
 
+	// FOR SYSTEM_TIME follows the table name and precedes the alias, as in
+	// ScriptDOM's schemaObjectTableReference (bnf/TSql170.g). FOR followed by
+	// anything else is FOR XML, JSON, or BROWSE at the end of the query.
+	if p.cur.Type == kwFOR && p.peekNext().Type == kwSYSTEM_TIME {
+		ref.Temporal, err = p.parseTemporalClause()
+		if err != nil {
+			return nil, err
+		}
+		ref.Loc.End = p.prevEnd()
+	}
+
 	// Alias
 	alias := p.parseOptionalAlias()
 	if alias != "" {
@@ -1462,6 +1473,107 @@ func (p *Parser) parsePivotAlias() (string, error) {
 		return "", p.unexpectedToken()
 	}
 	return name, nil
+}
+
+// parseTemporalClause parses FOR SYSTEM_TIME on a table. The current token
+// is FOR and the next is SYSTEM_TIME.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/from-transact-sql
+//
+//	FOR SYSTEM_TIME { AS OF t | FROM t TO t | BETWEEN t AND t
+//	    | CONTAINED IN ( t , t ) | ALL }
+func (p *Parser) parseTemporalClause() (*nodes.TemporalClause, error) {
+	loc := p.pos()
+	p.advance() // consume FOR
+	p.advance() // consume SYSTEM_TIME
+
+	tc := &nodes.TemporalClause{Loc: nodes.Loc{Start: loc, End: -1}}
+
+	// Completion: after FOR SYSTEM_TIME → the forms of the clause
+	if p.collectMode() {
+		for _, tok := range []int{kwAS, kwFROM, kwBETWEEN, kwCONTAINED, kwALL} {
+			p.addTokenCandidate(tok)
+		}
+		return nil, errCollecting
+	}
+
+	var err error
+	switch {
+	case p.cur.Type == kwAS:
+		p.advance()
+		if _, err := p.expect(kwOF); err != nil {
+			return nil, err
+		}
+		tc.Kind = "AS OF"
+		if tc.Start, err = p.parseTemporalTime(); err != nil {
+			return nil, err
+		}
+	case p.cur.Type == kwFROM:
+		p.advance()
+		tc.Kind = "FROM"
+		if tc.Start, err = p.parseTemporalTime(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
+		if tc.End, err = p.parseTemporalTime(); err != nil {
+			return nil, err
+		}
+	case p.cur.Type == kwBETWEEN:
+		p.advance()
+		tc.Kind = "BETWEEN"
+		if tc.Start, err = p.parseTemporalTime(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwAND); err != nil {
+			return nil, err
+		}
+		if tc.End, err = p.parseTemporalTime(); err != nil {
+			return nil, err
+		}
+	case p.cur.Type == kwCONTAINED:
+		p.advance()
+		tc.Kind = "CONTAINED IN"
+		if _, err := p.expect(kwIN); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if tc.Start, err = p.parseTemporalTime(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(','); err != nil {
+			return nil, err
+		}
+		if tc.End, err = p.parseTemporalTime(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	case p.cur.Type == kwALL:
+		p.advance()
+		tc.Kind = "ALL"
+	default:
+		return nil, p.unexpectedToken()
+	}
+
+	tc.Loc.End = p.prevEnd()
+	return tc, nil
+}
+
+// parseTemporalTime parses a point in time of FOR SYSTEM_TIME. ScriptDOM's
+// temporalClause (bnf/TSql170.g) takes a string or a variable; SQL Server
+// 2022 also takes a number, money, or NULL, and rejects a sign, a function
+// call such as GETDATE(), and any other expression.
+func (p *Parser) parseTemporalTime() (nodes.ExprNode, error) {
+	switch p.cur.Type {
+	case tokSCONST, tokNSCONST, tokICONST, tokFCONST, tokMONEY, kwNULL, tokVARIABLE, tokSYSVARIABLE:
+		return p.parsePrimary()
+	}
+	return nil, p.unexpectedToken()
 }
 
 // parseTableSampleClause parses a TABLESAMPLE clause.
