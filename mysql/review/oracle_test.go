@@ -48,6 +48,12 @@ func TestMain(m *testing.M) {
 		_ = mysqlOracle.db.Close()
 		_ = testcontainers.TerminateContainer(mysqlOracle.container)
 	}
+	for _, db := range walkServers.dbs {
+		_ = db.Close()
+	}
+	for _, c := range walkServers.containers {
+		_ = testcontainers.TerminateContainer(c)
+	}
 	os.Exit(code)
 }
 
