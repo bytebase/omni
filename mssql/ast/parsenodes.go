@@ -3031,6 +3031,7 @@ func (n *UnpivotExpr) tableExpr() {}
 
 // TableSampleClause represents TABLESAMPLE on a table reference.
 type TableSampleClause struct {
+	System     bool     // TABLESAMPLE SYSTEM
 	Size       ExprNode // sample size expression
 	Unit       string   // "PERCENT" or "ROWS"
 	Repeatable ExprNode // REPEATABLE seed (optional)
