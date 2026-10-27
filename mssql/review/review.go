@@ -24,7 +24,6 @@ import (
 )
 
 // Rules lists the rules this package implements, in evaluation order.
-// WalkThrough is not implemented.
 var Rules = []review.Rule{
 	review.Syntax,
 	review.OnlineMigration,
@@ -36,6 +35,7 @@ var Rules = []review.Rule{
 	review.PriorBackup,
 	review.DisallowDropConstraint,
 	review.RequirePrimaryKey,
+	review.WalkThrough,
 }
 
 // Review evaluates opts.Rules over sql for every target. See the contract
@@ -68,7 +68,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 		checkPriorBackupSize(sql, opts.Change, r)
 		checkPriorBackupStatements(stmts, r)
 	}
-	work := targetWork{sql: sql, on: on, backup: on[review.PriorBackup] && opts.Change.PriorBackup}
+	work := targetWork{sql: sql, on: on, backup: on[review.PriorBackup] && opts.Change.PriorBackup, walks: on[review.WalkThrough]}
 	ansi := ansiNulls{known: true}
 	for i := range stmts {
 		if err := ctx.Err(); err != nil {

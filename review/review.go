@@ -124,6 +124,13 @@ type Target struct {
 	// checks a foreign key's target only while it is on. Other engines
 	// ignore it.
 	ForeignKeyChecks Switch
+	// DefaultSchema is the default schema of the login that runs the
+	// change, as SQL Server's SCHEMA_NAME() returns it over the admin
+	// connection that also runs the change: where an unqualified name is
+	// created, and where it is looked up before dbo. Empty means unknown,
+	// and WalkThrough then judges no unqualified name. Other engines
+	// ignore it.
+	DefaultSchema string
 	// OtherSpecs is true when another spec of the same plan also changes
 	// this database. Bytebase does not order such specs: the other may run
 	// first, so Schema need not be what this change meets. WalkThrough then
