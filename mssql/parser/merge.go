@@ -174,6 +174,15 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		stmt.OptionClause = oc
 	}
 
+	// SQL Server requires a semicolon after MERGE wherever it stands, even
+	// under SET PARSEONLY ON: "A MERGE statement must be terminated by a
+	// semi-colon (;)". The semicolon is left for the caller, which skips it
+	// like any other. Completion is unaffected: Collect moves on to the next
+	// statement after an error.
+	if p.cur.Type != ';' {
+		return nil, p.newParseError(p.cur.Loc, "A MERGE statement must be terminated by a semi-colon (;)")
+	}
+
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
