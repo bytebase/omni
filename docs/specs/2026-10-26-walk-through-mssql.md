@@ -298,7 +298,7 @@ Bytebase follow-ups, outside this PR:
 - 450 of names and snapshot (`walk_names.go`, `walk_snapshot.go`);
 - 350 of walker, batches, and plumbing (`walk_through.go`, `targets.go`).
 
-As built: 1,717 lines of lowering, 434 of names and snapshot, and 700 of walker, batches, reference resolution, and the class and spelling bookkeeping of §2.1 (`walk_through.go`), about 25% over the budget in all. The overrun is mostly that bookkeeping, which the budget did not foresee, and the per-kind DROP and module rows.
+As built, after review: 1,777 lines of lowering, 462 of names and snapshot, and 725 of walker, batches, reference resolution, and the class and spelling bookkeeping of §2.1 (`walk_through.go`), about 29% over the budget in all. The overrun is mostly that bookkeeping, which the budget did not foresee, and the per-kind DROP and module rows; the review rounds added about 110 lines.
 
 **Oracle** (`walktest.Judge`), modeled on Bytebase's transaction mode:
 - One connection runs one transaction. Each statement runs as its own batch after a `SAVE TRANSACTION`, and a rejected one is rolled back to it.
