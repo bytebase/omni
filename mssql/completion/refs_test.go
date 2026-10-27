@@ -79,6 +79,12 @@ func TestExtractTableRefs(t *testing.T) {
 			sql:  "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.x = s.x;",
 			want: []TableRef{{Table: "t"}, {Table: "s"}},
 		},
+		{
+			// The user has not typed the semicolon MERGE requires yet.
+			name: "MERGE without its semicolon",
+			sql:  "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.x = s.x",
+			want: []TableRef{{Table: "t"}, {Table: "s"}},
+		},
 		// --- Multiple tables ---
 		{
 			name: "multiple JOINs",

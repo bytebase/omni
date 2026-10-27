@@ -151,7 +151,7 @@ func TestLoc_DML(t *testing.T) {
 	})
 
 	t.Run("MERGE", func(t *testing.T) {
-		sql := "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET a = s.a"
+		sql := "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET a = s.a;"
 		stmts, err := Parse(sql)
 		if err != nil {
 			t.Fatalf("Parse error: %v", err)
@@ -168,8 +168,8 @@ func TestLoc_DML(t *testing.T) {
 			t.Fatalf("MergeStmt Loc invalid: %+v", loc)
 		}
 		got := locText(sql, loc)
-		if !strings.Contains(got, "MERGE") {
-			t.Errorf("MergeStmt Loc text = %q, want it to contain MERGE", got)
+		if want := strings.TrimSuffix(sql, ";"); got != want {
+			t.Errorf("MergeStmt Loc text = %q, want %q", got, want)
 		}
 	})
 
