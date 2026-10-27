@@ -101,7 +101,8 @@ func TestWalkThroughTiDBAlterTable(t *testing.T) {
 	oneFinding(t, "ALTER TABLE t DROP INDEX i, DROP INDEX I;", 0, "Index I is dropped twice from table t", shop)
 	oneFinding(t, "ALTER TABLE t DROP PRIMARY KEY, DROP INDEX `PRIMARY`;", 0, "Index `PRIMARY` is dropped twice from table t", shop)
 	oneFinding(t, "ALTER TABLE nokey ADD PRIMARY KEY (a), ADD PRIMARY KEY (a);", 0, "Multiple primary keys for table nokey", shop)
-	// TiDB drops fk1 and then fails (1091), so the oracle cannot run it.
+	// TiDB drops fk1 and then fails (1091): the oracle judges it by its
+	// code (walktest.PartialRejecter).
 	oneFinding(t, "ALTER TABLE t DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1;", 0, "Foreign key fk1 is dropped twice from table t", shop)
 	// TiDB loops on this one's rollback, so the oracle cannot run it.
 	oneFinding(t, "ALTER TABLE t ADD CONSTRAINT f2 FOREIGN KEY (a) REFERENCES r (id), ADD CONSTRAINT F2 FOREIGN KEY (b) REFERENCES r (id);", 0, "Foreign key F2 is added twice to table t", shop)
@@ -185,8 +186,8 @@ func TestWalkThroughTiDBObjects(t *testing.T) {
 	noFinding(t, "CREATE INDEX k ON v ((1 + 1));\nCREATE TABLE t (a int);", shop)
 	noFinding(t, "CREATE INDEX k ON sq ((1 + 1));\nDROP INDEX k ON sq;\nCREATE TABLE t (a int);", shop)
 	oneFinding(t, "CREATE INDEX k ON nosuch (a);", 0, "Table nosuch does not exist", shop)
-	// TiDB drops what it can of these before it fails, so the oracle cannot
-	// run them; the statement fails all the same.
+	// TiDB drops what it can of these before it fails; the statement fails
+	// all the same, and the oracle judges each by its code.
 	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table nosuch does not exist", shop)
 	oneFinding(t, "DROP TABLE t, v;", 0, "Table v does not exist", shop)
 	oneFinding(t, "DROP TABLE t, sq;", 0, "Table sq does not exist", shop)

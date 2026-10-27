@@ -47,9 +47,10 @@ var long = strings.Repeat("a", 65)
 // every TiDB delta of docs/specs/2026-10-26-walk-through-mariadb-tidb.md
 // §3. TiDB drops some objects of a multi-object DROP of base tables, views,
 // or sequences that it then fails, and fails two DROP FOREIGN KEY of one
-// name after dropping it; a server that changes the database on a rejected
-// statement fails Judge, so those forms are pinned by the unit tests
-// instead.
+// name after dropping it. Judge stops judging a change at such a statement
+// (walktest.PartialRejecter), so each of those forms ends its case. Two
+// ADD FOREIGN KEY of one name in one ALTER leave TiDB retrying the job's
+// rollback without end, so only the unit tests pin that one.
 var walkCases = []walkCase{
 	// Databases and USE.
 	{name: "databases", change: "CREATE DATABASE shop;\nCREATE DATABASE q;\nCREATE DATABASE q;\nCREATE DATABASE IF NOT EXISTS q;\nDROP DATABASE IF EXISTS nosuch;\nUSE nosuch;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);\nDROP DATABASE q;\nCREATE TABLE q.y (a int);", complete: true},
@@ -110,6 +111,17 @@ var walkCases = []walkCase{
 	// target, the tables a query reads, generated index names, the hidden
 	// row id, index columns, what TiDB does not support, and procedures,
 	// which end the walk.
+	// TiDB drops what it finds of these before it fails: each is judged by
+	// its error code, and ends its case.
+	{name: "DROP TABLE drops the tables before a missing name", change: "DROP TABLE t, nosuch;", complete: true},
+	{name: "DROP TABLE drops the tables before a missing name, listed last", change: "DROP TABLE nosuch, nokey;", complete: true},
+	{name: "DROP TABLE drops the tables before a view", change: "DROP TABLE nokey, v;", complete: true},
+	{name: "DROP TABLE drops the tables before a sequence", change: "DROP TABLE nokey, sq;", complete: true},
+	{name: "DROP VIEW drops the views before a missing name", change: "DROP VIEW v, nosuch;", complete: true},
+	{name: "DROP VIEW IF EXISTS drops the views before a table", change: "DROP VIEW IF EXISTS v, t;", complete: true},
+	{name: "DROP SEQUENCE drops the sequences before a missing name", change: "DROP SEQUENCE sq, nosuch;", complete: true},
+	{name: "DROP SEQUENCE drops the sequences before a table", change: "DROP SEQUENCE sq, t;", complete: true},
+	{name: "DROP FOREIGN KEY twice drops it", change: "ALTER TABLE t DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1;", complete: true},
 	{name: "unknown by design", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT 1 AS a;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nALTER TABLE nokey ADD COLUMN _tidb_rowid int;\nALTER TABLE nokey ADD COLUMN y int AFTER _tidb_rowid;\nALTER TABLE nokey DROP COLUMN _tidb_rowid;\nALTER TABLE t ADD COLUMN q int, ADD INDEX kq (q);\nALTER TABLE t DROP COLUMN IF EXISTS a, DROP COLUMN a;\nALTER TABLE t ALTER COLUMN a SET DEFAULT 1, MODIFY a int;\nALTER TABLE r DROP PRIMARY KEY;\nALTER TABLE t DROP CONSTRAINT nosuch;\nINSERT INTO v VALUES (1);\nCREATE TABLE c3 (id int, a int, FOREIGN KEY (id) REFERENCES r (id), CONSTRAINT fk_1 FOREIGN KEY (a) REFERENCES r (id));\nCREATE PROCEDURE p() SELECT 1;\nCREATE TABLE t (a int);"},
 }
 
@@ -242,6 +254,12 @@ type tidbEngine struct {
 	db     *sql.DB
 	target review.Target
 }
+
+// RejectsPartially marks TiDB as a server that may change the database in
+// a statement it rejects: multi-object drops drop what they find before
+// they fail, and a repeated DROP FOREIGN KEY drops the key first
+// (walktest.PartialRejecter).
+func (*tidbEngine) RejectsPartially() {}
 
 func (e *tidbEngine) Statements(change string) []string { return splitWalk(change) }
 
@@ -529,9 +547,10 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 // recall is logged. WALK_SWEEP_N sets the number of changes,
 // WALK_SWEEP_SEED the seed; the server is the package's TiDB.
 //
-// The templates leave out what TiDB does not run atomically: DROP TABLE,
-// DROP VIEW, and DROP SEQUENCE name one object or take IF EXISTS, and an
-// ALTER TABLE takes one foreign key subcommand.
+// A change ends its judging at a statement TiDB rejects after changing the
+// database (walktest.PartialRejecter). The templates leave out two ADD
+// FOREIGN KEY of one name in one ALTER, which leave TiDB retrying the
+// job's rollback without end.
 func TestWalkThroughSweepTiDB(t *testing.T) {
 	n, seed, _ := walktest.SweepParams(t, 40, 20261026, "pingcap/tidb:v8.5.5")
 	db := startWalkTiDB(t)
@@ -589,16 +608,9 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 4:
 			stmt = fmt.Sprintf("CREATE SEQUENCE %s%s", maybe("IF NOT EXISTS "), tbl())
 		case 5:
-			if rng.Intn(2) == 0 {
-				stmt = fmt.Sprintf("DROP %sTABLE %s%s", maybe("TEMPORARY "), maybe("IF EXISTS "), tbl())
-			} else {
-				stmt = fmt.Sprintf("DROP TABLE IF EXISTS %s, %s", tbl(), tbl())
-			}
+			stmt = fmt.Sprintf("DROP %sTABLE %s%s%s", maybe("TEMPORARY "), maybe("IF EXISTS "), tbl(), maybe(", "+tbl()))
 		case 6:
-			stmt = fmt.Sprintf("DROP SEQUENCE %s", tbl())
-			if rng.Intn(2) == 0 {
-				stmt = fmt.Sprintf("DROP SEQUENCE IF EXISTS %s%s", tbl(), maybe(", "+tbl()))
-			}
+			stmt = fmt.Sprintf("DROP SEQUENCE %s%s%s", maybe("IF EXISTS "), tbl(), maybe(", "+tbl()))
 		case 7:
 			stmt = fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s int%s", tbl(), col(), maybe(" AFTER "+col()))
 		case 8:
@@ -612,7 +624,7 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 12:
 			stmt = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (x) REFERENCES %s (id)", tbl(), fk(), tbl())
 		case 13:
-			stmt = fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s%s", tbl(), fk(), maybe(", ADD COLUMN "+col()+" int"))
+			stmt = fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s%s", tbl(), fk(), maybe(", "+pick("ADD COLUMN "+col()+" int", "DROP FOREIGN KEY "+fk())))
 		case 14:
 			stmt = fmt.Sprintf("ALTER TABLE %s %s", tbl(), pick("ADD PRIMARY KEY (x)", "DROP PRIMARY KEY", "RENAME INDEX i TO j", "RENAME TO "+name(), "ENGINE = InnoDB", "COMMENT 'x', RENAME TO "+name()))
 		case 15:
@@ -624,7 +636,7 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 18:
 			stmt = fmt.Sprintf("CREATE %sVIEW %s AS SELECT 1 AS x", maybe("OR REPLACE "), tbl())
 		case 19:
-			stmt = fmt.Sprintf("DROP VIEW %s%s", maybe("IF EXISTS "), tbl())
+			stmt = fmt.Sprintf("DROP VIEW %s%s%s", maybe("IF EXISTS "), tbl(), maybe(", "+tbl()))
 		case 20:
 			stmt = pick("CREATE DATABASE q", "CREATE DATABASE IF NOT EXISTS q", "DROP DATABASE IF EXISTS q", "USE q", "USE shop")
 		case 21:

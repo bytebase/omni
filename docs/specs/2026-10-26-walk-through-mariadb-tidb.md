@@ -158,7 +158,7 @@ On `mariadb:11.8.8`, 2026-10-26:
 - **The effects apply drops and renames first,** as on MySQL. Since two subcommands on one name fail, the order matters only for the indexes a dropped column may take with it.
 - **Two subcommands on one column or index fail** with 8200 ("Unsupported operate same column"). MySQL's repeated-subcommand text checks hold, with 8200 among their codes. Two exceptions:
   - `DROP COLUMN IF EXISTS` of a missing column is a note, and the statement goes on without it. Two of them are two notes, and `ADD COLUMN q, DROP COLUMN IF EXISTS q` adds q. The text check leaves IF EXISTS out, and the drop takes effect only on a column that may exist.
-  - `DROP FOREIGN KEY f, DROP FOREIGN KEY f` fails (1091) after it drops f. The walk claims the failure, and the oracle cannot run it.
+  - `DROP FOREIGN KEY f, DROP FOREIGN KEY f` fails (1091) after it drops f. The walk claims the failure, and the oracle judges it by its code (N1).
 - **Two `ADD FOREIGN KEY` of one name in one ALTER** make TiDB retry the job's rollback without end. The text check claims it, and the oracle cannot run it.
 - **`RENAME TO` with any other subcommand fails** (8200), from the text alone. `ALGORITHM` and `LOCK` do not count: TiDB sets them aside first. Nor does a `RENAME TO` of the table's own name in any case, which TiDB drops (the sweep found `COMMENT 'x', RENAME TO a` on a succeeding, and `ADD COLUMN zz, RENAME TO U` on u succeeds).
 - **Length:** TiDB checks no length in `CHANGE` or `RENAME COLUMN`, and a 65-character name succeeds there. The walk claims 1059 only for the names TiDB checks: `ADD COLUMN`, `ADD INDEX`, `ADD CONSTRAINT`, and `RENAME TO`.
@@ -178,7 +178,7 @@ On `mariadb:11.8.8`, 2026-10-26:
   - `DROP TABLE d1, nosuch` and `DROP TABLE nosuch, d1` drop d1 and fail (1051). So does a view or a sequence in the list.
   - `DROP VIEW` and `DROP SEQUENCE` drop every object of the list they find, and fail on one missing or of another kind (`DROP VIEW v, v` too).
   - `DROP TEMPORARY TABLE tt, nosuch` keeps tt, and `RENAME TABLE` is atomic.
-  - For the oracle, this is N1's alternative: `Judge` stays strict. Those forms stay out of the curated cases and the sweep, and unit tests pin them.
+  - For the oracle, this is N1 as built for MariaDB: the engine is a `walktest.PartialRejecter`. Each such form ends a curated case of its own, where Judge holds the finding to the server's error code, and the sweep generates them too. Run without the opt-in, all nine curated forms fail Judge's digest check, which shows that each changes the database.
 - **`DROP VIEW IF EXISTS` of a table or a sequence fails** (1347): IF EXISTS does not cover the wrong kind. The walk claims it.
 - **Sequences are synced** (Bytebase reads `information_schema.SEQUENCES`), so they are relations of kind sequence that the walk trusts.
   - `CREATE SEQUENCE [IF NOT EXISTS]`: the database must exist (1049) or be selected (1046), the name must be free (1050), and a name over 64 characters fails (1059). A temporary table of the name does not block it.
@@ -227,6 +227,8 @@ On `mariadb:11.8.8`, 2026-10-26:
   - `walktest` gained `PartialRejecter` (decision N1).
 - **TiDB as built:**
   - 1320 lines of lowering, 204 of snapshot, 278 of walker. Against the MySQL copy, 655 lines went (triggers, routines, events, engines, generated `<table>_ibfk_` names, the database-wide foreign key space) and 285 came (sequences, the ALTER TABLE deltas, the comments naming each verified fact).
+  - the oracle found 191 of 212 rejections in the curated cases, with no false finding. On the plain MySQL copy, wired the same way, 22 of the first 36 cases fail with false findings or misses; the 14 that pass cover what TiDB shares with MySQL;
+  - the sweep at 500 (seed 20261026) found 5352 of 8012 rejections, with no false finding, in about 200 seconds. It found one false finding while the walk was built, `COMMENT 'x', RENAME TO a` on a, now fixed and pinned.
 
 ## 6. Decisions
 
