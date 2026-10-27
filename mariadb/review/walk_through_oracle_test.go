@@ -95,6 +95,18 @@ var walkCases = []walkCase{
 	// Name case: tables and databases are exact under lower_case_table_names
 	// 0; the other spaces fold, triggers aside.
 	{name: "name case", change: "CREATE TABLE T (a int);\nCREATE TABLE T (a int);\nCREATE DATABASE q;\nCREATE DATABASE Q;\nCREATE DATABASE q;\nCREATE TABLE Q.x (a int);\nCREATE TABLE q.X (a int);\nCREATE TABLE q.X (a int);\nALTER TABLE r ADD COLUMN ID int;\nCREATE VIEW V AS SELECT 1 AS a;\nDROP PROCEDURE P;\nDROP PROCEDURE p;\nDROP EVENT E;\nDROP EVENT e;\nCREATE TRIGGER Tr BEFORE INSERT ON r FOR EACH ROW SET NEW.id = 1;", complete: true},
+	// Names outside ASCII: MariaDB compares them by rules of its own per
+	// space (MariaDB spec §2.2), and takes some for ASCII names, so the walk
+	// follows none. CAFé is café as a column and KÉ is ké as an index; ſ is
+	// s as a column and an index, and é is e as a routine and an event.
+	{name: "names outside ASCII", change: "CREATE TABLE x (id int, café int, KEY ké (id));\nALTER TABLE x DROP COLUMN CAFé;\nALTER TABLE x DROP INDEX KÉ;\nALTER TABLE x DROP INDEX Ké;\nALTER TABLE x DROP COLUMN zz;"},
+	{name: "an ASCII name may be one outside ASCII", setup: "CREATE TABLE ls (ſ int, a int, KEY ſ (a));\nCREATE PROCEDURE `pé`() SELECT 1;\nCREATE FUNCTION `fé`() RETURNS int DETERMINISTIC RETURN 1;\nCREATE EVENT `eé` ON SCHEDULE EVERY 1 DAY DO SELECT 1;", change: "ALTER TABLE ls DROP COLUMN s;\nALTER TABLE ls DROP INDEX s;\nDROP PROCEDURE pe;\nDROP FUNCTION shop.fe;\nDROP EVENT ee;\nALTER TABLE ls DROP COLUMN zz;\nDROP PROCEDURE nosuch;\nALTER TABLE t DROP COLUMN zz;"},
+	// Each assignment of a SET has a scope of its own (MariaDB spec §2.2): an
+	// unprefixed one the statement's, an @@session or bare @@ one the
+	// session's. A global assignment leaves the session's checks as they
+	// are; resetWalk sets the global back. The sync may not list every
+	// relation, so the missing parent is one the change drops.
+	{name: "SET foreign_key_checks in each assignment's scope", change: "CREATE TABLE gone (id int PRIMARY KEY);\nDROP TABLE gone;\nSET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES gone (id));\nSET GLOBAL foreign_key_checks = 1, @@foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES gone (id));\nSET @@global.foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE z2 (a int, FOREIGN KEY (a) REFERENCES gone (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE z3 (a int, FOREIGN KEY (a) REFERENCES gone (id));\nSET foreign_key_checks = 1;\nSET GLOBAL foreign_key_checks = 0;\nCREATE TABLE z4 (a int, FOREIGN KEY (a) REFERENCES gone (id));\nSET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES gone (id));", complete: true},
 	// MariaDB statements: OR REPLACE, IF EXISTS drops, sequences.
 	{name: "OR REPLACE", change: "CREATE OR REPLACE TABLE t (id int PRIMARY KEY, b int, CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES r (id));\nCREATE OR REPLACE TABLE sq (a int);\nALTER TABLE sq ADD COLUMN a int;\nCREATE OR REPLACE TABLE v (a int);\nCREATE OR REPLACE INDEX i ON t (b);\nCREATE OR REPLACE INDEX i ON t (b);\nCREATE OR REPLACE TRIGGER tr BEFORE INSERT ON trg FOR EACH ROW SET NEW.a = 2;\nCREATE OR REPLACE PROCEDURE p() SELECT 2;\nCREATE OR REPLACE FUNCTION f() RETURNS int DETERMINISTIC RETURN 2;\nCREATE OR REPLACE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 2;\nCREATE OR REPLACE TABLE t (a int);\nALTER TABLE t DROP COLUMN b;\nCREATE OR REPLACE TABLE vt (a int);\nALTER TABLE vt DROP COLUMN row_start;", complete: true},
 	{name: "OR REPLACE DATABASE", change: "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TEMPORARY TABLE q.tmp (a int);\nCREATE OR REPLACE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);\nDROP TEMPORARY TABLE q.tmp;\nDROP TEMPORARY TABLE q.tmp;\nUSE q;\nCREATE OR REPLACE DATABASE q;\nCREATE TABLE y (a int);\nCREATE TABLE q.y (a int);\nUSE shop;\nCREATE TABLE q.y (a int);", complete: true},
@@ -247,7 +259,9 @@ func resetWalk(t *testing.T, db *sql.DB, base string) {
 	}
 	rows.Close()
 	conn := session(t, db)
-	stmts := []string{"SET foreign_key_checks = 0", "SET GLOBAL system_versioning_alter_history = ERROR"}
+	// A change may set the global foreign_key_checks; the server goes back
+	// to its default.
+	stmts := []string{"SET GLOBAL foreign_key_checks = 1", "SET foreign_key_checks = 0", "SET GLOBAL system_versioning_alter_history = ERROR"}
 	for _, n := range names {
 		stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(n, "`", "``")+"`")
 	}
@@ -286,8 +300,13 @@ func judgeWalk(t *testing.T, db *sql.DB, s walkSync, change string, complete boo
 	t.Helper()
 	ctx := context.Background()
 	conn := session(t, db)
-	if _, err := conn.ExecContext(ctx, "USE shop"); err != nil {
-		t.Fatal(err)
+	// The session checks foreign keys, as the target says. One the pool
+	// opened while a change had the global foreign_key_checks off starts
+	// with them off.
+	for _, q := range []string{"USE shop", "SET foreign_key_checks = 1"} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatal(err)
+		}
 	}
 	e := &mariadbEngine{
 		conn: conn,
@@ -759,7 +778,7 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 22:
 			stmt = fmt.Sprintf("INSERT INTO %s (x) VALUES (1)", tbl())
 		case 23:
-			stmt = pick("SET foreign_key_checks = 0", "SET foreign_key_checks = 1")
+			stmt = pick("SET foreign_key_checks = 0", "SET foreign_key_checks = 1", "SET GLOBAL foreign_key_checks = 0", "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0", "SET GLOBAL foreign_key_checks = 0, foreign_key_checks = 1")
 		case 24:
 			stmt = fmt.Sprintf("CREATE %sTRIGGER %s BEFORE INSERT ON %s FOR EACH ROW SET NEW.x = 1", maybe("OR REPLACE "), pick("tr", "TR", "tr2"), tbl())
 		case 25:

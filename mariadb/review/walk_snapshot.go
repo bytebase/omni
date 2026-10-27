@@ -40,10 +40,11 @@ const (
 // primaryIndex is the key of the primary key in a table's index space.
 const primaryIndex = "primary"
 
-// nonASCII marks the key of a name with a byte outside ASCII. MySQL's
-// comparison of such names depends on collations the walk does not
-// follow: two spellings are one name only when they are identical, and
-// such a name is never known to be absent.
+// nonASCII marks the key of a name with a byte outside ASCII. MariaDB
+// compares such names by rules the walk does not follow (namesOutsideASCII),
+// and may take one for an ASCII name: ſ is s as a column, and é is e as
+// a routine. Such a name is never known to be absent, and a space the
+// sync lists one in has no name known to be absent.
 const nonASCII = "\x01"
 
 // nameKey returns the key of a name in a space, false when the walk cannot
@@ -110,6 +111,9 @@ type mariadbSnapshot struct {
 	// ignoresFKs lists those of the tables whose engine ignores foreign
 	// keys.
 	ignoresFKs map[string]bool
+	// mixed lists the spaces where the sync lists a name outside ASCII, as
+	// the space and its table's key ("" for a space of the database).
+	mixed map[[2]string]bool
 }
 
 func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mariadbSnapshot {
@@ -126,11 +130,18 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 		events:           make(map[string]bool),
 		triggered:        make(map[string]bool),
 		ignoresFKs:       make(map[string]bool),
+		mixed:            make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
-	set := func(m map[string]bool, space, name string) {
+	// set lists a name in a space of a table, or of the database for table
+	// "". Relations and triggers are never Absent, so their spaces need no
+	// note of a name outside ASCII.
+	set := func(m map[string]bool, space, table, name string) {
 		if k, ok := nameKey(space, name, foldTables); ok {
 			m[k] = true
+			if strings.HasPrefix(k, nonASCII) {
+				s.mixed[[2]string{space, table}] = true
+			}
 		}
 	}
 	for _, schema := range db.GetSchemas() {
@@ -148,7 +159,7 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 			}
 			cols := make(map[string]bool)
 			for _, c := range t.GetColumns() {
-				set(cols, spaceColumn, c.GetName())
+				set(cols, spaceColumn, tk, c.GetName())
 			}
 			s.columns[tk] = cols
 			idx := make(map[string]bool)
@@ -157,13 +168,13 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 					idx[primaryIndex] = true
 					continue
 				}
-				set(idx, spaceIndex, i.GetName())
+				set(idx, spaceIndex, tk, i.GetName())
 			}
 			s.indexes[tk] = idx
 			fks := make(map[string]bool)
 			for _, fk := range t.GetForeignKeys() {
-				set(s.foreignKeys, spaceForeignKey, fk.GetName())
-				set(fks, spaceForeignKey, fk.GetName())
+				set(s.foreignKeys, spaceForeignKey, "", fk.GetName())
+				set(fks, spaceTableForeignKey, tk, fk.GetName())
 			}
 			s.tableForeignKeys[tk] = fks
 			for _, tr := range t.GetTriggers() {
@@ -190,13 +201,13 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 			}
 		}
 		for _, f := range schema.GetFunctions() {
-			set(s.functions, spaceFunction, f.GetName())
+			set(s.functions, spaceFunction, "", f.GetName())
 		}
 		for _, p := range schema.GetProcedures() {
-			set(s.procedures, spaceProcedure, p.GetName())
+			set(s.procedures, spaceProcedure, "", p.GetName())
 		}
 		for _, e := range schema.GetEvents() {
-			set(s.events, spaceEvent, e.GetName())
+			set(s.events, spaceEvent, "", e.GetName())
 		}
 	}
 	return s
@@ -219,9 +230,14 @@ func (s *mariadbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		return walk.Unknown, ""
 	}
 	// absent is the answer for a name the sync does not list: Absent,
-	// unless the name is one whose comparison the walk does not follow.
+	// unless the name, or one the sync lists in its space, is one whose
+	// comparison the walk does not follow.
+	table := ""
+	if len(path) == 2 {
+		table = path[1]
+	}
 	absent := func() (walk.Fact, string) {
-		if strings.HasPrefix(k.Name, nonASCII) {
+		if strings.HasPrefix(k.Name, nonASCII) || s.mixed[[2]string{k.Space, table}] {
 			return walk.Unknown, ""
 		}
 		return walk.Absent, ""

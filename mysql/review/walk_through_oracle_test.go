@@ -94,6 +94,18 @@ var walkCases = []walkCase{
 	// Name case: tables and databases fold only under lower_case_table_names
 	// 1; the other spaces always fold, triggers aside.
 	{name: "name case", change: "CREATE TABLE T (a int);\nDROP TABLE NOKEY;\nCREATE DATABASE Q;\nCREATE DATABASE q;\nCREATE TABLE Q.x (a int);\nCREATE TABLE q.X (a int);\nALTER TABLE R ADD COLUMN ID int;\nCREATE VIEW V AS SELECT 1 AS a;\nDROP PROCEDURE P;\nDROP FUNCTION F;\nDROP EVENT E;\nDROP TRIGGER TR;\nCREATE TRIGGER Tr BEFORE INSERT ON r FOR EACH ROW SET NEW.id = 1;", complete: true},
+	// Names outside ASCII: MySQL compares them by rules of its own per space
+	// (spec §2), and takes some for ASCII names, so the walk follows none.
+	// CAFé is café as a column and KÉ is ké as an index; the Kelvin sign is
+	// k as a column and an index, and é is e as a routine, an event, and a
+	// trigger.
+	{name: "names outside ASCII", change: "CREATE TABLE x (id int, café int, KEY ké (id));\nALTER TABLE x DROP COLUMN CAFé;\nALTER TABLE x DROP INDEX KÉ;\nALTER TABLE x DROP INDEX Ké;\nALTER TABLE x DROP COLUMN zz;"},
+	{name: "an ASCII name may be one outside ASCII", setup: "CREATE TABLE kel (`\u212a` int, a int, KEY `\u212a` (a));\nCREATE PROCEDURE `pé`() SELECT 1;\nCREATE FUNCTION `fé`() RETURNS int DETERMINISTIC RETURN 1;\nCREATE EVENT `eé` ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nCREATE TRIGGER `tré` BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", change: "ALTER TABLE kel DROP COLUMN k;\nALTER TABLE kel DROP INDEX k;\nDROP PROCEDURE pe;\nDROP FUNCTION shop.fe;\nDROP EVENT ee;\nDROP TRIGGER tre;\nALTER TABLE kel DROP COLUMN zz;\nDROP PROCEDURE nosuch;\nALTER TABLE t DROP COLUMN zz;"},
+	// Each assignment of a SET has a scope of its own (spec §4): an
+	// unprefixed one the statement's, an @@session or bare @@ one the
+	// session's. A global assignment leaves the session's checks as they
+	// are; resetWalk sets the global back.
+	{name: "SET foreign_key_checks in each assignment's scope", change: "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1, @@foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @@global.foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE z2 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE z3 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 1;\nSET GLOBAL foreign_key_checks = 0;\nCREATE TABLE z4 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", complete: true},
 	// What the walk leaves Unknown by design (spec §6): databases other than
 	// the target, the tables a query reads, generated index names, foreign
 	// key names held per database, a primary key GIPK may have added, a key
@@ -225,7 +237,9 @@ func resetWalk(t *testing.T, db *sql.DB, base string) {
 	}
 	rows.Close()
 	conn := session(t, db)
-	stmts := []string{"SET foreign_key_checks = 0", "SET GLOBAL show_gipk_in_create_table_and_information_schema = ON"}
+	// A change may set the global foreign_key_checks; the server goes back
+	// to its default.
+	stmts := []string{"SET GLOBAL foreign_key_checks = 1", "SET foreign_key_checks = 0", "SET GLOBAL show_gipk_in_create_table_and_information_schema = ON"}
 	for _, n := range names {
 		stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(n, "`", "``")+"`")
 	}
@@ -269,8 +283,13 @@ func judgeWalk(t *testing.T, db *sql.DB, s walkServer, change string, complete b
 	t.Helper()
 	ctx := context.Background()
 	conn := session(t, db)
-	if _, err := conn.ExecContext(ctx, "USE shop"); err != nil {
-		t.Fatal(err)
+	// The session checks foreign keys, as the target says. One the pool
+	// opened while a change had the global foreign_key_checks off starts
+	// with them off.
+	for _, q := range []string{"USE shop", "SET foreign_key_checks = 1"} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatal(err)
+		}
 	}
 	e := &mysqlEngine{
 		conn: conn,
@@ -705,7 +724,7 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 22:
 			stmt = fmt.Sprintf("INSERT INTO %s (x) VALUES (1)", tbl())
 		case 23:
-			stmt = pick("SET foreign_key_checks = 0", "SET foreign_key_checks = 1")
+			stmt = pick("SET foreign_key_checks = 0", "SET foreign_key_checks = 1", "SET GLOBAL foreign_key_checks = 0", "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0", "SET GLOBAL foreign_key_checks = 0, foreign_key_checks = 1")
 		case 24:
 			stmt = fmt.Sprintf("CREATE TRIGGER %s BEFORE INSERT ON %s FOR EACH ROW SET NEW.x = 1", pick("tr", "TR", "tr2"), tbl())
 		case 25:

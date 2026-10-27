@@ -105,8 +105,34 @@ func TestWalkThroughMySQLCase(t *testing.T) {
 	both.Schemas[0].Tables[0].Triggers = append(both.Schemas[0].Tables[0].Triggers, &metadata.TriggerMetadata{Name: "TR"})
 	noFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER TR;", review.Target{Schema: both})
 	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger tr does not exist", sensitive)
-	// A name outside ASCII is never absent.
-	noFinding(t, "ALTER TABLE t DROP COLUMN `é`;", sensitive)
+}
+
+// TestWalkThroughMySQLNamesOutsideASCII pins that the walk follows no name
+// outside ASCII, which MySQL compares by rules of its own per space: a
+// statement that names one ends the walk, and a synced space that lists
+// one has no name known to be absent, since the Kelvin sign is k as a
+// column and é is e as a routine or a trigger.
+func TestWalkThroughMySQLNamesOutsideASCII(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	noFinding(t, "ALTER TABLE t DROP COLUMN `é`;", shop)
+	noFinding(t, "CREATE TABLE x (id INT, café INT);\nALTER TABLE x DROP COLUMN CAFé;", shop)
+	noFinding(t, "CREATE TABLE x (k INT);\nALTER TABLE x DROP COLUMN `\u212a`;\nALTER TABLE x DROP COLUMN zz;", shop)
+	noFinding(t, "CREATE DATABASE q;\nCREATE PROCEDURE q.`pé`() SELECT 1;\nDROP PROCEDURE q.pe;", shop)
+	// A string is no name.
+	oneFinding(t, "CREATE TABLE x (a int) COMMENT '中文';\nCREATE TABLE x (a int);", 1, "Table x already exists", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table nosuch does not exist", shop)
+	mixed := walkSchema()
+	schema := mixed.Schemas[0]
+	schema.Tables[2].Columns = append(schema.Tables[2].Columns, &metadata.ColumnMetadata{Name: "\u212a"})
+	schema.Tables[0].Triggers = append(schema.Tables[0].Triggers, &metadata.TriggerMetadata{Name: "tré"})
+	schema.Tables = append(schema.Tables, &metadata.TableMetadata{Name: "t\u212a"})
+	schema.Procedures = append(schema.Procedures, &metadata.ProcedureMetadata{Name: "pé"})
+	target := review.Target{Schema: mixed}
+	noFinding(t, "ALTER TABLE nokey DROP COLUMN k;\nALTER TABLE nokey DROP COLUMN zz;\nDROP PROCEDURE pe;\nDROP PROCEDURE nosuch;\nDROP TRIGGER tre;\nDROP TRIGGER nosuch;", target)
+	noFinding(t, "DROP TABLE tk;\nDROP TABLE nosuch;", review.Target{Schema: mixed, LowerCaseTableNames: 1})
+	// A space that lists none still knows its absent names.
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", target)
+	oneFinding(t, "DROP EVENT nosuch;", 0, "Event nosuch does not exist", target)
 }
 
 func TestWalkThroughMySQLSession(t *testing.T) {
@@ -127,6 +153,24 @@ func TestWalkThroughMySQLSession(t *testing.T) {
 	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
 	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 0, "Foreign key target table nosuch does not exist", on)
 	noFinding(t, "SET FOREIGN_KEY_CHECKS = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
+	// Each assignment has a scope of its own: an unprefixed one the
+	// statement's, past a prefixed one, and an @@session or bare @@ one the
+	// session's. A global one leaves the session's checks as they are.
+	const fk = "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));"
+	const missing = "Foreign key target table nosuch does not exist"
+	oneFinding(t, "SET GLOBAL foreign_key_checks = 0;\n"+fk, 1, missing, on)
+	oneFinding(t, "SET @@global.foreign_key_checks = 0;\n"+fk, 1, missing, on)
+	oneFinding(t, "SET PERSIST foreign_key_checks = 0;\n"+fk, 1, missing, on)
+	oneFinding(t, "SET PERSIST_ONLY foreign_key_checks = 0;\n"+fk, 1, missing, on)
+	noFinding(t, "SET GLOBAL foreign_key_checks = 1;\n"+fk, shop)
+	oneFinding(t, "SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0;\n"+fk, 1, missing, on)
+	oneFinding(t, "SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 1, foreign_key_checks = 0;\n"+fk, 1, missing, shop)
+	noFinding(t, "SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 0;\n"+fk, on)
+	noFinding(t, "SET GLOBAL sql_mode = DEFAULT, @@foreign_key_checks = 0;\n"+fk, on)
+	noFinding(t, "SET PERSIST sql_mode = DEFAULT, @@local.foreign_key_checks = 0;\n"+fk, on)
+	noFinding(t, "SET @@global.foreign_key_checks = 1, foreign_key_checks = 0;\n"+fk, on)
+	noFinding(t, "SET SESSION foreign_key_checks = 0;\n"+fk, on)
+	noFinding(t, "SET LOCAL foreign_key_checks = 0;\n"+fk, on)
 	// With another spec of the plan, only the change's own facts count.
 	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a int);", other)

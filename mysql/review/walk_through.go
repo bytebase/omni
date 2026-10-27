@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/mysql/ast"
+	"github.com/bytebase/omni/mysql/parser"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
@@ -43,6 +44,42 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		w.anyFunction = true
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
+}
+
+// namesOutsideASCII reports whether a statement's text holds a name with a
+// character outside ASCII, which the walk does not follow. MySQL compares
+// such names by rules of its own for each space (verified on 8.0 and
+// 8.4). A column, an index, a foreign key, a trigger, a routine, and an
+// event fold their case (CAFé is café), and so do a table and a database
+// under lower_case_table_names 1 but not 0. The Kelvin sign is k and İ is
+// i as a column and an index. é is e as a routine, an event, a trigger,
+// and a foreign key's name in its database. ſ is not s.
+// A token that is no string literal and holds such a byte counts, which
+// takes in a little more than names.
+func namesOutsideASCII(sql string, loc ast.Loc) bool {
+	if loc.Start < 0 || loc.End > len(sql) || loc.Start >= loc.End {
+		return false
+	}
+	text := sql[loc.Start:loc.End]
+	if !outsideASCII(text) {
+		return false
+	}
+	for _, tok := range parser.Tokenize(text) {
+		t := tokenText(text, tok)
+		if t != "" && t[0] != '\'' && t[0] != '"' && outsideASCII(t) {
+			return true
+		}
+	}
+	return false
+}
+
+func outsideASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return true
+		}
+	}
+	return false
 }
 
 // walkNote is a check's finding: where it anchors and what it says when
@@ -116,6 +153,9 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 
 // lower implements walk.Lower.
 func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
+	if namesOutsideASCII(w.sql, w.stmts[i].loc) {
+		return nil
+	}
 	b := &builder{w: w, l: l, s: &w.stmts[i]}
 	if !b.statement(w.stmts[i].node) {
 		return nil

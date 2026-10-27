@@ -33,6 +33,13 @@ Built in `mariadb/review` (2026-10-26). The facts this section adds to the draft
 - **`CREATE TEMPORARY TABLE db.t` and `CREATE TEMPORARY SEQUENCE db.s` succeed in a missing database.** The walk checks no database for a temporary relation. With no database selected, they fail (1046).
 - **`CREATE TABLE IF NOT EXISTS t LIKE missing` is a note when t exists.** MySQL checks the source first. Here the source is checked only when the table is created. A temporary table's source is checked first, as on MySQL (1146 even when the temporary table exists).
 - **Trigger names compare with case.** `TR` can exist beside `tr`, as on 5.7. MySQL's spelling rule already covers this.
+- **Names outside ASCII fold by other rules than MySQL's** (§2.5):
+  - a column, an index, a routine, and an event fold their case (`CAFé` is `café`), and so does `DROP FOREIGN KEY`; a table under `lower_case_table_names` 0, a trigger, and a foreign key's name in its database do not;
+  - `ſ` is `s` as a column and an index, and `ı` is `i` as a column, where MySQL keeps them apart, while the Kelvin sign is not `k` and `İ` is not `i`;
+  - `é` is `e` as a routine and an event.
+
+  The walk follows no such name, as on MySQL (MySQL spec §2): a statement with one ends the walk, and a synced space that lists one has no name known to be absent. Codex found the false findings of the old rule on the TiDB copy (#512).
+- **`SET` scopes each assignment as MySQL does** (§2.5): `@@session.`, `@@local.`, and a bare `@@` set the session's value, after `SET GLOBAL` too, and an unprefixed name takes the statement's `GLOBAL`. A global assignment leaves the session's checks as they are. The walk follows each assignment, as on MySQL (MySQL spec §4). `SET PERSIST` is a syntax error (1064), which omni's MariaDB parser takes.
 - **`DROP FOREIGN KEY` of a missing name on MyISAM fails** (1091), where MySQL accepts it. The walk still claims nothing of a non-InnoDB table's foreign keys, so this costs recall only.
 - **`CREATE OR REPLACE DATABASE d` can fail when d holds a parent another of its tables references** (1451): it fails at such a parent while its child is still there, having dropped some of d's tables. `DROP DATABASE` drops them all. The walk does not claim it.
 - **MySQL's `ALTER TABLE` forms that MariaDB lacks fail with 1064:** `ALTER INDEX ... [IN]VISIBLE`, `ALTER COLUMN ... SET [IN]VISIBLE` and `SET/DROP NOT NULL`, `ALTER CHECK ... ENFORCED`, and `SECONDARY_LOAD`. omni's MariaDB parser takes them, so the walk ends at them rather than claim a failure for another reason.
@@ -133,6 +140,26 @@ On `mariadb:11.8.8`, 2026-10-26:
   - with no database selected, `CREATE TEMPORARY TABLE`, `CREATE SEQUENCE`, and `DROP SEQUENCE IF EXISTS` give 1046;
   - `DELETE HISTORY` of a missing table gives 1146, and of a table that is not system-versioned 4124.
 
+In review of the TiDB copy, 2026-10-27, on `mariadb:11.8.8`:
+- **Names outside ASCII, as columns:**
+  - `DROP COLUMN CAFé` drops `café`, and `ADD COLUMN café` beside `CAFÉ` gives 1060;
+  - so does a column `Ä` beside `ä`, `ſ` beside `s`, `ı` beside `i` or `I`, the ohm sign beside `ω`, and the angstrom sign beside `å`, and `DROP COLUMN S` drops `ſ`;
+  - the Kelvin sign beside `k`, `İ` beside `i`, `é` beside `e`, `ß` beside `ss`, `ａ` beside `a`, and a decomposed `é` beside a precomposed one succeed, and `DROP COLUMN k` and `DROP COLUMN i` do not find the Kelvin-sign and `İ` columns (1091).
+- **As indexes:** `KÉ` beside `ké` and `ſ` beside `s` give 1061, and `DROP INDEX KÉ` drops `ké`; the Kelvin sign beside `k` and `İ` beside `i` succeed.
+- **As tables, views, temporary tables, and databases** (`lower_case_table_names` 0): `CAFé` and `CAFÉ` beside `café`, `VÉ` beside `vé`, a temporary `XÄ` beside `xä`, and databases `DÄ` beside `dä` succeed, and `DROP TABLE TÄ` of `tä` gives 1051.
+- **As foreign keys:** `FÉ` and `fe` beside `fé` on another table succeed. `DROP FOREIGN KEY FÉ` drops `fé`, while `DROP FOREIGN KEY ga` does not find `gä`, nor `DROP FOREIGN KEY hk` a Kelvin-sign one (1091).
+- **As triggers, routines, and events:**
+  - `DROP TRIGGER TRÄ` does not find `trä` (1360), and `tre` beside `tré` succeeds;
+  - `DROP FUNCTION FÄ` and `DROP EVENT EÄ` drop `fä` and `eä`, `CREATE PROCEDURE PÄ` beside `pä` gives 1304, `pe` beside `pé` and `fne` beside `fné` 1304, and `ee` beside `eé` 1537;
+  - a Kelvin-sign name beside its `k` spelling succeeds, and `DROP` of the `k` spelling fails (1360, 1305, 1539).
+- **SET**, starting from `foreign_key_checks` on in both scopes unless said:
+  - `SET GLOBAL foreign_key_checks = 0` leaves `@@session.foreign_key_checks` on, and a foreign key to a missing table fails (1005, errno 150). After `SET foreign_key_checks = 0`, `SET @@global.foreign_key_checks = 1` leaves the session's off, and one succeeds.
+  - `SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 0` and `SET GLOBAL sql_mode = DEFAULT, @@foreign_key_checks = 0` turn the session's off, and the global stays on.
+  - `SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0` turns only the global off, and so does `SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 1, foreign_key_checks = 0`, which leaves the session's on.
+  - `SET @@global.foreign_key_checks = 1, foreign_key_checks = 0` turns the session's off, and `SET SESSION foreign_key_checks = 0, @@global.sql_mode = DEFAULT, foreign_key_checks = 1` turns it on.
+  - `SET GLOBAL sql_mode = DEFAULT, SESSION foreign_key_checks = 0` turns the session's off, and `SET SESSION sql_mode = DEFAULT, GLOBAL foreign_key_checks = 0, foreign_key_checks = 0` only the global.
+  - `SET PERSIST` and `SET PERSIST_ONLY` give 1064.
+
 ## 3. TiDB (8.5)
 
 ### 3.1 Names
@@ -197,7 +224,7 @@ On `mariadb:11.8.8`, 2026-10-26:
 - **MariaDB as built:**
   - the walk is 2462 lines against MySQL's 2172, so the deltas are about 290 lines, over the 250 budgeted: sequences took 140;
   - the oracle runs every curated case on the sync since Bytebase #21665 and on the one before it; the second holds precision alone, since it hides the base's sequence and system-versioned table. It found 194 of 230 rejections on the first and 181 of 228 on the second, with no false finding. On the plain MySQL copy, wired the same way, the delta cases report false findings or miss what they pin;
-  - the sweep runs the two syncs by turns. At 500 (seed 20261026) it found 1238 of 6811 rejections, with no false finding, in under 3 minutes. Recall is low by design: most misses are names the walk does not know, since relation and trigger absence is untrusted, and databases other than the target;
+  - the sweep runs the two syncs by turns. At 500 (seed 20261026) it found 1238 of 6811 rejections, with no false finding, in under 3 minutes. With the global assignments added and the two fixes of 2026-10-27 (§2.2), it found 1233 of 6784, with no false finding, in under 5 minutes. Recall is low by design: most misses are names the walk does not know, since relation and trigger absence is untrusted, and databases other than the target;
   - `walktest` gained `PartialRejecter` (decision N1).
 
 ## 6. Decisions
