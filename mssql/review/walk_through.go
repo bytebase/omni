@@ -429,8 +429,11 @@ func (b *builder) ref(tr *ast.TableRef, creating bool) (objRef, bool) {
 			return r, false
 		}
 		r.n, r.temp = n, true
-		if strings.HasPrefix(tr.Object, "##") || tr.Server != "" || tr.Database != "" {
-			// A global temporary table is every session's.
+		// The server ignores a database in front: tempdb..#t, and
+		// nosuch..#t too, is the session's #t (verified). A global
+		// temporary table is every session's, and a linked server's is
+		// another session's.
+		if strings.HasPrefix(tr.Object, "##") || tr.Server != "" {
 			r.where = unplaced
 		}
 		return r, true
@@ -636,6 +639,17 @@ func (b *builder) forgetObject(r objRef) {
 		return
 	}
 	b.forgetName(spaceObject, r.n)
+	b.forgetName(spaceRelation, r.n)
+}
+
+// forgetTable records that the table an unplaced reference means may
+// have changed: its class is forgotten in every schema, or among the
+// temporary tables, and with it what the walk knows of its children.
+func (b *builder) forgetTable(r objRef) {
+	if r.temp {
+		b.forgetName(spaceTemp, r.n)
+		return
+	}
 	b.forgetName(spaceRelation, r.n)
 }
 

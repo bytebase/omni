@@ -25,7 +25,7 @@ Status: decided 2026-10-27; §10 records the decisions. Step 4 of [the engines d
 - `CREATE/ALTER/DROP DATABASE` cannot run in a transaction (226, 574), so in Bytebase's default mode they always fail.
 
 **Temporary tables:**
-- A name that starts with `#` is a session's temporary table, even with a schema in front (`dbo.[#t]` is `#t`).
+- A name that starts with `#` is a session's temporary table, even with a schema or a database in front: `dbo.[#t]`, `tempdb..#t`, and `nosuch..#t` are all `#t`. Only a linked server's is another session's.
 - A `##` name is a global temporary table, which other sessions can create and drop.
 - Temporary table names compare under tempdb's collation, which is the server's: `#T` collides with `#t` in a case-sensitive database on a case-insensitive server.
 - A foreign key on a temporary table is skipped with a warning, and its constraint names live in tempdb, where other sessions' names collide.
@@ -77,6 +77,7 @@ The walk therefore keys every name so that any two names some collation may equa
 
 What the walk claims under these keys:
 - **Exists, or is of another kind:** only when the key's Present fact has the statement's exact spelling. A Present fact keeps the spelling it was synced or created with.
+- **A table's children:** a reference of another spelling than its class's one table means that table or nothing, so a check on the children fails the statement either way: `ALTER TABLE dbo.T ADD a int` beside `dbo.t (a)` fails with 2705 or 4902. The finding names the table as written. While the space may hold a marked name, the class's table stands for no other spelling (Appendix, Codex round 1).
 - **Missing:** only when the key is Absent, and its parent holds no marked name, synced or created by the change. A key never claims a marked name missing.
 - **Two spellings of one key:** the key is Unknown after the change creates, drops, or renames either, as MySQL's walk does for 5.7 triggers.
 - **Effects across the mark:**
@@ -298,7 +299,7 @@ Bytebase follow-ups, outside this PR:
 - 450 of names and snapshot (`walk_names.go`, `walk_snapshot.go`);
 - 350 of walker, batches, and plumbing (`walk_through.go`, `targets.go`).
 
-As built, after review: 1,777 lines of lowering, 462 of names and snapshot, and 725 of walker, batches, reference resolution, and the class and spelling bookkeeping of §2.1 (`walk_through.go`), about 29% over the budget in all. The overrun is mostly that bookkeeping, which the budget did not foresee, and the per-kind DROP and module rows; the review rounds added about 110 lines.
+As built, after review: 1,777 lines of lowering, 462 of names and snapshot, and 739 of walker, batches, reference resolution, and the class and spelling bookkeeping of §2.1 (`walk_through.go`), about 29% over the budget in all. The overrun is mostly that bookkeeping, which the budget did not foresee, and the per-kind DROP and module rows; the review rounds added about 125 lines.
 
 **Oracle** (`walktest.Judge`), modeled on Bytebase's transaction mode:
 - One connection runs one transaction. Each statement runs as its own batch after a `SAVE TRANSACTION`, and a rejected one is rolled back to it.
@@ -477,6 +478,12 @@ SQL Server 2022 CU27 (16.0.4305.5), server collation `SQL_Latin1_General_CP1_CI_
 - In a Latin1_General_100_CS_AI database with schemas `cafe` and `[CAFÉ]` and table `[CAFÉ].t`, `DROP SCHEMA cafe` and then `ALTER TABLE CAFE.t ADD z int` alter `[CAFÉ].t`: a schema class the change emptied places nothing while a marked schema name may exist.
 - With `dbo.[CAFÉ]`, an unqualified `DROP TABLE CAFE` drops it, and `CREATE TABLE dbo.[CAFÉ]` then succeeds: a name the walk cannot place may equal a marked name of any schema.
 - `DROP TABLE dbo.[x.y], [dbo.x].y` drops two tables.
+
+**Codex round 5 on #514**, verified on the same image:
+- In one session, `ALTER TABLE tempdb..#t DROP COLUMN a`, and `ALTER TABLE` of `shop..#t`, `master..#t`, `nosuch..#t`, `tempdb.dbo.#t`, `tempdb.s.#t`, `dbo.#t`, and `s.#t`, all alter the session's `#t`. `CREATE INDEX ix ON tempdb..#t` adds to it, `CREATE TABLE tempdb..#u` creates `#u`, and `CREATE TABLE nosuch..#w` succeeds. A database in front of a temporary table is ignored, and a reference the walk does not place forgets the table's facts.
+
+**CI's sweep on #514** (seed 20261027, N=500), verified on the same image:
+- `ALTER TABLE szsz ADD CONSTRAINT pk_a PRIMARY KEY (id)` beside `dbo.ssz`, which has a primary key, fails with 4902 in a case-sensitive database. The walk's finding stands (§2.1, a table's children). The oracle compared the primary space's key as a class, so it could not check a primary-key claim when the error code differed; it now can.
 
 **Sync** (`backend/plugin/db/mssql/sync.go`), probed on its own queries:
 - `INFORMATION_SCHEMA.SCHEMATA` lists every schema as sa.

@@ -428,10 +428,10 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), msgNotKind(r.written, "table"))
 	known := b.knownTable(r)
 	path := r.tablePath()
-	if r.where == unplaced && !r.temp {
+	if r.where == unplaced {
 		// The table may be any of its name; its children are not known
 		// while its class is forgotten.
-		b.forgetName(spaceRelation, r.n)
+		b.forgetTable(r)
 	}
 	if b.alterTextFails(r, actions) {
 		return true
@@ -736,8 +736,8 @@ func (b *builder) indexOn(tr *ast.TableRef) (objRef, bool) {
 	if !ok {
 		return r, false
 	}
-	if r.where == unplaced && !r.temp {
-		b.forgetName(spaceRelation, r.n)
+	if r.where == unplaced {
+		b.forgetTable(r)
 	}
 	b.tableNeeds(r, []string{kindTable, kindView}, msgMissing("table", r.written), msgNotKind(r.written, "table or view"))
 	return r, true
@@ -849,8 +849,8 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		if r.where == elsewhere {
 			continue
 		}
-		if r.where == unplaced && !r.temp {
-			b.forgetName(spaceRelation, r.n)
+		if r.where == unplaced {
+			b.forgetTable(r)
 			if v.IfExists {
 				b.maybe()
 			}

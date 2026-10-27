@@ -89,6 +89,8 @@ var walkCases = []walkCase{
 	{name: "index names beside constraint names", change: "CREATE TABLE dbo.x (a int, CONSTRAINT ix CHECK (a > 0), INDEX ix NONCLUSTERED (a));\nCREATE TABLE dbo.y (a int CONSTRAINT dfy DEFAULT 0, INDEX dfy (a));\nCREATE TABLE dbo.z (a int CONSTRAINT fkz REFERENCES dbo.r (id), INDEX fkz (a));\nCREATE TABLE dbo.w (a int CONSTRAINT u1 UNIQUE, INDEX u1 (a));", complete: true},
 	{name: "DROP CONSTRAINT IF EXISTS of another object's name", change: "ALTER TABLE dbo.t DROP CONSTRAINT IF EXISTS nokey;\nALTER TABLE dbo.t DROP CONSTRAINT IF EXISTS pk_r;\nINSERT INTO dbo.nokey VALUES (1);\nCREATE TABLE dbo.nokey (a int);\nALTER TABLE dbo.nokey ADD CONSTRAINT pk_r CHECK (a > 0);", complete: true},
 	{name: "statistics share the index namespace", change: "CREATE STATISTICS st1 ON dbo.t (b);\nCREATE INDEX st1 ON dbo.t (b);"},
+	{name: "another spelling's children", change: "ALTER TABLE dbo.T ADD CONSTRAINT pk2 PRIMARY KEY (id);\nALTER TABLE dbo.T ADD a int;"},
+	{name: "a temporary table in any database", change: "CREATE TABLE #x (a int, b int);\nALTER TABLE tempdb..#x DROP COLUMN a;\nALTER TABLE #x ADD a int;\nALTER TABLE nosuch..#x ADD b int;\nCREATE INDEX i ON tempdb.dbo.#x (b);\nCREATE INDEX i ON #x (b);\nDROP TABLE master..#x;\nDROP TABLE #x;", complete: true},
 	// Views, routines, triggers, each beginning its batch.
 	{name: "views", change: "CREATE VIEW dbo.t AS SELECT 1 AS a;\nGO\nCREATE VIEW dbo.v AS SELECT 1 AS a;\nGO\nALTER VIEW dbo.nosuch AS SELECT 1 AS a;\nGO\nALTER VIEW dbo.t AS SELECT 1 AS a;\nGO\nCREATE OR ALTER VIEW dbo.t AS SELECT 1 AS a;\nGO\nCREATE OR ALTER VIEW dbo.w AS SELECT 1 AS a;\nGO\nCREATE VIEW nosuch.w AS SELECT 1 AS a;\nGO\nCREATE VIEW dbo.w AS SELECT 1 AS a;\nGO\nDROP VIEW dbo.w;\nDROP VIEW dbo.w;", complete: true},
 	{name: "routines", change: "CREATE PROCEDURE dbo.t AS SELECT 1;\nGO\nCREATE PROCEDURE dbo.pr AS SELECT 1;\nGO\nALTER PROCEDURE dbo.fn AS SELECT 1;\nGO\nCREATE OR ALTER PROCEDURE dbo.fn AS SELECT 1;\nGO\nCREATE OR ALTER PROCEDURE dbo.t AS SELECT 1;\nGO\nCREATE FUNCTION dbo.t() RETURNS int AS BEGIN RETURN 1 END;\nGO\nCREATE OR ALTER FUNCTION dbo.pr() RETURNS int AS BEGIN RETURN 1 END;\nGO\nALTER FUNCTION dbo.t() RETURNS int AS BEGIN RETURN 1 END;\nGO\nCREATE PROCEDURE nosuch.p AS SELECT 1;\nGO\nCREATE PROCEDURE dbo.p2 AS SELECT 1;\nGO\nALTER PROCEDURE dbo.p2 AS SELECT 2;\nGO\nDROP PROCEDURE dbo.p2;\nGO\nALTER PROCEDURE dbo.p2 AS SELECT 2;", complete: true},
@@ -462,12 +464,13 @@ type catObject struct {
 // An exact key claims an object of exactly its spelling (Present), or
 // none the collation equates to it (Absent), which the walk claims only
 // when no name of its class exists; a class key claims names of the
-// class: none, exactly one of its spelling and kind, or some.
+// class: none, exactly one of its spelling and kind, or some. The primary
+// space's one key is primaryName itself, not a class.
 func claimHolds(c walktest.Claim, objs []catObject, equal func(a, b string) bool) (bool, string) {
 	class, spelling, exact := strings.Cut(c.Key.Name, exactSep)
 	var same []catObject
 	for _, o := range objs {
-		if n, ok := keyed(o.name); ok && n.class == class {
+		if n, ok := keyed(o.name); ok && n.class == class || c.Key.Space == spacePrimary && o.name == c.Key.Name {
 			same = append(same, o)
 		}
 	}

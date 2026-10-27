@@ -219,6 +219,13 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"an unplaced drop may reach a marked name", "DROP TABLE CAFE;\nCREATE TABLE dbo.[CAFÉ] (a int);", -1, ""},
 		{"dotted names are distinct", "DROP TABLE dbo.[x.y], [dbo.x].y;", -1, ""},
 		{"DROP_EXISTING keeps a key's constraint", "CREATE UNIQUE CLUSTERED INDEX pk_t ON dbo.t (id) WITH (DROP_EXISTING = ON);\nDROP INDEX pk_t ON dbo.t;", 1, "index pk_t of dbo.t enforces a constraint"},
+		// Another spelling means the class's one table or nothing, and
+		// fails either way.
+		{"another spelling's primary key", "ALTER TABLE dbo.T ADD CONSTRAINT pk2 PRIMARY KEY (id);", 0, "table dbo.T already has a primary key"},
+		// Codex round 5 on #514.
+		{"a database in front of a temporary table", "CREATE TABLE #x (a int, b int);\nALTER TABLE tempdb..#x DROP COLUMN a;\nALTER TABLE #x ADD a int;", -1, ""},
+		{"a temporary table in any database", "CREATE TABLE #x (a int);\nALTER TABLE nosuch..#x ADD a int;", 1, "column a already exists in nosuch..#x"},
+		{"a linked server's temporary table", "CREATE TABLE #x (a int, b int, INDEX i (b));\nALTER TABLE srv.tempdb..#x DROP COLUMN a;\nDROP INDEX i ON srv.tempdb..#x;\nCREATE INDEX j ON srv.tempdb..#x (b);\nALTER TABLE #x ADD a int;\nCREATE INDEX i ON #x (b);\nDROP INDEX j ON #x;", -1, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
