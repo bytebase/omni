@@ -640,6 +640,7 @@ func (b *builder) dropConstraint(r objRef, path string, known bool, cn name, ifE
 	case kindFK, kindCK, kindDF:
 	default:
 		b.MayRemove(walk.Scope{Space: spaceIndex, Parent: path, Prefix: cn.class})
+		b.across(spaceIndex, path, cn, false)
 		b.MayRemove(walk.Scope{Space: spacePrimary, Parent: path})
 	}
 	return true
@@ -675,8 +676,36 @@ func (b *builder) dropTables(v *ast.DropStmt) bool {
 		if r.where == placed && !r.temp {
 			b.MayRemove(walk.Scope{Space: spaceObject, Parent: r.parent})
 		}
+		if !r.temp && b.mayDropLedger(r, known) {
+			// A ledger table's history table and ledger view, in any
+			// schema, are renamed with it (verified).
+			for _, space := range []string{spaceObject, spaceRelation} {
+				b.MayRemove(walk.Scope{Space: space, Deep: true})
+				b.MayAdd(walk.Scope{Space: space, Deep: true, Prefix: droppedLedger})
+			}
+		}
 		return true
 	})
+}
+
+// droppedLedger begins the class of the names a dropped ledger table and
+// its history table and ledger view take: MSSQL_DroppedLedgerTable_...
+var droppedLedger = classPrefix("MSSQL_DroppedLedger")
+
+// mayDropLedger reports whether the table a reference means may be a
+// synced ledger table: the one the walk knows it means, or any when the
+// walk cannot tell.
+func (b *builder) mayDropLedger(r objRef, known bool) bool {
+	s := b.w.snap
+	if s == nil || !s.ledger {
+		return false
+	}
+	path := r.tablePath()
+	if !known || s.ambiguous[path] {
+		return true
+	}
+	t := s.tables[path]
+	return t != nil && t.ledger
 }
 
 // dropEach lowers a DROP of a list, one part per item, with the item's

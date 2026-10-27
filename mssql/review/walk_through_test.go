@@ -232,6 +232,12 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"a marked name of another case", "ALTER TABLE dbo.[CAFÉ] DROP COLUMN a;\nGO\nALTER TABLE dbo.[Café] ADD a int;\nCREATE INDEX i9 ON dbo.[CAFÉ] (b);\nDROP INDEX i9 ON dbo.[Café];\nDROP TABLE s.nosuch;", 5, "table s.nosuch does not exist"},
 		{"an index on a marked name of another case", "CREATE INDEX i9 ON dbo.[CAFÉ] (b);\nDROP INDEX i9 ON dbo.[Café];\nDROP TABLE s.nosuch;", 2, "table s.nosuch does not exist"},
 		{"another spelling beside a marked name", "ALTER TABLE dbo.NOKEY DROP COLUMN a;\nALTER TABLE dbo.nokey ADD a int;\nDROP TABLE s.nosuch;", 2, "table s.nosuch does not exist"},
+		// Codex round 7 on #514.
+		{"a constraint dropped by an accent-equal spelling", "ALTER TABLE dbo.tc DROP CONSTRAINT [pk_café];\nCREATE INDEX pk_cafe ON dbo.tc (id);\nDROP TABLE s.nosuch;", 2, "table s.nosuch does not exist"},
+		{"a dropped ledger table frees its history table and view", "DROP TABLE dbo.lt;\nCREATE TABLE s.lt_h (a int);\nGO\nCREATE VIEW s.lt_v AS SELECT 1 AS a;\nGO\nDROP TABLE s.nosuch;", 5, "table s.nosuch does not exist"},
+		{"a table of one NOT NULL bigint is no ledger table", "DROP TABLE dbo.lt;\nCREATE TABLE s.lt_h (a int);", 1, "an object named s.lt_h already exists"},
+		{"a numbered procedure joins its group", "CREATE PROCEDURE dbo.p9;1 AS SELECT 1;\nGO\nCREATE PROCEDURE dbo.p9;2 AS SELECT 2;\nGO\nDROP TABLE s.nosuch;", 4, "table s.nosuch does not exist"},
+		{"a numbered procedure of a table's name", "CREATE PROCEDURE dbo.t;2 AS SELECT 2;", 0, "dbo.t is not a procedure"},
 		{"an unqualified type in the default schema", "CREATE TYPE s.ty FROM int;\nDROP TABLE s.ty;\nDROP TYPE ty;\nCREATE TYPE s.ty FROM int;\nDROP TABLE dbo.nosuch;", 4, "table dbo.nosuch does not exist"},
 	}
 	for _, tt := range tests {
@@ -261,6 +267,17 @@ func TestWalkThroughFindings(t *testing.T) {
 				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{Name: "Café", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}})
 			case "another spelling beside a marked name":
 				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{Name: "é"})
+			case "a constraint dropped by an accent-equal spelling":
+				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{Name: "tc", Columns: []*metadata.ColumnMetadata{{Name: "id"}}, Indexes: []*metadata.IndexMetadata{{Name: "pk_cafe", Primary: true, Unique: true, IsConstraint: true}}})
+			case "a dropped ledger table frees its history table and view", "a table of one NOT NULL bigint is no ledger table":
+				cols := []*metadata.ColumnMetadata{{Name: "a", Type: "int", Nullable: true}, {Name: "tx", Type: "bigint"}, {Name: "sq", Type: "bi"}}
+				if tt.name == "a table of one NOT NULL bigint is no ledger table" {
+					cols[2].Nullable = true
+				}
+				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{Name: "lt", Columns: cols})
+				s := target.Schema.Schemas[len(target.Schema.Schemas)-1]
+				s.Tables = append(s.Tables, &metadata.TableMetadata{Name: "lt_h"})
+				s.Views = append(s.Views, &metadata.ViewMetadata{Name: "lt_v"})
 			case "an unqualified type in the default schema":
 				target.DefaultSchema = "s"
 				s := target.Schema.Schemas[len(target.Schema.Schemas)-1]

@@ -93,6 +93,9 @@ var walkCases = []walkCase{
 	{name: "a global temporary table's long name", change: "CREATE TABLE ##" + strings.Repeat("g", 126) + " (x int);\nCREATE TABLE ##" + strings.Repeat("h", 127) + " (x int);", complete: true},
 	{name: "a marked name of another case", setup: "CREATE TABLE dbo.[Café] (a int, b int)", change: "ALTER TABLE dbo.[CAFÉ] DROP COLUMN a;\nALTER TABLE dbo.[Café] ADD a int;\nCREATE INDEX i9 ON dbo.[CAFÉ] (b);\nDROP INDEX i9 ON dbo.[Café];\nALTER TABLE dbo.NOKEY DROP COLUMN a;\nALTER TABLE dbo.nokey ADD a int;"},
 	{name: "an unqualified type in the default schema", user: "u_s", defaultSchema: "s", setup: "CREATE TABLE s.ty (a int)", change: "CREATE TYPE s.ty FROM int;\nDROP TABLE s.ty;\nDROP TYPE ty;\nCREATE TYPE s.ty FROM int;\nCREATE TYPE s.ty FROM int;", complete: true},
+	{name: "a constraint dropped by another spelling", setup: "CREATE TABLE dbo.tc (id int NOT NULL CONSTRAINT pk_cafe PRIMARY KEY)", change: "ALTER TABLE dbo.tc DROP CONSTRAINT [pk_café];\nCREATE INDEX pk_cafe ON dbo.tc (id);"},
+	{name: "a dropped ledger table frees its history table and view", setup: "CREATE TABLE dbo.lt (a int) WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = s.lt_h), LEDGER = ON (LEDGER_VIEW = s.lt_v))", change: "DROP TABLE dbo.lt;\nCREATE TABLE s.lt_h (a int);\nGO\nCREATE VIEW s.lt_v AS SELECT 1 AS a;\nGO\nCREATE TABLE s.lt_h (a int);", complete: true},
+	{name: "numbered procedures", change: "CREATE PROCEDURE dbo.p9;1 AS SELECT 1;\nGO\nCREATE PROCEDURE dbo.p9;2 AS SELECT 2;\nGO\nCREATE PROCEDURE dbo.t;2 AS SELECT 2;\nGO\nCREATE PROCEDURE dbo.p8;2 AS SELECT 2;\nGO\nCREATE PROCEDURE dbo.p9 AS SELECT 3;"},
 	{name: "a temporary table in any database", change: "CREATE TABLE #x (a int, b int);\nALTER TABLE tempdb..#x DROP COLUMN a;\nALTER TABLE #x ADD a int;\nALTER TABLE nosuch..#x ADD b int;\nCREATE INDEX i ON tempdb.dbo.#x (b);\nCREATE INDEX i ON #x (b);\nDROP TABLE master..#x;\nDROP TABLE #x;", complete: true},
 	// Views, routines, triggers, each beginning its batch.
 	{name: "views", change: "CREATE VIEW dbo.t AS SELECT 1 AS a;\nGO\nCREATE VIEW dbo.v AS SELECT 1 AS a;\nGO\nALTER VIEW dbo.nosuch AS SELECT 1 AS a;\nGO\nALTER VIEW dbo.t AS SELECT 1 AS a;\nGO\nCREATE OR ALTER VIEW dbo.t AS SELECT 1 AS a;\nGO\nCREATE OR ALTER VIEW dbo.w AS SELECT 1 AS a;\nGO\nCREATE VIEW nosuch.w AS SELECT 1 AS a;\nGO\nCREATE VIEW dbo.w AS SELECT 1 AS a;\nGO\nDROP VIEW dbo.w;\nDROP VIEW dbo.w;", complete: true},
@@ -391,7 +394,7 @@ var walkCodes = []struct {
 	{regexp.MustCompile(`^an object named .* already exists$`), []string{"2714", "15335"}},
 	{regexp.MustCompile(`^table .* already has a primary key$`), []string{"1779"}},
 	{regexp.MustCompile(`^table .* does not exist$`), []string{"3701", "4902", "4701", "1088", "8197", "15248"}},
-	{regexp.MustCompile(`^(view|procedure|function|trigger|synonym) .* does not exist$`), []string{"3701", "208"}},
+	{regexp.MustCompile(`^(view|procedure|function|trigger|synonym) .* does not exist$`), []string{"3701", "208", "2730"}},
 	{regexp.MustCompile(`^sequence .* does not exist$`), []string{"3701", "15151"}},
 	{regexp.MustCompile(`^type .* does not exist$`), []string{"218"}},
 	{regexp.MustCompile(`^type .* already exists$`), []string{"219"}},
@@ -749,16 +752,21 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 		}
 		return nil
 	})
-	query(`SELECT s.name, o.name, c.name, ISNULL(dc.name, '') FROM shop.sys.columns c
+	// getColumns: a computed column's type is its definition, AS ...; any
+	// other's its type's name, an alias's included.
+	query(`SELECT s.name, o.name, c.name, ISNULL(dc.name, ''), CASE WHEN c.is_computed = 1 THEN 'AS ' + ISNULL(cc.definition, '') ELSE ISNULL(ty.name, '') END, c.is_nullable FROM shop.sys.columns c
 		JOIN shop.sys.objects o ON o.object_id = c.object_id JOIN shop.sys.schemas s ON s.schema_id = o.schema_id
+		LEFT JOIN shop.sys.computed_columns cc ON cc.object_id = c.object_id AND cc.column_id = c.column_id
+		LEFT JOIN shop.sys.types ty ON ty.user_type_id = c.user_type_id
 		LEFT JOIN shop.sys.default_constraints dc ON dc.object_id = c.default_object_id
 		ORDER BY s.name, c.object_id, c.column_id`, func(r *sql.Rows) error {
-		var schema, tbl, col, df string
-		if err := r.Scan(&schema, &tbl, &col, &df); err != nil {
+		var schema, tbl, col, df, typ string
+		var nullable bool
+		if err := r.Scan(&schema, &tbl, &col, &df, &typ, &nullable); err != nil {
 			return err
 		}
 		if t, ok := tables[key(schema, tbl)]; ok {
-			t.Columns = append(t.Columns, &metadata.ColumnMetadata{Name: col, DefaultConstraintName: df})
+			t.Columns = append(t.Columns, &metadata.ColumnMetadata{Name: col, DefaultConstraintName: df, Type: typ, Nullable: nullable})
 		}
 		return nil
 	})

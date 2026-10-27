@@ -31,11 +31,11 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.DropStmt:
 		return b.drop(v)
 	case *ast.CreateViewStmt:
-		return b.createModule(v.Loc, v.Name, v.OrAlter, kindView)
+		return b.createModule(v.Loc, v.Name, v.OrAlter, kindView, false)
 	case *ast.CreateProcedureStmt:
-		return b.createModule(v.Loc, v.Name, v.OrAlter, kindProcedure)
+		return b.createModule(v.Loc, v.Name, v.OrAlter, kindProcedure, v.Number > 1)
 	case *ast.CreateFunctionStmt:
-		return b.createModule(v.Loc, v.Name, v.OrAlter, kindFunction)
+		return b.createModule(v.Loc, v.Name, v.OrAlter, kindFunction, false)
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.CreateSequenceStmt:

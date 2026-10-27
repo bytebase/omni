@@ -135,6 +135,33 @@ type snapTable struct {
 	// edge is set for a graph edge table, whose edge constraints the sync
 	// skips.
 	edge bool
+	// ledger is set for a table that may be a ledger table.
+	ledger bool
+}
+
+// A ledger table has two or more NOT NULL ledger columns, of type bigint
+// or an alias of it, which the sync does not mark (verified): any NOT NULL
+// column of a type the sync names otherwise than these may be one.
+var notLedgerTypes = map[string]bool{
+	"bit": true, "tinyint": true, "smallint": true, "int": true, "decimal": true, "numeric": true, "money": true, "smallmoney": true,
+	"float": true, "real": true, "date": true, "time": true, "datetime": true, "datetime2": true, "datetimeoffset": true, "smalldatetime": true,
+	"char": true, "varchar": true, "nchar": true, "nvarchar": true, "text": true, "ntext": true, "binary": true, "varbinary": true, "image": true,
+	"uniqueidentifier": true, "xml": true, "sql_variant": true, "hierarchyid": true, "geometry": true, "geography": true,
+	"timestamp": true, "rowversion": true, "sysname": true, "json": true, "vector": true,
+}
+
+func ledgerTable(t *metadata.TableMetadata) bool {
+	n := 0
+	for _, c := range t.GetColumns() {
+		typ := strings.ToLower(c.GetType())
+		if c.GetNullable() || typ == "" || strings.HasPrefix(typ, "as ") {
+			continue
+		}
+		if base, _, _ := strings.Cut(typ, "("); !notLedgerTypes[strings.TrimSpace(base)] {
+			n++
+		}
+	}
+	return n >= 2
 }
 
 // mssqlSnapshot is a target's synced schema as WalkThrough trusts it
@@ -159,6 +186,10 @@ type mssqlSnapshot struct {
 	ambiguous map[string]bool
 	// triggers is set when the sync lists a trigger.
 	triggers bool
+	// ledger is set when the sync lists a table that may be a ledger
+	// table, whose drop renames its history table and ledger view, in any
+	// schema (verified).
+	ledger bool
 }
 
 func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
@@ -173,6 +204,11 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 	for _, e := range excludedSchemas {
 		if n, ok := keyed(e); ok {
 			s.excluded[n.class] = true
+		}
+	}
+	for _, schema := range db.GetSchemas() {
+		for _, t := range schema.GetTables() {
+			s.ledger = s.ledger || ledgerTable(t)
 		}
 	}
 	for _, schema := range db.GetSchemas() {
@@ -202,6 +238,7 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			}
 			st := &snapTable{}
 			s.tables[path] = st
+			st.ledger = ledgerTable(t)
 			for _, c := range t.GetColumns() {
 				st.columns.add(c.GetName(), "")
 				if strings.HasPrefix(c.GetName(), "$edge_id") {

@@ -175,7 +175,7 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 // kind if any (2010); ALTER one that exists (208) and is of the kind
 // (2010). A procedure's body runs to the end of the batch, which the
 // walker skips (spec §6).
-func (b *builder) createModule(loc ast.Loc, tr *ast.TableRef, orAlter bool, kind string) bool {
+func (b *builder) createModule(loc ast.Loc, tr *ast.TableRef, orAlter bool, kind string, numbered bool) bool {
 	verb := b.moduleVerb(loc, orAlter)
 	if !b.first(loc, verb+" "+strings.ToUpper(kind)) {
 		return true
@@ -191,7 +191,13 @@ func (b *builder) createModule(loc ast.Loc, tr *ast.TableRef, orAlter bool, kind
 		return true
 	}
 	if r.where == placed {
-		b.moduleChecks(r, verb, kind)
+		check := verb
+		if numbered {
+			// CREATE PROCEDURE p;2 joins p's group, which must exist as
+			// a procedure (2730, verified), as ALTER needs it.
+			check = "ALTER"
+		}
+		b.moduleChecks(r, check, kind)
 	}
 	b.arriveObject(r, kind)
 	return true

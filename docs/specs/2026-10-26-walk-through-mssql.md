@@ -203,14 +203,14 @@ Views are not dependencies: dropping a table a view reads succeeds.
 | — `SWITCH`, `ADD`/`DROP PERIOD`, `SET (SYSTEM_VERSIONING ...)`, anything else | | ends the walk |
 | `CREATE TABLE` with `AS NODE`/`EDGE`/`FILETABLE`, a period, `SYSTEM_VERSIONING`, `LEDGER`, or `MEMORY_OPTIMIZED` | | ends the walk |
 | `ENABLE`/`DISABLE TRIGGER ... ON t` | none | `ENABLE`: a trigger may fire (§6); on a database or the server, ends the walk |
-| `DROP TABLE [IF EXISTS] a, ...` | each a Present (3701), and a table under `IF EXISTS` too (3705); a name twice (3701) | a Absent with its columns, indexes, constraints, and primary key; its constraints' and triggers' names leave the object space: the known ones Absent, the rest May-removed |
+| `DROP TABLE [IF EXISTS] a, ...` | each a Present (3701), and a table under `IF EXISTS` too (3705); a name twice (3701) | a Absent with its columns, indexes, constraints, and primary key; its constraints' and triggers' names leave the object space: the known ones Absent, the rest May-removed. A table that may be a ledger table (two or more NOT NULL columns of type bigint or an alias) renames its history table and ledger view with it, in any schema: every relation and object name May-removed |
 | `TRUNCATE TABLE t` | t Present and a table (4701, 4708), or a temporary table | none |
 | `CREATE [UNIQUE] [CLUSTERED \| NONCLUSTERED] [COLUMNSTORE] INDEX i ON t` | t Present and a table or view (1088, 1914), or a temporary table; i Absent in t's index space (1913); with `DROP_EXISTING = ON`, i Present (7999) | i Present |
 | `DROP INDEX [IF EXISTS] i ON t, ...`, `DROP INDEX t.i` | each t Present (3701); i Present (3701), unless `IF EXISTS`; i not a constraint's index (3723), under `IF EXISTS` too | i Absent |
 | `ALTER INDEX i \| ALL ON t ...` | t Present (1088); i Present (2727) | none |
 | `CREATE VIEW v` / `CREATE OR ALTER VIEW v` / `ALTER VIEW v` | schema Present (2760); `CREATE`: v Absent (2714); `CREATE OR ALTER`: v a view if it exists (2010); `ALTER`: v Present and a view (208, 2010) | v Present (view) |
 | `DROP VIEW [IF EXISTS] v, ...` | each v Present (3701), and a view under `IF EXISTS` too (3705); a name twice (3701) | v Absent with its indexes; its triggers May-removed |
-| `CREATE` / `CREATE OR ALTER` / `ALTER` `PROCEDURE` / `FUNCTION p` | schema Present (2760); `CREATE`: p Absent (2714); `CREATE OR ALTER`: p of its kind if it exists (2010); `ALTER`: p Present (208, from the change's facts alone) and of its kind (2010) | p Present of its kind; a procedure's body runs to the end of its batch, so the walk skips to the next `GO` (§6) |
+| `CREATE` / `CREATE OR ALTER` / `ALTER` `PROCEDURE` / `FUNCTION p` | schema Present (2760); `CREATE`: p Absent (2714), but a numbered `CREATE PROCEDURE p;2` joins p's group, which it needs as `ALTER` does (2730); `CREATE OR ALTER`: p of its kind if it exists (2010); `ALTER`: p Present (208, from the change's facts alone) and of its kind (2010) | p Present of its kind; a procedure's body runs to the end of its batch, so the walk skips to the next `GO` (§6) |
 | `CREATE` / `CREATE OR ALTER` / `ALTER TRIGGER tr ON t` (DML) | t Present and a table or view (8197); tr's schema t's (2103); `CREATE`: tr Absent (2714); `ALTER`: tr Present (208, from the change's facts alone) and a trigger (2010) | tr Present (trigger); a trigger may fire on t; the walk skips to the next `GO` |
 | `DROP PROCEDURE` / `FUNCTION` / `TRIGGER` / `SEQUENCE` / `SYNONYM [IF EXISTS] x, ...` | each x Present (3701), from the change's facts alone except for sequences, unless `IF EXISTS`; of the statement's kind, under `IF EXISTS` too (3705) | x Absent |
 | `CREATE SEQUENCE s`, `CREATE SYNONYM s FOR ...` | schema Present (2760); s Absent (2714) | s Present of its kind |
@@ -300,7 +300,7 @@ Bytebase follow-ups, outside this PR:
 - 450 of names and snapshot (`walk_names.go`, `walk_snapshot.go`);
 - 350 of walker, batches, and plumbing (`walk_through.go`, `targets.go`).
 
-As built, after review: 1,786 lines of lowering, 462 of names and snapshot, and 766 of walker, batches, reference resolution, and the class and spelling bookkeeping of §2.1 (`walk_through.go`), about 31% over the budget in all. The overrun is mostly that bookkeeping, which the budget did not foresee, and the per-kind DROP and module rows; the review rounds added about 165 lines.
+As built, after review: 1,821 lines of lowering, 499 of names and snapshot, and 766 of walker, batches, reference resolution, and the class and spelling bookkeeping of §2.1 (`walk_through.go`), about 34% over the budget in all. The overrun is mostly that bookkeeping, which the budget did not foresee, and the per-kind DROP and module rows; the review rounds added about 235 lines.
 
 **Oracle** (`walktest.Judge`), modeled on Bytebase's transaction mode:
 - One connection runs one transaction. Each statement runs as its own batch after a `SAVE TRANSACTION`, and a rejected one is rolled back to it.
@@ -487,6 +487,11 @@ SQL Server 2022 CU27 (16.0.4305.5), server collation `SQL_Latin1_General_CP1_CI_
 - `CREATE TABLE ##` with 126 letters succeeds, and with 127 fails with 103; a `#` name fails past 116.
 - In a SQL_Latin1_General_CP1_CI_AS database with `dbo.[Café] (a, b)`, `ALTER TABLE dbo.[CAFÉ] DROP COLUMN a` and then `ALTER TABLE dbo.[Café] ADD a int` both succeed.
 - As a user whose default schema is s, with s.ty and dbo.ty, `DROP TYPE ty` drops s.ty. `CREATE TABLE s.ty`, `CREATE TYPE s.ty`, `DROP TABLE s.ty`, `DROP TYPE ty`, `CREATE TYPE s.ty` all succeed.
+
+**Codex round 7 on #514**, verified on the same image:
+- In a Latin1_General_100_CI_AI database, `ALTER TABLE dbo.tc DROP CONSTRAINT [pk_café]` drops the key `pk_cafe`, and `CREATE INDEX pk_cafe ON dbo.tc` then succeeds: a constraint of unknown kind may take an index of any name it may equal.
+- `CREATE PROCEDURE dbo.p;1` and then `dbo.p;2` succeed. `dbo.p;3` without `p;1` fails with 2730, `dbo.t;2` beside the table t fails, and `CREATE PROCEDURE dbo.p` beside `p;1` fails with 2714.
+- Dropping a ledger table in a transaction renames it, its history table, and its ledger view to `MSSQL_DroppedLedgerTable_...`, `MSSQL_DroppedLedgerHistory_...`, and `MSSQL_DroppedLedgerView_...`, and `CREATE TABLE` of the old history and view names then succeeds, with both in another schema too. Ledger columns may have any name and an alias type of bigint, but are bigint and NOT NULL (37346, 37347). Bytebase syncs a column's type and nullability, not that it is a ledger column.
 
 **CI's sweep on #514** (seed 20261027, N=500), verified on the same image:
 - `ALTER TABLE szsz ADD CONSTRAINT pk_a PRIMARY KEY (id)` beside `dbo.ssz`, which has a primary key, fails with 4902 in a case-sensitive database. The walk's finding stands (§2.1, a table's children). The oracle compared the primary space's key as a class, so it could not check a primary-key claim when the error code differed; it now can.
