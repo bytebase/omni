@@ -47,7 +47,10 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 	}
 	stmt.Then = then
 
-	// ELSE
+	// ELSE. Semicolons may end the THEN statement before it, as in
+	// IF c SELECT 1; ELSE SELECT 2, which SQL Server accepts and a MERGE in
+	// the THEN branch requires.
+	p.skipSemicolonsBeforeElse()
 	if _, ok := p.match(kwELSE); ok {
 		elseStmt, err := p.parseStmt()
 		if err != nil {
@@ -58,6 +61,26 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// skipSemicolonsBeforeElse consumes the semicolons at the current token when
+// ELSE follows them and reports whether it did. Otherwise it leaves the token
+// stream where it was, so the semicolons end the IF statement.
+func (p *Parser) skipSemicolonsBeforeElse() bool {
+	if p.cur.Type != ';' {
+		return false
+	}
+	lexPos, lexStart, lexErr := p.lexer.pos, p.lexer.start, p.lexer.Err
+	cur, prev, nextBuf, hasNext, collecting := p.cur, p.prev, p.nextBuf, p.hasNext, p.collecting
+	for p.cur.Type == ';' {
+		p.advance()
+	}
+	if p.cur.Type == kwELSE {
+		return true
+	}
+	p.lexer.pos, p.lexer.start, p.lexer.Err = lexPos, lexStart, lexErr
+	p.cur, p.prev, p.nextBuf, p.hasNext, p.collecting = cur, prev, nextBuf, hasNext, collecting
+	return false
 }
 
 // parseWhileStmt parses a WHILE loop.

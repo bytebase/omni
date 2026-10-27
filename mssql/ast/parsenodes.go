@@ -218,8 +218,7 @@ type MergeStmt struct {
 	WithClause   *WithClause
 	Top          *TopClause
 	Target       TableExpr // *TableRef or *TableVarRef
-	Source       TableExpr // table source
-	SourceAlias  string
+	Source       TableExpr // table source, with its alias
 	OnCondition  ExprNode
 	WhenClauses  *List // list of MergeWhenClause
 	OutputClause *OutputClause

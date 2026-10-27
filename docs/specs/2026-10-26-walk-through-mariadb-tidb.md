@@ -11,52 +11,70 @@ Status: draft 2026-10-26, decisions in §6 pending. This is step 3 of [the engin
 
 ## 2. MariaDB (11.8)
 
+Built in `mariadb/review` (2026-10-26). The facts this section adds to the draft, and the two it corrects, were verified on `mariadb:11.8.8` while building it; §2.5 lists them.
+
 ### 2.1 Authority
 
-- **Relation absence is untrusted** (engines design D5). Bytebase's sync lists only `BASE TABLE`s and views, and sequences and system-versioned tables share their namespace. So:
+- **Relation absence is untrusted** (engines design D5, decision N2). Before Bytebase #21665 the sync listed only `BASE TABLE`s and views, and sequences and system-versioned tables share their namespace. The target does not say which sync it comes from. So:
   - no claim that a synced database lacks a relation;
-  - "already exists" from the sync is still trusted;
-  - so are the columns and indexes of synced tables;
+  - "already exists" from the sync is still trusted, for the sequences #21665 lists too;
+  - so are the columns and indexes of synced tables, but for a system-versioned table's columns (below);
   - names the change itself creates or drops are followed as on MySQL.
+- **Trigger absence is untrusted too.** The sync before #21665 lost the triggers of the tables it skipped, so `DROP TRIGGER` of one would be a false finding. Foreign key names stay trusted: the walk claims a missing one only with the table's own foreign keys, which the sync lists with the table.
 - **Primary key absence is trusted.** MariaDB has no invisible primary key, so `DROP PRIMARY KEY` on a table the sync lists without one fails (1091).
+- **System-versioned tables:** the sync since #21665 lists one as a table, with `WITH SYSTEM VERSIONING` in its create options. Its columns are Unknown: `information_schema` does not list the hidden `row_start` and `row_end`.
 
 ### 2.2 Semantics that differ from MySQL
 
 - **Multi-object drops are not atomic.**
-  - `DROP TABLE a, missing`, `DROP VIEW v, missing`, and `DROP TEMPORARY TABLE a, missing` drop every object that exists, then fail on the missing one (1051, 4092).
-  - The claim that the statement fails still holds. What the oracle does with it is decision N1.
-- **`CREATE TEMPORARY TABLE db.t` succeeds in a missing database.** The walk checks no database for a temporary table.
-- **`CREATE TABLE IF NOT EXISTS t LIKE missing` is a note when t exists.** MySQL checks the source first. Here the source is checked only when the table is created.
+  - `DROP TABLE a, missing`, `DROP VIEW v, missing`, `DROP SEQUENCE s, missing`, and `DROP TEMPORARY TABLE a, missing` drop every object that exists, then fail on the missing one (1051, 4092, 4091). `DROP TABLE t, v` drops t and fails on the view (1965).
+  - A failed `CREATE OR REPLACE TABLE t` may have dropped the old t: it has after a duplicate column (1060) and a foreign key name taken (1005, errno 121), and has not after a missing `LIKE` source (1146).
+  - The claim that the statement fails still holds. The oracle stops judging the change there (decision N1).
+- **`CREATE TEMPORARY TABLE db.t` and `CREATE TEMPORARY SEQUENCE db.s` succeed in a missing database.** The walk checks no database for a temporary relation. With no database selected, they fail (1046).
+- **`CREATE TABLE IF NOT EXISTS t LIKE missing` is a note when t exists.** MySQL checks the source first. Here the source is checked only when the table is created. A temporary table's source is checked first, as on MySQL (1146 even when the temporary table exists).
 - **Trigger names compare with case.** `TR` can exist beside `tr`, as on 5.7. MySQL's spelling rule already covers this.
 - **`DROP FOREIGN KEY` of a missing name on MyISAM fails** (1091), where MySQL accepts it. The walk still claims nothing of a non-InnoDB table's foreign keys, so this costs recall only.
+- **`CREATE OR REPLACE DATABASE d` can fail when d holds a parent another of its tables references** (1451): it fails at such a parent while its child is still there, having dropped some of d's tables. `DROP DATABASE` drops them all. The walk does not claim it.
+- **MySQL's `ALTER TABLE` forms that MariaDB lacks fail with 1064:** `ALTER INDEX ... [IN]VISIBLE`, `ALTER COLUMN ... SET [IN]VISIBLE` and `SET/DROP NOT NULL`, `ALTER CHECK ... ENFORCED`, and `SECONDARY_LOAD`. omni's MariaDB parser takes them, so the walk ends at them rather than claim a failure for another reason.
 - **Error codes differ.** This changes only the oracle's code map:
 
   | Case | MariaDB code |
   | --- | --- |
   | FK name taken | 1005 (errno 121) |
-  | FK to a missing table, a view, or a temporary table | 1005 (errno 150) |
+  | FK to a missing table, a view, a temporary table, or a sequence | 1005 (errno 150) |
+  | two FKs of one name in one statement | 1061 |
   | `DROP TABLE` of a view | 1965 |
-  | `DROP VIEW` of a table | 4092 |
-  | table name too long | 1103 |
+  | `DROP VIEW` of a table, a sequence, or a missing view | 4092 |
+  | database name too long | 1102 |
+  | table, view, or sequence name too long | 1103 |
   | rename into a missing database | 1025 |
 
 ### 2.3 Statements added
 
 | Statement | Checks | Effects |
 | --- | --- | --- |
-| `CREATE OR REPLACE TABLE t ...` | t not a view (1965) or a sequence; OR REPLACE with IF NOT EXISTS fails from the text (1221) | t Present (table) with what it declares; what the old t held Absent |
+| `CREATE OR REPLACE TABLE t ...` | t not a view (1965); a sequence is replaced | t Present (table) with what it declares; what the old t held Absent, its foreign keys and triggers too, so a foreign key name only the old t had is free; a temporary table of the name stays |
 | `CREATE OR REPLACE INDEX`, `TRIGGER`, `PROCEDURE`, `FUNCTION`, `EVENT` | none of the "already exists" checks | name Present |
-| `CREATE OR REPLACE DATABASE d` | none | d Present, everything under it Absent but temporary tables; the current database stays selected |
-| `ALTER TABLE t DROP {COLUMN, INDEX, FOREIGN KEY, CONSTRAINT} IF EXISTS x` | no presence check | x Absent |
-| `CREATE [OR REPLACE] [TEMPORARY] SEQUENCE [IF NOT EXISTS] s` | s Absent (1050), skipped for OR REPLACE and IF NOT EXISTS | s Present, of kind sequence |
-| `DROP [TEMPORARY] SEQUENCE [IF EXISTS] s, ...` | each s Present (4091) and a sequence (4090) | s Absent |
-| `DROP TABLE` | as on MySQL, with sequences taken as tables | a sequence goes too |
+| `CREATE OR REPLACE DATABASE d` | none | d Present, everything under it Absent but temporary tables; when d is the current database, none is selected after it (1046), as after `DROP DATABASE` |
+| `ALTER TABLE t DROP {COLUMN, INDEX, FOREIGN KEY, CONSTRAINT} IF EXISTS x` | no presence check; a second such drop of x is a note, so the repeated-subcommand checks leave it out | x Absent; `DROP FOREIGN KEY IF EXISTS` of a name only another table has leaves that one |
+| `CREATE [OR REPLACE] [TEMPORARY] SEQUENCE [IF NOT EXISTS] s` | s Absent (1050), skipped for OR REPLACE and IF NOT EXISTS; for OR REPLACE, s not a view (1965); s's database Present (1049), unless temporary | s Present, of kind sequence; OR REPLACE replaces a table or a temporary table |
+| `DROP [TEMPORARY] SEQUENCE [IF EXISTS] s, ...` | each s Present (4091) and a sequence (4090; 1965 for a view). Without TEMPORARY, a temporary sequence of the name is found first and a temporary table of it passed over; with it, only a temporary sequence is found (4091) | s Absent |
+| `DROP TABLE` | as on MySQL, with sequences taken as tables, temporary ones too | a sequence goes too |
+| `CREATE TABLE t LIKE s` | s a table or a sequence (1347 for a view) | t is what s is: a sequence of a sequence, a system-versioned table of one, but never a temporary system-versioned table (4137) |
+
+OR REPLACE with IF NOT EXISTS fails on the server (1221), and omni's parser rejects it too, so it is a Syntax finding.
 
 Other kinds:
-- `DROP VIEW` of a sequence fails (4092).
-- A known sequence in `ALTER TABLE`, `TRUNCATE`, `CREATE INDEX`, or `CREATE TRIGGER` ends the walk without a claim. Some `ALTER TABLE`s on a sequence succeed, so no claim is safe there.
+- `DROP VIEW` of a sequence fails (4092), and `CREATE OR REPLACE VIEW` of one (1347).
+- A foreign key to a sequence fails (1005, errno 150).
+- A known sequence in `ALTER TABLE`, `TRUNCATE`, `CREATE INDEX`, `DROP INDEX`, or `CREATE TRIGGER` ends the walk without a claim. Some `ALTER TABLE`s on a sequence succeed, so no claim is safe there.
+- `ALTER SEQUENCE` is not in the table, so it ends the walk.
 
-**System-versioned tables:** `WITH SYSTEM VERSIONING`, or `ADD SYSTEM VERSIONING`, gives a table hidden `row_start`/`row_end` columns that `information_schema` does not list. By default it also refuses most ALTERs (4119). The walk follows neither. Such a table's columns are Unknown, and `ALTER TABLE` on it ends the walk.
+**System-versioned tables:** `WITH SYSTEM VERSIONING`, of the table or of a column, or `ADD SYSTEM VERSIONING`, gives a table hidden `row_start`/`row_end` columns that `information_schema` does not list. By default it also refuses most ALTERs (4119). The hidden columns act as absent to every check the walk makes: only `ADD COLUMN` of their names fails (1060), which the walk never claims, and `CHANGE`/`MODIFY` of them fails with 4130. So the MySQL lowering would hold here, but would name a column where the server refuses the versioned table. As a precaution, the walk follows neither:
+- such a table's columns are Unknown;
+- `ALTER TABLE` on it ends the walk, and so do `ADD`/`DROP SYSTEM VERSIONING` and the `PERIOD` subcommands on any table;
+- its index names are followed: `CREATE` and `DROP INDEX` on it check them as on any table (1061, 1091);
+- `LIKE` copies the versioning, `RENAME` keeps it, and `CREATE OR REPLACE TABLE` without it ends it.
 
 ### 2.4 Parser gaps (Syntax findings today; out of scope)
 
@@ -67,9 +85,53 @@ The server accepts these, and omni's MariaDB parser rejects them:
 - `RENAME`/`CHANGE`/`MODIFY COLUMN IF EXISTS`;
 - `RENAME TABLE IF EXISTS`;
 - `ALTER ONLINE TABLE`;
-- `WAIT n`.
+- `WAIT n`;
+- `CREATE VIEW IF NOT EXISTS`;
+- `SET STATEMENT ... FOR`;
+- `ALTER INDEX ... [NOT] IGNORED`;
+- `CREATE TABLE ... SEQUENCE=1`;
+- `BEGIN NOT ATOMIC` and `EXECUTE IMMEDIATE`;
+- qualified event and trigger names, as in omni's MySQL parser.
 
-The walk lowers each of them once the parser takes it.
+The walk lowers each of them once the parser takes it. The parser also takes the MySQL forms of §2.2 that MariaDB rejects.
+
+### 2.5 Verified while building
+
+On `mariadb:11.8.8`, 2026-10-26:
+- **Corrections to the draft:**
+  - `CREATE OR REPLACE TABLE` of a sequence replaces it with a table;
+  - `CREATE OR REPLACE DATABASE` of the current database leaves none selected.
+- **OR REPLACE:**
+  - `CREATE OR REPLACE TABLE t` with a temporary t replaces the base t and leaves the temporary one;
+  - the old t's foreign key names are free for the new t, and another table's still fail (1005, errno 121);
+  - its triggers go with it;
+  - `CREATE OR REPLACE TRIGGER tr` of tr on another table fails with 1360, and `TR` beside `tr` is a second trigger;
+  - `CREATE OR REPLACE EVENT E` replaces e;
+  - `CREATE OR REPLACE DATABASE` keeps the session's temporary tables of the database;
+  - OR REPLACE of a temporary table and a temporary sequence replaces either kind.
+- **IF EXISTS drops:**
+  - two of one name are a note; one with and one without fail (1091);
+  - `DROP INDEX IF EXISTS `` `PRIMARY` ``` drops the primary key;
+  - `DROP PRIMARY KEY IF EXISTS` is a syntax error.
+- **Sequences:**
+  - `CREATE SEQUENCE db.s` in a missing database gives 1049;
+  - `RENAME TABLE` and `ALTER TABLE ... RENAME` move a sequence, to another database too;
+  - `CREATE TABLE ... AS SELECT` from a sequence makes a table;
+  - a temporary sequence and a temporary table share their names (1050);
+  - `DROP TEMPORARY TABLE` and `DROP TABLE` drop a temporary sequence;
+  - `CREATE INDEX` on a sequence gives 4086, `DROP INDEX` 1091, `CREATE TRIGGER` 1361, `TRUNCATE` 1031, and `ALTER TABLE ... COMMENT` succeeds;
+  - `INSERT` into a sequence succeeds.
+- **System-versioned tables:**
+  - `CREATE INDEX` and `ADD INDEX` on one succeed, `DROP INDEX` of a missing index gives 1091, and `TRUNCATE` 4137;
+  - with `system_versioning_alter_history=KEEP`, `AFTER row_start`, `RENAME COLUMN row_start`, and `ALTER COLUMN row_start SET DEFAULT` give 1054, `DROP COLUMN row_end` 1091, `ADD INDEX (row_start)` 1072, `ADD COLUMN row_start` 1060, and `CHANGE` or `MODIFY row_start` 4130;
+  - a column's `WITH SYSTEM VERSIONING` makes the table system-versioned, and on a table that is not, in `ALTER TABLE`, fails (4124);
+  - `PERIOD FOR SYSTEM_TIME` without `WITH SYSTEM VERSIONING` gives 4125, and `PARTITION BY SYSTEM_TIME` 4124;
+  - `CREATE TEMPORARY TABLE ... WITH SYSTEM VERSIONING` gives 4137, and `LIKE` one strips the versioning.
+- **Other:**
+  - names over 64: databases 1102, tables, views, and sequences 1103, the rest 1059;
+  - `CREATE TABLE x LIKE v` of a view gives 1347;
+  - with no database selected, `CREATE TEMPORARY TABLE`, `CREATE SEQUENCE`, and `DROP SEQUENCE IF EXISTS` give 1046;
+  - `DELETE HISTORY` of a missing table gives 1146, and of a table that is not system-versioned 4124.
 
 ## 3. TiDB (8.5)
 
@@ -135,10 +197,12 @@ The walk lowers each of them once the parser takes it.
 ## 4. Not covered (beyond the MySQL spec's §7)
 
 - **MariaDB:**
-  - system-versioned history and its ALTER rules (4119), and application-time periods;
-  - the rejections of `ALTER TABLE` and `TRUNCATE` on a sequence;
+  - system-versioned history and its ALTER rules (4119), `TRUNCATE` of a system-versioned table (4137), `DELETE HISTORY` of a table that is not (4124), and application-time periods;
+  - the rejections of `ALTER TABLE` and `TRUNCATE` on a sequence, and `ALTER SEQUENCE`;
   - `CREATE OR REPLACE TRIGGER` of a name on another table (1360);
-  - `CREATE OR REPLACE TABLE` of a referenced parent (1451).
+  - `CREATE OR REPLACE TABLE` of a referenced parent (1451), and `CREATE OR REPLACE DATABASE` of a database holding one (1451);
+  - `DROP TRIGGER` of a case variant of a trigger's name (1360), and of a trigger the sync does not list;
+  - the MySQL `ALTER TABLE` forms MariaDB rejects (1064), at which the walk ends.
 - **TiDB:**
   - clustered-index rules (`DROP PRIMARY KEY` of a clustered key, 8200; `MODIFY ... PRIMARY KEY`, 8200);
   - index columns added or dropped in the same ALTER (1072, 8200);
@@ -153,21 +217,30 @@ The walk lowers each of them once the parser takes it.
 ## 5. Budget and tests
 
 - **Code:** per engine, the MySQL walk copied (about 1.9k lines) plus its deltas: about 250 lines for MariaDB, about 150 for TiDB.
-  - TiDB as built: 1320 lines of lowering, 204 of snapshot, 278 of walker. Against the MySQL copy, 655 lines went (triggers, routines, events, engines, generated `<table>_ibfk_` names, the database-wide foreign key space) and 285 came (sequences, the ALTER TABLE deltas, the comments naming each verified fact).
 - **Oracle:** `walktest.Judge` against `mariadb:11.8.8` and `pingcap/tidb:v8.5.5`, with curated cases for every delta row and every Appendix fact.
 - **Sweep:** one per engine at `WALK_SWEEP_N`. The MySQL sweep takes about 3 minutes at 500, so each engine adds about 1.5 minutes.
 - **Unit and coverage tests:** as on MySQL.
+- **MariaDB as built:**
+  - the walk is 2462 lines against MySQL's 2172, so the deltas are about 290 lines, over the 250 budgeted: sequences took 140;
+  - the oracle runs every curated case on the sync since Bytebase #21665 and on the one before it; the second holds precision alone, since it hides the base's sequence and system-versioned table. It found 194 of 230 rejections on the first and 181 of 228 on the second, with no false finding. On the plain MySQL copy, wired the same way, the delta cases report false findings or miss what they pin;
+  - the sweep runs the two syncs by turns. At 500 (seed 20261026) it found 1238 of 6811 rejections, with no false finding, in under 3 minutes. Recall is low by design: most misses are names the walk does not know, since relation and trigger absence is untrusted, and databases other than the target;
+  - `walktest` gained `PartialRejecter` (decision N1).
+- **TiDB as built:**
+  - 1320 lines of lowering, 204 of snapshot, 278 of walker. Against the MySQL copy, 655 lines went (triggers, routines, events, engines, generated `<table>_ibfk_` names, the database-wide foreign key space) and 285 came (sequences, the ALTER TABLE deltas, the comments naming each verified fact).
 
 ## 6. Decisions
 
-Pending, each with a recommendation:
+Decided 2026-10-26 for MariaDB: N1, N2, and N3 as recommended, and N4 as one PR per engine, since the two are built in parallel. Decided 2026-10-26 and 2026-10-27 for TiDB: N1 as built for MariaDB, and N3 and N4 as recorded below. The options as they were weighed:
 
 - **N1. MariaDB's non-atomic drops in the oracle.**
   - Recommended: `walktest` gains an opt-in for an engine whose rejected statement can change the database. `Judge` then stops judging a change at such a statement, after counting it, instead of failing.
   - Alternative: keep `Judge` strict, and keep multi-object drops of a missing name out of MariaDB's cases and sweep.
+  - As built: `walktest.PartialRejecter`. A finding on such a statement must name the server's error code, since the catalog no longer shows the facts before it. A failed `CREATE OR REPLACE TABLE` that dropped the old table is judged the same way.
+  - TiDB (decided 2026-10-27): TiDB's multi-object drops and a repeated `DROP FOREIGN KEY` are not atomic either (§3.5). Its oracle first kept them out of its cases and sweep. Once `PartialRejecter` landed with MariaDB, it became one too, and judges them on the server.
 - **N2. MariaDB relation absence stays untrusted (D5)** while Bytebase is not changed.
   - Recommended: so, at the cost of every "table does not exist" claim about a synced MariaDB database.
   - The alternative, trusting it, has a false finding for every sequence or system-versioned table the sync drops.
+  - As decided: Bytebase #21665 now syncs both, but the target does not say which sync it comes from. A `review.Target` switch, off by default, may later let Bytebase say so. Trigger absence waits for the same switch (§2.1).
 - **N3. Oracle settings.**
   - Recommended: MariaDB with `lower_case_table_names` 0 only, since the folding is MySQL's code, which runs on mysql 8.0 with 1.
   - TiDB as it ships (2).
@@ -175,7 +248,7 @@ Pending, each with a recommendation:
 - **N4. Delivery.**
   - Recommended: one PR for both engines, as D7's step 3, with a commit each.
   - The parser gaps of §2.4 and §3.3/§3.5 go to their own PRs afterwards.
-  - TiDB: decided 2026-10-26. TiDB is one PR of its own, since MariaDB is built in parallel and lands in its own PR. The TiDB parser gaps (`RENAME TO db.t`, `CREATE GLOBAL TEMPORARY TABLE`) go to later PRs.
+  - TiDB: decided 2026-10-26. TiDB is one PR of its own, since MariaDB is built in parallel and lands in its own PR. The TiDB parser gaps (`RENAME TO db.t`, `CREATE GLOBAL TEMPORARY TABLE`, `SET @@session.x = ON`, and `ALTER VIEW`, which the parser takes and TiDB rejects) go to later PRs.
 
 ## Appendix: verified facts
 
