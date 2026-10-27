@@ -212,6 +212,7 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"a secondary XML index", "CREATE INDEX sx ON dbo.t (a);", 0, "index sx already exists on dbo.t"},
 		{"a self-reference of another spelling", "CREATE TABLE dbo.x (id int NOT NULL PRIMARY KEY, p int REFERENCES dbo.X (id));", -1, ""},
 		{"an alias of a marked spelling", "DROP TABLE dbo.nokey;\nUPDATE a SET a = 1 FROM dbo.r AS [á];", -1, ""},
+		{"a marked arrival leaves its space's absences unknown", "CREATE TABLE dbo.[é] (a int UNIQUE);\nDROP TABLE dbo.cafe;", -1, ""},
 		{"DROP_EXISTING keeps a key's constraint", "CREATE UNIQUE CLUSTERED INDEX pk_t ON dbo.t (id) WITH (DROP_EXISTING = ON);\nDROP INDEX pk_t ON dbo.t;", 1, "index pk_t of dbo.t enforces a constraint"},
 	}
 	for _, tt := range tests {

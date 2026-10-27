@@ -92,6 +92,42 @@ func (d *tableDef) addColumn(c *ast.ColumnDef) {
 	}
 }
 
+// marked reports whether a name a generated constraint name may hold is
+// marked: the table's, a column's the definition adds, or one its
+// constraints name.
+func (d *tableDef) marked(r objRef) bool {
+	if !r.n.plain {
+		return true
+	}
+	isMarked := func(spelling string) bool {
+		n, ok := keyed(spelling)
+		return !ok || !n.plain
+	}
+	for _, c := range d.columns {
+		if isMarked(c.Name) {
+			return true
+		}
+	}
+	for _, c := range d.constraints {
+		if c.Columns == nil {
+			continue
+		}
+		for _, item := range c.Columns.Items {
+			switch v := item.(type) {
+			case *ast.String:
+				if isMarked(v.Str) {
+					return true
+				}
+			case *ast.IndexColumn:
+				if isMarked(v.Name) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // keyedConstraint is a constraint the walk keeps: one of the five kinds.
 func keyedConstraint(c *ast.ConstraintDef) bool {
 	_, ok := walkConstraintKinds[c.Type]
@@ -219,8 +255,9 @@ func (b *builder) defEffects(r objRef, path string, known bool, d *tableDef) {
 			}
 		}
 	}
+	marked := d.marked(r)
 	if d.defaults > 0 {
-		b.generated(r, path, known, ast.ConstraintDefault)
+		b.generated(r, path, known, ast.ConstraintDefault, marked)
 	}
 	for _, c := range d.constraints {
 		if !keyedConstraint(c) || r.temp && c.Type == ast.ConstraintForeignKey {
@@ -233,7 +270,7 @@ func (b *builder) defEffects(r objRef, path string, known bool, d *tableDef) {
 		}
 		cn, ok := keyed(c.Name)
 		if c.Name == "" || !ok {
-			b.generated(r, path, known, c.Type)
+			b.generated(r, path, known, c.Type, marked)
 			continue
 		}
 		b.constraintArrives(r, path, known, cn, kind)
@@ -262,8 +299,15 @@ func (b *builder) constraintArrives(r objRef, path string, known bool, cn name, 
 
 // generated records an unnamed constraint, whose generated name the walk
 // does not derive.
-func (b *builder) generated(r objRef, path string, known bool, t ast.ConstraintType) {
+//
+// The name holds the table's name, and a column's for some kinds. When
+// one of those is marked, so may the name be, and then it may equal a
+// name of any class: every name of the spaces may have been added.
+func (b *builder) generated(r objRef, path string, known bool, t ast.ConstraintType, marked bool) {
 	prefix := constraintPrefixes[t]
+	if marked {
+		prefix = ""
+	}
 	if !r.temp {
 		switch r.where {
 		case placed:
