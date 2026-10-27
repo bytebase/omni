@@ -115,6 +115,9 @@ func (b *builder) defTextFails(r objRef, d *tableDef) bool {
 		}
 		seen[c.Name] = true
 	}
+	// One statement may not name two constraints or indexes alike, of
+	// any kinds: a CHECK, DEFAULT, or FOREIGN KEY and an inline INDEX of
+	// one name fail too (8168, verified).
 	names := make(map[string]bool)
 	pks := 0
 	for _, c := range d.constraints {
@@ -562,6 +565,10 @@ func (b *builder) dropConstraint(r objRef, path string, known bool, cn name, ifE
 		switch {
 		case !ifExists:
 			b.needs(spaceConstraint, path, cn, nil, note(rng, ident(cn.spelling)+" is not a constraint of "+r.written, ""))
+		case s.fact == walk.Absent:
+			// IF EXISTS skips a name that is no constraint of the table,
+			// which another object of the schema may hold.
+			return true
 		case s.fact == walk.Unknown:
 			b.maybe()
 		}
@@ -710,10 +717,12 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	path := r.tablePath()
 	rng := b.anchor()
 	if dropExisting(v.Options) {
+		// The index is rebuilt under its name, and a PK's or UQ's keeps
+		// its constraint.
 		b.needs(spaceIndex, path, in, nil, note(rng, "index "+ident(v.Name)+" does not exist on "+r.written, ""))
-	} else {
-		b.lacks(spaceIndex, path, in, note(rng, "", "index "+ident(v.Name)+" already exists on "+r.written))
+		return true
 	}
+	b.lacks(spaceIndex, path, in, note(rng, "", "index "+ident(v.Name)+" already exists on "+r.written))
 	b.arrive(spaceIndex, path, in, kindIndex)
 	return true
 }

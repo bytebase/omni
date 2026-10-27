@@ -460,6 +460,12 @@ SQL Server 2022 CU27 (16.0.4305.5), server collation `SQL_Latin1_General_CP1_CI_
 - An `INSTEAD OF INSERT` trigger on a view fires on `INSERT` to the view.
 - A function with `CREATE TABLE` fails to compile (443).
 
+**Codex round 1 on #514**, verified on the same image:
+- In a Latin1_General_100_CS_AI database, tables `cafe` and `[CAFÉ]` coexist; `ALTER TABLE dbo.CAFE ADD a int` adds `a` to `CAFÉ`; `DROP TABLE dbo.cafe` and then `DROP TABLE dbo.CAFE` drop both. A class with one object stands for another spelling only while its space holds no marked name, and a class the change emptied leaves a spelling missing only then.
+- A CHECK, DEFAULT, or FOREIGN KEY constraint and an inline `INDEX` of one name in `CREATE TABLE` fail with 8168, as do a UNIQUE constraint and an index.
+- `ALTER TABLE dbo.t DROP CONSTRAINT IF EXISTS nokey`, of a table's name, and `... IF EXISTS pk_r`, of another table's key, succeed and keep the object.
+- `CREATE UNIQUE CLUSTERED INDEX pk_t ON dbo.t (id) WITH (DROP_EXISTING = ON)` keeps `pk_t` a primary key; `sp_rename` of its index then renames the constraint, and `CREATE TABLE dbo.pk_t` succeeds.
+
 **Sync** (`backend/plugin/db/mssql/sync.go`), probed on its own queries:
 - `INFORMATION_SCHEMA.SCHEMATA` lists every schema as sa.
 - Clustered and nonclustered columnstore, XML, and hypothetical indexes have `sys.index_columns` rows.

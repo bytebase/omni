@@ -31,6 +31,18 @@ import (
 // creating or dropping one may add or remove any name of its space.
 const markedPrefix = "\x01"
 
+// markedFlag names the key of a space under a parent that is Absent when
+// the space certainly holds no marked name. Only then may a class that
+// holds one object stand for every spelling of the class: a marked name
+// may equal a spelling of another class, as CAFÉ equals CAFE under a
+// case-sensitive, accent-insensitive collation while cafe does not. No
+// class or scope prefix but the empty one selects it.
+const markedFlag = "\x03"
+
+func markedKey(space, parent string) walk.Key {
+	return walk.Key{Space: space, Parent: parent, Name: markedFlag}
+}
+
 // exactSep joins a class to a spelling in an exact key. A name holding
 // it, or the ledger's own separator, cannot be keyed.
 const exactSep = "\x02"

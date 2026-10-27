@@ -228,8 +228,9 @@ type sight struct {
 }
 
 // see reads one spelling of a name: its exact key, else its class key,
-// which is Absent when the class holds nothing and shows the kind of the
-// class's one object when that is spelled so.
+// which is Absent when the class holds nothing and the space no marked
+// name, and shows the kind of the class's one object when that is spelled
+// so.
 func (b *builder) see(space, parent string, n name) sight {
 	ek := n.exactKey(space, parent)
 	switch f, kind := b.l.Lookup(ek); f {
@@ -239,7 +240,11 @@ func (b *builder) see(space, parent string, n name) sight {
 	ck := n.classKey(space, parent)
 	switch f, kind := b.l.Lookup(ck); f {
 	case walk.Absent:
-		return sight{walk.Absent, "", ck}
+		// An empty class leaves the spelling missing unless a marked name
+		// of the space may equal it.
+		if mf, _ := b.l.Lookup(markedKey(space, parent)); mf == walk.Absent {
+			return sight{walk.Absent, "", ck}
+		}
 	case walk.Present:
 		if k, sp, ok := single(kind); ok && sp == n.spelling {
 			return sight{walk.Present, k, ck}
@@ -332,7 +337,9 @@ func (b *builder) leave(space, parent string, n name) {
 	case walk.Absent:
 		next = walk.Absent
 	case walk.Present:
-		if _, _, ok := single(k); ok {
+		// The class's one object is gone, unless the name meant a marked
+		// one instead, which may still leave it.
+		if _, sp, ok := single(k); ok && (sp == n.spelling || b.unmarked(space, parent)) {
 			next = walk.Absent
 		}
 	}
@@ -355,6 +362,16 @@ func (b *builder) across(space, parent string, n name, add bool) {
 	} else {
 		b.MayRemove(s)
 	}
+	if add && !n.plain {
+		b.setClass(markedKey(space, parent), walk.Present, "")
+	}
+}
+
+// unmarked reports whether a space under a parent certainly holds no
+// marked name.
+func (b *builder) unmarked(space, parent string) bool {
+	f, _ := b.classFact(markedKey(space, parent))
+	return f == walk.Absent
 }
 
 // forgetName records that the statement may have done anything to a name
@@ -540,7 +557,8 @@ func (r objRef) relSpace() (string, string) {
 // knownTable reports whether the walk knows the children of the table a
 // reference means: it is placed, and its class holds one object, a
 // table. A reference spelled otherwise than that table means it, or
-// nothing, and then the statement fails anyway.
+// nothing, and then the statement fails anyway, unless the space holds a
+// marked name the reference may mean instead.
 func (b *builder) knownTable(r objRef) bool {
 	if r.where != placed {
 		return false
@@ -550,8 +568,8 @@ func (b *builder) knownTable(r objRef) bool {
 	if f != walk.Present {
 		return false
 	}
-	k, _, ok := single(kind)
-	return ok && k == kindTable
+	k, sp, ok := single(kind)
+	return ok && k == kindTable && (sp == r.n.spelling || b.unmarked(space, parent))
 }
 
 // isRelation reports whether a kind is listed in the relation space.

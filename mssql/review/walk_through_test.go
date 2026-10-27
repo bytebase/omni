@@ -195,11 +195,25 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"a schema in an unknown database", "USE SHOP;\nGO\nCREATE SCHEMA s;\nGO\nUSE shop;\nCREATE TABLE s.st (a int);", -1, ""},
 		{"a default schema that may not exist", "CREATE TABLE t (a int);", -1, ""},
 		{"a missing schema holds no table", "DROP TABLE nosuch.t;", 0, "table nosuch.t does not exist"},
+		// Codex round 1 on #514.
+		{"a marked name may be the table another spelling means", "ALTER TABLE dbo.CAFE ADD a int;", -1, ""},
+		{"the exact spelling means its own table", "ALTER TABLE dbo.cafe ADD a int;", 0, "column a already exists in dbo.cafe"},
+		{"a dropped spelling may leave a marked table", "DROP TABLE dbo.cafe;\nDROP TABLE dbo.CAFE;", -1, ""},
+		{"a created marked name", "CREATE TABLE dbo.[NOKÉY] (b int);\nALTER TABLE dbo.NOKEY ADD a int;", -1, ""},
+		{"a check and an index of one name", "CREATE TABLE dbo.x (a int, CONSTRAINT ix CHECK (a > 0), INDEX ix NONCLUSTERED (a));", 0, "the name ix is given twice in the statement"},
+		{"a unique constraint and an index of one name", "CREATE TABLE dbo.x (a int CONSTRAINT u1 UNIQUE, INDEX u1 (a));", 0, "the name u1 is given twice in the statement"},
+		{"DROP CONSTRAINT IF EXISTS of another object's name", "ALTER TABLE dbo.t DROP CONSTRAINT IF EXISTS nokey;\nINSERT INTO dbo.nokey VALUES (1);\nCREATE TABLE dbo.nokey (a int);", 2, "an object named dbo.nokey already exists"},
+		{"DROP_EXISTING keeps a key's constraint", "CREATE UNIQUE CLUSTERED INDEX pk_t ON dbo.t (id) WITH (DROP_EXISTING = ON);\nDROP INDEX pk_t ON dbo.t;", 1, "index pk_t of dbo.t enforces a constraint"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			target := walkTarget()
 			switch tt.name {
+			case "a marked name may be the table another spelling means", "the exact spelling means its own table", "a dropped spelling may leave a marked table":
+				dbo := target.Schema.Schemas[0]
+				dbo.Tables = append(dbo.Tables,
+					&metadata.TableMetadata{Name: "cafe", Columns: []*metadata.ColumnMetadata{{Name: "a"}}},
+					&metadata.TableMetadata{Name: "CAFÉ", Columns: []*metadata.ColumnMetadata{{Name: "b"}}})
 			case "no default schema":
 				target.DefaultSchema = ""
 			case "a default schema that may not exist":

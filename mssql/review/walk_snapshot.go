@@ -96,6 +96,15 @@ func (s *snapSpace) lookup(key string, trusted bool) (walk.Fact, string) {
 		}
 		return walk.Unknown, ""
 	}
+	if key == markedFlag {
+		switch {
+		case s.marked:
+			return walk.Present, ""
+		case trusted:
+			return walk.Absent, ""
+		}
+		return walk.Unknown, ""
+	}
 	class, spelling, exact := strings.Cut(key, exactSep)
 	names := s.classes[class]
 	if exact {
