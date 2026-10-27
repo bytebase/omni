@@ -20,7 +20,7 @@ Status: decided 2026-10-27; §10 records the decisions. Step 4 of [the engines d
 **Database and schema:**
 - A Bytebase database is one SQL Server database with many schemas.
 - `USE d` switches the database for the rest of the batch, and in transaction mode for the rest of the change.
-- An unqualified creation goes to the default schema. An unqualified reference finds the object in the default schema, else in `dbo` (verified with a user whose default schema is s: `CREATE TABLE x` lands in s; `DROP TABLE`, `ALTER TABLE`, `CREATE INDEX`, `TRUNCATE`, `INSERT`, and `sp_rename` take dbo.x when s has none, and s.x when both have it).
+- An unqualified creation goes to the default schema. An unqualified reference finds the object in the default schema, else in `dbo` (verified with a user whose default schema is s: `CREATE TABLE x` lands in s; `DROP TABLE`, `ALTER TABLE`, `CREATE INDEX`, `TRUNCATE`, `INSERT`, and `sp_rename` take dbo.x when s has none, and s.x when both have it). A type is looked up among types: `DROP TYPE ty` drops s.ty beside dbo.ty, also after a table s.ty is dropped.
 - Bytebase neither sets nor syncs the default schema (D2). It is `dbo` for a sysadmin login, which maps to the dbo user.
 - `CREATE/ALTER/DROP DATABASE` cannot run in a transaction (226, 574), so in Bytebase's default mode they always fail.
 
@@ -52,7 +52,7 @@ Status: decided 2026-10-27; §10 records the decisions. Step 4 of [the engines d
 - **Statistics share the index namespace** (1913) and are not synced or modeled.
 - **Types are a space of their own:** `CREATE TABLE ty` succeeds beside a type ty. A table type's internal `TT_<name>_<hex>` object is in `sys`, apart from user schemas.
 - **A trigger's schema is its table's** (2103).
-- **Length:** an identifier longer than 128 characters fails with 103 before anything is looked up, `DROP ... IF EXISTS` included; a temporary table name longer than 116, with 193. The walk claims this for ASCII names, from the text alone.
+- **Length:** an identifier longer than 128 characters fails with 103 before anything is looked up, `DROP ... IF EXISTS` included; a local temporary table name longer than 116, with 193. A global `##` name may have 128. The walk claims this for ASCII names, from the text alone.
 
 ### 2.1 Name comparison: the collation is unknown
 
@@ -80,6 +80,7 @@ What the walk claims under these keys:
 - **A table's children:** a reference of another spelling than its class's one table means that table or nothing, so a check on the children fails the statement either way: `ALTER TABLE dbo.T ADD a int` beside `dbo.t (a)` fails with 2705 or 4902. The finding names the table as written. While the space may hold a marked name, the class's table stands for no other spelling (Appendix, Codex round 1).
 - **Missing:** only when the key is Absent, and its parent holds no marked name, synced or created by the change. A key never claims a marked name missing.
 - **Two spellings of one key:** the key is Unknown after the change creates, drops, or renames either, as MySQL's walk does for 5.7 triggers.
+- **A table the walk cannot tell:** a statement that changes the children of a table the reference may not mean as spelled (`ALTER TABLE dbo.[CAFÉ]` beside `dbo.[Café]`, the same table in a case-insensitive database) forgets those children for every table the reference may mean: its class's, or, for a marked name or beside one, every table of the schema.
 - **Effects across the mark:**
   - creating a marked name may add any name of its parent's space;
   - dropping or renaming a marked name may remove any;
@@ -299,7 +300,7 @@ Bytebase follow-ups, outside this PR:
 - 450 of names and snapshot (`walk_names.go`, `walk_snapshot.go`);
 - 350 of walker, batches, and plumbing (`walk_through.go`, `targets.go`).
 
-As built, after review: 1,777 lines of lowering, 462 of names and snapshot, and 739 of walker, batches, reference resolution, and the class and spelling bookkeeping of §2.1 (`walk_through.go`), about 29% over the budget in all. The overrun is mostly that bookkeeping, which the budget did not foresee, and the per-kind DROP and module rows; the review rounds added about 125 lines.
+As built, after review: 1,786 lines of lowering, 462 of names and snapshot, and 766 of walker, batches, reference resolution, and the class and spelling bookkeeping of §2.1 (`walk_through.go`), about 31% over the budget in all. The overrun is mostly that bookkeeping, which the budget did not foresee, and the per-kind DROP and module rows; the review rounds added about 165 lines.
 
 **Oracle** (`walktest.Judge`), modeled on Bytebase's transaction mode:
 - One connection runs one transaction. Each statement runs as its own batch after a `SAVE TRANSACTION`, and a rejected one is rolled back to it.
@@ -440,7 +441,7 @@ SQL Server 2022 CU27 (16.0.4305.5), server collation `SQL_Latin1_General_CP1_CI_
 - A temporary table's columns and indexes are checked as a table's (2705, 1913, 3701).
 - A foreign key on one is skipped with a warning, and its named constraints go to tempdb.
 - `CREATE TABLE dbo.[#t]` is `#t`.
-- Names longer than 116 characters fail with 193.
+- Names longer than 116 characters fail with 193; a `##` name of 128 succeeds, and of 129 fails with 103.
 - In a case-sensitive database on the CI server, `#TMP` collides with `#tmp`.
 
 **Names:**
@@ -481,6 +482,11 @@ SQL Server 2022 CU27 (16.0.4305.5), server collation `SQL_Latin1_General_CP1_CI_
 
 **Codex round 5 on #514**, verified on the same image:
 - In one session, `ALTER TABLE tempdb..#t DROP COLUMN a`, and `ALTER TABLE` of `shop..#t`, `master..#t`, `nosuch..#t`, `tempdb.dbo.#t`, `tempdb.s.#t`, `dbo.#t`, and `s.#t`, all alter the session's `#t`. `CREATE INDEX ix ON tempdb..#t` adds to it, `CREATE TABLE tempdb..#u` creates `#u`, and `CREATE TABLE nosuch..#w` succeeds. A database in front of a temporary table is ignored, and a reference the walk does not place forgets the table's facts.
+
+**Codex round 6 on #514**, verified on the same image:
+- `CREATE TABLE ##` with 126 letters succeeds, and with 127 fails with 103; a `#` name fails past 116.
+- In a SQL_Latin1_General_CP1_CI_AS database with `dbo.[Café] (a, b)`, `ALTER TABLE dbo.[CAFÉ] DROP COLUMN a` and then `ALTER TABLE dbo.[Café] ADD a int` both succeed.
+- As a user whose default schema is s, with s.ty and dbo.ty, `DROP TYPE ty` drops s.ty. `CREATE TABLE s.ty`, `CREATE TYPE s.ty`, `DROP TABLE s.ty`, `DROP TYPE ty`, `CREATE TYPE s.ty` all succeed.
 
 **CI's sweep on #514** (seed 20261027, N=500), verified on the same image:
 - `ALTER TABLE szsz ADD CONSTRAINT pk_a PRIMARY KEY (id)` beside `dbo.ssz`, which has a primary key, fails with 4902 in a case-sensitive database. The walk's finding stands (§2.1, a table's children). The oracle compared the primary space's key as a class, so it could not check a primary-key claim when the error code differed; it now can.

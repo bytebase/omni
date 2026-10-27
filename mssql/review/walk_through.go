@@ -419,6 +419,12 @@ var dboName, _ = keyed("dbo")
 // temporary table is a session's, wherever the reference puts it. It
 // returns false for a name the walk cannot key, which ends the walk.
 func (b *builder) ref(tr *ast.TableRef, creating bool) (objRef, bool) {
+	return b.refIn(tr, creating, spaceObject)
+}
+
+// refIn resolves a reference whose unqualified name is looked up in the
+// lookup space: a type's among types (verified).
+func (b *builder) refIn(tr *ast.TableRef, creating bool, lookup string) (objRef, bool) {
 	if tr == nil {
 		return objRef{}, false
 	}
@@ -453,7 +459,7 @@ func (b *builder) ref(tr *ast.TableRef, creating bool) (objRef, bool) {
 	}
 	schema := tr.Schema
 	if schema == "" {
-		schema = b.defaultSchema(n, creating)
+		schema = b.defaultSchema(n, creating, lookup)
 		if schema == "" {
 			r.where = unplaced
 			return r, true
@@ -473,9 +479,9 @@ func (b *builder) ref(tr *ast.TableRef, creating bool) (objRef, bool) {
 
 // defaultSchema returns the schema an unqualified name means, "" when the
 // walk cannot tell: the default schema for a creation; for a lookup, the
-// default schema when it holds an object of the name, and dbo when it
-// certainly holds none.
-func (b *builder) defaultSchema(n name, creating bool) string {
+// default schema when its lookup space holds the name, and dbo when it
+// certainly does not.
+func (b *builder) defaultSchema(n name, creating bool, lookup string) string {
 	d := b.w.target.DefaultSchema
 	if d == "" || creating || d == dboName.spelling {
 		return d
@@ -484,7 +490,7 @@ func (b *builder) defaultSchema(n name, creating bool) string {
 	if !ok {
 		return ""
 	}
-	switch b.see(spaceObject, walk.Path(dn.class), n).fact {
+	switch b.see(lookup, walk.Path(dn.class), n).fact {
 	case walk.Present:
 		return d
 	case walk.Absent:
@@ -653,6 +659,26 @@ func (b *builder) forgetTable(r objRef) {
 	b.forgetName(spaceRelation, r.n)
 }
 
+// forgetMeant records that a statement may have changed children of the
+// table a placed reference means, in spaces, when the walk cannot tell
+// which table that is (knownTable): those of its class, and of every
+// table of its schema when the reference is marked or the space may hold
+// a marked name, which another spelling may equal (spec §2.1).
+func (b *builder) forgetMeant(r objRef, spaces ...string) {
+	rel, parent := r.relSpace()
+	scope := walk.Scope{Parent: r.tablePath()}
+	if !r.n.plain || !b.unmarked(rel, parent) {
+		scope = walk.Scope{Parent: r.parent, Deep: true}
+		if r.temp {
+			scope.Parent = walk.Path(tempSchema)
+		}
+	}
+	for _, s := range spaces {
+		scope.Space = s
+		b.Forget(scope)
+	}
+}
+
 // childSpaces are the spaces under a table.
 var childSpaces = []string{spaceColumn, spaceIndex, spaceConstraint, spacePrimary}
 
@@ -672,12 +698,12 @@ func (b *builder) forgetChildren(path string) {
 }
 
 // tooLong fails a statement that writes an identifier longer than SQL
-// Server allows, 128 characters or 116 for a temporary table, before
-// anything is looked up (103, 193, verified). Only an ASCII name is
+// Server allows, 128 characters or 116 for a local temporary table,
+// before anything is looked up (103, 193, verified). Only an ASCII name is
 // judged.
-func (b *builder) tooLong(spelling string, temp bool, rng review.Range) bool {
+func (b *builder) tooLong(spelling string, local bool, rng review.Range) bool {
 	limit := 128
-	if temp {
+	if local {
 		limit = 116
 	}
 	if len(spelling) <= limit {
@@ -695,7 +721,8 @@ func (b *builder) tooLong(spelling string, temp bool, rng review.Range) bool {
 // refTooLong checks the parts of a reference.
 func (b *builder) refTooLong(tr *ast.TableRef, r objRef) bool {
 	if r.temp {
-		return b.tooLong(tr.Object, true, r.rng)
+		// A global temporary table's name may have 128 (verified).
+		return b.tooLong(tr.Object, !strings.HasPrefix(tr.Object, "##"), r.rng)
 	}
 	return b.tooLong(tr.Object, false, r.rng) || tr.Schema != "" && b.tooLong(tr.Schema, false, r.rng)
 }

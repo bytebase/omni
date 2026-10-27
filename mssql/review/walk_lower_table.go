@@ -428,10 +428,13 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), msgNotKind(r.written, "table"))
 	known := b.knownTable(r)
 	path := r.tablePath()
-	if r.where == unplaced {
+	switch {
+	case r.where == unplaced:
 		// The table may be any of its name; its children are not known
 		// while its class is forgotten.
 		b.forgetTable(r)
+	case !known:
+		b.forgetMeant(r, childSpaces...)
 	}
 	if b.alterTextFails(r, actions) {
 		return true
@@ -650,7 +653,7 @@ func (b *builder) dropConstraint(r objRef, path string, known bool, cn name, ifE
 // leave the schema, which the walk does not list: every object of the
 // schema may be gone.
 func (b *builder) dropTables(v *ast.DropStmt) bool {
-	return b.dropEach(v, func(r objRef) bool {
+	return b.dropEach(v, spaceObject, func(r objRef) bool {
 		if !v.IfExists {
 			b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), msgNotKind(r.written, "table"))
 		} else if r.where == placed {
@@ -678,8 +681,9 @@ func (b *builder) dropTables(v *ast.DropStmt) bool {
 
 // dropEach lowers a DROP of a list, one part per item, with the item's
 // checks and effects from lower, which returns false for an item the walk
-// does not follow. A name written twice fails, unless IF EXISTS skips it.
-func (b *builder) dropEach(v *ast.DropStmt, lower func(r objRef) bool) bool {
+// does not follow. An unqualified name is looked up in the lookup space. A
+// name written twice fails, unless IF EXISTS skips it.
+func (b *builder) dropEach(v *ast.DropStmt, lookup string, lower func(r objRef) bool) bool {
 	if v.Names == nil {
 		return false
 	}
@@ -690,7 +694,7 @@ func (b *builder) dropEach(v *ast.DropStmt, lower func(r objRef) bool) bool {
 			return false
 		}
 		b.Next()
-		r, ok := b.ref(tr, false)
+		r, ok := b.refIn(tr, false, lookup)
 		if !ok {
 			return false
 		}
@@ -760,6 +764,9 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	known := b.knownTable(r)
 	if !known {
+		if r.where == placed {
+			b.forgetMeant(r, spaceIndex)
+		}
 		return true
 	}
 	path := r.tablePath()
@@ -865,6 +872,7 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 			if v.IfExists {
 				b.maybe()
 			}
+			b.forgetMeant(r, spaceIndex)
 			continue
 		}
 		path := r.tablePath()

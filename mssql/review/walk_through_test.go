@@ -226,6 +226,13 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"a database in front of a temporary table", "CREATE TABLE #x (a int, b int);\nALTER TABLE tempdb..#x DROP COLUMN a;\nALTER TABLE #x ADD a int;", -1, ""},
 		{"a temporary table in any database", "CREATE TABLE #x (a int);\nALTER TABLE nosuch..#x ADD a int;", 1, "column a already exists in nosuch..#x"},
 		{"a linked server's temporary table", "CREATE TABLE #x (a int, b int, INDEX i (b));\nALTER TABLE srv.tempdb..#x DROP COLUMN a;\nDROP INDEX i ON srv.tempdb..#x;\nCREATE INDEX j ON srv.tempdb..#x (b);\nALTER TABLE #x ADD a int;\nCREATE INDEX i ON #x (b);\nDROP INDEX j ON #x;", -1, ""},
+		// Codex round 6 on #514; each ends with a statement the walk still
+		// judges.
+		{"a global temporary table's long name", "CREATE TABLE ##" + strings.Repeat("g", 126) + " (x int);\nDROP TABLE dbo.nosuch;", 1, "table dbo.nosuch does not exist"},
+		{"a marked name of another case", "ALTER TABLE dbo.[CAFÉ] DROP COLUMN a;\nGO\nALTER TABLE dbo.[Café] ADD a int;\nCREATE INDEX i9 ON dbo.[CAFÉ] (b);\nDROP INDEX i9 ON dbo.[Café];\nDROP TABLE s.nosuch;", 5, "table s.nosuch does not exist"},
+		{"an index on a marked name of another case", "CREATE INDEX i9 ON dbo.[CAFÉ] (b);\nDROP INDEX i9 ON dbo.[Café];\nDROP TABLE s.nosuch;", 2, "table s.nosuch does not exist"},
+		{"another spelling beside a marked name", "ALTER TABLE dbo.NOKEY DROP COLUMN a;\nALTER TABLE dbo.nokey ADD a int;\nDROP TABLE s.nosuch;", 2, "table s.nosuch does not exist"},
+		{"an unqualified type in the default schema", "CREATE TYPE s.ty FROM int;\nDROP TABLE s.ty;\nDROP TYPE ty;\nCREATE TYPE s.ty FROM int;\nDROP TABLE dbo.nosuch;", 4, "table dbo.nosuch does not exist"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -250,6 +257,14 @@ func TestWalkThroughFindings(t *testing.T) {
 			case "an XML index's name is no object", "a primary XML index takes its secondary ones", "a secondary XML index":
 				t := target.Schema.Schemas[0].Tables[0]
 				t.Indexes = append(t.Indexes, &metadata.IndexMetadata{Name: "px", Type: "XML"}, &metadata.IndexMetadata{Name: "sx", Type: "XML"})
+			case "a marked name of another case", "an index on a marked name of another case":
+				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{Name: "Café", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}})
+			case "another spelling beside a marked name":
+				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{Name: "é"})
+			case "an unqualified type in the default schema":
+				target.DefaultSchema = "s"
+				s := target.Schema.Schemas[len(target.Schema.Schemas)-1]
+				s.Tables = append(s.Tables, &metadata.TableMetadata{Name: "ty", Columns: []*metadata.ColumnMetadata{{Name: "a"}}})
 			case "no default schema":
 				target.DefaultSchema = ""
 			case "a default schema that may not exist":

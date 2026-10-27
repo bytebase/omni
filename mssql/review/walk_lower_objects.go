@@ -63,7 +63,7 @@ func otherSpace(kind string) string {
 // each judged against the state before the statement, as DROP TABLE's.
 // A view takes its triggers along.
 func (b *builder) dropKind(v *ast.DropStmt, kind string) bool {
-	return b.dropEach(v, func(r objRef) bool {
+	return b.dropEach(v, spaceObject, func(r objRef) bool {
 		if r.temp {
 			return false
 		}
@@ -93,7 +93,7 @@ func (b *builder) dropKind(v *ast.DropStmt, kind string) bool {
 // dropTypes follows DROP TYPE [IF EXISTS]: types are not synced, so only
 // the change's own facts say one is missing (218).
 func (b *builder) dropTypes(v *ast.DropStmt) bool {
-	return b.dropEach(v, func(r objRef) bool {
+	return b.dropEach(v, spaceType, func(r objRef) bool {
 		if r.temp {
 			return false
 		}
@@ -380,6 +380,7 @@ func (b *builder) renameChild(objname string, nn name, space string) bool {
 	}
 	b.tableNeeds(r, nil, msgMissing("table", r.written), "")
 	if !b.knownTable(r) {
+		b.forgetMeant(r, space)
 		return space != spaceIndex
 	}
 	path := r.tablePath()
