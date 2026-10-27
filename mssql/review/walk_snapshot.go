@@ -226,7 +226,9 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 					kind = kindUQ
 				}
 				st.indexes.add(i.GetName(), kind)
-				if kind != kindIndex {
+				if kind == kindPK || kind == kindUQ {
+					// A key's name is also a constraint's, in the schema;
+					// an index's is the table's alone.
 					st.constraints.add(i.GetName(), kind)
 					objs.add(i.GetName(), kind)
 				}

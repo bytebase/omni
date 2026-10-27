@@ -213,6 +213,11 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"a self-reference of another spelling", "CREATE TABLE dbo.x (id int NOT NULL PRIMARY KEY, p int REFERENCES dbo.X (id));", -1, ""},
 		{"an alias of a marked spelling", "DROP TABLE dbo.nokey;\nUPDATE a SET a = 1 FROM dbo.r AS [á];", -1, ""},
 		{"a marked arrival leaves its space's absences unknown", "CREATE TABLE dbo.[é] (a int UNIQUE);\nDROP TABLE dbo.cafe;", -1, ""},
+		// Codex round 3 on #514.
+		{"an XML index's name is no object", "CREATE TABLE dbo.px (a int);", -1, ""},
+		{"a dropped schema beside a marked one", "DROP SCHEMA cafe;\nALTER TABLE CAFE.t ADD z int;", -1, ""},
+		{"an unplaced drop may reach a marked name", "DROP TABLE CAFE;\nCREATE TABLE dbo.[CAFÉ] (a int);", -1, ""},
+		{"dotted names are distinct", "DROP TABLE dbo.[x.y], [dbo.x].y;", -1, ""},
 		{"DROP_EXISTING keeps a key's constraint", "CREATE UNIQUE CLUSTERED INDEX pk_t ON dbo.t (id) WITH (DROP_EXISTING = ON);\nDROP INDEX pk_t ON dbo.t;", 1, "index pk_t of dbo.t enforces a constraint"},
 	}
 	for _, tt := range tests {
@@ -228,7 +233,14 @@ func TestWalkThroughFindings(t *testing.T) {
 				target.Schema.Schemas = append(target.Schema.Schemas,
 					&metadata.SchemaMetadata{Name: "cafe", Tables: []*metadata.TableMetadata{{Name: "t"}}},
 					&metadata.SchemaMetadata{Name: "CAFÉ"})
-			case "a primary XML index takes its secondary ones", "a secondary XML index":
+			case "a dropped schema beside a marked one":
+				target.Schema.Schemas = append(target.Schema.Schemas,
+					&metadata.SchemaMetadata{Name: "cafe"},
+					&metadata.SchemaMetadata{Name: "CAFÉ", Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "a"}}}}})
+			case "an unplaced drop may reach a marked name":
+				target.DefaultSchema = ""
+				target.Schema.Schemas[0].Tables = append(target.Schema.Schemas[0].Tables, &metadata.TableMetadata{Name: "CAFÉ"})
+			case "an XML index's name is no object", "a primary XML index takes its secondary ones", "a secondary XML index":
 				t := target.Schema.Schemas[0].Tables[0]
 				t.Indexes = append(t.Indexes, &metadata.IndexMetadata{Name: "px", Type: "XML"}, &metadata.IndexMetadata{Name: "sx", Type: "XML"})
 			case "no default schema":

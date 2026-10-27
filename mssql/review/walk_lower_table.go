@@ -697,7 +697,9 @@ func (b *builder) dropEach(v *ast.DropStmt, lower func(r objRef) bool) bool {
 		if b.refTooLong(tr, r) {
 			return true
 		}
-		written := strings.Join([]string{tr.Server, tr.Database, tr.Schema, tr.Object}, ".")
+		// The parts joined by a byte no name the walk keys holds, as
+		// dbo.[x.y] and [dbo.x].y are two objects.
+		written := strings.Join([]string{tr.Server, tr.Database, tr.Schema, tr.Object}, "\x00")
 		if seen[written] && !v.IfExists {
 			b.fail(r.rng, r.written+" is dropped twice")
 			return true
@@ -838,7 +840,7 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		if !ok {
 			return false
 		}
-		key := strings.Join([]string{on.Database, on.Schema, on.Object, ix.Object}, ".")
+		key := strings.Join([]string{on.Server, on.Database, on.Schema, on.Object, ix.Object}, "\x00")
 		if seen[key] && !v.IfExists {
 			b.fail(rangeOf(ix.Loc), "index "+ident(ix.Object)+" is dropped twice")
 			return true

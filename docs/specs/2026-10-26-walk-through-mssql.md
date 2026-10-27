@@ -472,6 +472,12 @@ SQL Server 2022 CU27 (16.0.4305.5), server collation `SQL_Latin1_General_CP1_CI_
 - `DROP INDEX px` of a primary XML index drops its secondary XML index `sx`, and `CREATE INDEX sx` then succeeds. Bytebase records an XML index's `type_desc`; dropping one, or an index of unknown kind, may remove the table's other indexes.
 - `CREATE TABLE dbo.x (id int NOT NULL PRIMARY KEY, p int REFERENCES dbo.X (id))` succeeds in a case-insensitive database: a foreign key's target that may be the table itself is not checked.
 
+**Codex round 3 on #514**, verified on the same image:
+- `CREATE TABLE dbo.px` beside a primary XML index `px` succeeds: an XML index's name is the table's alone, as any index's.
+- In a Latin1_General_100_CS_AI database with schemas `cafe` and `[CAFÉ]` and table `[CAFÉ].t`, `DROP SCHEMA cafe` and then `ALTER TABLE CAFE.t ADD z int` alter `[CAFÉ].t`: a schema class the change emptied places nothing while a marked schema name may exist.
+- With `dbo.[CAFÉ]`, an unqualified `DROP TABLE CAFE` drops it, and `CREATE TABLE dbo.[CAFÉ]` then succeeds: a name the walk cannot place may equal a marked name of any schema.
+- `DROP TABLE dbo.[x.y], [dbo.x].y` drops two tables.
+
 **Sync** (`backend/plugin/db/mssql/sync.go`), probed on its own queries:
 - `INFORMATION_SCHEMA.SCHEMATA` lists every schema as sa.
 - Clustered and nonclustered columnstore, XML, and hypothetical indexes have `sys.index_columns` rows.

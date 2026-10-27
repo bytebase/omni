@@ -375,11 +375,13 @@ func (b *builder) unmarked(space, parent string) bool {
 }
 
 // forgetName records that the statement may have done anything to a name
-// of a space in a schema the walk does not know.
+// of a space in a schema the walk does not know, and so to the marked
+// names that may equal it (spec §2.1).
 func (b *builder) forgetName(space string, n name) {
 	s := walk.Scope{Space: space, Deep: true}
 	if n.plain {
 		s.Prefix = n.class
+		b.Forget(walk.Scope{Space: space, Deep: true, Prefix: markedPrefix})
 	}
 	b.Forget(s)
 }
@@ -499,7 +501,8 @@ func (b *builder) schemaKnown(sn name) bool {
 	f, kind := b.classFact(sn.classKey(spaceSchema, root))
 	switch f {
 	case walk.Absent:
-		return true
+		// No schema of the class, and none marked that it may mean.
+		return b.unmarked(spaceSchema, root)
 	case walk.Present:
 		_, sp, ok := single(kind)
 		return ok && (sp == sn.spelling || b.unmarked(spaceSchema, root))
