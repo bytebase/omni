@@ -212,8 +212,27 @@ func TestWalkThroughTiDBCase(t *testing.T) {
 		oneFinding(t, "CREATE DATABASE SHOP;", 0, "Database SHOP already exists", target)
 		oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nCREATE TEMPORARY TABLE TT (a int);", 1, "Table TT already exists", target)
 	}
-	// A name outside ASCII is never absent.
-	noFinding(t, "ALTER TABLE t DROP COLUMN `é`;", review.Target{Schema: walkSchema()})
+}
+
+// TestWalkThroughTiDBNamesOutsideASCII pins that the walk follows no name
+// outside ASCII, which TiDB compares by rules of its own per space: a
+// statement that names one ends the walk, and a synced space that lists
+// one has no name known to be absent, since the Kelvin sign is k.
+func TestWalkThroughTiDBNamesOutsideASCII(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	noFinding(t, "ALTER TABLE t DROP COLUMN `é`;", shop)
+	noFinding(t, "CREATE TABLE x (id INT, café INT);\nALTER TABLE x DROP COLUMN CAFé;", shop)
+	noFinding(t, "CREATE TABLE x (k INT);\nALTER TABLE x DROP COLUMN `\u212a`;\nALTER TABLE x DROP COLUMN zz;", shop)
+	// A string is no name.
+	oneFinding(t, "CREATE TABLE x (a int) COMMENT '中文';\nCREATE TABLE x (a int);", 1, "Table x already exists", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table nosuch does not exist", shop)
+	kelvin := walkSchema()
+	tables := kelvin.Schemas[0].Tables
+	tables[2].Columns = append(tables[2].Columns, &metadata.ColumnMetadata{Name: "\u212a"})
+	kelvin.Schemas[0].Tables = append(tables, &metadata.TableMetadata{Name: "t\u212a"})
+	target := review.Target{Schema: kelvin}
+	noFinding(t, "ALTER TABLE nokey DROP COLUMN k;\nALTER TABLE nokey DROP COLUMN zz;\nDROP TABLE tk;\nDROP TABLE nosuch;", target)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", target)
 }
 
 func TestWalkThroughTiDBSession(t *testing.T) {
@@ -231,6 +250,15 @@ func TestWalkThroughTiDBSession(t *testing.T) {
 	oneFinding(t, "SET foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
 	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
 	noFinding(t, "SET FOREIGN_KEY_CHECKS = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
+	// Every assignment of foreign_key_checks reaches the session, GLOBAL
+	// too, in order.
+	noFinding(t, "SET GLOBAL foreign_key_checks = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
+	noFinding(t, "SET @@global.foreign_key_checks = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
+	oneFinding(t, "SET GLOBAL foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
+	noFinding(t, "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
+	noFinding(t, "SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
+	oneFinding(t, "SET GLOBAL foreign_key_checks = 0, @@session.foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
+	oneFinding(t, "SET GLOBAL sql_mode = '', foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
 	// With another spec of the plan, only the change's own facts count.
 	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a int);", other)

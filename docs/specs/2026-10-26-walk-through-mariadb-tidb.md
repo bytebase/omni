@@ -139,6 +139,18 @@ On `mariadb:11.8.8`, 2026-10-26:
 
 `lower_case_table_names` is 2 and fixed. Databases, relations, and temporary tables fold, whatever `Target.LowerCaseTableNames` says. The other spaces fold as on MySQL.
 
+**Names outside ASCII.** TiDB compares them by rules of its own for each space, and the MySQL walk's rule (two spellings are one name only when identical) does not hold. Verified:
+- `CAFé` is `café` as a column, an index, a table, a view, and a sequence. `CAFÉ` is `café` too, while `é` is not `e`, `ä` is not `a`, and `ß` is not `ss`.
+- `ſ` is `s` as a column but not as a table.
+- `İ` is `i`, and the Kelvin sign is `k`, as a column, a table, and a database.
+- A precomposed `é` and `e` with a combining accent are one table name but two column names.
+
+The walk follows no such name:
+- a statement with a name outside ASCII ends the walk (a string literal does not count);
+- a synced space that lists one has no name known to be absent there, since an ASCII name may be it.
+
+Codex found the first false finding of the old rule on #512: `CREATE TABLE x (id INT, café INT); ALTER TABLE x DROP COLUMN CAFé`.
+
 ### 3.2 Objects TiDB does not have
 
 - Triggers, functions, and events are syntax errors.
@@ -188,6 +200,7 @@ On `mariadb:11.8.8`, 2026-10-26:
   - `RENAME TABLE` moves a sequence, to another database too.
 - **`CREATE INDEX` of an expression succeeds on a view or a sequence.** So CREATE and DROP INDEX on a known view or sequence end the walk, with no kind claim.
 - **No invisible primary key.** `sql_generate_invisible_primary_key` is unknown to TiDB (1193), so the absence of a primary key is trusted. `DROP PRIMARY KEY` of a table the sync lists without one fails (1091).
+- **`SET foreign_key_checks` reaches the session in any scope.** `SET GLOBAL foreign_key_checks = v` and `SET @@global.foreign_key_checks = v` change the session's checks too, though `@@session.foreign_key_checks` still reads as before. A statement's assignments apply in order, and each has a scope of its own. So the walk follows every assignment of it. MySQL's walk skips a GLOBAL one. Codex found the false finding on #512: `SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0` then a foreign key to a missing table.
 - **`DROP TABLE` checks no length:** `DROP TABLE IF EXISTS` of a 65-character name is a note. The walk claims only that such a table does not exist (1051).
 - **`CREATE TABLE ... SELECT` fails on 8.5** (1105, not implemented). It is lowered as on MySQL, so a server that takes it is followed, and 8.5's rejection is missed.
 - **`_tidb_rowid`,** the hidden row id, is Unknown on every table, as MySQL's `my_row_id` is. `ADD COLUMN` of the name fails (1166) on every table.
@@ -227,8 +240,8 @@ On `mariadb:11.8.8`, 2026-10-26:
   - `walktest` gained `PartialRejecter` (decision N1).
 - **TiDB as built:**
   - 1320 lines of lowering, 204 of snapshot, 278 of walker. Against the MySQL copy, 655 lines went (triggers, routines, events, engines, generated `<table>_ibfk_` names, the database-wide foreign key space) and 285 came (sequences, the ALTER TABLE deltas, the comments naming each verified fact).
-  - the oracle found 191 of 212 rejections in the curated cases, with no false finding. On the plain MySQL copy, wired the same way, 22 of the first 36 cases fail with false findings or misses; the 14 that pass cover what TiDB shares with MySQL;
-  - the sweep at 500 (seed 20261026) found 5352 of 8012 rejections, with no false finding, in about 200 seconds. It found one false finding while the walk was built, `COMMENT 'x', RENAME TO a` on a, now fixed and pinned.
+  - the oracle found 196 of 219 rejections in the curated cases, with no false finding. On the plain MySQL copy, wired the same way, 22 of the first 36 cases fail with false findings or misses; the 14 that pass cover what TiDB shares with MySQL;
+  - the sweep at 500 (seed 20261026) found 5346 of 8009 rejections, with no false finding, in 3 to 6 minutes depending on the devbox's load. It found one false finding while the walk was built, `COMMENT 'x', RENAME TO a` on a, now fixed and pinned. Codex found two more in review, names outside ASCII (§3.1) and GLOBAL `foreign_key_checks` (§3.5).
 
 ## 6. Decisions
 
@@ -367,3 +380,18 @@ MariaDB 11.8.8 and TiDB v8.5.5, 2026-10-26.
     - Generated foreign key names count per table: two unnamed ones are fk_1 and fk_2, and an ALTER adds fk_3. A user-named fk_1 followed by an unnamed one gives fk_2, and the other order fails with 1215. A foreign key adds an index of its own name.
     - With checks off, `DROP CONSTRAINT` of a foreign key, a unique key, or a missing name is a warning that drops nothing. With checks on, a missing name gives 3940.
     - A local temporary table is not in `information_schema.TABLES`, and `SHOW CREATE TABLE` reads it as `CREATE TEMPORARY TABLE`. `CREATE TEMPORARY TABLE TT` beside tt gives 1050.
+- **TiDB, verified in PR review** (v8.5.5, 2026-10-27):
+  - Names outside ASCII, as columns:
+    - `DROP COLUMN CAFé` drops `café`, and `ADD COLUMN café` after `ADD COLUMN CAFÉ` gives 1060;
+    - `ADD COLUMN` of `ſ` beside `s`, of `İ` beside `i`, and of the Kelvin sign beside `k` give 1060;
+    - `é` beside `e`, `ä` beside `a`, `ß` beside `ss`, `ａ` beside `a`, and a decomposed `é` beside a precomposed one succeed.
+  - As tables:
+    - `DROP TABLE CAFé` drops `café`, `DROP TABLE Ü` drops `ü`, `DROP TABLE q.STRAßE` drops `q.straße`, and `DROP VIEW VÉ` and `DROP SEQUENCE SÉ` drop `vé` and `sé`;
+    - `CREATE TABLE` of `tİ`, of a Kelvin `tK`, and of a decomposed `té` beside the folded or precomposed name gives 1050, while `tſ` beside `ts` succeeds.
+  - Other spaces: a database `Ä` beside `ä`, or `k` beside a Kelvin one, gives 1007. A temporary `TÄ` beside `tä` gives 1050. A foreign key `FÉ` beside `fé` gives 1826, and `DROP FOREIGN KEY FÉ` drops `fé`. `DROP INDEX KÉ` drops `ké`.
+  - SET:
+    - After `SET foreign_key_checks = 0`, `SET GLOBAL foreign_key_checks = 1` makes `CREATE TABLE` and `ALTER TABLE ... ADD FOREIGN KEY` to a missing table fail (1824), with `@@session.foreign_key_checks` still 0.
+    - After `SET foreign_key_checks = 1`, `SET @@global.foreign_key_checks = 0` lets both succeed, with `@@session` still 1.
+    - `SET GLOBAL foreign_key_checks = 0, @@session.foreign_key_checks = 1` leaves the checks on, and `SET @@session.foreign_key_checks = 1, @@global.foreign_key_checks = 0` leaves them off.
+    - `SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0` sets `@@session` to 0.
+    - `SET PERSIST` is a syntax error (1064).

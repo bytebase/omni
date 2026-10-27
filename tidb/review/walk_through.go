@@ -6,6 +6,7 @@ import (
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 	"github.com/bytebase/omni/tidb/ast"
+	"github.com/bytebase/omni/tidb/parser"
 )
 
 // checkWalkThrough reports the first statement of the change that
@@ -40,6 +41,39 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 		snap = nil
 	}
 	return walk.Run(ctx, len(stmts), snap, w.lower)
+}
+
+// namesOutsideASCII reports whether a statement's text holds a name with a
+// character outside ASCII, which the walk does not follow. TiDB compares
+// such names by rules of its own for each space (verified): CAFé is café
+// as a column and as a table, ſ is s as a column but not as a table, and
+// the Kelvin sign is k as both, while é is not e. A token that is no
+// string literal and holds such a byte counts, which takes in a little
+// more than names.
+func namesOutsideASCII(sql string, loc ast.Loc) bool {
+	if loc.Start < 0 || loc.End > len(sql) || loc.Start >= loc.End {
+		return false
+	}
+	text := sql[loc.Start:loc.End]
+	if !outsideASCII(text) {
+		return false
+	}
+	for _, tok := range parser.Tokenize(text) {
+		t := tokenText(text, tok)
+		if t != "" && t[0] != '\'' && t[0] != '"' && outsideASCII(t) {
+			return true
+		}
+	}
+	return false
+}
+
+func outsideASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return true
+		}
+	}
+	return false
 }
 
 // walkNote is a check's finding: where it anchors and what it says when
@@ -92,6 +126,9 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 
 // lower implements walk.Lower.
 func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
+	if namesOutsideASCII(w.sql, w.stmts[i].loc) {
+		return nil
+	}
 	b := &builder{w: w, l: l, s: &w.stmts[i]}
 	if !b.statement(w.stmts[i].node) {
 		return nil

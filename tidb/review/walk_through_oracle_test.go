@@ -122,6 +122,13 @@ var walkCases = []walkCase{
 	{name: "DROP SEQUENCE drops the sequences before a missing name", change: "DROP SEQUENCE sq, nosuch;", complete: true},
 	{name: "DROP SEQUENCE drops the sequences before a table", change: "DROP SEQUENCE sq, t;", complete: true},
 	{name: "DROP FOREIGN KEY twice drops it", change: "ALTER TABLE t DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1;", complete: true},
+	// TiDB compares names outside ASCII by rules of its own per space, and
+	// takes the Kelvin sign for k: the walk follows no such name.
+	{name: "names outside ASCII", setup: "CREATE TABLE kel (`\u212a` int, a int);\nCREATE TABLE `t\u212a` (a int);", change: "ALTER TABLE kel DROP COLUMN k;\nALTER TABLE kel DROP COLUMN zz;\nDROP TABLE tk;\nCREATE TABLE x (id int, café int, KEY ké (id));\nALTER TABLE x DROP COLUMN CAFé;\nALTER TABLE x DROP INDEX KÉ;\nALTER TABLE x DROP INDEX Ké;"},
+	{name: "a string outside ASCII is no name", change: "CREATE TABLE y (a varchar(10)) COMMENT '中文';\nCREATE TABLE y (a int);\nINSERT INTO y VALUES ('é');\nINSERT INTO nosuch VALUES ('é');", complete: true},
+	// Every assignment of foreign_key_checks reaches the session's checks,
+	// GLOBAL too, in order; resetWalk sets the global back.
+	{name: "SET foreign_key_checks in any scope", change: "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE z2 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @@global.foreign_key_checks = 0;\nCREATE TABLE z3 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 0, @@session.foreign_key_checks = 1;\nCREATE TABLE z4 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @@session.foreign_key_checks = 1, @@global.foreign_key_checks = 0;\nCREATE TABLE z5 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", complete: true},
 	{name: "unknown by design", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT 1 AS a;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nALTER TABLE nokey ADD COLUMN _tidb_rowid int;\nALTER TABLE nokey ADD COLUMN y int AFTER _tidb_rowid;\nALTER TABLE nokey DROP COLUMN _tidb_rowid;\nALTER TABLE t ADD COLUMN q int, ADD INDEX kq (q);\nALTER TABLE t DROP COLUMN IF EXISTS a, DROP COLUMN a;\nALTER TABLE t ALTER COLUMN a SET DEFAULT 1, MODIFY a int;\nALTER TABLE r DROP PRIMARY KEY;\nALTER TABLE t DROP CONSTRAINT nosuch;\nINSERT INTO v VALUES (1);\nCREATE TABLE c3 (id int, a int, FOREIGN KEY (id) REFERENCES r (id), CONSTRAINT fk_1 FOREIGN KEY (a) REFERENCES r (id));\nCREATE PROCEDURE p() SELECT 1;\nCREATE TABLE t (a int);"},
 }
 
@@ -192,7 +199,9 @@ func resetWalk(t *testing.T, db *sql.DB, base string) {
 	}
 	rows.Close()
 	conn := session(t, db)
-	stmts := []string{"SET foreign_key_checks = 0"}
+	// A change may set the global foreign_key_checks, which a new session
+	// starts from.
+	stmts := []string{"SET GLOBAL foreign_key_checks = 1", "SET foreign_key_checks = 0"}
 	for _, n := range names {
 		stmts = append(stmts, "DROP DATABASE `"+strings.ReplaceAll(n, "`", "``")+"`")
 	}
@@ -234,6 +243,13 @@ func judgeWalk(t *testing.T, db *sql.DB, change string, complete bool) (found, r
 	if _, err := conn.ExecContext(ctx, "USE shop"); err != nil {
 		t.Fatal(err)
 	}
+	// The change may set the global foreign_key_checks; the server's other
+	// tests start from it.
+	t.Cleanup(func() {
+		if _, err := db.ExecContext(context.Background(), "SET GLOBAL foreign_key_checks = 1"); err != nil {
+			t.Error(err)
+		}
+	})
 	e := &tidbEngine{
 		conn: conn,
 		db:   db,
@@ -570,6 +586,11 @@ func TestWalkThroughSweepTiDB(t *testing.T) {
 				_, _ = conn.ExecContext(context.Background(), q)
 			}
 			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+			// The base may have set the global foreign_key_checks the
+			// change's session starts from.
+			if _, err := db.ExecContext(context.Background(), "SET GLOBAL foreign_key_checks = 1"); err != nil {
+				t.Fatal(err)
+			}
 			f, r := judgeWalk(t, db, change, false)
 			found += f
 			rejected += r
@@ -644,7 +665,7 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 22:
 			stmt = fmt.Sprintf("INSERT INTO %s (x) VALUES (1)", tbl())
 		case 23:
-			stmt = pick("SET foreign_key_checks = 0", "SET foreign_key_checks = 1")
+			stmt = pick("SET foreign_key_checks = 0", "SET foreign_key_checks = 1", "SET GLOBAL foreign_key_checks = 0", "SET @@session.foreign_key_checks = 1, @@global.foreign_key_checks = 0")
 		case 24:
 			stmt = fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s int, DROP COLUMN %s", tbl(), col(), col())
 		case 25:

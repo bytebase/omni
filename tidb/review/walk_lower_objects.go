@@ -219,25 +219,25 @@ func (b *builder) dml(targets []*ast.TableRef) bool {
 	return true
 }
 
-// set follows SET: foreign_key_checks of the session changes whether a
-// foreign key's target is checked. A global setting reaches only later
-// sessions.
+// set follows SET: foreign_key_checks changes whether a foreign key's
+// target is checked. On TiDB a GLOBAL assignment changes the session's
+// checks too, though @@session.foreign_key_checks still reads as before,
+// and the assignments apply in order (verified: after SET
+// foreign_key_checks = 0, SET GLOBAL foreign_key_checks = 1 makes a
+// foreign key to a missing table fail with 1824, and SET
+// @@session.foreign_key_checks = 1, GLOBAL foreign_key_checks = 0 takes
+// it). So every assignment of it counts, whatever its scope.
 func (b *builder) set(v *ast.SetStmt) bool {
-	if strings.EqualFold(v.Scope, "GLOBAL") || strings.EqualFold(v.Scope, "PERSIST") || strings.EqualFold(v.Scope, "PERSIST_ONLY") {
-		return true
-	}
 	for _, a := range v.Assignments {
 		if a.Column == nil {
 			continue
 		}
 		name := strings.ToLower(a.Column.Column)
-		switch {
-		case strings.HasPrefix(name, "@@global."), strings.HasPrefix(name, "@@persist"):
-			continue
-		case strings.HasPrefix(name, "@@session."), strings.HasPrefix(name, "@@local."):
-			name = name[strings.IndexByte(name, '.')+1:]
-		default:
-			name = strings.TrimPrefix(name, "@@")
+		if rest, ok := strings.CutPrefix(name, "@@"); ok {
+			name = rest
+			if i := strings.IndexByte(name, '.'); i >= 0 {
+				name = name[i+1:]
+			}
 		}
 		if name != "foreign_key_checks" {
 			continue

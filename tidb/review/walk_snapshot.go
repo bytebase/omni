@@ -41,10 +41,11 @@ const (
 // primaryIndex is the key of the primary key in a table's index space.
 const primaryIndex = "primary"
 
-// nonASCII marks the key of a name with a byte outside ASCII. TiDB's
-// comparison of such names depends on collations the walk does not
-// follow: two spellings are one name only when they are identical, and
-// such a name is never known to be absent.
+// nonASCII marks the key of a name with a byte outside ASCII. TiDB
+// compares such names by rules the walk does not follow (namesOutsideASCII),
+// and may take one for an ASCII name: the Kelvin sign is k. Such a name is
+// never known to be absent, and a space the sync lists one in has no name
+// known to be absent.
 const nonASCII = "\x01"
 
 // nameKey returns the key of a name in a space, false when the walk cannot
@@ -91,6 +92,9 @@ type tidbSnapshot struct {
 	indexes   map[string]map[string]bool
 	// tableForeignKeys holds each table's foreign keys.
 	tableForeignKeys map[string]map[string]bool
+	// mixed lists the spaces where the sync lists a name outside ASCII, as
+	// the space and its table's key ("" for the database's relations).
+	mixed map[[2]string]bool
 }
 
 func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidbSnapshot {
@@ -99,23 +103,39 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 		columns:          make(map[string]map[string]bool),
 		indexes:          make(map[string]map[string]bool),
 		tableForeignKeys: make(map[string]map[string]bool),
+		mixed:            make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
-	set := func(m map[string]bool, space, name string) {
-		if k, ok := nameKey(space, name, foldTables); ok {
-			m[k] = true
+	// set lists a name of a table's space, or of the database's relations
+	// for table "".
+	set := func(m map[string]bool, space, table, name string) (string, bool) {
+		k, ok := nameKey(space, name, foldTables)
+		if !ok {
+			return "", false
 		}
+		m[k] = true
+		if strings.HasPrefix(k, nonASCII) {
+			s.mixed[[2]string{space, table}] = true
+		}
+		return k, true
+	}
+	names := make(map[string]bool)
+	relation := func(name, kind string) (string, bool) {
+		k, ok := set(names, spaceRelation, "", name)
+		if ok {
+			s.relations[k] = kind
+		}
+		return k, ok
 	}
 	for _, schema := range db.GetSchemas() {
 		for _, t := range schema.GetTables() {
-			tk, ok := nameKey(spaceRelation, t.GetName(), foldTables)
+			tk, ok := relation(t.GetName(), relTable)
 			if !ok {
 				continue
 			}
-			s.relations[tk] = relTable
 			cols := make(map[string]bool)
 			for _, c := range t.GetColumns() {
-				set(cols, spaceColumn, c.GetName())
+				set(cols, spaceColumn, tk, c.GetName())
 			}
 			s.columns[tk] = cols
 			idx := make(map[string]bool)
@@ -124,24 +144,20 @@ func newTiDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *tidb
 					idx[primaryIndex] = true
 					continue
 				}
-				set(idx, spaceIndex, i.GetName())
+				set(idx, spaceIndex, tk, i.GetName())
 			}
 			s.indexes[tk] = idx
 			fks := make(map[string]bool)
 			for _, fk := range t.GetForeignKeys() {
-				set(fks, spaceTableForeignKey, fk.GetName())
+				set(fks, spaceTableForeignKey, tk, fk.GetName())
 			}
 			s.tableForeignKeys[tk] = fks
 		}
 		for _, v := range schema.GetViews() {
-			if k, ok := nameKey(spaceRelation, v.GetName(), foldTables); ok {
-				s.relations[k] = relView
-			}
+			relation(v.GetName(), relView)
 		}
 		for _, q := range schema.GetSequences() {
-			if k, ok := nameKey(spaceRelation, q.GetName(), foldTables); ok {
-				s.relations[k] = relSequence
-			}
+			relation(q.GetName(), relSequence)
 		}
 	}
 	return s
@@ -164,9 +180,14 @@ func (s *tidbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		return walk.Unknown, ""
 	}
 	// absent is the answer for a name the sync does not list: Absent,
-	// unless the name is one whose comparison the walk does not follow.
+	// unless the name, or one the sync lists in its space, is one whose
+	// comparison the walk does not follow.
+	table := ""
+	if len(path) == 2 {
+		table = path[1]
+	}
 	absent := func() (walk.Fact, string) {
-		if strings.HasPrefix(k.Name, nonASCII) {
+		if strings.HasPrefix(k.Name, nonASCII) || s.mixed[[2]string{k.Space, table}] {
 			return walk.Unknown, ""
 		}
 		return walk.Absent, ""
