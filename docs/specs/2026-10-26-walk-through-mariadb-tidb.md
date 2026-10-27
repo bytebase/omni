@@ -137,13 +137,27 @@ On `mariadb:11.8.8`, 2026-10-26:
 
 ### 3.1 Names
 
-`lower_case_table_names` is 2 and fixed. Databases and relations fold, whatever `Target.LowerCaseTableNames` says. The other spaces fold as on MySQL.
+`lower_case_table_names` is 2 and fixed. Databases, relations, and temporary tables fold, whatever `Target.LowerCaseTableNames` says. The other spaces fold as on MySQL.
+
+**Names outside ASCII.** TiDB compares them by rules of its own for each space, and the MySQL walk's rule (two spellings are one name only when identical) does not hold. Verified:
+- `CAFé` is `café` as a column, an index, a table, a view, and a sequence. `CAFÉ` is `café` too, while `é` is not `e`, `ä` is not `a`, and `ß` is not `ss`.
+- `ſ` is `s` as a column but not as a table.
+- `İ` is `i`, and the Kelvin sign is `k`, as a column, a table, and a database.
+- A precomposed `é` and `e` with a combining accent are one table name but two column names.
+
+The walk follows no such name:
+- a statement with a name outside ASCII ends the walk (a string literal does not count);
+- a synced space that lists one has no name known to be absent there, since an ASCII name may be it.
+
+Codex found the first false finding of the old rule on #512: `CREATE TABLE x (id INT, café INT); ALTER TABLE x DROP COLUMN CAFé`.
 
 ### 3.2 Objects TiDB does not have
 
 - Triggers, functions, and events are syntax errors.
-- `CREATE PROCEDURE` parses and fails (8108).
+- `CREATE PROCEDURE` and `DROP PROCEDURE [IF EXISTS]` parse and fail (8108).
 - None is lowered: such a statement ends the walk, and the snapshot lists none.
+- With no trigger and no stored function, no statement runs code that creates or drops a temporary table. DML never makes the walk forget them, which MySQL's walk does.
+- `ALTER VIEW` parses in omni's TiDB parser, and TiDB rejects it (1064). It is not lowered, so it ends the walk (parser gap).
 
 ### 3.3 ALTER TABLE
 
@@ -151,11 +165,16 @@ On `mariadb:11.8.8`, 2026-10-26:
   - `ADD a, DROP a` fails with 1060 where a exists;
   - a swap of two columns fails with 1060;
   - `RENAME INDEX k1 TO k2, DROP INDEX k2` fails with 1061;
-  - `AFTER` a column the statement adds fails with 1054;
-  - an index on a column the statement adds fails with 1072 (not claimed: index columns are not modeled).
-- **Two subcommands on one column or index fail** with 8200 ("Unsupported operate same column"). MySQL's repeated-subcommand text checks hold, with 8200 among their codes.
-- **`RENAME TO` with any other subcommand fails** (8200), from the text alone.
-- **ALTER or RENAME of a local temporary table fails** (8200). The walk ends there, as on MySQL.
+  - `AFTER` a column the statement adds fails with 1054, and so does `MODIFY` of one;
+  - an index on a column the statement adds or drops fails with 1072 or 8200 (not claimed: index columns are not modeled).
+- **The effects apply drops and renames first,** as on MySQL. Since two subcommands on one name fail, the order matters only for the indexes a dropped column may take with it.
+- **Two subcommands on one column or index fail** with 8200 ("Unsupported operate same column"). MySQL's repeated-subcommand text checks hold, with 8200 among their codes. Two exceptions:
+  - `DROP COLUMN IF EXISTS` of a missing column is a note, and the statement goes on without it. Two of them are two notes, and `ADD COLUMN q, DROP COLUMN IF EXISTS q` adds q. The text check leaves IF EXISTS out, and the drop takes effect only on a column that may exist.
+  - `DROP FOREIGN KEY f, DROP FOREIGN KEY f` fails (1091) after it drops f. The walk claims the failure, and the oracle judges it by its code (N1).
+- **Two `ADD FOREIGN KEY` of one name in one ALTER** make TiDB retry the job's rollback without end. The text check claims it, and the oracle cannot run it.
+- **`RENAME TO` with any other subcommand fails** (8200), from the text alone. `ALGORITHM` and `LOCK` do not count: TiDB sets them aside first. Nor does a `RENAME TO` of the table's own name in any case, which TiDB drops (the sweep found `COMMENT 'x', RENAME TO a` on a succeeding, and `ADD COLUMN zz, RENAME TO U` on u succeeds).
+- **Length:** TiDB checks no length in `CHANGE` or `RENAME COLUMN`, and a 65-character name succeeds there. The walk claims 1059 only for the names TiDB checks: `ADD COLUMN`, `ADD INDEX`, `ADD CONSTRAINT`, and `RENAME TO`.
+- **ALTER, CREATE INDEX, DROP INDEX, or RENAME of a local temporary table fails** (8200). The walk ends there, as on MySQL.
 - **`ALTER TABLE t RENAME TO db.t`** is a syntax error in omni's TiDB parser (gap). A quoted `` `db.t` `` is one name.
 
 ### 3.4 Foreign keys
@@ -163,15 +182,30 @@ On `mariadb:11.8.8`, 2026-10-26:
 - **Names are unique per table, not per database.** Two foreign keys of one name on one table fail (1826, either case), and a name another table has is accepted. TiDB keeps only the table's foreign key key, not the database-wide one.
 - **Generated names are `fk_<n>`,** a May-effect on the table. RENAME TABLE does not rename them.
 - **TiDB ignores `ENGINE`,** so every table keeps its foreign keys.
+- **A foreign key to a view fails** with 3780, and one to a sequence with 3734, since a sequence has no columns. A temporary table takes no foreign key (1215, not claimed).
 
 ### 3.5 Other
 
-- Multi-table `DROP` and `RENAME` are atomic.
-- `DROP VIEW IF EXISTS t` of a table fails (1347): IF EXISTS does not cover the wrong kind. The walk claims it.
-- `DROP TABLE` of a sequence fails (1051). Sequences are synced, so they are relations of kind sequence that the walk trusts. `CREATE`/`DROP SEQUENCE` are lowered as in §2.3, with MySQL's codes.
-- `CREATE TABLE ... SELECT` fails on 8.5 (1105, not implemented). It is lowered as on MySQL, so a server that takes it is followed, and 8.5's rejection is missed.
-- `_tidb_rowid`, the hidden row id of a table without a clustered integer key, is Unknown, as MySQL's `my_row_id` is.
-- `CREATE GLOBAL TEMPORARY TABLE` is a syntax error in omni's TiDB parser (gap). The server lists such tables as `BASE TABLE`, so they sync as tables.
+- **Atomicity.** Multi-object drops are not atomic, as on MariaDB. The claim that the statement fails holds either way:
+  - `DROP TABLE d1, nosuch` and `DROP TABLE nosuch, d1` drop d1 and fail (1051). So does a view or a sequence in the list.
+  - `DROP VIEW` and `DROP SEQUENCE` drop every object of the list they find, and fail on one missing or of another kind (`DROP VIEW v, v` too).
+  - `DROP TEMPORARY TABLE tt, nosuch` keeps tt, and `RENAME TABLE` is atomic.
+  - For the oracle, this is N1 as built for MariaDB: the engine is a `walktest.PartialRejecter`. Each such form ends a curated case of its own, where Judge holds the finding to the server's error code, and the sweep generates them too. Run without the opt-in, all nine curated forms fail Judge's digest check, which shows that each changes the database.
+- **`DROP VIEW IF EXISTS` of a table or a sequence fails** (1347): IF EXISTS does not cover the wrong kind. The walk claims it.
+- **Sequences are synced** (Bytebase reads `information_schema.SEQUENCES`), so they are relations of kind sequence that the walk trusts.
+  - `CREATE SEQUENCE [IF NOT EXISTS]`: the database must exist (1049) or be selected (1046), the name must be free (1050), and a name over 64 characters fails (1059). A temporary table of the name does not block it.
+  - `DROP SEQUENCE [IF EXISTS]`: each name must be a sequence, else 4139 when missing and 1347 for another kind. IF EXISTS makes either a note. Temporary tables are not sequences.
+  - `DROP TABLE` of a sequence fails (1051); `DROP TABLE IF EXISTS` leaves it with a note.
+  - `ALTER TABLE` of a sequence fails with 1347 whatever the subcommand, `TRUNCATE` with 1146, `CREATE TABLE ... LIKE` with 1347, and `CREATE OR REPLACE VIEW` with 1347.
+  - `RENAME TABLE` moves a sequence, to another database too.
+- **`CREATE INDEX` of an expression succeeds on a view or a sequence.** So CREATE and DROP INDEX on a known view or sequence end the walk, with no kind claim.
+- **No invisible primary key.** `sql_generate_invisible_primary_key` is unknown to TiDB (1193), so the absence of a primary key is trusted. `DROP PRIMARY KEY` of a table the sync lists without one fails (1091).
+- **`SET foreign_key_checks` reaches the session in any scope.** `SET GLOBAL foreign_key_checks = v` and `SET @@global.foreign_key_checks = v` change the session's checks too, though `@@session.foreign_key_checks` still reads as before. A statement's assignments apply in order, and each has a scope of its own. So the walk follows every assignment of it. MySQL's walk skips a GLOBAL one. Codex found the false finding on #512: `SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0` then a foreign key to a missing table.
+- **`DROP TABLE` checks no length:** `DROP TABLE IF EXISTS` of a 65-character name is a note. The walk claims only that such a table does not exist (1051).
+- **`CREATE TABLE ... SELECT` fails on 8.5** (1105, not implemented). It is lowered as on MySQL, so a server that takes it is followed, and 8.5's rejection is missed.
+- **`_tidb_rowid`,** the hidden row id, is Unknown on every table, as MySQL's `my_row_id` is. `ADD COLUMN` of the name fails (1166) on every table.
+- **DML on a view fails** (1105, views are not updatable): not claimed.
+- **`CREATE GLOBAL TEMPORARY TABLE`** is a syntax error in omni's TiDB parser (gap). The server lists such tables as `BASE TABLE`, so they sync as tables.
 
 ## 4. Not covered (beyond the MySQL spec's §7)
 
@@ -183,9 +217,14 @@ On `mariadb:11.8.8`, 2026-10-26:
   - `DROP TRIGGER` of a case variant of a trigger's name (1360), and of a trigger the sync does not list;
   - the MySQL `ALTER TABLE` forms MariaDB rejects (1064), at which the walk ends.
 - **TiDB:**
-  - clustered-index rules (`DROP PRIMARY KEY` of a clustered key, 8200);
-  - index columns added in the same ALTER (1072);
-  - placement policies and TiFlash replicas;
+  - clustered-index rules (`DROP PRIMARY KEY` of a clustered key, 8200; `MODIFY ... PRIMARY KEY`, 8200);
+  - index columns added or dropped in the same ALTER (1072, 8200);
+  - two subcommands on one column the text does not show, such as `ALTER COLUMN a SET DEFAULT 1, MODIFY a` or `DROP COLUMN IF EXISTS a, DROP COLUMN a` (8200);
+  - check constraints, including `DROP CONSTRAINT` of a missing one (3940 while checks are on);
+  - `ALTER SEQUENCE`, which ends the walk;
+  - DML on a view or a sequence (1105, 1054);
+  - a generated foreign key name a later named one takes (1215);
+  - placement policies, TiFlash replicas, cached tables, and `BATCH` DML, which end the walk;
   - stored procedures (8108).
 
 ## 5. Budget and tests
@@ -199,15 +238,20 @@ On `mariadb:11.8.8`, 2026-10-26:
   - the oracle runs every curated case on the sync since Bytebase #21665 and on the one before it; the second holds precision alone, since it hides the base's sequence and system-versioned table. It found 194 of 230 rejections on the first and 181 of 228 on the second, with no false finding. On the plain MySQL copy, wired the same way, the delta cases report false findings or miss what they pin;
   - the sweep runs the two syncs by turns. At 500 (seed 20261026) it found 1238 of 6811 rejections, with no false finding, in under 3 minutes. Recall is low by design: most misses are names the walk does not know, since relation and trigger absence is untrusted, and databases other than the target;
   - `walktest` gained `PartialRejecter` (decision N1).
+- **TiDB as built:**
+  - 1320 lines of lowering, 204 of snapshot, 278 of walker. Against the MySQL copy, 655 lines went (triggers, routines, events, engines, generated `<table>_ibfk_` names, the database-wide foreign key space) and 285 came (sequences, the ALTER TABLE deltas, the comments naming each verified fact).
+  - the oracle found 196 of 219 rejections in the curated cases, with no false finding. On the plain MySQL copy, wired the same way, 22 of the first 36 cases fail with false findings or misses; the 14 that pass cover what TiDB shares with MySQL;
+  - the sweep at 500 (seed 20261026) found 5346 of 8009 rejections, with no false finding, in 3 to 6 minutes depending on the devbox's load. It found one false finding while the walk was built, `COMMENT 'x', RENAME TO a` on a, now fixed and pinned. Codex found two more in review, names outside ASCII (§3.1) and GLOBAL `foreign_key_checks` (§3.5).
 
 ## 6. Decisions
 
-Decided 2026-10-26 for MariaDB: N1, N2, and N3 as recommended, and N4 as one PR per engine, since the two are built in parallel. TiDB's parts are pending. The options as they were weighed:
+Decided 2026-10-26 for MariaDB: N1, N2, and N3 as recommended, and N4 as one PR per engine, since the two are built in parallel. Decided 2026-10-26 and 2026-10-27 for TiDB: N1 as built for MariaDB, and N3 and N4 as recorded below. The options as they were weighed:
 
 - **N1. MariaDB's non-atomic drops in the oracle.**
   - Recommended: `walktest` gains an opt-in for an engine whose rejected statement can change the database. `Judge` then stops judging a change at such a statement, after counting it, instead of failing.
   - Alternative: keep `Judge` strict, and keep multi-object drops of a missing name out of MariaDB's cases and sweep.
   - As built: `walktest.PartialRejecter`. A finding on such a statement must name the server's error code, since the catalog no longer shows the facts before it. A failed `CREATE OR REPLACE TABLE` that dropped the old table is judged the same way.
+  - TiDB (decided 2026-10-27): TiDB's multi-object drops and a repeated `DROP FOREIGN KEY` are not atomic either (§3.5). Its oracle first kept them out of its cases and sweep. Once `PartialRejecter` landed with MariaDB, it became one too, and judges them on the server.
 - **N2. MariaDB relation absence stays untrusted (D5)** while Bytebase is not changed.
   - Recommended: so, at the cost of every "table does not exist" claim about a synced MariaDB database.
   - The alternative, trusting it, has a false finding for every sequence or system-versioned table the sync drops.
@@ -215,9 +259,11 @@ Decided 2026-10-26 for MariaDB: N1, N2, and N3 as recommended, and N4 as one PR 
 - **N3. Oracle settings.**
   - Recommended: MariaDB with `lower_case_table_names` 0 only, since the folding is MySQL's code, which runs on mysql 8.0 with 1.
   - TiDB as it ships (2).
+  - TiDB: decided 2026-10-26 as recommended. The oracle runs `pingcap/tidb:v8.5.5` with `lower_case_table_names` 2, the only setting TiDB has.
 - **N4. Delivery.**
   - Recommended: one PR for both engines, as D7's step 3, with a commit each.
   - The parser gaps of §2.4 and §3.3/§3.5 go to their own PRs afterwards.
+  - TiDB: decided 2026-10-26. TiDB is one PR of its own, since MariaDB is built in parallel and lands in its own PR. The TiDB parser gaps (`RENAME TO db.t`, `CREATE GLOBAL TEMPORARY TABLE`, `SET @@session.x = ON`, and `ALTER VIEW`, which the parser takes and TiDB rejects) go to later PRs.
 
 ## Appendix: verified facts
 
@@ -295,7 +341,7 @@ MariaDB 11.8.8 and TiDB v8.5.5, 2026-10-26.
   - An FK to a missing table or a temporary table gives 1824, and `foreign_key_checks=0` accepts the missing one.
   - `ENGINE=MyISAM` is ignored, so the FK is enforced (1824).
 - **TiDB, drops, temporary tables, and the rest.**
-  - Atomicity: `DROP TABLE d1, nosuch` and `RENAME TABLE d2 TO d3, nosuch TO d4` fail and keep everything. A swap through a temporary name succeeds.
+  - Atomicity: `RENAME TABLE d2 TO d3, nosuch TO d4` fails and keeps everything. A swap through a temporary name succeeds. (Corrected while building the walk: `DROP TABLE d1, nosuch` drops d1; see §3.5.)
   - Views: `DROP TABLE` of a view gives 1051, `DROP VIEW` of a table 1347, and `DROP VIEW IF EXISTS` of a table 1347. `ALTER TABLE` and `CREATE OR REPLACE VIEW` of the wrong kind give 1347.
   - Temporary tables: one shadows a base table and survives `DROP DATABASE`. `CREATE TEMPORARY TABLE gone.tmp` gives 1049. A `GLOBAL TEMPORARY` table is a `BASE TABLE`, and `CREATE TABLE` of its name gives 1050.
   - Sequences: a table or sequence of a sequence's name gives 1050. `DROP SEQUENCE` of a table gives 1347, and `DROP TABLE` of a sequence 1051.
@@ -305,3 +351,47 @@ MariaDB 11.8.8 and TiDB v8.5.5, 2026-10-26.
     - names over 64 give 1059;
     - a rename into a missing database gives 1025, and moving a view to another database 1450;
     - with no database selected, CREATE TABLE and ALTER DATABASE give 1046.
+- **TiDB, verified while building the walk** (v8.5.5, 2026-10-26):
+  - Drops: `DROP TABLE d1, nosuch`, `DROP TABLE nosuch, d1`, `DROP TABLE t, v`, and `DROP TABLE t, s` drop the base tables and fail with 1051. `DROP VIEW v, nosuch`, `DROP VIEW IF EXISTS v, t`, and `DROP VIEW v, v` drop v. `DROP SEQUENCE s1, nosuch` drops s1 (4139). `DROP TEMPORARY TABLE tt, nosuch` keeps tt.
+  - ALTER TABLE:
+    - `DROP COLUMN IF EXISTS zz` of a missing column is a note (1091). `DROP COLUMN IF EXISTS zz, DROP COLUMN IF EXISTS zz` is two notes, and `ADD COLUMN q, DROP COLUMN IF EXISTS q` adds q. `DROP COLUMN IF EXISTS a, DROP COLUMN a` gives 8200.
+    - `DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1` gives 1091 and drops fk1. `ADD CONSTRAINT f2 FOREIGN KEY ..., ADD CONSTRAINT F2 FOREIGN KEY ...` leaves the DDL job retrying its rollback (1553) without end.
+    - `ALGORITHM` and `LOCK` beside `RENAME TO` succeed; `COMMENT`, `ENGINE`, `FORCE`, `ADD COLUMN`, `RENAME INDEX`, and a second `RENAME TO` give 8200. Beside a `RENAME TO` of the table's own name, in any case, any subcommand succeeds.
+    - `DROP PRIMARY KEY, ADD PRIMARY KEY (a)` and `DROP INDEX PRIMARY, ADD PRIMARY KEY (b)` give 1068. `RENAME TABLE u TO U` gives 1050, and `RENAME TABLE u TO u` too.
+    - `CHANGE a` and `RENAME COLUMN b TO` a 65-character name succeed, as does `RENAME INDEX`. `ADD COLUMN`, `ADD INDEX`, `ADD CONSTRAINT`, `CREATE INDEX`, `RENAME TABLE`, and `RENAME TO` of one give 1059.
+    - `ADD INDEX k (c), DROP COLUMN c` and `DROP COLUMN b, ADD INDEX k2 (b)` give 8200, as do `ALTER COLUMN d SET DEFAULT 1, MODIFY d` and `MODIFY a ... PRIMARY KEY`.
+    - `ALTER TABLE` of a local temporary table, `CREATE INDEX` and `DROP INDEX` on one, and `RENAME TABLE` of one give 8200.
+    - `RENAME INDEX nosuch TO x` and `ALTER INDEX nosuch INVISIBLE` give 1176. `RENAME INDEX i TO PRIMARY` succeeds.
+  - Primary keys: `sql_generate_invisible_primary_key` gives 1193. `DROP PRIMARY KEY` and `DROP INDEX PRIMARY` of a keyless table give 1091, also when it has a NOT NULL UNIQUE key, which `TIDB_INDEXES` lists under its own name.
+  - `_tidb_rowid`: `ADD COLUMN` of it gives 1166 on every table; `AFTER` it gives 1054, and `DROP COLUMN` of it 1091.
+  - Sequences:
+    - `CREATE SEQUENCE` of a table's, view's, or sequence's name gives 1050, either case. IF NOT EXISTS makes it a note. In a missing database it gives 1049, with no database selected 1046, and a 65-character name gives 1059.
+    - `DROP SEQUENCE nosuch` gives 4139 (a 65-character name too), of a table or view 1347, and with no database 1046. IF EXISTS makes 4139 and 1347 notes.
+    - A temporary table neither blocks `CREATE SEQUENCE` of its name nor is found by `DROP SEQUENCE`.
+    - `DROP TABLE IF EXISTS` of a sequence is a note that keeps it. `DROP VIEW` and `DROP VIEW IF EXISTS` of one give 1347.
+    - `ALTER TABLE` of a sequence gives 1347 for every subcommand tried, `RENAME TO` included; `TRUNCATE` 1146; `CREATE TABLE ... LIKE` 1347; a foreign key to it 3734 (a missing column).
+    - `CREATE INDEX k ON s ((1 + 1))` succeeds, as does `DROP INDEX k ON s` then. `RENAME TABLE s TO q.s` moves it.
+    - `information_schema.TABLES` lists it as `SEQUENCE`, and `COLUMNS` lists no column of it.
+  - Views: `CREATE INDEX k ON v ((1 + 1))` succeeds. A foreign key to a view gives 3780, its column types matching or not. `ALTER VIEW` gives 1064. `INSERT INTO v` gives 1105.
+  - Other:
+    - `DROP TABLE` of a 65-character name gives 1051, and IF EXISTS makes it a note.
+    - `CREATE PROCEDURE`, `DROP PROCEDURE`, and `DROP PROCEDURE IF EXISTS` give 8108, with no database selected too.
+    - `CREATE INDEX IF NOT EXISTS i` of an existing i is a note.
+    - Generated foreign key names count per table: two unnamed ones are fk_1 and fk_2, and an ALTER adds fk_3. A user-named fk_1 followed by an unnamed one gives fk_2, and the other order fails with 1215. A foreign key adds an index of its own name.
+    - With checks off, `DROP CONSTRAINT` of a foreign key, a unique key, or a missing name is a warning that drops nothing. With checks on, a missing name gives 3940.
+    - A local temporary table is not in `information_schema.TABLES`, and `SHOW CREATE TABLE` reads it as `CREATE TEMPORARY TABLE`. `CREATE TEMPORARY TABLE TT` beside tt gives 1050.
+- **TiDB, verified in PR review** (v8.5.5, 2026-10-27):
+  - Names outside ASCII, as columns:
+    - `DROP COLUMN CAFé` drops `café`, and `ADD COLUMN café` after `ADD COLUMN CAFÉ` gives 1060;
+    - `ADD COLUMN` of `ſ` beside `s`, of `İ` beside `i`, and of the Kelvin sign beside `k` give 1060;
+    - `é` beside `e`, `ä` beside `a`, `ß` beside `ss`, `ａ` beside `a`, and a decomposed `é` beside a precomposed one succeed.
+  - As tables:
+    - `DROP TABLE CAFé` drops `café`, `DROP TABLE Ü` drops `ü`, `DROP TABLE q.STRAßE` drops `q.straße`, and `DROP VIEW VÉ` and `DROP SEQUENCE SÉ` drop `vé` and `sé`;
+    - `CREATE TABLE` of `tİ`, of a Kelvin `tK`, and of a decomposed `té` beside the folded or precomposed name gives 1050, while `tſ` beside `ts` succeeds.
+  - Other spaces: a database `Ä` beside `ä`, or `k` beside a Kelvin one, gives 1007. A temporary `TÄ` beside `tä` gives 1050. A foreign key `FÉ` beside `fé` gives 1826, and `DROP FOREIGN KEY FÉ` drops `fé`. `DROP INDEX KÉ` drops `ké`.
+  - SET:
+    - After `SET foreign_key_checks = 0`, `SET GLOBAL foreign_key_checks = 1` makes `CREATE TABLE` and `ALTER TABLE ... ADD FOREIGN KEY` to a missing table fail (1824), with `@@session.foreign_key_checks` still 0.
+    - After `SET foreign_key_checks = 1`, `SET @@global.foreign_key_checks = 0` lets both succeed, with `@@session` still 1.
+    - `SET GLOBAL foreign_key_checks = 0, @@session.foreign_key_checks = 1` leaves the checks on, and `SET @@session.foreign_key_checks = 1, @@global.foreign_key_checks = 0` leaves them off.
+    - `SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0` sets `@@session` to 0.
+    - `SET PERSIST` is a syntax error (1064).
