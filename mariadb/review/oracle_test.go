@@ -44,6 +44,9 @@ var mariadbOracle struct {
 
 func TestMain(m *testing.M) {
 	code := m.Run()
+	if walkServer.db != nil {
+		_ = walkServer.db.Close()
+	}
 	if mariadbOracle.container != nil {
 		_ = mariadbOracle.db.Close()
 		_ = testcontainers.TerminateContainer(mariadbOracle.container)
