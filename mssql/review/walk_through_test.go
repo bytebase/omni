@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -203,6 +204,14 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"a check and an index of one name", "CREATE TABLE dbo.x (a int, CONSTRAINT ix CHECK (a > 0), INDEX ix NONCLUSTERED (a));", 0, "the name ix is given twice in the statement"},
 		{"a unique constraint and an index of one name", "CREATE TABLE dbo.x (a int CONSTRAINT u1 UNIQUE, INDEX u1 (a));", 0, "the name u1 is given twice in the statement"},
 		{"DROP CONSTRAINT IF EXISTS of another object's name", "ALTER TABLE dbo.t DROP CONSTRAINT IF EXISTS nokey;\nINSERT INTO dbo.nokey VALUES (1);\nCREATE TABLE dbo.nokey (a int);", 2, "an object named dbo.nokey already exists"},
+		// Codex round 2 on #514.
+		{"a marked schema may be the one another spelling means", "CREATE TABLE CAFE.t (a int);", -1, ""},
+		{"the exact schema spelling means its own schema", "CREATE TABLE cafe.t (a int);", 0, "an object named cafe.t already exists"},
+		{"sp_rename cuts a long name", "EXEC sp_rename 'dbo.nokey', '" + strings.Repeat("n", 129) + "';", -1, ""},
+		{"a primary XML index takes its secondary ones", "DROP INDEX px ON dbo.t;\nCREATE INDEX sx ON dbo.t (a);", -1, ""},
+		{"a secondary XML index", "CREATE INDEX sx ON dbo.t (a);", 0, "index sx already exists on dbo.t"},
+		{"a self-reference of another spelling", "CREATE TABLE dbo.x (id int NOT NULL PRIMARY KEY, p int REFERENCES dbo.X (id));", -1, ""},
+		{"an alias of a marked spelling", "DROP TABLE dbo.nokey;\nUPDATE a SET a = 1 FROM dbo.r AS [á];", -1, ""},
 		{"DROP_EXISTING keeps a key's constraint", "CREATE UNIQUE CLUSTERED INDEX pk_t ON dbo.t (id) WITH (DROP_EXISTING = ON);\nDROP INDEX pk_t ON dbo.t;", 1, "index pk_t of dbo.t enforces a constraint"},
 	}
 	for _, tt := range tests {
@@ -214,6 +223,13 @@ func TestWalkThroughFindings(t *testing.T) {
 				dbo.Tables = append(dbo.Tables,
 					&metadata.TableMetadata{Name: "cafe", Columns: []*metadata.ColumnMetadata{{Name: "a"}}},
 					&metadata.TableMetadata{Name: "CAFÉ", Columns: []*metadata.ColumnMetadata{{Name: "b"}}})
+			case "a marked schema may be the one another spelling means", "the exact schema spelling means its own schema":
+				target.Schema.Schemas = append(target.Schema.Schemas,
+					&metadata.SchemaMetadata{Name: "cafe", Tables: []*metadata.TableMetadata{{Name: "t"}}},
+					&metadata.SchemaMetadata{Name: "CAFÉ"})
+			case "a primary XML index takes its secondary ones", "a secondary XML index":
+				t := target.Schema.Schemas[0].Tables[0]
+				t.Indexes = append(t.Indexes, &metadata.IndexMetadata{Name: "px", Type: "XML"}, &metadata.IndexMetadata{Name: "sx", Type: "XML"})
 			case "no default schema":
 				target.DefaultSchema = ""
 			case "a default schema that may not exist":

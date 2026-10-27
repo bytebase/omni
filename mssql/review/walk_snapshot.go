@@ -45,6 +45,7 @@ const (
 	kindTrigger   = "trigger"
 	kindSynonym   = "synonym"
 	kindIndex     = "index"
+	kindXMLIndex  = "xml"
 	kindPK        = "pk"
 	kindUQ        = "uq"
 	kindFK        = "fk"
@@ -214,6 +215,10 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			for _, i := range t.GetIndexes() {
 				kind := kindIndex
 				switch {
+				case strings.EqualFold(i.GetType(), "XML"):
+					// Dropping a primary XML index drops its secondary
+					// ones (verified).
+					kind = kindXMLIndex
 				case i.GetPrimary():
 					kind = kindPK
 					st.primary = true

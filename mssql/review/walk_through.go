@@ -489,16 +489,20 @@ func (b *builder) defaultSchema(n name, creating bool) string {
 }
 
 // schemaKnown reports whether the walk can place objects in a schema: its
-// class holds one schema, or none, in which case a creation in it fails
-// (2760) and another check says so.
+// class holds one schema, spelled so or beside no marked name, which a
+// reference spelled otherwise may mean instead (as CAFE means [CAFÉ]
+// beside cafe under a case-sensitive, accent-insensitive collation,
+// verified); or none, in which case a creation in it fails (2760) and
+// another check says so.
 func (b *builder) schemaKnown(sn name) bool {
-	f, kind := b.classFact(sn.classKey(spaceSchema, walk.Path()))
+	root := walk.Path()
+	f, kind := b.classFact(sn.classKey(spaceSchema, root))
 	switch f {
 	case walk.Absent:
 		return true
 	case walk.Present:
-		_, _, ok := single(kind)
-		return ok
+		_, sp, ok := single(kind)
+		return ok && (sp == sn.spelling || b.unmarked(spaceSchema, root))
 	}
 	return false
 }

@@ -442,7 +442,7 @@ func localTarget(tr *ast.TableRef, with *ast.WithClause, from *ast.List) (*ast.T
 	}
 	if with != nil && with.CTEs != nil {
 		for _, item := range with.CTEs.Items {
-			if cte, ok := item.(*ast.CommonTableExpr); ok && sameName(cte.Name, tr.Object) {
+			if cte, ok := item.(*ast.CommonTableExpr); ok && !differ(cte.Name, tr.Object) {
 				return nil, true
 			}
 		}
@@ -451,7 +451,7 @@ func localTarget(tr *ast.TableRef, with *ast.WithClause, from *ast.List) (*ast.T
 		return nil, false
 	}
 	for _, item := range from.Items {
-		if t, ok := item.(*ast.TableRef); ok && (t.Alias != "" && sameName(t.Alias, tr.Object) || t.Alias == "" && sameName(t.Object, tr.Object)) {
+		if t, ok := item.(*ast.TableRef); ok && (t.Alias != "" && !differ(t.Alias, tr.Object) || t.Alias == "" && !differ(t.Object, tr.Object)) {
 			return t, true
 		}
 	}

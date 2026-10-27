@@ -266,11 +266,10 @@ func (b *builder) spRename(v *ast.ExecStmt) bool {
 		return false
 	}
 	nn, ok := keyed(newname)
-	if !ok {
+	// sp_rename cuts a new name longer than 128 characters to 128
+	// (verified), which the walk does not follow.
+	if !ok || len(newname) > 128 {
 		return false
-	}
-	if b.tooLong(newname, false, b.anchor()) {
-		return true
 	}
 	switch strings.ToUpper(typ) {
 	case "", "OBJECT":

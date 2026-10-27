@@ -196,7 +196,9 @@ func (b *builder) foreignTarget(r objRef, tr *ast.TableRef) {
 	if !ok || t.where != placed || t.temp {
 		return
 	}
-	if t.parent == r.parent && t.n.spelling == r.n.spelling {
+	if !differ(t.schema.spelling, r.schema.spelling) && !differ(t.n.spelling, r.n.spelling) {
+		// It may name the table itself, as dbo.X does dbo.x under a
+		// case-insensitive collation (verified).
 		return
 	}
 	b.tableNeeds(t, []string{kindTable}, "foreign key target "+t.written+" does not exist", "foreign key target "+t.written+" is not a table")
@@ -827,8 +829,12 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		case s.fact == walk.Unknown:
 			b.maybe()
 		}
-		b.ofKind(spaceIndex, path, in, []string{kindIndex}, note(rng, "", "index "+ident(ix.Object)+" of "+r.written+" enforces a constraint"))
+		b.ofKind(spaceIndex, path, in, []string{kindIndex, kindXMLIndex}, note(rng, "", "index "+ident(ix.Object)+" of "+r.written+" enforces a constraint"))
 		b.leave(spaceIndex, path, in)
+		if s.fact != walk.Present || s.kind != kindIndex {
+			// A primary XML index takes its secondary ones along.
+			b.MayRemove(walk.Scope{Space: spaceIndex, Parent: path})
+		}
 	}
 	return true
 }

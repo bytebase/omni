@@ -466,6 +466,12 @@ SQL Server 2022 CU27 (16.0.4305.5), server collation `SQL_Latin1_General_CP1_CI_
 - `ALTER TABLE dbo.t DROP CONSTRAINT IF EXISTS nokey`, of a table's name, and `... IF EXISTS pk_r`, of another table's key, succeed and keep the object.
 - `CREATE UNIQUE CLUSTERED INDEX pk_t ON dbo.t (id) WITH (DROP_EXISTING = ON)` keeps `pk_t` a primary key; `sp_rename` of its index then renames the constraint, and `CREATE TABLE dbo.pk_t` succeeds.
 
+**Codex round 2 on #514**, verified on the same image:
+- In a Latin1_General_100_CS_AI database with schemas `cafe` and `[CAFÉ]` and table `cafe.t`, `CREATE TABLE CAFE.t (a int)` creates `[CAFÉ].t`. A schema class with one schema places a reference of another spelling only while no marked schema name exists.
+- `sp_rename 'dbo.nokey', '<129 n's>'` succeeds and names the table with the first 128; such a rename ends the walk.
+- `DROP INDEX px` of a primary XML index drops its secondary XML index `sx`, and `CREATE INDEX sx` then succeeds. Bytebase records an XML index's `type_desc`; dropping one, or an index of unknown kind, may remove the table's other indexes.
+- `CREATE TABLE dbo.x (id int NOT NULL PRIMARY KEY, p int REFERENCES dbo.X (id))` succeeds in a case-insensitive database: a foreign key's target that may be the table itself is not checked.
+
 **Sync** (`backend/plugin/db/mssql/sync.go`), probed on its own queries:
 - `INFORMATION_SCHEMA.SCHEMATA` lists every schema as sa.
 - Clustered and nonclustered columnstore, XML, and hypothetical indexes have `sys.index_columns` rows.

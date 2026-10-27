@@ -81,6 +81,9 @@ var walkCases = []walkCase{
 	{name: "TRUNCATE", change: "TRUNCATE TABLE dbo.nosuch;\nTRUNCATE TABLE dbo.v;\nTRUNCATE TABLE dbo.syn;\nTRUNCATE TABLE dbo.nokey;", complete: true},
 	// Indexes.
 	{name: "indexes", change: "CREATE INDEX ix_a ON dbo.t (b);\nCREATE INDEX pk_t ON dbo.t (b);\nCREATE INDEX pk_t ON dbo.r (id);\nCREATE INDEX i ON dbo.nosuch (a);\nCREATE INDEX i ON dbo.syn (a);\nCREATE INDEX nosuch ON dbo.t (a) WITH (DROP_EXISTING = ON);\nDROP INDEX nosuch ON dbo.t;\nDROP INDEX ix_a ON dbo.nosuch;\nDROP INDEX pk_t ON dbo.t;\nDROP INDEX IF EXISTS uq_c ON dbo.t;\nDROP INDEX IF EXISTS nosuch ON dbo.t;\nALTER INDEX nosuch ON dbo.t REBUILD;\nALTER INDEX ix_a ON dbo.nosuch REBUILD;\nDROP INDEX dbo.t.ix_a;\nDROP INDEX dbo.t.ix_a;\nCREATE INDEX ix_a ON dbo.t (a);\nDROP INDEX ix_a ON dbo.t, ix_a ON dbo.t;", complete: true},
+	{name: "XML indexes", setup: "CREATE TABLE dbo.xm (id int NOT NULL PRIMARY KEY, x xml)\nCREATE PRIMARY XML INDEX px ON dbo.xm (x)\nCREATE XML INDEX sx ON dbo.xm (x) USING XML INDEX px FOR PATH", change: "CREATE INDEX sx ON dbo.xm (id);\nDROP INDEX px ON dbo.xm;\nCREATE INDEX sx ON dbo.xm (id);\nCREATE INDEX sx ON dbo.xm (id);"},
+	{name: "a self-reference of another spelling", change: "CREATE TABLE dbo.x (id int NOT NULL PRIMARY KEY, p int REFERENCES dbo.X (id));\nCREATE TABLE dbo.y (id int NOT NULL PRIMARY KEY, p int REFERENCES DBO.Y (id));\nCREATE TABLE dbo.z (id int NOT NULL PRIMARY KEY, p int REFERENCES dbo.nosuch (id));"},
+	{name: "a long new name", change: "EXEC sp_rename 'dbo.nokey', '" + strings.Repeat("n", 129) + "';\nCREATE TABLE dbo.nokey (a int);"},
 	{name: "an index rebuilt in place", change: "CREATE UNIQUE CLUSTERED INDEX pk_t ON dbo.t (id) WITH (DROP_EXISTING = ON);\nDROP INDEX pk_t ON dbo.t;\nCREATE INDEX ix_a ON dbo.t (a, b) WITH (DROP_EXISTING = ON);\nCREATE INDEX ix_a ON dbo.t (a);\nEXEC sp_rename 'dbo.t.pk_t', 'pk_new', 'INDEX';\nCREATE TABLE dbo.pk_t (a int);"},
 	{name: "index names beside constraint names", change: "CREATE TABLE dbo.x (a int, CONSTRAINT ix CHECK (a > 0), INDEX ix NONCLUSTERED (a));\nCREATE TABLE dbo.y (a int CONSTRAINT dfy DEFAULT 0, INDEX dfy (a));\nCREATE TABLE dbo.z (a int CONSTRAINT fkz REFERENCES dbo.r (id), INDEX fkz (a));\nCREATE TABLE dbo.w (a int CONSTRAINT u1 UNIQUE, INDEX u1 (a));", complete: true},
 	{name: "DROP CONSTRAINT IF EXISTS of another object's name", change: "ALTER TABLE dbo.t DROP CONSTRAINT IF EXISTS nokey;\nALTER TABLE dbo.t DROP CONSTRAINT IF EXISTS pk_r;\nINSERT INTO dbo.nokey VALUES (1);\nCREATE TABLE dbo.nokey (a int);\nALTER TABLE dbo.nokey ADD CONSTRAINT pk_r CHECK (a > 0);", complete: true},
@@ -753,17 +756,17 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 		return nil
 	})
 	// getKeys, then getIndexes: indexes with a key column.
-	query(`SELECT s.name, o.name, i.name, i.is_primary_key, i.is_unique, i.is_unique_constraint FROM shop.sys.indexes i
+	query(`SELECT s.name, o.name, i.name, i.is_primary_key, i.is_unique, i.is_unique_constraint, i.type_desc FROM shop.sys.indexes i
 		JOIN shop.sys.objects o ON o.object_id = i.object_id JOIN shop.sys.schemas s ON s.schema_id = o.schema_id
 		WHERE i.index_id > 0 AND i.name IS NOT NULL AND o.type IN ('U', 'S', 'V')
 		AND (i.is_primary_key = 1 OR i.is_unique_constraint = 1 OR EXISTS (SELECT 1 FROM shop.sys.index_columns ic JOIN shop.sys.all_columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id WHERE ic.object_id = i.object_id AND ic.index_id = i.index_id))`, func(r *sql.Rows) error {
-		var schema, tbl, name string
+		var schema, tbl, name, typ string
 		var primary, unique, constraint bool
-		if err := r.Scan(&schema, &tbl, &name, &primary, &unique, &constraint); err != nil {
+		if err := r.Scan(&schema, &tbl, &name, &primary, &unique, &constraint, &typ); err != nil {
 			return err
 		}
 		if t, ok := tables[key(schema, tbl)]; ok {
-			t.Indexes = append(t.Indexes, &metadata.IndexMetadata{Name: name, Primary: primary, Unique: unique || primary, IsConstraint: primary || constraint})
+			t.Indexes = append(t.Indexes, &metadata.IndexMetadata{Name: name, Primary: primary, Unique: unique || primary, IsConstraint: primary || constraint, Type: typ})
 		}
 		return nil
 	})
