@@ -13,9 +13,10 @@ import (
 
 // targetWork is what the rules that read a target have to look at in
 // this change: the prior backup a change asks for, the constraints it
-// drops and the tables it leaves without a primary key, and the RENAME
-// statements the SQL alone cannot classify. The other rules depend on the
-// SQL alone and run once for every target.
+// drops and the tables it leaves without a primary key, the RENAME
+// statements the SQL alone cannot classify, and whether WalkThrough
+// walks the change. The other rules depend on the SQL alone and run once
+// for every target.
 type targetWork struct {
 	sql         string
 	on          map[review.Rule]bool
@@ -23,10 +24,11 @@ type targetWork struct {
 	made        changeMade
 	constraints bool
 	renames     bool
+	walks       bool
 }
 
 func (w targetWork) any() bool {
-	return w.backup || w.constraints || w.renames
+	return w.backup || w.constraints || w.renames || w.walks
 }
 
 // targetGroup is the targets with the same inputs, reviewed once.
@@ -35,19 +37,21 @@ type targetGroup struct {
 	target  review.Target
 }
 
-// groupTargets folds targets passing the same schema and backup database
-// presence into one group each, in first-seen order. The rules read
-// nothing else of a target. Equal schemas passed as different values are
-// reviewed apart: comparing them would cost more than reviewing them.
+// groupTargets folds targets passing the same schema, backup database
+// presence, and OtherSpecs into one group each, in first-seen order. The
+// rules read nothing else of a target. Equal schemas passed as different
+// values are reviewed apart: comparing them would cost more than
+// reviewing them.
 func groupTargets(targets []review.Target) []targetGroup {
 	type key struct {
-		schema *metadata.DatabaseSchemaMetadata
-		backup bool
+		schema     *metadata.DatabaseSchemaMetadata
+		backup     bool
+		otherSpecs bool
 	}
 	var groups []targetGroup
 	byKey := make(map[key]int)
 	for i, t := range targets {
-		k := key{t.Schema, t.BackupDatabaseExists}
+		k := key{t.Schema, t.BackupDatabaseExists, t.OtherSpecs}
 		g, ok := byKey[k]
 		if !ok {
 			g = len(groups)
@@ -79,7 +83,7 @@ func reviewTargets(ctx context.Context, stmts []statement, work targetWork, targ
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			findings, err := reviewGroup(stmts, work, groups[i])
+			findings, err := reviewGroup(ctx, stmts, work, groups[i])
 			outcomes[i] = outcome{findings: findings, err: err}
 		}()
 	}
@@ -123,13 +127,18 @@ func reviewTargets(ctx context.Context, stmts []statement, work targetWork, targ
 
 // reviewGroup evaluates one distinct target. A panic is the group's
 // failure, not the review's.
-func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []review.Finding, err error) {
+func reviewGroup(ctx context.Context, stmts []statement, work targetWork, g targetGroup) (findings []review.Finding, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			findings, err = nil, fmt.Errorf("review panicked: %v", p)
 		}
 	}()
 	r := &reporter{targets: g.indices}
+	if work.walks {
+		if err := checkWalkThrough(ctx, work.sql, stmts, g.target, r); err != nil {
+			return nil, err
+		}
+	}
 	x := schemaIndex{schema: g.target.Schema}
 	if work.backup {
 		checkPriorBackupTarget(stmts, g.target.BackupDatabaseExists, x, work.made, r)
