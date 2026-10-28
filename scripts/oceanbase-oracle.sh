@@ -16,7 +16,8 @@
 #   - the container is capped at 8 GB, swap included.
 #
 # OB_IMAGE overrides the image; the default is the LTS line Bytebase users
-# run, 4.3.5.
+# run, 4.3.5. OB_LOG_DIR, when set, receives the observer's logs before the
+# container goes.
 set -euo pipefail
 
 image=${OB_IMAGE:-oceanbase/oceanbase-ce:4.3.5-lts}
@@ -54,7 +55,14 @@ until gate_open; do
 done
 
 docker rm -f "$name" >/dev/null 2>&1 || true
-trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+cleanup() {
+	if [ -n "${OB_LOG_DIR:-}" ]; then
+		mkdir -p "$OB_LOG_DIR"
+		docker cp "$name:/root/ob/observer/log" "$OB_LOG_DIR" >/dev/null 2>&1 || true
+	fi
+	docker rm -f "$name" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 # The deployer refuses to start the observer below 20000 open files.
 docker run -d --name "$name" -e MODE=mini --memory=8g --memory-swap=8g --ulimit nofile=65536:65536 \
 	-p 127.0.0.1::2881 "$image" >/dev/null

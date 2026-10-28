@@ -81,7 +81,7 @@ var oceanBaseWalkCases = []oceanBaseCase{
 	{walkCase: walkCase{name: "the primary key", setup: "CREATE TABLE sk (a int);\nCREATE INDEX `PRIMARY` ON sk (a);\nCREATE TABLE uq (a int NOT NULL, UNIQUE KEY uk (a));", change: "ALTER TABLE uq DROP PRIMARY KEY;\nCREATE TABLE uq2 (a int NOT NULL UNIQUE);\nALTER TABLE uq2 DROP PRIMARY KEY;\nALTER TABLE nokey DROP PRIMARY KEY;\nCREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;\nALTER TABLE nokey ADD COLUMN x int AFTER __pk_increment;\nALTER TABLE nokey ALTER COLUMN __pk_increment SET DEFAULT 1;\nALTER TABLE nokey ADD COLUMN __pk_increment int;\nALTER TABLE nokey DROP COLUMN __pk_increment;\nALTER TABLE nokey ADD COLUMN y int AFTER my_row_id;\nALTER TABLE sk ADD PRIMARY KEY (a);\nALTER TABLE sk ADD PRIMARY KEY (a);\nALTER TABLE t DROP PRIMARY KEY;\nALTER TABLE t ADD COLUMN z int AFTER __pk_increment;\nALTER TABLE t ADD PRIMARY KEY (id);\nALTER TABLE t ADD PRIMARY KEY (id);"}},
 	// PRIMARY as an index name ends the walk, so those come last.
 	{walkCase: walkCase{name: "indexes named PRIMARY", change: "CREATE TABLE x (a int, KEY `PRIMARY` (a));\nALTER TABLE r DROP INDEX `PRIMARY`;\nDROP INDEX `PRIMARY` ON t;\nALTER TABLE t RENAME INDEX `PRIMARY` TO k2;\nCREATE INDEX `PRIMARY` ON nokey (a);\nALTER TABLE t ADD INDEX `PRIMARY` (b);"}},
-	{walkCase: walkCase{name: "foreign keys", change: "ALTER TABLE t ENGINE = MyISAM;\nALTER TABLE t DROP FOREIGN KEY nosuch;\nALTER TABLE t DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1;\nALTER TABLE t DROP FOREIGN KEY fk1;\nCREATE TABLE my (id int PRIMARY KEY, a int) ENGINE = MyISAM;\nALTER TABLE my ADD CONSTRAINT mf FOREIGN KEY (a) REFERENCES nosuch (id);\nALTER TABLE my DROP FOREIGN KEY nosuch;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE z (a int, CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), CONSTRAINT F FOREIGN KEY (a) REFERENCES r (id));", complete: true}},
+	{walkCase: walkCase{name: "foreign keys whatever the engine", change: "ALTER TABLE t ENGINE = MyISAM;\nALTER TABLE t DROP FOREIGN KEY nosuch;\nALTER TABLE t DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1;\nALTER TABLE t DROP FOREIGN KEY fk1;\nCREATE TABLE my (id int PRIMARY KEY, a int) ENGINE = MyISAM;\nALTER TABLE my ADD CONSTRAINT mf FOREIGN KEY (a) REFERENCES nosuch (id);\nALTER TABLE my DROP FOREIGN KEY nosuch;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE z (a int, CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), CONSTRAINT F FOREIGN KEY (a) REFERENCES r (id));", complete: true}},
 	{walkCase: walkCase{name: "a referenced parent", change: "DROP TABLE r;\nDROP TABLE nosuch, r;\nDROP TABLE child, r;"}},
 	// Generated names are <table>_OBFK_<16 digits>, which a rename keeps.
 	{walkCase: walkCase{name: "generated foreign key names", change: "CREATE TABLE g (id int PRIMARY KEY, b int, FOREIGN KEY (b) REFERENCES r (id));\nRENAME TABLE g TO h;\nALTER TABLE h DROP FOREIGN KEY h_obfk_1;\nALTER TABLE h DROP FOREIGN KEY g_ibfk_1;\nALTER TABLE h DROP FOREIGN KEY h_ibfk_1;\nCREATE DATABASE q;\nRENAME TABLE h TO q.h;\nRENAME TABLE child TO kid;\nALTER TABLE kid DROP FOREIGN KEY kid_ibfk_1;\nCREATE TABLE child (id int PRIMARY KEY, b int, CONSTRAINT child_ibfk_1 FOREIGN KEY (b) REFERENCES r (id));", complete: true}},
@@ -133,7 +133,9 @@ func (e *mysqlEngine) oceanBaseRelation(t testing.TB, db, name string) (bool, st
 	t.Helper()
 	ctx := context.Background()
 	var kind string
-	err := e.db.QueryRowContext(ctx, "SELECT TABLE_TYPE FROM information_schema.TABLES WHERE LOWER(TABLE_SCHEMA) = ? AND LOWER(TABLE_NAME) = ?", db, name).Scan(&kind)
+	err := retryTransient(func() error {
+		return e.db.QueryRowContext(ctx, "SELECT TABLE_TYPE FROM information_schema.TABLES WHERE LOWER(TABLE_SCHEMA) = ? AND LOWER(TABLE_NAME) = ?", db, name).Scan(&kind)
+	})
 	switch {
 	case err == nil && kind == "VIEW":
 		return true, relView
@@ -145,7 +147,9 @@ func (e *mysqlEngine) oceanBaseRelation(t testing.TB, db, name string) (bool, st
 		t.Fatal(err)
 	}
 	var n int
-	if err := e.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM oceanbase.DBA_MVIEWS WHERE LOWER(OWNER) = ? AND LOWER(MVIEW_NAME) = ?", db, name).Scan(&n); err != nil {
+	if err := retryTransient(func() error {
+		return e.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM oceanbase.DBA_MVIEWS WHERE LOWER(OWNER) = ? AND LOWER(MVIEW_NAME) = ?", db, name).Scan(&n)
+	}); err != nil {
 		t.Fatal(err)
 	}
 	return n > 0, ""

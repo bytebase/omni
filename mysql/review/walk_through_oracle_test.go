@@ -336,17 +336,20 @@ type mysqlEngine struct {
 
 func (e *mysqlEngine) Statements(change string) []string { return splitWalk(change) }
 
-// exec runs one statement on the change's session, on OceanBase again
-// while it reports a transient error.
+// exec runs one statement on the change's session.
 func (e *mysqlEngine) exec(stmt string) error {
-	run := func() error {
+	return e.retry(func() error {
 		_, err := e.conn.ExecContext(context.Background(), stmt)
 		return err
-	}
+	})
+}
+
+// retry runs f, on OceanBase again while it reports a transient error.
+func (e *mysqlEngine) retry(f func() error) error {
 	if e.oceanBase {
-		return retryTransient(run)
+		return retryTransient(f)
 	}
-	return run()
+	return f()
 }
 
 func (e *mysqlEngine) Exec(t testing.TB, stmt string) walktest.Outcome {
@@ -513,7 +516,7 @@ func (e *mysqlEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 	count := func(q string, args ...any) bool {
 		t.Helper()
 		var n int
-		if err := e.db.QueryRowContext(ctx, q, args...).Scan(&n); err != nil {
+		if err := e.retry(func() error { return e.db.QueryRowContext(ctx, q, args...).Scan(&n) }); err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
 		return n > 0
@@ -572,22 +575,32 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 	t.Helper()
 	var b strings.Builder
 	read := func(q string, args ...any) []string {
-		rows, err := e.db.QueryContext(context.Background(), q, args...)
-		if err != nil {
+		var got [][]sql.NullString
+		if err := e.retry(func() error {
+			got = nil
+			rows, err := e.db.QueryContext(context.Background(), q, args...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			cols, _ := rows.Columns()
+			for rows.Next() {
+				vals := make([]sql.NullString, len(cols))
+				ptrs := make([]any, len(cols))
+				for i := range vals {
+					ptrs[i] = &vals[i]
+				}
+				if err := rows.Scan(ptrs...); err != nil {
+					return err
+				}
+				got = append(got, vals)
+			}
+			return rows.Err()
+		}); err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
-		defer rows.Close()
-		cols, _ := rows.Columns()
-		vals := make([]sql.NullString, len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
 		var first []string
-		for rows.Next() {
-			if err := rows.Scan(ptrs...); err != nil {
-				t.Fatal(err)
-			}
+		for _, vals := range got {
 			first = append(first, vals[0].String)
 			for _, v := range vals {
 				b.WriteString(v.String)
