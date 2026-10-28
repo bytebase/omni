@@ -239,6 +239,14 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"a numbered procedure joins its group", "CREATE PROCEDURE dbo.p9;1 AS SELECT 1;\nGO\nCREATE PROCEDURE dbo.p9;2 AS SELECT 2;\nGO\nDROP TABLE s.nosuch;", 4, "table s.nosuch does not exist"},
 		{"a numbered procedure of a table's name", "CREATE PROCEDURE dbo.t;2 AS SELECT 2;", 0, "dbo.t is not a procedure"},
 		{"an unqualified type in the default schema", "CREATE TYPE s.ty FROM int;\nDROP TABLE s.ty;\nDROP TYPE ty;\nCREATE TYPE s.ty FROM int;\nDROP TABLE dbo.nosuch;", 4, "table dbo.nosuch does not exist"},
+		// The review of 2026-10-28.
+		{"a trigger in another schema on a missing table", "CREATE TRIGGER s.tr ON nosuch AFTER INSERT AS SELECT 1;", 0, "table nosuch does not exist"},
+		{"an INSERT fires its table's triggers alone", "INSERT INTO dbo.r VALUES (1);\nDROP TABLE dbo.nosuch;", 1, "table dbo.nosuch does not exist"},
+		{"a DELETE may cascade to a trigger the sync does not list", "DELETE FROM dbo.r;\nDROP TABLE dbo.nosuch;", -1, ""},
+		{"the last DROP_EXISTING counts", "CREATE INDEX nosuch ON dbo.t (a) WITH (DROP_EXISTING = ON, DROP_EXISTING = OFF);\nCREATE INDEX ix_a ON dbo.t (a) WITH (DROP_EXISTING = ON, DROP_EXISTING = OFF);", 1, "index ix_a already exists on dbo.t"},
+		{"a DROP_EXISTING of no value ends the walk", "CREATE INDEX ix_a ON dbo.t (a) WITH (DROP_EXISTING);\nDROP TABLE dbo.nosuch;", -1, ""},
+		{"a dropped table's capture instance", "DROP TABLE dbo.nokey;\nGO\nCREATE TABLE cdc.dbo_nokey_CT (a int);", -1, ""},
+		{"a change table without change data capture", "DROP TABLE dbo.nokey;\nGO\nCREATE TABLE cdc.dbo_nokey_CT (a int);", 2, "an object named cdc.dbo_nokey_CT already exists"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -282,11 +290,86 @@ func TestWalkThroughFindings(t *testing.T) {
 				target.DefaultSchema = "s"
 				s := target.Schema.Schemas[len(target.Schema.Schemas)-1]
 				s.Tables = append(s.Tables, &metadata.TableMetadata{Name: "ty", Columns: []*metadata.ColumnMetadata{{Name: "a"}}})
+			case "a dropped table's capture instance", "a change table without change data capture":
+				cdc := &metadata.SchemaMetadata{Name: "cdc", Tables: []*metadata.TableMetadata{{Name: "dbo_nokey_CT"}}}
+				if tt.name == "a dropped table's capture instance" {
+					cdc.Tables = append(cdc.Tables, &metadata.TableMetadata{Name: "change_tables"})
+				}
+				target.Schema.Schemas = append(target.Schema.Schemas, cdc)
 			case "no default schema":
 				target.DefaultSchema = ""
 			case "a default schema that may not exist":
 				target.DefaultSchema = "nosuch"
 			}
+			got := walkFindings(t, tt.sql, target)
+			if tt.statement < 0 {
+				if len(got) != 0 {
+					t.Errorf("findings = %+v, want none", got)
+				}
+				return
+			}
+			if len(got) != 1 || got[0].Statement != tt.statement || got[0].Message != tt.message {
+				t.Errorf("findings = %+v, want statement %d: %q", got, tt.statement, tt.message)
+			}
+		})
+	}
+}
+
+// TestWalkThroughTargetGroups pins DefaultSchema and OtherSpecs in the
+// target grouping: two targets of one schema that differ in either are
+// walked apart.
+func TestWalkThroughTargetGroups(t *testing.T) {
+	schema := walkSchema()
+	got := walkFindings(t, "CREATE TABLE st (a int);", review.Target{Schema: schema, DefaultSchema: "dbo"}, review.Target{Schema: schema, DefaultSchema: "s"})
+	if len(got) != 1 || len(got[0].Targets) != 1 || got[0].Targets[0] != 1 {
+		t.Errorf("DefaultSchema: findings = %+v, want one on target 1", got)
+	}
+	got = walkFindings(t, "CREATE TABLE dbo.t (a int);", review.Target{Schema: schema, DefaultSchema: "dbo"}, review.Target{Schema: schema, DefaultSchema: "dbo", OtherSpecs: true})
+	if len(got) != 1 || len(got[0].Targets) != 1 || got[0].Targets[0] != 0 {
+		t.Errorf("OtherSpecs: findings = %+v, want one on target 0", got)
+	}
+}
+
+// TestWalkThroughAmbiguousParents pins what the snapshot keeps of a table
+// or schema whose class another synced one shares: the walk keeps none of
+// its children, but its triggers and the names its children hold in the
+// schema count.
+func TestWalkThroughAmbiguousParents(t *testing.T) {
+	trigger := []*metadata.TriggerMetadata{{Name: "mk"}}
+	tests := []struct {
+		name      string
+		edit      func(db *metadata.DatabaseSchemaMetadata)
+		sql       string
+		statement int // -1 for no finding
+		message   string
+	}{
+		{"a trigger on the second table of a class", func(db *metadata.DatabaseSchemaMetadata) {
+			dbo := db.Schemas[0]
+			dbo.Tables = append(dbo.Tables, &metadata.TableMetadata{Name: "t1"}, &metadata.TableMetadata{Name: "t11", Triggers: trigger})
+		}, "INSERT INTO dbo.t11 VALUES (1);\nDROP TABLE dbo.nosuch;", -1, ""},
+		{"a trigger on a table of the second schema of a class", func(db *metadata.DatabaseSchemaMetadata) {
+			db.Schemas = append(db.Schemas, &metadata.SchemaMetadata{Name: "s1"}, &metadata.SchemaMetadata{Name: "s11", Tables: []*metadata.TableMetadata{{Name: "x", Triggers: trigger}}})
+		}, "INSERT INTO dbo.nokey VALUES (1);\nDROP TABLE dbo.nosuch;", -1, ""},
+		{"a trigger on a view of the second schema of a class", func(db *metadata.DatabaseSchemaMetadata) {
+			db.Schemas = append(db.Schemas, &metadata.SchemaMetadata{Name: "s1"}, &metadata.SchemaMetadata{Name: "s11", Views: []*metadata.ViewMetadata{{Name: "v", Triggers: trigger}}})
+		}, "INSERT INTO dbo.nokey VALUES (1);\nDROP TABLE dbo.nosuch;", -1, ""},
+		{"no trigger", func(db *metadata.DatabaseSchemaMetadata) {
+			dbo := db.Schemas[0]
+			dbo.Tables = append(dbo.Tables, &metadata.TableMetadata{Name: "t1"}, &metadata.TableMetadata{Name: "t11"})
+		}, "INSERT INTO dbo.t11 VALUES (1);\nDROP TABLE dbo.nosuch;", 1, "table dbo.nosuch does not exist"},
+		{"the second table's constraint names", func(db *metadata.DatabaseSchemaMetadata) {
+			dbo := db.Schemas[0]
+			dbo.Tables = append(dbo.Tables, &metadata.TableMetadata{Name: "t1"}, &metadata.TableMetadata{Name: "t11", CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck_t11"}}})
+		}, "CREATE TABLE dbo.ck_t11 (a int);", 0, "an object named dbo.ck_t11 already exists"},
+		{"the second table's children are unknown", func(db *metadata.DatabaseSchemaMetadata) {
+			dbo := db.Schemas[0]
+			dbo.Tables = append(dbo.Tables, &metadata.TableMetadata{Name: "t1"}, &metadata.TableMetadata{Name: "t11", Columns: []*metadata.ColumnMetadata{{Name: "a"}}})
+		}, "ALTER TABLE dbo.t11 DROP COLUMN b;\nALTER TABLE dbo.t1 DROP COLUMN b;", -1, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			target := walkTarget()
+			tt.edit(target.Schema)
 			got := walkFindings(t, tt.sql, target)
 			if tt.statement < 0 {
 				if len(got) != 0 {
@@ -377,13 +460,12 @@ var walkForms = []walktest.Form{
 	{SQL: "EXEC sys.sp_rename 'dbo.t.a', 'z', 'COLUMN';"},
 	{SQL: "EXEC sp_rename 'dbo.t.ix_a', 'ix_z', 'INDEX';"},
 	{SQL: "EXEC sp_addextendedproperty N'MS_Description', N'x', N'SCHEMA', N'dbo', N'TABLE', N't';"},
-	// DML: no trigger in walkSchema, so the walk goes on.
+	// DML: no trigger in walkSchema, so the walk goes on after an INSERT,
+	// and after an UPDATE, DELETE, or MERGE of what no foreign key
+	// references.
 	{SQL: "INSERT INTO dbo.nokey (a) VALUES (1);"},
-	{SQL: "UPDATE dbo.nokey SET a = 1;\nDELETE FROM dbo.nokey WHERE a = 1;"},
-	{SQL: "UPDATE x SET a = 1 FROM dbo.nokey AS x;"},
-	{SQL: "MERGE dbo.nokey AS x USING dbo.r AS y ON x.a = y.id WHEN MATCHED THEN DELETE;"},
-	{SQL: "DECLARE @tv TABLE (a int);\nINSERT INTO @tv VALUES (1);"},
-	{SQL: "CREATE TABLE #x (a int);\nINSERT INTO #x VALUES (1);"},
+	{SQL: "DECLARE @tv TABLE (a int);\nINSERT INTO @tv VALUES (1);\nUPDATE @tv SET a = 2;\nDELETE FROM @tv;"},
+	{SQL: "CREATE TABLE #x (a int);\nINSERT INTO #x VALUES (1);\nUPDATE #x SET a = 2;\nDELETE FROM #x;\nMERGE #x AS x USING dbo.r AS y ON x.a = y.id WHEN MATCHED THEN DELETE;"},
 	// IF.
 	{SQL: "IF OBJECT_ID('dbo.t') IS NOT NULL DROP TABLE dbo.t;"},
 	{SQL: "IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'x') BEGIN CREATE TABLE dbo.x (a int); CREATE INDEX ix ON dbo.x (a) END ELSE ALTER TABLE dbo.x ADD b int;"},
@@ -392,6 +474,12 @@ var walkForms = []walktest.Form{
 	{SQL: "CREATE TRIGGER dbo.tr ON dbo.nokey AFTER INSERT AS SELECT 1;\nGO\nINSERT INTO dbo.nokey VALUES (1);", Last: true},
 	{SQL: "INSERT INTO dbo.nosuch VALUES (1);", Last: true},
 	{SQL: "INSERT INTO other.dbo.t VALUES (1);", Last: true},
+	// An UPDATE, DELETE, or MERGE of a table may cascade to a table whose
+	// triggers the sync does not list.
+	{SQL: "UPDATE dbo.nokey SET a = 1;", Last: true},
+	{SQL: "DELETE FROM dbo.nokey WHERE a = 1;", Last: true},
+	{SQL: "UPDATE x SET a = 1 FROM dbo.nokey AS x;", Last: true},
+	{SQL: "MERGE dbo.nokey AS x USING dbo.r AS y ON x.a = y.id WHEN MATCHED THEN DELETE;", Last: true},
 }
 
 func TestWalkThroughLowersEveryForm(t *testing.T) {

@@ -46,7 +46,7 @@ func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
 	sharedMSSQL.once.Do(func() {
 		ctx := context.Background()
-		container, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-latest",
+		container, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04",
 			tcmssql.WithAcceptEULA(),
 			tcmssql.WithPassword("Str0ngPa$$w0rd!"),
 		)
