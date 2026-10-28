@@ -39,6 +39,13 @@ var nestingCases = []struct {
 	{"EXISTS", func(n int) string { return nest(n, "SELECT 1 WHERE EXISTS (", "SELECT 1", ")") }, true},
 	{"IN subquery", func(n int) string { return nest(n, "SELECT 1 WHERE 1 IN (", "SELECT 1", ")") }, true},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT 1 AS a", ") AS x") }, true},
+	{"parenthesized join", func(n int) string { return "SELECT * FROM " + nest(n, "(t JOIN ", "t", " ON 1 = 1)") }, true},
+	{"joins with their ON clauses nested", func(n int) string {
+		return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) + strings.Repeat(" ON 1 = 1", n)
+	}, true},
+	{"left-nested join groups", func(n int) string {
+		return "SELECT * FROM " + strings.Repeat("(", n) + "t" + strings.Repeat(" JOIN t ON 1 = 1)", n)
+	}, true},
 	{"set operation operand", func(n int) string {
 		return nest(n, "SELECT 1 UNION SELECT * FROM (", "SELECT 1 AS a", ") AS x")
 	}, true},
@@ -70,6 +77,8 @@ var nestingCases = []struct {
 	{"unclosed function calls", func(n int) string { return "SELECT " + strings.Repeat("ABS(", n) }, false},
 	{"unclosed subqueries", func(n int) string { return strings.Repeat("SELECT (", n) }, false},
 	{"unclosed derived tables", func(n int) string { return strings.Repeat("SELECT * FROM (", n) }, false},
+	{"unclosed join groups", func(n int) string { return "SELECT * FROM " + strings.Repeat("(", n) }, false},
+	{"joins waiting for ON", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t", n) }, false},
 	{"unclosed blocks", func(n int) string { return strings.Repeat("BEGIN ", n) }, false},
 	{"unclosed WAITFOR", func(n int) string { return strings.Repeat("WAITFOR (", n) }, false},
 }

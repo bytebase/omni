@@ -893,6 +893,10 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 // and UNPIVOTs that follow it. onPending is true for the right operand of a
 // qualified join, whose ON clause comes after the joins parsed here.
 func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parsePrimaryTableSource()
 	if err != nil {
 		return nil, err
@@ -1023,6 +1027,10 @@ func (p *Parser) collectAfterTableSource(onPending bool) error {
 // allows no PIVOT there at all, which is narrower than SQL Server. The
 // JoinClause returned spans the parentheses.
 func (p *Parser) parseParenthesizedJoin() (nodes.TableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	loc := p.pos()
 	p.advance() // consume '('
 
