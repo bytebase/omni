@@ -448,6 +448,7 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		}
 		b.leaveObject(r)
 	case ast.OBJECT_INDEX:
+		b.Last = b.domainIndex(r)
 		if !b.dropsKind(r.key(spaceIndex), nil, v.IfExists, r.rng, missingIndex(r.written), "") {
 			return true
 		}
@@ -526,6 +527,8 @@ func (b *builder) dropTable(v *ast.DropStmt, r objRef) bool {
 	if !b.dropsKind(k, []string{kindTable}, v.IfExists, r.rng, missingTable(r.written), mview) {
 		return true
 	}
+	b.Last = b.domain(r)
+	b.forgetStorage(r)
 	b.leaveObject(r)
 	b.Clear(walk.Scope{Parent: r.path(), Deep: true})
 	b.dropOwned(r)
@@ -546,6 +549,7 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 	if !ok {
 		return false
 	}
+	b.Last = b.domain(r)
 	if f, _ := b.look(r.key(spaceTable)); f != walk.Absent {
 		return true
 	}
@@ -605,7 +609,9 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		case walk.Absent:
 			b.wrongTarget(t, false)
 		}
-		b.Last = b.callsUserCode(v)
+		// An indextype's code runs to build a domain index, and can make
+		// tables of its own.
+		b.Last = b.callsUserCode(v) || v.IndexType != nil
 	}
 	k := r.key(spaceIndex)
 	if v.IfNotExists {
@@ -632,6 +638,7 @@ func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
 		return false
 	}
 	b.Order = walk.Lookups
+	b.Last = b.domainIndex(r)
 	k := r.key(spaceIndex)
 	if !b.exists(k, nil, v.IfExists, r.rng, missingIndex(r.written), "") {
 		return true
@@ -851,6 +858,7 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 		b.Move(from.path(), to.path())
 		b.dropOwned(from)
 	case kind == kindTable:
+		b.Last = b.domain(from)
 		b.moveTable(from, to)
 	default:
 		b.leaveObject(from)
@@ -929,7 +937,7 @@ func (b *builder) dml(n ast.Node) bool {
 		if !ok {
 			return false
 		}
-		if f, kind := b.look(r.key(spaceTable)); f != walk.Present || kind != kindTable {
+		if f, kind := b.look(r.key(spaceTable)); f != walk.Present || kind != kindTable || b.domain(r) {
 			fires = true
 		}
 	}

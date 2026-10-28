@@ -42,6 +42,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if b.alterTextFails(cmds, r) {
 		return true
 	}
+	b.Last = b.domain(r)
 	for _, c := range cmds {
 		b.Next()
 		if c.Action == ast.AT_RENAME && kind == kindMView {
@@ -186,6 +187,10 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd) bool {
 	rng := rangeOf(c.Loc)
 	switch c.Action {
 	case ast.AT_ADD_COLUMN:
+		if nestedStorage(c.Options) {
+			// The nested table's storage table takes a name.
+			return false
+		}
 		var d tableDecl
 		for _, col := range alterColumns(c) {
 			ck := r.childKey(spaceColumn, col.Name)
@@ -216,8 +221,10 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd) bool {
 			b.columnNeeds(r, name, rng)
 			b.Set(r.childKey(spaceColumn, name), walk.Absent, "")
 		}
-		// The column's constraints and indexes go with it.
+		// The column's constraints and indexes go with it, and a nested
+		// table column's storage table.
 		b.dropsConstraints(r)
+		b.forgetStorage(r)
 		b.MayRemove(walk.Scope{Space: spacePrimary, Parent: r.path()})
 		b.dropIndexes(r)
 		if b.cascadesConstraints(c) {
@@ -262,7 +269,10 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd) bool {
 		if to.name != r.name {
 			b.moveTable(r, to)
 		}
-	case ast.AT_DROP_UNUSED_COLUMNS, ast.AT_ENABLE_DISABLE_TRIGGERS, ast.AT_ENABLE_DISABLE_TABLE_LOCK, ast.AT_MOVE,
+	case ast.AT_DROP_UNUSED_COLUMNS:
+		// An unused nested table column's storage table goes now.
+		b.forgetStorage(r)
+	case ast.AT_ENABLE_DISABLE_TRIGGERS, ast.AT_ENABLE_DISABLE_TABLE_LOCK, ast.AT_MOVE,
 		ast.AT_SHRINK_SPACE, ast.AT_ALTER_PROPERTY, ast.AT_MODIFY_LOB, ast.AT_MODIFY_VARRAY, ast.AT_MODIFY_NESTED_TABLE,
 		ast.AT_MODIFY_OPAQUE_TYPE, ast.AT_IMMUTABLE_TABLE, ast.AT_BLOCKCHAIN_TABLE, ast.AT_DUPLICATED_REFRESH,
 		ast.AT_ADD_PARTITION, ast.AT_DROP_PARTITION, ast.AT_TRUNCATE_PARTITION, ast.AT_SPLIT_PARTITION,
@@ -283,6 +293,20 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd) bool {
 func (b *builder) constraintNeeds(r objRef, name string, rng review.Range, message string) {
 	b.need(r.childKey(spaceTableConstraint, name), walk.Present, nil, rng, message, "")
 	b.need(r.schemaKey(spaceConstraint, name), walk.Present, []string{r.path()}, rng, message, message)
+}
+
+// nestedStorage reports whether an ADD names a nested table's storage
+// table.
+func nestedStorage(opts *ast.List) bool {
+	if opts == nil {
+		return false
+	}
+	for _, item := range opts.Items {
+		if o, ok := item.(*ast.DDLOption); ok && o.Key == "NESTED" {
+			return true
+		}
+	}
+	return false
 }
 
 // columnNeeds checks that a column the clause names exists (00904).

@@ -106,7 +106,7 @@ Accepted assumptions, decision O3:
 - `FLASHBACK TABLE` restores what the walk cannot list, so it ends the walk.
 
 **What goes with what.**
-- `DROP TABLE` takes the table's indexes, constraints, and triggers.
+- `DROP TABLE` takes the table's indexes, constraints, and triggers, and a nested table column's storage table, which the sync lists as a table of no column without its parent. `DROP COLUMN` of the nested table column takes it too, and `SET UNUSED` keeps it until `DROP UNUSED COLUMNS`. So these forget every storage table the sync lists in the schema, and `ALTER TABLE ... ADD (c ...) NESTED TABLE c STORE AS s` ends the walk.
 - `DROP COLUMN` takes the column's single-column constraints and indexes.
 - `DROP VIEW` and `CREATE OR REPLACE VIEW` take the view's `INSTEAD OF` triggers and its constraints.
 - `CASCADE CONSTRAINTS` takes other tables' foreign keys.
@@ -216,6 +216,7 @@ The parser's shapes, read before writing this table:
   - Which statements: DML, `SELECT`, `CREATE TABLE ... AS SELECT`, and `CREATE INDEX` on an expression.
   - When: any function call that is qualified, or whose name is not an Oracle SQL builtin; or a name that may call a function without parentheses. In a statement of one query block, a name is no call when it is a column the walk knows a table in scope has, a column a table or alias in scope qualifies, a sequence's `NEXTVAL` or `CURRVAL`, a builtin Oracle takes first, or a name an index lists alone. Any other name, or any name in a statement of more query blocks, may be a call.
   - In SQL a builtin takes precedence over a schema function of the same name, while a qualified call runs the schema's (verified with a schema `UPPER` and `NVL`). An autonomous function called from `SELECT` or `CREATE TABLE ... AS SELECT` can run DDL (verified).
+- **After its checks, a statement that may run an indextype's code:** `CREATE INDEX ... INDEXTYPE IS`, and DDL or DML on a table with a domain index or on such an index (the sync gives the index type `DOMAIN`). An indextype's `ODCIIndex*` routines are user code, and Oracle Text's make and drop `DR$` tables of their own. Oracle Free has no Oracle Text (29833), so this is pinned by unit tests.
 - **After its checks, DML (`INSERT`, `UPDATE`, `DELETE`, `MERGE`) where a trigger may fire:**
   - The cases:
     - the snapshot or the change has any trigger;
@@ -348,5 +349,7 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
   - A function called without parentheses runs: `VALUES (f)`, `SET a = f`, `INSERT ... SELECT f FROM dual`, `WHERE ... AND f = 1`, `pkg.g`, and `shop.f`. A column wins over a function of its name (`WHERE f = 1` on a table with a column `F`). `CURRENT_DATE`, `CURRENT_TIMESTAMP`, `LOCALTIMESTAMP`, `DBTIMEZONE`, `SESSIONTIMEZONE`, and `ORA_ROWSCN` win over schema functions of their names; a function named `UID` cannot be created (04050). `sq.NEXTVAL` reads the sequence.
   - In `CREATE INDEX`, a name listed alone is a column: `(fx)`, `(shop.fx)`, `(pkg.g)` fail with 00904 and call nothing, while `(a + fx)` calls `fx`.
   - `CREATE FUNCTION IF NOT EXISTS` of a function's name, or of a table's, does nothing.
+  - A quoted name of a function of a syntax of its own is a plain call: `"EXTRACT"(1)` calls a schema function `"EXTRACT"`, while `"UPPER"(1)` still takes the builtin.
+- **Nested tables:** `DROP TABLE parent` and `ALTER TABLE parent DROP COLUMN c` drop the storage table `CHILD` of `NESTED TABLE c STORE AS child`; `SET UNUSED COLUMN c` keeps it.
 - **PL/SQL with errors:** through go-ora, `CREATE OR REPLACE PROCEDURE` with an unknown call, `CREATE OR REPLACE PACKAGE BODY` without a spec, a trigger with an unknown call, and `CREATE OR REPLACE FORCE VIEW` on a missing table return no error and leave `INVALID` objects. `CREATE OR REPLACE VIEW` with an unknown column fails with 00904.
 - **Namespaces:** a LOB segment `STORE AS lseg` beside a table `LSEG`: accepted. Quoted `"t"` and unquoted `T` are two tables; `DROP TABLE t2x` does not find `"T2x"`.

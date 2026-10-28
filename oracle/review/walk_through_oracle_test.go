@@ -104,6 +104,14 @@ var walkCases = []walkCase{
 		"CREATE OR REPLACE FUNCTION dropt RETURN NUMBER AS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN EXECUTE IMMEDIATE 'DROP TABLE shop.nokey'; RETURN 1; END;",
 		"INSERT INTO p VALUES (1, 'a')",
 	}, change: "UPDATE p SET note = 'b' WHERE id = 1 AND dropt = 1;\nCREATE TABLE nokey (a NUMBER);"},
+	{name: "a quoted name of a function of a syntax of its own", setup: []string{
+		"CREATE OR REPLACE FUNCTION \"EXTRACT\"(n NUMBER) RETURN NUMBER AS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN EXECUTE IMMEDIATE 'DROP TABLE shop.nokey'; RETURN 1; END;",
+	}, change: "INSERT INTO p (id, note) VALUES (9, \"EXTRACT\"(1));\nCREATE TABLE nokey (a NUMBER);"},
+	{name: "a nested table's storage table goes with its parent", setup: []string{
+		"CREATE TYPE nt_ty AS TABLE OF NUMBER",
+		"CREATE TABLE parent (a NUMBER, c nt_ty) NESTED TABLE c STORE AS child",
+		"CREATE TABLE parent2 (a NUMBER, c nt_ty) NESTED TABLE c STORE AS child2",
+	}, change: "CREATE TABLE child (a NUMBER);\nDROP TABLE parent;\nCREATE TABLE child (a NUMBER);\nCREATE TABLE child (a NUMBER);\nALTER TABLE parent2 DROP COLUMN c;\nCREATE TABLE child2 (a NUMBER);\nALTER TABLE nokey ADD (c nt_ty) NESTED TABLE c STORE AS child3;\nDROP TABLE child3;"},
 	{name: "a column takes precedence over a function of its name", setup: []string{
 		"CREATE OR REPLACE FUNCTION a RETURN NUMBER AS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN EXECUTE IMMEDIATE 'DROP TABLE shop.p CASCADE CONSTRAINTS'; RETURN 1; END;",
 		"INSERT INTO nokey VALUES (1)",
@@ -598,12 +606,12 @@ UNION ALL SELECT table_name, 1 FROM all_object_tables WHERE owner = :1 AND table
 			userColumns[v[0].String] = true
 		}
 	})
-	query(`SELECT table_name, index_name FROM all_indexes WHERE owner = :1`, func(v []sql.NullString) {
+	query(`SELECT table_name, index_name, index_type FROM all_indexes WHERE owner = :1`, func(v []sql.NullString) {
 		table, name := v[0].String, v[1].String
 		if indexed[table+"."+name] || strings.HasPrefix(name, "SYS_") || !userColumns[name] {
 			return
 		}
-		addIndex(table, &metadata.IndexMetadata{Name: name})
+		addIndex(table, &metadata.IndexMetadata{Name: name, Type: v[2].String})
 	})
 	views := make(map[string]*metadata.ViewMetadata)
 	query(`SELECT view_name FROM all_views WHERE owner = :1`, func(v []sql.NullString) {

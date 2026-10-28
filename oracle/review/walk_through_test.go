@@ -40,6 +40,12 @@ func walkSchema(triggers bool) *metadata.DatabaseSchemaMetadata {
 			{Name: "PERIODIC", Columns: cols("A"), CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "VT8cf288", Expression: `"VT_START" < "VT_END"`}}},
 			// An object table, whose hidden columns are not listed.
 			{Name: "OT", Columns: cols("X", "Y"), SkipDump: true},
+			// A table with a nested table column, and its storage table, of
+			// no listed column.
+			{Name: "PARENT", Columns: cols("A", "C")},
+			{Name: "CHILD"},
+			// A table with a domain index.
+			{Name: "DOC", Columns: cols("ID", "BODY"), Indexes: []*metadata.IndexMetadata{{Name: "DOC_CTX", Type: "DOMAIN"}}},
 		},
 		Views:             []*metadata.ViewMetadata{{Name: "PV"}},
 		MaterializedViews: []*metadata.MaterializedViewMetadata{{Name: "MV", Indexes: []*metadata.IndexMetadata{{Name: "MV_IX"}}}},
@@ -186,6 +192,13 @@ func TestWalkThroughOracleEffects(t *testing.T) {
 	// A column's constraints may go with it.
 	noFinding(t, "ALTER TABLE t DROP COLUMN n;\nALTER TABLE t DROP CONSTRAINT ck_n;", shop)
 	noFinding(t, "ALTER TABLE t MODIFY (code NULL);\nALTER TABLE nokey ADD CONSTRAINT nn_code CHECK (a > 0);", shop)
+	// A nested table's storage table goes with its parent, or its column.
+	oneFinding(t, "CREATE TABLE child (a NUMBER);", 0, "Name CHILD is already used by an existing object", shop)
+	noFinding(t, "DROP TABLE parent;\nCREATE TABLE child (a NUMBER);", shop)
+	noFinding(t, "ALTER TABLE parent DROP COLUMN c;\nCREATE TABLE child (a NUMBER);", shop)
+	noFinding(t, "ALTER TABLE parent SET UNUSED COLUMN c;\nALTER TABLE parent DROP UNUSED COLUMNS;\nCREATE TABLE child (a NUMBER);", shop)
+	noFinding(t, "ALTER TABLE nokey ADD (c nt_ty) NESTED TABLE c STORE AS s2;\nDROP TABLE s2;", shop)
+	oneFinding(t, "DROP TABLE other.o;\nCREATE TABLE child (a NUMBER);", 1, "Name CHILD is already used by an existing object", shop)
 	// Columns the sync may not list: a period's, an object table's.
 	noFinding(t, "ALTER TABLE periodic DROP COLUMN vt_start;\nALTER TABLE ot DROP COLUMN xmldata;\nALTER TABLE nokey DROP COLUMN ora_archive_state;", shop)
 	oneFinding(t, "ALTER TABLE ot ADD (x NUMBER);", 0, "Column X being added already exists in table OT", shop)
@@ -250,6 +263,24 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	oneFinding(t, "INSERT INTO nokey (a) VALUES (sq.nextval + 1);\nINSERT INTO nokey (a) SELECT p.id FROM p JOIN t ON t.p_id = p.id WHERE note = current_date;\nCREATE TABLE t (a NUMBER);", 2, "Name T is already used by an existing object", shop)
 	oneFinding(t, "MERGE INTO nokey k USING p ON (k.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nDELETE FROM shop.t WHERE shop.t.id = 1;\nCREATE INDEX i ON nokey (a);\nCREATE TABLE t (a NUMBER);", 3, "Name T is already used by an existing object", shop)
 	oneFinding(t, "CREATE TABLE x (a NUMBER);\nUPDATE x SET a = 1 WHERE a = 2;\nCREATE TABLE x (b NUMBER);", 2, "Name X is already used by an existing object", shop)
+	// A quoted name of a function of a syntax of its own is a plain call.
+	noFinding(t, "SELECT \"EXTRACT\"(1) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
+	oneFinding(t, "SELECT extract(year FROM sysdate) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Name T is already used by an existing object", shop)
+	// A domain index's indextype runs code of its own on the table's DDL
+	// and DML, and to build or drop the index.
+	for _, q := range []string{
+		"CREATE INDEX x ON nokey (a) INDEXTYPE IS ctxsys.context;",
+		"DROP INDEX doc_ctx;",
+		"ALTER INDEX doc_ctx REBUILD;",
+		"DROP TABLE doc;",
+		"TRUNCATE TABLE doc;",
+		"ALTER TABLE doc ADD (z NUMBER);",
+		"RENAME doc TO doc2;",
+		"INSERT INTO doc (id) VALUES (1);",
+	} {
+		noFinding(t, q+"\nCREATE TABLE t (a NUMBER);", shop)
+	}
+	oneFinding(t, "ALTER TABLE doc ADD (body NUMBER);", 0, "Column BODY being added already exists in table DOC", shop)
 	// DML that may fire a trigger: any in the schema or the change, or a
 	// target the walk does not know as a table.
 	oneFinding(t, "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 1;\nDELETE FROM p;\nCREATE TABLE t (a NUMBER);", 3, "Name T is already used by an existing object", shop)
@@ -331,6 +362,9 @@ func TestWalkThroughOracleSnapshot(t *testing.T) {
 		if f != tt.fact || kind != tt.kind {
 			t.Errorf("%s %q in %q = %v %q, want %v %q", tt.key.Space, tt.key.Name, walk.Names(tt.key.Parent), f, kind, tt.fact, tt.kind)
 		}
+	}
+	if strings.Join(s.storage, ",") != "CHILD" || !s.domainTables["DOC"] || !s.domainIndexes["DOC_CTX"] {
+		t.Errorf("storage = %q, domain tables = %v, domain indexes = %v", s.storage, s.domainTables, s.domainIndexes)
 	}
 	if got := quotedNames(`"A" > 0 AND b = 'say "B"' AND "C" < 'it''s'`); strings.Join(got, ",") != "A,C" {
 		t.Errorf("quotedNames = %q", got)

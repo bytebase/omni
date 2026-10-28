@@ -85,6 +85,15 @@ type oracleSnapshot struct {
 	indexes           map[string]string
 	constraintIndexes map[string]bool
 	triggers          map[string]string
+	// domainTables holds the tables and materialized views with a domain
+	// index, and domainIndexes those indexes: an indextype's code runs on
+	// the table's DDL and DML, and can create and drop tables of its own,
+	// as Oracle Text's DR$ tables. storage holds the tables the sync lists
+	// no column of, a nested table's storage tables: DROP TABLE of the
+	// parent, and DROP COLUMN of the nested table, drop them (verified).
+	domainTables  map[string]bool
+	domainIndexes map[string]bool
+	storage       []string
 }
 
 // syncedTable is what the snapshot holds of a table or materialized view.
@@ -106,6 +115,8 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		indexes:           make(map[string]string),
 		constraintIndexes: make(map[string]bool),
 		triggers:          make(map[string]string),
+		domainTables:      make(map[string]bool),
+		domainIndexes:     make(map[string]bool),
 	}
 	for _, schema := range db.GetSchemas() {
 		if name := schema.GetName(); name != "" && name != s.schema {
@@ -121,6 +132,9 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 				st.columns[c.GetName()] = true
 			}
 			st.complete = columnsComplete(t, st.columns)
+			if len(st.columns) == 0 {
+				s.storage = append(s.storage, t.GetName())
+			}
 			s.indexesOf(t.GetName(), st, t.GetIndexes())
 			for _, fk := range t.GetForeignKeys() {
 				st.constraints[fk.GetName()] = true
@@ -167,6 +181,10 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 func (s *oracleSnapshot) indexesOf(table string, st *syncedTable, indexes []*metadata.IndexMetadata) {
 	for _, idx := range indexes {
 		name := idx.GetName()
+		if idx.GetType() == "DOMAIN" {
+			s.domainTables[table] = true
+			s.domainIndexes[name] = true
+		}
 		if !idx.GetIsConstraint() {
 			s.indexes[name] = table
 			continue

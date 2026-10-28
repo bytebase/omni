@@ -326,6 +326,31 @@ func (b *builder) dropIndexes(r objRef) {
 	b.MayRemove(walk.Scope{Space: spaceIndex, Deep: true, Kinds: []string{r.path()}})
 }
 
+// domain reports whether the synced table a reference names has a domain
+// index, whose indextype's code runs on the table's DDL and DML.
+func (b *builder) domain(r objRef) bool {
+	return r.schema == b.w.snap.schema && b.w.snap.domainTables[r.name]
+}
+
+// domainIndex reports whether a synced index is a domain index.
+func (b *builder) domainIndex(r objRef) bool {
+	return r.schema == b.w.snap.schema && b.w.snap.domainIndexes[r.name]
+}
+
+// forgetStorage records that a statement on a table of the target's
+// schema may have dropped a nested table's storage table, of a name the
+// sync lists but does not tie to its parent.
+func (b *builder) forgetStorage(r objRef) {
+	if r.schema != b.w.snap.schema {
+		return
+	}
+	for _, name := range b.w.snap.storage {
+		s := objRef{schema: r.schema, name: name}
+		b.forgetObject(s)
+		b.Forget(walk.Scope{Parent: s.path(), Deep: true})
+	}
+}
+
 // cascadeConstraints records that CASCADE CONSTRAINTS may have dropped the
 // foreign keys of any table.
 func (b *builder) cascadeConstraints() {
@@ -359,12 +384,14 @@ func missingTrigger(w string) string  { return "Trigger " + w + " does not exist
 func missingSequence(w string) string { return "Sequence " + w + " does not exist" }
 
 // callsUserCode reports whether a statement may run code of a schema: a
-// function call that is qualified, or whose name is not an Oracle SQL
-// builtin, or a name that may be a call without parentheses. In SQL a
+// function call that is qualified, quoted, or whose name is not an Oracle
+// SQL builtin, or a name that may be a call without parentheses. In SQL a
 // builtin takes precedence over a schema function of the same name, while
 // a qualified call runs the schema's (verified with a schema UPPER and
-// NVL); and a function, called from a query or DML, can run DDL in an
-// autonomous transaction (verified).
+// NVL); a quoted name of a function of a syntax of its own is a plain
+// call, which a schema function of the name takes ("EXTRACT"(1),
+// verified); and a function, called from a query or DML, can run DDL in
+// an autonomous transaction (verified).
 func (b *builder) callsUserCode(n ast.Node) bool {
 	calls := false
 	ast.Inspect(n, func(m ast.Node) bool {
@@ -373,11 +400,17 @@ func (b *builder) callsUserCode(n ast.Node) bool {
 		}
 		if fc, ok := m.(*ast.FuncCallExpr); ok {
 			name := fc.FuncName
-			calls = name == nil || name.Schema != "" || name.DBLink != "" || !sqlBuiltins[name.Name]
+			calls = name == nil || name.Schema != "" || name.DBLink != "" || !sqlBuiltins[name.Name] || b.quoted(name.Loc)
 		}
 		return !calls
 	})
 	return calls || b.callsBareFunction(n)
+}
+
+// quoted reports whether the text at a location begins with a quoted
+// identifier.
+func (b *builder) quoted(loc ast.Loc) bool {
+	return loc.Start >= 0 && loc.Start < len(b.w.sql) && b.w.sql[loc.Start] == '"'
 }
 
 // callsBareFunction reports whether a name of a statement may call a
