@@ -44,6 +44,10 @@ func (p *Parser) parseExpr() (nodes.ExprNode, error) {
 
 // parseExprPrec parses expressions at or above the given precedence level.
 func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, parseErr695 := p.parsePrefix()
 	if parseErr695 != nil {
 		return nil, parseErr695

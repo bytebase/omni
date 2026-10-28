@@ -4382,6 +4382,10 @@ func (p *Parser) parseCreateHierarchyStmt(start int, orReplace, force, noForce b
 
 // parseHierLevelClause parses a level_hier_clause recursively.
 func (p *Parser) parseHierLevelClause() (*nodes.HierLevelClause, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	lvl := &nodes.HierLevelClause{Loc: nodes.Loc{Start: p.pos()}}
 	var parseErr316 error
 	lvl.Name, parseErr316 = p.parseIdentifier()

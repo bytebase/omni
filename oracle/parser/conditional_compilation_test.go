@@ -628,6 +628,8 @@ func TestConditionalCompilationCompletion(t *testing.T) {
 // as Oracle 23ai compiles it under whichever selection its database
 // version, PLSQL_CCFLAGS, and package constants settle.
 func TestConditionalCompilationSelections(t *testing.T) {
+	// A linear-time case below nests a condition in 16,000 parentheses.
+	raiseNestingLimit(t)
 	for _, sql := range []string{
 		"BEGIN $IF $$x $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END END;",

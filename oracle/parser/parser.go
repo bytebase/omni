@@ -107,6 +107,8 @@ type Parser struct {
 	// and cleared in the SQL statements it embeds: the expressions of
 	// PL/SQL alone take the choices of a qualified expression.
 	plsqlCode bool
+
+	depth int // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // checkConditionalCompilation checks the conditional compilation of stmt,

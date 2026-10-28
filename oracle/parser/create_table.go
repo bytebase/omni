@@ -2454,6 +2454,10 @@ func (p *Parser) isStatementEnd() bool {
 //	PARTITION BY { RANGE | LIST | HASH } (columns)
 //	    ( partition_def [,...] )
 func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	start := p.pos()
 	p.advance() // consume PARTITION
 

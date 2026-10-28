@@ -121,6 +121,10 @@ func (p *Parser) parsePLSQLDeclarations() (*nodes.List, error) {
 
 // parsePLSQLDeclaration parses a single declaration.
 func (p *Parser) parsePLSQLDeclaration() (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	defer p.restorePLSQLCode(p.setPLSQLCode(true))
 
 	// CURSOR declaration
@@ -414,6 +418,10 @@ func (p *Parser) requirePLSQLStatement(stmts *nodes.List) error {
 }
 
 func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	defer p.restorePLSQLCode(p.setPLSQLCode(true))
 
 	// One or more <<label>> prefixes may precede ANY statement (engine-
