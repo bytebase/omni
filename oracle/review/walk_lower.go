@@ -447,6 +447,9 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 			return true
 		}
 		b.leaveObject(r)
+		if v.ObjectType == ast.OBJECT_TYPE && v.Force {
+			b.forgetTypeDependents()
+		}
 	case ast.OBJECT_INDEX:
 		b.Last = b.domainIndex(r)
 		if !b.dropsKind(r.key(spaceIndex), nil, v.IfExists, r.rng, missingIndex(r.written), "") {
@@ -529,6 +532,7 @@ func (b *builder) dropTable(v *ast.DropStmt, r objRef) bool {
 	}
 	b.Last = b.domain(r)
 	b.forgetStorage(r)
+	b.forgetLogs(r)
 	b.leaveObject(r)
 	b.Clear(walk.Scope{Parent: r.path(), Deep: true})
 	b.dropOwned(r)
@@ -744,7 +748,7 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 // follows synonyms, so a missing one claims nothing. A trigger on SCHEMA
 // or DATABASE ends the walk.
 func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
-	if v.Table == nil || v.Table.Loc.Start <= 0 && v.Table.Loc.End <= 0 {
+	if !dmlTrigger(v) {
 		return false
 	}
 	r, ok := b.ref(v.Name)
@@ -786,6 +790,24 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	}
 	b.Set(k, walk.Present, on)
 	b.Session(func() { b.w.triggers = true })
+	return true
+}
+
+// dmlTrigger reports whether a CREATE TRIGGER makes a DML or INSTEAD OF
+// trigger on a table or view: one whose every event is INSERT, UPDATE, or
+// DELETE. A DDL or database event makes a trigger on SCHEMA, of the
+// current user or a named one (ON shop.SCHEMA), or on DATABASE, which the
+// parser keeps as a table named so; and a DML event on shop.SCHEMA names a
+// table (00942 for a missing one, verified).
+func dmlTrigger(v *ast.CreateTriggerStmt) bool {
+	if v.Table == nil || v.Table.Loc.Start <= 0 && v.Table.Loc.End <= 0 || v.Events == nil || len(v.Events.Items) == 0 {
+		return false
+	}
+	for _, e := range v.Events.Items {
+		if _, ok := e.(*ast.Integer); !ok {
+			return false
+		}
+	}
 	return true
 }
 

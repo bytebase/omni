@@ -46,6 +46,8 @@ func walkSchema(triggers bool) *metadata.DatabaseSchemaMetadata {
 			{Name: "CHILD"},
 			// A table with a domain index.
 			{Name: "DOC", Columns: cols("ID", "BODY"), Indexes: []*metadata.IndexMetadata{{Name: "DOC_CTX", Type: "DOMAIN"}}},
+			// A materialized view log's table, of P.
+			{Name: "MLOG$_P", Columns: cols("ID", "SNAPTIME$$"), Indexes: []*metadata.IndexMetadata{{Name: "I_MLOG$_P"}}},
 		},
 		Views:             []*metadata.ViewMetadata{{Name: "PV"}},
 		MaterializedViews: []*metadata.MaterializedViewMetadata{{Name: "MV", Indexes: []*metadata.IndexMetadata{{Name: "MV_IX"}}}},
@@ -130,6 +132,11 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "ALTER TABLE t DISABLE CONSTRAINT ck_p;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t ENABLE CONSTRAINT ck_n;", 2, "Cannot enable constraint CK_N: table T has no such constraint", shop)
 	oneFinding(t, "ALTER TABLE t RENAME CONSTRAINT ck_n TO fk_p;", 0, "Name FK_P is already used by an existing constraint", shop)
 	noFinding(t, "ALTER TABLE t DROP CONSTRAINT nosuch;\nALTER TABLE t ADD CONSTRAINT nosuch CHECK (n > 0);", shop)
+	// A trailing ENABLE or DISABLE sees the constraints of the statement's
+	// ADD and MODIFY clauses, and MODIFY CONSTRAINT does not.
+	noFinding(t, "CREATE TABLE x (a NUMBER);\nALTER TABLE x ADD (z NUMBER CONSTRAINT c5 CHECK (z > 0)) DISABLE CONSTRAINT c5;\nALTER TABLE x ADD (CONSTRAINT c9 CHECK (a > 0)) ENABLE CONSTRAINT c9;\nALTER TABLE x MODIFY (a CONSTRAINT nn_a NOT NULL) DISABLE CONSTRAINT nn_a;", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nALTER TABLE x ADD (z NUMBER CONSTRAINT c8 CHECK (z > 0)) MODIFY CONSTRAINT c8 DISABLE;", 1, "Cannot disable constraint C8: table X has no such constraint", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nALTER TABLE x ADD (z NUMBER CONSTRAINT c5 CHECK (z > 0)) DISABLE CONSTRAINT c6;", 1, "Cannot disable constraint C6: table X has no such constraint", shop)
 	// The text alone.
 	oneFinding(t, "CREATE TABLE x (a NUMBER, a NUMBER);", 0, "Column A is named twice in table X", shop)
 	oneFinding(t, "CREATE TABLE x (a NUMBER CONSTRAINT c CHECK (a > 0), b NUMBER CONSTRAINT c NOT NULL);", 0, "Name C is already used by an existing constraint", shop)
@@ -199,6 +206,14 @@ func TestWalkThroughOracleEffects(t *testing.T) {
 	noFinding(t, "ALTER TABLE parent SET UNUSED COLUMN c;\nALTER TABLE parent DROP UNUSED COLUMNS;\nCREATE TABLE child (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE nokey ADD (c nt_ty) NESTED TABLE c STORE AS s2;\nDROP TABLE s2;", shop)
 	oneFinding(t, "DROP TABLE other.o;\nCREATE TABLE child (a NUMBER);", 1, "Name CHILD is already used by an existing object", shop)
+	// A materialized view log's table goes with its master.
+	oneFinding(t, "CREATE TABLE mlog$_p (a NUMBER);", 0, "Name MLOG$_P is already used by an existing object", shop)
+	noFinding(t, "DROP TABLE p;\nCREATE TABLE mlog$_p (a NUMBER);\nCREATE INDEX i_mlog$_p ON nokey (a);", shop)
+	oneFinding(t, "DROP TABLE other.o;\nCREATE INDEX i_mlog$_p ON nokey (a);", 1, "Name I_MLOG$_P is already used by an existing object", shop)
+	// DROP TYPE ... FORCE takes the columns of the type, and their
+	// constraints and indexes.
+	oneFinding(t, "DROP TYPE ty;\nALTER TABLE t ADD (n NUMBER);", 1, "Column N being added already exists in table T", shop)
+	noFinding(t, "DROP TYPE ty FORCE;\nALTER TABLE t ADD (n NUMBER);\nALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0);\nCREATE INDEX ix_n ON nokey (a);", shop)
 	// Columns the sync may not list: a period's, an object table's.
 	noFinding(t, "ALTER TABLE periodic DROP COLUMN vt_start;\nALTER TABLE ot DROP COLUMN xmldata;\nALTER TABLE nokey DROP COLUMN ora_archive_state;", shop)
 	oneFinding(t, "ALTER TABLE ot ADD (x NUMBER);", 0, "Column X being added already exists in table OT", shop)
@@ -226,6 +241,9 @@ func TestWalkThroughOracleSession(t *testing.T) {
 	noFinding(t, "FLASHBACK TABLE t TO BEFORE DROP;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE MATERIALIZED VIEW mv2 AS SELECT 1 a FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE TRIGGER st AFTER LOGON ON SCHEMA BEGIN NULL; END;\n/\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "CREATE TRIGGER st AFTER CREATE ON shop.SCHEMA BEGIN NULL; END;\n/\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "CREATE TRIGGER st BEFORE DDL ON other.SCHEMA BEGIN NULL; END;\n/\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "CREATE TRIGGER st AFTER STARTUP ON DATABASE BEGIN NULL; END;\n/\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE TABLE \"é\" (a NUMBER);\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE t ADD SUPPLEMENTAL LOG GROUP lg (n) ALWAYS;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "INSERT INTO t@lnk VALUES (1);\nCREATE TABLE t (a NUMBER);", shop)

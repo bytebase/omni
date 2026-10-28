@@ -341,13 +341,37 @@ func (b *builder) domainIndex(r objRef) bool {
 // schema may have dropped a nested table's storage table, of a name the
 // sync lists but does not tie to its parent.
 func (b *builder) forgetStorage(r objRef) {
+	b.forgetTables(r, b.w.snap.storage)
+}
+
+// forgetLogs records that DROP TABLE of a table of the target's schema
+// may have dropped its materialized view log's table, of a name the sync
+// lists but does not tie to its master.
+func (b *builder) forgetLogs(r objRef) {
+	b.forgetTables(r, b.w.snap.logs)
+}
+
+// forgetTables records that a statement on a table of the target's schema
+// may have dropped synced tables of that schema, with what was on them.
+func (b *builder) forgetTables(r objRef, names []string) {
 	if r.schema != b.w.snap.schema {
 		return
 	}
-	for _, name := range b.w.snap.storage {
+	for _, name := range names {
 		s := objRef{schema: r.schema, name: name}
 		b.forgetObject(s)
 		b.Forget(walk.Scope{Parent: s.path(), Deep: true})
+		b.dropOwned(s)
+	}
+}
+
+// forgetTypeDependents records that DROP TYPE ... FORCE may have taken the
+// columns of the type, or of a type with an attribute of it, in a table of
+// any schema, which become unused, and their constraints and indexes
+// (verified).
+func (b *builder) forgetTypeDependents() {
+	for _, space := range []string{spaceColumn, spacePrimary, spaceTableConstraint, spaceConstraint, spaceIndex} {
+		b.MayRemove(walk.Scope{Space: space, Deep: true})
 	}
 }
 

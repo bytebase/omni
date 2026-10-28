@@ -39,7 +39,8 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	if f == walk.Absent {
 		return true
 	}
-	if b.alterTextFails(cmds, r) {
+	declared, fails := b.alterTextFails(cmds, r)
+	if fails {
 		return true
 	}
 	b.Last = b.domain(r)
@@ -48,7 +49,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		if c.Action == ast.AT_RENAME && kind == kindMView {
 			return false
 		}
-		if !b.alterCmd(r, c) {
+		if !b.alterCmd(r, c, declared) {
 			return false
 		}
 	}
@@ -87,8 +88,9 @@ func alterFollowed(c *ast.AlterTableCmd) bool {
 // verified): a column twice across ADD, MODIFY, and a DROP list (00957), a
 // constraint name twice (02264), two primary keys (02260), the same
 // constraint dropped twice (02443), or a name longer than Oracle allows
-// (00972).
-func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) bool {
+// (00972). It returns the constraint names the statement's ADD and MODIFY
+// clauses declare.
+func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) (declared []string, fails bool) {
 	columns := make(map[string]bool)
 	twice := func(name string, rng review.Range) bool {
 		if columns[name] {
@@ -105,14 +107,14 @@ func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) bool {
 		case ast.AT_ADD_COLUMN, ast.AT_MODIFY_COLUMN:
 			for _, col := range alterColumns(c) {
 				if b.tooLong(col.Name, rangeOf(col.Loc)) || twice(col.Name, rangeOf(col.Loc)) {
-					return true
+					return nil, true
 				}
 				b.declareColumn(&d, col)
 			}
 		case ast.AT_DROP_COLUMN:
 			for _, name := range b.droppedColumns(c) {
 				if twice(name, rangeOf(c.Loc)) {
-					return true
+					return nil, true
 				}
 			}
 		case ast.AT_ADD_CONSTRAINT:
@@ -125,16 +127,16 @@ func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) bool {
 			}
 			if dropped[c.Constraint.Name] {
 				b.fail(rangeOf(c.Loc), "Cannot drop constraint "+ident(c.Constraint.Name)+": table "+r.written+" has no such constraint")
-				return true
+				return nil, true
 			}
 			dropped[c.Constraint.Name] = true
 		case ast.AT_RENAME_COLUMN, ast.AT_RENAME_CONSTRAINT, ast.AT_RENAME:
 			if b.tooLong(c.NewName, rangeOf(c.Loc)) {
-				return true
+				return nil, true
 			}
 		}
 	}
-	return b.namesTooLong(nil, &d) || b.declTextFails(&d, r)
+	return d.names, b.namesTooLong(nil, &d) || b.declTextFails(&d, r)
 }
 
 // alterColumns lists the column definitions of an ADD or MODIFY.
@@ -183,7 +185,7 @@ func (b *builder) cascadesConstraints(c *ast.AlterTableCmd) bool {
 	return cascades(b.w.sql, c.Loc)
 }
 
-func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd) bool {
+func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bool {
 	rng := rangeOf(c.Loc)
 	switch c.Action {
 	case ast.AT_ADD_COLUMN:
@@ -249,7 +251,7 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd) bool {
 	case ast.AT_DROP_CONSTRAINT:
 		return b.dropConstraint(r, c, rng)
 	case ast.AT_MODIFY_CONSTRAINT, ast.AT_ENABLE_DISABLE:
-		return b.constraintState(r, c, rng)
+		return b.constraintState(r, c, rng, declared)
 	case ast.AT_RENAME_CONSTRAINT:
 		from, to := c.ColumnName, c.NewName
 		b.constraintNeeds(r, from, rng, "Cannot rename constraint "+ident(from)+": table "+r.written+" has no such constraint")
@@ -355,9 +357,12 @@ func (b *builder) dropConstraint(r objRef, c *ast.AlterTableCmd, rng review.Rang
 
 // constraintState follows ENABLE, DISABLE, and MODIFY of a constraint:
 // a named one must be the table's (02430 to enable, 02431 to disable or
-// modify, verified). DISABLE drops the index the constraint made, and
-// ENABLE makes it again, under the constraint's name or another (spec §4).
-func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Range) bool {
+// modify, verified). A statement's trailing ENABLE or DISABLE CONSTRAINT
+// also sees the constraints its ADD and MODIFY clauses declare, which
+// MODIFY CONSTRAINT does not (02431, verified). DISABLE drops the index
+// the constraint made, and ENABLE makes it again, under the constraint's
+// name or another (spec §4).
+func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Range, declared []string) bool {
 	name := c.ColumnName
 	if c.Action == ast.AT_MODIFY_CONSTRAINT && c.Constraint != nil {
 		name = c.Constraint.Name
@@ -368,7 +373,9 @@ func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Ran
 		if strings.HasPrefix(c.Subtype, "ENABLE") {
 			verb = "enable"
 		}
-		b.constraintNeeds(r, name, rng, "Cannot "+verb+" constraint "+ident(name)+": table "+r.written+" has no such constraint")
+		if c.Action == ast.AT_MODIFY_CONSTRAINT || !contains(declared, name) {
+			b.constraintNeeds(r, name, rng, "Cannot "+verb+" constraint "+ident(name)+": table "+r.written+" has no such constraint")
+		}
 		b.Set(r.schemaKey(spaceIndex, name), walk.Unknown, "")
 		if b.createsIndex(c.Loc) {
 			b.MayAdd(walk.Scope{Space: spaceIndex, Parent: walk.Path(r.schema)})

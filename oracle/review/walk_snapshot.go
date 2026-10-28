@@ -91,9 +91,13 @@ type oracleSnapshot struct {
 	// as Oracle Text's DR$ tables. storage holds the tables the sync lists
 	// no column of, a nested table's storage tables: DROP TABLE of the
 	// parent, and DROP COLUMN of the nested table, drop them (verified).
+	// logs holds the tables named MLOG$_, a materialized view log's
+	// tables: DROP TABLE of the master drops its log's table and the
+	// table's index (verified).
 	domainTables  map[string]bool
 	domainIndexes map[string]bool
 	storage       []string
+	logs          []string
 }
 
 // syncedTable is what the snapshot holds of a table or materialized view.
@@ -134,6 +138,9 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 			st.complete = columnsComplete(t, st.columns)
 			if len(st.columns) == 0 {
 				s.storage = append(s.storage, t.GetName())
+			}
+			if strings.HasPrefix(t.GetName(), "MLOG$_") {
+				s.logs = append(s.logs, t.GetName())
 			}
 			s.indexesOf(t.GetName(), st, t.GetIndexes())
 			for _, fk := range t.GetForeignKeys() {
