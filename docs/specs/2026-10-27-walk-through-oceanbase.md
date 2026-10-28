@@ -1,6 +1,6 @@
 # WALK_THROUGH for OceanBase (MySQL mode): v1 scope
 
-Status: draft 2026-10-27; O1 decided and O3 resolved 2026-10-28, the rest of §8 pending. This is the OceanBase part of step 2 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which the MySQL PR deferred (M3). It is written as deltas from [the MySQL v1 scope](2026-10-22-walk-through-mysql.md): what that spec says holds here unless this one says otherwise. Every fact here was verified on OceanBase CE 4.3.5.6 (`oceanbase/oceanbase-ce:4.3.5-lts`, `MODE=mini`, the MySQL-mode tenant `test` at its defaults), with `mysql:8.0` as the baseline (Appendix).
+Status: approved 2026-10-28, with O3 resolved and every other decision of §8 as recommended. This is the OceanBase part of step 2 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which the MySQL PR deferred (M3). It is written as deltas from [the MySQL v1 scope](2026-10-22-walk-through-mysql.md): what that spec says holds here unless this one says otherwise. Every fact here was verified on OceanBase CE 4.3.5.6 (`oceanbase/oceanbase-ce:4.3.5-lts`, `MODE=mini`, the MySQL-mode tenant `test` at its defaults), with `mysql:8.0` as the baseline (Appendix).
 
 ## 1. Shape
 
@@ -162,7 +162,7 @@ Review asks for these are declined with this list:
 
 ## 8. Decisions
 
-O1 is decided and O3 resolved; the rest are pending, each with a recommendation:
+O3 was resolved by Bytebase; the others were decided 2026-10-28 as recommended:
 
 - **O1. Relation absence.** Decided 2026-10-28: trusted, since bytebase/bytebase#21685 syncs external tables and materialized views, except in a database whose synced storage tables outnumber its materialized views (§3). No `review.Target` switch: the metadata is current (§1). The options set aside were (a) never trusting it, as on MariaDB, and (b) trusting it while assuming no external table exists.
 - **O2. A synced index named `PRIMARY`.**

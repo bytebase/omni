@@ -44,7 +44,12 @@ func walkSchema() *metadata.DatabaseSchemaMetadata {
 
 func walkFindings(t *testing.T, sql string, targets ...review.Target) []review.Finding {
 	t.Helper()
-	result, err := Review(context.Background(), sql, review.Options{Rules: []review.Rule{review.WalkThrough}}, targets)
+	return reviewFindings(t, Review, sql, targets...)
+}
+
+func reviewFindings(t *testing.T, rev review.ReviewFunc, sql string, targets ...review.Target) []review.Finding {
+	t.Helper()
+	result, err := rev(context.Background(), sql, review.Options{Rules: []review.Rule{review.WalkThrough}}, targets)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,15 +59,25 @@ func walkFindings(t *testing.T, sql string, targets ...review.Target) []review.F
 // oneFinding asserts the change's one WALK_THROUGH finding.
 func oneFinding(t *testing.T, sql string, statement int, message string, target review.Target) {
 	t.Helper()
-	got := walkFindings(t, sql, target)
+	oneFindingOf(t, Review, sql, statement, message, target)
+}
+
+func noFinding(t *testing.T, sql string, target review.Target) {
+	t.Helper()
+	noFindingOf(t, Review, sql, target)
+}
+
+func oneFindingOf(t *testing.T, rev review.ReviewFunc, sql string, statement int, message string, target review.Target) {
+	t.Helper()
+	got := reviewFindings(t, rev, sql, target)
 	if len(got) != 1 || got[0].Statement != statement || got[0].Message != message {
 		t.Errorf("%s\nfindings = %+v, want statement %d: %q", sql, got, statement, message)
 	}
 }
 
-func noFinding(t *testing.T, sql string, target review.Target) {
+func noFindingOf(t *testing.T, rev review.ReviewFunc, sql string, target review.Target) {
 	t.Helper()
-	if got := walkFindings(t, sql, target); len(got) != 0 {
+	if got := reviewFindings(t, rev, sql, target); len(got) != 0 {
 		t.Errorf("%s\nfindings = %+v, want none", sql, got)
 	}
 }
@@ -257,16 +272,6 @@ func TestWalkThroughMySQLTargetGroups(t *testing.T) {
 	}
 }
 
-func TestWalkThroughOceanBaseWaits(t *testing.T) {
-	result, err := ReviewOceanBase(context.Background(), "CREATE TABLE t (a int);", review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{{Schema: walkSchema()}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(result.Findings) != 0 {
-		t.Errorf("findings = %+v, want none", result.Findings)
-	}
-}
-
 // walkForms are the statement forms of the MySQL spec's §5 table, each on
 // walkSchema. A form the table lists must lower.
 var walkForms = []walktest.Form{
@@ -332,14 +337,20 @@ var walkForms = []walktest.Form{
 }
 
 func TestWalkThroughMySQLLowersEveryForm(t *testing.T) {
-	walktest.Coverage(t, walkForms, func(t *testing.T, sql string) (n, lowered int, last bool) {
+	walktest.Coverage(t, walkForms, formLowering(walkSchema(), dialect{}))
+}
+
+// formLowering walks a form on the schema in the dialect, as
+// walktest.Coverage asks.
+func formLowering(schema *metadata.DatabaseSchemaMetadata, d dialect) func(t *testing.T, sql string) (n, lowered int, last bool) {
+	return func(t *testing.T, sql string) (n, lowered int, last bool) {
 		t.Helper()
 		ranges := statementRanges(sql)
 		stmts, syntax := parse(sql, ranges)
 		if syntax != nil {
 			t.Fatalf("syntax: %s\n%s", syntax.Message, sql)
 		}
-		w := newWalker(sql, stmts, review.Target{Schema: walkSchema()})
+		w := newWalker(sql, stmts, review.Target{Schema: schema}, d)
 		l := walk.NewLedger(w.snap)
 		for i := range stmts {
 			s := w.lower(i, l)
@@ -354,5 +365,5 @@ func TestWalkThroughMySQLLowersEveryForm(t *testing.T) {
 			}
 		}
 		return len(stmts), len(stmts), false
-	})
+	}
 }

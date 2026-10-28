@@ -34,17 +34,29 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		}
 		return true
 	}
+	if b.w.oceanBase && f == walk.Present && kind != relTable {
+		// OceanBase takes some ALTER TABLE of a view (COMMENT), and of the
+		// kinds the walk does not follow, which the walk then cannot tell
+		// apart (OceanBase spec §4.1, O7): the relation exists, and the walk
+		// ends.
+		b.Last = true
+		return true
+	}
 	b.tableNeeds(r)
 	if f == walk.Absent || kind == relView {
 		return true
 	}
+	if b.w.oceanBase && b.primaryIndexNamed(v) {
+		return false
+	}
 	// The table keeps foreign keys as its engine does; a statement that
-	// changes the engine claims nothing of them.
+	// changes the engine claims nothing of them, except on OceanBase, which
+	// ignores the engine.
 	rel := relKey(r.db, r.name)
 	engine, sets := alterEngine(v)
-	b.fks = !sets && !b.w.ignoresFKs[rel]
+	b.fks = (!sets || b.w.oceanBase) && !b.w.ignoresFKs[rel]
 	if sets {
-		ignores := !keepsFKs(engine)
+		ignores := !b.keeps(engine)
 		b.Session(func() {
 			if ignores {
 				b.w.ignoresFKs[rel] = true
@@ -83,6 +95,36 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return b.alterRename(r, rename)
 	}
 	return true
+}
+
+// primaryIndexNamed reports whether an ALTER TABLE names an index PRIMARY
+// in ADD INDEX, DROP INDEX, or RENAME INDEX. OceanBase takes it for a
+// secondary index of the name, which the sync does not tell from the
+// primary key (verified on 4.3.5).
+func (b *builder) primaryIndexNamed(v *ast.AlterTableStmt) bool {
+	primary := func(name string) bool {
+		k, ok := b.key(spaceIndex, name)
+		return ok && k == primaryIndex
+	}
+	for _, c := range v.Commands {
+		switch c.Type {
+		case ast.ATAddConstraint, ast.ATAddIndex:
+			switch con := c.Constraint; {
+			case con == nil, con.Type == ast.ConstrPrimaryKey, con.Type == ast.ConstrForeignKey, con.Type == ast.ConstrCheck:
+			case primary(con.Name):
+				return true
+			}
+		case ast.ATDropIndex:
+			if primary(c.Name) {
+				return true
+			}
+		case ast.ATRenameIndex:
+			if primary(c.Name) || primary(c.NewName) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // alterEngine returns the ENGINE an ALTER TABLE sets, if it sets one.
@@ -174,6 +216,10 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 	case ast.ATDropConstraint:
 		switch dropKindOf(b.w.sql, c) {
 		case dropPrimaryKey:
+			if b.w.oceanBase {
+				// The table gets the hidden column __pk_increment.
+				b.Set(colKey(r.db, r.name, pkIncrement), walk.Unknown, "")
+			}
 			return b.dropIndexName(r, "PRIMARY", rng)
 		case dropForeignKey:
 			k, ok := b.key(spaceForeignKey, c.Name)
@@ -233,7 +279,8 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 // alterTextFails fails an ALTER TABLE its text alone refutes: a column
 // added or dropped twice (1060, 1091), an index added or dropped twice
 // (1061, 1091), two primary keys (1068), an index named PRIMARY (1280), or
-// a name longer than 64 characters (1059).
+// a name longer than its space allows (1059). On OceanBase, a foreign key
+// dropped twice is dropped (verified on 4.3.5).
 func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 	seen := make(map[[2]string]bool)
 	twice := func(kind, space, name string, rng review.Range, message string) bool {
@@ -258,7 +305,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				cols = append([]*ast.ColumnDef{c.Column}, cols...)
 			}
 			for _, col := range cols {
-				if b.tooLong(col.Name, rangeOf(col.Loc)) ||
+				if b.tooLong(spaceColumn, col.Name, rangeOf(col.Loc)) ||
 					twice("add column", spaceColumn, col.Name, rangeOf(col.Loc), "Column "+ident(col.Name)+" is added twice to table "+r.written) {
 					return true
 				}
@@ -283,7 +330,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 					return true
 				}
 			case dropForeignKey:
-				if b.fks && twice("drop foreign key", spaceForeignKey, c.Name, rng, "Foreign key "+ident(c.Name)+" is dropped twice from table "+r.written) {
+				if b.fks && !b.w.oceanBase && twice("drop foreign key", spaceForeignKey, c.Name, rng, "Foreign key "+ident(c.Name)+" is dropped twice from table "+r.written) {
 					return true
 				}
 			}
@@ -310,7 +357,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if con == nil {
 				continue
 			}
-			if b.tooLong(keyName(con), rng) {
+			if space, name := b.constraintName(con); b.tooLong(space, name, rng) {
 				return true
 			}
 			switch con.Type {
@@ -379,7 +426,7 @@ func (b *builder) renameColumn(r tableRef, from, to string, rng review.Range) bo
 	if !ok1 || !ok2 {
 		return false
 	}
-	if b.tooLong(to, rng) {
+	if b.tooLong(spaceColumn, to, rng) {
 		return true
 	}
 	fc, tc := colKey(r.db, r.name, fk), colKey(r.db, r.name, tk)
@@ -457,7 +504,7 @@ func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd) bool {
 	case refUnknown:
 		return false
 	}
-	if b.tooLong(dest.Name, to.rng) {
+	if b.tooLong(spaceRelation, dest.Name, to.rng) {
 		return true
 	}
 	if to.db == r.db && to.name == r.name {
@@ -486,12 +533,15 @@ func (b *builder) moveTable(from, to tableRef, kind string) {
 		}
 	}
 	// The foreign keys named <from>_ibfk_... become <to>_ibfk_...
-	// (verified on 8.0 and 8.4).
-	old, renamed := generatedFKs(from.name), generatedFKs(to.name)
-	b.MayRemove(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(from.db), Prefix: old})
-	b.MayAdd(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(to.db), Prefix: renamed})
-	b.MayRemove(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: old})
-	b.MayAdd(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: renamed})
+	// (verified on 8.0 and 8.4). OceanBase keeps every name (verified on
+	// 4.3.5).
+	if !b.w.oceanBase {
+		old, renamed := b.generatedFKs(from.name), b.generatedFKs(to.name)
+		b.MayRemove(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(from.db), Prefix: old})
+		b.MayAdd(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(to.db), Prefix: renamed})
+		b.MayRemove(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: old})
+		b.MayAdd(walk.Scope{Space: spaceTableForeignKey, Parent: toPath, Prefix: renamed})
+	}
 	fk, tk := relKey(from.db, from.name), relKey(to.db, to.name)
 	b.Session(func() {
 		if b.w.triggered[fk] {
@@ -522,7 +572,7 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 		case st1 == refUnknown || st2 == refUnknown:
 			return false
 		}
-		if b.tooLong(p.New.Name, to.rng) {
+		if b.tooLong(spaceRelation, p.New.Name, to.rng) {
 			return true
 		}
 		fk := relKey(from.db, from.name)
@@ -537,7 +587,8 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 		if p.New.Schema != "" {
 			b.databaseNeeds(to.db, p.New.Schema, to.rng) // 1049; 1025 on 5.7
 		}
-		if kind == relView && from.db != to.db {
+		// OceanBase moves a view to another database (verified on 4.3.5).
+		if kind == relView && from.db != to.db && !b.w.oceanBase {
 			b.fail(to.rng, []walk.Key{fk}, "View "+from.written+" cannot move to another database") // 1450 (verified)
 			return true
 		}
@@ -565,7 +616,7 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 		case refUnknown:
 			return false
 		}
-		if b.tooLong(t.Name, r.rng) {
+		if b.tooLong(spaceRelation, t.Name, r.rng) {
 			return true
 		}
 		tk := tempKey(r.db, r.name)

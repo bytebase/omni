@@ -106,11 +106,10 @@ func reviewDialect(ctx context.Context, sql string, opts review.Options, targets
 		}
 	}
 	work := targetWork{
-		backup: backup,
-		online: on[review.OnlineMigration] && opts.Change.OnlineMigration,
-		// OceanBase's walk waits for an oracle run against OceanBase
-		// (docs/specs/2026-10-22-walk-through-mysql.md, M3).
-		walks: on[review.WalkThrough] && !d.oceanBase,
+		backup:  backup,
+		online:  on[review.OnlineMigration] && opts.Change.OnlineMigration,
+		walks:   on[review.WalkThrough],
+		dialect: d,
 	}
 	if on[review.DisallowDropConstraint] {
 		work.drops = checkDisallowDropConstraint(sql, stmts, r)
