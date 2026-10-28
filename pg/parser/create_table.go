@@ -278,6 +278,7 @@ func (p *Parser) parseTableElement() (nodes.Node, error) {
 //
 //	columnDef: ColId Typename opt_column_constraints
 func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
+	start := p.pos()
 	colname, err := p.parseColId()
 	if err != nil {
 		return nil, err
@@ -303,6 +304,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		return nil, err
 	}
 	splitColQualList(qualList, n)
+	n.Loc = nodes.Loc{Start: start, End: p.prev.End}
 
 	return n, nil
 }
@@ -337,7 +339,21 @@ func (p *Parser) parseOptColumnConstraints() (*nodes.List, error) {
 //	    | COMPRESSION ColId
 //	    | STORAGE ColId
 //	    | ConstraintAttr
+//
+// A constraint spans from its first token, CONSTRAINT when it is named, to
+// its last (gram.y sets location = @1).
 func (p *Parser) parseColConstraint() (nodes.Node, error) {
+	start := p.pos()
+	n, err := p.parseColConstraintBody()
+	if c, ok := n.(*nodes.Constraint); ok && err == nil {
+		c.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	}
+	return n, err
+}
+
+// parseColConstraintBody parses the ColConstraint parseColConstraint
+// locates.
+func (p *Parser) parseColConstraintBody() (nodes.Node, error) {
 	switch p.cur.Type {
 	case CONSTRAINT:
 		p.advance()
@@ -686,20 +702,28 @@ func makeDefElem(name string, arg nodes.Node) *nodes.DefElem {
 //	TableConstraint:
 //	    CONSTRAINT name ConstraintElem
 //	    | ConstraintElem
+//
+// The constraint spans from its first token, CONSTRAINT when it is named,
+// to its last (gram.y sets location = @1).
 func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
-	if p.cur.Type == CONSTRAINT {
+	start := p.pos()
+	named := p.cur.Type == CONSTRAINT
+	var name string
+	if named {
 		p.advance()
-		name, _ := p.parseName()
-		c, err := p.parseConstraintElem()
-		if err != nil {
-			return nil, err
-		}
-		if c != nil {
+		name, _ = p.parseName()
+	}
+	c, err := p.parseConstraintElem()
+	if err != nil {
+		return nil, err
+	}
+	if c != nil {
+		if named {
 			c.Conname = name
 		}
-		return c, nil
+		c.Loc = nodes.Loc{Start: start, End: p.prev.End}
 	}
-	return p.parseConstraintElem()
+	return c, nil
 }
 
 // parseConstraintElem parses a ConstraintElem.
@@ -1131,6 +1155,7 @@ func (p *Parser) parseTypedTableElement() (nodes.Node, error) {
 //
 //	columnOptions: ColId opt_column_constraints | ColId WITH OPTIONS opt_column_constraints
 func (p *Parser) parseColumnOptions() (*nodes.ColumnDef, error) {
+	start := p.pos()
 	colname, err := p.parseColId()
 	if err != nil {
 		return nil, err
@@ -1153,6 +1178,7 @@ func (p *Parser) parseColumnOptions() (*nodes.ColumnDef, error) {
 		return nil, err
 	}
 	splitColQualList(qualList, n)
+	n.Loc = nodes.Loc{Start: start, End: p.prev.End}
 
 	return n, nil
 }

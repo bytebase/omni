@@ -560,3 +560,61 @@ func TestLocRawStmt(t *testing.T) {
 		})
 	}
 }
+
+// TestLocColumnDefAndConstraint pins the span of a column definition, from
+// its name to its last token, and of a constraint, from CONSTRAINT or its
+// first keyword to its last token: gram.y sets location = @1 on both.
+func TestLocColumnDefAndConstraint(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want []string
+	}{
+		{
+			sql:  `CREATE TABLE t (a int NOT NULL CONSTRAINT c CHECK (a > 0), "B" text COLLATE "C" DEFAULT 'x', CONSTRAINT k PRIMARY KEY (a), UNIQUE (a))`,
+			want: []string{`a int NOT NULL CONSTRAINT c CHECK (a > 0)`, `NOT NULL`, `CONSTRAINT c CHECK (a > 0)`, `"B" text COLLATE "C" DEFAULT 'x'`, `DEFAULT 'x'`, `CONSTRAINT k PRIMARY KEY (a)`, `UNIQUE (a)`},
+		},
+		{
+			sql:  `ALTER TABLE t ADD COLUMN IF NOT EXISTS b int REFERENCES p (id) DEFERRABLE, ADD CONSTRAINT f FOREIGN KEY (b) REFERENCES p NOT VALID`,
+			want: []string{`b int REFERENCES p (id) DEFERRABLE`, `REFERENCES p (id) DEFERRABLE`, `CONSTRAINT f FOREIGN KEY (b) REFERENCES p NOT VALID`},
+		},
+		{
+			sql:  `CREATE TABLE c OF ty (a WITH OPTIONS NOT NULL)`,
+			want: []string{`a WITH OPTIONS NOT NULL`, `NOT NULL`},
+		},
+		{
+			sql:  `SELECT * FROM f() AS r (x int, y text COLLATE "C")`,
+			want: []string{`x int`, `y text COLLATE "C"`},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.sql, func(t *testing.T) {
+			result, err := Parse(tc.sql)
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			var got []string
+			for _, item := range result.Items {
+				ast.Inspect(item, func(n ast.Node) bool {
+					var loc ast.Loc
+					switch v := n.(type) {
+					case *ast.ColumnDef:
+						loc = v.Loc
+					case *ast.Constraint:
+						loc = v.Loc
+					default:
+						return true
+					}
+					if loc.Start < 0 || loc.End > len(tc.sql) || loc.End <= loc.Start {
+						got = append(got, fmt.Sprintf("%T at %+v", n, loc))
+					} else {
+						got = append(got, tc.sql[loc.Start:loc.End])
+					}
+					return true
+				})
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("spans:\n  got:  %q\n  want: %q", got, tc.want)
+			}
+		})
+	}
+}

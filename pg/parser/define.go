@@ -969,6 +969,7 @@ func (p *Parser) parseAggrArgs() (*nodes.List, error) {
 
 // parseTableFuncElement parses: ColId Typename opt_collate_clause
 func (p *Parser) parseTableFuncElement() (*nodes.ColumnDef, error) {
+	start := p.pos()
 	colname, err := p.parseColId()
 	if err != nil {
 		return nil, err
@@ -994,6 +995,7 @@ func (p *Parser) parseTableFuncElement() (*nodes.ColumnDef, error) {
 			Loc:      nodes.NoLoc(),
 		}
 	}
+	coldef.Loc = nodes.Loc{Start: start, End: p.prev.End}
 	return coldef, nil
 }
 
