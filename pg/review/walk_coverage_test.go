@@ -108,6 +108,9 @@ var walkForms = []walktest.Form{
 	{SQL: "DROP MATERIALIZED VIEW mv;"},
 	{SQL: "DROP INDEX t_n_idx;"},
 	{SQL: "DROP INDEX CONCURRENTLY t_n_idx;"},
+	// Outside a transaction block, where Bytebase's auto-commit mode runs
+	// them; inside one, VACUUM, REINDEX, and CLUSTER may be refused.
+	{SQL: "-- txn-mode = off\nVACUUM t;\nANALYZE t;\nREINDEX TABLE t;\nCLUSTER t USING t_n_idx;\nCHECKPOINT;"},
 	{SQL: "DROP SEQUENCE q;"},
 	{SQL: "DROP TYPE public.mood;"},
 	{SQL: "DROP TYPE IF EXISTS mood;"},
@@ -143,20 +146,21 @@ func TestWalkThroughLowersEveryForm(t *testing.T) {
 		if syntax != nil {
 			t.Fatalf("syntax: %s\n%s", syntax.Message, sql)
 		}
-		w := newWalker(stmts, review.Target{Schema: coverageSchema(), SessionUser: "u"})
+		plan := planRun(sql, stmts)
+		w := newWalker(stmts, plan, review.Target{Schema: coverageSchema(), SessionUser: "u"})
 		l := walk.NewLedger(w.pg)
-		for i := range stmts {
+		for i := range plan.steps {
 			s := w.lower(i, l)
 			if s == nil {
-				return len(stmts), i, false
+				return len(plan.steps), i, false
 			}
 			if s.Last {
-				return len(stmts), i + 1, true
+				return len(plan.steps), i + 1, true
 			}
 			if s.Apply != nil {
 				s.Apply(l)
 			}
 		}
-		return len(stmts), len(stmts), false
+		return len(plan.steps), len(plan.steps), false
 	})
 }

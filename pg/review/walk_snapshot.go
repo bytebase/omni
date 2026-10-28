@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/pg/parser"
 	"github.com/bytebase/omni/review/walk"
 )
 
@@ -67,19 +69,30 @@ var systemColumns = map[string]bool{
 //   - the system schemas (pg_catalog, information_schema, pg_toast*,
 //     pg_temp*, and the TimescaleDB, Citus, pg_cron, pg_partman, and
 //     squeeze schemas);
-//   - tables and views by name (systemTables, systemViews, and the
-//     g_columnar_ and google_db_advisor_ view prefixes): every listed
-//     name begins with pg_ or one of those prefixes;
+//   - tables and views by name (systemTables and systemViews, every
+//     name of which begins with pg_, and the g_columnar_,
+//     google_db_advisor_, g_agg_stat_, and hypopg view and materialized
+//     view prefixes of IsSystemView);
 //   - the schema of a partition, which the metadata keeps under its
 //     parent, and a partition's columns;
+//   - the partitions of a partitioned partition in another schema than
+//     the table it descends from: warpTablePartitions looks a partition's
+//     own partitions up under that table's schema;
 //   - domains, range types, and base types;
 //   - NOT NULL constraints, which PostgreSQL 18 names (t_a_not_null).
 //
 // So a schema's absence is trusted unless its name is a system one, a
 // relation's in a synced schema unless its name is one the sync drops or
-// a partition's or a partition index's, which may sit in any schema, and
-// a column's in a synced table or foreign table. A type's, a
-// constraint's, and a primary key's absence is never trusted.
+// a partition's or a partition index's, which may sit in any schema, or
+// the sync may have lost partitions, and a column's in a synced table or
+// foreign table. A type's, a constraint's, and a primary key's absence is
+// never trusted.
+//
+// Assumed: a relation the sync drops by its name or its schema holds no
+// index, partition, trigger, or rule, which the sync drops with it. Such
+// a relation is a table named like a system catalog, a view or
+// materialized view named like an extension's, or a partition placed in a
+// system schema.
 type pgSnapshot struct {
 	schemas   map[string]bool
 	relations map[[2]string]string
@@ -92,6 +105,9 @@ type pgSnapshot struct {
 	// anywhere lists the partition and partition index names, Unknown in
 	// every schema.
 	anywhere map[string]bool
+	// lost is true when the sync may have lost partitions, of any name in
+	// any schema: no relation's absence is trusted then.
+	lost bool
 	// inSchema lists the relations and types each schema holds.
 	inSchema map[string][]walk.Key
 }
@@ -155,7 +171,7 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 				cons[x.GetName()] = conExclusion
 			}
 			s.constraints[key] = cons
-			s.addPartitions(t.GetPartitions())
+			s.addPartitions(name, t.GetPartitions())
 		}
 		for _, t := range schema.GetExternalTables() {
 			rel(t.GetName(), relForeign)
@@ -191,14 +207,58 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 	return s
 }
 
-func (s *pgSnapshot) addPartitions(partitions []*metadata.TablePartitionMetadata) {
+// addPartitions records the partitions of a table in schema root, at any
+// depth. Bytebase's sync finds a partition's own partitions under root,
+// whatever the partition's schema, so it loses them when that is another:
+// unless a partition is known to be a leaf or in root, they may be lost.
+//
+// bytebase: backend/plugin/db/pg/sync.go — warpTablePartitions,
+// listTablePartitionQuery (keyed by the parent's own schema)
+func (s *pgSnapshot) addPartitions(root string, partitions []*metadata.TablePartitionMetadata) {
 	for _, p := range partitions {
 		s.anywhere[p.GetName()] = true
 		for _, idx := range p.GetIndexes() {
 			s.anywhere[idx.GetName()] = true
 		}
-		s.addPartitions(p.GetSubpartitions())
+		if schema, partitioned, ok := partitionPlace(p); !ok || partitioned && schema != root {
+			s.lost = true
+		}
+		s.addPartitions(root, p.GetSubpartitions())
 	}
+}
+
+// partitionPlace reads, from the definitions of a partition's indexes,
+// whether the partition is partitioned itself and, if so, its schema.
+// pg_get_indexdef writes ON ONLY for every index of a partitioned table
+// and qualifies the table with its schema, as Bytebase's sync runs it on
+// an empty search path (verified on PostgreSQL 12 and 17). A partition
+// with no index tells neither.
+func partitionPlace(p *metadata.TablePartitionMetadata) (schema string, partitioned, ok bool) {
+	for _, idx := range p.GetIndexes() {
+		def := idx.GetDefinition()
+		if def == "" {
+			continue
+		}
+		if !strings.Contains(def, " ON ONLY ") {
+			return "", false, true
+		}
+		// Feature extraction from a definition the server wrote: one that
+		// does not parse tells nothing.
+		list, err := parser.Parse(def)
+		if err != nil || list == nil || len(list.Items) != 1 {
+			continue
+		}
+		raw, ok := list.Items[0].(*ast.RawStmt)
+		if !ok {
+			continue
+		}
+		stmt, ok := raw.Stmt.(*ast.IndexStmt)
+		if !ok || stmt.Relation == nil || stmt.Relation.Relname != p.GetName() || stmt.Relation.Schemaname == "" {
+			continue
+		}
+		return stmt.Relation.Schemaname, !stmt.Relation.Inh, true
+	}
+	return "", false, false
 }
 
 // trustedSchemaName reports whether the sync lists a schema of this name
@@ -220,10 +280,16 @@ func trustedSchemaName(name string) bool {
 
 // trustedRelationName reports whether the sync lists a relation of this
 // name in a synced schema whenever it exists.
+//
+// bytebase: backend/plugin/parser/pg/system_objects.go — IsSystemTable,
+// IsSystemView
 func trustedRelationName(name string) bool {
-	return !strings.HasPrefix(name, "pg_") &&
-		!strings.HasPrefix(name, "g_columnar_") &&
-		!strings.HasPrefix(name, "google_db_advisor_")
+	for _, prefix := range []string{"pg_", "g_columnar_", "google_db_advisor_", "g_agg_stat_", "hypopg"} {
+		if strings.HasPrefix(name, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 // Lookup implements walk.Snapshot.
@@ -246,7 +312,7 @@ func (s *pgSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		if kind, ok := s.relations[[2]string{schema, k.Name}]; ok {
 			return walk.Present, kind
 		}
-		if s.schemas[schema] && trustedRelationName(k.Name) && !s.anywhere[k.Name] {
+		if s.schemas[schema] && !s.lost && trustedRelationName(k.Name) && !s.anywhere[k.Name] {
 			return walk.Absent, ""
 		}
 	case spaceType:

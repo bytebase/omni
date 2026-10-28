@@ -90,6 +90,9 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 		}
 	}
 	if todo := targetWork(stmts, on, opts.Change); todo.any() {
+		if todo.walks {
+			todo.run = planRun(sql, stmts)
+		}
 		findings, failures, err := reviewTargets(ctx, stmts, on, todo, targets)
 		if err != nil {
 			return nil, err

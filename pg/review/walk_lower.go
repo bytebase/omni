@@ -96,7 +96,21 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.setVariable(v)
 	case *ast.TransactionStmt:
 		switch v.Kind {
-		case ast.TRANS_STMT_BEGIN, ast.TRANS_STMT_START, ast.TRANS_STMT_COMMIT, ast.TRANS_STMT_SAVEPOINT, ast.TRANS_STMT_RELEASE:
+		case ast.TRANS_STMT_BEGIN, ast.TRANS_STMT_START:
+			b.session(func() { b.w.inBlock = true })
+			return true
+		case ast.TRANS_STMT_COMMIT:
+			// The block ends, AND CHAIN starting another, and with it
+			// what SET LOCAL set, as Bytebase's SET LOCAL ROLE in tenant
+			// mode.
+			b.session(func() {
+				if b.w.tenant && b.w.inBlock {
+					b.w.user = ""
+				}
+				b.w.inBlock = v.Chain
+			})
+			return true
+		case ast.TRANS_STMT_SAVEPOINT, ast.TRANS_STMT_RELEASE:
 			return true
 		}
 		// A rollback undoes statements the walk took as done.
@@ -1417,7 +1431,9 @@ func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, if
 	if k, ok := storedKey(def.Colname); ok {
 		if ifNotExists && b.added[k] {
 			// An earlier subcommand added it: this one is a notice
-			// (verified on PostgreSQL 17 and 18).
+			// (verified on PostgreSQL 17 and 18), which still adds the
+			// column's constraints on PostgreSQL 12.
+			b.mayConstrain(t, def, inh)
 			return
 		}
 		b.added[k] = true
@@ -1450,7 +1466,11 @@ func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, if
 		prior = walk.Absent
 	}
 	if prior == walk.Present {
-		return // a notice: the subcommand does nothing
+		// A notice: the subcommand adds no column, and on PostgreSQL 12
+		// still adds the column's constraints (verified on 12, 17, and
+		// 18).
+		b.mayConstrain(t, def, inh)
+		return
 	}
 	if inh {
 		b.mayAdd(walk.Scope{Space: spaceColumn, Deep: true, Prefix: name})

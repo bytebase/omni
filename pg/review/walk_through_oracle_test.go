@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"regexp"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -22,7 +24,9 @@ import (
 // walkBase is the schema the curated WalkThrough cases start from: one of
 // every relation kind, keys and constraints, a view reading a column, a
 // partitioned table with a partition in another schema, inheritance, and
-// an enum type.
+// an enum type. The partitioned table has an index, whose definition on
+// the partition shows the sync the partition is no partitioned table: the
+// sync may lose the partitions of one in another schema.
 const walkBase = `
 CREATE SCHEMA s;
 CREATE TABLE p (id integer PRIMARY KEY);
@@ -37,6 +41,7 @@ CREATE TYPE mood AS ENUM ('a', 'b');
 CREATE TYPE pair AS (x integer, y integer);
 CREATE TABLE parted (k integer, v text) PARTITION BY RANGE (k);
 CREATE TABLE s.parted_1 PARTITION OF parted FOR VALUES FROM (0) TO (10);
+CREATE INDEX parted_k_idx ON parted (k);
 CREATE TABLE ip (a integer CONSTRAINT ip_a_check CHECK (a > 0));
 CREATE TABLE ic (b integer) INHERITS (ip);
 CREATE TABLE nokey (a integer);
@@ -51,7 +56,15 @@ type walkCase struct {
 	user     string
 	// extra runs after walkBase.
 	extra string
+	// tenant runs the change in Bytebase's tenant mode, as walkOwner, the
+	// database's owner, from a session of postgres.
+	tenant bool
 }
+
+// walkOwner owns the oracle's database. The oracle runs a change as
+// postgres, an admin who does not own the database, as Bytebase does
+// outside tenant mode, or, for a tenant case, as walkOwner.
+const walkOwner = "walk_owner"
 
 var walkCases = []walkCase{
 	// Relations that exist.
@@ -166,6 +179,20 @@ var walkCases = []walkCase{
 	{name: "REFRESH runs the view's query", change: "CREATE TABLE victim (a int);\nCREATE FUNCTION kill() RETURNS int LANGUAGE plpgsql AS $$ BEGIN DROP TABLE public.victim; RETURN 1; END $$;\nCREATE MATERIALIZED VIEW mvk AS SELECT public.kill() AS x WITH NO DATA;\nREFRESH MATERIALIZED VIEW mvk;\nCREATE TABLE victim (a int);"},
 	{name: "a role's schema", change: "CREATE SCHEMA AUTHORIZATION bob;\nSET ROLE bob;\nCREATE TABLE x (a int);\nRESET ROLE;\nCREATE TABLE bob.x (a int);\nCREATE TABLE x (a int);", complete: true},
 
+	// How Bytebase runs a change: CONCURRENTLY, VACUUM, and SET ROLE after
+	// its transaction commits, or first in auto-commit mode.
+	{name: "CONCURRENTLY runs after the transaction", change: "CREATE INDEX CONCURRENTLY ci ON t2 (a);\nCREATE TABLE t2 (a int);\nCREATE INDEX CONCURRENTLY ci ON t2 (a);\nDROP INDEX CONCURRENTLY t_n_idx;\nCREATE INDEX t_n_idx ON t (n);", complete: true},
+	{name: "CONCURRENTLY on a table the transaction replaced", change: "CREATE INDEX CONCURRENTLY pk ON parted (k);\nDROP TABLE parted;\nCREATE TABLE parted (k int);"},
+	{name: "auto-commit mode runs CONCURRENTLY first", change: "-- txn-mode = off\nCREATE TABLE t_n_idx (a int);\nDROP INDEX CONCURRENTLY t_n_idx;\nCREATE TABLE ix (a int);\nCREATE INDEX CONCURRENTLY ix ON t (n);", complete: true},
+	{name: "SET ROLE runs again after the transaction", extra: "CREATE SCHEMA bob AUTHORIZATION bob;\nCREATE TABLE bob.bt (a int);", change: "SET ROLE bob;\nCREATE INDEX CONCURRENTLY bi ON bt (a);\nRESET ROLE;\nCREATE INDEX CONCURRENTLY bi2 ON bt (a);"},
+	{name: "a CONCURRENTLY Bytebase does not set apart fails in its transaction", change: "CREATE /* x */ INDEX CONCURRENTLY t_n_idx ON t (n);\nDROP TABLE nosuch;"},
+	{name: "views and materialized views the sync drops", extra: "CREATE VIEW hypopg_list_indexes AS SELECT 1 AS x;\nCREATE MATERIALIZED VIEW g_agg_stat_m AS SELECT 1 AS x;", change: "GRANT SELECT ON hypopg_list_indexes TO PUBLIC;\nCOMMENT ON MATERIALIZED VIEW g_agg_stat_m IS 'x';\nDROP VIEW hypopg_list_indexes;\nDROP VIEW hypopg_list_indexes;"},
+	{name: "partitions of a partitioned partition in another schema the sync loses", extra: "CREATE SCHEMA s2;\nCREATE TABLE lr (k int, j int) PARTITION BY RANGE (k);\nCREATE TABLE s2.lp PARTITION OF lr FOR VALUES FROM (0) TO (10) PARTITION BY RANGE (j);\nCREATE TABLE s2.lsp PARTITION OF s2.lp FOR VALUES FROM (0) TO (10);", change: "ALTER TABLE s2.lsp ADD COLUMN z int;\nCOMMENT ON TABLE s2.lsp IS 'x';\nDROP TABLE s2.lsp;"},
+	{name: "an index shows a partitioned partition in another schema", extra: "CREATE SCHEMA s3;\nCREATE TABLE r3 (k int, j int, PRIMARY KEY (k, j)) PARTITION BY RANGE (k);\nCREATE TABLE s3.r3p PARTITION OF r3 FOR VALUES FROM (0) TO (10) PARTITION BY RANGE (j);\nCREATE TABLE s3.r3sp PARTITION OF s3.r3p FOR VALUES FROM (0) TO (10);", change: "ALTER TABLE s3.r3sp ADD COLUMN z int;\nDROP TABLE s3.r3sp;"},
+	{name: "a partitioned partition in its table's schema loses nothing", extra: "CREATE TABLE r2 (k int, j int, PRIMARY KEY (k, j)) PARTITION BY RANGE (k);\nCREATE TABLE r2p PARTITION OF r2 FOR VALUES FROM (0) TO (10) PARTITION BY RANGE (j);\nCREATE TABLE s.r2sp PARTITION OF r2p FOR VALUES FROM (0) TO (10);", change: "ALTER TABLE nosuch ADD COLUMN a int;\nCOMMENT ON TABLE s.r2sp IS 'x';\nALTER TABLE s.nosuch ADD COLUMN b int;", complete: true},
+	{name: "tenant mode: RESET ROLE returns to a session user the walk does not know", tenant: true, extra: "CREATE SCHEMA walk_owner AUTHORIZATION walk_owner;\nCREATE TABLE walk_owner.x (a int);\nGRANT ALL ON SCHEMA public TO walk_owner;", change: "RESET ROLE;\nCREATE TABLE x (a int);\nCREATE TABLE x (a int);"},
+	{name: "tenant mode: GRANT runs as the session user", tenant: true, extra: "CREATE SCHEMA postgres;\nCREATE TABLE postgres.g (a int);\nCREATE SCHEMA walk_owner AUTHORIZATION walk_owner;\nGRANT ALL ON SCHEMA public TO walk_owner;", change: "GRANT SELECT ON g TO PUBLIC;\nCREATE TABLE x (a int);\nCREATE TABLE x (a int);", complete: true},
+
 	// Where the walk stops.
 	{
 		name: "an event trigger ends the walk where it may fire",
@@ -202,24 +229,40 @@ func runWalkCases(t *testing.T, db *sql.DB) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	if _, err := conn.ExecContext(ctx, "DO $$ BEGIN CREATE ROLE bob; EXCEPTION WHEN duplicate_object THEN NULL; END $$"); err != nil {
-		t.Fatal(err)
-	}
+	setupWalkRoles(t, conn)
 	var found, rejected int
 	for _, tt := range walkCases {
 		t.Run(tt.name, func(t *testing.T) {
 			resetWalk(t, conn, walkBase+tt.extra)
 			schema := walkSync(t, conn)
 			user := tt.user
-			if user == "" {
+			switch {
+			case tt.tenant:
+				user = walkOwner
+			case user == "":
 				user = "postgres"
 			}
-			f, r := judgeWalk(t, conn, schema, user, tt.change, tt.complete)
+			f, r := judgeWalk(t, conn, schema, user, tt.change, tt.complete, tt.tenant)
 			found += f
 			rejected += r
 		})
 	}
 	t.Logf("found %d of the %d statements the server rejects", found, rejected)
+}
+
+// setupWalkRoles creates bob, a role the cases set, and walkOwner, who
+// then owns the database.
+func setupWalkRoles(t *testing.T, conn *sql.Conn) {
+	t.Helper()
+	for _, q := range []string{
+		"DO $$ BEGIN CREATE ROLE bob; EXCEPTION WHEN duplicate_object THEN NULL; END $$",
+		"DO $$ BEGIN CREATE ROLE " + walkOwner + "; EXCEPTION WHEN duplicate_object THEN NULL; END $$",
+		"ALTER DATABASE omni_review OWNER TO " + walkOwner,
+	} {
+		if _, err := conn.ExecContext(context.Background(), q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
 }
 
 // TestWalkThroughOracleChecksClaims holds the oracle itself to its job:
@@ -272,11 +315,15 @@ func TestWalkThroughSweep(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("PostgreSQL %s", version)
+	setupWalkRoles(t, conn)
 	rng := rand.New(rand.NewSource(seed))
 	var found, rejected int
 	for i := range n {
 		base := sweepChange(rng, 8+rng.Intn(8))
 		change := sweepChange(rng, 15+rng.Intn(15))
+		if rng.Intn(6) == 0 {
+			change = "-- txn-mode = off\n" + change
+		}
 		t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
 			resetWalk(t, conn, "")
 			// The base keeps only the statements the server accepts. The
@@ -291,7 +338,7 @@ func TestWalkThroughSweep(t *testing.T) {
 				}
 			}
 			schema := walkSync(t, conn)
-			f, r := judgeWalk(t, conn, schema, "postgres", change, false)
+			f, r := judgeWalk(t, conn, schema, "postgres", change, false, false)
 			found += f
 			rejected += r
 			if t.Failed() {
@@ -319,13 +366,29 @@ func splitStatements(sql string) []string {
 	return out
 }
 
-// pgEngine is the oracle's PostgreSQL side of one change: a connection
-// inside a transaction judgeWalk rolls back, where each statement runs in
-// a savepoint, so a rejected one does nothing and the next runs as the
-// change would after it if it had been left out.
+// pgEngine is the oracle's PostgreSQL side of one change, which it runs
+// as Bytebase's executor does (bytebaseExec). Its own transaction, which
+// judgeWalk rolls back, stands for Bytebase's: there each statement runs
+// in a savepoint, so a rejected one does nothing and the next runs as the
+// change would after it if it had been left out. What Bytebase runs after
+// committing its transaction, or in auto-commit mode, the oracle runs
+// after committing, where PostgreSQL undoes a rejected statement itself.
 type pgEngine struct {
 	conn   *sql.Conn
 	target review.Target
+	tenant bool
+
+	// The change as Bytebase runs it, and how far Exec has run it: units
+	// in order, which of those run accepted, and the oracle's transaction.
+	autocommit bool
+	stmts      []string
+	units      []bbUnit
+	first      []int
+	next       int
+	accepted   []bool
+	inTxn      bool
+	// mismatch is how the walk's planRun differs from bytebaseExec.
+	mismatch string
 }
 
 func (e *pgEngine) exec(t testing.TB, q string) {
@@ -335,43 +398,142 @@ func (e *pgEngine) exec(t testing.TB, q string) {
 	}
 }
 
-func (e *pgEngine) Statements(change string) []string { return splitStatements(change) }
+// Statements runs nothing: it lays the change out as Bytebase runs it and
+// checks that the walk lays it out alike.
+func (e *pgEngine) Statements(change string) []string {
+	e.autocommit, e.stmts, e.units = bytebaseExec(change, e.tenant, walkOwner)
+	e.first = make([]int, len(e.stmts))
+	for i := range e.first {
+		e.first[i] = -1
+	}
+	texts := make([]string, len(e.units))
+	for i, u := range e.units {
+		if e.first[u.stmt] < 0 {
+			e.first[u.stmt] = i
+		}
+		texts[i] = u.text
+	}
+	e.accepted = make([]bool, len(e.units))
+	e.inTxn = true
+	e.mismatch = e.samePlan(change)
+	return texts
+}
 
-func (e *pgEngine) Exec(t testing.TB, stmt string) walktest.Outcome {
+// samePlan compares the walk's planRun of the change with bytebaseExec's,
+// and returns how they differ.
+func (e *pgEngine) samePlan(change string) string {
+	stmts, syntax := parse(change, statementRanges(change))
+	if syntax != nil {
+		return "syntax: " + syntax.Message
+	}
+	if len(stmts) != len(e.stmts) {
+		return fmt.Sprintf("%d statements parsed, %d split", len(stmts), len(e.stmts))
+	}
+	plan := planRun(change, stmts)
+	if plan == nil || plan.autocommit != e.autocommit || len(plan.steps) != len(e.units) {
+		return fmt.Sprintf("planRun %+v, Bytebase runs %d units, auto-commit %v", plan, len(e.units), e.autocommit)
+	}
+	for i, u := range e.units {
+		want := step{stmt: u.stmt, again: e.first[u.stmt] != i, committed: !e.autocommit && u.apart && (i == 0 || !e.units[i-1].apart), wrapped: u.superuser}
+		if plan.steps[i] != want {
+			return fmt.Sprintf("step %d: planRun %+v, Bytebase %+v", i, plan.steps[i], want)
+		}
+	}
+	return ""
+}
+
+func (e *pgEngine) Exec(t testing.TB, _ string) walktest.Outcome {
 	t.Helper()
-	// The change already runs in the oracle's transaction.
-	upper := strings.ToUpper(stmt)
+	i := e.next
+	e.next++
+	u := e.units[i]
+	if e.inTxn && (e.autocommit || u.apart) {
+		e.exec(t, "COMMIT")
+		e.inTxn = false
+		if e.tenant {
+			e.exec(t, "SET SESSION ROLE '"+walkOwner+"'")
+		}
+	} else if e.inTxn && i == 0 && e.tenant {
+		e.exec(t, "SET LOCAL ROLE '"+walkOwner+"'")
+	}
+	// The oracle does not follow a transaction the change begins or ends.
+	upper := strings.ToUpper(strings.TrimSpace(u.text))
 	if strings.HasPrefix(upper, "BEGIN") || strings.HasPrefix(upper, "COMMIT") {
+		e.accepted[i] = true
 		return walktest.Outcome{}
 	}
-	e.exec(t, "SAVEPOINT walk_oracle")
-	defer e.exec(t, "RELEASE SAVEPOINT walk_oracle")
-	if _, err := e.conn.ExecContext(context.Background(), stmt); err != nil {
+	if e.inTxn {
+		e.exec(t, "SAVEPOINT walk_oracle")
+		defer e.exec(t, "RELEASE SAVEPOINT walk_oracle")
+	}
+	if _, err := e.conn.ExecContext(context.Background(), u.text); err != nil {
 		var pgErr *pgconn.PgError
 		if !errors.As(err, &pgErr) {
-			t.Fatalf("%s: %v", stmt, err)
+			t.Fatalf("%s: %v", u.text, err)
 		}
 		// 42601 is not only a syntax error: PostgreSQL raises it for some
 		// semantic refusals too (SET DEFAULT on an identity column). Text
 		// the parser refuses shows as a Syntax finding.
-		e.exec(t, "ROLLBACK TO SAVEPOINT walk_oracle")
+		if e.inTxn {
+			e.exec(t, "ROLLBACK TO SAVEPOINT walk_oracle")
+		}
 		return walktest.Outcome{Code: pgErr.Code, Message: pgErr.Message}
 	}
+	e.accepted[i] = true
 	return walktest.Outcome{}
+}
+
+// replay returns the change as the walk is to see it where Judge asks:
+// the statements whose first run the server accepted, and, unless text is
+// those runs alone, the statement of the run Exec made last, as written,
+// with its directives. Each statement maps to the position of its first
+// run among those runs, which is how Judge counts.
+func (e *pgEngine) replay(text string) (string, []int) {
+	var runs []int
+	var texts []string
+	for i := 0; i < e.next; i++ {
+		if e.accepted[i] {
+			runs = append(runs, i)
+			texts = append(texts, e.units[i].text)
+		}
+	}
+	if text != strings.Join(texts, "\n") {
+		runs = append(runs, e.next-1)
+	}
+	pos := make(map[int]int)
+	for p, i := range runs {
+		if s := e.units[i].stmt; e.first[s] == i {
+			pos[s] = p
+		}
+	}
+	var b strings.Builder
+	if e.autocommit {
+		b.WriteString("-- txn-mode = off\n")
+	}
+	var at []int
+	for s, written := range e.stmts {
+		if p, ok := pos[s]; ok {
+			b.WriteString(written)
+			at = append(at, p)
+		}
+	}
+	return b.String(), at
 }
 
 func (e *pgEngine) Report(t testing.TB, change string) *walktest.Finding {
 	t.Helper()
-	f := walkFinding(t, change, e.target)
+	sql, at := e.replay(change)
+	f := walkFinding(t, sql, e.target)
 	if f == nil {
 		return nil
 	}
-	return &walktest.Finding{Statement: f.Statement, Message: f.Message}
+	return &walktest.Finding{Statement: at[f.Statement], Message: f.Message}
 }
 
 func (e *pgEngine) Violation(t testing.TB, change string) *walk.Violation {
 	t.Helper()
-	return walkViolation(t, change, e.target)
+	sql, _ := e.replay(change)
+	return walkViolation(t, sql, e.target)
 }
 
 func (e *pgEngine) Codes(message string) []string { return walkStates(message) }
@@ -381,15 +543,121 @@ func (e *pgEngine) Holds(t testing.TB, v *walk.Violation, message string) (bool,
 	return verifyClaim(t, e.conn, v, message)
 }
 
-// judgeWalk runs the change on the server and holds the walk to it
-// (walktest.Judge), in a transaction it rolls back. It returns how many
-// rejected statements the walk found and how many there were.
-func judgeWalk(t *testing.T, conn *sql.Conn, schema *metadata.DatabaseSchemaMetadata, user, change string, complete bool) (found, rejected int) {
+// judgeWalk runs the change on the server as Bytebase would and holds the
+// walk to it (walktest.Judge). It returns how many rejected statements the
+// walk found and how many there were.
+func judgeWalk(t *testing.T, conn *sql.Conn, schema *metadata.DatabaseSchemaMetadata, user, change string, complete, tenant bool) (found, rejected int) {
 	t.Helper()
-	e := &pgEngine{conn: conn, target: review.Target{Schema: schema, SessionUser: user}}
+	e := &pgEngine{conn: conn, target: review.Target{Schema: schema, SessionUser: user}, tenant: tenant}
 	e.exec(t, "BEGIN")
 	defer e.exec(t, "ROLLBACK")
-	return walktest.Judge(t, e, change, complete)
+	found, rejected = walktest.Judge(t, e, change, complete)
+	if e.mismatch != "" {
+		t.Errorf("the walk does not run the change as Bytebase does: %s", e.mismatch)
+	}
+	return found, rejected
+}
+
+// bbUnit is one statement as Bytebase sends it to the server.
+type bbUnit struct {
+	stmt int
+	text string
+	// apart is true for a unit Bytebase runs outside its transaction;
+	// superuser for one its tenant mode runs as the session user.
+	apart, superuser bool
+}
+
+// The patterns of Bytebase's PostgreSQL executor, copied from it.
+var (
+	bbExecDropDatabase = regexp.MustCompile(`(?i)DROP DATABASE`)
+	bbExecCreateIndex  = regexp.MustCompile(`(?i)CREATE(\s+(UNIQUE\s+)?)INDEX(\s+)CONCURRENTLY`)
+	bbExecDropIndex    = regexp.MustCompile(`(?i)DROP(\s+)INDEX(\s+)CONCURRENTLY`)
+	bbExecVacuum       = regexp.MustCompile(`(?i)^\s*VACUUM`)
+	bbExecSetRole      = regexp.MustCompile(`(?i)SET\s+((SESSION|LOCAL)\s+)?ROLE`)
+	bbExecTxnMode      = regexp.MustCompile(`(?i)^\s*--\s*txn-mode\s*=\s*(on|off)\s*$`)
+	bbExecIsolation    = regexp.MustCompile(`(?i)^\s*--\s*txn-isolation\s*=\s*(READ\s+UNCOMMITTED|READ\s+COMMITTED|REPEATABLE\s+READ|SERIALIZABLE)\s*$`)
+)
+
+// bytebaseExec lays a change out as Bytebase's PostgreSQL executor runs
+// it, transcribed from its code independently of the walk's planRun: the
+// mode its directives choose, the statements its splitter cuts, and the
+// units it sends, in order. In transaction mode it runs the statements it
+// does not set apart in its transaction, then, after COMMIT, the SET ROLE
+// statements again and the ones PostgreSQL refuses in a transaction
+// block; in auto-commit mode those first, then the rest. In tenant mode
+// it runs the statements a superuser may need as the session user.
+//
+// bytebase: backend/plugin/db/pg/pg.go — Execute, IsNonTransactionStatement,
+// isSuperuserStatement; backend/plugin/parser/base/transaction_mode.go —
+// ParseTransactionConfig (main, 2026-10-28)
+func bytebaseExec(change string, tenant bool, owner string) (autocommit bool, stmts []string, units []bbUnit) {
+	// ParseTransactionConfig.
+	lines := strings.Split(change, "\n")
+	directive := make(map[int]bool)
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if !strings.HasPrefix(trimmed, "--") {
+			break
+		}
+		if m := bbExecTxnMode.FindStringSubmatch(line); len(m) == 2 {
+			autocommit = strings.ToLower(m[1]) == "off"
+			directive[i] = true
+			continue
+		}
+		if m := bbExecIsolation.FindStringSubmatch(line); len(m) == 2 {
+			directive[i] = true
+			continue
+		}
+	}
+	if len(directive) > 0 {
+		var remaining []string
+		for i, line := range lines {
+			if !directive[i] {
+				remaining = append(remaining, line)
+			}
+		}
+		change = strings.TrimSpace(strings.Join(remaining, "\n"))
+	}
+	// Execute: SplitSQL and FilterEmptyStatements, then the loop.
+	for _, seg := range pg.Split(change) {
+		if !seg.Empty() {
+			stmts = append(stmts, seg.Text)
+		}
+	}
+	var commands, apart []bbUnit
+	for i, text := range stmts {
+		u := bbUnit{stmt: i, text: text}
+		switch {
+		case bbExecSetRole.MatchString(text):
+			apart = append(apart, bbUnit{stmt: i, text: text, apart: true})
+		case bbExecDropDatabase.MatchString(text) || bbExecCreateIndex.MatchString(text) || bbExecDropIndex.MatchString(text) || bbExecVacuum.MatchString(text):
+			apart = append(apart, bbUnit{stmt: i, text: text, apart: true})
+			continue
+		case bbExecSuperuser(text):
+			u.superuser = true
+			if tenant {
+				ct := text
+				if !strings.HasSuffix(strings.TrimRightFunc(ct, unicode.IsSpace), ";") {
+					ct += ";"
+				}
+				u.text = fmt.Sprintf("SET LOCAL ROLE NONE;%sSET LOCAL ROLE '%s';", ct, owner)
+			}
+		}
+		commands = append(commands, u)
+	}
+	if autocommit {
+		return autocommit, stmts, append(apart, commands...)
+	}
+	return autocommit, stmts, append(commands, apart...)
+}
+
+// bbExecSuperuser is Bytebase's isSuperuserStatement.
+func bbExecSuperuser(stmt string) bool {
+	upper := strings.ToUpper(strings.TrimLeftFunc(stmt, unicode.IsSpace))
+	return strings.HasPrefix(upper, "GRANT") || strings.HasPrefix(upper, "CREATE EXTENSION") || strings.HasPrefix(upper, "CREATE EVENT TRIGGER") || strings.HasPrefix(upper, "COMMENT ON EVENT TRIGGER") || strings.HasPrefix(upper, "COMMENT ON EXTENSION")
 }
 
 // walkViolation returns the walk's violation for a change, with the key
@@ -400,7 +668,7 @@ func walkViolation(t testing.TB, sql string, target review.Target) *walk.Violati
 	if syntax != nil {
 		t.Fatalf("syntax: %s", syntax.Message)
 	}
-	v, err := walkThrough(context.Background(), stmts, target)
+	v, err := walkThrough(context.Background(), stmts, planRun(sql, stmts), target)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -427,8 +695,6 @@ func verifyClaim(t testing.TB, conn *sql.Conn, v *walk.Violation, msg string) (b
 		if !strings.HasPrefix(msg, prefix) {
 			continue
 		}
-		// The oracle runs in a transaction, where CONCURRENTLY fails first
-		// for being in one.
 		name := strings.TrimSuffix(strings.TrimPrefix(msg, prefix), " concurrently")
 		if !catalogAsk(t, conn, `SELECT EXISTS (SELECT 1 FROM pg_class WHERE oid = to_regclass($1) AND relkind = 'p')`, name) {
 			return false, name + " is not partitioned"
@@ -564,7 +830,8 @@ func walkStates(msg string) []string {
 	case strings.HasPrefix(msg, "constraint ") && strings.HasSuffix(msg, " already exists"),
 		strings.HasPrefix(msg, "check constraint ") && strings.HasSuffix(msg, " already exists"):
 		return []string{"42710"}
-	case strings.HasPrefix(msg, "cross-database references are not implemented"), strings.HasPrefix(msg, "DROP INDEX CONCURRENTLY does not support"):
+	case strings.HasPrefix(msg, "cross-database references are not implemented"), strings.HasPrefix(msg, "DROP INDEX CONCURRENTLY does not support"),
+		strings.HasPrefix(msg, "cannot create index on partitioned table "):
 		return []string{"0A000"}
 	case strings.HasPrefix(msg, "cannot drop schema"):
 		return []string{"2BP01"}
@@ -621,14 +888,21 @@ func resetWalk(t *testing.T, conn *sql.Conn, base string) {
 }
 
 // walkSync reads the database into the metadata Bytebase's sync produces
-// for what WalkThrough reads, and no more completely: schemas but the
-// system ones, tables but partitions with their columns, indexes, and
-// constraints, partitions under their parent by name with their indexes,
+// for what WalkThrough reads, and no more completely: the database's
+// owner, schemas but the system ones, tables but partitions with their
+// columns, indexes with their definitions, and constraints, partitions
+// with their indexes under the table Bytebase finds them under,
 // views, materialized views with their indexes, sequences, foreign
 // tables, enum and composite types, routines, table triggers, event
-// triggers, and the search path.
+// triggers, and the search path. It drops what the sync drops by name:
+// every pg_ name stands for its system tables and views, which all begin
+// with pg_, and the walk trusts no pg_ name's absence anyway; the view
+// and materialized view prefixes of IsSystemView; the functions of
+// builtinCalls, all of them on its list of system functions, and the
+// extension prefixes of IsSystemFunction.
 //
-// bytebase: backend/plugin/db/pg/sync.go
+// bytebase: backend/plugin/db/pg/sync.go — SyncDBSchema, getTablePartitions,
+// warpTablePartitions; backend/plugin/parser/pg/system_objects.go
 func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	ctx := context.Background()
@@ -636,6 +910,21 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	if err := conn.QueryRowContext(ctx, "SHOW search_path").Scan(&db.SearchPath); err != nil {
 		t.Fatal(err)
 	}
+	if err := conn.QueryRowContext(ctx, "SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()").Scan(&db.Owner); err != nil {
+		t.Fatal(err)
+	}
+	// The sync reads in a transaction on an empty search path, so the
+	// definitions it reads name every schema.
+	for _, q := range []string{"BEGIN", "SELECT set_config('search_path', '', true)"} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	defer func() {
+		if _, err := conn.ExecContext(ctx, "COMMIT"); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	query := func(q string, scan func(*sql.Rows) error, args ...any) {
 		t.Helper()
 		rows, err := conn.QueryContext(ctx, q, args...)
@@ -652,7 +941,17 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 			t.Fatal(err)
 		}
 	}
-	const user = `n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'`
+	systemView := func(name string) bool {
+		for _, prefix := range []string{"pg_", "g_columnar_", "google_db_advisor_", "g_agg_stat_", "hypopg"} {
+			if strings.HasPrefix(name, prefix) {
+				return true
+			}
+		}
+		return false
+	}
+	const user = `n.nspname NOT LIKE 'pg\_%' AND n.nspname NOT IN ('information_schema', 'rw_catalog',
+		'timescaledb_information', 'timescaledb_experimental', '_timescaledb_cache', '_timescaledb_catalog', '_timescaledb_internal', '_timescaledb_config',
+		'squeeze', 'citus', 'citus_internal', 'columnar', 'columnar_internal', 'cron', 'partman')`
 	schemas := make(map[string]*metadata.SchemaMetadata)
 	query(`SELECT n.nspname FROM pg_namespace n WHERE `+user+` ORDER BY 1`, func(rows *sql.Rows) error {
 		s := &metadata.SchemaMetadata{}
@@ -677,10 +976,10 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	}
 	indexesOf := func(oid int64) []*metadata.IndexMetadata {
 		var out []*metadata.IndexMetadata
-		query(`SELECT i.relname, x.indisunique, x.indisprimary, EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = x.indexrelid AND c.contype IN ('p', 'u', 'x'))
+		query(`SELECT i.relname, x.indisunique, x.indisprimary, EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conindid = x.indexrelid AND c.contype IN ('p', 'u', 'x')), pg_get_indexdef(i.oid) || ';'
 			FROM pg_index x JOIN pg_class i ON i.oid = x.indexrelid WHERE x.indrelid = $1 ORDER BY 1`, func(rows *sql.Rows) error {
 			i := &metadata.IndexMetadata{}
-			if err := rows.Scan(&i.Name, &i.Unique, &i.Primary, &i.IsConstraint); err != nil {
+			if err := rows.Scan(&i.Name, &i.Unique, &i.Primary, &i.IsConstraint, &i.Definition); err != nil {
 				return err
 			}
 			out = append(out, i)
@@ -688,24 +987,43 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}, oid)
 		return out
 	}
-	var partitionsOf func(oid int64) []*metadata.TablePartitionMetadata
-	partitionsOf = func(oid int64) []*metadata.TablePartitionMetadata {
-		type child struct {
-			oid  int64
-			name string
+	// Bytebase keys a partition by its parent's own schema and name, and
+	// looks the partitions of a partition up under the schema of the table
+	// they descend from (warpTablePartitions), each key once.
+	type parentKey struct{ schema, name string }
+	partitions := make(map[parentKey][]*metadata.TablePartitionMetadata)
+	type part struct {
+		oid                          int64
+		name, parentSchema, parentOf string
+	}
+	var parts []part
+	query(`SELECT c.oid, c.relname, pn.nspname, p.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		JOIN pg_inherits i ON i.inhrelid = c.oid JOIN pg_class p ON p.oid = i.inhparent JOIN pg_namespace pn ON pn.oid = p.relnamespace
+		WHERE c.relkind IN ('r', 'f', 'p') AND c.relispartition AND `+user+` ORDER BY c.oid`, func(rows *sql.Rows) error {
+		var p part
+		if err := rows.Scan(&p.oid, &p.name, &p.parentSchema, &p.parentOf); err != nil {
+			return err
 		}
-		var children []child
-		query(`SELECT c.oid, c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = $1 AND c.relispartition ORDER BY 2`, func(rows *sql.Rows) error {
-			var c child
-			if err := rows.Scan(&c.oid, &c.name); err != nil {
-				return err
-			}
-			children = append(children, c)
+		parts = append(parts, p)
+		return nil
+	})
+	for _, p := range parts {
+		if strings.HasPrefix(p.name, "pg_") || strings.HasPrefix(p.parentOf, "pg_") {
+			continue
+		}
+		k := parentKey{p.parentSchema, p.parentOf}
+		partitions[k] = append(partitions[k], &metadata.TablePartitionMetadata{Name: p.name, Indexes: indexesOf(p.oid)})
+	}
+	var warp func(schema, name string) []*metadata.TablePartitionMetadata
+	warp = func(schema, name string) []*metadata.TablePartitionMetadata {
+		k := parentKey{schema, name}
+		out, ok := partitions[k]
+		if !ok {
 			return nil
-		}, oid)
-		var out []*metadata.TablePartitionMetadata
-		for _, c := range children {
-			out = append(out, &metadata.TablePartitionMetadata{Name: c.name, Indexes: indexesOf(c.oid), Subpartitions: partitionsOf(c.oid)})
+		}
+		delete(partitions, k)
+		for _, p := range out {
+			p.Subpartitions = warp(schema, p.Name)
 		}
 		return out
 	}
@@ -729,7 +1047,10 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		s := schemas[r.schema]
 		switch r.kind {
 		case "r", "p":
-			tb := &metadata.TableMetadata{Name: r.name, Columns: columnsOf(r.oid), Indexes: indexesOf(r.oid), Partitions: partitionsOf(r.oid)}
+			if strings.HasPrefix(r.name, "pg_") {
+				continue
+			}
+			tb := &metadata.TableMetadata{Name: r.name, Columns: columnsOf(r.oid), Indexes: indexesOf(r.oid), Partitions: warp(r.schema, r.name)}
 			query(`SELECT conname, contype::text FROM pg_constraint WHERE conrelid = $1 AND contype IN ('f', 'c', 'x') ORDER BY 1`, func(rows *sql.Rows) error {
 				var name, kind string
 				if err := rows.Scan(&name, &kind); err != nil {
@@ -755,8 +1076,14 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 			}, r.oid)
 			s.Tables = append(s.Tables, tb)
 		case "v":
+			if systemView(r.name) {
+				continue
+			}
 			s.Views = append(s.Views, &metadata.ViewMetadata{Name: r.name, Columns: columnsOf(r.oid)})
 		case "m":
+			if systemView(r.name) {
+				continue
+			}
 			s.MaterializedViews = append(s.MaterializedViews, &metadata.MaterializedViewMetadata{Name: r.name, Indexes: indexesOf(r.oid)})
 		case "S":
 			s.Sequences = append(s.Sequences, &metadata.SequenceMetadata{Name: r.name})
@@ -779,6 +1106,14 @@ func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		var schema, name, kind string
 		if err := rows.Scan(&schema, &name, &kind); err != nil {
 			return err
+		}
+		if builtinCalls[strings.ToLower(name)] {
+			return nil
+		}
+		for _, prefix := range []string{"g_columnar_", "google_columnar_", "google_db_advisor_", "g_agg_stat_", "hypopg"} {
+			if strings.HasPrefix(name, prefix) {
+				return nil
+			}
 		}
 		if kind == "p" {
 			schemas[schema].Procedures = append(schemas[schema].Procedures, &metadata.ProcedureMetadata{Name: name})
