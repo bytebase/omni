@@ -86,6 +86,7 @@ Accepted assumptions, decision O3:
   - a dropped constraint once (02443);
   - a primary key once (02260).
 - So every other check holds against the table before the statement (`walk.Lookups`), and the repeats are text claims. A rejected statement leaves the table as it was (verified for `ADD (n1, b)`, `DROP (a, nosuch)`, and `DROP CONSTRAINT ck DROP CONSTRAINT nosuch`).
+- The exception: a trailing `ENABLE` or `DISABLE CONSTRAINT c` also sees a constraint the statement's `ADD` or `MODIFY` declares, inline or in parentheses (`ADD (z NUMBER CONSTRAINT c CHECK (z > 0)) DISABLE CONSTRAINT c` is accepted). `MODIFY CONSTRAINT c` after the same `ADD` does not (02431), and `ADD CONSTRAINT c ... DISABLE CONSTRAINT c` without parentheses fails with 01735, which the parser rejects too.
 
 **Other statements.**
 - `DROP` names one object.
@@ -107,6 +108,8 @@ Accepted assumptions, decision O3:
 
 **What goes with what.**
 - `DROP TABLE` takes the table's indexes, constraints, and triggers, and a nested table column's storage table, which the sync lists as a table of no column without its parent. `DROP COLUMN` of the nested table column takes it too, and `SET UNUSED` keeps it until `DROP UNUSED COLUMNS`. So these forget every storage table the sync lists in the schema, and `ALTER TABLE ... ADD (c ...) NESTED TABLE c STORE AS s` ends the walk.
+- `DROP TABLE` takes its materialized view log, whose table `MLOG$_...` the sync lists as a table without its master, and the table's index `I_MLOG$_...`. So `DROP TABLE` forgets every `MLOG$_` table the sync lists in the schema, with what is on it. The log's DDL ends the walk (§6).
+- `DROP TYPE ... FORCE` makes the columns of the type, or of a type with an attribute of it, unused, in a table of any schema, and takes their constraints and indexes. So it forgets every column, primary key, constraint, and index the walk holds. A table of the type (`CREATE TABLE ot OF ty`) stays, `INVALID`: `CREATE TABLE ot` fails with 00955 and `DROP TABLE ot` drops it. Without `FORCE`, `DROP TYPE` of a type with table or type dependents fails (02303).
 - `DROP COLUMN` takes the column's single-column constraints and indexes.
 - `DROP VIEW` and `CREATE OR REPLACE VIEW` take the view's `INSTEAD OF` triggers and its constraints.
 - `CASCADE CONSTRAINTS` takes other tables' foreign keys.
@@ -162,11 +165,11 @@ All verified.
 | — `DROP PRIMARY KEY [CASCADE]` | t has a primary key (02441) | the primary key Absent; t's constraints and indexes May-removed |
 | — `DROP UNIQUE (...)` | none | t's constraints and indexes May-removed |
 | — `RENAME CONSTRAINT a TO b` | a Present on t, and not another table's (23292); b Absent in the schema (02264) | a Absent, b Present, on t and in the schema |
-| — `ENABLE`, `DISABLE`, `MODIFY CONSTRAINT c`; `ENABLE`/`DISABLE PRIMARY KEY`/`UNIQUE (...)` | c Present on t, and not another table's (02430, 02431) | index names May-added and May-removed for t |
+| — `ENABLE`, `DISABLE`, `MODIFY CONSTRAINT c`; `ENABLE`/`DISABLE PRIMARY KEY`/`UNIQUE (...)` | c Present on t, and not another table's (02430, 02431), unless the statement declares c for `ENABLE` or `DISABLE` | index names May-added and May-removed for t |
 | — `RENAME TO u` | u Absent in the object space (00955, u = t too) | t moves to u; t's index, constraint, and trigger names Unknown (their keys name the old table) |
 | — table properties, partition maintenance, `MOVE`, `SHRINK`, `ENABLE`/`DISABLE ALL TRIGGERS`/`TABLE LOCK`, `DROP UNUSED COLUMNS` | none | none |
 | — `ADD SUPPLEMENTAL LOG`, `ADD`/`DROP PERIOD`, anything else | | ends the walk |
-| `DROP TABLE t [CASCADE CONSTRAINTS] [PURGE]`, `DROP TABLE IF EXISTS t` | t Present in the table space (00942 when Absent; 12083 for a materialized view, IF EXISTS too) | t Absent in every space; its columns, constraints, and key cleared; its indexes, constraints, and triggers May-removed in the schema; with CASCADE CONSTRAINTS, every constraint. IF EXISTS: nothing on another kind, Optional when Unknown |
+| `DROP TABLE t [CASCADE CONSTRAINTS] [PURGE]`, `DROP TABLE IF EXISTS t` | t Present in the table space (00942 when Absent; 12083 for a materialized view, IF EXISTS too) | t Absent in every space; its columns, constraints, and key cleared; its indexes, constraints, and triggers May-removed in the schema; the schema's nested tables' storage tables and `MLOG$_` tables forgotten; with CASCADE CONSTRAINTS, every constraint. IF EXISTS: nothing on another kind, Optional when Unknown |
 | `TRUNCATE TABLE t` | t Absent from the table space (00942), a view (01702), a sequence (02201), a type or routine (04044) | none |
 | `CREATE [UNIQUE\|BITMAP] INDEX [IF NOT EXISTS] i ON t (...)` | i Absent in the index space (00955); t a view (01702), a sequence (02201), a type or routine (04044); a missing t claims nothing | i Present (of t) |
 | `DROP INDEX i [IF EXISTS]` | i Present (01418) | i Absent |
@@ -182,9 +185,9 @@ All verified.
 | `CREATE`/`DROP PUBLIC SYNONYM` | none | none: the walk never relies on a public synonym's absence |
 | `CREATE [OR REPLACE] TYPE`, `PROCEDURE`, `FUNCTION`, `PACKAGE [IF NOT EXISTS]` | the name Absent (00955); OR REPLACE: no other kind (00955) | the name Present (its kind); the body is not walked |
 | `CREATE [OR REPLACE] TYPE BODY`, `PACKAGE BODY` | none | none: bodies have a namespace of their own |
-| `DROP TYPE`, `PROCEDURE`, `FUNCTION`, `PACKAGE [IF EXISTS]` | the name Present as that kind (04043) | the name Absent |
+| `DROP TYPE`, `PROCEDURE`, `FUNCTION`, `PACKAGE [IF EXISTS]` | the name Present as that kind (04043) | the name Absent; `DROP TYPE ... FORCE`: every column, primary key, constraint, and index May-removed |
 | `DROP TYPE BODY`, `PACKAGE BODY` | none | none |
-| `CREATE [OR REPLACE] TRIGGER tr [IF NOT EXISTS] ... ON t`, a DML or `INSTEAD OF` trigger | tr Absent (04081); OR REPLACE: tr not on another table (04095); t a view for a DML trigger is not claimed | tr Present (of t); the walk records that a trigger exists (§6) |
+| `CREATE [OR REPLACE] TRIGGER tr [IF NOT EXISTS] ... ON t`, a DML or `INSTEAD OF` trigger: every event `INSERT`, `UPDATE`, or `DELETE` | tr Absent (04081); OR REPLACE: tr not on another table (04095); t a view for a DML trigger is not claimed | tr Present (of t); the walk records that a trigger exists (§6) |
 | `DROP TRIGGER tr [IF EXISTS]`; `ALTER TRIGGER tr ENABLE/DISABLE/COMPILE` | tr Present (04080) | tr Absent / none |
 | `ALTER TRIGGER tr RENAME TO tr2` | tr Present (04080); tr2 Absent (00955, tr2 = tr too) | tr Absent, tr2 Present |
 | `RENAME a TO b` | a Present (04043), and a table, view, sequence, or synonym (03001; 32318 for a materialized view); b Absent (00955, b = a too) | as `ALTER TABLE RENAME TO` for a table; the name moves for the other kinds |
@@ -195,7 +198,7 @@ All verified.
 The parser's shapes, read before writing this table:
 - `DROP (a, b)` and `SET UNUSED (a, b)` record only the first column, so the lowering reads the list from the tokens.
 - `DROP SYNONYM` does not record `PUBLIC`, which the tokens give.
-- A DDL trigger's table is the bare word `SCHEMA` or `DATABASE`.
+- A DDL trigger's table is the bare word `SCHEMA` or `DATABASE`, and `ON shop.SCHEMA` is a table named `SCHEMA` in `SHOP`, so the lowering tells a DML trigger by its events, which the parser keeps as integers, and DDL and database events as names. The parser rejects `ON PLUGGABLE DATABASE`.
 - `ADD SUPPLEMENTAL LOG` is a table property, so the property allowlist goes by name.
 
 ## 6. Where the walk stops
@@ -206,7 +209,7 @@ The parser's shapes, read before writing this table:
   - materialized view and materialized view log DDL;
   - `CREATE PRIVATE TEMPORARY TABLE`;
   - `CREATE TABLE` with a nested table or an external organization (the parser rejects `OF type` and `CLUSTER`);
-  - DDL triggers `ON SCHEMA` or `ON DATABASE`;
+  - triggers on a DDL or database event: `ON SCHEMA`, `ON shop.SCHEMA`, or `ON DATABASE`. A schema trigger fires on what its schema's user runs, and can run DDL in an autonomous transaction (verified: as SHOP, an `AFTER CREATE ON shop.SCHEMA` trigger made a table);
   - `ALTER SESSION SET EDITION`, `CONTAINER`, or any parameter off the allowlist;
   - `ALTER SYSTEM`;
   - user, role, profile, and tablespace DDL;
@@ -305,6 +308,8 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
     - two primary keys across clauses: 02260;
     - `DROP CONSTRAINT c DROP CONSTRAINT c`: 02443.
   - An identifier of 129 bytes in `CREATE TABLE`, `DROP TABLE`, or `ADD`: 00972; 128 is accepted.
+- **Constraint state in one statement:** `ADD (z NUMBER CONSTRAINT c5 CHECK (z > 0)) DISABLE CONSTRAINT c5`, `ADD (CONSTRAINT c9 CHECK (a > 0)) DISABLE CONSTRAINT c9`, `MODIFY (b CONSTRAINT nn_b NOT NULL) DISABLE CONSTRAINT nn_b`, `ADD (z4 NUMBER CONSTRAINT u4 UNIQUE) ENABLE CONSTRAINT u4`, `ADD (z5 ... PRIMARY KEY) DISABLE PRIMARY KEY`, and `DROP CONSTRAINT c5 ENABLE CONSTRAINT c5`: accepted. `ADD (... CONSTRAINT c8 ...) MODIFY CONSTRAINT c8 DISABLE`: 02431. `ADD CONSTRAINT c1 CHECK (a > 0) DISABLE CONSTRAINT c1`: 01735. Two `DISABLE CONSTRAINT c6`: 02295.
+- **A column twice, before the table:** `MODIFY (a ...) MODIFY (a ...)` and `MODIFY (a ..., a ...)`: 00957, on a missing table and a missing column too. Where the walk knows the table is missing it reports 00942, whose claim holds.
 - **Combinations:** `ADD ... DROP COLUMN`: 12987. `RENAME COLUMN` with anything: 23290. `RENAME TO shop.t2`: 14047. `DROP COLUMN` / `DROP CONSTRAINT` / `DROP PRIMARY KEY` / `MODIFY` followed by another clause kind: a syntax error (03048). `ADD (col) ADD CONSTRAINT ... MODIFY (...)`: accepted. `ADD (n2) ADD CONSTRAINT pk_t` with pk_t taken: 02264.
 - **Synonyms:**
   - Not followed (00942 or 02289, public and private): `ALTER TABLE`, `TRUNCATE`, `DROP TABLE`, `DROP VIEW`, `ALTER VIEW`, `DROP SEQUENCE`, `ALTER SEQUENCE`. `RENAME` of a public synonym's name: 04043.
@@ -317,7 +322,7 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
 - **IF [NOT] EXISTS:**
   - `CREATE TABLE IF NOT EXISTS` of a table, view, sequence, or synonym name: a no-op. `CREATE TABLE IF NOT EXISTS t (a, a)` with t present: 00957. `CREATE TABLE IF NOT EXISTS t (... CONSTRAINT pk_t ...)` with t and pk_t present: a no-op.
   - `DROP TABLE IF EXISTS` of a view or sequence, `DROP VIEW IF EXISTS` of a table or object table, `DROP SEQUENCE IF EXISTS` of a table, `ALTER TABLE IF EXISTS` of a view: no-ops. `DROP TABLE IF EXISTS` of a materialized view: 12083. `DROP TABLE IF EXISTS` of an object table drops it.
-  - `CREATE INDEX IF NOT EXISTS` of a taken index name: a no-op.
+  - `CREATE INDEX IF NOT EXISTS` of a taken index name: a no-op. Its table is checked first: on a view 01702, a sequence 02201, a missing table 00942, and a missing column 00904, the name taken or not.
   - `CREATE VIEW` / `SEQUENCE` / `SYNONYM` / `PROCEDURE` / `TRIGGER IF NOT EXISTS`, and `DROP TRIGGER` / `PROCEDURE` / `SYNONYM` / `TYPE` / `INDEX IF EXISTS`: accepted.
   - `OR REPLACE` with `IF NOT EXISTS`: 11541. `ALTER INDEX IF EXISTS ... RENAME`: 11557. `ALTER TABLE ... ADD IF NOT EXISTS`, `DROP COLUMN IF EXISTS`, `DROP CONSTRAINT IF EXISTS`: syntax errors.
 - **Sync gaps:**
@@ -325,7 +330,7 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
   - An `INVISIBLE` column has a null `COLUMN_ID` and `USER_GENERATED = 'YES'`.
   - Hidden columns with `USER_GENERATED = 'NO'`: `SYS_NC...$` (function-based indexes, object and XMLType columns), `SYS_C..._$` (unused columns), `SYS_IME_OSON_...` (JSON), `SYS_NC_OID$` and `SYS_NC_ROWINFO$` (object tables), `XMLDATA` (XMLType tables), `ORA_ARCHIVE_STATE` (row archival), `ORABCTAB_...$` (blockchain and immutable tables), and a valid-time period's `VT`, `VT_START`, `VT_END` (`PERIOD FOR vt`) or `VT2` (`PERIOD FOR vt2 (s, e)`). DDL on them: `DROP COLUMN vt_start`, `RENAME COLUMN vt`, `MODIFY`, `SET UNUSED` fail with 55603; `ADD (vt_start ...)` with 01430; `RENAME COLUMN vt2 TO zz` renames it; `ORA_ARCHIVE_STATE` fails with 38398; `ORABCTAB_HASH$` with 05715; `DROP COLUMN xmldata` of an XMLType table succeeds.
   - A valid-time period adds a check constraint named after it (`VT8cf288`), whose condition names its hidden columns (`"VT_START" < "VT_END"`, `"S"<"E" AND "ZZ">0`).
-  - `ALL_TAB_COLS` shows no column of a nested table's storage table. On it, `DROP COLUMN` fails with 12982, `ADD` with 22915, `TRUNCATE` with 22812, and `DROP TABLE` with 22914. On an object table, `DROP COLUMN` of any name fails with 12981 and `ADD` with 22856. On a JSON collection table, `DROP COLUMN etag` succeeds, `DROP COLUMN data` fails with 00904, and `ADD` with 03001.
+  - `ALL_TAB_COLS` shows no column of a nested table's storage table. On it, `DROP COLUMN` fails with 12982, `ADD` with 22915, `TRUNCATE` with 22812, and `DROP TABLE` with 22914. On an object table, `DROP COLUMN` of any name fails with 12981 and `ADD` with 22856. On a JSON collection table, `DROP COLUMN etag` succeeds, `DROP COLUMN data` and `DROP COLUMN resid` fail with 00904, `ADD` with 03001 (of `DATA` too), `RENAME COLUMN data` with 23291, and `MODIFY (data NOT NULL)` and `RENAME TO` succeed, the second renaming its lower-case synonym with it. The sync lists `DATA`, `ETAG`, and `RESID` (`USER_GENERATED = 'YES'`), so whatever the walk claims about its columns holds.
   - A supplemental log group occupies the constraint namespace, is absent from `ALL_CONSTRAINTS`, and `DROP CONSTRAINT` drops it.
   - View constraints are types `V` and `O`.
   - A schema `LOGON` trigger has no `TABLE_NAME` and occupies the trigger namespace.
@@ -351,5 +356,8 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
   - `CREATE FUNCTION IF NOT EXISTS` of a function's name, or of a table's, does nothing.
   - A quoted name of a function of a syntax of its own is a plain call: `"EXTRACT"(1)` calls a schema function `"EXTRACT"`, while `"UPPER"(1)` still takes the builtin.
 - **Nested tables:** `DROP TABLE parent` and `ALTER TABLE parent DROP COLUMN c` drop the storage table `CHILD` of `NESTED TABLE c STORE AS child`; `SET UNUSED COLUMN c` keeps it.
+- **Materialized view logs:** `CREATE MATERIALIZED VIEW LOG ON ml` makes the table `MLOG$_ML`, in `ALL_TABLES` with its columns, and the index `I_MLOG$_ML`; 23ai makes no `RUPD$_` table. `DROP TABLE ml` drops both, and `CREATE TABLE mlog$_ml` then succeeds. `DROP TABLE mlog$_ml` of a live log: 32417. `ALTER TABLE ml RENAME TO ...`: 26563.
+- **Types:** `DROP TYPE ty` with a table column of the type: 02303. `DROP TYPE ty FORCE` makes the column an unused hidden `SYS_C..._$` column and drops its check and its index on `o.x`; `ADD (o NUMBER)` then succeeds. A table `OF ty` stays as an `INVALID` table: `CREATE TABLE ot` fails with 00955, `ALTER TABLE ot ADD` with 04063, and `DROP TABLE ot` drops it. `DROP TYPE ty2 FORCE` also makes unused a column of a type with a `ty2` attribute. `DROP TYPE nt_ty FORCE` of a nested table's type makes the column unused and keeps its storage table (`CREATE TABLE child`: 00955).
+- **Triggers on a schema:** a schema trigger fires on the DDL its schema's user runs, not on DDL another user runs in that schema. As SHOP, an `AFTER CREATE ON shop.SCHEMA` trigger whose autonomous block runs `CREATE TABLE shop.b1` and commits made `B1` when SHOP created a table. `ON "SHOP".SCHEMA` and `ON "SCHEMA"` make schema triggers; `BEFORE INSERT ON shop.schema` names a table (00942). `ON DATABASE` and `ON PLUGGABLE DATABASE`, made in SHOP, which lacks `ADMINISTER DATABASE TRIGGER`: 01031.
 - **PL/SQL with errors:** through go-ora, `CREATE OR REPLACE PROCEDURE` with an unknown call, `CREATE OR REPLACE PACKAGE BODY` without a spec, a trigger with an unknown call, and `CREATE OR REPLACE FORCE VIEW` on a missing table return no error and leave `INVALID` objects. `CREATE OR REPLACE VIEW` with an unknown column fails with 00904.
 - **Namespaces:** a LOB segment `STORE AS lseg` beside a table `LSEG`: accepted. Quoted `"t"` and unquoted `T` are two tables; `DROP TABLE t2x` does not find `"T2x"`.
