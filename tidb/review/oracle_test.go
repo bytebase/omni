@@ -46,12 +46,17 @@ var tidbOracle struct {
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	if tidbOracle.container != nil {
+	if tidbOracle.db != nil {
 		_ = tidbOracle.db.Close()
+	}
+	if tidbOracle.container != nil {
 		_ = testcontainers.TerminateContainer(tidbOracle.container)
 	}
 	os.Exit(code)
 }
+
+// tidbImage is the TiDB the oracle tests run on.
+const tidbImage = "pingcap/tidb:v8.5.5"
 
 // startTiDB returns the TiDB the oracle tests of this package ask,
 // started once, with CHECK constraints enforced, which TiDB otherwise
@@ -59,49 +64,52 @@ func TestMain(m *testing.M) {
 func startTiDB(t *testing.T) *sql.DB {
 	t.Helper()
 	tidbOracle.once.Do(func() {
-		ctx := context.Background()
-		c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "pingcap/tidb:v8.5.5",
-				ExposedPorts: []string{"4000/tcp"},
-				WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
-			},
-			Started: true,
-		})
-		if err != nil {
-			tidbOracle.err = err
-			return
-		}
-		tidbOracle.container = c
-		host, err := c.Host(ctx)
-		if err != nil {
-			tidbOracle.err = err
-			return
-		}
-		port, err := c.MappedPort(ctx, "4000")
-		if err != nil {
-			tidbOracle.err = err
-			return
-		}
-		tidbOracle.db, tidbOracle.err = sql.Open("mysql", fmt.Sprintf("root@tcp(%s:%s)/?multiStatements=true", host, port.Port()))
-		if tidbOracle.err != nil {
-			return
-		}
-		deadline := time.Now().Add(90 * time.Second)
-		for {
-			if tidbOracle.err = tidbOracle.db.PingContext(ctx); tidbOracle.err == nil || time.Now().After(deadline) {
-				break
-			}
-			time.Sleep(500 * time.Millisecond)
-		}
-		if tidbOracle.err == nil {
-			_, tidbOracle.err = tidbOracle.db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = ON")
-		}
+		tidbOracle.container, tidbOracle.db, tidbOracle.err = runTiDB(context.Background(), tidbImage)
 	})
 	if tidbOracle.err != nil {
 		t.Fatalf("tidb oracle unavailable: %v", tidbOracle.err)
 	}
 	return tidbOracle.db
+}
+
+// runTiDB starts a TiDB of the image, with CHECK constraints enforced. The
+// container is returned even when the server then fails, so the caller can
+// end it.
+func runTiDB(ctx context.Context, image string) (testcontainers.Container, *sql.DB, error) {
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        image,
+			ExposedPorts: []string{"4000/tcp"},
+			WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
+		},
+		Started: true,
+	})
+	if err != nil {
+		return c, nil, err
+	}
+	host, err := c.Host(ctx)
+	if err != nil {
+		return c, nil, err
+	}
+	port, err := c.MappedPort(ctx, "4000")
+	if err != nil {
+		return c, nil, err
+	}
+	db, err := sql.Open("mysql", fmt.Sprintf("root@tcp(%s:%s)/?multiStatements=true", host, port.Port()))
+	if err != nil {
+		return c, nil, err
+	}
+	deadline := time.Now().Add(90 * time.Second)
+	for {
+		if err = db.PingContext(ctx); err == nil || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if err == nil {
+		_, err = db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = ON")
+	}
+	return c, db, err
 }
 
 // resetOracle recreates the shop database from oracleBase, and an empty

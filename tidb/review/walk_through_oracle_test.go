@@ -6,12 +6,15 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
+	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
@@ -32,12 +35,16 @@ CREATE VIEW v AS SELECT id FROM r;
 CREATE SEQUENCE sq;
 `
 
-// walkCase is a change on walkBase, after setup when it has one.
+// walkCase is a change on walkBase, after setup when it has one. The
+// server enforces CHECK constraints, as the package's other oracle tests
+// need, but for a case with checksOff, which runs with
+// tidb_enable_check_constraint off, as TiDB ships it.
 type walkCase struct {
-	name     string
-	setup    string
-	change   string
-	complete bool
+	name      string
+	setup     string
+	change    string
+	complete  bool
+	checksOff bool
 }
 
 // long is a name of 65 characters, one more than TiDB's identifiers take.
@@ -74,6 +81,13 @@ var walkCases = []walkCase{
 	{name: "DROP COLUMN IF EXISTS", change: "ALTER TABLE t DROP COLUMN IF EXISTS zz;\nALTER TABLE t ADD COLUMN q int, DROP COLUMN IF EXISTS q;\nALTER TABLE t DROP COLUMN q;\nALTER TABLE t DROP COLUMN IF EXISTS a;\nALTER TABLE t DROP COLUMN a;\nALTER TABLE t DROP COLUMN q;", complete: true},
 	// Foreign key names are the table's.
 	{name: "foreign keys", change: "CREATE TABLE y0 (a int, FOREIGN KEY (a) REFERENCES v (id));\nCREATE TABLE y00 (a int, CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id));\nALTER TABLE nokey DROP FOREIGN KEY fk1;\nALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE t ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE t DROP FOREIGN KEY nosuch;\nALTER TABLE child DROP FOREIGN KEY fk_1, ADD CONSTRAINT fk_1 FOREIGN KEY (b) REFERENCES r (id);\nALTER TABLE t DROP FOREIGN KEY fk1;\nALTER TABLE t DROP FOREIGN KEY fk1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nCREATE TABLE ys (a int, FOREIGN KEY (a) REFERENCES sq (id));\nSET foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nCREATE TABLE w (id int PRIMARY KEY, p int, FOREIGN KEY (p) REFERENCES w (id));", complete: true},
+	// The CONSTRAINT symbol names a foreign key and its index, and a UNIQUE
+	// key too; the name after FOREIGN KEY or UNIQUE names them only without
+	// a symbol, and a long one fails only then.
+	{name: "a constraint's name and its index's", change: "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP INDEX cx;\nCREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nALTER TABLE y DROP FOREIGN KEY fy;\nALTER TABLE y DROP INDEX fy;\nALTER TABLE t ADD CONSTRAINT nk FOREIGN KEY fk1 (a) REFERENCES r (id);\nCREATE TABLE u (a int, b int, CONSTRAINT cu UNIQUE KEY uu (a));\nALTER TABLE u DROP INDEX cu;\nALTER TABLE u DROP INDEX cu;\nALTER TABLE u ADD CONSTRAINT cv UNIQUE INDEX uv (b);\nALTER TABLE u DROP INDEX cv;\nCREATE TABLE w (a int, CONSTRAINT cw FOREIGN KEY " + long + " (a) REFERENCES r (id));\nCREATE TABLE w2 (a int, FOREIGN KEY " + long + " (a) REFERENCES r (id));\nCREATE TABLE w3 (a int, CONSTRAINT cw3 UNIQUE KEY " + long + " (a));\nCREATE TABLE w4 (a int, UNIQUE KEY " + long + " (a));", complete: true},
+	// With CHECK constraints off, TiDB takes a CHECK constraint's long name
+	// with a warning.
+	{name: "a CHECK constraint's long name", checksOff: true, change: "CREATE TABLE k1 (a int, CONSTRAINT " + long + " CHECK (a > 0));\nALTER TABLE k1 ADD CONSTRAINT " + long + "x CHECK (a > 1);\nCREATE TABLE k2 (a int, CHECK (a > 0), CONSTRAINT " + long + " CHECK (a > 1));\nALTER TABLE k2 DROP CHECK " + long + ";\nCREATE TABLE " + long + " (a int);", complete: true},
 	{name: "an unqualified parent is in the child's database", change: "CREATE DATABASE q;\nCREATE TABLE q.parent (id int PRIMARY KEY);\nCREATE TABLE q.child (id int, FOREIGN KEY (id) REFERENCES parent (id));\nALTER TABLE q.child ADD CONSTRAINT c2 FOREIGN KEY (id) REFERENCES parent (id);\nCREATE TABLE q.orphan (id int, FOREIGN KEY (id) REFERENCES nosuch (id));", complete: true},
 	// TiDB ignores ENGINE: every table keeps its foreign keys.
 	{name: "ENGINE is ignored", change: "CREATE TABLE my (id int PRIMARY KEY, a int, FOREIGN KEY (a) REFERENCES nosuch (id)) ENGINE=MyISAM;\nCREATE TABLE my (id int PRIMARY KEY, a int) ENGINE=MyISAM;\nALTER TABLE my DROP FOREIGN KEY nosuch;\nALTER TABLE my ADD CONSTRAINT f FOREIGN KEY (a) REFERENCES nosuch (id);\nALTER TABLE my ENGINE=MyISAM;\nALTER TABLE my ADD CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE my ADD CONSTRAINT F FOREIGN KEY (a) REFERENCES r (id);", complete: true},
@@ -148,6 +162,28 @@ func startWalkTiDB(t *testing.T) *sql.DB {
 	return db
 }
 
+// startSweepTiDB returns a TiDB of the image for the sweep: the package's
+// for its own image, else one started for the test, which it ends.
+func startSweepTiDB(t *testing.T, image string) *sql.DB {
+	t.Helper()
+	if image == tidbImage {
+		return startWalkTiDB(t)
+	}
+	c, db, err := runTiDB(context.Background(), image)
+	t.Cleanup(func() {
+		if db != nil {
+			_ = db.Close()
+		}
+		if c != nil {
+			_ = testcontainers.TerminateContainer(c)
+		}
+	})
+	if err != nil {
+		t.Fatalf("tidb %s unavailable: %v", image, err)
+	}
+	return db
+}
+
 // session opens a session of its own, which the cleanup closes rather
 // than returns to the pool: a pooled session keeps the temporary tables
 // of the change before it.
@@ -170,12 +206,31 @@ func TestWalkThroughAgainstTiDB(t *testing.T) {
 	for _, tt := range walkCases {
 		t.Run(tt.name, func(t *testing.T) {
 			resetWalk(t, db, walkBase+tt.setup)
+			if tt.checksOff {
+				checksOff(t, db)
+			}
 			f, r := judgeWalk(t, db, tt.change, tt.complete)
 			found += f
 			rejected += r
 		})
 	}
 	t.Logf("found %d of the %d statements the server rejects", found, rejected)
+}
+
+// checksOff turns tidb_enable_check_constraint off, as TiDB ships it, for
+// the rest of the test; the cleanup turns it on again for the package's
+// other tests.
+func checksOff(t *testing.T, db *sql.DB) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = OFF"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if _, err := db.ExecContext(context.Background(), "SET GLOBAL tidb_enable_check_constraint = ON"); err != nil {
+			t.Error(err)
+		}
+	})
 }
 
 // systemDatabases are the databases TiDB keeps for itself.
@@ -517,12 +572,17 @@ func (e *tidbEngine) Digest(t testing.TB) string {
 	return b.String()
 }
 
-// walkSync reads shop into the metadata Bytebase's TiDB sync produces for
-// what WalkThrough reads: base tables with their columns, indexes, and
-// foreign keys, views, and sequences, which it reads from
-// information_schema.SEQUENCES and keeps apart from the tables.
+// walkSync reads shop as Bytebase's TiDB sync does, query for query, in
+// the parts WalkThrough reads: indexes from TIDB_INDEXES; columns; views
+// from VIEWS; foreign keys from REFERENTIAL_CONSTRAINTS joined to
+// KEY_COLUMN_USAGE; check constraints from CHECK_CONSTRAINTS joined to
+// TABLE_CONSTRAINTS; sequences from SEQUENCES; and from TABLES the BASE
+// TABLE rows as tables and the VIEW rows VIEWS lists as views, passing
+// over the others, a sequence's included. A sync that lists less than the
+// server holds then shows in the oracle as a false finding.
 //
-// bytebase: backend/plugin/db/tidb/sync.go
+// bytebase: backend/plugin/db/tidb/sync.go — SyncDBSchema,
+// getForeignKeyList, getCheckConstraintList, getSequenceList
 func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	ctx := context.Background()
@@ -531,45 +591,132 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	out := syncSchema(t, conn)
-	s := out.Schemas[0]
-	rows, err := conn.QueryContext(ctx, "SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = 'shop'")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer rows.Close()
-	sequences := make(map[string]bool)
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+	query := func(q string, scan func(*sql.Rows) error) {
+		t.Helper()
+		rows, err := conn.QueryContext(ctx, q, "shop")
+		if err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			if err := scan(rows); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := rows.Err(); err != nil {
 			t.Fatal(err)
 		}
-		sequences[name] = true
-		s.Sequences = append(s.Sequences, &metadata.SequenceMetadata{Name: name})
 	}
-	// syncSchema takes every relation but a view for a table.
-	var tables []*metadata.TableMetadata
-	for _, tbl := range s.Tables {
-		if !sequences[tbl.Name] {
-			tables = append(tables, tbl)
+	indexes := make(map[string]map[string]*metadata.IndexMetadata)
+	query("SELECT TABLE_NAME, KEY_NAME, NON_UNIQUE FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ?", func(r *sql.Rows) error {
+		var table, key string
+		var nonUnique bool
+		if err := r.Scan(&table, &key, &nonUnique); err != nil {
+			return err
 		}
-	}
-	s.Tables = tables
-	return out
+		if indexes[table] == nil {
+			indexes[table] = make(map[string]*metadata.IndexMetadata)
+		}
+		if indexes[table][key] == nil {
+			indexes[table][key] = &metadata.IndexMetadata{Name: key, Unique: !nonUnique, Primary: key == "PRIMARY"}
+		}
+		return nil
+	})
+	columns := make(map[string][]*metadata.ColumnMetadata)
+	query("SELECT TABLE_NAME, IFNULL(COLUMN_NAME, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION", func(r *sql.Rows) error {
+		var table, column string
+		if err := r.Scan(&table, &column); err != nil {
+			return err
+		}
+		columns[table] = append(columns[table], &metadata.ColumnMetadata{Name: column})
+		return nil
+	})
+	views := make(map[string]bool)
+	query("SELECT TABLE_NAME FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ?", func(r *sql.Rows) error {
+		var name string
+		if err := r.Scan(&name); err != nil {
+			return err
+		}
+		views[name] = true
+		return nil
+	})
+	foreignKeys := make(map[string][]*metadata.ForeignKeyMetadata)
+	query(`SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, fks.REFERENCED_TABLE_NAME
+		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA
+				AND fks.TABLE_NAME = kcu.TABLE_NAME
+				AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION`, func(r *sql.Rows) error {
+		var table, name, ref string
+		if err := r.Scan(&table, &name, &ref); err != nil {
+			return err
+		}
+		// One row per column: a key of several columns is one foreign key.
+		if fks := foreignKeys[table]; len(fks) == 0 || fks[len(fks)-1].Name != name {
+			foreignKeys[table] = append(fks, &metadata.ForeignKeyMetadata{Name: name, ReferencedTable: ref})
+		}
+		return nil
+	})
+	checks := make(map[string][]*metadata.CheckConstraintMetadata)
+	query(`SELECT tc.TABLE_NAME, cc.CONSTRAINT_NAME
+		FROM information_schema.CHECK_CONSTRAINTS cc
+			JOIN information_schema.TABLE_CONSTRAINTS tc
+				ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+				AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+		WHERE tc.CONSTRAINT_TYPE = 'CHECK' AND tc.TABLE_SCHEMA = ? AND cc.CONSTRAINT_SCHEMA = tc.TABLE_SCHEMA`, func(r *sql.Rows) error {
+		var table, name string
+		if err := r.Scan(&table, &name); err != nil {
+			return err
+		}
+		checks[table] = append(checks[table], &metadata.CheckConstraintMetadata{Name: name})
+		return nil
+	})
+	s := &metadata.SchemaMetadata{}
+	query("SELECT SEQUENCE_NAME FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME", func(r *sql.Rows) error {
+		var name string
+		if err := r.Scan(&name); err != nil {
+			return err
+		}
+		s.Sequences = append(s.Sequences, &metadata.SequenceMetadata{Name: name})
+		return nil
+	})
+	query("SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, '') FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME", func(r *sql.Rows) error {
+		var name, kind, engine string
+		if err := r.Scan(&name, &kind, &engine); err != nil {
+			return err
+		}
+		switch kind {
+		case "BASE TABLE":
+			table := &metadata.TableMetadata{Name: name, Columns: columns[name], ForeignKeys: foreignKeys[name], CheckConstraints: checks[name], Engine: engine}
+			for _, key := range slices.Sorted(maps.Keys(indexes[name])) {
+				table.Indexes = append(table.Indexes, indexes[name][key])
+			}
+			s.Tables = append(s.Tables, table)
+		case "VIEW":
+			if views[name] {
+				s.Views = append(s.Views, &metadata.ViewMetadata{Name: name})
+			}
+		}
+		return nil
+	})
+	return &metadata.DatabaseSchemaMetadata{Name: "shop", Schemas: []*metadata.SchemaMetadata{s}}
 }
 
 // TestWalkThroughSweepTiDB runs random changes over a small pool of names
 // that collide often, case included. Precision must hold on every one;
 // recall is logged. WALK_SWEEP_N sets the number of changes,
-// WALK_SWEEP_SEED the seed; the server is the package's TiDB.
+// WALK_SWEEP_SEED the seed, and WALK_SWEEP_IMAGE the TiDB image; the
+// package's TiDB serves its own image.
 //
 // A change ends its judging at a statement TiDB rejects after changing the
 // database (walktest.PartialRejecter). The templates leave out two ADD
 // FOREIGN KEY of one name in one ALTER, which leave TiDB retrying the
 // job's rollback without end.
 func TestWalkThroughSweepTiDB(t *testing.T) {
-	n, seed, _ := walktest.SweepParams(t, 40, 20261026, "pingcap/tidb:v8.5.5")
-	db := startWalkTiDB(t)
+	n, seed, image := walktest.SweepParams(t, 40, 20261026, tidbImage)
+	db := startSweepTiDB(t, image)
 	rng := rand.New(rand.NewSource(seed))
 	var found, rejected int
 	for i := range n {
@@ -616,6 +763,13 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 	col := func() string { return pick("x", "y", "z", "X") }
 	idx := func() string { return pick("i", "j", "x", "I") }
 	fk := func() string { return pick("f", "F", "fk_1", "g") }
+	// fkDef is a foreign key's head: a CONSTRAINT symbol, the name after
+	// FOREIGN KEY, or both, which name it apart.
+	fkDef := func() string {
+		return pick("CONSTRAINT "+fk()+" FOREIGN KEY", "CONSTRAINT "+fk()+" FOREIGN KEY "+fk(), "FOREIGN KEY "+fk())
+	}
+	// unique is a UNIQUE key's head, with a CONSTRAINT symbol at times.
+	unique := func() string { return pick("", "UNIQUE ", "CONSTRAINT "+idx()+" UNIQUE ") }
 	var b strings.Builder
 	for range n {
 		var stmt string
@@ -623,7 +777,7 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 0, 1:
 			stmt = fmt.Sprintf("CREATE %sTABLE %s%s (id int PRIMARY KEY, x int%s, y int)", maybe("TEMPORARY "), maybe("IF NOT EXISTS "), tbl(), maybe(" UNIQUE"))
 		case 2:
-			stmt = fmt.Sprintf("CREATE TABLE %s (x int, y int, KEY %s (x)%s)", tbl(), idx(), maybe(", CONSTRAINT "+fk()+" FOREIGN KEY (y) REFERENCES a (id)"))
+			stmt = fmt.Sprintf("CREATE TABLE %s (x int, y int, KEY %s (x)%s)", tbl(), idx(), maybe(", "+fkDef()+" (y) REFERENCES a (id)"))
 		case 3:
 			stmt = fmt.Sprintf("CREATE TABLE %s%s LIKE %s", maybe("IF NOT EXISTS "), tbl(), tbl())
 		case 4:
@@ -639,11 +793,11 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 9:
 			stmt = fmt.Sprintf("ALTER TABLE %s CHANGE %s %s int%s", tbl(), col(), col(), maybe(", "+pick("CHANGE "+col()+" "+col()+" int", "RENAME COLUMN "+col()+" TO "+col(), "MODIFY "+col()+" bigint")))
 		case 10:
-			stmt = fmt.Sprintf("ALTER TABLE %s ADD %sINDEX %s (%s)", tbl(), maybe("UNIQUE "), idx(), col())
+			stmt = fmt.Sprintf("ALTER TABLE %s ADD %sINDEX %s (%s)", tbl(), unique(), idx(), col())
 		case 11:
 			stmt = fmt.Sprintf("ALTER TABLE %s DROP INDEX %s%s", tbl(), idx(), maybe(", ADD INDEX "+idx()+" (id)"))
 		case 12:
-			stmt = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (x) REFERENCES %s (id)", tbl(), fk(), tbl())
+			stmt = fmt.Sprintf("ALTER TABLE %s ADD %s (x) REFERENCES %s (id)", tbl(), fkDef(), tbl())
 		case 13:
 			stmt = fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s%s", tbl(), fk(), maybe(", "+pick("ADD COLUMN "+col()+" int", "DROP FOREIGN KEY "+fk())))
 		case 14:

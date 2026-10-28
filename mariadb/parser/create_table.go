@@ -1078,9 +1078,14 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		p.advance()
 		p.match(kwKEY)
 		constr.Type = nodes.ConstrForeignKey
-		// Optional index name
+		// Optional index name, kept apart from the CONSTRAINT symbol, which
+		// names the foreign key when given (see nodes.Constraint).
 		if p.isIdentToken() && p.cur.Type != '(' {
-			constr.Name, _, _ = p.parseIdent()
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			constr.IndexName = name
 		}
 		cols, err := p.parseParenIdentListWithCompletion("columnref")
 		if err != nil {

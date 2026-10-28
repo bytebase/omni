@@ -37,7 +37,7 @@ Status: decided 2026-10-23; §9 records the decisions. Step 2 of [the engines de
   - `ſ` is not `s`, and a decomposed `é` is not a precomposed one.
 
   The walk follows no such name. A statement with a name outside ASCII ends the walk; a string literal does not count. A synced space that lists one has no name known to be absent, since an ASCII name may be it. The first rule, that two spellings are one name only when identical, gave false findings, which Codex found on the TiDB copy (bytebase/omni#512): `CREATE TABLE x (id INT, café INT); ALTER TABLE x DROP COLUMN CAFé` was claimed to drop a missing column, and `DROP PROCEDURE pe` a missing procedure where the sync lists `pé`.
-- **Length:** an identifier longer than 64 characters fails with 1059 before anything is looked up. The walk claims this for ASCII names, from the text alone.
+- **Length:** an identifier longer than 64 characters fails with 1059 before anything is looked up. The walk claims this for ASCII names, from the text alone. The name after `FOREIGN KEY` counts only without a `CONSTRAINT` symbol, which names the index in its place (§4).
 - **Not modeled:**
   - CHECK constraint names: 5.7 parses CHECK and ignores it;
   - the primary key's absence (§3);
@@ -95,8 +95,10 @@ Never trusted Absent:
 - `TRUNCATE` of a view fails with 1146.
 
 **Foreign keys:**
+- **Names (corrected 2026-10-28):** the `CONSTRAINT` symbol names a foreign key. The name after `FOREIGN KEY` never does: it names only the index the foreign key adds when none serves it, and only without a symbol. So `CONSTRAINT c FOREIGN KEY f` is foreign key c with index c, and `FOREIGN KEY f` is foreign key `<table>_ibfk_<n>` with index f. omni's parser kept the name after `FOREIGN KEY` in place of the symbol, which gave false findings on `DROP FOREIGN KEY c` and on a later foreign key named f; it now keeps it apart (`Constraint.IndexName`).
 - A foreign key to a missing table or column fails only while `foreign_key_checks` is on (1824, 3734; 1215 on 5.7). So does one to a view or to a temporary table, which shadows no base table there (1824).
 - An unqualified parent table is in the child's database, not the current one.
+- An `ALTER TABLE` that also renames its table resolves the parent by rules of its own: an unqualified one in the database the table moves to, the table's old name as the table itself, and its new name as a missing table (1824). The walk checks no parent in such a statement. It checked the old database's, and so claimed a parent missing that the new database holds.
 - `DROP FOREIGN KEY f` fails when f is another table's (1091). Two foreign keys of one name in a statement fail (1826, or 1061 for the index each would add).
 - The walk tracks `SET foreign_key_checks` in the change; see decision M1 for the session's start. Each assignment of a `SET` has a scope of its own (verified):
   - `@@session.`, `@@local.`, and a bare `@@` set the session's value, after `SET GLOBAL` or `SET PERSIST` too;
@@ -107,14 +109,14 @@ Never trusted Absent:
 
 **Generated names:**
 - an unnamed index takes its first column's name, then `_2`, `_3`, ...;
-- an unnamed foreign key is `<table>_ibfk_<n>`, and it adds an index named after itself or its first column when none serves it;
+- a foreign key with no `CONSTRAINT` symbol is `<table>_ibfk_<n>`, and a foreign key adds an index when none serves it, named after its symbol, else the name after `FOREIGN KEY`, else its first column;
 - an unnamed CHECK is `<table>_chk_<n>`.
 
 These are May-effects on the table's index space and on the database's foreign key prefix.
 
 **Event names:** the parser takes no qualified event name, so a name with a period is one quoted identifier: `` `shop.e` `` is an event of the current database.
 
-**Loadable functions:** an unqualified `DROP FUNCTION f` drops a loadable function named f when one exists, and the stored function only when none does. It succeeds with no stored f, and with both it leaves the stored one. `DROP FUNCTION db.f` names the stored function alone.
+**Loadable functions:** an unqualified `DROP FUNCTION f` drops a loadable function named f when one exists, and the stored function only when none does. It succeeds with no stored f, and with both it leaves the stored one. `DROP FUNCTION db.f` names the stored function alone. With no database selected, an unqualified `DROP FUNCTION` looks for a loadable function alone: `IF EXISTS` makes a missing one a note, and without it the statement fails with 1305, not 1046, where none is loaded. The walk claims nothing of it (corrected 2026-10-28: it claimed 1046).
 
 **Dependency failures happen, but the walk makes no claim about them:**
 - `DROP TABLE` of a table a foreign key references (3730);
@@ -150,7 +152,7 @@ Views are not dependencies: dropping a table a view reads succeeds.
 | `CREATE [UNIQUE] INDEX i ON t`, `DROP INDEX i ON t` | t Present (1146) and a table (1347); i Absent (1061) / Present (1091) | i Present / Absent |
 | `CREATE [OR REPLACE] VIEW v`, `ALTER VIEW v` | v Absent (1050), or a view for OR REPLACE (1347); ALTER: v Present (1146) | v Present (view) |
 | `DROP VIEW [IF EXISTS] v, ...` | each v Present (1051) and a view (1347) | v Absent |
-| `CREATE/DROP TRIGGER`, `PROCEDURE`, `FUNCTION`, `EVENT [IF [NOT] EXISTS]` | name Absent / Present per §2 (1359/1360, 1304/1305, 1537/1539), but not for an unqualified `DROP FUNCTION` (§4); a trigger's table Present (1146); a routine's or event's database Present (1049), or one selected for an unqualified name, IF EXISTS or not (1046) | name Present / Absent, Unknown for an unqualified `DROP FUNCTION`; a trigger marks its table (§6) |
+| `CREATE/DROP TRIGGER`, `PROCEDURE`, `FUNCTION`, `EVENT [IF [NOT] EXISTS]` | name Absent / Present per §2 (1359/1360, 1304/1305, 1537/1539), but not for an unqualified `DROP FUNCTION` (§4); a trigger's table Present (1146); a routine's or event's database Present (1049), or one selected for an unqualified name, IF EXISTS or not (1046), but for an unqualified `DROP FUNCTION` (§4) | name Present / Absent, Unknown for an unqualified `DROP FUNCTION`; a trigger marks its table (§6) |
 | `INSERT`, `REPLACE`, `UPDATE`, `DELETE`, `LOAD DATA` | each target relation Present (1146) | none; see §6 |
 | `SELECT`, `DO`, `VALUES`, `TABLE`, `EXPLAIN`, `SET` (other than `foreign_key_checks`), `SHOW`, `ANALYZE/OPTIMIZE/CHECK/CHECKSUM/REPAIR TABLE`, `FLUSH`, `GRANT/REVOKE` and the user and role statements, `BEGIN/COMMIT/SAVEPOINT/RELEASE`, `UNLOCK TABLES` | none | none, unless it may call a stored function (§6) |
 | `SET foreign_key_checks = 0/1`, each assignment in its scope (§4) | none | session state |
@@ -160,7 +162,7 @@ Views are not dependencies: dropping a table a view reads succeeds.
 - `CALL`, `PREPARE`, `EXECUTE`, `DEALLOCATE`, `HANDLER`, `XA`, `ROLLBACK [TO SAVEPOINT]`, `LOCK TABLES`, and anything not in §5.
 - **Temporary tables are forgotten, and the walk goes on,** after a statement that may run code which creates or drops one:
   - DML, after its checks, on a table that has a trigger (synced or created by the change), on any table while triggers are unknown (`OtherSpecs`), and on a view, a join, or a table the walk does not know, which may be another database's, with triggers the walk does not know. Cascaded foreign key actions fire no triggers (verified), so only the statement's own target tables count.
-  - A statement that may call a stored function, `CREATE TABLE ... AS SELECT` included: a qualified call, a call to a function of the target database, or any call while functions are unknown (`OtherSpecs`).
+  - A statement that may call a stored function, `CREATE TABLE ... AS SELECT` included: a qualified call; an unqualified call to a function the current database may hold, which after a `USE` of a database the change did not create is any; a read of a relation that may be a view, whose query may call one; or any call while functions are unknown (`OtherSpecs`). The walk missed the view and the `USE` (corrected 2026-10-28): `SELECT * FROM v` with v calling `q.mk()`, and `USE q; SELECT mk()`, each ran a function that created a temporary table the walk then claimed missing.
   - Neither a trigger nor a stored function may run a statement that commits: `CREATE FUNCTION` with `CREATE TABLE` in its body fails with 1422, while one that creates or drops a temporary table runs (verified on 8.0). So nothing else is forgotten.
 - A routine or event body is not walked; its `CREATE` is lowered for the name alone.
 - **Accepted assumption (D6):** events do not change the schema while the change runs.
@@ -287,7 +289,7 @@ MySQL 5.7.44, 8.0.46 (`lower_case_table_names` 0 and 1), and 8.4.13. "All" means
     - `CREATE EVENT `` `shop.e` ``` makes an event named `shop.e` beside `e`.
     - A foreign key to a temporary table fails (1824; 1215 on 5.7). One to a base table a temporary table shadows succeeds.
     - `DROP TABLE IF EXISTS q.v` of a view is a note, and `DROP VIEW q.v` then succeeds.
-    - With no database selected, `CREATE`/`DROP`/`ALTER` of an unqualified procedure, function, trigger, or event fail with 1046, `IF EXISTS` too.
+    - With no database selected, `CREATE`/`DROP`/`ALTER` of an unqualified procedure, function, trigger, or event fail with 1046, `IF EXISTS` too, but `DROP FUNCTION` (corrected 2026-10-28, on 8.0.46): `DROP FUNCTION IF EXISTS f` is a note (1305), and `DROP FUNCTION f` fails with 1305 where no loadable function f exists.
     - `DROP PRIMARY KEY, DROP PRIMARY KEY` and `DROP PRIMARY KEY, DROP INDEX `` `PRIMARY` ``` fail with 1091.
   - Codex round 3, on 8.0.46 and 8.4.13:
     - `DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1` fails with 1091.
@@ -323,3 +325,9 @@ MySQL 5.7.44, 8.0.46 (`lower_case_table_names` 0 and 1), and 8.4.13. "All" means
     - `SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0` sets only the global, and so does `SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 1, foreign_key_checks = 0`, which leaves the session's 1.
     - `SET @@global.foreign_key_checks = 1, foreign_key_checks = 0` sets the session's to 0, and `SET SESSION foreign_key_checks = 0, @@global.sql_mode = DEFAULT, foreign_key_checks = 1` sets it to 1.
     - `SET GLOBAL sql_mode = DEFAULT, SESSION foreign_key_checks = 0` sets the session's to 0, and `SET SESSION sql_mode = DEFAULT, GLOBAL foreign_key_checks = 0, foreign_key_checks = 0` only the global: the latest keyword counts.
+- **Verified on 8.0.46 in the review of 2026-10-28:**
+  - `CONSTRAINT c FOREIGN KEY f (a)` makes foreign key c with index c; `FOREIGN KEY f (a)` and `CONSTRAINT FOREIGN KEY f (a)` make `<table>_ibfk_1` with index f; `CONSTRAINT c FOREIGN KEY f (a)` beside `KEY k (a)` makes c and adds no index. `ALTER TABLE ... ADD` names them the same way. `CONSTRAINT c UNIQUE KEY u (a)` makes index u.
+  - `FOREIGN KEY f (a)` and `UNIQUE KEY u (a)` with a 65-character f or u fail with 1059, with a `CONSTRAINT` symbol too for u; `CONSTRAINT c FOREIGN KEY f (a)` with a 65-character f succeeds, in `CREATE TABLE` and `ALTER TABLE ... ADD`.
+  - After `DROP DATABASE` of the current database: `DROP FUNCTION IF EXISTS f` is a note (1305), `DROP FUNCTION f` fails with 1305, and `DROP PROCEDURE`, `DROP TRIGGER`, `DROP VIEW`, `DROP EVENT`, `DROP TABLE` (IF EXISTS or not), `DROP INDEX`, `CREATE FUNCTION`/`PROCEDURE`/`EVENT`/`VIEW`, and `ALTER EVENT`/`PROCEDURE`/`FUNCTION` fail with 1046.
+  - `ALTER TABLE t RENAME TO q.t2, ADD FOREIGN KEY (a) REFERENCES p (id)` fails with 1824 when only the current database has p, and succeeds when only q has it. `ALTER TABLE t RENAME TO q.t2, ADD CONSTRAINT fk1 ...` succeeds when only the current database has a foreign key fk1, and fails with 1826 when q has one. `ALTER TABLE s1 RENAME TO s1b, ADD FOREIGN KEY (a) REFERENCES s1b (id)` fails with 1824, while `REFERENCES s2` beside `RENAME TO s2b` makes a foreign key of s2b to itself.
+  - A function `q.mk()` that runs `CREATE TEMPORARY TABLE IF NOT EXISTS shop.made` creates made when a view of shop that selects `q.mk()` is read, and so does an `INSERT ... SELECT` from a view of q that calls one; after `USE q`, `SELECT mk()` runs `q.mk`. A function's `CREATE TABLE` still fails (1422).

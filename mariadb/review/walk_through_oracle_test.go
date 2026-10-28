@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
+	"github.com/testcontainers/testcontainers-go"
+	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
 
 	"github.com/bytebase/omni/mariadb/parser"
 	"github.com/bytebase/omni/metadata"
@@ -54,6 +56,11 @@ var walkCases = []walkCase{
 	// Databases and USE.
 	{name: "databases", change: "CREATE DATABASE shop;\nCREATE DATABASE q;\nCREATE DATABASE q;\nCREATE DATABASE IF NOT EXISTS q;\nDROP DATABASE IF EXISTS nosuch;\nUSE nosuch;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);\nDROP DATABASE q;\nCREATE TABLE q.y (a int);", complete: true},
 	{name: "no database selected", change: "DROP DATABASE shop;\nALTER DATABASE CHARACTER SET utf8mb4;\nCREATE TABLE x (a int);\nCREATE TEMPORARY TABLE x (a int);\nCREATE SEQUENCE s;\nCREATE PROCEDURE p2() SELECT 1;\nDROP PROCEDURE IF EXISTS p;\nDROP FUNCTION shop.f;\nDROP TRIGGER IF EXISTS tr;\nCREATE EVENT e2 ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nALTER EVENT e COMMENT 'x';", complete: true},
+	// With no database selected, an unqualified DROP FUNCTION looks for a
+	// loadable function alone: IF EXISTS is a note, and without it the
+	// statement fails with 1305 where none is loaded.
+	{name: "DROP FUNCTION with no database selected", change: "DROP DATABASE shop;\nDROP FUNCTION IF EXISTS nosuch;\nDROP FUNCTION IF EXISTS f;\nDROP PROCEDURE IF EXISTS p;\nDROP FUNCTION IF EXISTS shop.f;\nDROP VIEW IF EXISTS v;\nDROP EVENT IF EXISTS e;\nDROP SEQUENCE IF EXISTS sq;", complete: true},
+	{name: "DROP FUNCTION with no database selected may find a loadable one", change: "DROP DATABASE shop;\nDROP FUNCTION nosuch;\nDROP FUNCTION f;"},
 	// A temporary table or sequence needs no database.
 	{name: "objects in a dropped database", change: "CREATE DATABASE z;\nDROP DATABASE z;\nCREATE PROCEDURE z.p() SELECT 1;\nCREATE FUNCTION z.f() RETURNS int DETERMINISTIC RETURN 1;\nCREATE VIEW z.w AS SELECT 1 AS a;\nCREATE SEQUENCE z.s;\nCREATE TEMPORARY TABLE z.tmp (a int);\nCREATE TEMPORARY SEQUENCE z.ts;", complete: true},
 	{name: "USE moves unqualified names", change: "CREATE DATABASE q;\nUSE q;\nCREATE TABLE t (a int);\nCREATE TABLE t (a int);\nUSE shop;\nCREATE TABLE t (a int);", complete: true},
@@ -69,6 +76,14 @@ var walkCases = []walkCase{
 	// MariaDB has no invisible primary key.
 	{name: "a table without a primary key has none", change: "ALTER TABLE nokey DROP PRIMARY KEY;\nCREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;\nALTER TABLE g ADD PRIMARY KEY (a);\nALTER TABLE g DROP PRIMARY KEY;\nALTER TABLE g DROP PRIMARY KEY;", complete: true},
 	{name: "foreign keys", change: "CREATE TABLE y0 (a int, FOREIGN KEY (a) REFERENCES v (id));\nCREATE TABLE y00 (a int, CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id));\nALTER TABLE nokey DROP FOREIGN KEY fk1;\nALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);\nALTER TABLE t DROP FOREIGN KEY nosuch;\nALTER TABLE t DROP FOREIGN KEY fk1;\nALTER TABLE t DROP FOREIGN KEY fk1;\nCREATE TABLE gone (id int PRIMARY KEY);\nDROP TABLE gone;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES gone (id));\nSET foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES gone (id));\nSET foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES gone (id));\nCREATE TABLE w (id int PRIMARY KEY, p int, FOREIGN KEY (p) REFERENCES w (id));\nCREATE TABLE ys (a bigint, FOREIGN KEY (a) REFERENCES sq (next_not_cached_value));", complete: true},
+	// The CONSTRAINT symbol names a foreign key and its index; the name
+	// after FOREIGN KEY names both only without a symbol, and a long one
+	// fails only then.
+	{name: "a foreign key's name and its index's", change: "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP INDEX cx;\nCREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nALTER TABLE y DROP FOREIGN KEY fy;\nALTER TABLE y DROP INDEX fy;\nALTER TABLE nokey ADD CONSTRAINT nk FOREIGN KEY fk1 (a) REFERENCES r (id);\nALTER TABLE nokey ADD CONSTRAINT nk2 FOREIGN KEY f (a) REFERENCES r (id), ADD CONSTRAINT nk3 FOREIGN KEY f (a) REFERENCES r (id);\nCREATE TABLE w (a int, CONSTRAINT cw FOREIGN KEY " + strings.Repeat("f", 65) + " (a) REFERENCES r (id));\nCREATE TABLE w2 (a int, FOREIGN KEY " + strings.Repeat("f", 65) + " (a) REFERENCES r (id));\nCREATE TABLE w3 (a int, FOREIGN KEY fk1 (a) REFERENCES r (id));", complete: true},
+	// An ALTER TABLE that also renames its table resolves a parent by rules
+	// of its own: in the database the table moves to. The sync's absent
+	// relations are not trusted, so the change drops shop's p2.
+	{name: "a parent beside a RENAME", change: "CREATE TABLE p2 (id int PRIMARY KEY);\nDROP TABLE p2;\nCREATE DATABASE q;\nCREATE TABLE q.p2 (id int PRIMARY KEY);\nCREATE TABLE m (a int);\nALTER TABLE m RENAME TO q.m, ADD FOREIGN KEY (a) REFERENCES p2 (id);\nCREATE TABLE m2 (id int PRIMARY KEY, a int);\nALTER TABLE m2 RENAME TO m3, ADD FOREIGN KEY (a) REFERENCES m2 (id);\nCREATE TABLE m4 (id int PRIMARY KEY, a int);\nALTER TABLE m4 RENAME TO m5, ADD FOREIGN KEY (a) REFERENCES m5 (id);"},
 	{name: "an unqualified parent is in the child's database", change: "CREATE DATABASE q;\nCREATE TABLE q.parent (id int PRIMARY KEY);\nCREATE TABLE q.child (id int, FOREIGN KEY (id) REFERENCES parent (id));\nALTER TABLE q.child ADD CONSTRAINT c2 FOREIGN KEY (id) REFERENCES parent (id);\nCREATE TABLE q.orphan (id int, FOREIGN KEY (id) REFERENCES nosuch (id));", complete: true},
 	// An engine other than InnoDB parses foreign keys and ignores them.
 	{name: "an engine that ignores foreign keys", setup: "CREATE TABLE my (id int PRIMARY KEY, a int) ENGINE=MyISAM;", change: "ALTER TABLE my DROP FOREIGN KEY nosuch;\nALTER TABLE my ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES nosuch (id);\nCREATE TABLE m2 (a int, CONSTRAINT mf FOREIGN KEY (a) REFERENCES nosuch (id), CONSTRAINT mf FOREIGN KEY (a) REFERENCES r (id)) ENGINE=MyISAM;\nCREATE TABLE ok (a int, CONSTRAINT mf FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE m3 LIKE my;\nALTER TABLE m3 ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);\nCREATE TABLE inn (id int PRIMARY KEY, a int);\nALTER TABLE inn ENGINE=MyISAM;\nALTER TABLE inn ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES nosuch (id);\nALTER TABLE inn DROP FOREIGN KEY whatever;\nALTER TABLE inn ENGINE=Aria;\nCREATE TABLE ar (a int, CONSTRAINT af FOREIGN KEY (a) REFERENCES nosuch (id)) ENGINE=Aria;\nALTER TABLE inn ENGINE=InnoDB;\nALTER TABLE inn DROP FOREIGN KEY whatever;"},
@@ -118,6 +133,8 @@ var walkCases = []walkCase{
 	{name: "temporary sequences", change: "CREATE TEMPORARY SEQUENCE sq;\nDROP SEQUENCE sq;\nDROP SEQUENCE sq;\nDROP SEQUENCE sq;\nCREATE TEMPORARY TABLE tt (a int);\nCREATE TEMPORARY SEQUENCE tt;\nDROP TEMPORARY SEQUENCE tt;\nCREATE TEMPORARY SEQUENCE ts;\nCREATE TEMPORARY TABLE ts (a int);\nDROP TEMPORARY SEQUENCE ts;\nDROP TEMPORARY SEQUENCE ts;\nCREATE TEMPORARY SEQUENCE IF NOT EXISTS tt;\nCREATE OR REPLACE TEMPORARY SEQUENCE tt;\nDROP TEMPORARY SEQUENCE tt;\nCREATE TEMPORARY TABLE nokey (a int);\nDROP SEQUENCE nokey;\nDROP TEMPORARY TABLE nokey;", complete: true},
 	// A sequence or a system-versioned table in a statement the walk does
 	// not follow on it ends the walk.
+	// A relation made LIKE a sequence is one, and stays one renamed.
+	{name: "a sequence renamed by ALTER TABLE", setup: "CREATE DATABASE q;\nCREATE SEQUENCE q.s;", change: "CREATE TABLE t2 LIKE q.s;\nALTER TABLE t2 RENAME TO t3;\nDROP SEQUENCE t3;\nCREATE TABLE t4 LIKE q.s;\nALTER TABLE t4 RENAME TO q.t5, COMMENT 'x';\nDROP SEQUENCE q.t5;\nCREATE TABLE t6 LIKE q.s;\nRENAME TABLE t6 TO t7;\nDROP SEQUENCE t7;\nCREATE TEMPORARY TABLE t8 LIKE q.s;\nDROP TEMPORARY SEQUENCE t8;\nDROP SEQUENCE nosuch;"},
 	{name: "ALTER TABLE of a sequence", change: "ALTER TABLE sq COMMENT 'x';\nALTER TABLE sq ADD COLUMN z int;"},
 	{name: "TRUNCATE of a sequence", change: "TRUNCATE TABLE sq;\nCREATE TABLE t (a int);"},
 	{name: "an index on a sequence", change: "CREATE INDEX k ON sq (cache_size);\nDROP INDEX k ON sq;\nCREATE TABLE t (a int);"},
@@ -154,6 +171,10 @@ var walkCases = []walkCase{
 	{name: "unknown by design, after the walk", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT * FROM nosuch;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nCREATE TABLE y (a int, CONSTRAINT fy FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE z LIKE y;\nALTER TABLE z DROP FOREIGN KEY fy;\nALTER TABLE t ADD COLUMN z int, DROP COLUMN z;\nALTER TABLE t ADD INDEX j (b), DROP INDEX j;\nALTER TABLE t ADD COLUMN x int, RENAME COLUMN x TO y;\nALTER TABLE nosuch ADD COLUMN a int;\nCREATE TABLE IF NOT EXISTS nosuch2 (a int);\nALTER TABLE nosuch2 DROP COLUMN b;\nRENAME TABLE nosuch TO x2;"},
 	{name: "a trigger of another database may create a temporary table", setup: "DROP TRIGGER tr;\nCREATE DATABASE q;\nCREATE TABLE q.o (a int);\nCREATE TRIGGER q.ot BEFORE INSERT ON q.o FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shop.made (a int);", change: "INSERT INTO q.o VALUES (1);\nDROP TEMPORARY TABLE made;\nDROP TEMPORARY TABLE made;"},
 	{name: "a query's function may create a temporary table", setup: "CREATE FUNCTION mk() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS made (a int); RETURN 1; END;", change: "CREATE TABLE c AS SELECT mk() AS x;\nDROP TEMPORARY TABLE made;\nDROP TEMPORARY TABLE made;"},
+	// A stored function may create a temporary table when a view's query
+	// calls it, and an unqualified call after USE runs one of that
+	// database.
+	{name: "a function a view or another database holds may create a temporary table", setup: "CREATE DATABASE q;\nCREATE FUNCTION q.mk() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made (a int); RETURN 1; END;\nCREATE FUNCTION q.mk2() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made2 (a int); RETURN 1; END;\nCREATE FUNCTION q.mk3() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made3 (a int); RETURN 1; END;\nCREATE VIEW vv AS SELECT q.mk() AS x;\nCREATE VIEW q.qv AS SELECT q.mk3() AS x;", change: "SELECT * FROM vv;\nDROP TEMPORARY TABLE made;\nUSE q;\nSELECT mk2();\nUSE shop;\nDROP TEMPORARY TABLE made2;\nINSERT INTO nokey SELECT x FROM q.qv;\nDROP TEMPORARY TABLE made3;\nDROP TEMPORARY TABLE made3;", complete: true},
 	{name: "a trigger may create a temporary table", change: "CREATE TRIGGER tt BEFORE INSERT ON nokey FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shadow (a int);\nINSERT INTO nokey VALUES (1);\nINSERT INTO shadow VALUES (1);\nDROP TABLE shadow;"},
 }
 
@@ -202,6 +223,39 @@ func startWalkMariaDB(t *testing.T) *sql.DB {
 		t.Fatalf("mariadb unavailable: %v", walkServer.err)
 	}
 	return walkServer.db
+}
+
+// startSweepMariaDB returns a pool that selects no database on a MariaDB of
+// the image: the oracle's for its own image, else one started for the
+// test, which it ends.
+func startSweepMariaDB(t *testing.T, image string) *sql.DB {
+	t.Helper()
+	if image == mariadbImage {
+		return startWalkMariaDB(t)
+	}
+	ctx := context.Background()
+	c, err := tcmariadb.Run(ctx, image, tcmariadb.WithDatabase("shop"), tcmariadb.WithUsername("root"), tcmariadb.WithPassword("test"))
+	t.Cleanup(func() {
+		if c != nil {
+			_ = testcontainers.TerminateContainer(c)
+		}
+	})
+	if err != nil {
+		t.Fatalf("mariadb %s unavailable: %v", image, err)
+	}
+	endpoint, err := c.PortEndpoint(ctx, "3306/tcp", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("mysql", "root:test@tcp("+endpoint+")/?multiStatements=true")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := db.PingContext(ctx); err != nil {
+		t.Fatal(err)
+	}
+	return db
 }
 
 // session opens a session of its own, which the cleanup closes rather
@@ -683,10 +737,10 @@ func syncWalk(t *testing.T, db *sql.DB, s walkSync) *metadata.DatabaseSchemaMeta
 // names that collide often, case included, on each sync by turns.
 // Precision must hold on every one; recall is logged. WALK_SWEEP_N sets
 // the number of changes, WALK_SWEEP_SEED the seed, and WALK_SWEEP_IMAGE
-// is not read: the sweep runs on the oracle's image.
+// the MariaDB image; the oracle's MariaDB serves its own image.
 func TestWalkThroughSweepMariaDB(t *testing.T) {
-	n, seed, _ := walktest.SweepParams(t, 40, 20261026, "mariadb:11.8.8")
-	db := startWalkMariaDB(t)
+	n, seed, image := walktest.SweepParams(t, 40, 20261026, mariadbImage)
+	db := startSweepMariaDB(t, image)
 	rng := rand.New(rand.NewSource(seed))
 	var found, rejected int
 	for i := range n {
@@ -728,6 +782,13 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 	col := func() string { return pick("x", "y", "z", "X", "row_start") }
 	idx := func() string { return pick("i", "j", "x", "I") }
 	fk := func() string { return pick("f", "F", "a_ibfk_1", "g") }
+	// fkDef is a foreign key's head: a CONSTRAINT symbol, the name after
+	// FOREIGN KEY, or both, which name it apart.
+	fkDef := func() string {
+		return pick("CONSTRAINT "+fk()+" FOREIGN KEY", "CONSTRAINT "+fk()+" FOREIGN KEY "+fk(), "FOREIGN KEY "+fk())
+	}
+	// unique is a UNIQUE key's head, with a CONSTRAINT symbol at times.
+	unique := func() string { return pick("", "UNIQUE ", "CONSTRAINT "+idx()+" UNIQUE ") }
 	ifExists := func() string { return maybe(" IF EXISTS") }
 	var b strings.Builder
 	for range n {
@@ -738,7 +799,7 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 			stmt = strings.Replace(stmt, "OR REPLACE TEMPORARY TABLE IF NOT EXISTS", "OR REPLACE TEMPORARY TABLE", 1)
 			stmt = strings.Replace(stmt, "OR REPLACE TABLE IF NOT EXISTS", "OR REPLACE TABLE", 1)
 		case 2:
-			stmt = fmt.Sprintf("CREATE TABLE %s (x int, y int, KEY %s (x)%s)", tbl(), idx(), maybe(", CONSTRAINT "+fk()+" FOREIGN KEY (y) REFERENCES a (id)"))
+			stmt = fmt.Sprintf("CREATE TABLE %s (x int, y int, KEY %s (x)%s)", tbl(), idx(), maybe(", "+fkDef()+" (y) REFERENCES a (id)"))
 		case 3:
 			stmt = fmt.Sprintf("CREATE TABLE %s%s LIKE %s", maybe("IF NOT EXISTS "), tbl(), tbl())
 		case 4:
@@ -752,11 +813,11 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		case 9:
 			stmt = fmt.Sprintf("ALTER TABLE %s CHANGE %s %s int", tbl(), col(), col())
 		case 10:
-			stmt = fmt.Sprintf("ALTER TABLE %s ADD %sINDEX %s (%s)", tbl(), maybe("UNIQUE "), idx(), col())
+			stmt = fmt.Sprintf("ALTER TABLE %s ADD %sINDEX %s (%s)", tbl(), unique(), idx(), col())
 		case 11:
 			stmt = fmt.Sprintf("ALTER TABLE %s DROP INDEX%s %s%s", tbl(), ifExists(), idx(), maybe(", ADD INDEX "+idx()+" (x)"))
 		case 12:
-			stmt = fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (x) REFERENCES %s (id)", tbl(), fk(), tbl())
+			stmt = fmt.Sprintf("ALTER TABLE %s ADD %s (x) REFERENCES %s (id)", tbl(), fkDef(), tbl())
 		case 13:
 			stmt = fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY%s %s", tbl(), ifExists(), fk())
 		case 14:

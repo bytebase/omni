@@ -709,7 +709,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrForeignKey:
-		conName := con.Name
+		conName := fkName(con)
 		if conName == "" {
 			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
 		}
@@ -742,7 +742,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
-		ensureFKBackingIndex(tbl, con.Name, cols, buildIndexColumns(con))
+		ensureFKBackingIndex(tbl, fkName(con), cols, buildIndexColumns(con))
 
 	case nodes.ConstrCheck:
 		conName := con.Name

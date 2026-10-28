@@ -907,9 +907,17 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		p.advance()
 		p.match(kwINDEX, kwKEY) // optional INDEX or KEY
 		constr.Type = nodes.ConstrUnique
-		// Optional index name
+		// Optional index name. TiDB names the key after the CONSTRAINT
+		// symbol when one is given (pkg/parser/parser.y, rule Constraint;
+		// verified on v8.5.5).
 		if p.isIdentToken() && p.cur.Type != '(' {
-			constr.Name, _, _ = p.parseIdent()
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			if constr.Name == "" {
+				constr.Name = name
+			}
 		}
 		// Optional index type
 		p.parseIndexTypeClause(constr)
@@ -925,9 +933,14 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		p.advance()
 		p.match(kwKEY)
 		constr.Type = nodes.ConstrForeignKey
-		// Optional index name
+		// Optional index name, kept apart from the CONSTRAINT symbol, which
+		// names the foreign key when given (see nodes.Constraint).
 		if p.isIdentToken() && p.cur.Type != '(' {
-			constr.Name, _, _ = p.parseIdent()
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			constr.IndexName = name
 		}
 		cols, err := p.parseParenIdentListWithCompletion("columnref")
 		if err != nil {
@@ -1090,6 +1103,7 @@ func (p *Parser) parseIndexTypeClause(constr *nodes.Constraint) {
 //	ROW_FORMAT [=] format
 //	KEY_BLOCK_SIZE [=] value
 //	And many more...
+//
 // parseClusteredAttr parses optional CLUSTERED/NONCLUSTERED after PRIMARY KEY.
 // Returns nil if neither keyword is present.
 func (p *Parser) parseClusteredAttr() *bool {

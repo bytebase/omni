@@ -112,14 +112,12 @@ type walker struct {
 	fkChecks   review.Switch
 	// triggered lists the relations with a trigger, synced or created;
 	// anyTrigger is set when any table may have one the walk does not
-	// know. functions lists the stored functions the target or the change
-	// defines; anyFunction is set when a call may run one the walk does
-	// not know. A trigger or stored function can create or drop a
-	// temporary table, and nothing else (verified: a trigger's DDL fails
-	// with 1422).
+	// know. anyFunction is set when a call may run a stored function the
+	// ledger does not show. A trigger or stored function can create or
+	// drop a temporary table, and nothing else (verified: a trigger's DDL
+	// fails with 1422).
 	triggered   map[walk.Key]bool
 	anyTrigger  bool
-	functions   map[walk.Key]bool
 	anyFunction bool
 	// ignoresFKs lists the tables whose engine may ignore foreign keys.
 	ignoresFKs map[walk.Key]bool
@@ -136,7 +134,6 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 		current:    snap.db,
 		fkChecks:   t.ForeignKeyChecks,
 		triggered:  make(map[walk.Key]bool),
-		functions:  make(map[walk.Key]bool),
 		ignoresFKs: make(map[walk.Key]bool),
 	}
 	for name := range snap.triggered {
@@ -144,9 +141,6 @@ func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	}
 	for name := range snap.ignoresFKs {
 		w.ignoresFKs[relKey(snap.db, name)] = true
-	}
-	for name := range snap.functions {
-		w.functions[objKey(spaceFunction, snap.db, name)] = true
 	}
 	return w
 }
@@ -173,6 +167,10 @@ type builder struct {
 	// names (keepsFKs). Until a lowering sets it, the statement claims
 	// nothing of foreign keys and leaves their names Unknown.
 	fks bool
+	// renames is set while an ALTER TABLE also renames its table, which
+	// leaves the foreign keys it adds no parent the walk can resolve
+	// (foreignKeyTarget).
+	renames bool
 	// early is set while ALTER TABLE lowers its drops and renames, which
 	// run together against the table as it was; arrived holds the column
 	// and index names they bring in (leave, arrive).
@@ -378,25 +376,48 @@ func (b *builder) tooLong(name string, rng review.Range) bool {
 }
 
 // callsStoredFunction reports whether the statement may call a stored
-// function, which may create or drop a temporary table.
+// function, which may create or drop a temporary table (verified on
+// 8.0.46): a qualified call, an unqualified one to a function the current
+// database may hold, which after a USE of a database the change did not
+// create the walk does not know, and a read of a relation that may be a
+// view, whose query may call one.
 func (b *builder) callsStoredFunction(n ast.Node) bool {
 	calls := false
 	ast.Inspect(n, func(m ast.Node) bool {
-		fc, ok := m.(*ast.FuncCallExpr)
-		if !ok || calls {
-			return !calls
-		}
-		switch {
-		case b.w.anyFunction, fc.Schema != "":
-			calls = true
-		default:
-			if k, ok := b.key(spaceFunction, fc.Name); ok && b.w.functions[objKey(spaceFunction, b.w.current, k)] {
-				calls = true
+		switch v := m.(type) {
+		case *ast.FuncCallExpr:
+			calls = b.w.anyFunction || v.Schema != "" || b.w.lost
+			if !calls {
+				k, ok := b.key(spaceFunction, v.Name)
+				f, _ := b.l.Lookup(objKey(spaceFunction, b.w.current, k))
+				calls = !ok || f != walk.Absent
 			}
+		case *ast.TableRef:
+			calls = b.mayBeView(v)
 		}
 		return !calls
 	})
 	return calls
+}
+
+// mayBeView reports whether a table reference may name a view: anything
+// but a temporary table or a base table the walk knows.
+func (b *builder) mayBeView(tr *ast.TableRef) bool {
+	name, ok := b.key(spaceRelation, tr.Name)
+	if !ok {
+		return true
+	}
+	r := tableRef{name: name, db: b.w.current}
+	switch {
+	case tr.Schema != "":
+		if r.db, ok = b.key(spaceDatabase, tr.Schema); !ok {
+			return true
+		}
+	case b.w.lost || b.w.noDatabase:
+		return true
+	}
+	f, temp, kind := b.resolve(r)
+	return !temp && (f != walk.Present || kind != relTable)
 }
 
 // forgetTemporary records that a trigger or stored function may have

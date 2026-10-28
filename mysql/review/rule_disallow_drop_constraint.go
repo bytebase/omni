@@ -188,7 +188,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 						// A check constraint makes no index; its name is
 						// another namespace's.
 						if cmd.Constraint != nil && cmd.Constraint.Type != ast.ConstrCheck {
-							touch(v.Table, cmd.Constraint.Name, cmd.Constraint.Type == ast.ConstrUnique)
+							touch(v.Table, keyName(cmd.Constraint), cmd.Constraint.Type == ast.ConstrUnique)
 						}
 					case ast.ATRenameIndex:
 						// The new name keeps what the change knows of the old.

@@ -480,10 +480,20 @@ const (
 )
 
 // Constraint represents a table-level constraint.
+//
+// Name is the constraint's name: the CONSTRAINT symbol of a FOREIGN KEY or
+// CHECK, and the index name of a key, which for UNIQUE is the name after
+// UNIQUE [KEY|INDEX] when one is written and else the symbol. IndexName is
+// the name written after FOREIGN KEY, kept apart from the symbol as
+// sql_yacc.yy's PT_foreign_key_definition keeps them: the foreign key is
+// named after the symbol, or generated without one, never after this
+// name; its index is named after the symbol, or this name without one
+// (verified on 8.0.46).
 type Constraint struct {
 	Loc          Loc
 	Type         ConstraintType
 	Name         string
+	IndexName    string         // for FOREIGN KEY: the name after FOREIGN KEY [KEY]
 	Columns      []string       // simple column names
 	IndexColumns []*IndexColumn // key parts with optional expressions (for functional indexes)
 	IndexType    string         // BTREE, HASH

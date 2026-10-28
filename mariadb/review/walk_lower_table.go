@@ -63,10 +63,15 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return true
 	}
 	var rename *ast.AlterTableCmd
+	for _, c := range v.Commands {
+		if c.Type == ast.ATRenameTable {
+			rename = c
+		}
+	}
+	b.renames = rename != nil
 	for _, early := range []bool{true, false} {
 		for _, c := range v.Commands {
 			if c.Type == ast.ATRenameTable {
-				rename = c
 				continue
 			}
 			if alterEarly(c.Type) != early {
@@ -81,7 +86,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	if rename != nil {
 		b.Next()
-		return b.alterRename(r, rename)
+		return b.alterRename(r, rename, kind)
 	}
 	return true
 }
@@ -328,7 +333,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if con == nil {
 				continue
 			}
-			if b.tooLong(con.Name, rng) {
+			if b.tooLong(keyName(con), rng) {
 				return true
 			}
 			switch con.Type {
@@ -336,7 +341,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				primaries++
 			case ast.ConstrForeignKey:
 				// 1061, for the index each would add (verified).
-				if b.fks && twice("add foreign key", spaceForeignKey, con.Name, rng, "Foreign key "+ident(con.Name)+" is added twice to table "+r.written) {
+				if b.fks && twice("add foreign key", spaceForeignKey, keyName(con), rng, "Foreign key "+ident(keyName(con))+" is added twice to table "+r.written) {
 					return true
 				}
 			case ast.ConstrCheck:
@@ -433,8 +438,8 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		if !b.fks {
 			break
 		}
-		if k, ok := b.key(spaceForeignKey, c.Name); ok {
-			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", "Foreign key "+ident(c.Name)+" already exists in the database") // 1826; 1022 on 5.7
+		if k, ok := b.key(spaceForeignKey, keyName(c)); ok {
+			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", "Foreign key "+ident(keyName(c))+" already exists in the database") // 1826; 1022 on 5.7
 		}
 		b.foreignKeyTarget(r, c)
 	default:
@@ -464,8 +469,11 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range, ifExi
 	return true
 }
 
-// alterRename follows ALTER TABLE ... RENAME [TO] t2.
-func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd) bool {
+// alterRename follows ALTER TABLE ... RENAME [TO] t2. The relation keeps
+// its kind: a table the walk does not know to be no sequence may be one,
+// as one made LIKE another database's sequence is, and stays one
+// (verified on 11.8.9).
+func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd, kind string) bool {
 	dest := c.NewTable
 	if dest == nil {
 		dest = &ast.TableRef{Name: c.NewName, Loc: c.Loc}
@@ -487,7 +495,7 @@ func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd) bool {
 		b.databaseNeeds(to.db, dest.Schema, to.rng) // 1049; 1025 on 5.7
 	}
 	b.need(relKey(to.db, to.name), walk.Absent, nil, to.rng, "", "Table "+to.written+" already exists") // 1050
-	b.moveTable(r, to, relTable)
+	b.moveTable(r, to, kind)
 	return true
 }
 

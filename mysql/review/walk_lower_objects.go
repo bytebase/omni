@@ -187,7 +187,8 @@ func (b *builder) dropTrigger(v *ast.DropTriggerStmt) bool {
 
 // dbObject resolves the name of a trigger, routine, or event, which a
 // database may qualify. With no database selected, an unqualified name
-// fails, IF EXISTS or not (1046, verified).
+// fails, IF EXISTS or not (1046, verified), but for DROP FUNCTION
+// (dropRoutine).
 func (b *builder) dbObject(space string, tr *ast.TableRef) (string, string, refState) {
 	if tr == nil {
 		return "", "", refUnknown
@@ -249,9 +250,6 @@ func (b *builder) createRoutine(v *ast.CreateFunctionStmt) bool {
 		b.need(rk, walk.Absent, nil, b.anchor(), "", word+ident(v.Name.Name)+" already exists") // 1304
 	}
 	b.Set(rk, walk.Present, "")
-	if !v.IsProcedure {
-		b.Session(func() { b.w.functions[rk] = true })
-	}
 	return true
 }
 
@@ -267,8 +265,16 @@ func (b *builder) alterRoutine(v *ast.AlterRoutineStmt) bool {
 // DROP FUNCTION drops a loadable function of the name first, which the
 // sync does not list: it succeeds with no stored function, and leaves the
 // stored one when both exist (verified on 8.0 and 8.4).
+//
+// With no database selected, an unqualified DROP FUNCTION looks for a
+// loadable function alone: IF EXISTS makes a missing one a note, and
+// without it the statement fails with 1305, not 1046, only where none is
+// loaded, which the walk cannot know (verified on 8.0.46).
 func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 	space, word := routineSpace(v.IsProcedure)
+	if !v.IsProcedure && v.Name != nil && v.Name.Schema == "" && b.w.noDatabase && !b.w.lost {
+		return true
+	}
 	k, db, st := b.dbObject(space, v.Name)
 	if st != refOK {
 		return st == refFailed

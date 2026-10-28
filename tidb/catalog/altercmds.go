@@ -450,7 +450,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrForeignKey:
-		conName := con.Name
+		conName := fkName(con)
 		if conName == "" {
 			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
 		}
@@ -461,15 +461,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			refTable = con.RefTable.Name
 		}
 		fkCon := &Constraint{
-			Name:       conName,
-			Type:       ConForeignKey,
-			Table:      tbl,
-			Columns:    cols,
+			Name:        conName,
+			Type:        ConForeignKey,
+			Table:       tbl,
+			Columns:     cols,
 			RefDatabase: refDBName,
-			RefTable:   refTable,
-			RefColumns: con.RefColumns,
-			OnDelete:   refActionToString(con.OnDelete),
-			OnUpdate:   refActionToString(con.OnUpdate),
+			RefTable:    refTable,
+			RefColumns:  con.RefColumns,
+			OnDelete:    refActionToString(con.OnDelete),
+			OnUpdate:    refActionToString(con.OnUpdate),
 		}
 		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
@@ -480,7 +480,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
-		ensureFKBackingIndex(tbl, con.Name, cols, buildIndexColumns(con))
+		ensureFKBackingIndex(tbl, fkName(con), cols, buildIndexColumns(con))
 
 	case nodes.ConstrCheck:
 		conName := con.Name

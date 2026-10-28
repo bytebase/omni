@@ -608,7 +608,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			})
 
 		case nodes.ConstrForeignKey:
-			conName := con.Name
+			conName := fkName(con)
 			if conName == "" {
 				unnamedFKCount++
 				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
@@ -634,7 +634,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				OnUpdate:    refActionToString(con.OnUpdate),
 			})
 			// Defer implicit backing index for FK until after all explicit indexes are added.
-			pendingFKs = append(pendingFKs, pendingFK{conName: con.Name, cols: cols, idxCols: buildIndexColumns(con)})
+			pendingFKs = append(pendingFKs, pendingFK{conName: fkName(con), cols: cols, idxCols: buildIndexColumns(con)})
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -1739,6 +1739,16 @@ func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
 		}
 	}
 	return false
+}
+
+// fkName returns the name a foreign key takes, and the index it adds when
+// none serves it: the CONSTRAINT symbol, else the name after FOREIGN KEY,
+// else "" for a generated one (verified on 11.8.9).
+func fkName(con *nodes.Constraint) string {
+	if con.Name != "" {
+		return con.Name
+	}
+	return con.IndexName
 }
 
 // ensureFKBackingIndex creates an implicit backing index for FK columns

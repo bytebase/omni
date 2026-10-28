@@ -255,7 +255,12 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 }
 
 // namesTooLong fails a CREATE TABLE naming a table, column, index, or
-// foreign key longer than 64 characters.
+// foreign key longer than 64 characters. The name after FOREIGN KEY counts
+// only without a CONSTRAINT symbol, which names the foreign key in its
+// place, and so does the name after UNIQUE (verified). A CHECK
+// constraint's name does not count: with tidb_enable_check_constraint off,
+// TiDB's default, it takes a long one with a warning (verified on
+// v8.5.5), and the walk does not know the setting.
 func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 	if v.Table != nil && b.tooLong(v.Table.Name, rangeOf(v.Table.Loc)) {
 		return true
@@ -266,7 +271,7 @@ func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 		}
 	}
 	for _, c := range v.Constraints {
-		if b.tooLong(c.Name, rangeOf(c.Loc)) {
+		if c.Type != ast.ConstrCheck && b.tooLong(keyName(c), rangeOf(c.Loc)) {
 			return true
 		}
 	}
@@ -306,9 +311,9 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			primaries++
 			continue
 		case ast.ConstrForeignKey:
-			if k, ok := b.key(spaceTableForeignKey, c.Name); ok && b.fks {
+			if k, ok := b.key(spaceTableForeignKey, keyName(c)); ok && b.fks {
 				if foreignKeys[k] {
-					b.fail(rangeOf(c.Loc), nil, "Foreign key "+ident(c.Name)+" is specified twice in table "+r.written)
+					b.fail(rangeOf(c.Loc), nil, "Foreign key "+ident(keyName(c))+" is specified twice in table "+r.written)
 					return true
 				}
 				foreignKeys[k] = true
@@ -398,7 +403,7 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 		return true
 	case ast.ConstrCheck:
 	case ast.ConstrForeignKey:
-		k, ok := b.key(spaceTableForeignKey, c.Name)
+		k, ok := b.key(spaceTableForeignKey, keyName(c))
 		switch {
 		case ok && b.fks:
 			b.Set(fkKey(r, k), walk.Present, "")
