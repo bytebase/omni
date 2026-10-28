@@ -350,7 +350,7 @@ func unlockable(query *nodes.SelectStmt) bool {
 func selectsCursor(list *nodes.List) bool {
 	found := false
 	if list != nil {
-		nodes.Inspect(list, func(n nodes.Node) bool {
+		inspect(list, func(n nodes.Node) bool {
 			switch n.(type) {
 			case *nodes.CursorExpr:
 				found = true

@@ -486,6 +486,10 @@ func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error
 	if p.lexer.Err != nil {
 		return nil, p.lexerError()
 	}
+	// The checks below walk the tree recursively, as its consumers do.
+	if treeTooHigh(stmt, p.prev.End-stmtLoc) {
+		return nil, nestedTooDeeply(stmtLoc)
+	}
 	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || p.isIncompleteParsedStmt(stmt)) && !p.failsBeforeEnd(stmt) {
 		return nil, p.syntaxErrorAtCur()
 	}

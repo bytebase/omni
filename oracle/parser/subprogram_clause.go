@@ -695,10 +695,10 @@ func (c *charsetScopes) blockContents(b *nodes.PLSQLBlock) error {
 		return true
 	}
 	if b.Statements != nil {
-		nodes.Inspect(b.Statements, visit)
+		inspect(b.Statements, visit)
 	}
 	if b.Exceptions != nil {
-		nodes.Inspect(b.Exceptions, visit)
+		inspect(b.Exceptions, visit)
 	}
 	return err
 }
