@@ -341,6 +341,9 @@ func TestWalkThroughMariaDBStoredFunctions(t *testing.T) {
 	noFinding(t, "INSERT INTO nokey SELECT a FROM q.qv;\n"+drop, shop)
 	noFinding(t, "USE q;\nSELECT mk();\nUSE shop;\n"+drop, shop)
 	noFinding(t, "SELECT f();\n"+drop, shop)
+	// A call found stays found past a base table read after it.
+	noFinding(t, "SELECT f() FROM r;\n"+drop, shop)
+	noFinding(t, "SELECT q.mk() FROM nokey WHERE a IN (SELECT id FROM r);\n"+drop, shop)
 	// A base table or a sequence runs no function, nor does a call to one
 	// the current database certainly lacks.
 	oneFinding(t, "SELECT * FROM nokey;\n"+drop, 1, "Temporary table made does not exist", shop)

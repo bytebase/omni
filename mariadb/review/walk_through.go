@@ -399,6 +399,11 @@ func (b *builder) tooLong(name string, rng review.Range) bool {
 func (b *builder) callsStoredFunction(n ast.Node) bool {
 	calls := false
 	ast.Inspect(n, func(m ast.Node) bool {
+		// Inspect visits the siblings of a node whose children it skips,
+		// so a call once found stays found.
+		if calls {
+			return false
+		}
 		switch v := m.(type) {
 		case *ast.FuncCallExpr:
 			calls = b.w.anyFunction || v.Schema != "" || b.w.lost
