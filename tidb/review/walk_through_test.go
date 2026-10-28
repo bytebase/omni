@@ -144,6 +144,30 @@ func TestWalkThroughTiDBForeignKeys(t *testing.T) {
 	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES v (id));", 0, "Foreign key target v is not a base table", on)
 }
 
+// TestWalkThroughTiDBConstraintNames pins the names a key takes: a foreign
+// key and its index, and a UNIQUE key, take the CONSTRAINT symbol, or
+// without one the name after FOREIGN KEY or UNIQUE, which counts as long
+// only then. A CHECK constraint's long name is taken while CHECK
+// constraints are off, TiDB's default, which the walk cannot tell
+// (verified on v8.5.5).
+func TestWalkThroughTiDBConstraintNames(t *testing.T) {
+	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
+	long := strings.Repeat("f", 65)
+	noFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP INDEX cx;", on)
+	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY fx;", 1, "Foreign key fx does not exist in table x", on)
+	noFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nALTER TABLE y DROP FOREIGN KEY fy;", on)
+	noFinding(t, "ALTER TABLE t ADD CONSTRAINT nk FOREIGN KEY fk1 (a) REFERENCES r (id);", on)
+	oneFinding(t, "ALTER TABLE t ADD FOREIGN KEY fk1 (a) REFERENCES r (id);", 0, "Foreign key fk1 already exists in table t", on)
+	noFinding(t, "CREATE TABLE u (a int, CONSTRAINT cu UNIQUE KEY uu (a));\nALTER TABLE u DROP INDEX cu;", on)
+	oneFinding(t, "CREATE TABLE u (a int, CONSTRAINT cu UNIQUE KEY uu (a));\nALTER TABLE u DROP INDEX uu;", 1, "Index uu does not exist in table u", on)
+	noFinding(t, "ALTER TABLE t ADD CONSTRAINT cu UNIQUE KEY i (b);", on)
+	oneFinding(t, "ALTER TABLE t ADD CONSTRAINT i UNIQUE KEY cu (b);", 0, "Index i already exists in table t", on)
+	noFinding(t, "CREATE TABLE w (a int, CONSTRAINT cw FOREIGN KEY "+long+" (a) REFERENCES r (id), CONSTRAINT cu UNIQUE KEY "+long+"2 (a));", on)
+	oneFinding(t, "CREATE TABLE w (a int, FOREIGN KEY "+long+" (a) REFERENCES r (id));", 0, "Identifier name "+long+" is too long", on)
+	oneFinding(t, "ALTER TABLE nokey ADD UNIQUE KEY "+long+" (a);", 0, "Identifier name "+long+" is too long", on)
+	noFinding(t, "CREATE TABLE k (a int, CONSTRAINT "+long+" CHECK (a > 0));\nALTER TABLE k ADD CONSTRAINT "+long+"2 CHECK (a > 1);", on)
+}
+
 // TestWalkThroughTiDBObjects pins spec §3.2 and §3.5: no triggers,
 // functions, events, or procedures, sequences as relations, the kinds IF
 // EXISTS does not cover, and DROP forms TiDB does not run atomically.

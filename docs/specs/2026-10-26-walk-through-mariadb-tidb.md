@@ -1,6 +1,6 @@
 # WALK_THROUGH for MariaDB and TiDB: v1 scope
 
-Status: draft 2026-10-26, decisions in §6 pending. This is step 3 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which its §5.2 and §5.3 sketch. It is written as deltas from [the MySQL v1 scope](2026-10-22-walk-through-mysql.md): what that spec says holds here unless this one says otherwise. Every fact here was verified on `mariadb:11.8.8` and `pingcap/tidb:v8.5.5`, the images the packages' oracle tests already use (Appendix).
+Status: decided and built: §6 records the decisions (2026-10-26 and 2026-10-27); MariaDB landed in #511 and TiDB in #512. Amended 2026-10-28 with the false findings a review found (§2.6, §3.6). This is step 3 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which its §5.2 and §5.3 sketch. It is written as deltas from [the MySQL v1 scope](2026-10-22-walk-through-mysql.md): what that spec says holds here unless this one says otherwise. Every fact here was verified on `mariadb:11.8.8` and `pingcap/tidb:v8.5.5`, the images the packages' oracle tests already use (Appendix).
 
 ## 1. Shape
 
@@ -160,6 +160,15 @@ In review of the TiDB copy, 2026-10-27, on `mariadb:11.8.8`:
   - `SET GLOBAL sql_mode = DEFAULT, SESSION foreign_key_checks = 0` turns the session's off, and `SET SESSION sql_mode = DEFAULT, GLOBAL foreign_key_checks = 0, foreign_key_checks = 0` only the global.
   - `SET PERSIST` and `SET PERSIST_ONLY` give 1064.
 
+### 2.6 Corrected 2026-10-28
+
+On `mariadb:11.8.9`. Each item was a false finding the walk reported, now fixed and pinned by an oracle case:
+- **Foreign key names.** The `CONSTRAINT` symbol names a foreign key and the index it adds; the name after `FOREIGN KEY` names both only without a symbol, and only then does a 65-character one fail (1059). omni's parser kept that name in place of the symbol; it now keeps it apart (`Constraint.IndexName`), and the walk takes the symbol, else that name. So `CONSTRAINT c FOREIGN KEY f` is c, where the walk took f.
+- **A sequence renamed by `ALTER TABLE`** stays a sequence: `CREATE TABLE t2 LIKE q.s` of a sequence q.s makes one, and `ALTER TABLE t2 RENAME TO t3` keeps it one, with other subcommands and to another database too. The walk recorded t3 as a table and claimed `DROP SEQUENCE t3` fails (4090). A relation now keeps the kind the walk knows, none when it knows none, through every rename.
+- **`DROP FUNCTION` with no database selected** looks for a loadable function alone, as on MySQL (MySQL spec §4): `DROP FUNCTION IF EXISTS f` is a note (1305), and `DROP FUNCTION f` fails with 1305. The walk claimed 1046 for both. The other unqualified routine, trigger, view, event, and sequence statements do fail with 1046, `IF EXISTS` too.
+- **An `ALTER TABLE` that also renames its table** resolves a foreign key's unqualified parent in the database the table moves to, and its new name as a missing table (1005, errno 150). The walk checks no parent there, as on MySQL.
+- **A stored function a view's query calls, or an unqualified one after `USE`,** may create a temporary table, as on MySQL (MySQL spec §6).
+
 ## 3. TiDB (8.5)
 
 ### 3.1 Names
@@ -234,6 +243,13 @@ Codex found the first false finding of the old rule on #512: `CREATE TABLE x (id
 - **DML on a view fails** (1105, views are not updatable): not claimed.
 - **`CREATE GLOBAL TEMPORARY TABLE`** is a syntax error in omni's TiDB parser (gap). The server lists such tables as `BASE TABLE`, so they sync as tables.
 
+### 3.6 Corrected 2026-10-28
+
+On `pingcap/tidb:v8.5.5`. Each item was a false finding the walk reported, now fixed and pinned by an oracle case:
+- **Constraint names.** The `CONSTRAINT` symbol names a foreign key and its index, and a `UNIQUE` key too, as TiDB's own parser binds it (`pkg/parser/parser.y`, rule `Constraint`); the name after `FOREIGN KEY` or `UNIQUE` names them only without a symbol, and only then does a 65-character one fail (1059). So `CONSTRAINT c UNIQUE KEY u` is index c, where MySQL and MariaDB name it u. omni's TiDB parser now keeps the symbol as the name, and the name after `FOREIGN KEY` apart (`Constraint.IndexName`).
+- **CHECK constraint names.** With `tidb_enable_check_constraint` off, TiDB's default, a CHECK constraint of a 65-character name is taken with a warning, in `CREATE TABLE` and `ALTER TABLE ... ADD`; with it on, the name fails (1059). The walk cannot know the setting, so it claims no length for a CHECK constraint's name. The oracle's server enforces CHECK constraints for the other rules' tests; a case with `checksOff` runs at the default.
+- **The oracle's sync** now reads shop query for query as Bytebase's does (`TIDB_INDEXES`, foreign keys from `REFERENTIAL_CONSTRAINTS` joined to `KEY_COLUMN_USAGE`, `CHECK_CONSTRAINTS`, and `TABLES` kept by type), so a gap in Bytebase's sync shows as a false finding.
+
 ## 4. Not covered (beyond the MySQL spec's §7)
 
 - **MariaDB:**
@@ -247,7 +263,7 @@ Codex found the first false finding of the old rule on #512: `CREATE TABLE x (id
   - clustered-index rules (`DROP PRIMARY KEY` of a clustered key, 8200; `MODIFY ... PRIMARY KEY`, 8200);
   - index columns added or dropped in the same ALTER (1072, 8200);
   - two subcommands on one column the text does not show, such as `ALTER COLUMN a SET DEFAULT 1, MODIFY a` or `DROP COLUMN IF EXISTS a, DROP COLUMN a` (8200);
-  - check constraints, including `DROP CONSTRAINT` of a missing one (3940 while checks are on);
+  - check constraints, including `DROP CONSTRAINT` of a missing one (3940 while checks are on) and a name over 64 characters (1059 while checks are on);
   - `ALTER SEQUENCE`, which ends the walk;
   - DML on a view or a sequence (1105, 1054);
   - a generated foreign key name a later named one takes (1215);
@@ -263,12 +279,12 @@ Codex found the first false finding of the old rule on #512: `CREATE TABLE x (id
 - **MariaDB as built:**
   - the walk is 2462 lines against MySQL's 2172, so the deltas are about 290 lines, over the 250 budgeted: sequences took 140;
   - the oracle runs every curated case on the sync since Bytebase #21665 and on the one before it; the second holds precision alone, since it hides the base's sequence and system-versioned table. It found 194 of 230 rejections on the first and 181 of 228 on the second, with no false finding. On the plain MySQL copy, wired the same way, the delta cases report false findings or miss what they pin;
-  - the sweep runs the two syncs by turns. At 500 (seed 20261026) it found 1238 of 6811 rejections, with no false finding, in under 3 minutes. With the global assignments added and the two fixes of 2026-10-27 (§2.2), it found 1233 of 6784, with no false finding, in under 5 minutes. Recall is low by design: most misses are names the walk does not know, since relation and trigger absence is untrusted, and databases other than the target;
+  - the sweep runs the two syncs by turns. At 500 (seed 20261026) it found 1238 of 6811 rejections, with no false finding, in under 3 minutes. With the global assignments added and the two fixes of 2026-10-27 (§2.2), it found 1233 of 6784, with no false finding, in under 5 minutes. With the fixes of 2026-10-28 (§2.6) and the constraint-name templates, it found 1287 of 6965, with no false finding. Recall is low by design: most misses are names the walk does not know, since relation and trigger absence is untrusted, and databases other than the target;
   - `walktest` gained `PartialRejecter` (decision N1).
 - **TiDB as built:**
   - 1320 lines of lowering, 204 of snapshot, 278 of walker. Against the MySQL copy, 655 lines went (triggers, routines, events, engines, generated `<table>_ibfk_` names, the database-wide foreign key space) and 285 came (sequences, the ALTER TABLE deltas, the comments naming each verified fact).
   - the oracle found 196 of 219 rejections in the curated cases, with no false finding. On the plain MySQL copy, wired the same way, 22 of the first 36 cases fail with false findings or misses; the 14 that pass cover what TiDB shares with MySQL;
-  - the sweep at 500 (seed 20261026) found 5346 of 8009 rejections, with no false finding, in 3 to 6 minutes depending on the devbox's load. It found one false finding while the walk was built, `COMMENT 'x', RENAME TO a` on a, now fixed and pinned. Codex found two more in review, names outside ASCII (§3.1) and GLOBAL `foreign_key_checks` (§3.5).
+  - the sweep at 500 (seed 20261026) found 5346 of 8009 rejections, with no false finding, in 3 to 6 minutes depending on the devbox's load. It found one false finding while the walk was built, `COMMENT 'x', RENAME TO a` on a, now fixed and pinned. Codex found two more in review, names outside ASCII (§3.1) and GLOBAL `foreign_key_checks` (§3.5). With the fixes of 2026-10-28 (§3.6), the sync mirrored from Bytebase's, and the constraint-name templates, it found 5409 of 8161, with no false finding.
 
 ## 6. Decisions
 

@@ -545,10 +545,18 @@ const (
 )
 
 // Constraint represents a table-level constraint.
+//
+// Name is the constraint's name: the CONSTRAINT symbol of a FOREIGN KEY or
+// CHECK, and the index name of a key, which for UNIQUE is the name after
+// UNIQUE [KEY|INDEX] when one is written and else the symbol. IndexName is
+// the name written after FOREIGN KEY, kept apart from the symbol: the
+// foreign key and its index take the symbol when one is written, and this
+// name only when none is (verified on 11.8.9).
 type Constraint struct {
 	Loc          Loc
 	Type         ConstraintType
 	Name         string
+	IndexName    string         // for FOREIGN KEY: the name after FOREIGN KEY [KEY]
 	Columns      []string       // simple column names
 	IndexColumns []*IndexColumn // key parts with optional expressions (for functional indexes)
 	IndexType    string         // BTREE, HASH

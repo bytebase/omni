@@ -57,10 +57,15 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		return true
 	}
 	var rename *ast.AlterTableCmd
+	for _, c := range v.Commands {
+		if c.Type == ast.ATRenameTable {
+			rename = c
+		}
+	}
+	b.renames = rename != nil
 	for _, early := range []bool{true, false} {
 		for _, c := range v.Commands {
 			if c.Type == ast.ATRenameTable {
-				rename = c
 				continue
 			}
 			if alterEarly(c.Type) != early {
@@ -305,7 +310,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if con == nil {
 				continue
 			}
-			if b.tooLong(con.Name, rng) {
+			if b.tooLong(keyName(con), rng) {
 				return true
 			}
 			switch con.Type {

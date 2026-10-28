@@ -502,7 +502,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
-		ensureFKBackingIndex(tbl, con.Name, cols, buildIndexColumns(con))
+		ensureFKBackingIndex(tbl, fkIndexName(con), cols, buildIndexColumns(con))
 
 	case nodes.ConstrCheck:
 		conName := con.Name

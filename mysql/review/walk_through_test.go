@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
@@ -175,6 +176,85 @@ func TestWalkThroughMySQLSession(t *testing.T) {
 	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a int);", other)
 	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE x (a int);", 1, "Table x already exists", other)
+}
+
+// TestWalkThroughMySQLForeignKeyNames pins the names a foreign key takes:
+// the CONSTRAINT symbol, or without one a generated name, never the name
+// after FOREIGN KEY, which names only its index (verified on 8.0.46). A
+// long name there fails only without a symbol.
+func TestWalkThroughMySQLForeignKeyNames(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	long := strings.Repeat("f", 65)
+	noFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP INDEX cx;", shop)
+	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY fx;", 1, "Foreign key fx does not exist in table x", shop)
+	noFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nALTER TABLE y DROP FOREIGN KEY y_ibfk_1;", shop)
+	noFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nCREATE TABLE z (a int, CONSTRAINT fy FOREIGN KEY (a) REFERENCES r (id));", shop)
+	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT nk FOREIGN KEY fk1 (a) REFERENCES r (id);", shop)
+	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT nk FOREIGN KEY f (a) REFERENCES r (id), ADD CONSTRAINT nk2 FOREIGN KEY f (a) REFERENCES r (id);", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY nk (a) REFERENCES r (id);", 0, "Foreign key fk1 already exists in the database", shop)
+	noFinding(t, "CREATE TABLE w (a int, CONSTRAINT cw FOREIGN KEY "+long+" (a) REFERENCES r (id));", shop)
+	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT cw FOREIGN KEY "+long+" (a) REFERENCES r (id);", shop)
+	oneFinding(t, "CREATE TABLE w (a int, FOREIGN KEY "+long+" (a) REFERENCES r (id));", 0, "Identifier name "+long+" is too long", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY "+long+" (a) REFERENCES r (id);", 0, "Identifier name "+long+" is too long", shop)
+}
+
+// TestWalkThroughMySQLNoDatabase pins what fails once the change drops
+// the current database: an unqualified name (1046), but for DROP FUNCTION,
+// which then looks for a loadable function alone (verified on 8.0.46).
+func TestWalkThroughMySQLNoDatabase(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	noFinding(t, "DROP DATABASE shop;\nDROP FUNCTION IF EXISTS nosuch;\nDROP FUNCTION nosuch;\nDROP FUNCTION IF EXISTS shop.f;", shop)
+	for _, stmt := range []string{"DROP PROCEDURE IF EXISTS p;", "DROP TRIGGER IF EXISTS tr;", "DROP VIEW IF EXISTS v;", "DROP EVENT IF EXISTS e;", "DROP TABLE IF EXISTS nokey;", "CREATE FUNCTION f2() RETURNS int DETERMINISTIC RETURN 1;", "ALTER FUNCTION f COMMENT 'x';"} {
+		oneFinding(t, "DROP DATABASE shop;\n"+stmt, 1, "No database selected", shop)
+	}
+}
+
+// TestWalkThroughMySQLParentBesideRename pins that an ALTER TABLE that
+// also renames its table checks no foreign key's parent: MySQL resolves
+// it in the database the table moves to (verified on 8.0.46).
+func TestWalkThroughMySQLParentBesideRename(t *testing.T) {
+	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
+	noFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.p2 (id int PRIMARY KEY);\nALTER TABLE nokey RENAME TO q.nokey, ADD FOREIGN KEY (a) REFERENCES p2 (id);", on)
+	noFinding(t, "ALTER TABLE nokey RENAME TO nk, ADD FOREIGN KEY (a) REFERENCES nosuch (id);", on)
+	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY (a) REFERENCES nosuch (id);", 0, "Foreign key target table nosuch does not exist", on)
+}
+
+// TestWalkThroughMySQLStoredFunctions pins the calls that may run a stored
+// function, which may create a temporary table (verified on 8.0.46): one a
+// view's query makes, and an unqualified one after a USE of a database the
+// change did not make.
+func TestWalkThroughMySQLStoredFunctions(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	const drop = "DROP TEMPORARY TABLE made;"
+	noFinding(t, "SELECT * FROM v;\n"+drop, shop)
+	noFinding(t, "INSERT INTO nokey SELECT a FROM q.qv;\n"+drop, shop)
+	noFinding(t, "SELECT 1 FROM nokey WHERE a IN (SELECT a FROM v);\n"+drop, shop)
+	noFinding(t, "USE q;\nSELECT mk();\nUSE shop;\n"+drop, shop)
+	noFinding(t, "SELECT f();\n"+drop, shop)
+	noFinding(t, "SELECT q.mk();\n"+drop, shop)
+	// A call found stays found past a base table read after it.
+	noFinding(t, "SELECT f() FROM r;\n"+drop, shop)
+	noFinding(t, "SELECT q.mk() FROM nokey WHERE a IN (SELECT id FROM r);\n"+drop, shop)
+	// A base table runs no function, nor does a call to one the current
+	// database certainly lacks.
+	oneFinding(t, "SELECT * FROM nokey;\n"+drop, 1, "Temporary table made does not exist", shop)
+	oneFinding(t, "SELECT mk();\n"+drop, 1, "Temporary table made does not exist", shop)
+	oneFinding(t, "CREATE DATABASE q;\nUSE q;\nSELECT mk();\nUSE shop;\n"+drop, 4, "Temporary table made does not exist", shop)
+}
+
+// TestWalkThroughMySQLTargetGroups pins OtherSpecs and ForeignKeyChecks in
+// the target grouping: two targets of one schema that differ in either are
+// walked apart.
+func TestWalkThroughMySQLTargetGroups(t *testing.T) {
+	schema := walkSchema()
+	got := walkFindings(t, "CREATE TABLE t (a int);", review.Target{Schema: schema}, review.Target{Schema: schema, OtherSpecs: true})
+	if len(got) != 1 || len(got[0].Targets) != 1 || got[0].Targets[0] != 0 {
+		t.Errorf("OtherSpecs: findings = %+v, want one on target 0", got)
+	}
+	got = walkFindings(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", review.Target{Schema: schema}, review.Target{Schema: schema, ForeignKeyChecks: review.SwitchOn})
+	if len(got) != 1 || len(got[0].Targets) != 1 || got[0].Targets[0] != 1 {
+		t.Errorf("ForeignKeyChecks: findings = %+v, want one on target 1", got)
+	}
 }
 
 func TestWalkThroughOceanBaseWaits(t *testing.T) {

@@ -2942,6 +2942,9 @@ func writeConstraint(sb *strings.Builder, n *Constraint) {
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}
+	if n.IndexName != "" {
+		fmt.Fprintf(sb, " :index_name %s", n.IndexName)
+	}
 	if len(n.Columns) > 0 {
 		fmt.Fprintf(sb, " :columns %s", strings.Join(n.Columns, ", "))
 	}

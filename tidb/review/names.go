@@ -38,6 +38,17 @@ func plainIdent(name string) bool {
 	return !digits
 }
 
+// keyName returns the name of the index a table constraint makes. A
+// foreign key, which adds one when none serves it, takes that name too:
+// the CONSTRAINT symbol, or the name after FOREIGN KEY when there is no
+// symbol, and "" for a generated one (verified on v8.5.5).
+func keyName(c *ast.Constraint) string {
+	if c.Type == ast.ConstrForeignKey && c.Name == "" {
+		return c.IndexName
+	}
+	return c.Name
+}
+
 // table writes a table reference as written: its database, when the
 // statement names one, and its name.
 func table(ref *ast.TableRef) string {

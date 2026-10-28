@@ -320,7 +320,8 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if con == nil {
 				continue
 			}
-			if b.tooLong(con.Name, rng) {
+			// A CHECK constraint's name may be long (namesTooLong).
+			if con.Type != ast.ConstrCheck && b.tooLong(keyName(con), rng) {
 				return true
 			}
 			switch con.Type {
@@ -328,7 +329,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				primaries++
 			case ast.ConstrForeignKey:
 				// 1826 in CREATE TABLE (verified).
-				if b.fks && twice("add foreign key", spaceTableForeignKey, con.Name, rng, "Foreign key "+ident(con.Name)+" is added twice to table "+r.written) {
+				if b.fks && twice("add foreign key", spaceTableForeignKey, keyName(con), rng, "Foreign key "+ident(keyName(con))+" is added twice to table "+r.written) {
 					return true
 				}
 			case ast.ConstrCheck:
@@ -426,8 +427,8 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		}
 		// The name must be new on the table; another table's is taken
 		// (verified).
-		if k, ok := b.key(spaceTableForeignKey, c.Name); ok {
-			b.need(fkKey(r, k), walk.Absent, nil, rng, "", "Foreign key "+ident(c.Name)+" already exists in table "+r.written) // 1826
+		if k, ok := b.key(spaceTableForeignKey, keyName(c)); ok {
+			b.need(fkKey(r, k), walk.Absent, nil, rng, "", "Foreign key "+ident(keyName(c))+" already exists in table "+r.written) // 1826
 		}
 		b.foreignKeyTarget(r, c)
 	default:

@@ -35,6 +35,9 @@ INSERT INTO plain VALUES (1, 1), (2, 2);
 CREATE VIEW pv AS SELECT id, note FROM p;
 `
 
+// mariadbImage is the MariaDB the oracle tests run on.
+const mariadbImage = "mariadb:11.8.8"
+
 var mariadbOracle struct {
 	once      sync.Once
 	container testcontainers.Container
@@ -60,7 +63,7 @@ func startMariaDB(t *testing.T) *sql.DB {
 	t.Helper()
 	mariadbOracle.once.Do(func() {
 		ctx := context.Background()
-		c, err := tcmariadb.Run(ctx, "mariadb:11.8.8", tcmariadb.WithDatabase("shop"), tcmariadb.WithUsername("root"), tcmariadb.WithPassword("test"))
+		c, err := tcmariadb.Run(ctx, mariadbImage, tcmariadb.WithDatabase("shop"), tcmariadb.WithUsername("root"), tcmariadb.WithPassword("test"))
 		if err != nil {
 			mariadbOracle.err = err
 			return

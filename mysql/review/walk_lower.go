@@ -290,7 +290,9 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 }
 
 // namesTooLong fails a CREATE TABLE naming a table, column, index, or
-// foreign key longer than 64 characters.
+// foreign key longer than 64 characters. The name after FOREIGN KEY counts
+// only without a CONSTRAINT symbol, which names the index in its place
+// (verified).
 func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 	if v.Table != nil && b.tooLong(v.Table.Name, rangeOf(v.Table.Loc)) {
 		return true
@@ -301,7 +303,7 @@ func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 		}
 	}
 	for _, c := range v.Constraints {
-		if b.tooLong(c.Name, rangeOf(c.Loc)) {
+		if b.tooLong(keyName(c), rangeOf(c.Loc)) {
 			return true
 		}
 	}
@@ -469,8 +471,13 @@ func (b *builder) mayAddForeignKeys(r tableRef) {
 // session checks foreign keys: it must be a base table (1824, a view or a
 // temporary table too, which shadows none here; 1215 on 5.7; verified). A
 // table that refers to itself needs nothing.
+//
+// An ALTER TABLE that also renames its table resolves the parent by rules
+// of its own (verified on 8.0.46): an unqualified one in the database the
+// table moves to, the table's old name as the table itself, and its new
+// name as a missing table (1824). The walk checks no parent there.
 func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
-	if b.w.fkChecks != review.SwitchOn || c.RefTable == nil {
+	if b.w.fkChecks != review.SwitchOn || c.RefTable == nil || b.renames {
 		return
 	}
 	// An unqualified parent is in the child's database (verified).

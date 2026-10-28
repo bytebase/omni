@@ -285,28 +285,28 @@ const (
 
 // AlterTableCmd represents a single ALTER TABLE operation.
 type AlterTableCmd struct {
-	Loc            Loc
-	Type           AlterTableCmdType
-	Name           string       // column/constraint/index name
-	NewName        string       // for RENAME operations
-	Column         *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
-	Columns        []*ColumnDef // for ADD (col1, col2, ...) multi-column form
-	Constraint     *Constraint  // for ADD CONSTRAINT
-	Option         *TableOption // for table options
-	DefaultExpr    ExprNode     // for ALTER COLUMN SET DEFAULT expr
-	IfExists       bool
-	First          bool            // FIRST positioning
-	After          string          // AFTER column positioning
-	PartitionNames []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
-	AllPartitions  bool            // for partition operations using ALL
-	PartitionDefs  []*PartitionDef // for ADD PARTITION / REORGANIZE PARTITION ... INTO
-	Number         int             // for COALESCE PARTITION number
-	ExchangeTable  *TableRef       // for EXCHANGE PARTITION ... WITH TABLE
-	WithValidation *bool           // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
-	OrderByItems   []*OrderByItem    // for ORDER BY operation
-	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
-	TiFlashReplica int              // TiDB: replica count for SET TIFLASH REPLICA
-	TiFlashLocationLabels []string  // TiDB: optional LOCATION LABELS clause (empty when unset)
+	Loc                   Loc
+	Type                  AlterTableCmdType
+	Name                  string       // column/constraint/index name
+	NewName               string       // for RENAME operations
+	Column                *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
+	Columns               []*ColumnDef // for ADD (col1, col2, ...) multi-column form
+	Constraint            *Constraint  // for ADD CONSTRAINT
+	Option                *TableOption // for table options
+	DefaultExpr           ExprNode     // for ALTER COLUMN SET DEFAULT expr
+	IfExists              bool
+	First                 bool             // FIRST positioning
+	After                 string           // AFTER column positioning
+	PartitionNames        []string         // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
+	AllPartitions         bool             // for partition operations using ALL
+	PartitionDefs         []*PartitionDef  // for ADD PARTITION / REORGANIZE PARTITION ... INTO
+	Number                int              // for COALESCE PARTITION number
+	ExchangeTable         *TableRef        // for EXCHANGE PARTITION ... WITH TABLE
+	WithValidation        *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
+	OrderByItems          []*OrderByItem   // for ORDER BY operation
+	PartitionBy           *PartitionClause // for PARTITION BY (repartition)
+	TiFlashReplica        int              // TiDB: replica count for SET TIFLASH REPLICA
+	TiFlashLocationLabels []string         // TiDB: optional LOCATION LABELS clause (empty when unset)
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -445,9 +445,9 @@ type ColumnDef struct {
 	DefaultValue             ExprNode
 	Comment                  string
 	AutoIncrement            bool
-	AutoRandom               bool // TiDB: AUTO_RANDOM attribute
-	AutoRandomShardBits      int  // TiDB: AUTO_RANDOM(shard_bits[, range])
-	AutoRandomRangeBits      int  // TiDB: AUTO_RANDOM(shard_bits, range_bits)
+	AutoRandom               bool     // TiDB: AUTO_RANDOM attribute
+	AutoRandomShardBits      int      // TiDB: AUTO_RANDOM(shard_bits[, range])
+	AutoRandomRangeBits      int      // TiDB: AUTO_RANDOM(shard_bits, range_bits)
 	OnUpdate                 ExprNode // ON UPDATE CURRENT_TIMESTAMP
 	Generated                *GeneratedColumn
 	ColumnFormat             string // COLUMN_FORMAT {FIXED | DYNAMIC | DEFAULT}
@@ -500,7 +500,7 @@ type ColumnConstraint struct {
 	Match       string // FULL, PARTIAL, SIMPLE
 	OnDelete    ReferenceAction
 	OnUpdate    ReferenceAction
-	NotEnforced bool // for CHECK ... NOT ENFORCED
+	NotEnforced bool  // for CHECK ... NOT ENFORCED
 	Clustered   *bool // TiDB: for PRIMARY KEY column constraint
 }
 
@@ -520,10 +520,20 @@ const (
 )
 
 // Constraint represents a table-level constraint.
+//
+// Name is the constraint's name: the CONSTRAINT symbol of a FOREIGN KEY or
+// CHECK, and the index name of a key, which for UNIQUE is the CONSTRAINT
+// symbol when one is written and else the name after UNIQUE [KEY|INDEX]:
+// TiDB names the key after the symbol (pkg/parser/parser.y, rule
+// Constraint; verified on v8.5.5). IndexName is the name written after
+// FOREIGN KEY, kept apart from the symbol: the foreign key and its index
+// take the symbol when one is written, and this name only when none is
+// (verified on v8.5.5).
 type Constraint struct {
 	Loc          Loc
 	Type         ConstraintType
 	Name         string
+	IndexName    string         // for FOREIGN KEY: the name after FOREIGN KEY [KEY]
 	Columns      []string       // simple column names
 	IndexColumns []*IndexColumn // key parts with optional expressions (for functional indexes)
 	IndexType    string         // BTREE, HASH
@@ -830,7 +840,7 @@ func (e *CastExpr) exprNode() {}
 // ExtractExpr represents EXTRACT(unit FROM expr).
 type ExtractExpr struct {
 	Loc  Loc
-	Unit string   // DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.
+	Unit string // DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.
 	Expr ExprNode
 }
 

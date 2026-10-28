@@ -45,16 +45,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 
 	tbl := &Table{
-		Name:      tableName,
-		Database:  db,
-		Columns:   make([]*Column, 0, len(stmt.Columns)),
-		colByName: make(map[string]int),
-		Indexes:   make([]*Index, 0),
+		Name:        tableName,
+		Database:    db,
+		Columns:     make([]*Column, 0, len(stmt.Columns)),
+		colByName:   make(map[string]int),
+		Indexes:     make([]*Index, 0),
 		Constraints: make([]*Constraint, 0),
-		Charset:   db.Charset,
-		Collation: db.Collation,
-		Engine:    "InnoDB",
-		Temporary: stmt.Temporary,
+		Charset:     db.Charset,
+		Collation:   db.Collation,
+		Engine:      "InnoDB",
+		Temporary:   stmt.Temporary,
 	}
 
 	// Apply table options.
@@ -314,15 +314,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
 				}
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
-					Name:       conName,
-					Type:       ConForeignKey,
-					Table:      tbl,
-					Columns:    []string{colDef.Name},
+					Name:        conName,
+					Type:        ConForeignKey,
+					Table:       tbl,
+					Columns:     []string{colDef.Name},
 					RefDatabase: refDB,
-					RefTable:   refTable,
-					RefColumns: cc.RefColumns,
-					OnDelete:   refActionToString(cc.OnDelete),
-					OnUpdate:   refActionToString(cc.OnUpdate),
+					RefTable:    refTable,
+					RefColumns:  cc.RefColumns,
+					OnDelete:    refActionToString(cc.OnDelete),
+					OnUpdate:    refActionToString(cc.OnUpdate),
 				})
 				// Defer implicit backing index for FK until after all explicit indexes are added.
 				pendingFKs = append(pendingFKs, pendingFK{conName: cc.Name, cols: []string{colDef.Name}, idxCols: []*IndexColumn{{Name: colDef.Name}}})
@@ -474,7 +474,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			})
 
 		case nodes.ConstrForeignKey:
-			conName := con.Name
+			conName := fkName(con)
 			if conName == "" {
 				unnamedFKCount++
 				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
@@ -486,18 +486,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				refTable = con.RefTable.Name
 			}
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
-				Name:       conName,
-				Type:       ConForeignKey,
-				Table:      tbl,
-				Columns:    cols,
+				Name:        conName,
+				Type:        ConForeignKey,
+				Table:       tbl,
+				Columns:     cols,
 				RefDatabase: refDB,
-				RefTable:   refTable,
-				RefColumns: con.RefColumns,
-				OnDelete:   refActionToString(con.OnDelete),
-				OnUpdate:   refActionToString(con.OnUpdate),
+				RefTable:    refTable,
+				RefColumns:  con.RefColumns,
+				OnDelete:    refActionToString(con.OnDelete),
+				OnUpdate:    refActionToString(con.OnUpdate),
 			})
 			// Defer implicit backing index for FK until after all explicit indexes are added.
-			pendingFKs = append(pendingFKs, pendingFK{conName: con.Name, cols: cols, idxCols: buildIndexColumns(con)})
+			pendingFKs = append(pendingFKs, pendingFK{conName: fkName(con), cols: cols, idxCols: buildIndexColumns(con)})
 
 		case nodes.ConstrCheck:
 			conName := con.Name
@@ -990,6 +990,16 @@ func hasIndexCoveringColumns(tbl *Table, fkCols []string) bool {
 	return false
 }
 
+// fkName returns the name a foreign key takes, and the index it adds when
+// none serves it: the CONSTRAINT symbol, else the name after FOREIGN KEY,
+// else "" for a generated one (verified on v8.5.5).
+func fkName(con *nodes.Constraint) string {
+	if con.Name != "" {
+		return con.Name
+	}
+	return con.IndexName
+}
+
 // ensureFKBackingIndex creates an implicit backing index for FK columns
 // if no existing index already covers them (MySQL 8.0 behavior).
 // MySQL uses the constraint name as the index name when provided;
@@ -1440,7 +1450,7 @@ func isTextBlobLengthStripped(dt string) bool {
 }
 
 // escapeEnumValue escapes single quotes in ENUM/SET values for SHOW CREATE TABLE.
-// MySQL uses '' (two single quotes) to escape a single quote in enum values.
+// MySQL uses ” (two single quotes) to escape a single quote in enum values.
 func escapeEnumValue(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
@@ -1460,19 +1470,19 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	}
 
 	tbl := &Table{
-		Name:      tableName,
-		Database:  db,
-		Columns:   make([]*Column, 0, len(srcTbl.Columns)),
-		colByName: make(map[string]int),
-		Indexes:   make([]*Index, 0, len(srcTbl.Indexes)),
-		Constraints: make([]*Constraint, 0, len(srcTbl.Constraints)),
-		Engine:    srcTbl.Engine,
-		Charset:   srcTbl.Charset,
-		Collation: srcTbl.Collation,
-		Comment:   srcTbl.Comment,
-		RowFormat: srcTbl.RowFormat,
+		Name:         tableName,
+		Database:     db,
+		Columns:      make([]*Column, 0, len(srcTbl.Columns)),
+		colByName:    make(map[string]int),
+		Indexes:      make([]*Index, 0, len(srcTbl.Indexes)),
+		Constraints:  make([]*Constraint, 0, len(srcTbl.Constraints)),
+		Engine:       srcTbl.Engine,
+		Charset:      srcTbl.Charset,
+		Collation:    srcTbl.Collation,
+		Comment:      srcTbl.Comment,
+		RowFormat:    srcTbl.RowFormat,
 		KeyBlockSize: srcTbl.KeyBlockSize,
-		Temporary: stmt.Temporary,
+		Temporary:    stmt.Temporary,
 	}
 
 	// Copy columns.

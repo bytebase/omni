@@ -308,10 +308,10 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			// A foreign key's name is the database's (1005, errno 121,
 			// verified). OR REPLACE drops the old table, and its foreign
 			// keys with it, first (verified).
-			if n, ok := b.key(spaceForeignKey, c.Name); ok {
+			if n, ok := b.key(spaceForeignKey, keyName(c)); ok {
 				fk, own := fkKeys(r, n)
 				if of, _ := b.l.Lookup(own); !v.OrReplace || prior == walk.Absent || of == walk.Absent {
-					b.need(fk, walk.Absent, nil, rangeOf(c.Loc), "", "Foreign key "+ident(c.Name)+" already exists in the database")
+					b.need(fk, walk.Absent, nil, rangeOf(c.Loc), "", "Foreign key "+ident(keyName(c))+" already exists in the database")
 				}
 			}
 			b.foreignKeyTarget(r, c)
@@ -365,7 +365,9 @@ func declaresVersioning(v *ast.CreateTableStmt) bool {
 }
 
 // namesTooLong fails a CREATE TABLE naming a table, column, index, or
-// foreign key longer than 64 characters.
+// foreign key longer than 64 characters. The name after FOREIGN KEY counts
+// only without a CONSTRAINT symbol, which names the foreign key in its
+// place (verified).
 func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 	if v.Table != nil && b.tooLong(v.Table.Name, rangeOf(v.Table.Loc)) {
 		return true
@@ -376,7 +378,7 @@ func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 		}
 	}
 	for _, c := range v.Constraints {
-		if b.tooLong(c.Name, rangeOf(c.Loc)) {
+		if b.tooLong(keyName(c), rangeOf(c.Loc)) {
 			return true
 		}
 	}
@@ -416,9 +418,9 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			primaries++
 			continue
 		case ast.ConstrForeignKey:
-			if k, ok := b.key(spaceForeignKey, c.Name); ok && b.fks {
+			if k, ok := b.key(spaceForeignKey, keyName(c)); ok && b.fks {
 				if foreignKeys[k] {
-					b.fail(rangeOf(c.Loc), nil, "Foreign key "+ident(c.Name)+" is specified twice in table "+r.written)
+					b.fail(rangeOf(c.Loc), nil, "Foreign key "+ident(keyName(c))+" is specified twice in table "+r.written)
 					return true
 				}
 				foreignKeys[k] = true
@@ -507,7 +509,7 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 	case ast.ConstrCheck:
 	case ast.ConstrForeignKey:
 		// An engine that ignores foreign keys still adds the index (verified).
-		k, ok := b.key(spaceForeignKey, c.Name)
+		k, ok := b.key(spaceForeignKey, keyName(c))
 		switch {
 		case ok && b.fks:
 			fk, own := fkKeys(r, k)
@@ -543,8 +545,13 @@ func (b *builder) mayAddForeignKeys(r tableRef) {
 // session checks foreign keys: it must be a base table (1005 with errno
 // 150, for a view, a sequence, or a temporary table too, which shadows
 // none here; verified). A table that refers to itself needs nothing.
+//
+// An ALTER TABLE that also renames its table resolves the parent by rules
+// of its own (verified on 11.8.9): an unqualified one in the database the
+// table moves to, and the table's new name as a missing table (1005). The
+// walk checks no parent there.
 func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
-	if b.w.fkChecks != review.SwitchOn || c.RefTable == nil {
+	if b.w.fkChecks != review.SwitchOn || c.RefTable == nil || b.renames {
 		return
 	}
 	// An unqualified parent is in the child's database (verified).
