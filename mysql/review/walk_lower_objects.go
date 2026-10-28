@@ -388,14 +388,19 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 
 // set follows SET: foreign_key_checks of the session changes whether a
 // foreign key's target is checked. A global setting reaches only later
-// sessions.
+// sessions. Each assignment has a scope of its own (verified on 8.0 and
+// 8.4): @@session., @@local., and a bare @@ name the session's,
+// @@global., @@persist., and @@persist_only. not, and an unprefixed name
+// the statement's GLOBAL, PERSIST, or PERSIST_ONLY, past any prefixed
+// assignment between. So SET GLOBAL sql_mode = DEFAULT,
+// @@session.foreign_key_checks = 0 turns the session's checks off, and
+// SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves them as
+// they are. omni's parser takes a scope keyword only first.
 func (b *builder) set(v *ast.SetStmt) bool {
 	if b.callsStoredFunction(v) {
 		b.forgetTemporary()
 	}
-	if strings.EqualFold(v.Scope, "GLOBAL") || strings.EqualFold(v.Scope, "PERSIST") || strings.EqualFold(v.Scope, "PERSIST_ONLY") {
-		return true
-	}
+	global := strings.EqualFold(v.Scope, "GLOBAL") || strings.EqualFold(v.Scope, "PERSIST") || strings.EqualFold(v.Scope, "PERSIST_ONLY")
 	for _, a := range v.Assignments {
 		if a.Column == nil {
 			continue
@@ -406,8 +411,10 @@ func (b *builder) set(v *ast.SetStmt) bool {
 			continue
 		case strings.HasPrefix(name, "@@session."), strings.HasPrefix(name, "@@local."):
 			name = name[strings.IndexByte(name, '.')+1:]
-		default:
-			name = strings.TrimPrefix(name, "@@")
+		case strings.HasPrefix(name, "@@"):
+			name = name[2:]
+		case global:
+			continue
 		}
 		if name != "foreign_key_checks" {
 			continue

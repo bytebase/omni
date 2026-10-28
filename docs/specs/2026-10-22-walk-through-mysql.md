@@ -30,7 +30,13 @@ Status: decided 2026-10-23; §9 records the decisions. Step 2 of [the engines de
 | procedure, function: two spaces | database | ASCII case-insensitive | exists (1304), missing (1305) |
 | event | database | ASCII case-insensitive | exists (1537), missing (1539) |
 
-- **Non-ASCII names:** they compare equal only when spelled identically. `é` and `É` are two names under every setting.
+- **Names outside ASCII:** MySQL compares them by rules of its own for each space, and takes some for ASCII names (Appendix, "Names outside ASCII"):
+  - a column, an index, a foreign key, a trigger, a routine, and an event fold their case (`CAFé` is `café`), and so do a table and a database under `lower_case_table_names` 1, but not 0;
+  - the Kelvin sign is `k` and `İ` is `i` as a column and an index, and as a table and a database under `lower_case_table_names` 1;
+  - `é` is `e` as a routine, an event, a trigger, and a foreign key's name in its database, but not as a column, an index, or a table;
+  - `ſ` is not `s`, and a decomposed `é` is not a precomposed one.
+
+  The walk follows no such name. A statement with a name outside ASCII ends the walk; a string literal does not count. A synced space that lists one has no name known to be absent, since an ASCII name may be it. The first rule, that two spellings are one name only when identical, gave false findings, which Codex found on the TiDB copy (bytebase/omni#512): `CREATE TABLE x (id INT, café INT); ALTER TABLE x DROP COLUMN CAFé` was claimed to drop a missing column, and `DROP PROCEDURE pe` a missing procedure where the sync lists `pé`.
 - **Length:** an identifier longer than 64 characters fails with 1059 before anything is looked up. The walk claims this for ASCII names, from the text alone.
 - **Not modeled:**
   - CHECK constraint names: 5.7 parses CHECK and ignores it;
@@ -92,7 +98,12 @@ Never trusted Absent:
 - A foreign key to a missing table or column fails only while `foreign_key_checks` is on (1824, 3734; 1215 on 5.7). So does one to a view or to a temporary table, which shadows no base table there (1824).
 - An unqualified parent table is in the child's database, not the current one.
 - `DROP FOREIGN KEY f` fails when f is another table's (1091). Two foreign keys of one name in a statement fail (1826, or 1061 for the index each would add).
-- The walk tracks `SET foreign_key_checks` in the change; see decision M1 for the session's start.
+- The walk tracks `SET foreign_key_checks` in the change; see decision M1 for the session's start. Each assignment of a `SET` has a scope of its own (verified):
+  - `@@session.`, `@@local.`, and a bare `@@` set the session's value, after `SET GLOBAL` or `SET PERSIST` too;
+  - `@@global.`, `@@persist.`, and `@@persist_only.` do not;
+  - an unprefixed name takes the statement's `GLOBAL`, `PERSIST`, or `PERSIST_ONLY`, past any prefixed assignment between, and is the session's without one.
+
+  A global assignment leaves the session's checks as they are. The walk skipped a whole `SET GLOBAL` or `SET PERSIST` statement, and so kept checking a foreign key's target after `SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 0`; Codex found it on the TiDB copy (#512). MySQL also takes a scope keyword before a later assignment (`SET a = 1, GLOBAL b = 2`), which omni's parser rejects (Syntax).
 
 **Generated names:**
 - an unnamed index takes its first column's name, then `_2`, `_3`, ...;
@@ -142,7 +153,7 @@ Views are not dependencies: dropping a table a view reads succeeds.
 | `CREATE/DROP TRIGGER`, `PROCEDURE`, `FUNCTION`, `EVENT [IF [NOT] EXISTS]` | name Absent / Present per §2 (1359/1360, 1304/1305, 1537/1539), but not for an unqualified `DROP FUNCTION` (§4); a trigger's table Present (1146); a routine's or event's database Present (1049), or one selected for an unqualified name, IF EXISTS or not (1046) | name Present / Absent, Unknown for an unqualified `DROP FUNCTION`; a trigger marks its table (§6) |
 | `INSERT`, `REPLACE`, `UPDATE`, `DELETE`, `LOAD DATA` | each target relation Present (1146) | none; see §6 |
 | `SELECT`, `DO`, `VALUES`, `TABLE`, `EXPLAIN`, `SET` (other than `foreign_key_checks`), `SHOW`, `ANALYZE/OPTIMIZE/CHECK/CHECKSUM/REPAIR TABLE`, `FLUSH`, `GRANT/REVOKE` and the user and role statements, `BEGIN/COMMIT/SAVEPOINT/RELEASE`, `UNLOCK TABLES` | none | none, unless it may call a stored function (§6) |
-| `SET foreign_key_checks = 0/1` | none | session state |
+| `SET foreign_key_checks = 0/1`, each assignment in its scope (§4) | none | session state |
 
 ## 6. Where the walk stops
 
@@ -175,7 +186,7 @@ Review asks for these are declined with this list:
 - **Code:** about 1.2k lines of lowering, 400 of names and snapshot, and 250 of walker and plumbing (`targets.go` gains `walks` and `OtherSpecs` in its key). As built: 1330 lines of lowering (`walk_lower*.go`), 225 of snapshot, 280 of walker.
 - **Oracle:** `walktest.Judge` against `mysql:8.0` with `lower_case_table_names` 0 and 1, and `mysql:8.4`. MySQL commits DDL as it runs, so the engine implements `walktest.Digester`.
 - **Curated cases:** one per row of §5 and per fact in the Appendix, the 5.7/8.0 differences included as text-only claims.
-- **Sweep:** templates over a colliding name pool with mixed case, temporary tables, `USE`, and `SET foreign_key_checks`. CI runs it at `WALK_SWEEP_N` per `lower_case_table_names` setting, the two at once. At 500 each (seed 20261023, 8.0) it found 5247 of 7787 rejections with lctn 0 and 5119 of 7747 with lctn 1, with no false finding. Most misses are by design: statements on a database other than the target, and statements after a walk ends at a `RENAME` through a temporary or Unknown table.
+- **Sweep:** templates over a colliding name pool with mixed case, temporary tables, `USE`, and `SET foreign_key_checks`, in the session's scope and the global one. CI runs it at `WALK_SWEEP_N` per `lower_case_table_names` setting, the two at once. At 500 each (seed 20261023, 8.0) it found 5247 of 7787 rejections with lctn 0 and 5119 of 7747 with lctn 1, with no false finding. With the global assignments added and the two fixes of 2026-10-27 (§2, §4), it found 5233 of 7785 and 5115 of 7749, with no false finding, in 3 to 5 minutes each. The oracle starts each judged session with `foreign_key_checks` on, as the target says: a pooled connection opened while a change had the global off starts with it off. Most misses are by design: statements on a database other than the target, and statements after a walk ends at a `RENAME` through a temporary or Unknown table.
 - **Coverage:** `walktest.Coverage` over every row of §5.
 
 ## 9. Decisions
@@ -231,7 +242,7 @@ MySQL 5.7.44, 8.0.46 (`lower_case_table_names` 0 and 1), and 8.4.13. "All" means
 - **Case:**
   - With `lower_case_table_names=0`, `T` and `t` are two tables and two databases. With 1, `CREATE TABLE T` fails with 1050 when t exists, `DROP TABLE T` drops t, and the same holds for views and databases.
   - Column, index, and foreign key names ignore case everywhere.
-  - `é` and `É` are distinct column and table names under every setting.
+  - Names outside ASCII: see the 2026-10-27 list below. `é` and `É` are distinct table and database names only under `lower_case_table_names` 0; as column and index names they are one.
 - **Names:**
   - Identifiers over 64 characters give 1059, even for `DROP TABLE` of a missing one. A table name with a trailing space gives 1103.
   - Two indexes of one name in `CREATE TABLE` give 1061, and an index named `PRIMARY` gives 1280.
@@ -290,3 +301,25 @@ MySQL 5.7.44, 8.0.46 (`lower_case_table_names` 0 and 1), and 8.4.13. "All" means
 - **No failure:**
   - `ANALYZE`, `OPTIMIZE`, and `CHECK TABLE` of a missing table return a row rather than fail.
   - After `LOCK TABLES t WRITE`, DML on another table fails with 1100.
+- **Verified on 8.0.46 (`lower_case_table_names` 0 and 1) and 8.4.13 in review of the TiDB copy (2026-10-27):**
+  - Names outside ASCII, as columns:
+    - `DROP COLUMN CAFé` drops `café`, and `ADD COLUMN café` beside `CAFÉ` gives 1060;
+    - so does a column `Ä` beside `ä`, the Kelvin sign beside `k`, `İ` beside `i`, the ohm sign beside `ω`, and the angstrom sign beside `å`, and `DROP COLUMN k` and `DROP COLUMN i` drop the Kelvin-sign and `İ` columns;
+    - `é` beside `e`, `ſ` beside `s`, `ı` beside `i` or `I`, `ß` beside `ss`, `ａ` beside `a`, and a decomposed `é` beside a precomposed one succeed.
+  - As indexes: `KÉ` beside `ké`, the Kelvin sign beside `k`, and `İ` beside `i` give 1061, and `DROP INDEX KÉ` drops `ké`; `ſ` beside `s` and a decomposed `é` beside a precomposed one succeed.
+  - As tables, views, temporary tables, and databases:
+    - with `lower_case_table_names` 0, `CAFé` and `CAFÉ` beside `café`, a Kelvin-sign `tK` beside `tk`, `tİ` beside `ti`, `VÉ` beside `vé`, a temporary `XÄ` beside `xä`, and databases `DÄ` beside `dä` and `dK` beside `dk` all succeed, and `DROP TABLE TÄ` of `tä` gives 1051;
+    - with 1, each of them fails (1050, 1007), and `DROP TABLE TÄ` and `DROP TABLE CAFé` drop `tä` and `café`;
+    - under both, `tſ` beside `ts`, `té` beside `te`, and a decomposed `té` beside a precomposed one succeed.
+  - As foreign keys: `FÉ` and `fe` beside `fé` on another table give 1826. `DROP FOREIGN KEY FÉ` drops `fé`, and `DROP FOREIGN KEY hk` drops a Kelvin-sign `hK`, while `DROP FOREIGN KEY ga` does not find `gä` (1091). A Kelvin-sign `fK` beside `fk` succeeds.
+  - As triggers, routines, and events:
+    - `DROP TRIGGER TRÄ`, `DROP FUNCTION FÄ`, and `DROP EVENT EÄ` drop `trä`, `fä`, and `eä`, and `CREATE PROCEDURE PÄ` beside `pä` gives 1304;
+    - `tre` beside `tré` gives 1359, `pe` beside `pé` and `fne` beside `fné` 1304, and `ee` beside `eé` 1537;
+    - a Kelvin-sign name beside its `k` spelling succeeds, and `DROP` of the `k` spelling fails (1360, 1305, 1539); a decomposed `é` beside a precomposed one succeeds.
+  - A name ending in a space fails as a table or view (1103), a column (1166), an index or foreign key (1280), a trigger, routine, or event (1458), and a database (1102).
+  - `SET`, starting from `foreign_key_checks` 1 in both scopes unless said:
+    - `SET GLOBAL foreign_key_checks = 0` and `SET PERSIST foreign_key_checks = 0` leave `@@session.foreign_key_checks` 1, and a foreign key to a missing table fails (1824). After `SET foreign_key_checks = 0`, `SET @@global.foreign_key_checks = 1` leaves the session's 0, and one succeeds.
+    - `SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 0` and `SET GLOBAL sql_mode = DEFAULT, @@foreign_key_checks = 0` set the session's to 0, and the global stays 1. So do `SET PERSIST foreign_key_checks = 1, @@session.foreign_key_checks = 0` and `SET PERSIST_ONLY foreign_key_checks = 0, @@local.foreign_key_checks = 0`.
+    - `SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0` sets only the global, and so does `SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 1, foreign_key_checks = 0`, which leaves the session's 1.
+    - `SET @@global.foreign_key_checks = 1, foreign_key_checks = 0` sets the session's to 0, and `SET SESSION foreign_key_checks = 0, @@global.sql_mode = DEFAULT, foreign_key_checks = 1` sets it to 1.
+    - `SET GLOBAL sql_mode = DEFAULT, SESSION foreign_key_checks = 0` sets the session's to 0, and `SET SESSION sql_mode = DEFAULT, GLOBAL foreign_key_checks = 0, foreign_key_checks = 0` only the global: the latest keyword counts.
