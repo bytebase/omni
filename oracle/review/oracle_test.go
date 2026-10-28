@@ -122,7 +122,10 @@ func openOracle(user string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := db.PingContext(context.Background()); err != nil {
+	// A deadline: the container hung once in CI.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, err
 	}

@@ -713,6 +713,7 @@ func TestTargetsMerge(t *testing.T) {
 	want := []finding{
 		{-1, "", "prior backup needs database BBDATAARCHIVE, which does not exist", []int{1}},
 		{0, "DELETE FROM longt WHERE id = 1", "prior backup copies LONGT with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column BODY (ORA-00997)", []int{0, 2}},
+		{1, "t", "Table or view T does not exist", []int{1}},
 		{1, "DROP CONSTRAINT ck_n", "drops check constraint CK_N of T", []int{0, 2}},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
