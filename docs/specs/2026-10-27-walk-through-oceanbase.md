@@ -1,46 +1,43 @@
 # WALK_THROUGH for OceanBase (MySQL mode): v1 scope
 
-Status: draft 2026-10-27, decisions in §8 pending. This is the OceanBase part of step 2 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which the MySQL PR deferred (M3). It is written as deltas from [the MySQL v1 scope](2026-10-22-walk-through-mysql.md): what that spec says holds here unless this one says otherwise. Every fact here was verified on OceanBase CE 4.3.5.6 (`oceanbase/oceanbase-ce:4.3.5-lts`, `MODE=mini`, the MySQL-mode tenant `test` at its defaults), with `mysql:8.0` as the baseline (Appendix).
+Status: draft 2026-10-27; O1 and O3 decided 2026-10-28, the rest of §8 pending. This is the OceanBase part of step 2 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which the MySQL PR deferred (M3). It is written as deltas from [the MySQL v1 scope](2026-10-22-walk-through-mysql.md): what that spec says holds here unless this one says otherwise. Every fact here was verified on OceanBase CE 4.3.5.6 (`oceanbase/oceanbase-ce:4.3.5-lts`, `MODE=mini`, the MySQL-mode tenant `test` at its defaults), with `mysql:8.0` as the baseline (Appendix).
 
 ## 1. Shape
 
 - **Same package, same lowering.** OceanBase is served by `mysql/review` (`ReviewOceanBase`). The walker gains an `oceanBase` flag from the dialect, and every delta below is gated on it, so MySQL's behavior and oracle are unchanged. Each delta names its verified fact in a comment.
-- **Bytebase is not changed** (decided 2026-10-26). `ForeignKeyChecks` and `OtherSpecs` stay unset, and the walk behaves as it does on MySQL in that case.
+- **Bytebase is not changed by this work.** Its sync gained OceanBase's external tables and materialized views in bytebase/bytebase#21685 (2026-10-28), which §2 and §3 rely on. `ForeignKeyChecks` and `OtherSpecs` stay unset, and the walk behaves as it does on MySQL in that case.
+- **The metadata is current** (decided 2026-10-28): every synced schema is taken as the output of Bytebase's current sync code, run against the schema as it is now. The walk does not account for an older sync or a failed one.
 - **The version.** Bytebase names no supported OceanBase version. It detects OceanBase by the instance's engine (`OCEANBASE`, registered on the MySQL driver) and reads `SELECT VERSION()`, which 4.3.5 answers `5.7.25-OceanBase_CE-v4.3.5.6`. The oracle pins the 4.3.5 LTS line; `OB_IMAGE` in `scripts/oceanbase-oracle.sh` runs another.
 - **Claims that rest on a restriction are left out.** OceanBase refuses many combinations as "not supported" (1235, 4179): several foreign key changes in one `ALTER TABLE`, a dropped and an added index in one, two primary key changes in one. Later versions lift such restrictions, and one image cannot show which, so the walk claims none of them (§8 O5).
 
 ## 2. What Bytebase syncs from OceanBase
 
-The OceanBase driver is the MySQL one (`backend/plugin/db/mysql/mysql.go` registers `Engine_OCEANBASE` on `newDriver`), so `SyncDBSchema` is MySQL's (`sync.go`, Bytebase origin/main bdebba8604), with these differences, all from the version string and the engine:
+The OceanBase driver is the MySQL one (`backend/plugin/db/mysql/mysql.go` registers `Engine_OCEANBASE` on `newDriver`), so `SyncDBSchema` is MySQL's (`sync.go`, Bytebase origin/main 43fbe0afdd), with these differences, all from the version string and the engine:
 
 - **CHECK constraints are not read:** the query runs only from 8.0.16, and OceanBase reports 5.7.25. The walk never trusts them anyway (MySQL spec §3).
 - **Index expressions are not read:** the `EXPRESSION` column is selected only from 8.0.13. The walk reads index names, not their parts.
 - **Partitions are not read:** `listPartitionTables` runs only for `Engine_MYSQL`. The walk does not model partitions.
-- **Tables and views** come from `information_schema.TABLES` with `TABLE_TYPE` `BASE TABLE` and `VIEW`. An external table is listed as `EXTERNAL TABLE` and skipped. A materialized view is not listed at all, only its storage table `__mv_container_<id>`, as a `BASE TABLE` (§3).
+- **Tables, views, and external tables** come from `information_schema.TABLES`: `TABLE_TYPE` `BASE TABLE` as tables, `VIEW` as views, and `EXTERNAL TABLE` as external tables with their columns (bytebase/bytebase#21685). They come from one query, so the sync lists all of them or fails.
+- **Materialized views** are in neither `TABLES` nor `VIEWS`. Since #21685 the sync reads them from `oceanbase.DBA_MVIEWS` into `materialized_views` (`skip_dump`, with the comment and indexes of the view's storage table). The storage table `__mv_container_<id>` and a materialized view log `mlog$_<table>` stay listed as tables. Reading `DBA_MVIEWS` takes `SELECT` on the `oceanbase` database; without it the sync succeeds with no materialized views. Every materialized view has exactly one storage table, which `TABLES` lists even then, so a storage table that no listed materialized view accounts for shows the list is incomplete (verified in #21685 on 4.3.5.6).
 - **`lower_case_table_names`** is read with `SHOW VARIABLES` at instance sync and reaches `Target.LowerCaseTableNames`. A MySQL-mode tenant defaults to 1, fixed when the tenant is created.
 - **Triggers, routines, and foreign keys** come from the same `information_schema` queries, which OceanBase answers. Every table reports `ENGINE` `InnoDB`.
-- **A database that holds an event does not sync.** The sync reads each event's definition with `SHOW CREATE EVENT`, which 4.3.5 rejects (1064; `SHOW EVENTS` too). `SyncDBSchema` then fails, and Bytebase keeps the metadata of the last sync before the first event (§8 O3).
+- **A database that holds an event does not sync.** The sync reads each event's definition with `SHOW CREATE EVENT`, which 4.3.5 rejects (1064; `SHOW EVENTS` too). `SyncDBSchema` then fails, and Bytebase keeps the metadata of the last sync before the first event. That is a Bytebase bug; the walk takes the metadata as current (§1, §8 O3).
 
 ## 3. Authority
 
 What differs from the MySQL spec's §3:
 
-- **Relation absence is untrusted** (§8 O1), as on MariaDB. Two kinds share the table namespace (`CREATE TABLE` of their name fails with 1050) and are not synced:
-  - an external table, which `information_schema.TABLES` lists as `EXTERNAL TABLE`; `RENAME TABLE` and `DROP TABLE` of one succeed;
-  - a materialized view, which it does not list at all; `RENAME TABLE`, `CREATE INDEX`, and `DROP INDEX` on one succeed.
-
-  The sync leaves no trace of an external table, so no claim that a synced database lacks a relation is safe. "Already exists" from the sync is still trusted, so are the columns and indexes of the tables it lists, and names the change itself creates or drops are followed as on MySQL.
+- **Relations of two more kinds.** An external table and a materialized view share the table namespace: `CREATE TABLE` and `CREATE VIEW` of their name fail with 1050. `RENAME TABLE` and `DROP TABLE` of an external table succeed; `RENAME TABLE`, `CREATE INDEX`, and `DROP INDEX` on a materialized view succeed; most other DDL on either fails with 1235 (Appendix). The snapshot lists each synced one as Present of unknown kind, which satisfies every kind a check asks for, so the walk claims no wrong kind of them. Their columns and indexes are Unknown, and an `ALTER TABLE` of one checks that it exists and ends the walk, as on a view (§4.1): what succeeds on them was probed only as far as the Appendix.
+- **Relation absence** is trusted, as on MySQL, in a database where the sync lists no more `__mv_container_` tables than materialized views (§8 O1). Where it lists more, the `DBA_MVIEWS` read failed (§2), and relation absence is untrusted in that database, as on MariaDB. A table a user names `__mv_container_x` only makes that check fail, which costs recall.
 - **The primary key.**
   - OceanBase has no invisible primary key: `sql_generate_invisible_primary_key` does not exist, and `DROP PRIMARY KEY` on a table without one fails (1091). So a table the sync lists without an index named `PRIMARY` has no primary key, which MySQL does not trust.
   - A secondary index may be named `PRIMARY` (`CREATE INDEX`, `ALTER TABLE ... ADD INDEX`; only `CREATE TABLE` refuses it, 1280), on a table with or without a primary key, and Bytebase's sync marks any index named `PRIMARY` as the primary key. So an index the sync lists as `PRIMARY` leaves the primary key Unknown (§8 O2).
   - A table without a primary key has the hidden column `__pk_increment`, which `information_schema` does not list. `ADD COLUMN x AFTER __pk_increment` and `ALTER COLUMN __pk_increment SET DEFAULT` succeed, and `ADD COLUMN __pk_increment` fails (1060). The column is Unknown on every table, in place of MySQL's `my_row_id`.
 - **Foreign keys.** OceanBase ignores `ENGINE` (`ENGINE=MyISAM` is a warning, 1286), so every table keeps its foreign keys, synced or created; MySQL's engine rule does not apply.
-- **Names outside ASCII.** OceanBase compares every name with `utf8mb4_general_ci`, accents included: `é` is `e` and `É` for tables, columns, indexes, databases, routines, and triggers, and `DROP TABLE É` drops `e`. The walk does not follow that folding, so:
-  - a statement that writes an identifier outside ASCII ends the walk;
-  - a name's absence is untrusted in a space where the sync lists a name outside ASCII.
-- **Events** are trusted as on MySQL, since a database that syncs holds none (§2).
+- **Names outside ASCII.** OceanBase compares every name with `utf8mb4_general_ci`, accents included: `é` is `e` and `É` for tables, columns, indexes, databases, routines, and triggers, and `DROP TABLE É` drops `e`. MySQL's walk already follows no such name (bytebase/omni#515): a statement with a name outside ASCII ends the walk, and a synced space that lists one has no name known to be absent. That covers OceanBase's folding, so no delta is needed.
+- **Events** are trusted as on MySQL.
 
-**Accepted assumption (§8 O3):** the sync is current, as on every engine. On OceanBase it is not for a database that holds an event, which the walk cannot tell.
+**Accepted assumption (§8 O3):** the metadata is current (§1), also for a database whose sync fails because it holds an event (§2).
 
 ## 4. Semantics that differ from MySQL
 
@@ -124,7 +121,9 @@ The MySQL table (MySQL spec §5) with these changes, all gated on OceanBase:
 
 | Statement | Change |
 | --- | --- |
-| any statement that writes an identifier outside ASCII | ends the walk (§3) |
+| a synced external table or materialized view | Present of unknown kind, columns and indexes Unknown (§3) |
+| a synced database with more `__mv_container_` tables than materialized views | relation absence Unknown in it (§3) |
+| `ALTER TABLE t ...` on a relation of unknown kind | t Present (1146), then the walk ends, as on a view |
 | `CREATE TABLE` | no engine rule (§3); generated foreign keys `<t>_obfk_`; an unqualified parent in the current database; name limits per §4.7; no primary key means none, with `__pk_increment` Unknown |
 | `ALTER TABLE t ...` on a view | t Present (1146), then the walk ends |
 | — `DROP FOREIGN KEY f` twice | no claim |
@@ -147,38 +146,31 @@ Review asks for these are declined with this list:
 - `CREATE TABLE IF NOT EXISTS` and `CREATE TEMPORARY TABLE IF NOT EXISTS` of an existing table with a bad definition (1060);
 - a foreign key to a view with the checks off, or to a base table a temporary table shadows (1215);
 - `CREATE TRIGGER IF NOT EXISTS` of a name another table's trigger has (5735);
-- materialized views, materialized view logs, external tables, sequences, table groups, and the recycle bin (`FLASHBACK`, `PURGE`): their statements are syntax errors in omni's parser, or, as `PURGE`, end the walk;
-- identifiers outside ASCII (§3);
+- the statements of materialized views, materialized view logs, external tables, sequences, table groups, and the recycle bin (`CREATE EXTERNAL TABLE`, `CREATE MATERIALIZED VIEW`, `FLASHBACK`, `PURGE`, ...): they are syntax errors in omni's parser, or, as `PURGE`, end the walk;
+- the kind of a synced external table or materialized view: the walk claims no wrong kind of one (§3);
+- identifiers outside ASCII, as on MySQL (§3);
 - `lower_case_table_names` 0 and 2, which a tenant can be created with but the oracle does not run (§8 O4).
 
 ## 7. Budget and tests
 
-- **Code:** about 250 lines of deltas in `mysql/review` (lowering 180, snapshot 40, plumbing 30).
+- **Code:** about 260 lines of deltas in `mysql/review` (lowering 170, snapshot 60, plumbing 30).
 - **Script:** `scripts/oceanbase-oracle.sh` boots the image under the heavy-engine lock and the memory gate, sets `secure_file_priv` over the server's unix socket (the only way it can be set) so cases can create external tables, exports `OCEANBASE_WALK_DSN`, runs one command, and removes the container. The image needs `--ulimit nofile` above 20000, and boots in about a minute.
-- **Oracle:** `TestWalkThroughAgainstOceanBase` reads `OCEANBASE_WALK_DSN` and skips without it; CI does not run it (engines design D4). It runs `walktest.Judge` with `Digester` (multi-object `DROP` and `RENAME` are atomic) on curated cases: the MySQL cases that apply, and one per row of §5 and per fact in the Appendix. The target is synced as Bytebase syncs OceanBase (§2): no CHECK constraints or partitions, no external tables or materialized views; the base holds one of each, so the cases show the walk claims nothing of them.
+- **Oracle:** `TestWalkThroughAgainstOceanBase` reads `OCEANBASE_WALK_DSN` and skips without it; CI does not run it (engines design D4). It runs `walktest.Judge` with `Digester` (multi-object `DROP` and `RENAME` are atomic) on curated cases: the MySQL cases that apply, and one per row of §5 and per fact in the Appendix. The target is synced as Bytebase syncs OceanBase since bytebase/bytebase#21685 (§2): no CHECK constraints or partitions, external tables from `TABLES`, materialized views from `DBA_MVIEWS`. The base holds an external table and a materialized view, and cases drop, rename, and alter them, so they show the walk claims no wrong kind of either. One case syncs the materialized views as a failed read does (none listed beside a synced storage table) and shows no relation absence is claimed in that database. The MySQL cases for each assignment's scope in `SET` (bytebase/omni#515) run too: if a `SET GLOBAL foreign_key_checks` changes the session's checks on OceanBase, that becomes a delta.
   - The tenant's log stream lost its leader once in a probe run (4767, "log stream is not leader") under a burst of DDL; the oracle retries a statement on 4767, as the probe runner does.
 - **Sweep:** the MySQL templates with OceanBase's names (`_obfk_`), at `WALK_SWEEP_N` (default 40). OceanBase's DDL is about ten times slower than MySQL's (100 ms for a table, 1 to 3 s for an index), so a sweep of 200 changes takes about 40 minutes; the PR's oracle run uses 200 (§8 O6).
 - **Unit and coverage tests:** `TestWalkThroughOceanBaseWaits` becomes `TestWalkThroughOceanBase`, one case per delta, on the unit schema; `walktest.Coverage` over the MySQL forms with the OceanBase dialect.
 
 ## 8. Decisions
 
-Pending. Each with a recommendation:
+O1 and O3 are decided; the rest are pending, each with a recommendation:
 
-- **O1. Relation absence.**
-  - (a) Never trusted, as on MariaDB (N2): no "table does not exist" claim about the target's synced relations. Bytebase's fix, to be filed: sync external tables and materialized views; a `review.Target` switch, off by default, may then say the sync is complete.
-  - (b) Trusted, assuming no external table, and Unknown where the sync lists a `__mv_container_` table (the trace a materialized view leaves). That would be a false finding for every external table, which object storage makes ordinary on 4.3.
-
-  Recommended: (a).
+- **O1. Relation absence.** Decided 2026-10-28: trusted, since bytebase/bytebase#21685 syncs external tables and materialized views, except in a database whose synced storage tables outnumber its materialized views (§3). No `review.Target` switch: the metadata is current (§1). The options set aside were (a) never trusting it, as on MariaDB, and (b) trusting it while assuming no external table exists.
 - **O2. A synced index named `PRIMARY`.**
   - (a) The primary key is Unknown: `ADD PRIMARY KEY` on a synced table is not claimed (1068).
   - (b) Trust it as the primary key, at the cost of a false finding on a keyless table with a secondary index named `PRIMARY`, which `CREATE INDEX` allows.
 
   Recommended: (a).
-- **O3. A database with an event does not sync** (§2).
-  - (a) Accept it under the engines design's assumption that the sync is current, and file a Bytebase fix so the sync does not fail on an OceanBase event.
-  - (b) Trust no absence on OceanBase.
-
-  Recommended: (a). Bytebase reports the failed sync, and (b) would leave the walk little to claim. Bytebase is not changed now, so the fix is to be filed.
+- **O3. A database with an event does not sync** (§2). Decided 2026-10-28: the metadata is taken as current, so the walk does not account for it. The sync failure is Bytebase's bug to fix.
 - **O4. Oracle settings.** 4.3.5 with `lower_case_table_names` 1, the tenant default, only. A tenant with 0 or 2 needs a second tenant in the 8 GB budget, and the folding is MySQL's code, which the MySQL oracle runs with 0 and 1. Recommended: so.
 - **O5. Restrictions** (§1). Recommended: claim none. The alternative claims `DROP INDEX` with `ADD INDEX` (4179), common when replacing an index, which 4.3.5 refuses.
 - **O6. Sweep size.** Recommended: 200 changes in the PR's oracle run, 40 by default.
@@ -222,4 +214,4 @@ OceanBase CE 4.3.5.6, 2026-10-27; "MySQL" is `mysql:8.0` run on the same probes.
 - **Names:** with `lower_case_table_names=1`, table and database names are stored in lower case and compare without case; every name compares accent-insensitively (`é` = `e` = `É` for tables, columns, indexes, databases, procedures, triggers), `ß` and `ss` differ; lengths as §4.7, counted in characters; a table name with a trailing space fails (1103).
 - **No database selected:** after `DROP DATABASE` of the current database, and after creating it again, unqualified `CREATE`, `DROP`, `ALTER`, DML, and `RENAME` fail with 1046, `IF EXISTS` too (but `DROP FUNCTION IF EXISTS`); `ALTER DATABASE` naming none fails with 1210.
 - **Other kinds:** an external table (with `secure_file_priv` set over the unix socket) is listed as `EXTERNAL TABLE`; `CREATE TABLE` and `CREATE VIEW` of its name fail (1050); `RENAME TABLE` and `DROP TABLE` of it succeed; `ALTER TABLE`, `CREATE INDEX`, and `INSERT` fail (1235). A materialized view is in neither `information_schema.TABLES` nor `VIEWS`; its container `__mv_container_<id>` and a materialized view log `mlog$_<table>` are `BASE TABLE`s; `CREATE TABLE mv` and `CREATE VIEW mv` fail (1050); `RENAME TABLE mv`, `CREATE INDEX` and `DROP INDEX` on it, and `CREATE TABLE ... AS SELECT` from it succeed; `ALTER TABLE`, `TRUNCATE`, DML, and triggers on it fail (1235). Sequences are a namespace of their own (4297 for a taken sequence name, 4298 for a missing one). With `recyclebin` ON, a dropped table's name is free and `FLASHBACK` restores it.
-- **Sync:** Bytebase's queries run as written, but `SHOW CREATE EVENT` (1064); `information_schema.EVENTS` lists an event twice.
+- **Sync:** Bytebase's queries run as written, but `SHOW CREATE EVENT` (1064); `information_schema.EVENTS` lists an event twice. bytebase/bytebase#21685 verified on 4.3.5.6: every object `oceanbase.DBA_OBJECTS` lists in a database, but indexes, makes `CREATE TABLE` of its name fail with 1050, and the sync lists each; `CREATE SYNONYM` is a syntax error in MySQL mode; each materialized view has exactly one storage table; a user without `SELECT` on `oceanbase` cannot read `DBA_MVIEWS` (1142) but sees the storage table in `TABLES`.
