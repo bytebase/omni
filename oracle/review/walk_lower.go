@@ -48,11 +48,11 @@ func (b *builder) statement(n ast.Node) bool {
 		if v.IsBody {
 			return true
 		}
-		return b.createObject(v.Name, kindPackage, false, v.OrReplace)
+		return b.createObject(v.Name, kindPackage, v.IfNotExists, v.OrReplace)
 	case *ast.CreateProcedureStmt:
-		return b.createObject(v.Name, kindProcedure, false, v.OrReplace)
+		return b.createObject(v.Name, kindProcedure, v.IfNotExists, v.OrReplace)
 	case *ast.CreateFunctionStmt:
-		return b.createObject(v.Name, kindFunction, false, v.OrReplace)
+		return b.createObject(v.Name, kindFunction, v.IfNotExists, v.OrReplace)
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.AlterTriggerStmt:
@@ -64,7 +64,7 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
 		return b.dml(n)
 	case *ast.SelectStmt:
-		b.Last = callsUserCode(n)
+		b.Last = b.callsUserCode(n)
 		return true
 	case *ast.CommentStmt, *ast.GrantStmt, *ast.RevokeStmt, *ast.LockTableStmt, *ast.AnalyzeStmt,
 		*ast.ExplainPlanStmt, *ast.PurgeStmt, *ast.AuditStmt, *ast.NoauditStmt, *ast.CommitStmt,
@@ -342,7 +342,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	for i, n := range d.names {
 		b.need(r.schemaKey(spaceConstraint, n), walk.Absent, nil, d.rngs[i], "", takenConstraint(n))
 	}
-	if v.AsQuery != nil && callsUserCode(v.AsQuery) {
+	if v.AsQuery != nil && b.callsUserCode(v.AsQuery) {
 		b.Last = true
 	}
 	b.arriveObject(r, kindTable)
@@ -605,7 +605,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		case walk.Absent:
 			b.wrongTarget(t, false)
 		}
-		b.Last = callsUserCode(v)
+		b.Last = b.callsUserCode(v)
 	}
 	k := r.key(spaceIndex)
 	if v.IfNotExists {
@@ -933,7 +933,7 @@ func (b *builder) dml(n ast.Node) bool {
 			fires = true
 		}
 	}
-	b.Last = fires || callsUserCode(n)
+	b.Last = fires || b.callsUserCode(n)
 	return true
 }
 

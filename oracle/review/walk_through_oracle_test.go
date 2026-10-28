@@ -97,6 +97,18 @@ var walkCases = []walkCase{
 	{name: "a function may run DDL", setup: []string{
 		"CREATE OR REPLACE FUNCTION mkf RETURN NUMBER AS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN EXECUTE IMMEDIATE 'CREATE TABLE shop.made (a NUMBER)'; RETURN 1; END;",
 	}, change: "SELECT mkf FROM dual;\nCREATE TABLE made (a NUMBER);\nCREATE TABLE x AS SELECT mkf() a FROM dual;\nDROP TABLE made;\nCREATE TABLE made (a NUMBER);"},
+	{name: "a function called without parentheses may run DDL", setup: []string{
+		"CREATE OR REPLACE FUNCTION dropt RETURN NUMBER AS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN EXECUTE IMMEDIATE 'DROP TABLE shop.nokey'; RETURN 1; END;",
+	}, change: "INSERT INTO p (id, note) VALUES (9, dropt);\nCREATE TABLE nokey (a NUMBER);"},
+	{name: "a function called without parentheses in WHERE", setup: []string{
+		"CREATE OR REPLACE FUNCTION dropt RETURN NUMBER AS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN EXECUTE IMMEDIATE 'DROP TABLE shop.nokey'; RETURN 1; END;",
+		"INSERT INTO p VALUES (1, 'a')",
+	}, change: "UPDATE p SET note = 'b' WHERE id = 1 AND dropt = 1;\nCREATE TABLE nokey (a NUMBER);"},
+	{name: "a column takes precedence over a function of its name", setup: []string{
+		"CREATE OR REPLACE FUNCTION a RETURN NUMBER AS PRAGMA AUTONOMOUS_TRANSACTION; BEGIN EXECUTE IMMEDIATE 'DROP TABLE shop.p CASCADE CONSTRAINTS'; RETURN 1; END;",
+		"INSERT INTO nokey VALUES (1)",
+	}, change: "UPDATE nokey SET a = 2 WHERE a = 1;\nINSERT INTO nokey (a) VALUES (sq.nextval);\nCREATE TABLE p (a NUMBER);", complete: true},
+	{name: "IF NOT EXISTS of a function", change: "CREATE FUNCTION IF NOT EXISTS f RETURN NUMBER IS BEGIN RETURN 7; END;\n/\nCREATE FUNCTION IF NOT EXISTS nokey RETURN NUMBER IS BEGIN RETURN 7; END;\n/\nCREATE FUNCTION IF NOT EXISTS g RETURN NUMBER IS BEGIN RETURN 7; END;\n/\nCREATE TABLE g (a NUMBER);", complete: true},
 	{name: "DML on what the walk knows", change: "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 2 WHERE id = 1;\nDELETE FROM nokey;\nMERGE INTO nokey USING p ON (nokey.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nSELECT upper(note) FROM p;\nCREATE TABLE t (a NUMBER);", complete: true},
 }
 

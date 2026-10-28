@@ -214,7 +214,7 @@ The parser's shapes, read before writing this table:
   - anything not in §5.
 - **After its checks, for a statement that may run user code:**
   - Which statements: DML, `SELECT`, `CREATE TABLE ... AS SELECT`, and `CREATE INDEX` on an expression.
-  - When: any function call that is qualified, or whose name is not an Oracle SQL builtin.
+  - When: any function call that is qualified, or whose name is not an Oracle SQL builtin; or a name that may call a function without parentheses. In a statement of one query block, a name is no call when it is a column the walk knows a table in scope has, a column a table or alias in scope qualifies, a sequence's `NEXTVAL` or `CURRVAL`, a builtin Oracle takes first, or a name an index lists alone. Any other name, or any name in a statement of more query blocks, may be a call.
   - In SQL a builtin takes precedence over a schema function of the same name, while a qualified call runs the schema's (verified with a schema `UPPER` and `NVL`). An autonomous function called from `SELECT` or `CREATE TABLE ... AS SELECT` can run DDL (verified).
 - **After its checks, DML (`INSERT`, `UPDATE`, `DELETE`, `MERGE`) where a trigger may fire:**
   - The cases:
@@ -345,5 +345,8 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
   - A schema `UPPER` and `NVL` lose to the builtins in SQL; `shop.upper(...)` runs the schema's.
   - An autonomous function called by `SELECT` created a table. `CREATE TABLE ... AS SELECT` ran the function.
   - A `BEFORE DELETE` trigger on a child table, fired by an `ON DELETE CASCADE` from its parent, created a table through an autonomous procedure.
+  - A function called without parentheses runs: `VALUES (f)`, `SET a = f`, `INSERT ... SELECT f FROM dual`, `WHERE ... AND f = 1`, `pkg.g`, and `shop.f`. A column wins over a function of its name (`WHERE f = 1` on a table with a column `F`). `CURRENT_DATE`, `CURRENT_TIMESTAMP`, `LOCALTIMESTAMP`, `DBTIMEZONE`, `SESSIONTIMEZONE`, and `ORA_ROWSCN` win over schema functions of their names; a function named `UID` cannot be created (04050). `sq.NEXTVAL` reads the sequence.
+  - In `CREATE INDEX`, a name listed alone is a column: `(fx)`, `(shop.fx)`, `(pkg.g)` fail with 00904 and call nothing, while `(a + fx)` calls `fx`.
+  - `CREATE FUNCTION IF NOT EXISTS` of a function's name, or of a table's, does nothing.
 - **PL/SQL with errors:** through go-ora, `CREATE OR REPLACE PROCEDURE` with an unknown call, `CREATE OR REPLACE PACKAGE BODY` without a spec, a trigger with an unknown call, and `CREATE OR REPLACE FORCE VIEW` on a missing table return no error and leave `INVALID` objects. `CREATE OR REPLACE VIEW` with an unknown column fails with 00904.
 - **Namespaces:** a LOB segment `STORE AS lseg` beside a table `LSEG`: accepted. Quoted `"t"` and unquoted `T` are two tables; `DROP TABLE t2x` does not find `"T2x"`.

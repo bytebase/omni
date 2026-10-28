@@ -358,13 +358,14 @@ func missingIndex(w string) string    { return "Index " + w + " does not exist" 
 func missingTrigger(w string) string  { return "Trigger " + w + " does not exist" }
 func missingSequence(w string) string { return "Sequence " + w + " does not exist" }
 
-// callsUserCode reports whether a statement may run code of a schema:
-// any function call that is qualified, or whose name is not an Oracle SQL
-// builtin. In SQL a builtin takes precedence over a schema function of
-// the same name, while a qualified call runs the schema's (verified with
-// a schema UPPER and NVL); and a function, called from a query, can run
-// DDL in an autonomous transaction (verified).
-func callsUserCode(n ast.Node) bool {
+// callsUserCode reports whether a statement may run code of a schema: a
+// function call that is qualified, or whose name is not an Oracle SQL
+// builtin, or a name that may be a call without parentheses. In SQL a
+// builtin takes precedence over a schema function of the same name, while
+// a qualified call runs the schema's (verified with a schema UPPER and
+// NVL); and a function, called from a query or DML, can run DDL in an
+// autonomous transaction (verified).
+func (b *builder) callsUserCode(n ast.Node) bool {
 	calls := false
 	ast.Inspect(n, func(m ast.Node) bool {
 		if calls {
@@ -376,7 +377,197 @@ func callsUserCode(n ast.Node) bool {
 		}
 		return !calls
 	})
-	return calls
+	return calls || b.callsBareFunction(n)
+}
+
+// callsBareFunction reports whether a name of a statement may call a
+// function without parentheses. Oracle takes a name for a column of a
+// table in scope first, then for a function: SELECT f FROM dual, VALUES
+// (f), SET a = f, WHERE f = 1, pkg.f, and shop.f call one, and WHERE f = 1
+// on a table with a column F does not (verified). The walk judges a name
+// only in a statement of one query block, where the tables in scope are
+// those it names: a name there is a column the walk knows a table of it
+// has, a column a table or alias qualifies, a sequence's NEXTVAL or
+// CURRVAL, or a builtin Oracle takes first (verified: CURRENT_DATE,
+// CURRENT_TIMESTAMP, LOCALTIMESTAMP, DBTIMEZONE, SESSIONTIMEZONE, and
+// ORA_ROWSCN win over schema functions of their names). Any other name, or
+// any name in a statement of more query blocks, may be a call.
+func (b *builder) callsBareFunction(n ast.Node) bool {
+	targets := make(map[*ast.ColumnRef]bool)
+	var refs []*ast.ColumnRef
+	blocks := 0
+	ast.Inspect(n, func(m ast.Node) bool {
+		switch v := m.(type) {
+		case *ast.SelectStmt:
+			blocks++
+		case *ast.InsertStmt:
+			markRefs(targets, v.Columns)
+		case *ast.InsertIntoClause:
+			markRefs(targets, v.Columns)
+		case *ast.SetClause:
+			targets[v.Column] = true
+			markRefs(targets, v.Columns)
+		case *ast.MergeClause:
+			markRefs(targets, v.InsertCols)
+		case *ast.IndexColumn:
+			// A name an index lists alone is a column: one that is not
+			// fails with 00904 and calls nothing, while a name in an
+			// expression may call a function (verified).
+			if c, ok := v.Expr.(*ast.ColumnRef); ok {
+				targets[c] = true
+			}
+		case *ast.ColumnRef:
+			refs = append(refs, v)
+		}
+		return true
+	})
+	var uses []*ast.ColumnRef
+	for _, c := range refs {
+		if !targets[c] {
+			uses = append(uses, c)
+		}
+	}
+	if len(uses) == 0 {
+		return false
+	}
+	scope, ok := b.scopeOf(n, blocks)
+	if !ok {
+		return true
+	}
+	for _, c := range uses {
+		if !b.resolves(c, scope) {
+			return true
+		}
+	}
+	return false
+}
+
+func markRefs(set map[*ast.ColumnRef]bool, l *ast.List) {
+	if l == nil {
+		return
+	}
+	for _, item := range l.Items {
+		if c, ok := item.(*ast.ColumnRef); ok {
+			set[c] = true
+		}
+	}
+}
+
+// scoped is a table in scope: its reference and its alias, "" for none.
+type scoped struct {
+	ref   objRef
+	alias string
+}
+
+// scopeOf returns the tables in scope of a statement of one query block,
+// false for a statement of more, or of a FROM item that is no table.
+func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
+	var scope []scoped
+	add := func(o *ast.ObjectName, alias *ast.Alias) bool {
+		r, ok := b.ref(o)
+		if !ok {
+			return false
+		}
+		s := scoped{ref: r}
+		if alias != nil {
+			s.alias = alias.Name
+		}
+		scope = append(scope, s)
+		return true
+	}
+	var from func(e ast.TableExpr) bool
+	from = func(e ast.TableExpr) bool {
+		switch v := e.(type) {
+		case *ast.TableRef:
+			return v.Dblink == "" && add(v.Name, v.Alias)
+		case *ast.JoinClause:
+			return from(v.Left) && from(v.Right)
+		}
+		return false
+	}
+	fromList := func(l *ast.List) bool {
+		if l == nil {
+			return true
+		}
+		for _, item := range l.Items {
+			e, ok := item.(ast.TableExpr)
+			if !ok || !from(e) {
+				return false
+			}
+		}
+		return true
+	}
+	switch v := n.(type) {
+	case *ast.SelectStmt:
+		return scope, blocks == 1 && fromList(v.FromClause)
+	case *ast.InsertStmt:
+		switch {
+		case v.MultiTable != nil:
+			return nil, false
+		case v.Select != nil:
+			// The rows come from the query: VALUES sees no table.
+			return scope, blocks == 1 && fromList(v.Select.FromClause)
+		}
+		return scope, blocks == 0
+	case *ast.UpdateStmt:
+		return scope, blocks == 0 && from(v.Target) && fromList(v.FromClause)
+	case *ast.DeleteStmt:
+		return scope, blocks == 0 && from(v.Target)
+	case *ast.MergeStmt:
+		return scope, blocks == 0 && add(v.Target, v.TargetAlias) && from(v.Source)
+	case *ast.CreateIndexStmt:
+		return scope, blocks == 0 && add(v.Table, nil)
+	}
+	return nil, false
+}
+
+// noParenBuiltins are the builtins the parser takes for names, which Oracle
+// takes before a schema function of the name (verified).
+var noParenBuiltins = map[string]bool{
+	"CURRENT_DATE": true, "CURRENT_TIMESTAMP": true, "LOCALTIMESTAMP": true,
+	"DBTIMEZONE": true, "SESSIONTIMEZONE": true, "ORA_ROWSCN": true, "UID": true,
+}
+
+// resolves reports whether a name of a statement certainly reads a column
+// or a sequence, not a function.
+func (b *builder) resolves(c *ast.ColumnRef, scope []scoped) bool {
+	if c.Column == "NEXTVAL" || c.Column == "CURRVAL" {
+		schema := c.Schema
+		if schema == "" {
+			schema = b.w.current
+		}
+		if c.Table != "" && schema != "" {
+			f, _ := b.look(walk.Key{Space: spaceSequence, Parent: walk.Path(schema), Name: c.Table})
+			if f == walk.Present {
+				return true
+			}
+		}
+	}
+	switch {
+	case c.Schema != "":
+		for _, s := range scope {
+			if s.alias == "" && s.ref.schema == c.Schema && s.ref.name == c.Table {
+				return true
+			}
+		}
+		return false
+	case c.Table != "":
+		for _, s := range scope {
+			if s.alias == c.Table || s.alias == "" && s.ref.name == c.Table {
+				return true
+			}
+		}
+		return false
+	}
+	if noParenBuiltins[c.Column] {
+		return true
+	}
+	for _, s := range scope {
+		if f, _ := b.look(s.ref.childKey(spaceColumn, c.Column)); f == walk.Present {
+			return true
+		}
+	}
+	return false
 }
 
 // sqlBuiltins are Oracle SQL functions, as the parser folds their names.

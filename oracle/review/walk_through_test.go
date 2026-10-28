@@ -91,6 +91,8 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "CREATE SEQUENCE pv;", 0, "Name PV is already used by an existing object", shop)
 	oneFinding(t, "CREATE OR REPLACE VIEW t AS SELECT 1 a FROM dual;", 0, "Name T is already used by an existing object", shop)
 	noFinding(t, "CREATE OR REPLACE VIEW pv AS SELECT 1 a FROM dual;\nCREATE OR REPLACE FUNCTION f RETURN NUMBER AS BEGIN RETURN 1; END;", shop)
+	noFinding(t, "CREATE FUNCTION IF NOT EXISTS f RETURN NUMBER IS BEGIN RETURN 1; END;\n/\nCREATE FUNCTION IF NOT EXISTS t RETURN NUMBER IS BEGIN RETURN 1; END;", shop)
+	oneFinding(t, "CREATE FUNCTION IF NOT EXISTS g RETURN NUMBER IS BEGIN RETURN 1; END;\n/\nCREATE TABLE g (a NUMBER);", 1, "Name G is already used by an existing object", shop)
 	oneFinding(t, "CREATE OR REPLACE PROCEDURE f AS BEGIN NULL; END;", 0, "Name F is already used by an existing object", shop)
 	noFinding(t, "CREATE TABLE IF NOT EXISTS t (a NUMBER, b NUMBER CONSTRAINT ck_n CHECK (b > 0));", shop)
 	oneFinding(t, "CREATE TABLE IF NOT EXISTS t (a NUMBER, a NUMBER);", 0, "Column A is named twice in table T", shop)
@@ -230,6 +232,24 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	noFinding(t, "CREATE TABLE x AS SELECT f(1) a FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE INDEX i ON nokey (f(a));\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE TABLE x AS SELECT f(1) a FROM dual;\nCREATE TABLE x (a NUMBER);", shop)
+	// A name that may call a function without parentheses: a bare name no
+	// table in scope has as a column, or a qualifier that is no table in
+	// scope. A column, a sequence, and a builtin Oracle takes first are not.
+	noFinding(t, "SELECT f FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "INSERT INTO nokey (a) VALUES (f);\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "UPDATE t SET n = f WHERE id = 1;\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "DELETE FROM t WHERE id = 1 AND f = 1;\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "INSERT INTO nokey (a) VALUES (pkg.x);\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "INSERT INTO nokey (a) SELECT a FROM nokey WHERE shop.f = 1;\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "UPDATE t SET n = 1 WHERE id IN (SELECT id FROM p);\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "INSERT INTO nokey (a) VALUES (sq2.nextval);\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "SELECT x FROM pv;\nCREATE TABLE t (a NUMBER);", shop)
+	noFinding(t, "CREATE INDEX i ON nokey (a + b);\nCREATE TABLE t (a NUMBER);", shop)
+	oneFinding(t, "CREATE INDEX i ON syn (p_id, b);\nCREATE INDEX j ON nokey (a + 1);\nCREATE TABLE t (a NUMBER);", 2, "Name T is already used by an existing object", shop)
+	oneFinding(t, "UPDATE t x SET x.n = 1 WHERE x.id = 1 AND code = 'a' RETURNING n INTO :v;\nCREATE TABLE t (a NUMBER);", 1, "Name T is already used by an existing object", shop)
+	oneFinding(t, "INSERT INTO nokey (a) VALUES (sq.nextval + 1);\nINSERT INTO nokey (a) SELECT p.id FROM p JOIN t ON t.p_id = p.id WHERE note = current_date;\nCREATE TABLE t (a NUMBER);", 2, "Name T is already used by an existing object", shop)
+	oneFinding(t, "MERGE INTO nokey k USING p ON (k.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nDELETE FROM shop.t WHERE shop.t.id = 1;\nCREATE INDEX i ON nokey (a);\nCREATE TABLE t (a NUMBER);", 3, "Name T is already used by an existing object", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nUPDATE x SET a = 1 WHERE a = 2;\nCREATE TABLE x (b NUMBER);", 2, "Name X is already used by an existing object", shop)
 	// DML that may fire a trigger: any in the schema or the change, or a
 	// target the walk does not know as a table.
 	oneFinding(t, "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 1;\nDELETE FROM p;\nCREATE TABLE t (a NUMBER);", 3, "Name T is already used by an existing object", shop)
