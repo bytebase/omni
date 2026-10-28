@@ -16,8 +16,10 @@ import (
 type work struct {
 	// backup is the prior backup check, when the change asks for a backup
 	// and has an UPDATE or DELETE to back up; scans is the scan, when a
-	// statement can give it a finding; walks is WalkThrough.
+	// statement can give it a finding; walks is WalkThrough, which
+	// follows the change in the order run says Bytebase runs it.
 	backup, scans, walks bool
+	run                  *run
 }
 
 func (w work) any() bool { return w.backup || w.scans || w.walks }
@@ -195,7 +197,7 @@ func reviewGroup(ctx context.Context, stmts []statement, on map[review.Rule]bool
 		}
 	}
 	if todo.walks {
-		if err := checkWalkThrough(ctx, stmts, g.target, r); err != nil {
+		if err := checkWalkThrough(ctx, stmts, todo.run, g.target, r); err != nil {
 			return nil, err
 		}
 	}

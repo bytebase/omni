@@ -11,11 +11,12 @@ import (
 )
 
 // checkWalkThrough reports the first statement of the change that
-// certainly fails on the target, given that the statements before it
-// succeeded. It follows the change with the engine-neutral ledger of
-// review/walk: each statement is lowered into the checks it needs and the
-// facts it establishes, and a statement this file does not lower ends the
-// walk. It reads the synced schema as pgSnapshot trusts it, nothing else.
+// certainly fails on the target, given that the statements Bytebase runs
+// before it succeeded. It follows the change with the engine-neutral
+// ledger of review/walk, in the order Bytebase runs it (planRun): each
+// statement is lowered into the checks it needs and the facts it
+// establishes, and a statement this file does not lower ends the walk. It
+// reads the synced schema as pgSnapshot trusts it, nothing else.
 //
 // With another spec of the plan changing the same database, which
 // Bytebase does not order against this one, the synced schema may not be
@@ -25,8 +26,8 @@ import (
 // trigger is assumed, as the walk assumes user code reached only
 // implicitly changes no schema: stopping at every DDL statement would
 // leave such a change nothing to report.
-func checkWalkThrough(ctx context.Context, stmts []statement, target review.Target, r *reporter) error {
-	v, err := walkThrough(ctx, stmts, target)
+func checkWalkThrough(ctx context.Context, stmts []statement, plan *run, target review.Target, r *reporter) error {
+	v, err := walkThrough(ctx, stmts, plan, target)
 	if err != nil || v == nil {
 		return err
 	}
@@ -43,13 +44,14 @@ func checkWalkThrough(ctx context.Context, stmts []statement, target review.Targ
 	return nil
 }
 
-// walkThrough walks the change on one target and returns the first
-// violation, or nil.
-func walkThrough(ctx context.Context, stmts []statement, target review.Target) (*walk.Violation, error) {
-	if target.Schema == nil {
+// walkThrough walks the change on one target, in the order plan runs it,
+// and returns the first violation, its Statement the statement's index in
+// the change, or nil.
+func walkThrough(ctx context.Context, stmts []statement, plan *run, target review.Target) (*walk.Violation, error) {
+	if target.Schema == nil || plan == nil {
 		return nil, nil
 	}
-	w := newWalker(stmts, target)
+	w := newWalker(stmts, plan, target)
 	var snap walk.Snapshot = w.pg
 	if target.OtherSpecs {
 		// Another spec may have replaced a synced partitioned table with
@@ -58,7 +60,11 @@ func walkThrough(ctx context.Context, stmts []statement, target review.Target) (
 		w.triggered = true
 		w.partitioned = make(map[walk.Key]bool)
 	}
-	return walk.Run(ctx, len(stmts), snap, w.lower)
+	v, err := walk.Run(ctx, len(plan.steps), snap, w.lower)
+	if v != nil {
+		v.Statement = plan.steps[v.Statement].stmt
+	}
+	return v, err
 }
 
 // walkNote is a check's finding: where it anchors and what it says when
@@ -81,6 +87,7 @@ func (n *walkNote) message(v *walk.Violation) string {
 // it, and what of the target it needs besides the snapshot.
 type walker struct {
 	stmts    []statement
+	run      *run
 	pg       *pgSnapshot
 	database string
 	triggers []*metadata.EventTriggerMetadata
@@ -91,6 +98,15 @@ type walker struct {
 	path    []string
 	user    string
 	session string
+	// tenant is true when Bytebase may run the change in tenant mode: as
+	// owner, the database owner, by SET ROLE from a session user the walk
+	// does not know. Bytebase then names the owner as the change's user,
+	// and an admin who owns the database looks the same.
+	tenant bool
+	owner  string
+	// inBlock is true while the statements run inside a transaction
+	// block: Bytebase's own, or one the change began.
+	inBlock bool
 
 	// triggered is true when a DML trigger or rule may fire: the target
 	// or the change has one somewhere, or may have one the sync does not
@@ -114,18 +130,25 @@ type walker struct {
 	made []walk.Key
 }
 
-func newWalker(stmts []statement, target review.Target) *walker {
+func newWalker(stmts []statement, plan *run, target review.Target) *walker {
 	db := target.Schema
 	w := &walker{
 		stmts:       stmts,
+		run:         plan,
 		pg:          newPgSnapshot(db),
 		database:    db.GetName(),
 		triggers:    enabledTriggers(db),
 		user:        target.SessionUser,
 		session:     target.SessionUser,
+		owner:       db.GetOwner(),
+		inBlock:     !plan.autocommit,
 		routines:    make(map[string]bool),
 		partitioned: make(map[walk.Key]bool),
 		partitions:  make(map[walk.Key][]walk.Key),
+	}
+	if w.user != "" && w.user == w.owner {
+		w.tenant = true
+		w.session = ""
 	}
 	if path := parseSearchPath(db.GetSearchPath()); len(path) > 0 {
 		w.path = path
@@ -167,17 +190,65 @@ func newWalker(stmts []statement, target review.Target) *walker {
 	return w
 }
 
-// lower implements walk.Lower.
+// lower implements walk.Lower for the i-th statement Bytebase runs.
 func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
-	n := w.stmts[i].node
+	st := w.run.steps[i]
+	if st.committed {
+		w.committed()
+	}
+	s := &w.stmts[st.stmt]
+	n := s.node
+	if _, set := n.(*ast.VariableSetStmt); st.again && !set {
+		// Run twice, it may do what the walk took it to have done.
+		return nil
+	}
+	if w.inBlock && refusedInBlock(n) {
+		return nil
+	}
 	if w.eventTriggerMayFire(n) {
 		return nil
 	}
-	b := &builder{w: w, l: l, stmt: &w.stmts[i]}
-	if !b.statement(n) {
+	wrapped := st.wrapped && w.tenant
+	user := w.user
+	if wrapped {
+		// It runs as the session user, whom the walk does not know.
+		w.user = ""
+	}
+	b := &builder{w: w, l: l, stmt: s}
+	ok := b.statement(n)
+	w.user = user
+	if !ok {
 		return nil
 	}
+	if wrapped {
+		// SET LOCAL ROLE of the owner follows it, which a transaction
+		// block keeps until it ends.
+		b.session(func() {
+			if w.inBlock {
+				w.ownerIfTenant()
+			}
+		})
+	}
 	return b.step()
+}
+
+// committed follows Bytebase past the commit of its transaction: the
+// block has ended, and in tenant mode it sets the session's role to the
+// owner.
+func (w *walker) committed() {
+	w.inBlock = false
+	if w.tenant {
+		w.ownerIfTenant()
+	}
+}
+
+// ownerIfTenant follows Bytebase setting the role to the owner in tenant
+// mode, which it may not be in: the user stays known only when it is the
+// owner either way.
+func (w *walker) ownerIfTenant() {
+	if w.user != w.owner {
+		w.user = ""
+	}
 }
 
 // eventTriggerMayFire reports whether an enabled event trigger of the
