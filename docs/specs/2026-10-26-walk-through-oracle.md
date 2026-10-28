@@ -1,12 +1,11 @@
 # WALK_THROUGH for Oracle: v1 scope
 
-Status: proposal, 2026-10-26; §9 lists the open decisions. Step 5 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which §5.5 there sketches. The user chose to run every engine at once. Every fact here was verified on `gvenzl/oracle-free:23.26.3-slim-faststart` (Oracle AI Database 26ai Free 23.26.3), the image `oracle/parser` pins (Appendix). Bytebase was read at bdebba8604.
+Status: decided 2026-10-28; §9 records the decisions. Step 5 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which §5.5 there sketches. The user chose to run every engine at once. Every fact here was verified on `gvenzl/oracle-free:23.26.3-slim-faststart` (Oracle AI Database 26ai Free 23.26.3), the image `oracle/parser` pins (Appendix). Bytebase was read at 36190dc616, after its Oracle sync lists object tables and invisible columns (#21674) and its driver sets the current schema on every session (#21672).
 
 ## 1. Environment
 
 - **A Bytebase database is one schema.** Its metadata holds one `SchemaMetadata` named `""`, with the objects of the schema the database is named after (`backend/plugin/db/oracle/sync.go`, `SyncDBSchema`).
-- **Session.** Bytebase connects as the data source's user and runs `ALTER SESSION SET CURRENT_SCHEMA = "<database>"` in `Open` (`oracle.go`). The change then runs statement by statement on one connection (`Execute`), and stops at the first error.
-  - The `ALTER SESSION` runs on the pool. It reaches the connection `Execute` takes only because `database/sql` hands back the one idle connection. The existing rules already rely on this (`schema.go`, `db()`), and the walk does too (§9 O4).
+- **Session.** Bytebase connects as the data source's user, and its connector runs `ALTER SESSION SET CURRENT_SCHEMA = "<database>"` on every session it opens (`oracle.go`, `connector.Connect`). The change then runs statement by statement on one connection (`Execute`), and stops at the first error.
   - That user may or may not own the schema. It matters only to `RENAME`, which works only on the session user's own objects (ORA-03001 otherwise).
 - **Current schema:** the target at the start. `ALTER SESSION SET CURRENT_SCHEMA = s` moves unqualified names to `s`. A value the walk cannot read makes them Unknown until a readable one returns them. Other schemas are not synced: their objects are Unknown, apart from what the change itself does to them.
 - **Implicit commits.** DDL commits the open transaction before it runs, even when it then fails. No `ROLLBACK` undoes DDL (verified), so a `ROLLBACK` changes nothing the walk keeps.
@@ -18,7 +17,8 @@ Unquoted names fold to upper case, which the parser does. Quoted names keep thei
 
 | Space | Parent | Holds | Claims |
 | --- | --- | --- | --- |
-| object | schema | the schema object namespace: tables, views, materialized views, sequences, private synonyms, procedures, functions, packages, types | taken (00955); a statement's kind (00942, 02289, 01434, 04043, 12083, 01702, 02201, 04044, 03001) |
+| object | schema | the schema object namespace: tables, views, materialized views, sequences, private synonyms, procedures, functions, packages, types | taken (00955); a statement's kind (02289, 01434, 04043, 01702, 02201, 04044, 03001, 32318) |
+| table | schema | tables of any sort, and materialized views | missing (00942), a materialized view (12083) |
 | view | schema | views of any sort: relational, object, JSON duality, editioning | missing (00942) |
 | sequence | schema | sequences | missing (02289) |
 | column | schema.table | columns | exists (01430, 00957), missing (00904) |
@@ -29,9 +29,9 @@ Unquoted names fold to upper case, which the parser does. Quoted names keep thei
 | trigger | schema | trigger names, unique in the schema | taken (04081, 04095, 00955), missing (04080) |
 
 - **Kinds.** An object key's kind is what the object is. An index, constraint, or trigger key's kind is its table. A `MayRemove` narrowed to that kind then forgets only one table's names when the table goes.
-- **Derived keys.** The view and sequence keys repeat what the object key holds for those kinds. Creating an object of another kind makes the name Absent there, since the namespace is shared.
+- **Derived keys.** The table, view, and sequence keys repeat what the object key holds for those kinds. Creating an object of another kind makes the name Absent there, since the namespace is shared.
 - **Names the walk never claims:**
-  - generated names: `SYS_` (constraints, indexes, LOB segments, IOT tables), `ISEQ$$_` (identity sequences), `BIN$` (recycle bin);
+  - generated names: `SYS_` (constraints, indexes, LOB segments, IOT tables, hidden columns), `ISEQ$$_` (identity sequences), `BIN$` (recycle bin), `ORA$` (private temporary tables); and among columns, the hidden columns Oracle names itself, `ORA_ARCHIVE_STATE` and `ORABCTAB_...$`, on which DDL fails with an error of its own (38398, 05715);
   - a name with a byte outside ASCII. The parser folds it with Go's rules, which need not be the database's, so such a name ends the walk;
   - a name with a database link. DDL on a remote object fails, and the walk does not follow it.
 - **Length:** an identifier longer than 128 bytes fails with ORA-00972 before anything is looked up, in `CREATE`, `DROP`, and `ALTER` alike. 128 is the limit from 12.2, and 30 before it, so the claim holds on every version. Only ASCII names are judged.
@@ -41,24 +41,25 @@ Unquoted names fold to upper case, which the parser does. Quoted names keep thei
 
 Present is trusted from the sync, with one exception: an index the sync lists as a constraint. The sync lists `P` and `U` constraints as indexes named after the constraint (`getConstraints`). The index behind such a constraint can have another name (`USING INDEX`, or an existing index the constraint reuses) or none (a disabled constraint). Its name is therefore Unknown in the index space.
 
-Absent is trusted only where the sync lists every object of the space:
+Absent is trusted only where the sync lists every object of the space. Bytebase's metadata is taken to be what its current sync produces (decision O1):
 
 | Space | Absent trusted? | Why |
 | --- | --- | --- |
-| object | **No** | The sync lists no synonyms, types, operators, libraries, or Java. `ALL_TABLES` omits object tables and XMLType tables (verified): `CREATE TABLE ot OF ty` is listed by `ALL_OBJECT_TABLES` only, and `DROP TABLE ot` succeeds. See O1 |
+| object | **No** | The sync lists no synonyms, types, operators, libraries, Java, or property graphs |
+| table | Yes, but generated names | The sync lists `ALL_TABLES` and, with `SkipDump`, `ALL_OBJECT_TABLES` (object and XMLType tables), less materialized views' containers, and lists materialized views apart. `ALL_TABLES` lists JSON collection tables and nested tables' storage tables (verified). No other object answers `ALTER TABLE`, `DROP TABLE`, or `TRUNCATE`: they fail with 00942 or an error of their own on a view, a synonym, a sequence, or a routine (§4) |
 | view | Yes | `ALL_VIEWS` lists relational, object, and JSON duality views (verified). No other object answers `DROP VIEW` or `ALTER VIEW`: on a table, materialized view, sequence, synonym, type, or routine they fail with 00942 |
 | sequence | Yes, except `ISEQ$$_` | `ALL_SEQUENCES`, less the identity sequences Bytebase skips |
-| column | **No** | The sync keeps `COLUMN_ID IS NOT NULL`, which drops invisible columns (verified: `ADD (h)` of an invisible `h` fails with 01430, and `DROP COLUMN h` succeeds) |
+| column | Yes, for a table whose columns the sync lists in full, but generated names | The sync lists `ALL_TAB_COLS` with `USER_GENERATED = 'YES'`, invisible columns included. Not in full: an object or XMLType table, whose hidden `XMLDATA` `DROP COLUMN` drops (verified); a table it lists no column of, as a nested table's storage table, whose columns `ALL_TAB_COLS` does not show (verified); and a table with a check constraint naming a column it does not list, which a valid-time period adds with its hidden columns (verified: `PERIOD FOR vt` adds `VT`, `VT_START`, `VT_END`, and a check `"VT_START" < "VT_END"`) |
 | primary key | Yes | Every `P` constraint is listed, whatever its name |
-| table constraint | **No** | A supplemental log group is a constraint: `ADD CONSTRAINT lg` fails with 02264, and `DROP CONSTRAINT lg` drops it. `ALL_CONSTRAINTS` does not list it (verified). Unnamed `CHECK` and `NOT NULL` constraints are `SYS_C` |
+| table constraint | **No** | A supplemental log group is a constraint: `ADD CONSTRAINT lg` fails with 02264, and `DROP CONSTRAINT lg` drops it. `ALL_CONSTRAINTS` does not list it (verified). Unnamed `CHECK` and `NOT NULL` constraints are `SYS_C`. A constraint name the sync lists on another table is not on this one: constraint names are unique in the schema |
 | constraint | **No** | Views' constraints (`WITH CHECK OPTION CONSTRAINT c`, `WITH READ ONLY CONSTRAINT c`) and log groups share the namespace (02264, verified), and the sync does not list them |
-| index | **No** | The sync attaches indexes only to the tables it lists. So it loses those of materialized views, clusters, object tables, and other schemas' tables an index of this schema is on. It also drops an index whose columns are all hidden `SYS_NC` columns, such as one on an object attribute |
-| trigger | **No** | The sync keeps triggers with a `TABLE_NAME`. A schema or database trigger (`AFTER LOGON ON SCHEMA`) takes a name in the same namespace (04081, verified) |
+| index | **No** | The sync lists the indexes of its tables and materialized views. It loses those of clusters and of other schemas' tables an index of this schema is on, and an index whose columns are all hidden `SYS_NC` columns, such as one on an object attribute |
+| trigger | **No** | The sync keeps the triggers of this schema on its own tables and views. A schema or database trigger (`AFTER LOGON ON SCHEMA`) takes a name in the same namespace (04081, verified), and so does one on another schema's table |
 
 So the snapshot yields:
 - every "already exists" claim;
 - every wrong-kind claim;
-- "does not exist" only for views, sequences, and the primary key.
+- "does not exist" for tables, views, sequences, the columns of a table listed in full, and the primary key.
 
 Every other "does not exist" comes from the change itself: an object it created, dropped, or renamed. Under `Target.OtherSpecs` the snapshot is all Unknown, and DML ends the walk (engines design §2).
 
@@ -66,7 +67,8 @@ Accepted assumptions, decision O3:
 - the admin user sees every object of the schema in the `ALL_*` views (engines design D6, extended to Oracle);
 - the change runs in the edition the sync read;
 - no schema-level DDL trigger (D6);
-- user code reached only implicitly changes no schema: VPD policies, virtual columns, function-based indexes, auditing handlers, and the triggers of O2.
+- user code reached only implicitly changes no schema: VPD policies, virtual columns, function-based indexes, auditing handlers, and the triggers of O2;
+- no hidden column of a name of the user's but a valid-time period's: Oracle Label Security's policy column, which may be hidden, is one the walk would take for missing.
 
 ## 4. Statement semantics the lowering follows
 
@@ -149,22 +151,23 @@ All verified.
 | --- | --- | --- |
 | `CREATE [GLOBAL TEMPORARY] TABLE [IF NOT EXISTS] t (...)` | t Absent in the object space (00955); text: a column twice (00957, also with IF NOT EXISTS), a constraint name twice (02264), two primary keys (02260), an identifier over 128 bytes (00972); each named constraint Absent in the schema (02264) | t Present (table), Absent as view and sequence; for a column list, exactly its columns, its named constraints Present on t and in the schema, and its primary key exact; index names of named `PRIMARY KEY`/`UNIQUE` Unknown. IF NOT EXISTS: nothing when t is Present, Optional when Unknown |
 | `CREATE TABLE t AS SELECT` | as above | t Present with Unknown columns, constraints, and key |
-| `ALTER TABLE t ...` | t Present as a table (00942 when Absent or another kind; a materialized view's container is accepted); text: §4's repeats | per subcommand: |
+| `CREATE TABLE` with a nested table, an external organization, or a supplemental log group; `CREATE PRIVATE TEMPORARY TABLE` | | ends the walk |
+| `ALTER TABLE t ...` | t Present in the table space (00942 when Absent; a materialized view's container is accepted); text: §4's repeats | per subcommand: |
 | — `ADD (c ..., constraints)` | c Absent (01430); named constraints Absent in the schema (02264); a primary key t has (02260) | c Present; constraints as in CREATE TABLE |
 | — `MODIFY (c ...)` | c Present (00904); inline constraints as in ADD | inline constraints |
 | — `DROP COLUMN c`, `DROP (c, ...)`, `SET UNUSED COLUMN c`, `SET UNUSED (c, ...)` [`CASCADE CONSTRAINTS`] | each c Present (00904) | c Absent; t's constraints, primary key, and indexes May-removed; with CASCADE CONSTRAINTS, every constraint of the schema |
 | — `RENAME COLUMN a TO b` | a Present (00904); b Absent (00957, b = a too) | a Absent, b Present |
 | — `ADD [CONSTRAINT c] PRIMARY KEY/UNIQUE/FOREIGN KEY/CHECK` | c Absent in the schema (02264); a primary key t has (02260) | c Present on t and in the schema; the primary key Present; index c Unknown |
-| — `DROP CONSTRAINT c [CASCADE]` | c Present on t (02443) | c Absent on t and in the schema; t's primary key and indexes May-removed; with CASCADE, every constraint |
+| — `DROP CONSTRAINT c [CASCADE]` | c Present on t, and not another table's in the schema (02443) | c Absent on t and in the schema; t's primary key and indexes May-removed; with CASCADE, every constraint |
 | — `DROP PRIMARY KEY [CASCADE]` | t has a primary key (02441) | the primary key Absent; t's constraints and indexes May-removed |
 | — `DROP UNIQUE (...)` | none | t's constraints and indexes May-removed |
-| — `RENAME CONSTRAINT a TO b` | a Present on t (23292); b Absent in the schema (02264) | a Absent, b Present, on t and in the schema |
-| — `ENABLE`, `DISABLE`, `MODIFY CONSTRAINT c`; `ENABLE`/`DISABLE PRIMARY KEY`/`UNIQUE (...)` | c Present on t (02430, 02431) | index names May-added and May-removed for t |
+| — `RENAME CONSTRAINT a TO b` | a Present on t, and not another table's (23292); b Absent in the schema (02264) | a Absent, b Present, on t and in the schema |
+| — `ENABLE`, `DISABLE`, `MODIFY CONSTRAINT c`; `ENABLE`/`DISABLE PRIMARY KEY`/`UNIQUE (...)` | c Present on t, and not another table's (02430, 02431) | index names May-added and May-removed for t |
 | — `RENAME TO u` | u Absent in the object space (00955, u = t too) | t moves to u; t's index, constraint, and trigger names Unknown (their keys name the old table) |
 | — table properties, partition maintenance, `MOVE`, `SHRINK`, `ENABLE`/`DISABLE ALL TRIGGERS`/`TABLE LOCK`, `DROP UNUSED COLUMNS` | none | none |
-| — `ADD SUPPLEMENTAL LOG`, anything else | | ends the walk |
-| `DROP TABLE t [CASCADE CONSTRAINTS] [PURGE]`, `DROP TABLE IF EXISTS t` | t Present as a table (00942 when Absent or another kind; 12083 for a materialized view, IF EXISTS too) | t Absent in every space; its columns, constraints, and key cleared; its indexes, constraints, and triggers May-removed in the schema; with CASCADE CONSTRAINTS, every constraint. IF EXISTS: nothing on another kind, Optional when Unknown |
-| `TRUNCATE TABLE t` | t Absent (00942), a view (01702), a sequence (02201), a type or routine (04044) | none |
+| — `ADD SUPPLEMENTAL LOG`, `ADD`/`DROP PERIOD`, anything else | | ends the walk |
+| `DROP TABLE t [CASCADE CONSTRAINTS] [PURGE]`, `DROP TABLE IF EXISTS t` | t Present in the table space (00942 when Absent; 12083 for a materialized view, IF EXISTS too) | t Absent in every space; its columns, constraints, and key cleared; its indexes, constraints, and triggers May-removed in the schema; with CASCADE CONSTRAINTS, every constraint. IF EXISTS: nothing on another kind, Optional when Unknown |
+| `TRUNCATE TABLE t` | t Absent from the table space (00942), a view (01702), a sequence (02201), a type or routine (04044) | none |
 | `CREATE [UNIQUE\|BITMAP] INDEX [IF NOT EXISTS] i ON t (...)` | i Absent in the index space (00955); t a view (01702), a sequence (02201), a type or routine (04044); a missing t claims nothing | i Present (of t) |
 | `DROP INDEX i [IF EXISTS]` | i Present (01418) | i Absent |
 | `ALTER INDEX i RENAME TO j` | i Present (01418); j Absent (00955, j = i too) | i Absent, j Present (i's table) |
@@ -216,8 +219,9 @@ The parser's shapes, read before writing this table:
 - **After its checks, DML (`INSERT`, `UPDATE`, `DELETE`, `MERGE`) where a trigger may fire:**
   - The cases:
     - the snapshot or the change has any trigger;
-    - the target is not a table the walk knows in a schema: it may be a view, or a public synonym for another schema's table;
+    - the target is not a table the walk knows in its schema: it may be a view, or a public synonym for another schema's table;
     - `Target.OtherSpecs`.
+- **A name of an `ALTER SESSION SET CURRENT_SCHEMA` the walk cannot read** ends the walk at the next statement that names an object unqualified.
   - Verified: a trigger can run DDL through an autonomous procedure, and a cascaded delete fires the child table's trigger.
   - O2 covers triggers the sync cannot show.
 - **Accepted assumptions:** O3.
@@ -226,17 +230,17 @@ The parser's shapes, read before writing this table:
 
 Review asks for these are declined with this list:
 
-- "does not exist" from the snapshot for tables (O1), columns, indexes, constraints, triggers, synonyms, types, and routines (§3);
+- "does not exist" from the snapshot for indexes, constraints, triggers, synonyms, types, and routines, and for the columns of a table the sync may not list in full (§3);
 - missing targets of statements that follow synonyms: `CREATE INDEX ... ON`, `CREATE TRIGGER ... ON`, `COMMENT`, `LOCK TABLE`, `GRANT`, `REFERENCES`, DML;
 - dependency failures (§4);
 - the index a `PRIMARY KEY` or `UNIQUE` constraint adds or reuses, and its name collisions (00955 on `ADD CONSTRAINT` or `ENABLE`);
 - columns named in constraints, indexes, views, and queries; a view's query (`CREATE VIEW` failing with 00904 or 00942); `ORA-01408`;
 - data-dependent failures: `NOT NULL` on rows with nulls, 01442, type changes (01439, 01440), constraint validation;
 - privileges, editions, and `RENAME` by a user who does not own the schema (03001);
-- partitions, LOBs, nested tables, object tables, clusters, index-organized and external tables, materialized views, private temporary tables, database links, users, tablespaces;
+- partitions, LOBs, nested tables, clusters, index-organized and external tables, materialized views, private temporary tables, database links, users, tablespaces;
 - PL/SQL bodies and their compilation;
 - names outside ASCII;
-- 23ai syntax the parser rejects (`ALTER TABLE IF EXISTS`, `CREATE TABLE ... OF`);
+- 23ai syntax the parser rejects (`ALTER TABLE IF EXISTS`, `CREATE TABLE ... OF`, `CREATE JSON COLLECTION TABLE`, `CREATE BLOCKCHAIN TABLE`, `PERIOD FOR`, `ROW ARCHIVAL`, `IF NOT EXISTS` on synonyms, routines, types, and triggers);
 - the recycle bin's contents (`FLASHBACK`, `PURGE` of a name).
 
 ## 8. Budget and tests
@@ -246,50 +250,26 @@ Review asks for these are declined with this list:
   - Oracle commits DDL as it runs, so the engine implements `walktest.Digester` over `ALL_OBJECTS`, `ALL_TAB_COLS`, `ALL_CONSTRAINTS`, `ALL_INDEXES`, and `ALL_TRIGGERS`.
   - The change runs as an admin user with `CURRENT_SCHEMA = SHOP`, as Bytebase runs it. `RENAME` cases run as SHOP, which owns the objects.
   - The connect, the container's start, and every statement run under a deadline, so a hung container fails the test instead of stalling CI (it hung once, in #493's 4829c2fb run).
-  - The test sync mirrors Bytebase's for every space the walk reads: invisible columns dropped, `SYS_C` checks dropped, indexes of listed tables only, and triggers with a table.
+  - The test sync mirrors Bytebase's for every space the walk reads: object tables with `SkipDump`, invisible columns listed, `SYS_C` checks dropped, indexes of listed tables and materialized views only, and triggers of the schema on its own tables and views.
 - **Curated cases:** one per row of §5 and per fact in the Appendix, including the wrong kinds, the synonym-following forms, and `IF [NOT] EXISTS`.
+- **Digest:** the dictionary's views take hundreds of milliseconds a query (`DBA_CONSTRAINTS` most), so the digest reads `SYS.OBJ$`, `COL$`, and `CON$` by owner number, in a few. It leaves out columns of generated names: a rejected `ADD (b NUMBER CONSTRAINT nn NOT NULL)` of a taken `nn` fails with 02264 and leaves `b` behind as an unused hidden `SYS_C..._$` column (verified), which no claim names.
 - **Sweep:** templates over a colliding name pool, mixing case and quoted names:
   - tables, views, sequences, synonyms, indexes named like tables, and constraint names;
   - `IF [NOT] EXISTS`, `RENAME`, and triggers;
   - `CURRENT_SCHEMA` switches.
 
-  CI runs it at `WALK_SWEEP_N`. Precision must hold, and recall is logged.
+  CI runs it at `WALK_SWEEP_N`. Precision must hold, and recall is logged. The sync reads the views Bytebase reads, a second or so, so each base is synced once and serves ten changes, each on the base made again: made again, it is the same but for the names Oracle generates, which the walk never claims. Two workers run at once on schemas of their own. At `WALK_SWEEP_N=500` it takes about 150 s and finds about half of the statements the server rejects (2860 of 5584 at seed 20261028), with no false claim.
 - **Coverage:** `walktest.Coverage` over every row of §5. **Unit tests:** the snapshot's authority per space, and `OtherSpecs` in the group key.
 
 ## 9. Decisions
 
-Open, each with a recommendation:
+Decided 2026-10-28:
 
-- **O1. Table absence from the sync.**
-  - The problem: `ALL_TABLES` omits object and XMLType tables, which the sync therefore never lists (verified).
-  - Options:
-    - (a) Untrusted until Bytebase syncs them (`ALL_ALL_TABLES`, or a flag in the metadata). The change's own drops and renames still give "does not exist".
-    - (b) Trusted, with an accepted assumption that the schema holds no object table.
-  - Recommended: (a), as D5 decided for MariaDB's unsynced relation kinds. It costs the ORA-00942 claims on tables the sync does not list. The Bytebase fix is to be filed.
-- **O2. DML and triggers the sync cannot show.**
-  - The problem: the sync lists only triggers the schema owns. A trigger another schema owns can be on the schema's tables, or on a table in another schema that a cascaded delete reaches.
-  - Options:
-    - (a) DML goes on as §6 says, with the accepted assumption that no other schema's trigger fires on a change to the schema's tables, directly or through a cascade.
-    - (b) Every DML statement ends the walk after its checks.
-  - Recommended: (a). (b) would end the walk at the first data fix in most changes.
-- **O3. The assumptions of §3:**
-  - the admin user sees every object of the schema;
-  - the change runs in the edition the sync read;
-  - no schema-level DDL trigger;
-  - implicit user code changes no schema.
-
-  Recommended: accept. The first and third are D6. Without the first, a view the admin cannot see is one it cannot drop either: `DROP VIEW` then fails with 00942, as the walk claims.
-- **O4. `CURRENT_SCHEMA` reaches the execution connection only through `database/sql`'s reuse of the one idle connection (§1).**
-  - Options:
-    - (a) Rely on it, as the existing rules do, and file a Bytebase follow-up to set the schema on the connection `Execute` uses.
-    - (b) Treat unqualified names as Unknown.
-  - Recommended: (a). (b) would leave the walk almost nothing, since changes rarely qualify names.
-- **O5. Versions before 23ai.**
-  - Every code here is long-standing, and the length claim holds from 11g. The wrong-kind table was verified on 23ai only.
-  - Options:
-    - (a) Spot-check the curated cases once on `gvenzl/oracle-xe:21-full-faststart`, an image already on the devbox, and record any differences. CI keeps 23ai.
-    - (b) 23ai only.
-  - Recommended: (a). Where 21c gives another code for a statement that still fails, the code map lists both. Where it accepts the statement, the claim goes.
+- **O1. Table and column absence from the sync: trusted.** Bytebase's sync lists object and XMLType tables and invisible columns (#21674), and the user decided that metadata Bytebase syncs is taken as what its current sync produces, with no signal for metadata synced before. The columns of a table the sync may not list in full stay Unknown (§3).
+- **O2. DML and triggers the sync cannot show: (a).** DML goes on as §6 says, with the accepted assumption that no other schema's trigger fires on a change to the schema's tables, directly or through a cascade. (b), ending the walk at every DML statement, would end it at the first data fix in most changes.
+- **O3. The assumptions of §3: accepted.** The first and third are D6. Without the first, a view the admin cannot see is one it cannot drop either: `DROP VIEW` then fails with 00942, as the walk claims.
+- **O4. `CURRENT_SCHEMA` on the execution connection: closed.** Bytebase's connector sets it on every session (#21672).
+- **O5. Versions before 23ai: (a).** The curated cases ran once on `gvenzl/oracle-xe:21-full-faststart` for precision, on 2026-10-28: no claim failed, and the walk found 145 of the 178 statements 21c rejects, which counts the `IF [NOT] EXISTS` forms 21c refuses as syntax errors. CI keeps 23ai. Every code here is long-standing, and the length claim holds from 11g.
 
 ## Appendix: verified facts
 
@@ -332,6 +312,7 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
   - A rejected `ALTER TABLE ADD (n1, b)` adds neither column. `DROP (a, nosuch)` keeps a. `DROP CONSTRAINT ck_c DROP CONSTRAINT nosuch` keeps ck_c.
   - A `CREATE TABLE` refused for its `UNIQUE` index's name leaves neither table nor constraint. A failed `CREATE TABLE ... AS SELECT` leaves no table.
   - DDL commits a pending `INSERT` whether it succeeds or fails.
+  - `ADD (b NUMBER CONSTRAINT nn NOT NULL)` with `nn` taken fails with 02264 and leaves `b` behind as an unused hidden column `SYS_C..._$`. The same clash in a `CHECK`, a key, a table constraint, `MODIFY`, or `CREATE TABLE` leaves nothing.
 - **IF [NOT] EXISTS:**
   - `CREATE TABLE IF NOT EXISTS` of a table, view, sequence, or synonym name: a no-op. `CREATE TABLE IF NOT EXISTS t (a, a)` with t present: 00957. `CREATE TABLE IF NOT EXISTS t (... CONSTRAINT pk_t ...)` with t and pk_t present: a no-op.
   - `DROP TABLE IF EXISTS` of a view or sequence, `DROP VIEW IF EXISTS` of a table or object table, `DROP SEQUENCE IF EXISTS` of a table, `ALTER TABLE IF EXISTS` of a view: no-ops. `DROP TABLE IF EXISTS` of a materialized view: 12083. `DROP TABLE IF EXISTS` of an object table drops it.
@@ -339,8 +320,11 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
   - `CREATE VIEW` / `SEQUENCE` / `SYNONYM` / `PROCEDURE` / `TRIGGER IF NOT EXISTS`, and `DROP TRIGGER` / `PROCEDURE` / `SYNONYM` / `TYPE` / `INDEX IF EXISTS`: accepted.
   - `OR REPLACE` with `IF NOT EXISTS`: 11541. `ALTER INDEX IF EXISTS ... RENAME`: 11557. `ALTER TABLE ... ADD IF NOT EXISTS`, `DROP COLUMN IF EXISTS`, `DROP CONSTRAINT IF EXISTS`: syntax errors.
 - **Sync gaps:**
-  - `CREATE TABLE ot OF ty` and `CREATE TABLE xt OF XMLTYPE` are absent from `ALL_TABLES` and present in `ALL_OBJECT_TABLES`.
-  - An `INVISIBLE` column has a null `COLUMN_ID`.
+  - `CREATE TABLE ot OF ty` and `CREATE TABLE xt OF XMLTYPE` are absent from `ALL_TABLES` and present in `ALL_OBJECT_TABLES`. `CREATE JSON COLLECTION TABLE jct`, a nested table's storage table, and blockchain, immutable, row-archival, IOT, and temporary tables are in `ALL_TABLES`. `DROP TABLE "jct"` of the lower-case synonym a JSON collection table adds: 00942.
+  - An `INVISIBLE` column has a null `COLUMN_ID` and `USER_GENERATED = 'YES'`.
+  - Hidden columns with `USER_GENERATED = 'NO'`: `SYS_NC...$` (function-based indexes, object and XMLType columns), `SYS_C..._$` (unused columns), `SYS_IME_OSON_...` (JSON), `SYS_NC_OID$` and `SYS_NC_ROWINFO$` (object tables), `XMLDATA` (XMLType tables), `ORA_ARCHIVE_STATE` (row archival), `ORABCTAB_...$` (blockchain and immutable tables), and a valid-time period's `VT`, `VT_START`, `VT_END` (`PERIOD FOR vt`) or `VT2` (`PERIOD FOR vt2 (s, e)`). DDL on them: `DROP COLUMN vt_start`, `RENAME COLUMN vt`, `MODIFY`, `SET UNUSED` fail with 55603; `ADD (vt_start ...)` with 01430; `RENAME COLUMN vt2 TO zz` renames it; `ORA_ARCHIVE_STATE` fails with 38398; `ORABCTAB_HASH$` with 05715; `DROP COLUMN xmldata` of an XMLType table succeeds.
+  - A valid-time period adds a check constraint named after it (`VT8cf288`), whose condition names its hidden columns (`"VT_START" < "VT_END"`, `"S"<"E" AND "ZZ">0`).
+  - `ALL_TAB_COLS` shows no column of a nested table's storage table. On it, `DROP COLUMN` fails with 12982, `ADD` with 22915, `TRUNCATE` with 22812, and `DROP TABLE` with 22914. On an object table, `DROP COLUMN` of any name fails with 12981 and `ADD` with 22856. On a JSON collection table, `DROP COLUMN etag` succeeds, `DROP COLUMN data` fails with 00904, and `ADD` with 03001.
   - A supplemental log group occupies the constraint namespace, is absent from `ALL_CONSTRAINTS`, and `DROP CONSTRAINT` drops it.
   - View constraints are types `V` and `O`.
   - A schema `LOGON` trigger has no `TABLE_NAME` and occupies the trigger namespace.
