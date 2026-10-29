@@ -17,6 +17,23 @@ type limitEdit struct {
 	text  string
 }
 
+// limitSource is the statement being rewritten, with its tokens lexed once
+// on first use. topInsertPosition used to lex the text before every SELECT
+// it adds TOP to, so a chain of n UNION ALL operands lexed O(n²) tokens.
+type limitSource struct {
+	sql    string
+	tokens []parser.Token
+	lexed  bool
+}
+
+func (s *limitSource) lexTokens() []parser.Token {
+	if !s.lexed {
+		s.tokens = parser.Tokenize(s.sql)
+		s.lexed = true
+	}
+	return s.tokens
+}
+
 // StatementWithResultLimit rewrites a single T-SQL SELECT statement so it
 // returns at most limit rows.
 func StatementWithResultLimit(statement string, limit int) (string, error) {
@@ -41,12 +58,12 @@ func StatementWithResultLimit(statement string, limit int) (string, error) {
 	}
 
 	var edits []limitEdit
-	rewriteSelectWithLimit(&edits, statement, stmt, limit)
+	rewriteSelectWithLimit(&edits, &limitSource{sql: statement}, stmt, limit)
 	rewritten := applyLimitEdits(statement, edits)
 	return normalizeStatementTerminator(rewritten), nil
 }
 
-func rewriteSelectWithLimit(edits *[]limitEdit, sql string, stmt *ast.SelectStmt, limit int) {
+func rewriteSelectWithLimit(edits *[]limitEdit, src *limitSource, stmt *ast.SelectStmt, limit int) {
 	if stmt == nil {
 		return
 	}
@@ -56,10 +73,10 @@ func rewriteSelectWithLimit(edits *[]limitEdit, sql string, stmt *ast.SelectStmt
 			return
 		}
 		if ordered := findOrderedSelect(stmt); ordered != nil {
-			rewriteOrderedSelect(edits, sql, ordered, limit)
+			rewriteOrderedSelect(edits, src.sql, ordered, limit)
 			return
 		}
-		addTopToSelectLeaves(edits, sql, stmt, limit)
+		addTopToSelectLeaves(edits, src, stmt, limit)
 		return
 	}
 	if stmt.Top != nil {
@@ -67,10 +84,10 @@ func rewriteSelectWithLimit(edits *[]limitEdit, sql string, stmt *ast.SelectStmt
 		return
 	}
 	if stmt.OrderByClause != nil {
-		rewriteOrderedSelect(edits, sql, stmt, limit)
+		rewriteOrderedSelect(edits, src.sql, stmt, limit)
 		return
 	}
-	addTopClause(edits, sql, stmt, limit)
+	addTopClause(edits, src, stmt, limit)
 }
 
 func rewriteExistingTopClauses(edits *[]limitEdit, stmt *ast.SelectStmt, limit int) {
@@ -87,16 +104,16 @@ func rewriteExistingTopClauses(edits *[]limitEdit, stmt *ast.SelectStmt, limit i
 	}
 }
 
-func addTopToSelectLeaves(edits *[]limitEdit, sql string, stmt *ast.SelectStmt, limit int) {
+func addTopToSelectLeaves(edits *[]limitEdit, src *limitSource, stmt *ast.SelectStmt, limit int) {
 	if stmt == nil {
 		return
 	}
 	if stmt.Op != ast.SetOpNone {
-		addTopToSelectLeaves(edits, sql, stmt.Larg, limit)
-		addTopToSelectLeaves(edits, sql, stmt.Rarg, limit)
+		addTopToSelectLeaves(edits, src, stmt.Larg, limit)
+		addTopToSelectLeaves(edits, src, stmt.Rarg, limit)
 		return
 	}
-	addTopClause(edits, sql, stmt, limit)
+	addTopClause(edits, src, stmt, limit)
 }
 
 func rewriteTopClause(edits *[]limitEdit, top *ast.TopClause, limit int) {
@@ -114,11 +131,11 @@ func rewriteTopClause(edits *[]limitEdit, top *ast.TopClause, limit int) {
 	})
 }
 
-func addTopClause(edits *[]limitEdit, sql string, stmt *ast.SelectStmt, limit int) {
+func addTopClause(edits *[]limitEdit, src *limitSource, stmt *ast.SelectStmt, limit int) {
 	if stmt == nil || stmt.TargetList == nil {
 		return
 	}
-	insertPos := topInsertPosition(sql, stmt)
+	insertPos := topInsertPosition(src, stmt)
 	if insertPos < 0 {
 		return
 	}
@@ -129,19 +146,24 @@ func addTopClause(edits *[]limitEdit, sql string, stmt *ast.SelectStmt, limit in
 	})
 }
 
-func topInsertPosition(sql string, stmt *ast.SelectStmt) int {
+// topInsertPosition returns the offset just past the SELECT, ALL, or DISTINCT
+// keyword that TOP follows: the last such token before the target list.
+func topInsertPosition(src *limitSource, stmt *ast.SelectStmt) int {
 	targetLoc := ast.NodeLoc(stmt.TargetList)
 	if !targetLoc.IsValid() {
 		return -1
 	}
-	tokens := parser.Tokenize(sql[:targetLoc.Start])
 	want := "SELECT"
 	if stmt.Distinct {
 		want = "DISTINCT"
 	} else if stmt.All {
 		want = "ALL"
 	}
-	for i := len(tokens) - 1; i >= 0; i-- {
+	// The target list starts a token, so the statement's tokens that end by
+	// its start are exactly the tokens of the text before it.
+	tokens := src.lexTokens()
+	n := sort.Search(len(tokens), func(i int) bool { return tokens[i].End > targetLoc.Start })
+	for i := n - 1; i >= 0; i-- {
 		if parser.TokenName(tokens[i].Type) == want {
 			return tokens[i].End
 		}
@@ -245,17 +267,25 @@ func consumeKeyword(sql string, pos int, keyword string) (int, bool) {
 	return end, true
 }
 
+// applyLimitEdits applies the edits in one pass. The rewrites touch disjoint
+// ranges of the statement; splicing each into the whole string in turn, as
+// this used to, copied the statement once per edit.
 func applyLimitEdits(sql string, edits []limitEdit) string {
-	sort.Slice(edits, func(i, j int) bool {
-		return edits[i].start > edits[j].start
+	sort.SliceStable(edits, func(i, j int) bool {
+		return edits[i].start < edits[j].start
 	})
+	var b strings.Builder
+	last := 0
 	for _, edit := range edits {
-		if edit.start < 0 || edit.end < edit.start || edit.end > len(sql) {
+		if edit.start < last || edit.end < edit.start || edit.end > len(sql) {
 			continue
 		}
-		sql = sql[:edit.start] + edit.text + sql[edit.end:]
+		b.WriteString(sql[last:edit.start])
+		b.WriteString(edit.text)
+		last = edit.end
 	}
-	return sql
+	b.WriteString(sql[last:])
+	return b.String()
 }
 
 func normalizeStatementTerminator(sql string) string {

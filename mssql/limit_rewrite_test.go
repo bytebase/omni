@@ -1,7 +1,9 @@
 package mssql_test
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -188,5 +190,32 @@ func TestStatementWithResultLimitErrors(t *testing.T) {
 			_, err := mssql.StatementWithResultLimit(tt.statement, tt.limit)
 			require.Error(t, err)
 		})
+	}
+}
+
+// TestStatementWithResultLimitStaysLinear: adding TOP to each operand of a
+// set operation looked for the operand's SELECT by lexing all the text before
+// it, and spliced each TOP into the whole statement, so a chain of n UNION
+// ALL operands cost O(n²): 8,000 operands took over two minutes. Linear, the
+// chain below takes milliseconds.
+func TestStatementWithResultLimitStaysLinear(t *testing.T) {
+	const n = 20000
+	statement := strings.Repeat("SELECT a FROM t UNION ALL ", n) + "SELECT a FROM t"
+	want := strings.Repeat("SELECT TOP 10 a FROM t UNION ALL ", n) + "SELECT TOP 10 a FROM t;"
+	type result struct {
+		got string
+		err error
+	}
+	done := make(chan result, 1)
+	go func() {
+		got, err := mssql.StatementWithResultLimit(statement, 10)
+		done <- result{got, err}
+	}()
+	select {
+	case r := <-done:
+		require.NoError(t, r.err)
+		require.Equal(t, want, r.got)
+	case <-time.After(10 * time.Second):
+		t.Fatalf("StatementWithResultLimit on %d UNION ALL operands: no result within 10s", n+1)
 	}
 }
