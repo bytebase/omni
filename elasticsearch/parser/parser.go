@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -57,49 +58,90 @@ type AdjustedParsedRequest struct {
 	EndLineNumber int
 }
 
+// Lines indexes the lines of a text once, for the functions that map a
+// request to its lines. GetAdjustedParsedRequest and GetEditorRequest split
+// the whole text and count its newlines from the start on every call, so
+// calling them for each request of a script took time quadratic in the
+// number of requests.
+type Lines struct {
+	text  string
+	lines []string
+	// starts holds the byte offset where each line starts.
+	starts []int
+}
+
+// NewLines indexes the lines of text.
+func NewLines(text string) *Lines {
+	lines := strings.Split(text, "\n")
+	starts := make([]int, len(lines))
+	offset := 0
+	for i, line := range lines {
+		starts[i] = offset
+		offset += len(line) + 1
+	}
+	return &Lines{text: text, lines: lines, starts: starts}
+}
+
+// LineEnd returns the byte offset where 0-based line n ends: the offset of
+// its newline, or the length of the text for the last line.
+func (l *Lines) LineEnd(n int) int {
+	return l.starts[n] + len(l.lines[n])
+}
+
+// newlinesBefore counts the newlines in the text before byte offset. The
+// newline that ends line i is at starts[i+1]-1, so they are as many as the
+// lines after the first that start at or before offset.
+func (l *Lines) newlinesBefore(offset int) int {
+	return max(sort.SearchInts(l.starts, offset+1)-1, 0)
+}
+
+// newlinesBetween counts the newlines at byte offsets from start up to, not
+// including, end.
+func (l *Lines) newlinesBetween(start, end int) int {
+	if start >= end {
+		return 0
+	}
+	return l.newlinesBefore(end) - l.newlinesBefore(start)
+}
+
+// startsWithMethodRegex matches a line that starts a request.
+var startsWithMethodRegex = regexp.MustCompile(`(?i)^\s*(GET|POST|PUT|PATCH|DELETE)`)
+
+// GetAdjustedParsedRequest is Lines.AdjustedParsedRequest for one request of
+// text. Callers mapping every request of a text index it once with NewLines.
+func GetAdjustedParsedRequest(r ParsedRequest, text string, nextRequest *ParsedRequest) AdjustedParsedRequest {
+	return NewLines(text).AdjustedParsedRequest(r, nextRequest)
+}
+
+// AdjustedParsedRequest returns the lines request r spans.
 // See https://sourcegraph.com/github.com/elastic/kibana/-/blob/src/platform/plugins/shared/console/public/application/containers/editor/utils/requests_utils.ts?L76.
 // Combine getRequestStartLineNumber and getRequestEndLineNumber.
-func GetAdjustedParsedRequest(r ParsedRequest, text string, nextRequest *ParsedRequest) AdjustedParsedRequest {
-	bs := []byte(text)
-	startLineNumber := 0
+func (l *Lines) AdjustedParsedRequest(r ParsedRequest, nextRequest *ParsedRequest) AdjustedParsedRequest {
+	size := len(l.text)
 	endLineNumber := 0
 	startOffset := r.StartOffset
 	// The startOffset is out of range, returning the end of document like
 	// what the model.getPositionAt does.
-	if r.StartOffset >= len(bs) {
-		startOffset = len(bs) - 1
+	if r.StartOffset >= size {
+		startOffset = size - 1
 	}
-	for i := 0; i < r.StartOffset; i++ {
-		if bs[i] == '\n' {
-			startLineNumber++
-		}
-	}
+	startLineNumber := l.newlinesBefore(r.StartOffset)
 
 	if r.EndOffset >= 0 {
 		// if the parser set an end offset for this request, then find the line number for it.
-		endLineNumber = startLineNumber
 		endOffset := r.EndOffset
-		if endOffset >= len(bs) {
-			endOffset = len(bs) - 1
+		if endOffset >= size {
+			endOffset = size - 1
 		}
-		for i := startOffset; i < endOffset; i++ {
-			if bs[i] == '\n' {
-				endLineNumber++
-			}
-		}
+		endLineNumber = startLineNumber + l.newlinesBetween(startOffset, endOffset)
 	} else {
 		// if no end offset, try to find the line before the next request starts.
 		if nextRequest != nil {
-			nextRequestStartLine := 0
 			nextRequestOffset := nextRequest.StartOffset
-			if nextRequestOffset >= len(bs) {
-				nextRequestOffset = len(bs) - 1
+			if nextRequestOffset >= size {
+				nextRequestOffset = size - 1
 			}
-			for i := 0; i < nextRequestOffset; i++ {
-				if bs[i] == '\n' {
-					nextRequestStartLine++
-				}
-			}
+			nextRequestStartLine := l.newlinesBefore(nextRequestOffset)
 			if nextRequestStartLine > startLineNumber {
 				endLineNumber = nextRequestStartLine - 1
 			} else {
@@ -107,17 +149,9 @@ func GetAdjustedParsedRequest(r ParsedRequest, text string, nextRequest *ParsedR
 			}
 		} else {
 			// If there is no next request, find the end of the text or the line that starts with a method.
-			lines := strings.Split(text, "\n")
-			nextLineNumber := 0
-			for i := 0; i < r.StartOffset; i++ {
-				if bs[i] == '\n' {
-					nextLineNumber++
-				}
-			}
-			nextLineNumber++
-			for nextLineNumber < len(lines) {
-				content := strings.TrimSpace(lines[nextLineNumber])
-				startsWithMethodRegex := regexp.MustCompile(`(?i)^\s*(GET|POST|PUT|PATCH|DELETE)`)
+			nextLineNumber := startLineNumber + 1
+			for nextLineNumber < len(l.lines) {
+				content := strings.TrimSpace(l.lines[nextLineNumber])
 				if startsWithMethodRegex.MatchString(content) {
 					break
 				}
@@ -133,8 +167,7 @@ func GetAdjustedParsedRequest(r ParsedRequest, text string, nextRequest *ParsedR
 		}
 	}
 	// if the end is empty, go up to find the first non-empty line.
-	lines := strings.Split(text, "\n")
-	for endLineNumber >= 0 && strings.TrimSpace(lines[endLineNumber]) == "" {
+	for endLineNumber >= 0 && strings.TrimSpace(l.lines[endLineNumber]) == "" {
 		endLineNumber--
 	}
 	return AdjustedParsedRequest{
@@ -208,6 +241,10 @@ func (s *state) parse() ([]ParsedRequest, error) {
 	return s.requests, nil
 }
 
+// requestStartRegex finds the next line that starts a request, where the
+// parser resumes after an error.
+var requestStartRegex = regexp.MustCompile(`(?m)^(POST|HEAD|GET|PUT|DELETE|PATCH)`)
+
 func (s *state) multiRequest() error {
 	catch := func(e error) int {
 		s.errors = append(s.errors, SyntaxError{
@@ -218,8 +255,7 @@ func (s *state) multiRequest() error {
 			return -1
 		}
 		remain := s.text[s.at:]
-		re := regexp.MustCompile(`(?m)^(POST|HEAD|GET|PUT|DELETE|PATCH)`)
-		match := re.FindStringIndex(remain)
+		match := requestStartRegex.FindStringIndex(remain)
 		if match != nil {
 			return match[0] + s.at
 		}
@@ -1002,11 +1038,17 @@ func includes[T rune](sl []T, e T) bool {
 	return false
 }
 
-// GetEditorRequest extracts a single editor request from the text using adjusted line numbers.
-// See https://sourcegraph.com/github.com/elastic/kibana/-/blob/src/platform/plugins/shared/console/public/application/containers/editor/utils/requests_utils.ts?L204.
+// GetEditorRequest is Lines.EditorRequest for one request of text. Callers
+// extracting every request of a text index it once with NewLines.
 func GetEditorRequest(text string, a AdjustedParsedRequest) *EditorRequest {
+	return NewLines(text).EditorRequest(a)
+}
+
+// EditorRequest extracts a single editor request from the text using adjusted line numbers.
+// See https://sourcegraph.com/github.com/elastic/kibana/-/blob/src/platform/plugins/shared/console/public/application/containers/editor/utils/requests_utils.ts?L204.
+func (l *Lines) EditorRequest(a AdjustedParsedRequest) *EditorRequest {
 	e := &EditorRequest{}
-	lines := strings.Split(text, "\n")
+	lines := l.lines
 	methodURLLine := strings.TrimSpace(lines[a.StartLineNumber])
 	if methodURLLine == "" {
 		return nil
@@ -1024,11 +1066,9 @@ func GetEditorRequest(text string, a AdjustedParsedRequest) *EditorRequest {
 
 	dataString := ""
 	if a.StartLineNumber < len(lines)-1 {
-		var validLines []string
-		for i := a.StartLineNumber + 1; i <= a.EndLineNumber; i++ {
-			validLines = append(validLines, lines[i])
-		}
-		dataString = strings.TrimSpace(strings.Join(validLines, "\n"))
+		// The lines after the method line through EndLineNumber, joined by
+		// their newlines.
+		dataString = strings.TrimSpace(l.text[l.starts[a.StartLineNumber+1]:l.LineEnd(a.EndLineNumber)])
 	}
 
 	data := SplitDataIntoJSONObjects(dataString)

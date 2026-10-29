@@ -134,3 +134,44 @@ func TestDeepCommentedBodiesStayLinear(t *testing.T) {
 		t.Errorf("%v, want one statement and no diagnostics", counts)
 	}
 }
+
+// TestManyRequestsStayLinear guards the per-request work of a script:
+// mapping each request to its lines split the whole script and counted its
+// newlines from the start, and so did converting the offsets of each
+// statement and range to positions, so 4,000 requests took 4s to parse and
+// 8s to split. Each script below holds 20,000 requests and takes
+// milliseconds when linear and minutes otherwise.
+func TestManyRequestsStayLinear(t *testing.T) {
+	const n = 20000
+	for _, tc := range []struct {
+		name string
+		text string
+		want map[string]int
+	}{
+		{
+			"requests with bodies",
+			strings.Repeat("GET /idx/_search\n{\"query\": {\"match_all\": {}}}\n\n", n),
+			map[string]int{"ParseElasticsearchREST": n, "SplitMultiSQL": n, "Diagnose": 0, "GetStatementRanges": n},
+		},
+		{
+			"requests without bodies",
+			strings.Repeat("GET /idx/_doc/1\n", n),
+			map[string]int{"ParseElasticsearchREST": n, "SplitMultiSQL": n, "Diagnose": 0, "GetStatementRanges": n},
+		},
+		{
+			// The parser resumes at the next request after each failed body;
+			// GetStatementRanges leaves the failed requests out. Without a
+			// request after the last failed body the whole parse fails.
+			"requests whose bodies fail",
+			strings.Repeat("GET /idx/_search\n{\"query\": x}\n", n) + "GET /idx/_doc/1\n",
+			map[string]int{"ParseElasticsearchREST": n + 1, "SplitMultiSQL": n + 1, "Diagnose": n, "GetStatementRanges": 1},
+		},
+	} {
+		counts := runWithin(t, tc.name, tc.text, 10*time.Second, parseREST, splitMultiSQL, diagnose, getStatementRanges)
+		for name, w := range tc.want {
+			if counts[name] != w {
+				t.Errorf("%s: %s returned %d, want %d", tc.name, name, counts[name], w)
+			}
+		}
+	}
+}

@@ -23,7 +23,7 @@ func GetStatementRanges(statement string) ([]LSPRange, error) {
 	if parseResult == nil {
 		return []LSPRange{}, nil
 	}
-	bs := []byte(statement)
+	positions := &lspPositioner{bs: []byte(statement)}
 	var ranges []LSPRange
 	for _, r := range parseResult.Requests {
 		if r == nil {
@@ -33,8 +33,8 @@ func GetStatementRanges(statement string) ([]LSPRange, error) {
 			continue
 		}
 
-		startPosition := getPositionByByteOffset(r.StartOffset, bs)
-		endPosition := getPositionByByteOffset(r.EndOffset, bs)
+		startPosition := positions.position(r.StartOffset)
+		endPosition := positions.position(r.EndOffset)
 		if startPosition == nil || endPosition == nil {
 			continue
 		}
@@ -46,33 +46,55 @@ func GetStatementRanges(statement string) ([]LSPRange, error) {
 	return ranges, nil
 }
 
-// getPositionByByteOffset converts a byte offset into an LSPPosition.
-// It counts newlines to determine the line number and accumulates UTF-16
-// code units for the character column. Characters outside the BMP (code points
-// above U+FFFF, encoded as 4-byte UTF-8 sequences) consume two UTF-16 code
-// units and therefore advance the character counter by 2.
-func getPositionByByteOffset(byteOffset int, bs []byte) *LSPPosition {
-	var position LSPPosition
-	for i := 0; ; {
-		if i >= byteOffset || i > len(bs) {
-			break
-		}
-		if bs[i] == '\n' {
-			position.Line++
-			position.Character = 0
-			i++
+// lspPositioner converts byte offsets into LSPPositions. It counts newlines
+// to determine the line number and accumulates UTF-16 code units for the
+// character column. Characters outside the BMP (code points above U+FFFF,
+// encoded as 4-byte UTF-8 sequences) consume two UTF-16 code units and
+// therefore advance the character counter by 2. It resumes from the offset it
+// was last asked for instead of scanning from the start for every offset,
+// which made the ranges of a script of n requests take time quadratic in n.
+type lspPositioner struct {
+	bs []byte
+	// i is the byte offset at describes.
+	i  int
+	at LSPPosition
+	// invalid is set once the scan reaches U+FFFD or a byte that is not
+	// UTF-8, at offset i; no position past it is reported.
+	invalid bool
+	// last is the offset last asked for.
+	last int
+}
+
+// position returns the position at byteOffset, or nil when the text before
+// it holds U+FFFD or a byte that is not UTF-8.
+func (p *lspPositioner) position(byteOffset int) *LSPPosition {
+	if byteOffset < p.last {
+		// Offsets come in order; start over for one that does not.
+		*p = lspPositioner{bs: p.bs}
+	}
+	p.last = byteOffset
+	for !p.invalid && p.i < byteOffset && p.i < len(p.bs) {
+		if p.bs[p.i] == '\n' {
+			p.at.Line++
+			p.at.Character = 0
+			p.i++
 			continue
 		}
-		r, size := utf8.DecodeRune(bs[i:])
+		r, size := utf8.DecodeRune(p.bs[p.i:])
 		if r == utf8.RuneError {
-			return nil
+			p.invalid = true
+			break
 		}
-		position.Character++
+		p.at.Character++
 		if r > 0xFFFF {
 			// Outside the BMP — requires a surrogate pair in UTF-16.
-			position.Character++
+			p.at.Character++
 		}
-		i += size
+		p.i += size
 	}
+	if p.invalid && p.i < byteOffset {
+		return nil
+	}
+	position := p.at
 	return &position
 }

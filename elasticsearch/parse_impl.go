@@ -28,6 +28,7 @@ func parseREST(text string, cleanData bool) (*ParseResult, []int, error) {
 		return nil, nil, err
 	}
 
+	lines := parser.NewLines(text)
 	var requests []*Request
 	var ends []int
 	for i, pr := range raw.Requests {
@@ -36,11 +37,11 @@ func parseREST(text string, cleanData bool) (*ParseResult, []int, error) {
 		if i < len(raw.Requests)-1 {
 			nextRequest = &raw.Requests[i+1]
 		}
-		adjustedOffset := parser.GetAdjustedParsedRequest(pr, text, nextRequest)
+		adjustedOffset := lines.AdjustedParsedRequest(pr, nextRequest)
 		if adjustedOffset.StartLineNumber > adjustedOffset.EndLineNumber {
 			continue
 		}
-		editorRequest := parser.GetEditorRequest(text, adjustedOffset)
+		editorRequest := lines.EditorRequest(adjustedOffset)
 		if editorRequest == nil {
 			continue
 		}
@@ -60,7 +61,7 @@ func parseREST(text string, cleanData bool) (*ParseResult, []int, error) {
 			StartOffset: pr.StartOffset,
 			EndOffset:   pr.EndOffset,
 		})
-		ends = append(ends, requestEnd(text, pr, nextRequest, adjustedOffset.EndLineNumber))
+		ends = append(ends, requestEnd(text, lines, pr, nextRequest, adjustedOffset.EndLineNumber))
 	}
 
 	// Convert errors
@@ -126,20 +127,11 @@ func parseREST(text string, cleanData bool) (*ParseResult, []int, error) {
 // trailing whitespace, and never past the start of the next request. A
 // request that holds only whitespace keeps it, and splits as an empty
 // statement.
-func requestEnd(text string, r parser.ParsedRequest, next *parser.ParsedRequest, endLine int) int {
+func requestEnd(text string, lines *parser.Lines, r parser.ParsedRequest, next *parser.ParsedRequest, endLine int) int {
 	if r.EndOffset >= 0 {
 		return r.EndOffset
 	}
-	end := len(text)
-	for i, line := 0, 0; i < len(text); i++ {
-		if text[i] == '\n' {
-			if line == endLine {
-				end = i
-				break
-			}
-			line++
-		}
-	}
+	end := lines.LineEnd(endLine)
 	if next != nil && next.StartOffset < end {
 		end = next.StartOffset
 	}

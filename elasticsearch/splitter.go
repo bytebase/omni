@@ -1,6 +1,9 @@
 package elasticsearch
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 // Statement is a single parsed Elasticsearch REST API request with position and byte range info.
 type Statement struct {
@@ -34,6 +37,7 @@ func SplitMultiSQL(statement string) ([]Statement, error) {
 		return []Statement{{Text: statement}}, nil
 	}
 
+	positions := newPositioner(statement)
 	var statements []Statement
 	for i, req := range parseResult.Requests {
 		if req == nil {
@@ -43,8 +47,8 @@ func SplitMultiSQL(statement string) ([]Statement, error) {
 		text := statement[req.StartOffset:end]
 		empty := len(strings.TrimSpace(text)) == 0
 
-		startLine, startColumn := byteOffsetToPosition(statement, req.StartOffset)
-		endLine, endColumn := byteOffsetToPosition(statement, end)
+		startLine, startColumn := positions.position(req.StartOffset)
+		endLine, endColumn := positions.position(end)
 
 		statements = append(statements, Statement{
 			Text:  text,
@@ -66,24 +70,43 @@ func SplitMultiSQL(statement string) ([]Statement, error) {
 	return statements, nil
 }
 
-// byteOffsetToPosition converts a byte offset to 1-based line and column numbers.
-// Column is measured in Unicode code points (runes), not bytes.
-func byteOffsetToPosition(text string, byteOffset int) (line, column int) {
-	line = 1
-	column = 1
-	currentByte := 0
+// positioner converts byte offsets to 1-based line and column numbers.
+// Column is measured in Unicode code points (runes), not bytes. It resumes
+// from the offset it was last asked for instead of scanning the text from
+// its start for every offset, which made splitting a script of n requests
+// take time quadratic in n.
+type positioner struct {
+	text string
+	// next is the byte offset of the next rune to read, and consumed the
+	// bytes read so far as the scan counts them: an invalid byte reads as
+	// U+FFFD and counts as its three bytes.
+	next, consumed int
+	line, column   int
+	// last is the offset last asked for.
+	last int
+}
 
-	for _, r := range text {
-		if currentByte >= byteOffset {
-			break
-		}
-		if r == '\n' {
-			line++
-			column = 1
-		} else {
-			column++
-		}
-		currentByte += len(string(r))
+func newPositioner(text string) *positioner {
+	return &positioner{text: text, line: 1, column: 1}
+}
+
+// position returns the line and column at byteOffset.
+func (p *positioner) position(byteOffset int) (line, column int) {
+	if byteOffset < p.last {
+		// Offsets come in order; start over for one that does not.
+		*p = *newPositioner(p.text)
 	}
-	return line, column
+	p.last = byteOffset
+	for p.next < len(p.text) && p.consumed < byteOffset {
+		r, size := utf8.DecodeRuneInString(p.text[p.next:])
+		if r == '\n' {
+			p.line++
+			p.column = 1
+		} else {
+			p.column++
+		}
+		p.consumed += utf8.RuneLen(r)
+		p.next += size
+	}
+	return p.line, p.column
 }
