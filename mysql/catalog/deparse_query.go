@@ -6,20 +6,27 @@ import (
 
 // DeparseQuery converts an analyzed Query IR back to canonical SQL text.
 func DeparseQuery(q *Query) string {
-	if q == nil {
-		return ""
-	}
-	if q.SetOp != SetOpNone {
-		return deparseSetOpQuery(q)
-	}
-	return deparseSimpleQuery(q)
+	var b strings.Builder
+	writeQueryQ(&b, q)
+	return b.String()
 }
 
-func deparseSimpleQuery(q *Query) string {
-	var b strings.Builder
+// writeQueryQ writes a query into the builder of the whole call (see
+// writeAnalyzedExpr); a UNION ALL chain nests one Query per arm.
+func writeQueryQ(b *strings.Builder, q *Query) {
+	if q == nil {
+		return
+	}
+	if q.SetOp != SetOpNone {
+		deparseSetOpQuery(b, q)
+		return
+	}
+	deparseSimpleQuery(b, q)
+}
 
+func deparseSimpleQuery(b *strings.Builder, q *Query) {
 	if len(q.CTEList) > 0 {
-		deparseCTEsQ(&b, q)
+		deparseCTEsQ(b, q)
 	}
 
 	b.WriteString("select ")
@@ -28,43 +35,41 @@ func deparseSimpleQuery(q *Query) string {
 		b.WriteString("distinct ")
 	}
 
-	deparseTargetListQ(&b, q)
+	deparseTargetListQ(b, q)
 
 	if len(q.RangeTable) > 0 && q.JoinTree != nil && len(q.JoinTree.FromList) > 0 {
 		b.WriteString(" from ")
-		deparseFromClauseQ(&b, q)
+		deparseFromClauseQ(b, q)
 	}
 
 	if q.JoinTree != nil && q.JoinTree.Quals != nil {
 		b.WriteString(" where ")
-		b.WriteString(DeparseAnalyzedExpr(q.JoinTree.Quals, q))
+		writeAnalyzedExpr(b, q.JoinTree.Quals, q)
 	}
 
 	if len(q.GroupClause) > 0 {
 		b.WriteString(" group by ")
-		deparseGroupByQ(&b, q)
+		deparseGroupByQ(b, q)
 	}
 
 	if q.HavingQual != nil {
 		b.WriteString(" having ")
-		b.WriteString(DeparseAnalyzedExpr(q.HavingQual, q))
+		writeAnalyzedExpr(b, q.HavingQual, q)
 	}
 
 	if len(q.SortClause) > 0 {
 		b.WriteString(" order by ")
-		deparseOrderByQ(&b, q)
+		deparseOrderByQ(b, q)
 	}
 
 	if q.LimitCount != nil {
 		b.WriteString(" limit ")
-		b.WriteString(DeparseAnalyzedExpr(q.LimitCount, q))
+		writeAnalyzedExpr(b, q.LimitCount, q)
 		if q.LimitOffset != nil {
 			b.WriteString(" offset ")
-			b.WriteString(DeparseAnalyzedExpr(q.LimitOffset, q))
+			writeAnalyzedExpr(b, q.LimitOffset, q)
 		}
 	}
-
-	return b.String()
 }
 
 func deparseCTEsQ(b *strings.Builder, q *Query) {
@@ -88,7 +93,7 @@ func deparseCTEsQ(b *strings.Builder, q *Query) {
 			b.WriteByte(')')
 		}
 		b.WriteString(" as (")
-		b.WriteString(DeparseQuery(cte.Query))
+		writeQueryQ(b, cte.Query)
 		b.WriteString(") ")
 	}
 }
@@ -104,8 +109,7 @@ func deparseTargetListQ(b *strings.Builder, q *Query) {
 		}
 		first = false
 
-		exprText := DeparseAnalyzedExpr(te.Expr, q)
-		b.WriteString(exprText)
+		writeAnalyzedExpr(b, te.Expr, q)
 
 		// Omit alias when expression is a simple column ref whose name matches ResName.
 		needAlias := true
@@ -163,7 +167,7 @@ func deparseRTERefQ(b *strings.Builder, idx int, q *Query) {
 		}
 	case RTESubquery:
 		b.WriteByte('(')
-		b.WriteString(DeparseQuery(rte.Subquery))
+		writeQueryQ(b, rte.Subquery)
 		b.WriteString(") as ")
 		b.WriteString(backtickIDQ(rte.ERef))
 	case RTECTE:
@@ -204,7 +208,7 @@ func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *Query) {
 
 	if j.Quals != nil {
 		b.WriteString(" on ")
-		b.WriteString(DeparseAnalyzedExpr(j.Quals, q))
+		writeAnalyzedExpr(b, j.Quals, q)
 	}
 
 	if len(j.UsingClause) > 0 && j.Quals == nil {
@@ -225,7 +229,7 @@ func deparseGroupByQ(b *strings.Builder, q *Query) {
 			b.WriteString(", ")
 		}
 		if sc.TargetIdx >= 1 && sc.TargetIdx <= len(q.TargetList) {
-			b.WriteString(DeparseAnalyzedExpr(q.TargetList[sc.TargetIdx-1].Expr, q))
+			writeAnalyzedExpr(b, q.TargetList[sc.TargetIdx-1].Expr, q)
 		}
 	}
 }
@@ -236,7 +240,7 @@ func deparseOrderByQ(b *strings.Builder, q *Query) {
 			b.WriteString(", ")
 		}
 		if sc.TargetIdx >= 1 && sc.TargetIdx <= len(q.TargetList) {
-			b.WriteString(DeparseAnalyzedExpr(q.TargetList[sc.TargetIdx-1].Expr, q))
+			writeAnalyzedExpr(b, q.TargetList[sc.TargetIdx-1].Expr, q)
 		}
 		if sc.Descending {
 			b.WriteString(" desc")
@@ -244,14 +248,12 @@ func deparseOrderByQ(b *strings.Builder, q *Query) {
 	}
 }
 
-func deparseSetOpQuery(q *Query) string {
-	var b strings.Builder
-
+func deparseSetOpQuery(b *strings.Builder, q *Query) {
 	if len(q.CTEList) > 0 {
-		deparseCTEsQ(&b, q)
+		deparseCTEsQ(b, q)
 	}
 
-	b.WriteString(DeparseQuery(q.LArg))
+	writeQueryQ(b, q.LArg)
 	b.WriteByte(' ')
 
 	switch q.SetOp {
@@ -267,23 +269,21 @@ func deparseSetOpQuery(q *Query) string {
 	}
 
 	b.WriteByte(' ')
-	b.WriteString(DeparseQuery(q.RArg))
+	writeQueryQ(b, q.RArg)
 
 	if len(q.SortClause) > 0 {
 		b.WriteString(" order by ")
-		deparseOrderByQ(&b, q)
+		deparseOrderByQ(b, q)
 	}
 
 	if q.LimitCount != nil {
 		b.WriteString(" limit ")
-		b.WriteString(DeparseAnalyzedExpr(q.LimitCount, q))
+		writeAnalyzedExpr(b, q.LimitCount, q)
 		if q.LimitOffset != nil {
 			b.WriteString(" offset ")
-			b.WriteString(DeparseAnalyzedExpr(q.LimitOffset, q))
+			writeAnalyzedExpr(b, q.LimitOffset, q)
 		}
 	}
-
-	return b.String()
 }
 
 // backtickIDQ wraps an identifier in backticks.

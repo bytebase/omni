@@ -516,23 +516,91 @@ func (p *Parser) firstTokenPastParens() Token {
 //
 // The result depends only on where the parse starts, so a failure is recorded
 // (see parenQueryFail) and returned again without reparsing. Completion mode
-// collects candidates along the way and always reparses.
+// records its failures with the effects a reparse would repeat (see
+// parenQueryReplay).
 func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 	start := p.pos()
 	if err, ok := p.parenQueryFail[start]; ok {
 		return nil, err
 	}
+	if p.completing {
+		return p.parseSelectWithParensCompleting(start)
+	}
 	sel, err := p.parseSelectWithParensAt(start)
-	// A failure at the nesting limit is recorded in completion mode too:
-	// otherwise the speculation at every level above it descends to the
-	// limit again.
-	if err != nil && (!p.completing || isNestingError(err)) {
-		if p.parenQueryFail == nil {
-			p.parenQueryFail = make(map[int]error)
-		}
-		p.parenQueryFail[start] = err
+	if err != nil {
+		p.recordParenQueryFail(start, err)
 	}
 	return sel, err
+}
+
+func (p *Parser) recordParenQueryFail(start int, err error) {
+	if p.parenQueryFail == nil {
+		p.parenQueryFail = make(map[int]error)
+	}
+	p.parenQueryFail[start] = err
+}
+
+// parenQueryKey identifies a completion-mode parse of a parenthesized query
+// expression: the offset of its '(' and whether collection was armed when it
+// began, the one piece of parser state besides the input that steers it.
+type parenQueryKey struct {
+	start      int
+	collecting bool
+}
+
+// parenQueryFailure is a completion-mode parseSelectWithParens failure and
+// what reparsing from the same place would do again: stop the scan at the
+// same token, and record the same CTE and select-alias positions. The token
+// and rule candidates it collected are in their sets already, which a reparse
+// would leave unchanged.
+type parenQueryFailure struct {
+	err      error
+	end      scanState
+	ctePos   []int
+	aliasPos []int
+}
+
+// parseSelectWithParensCompleting is parseSelectWithParens in completion
+// mode. Returning a failure again without its effects would lose candidates,
+// so a replay restores them instead of reparsing, which keeps the speculation
+// at every level of `((((SELECT 1) = 0) = 0) = 0)` linear: reparsing took 8 s
+// at 10,000 levels. A failure at the nesting limit is recorded plainly, as
+// outside completion mode: completion stops there.
+func (p *Parser) parseSelectWithParensCompleting(start int) (*nodes.SelectStmt, error) {
+	key := parenQueryKey{start: start, collecting: p.collecting}
+	if f, ok := p.parenQueryReplay[key]; ok {
+		e := f.end
+		*p.lexer = e.lexer
+		p.cur, p.prev, p.nextBuf, p.hasNext, p.collecting = e.cur, e.prev, e.nextBuf, e.hasNext, e.collecting
+		if p.candidates != nil {
+			p.candidates.CTEPositions = append(p.candidates.CTEPositions, f.ctePos...)
+			p.candidates.SelectAliasPositions = append(p.candidates.SelectAliasPositions, f.aliasPos...)
+		}
+		return nil, f.err
+	}
+	before := p.saveScan()
+	sel, err := p.parseSelectWithParensAt(start)
+	if err == nil {
+		return sel, nil
+	}
+	if isNestingError(err) {
+		p.recordParenQueryFail(start, err)
+		return nil, err
+	}
+	f := &parenQueryFailure{err: err, end: p.saveScan()}
+	if cs := p.candidates; cs != nil {
+		if len(cs.CTEPositions) > before.ctePosLen {
+			f.ctePos = append([]int(nil), cs.CTEPositions[before.ctePosLen:]...)
+		}
+		if len(cs.SelectAliasPositions) > before.aliasPosLen {
+			f.aliasPos = append([]int(nil), cs.SelectAliasPositions[before.aliasPosLen:]...)
+		}
+	}
+	if p.parenQueryReplay == nil {
+		p.parenQueryReplay = make(map[parenQueryKey]*parenQueryFailure)
+	}
+	p.parenQueryReplay[key] = f
+	return nil, err
 }
 
 func (p *Parser) parseSelectWithParensAt(start int) (*nodes.SelectStmt, error) {

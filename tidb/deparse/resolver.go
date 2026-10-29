@@ -215,7 +215,6 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	// so that NATURAL JOIN expansion can mark coalesced columns for star expansion.
 	r.resolveFromExprs(stmt.From, sc)
 
-
 	// Resolve target list (may expand stars)
 	stmt.TargetList = r.resolveTargetList(stmt.TargetList, sc)
 
@@ -382,11 +381,8 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *scopepkg.Scope) []a
 
 	// Find the effective name from scope entries (preserves alias casing)
 	effectiveName := tableName
-	for _, entry := range sc.AllEntries() {
-		if strings.EqualFold(entry.Name, tableName) {
-			effectiveName = entry.Name
-			break
-		}
+	if entry, ok := sc.FirstEqualFold(tableName); ok {
+		effectiveName = entry.Name
 	}
 
 	var result []ast.ExprNode
@@ -526,39 +522,22 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *scopepkg.Scope) ast.
 		// Check if this table name is in scope (might be an alias)
 		if sc.GetTable(col.Table) != nil {
 			// Find the effective name from scope (preserves case)
-			for _, entry := range sc.AllEntries() {
-				if strings.EqualFold(entry.Name, col.Table) {
-					col.Table = entry.Name
-					break
-				}
+			if entry, ok := sc.FirstEqualFold(col.Table); ok {
+				col.Table = entry.Name
 			}
 		}
 		return col
 	}
 
-	// Unqualified — search all tables in scope
-	var matchTable string
-	var matchCount int
-	for _, entry := range sc.AllEntries() {
-		if entry.Table.GetColumn(col.Column) != nil {
-			if matchCount == 0 {
-				matchTable = entry.Name
-			}
-			matchCount++
-		}
-	}
-
-	if matchCount == 0 {
+	// Unqualified — qualify with the first table in scope holding the column.
+	// When more than one does, MySQL would raise ERROR 1052: Column 'x' in
+	// field list is ambiguous. TODO: return error
+	entry, ok := sc.FirstWithColumn(col.Column)
+	if !ok {
 		// Column not found — return as-is (could be a literal alias or error)
 		return col
 	}
-	if matchCount > 1 {
-		// Ambiguous — for now, qualify with first match
-		// MySQL would raise ERROR 1052: Column 'x' in field list is ambiguous
-		// TODO: return error
-	}
-
-	col.Table = matchTable
+	col.Table = entry.Name
 	return col
 }
 

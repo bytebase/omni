@@ -7,6 +7,8 @@ package scope
 import (
 	"fmt"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Column represents a column visible from a scope entry.
@@ -43,6 +45,13 @@ type Scope struct {
 	entries       []Entry
 	byName        map[string]int  // lowered name -> index into entries
 	coalescedCols map[string]bool // "tablename.colname" (lowered) -> hidden by USING/NATURAL
+
+	// Indexes over entries[:indexed], extended when FirstEqualFold or
+	// FirstWithColumn needs them, so that resolving each column reference
+	// over a long join chain does not scan every entry.
+	firstByFold   map[string]int // foldKey(name) -> first entry with that name
+	firstByColumn map[string]int // lowered column name -> first entry holding it
+	indexed       int
 }
 
 // New creates an empty scope.
@@ -114,6 +123,78 @@ func (s *Scope) GetTable(name string) *Table {
 // AllEntries returns all scope entries in registration order.
 func (s *Scope) AllEntries() []Entry {
 	return s.entries
+}
+
+// FirstEqualFold returns the first entry, in registration order, whose name
+// strings.EqualFold matches name.
+func (s *Scope) FirstEqualFold(name string) (Entry, bool) {
+	s.index()
+	if i, ok := s.firstByFold[foldKey(name)]; ok {
+		return s.entries[i], true
+	}
+	return Entry{}, false
+}
+
+// FirstWithColumn returns the first entry, in registration order, holding a
+// column named col as Table.GetColumn matches it. Entries' columns must not
+// change after Add.
+func (s *Scope) FirstWithColumn(col string) (Entry, bool) {
+	s.index()
+	if i, ok := s.firstByColumn[strings.ToLower(col)]; ok {
+		return s.entries[i], true
+	}
+	return Entry{}, false
+}
+
+// index extends the lookup indexes over the entries added since last time.
+func (s *Scope) index() {
+	if s.firstByFold == nil {
+		s.firstByFold = make(map[string]int, len(s.entries))
+		s.firstByColumn = make(map[string]int)
+	}
+	for ; s.indexed < len(s.entries); s.indexed++ {
+		e := s.entries[s.indexed]
+		if k := foldKey(e.Name); !hasKey(s.firstByFold, k) {
+			s.firstByFold[k] = s.indexed
+		}
+		for _, c := range e.Table.Columns {
+			if k := strings.ToLower(c.Name); !hasKey(s.firstByColumn, k) {
+				s.firstByColumn[k] = s.indexed
+			}
+		}
+	}
+}
+
+func hasKey(m map[string]int, k string) bool {
+	_, ok := m[k]
+	return ok
+}
+
+// foldKey maps two names to the same key exactly when strings.EqualFold
+// reports them equal: that compares rune by rune, matching runes of one
+// simple case-folding orbit, so each rune becomes the least of its orbit.
+func foldKey(name string) string {
+	ascii := true
+	for i := 0; i < len(name); i++ {
+		if name[i] >= utf8.RuneSelf {
+			ascii = false
+			break
+		}
+	}
+	if ascii {
+		return strings.ToUpper(name)
+	}
+	var b strings.Builder
+	for _, r := range name {
+		least := r
+		for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+			if f < least {
+				least = f
+			}
+		}
+		b.WriteRune(least)
+	}
+	return b.String()
 }
 
 // MarkCoalesced marks a column from a table as hidden by USING/NATURAL.
