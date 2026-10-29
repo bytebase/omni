@@ -61,6 +61,10 @@ var nestingShapes = []struct {
 	{"parenthesized table", func(n int) string { return "SELECT * FROM " + nest(n, "(", "t", ")") }},
 	{"parenthesized select", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION (", "SELECT 1", ")") }},
+	// The SelectStmt over a TABLE or VALUES source shares the source's ORDER
+	// BY, which the tree-height walk must not follow twice.
+	{"TABLE in ORDER BY", func(n int) string { return nest(n, "TABLE t ORDER BY (", "SELECT 1", ")") }},
+	{"VALUES in ORDER BY", func(n int) string { return nest(n, "VALUES ROW(1) ORDER BY (", "SELECT 1", ")") }},
 	{"CTE", func(n int) string { return nest(n, "WITH c AS (", "SELECT 1", ") SELECT * FROM c") }},
 	{"JSON_TABLE nested columns", func(n int) string {
 		return "SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (" +

@@ -232,3 +232,18 @@ func TestTreeHeightPerByte(t *testing.T) {
 		check(tc.name, tc.sql(1000))
 	}
 }
+
+// TestTreeHeightSharedSourceClauses: the SelectStmt over a TABLE or VALUES
+// source shares the source's ORDER BY, and a tree-height walk that followed
+// both doubled at every source nested in another's ORDER BY. MariaDB 11.8
+// rejects TABLE and VALUES ROW, which this parser keeps from MySQL, so the
+// test bounds the parse, not its answer.
+func TestTreeHeightSharedSourceClauses(t *testing.T) {
+	for _, open := range []string{"TABLE t ORDER BY (", "VALUES ROW(1) ORDER BY ("} {
+		err := parseWithin(nest(1000, open, "SELECT 1", ")"))
+		var pe *ParseError
+		if err != nil && !errors.As(err, &pe) {
+			t.Errorf("%s: %v", open, err)
+		}
+	}
+}
