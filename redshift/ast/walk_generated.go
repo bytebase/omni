@@ -237,16 +237,6 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Attlist)
 		walkList(v, n.Options)
 		Walk(v, n.WhereClause)
-	case *UnloadStmt:
-		walkList(v, n.Options)
-	case *RedshiftShowStmt:
-		walkList(v, n.Options)
-	case *RedshiftDescStmt:
-		walkList(v, n.Name)
-		walkList(v, n.Options)
-	case *RedshiftObjectStmt:
-		walkList(v, n.Name)
-		walkList(v, n.Options)
 	case *CreateAmStmt:
 		walkList(v, n.HandlerName)
 	case *CreateCastStmt:
@@ -779,6 +769,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.Newrole != nil {
 			Walk(v, n.Newrole)
 		}
+	case *RedshiftDescStmt:
+		walkList(v, n.Name)
+		walkList(v, n.Options)
+	case *RedshiftObjectStmt:
+		walkList(v, n.Name)
+		walkList(v, n.Options)
+	case *RedshiftShowStmt:
+		walkList(v, n.Options)
 	case *RefreshMatViewStmt:
 		if n.Relation != nil {
 			Walk(v, n.Relation)
@@ -871,6 +869,8 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Names)
 		walkList(v, n.Typmods)
 		walkList(v, n.ArrayBounds)
+	case *UnloadStmt:
+		walkList(v, n.Options)
 	case *UpdateStmt:
 		if n.Relation != nil {
 			Walk(v, n.Relation)

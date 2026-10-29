@@ -1,6 +1,9 @@
 package ast
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestWalkSelectStmt(t *testing.T) {
 	// SELECT a, b FROM t WHERE x > 0
@@ -49,6 +52,37 @@ func TestWalkSelectStmt(t *testing.T) {
 		if !tagSet[want] {
 			t.Errorf("expected %s to be visited", NodeTagName(want))
 		}
+	}
+}
+
+func TestWalkNestedLists(t *testing.T) {
+	// FROM f() holds each function in a list inside RangeFunction.Functions.
+	tree := &RangeFunction{Functions: &List{Items: []Node{
+		&List{Items: []Node{&FuncCall{Funcname: &List{Items: []Node{&String{Str: "f"}}}}}},
+	}}}
+	found := false
+	Inspect(tree, func(n Node) bool {
+		if _, ok := n.(*FuncCall); ok {
+			found = true
+		}
+		return true
+	})
+	if !found {
+		t.Error("the function in a nested list was not visited")
+	}
+}
+
+func TestWalkBareList(t *testing.T) {
+	// A walk started on a List visits the List, then each of its items.
+	list := &List{Items: []Node{&String{Str: "a"}, nil, &Integer{Ival: 1}}}
+	var visited []NodeTag
+	Inspect(list, func(n Node) bool {
+		visited = append(visited, n.Tag())
+		return true
+	})
+	want := []NodeTag{T_List, T_String, T_Integer}
+	if !slices.Equal(visited, want) {
+		t.Errorf("visited %v, want %v", visited, want)
 	}
 }
 

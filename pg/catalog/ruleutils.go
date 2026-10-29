@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 )
@@ -62,7 +63,7 @@ func (c *Catalog) deparseRelationQuery(rel *Relation, pretty bool) (string, erro
 
 	ctx := &deparseCtx{
 		catalog:     c,
-		buf:         &strings.Builder{},
+		buf:         &bytes.Buffer{},
 		indentLevel: 0,
 		// pg: src/backend/utils/adt/ruleutils.c — pg_get_viewdef_worker
 		prettyIndent:       true,
@@ -89,7 +90,7 @@ func (c *Catalog) DeparseExpr(expr AnalyzedExpr, rtable []*RangeTableEntry, pret
 	}
 	ctx := &deparseCtx{
 		catalog:      c,
-		buf:          &strings.Builder{},
+		buf:          &bytes.Buffer{},
 		prettyIndent: true,
 		prettyParen:  prettyParen,
 		query:        &Query{RangeTable: rtable},
@@ -103,7 +104,7 @@ func (c *Catalog) DeparseExpr(expr AnalyzedExpr, rtable []*RangeTableEntry, pret
 // pg: src/backend/utils/adt/ruleutils.c — deparse_context
 type deparseCtx struct {
 	catalog            *Catalog
-	buf                *strings.Builder
+	buf                *bytes.Buffer
 	indentLevel        int
 	prettyIndent       bool
 	prettyParen        bool
@@ -112,6 +113,14 @@ type deparseCtx struct {
 	colNamesVisible    bool // true for views (always show AS for non-Var)
 	query              *Query
 	parentCtx          *deparseCtx // for resolving outer Var references (LevelsUp > 0)
+
+	// setOpLevels counts the set operations whose arm this context is, one
+	// directly inside the next, and aboveSetOps is the context above the
+	// outermost of them. The analyzer nests each arm of a left-deep UNION a
+	// level inside the next, so an outer reference from an arm that stepped
+	// up one level at a time made a long UNION of such arms quadratic.
+	setOpLevels int
+	aboveSetOps *deparseCtx
 }
 
 const (
@@ -287,8 +296,7 @@ func (d *deparseCtx) getSetOpQuery(query *Query) {
 		d.appendContextKeyword("", subindent, 0, 0)
 	}
 	if query.LArg != nil {
-		subCtx := d.subContext()
-		subCtx.hasParentNamespace = true
+		subCtx := d.armContext()
 		subCtx.colNamesVisible = d.colNamesVisible
 		subCtx.getSelectQueryDef(query.LArg)
 		d.indentLevel = subCtx.indentLevel
@@ -329,8 +337,7 @@ func (d *deparseCtx) getSetOpQuery(query *Query) {
 	d.appendContextKeyword("", subindent, 0, 0)
 
 	if query.RArg != nil {
-		subCtx := d.subContext()
-		subCtx.hasParentNamespace = true
+		subCtx := d.armContext()
 		subCtx.colNamesVisible = false // PG sets colNamesVisible=false for right branch
 		subCtx.getSelectQueryDef(query.RArg)
 		d.indentLevel = subCtx.indentLevel
@@ -362,7 +369,7 @@ func (d *deparseCtx) getTargetList(tlist []*TargetEntry) {
 		sep = ", "
 
 		// Render expression to a temporary buffer so we can check for wrapping.
-		var targetBuf strings.Builder
+		var targetBuf bytes.Buffer
 		tmpCtx := d.subContextBuf(&targetBuf)
 
 		// pg: get_target_list — Var uses get_variable directly
@@ -426,7 +433,7 @@ func (d *deparseCtx) getFromClause(query *Query) {
 			d.buf.WriteString(", ")
 
 			// Render to temp buffer for wrapping check.
-			var itemBuf strings.Builder
+			var itemBuf bytes.Buffer
 			tmpCtx := d.subContextBuf(&itemBuf)
 			tmpCtx.getFromClauseItem(jn, query)
 			d.indentLevel = tmpCtx.indentLevel
@@ -773,11 +780,14 @@ func (d *deparseCtx) getVariableReturningName(v *VarExpr) string {
 	// pg: src/backend/utils/adt/ruleutils.c — get_variable uses
 	// deparse_namespace which tracks multiple levels.
 	ctx := d
-	for i := 0; i < v.LevelsUp; i++ {
-		if ctx.parentCtx == nil {
-			break
+	for up := v.LevelsUp; up > 0 && ctx.parentCtx != nil; {
+		if ctx.setOpLevels > 0 && ctx.setOpLevels < up && ctx.aboveSetOps != nil {
+			up -= ctx.setOpLevels + 1
+			ctx = ctx.aboveSetOps
+			continue
 		}
 		ctx = ctx.parentCtx
+		up--
 	}
 
 	if ctx.query == nil || v.RangeIdx >= len(ctx.query.RangeTable) {
@@ -2309,7 +2319,7 @@ func (d *deparseCtx) subContext() *deparseCtx {
 }
 
 // subContextBuf creates a child deparse context writing to a different buffer.
-func (d *deparseCtx) subContextBuf(buf *strings.Builder) *deparseCtx {
+func (d *deparseCtx) subContextBuf(buf *bytes.Buffer) *deparseCtx {
 	return &deparseCtx{
 		catalog:            d.catalog,
 		buf:                buf,
@@ -2321,7 +2331,20 @@ func (d *deparseCtx) subContextBuf(buf *strings.Builder) *deparseCtx {
 		colNamesVisible:    d.colNamesVisible,
 		query:              d.query,
 		parentCtx:          d.parentCtx,
+		setOpLevels:        d.setOpLevels,
+		aboveSetOps:        d.aboveSetOps,
 	}
+}
+
+// armContext creates the context of an arm of the set operation d deparses.
+func (d *deparseCtx) armContext() *deparseCtx {
+	arm := d.subContext()
+	arm.hasParentNamespace = true
+	arm.setOpLevels, arm.aboveSetOps = 1, d.parentCtx
+	if d.setOpLevels > 0 {
+		arm.setOpLevels, arm.aboveSetOps = d.setOpLevels+1, d.aboveSetOps
+	}
+	return arm
 }
 
 // --- Name generation helpers ---
@@ -2490,15 +2513,19 @@ func (d *deparseCtx) appendContextKeyword(str string, indentBefore, indentAfter,
 	d.buf.WriteString(str)
 }
 
-// trimBufTrailingSpaces removes trailing space characters from a strings.Builder.
+// trimBufTrailingSpaces removes trailing space characters from buf, in place:
+// rewriting the whole text to drop them, as a strings.Builder must, made a
+// definition take time quadratic in its line count, since a pretty-printed
+// definition trims before every line break.
+//
 // pg: src/backend/utils/adt/ruleutils.c — removeStringInfoSpaces
-func trimBufTrailingSpaces(buf *strings.Builder) {
-	s := buf.String()
-	trimmed := strings.TrimRight(s, " ")
-	if len(trimmed) != len(s) {
-		buf.Reset()
-		buf.WriteString(trimmed)
+func trimBufTrailingSpaces(buf *bytes.Buffer) {
+	b := buf.Bytes()
+	n := len(b)
+	for n > 0 && b[n-1] == ' ' {
+		n--
 	}
+	buf.Truncate(n)
 }
 
 // quoteIdentifier quotes an identifier if needed.
@@ -2775,7 +2802,7 @@ func (d *deparseCtx) getLockingClause(lc *LockingClauseQ) {
 }
 
 // simpleQuoteLiteral writes a single-quoted literal string.
-func simpleQuoteLiteral(buf *strings.Builder, val string) {
+func simpleQuoteLiteral(buf *bytes.Buffer, val string) {
 	buf.WriteByte('\'')
 	for _, c := range val {
 		if c == '\'' {

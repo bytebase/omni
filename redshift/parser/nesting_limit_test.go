@@ -104,6 +104,19 @@ func treeHeight(root nodes.Node) int {
 	return lo
 }
 
+// TestTreeHeightCountsLists: a List is a level of the tree, and each of its
+// items a level below it, whether the walk starts at the List or reaches it
+// from the node holding it.
+func TestTreeHeightCountsLists(t *testing.T) {
+	inner := &nodes.List{Items: []nodes.Node{&nodes.String{Str: "a"}}}
+	if h := treeHeight(&nodes.List{Items: []nodes.Node{inner}}); h != 3 {
+		t.Errorf("nested lists: tree %d deep, want 3", h)
+	}
+	if h := treeHeight(&nodes.ResTarget{Indirection: inner}); h != 3 {
+		t.Errorf("list in a node: tree %d deep, want 3", h)
+	}
+}
+
 // chainShapes build left-deep chains of n terms: the parser builds each with
 // a loop, so only the tree, not the parse, gets deep.
 var chainShapes = []struct {

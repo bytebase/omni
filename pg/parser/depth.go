@@ -68,16 +68,6 @@ func treeHeightExceeds(root nodes.Node, limit int) bool {
 		if top.depth > limit {
 			return true
 		}
-		if list, ok := top.node.(*nodes.List); ok {
-			// Walk lists a List's items only when it reaches the List from
-			// the node holding it, so read them here.
-			for _, item := range list.Items {
-				if item != nil {
-					stack = append(stack, level{item, top.depth + 1})
-				}
-			}
-			continue
-		}
 		kids.entered, kids.children = false, kids.children[:0]
 		nodes.Walk(&kids, top.node)
 		for _, child := range kids.children {
