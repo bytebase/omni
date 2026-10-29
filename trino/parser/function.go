@@ -368,11 +368,13 @@ func (p *Parser) parseIdentifierOrFunction() (Expr, error) {
 			special Expr
 			err     error
 		)
+		p.speculating++
 		if isSubstring {
 			special, err = p.parseSubstring()
 		} else {
 			special, err = p.parsePosition()
 		}
+		p.speculating--
 		if err == nil {
 			return special, nil
 		}
@@ -1043,7 +1045,10 @@ func (p *Parser) parseTrim() (Expr, error) {
 
 	// Reading 1 — `[spec] [char] FROM source`.
 	cp := p.checkpoint()
-	if te, ok := p.tryTrimFromForm(trimTok.Loc.Start); ok {
+	p.speculating++
+	te, ok := p.tryTrimFromForm(trimTok.Loc.Start)
+	p.speculating--
+	if ok {
 		return te, nil
 	}
 	p.restore(cp)

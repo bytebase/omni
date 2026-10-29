@@ -77,6 +77,18 @@ type Parser struct {
 	// whose parse fails after it; jumping over the groups already scanned
 	// keeps that linear.
 	parenGroupEnd map[int]parenReplay
+
+	// speculating counts the readings in progress that are abandoned for
+	// another reading of the same tokens when they fail: the special SUBSTRING
+	// and POSITION forms, TRIM's FROM form, a JSON_OBJECT member's leading KEY
+	// keyword, and a ROW type's field list. Every level nested inside one
+	// reads the inner level both ways too, so `substring(substring(…, 1), 1)`
+	// doubled the work per level. While a reading is in progress, every
+	// primary expression and type it parses is recorded by start offset, and
+	// the other reading replays the record instead of parsing the tokens again.
+	speculating int
+	primaryMemo map[int]exprReplay
+	typeMemo    map[int]typeReplay
 }
 
 // parenReplay is the state a scan or parse starting at a '(' left behind.
@@ -103,15 +115,56 @@ func (p *Parser) recordParenReplay() parenReplay {
 
 // replayParen moves the parser to the end state r records.
 func (p *Parser) replayParen(r parenReplay) {
-	p.lexer.pos, p.lexer.start = r.end.lexPos, r.end.lexStart
-	p.cur, p.prev, p.nextBuf, p.hasNext = r.end.cur, r.end.prev, r.end.nextBuf, r.end.hasNext
+	p.replayTo(r.end)
+}
+
+// replayTo moves the parser to the token state c records. The captured query
+// bodies are left alone; a replay that captured some appends them itself.
+func (p *Parser) replayTo(c parserCheckpoint) {
+	p.lexer.pos, p.lexer.start = c.lexPos, c.lexStart
+	p.cur, p.prev, p.nextBuf, p.hasNext = c.cur, c.prev, c.nextBuf, c.hasNext
+}
+
+// exprReplay is a recorded parsePrimary result: the expression or the error,
+// and where the parse stopped. A primary expression parses the same from a
+// given token wherever it occurs, so replaying it is indistinguishable from
+// parsing it again. raws holds the query bodies it captured raw. A failure
+// keeps none, for the reason parenFailure gives.
+type exprReplay struct {
+	expr Expr
+	err  error
+	raws []rawQuery
+	end  parserCheckpoint
+}
+
+// typeReplay is a recorded parseType result. A type holds no expression, so
+// it captures no query bodies.
+type typeReplay struct {
+	typ *DataType
+	err error
+	end parserCheckpoint
 }
 
 // rawQuery is a query body captured as raw text: the text and the absolute
-// byte offset of its first character in the parser's input.
+// byte offset of its first character in the parser's input. A recorded
+// primary expression's bodies are kept as one rawQuery holding them in group,
+// so recording a primary copies only the entries its own parse appended.
 type rawQuery struct {
 	text  string
 	start int
+	group []rawQuery
+}
+
+// eachRawQuery calls fn on every query body in qs, in source order,
+// expanding groups.
+func eachRawQuery(qs []rawQuery, fn func(rawQuery)) {
+	for _, q := range qs {
+		if q.group != nil {
+			eachRawQuery(q.group, fn)
+			continue
+		}
+		fn(q)
+	}
 }
 
 // advance consumes the current token and moves to the next one. Returns the
@@ -640,10 +693,10 @@ func dedupeErrors(errs []ParseError) []ParseError {
 // oracle). Nested placeholders are validated by the inner strict parse.
 func (p *Parser) validateSubqueries() []ParseError {
 	var out []ParseError
-	for _, q := range p.rawQueries {
+	eachRawQuery(p.rawQueries, func(q rawQuery) {
 		if strings.TrimSpace(q.text) == "" {
 			out = append(out, ParseError{Position: q.start, End: q.start, Message: "subquery must contain exactly one query"})
-			continue
+			return
 		}
 		res := parseAll(q.text, true)
 		if len(res.Errors) > 0 {
@@ -654,15 +707,15 @@ func (p *Parser) validateSubqueries() []ParseError {
 				}
 				out = append(out, e)
 			}
-			continue
+			return
 		}
 		if len(res.File.Stmts) != 1 {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
-			continue
+			return
 		}
 		if qs, ok := res.File.Stmts[0].(*QueryStmt); !ok || qs.Query == nil {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 		}
-	}
+	})
 	return out
 }

@@ -706,7 +706,10 @@ func (p *Parser) parseJSONObjectMember() (JSONObjectMember, error) {
 	if p.cur.Kind == kwKEY {
 		cp := p.checkpoint()
 		keyTok := p.advance() // tentatively consume KEY as the keyword
-		if member, ok := p.tryJSONObjectMemberBody(keyTok.Loc.Start, true); ok {
+		p.speculating++
+		member, ok := p.tryJSONObjectMemberBody(keyTok.Loc.Start, true)
+		p.speculating--
+		if ok {
 			return member, nil
 		}
 		p.restore(cp)
