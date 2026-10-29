@@ -8,6 +8,10 @@ import (
 
 // parseDataType parses a CQL data type: name or name<params>.
 func (p *Parser) parseDataType() (*ast.DataType, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	start := p.curLoc()
 	name, err := p.parseDataTypeName()
 	if err != nil {

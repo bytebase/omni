@@ -38,6 +38,10 @@ func (p *Parser) parseFromClause() (ast.TableExpr, error) {
 //	tableNonJoin                                           # TableRefBase
 //	PAREN_LEFT tableReference PAREN_RIGHT                  # TableWrapped
 func (p *Parser) parseTableReference() (ast.TableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parseTablePrimary()
 	if err != nil {
 		return nil, err
@@ -139,6 +143,12 @@ func (p *Parser) parseTablePrimary() (ast.TableExpr, error) {
 		base, err := p.parseTableBaseReference()
 		if err == nil {
 			return base, nil
+		}
+		if isNestingError(err) {
+			// A nesting error ends the parse. Retrying the wrapped reading
+			// would repeat both readings at every enclosing '(', which takes
+			// time exponential in the depth.
+			return nil, err
 		}
 		// The value-expression reading failed (e.g. the content is a join
 		// or carries an inner alias). Rewind and try the wrapped

@@ -15,6 +15,7 @@ type Parser struct {
 	prev    Token
 	nextBuf Token
 	hasNext bool
+	depth   int // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // Parse parses a CQL input containing one or more statements and returns a List of RawStmt.
@@ -32,6 +33,7 @@ func Parse(sql string) (*ast.List, error) {
 			continue
 		}
 
+		first := p.cur
 		stmtStart := p.cur.Loc
 		stmt, err := p.parseStatement()
 		if err != nil {
@@ -42,6 +44,9 @@ func Parse(sql string) (*ast.List, error) {
 		}
 
 		stmtEnd := p.prev.End
+		if treeTooHigh(stmt, stmtEnd-stmtStart) {
+			return nil, p.treeTooDeepError(first)
+		}
 		raw := &ast.RawStmt{
 			Stmt:         stmt,
 			StmtLocation: stmtStart,

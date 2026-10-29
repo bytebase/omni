@@ -93,6 +93,10 @@ func (p *Parser) parseConstant() (ast.ExprNode, error) {
 // identifier, or collection literal (map, set, list, tuple).  After parsing
 // the primary expression it checks for index access (e.g. col[0]).
 func (p *Parser) parseExpression() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	var expr ast.ExprNode
 	var err error
 
@@ -343,6 +347,10 @@ func (p *Parser) parseFunctionArgs() ([]ast.ExprNode, error) {
 
 // parseFunctionArg parses a single function argument.
 func (p *Parser) parseFunctionArg() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// Collection literals.
 	if p.cur.Type == tokLBRACE || p.cur.Type == tokLBRACK {
 		return p.parseCollectionLiteral()

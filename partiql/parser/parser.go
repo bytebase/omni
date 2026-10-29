@@ -48,12 +48,14 @@ func (e *ParseError) Error() string {
 //   - prev:    most recently consumed token, used to compute end Locs
 //   - nextBuf: one-token lookahead buffer for peekNext()
 //   - hasNext: true when nextBuf holds a valid token
+//   - depth:   nesting depth of the productions being parsed (see enterNesting)
 type Parser struct {
 	lexer   *Lexer
 	cur     Token
 	prev    Token
 	nextBuf Token
 	hasNext bool
+	depth   int
 }
 
 // NewParser creates a Parser that reads from the given input string.
@@ -246,6 +248,7 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
+	first := p.cur
 	expr, err := p.parseExprTop()
 	if err != nil {
 		return nil, err
@@ -265,6 +268,9 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 			Message:  fmt.Sprintf("unexpected token %q after expression", p.cur.Str),
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
+	}
+	if treeTooHigh(expr, p.prev.Loc.End-first.Loc.Start) {
+		return nil, nestedTooDeeply(first)
 	}
 	return expr, nil
 }
@@ -695,6 +701,7 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
+	first := p.cur
 	var stmt ast.StmtNode
 	var err error
 	switch p.cur.Type {
@@ -756,6 +763,9 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 			Message:  fmt.Sprintf("unexpected token %q after statement", p.cur.Str),
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
+	}
+	if treeTooHigh(stmt, p.prev.Loc.End-first.Loc.Start) {
+		return nil, nestedTooDeeply(first)
 	}
 	return stmt, nil
 }

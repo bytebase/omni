@@ -227,6 +227,10 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 }
 
 func (p *Parser) parseInitCondDefinition() (ast.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Type {
 	case tokLBRACE:
 		return p.parseMapOrSetLiteral()
