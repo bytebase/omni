@@ -122,6 +122,13 @@ func TestWalkThroughOceanBase(t *testing.T) {
 		oneFindingOB(t, "ALTER TABLE t ADD COLUMN "+long(129)+" int;", 0, "Identifier name "+long(129)+" is too long", shop)
 		oneFindingOB(t, "CREATE TABLE "+long(65)+" (a int);", 0, "Identifier name "+long(65)+" is too long", shop)
 		oneFindingOB(t, "CREATE INDEX "+long(65)+" ON t (a);", 0, "Identifier name "+long(65)+" is too long", shop)
+		// The name after FOREIGN KEY names nothing: the foreign key takes
+		// its symbol or a generated name, and adds no index.
+		for _, stmt := range []string{"CREATE TABLE w (a int, FOREIGN KEY " + long(129) + " (a) REFERENCES r (id));", "ALTER TABLE nokey ADD FOREIGN KEY " + long(129) + " (a) REFERENCES r (id);"} {
+			oneFinding(t, stmt, 0, "Identifier name "+long(129)+" is too long", mysql)
+			noFindingOB(t, stmt, shop)
+		}
+		oneFindingOB(t, "CREATE TABLE w (a int, FOREIGN KEY fw (a) REFERENCES r (id));\nALTER TABLE w DROP FOREIGN KEY fw;", 1, "Foreign key fw does not exist in table w", shop)
 	})
 
 	t.Run("SET foreign_key_checks", func(t *testing.T) {

@@ -57,15 +57,17 @@ var oceanBaseSkipped = map[string]string{
 // oceanBaseIncomplete lists the complete MySQL cases where OceanBase
 // refuses a statement the walk leaves unclaimed by design.
 var oceanBaseIncomplete = map[string]string{
-	"ALTER TABLE drops first":        "pairs on one name and an index dropped and added (1060, 4179)",
-	"ALTER TABLE subcommands":        "ALTER TABLE of a view, and ADD INDEX `PRIMARY`, end the walk",
-	"repeated subcommands":           "DROP INDEX `PRIMARY` ends the walk",
-	"column names a statement adds":  "pairs on one name (1060, 1061, 1176)",
-	"a temporary table's definition": "IF NOT EXISTS of an existing one checks its text (1060)",
-	"CREATE and DROP INDEX":          "CREATE INDEX `PRIMARY` ends the walk",
-	"routines and events":            "a listed event, an event name with a period",
-	"loadable functions":             "none can be created (1235)",
-	"a temporary table is no parent": "a parent a temporary table shadows fails too (1215)",
+	"ALTER TABLE drops first":                 "pairs on one name and an index dropped and added (1060, 4179)",
+	"ALTER TABLE subcommands":                 "ALTER TABLE of a view, and ADD INDEX `PRIMARY`, end the walk",
+	"repeated subcommands":                    "DROP INDEX `PRIMARY` ends the walk",
+	"column names a statement adds":           "pairs on one name (1060, 1061, 1176)",
+	"a temporary table's definition":          "IF NOT EXISTS of an existing one checks its text (1060)",
+	"CREATE and DROP INDEX":                   "CREATE INDEX `PRIMARY` ends the walk",
+	"routines and events":                     "a listed event, an event name with a period",
+	"loadable functions":                      "none can be created (1235)",
+	"a temporary table is no parent":          "a parent a temporary table shadows fails too (1215)",
+	"DROP FUNCTION with no database selected": "DROP FUNCTION IF EXISTS in a dropped database fails (1049)",
+	"a foreign key's name and its index's":    "a foreign key adds no index (1091), two in one ALTER TABLE (1235)",
 }
 
 var oceanBaseWalkCases = []oceanBaseCase{
