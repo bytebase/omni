@@ -12,6 +12,10 @@ import (
 //
 // Handles all forms from the legacy SnowflakeParser.g4 data_type rule.
 func (p *Parser) parseDataType() (*ast.TypeName, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	tok := p.cur
 
 	switch tok.Type {
@@ -325,7 +329,11 @@ func ParseDataType(input string) (*ast.TypeName, []ParseError) {
 	}
 	p.advance()
 
+	first := p.cur.Loc
 	dt, err := p.parseDataType()
+	if err == nil && treeTooHigh(dt, p.prev.Loc.End-first.Start) {
+		dt, err = nil, nestedTooDeeply(first)
+	}
 	if err != nil {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}

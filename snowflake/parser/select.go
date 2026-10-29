@@ -21,6 +21,10 @@ import (
 // Also handles the case where the query starts with ( SELECT ... ), i.e.
 // a parenthesized SELECT as the leftmost operand in a set-op chain.
 func (p *Parser) parseQueryExpr() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	var left ast.Node
 	var err error
 	switch {
@@ -65,6 +69,10 @@ func (p *Parser) parseQueryBody() (ast.Node, error) {
 
 // parseWithQueryExpr parses WITH ... SELECT ... [set operators].
 func (p *Parser) parseWithQueryExpr() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	node, err := p.parseWithSelect()
 	if err != nil {
 		return nil, err
@@ -786,6 +794,10 @@ func (p *Parser) parseFromItem() (ast.Node, error) {
 //   - TABLE → TABLE(func(...))
 //   - otherwise → parseTableRef (ObjectName + alias)
 func (p *Parser) parsePrimarySource() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	startLoc := p.cur.Loc
 
 	// Parenthesized: subquery, VALUES row-source, or parenthesized from-item.

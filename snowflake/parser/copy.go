@@ -616,6 +616,10 @@ func (p *Parser) parseCopyOption() (*ast.CopyOption, error) {
 // It peeks past the '(' to decide: a list begins with a literal followed by ','
 // or ')'; otherwise it is a key/value group. On entry cur is '('.
 func (p *Parser) parseCopyOptionParen(opt *ast.CopyOption) error {
+	if err := p.enterNesting(); err != nil {
+		return err
+	}
+	defer p.leaveNesting()
 	p.advance() // consume '('
 
 	// Empty group: ().

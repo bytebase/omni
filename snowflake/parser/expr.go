@@ -33,6 +33,10 @@ func (p *Parser) parseExpr() (ast.Node, error) {
 
 // parseExprPrec parses an expression with the given minimum binding power.
 func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parsePrefixExpr()
 	if err != nil {
 		return nil, err
@@ -1921,7 +1925,11 @@ func ParseExpr(input string) (ast.Node, []ParseError) {
 	}
 	p.advance()
 
+	first := p.cur.Loc
 	node, err := p.parseExpr()
+	if err == nil && treeTooHigh(node, p.prev.Loc.End-first.Start) {
+		node, err = nil, nestedTooDeeply(first)
+	}
 	if err != nil {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
