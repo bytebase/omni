@@ -447,6 +447,14 @@ type SubqueryExpr struct {
 	// back into the outer statement's coordinates.
 	TextStart int
 
+	// Query is the body as the strict parser parsed it in place, with
+	// locations in the parser's input like the rest of the tree. It is nil
+	// from ParseBestEffort, which leaves bodies raw, and for a body the
+	// strict parse scanned raw instead. Walk does not visit it: the node
+	// stays a placeholder leaf. Use it rather than parsing RawText again:
+	// reparsing the body at every level of n nested subqueries costs O(n²).
+	Query Node
+
 	Loc Loc
 }
 

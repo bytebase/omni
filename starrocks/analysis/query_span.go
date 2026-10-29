@@ -95,21 +95,13 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 // Walker
 // ---------------------------------------------------------------------------
 
-// cteScope is a linked stack of CTE name sets. When resolving a bare table
-// reference we walk outwards — an inner CTE shadows an outer one of the same
-// name.
+// cteScope is a linked stack of CTE name sets. A bare table reference names a
+// CTE when any enclosing scope defines that name. The walker counts the names
+// of the scopes it is inside (spanWalker.cteNames), so the answer takes one
+// lookup: walking the stack for every table made n nested queries O(n²).
 type cteScope struct {
 	names  map[string]bool
 	parent *cteScope
-}
-
-func (s *cteScope) isCTE(name string) bool {
-	for cur := s; cur != nil; cur = cur.parent {
-		if cur.names[strings.ToLower(name)] {
-			return true
-		}
-	}
-	return false
 }
 
 // spanWalker performs the SELECT-tree walk that populates a QuerySpan.
@@ -131,6 +123,7 @@ type spanWalker struct {
 
 	span     *QuerySpan
 	scope    *cteScope
+	cteNames map[string]int   // lowercased CTE name -> enclosing scopes defining it
 	accessed map[tableKey]int // maps key -> index in span.AccessTables
 	resolved bool             // Results have been captured for the outermost SELECT
 }
@@ -144,8 +137,30 @@ type tableKey struct {
 func newSpanWalker(span *QuerySpan) *spanWalker {
 	return &spanWalker{
 		span:     span,
+		cteNames: make(map[string]int),
 		accessed: make(map[tableKey]int),
 	}
+}
+
+// enterScope makes s, whose parent is the current scope, the current scope.
+func (w *spanWalker) enterScope(s *cteScope) {
+	for name := range s.names {
+		w.cteNames[name]++
+	}
+	w.scope = s
+}
+
+// leaveScope returns from s to its parent.
+func (w *spanWalker) leaveScope(s *cteScope) {
+	for name := range s.names {
+		w.cteNames[name]--
+	}
+	w.scope = s.parent
+}
+
+// isCTE reports whether a bare table name names a CTE of an enclosing scope.
+func (w *spanWalker) isCTE(name string) bool {
+	return w.cteNames[strings.ToLower(name)] > 0
 }
 
 // analyzeStmt dispatches on the top-level statement kind. Only SELECT /
@@ -209,15 +224,14 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			scope.names[strings.ToLower(cte.Name)] = true
 			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
-		saved := w.scope
-		w.scope = scope
-		defer func() { w.scope = saved }()
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
 	}
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch q := n.(type) {
 		case *ast.SubqueryExpr:
-			w.analyzeSubqueryText(q.RawText, q.TextStart)
+			w.analyzeSubquery(q)
 			return false
 		case *ast.RawQuery:
 			// CREATE TABLE dest AS SELECT * FROM secret keeps its query as
@@ -269,9 +283,8 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 			}
 			scope.names[strings.ToLower(cte.Name)] = true
 		}
-		saved := w.scope
-		w.scope = scope
-		defer func() { w.scope = saved }()
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
 	}
 
 	w.visitSetOpArm(n.Left, outermost)
@@ -360,7 +373,7 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt, outermost bool) {
 			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
 	}
-	w.scope = scope
+	w.enterScope(scope)
 
 	// Walk CTE bodies first so their FROM tables land in AccessTables.
 	if stmt.With != nil {
@@ -419,7 +432,7 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt, outermost bool) {
 	}
 
 	// Pop the scope.
-	w.scope = scope.parent
+	w.leaveScope(scope)
 }
 
 // visitFromItem walks one entry in the FROM list. It may be a TableRef (bare
@@ -480,7 +493,7 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 	// raw text only for legacy consumers. Never classify by the text itself —
 	// a table named `selected` or a quoted `SELECT` is not a subquery.
 	if ref.Subquery != nil {
-		w.analyzeSubqueryText(ref.Subquery.RawText, ref.Subquery.TextStart)
+		w.analyzeSubquery(ref.Subquery)
 		return
 	}
 
@@ -489,7 +502,7 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 	case 1:
 		table = ref.Name.Parts[0]
 		// Bare name: skip if it matches an in-scope CTE.
-		if w.scope.isCTE(table) {
+		if w.isCTE(table) {
 			return
 		}
 	case 2:
@@ -517,6 +530,18 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 			End:   ref.Loc.End + w.textBase,
 		},
 	})
+}
+
+// analyzeSubquery walks a subquery placeholder's body. The tree the strict
+// parse built in place is walked as is, in this walker's coordinates; only a
+// body without one is parsed again from its raw text.
+func (w *spanWalker) analyzeSubquery(sub *ast.SubqueryExpr) {
+	switch q := sub.Query.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+		w.visitSetOpArm(q, false)
+	default:
+		w.analyzeSubqueryText(sub.RawText, sub.TextStart)
+	}
 }
 
 // analyzeSubqueryText re-parses subquery text (SubqueryExpr.RawText) and
@@ -594,11 +619,11 @@ func (v *exprVisitor) Visit(node ast.Node) ast.Visitor {
 	}
 	switch n := node.(type) {
 	case *ast.SubqueryExpr:
-		v.w.analyzeSubqueryText(n.RawText, n.TextStart)
+		v.w.analyzeSubquery(n)
 		return nil // raw-text body, no parsed children
 	case *ast.ExistsExpr:
 		if n.Subquery != nil {
-			v.w.analyzeSubqueryText(n.Subquery.RawText, n.Subquery.TextStart)
+			v.w.analyzeSubquery(n.Subquery)
 		}
 		return nil
 	case *ast.ColumnRef:

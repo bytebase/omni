@@ -1014,7 +1014,9 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, e
 		n, err := p.parseStmt()
 		if err == nil && isQueryBody(n) && p.cur.Kind == int(')') &&
 			len(p.errors) == cp.errLen && len(p.lexer.errors) == cp.lexErrLen {
-			return p.finishSubqueryPlaceholder(startOffset, subStart), nil
+			sub := p.finishSubqueryPlaceholder(startOffset, subStart)
+			sub.Query = n
+			return sub, nil
 		}
 		p.restore(cp)
 	}

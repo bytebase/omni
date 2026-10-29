@@ -166,20 +166,13 @@ func getQuerySpanWithViews(statement string, vs *viewState) (*QuerySpan, error) 
 // CTE scope
 // ---------------------------------------------------------------------------
 
-// cteScope is a linked stack of CTE name sets. Resolving a bare table reference
-// walks outwards; an inner CTE shadows an outer one of the same name.
+// cteScope is a linked stack of CTE name sets. A bare table reference names a
+// CTE when any enclosing scope defines that name. The walker counts the names
+// of the scopes it is inside (spanWalker.cteNames), so the answer takes one
+// lookup: walking the stack for every table made n nested queries O(n²).
 type cteScope struct {
 	names  map[string]bool
 	parent *cteScope
-}
-
-func (s *cteScope) isCTE(name string) bool {
-	for cur := s; cur != nil; cur = cur.parent {
-		if cur.names[strings.ToLower(name)] {
-			return true
-		}
-	}
-	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +190,7 @@ func (s *cteScope) isCTE(name string) bool {
 type spanWalker struct {
 	span     *QuerySpan
 	scope    *cteScope
+	cteNames map[string]int // lowercased CTE name -> enclosing scopes defining it
 	accessed map[tableKey]bool
 	predSeen map[ColumnRef]bool
 	resolved bool // Results captured for the outermost query
@@ -221,9 +215,31 @@ type tableKey struct {
 func newSpanWalker(span *QuerySpan) *spanWalker {
 	return &spanWalker{
 		span:     span,
+		cteNames: make(map[string]int),
 		accessed: make(map[tableKey]bool),
 		predSeen: make(map[ColumnRef]bool),
 	}
+}
+
+// enterScope makes s, whose parent is the current scope, the current scope.
+func (w *spanWalker) enterScope(s *cteScope) {
+	for name := range s.names {
+		w.cteNames[name]++
+	}
+	w.scope = s
+}
+
+// leaveScope returns from s to its parent.
+func (w *spanWalker) leaveScope(s *cteScope) {
+	for name := range s.names {
+		w.cteNames[name]--
+	}
+	w.scope = s.parent
+}
+
+// isCTE reports whether a bare table name names a CTE of an enclosing scope.
+func (w *spanWalker) isCTE(name string) bool {
+	return w.cteNames[strings.ToLower(name)] > 0
 }
 
 // analyzeStmt dispatches on the top-level statement node. Only the query
@@ -254,7 +270,7 @@ func (w *spanWalker) visitQuery(q *parser.Query, outermost bool) {
 			w.span.CTEs = append(w.span.CTEs, name)
 		}
 	}
-	w.scope = scope
+	w.enterScope(scope)
 
 	// Walk CTE bodies first so their base tables land in AccessTables. They run
 	// in the scope that already includes the sibling CTE names (matching the
@@ -283,7 +299,7 @@ func (w *spanWalker) visitQuery(q *parser.Query, outermost bool) {
 		w.walkExprPredicate(q.Fetch.Count)
 	}
 
-	w.scope = scope.parent
+	w.leaveScope(scope)
 }
 
 // visitQueryNode dispatches on a query body / set-op operand / query primary.
@@ -472,7 +488,7 @@ func (w *spanWalker) recordTable(name *ast.QualifiedName, alias string) {
 		// A bare (single-part) name that matches an in-scope CTE is a CTE
 		// reference, not a base table — exclude it regardless of any alias
 		// (`FROM c` and `FROM c AS x` both reference the CTE c).
-		if w.scope.isCTE(table) {
+		if w.isCTE(table) {
 			return
 		}
 	case 2:
@@ -492,7 +508,9 @@ func (w *spanWalker) recordTable(name *ast.QualifiedName, alias string) {
 
 	loc := ast.Loc{}
 	if name != nil {
-		loc = name.Loc
+		// Rebased into the original statement's coordinates: inside a body
+		// parsed again from its raw text, name.Loc is relative to that text.
+		loc = ast.Loc{Start: name.Loc.Start + w.textBase, End: name.Loc.End + w.textBase}
 	}
 	w.span.AccessTables = append(w.span.AccessTables, TableAccess{
 		Catalog: catalog,
@@ -736,11 +754,16 @@ func (ew exprWalk) walk(expr parser.Expr) {
 	}
 }
 
-// followSubquery recurses into a subquery placeholder by re-parsing its raw
-// text, but only when this pass follows subqueries. A nil placeholder is a
-// no-op.
+// followSubquery recurses into a subquery placeholder, but only when this pass
+// follows subqueries. The body the strict parse already parsed in place is
+// walked as is; only a body without that tree is parsed again from its raw
+// text. A nil placeholder is a no-op.
 func (ew exprWalk) followSubquery(sub *parser.SubqueryExpr) {
 	if !ew.followSub || sub == nil {
+		return
+	}
+	if sub.Query != nil {
+		ew.w.visitQuery(sub.Query, false)
 		return
 	}
 	ew.w.analyzeSubqueryText(sub.RawText, sub.TextStart)

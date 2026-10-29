@@ -57,7 +57,9 @@ import (
 //	   text, NOT a parsed query tree. This mirrors doris/snowflake, where
 //	   expression-embedded subqueries stay placeholders even after the SELECT
 //	   parser exists; the analysis node recurses into RawText when it needs
-//	   lineage. The `query` rule belongs to parser-select.
+//	   lineage. The `query` rule belongs to parser-select. The strict entry
+//	   point does parse each body in place to validate it, and keeps that tree
+//	   in SubqueryExpr.Query.
 //	B2 (pattern-recognition window frame deferred). A function's OVER frame may,
 //	   per the legacy windowFrame rule, carry the full row-pattern subsystem
 //	   (MEASURES / PATTERN / DEFINE / SUBSET / AFTER MATCH / INITIAL|SEEK). That
@@ -269,7 +271,7 @@ func (*TypeConstructor) exprNode()       {}
 // SubqueryExpr is a placeholder for a subquery appearing inside an expression
 // (B1 in the file header). RawText is the subquery source between the
 // parentheses, trimmed; Kind records the surrounding form so the analysis node
-// can interpret it. The query is NOT parsed here.
+// can interpret it.
 type SubqueryExpr struct {
 	Kind    SubqueryKind
 	RawText string
@@ -277,7 +279,13 @@ type SubqueryExpr struct {
 	// the parser's input, so errors and locations from re-parsing RawText can
 	// be shifted back into the outer statement's coordinates.
 	TextStart int
-	Loc       ast.Loc
+	// Query is the body as the strict entry point parsed it in place, with
+	// locations in the parser's input like the rest of the tree. It is nil
+	// from ParseBestEffort, which leaves bodies raw, and for a body the strict
+	// parse scanned raw instead. Use it rather than parsing RawText again:
+	// reparsing the body at every level of n nested subqueries costs O(n²).
+	Query *Query
+	Loc   ast.Loc
 }
 
 func (n *SubqueryExpr) Span() ast.Loc { return n.Loc }
@@ -969,8 +977,10 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 	subStart := p.cur.Loc.Start
 	if p.strictTrailing {
 		cp := p.checkpoint()
-		if _, err := p.parseQuery(); err == nil && p.cur.Kind == int(')') && p.lexer.errorCount() == cp.lexErrs {
-			return p.finishSubqueryPlaceholder(startOffset, subStart, kind), nil
+		if q, err := p.parseQuery(); err == nil && p.cur.Kind == int(')') && p.lexer.errorCount() == cp.lexErrs {
+			sub := p.finishSubqueryPlaceholder(startOffset, subStart, kind)
+			sub.Query = q
+			return sub, nil
 		}
 		p.restore(cp)
 	}
