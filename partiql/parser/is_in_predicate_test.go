@@ -182,6 +182,56 @@ func TestInPredicate_Accept(t *testing.T) {
 			input: "a IN [1, 2]",
 			want:  "InExpr{Expr:VarRef{Name:a} List:[ListLit{Items:[NumberLit{Val:1} NumberLit{Val:2}]}] Not:false}",
 		},
+		// The parenthesized items are full exprs (g4:487, and the valueList
+		// of g4:566-567), not mathOp00s: omni rejected every one of these
+		// at the first token a mathOp00 cannot hold.
+		{
+			name:  "in_subquery",
+			input: "a IN (SELECT x FROM t)",
+			want:  "InExpr{Expr:VarRef{Name:a} Subquery:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t}} Not:false}",
+		},
+		{
+			name:  "not_in_subquery",
+			input: "a NOT IN (SELECT x FROM t WHERE y = 1)",
+			want:  "InExpr{Expr:VarRef{Name:a} Subquery:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t} Where:BinaryExpr{Op:= Left:VarRef{Name:y} Right:NumberLit{Val:1}}} Not:true}",
+		},
+		{
+			name:  "in_set_operation",
+			input: "a IN (SELECT x FROM t UNION SELECT y FROM u)",
+			want:  "InExpr{Expr:VarRef{Name:a} Subquery:SetOpStmt{Op:UNION Left:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t}} Right:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:y}}] From:VarRef{Name:u}}} Not:false}",
+		},
+		{
+			name:  "in_set_operation_of_parenthesized_queries",
+			input: "a IN ((SELECT x FROM t) UNION (SELECT y FROM u))",
+			want:  "InExpr{Expr:VarRef{Name:a} Subquery:SetOpStmt{Op:UNION Left:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t}} Right:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:y}}] From:VarRef{Name:u}}} Not:false}",
+		},
+		// A query in parentheses of its own is a parenthesized expression,
+		// one item of the list, as it was before.
+		{
+			name:  "in_parenthesized_subquery",
+			input: "a IN ((SELECT x FROM t))",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[SubLink{Stmt:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t}}}] Not:false}",
+		},
+		{
+			name:  "not_in_parenthesized_subquery",
+			input: "a NOT IN ((SELECT x FROM t))",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[SubLink{Stmt:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t}}}] Not:true}",
+		},
+		{
+			name:  "in_mixed_list",
+			input: "a IN (1, b + 1, c = 2, d OR e, NOT f, (SELECT x FROM t))",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[NumberLit{Val:1} BinaryExpr{Op:+ Left:VarRef{Name:b} Right:NumberLit{Val:1}} BinaryExpr{Op:= Left:VarRef{Name:c} Right:NumberLit{Val:2}} BinaryExpr{Op:OR Left:VarRef{Name:d} Right:VarRef{Name:e}} UnaryExpr{Op:NOT Operand:VarRef{Name:f}} SubLink{Stmt:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t}}}] Not:false}",
+		},
+		{
+			name:  "in_list_ending_in_query",
+			input: "a IN (1, SELECT x FROM t)",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[NumberLit{Val:1} SubLink{Stmt:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t}}}] Not:false}",
+		},
+		{
+			name:  "in_single_predicate",
+			input: "a IN (b IS NULL)",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[IsExpr{Expr:VarRef{Name:b} Type:TypeRef{Name:NULL} Not:false}] Not:false}",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -214,6 +264,9 @@ func TestInPredicate_Reject(t *testing.T) {
 		{name: "not_in_empty", input: "a NOT IN ()", wantErrIn: "IN list requires at least one expression"},
 		{name: "in_trailing_comma", input: "a IN (1,)", wantErrIn: "unexpected token"},
 		{name: "in_unclosed", input: "a IN (1, 2", wantErrIn: "expected PAREN_RIGHT"},
+		{name: "in_unclosed_subquery", input: "a IN (SELECT x FROM t", wantErrIn: "expected PAREN_RIGHT"},
+		{name: "in_subquery_missing_from_source", input: "a IN (SELECT x FROM)", wantErrIn: "unexpected token"},
+		{name: "in_incomplete_comparison", input: "a IN (b =)", wantErrIn: "unexpected token"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -226,5 +279,29 @@ func TestInPredicate_Reject(t *testing.T) {
 				t.Errorf("ParseExpr(%q) error = %q, want to contain %q", tc.input, err.Error(), tc.wantErrIn)
 			}
 		})
+	}
+}
+
+// TestInSubqueryLoc: in a statement, the IN predicate spans its closing
+// parenthesis and the subquery spans the query inside the parentheses.
+func TestInSubqueryLoc(t *testing.T) {
+	const sql = "SELECT * FROM t WHERE a NOT IN (SELECT b FROM u)"
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse(%q): %v", sql, err)
+	}
+	where := list.Items[0].(*ast.SelectStmt).Where
+	in, ok := where.(*ast.InExpr)
+	if !ok {
+		t.Fatalf("WHERE is %T, want *ast.InExpr", where)
+	}
+	if got := sql[in.Loc.Start:in.Loc.End]; got != "a NOT IN (SELECT b FROM u)" {
+		t.Errorf("InExpr spans %q", got)
+	}
+	if in.Subquery == nil {
+		t.Fatalf("Subquery is nil, List = %v", in.List)
+	}
+	if loc := in.Subquery.GetLoc(); sql[loc.Start:loc.End] != "SELECT b FROM u" {
+		t.Errorf("Subquery spans %q", sql[loc.Start:loc.End])
 	}
 }

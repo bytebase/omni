@@ -32,6 +32,8 @@ var nestingShapes = []struct {
 	{"path index", func(n int) string { return "SELECT " + nest(n, "a[", "0", "]") + " FROM t" }},
 	{"scalar subquery", func(n int) string { return nest(n, "SELECT (", "SELECT a FROM t", ") FROM t") }},
 	{"WHERE subquery", func(n int) string { return nest(n, "SELECT a FROM t WHERE (", "SELECT a FROM t", ")") }},
+	{"IN subquery", func(n int) string { return nest(n, "SELECT a FROM t WHERE a IN (", "SELECT a FROM t", ")") }},
+	{"IN list", func(n int) string { return "SELECT * FROM t WHERE " + nest(n, "a IN (1, ", "1", ")") }},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT * FROM t", ")") }},
 	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t CROSS JOIN ", "t", ")") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT * FROM t UNION (", "SELECT * FROM t", ")") }},

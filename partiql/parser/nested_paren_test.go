@@ -35,6 +35,7 @@ func TestFromParensStayLinear(t *testing.T) {
 		{"joined subqueries", "SELECT * FROM " + nest(depth/4, "((SELECT * FROM ", "t", ") CROSS JOIN t)"), false},
 		{"aliased subqueries", "SELECT * FROM " + nest(depth/4, "((SELECT * FROM ", "t", ") x)"), false},
 		{"failing joined subqueries", "SELECT * FROM " + nest(depth/4, "((SELECT * FROM ", "t WHERE", ") CROSS JOIN t)"), true},
+		{"failing IN subqueries in derived tables", nest(depth/6, "SELECT * FROM (SELECT * FROM t WHERE a IN (", "SELECT * FROM t WHERE", "))"), true},
 		{"failing expression", "SELECT * FROM " + nest(depth, "(", "t +", ")"), true},
 		{"failing join group", "SELECT * FROM " + nest(depth, "(", "t CROSS JOIN", ")"), true},
 		{"left-deep join group", "SELECT * FROM " + nest(depth, "(", "t", " CROSS JOIN t)"), false},
