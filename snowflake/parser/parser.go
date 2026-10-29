@@ -453,15 +453,18 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 		lx := NewLexer(input)
 		for lx.NextToken().Type != tokEOF {
 		}
-		for _, le := range lx.Errors() {
-			dup := false
+		if lexErrs := lx.Errors(); len(lexErrs) > 0 {
+			// Matched through a set: scanning result.Errors once per lex
+			// error was quadratic in the number of errors.
+			reported := make(map[int]bool, len(result.Errors)+len(lexErrs))
 			for _, e := range result.Errors {
-				if e.Position == le.Loc.Start {
-					dup = true
-					break
-				}
+				reported[e.Position] = true
 			}
-			if !dup {
+			for _, le := range lexErrs {
+				if reported[le.Loc.Start] {
+					continue
+				}
+				reported[le.Loc.Start] = true
 				result.Errors = append(result.Errors, ParseError{Position: le.Loc.Start, End: le.Loc.End, Message: le.Msg})
 			}
 		}

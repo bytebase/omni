@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/doris/ast"
 )
@@ -313,5 +314,26 @@ func TestStrictParseSetRoleRejected(t *testing.T) {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("parseForTest(%q) succeeded, want error", sql)
 		}
+	}
+}
+
+// TestStrictParseManyLexErrorsStayLinear: strict mode lexes the whole input
+// again and promotes each lex error the per-segment parses missed. Checking
+// each one against every error reported so far made 80,000 stray bytes take
+// seconds; this input takes minutes that way and milliseconds now.
+func TestStrictParseManyLexErrorsStayLinear(t *testing.T) {
+	const n = 200000
+	sql := "SELECT 1 " + strings.Repeat("\x01", n)
+	done := make(chan int, 1)
+	go func() {
+		done <- func() int { _, err := Parse(sql); return len(AllErrors(err)) }()
+	}()
+	select {
+	case got := <-done:
+		if got < n {
+			t.Fatalf("strict parse reported %d errors, want one per stray byte (%d)", got, n)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatalf("strict parse of %d stray bytes took over 2s", n)
 	}
 }
