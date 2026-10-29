@@ -147,7 +147,8 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		return &RangeTableRefQ{RTIndex: idx}, nil
 
 	case *nodes.JoinClause:
-		return analyzeJoinClause(c, ref, q, scope, cteMap)
+		node, _, err := analyzeJoinClause(c, ref, q, scope, cteMap)
+		return node, err
 
 	case *nodes.SubqueryExpr:
 		return analyzeFromSubquery(c, ref, q, scope)
@@ -157,17 +158,28 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 	}
 }
 
-// analyzeJoinClause processes a JOIN clause, creating RTEs for the join and
-// its children, and returning a JoinExprNodeQ.
-func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, error) {
-	// Recursively process left and right sides.
-	left, err := analyzeTableExpr(c, jc.Left, q, scope, cteMap)
-	if err != nil {
-		return nil, err
+// analyzeJoinInput analyzes one input of a join, returning with it the buffer
+// holding its column names when it is a join itself (see joinColNames).
+func analyzeJoinInput(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, *joinColNames, error) {
+	if jc, ok := te.(*nodes.JoinClause); ok {
+		return analyzeJoinClause(c, jc, q, scope, cteMap)
 	}
-	right, err := analyzeTableExpr(c, jc.Right, q, scope, cteMap)
+	node, err := analyzeTableExpr(c, te, q, scope, cteMap)
+	return node, nil, err
+}
+
+// analyzeJoinClause processes a JOIN clause, creating RTEs for the join and
+// its children, and returning a JoinExprNodeQ and the buffer holding the
+// join's column names.
+func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, *joinColNames, error) {
+	// Recursively process left and right sides.
+	left, leftBuf, err := analyzeJoinInput(c, jc.Left, q, scope, cteMap)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	right, rightBuf, err := analyzeJoinInput(c, jc.Right, q, scope, cteMap)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Map AST JoinType to IR JoinTypeQ and detect NATURAL.
@@ -194,7 +206,7 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 		joinType = JoinRight
 		natural = true
 	default:
-		return nil, fmt.Errorf("unsupported join type: %d", jc.Type)
+		return nil, nil, fmt.Errorf("unsupported join type: %d", jc.Type)
 	}
 
 	// Collect left and right column names for USING/NATURAL coalescing.
@@ -208,14 +220,14 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 	case *nodes.OnCondition:
 		quals, err = analyzeExpr(c, cond.Expr, scope)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	case *nodes.UsingCondition:
 		usingCols = cond.Columns
 	case nil:
 		// CROSS JOIN or condition resolved via NATURAL below.
 	default:
-		return nil, fmt.Errorf("unsupported join condition type: %T", cond)
+		return nil, nil, fmt.Errorf("unsupported join condition type: %T", cond)
 	}
 
 	// For NATURAL JOIN, compute shared columns.
@@ -223,8 +235,9 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 		usingCols = computeNaturalJoinColumns(leftCols, rightCols)
 	}
 
-	// Build coalesced column names for the RTEJoin.
-	coalescedCols := buildCoalescedColNames(leftCols, rightCols, usingCols)
+	// Build coalesced column names for the RTEJoin (buildCoalescedColNames),
+	// extending an input's buffer where it can.
+	colNames := joinColumnNames(leftBuf, leftCols, rightBuf, rightCols, usingCols)
 
 	// Mark right-side USING columns as coalesced for star expansion.
 	if len(usingCols) > 0 {
@@ -236,7 +249,7 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 		Kind:      RTEJoin,
 		JoinType:  joinType,
 		JoinUsing: usingCols,
-		ColNames:  coalescedCols,
+		ColNames:  colNames.names(),
 	}
 	rtIdx := len(q.RangeTable)
 	q.RangeTable = append(q.RangeTable, rteJoin)
@@ -251,7 +264,7 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 		RTIndex:     rtIdx,
 	}
 
-	return joinExpr, nil
+	return joinExpr, colNames, nil
 }
 
 // collectJoinNodeColNames returns the column names contributed by a JoinNode.
@@ -340,8 +353,31 @@ func markCoalescedInNode(node JoinNode, q *Query, scope *analyzerScope, usingSet
 			}
 		}
 	case *JoinExprNodeQ:
-		markCoalescedInNode(n.Left, q, scope, usingSet)
-		markCoalescedInNode(n.Right, q, scope, usingSet)
+		// Every join of a right-nested chain `t JOIN (t JOIN (...) USING (a))
+		// USING (a)` marks its whole right input again, so a join records the
+		// names its subtree is marked for and is walked only for the others.
+		marked := scope.markedJoins[n]
+		if marked == nil {
+			marked = make(map[string]bool, len(usingSet))
+			if scope.markedJoins == nil {
+				scope.markedJoins = make(map[*JoinExprNodeQ]map[string]bool)
+			}
+			scope.markedJoins[n] = marked
+		}
+		todo := make(map[string]bool, len(usingSet))
+		for name := range usingSet {
+			if !marked[name] {
+				todo[name] = true
+			}
+		}
+		if len(todo) == 0 {
+			return
+		}
+		markCoalescedInNode(n.Left, q, scope, todo)
+		markCoalescedInNode(n.Right, q, scope, todo)
+		for name := range todo {
+			marked[name] = true
+		}
 	}
 }
 

@@ -96,19 +96,13 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 	} else {
 		// SELECT t.* — expand only the named table.
 		lower := toLower(tableName)
-		found := false
-		for _, e := range scope.allEntries() {
-			if e.name == lower {
-				entries, err := expandScopeEntry(e, q, scope, resNo)
-				if err != nil {
-					return nil, err
-				}
-				result = append(result, entries...)
-				found = true
-				break
+		if i := scope.entryIndex(lower); i >= 0 {
+			entries, err := expandScopeEntry(scope.entry(i), q, scope, resNo)
+			if err != nil {
+				return nil, err
 			}
-		}
-		if !found {
+			result = append(result, entries...)
+		} else {
 			return nil, &Error{
 				Code:     ErrUnknownTable,
 				SQLState: sqlState(ErrUnknownTable),

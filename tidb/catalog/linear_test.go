@@ -2,9 +2,13 @@ package catalog
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	nodes "github.com/bytebase/omni/tidb/ast"
+	mysqlparser "github.com/bytebase/omni/tidb/parser"
 )
 
 // chainSQL writes first, then sep and term n-1 times.
@@ -72,6 +76,84 @@ func TestLongChainViewsStayLinear(t *testing.T) {
 			}
 		case <-time.After(10 * time.Second):
 			t.Fatalf("%s: CREATE VIEW and DeparseQuery over a %d-term chain took over 10s", tc.name, n)
+		}
+	}
+}
+
+// numberedSQL writes first, then format once for each i in [1, n).
+func numberedSQL(n int, first, format string) string {
+	var b strings.Builder
+	b.WriteString(first)
+	for i := 1; i < n; i++ {
+		fmt.Fprintf(&b, format, i)
+	}
+	return b.String()
+}
+
+// allocatedBytes returns the number of bytes f allocates.
+func allocatedBytes(f func()) uint64 {
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	f()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
+}
+
+// TestJoinChainAnalysisStaysLinear compares what analyzing a join chain
+// allocates at two lengths. Every join RTE lists the columns of both of its
+// inputs, and building that list as a fresh copy at every level made the
+// analysis of a chain hold a quadratic number of names: 824 MB at 10,000
+// joins, and 100,000 joins were killed for memory. A select list naming every
+// table of the chain (t0.*, t1.*, ...) copied the scope once per item the
+// same way. Four times the joins should cost about four times the bytes, not
+// sixteen.
+func TestJoinChainAnalysisStaysLinear(t *testing.T) {
+	const n = 1000
+	for _, tc := range []struct {
+		name string
+		sql  func(n int) string
+	}{
+		{"JOIN ON", func(n int) string {
+			return "SELECT t0.a FROM " + numberedSQL(n, "t AS t0", " JOIN t AS t%[1]d ON t%[1]d.a = t0.a")
+		}},
+		{"JOIN USING", func(n int) string {
+			return "SELECT * FROM " + numberedSQL(n, "t AS t0", " JOIN t AS t%d USING (a)")
+		}},
+		{"NATURAL JOIN", func(n int) string {
+			return "SELECT * FROM " + numberedSQL(n, "t AS t0", " NATURAL JOIN t AS t%d")
+		}},
+		{"right-nested JOIN", func(n int) string {
+			return "SELECT * FROM " + numberedSQL(n, "", "t AS t%d JOIN (") + "t AS t0" + strings.Repeat(")", n-1)
+		}},
+		{"t.* per table", func(n int) string {
+			return "SELECT " + numberedSQL(n, "t0.*", ", t%d.*") + " FROM " + numberedSQL(n, "t AS t0", " JOIN t AS t%d")
+		}},
+	} {
+		c := New()
+		if _, err := c.Exec("CREATE DATABASE db; USE db; CREATE TABLE t (a INT, b INT)", nil); err != nil {
+			t.Fatal(err)
+		}
+		var allocated [2]uint64
+		for i, size := range []int{n, 4 * n} {
+			list, err := mysqlparser.Parse(tc.sql(size))
+			if err != nil {
+				t.Fatalf("%s: Parse: %v", tc.name, err)
+			}
+			stmt := list.Items[0].(*nodes.SelectStmt)
+			var q *Query
+			allocated[i] = allocatedBytes(func() { q, err = c.AnalyzeSelectStmt(stmt) })
+			if err != nil {
+				t.Fatalf("%s: %d joins: %v", tc.name, size, err)
+			}
+			if got := len(q.RangeTable); got < size {
+				t.Fatalf("%s: %d joins analyzed into %d RTEs", tc.name, size, got)
+			}
+		}
+		ratio := float64(allocated[1]) / float64(allocated[0])
+		t.Logf("%s: %d joins allocated %d bytes, %d joins %d bytes (%.1fx)", tc.name, n, allocated[0], 4*n, allocated[1], ratio)
+		if ratio > 8 {
+			t.Errorf("%s: four times the joins allocated %.1f times the bytes", tc.name, ratio)
 		}
 	}
 }

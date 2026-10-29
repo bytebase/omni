@@ -21,6 +21,15 @@ type analyzerScope struct {
 	// which flows into ALL nested subqueries (derived tables, scalar/IN/EXISTS),
 	// correlated or not. Subquery analysis passes it down as inheritedCTEMap.
 	cteMap map[string]*CommonTableExprQ
+
+	// firstByName maps each name an entry was registered under to the first
+	// such entry, for entries [0, indexed); see entryIndex.
+	firstByName map[string]int
+	indexed     int
+
+	// markedJoins maps a join to the lowered USING column names every base
+	// table under it is already marked coalesced for (markCoalescedInNode).
+	markedJoins map[*JoinExprNodeQ]map[string]bool
 }
 
 func newScope() *analyzerScope {
@@ -151,6 +160,35 @@ func (s *analyzerScope) allEntries() []scopeEntry {
 		}
 	}
 	return result
+}
+
+// entryIndex returns the index of the first entry registered under exactly
+// name, or -1. `SELECT t1.*, t2.*, ...` looks up one entry per item, and
+// scanning (or copying, as allEntries does) every entry for each made a
+// select list over a long join chain quadratic: 4.6 GB allocated at 10,000.
+func (s *analyzerScope) entryIndex(name string) int {
+	entries := s.base.AllEntries()
+	if s.firstByName == nil {
+		s.firstByName = make(map[string]int, len(entries))
+	}
+	for ; s.indexed < len(entries); s.indexed++ {
+		if _, ok := s.firstByName[entries[s.indexed].Name]; !ok {
+			s.firstByName[entries[s.indexed].Name] = s.indexed
+		}
+	}
+	if i, ok := s.firstByName[name]; ok {
+		return i
+	}
+	return -1
+}
+
+// entry returns entry i in the form allEntries does.
+func (s *analyzerScope) entry(i int) scopeEntry {
+	return scopeEntry{
+		name:    s.base.AllEntries()[i].Name,
+		rteIdx:  s.rteMap[i],
+		columns: s.cols[i],
+	}
 }
 
 // scopeEntry is one named table reference visible in the current scope.
