@@ -56,6 +56,17 @@ type Parser struct {
 	nextBuf Token
 	hasNext bool
 	depth   int
+
+	// speculating counts the base readings of a FROM-clause '(' in progress
+	// (parseTablePrimary). A base reading that fails is abandoned for the
+	// wrapped reading of the same tokens, and every '(' nested inside it was
+	// read both ways as well, so the work doubled with each level. While one
+	// is in progress, the results of parseParenExpr and of parseTablePrimary
+	// at a '(' are recorded by the offset of the '(', and the other reading
+	// replays the record instead of parsing the tokens again.
+	speculating int
+	parenMemo   map[int]parenReplay
+	tableMemo   map[int]parenReplay
 }
 
 // NewParser creates a Parser that reads from the given input string.

@@ -82,6 +82,8 @@ func (p *Parser) parseScript() (*ast.List, error) {
 func (p *Parser) parseCheckedRoot() (ast.StmtNode, error) {
 	first := p.cur
 	stmt, err := p.parseRoot()
+	// No later statement parses these tokens again.
+	p.parenMemo, p.tableMemo = nil, nil
 	if err != nil {
 		return nil, err
 	}
