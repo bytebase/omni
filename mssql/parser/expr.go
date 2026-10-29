@@ -457,19 +457,31 @@ func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 			Loc:   nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}
 	}
-	// Postfix COLLATE / AT TIME ZONE (may be chained)
+	// Postfix COLLATE / AT TIME ZONE. AT TIME ZONE chains, but SQL Server
+	// takes one COLLATE per operand: x COLLATE a COLLATE b is Msg 156 at the
+	// second COLLATE, while (x COLLATE a) COLLATE b collates a new,
+	// parenthesized operand, and x COLLATE a AT TIME ZONE 'UTC' COLLATE b
+	// collates the time zone operand.
+	collated := false
 	for {
 		if p.cur.Type == kwCOLLATE {
+			if collated {
+				return nil, p.syntaxErrorAtCur()
+			}
 			var err error
 			left, err = p.parseCollateExpr(left)
 			if err != nil {
 				return nil, err
 			}
+			collated = true
 		} else if p.cur.Type == kwAT {
 			var err error
 			left, err = p.parseAtTimeZoneExpr(left)
 			if err != nil {
 				return nil, err
+			}
+			if _, ok := left.(*nodes.AtTimeZoneExpr); ok {
+				collated = false
 			}
 		} else {
 			break
@@ -489,14 +501,9 @@ func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 func (p *Parser) parseCollateExpr(expr nodes.ExprNode) (nodes.ExprNode, error) {
 	loc := p.pos()
 	p.advance() // consume COLLATE
-	// Collation name is an identifier (may contain underscores, numbers)
-	// or the special keyword database_default
-	var collation string
-	if p.isIdentLike() {
-		collation = p.cur.Str
-		p.advance()
-	} else {
-		return nil, p.unexpectedToken()
+	collation, err := p.parseCollationName()
+	if err != nil {
+		return nil, err
 	}
 	node := &nodes.CollateExpr{
 		Expr:      expr,
@@ -505,6 +512,20 @@ func (p *Parser) parseCollateExpr(expr nodes.ExprNode) (nodes.ExprNode, error) {
 	}
 	node.Loc.End = p.prevEnd()
 	return node, nil
+}
+
+// parseCollationName parses the collation name after COLLATE: a Windows or
+// SQL collation name, or database_default. SQL Server takes only a regular
+// identifier there, so a bracketed or double-quoted name, which the lexer
+// also returns as tokIDENT, is rejected (Msg 102), as are keywords and
+// strings.
+func (p *Parser) parseCollationName() (string, error) {
+	if !p.isIdentLike() || p.source[p.cur.Loc] == '[' || p.source[p.cur.Loc] == '"' {
+		return "", p.unexpectedToken()
+	}
+	name := p.cur.Str
+	p.advance()
+	return name, nil
 }
 
 // parseAtTimeZoneExpr parses a postfix AT TIME ZONE expression.

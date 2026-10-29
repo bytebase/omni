@@ -116,9 +116,11 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 	} else if p.cur.Type == kwCOLLATE {
 		p.advance() // consume COLLATE
 		stmt.Action = "COLLATE"
-		if id, ok := p.parseIdentifier(); ok {
-			stmt.TargetName = id
+		collation, err := p.parseCollationName()
+		if err != nil {
+			return nil, err
 		}
+		stmt.TargetName = collation
 	} else if p.cur.Type == kwADD {
 		p.advance() // consume ADD
 		stmt.Action = "ADD"
@@ -284,31 +286,31 @@ var dbSetOptionValueEnums = map[string]optionSet{
 	// ON/OFF options whose OFF path reaches this fallback (the ON path is
 	// handled by the kwON short-circuit and remains lenient until the
 	// broader ON-value strictification lands).
-	"AUTO_CLOSE":                          onOffOptionValues,
-	"AUTO_SHRINK":                         onOffOptionValues,
-	"AUTO_CREATE_STATISTICS":              onOffOptionValues,
-	"AUTO_UPDATE_STATISTICS":              onOffOptionValues,
-	"AUTO_UPDATE_STATISTICS_ASYNC":        onOffOptionValues,
-	"ANSI_NULL_DEFAULT":                   onOffOptionValues,
-	"ANSI_NULLS":                          onOffOptionValues,
-	"ANSI_PADDING":                        onOffOptionValues,
-	"ANSI_WARNINGS":                       onOffOptionValues,
-	"ARITHABORT":                          onOffOptionValues,
-	"CONCAT_NULL_YIELDS_NULL":             onOffOptionValues,
-	"NUMERIC_ROUNDABORT":                  onOffOptionValues,
-	"QUOTED_IDENTIFIER":                   onOffOptionValues,
-	"RECURSIVE_TRIGGERS":                  onOffOptionValues,
-	"CURSOR_CLOSE_ON_COMMIT":              onOffOptionValues,
-	"DB_CHAINING":                         onOffOptionValues,
-	"TRUSTWORTHY":                         onOffOptionValues,
-	"DATE_CORRELATION_OPTIMIZATION":       onOffOptionValues,
-	"ALLOW_SNAPSHOT_ISOLATION":            onOffOptionValues,
-	"READ_COMMITTED_SNAPSHOT":             onOffOptionValues,
-	"HONOR_BROKER_PRIORITY":               onOffOptionValues,
-	"NESTED_TRIGGERS":                     onOffOptionValues,
-	"TRANSFORM_NOISE_WORDS":               onOffOptionValues,
+	"AUTO_CLOSE":                           onOffOptionValues,
+	"AUTO_SHRINK":                          onOffOptionValues,
+	"AUTO_CREATE_STATISTICS":               onOffOptionValues,
+	"AUTO_UPDATE_STATISTICS":               onOffOptionValues,
+	"AUTO_UPDATE_STATISTICS_ASYNC":         onOffOptionValues,
+	"ANSI_NULL_DEFAULT":                    onOffOptionValues,
+	"ANSI_NULLS":                           onOffOptionValues,
+	"ANSI_PADDING":                         onOffOptionValues,
+	"ANSI_WARNINGS":                        onOffOptionValues,
+	"ARITHABORT":                           onOffOptionValues,
+	"CONCAT_NULL_YIELDS_NULL":              onOffOptionValues,
+	"NUMERIC_ROUNDABORT":                   onOffOptionValues,
+	"QUOTED_IDENTIFIER":                    onOffOptionValues,
+	"RECURSIVE_TRIGGERS":                   onOffOptionValues,
+	"CURSOR_CLOSE_ON_COMMIT":               onOffOptionValues,
+	"DB_CHAINING":                          onOffOptionValues,
+	"TRUSTWORTHY":                          onOffOptionValues,
+	"DATE_CORRELATION_OPTIMIZATION":        onOffOptionValues,
+	"ALLOW_SNAPSHOT_ISOLATION":             onOffOptionValues,
+	"READ_COMMITTED_SNAPSHOT":              onOffOptionValues,
+	"HONOR_BROKER_PRIORITY":                onOffOptionValues,
+	"NESTED_TRIGGERS":                      onOffOptionValues,
+	"TRANSFORM_NOISE_WORDS":                onOffOptionValues,
 	"MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT": onOffOptionValues,
-	"TORN_PAGE_DETECTION":                 onOffOptionValues,
+	"TORN_PAGE_DETECTION":                  onOffOptionValues,
 }
 
 // parseAlterDatabaseSetOption parses a single SET option and returns it as a string.

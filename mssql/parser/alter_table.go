@@ -574,7 +574,10 @@ func (p *Parser) parseAlterTableAlterColumn() (*nodes.AlterTableAction, error) {
 	// COLLATE collation_name
 	if p.cur.Type == kwCOLLATE {
 		p.advance() // consume COLLATE
-		collation, _ := p.parseIdentifier()
+		collation, err := p.parseCollationName()
+		if err != nil {
+			return nil, err
+		}
 		col.Collation = collation
 	}
 

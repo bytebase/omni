@@ -1382,8 +1382,9 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Expect '('
-	p.match('(')
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
 
 	// Parse arguments: MODEL = expr, DATA = table AS alias [, RUNTIME = ONNX]
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
@@ -1403,10 +1404,18 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 			switch key {
 			case "MODEL":
 				// MODEL = @variable | 'literal' | (subquery)
-				stmt.Model, _ = p.parseExpr()
+				model, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Model = model
 			case "DATA":
 				// DATA = table_source AS alias
-				stmt.Data, _ = p.parseExpr()
+				data, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Data = data
 				// Optional AS alias
 				if p.cur.Type == kwAS {
 					p.advance() // consume AS
@@ -1432,7 +1441,9 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 		}
 	}
 
-	p.match(')') // consume ')'
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 
 	// WITH ( result_set_definition )
 	if p.cur.Type == kwWITH {
@@ -1446,12 +1457,15 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 					continue
 				}
 				// column_name data_type [COLLATE collation] [NULL | NOT NULL]
-				col := p.parsePredictColumnDef()
-				if col != nil {
-					cols = append(cols, col)
+				col, err := p.parsePredictColumnDef()
+				if err != nil {
+					return nil, err
 				}
+				cols = append(cols, col)
 			}
-			p.match(')') // consume ')'
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			if len(cols) > 0 {
 				stmt.WithColumns = &nodes.List{Items: cols}
 			}
@@ -1464,9 +1478,13 @@ func (p *Parser) parsePredictStmt() (*nodes.PredictStmt, error) {
 
 // parsePredictColumnDef parses a column definition in PREDICT's WITH clause.
 // column_name data_type [COLLATE collation_name] [NULL | NOT NULL]
-func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
+//
+// It consumes at least the column name or fails: the WITH list loop relies
+// on that to make progress, and a token that starts no column definition
+// (a literal, a nested '(') used to spin it forever.
+func (p *Parser) parsePredictColumnDef() (*nodes.ColumnDef, error) {
 	if !p.isIdentLike() {
-		return nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	loc := p.pos()
 
@@ -1474,7 +1492,13 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 	p.advance()
 
 	// data_type
-	dt, _ := p.parseDataType()
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	if dt == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	col := &nodes.ColumnDef{
 		Name:     colName,
@@ -1485,10 +1509,11 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 	// Optional COLLATE
 	if p.cur.Type == kwCOLLATE {
 		p.advance()
-		if p.isIdentLike() {
-			col.Collation = p.cur.Str
-			p.advance()
+		collation, err := p.parseCollationName()
+		if err != nil {
+			return nil, err
 		}
+		col.Collation = collation
 	}
 
 	// Optional NULL / NOT NULL
@@ -1504,7 +1529,7 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 	}
 
 	col.Loc.End = p.prevEnd()
-	return col
+	return col, nil
 }
 
 // parseCreateRemoteTableAsSelectStmt parses a CREATE REMOTE TABLE AS SELECT (CRTAS) statement.

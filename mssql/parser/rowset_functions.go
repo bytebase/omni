@@ -228,11 +228,11 @@ func (p *Parser) parseRowsetWithClause(isJSON bool) (*nodes.List, error) {
 			Loc:      nodes.Loc{Start: loc, End: -1},
 		}
 		if _, ok := p.match(kwCOLLATE); ok {
-			if !p.isIdentLike() || p.source[p.cur.Loc] == '[' || p.source[p.cur.Loc] == '"' {
-				return nil, p.unexpectedToken()
+			collation, err := p.parseCollationName()
+			if err != nil {
+				return nil, err
 			}
-			col.Collation = p.cur.Str
-			p.advance()
+			col.Collation = collation
 		}
 		if p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST {
 			tok := p.advance()
