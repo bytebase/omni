@@ -4,103 +4,106 @@ import (
 	"github.com/bytebase/omni/cosmosdb/ast"
 )
 
-// extractFieldPaths recursively collects all field paths referenced in an expression.
+// extractFieldPaths collects all field paths referenced in an expression.
 func extractFieldPaths(expr ast.ExprNode, aliases aliasMap) []FieldPath {
+	return appendFieldPaths(nil, expr, aliases)
+}
+
+// appendFieldPaths appends the field paths referenced in expr to dst, in
+// the order they occur, and returns the extended slice. Every expression
+// appends to the one slice: returning a slice per subexpression and
+// copying it into the parent's re-copied every path at each level, which
+// made a chain of n ORs take time quadratic in n (16,000 took seconds).
+func appendFieldPaths(dst []FieldPath, expr ast.ExprNode, aliases aliasMap) []FieldPath {
 	if expr == nil {
-		return nil
+		return dst
 	}
 
 	switch e := expr.(type) {
 	case *ast.ColumnRef:
 		if resolved, ok := aliases[e.Name]; ok {
-			return []FieldPath{copyPath(resolved)}
+			return append(dst, copyPath(resolved))
 		}
-		return []FieldPath{{ItemSelector(e.Name)}}
+		return append(dst, FieldPath{ItemSelector(e.Name)})
 
 	case *ast.DotAccessExpr:
-		bases := extractFieldPaths(e.Expr, aliases)
-		for i := range bases {
-			bases[i] = append(bases[i], ItemSelector(e.Property))
+		start := len(dst)
+		dst = appendFieldPaths(dst, e.Expr, aliases)
+		for i := start; i < len(dst); i++ {
+			dst[i] = append(dst[i], ItemSelector(e.Property))
 		}
-		return bases
+		return dst
 
 	case *ast.BracketAccessExpr:
-		bases := extractFieldPaths(e.Expr, aliases)
+		start := len(dst)
+		dst = appendFieldPaths(dst, e.Expr, aliases)
 		sel := bracketSelector(e.Index)
-		for i := range bases {
-			bases[i] = append(bases[i], sel)
+		for i := start; i < len(dst); i++ {
+			dst[i] = append(dst[i], sel)
 		}
-		return bases
+		return dst
 
 	case *ast.BinaryExpr:
-		return collectFromExprs(aliases, e.Left, e.Right)
+		dst = appendFieldPaths(dst, e.Left, aliases)
+		return appendFieldPaths(dst, e.Right, aliases)
 
 	case *ast.UnaryExpr:
-		return extractFieldPaths(e.Operand, aliases)
+		return appendFieldPaths(dst, e.Operand, aliases)
 
 	case *ast.TernaryExpr:
-		return collectFromExprs(aliases, e.Cond, e.Then, e.Else)
+		dst = appendFieldPaths(dst, e.Cond, aliases)
+		dst = appendFieldPaths(dst, e.Then, aliases)
+		return appendFieldPaths(dst, e.Else, aliases)
 
 	case *ast.InExpr:
-		paths := extractFieldPaths(e.Expr, aliases)
+		dst = appendFieldPaths(dst, e.Expr, aliases)
 		for _, item := range e.List {
-			paths = append(paths, extractFieldPaths(item, aliases)...)
+			dst = appendFieldPaths(dst, item, aliases)
 		}
-		return paths
+		return dst
 
 	case *ast.BetweenExpr:
-		return collectFromExprs(aliases, e.Expr, e.Low, e.High)
+		dst = appendFieldPaths(dst, e.Expr, aliases)
+		dst = appendFieldPaths(dst, e.Low, aliases)
+		return appendFieldPaths(dst, e.High, aliases)
 
 	case *ast.LikeExpr:
-		paths := collectFromExprs(aliases, e.Expr, e.Pattern)
-		if e.Escape != nil {
-			paths = append(paths, extractFieldPaths(e.Escape, aliases)...)
-		}
-		return paths
+		dst = appendFieldPaths(dst, e.Expr, aliases)
+		dst = appendFieldPaths(dst, e.Pattern, aliases)
+		return appendFieldPaths(dst, e.Escape, aliases)
 
 	case *ast.FuncCall:
-		return collectFromExprSlice(e.Args, aliases)
+		return appendFieldPathsOf(dst, e.Args, aliases)
 
 	case *ast.UDFCall:
-		return collectFromExprSlice(e.Args, aliases)
+		return appendFieldPathsOf(dst, e.Args, aliases)
 
 	case *ast.CreateArrayExpr:
-		return collectFromExprSlice(e.Elements, aliases)
+		return appendFieldPathsOf(dst, e.Elements, aliases)
 
 	case *ast.CreateObjectExpr:
-		var paths []FieldPath
 		for _, f := range e.Fields {
-			paths = append(paths, extractFieldPaths(f.Value, aliases)...)
+			dst = appendFieldPaths(dst, f.Value, aliases)
 		}
-		return paths
+		return dst
 
 	case *ast.StringLit, *ast.NumberLit, *ast.BoolLit,
 		*ast.NullLit, *ast.UndefinedLit, *ast.InfinityLit,
 		*ast.NanLit, *ast.ParamRef:
-		return nil
+		return dst
 
 	case *ast.SubLink, *ast.ExistsExpr, *ast.ArrayExpr:
-		return nil
+		return dst
 
 	default:
-		return nil
+		return dst
 	}
 }
 
-// collectFromExprs collects field paths from multiple expressions.
-func collectFromExprs(aliases aliasMap, exprs ...ast.ExprNode) []FieldPath {
-	var all []FieldPath
+// appendFieldPathsOf appends the field paths of each expression in exprs.
+func appendFieldPathsOf(dst []FieldPath, exprs []ast.ExprNode, aliases aliasMap) []FieldPath {
 	for _, e := range exprs {
-		all = append(all, extractFieldPaths(e, aliases)...)
+		dst = appendFieldPaths(dst, e, aliases)
 	}
-	return all
-}
-
-// collectFromExprSlice collects field paths from a slice of expressions.
-func collectFromExprSlice(exprs []ast.ExprNode, aliases aliasMap) []FieldPath {
-	var all []FieldPath
-	for _, e := range exprs {
-		all = append(all, extractFieldPaths(e, aliases)...)
-	}
-	return all
+	return dst
 }
