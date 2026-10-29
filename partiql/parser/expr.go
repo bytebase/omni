@@ -282,9 +282,10 @@ func (p *Parser) parseIsBody(left ast.ExprNode, not bool, startLoc int) (*ast.Is
 // Grammar: exprPredicate#PredicateIn (lines 487-488).
 //
 // Supports two forms:
-//  1. Parenthesized list: `IN (expr, expr, ...)`
+//  1. Parenthesized: `IN (expr)` or `IN (expr, expr, ...)`. A lone query,
+//     `IN (SELECT ...)`, fills Subquery; anything else fills List.
 //  2. Expression form: `IN expr` where expr is typically an array
-//     literal like `[1, 2, 3]` or a subquery.
+//     literal like `[1, 2, 3]`.
 func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.InExpr, error) {
 	p.advance() // consume IN
 
@@ -301,9 +302,15 @@ func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.In
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
+		// Each item is a full expr, not a mathOp00: one item is the expr
+		// of g4:487 (`NOT? IN PAREN_LEFT expr PAREN_RIGHT`), and several
+		// are the valueList that g4:488 (`NOT? IN rhs=mathOp00`) reaches
+		// through exprPrimary, `PAREN_LEFT expr (COMMA expr)+ PAREN_RIGHT`
+		// (g4:566-567). So a query, a comparison, or AND/OR is an item:
+		// `a IN (SELECT b FROM t)`, `a IN (1, b = 2)`.
 		var list []ast.ExprNode
 		for {
-			item, err := p.parseMathOp00()
+			item, err := p.parseExprTop()
 			if err != nil {
 				return nil, err
 			}
@@ -317,12 +324,22 @@ func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.In
 		if err != nil {
 			return nil, err
 		}
-		return &ast.InExpr{
+		in := &ast.InExpr{
 			Expr: left,
-			List: list,
 			Not:  not,
 			Loc:  ast.Loc{Start: startLoc, End: rp.Loc.End},
-		}, nil
+		}
+		// A query standing alone in the parentheses is the subquery. The
+		// SubLink of a query in parentheses of its own, as in
+		// `a IN ((SELECT b FROM t))`, spans those parentheses
+		// (parseParenExpr), so it is not its statement's span and stays
+		// a list item.
+		if sub, ok := list[0].(*ast.SubLink); ok && len(list) == 1 && sub.Loc == sub.Stmt.GetLoc() {
+			in.Subquery = sub.Stmt
+		} else {
+			in.List = list
+		}
+		return in, nil
 	}
 
 	// Expression form: IN expr (e.g., IN [1, 2, 3]).

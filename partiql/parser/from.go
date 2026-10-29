@@ -133,36 +133,16 @@ func (p *Parser) parseTableReference() (ast.TableExpr, error) {
 // TableWrapped form. Bug B6: an earlier version always routed '(' through
 // the base/value-expression path, so a wrapped join such as
 // "(t1 CROSS JOIN t2)" was rejected at the first join keyword.
+//
+// Both readings parse the '(' groups nested inside, and each of those is
+// read both ways in turn, so the work doubled with every level of nesting:
+// a syntax error 18 derived tables deep took seconds, and so did the valid
+// `((SELECT * FROM ((SELECT ...) CROSS JOIN t)) CROSS JOIN t)`. The results
+// at each nested '(' are recorded while the base reading runs (see
+// Parser.speculating), so each is parsed once per reading of its own level.
 func (p *Parser) parseTablePrimary() (ast.TableExpr, error) {
 	if p.cur.Type == tokPAREN_LEFT {
-		// First attempt: '(' begins a value expression / subquery used as
-		// a base table reference (handles (expr), (SELECT...), and a
-		// trailing AS/AT/BY alias). parseTableBaseReference -> parseSelectExpr
-		// -> the expression-level parseParenExpr.
-		start := p.save()
-		base, err := p.parseTableBaseReference()
-		if err == nil {
-			return base, nil
-		}
-		if isNestingError(err) {
-			// A nesting error ends the parse. Retrying the wrapped reading
-			// would repeat both readings at every enclosing '(', which takes
-			// time exponential in the depth.
-			return nil, err
-		}
-		// The value-expression reading failed (e.g. the content is a join
-		// or carries an inner alias). Rewind and try the wrapped
-		// table-reference form `( tableReference )`.
-		p.restore(start)
-		wrapped, werr := p.parseWrappedTableReference()
-		if werr != nil {
-			// Neither reading applies. Surface the wrapped-form error: at
-			// this point we know the content was not a plain value
-			// expression, so the table-reference-oriented diagnostic is the
-			// more relevant one.
-			return nil, werr
-		}
-		return wrapped, nil
+		return replayParen(p, &p.tableMemo, p.parseParenTablePrimary)
 	}
 
 	// UNPIVOT.
@@ -172,6 +152,81 @@ func (p *Parser) parseTablePrimary() (ast.TableExpr, error) {
 
 	// Base table reference: source expression + optional aliases.
 	return p.parseTableBaseReference()
+}
+
+// parseParenTablePrimary reads a table reference that starts with '(' both
+// ways, as parseTablePrimary describes.
+func (p *Parser) parseParenTablePrimary() (ast.TableExpr, error) {
+	// First attempt: '(' begins a value expression / subquery used as
+	// a base table reference (handles (expr), (SELECT...), and a
+	// trailing AS/AT/BY alias). parseTableBaseReference -> parseSelectExpr
+	// -> the expression-level parseParenExpr.
+	start := p.save()
+	p.speculating++
+	base, err := p.parseTableBaseReference()
+	p.speculating--
+	if err == nil {
+		return base, nil
+	}
+	if isNestingError(err) {
+		// A nesting error ends the parse. Retrying the wrapped reading
+		// would repeat both readings at every enclosing '(', which takes
+		// time exponential in the depth.
+		return nil, err
+	}
+	// The value-expression reading failed (e.g. the content is a join
+	// or carries an inner alias). Rewind and try the wrapped
+	// table-reference form `( tableReference )`.
+	p.restore(start)
+	wrapped, werr := p.parseWrappedTableReference()
+	if werr != nil {
+		// Neither reading applies. Surface the wrapped-form error: at
+		// this point we know the content was not a plain value
+		// expression, so the table-reference-oriented diagnostic is the
+		// more relevant one.
+		return nil, werr
+	}
+	return wrapped, nil
+}
+
+// parenReplay is a recorded parseParenExpr or parseTablePrimary result at a
+// '(': the node or the error, the state the parse left behind, and the
+// nesting depth it started at. A parse depends on nothing but the tokens and,
+// through enterNesting, that depth; started no deeper, it passes every
+// enterNesting it passed before, so replaying the record is
+// indistinguishable from parsing the tokens again. The wrapped reading
+// reaches a nested '(' through fewer productions than the base reading, so
+// the records it asks for were made deeper than it asks. A record holds no
+// nesting error: one ends the parse, so it is never asked for again.
+type parenReplay struct {
+	node  any
+	err   error
+	end   parserState
+	depth int
+}
+
+// replayParen runs parse at the '(' p.cur holds, or replays the record memo
+// holds for that '('. While a base reading of a FROM-clause '(' is in
+// progress (Parser.speculating), the result is recorded, since the wrapped
+// reading may parse the same tokens. A replay returns the node the recorded
+// parse built; no caller changes a node it is handed, so the node is as the
+// parse left it.
+func replayParen[T any](p *Parser, memo *map[int]parenReplay, parse func() (T, error)) (T, error) {
+	open := p.cur.Loc.Start
+	if r, ok := (*memo)[open]; ok && p.depth <= r.depth {
+		p.restore(r.end)
+		node, _ := r.node.(T)
+		return node, r.err
+	}
+	depth := p.depth
+	node, err := parse()
+	if p.speculating > 0 && !isNestingError(err) {
+		if *memo == nil {
+			*memo = make(map[int]parenReplay)
+		}
+		(*memo)[open] = parenReplay{node: node, err: err, end: p.save(), depth: depth}
+	}
+	return node, err
 }
 
 // parseWrappedTableReference parses the TableWrapped form

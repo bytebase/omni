@@ -169,7 +169,15 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 //
 // Grammar: exprTerm#ExprTermWrappedQuery (line 543) + exprGraphMatchMany
 // (lines 625-626).
+//
+// Both readings of a FROM-clause '(' (parseTablePrimary) can reach the same
+// '(' here, so the result is recorded while one is in progress.
 func (p *Parser) parseParenExpr() (ast.ExprNode, error) {
+	return replayParen(p, &p.parenMemo, p.parseParenExprBody)
+}
+
+// parseParenExprBody parses what parseParenExpr describes.
+func (p *Parser) parseParenExprBody() (ast.ExprNode, error) {
 	start := p.cur.Loc.Start
 	p.advance() // consume (
 
@@ -212,11 +220,14 @@ func (p *Parser) parseParenExpr() (ast.ExprNode, error) {
 	}
 
 	// If the inner expression is a SubLink (parenthesized SELECT),
-	// update its Loc to span the outer parens and return it directly.
-	// The parens are syntactic but the SubLink carries the query.
+	// return it with its Loc spanning the outer parens. The parens are
+	// syntactic but the SubLink carries the query. The SubLink is copied,
+	// not changed: an inner '(' may have returned it from a record that a
+	// later replay hands out again (see replayParen).
 	if sub, ok := first.(*ast.SubLink); ok {
-		sub.Loc = ast.Loc{Start: start, End: rp.Loc.End}
-		return sub, nil
+		wrapped := *sub
+		wrapped.Loc = ast.Loc{Start: start, End: rp.Loc.End}
+		return &wrapped, nil
 	}
 
 	return first, nil
