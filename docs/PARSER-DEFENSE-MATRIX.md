@@ -15,6 +15,8 @@ Every SQL parser in omni needs a systematic suite of defensive tests to ensure c
 - Special expressions: `CASE WHEN` missing `END`, `CAST` missing type, incomplete `CONVERT`
 - Statement-level truncation: SELECT/INSERT/UPDATE/DELETE/DDL cut off at each clause
 - Error message quality: distinguish "at end of input" vs "at or near 'token'"
+- Nesting depth: deep nesting of every recursive construct (parentheses, unary operators, subqueries, join groups, function calls, constructors, types, blocks, unclosed variants) fails past `maxNestingDepth` with a `ParseError` instead of overflowing the Go stack, which is fatal; a long run of comments or string pieces does not recurse in the lexer
+- Tree height: every left-deep chain the grammar builds in a loop (binary operators, set operations, joins, postfix operators) fails past `maxTreeHeight` levels, also inside what `ast.Walk` skips (VALUES rows, grouping sets, subquery bodies); a subtree that two nodes share, nested inside itself, measures in linear time; and no construct adds more than 16 levels of tree per byte of text, the bound the height check's skip relies on
 
 **Verification**: Error test files — one test case per truncation pattern, asserting error message content.
 
