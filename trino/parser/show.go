@@ -571,6 +571,6 @@ func (p *Parser) captureBalancedParen(openTok Token) (string, Token, error) {
 	raw := p.sourceSlice(innerStart, innerEnd)
 	closeTok := p.advance() // consume ')'
 	trimmed := strings.TrimSpace(raw)
-	p.rawQueries = append(p.rawQueries, rawQuery{text: trimmed, start: innerStart + strings.Index(raw, trimmed)})
+	p.rawQueries = append(p.rawQueries, rawQuery{text: trimmed, start: innerStart + strings.Index(raw, trimmed), depth: p.depth})
 	return trimmed, closeTok, nil
 }

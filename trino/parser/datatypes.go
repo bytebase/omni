@@ -442,6 +442,10 @@ func (p *Parser) parseArraySuffixes(base *DataType) (*DataType, error) {
 //   - anything else (including ROW/ARRAY/MAP/DOUBLE/INTERVAL NOT followed by
 //     their special syntax) → genericType.
 func (p *Parser) parseBaseType() (*DataType, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Kind {
 	case kwROW:
 		if p.peekNext().Kind == int('(') {
@@ -932,6 +936,11 @@ func ParseDataType(input string) (*DataType, []ParseError) {
 	p.advance()
 
 	dt, err := p.parseType()
+	if p.nestingErr != nil {
+		err = p.nestingErr // see parseSingle
+	} else if err == nil && p.treeTooHigh(dt, len(input)) {
+		err = &ParseError{Position: dt.Loc.Start, End: dt.Loc.Start, Message: nestingTooDeep}
+	}
 	if err != nil {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}

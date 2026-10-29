@@ -284,6 +284,10 @@ var _ RoutineStatement = (*RepeatStatement)(nil)
 // reserved CASE is a valid label). Dispatching on the keyword first would
 // mis-read `loop: LOOP …` as an unlabeled LOOP starting at the label token.
 func (p *Parser) parseRoutineStatement() (RoutineStatement, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// A `label:` prefix: an identifier (or non-reserved keyword) immediately
 	// followed by ':' begins a labeled LOOP / WHILE / REPEAT.
 	if isIdentifierStart(p.cur.Kind) && p.peekNext().Kind == int(':') {

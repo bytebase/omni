@@ -312,6 +312,10 @@ func (p *Parser) parseRelationList() ([]Relation, error) {
 // criteria, or NATURAL JOIN). The left-associative loop mirrors ANTLR's
 // left-recursive `relation` rule.
 func (p *Parser) parseRelation() (Relation, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parseSampledRelation()
 	if err != nil {
 		return nil, err
@@ -728,6 +732,10 @@ func (p *Parser) atRelationClauseStart() bool {
 // JSON_TABLE (a 481 relationPrimary absent from the legacy grammar) is the
 // deferred P1 extension D1 (select.go); it is not handled here.
 func (p *Parser) parseRelationPrimary() (Relation, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Kind {
 	case kwUNNEST:
 		return p.parseUnnest()
