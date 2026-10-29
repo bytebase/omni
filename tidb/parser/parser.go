@@ -2,6 +2,8 @@ package parser
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
@@ -24,6 +26,8 @@ type Parser struct {
 	parenRunPast    Token         // first token past that run
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+
+	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
 
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
@@ -247,6 +251,11 @@ func (p *Parser) syntaxErrorAtTok(tok Token) *ParseError {
 
 // lineCol computes the 1-based line and column for a byte offset in the input.
 // The offset is absolute (includes baseOffset), so we subtract it to index into segment text.
+//
+// Every syntax error asks, and completion resumes after each statement that
+// fails, so the newlines are found once and searched: counting them from the
+// start of the input for each error made completion over a run of n failing
+// tokens quadratic.
 func (p *Parser) lineCol(offset int) (int, int) {
 	offset -= p.lexer.baseOffset
 	input := p.lexer.input
@@ -256,16 +265,21 @@ func (p *Parser) lineCol(offset int) (int, int) {
 	if offset > len(input) {
 		offset = len(input)
 	}
-	line := 1
-	lastNewline := -1
-	for i := 0; i < offset; i++ {
-		if input[i] == '\n' {
-			line++
-			lastNewline = i
+	if p.newlines == nil {
+		p.newlines = make([]int, 0, strings.Count(input, "\n"))
+		for i := 0; i < len(input); i++ {
+			if input[i] == '\n' {
+				p.newlines = append(p.newlines, i)
+			}
 		}
 	}
-	col := offset - lastNewline
-	return line, col
+	// The newlines before offset.
+	n := sort.SearchInts(p.newlines, offset)
+	lastNewline := -1
+	if n > 0 {
+		lastNewline = p.newlines[n-1]
+	}
+	return 1 + n, offset - lastNewline
 }
 
 // lineColStatic computes line and column from raw input (for use outside a Parser).
