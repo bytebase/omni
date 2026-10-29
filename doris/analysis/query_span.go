@@ -288,12 +288,22 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 		w.enterScope(scope)
 		defer w.leaveScope(scope)
 	}
+	w.visitSetOpArms(n, outermost)
+}
 
+// visitSetOpArms walks the arms and trailing clauses of a set operation whose
+// leftmost WITH scope visitSetOp has installed. A set-operation left arm has
+// the same leftmost SELECT, so it is walked here under that scope rather than
+// through visitSetOp: searching the left spine again at every level made a
+// chain of n arms (SELECT 1 UNION ALL SELECT 1 ...) cost O(n²).
+func (w *spanWalker) visitSetOpArms(n *ast.SetOpStmt, outermost bool) {
 	switch l := n.Left.(type) {
 	case *ast.SelectStmt:
 		w.visitSelect(l, outermost)
 	case *ast.SetOpStmt:
-		w.visitSetOp(l, outermost)
+		if l != nil {
+			w.visitSetOpArms(l, outermost)
+		}
 	case *ast.GroupedQuery:
 		w.visitGroupedQuery(l, outermost)
 	}
@@ -676,28 +686,41 @@ func renderColumnName(expr ast.Node) string {
 
 // collectColumnRefs returns every ColumnRef directly mentioned in expr.
 func collectColumnRefs(expr ast.Node) []ColumnRef {
-	return collectColumnRefsScoped(expr, nil)
+	var c columnRefCollector
+	c.collect(expr)
+	return c.refs
 }
 
-// collectColumnRefsScoped collects direct column references, skipping any name
+// columnRefCollector collects direct column references, skipping any name
 // bound by an enclosing lambda. In array_map(x -> x + bonus, scores) the
 // parameter x is local to the lambda and is not a column of any table, so
 // reporting it would feed a nonexistent column into lineage and masking.
-func collectColumnRefsScoped(expr ast.Node, bound map[string]bool) []ColumnRef {
-	var refs []ColumnRef
+//
+// bound counts, per lowercased name, the enclosing lambdas binding it. One
+// count map and one result slice serve every lambda level: copying the
+// binding set into each nested lambda, and its results out of it, made n
+// nested lambdas cost O(n²).
+type columnRefCollector struct {
+	bound map[string]int
+	refs  []ColumnRef
+}
+
+func (c *columnRefCollector) collect(expr ast.Node) {
 	ast.Inspect(expr, func(n ast.Node) bool {
 		switch node := n.(type) {
 		case *ast.LambdaExpr:
 			// Inspect has no post-order hook to pop a scope with, so recurse
-			// into the body with the widened binding set instead.
-			inner := make(map[string]bool, len(bound)+len(node.Params))
-			for name := range bound {
-				inner[name] = true
+			// into the body with the parameters bound, then unbind them.
+			if c.bound == nil {
+				c.bound = make(map[string]int)
 			}
 			for _, param := range node.Params {
-				inner[strings.ToLower(param)] = true
+				c.bound[strings.ToLower(param)]++
 			}
-			refs = append(refs, collectColumnRefsScoped(node.Body, inner)...)
+			c.collect(node.Body)
+			for _, param := range node.Params {
+				c.bound[strings.ToLower(param)]--
+			}
 			return false
 		case *ast.ColumnRef:
 			if node.Name == nil || len(node.Name.Parts) == 0 {
@@ -705,10 +728,10 @@ func collectColumnRefsScoped(expr ast.Node, bound map[string]bool) []ColumnRef {
 			}
 			// Only an unqualified name can be a lambda parameter; `t.x` is a
 			// column even when a parameter happens to be called x.
-			if len(node.Name.Parts) == 1 && bound[strings.ToLower(node.Name.Parts[0])] {
+			if len(node.Name.Parts) == 1 && c.bound[strings.ToLower(node.Name.Parts[0])] > 0 {
 				return false
 			}
-			refs = append(refs, columnRefFromObjectName(node.Name))
+			c.refs = append(c.refs, columnRefFromObjectName(node.Name))
 			return false
 		case *ast.SubqueryExpr, *ast.ExistsExpr:
 			// Don't follow subqueries when collecting the *direct* column
@@ -717,7 +740,6 @@ func collectColumnRefsScoped(expr ast.Node, bound map[string]bool) []ColumnRef {
 		}
 		return true
 	})
-	return refs
 }
 
 func columnRefFromObjectName(name *ast.ObjectName) ColumnRef {
