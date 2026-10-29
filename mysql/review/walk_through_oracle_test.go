@@ -630,10 +630,14 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 		"SELECT CONSTRAINT_SCHEMA, CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN " + in + " ORDER BY 1, 2",
 		"SELECT TRIGGER_SCHEMA, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN " + in + " ORDER BY 1, 2",
 		"SELECT ROUTINE_SCHEMA, ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-		"SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN " + in + " ORDER BY 1, 2",
 	}
 	if e.oceanBase {
+		// OceanBase changes its events on its own: one listed after a reset
+		// went from information_schema.EVENTS seconds later (seen on 4.3.5),
+		// so the digest leaves them out.
 		queries = append(queries, "SELECT OWNER, MVIEW_NAME FROM oceanbase.DBA_MVIEWS WHERE OWNER IN "+in+" ORDER BY 1, 2")
+	} else {
+		queries = append(queries, "SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN "+in+" ORDER BY 1, 2")
 	}
 	for _, q := range queries {
 		read(q, args...)
