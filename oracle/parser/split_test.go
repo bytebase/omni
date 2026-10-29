@@ -3,7 +3,9 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestSplitOrdinarySQL(t *testing.T) {
@@ -1409,4 +1411,24 @@ func splitTexts(segs []Segment) []string {
 		out = append(out, seg.Text)
 	}
 	return out
+}
+
+// TestSplitLongLineStaysLinear: Split asks whether each token starts a
+// SQL*Plus command line. Answering by finding the line start first scanned
+// the whole line again for every token, so a 200KB single-line statement took
+// 12s. The same statement with a line break per item was always fast.
+func TestSplitLongLineStaysLinear(t *testing.T) {
+	const n = 500000
+	for _, sql := range []string{
+		"SELECT " + strings.Repeat("1, ", n) + "1 FROM dual",
+		strings.Repeat("SELECT 1 FROM dual; ", n/10),
+	} {
+		done := make(chan int, 1)
+		go func() { done <- len(Split(sql)) }()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("Split of a %d-byte line took over 2s", len(sql))
+		}
+	}
 }

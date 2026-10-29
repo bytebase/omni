@@ -675,9 +675,7 @@ type sqlPlusCommand struct {
 }
 
 func sqlPlusCommandAtLineStart(sql string, tok Token) (sqlPlusCommand, bool) {
-	lineStart := lineStartOffset(sql, tok.Loc)
-	i := skipHorizontalSpace(sql, lineStart)
-	if i != tok.Loc {
+	if !onlyHorizontalSpaceBefore(sql, tok.Loc) {
 		return sqlPlusCommand{}, false
 	}
 
@@ -876,6 +874,26 @@ func lineStartOffset(sql string, pos int) int {
 		pos--
 	}
 	return pos
+}
+
+// onlyHorizontalSpaceBefore reports whether pos is preceded on its line by
+// horizontal space alone. Split asks this for every token, so it scans back
+// over that space and stops at the first other byte; finding the line start
+// first made a long line quadratic.
+func onlyHorizontalSpaceBefore(sql string, pos int) bool {
+	if pos > len(sql) {
+		return false
+	}
+	for ; pos > 0; pos-- {
+		switch sql[pos-1] {
+		case ' ', '\t', '\f':
+		case '\n', '\r':
+			return true
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func skipHorizontalSpace(sql string, i int) int {
