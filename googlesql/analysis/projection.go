@@ -240,24 +240,26 @@ func (w *spanWalker) resolveExprColumn(item *ast.SelectItem) projColumn {
 // maximal dotted column path is resolved by resolvePath; a multi-reference
 // expression has no derivable name.
 func (w *spanWalker) resolveExprSources(expr ast.Node) (string, []ColumnRef) {
-	if expr == nil {
+	if expr == nil || w.tablesOnly {
 		return "", nil
 	}
 	paths := w.collectColumnPaths(expr)
 	if len(paths) == 0 {
 		return "", nil
 	}
-	var sources []ColumnRef
+	// One refUnion for the whole expression: re-unioning the sources gathered
+	// so far with each path's made `a1 + a2 + ... + an` cost O(n^2).
+	var sources refUnion
 	name := ""
 	for _, parts := range paths {
 		n, refs := w.resolvePath(parts)
-		sources = unionColumnRefs(sources, refs)
+		sources.add(refs)
 		name = n
 	}
 	if len(paths) > 1 {
 		name = ""
 	}
-	return name, sources
+	return name, sources.refs
 }
 
 // resolvePath resolves one dotted column path (e.g. [col] or [rel, col] or
@@ -276,7 +278,7 @@ func (w *spanWalker) resolveExprSources(expr ast.Node) (string, []ColumnRef) {
 // lineage. A column owned by (or assumed to be on) a base table resolves to a
 // written ref the consumer matches against catalog metadata.
 func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
-	if len(parts) == 0 {
+	if len(parts) == 0 || w.tablesOnly {
 		return "", nil
 	}
 	if len(parts) == 1 {
@@ -568,18 +570,11 @@ func mergeProjections(left, right []projColumn) []projColumn {
 
 	switch {
 	case lConcrete && rConcrete:
-		if len(left) != len(right) {
-			return left
-		}
-		merged := make([]projColumn, len(left))
-		for i := range left {
-			merged[i] = projColumn{
-				name:    left[i].name,
-				sources: unionColumnRefs(left[i].sources, right[i].sources),
-				plain:   false,
-			}
-		}
-		return merged
+		// A position-wise union of the sources, names from the left (see
+		// setOpMerger.merge).
+		m := setOpMerger{cols: left}
+		m.merge(right)
+		return m.result()
 	case lConcrete && rStar != nil:
 		// Concrete LEFT, single base-star RIGHT: per-position starMerge.
 		merged := make([]projColumn, len(left))
@@ -665,20 +660,97 @@ func mergeProjectionsByName(left, right []projColumn, matchColumns []string) []p
 		}
 		return out
 	}
-	out := make([]projColumn, 0, len(left)+len(right))
-	for _, l := range left {
-		out = append(out, projColumn{
-			name:    l.name,
-			sources: unionColumnRefs(l.sources, namedSources(right, l.name)),
-			plain:   false,
-		})
+	// The left columns, each unioned with the same-named right columns, then the
+	// right-only columns (see setOpMerger.mergeByName).
+	m := setOpMerger{cols: left}
+	m.mergeByName(right, nil)
+	return m.result()
+}
+
+// setOpMerger merges the arms of a set-operation chain one at a time, each
+// merge giving what mergeProjections or mergeProjectionsByName gives for the
+// projection so far and the next arm. It builds the concrete unions itself
+// (position-wise, or by name without a column list) and hands every other
+// merge to those functions. While every merge so far was a concrete union, the
+// sources of each output column are held in a refUnion and extended in place.
+// Building a new union of both arms' full source lists at every arm copied the
+// sources gathered so far again at each one, so a chain of n arms reading n
+// different tables cost O(n^2).
+type setOpMerger struct {
+	// cols is the projection so far. While unions is non-nil, the merges were
+	// concrete unions: each column has only its name set, and unions[i] holds
+	// column i's sources.
+	cols   []projColumn
+	unions []refUnion
+}
+
+// merge merges the next arm position-wise, as mergeProjections does.
+func (m *setOpMerger) merge(right []projColumn) {
+	if len(right) == 0 {
+		return
 	}
-	for _, r := range right {
-		if !projHasName(left, r.name) {
-			out = append(out, projColumn{name: r.name, sources: r.sources, plain: false})
+	if len(m.cols) > 0 && allConcrete(m.cols) && allConcrete(right) {
+		if len(m.cols) != len(right) {
+			return // arity mismatch: the left projection wins unchanged
 		}
+		m.accumulate()
+		for i := range right {
+			m.unions[i].add(right[i].sources)
+		}
+		return
 	}
-	return out
+	m.cols = mergeProjections(m.result(), right)
+}
+
+// mergeByName merges the next arm by column name, as mergeProjectionsByName
+// does.
+func (m *setOpMerger) mergeByName(right []projColumn, matchColumns []string) {
+	if len(right) == 0 {
+		return
+	}
+	if len(m.cols) > 0 && len(matchColumns) == 0 && allConcrete(m.cols) && allConcrete(right) {
+		m.accumulate()
+		n := len(m.cols)
+		for i := 0; i < n; i++ {
+			m.unions[i].add(namedSources(right, m.cols[i].name))
+		}
+		for _, r := range right {
+			if !projHasName(m.cols[:n], r.name) {
+				m.cols = append(m.cols, projColumn{name: r.name})
+				m.unions = append(m.unions, refUnion{refs: r.sources})
+			}
+		}
+		return
+	}
+	m.cols = mergeProjectionsByName(m.result(), right, matchColumns)
+}
+
+// accumulate turns the projection so far, all concrete, into the accumulated
+// form: a merged column keeps only its name (it is never plain), and its
+// sources move to unions.
+func (m *setOpMerger) accumulate() {
+	if m.unions != nil {
+		return
+	}
+	cols := make([]projColumn, len(m.cols))
+	m.unions = make([]refUnion, len(m.cols))
+	for i, c := range m.cols {
+		cols[i] = projColumn{name: c.name}
+		m.unions[i] = refUnion{refs: c.sources}
+	}
+	m.cols = cols
+}
+
+// result returns the projection so far, with the accumulated sources written
+// back into its columns.
+func (m *setOpMerger) result() []projColumn {
+	if m.unions != nil {
+		for i := range m.cols {
+			m.cols[i].sources = m.unions[i].refs
+		}
+		m.unions = nil
+	}
+	return m.cols
 }
 
 // namedSources returns the union of the sources of every concrete projection
@@ -704,36 +776,65 @@ func projHasName(cols []projColumn, name string) bool {
 	return false
 }
 
-// coalesceUsingJoin builds the projection of `left JOIN right USING (keys)`
+// coalesceUsingColumns builds the projection of `left JOIN right USING (keys)`
 // (fix F1): each key ONCE, first, in USING order — its lineage the union of
 // BOTH sides' key columns — then the left side's non-key columns (rewrapped
 // non-plain, the legacy join-left rule), then the right side's (plainness
-// kept). It returns ok=false when a side cannot be name-partitioned without
-// metadata (a deferred set-op marker in its projection); the caller fails
-// closed.
-func coalesceUsingJoin(left, right *relation, keys []string) (*relation, bool) {
-	leftRest, ok := stripUsingKeys(left.columns, keys)
+// kept). leftEnd is the length of the keys and left columns together. It
+// returns ok=false when a side cannot be name-partitioned without metadata (a
+// deferred set-op marker in its projection); the caller fails closed. The
+// result is a new slice; neither input is modified.
+func coalesceUsingColumns(left, right []projColumn, keys []string) (cols []projColumn, leftEnd int, ok bool) {
+	leftRest, ok := stripUsingKeys(left, keys)
 	if !ok {
-		return nil, false
+		return nil, 0, false
 	}
-	rightRest, ok := stripUsingKeys(right.columns, keys)
+	rightRest, ok := stripUsingKeys(right, keys)
 	if !ok {
-		return nil, false
+		return nil, 0, false
 	}
-	cols := make([]projColumn, 0, len(keys)+len(leftRest)+len(rightRest))
+	cols = make([]projColumn, 0, len(keys)+len(leftRest)+len(rightRest))
+	cols = append(cols, usingKeyColumns(left, right, keys)...)
+	for _, c := range leftRest {
+		cols = append(cols, rewrapNonPlain(c))
+	}
+	leftEnd = len(cols)
+	cols = append(cols, rightRest...)
+	return cols, leftEnd, true
+}
+
+// usingKeyColumns returns the coalesced key columns of a USING join, one per
+// key in USING order, each reading the key's lineage from both sides.
+func usingKeyColumns(left, right []projColumn, keys []string) []projColumn {
+	cols := make([]projColumn, 0, len(keys))
 	for _, key := range keys {
 		cols = append(cols, projColumn{
 			name:          key,
-			sources:       unionColumnRefs(usingKeyLineage(left.columns, key), usingKeyLineage(right.columns, key)),
+			sources:       unionColumnRefs(usingKeyLineage(left, key), usingKeyLineage(right, key)),
 			plain:         false,
 			baseFieldName: true,
 		})
 	}
-	for _, c := range leftRest {
-		cols = append(cols, rewrapNonPlain(c))
+	return cols
+}
+
+// sameNameSetFold reports whether a and b have the same length and hold the
+// same names under case-insensitive comparison.
+func sameNameSetFold(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	cols = append(cols, rightRest...)
-	return &relation{columns: cols}, true
+	for _, n := range a {
+		if !nameInListFold(b, n) {
+			return false
+		}
+	}
+	for _, n := range b {
+		if !nameInListFold(a, n) {
+			return false
+		}
+	}
+	return true
 }
 
 // stripUsingKeys returns a join side's projection with the USING key columns
