@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -842,6 +843,48 @@ func TestGetQuerySpan_NonQuerySubqueryFailsClosed(t *testing.T) {
 	} {
 		if _, err := GetQuerySpan(sql); err == nil {
 			t.Errorf("GetQuerySpan(%q) accepted a non-query subquery body", sql)
+		}
+	}
+}
+
+// TestGetQuerySpanChainsStayLinear: long chains and wide select lists. Each
+// shape below made the span do work for every pair of its parts — reading
+// every field chain below each dereference, copying the lineage of the arms
+// before each set-operation arm, comparing each reference against every
+// relation and column of its scope, expanding `*` once per star — and took
+// from seconds to minutes; they take milliseconds.
+func TestGetQuerySpanChainsStayLinear(t *testing.T) {
+	list := func(n int, item func(i int) string, sep string) string {
+		parts := make([]string, n)
+		for i := range parts {
+			parts[i] = item(i)
+		}
+		return strings.Join(parts, sep)
+	}
+	col := func(i int) string { return "a" + strconv.Itoa(i) }
+	cols := list(40000, col, ", ")
+	for _, tc := range []struct{ name, sql string }{
+		{"field references on a function result", "SELECT f(a)" + strings.Repeat(".b", 90000)},
+		{"UNION ALL of distinct columns", list(20000, func(i int) string { return "SELECT " + col(i) }, " UNION ALL ")},
+		{"joins whose relations the select list names", "SELECT " + list(40000, func(i int) string { return "t" + strconv.Itoa(i) + ".x" }, ", ") +
+			" FROM " + list(40000, func(i int) string { return "t t" + strconv.Itoa(i) }, " CROSS JOIN ")},
+		{"columns of a wide derived table", "SELECT " + cols + " FROM (SELECT " + cols + " FROM t) d"},
+		{"qualified stars", "SELECT " + list(40000, func(i int) string { return "d" + strconv.Itoa(i) + ".*" }, ", ") +
+			" FROM " + list(40000, func(i int) string { return "(SELECT 1 AS x) d" + strconv.Itoa(i) }, ", ")},
+		{"stars that do not expand", "SELECT " + list(10000, func(int) string { return "*" }, ", ") + " FROM (SELECT " + list(10000, col, ", ") + " FROM t) d, t"},
+	} {
+		done := make(chan error, 1)
+		go func() {
+			_, err := GetQuerySpan(tc.sql)
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("%s: GetQuerySpan error = %v", tc.name, err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: GetQuerySpan of %d bytes took over 2s", tc.name, len(tc.sql))
 		}
 	}
 }

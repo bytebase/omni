@@ -1,9 +1,40 @@
 package analysis
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 )
+
+// TestScopeIndexMatchesScan: a scope large enough looks its relations and
+// columns up through a relIndex instead of comparing every name, and finds
+// what the comparisons find: the same relations in the same order, names
+// matched as strings.EqualFold matches them (the Kelvin sign is a k, the
+// long s an s, and a quoted name keeps its case).
+func TestScopeIndexMatchesScan(t *testing.T) {
+	for _, sql := range []string{
+		`SELECT d.x, D.x, "D".x, x, y FROM (SELECT phone AS x, name AS y FROM customer) d, (SELECT id AS x FROM orders) "D", t`,
+		"SELECT k.a, \"K\".a, s.a, \"ſ\".a FROM (SELECT phone AS a FROM customer) k, (SELECT name AS a FROM customer) \"ſ\"",
+		`SELECT d.*, e.*, * FROM (SELECT phone, phone AS "PHONE" FROM customer) d, (SELECT name FROM customer) e`,
+		`SELECT u.v, v FROM (SELECT phones FROM customer) d CROSS JOIN UNNEST(d.phones) AS u(v)`,
+		`SELECT x FROM (SELECT phone AS x FROM customer) a JOIN (SELECT name AS x FROM customer) b USING (x)`,
+		`WITH c AS (SELECT phone AS p FROM customer) SELECT c.p, p, j.p FROM c, ((SELECT name AS p FROM customer) q CROSS JOIN c) AS j`,
+		`SELECT (SELECT d.x), d.x, "d".X FROM (SELECT phone AS x, phone AS "X" FROM customer) d`,
+	} {
+		saved := scopeIndexMin
+		scopeIndexMin = 1 << 30
+		scanned, err := GetQuerySpan(sql)
+		scopeIndexMin = 0
+		indexed, err2 := GetQuerySpan(sql)
+		scopeIndexMin = saved
+		if err != nil || err2 != nil {
+			t.Fatalf("GetQuerySpan(%q): %v, %v", sql, err, err2)
+		}
+		if !reflect.DeepEqual(scanned, indexed) {
+			t.Errorf("GetQuerySpan(%q) with every scope indexed:\n got %+v\nwant %+v", sql, indexed, scanned)
+		}
+	}
+}
 
 // hasSource reports whether a result column's resolved sources contain want.
 func hasSource(srcs []ColumnRef, want ColumnRef) bool {
