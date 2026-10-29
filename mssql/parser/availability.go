@@ -84,7 +84,11 @@ func (p *Parser) parseCreateAvailabilityGroupStmt() (*nodes.SecurityStmt, error)
 		p.advance()
 	}
 
-	stmt.Options = p.parseAvailabilityGroupOptions()
+	opts, err := p.parseAvailabilityGroupOptions()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = opts
 
 	// Reject if tokens remain unconsumed (e.g., invalid option names like SELECT).
 	if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
@@ -183,7 +187,11 @@ func (p *Parser) parseAlterAvailabilityGroupStmt() (*nodes.SecurityStmt, error) 
 		p.advance()
 	}
 
-	stmt.Options = p.parseAvailabilityGroupOptions()
+	opts, err := p.parseAvailabilityGroupOptions()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = opts
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -225,7 +233,7 @@ func newAGOpt(name, value string, loc nodes.Loc) *nodes.AvailabilityGroupOption 
 // CREATE/ALTER AVAILABILITY GROUP: WITH, FOR DATABASE, REPLICA ON,
 // AVAILABILITY GROUP ON, LISTENER, SET, ADD DATABASE, REMOVE DATABASE,
 // JOIN, FAILOVER, FORCE_FAILOVER_ALLOW_DATA_LOSS, OFFLINE, etc.
-func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
+func (p *Parser) parseAvailabilityGroupOptions() (*nodes.List, error) {
 	var opts []nodes.Node
 
 	for p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
@@ -233,7 +241,10 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 		switch {
 		case p.cur.Type == '(':
 			// Consume parenthesized blocks structurally (SET options, replica options, listener options, etc.)
-			subOpts := p.parseParenthesizedAGOptions()
+			subOpts, err := p.parseParenthesizedAGOptions()
+			if err != nil {
+				return nil, err
+			}
 			opts = append(opts, subOpts...)
 
 		case p.cur.Type == kwWITH:
@@ -434,16 +445,16 @@ func (p *Parser) parseAvailabilityGroupOptions() *nodes.List {
 		default:
 			// Stop parsing on unrecognized tokens — let caller detect leftover tokens.
 			if len(opts) == 0 {
-				return nil
+				return nil, nil
 			}
-			return &nodes.List{Items: opts}
+			return &nodes.List{Items: opts}, nil
 		}
 	}
 
 	if len(opts) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: opts}
+	return &nodes.List{Items: opts}, nil
 }
 
 // agQuoteName wraps a listener name in single quotes if non-empty, for display consistency.
@@ -489,10 +500,14 @@ func (p *Parser) consumeAGCreateAnyDatabase() {
 //   - Value lists: READ_ONLY_ROUTING_LIST = ('server1', 'server2') → Name="READ_ONLY_ROUTING_LIST" Value="('server1', 'server2')"
 //   - Standalone keywords: DISTRIBUTED → Name="DISTRIBUTED" Value=""
 //   - Nested IP tuples: IP (('addr', 'mask')) → Name="IP" Value="(('addr', 'mask'))"
-func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
+func (p *Parser) parseParenthesizedAGOptions() ([]nodes.Node, error) {
 	if p.cur.Type != '(' {
-		return nil
+		return nil, nil
 	}
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	p.advance() // consume '('
 
 	var opts []nodes.Node
@@ -515,7 +530,7 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 
 		// Must be an identifier, string, number, or keyword
 		if !p.isAGOptionToken() {
-			return opts
+			return opts, nil
 		}
 
 		key := p.agOptionTokenString()
@@ -526,7 +541,10 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 			p.advance() // consume '='
 			if p.cur.Type == '(' {
 				// Value is a parenthesized list: key = ( ... )
-				subOpts := p.parseParenthesizedAGOptions()
+				subOpts, err := p.parseParenthesizedAGOptions()
+				if err != nil {
+					return nil, err
+				}
 				var parts []string
 				for _, o := range subOpts {
 					parts = append(parts, agOptDisplayStr(o))
@@ -542,7 +560,10 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 		case p.cur.Type == '(':
 			// Nested parens without '=': SECONDARY_ROLE(...), PRIMARY_ROLE(...), IP(...), ON(...)
 			// Collapse into Name to distinguish from key=(list) format
-			subOpts := p.parseParenthesizedAGOptions()
+			subOpts, err := p.parseParenthesizedAGOptions()
+			if err != nil {
+				return nil, err
+			}
 			var parts []string
 			for _, o := range subOpts {
 				parts = append(parts, agOptDisplayStr(o))
@@ -557,7 +578,7 @@ func (p *Parser) parseParenthesizedAGOptions() []nodes.Node {
 		p.advance()
 	}
 
-	return opts
+	return opts, nil
 }
 
 // agOptDisplayStr returns the display string for an AG option node,

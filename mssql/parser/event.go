@@ -213,7 +213,11 @@ func (p *Parser) parseCreateEventSessionStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// Consume rest of statement (ON, ADD EVENT, ADD TARGET, WITH)
-	stmt.Options = p.parseEventSessionBody()
+	opts, err := p.parseEventSessionBody()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = opts
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -257,7 +261,11 @@ func (p *Parser) parseAlterEventSessionStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// Consume rest of statement
-	stmt.Options = p.parseEventSessionBody()
+	opts, err := p.parseEventSessionBody()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = opts
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -286,14 +294,18 @@ func (p *Parser) parseDropEventSessionStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// ON { SERVER | DATABASE }
-	stmt.Options = p.parseEventSessionBody()
+	opts, err := p.parseEventSessionBody()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Options = opts
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
 // parseEventSessionBody consumes ON, ADD EVENT/TARGET, DROP EVENT/TARGET, WITH, STATE clauses.
-func (p *Parser) parseEventSessionBody() *nodes.List {
+func (p *Parser) parseEventSessionBody() (*nodes.List, error) {
 	var opts []nodes.Node
 
 	// ON { SERVER | DATABASE }
@@ -314,7 +326,11 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 			p.advance()
 			if p.cur.Type == kwEVENT {
 				p.advance()
-				opts = append(opts, p.parseEventSessionEventSpec("ADD EVENT")...)
+				spec, err := p.parseEventSessionEventSpec("ADD EVENT")
+				if err != nil {
+					return nil, err
+				}
+				opts = append(opts, spec...)
 			} else if p.cur.Type == kwTARGET {
 				p.advance()
 				opts = append(opts, p.parseEventSessionTargetSpec("ADD TARGET")...)
@@ -388,9 +404,9 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 	}
 
 	if len(opts) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: opts}
+	return &nodes.List{Items: opts}, nil
 }
 
 // parseEventSessionEventSpec parses an ADD EVENT specifier with optional (SET/ACTION/WHERE).
@@ -401,7 +417,7 @@ func (p *Parser) parseEventSessionBody() *nodes.List {
 //	             [ ACTION ( { [event_module_guid].event_package_name.action_name [ , ...n ] } ) ]
 //	             [ WHERE <predicate_expression> ]
 //	    } ) ]
-func (p *Parser) parseEventSessionEventSpec(prefix string) []nodes.Node {
+func (p *Parser) parseEventSessionEventSpec(prefix string) ([]nodes.Node, error) {
 	var result []nodes.Node
 
 	eventName := p.parseEventSessionDottedName()
@@ -452,7 +468,10 @@ func (p *Parser) parseEventSessionEventSpec(prefix string) []nodes.Node {
 			} else if p.cur.Type == kwWHERE {
 				// WHERE <predicate_expression>
 				p.advance()
-				predicate := p.parseEventSessionPredicate()
+				predicate, err := p.parseEventSessionPredicate()
+				if err != nil {
+					return nil, err
+				}
 				if predicate != "" {
 					result = append(result, &nodes.String{Str: "WHERE " + predicate})
 				}
@@ -466,7 +485,7 @@ func (p *Parser) parseEventSessionEventSpec(prefix string) []nodes.Node {
 		p.match(')')
 	}
 
-	return result
+	return result, nil
 }
 
 // parseEventSessionTargetSpec parses an ADD TARGET specifier with optional (SET ...).
@@ -539,10 +558,17 @@ func (p *Parser) parseEventSessionValue() string {
 // parseEventSessionPredicate consumes a simple predicate expression for event WHERE clauses.
 // Handles: field_name { = | <> | != | > | >= | < | <= } value
 // and: AND/OR connectors, NOT, parenthesized sub-expressions.
-func (p *Parser) parseEventSessionPredicate() string {
+func (p *Parser) parseEventSessionPredicate() (string, error) {
+	if err := p.enterNesting(); err != nil {
+		return "", err
+	}
+	defer p.leaveNesting()
 	var parts []string
 	for {
-		part := p.parseEventSessionPredicateFactor()
+		part, err := p.parseEventSessionPredicateFactor()
+		if err != nil {
+			return "", err
+		}
 		if part == "" {
 			break
 		}
@@ -558,7 +584,7 @@ func (p *Parser) parseEventSessionPredicate() string {
 			break
 		}
 	}
-	return strings.Join(parts, " ")
+	return strings.Join(parts, " "), nil
 }
 
 // parseEventSessionPredicateFactor parses a single predicate factor.
@@ -572,7 +598,7 @@ func (p *Parser) parseEventSessionPredicate() string {
 //	      <predicate_source_declaration> { = | <> | != | > | >= | < | <= } <value>
 //	    | [event_module_guid].event_package_name.predicate_compare_name
 //	        ( <predicate_source_declaration> , <value> )
-func (p *Parser) parseEventSessionPredicateFactor() string {
+func (p *Parser) parseEventSessionPredicateFactor() (string, error) {
 	// NOT
 	notPrefix := ""
 	if p.cur.Type == kwNOT {
@@ -583,15 +609,18 @@ func (p *Parser) parseEventSessionPredicateFactor() string {
 	// Parenthesized sub-expression
 	if p.cur.Type == '(' {
 		p.advance()
-		inner := p.parseEventSessionPredicate()
+		inner, err := p.parseEventSessionPredicate()
+		if err != nil {
+			return "", err
+		}
 		p.match(')')
-		return notPrefix + "(" + inner + ")"
+		return notPrefix + "(" + inner + ")", nil
 	}
 
 	// field_name or package.predicate_source_name or package.predicate_compare_name
 	lhs := p.parseEventSessionDottedName()
 	if lhs == "" {
-		return ""
+		return "", nil
 	}
 
 	// Check for function call form: predicate_compare_name(source, value)
@@ -601,7 +630,7 @@ func (p *Parser) parseEventSessionPredicateFactor() string {
 		p.match(',')
 		arg2 := p.parseEventSessionValue()
 		p.match(')')
-		return notPrefix + lhs + "(" + arg1 + ", " + arg2 + ")"
+		return notPrefix + lhs + "(" + arg1 + ", " + arg2 + ")", nil
 	}
 
 	// Comparison operator
@@ -630,12 +659,12 @@ func (p *Parser) parseEventSessionPredicateFactor() string {
 		op = "!="
 		p.advance()
 	default:
-		return notPrefix + lhs
+		return notPrefix + lhs, nil
 	}
 
 	// RHS value
 	rhs := p.parseEventSessionValue()
-	return notPrefix + lhs + " " + op + " " + rhs
+	return notPrefix + lhs + " " + op + " " + rhs, nil
 }
 
 // parseEventSessionDottedName consumes a dotted name like package.event_name or [guid].package.name.

@@ -22,6 +22,10 @@ import (
 //	    { table_definition | view_definition | grant_statement |
 //	      revoke_statement | deny_statement }
 func (p *Parser) parseCreateSchemaStmt() (*nodes.CreateSchemaStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// Completion: after CREATE SCHEMA → identifier (new schema name)
 	if p.collectMode() {
 		p.addRuleCandidate("identifier")

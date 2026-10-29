@@ -33,6 +33,8 @@ type Parser struct {
 	// when this depth is > 0, matching SqlScriptDOM's separation of
 	// booleanExpressionWithFlags from expressionWithFlags.
 	searchCondDepth int
+
+	depth int // nesting depth of the productions being parsed (see enterNesting)
 }
 
 // enterSearchCondition / leaveSearchCondition push and pop the boolean
@@ -68,6 +70,7 @@ func Parse(sql string) (*nodes.List, error) {
 		if p.lexer.Err != nil {
 			return nil, p.lexerError()
 		}
+		stmtStart := p.cur.Loc
 		stmt, err := p.parseStmt()
 		if err != nil {
 			return nil, err
@@ -84,6 +87,9 @@ func Parse(sql string) (*nodes.List, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
+		}
+		if treeTooHigh(stmt, p.prev.End-stmtStart) {
+			return nil, nestedTooDeeply(stmtStart)
 		}
 		stmts = append(stmts, stmt)
 	}
@@ -177,6 +183,10 @@ func (p *Parser) parseWithStmt() (nodes.StmtNode, error) {
 
 // parseStmt dispatches to statement-specific parsers.
 func (p *Parser) parseStmt() (nodes.StmtNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// Completion: when in collect mode, offer all top-level statement keywords.
 	if p.collectMode() {
 		for _, t := range topLevelKeywords {

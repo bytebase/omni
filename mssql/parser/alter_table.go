@@ -1030,6 +1030,10 @@ func (p *Parser) parseAlterTableFiletableNamespace(loc int, enable bool) (*nodes
 // nodes in alternating name/value pairs. Nested parentheses are handled for
 // sub-options like SYSTEM_VERSIONING = ON (HISTORY_TABLE = dbo.t).
 func (p *Parser) parseKeyValueOptionList() (*nodes.List, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	p.advance() // consume (
 	var items []nodes.Node
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {

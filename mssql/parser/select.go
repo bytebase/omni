@@ -89,6 +89,10 @@ func (p *Parser) parseSelectStmtWithCTE() (*nodes.SelectStmt, error) {
 // (the WITH keyword when present, otherwise SELECT). The current token must
 // be SELECT.
 func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause) (*nodes.SelectStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// Entering a SELECT (top-level or subquery) resets the search-condition
 	// depth so that the select list / scalar subexpressions are parsed as
 	// scalar expressions even if we entered from an outer WHERE or HAVING.
@@ -98,6 +102,26 @@ func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause)
 	p.searchCondDepth = 0
 	defer func() { p.searchCondDepth = savedDepth }()
 
+	stmt, err := p.parseSelectOperand(loc, withClause)
+	if err != nil {
+		return nil, err
+	}
+
+	// UNION / INTERSECT / EXCEPT
+	if p.cur.Type == kwUNION || p.cur.Type == kwINTERSECT || p.cur.Type == kwEXCEPT {
+		return p.parseSetOperation(stmt)
+	}
+
+	stmt.Loc.End = p.prevEnd()
+	return stmt, nil
+}
+
+// parseSelectOperand parses one SELECT of a query expression, through its
+// ORDER BY, OFFSET, FOR and OPTION clauses, and stops before a following
+// UNION, INTERSECT or EXCEPT. It leaves Loc.End unset; the caller sets it
+// once it knows whether a set operation follows. The current token must be
+// SELECT.
+func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nodes.SelectStmt, error) {
 	p.advance() // consume SELECT
 
 	// Completion: after SELECT keyword → target list candidates
@@ -374,59 +398,76 @@ func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause)
 		}
 	}
 
-	// UNION / INTERSECT / EXCEPT
-	if p.cur.Type == kwUNION || p.cur.Type == kwINTERSECT || p.cur.Type == kwEXCEPT {
-		return p.parseSetOperation(stmt)
-	}
-
-	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// parseSetOperation parses UNION/INTERSECT/EXCEPT.
+// parseSetOperation parses the UNION/INTERSECT/EXCEPT chain that follows
+// left. The chain nests to the right, A UNION B EXCEPT C becoming
+// Union(A, Except(B, C)), and each node takes the Loc of its left operand.
+// The operands are parsed in a loop rather than by recursing once per
+// operator, so a long flat chain neither grows the stack nor counts toward
+// the nesting limit: SQL Server 2022 accepts 50,000 UNION operands.
 func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, error) {
-	var op nodes.SetOperation
-	switch p.cur.Type {
-	case kwUNION:
-		op = nodes.SetOpUnion
-	case kwINTERSECT:
-		op = nodes.SetOpIntersect
-	case kwEXCEPT:
-		op = nodes.SetOpExcept
+	type setOperand struct {
+		op   nodes.SetOperation
+		all  bool
+		left *nodes.SelectStmt
 	}
-	p.advance()
+	var chain []setOperand
+	for p.cur.Type == kwUNION || p.cur.Type == kwINTERSECT || p.cur.Type == kwEXCEPT {
+		var op nodes.SetOperation
+		switch p.cur.Type {
+		case kwUNION:
+			op = nodes.SetOpUnion
+		case kwINTERSECT:
+			op = nodes.SetOpIntersect
+		case kwEXCEPT:
+			op = nodes.SetOpExcept
+		}
+		p.advance()
 
-	// Completion: after UNION/INTERSECT/EXCEPT → ALL, SELECT
-	if p.collectMode() {
-		p.addTokenCandidate(kwALL)
-		p.addTokenCandidate(kwSELECT)
-		return nil, errCollecting
-	}
-
-	all := false
-	if _, ok := p.match(kwALL); ok {
-		all = true
-		// Completion: after UNION ALL → SELECT
+		// Completion: after UNION/INTERSECT/EXCEPT → ALL, SELECT
 		if p.collectMode() {
+			p.addTokenCandidate(kwALL)
 			p.addTokenCandidate(kwSELECT)
 			return nil, errCollecting
 		}
-	}
 
-	right, err := p.parseSelectStmt()
-	if err != nil {
-		return nil, err
+		all := false
+		if _, ok := p.match(kwALL); ok {
+			all = true
+			// Completion: after UNION ALL → SELECT
+			if p.collectMode() {
+				p.addTokenCandidate(kwSELECT)
+				return nil, errCollecting
+			}
+		}
+
+		// The right operand is a query expression: as in parseSelectStmt,
+		// a leading WITH, or anything else that is not SELECT, is an error.
+		if p.cur.Type != kwSELECT {
+			return nil, p.unexpectedToken()
+		}
+		chain = append(chain, setOperand{op: op, all: all, left: left})
+		var err error
+		left, err = p.parseSelectOperand(p.pos(), nil)
+		if err != nil {
+			return nil, err
+		}
 	}
-	if right == nil {
-		return nil, p.unexpectedToken()
+	left.Loc.End = p.prevEnd()
+
+	result := left
+	for i := len(chain) - 1; i >= 0; i-- {
+		result = &nodes.SelectStmt{
+			Op:   chain[i].op,
+			All:  chain[i].all,
+			Larg: chain[i].left,
+			Rarg: result,
+			Loc:  chain[i].left.Loc,
+		}
 	}
-	return &nodes.SelectStmt{
-		Op:   op,
-		All:  all,
-		Larg: left,
-		Rarg: right,
-		Loc:  left.Loc,
-	}, nil
+	return result, nil
 }
 
 // parseWithClause parses WITH [XMLNAMESPACES(...),] cte_name [(col_list)] AS (select), ...
@@ -852,6 +893,10 @@ func (p *Parser) parseTableSource() (nodes.TableExpr, error) {
 // and UNPIVOTs that follow it. onPending is true for the right operand of a
 // qualified join, whose ON clause comes after the joins parsed here.
 func (p *Parser) parseTableSourceJoins(onPending bool) (nodes.TableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parsePrimaryTableSource()
 	if err != nil {
 		return nil, err
@@ -982,6 +1027,10 @@ func (p *Parser) collectAfterTableSource(onPending bool) error {
 // allows no PIVOT there at all, which is narrower than SQL Server. The
 // JoinClause returned spans the parentheses.
 func (p *Parser) parseParenthesizedJoin() (nodes.TableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	loc := p.pos()
 	p.advance() // consume '('
 

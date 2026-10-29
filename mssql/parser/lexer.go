@@ -1395,24 +1395,31 @@ func (l *Lexer) NextToken() Token {
 
 // nextTokenInner performs the actual lexing. NextToken wraps this to set tok.End.
 func (l *Lexer) nextTokenInner() Token {
-	l.skipWhitespace()
-	if l.pos >= len(l.input) {
-		return Token{Type: tokEOF, Loc: l.pos}
-	}
+	// Whitespace and comments are skipped in a loop: calling nextTokenInner
+	// again after each comment nested one call per comment and overflowed
+	// the stack on long scripts.
+	var ch byte
+	for {
+		l.skipWhitespace()
+		if l.pos >= len(l.input) {
+			return Token{Type: tokEOF, Loc: l.pos}
+		}
 
-	l.start = l.pos
-	ch := l.input[l.pos]
+		l.start = l.pos
+		ch = l.input[l.pos]
 
-	// Line comment: --
-	if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
-		l.skipLineComment()
-		return l.nextTokenInner()
-	}
+		// Line comment: --
+		if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
+			l.skipLineComment()
+			continue
+		}
 
-	// Block comment: /* ... */
-	if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-		l.skipBlockComment()
-		return l.nextTokenInner()
+		// Block comment: /* ... */
+		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+			l.skipBlockComment()
+			continue
+		}
+		break
 	}
 
 	// N'...' nvarchar string literal
