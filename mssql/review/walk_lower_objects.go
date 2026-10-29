@@ -242,7 +242,9 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	if b.refTooLong(v.Table, t) || b.refTooLong(v.Name, objRef{}) {
 		return true
 	}
-	if v.Name.Schema != "" && t.where == placed && differ(v.Name.Schema, t.schema.spelling) {
+	// The table is looked up first, in the default schema and then dbo
+	// when unqualified, never the trigger's (8197, 1088; verified).
+	if v.Name.Schema != "" && t.where == placed && differ(v.Name.Schema, t.schema.spelling) && b.see(spaceRelation, t.parent, t.n).fact != walk.Absent {
 		b.fail(rangeOf(v.Name.Loc), "trigger "+object(v.Name)+" must be in the schema of its table "+t.written)
 		return true
 	}

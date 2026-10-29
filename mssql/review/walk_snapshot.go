@@ -179,17 +179,22 @@ type mssqlSnapshot struct {
 	excluded map[string]bool
 	// objects and relations by schema class; tables by table path. A
 	// schema class or table path two synced names share is ambiguous,
-	// and every key under it Unknown.
+	// and every key under it Unknown. The names an ambiguous table's
+	// children hold in its schema are kept.
 	objects   map[string]*snapSpace
 	relations map[string]*snapSpace
 	tables    map[string]*snapTable
 	ambiguous map[string]bool
-	// triggers is set when the sync lists a trigger.
+	// triggers is set when the sync lists a trigger, on any table or
+	// view, of an ambiguous parent too.
 	triggers bool
 	// ledger is set when the sync lists a table that may be a ledger
 	// table, whose drop renames its history table and ledger view, in any
 	// schema (verified).
 	ledger bool
+	// cdc is set when the sync lists cdc.change_tables: change data
+	// capture is on, and a dropped table's capture instance goes too.
+	cdc bool
 }
 
 func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
@@ -206,9 +211,16 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			s.excluded[n.class] = true
 		}
 	}
+	// The facts of the whole database count every table and view the sync
+	// lists, before any is keyed.
 	for _, schema := range db.GetSchemas() {
 		for _, t := range schema.GetTables() {
 			s.ledger = s.ledger || ledgerTable(t)
+			s.triggers = s.triggers || len(t.GetTriggers()) > 0
+			s.cdc = s.cdc || schema.GetName() == "cdc" && t.GetName() == "change_tables"
+		}
+		for _, v := range schema.GetViews() {
+			s.triggers = s.triggers || len(v.GetTriggers()) > 0
 		}
 	}
 	for _, schema := range db.GetSchemas() {
@@ -227,18 +239,17 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 		for _, t := range schema.GetTables() {
 			objs.add(t.GetName(), kindTable)
 			rels.add(t.GetName(), kindTable)
-			tn, ok := keyed(t.GetName())
-			if !ok {
-				continue
+			// A table on an ambiguous path keeps no children, but the
+			// names they hold in the schema count all the same.
+			st := &snapTable{ledger: ledgerTable(t)}
+			if tn, ok := keyed(t.GetName()); ok {
+				path := walk.Path(sc, tn.class)
+				if _, seen := s.tables[path]; seen {
+					s.ambiguous[path] = true
+				} else {
+					s.tables[path] = st
+				}
 			}
-			path := walk.Path(sc, tn.class)
-			if _, seen := s.tables[path]; seen {
-				s.ambiguous[path] = true
-				continue
-			}
-			st := &snapTable{}
-			s.tables[path] = st
-			st.ledger = ledgerTable(t)
 			for _, c := range t.GetColumns() {
 				st.columns.add(c.GetName(), "")
 				if strings.HasPrefix(c.GetName(), "$edge_id") {
@@ -280,7 +291,6 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			}
 			for _, tr := range t.GetTriggers() {
 				objs.add(tr.GetName(), kindTrigger)
-				s.triggers = true
 			}
 		}
 		for _, v := range schema.GetViews() {
@@ -288,7 +298,6 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 			rels.add(v.GetName(), kindView)
 			for _, tr := range v.GetTriggers() {
 				objs.add(tr.GetName(), kindTrigger)
-				s.triggers = true
 			}
 		}
 		for _, q := range schema.GetSequences() {

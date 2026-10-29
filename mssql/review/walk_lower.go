@@ -52,13 +52,13 @@ func (b *builder) statement(n ast.Node) bool {
 		if _, runs := v.Source.(*ast.ExecStmt); runs {
 			return false
 		}
-		return b.dml(v.Relation, v.WithClause, nil)
+		return b.dml(v.Relation, v.WithClause, nil, false)
 	case *ast.UpdateStmt:
-		return b.dml(v.Relation, v.WithClause, v.FromClause)
+		return b.dml(v.Relation, v.WithClause, v.FromClause, true)
 	case *ast.DeleteStmt:
-		return b.dml(v.Relation, v.WithClause, v.FromClause)
+		return b.dml(v.Relation, v.WithClause, v.FromClause, true)
 	case *ast.MergeStmt:
-		return b.dml(v.Target, v.WithClause, nil)
+		return b.dml(v.Target, v.WithClause, nil, true)
 	case *ast.SelectStmt:
 		return b.selectStmt(v)
 	case *ast.IfStmt:
@@ -385,8 +385,11 @@ func (b *builder) exec(v *ast.ExecStmt) bool {
 // table variable is no target to check. The statement ends the walk after
 // its checks when a trigger may fire (spec §6): one the sync lists or the
 // change created or enabled, or one of another database, which a synonym
-// or a qualified name may reach.
-func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List) bool {
+// or a qualified name may reach. An UPDATE, DELETE, or MERGE of a table
+// (cascades) ends it always: a cascaded action fires the triggers of the
+// tables it reaches, and those of a schema the sync excludes are not
+// listed (verified).
+func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List, cascades bool) bool {
 	tr, ok := target.(*ast.TableRef)
 	if !ok {
 		if b.w.triggers {
@@ -426,7 +429,7 @@ func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List
 	default:
 		reaches = !r.temp
 	}
-	if b.w.triggers || reaches {
+	if b.w.triggers || reaches || cascades && !r.temp {
 		b.Last = true
 	}
 	return true

@@ -1,6 +1,6 @@
 # WALK_THROUGH for MSSQL: v1 scope
 
-Status: decided 2026-10-27; §10 records the decisions. Step 4 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which its §5.4 sketches; [the MySQL v1 scope](2026-10-22-walk-through-mysql.md) is the model. Every fact here was verified on SQL Server 2022 CU27 (16.0.4305.5), the image `mssql/review` already uses (`mcr.microsoft.com/mssql/server:2022-latest`), and through go-mssqldb, Bytebase's fork included (Appendix). The Bytebase facts are from origin/main 6589af9dcb.
+Status: decided 2026-10-27; §10 records the decisions. Step 4 of [the engines design](2026-10-22-walk-through-engines-design.md) §7, which its §5.4 sketches; [the MySQL v1 scope](2026-10-22-walk-through-mysql.md) is the model. Every fact here was verified on SQL Server 2022 CU27 GDR (16.0.4305.5), the image `mssql/review` pins (`mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04`, which `2022-latest` was), and through go-mssqldb, Bytebase's fork included (Appendix). The Bytebase facts are from origin/main 6589af9dcb.
 
 ## 1. Environment
 
@@ -96,6 +96,8 @@ Costs:
 
 Present is trusted for every name the sync lists. The sync (`backend/plugin/db/mssql/sync.go`, `SyncDBSchema`) lists the schemas of `INFORMATION_SCHEMA.SCHEMATA`, except the fixed-role schemas (`db_owner`, `db_accessadmin`, ...), `guest`, `INFORMATION_SCHEMA`, and `sys`.
 
+**A parent two synced names share** (§2.1), a schema class or a table path, is ambiguous, and every key under it is Unknown. What holds beyond it still counts every table and view the sync lists: whether one has a trigger (§6) or may be a ledger table, and the names its constraints and triggers hold in its schema's object space.
+
 **Absent is trusted for:**
 - **schemas:** every name but the excluded ones, which stay Unknown. guest and db_owner can hold tables (verified).
 - **relations** (tables, views, sequences) in a synced schema. `sys.tables`, `sys.views`, and `sys.sequences` are read unfiltered; every view has a `sys.sql_modules` row, an encrypted one with a NULL definition (verified). A schema that certainly does not exist holds none.
@@ -128,7 +130,7 @@ Each "missing" claim also needs the parent to hold no marked name (§2.1).
 
 **Accepted assumptions:**
 - **A1** (engines design D6): the admin login sees every object of its database; catalog views list only what the login may see.
-- **A2:** no database DDL trigger creates, drops, or renames objects. The sync lists none. They fire on the change's DDL (verified), and one that rolls back only adds failures.
+- **A2:** no database DDL trigger creates, drops, or renames objects. The sync lists none. They fire on the change's DDL (verified), and one that rolls back only adds failures. Change data capture's `tr_MScdc_ddl_event` is one, and changes no name in the change's session (verified). Its capture job, a SQL Agent job, drops a dropped table's capture instance (the change table, functions, and procedures in schema cdc) once it reads the committed drop: after the change in transaction mode, maybe before the next batch in auto-commit mode. So `DROP TABLE` May-removes every name of schema cdc when the sync lists `cdc.change_tables`.
 - **A3:** no CLR DML trigger changes the schema. The sync lists only T-SQL triggers; §6 handles those.
 
 ## 4. Statement semantics the lowering follows
@@ -203,15 +205,15 @@ Views are not dependencies: dropping a table a view reads succeeds.
 | — `SWITCH`, `ADD`/`DROP PERIOD`, `SET (SYSTEM_VERSIONING ...)`, anything else | | ends the walk |
 | `CREATE TABLE` with `AS NODE`/`EDGE`/`FILETABLE`, a period, `SYSTEM_VERSIONING`, `LEDGER`, or `MEMORY_OPTIMIZED` | | ends the walk |
 | `ENABLE`/`DISABLE TRIGGER ... ON t` | none | `ENABLE`: a trigger may fire (§6); on a database or the server, ends the walk |
-| `DROP TABLE [IF EXISTS] a, ...` | each a Present (3701), and a table under `IF EXISTS` too (3705); a name twice (3701) | a Absent with its columns, indexes, constraints, and primary key; its constraints' and triggers' names leave the object space: the known ones Absent, the rest May-removed. A table that may be a ledger table (two or more NOT NULL columns of type bigint or an alias) renames its history table and ledger view with it, in any schema: every relation and object name May-removed |
+| `DROP TABLE [IF EXISTS] a, ...` | each a Present (3701), and a table under `IF EXISTS` too (3705); a name twice (3701) | a Absent with its columns, indexes, constraints, and primary key; its constraints' and triggers' names leave the object space: the known ones Absent, the rest May-removed. A table that may be a ledger table (two or more NOT NULL columns of type bigint or an alias) renames its history table and ledger view with it, in any schema: every relation and object name May-removed. With change data capture on, every name of schema cdc May-removed (A2) |
 | `TRUNCATE TABLE t` | t Present and a table (4701, 4708), or a temporary table | none |
-| `CREATE [UNIQUE] [CLUSTERED \| NONCLUSTERED] [COLUMNSTORE] INDEX i ON t` | t Present and a table or view (1088, 1914), or a temporary table; i Absent in t's index space (1913); with `DROP_EXISTING = ON`, i Present (7999) | i Present |
+| `CREATE [UNIQUE] [CLUSTERED \| NONCLUSTERED] [COLUMNSTORE] INDEX i ON t` | t Present and a table or view (1088, 1914), or a temporary table; i Absent in t's index space (1913); with `DROP_EXISTING = ON`, i Present (7999). The last `DROP_EXISTING` written counts; a value other than `ON` or `OFF` (102, 153) ends the walk | i Present |
 | `DROP INDEX [IF EXISTS] i ON t, ...`, `DROP INDEX t.i` | each t Present (3701); i Present (3701), unless `IF EXISTS`; i not a constraint's index (3723), under `IF EXISTS` too | i Absent |
 | `ALTER INDEX i \| ALL ON t ...` | t Present (1088); i Present (2727) | none |
 | `CREATE VIEW v` / `CREATE OR ALTER VIEW v` / `ALTER VIEW v` | schema Present (2760); `CREATE`: v Absent (2714); `CREATE OR ALTER`: v a view if it exists (2010); `ALTER`: v Present and a view (208, 2010) | v Present (view) |
 | `DROP VIEW [IF EXISTS] v, ...` | each v Present (3701), and a view under `IF EXISTS` too (3705); a name twice (3701) | v Absent with its indexes; its triggers May-removed |
 | `CREATE` / `CREATE OR ALTER` / `ALTER` `PROCEDURE` / `FUNCTION p` | schema Present (2760); `CREATE`: p Absent (2714), but a numbered `CREATE PROCEDURE p;2` joins p's group, which it needs as `ALTER` does (2730); `CREATE OR ALTER`: p of its kind if it exists (2010); `ALTER`: p Present (208, from the change's facts alone) and of its kind (2010) | p Present of its kind; a procedure's body runs to the end of its batch, so the walk skips to the next `GO` (§6) |
-| `CREATE` / `CREATE OR ALTER` / `ALTER TRIGGER tr ON t` (DML) | t Present and a table or view (8197); tr's schema t's (2103); `CREATE`: tr Absent (2714); `ALTER`: tr Present (208, from the change's facts alone) and a trigger (2010) | tr Present (trigger); a trigger may fire on t; the walk skips to the next `GO` |
+| `CREATE` / `CREATE OR ALTER` / `ALTER TRIGGER tr ON t` (DML) | t Present and a table or view (8197, 1088), an unqualified t looked up as any reference, not in tr's schema; tr's schema t's (2103), unless t is certainly missing; `CREATE`: tr Absent (2714); `ALTER`: tr Present (208, from the change's facts alone) and a trigger (2010) | tr Present (trigger); a trigger may fire on t; the walk skips to the next `GO` |
 | `DROP PROCEDURE` / `FUNCTION` / `TRIGGER` / `SEQUENCE` / `SYNONYM [IF EXISTS] x, ...` | each x Present (3701), from the change's facts alone except for sequences, unless `IF EXISTS`; of the statement's kind, under `IF EXISTS` too (3705) | x Absent |
 | `CREATE SEQUENCE s`, `CREATE SYNONYM s FOR ...` | schema Present (2760); s Absent (2714) | s Present of its kind |
 | `ALTER SEQUENCE s` | s Present and a sequence (15151) | none |
@@ -219,7 +221,7 @@ Views are not dependencies: dropping a table a view reads succeeds.
 | `EXEC sp_rename 'x', 'n' [, 'OBJECT']` of a table, view, procedure, function, sequence, or synonym | x Present (15225), from the change's facts alone; n Absent in the object space (15335) | x and its columns and indexes move to n; a constraint, a trigger, or an object of unknown kind ends the walk |
 | `EXEC sp_rename 't.c', 'n', 'COLUMN'` | t Present and a table (15248); c Present (15248); n Absent (15335) | c moves to n |
 | `EXEC sp_rename 't.i', 'n', 'INDEX'` | t Present (15248); i Present (15248); n Absent (15335) | i moves to n; an index that backs a constraint ends the walk |
-| `INSERT`, `UPDATE`, `DELETE`, `MERGE` | the target Present (208), from the change's facts alone; never a CTE, an alias, or a table variable | none; ends the walk when a trigger may fire (§6) |
+| `INSERT`, `UPDATE`, `DELETE`, `MERGE` | the target Present (208), from the change's facts alone; never a CTE, an alias, or a table variable | none; ends the walk when a trigger may fire (§6), and always after an `UPDATE`, `DELETE`, or `MERGE` of a table |
 | `IF cond s [ELSE s]` (M5) | none | each branch's statements as May-effects (`walk.Builder.Optional`) |
 | `SELECT` without `INTO`, `PRINT`, `DECLARE`, `SET @v`, `SET` options other than §6's, `BEGIN TRAN`, `COMMIT`, `SAVE TRAN`, `GRANT`/`DENY`/`REVOKE`, `UPDATE STATISTICS`, `RAISERROR`, `THROW`, `WAITFOR`, `EXEC sp_addextendedproperty`/`sp_updateextendedproperty`/`sp_dropextendedproperty` | none | none |
 
@@ -244,10 +246,11 @@ Notes:
 - a `GO` that is not alone on its line (§1), and a statement after a view, function, or `CREATE SCHEMA` in the same batch (156).
 
 **DML ends the walk after its checks when a trigger may fire:**
-- a synced trigger exists on any table or view;
+- a synced trigger exists on any table or view, of an ambiguous parent too (§3);
 - the change created a trigger or enabled one;
 - `OtherSpecs` is set;
-- or the target may lead to another database, whose triggers are not synced: a name in another database or one the walk cannot place, a CTE or a FROM item the walk does not resolve, and an object the sync does not list as a table or view, which may be a synonym.
+- the target may lead to another database, whose triggers are not synced: a name in another database or one the walk cannot place, a CTE or a FROM item the walk does not resolve, and an object the sync does not list as a table or view, which may be a synonym;
+- or the statement is an `UPDATE`, `DELETE`, or `MERGE` of a table, not of a temporary table or a table variable: a foreign key's cascaded action may reach a table of a schema the sync excludes, whose triggers it does not list.
 
 A trigger can run DDL, and a cascaded action fires the triggers of other tables, so the trigger need not be on the target. Without any trigger, DML changes no name. With the default schema unset, every unqualified DML target is one the walk cannot place, so the walk ends there.
 
@@ -307,7 +310,7 @@ As built, after review: 1,821 lines of lowering, 499 of names and snapshot, and 
 - A rejection that ends the transaction is handled by replaying the accepted prefix in a new one. 2714, 1913, and 3728 do (`XACT_STATE()` 0).
 - `Holds` reads the catalog on that connection, so it sees the uncommitted state.
 - `Exec` of a `GO` runs nothing.
-- The test sync mirrors Bytebase's queries and exclusions, citing `sync.go`.
+- The test sync mirrors Bytebase's queries, their exclusions, and the order of its tables, citing `sync.go`.
 
 **Batch tests:** the two batch facts (111 and a procedure body that swallows statements) run whole batches on the server.
 
@@ -357,7 +360,7 @@ The options as they were weighed:
   - (b) Lower `IF cond s [ELSE s]`: each branch's statements, alone or in a `BEGIN ... END`, are optional parts, with no checks and their effects weakened. A branch with a statement the walk does not lower, or with a session effect (`USE`, `SET`), still ends the walk. `WHILE` and `TRY` end it either way.
 
   Recommended: (b). SSMS-generated scripts guard nearly every object with `IF [NOT] EXISTS (...)`, so under (a) the walk would end at their first statement; `walk.Builder.Optional` was built for this.
-- **M6. Triggers.** DML ends the walk after its checks whenever a trigger may fire, under assumptions A2 and A3. Recommended: accept. The stricter alternative, ending the walk at all DML, costs every data migration its findings after the first DML; the looser one, ignoring triggers, makes false findings (verified: a trigger creates a table).
+- **M6. Triggers.** DML ends the walk after its checks whenever a trigger may fire, under assumptions A2 and A3; since the review of 2026-10-28, `UPDATE`, `DELETE`, and `MERGE` of a table always (§6). Recommended: accept. The stricter alternative, ending the walk at all DML, costs every data migration its findings after the first DML; the looser one, ignoring triggers, makes false findings (verified: a trigger creates a table).
 - **M7. Oracle databases:**
   - CI and CS for the curated cases;
   - the same plus Hungarian_CI_AS for the sweep;
@@ -495,6 +498,14 @@ SQL Server 2022 CU27 (16.0.4305.5), server collation `SQL_Latin1_General_CP1_CI_
 
 **CI's sweep on #514** (seed 20261027, N=500), verified on the same image:
 - `ALTER TABLE szsz ADD CONSTRAINT pk_a PRIMARY KEY (id)` beside `dbo.ssz`, which has a primary key, fails with 4902 in a case-sensitive database. The walk's finding stands (§2.1, a table's children). The oracle compared the primary space's key as a class, so it could not check a primary-key claim when the error code differed; it now can.
+
+**The review of 2026-10-28**, verified on `2022-CU27-GDR1-ubuntu-22.04`:
+- The sync lists tables by schema and name. With `dbo.t1` and `dbo.t11`, which share a class, the snapshot skipped t11's trigger, which `INSERT INTO dbo.t11` ran to create `dbo.made`; `DROP TABLE dbo.made` then succeeded.
+- A trigger on `guest.chi` or `db_owner.chi`, schemas the sync excludes, fires through `ON DELETE CASCADE` and `ON UPDATE CASCADE` from `dbo.par`, and through a `MERGE` that deletes.
+- `CREATE INDEX ... WITH (DROP_EXISTING = ON, DROP_EXISTING = OFF)` creates a missing index and fails with 1913 for an existing one; `OFF, ON` rebuilds it. `WITH (DROP_EXISTING)` fails with 102, `= 1` with 153, `= TRUE` and `= [ON]` with 102.
+- `DROP TABLE IF EXISTS #` with 117 characters fails with 193, as without `IF EXISTS`.
+- With s.st and no dbo.st, `CREATE TRIGGER s.tr ON st` fails with 1088; with dbo.both and s.both, `CREATE TRIGGER s.tr2 ON both` fails with 2103. As a user whose default schema is s, `CREATE TRIGGER s.tr ON st` succeeds.
+- With change data capture on, `tr_MScdc_ddl_event` is a database trigger and `is_ms_shipped`, so the sync skips it twice over. In the change's session, `DROP TABLE`, `ADD` and `DROP COLUMN`, `CREATE` and `DROP INDEX`, and `sp_rename` of a tracked table leave every cdc name in place, and dropping the key its net changes use fails with 22979. With SQL Server Agent on, the capture job dropped `cdc.dbo_t9_CT` and its functions within 15 seconds of an auto-commit `DROP TABLE dbo.t9`, and kept a renamed table's capture instance.
 
 **Sync** (`backend/plugin/db/mssql/sync.go`), probed on its own queries:
 - `INFORMATION_SCHEMA.SCHEMATA` lists every schema as sa.

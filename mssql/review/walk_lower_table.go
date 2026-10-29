@@ -684,9 +684,25 @@ func (b *builder) dropTables(v *ast.DropStmt) bool {
 				b.MayAdd(walk.Scope{Space: space, Deep: true, Prefix: droppedLedger})
 			}
 		}
+		if !r.temp && r.where != elsewhere && b.w.snap.cdc {
+			// Change data capture's capture job drops a dropped table's
+			// change table, functions, and procedures in schema cdc once
+			// it reads the drop, before the next batch in auto-commit
+			// mode (verified).
+			for _, space := range []string{spaceObject, spaceRelation} {
+				b.MayRemove(walk.Scope{Space: space, Parent: cdcSchema})
+			}
+		}
 		return true
 	})
 }
+
+// cdcSchema is the path of schema cdc, where change data capture keeps
+// its objects.
+var cdcSchema = func() string {
+	n, _ := keyed("cdc")
+	return walk.Path(n.class)
+}()
 
 // droppedLedger begins the class of the names a dropped ledger table and
 // its history table and ledger view take: MSSQL_DroppedLedgerTable_...
@@ -784,6 +800,10 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	if !ok {
 		return false
 	}
+	rebuild, ok := dropExisting(v.Options)
+	if !ok {
+		return false
+	}
 	r, ok := b.indexOn(v.Table)
 	if !ok {
 		return false
@@ -800,7 +820,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	}
 	path := r.tablePath()
 	rng := b.anchor()
-	if dropExisting(v.Options) {
+	if rebuild {
 		// The index is rebuilt under its name, and a PK's or UQ's keeps
 		// its constraint.
 		b.needs(spaceIndex, path, in, nil, note(rng, "index "+ident(v.Name)+" does not exist on "+r.written, ""))
@@ -811,16 +831,26 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	return true
 }
 
-func dropExisting(opts *ast.List) bool {
+// dropExisting reads the DROP_EXISTING option, which the parser gives as
+// NAME=VALUE: the last one written counts (verified). ok is false for a
+// value other than ON or OFF, which the server rejects (102, 153).
+func dropExisting(opts *ast.List) (on, ok bool) {
 	if opts == nil {
-		return false
+		return false, true
 	}
+	ok = true
 	for _, item := range opts.Items {
-		if s, ok := item.(*ast.String); ok && strings.EqualFold(strings.ReplaceAll(s.Str, " ", ""), "DROP_EXISTING=ON") {
-			return true
+		s, isString := item.(*ast.String)
+		if !isString {
+			continue
 		}
+		name, value, _ := strings.Cut(s.Str, "=")
+		if !strings.EqualFold(name, "DROP_EXISTING") {
+			continue
+		}
+		on, ok = strings.EqualFold(value, "ON"), strings.EqualFold(value, "ON") || strings.EqualFold(value, "OFF")
 	}
-	return false
+	return on, ok
 }
 
 // alterIndex follows ALTER INDEX, which renames nothing: the table must

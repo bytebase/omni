@@ -55,7 +55,7 @@ func startMSSQL(t *testing.T) *sql.DB {
 	t.Helper()
 	mssqlOracle.once.Do(func() {
 		ctx := context.Background()
-		c, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-latest", tcmssql.WithAcceptEULA(), tcmssql.WithPassword("Str0ngPa$$w0rd!"))
+		c, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04", tcmssql.WithAcceptEULA(), tcmssql.WithPassword("Str0ngPa$$w0rd!"))
 		if err != nil {
 			mssqlOracle.err = err
 			return
