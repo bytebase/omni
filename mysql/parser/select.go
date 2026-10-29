@@ -329,22 +329,10 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 			if len(rightLeaf.OrderBy) > 0 {
 				orderBy = rightLeaf.OrderBy
 				rightLeaf.OrderBy = nil
-				if rightLeaf.TableSource != nil {
-					rightLeaf.TableSource.OrderBy = nil
-				}
-				if rightLeaf.ValuesSource != nil {
-					rightLeaf.ValuesSource.OrderBy = nil
-				}
 			}
 			if rightLeaf.Limit != nil {
 				limit = rightLeaf.Limit
 				rightLeaf.Limit = nil
-				if rightLeaf.TableSource != nil {
-					rightLeaf.TableSource.Limit = nil
-				}
-				if rightLeaf.ValuesSource != nil {
-					rightLeaf.ValuesSource.Limit = nil
-				}
 			}
 		}
 
@@ -369,30 +357,38 @@ func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 	if p.cur.Type == kwSELECT {
 		return p.parseSimpleSelect()
 	}
+	// A TABLE or VALUES primary becomes a SelectStmt that holds the source and
+	// is the only owner of the ORDER BY, LIMIT, and INTO after it, as in
+	// MySQL's grammar (sql/sql_yacc.yy, 8.0.40): explicit_table (line 10064)
+	// is TABLE table_ident and table_value_constructor (10057) is VALUES
+	// values_row_list, while query_expression (9914) holds opt_order_clause
+	// and opt_limit_clause and select_stmt_with_into (9863) the into_clause.
+	// Had the source kept the clauses too, every walk would visit them twice,
+	// and a TABLE nested in the ORDER BY of another would double the walk at
+	// each level.
 	if p.cur.Type == kwTABLE {
-		tableStmt, err := p.parseTableStmt()
+		table, err := p.parseExplicitTable()
 		if err != nil {
 			return nil, err
 		}
-		return &nodes.SelectStmt{
-			Loc:         tableStmt.Loc,
-			TableSource: tableStmt,
-			OrderBy:     tableStmt.OrderBy,
-			Limit:       tableStmt.Limit,
-			Into:        tableStmt.Into,
-		}, nil
+		stmt := &nodes.SelectStmt{Loc: table.Loc, TableSource: table}
+		if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 	if p.cur.Type == kwVALUES {
-		valuesStmt, err := p.parseValuesStmt()
+		values, err := p.parseValuesConstructor()
 		if err != nil {
 			return nil, err
 		}
-		return &nodes.SelectStmt{
-			Loc:          valuesStmt.Loc,
-			ValuesSource: valuesStmt,
-			OrderBy:      valuesStmt.OrderBy,
-			Limit:        valuesStmt.Limit,
-		}, nil
+		stmt := &nodes.SelectStmt{Loc: values.Loc, ValuesSource: values}
+		if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 	if p.cur.Type == tokEOF {
 		return nil, p.syntaxErrorAtCur()
@@ -2159,13 +2155,9 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 	return defs, nil
 }
 
-// parseTableStmt parses a TABLE statement (MySQL 8.0.19+).
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
-//
-//	TABLE table_name [ORDER BY column_name] [LIMIT number [OFFSET number]]
-//
-// parseTableStmt parses a TABLE statement.
+// parseTableStmt parses a TABLE statement (MySQL 8.0.19+): a TABLE query
+// primary that stands alone, as a statement, an EXPLAIN target, or the
+// source of INSERT ... TABLE, and so holds its own clauses.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
 //
@@ -2178,6 +2170,20 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 //	    | INTO DUMPFILE 'file_name'
 //	    | INTO var_name [, var_name] ...]
 func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
+	stmt, err := p.parseExplicitTable()
+	if err != nil {
+		return nil, err
+	}
+	if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseExplicitTable parses TABLE table_name, MySQL's explicit_table, into a
+// TableStmt that holds only the table.
+func (p *Parser) parseExplicitTable() (*nodes.TableStmt, error) {
 	start := p.pos()
 	p.advance() // consume TABLE
 
@@ -2185,55 +2191,72 @@ func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	stmt := &nodes.TableStmt{
-		Loc:   nodes.Loc{Start: start},
+	return &nodes.TableStmt{
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Table: ref,
-	}
+	}, nil
+}
 
-	// ORDER BY clause
+// parseSourceClauses parses the ORDER BY, LIMIT, and, when withInto is set,
+// INTO clauses that may follow a TABLE or VALUES query primary.
+func (p *Parser) parseSourceClauses(withInto bool) ([]*nodes.OrderByItem, *nodes.Limit, *nodes.IntoClause, error) {
+	var orderBy []*nodes.OrderByItem
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
-		orderBy, err := p.parseOrderByList()
+		list, err := p.parseOrderByList()
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
-		stmt.OrderBy = orderBy
+		orderBy = list
 	}
 
-	// LIMIT clause
+	var limit *nodes.Limit
 	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
+		l, err := p.parseLimitClause()
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
-		stmt.Limit = limit
+		limit = l
 	}
 
-	// INTO clause
-	if p.cur.Type == kwINTO {
+	var into *nodes.IntoClause
+	if withInto && p.cur.Type == kwINTO {
 		p.advance()
-		into, err := p.parseIntoClause()
+		i, err := p.parseIntoClause()
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
-		stmt.Into = into
+		into = i
 	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	return orderBy, limit, into, nil
 }
 
-// parseValuesStmt parses a VALUES statement (MySQL 8.0.19+).
+// parseValuesStmt parses a VALUES statement (MySQL 8.0.19+): a VALUES query
+// primary that stands alone, as a statement or an EXPLAIN target, and so
+// holds its own clauses.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/values.html
 //
 //	VALUES ROW(value_list) [, ROW(value_list)] ...
 //	    [ORDER BY column_designator] [LIMIT number [OFFSET number]]
 func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
+	stmt, err := p.parseValuesConstructor()
+	if err != nil {
+		return nil, err
+	}
+	if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseValuesConstructor parses VALUES ROW(...) [, ROW(...)] ..., MySQL's
+// table_value_constructor, into a ValuesStmt that holds only the rows.
+func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
 	start := p.pos()
 	p.advance() // consume VALUES
 
@@ -2268,28 +2291,6 @@ func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
 			break
 		}
 		p.advance()
-	}
-
-	// ORDER BY clause
-	if p.cur.Type == kwORDER {
-		p.advance()
-		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
-		}
-		orderBy, err := p.parseOrderByList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OrderBy = orderBy
-	}
-
-	// LIMIT clause
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Limit = limit
 	}
 
 	stmt.Loc.End = p.prev.End

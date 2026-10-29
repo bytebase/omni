@@ -95,8 +95,6 @@ func treeHeightExceeds(root nodes.Node, limit int) bool {
 			rows = n.Values
 		case *nodes.ValuesStmt:
 			rows = n.Rows
-		case *nodes.SelectStmt:
-			kids.children = dropSourceClauses(n, kids.children)
 		}
 		for _, row := range rows {
 			for _, e := range row {
@@ -110,38 +108,6 @@ func treeHeightExceeds(root nodes.Node, limit int) bool {
 		}
 	}
 	return false
-}
-
-// dropSourceClauses removes from children, the children Walk listed for sel,
-// the clauses sel shares with its TABLE or VALUES source:
-// parseSelectClausePrimary gives the SelectStmt that wraps the source the
-// source's own ORDER BY items, LIMIT, and INTO. The source reaches them a
-// level deeper, so the height is unchanged, while following both doubled the
-// walk at every source nested in another's ORDER BY.
-func dropSourceClauses(sel *nodes.SelectStmt, children []nodes.Node) []nodes.Node {
-	shared := make(map[nodes.Node]bool)
-	switch {
-	case sel.TableSource != nil:
-		for _, item := range sel.TableSource.OrderBy {
-			shared[item] = true
-		}
-		shared[sel.TableSource.Limit] = true
-		shared[sel.TableSource.Into] = true
-	case sel.ValuesSource != nil:
-		for _, item := range sel.ValuesSource.OrderBy {
-			shared[item] = true
-		}
-		shared[sel.ValuesSource.Limit] = true
-	default:
-		return children
-	}
-	kept := children[:0]
-	for _, c := range children {
-		if !shared[c] {
-			kept = append(kept, c)
-		}
-	}
-	return kept
 }
 
 // childLister is a Visitor that lets Walk enter only the node it starts at,
