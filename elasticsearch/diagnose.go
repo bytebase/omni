@@ -26,7 +26,7 @@ type Diagnostic struct {
 // Diagnose parses statement and returns a Diagnostic for every SyntaxError
 // found. It returns nil, nil when there are no errors.
 func Diagnose(statement string) ([]Diagnostic, error) {
-	parseResult, _ := ParseElasticsearchREST(statement)
+	parseResult, _, _ := parseREST(statement, false)
 	if parseResult == nil {
 		return nil, nil
 	}

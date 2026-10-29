@@ -22,7 +22,7 @@ type Range struct {
 // through the last non-blank line before the next request, the lines Kibana's
 // console reads its body from.
 func SplitMultiSQL(statement string) ([]Statement, error) {
-	parseResult, ends, err := parseREST(statement)
+	parseResult, ends, err := parseREST(statement, false)
 	if err != nil {
 		return nil, err
 	}

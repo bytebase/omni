@@ -19,7 +19,7 @@ type LSPRange struct {
 // Positions use 0-based lines and UTF-16 code-unit columns, matching the LSP
 // specification (BMP characters count as 1, non-BMP characters count as 2).
 func GetStatementRanges(statement string) ([]LSPRange, error) {
-	parseResult, _ := ParseElasticsearchREST(statement)
+	parseResult, _, _ := parseREST(statement, false)
 	if parseResult == nil {
 		return []LSPRange{}, nil
 	}

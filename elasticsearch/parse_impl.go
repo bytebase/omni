@@ -12,13 +12,17 @@ import (
 // structured requests and syntax errors. This is the primary entry point for
 // the Elasticsearch parser.
 func ParseElasticsearchREST(text string) (*ParseResult, error) {
-	result, _, err := parseREST(text)
+	result, _, err := parseREST(text, true)
 	return result, err
 }
 
 // parseREST is ParseElasticsearchREST that also returns, for each request,
-// the byte offset where its text ends (see requestEnd).
-func parseREST(text string) (*ParseResult, []int, error) {
+// the byte offset where its text ends (see requestEnd). Without cleanData it
+// leaves each document of Data as the request text holds it, for callers that
+// do not read Data: rewriting a document that holds comments as indented JSON
+// writes indentation that grows with its depth, 200MB for a 110KB document
+// nested 10,000 deep.
+func parseREST(text string, cleanData bool) (*ParseResult, []int, error) {
 	raw, err := parser.Parse(text)
 	if err != nil {
 		return nil, nil, err
@@ -40,7 +44,7 @@ func parseREST(text string) (*ParseResult, []int, error) {
 		if editorRequest == nil {
 			continue
 		}
-		if len(editorRequest.Data) > 0 {
+		if cleanData && len(editorRequest.Data) > 0 {
 			for j, v := range editorRequest.Data {
 				if parser.ContainsComments(v) {
 					// parse and stringify to remove comments.
