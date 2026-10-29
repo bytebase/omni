@@ -2,6 +2,8 @@ package elasticsearch
 
 import (
 	"slices"
+	"strings"
+	"unicode"
 
 	"github.com/bytebase/omni/elasticsearch/parser"
 )
@@ -10,12 +12,20 @@ import (
 // structured requests and syntax errors. This is the primary entry point for
 // the Elasticsearch parser.
 func ParseElasticsearchREST(text string) (*ParseResult, error) {
+	result, _, err := parseREST(text)
+	return result, err
+}
+
+// parseREST is ParseElasticsearchREST that also returns, for each request,
+// the byte offset where its text ends (see requestEnd).
+func parseREST(text string) (*ParseResult, []int, error) {
 	raw, err := parser.Parse(text)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var requests []*Request
+	var ends []int
 	for i, pr := range raw.Requests {
 		// See https://sourcegraph.com/github.com/elastic/kibana/-/blob/src/platform/plugins/shared/console/public/application/containers/editor/monaco_editor_actions_provider.ts?L261.
 		var nextRequest *parser.ParsedRequest
@@ -46,6 +56,7 @@ func ParseElasticsearchREST(text string) (*ParseResult, error) {
 			StartOffset: pr.StartOffset,
 			EndOffset:   pr.EndOffset,
 		})
+		ends = append(ends, requestEnd(text, pr, nextRequest, adjustedOffset.EndLineNumber))
 	}
 
 	// Convert errors
@@ -100,5 +111,37 @@ func ParseElasticsearchREST(text string) (*ParseResult, error) {
 	return &ParseResult{
 		Requests: requests,
 		Errors:   syntaxErrors,
-	}, nil
+	}, ends, nil
+}
+
+// requestEnd returns the byte offset where the text of request r ends. A
+// request the parser finished ends at its EndOffset. A request whose body
+// failed to parse keeps EndOffset -1; Kibana's console takes it to run through
+// endLine, the last non-blank line before the next request, and reads its body
+// from those lines. Its text therefore ends at the end of endLine, without
+// trailing whitespace, and never past the start of the next request. A
+// request that holds only whitespace keeps it, and splits as an empty
+// statement.
+func requestEnd(text string, r parser.ParsedRequest, next *parser.ParsedRequest, endLine int) int {
+	if r.EndOffset >= 0 {
+		return r.EndOffset
+	}
+	end := len(text)
+	for i, line := 0, 0; i < len(text); i++ {
+		if text[i] == '\n' {
+			if line == endLine {
+				end = i
+				break
+			}
+			line++
+		}
+	}
+	if next != nil && next.StartOffset < end {
+		end = next.StartOffset
+	}
+	end = max(end, r.StartOffset)
+	if trimmed := strings.TrimRightFunc(text[r.StartOffset:end], unicode.IsSpace); trimmed != "" {
+		return r.StartOffset + len(trimmed)
+	}
+	return end
 }

@@ -18,8 +18,11 @@ type Range struct {
 }
 
 // SplitMultiSQL splits the input into individual Elasticsearch REST API requests.
+// A request whose body fails to parse still becomes a statement: it runs
+// through the last non-blank line before the next request, the lines Kibana's
+// console reads its body from.
 func SplitMultiSQL(statement string) ([]Statement, error) {
-	parseResult, err := ParseElasticsearchREST(statement)
+	parseResult, ends, err := parseREST(statement)
 	if err != nil {
 		return nil, err
 	}
@@ -32,15 +35,16 @@ func SplitMultiSQL(statement string) ([]Statement, error) {
 	}
 
 	var statements []Statement
-	for _, req := range parseResult.Requests {
+	for i, req := range parseResult.Requests {
 		if req == nil {
 			continue
 		}
-		text := statement[req.StartOffset:req.EndOffset]
+		end := ends[i]
+		text := statement[req.StartOffset:end]
 		empty := len(strings.TrimSpace(text)) == 0
 
 		startLine, startColumn := byteOffsetToPosition(statement, req.StartOffset)
-		endLine, endColumn := byteOffsetToPosition(statement, req.EndOffset)
+		endLine, endColumn := byteOffsetToPosition(statement, end)
 
 		statements = append(statements, Statement{
 			Text:  text,
@@ -55,7 +59,7 @@ func SplitMultiSQL(statement string) ([]Statement, error) {
 			},
 			Range: Range{
 				Start: req.StartOffset,
-				End:   req.EndOffset,
+				End:   end,
 			},
 		})
 	}

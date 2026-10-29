@@ -78,3 +78,83 @@
     - start:
         line: 8
         column: 1
+
+- description: request whose body fails to parse, then another request
+  statement: "GET /_search\n{\"a\": x}\nGET /x\n"
+  expectedCount: 2
+  statements:
+    - text: "GET /_search\n{\"a\": x}"
+      start:
+        line: 1
+        column: 1
+      end:
+        line: 2
+        column: 9
+      range:
+        start: 0
+        end: 21
+    - text: "GET /x"
+      start:
+        line: 3
+        column: 1
+      end:
+        line: 3
+        column: 7
+      range:
+        start: 22
+        end: 28
+
+- description: request whose body fails over several lines, blank lines before the next request
+  statement: "GET /_search\n{\"a\": 1,\n  \"b\": x\n}  \r\n\n\nGET /x\n"
+  expectedCount: 2
+  statements:
+    - text: "GET /_search\n{\"a\": 1,\n  \"b\": x\n}"
+      start:
+        line: 1
+        column: 1
+      end:
+        line: 4
+        column: 2
+      range:
+        start: 0
+        end: 32
+    - text: "GET /x"
+      start:
+        line: 7
+        column: 1
+      end:
+        line: 7
+        column: 7
+      range:
+        start: 38
+        end: 44
+
+- description: body truncated at the end of input
+  statement: "GET /_search\n{\"a\": "
+  expectedCount: 1
+  statements:
+    - text: "GET /_search\n{\"a\":"
+      start:
+        line: 1
+        column: 1
+      end:
+        line: 2
+        column: 6
+      range:
+        start: 0
+        end: 18
+
+- description: unclosed body at the end of input
+  statement: "PUT /idx\n{\n"
+  expectedCount: 1
+  statements:
+    - text: "PUT /idx\n{"
+      start:
+        line: 1
+        column: 1
+      end:
+        line: 2
+        column: 2
+      range:
+        start: 0
+        end: 10
