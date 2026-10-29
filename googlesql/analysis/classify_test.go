@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/bytebase/omni/googlesql/ast"
@@ -163,6 +164,42 @@ func TestClassify_InfoSchema(t *testing.T) {
 				t.Errorf("Spanner ClassifySQL(%q) = %v, want %v", tc.sql, got, tc.wantSpanner)
 			}
 		})
+	}
+}
+
+// TestClassifyRecordsTheSpanTables: Classify's pass skips lineage and
+// projections (spanWalker.tablesOnly), so it must still record exactly the
+// tables, in order and with their locations, that the full span pass records.
+// The statements reach tables from every place the skipped code sits next to:
+// select items, star modifiers, joins of every kind, UNNEST and correlated
+// paths, set operations, recursive CTEs, and DML.
+func TestClassifyRecordsTheSpanTables(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT (SELECT a FROM s), * REPLACE ((SELECT b FROM r) AS b) FROM t",
+		"SELECT * EXCEPT (a) FROM INFORMATION_SCHEMA.TABLES WHERE a IN (SELECT a FROM u)",
+		"SELECT * FROM t JOIN u USING (a) JOIN (SELECT a FROM v UNION ALL SELECT * FROM w) s USING (a)",
+		"SELECT * FROM t NATURAL JOIN u, tvf((SELECT 1 FROM v)) JOIN w ON w.a = (SELECT 1 FROM x)",
+		"SELECT * FROM t AS a0, a0.arr AS a1, a1.child, UNNEST(a1.list) AS e, e.f, ds.t2",
+		"SELECT * FROM (t, u) JOIN (v JOIN (w JOIN x USING (k)) USING (k)) USING (k)",
+		"SELECT f(a).b, (SELECT 1 FROM s).c, a[OFFSET(0)].d FROM t",
+		"WITH RECURSIVE r AS (SELECT a FROM t UNION ALL SELECT a FROM r JOIN u USING (a)) SELECT * FROM r, SPANNER_SYS.X",
+		"WITH c AS (SELECT * FROM t) SELECT * FROM c JOIN c AS d USING (a) UNION ALL BY NAME SELECT * FROM u",
+		"SELECT a FROM t UNION ALL (SELECT a FROM u EXCEPT DISTINCT SELECT a FROM v) UNION ALL SELECT * FROM w",
+		"INSERT INTO t SELECT * FROM u JOIN v USING (a)",
+		"UPDATE t SET a = (SELECT 1 FROM s) FROM u, u.arr AS x WHERE x.b = 1",
+	} {
+		file, err := parseFile(sql)
+		if err != nil {
+			t.Fatalf("parse %q: %v", sql, err)
+		}
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			full := &QuerySpan{}
+			newSpanWalker(full, dialect).analyzeStmt(file.Stmts[0])
+			got := collectAccessTables(file.Stmts[0], dialect)
+			if !reflect.DeepEqual(got, full.AccessTables) {
+				t.Errorf("%v %q: Classify records %+v, the span records %+v", dialect, sql, got, full.AccessTables)
+			}
+		}
 	}
 }
 

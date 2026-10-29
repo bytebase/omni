@@ -349,6 +349,13 @@ type spanWalker struct {
 	// paths (collectAccessTables) deliberately ignore it — classification is
 	// best-effort and not masking-grade.
 	failure error
+	// tablesOnly marks the pass Classify runs (collectAccessTables), which reads
+	// only AccessTables. It makes every walk of the full pass that can reach a
+	// table, so it records the same tables, but resolves no column lineage and
+	// builds no output or join projections: none of that records a table, and
+	// for some shapes it is superlinear in the statement's size (a USING chain
+	// whose keys change gives every star a growing except list).
+	tablesOnly bool
 }
 
 // failClosed records a fail-closed condition (first one wins).
@@ -639,16 +646,35 @@ func (w *spanWalker) visitBody(node ast.Node) []projColumn {
 // merging those by ordinal attributed each output to the OTHER arm's
 // same-position column (verified mis-attribution — `id` carried a secret's
 // policy). See mergeProjectionsByName.
+//
+// The parser folds `a UNION ALL b UNION ALL c ...` into a left-deep tree, so
+// the left spine is unwound iteratively and every arm is merged, in order,
+// into one accumulated projection (see setOpMerger).
 func (w *spanWalker) visitSetOp(n *ast.SetOperation) []projColumn {
 	if n == nil {
 		return nil
 	}
-	left := w.visitBody(n.Left)
-	right := w.visitBody(n.Right)
-	if n.ByName || n.Corresponding {
-		return mergeProjectionsByName(left, right, n.MatchColumns)
+	var spine []*ast.SetOperation // outermost first
+	var leftmost ast.Node = n
+	for {
+		so, ok := leftmost.(*ast.SetOperation)
+		if !ok || so == nil {
+			break
+		}
+		spine = append(spine, so)
+		leftmost = so.Left
 	}
-	return mergeProjections(left, right)
+	m := setOpMerger{cols: w.visitBody(leftmost)}
+	for i := len(spine) - 1; i >= 0; i-- {
+		so := spine[i]
+		right := w.visitBody(so.Right)
+		if so.ByName || so.Corresponding {
+			m.mergeByName(right, so.MatchColumns)
+		} else {
+			m.merge(right)
+		}
+	}
+	return m.result()
 }
 
 // unionColumnRefs returns the order-preserving, deduplicated union of two
@@ -672,6 +698,38 @@ func unionColumnRefs(left, right []ColumnRef) []ColumnRef {
 		}
 	}
 	return out
+}
+
+// refUnion builds the same slice as folding unionColumnRefs over a sequence of
+// additions, refs = unionColumnRefs(refs, more), without copying the refs
+// gathered so far at every addition. Until the first non-empty addition refs
+// is the initial slice, unchanged and unaliased by any write.
+type refUnion struct {
+	refs []ColumnRef
+	seen map[ColumnRef]bool // nil until the first non-empty addition
+}
+
+func (u *refUnion) add(more []ColumnRef) {
+	if len(more) == 0 {
+		return
+	}
+	if u.seen == nil {
+		initial := u.refs
+		u.refs = make([]ColumnRef, 0, len(initial)+len(more))
+		u.seen = make(map[ColumnRef]bool, len(initial)+len(more))
+		for _, r := range initial {
+			if !u.seen[r] {
+				u.seen[r] = true
+				u.refs = append(u.refs, r)
+			}
+		}
+	}
+	for _, r := range more {
+		if !u.seen[r] {
+			u.seen[r] = true
+			u.refs = append(u.refs, r)
+		}
+	}
 }
 
 // visitSelect processes one SelectStmt: its FROM relations, predicate clauses,
@@ -724,7 +782,10 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	// Resolve the select list against the FROM relations (relation-aware lineage),
 	// then walk each item for nested-subquery tables (the direct refs are resolved
 	// by the projection resolver; the subquery walk only discovers tables).
-	results := w.resolveSelectProjection(stmt, fromRels)
+	var results []projColumn
+	if !w.tablesOnly {
+		results = w.resolveSelectProjection(stmt, fromRels)
+	}
 	for _, item := range stmt.Items {
 		if item == nil {
 			continue
@@ -766,7 +827,7 @@ func (w *spanWalker) buildFromRelations(from []ast.Node) []*relation {
 // predicate side-effects. A JoinExpr collapses its two sides into one combined
 // relation (the legacy joinTable): the left/anchor side's columns are rewrapped
 // as non-plain, the right side's columns keep their plainness, and a USING join
-// coalesces the key columns (fix F1 — see joinRelations). An UNNEST source
+// coalesces the key columns (fix F1 — see joinParts). An UNNEST source
 // builds a one-column value relation whose element carries the array argument's
 // resolved lineage (fix F2 — the legacy extractor errored on array sources;
 // dropping the relation here would shift `SELECT *` positions and resolve the
@@ -777,15 +838,15 @@ func (w *spanWalker) buildFromItem(node ast.Node) *relation {
 	case *ast.TableExpr:
 		return w.buildTableExpr(n)
 	case *ast.JoinExpr:
-		left := w.buildFromItem(n.Left)
-		right := w.buildFromItem(n.Right)
-		w.walkPredicate(n.On)
-		for _, col := range n.Using {
-			if col != "" {
-				w.addPredicateColumn(ColumnRef{Column: col})
-			}
+		if n == nil {
+			return nil
 		}
-		return w.joinRelations(left, right, n)
+		var b joinBuilder
+		part := w.buildJoinPart(&b, n)
+		if !part.present {
+			return nil
+		}
+		return &relation{columns: b.cols[part.start:len(b.cols):len(b.cols)]}
 	case *ast.UnnestExpr:
 		// UNNEST(array_expr) [AS alias] [WITH OFFSET [AS o]] — the array argument's
 		// columns stay predicate-ish references (and nested subqueries are walked),
@@ -797,7 +858,86 @@ func (w *spanWalker) buildFromItem(node ast.Node) *relation {
 	return nil
 }
 
-// joinRelations combines two join sides into one relation, mirroring the legacy
+// joinBuilder holds the projection of one join tree while it is built. The
+// columns of every operand form one contiguous range of cols, in FROM order:
+// an operand is built after the one to its left, so its columns are appended
+// right after them, and a join of the two is the range covering both.
+//
+// The parser folds `a JOIN b JOIN c ...` (and `(a, b, c, ...)`) into a
+// left-deep tree. Combining the two sides into a new slice at every join
+// copied the whole accumulated left side again at each level, so a chain of
+// n joins cost O(n^2). Here the left spine is walked iteratively, a join
+// extends the range in place, and each column is rewrapped by the first join
+// that puts it on a left side and skipped by the later ones (see
+// joinPart.settled).
+type joinBuilder struct {
+	cols []projColumn
+}
+
+// joinPart is one built join operand: the columns from cols[start] up to the
+// start of the next operand built (or the end of cols). present is false when
+// the operand resolved to no relation (a table-valued function, say), whose
+// range is then empty. cols[start:settled] are already non-plain. When using
+// is non-nil the operand is a USING coalesce on those keys, its first
+// len(using) columns are the coalesced keys, and cols[start:settled] are also
+// fully rewrapped (rewrapNonPlain).
+type joinPart struct {
+	start   int
+	present bool
+	settled int
+	using   []string
+}
+
+// buildJoinPart builds a join tree into b and returns its part. The left spine
+// is unwound iteratively; a parenthesized join on the right recurses, which the
+// parser's nesting limit bounds. Side effects run in the order of a recursive
+// post-order walk: the left operand, then the right one, then the ON predicate
+// and USING columns, then the join itself.
+func (w *spanWalker) buildJoinPart(b *joinBuilder, top *ast.JoinExpr) joinPart {
+	var spine []*ast.JoinExpr // outermost first
+	var leftmost ast.Node = top
+	for {
+		j, ok := leftmost.(*ast.JoinExpr)
+		if !ok || j == nil {
+			break
+		}
+		spine = append(spine, j)
+		leftmost = j.Left
+	}
+	acc := w.buildJoinOperand(b, leftmost)
+	for i := len(spine) - 1; i >= 0; i-- {
+		join := spine[i]
+		right := w.buildJoinOperand(b, join.Right)
+		w.walkPredicate(join.On)
+		for _, col := range join.Using {
+			if col != "" {
+				w.addPredicateColumn(ColumnRef{Column: col})
+			}
+		}
+		acc = w.joinParts(b, acc, right, join)
+	}
+	return acc
+}
+
+// buildJoinOperand builds one join operand into b: a nested join through
+// buildJoinPart, anything else through buildFromItem with its columns
+// appended.
+func (w *spanWalker) buildJoinOperand(b *joinBuilder, node ast.Node) joinPart {
+	if j, ok := node.(*ast.JoinExpr); ok && j != nil {
+		return w.buildJoinPart(b, j)
+	}
+	start := len(b.cols)
+	rel := w.buildFromItem(node)
+	if rel == nil {
+		return joinPart{start: start, settled: start}
+	}
+	if !w.tablesOnly {
+		b.cols = append(b.cols, rel.columns...)
+	}
+	return joinPart{start: start, present: true, settled: start}
+}
+
+// joinParts combines two adjacent join operands into one, mirroring the legacy
 // joinTable: the anchor (left) side's columns are rebuilt as NON-plain fields
 // (the legacy join rewraps them without IsPlainField), while the right side's
 // columns keep their plainness. The combined relation is unnamed (a `rel.*` /
@@ -819,28 +959,62 @@ func (w *spanWalker) buildFromItem(node ast.Node) *relation {
 // would misalign positions (structural rule: correct lineage or an error).
 // A USING side that cannot be name-partitioned without metadata (a deferred
 // set-op marker in its projection) likewise fails closed.
-func (w *spanWalker) joinRelations(left, right *relation, join *ast.JoinExpr) *relation {
-	if join != nil && join.Natural {
+func (w *spanWalker) joinParts(b *joinBuilder, left, right joinPart, join *ast.JoinExpr) joinPart {
+	if w.tablesOnly {
+		return joinPart{start: left.start, present: left.present || right.present, settled: left.start}
+	}
+	if join.Natural {
 		w.failClosed(fmt.Errorf("NATURAL JOIN cannot be resolved to column lineage without catalog metadata (fail closed)"))
-	} else if join != nil && len(join.Using) > 0 && left != nil && right != nil {
-		if rel, ok := coalesceUsingJoin(left, right, join.Using); ok {
-			return rel
+	} else if len(join.Using) > 0 && left.present && right.present {
+		if part, ok := b.coalesceUsing(left, right, join.Using); ok {
+			return part
 		}
 		w.failClosed(fmt.Errorf("JOIN USING (%s) over a deferred set-operation projection cannot be name-partitioned without catalog metadata (fail closed)", strings.Join(join.Using, ", ")))
 	}
-	if left == nil {
+	if !left.present {
 		return right
 	}
-	if right == nil {
+	if !right.present {
 		return left
 	}
-	cols := make([]projColumn, 0, len(left.columns)+len(right.columns))
-	for _, c := range left.columns {
-		c.plain = false
-		cols = append(cols, c)
+	for i := left.settled; i < right.start; i++ {
+		b.cols[i].plain = false
 	}
-	cols = append(cols, right.columns...)
-	return &relation{columns: cols}
+	return joinPart{start: left.start, present: true, settled: right.settled}
+}
+
+// coalesceUsing replaces two adjacent operands with their USING coalesce (see
+// coalesceUsingColumns), or reports false, leaving b unchanged, when a side
+// cannot be name-partitioned.
+//
+// When left is itself a coalesce on the same keys, as in `t JOIN u USING (k)
+// JOIN v USING (k) ...`, only its leading key columns and the right side need
+// work: that coalesce already stripped these keys from every other left
+// column, so stripping them again changes nothing and those columns contribute
+// no key lineage. The key columns are overwritten in place, and only the left
+// columns not yet rewrapped are rewrapped.
+func (b *joinBuilder) coalesceUsing(left, right joinPart, keys []string) (joinPart, bool) {
+	leftCols := b.cols[left.start:right.start]
+	rightCols := b.cols[right.start:]
+	if left.using != nil && sameNameSetFold(left.using, keys) {
+		rightRest, ok := stripUsingKeys(rightCols, keys)
+		if !ok {
+			return joinPart{}, false
+		}
+		keyCols := usingKeyColumns(leftCols[:len(keys)], rightCols, keys)
+		for i := left.settled; i < right.start; i++ {
+			b.cols[i] = rewrapNonPlain(b.cols[i])
+		}
+		copy(leftCols, keyCols)
+		b.cols = append(b.cols[:right.start], rightRest...)
+		return joinPart{start: left.start, present: true, settled: right.start, using: keys}, true
+	}
+	cols, leftEnd, ok := coalesceUsingColumns(leftCols, rightCols, keys)
+	if !ok {
+		return joinPart{}, false
+	}
+	b.cols = append(b.cols[:left.start], cols...)
+	return joinPart{start: left.start, present: true, settled: left.start + leftEnd, using: keys}, true
 }
 
 // buildTableExpr resolves a non-join FROM source into a relation: a base table
@@ -1503,11 +1677,14 @@ func (ew *exprWalk) walk(node ast.Node) {
 		// Identifier. Flatten it into a single qualified ColumnRef; if the base is
 		// not a plain name chain (field access on a function result, etc.), fall
 		// back to walking the base expression.
-		if parts := flattenFieldAccess(e); parts != nil {
+		if e == nil {
+			return
+		}
+		if parts, _, base := fieldAccessPath(e); parts != nil {
 			ew.emit(columnRefFromParts(parts, ew.w.dialect))
 			ew.emitParts(parts)
 		} else {
-			ew.walk(e.Expr)
+			ew.walk(base)
 		}
 
 	// --- Subquery bodies (parsed into real QueryStmt by the parser) ---
@@ -1793,29 +1970,60 @@ func (ew *exprWalk) walkList(nodes []ast.Node) {
 // rooted at an Identifier (e.g. ["t", "a"] for t.a), or nil when the chain's
 // base is not a plain name chain (so the caller can fall back to walking it).
 func flattenFieldAccess(f *ast.FieldAccess) []string {
-	if f == nil || f.Field == "" {
+	parts, outer, _ := fieldAccessPath(f)
+	if outer != 0 {
 		return nil
 	}
-	switch base := f.Expr.(type) {
+	return parts
+}
+
+// fieldAccessPath unwinds the FieldAccess chain f in one pass. When some level
+// of the chain is a plain name chain (an Identifier or PathExpr root and no
+// empty field name from that level down), it returns the dotted parts of the
+// outermost such level and the number of levels above it. Otherwise parts is
+// nil and base is the chain's innermost non-FieldAccess operand, which is what
+// a walk reaches after giving up on every level.
+//
+// The parser builds `f(x).a.b.c` as one FieldAccess per field, nested
+// left-deep. Flattening each level on the way down re-flattened the whole
+// chain below it, so a chain of n fields over a call cost O(n^2).
+func fieldAccessPath(f *ast.FieldAccess) (parts []string, outer int, base ast.Node) {
+	var chain []*ast.FieldAccess // outermost first
+	base = f
+	for {
+		fa, ok := base.(*ast.FieldAccess)
+		if !ok || fa == nil {
+			break
+		}
+		chain = append(chain, fa)
+		base = fa.Expr
+	}
+	var root []string
+	switch b := base.(type) {
 	case *ast.Identifier:
-		if base.Name == "" {
-			return nil
+		if b.Name != "" {
+			root = []string{b.Name}
 		}
-		return []string{base.Name, f.Field}
 	case *ast.PathExpr:
-		if len(base.Parts) == 0 {
-			return nil
-		}
-		return append(append([]string{}, base.Parts...), f.Field)
-	case *ast.FieldAccess:
-		prefix := flattenFieldAccess(base)
-		if prefix == nil {
-			return nil
-		}
-		return append(prefix, f.Field)
-	default:
-		return nil
+		root = b.Parts
 	}
+	// The outermost flattenable level is the one just inside the innermost
+	// empty field name, or the whole chain when no field name is empty.
+	top := 0
+	for i, fa := range chain {
+		if fa.Field == "" {
+			top = i + 1
+		}
+	}
+	if len(root) == 0 || top == len(chain) {
+		return nil, 0, base
+	}
+	parts = make([]string, 0, len(root)+len(chain)-top)
+	parts = append(parts, root...)
+	for i := len(chain) - 1; i >= top; i-- {
+		parts = append(parts, chain[i].Field)
+	}
+	return parts, top, base
 }
 
 // columnRefFromParts maps the components of a dotted column reference to a
@@ -1860,6 +2068,7 @@ func rootName(ref ColumnRef) string {
 func collectAccessTables(node ast.Node, dialect Dialect) []TableAccess {
 	span := &QuerySpan{}
 	w := newSpanWalker(span, dialect)
+	w.tablesOnly = true
 	w.analyzeStmt(node)
 	return span.AccessTables
 }
