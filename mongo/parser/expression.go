@@ -19,7 +19,13 @@ func (p *Parser) parseExpression() (ast.Node, error) {
 		return nil, err
 	}
 
-	// Handle postfix .method(args) chains on identifiers/helpers
+	// Handle postfix .method(args) chains on identifiers/helpers. The chain
+	// becomes one HelperCall named by the whole dotted chain and holding the
+	// last call's arguments. The name is built once at the end: building it
+	// at every step copied the name so far each time, so a chain of n calls
+	// took time quadratic in n (40,000 took seconds).
+	var name strings.Builder
+	var last *ast.MethodCall
 	for p.cur.Type == '.' {
 		// Check that what follows is identifier + '(' (a method call)
 		next := p.peekNext()
@@ -31,13 +37,19 @@ func (p *Parser) parseExpression() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if last == nil {
+			name.WriteString(nodeToName(node))
+		}
+		name.WriteByte('.')
+		name.WriteString(mc.Name)
+		last = mc
+	}
+	if last != nil {
 		// Wrap as a HelperCall with qualified name
-		start := node.GetLoc().Start
-		name := nodeToName(node) + "." + mc.Name
 		node = &ast.HelperCall{
-			Name: name,
-			Args: mc.Args,
-			Loc:  ast.Loc{Start: start, End: mc.Loc.End},
+			Name: name.String(),
+			Args: last.Args,
+			Loc:  ast.Loc{Start: node.GetLoc().Start, End: last.Loc.End},
 		}
 	}
 
