@@ -12,6 +12,7 @@ import (
 // seconds. Each shape below takes milliseconds when linear and minutes
 // otherwise.
 func TestNestedParensStayLinear(t *testing.T) {
+	raiseNestingLimit(t)
 	const depth = 20000
 	nest := func(open, mid, closing string) string {
 		return strings.Repeat(open, depth) + mid + strings.Repeat(closing, depth)

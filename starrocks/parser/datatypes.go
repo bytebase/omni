@@ -137,6 +137,10 @@ func typeKeywordName(tok Token) string {
 //	MAP<keyType, valueType>
 //	STRUCT<name1 type1, name2 type2, ...>
 func (p *Parser) parseDataType() (*ast.TypeName, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	tok := p.cur
 
 	switch tok.Kind {

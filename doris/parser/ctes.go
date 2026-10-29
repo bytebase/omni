@@ -66,6 +66,10 @@ func (p *Parser) parseWithSelect() (*ast.SelectStmt, error) {
 //
 //	cte_name [(col1, col2, ...)] AS ( query )
 func (p *Parser) parseCTE() (*ast.CTE, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	startLoc := p.cur.Loc
 
 	// CTE name — must be a plain or quoted identifier.
