@@ -10,8 +10,10 @@ import (
 // MySQL mode, for every target, as Review does for MySQL. Bytebase reads
 // OceanBase as the MySQL dialect: it parses it with the MySQL parser and
 // reviews it with the MySQL advisors, so every rule here is the MySQL one,
-// but for PRIOR_BACKUP, which Bytebase does not take on OceanBase, and
-// WALK_THROUGH, which waits for an oracle run against OceanBase.
+// but for PRIOR_BACKUP, which Bytebase does not take on OceanBase.
+//
+// WALK_THROUGH is the MySQL walk with OceanBase's deltas, each verified
+// on OceanBase CE 4.3.5: docs/specs/2026-10-27-walk-through-oceanbase.md.
 //
 // REQUIRE_PRIMARY_KEY does not judge a DROP COLUMN against the synced
 // key, as the MySQL rule does: OceanBase refuses to drop a column of the

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -323,19 +324,37 @@ func judgeWalk(t *testing.T, db *sql.DB, s walkServer, change string, complete b
 
 // mysqlEngine is the oracle's MySQL side of one change. MySQL commits DDL
 // as it runs, so a rejected statement leaves the database as it was only
-// through its own atomicity, which Digest checks.
+// through its own atomicity, which Digest checks. With oceanBase, it is
+// OceanBase's side (walk_through_oceanbase_oracle_test.go).
 type mysqlEngine struct {
-	conn   *sql.Conn
-	db     *sql.DB
-	fold   bool
-	target review.Target
+	conn      *sql.Conn
+	db        *sql.DB
+	fold      bool
+	target    review.Target
+	oceanBase bool
 }
 
 func (e *mysqlEngine) Statements(change string) []string { return splitWalk(change) }
 
+// exec runs one statement on the change's session.
+func (e *mysqlEngine) exec(stmt string) error {
+	return e.retry(func() error {
+		_, err := e.conn.ExecContext(context.Background(), stmt)
+		return err
+	})
+}
+
+// retry runs f, on OceanBase again while it reports a transient error.
+func (e *mysqlEngine) retry(f func() error) error {
+	if e.oceanBase {
+		return retryTransient(f)
+	}
+	return f()
+}
+
 func (e *mysqlEngine) Exec(t testing.TB, stmt string) walktest.Outcome {
 	t.Helper()
-	if _, err := e.conn.ExecContext(context.Background(), stmt); err != nil {
+	if err := e.exec(stmt); err != nil {
 		var me *gomysql.MySQLError
 		if !errors.As(err, &me) {
 			t.Fatalf("%s: %v", stmt, err)
@@ -350,7 +369,11 @@ func (e *mysqlEngine) Report(t testing.TB, change string) *walktest.Finding {
 	if strings.TrimSpace(change) == "" {
 		return nil
 	}
-	result, err := Review(context.Background(), change, review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{e.target})
+	rev := Review
+	if e.oceanBase {
+		rev = ReviewOceanBase
+	}
+	result, err := rev(context.Background(), change, review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{e.target})
 	if err != nil {
 		t.Fatalf("Review: %v", err)
 	}
@@ -375,7 +398,7 @@ func (e *mysqlEngine) Violation(t testing.TB, change string) *walk.Violation {
 	if syntax != nil {
 		t.Fatalf("syntax: %s", syntax.Message)
 	}
-	v, err := walkThrough(context.Background(), change, stmts, e.target)
+	v, err := walkThrough(context.Background(), change, stmts, e.target, dialect{oceanBase: e.oceanBase})
 	if err != nil || v == nil {
 		t.Fatalf("no violation for a change Review reports on (%v):\n%s", err, change)
 	}
@@ -441,12 +464,17 @@ var walkCodes = []struct {
 }
 
 func (e *mysqlEngine) Codes(message string) []string {
+	var codes []string
 	for _, c := range walkCodes {
 		if c.match(message) {
-			return c.codes
+			codes = c.codes
+			break
 		}
 	}
-	return nil
+	if e.oceanBase {
+		codes = append(slices.Clone(codes), oceanBaseCodes(message)...)
+	}
+	return codes
 }
 
 // Holds checks each fact the violation claims against information_schema.
@@ -488,7 +516,7 @@ func (e *mysqlEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 	count := func(q string, args ...any) bool {
 		t.Helper()
 		var n int
-		if err := e.db.QueryRowContext(ctx, q, args...).Scan(&n); err != nil {
+		if err := e.retry(func() error { return e.db.QueryRowContext(ctx, q, args...).Scan(&n) }); err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
 		return n > 0
@@ -501,6 +529,9 @@ func (e *mysqlEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 		err := e.conn.QueryRowContext(ctx, "SHOW CREATE TABLE `"+unmark(names[0])+"`.`"+name+"`").Scan(&tbl, &ddl)
 		return err == nil && strings.HasPrefix(ddl, "CREATE TEMPORARY TABLE"), ""
 	case spaceRelation:
+		if e.oceanBase {
+			return e.oceanBaseRelation(t, unmark(names[0]), name)
+		}
 		var kind string
 		err := e.db.QueryRowContext(ctx, "SELECT TABLE_TYPE FROM information_schema.TABLES WHERE "+eq("TABLE_SCHEMA", tableFolds)+" AND "+eq("TABLE_NAME", tableFolds && nameFolds), unmark(names[0]), name).Scan(&kind)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -544,22 +575,32 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 	t.Helper()
 	var b strings.Builder
 	read := func(q string, args ...any) []string {
-		rows, err := e.db.QueryContext(context.Background(), q, args...)
-		if err != nil {
+		var got [][]sql.NullString
+		if err := e.retry(func() error {
+			got = nil
+			rows, err := e.db.QueryContext(context.Background(), q, args...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			cols, _ := rows.Columns()
+			for rows.Next() {
+				vals := make([]sql.NullString, len(cols))
+				ptrs := make([]any, len(cols))
+				for i := range vals {
+					ptrs[i] = &vals[i]
+				}
+				if err := rows.Scan(ptrs...); err != nil {
+					return err
+				}
+				got = append(got, vals)
+			}
+			return rows.Err()
+		}); err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
-		defer rows.Close()
-		cols, _ := rows.Columns()
-		vals := make([]sql.NullString, len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
 		var first []string
-		for rows.Next() {
-			if err := rows.Scan(ptrs...); err != nil {
-				t.Fatal(err)
-			}
+		for _, vals := range got {
 			first = append(first, vals[0].String)
 			for _, v := range vals {
 				b.WriteString(v.String)
@@ -569,7 +610,11 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 		}
 		return first
 	}
-	dbs := read("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys') ORDER BY 1")
+	system := "'mysql', 'information_schema', 'performance_schema', 'sys'"
+	if e.oceanBase {
+		system = oceanBaseSystem
+	}
+	dbs := read("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN (" + system + ") ORDER BY 1")
 	if len(dbs) == 0 {
 		return b.String()
 	}
@@ -578,15 +623,24 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 	for i, d := range dbs {
 		args[i] = d
 	}
-	for _, q := range []string{
+	queries := []string{
 		"SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2",
 		"SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
 		"SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3, 4",
 		"SELECT CONSTRAINT_SCHEMA, CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN " + in + " ORDER BY 1, 2",
 		"SELECT TRIGGER_SCHEMA, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN " + in + " ORDER BY 1, 2",
 		"SELECT ROUTINE_SCHEMA, ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-		"SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN " + in + " ORDER BY 1, 2",
-	} {
+	}
+	if e.oceanBase {
+		// OceanBase lists a dropped database's events for some seconds
+		// after DROP DATABASE (about 5 on 4.3.5), so the events of a reset
+		// leave information_schema.EVENTS during the next change, and the
+		// digest leaves them out.
+		queries = append(queries, "SELECT OWNER, MVIEW_NAME FROM oceanbase.DBA_MVIEWS WHERE OWNER IN "+in+" ORDER BY 1, 2")
+	} else {
+		queries = append(queries, "SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN "+in+" ORDER BY 1, 2")
+	}
+	for _, q := range queries {
 		read(q, args...)
 	}
 	return b.String()
@@ -682,6 +736,12 @@ func TestWalkThroughSweepMySQL(t *testing.T) {
 }
 
 func walkSweepChange(rng *rand.Rand, n int) string {
+	return sweepChange(rng, n, "a_ibfk_1")
+}
+
+// sweepChange is a sweep's change of n statements. generated is a name
+// the server may generate for a foreign key of table a.
+func sweepChange(rng *rand.Rand, n int, generated string) string {
 	pick := func(xs ...string) string { return xs[rng.Intn(len(xs))] }
 	maybe := func(s string) string {
 		if rng.Intn(3) == 0 {
@@ -690,10 +750,10 @@ func walkSweepChange(rng *rand.Rand, n int) string {
 		return ""
 	}
 	db := func() string { return pick("", "", "", "q.") }
-	tbl := func() string { return db() + pick("a", "b", "c", "A", "v", "a_ibfk_1") }
+	tbl := func() string { return db() + pick("a", "b", "c", "A", "v", generated) }
 	col := func() string { return pick("x", "y", "z", "X") }
 	idx := func() string { return pick("i", "j", "x", "I") }
-	fk := func() string { return pick("f", "F", "a_ibfk_1", "g") }
+	fk := func() string { return pick("f", "F", generated, "g") }
 	// fkDef is a foreign key's head: a CONSTRAINT symbol, the name after
 	// FOREIGN KEY, or both, which name it apart.
 	fkDef := func() string {

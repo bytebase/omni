@@ -40,6 +40,16 @@ const (
 // primaryIndex is the key of the primary key in a table's index space.
 const primaryIndex = "primary"
 
+// pkIncrement is the hidden column of an OceanBase table without a primary
+// key, which information_schema does not list: AFTER it and ALTER COLUMN
+// on it succeed, and ADD COLUMN of its name fails (1060, verified on
+// 4.3.5).
+const pkIncrement = "__pk_increment"
+
+// mvContainer begins the name of the table that stores an OceanBase
+// materialized view, one for each, which the sync lists as a table.
+const mvContainer = "__mv_container_"
+
 // nonASCII marks the key of a name with a byte outside ASCII. MySQL
 // compares such names by rules the walk does not follow (namesOutsideASCII),
 // and may take one for an ASCII name: the Kelvin sign is k as a column,
@@ -79,7 +89,10 @@ func nameKey(space, name string, foldTables bool) (string, bool) {
 // relations, the columns and indexes of its tables but the primary key,
 // and its foreign keys, triggers, routines, and events. Anything of
 // another database is Unknown, and the session starts with no temporary
-// table.
+// table. On OceanBase (docs/specs/2026-10-27-walk-through-oceanbase.md
+// §3) it also lists external tables and materialized views, of no kind
+// and with what they hold Unknown, trusts a missing primary key, and
+// trusts no listed event.
 type mysqlSnapshot struct {
 	db          string
 	relations   map[string]string
@@ -97,13 +110,17 @@ type mysqlSnapshot struct {
 	// ignoresFKs lists those of the tables whose engine ignores foreign
 	// keys.
 	ignoresFKs map[string]bool
-	// mixed lists the spaces where the sync lists a name outside ASCII, as
-	// the space and its table's key ("" for a space of the database).
-	mixed map[[2]string]bool
+	// partial lists the spaces with no name known to be absent, as the
+	// space and its table's key ("" for a space of the database): where the
+	// sync lists a name outside ASCII, and on OceanBase the relations when
+	// it could not read the materialized views.
+	partial   map[[2]string]bool
+	oceanBase bool
 }
 
-func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mysqlSnapshot {
+func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase bool) *mysqlSnapshot {
 	s := &mysqlSnapshot{
+		oceanBase:        oceanBase,
 		relations:        make(map[string]string),
 		columns:          make(map[string]map[string]bool),
 		indexes:          make(map[string]map[string]bool),
@@ -115,14 +132,14 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 		events:           make(map[string]bool),
 		triggered:        make(map[string]bool),
 		ignoresFKs:       make(map[string]bool),
-		mixed:            make(map[[2]string]bool),
+		partial:          make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
 	// mark notes a key outside ASCII in a space of the database (table
 	// "") or of a table.
 	mark := func(space, table, k string) {
 		if strings.HasPrefix(k, nonASCII) {
-			s.mixed[[2]string{space, table}] = true
+			s.partial[[2]string{space, table}] = true
 		}
 	}
 	set := func(m map[string]bool, space, table, name string) {
@@ -131,6 +148,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 			mark(space, table, k)
 		}
 	}
+	containers, mviews := 0, 0
 	for _, schema := range db.GetSchemas() {
 		for _, t := range schema.GetTables() {
 			tk, ok := nameKey(spaceRelation, t.GetName(), foldTables)
@@ -139,7 +157,11 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 			}
 			s.relations[tk] = relTable
 			mark(spaceRelation, "", tk)
-			if !keepsFKs(t.GetEngine()) {
+			if strings.HasPrefix(strings.ToLower(t.GetName()), mvContainer) {
+				containers++
+			}
+			// OceanBase keeps every table's foreign keys, whatever its engine.
+			if !oceanBase && !keepsFKs(t.GetEngine()) {
 				s.ignoresFKs[tk] = true
 			}
 			cols := make(map[string]bool)
@@ -182,6 +204,26 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 				mark(spaceRelation, "", k)
 			}
 		}
+		// OceanBase's external tables and materialized views share the
+		// tables' namespace (1050 for CREATE TABLE of their name, verified
+		// on 4.3.5). The walk follows neither kind: each is a relation of no
+		// kind, which no kind a check asks for refutes, and holds what the
+		// walk does not know.
+		if oceanBase {
+			for _, t := range schema.GetExternalTables() {
+				if k, ok := nameKey(spaceRelation, t.GetName(), foldTables); ok {
+					s.relations[k] = ""
+					mark(spaceRelation, "", k)
+				}
+			}
+			for _, mv := range schema.GetMaterializedViews() {
+				if k, ok := nameKey(spaceRelation, mv.GetName(), foldTables); ok {
+					s.relations[k] = ""
+					mark(spaceRelation, "", k)
+					mviews++
+				}
+			}
+		}
 		for _, f := range schema.GetFunctions() {
 			set(s.functions, spaceFunction, "", f.GetName())
 		}
@@ -191,6 +233,12 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *mys
 		for _, e := range schema.GetEvents() {
 			set(s.events, spaceEvent, "", e.GetName())
 		}
+	}
+	if oceanBase && containers > mviews {
+		// A storage table no listed materialized view accounts for: the
+		// sync could not read oceanbase.DBA_MVIEWS (1142 without SELECT on
+		// it), and a materialized view of any name may be missing.
+		s.partial[[2]string{spaceRelation, ""}] = true
 	}
 	return s
 }
@@ -219,7 +267,7 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		table = path[1]
 	}
 	absent := func() (walk.Fact, string) {
-		if strings.HasPrefix(k.Name, nonASCII) || s.mixed[[2]string{k.Space, table}] {
+		if strings.HasPrefix(k.Name, nonASCII) || s.partial[[2]string{k.Space, table}] {
 			return walk.Unknown, ""
 		}
 		return walk.Absent, ""
@@ -240,7 +288,17 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		if len(path) != 2 {
 			return walk.Unknown, ""
 		}
-		if (k.Name == primaryIndex && k.Space == spaceIndex || k.Name == gipkColumn && k.Space == spaceColumn) && !s.indexes[path[1]][primaryIndex] {
+		switch {
+		case s.oceanBase:
+			// OceanBase has no invisible primary key, so a table listed
+			// without PRIMARY has none. But a secondary index may be named
+			// PRIMARY, which the sync takes for the primary key, and a
+			// keyless table has the hidden column __pk_increment, which the
+			// sync does not list (verified on 4.3.5).
+			if k.Name == primaryIndex && k.Space == spaceIndex && s.indexes[path[1]][primaryIndex] || k.Name == pkIncrement && k.Space == spaceColumn {
+				return walk.Unknown, ""
+			}
+		case (k.Name == primaryIndex && k.Space == spaceIndex || k.Name == gipkColumn && k.Space == spaceColumn) && !s.indexes[path[1]][primaryIndex]:
 			// An invisible primary key and its column, which the sync
 			// does not list under show_gipk_in_create_table_and_information_schema=OFF
 			// (verified on 8.0 and 8.4).
@@ -267,6 +325,13 @@ func (s *mysqlSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	case spaceFunction:
 		return in(s.functions)
 	case spaceEvent:
+		if s.oceanBase && s.events[k.Name] {
+			// OceanBase keeps a dropped database's events listed under its
+			// name, and a database created again under it lists them, though
+			// their names are free there (verified in bytebase/bytebase#21687
+			// on 4.3.5).
+			return walk.Unknown, ""
+		}
 		return in(s.events)
 	}
 	return walk.Unknown, ""

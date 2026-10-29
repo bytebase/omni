@@ -33,7 +33,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return lowered
 	}
 	rng := b.anchor()
-	if b.tooLong(v.IndexName, rng) {
+	if b.tooLong(spaceIndex, v.IndexName, rng) {
 		return true
 	}
 	k, ok := b.key(spaceIndex, v.IndexName)
@@ -41,6 +41,10 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return false
 	}
 	if k == primaryIndex {
+		if b.w.oceanBase {
+			// A secondary index of the name (verified on 4.3.5).
+			return false
+		}
 		b.fail(rng, nil, "Index name PRIMARY is reserved for the primary key") // 1280
 		return true
 	}
@@ -56,6 +60,11 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 }
 
 func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
+	if k, ok := b.key(spaceIndex, v.Name); ok && k == primaryIndex && b.w.oceanBase {
+		// OceanBase drops a secondary index of the name, never the primary
+		// key (1091 for a table with only that; verified on 4.3.5).
+		return false
+	}
 	r, ok, lowered := b.tableOf(v.Table)
 	if !ok {
 		return lowered
@@ -71,7 +80,7 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	case refUnknown:
 		return false
 	}
-	if b.tooLong(v.Name.Name, r.rng) {
+	if b.tooLong(spaceRelation, v.Name.Name, r.rng) {
 		return true
 	}
 	if v.Name.Schema != "" {
@@ -114,8 +123,15 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 		}
 		k := relKey(r.db, r.name)
 		f, kind := b.l.Lookup(k)
-		if !v.IfExists {
+		switch {
+		case !v.IfExists:
 			b.need(k, walk.Present, []string{relView}, r.rng, "View "+r.written+" does not exist", r.written+" is not a view") // 1051, 1347
+		case b.w.oceanBase && f == walk.Present && kind == relTable:
+			// OceanBase refuses IF EXISTS of a table too (1347, verified on
+			// 4.3.5), which a temporary table of the name may shadow.
+			if tf, _ := b.l.Lookup(tempKey(r.db, r.name)); tf == walk.Absent {
+				b.need(k, walk.Present, []string{relView}, r.rng, "", r.written+" is not a view")
+			}
 		}
 		switch {
 		case kind == relView:
@@ -136,7 +152,7 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 		return lowered
 	}
 	rng := b.anchor()
-	if b.tooLong(v.Name, rng) {
+	if b.tooLong(spaceTrigger, v.Name, rng) {
 		return true
 	}
 	k, ok := b.key(spaceTrigger, v.Name)
@@ -242,7 +258,7 @@ func (b *builder) createRoutine(v *ast.CreateFunctionStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
-	if b.tooLong(v.Name.Name, b.anchor()) {
+	if b.tooLong(space, v.Name.Name, b.anchor()) {
 		return true
 	}
 	rk := objKey(space, db, k)
@@ -264,15 +280,19 @@ func (b *builder) alterRoutine(v *ast.AlterRoutineStmt) bool {
 // dropRoutine follows DROP PROCEDURE and DROP FUNCTION. An unqualified
 // DROP FUNCTION drops a loadable function of the name first, which the
 // sync does not list: it succeeds with no stored function, and leaves the
-// stored one when both exist (verified on 8.0 and 8.4).
+// stored one when both exist (verified on 8.0 and 8.4). OceanBase has no
+// loadable function (1235 to create one, verified on 4.3.5), so there it
+// is the stored one's.
 //
 // With no database selected, an unqualified DROP FUNCTION looks for a
 // loadable function alone: IF EXISTS makes a missing one a note, and
 // without it the statement fails with 1305, not 1046, only where none is
-// loaded, which the walk cannot know (verified on 8.0.46).
+// loaded, which the walk cannot know (verified on 8.0.46). OceanBase's
+// IF EXISTS succeeds then too (verified on 4.3.5).
 func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 	space, word := routineSpace(v.IsProcedure)
-	if !v.IsProcedure && v.Name != nil && v.Name.Schema == "" && b.w.noDatabase && !b.w.lost {
+	unqualified := !v.IsProcedure && v.Name != nil && v.Name.Schema == ""
+	if unqualified && b.w.noDatabase && !b.w.lost {
 		return true
 	}
 	k, db, st := b.dbObject(space, v.Name)
@@ -280,7 +300,7 @@ func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 		return st == refFailed
 	}
 	rk := objKey(space, db, k)
-	if !v.IsProcedure && v.Name.Schema == "" {
+	if unqualified && !b.w.oceanBase {
 		if f, _ := b.l.Lookup(rk); f == walk.Present {
 			b.Set(rk, walk.Unknown, "")
 		}
@@ -295,8 +315,12 @@ func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 
 // event resolves an event name. The parser takes no qualified one, so
 // the name is one identifier, a period and all: `shop.e` is an event of
-// the current database (verified).
+// the current database (verified). OceanBase splits it at the period,
+// `shop.e` e of shop (verified on 4.3.5), which the walk does not follow.
 func (b *builder) event(name string) (walk.Key, refState) {
+	if b.w.oceanBase && strings.Contains(name, ".") {
+		return walk.Key{}, refUnknown
+	}
 	k, db, st := b.dbObject(spaceEvent, &ast.TableRef{Name: name})
 	return objKey(spaceEvent, db, k), st
 }
@@ -402,12 +426,27 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 // @@session.foreign_key_checks = 0 turns the session's checks off, and
 // SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves them as
 // they are. omni's parser takes a scope keyword only first.
+//
+// OceanBase differs twice (verified on 4.3.5). Its grammar gives each
+// assignment a scope of its own, so the statement's keyword reaches only
+// the first: SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0
+// turns the session's checks off. And an assignment after one to DEFAULT
+// does not take its value: SET sql_mode = DEFAULT, foreign_key_checks = 0
+// leaves them on, so the walk takes the checks as Unknown after it.
 func (b *builder) set(v *ast.SetStmt) bool {
 	if b.callsStoredFunction(v) {
 		b.forgetTemporary()
 	}
 	global := strings.EqualFold(v.Scope, "GLOBAL") || strings.EqualFold(v.Scope, "PERSIST") || strings.EqualFold(v.Scope, "PERSIST_ONLY")
-	for _, a := range v.Assignments {
+	afterDefault := false
+	for i, a := range v.Assignments {
+		if i > 0 && b.w.oceanBase {
+			global = false
+		}
+		unknown := afterDefault && b.w.oceanBase
+		if _, ok := a.Value.(*ast.DefaultExpr); ok {
+			afterDefault = true
+		}
 		if a.Column == nil {
 			continue
 		}
@@ -437,6 +476,9 @@ func (b *builder) set(v *ast.SetStmt) bool {
 			if x.Value {
 				on = review.SwitchOn
 			}
+		}
+		if unknown {
+			on = review.SwitchUnknown
 		}
 		b.Session(func() { b.w.fkChecks = on })
 	}

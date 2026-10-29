@@ -100,7 +100,7 @@ func (b *builder) databaseNeeds(db, written string, rng review.Range) {
 
 func (b *builder) createDatabase(v *ast.CreateDatabaseStmt) bool {
 	rng := b.anchor()
-	if b.tooLong(v.Name, rng) {
+	if b.tooLong(spaceDatabase, v.Name, rng) {
 		return true
 	}
 	d, ok := b.key(spaceDatabase, v.Name)
@@ -134,6 +134,11 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 	}
 	b.Set(k, walk.Absent, "")
 	b.clearDatabase(d)
+	if b.w.oceanBase {
+		// OceanBase drops the session's temporary tables in it too
+		// (verified on 4.3.5).
+		b.Clear(walk.Scope{Space: spaceTemporary, Parent: walk.Path(d), Deep: true})
+	}
 	if !b.w.lost && d == b.w.current {
 		b.Session(func() { b.w.noDatabase = true })
 	}
@@ -200,7 +205,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	}
 	// The new table keeps foreign keys as its ENGINE does, or for LIKE as
 	// its source's does, which the walk must know.
-	b.fks = !v.Temporary && keepsFKs(engineOf(v.Options))
+	b.fks = !v.Temporary && b.keeps(engineOf(v.Options))
 	// The LIKE source is checked even when IF NOT EXISTS finds the table
 	// (verified).
 	if v.Like != nil {
@@ -290,24 +295,38 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 }
 
 // namesTooLong fails a CREATE TABLE naming a table, column, index, or
-// foreign key longer than 64 characters. The name after FOREIGN KEY counts
-// only without a CONSTRAINT symbol, which names the index in its place
-// (verified).
+// foreign key longer than its space allows. The name after FOREIGN KEY
+// counts only without a CONSTRAINT symbol, which names the index in its
+// place (verified).
 func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
-	if v.Table != nil && b.tooLong(v.Table.Name, rangeOf(v.Table.Loc)) {
+	if v.Table != nil && b.tooLong(spaceRelation, v.Table.Name, rangeOf(v.Table.Loc)) {
 		return true
 	}
 	for _, c := range v.Columns {
-		if b.tooLong(c.Name, rangeOf(c.Loc)) {
+		if b.tooLong(spaceColumn, c.Name, rangeOf(c.Loc)) {
 			return true
 		}
 	}
 	for _, c := range v.Constraints {
-		if b.tooLong(keyName(c), rangeOf(c.Loc)) {
+		if space, name := b.constraintName(c); b.tooLong(space, name, rangeOf(c.Loc)) {
 			return true
 		}
 	}
 	return false
+}
+
+// constraintName returns the name a table constraint gives, for its
+// length, and the name's space: keyName's, in an index's space, which a
+// CHECK's length follows, or a foreign key's. A foreign key adds no index
+// on OceanBase (verified on 4.3.5), so there its symbol is its one name.
+func (b *builder) constraintName(c *ast.Constraint) (string, string) {
+	switch {
+	case c.Type != ast.ConstrForeignKey:
+		return spaceIndex, c.Name
+	case b.w.oceanBase:
+		return spaceForeignKey, c.Name
+	}
+	return spaceForeignKey, keyName(c)
 }
 
 // tableTextFails fails a CREATE TABLE its text alone refutes (verified):
@@ -378,7 +397,8 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 // its column list's columns and named keys, with generated names as
 // May-effects. A table copied with LIKE or filled from a query holds what
 // the walk does not follow. A table with no primary key may get an
-// invisible one, with its column (sql_generate_invisible_primary_key).
+// invisible one, with its column (sql_generate_invisible_primary_key); on
+// OceanBase it has none, but the hidden column __pk_increment.
 func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 	path := tablePath(r.db, r.name)
 	b.Set(relKey(r.db, r.name), walk.Present, relTable)
@@ -396,7 +416,10 @@ func (b *builder) created(v *ast.CreateTableStmt, r tableRef) {
 	for _, c := range v.Constraints {
 		primary = b.constraint(r, c) || primary
 	}
-	if !primary {
+	switch {
+	case b.w.oceanBase:
+		b.Set(colKey(r.db, r.name, pkIncrement), walk.Unknown, "")
+	case !primary:
 		b.Set(idxKey(r.db, r.name, primaryIndex), walk.Unknown, "")
 		b.Set(colKey(r.db, r.name, gipkColumn), walk.Unknown, "")
 	}
@@ -459,10 +482,9 @@ func (b *builder) constraint(r tableRef, c *ast.Constraint) bool {
 	return false
 }
 
-// mayAddForeignKeys records a foreign key of a generated name,
-// <table>_ibfk_<n>.
+// mayAddForeignKeys records a foreign key of a generated name.
 func (b *builder) mayAddForeignKeys(r tableRef) {
-	p := generatedFKs(r.name)
+	p := b.generatedFKs(r.name)
 	b.MayAdd(walk.Scope{Space: spaceForeignKey, Parent: walk.Path(r.db), Prefix: p})
 	b.MayAdd(walk.Scope{Space: spaceTableForeignKey, Parent: tablePath(r.db, r.name), Prefix: p})
 }
@@ -480,13 +502,21 @@ func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
 	if b.w.fkChecks != review.SwitchOn || c.RefTable == nil || b.renames {
 		return
 	}
-	// An unqualified parent is in the child's database (verified).
+	// An unqualified parent is in the child's database (verified), and on
+	// OceanBase in the current one (verified on 4.3.5).
 	ref := *c.RefTable
 	if ref.Schema == "" {
-		ref.Schema = r.db
-		if strings.HasPrefix(r.db, nonASCII) {
+		db := r.db
+		if b.w.oceanBase {
+			if b.w.lost || b.w.noDatabase {
+				return
+			}
+			db = b.w.current
+		}
+		if strings.HasPrefix(db, nonASCII) {
 			return
 		}
+		ref.Schema = db
 	}
 	t, st := b.ref(&ref)
 	if st != refOK || t.db == r.db && t.name == r.name {
