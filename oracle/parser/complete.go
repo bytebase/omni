@@ -141,6 +141,7 @@ type ccResolver struct {
 	caret  int
 	out    []Token
 	groups map[int]*ccGroup
+	depth  int // nesting depth of the $IF being read (see ifGroup)
 }
 
 // ccBranch is a branch of an $IF: its condition, unset for $ELSE, and its
@@ -201,6 +202,14 @@ func (r *ccResolver) code(emit bool) {
 // branch it keeps when emit is set: a condition that holds the caret,
 // which stands for the whole $IF, or else the branch choose picks.
 func (r *ccResolver) ifGroup(emit bool) {
+	if r.depth >= maxNestingDepth {
+		// Completion is best effort: an $IF nested this deep is left out,
+		// rather than recursing until the stack overflows.
+		r.skipGroup()
+		return
+	}
+	r.depth++
+	defer func() { r.depth-- }()
 	g := r.group(r.pos)
 	switch {
 	case !emit:
@@ -213,6 +222,30 @@ func (r *ccResolver) ifGroup(emit bool) {
 		}
 	}
 	r.pos = g.after
+}
+
+// skipGroup moves past the $END of the $IF whose condition starts at r.pos,
+// and of the $IF and $ERROR directives nested in it, in one loop.
+func (r *ccResolver) skipGroup() {
+	inError := false
+	for open := 1; r.pos < len(r.toks) && open > 0; r.pos++ {
+		tok := r.toks[r.pos]
+		if tok.Type != tokDIRECTIVE {
+			continue
+		}
+		switch {
+		case tok.Str == "$END" && inError:
+			// The $END of an $ERROR message closes no $IF.
+			inError = false
+		case inError:
+		case tok.Str == "$IF":
+			open++
+		case tok.Str == "$ERROR":
+			inError = true
+		case tok.Str == "$END":
+			open--
+		}
+	}
 }
 
 // group returns the structure of the $IF whose condition starts at token
@@ -275,7 +308,7 @@ func (r *ccResolver) choose(branches []ccBranch) int {
 		if !b.hasCond || b.cond.Start < 0 {
 			return i
 		}
-		if value, ok := staticCondition(r.sql, b.cond); !ok || value != ccFalse {
+		if value, ok, _ := staticCondition(r.sql, b.cond); !ok || value != ccFalse {
 			return i
 		}
 	}

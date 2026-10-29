@@ -637,12 +637,16 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 				return ccUnknown, "", false
 			}
 			l.cc.noteCondition(cond)
-			value, valid := staticCondition(l.input, cond)
+			value, valid, tooDeep := staticCondition(l.input, cond)
 			switch {
 			case !valid && l.ccLenient:
 				// Split lexes on past a condition that is no expression,
 				// as past any malformed directive.
 				l.failDirective(tok, "invalid preprocessor condition")
+				return ccUnknown, "", false
+			case tooDeep != nil:
+				at := NewLexerRange(l.input, tooDeep.Position, cond.End).nextRaw()
+				l.failDirective(at, tooDeep.Message)
 				return ccUnknown, "", false
 			case !valid:
 				// Oracle 23ai reports the condition (PLS-00174, PLS-00382)
@@ -862,18 +866,36 @@ func (l *Lexer) failDirective(tok Token, msg string) Token {
 // nextRaw returns the next token before conditional compilation: directives
 // are tokDIRECTIVE tokens.
 func (l *Lexer) nextRaw() Token {
+	for {
+		tok, again := l.nextRawStep()
+		if !again {
+			return tok
+		}
+	}
+}
+
+// lexAgain is the token type lexInitial returns after it skipped a comment:
+// nextRaw loops to the token after it instead of each comment calling
+// nextRaw again, which nested one call per comment and overflowed the stack
+// on a long script of comments.
+const lexAgain = -1
+
+// nextRawStep lexes the next token for nextRaw, or skips a comment, or a
+// hint that stands where it is a comment, and reports again.
+func (l *Lexer) nextRawStep() (tok Token, again bool) {
 	if l.pos >= l.end {
-		return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
+		return Token{Type: tokEOF, Loc: l.pos, End: l.pos}, false
 	}
 
 	l.start = l.pos
-	tok := l.lexInitial()
+	tok = l.lexInitial()
+	if tok.Type == lexAgain {
+		return tok, true
+	}
 	// Set End to current position after token has been fully consumed.
-	// For recursive calls (e.g., skipping comments), the inner NextToken
-	// sets End correctly on its own returned token.
 	tok.End = l.pos
 	if (tok.Type == tokSCONST || tok.Type == tokNCHARLIT) && l.literalLimit > 0 && len(tok.Str) > l.literalLimit {
-		return l.failDirective(tok, "string literal too long")
+		return l.failDirective(tok, "string literal too long"), false
 	}
 	// A hint stands right after SELECT, INSERT, UPDATE, DELETE, or MERGE;
 	// anywhere else it is a comment (Oracle 23ai runs BEGIN /*+ x */ NULL;
@@ -883,7 +905,7 @@ func (l *Lexer) nextRaw() Token {
 		case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwMERGE:
 		default:
 			l.clearPrevType()
-			return l.nextRaw()
+			return tok, true
 		}
 	}
 	// A directive, with the condition or message after it, leaves the
@@ -911,12 +933,12 @@ func (l *Lexer) nextRaw() Token {
 			}
 			l.ccRawDirective = false
 		}
-		return tok
+		return tok, false
 	}
 	if !l.ccRawDirective {
 		l.prevType = tok.Type
 	}
-	return tok
+	return tok, false
 }
 
 // ccRawIf is an $IF nextRaw is inside (Lexer.ccRawIfs).
@@ -949,7 +971,7 @@ func (l *Lexer) lexInitial() Token {
 	if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 		l.skipLineComment()
 		l.clearPrevType() // a hint follows its keyword directly
-		return l.nextRaw()
+		return Token{Type: lexAgain}
 	}
 
 	// Block comments: /* */ and hints: /*+ */
@@ -1131,7 +1153,7 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 	// Regular comment -- skip and get next token. A hint follows its
 	// keyword directly: SELECT /* c */ /*+ FULL(t) */ holds no hint.
 	l.clearPrevType()
-	return l.nextRaw()
+	return Token{Type: lexAgain}
 }
 
 // lexSingleQuotedString handles '...' strings with ” escape.

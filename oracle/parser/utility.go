@@ -756,6 +756,10 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 //	    [ INTO [ schema. ] table [ @dblink ] ]
 //	    FOR statement ;
 func (p *Parser) parseExplainPlanStmt() (nodes.StmtNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	start := p.pos()
 	p.advance() // consume EXPLAIN
 

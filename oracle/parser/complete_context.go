@@ -1144,6 +1144,15 @@ func extractOracleNameList(tokens []Token) []string {
 }
 
 func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReference) []string {
+	// A SELECT * reads the columns of each derived table it selects from,
+	// in a call of its own on the tokens inside its parentheses, so the
+	// calls nest no deeper than the parentheses do, a run of them counting
+	// once (oracleParenRunsNestAtLeast). Completion is best effort: a query
+	// whose parentheses nest this deep contributes no columns, rather than
+	// recursing until the stack overflows.
+	if oracleParenRunsNestAtLeast(tokens, maxNestingDepth) {
+		return nil
+	}
 	lo, hi, selectIdx := oracleQuerySelect(tokens)
 	if selectIdx < 0 {
 		return nil
@@ -1179,6 +1188,36 @@ func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReferen
 		names = append(names, extractOracleTargetColumn(tokens[targetStart:], tokens, selectIdx, ctes)...)
 	}
 	return names
+}
+
+// oracleParenRunsNestAtLeast reports whether parentheses nest depth deep in
+// tokens, a run of '(' counting as one level: the wrappers of a query come
+// off in one pass (oracleQuerySelect), and only the parentheses that open
+// a derived table, which never follow a '(', lead to a call of their own.
+func oracleParenRunsNestAtLeast(tokens []Token, depth int) bool {
+	// runStarts says, for each '(' open, whether it opened a run.
+	var runStarts []bool
+	open := 0
+	for i, tok := range tokens {
+		switch tok.Type {
+		case '(':
+			start := i == 0 || tokens[i-1].Type != '('
+			runStarts = append(runStarts, start)
+			if start {
+				if open++; open >= depth {
+					return true
+				}
+			}
+		case ')':
+			if n := len(runStarts); n > 0 {
+				if runStarts[n-1] {
+					open--
+				}
+				runStarts = runStarts[:n-1]
+			}
+		}
+	}
+	return false
 }
 
 func extractOracleTargetColumn(target []Token, selectTokens []Token, selectIdx int, ctes map[string]RangeReference) []string {

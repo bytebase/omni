@@ -21,21 +21,28 @@ import (
 // constants have values the text does not hold.
 //
 // It reports false for a condition that is no static Boolean expression,
-// which the parser rejects and Split lexes past.
-func staticCondition(source string, loc nodes.Loc) (ccValue, bool) {
+// which the parser rejects and Split lexes past, with the nesting error for
+// one nested too deeply: the evaluators walk its tree recursively.
+func staticCondition(source string, loc nodes.Loc) (ccValue, bool, *ParseError) {
 	sub := &Parser{lexer: NewLexerRange(source, loc.Start, loc.End), source: source}
 	sub.advance()
 	expr, err := sub.parseExpr()
-	if err != nil || expr == nil || sub.cur.Type != tokEOF || sub.staticConditionFault(expr) != nil {
-		return ccUnknown, false
+	if err != nil || expr == nil || sub.cur.Type != tokEOF {
+		return ccUnknown, false, nestingError(err)
+	}
+	if treeTooHigh(expr, loc.End-loc.Start) {
+		return ccUnknown, false, nestedTooDeeply(loc.Start)
+	}
+	if sub.staticConditionFault(expr) != nil {
+		return ccUnknown, false, nil
 	}
 	switch newStaticEval(source).staticTruthOf(expr) {
 	case truthTrue:
-		return ccTrue, true
+		return ccTrue, true, nil
 	case truthFalse, truthNull:
-		return ccFalse, true
+		return ccFalse, true, nil
 	}
-	return ccUnknown, true
+	return ccUnknown, true, nil
 }
 
 // staticTruth is the three-valued truth of a static condition, or unknown.
@@ -1573,6 +1580,9 @@ func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
 	}
 	if expr == nil || sub.cur.Type != tokEOF {
 		return sub.syntaxErrorAtCur()
+	}
+	if treeTooHigh(expr, loc.End-loc.Start) {
+		return nestedTooDeeply(loc.Start)
 	}
 	if bad := p.staticConditionFault(expr); bad != nil {
 		return p.syntaxErrorAtNode(bad)
