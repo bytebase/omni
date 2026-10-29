@@ -179,17 +179,9 @@ func (w *writer) writeUnaryExpr(n *ast.UnaryExpr) error {
 func (w *writer) writeParenExpr(n *ast.ParenExpr) error {
 	w.ensureSpace()
 	w.buf.WriteByte('(')
-	savedLen := w.buf.Len()
-	if err := w.writeExpr(n.Expr); err != nil {
-		return err
-	}
 	// trim leading space that ensureSpace may have added inside the paren
-	s := w.buf.String()
-	inner := s[savedLen:]
-	if strings.HasPrefix(inner, " ") {
-		trimmed := s[:savedLen] + inner[1:]
-		w.buf.Reset()
-		w.buf.WriteString(trimmed)
+	if err := writeExprNoLeadSpace(w, n.Expr); err != nil {
+		return err
 	}
 	w.buf.WriteByte(')')
 	return nil
@@ -210,16 +202,8 @@ func (w *writer) writeCastExpr(n *ast.CastExpr) error {
 	} else {
 		w.buf.WriteString("CAST(")
 	}
-	savedLen := w.buf.Len()
-	if err := w.writeExpr(n.Expr); err != nil {
+	if err := writeExprNoLeadSpace(w, n.Expr); err != nil {
 		return err
-	}
-	s := w.buf.String()
-	inner := s[savedLen:]
-	if strings.HasPrefix(inner, " ") {
-		trimmed := s[:savedLen] + inner[1:]
-		w.buf.Reset()
-		w.buf.WriteString(trimmed)
 	}
 	w.buf.WriteString(" AS ")
 	w.writeTypeName(n.TypeName)
@@ -237,42 +221,18 @@ func (w *writer) writeCaseExpr(n *ast.CaseExpr) error {
 	}
 	for _, when := range n.Whens {
 		w.buf.WriteString(" WHEN ")
-		savedLen := w.buf.Len()
-		if err := w.writeExpr(when.Cond); err != nil {
+		if err := writeExprNoLeadSpace(w, when.Cond); err != nil {
 			return err
-		}
-		s := w.buf.String()
-		inner := s[savedLen:]
-		if strings.HasPrefix(inner, " ") {
-			trimmed := s[:savedLen] + inner[1:]
-			w.buf.Reset()
-			w.buf.WriteString(trimmed)
 		}
 		w.buf.WriteString(" THEN ")
-		savedLen = w.buf.Len()
-		if err := w.writeExpr(when.Result); err != nil {
+		if err := writeExprNoLeadSpace(w, when.Result); err != nil {
 			return err
-		}
-		s = w.buf.String()
-		inner = s[savedLen:]
-		if strings.HasPrefix(inner, " ") {
-			trimmed := s[:savedLen] + inner[1:]
-			w.buf.Reset()
-			w.buf.WriteString(trimmed)
 		}
 	}
 	if n.Else != nil {
 		w.buf.WriteString(" ELSE ")
-		savedLen := w.buf.Len()
-		if err := w.writeExpr(n.Else); err != nil {
+		if err := writeExprNoLeadSpace(w, n.Else); err != nil {
 			return err
-		}
-		s := w.buf.String()
-		inner := s[savedLen:]
-		if strings.HasPrefix(inner, " ") {
-			trimmed := s[:savedLen] + inner[1:]
-			w.buf.Reset()
-			w.buf.WriteString(trimmed)
 		}
 	}
 	w.buf.WriteString(" END")
@@ -293,16 +253,8 @@ func (w *writer) writeFuncCallExpr(n *ast.FuncCallExpr) error {
 			if i > 0 {
 				w.buf.WriteString(", ")
 			}
-			savedLen := w.buf.Len()
-			if err := w.writeExpr(arg); err != nil {
+			if err := writeExprNoLeadSpace(w, arg); err != nil {
 				return err
-			}
-			s := w.buf.String()
-			inner := s[savedLen:]
-			if strings.HasPrefix(inner, " ") {
-				trimmed := s[:savedLen] + inner[1:]
-				w.buf.Reset()
-				w.buf.WriteString(trimmed)
 			}
 		}
 	}
@@ -339,16 +291,8 @@ func (w *writer) writeWindowSpec(ws *ast.WindowSpec) error {
 			if i > 0 {
 				w.buf.WriteString(", ")
 			}
-			savedLen := w.buf.Len()
-			if err := w.writeExpr(expr); err != nil {
+			if err := writeExprNoLeadSpace(w, expr); err != nil {
 				return err
-			}
-			s := w.buf.String()
-			inner := s[savedLen:]
-			if strings.HasPrefix(inner, " ") {
-				trimmed := s[:savedLen] + inner[1:]
-				w.buf.Reset()
-				w.buf.WriteString(trimmed)
 			}
 		}
 		first = false
@@ -402,16 +346,8 @@ func (w *writer) writeWindowBound(b ast.WindowBound) error {
 		w.buf.WriteString("UNBOUNDED PRECEDING")
 	case ast.BoundPreceding:
 		if b.Offset != nil {
-			savedLen := w.buf.Len()
-			if err := w.writeExpr(b.Offset); err != nil {
+			if err := writeExprNoLeadSpace(w, b.Offset); err != nil {
 				return err
-			}
-			s := w.buf.String()
-			inner := s[savedLen:]
-			if strings.HasPrefix(inner, " ") {
-				trimmed := s[:savedLen] + inner[1:]
-				w.buf.Reset()
-				w.buf.WriteString(trimmed)
 			}
 		} else {
 			w.buf.WriteByte('1')
@@ -421,16 +357,8 @@ func (w *writer) writeWindowBound(b ast.WindowBound) error {
 		w.buf.WriteString("CURRENT ROW")
 	case ast.BoundFollowing:
 		if b.Offset != nil {
-			savedLen := w.buf.Len()
-			if err := w.writeExpr(b.Offset); err != nil {
+			if err := writeExprNoLeadSpace(w, b.Offset); err != nil {
 				return err
-			}
-			s := w.buf.String()
-			inner := s[savedLen:]
-			if strings.HasPrefix(inner, " ") {
-				trimmed := s[:savedLen] + inner[1:]
-				w.buf.Reset()
-				w.buf.WriteString(trimmed)
 			}
 		} else {
 			w.buf.WriteByte('1')
@@ -737,17 +665,13 @@ func (w *writer) writeTypeName(tn *ast.TypeName) {
 // writeExprNoLeadSpace writes expr and strips any leading space that
 // ensureSpace may have inserted. This is used inside parentheses, comma
 // lists, or after literal keyword+space sequences where the caller has
-// already positioned the cursor correctly.
+// already positioned the cursor correctly. The space is taken back in
+// constant time (buffer.dropLeadingSpace), not by copying the output.
 func writeExprNoLeadSpace(w *writer, node ast.Node) error {
-	start := w.buf.Len()
+	start := w.buf.mark()
 	if err := w.writeExpr(node); err != nil {
 		return err
 	}
-	s := w.buf.String()
-	if len(s) > start && s[start] == ' ' {
-		trimmed := s[:start] + s[start+1:]
-		w.buf.Reset()
-		w.buf.WriteString(trimmed)
-	}
+	w.buf.dropLeadingSpace(start)
 	return nil
 }
