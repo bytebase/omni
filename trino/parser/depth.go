@@ -75,7 +75,8 @@ func (p *Parser) treeTooHigh(root any, textLen int) bool {
 // The nodes are the structs of this package and trino/ast (the expressions,
 // queries, relations, types, and the rest live here, and ast.Walk does not
 // reach them), and a node's children are the nodes its exported fields hold:
-// through a pointer, an interface, a struct value, or a slice of any of them.
+// through a pointer, an interface, a struct value, or slices of any of them,
+// nested to any depth (GROUPING SETS hold a [][]Expr).
 // A subquery placeholder's body counts below it through SubqueryExpr.Query,
 // the tree the strict parse built in place, which trino/analysis walks from
 // inside the statement's.
@@ -85,14 +86,22 @@ func treeHeight(root any, limit int) int {
 		depth int
 	}
 	var stack []level
-	push := func(v reflect.Value, depth int) {
+	// push recurses only through the containers a field's type nests, never
+	// down the tree.
+	var push func(v reflect.Value, depth int)
+	push = func(v reflect.Value, depth int) {
 		for v.Kind() == reflect.Interface || v.Kind() == reflect.Pointer {
 			if v.IsNil() {
 				return
 			}
 			v = v.Elem()
 		}
-		if v.Kind() == reflect.Struct && isTreeNode(v.Type()) {
+		switch {
+		case v.Kind() == reflect.Slice || v.Kind() == reflect.Array:
+			for j := 0; j < v.Len(); j++ {
+				push(v.Index(j), depth)
+			}
+		case v.Kind() == reflect.Struct && isTreeNode(v.Type()):
 			stack = append(stack, level{v, depth})
 		}
 	}
@@ -108,14 +117,7 @@ func treeHeight(root any, limit int) int {
 			}
 		}
 		for _, i := range treeChildFields(top.node.Type()) {
-			f := top.node.Field(i)
-			if f.Kind() == reflect.Slice || f.Kind() == reflect.Array {
-				for j := 0; j < f.Len(); j++ {
-					push(f.Index(j), top.depth+1)
-				}
-				continue
-			}
-			push(f, top.depth+1)
+			push(top.node.Field(i), top.depth+1)
 		}
 	}
 	return height

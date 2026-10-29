@@ -222,6 +222,10 @@ var chainShapes = []struct {
 	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
 	{"EXCEPT", func(n int) string { return strings.Repeat("SELECT 1 EXCEPT ", n) + "SELECT 1" }},
 	{"INTERSECT", func(n int) string { return strings.Repeat("SELECT 1 INTERSECT ", n) + "SELECT 1" }},
+	// A grouping set's expressions sit in a [][]Expr.
+	{"sum in a grouping set", func(n int) string {
+		return "SELECT 1 GROUP BY GROUPING SETS ((" + strings.Repeat("1+", n) + "1))"
+	}},
 	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON true", n) }},
 	{"cross joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" CROSS JOIN t", n) }},
 	{"natural joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" NATURAL JOIN t", n) }},
