@@ -31,6 +31,10 @@ const (
 //
 //	a_expr: c_expr | a_expr op a_expr | ...
 func (p *Parser) parseAExpr(minPrec int) (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	loc := p.pos()
 	left, err := p.parseAExprAtom()
 	if err != nil {
@@ -1209,6 +1213,10 @@ func (p *Parser) parseSubscript(left nodes.Node) (nodes.Node, error) {
 //
 //	b_expr: c_expr | b_expr op b_expr | b_expr IS [NOT] DISTINCT FROM b_expr | ...
 func (p *Parser) parseBExpr(minPrec int) (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parseBExprAtom()
 	if err != nil {
 		return nil, err
@@ -1901,6 +1909,10 @@ func (p *Parser) parseArrayCExpr() (nodes.Node, error) {
 //	    | '[' array_expr_list ']'
 //	    | '[' ']'
 func (p *Parser) parseArrayExpr() (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	p.advance() // consume '['
 
 	if p.cur.Type == ']' {

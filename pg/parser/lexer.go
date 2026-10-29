@@ -160,7 +160,24 @@ func (l *Lexer) NextToken() Token {
 	return tok
 }
 
+// lexAgain is what a state's lexing function returns after it only moved
+// the lexer to another state (into a comment, a string, ...): nextTokenInner
+// loops instead of each function calling NextToken again, which nested one
+// call per comment or string piece and overflowed the stack on long scripts.
+const lexAgain = -1
+
 func (l *Lexer) nextTokenInner() Token {
+	for {
+		tok := l.nextTokenStep()
+		if tok.Type != lexAgain {
+			return tok
+		}
+	}
+}
+
+// nextTokenStep lexes in the current state: a token, or lexAgain when the
+// state changed and lexing continues in the new one.
+func (l *Lexer) nextTokenStep() Token {
 	for {
 		if l.pos >= l.end {
 			// At EOF - if we're in a string state, that's an error
@@ -220,13 +237,13 @@ func (l *Lexer) lexInitial() Token {
 		l.xcdepth = 0
 		l.state = stateXC
 		// Return to main loop to handle comment
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// Check for SQL comment
 	if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 		l.skipLineComment()
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// psql metacommand (\restrict, \echo, ...): backslash + letter at any
@@ -235,7 +252,7 @@ func (l *Lexer) lexInitial() Token {
 	// pg_dump/pg_dumpall output included — lex cleanly.
 	if metacmd.IsMetaCommand(l.input[:l.end], l.pos) {
 		l.skipLineComment()
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// Bit string: B'...'
@@ -244,7 +261,7 @@ func (l *Lexer) lexInitial() Token {
 		l.state = stateXB
 		l.literalbuf.Reset()
 		l.literalbuf.WriteByte('b')
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// Hex string: X'...'
@@ -253,7 +270,7 @@ func (l *Lexer) lexInitial() Token {
 		l.state = stateXH
 		l.literalbuf.Reset()
 		l.literalbuf.WriteByte('x')
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// National character: N'...' -> treat as NCHAR followed by string
@@ -276,7 +293,7 @@ func (l *Lexer) lexInitial() Token {
 		l.warnOnFirstEscape = false
 		l.sawNonASCII = false
 		l.literalbuf.Reset()
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// Unicode string: U&'...'
@@ -289,14 +306,14 @@ func (l *Lexer) lexInitial() Token {
 			l.pos += 3
 			l.state = stateXUS
 			l.literalbuf.Reset()
-			return l.NextToken()
+			return Token{Type: lexAgain}
 		}
 		// Unicode identifier: U&"..."
 		if l.pos+2 < l.end && l.input[l.pos+2] == '"' {
 			l.pos += 3
 			l.state = stateXUI
 			l.literalbuf.Reset()
-			return l.NextToken()
+			return Token{Type: lexAgain}
 		}
 		// Just 'U&' without quote - return 'u' as identifier
 		l.pos++
@@ -314,7 +331,7 @@ func (l *Lexer) lexInitial() Token {
 			l.state = stateXE
 		}
 		l.literalbuf.Reset()
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// Double-quoted identifier: "..."
@@ -322,7 +339,7 @@ func (l *Lexer) lexInitial() Token {
 		l.pos++
 		l.state = stateXD
 		l.literalbuf.Reset()
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// Dollar-quoted string: $tag$...$tag$
@@ -331,7 +348,7 @@ func (l *Lexer) lexInitial() Token {
 			l.dolqstart = tag
 			l.state = stateXDOLQ
 			l.literalbuf.Reset()
-			return l.NextToken()
+			return Token{Type: lexAgain}
 		}
 		// Check for parameter: $1, $2, etc.
 		if l.pos+1 < l.end && isDigit(l.input[l.pos+1]) {
@@ -457,7 +474,7 @@ func (l *Lexer) lexBitOrHexString() Token {
 			l.pos++
 			l.stateBeforeStrStop = l.state
 			l.state = stateXQS
-			return l.NextToken()
+			return Token{Type: lexAgain}
 		}
 		l.literalbuf.WriteByte(ch)
 		l.pos++
@@ -489,7 +506,7 @@ func (l *Lexer) lexQuotedString() Token {
 			l.pos++
 			l.stateBeforeStrStop = l.state
 			l.state = stateXQS
-			return l.NextToken()
+			return Token{Type: lexAgain}
 		}
 
 		// For extended strings, handle escape sequences
@@ -636,7 +653,7 @@ func (l *Lexer) lexQuoteContinue() Token {
 	if hasNewline && l.pos < l.end && l.input[l.pos] == '\'' {
 		l.pos++
 		l.state = l.stateBeforeStrStop
-		return l.NextToken()
+		return Token{Type: lexAgain}
 	}
 
 	// No continuation - return the completed string. Rewind to the closing
@@ -714,7 +731,7 @@ func (l *Lexer) lexUnicodeSurrogate() Token {
 				combined := surrogateToCodepoint(l.utf16FirstPart, rune(val))
 				l.writeUnicodeChar(combined)
 				l.state = stateXE
-				return l.NextToken()
+				return Token{Type: lexAgain}
 			}
 		}
 	}

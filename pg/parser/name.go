@@ -538,6 +538,10 @@ func (p *Parser) parseCursorName() (string, error) {
 //	    all_Op
 //	    | ColId '.' any_operator
 func (p *Parser) parseAnyOperator() (*nodes.List, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// Check if this could be ColId '.' any_operator
 	// We need lookahead: if current is ColId and next is '.', it might be qualified.
 	if p.isColId() && p.cur.Type != Op {
