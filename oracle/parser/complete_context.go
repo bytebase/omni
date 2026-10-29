@@ -130,11 +130,14 @@ func collectOracleScope(tokens []Token, cursorOffset int) *ScopeSnapshot {
 func collectOracleScopeAndCTEs(tokens []Token, cursorOffset int) (*ScopeSnapshot, []RangeReference) {
 	start, end := oracleStatementTokenBounds(tokens, cursorOffset)
 	stmtTokens := tokens[start:end]
-	ctes := collectOracleCTEs(stmtTokens)
+	index := newOracleTokenIndex(stmtTokens)
+	plain := index.reader(nil)
+	ctes := plain.ctesOfQuery()
 	cteMap := oracleRangeReferenceMap(ctes)
-	selectRefs := collectOracleSelectRefs(stmtTokens, cteMap)
-	dmlRefs := collectOracleDMLRefs(stmtTokens)
-	ddlRefs := collectOracleDDLRefs(stmtTokens)
+	r := index.reader(cteMap)
+	selectRefs := r.selectRefs()
+	dmlRefs := plain.dmlRefs()
+	ddlRefs := plain.ddlRefs()
 	refs := append([]RangeReference{}, selectRefs...)
 	refs = append(refs, dmlRefs...)
 	refs = append(refs, ddlRefs...)
@@ -142,9 +145,9 @@ func collectOracleScopeAndCTEs(tokens []Token, cursorOffset int) (*ScopeSnapshot
 	localRefs := refs
 	outerRefs := [][]RangeReference(nil)
 	if selectIdx, selectDepth, ok := innermostOracleSelectBeforeCursor(stmtTokens, cursorOffset); ok {
-		armStart, armEnd := oracleSelectArmBounds(stmtTokens, selectIdx, selectDepth)
-		localRefs = collectOracleSelectRefsInRange(stmtTokens, armStart, armEnd, selectDepth, cteMap)
-		outerRefs = collectOracleOuterSelectRefs(stmtTokens, cursorOffset, selectDepth, cteMap)
+		armStart, armEnd := r.armBounds(selectIdx, len(stmtTokens))
+		localRefs = r.selectRefsInRange(armStart, armEnd, selectDepth, len(stmtTokens))
+		outerRefs = r.outerSelectRefs(cursorOffset, selectDepth)
 	} else if len(dmlRefs) > 0 {
 		localRefs = dmlRefs
 	} else if len(ddlRefs) > 0 {
@@ -157,7 +160,113 @@ func collectOracleScopeAndCTEs(tokens []Token, cursorOffset int) (*ScopeSnapshot
 	}, ctes
 }
 
-func collectOracleDDLRefs(tokens []Token) []RangeReference {
+// oracleTokenIndex is what reading the range references of a statement
+// looks up about its tokens, found in one pass. The readers below scan only
+// the tokens a clause holds at its own depth, step over each parenthesized
+// group in one move, and read the select list of a derived table once
+// (oracleRefReader.columns). Reading the references of each SELECT from the
+// start of the statement, finding each matching parenthesis by a scan, and
+// expanding a star over each derived table again for every query around
+// it made completion through 1,000 nested derived tables (18KB) take 35s,
+// the time growing with the cube of the depth.
+type oracleTokenIndex struct {
+	toks []Token
+	// depth[i] is the number of parentheses open before toks[i]; a ')'
+	// with none open closes none.
+	depth []int
+	// match[i] is, for a parenthesis, the index of the one that matches
+	// it, or -1 when none does.
+	match []int
+	// runs[i] is, for a matched '(', how deeply runs of '(' nest between it
+	// and its ')', as oracleParenRunsNestAtLeast counts them.
+	runs []int
+	// setOp[i] is, for a SELECT, the index of the last set operator before
+	// it at its depth, or -1.
+	setOp []int
+}
+
+func newOracleTokenIndex(toks []Token) *oracleTokenIndex {
+	x := &oracleTokenIndex{
+		toks:  toks,
+		depth: make([]int, len(toks)),
+		match: make([]int, len(toks)),
+		runs:  make([]int, len(toks)),
+		setOp: make([]int, len(toks)),
+	}
+	// open holds the '(' not yet closed, the depth counting them. For each
+	// it keeps how deeply runs nest in what it has closed so far: nest, as
+	// runs counts them, and inRun, the same but a run that the '(' itself
+	// continues, one that opens right after it, not counted.
+	type openParen struct{ idx, nest, inRun int }
+	var open []openParen
+	var lastSetOp []int // by depth
+	for i, tok := range toks {
+		x.depth[i], x.match[i], x.setOp[i] = len(open), -1, -1
+		switch tok.Type {
+		case '(':
+			open = append(open, openParen{idx: i})
+		case ')':
+			n := len(open)
+			if n == 0 {
+				continue
+			}
+			o := open[n-1]
+			open = open[:n-1]
+			x.match[o.idx], x.match[i] = i, o.idx
+			x.runs[o.idx] = o.nest
+			// How deeply runs nest from o on, o opening one.
+			nest := 1 + o.inRun
+			if n > 1 {
+				p := &open[n-2]
+				p.nest = max(p.nest, nest)
+				if o.idx == p.idx+1 {
+					nest--
+				}
+				p.inRun = max(p.inRun, nest)
+			}
+		case kwSELECT:
+			if d := len(open); d < len(lastSetOp) {
+				x.setOp[i] = lastSetOp[d]
+			}
+		case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
+			for len(lastSetOp) <= len(open) {
+				lastSetOp = append(lastSetOp, -1)
+			}
+			lastSetOp[len(open)] = i
+		}
+	}
+	return x
+}
+
+// closeOf returns the index of the ')' that matches the '(' at open before
+// hi, or -1: oracleMatchingParen(toks[:hi], open).
+func (x *oracleTokenIndex) closeOf(open, hi int) int {
+	if open < 0 || open >= hi || x.toks[open].Type != '(' {
+		return -1
+	}
+	if c := x.match[open]; c >= 0 && c < hi {
+		return c
+	}
+	return -1
+}
+
+// oracleRefReader reads range references from the tokens of an index, with
+// the CTEs they may name.
+type oracleRefReader struct {
+	*oracleTokenIndex
+	ctes map[string]RangeReference
+	// columns holds, by the index of its '(', the select-list columns of
+	// each derived table read so far: expanding a star reads the derived
+	// tables it selects from, and each query around them reads it again.
+	columns map[int][]string
+}
+
+func (x *oracleTokenIndex) reader(ctes map[string]RangeReference) *oracleRefReader {
+	return &oracleRefReader{oracleTokenIndex: x, ctes: ctes}
+}
+
+func (r *oracleRefReader) ddlRefs() []RangeReference {
+	tokens := r.toks
 	first := firstOracleNonTerminator(tokens)
 	if first < 0 {
 		return nil
@@ -166,20 +275,20 @@ func collectOracleDDLRefs(tokens []Token) []RangeReference {
 	case kwCREATE:
 		var refs []RangeReference
 		if first+2 < len(tokens) && tokens[first+1].Type == kwTABLE {
-			_, ref, ok := parseOracleRangeReference(tokens, first+2, nil)
+			_, ref, ok := r.rangeReference(first+2, len(tokens))
 			if ok {
 				refs = append(refs, ref)
 			}
 		}
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwON {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
+				_, ref, ok := r.rangeReference(i+1, len(tokens))
 				if ok {
 					refs = append(refs, ref)
 				}
 			}
 			if tokens[i].Type == kwREFERENCES {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
+				_, ref, ok := r.rangeReference(i+1, len(tokens))
 				if ok {
 					refs = append(refs, ref)
 				}
@@ -189,7 +298,7 @@ func collectOracleDDLRefs(tokens []Token) []RangeReference {
 	case kwALTER:
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwTABLE {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
+				_, ref, ok := r.rangeReference(i+1, len(tokens))
 				if ok {
 					return []RangeReference{ref}
 				}
@@ -212,14 +321,15 @@ func collectOracleDDLRefs(tokens []Token) []RangeReference {
 	return nil
 }
 
-func collectOracleDMLRefs(tokens []Token) []RangeReference {
+func (r *oracleRefReader) dmlRefs() []RangeReference {
+	tokens := r.toks
 	first := firstOracleNonTerminator(tokens)
 	if first < 0 {
 		return nil
 	}
 	switch tokens[first].Type {
 	case kwUPDATE:
-		_, ref, ok := parseOracleRangeReference(tokens, first+1, nil)
+		_, ref, ok := r.rangeReference(first+1, len(tokens))
 		if ok {
 			ref.Kind = RangeReferenceDMLTarget
 			return []RangeReference{ref}
@@ -227,7 +337,7 @@ func collectOracleDMLRefs(tokens []Token) []RangeReference {
 	case kwINSERT:
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwINTO {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
+				_, ref, ok := r.rangeReference(i+1, len(tokens))
 				if ok {
 					ref.Kind = RangeReferenceDMLTarget
 					return []RangeReference{ref}
@@ -238,7 +348,7 @@ func collectOracleDMLRefs(tokens []Token) []RangeReference {
 	case kwDELETE:
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwFROM {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
+				_, ref, ok := r.rangeReference(i+1, len(tokens))
 				if ok {
 					ref.Kind = RangeReferenceDMLTarget
 					return []RangeReference{ref}
@@ -251,14 +361,14 @@ func collectOracleDMLRefs(tokens []Token) []RangeReference {
 		for i := first + 1; i < len(tokens); i++ {
 			switch tokens[i].Type {
 			case kwINTO:
-				next, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
+				next, ref, ok := r.rangeReference(i+1, len(tokens))
 				if ok {
 					ref.Kind = RangeReferenceDMLTarget
 					refs = append(refs, ref)
 					i = next - 1
 				}
 			case kwUSING:
-				next, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
+				next, ref, ok := r.rangeReference(i+1, len(tokens))
 				if ok {
 					ref.Kind = RangeReferenceMergeSource
 					refs = append(refs, ref)
@@ -320,42 +430,45 @@ func oracleCompletionStatementLoc(sql string, tokens []Token, cursorOffset int) 
 	return loc
 }
 
-func collectOracleSelectRefs(tokens []Token, ctes map[string]RangeReference) []RangeReference {
-	return collectOracleSelectRefsAtDepth(tokens, -1, ctes)
-}
-
-func collectOracleSelectRefsAtDepth(tokens []Token, wantDepth int, ctes map[string]RangeReference) []RangeReference {
+// selectRefs returns the references of every SELECT in the statement.
+func (r *oracleRefReader) selectRefs() []RangeReference {
 	var refs []RangeReference
-	depth := 0
-	for i, tok := range tokens {
-		switch tok.Type {
-		case '(':
-			depth++
-			continue
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-			continue
-		}
+	for i, tok := range r.toks {
 		if tok.Type != kwSELECT {
 			continue
 		}
-		if wantDepth >= 0 && depth != wantDepth {
-			continue
-		}
-		start, end := oracleSelectArmBounds(tokens, i, depth)
-		refs = append(refs, collectOracleSelectRefsInRange(tokens, start, end, depth, ctes)...)
+		start, end := r.armBounds(i, len(r.toks))
+		refs = append(refs, r.selectRefsInRange(start, end, r.depth[i], len(r.toks))...)
 	}
 	return refs
 }
 
-func collectOracleSelectRefsInRange(tokens []Token, start int, end int, wantDepth int, ctes map[string]RangeReference) []RangeReference {
+// selectRefsInRange returns the references of the FROM clauses at depth
+// want among toks[start:end], hi bounding what a reference may read.
+//
+// depth is counted as this scan has always counted it, not taken from the
+// index: it skips the tokens each FROM clause read. An arm can start after
+// a set operator in an earlier sibling group, (SELECT a FROM t UNION SELECT
+// b FROM u) x, (SELECT c FROM v) y; the FROM clause there reads to where
+// its group closes, and depth stays want past it, so which FROM clauses
+// count after it follows that count. A group that opens at depth want or
+// deeper holds no FROM clause at want and is stepped over whole.
+func (r *oracleRefReader) selectRefsInRange(start, end, want, hi int) []RangeReference {
 	var refs []RangeReference
 	depth := 0
-	for i := 0; i < len(tokens); i++ {
-		switch tokens[i].Type {
+	if start < end {
+		depth = r.depth[start]
+	}
+	for i := start; i < end; i++ {
+		switch r.toks[i].Type {
 		case '(':
+			if depth >= want {
+				if c := r.match[i]; c >= 0 && c < end {
+					i = c
+					continue
+				}
+				return refs
+			}
 			depth++
 			continue
 		case ')':
@@ -364,15 +477,11 @@ func collectOracleSelectRefsInRange(tokens []Token, start int, end int, wantDept
 			}
 			continue
 		}
-		if wantDepth >= 0 && depth != wantDepth {
+		if depth != want {
 			continue
 		}
-		if i < start || i >= end {
-			continue
-		}
-		switch tokens[i].Type {
-		case kwFROM:
-			next, fromRefs := collectOracleFromReferences(tokens, i+1, end, wantDepth, ctes)
+		if r.toks[i].Type == kwFROM {
+			next, fromRefs := r.fromReferences(i+1, end, want, hi)
 			refs = append(refs, fromRefs...)
 			i = next - 1
 		}
@@ -380,16 +489,16 @@ func collectOracleSelectRefsInRange(tokens []Token, start int, end int, wantDept
 	return refs
 }
 
-func collectOracleFromReferences(tokens []Token, start int, end int, wantDepth int, ctes map[string]RangeReference) (int, []RangeReference) {
+func (r *oracleRefReader) fromReferences(start, end, want, hi int) (int, []RangeReference) {
 	var refs []RangeReference
-	depths := oracleTokenDepths(tokens)
+	tokens, depths := r.toks, r.depth
 	i := start
 	expectingRef := true
 	for i < end {
-		if depths[i] < wantDepth {
+		if depths[i] < want {
 			break
 		}
-		if depths[i] != wantDepth {
+		if depths[i] != want {
 			i++
 			continue
 		}
@@ -409,29 +518,39 @@ func collectOracleFromReferences(tokens []Token, start int, end int, wantDepth i
 			i++
 			continue
 		case kwON, kwUSING:
-			i = skipOracleJoinPredicate(tokens, i+1, end, wantDepth, depths)
+			i = r.skipJoinPredicate(i+1, end, want)
 			expectingRef = false
 			continue
 		}
 		if expectingRef {
-			next, ref, ok := parseOracleRangeReference(tokens, i, ctes)
+			next, ref, ok := r.rangeReference(i, hi)
 			if ok && next <= end {
-				ref = resolveOracleCTEReference(ref, ctes)
-				ref = markOracleUnsupportedTransform(tokens, ref, next, end, wantDepth, depths)
+				ref = resolveOracleCTEReference(ref, r.ctes)
+				ref = r.markUnsupportedTransform(ref, next, end, want)
 				refs = append(refs, ref)
 				i = next
 				expectingRef = false
 				continue
 			}
 		}
+		if tokens[i].Type == '(' {
+			// What it holds is deeper: past its ')'.
+			if c := r.match[i]; c >= 0 && c < end {
+				i = c + 1
+				continue
+			}
+			i = end
+			continue
+		}
 		i++
 	}
 	return i, refs
 }
 
-func skipOracleJoinPredicate(tokens []Token, start int, end int, wantDepth int, depths []int) int {
+func (r *oracleRefReader) skipJoinPredicate(start, end, want int) int {
+	tokens := r.toks
 	for i := start; i < end; i++ {
-		if depths[i] != wantDepth {
+		if r.depth[i] != want {
 			continue
 		}
 		if oracleIsFromClauseBoundary(tokens[i].Type) || tokens[i].Type == ',' || tokens[i].Type == kwJOIN ||
@@ -439,19 +558,26 @@ func skipOracleJoinPredicate(tokens []Token, start int, end int, wantDepth int, 
 			tokens[i].Type == kwCROSS || tokens[i].Type == kwINNER {
 			return i
 		}
+		if tokens[i].Type == '(' {
+			if c := r.match[i]; c >= 0 && c < end {
+				i = c
+				continue
+			}
+			return end
+		}
 	}
 	return end
 }
 
-func markOracleUnsupportedTransform(tokens []Token, ref RangeReference, start int, end int, wantDepth int, depths []int) RangeReference {
+func (r *oracleRefReader) markUnsupportedTransform(ref RangeReference, start, end, want int) RangeReference {
 	if ref.Unsupported {
 		return ref
 	}
 	for i := start; i < end; i++ {
-		if depths[i] != wantDepth {
+		if r.depth[i] != want {
 			continue
 		}
-		switch tokens[i].Type {
+		switch r.toks[i].Type {
 		case kwPIVOT:
 			ref.Unsupported = true
 			ref.UnsupportedReason = "pivot"
@@ -466,6 +592,12 @@ func markOracleUnsupportedTransform(tokens []Token, ref RangeReference, start in
 			return ref
 		case ',', kwJOIN, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART,
 			kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH:
+			return ref
+		case '(':
+			if c := r.match[i]; c >= 0 && c < end {
+				i = c
+				continue
+			}
 			return ref
 		}
 	}
@@ -500,57 +632,47 @@ func innermostOracleSelectBeforeCursor(tokens []Token, cursorOffset int) (int, i
 	return bestIdx, bestDepth, true
 }
 
-func oracleSelectArmBounds(tokens []Token, selectIdx int, selectDepth int) (int, int) {
+// armBounds returns the tokens toks[start:end] of the set-operation arm
+// the SELECT at selectIdx heads, hi bounding them: from after the last set
+// operator before it at its depth, anywhere before it, to the first set
+// operator after it at its depth or the end of the parentheses around it.
+func (r *oracleRefReader) armBounds(selectIdx, hi int) (int, int) {
 	start := selectIdx
-	depth := 0
-	for i := 0; i < len(tokens); i++ {
-		if i >= selectIdx {
-			break
-		}
-		switch tokens[i].Type {
-		case '(':
-			depth++
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-		case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
-			if depth == selectDepth {
-				start = i + 1
-			}
-		}
+	if p := r.setOp[selectIdx]; p >= 0 {
+		start = p + 1
 	}
-	end := len(tokens)
-	depth = 0
-	for i := 0; i < len(tokens); i++ {
-		tok := tokens[i]
-		if i > selectIdx && depth < selectDepth {
-			end = i
-			break
-		}
-		if i > selectIdx && depth == selectDepth {
-			switch tok.Type {
-			case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
-				end = i
-				return start, end
-			}
-		}
-		switch tok.Type {
-		case '(':
-			depth++
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-		}
-	}
-	return start, end
+	return start, r.armEnd(selectIdx, hi)
 }
 
-func collectOracleOuterSelectRefs(tokens []Token, cursorOffset int, innerDepth int, ctes map[string]RangeReference) [][]RangeReference {
+// armEnd returns where armBounds ends the arm of the SELECT at selectIdx.
+func (r *oracleRefReader) armEnd(selectIdx, hi int) int {
+	want := r.depth[selectIdx]
+	for i := selectIdx + 1; i < hi; i++ {
+		if r.depth[i] < want {
+			return i
+		}
+		if r.depth[i] != want {
+			continue
+		}
+		switch r.toks[i].Type {
+		case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
+			return i
+		case '(':
+			if c := r.match[i]; c >= 0 && c < hi {
+				i = c
+				continue
+			}
+			return hi
+		}
+	}
+	return hi
+}
+
+func (r *oracleRefReader) outerSelectRefs(cursorOffset int, innerDepth int) [][]RangeReference {
 	if innerDepth <= 0 {
 		return nil
 	}
+	tokens := r.toks
 	type selectAtDepth struct {
 		idx   int
 		depth int
@@ -576,20 +698,22 @@ func collectOracleOuterSelectRefs(tokens []Token, cursorOffset int, innerDepth i
 			}
 		}
 	}
+	insideLateral := r.cursorInsideLateral(cursorOffset)
+	cursorIdx := len(tokens)
+	if insideLateral {
+		cursorIdx = oracleTokenIndexAtOrAfterOffset(tokens, cursorOffset)
+	}
 	var levels [][]RangeReference
 	for d := innerDepth - 1; d >= 0; d-- {
 		sel, ok := latest[d]
 		if !ok {
 			continue
 		}
-		start, end := oracleSelectArmBounds(tokens, sel.idx, sel.depth)
-		if oracleCursorInsideLateral(tokens, cursorOffset) {
-			cursorIdx := oracleTokenIndexAtOrAfterOffset(tokens, cursorOffset)
-			if cursorIdx < end {
-				end = cursorIdx
-			}
+		start, end := r.armBounds(sel.idx, len(tokens))
+		if insideLateral && cursorIdx < end {
+			end = cursorIdx
 		}
-		refs := collectOracleSelectRefsInRange(tokens, start, end, sel.depth, ctes)
+		refs := r.selectRefsInRange(start, end, sel.depth, len(tokens))
 		if len(refs) > 0 {
 			levels = append(levels, refs)
 		}
@@ -625,30 +749,37 @@ func resolveOracleCTEReference(ref RangeReference, ctes map[string]RangeReferenc
 }
 
 func parseOracleRangeReference(tokens []Token, i int, ctes map[string]RangeReference) (int, RangeReference, bool) {
-	for i < len(tokens) && tokens[i].Type == ',' {
+	return newOracleTokenIndex(tokens).reader(ctes).rangeReference(i, len(tokens))
+}
+
+// rangeReference reads the range reference at token i, which reads no
+// token at or past hi.
+func (r *oracleRefReader) rangeReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	for i < hi && tokens[i].Type == ',' {
 		i++
 	}
-	if i >= len(tokens) {
+	if i >= hi {
 		return i, RangeReference{}, false
 	}
 	if tokens[i].Type == kwLATERAL {
-		return parseOracleLateralRangeReference(tokens, i, ctes)
+		return r.lateralReference(i, hi)
 	}
 	if tokens[i].Type == kwXMLTABLE || tokens[i].Type == kwJSON_TABLE {
-		return parseOracleStructuredFunctionRangeReference(tokens, i)
+		return r.structuredFunctionReference(i, hi)
 	}
-	if tokens[i].Type == kwTABLE && i+1 < len(tokens) && tokens[i+1].Type == '(' {
-		return parseOracleTableCollectionRangeReference(tokens, i)
+	if tokens[i].Type == kwTABLE && i+1 < hi && tokens[i+1].Type == '(' {
+		return r.tableCollectionReference(i, hi)
 	}
-	if oracleTokenIsIdentLikeStr(tokens[i], "EXTERNAL") && i+1 < len(tokens) && tokens[i+1].Type == '(' {
-		return parseOracleInlineExternalRangeReference(tokens, i)
+	if oracleTokenIsIdentLikeStr(tokens[i], "EXTERNAL") && i+1 < hi && tokens[i+1].Type == '(' {
+		return r.inlineExternalReference(i, hi)
 	}
 	if (oracleTokenIsIdentLikeStr(tokens[i], "CONTAINERS") || oracleTokenIsIdentLikeStr(tokens[i], "SHARDS")) &&
-		i+1 < len(tokens) && tokens[i+1].Type == '(' {
-		return parseOracleContainersRangeReference(tokens, i)
+		i+1 < hi && tokens[i+1].Type == '(' {
+		return r.containersReference(i, hi)
 	}
 	if tokens[i].Type == '(' {
-		return parseOracleSubqueryRangeReference(tokens, i, ctes)
+		return r.subqueryReference(i, hi)
 	}
 	if !isOracleCompletionIdent(tokens[i]) {
 		return i, RangeReference{}, false
@@ -657,7 +788,7 @@ func parseOracleRangeReference(tokens []Token, i int, ctes map[string]RangeRefer
 	startTok := tokens[i]
 	parts := []Token{tokens[i]}
 	i++
-	for i+1 < len(tokens) && tokens[i].Type == '.' && isOracleCompletionIdent(tokens[i+1]) {
+	for i+1 < hi && tokens[i].Type == '.' && isOracleCompletionIdent(tokens[i+1]) {
 		parts = append(parts, tokens[i+1])
 		i += 2
 	}
@@ -674,10 +805,10 @@ func parseOracleRangeReference(tokens []Token, i int, ctes map[string]RangeRefer
 		ref.Name = parts[len(parts)-1].Str
 	}
 
-	if i < len(tokens) && tokens[i].Type == kwAS {
+	if i < hi && tokens[i].Type == kwAS {
 		i++
 	}
-	if i < len(tokens) && isOracleCompletionIdent(tokens[i]) && !isOracleCompletionClauseBoundary(tokens[i].Type) {
+	if i < hi && isOracleCompletionIdent(tokens[i]) && !isOracleCompletionClauseBoundary(tokens[i].Type) {
 		ref.Alias = tokens[i].Str
 		ref.Loc.End = tokens[i].End
 		i++
@@ -688,15 +819,16 @@ func parseOracleRangeReference(tokens []Token, i int, ctes map[string]RangeRefer
 	return i, ref, true
 }
 
-func parseOracleLateralRangeReference(tokens []Token, i int, ctes map[string]RangeReference) (int, RangeReference, bool) {
-	if i+1 >= len(tokens) || tokens[i+1].Type != '(' {
+func (r *oracleRefReader) lateralReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	if i+1 >= hi || tokens[i+1].Type != '(' {
 		return i, RangeReference{}, false
 	}
-	closeIdx := oracleMatchingParen(tokens, i+1)
+	closeIdx := r.closeOf(i+1, hi)
 	if closeIdx < 0 {
 		return i, RangeReference{}, false
 	}
-	next, alias, ok := parseOracleOptionalAlias(tokens, closeIdx+1)
+	next, alias, ok := parseOracleOptionalAlias(tokens[:hi], closeIdx+1)
 	if !ok {
 		return closeIdx + 1, RangeReference{}, false
 	}
@@ -704,22 +836,23 @@ func parseOracleLateralRangeReference(tokens []Token, i int, ctes map[string]Ran
 		Kind:    RangeReferenceSubquery,
 		Name:    alias.Str,
 		Alias:   alias.Str,
-		Columns: extractOracleSelectListColumns(tokens[i+2:closeIdx], ctes),
+		Columns: r.selectListColumns(i+2, closeIdx),
 		Loc:     nodes.Loc{Start: tokens[i].Loc, End: alias.End},
 		BodyLoc: nodes.Loc{Start: tokens[i+1].End, End: tokens[closeIdx].Loc},
 	}
 	return next, ref, true
 }
 
-func parseOracleStructuredFunctionRangeReference(tokens []Token, i int) (int, RangeReference, bool) {
-	if i+1 >= len(tokens) || tokens[i+1].Type != '(' {
+func (r *oracleRefReader) structuredFunctionReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	if i+1 >= hi || tokens[i+1].Type != '(' {
 		return i, RangeReference{}, false
 	}
-	closeIdx := oracleMatchingParen(tokens, i+1)
+	closeIdx := r.closeOf(i+1, hi)
 	if closeIdx < 0 {
 		return i, RangeReference{}, false
 	}
-	next, alias, ok := parseOracleOptionalAlias(tokens, closeIdx+1)
+	next, alias, ok := parseOracleOptionalAlias(tokens[:hi], closeIdx+1)
 	if !ok {
 		return closeIdx + 1, RangeReference{}, false
 	}
@@ -734,18 +867,19 @@ func parseOracleStructuredFunctionRangeReference(tokens []Token, i int) (int, Ra
 	return next, ref, true
 }
 
-func parseOracleInlineExternalRangeReference(tokens []Token, i int) (int, RangeReference, bool) {
-	closeIdx := oracleMatchingParen(tokens, i+1)
+func (r *oracleRefReader) inlineExternalReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	closeIdx := r.closeOf(i+1, hi)
 	if closeIdx < 0 {
 		return i, RangeReference{}, false
 	}
-	next, alias, ok := parseOracleOptionalAlias(tokens, closeIdx+1)
+	next, alias, ok := parseOracleOptionalAlias(tokens[:hi], closeIdx+1)
 	if !ok {
 		return closeIdx + 1, RangeReference{}, false
 	}
 	var columns []string
 	if i+2 < closeIdx && tokens[i+2].Type == '(' {
-		if colClose := oracleMatchingParen(tokens, i+2); colClose > i+2 && colClose < closeIdx {
+		if colClose := r.closeOf(i+2, hi); colClose > i+2 && colClose < closeIdx {
 			columns = extractOracleColumnDefNames(tokens[i+3 : colClose])
 		}
 	}
@@ -760,8 +894,9 @@ func parseOracleInlineExternalRangeReference(tokens []Token, i int) (int, RangeR
 	return next, ref, true
 }
 
-func parseOracleContainersRangeReference(tokens []Token, i int) (int, RangeReference, bool) {
-	closeIdx := oracleMatchingParen(tokens, i+1)
+func (r *oracleRefReader) containersReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	closeIdx := r.closeOf(i+1, hi)
 	if closeIdx < 0 {
 		return i, RangeReference{}, false
 	}
@@ -769,7 +904,7 @@ func parseOracleContainersRangeReference(tokens []Token, i int) (int, RangeRefer
 	if len(parts) == 0 {
 		return closeIdx + 1, RangeReference{}, false
 	}
-	next, alias, hasAlias := parseOracleOptionalAlias(tokens, closeIdx+1)
+	next, alias, hasAlias := parseOracleOptionalAlias(tokens[:hi], closeIdx+1)
 	name := parts[len(parts)-1].Str
 	aliasName := name
 	locEnd := tokens[closeIdx].End
@@ -792,16 +927,17 @@ func parseOracleContainersRangeReference(tokens []Token, i int) (int, RangeRefer
 	return next, ref, true
 }
 
-func parseOracleTableCollectionRangeReference(tokens []Token, i int) (int, RangeReference, bool) {
-	closeIdx := oracleMatchingParen(tokens, i+1)
+func (r *oracleRefReader) tableCollectionReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	closeIdx := r.closeOf(i+1, hi)
 	if closeIdx < 0 {
 		return i, RangeReference{}, false
 	}
 	nextIdx := closeIdx + 1
-	if nextIdx+2 < len(tokens) && tokens[nextIdx].Type == '(' && tokens[nextIdx+1].Type == '+' && tokens[nextIdx+2].Type == ')' {
+	if nextIdx+2 < hi && tokens[nextIdx].Type == '(' && tokens[nextIdx+1].Type == '+' && tokens[nextIdx+2].Type == ')' {
 		nextIdx += 3
 	}
-	next, alias, ok := parseOracleOptionalAlias(tokens, nextIdx)
+	next, alias, ok := parseOracleOptionalAlias(tokens[:hi], nextIdx)
 	if !ok {
 		return nextIdx, RangeReference{}, false
 	}
@@ -817,30 +953,34 @@ func parseOracleTableCollectionRangeReference(tokens []Token, i int) (int, Range
 	return next, ref, true
 }
 
-func parseOracleSubqueryRangeReference(tokens []Token, i int, ctes map[string]RangeReference) (int, RangeReference, bool) {
-	closeIdx := oracleMatchingParen(tokens, i)
+func (r *oracleRefReader) subqueryReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	closeIdx := r.closeOf(i, hi)
 	if closeIdx < 0 {
 		return i, RangeReference{}, false
 	}
 	aliasIdx := closeIdx + 1
-	if aliasIdx < len(tokens) && tokens[aliasIdx].Type == kwAS {
+	if aliasIdx < hi && tokens[aliasIdx].Type == kwAS {
 		aliasIdx++
 	}
-	if aliasIdx >= len(tokens) || !isOracleCompletionIdent(tokens[aliasIdx]) {
+	if aliasIdx >= hi || !isOracleCompletionIdent(tokens[aliasIdx]) {
 		return closeIdx + 1, RangeReference{}, false
 	}
 	ref := RangeReference{
 		Kind:    RangeReferenceSubquery,
 		Name:    tokens[aliasIdx].Str,
 		Alias:   tokens[aliasIdx].Str,
-		Columns: extractOracleSelectListColumns(tokens[i+1:closeIdx], ctes),
+		Columns: r.selectListColumns(i+1, closeIdx),
 		Loc:     nodes.Loc{Start: tokens[i].Loc, End: tokens[aliasIdx].End},
 		BodyLoc: nodes.Loc{Start: tokens[i].End, End: tokens[closeIdx].Loc},
 	}
 	return aliasIdx + 1, ref, true
 }
 
-func collectOracleCTEs(tokens []Token) []RangeReference {
+// ctesOfQuery returns the CTEs of the statement's WITH clause, each body
+// read with the CTEs before it.
+func (r *oracleRefReader) ctesOfQuery() []RangeReference {
+	tokens := r.toks
 	first := firstOracleNonTerminator(tokens)
 	if first < 0 || tokens[first].Type != kwWITH {
 		return nil
@@ -861,7 +1001,7 @@ func collectOracleCTEs(tokens []Token) []RangeReference {
 		}
 		i++
 		if i < len(tokens) && tokens[i].Type == '(' {
-			closeIdx := oracleMatchingParen(tokens, i)
+			closeIdx := r.closeOf(i, len(tokens))
 			if closeIdx < 0 {
 				break
 			}
@@ -876,12 +1016,14 @@ func collectOracleCTEs(tokens []Token) []RangeReference {
 		if i >= len(tokens) || tokens[i].Type != '(' {
 			break
 		}
-		closeIdx := oracleMatchingParen(tokens, i)
+		closeIdx := r.closeOf(i, len(tokens))
 		if closeIdx < 0 {
 			break
 		}
 		if len(ref.Columns) == 0 {
-			ref.Columns = extractOracleSelectListColumns(tokens[i+1:closeIdx], seen)
+			// seen grows after each CTE, so each body gets a reader, and
+			// columns read, of its own.
+			ref.Columns = r.reader(seen).selectListColumns(i+1, closeIdx)
 		}
 		ref.BodyLoc = nodes.Loc{Start: tokens[i].End, End: tokens[closeIdx].Loc}
 		ref.Loc.End = tokens[closeIdx].End
@@ -906,85 +1048,65 @@ func firstOracleNonTerminator(tokens []Token) int {
 	return -1
 }
 
-// oracleQuerySelect returns the SELECT whose list names the columns of the
-// query tokens hold, and the tokens[lo:hi] it stands in: that of the first
+// querySelect returns the SELECT whose list names the columns of the query
+// toks[lo:hi] holds, and the toks[qlo:qhi] it stands in: that of the first
 // operand, the first SELECT at the query's own depth or, when a
 // parenthesized operand opens the query, ((SELECT c1 FROM t) UNION (SELECT
-// c2 FROM u)), the first inside it, as deep as the wrappers go. One pass
-// finds where each leading '(' closes and the first SELECT inside it at
-// its own depth: peeling a wrapper at a time scanned the query once per
-// wrapper.
-func oracleQuerySelect(tokens []Token) (lo, hi, selectIdx int) {
-	if len(tokens) > 0 && tokens[0].Type == kwWITH {
+// c2 FROM u)), the first inside it, as deep as the wrappers go. It reads
+// only the tokens at the depth it looks for a SELECT at.
+func (r *oracleRefReader) querySelect(lo, hi int) (qlo, qhi, selectIdx int) {
+	tokens := r.toks
+	if lo < hi && tokens[lo].Type == kwWITH {
 		// After its WITH clause a query may open with a parenthesized
 		// operand, WITH w AS (SELECT c FROM t) (SELECT c FROM w): the first
 		// '(' at its own depth after a ')' that ends a WITH element.
-		depth := 0
-		for i, tok := range tokens {
-			switch tok.Type {
+		for i := lo; i < hi; i++ {
+			switch tokens[i].Type {
 			case kwSELECT:
-				if depth == 0 {
-					return 0, len(tokens), i
-				}
+				return lo, hi, i
 			case '(':
-				if depth == 0 && i > 0 && tokens[i-1].Type == ')' {
-					lo, hi, selectIdx = oracleQuerySelect(tokens[i:])
-					if selectIdx < 0 {
+				if i > lo && tokens[i-1].Type == ')' {
+					if qlo, qhi, selectIdx = r.querySelect(i, hi); selectIdx < 0 {
 						return 0, 0, -1
 					}
-					return lo + i, hi + i, selectIdx + i
+					return qlo, qhi, selectIdx
 				}
-				depth++
-			case ')':
-				if depth > 0 {
-					depth--
+				c := r.closeOf(i, hi)
+				if c < 0 {
+					return 0, 0, -1
 				}
+				i = c
 			}
 		}
 		return 0, 0, -1
 	}
 	run := 0
-	for run < len(tokens) && tokens[run].Type == '(' {
+	for lo+run < hi && tokens[lo+run].Type == '(' {
 		run++
-	}
-	// closes[d] is where the d-th leading '(' closes, or -1; first[d] is
-	// the first SELECT at depth d while the leading ones before it are
-	// open, or -1.
-	closes, first := make([]int, run), make([]int, run+1)
-	for d := range first {
-		first[d] = -1
-		if d < run {
-			closes[d] = -1
-		}
-	}
-	depth := 0
-	for i, tok := range tokens {
-		switch tok.Type {
-		case '(':
-			depth++
-		case ')':
-			if depth > 0 {
-				depth--
-				if depth < run && closes[depth] < 0 {
-					closes[depth] = i
-				}
-			}
-		case kwSELECT:
-			if depth <= run && first[depth] < 0 && (depth == 0 || closes[depth-1] < 0) {
-				first[depth] = i
-			}
-		}
 	}
 	// The first operand names the columns, so a query that opens with '('
 	// takes its query from inside those parentheses, past any later operand
 	// at its own depth: ((SELECT a FROM t) UNION SELECT b FROM u) names A.
-	switch {
-	case run > 0 && closes[run-1] < 0, first[run] < 0:
-		return 0, 0, -1
-	case run == 0:
-		return 0, len(tokens), first[0]
+	qlo, qhi = lo, hi
+	if run > 0 {
+		qlo = lo + run
+		if qhi = r.closeOf(qlo-1, hi); qhi < 0 {
+			return 0, 0, -1
+		}
 	}
-	return run, closes[run-1], first[run]
+	for i := qlo; i < qhi; i++ {
+		switch tokens[i].Type {
+		case kwSELECT:
+			return qlo, qhi, i
+		case '(':
+			c := r.closeOf(i, qhi)
+			if c < 0 {
+				return 0, 0, -1
+			}
+			i = c
+		}
+	}
+	return 0, 0, -1
 }
 
 func oracleMatchingParen(tokens []Token, openIdx int) int {
@@ -1006,23 +1128,6 @@ func oracleMatchingParen(tokens []Token, openIdx int) int {
 	return -1
 }
 
-func oracleTokenDepths(tokens []Token) []int {
-	depths := make([]int, len(tokens))
-	depth := 0
-	for i, tok := range tokens {
-		depths[i] = depth
-		switch tok.Type {
-		case '(':
-			depth++
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-		}
-	}
-	return depths
-}
-
 func oracleTokenIndexAtOrAfterOffset(tokens []Token, offset int) int {
 	for i, tok := range tokens {
 		if tok.Loc >= offset {
@@ -1032,7 +1137,8 @@ func oracleTokenIndexAtOrAfterOffset(tokens []Token, offset int) int {
 	return len(tokens)
 }
 
-func oracleCursorInsideLateral(tokens []Token, cursorOffset int) bool {
+func (r *oracleRefReader) cursorInsideLateral(cursorOffset int) bool {
+	tokens := r.toks
 	for i, tok := range tokens {
 		if tok.Loc >= cursorOffset {
 			break
@@ -1040,7 +1146,7 @@ func oracleCursorInsideLateral(tokens []Token, cursorOffset int) bool {
 		if tok.Type != kwLATERAL || i+1 >= len(tokens) || tokens[i+1].Type != '(' {
 			continue
 		}
-		closeIdx := oracleMatchingParen(tokens, i+1)
+		closeIdx := r.closeOf(i+1, len(tokens))
 		if closeIdx >= 0 && tokens[i+1].End <= cursorOffset && cursorOffset <= tokens[closeIdx].Loc {
 			return true
 		}
@@ -1144,56 +1250,77 @@ func extractOracleNameList(tokens []Token) []string {
 }
 
 func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReference) []string {
+	return newOracleTokenIndex(tokens).reader(ctes).selectListColumns(0, len(tokens))
+}
+
+// selectListColumns returns the columns the select list of the query in
+// toks[lo:hi] names, read once for a derived table however many queries
+// around it expand a star over it. The caller gets a copy of its own.
+func (r *oracleRefReader) selectListColumns(lo, hi int) []string {
+	if lo == 0 || r.toks[lo-1].Type != '(' || r.match[lo-1] != hi {
+		return r.readSelectListColumns(lo, hi)
+	}
+	cols, ok := r.columns[lo]
+	if !ok {
+		cols = r.readSelectListColumns(lo, hi)
+		if r.columns == nil {
+			r.columns = map[int][]string{}
+		}
+		r.columns[lo] = cols
+	}
+	return append([]string(nil), cols...)
+}
+
+// readSelectListColumns computes selectListColumns.
+func (r *oracleRefReader) readSelectListColumns(lo, hi int) []string {
 	// A SELECT * reads the columns of each derived table it selects from,
 	// in a call of its own on the tokens inside its parentheses, so the
 	// calls nest no deeper than the parentheses do, a run of them counting
 	// once (oracleParenRunsNestAtLeast). Completion is best effort: a query
 	// whose parentheses nest this deep contributes no columns, rather than
-	// recursing until the stack overflows.
-	if oracleParenRunsNestAtLeast(tokens, maxNestingDepth) {
+	// recursing until the stack overflows. Between a pair of parentheses
+	// the index holds the count.
+	if lo > 0 && r.toks[lo-1].Type == '(' && r.match[lo-1] == hi {
+		if r.runs[lo-1] >= max(maxNestingDepth, 1) {
+			return nil
+		}
+	} else if oracleParenRunsNestAtLeast(r.toks[lo:hi], maxNestingDepth) {
 		return nil
 	}
-	lo, hi, selectIdx := oracleQuerySelect(tokens)
+	qlo, qhi, selectIdx := r.querySelect(lo, hi)
 	if selectIdx < 0 {
 		return nil
 	}
-	tokens, selectIdx = tokens[lo:hi], selectIdx-lo
+	tokens := r.toks
 	var names []string
 	targetStart := selectIdx + 1
-	depth := 0
 	closedTargetList := false
-	for i := selectIdx + 1; i < len(tokens); i++ {
-		tok := tokens[i]
-		switch tok.Type {
+	for i := selectIdx + 1; i < qhi && !closedTargetList; i++ {
+		switch tokens[i].Type {
 		case '(':
-			depth++
-			continue
-		case ')':
-			if depth > 0 {
-				depth--
+			// What it holds is deeper than the list's commas.
+			if i = r.closeOf(i, qhi); i < 0 {
+				i = qhi
 			}
-			continue
-		}
-		if depth == 0 && (tok.Type == kwFROM || tok.Type == kwUNION || tok.Type == kwINTERSECT || tok.Type == kwMINUS || tok.Type == kwEXCEPT) {
-			names = append(names, extractOracleTargetColumn(tokens[targetStart:i], tokens, selectIdx, ctes)...)
+		case kwFROM, kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
+			names = append(names, r.targetColumns(targetStart, i, qlo, qhi, selectIdx)...)
 			closedTargetList = true
-			break
-		}
-		if depth == 0 && tok.Type == ',' {
-			names = append(names, extractOracleTargetColumn(tokens[targetStart:i], tokens, selectIdx, ctes)...)
+		case ',':
+			names = append(names, r.targetColumns(targetStart, i, qlo, qhi, selectIdx)...)
 			targetStart = i + 1
 		}
 	}
-	if !closedTargetList && targetStart < len(tokens) {
-		names = append(names, extractOracleTargetColumn(tokens[targetStart:], tokens, selectIdx, ctes)...)
+	if !closedTargetList && targetStart < qhi {
+		names = append(names, r.targetColumns(targetStart, qhi, qlo, qhi, selectIdx)...)
 	}
 	return names
 }
 
 // oracleParenRunsNestAtLeast reports whether parentheses nest depth deep in
 // tokens, a run of '(' counting as one level: the wrappers of a query come
-// off in one pass (oracleQuerySelect), and only the parentheses that open
-// a derived table, which never follow a '(', lead to a call of their own.
+// off in one pass (oracleRefReader.querySelect), and only the parentheses
+// that open a derived table, which never follow a '(', lead to a call of
+// their own.
 func oracleParenRunsNestAtLeast(tokens []Token, depth int) bool {
 	// runStarts says, for each '(' open, whether it opened a run.
 	var runStarts []bool
@@ -1220,18 +1347,27 @@ func oracleParenRunsNestAtLeast(tokens []Token, depth int) bool {
 	return false
 }
 
-func extractOracleTargetColumn(target []Token, selectTokens []Token, selectIdx int, ctes map[string]RangeReference) []string {
-	target = trimOracleTargetTokens(target)
+// targetColumns returns the columns the select item toks[start:end] names,
+// in the query toks[lo:hi] whose SELECT is at selectIdx.
+func (r *oracleRefReader) targetColumns(start, end, lo, hi, selectIdx int) []string {
+	tokens := r.toks
+	for start < end && tokens[start].Type == ',' {
+		start++
+	}
+	for end > start && tokens[end-1].Type == ',' {
+		end--
+	}
+	target := tokens[start:end]
 	if len(target) == 0 {
 		return nil
 	}
 	if len(target) == 1 && target[0].Type == '*' {
-		return expandOracleStarColumns(selectTokens, selectIdx, "", ctes)
+		return r.starColumns(lo, hi, selectIdx, "")
 	}
 	if len(target) == 3 && isOracleCompletionIdent(target[0]) && target[1].Type == '.' && target[2].Type == '*' {
-		return expandOracleStarColumns(selectTokens, selectIdx, target[0].Str, ctes)
+		return r.starColumns(lo, hi, selectIdx, target[0].Str)
 	}
-	if alias, ok := oracleExplicitSelectAlias(target); ok {
+	if alias, ok := r.explicitSelectAlias(start, end); ok {
 		return []string{alias}
 	}
 	if name, ok := oracleBareSelectColumnName(target); ok {
@@ -1240,38 +1376,28 @@ func extractOracleTargetColumn(target []Token, selectTokens []Token, selectIdx i
 	return nil
 }
 
-func trimOracleTargetTokens(tokens []Token) []Token {
-	start := 0
-	for start < len(tokens) && tokens[start].Type == ',' {
-		start++
-	}
-	end := len(tokens)
-	for end > start && tokens[end-1].Type == ',' {
-		end--
-	}
-	return tokens[start:end]
-}
-
-func oracleExplicitSelectAlias(tokens []Token) (string, bool) {
-	depth := 0
-	for i := len(tokens) - 1; i >= 0; i-- {
+// explicitSelectAlias returns the alias that ends the select item
+// toks[start:end]: its last token outside parentheses, read back past each
+// parenthesized group in one move.
+func (r *oracleRefReader) explicitSelectAlias(start, end int) (string, bool) {
+	tokens := r.toks
+	for i := end - 1; i >= start; i-- {
 		switch tokens[i].Type {
 		case ')':
-			depth++
-			continue
-		case '(':
-			if depth > 0 {
-				depth--
+			if open := r.match[i]; open >= start {
+				i = open
+				continue
 			}
+			// Its '(' is before the item, or it has none: read back from
+			// here, the rest of the item is inside it.
+			return "", false
+		case '(':
 			continue
 		}
-		if depth != 0 {
-			continue
-		}
-		if i > 0 && tokens[i-1].Type == kwAS && isOracleCompletionIdent(tokens[i]) {
+		if i > start && tokens[i-1].Type == kwAS && isOracleCompletionIdent(tokens[i]) {
 			return tokens[i].Str, true
 		}
-		if i > 0 && isOracleCompletionIdent(tokens[i]) && tokens[i-1].Type != '.' && !oracleTargetEndsWithPlainQualifiedName(tokens[:i+1]) {
+		if i > start && isOracleCompletionIdent(tokens[i]) && tokens[i-1].Type != '.' && !oracleTargetEndsWithPlainQualifiedName(tokens[start:i+1]) {
 			return tokens[i].Str, true
 		}
 		break
@@ -1299,12 +1425,14 @@ func oracleTargetEndsWithPlainQualifiedName(tokens []Token) bool {
 	return false
 }
 
-func expandOracleStarColumns(tokens []Token, selectIdx int, qualifier string, ctes map[string]RangeReference) []string {
-	_, armEnd := oracleSelectArmBounds(tokens, selectIdx, 0)
-	refs := collectOracleSelectRefsInRange(tokens, selectIdx, armEnd, 0, ctes)
+// starColumns returns the columns a star in the select list of the SELECT
+// at selectIdx, in the query toks[lo:hi], stands for: those of the
+// references of its FROM clause qualifier names, or of all of them.
+func (r *oracleRefReader) starColumns(lo, hi, selectIdx int, qualifier string) []string {
+	refs := r.selectRefsInRange(selectIdx, r.armEnd(selectIdx, hi), r.depth[selectIdx], hi)
 	var names []string
 	for _, ref := range refs {
-		ref = resolveOracleCTEReference(ref, ctes)
+		ref = resolveOracleCTEReference(ref, r.ctes)
 		if qualifier != "" && !strings.EqualFold(ref.Alias, qualifier) && !strings.EqualFold(ref.Name, qualifier) {
 			continue
 		}
