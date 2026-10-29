@@ -1,5 +1,11 @@
 // Package deparse converts MySQL AST nodes back to SQL text,
 // matching MySQL 8.0's SHOW CREATE VIEW formatting.
+//
+// Every node is written into the one strings.Builder of the call: a node's
+// text contains its children's, so building each level as a string of its own
+// and concatenating it into the parent's copied the text of a long chain
+// (1 + 1 + ..., a UNION ALL chain, a join chain, an AND chain) once per level,
+// and deparsing took time quadratic in the chain's length.
 package deparse
 
 import (
@@ -25,37 +31,39 @@ func DeparseSelect(stmt *ast.SelectStmt) string {
 	if stmt == nil {
 		return ""
 	}
-	return deparseSelectStmt(stmt)
+	var b strings.Builder
+	writeSelectStmt(&b, stmt, false)
+	return b.String()
 }
 
-func deparseSelectStmt(stmt *ast.SelectStmt) string {
-	return deparseSelectStmtCtx(stmt, false)
+// deparseExpr returns the text of an expression, for the callers that need it
+// as a string of its own; everything inside this file writes with writeExpr.
+func deparseExpr(node ast.ExprNode) string {
+	var b strings.Builder
+	writeExpr(&b, node)
+	return b.String()
 }
 
-// deparseSelectStmtNoAlias formats a SELECT without target list aliases.
-// Used for subquery contexts (IN, EXISTS) where MySQL omits AS alias.
-func deparseSelectStmtNoAlias(stmt *ast.SelectStmt) string {
-	return deparseSelectStmtCtx(stmt, true)
-}
-
-func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
+// writeSelectStmt writes a query expression. suppressAlias omits the target
+// list aliases, for subquery contexts (IN, EXISTS) where MySQL omits AS alias.
+func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bool) {
 	// Parenthesized query expression: ( inner ) with optional OUTER ORDER BY /
 	// LIMIT held on the wrapper. Materialize the parens — a dropped ParenSource
 	// silently loses the inner query.
 	if stmt.ParenSource != nil {
-		return deparseParenSource(stmt)
+		writeParenSource(b, stmt)
+		return
 	}
 
 	// Handle set operations: UNION / UNION ALL / INTERSECT / EXCEPT
 	if stmt.SetOp != ast.SetOpNone {
-		return deparseSetOperation(stmt)
+		writeSetOperation(b, stmt)
+		return
 	}
-
-	var b strings.Builder
 
 	// CTE (WITH clause) — emit before the SELECT keyword
 	if len(stmt.CTEs) > 0 {
-		b.WriteString(deparseCTEs(stmt.CTEs))
+		writeCTEs(b, stmt.CTEs)
 		b.WriteString(" ")
 	}
 
@@ -72,9 +80,9 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 			b.WriteString(",")
 		}
 		if suppressAlias {
-			b.WriteString(deparseResTargetNoAlias(target))
+			writeResTargetNoAlias(b, target)
 		} else {
-			b.WriteString(deparseResTarget(target, i+1))
+			writeResTarget(b, target, i+1)
 		}
 	}
 
@@ -82,19 +90,19 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 	if len(stmt.From) > 0 {
 		b.WriteString(" from ")
 		if len(stmt.From) == 1 {
-			b.WriteString(deparseTableExpr(stmt.From[0]))
+			writeTableExpr(b, stmt.From[0])
 		} else {
 			// Multiple tables (implicit cross join) → normalized to explicit join with parens
 			// e.g., FROM t1, t2 → from (`t1` join `t2`)
 			// For 3+ tables: FROM t1, t2, t3 → from ((`t1` join `t2`) join `t3`)
-			b.WriteString(deparseImplicitCrossJoin(stmt.From))
+			writeImplicitCrossJoin(b, stmt.From)
 		}
 	}
 
 	// WHERE clause
 	if stmt.Where != nil {
 		b.WriteString(" where ")
-		b.WriteString(deparseExpr(stmt.Where))
+		writeExpr(b, stmt.Where)
 	}
 
 	// GROUP BY clause
@@ -104,7 +112,7 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString(deparseExpr(expr))
+			writeExpr(b, expr)
 		}
 		if stmt.WithRollup {
 			b.WriteString(" with rollup")
@@ -114,7 +122,7 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 	// HAVING clause
 	if stmt.Having != nil {
 		b.WriteString(" having ")
-		b.WriteString(deparseExpr(stmt.Having))
+		writeExpr(b, stmt.Having)
 	}
 
 	// WINDOW clause: WINDOW `w` AS (window_spec) [, ...]
@@ -128,7 +136,7 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 			b.WriteString("`")
 			b.WriteString(wd.Name)
 			b.WriteString("` AS ")
-			b.WriteString(deparseWindowBody(wd))
+			writeWindowBody(b, wd)
 		}
 		b.WriteString(" ")
 	}
@@ -140,7 +148,7 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString(deparseExpr(item.Expr))
+			writeExpr(b, item.Expr)
 			if item.Desc {
 				b.WriteString(" desc")
 			}
@@ -152,10 +160,10 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 		b.WriteString(" limit ")
 		if stmt.Limit.Offset != nil {
 			// MySQL comma syntax: LIMIT offset,count
-			b.WriteString(deparseExpr(stmt.Limit.Offset))
+			writeExpr(b, stmt.Limit.Offset)
 			b.WriteString(",")
 		}
-		b.WriteString(deparseExpr(stmt.Limit.Count))
+		writeExpr(b, stmt.Limit.Count)
 	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
@@ -163,8 +171,6 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 		b.WriteString(" ")
 		b.WriteString(deparseForUpdate(stmt.ForUpdate))
 	}
-
-	return b.String()
 }
 
 // deparseForUpdate formats a FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE clause.
@@ -210,23 +216,18 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 	return b.String()
 }
 
-// deparseSetOperation formats a set operation (UNION, INTERSECT, EXCEPT).
-// MySQL 8.0 format: select ... union [all] select ... (flat, no parens around sub-selects)
-// CTEs from the leftmost child are hoisted and emitted before the entire set operation.
-// deparseParenSource formats a parenthesized query expression: an optional WITH,
+// writeParenSource formats a parenthesized query expression: an optional WITH,
 // '(' inner ')', and the OUTER trailing ORDER BY / LIMIT held on the wrapper.
 // The inner query keeps its own clauses, so both scopes round-trip (e.g.
 // "(select 1 limit 5) limit 2").
-func deparseParenSource(stmt *ast.SelectStmt) string {
-	var b strings.Builder
-
+func writeParenSource(b *strings.Builder, stmt *ast.SelectStmt) {
 	if len(stmt.CTEs) > 0 {
-		b.WriteString(deparseCTEs(stmt.CTEs))
+		writeCTEs(b, stmt.CTEs)
 		b.WriteString(" ")
 	}
 
 	b.WriteString("(")
-	b.WriteString(deparseSelectStmt(stmt.ParenSource))
+	writeSelectStmt(b, stmt.ParenSource, false)
 	b.WriteString(")")
 
 	// Outer ORDER BY (applies to the parenthesized result).
@@ -236,7 +237,7 @@ func deparseParenSource(stmt *ast.SelectStmt) string {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString(deparseExpr(item.Expr))
+			writeExpr(b, item.Expr)
 			if item.Desc {
 				b.WriteString(" desc")
 			}
@@ -247,24 +248,24 @@ func deparseParenSource(stmt *ast.SelectStmt) string {
 	if stmt.Limit != nil {
 		b.WriteString(" limit ")
 		if stmt.Limit.Offset != nil {
-			b.WriteString(deparseExpr(stmt.Limit.Offset))
+			writeExpr(b, stmt.Limit.Offset)
 			b.WriteString(",")
 		}
-		b.WriteString(deparseExpr(stmt.Limit.Count))
+		writeExpr(b, stmt.Limit.Count)
 	}
-
-	return b.String()
 }
 
-func deparseSetOperation(stmt *ast.SelectStmt) string {
+// writeSetOperation formats a set operation (UNION, INTERSECT, EXCEPT).
+// MySQL 8.0 format: select ... union [all] select ... (flat, no parens around sub-selects)
+// CTEs from the leftmost child are hoisted and emitted before the entire set operation.
+func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt) {
 	// Hoist CTEs from the leftmost descendant
-	var ctePrefix string
 	if ctes := extractCTEs(stmt); len(ctes) > 0 {
-		ctePrefix = deparseCTEs(ctes) + " "
+		writeCTEs(b, ctes)
+		b.WriteString(" ")
 	}
 
-	left := deparseSelectStmt(stmt.Left)
-	right := deparseSelectStmt(stmt.Right)
+	writeSelectStmt(b, stmt.Left, false)
 
 	var op string
 	switch stmt.SetOp {
@@ -288,13 +289,10 @@ func deparseSetOperation(stmt *ast.SelectStmt) string {
 		}
 	}
 
-	var b strings.Builder
-	b.WriteString(ctePrefix)
-	b.WriteString(left)
 	b.WriteString(" ")
 	b.WriteString(op)
 	b.WriteString(" ")
-	b.WriteString(right)
+	writeSelectStmt(b, stmt.Right, false)
 
 	// ORDER BY clause (applies to the entire set operation)
 	if len(stmt.OrderBy) > 0 {
@@ -303,7 +301,7 @@ func deparseSetOperation(stmt *ast.SelectStmt) string {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString(deparseExpr(item.Expr))
+			writeExpr(b, item.Expr)
 			if item.Desc {
 				b.WriteString(" desc")
 			}
@@ -314,20 +312,18 @@ func deparseSetOperation(stmt *ast.SelectStmt) string {
 	if stmt.Limit != nil {
 		b.WriteString(" limit ")
 		if stmt.Limit.Offset != nil {
-			b.WriteString(deparseExpr(stmt.Limit.Offset))
+			writeExpr(b, stmt.Limit.Offset)
 			b.WriteString(",")
 		}
-		b.WriteString(deparseExpr(stmt.Limit.Count))
+		writeExpr(b, stmt.Limit.Count)
 	}
-
-	return b.String()
 }
 
 // extractCTEs returns the WITH clause of a set-operation query expression. The
 // parser attaches a query-expression-level WITH to the set-op ROOT node (the
 // WITH applies to the whole UNION, not just the leftmost operand — a
 // parenthesized operand's own WITH stays inside its parens). The CTEs are
-// cleared so deparseSelectStmt doesn't emit them again.
+// cleared so writeSelectStmt doesn't emit them again.
 func extractCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
 	if len(stmt.CTEs) > 0 {
 		ctes := stmt.CTEs
@@ -337,10 +333,9 @@ func extractCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
 	return nil
 }
 
-// deparseCTEs formats a WITH clause (one or more CTEs).
+// writeCTEs formats a WITH clause (one or more CTEs).
 // MySQL 8.0 format: with [recursive] `name` [(`col`, ...)] as (select ...) [, ...]
-func deparseCTEs(ctes []*ast.CommonTableExpr) string {
-	var b strings.Builder
+func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 	b.WriteString("with ")
 
 	// Check if any CTE is recursive (the flag is per-CTE in the AST
@@ -380,29 +375,28 @@ func deparseCTEs(ctes []*ast.CommonTableExpr) string {
 
 		b.WriteString(" as (")
 		if cte.Select != nil {
-			b.WriteString(deparseSelectStmt(cte.Select))
+			writeSelectStmt(b, cte.Select, false)
 		}
 		b.WriteString(")")
 	}
-
-	return b.String()
 }
 
-// deparseResTargetNoAlias formats a target list entry without the AS alias.
+// writeResTargetNoAlias formats a target list entry without the AS alias.
 // Used for subquery contexts (IN, EXISTS) where MySQL omits aliases.
-func deparseResTargetNoAlias(node ast.ExprNode) string {
+func writeResTargetNoAlias(b *strings.Builder, node ast.ExprNode) {
 	if rt, ok := node.(*ast.ResTarget); ok {
-		return deparseExpr(rt.Val)
+		writeExpr(b, rt.Val)
+		return
 	}
-	return deparseExpr(node)
+	writeExpr(b, node)
 }
 
-// deparseResTarget formats a single result target in the SELECT list.
+// writeResTarget formats a single result target in the SELECT list.
 // MySQL 8.0 SHOW CREATE VIEW format: expr AS `alias`
 // - Always uses AS keyword
 // - Alias is always backtick-quoted
 // - Auto-alias: column ref → column name; literal → literal text; expression → expression text
-func deparseResTarget(node ast.ExprNode, position int) string {
+func writeResTarget(b *strings.Builder, node ast.ExprNode, position int) {
 	rt, isRT := node.(*ast.ResTarget)
 
 	var expr ast.ExprNode
@@ -414,20 +408,24 @@ func deparseResTarget(node ast.ExprNode, position int) string {
 		expr = node
 	}
 
-	exprStr := deparseExpr(expr)
+	exprStart := b.Len()
+	writeExpr(b, expr)
 
 	// Determine alias
 	alias := explicitAlias
 	if alias == "" {
-		alias = autoAlias(expr, exprStr, position)
+		alias = autoAlias(expr, b.String()[exprStart:], position)
 	}
 
 	// MySQL 8.0 uses double-space before AS for window function expressions.
 	// The OVER clause already ends with " )", and MySQL adds an extra space.
 	if hasWindowFunction(expr) {
-		return exprStr + "  AS `" + alias + "`"
+		b.WriteString("  AS `")
+	} else {
+		b.WriteString(" AS `")
 	}
-	return exprStr + " AS `" + alias + "`"
+	b.WriteString(alias)
+	b.WriteString("`")
 }
 
 // hasWindowFunction checks if an expression is or contains a window function
@@ -504,260 +502,323 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 // auto-alias behavior: function names stay uppercase, spaces after commas, CASE/CAST
 // keywords uppercase, no charset addition in CAST, COUNT(*) keeps *.
 func deparseExprAlias(node ast.ExprNode) string {
+	var b strings.Builder
+	writeExprAlias(&b, node)
+	return b.String()
+}
+
+// writeExprAlias writes the auto-alias text of an expression (see deparseExprAlias).
+func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 	switch n := node.(type) {
 	case *ast.ColumnRef:
 		if n.Table != "" {
-			return n.Table + "." + n.Column
+			b.WriteString(n.Table)
+			b.WriteString(".")
 		}
-		return n.Column
+		b.WriteString(n.Column)
 	case *ast.IntLit:
-		return fmt.Sprintf("%d", n.Value)
+		fmt.Fprintf(b, "%d", n.Value)
 	case *ast.FloatLit:
-		return n.Value
+		b.WriteString(n.Value)
 	case *ast.StringLit:
 		// When embedded in an expression, include quotes to match MySQL 8.0's behavior.
 		// The top-level autoAlias handles standalone StringLit without quotes.
 		// Escape backslashes and single quotes like deparseStringLit does.
 		escaped := strings.ReplaceAll(n.Value, `\`, `\\`)
 		escaped = strings.ReplaceAll(escaped, `'`, `\'`)
-		return "'" + escaped + "'"
+		b.WriteString("'")
+		b.WriteString(escaped)
+		b.WriteString("'")
 	case *ast.NullLit:
-		return "NULL"
+		b.WriteString("NULL")
 	case *ast.BoolLit:
 		if n.Value {
-			return "TRUE"
+			b.WriteString("TRUE")
+		} else {
+			b.WriteString("FALSE")
 		}
-		return "FALSE"
 	case *ast.HexLit:
 		val := n.Value
 		if strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
-			return val
+			b.WriteString(val)
+		} else {
+			b.WriteString("X'")
+			b.WriteString(val)
+			b.WriteString("'")
 		}
-		return "X'" + val + "'"
 	case *ast.BitLit:
 		val := n.Value
 		if strings.HasPrefix(val, "0b") || strings.HasPrefix(val, "0B") {
-			return val
+			b.WriteString(val)
+		} else {
+			b.WriteString("b'")
+			b.WriteString(val)
+			b.WriteString("'")
 		}
-		return "b'" + val + "'"
 	case *ast.TemporalLit:
-		return n.Type + " '" + n.Value + "'"
+		b.WriteString(n.Type)
+		b.WriteString(" '")
+		b.WriteString(n.Value)
+		b.WriteString("'")
 	case *ast.BinaryExpr:
-		left := deparseExprAlias(n.Left)
-		right := deparseExprAlias(n.Right)
 		// Special operator aliases for REGEXP, ->, ->>
+		var op string
 		switch n.Op {
 		case ast.BinOpRegexp:
-			return left + " REGEXP " + right
+			op = " REGEXP "
 		case ast.BinOpJsonExtract:
-			return left + "->" + right
+			op = "->"
 		case ast.BinOpJsonUnquote:
-			return left + "->>" + right
+			op = "->>"
 		case ast.BinOpSoundsLike:
-			return left + " SOUNDS LIKE " + right
+			op = " SOUNDS LIKE "
+		default:
+			op = binaryOpToStringAlias(n.Op)
+			// Use original operator text for alias when available (e.g., "MOD" instead of "%", "!=" instead of "<>")
+			if n.OriginalOp != "" {
+				op = n.OriginalOp
+			}
+			op = " " + op + " "
 		}
-		op := binaryOpToStringAlias(n.Op)
-		// Use original operator text for alias when available (e.g., "MOD" instead of "%", "!=" instead of "<>")
-		if n.OriginalOp != "" {
-			op = n.OriginalOp
-		}
-		return left + " " + op + " " + right
+		writeExprAlias(b, n.Left)
+		b.WriteString(op)
+		writeExprAlias(b, n.Right)
 	case *ast.UnaryExpr:
-		operand := deparseExprAlias(n.Operand)
 		switch n.Op {
 		case ast.UnaryMinus:
-			return "-" + operand
-		case ast.UnaryPlus:
-			return operand
+			b.WriteString("-")
 		case ast.UnaryNot:
 			// NOT REGEXP → "a NOT REGEXP 'pattern'" (NOT between left and REGEXP)
 			if binExpr, ok := unwrapParen(n.Operand).(*ast.BinaryExpr); ok && binExpr.Op == ast.BinOpRegexp {
-				return deparseExprAlias(binExpr.Left) + " NOT REGEXP " + deparseExprAlias(binExpr.Right)
+				writeExprAlias(b, binExpr.Left)
+				b.WriteString(" NOT REGEXP ")
+				writeExprAlias(b, binExpr.Right)
+				return
 			}
 			// MySQL 8.0 preserves ! vs NOT in auto-alias.
 			if n.OriginalOp == "!" {
-				return "!" + operand
+				b.WriteString("!")
+			} else {
+				b.WriteString("NOT ")
 			}
-			return "NOT " + operand
 		case ast.UnaryBitNot:
-			return "~" + operand
+			b.WriteString("~")
 		}
-		return operand
+		writeExprAlias(b, n.Operand)
 	case *ast.FuncCallExpr:
 		// MySQL 8.0 auto-alias preserves original function name case (uppercase from parser).
 		name := n.Name
 		upperName := strings.ToUpper(name)
 
 		// Handle TRIM directional forms: TRIM_LEADING → TRIM(LEADING 'x' FROM a)
+		trimHead := ""
 		switch upperName {
 		case "TRIM_LEADING":
-			if len(n.Args) == 2 {
-				return "TRIM(LEADING " + deparseExprAlias(n.Args[0]) + " FROM " + deparseExprAlias(n.Args[1]) + ")"
-			}
+			trimHead = "TRIM(LEADING "
 		case "TRIM_TRAILING":
-			if len(n.Args) == 2 {
-				return "TRIM(TRAILING " + deparseExprAlias(n.Args[0]) + " FROM " + deparseExprAlias(n.Args[1]) + ")"
-			}
+			trimHead = "TRIM(TRAILING "
 		case "TRIM_BOTH":
-			if len(n.Args) == 2 {
-				return "TRIM(BOTH " + deparseExprAlias(n.Args[0]) + " FROM " + deparseExprAlias(n.Args[1]) + ")"
-			}
+			trimHead = "TRIM(BOTH "
+		}
+		if trimHead != "" && len(n.Args) == 2 {
+			b.WriteString(trimHead)
+			writeExprAlias(b, n.Args[0])
+			b.WriteString(" FROM ")
+			writeExprAlias(b, n.Args[1])
+			b.WriteString(")")
+			return
 		}
 
 		// Handle GROUP_CONCAT: alias includes ORDER BY and SEPARATOR
 		if upperName == "GROUP_CONCAT" {
-			return deparseGroupConcatAlias(n)
+			writeGroupConcatAlias(b, n)
+			return
 		}
 
 		if n.Star {
 			// COUNT(*) → alias "COUNT(*)" — keep *, not 0.
-			result := name + "(*)"
+			b.WriteString(name)
+			b.WriteString("(*)")
 			if n.Over != nil {
-				result += " " + deparseWindowDefAlias(n.Over)
+				b.WriteString(" ")
+				writeWindowDefAlias(b, n.Over)
 			}
-			return result
+			return
 		}
 		// Zero-arg keyword functions without explicit parens: alias is just the keyword name.
 		// e.g., CURRENT_TIMESTAMP → alias "CURRENT_TIMESTAMP" (no parens).
 		// With parens: CURRENT_TIMESTAMP() → alias "CURRENT_TIMESTAMP()".
 		if len(n.Args) == 0 && !n.HasParens {
-			return name
+			b.WriteString(name)
+			return
 		}
-		args := make([]string, len(n.Args))
-		for i, arg := range n.Args {
-			args[i] = deparseExprAlias(arg)
-		}
-		var result string
+		b.WriteString(name)
 		if n.Distinct {
-			result = name + "(DISTINCT " + strings.Join(args, ", ") + ")"
+			b.WriteString("(DISTINCT ")
 		} else {
-			result = name + "(" + strings.Join(args, ", ") + ")"
+			b.WriteString("(")
 		}
+		for i, arg := range n.Args {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeExprAlias(b, arg)
+		}
+		b.WriteString(")")
 		if n.Over != nil {
-			result += " " + deparseWindowDefAlias(n.Over)
+			b.WriteString(" ")
+			writeWindowDefAlias(b, n.Over)
 		}
-		return result
 	case *ast.ParenExpr:
-		return "(" + deparseExprAlias(n.Expr) + ")"
+		b.WriteString("(")
+		writeExprAlias(b, n.Expr)
+		b.WriteString(")")
 	case *ast.CastExpr:
 		// MySQL 8.0 auto-alias: "CAST(a AS CHAR)" — uppercase keywords, no charset.
-		return "CAST(" + deparseExprAlias(n.Expr) + " AS " + deparseDataTypeAlias(n.TypeName) + ")"
+		b.WriteString("CAST(")
+		writeExprAlias(b, n.Expr)
+		b.WriteString(" AS ")
+		b.WriteString(deparseDataTypeAlias(n.TypeName))
+		b.WriteString(")")
 	case *ast.ConvertExpr:
+		b.WriteString("CONVERT(")
+		writeExprAlias(b, n.Expr)
 		if n.Charset != "" {
-			return "CONVERT(" + deparseExprAlias(n.Expr) + " USING " + strings.ToLower(n.Charset) + ")"
+			b.WriteString(" USING ")
+			b.WriteString(strings.ToLower(n.Charset))
+		} else {
+			// MySQL 8.0 auto-alias preserves "CONVERT(a, CHAR)" form (comma-separated).
+			b.WriteString(", ")
+			b.WriteString(deparseDataTypeAlias(n.TypeName))
 		}
-		// MySQL 8.0 auto-alias preserves "CONVERT(a, CHAR)" form (comma-separated).
-		return "CONVERT(" + deparseExprAlias(n.Expr) + ", " + deparseDataTypeAlias(n.TypeName) + ")"
+		b.WriteString(")")
 	case *ast.CaseExpr:
 		// MySQL 8.0 auto-alias: "CASE WHEN a > 0 THEN 'pos' ELSE 'neg' END" — uppercase keywords.
-		var b strings.Builder
 		b.WriteString("CASE")
 		if n.Operand != nil {
 			b.WriteString(" ")
-			b.WriteString(deparseExprAlias(n.Operand))
+			writeExprAlias(b, n.Operand)
 		}
 		for _, w := range n.Whens {
 			b.WriteString(" WHEN ")
-			b.WriteString(deparseExprAlias(w.Cond))
+			writeExprAlias(b, w.Cond)
 			b.WriteString(" THEN ")
-			b.WriteString(deparseExprAlias(w.Result))
+			writeExprAlias(b, w.Result)
 		}
 		if n.Default != nil {
 			b.WriteString(" ELSE ")
-			b.WriteString(deparseExprAlias(n.Default))
+			writeExprAlias(b, n.Default)
 		}
 		b.WriteString(" END")
-		return b.String()
 	case *ast.IsExpr:
-		expr := deparseExprAlias(n.Expr)
+		var test string
 		switch n.Test {
 		case ast.IsNull:
+			test = " IS NULL"
 			if n.Not {
-				return expr + " IS NOT NULL"
+				test = " IS NOT NULL"
 			}
-			return expr + " IS NULL"
 		case ast.IsTrue:
+			test = " IS TRUE"
 			if n.Not {
-				return expr + " IS NOT TRUE"
+				test = " IS NOT TRUE"
 			}
-			return expr + " IS TRUE"
 		case ast.IsFalse:
+			test = " IS FALSE"
 			if n.Not {
-				return expr + " IS NOT FALSE"
+				test = " IS NOT FALSE"
 			}
-			return expr + " IS FALSE"
 		case ast.IsUnknown:
+			test = " IS UNKNOWN"
 			if n.Not {
-				return expr + " IS NOT UNKNOWN"
+				test = " IS NOT UNKNOWN"
 			}
-			return expr + " IS UNKNOWN"
+		default:
+			writeExpr(b, node)
+			return
 		}
-		return deparseExpr(node)
+		writeExprAlias(b, n.Expr)
+		b.WriteString(test)
 	case *ast.InExpr:
-		expr := deparseExprAlias(n.Expr)
-		keyword := "IN"
+		writeExprAlias(b, n.Expr)
 		if n.Not {
-			keyword = "NOT IN"
+			b.WriteString(" NOT IN (")
+		} else {
+			b.WriteString(" IN (")
 		}
 		if n.Select != nil {
-			return expr + " " + keyword + " (...)"
+			b.WriteString("...)")
+			return
 		}
-		items := make([]string, len(n.List))
 		for i, item := range n.List {
-			items[i] = deparseExprAlias(item)
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeExprAlias(b, item)
 		}
-		return expr + " " + keyword + " (" + strings.Join(items, ", ") + ")"
+		b.WriteString(")")
 	case *ast.BetweenExpr:
-		expr := deparseExprAlias(n.Expr)
-		low := deparseExprAlias(n.Low)
-		high := deparseExprAlias(n.High)
-		keyword := "BETWEEN"
+		writeExprAlias(b, n.Expr)
 		if n.Not {
-			keyword = "NOT BETWEEN"
+			b.WriteString(" NOT BETWEEN ")
+		} else {
+			b.WriteString(" BETWEEN ")
 		}
-		return expr + " " + keyword + " " + low + " AND " + high
+		writeExprAlias(b, n.Low)
+		b.WriteString(" AND ")
+		writeExprAlias(b, n.High)
 	case *ast.LikeExpr:
-		expr := deparseExprAlias(n.Expr)
-		pattern := deparseExprAlias(n.Pattern)
-		keyword := "LIKE"
+		writeExprAlias(b, n.Expr)
 		if n.Not {
-			keyword = "NOT LIKE"
+			b.WriteString(" NOT LIKE ")
+		} else {
+			b.WriteString(" LIKE ")
 		}
-		result := expr + " " + keyword + " " + pattern
+		writeExprAlias(b, n.Pattern)
 		if n.Escape != nil {
-			result += " ESCAPE " + deparseExprAlias(n.Escape)
+			b.WriteString(" ESCAPE ")
+			writeExprAlias(b, n.Escape)
 		}
-		return result
 	case *ast.ExistsExpr:
 		// MySQL 8.0 auto-alias for EXISTS: "EXISTS(SELECT 1 FROM t WHERE a > 0)" — uppercase keywords,
 		// unqualified column names, no backtick quoting, no column aliases.
 		if n.Select != nil {
-			return "EXISTS(" + deparseSelectStmtAlias(n.Select) + ")"
+			b.WriteString("EXISTS(")
+			writeSelectStmtAlias(b, n.Select)
+			b.WriteString(")")
+			return
 		}
-		return "EXISTS(/* subquery */)"
+		b.WriteString("EXISTS(/* subquery */)")
 	case *ast.SubqueryExpr:
 		// MySQL 8.0 auto-alias for subquery: "(SELECT MAX(a) FROM t)" — uppercase keywords,
 		// unqualified column names, no backtick quoting, no column aliases.
 		if n.Select != nil {
-			return "(" + deparseSelectStmtAlias(n.Select) + ")"
+			b.WriteString("(")
+			writeSelectStmtAlias(b, n.Select)
+			b.WriteString(")")
+			return
 		}
-		return "(/* subquery */)"
+		b.WriteString("(/* subquery */)")
 	case *ast.CollateExpr:
 		// MySQL 8.0 auto-alias: "a COLLATE utf8mb4_unicode_ci" — uppercase COLLATE, no parens.
-		return deparseExprAlias(n.Expr) + " COLLATE " + n.Collation
+		writeExprAlias(b, n.Expr)
+		b.WriteString(" COLLATE ")
+		b.WriteString(n.Collation)
 	case *ast.IntervalExpr:
 		// MySQL 8.0 auto-alias: "INTERVAL 1 DAY" — uppercase keywords.
-		return "INTERVAL " + deparseExprAlias(n.Value) + " " + strings.ToUpper(n.Unit)
+		b.WriteString("INTERVAL ")
+		writeExprAlias(b, n.Value)
+		b.WriteString(" ")
+		b.WriteString(strings.ToUpper(n.Unit))
 	default:
 		// Fallback: use the regular deparsed text
-		return deparseExpr(node)
+		writeExpr(b, node)
 	}
 }
 
-// deparseSelectStmtAlias generates a human-readable SELECT statement for auto-alias purposes.
+// writeSelectStmtAlias generates a human-readable SELECT statement for auto-alias purposes.
 // MySQL 8.0 uses uppercase keywords, unqualified column names, and no column aliases.
-func deparseSelectStmtAlias(stmt *ast.SelectStmt) string {
-	var b strings.Builder
+func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
 	b.WriteString("SELECT ")
 
 	// Target list (no aliases)
@@ -766,9 +827,9 @@ func deparseSelectStmtAlias(stmt *ast.SelectStmt) string {
 			b.WriteString(", ")
 		}
 		if rt, ok := target.(*ast.ResTarget); ok {
-			b.WriteString(deparseExprAlias(rt.Val))
+			writeExprAlias(b, rt.Val)
 		} else {
-			b.WriteString(deparseExprAlias(target))
+			writeExprAlias(b, target)
 		}
 	}
 
@@ -779,29 +840,28 @@ func deparseSelectStmtAlias(stmt *ast.SelectStmt) string {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString(deparseTableExprAlias(tbl))
+			writeTableExprAlias(b, tbl)
 		}
 	}
 
 	// WHERE clause
 	if stmt.Where != nil {
 		b.WriteString(" WHERE ")
-		b.WriteString(deparseExprAlias(stmt.Where))
+		writeExprAlias(b, stmt.Where)
 	}
-
-	return b.String()
 }
 
-// deparseTableExprAlias formats a table expression for auto-alias purposes.
-func deparseTableExprAlias(tbl ast.TableExpr) string {
+// writeTableExprAlias formats a table expression for auto-alias purposes.
+func writeTableExprAlias(b *strings.Builder, tbl ast.TableExpr) {
 	switch t := tbl.(type) {
 	case *ast.TableRef:
+		b.WriteString(t.Name)
 		if t.Alias != "" {
-			return t.Name + " " + t.Alias
+			b.WriteString(" ")
+			b.WriteString(t.Alias)
 		}
-		return t.Name
 	default:
-		return deparseExprAlias(tbl.(ast.ExprNode))
+		writeExprAlias(b, tbl.(ast.ExprNode))
 	}
 }
 
@@ -840,39 +900,42 @@ func deparseDataTypeAlias(dt *ast.DataType) string {
 	}
 }
 
-// deparseImplicitCrossJoin normalizes multiple FROM tables (implicit cross join)
+// writeImplicitCrossJoin normalizes multiple FROM tables (implicit cross join)
 // into explicit join syntax with parentheses.
 // e.g., FROM t1, t2, t3 → ((`t1` join `t2`) join `t3`)
-func deparseImplicitCrossJoin(tables []ast.TableExpr) string {
+func writeImplicitCrossJoin(b *strings.Builder, tables []ast.TableExpr) {
 	if len(tables) == 0 {
-		return ""
+		return
 	}
-	result := deparseTableExpr(tables[0])
 	for i := 1; i < len(tables); i++ {
-		result = "(" + result + " join " + deparseTableExpr(tables[i]) + ")"
+		b.WriteString("(")
 	}
-	return result
+	writeTableExpr(b, tables[0])
+	for i := 1; i < len(tables); i++ {
+		b.WriteString(" join ")
+		writeTableExpr(b, tables[i])
+		b.WriteString(")")
+	}
 }
 
-// deparseTableExpr formats a table expression in the FROM clause.
-func deparseTableExpr(tbl ast.TableExpr) string {
+// writeTableExpr formats a table expression in the FROM clause.
+func writeTableExpr(b *strings.Builder, tbl ast.TableExpr) {
 	switch t := tbl.(type) {
 	case *ast.TableRef:
-		return deparseTableRef(t)
+		b.WriteString(deparseTableRef(t))
 	case *ast.JoinClause:
-		return deparseJoinClause(t)
+		writeJoinClause(b, t)
 	case *ast.SubqueryExpr:
-		return deparseSubqueryTableExpr(t)
+		writeSubqueryTableExpr(b, t)
 	default:
-		return fmt.Sprintf("/* unsupported table expr: %T */", tbl)
+		fmt.Fprintf(b, "/* unsupported table expr: %T */", tbl)
 	}
 }
 
-// deparseJoinClause formats a JOIN clause.
+// writeJoinClause formats a JOIN clause.
 // MySQL 8.0 format: (`t1` join `t2` on((...)))
-func deparseJoinClause(j *ast.JoinClause) string {
-	left := deparseTableExpr(j.Left)
-	right := deparseTableExpr(j.Right)
+func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
+	left, right := j.Left, j.Right
 
 	var joinType string
 	switch j.Type {
@@ -900,20 +963,19 @@ func deparseJoinClause(j *ast.JoinClause) string {
 		joinType = "join"
 	}
 
-	var b strings.Builder
 	b.WriteString("(")
-	b.WriteString(left)
+	writeTableExpr(b, left)
 	b.WriteString(" ")
 	b.WriteString(joinType)
 	b.WriteString(" ")
-	b.WriteString(right)
+	writeTableExpr(b, right)
 
 	// ON condition
 	if j.Condition != nil {
 		switch cond := j.Condition.(type) {
 		case *ast.OnCondition:
 			b.WriteString(" on(")
-			b.WriteString(deparseExpr(cond.Expr))
+			writeExpr(b, cond.Expr)
 			b.WriteString(")")
 		case *ast.UsingCondition:
 			// USING (col1, col2) → on((`left`.`col1` = `right`.`col1`) and (...))
@@ -926,13 +988,12 @@ func deparseJoinClause(j *ast.JoinClause) string {
 				leftName, rightName = rightName, leftName
 			}
 			b.WriteString(" on(")
-			b.WriteString(deparseUsingAsOn(cond.Columns, leftName, rightName))
+			writeUsingAsOn(b, cond.Columns, leftName, rightName)
 			b.WriteString(")")
 		}
 	}
 
 	b.WriteString(")")
-	return b.String()
 }
 
 // tableExprName extracts the effective name (alias or table name) from a table expression.
@@ -949,35 +1010,39 @@ func tableExprName(tbl ast.TableExpr) string {
 	}
 }
 
-// deparseUsingAsOn expands USING columns into ON condition format.
-// e.g., USING (a, b) with left=t1, right=t2 → (`t1`.`a` = `t2`.`a`) and (`t1`.`b` = `t2`.`b`)
+// writeUsingAsOn expands USING columns into ON condition format.
+// e.g., USING (a, b) with left=t1, right=t2 → ((`t1`.`a` = `t2`.`a`) and (`t1`.`b` = `t2`.`b`))
 // MySQL 8.0 format: on((`t1`.`a` = `t2`.`a`))
-func deparseUsingAsOn(columns []string, leftName, rightName string) string {
-	if len(columns) == 0 {
-		return ""
+func writeUsingAsOn(b *strings.Builder, columns []string, leftName, rightName string) {
+	// Multiple columns: chain with "and", left-deep.
+	for i := 1; i < len(columns); i++ {
+		b.WriteString("(")
 	}
-	parts := make([]string, len(columns))
 	for i, col := range columns {
-		parts[i] = "(`" + leftName + "`.`" + col + "` = `" + rightName + "`.`" + col + "`)"
+		if i > 0 {
+			b.WriteString(" and ")
+		}
+		b.WriteString("(`")
+		b.WriteString(leftName)
+		b.WriteString("`.`")
+		b.WriteString(col)
+		b.WriteString("` = `")
+		b.WriteString(rightName)
+		b.WriteString("`.`")
+		b.WriteString(col)
+		b.WriteString("`)")
+		if i > 0 {
+			b.WriteString(")")
+		}
 	}
-	if len(parts) == 1 {
-		return parts[0]
-	}
-	// Multiple columns: chain with "and"
-	result := parts[0]
-	for i := 1; i < len(parts); i++ {
-		result = "(" + result + " and " + parts[i] + ")"
-	}
-	return result
 }
 
-// deparseSubqueryTableExpr formats a derived table (subquery as table expression).
+// writeSubqueryTableExpr formats a derived table (subquery as table expression).
 // MySQL 8.0 format: (select ...) `alias` — no AS keyword for alias
-func deparseSubqueryTableExpr(s *ast.SubqueryExpr) string {
-	var b strings.Builder
+func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 	b.WriteString("(")
 	if s.Select != nil {
-		b.WriteString(deparseSelectStmt(s.Select))
+		writeSelectStmt(b, s.Select, false)
 	}
 	b.WriteString(")")
 	if s.Alias != "" {
@@ -985,7 +1050,6 @@ func deparseSubqueryTableExpr(s *ast.SubqueryExpr) string {
 		b.WriteString(s.Alias)
 		b.WriteString("`")
 	}
-	return b.String()
 }
 
 // deparseTableRef formats a simple table reference.
@@ -1007,63 +1071,67 @@ func deparseTableRef(t *ast.TableRef) string {
 	return b.String()
 }
 
-func deparseExpr(node ast.ExprNode) string {
+func writeExpr(b *strings.Builder, node ast.ExprNode) {
 	switch n := node.(type) {
 	case *ast.IntLit:
-		return fmt.Sprintf("%d", n.Value)
+		fmt.Fprintf(b, "%d", n.Value)
 	case *ast.FloatLit:
-		return n.Value
+		b.WriteString(n.Value)
 	case *ast.BoolLit:
 		if n.Value {
-			return "true"
+			b.WriteString("true")
+		} else {
+			b.WriteString("false")
 		}
-		return "false"
 	case *ast.StringLit:
-		return deparseStringLit(n)
+		b.WriteString(deparseStringLit(n))
 	case *ast.NullLit:
-		return "NULL"
+		b.WriteString("NULL")
 	case *ast.HexLit:
-		return deparseHexLit(n)
+		b.WriteString(deparseHexLit(n))
 	case *ast.BitLit:
-		return deparseBitLit(n)
+		b.WriteString(deparseBitLit(n))
 	case *ast.TemporalLit:
-		return n.Type + "'" + n.Value + "'"
+		b.WriteString(n.Type)
+		b.WriteString("'")
+		b.WriteString(n.Value)
+		b.WriteString("'")
 	case *ast.BinaryExpr:
-		return deparseBinaryExpr(n)
+		writeBinaryExpr(b, n)
 	case *ast.ColumnRef:
-		return deparseColumnRef(n)
+		b.WriteString(deparseColumnRef(n))
 	case *ast.UnaryExpr:
-		return deparseUnaryExpr(n)
+		writeUnaryExpr(b, n)
 	case *ast.ParenExpr:
-		return deparseExpr(n.Expr)
+		writeExpr(b, n.Expr)
 	case *ast.InExpr:
-		return deparseInExpr(n)
+		writeInExpr(b, n)
 	case *ast.BetweenExpr:
-		return deparseBetweenExpr(n)
+		writeBetweenExpr(b, n)
 	case *ast.LikeExpr:
-		return deparseLikeExpr(n)
+		writeLikeExpr(b, n)
 	case *ast.IsExpr:
-		return deparseIsExpr(n)
+		writeIsExpr(b, n)
 	case *ast.RowExpr:
-		return deparseRowExpr(n)
+		writeRowExpr(b, n)
 	case *ast.CaseExpr:
-		return deparseCaseExpr(n)
+		writeCaseExpr(b, n)
 	case *ast.CastExpr:
-		return deparseCastExpr(n)
+		writeCastExpr(b, n)
 	case *ast.ConvertExpr:
-		return deparseConvertExpr(n)
+		writeConvertExpr(b, n)
 	case *ast.IntervalExpr:
-		return deparseIntervalExpr(n)
+		writeIntervalExpr(b, n)
 	case *ast.CollateExpr:
-		return deparseCollateExpr(n)
+		writeCollateExpr(b, n)
 	case *ast.FuncCallExpr:
-		return deparseFuncCallExpr(n)
+		writeFuncCallExpr(b, n)
 	case *ast.ExistsExpr:
-		return deparseExistsExpr(n)
+		writeExistsExpr(b, n)
 	case *ast.SubqueryExpr:
-		return deparseSubqueryExpr(n)
+		writeSubqueryExpr(b, n)
 	default:
-		return fmt.Sprintf("/* unsupported: %T */", node)
+		fmt.Fprintf(b, "/* unsupported: %T */", node)
 	}
 }
 
@@ -1103,18 +1171,28 @@ func deparseBitLit(n *ast.BitLit) string {
 	return "0x" + fmt.Sprintf("%02x", i)
 }
 
-func deparseBinaryExpr(n *ast.BinaryExpr) string {
+func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 	// Operator-to-function rewrites:
 	// REGEXP → regexp_like(left, right)
 	// -> → json_extract(left, right)
 	// ->> → json_unquote(json_extract(left, right))
 	switch n.Op {
-	case ast.BinOpRegexp:
-		return "regexp_like(" + deparseExpr(n.Left) + "," + deparseExpr(n.Right) + ")"
-	case ast.BinOpJsonExtract:
-		return "json_extract(" + deparseExpr(n.Left) + "," + deparseExpr(n.Right) + ")"
-	case ast.BinOpJsonUnquote:
-		return "json_unquote(json_extract(" + deparseExpr(n.Left) + "," + deparseExpr(n.Right) + "))"
+	case ast.BinOpRegexp, ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
+		closing := ")"
+		switch n.Op {
+		case ast.BinOpRegexp:
+			b.WriteString("regexp_like(")
+		case ast.BinOpJsonExtract:
+			b.WriteString("json_extract(")
+		default:
+			b.WriteString("json_unquote(json_extract(")
+			closing = "))"
+		}
+		writeExpr(b, n.Left)
+		b.WriteString(",")
+		writeExpr(b, n.Right)
+		b.WriteString(closing)
+		return
 	}
 
 	left := n.Left
@@ -1125,10 +1203,13 @@ func deparseBinaryExpr(n *ast.BinaryExpr) string {
 			left, right = right, left
 		}
 	}
-	leftStr := deparseExpr(left)
-	rightStr := deparseExpr(right)
-	op := binaryOpToString(n.Op)
-	return "(" + leftStr + " " + op + " " + rightStr + ")"
+	b.WriteString("(")
+	writeExpr(b, left)
+	b.WriteString(" ")
+	b.WriteString(binaryOpToString(n.Op))
+	b.WriteString(" ")
+	writeExpr(b, right)
+	b.WriteString(")")
 }
 
 func deparseColumnRef(n *ast.ColumnRef) string {
@@ -1207,15 +1288,16 @@ func binaryOpToStringAlias(op ast.BinaryOp) string {
 	}
 }
 
-// deparseWindowDefAlias formats a window definition for auto-alias purposes.
+// writeWindowDefAlias formats a window definition for auto-alias purposes.
 // MySQL 8.0 uses: OVER (ORDER BY col) in the alias text, or OVER w for named windows.
-func deparseWindowDefAlias(wd *ast.WindowDef) string {
+func writeWindowDefAlias(b *strings.Builder, wd *ast.WindowDef) {
 	// Named window reference: OVER window_name
 	if wd.RefName != "" && len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
-		return "OVER " + wd.RefName
+		b.WriteString("OVER ")
+		b.WriteString(wd.RefName)
+		return
 	}
 
-	var b strings.Builder
 	b.WriteString("OVER (")
 
 	needSpace := false
@@ -1225,7 +1307,7 @@ func deparseWindowDefAlias(wd *ast.WindowDef) string {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString(deparseExprAlias(expr))
+			writeExprAlias(b, expr)
 		}
 		needSpace = true
 	}
@@ -1238,7 +1320,7 @@ func deparseWindowDefAlias(wd *ast.WindowDef) string {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString(deparseExprAlias(item.Expr))
+			writeExprAlias(b, item.Expr)
 			if item.Desc {
 				b.WriteString(" desc")
 			}
@@ -1249,84 +1331,101 @@ func deparseWindowDefAlias(wd *ast.WindowDef) string {
 		if needSpace {
 			b.WriteString(" ")
 		}
-		b.WriteString(deparseWindowFrame(wd.Frame))
+		writeWindowFrame(b, wd.Frame)
 	}
 	b.WriteString(")")
-	return b.String()
 }
 
-func deparseUnaryExpr(n *ast.UnaryExpr) string {
-	operand := deparseExpr(n.Operand)
+func writeUnaryExpr(b *strings.Builder, n *ast.UnaryExpr) {
 	switch n.Op {
 	case ast.UnaryMinus:
 		// MySQL 8.0 wraps non-literal operands in parens: -(`t`.`a`) but keeps -5
 		switch n.Operand.(type) {
 		case *ast.IntLit, *ast.FloatLit:
-			return "-" + operand
+			b.WriteString("-")
+			writeExpr(b, n.Operand)
 		default:
-			return "-(" + operand + ")"
+			b.WriteString("-(")
+			writeExpr(b, n.Operand)
+			b.WriteString(")")
 		}
-	case ast.UnaryPlus:
-		// MySQL drops unary plus entirely
-		return operand
 	case ast.UnaryNot:
-		return "(not(" + operand + "))"
+		b.WriteString("(not(")
+		writeExpr(b, n.Operand)
+		b.WriteString("))")
 	case ast.UnaryBitNot:
-		return "~(" + operand + ")"
+		b.WriteString("~(")
+		writeExpr(b, n.Operand)
+		b.WriteString(")")
 	default:
-		return operand
+		// MySQL drops unary plus entirely
+		writeExpr(b, n.Operand)
 	}
 }
 
-func deparseInExpr(n *ast.InExpr) string {
-	expr := deparseExpr(n.Expr)
-	keyword := "in"
+func writeInExpr(b *strings.Builder, n *ast.InExpr) {
+	keyword := " in ("
 	if n.Not {
-		keyword = "not in"
+		keyword = " not in ("
 	}
 
 	// IN subquery: a IN (SELECT ...)
 	// MySQL 8.0 does NOT wrap IN subquery in outer parens (unlike IN value list).
 	// MySQL 8.0 also omits AS aliases in the subquery's target list.
 	if n.Select != nil {
-		return expr + " " + keyword + " (" + deparseSelectStmtNoAlias(n.Select) + ")"
+		writeExpr(b, n.Expr)
+		b.WriteString(keyword)
+		writeSelectStmt(b, n.Select, true)
+		b.WriteString(")")
+		return
 	}
 
 	// Build the value list with no spaces after commas
-	items := make([]string, len(n.List))
+	b.WriteString("(")
+	writeExpr(b, n.Expr)
+	b.WriteString(keyword)
 	for i, item := range n.List {
-		items[i] = deparseExpr(item)
+		if i > 0 {
+			b.WriteString(",")
+		}
+		writeExpr(b, item)
 	}
-	return "(" + expr + " " + keyword + " (" + strings.Join(items, ",") + "))"
+	b.WriteString("))")
 }
 
-func deparseBetweenExpr(n *ast.BetweenExpr) string {
-	expr := deparseExpr(n.Expr)
-	low := deparseExpr(n.Low)
-	high := deparseExpr(n.High)
-	keyword := "between"
+func writeBetweenExpr(b *strings.Builder, n *ast.BetweenExpr) {
+	b.WriteString("(")
+	writeExpr(b, n.Expr)
 	if n.Not {
-		keyword = "not between"
+		b.WriteString(" not between ")
+	} else {
+		b.WriteString(" between ")
 	}
-	return "(" + expr + " " + keyword + " " + low + " and " + high + ")"
+	writeExpr(b, n.Low)
+	b.WriteString(" and ")
+	writeExpr(b, n.High)
+	b.WriteString(")")
 }
 
-func deparseLikeExpr(n *ast.LikeExpr) string {
-	expr := deparseExpr(n.Expr)
-	pattern := deparseExpr(n.Pattern)
-	likeClause := "(" + expr + " like " + pattern
+func writeLikeExpr(b *strings.Builder, n *ast.LikeExpr) {
+	if n.Not {
+		b.WriteString("(not(")
+	}
+	b.WriteString("(")
+	writeExpr(b, n.Expr)
+	b.WriteString(" like ")
+	writeExpr(b, n.Pattern)
 	if n.Escape != nil {
-		likeClause += " escape " + deparseExpr(n.Escape)
+		b.WriteString(" escape ")
+		writeExpr(b, n.Escape)
 	}
-	likeClause += ")"
+	b.WriteString(")")
 	if n.Not {
-		return "(not(" + likeClause + "))"
+		b.WriteString("))")
 	}
-	return likeClause
 }
 
-func deparseIsExpr(n *ast.IsExpr) string {
-	expr := deparseExpr(n.Expr)
+func writeIsExpr(b *strings.Builder, n *ast.IsExpr) {
 	var test string
 	switch n.Test {
 	case ast.IsNull:
@@ -1356,53 +1455,67 @@ func deparseIsExpr(n *ast.IsExpr) string {
 	default:
 		test = "is ?"
 	}
-	return "(" + expr + " " + test + ")"
+	b.WriteString("(")
+	writeExpr(b, n.Expr)
+	b.WriteString(" ")
+	b.WriteString(test)
+	b.WriteString(")")
 }
 
-func deparseRowExpr(n *ast.RowExpr) string {
-	items := make([]string, len(n.Items))
+func writeRowExpr(b *strings.Builder, n *ast.RowExpr) {
+	b.WriteString("row(")
 	for i, item := range n.Items {
-		items[i] = deparseExpr(item)
+		if i > 0 {
+			b.WriteString(",")
+		}
+		writeExpr(b, item)
 	}
-	return "row(" + strings.Join(items, ",") + ")"
+	b.WriteString(")")
 }
 
-func deparseCaseExpr(n *ast.CaseExpr) string {
-	var b strings.Builder
+func writeCaseExpr(b *strings.Builder, n *ast.CaseExpr) {
 	b.WriteString("(case")
 	if n.Operand != nil {
 		b.WriteString(" ")
-		b.WriteString(deparseExpr(n.Operand))
+		writeExpr(b, n.Operand)
 	}
 	for _, w := range n.Whens {
 		b.WriteString(" when ")
-		b.WriteString(deparseExpr(w.Cond))
+		writeExpr(b, w.Cond)
 		b.WriteString(" then ")
-		b.WriteString(deparseExpr(w.Result))
+		writeExpr(b, w.Result)
 	}
 	if n.Default != nil {
 		b.WriteString(" else ")
-		b.WriteString(deparseExpr(n.Default))
+		writeExpr(b, n.Default)
 	}
 	b.WriteString(" end)")
-	return b.String()
 }
 
-func deparseCastExpr(n *ast.CastExpr) string {
-	expr := deparseExpr(n.Expr)
-	typeName := deparseDataType(n.TypeName)
-	return "cast(" + expr + " as " + typeName + ")"
+func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
+	b.WriteString("cast(")
+	writeExpr(b, n.Expr)
+	b.WriteString(" as ")
+	b.WriteString(deparseDataType(n.TypeName))
+	b.WriteString(")")
 }
 
-func deparseConvertExpr(n *ast.ConvertExpr) string {
-	expr := deparseExpr(n.Expr)
+func writeConvertExpr(b *strings.Builder, n *ast.ConvertExpr) {
 	// CONVERT(expr USING charset) form
 	if n.Charset != "" {
-		return "convert(" + expr + " using " + strings.ToLower(n.Charset) + ")"
+		b.WriteString("convert(")
+		writeExpr(b, n.Expr)
+		b.WriteString(" using ")
+		b.WriteString(strings.ToLower(n.Charset))
+		b.WriteString(")")
+		return
 	}
 	// CONVERT(expr, type) form — MySQL rewrites to CAST
-	typeName := deparseDataType(n.TypeName)
-	return "cast(" + expr + " as " + typeName + ")"
+	b.WriteString("cast(")
+	writeExpr(b, n.Expr)
+	b.WriteString(" as ")
+	b.WriteString(deparseDataType(n.TypeName))
+	b.WriteString(")")
 }
 
 func deparseDataType(dt *ast.DataType) string {
@@ -1466,61 +1579,80 @@ func deparseDataType(dt *ast.DataType) string {
 	}
 }
 
-func deparseIntervalExpr(n *ast.IntervalExpr) string {
-	val := deparseExpr(n.Value)
-	return "interval " + val + " " + strings.ToLower(n.Unit)
+func writeIntervalExpr(b *strings.Builder, n *ast.IntervalExpr) {
+	b.WriteString("interval ")
+	writeExpr(b, n.Value)
+	b.WriteString(" ")
+	b.WriteString(strings.ToLower(n.Unit))
 }
 
-func deparseCollateExpr(n *ast.CollateExpr) string {
-	expr := deparseExpr(n.Expr)
-	return "(" + expr + " collate " + n.Collation + ")"
+func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
+	b.WriteString("(")
+	writeExpr(b, n.Expr)
+	b.WriteString(" collate ")
+	b.WriteString(n.Collation)
+	b.WriteString(")")
 }
 
 // funcNameRewrites maps uppercase function names to their MySQL 8.0 canonical forms.
 // These rewrites are applied by SHOW CREATE VIEW in MySQL 8.0.
 var funcNameRewrites = map[string]string{
 	"SUBSTRING":         "substr",
-	"CURRENT_TIMESTAMP":  "now",
-	"CURRENT_DATE":       "curdate",
-	"CURRENT_TIME":       "curtime",
-	"CURRENT_USER":       "current_user",
-	"NOW":                "now",
-	"LOCALTIME":          "now",
-	"LOCALTIMESTAMP":     "now",
+	"CURRENT_TIMESTAMP": "now",
+	"CURRENT_DATE":      "curdate",
+	"CURRENT_TIME":      "curtime",
+	"CURRENT_USER":      "current_user",
+	"NOW":               "now",
+	"LOCALTIME":         "now",
+	"LOCALTIMESTAMP":    "now",
 }
 
-// deparseTrimDirectional handles TRIM(LEADING|TRAILING|BOTH remstr FROM str).
+// writeTrimDirectional handles TRIM(LEADING|TRAILING|BOTH remstr FROM str).
 // MySQL 8.0 SHOW CREATE VIEW format: trim(leading 'x' from `a`)
-func deparseTrimDirectional(direction string, args []ast.ExprNode) string {
+func writeTrimDirectional(b *strings.Builder, direction string, args []ast.ExprNode) {
 	if len(args) == 2 {
-		remstr := deparseExpr(args[0])
-		str := deparseExpr(args[1])
-		return "trim(" + direction + " " + remstr + " from " + str + ")"
+		b.WriteString("trim(")
+		b.WriteString(direction)
+		b.WriteString(" ")
+		writeExpr(b, args[0])
+		b.WriteString(" from ")
+		writeExpr(b, args[1])
+		b.WriteString(")")
+		return
 	}
 	// Fallback: single arg (shouldn't happen for directional, but be safe)
 	if len(args) == 1 {
-		return "trim(" + direction + " " + deparseExpr(args[0]) + ")"
+		b.WriteString("trim(")
+		b.WriteString(direction)
+		b.WriteString(" ")
+		writeExpr(b, args[0])
+		b.WriteString(")")
+		return
 	}
-	return "trim()"
+	b.WriteString("trim()")
 }
 
-func deparseFuncCallExpr(n *ast.FuncCallExpr) string {
+func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	// Handle TRIM special forms: TRIM_LEADING, TRIM_TRAILING, TRIM_BOTH
 	// Parser encodes these as FuncCallExpr with Name="TRIM_LEADING" etc.
 	// Args: [remstr, str] for directional forms
 	name := strings.ToUpper(n.Name)
 	switch name {
 	case "TRIM_LEADING":
-		return deparseTrimDirectional("leading", n.Args)
+		writeTrimDirectional(b, "leading", n.Args)
+		return
 	case "TRIM_TRAILING":
-		return deparseTrimDirectional("trailing", n.Args)
+		writeTrimDirectional(b, "trailing", n.Args)
+		return
 	case "TRIM_BOTH":
-		return deparseTrimDirectional("both", n.Args)
+		writeTrimDirectional(b, "both", n.Args)
+		return
 	}
 
 	// GROUP_CONCAT has special formatting
 	if name == "GROUP_CONCAT" {
-		return deparseGroupConcat(n)
+		writeGroupConcat(b, n)
+		return
 	}
 
 	// Determine the canonical function name
@@ -1534,63 +1666,55 @@ func deparseFuncCallExpr(n *ast.FuncCallExpr) string {
 		canonical = strings.ToLower(n.Schema) + "." + canonical
 	}
 
-	// Zero-arg functions (CURRENT_TIMESTAMP, NOW(), etc.) — always emit parens
-	if len(n.Args) == 0 && !n.Star {
-		result := canonical + "()"
-		if n.Over != nil {
-			result += " " + deparseWindowDef(n.Over)
+	b.WriteString(canonical)
+	switch {
+	case len(n.Args) == 0 && !n.Star:
+		// Zero-arg functions (CURRENT_TIMESTAMP, NOW(), etc.) — always emit parens
+		b.WriteString("()")
+	case n.Star:
+		// COUNT(*) — MySQL 8.0 rewrites COUNT(*) to count(0)
+		b.WriteString("(0)")
+	default:
+		// Build argument list with no spaces after commas
+		b.WriteString("(")
+		if n.Distinct {
+			b.WriteString("distinct ")
 		}
-		return result
-	}
-
-	// COUNT(*) — MySQL 8.0 rewrites COUNT(*) to count(0)
-	if n.Star {
-		result := canonical + "(0)"
-		if n.Over != nil {
-			result += " " + deparseWindowDef(n.Over)
+		for i, arg := range n.Args {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			writeExpr(b, arg)
 		}
-		return result
+		b.WriteString(")")
 	}
-
-	// Build argument list with no spaces after commas
-	args := make([]string, len(n.Args))
-	for i, arg := range n.Args {
-		args[i] = deparseExpr(arg)
-	}
-
-	var argStr string
-	if n.Distinct {
-		argStr = "distinct " + strings.Join(args, ",")
-	} else {
-		argStr = strings.Join(args, ",")
-	}
-
-	result := canonical + "(" + argStr + ")"
 
 	// Append OVER clause for window functions
 	if n.Over != nil {
-		result += " " + deparseWindowDef(n.Over)
+		b.WriteString(" ")
+		writeWindowDef(b, n.Over)
 	}
-
-	return result
 }
 
-// deparseWindowDef formats a window definition.
+// writeWindowDef formats a window definition.
 // MySQL 8.0 format: OVER (PARTITION BY ... ORDER BY ... frame_clause )
 // Note: trailing space before closing paren, uppercase keywords.
-func deparseWindowDef(wd *ast.WindowDef) string {
+func writeWindowDef(b *strings.Builder, wd *ast.WindowDef) {
 	// Named window reference: OVER `window_name`
 	if wd.RefName != "" && len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
-		return "OVER `" + wd.RefName + "`"
+		b.WriteString("OVER `")
+		b.WriteString(wd.RefName)
+		b.WriteString("`")
+		return
 	}
 
-	return "OVER " + deparseWindowBody(wd)
+	b.WriteString("OVER ")
+	writeWindowBody(b, wd)
 }
 
-// deparseWindowBody formats the body of a window definition: (PARTITION BY ... ORDER BY ... frame_clause )
+// writeWindowBody formats the body of a window definition: (PARTITION BY ... ORDER BY ... frame_clause )
 // Used by both OVER clauses and WINDOW named window definitions.
-func deparseWindowBody(wd *ast.WindowDef) string {
-	var b strings.Builder
+func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 	b.WriteString("(")
 
 	needSpace := false
@@ -1602,7 +1726,7 @@ func deparseWindowBody(wd *ast.WindowDef) string {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString(deparseExpr(expr))
+			writeExpr(b, expr)
 		}
 		needSpace = true
 	}
@@ -1617,7 +1741,7 @@ func deparseWindowBody(wd *ast.WindowDef) string {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString(deparseExpr(item.Expr))
+			writeExpr(b, item.Expr)
 			if item.Desc {
 				b.WriteString(" desc")
 			}
@@ -1630,22 +1754,18 @@ func deparseWindowBody(wd *ast.WindowDef) string {
 		if needSpace {
 			b.WriteString(" ")
 		}
-		b.WriteString(deparseWindowFrame(wd.Frame))
+		writeWindowFrame(b, wd.Frame)
 		// When frame clause is present, MySQL 8.0 has no trailing space before )
 		b.WriteString(")")
 	} else {
 		// No frame clause — MySQL 8.0 puts a trailing space before )
 		b.WriteString(" )")
 	}
-
-	return b.String()
 }
 
-// deparseWindowFrame formats a window frame specification.
+// writeWindowFrame formats a window frame specification.
 // MySQL 8.0 format: ROWS/RANGE/GROUPS BETWEEN start AND end (all uppercase).
-func deparseWindowFrame(f *ast.WindowFrame) string {
-	var b strings.Builder
-
+func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
 	// Frame type
 	switch f.Type {
 	case ast.FrameRows:
@@ -1659,60 +1779,65 @@ func deparseWindowFrame(f *ast.WindowFrame) string {
 	if f.End != nil {
 		// BETWEEN ... AND ... form
 		b.WriteString(" BETWEEN ")
-		b.WriteString(deparseWindowFrameBound(f.Start))
+		writeWindowFrameBound(b, f.Start)
 		b.WriteString(" AND ")
-		b.WriteString(deparseWindowFrameBound(f.End))
+		writeWindowFrameBound(b, f.End)
 	} else {
 		// Single bound form
 		b.WriteString(" ")
-		b.WriteString(deparseWindowFrameBound(f.Start))
+		writeWindowFrameBound(b, f.Start)
 	}
-
-	return b.String()
 }
 
-// deparseWindowFrameBound formats a window frame bound.
-func deparseWindowFrameBound(fb *ast.WindowFrameBound) string {
+// writeWindowFrameBound formats a window frame bound.
+func writeWindowFrameBound(b *strings.Builder, fb *ast.WindowFrameBound) {
 	switch fb.Type {
 	case ast.BoundUnboundedPreceding:
-		return "UNBOUNDED PRECEDING"
+		b.WriteString("UNBOUNDED PRECEDING")
 	case ast.BoundPreceding:
-		return deparseExpr(fb.Offset) + " PRECEDING"
+		writeExpr(b, fb.Offset)
+		b.WriteString(" PRECEDING")
 	case ast.BoundCurrentRow:
-		return "CURRENT ROW"
+		b.WriteString("CURRENT ROW")
 	case ast.BoundFollowing:
-		return deparseExpr(fb.Offset) + " FOLLOWING"
+		writeExpr(b, fb.Offset)
+		b.WriteString(" FOLLOWING")
 	case ast.BoundUnboundedFollowing:
-		return "UNBOUNDED FOLLOWING"
+		b.WriteString("UNBOUNDED FOLLOWING")
 	default:
-		return "/* unknown bound */"
+		b.WriteString("/* unknown bound */")
 	}
 }
 
-// deparseExistsExpr formats an EXISTS expression.
+// writeExistsExpr formats an EXISTS expression.
 // MySQL 8.0 format: exists(select ...) — column aliases are omitted inside EXISTS.
-func deparseExistsExpr(n *ast.ExistsExpr) string {
+func writeExistsExpr(b *strings.Builder, n *ast.ExistsExpr) {
 	if n.Select != nil {
-		return "exists(" + deparseSelectStmtNoAlias(n.Select) + ")"
+		b.WriteString("exists(")
+		writeSelectStmt(b, n.Select, true)
+		b.WriteString(")")
+		return
 	}
-	return "exists(/* subquery */)"
+	b.WriteString("exists(/* subquery */)")
 }
 
-// deparseSubqueryExpr formats a subquery expression.
+// writeSubqueryExpr formats a subquery expression.
 // MySQL 8.0 format: (select ...) — scalar subqueries in expression context
 // omit column aliases (AS `...`).
-func deparseSubqueryExpr(n *ast.SubqueryExpr) string {
+func writeSubqueryExpr(b *strings.Builder, n *ast.SubqueryExpr) {
 	if n.Select != nil {
-		return "(" + deparseSelectStmtNoAlias(n.Select) + ")"
+		b.WriteString("(")
+		writeSelectStmt(b, n.Select, true)
+		b.WriteString(")")
+		return
 	}
-	return "(/* subquery */)"
+	b.WriteString("(/* subquery */)")
 }
 
-// deparseGroupConcatAlias generates the MySQL 8.0 auto-alias for GROUP_CONCAT.
+// writeGroupConcatAlias generates the MySQL 8.0 auto-alias for GROUP_CONCAT.
 // MySQL 8.0 alias format: GROUP_CONCAT(DISTINCT a ORDER BY a DESC SEPARATOR ';')
 // Uses uppercase keywords and original column names (not table-qualified).
-func deparseGroupConcatAlias(n *ast.FuncCallExpr) string {
-	var b strings.Builder
+func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("GROUP_CONCAT(")
 
 	// DISTINCT
@@ -1725,7 +1850,7 @@ func deparseGroupConcatAlias(n *ast.FuncCallExpr) string {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(deparseExprAlias(arg))
+		writeExprAlias(b, arg)
 	}
 
 	// ORDER BY — MySQL 8.0 alias omits ASC (default), only shows DESC
@@ -1735,7 +1860,7 @@ func deparseGroupConcatAlias(n *ast.FuncCallExpr) string {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString(deparseExprAlias(item.Expr))
+			writeExprAlias(b, item.Expr)
 			if item.Desc {
 				b.WriteString(" DESC")
 			}
@@ -1745,20 +1870,18 @@ func deparseGroupConcatAlias(n *ast.FuncCallExpr) string {
 	// SEPARATOR
 	b.WriteString(" SEPARATOR ")
 	if n.Separator != nil {
-		b.WriteString(deparseExprAlias(n.Separator))
+		writeExprAlias(b, n.Separator)
 	} else {
 		b.WriteString("','")
 	}
 
 	b.WriteString(")")
-	return b.String()
 }
 
-// deparseGroupConcat handles GROUP_CONCAT with its special syntax:
+// writeGroupConcat handles GROUP_CONCAT with its special syntax:
 // group_concat([distinct] expr [order by expr ASC|DESC] separator 'str')
 // MySQL 8.0 always shows the separator (default ',') and explicit ASC in ORDER BY.
-func deparseGroupConcat(n *ast.FuncCallExpr) string {
-	var b strings.Builder
+func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("group_concat(")
 
 	// DISTINCT
@@ -1771,7 +1894,7 @@ func deparseGroupConcat(n *ast.FuncCallExpr) string {
 		if i > 0 {
 			b.WriteString(",")
 		}
-		b.WriteString(deparseExpr(arg))
+		writeExpr(b, arg)
 	}
 
 	// ORDER BY — MySQL 8.0 always shows explicit ASC/DESC
@@ -1781,7 +1904,7 @@ func deparseGroupConcat(n *ast.FuncCallExpr) string {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString(deparseExpr(item.Expr))
+			writeExpr(b, item.Expr)
 			if item.Desc {
 				b.WriteString(" DESC")
 			} else {
@@ -1793,12 +1916,10 @@ func deparseGroupConcat(n *ast.FuncCallExpr) string {
 	// SEPARATOR — always shown; default is ','
 	b.WriteString(" separator ")
 	if n.Separator != nil {
-		b.WriteString(deparseExpr(n.Separator))
+		writeExpr(b, n.Separator)
 	} else {
 		b.WriteString("','")
 	}
 
 	b.WriteString(")")
-	return b.String()
 }
-

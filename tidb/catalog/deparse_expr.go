@@ -8,286 +8,322 @@ import (
 
 // DeparseAnalyzedExpr converts an analyzed expression back to SQL text.
 func DeparseAnalyzedExpr(expr AnalyzedExpr, q *Query) string {
+	var b strings.Builder
+	writeAnalyzedExpr(&b, expr, q)
+	return b.String()
+}
+
+// writeAnalyzedExpr writes an analyzed expression into the one builder of the
+// call, like every function below: returning each level as a string of its
+// own copied the text of a long chain (1 + 1 + ..., a AND b AND ...) once per
+// level.
+func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *Query) {
 	if expr == nil {
-		return ""
+		return
 	}
 	switch e := expr.(type) {
 	case *VarExprQ:
-		return deparseVarExprQ(e, q)
+		writeVarExprQ(b, e, q)
 	case *ConstExprQ:
-		return deparseConstExprQ(e)
+		writeConstExprQ(b, e)
 	case *OpExprQ:
-		return deparseOpExprQ(e, q)
+		writeOpExprQ(b, e, q)
 	case *BoolExprQ:
-		return deparseBoolExprQ(e, q)
+		writeBoolExprQ(b, e, q)
 	case *FuncCallExprQ:
-		return deparseFuncCallExprQ(e, q)
+		writeFuncCallExprQ(b, e, q)
 	case *CaseExprQ:
-		return deparseCaseExprQ(e, q)
+		writeCaseExprQ(b, e, q)
 	case *CoalesceExprQ:
-		return deparseCoalesceExprQ(e, q)
+		writeCoalesceExprQ(b, e, q)
 	case *NullTestExprQ:
-		return deparseNullTestExprQ(e, q)
+		writeNullTestExprQ(b, e, q)
 	case *InListExprQ:
-		return deparseInListExprQ(e, q)
+		writeInListExprQ(b, e, q)
 	case *BetweenExprQ:
-		return deparseBetweenExprQ(e, q)
+		writeBetweenExprQ(b, e, q)
 	case *SubLinkExprQ:
-		return deparseSubLinkExprQ(e, q)
+		writeSubLinkExprQ(b, e, q)
 	case *CastExprQ:
-		return deparseCastExprQ(e, q)
+		writeCastExprQ(b, e, q)
 	case *RowExprQ:
-		return deparseRowExprQ(e, q)
+		writeRowExprQ(b, e, q)
 	default:
-		return fmt.Sprintf("/* unknown expr %T */", expr)
+		fmt.Fprintf(b, "/* unknown expr %T */", expr)
 	}
 }
 
-func deparseVarExprQ(v *VarExprQ, q *Query) string {
+func writeVarExprQ(b *strings.Builder, v *VarExprQ, q *Query) {
 	if q == nil || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
-		return "?"
+		b.WriteString("?")
+		return
 	}
 	rte := q.RangeTable[v.RangeIdx]
 	colName := "?"
 	if v.AttNum >= 1 && v.AttNum <= len(rte.ColNames) {
 		colName = rte.ColNames[v.AttNum-1]
 	}
-	return backtickIDQ(rte.ERef) + "." + backtickIDQ(colName)
+	b.WriteString(backtickIDQ(rte.ERef))
+	b.WriteString(".")
+	b.WriteString(backtickIDQ(colName))
 }
 
-func deparseConstExprQ(c *ConstExprQ) string {
+func writeConstExprQ(b *strings.Builder, c *ConstExprQ) {
 	if c.IsNull {
-		return "NULL"
+		b.WriteString("NULL")
+		return
 	}
 	if isNumericLiteralQ(c.Value) || isBoolLiteralQ(c.Value) {
-		return c.Value
+		b.WriteString(c.Value)
+		return
 	}
-	return "'" + strings.ReplaceAll(c.Value, "'", "''") + "'"
+	b.WriteString("'")
+	b.WriteString(strings.ReplaceAll(c.Value, "'", "''"))
+	b.WriteString("'")
 }
 
-func deparseOpExprQ(o *OpExprQ, q *Query) string {
-	// Postfix operators: IS TRUE, IS FALSE, IS UNKNOWN, etc.
-	if o.Left != nil && o.Right == nil {
-		return "(" + DeparseAnalyzedExpr(o.Left, q) + " " + o.Op + ")"
-	}
-	// Prefix unary operators: -x, ~x, BINARY x
-	if o.Left == nil && o.Right != nil {
-		if o.Op == "-" || o.Op == "~" {
-			return "(" + o.Op + DeparseAnalyzedExpr(o.Right, q) + ")"
+func writeOpExprQ(b *strings.Builder, o *OpExprQ, q *Query) {
+	b.WriteString("(")
+	switch {
+	case o.Left != nil && o.Right == nil:
+		// Postfix operators: IS TRUE, IS FALSE, IS UNKNOWN, etc.
+		writeAnalyzedExpr(b, o.Left, q)
+		b.WriteString(" ")
+		b.WriteString(o.Op)
+	case o.Left == nil && o.Right != nil:
+		// Prefix unary operators: -x, ~x, BINARY x
+		b.WriteString(o.Op)
+		if o.Op != "-" && o.Op != "~" {
+			b.WriteString(" ")
 		}
-		return "(" + o.Op + " " + DeparseAnalyzedExpr(o.Right, q) + ")"
-	}
-	return "(" + DeparseAnalyzedExpr(o.Left, q) + " " + o.Op + " " + DeparseAnalyzedExpr(o.Right, q) + ")"
-}
-
-func deparseBoolExprQ(b *BoolExprQ, q *Query) string {
-	switch b.Op {
-	case BoolAnd:
-		parts := make([]string, len(b.Args))
-		for i, arg := range b.Args {
-			parts[i] = DeparseAnalyzedExpr(arg, q)
-		}
-		return "(" + strings.Join(parts, " and ") + ")"
-	case BoolOr:
-		parts := make([]string, len(b.Args))
-		for i, arg := range b.Args {
-			parts[i] = DeparseAnalyzedExpr(arg, q)
-		}
-		return "(" + strings.Join(parts, " or ") + ")"
-	case BoolNot:
-		if len(b.Args) > 0 {
-			return "(not " + DeparseAnalyzedExpr(b.Args[0], q) + ")"
-		}
-		return "(not ?)"
+		writeAnalyzedExpr(b, o.Right, q)
 	default:
-		return "?"
+		writeAnalyzedExpr(b, o.Left, q)
+		b.WriteString(" ")
+		b.WriteString(o.Op)
+		b.WriteString(" ")
+		writeAnalyzedExpr(b, o.Right, q)
 	}
+	b.WriteString(")")
 }
 
-func deparseFuncCallExprQ(f *FuncCallExprQ, q *Query) string {
+func writeBoolExprQ(b *strings.Builder, e *BoolExprQ, q *Query) {
+	var sep string
+	switch e.Op {
+	case BoolAnd:
+		sep = " and "
+	case BoolOr:
+		sep = " or "
+	case BoolNot:
+		if len(e.Args) > 0 {
+			b.WriteString("(not ")
+			writeAnalyzedExpr(b, e.Args[0], q)
+			b.WriteString(")")
+			return
+		}
+		b.WriteString("(not ?)")
+		return
+	default:
+		b.WriteString("?")
+		return
+	}
+	b.WriteString("(")
+	for i, arg := range e.Args {
+		if i > 0 {
+			b.WriteString(sep)
+		}
+		writeAnalyzedExpr(b, arg, q)
+	}
+	b.WriteString(")")
+}
+
+func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *Query) {
 	if f.IsAggregate && len(f.Args) == 0 && strings.ToLower(f.Name) == "count" {
-		return "count(*)"
+		b.WriteString("count(*)")
+		return
 	}
 
-	var sb strings.Builder
-	sb.WriteString(f.Name)
-	sb.WriteByte('(')
+	b.WriteString(f.Name)
+	b.WriteByte('(')
 
 	if f.Distinct {
-		sb.WriteString("distinct ")
+		b.WriteString("distinct ")
 	}
 
 	for i, arg := range f.Args {
 		if i > 0 {
-			sb.WriteString(", ")
+			b.WriteString(", ")
 		}
-		sb.WriteString(DeparseAnalyzedExpr(arg, q))
+		writeAnalyzedExpr(b, arg, q)
 	}
-	sb.WriteByte(')')
+	b.WriteByte(')')
 
 	if f.Over != nil {
-		sb.WriteString(" over ")
-		sb.WriteString(deparseWindowDefQ(f.Over, q))
+		b.WriteString(" over ")
+		writeWindowDefQ(b, f.Over, q)
 	}
-
-	return sb.String()
 }
 
-func deparseWindowDefQ(w *WindowDefQ, q *Query) string {
+func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *Query) {
 	if w.Name != "" && len(w.PartitionBy) == 0 && len(w.OrderBy) == 0 && w.FrameClause == "" {
-		return backtickIDQ(w.Name)
+		b.WriteString(backtickIDQ(w.Name))
+		return
 	}
 
-	var sb strings.Builder
-	sb.WriteByte('(')
+	b.WriteByte('(')
 	if w.Name != "" {
-		sb.WriteString(backtickIDQ(w.Name) + " ")
+		b.WriteString(backtickIDQ(w.Name) + " ")
 	}
 
 	needSpace := false
 	if len(w.PartitionBy) > 0 {
-		sb.WriteString("partition by ")
+		b.WriteString("partition by ")
 		for i, expr := range w.PartitionBy {
 			if i > 0 {
-				sb.WriteString(", ")
+				b.WriteString(", ")
 			}
-			sb.WriteString(DeparseAnalyzedExpr(expr, q))
+			writeAnalyzedExpr(b, expr, q)
 		}
 		needSpace = true
 	}
 	if len(w.OrderBy) > 0 {
 		if needSpace {
-			sb.WriteByte(' ')
+			b.WriteByte(' ')
 		}
-		sb.WriteString("order by ")
+		b.WriteString("order by ")
 		for i, sc := range w.OrderBy {
 			if i > 0 {
-				sb.WriteString(", ")
+				b.WriteString(", ")
 			}
 			if sc.TargetIdx >= 1 && sc.TargetIdx <= len(q.TargetList) {
-				sb.WriteString(DeparseAnalyzedExpr(q.TargetList[sc.TargetIdx-1].Expr, q))
+				writeAnalyzedExpr(b, q.TargetList[sc.TargetIdx-1].Expr, q)
 			}
 			if sc.Descending {
-				sb.WriteString(" desc")
+				b.WriteString(" desc")
 			}
 		}
 		needSpace = true
 	}
 	if w.FrameClause != "" {
 		if needSpace {
-			sb.WriteByte(' ')
+			b.WriteByte(' ')
 		}
-		sb.WriteString(strings.ToLower(w.FrameClause))
+		b.WriteString(strings.ToLower(w.FrameClause))
 	}
-	sb.WriteByte(')')
-	return sb.String()
+	b.WriteByte(')')
 }
 
-func deparseCaseExprQ(c *CaseExprQ, q *Query) string {
-	var sb strings.Builder
-	sb.WriteString("case")
+func writeCaseExprQ(b *strings.Builder, c *CaseExprQ, q *Query) {
+	b.WriteString("case")
 	if c.TestExpr != nil {
-		sb.WriteByte(' ')
-		sb.WriteString(DeparseAnalyzedExpr(c.TestExpr, q))
+		b.WriteByte(' ')
+		writeAnalyzedExpr(b, c.TestExpr, q)
 	}
 	for _, w := range c.Args {
-		sb.WriteString(" when ")
-		sb.WriteString(DeparseAnalyzedExpr(w.Cond, q))
-		sb.WriteString(" then ")
-		sb.WriteString(DeparseAnalyzedExpr(w.Then, q))
+		b.WriteString(" when ")
+		writeAnalyzedExpr(b, w.Cond, q)
+		b.WriteString(" then ")
+		writeAnalyzedExpr(b, w.Then, q)
 	}
 	if c.Default != nil {
-		sb.WriteString(" else ")
-		sb.WriteString(DeparseAnalyzedExpr(c.Default, q))
+		b.WriteString(" else ")
+		writeAnalyzedExpr(b, c.Default, q)
 	}
-	sb.WriteString(" end")
-	return sb.String()
+	b.WriteString(" end")
 }
 
-func deparseCoalesceExprQ(c *CoalesceExprQ, q *Query) string {
-	var sb strings.Builder
-	sb.WriteString("coalesce(")
+func writeCoalesceExprQ(b *strings.Builder, c *CoalesceExprQ, q *Query) {
+	b.WriteString("coalesce(")
 	for i, arg := range c.Args {
 		if i > 0 {
-			sb.WriteString(", ")
+			b.WriteString(", ")
 		}
-		sb.WriteString(DeparseAnalyzedExpr(arg, q))
+		writeAnalyzedExpr(b, arg, q)
 	}
-	sb.WriteByte(')')
-	return sb.String()
+	b.WriteByte(')')
 }
 
-func deparseNullTestExprQ(n *NullTestExprQ, q *Query) string {
-	arg := DeparseAnalyzedExpr(n.Arg, q)
+func writeNullTestExprQ(b *strings.Builder, n *NullTestExprQ, q *Query) {
+	b.WriteString("(")
+	writeAnalyzedExpr(b, n.Arg, q)
 	if n.IsNull {
-		return "(" + arg + " is null)"
+		b.WriteString(" is null)")
+	} else {
+		b.WriteString(" is not null)")
 	}
-	return "(" + arg + " is not null)"
 }
 
-func deparseInListExprQ(in *InListExprQ, q *Query) string {
-	var sb strings.Builder
-	sb.WriteString(DeparseAnalyzedExpr(in.Arg, q))
+func writeInListExprQ(b *strings.Builder, in *InListExprQ, q *Query) {
+	writeAnalyzedExpr(b, in.Arg, q)
 	if in.Negated {
-		sb.WriteString(" not in (")
+		b.WriteString(" not in (")
 	} else {
-		sb.WriteString(" in (")
+		b.WriteString(" in (")
 	}
 	for i, item := range in.List {
 		if i > 0 {
-			sb.WriteString(", ")
+			b.WriteString(", ")
 		}
-		sb.WriteString(DeparseAnalyzedExpr(item, q))
+		writeAnalyzedExpr(b, item, q)
 	}
-	sb.WriteByte(')')
-	return sb.String()
+	b.WriteByte(')')
 }
 
-func deparseBetweenExprQ(be *BetweenExprQ, q *Query) string {
-	arg := DeparseAnalyzedExpr(be.Arg, q)
-	lower := DeparseAnalyzedExpr(be.Lower, q)
-	upper := DeparseAnalyzedExpr(be.Upper, q)
+func writeBetweenExprQ(b *strings.Builder, be *BetweenExprQ, q *Query) {
+	b.WriteString("(")
+	writeAnalyzedExpr(b, be.Arg, q)
 	if be.Negated {
-		return "(" + arg + " not between " + lower + " and " + upper + ")"
+		b.WriteString(" not between ")
+	} else {
+		b.WriteString(" between ")
 	}
-	return "(" + arg + " between " + lower + " and " + upper + ")"
+	writeAnalyzedExpr(b, be.Lower, q)
+	b.WriteString(" and ")
+	writeAnalyzedExpr(b, be.Upper, q)
+	b.WriteString(")")
 }
 
-func deparseSubLinkExprQ(s *SubLinkExprQ, q *Query) string {
-	inner := DeparseQuery(s.Subquery)
+func writeSubLinkExprQ(b *strings.Builder, s *SubLinkExprQ, q *Query) {
 	switch s.Kind {
 	case SubLinkExists:
-		return "exists (" + inner + ")"
-	case SubLinkScalar:
-		return "(" + inner + ")"
+		b.WriteString("exists (")
 	case SubLinkIn:
-		return DeparseAnalyzedExpr(s.TestExpr, q) + " in (" + inner + ")"
+		writeAnalyzedExpr(b, s.TestExpr, q)
+		b.WriteString(" in (")
 	case SubLinkAny:
-		return DeparseAnalyzedExpr(s.TestExpr, q) + " " + s.Op + " any (" + inner + ")"
+		writeAnalyzedExpr(b, s.TestExpr, q)
+		b.WriteString(" ")
+		b.WriteString(s.Op)
+		b.WriteString(" any (")
 	case SubLinkAll:
-		return DeparseAnalyzedExpr(s.TestExpr, q) + " " + s.Op + " all (" + inner + ")"
-	default:
-		return "(" + inner + ")"
+		writeAnalyzedExpr(b, s.TestExpr, q)
+		b.WriteString(" ")
+		b.WriteString(s.Op)
+		b.WriteString(" all (")
+	default: // SubLinkScalar
+		b.WriteString("(")
 	}
+	writeQueryQ(b, s.Subquery)
+	b.WriteString(")")
 }
 
-func deparseCastExprQ(c *CastExprQ, q *Query) string {
-	arg := DeparseAnalyzedExpr(c.Arg, q)
-	typeName := deparseResolvedTypeQ(c.TargetType)
-	return "cast(" + arg + " as " + typeName + ")"
+func writeCastExprQ(b *strings.Builder, c *CastExprQ, q *Query) {
+	b.WriteString("cast(")
+	writeAnalyzedExpr(b, c.Arg, q)
+	b.WriteString(" as ")
+	b.WriteString(deparseResolvedTypeQ(c.TargetType))
+	b.WriteString(")")
 }
 
-func deparseRowExprQ(r *RowExprQ, q *Query) string {
-	var sb strings.Builder
-	sb.WriteString("row(")
+func writeRowExprQ(b *strings.Builder, r *RowExprQ, q *Query) {
+	b.WriteString("row(")
 	for i, arg := range r.Args {
 		if i > 0 {
-			sb.WriteString(", ")
+			b.WriteString(", ")
 		}
-		sb.WriteString(DeparseAnalyzedExpr(arg, q))
+		writeAnalyzedExpr(b, arg, q)
 	}
-	sb.WriteByte(')')
-	return sb.String()
+	b.WriteByte(')')
 }
 
 func deparseResolvedTypeQ(rt *ResolvedType) string {
