@@ -98,6 +98,9 @@ var oceanBaseWalkCases = []oceanBaseCase{
 	// A dropped database's events stay listed under its name, and the sync
 	// lists them; their names are free.
 	{walkCase: walkCase{name: "events of a dropped database", setup: "CREATE EVENT gh ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nDROP DATABASE shop;\nCREATE DATABASE shop;\nUSE shop;\nCREATE TABLE r (id int PRIMARY KEY);", change: "CREATE EVENT gh ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nCREATE EVENT GH ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nDROP EVENT nosuch;\nALTER EVENT nosuch COMMENT 'x';\nDROP EVENT gh;\nDROP EVENT gh;\nCREATE EVENT `shop.e3` ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nDROP EVENT e3;"}},
+	// The statement's scope keyword reaches only its first assignment, and
+	// an assignment after one to DEFAULT does not take its value.
+	{walkCase: walkCase{name: "SET foreign_key_checks", change: "SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 0;\nSET sql_mode = DEFAULT, foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nSET sql_mode = DEFAULT, foreign_key_checks = 0;\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 0, sql_mode = DEFAULT;\nCREATE TABLE w2 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 1;\nCREATE TABLE w3 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));"}},
 	{walkCase: walkCase{name: "triggers", change: "CREATE TRIGGER tr BEFORE UPDATE ON trg FOR EACH ROW SET NEW.a = 2;\nCREATE TRIGGER tv BEFORE INSERT ON v FOR EACH ROW SET NEW.id = 1;\nCREATE TRIGGER IF NOT EXISTS tr BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;\nCREATE TRIGGER TR BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;"}},
 }
 

@@ -426,12 +426,27 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 // @@session.foreign_key_checks = 0 turns the session's checks off, and
 // SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves them as
 // they are. omni's parser takes a scope keyword only first.
+//
+// OceanBase differs twice (verified on 4.3.5). Its grammar gives each
+// assignment a scope of its own, so the statement's keyword reaches only
+// the first: SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0
+// turns the session's checks off. And an assignment after one to DEFAULT
+// does not take its value: SET sql_mode = DEFAULT, foreign_key_checks = 0
+// leaves them on, so the walk takes the checks as Unknown after it.
 func (b *builder) set(v *ast.SetStmt) bool {
 	if b.callsStoredFunction(v) {
 		b.forgetTemporary()
 	}
 	global := strings.EqualFold(v.Scope, "GLOBAL") || strings.EqualFold(v.Scope, "PERSIST") || strings.EqualFold(v.Scope, "PERSIST_ONLY")
-	for _, a := range v.Assignments {
+	afterDefault := false
+	for i, a := range v.Assignments {
+		if i > 0 && b.w.oceanBase {
+			global = false
+		}
+		unknown := afterDefault && b.w.oceanBase
+		if _, ok := a.Value.(*ast.DefaultExpr); ok {
+			afterDefault = true
+		}
 		if a.Column == nil {
 			continue
 		}
@@ -461,6 +476,9 @@ func (b *builder) set(v *ast.SetStmt) bool {
 			if x.Value {
 				on = review.SwitchOn
 			}
+		}
+		if unknown {
+			on = review.SwitchUnknown
 		}
 		b.Session(func() { b.w.fkChecks = on })
 	}

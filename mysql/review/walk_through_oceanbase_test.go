@@ -124,6 +124,25 @@ func TestWalkThroughOceanBase(t *testing.T) {
 		oneFindingOB(t, "CREATE INDEX "+long(65)+" ON t (a);", 0, "Identifier name "+long(65)+" is too long", shop)
 	})
 
+	t.Run("SET foreign_key_checks", func(t *testing.T) {
+		on := review.Target{Schema: oceanBaseSchema(), LowerCaseTableNames: 1, ForeignKeyChecks: review.SwitchOn}
+		onMySQL := review.Target{Schema: walkSchema(), LowerCaseTableNames: 1, ForeignKeyChecks: review.SwitchOn}
+		const fk = "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));"
+		const missing = "Foreign key target table nosuch does not exist"
+		// A scope keyword reaches only the first assignment.
+		const scoped = "SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\n" + fk
+		oneFinding(t, scoped, 1, missing, onMySQL)
+		noFindingOB(t, scoped, on)
+		oneFindingOB(t, "SET GLOBAL foreign_key_checks = 0;\n"+fk, 1, missing, on)
+		oneFindingOB(t, "SET GLOBAL foreign_key_checks = 0, wait_timeout = 28800;\n"+fk, 1, missing, on)
+		// An assignment after one to DEFAULT may not take its value.
+		const afterDefault = "SET foreign_key_checks = 0;\nSET sql_mode = DEFAULT, foreign_key_checks = 1;\n" + fk
+		oneFinding(t, afterDefault, 2, missing, onMySQL)
+		noFindingOB(t, afterDefault, on)
+		oneFindingOB(t, "SET foreign_key_checks = 0;\nSET foreign_key_checks = 1, sql_mode = DEFAULT;\n"+fk, 2, missing, on)
+		oneFindingOB(t, "SET foreign_key_checks = 0;\nSET sql_mode = 'STRICT_TRANS_TABLES', foreign_key_checks = 1;\n"+fk, 2, missing, on)
+	})
+
 	t.Run("DROP DATABASE drops its temporary tables", func(t *testing.T) {
 		const change = "CREATE DATABASE q;\nCREATE TEMPORARY TABLE q.tmp (a int);\nDROP DATABASE q;\nCREATE DATABASE q;\nDROP TEMPORARY TABLE q.tmp;"
 		noFinding(t, change, mysql)
