@@ -539,6 +539,12 @@ ORDER BY 1`
 // and its views, materialized views, sequences but identity ones, and
 // functions, procedures, and packages.
 //
+// Bytebase reads the ALL_ views; to SYSTEM they show the schema's rows as
+// the DBA_ views do, but their privilege checks cost seconds of hard parse
+// per sync, and the sync runs once per case and per sweep base. For the
+// same reason the materialized views are read first and their containers
+// left out here, not by a subquery on them in the tables' query.
+//
 // bytebase: backend/plugin/db/oracle/sync.go — getTables, getTableColumns, getConstraints, getIndexesAndConstraints, getTriggers, getViews, getMaterializedViews, getSequences, getRoutines
 func walkSync(t testing.TB, conn *sql.Conn, schema string) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
@@ -569,21 +575,24 @@ func walkSync(t testing.TB, conn *sql.Conn, schema string) *metadata.DatabaseSch
 		}
 	}
 	s := &metadata.SchemaMetadata{}
+	mviews := make(map[string]*metadata.MaterializedViewMetadata)
+	query(`SELECT mview_name FROM dba_mviews WHERE owner = :1`, func(v []sql.NullString) {
+		mviews[v[0].String] = &metadata.MaterializedViewMetadata{Name: v[0].String}
+		s.MaterializedViews = append(s.MaterializedViews, mviews[v[0].String])
+	})
 	tables := make(map[string]*metadata.TableMetadata)
-	query(`SELECT table_name, 0 FROM all_tables WHERE owner = :1 AND table_name NOT IN (SELECT mview_name FROM all_mviews WHERE owner = all_tables.owner)
-UNION ALL SELECT table_name, 1 FROM all_object_tables WHERE owner = :1 AND table_name NOT IN (SELECT mview_name FROM all_mviews WHERE owner = all_object_tables.owner)`, func(v []sql.NullString) {
+	query(`SELECT table_name, 0 FROM dba_tables WHERE owner = :1
+UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v []sql.NullString) {
+		if mviews[v[0].String] != nil {
+			return
+		}
 		tables[v[0].String] = &metadata.TableMetadata{Name: v[0].String, SkipDump: v[1].String == "1"}
 		s.Tables = append(s.Tables, tables[v[0].String])
 	})
-	query(`SELECT table_name, column_name FROM all_tab_cols WHERE owner = :1 AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name`, func(v []sql.NullString) {
+	query(`SELECT table_name, column_name FROM dba_tab_cols WHERE owner = :1 AND user_generated = 'YES' ORDER BY table_name, column_id NULLS LAST, column_name`, func(v []sql.NullString) {
 		if tb, ok := tables[v[0].String]; ok {
 			tb.Columns = append(tb.Columns, &metadata.ColumnMetadata{Name: v[1].String})
 		}
-	})
-	mviews := make(map[string]*metadata.MaterializedViewMetadata)
-	query(`SELECT mview_name FROM all_mviews WHERE owner = :1`, func(v []sql.NullString) {
-		mviews[v[0].String] = &metadata.MaterializedViewMetadata{Name: v[0].String}
-		s.MaterializedViews = append(s.MaterializedViews, mviews[v[0].String])
 	})
 	indexed := make(map[string]bool)
 	addIndex := func(table string, idx *metadata.IndexMetadata) {
@@ -593,7 +602,7 @@ UNION ALL SELECT table_name, 1 FROM all_object_tables WHERE owner = :1 AND table
 			mv.Indexes = append(mv.Indexes, idx)
 		}
 	}
-	query(`SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM all_constraints WHERE owner = :1`, func(v []sql.NullString) {
+	query(`SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = :1`, func(v []sql.NullString) {
 		table, name := v[0].String, v[1].String
 		switch v[2].String {
 		case "P", "U":
@@ -612,12 +621,12 @@ UNION ALL SELECT table_name, 1 FROM all_object_tables WHERE owner = :1 AND table
 	// An index holds a column the user made unless every column it lists
 	// is a hidden SYS_NC column and it has no expression.
 	userColumns := make(map[string]bool)
-	query(`SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM all_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM all_ind_columns c WHERE c.table_owner = :1`, func(v []sql.NullString) {
+	query(`SELECT c.index_name, c.column_name, (SELECT COUNT(*) FROM dba_ind_expressions e WHERE e.index_owner = c.index_owner AND e.index_name = c.index_name) FROM dba_ind_columns c WHERE c.table_owner = :1`, func(v []sql.NullString) {
 		if !strings.HasPrefix(v[1].String, "SYS_NC") || v[2].String != "0" {
 			userColumns[v[0].String] = true
 		}
 	})
-	query(`SELECT table_name, index_name, index_type FROM all_indexes WHERE owner = :1`, func(v []sql.NullString) {
+	query(`SELECT table_name, index_name, index_type FROM dba_indexes WHERE owner = :1`, func(v []sql.NullString) {
 		table, name := v[0].String, v[1].String
 		if indexed[table+"."+name] || strings.HasPrefix(name, "SYS_") || !userColumns[name] {
 			return
@@ -625,11 +634,11 @@ UNION ALL SELECT table_name, 1 FROM all_object_tables WHERE owner = :1 AND table
 		addIndex(table, &metadata.IndexMetadata{Name: name, Type: v[2].String})
 	})
 	views := make(map[string]*metadata.ViewMetadata)
-	query(`SELECT view_name FROM all_views WHERE owner = :1`, func(v []sql.NullString) {
+	query(`SELECT view_name FROM dba_views WHERE owner = :1`, func(v []sql.NullString) {
 		views[v[0].String] = &metadata.ViewMetadata{Name: v[0].String}
 		s.Views = append(s.Views, views[v[0].String])
 	})
-	query(`SELECT trigger_name, table_name, base_object_type FROM all_triggers WHERE owner = :1 AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW')`, func(v []sql.NullString) {
+	query(`SELECT trigger_name, table_name, base_object_type FROM dba_triggers WHERE owner = :1 AND table_owner = owner AND table_name IS NOT NULL AND base_object_type IN ('TABLE', 'VIEW')`, func(v []sql.NullString) {
 		tr := &metadata.TriggerMetadata{Name: v[0].String}
 		switch {
 		case v[2].String == "VIEW":
@@ -642,10 +651,10 @@ UNION ALL SELECT table_name, 1 FROM all_object_tables WHERE owner = :1 AND table
 			mviews[v[1].String].Triggers = append(mviews[v[1].String].Triggers, tr)
 		}
 	})
-	query(`SELECT sequence_name FROM all_sequences WHERE sequence_owner = :1 AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\'`, func(v []sql.NullString) {
+	query(`SELECT sequence_name FROM dba_sequences WHERE sequence_owner = :1 AND sequence_name NOT LIKE 'ISEQ$$\_%' ESCAPE '\'`, func(v []sql.NullString) {
 		s.Sequences = append(s.Sequences, &metadata.SequenceMetadata{Name: v[0].String})
 	})
-	query(`SELECT DISTINCT name, type FROM all_source WHERE owner = :1 AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')`, func(v []sql.NullString) {
+	query(`SELECT DISTINCT name, type FROM dba_source WHERE owner = :1 AND type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')`, func(v []sql.NullString) {
 		switch v[1].String {
 		case "FUNCTION":
 			s.Functions = append(s.Functions, &metadata.FunctionMetadata{Name: v[0].String})
@@ -666,11 +675,11 @@ const walkSweepPerBase = 10
 // random statements. Precision must hold on every one; recall is logged.
 // WALK_SWEEP_N sets the number of changes, WALK_SWEEP_SEED the seed.
 //
-// The sync is the costly part, a second or so of dictionary views, so each
-// base is synced once and serves walkSweepPerBase changes, each on the base
-// made again: made again, it is the same but for the names Oracle
-// generates, which the walk never claims. Two workers run at once, each on
-// schemas of its own.
+// The sync costs most of a second of dictionary views, a change about a
+// third of one, so each base is synced once and serves walkSweepPerBase
+// changes, each on the base made again: made again, it is the same but for
+// the names Oracle generates, which the walk never claims. Two workers run
+// at once, each on schemas of its own.
 func TestWalkThroughSweepOracle(t *testing.T) {
 	n, seed, _ := walktest.SweepParams(t, 40, 20261028, "")
 	admin := startOracle(t)
