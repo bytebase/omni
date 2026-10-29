@@ -55,6 +55,10 @@ func (p *Parser) parseFromClause() ([]ast.Node, error) {
 // parseJoinTree parses one comma-separated FROM item: a primary source followed
 // by zero or more explicit JOIN suffixes, folded into a left-deep *JoinExpr.
 func (p *Parser) parseJoinTree() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parseTablePrimary()
 	if err != nil {
 		return nil, err

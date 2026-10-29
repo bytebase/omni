@@ -67,10 +67,14 @@ const (
 func ParseExpression(input string) (ast.Node, []ParseError) {
 	p := &Parser{lexer: NewLexer(input), input: input}
 	p.advance()
+	first := p.cur
 
 	node, err := p.parseExpr()
 	if err != nil {
 		return nil, errToSlice(err)
+	}
+	if treeTooHigh(node, len(input)) {
+		return nil, []ParseError{*nestedTooDeeply(first.Loc)}
 	}
 	if p.cur.Type != tokEOF {
 		text := p.cur.Str
@@ -157,6 +161,10 @@ func (p *Parser) parseAnd() (ast.Node, error) {
 // non-NOT token falls through to the comparison level.
 func (p *Parser) parseNotExpr() (ast.Node, error) {
 	if p.cur.Type == kwNOT {
+		if err := p.enterNesting(); err != nil {
+			return nil, err
+		}
+		defer p.leaveNesting()
 		tok := p.advance()
 		operand, err := p.parseNotExpr()
 		if err != nil {
@@ -319,6 +327,10 @@ func (p *Parser) parseQuantifiedRHS(lhsStart int) (quantifiedRHS, error) {
 // (handled by the caller); above it live unary and postfix (handled by
 // parsePrefixExpr).
 func (p *Parser) parseBinaryExpr(minBP int) (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	left, err := p.parsePrefixExpr()
 	if err != nil {
 		return nil, err
@@ -1970,6 +1982,10 @@ func (p *Parser) parseNewArg() (*ast.StructFieldExpr, error) {
 // `( path )`; the value expressions are retained for walking. A trailing comma
 // is permitted.
 func (p *Parser) parseBracedConstructor(typeRef *ast.TypeRef) (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	openTok := p.advance() // '{'
 	bc := &ast.BracedConstructor{Type: typeRef, Loc: openTok.Loc}
 	if typeRef != nil {
@@ -2257,7 +2273,11 @@ func (p *Parser) parseSubqueryBody(start int) (ast.Node, int, error) {
 // matching ')') is a syntax error.
 func (p *Parser) parseSubqueryBodyRaw(start int) (raw string, textStart, end int, err error) {
 	innerStart := p.cur.Loc.Start
-	if q, ok := p.parseSubqueryInPlace(); ok {
+	q, ok, err := p.parseSubqueryInPlace()
+	if err != nil {
+		return "", 0, 0, err
+	}
+	if ok {
 		raw, textStart, end = p.finishSubqueryBody(innerStart, p.prev.Loc.End)
 		p.recordParsedSubquery(textStart, q)
 		return raw, textStart, end, nil
@@ -2277,6 +2297,7 @@ func (p *Parser) parseSubqueryBodyRaw(start int) (raw string, textStart, end int
 		return "", 0, 0, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: unterminated subquery (expected ')')"}
 	}
 	raw, textStart, end = p.finishSubqueryBody(innerStart, innerEnd)
+	p.recordTextSubqueryDepth(ast.Loc{Start: start, End: end})
 	return raw, textStart, end, nil
 }
 
@@ -2284,43 +2305,76 @@ func (p *Parser) parseSubqueryBodyRaw(start int) (raw string, textStart, end int
 // parses its text: with no column-schema context, and failing on any
 // diagnostic the nested parser would have dropped. On success p.cur is the
 // ')' that closes the body; otherwise the parser is left where it started.
-func (p *Parser) parseSubqueryInPlace() (ast.Node, bool) {
+// A body nested past maxNestingDepth fails with the nesting error instead:
+// reparsing its text, which starts at the same depth, would fail the same way.
+func (p *Parser) parseSubqueryInPlace() (ast.Node, bool, error) {
 	cp := p.checkpoint()
 	inArrayColumnSchema := p.inArrayColumnSchema
 	p.inArrayColumnSchema = false
 	q, err := p.parseQuery()
 	p.inArrayColumnSchema = inArrayColumnSchema
 	if err == nil && p.cur.Type == int(')') && len(p.errors) == cp.errLen {
-		return q, true
+		return q, true, nil
 	}
 	p.restore(cp)
-	return nil, false
+	if isNestingError(err) {
+		return nil, false, err
+	}
+	return nil, false, nil
+}
+
+// recordTextSubqueryDepth notes the current nesting depth for the subquery
+// node at loc, whose body is kept as text for reparseSubquery.
+func (p *Parser) recordTextSubqueryDepth(loc ast.Loc) {
+	if p.textSubqueryDepth == nil {
+		p.textSubqueryDepth = make(map[ast.Loc]int)
+	}
+	p.textSubqueryDepth[loc] = p.depth
 }
 
 // skipBracketGroup moves from the opening bracket at p.cur to the closing
 // bracket that balances it, left as p.cur, or to EOF when none does. A group
-// scanned before is jumped over (see bracketGroupEnd).
+// scanned before is jumped over (see bracketGroupEnd). The scan keeps the
+// groups it is inside on a stack rather than recursing once per nested group,
+// so no nesting overflows it.
 func (p *Parser) skipBracketGroup() {
-	open := p.cur.Loc.Start
-	if end, ok := p.bracketGroupEnd[open]; ok {
-		p.cur, p.prev, p.nextBuf, p.hasNext = end.cur, end.prev, end.nextBuf, end.hasNext
-		p.lexer.pos, p.lexer.start = end.lexPos, end.lexStart
-		return
-	}
-	p.advance() // consume the opening bracket
-	for !isCloseBracket(p.cur.Type) && p.cur.Type != tokEOF {
-		if isOpenBracket(p.cur.Type) {
-			p.skipBracketGroup()
-			if p.cur.Type == tokEOF {
-				break
+	var open []int // the opening offsets of the groups being scanned, innermost last
+	ended := false // p.cur ends a group (its closing bracket, or EOF), not its body's next token
+	for {
+		if ended {
+			if len(open) == 0 {
+				return
+			}
+			if p.cur.Type != tokEOF {
+				p.advance() // the closing bracket of the group that ended
+				ended = false
 			}
 		}
-		p.advance()
+		if !ended {
+			for !isCloseBracket(p.cur.Type) && !isOpenBracket(p.cur.Type) && p.cur.Type != tokEOF {
+				p.advance()
+			}
+			if isOpenBracket(p.cur.Type) {
+				if end, ok := p.bracketGroupEnd[p.cur.Loc.Start]; ok {
+					p.cur, p.prev, p.nextBuf, p.hasNext = end.cur, end.prev, end.nextBuf, end.hasNext
+					p.lexer.pos, p.lexer.start = end.lexPos, end.lexStart
+					ended = true
+				} else {
+					open = append(open, p.cur.Loc.Start)
+					p.advance() // consume the opening bracket
+				}
+				continue
+			}
+		}
+		// p.cur closes the innermost open group, or is EOF, which ends every
+		// open group.
+		if p.bracketGroupEnd == nil {
+			p.bracketGroupEnd = make(map[int]parserCheckpoint)
+		}
+		p.bracketGroupEnd[open[len(open)-1]] = p.checkpoint()
+		open = open[:len(open)-1]
+		ended = true
 	}
-	if p.bracketGroupEnd == nil {
-		p.bracketGroupEnd = make(map[int]parserCheckpoint)
-	}
-	p.bracketGroupEnd[open] = p.checkpoint()
 }
 
 // finishSubqueryBody consumes the ')' that closes a body whose tokens span
@@ -2457,7 +2511,9 @@ func (p *Parser) captureBareSelectArg(start ast.Loc) ast.Node {
 		p.advance()
 	}
 	raw := strings.TrimSpace(p.input[absIndex(p, innerStart):absIndex(p, innerEnd)])
-	return &ast.SubqueryExpr{RawText: raw, Loc: ast.Loc{Start: start.Start, End: innerEnd}}
+	loc := ast.Loc{Start: start.Start, End: innerEnd}
+	p.recordTextSubqueryDepth(loc)
+	return &ast.SubqueryExpr{RawText: raw, Loc: loc}
 }
 
 // parseGeneralizedPath parses a generalized_path_expression and renders it to a

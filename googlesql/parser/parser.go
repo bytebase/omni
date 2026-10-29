@@ -76,6 +76,14 @@ type Parser struct {
 	// enclosing body whose parse fails after it; jumping over the groups
 	// already scanned keeps that linear.
 	bracketGroupEnd map[int]parserCheckpoint
+
+	depth int // nesting depth of the productions being parsed (see enterNesting)
+
+	// textSubqueryDepth holds, by the subquery node's Loc, the nesting depth
+	// at which each subquery body captured as text (not parsed in place)
+	// sits. reparseSubquery starts its nested parser at that depth, so the
+	// nesting limit counts the levels around the body too.
+	textSubqueryDepth map[ast.Loc]int
 }
 
 // parserCheckpoint is the parser and lexer position a speculative parse
@@ -606,9 +614,28 @@ func (p *Parser) parseStmtWithSubqueries(parse func() (ast.Node, error)) (ast.No
 // Diagnose still surfaces a malformed embedded subquery) but never abort the
 // outer parse. The walk descends into the filled subqueries too, so arbitrarily
 // nested subqueries are completed.
+//
+// The walk runs before parseSingle measures the tree's height (the tree is
+// not complete until the bodies are attached), so it keeps its own stack
+// instead of recursing, and stops past maxTreeHeight levels: parseSingle
+// rejects a tree that deep.
 func (p *Parser) fillSubqueries(node ast.Node) {
-	ast.Inspect(node, func(n ast.Node) bool {
-		switch sq := n.(type) {
+	if node == nil {
+		return
+	}
+	type level struct {
+		node  ast.Node
+		depth int
+	}
+	stack := []level{{node, 1}}
+	var kids childLister
+	for len(stack) > 0 {
+		top := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if top.depth > maxTreeHeight {
+			return
+		}
+		switch sq := top.node.(type) {
 		case *ast.SubqueryExpr:
 			if sq.Query == nil {
 				sq.Query = p.fillSubquery(sq.RawText, sq.TextStart, sq.Loc)
@@ -622,8 +649,13 @@ func (p *Parser) fillSubqueries(node ast.Node) {
 				sq.Query = p.fillSubquery(sq.RawText, sq.TextStart, sq.Loc)
 			}
 		}
-		return true
-	})
+		// Push the children last first, so they are visited in order, as a
+		// recursive pre-order walk visits them.
+		kids.list(top.node)
+		for i := len(kids.children) - 1; i >= 0; i-- {
+			stack = append(stack, level{kids.children[i], top.depth + 1})
+		}
+	}
 }
 
 // fillSubquery re-parses one captured body, or attaches the parse
@@ -639,7 +671,7 @@ func (p *Parser) fillSubquery(raw string, textStart int, loc ast.Loc) ast.Node {
 		p.errors = append(p.errors, ParseError{Position: loc.Start, End: loc.End, Message: "syntax error: expected a query inside the parentheses"})
 		return nil
 	}
-	return p.reparseSubquery(raw, textStart)
+	return p.reparseSubquery(raw, textStart, p.textSubqueryDepth[loc])
 }
 
 // reparseSubquery parses a captured subquery body (the RawText between the outer
@@ -649,7 +681,12 @@ func (p *Parser) fillSubquery(raw string, textStart int, loc ast.Loc) ast.Node {
 // coordinates. A parse failure records the error and returns nil (the node
 // keeps RawText, so round-trip still works). The returned QueryStmt's own
 // embedded subqueries are filled by the fillSubqueries walk that attaches it.
-func (p *Parser) reparseSubquery(raw string, textStart int) ast.Node {
+//
+// The nested parser starts at depth, the nesting depth the body sits at in
+// the outer statement. A fresh count would let each fill descend another
+// maxNestingDepth levels, and the fills chain: every body attached is walked
+// for the bodies inside it.
+func (p *Parser) reparseSubquery(raw string, textStart, depth int) ast.Node {
 	base := textStart
 	if base < 0 {
 		base = 0
@@ -658,6 +695,7 @@ func (p *Parser) reparseSubquery(raw string, textStart int) ast.Node {
 		lexer:      NewLexerWithOffset(raw, base),
 		input:      raw,
 		baseOffset: base,
+		depth:      depth,
 	}
 	sub.advance()
 	if sub.cur.Type == tokEOF {
@@ -688,6 +726,12 @@ func (p *Parser) reparseSubquery(raw string, textStart int) ast.Node {
 	// enclosing level.
 	for off, nested := range sub.parsedSubqueries {
 		p.recordParsedSubquery(off, nested)
+	}
+	for loc, depth := range sub.textSubqueryDepth {
+		if p.textSubqueryDepth == nil {
+			p.textSubqueryDepth = make(map[ast.Loc]int)
+		}
+		p.textSubqueryDepth[loc] = depth
 	}
 	return q
 }
@@ -834,6 +878,7 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 		strictTrailing: strictTrailing,
 	}
 	p.advance() // prime cur with the first token
+	first := p.cur
 
 	var result ast.Node
 	if p.cur.Type != tokEOF {
@@ -854,6 +899,12 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 					Message: err.Error(),
 				})
 			}
+		} else if treeTooHigh(node, len(segText)) {
+			// A left-deep chain parsed by a loop is shallow to parse but deep
+			// as a tree, and every consumer that walks the tree recursively
+			// would overflow the stack on it.
+			p.errors = append(p.errors, *nestedTooDeeply(first.Loc))
+			node = nil
 		} else if strictTrailing && p.cur.Type != tokEOF {
 			// The grammar root is `stmts EOF` (antlr_rules.md §1): a complete
 			// statement must be followed by end-of-input. parseStmt succeeded but

@@ -340,6 +340,10 @@ func isParameterSpelling(s string) bool {
 // types, variable declarations, and (via the DDL nodes) column schemas.
 // Returns a *ParseError if the current token does not begin a valid type.
 func (p *Parser) parseType() (*DataType, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	dt, err := p.parseRawType()
 	if err != nil {
 		return nil, err

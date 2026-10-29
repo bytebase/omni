@@ -64,6 +64,10 @@ func qLoc(n ast.Node) ast.Loc {
 // for every subquery body (table_subquery, parenthesized_query, IN/EXISTS/ARRAY
 // subqueries). The returned node is always an *ast.QueryStmt.
 func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	start := p.cur.Loc.Start
 
 	q := &ast.QueryStmt{Loc: ast.Loc{Start: start}}

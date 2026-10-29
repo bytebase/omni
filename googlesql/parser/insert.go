@@ -678,6 +678,10 @@ func (p *Parser) parseUpdateItem() (*ast.UpdateItem, error) {
 // insert/update/delete of an `( dml )` update item). The current token is the
 // inner statement's leading keyword.
 func (p *Parser) parseNestedDML() (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	switch p.cur.Type {
 	case kwINSERT:
 		return p.parseInsertStmt()

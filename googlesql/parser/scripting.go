@@ -80,6 +80,10 @@ import (
 // terminator. An empty body (terminator immediately after the opener) yields an
 // empty slice (the enclosing rule's `statement_list?`).
 func (p *Parser) parseStatementList(terminators ...int) ([]ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	var stmts []ast.Node
 	for {
 		if p.atStatementListEnd(terminators) {
