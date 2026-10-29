@@ -233,9 +233,11 @@ func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
 	// COLLATE collation_name
 	if p.cur.Type == kwCOLLATE {
 		p.advance() // consume COLLATE
-		if id, ok := p.parseIdentifier(); ok {
-			stmt.Collation = id
+		collation, err := p.parseCollationName()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Collation = collation
 	}
 
 	// WITH <option> [ , ...n ]

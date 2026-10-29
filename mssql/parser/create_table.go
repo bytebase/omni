@@ -571,6 +571,18 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		return col, nil
 	}
 
+	// COLLATE directly follows the data type: SQL Server rejects it after
+	// any other column option (NOT NULL COLLATE x, PRIMARY KEY COLLATE x)
+	// and a second COLLATE, with Msg 156.
+	if p.cur.Type == kwCOLLATE {
+		p.advance()
+		collation, err := p.parseCollationName()
+		if err != nil {
+			return nil, err
+		}
+		col.Collation = collation
+	}
+
 	// Column-level options in any order
 	for {
 		consumed := false
@@ -706,16 +718,6 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 				return nil, p.unexpectedToken()
 			}
 			col.DefaultExpr = defExpr
-			consumed = true
-		}
-
-		// COLLATE
-		if p.cur.Type == kwCOLLATE {
-			p.advance()
-			if p.isIdentLike() {
-				col.Collation = p.cur.Str
-				p.advance()
-			}
 			consumed = true
 		}
 

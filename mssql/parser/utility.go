@@ -1509,10 +1509,11 @@ func (p *Parser) parsePredictColumnDef() (*nodes.ColumnDef, error) {
 	// Optional COLLATE
 	if p.cur.Type == kwCOLLATE {
 		p.advance()
-		if p.isIdentLike() {
-			col.Collation = p.cur.Str
-			p.advance()
+		collation, err := p.parseCollationName()
+		if err != nil {
+			return nil, err
 		}
+		col.Collation = collation
 	}
 
 	// Optional NULL / NOT NULL

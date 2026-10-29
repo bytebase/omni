@@ -231,7 +231,11 @@ var chainShapes = []struct {
 	{"modulo", func(n int) string { return "SELECT " + strings.Repeat("1 % ", n) + "1" }},
 	{"AND", func(n int) string { return "SELECT 1 WHERE " + strings.Repeat("a = 1 AND ", n) + "a = 1" }},
 	{"OR", func(n int) string { return "SELECT 1 WHERE " + strings.Repeat("a = 1 OR ", n) + "a = 1" }},
-	{"COLLATE", func(n int) string { return "SELECT 'a'" + strings.Repeat(" COLLATE Latin1_General_CI_AS", n) }},
+	// SQL Server takes one COLLATE per operand, but one may follow each AT
+	// TIME ZONE.
+	{"COLLATE and AT TIME ZONE", func(n int) string {
+		return "SELECT d" + strings.Repeat(" COLLATE Latin1_General_CI_AS AT TIME ZONE 'UTC'", n) + " FROM t"
+	}},
 	{"AT TIME ZONE", func(n int) string { return "SELECT d" + strings.Repeat(" AT TIME ZONE 'UTC'", n) + " FROM t" }},
 	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
 	{"EXCEPT and INTERSECT", func(n int) string {
