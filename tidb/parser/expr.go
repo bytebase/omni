@@ -37,6 +37,10 @@ func (p *Parser) parseExpr() (nodes.ExprNode, error) {
 // start is the offset of the left operand's first token, where every folded
 // expression starts.
 func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	start := p.pos()
 	left, err := p.parsePrefixExpr()
 	if err != nil {
@@ -256,7 +260,12 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 	case '-':
 		return p.parseUnaryExpr(nodes.UnaryMinus)
 	case '+':
-		// Unary plus — just parse the operand
+		// Unary plus — just parse the operand. It recurses here rather than
+		// through parseExprPrec, so it counts its own nesting.
+		if err := p.enterNesting(); err != nil {
+			return nil, err
+		}
+		defer p.leaveNesting()
 		p.advance()
 		return p.parsePrefixExpr()
 	case '~':

@@ -23,6 +23,8 @@ type Parser struct {
 	parenRunStart   int           // offset of the '(' run scanned last
 	parenRunPast    Token         // first token past that run
 
+	depth int // nesting depth of the productions being parsed (see enterNesting)
+
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
 	cursorOff  int           // byte offset of the cursor in source
@@ -76,6 +78,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			p.advance()
 			continue
 		}
+		stmtStart := p.cur.Loc
 		stmt, err := p.parseStmt()
 		if err != nil {
 			return nil, p.enrichError(err)
@@ -86,6 +89,9 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
+		}
+		if treeTooHigh(stmt, p.prev.End-stmtStart) {
+			return nil, p.enrichError(nestedTooDeeply(stmtStart))
 		}
 		stmts = append(stmts, stmt)
 	}
@@ -103,12 +109,16 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 func ParseExpr(sql string) (nodes.ExprNode, error) {
 	p := &Parser{lexer: NewLexerWithOffset(sql, 0)}
 	p.advance()
+	start := p.cur.Loc
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, p.enrichError(err)
 	}
 	if p.cur.Type != tokEOF {
 		return nil, p.syntaxErrorAtCur()
+	}
+	if treeTooHigh(expr, p.prev.End-start) {
+		return nil, p.enrichError(nestedTooDeeply(start))
 	}
 	return expr, nil
 }

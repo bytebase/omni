@@ -58,6 +58,10 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 // parseCompoundStmtOrStmt tries to parse compound statements (DECLARE, labeled blocks,
 // flow control) and falls back to regular statement parsing.
 func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	// DECLARE
 	if p.cur.Type == kwDECLARE {
 		return p.parseDeclareStmt()
@@ -906,4 +910,3 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 		Name: name,
 	}, nil
 }
-

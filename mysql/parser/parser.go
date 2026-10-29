@@ -26,6 +26,8 @@ type Parser struct {
 	// that linear.
 	parenQueryFail map[int]error
 
+	depth int // nesting depth of the productions being parsed (see enterNesting)
+
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
 	cursorOff  int           // byte offset of the cursor in source
@@ -79,6 +81,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			p.advance()
 			continue
 		}
+		stmtStart := p.cur.Loc
 		stmt, err := p.parseStmt()
 		if err != nil {
 			// A lexing error (unterminated comment/string/identifier) is the more
@@ -97,6 +100,9 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
+		}
+		if treeTooHigh(stmt, p.prev.End-stmtStart) {
+			return nil, p.enrichError(nestedTooDeeply(stmtStart))
 		}
 		stmts = append(stmts, stmt)
 	}

@@ -35,6 +35,10 @@ func (p *Parser) parseExpr() (nodes.ExprNode, error) {
 
 // parseExprPrec parses an expression with the given minimum precedence.
 func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	start := p.pos()
 	left, err := p.parsePrefixExpr()
 	if err != nil {
@@ -51,6 +55,10 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 // parenthesized query expression that turns out to be the left operand of a
 // scalar expression, `((SELECT ...) = 0)` — can resume the operator loop.
 func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int) (nodes.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	var err error
 	for {
 		// MEMBER OF special handling (not in infixPrecedence since it's keyword-based)
@@ -300,7 +308,12 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 	case '-':
 		return p.parseUnaryExpr(nodes.UnaryMinus)
 	case '+':
-		// Unary plus — just parse the operand
+		// Unary plus — just parse the operand. It recurses here rather than
+		// through parseExprPrec, so it counts its own nesting.
+		if err := p.enterNesting(); err != nil {
+			return nil, err
+		}
+		defer p.leaveNesting()
 		p.advance()
 		return p.parsePrefixExpr()
 	case '~':
