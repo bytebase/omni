@@ -1275,6 +1275,36 @@ func TestDeparseSelect_ParenthesizedQueryExpressions(t *testing.T) {
 	}
 }
 
+// TestDeparseSelect_SourceClauses: the ORDER BY and LIMIT after a TABLE or
+// VALUES query primary are deparsed once, from the SelectStmt that holds them,
+// and the output parses back to the same text.
+func TestDeparseSelect_SourceClauses(t *testing.T) {
+	cases := []struct {
+		input    string
+		expected string
+	}{
+		{"(TABLE t ORDER BY a) ORDER BY b", "(table `t` order by `a`) order by `b`"},
+		{"(TABLE t ORDER BY a LIMIT 2) ORDER BY b LIMIT 1", "(table `t` order by `a` limit 2) order by `b` limit 1"},
+		{"(VALUES ROW(1) ORDER BY 1 LIMIT 1) ORDER BY 1", "(values row(1) order by 1 limit 1) order by 1"},
+		{"(TABLE t) UNION TABLE u ORDER BY a", "(table `t`) union table `u` order by `a`"},
+		{"SELECT 1 UNION TABLE t ORDER BY a LIMIT 1", "select 1 AS `1` union table `t` order by `a` limit 1"},
+		{"SELECT 1 UNION VALUES ROW(2) ORDER BY 1 LIMIT 1", "select 1 AS `1` union values row(2) order by 1 limit 1"},
+		{"SELECT 1 UNION (TABLE t ORDER BY a LIMIT 1) ORDER BY 1 LIMIT 2", "select 1 AS `1` union (table `t` order by `a` limit 1) order by 1 limit 2"},
+		{"SELECT a FROM t WHERE a IN (TABLE s ORDER BY a LIMIT 1)", "select `a` AS `a` from `t` where `a` in (table `s` order by `a` limit 1)"},
+		{"SELECT a FROM t ORDER BY (TABLE s ORDER BY (VALUES ROW(1) LIMIT 1) LIMIT 1)", "select `a` AS `a` from `t` order by (table `s` order by (values row(1) limit 1) limit 1)"},
+	}
+	for _, tc := range cases {
+		got := DeparseSelect(parseSelect(t, tc.input))
+		if got != tc.expected {
+			t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			continue
+		}
+		if again := DeparseSelect(parseSelect(t, got)); again != got {
+			t.Errorf("DeparseSelect(%q) =\n  %q\nnot a fixed point:\n  %q", tc.input, got, again)
+		}
+	}
+}
+
 func TestDeparseSelect_Section_5_7_CTE(t *testing.T) {
 	cases := []struct {
 		name     string

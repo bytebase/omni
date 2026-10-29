@@ -32,8 +32,12 @@ type SelectStmt struct {
 	SetAll            bool               // ALL modifier for set operations
 	Left              *SelectStmt        // left side of set operation
 	Right             *SelectStmt        // right side of set operation
-	TableSource       *TableStmt         // TABLE query primary
-	ValuesSource      *ValuesStmt        // VALUES query primary
+	// TableSource and ValuesSource are the TABLE or VALUES query primary this
+	// node stands for. The source holds only its table or rows; the ORDER BY,
+	// LIMIT, and INTO after it are this node's, except that an ORDER BY and
+	// LIMIT after the last operand of a set operation are the set operation's.
+	TableSource  *TableStmt  // TABLE query primary
+	ValuesSource *ValuesStmt // VALUES query primary
 	// ParenSource is the inner query of a parenthesized query expression
 	// ( SELECT ... ). When non-nil this node is a parentheses wrapper: its own
 	// OrderBy/Limit hold the OUTER trailing clauses, while ParenSource carries
@@ -2243,6 +2247,11 @@ func (s *DeclareCursorStmt) stmtNode() {}
 
 // TableStmt represents a TABLE statement (MySQL 8.0.19+).
 // TABLE t is equivalent to SELECT * FROM t.
+//
+// A TableStmt that stands alone (a statement, an EXPLAIN target, the source
+// of INSERT ... TABLE) holds its own ORDER BY, LIMIT, and INTO. As the
+// TableSource of a SelectStmt (a subquery, a set-operation operand, a CTE or
+// view body) it holds only the table, and the SelectStmt holds the clauses.
 type TableStmt struct {
 	Loc     Loc
 	Table   *TableRef      // table name
@@ -2256,6 +2265,10 @@ func (s *TableStmt) stmtNode() {}
 
 // ValuesStmt represents a VALUES statement (MySQL 8.0.19+).
 // VALUES ROW(1,2), ROW(3,4) returns rows of literal values.
+//
+// A ValuesStmt that stands alone (a statement, an EXPLAIN target) holds its
+// own ORDER BY and LIMIT. As the ValuesSource of a SelectStmt it holds only
+// the rows, and the SelectStmt holds the clauses.
 type ValuesStmt struct {
 	Loc     Loc
 	Rows    [][]ExprNode   // list of ROW(...) value lists
