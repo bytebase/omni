@@ -425,7 +425,9 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			// commit only if '{' follows, else backtrack to the identifier path.
 			saved := p.save()
 			start := p.cur.Loc.Start
+			p.speculating++
 			mapType, err := p.parseDataType()
+			p.speculating--
 			if err == nil && p.cur.Kind == int('{') {
 				return p.finishMapLiteral(start, mapType)
 			}
@@ -442,7 +444,9 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		if p.peekNext().Kind == int('<') {
 			saved := p.save()
 			start := p.cur.Loc.Start
+			p.speculating++
 			elemType, err := p.parseDataType()
+			p.speculating--
 			if err == nil && p.cur.Kind == int('[') {
 				return p.finishArrayLiteral(start, elemType)
 			}

@@ -127,6 +127,28 @@ func TestNestingLimit(t *testing.T) {
 	}
 }
 
+// TestTypedLiteralGuessStaysLinear: a typed literal guess parses the type
+// after ARRAY or MAP and falls back to the identifier when no literal
+// follows; the identifier is then compared with the next ARRAY or MAP of the
+// same type, which guesses again. Each guess reread the rest of the type, so
+// 9,990 levels, below the nesting limit, took 27s; a guess now replays the
+// types the guess before it parsed.
+func TestTypedLiteralGuessStaysLinear(t *testing.T) {
+	const n = 9000
+	for _, tc := range []struct{ name, sql, wantErr string }{
+		{"array type, no literal", "SELECT " + nest(n, "array<", "int", ">"), "syntax error at or near int"},
+		{"array type, spaced closers", "SELECT " + nest(n, "array<", "int", " >"), "syntax error at or near int"},
+		{"unclosed array type", "SELECT " + strings.Repeat("array<", n) + "int", "syntax error at or near int"},
+		{"map key types", "SELECT " + nest(n, "map<", "int", ", int>"), "syntax error at or near int"},
+		{"array comparisons", "SELECT " + strings.Repeat("array < ", n) + "1", ""},
+		{"typed array literal", "SELECT " + nest(n, "array<", "int", ">") + "[]", ""},
+	} {
+		if got := errMessage(parseWithin(t, tc.name, tc.sql)); got != tc.wantErr {
+			t.Errorf("%s: err = %q, want %q", tc.name, got, tc.wantErr)
+		}
+	}
+}
+
 // TestRawScanStaysIterative: a subquery body ParseBestEffort captures as raw
 // text, or one whose in-place parse fails in strict mode, is scanned to its
 // matching ')' without being parsed. The scan recursed once per nested '('
