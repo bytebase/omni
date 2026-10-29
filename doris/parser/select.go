@@ -379,7 +379,7 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 	// "Table [c] does not exist" (container-verified) — so a group whose
 	// leading query carries a WITH keeps an explicit boundary node that
 	// analysis will not hoist the CTE names across.
-	if leadingWith(inner) != nil {
+	if p.leadingWith(inner) != nil {
 		inner = &ast.GroupedQuery{Query: inner, Loc: ast.NodeLoc(inner)}
 	}
 	return inner, nil
@@ -389,17 +389,37 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 // returns that SELECT's WITH clause. A GroupedQuery is a scope boundary (it
 // only arises from parens or repeated clause groups), so the walk stops
 // there — mirroring analysis's leftmostWith.
-func leadingWith(node ast.Node) *ast.WithClause {
+//
+// The answer for each set operation on the way is recorded, and a walk that
+// meets a recorded one stops there: a set operation's left operand is fixed
+// once it is built, and so is its leading SELECT's WITH.
+func (p *Parser) leadingWith(node ast.Node) *ast.WithClause {
+	var spine []*ast.SetOpStmt
+	var with *ast.WithClause
+walk:
 	for {
 		switch n := node.(type) {
 		case *ast.SetOpStmt:
+			if w, ok := p.leadingWiths[n]; ok {
+				with = w
+				break walk
+			}
+			spine = append(spine, n)
 			node = n.Left
 		case *ast.SelectStmt:
-			return n.With
+			with = n.With
+			break walk
 		default:
-			return nil
+			break walk
 		}
 	}
+	if len(spine) > 0 && p.leadingWiths == nil {
+		p.leadingWiths = make(map[*ast.SetOpStmt]*ast.WithClause)
+	}
+	for _, n := range spine {
+		p.leadingWiths[n] = with
+	}
+	return with
 }
 
 // parseIntersectChain collects a left-associative chain of INTERSECT clauses

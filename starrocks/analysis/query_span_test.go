@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -966,6 +967,90 @@ func TestGetQuerySpanNestedSubqueriesStayLinear(t *testing.T) {
 			}
 		case <-time.After(2 * time.Second):
 			t.Fatalf("%s: GetQuerySpan through %d nested subqueries took over 2s", tc.name, depth)
+		}
+	}
+}
+
+// spanWithin runs GetQuerySpan against a deadline, so a walk gone quadratic
+// fails the test instead of hanging it.
+func spanWithin(t *testing.T, name, sql string) *QuerySpan {
+	t.Helper()
+	type result struct {
+		span *QuerySpan
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		span, err := GetQuerySpan(sql)
+		done <- result{span, err}
+	}()
+	select {
+	case r := <-done:
+		if r.err != nil {
+			t.Fatalf("%s: GetQuerySpan error = %v", name, r.err)
+		}
+		return r.span
+	case <-time.After(5 * time.Second):
+		t.Fatalf("%s: GetQuerySpan took over 5s", name)
+		return nil
+	}
+}
+
+// TestGetQuerySpanSetOpChainsStayLinear: a set operation installs the WITH
+// of its leftmost SELECT, which scopes over every arm. Each level of a
+// left-deep chain searched the left spine for it again, so 99,990 arms took
+// two minutes; the chain now searches once.
+func TestGetQuerySpanSetOpChainsStayLinear(t *testing.T) {
+	const arms = 50000
+	chain := func(first, op, arm string) string {
+		return first + strings.Repeat(" "+op+" "+arm, arms-1)
+	}
+	for _, tc := range []struct{ name, sql string }{
+		{"UNION ALL", chain("SELECT 1", "UNION ALL", "SELECT 1")},
+		{"UNION", chain("SELECT 1", "UNION", "SELECT 1")},
+		{"INTERSECT", chain("SELECT 1", "INTERSECT", "SELECT 1")},
+		{"EXCEPT", chain("SELECT 1", "EXCEPT", "SELECT 1")},
+		{"WITH", chain("WITH c AS (SELECT a FROM t) SELECT a FROM c", "UNION ALL", "SELECT a FROM c")},
+	} {
+		span := spanWithin(t, tc.name, tc.sql)
+		if len(span.Results) != 1 {
+			t.Errorf("%s: Results = %+v, want one column", tc.name, span.Results)
+		}
+		want := []tableSig(nil)
+		if tc.name == "WITH" {
+			// Every arm's c is the CTE; only its body reads a table.
+			want = []tableSig{{Table: "t"}}
+		}
+		if got := toSigs(span.AccessTables); len(got) != len(want) || (len(want) > 0 && got[0] != want[0]) {
+			t.Errorf("%s: AccessTables = %+v, want %+v", tc.name, got, want)
+		}
+	}
+}
+
+// TestGetQuerySpanNestedLambdasStayLinear: an output column's source columns
+// skip the names its enclosing lambdas bind. Copying the bound names into
+// each nested lambda, and its columns back out, made 4,000 nested lambdas
+// take 4s.
+func TestGetQuerySpanNestedLambdasStayLinear(t *testing.T) {
+	const depth = 8000
+	var b strings.Builder
+	b.WriteString("SELECT ")
+	for i := range depth {
+		b.WriteString("array_map(x" + strconv.Itoa(i) + " -> ")
+	}
+	b.WriteString("x0 + y" + strings.Repeat(", arr)", depth) + " FROM t")
+	span := spanWithin(t, "nested lambdas", b.String())
+	if len(span.Results) != 1 {
+		t.Fatalf("Results = %+v, want one column", span.Results)
+	}
+	// y and every level's arr, but not the lambda parameter x0.
+	cols := span.Results[0].SourceColumns
+	if len(cols) != depth+1 || cols[0] != (ColumnRef{Column: "y"}) {
+		t.Fatalf("SourceColumns: %d columns starting %+v, want y then %d of arr", len(cols), cols[:min(len(cols), 2)], depth)
+	}
+	for _, c := range cols[1:] {
+		if c != (ColumnRef{Column: "arr"}) {
+			t.Fatalf("SourceColumns holds %+v, want only y and arr", c)
 		}
 	}
 }

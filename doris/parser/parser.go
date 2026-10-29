@@ -47,6 +47,11 @@ type Parser struct {
 	// keeps that linear.
 	parenGroupEnd map[int]parenReplay
 
+	// leadingWiths records the leadingWith answer for each set operation it
+	// walked. Every enclosing '(' asks again about the same set operations,
+	// so k parens around a chain of n arms walked the chain k times.
+	leadingWiths map[*ast.SetOpStmt]*ast.WithClause
+
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 }
 

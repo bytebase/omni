@@ -136,7 +136,27 @@ func typeKeywordName(tok Token) string {
 //	ARRAY<elementType>
 //	MAP<keyType, valueType>
 //	STRUCT<name1 type1, name2 type2, ...>
+//
+// A typed-literal guess records the result, and the guess tried after it
+// replays the record (see Parser.speculating).
 func (p *Parser) parseDataType() (*ast.TypeName, error) {
+	start := p.cur.Loc.Start
+	if r, ok := p.typeMemo[start]; ok && p.depth <= r.depth {
+		p.replayParen(r.end)
+		return r.typ, r.err
+	}
+	depth := p.depth
+	typ, err := p.parseDataTypeUnrecorded()
+	if p.speculating > 0 && p.cur.Loc.Start != start && !isNestingError(err) {
+		if p.typeMemo == nil {
+			p.typeMemo = make(map[int]typeReplay)
+		}
+		p.typeMemo[start] = typeReplay{typ: typ, err: err, end: p.recordParenReplay(start), depth: depth}
+	}
+	return typ, err
+}
+
+func (p *Parser) parseDataTypeUnrecorded() (*ast.TypeName, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}

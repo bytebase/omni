@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bytebase/omni/doris/ast"
 )
 
 // TestNestedParensStayLinear guards the subquery validation: strict mode
@@ -43,6 +45,32 @@ func TestNestedParensStayLinear(t *testing.T) {
 		}
 		if elapsed := time.Since(start); elapsed > 2*time.Second {
 			t.Errorf("%s: Parse through %d nested parens took %v", tc.name, depth, elapsed)
+		}
+	}
+}
+
+// TestParenthesizedSetOpsStayLinear: each '(' around a query asks whether
+// the query's leading SELECT has a WITH, which keeps the group as a
+// GroupedQuery scope boundary. Every enclosing '(' walked the set operations
+// inside it again, so 9,990 parens around a 90,000-arm chain took 20s.
+func TestParenthesizedSetOpsStayLinear(t *testing.T) {
+	const parens, arms = 9000, 60000
+	chain := strings.Repeat(" UNION ALL SELECT 1", arms-1)
+	for _, tc := range []struct {
+		name    string
+		sql     string
+		grouped bool // the statement keeps a GroupedQuery for the WITH
+	}{
+		{"parens around a chain", strings.Repeat("(", parens) + "SELECT 1" + chain + strings.Repeat(")", parens), false},
+		{"WITH inside parens around a chain", strings.Repeat("(", parens) + "WITH c AS (SELECT 1) SELECT * FROM c" + chain + strings.Repeat(")", parens), true},
+		{"parenthesized left operands", strings.Repeat("(", parens) + "SELECT 1" + strings.Repeat(") UNION ALL SELECT 1", parens), false},
+	} {
+		if err := parseWithin(t, tc.name, tc.sql); err != nil {
+			t.Fatalf("%s: Parse error = %v", tc.name, err)
+		}
+		file, _ := Parse(tc.sql)
+		if _, ok := file.Stmts[0].(*ast.GroupedQuery); ok != tc.grouped {
+			t.Errorf("%s: statement is %T, want GroupedQuery %v", tc.name, file.Stmts[0], tc.grouped)
 		}
 	}
 }

@@ -47,7 +47,29 @@ type Parser struct {
 	// keeps that linear.
 	parenGroupEnd map[int]parenReplay
 
+	// speculating counts the typed-literal guesses in progress: array<t>[...]
+	// and map<k,v>{...} parse a type and fall back to the identifier when no
+	// literal follows, and the identifier path meets the next ARRAY or MAP of
+	// that type and guesses again. While a guess is in progress every type it
+	// parses is recorded in typeMemo by start offset, and the next guess
+	// replays the record instead of parsing the type again: rereading it made
+	// array<array<...>> n levels deep cost O(n²).
+	speculating int
+	typeMemo    map[int]typeReplay
+
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+}
+
+// typeReplay is a recorded parseDataType result, the state the parse ended
+// in with the lex errors on the way (as a parenReplay), and the nesting depth
+// it started at. A type holds no expression, so it captures no query bodies.
+// A parse that hit the nesting limit is not recorded, so a record holds for
+// any depth up to the one it started at.
+type typeReplay struct {
+	typ   *ast.TypeName
+	err   error
+	end   parenReplay
+	depth int
 }
 
 // parenReplay is the state the raw scan of a '(' group left behind, with the
