@@ -269,3 +269,23 @@ func TestTreeHeightPerByte(t *testing.T) {
 		check(tc.name, tc.sql(1000))
 	}
 }
+
+// TestTreeHeightCountsSubqueryBodies: Walk treats a subquery placeholder as
+// a leaf, but analysis walks the body the strict parse built in place
+// (SubqueryExpr.Query) from inside the statement's tree. A sum whose
+// leftmost term is a subquery holding another sum is as deep as both
+// together, so the two halves count together. ParseBestEffort keeps bodies
+// as raw text, so only Parse sees it.
+func TestTreeHeightCountsSubqueryBodies(t *testing.T) {
+	sql := func(n int) string {
+		return "SELECT (SELECT " + strings.Repeat("1+", n/2) + "1)" + strings.Repeat("+1", n/2)
+	}
+	if _, err := Parse(sql(maxTreeHeight / 4)); err != nil {
+		t.Fatalf("%d terms: %v", maxTreeHeight/4, err)
+	}
+	_, err := Parse(sql(maxTreeHeight + 2))
+	var pe *ParseError
+	if !errors.As(err, &pe) || pe.Message != nestingError || pe.Position != 0 {
+		t.Fatalf("%d terms: err = %v, want the nesting error at the statement", maxTreeHeight+2, err)
+	}
+}

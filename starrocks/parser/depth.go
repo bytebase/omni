@@ -82,6 +82,12 @@ func treeHeightExceeds(root ast.Node, limit int) bool {
 		}
 		kids.entered, kids.children = false, kids.children[:0]
 		ast.Walk(&kids, top.node)
+		if sub, ok := top.node.(*ast.SubqueryExpr); ok && sub.Query != nil {
+			// Walk treats a subquery placeholder as a leaf, but analysis
+			// walks the body the strict parse built in place from inside
+			// the statement's tree, so the body counts below it.
+			kids.children = append(kids.children, sub.Query)
+		}
 		for _, child := range kids.children {
 			stack = append(stack, level{child, top.depth + 1})
 		}
