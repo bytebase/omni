@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -412,11 +413,11 @@ func TestRuleutils4_IntegrationComplexView(t *testing.T) {
 
 	// Check multiple expression types are present
 	checks := map[string]bool{
-		"COALESCE":        false,
-		"CASE":            false,
-		"IS NOT NULL":     false,
-		"NULLIF":          false,
-		"GREATEST":        false,
+		"COALESCE":    false,
+		"CASE":        false,
+		"IS NOT NULL": false,
+		"NULLIF":      false,
+		"GREATEST":    false,
 	}
 	upper := strings.ToUpper(def)
 	for kw := range checks {
@@ -573,7 +574,7 @@ func TestRuleutils4_LockingClauseDeparse(t *testing.T) {
 	c := New()
 	ctx := &deparseCtx{
 		catalog:      c,
-		buf:          &strings.Builder{},
+		buf:          &bytes.Buffer{},
 		prettyIndent: false,
 		prettyParen:  true,
 	}

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -573,7 +574,7 @@ func TestRuleutils4_LockingClauseDeparse(t *testing.T) {
 	c := New()
 	ctx := &deparseCtx{
 		catalog:      c,
-		buf:          &strings.Builder{},
+		buf:          &bytes.Buffer{},
 		prettyIndent: false,
 		prettyParen:  true,
 	}

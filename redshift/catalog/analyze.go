@@ -41,6 +41,8 @@ func (ac *analyzeCtx) analyzeSetOp(stmt *nodes.SelectStmt) (*Query, error) {
 		ac.query = &Query{}
 	}
 	q := ac.query
+	ac.setOp = true
+	ac.noCTEs = stmt.WithClause == nil && len(q.CTEList) == 0
 
 	// WITH belongs to the set-operation query as a whole and must be visible to
 	// each branch while it is analyzed.
@@ -188,11 +190,39 @@ func (c *Catalog) setOpCollation(l, r AnalyzedExpr, noneOK bool) (coll uint32, c
 //
 // pg: src/backend/parser/parse_collate.c — assign_collations_walker (COLLATE_EXPLICIT)
 func explicitCollation(e AnalyzedExpr) (string, bool) {
+	return collationMemo(nil).explicit(e)
+}
+
+// collationMemo holds explicitCollation's answer for each expression it has
+// visited; a nil one holds none. lacksCollation asks about an expression and
+// then about the expressions under it, and without the answers kept it
+// walked a chain such as a || b || c ... again at every level.
+type collationMemo map[AnalyzedExpr]explicitColl
+
+type explicitColl struct {
+	name string
+	ok   bool
+}
+
+// explicit is explicitCollation, answering from m and keeping its answers
+// there when m is not nil.
+func (m collationMemo) explicit(e AnalyzedExpr) (string, bool) {
+	if r, done := m[e]; done {
+		return r.name, r.ok
+	}
+	name, ok := m.findExplicit(e)
+	if m != nil {
+		m[e] = explicitColl{name, ok}
+	}
+	return name, ok
+}
+
+func (m collationMemo) findExplicit(e AnalyzedExpr) (string, bool) {
 	switch v := e.(type) {
 	case *CollateExprQ:
 		return v.CollName, true
 	case *RelabelExpr:
-		return explicitCollation(v.Arg)
+		return m.explicit(v.Arg)
 	case *VarExpr, *ConstExpr, *ParamExpr, *SubLinkExpr, *SetOpColumnExpr:
 		return "", false
 	}
@@ -204,11 +234,26 @@ func explicitCollation(e AnalyzedExpr) (string, bool) {
 		if child.exprCollation() != coll {
 			continue
 		}
-		if name, ok := explicitCollation(child); ok {
+		if name, ok := m.explicit(child); ok {
 			return name, true
 		}
 	}
 	return "", false
+}
+
+// nonJunkTargetEntry returns output column n of tlist, counting from 1, or
+// nil when it has fewer, without listing the others as nonJunkTargetEntries
+// does.
+func nonJunkTargetEntry(tlist []*TargetEntry, n int) *TargetEntry {
+	for _, te := range tlist {
+		if te == nil || te.ResJunk {
+			continue
+		}
+		if n--; n == 0 {
+			return te
+		}
+	}
+	return nil
 }
 
 func nonJunkTargetEntries(tlist []*TargetEntry) []*TargetEntry {
@@ -559,7 +604,47 @@ type analyzeCtx struct {
 	domainBaseTypMod    int32  // base type modifier for domain VALUE keyword
 	domainBaseCollation uint32 // base type collation for domain VALUE keyword
 	opts                AnalyzeOptions
-	onNamespace         []JoinNode // while analyzing a JOIN's ON condition, the join's two inputs
+	onNamespace         []JoinNode   // while analyzing a JOIN's ON condition, the join's two inputs
+	onVisible           map[int]bool // the range table entries of onNamespace, built by visibleRTEs when first asked
+
+	// The analyzer nests each arm of a left-deep UNION one level inside the
+	// next, and the level of a set operation has no range table, nor CTEs
+	// unless it has a WITH clause. A lookup that went through every level,
+	// for a CTE or for an outer column, made a long UNION take quadratic
+	// time and memory, so each level keeps where those lookups go on,
+	// passing over the levels of set operations that cannot answer them.
+	setOp       bool        // the level of a set operation
+	noCTEs      bool        // the level of a set operation with no WITH clause
+	cteParent   *analyzeCtx // the level lookupCTE searches after this one
+	outerCols   *analyzeCtx // the level findColumnRef searches for a column this one lacks, or nil
+	outerColsUp int         // how many levels up outerCols is
+}
+
+// subContext returns the context of a query nested in ac. A query in FROM
+// that is not LATERAL passes ac over in its search for outer columns.
+func (ac *analyzeCtx) subContext(disallowParentCols bool) *analyzeCtx {
+	sub := &analyzeCtx{
+		catalog:            ac.catalog,
+		query:              &Query{},
+		parent:             ac,
+		disallowParentCols: disallowParentCols,
+		opts:               ac.opts,
+		cteParent:          ac,
+	}
+	if ac.noCTEs {
+		sub.cteParent = ac.cteParent
+	}
+	cols, up := ac, 1
+	if disallowParentCols {
+		cols, up = ac.parent, 2
+	}
+	if cols != nil && cols.setOp {
+		// A column lookup finds nothing at a set operation's level and goes
+		// on to the level that one searches next.
+		cols, up = cols.outerCols, up+cols.outerColsUp
+	}
+	sub.outerCols, sub.outerColsUp = cols, up
+	return sub
 }
 
 type analyzeExprKind int
@@ -653,7 +738,7 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 }
 
 func (ac *analyzeCtx) lookupCTE(name string) (*CommonTableExprQ, int, bool) {
-	for ctx := ac; ctx != nil; ctx = ctx.parent {
+	for ctx := ac; ctx != nil; ctx = ctx.cteParent {
 		for i := len(ctx.query.CTEList) - 1; i >= 0; i-- {
 			cte := ctx.query.CTEList[i]
 			if cte.Name == name {
@@ -765,10 +850,10 @@ func (ac *analyzeCtx) transformJoinExpr(je *nodes.JoinExpr) (JoinNode, error) {
 	case je.Quals != nil:
 		// The ON condition sees the columns of the join's two inputs.
 		// pg: src/backend/parser/parse_clause.c — transformJoinOnClause
-		outer := ac.onNamespace
-		ac.onNamespace = []JoinNode{left, right}
+		outer, outerVisible := ac.onNamespace, ac.onVisible
+		ac.onNamespace, ac.onVisible = []JoinNode{left, right}, nil
 		quals, err = ac.transformExpr(je.Quals)
-		ac.onNamespace = outer
+		ac.onNamespace, ac.onVisible = outer, outerVisible
 		if err != nil {
 			return nil, err
 		}
@@ -1776,20 +1861,35 @@ func (ac *analyzeCtx) inferredAt(v *VarExpr) bool {
 }
 
 // visibleRTEs returns the range table entries visible at this query level,
-// or nil when all are: within an ON condition, only the join's inputs.
+// or nil when all are: within an ON condition, only the join's inputs. The
+// set is built once per ON condition, not once per column the condition
+// names: in a left-deep chain of joins each ON condition sees every table
+// before it.
 //
 // pg: src/backend/parser/parse_clause.c — transformJoinOnClause
 func (ac *analyzeCtx) visibleRTEs() map[int]bool {
 	if ac.onNamespace == nil {
 		return nil
 	}
-	visible := map[int]bool{}
-	for _, jn := range ac.onNamespace {
-		for _, i := range joinNodeAllRTEs(jn) {
-			visible[i] = true
+	if ac.onVisible == nil {
+		visible := map[int]bool{}
+		var add func(jn JoinNode)
+		add = func(jn JoinNode) {
+			switch n := jn.(type) {
+			case *RangeTableRef:
+				visible[n.RTIndex] = true
+			case *JoinExprNode:
+				visible[n.RTIndex] = true
+				add(n.Left)
+				add(n.Right)
+			}
 		}
+		for _, jn := range ac.onNamespace {
+			add(jn)
+		}
+		ac.onVisible = visible
 	}
-	return visible
+	return ac.onVisible
 }
 
 // hasVisibleAlias reports whether a range table entry visible at this level
@@ -2035,28 +2135,21 @@ func (ac *analyzeCtx) findColumnRef(tableName, colName string) (*VarExpr, error)
 		}
 	}
 
-	if found == nil && ac.parent != nil {
-		// Try resolving in parent context (correlated subquery).
+	if found == nil && ac.outerCols != nil {
+		// Try resolving in an enclosing level (correlated subquery).
 		// pg: src/backend/parser/parse_expr.c — transformColumnRef
 		// PG walks up the namespace chain to find outer references.
-		var outerVar *VarExpr
-		var err error
-		if ac.disallowParentCols {
-			outerVar, err = ac.parent.resolveColumnRefAboveLocal(tableName, colName)
-		} else {
-			outerVar, err = ac.parent.findColumnRef(tableName, colName)
-		}
+		outerVar, err := ac.outerCols.findColumnRef(tableName, colName)
 		if err != nil {
 			return nil, err
 		}
-		// Increment LevelsUp to indicate this is an outer reference.
 		return &VarExpr{
 			RangeIdx:  outerVar.RangeIdx,
 			AttNum:    outerVar.AttNum,
 			TypeOID:   outerVar.TypeOID,
 			TypeMod:   outerVar.TypeMod,
 			Collation: outerVar.Collation,
-			LevelsUp:  outerVar.LevelsUp + 1,
+			LevelsUp:  outerVar.LevelsUp + ac.outerColsUp,
 		}, nil
 	}
 
@@ -2103,39 +2196,6 @@ func (ac *analyzeCtx) pickColumn(cands []*VarExpr, colName string, visible map[i
 		return nil, errAmbiguousColumn(colName)
 	}
 	return cands[0], nil
-}
-
-// joinNodeAllRTEs lists the range table entries of a FROM item: its
-// relations, subqueries, and functions, and its joins.
-func joinNodeAllRTEs(jn JoinNode) []int {
-	switch n := jn.(type) {
-	case *RangeTableRef:
-		return []int{n.RTIndex}
-	case *JoinExprNode:
-		return append([]int{n.RTIndex}, append(joinNodeAllRTEs(n.Left), joinNodeAllRTEs(n.Right)...)...)
-	}
-	return nil
-}
-
-func (ac *analyzeCtx) resolveColumnRefAboveLocal(tableName, colName string) (*VarExpr, error) {
-	if ac.parent == nil {
-		if tableName != "" {
-			return nil, errUndefinedTable(tableName)
-		}
-		return nil, errUndefinedColumn(colName)
-	}
-	outerVar, err := ac.parent.findColumnRef(tableName, colName)
-	if err != nil {
-		return nil, err
-	}
-	return &VarExpr{
-		RangeIdx:  outerVar.RangeIdx,
-		AttNum:    outerVar.AttNum,
-		TypeOID:   outerVar.TypeOID,
-		TypeMod:   outerVar.TypeMod,
-		Collation: outerVar.Collation,
-		LevelsUp:  outerVar.LevelsUp + 1,
-	}, nil
 }
 
 // findVarsInRTE returns the Var of each column of range table entry rtIdx
@@ -3276,26 +3336,12 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 
 	// Set operation — keep the current parent/CTE context visible to branches.
 	if stmt.Op != nodes.SETOP_NONE {
-		q := &Query{}
-		subAc := &analyzeCtx{
-			catalog:            ac.catalog,
-			query:              q,
-			parent:             ac,
-			disallowParentCols: disallowParentCols,
-			opts:               ac.opts,
-		}
-		return subAc.analyzeSetOp(stmt)
+		return ac.subContext(disallowParentCols).analyzeSetOp(stmt)
 	}
 
 	// Simple SELECT with parent context.
-	q := &Query{}
-	subAc := &analyzeCtx{
-		catalog:            ac.catalog,
-		query:              q,
-		parent:             ac,
-		disallowParentCols: disallowParentCols,
-		opts:               ac.opts,
-	}
+	subAc := ac.subContext(disallowParentCols)
+	q := subAc.query
 
 	// Process WITH clause if present.
 	if stmt.WithClause != nil {

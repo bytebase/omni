@@ -108,7 +108,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	// pg: src/backend/commands/view.c — DefineVirtualRelation
 	if analyzedQuery != nil {
 		for i, te := range nonJunkTargetEntries(analyzedQuery.TargetList) {
-			if i < len(cols) && c.lacksCollation([]*Query{analyzedQuery}, te.Expr) {
+			if i < len(cols) && c.lacksCollation(&queryLevels{query: analyzedQuery}, te.Expr) {
 				return &Error{
 					Code:    CodeIndeterminateCollation,
 					Message: fmt.Sprintf("could not determine which collation to use for view column %q", cols[i].Name),
@@ -403,63 +403,76 @@ func (c *Catalog) dropViewDependents(refType byte, refOID uint32) {
 //
 // pg: src/backend/catalog/dependency.c — recordDependencyOnExpr
 func (c *Catalog) recordViewDepsQ(viewOID uint32, q *Query) {
-	c.recordViewQueryDeps(viewOID, q, nil)
+	w := &viewDepWalker{c: c, viewOID: viewOID}
+	w.query(q)
 }
 
-// recordViewQueryDeps records the dependencies of one query level of a view:
-// the relations in its range table, and what every expression of the level
-// references, including the columns its Vars read. outer holds the enclosing
-// levels, innermost last, to resolve Vars with LevelsUp > 0.
+// viewDepWalker records the dependencies of one view's query. levels holds
+// the query levels enclosing the part being walked, innermost last, to
+// resolve Vars with LevelsUp > 0. The walk pushes a level on entering a query
+// and pops it on leaving, never copying the stack: the analyzer nests each
+// set operation of a left-deep UNION one level inside the next, and a copy
+// per level made a 30,000-arm UNION ALL allocate 9 GB.
+type viewDepWalker struct {
+	c       *Catalog
+	viewOID uint32
+	levels  []*Query
+}
+
+// query records the dependencies of one query level of a view: the
+// relations in its range table, and what every expression of the level
+// references, including the columns its Vars read.
 //
 // pg: src/backend/catalog/dependency.c — find_expr_references_walker, which
 // reaches every part of a Query through query_tree_walker
-func (c *Catalog) recordViewQueryDeps(viewOID uint32, q *Query, outer []*Query) {
+func (w *viewDepWalker) query(q *Query) {
 	if q == nil {
 		return
 	}
-	levels := append(outer[:len(outer):len(outer)], q)
+	w.levels = append(w.levels, q)
+	defer func() { w.levels = w.levels[:len(w.levels)-1] }()
 
 	// Record deps from range table (tables, subqueries, functions in FROM).
 	for _, rte := range q.RangeTable {
 		switch rte.Kind {
 		case RTERelation:
 			if rte.RelOID != 0 {
-				c.recordDependency('r', viewOID, 0, 'r', rte.RelOID, 0, DepNormal)
+				w.c.recordDependency('r', w.viewOID, 0, 'r', rte.RelOID, 0, DepNormal)
 			}
 		case RTESubquery:
-			c.recordViewQueryDeps(viewOID, rte.Subquery, levels)
+			w.query(rte.Subquery)
 		case RTEFunction:
 			for _, fe := range rte.FuncExprs {
-				c.recordViewExprDeps(viewOID, levels, fe)
+				w.expr(fe)
 			}
 		}
 	}
 
 	// Recurse into set-op branches.
 	if q.SetOp != SetOpNone {
-		c.recordViewQueryDeps(viewOID, q.LArg, levels)
-		c.recordViewQueryDeps(viewOID, q.RArg, levels)
+		w.query(q.LArg)
+		w.query(q.RArg)
 	}
 
 	// Recurse into CTEs.
 	for _, cte := range q.CTEList {
-		c.recordViewQueryDeps(viewOID, cte.Query, levels)
+		w.query(cte.Query)
 	}
 
 	// Junk entries carry the ORDER BY, GROUP BY, DISTINCT ON and window
 	// expressions that are not in the output.
 	for _, te := range q.TargetList {
-		c.recordViewExprDeps(viewOID, levels, te.Expr)
+		w.expr(te.Expr)
 	}
 	if q.JoinTree != nil {
 		for _, jn := range q.JoinTree.FromList {
-			c.recordViewJoinDeps(viewOID, levels, jn)
+			w.join(jn)
 		}
-		c.recordViewExprDeps(viewOID, levels, q.JoinTree.Quals)
+		w.expr(q.JoinTree.Quals)
 	}
-	c.recordViewExprDeps(viewOID, levels, q.HavingQual)
-	c.recordViewExprDeps(viewOID, levels, q.LimitCount)
-	c.recordViewExprDeps(viewOID, levels, q.LimitOffset)
+	w.expr(q.HavingQual)
+	w.expr(q.LimitCount)
+	w.expr(q.LimitOffset)
 }
 
 // lacksCollation reports whether expr is of a collatable type with no
@@ -469,20 +482,47 @@ func (c *Catalog) recordViewQueryDeps(viewOID uint32, q *Query, outer []*Query) 
 // an expression over it its type's default collation, but a scalar subquery
 // passes its missing collation on, as in PostgreSQL, so an expression over
 // it lacks one too unless a COLLATE settles it. levels holds the query expr
-// belongs to last, after the queries enclosing it.
+// belongs to, and through it the queries enclosing it.
 //
 // pg: src/backend/parser/parse_collate.c — assign_collations_walker (Var, SubLink)
-func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
+func (c *Catalog) lacksCollation(levels *queryLevels, expr AnalyzedExpr) bool {
+	return c.lacksCollationIn(levels, expr, collationMemo{})
+}
+
+// queryLevels is a query and, through outer, the queries enclosing it. A
+// level shares the levels above it with every level built on them, so
+// following a column down through nested subqueries adds one node per
+// subquery; copying a slice of all the levels instead made a column of a
+// deeply nested view cost time quadratic in the nesting.
+type queryLevels struct {
+	query *Query
+	outer *queryLevels
+}
+
+// up returns the level n above l, or nil when there are not that many.
+func (l *queryLevels) up(n int) *queryLevels {
+	for ; l != nil && n > 0; n-- {
+		l = l.outer
+	}
+	return l
+}
+
+// lacksCollationIn is lacksCollation, keeping in memo the answers of
+// explicitCollation for expr and the expressions under it.
+func (c *Catalog) lacksCollationIn(levels *queryLevels, expr AnalyzedExpr, memo collationMemo) bool {
 	switch v := expr.(type) {
 	case *SetOpColumnExpr:
 		return v.Collation == 0 && c.typeCollation(v.TypeOID) != 0
 	case *VarExpr:
 		// An outer reference reads a column of an enclosing query.
-		owner := len(levels) - 1 - v.LevelsUp
-		if v.LevelsUp < 0 || owner < 0 || v.AttNum <= 0 {
+		if v.LevelsUp < 0 || v.AttNum <= 0 {
 			return false
 		}
-		q, outer := levels[owner], levels[:owner+1:owner+1]
+		owner := levels.up(v.LevelsUp)
+		if owner == nil {
+			return false
+		}
+		q := owner.query
 		if q == nil || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
 			return false
 		}
@@ -494,8 +534,8 @@ func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
 		case RTECTE:
 			// The CTE may belong to an enclosing query; find it by name,
 			// innermost first, as the analyzer resolved it.
-			for i := len(outer) - 1; i >= 0 && sub == nil; i-- {
-				for _, cte := range outer[i].CTEList {
+			for l := owner; l != nil && sub == nil; l = l.outer {
+				for _, cte := range l.query.CTEList {
 					if cte.Name == rte.CTEName {
 						sub = cte.Query
 					}
@@ -503,38 +543,38 @@ func (c *Catalog) lacksCollation(levels []*Query, expr AnalyzedExpr) bool {
 			}
 		case RTEJoin:
 			if int(v.AttNum) <= len(rte.JoinAliasVars) {
-				return c.lacksCollation(outer, rte.JoinAliasVars[v.AttNum-1])
+				return c.lacksCollationIn(owner, rte.JoinAliasVars[v.AttNum-1], memo)
 			}
 			return false
 		}
 		if sub == nil {
 			return false
 		}
-		output := nonJunkTargetEntries(sub.TargetList)
-		if int(v.AttNum) > len(output) {
+		te := nonJunkTargetEntry(sub.TargetList, int(v.AttNum))
+		if te == nil {
 			return false
 		}
-		return c.lacksCollation(append(outer, sub), output[v.AttNum-1].Expr)
+		return c.lacksCollationIn(&queryLevels{query: sub, outer: owner}, te.Expr, memo)
 	case *SubLinkExpr:
 		if v.SubLinkType != SubLinkExprType || v.SubQuery == nil {
 			return false
 		}
-		output := nonJunkTargetEntries(v.SubQuery.TargetList)
-		return len(output) > 0 && c.lacksCollation(append(levels[:len(levels):len(levels)], v.SubQuery), output[0].Expr)
+		te := nonJunkTargetEntry(v.SubQuery.TargetList, 1)
+		return te != nil && c.lacksCollationIn(&queryLevels{query: v.SubQuery, outer: levels}, te.Expr, memo)
 	case *ConstExpr, *ParamExpr, *CollateExprQ:
 		return false
 	}
 	if c.typeCollation(expr.exprType()) == 0 {
 		return false
 	}
-	if _, ok := explicitCollation(expr); ok {
+	if _, ok := memo.explicit(expr); ok {
 		return false
 	}
 	for _, child := range AnalyzedExprChildren(expr) {
 		if _, ok := child.(*SubLinkExpr); !ok && !isComputedExpr(child) {
 			continue
 		}
-		if c.lacksCollation(levels, child) {
+		if c.lacksCollationIn(levels, child, memo) {
 			return true
 		}
 	}
@@ -551,65 +591,64 @@ func isComputedExpr(e AnalyzedExpr) bool {
 	return true
 }
 
-// recordViewJoinDeps records the dependencies of the JOIN ON (or USING)
-// conditions in a FROM item.
-func (c *Catalog) recordViewJoinDeps(viewOID uint32, levels []*Query, jn JoinNode) {
+// join records the dependencies of the JOIN ON (or USING) conditions in a
+// FROM item.
+func (w *viewDepWalker) join(jn JoinNode) {
 	j, ok := jn.(*JoinExprNode)
 	if !ok {
 		return
 	}
-	c.recordViewJoinDeps(viewOID, levels, j.Left)
-	c.recordViewJoinDeps(viewOID, levels, j.Right)
-	c.recordViewExprDeps(viewOID, levels, j.Quals)
+	w.join(j.Left)
+	w.join(j.Right)
+	w.expr(j.Quals)
 }
 
-// recordViewExprDeps records what one expression of a view references: the
-// functions and types it uses, and the columns it reads.
-func (c *Catalog) recordViewExprDeps(viewOID uint32, levels []*Query, expr AnalyzedExpr) {
+// expr records what one expression of a view references: the functions and
+// types it uses, and the columns it reads.
+func (w *viewDepWalker) expr(expr AnalyzedExpr) {
 	if expr == nil {
 		return
 	}
-	c.recordDependencyOnExpr('r', viewOID, expr, DepNormal)
-	c.recordViewVarDepsQ(viewOID, levels, expr)
+	w.c.recordDependencyOnExpr('r', w.viewOID, expr, DepNormal)
+	w.varDeps(expr)
 }
 
-// recordViewVarDepsQ records a column dependency for each Var in expr, and
-// the dependencies of the subqueries it contains.
-func (c *Catalog) recordViewVarDepsQ(viewOID uint32, levels []*Query, expr AnalyzedExpr) {
+// varDeps records a column dependency for each Var in expr, and the
+// dependencies of the subqueries it contains.
+func (w *viewDepWalker) varDeps(expr AnalyzedExpr) {
 	WalkAnalyzedExpr(expr, func(e AnalyzedExpr) bool {
 		switch v := e.(type) {
 		case *VarExpr:
-			c.recordViewVarDep(viewOID, levels, v)
+			w.varDep(v)
 		case *SubLinkExpr:
-			c.recordViewVarDepsQ(viewOID, levels, v.TestExpr)
-			c.recordViewQueryDeps(viewOID, v.SubQuery, levels)
+			w.varDeps(v.TestExpr)
+			w.query(v.SubQuery)
 			return false
 		}
 		return true
 	})
 }
 
-// recordViewVarDep records the view's dependency on the table column a Var
-// reads. A Var of a join's output resolves through the join's alias
-// expression, which for a FULL JOIN USING column reads both inputs. A Var of
-// a subquery or CTE needs nothing here: recordViewQueryDeps walks every
-// target entry of both. A whole-row Var (AttNum 0) adds no column
-// dependency.
+// varDep records the view's dependency on the table column a Var reads. A
+// Var of a join's output resolves through the join's alias expression, which
+// for a FULL JOIN USING column reads both inputs. A Var of a subquery or CTE
+// needs nothing here: query walks every target entry of both. A whole-row
+// Var (AttNum 0) adds no column dependency.
 //
 // pg: src/backend/catalog/dependency.c — find_expr_references_walker (Var,
 // including the RTE_JOIN case through joinaliasvars)
-func (c *Catalog) recordViewVarDep(viewOID uint32, levels []*Query, v *VarExpr) {
-	if v == nil || v.AttNum <= 0 || v.LevelsUp < 0 || v.LevelsUp >= len(levels) {
+func (w *viewDepWalker) varDep(v *VarExpr) {
+	if v == nil || v.AttNum <= 0 || v.LevelsUp < 0 || v.LevelsUp >= len(w.levels) {
 		return
 	}
-	q := levels[len(levels)-1-v.LevelsUp]
+	q := w.levels[len(w.levels)-1-v.LevelsUp]
 	if v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
 		return
 	}
 	switch rte := q.RangeTable[v.RangeIdx]; rte.Kind {
 	case RTERelation:
 		if rte.RelOID != 0 {
-			c.recordDependency('r', viewOID, 0, 'r', rte.RelOID, int32(v.AttNum), DepNormal)
+			w.c.recordDependency('r', w.viewOID, 0, 'r', rte.RelOID, int32(v.AttNum), DepNormal)
 		}
 	case RTEJoin:
 		if int(v.AttNum) > len(rte.JoinAliasVars) {
@@ -617,7 +656,7 @@ func (c *Catalog) recordViewVarDep(viewOID uint32, levels []*Query, v *VarExpr) 
 		}
 		WalkAnalyzedExpr(rte.JoinAliasVars[v.AttNum-1], func(e AnalyzedExpr) bool {
 			if av, ok := e.(*VarExpr); ok {
-				c.recordViewVarDep(viewOID, levels, &VarExpr{RangeIdx: av.RangeIdx, AttNum: av.AttNum, LevelsUp: v.LevelsUp + av.LevelsUp})
+				w.varDep(&VarExpr{RangeIdx: av.RangeIdx, AttNum: av.AttNum, LevelsUp: v.LevelsUp + av.LevelsUp})
 			}
 			return true
 		})
