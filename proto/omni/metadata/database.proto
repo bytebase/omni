@@ -100,6 +100,36 @@ message SchemaMetadata {
   // The list of user-defined composite types in a schema (PostgreSQL family,
   // CREATE TYPE ... AS). Excludes table/view row types and derived types.
   repeated CompositeTypeMetadata composite_types = 17;
+
+  // The list of synonyms in a schema: Oracle's private synonyms. A synonym
+  // whose object is gone, or not accessible to the syncing user, may be
+  // missing (Oracle's ALL_SYNONYMS omits it), so a name absent from the list
+  // can still be taken by a synonym.
+  repeated SynonymMetadata synonyms = 18;
+}
+
+// SynonymMetadata is a synonym: another name for an object, which the engine
+// resolves only when the synonym is used.
+message SynonymMetadata {
+  // The name of the synonym.
+  string name = 1;
+
+  // The schema of the object the synonym stands for.
+  string target_schema = 2;
+
+  // The name of the object the synonym stands for.
+  string target_name = 3;
+
+  // The database link through which the object is reached (Oracle), if any.
+  string target_db_link = 4;
+}
+
+// InstanceSchemaMetadata is the metadata of the namespaces on an instance that
+// no database owns. Bytebase syncs one per instance.
+message InstanceSchemaMetadata {
+  // The namespaces, each named by its owner. Oracle: one schema named PUBLIC,
+  // whose synonyms are the public synonyms.
+  repeated SchemaMetadata schemas = 1;
 }
 
 message EnumTypeMetadata {
