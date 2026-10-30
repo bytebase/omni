@@ -174,7 +174,7 @@ func TestSourceClausesOracle(t *testing.T) {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("omni rejects %q: %v", sql, err)
 		}
-		if !o.checkSyntax(sql) {
+		if !o.checkSyntax(t, sql) {
 			t.Errorf("MySQL 8.0 rejects %q", sql)
 		}
 	}

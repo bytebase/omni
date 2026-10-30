@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -51,21 +52,25 @@ func startParserOracle(t *testing.T) *parserOracle {
 	return &parserOracle{db: db, ctx: ctx}
 }
 
-// checkSyntax sends SQL to MySQL 8.0 and returns true if syntactically valid.
-// Strategy: execute the SQL. If MySQL returns error code 1064 (ER_PARSE_ERROR),
-// the SQL is syntactically invalid (rejected). Any other error (e.g. 1146 table
-// not found) means the SQL parsed fine but failed for semantic reasons (accepted).
-func (o *parserOracle) checkSyntax(sql string) bool {
+// checkSyntax reports whether the oracle parses sql. It runs the statement and
+// reads the error: 1064 is a parse error, anything else means the statement parsed
+// and failed for a semantic reason, such as a missing table.
+//
+// Anything that is not a server error — a dropped connection, a timeout — is no
+// verdict at all and fails the test. Reporting it as acceptance would pass every
+// case that expects the engine to accept, against a server that never answered.
+func (o *parserOracle) checkSyntax(t *testing.T, sql string) bool {
+	t.Helper()
 	_, err := o.db.ExecContext(o.ctx, sql)
 	if err == nil {
-		return true // executed successfully — valid syntax
+		return true
 	}
-	if myErr, ok := err.(*gomysql.MySQLError); ok {
-		return myErr.Number != 1064 // 1064 = ER_PARSE_ERROR
+	var myErr *gomysql.MySQLError
+	if errors.As(err, &myErr) {
+		return myErr.Number != 1064
 	}
-	// Non-MySQL error (connection issue, etc.) — treat as valid to avoid
-	// false negatives; the caller should investigate.
-	return true
+	t.Fatalf("the oracle gave no verdict for %q: %v", sql, err)
+	return false
 }
 
 // assertOracleMatch parses with omni parser AND checks against MySQL 8.0,
@@ -76,7 +81,7 @@ func assertOracleMatch(t *testing.T, o *parserOracle, sql string) {
 	_, omniErr := Parse(sql)
 	omniAccepts := omniErr == nil
 
-	mysqlAccepts := o.checkSyntax(sql)
+	mysqlAccepts := o.checkSyntax(t, sql)
 
 	if omniAccepts != mysqlAccepts {
 		t.Errorf("MISMATCH for %q:\n  omni accepts=%v (err=%v)\n  mysql accepts=%v",
@@ -94,7 +99,7 @@ func assertOracleMismatch(t *testing.T, o *parserOracle, sql string) {
 	_, omniErr := Parse(sql)
 	omniAccepts := omniErr == nil
 
-	mysqlAccepts := o.checkSyntax(sql)
+	mysqlAccepts := o.checkSyntax(t, sql)
 
 	if omniAccepts != mysqlAccepts {
 		t.Logf("KNOWN MISMATCH for %q:\n  omni accepts=%v (err=%v)\n  mysql accepts=%v",
