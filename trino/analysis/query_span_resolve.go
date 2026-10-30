@@ -319,18 +319,31 @@ func resolveNodeCols(node parser.QueryNode, cte *cteDefs) []outCol {
 // subquery) anywhere in a VALUES arm of a set operation is still masked. VALUES
 // has no FROM relations, so column refs resolve to themselves; scalar subqueries
 // within the row expressions are followed.
+//
+// Each row's sources are appended to its column's, and seen holds each
+// column's sources as a set. Uniting them into a copy of the column's sources,
+// as each row did, copied lineage that grows by a row each time, so n rows of
+// distinct refs cost O(n²). A column's sources start empty, not nil, as the
+// copy did: a column of literals has no sources, but not nil ones.
 func resolveValuesCols(n *parser.ValuesQuery, cte *cteDefs) []outCol {
 	if n == nil {
 		return nil
 	}
 	scope := &rscope{cte: cte}
 	var cols []outCol
+	var seen []map[ColumnRef]bool
 	for _, row := range n.Rows {
 		for i, e := range valuesRowElements(row) {
 			for len(cols) <= i {
-				cols = append(cols, outCol{item: len(cols)})
+				cols = append(cols, outCol{item: len(cols), sources: []ColumnRef{}})
+				seen = append(seen, make(map[ColumnRef]bool))
 			}
-			cols[i].sources = unionRefs(cols[i].sources, scope.resolveExprRefs(e))
+			for _, r := range scope.resolveExprRefs(e) {
+				if !seen[i][r] {
+					seen[i][r] = true
+					cols[i].sources = append(cols[i].sources, r)
+				}
+			}
 		}
 	}
 	return cols

@@ -3,7 +3,10 @@ package analysis
 import (
 	"reflect"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestScopeIndexMatchesScan: a scope large enough looks its relations and
@@ -490,5 +493,71 @@ func TestGetQuerySpan_DirectColumnLineageUnchanged(t *testing.T) {
 	}
 	if len(r.SourceColumns) != 1 || r.SourceColumns[0] != (ColumnRef{Column: "phone"}) {
 		t.Errorf("phone.SourceColumns = %+v, want exactly [{Column:phone}]", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpanValuesStayLinear: VALUES with many rows of distinct refs,
+// wherever a VALUES can stand. The lineage of a VALUES column is the refs of
+// every row, in order, and building it as a copy at each row made 10,000
+// rows take 9s; 20,000 rows take milliseconds.
+func TestGetQuerySpanValuesStayLinear(t *testing.T) {
+	const n = 20000
+	rows := func(row func(i string) string) string {
+		parts := make([]string, n)
+		for i := range parts {
+			parts[i] = row(strconv.Itoa(i))
+		}
+		return strings.Join(parts, ", ")
+	}
+	// refs is first, when not empty, then col0, col1, … as bare refs.
+	refs := func(first, col string) []ColumnRef {
+		var out []ColumnRef
+		if first != "" {
+			out = append(out, ColumnRef{Column: first})
+		}
+		for i := 0; i < n; i++ {
+			out = append(out, ColumnRef{Column: col + strconv.Itoa(i)})
+		}
+		return out
+	}
+	a := rows(func(i string) string { return "(a" + i + ")" })
+	for _, tc := range []struct {
+		name string
+		sql  string
+		want [][]ColumnRef // each result column's lineage
+	}{
+		{"rows of distinct refs", "VALUES " + rows(func(i string) string { return "(a" + i + ", b" + i + ")" }),
+			[][]ColumnRef{refs("", "a"), refs("", "b")}},
+		{"scalar subqueries in rows", "VALUES " + rows(func(i string) string { return "((SELECT c" + i + " FROM t))" }),
+			[][]ColumnRef{refs("", "c")}},
+		{"derived table", "SELECT x FROM (VALUES " + a + ") v(x)", [][]ColumnRef{refs("x", "a")}},
+		{"CTE", "WITH v(x) AS (VALUES " + a + ") SELECT x FROM v", [][]ColumnRef{refs("x", "a")}},
+		{"set operation arm", "SELECT x FROM t UNION ALL VALUES " + a, [][]ColumnRef{refs("x", "a")}},
+		{"scalar subquery", "SELECT (SELECT max(x) FROM (VALUES " + a + ") v(x)) AS m", [][]ColumnRef{refs("x", "a")}},
+	} {
+		type result struct {
+			span *QuerySpan
+			err  error
+		}
+		done := make(chan result, 1)
+		go func() {
+			span, err := GetQuerySpan(tc.sql)
+			done <- result{span, err}
+		}()
+		select {
+		case r := <-done:
+			if r.err != nil {
+				t.Fatalf("%s: GetQuerySpan error = %v", tc.name, r.err)
+			}
+			var got [][]ColumnRef
+			for _, c := range r.span.Results {
+				got = append(got, c.SourceColumns)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("%s: the lineage of the result columns is not every row's refs in order", tc.name)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: GetQuerySpan of %d VALUES rows took over 2s", tc.name, n)
+		}
 	}
 }
