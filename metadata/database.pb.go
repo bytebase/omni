@@ -368,8 +368,13 @@ type DatabaseSchemaMetadata struct {
 	// The list of event triggers in a database (PostgreSQL specific).
 	// Event triggers are database-level objects, not schema-scoped.
 	EventTriggers []*EventTriggerMetadata `protobuf:"bytes,11,rep,name=event_triggers,json=eventTriggers,proto3" json:"event_triggers,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// The public synonyms of the database's instance (Oracle): the synonyms
+	// owned by PUBLIC, to which an unqualified name resolves when the current
+	// schema holds no object of that name. Every database of an instance holds
+	// the same list, as with linked_databases.
+	PublicSynonyms []*SynonymMetadata `protobuf:"bytes,12,rep,name=public_synonyms,json=publicSynonyms,proto3" json:"public_synonyms,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *DatabaseSchemaMetadata) Reset() {
@@ -479,6 +484,13 @@ func (x *DatabaseSchemaMetadata) GetEventTriggers() []*EventTriggerMetadata {
 	return nil
 }
 
+func (x *DatabaseSchemaMetadata) GetPublicSynonyms() []*SynonymMetadata {
+	if x != nil {
+		return x.PublicSynonyms
+	}
+	return nil
+}
+
 type LinkedDatabaseMetadata struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -574,12 +586,8 @@ type SchemaMetadata struct {
 	// The list of user-defined composite types in a schema (PostgreSQL family,
 	// CREATE TYPE ... AS). Excludes table/view row types and derived types.
 	CompositeTypes []*CompositeTypeMetadata `protobuf:"bytes,17,rep,name=composite_types,json=compositeTypes,proto3" json:"composite_types,omitempty"`
-	// The list of synonyms in a schema. Oracle: the schema's private synonyms;
-	// the public synonyms are those of the schema named PUBLIC, which no
-	// database owns and Bytebase stores once per instance. A synonym whose
-	// object is gone, or not accessible to the syncing user, may be missing
-	// (Oracle's ALL_SYNONYMS omits it), so a name absent from the list can
-	// still be taken by a synonym.
+	// The list of synonyms in a schema: Oracle's private synonyms. The public
+	// synonyms are in DatabaseSchemaMetadata.public_synonyms.
 	Synonyms      []*SynonymMetadata `protobuf:"bytes,18,rep,name=synonyms,proto3" json:"synonyms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -742,7 +750,10 @@ func (x *SchemaMetadata) GetSynonyms() []*SynonymMetadata {
 }
 
 // SynonymMetadata is a synonym: another name for an object, which the engine
-// resolves only when the synonym is used.
+// resolves only when the synonym is used. A synced list may lack a synonym
+// whose object is gone or not accessible to the syncing user (Oracle's
+// ALL_SYNONYMS omits it), so a name absent from the list can still be taken
+// by a synonym.
 type SynonymMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The name of the synonym.
@@ -4206,7 +4217,7 @@ var File_omni_metadata_database_proto protoreflect.FileDescriptor
 
 const file_omni_metadata_database_proto_rawDesc = "" +
 	"\n" +
-	"\x1comni/metadata/database.proto\x12\romni.metadata\"\x80\x04\n" +
+	"\x1comni/metadata/database.proto\x12\romni.metadata\"\xc9\x04\n" +
 	"\x16DatabaseSchemaMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
 	"\aschemas\x18\x02 \x03(\v2\x1d.omni.metadata.SchemaMetadataR\aschemas\x12#\n" +
@@ -4222,7 +4233,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\vsearch_path\x18\n" +
 	" \x01(\tR\n" +
 	"searchPath\x12J\n" +
-	"\x0eevent_triggers\x18\v \x03(\v2#.omni.metadata.EventTriggerMetadataR\reventTriggers\"\\\n" +
+	"\x0eevent_triggers\x18\v \x03(\v2#.omni.metadata.EventTriggerMetadataR\reventTriggers\x12G\n" +
+	"\x0fpublic_synonyms\x18\f \x03(\v2\x1e.omni.metadata.SynonymMetadataR\x0epublicSynonyms\"\\\n" +
 	"\x16LinkedDatabaseMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x12\n" +
@@ -4697,61 +4709,62 @@ var file_omni_metadata_database_proto_depIdxs = []int32{
 	40, // 1: omni.metadata.DatabaseSchemaMetadata.extensions:type_name -> omni.metadata.ExtensionMetadata
 	7,  // 2: omni.metadata.DatabaseSchemaMetadata.linked_databases:type_name -> omni.metadata.LinkedDatabaseMetadata
 	41, // 3: omni.metadata.DatabaseSchemaMetadata.event_triggers:type_name -> omni.metadata.EventTriggerMetadata
-	19, // 4: omni.metadata.SchemaMetadata.tables:type_name -> omni.metadata.TableMetadata
-	22, // 5: omni.metadata.SchemaMetadata.external_tables:type_name -> omni.metadata.ExternalTableMetadata
-	26, // 6: omni.metadata.SchemaMetadata.views:type_name -> omni.metadata.ViewMetadata
-	30, // 7: omni.metadata.SchemaMetadata.functions:type_name -> omni.metadata.FunctionMetadata
-	31, // 8: omni.metadata.SchemaMetadata.procedures:type_name -> omni.metadata.ProcedureMetadata
-	18, // 9: omni.metadata.SchemaMetadata.streams:type_name -> omni.metadata.StreamMetadata
-	17, // 10: omni.metadata.SchemaMetadata.tasks:type_name -> omni.metadata.TaskMetadata
-	28, // 11: omni.metadata.SchemaMetadata.materialized_views:type_name -> omni.metadata.MaterializedViewMetadata
-	14, // 12: omni.metadata.SchemaMetadata.sequences:type_name -> omni.metadata.SequenceMetadata
-	32, // 13: omni.metadata.SchemaMetadata.packages:type_name -> omni.metadata.PackageMetadata
-	13, // 14: omni.metadata.SchemaMetadata.events:type_name -> omni.metadata.EventMetadata
-	10, // 15: omni.metadata.SchemaMetadata.enum_types:type_name -> omni.metadata.EnumTypeMetadata
-	11, // 16: omni.metadata.SchemaMetadata.composite_types:type_name -> omni.metadata.CompositeTypeMetadata
-	9,  // 17: omni.metadata.SchemaMetadata.synonyms:type_name -> omni.metadata.SynonymMetadata
-	12, // 18: omni.metadata.CompositeTypeMetadata.attributes:type_name -> omni.metadata.CompositeTypeAttribute
-	0,  // 19: omni.metadata.TaskMetadata.state:type_name -> omni.metadata.TaskMetadata.State
-	1,  // 20: omni.metadata.StreamMetadata.type:type_name -> omni.metadata.StreamMetadata.Type
-	2,  // 21: omni.metadata.StreamMetadata.mode:type_name -> omni.metadata.StreamMetadata.Mode
-	24, // 22: omni.metadata.TableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
-	33, // 23: omni.metadata.TableMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	42, // 24: omni.metadata.TableMetadata.foreign_keys:type_name -> omni.metadata.ForeignKeyMetadata
-	23, // 25: omni.metadata.TableMetadata.partitions:type_name -> omni.metadata.TablePartitionMetadata
-	20, // 26: omni.metadata.TableMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
-	15, // 27: omni.metadata.TableMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	16, // 28: omni.metadata.TableMetadata.rules:type_name -> omni.metadata.RuleMetadata
-	21, // 29: omni.metadata.TableMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
-	24, // 30: omni.metadata.ExternalTableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
-	3,  // 31: omni.metadata.TablePartitionMetadata.type:type_name -> omni.metadata.TablePartitionMetadata.Type
-	23, // 32: omni.metadata.TablePartitionMetadata.subpartitions:type_name -> omni.metadata.TablePartitionMetadata
-	33, // 33: omni.metadata.TablePartitionMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	20, // 34: omni.metadata.TablePartitionMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
-	21, // 35: omni.metadata.TablePartitionMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
-	25, // 36: omni.metadata.ColumnMetadata.generation:type_name -> omni.metadata.GenerationMetadata
-	4,  // 37: omni.metadata.ColumnMetadata.identity_generation:type_name -> omni.metadata.ColumnMetadata.IdentityGeneration
-	5,  // 38: omni.metadata.GenerationMetadata.type:type_name -> omni.metadata.GenerationMetadata.Type
-	27, // 39: omni.metadata.ViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	24, // 40: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
-	15, // 41: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	16, // 42: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
-	27, // 43: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	15, // 44: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	33, // 45: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	29, // 46: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
-	34, // 47: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
-	35, // 48: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
-	38, // 49: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
-	39, // 50: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
-	43, // 51: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
-	36, // 52: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
-	37, // 53: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
-	54, // [54:54] is the sub-list for method output_type
-	54, // [54:54] is the sub-list for method input_type
-	54, // [54:54] is the sub-list for extension type_name
-	54, // [54:54] is the sub-list for extension extendee
-	0,  // [0:54] is the sub-list for field type_name
+	9,  // 4: omni.metadata.DatabaseSchemaMetadata.public_synonyms:type_name -> omni.metadata.SynonymMetadata
+	19, // 5: omni.metadata.SchemaMetadata.tables:type_name -> omni.metadata.TableMetadata
+	22, // 6: omni.metadata.SchemaMetadata.external_tables:type_name -> omni.metadata.ExternalTableMetadata
+	26, // 7: omni.metadata.SchemaMetadata.views:type_name -> omni.metadata.ViewMetadata
+	30, // 8: omni.metadata.SchemaMetadata.functions:type_name -> omni.metadata.FunctionMetadata
+	31, // 9: omni.metadata.SchemaMetadata.procedures:type_name -> omni.metadata.ProcedureMetadata
+	18, // 10: omni.metadata.SchemaMetadata.streams:type_name -> omni.metadata.StreamMetadata
+	17, // 11: omni.metadata.SchemaMetadata.tasks:type_name -> omni.metadata.TaskMetadata
+	28, // 12: omni.metadata.SchemaMetadata.materialized_views:type_name -> omni.metadata.MaterializedViewMetadata
+	14, // 13: omni.metadata.SchemaMetadata.sequences:type_name -> omni.metadata.SequenceMetadata
+	32, // 14: omni.metadata.SchemaMetadata.packages:type_name -> omni.metadata.PackageMetadata
+	13, // 15: omni.metadata.SchemaMetadata.events:type_name -> omni.metadata.EventMetadata
+	10, // 16: omni.metadata.SchemaMetadata.enum_types:type_name -> omni.metadata.EnumTypeMetadata
+	11, // 17: omni.metadata.SchemaMetadata.composite_types:type_name -> omni.metadata.CompositeTypeMetadata
+	9,  // 18: omni.metadata.SchemaMetadata.synonyms:type_name -> omni.metadata.SynonymMetadata
+	12, // 19: omni.metadata.CompositeTypeMetadata.attributes:type_name -> omni.metadata.CompositeTypeAttribute
+	0,  // 20: omni.metadata.TaskMetadata.state:type_name -> omni.metadata.TaskMetadata.State
+	1,  // 21: omni.metadata.StreamMetadata.type:type_name -> omni.metadata.StreamMetadata.Type
+	2,  // 22: omni.metadata.StreamMetadata.mode:type_name -> omni.metadata.StreamMetadata.Mode
+	24, // 23: omni.metadata.TableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	33, // 24: omni.metadata.TableMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	42, // 25: omni.metadata.TableMetadata.foreign_keys:type_name -> omni.metadata.ForeignKeyMetadata
+	23, // 26: omni.metadata.TableMetadata.partitions:type_name -> omni.metadata.TablePartitionMetadata
+	20, // 27: omni.metadata.TableMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
+	15, // 28: omni.metadata.TableMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	16, // 29: omni.metadata.TableMetadata.rules:type_name -> omni.metadata.RuleMetadata
+	21, // 30: omni.metadata.TableMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
+	24, // 31: omni.metadata.ExternalTableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	3,  // 32: omni.metadata.TablePartitionMetadata.type:type_name -> omni.metadata.TablePartitionMetadata.Type
+	23, // 33: omni.metadata.TablePartitionMetadata.subpartitions:type_name -> omni.metadata.TablePartitionMetadata
+	33, // 34: omni.metadata.TablePartitionMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	20, // 35: omni.metadata.TablePartitionMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
+	21, // 36: omni.metadata.TablePartitionMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
+	25, // 37: omni.metadata.ColumnMetadata.generation:type_name -> omni.metadata.GenerationMetadata
+	4,  // 38: omni.metadata.ColumnMetadata.identity_generation:type_name -> omni.metadata.ColumnMetadata.IdentityGeneration
+	5,  // 39: omni.metadata.GenerationMetadata.type:type_name -> omni.metadata.GenerationMetadata.Type
+	27, // 40: omni.metadata.ViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	24, // 41: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	15, // 42: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	16, // 43: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
+	27, // 44: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	15, // 45: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	33, // 46: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	29, // 47: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
+	34, // 48: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
+	35, // 49: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
+	38, // 50: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
+	39, // 51: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
+	43, // 52: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
+	36, // 53: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
+	37, // 54: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
+	55, // [55:55] is the sub-list for method output_type
+	55, // [55:55] is the sub-list for method input_type
+	55, // [55:55] is the sub-list for extension type_name
+	55, // [55:55] is the sub-list for extension extendee
+	0,  // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_omni_metadata_database_proto_init() }
