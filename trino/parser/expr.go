@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -1032,10 +1031,10 @@ func (p *Parser) startsQuery() bool {
 // O(n²). Validating the body from its text reports what the bodies nested in
 // it report, then its own lex errors; the bodies nested in it are captured
 // in its place in rawQueries, and a lexOnly entry after them reports its lex
-// errors, so the statement's errors come out as before. That holds while the
-// body is one statement to the text parse: a ';' token in it (inside a nested
-// raw body, in a routine) makes that parse split it, so such a body is still
-// scanned raw.
+// errors, so the statement's errors come out as before. The text parse reads
+// the body as one statement, ';' tokens and all (see validateRawQuery), so
+// this holds for a body holding one too, inside a nested raw body or a
+// routine.
 //
 // Nor does white space the lexer rejects (U+00A0, \v) between the query and
 // the ')': the body's text is trimmed of it, so the text parse reads the
@@ -1051,14 +1050,12 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 			end := p.cur.Loc.Start // where the body's text ends, trimmed
 			if p.cur.Kind == int(')') || p.skipTrimmedSpace() {
 				lexErrs := p.lexer.errorCount() != cp.lexErrs
-				if !lexErrs || !p.hasSemicolonIn(subStart, end) {
-					sub := p.finishSubqueryPlaceholder(startOffset, subStart, kind)
-					sub.Query = q
-					if lexErrs {
-						p.rawQueries = append(p.rawQueries, rawQuery{lexOnly: true, start: subStart, end: end})
-					}
-					return sub, nil
+				sub := p.finishSubqueryPlaceholder(startOffset, subStart, kind)
+				sub.Query = q
+				if lexErrs {
+					p.rawQueries = append(p.rawQueries, rawQuery{lexOnly: true, start: subStart, end: end})
 				}
+				return sub, nil
 			}
 		}
 		p.restore(cp)
@@ -1096,10 +1093,13 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 // rawQueries reports the same errors from the in-place parse.
 //
 // It returns nil, with the parser back where it was, when the in-place parse
-// does not read the body as the text parse does: when it fails, ends before
-// the ')', or meets a ';', at which the text parse may split the text. It
-// does too when it nests too deeply: the text parse reports that among the
-// statement's errors, where it is. The parser keeps no record of a parse
+// does not read the body as the text parse does: when it fails or ends before
+// the ')'. A ';' in the body does not count, as the text parse reads the body
+// as one statement too (see validateRawQuery). Leaving a body that held one
+// to the text parse made it parse the text of every body nested in it once
+// per level, so n of them nested in each other's BEGIN blocks cost O(n²). It
+// returns nil too when it nests too deeply: the text parse reports that among
+// the statement's errors, where it is. The parser keeps no record of a parse
 // that failed so (see enterNesting), so from then on it leaves every such
 // body to the text parse.
 func (p *Parser) parseRoutineSubquery(startOffset, subStart int, kind SubqueryKind) *SubqueryExpr {
@@ -1115,7 +1115,7 @@ func (p *Parser) parseRoutineSubquery(startOffset, subStart int, kind SubqueryKi
 		return nil
 	}
 	end := p.cur.Loc.Start // where the body's text ends, trimmed
-	if err != nil || p.cur.Kind != int(')') && !p.skipTrimmedSpace() || p.hasSemicolonIn(subStart, end) {
+	if err != nil || p.cur.Kind != int(')') && !p.skipTrimmedSpace() {
 		p.restore(cp)
 		return nil
 	}
@@ -1156,25 +1156,6 @@ func (p *Parser) skipTrimmedSpace() bool {
 		p.advance()
 	}
 	return p.cur.Kind == int(')')
-}
-
-// hasSemicolonIn reports whether a ';' token lies in [start, end), absolute
-// offsets in the segment. The segment is lexed for them once, and only when
-// it holds a ';' byte at all.
-func (p *Parser) hasSemicolonIn(start, end int) bool {
-	if !p.semicolonsLexed {
-		p.semicolonsLexed = true
-		if strings.IndexByte(p.input, ';') >= 0 {
-			lx := NewLexerWithOffset(p.input, p.baseOffset)
-			for tok := lx.NextToken(); tok.Kind != tokEOF; tok = lx.NextToken() {
-				if tok.Kind == int(';') {
-					p.semicolons = append(p.semicolons, tok.Loc.Start)
-				}
-			}
-		}
-	}
-	i := sort.SearchInts(p.semicolons, start)
-	return i < len(p.semicolons) && p.semicolons[i] < end
 }
 
 // skipParenGroup moves from the '(' at p.cur to its matching ')', left as

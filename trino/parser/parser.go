@@ -95,11 +95,6 @@ type Parser struct {
 	depth      int         // nesting depth of the productions being parsed (see enterNesting)
 	nestingErr *ParseError // the first nesting failure; the statement fails with it
 
-	// semicolons lists the absolute offsets of the segment's ';' tokens, in
-	// order, once semicolonsLexed is set (see hasSemicolonIn).
-	semicolons      []int
-	semicolonsLexed bool
-
 	// prepareBodies counts the PREPARE bodies being parsed (see
 	// parsePrepareBody), prepareTokens lists the segment's tokens from the
 	// outermost one on (see prepareBodyEnd), and prepareWraps counts the

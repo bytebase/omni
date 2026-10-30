@@ -70,16 +70,28 @@ func TestNestedParensStayLinear(t *testing.T) {
 // bodies whose parse in place used to fail while the parse of their text,
 // which validates them, did not: a body over a lex error, one ending in white
 // space the lexer rejects (the text is trimmed of it), and a WITH FUNCTION
-// statement. Each was captured raw and validated by parsing its text, which
-// validated every body inside it the same way, so 1,000 nested levels took
-// seconds. These take milliseconds, and the statement fails with the error
-// the innermost body reports, as before.
+// statement, also one whose text holds a ';', inside the BEGIN block of the
+// routine around it. Each was captured raw and validated by parsing its text,
+// which validated every body inside it the same way, so 1,000 nested levels
+// took seconds. These take milliseconds, and the statement fails with the
+// error the innermost body reports, as before.
 func TestRawBodyChainsStayLinear(t *testing.T) {
 	raiseNestingLimit(t)
 	nest := func(depth int, open, mid, closing string) string {
 		return strings.Repeat(open, depth) + mid + strings.Repeat(closing, depth)
 	}
 	const routine = "WITH FUNCTION f() RETURNS int RETURN 1 SELECT "
+	// inBegin nests depth WITH FUNCTION subqueries, each in the BEGIN block
+	// of the one around it, around mid: Split keeps the statement whole, so
+	// each body's text holds the ';' of every body inside it.
+	inBegin := func(depth int, open, mid, closing string) string {
+		return "CREATE FUNCTION f() RETURNS int BEGIN RETURN " + nest(depth, open, mid, closing) + "; END"
+	}
+	const (
+		beginOpen  = "(WITH FUNCTION g() RETURNS int BEGIN RETURN "
+		beginClose = "; END SELECT 1)"
+		innermost  = "(WITH FUNCTION h() RETURNS int BEGIN RETURN 1; END SELECT 1)"
+	)
 	for _, tc := range []struct {
 		name string
 		sql  string
@@ -93,6 +105,9 @@ func TestRawBodyChainsStayLinear(t *testing.T) {
 		{"vertical tab before every ')'", "SELECT " + nest(10000, "(SELECT ", "1", "\v)"), "\v", "unrecognized character"},
 		{"WITH FUNCTION subqueries", "SELECT " + nest(5000, "("+routine, "1", ")"), "WITH FUNCTION f() RETURNS int RETURN 1 SELECT 1", "subquery must contain exactly one query"},
 		{"WITH FUNCTION subqueries over a lex error", "SELECT " + nest(5000, "("+routine, "! 1", ")"), "!", "expected expression, found INVALID"},
+		{"WITH FUNCTION subqueries in BEGIN blocks", inBegin(2000, beginOpen, innermost, beginClose), "WITH FUNCTION h()", "subquery must contain exactly one query"},
+		{"WITH FUNCTION subqueries in BEGIN blocks over a lex error", inBegin(2000, beginOpen, "!1", beginClose), "!", "expected expression, found INVALID"},
+		{"subqueries in BEGIN blocks", inBegin(2000, beginOpen+"(SELECT ", innermost, ")"+beginClose), "WITH FUNCTION h()", "subquery must contain exactly one query"},
 	} {
 		done := make(chan error, 1)
 		go func() {
@@ -142,6 +157,18 @@ func TestInPlaceBodyErrors(t *testing.T) {
 		}},
 		{"SELECT (WITH FUNCTION f() RETURNS int RETURN 1 SELECT (WITH FUNCTION f() RETURNS int RETURN 1 SELECT 1))", []ParseError{
 			{Position: 55, End: 102, Message: "subquery must contain exactly one query"},
+		}},
+		// WITH FUNCTION bodies whose text holds a ';', in the BEGIN block of
+		// the routine around them.
+		{"CREATE FUNCTION f() RETURNS int BEGIN RETURN (WITH FUNCTION g() RETURNS int BEGIN RETURN (WITH FUNCTION h() RETURNS int BEGIN RETURN 1; END SELECT 1); END SELECT 1); END", []ParseError{
+			{Position: 90, End: 148, Message: "subquery must contain exactly one query"},
+		}},
+		{"CREATE FUNCTION f() RETURNS int BEGIN RETURN (WITH FUNCTION g() RETURNS int BEGIN RETURN (WITH FUNCTION h() RETURNS int BEGIN RETURN !1; END SELECT 1); END SELECT 1); END", []ParseError{
+			{Position: 133, End: 134, Message: "expected expression, found INVALID"},
+			{Position: 133, End: 134, Message: "unrecognized character"},
+		}},
+		{"CREATE FUNCTION f() RETURNS int BEGIN RETURN (WITH FUNCTION g() RETURNS int BEGIN RETURN (SELECT (WITH FUNCTION h() RETURNS int BEGIN RETURN 1; END SELECT 1)); END SELECT 1); END", []ParseError{
+			{Position: 98, End: 156, Message: "subquery must contain exactly one query"},
 		}},
 		{"PREPARE q FROM PREPARE q FROM PREPARE q FROM TABLE s.t \"q\u0085", []ParseError{
 			{Position: 15, End: 22, Message: strings.Repeat(prepareInvalid, 3) + "syntax error at or near INVALID"},
