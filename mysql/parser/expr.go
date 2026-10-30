@@ -1582,6 +1582,12 @@ func (p *Parser) parseSubqueryHead() (*nodes.SubqueryExpr, subqueryHeadOutcome, 
 		// form, so nothing invalid round-trips.
 		_, errP := p.expect(')')
 		return nil, 0, errP
+	case isNestingError(err):
+		// A nesting error ends the parse. Retrying the scalar reading would
+		// repeat both readings at every enclosing '(', which takes time
+		// exponential in the depth, since parseSelectWithParens does not
+		// record a nesting error.
+		return nil, 0, err
 	case nested:
 		// Rewind and let the caller reparse as a scalar expression. The
 		// discarded error rides along with the scalar outcome (it is NOT a
