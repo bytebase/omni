@@ -905,8 +905,13 @@ func (s *state) addRequestEnd() error {
 	return nil
 }
 
+// updateRequestEnd ends the request before the current character, as the
+// upstream's at - 1 does. Past the end of the text, that is the end of the
+// text. The test used to be at >= len(text), which also held while the
+// current character was the last one, and a request followed by a
+// multi-byte last character then ended inside it.
 func (s *state) updateRequestEnd() error {
-	if s.at >= len(s.text) {
+	if s.eof() {
 		s.requestEndOffset = s.at - 1
 		return nil
 	}

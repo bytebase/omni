@@ -51,6 +51,16 @@ func TestPositions(t *testing.T) {
 			}}, ranges)
 		})
 	}
+	t.Run("request followed by a multi-byte last character", func(t *testing.T) {
+		// The request ended inside "é", so its text held half of it.
+		res, err := es.ParseElasticsearchREST("GET /x\n{}é")
+		require.NoError(t, err)
+		require.Equal(t, 9, res.Requests[0].EndOffset)
+		stmts, err := es.SplitMultiSQL("GET /x\n{}é")
+		require.NoError(t, err)
+		require.Equal(t, "GET /x\n{}", stmts[0].Text)
+		require.Equal(t, es.Position{Line: 2, Column: 3}, stmts[0].End)
+	})
 	t.Run("ranges count UTF-16 code units", func(t *testing.T) {
 		ranges, err := es.GetStatementRanges("GET /😀\nGET /b😀")
 		require.NoError(t, err)
@@ -105,6 +115,9 @@ func checkPositions(in string) error {
 			if s.Range == (es.Range{}) && s.Text == in {
 				// No request parsed: the whole text is one statement, with no position.
 				continue
+			}
+			if utf8.ValidString(in) && !utf8.ValidString(s.Text) {
+				return fmt.Errorf("statement %d text %q splits a character", i, s.Text)
 			}
 			if l, c := index.Position(s.Range.Start); s.Start != (es.Position{Line: l, Column: c}) {
 				return fmt.Errorf("statement %d starts at %+v, review.Index gives %d:%d", i, s.Start, l, c)
