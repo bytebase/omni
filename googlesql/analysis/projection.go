@@ -138,8 +138,10 @@ type relation struct {
 	// the ELEMENT's lineage (a struct field reads the element).
 	valueTable bool
 	// columns is the ordered resolved projection. For a base table it is a single
-	// baseStar element.
+	// baseStar element. It is never changed once the relation is built.
 	columns []projColumn
+	// index answers lookups of columns by name (see projectionColumnSources).
+	index *relIndex
 }
 
 // resolveSelectProjection resolves a SELECT block to its output projection,
@@ -148,7 +150,7 @@ type relation struct {
 // item resolves its expression's columns against the relations. fromRels is the
 // comma-item relation list (a join collapsed into one combined relation) used to
 // expand a bare `*` in FROM order; column / `rel.*` lookups use the SELECT's leaf
-// relations (w.leafRels), which keep each join side findable by name.
+// relations (w.leaves), which keep each join side findable by name.
 func (w *spanWalker) resolveSelectProjection(stmt *ast.SelectStmt, fromRels []*relation) []projColumn {
 	var out []projColumn
 	for _, item := range stmt.Items {
@@ -290,7 +292,7 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	// sub-fields, which carry no extra base lineage). Relation-first because omni,
 	// unlike the legacy resolver, cannot metadata-check whether the leading
 	// identifier is instead a column of a base table.
-	if findRelation(w.leafRels, parts[0]) != nil {
+	if w.leaves.find(parts[0]) != nil {
 		return parts[1], w.resolveColumn(parts[0], parts[1])
 	}
 	// A FULLY-qualified column reference whose qualifier names a leaf base relation
@@ -315,23 +317,11 @@ func (w *spanWalker) qualifierNamesBaseRelation(ref ColumnRef) bool {
 	if ref.Table == "" {
 		return false
 	}
-	for _, rel := range w.leafRels {
-		if !rel.isBase {
-			continue
-		}
-		b := rel.baseRef
-		if strings.EqualFold(b.Table, ref.Table) &&
-			strings.EqualFold(b.Database, ref.Database) &&
-			strings.EqualFold(b.Schema, ref.Schema) &&
-			strings.EqualFold(b.Catalog, ref.Catalog) {
-			return true
-		}
-	}
-	return false
+	return w.leaves.hasBase(ref)
 }
 
 // resolveColumn resolves a (relationQualifier, column) reference to base lineage
-// against the SELECT's leaf relations (w.leafRels). relQualifier may be ""
+// against the SELECT's leaf relations (w.leaves). relQualifier may be ""
 // (unqualified). A CTE/derived relation's column resolves to its stored lineage; a
 // base (or base-star-passthrough) relation's column resolves to a written ref the
 // consumer matches against metadata; an unresolved reference falls back to a
@@ -344,7 +334,7 @@ func (w *spanWalker) resolveColumn(relQualifier, column string) []ColumnRef {
 	// Qualified by a base relation → carry the relation's base ref; unqualified or
 	// over an unknown relation → a bare column ref.
 	if relQualifier != "" {
-		if rel := findRelation(w.leafRels, relQualifier); rel != nil && rel.isBase {
+		if rel := w.leaves.find(relQualifier); rel != nil && rel.isBase {
 			ref := rel.baseRef
 			ref.Column = column
 			return []ColumnRef{ref}
@@ -360,30 +350,12 @@ func (w *spanWalker) resolveColumn(relQualifier, column string) []ColumnRef {
 	// which over-includes whenever another table shares the column name (e.g. a
 	// 3-way UNION whose arms' tables have overlapping column names) and diverges
 	// from the legacy resolver's exact single-table attribution.
-	if rel := soleBaseRelation(w.leafRels); rel != nil {
+	if rel := w.leaves.soleBase(); rel != nil {
 		ref := rel.baseRef
 		ref.Column = column
 		return []ColumnRef{ref}
 	}
 	return []ColumnRef{{Column: column}}
-}
-
-// soleBaseRelation returns the single base-table relation in rels when exactly
-// one exists, else nil. With several base relations a bare column is ambiguous
-// (omni cannot enumerate base-table columns metadata-free), so the caller keeps
-// the bare ref and the consumer matches additively by name.
-func soleBaseRelation(rels []*relation) *relation {
-	var sole *relation
-	for _, rel := range rels {
-		if !rel.isBase {
-			continue
-		}
-		if sole != nil {
-			return nil
-		}
-		sole = rel
-	}
-	return sole
 }
 
 // resolveColumnStrict resolves a (relationQualifier, column) reference ONLY when
@@ -400,7 +372,7 @@ func soleBaseRelation(rels []*relation) *relation {
 //     (omni cannot know which base table — or which arm of a join — owns it).
 func (w *spanWalker) resolveColumnStrict(relQualifier, column string) ([]ColumnRef, bool) {
 	if relQualifier != "" {
-		rel := findRelation(w.leafRels, relQualifier)
+		rel := w.leaves.find(relQualifier)
 		if rel == nil {
 			return nil, false
 		}
@@ -420,52 +392,7 @@ func (w *spanWalker) resolveColumnStrict(relQualifier, column string) ([]ColumnR
 		}
 		return nil, false
 	}
-	for _, rel := range w.leafRels {
-		if rel.isBase {
-			continue
-		}
-		if refs, ok := projectionColumnSources(rel, column, false /* allowBaseStar */); ok {
-			return refs, true
-		}
-	}
-	return nil, false
-}
-
-// projectionColumnSources returns the base lineage of the column named `column`
-// in a relation's projection, or nil if the relation has no such named column.
-//
-// A concrete projection column matches by name. A baseStar element (a whole base
-// table whose columns omni cannot enumerate) matches ANY column name — but ONLY
-// when allowBaseStar is set: a baseStar match is sound for a QUALIFIED reference
-// (`rel.col` names the relation, so `col` must be one of its columns) but NOT for
-// an UNQUALIFIED reference (omni cannot know which of several base relations — or
-// join arms — owns a bare `col`; that is left to the metadata-aware consumer to
-// match by name).
-func projectionColumnSources(rel *relation, column string, allowBaseStar bool) ([]ColumnRef, bool) {
-	for _, c := range rel.columns {
-		if c.baseStar != nil {
-			if !allowBaseStar {
-				continue
-			}
-			// A USING-coalesced star excludes its key columns — those are owned by
-			// the coalesced concrete column (earlier in the projection), not by this
-			// star segment.
-			if nameInListFold(c.baseStarExcept, column) {
-				continue
-			}
-			ref := *c.baseStar
-			ref.Column = column
-			return []ColumnRef{ref}, true
-		}
-		if strings.EqualFold(c.name, column) {
-			// Found — even when its lineage is empty (e.g. a CTE column projected from
-			// a literal like `1 AS n`); return found=true so the caller does NOT apply
-			// the unresolved-reference fallback (which would wrongly fabricate a bare
-			// column ref). Empty-but-resolved lineage is the legacy result.
-			return c.sources, true
-		}
-	}
-	return nil, false
+	return w.leaves.derivedColumn(column)
 }
 
 // resolveDotStar resolves a `rel.*` (or qualified/field-path star) to the named
@@ -491,7 +418,7 @@ func (w *spanWalker) resolveDotStar(expr ast.Node) []projColumn {
 	// result's masker lands on the struct's first sub-column → leak). Those fall
 	// through to the fail-closed branch, matching the legacy resolver's error.
 	if len(parts) == 1 {
-		if rel := findRelation(w.leafRels, parts[0]); rel != nil {
+		if rel := w.leaves.find(parts[0]); rel != nil {
 			if rel.valueTable {
 				// An UNNEST/value relation's `elem.*` expands the ELEMENT's struct
 				// sub-fields — N engine output columns omni cannot enumerate;
@@ -509,9 +436,9 @@ func (w *spanWalker) resolveDotStar(expr ast.Node) []projColumn {
 	// FROM accepts no written prefix; the engine would reject the mismatched
 	// range variable anyway, and the legacy resolver errored on every
 	// schema-qualified star).
-	if len(parts) >= 2 && findRelation(w.leafRels, parts[0]) == nil {
+	if len(parts) >= 2 && w.leaves.find(parts[0]) == nil {
 		last := parts[len(parts)-1]
-		if rel := findRelation(w.leafRels, last); rel != nil && rel.isBase {
+		if rel := w.leaves.find(last); rel != nil && rel.isBase {
 			prefix := parts[len(parts)-2]
 			schemaMatch := rel.baseRef.Schema != "" && strings.EqualFold(rel.baseRef.Schema, prefix)
 			databaseMatch := rel.baseRef.Database != "" && strings.EqualFold(rel.baseRef.Database, prefix)
@@ -650,11 +577,13 @@ func mergeProjectionsByName(left, right []projColumn, matchColumns []string) []p
 		}}
 	}
 	if len(matchColumns) > 0 {
+		l, r := newNamedSources(left), newNamedSources(right)
 		out := make([]projColumn, 0, len(matchColumns))
 		for _, m := range matchColumns {
+			k := foldKey(m)
 			out = append(out, projColumn{
 				name:    m,
-				sources: unionColumnRefs(namedSources(left, m), namedSources(right, m)),
+				sources: unionColumnRefs(l.get(k), r.get(k)),
 				plain:   false,
 			})
 		}
@@ -682,6 +611,24 @@ type setOpMerger struct {
 	// column i's sources.
 	cols   []projColumn
 	unions []refUnion
+	// byName maps foldKey of each name in cols to the columns with that name,
+	// in order. A BY NAME merge builds it; it is dropped with unions.
+	byName map[string][]int
+	// concrete caches allConcrete(cols) while checked is set.
+	concrete, checked bool
+}
+
+// colsConcrete reports whether every column so far is concrete. A BY NAME
+// chain can widen the projection at every arm, so checking it all again at
+// each arm cost O(n^2).
+func (m *setOpMerger) colsConcrete() bool {
+	if m.unions != nil {
+		return true // accumulated columns are concrete by construction
+	}
+	if !m.checked {
+		m.concrete, m.checked = allConcrete(m.cols), true
+	}
+	return m.concrete
 }
 
 // merge merges the next arm position-wise, as mergeProjections does.
@@ -689,7 +636,7 @@ func (m *setOpMerger) merge(right []projColumn) {
 	if len(right) == 0 {
 		return
 	}
-	if len(m.cols) > 0 && allConcrete(m.cols) && allConcrete(right) {
+	if len(m.cols) > 0 && m.colsConcrete() && allConcrete(right) {
 		if len(m.cols) != len(right) {
 			return // arity mismatch: the left projection wins unchanged
 		}
@@ -699,7 +646,7 @@ func (m *setOpMerger) merge(right []projColumn) {
 		}
 		return
 	}
-	m.cols = mergeProjections(m.result(), right)
+	m.cols, m.checked = mergeProjections(m.result(), right), false
 }
 
 // mergeByName merges the next arm by column name, as mergeProjectionsByName
@@ -708,21 +655,41 @@ func (m *setOpMerger) mergeByName(right []projColumn, matchColumns []string) {
 	if len(right) == 0 {
 		return
 	}
-	if len(m.cols) > 0 && len(matchColumns) == 0 && allConcrete(m.cols) && allConcrete(right) {
+	if len(m.cols) > 0 && len(matchColumns) == 0 && m.colsConcrete() && allConcrete(right) {
 		m.accumulate()
-		n := len(m.cols)
-		for i := 0; i < n; i++ {
-			m.unions[i].add(namedSources(right, m.cols[i].name))
-		}
-		for _, r := range right {
-			if !projHasName(m.cols[:n], r.name) {
-				m.cols = append(m.cols, projColumn{name: r.name})
-				m.unions = append(m.unions, refUnion{refs: r.sources})
+		if m.byName == nil {
+			m.byName = make(map[string][]int, len(m.cols))
+			for i, c := range m.cols {
+				k := foldKey(c.name)
+				m.byName[k] = append(m.byName[k], i)
 			}
+		}
+		// Each column so far gains the sources of the right columns with its
+		// name.
+		r := newNamedSources(right)
+		for k := range r.byName {
+			if cols := m.byName[k]; len(cols) > 0 {
+				srcs := r.get(k)
+				for _, i := range cols {
+					m.unions[i].add(srcs)
+				}
+			}
+		}
+		// Then each right column whose name none of them has is appended.
+		n := len(m.cols)
+		for _, c := range right {
+			if _, ok := m.byName[foldKey(c.name)]; !ok {
+				m.cols = append(m.cols, projColumn{name: c.name})
+				m.unions = append(m.unions, refUnion{refs: c.sources})
+			}
+		}
+		for i := n; i < len(m.cols); i++ {
+			k := foldKey(m.cols[i].name)
+			m.byName[k] = append(m.byName[k], i)
 		}
 		return
 	}
-	m.cols = mergeProjectionsByName(m.result(), right, matchColumns)
+	m.cols, m.checked = mergeProjectionsByName(m.result(), right, matchColumns), false
 }
 
 // accumulate turns the projection so far, all concrete, into the accumulated
@@ -749,31 +716,42 @@ func (m *setOpMerger) result() []projColumn {
 			m.cols[i].sources = m.unions[i].refs
 		}
 		m.unions = nil
+		m.byName = nil
 	}
 	return m.cols
 }
 
-// namedSources returns the union of the sources of every concrete projection
-// column whose name matches `name` case-insensitively.
-func namedSources(cols []projColumn, name string) []ColumnRef {
-	var out []ColumnRef
-	for _, c := range cols {
-		if strings.EqualFold(c.name, name) {
-			out = unionColumnRefs(out, c.sources)
-		}
-	}
-	return out
+// namedSources gives, for a folded name, the union of the sources of every
+// column of cols whose name matches it case-insensitively, in column order.
+type namedSources struct {
+	cols   []projColumn
+	byName map[string][]int       // foldKey(name) → the columns with that name
+	unions map[string][]ColumnRef // computed on first use
 }
 
-// projHasName reports whether any projection column is named `name`
-// (case-insensitive).
-func projHasName(cols []projColumn, name string) bool {
-	for _, c := range cols {
-		if strings.EqualFold(c.name, name) {
-			return true
-		}
+func newNamedSources(cols []projColumn) *namedSources {
+	x := &namedSources{cols: cols, byName: make(map[string][]int, len(cols))}
+	for i, c := range cols {
+		k := foldKey(c.name)
+		x.byName[k] = append(x.byName[k], i)
 	}
-	return false
+	return x
+}
+
+// get returns the union for the folded name key.
+func (x *namedSources) get(key string) []ColumnRef {
+	if srcs, ok := x.unions[key]; ok {
+		return srcs
+	}
+	var u refUnion
+	for _, i := range x.byName[key] {
+		u.add(x.cols[i].sources)
+	}
+	if x.unions == nil {
+		x.unions = make(map[string][]ColumnRef)
+	}
+	x.unions[key] = u.refs
+	return u.refs
 }
 
 // coalesceUsingColumns builds the projection of `left JOIN right USING (keys)`
@@ -806,16 +784,54 @@ func coalesceUsingColumns(left, right []projColumn, keys []string) (cols []projC
 // usingKeyColumns returns the coalesced key columns of a USING join, one per
 // key in USING order, each reading the key's lineage from both sides.
 func usingKeyColumns(left, right []projColumn, keys []string) []projColumn {
+	l, r := usingKeyLineages(left, keys), usingKeyLineages(right, keys)
 	cols := make([]projColumn, 0, len(keys))
-	for _, key := range keys {
+	for i, key := range keys {
 		cols = append(cols, projColumn{
 			name:          key,
-			sources:       unionColumnRefs(usingKeyLineage(left, key), usingKeyLineage(right, key)),
+			sources:       unionColumnRefs(l[i].refs, r[i].refs),
 			plain:         false,
 			baseFieldName: true,
 		})
 	}
 	return cols
+}
+
+// sameKeyColumns returns usingKeyColumns(leftKeys, right, keys) for a USING
+// join whose left side is a coalesce on the same keys, left.using compared
+// case-insensitively, with key columns leftKeys. Each key then reads the one
+// left key column with its name, so its sources are that column's extended
+// by the right side's. A chain of n such joins over different tables gives
+// each key n sources, and building every join's key columns anew copied them
+// all again, O(n^2): here they are extended in place and returned for the
+// next join to extend. When a name repeats in the keys (`USING (k, K)`) a key
+// reads several left columns, and the key columns are built anew.
+func sameKeyColumns(leftKeys []projColumn, left joinPart, right []projColumn, keys []string) ([]projColumn, []refUnion) {
+	at := make(map[string]int, len(left.using))
+	for j, k := range left.using {
+		f := foldKey(k)
+		if _, dup := at[f]; dup {
+			return usingKeyColumns(leftKeys, right, keys), nil
+		}
+		at[f] = j
+	}
+	sources := left.keys
+	if sources == nil {
+		sources = make([]refUnion, len(leftKeys))
+		for j, c := range leftKeys {
+			sources[j] = refUnion{refs: c.sources}
+		}
+	}
+	r := usingKeyLineages(right, keys)
+	cols := make([]projColumn, len(keys))
+	next := make([]refUnion, len(keys))
+	for i, key := range keys {
+		u := sources[at[foldKey(key)]]
+		u.add(r[i].refs)
+		next[i] = u
+		cols[i] = projColumn{name: key, sources: u.refs, plain: false, baseFieldName: true}
+	}
+	return cols, next
 }
 
 // sameNameSetFold reports whether a and b have the same length and hold the
@@ -824,13 +840,14 @@ func sameNameSetFold(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
+	setA, setB := newFoldSet(a), newFoldSet(b)
 	for _, n := range a {
-		if !nameInListFold(b, n) {
+		if !setB.has(n) {
 			return false
 		}
 	}
 	for _, n := range b {
-		if !nameInListFold(a, n) {
+		if !setA.has(n) {
 			return false
 		}
 	}
@@ -846,6 +863,7 @@ func sameNameSetFold(a, b []string) bool {
 // consumer knows). All returned elements are copies — the side relations stay
 // leaf-resolvable with their own un-coalesced projections.
 func stripUsingKeys(cols []projColumn, keys []string) ([]projColumn, bool) {
+	keySet := newFoldSet(keys)
 	out := make([]projColumn, 0, len(cols))
 	for _, c := range cols {
 		switch {
@@ -866,7 +884,7 @@ func stripUsingKeys(cols []projColumn, keys []string) ([]projColumn, bool) {
 		case c.baseStar != nil:
 			c.baseStarExcept = appendNamesFold(c.baseStarExcept, keys)
 			out = append(out, c)
-		case nameMatchesAnyFold(c.name, keys):
+		case keySet.has(c.name):
 			// Dropped: this side's key column is folded into the coalesced key.
 		default:
 			out = append(out, c)
@@ -875,50 +893,85 @@ func stripUsingKeys(cols []projColumn, keys []string) ([]projColumn, bool) {
 	return out, true
 }
 
-// usingKeyLineage returns the lineage a join side contributes to the USING key
-// `key`: every concrete column named like it, every base-table star that may
-// own it (the star's table with Column=key — when several stars could own the
-// key, all contribute: over-attribution is safe, under is not), and a star
-// group's segments likewise (its EXCEPT removing the key means the side does
-// not project it; a REPLACE re-points it to the replacement's sources).
-func usingKeyLineage(cols []projColumn, key string) []ColumnRef {
-	var out []ColumnRef
+// usingKeyLineages returns, for each USING key, the lineage a join side
+// contributes to it: every concrete column named like it, every base-table
+// star that may own it (the star's table with Column=key — when several stars
+// could own the key, all contribute: over-attribution is safe, under is not),
+// and a star group's segments likewise (its EXCEPT removing the key means the
+// side does not project it; a REPLACE re-points it to the replacement's
+// sources). Each key's lineage is in column order. The keys are resolved
+// together in one pass over the side, which a wide USING list over a wide side
+// needs: a pass per key costs the product of the two widths.
+func usingKeyLineages(cols []projColumn, keys []string) []refUnion {
+	folded := make([]string, len(keys))
+	all := make([]int, len(keys))
+	for i, key := range keys {
+		folded[i] = foldKey(key)
+		all[i] = i
+	}
+	out := make([]refUnion, len(keys))
+	addUsingKeyLineages(cols, keys, folded, all, out)
+	return out
+}
+
+// addUsingKeyLineages adds to out[i] the lineage cols contribute to keys[i],
+// for each i in which; folded[i] is foldKey(keys[i]).
+func addUsingKeyLineages(cols []projColumn, keys, folded []string, which []int, out []refUnion) {
+	if len(which) == 0 {
+		return
+	}
+	var byName map[string][]int // a folded key → its entries of which
 	for _, c := range cols {
 		switch {
 		case c.starMerge != nil || c.setOpMerge != nil:
 			// Unreachable behind stripUsingKeys' ok=false; contribute nothing.
 		case c.starGroup != nil:
-			if nameInListFold(c.starGroup.except, key) {
-				continue
+			except := newFoldSet(c.starGroup.except)
+			replace := make(map[string][]ColumnRef, len(c.starGroup.replace))
+			for _, r := range c.starGroup.replace {
+				if k := foldKey(r.Name); !hasRefs(replace, k) {
+					replace[k] = r.Sources
+				}
 			}
-			if srcs, ok := replaceSourcesFor(c.starGroup.replace, key); ok {
-				out = unionColumnRefs(out, srcs)
-				continue
+			var rest []int
+			for _, i := range which {
+				if _, ok := except[folded[i]]; ok {
+					continue
+				}
+				if srcs, ok := replace[folded[i]]; ok {
+					out[i].add(srcs)
+					continue
+				}
+				rest = append(rest, i)
 			}
-			out = unionColumnRefs(out, usingKeyLineage(c.starGroup.segments, key))
+			addUsingKeyLineages(c.starGroup.segments, keys, folded, rest, out)
 		case c.baseStar != nil:
-			if nameInListFold(c.baseStarExcept, key) {
-				continue
+			except := newFoldSet(c.baseStarExcept)
+			for _, i := range which {
+				if _, ok := except[folded[i]]; ok {
+					continue
+				}
+				ref := *c.baseStar
+				ref.Column = keys[i]
+				out[i].add([]ColumnRef{ref})
 			}
-			ref := *c.baseStar
-			ref.Column = key
-			out = unionColumnRefs(out, []ColumnRef{ref})
-		case strings.EqualFold(c.name, key):
-			out = unionColumnRefs(out, c.sources)
+		default:
+			if byName == nil {
+				byName = make(map[string][]int, len(which))
+				for _, i := range which {
+					byName[folded[i]] = append(byName[folded[i]], i)
+				}
+			}
+			for _, i := range byName[foldKey(c.name)] {
+				out[i].add(c.sources)
+			}
 		}
 	}
-	return out
 }
 
-// replaceSourcesFor returns the replacement sources of the REPLACE item named
-// `name` (case-insensitive), if any.
-func replaceSourcesFor(replace []StarReplaceItem, name string) ([]ColumnRef, bool) {
-	for _, r := range replace {
-		if strings.EqualFold(r.Name, name) {
-			return r.Sources, true
-		}
-	}
-	return nil, false
+func hasRefs(m map[string][]ColumnRef, k string) bool {
+	_, ok := m[k]
+	return ok
 }
 
 // rewrapNonPlain marks a join-left projection column non-plain (the legacy
@@ -938,35 +991,19 @@ func rewrapNonPlain(c projColumn) projColumn {
 	return c
 }
 
-// nameInListFold reports whether list contains name under case-insensitive
-// comparison.
-func nameInListFold(list []string, name string) bool {
-	for _, e := range list {
-		if strings.EqualFold(e, name) {
-			return true
-		}
-	}
-	return false
-}
-
-// nameMatchesAnyFold reports whether name matches any of names
-// (case-insensitive).
-func nameMatchesAnyFold(name string, names []string) bool {
-	for _, n := range names {
-		if strings.EqualFold(n, name) {
-			return true
-		}
-	}
-	return false
-}
-
 // appendNamesFold returns a COPY of list with each name appended unless already
 // present (case-insensitive). The copy keeps the caller's slice unaliased (a
 // join side's projection is shared with its leaf relation).
 func appendNamesFold(list, names []string) []string {
 	out := append([]string{}, list...)
+	seen := newFoldSet(list)
 	for _, n := range names {
-		if !nameInListFold(out, n) {
+		k := foldKey(n)
+		if _, ok := seen[k]; !ok {
+			if seen == nil {
+				seen = make(foldSet, len(names))
+			}
+			seen[k] = struct{}{}
 			out = append(out, n)
 		}
 	}
@@ -1012,17 +1049,6 @@ func allColumns(rels []*relation) []projColumn {
 func singleBaseStar(cols []projColumn) *ColumnRef {
 	if len(cols) == 1 && cols[0].baseStar != nil && cols[0].starMerge == nil && len(cols[0].baseStarExcept) == 0 {
 		return cols[0].baseStar
-	}
-	return nil
-}
-
-// findRelation returns the FROM relation whose reference name matches `name`
-// (case-insensitive, GoogleSQL identifier rule), or nil.
-func findRelation(rels []*relation, name string) *relation {
-	for _, rel := range rels {
-		if rel.name != "" && strings.EqualFold(rel.name, name) {
-			return rel
-		}
 	}
 	return nil
 }

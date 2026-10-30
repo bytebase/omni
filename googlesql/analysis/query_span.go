@@ -331,14 +331,14 @@ type spanWalker struct {
 	dialect     Dialect
 	scope       *cteScope
 	fromAliases map[string]bool // alias + bare table name of the current SELECT's FROM sources
-	// leafRels is the current SELECT's leaf FROM relations (base tables, CTE
+	// leaves is the current SELECT's leaf FROM relations (base tables, CTE
 	// references, derived subqueries) by reference name, used to resolve a column
 	// reference (`rel.col`, a bare `col` over a CTE/derived, `rel.*`) to its
 	// relation's projection. A join contributes its two sides as separate leaves
 	// here (mirroring the legacy tableSourceFrom, which held each table AND the join
 	// anchor), so `x.id` over `t x JOIN t y` resolves against leaf `x`. Saved and
 	// restored around each SELECT so nested blocks do not leak relations.
-	leafRels []*relation
+	leaves   *leafSet
 	accessed map[tableKey]bool
 	predSeen map[ColumnRef]bool
 	// failure, when set, marks the span as fail-closed: the walker met a shape it
@@ -356,6 +356,12 @@ type spanWalker struct {
 	// for some shapes it is superlinear in the statement's size (a USING chain
 	// whose keys change gives every star a growing except list).
 	tablesOnly bool
+	// fixpoints counts the recursive-CTE fixpoints started, so
+	// recursiveFixpoint can tell whether a recursive arm holds another one.
+	fixpoints int
+	// recursiveWiths records, for each node scanned by holdsRecursiveWith,
+	// whether its subtree holds a WITH RECURSIVE clause.
+	recursiveWiths map[ast.Node]bool
 }
 
 // failClosed records a fail-closed condition (first one wins).
@@ -377,6 +383,7 @@ func newSpanWalker(span *QuerySpan, dialect Dialect) *spanWalker {
 	return &spanWalker{
 		span:     span,
 		dialect:  dialect,
+		leaves:   &leafSet{},
 		accessed: make(map[tableKey]bool),
 		predSeen: make(map[ColumnRef]bool),
 	}
@@ -498,9 +505,15 @@ func (w *spanWalker) resolveCTEColumns(cte *ast.CTE, recursive bool, scope *cteS
 	// lineage, which a later column's expression then reads — the legacy
 	// recordRecursiveCTE loops for the same reason. The pass count is bounded by the
 	// column count (each pass can only add sources; bounded extra guard prevents a
-	// pathological loop).
+	// pathological loop). When the anchor and the arm are concrete,
+	// recursiveFixpoint gives the loop's result and side effects without
+	// resolving the arm once per pass; the loop handles every other shape.
 	anchor := w.visitBody(setOp.Left)
 	scope.columns[lower] = anchor
+	w.fixpoints++
+	if cols, ok := w.recursiveFixpoint(setOp.Right, anchor, scope, lower); ok {
+		return cols
+	}
 	current := anchor
 	for iter := 0; iter <= len(anchor)+1; iter++ {
 		recursivePart := w.visitBody(setOp.Right)
@@ -748,13 +761,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	// base table. Saved/restored so nested SELECTs do not leak aliases.
 	prevFrom := w.fromAliases
 	w.fromAliases = map[string]bool{}
-	prevLeaves := w.leafRels
-	w.leafRels = nil
-	defer func() { w.fromAliases = prevFrom; w.leafRels = prevLeaves }()
+	prevLeaves := w.leaves
+	w.leaves = &leafSet{}
+	defer func() { w.fromAliases = prevFrom; w.leaves = prevLeaves }()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
 	// one combined relation, used for a bare `*`); building them also populates
-	// w.leafRels (each base table / CTE / derived leaf, used for `rel.*` and column
+	// w.leaves (each base table / CTE / derived leaf, used for `rel.*` and column
 	// resolution) and performs the AccessTable / predicate side-effects (a base path
 	// is recorded, a subquery body walked, ON/USING predicates collected).
 	fromRels := w.buildFromRelations(stmt.From)
@@ -880,12 +893,15 @@ type joinBuilder struct {
 // range is then empty. cols[start:settled] are already non-plain. When using
 // is non-nil the operand is a USING coalesce on those keys, its first
 // len(using) columns are the coalesced keys, and cols[start:settled] are also
-// fully rewrapped (rewrapNonPlain).
+// fully rewrapped (rewrapNonPlain). keys, when non-nil, holds the sources of
+// those key columns for a further USING join on the same keys to extend (see
+// sameKeyColumns).
 type joinPart struct {
 	start   int
 	present bool
 	settled int
 	using   []string
+	keys    []refUnion
 }
 
 // buildJoinPart builds a join tree into b and returns its part. The left spine
@@ -1001,13 +1017,13 @@ func (b *joinBuilder) coalesceUsing(left, right joinPart, keys []string) (joinPa
 		if !ok {
 			return joinPart{}, false
 		}
-		keyCols := usingKeyColumns(leftCols[:len(keys)], rightCols, keys)
+		keyCols, keySources := sameKeyColumns(leftCols[:len(keys)], left, rightCols, keys)
 		for i := left.settled; i < right.start; i++ {
 			b.cols[i] = rewrapNonPlain(b.cols[i])
 		}
 		copy(leftCols, keyCols)
 		b.cols = append(b.cols[:right.start], rightRest...)
-		return joinPart{start: left.start, present: true, settled: right.start, using: keys}, true
+		return joinPart{start: left.start, present: true, settled: right.start, using: keys, keys: keySources}, true
 	}
 	cols, leftEnd, ok := coalesceUsingColumns(leftCols, rightCols, keys)
 	if !ok {
@@ -1171,14 +1187,14 @@ func (w *spanWalker) buildPathRelation(path *ast.PathExpr, alias string) *relati
 }
 
 // addLeaf registers a leaf FROM relation in the current SELECT's lookup set
-// (w.leafRels), used to resolve `rel.col` / `rel.*` / bare-column references. A
+// (w.leaves), used to resolve `rel.col` / `rel.*` / bare-column references. A
 // nil or unnamed relation is skipped (a join wrapper is unnamed — its sides are
 // registered individually).
 func (w *spanWalker) addLeaf(rel *relation) {
 	if rel == nil || rel.name == "" {
 		return
 	}
-	w.leafRels = append(w.leafRels, rel)
+	w.leaves.add(rel)
 }
 
 // registerFromAlias records a derived-relation alias (subquery / TVF / correlated
