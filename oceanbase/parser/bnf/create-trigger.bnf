@@ -1,0 +1,16 @@
+-- Statement: CREATE TRIGGER
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html
+
+CREATE
+    [DEFINER = user]
+    TRIGGER [IF NOT EXISTS] trigger_name
+    trigger_time trigger_event
+    ON tbl_name FOR EACH ROW
+    [trigger_order]
+    trigger_body
+
+trigger_time: { BEFORE | AFTER }
+
+trigger_event: { INSERT | UPDATE | DELETE }
+
+trigger_order: { FOLLOWS | PRECEDES } other_trigger_name

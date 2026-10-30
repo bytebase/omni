@@ -1,0 +1,2533 @@
+package parser
+
+import (
+	nodes "github.com/bytebase/omni/oceanbase/ast"
+)
+
+// parseWithClause parses a WITH clause (Common Table Expressions).
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/with.html
+//
+//	with_clause:
+//	    WITH [RECURSIVE]
+//	        cte_name [(col_name [, col_name] ...)] AS (subquery)
+//	        [, cte_name [(col_name [, col_name] ...)] AS (subquery)] ...
+func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	// Record CTE position for completion context (before consuming WITH).
+	if p.completing {
+		p.addCTEPosition(p.pos())
+	}
+	p.advance() // consume WITH
+
+	// Completion: after WITH keyword, offer RECURSIVE and identifier context for CTE name.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwRECURSIVE)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	recursive := false
+	if _, ok := p.match(kwRECURSIVE); ok {
+		recursive = true
+	}
+
+	var ctes []*nodes.CommonTableExpr
+	for {
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+
+		cte := &nodes.CommonTableExpr{
+			Loc:       nodes.Loc{Start: start},
+			Name:      name,
+			Recursive: recursive,
+		}
+
+		// Optional column list: (col1, col2, ...)
+		if p.cur.Type == '(' {
+			cols, err := p.parseParenIdentList()
+			if err != nil {
+				return nil, err
+			}
+			cte.Columns = cols
+		}
+
+		// AS (subquery)
+		if _, err := p.expect(kwAS); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+
+		// Completion: inside CTE AS (, offer SELECT keyword.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwSELECT)
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		sel, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		cte.Select = sel
+
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+
+		cte.Loc.End = p.prev.End
+		ctes = append(ctes, cte)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	return ctes, nil
+}
+
+// parseWithStmt parses a statement starting with WITH: WITH ... SELECT, WITH ... UPDATE, WITH ... DELETE.
+func (p *Parser) parseWithStmt() (nodes.Node, error) {
+	start := p.pos()
+	ctes, err := p.parseWithClause()
+	if err != nil {
+		return nil, err
+	}
+
+	switch p.cur.Type {
+	case kwSELECT, '(':
+		// A SELECT leaf or a parenthesized query body:
+		//   WITH ... SELECT ...
+		//   WITH ... (SELECT ...) [set-op] [ORDER BY / LIMIT]
+		return p.parseSelectClauseAndTrailing(start, ctes)
+
+	case kwINSERT, kwREPLACE:
+		isReplace := p.cur.Type == kwREPLACE
+		stmt, err := p.parseInsertOrReplace(isReplace)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Loc.Start = start
+		return stmt, nil
+
+	case kwUPDATE:
+		stmt, err := p.parseUpdateStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Loc.Start = start
+		return stmt, nil
+
+	case kwDELETE:
+		stmt, err := p.parseDeleteStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Loc.Start = start
+		return stmt, nil
+
+	default:
+		return nil, &ParseError{
+			Message:  "expected SELECT, INSERT, UPDATE, DELETE, or '(' after WITH clause",
+			Position: p.cur.Loc,
+		}
+	}
+}
+
+// parseSelectStmt parses a complete query expression as a statement: an
+// optional WITH clause, a query-expression body (a SELECT leaf, a parenthesized
+// query, or a UNION/INTERSECT/EXCEPT chain), and any trailing ORDER BY / LIMIT.
+// It is the entry point every query-bearing context uses (statement level,
+// subqueries, INSERT/CTAS/VIEW sources, routine bodies).
+func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
+	return p.parseSelectNoParens()
+}
+
+// parseSelectNoParens parses a query expression that is not itself wrapped in
+// parentheses (PostgreSQL's select_no_parens): [WITH] select_clause
+// [ORDER BY] [LIMIT/OFFSET]. The trailing ORDER BY / LIMIT bind at this OUTER
+// level, which is what gives a parenthesized inner query and an outer clause
+// distinct scopes.
+func (p *Parser) parseSelectNoParens() (*nodes.SelectStmt, error) {
+	start := p.pos()
+
+	// Optional WITH clause (applies to the whole query expression).
+	var ctes []*nodes.CommonTableExpr
+	if p.cur.Type == kwWITH {
+		var err error
+		ctes, err = p.parseWithClause()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return p.parseSelectClauseAndTrailing(start, ctes)
+}
+
+// parseSelectClauseAndTrailing parses a select_clause followed by the trailing
+// ORDER BY / LIMIT that applies to a parenthesized query or set-operation
+// result. ctes (already parsed by the caller) and start (the position of the
+// leading WITH / '(' / SELECT) are attached to the resulting node.
+func (p *Parser) parseSelectClauseAndTrailing(start int, ctes []*nodes.CommonTableExpr) (*nodes.SelectStmt, error) {
+	body, err := p.parseSelectClause(0)
+	if err != nil {
+		return nil, err
+	}
+	if body == nil { // collecting completion candidates
+		return nil, nil
+	}
+	if len(ctes) > 0 {
+		body.CTEs = ctes
+	}
+	body.Loc.Start = start
+
+	// A trailing ORDER BY / LIMIT after a parenthesized query or a set operation
+	// (i.e. after a ')') applies to the whole result. A bare SELECT leaf has
+	// already consumed its own ORDER BY / LIMIT / locking greedily, so it is
+	// skipped here (a second ORDER BY on a leaf is a duplicate the leaf rejects).
+	if body.ParenSource != nil || body.SetOp != nodes.SetOpNone {
+		if err := p.parseOuterOrderByLimit(body); err != nil {
+			return nil, err
+		}
+	}
+
+	body.Loc.End = p.prev.End
+	return body, nil
+}
+
+// parseOuterOrderByLimit parses trailing ORDER BY, LIMIT/OFFSET, and locking
+// clauses applying to a parenthesized query or set-operation result, onto stmt's
+// own fields. MySQL accepts FOR UPDATE / LOCK IN SHARE MODE after a closing ')',
+// unlike TiDB's leaf-only locking placement.
+func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return err
+		}
+		orderBy, err := p.parseOrderByList()
+		if err != nil {
+			return err
+		}
+		stmt.OrderBy = orderBy
+		if p.cur.Type == kwORDER {
+			return &ParseError{Message: "duplicate ORDER BY clause", Position: p.cur.Loc}
+		}
+	}
+	if _, ok := p.match(kwLIMIT); ok {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return err
+		}
+		stmt.Limit = limit
+		if p.cur.Type == kwLIMIT {
+			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
+		}
+	}
+	if p.cur.Type == kwFOR {
+		fu, err := p.parseForUpdateClause()
+		if err != nil {
+			return err
+		}
+		stmt.ForUpdate = fu
+	} else if p.cur.Type == kwLOCK {
+		fu, err := p.parseLockInShareMode()
+		if err != nil {
+			return err
+		}
+		stmt.ForUpdate = fu
+	}
+	return nil
+}
+
+// parseSelectClause parses a select_clause: a query primary optionally combined
+// with others via UNION / INTERSECT / EXCEPT, using precedence climbing
+// (INTERSECT binds tighter than UNION/EXCEPT). minPrec is the minimum operator
+// precedence this call will consume; the top-level no_parens call passes 0.
+func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	left, err := p.parseSelectClausePrimary()
+	if err != nil {
+		return nil, err
+	}
+	if left == nil { // collecting completion candidates
+		return nil, nil
+	}
+
+	for {
+		prec := setOpPrecedence(p.cur.Type)
+		if prec == 0 || prec < minPrec {
+			return left, nil
+		}
+
+		var op nodes.SetOperation
+		switch p.cur.Type {
+		case kwUNION:
+			op = nodes.SetOpUnion
+		case kwEXCEPT:
+			op = nodes.SetOpExcept
+		case kwINTERSECT:
+			op = nodes.SetOpIntersect
+		}
+		p.advance() // consume UNION/INTERSECT/EXCEPT
+
+		// Completion: after the set-op keyword, offer ALL, DISTINCT, SELECT.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwALL)
+			p.addTokenCandidate(kwDISTINCT)
+			p.addTokenCandidate(kwSELECT)
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		all := false
+		if _, ok := p.match(kwALL); ok {
+			all = true
+		} else {
+			p.match(kwDISTINCT)
+		}
+
+		// Completion: after ALL/DISTINCT, offer SELECT.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwSELECT)
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		// Right operand binds higher-precedence operators first; prec+1 keeps
+		// same-precedence chains left-associative.
+		right, err := p.parseSelectClause(prec + 1)
+		if err != nil {
+			return nil, err
+		}
+
+		// Hoist a trailing ORDER BY / LIMIT off an UNPARENTHESIZED last operand
+		// onto the set-operation node: in MySQL they apply to the whole
+		// combined result. A parenthesized operand is a ParenSource wrapper whose
+		// own OrderBy/Limit are the OUTER scope, so the walk stops at it and its
+		// inner clauses stay in place — e.g. "SELECT 1 UNION (SELECT 2 LIMIT 1)"
+		// keeps LIMIT 1 on operand 2.
+		var orderBy []*nodes.OrderByItem
+		var limit *nodes.Limit
+		rightLeaf := right
+		for rightLeaf.SetOp != nodes.SetOpNone && rightLeaf.Right != nil {
+			rightLeaf = rightLeaf.Right
+		}
+		if rightLeaf.ParenSource == nil {
+			if len(rightLeaf.OrderBy) > 0 {
+				orderBy = rightLeaf.OrderBy
+				rightLeaf.OrderBy = nil
+			}
+			if rightLeaf.Limit != nil {
+				limit = rightLeaf.Limit
+				rightLeaf.Limit = nil
+			}
+		}
+
+		left = &nodes.SelectStmt{
+			Loc:     nodes.Loc{Start: left.Loc.Start, End: right.Loc.End},
+			SetOp:   op,
+			SetAll:  all,
+			Left:    left,
+			Right:   right,
+			OrderBy: orderBy,
+			Limit:   limit,
+		}
+	}
+}
+
+// parseSelectClausePrimary parses a single query primary: a parenthesized query
+// (select_with_parens), a simple SELECT leaf, TABLE, or VALUES.
+func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
+	if p.cur.Type == '(' {
+		return p.parseSelectWithParens()
+	}
+	if p.cur.Type == kwSELECT {
+		return p.parseSimpleSelect()
+	}
+	// A TABLE or VALUES primary becomes a SelectStmt that holds the source and
+	// is the only owner of the ORDER BY, LIMIT, and INTO after it, as in
+	// MySQL's grammar (sql/sql_yacc.yy, 8.0.40): explicit_table (line 10064)
+	// is TABLE table_ident and table_value_constructor (10057) is VALUES
+	// values_row_list, while query_expression (9914) holds opt_order_clause
+	// and opt_limit_clause and select_stmt_with_into (9863) the into_clause.
+	// Had the source kept the clauses too, every walk would visit them twice,
+	// and a TABLE nested in the ORDER BY of another would double the walk at
+	// each level.
+	if p.cur.Type == kwTABLE {
+		table, err := p.parseExplicitTable()
+		if err != nil {
+			return nil, err
+		}
+		stmt := &nodes.SelectStmt{Loc: table.Loc, TableSource: table}
+		if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+	if p.cur.Type == kwVALUES {
+		values, err := p.parseValuesConstructor()
+		if err != nil {
+			return nil, err
+		}
+		stmt := &nodes.SelectStmt{Loc: values.Loc, ValuesSource: values}
+		if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+	if p.cur.Type == tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return nil, &ParseError{
+		Message:  "expected SELECT, TABLE, VALUES, or '('",
+		Position: p.cur.Loc,
+	}
+}
+
+func isQueryPrimaryStartToken(tokenType int) bool {
+	switch tokenType {
+	case kwSELECT, kwWITH, kwTABLE, kwVALUES:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *Parser) isQueryExpressionStart() bool {
+	if isQueryPrimaryStartToken(p.cur.Type) {
+		return true
+	}
+	if p.cur.Type != '(' {
+		return false
+	}
+	// A leading run of '(' may open either a parenthesized query expression
+	// — `((SELECT ...))`, `((SELECT 1) UNION (SELECT 2))` — or a parenthesized
+	// scalar expression — `((a = b))`, the redundant-paren form MySQL emits for
+	// a view's join ON condition (SHOW CREATE VIEW renders `on(((a) and (b)))`).
+	// A fixed one-token lookahead cannot tell them apart; scan past the run of
+	// '(' to the first non-'(' token — a query primary (SELECT/WITH/TABLE/VALUES)
+	// means a query expression, anything else means a scalar expression.
+	return isQueryPrimaryStartToken(p.firstTokenPastParens().Type)
+}
+
+// scanState captures the full lexical scan position so a speculative lookahead
+// can rewind without consuming input. The Lexer is a flat value (string + ints),
+// so a shallow copy snapshots its position; the buffered next token and the
+// current/previous tokens complete the parser's scan cursor. The completion
+// `collecting` latch is position-derived (it arms when the scan reaches the
+// cursor offset), so rewinding the scan rewinds it too — a speculative parse
+// that crossed the cursor must not leave collect mode armed for the reparse.
+type scanState struct {
+	lexer      Lexer
+	cur        Token
+	prev       Token
+	nextBuf    Token
+	hasNext    bool
+	collecting bool
+	// Lengths of the CandidateSet's position slices at save time. Unlike the
+	// set-valued token/rule candidates, these are plain appends, so a rewound
+	// speculative parse would duplicate every offset it recorded; restore
+	// truncates back to the snapshot.
+	ctePosLen   int
+	aliasPosLen int
+}
+
+func (p *Parser) saveScan() scanState {
+	s := scanState{lexer: *p.lexer, cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext, collecting: p.collecting}
+	if p.candidates != nil {
+		s.ctePosLen = len(p.candidates.CTEPositions)
+		s.aliasPosLen = len(p.candidates.SelectAliasPositions)
+	}
+	return s
+}
+
+func (p *Parser) restoreScan(s scanState) {
+	*p.lexer = s.lexer
+	p.cur = s.cur
+	p.prev = s.prev
+	p.nextBuf = s.nextBuf
+	p.hasNext = s.hasNext
+	p.collecting = s.collecting
+	if p.candidates != nil {
+		if len(p.candidates.CTEPositions) > s.ctePosLen {
+			p.candidates.CTEPositions = p.candidates.CTEPositions[:s.ctePosLen]
+		}
+		if len(p.candidates.SelectAliasPositions) > s.aliasPosLen {
+			p.candidates.SelectAliasPositions = p.candidates.SelectAliasPositions[:s.aliasPosLen]
+		}
+	}
+}
+
+// firstTokenPastParens returns the first token at or after the current position
+// that is not an opening parenthesis, without consuming input. It is the
+// disambiguator for constructs that begin with a run of '(' whose meaning turns
+// on the innermost head:
+//   - a FROM-clause table factor — a (possibly nested) derived-table subquery
+//     `((SELECT ...))` vs. a parenthesized join group `((a JOIN b) JOIN c)`;
+//   - an expression '(' — a parenthesized query expression `((SELECT ...))` vs.
+//     a parenthesized scalar expression `((a = b))`.
+//
+// In each case MySQL's grammar distinguishes by whether the innermost head is a
+// query primary (SELECT/WITH/TABLE/VALUES) or not; a fixed one-token lookahead
+// on '(' cannot, so we scan past the parens speculatively and rewind.
+//
+// Every '(' of a run shares the run's answer, and the parser asks again at each
+// nesting level as it descends, so the last scan is cached: a '(' starting
+// between the run's first '(' and the token past it is in that run. Without
+// the cache, n nested parens cost O(n²) token scans.
+func (p *Parser) firstTokenPastParens() Token {
+	if p.cur.Type == '(' && p.cur.Loc >= p.parenRunStart && p.cur.Loc < p.parenRunPast.Loc {
+		return p.parenRunPast
+	}
+	saved := p.saveScan()
+	defer p.restoreScan(saved)
+	start := p.cur.Loc
+	for p.cur.Type == '(' {
+		p.advance()
+	}
+	p.parenRunStart, p.parenRunPast = start, p.cur
+	return p.cur
+}
+
+// parseSelectWithParens parses a parenthesized query expression (PostgreSQL's
+// select_with_parens): '(' select_no_parens ')'. It returns a WRAPPER node
+// whose ParenSource is the inner query; the wrapper's own ORDER BY / LIMIT hold
+// any OUTER trailing clauses attached by the enclosing no_parens. Unlike
+// PostgreSQL (which unwraps the inner query and would overwrite its clause),
+// MySQL accepts and must preserve BOTH scopes — e.g. "(SELECT 1 LIMIT 5) LIMIT
+// 2" — so the parens materialize as a real node. The unconditional delegation to
+// parseSelectNoParens left-factors the grammar so a nested "((...))" and a
+// parenthesized set-op operand are parsed by the same path.
+//
+// The result depends only on where the parse starts and how deeply it is
+// nested, so a failure is recorded (see parenQueryFail) and returned again
+// without reparsing. Completion mode records its failures with the effects a
+// reparse would repeat (see parenQueryReplay).
+//
+// A record made at nesting depth d stands for a parse that passed every
+// enterNesting it reached from d; started no deeper, a reparse passes them
+// all again and fails the same way, so the record is replayed only then.
+// Started deeper, a reparse may reach the nesting limit first, so it parses
+// again. A record never holds a nesting error, which depends on the depth the
+// parse started at.
+func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
+	start := p.pos()
+	if r, ok := p.parenQueryFail[start]; ok && p.depth <= r.depth {
+		return nil, r.err
+	}
+	if p.completing {
+		return p.parseSelectWithParensCompleting(start)
+	}
+	depth := p.depth
+	sel, err := p.parseSelectWithParensAt(start)
+	if err != nil && !isNestingError(err) {
+		if p.parenQueryFail == nil {
+			p.parenQueryFail = make(map[int]parenQueryFailRecord)
+		}
+		p.parenQueryFail[start] = parenQueryFailRecord{err: err, depth: depth}
+	}
+	return sel, err
+}
+
+// parenQueryFailRecord is a parseSelectWithParens failure outside completion
+// mode and the nesting depth the failed parse started at.
+type parenQueryFailRecord struct {
+	err   error
+	depth int
+}
+
+// parenQueryKey identifies a completion-mode parse of a parenthesized query
+// expression: the offset of its '(' and whether collection was armed when it
+// began, the one piece of parser state besides the input that steers it.
+type parenQueryKey struct {
+	start      int
+	collecting bool
+}
+
+// parenQueryFailure is a completion-mode parseSelectWithParens failure and
+// what reparsing from the same place would do again: stop the scan at the
+// same token, and record the same CTE and select-alias positions. The token
+// and rule candidates it collected are in their sets already, which a reparse
+// would leave unchanged.
+type parenQueryFailure struct {
+	err      error
+	end      scanState
+	ctePos   []int
+	aliasPos []int
+	depth    int // the nesting depth the failed parse started at
+}
+
+// parseSelectWithParensCompleting is parseSelectWithParens in completion
+// mode. Returning a failure again without its effects would lose candidates,
+// so a replay restores them instead of reparsing, which keeps the speculation
+// at every level of `((((SELECT 1) = 0) = 0) = 0)` linear: reparsing took 8 s
+// at 10,000 levels. As outside completion mode, a record is replayed only at
+// its own nesting depth or shallower, and a failure at the nesting limit is
+// not recorded.
+func (p *Parser) parseSelectWithParensCompleting(start int) (*nodes.SelectStmt, error) {
+	key := parenQueryKey{start: start, collecting: p.collecting}
+	if f, ok := p.parenQueryReplay[key]; ok && p.depth <= f.depth {
+		e := f.end
+		*p.lexer = e.lexer
+		p.cur, p.prev, p.nextBuf, p.hasNext, p.collecting = e.cur, e.prev, e.nextBuf, e.hasNext, e.collecting
+		if p.candidates != nil {
+			p.candidates.CTEPositions = append(p.candidates.CTEPositions, f.ctePos...)
+			p.candidates.SelectAliasPositions = append(p.candidates.SelectAliasPositions, f.aliasPos...)
+		}
+		return nil, f.err
+	}
+	depth := p.depth
+	before := p.saveScan()
+	sel, err := p.parseSelectWithParensAt(start)
+	if err == nil {
+		return sel, nil
+	}
+	if isNestingError(err) {
+		return nil, err
+	}
+	f := &parenQueryFailure{err: err, end: p.saveScan(), depth: depth}
+	if cs := p.candidates; cs != nil {
+		if len(cs.CTEPositions) > before.ctePosLen {
+			f.ctePos = append([]int(nil), cs.CTEPositions[before.ctePosLen:]...)
+		}
+		if len(cs.SelectAliasPositions) > before.aliasPosLen {
+			f.aliasPos = append([]int(nil), cs.SelectAliasPositions[before.aliasPosLen:]...)
+		}
+	}
+	if p.parenQueryReplay == nil {
+		p.parenQueryReplay = make(map[parenQueryKey]*parenQueryFailure)
+	}
+	p.parenQueryReplay[key] = f
+	return nil, err
+}
+
+func (p *Parser) parseSelectWithParensAt(start int) (*nodes.SelectStmt, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	inner, err := p.parseSelectNoParens()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.SelectStmt{
+		Loc:         nodes.Loc{Start: start, End: p.prev.End},
+		ParenSource: inner,
+	}, nil
+}
+
+// parseSimpleSelect parses a single SELECT query primary (no leading WITH, no
+// trailing set operation). It greedily consumes its own ORDER BY / LIMIT /
+// locking; the enclosing select_clause hoists an unparenthesized last operand's
+// ORDER BY / LIMIT onto the set-op node.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/select.html
+//
+//	SELECT
+//	    [ALL | DISTINCT | DISTINCTROW] [HIGH_PRIORITY] [STRAIGHT_JOIN]
+//	    [SQL_CALC_FOUND_ROWS] select_expr [, select_expr] ...
+//	    [FROM table_references] [WHERE where_condition]
+//	    [GROUP BY ... [WITH ROLLUP]] [HAVING ...] [WINDOW ...]
+//	    [ORDER BY ...] [LIMIT {[offset,] row_count | row_count OFFSET offset}]
+//	    [FOR {UPDATE | SHARE} ...] [INTO OUTFILE 'file_name']
+func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
+	start := p.pos()
+
+	p.advance() // consume SELECT
+
+	// Completion: after SELECT keyword, offer select-expression candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwDISTINCT)
+		p.addTokenCandidate(kwALL)
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	stmt := &nodes.SelectStmt{Loc: nodes.Loc{Start: start}}
+
+	// Parse SELECT options
+	for {
+		switch p.cur.Type {
+		case kwALL:
+			stmt.DistinctKind = nodes.DistinctAll
+			p.advance()
+			continue
+		case kwDISTINCT, kwDISTINCTROW:
+			stmt.DistinctKind = nodes.DistinctOn
+			p.advance()
+			continue
+		case kwHIGH_PRIORITY:
+			stmt.HighPriority = true
+			p.advance()
+			continue
+		case kwSTRAIGHT_JOIN:
+			stmt.StraightJoin = true
+			p.advance()
+			continue
+		case kwSQL_CALC_FOUND_ROWS:
+			stmt.CalcFoundRows = true
+			p.advance()
+			continue
+		case kwSQL_SMALL_RESULT:
+			stmt.SmallResult = true
+			p.advance()
+			continue
+		case kwSQL_BIG_RESULT:
+			stmt.BigResult = true
+			p.advance()
+			continue
+		case kwSQL_BUFFER_RESULT:
+			stmt.BufferResult = true
+			p.advance()
+			continue
+		case kwSQL_NO_CACHE:
+			stmt.NoCache = true
+			p.advance()
+			continue
+		}
+		break
+	}
+
+	// Parse select expression list
+	targets, err := p.parseSelectExprList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TargetList = targets
+
+	// Completion: after select target list, offer clause keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, tok := range []int{kwINTO, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR} {
+			p.addTokenCandidate(tok)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	// INTO clause (position 1: after select_expr, before FROM)
+	if p.cur.Type == kwINTO {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
+	// FROM clause
+	if _, ok := p.match(kwFROM); ok {
+		from, err := p.parseTableReferenceList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = from
+	}
+
+	// WHERE clause — MySQL allows WHERE without FROM (e.g., SELECT 1 WHERE 1=1)
+	if p.cur.Type == kwWHERE {
+		p.advance()
+		where, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && where == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Where = where
+
+		// Reject duplicate WHERE
+		if p.cur.Type == kwWHERE {
+			return nil, &ParseError{
+				Message:  "duplicate WHERE clause",
+				Position: p.cur.Loc,
+			}
+		}
+	}
+
+	// GROUP BY clause — MySQL allows GROUP BY without FROM
+	if p.cur.Type == kwGROUP {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		groupBy, err := p.parseExprList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.GroupBy = groupBy
+
+		// Completion: after GROUP BY list, offer follow-set keywords.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwHAVING)
+			p.addTokenCandidate(kwORDER)
+			p.addTokenCandidate(kwLIMIT)
+			p.addTokenCandidate(kwWITH)
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		// WITH ROLLUP
+		if p.cur.Type == kwWITH {
+			p.advance()
+			if _, ok := p.match(kwROLLUP); ok {
+				stmt.WithRollup = true
+			}
+		}
+
+		// Reject duplicate GROUP BY
+		if p.cur.Type == kwGROUP {
+			return nil, &ParseError{
+				Message:  "duplicate GROUP BY clause",
+				Position: p.cur.Loc,
+			}
+		}
+	}
+
+	// HAVING clause — MySQL allows HAVING without FROM
+	if p.cur.Type == kwHAVING {
+		p.advance()
+		having, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if !p.collectMode() && having == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Having = having
+	}
+
+	// WINDOW clause: WINDOW window_name AS (window_spec) [, ...]
+	if p.cur.Type == kwWINDOW {
+		p.advance()
+		defs, err := p.parseNamedWindowList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.WindowClause = defs
+	}
+
+	// INTO clause (position 2: after HAVING/WINDOW, before ORDER BY)
+	if p.cur.Type == kwINTO && stmt.Into == nil {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
+	// ORDER BY clause
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		orderBy, err := p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.OrderBy = orderBy
+
+		// WITH ROLLUP (MySQL 8.0.12+)
+		if p.cur.Type == kwWITH {
+			next := p.peekNext()
+			if next.Type == kwROLLUP {
+				p.advance() // consume WITH
+				p.advance() // consume ROLLUP
+				stmt.OrderByWithRollup = true
+			}
+		}
+
+		// Reject duplicate ORDER BY
+		if p.cur.Type == kwORDER {
+			return nil, &ParseError{
+				Message:  "duplicate ORDER BY clause",
+				Position: p.cur.Loc,
+			}
+		}
+	}
+
+	// LIMIT clause
+	if _, ok := p.match(kwLIMIT); ok {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Limit = limit
+	}
+
+	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
+	if p.cur.Type == kwFOR {
+		fu, err := p.parseForUpdateClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForUpdate = fu
+	} else if p.cur.Type == kwLOCK {
+		fu, err := p.parseLockInShareMode()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForUpdate = fu
+	}
+
+	// INTO clause (position 3: after locking clause)
+	if p.cur.Type == kwINTO && stmt.Into == nil {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseSelectExprList parses a comma-separated list of select expressions.
+func (p *Parser) parseSelectExprList() ([]nodes.ExprNode, error) {
+	var list []nodes.ExprNode
+
+	for {
+		// Completion: at the start of each select expression, offer column/function candidates.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			p.addRuleCandidate("func_name")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		// Soft-fail: if the current token is a clause keyword (e.g. FROM in
+		// "SELECT FROM t"), return what we have instead of parsing it as an
+		// identifier. MySQL keywords are non-reserved and would otherwise be
+		// consumed as column names, preventing completion on subsequent clauses.
+		if p.completing && p.isClauseKeyword() {
+			break
+		}
+
+		target, err := p.parseSelectExpr()
+		if err != nil {
+			return nil, err
+		}
+		if target == nil {
+			break // soft-fail: no expression found, return what we have
+		}
+		list = append(list, target)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	return list, nil
+}
+
+// parseSelectExpr parses a single select expression (expr [AS alias]).
+func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
+	start := p.pos()
+
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, nil // soft-fail: no expression found (e.g. SELECT FROM)
+	}
+
+	// Check for AS alias or implicit alias
+	var alias string
+	if _, ok := p.match(kwAS); ok {
+		aliasLoc := p.pos()
+		name, _, err := p.parseIdentOrText()
+		if err != nil {
+			return nil, err
+		}
+		alias = name
+		if p.completing {
+			p.addSelectAliasPosition(aliasLoc)
+		}
+	} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+		// Implicit alias (identifier or string literal without AS), but not if it's a keyword that starts the next clause
+		aliasLoc := p.pos()
+		alias, _, err = p.parseIdentOrText()
+		if err != nil {
+			return nil, err
+		}
+		if p.completing {
+			p.addSelectAliasPosition(aliasLoc)
+		}
+	}
+
+	if alias != "" {
+		return &nodes.ResTarget{
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+			Name: alias,
+			Val:  expr,
+		}, nil
+	}
+
+	return expr, nil
+}
+
+// parseDerivedColumnList parses an optional parenthesized column alias list
+// for derived tables: (col1, col2, ...).
+// MySQL 8.0.14+ syntax: (SELECT ...) AS alias(c1, c2).
+func (p *Parser) parseDerivedColumnList() ([]string, error) {
+	p.advance() // consume '('
+	var cols []string
+	for {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, name)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return cols, nil
+}
+
+// isClauseKeyword returns true if the current token is a core SQL clause keyword.
+// In MySQL, these keywords are non-reserved (can be used as identifiers), so the
+// bottom-level expression parser won't soft-fail on them. This check is needed in
+// completion mode to prevent clause keywords from being consumed as column names
+// when the SELECT expression list is empty (e.g. "SELECT FROM t").
+func (p *Parser) isClauseKeyword() bool {
+	switch p.cur.Type {
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
+		kwUNION, kwINTERSECT, kwEXCEPT:
+		return true
+	}
+	return false
+}
+
+// isSelectTerminator returns true if the current token starts a clause that terminates
+// the select expression list. Used to avoid consuming clause keywords as aliases.
+func (p *Parser) isSelectTerminator() bool {
+	switch p.cur.Type {
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
+		kwUNION, kwINTERSECT, kwEXCEPT, kwON, kwUSING, kwJOIN, kwINNER, kwLEFT,
+		kwRIGHT, kwCROSS, kwNATURAL, kwFULL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
+		return true
+	}
+	return false
+}
+
+// parseTableReferenceList parses a comma-separated list of table references (with joins).
+func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
+	var refs []nodes.TableExpr
+
+	for {
+		// Completion: at the start of each table reference, offer table_ref candidates.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			p.addRuleCandidate("database_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		ref, err := p.parseTableReference()
+		if err != nil {
+			return nil, err
+		}
+		refs = append(refs, ref)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	return refs, nil
+}
+
+func foldTableReferenceList(refs []nodes.TableExpr) nodes.TableExpr {
+	if len(refs) == 0 {
+		return nil
+	}
+	left := refs[0]
+	for i := 1; i < len(refs); i++ {
+		left = &nodes.JoinClause{
+			Loc:   nodes.Loc{Start: tableExprLoc(left).Start, End: tableExprLoc(refs[i]).End},
+			Type:  nodes.JoinInner,
+			Left:  left,
+			Right: refs[i],
+		}
+	}
+	return left
+}
+
+// parseTableReference parses a table reference (table_factor with optional joins).
+func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
+	left, err := p.parseTableFactor()
+	if err != nil {
+		return nil, err
+	}
+
+	// Completion: after a table factor, offer join keywords and post-FROM keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwWHERE)
+		p.addTokenCandidate(kwJOIN)
+		p.addTokenCandidate(kwLEFT)
+		p.addTokenCandidate(kwRIGHT)
+		p.addTokenCandidate(kwCROSS)
+		p.addTokenCandidate(kwNATURAL)
+		p.addTokenCandidate(kwINNER)
+		p.addTokenCandidate(kwSTRAIGHT_JOIN)
+		p.addTokenCandidate(kwORDER)
+		p.addTokenCandidate(kwGROUP)
+		p.addTokenCandidate(kwHAVING)
+		p.addTokenCandidate(kwLIMIT)
+		p.addTokenCandidate(kwUNION)
+		p.addTokenCandidate(kwFOR)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	// Parse joins
+	for {
+		jt, ok, err := p.matchJoinType()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+
+		// Completion: after JOIN keyword, offer table_ref candidates for the right-side table.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			p.addRuleCandidate("database_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		right, err := p.parseTableFactor()
+		if err != nil {
+			return nil, err
+		}
+
+		join := &nodes.JoinClause{
+			Loc:   nodes.Loc{Start: tableExprLoc(left).Start},
+			Type:  jt,
+			Left:  left,
+			Right: right,
+		}
+
+		// ON or USING condition
+		condStart := p.pos()
+		if _, ok := p.match(kwON); ok {
+			// Completion: after ON keyword, offer columnref candidates for join condition.
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				return nil, &ParseError{Message: "collecting"}
+			}
+			condStart = p.pos()
+			cond, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if cond == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			join.Condition = &nodes.OnCondition{
+				Loc:  nodes.Loc{Start: condStart, End: p.prev.End},
+				Expr: cond,
+			}
+		} else if _, ok := p.match(kwUSING); ok {
+			// For USING, we manually consume '(' so we can add a completion checkpoint inside.
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			// Completion: after USING (, offer columnref candidates for shared columns.
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				return nil, &ParseError{Message: "collecting"}
+			}
+			var cols []string
+			for {
+				name, _, err := p.parseIdent()
+				if err != nil {
+					return nil, err
+				}
+				cols = append(cols, name)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.prev.End}, Columns: cols}
+		}
+
+		join.Loc.End = p.prev.End
+		left = join
+	}
+
+	return left, nil
+}
+
+// matchJoinType checks for a join keyword combination and returns the join type.
+// Returns an error if a join modifier keyword (INNER, LEFT, etc.) is found but
+// the required JOIN keyword is missing.
+func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
+	switch p.cur.Type {
+	case kwJOIN:
+		p.advance()
+		return nodes.JoinInner, true, nil
+	case kwINNER:
+		p.advance()
+		if _, err := p.expect(kwJOIN); err != nil {
+			return 0, false, err
+		}
+		return nodes.JoinInner, true, nil
+	case kwLEFT:
+		p.advance()
+		p.match(kwOUTER)
+		if _, err := p.expect(kwJOIN); err != nil {
+			return 0, false, err
+		}
+		return nodes.JoinLeft, true, nil
+	case kwRIGHT:
+		p.advance()
+		p.match(kwOUTER)
+		if _, err := p.expect(kwJOIN); err != nil {
+			return 0, false, err
+		}
+		return nodes.JoinRight, true, nil
+	case kwCROSS:
+		p.advance()
+		if _, err := p.expect(kwJOIN); err != nil {
+			return 0, false, err
+		}
+		return nodes.JoinCross, true, nil
+	case kwNATURAL:
+		p.advance()
+		// NATURAL [LEFT|RIGHT] [OUTER] JOIN
+		if _, ok := p.match(kwLEFT); ok {
+			p.match(kwOUTER)
+			if _, err := p.expect(kwJOIN); err != nil {
+				return 0, false, err
+			}
+			return nodes.JoinNaturalLeft, true, nil
+		}
+		if _, ok := p.match(kwRIGHT); ok {
+			p.match(kwOUTER)
+			if _, err := p.expect(kwJOIN); err != nil {
+				return 0, false, err
+			}
+			return nodes.JoinNaturalRight, true, nil
+		}
+		if _, err := p.expect(kwJOIN); err != nil {
+			return 0, false, err
+		}
+		return nodes.JoinNatural, true, nil
+	case kwSTRAIGHT_JOIN:
+		p.advance()
+		return nodes.JoinStraight, true, nil
+	}
+	return 0, false, nil
+}
+
+// parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
+func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	// LATERAL (SELECT ...) — LATERAL derived table
+	if p.cur.Type == kwLATERAL {
+		latStart := p.pos()
+		p.advance() // consume LATERAL
+
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+
+		if p.cur.Type != kwSELECT {
+			return nil, &ParseError{
+				Message:  "expected SELECT after LATERAL (",
+				Position: p.cur.Loc,
+			}
+		}
+
+		sel, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+
+		sub := &nodes.SubqueryExpr{
+			Loc:     nodes.Loc{Start: latStart},
+			Select:  sel,
+			Lateral: true,
+		}
+
+		// Optional alias: [AS] alias
+		if _, ok := p.match(kwAS); ok {
+			alias, _, err := p.parseIdentOrText()
+			if err != nil {
+				return nil, err
+			}
+			sub.Alias = alias
+		} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+			alias, _, err := p.parseIdentOrText()
+			if err != nil {
+				return nil, err
+			}
+			sub.Alias = alias
+		}
+
+		// Optional derived column alias list: AS t(c1, c2)
+		if sub.Alias != "" && p.cur.Type == '(' {
+			cols, err := p.parseDerivedColumnList()
+			if err != nil {
+				return nil, err
+			}
+			sub.Columns = cols
+		}
+
+		sub.Loc.End = p.prev.End
+		return sub, nil
+	}
+
+	if p.cur.Type == '(' {
+		startPos := p.pos()
+		p.advance()
+
+		// Disambiguate the parenthesized table factor. A leading run of '(' may
+		// open either a derived-table subquery — `(SELECT ...)`, `((SELECT ...))`,
+		// `((SELECT ...) UNION (...))` — or a parenthesized join group using
+		// MySQL nested-join semantics — `(a JOIN b ON ...)`,
+		// `((a LEFT JOIN b ON ...) JOIN c ON ...)` (the canonical SHOW CREATE VIEW
+		// form for multi-table joins). The deciding token is the first one past
+		// the parens: a query primary (SELECT/WITH/TABLE/VALUES) means a subquery,
+		// anything else (a table reference) means a join group.
+		if isQueryPrimaryStartToken(p.firstTokenPastParens().Type) {
+			sel, err := p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+
+			sub := &nodes.SubqueryExpr{
+				Loc:    nodes.Loc{Start: startPos},
+				Select: sel,
+			}
+
+			// Optional alias: [AS] alias
+			if _, ok := p.match(kwAS); ok {
+				alias, _, err := p.parseIdentOrText()
+				if err != nil {
+					return nil, err
+				}
+				sub.Alias = alias
+			} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+				alias, _, err := p.parseIdentOrText()
+				if err != nil {
+					return nil, err
+				}
+				sub.Alias = alias
+			}
+
+			// Optional derived column alias list: AS t(c1, c2)
+			if sub.Alias != "" && p.cur.Type == '(' {
+				cols, err := p.parseDerivedColumnList()
+				if err != nil {
+					return nil, err
+				}
+				sub.Columns = cols
+			}
+
+			sub.Loc.End = p.prev.End
+			return sub, nil
+		}
+
+		// Parenthesized table references use MySQL nested-join semantics.
+		refs, err := p.parseTableReferenceList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return foldTableReferenceList(refs), nil
+	}
+
+	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
+	if p.cur.Type == kwJSON_TABLE {
+		return p.parseJsonTable()
+	}
+
+	// DUAL — MySQL reserved keyword used as a dummy table in FROM clause.
+	// After registration as a reserved keyword, parseIdent rejects it,
+	// so we handle it explicitly here.
+	if p.cur.Type == kwDUAL {
+		tok := p.advance()
+		return &nodes.TableRef{
+			Loc:  nodes.Loc{Start: tok.Loc, End: p.prev.End},
+			Name: "dual",
+		}, nil
+	}
+
+	// Regular table reference with alias
+	return p.parseTableRefWithAlias()
+}
+
+// parseJsonTable parses JSON_TABLE(expr, path COLUMNS (column_list)) [AS] alias.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/json-table-functions.html
+//
+//	JSON_TABLE(
+//	    expr,
+//	    path COLUMNS (column_list)
+//	) [AS] alias
+//
+//	column_list:
+//	    column[, column][, ...]
+//
+//	column:
+//	    name FOR ORDINALITY
+//	  | name type PATH string_path [on_empty] [on_error]
+//	  | name type EXISTS PATH string_path
+//	  | NESTED [PATH] path COLUMNS (column_list)
+//
+//	on_empty:
+//	    {NULL | DEFAULT json_string | ERROR} ON EMPTY
+//
+//	on_error:
+//	    {NULL | DEFAULT json_string | ERROR} ON ERROR
+func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
+	start := p.pos()
+	p.advance() // consume JSON_TABLE
+
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+
+	// Parse the JSON expression
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+
+	// Parse the path expression
+	path, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if path == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	// COLUMNS
+	if p.cur.Type != kwCOLUMNS {
+		return nil, &ParseError{Message: "expected COLUMNS in JSON_TABLE", Position: p.cur.Loc}
+	}
+	p.advance()
+
+	cols, err := p.parseJsonTableColumns()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+
+	// [AS] alias (required for JSON_TABLE)
+	p.match(kwAS)
+	alias, _, aErr := p.parseIdentOrText()
+	if aErr != nil {
+		return nil, aErr
+	}
+
+	return &nodes.JsonTableExpr{
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		Expr:    expr,
+		Path:    path,
+		Columns: cols,
+		Alias:   alias,
+	}, nil
+}
+
+// parseJsonTableColumns parses (column_list) for JSON_TABLE.
+func (p *Parser) parseJsonTableColumns() ([]*nodes.JsonTableColumn, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+
+	var cols []*nodes.JsonTableColumn
+	for {
+		col, err := p.parseJsonTableColumn()
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, col)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return cols, nil
+}
+
+// parseJsonTableColumn parses a single JSON_TABLE column definition.
+func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	start := p.pos()
+
+	// NESTED [PATH] path COLUMNS (column_list)
+	if p.cur.Type == kwNESTED {
+		p.advance()
+		p.match(kwPATH) // optional PATH keyword
+		if p.cur.Type != tokSCONST {
+			return nil, &ParseError{Message: "expected path string in NESTED", Position: p.cur.Loc}
+		}
+		nestedPath := p.cur.Str
+		p.advance()
+
+		if p.cur.Type != kwCOLUMNS {
+			return nil, &ParseError{Message: "expected COLUMNS after NESTED PATH", Position: p.cur.Loc}
+		}
+		p.advance()
+		nestedCols, err := p.parseJsonTableColumns()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.JsonTableColumn{
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
+			Nested:     true,
+			NestedPath: nestedPath,
+			NestedCols: nestedCols,
+		}, nil
+	}
+
+	// name FOR ORDINALITY | name type PATH path | name type EXISTS PATH path
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+
+	col := &nodes.JsonTableColumn{
+		Loc:  nodes.Loc{Start: start},
+		Name: name,
+	}
+
+	// FOR ORDINALITY
+	if p.cur.Type == kwFOR {
+		p.advance()
+		p.match(kwORDINALITY)
+		col.Ordinality = true
+		col.Loc.End = p.prev.End
+		return col, nil
+	}
+
+	// type
+	typeName, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	col.TypeName = typeName
+
+	// EXISTS PATH
+	if p.cur.Type == kwEXISTS_KW {
+		p.advance()
+		col.Exists = true
+	}
+
+	// PATH
+	if p.cur.Type == kwPATH {
+		p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, &ParseError{Message: "expected path string", Position: p.cur.Loc}
+		}
+		col.Path = p.cur.Str
+		p.advance()
+	}
+
+	// [on_empty] [on_error]
+	// {NULL | DEFAULT json_string | ERROR} ON {EMPTY | ERROR}
+	for p.cur.Type == kwNULL || p.cur.Type == kwDEFAULT || p.cur.Type == kwERROR_KW {
+		option := ""
+		switch p.cur.Type {
+		case kwNULL:
+			option = "NULL"
+			p.advance()
+		case kwDEFAULT:
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				option = "DEFAULT " + p.cur.Str
+				p.advance()
+			}
+		case kwERROR_KW:
+			option = "ERROR"
+			p.advance()
+		}
+
+		if p.cur.Type != kwON {
+			break
+		}
+		p.advance() // consume ON
+
+		if p.cur.Type == kwEMPTY {
+			col.EmptyOption = option
+			p.advance()
+		} else if p.cur.Type == kwERROR_KW {
+			col.ErrorOption = option
+			p.advance()
+		}
+	}
+
+	col.Loc.End = p.prev.End
+	return col, nil
+}
+
+// parseOrderByList parses ORDER BY items.
+func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
+	var items []*nodes.OrderByItem
+
+	for {
+		start := p.pos()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+
+		item := &nodes.OrderByItem{
+			Loc:  nodes.Loc{Start: start},
+			Expr: expr,
+		}
+
+		// Completion: after ORDER BY expression, offer ASC/DESC/LIMIT and comma.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwASC)
+			p.addTokenCandidate(kwDESC)
+			p.addTokenCandidate(kwLIMIT)
+			p.addTokenCandidate(',')
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		if _, ok := p.match(kwDESC); ok {
+			item.Direction = nodes.OrderDirectionDesc
+			item.Desc = true
+		} else if _, ok := p.match(kwASC); ok {
+			item.Direction = nodes.OrderDirectionAsc
+		} else {
+			item.Direction = nodes.OrderDirectionDefault
+		}
+
+		item.Loc.End = p.prev.End
+		items = append(items, item)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	return items, nil
+}
+
+// parseLimitClause parses LIMIT [offset,] count or LIMIT count OFFSET offset.
+func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
+	start := p.pos()
+
+	count, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if count == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	limit := &nodes.Limit{
+		Loc:   nodes.Loc{Start: start},
+		Count: count,
+	}
+
+	// LIMIT offset, count
+	if p.cur.Type == ',' {
+		p.advance()
+		count2, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if count2 == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// In MySQL, LIMIT offset, count — first is offset, second is count
+		limit.Offset = limit.Count
+		limit.Count = count2
+	}
+
+	// LIMIT count OFFSET offset
+	if _, ok := p.match(kwOFFSET); ok {
+		offset, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if offset == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		limit.Offset = offset
+	}
+
+	limit.Loc.End = p.prev.End
+	return limit, nil
+}
+
+// parseForUpdateClause parses FOR UPDATE / FOR SHARE.
+func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
+	start := p.pos()
+	p.advance() // consume FOR
+
+	// Completion: after FOR keyword, offer UPDATE and SHARE.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwUPDATE)
+		p.addTokenCandidate(kwSHARE)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	fu := &nodes.ForUpdate{Loc: nodes.Loc{Start: start}}
+
+	if _, ok := p.match(kwSHARE); ok {
+		fu.Share = true
+	} else if _, ok := p.match(kwUPDATE); ok {
+		// FOR UPDATE (default)
+	} else {
+		return nil, &ParseError{
+			Message:  "expected UPDATE or SHARE after FOR",
+			Position: p.cur.Loc,
+		}
+	}
+
+	// Completion: after FOR UPDATE/SHARE, offer OF, NOWAIT, SKIP.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwNOWAIT)
+		p.addTokenCandidate(kwSKIP)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	// OF table_list
+	if p.cur.Type == kwOF {
+		p.advance()
+		for {
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			fu.Tables = append(fu.Tables, ref)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	// NOWAIT / SKIP LOCKED
+	if _, ok := p.match(kwNOWAIT); ok {
+		fu.NoWait = true
+	} else if _, ok := p.match(kwSKIP); ok {
+		p.match(kwLOCKED)
+		fu.SkipLocked = true
+	}
+
+	fu.Loc.End = p.prev.End
+	return fu, nil
+}
+
+// parseLockInShareMode parses LOCK IN SHARE MODE (legacy syntax).
+//
+//	LOCK IN SHARE MODE
+func (p *Parser) parseLockInShareMode() (*nodes.ForUpdate, error) {
+	start := p.pos()
+	p.advance() // consume LOCK
+
+	if _, err := p.expect(kwIN); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwSHARE); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwMODE); err != nil {
+		return nil, err
+	}
+
+	return &nodes.ForUpdate{
+		Loc:             nodes.Loc{Start: start, End: p.prev.End},
+		Share:           true,
+		LockInShareMode: true,
+	}, nil
+}
+
+// parseOutfileS3Options parses the trailing Aurora MySQL export options of
+// INTO OUTFILE S3, in documented order:
+//
+//	[MANIFEST {ON | OFF}]
+//	[OVERWRITE {ON | OFF}]
+//	[ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS ['cmk_id']}]
+func (p *Parser) parseOutfileS3Options(into *nodes.IntoClause) error {
+	if p.cur.Type == kwMANIFEST {
+		p.advance()
+		v, err := p.parseOnOff()
+		if err != nil {
+			return err
+		}
+		into.Manifest = v
+	}
+	if p.cur.Type == kwOVERWRITE {
+		p.advance()
+		v, err := p.parseOnOff()
+		if err != nil {
+			return err
+		}
+		into.Overwrite = v
+	}
+	if p.cur.Type == kwENCRYPTION {
+		p.advance()
+		switch p.cur.Type {
+		case kwON:
+			into.Encryption = "ON"
+			p.advance()
+		case kwOFF:
+			into.Encryption = "OFF"
+			p.advance()
+		case kwSSE_S3:
+			into.Encryption = "SSE_S3"
+			p.advance()
+		case kwSSE_KMS:
+			into.Encryption = "SSE_KMS"
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				into.EncryptionKey = p.cur.Str
+				p.advance()
+			}
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	return nil
+}
+
+// parseOnOff consumes ON or OFF and returns its canonical spelling.
+func (p *Parser) parseOnOff() (string, error) {
+	switch p.cur.Type {
+	case kwON:
+		p.advance()
+		return "ON", nil
+	case kwOFF:
+		p.advance()
+		return "OFF", nil
+	default:
+		return "", p.syntaxErrorAtCur()
+	}
+}
+
+// parseIntoClause parses INTO OUTFILE / DUMPFILE / var_list.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/select.html
+//
+//	into_option: {
+//	    INTO OUTFILE 'file_name'
+//	        [CHARACTER SET charset_name]
+//	        [{FIELDS | COLUMNS}
+//	            [TERMINATED BY 'string']
+//	            [[OPTIONALLY] ENCLOSED BY 'char']
+//	            [ESCAPED BY 'char']
+//	        ]
+//	        [LINES
+//	            [STARTING BY 'string']
+//	            [TERMINATED BY 'string']
+//	        ]
+//	  | INTO DUMPFILE 'file_name'
+//	  | INTO var_name [, var_name] ...
+//	}
+//
+// Aurora MySQL extension — export straight to S3. Aurora registers as the
+// MYSQL engine, so the extension is accepted unconditionally; stock MySQL 8.0
+// rejects it with ER_PARSE_ERROR (1064). The Aurora-only options (FORMAT,
+// HEADER, MANIFEST, OVERWRITE, ENCRYPTION) are accepted only after OUTFILE S3.
+//
+// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html
+//
+//	INTO OUTFILE S3 's3_uri'
+//	    [CHARACTER SET charset_name]
+//	    [FORMAT {CSV | TEXT} [HEADER]]
+//	    [{FIELDS | COLUMNS} ...]
+//	    [LINES ...]
+//	    [MANIFEST {ON | OFF}]
+//	    [OVERWRITE {ON | OFF}]
+//	    [ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS ['cmk_id']}]
+func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
+	start := p.pos()
+	into := &nodes.IntoClause{Loc: nodes.Loc{Start: start}}
+
+	switch p.cur.Type {
+	case kwOUTFILE:
+		p.advance()
+		// Completion: INTO OUTFILE | → a file literal or the Aurora S3 form.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwS3)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		// Aurora MySQL: INTO OUTFILE S3 's3_uri'
+		if p.cur.Type == kwS3 {
+			p.advance()
+			into.OutfileS3 = true
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		if p.cur.Type == tokSCONST {
+			into.Outfile = p.cur.Str
+			p.advance()
+		}
+
+		// [CHARACTER SET charset_name]
+		if p.cur.Type == kwCHARACTER {
+			p.advance()
+			p.match(kwSET)
+			charset, _, csErr := p.parseIdent()
+			if csErr != nil {
+				return nil, csErr
+			}
+			into.Charset = charset
+		} else if p.cur.Type == kwCHARSET {
+			p.advance()
+			charset, _, csErr := p.parseIdent()
+			if csErr != nil {
+				return nil, csErr
+			}
+			into.Charset = charset
+		}
+
+		// Aurora MySQL: [FORMAT {CSV | TEXT} [HEADER]]
+		if into.OutfileS3 && p.cur.Type == kwFORMAT {
+			p.advance()
+			switch p.cur.Type {
+			case kwCSV:
+				into.Format = "CSV"
+			case kwTEXT:
+				into.Format = "TEXT"
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Type == kwHEADER {
+				into.Header = true
+				p.advance()
+			}
+		}
+
+		// [{FIELDS | COLUMNS} ...]
+		if p.cur.Type == kwFIELDS || p.cur.Type == kwCOLUMNS {
+			p.advance()
+			into.HasFieldsClause = true
+
+			// [TERMINATED BY 'string']
+			if p.cur.Type == kwTERMINATED {
+				p.advance()
+				p.match(kwBY)
+				if p.cur.Type == tokSCONST {
+					into.FieldsTerminatedBy = p.cur.Str
+					p.advance()
+				}
+			}
+
+			// [[OPTIONALLY] ENCLOSED BY 'char']
+			if p.cur.Type == kwOPTIONALLY {
+				p.advance()
+				into.FieldsOptionalEncl = true
+			}
+			if p.cur.Type == kwENCLOSED {
+				p.advance()
+				p.match(kwBY)
+				if p.cur.Type == tokSCONST {
+					into.FieldsEnclosedBy = p.cur.Str
+					p.advance()
+				}
+			}
+
+			// [ESCAPED BY 'char']
+			if p.cur.Type == kwESCAPED {
+				p.advance()
+				p.match(kwBY)
+				if p.cur.Type == tokSCONST {
+					into.FieldsEscapedBy = p.cur.Str
+					p.advance()
+				}
+			}
+		}
+
+		// [LINES ...]
+		if p.cur.Type == kwLINES {
+			p.advance()
+			into.HasLinesClause = true
+
+			// [STARTING BY 'string']
+			if p.cur.Type == kwSTARTING {
+				p.advance()
+				p.match(kwBY)
+				if p.cur.Type == tokSCONST {
+					into.LinesStartingBy = p.cur.Str
+					p.advance()
+				}
+			}
+
+			// [TERMINATED BY 'string']
+			if p.cur.Type == kwTERMINATED {
+				p.advance()
+				p.match(kwBY)
+				if p.cur.Type == tokSCONST {
+					into.LinesTerminatedBy = p.cur.Str
+					p.advance()
+				}
+			}
+		}
+
+		// Aurora MySQL: [MANIFEST {ON | OFF}] [OVERWRITE {ON | OFF}]
+		//               [ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS ['cmk_id']}]
+		if into.OutfileS3 {
+			if err := p.parseOutfileS3Options(into); err != nil {
+				return nil, err
+			}
+		}
+
+	case kwDUMPFILE:
+		p.advance()
+		if p.cur.Type == tokSCONST {
+			into.Dumpfile = p.cur.Str
+			p.advance()
+		}
+	default:
+		// INTO var_name [, var_name ...]. Accepts @user_vars as well as bare
+		// identifiers (stored-program local variables / parameters declared
+		// via DECLARE, per MySQL's select_var alternative).
+		for {
+			if p.isVariableRef() {
+				v, err := p.parseVariableRef()
+				if err != nil {
+					return nil, err
+				}
+				into.Vars = append(into.Vars, v)
+			} else if p.cur.Type == tokIDENT || (p.cur.Type >= 700 && isLvalueKeyword(p.cur.Type)) {
+				// Bare identifier: SELECT ... INTO local_var (stored program)
+				nameStart := p.pos()
+				name, _, err := p.parseLvalueIdent()
+				if err != nil {
+					return nil, err
+				}
+				into.Vars = append(into.Vars, &nodes.VariableRef{
+					Loc:  nodes.Loc{Start: nameStart, End: p.prev.End},
+					Name: name,
+				})
+			} else {
+				break
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	into.Loc.End = p.prev.End
+	return into, nil
+}
+
+// setOpPrecedence returns the precedence for a set operation.
+// INTERSECT has higher precedence than UNION/EXCEPT in MySQL 8.0.31+.
+func setOpPrecedence(tokType int) int {
+	switch tokType {
+	case kwINTERSECT:
+		return 2
+	case kwUNION, kwEXCEPT:
+		return 1
+	}
+	return 0
+}
+
+// parseParenIdentList parses a parenthesized comma-separated list of identifiers.
+func (p *Parser) parseParenIdentList() ([]string, error) {
+	return p.parseParenIdentListWithCompletion("")
+}
+
+// parseParenIdentListWithCompletion is like parseParenIdentList but emits the
+// given completion rule (e.g. "columnref") at each identifier position. Pass ""
+// to disable completion candidate emission.
+func (p *Parser) parseParenIdentListWithCompletion(completionRule string) ([]string, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for {
+		// Completion: at each identifier position (including empty parens).
+		if completionRule != "" {
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate(completionRule)
+				return nil, &ParseError{Message: "collecting"}
+			}
+		}
+
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// tableExprLoc returns the location of a TableExpr.
+func tableExprLoc(te nodes.TableExpr) nodes.Loc {
+	switch t := te.(type) {
+	case *nodes.TableRef:
+		return t.Loc
+	case *nodes.JoinClause:
+		return t.Loc
+	case *nodes.SubqueryExpr:
+		return t.Loc
+	case *nodes.JsonTableExpr:
+		return t.Loc
+	}
+	return nodes.NoLoc()
+}
+
+// parseNamedWindowList parses WINDOW window_name AS (window_spec) [, ...].
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/window-functions-named-windows.html
+//
+//	window_clause:
+//	    WINDOW window_name AS (window_spec) [, window_name AS (window_spec)] ...
+func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
+	var defs []*nodes.WindowDef
+	for {
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwAS); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+
+		wd := &nodes.WindowDef{Loc: nodes.Loc{Start: start}, Name: name}
+
+		// Optional reference to existing window
+		if p.isIdentToken() && p.cur.Type != kwPARTITION && p.cur.Type != kwORDER &&
+			p.cur.Type != kwROWS && p.cur.Type != kwRANGE && p.cur.Type != kwGROUPS {
+			var refErr error
+			wd.RefName, _, refErr = p.parseIdent()
+			if refErr != nil {
+				return nil, refErr
+			}
+		}
+
+		if p.cur.Type == kwPARTITION {
+			p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			exprs, err := p.parseExprList()
+			if err != nil {
+				return nil, err
+			}
+			wd.PartitionBy = exprs
+		}
+
+		if p.cur.Type == kwORDER {
+			p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			orderBy, err := p.parseOrderByList()
+			if err != nil {
+				return nil, err
+			}
+			wd.OrderBy = orderBy
+		}
+
+		if p.cur.Type == kwROWS || p.cur.Type == kwRANGE || p.cur.Type == kwGROUPS {
+			frame, err := p.parseFrameClause()
+			if err != nil {
+				return nil, err
+			}
+			wd.Frame = frame
+		}
+
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		wd.Loc.End = p.prev.End
+		defs = append(defs, wd)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return defs, nil
+}
+
+// parseTableStmt parses a TABLE statement (MySQL 8.0.19+): a TABLE query
+// primary that stands alone, as a statement, an EXPLAIN target, or the
+// source of INSERT ... TABLE, and so holds its own clauses.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
+//
+//	TABLE table_name
+//	    [ORDER BY column_name]
+//	    [LIMIT number [OFFSET number]]
+//	    [INTO OUTFILE 'file_name'
+//	        [{FIELDS | COLUMNS} ...]
+//	        [LINES ...]
+//	    | INTO DUMPFILE 'file_name'
+//	    | INTO var_name [, var_name] ...]
+func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
+	stmt, err := p.parseExplicitTable()
+	if err != nil {
+		return nil, err
+	}
+	if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseExplicitTable parses TABLE table_name, MySQL's explicit_table, into a
+// TableStmt that holds only the table.
+func (p *Parser) parseExplicitTable() (*nodes.TableStmt, error) {
+	start := p.pos()
+	p.advance() // consume TABLE
+
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.TableStmt{
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
+		Table: ref,
+	}, nil
+}
+
+// parseSourceClauses parses the ORDER BY, LIMIT, and, when withInto is set,
+// INTO clauses that may follow a TABLE or VALUES query primary.
+func (p *Parser) parseSourceClauses(withInto bool) ([]*nodes.OrderByItem, *nodes.Limit, *nodes.IntoClause, error) {
+	var orderBy []*nodes.OrderByItem
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, nil, nil, err
+		}
+		list, err := p.parseOrderByList()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		orderBy = list
+	}
+
+	var limit *nodes.Limit
+	if _, ok := p.match(kwLIMIT); ok {
+		l, err := p.parseLimitClause()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		limit = l
+	}
+
+	var into *nodes.IntoClause
+	if withInto && p.cur.Type == kwINTO {
+		p.advance()
+		i, err := p.parseIntoClause()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		into = i
+	}
+	return orderBy, limit, into, nil
+}
+
+// parseValuesStmt parses a VALUES statement (MySQL 8.0.19+): a VALUES query
+// primary that stands alone, as a statement or an EXPLAIN target, and so
+// holds its own clauses.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/values.html
+//
+//	VALUES ROW(value_list) [, ROW(value_list)] ...
+//	    [ORDER BY column_designator] [LIMIT number [OFFSET number]]
+func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
+	stmt, err := p.parseValuesConstructor()
+	if err != nil {
+		return nil, err
+	}
+	if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseValuesConstructor parses VALUES ROW(...) [, ROW(...)] ..., MySQL's
+// table_value_constructor, into a ValuesStmt that holds only the rows.
+func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
+	start := p.pos()
+	p.advance() // consume VALUES
+
+	stmt := &nodes.ValuesStmt{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Parse ROW(...) list
+	for {
+		if _, err := p.expect(kwROW); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+
+		var row []nodes.ExprNode
+		if p.cur.Type != ')' {
+			exprs, err := p.parseExprList()
+			if err != nil {
+				return nil, err
+			}
+			row = exprs
+		}
+
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		stmt.Rows = append(stmt.Rows, row)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseSubqueryExpr parses a subquery expression: SELECT ... or a
+// parenthesized query expression. The caller owns the surrounding subquery
+// parentheses used by IN/EXISTS/scalar-subquery syntax.
+//
+// Redundant bare paren-wrapper layers are folded into the SubqueryExpr, whose
+// rendering owns the single canonical pair. This matches the engine: MySQL
+// 8.0.32 and 5.7.25 both store `((SELECT ...))` (any extra depth, in any
+// expression position — select item, binary operand, IN, EXISTS, quantified
+// comparison) as exactly `(select ...)` in SHOW CREATE VIEW bodies, so keeping
+// the extra layers would phantom-diff the user form against the stored form.
+// A wrapper holding outer clauses (WITH / ORDER BY / LIMIT / locking)
+// keeps its parens — they scope those clauses. The engine does NOT keep that
+// pair: it merges wrapper clauses into the leaf and drops the parens
+// (`(((SELECT 1) LIMIT 1) = 1)` is stored as `((select 1 limit 1) = 1)`;
+// `((SELECT 1 LIMIT 2) LIMIT 1)` even discards the inner LIMIT). Keeping the
+// wrapper is still safe — readbacks never contain the wrapper form — but
+// user-form SDL written with clause-bearing wrappers phantom-diffs against
+// the stored form (a perpetual no-op view replace), the same residual class
+// as the unexpanded row-compare and set-op ARM paren forms.
+func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
+	start := p.pos()
+	sel, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	for sel != nil && sel.ParenSource != nil && len(sel.CTEs) == 0 &&
+		len(sel.OrderBy) == 0 && sel.Limit == nil && sel.ForUpdate == nil {
+		sel = sel.ParenSource
+	}
+	return &nodes.SubqueryExpr{
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Select: sel,
+	}, nil
+}
+
+// parseIndexHints parses an optional list of index hints following a table reference.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/index-hints.html
+//
+//	index_hint_list:
+//	    index_hint [index_hint] ...
+//
+//	index_hint:
+//	    USE {INDEX|KEY}
+//	      [FOR {JOIN|ORDER BY|GROUP BY}] ([index_list])
+//	  | {IGNORE|FORCE} {INDEX|KEY}
+//	      [FOR {JOIN|ORDER BY|GROUP BY}] (index_list)
+//
+//	index_list:
+//	    index_name [, index_name] ...
+func (p *Parser) parseIndexHints() ([]*nodes.IndexHint, error) {
+	var hints []*nodes.IndexHint
+	for p.cur.Type == kwUSE || p.cur.Type == kwFORCE || p.cur.Type == kwIGNORE {
+		hint, err := p.parseIndexHint()
+		if err != nil {
+			return hints, err
+		}
+		hints = append(hints, hint)
+	}
+	return hints, nil
+}
+
+// parseIndexHint parses a single index hint.
+//
+//	index_hint:
+//	    USE {INDEX|KEY}
+//	      [FOR {JOIN|ORDER BY|GROUP BY}] ([index_list])
+//	  | {IGNORE|FORCE} {INDEX|KEY}
+//	      [FOR {JOIN|ORDER BY|GROUP BY}] (index_list)
+func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
+	start := p.pos()
+	hint := &nodes.IndexHint{
+		Loc: nodes.Loc{Start: start},
+	}
+
+	// Parse hint type: USE | FORCE | IGNORE
+	switch p.cur.Type {
+	case kwUSE:
+		hint.Type = nodes.HintUse
+	case kwFORCE:
+		hint.Type = nodes.HintForce
+	case kwIGNORE:
+		hint.Type = nodes.HintIgnore
+	default:
+		return nil, &ParseError{Message: "expected USE, FORCE, or IGNORE", Position: p.cur.Loc}
+	}
+	p.advance()
+
+	// Parse INDEX | KEY
+	if p.cur.Type != kwINDEX && p.cur.Type != kwKEY {
+		return nil, &ParseError{Message: "expected INDEX or KEY", Position: p.cur.Loc}
+	}
+	p.advance()
+
+	// Optional FOR {JOIN | ORDER BY | GROUP BY}
+	hint.Scope = nodes.HintScopeAll
+	if p.cur.Type == kwFOR {
+		p.advance()
+		switch p.cur.Type {
+		case kwJOIN:
+			hint.Scope = nodes.HintScopeJoin
+			p.advance()
+		case kwORDER:
+			p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			hint.Scope = nodes.HintScopeOrderBy
+		case kwGROUP:
+			p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			hint.Scope = nodes.HintScopeGroupBy
+		default:
+			return nil, &ParseError{Message: "expected JOIN, ORDER BY, or GROUP BY", Position: p.cur.Loc}
+		}
+	}
+
+	// Parse (index_list) — required parens, list may be empty for USE
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+
+	// Completion: inside index hint parentheses, offer index_ref candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("index_ref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	if p.cur.Type != ')' {
+		// Parse comma-separated index names
+		for {
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			hint.Indexes = append(hint.Indexes, name)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+
+	hint.Loc.End = p.prev.End
+	return hint, nil
+}

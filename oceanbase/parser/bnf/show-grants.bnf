@@ -1,0 +1,11 @@
+-- Statement: SHOW GRANTS
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-grants.html
+
+SHOW GRANTS
+    [FOR user_or_role
+        [USING role [, role] ...]]
+
+user_or_role: {
+    user
+  | role
+}

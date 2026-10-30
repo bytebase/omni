@@ -1,4 +1,4 @@
-ENGINES := cassandra cosmosdb doris elasticsearch googlesql mariadb mongo mssql mysql oracle partiql pg redshift snowflake starrocks tidb trino
+ENGINES := cassandra cosmosdb doris elasticsearch googlesql mariadb mongo mssql mysql oceanbase oracle partiql pg redshift snowflake starrocks tidb trino
 
 .PHONY: build test test-spanner proto proto-breaking clean $(addprefix test-,$(ENGINES)) test-mysql-full test-mysql-containers
 

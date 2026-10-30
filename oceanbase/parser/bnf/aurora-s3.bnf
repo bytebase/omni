@@ -1,0 +1,62 @@
+-- Statement: LOAD DATA FROM S3 / LOAD XML FROM S3 / SELECT ... INTO OUTFILE S3
+-- Engine: Amazon Aurora MySQL extension (not MySQL 8.0). Aurora registers as the
+--         MYSQL engine, so the parser accepts these unconditionally; stock MySQL 8.0
+--         rejects them with ER_PARSE_ERROR (1064), so they must not be added to the
+--         oracle corpus.
+-- Source: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.LoadFromS3.html
+-- Source: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html
+
+LOAD DATA [FROM] S3 [FILE | PREFIX | MANIFEST] 'S3-URI'
+    [REPLACE | IGNORE]
+    INTO TABLE tbl_name
+    [PARTITION (partition_name,...)]
+    [CHARACTER SET charset_name]
+    [{FIELDS | COLUMNS}
+        [TERMINATED BY 'string']
+        [[OPTIONALLY] ENCLOSED BY 'char']
+        [ESCAPED BY 'char']
+    ]
+    [LINES
+        [STARTING BY 'string']
+        [TERMINATED BY 'string']
+    ]
+    [IGNORE number {LINES | ROWS}]
+    [(col_name_or_user_var,...)]
+    [SET col_name = expr,...]
+
+-- Notes: FROM is optional in Aurora MySQL 3.05+. LOCAL is not allowed with an S3
+-- source. LOW_PRIORITY / CONCURRENT are not documented for the S3 form but are
+-- accepted, matching the INFILE prefix.
+
+LOAD XML FROM S3 [FILE | PREFIX] 'S3-URI'
+    [REPLACE | IGNORE]
+    INTO TABLE tbl_name
+    [PARTITION (partition_name,...)]
+    [CHARACTER SET charset_name]
+    [ROWS IDENTIFIED BY '<element-name>']
+    [IGNORE number {LINES | ROWS}]
+    [(field_name_or_user_var,...)]
+    [SET col_name = expr,...]
+
+SELECT ...
+INTO OUTFILE S3 's3_uri'
+    [CHARACTER SET charset_name]
+    [export_options]
+    [MANIFEST {ON | OFF}]
+    [OVERWRITE {ON | OFF}]
+    [ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS ['cmk_id']}]
+
+export_options:
+    [FORMAT {CSV|TEXT} [HEADER]]
+    [{FIELDS | COLUMNS}
+        [TERMINATED BY 'string']
+        [[OPTIONALLY] ENCLOSED BY 'char']
+        [ESCAPED BY 'char']
+    ]
+    [LINES
+        [STARTING BY 'string']
+        [TERMINATED BY 'string']
+    ]
+
+-- Notes: FORMAT / HEADER / MANIFEST / OVERWRITE / ENCRYPTION are only accepted
+-- after OUTFILE S3; a plain INTO OUTFILE 'file' keeps the MySQL 8.0 grammar.
