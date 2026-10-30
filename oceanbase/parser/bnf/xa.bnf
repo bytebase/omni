@@ -1,0 +1,16 @@
+-- Statement: XA
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/xa-statements.html
+
+XA {START | BEGIN} xid [JOIN | RESUME]
+
+XA END xid [SUSPEND [FOR MIGRATE]]
+
+XA PREPARE xid
+
+XA COMMIT xid [ONE PHASE]
+
+XA ROLLBACK xid
+
+XA RECOVER [CONVERT XID]
+
+xid: gtrid [, bqual [, formatID]]

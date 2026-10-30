@@ -1,0 +1,6 @@
+-- Statement: REPAIR TABLE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/repair-table.html
+
+REPAIR [NO_WRITE_TO_BINLOG | LOCAL]
+    TABLE tbl_name [, tbl_name] ...
+    [QUICK] [EXTENDED] [USE_FRM]

@@ -1,0 +1,6 @@
+-- Statement: SET DEFAULT ROLE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/set-default-role.html
+
+SET DEFAULT ROLE
+    {NONE | ALL | role [, role ] ...}
+    TO user [, user ] ...

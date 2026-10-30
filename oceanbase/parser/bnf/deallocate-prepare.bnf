@@ -1,0 +1,4 @@
+-- Statement: DEALLOCATE PREPARE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/deallocate-prepare.html
+
+{DEALLOCATE | DROP} PREPARE stmt_name

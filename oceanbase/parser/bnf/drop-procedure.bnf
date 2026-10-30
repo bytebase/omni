@@ -1,0 +1,4 @@
+-- Statement: DROP PROCEDURE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/drop-procedure.html
+
+DROP {PROCEDURE | FUNCTION} [IF EXISTS] sp_name

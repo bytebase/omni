@@ -1,0 +1,7 @@
+-- Statement: SHOW INDEX
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-index.html
+
+SHOW [EXTENDED] {INDEX | INDEXES | KEYS}
+    {FROM | IN} tbl_name
+    [{FROM | IN} db_name]
+    [WHERE expr]

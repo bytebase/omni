@@ -1,0 +1,10 @@
+-- Statement: INSTALL COMPONENT
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/install-component.html
+
+INSTALL COMPONENT component_name [, component_name] ...
+    [SET variable = expr [, variable = expr] ...]
+
+variable: {
+    {GLOBAL | @@GLOBAL.} [component_prefix.]system_var_name
+  | {PERSIST | @@PERSIST.} [component_prefix.]system_var_name
+}

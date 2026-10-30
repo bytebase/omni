@@ -1,0 +1,5 @@
+-- Statement: ALTER SERVER
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/alter-server.html
+
+ALTER SERVER server_name
+    OPTIONS (option [, option] ...)
