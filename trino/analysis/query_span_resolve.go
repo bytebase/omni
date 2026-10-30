@@ -1,7 +1,10 @@
 package analysis
 
 import (
+	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/trino/ast"
 	"github.com/bytebase/omni/trino/parser"
@@ -266,7 +269,7 @@ func resolveNodeCols(node parser.QueryNode, cte *cteDefs) []outCol {
 		// so the lineage of column i is the union of column i across all arms. The
 		// right operand may itself be a set operation, so recursion accumulates
 		// every arm's positional sources.
-		return mergeArms(resolveNodeCols(n.Left, cte), resolveNodeCols(n.Right, cte))
+		return resolveSetOpCols(n, cte)
 	case *parser.ParenQuery:
 		return resolveQueryCols(n.Inner, cte)
 	case *parser.TableQuery:
@@ -342,34 +345,95 @@ func valuesRowElements(row parser.Expr) []parser.Expr {
 	return []parser.Expr{row}
 }
 
-// mergeArms positionally merges the resolved columns of two set-operation arms.
-// The result has the left arm's shape (count, names, and item stamps — SQL takes
-// the output column names from the first SELECT); each column's sources are the
-// union of the two arms' sources at that position, so a sensitive value
-// contributed by either arm forces the column to be masked. A right arm with
-// fewer columns than the left (only in malformed SQL) contributes nothing beyond
-// the positions it has.
-//
-// With stars expanded inline, both arms of a valid set operation have their true
-// width, so the positional union is exact — including a resolved star arm
-// (`SELECT * FROM (…) d UNION SELECT phone FROM t` merges phone into d's
-// expanded column). When either arm still contains an OPAQUE star its width is
-// unknown and positional pairing would be unsound, so the merge is skipped and
-// the left arm passes through unchanged (parity with the walk: the consumer's
-// own star expansion applies and the other arm's lineage remains a documented
-// residual rather than a mis-attributed union).
-func mergeArms(left, right []outCol) []outCol {
-	if hasOpaque(left) || hasOpaque(right) {
-		return left
+// resolveSetOpCols computes the resolved output columns of a set operation:
+// its arms merged positionally (see armMerger.merge), from its leftmost arm
+// on, through the chain of set operations down its left side (`a UNION b
+// UNION c` is (a UNION b) UNION c). The arms are merged into one accumulator:
+// merging each arm into a copy of the lineage of the arms before it copied
+// lineage that grows by an arm's sources each time, so n arms of distinct
+// columns cost O(n²).
+func resolveSetOpCols(n *parser.SetOperation, cte *cteDefs) []outCol {
+	// rights lists the chain's right operands, outermost first.
+	var rights []parser.QueryNode
+	var node parser.QueryNode = n
+	for {
+		op, ok := node.(*parser.SetOperation)
+		if !ok {
+			break
+		}
+		rights = append(rights, op.Right)
+		node = op.Left
 	}
-	out := make([]outCol, len(left))
-	copy(out, left)
-	for i := range out {
-		if i < len(right) {
-			out[i].sources = unionRefs(left[i].sources, right[i].sources)
+	m := newArmMerger(resolveNodeCols(node, cte))
+	for i := len(rights) - 1; i >= 0; i-- {
+		m.merge(resolveNodeCols(rights[i], cte))
+	}
+	return m.cols
+}
+
+// armMerger accumulates the merged columns of set-operation arms. The first
+// merge copies the columns, and a column keeps the set of its sources from
+// its first merge on, so merging an arm costs that arm's size.
+type armMerger struct {
+	cols   []outCol
+	opaque bool // hasOpaque(cols), which no merge changes
+	copied bool // cols is the merger's own copy
+	seen   []map[ColumnRef]bool
+}
+
+func newArmMerger(first []outCol) *armMerger {
+	return &armMerger{cols: first, opaque: hasOpaque(first)}
+}
+
+// merge positionally merges the resolved columns of the next set-operation
+// arm into cols. The result keeps the shape of cols (count, names, and item
+// stamps — SQL takes the output column names from the first SELECT); each
+// column's sources become the union (unionRefs) of its sources and the arm's
+// at that position, so a sensitive value contributed by any arm forces the
+// column to be masked. An arm with fewer columns (only in malformed SQL)
+// contributes nothing beyond the positions it has.
+//
+// With stars expanded inline, the arms of a valid set operation have their
+// true width, so the positional union is exact — including a resolved star
+// arm (`SELECT * FROM (…) d UNION SELECT phone FROM t` merges phone into d's
+// expanded column). When either side still contains an OPAQUE star its width
+// is unknown and positional pairing would be unsound, so the merge is skipped
+// and cols passes through unchanged (parity with the walk: the consumer's own
+// star expansion applies and the other arm's lineage remains a documented
+// residual rather than a mis-attributed union).
+func (m *armMerger) merge(right []outCol) {
+	if m.opaque || hasOpaque(right) {
+		return
+	}
+	if !m.copied {
+		m.cols = append([]outCol(nil), m.cols...)
+		m.seen = make([]map[ColumnRef]bool, len(m.cols))
+		m.copied = true
+	}
+	for i := 0; i < len(m.cols) && i < len(right); i++ {
+		seen := m.seen[i]
+		if seen == nil {
+			// The column's first merge: the union drops a repeated source of
+			// the column's own too.
+			left := m.cols[i].sources
+			seen = make(map[ColumnRef]bool, len(left)+len(right[i].sources))
+			out := make([]ColumnRef, 0, len(left)+len(right[i].sources))
+			for _, r := range left {
+				if !seen[r] {
+					seen[r] = true
+					out = append(out, r)
+				}
+			}
+			m.cols[i].sources = out
+			m.seen[i] = seen
+		}
+		for _, r := range right[i].sources {
+			if !seen[r] {
+				seen[r] = true
+				m.cols[i].sources = append(m.cols[i].sources, r)
+			}
 		}
 	}
-	return out
 }
 
 // resolveSpecCols computes the resolved output columns of one SELECT block: it
@@ -464,6 +528,103 @@ type rscope struct {
 	// then has a different width/order than the relations' concatenation, so
 	// star expansion is blocked in this scope.
 	coalesced bool
+
+	// idx indexes rels once the scope is large (see index); starAll holds
+	// starExpansion("") for the first starRels relations, once starDone.
+	idx      *relIndex
+	starAll  []outCol
+	starRels int
+	starDone bool
+}
+
+// relIndex indexes a scope's relations and their columns by name, by
+// foldKey, so a reference finds the relations and the column it names
+// without comparing it against every one: comparing made a select list that
+// names the relations of a long join chain, or the columns of a wide derived
+// table, cost the product of the two. The scope only appends relations, and
+// the index catches up with them as it is used.
+type relIndex struct {
+	indexed int              // the relations indexed: rels[:indexed]
+	byName  map[string][]int // a relation name: the relations of that name, in order
+	// byCol maps a column name to the relations exposing a column of that
+	// name, in order, each with the first such column.
+	byCol map[string][]colHit
+}
+
+type colHit struct{ rel, col int }
+
+// scopeIndexMin is how many relations and columns a scope holds before its
+// lookups go through a relIndex; below it, comparing names is as fast and
+// allocates nothing. It is a variable so that tests can index every scope.
+var scopeIndexMin = 32
+
+// index returns the scope's relIndex, brought up to date, or nil while the
+// scope is small.
+func (s *rscope) index() *relIndex {
+	if s.idx == nil {
+		size := len(s.rels)
+		for i := 0; i < len(s.rels) && size < scopeIndexMin; i++ {
+			size += len(s.rels[i].cols)
+		}
+		if size < scopeIndexMin {
+			return nil
+		}
+		s.idx = &relIndex{byName: make(map[string][]int), byCol: make(map[string][]colHit)}
+	}
+	x := s.idx
+	for ; x.indexed < len(s.rels); x.indexed++ {
+		ri := x.indexed
+		name := foldKey(s.rels[ri].name)
+		x.byName[name] = append(x.byName[name], ri)
+		for ci, c := range s.rels[ri].cols {
+			col := foldKey(c.name)
+			hits := x.byCol[col]
+			if n := len(hits); n > 0 && hits[n-1].rel == ri {
+				continue // not the relation's first column of that name
+			}
+			x.byCol[col] = append(hits, colHit{rel: ri, col: ci})
+		}
+	}
+	return x
+}
+
+// lookupOutCol is the package function lookupOutCol on relation ri's
+// columns, for a column name whose foldKey is col.
+func (x *relIndex) lookupOutCol(s *rscope, ri int, col string) ([]ColumnRef, bool) {
+	hits := x.byCol[col]
+	i := sort.Search(len(hits), func(i int) bool { return hits[i].rel >= ri })
+	if i < len(hits) && hits[i].rel == ri {
+		return s.rels[ri].cols[hits[i].col].sources, true
+	}
+	return nil, false
+}
+
+// foldKey returns a key that two strings share exactly when strings.EqualFold
+// holds for them: each rune, as EqualFold reads it (an invalid byte is
+// utf8.RuneError), replaced by the smallest rune of its case-folding orbit
+// (unicode.SimpleFold).
+func foldKey(s string) string {
+	ascii := true
+	for i := 0; i < len(s); i++ {
+		if s[i] >= utf8.RuneSelf {
+			ascii = false
+			break
+		}
+	}
+	if ascii {
+		// The smallest rune of an ASCII letter's orbit is its upper case;
+		// the orbits of k and s also hold U+212A and U+017F, which are larger.
+		return strings.ToUpper(s)
+	}
+	var b strings.Builder
+	for _, r := range s {
+		least := r
+		for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+			least = min(least, f)
+		}
+		b.WriteRune(least)
+	}
+	return b.String()
 }
 
 // rbind binds one relation in a FROM scope to a name. derived marks a subquery
@@ -640,10 +801,17 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 	if qualifier != "" {
 		var match *rbind
 		count := 0
-		for i := range s.rels {
-			if strings.EqualFold(s.rels[i].name, qualifier) {
-				match = &s.rels[i]
-				count++
+		if x := s.index(); x != nil {
+			named := x.byName[foldKey(qualifier)]
+			if count = len(named); count > 0 {
+				match = &s.rels[named[count-1]]
+			}
+		} else {
+			for i := range s.rels {
+				if strings.EqualFold(s.rels[i].name, qualifier) {
+					match = &s.rels[i]
+					count++
+				}
 			}
 		}
 		if count != 1 || len(match.cols) == 0 || hasOpaque(match.cols) {
@@ -651,13 +819,20 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 		}
 		return match.cols
 	}
+	// Computed once per scope: every `*` item of a select list expands to the
+	// same columns, and expanding them per item cost the product of the two.
+	if s.starDone && s.starRels == len(s.rels) {
+		return s.starAll
+	}
 	var out []outCol
 	for _, rb := range s.rels {
 		if len(rb.cols) == 0 || hasOpaque(rb.cols) {
-			return nil
+			out = nil
+			break
 		}
 		out = append(out, rb.cols...)
 	}
+	s.starAll, s.starRels, s.starDone = out, len(s.rels), true
 	return out
 }
 
@@ -698,6 +873,22 @@ func (s *rscope) resolveRefs(refs []ColumnRef) []ColumnRef {
 // unchanged.
 func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 	out := []ColumnRef{ref}
+	if x := s.index(); x != nil {
+		// The loops below, through the index.
+		col := foldKey(ref.Column)
+		if ref.Table != "" {
+			for _, ri := range x.byName[foldKey(ref.Table)] {
+				if src, ok := x.lookupOutCol(s, ri, col); ok {
+					out = append(out, src...)
+				}
+			}
+			return out
+		}
+		for _, h := range x.byCol[col] {
+			out = append(out, s.rels[h.rel].cols[h.col].sources...)
+		}
+		return out
+	}
 	if ref.Table != "" {
 		// Qualified by a relation name: append the recovered sources of every
 		// in-scope relation of that name exposing the column (a reused alias

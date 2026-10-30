@@ -603,12 +603,12 @@ func (ew exprWalk) walk(expr parser.Expr) {
 		// ColumnRef. Flatten it into a single qualified ColumnRef; if the base
 		// is not a plain name chain (e.g. field access on a function result),
 		// fall back to walking the base expression.
-		if ref, ok := dereferenceRef(e); ok {
+		if ref, base, ok := dereferenceRef(e); ok {
 			if onColumn != nil {
 				onColumn(ref)
 			}
 		} else {
-			ew.walk(e.Base)
+			ew.walk(base)
 		}
 
 	// Subquery placeholders — re-parse the raw inner text and recurse, but only
@@ -1028,44 +1028,48 @@ func columnRefFrom(c *parser.ColumnRef) (ColumnRef, bool) {
 
 // dereferenceRef flattens a Dereference chain that bottoms out at a ColumnRef
 // into a single qualified ColumnRef (the rightmost component is the column; the
-// preceding ones map to table / schema / catalog). It returns ok=false when the
-// base is not a plain name chain (e.g. a subscript or function result), so the
-// caller can fall back to walking the base expression.
-func dereferenceRef(d *parser.Dereference) (ColumnRef, bool) {
-	parts := flattenDereference(d)
-	if parts == nil {
-		return ColumnRef{}, false
-	}
-	return columnRefFromParts(parts), true
-}
-
-// flattenDereference returns the dotted-name components of a Dereference chain
-// rooted at a ColumnRef (e.g. ["t", "a"] for t.a), or nil when the chain's base
-// is not a ColumnRef.
-func flattenDereference(d *parser.Dereference) []string {
-	if d == nil {
-		return nil
-	}
-	field := identName(d.FieldName)
-	if field == "" {
-		return nil
-	}
-	switch base := d.Base.(type) {
-	case *parser.ColumnRef:
-		root := identName(base.Name)
-		if root == "" {
-			return nil
+// preceding ones map to table / schema / catalog). When the chain's base is not
+// a ColumnRef (e.g. a subscript or function result), ok is false and base is
+// that expression, for the caller to walk instead.
+//
+// A field with no name ends the name chain below it: the column is the chain
+// up to that field, and when the lowest field has no name it is the base
+// ColumnRef itself, returned as base. That is what reading each shorter chain
+// in turn, from d down, yields, but reading the chain once keeps a long one
+// linear: `f(a).b.b…` retried every shorter chain down to f(a), so n fields
+// cost O(n²).
+func dereferenceRef(d *parser.Dereference) (ref ColumnRef, base parser.Expr, ok bool) {
+	// chain lists the chain's dereferences from d down to the one whose base
+	// is not a Dereference.
+	chain := []*parser.Dereference{d}
+	for {
+		next, isDeref := chain[len(chain)-1].Base.(*parser.Dereference)
+		if !isDeref {
+			break
 		}
-		return []string{root, field}
-	case *parser.Dereference:
-		prefix := flattenDereference(base)
-		if prefix == nil {
-			return nil
-		}
-		return append(prefix, field)
-	default:
-		return nil
+		chain = append(chain, next)
 	}
+	base = chain[len(chain)-1].Base
+	col, isCol := base.(*parser.ColumnRef)
+	if !isCol {
+		return ColumnRef{}, base, false
+	}
+	root := identName(col.Name)
+	if root == "" {
+		return ColumnRef{}, base, false
+	}
+	parts := []string{root}
+	for i := len(chain) - 1; i >= 0; i-- {
+		field := identName(chain[i].FieldName)
+		if field == "" {
+			break
+		}
+		parts = append(parts, field)
+	}
+	if len(parts) == 1 {
+		return ColumnRef{}, base, false
+	}
+	return columnRefFromParts(parts), nil, true
 }
 
 // columnRefFromParts maps the components of a dotted column reference to a

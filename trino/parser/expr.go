@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/trino/ast"
 )
@@ -1017,22 +1020,53 @@ func (p *Parser) startsQuery() bool {
 // parsed into a query tree here.
 //
 // Strict mode validates every body (validateSubqueries). It first parses the
-// body in place: a body that parses as a query ending at the matching ')',
-// recording no lex error on the way, is valid and is not parsed again.
-// Validating it afterwards instead reparsed the text of every nested body
-// once per level, so n nested subqueries cost O(n²). A body that fails here
-// is scanned raw and validated afterwards as before, so its errors are
-// unchanged.
+// body in place: a body that parses as a query ending at the matching ')' is
+// valid and is not parsed again. Validating it afterwards instead reparsed
+// the text of every nested body once per level, so n nested subqueries cost
+// O(n²). A body that fails here is scanned raw and validated afterwards as
+// before, so its errors are unchanged.
+//
+// A lex error does not fail the in-place parse either. Failing on it made
+// every body around the error raw, and validating each parsed the text of
+// the bodies inside it again, so a lex error under n nested subqueries cost
+// O(n²). Validating the body from its text reports what the bodies nested in
+// it report, then its own lex errors; the bodies nested in it are captured
+// in its place in rawQueries, and a lexOnly entry after them reports its lex
+// errors, so the statement's errors come out as before. That holds while the
+// body is one statement to the text parse: a ';' token in it (inside a nested
+// raw body, in a routine) makes that parse split it, so such a body is still
+// scanned raw.
+//
+// Nor does white space the lexer rejects (U+00A0, \v) between the query and
+// the ')': the body's text is trimmed of it, so the text parse reads the
+// query alone and succeeds. Failing here on it made a body raw whose
+// validation then validated the bodies inside it, each in turn, so n nested
+// subqueries ending in it cost O(n²). Its lex errors are not the body's but
+// those of the text around it, as for the text parse.
 func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*SubqueryExpr, error) {
 	subStart := p.cur.Loc.Start
 	if p.strictTrailing {
 		cp := p.checkpoint()
-		if q, err := p.parseQuery(); err == nil && p.cur.Kind == int(')') && p.lexer.errorCount() == cp.lexErrs {
-			sub := p.finishSubqueryPlaceholder(startOffset, subStart, kind)
-			sub.Query = q
-			return sub, nil
+		if q, err := p.parseQuery(); err == nil {
+			end := p.cur.Loc.Start // where the body's text ends, trimmed
+			if p.cur.Kind == int(')') || p.skipTrimmedSpace() {
+				lexErrs := p.lexer.errorCount() != cp.lexErrs
+				if !lexErrs || !p.hasSemicolonIn(subStart, end) {
+					sub := p.finishSubqueryPlaceholder(startOffset, subStart, kind)
+					sub.Query = q
+					if lexErrs {
+						p.rawQueries = append(p.rawQueries, rawQuery{lexOnly: true, start: subStart, end: end})
+					}
+					return sub, nil
+				}
+			}
 		}
 		p.restore(cp)
+		if p.cur.Kind == kwWITH && p.peekNext().Kind == kwFUNCTION {
+			if sub := p.parseRoutineSubquery(startOffset, subStart, kind); sub != nil {
+				return sub, nil
+			}
+		}
 	}
 	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
 		if p.cur.Kind == int('(') {
@@ -1050,6 +1084,97 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 	sub := p.finishSubqueryPlaceholder(startOffset, subStart, kind)
 	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart, depth: p.depth})
 	return sub, nil
+}
+
+// parseRoutineSubquery parses in place an expression subquery body that is a
+// WITH FUNCTION statement, as its validation parses its text: as a
+// statement, one level deeper. Trino rejects the body (WITH FUNCTION
+// prefixes a statement, not a query), and its validation reports the errors
+// of the bodies captured raw in it, or else that it is no query. Captured
+// raw, the body was validated by parsing its text, which validated each body
+// inside it the same way, so n nested ones cost O(n²). The body's entry in
+// rawQueries reports the same errors from the in-place parse.
+//
+// It returns nil, with the parser back where it was, when the in-place parse
+// does not read the body as the text parse does: when it fails, ends before
+// the ')', or meets a ';', at which the text parse may split the text. It
+// does too when it nests too deeply: the text parse reports that among the
+// statement's errors, where it is. The parser keeps no record of a parse
+// that failed so (see enterNesting), so from then on it leaves every such
+// body to the text parse.
+func (p *Parser) parseRoutineSubquery(startOffset, subStart int, kind SubqueryKind) *SubqueryExpr {
+	if p.routineNestingFailed || p.nestingErr != nil {
+		return nil
+	}
+	cp := p.checkpoint()
+	node, err := p.parseStmt()
+	if p.nestingErr != nil {
+		p.nestingErr = nil
+		p.routineNestingFailed = true
+		p.restore(cp)
+		return nil
+	}
+	end := p.cur.Loc.Start // where the body's text ends, trimmed
+	if err != nil || p.cur.Kind != int(')') && !p.skipTrimmedSpace() || p.hasSemicolonIn(subStart, end) {
+		p.restore(cp)
+		return nil
+	}
+	nested := append([]rawQuery(nil), p.rawQueries[cp.rawqs:]...)
+	p.rawQueries = p.rawQueries[:cp.rawqs]
+	sub := p.finishSubqueryPlaceholder(startOffset, subStart, kind)
+	p.rawQueries = append(p.rawQueries, rawQuery{
+		text:    sub.RawText,
+		start:   sub.TextStart,
+		end:     end,
+		group:   nested,
+		routine: &routineBody{tooHigh: p.treeTooHigh(node, len(sub.RawText)), first: cp.cur.Loc},
+	})
+	return sub
+}
+
+// skipTrimmedSpace moves to the ')' after the current token when only white
+// space, as strings.TrimSpace trims it, lies before it from the current
+// token on, and reports whether it did. The current token is then an INVALID
+// one, white space the lexer rejects.
+func (p *Parser) skipTrimmedSpace() bool {
+	if p.cur.Kind != tokInvalid {
+		return false
+	}
+	from := p.cur.Loc.Start - p.baseOffset
+	i := from
+	for i < len(p.input) {
+		r, size := utf8.DecodeRuneInString(p.input[i:])
+		if !unicode.IsSpace(r) {
+			break
+		}
+		i += size
+	}
+	if i == from || i >= len(p.input) || p.input[i] != ')' {
+		return false
+	}
+	for p.cur.Kind != tokEOF && p.cur.Loc.Start-p.baseOffset < i {
+		p.advance()
+	}
+	return p.cur.Kind == int(')')
+}
+
+// hasSemicolonIn reports whether a ';' token lies in [start, end), absolute
+// offsets in the segment. The segment is lexed for them once, and only when
+// it holds a ';' byte at all.
+func (p *Parser) hasSemicolonIn(start, end int) bool {
+	if !p.semicolonsLexed {
+		p.semicolonsLexed = true
+		if strings.IndexByte(p.input, ';') >= 0 {
+			lx := NewLexerWithOffset(p.input, p.baseOffset)
+			for tok := lx.NextToken(); tok.Kind != tokEOF; tok = lx.NextToken() {
+				if tok.Kind == int(';') {
+					p.semicolons = append(p.semicolons, tok.Loc.Start)
+				}
+			}
+		}
+	}
+	i := sort.SearchInts(p.semicolons, start)
+	return i < len(p.semicolons) && p.semicolons[i] < end
 }
 
 // skipParenGroup moves from the '(' at p.cur to its matching ')', left as

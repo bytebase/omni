@@ -26,8 +26,10 @@
 package parser
 
 import (
-	"github.com/bytebase/omni/trino/ast"
+	"sort"
 	"strings"
+
+	"github.com/bytebase/omni/trino/ast"
 )
 
 // Parser is a recursive-descent parser for Trino SQL. It operates on a single
@@ -92,6 +94,24 @@ type Parser struct {
 
 	depth      int         // nesting depth of the productions being parsed (see enterNesting)
 	nestingErr *ParseError // the first nesting failure; the statement fails with it
+
+	// semicolons lists the absolute offsets of the segment's ';' tokens, in
+	// order, once semicolonsLexed is set (see hasSemicolonIn).
+	semicolons      []int
+	semicolonsLexed bool
+
+	// prepareBodies counts the PREPARE bodies being parsed (see
+	// parsePrepareBody), prepareTokens lists the segment's tokens from the
+	// outermost one on (see prepareBodyEnd), and prepareWraps counts the
+	// prefixes the error of a PREPARE in another one's body still lacks (see
+	// invalidPrepareBody).
+	prepareBodies int
+	prepareTokens []ast.Loc
+	prepareWraps  map[*ParseError]int
+
+	// routineNestingFailed is set once the in-place parse of a WITH FUNCTION
+	// subquery body nested too deeply (see parseRoutineSubquery).
+	routineNestingFailed bool
 }
 
 // parenReplay is the state a scan or parse starting at a '(' left behind.
@@ -153,23 +173,31 @@ type typeReplay struct {
 // depth it was captured at, where its validation starts. A recorded
 // primary expression's bodies are kept as one rawQuery holding them in group,
 // so recording a primary copies only the entries its own parse appended.
+//
+// Two kinds of entry stand for an expression subquery body that was parsed in
+// place, and report what parsing it again from its text would have, where
+// that parse would have (see parseSubqueryPlaceholder). One with lexOnly set
+// stands for a body that parsed in place over lex errors, its text spanning
+// [start, end), and reports the lex errors there. One with routine set stands
+// for a body that is a WITH FUNCTION statement: its text is text, from start;
+// its lex errors are those in [start, end); the bodies captured raw in it are
+// in group.
 type rawQuery struct {
-	text  string
-	start int
-	depth int
-	group []rawQuery
+	text    string
+	start   int
+	depth   int
+	group   []rawQuery
+	lexOnly bool
+	end     int
+	routine *routineBody
 }
 
-// eachRawQuery calls fn on every query body in qs, in source order,
-// expanding groups.
-func eachRawQuery(qs []rawQuery, fn func(rawQuery)) {
-	for _, q := range qs {
-		if q.group != nil {
-			eachRawQuery(q.group, fn)
-			continue
-		}
-		fn(q)
-	}
+// routineBody is what the in-place parse of a WITH FUNCTION subquery body
+// found that its validation reports: whether its tree is too high for the
+// statement (see treeTooHigh), and its first token, where that error is.
+type routineBody struct {
+	tooHigh bool
+	first   ast.Loc
 }
 
 // advance consumes the current token and moves to the next one. Returns the
@@ -718,30 +746,101 @@ func dedupeErrors(errs []ParseError) []ParseError {
 // statements, and a non-query statement in that position (checked against the
 // oracle). Nested placeholders are validated by the inner strict parse.
 func (p *Parser) validateSubqueries() []ParseError {
+	return p.validateRawQueries(p.rawQueries)
+}
+
+// validateRawQueries validates the query bodies in qs (see
+// validateSubqueries). A lexOnly entry reports the lex errors in its span,
+// leaving out the ones an earlier lexOnly entry reported: the spans of bodies
+// nested in each other nest, and reporting each error once per enclosing body
+// was quadratic. The copies left out are duplicates the caller drops anyway
+// (dedupeErrors), like the ones a parsed body reports again here.
+func (p *Parser) validateRawQueries(qs []rawQuery) []ParseError {
 	var out []ParseError
-	eachRawQuery(p.rawQueries, func(q rawQuery) {
-		if strings.TrimSpace(q.text) == "" {
-			out = append(out, ParseError{Position: q.start, End: q.start, Message: "subquery must contain exactly one query"})
-			return
+	lexErrs := p.lexer.errors[:p.lexer.errorCount()]
+	base := p.lexer.baseOffset
+	// next[i] is the first lex error from i on that no lexOnly entry has
+	// reported yet, path-compressed.
+	var next []int
+	unreported := func(i int) int {
+		root := i
+		for root < len(next) && next[root] != root {
+			root = next[root]
 		}
-		res := parseAll(q.text, true, q.depth)
-		if len(res.Errors) > 0 {
-			for _, e := range res.Errors {
-				e.Position += q.start
-				if e.End >= 0 {
-					e.End += q.start
-				}
-				out = append(out, e)
+		for i < len(next) && next[i] != root {
+			next[i], i = root, next[i]
+		}
+		return root
+	}
+	reportLexErrs := func(start, end int) {
+		if next == nil {
+			next = make([]int, len(lexErrs))
+			for i := range next {
+				next[i] = i
 			}
-			return
 		}
-		if len(res.File.Stmts) != 1 {
-			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
-			return
+		from := sort.Search(len(lexErrs), func(i int) bool { return lexErrs[i].Loc.Start+base >= start })
+		for i := unreported(from); i < len(lexErrs) && lexErrs[i].Loc.Start+base < end; i = unreported(i + 1) {
+			le := lexErrs[i]
+			out = append(out, ParseError{Position: le.Loc.Start + base, End: le.Loc.End + base, Message: le.Msg})
+			next[i] = i + 1
 		}
-		if qs, ok := res.File.Stmts[0].(*QueryStmt); !ok || qs.Query == nil {
-			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
+	}
+	var visit func(qs []rawQuery)
+	visit = func(qs []rawQuery) {
+		for _, q := range qs {
+			switch {
+			case q.lexOnly:
+				reportLexErrs(q.start, q.end)
+			case q.routine != nil:
+				// What parsing the body's text reported: the tree-height error
+				// or the errors of the bodies captured raw in it, then its lex
+				// errors; and when it reported none, that the body is no query.
+				r := q.routine
+				n := len(out)
+				if r.tooHigh {
+					out = append(out, ParseError{Position: r.first.Start, End: r.first.End, Message: nestingTooDeep})
+				} else {
+					visit(q.group)
+				}
+				reportLexErrs(q.start, q.end)
+				if len(out) == n {
+					out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
+				}
+			case q.group != nil:
+				visit(q.group)
+			default:
+				out = append(out, p.validateRawQuery(q)...)
+			}
 		}
-	})
+	}
+	visit(qs)
 	return out
+}
+
+// validateRawQuery validates one query body captured as raw text by parsing
+// its text, and returns the errors in the outer statement's coordinates.
+func (p *Parser) validateRawQuery(q rawQuery) []ParseError {
+	if strings.TrimSpace(q.text) == "" {
+		return []ParseError{{Position: q.start, End: q.start, Message: "subquery must contain exactly one query"}}
+	}
+	res := parseAll(q.text, true, q.depth)
+	if len(res.Errors) > 0 {
+		out := make([]ParseError, 0, len(res.Errors))
+		for _, e := range res.Errors {
+			e.Position += q.start
+			if e.End >= 0 {
+				e.End += q.start
+			}
+			out = append(out, e)
+		}
+		return out
+	}
+	if len(res.File.Stmts) != 1 {
+		return []ParseError{{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"}}
+	}
+	if qs, ok := res.File.Stmts[0].(*QueryStmt); !ok || qs.Query == nil {
+		return []ParseError{{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"}}
+	}
+	return nil
 }

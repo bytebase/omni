@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/bytebase/omni/trino/ast"
 )
@@ -127,6 +129,13 @@ var (
 // file-header boundary decision) but is also validated as a real Trino
 // statement so that PREPARE rejects an invalid inner statement the way Trino
 // does (`PREPARE p FROM 1` is a SYNTAX_ERROR).
+//
+// The body runs to the end of the segment (the statement splitter has
+// already isolated one statement per segment): it is the text from its first
+// token to the segment's last, trimmed. It is validated by parsing it in
+// place, as a statement of its own (see parsePrepareBody). Parsing its text
+// again instead did the same for a PREPARE inside it, and every level
+// scanned the rest of the segment, so n nested PREPAREs cost O(n²).
 func (p *Parser) parsePrepareStmt() (ast.Node, error) {
 	prepareTok := p.advance() // consume PREPARE
 	name, err := p.parseIdentifier()
@@ -137,44 +146,47 @@ func (p *Parser) parsePrepareStmt() (ast.Node, error) {
 		return nil, err
 	}
 
-	// The inner statement is required and runs to the end of this segment (the
-	// statement splitter has already isolated one statement per segment). Slice
-	// the remaining source as raw text.
 	if p.cur.Kind == tokEOF {
 		// PREPARE x FROM <nothing> — Trino rejects this as a syntax error.
 		return nil, p.syntaxErrorAtCur()
 	}
 	bodyStart := p.cur.Loc.Start
 	bodyLoc := p.cur.Loc
-	bodyEnd := p.cur.Loc.Start
-	for p.cur.Kind != tokEOF {
-		bodyEnd = p.cur.Loc.End
-		p.advance()
-	}
-	body := strings.TrimSpace(p.sourceSlice(bodyStart, bodyEnd))
+	bodyEnd := p.prepareBodyEnd()
+	raw := p.sourceSlice(bodyStart, bodyEnd)
+	body := strings.TrimSpace(raw)
 	if body == "" {
+		p.skipToEOF()
 		return nil, &ParseError{Position: bodyStart, End: bodyEnd, Message: "expected a statement after PREPARE ... FROM"}
 	}
+	// lead is the length of the leading text the trim dropped. A position in
+	// the body is reported as its offset in the trimmed text from bodyStart,
+	// lead bytes short of where it is.
+	lead := len(raw) - len(strings.TrimLeftFunc(raw, unicode.IsSpace))
+	trimStart := bodyStart + lead
 
-	// Validate the inner statement. Re-parsing the body through the full parser
+	// Validate the inner statement. Parsing the body through the full parser
 	// reports a real error for non-statements (`PREPARE p FROM 1`,
 	// `... FROM NOTASTATEMENT`). A "not yet supported" stub error means the
 	// inner statement FORM is recognized (its concrete parser is a later DAG
 	// node) — that counts as syntactically valid here, and the check tightens
-	// automatically as those parsers land. See bodyHasHardError.
-	if err := bodyHasHardError(body, p.depth); err != nil {
-		if err.Message == nestingTooDeep {
+	// automatically as those parsers land.
+	hard := p.parsePrepareBody(trimStart, trimStart+len(body))
+	p.skipToEOF()
+	if hard != nil {
+		if hard.Message == nestingTooDeep {
 			// The body nests too deeply counting the PREPAREs around it: the
 			// statement as a whole does, so it fails with the nesting error
-			// itself, in this parse's coordinates.
-			e := ParseError{Position: bodyStart + err.Position, End: err.End, Message: err.Message}
+			// itself.
+			e := *hard
+			e.Position -= lead
 			if e.End >= 0 {
-				e.End += bodyStart
+				e.End -= lead
 			}
 			p.nestingErr = &e
 			return nil, &e
 		}
-		return nil, &ParseError{Position: bodyLoc.Start, End: bodyLoc.End, Message: "invalid statement after PREPARE ... FROM: " + err.Error()}
+		return nil, p.invalidPrepareBody(bodyLoc, hard)
 	}
 
 	return &PrepareStmt{
@@ -184,25 +196,179 @@ func (p *Parser) parsePrepareStmt() (ast.Node, error) {
 	}, nil
 }
 
-// bodyHasHardError re-parses a PREPARE inner-statement body and reports the
-// first NON-STUB error, or nil if the body is a syntactically valid statement
-// (possibly one whose concrete parser is not yet implemented). A "not yet
-// supported" stub error is treated as success: it means the statement form was
-// recognized by the dispatch but its body parser is a later DAG node. Any other
-// error — an unknown leading keyword, a lex error, or (once the statement
-// parsers land) a genuine inner syntax error — is a hard error.
+// prepareInvalid prefixes the message of a PREPARE whose body is invalid.
+const prepareInvalid = "invalid statement after PREPARE ... FROM: "
+
+// isStubError reports whether msg is a "not yet supported" stub error, which
+// a PREPARE body may carry: its statement form was recognized by the
+// dispatch, and its body parser is a later DAG node.
+func isStubError(msg string) bool {
+	return strings.Contains(msg, "not yet supported")
+}
+
+// parsePrepareBody parses the PREPARE body spanning [start, end), absolute
+// offsets, and returns the first of its errors that is not a stub error, or
+// nil when it has none. It reads the body as parsing its text on its own did:
+// in strict mode, from the PREPARE's nesting depth, with the lexer input
+// ending at end; and the body's errors are the ones that parse reported, in
+// its order: the statement's error, or its first leftover token, or the
+// errors of the query bodies it captured raw; then the body's lex errors.
+// The raw query bodies are validated here and dropped, as that parse did, so
+// the statement does not validate them again.
 //
-// depth is the nesting depth of the PREPARE: the body is parsed from there,
-// so PREPAREs nested in each other count toward the nesting limit and their
-// validations cannot recurse without bound.
-func bodyHasHardError(body string, depth int) *ParseError {
-	errs := parseAll(body, true, depth).Errors
-	for i := range errs {
-		if !strings.Contains(errs[i].Message, "not yet supported") {
-			return &errs[i]
+// The outermost body is lexed by a lexer of its own: the trim can end the
+// body inside a token, an unterminated string ending in spaces, which the
+// statement's lexer reads whole. On return the parser is back at the body's
+// first token, for the caller to read the segment from there with the
+// statement's lexer, once. A body in another one is lexed by the enclosing
+// body's lexer, its input cut at end while the body is parsed (the trim
+// cannot end that body inside a token, as the text it is cut from ends in
+// no space); the parser is left at the first token from end on.
+func (p *Parser) parsePrepareBody(start, end int) *ParseError {
+	lexer := p.lexer
+	savedStrict := p.strictTrailing
+	rawMark := len(p.rawQueries)
+	outermost := p.prepareBodies == 0
+	if outermost {
+		from := p.checkpoint()
+		p.lexer = &Lexer{input: lexer.input[:end-lexer.baseOffset], pos: start - lexer.baseOffset, baseOffset: lexer.baseOffset}
+		p.hasNext = false
+		p.cur = p.lexer.NextToken()
+		defer func() {
+			p.lexer = lexer
+			p.replayTo(from)
+		}()
+	} else {
+		// The tokens the trim dropped belong to the enclosing body, not this
+		// one: their lex errors are that body's.
+		for p.cur.Kind != tokEOF && p.cur.Loc.Start < start {
+			p.advance()
+		}
+		full := lexer.input
+		lexer.input = full[:end-lexer.baseOffset]
+		// Lex the body from its first token on in the cut input: a token
+		// buffered past end is not the body's.
+		lexer.pos = min(p.cur.Loc.End, end) - lexer.baseOffset
+		p.hasNext = false
+		if p.cur.Loc.Start >= end {
+			p.cur = lexer.NextToken()
+		}
+		defer func() {
+			lexer.input = full
+			lexer.pos = end - lexer.baseOffset
+			p.hasNext = false
+			p.cur = lexer.NextToken()
+		}()
+	}
+	p.prepareBodies++
+	defer func() {
+		p.strictTrailing = savedStrict
+		p.rawQueries = p.rawQueries[:rawMark]
+		p.prepareBodies--
+	}()
+	if p.cur.Kind == tokEOF {
+		// The trimmed body holds comments only: the parse of its text found
+		// no statement, and no error.
+		return nil
+	}
+	p.strictTrailing = true
+
+	first := p.cur
+	node, err := p.parseStmt()
+	var hard *ParseError
+	switch {
+	case p.nestingErr != nil:
+		hard = p.nestingErr
+	case err == nil && p.treeTooHigh(node, end-start):
+		hard = &ParseError{Position: first.Loc.Start, End: first.Loc.End, Message: nestingTooDeep}
+	case err != nil:
+		pe, ok := err.(*ParseError)
+		if !ok {
+			pe = &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: err.Error()}
+		}
+		if !isStubError(pe.Message) {
+			hard = pe
+		}
+	case p.cur.Kind != tokEOF:
+		hard = p.syntaxErrorAtCur()
+	default:
+		for _, e := range p.validateRawQueries(p.rawQueries[rawMark:]) {
+			if !isStubError(e.Message) {
+				hard = &e
+				break
+			}
 		}
 	}
+	// Lex the rest of the body: its lex errors are the enclosing body's too.
+	p.skipToEOF()
+	if hard != nil {
+		return hard
+	}
+	// No error but a stub's: the first lex error of the body is the first
+	// one left.
+	bl := p.lexer
+	errs := bl.errors[:bl.errorCount()]
+	i := sort.Search(len(errs), func(i int) bool { return errs[i].Loc.Start+bl.baseOffset >= start })
+	if i < len(errs) {
+		le := errs[i]
+		return &ParseError{Position: le.Loc.Start + bl.baseOffset, End: le.Loc.End + bl.baseOffset, Message: le.Msg}
+	}
 	return nil
+}
+
+// prepareBodyEnd returns where the PREPARE body starting at p.cur ends before
+// it is trimmed: at the end of the last token of the text it is part of,
+// which is the segment, or for a PREPARE in another one's body, that body.
+// The segment's tokens from the outermost body on are listed once, and a
+// PREPARE in a body ends at the last of them that the body holds, or at the
+// body's end when the body ends inside a token (see parsePrepareBody): the
+// token, unterminated, runs to the end of the text it is lexed in.
+func (p *Parser) prepareBodyEnd() int {
+	if p.prepareBodies == 0 {
+		toks := append(p.prepareTokens[:0], p.cur.Loc)
+		lx := &Lexer{input: p.lexer.input, pos: p.cur.Loc.End - p.lexer.baseOffset, baseOffset: p.lexer.baseOffset}
+		for tok := lx.NextToken(); tok.Kind != tokEOF; tok = lx.NextToken() {
+			toks = append(toks, tok.Loc)
+		}
+		p.prepareTokens = toks
+		return toks[len(toks)-1].End
+	}
+	limit := p.lexer.baseOffset + len(p.lexer.input)
+	// The last token starting before limit.
+	last := p.prepareTokens[sort.Search(len(p.prepareTokens), func(i int) bool { return p.prepareTokens[i].Start >= limit })-1]
+	return min(last.End, limit)
+}
+
+// skipToEOF consumes the rest of the segment.
+func (p *Parser) skipToEOF() {
+	for p.cur.Kind != tokEOF {
+		p.advance()
+	}
+}
+
+// invalidPrepareBody returns the error, at the body's first token, of a
+// PREPARE whose body failed with hard: prepareInvalid and hard's message. A
+// body that is a PREPARE failing that way adds the prefix once more, so the
+// message of n nested PREPAREs holds it n times. A PREPARE in another one's
+// body returns its error without the prefixes, counting them in
+// prepareWraps, and the outermost writes them all at once: writing the
+// message out at every level was quadratic.
+func (p *Parser) invalidPrepareBody(bodyLoc ast.Loc, hard *ParseError) *ParseError {
+	wraps := 1
+	if n, ok := p.prepareWraps[hard]; ok {
+		wraps += n
+		delete(p.prepareWraps, hard)
+	}
+	e := &ParseError{Position: bodyLoc.Start, End: bodyLoc.End, Message: hard.Message}
+	if p.prepareBodies > 0 {
+		if p.prepareWraps == nil {
+			p.prepareWraps = make(map[*ParseError]int)
+		}
+		p.prepareWraps[e] = wraps
+		return e
+	}
+	e.Message = strings.Repeat(prepareInvalid, wraps) + hard.Message
+	return e
 }
 
 // parseDeallocateStmt parses DEALLOCATE PREPARE <name>. On entry cur is the

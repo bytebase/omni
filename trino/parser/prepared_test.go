@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"errors"
+	"strings"
 	"testing"
+	"time"
 )
 
 // This file is the parser-dcl-tcl node's structural correctness gate for the
@@ -143,4 +146,52 @@ func TestPrepared_Negative(t *testing.T) {
 	dclParseErr(t, "DEALLOCATE my_query")
 	dclParseErr(t, "EXECUTE IMMEDIATE my_select") // "immediate" name + trailing token
 	dclParseErr(t, "EXECUTE my_select USING")
+}
+
+// TestNestedPreparesStayLinear: a PREPARE body is validated by parsing it in
+// place, the PREPAREs nested in it with it. Parsing its text again did the
+// same for the PREPARE inside it, and every level scanned the rest of the
+// statement, so 2,000 nested PREPAREs took 4 seconds and 10,001 took 47
+// before failing with the nesting error; these take milliseconds. Each
+// level still prefixes the error of the one inside it.
+func TestNestedPreparesStayLinear(t *testing.T) {
+	const n = 9000 // within the nesting limit
+	prepares := func(n int) string { return strings.Repeat("PREPARE p FROM ", n) }
+	for _, tc := range []struct {
+		name string
+		sql  string
+		msg  string // the first error's message, or "" for none
+	}{
+		{"valid", prepares(n) + "SELECT 1", ""},
+		{"invalid body", prepares(n) + "SELECT 1 1", strings.Repeat(prepareInvalid, n) + "syntax error at or near 1"},
+		{"invalid subquery body", prepares(n) + "SELECT (SELECT 1 1)", strings.Repeat(prepareInvalid, n) + "syntax error at or near 1"},
+		{"EXPLAIN between", strings.Repeat("PREPARE p FROM EXPLAIN ", n/2) + "SELECT 1 1", strings.Repeat(prepareInvalid, n/2) + "syntax error at or near 1"},
+		{"stub body", prepares(n) + "CREATE FOO", ""},
+		// The bodies are trimmed of the space the lexer rejects: the
+		// statement fails with the lex errors alone.
+		{"trailing no-break space", prepares(n) + "SELECT 1  ", "unrecognized character"},
+		{"too deep", prepares(maxNestingDepth+1) + "SELECT 1", nestingTooDeep},
+	} {
+		done := make(chan error, 1)
+		go func() {
+			_, err := Parse(tc.sql)
+			ParseBestEffort(tc.sql)
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			if tc.msg == "" {
+				if err != nil {
+					t.Errorf("%s: Parse error = %.200v", tc.name, err)
+				}
+				continue
+			}
+			var pe *ParseError
+			if !errors.As(err, &pe) || pe.Message != tc.msg {
+				t.Errorf("%s: Parse error = %.200v, want %.200s", tc.name, err, tc.msg)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: Parse and ParseBestEffort of %d bytes took over 2s", tc.name, len(tc.sql))
+		}
+	}
 }

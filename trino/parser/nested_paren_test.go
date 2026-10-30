@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -60,6 +62,110 @@ func TestNestedParensStayLinear(t *testing.T) {
 			}
 		case <-time.After(2 * time.Second):
 			t.Fatalf("%s: Parse and ParseBestEffort through %d nested parens took over 2s", tc.name, depth)
+		}
+	}
+}
+
+// TestRawBodyChainsStayLinear guards the in-place parse of the subquery
+// bodies whose parse in place used to fail while the parse of their text,
+// which validates them, did not: a body over a lex error, one ending in white
+// space the lexer rejects (the text is trimmed of it), and a WITH FUNCTION
+// statement. Each was captured raw and validated by parsing its text, which
+// validated every body inside it the same way, so 1,000 nested levels took
+// seconds. These take milliseconds, and the statement fails with the error
+// the innermost body reports, as before.
+func TestRawBodyChainsStayLinear(t *testing.T) {
+	raiseNestingLimit(t)
+	nest := func(depth int, open, mid, closing string) string {
+		return strings.Repeat(open, depth) + mid + strings.Repeat(closing, depth)
+	}
+	const routine = "WITH FUNCTION f() RETURNS int RETURN 1 SELECT "
+	for _, tc := range []struct {
+		name string
+		sql  string
+		at   string // the first error is at the first occurrence of at
+		msg  string // with this message
+	}{
+		{"lex error under subqueries", "SELECT " + nest(10000, "(SELECT ", "! 1", ")"), "!", "expected expression, found INVALID"},
+		{"lex error under EXISTS", "SELECT " + nest(10000, "EXISTS (SELECT ", "! 1", ")"), "!", "expected expression, found INVALID"},
+		{"lex error in every subquery", "SELECT " + nest(10000, "(SELECT (SELECT !), ", "1", ")"), "!", "expected expression, found INVALID"},
+		{"no-break space before every ')'", "SELECT " + nest(10000, "(SELECT ", "1", "  )"), " ", "unrecognized character"},
+		{"vertical tab before every ')'", "SELECT " + nest(10000, "(SELECT ", "1", "\v)"), "\v", "unrecognized character"},
+		{"WITH FUNCTION subqueries", "SELECT " + nest(5000, "("+routine, "1", ")"), "WITH FUNCTION f() RETURNS int RETURN 1 SELECT 1", "subquery must contain exactly one query"},
+		{"WITH FUNCTION subqueries over a lex error", "SELECT " + nest(5000, "("+routine, "! 1", ")"), "!", "expected expression, found INVALID"},
+	} {
+		done := make(chan error, 1)
+		go func() {
+			_, err := Parse(tc.sql)
+			ParseBestEffort(tc.sql)
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			var pe *ParseError
+			if !errors.As(err, &pe) {
+				t.Fatalf("%s: Parse error = %v, want a ParseError", tc.name, err)
+			}
+			if want := strings.Index(tc.sql, tc.at); pe.Position != want || pe.Message != tc.msg {
+				t.Errorf("%s: first error %q at %d, want %q at %d", tc.name, pe.Message, pe.Position, tc.msg, want)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("%s: Parse and ParseBestEffort of %d bytes took over 2s", tc.name, len(tc.sql))
+		}
+	}
+}
+
+// TestInPlaceBodyErrors pins the errors of statements whose subquery and
+// PREPARE bodies are validated by their in-place parse (see
+// TestRawBodyChainsStayLinear and TestNestedPreparesStayLinear): every
+// error, in the order parsing each body's text again reported them. A body's
+// lex errors follow the errors of the bodies inside it; white space trimmed
+// from a body is the enclosing text's; a PREPARE body's errors are reported
+// as at their offset in the trimmed body.
+func TestInPlaceBodyErrors(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want []ParseError
+	}{
+		{"SELECT EXISTS (SELECT (SELECT 1 FROM t WHERE a IN (SELECT \u0085))), (SELECT ! 1)", []ParseError{
+			{Position: 57, End: 57, Message: "expected expression, found end of input"},
+			{Position: 58, End: 59, Message: "unrecognized character"},
+			{Position: 59, End: 60, Message: "unrecognized character"},
+			{Position: 73, End: 74, Message: "expected expression, found INVALID"},
+			{Position: 73, End: 74, Message: "unrecognized character"},
+		}},
+		{"SELECT (SELECT (SELECT 1  )), (SELECT # 1)", []ParseError{
+			{Position: 25, End: 26, Message: "unrecognized character"},
+			{Position: 26, End: 27, Message: "unrecognized character"},
+			{Position: 39, End: 40, Message: "expected expression, found INVALID"},
+			{Position: 39, End: 40, Message: "unrecognized character"},
+		}},
+		{"SELECT (WITH FUNCTION f() RETURNS int RETURN 1 SELECT (WITH FUNCTION f() RETURNS int RETURN 1 SELECT 1))", []ParseError{
+			{Position: 55, End: 102, Message: "subquery must contain exactly one query"},
+		}},
+		{"PREPARE q FROM PREPARE q FROM PREPARE q FROM TABLE s.t \"q\u0085", []ParseError{
+			{Position: 15, End: 22, Message: strings.Repeat(prepareInvalid, 3) + "syntax error at or near INVALID"},
+			{Position: 55, End: 59, Message: "unterminated quoted identifier"},
+		}},
+		{"PREPARE p FROM  PREPARE q FROM SELECT 1 1", []ParseError{
+			{Position: 15, End: 16, Message: strings.Repeat(prepareInvalid, 2) + "syntax error at or near 1"},
+			{Position: 15, End: 16, Message: "unrecognized character"},
+			{Position: 16, End: 17, Message: "unrecognized character"},
+		}},
+		{"PREPARE p FROM SELECT 'ab  ", []ParseError{
+			{Position: 15, End: 21, Message: prepareInvalid + "expected expression, found INVALID"},
+			{Position: 22, End: 28, Message: "unterminated string literal"},
+		}},
+		{"PREPARE p FROM  /* c */ ", []ParseError{
+			{Position: 15, End: 16, Message: "unrecognized character"},
+			{Position: 16, End: 17, Message: "unrecognized character"},
+			{Position: 24, End: 25, Message: "unrecognized character"},
+			{Position: 25, End: 26, Message: "unrecognized character"},
+		}},
+	} {
+		_, err := Parse(tc.sql)
+		if got := AllErrors(err); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("Parse(%q) errors:\n got %+v\nwant %+v", tc.sql, got, tc.want)
 		}
 	}
 }
