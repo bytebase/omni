@@ -413,16 +413,39 @@ func comparisonOp(tok int) (nodes.BinaryOp, bool) {
 	}
 }
 
-// parseAddition parses addition/subtraction and bitwise operators,
-// followed by an optional postfix COLLATE clause.
+// parseAddition parses addition, subtraction, the bitwise operators, and AT
+// TIME ZONE, which share one precedence level and associate to the left.
 //
-//	addition_expr = multiplication_expr { ('+' | '-' | '&' | '|' | '^') multiplication_expr } [ COLLATE collation_name ]
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/language-elements/operator-precedence-transact-sql
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/at-time-zone-transact-sql
+//
+//	addition_expr = multiplication_expr
+//	    { ('+' | '-' | '&' | '|' | '^') multiplication_expr
+//	    | AT TIME ZONE multiplication_expr }
+//
+// SQL Server and ScriptDOM read d + 1 AT TIME ZONE 'UTC' as the conversion of
+// d + 1, and d AT TIME ZONE 'UTC' + 1 as a sum whose left operand is the
+// conversion. COLLATE is not at this level: it binds to the operand before
+// it (parseCollatedPrimary).
 func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 	left, err := p.parseMultiplication()
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == '+' || p.cur.Type == '-' || p.cur.Type == '&' || p.cur.Type == '|' || p.cur.Type == '^' {
+	for {
+		if p.cur.Type == kwAT {
+			if !p.atTimeZoneAhead() {
+				return left, nil
+			}
+			left, err = p.parseAtTimeZoneExpr(left)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if p.cur.Type != '+' && p.cur.Type != '-' && p.cur.Type != '&' && p.cur.Type != '|' && p.cur.Type != '^' {
+			return left, nil
+		}
 		loc := p.pos()
 		var op nodes.BinaryOp
 		switch p.cur.Type {
@@ -457,37 +480,15 @@ func (p *Parser) parseAddition() (nodes.ExprNode, error) {
 			Loc:   nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}
 	}
-	// Postfix COLLATE / AT TIME ZONE. AT TIME ZONE chains, but SQL Server
-	// takes one COLLATE per operand: x COLLATE a COLLATE b is Msg 156 at the
-	// second COLLATE, while (x COLLATE a) COLLATE b collates a new,
-	// parenthesized operand, and x COLLATE a AT TIME ZONE 'UTC' COLLATE b
-	// collates the time zone operand.
-	collated := false
-	for {
-		if p.cur.Type == kwCOLLATE {
-			if collated {
-				return nil, p.syntaxErrorAtCur()
-			}
-			var err error
-			left, err = p.parseCollateExpr(left)
-			if err != nil {
-				return nil, err
-			}
-			collated = true
-		} else if p.cur.Type == kwAT {
-			var err error
-			left, err = p.parseAtTimeZoneExpr(left)
-			if err != nil {
-				return nil, err
-			}
-			if _, ok := left.(*nodes.AtTimeZoneExpr); ok {
-				collated = false
-			}
-		} else {
-			break
-		}
-	}
-	return left, nil
+}
+
+// atTimeZoneAhead reports whether the current AT starts AT TIME ZONE. AT is
+// also a column alias, so AT followed by anything but TIME ZONE is left to
+// the caller: SELECT x AT FROM t names the column AT, and SQL Server and
+// ScriptDOM reject SELECT x AT TIME y FROM t at TIME, the token after the
+// alias.
+func (p *Parser) atTimeZoneAhead() bool {
+	return p.cur.Type == kwAT && p.peekNext().Type == kwTIME && p.peekSecond().Type == kwZONE
 }
 
 // parseCollateExpr parses a postfix COLLATE operator on an expression.
@@ -528,7 +529,8 @@ func (p *Parser) parseCollationName() (string, error) {
 	return name, nil
 }
 
-// parseAtTimeZoneExpr parses a postfix AT TIME ZONE expression.
+// parseAtTimeZoneExpr parses a postfix AT TIME ZONE expression. The current
+// token is the AT of AT TIME ZONE (atTimeZoneAhead).
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/at-time-zone-transact-sql
 //
@@ -538,15 +540,8 @@ func (p *Parser) parseCollationName() (string, error) {
 func (p *Parser) parseAtTimeZoneExpr(expr nodes.ExprNode) (nodes.ExprNode, error) {
 	loc := p.pos()
 	p.advance() // consume AT
-	if p.cur.Type != kwTIME {
-		// Not AT TIME ZONE — return original expression
-		// (AT used in some other context is handled elsewhere)
-		return expr, nil
-	}
 	p.advance() // consume TIME
-	if _, err := p.expect(kwZONE); err != nil {
-		return expr, nil
-	}
+	p.advance() // consume ZONE
 	tz, err := p.parseMultiplication()
 	if err != nil {
 		return nil, err
@@ -607,7 +602,7 @@ func (p *Parser) parseMultiplication() (nodes.ExprNode, error) {
 
 // parseUnary parses unary operators.
 //
-//	unary_expr = ('+' | '-' | '~') unary_expr | primary_expr
+//	unary_expr = ('+' | '-' | '~') unary_expr | collated_primary
 func (p *Parser) parseUnary() (nodes.ExprNode, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
@@ -638,7 +633,36 @@ func (p *Parser) parseUnary() (nodes.ExprNode, error) {
 			Loc:     nodes.Loc{Start: loc, End: p.prevEnd()},
 		}, nil
 	}
-	return p.parsePrimary()
+	return p.parseCollatedPrimary()
+}
+
+// parseCollatedPrimary parses a primary expression and the COLLATE clause
+// that may follow it.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/collations
+//
+//	collated_primary = primary_expr [ COLLATE collation_name ]
+//
+// COLLATE binds tighter than any operator and collates the operand before
+// it: 'a' COLLATE x + 'b' collates 'a', 'a' + 'b' COLLATE x collates 'b', and
+// -x COLLATE x negates the collated x. SQL Server accepts COLLATE before a
+// binary operator, and ScriptDOM keeps the collation on the operand's
+// PrimaryExpression. An operand takes one COLLATE: x COLLATE a COLLATE b is
+// Msg 156 at the second COLLATE, while (x COLLATE a) COLLATE b collates a
+// new, parenthesized operand.
+func (p *Parser) parseCollatedPrimary() (nodes.ExprNode, error) {
+	expr, err := p.parsePrimary()
+	if err != nil || expr == nil || p.cur.Type != kwCOLLATE {
+		return expr, err
+	}
+	expr, err = p.parseCollateExpr(expr)
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwCOLLATE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return expr, nil
 }
 
 // parsePrimary parses primary expressions: literals, variables, identifiers,

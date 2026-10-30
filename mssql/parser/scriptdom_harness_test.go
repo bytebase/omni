@@ -432,6 +432,7 @@ func TestScriptDOMDiff(t *testing.T) {
 				t.Fatalf("ScriptDOM rejected: %v", errs)
 			}
 			delete(want, "errors")
+			delete(want, "exprs") // compared by TestCollatePrecedence
 			if diff := cmp.Diff(want, gotShape); diff != "" {
 				t.Errorf("shape mismatch for %q\n-scriptdom +omni\n%s", f.sql, diff)
 			}
