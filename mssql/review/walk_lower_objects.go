@@ -38,9 +38,9 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 }
 
 // kindSpace returns the space where the sync lists every object of a
-// kind, which then answers for it: the relation space for views and
-// sequences, the object space, where absence is the change's alone, for
-// the others.
+// kind, which then answers for it: the relation space for views,
+// sequences, and synonyms, the object space, where absence is the
+// change's alone, for the others.
 func (r objRef) kindSpace(kind string) string {
 	if isRelation(kind) {
 		return spaceRelation
