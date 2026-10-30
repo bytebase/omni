@@ -881,12 +881,15 @@ type joinBuilder struct {
 // range is then empty. cols[start:settled] are already non-plain. When using
 // is non-nil the operand is a USING coalesce on those keys, its first
 // len(using) columns are the coalesced keys, and cols[start:settled] are also
-// fully rewrapped (rewrapNonPlain).
+// fully rewrapped (rewrapNonPlain). keys, when non-nil, holds the sources of
+// those key columns for a further USING join on the same keys to extend (see
+// sameKeyColumns).
 type joinPart struct {
 	start   int
 	present bool
 	settled int
 	using   []string
+	keys    []refUnion
 }
 
 // buildJoinPart builds a join tree into b and returns its part. The left spine
@@ -1002,13 +1005,13 @@ func (b *joinBuilder) coalesceUsing(left, right joinPart, keys []string) (joinPa
 		if !ok {
 			return joinPart{}, false
 		}
-		keyCols := usingKeyColumns(leftCols[:len(keys)], rightCols, keys)
+		keyCols, keySources := sameKeyColumns(leftCols[:len(keys)], left, rightCols, keys)
 		for i := left.settled; i < right.start; i++ {
 			b.cols[i] = rewrapNonPlain(b.cols[i])
 		}
 		copy(leftCols, keyCols)
 		b.cols = append(b.cols[:right.start], rightRest...)
-		return joinPart{start: left.start, present: true, settled: right.start, using: keys}, true
+		return joinPart{start: left.start, present: true, settled: right.start, using: keys, keys: keySources}, true
 	}
 	cols, leftEnd, ok := coalesceUsingColumns(leftCols, rightCols, keys)
 	if !ok {

@@ -50,10 +50,12 @@ func querySpanWithin(t *testing.T, sql string, limit time.Duration) *QuerySpan {
 // resolved by scanning a list once per entry: a USING list, a select list
 // over a wide FROM list or a wide derived table, and the arms of a BY NAME
 // set operation. Names are compared case-insensitively and the first match
-// wins, which an index on the folded name now answers. It also guards a BY
-// NAME chain whose arms each add a column, which checked the whole projection
-// so far at every arm. At these sizes each shape took 5-14s; it takes well
-// under a second now.
+// wins, which an index on the folded name now answers. It also guards two
+// chains: a BY NAME chain whose arms each add a column, which checked the
+// whole projection so far at every arm, and a USING chain on one key over
+// different tables, whose key gains a table at every join and was rebuilt at
+// every join. At these sizes each shape took 5-14s; it takes well under a
+// second now.
 func TestQuerySpanWideListsStayLinear(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -73,6 +75,7 @@ func TestQuerySpanWideListsStayLinear(t *testing.T) {
 		{name: "BY NAME ON", sql: "SELECT " + numberedList(22000, "a%d", ", ") + " FROM t UNION ALL BY NAME ON (" + numberedList(22000, "a%d", ", ") +
 			") SELECT " + numberedList(22000, "a%d", ", ") + " FROM u"},
 		{name: "BY NAME arms each adding a column", sql: "SELECT a0 FROM t" + numberedList(26000, " UNION ALL BY NAME SELECT a%d FROM t", "")},
+		{name: "USING chain on one key over different tables", sql: "SELECT * FROM t0" + numberedList(6000, " JOIN t%d USING (k)", "")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			querySpanWithin(t, tc.sql, 3*time.Second)

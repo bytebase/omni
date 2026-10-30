@@ -797,6 +797,43 @@ func usingKeyColumns(left, right []projColumn, keys []string) []projColumn {
 	return cols
 }
 
+// sameKeyColumns returns usingKeyColumns(leftKeys, right, keys) for a USING
+// join whose left side is a coalesce on the same keys, left.using compared
+// case-insensitively, with key columns leftKeys. Each key then reads the one
+// left key column with its name, so its sources are that column's extended
+// by the right side's. A chain of n such joins over different tables gives
+// each key n sources, and building every join's key columns anew copied them
+// all again, O(n^2): here they are extended in place and returned for the
+// next join to extend. When a name repeats in the keys (`USING (k, K)`) a key
+// reads several left columns, and the key columns are built anew.
+func sameKeyColumns(leftKeys []projColumn, left joinPart, right []projColumn, keys []string) ([]projColumn, []refUnion) {
+	at := make(map[string]int, len(left.using))
+	for j, k := range left.using {
+		f := foldKey(k)
+		if _, dup := at[f]; dup {
+			return usingKeyColumns(leftKeys, right, keys), nil
+		}
+		at[f] = j
+	}
+	sources := left.keys
+	if sources == nil {
+		sources = make([]refUnion, len(leftKeys))
+		for j, c := range leftKeys {
+			sources[j] = refUnion{refs: c.sources}
+		}
+	}
+	r := usingKeyLineages(right, keys)
+	cols := make([]projColumn, len(keys))
+	next := make([]refUnion, len(keys))
+	for i, key := range keys {
+		u := sources[at[foldKey(key)]]
+		u.add(r[i].refs)
+		next[i] = u
+		cols[i] = projColumn{name: key, sources: u.refs, plain: false, baseFieldName: true}
+	}
+	return cols, next
+}
+
 // sameNameSetFold reports whether a and b have the same length and hold the
 // same names under case-insensitive comparison.
 func sameNameSetFold(a, b []string) bool {
