@@ -21,6 +21,7 @@ Unquoted names fold to upper case, which the parser does. Quoted names keep thei
 | table | schema | tables of any sort, and materialized views | missing (00942), a materialized view (12083) |
 | view | schema | views of any sort: relational, object, JSON duality, editioning | missing (00942) |
 | sequence | schema | sequences | missing (02289) |
+| synonym | schema, or `PUBLIC` | the synonyms a name resolves through: a schema's private ones, and the public ones under `PUBLIC` | none of its own; DML reads it with the table and view spaces (00942) |
 | column | schema.table | columns | exists (01430, 00957), missing (00904) |
 | primary key | schema.table | whether the table has one | has one (02260), has none (02441) |
 | table constraint | schema.table | the constraints `DROP CONSTRAINT` finds on the table | missing (02443, 23292, 02430, 02431) |
@@ -29,7 +30,7 @@ Unquoted names fold to upper case, which the parser does. Quoted names keep thei
 | trigger | schema | trigger names, unique in the schema | taken (04081, 04095, 00955), missing (04080) |
 
 - **Kinds.** An object key's kind is what the object is. An index, constraint, or trigger key's kind is its table. A `MayRemove` narrowed to that kind then forgets only one table's names when the table goes.
-- **Derived keys.** The table, view, and sequence keys repeat what the object key holds for those kinds. Creating an object of another kind makes the name Absent there, since the namespace is shared.
+- **Derived keys.** The table, view, sequence, and synonym keys repeat what the object key holds for those kinds. Creating an object of another kind makes the name Absent there, since the namespace is shared.
 - **Names the walk never claims:**
   - generated names: `SYS_` (constraints, indexes, LOB segments, IOT tables, hidden columns), `ISEQ$$_` (identity sequences), `BIN$` (recycle bin), `ORA$` (private temporary tables); and among columns, the hidden columns Oracle names itself, `ORA_ARCHIVE_STATE` and `ORABCTAB_...$`, on which DDL fails with an error of its own (38398, 05715);
   - a name with a byte outside ASCII. The parser folds it with Go's rules, which need not be the database's, so such a name ends the walk;
@@ -45,10 +46,11 @@ Absent is trusted only where the sync lists every object of the space. Bytebase'
 
 | Space | Absent trusted? | Why |
 | --- | --- | --- |
-| object | **No** | The sync lists no synonyms, types, operators, libraries, Java, or property graphs |
+| object | **No** | The sync lists no types, operators, libraries, Java, or property graphs |
 | table | Yes, but generated names | The sync lists `ALL_TABLES` and, with `SkipDump`, `ALL_OBJECT_TABLES` (object and XMLType tables), less materialized views' containers, and lists materialized views apart. `ALL_TABLES` lists JSON collection tables and nested tables' storage tables (verified). No other object answers `ALTER TABLE`, `DROP TABLE`, or `TRUNCATE`: they fail with 00942 or an error of their own on a view, a synonym, a sequence, or a routine (§4) |
 | view | Yes | `ALL_VIEWS` lists relational, object, and JSON duality views (verified). No other object answers `DROP VIEW` or `ALTER VIEW`: on a table, materialized view, sequence, synonym, type, or routine they fail with 00942 |
 | sequence | Yes, except `ISEQ$$_` | `ALL_SEQUENCES`, less the identity sequences Bytebase skips |
+| synonym | Yes, but generated names, for the names DML resolves | The sync lists `ALL_SYNONYMS`: the schema's in `SchemaMetadata.synonyms`, `PUBLIC`'s in `DatabaseSchemaMetadata.public_synonyms` (Bytebase #21713). `ALL_SYNONYMS` leaves out a synonym whose object is gone, even to SYSTEM, and one whose object the user cannot reach; DML through either fails for that user too (00980, 00942, verified). So the space says whether a name resolves through a synonym, which only DML reads. `DROP SYNONYM` reads the object space, whose absence is untrusted: it drops a synonym the list leaves out. A statement that makes or renames an object, makes a public synonym, or grants may restore a synonym the list leaves out (verified: `CREATE TABLE later_t` restores `s_later FOR later_t`), and the walk does not know its name, so after one no synonym's absence is trusted, but a name the change itself frees |
 | column | Yes, for a table whose columns the sync lists in full, but generated names | The sync lists `ALL_TAB_COLS` with `USER_GENERATED = 'YES'`, invisible columns included. Not in full: an object or XMLType table, whose hidden `XMLDATA` `DROP COLUMN` drops (verified); a table it lists no column of, as a nested table's storage table, whose columns `ALL_TAB_COLS` does not show (verified); and a table with a check constraint naming a column it does not list, which a valid-time period adds with its hidden columns (verified: `PERIOD FOR vt` adds `VT`, `VT_START`, `VT_END`, and a check `"VT_START" < "VT_END"`) |
 | primary key | Yes | Every `P` constraint is listed, whatever its name |
 | table constraint | **No** | A supplemental log group is a constraint: `ADD CONSTRAINT lg` fails with 02264, and `DROP CONSTRAINT lg` drops it. `ALL_CONSTRAINTS` does not list it (verified). Unnamed `CHECK` and `NOT NULL` constraints are `SYS_C`. A constraint name the sync lists on another table is not on this one: constraint names are unique in the schema |
@@ -59,7 +61,8 @@ Absent is trusted only where the sync lists every object of the space. Bytebase'
 So the snapshot yields:
 - every "already exists" claim;
 - every wrong-kind claim;
-- "does not exist" for tables, views, sequences, the columns of a table listed in full, and the primary key.
+- "does not exist" for tables, views, sequences, the columns of a table listed in full, and the primary key;
+- "does not exist" for a DML target that no table, view, or synonym holds (§4).
 
 Every other "does not exist" comes from the change itself: an object it created, dropped, or renamed. Under `Target.OtherSpecs` the snapshot is all Unknown, and DML ends the walk (engines design §2).
 
@@ -75,7 +78,8 @@ Accepted assumptions, decision O3:
 **Resolution.**
 - An unqualified name resolves in the current schema first, and the schema's own object wins over a public synonym. So a Present object of the wrong kind is claimed, whatever synonyms exist.
 - Some forms do not follow synonyms, public or private: `ALTER TABLE`, `DROP TABLE`, `TRUNCATE`, `DROP VIEW`, `ALTER VIEW`, `DROP SEQUENCE`, `ALTER SEQUENCE`, and `RENAME`. They fail with 00942, 02289, or 04043 on a synonym (verified), so a name absent from the schema is a failure for them.
-- Other forms follow both kinds of synonym: `CREATE INDEX ... ON`, `CREATE TRIGGER ... ON`, `COMMENT ON`, `LOCK TABLE`, `GRANT`, `REFERENCES`, and DML (verified). A missing target is therefore never claimed for them.
+- Other forms follow both kinds of synonym: `CREATE INDEX ... ON`, `CREATE TRIGGER ... ON`, `COMMENT ON`, `LOCK TABLE`, `GRANT`, `REFERENCES`, and DML (verified). The walk claims a missing target only for DML, from the synonym space; for the others it claims none.
+- DML resolves an unqualified name in the current schema, private synonyms included, and then among the public synonyms; under `CURRENT_SCHEMA` the session user's own schema is not searched. A qualified name resolves in its schema alone (`SHOP.x` skips the public synonyms: 00942). `"PUBLIC".x` names a public synonym, which the walk does not judge (verified).
 
 **`ALTER TABLE` is atomic, and its clauses see the table as it was.**
 - `DROP COLUMN`, `RENAME COLUMN`, `RENAME TO`, and `DROP CONSTRAINT` do not combine with the other clause kinds (ORA-12987, ORA-23290, ORA-14047, or a syntax error).
@@ -182,7 +186,7 @@ All verified.
 | `ALTER SEQUENCE s`, `DROP SEQUENCE s [IF EXISTS]` | s Present as a sequence (02289) | none / s Absent |
 | `CREATE [OR REPLACE] SYNONYM s [IF NOT EXISTS] FOR x` | s Absent (00955); OR REPLACE: no other kind (00955) | s Present (synonym) |
 | `DROP SYNONYM s [FORCE] [IF EXISTS]` | s Present as a synonym (01434) | s Absent |
-| `CREATE`/`DROP PUBLIC SYNONYM` | none | none: the walk never relies on a public synonym's absence |
+| `CREATE`/`DROP PUBLIC SYNONYM` | none | the public synonym Present / Absent; `CREATE` makes every synonym's absence Unknown first (§3) |
 | `CREATE [OR REPLACE] TYPE`, `PROCEDURE`, `FUNCTION`, `PACKAGE [IF NOT EXISTS]` | the name Absent (00955); OR REPLACE: no other kind (00955) | the name Present (its kind); the body is not walked |
 | `CREATE [OR REPLACE] TYPE BODY`, `PACKAGE BODY` | none | none: bodies have a namespace of their own |
 | `DROP TYPE`, `PROCEDURE`, `FUNCTION`, `PACKAGE [IF EXISTS]` | the name Present as that kind (04043) | the name Absent; `DROP TYPE ... FORCE`: every column, primary key, constraint, and index May-removed |
@@ -191,9 +195,11 @@ All verified.
 | `DROP TRIGGER tr [IF EXISTS]`; `ALTER TRIGGER tr ENABLE/DISABLE/COMPILE` | tr Present (04080) | tr Absent / none |
 | `ALTER TRIGGER tr RENAME TO tr2` | tr Present (04080); tr2 Absent (00955, tr2 = tr too) | tr Absent, tr2 Present |
 | `RENAME a TO b` | a Present (04043), and a table, view, sequence, or synonym (03001; 32318 for a materialized view); b Absent (00955, b = a too) | as `ALTER TABLE RENAME TO` for a table; the name moves for the other kinds |
-| `COMMENT`, `GRANT`, `REVOKE`, `LOCK TABLE`, `ANALYZE`, `EXPLAIN PLAN`, `PURGE`, `AUDIT`, `NOAUDIT`, `COMMIT`, `ROLLBACK [TO SAVEPOINT]`, `SAVEPOINT`, `SET TRANSACTION`, `SET CONSTRAINTS` | none | none |
+| `GRANT` | none | every synonym's absence Unknown (§3) |
+| `COMMENT`, `REVOKE`, `LOCK TABLE`, `ANALYZE`, `EXPLAIN PLAN`, `PURGE`, `AUDIT`, `NOAUDIT`, `COMMIT`, `ROLLBACK [TO SAVEPOINT]`, `SAVEPOINT`, `SET TRANSACTION`, `SET CONSTRAINTS` | none | none |
 | `ALTER SESSION SET CURRENT_SCHEMA = s`, and parameters on an allowlist (`NLS_*`, `TIME_ZONE`, `DDL_LOCK_TIMEOUT`, `PLSQL_*`, `OPTIMIZER_*`, ...) | none | the current schema |
-| `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `SELECT` | none: the target may be a public synonym | none; §6 says when they end the walk |
+| `INSERT`, `UPDATE`, `DELETE`, `MERGE` | each target: not a sequence (02201), or a routine or type (04044), that the object space holds; a name the object space does not hold is a table, view, or synonym of its schema, or, unqualified, a public synonym (00942) | none; §6 says when they end the walk |
+| `SELECT` | none | none; §6 says when it ends the walk |
 
 The parser's shapes, read before writing this table:
 - `DROP (a, b)` and `SET UNUSED (a, b)` record only the first column, so the lowering reads the list from the tokens.
@@ -223,7 +229,7 @@ The parser's shapes, read before writing this table:
 - **After its checks, DML (`INSERT`, `UPDATE`, `DELETE`, `MERGE`) where a trigger may fire:**
   - The cases:
     - the snapshot or the change has any trigger;
-    - the target is not a table the walk knows in its schema: it may be a view, or a public synonym for another schema's table;
+    - the target is not a table the walk knows in its schema: it may be a view, or a synonym, private or public, for another schema's table;
     - `Target.OtherSpecs`.
 - **A name of an `ALTER SESSION SET CURRENT_SCHEMA` the walk cannot read** ends the walk at the next statement that names an object unqualified.
   - Verified: a trigger can run DDL through an autonomous procedure, and a cascaded delete fires the child table's trigger.
@@ -234,8 +240,8 @@ The parser's shapes, read before writing this table:
 
 Review asks for these are declined with this list:
 
-- "does not exist" from the snapshot for indexes, constraints, triggers, synonyms, types, and routines, and for the columns of a table the sync may not list in full (§3);
-- missing targets of statements that follow synonyms: `CREATE INDEX ... ON`, `CREATE TRIGGER ... ON`, `COMMENT`, `LOCK TABLE`, `GRANT`, `REFERENCES`, DML;
+- "does not exist" from the snapshot for indexes, constraints, triggers, types, and routines, for a synonym `DROP SYNONYM` names, and for the columns of a table the sync may not list in full (§3);
+- missing targets of statements that follow synonyms, other than DML: `CREATE INDEX ... ON`, `CREATE TRIGGER ... ON`, `COMMENT`, `LOCK TABLE`, `GRANT`, `REFERENCES`; and the tables a query reads;
 - dependency failures (§4);
 - the index a `PRIMARY KEY` or `UNIQUE` constraint adds or reuses, and its name collisions (00955 on `ADD CONSTRAINT` or `ENABLE`);
 - columns named in constraints, indexes, views, and queries; a view's query (`CREATE VIEW` failing with 00904 or 00942); `ORA-01408`;
@@ -254,7 +260,8 @@ Review asks for these are declined with this list:
   - Oracle commits DDL as it runs, so the engine implements `walktest.Digester` over `ALL_OBJECTS`, `ALL_TAB_COLS`, `ALL_CONSTRAINTS`, `ALL_INDEXES`, and `ALL_TRIGGERS`.
   - The change runs as an admin user with `CURRENT_SCHEMA = SHOP`, as Bytebase runs it. `RENAME` cases run as SHOP, which owns the objects.
   - The connect, the container's start, and every statement run under a deadline, so a hung container fails the test instead of stalling CI (it hung once, in #493's 4829c2fb run).
-  - The test sync mirrors Bytebase's for every space the walk reads: object tables with `SkipDump`, invisible columns listed, `SYS_C` checks dropped, indexes of listed tables and materialized views only, and triggers of the schema on its own tables and views.
+  - The test sync mirrors Bytebase's for every space the walk reads: object tables with `SkipDump`, invisible columns listed, `SYS_C` checks dropped, indexes of listed tables and materialized views only, triggers of the schema on its own tables and views, and the schema's and the public synonyms from `ALL_SYNONYMS`, which leaves out what `DBA_SYNONYMS` lists of a synonym whose object is gone.
+  - Public synonyms outlive a case's users, so each case drops those for its schemas' objects first. The sweep makes none: its two workers share the instance.
 - **Curated cases:** one per row of §5 and per fact in the Appendix, including the wrong kinds, the synonym-following forms, and `IF [NOT] EXISTS`.
 - **Digest:** the dictionary's views take hundreds of milliseconds a query (`DBA_CONSTRAINTS` most), so the digest reads `SYS.OBJ$`, `COL$`, and `CON$` by owner number, in a few. It leaves out columns of generated names: a rejected `ADD (b NUMBER CONSTRAINT nn NOT NULL)` of a taken `nn` fails with 02264 and leaves `b` behind as an unused hidden `SYS_C..._$` column (verified), which no claim names.
 - **Sweep:** templates over a colliding name pool, mixing case and quoted names:
@@ -314,6 +321,10 @@ Oracle AI Database 26ai Free 23.26.3.0.0 (`gvenzl/oracle-free:23.26.3-slim-fasts
 - **Synonyms:**
   - Not followed (00942 or 02289, public and private): `ALTER TABLE`, `TRUNCATE`, `DROP TABLE`, `DROP VIEW`, `ALTER VIEW`, `DROP SEQUENCE`, `ALTER SEQUENCE`. `RENAME` of a public synonym's name: 04043.
   - Followed: `CREATE INDEX ... ON`, `COMMENT ON TABLE` and `COLUMN`, `LOCK TABLE`, `CREATE TRIGGER ... ON`, `GRANT`, `REFERENCES` (a private synonym resolves; a public one reaches the other schema's table).
+  - DML: through a private synonym, unqualified or `SHOP.`-qualified; through a public one unqualified, and `"PUBLIC".x` too (unquoted `public.x`: 00903); `SHOP.x` of a public synonym's name: 00942. As an admin with `CURRENT_SCHEMA = SHOP`, a table or private synonym of the admin's own schema: 00942. `INSERT INTO plan_table` succeeds through the public synonym of a `SYS` temporary table, and `DROP TABLE t2; INSERT INTO t2` through a public synonym `T2`.
+  - DML on a sequence: 02201; on a procedure, function, package, type, operator, or library: 04044; on a domain: 11563; on a property graph: 42429; through a synonym whose object is gone: 00980; through one whose object the user cannot reach: 00942.
+  - `ALL_SYNONYMS` leaves out a synonym whose object is gone, even to SYSTEM, and one whose object the user cannot reach; `DBA_SYNONYMS` lists both. Oracle Free has 7,890 public synonyms, one of them `SYN`; XE 21c full has 12,045.
+  - No user or role can be named `PUBLIC` (01920, 01921), so no schema of the walk is.
 - **Atomicity:**
   - A rejected `ALTER TABLE ADD (n1, b)` adds neither column. `DROP (a, nosuch)` keeps a. `DROP CONSTRAINT ck_c DROP CONSTRAINT nosuch` keeps ck_c.
   - A `CREATE TABLE` refused for its `UNIQUE` index's name leaves neither table nor constraint. A failed `CREATE TABLE ... AS SELECT` leaves no table.

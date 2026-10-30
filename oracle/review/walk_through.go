@@ -276,9 +276,11 @@ func (b *builder) look(k walk.Key) (walk.Fact, string) { return b.l.Lookup(k) }
 
 // arriveObject records that an object of a kind holds a reference's name:
 // it is Present in the object space and, for a table, a materialized
-// view, a view, or a sequence, in that space, and Absent in the others,
-// since the namespace is shared.
+// view, a view, a sequence, or a synonym, in that space, and Absent in the
+// others, since the namespace is shared. The new object may be what a
+// synonym the sync leaves out stands for (mayRestoreSynonyms).
 func (b *builder) arriveObject(r objRef, kind string) {
+	b.mayRestoreSynonyms()
 	b.Set(r.key(spaceObject), walk.Present, kind)
 	for _, s := range []struct {
 		space string
@@ -287,6 +289,7 @@ func (b *builder) arriveObject(r objRef, kind string) {
 		{spaceTable, []string{kindTable, kindMView}},
 		{spaceView, []string{kindView}},
 		{spaceSequence, []string{kindSequence}},
+		{spaceSynonym, []string{kindSynonym}},
 	} {
 		if contains(s.kinds, kind) {
 			b.Set(r.key(s.space), walk.Present, kind)
@@ -298,7 +301,7 @@ func (b *builder) arriveObject(r objRef, kind string) {
 
 // leaveObject records that no object holds a reference's name.
 func (b *builder) leaveObject(r objRef) {
-	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence} {
+	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym} {
 		b.Set(r.key(space), walk.Absent, "")
 	}
 }
@@ -306,9 +309,24 @@ func (b *builder) leaveObject(r objRef) {
 // forgetObject records that the statement may have done anything to a
 // reference's name.
 func (b *builder) forgetObject(r objRef) {
-	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence} {
+	for _, space := range []string{spaceObject, spaceTable, spaceView, spaceSequence, spaceSynonym} {
 		b.Set(r.key(space), walk.Unknown, "")
 	}
+}
+
+// mayRestoreSynonyms records that a synonym the sync leaves out, whose
+// object is gone or out of the user's reach, may resolve after the
+// statement: the statement may make its object, or grant the user access
+// to it. The walk does not know such a synonym's name, so every synonym's
+// absence becomes Unknown. A statement adds it before its other effects,
+// which may know a name to be free.
+func (b *builder) mayRestoreSynonyms() {
+	b.MayAdd(walk.Scope{Space: spaceSynonym, Deep: true})
+}
+
+// publicKey keys a public synonym.
+func publicKey(name string) walk.Key {
+	return walk.Key{Space: spaceSynonym, Parent: walk.Path(publicSchema), Name: name}
 }
 
 // dropOwned records that what was on a table or view may be gone: its
