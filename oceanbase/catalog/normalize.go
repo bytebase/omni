@@ -1,0 +1,1891 @@
+package catalog
+
+// Package-level diff-time canonicalization for MySQL SDL (declarative) migration.
+//
+// MySQL implicitly rewrites DDL on storage: it drops integer display widths (8.0),
+// injects them (5.7), folds BOOLEAN to tinyint(1), echoes or strips column charset
+// clauses depending on version, single-quotes numeric defaults, and so on. A
+// declarative diff compares the user's TARGET schema against the SYNCED (stored)
+// schema read back via SHOW CREATE TABLE. Unless both sides are reduced to MySQL's
+// canonical stored form first, every implicit rewrite produces a phantom diff forever.
+//
+// This file is the single owner of that canonical form. diff-core calls the
+// Canonical* / Resolve* methods below wherever it compares columns, types, defaults,
+// charset/collation, generated expressions, or table options. The defining property,
+// proven against the live oracle, is:
+//
+//	Canonical(userTargetForm) == Canonical(syncedStoredForm)   (for a given engine version)
+//
+// Every entry in docs/migration/mysql/sdl/normalization.md is a readback that this
+// layer must collapse onto its target form. Behavior that diverges across MySQL 5.7
+// and 8.0 is branched on Version; behavior that depends on a session variable
+// (explicit_defaults_for_timestamp) is taken from the Normalizer context, never
+// hardcoded to a version (see the flag explicit-defaults-for-timestamp-is-session-var).
+
+import (
+	"fmt"
+	"math/big"
+	"strconv"
+	"strings"
+
+	nodes "github.com/bytebase/omni/oceanbase/ast"
+)
+
+// Version identifies the target MySQL major version whose stored form the
+// canonicalizer must reproduce. Charset spelling, integer display width, YEAR width,
+// descending indexes, the utf8mb4 default collation, CHECK persistence, functional
+// defaults, and the expression charset introducer all diverge across these.
+type Version int
+
+const (
+	// MySQL57 reproduces MySQL 5.7's stored form (display widths injected,
+	// utf8 spelling, utf8mb4_general_ci default, no descending indexes, CHECK dropped).
+	MySQL57 Version = iota
+	// MySQL80 reproduces MySQL 8.0's stored form (display widths dropped except
+	// tinyint(1)/zerofill, utf8mb3 spelling, utf8mb4_0900_ai_ci default, descending
+	// indexes, CHECK kept, functional defaults, _latin1 expression introducer).
+	MySQL80
+)
+
+// Normalizer carries the engine version plus the session/server variables that the
+// canonical stored form depends on. diff-core constructs one per side from the
+// synced schema's captured version and variables, then resolves both the target and
+// the current catalog through it so the two are compared in the same normal form.
+type Normalizer struct {
+	Version Version
+	// ExplicitDefaultsForTimestamp is the effective explicit_defaults_for_timestamp.
+	// It governs the implicit NOT NULL / DEFAULT CURRENT_TIMESTAMP magic on bare
+	// TIMESTAMP columns. It is a session/server variable, NOT a version trait: a 5.7
+	// server can run with it ON and an 8.0 server with it OFF. diff-core must capture
+	// it per source database and pass it here. NormalizerFor seeds it to each
+	// version's box default for convenience, but callers should override it from the
+	// synced schema when known.
+	ExplicitDefaultsForTimestamp bool
+}
+
+// NormalizerFor builds a Normalizer for a version, seeding session variables to that
+// version's oracle-box default (explicit_defaults_for_timestamp=0 on 5.7, 1 on 8.0).
+// Callers with a captured value should set ExplicitDefaultsForTimestamp explicitly.
+func NormalizerFor(v Version) *Normalizer {
+	return &Normalizer{
+		Version:                      v,
+		ExplicitDefaultsForTimestamp: v == MySQL80,
+	}
+}
+
+// is80 reports whether the target reproduces 8.0 stored form.
+func (n *Normalizer) is80() bool { return n.Version == MySQL80 }
+
+// ---------------------------------------------------------------------------
+// Charset / collation — the dominant phantom-diff surface (HIGHEST RISK).
+// ---------------------------------------------------------------------------
+
+// foldCharset maps a charset name to a version-independent identity so that the two
+// spellings of the same charset compare equal. MySQL stores utf8 (5.7) vs utf8mb3
+// (8.0) for the same charset; folding both to utf8mb3 lets the resolved pair compare
+// equal regardless of which version's surface spelling each side carried.
+// (entry utf8-utf8mb3-alias)
+func foldCharset(cs string) string {
+	cs = strings.ToLower(strings.TrimSpace(cs))
+	if cs == "utf8" {
+		return "utf8mb3"
+	}
+	return cs
+}
+
+// foldCollation maps a collation name to a version-independent identity. It rewrites a
+// utf8_* collation prefix to utf8mb3_* to match foldCharset, so utf8_general_ci (5.7)
+// and utf8mb3_general_ci (8.0) — the same collation — compare equal.
+func foldCollation(coll string) string {
+	coll = strings.ToLower(strings.TrimSpace(coll))
+	if strings.HasPrefix(coll, "utf8_") {
+		return "utf8mb3_" + coll[len("utf8_"):]
+	}
+	return coll
+}
+
+// defaultCollationFor returns the version-correct default collation for a charset,
+// already folded. The utf8mb4 default is the single most dangerous case: 8.0 uses
+// utf8mb4_0900_ai_ci (which does not even exist on 5.7) while 5.7 uses
+// utf8mb4_general_ci. (entry utf8mb4-default-collation)
+func (n *Normalizer) defaultCollationFor(charset string) string {
+	cs := foldCharset(charset)
+	if cs == "utf8mb4" {
+		if n.is80() {
+			return "utf8mb4_0900_ai_ci"
+		}
+		return "utf8mb4_general_ci"
+	}
+	if dc, ok := defaultCollationForCharset[cs]; ok {
+		return foldCollation(dc)
+	}
+	// Last resort: derive <charset>_general_ci.
+	if cs != "" {
+		return foldCollation(cs + "_general_ci")
+	}
+	return ""
+}
+
+// ResolveColumnCharsetCollation returns the effective (charset, collation) pair of a
+// column, folded to a version-independent identity, so that diff-core can compare the
+// resolved pair instead of the surface CHARACTER SET/COLLATE tokens. This is the
+// canonical strategy for the whole charset family (flag
+// column-charset-collation-echo-asymmetry): surface-token comparison phantom-diffs
+// across versions because 5.7 STRIPS a column's charset when it equals the table's
+// while 8.0 KEEPS it as a full pair; resolving the effective pair on BOTH sides and
+// comparing that is version-robust.
+//
+// Resolution rules (entries column-charset-echo-57/-80, -only-collation-resolution),
+// driven by the loader's explicit-clause flags so the three cases MySQL distinguishes
+// are kept apart even though the loader fills Charset/Collation from inheritance:
+//   - charset: the column's explicit CHARACTER SET if it wrote one, else the table's.
+//   - collation: the column's explicit COLLATE if it wrote one; else, if it wrote only a
+//     CHARACTER SET, that charset's default collation (NOT the table COLLATE — the subtle
+//     -only-collation-resolution rule); else (a bare column) the table's effective
+//     collation, re-resolved to the target version.
+//
+// For non-string columns (no charset concept) it returns ("", "").
+func (n *Normalizer) ResolveColumnCharsetCollation(table *Table, c *Column) (charset, collation string) {
+	if !isStringType(c.DataType) && !isEnumSetType(c.DataType) {
+		return "", ""
+	}
+
+	tableCharset := foldCharset(table.Charset)
+	tableCollation := n.effectiveTableCollation(table)
+
+	// Effective charset:
+	//   - an explicit column CHARACTER SET wins;
+	//   - an explicit column COLLATE (without CHARACTER SET) implies the collation's
+	//     charset — the loader derives c.Charset from the collation, so honor it;
+	//   - otherwise the column inherits the table charset.
+	switch {
+	case c.CharsetExplicit && c.Charset != "":
+		charset = foldCharset(c.Charset)
+	case c.CollationExplicit && c.Charset != "":
+		charset = foldCharset(c.Charset)
+	default:
+		charset = tableCharset
+	}
+
+	// Effective collation, resolved with the version-correct rules. The explicit flags
+	// let us tell apart the three otherwise-indistinguishable cases the loader collapses:
+	switch {
+	case c.CollationExplicit && c.Collation != "":
+		// The user wrote COLLATE: honor it verbatim (folded).
+		collation = foldCollation(c.Collation)
+	case c.CharsetExplicit && c.Charset != "":
+		// The user wrote only CHARACTER SET: the collation is THAT charset's default,
+		// never the table COLLATE. (entry column-charset-only-collation-resolution)
+		collation = n.defaultCollationFor(c.Charset)
+	default:
+		// Bare column: inherits the table's effective collation (re-resolved to the
+		// target version). MySQL stores a bare column with the table's collation, not the
+		// charset default — so a table-level COLLATE change must propagate to bare columns.
+		collation = tableCollation
+	}
+	return charset, collation
+}
+
+// effectiveTableCollation returns the table's collation, folded and re-resolved to the
+// target version. Two distinct "this is really the charset default" cases must both
+// collapse onto the version-correct default so a bare CHARSET table never phantom-diffs:
+//
+//   - The omni loader bakes the STATIC (8.0) charset-default collation into
+//     table.Collation when the table has no explicit COLLATE (it cannot know the target
+//     version at load time) — so a user's `... DEFAULT CHARSET=utf8mb4` arrives carrying
+//     utf8mb4_0900_ai_ci even when the target is 5.7.
+//   - The SYNCED side is dumped by MetadataToSDL with the server's STORED default spelled
+//     out as an explicit COLLATE (a 5.7 utf8mb4 table reads back
+//     `DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`) — so it arrives carrying the
+//     version's stored default as an "explicit" clause.
+//
+// Both are the charset default for SOME version and are indistinguishable from a bare
+// charset on the engine, so we fold any collation equal to either the loader-baked
+// static default OR the version-appropriate default down to defaultCollationFor. A
+// genuinely non-default table COLLATE (e.g. utf8mb4_unicode_ci) is honored as-is.
+func (n *Normalizer) effectiveTableCollation(table *Table) string {
+	tableCharset := foldCharset(table.Charset)
+	tableCollation := foldCollation(table.Collation)
+	if tableCollation == "" {
+		return n.defaultCollationFor(tableCharset)
+	}
+	if n.isCharsetDefaultCollation(tableCharset, tableCollation) {
+		return n.defaultCollationFor(tableCharset)
+	}
+	return tableCollation
+}
+
+// isCharsetDefaultCollation reports whether folded collation `coll` is "the default" for
+// folded charset `cs` for the purpose of effective-collation resolution: it matches
+// either the version-appropriate default (defaultCollationFor) or the static collation
+// the omni loader bakes for a bare charset (the 8.0 default, from
+// defaultCollationForCharset). The utf8mb4 case is the only one whose default diverges by
+// version (5.7 utf8mb4_general_ci vs 8.0 utf8mb4_0900_ai_ci); folding both spellings keeps
+// a 5.7-synced `COLLATE=utf8mb4_general_ci` and a loader-baked `utf8mb4_0900_ai_ci` equal
+// to each other and to a bare charset under either version's normalizer.
+func (n *Normalizer) isCharsetDefaultCollation(cs, coll string) bool {
+	if coll == "" {
+		return true
+	}
+	if coll == n.defaultCollationFor(cs) {
+		return true
+	}
+	if baked, ok := defaultCollationForCharset[cs]; ok && coll == foldCollation(baked) {
+		return true
+	}
+	return false
+}
+
+// ---------------------------------------------------------------------------
+// Column type — integer display width, BOOLEAN, decimal/float, year, zerofill.
+// ---------------------------------------------------------------------------
+
+// parsedType is a decomposed column-type string. The loader stores the 8.0 form (e.g.
+// "int"); raw readback strings may carry widths (e.g. "int(11)"). CanonicalColumnType
+// parses either and re-emits the version-correct canonical form, so both collapse onto
+// one value and never phantom-diff.
+type parsedType struct {
+	base     string // lowercased base type name (already alias-folded: numeric→decimal, etc.)
+	length   int    // first paren arg (display width, char length, precision); 0 = absent
+	scale    int    // second paren arg (decimal/float scale); -1 = absent
+	hasLen   bool
+	hasScale bool
+	unsigned bool
+	zerofill bool
+	suffix   string // verbatim tail for types we do not reformat (enum/set member list)
+}
+
+// parseColumnType decomposes a column-type string into base/length/scale/modifiers.
+func parseColumnType(columnType string) parsedType {
+	s := strings.TrimSpace(columnType)
+	low := strings.ToLower(s)
+
+	p := parsedType{scale: -1}
+
+	// Trailing modifiers.
+	if strings.Contains(low, "zerofill") {
+		p.zerofill = true
+		p.unsigned = true // zerofill implies unsigned
+	}
+	if strings.Contains(low, "unsigned") {
+		p.unsigned = true
+	}
+	// Strip the modifier words to isolate "<base>[(args)]".
+	low = strings.TrimSpace(strings.NewReplacer("unsigned", "", "zerofill", "").Replace(low))
+
+	// enum/set: keep the member list verbatim (order is significant), normalize quoting.
+	if strings.HasPrefix(low, "enum(") || strings.HasPrefix(low, "set(") {
+		open := strings.IndexByte(low, '(')
+		p.base = normalizedTypeName(low[:open])
+		p.suffix = s[open:] // original-cased member list
+		return p
+	}
+
+	if open := strings.IndexByte(low, '('); open >= 0 {
+		closeIdx := strings.LastIndexByte(low, ')')
+		// Guard against a malformed type with no closing paren, or ')' before '('
+		// (e.g. a truncated readback "int(11"): treat the paren as absent.
+		if closeIdx <= open {
+			p.base = normalizedTypeName(strings.TrimSpace(low[:open]))
+			return p
+		}
+		argStr := low[open+1 : closeIdx]
+		name := strings.TrimSpace(low[:open])
+		p.base = normalizedTypeName(name)
+		args := strings.SplitN(argStr, ",", 2)
+		if v, err := strconv.Atoi(strings.TrimSpace(args[0])); err == nil {
+			p.length = v
+			p.hasLen = true
+		}
+		if len(args) == 2 {
+			if v, err := strconv.Atoi(strings.TrimSpace(args[1])); err == nil {
+				p.scale = v
+				p.hasScale = true
+			}
+		}
+	} else {
+		p.base = normalizedTypeName(low)
+	}
+	return p
+}
+
+// CanonicalColumnType returns the canonical stored column type for the target version.
+// It folds aliases (BOOLEAN/BOOL→tinyint(1), NUMERIC/DEC/FIXED→decimal, REAL→double,
+// integer→int), applies the version's integer-display-width rule (8.0 drops widths
+// except tinyint(1) and zerofill; 5.7 injects the type's default width), pads DECIMAL
+// precision/scale, drops single-arg FLOAT precision, injects length-1 for bare
+// CHAR/BINARY/BIT, and reproduces the version's YEAR width. The result is a stable
+// comparison key, not necessarily a SHOW CREATE rendering.
+func (n *Normalizer) CanonicalColumnType(c *Column) string {
+	p := parseColumnType(c.ColumnType)
+	return n.canonicalType(p)
+}
+
+func (n *Normalizer) canonicalType(p parsedType) string {
+	switch p.base {
+	case "boolean":
+		// BOOLEAN/BOOL → tinyint(1) on both versions. (parseColumnType already folds
+		// "bool" → "boolean" via normalizedTypeName, so only "boolean" reaches here.)
+		return "tinyint(1)"
+	case "serial":
+		return "bigint unsigned"
+	}
+
+	if isIntegerType(p.base) {
+		return n.canonicalIntType(p)
+	}
+	if p.base == "decimal" {
+		length, scale := p.length, p.scale
+		if !p.hasLen {
+			length = 10
+		}
+		if !p.hasScale {
+			scale = 0
+		}
+		return n.withUnsigned(fmt.Sprintf("decimal(%d,%d)", length, scale), p)
+	}
+	if p.base == "float" || p.base == "double" {
+		base := p.base
+		// FLOAT(M,D)/DOUBLE(M,D) retained; single-arg FLOAT(p) precision dropped;
+		// FLOAT with precision > 24 was already folded to double upstream — fold here too.
+		if p.base == "float" && p.hasLen && !p.hasScale && p.length > 24 {
+			base = "double"
+		}
+		if p.hasLen && p.hasScale {
+			return n.withUnsigned(fmt.Sprintf("%s(%d,%d)", base, p.length, p.scale), p)
+		}
+		return n.withUnsigned(base, p)
+	}
+
+	switch p.base {
+	case "year":
+		if n.is80() {
+			return "year"
+		}
+		return "year(4)"
+	case "bit":
+		if !p.hasLen {
+			return "bit(1)"
+		}
+		return fmt.Sprintf("bit(%d)", p.length)
+	case "char", "binary":
+		if !p.hasLen {
+			return p.base + "(1)"
+		}
+		return fmt.Sprintf("%s(%d)", p.base, p.length)
+	case "enum", "set":
+		return p.base + canonicalEnumSuffix(p.suffix)
+	}
+
+	// Text/blob: never carry a width.
+	if isTextBlobLengthStripped(p.base) {
+		return p.base
+	}
+
+	// Default: keep length/scale verbatim (varchar(N), varbinary(N), time(N), etc.).
+	if p.hasLen && p.hasScale {
+		return fmt.Sprintf("%s(%d,%d)", p.base, p.length, p.scale)
+	}
+	if p.hasLen {
+		return fmt.Sprintf("%s(%d)", p.base, p.length)
+	}
+	return p.base
+}
+
+// canonicalIntType applies the version-specific integer display-width rule.
+// p.base is already alias-folded by normalizedTypeName (integer→int), so it is one of
+// tinyint/smallint/mediumint/int/bigint here.
+func (n *Normalizer) canonicalIntType(p parsedType) string {
+	base := p.base
+
+	// tinyint(1) is the boolean marker: width survives on BOTH versions (only when
+	// signed and not zerofill — tinyint(1) unsigned/zerofill is a plain narrow int).
+	if base == "tinyint" && p.hasLen && p.length == 1 && !p.unsigned && !p.zerofill {
+		return "tinyint(1)"
+	}
+
+	// ZEROFILL retains the display width on both versions (8.0 does NOT drop it).
+	if p.zerofill {
+		width := p.length
+		if !p.hasLen {
+			width = defaultIntDisplayWidth(base, true)
+		}
+		return fmt.Sprintf("%s(%d) unsigned zerofill", base, width)
+	}
+
+	if n.is80() {
+		// 8.0 drops the display width from all (non-zerofill) integer types.
+		return n.withUnsigned(base, p)
+	}
+	// 5.7 keeps/injects the default width.
+	width := p.length
+	if !p.hasLen {
+		width = defaultIntDisplayWidth(base, p.unsigned)
+	}
+	return n.withUnsigned(fmt.Sprintf("%s(%d)", base, width), p)
+}
+
+// withUnsigned appends " unsigned" to a rendered type when the column is unsigned
+// (but not zerofill, which renders its own "unsigned zerofill").
+func (n *Normalizer) withUnsigned(typeStr string, p parsedType) string {
+	if p.unsigned && !p.zerofill {
+		return typeStr + " unsigned"
+	}
+	return typeStr
+}
+
+// canonicalEnumSuffix normalizes an enum/set member list "('a','b',...)" to a canonical
+// form: each member single-quoted, order preserved (order is semantically significant
+// for ENUM/SET and is never reordered). Double-quoted members become single-quoted.
+// (entry enum-set-quoting)
+func canonicalEnumSuffix(suffix string) string {
+	s := strings.TrimSpace(suffix)
+	if len(s) < 2 || s[0] != '(' || s[len(s)-1] != ')' {
+		return suffix
+	}
+	inner := s[1 : len(s)-1]
+	members := splitEnumMembers(inner)
+	parts := make([]string, len(members))
+	for i, m := range members {
+		parts[i] = "'" + strings.ReplaceAll(m, "'", "''") + "'"
+	}
+	return "(" + strings.Join(parts, ",") + ")"
+}
+
+// splitEnumMembers splits a comma-separated quoted member list into decoded member
+// contents, honoring single- or double-quoting and doubled-quote escapes.
+func splitEnumMembers(inner string) []string {
+	var members []string
+	i := 0
+	for i < len(inner) {
+		// Skip separators/whitespace.
+		for i < len(inner) && (inner[i] == ',' || inner[i] == ' ' || inner[i] == '\t') {
+			i++
+		}
+		if i >= len(inner) {
+			break
+		}
+		q := inner[i]
+		if q != '\'' && q != '"' {
+			// Unexpected; bail with whatever remains as one member.
+			members = append(members, inner[i:])
+			break
+		}
+		i++
+		var b strings.Builder
+		for i < len(inner) {
+			if inner[i] == q {
+				if i+1 < len(inner) && inner[i+1] == q {
+					b.WriteByte(q)
+					i += 2
+					continue
+				}
+				i++
+				break
+			}
+			b.WriteByte(inner[i])
+			i++
+		}
+		members = append(members, b.String())
+	}
+	return members
+}
+
+// ---------------------------------------------------------------------------
+// Column default — value-based canonicalization.
+// ---------------------------------------------------------------------------
+
+// CanonicalDefault returns a comparison key for a column's DEFAULT. It is value-based,
+// not string-based (flag numeric-default-quote-version): DEFAULT 0 and DEFAULT '0'
+// yield the same key, because MySQL quotes numeric defaults in storage but the exact
+// quoting drifts across 8.0 point releases. Rules:
+//   - absent default OR explicit NULL → a single "no value" key (they are equivalent
+//     for a nullable column; the differ compares nullability separately).
+//   - CURRENT_TIMESTAMP family (incl. NOW/LOCALTIME/LOCALTIMESTAMP and (N) variants)
+//     → "CURRENT_TIMESTAMP[(N)]" unquoted, by DefaultKind.
+//   - functional DEFAULT (expression) → the expression run through the same generated-
+//     expression normalizer (8.0-only construct).
+//   - numeric literal on a scaled DECIMAL → padded to scale ('0' → '0.00') then keyed
+//     as the numeric value.
+//   - numeric literal otherwise → keyed by parsed numeric value (quote-insensitive).
+//   - string literal → keyed by its decoded content (quote style/charset-independent).
+func (n *Normalizer) CanonicalDefault(c *Column) string {
+	// Absent / dropped default.
+	if c.Default == nil {
+		return defaultAbsentKey
+	}
+	raw := strings.TrimSpace(*c.Default)
+	if strings.EqualFold(raw, "NULL") {
+		return defaultAbsentKey
+	}
+
+	switch c.DefaultKind {
+	case ColumnDefaultCurrentTimestamp:
+		if ts, ok := normalizeCurrentTimestamp(raw); ok {
+			return "ts:" + ts
+		}
+		return "ts:CURRENT_TIMESTAMP"
+	case ColumnDefaultExpression:
+		return "expr:" + n.CanonicalGeneratedExpr(stripOuterParens(raw))
+	}
+
+	// BIT column: every default form collapses onto the single integer the bits encode, so
+	// the diff compares that value (entry bit-length-default; bug: bit/hex default phantom
+	// diff). MySQL maps each input shape into one value space and stores it as `b'<binary>'`:
+	//   - a bit-literal  b'101' / 0b101            -> base-2 value (5)
+	//   - a hex-literal   0x05 / x'05'             -> base-16 value (5)
+	//   - a bare integer  5                        -> that integer (5)
+	//   - a quoted string 'AB'                     -> big-endian integer of its bytes (16706)
+	// (verified on live 5.7.25 + 8.0.32). Keying by the value makes b'101', 0x05, 0b101,
+	// b'00000101', and bare 5 all compare equal, while the byte-string default 'AB' stays a
+	// distinct value (and 'A' = 65 differs from b'101' = 5).
+	if c.DataType == "bit" {
+		if v, ok := bitColumnDefaultValue(raw); ok {
+			return "bit:" + v
+		}
+		// Unparseable (an expression default already handled above, or an exotic form):
+		// fall through to the generic handling so we never lose the default entirely.
+	}
+
+	// Constant. Decide numeric vs string by the column's data type and the literal shape.
+	unq, wasQuoted := unquoteDefault(raw)
+
+	// Bit-literal default on a NON-BIT column (b'...' / 0b...) — rare, but a binary column
+	// can carry one. Key by the bit value so quoting/zero-padding variants match. Hex (0x..)
+	// is NOT folded here: on a binary column 0x.. is a raw byte string, a different space.
+	if looksLikeBitLiteral(raw) {
+		if v, ok := bitColumnDefaultValue(raw); ok {
+			return "bit:" + v
+		}
+	}
+
+	// YEAR column: MySQL expands a short YEAR default to four digits at storage and the
+	// expansion is QUOTE-SENSITIVE for zero (oracle-verified, both versions):
+	//   - numeric 0        -> 0000 (the "zero year")
+	//   - string '0'/'00'/'000' (fewer than 4 digits, value 0) -> 2000
+	//   - any 4-digit form ('0000', '2000', numeric 2000)      -> the literal value
+	//   - 1..69  -> 2001..2069 ; 70..99 -> 1970..1999 (numeric and string alike)
+	// So `DEFAULT 99` and `DEFAULT '1999'` must compare equal, while numeric `DEFAULT 0`
+	// ('0000') must stay DISTINCT from string `DEFAULT '0'` (2000). expandYearLiteral takes
+	// the surface form + whether it was quoted to honor the zero asymmetry.
+	// (entry year-width; bug: YEAR numeric-vs-quoted default phantom diff.)
+	if c.DataType == "year" {
+		if key, ok := numericDefaultKey(c.ColumnType, expandYearLiteral(unq, wasQuoted)); ok {
+			return key
+		}
+	}
+
+	if isNumericType(c.DataType) {
+		// Numeric column: compare by numeric value, padded to the column's scale.
+		if key, ok := numericDefaultKey(c.ColumnType, unq); ok {
+			return key
+		}
+	}
+	// If it parses as a number and the column is not obviously a string type, key by value.
+	if !wasQuoted && !isStringType(c.DataType) && !isEnumSetType(c.DataType) {
+		if key, ok := numericDefaultKey(c.ColumnType, unq); ok {
+			return key
+		}
+	}
+	// String/other literal: key by decoded content.
+	return "str:" + unq
+}
+
+const defaultAbsentKey = "<none>"
+
+// normalizeCurrentTimestamp folds CURRENT_TIMESTAMP synonyms (NOW, LOCALTIME,
+// LOCALTIMESTAMP) and (N) variants to "CURRENT_TIMESTAMP[(N)]".
+func normalizeCurrentTimestamp(val string) (string, bool) {
+	if ts, ok := currentTimestampSQL(val); ok {
+		return ts, true
+	}
+	upper := strings.ToUpper(strings.TrimSpace(val))
+	switch upper {
+	case "LOCALTIME", "LOCALTIME()", "LOCALTIMESTAMP", "LOCALTIMESTAMP()":
+		return "CURRENT_TIMESTAMP", true
+	}
+	for _, prefix := range []string{"LOCALTIME(", "LOCALTIMESTAMP("} {
+		if strings.HasPrefix(upper, prefix) && strings.HasSuffix(upper, ")") {
+			return "CURRENT_TIMESTAMP" + upper[len(prefix)-1:], true
+		}
+	}
+	return "", false
+}
+
+// unquoteDefault strips one layer of surrounding single or double quotes from a default
+// literal and un-doubles embedded quotes, returning the decoded content and whether it
+// was quoted.
+func unquoteDefault(s string) (string, bool) {
+	if len(s) >= 2 {
+		if (s[0] == '\'' && s[len(s)-1] == '\'') || (s[0] == '"' && s[len(s)-1] == '"') {
+			q := s[0]
+			inner := s[1 : len(s)-1]
+			inner = strings.ReplaceAll(inner, string([]byte{q, q}), string(q))
+			return inner, true
+		}
+	}
+	return s, false
+}
+
+// numericDefaultKey renders a canonical value key for a numeric default by normalizing
+// the literal AS A DECIMAL STRING — never via float64, which would lose precision for
+// BIGINT/DECIMAL values beyond 2^53 and collide distinct defaults. It normalizes sign and
+// leading zeros, then applies the column-kind-specific storage rule: scaled types
+// (decimal(M,D), float(M,D)) round to scale with carry; integer types and bare DECIMAL
+// round to integer; bare FLOAT/DOUBLE preserve their fraction (trailing zeros stripped).
+// So '0' and '0.00' compare equal while 9223372036854775806 and ...807 stay distinct.
+func numericDefaultKey(columnType, literal string) (string, bool) {
+	sign, intPart, fracPart, ok := parseDecimalLiteral(literal)
+	if !ok {
+		return "", false
+	}
+	p := parseColumnType(columnType)
+	switch {
+	case p.hasScale:
+		// A scaled type — decimal(M,D) or float(M,D)/double(M,D) — ROUNDS the default
+		// (half-up) to the column scale on storage, with carry into the integer part
+		// (MySQL: decimal(10,2) 0.999 → '1.00', 9.999 → '10.00'; float(10,2) 1.5 → '1.50').
+		intPart, fracPart = roundToScale(intPart, fracPart, p.scale)
+	case isIntegerType(p.base) || p.base == "decimal":
+		// Integer types, and bare DECIMAL (which has implicit scale 0): round to zero
+		// fractional digits, with carry (INT DEFAULT 1.9 → '2', decimal(10,0) 0.9 → '1').
+		intPart, fracPart = roundToScale(intPart, fracPart, 0)
+	default:
+		// Bare FLOAT/DOUBLE/REAL (no explicit scale): the fraction is preserved verbatim
+		// with only trailing zeros stripped (MySQL: float 1.9 → '1.9', 2.0 → '2',
+		// double 3.14159 → '3.14159'). Rounding here would collapse distinct defaults.
+		fracPart = strings.TrimRight(fracPart, "0")
+	}
+	// Re-normalize a negative zero produced by rounding (e.g. -0.4 at scale 0 → 0).
+	if sign == "-" && intPart == "0" && strings.Trim(fracPart, "0") == "" {
+		sign = ""
+	}
+	key := sign + intPart
+	if fracPart != "" {
+		key += "." + fracPart
+	}
+	return "num:" + key, true
+}
+
+// parseDecimalLiteral splits a numeric literal into (sign, integerDigits, fractionDigits)
+// with leading integer zeros stripped (but a single "0" kept). Returns ok=false for
+// non-numeric input or a literal with no digits at all. Exponent notation is not used by
+// MySQL stored numeric defaults.
+func parseDecimalLiteral(literal string) (sign, intPart, fracPart string, ok bool) {
+	s := strings.TrimSpace(literal)
+	if s == "" {
+		return "", "", "", false
+	}
+	if s[0] == '+' || s[0] == '-' {
+		if s[0] == '-' {
+			sign = "-"
+		}
+		s = s[1:]
+	}
+	if s == "" {
+		return "", "", "", false
+	}
+	intDigits, fracDigits := s, ""
+	if dot := strings.IndexByte(s, '.'); dot >= 0 {
+		intDigits = s[:dot]
+		fracDigits = s[dot+1:]
+	}
+	if !allDigits(intDigits) || !allDigits(fracDigits) {
+		return "", "", "", false
+	}
+	// Require at least one digit somewhere (reject "." / "+" / "-").
+	if intDigits == "" && fracDigits == "" {
+		return "", "", "", false
+	}
+	intDigits = strings.TrimLeft(intDigits, "0")
+	if intDigits == "" {
+		intDigits = "0"
+	}
+	// Normalize negative zero to positive.
+	if intDigits == "0" && strings.Trim(fracDigits, "0") == "" {
+		sign = ""
+	}
+	return sign, intDigits, fracDigits, true
+}
+
+// roundToScale rounds (intPart, fracPart) half-up to exactly scale fractional digits,
+// propagating carry into the integer digits. Both inputs are bare digit strings; it
+// returns the rounded (integerDigits, fractionDigits). Operating on digit strings keeps
+// full precision for values beyond float64 range.
+func roundToScale(intPart, fracPart string, scale int) (string, string) {
+	if len(fracPart) <= scale {
+		// No rounding needed; pad to scale.
+		return intPart, fracPart + strings.Repeat("0", scale-len(fracPart))
+	}
+	kept := fracPart[:scale]
+	roundUp := fracPart[scale] >= '5'
+	if !roundUp {
+		return intPart, kept
+	}
+	// Increment the digit string formed by intPart+kept by one, then split back.
+	combined := incrementDigits(intPart + kept)
+	// combined may have grown by one digit (carry out of the most-significant place).
+	if scale == 0 {
+		return combined, ""
+	}
+	return combined[:len(combined)-scale], combined[len(combined)-scale:]
+}
+
+// incrementDigits returns the decimal digit string plus one (e.g. "999" → "1000").
+func incrementDigits(digits string) string {
+	b := []byte(digits)
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] < '9' {
+			b[i]++
+			return string(b)
+		}
+		b[i] = '0'
+	}
+	return "1" + string(b)
+}
+
+func allDigits(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// isNumericType reports whether a base data type carries a numeric default — one MySQL
+// stores as a value the diff compares numerically, not as a quoted string. YEAR is
+// included: although SHOW CREATE single-quotes a YEAR default (`DEFAULT '2000'`), the
+// value is an integer year and a user-written numeric `DEFAULT 2000` must compare equal to
+// it (entry year-width; bug: numeric-vs-quoted YEAR default phantom diff).
+func isNumericType(dt string) bool {
+	switch dt {
+	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint",
+		"decimal", "numeric", "dec", "fixed", "float", "double", "real", "bit", "year":
+		return true
+	}
+	return false
+}
+
+// expandYearLiteral applies MySQL's YEAR default expansion to the unquoted digits of a YEAR
+// default literal, honoring the quote-sensitive zero asymmetry (all oracle-verified, both
+// versions). `wasQuoted` reports whether the original literal was a quoted string.
+//
+//   - A four-digit surface ('0000', '2000') or numeric input is treated as a literal year
+//     value EXCEPT for the short forms below — so '0000' -> 0000 and '2000' -> 2000.
+//   - A short (fewer-than-four-digit) form expands: value 1..69 -> 2001..2069,
+//     70..99 -> 1970..1999. Zero is the asymmetry: numeric 0 stays 0 (the "zero year",
+//     read back '0000'), while a short quoted '0'/'00'/'000' becomes 2000.
+//
+// Non-digit or out-of-int input is returned unchanged (the caller renders it verbatim).
+func expandYearLiteral(lit string, wasQuoted bool) string {
+	s := strings.TrimSpace(lit)
+	if s == "" || !allDigits(s) {
+		return lit
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return lit // out of int range — not a realistic YEAR, leave as-is
+	}
+	// A four-or-more-digit surface is a full year value, used as written (e.g. '0000', '2000').
+	if len(s) >= 4 {
+		return lit
+	}
+	switch {
+	case v == 0:
+		// numeric 0 -> zero year (0); short quoted '0'/'00'/'000' -> 2000.
+		if wasQuoted {
+			return "2000"
+		}
+		return lit
+	case v <= 69:
+		return strconv.Itoa(2000 + v)
+	default: // 70..99
+		return strconv.Itoa(1900 + v)
+	}
+}
+
+// looksLikeBitLiteral reports whether a default literal is an UNAMBIGUOUS bit literal
+// (b'...' or 0b...). Hex (0x..) is intentionally excluded: it is a bit value only on a BIT
+// column (handled directly in CanonicalDefault), whereas on a binary column it is a raw
+// byte string.
+func looksLikeBitLiteral(s string) bool {
+	low := strings.ToLower(strings.TrimSpace(s))
+	return strings.HasPrefix(low, "b'") || strings.HasPrefix(low, "0b")
+}
+
+// bitColumnDefaultValue returns the decimal value (as a string) that a BIT column's default
+// literal encodes, using math/big so a BIT(64) default up to 2^64-1 round-trips exactly
+// (int64/uint64 would overflow). It models every input shape MySQL accepts for a BIT
+// default, all of which it stores as `b'<binary>'` (verified on live 5.7.25 + 8.0.32):
+//   - bit-literal   b'101' / 0b101   -> base-2  value
+//   - hex-literal    0x05 / x'05'    -> base-16 value
+//   - quoted string  'AB'            -> big-endian integer of the raw bytes (A=0x41 high)
+//   - bare integer   5               -> that decimal integer
+//
+// The empty string ” yields 0 (MySQL stores b'0'). Returns ok=false for a form it cannot
+// interpret (e.g. CURRENT_TIMESTAMP — handled earlier by DefaultKind, never reaching here),
+// so the caller can fall back rather than fabricate a value.
+func bitColumnDefaultValue(raw string) (string, bool) {
+	s := strings.TrimSpace(raw)
+	low := strings.ToLower(s)
+	val := new(big.Int)
+
+	switch {
+	case strings.HasPrefix(low, "b'") && strings.HasSuffix(s, "'") && len(s) >= 3:
+		if _, ok := val.SetString(s[2:len(s)-1], 2); !ok {
+			return "", false
+		}
+	case strings.HasPrefix(low, "0b"):
+		if _, ok := val.SetString(s[2:], 2); !ok {
+			return "", false
+		}
+	case strings.HasPrefix(low, "x'") && strings.HasSuffix(s, "'") && len(s) >= 3:
+		if _, ok := val.SetString(s[2:len(s)-1], 16); !ok {
+			return "", false
+		}
+	case strings.HasPrefix(low, "0x"):
+		if _, ok := val.SetString(s[2:], 16); !ok {
+			return "", false
+		}
+	case len(s) >= 2 && (s[0] == '\'' || s[0] == '"') && s[len(s)-1] == s[0]:
+		// Quoted byte string: big-endian integer of the (un-doubled) bytes.
+		inner, _ := unquoteDefault(s)
+		val.SetBytes([]byte(inner))
+	default:
+		// Bare numeric literal.
+		if _, ok := val.SetString(s, 10); !ok {
+			return "", false
+		}
+	}
+	return val.String(), true
+}
+
+// stripOuterParens removes one balanced layer of outer parentheses, used to normalize
+// functional-default expressions whose stored form is double-parenthesized.
+func stripOuterParens(s string) string {
+	s = strings.TrimSpace(s)
+	for len(s) >= 2 && s[0] == '(' && s[len(s)-1] == ')' && balancedFirstParenWrapsAll(s) {
+		s = strings.TrimSpace(s[1 : len(s)-1])
+	}
+	return s
+}
+
+// balancedFirstParenWrapsAll reports whether the opening paren at index 0 matches the
+// closing paren at the end (i.e. the whole string is one parenthesized group).
+func balancedFirstParenWrapsAll(s string) bool {
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 && i != len(s)-1 {
+				return false
+			}
+		}
+	}
+	return depth == 0
+}
+
+// ---------------------------------------------------------------------------
+// Generated / functional-default expression canonicalization.
+// ---------------------------------------------------------------------------
+
+// CanonicalGeneratedExpr returns a comparison key for a generated-column expression,
+// functional DEFAULT (expression), or CHECK expression. MySQL rewrites these on
+// storage: identifiers are backticked, binary operators single-spaced, an outer paren
+// pair is added, function names lowercased, and — on 8.0 only — string literals gain a
+// charset introducer (_latin1'x') reflecting the connection charset at create time.
+// The introducer is connection-dependent noise that makes 8.0 readbacks non-portable,
+// so this canonical key strips it (entry generated-expr-string-introducer), collapses
+// whitespace, removes outer parentheses, and lowercases identifiers/keywords outside
+// string literals. The result lets a user's expression, a 5.7 readback, and an 8.0
+// readback of the same logical expression all compare equal.
+func (n *Normalizer) CanonicalGeneratedExpr(expr string) string {
+	s := stripCharsetIntroducers(expr)
+	s = stripOuterParens(s)
+	s = collapseExprWhitespace(s)
+	return s
+}
+
+// castCharsetAt records one CAST charset attribute found in an expression
+// text: the byte offset in the STRIPPED text where it was attached, and the
+// charset name.
+type castCharsetAt struct {
+	off  int
+	name string
+}
+
+// stripAndCollectCastCharsets removes the charset attribute of CAST targets
+// (" charset utf8mb4" and the like) outside string literals and backtick
+// quotes, returning the stripped text plus the ordered list of removed
+// attributes keyed by their offset in the stripped text. The charset the
+// engine stores for a charset-less CHAR cast is the CONNECTION charset of the
+// creating session (oracle 8.0.32: the same CAST(s AS CHAR(4)) generated
+// column stores "charset latin1" or "charset utf8mb4" depending only on the
+// session that created it), while an EXPLICIT CHARACTER SET survives readback
+// distinctly (oracle 8.0.32: explicit latin1 under a utf8mb4 session reads
+// back "charset latin1"). "charset binary" is never treated as an attribute —
+// it changes the cast's type (the AS BINARY desugar) and always stays part of
+// the text.
+func stripAndCollectCastCharsets(expr string) (string, []castCharsetAt) {
+	var b strings.Builder
+	b.Grow(len(expr))
+	var found []castCharsetAt
+	i := 0
+	for i < len(expr) {
+		c := expr[i]
+		if c == '\'' {
+			end := scanStringLiteral(expr, i)
+			b.WriteString(expr[i:end])
+			i = end
+			continue
+		}
+		if c == '`' {
+			j := i + 1
+			for j < len(expr) {
+				if expr[j] == '`' {
+					if j+1 < len(expr) && expr[j+1] == '`' {
+						j += 2 // doubled-backtick escape inside the identifier
+						continue
+					}
+					j++
+					break
+				}
+				j++
+			}
+			b.WriteString(expr[i:j])
+			i = j
+			continue
+		}
+		// The canonical collapse drops spaces around parens, so the attribute
+		// appears either as " charset <name>" (after a word: char charset x)
+		// or as "charset <name>" directly after a ')' (char(4)charset x).
+		attrStart := -1
+		if c == ' ' && strings.HasPrefix(expr[i+1:], "charset ") {
+			attrStart = i + 1 // the separator space is dropped with the attribute
+		} else if strings.HasPrefix(expr[i:], "charset ") && i > 0 && !isIdentByte(expr[i-1]) && expr[i-1] != ' ' {
+			attrStart = i
+		}
+		if attrStart >= 0 {
+			j := attrStart + len("charset ")
+			k := j
+			for k < len(expr) && isIdentByte(expr[k]) {
+				k++
+			}
+			if k > j && !strings.EqualFold(expr[j:k], "binary") {
+				found = append(found, castCharsetAt{off: b.Len(), name: expr[j:k]})
+				i = k // drop the attribute (and its leading space when present)
+				continue
+			}
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return b.String(), found
+}
+
+func stripCastCharsets(expr string) string {
+	s, _ := stripAndCollectCastCharsets(expr)
+	return s
+}
+
+// castCharsetsCompatible reports whether two canonical expression texts are
+// equal up to cast charset attributes with WILDCARD-on-absent semantics: the
+// charset-stripped texts must be identical, and wherever BOTH sides carry an
+// attribute at the same position the names must match (an explicit
+// latin1 -> utf8mb4 cast change is a real migration), while an attribute
+// present on only one side — a charset-less user cast against the connection
+// charset the engine stored — matches anything.
+func castCharsetsCompatible(a, b string) bool {
+	if a == b {
+		return true
+	}
+	sa, la := stripAndCollectCastCharsets(a)
+	sb, lb := stripAndCollectCastCharsets(b)
+	if sa != sb {
+		return false
+	}
+	ia, ib := 0, 0
+	for ia < len(la) && ib < len(lb) {
+		switch {
+		case la[ia].off == lb[ib].off:
+			if !strings.EqualFold(la[ia].name, lb[ib].name) {
+				return false
+			}
+			ia++
+			ib++
+		case la[ia].off < lb[ib].off:
+			ia++ // attribute only on a — wildcard against an omitted cast charset on b
+		default:
+			ib++
+		}
+	}
+	return true
+}
+
+// columnsCastCharsetWildcardEqual reports whether two same-name columns whose
+// aggregate keys differ are nonetheless equal under cast-charset WILDCARD
+// semantics: every non-expression aspect identical, expression texts identical
+// after stripping cast charsets, and the charsets themselves compatible
+// (equal where both sides carry one; free where one side omitted it). This is
+// the pairwise complement to keeping explicit charsets in the canonical KEY:
+// an explicit CHARACTER SET latin1 -> utf8mb4 change stays a real diff, while
+// a charset-less user cast does not phantom-diff against the connection
+// charset its readback carries.
+func (n *Normalizer) columnsCastCharsetWildcardEqual(fromTbl, toTbl *Table, a, b *Column) bool {
+	if n.canonicalColumn(fromTbl, a, true) != n.canonicalColumn(toTbl, b, true) {
+		return false
+	}
+	ga, gb := "", ""
+	if a.Generated != nil {
+		ga = n.CanonicalGeneratedExpr(a.Generated.Expr)
+	}
+	if b.Generated != nil {
+		gb = n.CanonicalGeneratedExpr(b.Generated.Expr)
+	}
+	if !castCharsetsCompatible(ga, gb) {
+		return false
+	}
+	da, _ := n.CanonicalTimestampDefaults(fromTbl, a)
+	db, _ := n.CanonicalTimestampDefaults(toTbl, b)
+	if strings.HasPrefix(da, "expr:") || strings.HasPrefix(db, "expr:") {
+		return castCharsetsCompatible(strings.TrimPrefix(da, "expr:"), strings.TrimPrefix(db, "expr:"))
+	}
+	return true
+}
+
+// scanStringLiteral returns the index just past a single-quoted string literal that
+// starts at i (expr[i]=='\”), honoring doubled-quote escapes (”) and backslash
+// escapes (\'). If the literal is unterminated it returns len(expr). The returned index
+// is always a valid slice bound (≤ len(expr)), so callers never read past the end.
+func scanStringLiteral(expr string, i int) int {
+	j := i + 1
+	for j < len(expr) {
+		switch expr[j] {
+		case '\\':
+			j += 2 // skip the escaped char (\' \\ etc.)
+		case '\'':
+			if j+1 < len(expr) && expr[j+1] == '\'' {
+				j += 2 // doubled-quote escape
+				continue
+			}
+			return j + 1 // past the closing quote
+		default:
+			j++
+		}
+	}
+	return len(expr) // unterminated: consume to EOF
+}
+
+// stripCharsetIntroducers removes a charset introducer (e.g. _latin1, _utf8mb4) that
+// immediately precedes a single-quoted string literal, leaving the bare literal.
+func stripCharsetIntroducers(expr string) string {
+	var b strings.Builder
+	i := 0
+	for i < len(expr) {
+		c := expr[i]
+		if c == '\'' {
+			end := scanStringLiteral(expr, i)
+			b.WriteString(expr[i:end])
+			i = end
+			continue
+		}
+		if c == '_' {
+			// Possible charset introducer: _<ident>' — drop the "_<ident>" if a quote
+			// follows the identifier run.
+			j := i + 1
+			for j < len(expr) && isIdentByte(expr[j]) {
+				j++
+			}
+			if j < len(expr) && expr[j] == '\'' && j > i+1 {
+				// Skip the introducer; the literal is copied on the next loop turn.
+				i = j
+				continue
+			}
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return b.String()
+}
+
+func isIdentByte(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_'
+}
+
+// collapseExprWhitespace lowercases the expression outside string literals, strips
+// backtick identifier quoting (lowercasing the inner name), and collapses each run of
+// whitespace to a SINGLE space, so cosmetic spacing and quoting differences do not diff
+// while token boundaries are preserved (e.g. `a` and `b` must not merge into `aandb`).
+// String literals are copied verbatim (case and spacing inside them are significant) and
+// unterminated literals/identifiers are consumed safely to EOF.
+func collapseExprWhitespace(expr string) string {
+	var b strings.Builder
+	i := 0
+	for i < len(expr) {
+		c := expr[i]
+		switch c {
+		case '\'':
+			end := scanStringLiteral(expr, i)
+			b.WriteString(expr[i:end])
+			i = end
+		case '`':
+			// Backticks are identifier quoting; drop them and lowercase the inner name
+			// so a backticked identifier and the bare identifier compare equal. An
+			// unterminated backtick is consumed to EOF.
+			j := i + 1
+			for j < len(expr) && expr[j] != '`' {
+				j++
+			}
+			inner := expr[i+1 : j]
+			for k := 0; k < len(inner); k++ {
+				ch := inner[k]
+				if ch >= 'A' && ch <= 'Z' {
+					b.WriteByte(ch + ('a' - 'A'))
+				} else {
+					b.WriteByte(ch)
+				}
+			}
+			if j < len(expr) {
+				j++ // past the closing backtick
+			}
+			i = j
+		case ' ', '\t', '\n', '\r':
+			// Collapse a run of whitespace to a single space, but only between tokens —
+			// drop it entirely at the start/end and adjacent to punctuation where it is
+			// never significant. Keeping one space preserves keyword/identifier
+			// boundaries so `a and b` does not become `aandb`.
+			j := i
+			for j < len(expr) && (expr[j] == ' ' || expr[j] == '\t' || expr[j] == '\n' || expr[j] == '\r') {
+				j++
+			}
+			if exprSpaceIsSignificant(b.String(), expr, j) {
+				b.WriteByte(' ')
+			}
+			i = j
+		default:
+			if c >= 'A' && c <= 'Z' {
+				b.WriteByte(c + ('a' - 'A'))
+			} else {
+				b.WriteByte(c)
+			}
+			i++
+		}
+	}
+	return b.String()
+}
+
+// exprSpaceIsSignificant reports whether a whitespace run between the already-emitted
+// prefix and the next source byte (expr[next]) must be preserved as a single space.
+// Whitespace is significant only when it separates two "word" tokens (identifier/number
+// runs) — e.g. between a keyword and an identifier — and is dropped at the boundaries or
+// next to punctuation/operators where MySQL never needs it. A backtick at expr[next]
+// starts an identifier token, so it counts as a word boundary even though the backtick
+// byte itself is not an identifier char (this is the fix for `a` and `b` → must stay
+// `a and b`, not `a andb`).
+func exprSpaceIsSignificant(emitted, expr string, next int) bool {
+	if emitted == "" || next >= len(expr) {
+		return false
+	}
+	prev := emitted[len(emitted)-1]
+	nextStartsWord := isIdentByte(expr[next]) || expr[next] == '`'
+	return isIdentByte(prev) && nextStartsWord
+}
+
+// ---------------------------------------------------------------------------
+// Nullability + PK + the TIMESTAMP magic (explicit_defaults_for_timestamp).
+// ---------------------------------------------------------------------------
+
+// CanonicalNotNull returns the effective NOT NULL state of a column after MySQL's
+// implicit rewrites:
+//   - a PRIMARY KEY member is forced NOT NULL regardless of its declaration
+//     (entry pk-implies-not-null);
+//   - when explicit_defaults_for_timestamp is OFF, a TIMESTAMP column with NO explicit
+//     nullability clause becomes NOT NULL (entry timestamp-magic-first-57). This is
+//     governed by the captured session variable, NOT the version (flag #3): a 5.7
+//     server with the variable ON leaves TIMESTAMP nullable, an 8.0 server with it OFF
+//     forces NOT NULL. The Column.NullExplicit flag (set by the loader) tells a bare
+//     `TIMESTAMP` apart from an explicit `TIMESTAMP NULL`, so a genuinely-nullable
+//     `TIMESTAMP NULL` — even one with a constant default — is left nullable.
+//
+// For all other columns it returns the declared !Nullable.
+func (n *Normalizer) CanonicalNotNull(table *Table, c *Column) bool {
+	if !c.Nullable {
+		return true
+	}
+	if n.columnInPrimaryKey(table, c) {
+		return true
+	}
+	if isTimestampType(c.DataType) && !n.ExplicitDefaultsForTimestamp && !c.NullExplicit {
+		return true
+	}
+	return false
+}
+
+// columnInPrimaryKey reports whether the column participates in the table's PK.
+func (n *Normalizer) columnInPrimaryKey(table *Table, c *Column) bool {
+	for _, idx := range table.Indexes {
+		if !idx.Primary {
+			continue
+		}
+		for _, ic := range idx.Columns {
+			if strings.EqualFold(ic.Name, c.Name) {
+				return true
+			}
+		}
+	}
+	// Constraints may also express PK.
+	for _, con := range table.Constraints {
+		if con.Type != ConPrimaryKey {
+			continue
+		}
+		for _, col := range con.Columns {
+			if strings.EqualFold(col, c.Name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// CanonicalTimestampDefaults returns the canonical (default, onUpdate) keys for a
+// TIMESTAMP/DATETIME column, applying the explicit_defaults_for_timestamp=OFF magic:
+// the FIRST bare TIMESTAMP column in the table gets an implicit
+// DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP. Both keys use the same
+// value-based form as CanonicalDefault ("ts:CURRENT_TIMESTAMP", "<none>", etc.).
+// When the user wrote an explicit default/on-update, that wins.
+func (n *Normalizer) CanonicalTimestampDefaults(table *Table, c *Column) (def, onUpdate string) {
+	def = n.CanonicalDefault(c)
+	onUpdate = n.canonicalOnUpdate(c)
+
+	if !isTimestampType(c.DataType) {
+		return def, onUpdate
+	}
+	if n.ExplicitDefaultsForTimestamp {
+		return def, onUpdate
+	}
+	// EDFT OFF: the FIRST TIMESTAMP column gets an implicit
+	// DEFAULT CURRENT_TIMESTAMP(N) ON UPDATE CURRENT_TIMESTAMP(N) (matching its
+	// fractional-seconds precision) UNLESS it has an explicit default or is explicitly
+	// NULL. An explicit `TIMESTAMP NULL` suppresses the magic and reads back
+	// `NULL DEFAULT NULL`; an explicit `TIMESTAMP NOT NULL` still receives the magic. We
+	// key the condition off the canonical NOT NULL state (which already encodes the
+	// explicit-NULL / EDFT rules), so both bare and `NOT NULL` first columns get it.
+	if def == defaultAbsentKey && onUpdate == defaultAbsentKey &&
+		n.isFirstTimestampColumn(table, c) && n.CanonicalNotNull(table, c) {
+		ts := "ts:CURRENT_TIMESTAMP" + fractionalSecondsSuffix(c.ColumnType)
+		return ts, ts
+	}
+	return def, onUpdate
+}
+
+// fractionalSecondsSuffix returns "(N)" for a TIMESTAMP(N)/DATETIME(N) column type, or
+// "" when no fractional precision is declared, so the injected CURRENT_TIMESTAMP default
+// carries the same precision MySQL stores (entry timestamp-magic-first-57: TIMESTAMP(3)
+// → CURRENT_TIMESTAMP(3)).
+func fractionalSecondsSuffix(columnType string) string {
+	p := parseColumnType(columnType)
+	if p.hasLen && p.length > 0 {
+		return fmt.Sprintf("(%d)", p.length)
+	}
+	return ""
+}
+
+// canonicalOnUpdate returns the canonical ON UPDATE key for a column.
+func (n *Normalizer) canonicalOnUpdate(c *Column) string {
+	if c.OnUpdate == "" {
+		return defaultAbsentKey
+	}
+	if ts, ok := normalizeCurrentTimestamp(c.OnUpdate); ok {
+		return "ts:" + ts
+	}
+	return "str:" + c.OnUpdate
+}
+
+// isFirstTimestampColumn reports whether c is the first TIMESTAMP column (by position)
+// in the table — the one that receives the EDFT-off implicit default.
+func (n *Normalizer) isFirstTimestampColumn(table *Table, c *Column) bool {
+	for _, col := range table.Columns {
+		if isTimestampType(col.DataType) {
+			return strings.EqualFold(col.Name, c.Name)
+		}
+	}
+	return false
+}
+
+// ---------------------------------------------------------------------------
+// Table options — engine default + ignore-in-diff (AUTO_INCREMENT, ROW_FORMAT).
+// ---------------------------------------------------------------------------
+
+// defaultEngine is the server default storage engine that MySQL always emits in
+// SHOW CREATE even when the user omits ENGINE.
+const defaultEngine = "innodb"
+
+// CanonicalEngine returns the table's effective storage engine, lowercased, resolving
+// an empty value to the server default (InnoDB) so an omitted ENGINE matches the
+// always-emitted ENGINE=InnoDB readback (entry engine-always-emitted).
+func (n *Normalizer) CanonicalEngine(table *Table) string {
+	e := strings.ToLower(strings.TrimSpace(table.Engine))
+	if e == "" {
+		return defaultEngine
+	}
+	return e
+}
+
+// IgnoreTableAutoIncrement always reports true: the table-level AUTO_INCREMENT=N option
+// is the live next-value counter, not schema, and changes with every insert. diff-core
+// must never compare it (entry auto-increment-counter). The column-level AUTO_INCREMENT
+// attribute is real schema and is compared separately.
+func (n *Normalizer) IgnoreTableAutoIncrement() bool { return true }
+
+// IgnoreRowFormat reports whether the table's ROW_FORMAT should be excluded from the
+// diff. The default ROW_FORMAT is environment-dependent (innodb_default_row_format) and
+// not reliably reconstructible from DDL, so it is ignored unless the user explicitly set
+// a non-default value (entry row-format-default-omitted; flag row-format-default-source).
+func (n *Normalizer) IgnoreRowFormat(table *Table) bool {
+	rf := strings.ToUpper(strings.TrimSpace(table.RowFormat))
+	return rf == "" || rf == "DEFAULT"
+}
+
+// ---------------------------------------------------------------------------
+// Comments — content comparison (decoded).
+// ---------------------------------------------------------------------------
+
+// CanonicalComment returns a comment's content for comparison. The omni loader already
+// stores the DECODED comment content (embedded single quotes un-doubled), so the stored
+// value IS the canonical content and is returned as-is. (entry comment-escaping: the diff
+// compares decoded content, not the quoted surface form.) Re-running an un-doubling pass
+// here would be wrong — it would collapse a genuine `a”b` content down to `a'b`.
+func (n *Normalizer) CanonicalComment(comment string) string {
+	return comment
+}
+
+// ---------------------------------------------------------------------------
+// Index columns — descending direction is version-flagged.
+// ---------------------------------------------------------------------------
+
+// CanonicalIndexColumn returns a comparison key for one index column part, including
+// its prefix length (entry prefix-index) and — only on 8.0 — its DESC direction. 5.7
+// has no descending indexes and silently stores ascending, so direction is dropped from
+// the 5.7 key (entry index-desc-asc). Explicit ASC is the default and never contributes.
+func (n *Normalizer) CanonicalIndexColumn(ic *IndexColumn) string {
+	var b strings.Builder
+	if ic.Expr != "" {
+		b.WriteString("expr:")
+		b.WriteString(n.CanonicalGeneratedExpr(ic.Expr))
+	} else {
+		b.WriteString("col:")
+		b.WriteString(strings.ToLower(ic.Name))
+	}
+	if ic.Length > 0 {
+		fmt.Fprintf(&b, "(%d)", ic.Length)
+	}
+	// DESC is meaningful only on 8.0; 5.7 stores ascending regardless.
+	if n.is80() && ic.Descending {
+		b.WriteString(" desc")
+	}
+	return b.String()
+}
+
+// ---------------------------------------------------------------------------
+// CanonicalColumn — the aggregate comparison key (the phantom-diff firewall).
+// ---------------------------------------------------------------------------
+
+// CanonicalColumn returns a single stable comparison key for a column, folding every
+// per-aspect canonicalizer (type, resolved charset/collation pair, default, on-update,
+// nullability, generated expression, auto-increment, invisibility) into one string.
+// diff-core's column comparison (the MySQL analog of PG's columnsChanged at
+// pg/catalog/diff_column.go:66) compares two columns by equality of this key: equal
+// keys mean no change, so a column whose surface form differs from its synced readback
+// but whose canonical form is identical produces no phantom diff.
+//
+// It is the primary entry point; the individual Canonical*/Resolve* methods are exposed
+// for differs that need a single aspect (e.g. an ALTER that only touches the default).
+func (n *Normalizer) CanonicalColumn(table *Table, c *Column) string {
+	return n.canonicalColumn(table, c, false)
+}
+
+// canonicalSRID keys a column's spatial SRID by PRESENCE, not by value. MySQL treats an
+// explicit `SRID 0` as present-and-distinct from a column with no SRID clause (SHOW CREATE
+// echoes `/*!80003 SRID 0 */`; ST_GEOMETRY_COLUMNS.SRS_ID is 0 vs NULL). Keying on the raw
+// int would collapse `SRID 0` and no-SRID onto the same "0" — making an add/remove of an
+// explicit `SRID 0` an invisible no-op. The absent case uses a sentinel ("-") that no
+// present value can produce (a present SRID renders as a non-negative decimal), so present
+// and absent never share a key.
+func canonicalSRID(c *Column) string {
+	if !c.HasSRID {
+		return "-"
+	}
+	return strconv.Itoa(c.SRID)
+}
+
+// canonicalColumn builds the aggregate key; with stripCastCS it strips the
+// cast charset attributes from the two expression-bearing fields (generated
+// expression and expression default) — the wildcard half of the cast-charset
+// comparison in columnsCastCharsetWildcardEqual.
+func (n *Normalizer) canonicalColumn(table *Table, c *Column, stripCastCS bool) string {
+	charset, collation := n.ResolveColumnCharsetCollation(table, c)
+	def, onUpdate := n.CanonicalTimestampDefaults(table, c)
+	if stripCastCS && strings.HasPrefix(def, "expr:") {
+		def = "expr:" + stripCastCharsets(def[len("expr:"):])
+	}
+
+	gen, stored := "", ""
+	if c.Generated != nil {
+		gen = n.CanonicalGeneratedExpr(c.Generated.Expr)
+		if stripCastCS {
+			gen = stripCastCharsets(gen)
+		}
+		stored = strconv.FormatBool(c.Generated.Stored)
+	}
+	// Length-delimited field encoding: each value is prefixed with its byte length, so a
+	// value containing the field separator (e.g. a comment of ";gen=...") cannot be
+	// mistaken for another field and collide with a different column's key.
+	return encodeKeyFields(
+		"name", strings.ToLower(c.Name),
+		"type", n.CanonicalColumnType(c),
+		"cs", charset,
+		"coll", collation,
+		"notnull", strconv.FormatBool(n.CanonicalNotNull(table, c)),
+		"default", def,
+		"onupdate", onUpdate,
+		"autoinc", strconv.FormatBool(c.AutoIncrement),
+		"comment", n.CanonicalComment(c.Comment),
+		"gen", gen,
+		"stored", stored,
+		"invisible", strconv.FormatBool(c.Invisible),
+		"srid", canonicalSRID(c),
+	)
+}
+
+// encodeKeyFields joins (label, value) pairs into an unambiguous comparison key. Each
+// value is written as "<label>:<len>:<value>" so no value byte sequence can be confused
+// with a delimiter or another field — making the aggregate key collision-free regardless
+// of value content (comments, defaults, expressions).
+func encodeKeyFields(pairs ...string) string {
+	var b strings.Builder
+	for i := 0; i+1 < len(pairs); i += 2 {
+		b.WriteString(pairs[i])
+		b.WriteByte(':')
+		b.WriteString(strconv.Itoa(len(pairs[i+1])))
+		b.WriteByte(':')
+		b.WriteString(pairs[i+1])
+		b.WriteByte('|')
+	}
+	return b.String()
+}
+
+// ---------------------------------------------------------------------------
+// CHECK constraints — version-flagged (8.0 normalized + auto-named; 5.7 dropped).
+// ---------------------------------------------------------------------------
+
+// CheckSupported reports whether CHECK constraints are represented in the stored form
+// for the target version. 8.0 keeps and normalizes CHECK; 5.7 parses and silently drops
+// it, so any target CHECK is unrepresentable and cannot round-trip (entry
+// check-constraint). diff-core must skip CHECK on 5.7 (treat as unsupported) and compare
+// the normalized expression on 8.0.
+func (n *Normalizer) CheckSupported() bool { return n.is80() }
+
+// CanonicalCheckExpr returns the canonical key for a CHECK constraint expression on 8.0,
+// using the same expression normalizer as generated columns (entry check-constraint:
+// "(a > 0)" -> "((`a` > 0))" normalized). On 5.7 callers should consult CheckSupported
+// first; this still returns a normalized key for completeness.
+func (n *Normalizer) CanonicalCheckExpr(expr string) string {
+	return n.CanonicalGeneratedExpr(expr)
+}
+
+// ---------------------------------------------------------------------------
+// Partition bound / expression canonicalization (entry partition-constant-folding).
+//
+// MySQL constant-folds a non-literal RANGE/LIST partition BOUND at storage time and SHOW CREATE
+// echoes only the folded integer literal (verified on live 5.7.25 + 8.0.32):
+//
+//	VALUES LESS THAN (5+5)                  -> (10)
+//	VALUES LESS THAN (100 DIV 3)            -> (33)
+//	VALUES LESS THAN (TO_DAYS('2020-01-01'))-> (737790)
+//	VALUES IN (1+1, 2+2)                    -> (2,4)
+//
+// The partition EXPRESSION itself (RANGE (YEAR(`dt`)), HASH (`id`+0)) is NOT constant-folded by the
+// engine — it references columns — so only its surface (backticks/case) differs across versions,
+// which the loader already canonicalizes. The bound value is the residual phantom-diff.
+//
+// The bound fold is done at LOAD time (partitionValueItemSQL in tablecmds.go) using the parsed AST,
+// which is the only place the structured expression is available; foldConstIntExpr below is the
+// shared evaluator. The diff comparison key for a partition (showPartitioning over the resolved
+// spec) is built in diff_partition.go, which routes the stored bound/expression text through
+// CanonicalPartitionValue / CanonicalPartitionExpr so two equal-after-fold specs compare equal
+// regardless of incidental whitespace.
+//
+// FLAGGED RESIDUAL LIMITATION: a bound whose expression the folder cannot evaluate — a
+// non-deterministic or unsupported function, or any non-integer-constant expression — is kept
+// verbatim and only round-trips when the user already wrote the engine's folded form. Folding the
+// full general case needs a complete constant-expression evaluator; the common integer-arithmetic
+// and TO_DAYS/YEAR-on-literal cases are handled here. See the PR summary flag.
+// ---------------------------------------------------------------------------
+
+// CanonicalPartitionValue canonicalizes a stored partition bound value list (the text inside
+// `VALUES LESS THAN (...)` / `VALUES IN (...)`) for the partition comparison key. The integer
+// constant-folding itself happens at load (partitionValueItemSQL); this collapses incidental
+// whitespace around the comma/paren separators so two bound lists that fold to the same literals
+// compare equal. MAXVALUE and string literals pass through unchanged.
+func (n *Normalizer) CanonicalPartitionValue(value string) string {
+	return canonicalPartitionText(value)
+}
+
+// CanonicalPartitionExpr canonicalizes a stored partition expression (the text inside
+// `RANGE (...)` / `LIST (...)` / `HASH (...)`) for the partition comparison key. The loader already
+// folds the version-divergent surface (backtick quoting, function-name case) into one form; this
+// only normalizes incidental whitespace so the comparison is insensitive to it. The expression is
+// not constant-folded (it references columns).
+func (n *Normalizer) CanonicalPartitionExpr(expr string) string {
+	return canonicalPartitionText(expr)
+}
+
+// canonicalPartitionText normalizes incidental whitespace OUTSIDE quoted string literals in
+// partition bound/expression text: runs of spaces collapse to one and spaces around commas/parens
+// are removed, so two specs that fold to the same values do not diff on formatting alone. Content
+// INSIDE a single-quoted string literal (a LIST/RANGE COLUMNS string bound such as `'a, b'`) is
+// copied byte-for-byte — MySQL echoes string bounds verbatim, so collapsing spaces or commas inside
+// them would corrupt the value and could mask a real partition-bound change.
+func canonicalPartitionText(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	prevSpace := false
+	inString := false
+	bs := []byte(s)
+	for i := 0; i < len(bs); i++ {
+		c := bs[i]
+		if inString {
+			b.WriteByte(c)
+			switch {
+			case c == '\\' && i+1 < len(bs):
+				// Backslash escape: copy the escaped byte verbatim too.
+				i++
+				b.WriteByte(bs[i])
+			case c == '\'':
+				if i+1 < len(bs) && bs[i+1] == '\'' {
+					// Doubled '' escape inside the string: copy the second quote, stay in-string.
+					i++
+					b.WriteByte('\'')
+				} else {
+					inString = false
+				}
+			}
+			continue
+		}
+		if c == '\'' {
+			if prevSpace && b.Len() > 0 && lastWritten(&b) != ',' && lastWritten(&b) != '(' {
+				b.WriteByte(' ')
+			}
+			prevSpace = false
+			inString = true
+			b.WriteByte(c)
+			continue
+		}
+		if c == ' ' || c == '\t' || c == '\n' {
+			prevSpace = true
+			continue
+		}
+		if prevSpace {
+			// Drop the pending space around a comma/paren; otherwise keep a single separator.
+			if b.Len() > 0 && c != ',' && c != ')' && lastWritten(&b) != ',' && lastWritten(&b) != '(' {
+				b.WriteByte(' ')
+			}
+			prevSpace = false
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
+func lastWritten(b *strings.Builder) byte {
+	s := b.String()
+	if len(s) == 0 {
+		return 0
+	}
+	return s[len(s)-1]
+}
+
+// foldConstIntExpr evaluates a partition bound expression to a signed 64-bit integer when it is a
+// constant integer expression, returning ok=false for anything it cannot fold. It is intentionally
+// conservative: a false result means "render verbatim", NEVER a wrong literal. It declines on
+// overflow, division by zero, non-even real division, column references, string/float results, and
+// any operator or function outside the supported set.
+//
+// Supported (deliberately narrow — the common RANGE/LIST bound idioms verified against the live
+// engine): integer literals; unary + and - (overflow-checked); the integer binary operators
+// + - * (overflow-checked), DIV (truncating integer division), and / (only when it divides evenly,
+// since otherwise MySQL stores a decimal this cannot represent); parenthesized subexpressions; and
+// the deterministic functions TO_DAYS, TO_SECONDS, YEAR on a single literal date string.
+//
+// Deliberately NOT supported (declined → verbatim): MOD and the bitwise/shift operators (& | ^ << >>
+// and ~). MySQL evaluates those with UNSIGNED 64-bit semantics that signed Go int64 does not match
+// (e.g. MySQL `~0` = 18446744073709551615, `-1 >> 1` = 9223372036854775807), and they are exotic in
+// partition bounds — folding them risks a WRONG literal, so they are left verbatim instead.
+func foldConstIntExpr(node nodes.ExprNode) (int64, bool) {
+	switch e := node.(type) {
+	case *nodes.IntLit:
+		return e.Value, true
+	case *nodes.ParenExpr:
+		return foldConstIntExpr(e.Expr)
+	case *nodes.UnaryExpr:
+		v, ok := foldConstIntExpr(e.Operand)
+		if !ok {
+			return 0, false
+		}
+		switch e.Op {
+		case nodes.UnaryPlus:
+			return v, true
+		case nodes.UnaryMinus:
+			// Negating math.MinInt64 overflows; decline rather than wrap.
+			if v == minInt64 {
+				return 0, false
+			}
+			return -v, true
+		}
+		return 0, false
+	case *nodes.BinaryExpr:
+		return foldConstIntBinary(e)
+	case *nodes.FuncCallExpr:
+		return foldConstIntFunc(e)
+	}
+	return 0, false
+}
+
+const minInt64 = int64(-1) << 63
+
+// foldConstIntBinary folds a supported integer binary operation over two foldable integer operands,
+// declining (ok=false) on overflow or division by zero so the bound is rendered verbatim instead of
+// as a wrong literal.
+func foldConstIntBinary(e *nodes.BinaryExpr) (int64, bool) {
+	l, ok := foldConstIntExpr(e.Left)
+	if !ok {
+		return 0, false
+	}
+	r, ok := foldConstIntExpr(e.Right)
+	if !ok {
+		return 0, false
+	}
+	switch e.Op {
+	case nodes.BinOpAdd:
+		return addChecked(l, r)
+	case nodes.BinOpSub:
+		return subChecked(l, r)
+	case nodes.BinOpMul:
+		return mulChecked(l, r)
+	case nodes.BinOpDiv:
+		// Real division: fold only when it divides evenly to an integer; otherwise the engine
+		// stores a decimal this cannot represent, so decline. (`||` short-circuits, so l%r is not
+		// evaluated when r == 0.)
+		if r == 0 || l%r != 0 {
+			return 0, false
+		}
+		return l / r, true
+	case nodes.BinOpDivInt:
+		// MySQL DIV is truncating integer division. MinInt64 / -1 overflows; decline it.
+		if r == 0 || (l == minInt64 && r == -1) {
+			return 0, false
+		}
+		return l / r, true
+	}
+	return 0, false
+}
+
+// addChecked / subChecked / mulChecked return ok=false on signed 64-bit overflow so the folder
+// declines rather than emitting a wrapped (wrong) literal.
+func addChecked(a, b int64) (int64, bool) {
+	s := a + b
+	if (b > 0 && s < a) || (b < 0 && s > a) {
+		return 0, false
+	}
+	return s, true
+}
+
+func subChecked(a, b int64) (int64, bool) {
+	d := a - b
+	if (b < 0 && d < a) || (b > 0 && d > a) {
+		return 0, false
+	}
+	return d, true
+}
+
+func mulChecked(a, b int64) (int64, bool) {
+	if a == 0 || b == 0 {
+		return 0, true
+	}
+	p := a * b
+	// p/a == b detects overflow except for the MinInt64 * -1 edge, handled explicitly.
+	if (a == minInt64 && b == -1) || (b == minInt64 && a == -1) || p/a != b {
+		return 0, false
+	}
+	return p, true
+}
+
+// foldConstIntFunc folds a small set of deterministic date functions whose argument is a single
+// literal date string: TO_DAYS, TO_SECONDS, YEAR. These are the date idioms that appear in RANGE
+// partition bounds; the engine evaluates them at storage time to an integer. Any other function, or
+// a non-literal / non-parseable argument, declines (rendered verbatim).
+func foldConstIntFunc(e *nodes.FuncCallExpr) (int64, bool) {
+	if e.Schema != "" || len(e.Args) != 1 {
+		return 0, false
+	}
+	s, ok := stringLitValue(e.Args[0])
+	if !ok {
+		return 0, false
+	}
+	y, mo, d, hh, mi, ss, ok := parseDateTimeLiteral(s)
+	if !ok {
+		return 0, false
+	}
+	switch strings.ToUpper(e.Name) {
+	case "YEAR":
+		return int64(y), true
+	case "TO_DAYS":
+		return calcDayNumber(y, mo, d), true
+	case "TO_SECONDS":
+		// TO_SECONDS = TO_DAYS*86400 + time-of-day seconds (MySQL definition).
+		return calcDayNumber(y, mo, d)*86400 + int64(hh*3600+mi*60+ss), true
+	}
+	return 0, false
+}
+
+// stringLitValue extracts the string content of a string-literal argument (unwrapping a paren),
+// returning ok=false for any non-string-literal node. A DATE/TIMESTAMP temporal literal carries its
+// inner string in Value, so TO_DAYS(DATE '2020-01-01') folds symmetrically with the bare-string
+// TO_DAYS('2020-01-01') form. A TIME literal is excluded: its value is a clock string, not a date,
+// and a TIME spelled to look like a date (TIME '2020-01-01') is rejected by MySQL itself (error
+// 1525), so folding it would model a value the engine never stores — render verbatim instead.
+func stringLitValue(node nodes.ExprNode) (string, bool) {
+	switch e := node.(type) {
+	case *nodes.StringLit:
+		return e.Value, true
+	case *nodes.TemporalLit:
+		if strings.EqualFold(e.Type, "TIME") {
+			return "", false
+		}
+		return e.Value, true
+	case *nodes.ParenExpr:
+		return stringLitValue(e.Expr)
+	}
+	return "", false
+}
+
+// parseDateTimeLiteral parses a MySQL date or datetime string literal in the canonical
+// `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS` form into its components. It is deliberately strict: the
+// year MUST be exactly four digits and every other field exactly two (the fully zero-padded forms a
+// partition bound literal realistically uses), and the date is validated against the proleptic
+// Gregorian calendar. Anything else — notably a TWO-DIGIT year (which MySQL expands via its own
+// 70→1970 / 69→2069 rule that this folder does not reproduce) — declines, so the caller renders the
+// expression verbatim rather than risk a wrong fold.
+func parseDateTimeLiteral(s string) (y, mo, d, hh, mi, ss int, ok bool) {
+	s = strings.TrimSpace(s)
+	datePart := s
+	timePart := ""
+	if i := strings.IndexByte(s, ' '); i >= 0 {
+		datePart = s[:i]
+		timePart = strings.TrimSpace(s[i+1:])
+	}
+	dp := strings.Split(datePart, "-")
+	if len(dp) != 3 {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	y, ok = parseFixedWidthUint(dp[0], 4)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	mo, ok = parseFixedWidthUint(dp[1], 2)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	d, ok = parseFixedWidthUint(dp[2], 2)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	if !validGregorianDate(y, mo, d) {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	if timePart != "" {
+		tp := strings.Split(timePart, ":")
+		if len(tp) != 3 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+		hh, ok = parseFixedWidthUint(tp[0], 2)
+		if !ok || hh > 23 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+		mi, ok = parseFixedWidthUint(tp[1], 2)
+		if !ok || mi > 59 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+		ss, ok = parseFixedWidthUint(tp[2], 2)
+		if !ok || ss > 59 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+	}
+	return y, mo, d, hh, mi, ss, true
+}
+
+// parseFixedWidthUint parses an unsigned integer field of EXACTLY width digits (all zero-padded),
+// declining anything shorter or longer. The exact-width requirement is what rejects a two-digit
+// year, whose MySQL expansion rule this folder does not reproduce.
+func parseFixedWidthUint(s string, width int) (int, bool) {
+	if len(s) != width {
+		return 0, false
+	}
+	v := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+		v = v*10 + int(r-'0')
+	}
+	return v, true
+}
+
+// validGregorianDate validates a (year, month, day) triple against the proleptic Gregorian
+// calendar (the calendar MySQL's date functions assume), including leap-year rules.
+func validGregorianDate(y, mo, d int) bool {
+	if mo < 1 || mo > 12 || d < 1 {
+		return false
+	}
+	return d <= daysInMonth(y, mo)
+}
+
+func daysInMonth(y, mo int) int {
+	switch mo {
+	case 1, 3, 5, 7, 8, 10, 12:
+		return 31
+	case 4, 6, 9, 11:
+		return 30
+	case 2:
+		if isLeapYear(y) {
+			return 29
+		}
+		return 28
+	}
+	return 0
+}
+
+func isLeapYear(y int) bool {
+	return (y%4 == 0 && y%100 != 0) || y%400 == 0
+}
+
+// calcDayNumber reproduces MySQL's calc_daynr (sql-common/my_time.cc): the number of days since
+// year 0, which is exactly what TO_DAYS returns. Verified against the live engine
+// (TO_DAYS('2020-01-01')=737790, TO_DAYS('2021-01-01')=738156).
+func calcDayNumber(y, mo, d int) int64 {
+	if y == 0 && mo == 0 {
+		return 0
+	}
+	delsum := int64(365*y + 31*(mo-1) + d)
+	if mo <= 2 {
+		y--
+	} else {
+		delsum -= int64((mo*4 + 23) / 10)
+	}
+	temp := int64((y/100 + 1) * 3 / 4)
+	return delsum + int64(y)/4 - temp
+}

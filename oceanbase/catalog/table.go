@@ -1,0 +1,368 @@
+package catalog
+
+type Table struct {
+	Name             string
+	Database         *Database
+	Columns          []*Column
+	colByName        map[string]int // lowered name -> index
+	Indexes          []*Index
+	Constraints      []*Constraint
+	Engine           string
+	Charset          string
+	Collation        string
+	Comment          string
+	AutoIncrement    int64
+	Temporary        bool
+	RowFormat        string
+	KeyBlockSize     int
+	Compression      string
+	Encryption       string
+	StatsPersistent  string
+	StatsAutoRecalc  string
+	StatsSamplePages string
+	MinRows          string
+	MaxRows          string
+	AvgRowLength     string
+	Tablespace       string
+	PackKeys         string
+	Checksum         string
+	DelayKeyWrite    string
+	Partitioning     *PartitionInfo
+
+	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
+	// during multi-command ALTER TABLE. This allows a subsequent explicit
+	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).
+	droppedByCleanup map[string]bool
+}
+
+// PartitionInfo holds partition metadata for a table.
+type PartitionInfo struct {
+	Type        string   // RANGE, LIST, HASH, KEY
+	Linear      bool     // LINEAR HASH or LINEAR KEY
+	Expr        string   // partition expression (for RANGE/LIST/HASH)
+	Columns     []string // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
+	Algorithm   int      // ALGORITHM={1|2} for KEY partitioning
+	NumParts    int      // PARTITIONS num
+	Partitions  []*PartitionDefInfo
+	SubType     string   // subpartition type (HASH or KEY, "" if none)
+	SubLinear   bool     // LINEAR for subpartition
+	SubExpr     string   // subpartition expression
+	SubColumns  []string // subpartition columns
+	SubAlgo     int      // subpartition ALGORITHM
+	NumSubParts int      // actual subpartition count per partition
+	// MySQL tracks subpartition defaulting separately from NumSubParts.
+	// These mirror partition_info::use_default_subpartitions and
+	// partition_info::use_default_num_subpartitions.
+	UseDefaultSubpartitions    bool
+	UseDefaultNumSubpartitions bool
+}
+
+// PartitionDefInfo holds a single partition definition.
+type PartitionDefInfo struct {
+	Name          string
+	ValueExpr     string // "LESS THAN (...)" or "IN (...)" or ""
+	Engine        string // ENGINE option for this partition
+	Comment       string // COMMENT option for this partition
+	SubPartitions []*SubPartitionDefInfo
+}
+
+// SubPartitionDefInfo holds a single subpartition definition.
+type SubPartitionDefInfo struct {
+	Name    string
+	Engine  string
+	Comment string
+}
+
+type Column struct {
+	Position   int
+	Name       string
+	DataType   string // normalized (int, varchar, etc.)
+	ColumnType string // full type string (varchar(100), int unsigned)
+	Nullable   bool
+	// NullExplicit records whether the user wrote an explicit NULL or NOT NULL clause on
+	// the column. The diff-time canonicalizer needs it to apply MySQL's
+	// explicit_defaults_for_timestamp=OFF rule, which forces a TIMESTAMP to NOT NULL
+	// only when the column has NO explicit nullability clause — a bare `TIMESTAMP` and an
+	// explicit `TIMESTAMP NULL` are otherwise indistinguishable once loaded.
+	NullExplicit   bool
+	Default        *string
+	DefaultKind    ColumnDefaultKind
+	DefaultDropped bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement  bool
+	Charset        string
+	Collation      string
+	// CharsetExplicit / CollationExplicit record whether the user wrote a column-level
+	// CHARACTER SET / COLLATE clause, as opposed to the value being inherited from the
+	// table at load time. The diff-time canonicalizer (normalize.go) needs this to
+	// resolve the version-correct effective collation: a bare column inherits the
+	// table's collation, a CHARACTER-SET-only column resolves to the charset default,
+	// and an explicit COLLATE is honored verbatim — three cases that are otherwise
+	// indistinguishable once the loader fills Charset/Collation from inheritance.
+	CharsetExplicit              bool
+	CollationExplicit            bool
+	Comment                      string
+	OnUpdate                     string
+	OnUpdateKind                 ColumnDefaultKind
+	Generated                    *GeneratedColumnInfo
+	Invisible                    bool
+	GeneratedInvisiblePrimaryKey bool // true for MySQL-generated my_row_id GIPK
+	Hidden                       ColumnHiddenKind
+	SRID                         int // Spatial Reference ID (valid only when HasSRID)
+	// HasSRID records whether the column carries an explicit spatial SRID clause. MySQL
+	// treats `SRID 0` as present-and-distinct from a column with no SRID clause (SHOW
+	// CREATE echoes `/*!80003 SRID 0 */`; ST_GEOMETRY_COLUMNS.SRS_ID is 0 vs NULL), so
+	// presence cannot be derived from SRID != 0. Emit and diff gate on HasSRID; a
+	// non-spatial column leaves it false.
+	HasSRID           bool
+	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
+	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
+}
+
+type ColumnDefaultKind int
+
+const (
+	ColumnDefaultNone ColumnDefaultKind = iota
+	ColumnDefaultConstant
+	ColumnDefaultCurrentTimestamp
+	ColumnDefaultExpression
+)
+
+type ColumnHiddenKind int
+
+const (
+	ColumnHiddenNone ColumnHiddenKind = iota
+	ColumnHiddenSystem
+)
+
+type GeneratedColumnInfo struct {
+	Expr   string
+	Stored bool
+}
+
+type View struct {
+	Name            string
+	Database        *Database
+	Definition      string
+	Algorithm       string
+	Definer         string
+	SqlSecurity     string
+	CheckOption     string
+	Columns         []string // All column names (explicit or derived from SELECT)
+	ColumnMetadata  []ViewColumn
+	ExplicitColumns bool   // true if the user specified a column list in CREATE VIEW
+	AnalyzedQuery   *Query // analyzed view body (populated on CREATE VIEW); nil if analysis failed
+	IsUpdatable     bool
+}
+
+type ViewColumn struct {
+	Name      string
+	Nullable  bool
+	Type      *ResolvedType
+	Charset   string
+	Collation string
+}
+
+// Routine represents a stored function or procedure in the catalog.
+type Routine struct {
+	Name            string
+	Database        *Database
+	IsProcedure     bool
+	Definer         string
+	Params          []*RoutineParam
+	Returns         string // return type string for functions (empty for procedures)
+	Body            string
+	Characteristics map[string]string // name -> value (DETERMINISTIC, COMMENT, etc.)
+
+	// Session context captured when the routine was created: sql_mode,
+	// character_set_client, collation_connection. These are NOT part of the routine's
+	// declarative identity — canonicalRoutine excludes them, so a mode-only difference
+	// never triggers a diff — and the SDL text never carries them. They are populated
+	// out-of-band via Catalog.ApplySessionContext from the synced metadata. On a
+	// DROP+CREATE recreate the generator wraps the emitted CREATE in a save/restore of
+	// these values (sourced from the OLD object) so the routine is re-created under its
+	// original session, matching mysqldump's framing. The database default collation is
+	// deliberately not carried — it is a schema property, not session-settable per-object
+	// (see session_context.go).
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	// HasSessionContext records whether the fields above were populated from the synced
+	// metadata (via ApplySessionContext). It gates the recreate framing: an authored empty
+	// sql_mode ('') round-trips only when the context is known to be present, so the
+	// generator distinguishes "context applied, modes empty" (emit SET sql_mode='') from
+	// "no context" (bare CREATE).
+	HasSessionContext bool
+}
+
+// RoutineParam represents a parameter of a stored routine.
+type RoutineParam struct {
+	Direction string // IN, OUT, INOUT (empty for functions)
+	Name      string
+	TypeName  string // full type string
+}
+
+// Trigger represents a trigger in the catalog.
+type Trigger struct {
+	Name     string
+	Database *Database
+	Table    string // table name the trigger is on
+	Timing   string // BEFORE, AFTER
+	Event    string // INSERT, UPDATE, DELETE
+	Definer  string
+	Body     string
+	// Session context. DatabaseCollation is snapshotted by createTrigger from the loading
+	// session's database (pre-existing; the database default collation is a schema property,
+	// not part of the recreate framing). SQLMode / CharacterSetClient / CollationConnection
+	// are populated out-of-band via Catalog.ApplySessionContext from the synced metadata (the
+	// SDL text carries no session context). None are part of the trigger's declarative
+	// identity — triggersChanged excludes them — but on a DROP+CREATE recreate the generator
+	// wraps the emitted CREATE in a save/restore of sql_mode/charset/collation sourced from
+	// the OLD trigger. See session_context.go.
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	DatabaseCollation   string
+	// HasSessionContext records whether the synced session context was populated (via
+	// ApplySessionContext); it gates the recreate framing. Note createTrigger always snapshots
+	// CharacterSetClient/CollationConnection at load, so the gate is on HasSessionContext, not
+	// on those fields being non-empty, to keep a trigger loaded without synced context bare.
+	HasSessionContext bool
+	Order             *TriggerOrderInfo
+}
+
+// TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.
+type TriggerOrderInfo struct {
+	Follows     bool
+	TriggerName string
+}
+
+// Event represents a scheduled event in the catalog.
+type Event struct {
+	Name         string
+	Database     *Database
+	Definer      string
+	Schedule     string // raw schedule text (e.g. "EVERY 1 HOUR", "AT '2024-01-01 00:00:00'")
+	OnCompletion string // PRESERVE, NOT PRESERVE, or "" (default NOT PRESERVE)
+	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE, or "" (default ENABLE)
+	Comment      string
+	Body         string
+
+	// Session context captured when the event was created: sql_mode, character_set_client,
+	// collation_connection, and the session time_zone (events only). These are NOT part of
+	// the event's declarative identity — eventCanonicalKey excludes them — and the SDL text
+	// never carries them; they are populated out-of-band via Catalog.ApplySessionContext
+	// from the synced metadata. Both event emission paths preserve them: a DROP+CREATE
+	// recreate AND an ALTER EVENT … DO (which empirically re-stamps sql_mode/charset/
+	// collation) are wrapped in a save/restore sourced from the OLD event. time_zone is
+	// framed too (harmless on the ALTER path, which does not re-stamp it). The database
+	// default collation is deliberately not carried — it is a schema property, not
+	// session-settable per-object (see session_context.go).
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	TimeZone            string
+	// HasSessionContext records whether the session context (including time_zone) was
+	// populated from the synced metadata (via ApplySessionContext); it gates the recreate/
+	// ALTER framing so an authored empty sql_mode ('') round-trips.
+	HasSessionContext bool
+}
+
+// cloneTable returns a deep copy of the table's mutable state.
+// The returned Table shares the same Name, Database pointer, and scalar fields,
+// but has independent slices and maps so that mutations do not affect the original.
+func cloneTable(src *Table) Table {
+	dst := *src // shallow copy of all scalar fields
+
+	// Deep copy columns.
+	dst.Columns = make([]*Column, len(src.Columns))
+	for i, sc := range src.Columns {
+		col := *sc
+		if sc.Default != nil {
+			def := *sc.Default
+			col.Default = &def
+		}
+		if sc.Generated != nil {
+			gen := *sc.Generated
+			col.Generated = &gen
+		}
+		dst.Columns[i] = &col
+	}
+
+	// Deep copy colByName.
+	dst.colByName = make(map[string]int, len(src.colByName))
+	for k, v := range src.colByName {
+		dst.colByName[k] = v
+	}
+
+	// Deep copy indexes.
+	dst.Indexes = make([]*Index, len(src.Indexes))
+	for i, si := range src.Indexes {
+		idx := *si
+		idx.Table = src // keep pointing to the original table pointer
+		cols := make([]*IndexColumn, len(si.Columns))
+		for j, sc := range si.Columns {
+			ic := *sc
+			cols[j] = &ic
+		}
+		idx.Columns = cols
+		dst.Indexes[i] = &idx
+	}
+
+	// Deep copy constraints.
+	dst.Constraints = make([]*Constraint, len(src.Constraints))
+	for i, sc := range src.Constraints {
+		con := *sc
+		con.Table = src
+		con.Columns = append([]string{}, sc.Columns...)
+		con.RefColumns = append([]string{}, sc.RefColumns...)
+		dst.Constraints[i] = &con
+	}
+
+	// Deep copy partitioning.
+	if src.Partitioning != nil {
+		pi := *src.Partitioning
+		pi.Columns = append([]string{}, src.Partitioning.Columns...)
+		pi.SubColumns = append([]string{}, src.Partitioning.SubColumns...)
+		pi.Partitions = make([]*PartitionDefInfo, len(src.Partitioning.Partitions))
+		for i, sp := range src.Partitioning.Partitions {
+			pd := *sp
+			pd.SubPartitions = make([]*SubPartitionDefInfo, len(sp.SubPartitions))
+			for j, ss := range sp.SubPartitions {
+				sd := *ss
+				pd.SubPartitions[j] = &sd
+			}
+			pi.Partitions[i] = &pd
+		}
+		dst.Partitioning = &pi
+	}
+
+	return dst
+}
+
+func (t *Table) GetColumn(name string) *Column {
+	idx, ok := t.colByName[toLower(name)]
+	if !ok {
+		return nil
+	}
+	return t.Columns[idx]
+}
+
+func (t *Table) VisibleColumns() []*Column {
+	result := make([]*Column, 0, len(t.Columns))
+	for _, col := range t.Columns {
+		if col.Hidden == ColumnHiddenNone {
+			result = append(result, col)
+		}
+	}
+	return result
+}
+
+func (t *Table) HiddenColumns() []*Column {
+	result := make([]*Column, 0)
+	for _, col := range t.Columns {
+		if col.Hidden != ColumnHiddenNone {
+			result = append(result, col)
+		}
+	}
+	return result
+}
