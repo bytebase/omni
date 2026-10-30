@@ -182,7 +182,7 @@ var chainShapes = []struct {
 	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON 1", n) }},
 	{"parenthesized table list", func(n int) string { return "SELECT * FROM (" + strings.Repeat("t, ", n) + "t)" }},
 	{"INSERT VALUES", func(n int) string { return "INSERT INTO t VALUES (" + strings.Repeat("1+", n) + "1)" }},
-	{"VALUES", func(n int) string { return "VALUES ROW(" + strings.Repeat("1+", n) + "1)" }},
+	{"VALUES", func(n int) string { return "VALUES (" + strings.Repeat("1+", n) + "1)" }},
 }
 
 // TestTreeHeightLimit: a left-deep chain longer than maxTreeHeight is
@@ -233,17 +233,20 @@ func TestTreeHeightPerByte(t *testing.T) {
 	}
 }
 
-// TestTreeHeightNestedSources: a TABLE or VALUES source in the ORDER BY of
-// another, 1,000 deep. While the source and the SelectStmt over it both held
-// the ORDER BY, the tree-height walk doubled at each level. MariaDB 11.8
-// rejects TABLE and VALUES ROW, which this parser keeps from MySQL, so the
-// test bounds the parse, not its answer.
+// TestTreeHeightNestedSources: a table value constructor in the ORDER BY of
+// another, 1,000 deep, as a statement and as a subquery. While the
+// constructor and the SelectStmt over it both held the ORDER BY, the
+// tree-height walk doubled at each level. MariaDB 11.8 accepts the shape
+// (TestTableValueConstructorOracle runs it 30 deep), so it must parse, and in
+// time.
 func TestTreeHeightNestedSources(t *testing.T) {
-	for _, open := range []string{"TABLE t ORDER BY (", "VALUES ROW(1) ORDER BY ("} {
-		err := parseWithin(nest(1000, open, "SELECT 1", ")"))
-		var pe *ParseError
-		if err != nil && !errors.As(err, &pe) {
-			t.Errorf("%s: %v", open, err)
+	const open = "VALUES (1) ORDER BY ("
+	for _, sql := range []string{
+		nest(1000, open, "SELECT 1", ")"),
+		"SELECT (" + nest(1000, open, "SELECT 1", ")") + ")",
+	} {
+		if err := parseWithin(sql); err != nil {
+			t.Errorf("%s...: %v", sql[:40], briefErr(err))
 		}
 	}
 }

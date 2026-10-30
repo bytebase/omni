@@ -267,6 +267,9 @@ func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
 	return b.String()
 }
 
+// deparseValuesQueryPrimary formats a table value constructor and the
+// clauses after it as MariaDB's SHOW CREATE VIEW does:
+// values (1,2),(3,4) order by 1 limit 1 for update.
 func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
 	var b strings.Builder
 
@@ -280,7 +283,7 @@ func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
 		if i > 0 {
 			b.WriteString(",")
 		}
-		b.WriteString("row(")
+		b.WriteString("(")
 		for j, expr := range row {
 			if j > 0 {
 				b.WriteString(",")
@@ -290,6 +293,10 @@ func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(")")
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
+	if stmt.ForUpdate != nil {
+		b.WriteString(" ")
+		b.WriteString(deparseForUpdate(stmt.ForUpdate))
+	}
 	return b.String()
 }
 

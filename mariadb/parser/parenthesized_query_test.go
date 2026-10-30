@@ -114,10 +114,22 @@ func TestParenthesizedQueryLocking(t *testing.T) {
 	}
 }
 
-// TestParenthesizedQueryMysqlPrimaries tracks MySQL query primaries that TiDB's
-// parenthesized-query PR explicitly deferred. These require SelectStmt to model
-// non-SELECT primaries as operands, not just SELECT leaves.
+// TestParenthesizedQueryMysqlPrimaries tracks non-SELECT query primaries as
+// parenthesized operands, which need SelectStmt to model them, not just SELECT
+// leaves. MariaDB's is the table value constructor; MySQL's TABLE t and
+// VALUES ROW(...) are syntax errors in MariaDB 11.8.
 func TestParenthesizedQueryMysqlPrimaries(t *testing.T) {
+	for _, sql := range []string{
+		"(VALUES (1))",
+		"((VALUES (1)))",
+		"(SELECT 1) UNION (VALUES (2))",
+		"(VALUES (1)) UNION (SELECT 1)",
+		"(VALUES (1) ORDER BY 1 LIMIT 1) UNION VALUES (2) ORDER BY 1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
 	for _, sql := range []string{
 		"(TABLE t)",
 		"(VALUES ROW(1))",
@@ -125,9 +137,9 @@ func TestParenthesizedQueryMysqlPrimaries(t *testing.T) {
 		"(TABLE t) UNION (SELECT 1)",
 		"(SELECT 1) UNION (VALUES ROW(2))",
 	} {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 

@@ -102,49 +102,55 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	}
 
 	// Optional column list: (col1, col2, ...)
+	//
+	// Distinguish a column list from a parenthesized query SOURCE. A column
+	// list always starts with an identifier (or ')'); a parenthesized query
+	// source starts with SELECT, VALUES, WITH, or a nested '(' — none of which
+	// can begin a column name. MariaDB's lexer decides the same way
+	// (sql/sql_lex.cc, the left_paren case of MYSQLlex). So when the token
+	// after '(' is one of those, this is INSERT ... (query) — possibly the left
+	// operand of a set operation, e.g. (SELECT 1) UNION (SELECT 2) or
+	// ((SELECT 1) UNION (SELECT 2)) — which the source switch below parses,
+	// followed like any source by ON DUPLICATE KEY UPDATE and RETURNING.
 	if p.cur.Type == '(' {
-		// Distinguish a column list from a parenthesized query SOURCE. A column
-		// list always starts with an identifier (or ')'); a parenthesized query
-		// source starts with SELECT, WITH, or a nested '(' — none of which can
-		// begin a column name. So when the token after '(' is one of those, this
-		// is INSERT ... (query) — possibly the left operand of a set operation,
-		// e.g. (SELECT 1) UNION (SELECT 2) or ((SELECT 1) UNION (SELECT 2)).
-		// parseSelectStmt (parseSelectNoParens) consumes the parentheses and any
-		// trailing set-op / ORDER BY / LIMIT, so the '(' is NOT consumed here.
-		next := p.peekNext()
-		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' {
-			sel, err := p.parseSelectStmt()
+		switch p.peekNext().Type {
+		case kwSELECT, kwVALUES, kwWITH, '(':
+		default:
+			cols, err := p.parseInsertColumnList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Columns = cols
+		}
+	}
+
+	// Parse the data source: VALUES, SET, or a query.
+	//
+	// MariaDB parses VALUES rows as a table value constructor, the first
+	// query primary of a query expression: insert_values (MariaDB 11.8.8
+	// sql/sql_yacc.yy, line 13744) is create_select_query_expression. Rows
+	// followed by a set operation or by ORDER BY, LIMIT, or locking are
+	// therefore a query, as in INSERT INTO t VALUES (1) UNION VALUES (2), and
+	// become the Select of the statement; rows alone stay its Values. Right
+	// after the table or the column list MariaDB's lexer reads VALUE as VALUES
+	// (sql/sql_lex.cc, BEFORE_OPT_LIST and AFTER_LIST), so VALUE starts the
+	// rows too, but only these first ones. MySQL's ROW(...) is not a row there,
+	// and MariaDB has no INSERT ... TABLE.
+	switch p.cur.Type {
+	case kwVALUES, kwVALUE:
+		values, err := p.parseValuesConstructor()
+		if err != nil {
+			return nil, err
+		}
+		if p.atQueryExpressionTail() {
+			sel, err := p.parseQueryAfterValues(values)
 			if err != nil {
 				return nil, err
 			}
 			stmt.Select = sel
-			if p.cur.Type == kwRETURNING {
-				ret, err := p.parseReturningClause()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Returning = ret
-			}
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
+		} else {
+			stmt.Values = values.Rows
 		}
-		// Otherwise, parse column list
-		cols, err := p.parseInsertColumnList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Columns = cols
-	}
-
-	// Parse the data source: VALUES, SET, or SELECT
-	switch p.cur.Type {
-	case kwVALUES:
-		p.advance() // consume VALUES
-		rows, err := p.parseValuesRows()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Values = rows
 
 	case kwSET:
 		p.advance() // consume SET
@@ -164,28 +170,10 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 		stmt.Select = sel
 
-	case kwTABLE:
-		// TABLE table_name (MySQL 8.0.19+)
-		tblStmt, err := p.parseTableStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.TableSource = tblStmt
-
 	default:
-		// Also accept VALUE (MySQL alias for VALUES)
-		if p.cur.Type == kwVALUE {
-			p.advance()
-			rows, err := p.parseValuesRows()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Values = rows
-		} else {
-			return nil, &ParseError{
-				Message:  "expected VALUES, SET, or SELECT in INSERT statement",
-				Position: p.cur.Loc,
-			}
+		return nil, &ParseError{
+			Message:  "expected VALUES, SET, or SELECT in INSERT statement",
+			Position: p.cur.Loc,
 		}
 	}
 
@@ -261,22 +249,31 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 	return cols, nil
 }
 
-// parseValuesRows parses one or more value rows: (val_list), (val_list), ...
-// Also accepts ROW(val_list), ROW(val_list) row constructor syntax (MySQL 8.0.19+).
+// parseValuesRows parses the rows of INSERT ... VALUES and of a table value
+// constructor: one or more parenthesized lists of values, each possibly
+// empty, as in INSERT INTO t VALUES ().
 //
-//	row_constructor_list:
-//	    ROW(value_list)[, ROW(value_list)][, ...]
+// Ref: MariaDB 11.8.8 sql/sql_yacc.yy, values_list (line 13748) and
+// no_braces (13788), a list of '(' opt_values ')'.
 func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 	var rows [][]nodes.ExprNode
 	for {
-		// Optional ROW keyword before each parenthesized value list
-		p.match(kwROW)
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		row, err := p.parseExprList()
-		if err != nil {
-			return nil, err
+		var row []nodes.ExprNode
+		if p.cur.Type != ')' {
+			for {
+				e, err := p.parseValuesItem()
+				if err != nil {
+					return nil, err
+				}
+				row = append(row, e)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -288,6 +285,26 @@ func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 		p.advance()
 	}
 	return rows, nil
+}
+
+// parseValuesItem parses one value of a VALUES row: an expression or
+// DEFAULT, which parseExpr reads. parseExpr also reads * and t.*, which only
+// a select list takes.
+func (p *Parser) parseValuesItem() (nodes.ExprNode, error) {
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if star, ok := e.(*nodes.StarExpr); ok {
+		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: star.Loc.Start}
+	}
+	if ref, ok := e.(*nodes.ColumnRef); ok && ref.Star {
+		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
+	}
+	return e, nil
 }
 
 // parseOnDuplicateKeyUpdate parses ON DUPLICATE KEY UPDATE col=val, col=val, ...
@@ -304,5 +321,11 @@ func (p *Parser) parseOnDuplicateKeyUpdate() ([]*nodes.Assignment, error) {
 	if _, err := p.expect(kwUPDATE); err != nil {
 		return nil, err
 	}
+	// Here VALUES is the VALUES(col) function, not a table value constructor
+	// (opt_insert_update sets IN_UPDATE_ON_DUP_KEY, MariaDB 11.8.8
+	// sql/sql_yacc.yy line 13888).
+	saved := p.valuesIsFunction
+	p.valuesIsFunction = true
+	defer func() { p.valuesIsFunction = saved }()
 	return p.parseAssignmentList()
 }

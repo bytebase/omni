@@ -1968,35 +1968,37 @@ func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
 	return de, nil
 }
 
-// parseValuesFunc parses VALUES(col_name) used in INSERT ... ON DUPLICATE KEY UPDATE.
+// parseValuesFunc parses the VALUES(col_name) function. MariaDB reads it
+// only in the assignments of INSERT ... ON DUPLICATE KEY UPDATE and in the
+// expression of PARTITION BY LIST (see valuesIsFunction); anywhere else
+// VALUES begins a table value constructor, and VALUE(col_name) is the
+// function. Its argument is a column name, possibly qualified, not an
+// expression.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/miscellaneous-functions.html#function_values
-//
-//	VALUES(col_name)
+// Ref: https://mariadb.com/kb/en/values-value/
+// MariaDB 11.8.8 sql/sql_yacc.yy: function_call_nonkeyword (line 10286),
+// VALUE_SYM '(' simple_ident_nospvar ')', which the lexer makes of VALUES
+// in those two places.
 func (p *Parser) parseValuesFunc() (nodes.ExprNode, error) {
+	if !p.valuesIsFunction {
+		return nil, p.syntaxErrorAtCur()
+	}
 	start := p.pos()
 	p.advance() // consume VALUES
 
-	// VALUES without '(' is handled elsewhere (e.g., VALUES row constructor in INSERT)
-	// Here we handle the function form VALUES(col_name)
-	if p.cur.Type != '(' {
-		// Not a function call — this shouldn't be reached from parsePrimaryExpr
-		// since VALUES without '(' is not a valid expression
-		return nil, &ParseError{
-			Message:  "expected '(' after VALUES in expression context",
-			Position: p.cur.Loc,
-		}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
 	}
-	p.advance() // consume '('
-
-	col, err := p.parseExpr()
+	if p.isVariableRef() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	col, err := p.parseColumnRef()
 	if err != nil {
 		return nil, err
 	}
-	if col == nil {
-		return nil, p.syntaxErrorAtCur()
+	if col.Star {
+		return nil, p.syntaxErrorAtTok(p.prev)
 	}
-
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
