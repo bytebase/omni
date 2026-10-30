@@ -331,14 +331,14 @@ type spanWalker struct {
 	dialect     Dialect
 	scope       *cteScope
 	fromAliases map[string]bool // alias + bare table name of the current SELECT's FROM sources
-	// leafRels is the current SELECT's leaf FROM relations (base tables, CTE
+	// leaves is the current SELECT's leaf FROM relations (base tables, CTE
 	// references, derived subqueries) by reference name, used to resolve a column
 	// reference (`rel.col`, a bare `col` over a CTE/derived, `rel.*`) to its
 	// relation's projection. A join contributes its two sides as separate leaves
 	// here (mirroring the legacy tableSourceFrom, which held each table AND the join
 	// anchor), so `x.id` over `t x JOIN t y` resolves against leaf `x`. Saved and
 	// restored around each SELECT so nested blocks do not leak relations.
-	leafRels []*relation
+	leaves   *leafSet
 	accessed map[tableKey]bool
 	predSeen map[ColumnRef]bool
 	// failure, when set, marks the span as fail-closed: the walker met a shape it
@@ -377,6 +377,7 @@ func newSpanWalker(span *QuerySpan, dialect Dialect) *spanWalker {
 	return &spanWalker{
 		span:     span,
 		dialect:  dialect,
+		leaves:   &leafSet{},
 		accessed: make(map[tableKey]bool),
 		predSeen: make(map[ColumnRef]bool),
 	}
@@ -748,13 +749,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	// base table. Saved/restored so nested SELECTs do not leak aliases.
 	prevFrom := w.fromAliases
 	w.fromAliases = map[string]bool{}
-	prevLeaves := w.leafRels
-	w.leafRels = nil
-	defer func() { w.fromAliases = prevFrom; w.leafRels = prevLeaves }()
+	prevLeaves := w.leaves
+	w.leaves = &leafSet{}
+	defer func() { w.fromAliases = prevFrom; w.leaves = prevLeaves }()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
 	// one combined relation, used for a bare `*`); building them also populates
-	// w.leafRels (each base table / CTE / derived leaf, used for `rel.*` and column
+	// w.leaves (each base table / CTE / derived leaf, used for `rel.*` and column
 	// resolution) and performs the AccessTable / predicate side-effects (a base path
 	// is recorded, a subquery body walked, ON/USING predicates collected).
 	fromRels := w.buildFromRelations(stmt.From)
@@ -1171,14 +1172,14 @@ func (w *spanWalker) buildPathRelation(path *ast.PathExpr, alias string) *relati
 }
 
 // addLeaf registers a leaf FROM relation in the current SELECT's lookup set
-// (w.leafRels), used to resolve `rel.col` / `rel.*` / bare-column references. A
+// (w.leaves), used to resolve `rel.col` / `rel.*` / bare-column references. A
 // nil or unnamed relation is skipped (a join wrapper is unnamed — its sides are
 // registered individually).
 func (w *spanWalker) addLeaf(rel *relation) {
 	if rel == nil || rel.name == "" {
 		return
 	}
-	w.leafRels = append(w.leafRels, rel)
+	w.leaves.add(rel)
 }
 
 // registerFromAlias records a derived-relation alias (subquery / TVF / correlated
