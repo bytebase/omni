@@ -96,17 +96,20 @@ func TestWalkThroughMariaDB(t *testing.T) {
 	oneFinding(t, "CREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;", 1, "Table g has no primary key", shop)
 }
 
-// TestWalkThroughMariaDBAuthority pins what the sync is not trusted for:
-// the relations and triggers it does not list (decision N2), and the
-// columns of a system-versioned table.
+// TestWalkThroughMariaDBAuthority pins what the sync is trusted for: the
+// relations, sequences and system-versioned tables among them, and the
+// triggers it does not list are missing; the columns of a
+// system-versioned table are not all listed.
 func TestWalkThroughMariaDBAuthority(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
-	noFinding(t, "ALTER TABLE nosuch ADD COLUMN b int;", shop)
-	noFinding(t, "DROP TABLE t, nosuch;", shop)
-	noFinding(t, "DROP VIEW nosuch;", shop)
-	noFinding(t, "TRUNCATE TABLE nosuch;", shop)
-	noFinding(t, "INSERT INTO nosuch VALUES (1);", shop)
-	noFinding(t, "DROP TRIGGER nosuch;", shop)
+	oneFinding(t, "ALTER TABLE nosuch ADD COLUMN b int;", 0, "Table nosuch does not exist", shop)
+	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table nosuch does not exist", shop)
+	oneFinding(t, "DROP VIEW nosuch;", 0, "View nosuch does not exist", shop)
+	oneFinding(t, "DROP SEQUENCE nosuch;", 0, "Sequence nosuch does not exist", shop)
+	oneFinding(t, "TRUNCATE TABLE nosuch;", 0, "Table nosuch does not exist", shop)
+	oneFinding(t, "INSERT INTO nosuch VALUES (1);", 0, "Table nosuch does not exist", shop)
+	oneFinding(t, "DROP TRIGGER nosuch;", 0, "Trigger nosuch does not exist", shop)
+	noFinding(t, "DROP SEQUENCE s;\nDROP TABLE vt;", shop)
 	// What the change drops is followed.
 	oneFinding(t, "DROP TABLE nokey;\nDROP TABLE nokey;", 1, "Table nokey does not exist", shop)
 	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger tr does not exist", shop)
@@ -375,18 +378,6 @@ func TestWalkThroughMariaDBTargetGroups(t *testing.T) {
 	if len(got) != 1 || len(got[0].Targets) != 1 || got[0].Targets[0] != 1 {
 		t.Errorf("ForeignKeyChecks: findings = %+v, want one on target 1", got)
 	}
-}
-
-// TestWalkThroughMariaDBOldSync walks a target as Bytebase synced it
-// before #21665, which listed no sequence and no system-versioned table:
-// such names are unknown, never absent.
-func TestWalkThroughMariaDBOldSync(t *testing.T) {
-	old := walkSchema()
-	old.Schemas[0].Sequences = nil
-	old.Schemas[0].Tables = old.Schemas[0].Tables[:3]
-	target := review.Target{Schema: old}
-	noFinding(t, "DROP SEQUENCE s;\nDROP TABLE vt;\nCREATE TABLE s (a int);", target)
-	noFinding(t, "CREATE TABLE IF NOT EXISTS vt (a int);\nALTER TABLE vt ADD COLUMN b int AFTER row_start;", target)
 }
 
 // walkForms are the statement forms of the MySQL spec's §5 table and the

@@ -77,18 +77,13 @@ func nameKey(space, name string, foldTables bool) (string, bool) {
 // mariadbSnapshot is a target's synced schema as WalkThrough trusts it:
 // one database, the target. It answers Present for what Bytebase's sync
 // lists and Absent where that sync is complete (MariaDB spec §2.1): the
+// target's relations, which it lists with its sequences and
+// system-versioned tables since Bytebase #21665, and its triggers; the
 // columns, the indexes, the primary key among them, and the foreign keys
-// of the tables it lists, the target's foreign key names, and its
-// routines and events.
-//
-// Relations and triggers are never Absent. Before Bytebase #21665 the
-// sync listed no sequence and no system-versioned table, and with such a
-// table it lost its triggers; the target does not say which sync it comes
-// from (decision N2). Its foreign keys are missing from the database's
-// names too, but a missing name is claimed only with a table's own
-// foreign keys, which the sync lists with the table. The columns of a
-// system-versioned table, which the sync marks with WITH SYSTEM
-// VERSIONING in its create options, are never Absent either:
+// of the tables it lists; the target's foreign key names; and its
+// routines and events. The columns of a system-versioned table, which the
+// sync marks with WITH SYSTEM VERSIONING in its create options, are never
+// Absent:
 // information_schema does not list its hidden row_start and row_end
 // (verified; see walker.versioned). Anything of another database is
 // Unknown, and the session starts with no temporary table.
@@ -133,15 +128,18 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 		mixed:            make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
-	// set lists a name in a space of a table, or of the database for table
-	// "". Relations and triggers are never Absent, so their spaces need no
-	// note of a name outside ASCII.
+	// mark notes a key outside ASCII in a space of a table, or of the
+	// database for table "".
+	mark := func(space, table, k string) {
+		if strings.HasPrefix(k, nonASCII) {
+			s.mixed[[2]string{space, table}] = true
+		}
+	}
+	// set lists a name in a space of a table, or of the database.
 	set := func(m map[string]bool, space, table, name string) {
 		if k, ok := nameKey(space, name, foldTables); ok {
 			m[k] = true
-			if strings.HasPrefix(k, nonASCII) {
-				s.mixed[[2]string{space, table}] = true
-			}
+			mark(space, table, k)
 		}
 	}
 	for _, schema := range db.GetSchemas() {
@@ -151,6 +149,7 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 				continue
 			}
 			s.relations[tk] = relTable
+			mark(spaceRelation, "", tk)
 			if strings.Contains(strings.ToUpper(t.GetCreateOptions()), "WITH SYSTEM VERSIONING") {
 				s.versioned[tk] = true
 			}
@@ -187,17 +186,20 @@ func newMariaDBSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables bool) *m
 						s.triggers[k] = tr.GetName()
 					}
 					s.triggered[tk] = true
+					mark(spaceTrigger, "", k)
 				}
 			}
 		}
 		for _, v := range schema.GetViews() {
 			if k, ok := nameKey(spaceRelation, v.GetName(), foldTables); ok {
 				s.relations[k] = relView
+				mark(spaceRelation, "", k)
 			}
 		}
 		for _, q := range schema.GetSequences() {
 			if k, ok := nameKey(spaceRelation, q.GetName(), foldTables); ok {
 				s.relations[k] = relSequence
+				mark(spaceRelation, "", k)
 			}
 		}
 		for _, f := range schema.GetFunctions() {
@@ -253,7 +255,7 @@ func (s *mariadbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		if kind, ok := s.relations[k.Name]; ok {
 			return walk.Present, kind
 		}
-		return walk.Unknown, ""
+		return absent()
 	case spaceColumn, spaceIndex, spaceTableForeignKey:
 		if len(path) != 2 || k.Space == spaceColumn && s.versioned[path[1]] {
 			return walk.Unknown, ""
@@ -273,7 +275,7 @@ func (s *mariadbSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		if spelling, ok := s.triggers[k.Name]; ok {
 			return walk.Present, spelling
 		}
-		return walk.Unknown, ""
+		return absent()
 	case spaceProcedure:
 		return in(s.procedures)
 	case spaceFunction:
