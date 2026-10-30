@@ -561,7 +561,7 @@ type ParseResult struct {
 // consumer that read the File without the errors analyzed less than the
 // engine would execute.
 func Parse(input string) (*ast.File, error) {
-	result := parseAll(input, true, 0)
+	result := parseAll(input, true)
 	if len(result.Errors) == 0 {
 		return result.File, nil
 	}
@@ -575,21 +575,31 @@ func Parse(input string) (*ast.File, error) {
 // type classification, and query span extraction all read Parse. Do not add
 // the strict trailing-token check here.
 func ParseBestEffort(input string) *ParseResult {
-	return parseAll(input, false, 0)
+	return parseAll(input, false)
 }
 
 // parseAll is the shared implementation behind Parse and ParseBestEffort:
 // Split the input, parse each segment, collect nodes and errors.
 // strictTrailing selects whether parseSingle rejects unconsumed trailing
-// tokens. depth is the nesting depth the statements start at: 0, or for text
-// this parse validates on behalf of an enclosing statement, the depth there,
-// so the nesting limit counts the enclosing levels too.
-func parseAll(input string, strictTrailing bool, depth int) *ParseResult {
+// tokens.
+func parseAll(input string, strictTrailing bool) *ParseResult {
+	return parseSegments(input, Split(input), strictTrailing, 0)
+}
+
+// parseSegments parses segs, the statements of input, and collects their
+// nodes and errors (see parseAll). depth is the nesting depth the statements
+// start at: 0, or for a query body this parse validates on behalf of an
+// enclosing statement (see validateRawQuery), the depth there, so the
+// nesting limit counts the enclosing levels too.
+func parseSegments(input string, segs []Segment, strictTrailing bool, depth int) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
-	for _, seg := range Split(input) {
+	for _, seg := range segs {
 		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing, depth)
+		if strictTrailing && depth == 0 && len(errs) > 0 {
+			errs = bracketedSemicolonFirst(seg, errs)
+		}
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
@@ -714,6 +724,40 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 	return result, dedupeErrors(p.errors)
 }
 
+// bracketedSemicolonFirst returns errs, the errors of a statement, with an
+// error at the statement's first ';' inside parentheses or brackets in
+// front when errs starts after it. Trino's grammar puts ';' only between
+// the statements of a routine body (SqlBase.g4 sqlStatementList), never
+// inside brackets, so that ';' is a syntax error, and Trino reports the
+// first error it reads. The parse reports the error of a query body before
+// the errors of the bodies nested in it, so without this,
+// `(SELECT (SELECT 1;) + !1)` in a routine body reported the '!', though
+// Trino reports the ';'. Only a routine definition holds such a ';': Split
+// cuts every other statement at each one.
+func bracketedSemicolonFirst(seg Segment, errs []ParseError) []ParseError {
+	if strings.IndexByte(seg.Text, ';') < 0 {
+		return errs
+	}
+	lx := NewLexerWithOffset(seg.Text, seg.ByteStart)
+	depth := 0
+	for tok := lx.NextToken(); tok.Kind != tokEOF && tok.Loc.Start < errs[0].Position; tok = lx.NextToken() {
+		switch tok.Kind {
+		case int('('), int('['), int('{'):
+			depth++
+		case int(')'), int(']'), int('}'):
+			if depth > 0 {
+				depth--
+			}
+		case int(';'):
+			if depth > 0 {
+				first := ParseError{Position: tok.Loc.Start, End: tok.Loc.End, Message: "syntax error at or near ;"}
+				return dedupeErrors(append([]ParseError{first}, errs...))
+			}
+		}
+	}
+	return errs
+}
+
 // dedupeErrors drops a later error that repeats an earlier one's position and
 // message. A raw query body validated by a nested strict parse reports its
 // lexical errors once there and once more when the outer lexer, which
@@ -820,11 +864,19 @@ func (p *Parser) validateRawQueries(qs []rawQuery) []ParseError {
 
 // validateRawQuery validates one query body captured as raw text by parsing
 // its text, and returns the errors in the outer statement's coordinates.
+//
+// The text is parsed as one statement, not split at its ';' tokens first. A
+// ';' reaches a body only in a routine definition, the one statement Split
+// keeps whole across a ';', and Trino rejects a ';' anywhere in a subquery.
+// Split, the text of `(SELECT 1; )` was the query `SELECT 1` and an empty
+// statement, which Split drops, so strict Parse accepted it. Parsed whole,
+// the ';' is a token left over after the query, reported where it is, as
+// Trino reports it.
 func (p *Parser) validateRawQuery(q rawQuery) []ParseError {
 	if strings.TrimSpace(q.text) == "" {
 		return []ParseError{{Position: q.start, End: q.start, Message: "subquery must contain exactly one query"}}
 	}
-	res := parseAll(q.text, true, q.depth)
+	res := parseSegments(q.text, []Segment{{Text: q.text, ByteEnd: len(q.text)}}, true, q.depth)
 	if len(res.Errors) > 0 {
 		out := make([]ParseError, 0, len(res.Errors))
 		for _, e := range res.Errors {
