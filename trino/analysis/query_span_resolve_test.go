@@ -63,6 +63,24 @@ func TestGetQuerySpan_NestedScalarSubqueryLineage(t *testing.T) {
 			`SELECT d.x + (SELECT (SELECT (SELECT d.x + y))) AS v FROM (SELECT phone AS x, name AS y FROM customer) d`,
 			[]ColumnRef{{Table: "d", Column: "x"}, {Column: "phone"}, {Column: "y"}, {Column: "name"}},
 		},
+		// A VALUES, set-operation or parenthesized VALUES body pushes no scope
+		// of its own, and its refs still resolve through the levels below it.
+		{
+			`SELECT (SELECT (VALUES (d.x)) FROM (SELECT phone AS x FROM customer) d) AS v`,
+			[]ColumnRef{{Table: "d", Column: "x"}, {Column: "phone"}},
+		},
+		{
+			`SELECT (SELECT (SELECT d.x UNION ALL SELECT d.x) FROM (SELECT phone AS x FROM customer) d) AS v`,
+			[]ColumnRef{{Table: "d", Column: "x"}, {Column: "phone"}},
+		},
+		{
+			`SELECT (SELECT ((VALUES (d.x))) FROM (SELECT phone AS x FROM customer) d) AS v`,
+			[]ColumnRef{{Table: "d", Column: "x"}, {Column: "phone"}},
+		},
+		{
+			`SELECT (SELECT (SELECT (VALUES (d.x)) FROM t) FROM (SELECT phone AS x FROM customer) d) AS v`,
+			[]ColumnRef{{Table: "d", Column: "x"}, {Column: "phone"}},
+		},
 	} {
 		for _, indexMin := range []int{1 << 30, 0} {
 			saved := scopeIndexMin

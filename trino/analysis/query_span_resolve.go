@@ -972,19 +972,20 @@ type lineage struct {
 	// subquery at levels[i-1] whose select items are being resolved.
 	levels []lineageLevel
 	// byKey lists, by refKey and in increasing order, the levels from 1 on
-	// whose scope may recover sources for a ref of that key (see push).
+	// whose scope may recover sources for a ref of that key (see register).
 	// The scope of levels[0] is asked directly: registering it for every
 	// expression of a select list would make the list cost the product of
 	// its length and its scope's width.
 	byKey map[refKey][]int
+	// registered counts the levels from 1 on whose keys are in byKey (see
+	// up): levels[1:registered+1].
+	registered int
 }
 
 type lineageLevel struct {
 	scope *rscope
 	seen  map[ColumnRef]bool // the refs resolved at this level already
 	keys  []refKey           // the keys registered for this level
-	// registered is set once the level's keys are in byKey (see push).
-	registered bool
 }
 
 // refKey is what resolveRef matches a ref by: its table, or "" for a bare
@@ -1038,6 +1039,16 @@ func (l *lineage) up(ref ColumnRef, i int) {
 		l.out.add(ref)
 		return
 	}
+	// Only a ref of a level above k looks k up in byKey, so the levels below
+	// i register here, when the first ref of a level above them comes, and a
+	// level no ref passes registers nothing: registering every column of a
+	// scope as it opened made each of n sibling subqueries over an n-column
+	// CTE cost n. A ref comes from a level above whether that level pushed a
+	// scope or, like a VALUES or set-operation body, did not.
+	for l.registered < i-1 {
+		l.registered++
+		l.register(l.registered)
+	}
 	j := 0
 	if l.byKey != nil {
 		stack := l.byKey[keyOf(ref)]
@@ -1064,25 +1075,17 @@ func (l *lineage) up(ref ColumnRef, i int) {
 	}
 }
 
-// push makes s, the scope of a scalar subquery of level i-1, level i. Only a
-// ref of a level above i-1 looks i-1 up in byKey (see up), so i-1 registers
-// its keys now, as the first level above it opens, and a level with none
-// above it registers nothing: registering every column of its scope made
-// each of n sibling subqueries over an n-column CTE cost n.
+// push makes s, the scope of a scalar subquery of level i-1, level i. Its
+// keys enter byKey once a ref of a level above it comes (see up).
 func (l *lineage) push(s *rscope, i int) {
-	if i > 1 {
-		l.register(i - 1)
-	}
 	l.levels = append(l.levels[:i], lineageLevel{scope: s})
 }
 
-// register enters level i's keys in byKey, once.
+// register enters level i's keys in byKey. Levels register in increasing
+// order and leave in decreasing order (see pop), so each stack stays sorted
+// and a level's keys are at the top of their stacks when it leaves.
 func (l *lineage) register(i int) {
 	lv := &l.levels[i]
-	if lv.registered {
-		return
-	}
-	lv.registered = true
 	s := lv.scope
 	if !s.recovers() {
 		return
@@ -1121,6 +1124,7 @@ func (l *lineage) pop(i int) {
 		l.byKey[k] = stack[:len(stack)-1]
 	}
 	l.levels = l.levels[:i]
+	l.registered = min(l.registered, i-1)
 }
 
 // recovers reports whether a relation in scope has a column with sources.
