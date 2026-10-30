@@ -407,9 +407,6 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			return nil, err
 		}
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
 			pd, err := p.parsePartitionDef()
 			if err != nil {
 				return nil, err
@@ -1059,9 +1056,6 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 		return nil, err
 	}
 	for {
-		if p.cur.Type == ')' {
-			break
-		}
 		pd, err := p.parsePartitionDef()
 		if err != nil {
 			return nil, err
