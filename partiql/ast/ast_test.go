@@ -65,6 +65,7 @@ var _ PathStep = (*WildcardStep)(nil)
 // Table expression nodes (tableexprs.go).
 var _ TableExpr = (*TableRef)(nil)
 var _ TableExpr = (*AliasedSource)(nil)
+var _ TableExpr = (*ExprSource)(nil)
 var _ TableExpr = (*JoinExpr)(nil)
 var _ TableExpr = (*UnpivotExpr)(nil)
 
@@ -160,6 +161,7 @@ func TestGetLoc(t *testing.T) {
 		{"WildcardStep", &WildcardStep{Loc: Loc{Start: 10, End: 20}}},
 		{"TableRef", &TableRef{Loc: Loc{Start: 10, End: 20}}},
 		{"AliasedSource", &AliasedSource{Loc: Loc{Start: 10, End: 20}}},
+		{"ExprSource", &ExprSource{Loc: Loc{Start: 10, End: 20}}},
 		{"JoinExpr", &JoinExpr{Loc: Loc{Start: 10, End: 20}}},
 		{"UnpivotExpr", &UnpivotExpr{Loc: Loc{Start: 10, End: 20}}},
 		{"TypeRef", &TypeRef{Loc: Loc{Start: 10, End: 20}}},
@@ -342,6 +344,11 @@ func TestNodeToString(t *testing.T) {
 			want: `JoinExpr{Kind:INNER Left:TableRef{Name:a} Right:TableRef{Name:b} On:BoolLit{Val:true}}`,
 		},
 		{
+			name: "expr_source",
+			node: &ExprSource{Expr: &FuncCall{Name: "f", Args: []ExprNode{&VarRef{Name: "x"}}}},
+			want: `ExprSource{Expr:FuncCall{Name:f Args:[VarRef{Name:x}]}}`,
+		},
+		{
 			name: "select_with_path_in_from",
 			node: &SelectStmt{
 				Star: true,
@@ -492,6 +499,7 @@ func allNodesForCoverageTest() []struct {
 		// tableexprs.go
 		{"TableRef", &TableRef{}},
 		{"AliasedSource", &AliasedSource{}},
+		{"ExprSource", &ExprSource{}},
 		{"JoinExpr", &JoinExpr{}},
 		{"UnpivotExpr", &UnpivotExpr{}},
 

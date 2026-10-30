@@ -83,7 +83,7 @@ func (p *Parser) parseCheckedRoot() (ast.StmtNode, error) {
 	first := p.cur
 	stmt, err := p.parseRoot()
 	// No later statement parses these tokens again.
-	p.parenMemo, p.tableMemo = nil, nil
+	p.parenMemo, p.tableMemo, p.trimFroms = nil, nil, nil
 	if err != nil {
 		return nil, err
 	}

@@ -693,7 +693,8 @@ func (p *Parser) parseExtractExpr() (ast.ExprNode, error) {
 func (p *Parser) parseTrimExpr() (ast.ExprNode, error) {
 	start := p.cur.Loc.Start
 	p.advance() // consume TRIM
-	if _, err := p.expect(tokPAREN_LEFT); err != nil {
+	lp, err := p.expect(tokPAREN_LEFT)
+	if err != nil {
 		return nil, err
 	}
 
@@ -701,7 +702,7 @@ func (p *Parser) parseTrimExpr() (ast.ExprNode, error) {
 	// speculative full-expression parse: a top-level FROM selects the
 	// `( mod? sub? FROM ) target` prefix form, its absence the bare
 	// `target` form.
-	if p.trimHasTopLevelFrom() {
+	if p.trimHasTopLevelFrom(lp.Loc.Start) {
 		spec := ast.TrimSpecNone
 		// Optional modifier: a LEADING / TRAILING / BOTH keyword. ANTLR
 		// binds `mod=IDENTIFIER` greedily, so consume it when present.
@@ -746,9 +747,9 @@ func (p *Parser) parseTrimExpr() (ast.ExprNode, error) {
 // the linear disambiguator for the optional `( mod? sub? FROM )` prefix
 // (PartiQLParser.g4:606).
 //
-// The scan is bounded and side-effect free: it snapshots the parse
-// position, advances token-by-token tracking the nesting of every paired
-// delimiter — () [] {} <<>> — and returns at the first depth-0 FROM, or
+// The scan is bounded and leaves the parse where it was: it snapshots the
+// parse position, advances token-by-token tracking the nesting of every
+// paired delimiter — () [] {} <<>> — and returns at the first depth-0 FROM, or
 // when the matching close paren / EOF ends the argument list. It then
 // restores the snapshot, leaving cur exactly where the caller left it.
 // Because it consumes each token at most once and never recurses into a
@@ -759,38 +760,109 @@ func (p *Parser) parseTrimExpr() (ast.ExprNode, error) {
 // literal — e.g. TRIM((SELECT a FROM t) FROM s) — is NOT mistaken for the
 // prefix delimiter: only the depth-0 FROM (the one separating sub from
 // target) selects the prefix form.
-func (p *Parser) trimHasTopLevelFrom() bool {
+//
+// The scan of one TRIM reads the argument lists of the TRIMs nested inside
+// it, and each of those scanned its own again when the parser reached it,
+// so TRIM(TRIM(...TRIM(x)...)) took time quadratic in the depth, over a
+// second at the nesting limit. The scan therefore runs, in the same pass,
+// the scan of every TRIM whose '(' it reads, and records each result in
+// Parser.trimFroms by the offset of that '('; when the parser reaches a
+// nested TRIM, its scan is a lookup. The scans in progress differ only in
+// their depths, which trimScanGroup keeps track of together: a scan that
+// started later is never deeper than one that started earlier, so the
+// token that ends one scan ends every later one with it. open is the
+// offset of the '(' the caller consumed.
+func (p *Parser) trimHasTopLevelFrom(open int) bool {
+	if r, ok := p.trimFroms[open]; ok {
+		return r
+	}
 	snapshot := p.save()
 	defer p.restore(snapshot)
+	if p.trimFroms == nil {
+		p.trimFroms = make(map[int]bool)
+	}
 
+	// depth counts the opening tokens read minus the closing ones. scans
+	// holds the offsets of the '(' of the scans in progress, in the order
+	// they started; groups splits it into runs (see trimScanGroup), the
+	// last run at the top.
 	depth := 0
-	for {
+	scans := []int{open}
+	groups := []trimScanGroup{{low: 0, first: 0}}
+	// end records the result v for the scans of the top group: they are
+	// at depth 0, the only ones that are.
+	end := func(v bool) {
+		top := groups[len(groups)-1]
+		for _, o := range scans[top.first:] {
+			p.trimFroms[o] = v
+		}
+		scans = scans[:top.first]
+		groups = groups[:len(groups)-1]
+	}
+	afterTRIM := false
+	for len(scans) > 0 {
+		top := &groups[len(groups)-1]
 		switch p.cur.Type {
 		case tokEOF:
 			// Unterminated argument list (also the lexer-error sentinel):
 			// no top-level FROM was found. The bare-target parse below
 			// surfaces the real syntax/lexer error.
-			return false
+			for len(groups) > 0 {
+				end(false)
+			}
+			continue
 		case tokFROM:
-			if depth == 0 {
-				return true
+			if top.low == depth {
+				end(true)
 			}
 		case tokPAREN_LEFT, tokBRACKET_LEFT, tokBRACE_LEFT, tokANGLE_DOUBLE_LEFT:
 			depth++
+			// The '(' of a nested TRIM starts its scan, at depth 0. The
+			// parser cannot reach a TRIM nested in more than
+			// maxNestingDepth others, so none is started past that; one
+			// not started here would run its own scan when reached.
+			if p.cur.Type == tokPAREN_LEFT && afterTRIM && len(scans) < maxNestingDepth {
+				groups = append(groups, trimScanGroup{low: depth, first: len(scans)})
+				scans = append(scans, p.cur.Loc.Start)
+			}
 		case tokPAREN_RIGHT:
-			if depth == 0 {
-				// TRIM's own matching close paren: argument list ended
-				// without a top-level FROM.
-				return false
+			// TRIM's own matching close paren: argument list ended
+			// without a top-level FROM.
+			if top.low == depth {
+				end(false)
 			}
 			depth--
 		case tokBRACKET_RIGHT, tokBRACE_RIGHT, tokANGLE_DOUBLE_RIGHT:
-			if depth > 0 {
-				depth--
+			// The scans at depth 0 stay there; the others go down.
+			depth--
+			if top.low == depth+1 {
+				top.low = depth
+				if n := len(groups); n > 1 && groups[n-2].low == depth {
+					groups = groups[:n-1]
+				}
 			}
 		}
+		if len(scans) == 0 {
+			break
+		}
+		afterTRIM = p.cur.Type == tokTRIM
 		p.advance()
 	}
+	return p.trimFroms[open]
+}
+
+// trimScanGroup is a run of the scans in progress in trimHasTopLevelFrom:
+// scans[first:] up to the first scan of the next run. The depth of a scan
+// is the pass's depth minus low, the lowest depth the pass has been at
+// since the scan started: an opening token adds one to both depths, and a
+// closing token takes one from both, except that ] } or >> at a scan's
+// depth 0 leaves it at 0, which lowering low with the pass's depth does.
+// low is the same for every scan of a run, and greater for every later run,
+// so the scans at depth 0 are those of the last run, when its low is the
+// pass's depth. Lowering the last run's low can make it equal to the low of
+// the run before, and the two runs then become one.
+type trimScanGroup struct {
+	low, first int
 }
 
 // finishTrim consumes the closing paren and builds the TrimExpr.

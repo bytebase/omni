@@ -357,6 +357,10 @@ func writeNode(sb *strings.Builder, n Node) {
 		writeOptString(sb, " At:", v.At)
 		writeOptString(sb, " By:", v.By)
 		sb.WriteString("}")
+	case *ExprSource:
+		sb.WriteString("ExprSource{Expr:")
+		writeNode(sb, v.Expr)
+		sb.WriteString("}")
 	case *JoinExpr:
 		fmt.Fprintf(sb, "JoinExpr{Kind:%s Left:", v.Kind)
 		writeNode(sb, v.Left)

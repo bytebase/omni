@@ -34,6 +34,9 @@ var nestingShapes = []struct {
 	{"WHERE subquery", func(n int) string { return nest(n, "SELECT a FROM t WHERE (", "SELECT a FROM t", ")") }},
 	{"IN subquery", func(n int) string { return nest(n, "SELECT a FROM t WHERE a IN (", "SELECT a FROM t", ")") }},
 	{"IN list", func(n int) string { return "SELECT * FROM t WHERE " + nest(n, "a IN (1, ", "1", ")") }},
+	{"IN operand", func(n int) string { return "SELECT * FROM t WHERE " + nest(n, "a IN (", "1", ") + 1") }},
+	{"TRIM", func(n int) string { return "SELECT " + nest(n, "TRIM(", "x", ")") + " FROM t" }},
+	{"FROM expression", func(n int) string { return "SELECT * FROM " + nest(n, "f(", "x", ")") + " AS y" }},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT * FROM t", ")") }},
 	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t CROSS JOIN ", "t", ")") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT * FROM t UNION (", "SELECT * FROM t", ")") }},
@@ -114,6 +117,7 @@ var chainShapes = []struct {
 	{"cross joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" CROSS JOIN t", n) }},
 	{"comma joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(", t", n) }},
 	{"qualified joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON true", n) }},
+	{"FROM expression", func(n int) string { return "SELECT * FROM " + strings.Repeat("1+", n) + "1 AS y" }},
 }
 
 // TestTreeHeightLimit: a left-deep chain longer than maxTreeHeight is

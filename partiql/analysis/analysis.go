@@ -129,6 +129,11 @@ func extractTables(te ast.TableExpr) []string {
 	case *ast.SubLink:
 		// subquery in FROM — no simple table name
 		return nil
+	case *ast.ExprSource:
+		// An expression that is not a path or a name, such as `f(x)` in
+		// `FROM f(x) AS y` or a collection literal, is a value, not a
+		// relation, so it names no table.
+		return nil
 	case *ast.UnpivotExpr:
 		return nil
 	}

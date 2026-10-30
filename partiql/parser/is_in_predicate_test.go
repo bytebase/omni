@@ -232,6 +232,62 @@ func TestInPredicate_Accept(t *testing.T) {
 			input: "a IN (b IS NULL)",
 			want:  "InExpr{Expr:VarRef{Name:a} List:[IsExpr{Expr:VarRef{Name:b} Type:TypeRef{Name:NULL} Not:false}] Not:false}",
 		},
+		// rhs=mathOp00 (g4:488) whose first operand is parenthesized:
+		// g4:487 cannot read past its ')', so the rhs is the whole mathOp00,
+		// and List holds it alone, as for `a IN [1, 2]`. omni rejected
+		// every one of these at the token after the ')'.
+		{
+			name:  "in_parenthesized_operand_plus",
+			input: "a IN (1) + 1",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:+ Left:NumberLit{Val:1} Right:NumberLit{Val:1}}] Not:false}",
+		},
+		{
+			name:  "not_in_parenthesized_operand_concat",
+			input: "a NOT IN (b) || 'x'",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:|| Left:VarRef{Name:b} Right:StringLit{Val:\"x\"}}] Not:true}",
+		},
+		{
+			name:  "in_parenthesized_operand_precedence",
+			input: "a IN ((1)) * 2 - 3 || 'x'",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:|| Left:BinaryExpr{Op:- Left:BinaryExpr{Op:* Left:NumberLit{Val:1} Right:NumberLit{Val:2}} Right:NumberLit{Val:3}} Right:StringLit{Val:\"x\"}}] Not:false}",
+		},
+		{
+			name:  "in_parenthesized_operand_index",
+			input: "a IN (x)[0]",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[PathExpr{Root:VarRef{Name:x} Steps:[IndexStep{Index:NumberLit{Val:0}}]}] Not:false}",
+		},
+		{
+			name:  "in_parenthesized_operand_field",
+			input: "a IN (x).y + 1",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:+ Left:PathExpr{Root:VarRef{Name:x} Steps:[DotStep{Field:y}]} Right:NumberLit{Val:1}}] Not:false}",
+		},
+		{
+			name:  "in_subquery_operand",
+			input: "a IN (SELECT x FROM t) + 1",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:+ Left:SubLink{Stmt:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t}}} Right:NumberLit{Val:1}}] Not:false}",
+		},
+		{
+			name:  "in_parenthesized_operand_then_comparison",
+			input: "a IN (1) - 1 = b",
+			want:  "BinaryExpr{Op:= Left:InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:- Left:NumberLit{Val:1} Right:NumberLit{Val:1}}] Not:false} Right:VarRef{Name:b}}",
+		},
+		{
+			name:  "in_nested_parenthesized_operands",
+			input: "a IN (b IN (1) + 1) + 1",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:+ Left:InExpr{Expr:VarRef{Name:b} List:[BinaryExpr{Op:+ Left:NumberLit{Val:1} Right:NumberLit{Val:1}}] Not:false} Right:NumberLit{Val:1}}] Not:false}",
+		},
+		// A graph match in the parentheses is exprGraphMatchMany
+		// (g4:625-626), which only g4:488 reads.
+		{
+			name:  "in_graph_match",
+			input: "a IN (g MATCH (n))",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:n}}]}]}] Not:false}",
+		},
+		{
+			name:  "in_graph_match_operand",
+			input: "a IN (g MATCH (n)) || b",
+			want:  "InExpr{Expr:VarRef{Name:a} List:[BinaryExpr{Op:|| Left:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:n}}]}]} Right:VarRef{Name:b}}] Not:false}",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -267,6 +323,13 @@ func TestInPredicate_Reject(t *testing.T) {
 		{name: "in_unclosed_subquery", input: "a IN (SELECT x FROM t", wantErrIn: "expected PAREN_RIGHT"},
 		{name: "in_subquery_missing_from_source", input: "a IN (SELECT x FROM)", wantErrIn: "unexpected token"},
 		{name: "in_incomplete_comparison", input: "a IN (b =)", wantErrIn: "unexpected token"},
+		{name: "in_parenthesized_operand_incomplete", input: "a IN (1) +", wantErrIn: "unexpected token"},
+		{name: "in_parenthesized_operand_unclosed_index", input: "a IN (x)[0", wantErrIn: "expected BRACKET_RIGHT"},
+		// A list followed by an operator makes a valueList the operand of
+		// the rhs (g4:488, 566-567), which omni has no node for.
+		{name: "in_list_operand", input: "a IN (1, 2) + 1", wantErrIn: "unexpected token"},
+		{name: "in_graph_match_in_list", input: "a IN (1, g MATCH (n))", wantErrIn: "expected PAREN_RIGHT"},
+		{name: "in_graph_match_unclosed", input: "a IN (g MATCH (n), x)", wantErrIn: "expected ')' to close graph MATCH expression"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -303,5 +366,48 @@ func TestInSubqueryLoc(t *testing.T) {
 	}
 	if loc := in.Subquery.GetLoc(); sql[loc.Start:loc.End] != "SELECT b FROM u" {
 		t.Errorf("Subquery spans %q", sql[loc.Start:loc.End])
+	}
+}
+
+// TestInParenthesizedOperandLoc: when the rhs of IN is a mathOp00 that
+// begins with a parenthesized operand, the IN predicate ends at the rhs's
+// last token, and a subquery operand spans its parentheses, as it does
+// anywhere else.
+func TestInParenthesizedOperandLoc(t *testing.T) {
+	for _, tc := range []struct {
+		sql, in, operand string
+	}{
+		{"SELECT * FROM t WHERE a IN (SELECT b FROM u) + 1", "a IN (SELECT b FROM u) + 1", "(SELECT b FROM u)"},
+		{"SELECT * FROM t WHERE a IN (b) + (2) AND c", "a IN (b) + (2)", "b"},
+		{"SELECT * FROM t WHERE a NOT IN (g MATCH (n)) AND c", "a NOT IN (g MATCH (n))", ""},
+		{"SELECT * FROM t WHERE a IN (x)[0] = c", "a IN (x)[0]", "x"},
+	} {
+		list, err := Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", tc.sql, err)
+		}
+		var in *ast.InExpr
+		switch w := list.Items[0].(*ast.SelectStmt).Where.(type) {
+		case *ast.InExpr:
+			in = w
+		case *ast.BinaryExpr:
+			in = w.Left.(*ast.InExpr)
+		}
+		if got := tc.sql[in.Loc.Start:in.Loc.End]; got != tc.in {
+			t.Errorf("%q: InExpr spans %q, want %q", tc.sql, got, tc.in)
+		}
+		if tc.operand == "" {
+			continue
+		}
+		var operand ast.Node
+		switch rhs := in.List[0].(type) {
+		case *ast.BinaryExpr:
+			operand = rhs.Left
+		case *ast.PathExpr:
+			operand = rhs.Root
+		}
+		if loc := operand.GetLoc(); tc.sql[loc.Start:loc.End] != tc.operand {
+			t.Errorf("%q: operand spans %q, want %q", tc.sql, tc.sql[loc.Start:loc.End], tc.operand)
+		}
 	}
 }
