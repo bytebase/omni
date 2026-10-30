@@ -1,7 +1,11 @@
 package parser
 
 import (
+	"context"
+	"regexp"
+	"strconv"
 	"testing"
+	"time"
 )
 
 // This file is the parser-routines node's differential-oracle gate
@@ -221,5 +225,79 @@ func TestRoutines_OracleDifferential(t *testing.T) {
 					sql, omniAccepts, errs, trinoAccepts)
 			}
 		})
+	}
+}
+
+// routineSemicolonCorpus holds query bodies with a ';' inside parentheses in
+// a routine definition, the one statement Split keeps whole across a ';'.
+// Trino rejects every such ';' (SqlBase.g4 puts ';' only between the
+// statements of a routine body). The strict parse split each body's text at
+// its ';' and accepted `(SELECT 1; )`: the query, then an empty statement.
+// The last entries are accepted controls.
+//
+// Not listed: a body Trino rejects at an earlier token, as in
+// `IF 1 IN (SELECT 1;) THEN`, where it reports the IN, the start of the
+// alternative it could not finish, and omni the ';'; omni reports
+// `IF 1 IN (SELECT 1 x y) THEN` at the y the same way.
+var routineSemicolonCorpus = []string{
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1; ); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1;); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1; SELECT 2); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1; garbage); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1 /* c */ ; /* d */ ); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN 1 + (SELECT 1;;); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT (SELECT 1;)); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT (SELECT 1;) + !1); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT (SELECT 1;) ; ); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT (SELECT 1;) FROM t x y); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT * FROM (SELECT 1;) t); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (VALUES 1;); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (TABLE t;); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (WITH x AS (SELECT 1) SELECT * FROM x;); END",
+	"CREATE FUNCTION f() RETURNS boolean BEGIN RETURN EXISTS (SELECT 1;); END",
+	"CREATE FUNCTION f() RETURNS int RETURN CASE WHEN true THEN (SELECT 1;) END",
+	"CREATE FUNCTION f() RETURNS int RETURN if(true, (SELECT 1;), 2)",
+	"WITH FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1;); END SELECT f()",
+	"WITH FUNCTION f() RETURNS int RETURN 1 SELECT CASE WHEN true THEN (SELECT 1;) END",
+	"CREATE FUNCTION f() RETURNS int BEGIN DECLARE x int DEFAULT (SELECT 1;); RETURN x; END",
+	"CREATE FUNCTION f() RETURNS int BEGIN WHILE (SELECT 1;) > 0 DO RETURN 1; END WHILE; RETURN 2; END",
+	// accepted
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1); END",
+	"CREATE FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1) + (SELECT (SELECT 2)); END",
+	"WITH FUNCTION f() RETURNS int BEGIN RETURN (SELECT 1); END SELECT (SELECT f())",
+}
+
+// trinoErrorAt reads the 1-based line and column of a Trino syntax error.
+var trinoErrorAt = regexp.MustCompile(`^line (\d+):(\d+): `)
+
+// TestRoutines_SemicolonInSubqueryOracle: omni accepts what Trino accepts
+// in routineSemicolonCorpus, and reports its first error where Trino reports
+// its own (each statement is one line of ASCII, so the column locates it).
+func TestRoutines_SemicolonInSubqueryOracle(t *testing.T) {
+	o := connectOracle(t)
+	for _, sql := range routineSemicolonCorpus {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		res, err := o.CheckSyntax(ctx, sql)
+		cancel()
+		if err != nil {
+			t.Fatalf("oracle: %v", err)
+		}
+		_, errs := parseForTest(sql)
+		if (len(errs) == 0) != res.Accepted {
+			t.Errorf("%q: omni errors %v, Trino accepts=%v (%s)", sql, errs, res.Accepted, res.Message)
+			continue
+		}
+		if res.Accepted {
+			continue
+		}
+		m := trinoErrorAt.FindStringSubmatch(res.Message)
+		if m == nil || m[1] != "1" {
+			t.Errorf("%q: unexpected Trino message %q", sql, res.Message)
+			continue
+		}
+		col, _ := strconv.Atoi(m[2])
+		if errs[0].Position != col-1 {
+			t.Errorf("%q: omni's first error %q at %d, Trino's at %d (%s)", sql, errs[0].Message, errs[0].Position, col-1, res.Message)
+		}
 	}
 }
