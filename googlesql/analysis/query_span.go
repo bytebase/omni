@@ -359,6 +359,9 @@ type spanWalker struct {
 	// fixpoints counts the recursive-CTE fixpoints started, so
 	// recursiveFixpoint can tell whether a recursive arm holds another one.
 	fixpoints int
+	// recursiveWiths records, for each node scanned by holdsRecursiveWith,
+	// whether its subtree holds a WITH RECURSIVE clause.
+	recursiveWiths map[ast.Node]bool
 }
 
 // failClosed records a fail-closed condition (first one wins).

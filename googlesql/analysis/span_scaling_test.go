@@ -123,3 +123,21 @@ func TestRecursiveCTERotationIsNotCubic(t *testing.T) {
 		}
 	}
 }
+
+// TestNestedRecursiveCTEsStayLinear guards recursive CTEs nested in one
+// another's recursive arm. recursiveFixpoint resolved such an arm twice
+// against placeholders before it saw the nested fixpoint and left the CTE to
+// the loop, which resolved the arm again: three resolutions per level, so 13
+// levels took 6.9s. An arm holding WITH RECURSIVE now goes to the loop
+// first, which resolves an arm that converges at once a single time.
+func TestNestedRecursiveCTEsStayLinear(t *testing.T) {
+	sql := "SELECT a AS c FROM t"
+	for i := range 200 {
+		sql = fmt.Sprintf("WITH RECURSIVE r%d AS (SELECT a AS c FROM t UNION ALL (%s)) SELECT c FROM r%d", i, sql, i)
+	}
+	span := querySpanWithin(t, sql, 3*time.Second)
+	want := []ColumnInfo{{Name: "c", SourceColumns: []ColumnRef{{Table: "t", Column: "a"}}}}
+	if !reflect.DeepEqual(span.Results, want) {
+		t.Fatalf("Results = %+v, want %+v", span.Results, want)
+	}
+}

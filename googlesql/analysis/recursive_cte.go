@@ -37,9 +37,14 @@ import (
 // widths differ, an anchor column lists a source twice (the loop would drop
 // the copy only in a pass that adds to that column), or the arm starts a
 // fixpoint of its own (whose pass count depends on the sources it reads).
+// An arm that holds a WITH RECURSIVE clause is left to the loop before it is
+// resolved at all: resolving it here twice and then again in the loop would
+// triple the work at every level of nested recursive CTEs, exponential in
+// their depth, where the loop alone resolves an arm that converges at once a
+// single time.
 func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope *cteScope, lower string) ([]projColumn, bool) {
 	n := len(anchor)
-	if n == 0 || !allConcrete(anchor) {
+	if n == 0 || !allConcrete(anchor) || w.holdsRecursiveWith(arm) {
 		return nil, false
 	}
 	cur := make([]refUnion, n) // each column's sources so far
@@ -145,6 +150,55 @@ func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope 
 	}
 	scope.columns[lower] = cols
 	return cols, true
+}
+
+// holdsRecursiveWith reports whether n's subtree holds a WITH RECURSIVE
+// clause, the only way resolving n can start a fixpoint: a CTE's columns are
+// resolved where its WITH clause is, not where it is read. The answer for
+// every node of the scanned subtree is recorded, so the arms of recursive
+// CTEs nested in one another are scanned once in all, not once per level.
+func (w *spanWalker) holdsRecursiveWith(n ast.Node) bool {
+	if held, ok := w.recursiveWiths[n]; ok {
+		return held
+	}
+	if w.recursiveWiths == nil {
+		w.recursiveWiths = make(map[ast.Node]bool)
+	}
+	ast.Walk(&recursiveWithScan{seen: w.recursiveWiths}, n)
+	return w.recursiveWiths[n]
+}
+
+// recursiveWithScan records in seen, for each node it walks, whether the
+// node's subtree holds a WITH RECURSIVE clause. stack holds the nodes whose
+// subtrees are being walked.
+type recursiveWithScan struct {
+	seen  map[ast.Node]bool
+	stack []ast.Node
+}
+
+func (s *recursiveWithScan) Visit(n ast.Node) ast.Visitor {
+	if n == nil {
+		top := s.stack[len(s.stack)-1]
+		s.stack = s.stack[:len(s.stack)-1]
+		s.markParent(s.seen[top])
+		return nil
+	}
+	if held, ok := s.seen[n]; ok {
+		s.markParent(held)
+		return nil
+	}
+	with, ok := n.(*ast.WithClause)
+	s.seen[n] = ok && with.Recursive
+	s.stack = append(s.stack, n)
+	return s
+}
+
+// markParent records that the node being walked holds a WITH RECURSIVE
+// clause when its child, just walked, does.
+func (s *recursiveWithScan) markParent(held bool) {
+	if held && len(s.stack) > 0 {
+		s.seen[s.stack[len(s.stack)-1]] = true
+	}
 }
 
 // armTerm is one term of an arm column's sources: the sources of CTE column
