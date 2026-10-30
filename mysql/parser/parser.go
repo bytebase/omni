@@ -21,6 +21,12 @@ type Parser struct {
 	parenRunStart int
 	parenRunPast  Token
 
+	// parenQuery holds parenOpensQuery's verdict for each '(' of the runs it
+	// classified, and parenAfter, for each '(' of the blocks it scanned, the
+	// type of the token after the matching ')'.
+	parenQuery map[int]bool
+	parenAfter map[int]int
+
 	// parenQueryFail holds every parseSelectWithParens failure by the offset
 	// of its '('. parseSubqueryHead speculates a query at each level of a
 	// nested `((((SELECT 1) = 0) = 0) = 0)` and rewinds when it fails, and the

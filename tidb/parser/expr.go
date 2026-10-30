@@ -1112,9 +1112,11 @@ func (p *Parser) lookaheadParenContentIsSubquery() bool {
 	}
 	switch next.Type {
 	case ')':
-		// Single element. FOR is excluded (TiDB rejects `IN ((SELECT 1) FOR
-		// UPDATE)`); VALUES/TABLE excluded (deferred backlog).
-		return isSelectStartToken(p.firstTokenPastParens().Type)
+		// Single element: a subquery iff that element's block opens one, so
+		// `(((SELECT 1) + 0))` is an expression. FOR is excluded (TiDB rejects
+		// `IN ((SELECT 1) FOR UPDATE)`); VALUES/TABLE excluded (deferred
+		// backlog).
+		return p.parenBeginsSubquery()
 	case kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT:
 		return true // query-expression continuation
 	default:
@@ -1156,31 +1158,6 @@ func (p *Parser) scanParenGroups() Token {
 		}
 		p.advance()
 	}
-}
-
-// firstTokenPastParens returns the first token at or after p.cur that is not
-// '(', without consuming input. Every '(' of a run shares the answer, so the
-// last scan is cached: a '(' starting between the run's first '(' and the
-// token past it is in that run.
-func (p *Parser) firstTokenPastParens() Token {
-	if p.cur.Type == '(' && p.cur.Loc >= p.parenRunStart && p.cur.Loc < p.parenRunPast.Loc {
-		return p.parenRunPast
-	}
-	snap := p.snapshotTokenStream()
-	defer p.restoreTokenStream(snap)
-	start := p.cur.Loc
-	for p.cur.Type == '(' {
-		p.advance()
-	}
-	p.parenRunStart, p.parenRunPast = start, p.cur
-	return p.cur
-}
-
-// isSelectStartToken reports whether tok begins a parsable query-expression
-// body. {SELECT, WITH} only — (VALUES)/(TABLE) primaries are a deferred
-// follow-up (parseSelectNoParens cannot parse them as a body).
-func isSelectStartToken(tok int) bool {
-	return tok == kwSELECT || tok == kwWITH
 }
 
 // parseParenExpr parses a parenthesized expression or subquery.

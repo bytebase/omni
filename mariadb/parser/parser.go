@@ -21,6 +21,12 @@ type Parser struct {
 	parenRunStart int
 	parenRunPast  Token
 
+	// parenQuery holds parenOpensQuery's verdict for each '(' of the runs it
+	// classified, and parenAfter, for each '(' of the blocks it scanned, the
+	// type of the token after the matching ')'.
+	parenQuery map[int]bool
+	parenAfter map[int]int
+
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)

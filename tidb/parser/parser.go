@@ -22,8 +22,6 @@ type Parser struct {
 	// '(' it passes. Without them, n nested parens cost O(n²) token scans.
 	parenAfter      map[int]Token // token after the '(' block's matching ')'
 	parenIsSubquery map[int]bool  // consumeMatchedParenIsSubquery's verdict
-	parenRunStart   int           // offset of the '(' run scanned last
-	parenRunPast    Token         // first token past that run
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 

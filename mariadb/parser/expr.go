@@ -1152,10 +1152,13 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 // parseParenExpr parses a parenthesized expression or subquery.
 func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
+	// Check for subquery: `(SELECT ...)`, `((SELECT 1) UNION (SELECT 2))`, but
+	// not an expression that begins with one, `((SELECT 1) + 0)` (see
+	// parenOpensQuery).
+	query := p.parenOpensQuery()
 	p.advance() // consume '('
 
-	// Check for subquery.
-	if p.isQueryExpressionStart() {
+	if query {
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {
 			return nil, err
@@ -1474,6 +1477,10 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 	}
 	p.advance() // consume IN
 
+	// Check for subquery: `IN (SELECT ...)`, `IN ((SELECT 1) UNION (SELECT
+	// 2))`, but not a value list that begins with one, `IN ((SELECT 1) + 0,
+	// 2)` (see parenOpensQuery).
+	query := p.parenOpensQuery()
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -1484,8 +1491,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 		Expr: left,
 	}
 
-	// Check for subquery.
-	if p.isQueryExpressionStart() {
+	if query {
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {
 			return nil, err

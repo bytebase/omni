@@ -1129,6 +1129,109 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 	return 0, false, nil
 }
 
+// parenOpensQuery reports whether the '(' at p.cur opens a parenthesized
+// query expression, as opposed to a join group or a parenthesized expression,
+// without consuming input. It does when its content begins with a query
+// primary, or begins with a block that opens a query and is followed by a
+// token that continues a query expression: the ')', a set operator, ORDER BY,
+// LIMIT, or a locking clause. Any other token past that inner block makes it
+// the first operand of something else: a derived table in a join group,
+// `((SELECT 1) d JOIN t ON ...)`, or a subquery in an expression,
+// `((SELECT 1) + 0)`, both of which MariaDB writes in view definitions.
+//
+// MariaDB 11.8.8 sql/sql_yacc.yy: a table_primary_derived (line 12307) is a
+// subquery (9253) with its alias, and join_table_parens (12273) and
+// table_reference_list_parens (12248) may begin with one; primary_expr
+// (10340) is a subquery or '(' parenthesized_expr ')', and an expr may begin
+// with a subquery. Inside query_expression_body_ext_parens (9140) a
+// parenthesized operand is followed by a set operator (query_expression_body,
+// 9157), ORDER BY, LIMIT, or a locking clause (query_expression_tail), or by
+// the ')'.
+//
+// A block's verdict depends only on the run of '(' it starts and the token
+// after each of their blocks, so the verdicts of a run are recorded together,
+// and a scan records the token after every block it passes: asking again at
+// each level as the parser descends costs nothing.
+func (p *Parser) parenOpensQuery() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	if v, ok := p.parenQuery[p.cur.Loc]; ok {
+		return v
+	}
+	if !p.isQueryExpressionStart() {
+		return false
+	}
+	saved := p.saveScan()
+	defer p.restoreScan(saved)
+	var run []int
+	for p.cur.Type == '(' {
+		run = append(run, p.cur.Loc)
+		p.advance()
+	}
+	if len(run) == 1 {
+		return true
+	}
+	if _, ok := p.parenAfter[run[0]]; !ok {
+		p.restoreScan(saved)
+		p.scanParenBlock()
+	}
+	if p.parenQuery == nil {
+		p.parenQuery = make(map[int]bool)
+	}
+	query := true
+	p.parenQuery[run[len(run)-1]] = query
+	for i := len(run) - 2; i >= 0; i-- {
+		query = query && continuesParenQuery(p.parenAfter[run[i+1]])
+		p.parenQuery[run[i]] = query
+	}
+	return query
+}
+
+// continuesParenQuery reports whether a token of type tokenType, following a
+// parenthesized query that opens a block, keeps the block a query expression.
+// The end of input does, so an unclosed block reads as it did before the
+// inner block was looked at.
+func continuesParenQuery(tokenType int) bool {
+	switch tokenType {
+	case ')', kwUNION, kwEXCEPT, kwINTERSECT, kwORDER, kwLIMIT, kwFOR, kwLOCK, tokEOF:
+		return true
+	default:
+		return false
+	}
+}
+
+// scanParenBlock consumes the block the '(' at p.cur opens, through its
+// matching ')', and records in parenAfter, for every '(' in it, the type of
+// the token after its matching ')' (tokEOF for one never closed).
+func (p *Parser) scanParenBlock() {
+	if p.parenAfter == nil {
+		p.parenAfter = make(map[int]int)
+	}
+	var open []int
+	for {
+		switch p.cur.Type {
+		case '(':
+			open = append(open, p.cur.Loc)
+		case ')':
+			loc := open[len(open)-1]
+			open = open[:len(open)-1]
+			p.advance()
+			p.parenAfter[loc] = p.cur.Type
+			if len(open) == 0 {
+				return
+			}
+			continue
+		case tokEOF:
+			for _, loc := range open {
+				p.parenAfter[loc] = tokEOF
+			}
+			return
+		}
+		p.advance()
+	}
+}
+
 // parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
 func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	if err := p.enterNesting(); err != nil {
@@ -1195,11 +1298,14 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 	if p.cur.Type == '(' {
 		startPos := p.pos()
-		p.advance()
 
 		// Subquery (derived table): (query_expression), including
-		// parenthesized set operations like ((SELECT ...) UNION (...)).
-		if p.isQueryExpressionStart() {
+		// parenthesized set operations like ((SELECT ...) UNION (...)), and
+		// not a join group whose first operand is a derived table, like
+		// ((SELECT ...) d JOIN t ON ...) (see parenOpensQuery).
+		derived := p.parenOpensQuery()
+		p.advance()
+		if derived {
 			sel, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
