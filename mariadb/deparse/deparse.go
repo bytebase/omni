@@ -922,7 +922,7 @@ func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString("ROW(")
+			b.WriteString("(")
 			for j, expr := range row {
 				if j > 0 {
 					b.WriteString(", ")
