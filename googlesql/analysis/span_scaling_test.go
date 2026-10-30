@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -80,5 +81,45 @@ func TestQuerySpanWideListsStayLinear(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			querySpanWithin(t, tc.sql, 3*time.Second)
 		})
+	}
+}
+
+// TestRecursiveCTERotationIsNotCubic guards the recursive-CTE fixpoint on an
+// arm that rotates its columns. A source moves one column per pass, so the
+// fixpoint takes a pass per column, and each pass resolved the arm and
+// unioned every column's sources again: 400 columns took 15-20s. The result
+// itself holds every source in every column, so it is quadratic.
+func TestRecursiveCTERotationIsNotCubic(t *testing.T) {
+	// The arm reads c2, c3, ..., cn, c1 into c1, c2, ..., cn.
+	rotation := func(n int) string {
+		arm := make([]string, n)
+		for i := range arm {
+			arm[i] = fmt.Sprintf("c%d", (i+1)%n+1)
+		}
+		return "WITH RECURSIVE r AS (SELECT " + numberedList(n, "a%d AS c%d", ", ") + " FROM t UNION ALL SELECT " +
+			strings.Join(arm, ", ") + " FROM r WHERE c1 < 10) SELECT * FROM r"
+	}
+
+	// Each column gains the next column's source at every pass, in that order.
+	span := querySpanWithin(t, rotation(3), time.Second)
+	ref := func(c string) ColumnRef { return ColumnRef{Table: "t", Column: c} }
+	want := []ColumnInfo{
+		{Name: "c1", SourceColumns: []ColumnRef{ref("a1"), ref("a2"), ref("a3")}},
+		{Name: "c2", SourceColumns: []ColumnRef{ref("a2"), ref("a3"), ref("a1")}},
+		{Name: "c3", SourceColumns: []ColumnRef{ref("a3"), ref("a1"), ref("a2")}},
+	}
+	if !reflect.DeepEqual(span.Results, want) {
+		t.Fatalf("Results = %+v, want %+v", span.Results, want)
+	}
+
+	const n = 400
+	span = querySpanWithin(t, rotation(n), 3*time.Second)
+	if len(span.Results) != n {
+		t.Fatalf("got %d result columns, want %d", len(span.Results), n)
+	}
+	for _, col := range span.Results {
+		if len(col.SourceColumns) != n {
+			t.Fatalf("column %s has %d sources, want %d", col.Name, len(col.SourceColumns), n)
+		}
 	}
 }

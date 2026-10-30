@@ -356,6 +356,9 @@ type spanWalker struct {
 	// for some shapes it is superlinear in the statement's size (a USING chain
 	// whose keys change gives every star a growing except list).
 	tablesOnly bool
+	// fixpoints counts the recursive-CTE fixpoints started, so
+	// recursiveFixpoint can tell whether a recursive arm holds another one.
+	fixpoints int
 }
 
 // failClosed records a fail-closed condition (first one wins).
@@ -499,9 +502,15 @@ func (w *spanWalker) resolveCTEColumns(cte *ast.CTE, recursive bool, scope *cteS
 	// lineage, which a later column's expression then reads — the legacy
 	// recordRecursiveCTE loops for the same reason. The pass count is bounded by the
 	// column count (each pass can only add sources; bounded extra guard prevents a
-	// pathological loop).
+	// pathological loop). When the anchor and the arm are concrete,
+	// recursiveFixpoint gives the loop's result and side effects without
+	// resolving the arm once per pass; the loop handles every other shape.
 	anchor := w.visitBody(setOp.Left)
 	scope.columns[lower] = anchor
+	w.fixpoints++
+	if cols, ok := w.recursiveFixpoint(setOp.Right, anchor, scope, lower); ok {
+		return cols
+	}
 	current := anchor
 	for iter := 0; iter <= len(anchor)+1; iter++ {
 		recursivePart := w.visitBody(setOp.Right)
