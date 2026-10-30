@@ -46,6 +46,11 @@ message DatabaseSchemaMetadata {
   // schema holds no object of that name. Every database of an instance holds
   // the same list, as with linked_databases.
   repeated SynonymMetadata public_synonyms = 12;
+
+  // The default schema of the user that syncs the database (SQL Server's
+  // SCHEMA_NAME()): where an unqualified name is created, and where it is
+  // looked up before dbo. A sysadmin's is dbo.
+  string default_schema = 13;
 }
 
 message LinkedDatabaseMetadata {
@@ -107,8 +112,9 @@ message SchemaMetadata {
   // CREATE TYPE ... AS). Excludes table/view row types and derived types.
   repeated CompositeTypeMetadata composite_types = 17;
 
-  // The list of synonyms in a schema: Oracle's private synonyms. The public
-  // synonyms are in DatabaseSchemaMetadata.public_synonyms.
+  // The list of synonyms in a schema: Oracle's private synonyms, whose
+  // public ones are in DatabaseSchemaMetadata.public_synonyms, and SQL
+  // Server's synonyms.
   repeated SynonymMetadata synonyms = 18;
 }
 
@@ -129,6 +135,13 @@ message SynonymMetadata {
 
   // The database link through which the object is reached (Oracle), if any.
   string target_db_link = 4;
+
+  // The database the object is in (SQL Server), if the synonym names one.
+  string target_database = 5;
+
+  // The linked server the object is on (SQL Server), if the synonym names
+  // one.
+  string target_server = 6;
 }
 
 message EnumTypeMetadata {
