@@ -88,6 +88,24 @@ func (*AliasedSource) nodeTag()      {}
 func (n *AliasedSource) GetLoc() Loc { return n.Loc }
 func (*AliasedSource) tableExpr()    {}
 
+// ExprSource is a FROM source written as an expression that is not a table
+// expression itself: a function call, a literal, a collection, an operator.
+// The grammar takes any exprSelect as a FROM source; the paths, variables,
+// subqueries and graph matches among them are TableExprs and appear
+// unwrapped. `FROM f(x) AS y` is AliasedSource{Source: ExprSource{Expr:
+// f(x)}, As: y}. Loc is the expression's.
+//
+// Grammar: tableBaseReference#TableBaseRefSymbol, tableBaseReference#TableBaseRefClauses
+// (source=exprSelect, PartiQLParser.g4 lines 403-404)
+type ExprSource struct {
+	Expr ExprNode
+	Loc  Loc
+}
+
+func (*ExprSource) nodeTag()      {}
+func (n *ExprSource) GetLoc() Loc { return n.Loc }
+func (*ExprSource) tableExpr()    {}
+
 // JoinExpr represents a JOIN clause: left JOIN right ON condition.
 // Kind selects the JOIN flavor; On is nil for CROSS JOIN.
 //

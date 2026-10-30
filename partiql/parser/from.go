@@ -320,17 +320,9 @@ func (p *Parser) parseTableBaseReference() (ast.TableExpr, error) {
 		return nil, err
 	}
 
-	// If no aliases, the source expression can serve directly as a
-	// TableExpr if it implements the interface (VarRef, PathExpr, SubLink).
+	// With no aliases, the source is the table expression itself.
 	if as == nil && at == nil && by == nil {
-		if te, ok := source.(ast.TableExpr); ok {
-			return te, nil
-		}
-		// Wrap in AliasedSource with no aliases for non-TableExpr sources.
-		return &ast.AliasedSource{
-			Source: exprAsTableExpr(source),
-			Loc:    source.GetLoc(),
-		}, nil
+		return exprAsTableExpr(source), nil
 	}
 
 	return &ast.AliasedSource{
@@ -342,20 +334,16 @@ func (p *Parser) parseTableBaseReference() (ast.TableExpr, error) {
 	}, nil
 }
 
-// exprAsTableExpr converts an ExprNode to a TableExpr. If the expr
-// already implements TableExpr (VarRef, PathExpr, SubLink), it returns
-// it directly. Otherwise it wraps it in an AliasedSource with no
-// aliases (the expression itself becomes the source).
+// exprAsTableExpr returns a FROM source expression as a TableExpr: the
+// expression itself when it is one (VarRef, PathExpr, SubLink, MatchExpr),
+// and otherwise an ExprSource holding it. The grammar's source is any
+// exprSelect (tableBaseReference, PartiQLParser.g4 lines 403-404), so
+// `FROM f(x) AS y`, `FROM [1, 2]` and `FROM a || b` are sources too.
 func exprAsTableExpr(expr ast.ExprNode) ast.TableExpr {
 	if te, ok := expr.(ast.TableExpr); ok {
 		return te
 	}
-	// For expressions that are not directly TableExpr (e.g., function
-	// calls, literals used as table sources), wrap in AliasedSource.
-	return &ast.AliasedSource{
-		Source: nil, // will be overwritten by caller
-		Loc:    expr.GetLoc(),
-	}
+	return &ast.ExprSource{Expr: expr, Loc: expr.GetLoc()}
 }
 
 // parseTableAliases parses the optional AS/AT/BY alias chain on a

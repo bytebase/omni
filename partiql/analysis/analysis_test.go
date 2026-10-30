@@ -247,6 +247,27 @@ func TestAnalyze_MatchSourceInJoin(t *testing.T) {
 	}
 }
 
+// TestAnalyze_ExprSource: a FROM source that is an expression other than a
+// path or a name, such as a function call or a collection, now reaches
+// Analyze as an *ast.ExprSource holding the expression. It names no
+// relation, so it adds no table, and the sources beside it still do.
+func TestAnalyze_ExprSource(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		want  []string
+	}{
+		{"SELECT * FROM f(x)", nil},
+		{"SELECT * FROM [1, 2] AS v AT i", nil},
+		{"SELECT y FROM t, f(t.x) AS y", []string{"t"}},
+		{"SELECT * FROM f(x) AS y JOIN s ON y.a = s.a", []string{"s"}},
+	} {
+		qa := Analyze(parseSelect(t, tc.input))
+		if strings.Join(qa.Tables, ",") != strings.Join(tc.want, ",") {
+			t.Errorf("Analyze(%q).Tables = %v, want %v", tc.input, qa.Tables, tc.want)
+		}
+	}
+}
+
 func TestAnalyze_LiteralProjection(t *testing.T) {
 	sel := parseSelect(t, "SELECT 1 FROM t")
 	qa := Analyze(sel)

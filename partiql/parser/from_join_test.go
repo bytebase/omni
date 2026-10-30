@@ -303,3 +303,106 @@ func TestParser_ValidJoinsStillParse(t *testing.T) {
 		})
 	}
 }
+
+// TestParser_FromExpressionSource: a FROM source may be any exprSelect
+// (tableBaseReference, PartiQLParser.g4:403-404). One that is not a path, a
+// name, a subquery or a graph match, such as a function call, a literal or
+// an operator, is an ExprSource holding the expression. The parser dropped
+// the expression before, leaving an AliasedSource whose Source was nil.
+func TestParser_FromExpressionSource(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		want  string
+		// The text the ExprSource spans, if there is one.
+		source string
+	}{
+		{
+			input:  "SELECT * FROM f(x) AS y",
+			want:   "SelectStmt{Star:true From:AliasedSource{Source:ExprSource{Expr:FuncCall{Name:f Args:[VarRef{Name:x}]}} As:y}}",
+			source: "f(x)",
+		},
+		{
+			input:  "SELECT * FROM f(x)",
+			want:   "SelectStmt{Star:true From:ExprSource{Expr:FuncCall{Name:f Args:[VarRef{Name:x}]}}}",
+			source: "f(x)",
+		},
+		{
+			input:  "SELECT * FROM [1, 2] AS y AT p",
+			want:   "SelectStmt{Star:true From:AliasedSource{Source:ExprSource{Expr:ListLit{Items:[NumberLit{Val:1} NumberLit{Val:2}]}} As:y At:p}}",
+			source: "[1, 2]",
+		},
+		{
+			input:  "SELECT * FROM 'abc' x",
+			want:   "SelectStmt{Star:true From:AliasedSource{Source:ExprSource{Expr:StringLit{Val:\"abc\"}} As:x}}",
+			source: "'abc'",
+		},
+		{
+			input:  "SELECT * FROM a || b AS c",
+			want:   "SelectStmt{Star:true From:AliasedSource{Source:ExprSource{Expr:BinaryExpr{Op:|| Left:VarRef{Name:a} Right:VarRef{Name:b}}} As:c}}",
+			source: "a || b",
+		},
+		{
+			// The parentheses add no node, so the source spans the call.
+			input:  "SELECT * FROM (f(x)) AS y",
+			want:   "SelectStmt{Star:true From:AliasedSource{Source:ExprSource{Expr:FuncCall{Name:f Args:[VarRef{Name:x}]}} As:y}}",
+			source: "f(x)",
+		},
+		{
+			input:  "SELECT * FROM t, f(t.x) AS y",
+			want:   "SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:VarRef{Name:t} Right:AliasedSource{Source:ExprSource{Expr:FuncCall{Name:f Args:[PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:x}]}]}} As:y}}}",
+			source: "f(t.x)",
+		},
+		{
+			input:  "SELECT * FROM x IN (1) AS y",
+			want:   "SelectStmt{Star:true From:AliasedSource{Source:ExprSource{Expr:InExpr{Expr:VarRef{Name:x} List:[NumberLit{Val:1}] Not:false}} As:y}}",
+			source: "x IN (1)",
+		},
+		{
+			input:  "FROM f(x) AS y WHERE a = 1 SET b = 2",
+			want:   "UpdateStmt{From:true Source:AliasedSource{Source:ExprSource{Expr:FuncCall{Name:f Args:[VarRef{Name:x}]}} As:y} Sets:[SetAssignment{Target:PathExpr{Root:VarRef{Name:b} Steps:[]} Value:NumberLit{Val:2}}] Where:BinaryExpr{Op:= Left:VarRef{Name:a} Right:NumberLit{Val:1}}}",
+			source: "f(x)",
+		},
+		// Sources that are table expressions themselves stay unwrapped.
+		{input: "SELECT * FROM t AS y", want: "SelectStmt{Star:true From:AliasedSource{Source:VarRef{Name:t} As:y}}"},
+		{input: "SELECT * FROM f(x).a", want: "SelectStmt{Star:true From:PathExpr{Root:FuncCall{Name:f Args:[VarRef{Name:x}]} Steps:[DotStep{Field:a}]}}"},
+		{input: "SELECT * FROM (SELECT * FROM t) s", want: "SelectStmt{Star:true From:AliasedSource{Source:SubLink{Stmt:SelectStmt{Star:true From:VarRef{Name:t}}} As:s}}"},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			stmt, err := NewParser(tc.input).ParseStatement()
+			if err != nil {
+				t.Fatalf("ParseStatement(%q): %v", tc.input, err)
+			}
+			if got := ast.NodeToString(stmt); got != tc.want {
+				t.Errorf("AST mismatch\ninput: %s\ngot:  %s\nwant: %s", tc.input, got, tc.want)
+			}
+			var sources []*ast.ExprSource
+			collectExprSources(stmt, &sources)
+			if tc.source == "" {
+				if len(sources) != 0 {
+					t.Errorf("got %d ExprSources, want none", len(sources))
+				}
+				return
+			}
+			if len(sources) != 1 {
+				t.Fatalf("got %d ExprSources, want 1", len(sources))
+			}
+			es := sources[0]
+			if got := tc.input[es.Loc.Start:es.Loc.End]; got != tc.source {
+				t.Errorf("ExprSource spans %q, want %q", got, tc.source)
+			}
+			if es.Expr.GetLoc() != es.Loc {
+				t.Errorf("ExprSource Loc %v, its expression's %v", es.Loc, es.Expr.GetLoc())
+			}
+		})
+	}
+}
+
+// collectExprSources appends every ExprSource under n.
+func collectExprSources(n ast.Node, out *[]*ast.ExprSource) {
+	if es, ok := n.(*ast.ExprSource); ok {
+		*out = append(*out, es)
+	}
+	for _, c := range appendChildren(nil, n) {
+		collectExprSources(c, out)
+	}
+}
