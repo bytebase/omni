@@ -245,11 +245,13 @@ func (s *state) parse() ([]ParsedRequest, error) {
 		return nil, err
 	}
 
-	if err := s.white(); err != nil {
-		return nil, err
-	}
-	if !s.eof() {
-		return nil, fmt.Errorf("Syntax error")
+	// Text is left over only when multiRequest stopped at an error with no
+	// request after it to resume at. The upstream records the leftover as one
+	// more error of the script, "Syntax error", rather than throwing, so the
+	// requests before it, and the one that failed, are still returned. A white
+	// that fails stops at a byte it cannot decode, which leaves text over too.
+	if err := s.white(); err != nil || !s.eof() {
+		s.errors = append(s.errors, SyntaxError{ByteOffset: s.at, Message: "Syntax error"})
 	}
 	return s.requests, nil
 }

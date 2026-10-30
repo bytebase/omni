@@ -39,3 +39,12 @@
       end:
         line: 19
         character: 1
+- description: body of the last request fails to parse
+  statement: "GET _search\n{}\n\nGET /_search\n{\"a\": x}\n"
+  result:
+    - start:
+        line: 0
+        character: 0
+      end:
+        line: 1
+        character: 2

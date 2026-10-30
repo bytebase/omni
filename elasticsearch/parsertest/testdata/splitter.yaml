@@ -158,3 +158,58 @@
       range:
         start: 0
         end: 10
+
+- description: body of the last request fails to parse
+  statement: "GET /_search\n{\"a\": x}\n"
+  expectedCount: 1
+  statements:
+    - text: "GET /_search\n{\"a\": x}"
+      start:
+        line: 1
+        column: 1
+      end:
+        line: 2
+        column: 9
+      range:
+        start: 0
+        end: 21
+
+- description: body of the last request fails to parse, after a request that parses
+  statement: "GET _search\n{}\n\nGET /_search\n{\"a\": x}\n"
+  expectedCount: 2
+  statements:
+    - text: "GET _search\n{}"
+      start:
+        line: 1
+        column: 1
+      end:
+        line: 2
+        column: 3
+      range:
+        start: 0
+        end: 14
+    - text: "GET /_search\n{\"a\": x}"
+      start:
+        line: 4
+        column: 1
+      end:
+        line: 5
+        column: 9
+      range:
+        start: 16
+        end: 37
+
+- description: request line that is not a request, last in the script
+  statement: "GET /x\n{}\n}\n"
+  expectedCount: 1
+  statements:
+    - text: "GET /x\n{}"
+      start:
+        line: 1
+        column: 1
+      end:
+        line: 2
+        column: 3
+      range:
+        start: 0
+        end: 9

@@ -21,9 +21,9 @@ type Range struct {
 }
 
 // SplitMultiSQL splits the input into individual Elasticsearch REST API requests.
-// A request whose body fails to parse still becomes a statement: it runs
-// through the last non-blank line before the next request, the lines Kibana's
-// console reads its body from.
+// A request whose body fails to parse still becomes a statement, the last
+// request of the script too: it runs through the last non-blank line before
+// the next request, the lines Kibana's console reads its body from.
 func SplitMultiSQL(statement string) ([]Statement, error) {
 	parseResult, ends, err := parseREST(statement, false)
 	if err != nil {

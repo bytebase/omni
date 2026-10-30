@@ -236,6 +236,60 @@ func TestParseNULIsAnOrdinaryCharacter(t *testing.T) {
 	}
 }
 
+// TestParseRecordsTextLeftAfterTheLastError: when a request fails and no
+// request follows to resume at, text is left over. Parse returned "Syntax
+// error" as its error then, and lost the requests and errors it had read, so
+// SplitMultiSQL failed and Diagnose reported nothing. The upstream records the
+// leftover as one more error, "Syntax error", and returns the rest. Each want
+// holds the request offsets and error offsets the upstream parser (Kibana's
+// console parser.js) returns for the same input.
+func TestParseRecordsTextLeftAfterTheLastError(t *testing.T) {
+	testCases := []struct {
+		description  string
+		input        string
+		want         []parser.ParsedRequest
+		errorOffsets []int
+	}{
+		{
+			description:  "body of the only request fails",
+			input:        "GET /_search\n{\"a\": x}\n",
+			want:         []parser.ParsedRequest{{StartOffset: 0, EndOffset: -1}},
+			errorOffsets: []int{20, 20},
+		},
+		{
+			description:  "body of the last request fails",
+			input:        "GET /a\n{\"a\": 1}\nGET /b\n{\"c\": x}",
+			want:         []parser.ParsedRequest{{StartOffset: 0, EndOffset: 15}, {StartOffset: 16, EndOffset: -1}},
+			errorOffsets: []int{30, 30},
+		},
+		{
+			description:  "a line that is not a request after the last request",
+			input:        "GET /x\n{}\n}\n",
+			want:         []parser.ParsedRequest{{StartOffset: 0, EndOffset: 9}, {StartOffset: 10, EndOffset: -1}},
+			errorOffsets: []int{11, 11},
+		},
+		{
+			description:  "no request at all",
+			input:        "db.users.find({})",
+			want:         []parser.ParsedRequest{{StartOffset: 0, EndOffset: -1}},
+			errorOffsets: []int{2, 2},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, result.Requests)
+			var offsets []int
+			for _, e := range result.Errors {
+				offsets = append(offsets, e.ByteOffset)
+			}
+			require.Equal(t, tc.errorOffsets, offsets)
+			require.Equal(t, "Syntax error", result.Errors[len(result.Errors)-1].Message)
+		})
+	}
+}
+
 func TestGetEditorRequest(t *testing.T) {
 	testCases := []struct {
 		description string

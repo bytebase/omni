@@ -3,6 +3,7 @@ package parsertest
 import (
 	"fmt"
 	"testing"
+	"unicode/utf8"
 
 	es "github.com/bytebase/omni/elasticsearch"
 )
@@ -25,7 +26,9 @@ var noPanicScripts = []string{
 // the input, and "GET \x00" all panicked with "slice bounds out of range
 // [:-1]". Every prefix of each script and every one-byte substitution of it
 // runs through each entry point, and the statements SplitMultiSQL returns must
-// cover disjoint ranges, in order, whose text they hold.
+// cover disjoint ranges, in order, whose text they hold. SplitMultiSQL must
+// not fail either, unless the text does not start with a character it can
+// decode: it failed whenever the last request did.
 func TestEntryPointsNeverPanic(t *testing.T) {
 	substitutes := []byte("{}[]\":,\n #/x\x00\xff")
 	seen := map[string]bool{}
@@ -77,6 +80,11 @@ func checkEntryPoints(in string) (err error) {
 	entry = "SplitMultiSQL"
 	stmts, splitErr := es.SplitMultiSQL(in)
 	if splitErr != nil {
+		// A request that fails, last or not, still splits. The parser fails
+		// only when it cannot decode the first character of the text.
+		if r, _ := utf8.DecodeRuneInString(in); r != utf8.RuneError {
+			return fmt.Errorf("SplitMultiSQL failed: %v", splitErr)
+		}
 		return nil
 	}
 	if len(stmts) == 1 && stmts[0].Range == (es.Range{}) && stmts[0].Text == in {
