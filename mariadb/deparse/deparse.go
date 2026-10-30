@@ -67,7 +67,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 
 	// Handle set operations: UNION / UNION ALL / INTERSECT / EXCEPT
 	if stmt.SetOp != ast.SetOpNone {
-		writeSetOperation(b, stmt)
+		writeSetOperation(b, stmt, suppressAlias)
 		return
 	}
 
@@ -143,9 +143,8 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString("`")
-			b.WriteString(wd.Name)
-			b.WriteString("` AS ")
+			b.WriteString(quoteIdent(wd.Name))
+			b.WriteString(" AS ")
 			writeWindowBody(b, wd)
 		}
 		b.WriteString(" ")
@@ -318,15 +317,16 @@ func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *a
 
 // writeSetOperation formats a set operation (UNION, INTERSECT, EXCEPT).
 // MySQL 8.0 format: select ... union [all] select ... (flat, no parens around sub-selects)
-// CTEs from the leftmost child are hoisted and emitted before the entire set operation.
-func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt) {
-	// Hoist CTEs from the leftmost descendant
-	if ctes := extractCTEs(stmt); len(ctes) > 0 {
-		writeCTEs(b, ctes)
+// The WITH clause, held on the set-operation root, comes before the whole set
+// operation. suppressAlias omits the operands' select-item aliases, as for a
+// set operation inside a subquery expression: (select 1 union select 2).
+func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bool) {
+	if len(stmt.CTEs) > 0 {
+		writeCTEs(b, stmt.CTEs)
 		b.WriteString(" ")
 	}
 
-	writeSelectStmt(b, stmt.Left, false)
+	writeSelectStmt(b, stmt.Left, suppressAlias)
 
 	var op string
 	switch stmt.SetOp {
@@ -353,7 +353,7 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt) {
 	b.WriteString(" ")
 	b.WriteString(op)
 	b.WriteString(" ")
-	writeSelectStmt(b, stmt.Right, false)
+	writeSelectStmt(b, stmt.Right, suppressAlias)
 
 	// ORDER BY clause (applies to the entire set operation)
 	if len(stmt.OrderBy) > 0 {
@@ -378,20 +378,6 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt) {
 		}
 		writeExpr(b, stmt.Limit.Count)
 	}
-}
-
-// extractCTEs returns the WITH clause of a set-operation query expression. The
-// parser attaches a query-expression-level WITH to the set-op ROOT node (the
-// WITH applies to the whole UNION, not just the leftmost operand — a
-// parenthesized operand's own WITH stays inside its parens). The CTEs are
-// cleared so writeSelectStmt doesn't emit them again.
-func extractCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
-	if len(stmt.CTEs) > 0 {
-		ctes := stmt.CTEs
-		stmt.CTEs = nil // prevent double emission
-		return ctes
-	}
-	return nil
 }
 
 func deparseCTEs(ctes []*ast.CommonTableExpr) string {
@@ -422,9 +408,7 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString("`")
-		b.WriteString(cte.Name)
-		b.WriteString("`")
+		b.WriteString(quoteIdent(cte.Name))
 
 		// Column list
 		if len(cte.Columns) > 0 {
@@ -433,9 +417,7 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 				if j > 0 {
 					b.WriteString(",")
 				}
-				b.WriteString("`")
-				b.WriteString(col)
-				b.WriteString("`")
+				b.WriteString(quoteIdent(col))
 			}
 			b.WriteString(")")
 		}
@@ -487,12 +469,11 @@ func writeResTarget(b *strings.Builder, node ast.ExprNode, position int) {
 	// MySQL 8.0 uses double-space before AS for window function expressions.
 	// The OVER clause already ends with " )", and MySQL adds an extra space.
 	if hasWindowFunction(expr) {
-		b.WriteString("  AS `")
+		b.WriteString("  AS ")
 	} else {
-		b.WriteString(" AS `")
+		b.WriteString(" AS ")
 	}
-	b.WriteString(alias)
-	b.WriteString("`")
+	b.WriteString(quoteIdent(alias))
 }
 
 // hasWindowFunction checks if an expression is or contains a window function
@@ -883,18 +864,86 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 	}
 }
 
-// writeSelectStmtAlias generates a human-readable SELECT statement for auto-alias purposes.
-// MySQL 8.0 uses uppercase keywords, unqualified column names, and no column aliases.
+// writeSelectStmtAlias generates a human-readable query expression for
+// auto-alias purposes: uppercase keywords, unqualified column names, and each
+// item's own alias. MySQL names an item after its source text, so this
+// matches it only for a query written this way; Resolver.Source gives the
+// source text itself.
 func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
-	b.WriteString("SELECT ")
+	if len(stmt.CTEs) > 0 {
+		writeCTEsAlias(b, stmt.CTEs)
+	}
+	if stmt.ParenSource != nil {
+		b.WriteString("(")
+		writeSelectStmtAlias(b, stmt.ParenSource)
+		b.WriteString(")")
+		writeOrderByLimitAlias(b, stmt.OrderBy, stmt.Limit)
+		return
+	}
+	if stmt.SetOp != ast.SetOpNone {
+		writeSelectStmtAlias(b, stmt.Left)
+		switch stmt.SetOp {
+		case ast.SetOpUnion:
+			b.WriteString(" UNION ")
+		case ast.SetOpIntersect:
+			b.WriteString(" INTERSECT ")
+		case ast.SetOpExcept:
+			b.WriteString(" EXCEPT ")
+		}
+		if stmt.SetAll {
+			b.WriteString("ALL ")
+		}
+		writeSelectStmtAlias(b, stmt.Right)
+		writeOrderByLimitAlias(b, stmt.OrderBy, stmt.Limit)
+		return
+	}
+	if stmt.TableSource != nil {
+		b.WriteString("TABLE ")
+		if t := stmt.TableSource.Table; t != nil {
+			if t.Schema != "" {
+				b.WriteString(t.Schema)
+				b.WriteString(".")
+			}
+			b.WriteString(t.Name)
+		}
+		writeOrderByLimitAlias(b, stmt.OrderBy, stmt.Limit)
+		return
+	}
+	if stmt.ValuesSource != nil {
+		b.WriteString("VALUES ")
+		for i, row := range stmt.ValuesSource.Rows {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString("ROW(")
+			for j, expr := range row {
+				if j > 0 {
+					b.WriteString(", ")
+				}
+				writeExprAlias(b, expr)
+			}
+			b.WriteString(")")
+		}
+		writeOrderByLimitAlias(b, stmt.OrderBy, stmt.Limit)
+		return
+	}
 
-	// Target list (no aliases)
+	b.WriteString("SELECT ")
+	if stmt.DistinctKind == ast.DistinctOn {
+		b.WriteString("DISTINCT ")
+	}
+
+	// Target list: an item's own alias is part of its query's text.
 	for i, target := range stmt.TargetList {
 		if i > 0 {
 			b.WriteString(", ")
 		}
 		if rt, ok := target.(*ast.ResTarget); ok {
 			writeExprAlias(b, rt.Val)
+			if rt.Name != "" {
+				b.WriteString(" AS ")
+				b.WriteString(rt.Name)
+			}
 		} else {
 			writeExprAlias(b, target)
 		}
@@ -915,6 +964,78 @@ func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
 	if stmt.Where != nil {
 		b.WriteString(" WHERE ")
 		writeExprAlias(b, stmt.Where)
+	}
+
+	if len(stmt.GroupBy) > 0 {
+		b.WriteString(" GROUP BY ")
+		for i, expr := range stmt.GroupBy {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeExprAlias(b, expr)
+		}
+		if stmt.WithRollup {
+			b.WriteString(" WITH ROLLUP")
+		}
+	}
+	if stmt.Having != nil {
+		b.WriteString(" HAVING ")
+		writeExprAlias(b, stmt.Having)
+	}
+	writeOrderByLimitAlias(b, stmt.OrderBy, stmt.Limit)
+}
+
+// writeCTEsAlias writes a WITH clause for auto-alias purposes, followed by a
+// space: WITH c AS (SELECT 1).
+func writeCTEsAlias(b *strings.Builder, ctes []*ast.CommonTableExpr) {
+	b.WriteString("WITH ")
+	for _, cte := range ctes {
+		if cte.Recursive {
+			b.WriteString("RECURSIVE ")
+			break
+		}
+	}
+	for i, cte := range ctes {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(cte.Name)
+		if len(cte.Columns) > 0 {
+			b.WriteString("(")
+			b.WriteString(strings.Join(cte.Columns, ", "))
+			b.WriteString(")")
+		}
+		b.WriteString(" AS (")
+		if cte.Select != nil {
+			writeSelectStmtAlias(b, cte.Select)
+		}
+		b.WriteString(")")
+	}
+	b.WriteString(" ")
+}
+
+// writeOrderByLimitAlias writes ORDER BY and LIMIT clauses for auto-alias
+// purposes.
+func writeOrderByLimitAlias(b *strings.Builder, orderBy []*ast.OrderByItem, limit *ast.Limit) {
+	if len(orderBy) > 0 {
+		b.WriteString(" ORDER BY ")
+		for i, item := range orderBy {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeExprAlias(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" DESC")
+			}
+		}
+	}
+	if limit != nil {
+		b.WriteString(" LIMIT ")
+		if limit.Offset != nil {
+			writeExprAlias(b, limit.Offset)
+			b.WriteString(", ")
+		}
+		writeExprAlias(b, limit.Count)
 	}
 }
 
@@ -1072,6 +1193,8 @@ func tableExprName(tbl ast.TableExpr) string {
 			return t.Alias
 		}
 		return t.Name
+	case *ast.SubqueryExpr:
+		return t.Alias
 	default:
 		return ""
 	}
@@ -1089,15 +1212,7 @@ func writeUsingAsOn(b *strings.Builder, columns []string, leftName, rightName st
 		if i > 0 {
 			b.WriteString(" and ")
 		}
-		b.WriteString("(`")
-		b.WriteString(leftName)
-		b.WriteString("`.`")
-		b.WriteString(col)
-		b.WriteString("` = `")
-		b.WriteString(rightName)
-		b.WriteString("`.`")
-		b.WriteString(col)
-		b.WriteString("`)")
+		b.WriteString("(" + quoteIdent(leftName) + "." + quoteIdent(col) + " = " + quoteIdent(rightName) + "." + quoteIdent(col) + ")")
 		if i > 0 {
 			b.WriteString(")")
 		}
@@ -1113,9 +1228,7 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 	}
 	b.WriteString(")")
 	if s.Alias != "" {
-		b.WriteString(" `")
-		b.WriteString(s.Alias)
-		b.WriteString("`")
+		b.WriteString(" " + quoteIdent(s.Alias))
 	}
 }
 
@@ -1123,21 +1236,16 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 func deparseTableRef(t *ast.TableRef) string {
 	var b strings.Builder
 	if t.Schema != "" {
-		b.WriteString("`")
-		b.WriteString(t.Schema)
-		b.WriteString("`.")
+		b.WriteString(quoteIdent(t.Schema))
+		b.WriteString(".")
 	}
-	b.WriteString("`")
-	b.WriteString(t.Name)
-	b.WriteString("`")
+	b.WriteString(quoteIdent(t.Name))
 	if t.SystemTime != nil {
 		b.WriteString(" ")
 		b.WriteString(deparseSystemTime(t.SystemTime))
 	}
 	if t.Alias != "" {
-		b.WriteString(" `")
-		b.WriteString(t.Alias)
-		b.WriteString("`")
+		b.WriteString(" " + quoteIdent(t.Alias))
 	}
 	return b.String()
 }
@@ -1315,12 +1423,12 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 
 func deparseColumnRef(n *ast.ColumnRef) string {
 	if n.Schema != "" {
-		return "`" + n.Schema + "`.`" + n.Table + "`.`" + n.Column + "`"
+		return quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + quoteIdent(n.Column)
 	}
 	if n.Table != "" {
-		return "`" + n.Table + "`.`" + n.Column + "`"
+		return quoteIdent(n.Table) + "." + quoteIdent(n.Column)
 	}
-	return "`" + n.Column + "`"
+	return quoteIdent(n.Column)
 }
 
 func binaryOpToString(op ast.BinaryOp) string {
@@ -1803,9 +1911,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 func writeWindowDef(b *strings.Builder, wd *ast.WindowDef) {
 	// Named window reference: OVER `window_name`
 	if wd.RefName != "" && len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
-		b.WriteString("OVER `")
-		b.WriteString(wd.RefName)
-		b.WriteString("`")
+		b.WriteString("OVER " + quoteIdent(wd.RefName))
 		return
 	}
 
@@ -2023,4 +2129,12 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 	}
 
 	b.WriteString(")")
+}
+
+// quoteIdent quotes an identifier in backticks, doubling any backtick inside
+// it, as MySQL writes identifiers in SHOW CREATE output. A name can hold one:
+// a quoted identifier written with “, or an unaliased item named after its
+// source text, such as `a`+1.
+func quoteIdent(name string) string {
+	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
 }

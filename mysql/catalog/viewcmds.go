@@ -8,7 +8,9 @@ import (
 	"github.com/bytebase/omni/mysql/deparse"
 )
 
-func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
+// createView applies CREATE VIEW. source is the text the statement was parsed
+// from, or "" when there is none (see deparseViewSelect).
+func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -44,7 +46,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
 	hasExplicit := len(stmt.Columns) > 0
@@ -83,7 +85,8 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 	return nil
 }
 
-func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
+// alterView applies ALTER VIEW; source is as for createView.
+func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -111,7 +114,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
 	hasExplicit := len(stmt.Columns) > 0
@@ -635,12 +638,15 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 // If the AST is nil (parser didn't produce one), falls back to the raw SelectText.
 // Returns the deparsed definition and the derived column names from the resolved
 // SELECT target list (used when no explicit column list is specified).
-func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *Database) (string, []string) {
+//
+// source is the text the statement was parsed from, which the AST's Loc
+// offsets index into. An unaliased select item is named after its text in
+// source, as the engine names it; with no source ("" from DefineView), the
+// name is rebuilt from the AST.
+func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source string, db *Database) (string, []string) {
 	if sel == nil {
 		return rawText, nil
 	}
-
-	applyRawViewAutoAliases(sel, rawText)
 
 	// Build a TableLookup that resolves table names from this database.
 	lookup := tableLookupForDB(db)
@@ -655,6 +661,7 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *D
 	resolver := &deparse.Resolver{
 		Lookup:         lookup,
 		DefaultCharset: charset,
+		Source:         source,
 	}
 	resolver.Resolve(sel)
 
@@ -666,184 +673,6 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *D
 
 	// Deparse: AST → canonical SQL text.
 	return deparse.DeparseSelect(sel), derivedCols
-}
-
-func applyRawViewAutoAliases(sel *nodes.SelectStmt, rawText string) {
-	targets, ok := rawSelectTargets(rawText)
-	if !ok || len(targets) != len(sel.TargetList) {
-		return
-	}
-
-	for i, target := range sel.TargetList {
-		expr := target
-		if rt, ok := target.(*nodes.ResTarget); ok {
-			if rt.Name != "" {
-				continue
-			}
-			expr = rt.Val
-		}
-		if !shouldPreserveRawViewAutoAlias(expr) {
-			continue
-		}
-		alias := strings.TrimSpace(targets[i])
-		if alias == "" {
-			continue
-		}
-		if rt, ok := target.(*nodes.ResTarget); ok {
-			rt.Name = alias
-			continue
-		}
-		sel.TargetList[i] = &nodes.ResTarget{Name: alias, Val: target}
-	}
-}
-
-func shouldPreserveRawViewAutoAlias(expr nodes.ExprNode) bool {
-	switch expr.(type) {
-	case *nodes.StarExpr:
-		return false
-	case *nodes.ColumnRef:
-		return false
-	case *nodes.StringLit, *nodes.IntLit, *nodes.FloatLit, *nodes.NullLit, *nodes.BoolLit:
-		return false
-	}
-
-	hasInExpr := false
-	nodes.Inspect(expr, func(node nodes.Node) bool {
-		if _, ok := node.(*nodes.InExpr); ok {
-			hasInExpr = true
-			return false
-		}
-		return !hasInExpr
-	})
-	return hasInExpr
-}
-
-func rawSelectTargets(rawText string) ([]string, bool) {
-	sql := strings.TrimSpace(rawText)
-	if len(sql) < len("select") || !strings.EqualFold(sql[:len("select")], "select") {
-		return nil, false
-	}
-	pos := len("select")
-	if pos < len(sql) && isIdentifierPart(sql[pos]) {
-		return nil, false
-	}
-	pos = skipSQLSpace(sql, pos)
-	if hasSQLWordAt(sql, pos, "distinct") {
-		pos = skipSQLSpace(sql, pos+len("distinct"))
-	}
-	from := findTopLevelSQLWord(sql, pos, "from")
-	end := len(sql)
-	if from >= 0 {
-		end = from
-	}
-	return splitTopLevelCSV(sql[pos:end]), true
-}
-
-func splitTopLevelCSV(s string) []string {
-	var parts []string
-	start := 0
-	depth := 0
-	var quote byte
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		if quote != 0 {
-			if ch == '\\' && quote != '`' && i+1 < len(s) {
-				i++
-				continue
-			}
-			if ch == quote {
-				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
-					i++
-					continue
-				}
-				quote = 0
-			}
-			continue
-		}
-		switch ch {
-		case '\'', '"', '`':
-			quote = ch
-		case '(':
-			depth++
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-		case ',':
-			if depth == 0 {
-				parts = append(parts, strings.TrimSpace(s[start:i]))
-				start = i + 1
-			}
-		}
-	}
-	parts = append(parts, strings.TrimSpace(s[start:]))
-	return parts
-}
-
-func findTopLevelSQLWord(s string, start int, word string) int {
-	depth := 0
-	var quote byte
-	for i := start; i < len(s); i++ {
-		ch := s[i]
-		if quote != 0 {
-			if ch == '\\' && quote != '`' && i+1 < len(s) {
-				i++
-				continue
-			}
-			if ch == quote {
-				if quote == '\'' && i+1 < len(s) && s[i+1] == '\'' {
-					i++
-					continue
-				}
-				quote = 0
-			}
-			continue
-		}
-		switch ch {
-		case '\'', '"', '`':
-			quote = ch
-		case '(':
-			depth++
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-		default:
-			if depth == 0 && hasSQLWordAt(s, i, word) {
-				return i
-			}
-		}
-	}
-	return -1
-}
-
-func hasSQLWordAt(s string, pos int, word string) bool {
-	if pos < 0 || pos+len(word) > len(s) {
-		return false
-	}
-	if pos > 0 && isIdentifierPart(s[pos-1]) {
-		return false
-	}
-	if pos+len(word) < len(s) && isIdentifierPart(s[pos+len(word)]) {
-		return false
-	}
-	return strings.EqualFold(s[pos:pos+len(word)], word)
-}
-
-func skipSQLSpace(s string, pos int) int {
-	for pos < len(s) {
-		switch s[pos] {
-		case ' ', '\t', '\n', '\r', '\f':
-			pos++
-		default:
-			return pos
-		}
-	}
-	return pos
-}
-
-func isIdentifierPart(ch byte) bool {
-	return ch == '_' || ch == '$' || ch >= '0' && ch <= '9' || ch >= 'A' && ch <= 'Z' || ch >= 'a' && ch <= 'z'
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.
@@ -861,38 +690,19 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 	for _, target := range sel.TargetList {
 		if rt, ok := target.(*nodes.ResTarget); ok {
 			if rt.Name != "" {
-				cols = append(cols, canonicalViewDerivedColumnName(rt.Name))
+				cols = append(cols, rt.Name)
 			} else if cr, ok := rt.Val.(*nodes.ColumnRef); ok {
 				cols = append(cols, cr.Column)
 			} else {
-				cols = append(cols, canonicalViewDerivedColumnName(nodeToSQL(rt.Val)))
+				cols = append(cols, nodeToSQL(rt.Val))
 			}
 		} else if cr, ok := target.(*nodes.ColumnRef); ok {
 			cols = append(cols, cr.Column)
 		} else {
-			cols = append(cols, canonicalViewDerivedColumnName(nodeToSQL(target)))
+			cols = append(cols, nodeToSQL(target))
 		}
 	}
 	return cols
-}
-
-func canonicalViewDerivedColumnName(name string) string {
-	if strings.ContainsAny(name, "+-*/%") {
-		name = strings.ReplaceAll(name, " ", "")
-	}
-	replacer := strings.NewReplacer(
-		" + ", "+",
-		" - ", "-",
-		" * ", "*",
-		" / ", "/",
-		" % ", "%",
-	)
-	name = replacer.Replace(name)
-	lower := strings.ToLower(name)
-	if strings.HasPrefix(lower, "count(") {
-		return "COUNT" + name[len("count"):]
-	}
-	return name
 }
 
 // tableLookupForDB returns a deparse.TableLookup function that resolves table
@@ -997,13 +807,13 @@ func showCreateView(v *View) string {
 	b.WriteString(fmt.Sprintf(" SQL SECURITY %s", strings.ToUpper(sqlSecurity)))
 
 	// VIEW name
-	b.WriteString(fmt.Sprintf(" VIEW `%s`", v.Name))
+	b.WriteString(" VIEW " + backtickIDQ(v.Name))
 
 	// Column list (only if explicitly specified by user in CREATE VIEW).
 	if v.ExplicitColumns && len(v.Columns) > 0 {
 		cols := make([]string, len(v.Columns))
 		for i, c := range v.Columns {
-			cols[i] = fmt.Sprintf("`%s`", c)
+			cols[i] = backtickIDQ(c)
 		}
 		b.WriteString(fmt.Sprintf(" (%s)", strings.Join(cols, ",")))
 	}

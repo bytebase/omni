@@ -58,7 +58,7 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 			continue
 		}
 
-		execErr := c.processUtility(item)
+		execErr := c.processUtility(item, sql)
 		result.Error = execErr
 		results = append(results, result)
 
@@ -204,7 +204,9 @@ func isDML(stmt nodes.Node) bool {
 	}
 }
 
-func (c *Catalog) processUtility(stmt nodes.Node) error {
+// processUtility applies one statement. source is the text it was parsed
+// from, which its Loc offsets index into, or "" when there is none.
+func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	if err := validateExpressionSemantics(stmt); err != nil {
 		return err
 	}
@@ -216,9 +218,9 @@ func (c *Catalog) processUtility(stmt nodes.Node) error {
 	case *nodes.CreateIndexStmt:
 		return c.createIndex(s)
 	case *nodes.CreateViewStmt:
-		return c.createView(s)
+		return c.createView(s, source)
 	case *nodes.AlterViewStmt:
-		return c.alterView(s)
+		return c.alterView(s, source)
 	case *nodes.AlterTableStmt:
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:

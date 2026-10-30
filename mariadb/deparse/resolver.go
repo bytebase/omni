@@ -29,6 +29,12 @@ type Resolver struct {
 	// Used to populate CAST(... AS CHAR) charset when not explicitly specified.
 	// If empty, defaults to "utf8mb4".
 	DefaultCharset string
+	// Source is the text the statement was parsed from, which the AST's Loc
+	// offsets index into. When it is set, an unaliased select item is named
+	// after its source text, as MySQL names it; otherwise the name is rebuilt
+	// from the AST, which matches MySQL only for text written the way the
+	// rebuilt name spells it.
+	Source string
 }
 
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
@@ -87,6 +93,7 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 			cteResolver := &Resolver{
 				Lookup:         r.withCTELookup(mergedCTETables),
 				DefaultCharset: r.DefaultCharset,
+				Source:         r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 			if vt := buildCTEVirtualTable(cte); vt != nil {
@@ -125,6 +132,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 				cteResolver := &Resolver{
 					Lookup:         r.withCTELookup(mergedCTETables),
 					DefaultCharset: r.DefaultCharset,
+					Source:         r.Source,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
 				vt := buildCTEVirtualTable(cte)
@@ -173,6 +181,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			leftResolver := &Resolver{
 				Lookup:         r.withCTELookup(localCTETables),
 				DefaultCharset: r.DefaultCharset,
+				Source:         r.Source,
 			}
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
@@ -186,6 +195,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			rightResolver := &Resolver{
 				Lookup:         r.withCTELookup(localCTETables),
 				DefaultCharset: r.DefaultCharset,
+				Source:         r.Source,
 			}
 			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
 		} else {
@@ -193,6 +203,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			cteResolver := &Resolver{
 				Lookup:         r.withCTELookup(localCTETables),
 				DefaultCharset: r.DefaultCharset,
+				Source:         r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
@@ -252,8 +263,8 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 }
 
 // buildScope constructs a scope from the FROM clause table expressions.
-func (r *Resolver) buildScope(from []ast.TableExpr) *scopepkg.Scope {
-	sc := scopepkg.New()
+func (r *Resolver) buildScope(from []ast.TableExpr) *fromScope {
+	sc := newFromScope(from)
 	for _, tbl := range from {
 		r.addTableExprToScope(tbl, sc)
 	}
@@ -261,7 +272,8 @@ func (r *Resolver) buildScope(from []ast.TableExpr) *scopepkg.Scope {
 }
 
 // addTableExprToScope recursively adds table references from a table expression to the scope.
-func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *scopepkg.Scope) {
+func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
+	defer sc.span(tbl, len(sc.tables))
 	switch t := tbl.(type) {
 	case *ast.TableRef:
 		table := r.Lookup(t.Name)
@@ -272,7 +284,7 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *scopepkg.Scope) {
 		if t.Alias != "" {
 			effectiveName = t.Alias
 		}
-		sc.Add(effectiveName, table)
+		sc.add(t, effectiveName, table)
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc)
 		r.addTableExprToScope(t.Right, sc)
@@ -283,14 +295,14 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *scopepkg.Scope) {
 			r.Resolve(t.Select)
 			vt := buildDerivedVirtualTable(t)
 			if vt != nil && t.Alias != "" {
-				sc.Add(t.Alias, vt)
+				sc.add(t, t.Alias, vt)
 			}
 		}
 	}
 }
 
 // resolveTargetList resolves all target list entries, expanding qualified stars.
-func (r *Resolver) resolveTargetList(targets []ast.ExprNode, sc *scopepkg.Scope) []ast.ExprNode {
+func (r *Resolver) resolveTargetList(targets []ast.ExprNode, sc *fromScope) []ast.ExprNode {
 	var result []ast.ExprNode
 	for i, target := range targets {
 		expanded := r.resolveTarget(target, sc, i+1)
@@ -301,7 +313,7 @@ func (r *Resolver) resolveTargetList(targets []ast.ExprNode, sc *scopepkg.Scope)
 
 // resolveTarget resolves a single target list entry. Returns a slice because
 // star expansion can produce multiple entries.
-func (r *Resolver) resolveTarget(target ast.ExprNode, sc *scopepkg.Scope, position int) []ast.ExprNode {
+func (r *Resolver) resolveTarget(target ast.ExprNode, sc *fromScope, position int) []ast.ExprNode {
 	rt, isRT := target.(*ast.ResTarget)
 
 	var expr ast.ExprNode
@@ -331,8 +343,7 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *scopepkg.Scope, positi
 	// MySQL 8.0 uses the original (unqualified) expression text for auto-aliases,
 	// so we must derive it before column qualification changes the expression.
 	if explicitAlias == "" {
-		exprStr := deparseExpr(expr)
-		explicitAlias = autoAlias(expr, exprStr, position)
+		explicitAlias = r.autoName(expr, position)
 	}
 
 	// Resolve the expression (column qualification, etc.)
@@ -346,31 +357,41 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *scopepkg.Scope, positi
 	return []ast.ExprNode{&ast.ResTarget{Name: explicitAlias, Val: resolved}}
 }
 
-// expandStar expands * to all columns from all tables in scope order.
-// Columns marked as coalesced (from NATURAL JOIN / USING) are excluded.
-func (r *Resolver) expandStar(sc *scopepkg.Scope) []ast.ExprNode {
-	var result []ast.ExprNode
-	for _, entry := range sc.AllEntries() {
-		cols := sortedResolverColumns(entry.Table)
-		for _, col := range cols {
-			// Skip columns coalesced by NATURAL JOIN or USING
-			if sc.IsCoalesced(entry.Name, col.Name) {
-				continue
-			}
-			result = append(result, &ast.ResTarget{
-				Name: col.Name,
-				Val: &ast.ColumnRef{
-					Table:  entry.Name,
-					Column: col.Name,
-				},
-			})
+// autoName names an unaliased select item: from its source text when the
+// resolver has it, otherwise rebuilt from the AST.
+func (r *Resolver) autoName(expr ast.ExprNode, position int) string {
+	if r.Source != "" {
+		if name, ok := sourceAutoName(r.Source, expr, position); ok {
+			return name
 		}
+	}
+	return autoAlias(expr, "", position)
+}
+
+// expandStar expands * to the columns of the FROM clause in MySQL's order: a
+// NATURAL or USING join lists the columns it joins on once, first (see
+// fromScope).
+func (r *Resolver) expandStar(sc *fromScope) []ast.ExprNode {
+	listed := make(map[colKey]bool)
+	var cols []joinColumn
+	for _, te := range sc.from {
+		cols = sc.columns(te, false, listed, cols)
+	}
+	result := make([]ast.ExprNode, 0, len(cols))
+	for _, c := range cols {
+		result = append(result, &ast.ResTarget{
+			Name: c.name,
+			Val: &ast.ColumnRef{
+				Table:  c.qualifier,
+				Column: c.name,
+			},
+		})
 	}
 	return result
 }
 
 // expandQualifiedStar expands t1.* to all columns of table t1.
-func (r *Resolver) expandQualifiedStar(tableName string, sc *scopepkg.Scope) []ast.ExprNode {
+func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.ExprNode {
 	table := sc.GetTable(tableName)
 	if table == nil {
 		// Table not found in scope; return as-is
@@ -410,7 +431,7 @@ func sortedResolverColumns(table *ResolverTable) []ResolverColumn {
 }
 
 // resolveExpr resolves column references in an expression.
-func (r *Resolver) resolveExpr(node ast.ExprNode, sc *scopepkg.Scope) ast.ExprNode {
+func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 	if node == nil {
 		return nil
 	}
@@ -516,7 +537,7 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *scopepkg.Scope) ast.ExprNo
 
 // resolveColumnRef qualifies an unqualified column reference by finding which
 // table in scope contains the column.
-func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *scopepkg.Scope) ast.ExprNode {
+func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
 	// Already qualified — just validate the table name maps to an alias
 	if col.Table != "" {
 		// Check if this table name is in scope (might be an alias)
@@ -526,6 +547,13 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *scopepkg.Scope) ast.
 				col.Table = entry.Name
 			}
 		}
+		return col
+	}
+
+	// A column a NATURAL or USING join joins on is the one copy the join
+	// keeps, which comes from its right input in a RIGHT join.
+	if c, ok := sc.coalesced[strings.ToLower(col.Column)]; ok {
+		col.Table = c.qualifier
 		return col
 	}
 
@@ -542,7 +570,7 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *scopepkg.Scope) ast.
 }
 
 // resolveWindowDef resolves column references in a window definition.
-func (r *Resolver) resolveWindowDef(wd *ast.WindowDef, sc *scopepkg.Scope) {
+func (r *Resolver) resolveWindowDef(wd *ast.WindowDef, sc *fromScope) {
 	for i, expr := range wd.PartitionBy {
 		wd.PartitionBy[i] = r.resolveExpr(expr, sc)
 	}
@@ -553,16 +581,16 @@ func (r *Resolver) resolveWindowDef(wd *ast.WindowDef, sc *scopepkg.Scope) {
 
 // resolveFromExprs walks FROM clause table expressions and resolves
 // ON condition expressions in JoinClauses.
-func (r *Resolver) resolveFromExprs(from []ast.TableExpr, sc *scopepkg.Scope) {
+func (r *Resolver) resolveFromExprs(from []ast.TableExpr, sc *fromScope) {
 	for _, tbl := range from {
 		r.resolveTableExpr(tbl, sc)
 	}
 }
 
 // resolveTableExpr resolves expressions within a table expression (e.g., ON conditions).
-// For NATURAL JOINs, it expands the join by finding common columns between both tables
-// and building an ON condition. For USING clauses, it resolves column references.
-func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scopepkg.Scope) {
+// A NATURAL or USING join becomes the ON condition MySQL writes for it (see
+// fromScope), comparing the columns it joins on.
+func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *fromScope) {
 	switch t := tbl.(type) {
 	case *ast.JoinClause:
 		r.resolveTableExpr(t.Left, sc)
@@ -576,7 +604,7 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scopepkg.Scope) {
 		// Expand USING → build ON condition with qualified column refs
 		if t.Condition != nil {
 			if using, ok := t.Condition.(*ast.UsingCondition); ok {
-				r.expandUsingCondition(t, using)
+				r.expandUsingCondition(t, using, sc)
 			}
 		}
 
@@ -588,53 +616,28 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *scopepkg.Scope) {
 	}
 }
 
-// expandNaturalJoin finds common columns between the left and right tables of a
-// NATURAL JOIN and builds an ON condition. It also changes the join type:
+// expandNaturalJoin joins a NATURAL join on the columns its inputs share and
+// builds its ON condition. It also changes the join type:
 //   - NATURAL JOIN → JoinInner
 //   - NATURAL LEFT JOIN → JoinLeft
 //   - NATURAL RIGHT JOIN → JoinRight (deparse will then swap to LEFT)
-func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *scopepkg.Scope) {
-	leftTable := r.lookupTableExpr(j.Left)
-	rightTable := r.lookupTableExpr(j.Right)
-	if leftTable == nil || rightTable == nil {
-		// Can't expand without schema info; leave as-is
-		switch j.Type {
-		case ast.JoinNatural:
-			j.Type = ast.JoinInner
-		case ast.JoinNaturalLeft:
-			j.Type = ast.JoinLeft
-		case ast.JoinNaturalRight:
-			j.Type = ast.JoinRight
-		}
-		return
-	}
-
-	// Find common columns (columns with matching names, case-insensitive)
-	// Use left table column order for deterministic output
-	leftCols := sortedResolverColumns(leftTable)
-	var commonCols []string
-	for _, lc := range leftCols {
-		if rightTable.GetColumn(lc.Name) != nil {
-			commonCols = append(commonCols, lc.Name)
-		}
-	}
-
-	// Get effective table names for qualified column refs
-	leftName := tableExprEffectiveName(j.Left)
-	rightName := tableExprEffectiveName(j.Right)
-
-	// Build ON condition from common columns
-	if len(commonCols) > 0 {
-		j.Condition = &ast.OnCondition{
-			Expr: buildColumnEqualityChain(commonCols, leftName, rightName),
-		}
-	}
-
-	// Mark common columns from the right table as coalesced for star expansion.
-	// In NATURAL JOIN, common columns appear only once (from the left table).
-	if sc != nil && len(commonCols) > 0 {
-		for _, col := range commonCols {
-			sc.MarkCoalesced(rightName, col)
+//
+// When an input's columns are unknown, the join keeps no condition.
+func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *fromScope) {
+	if names, ok := sc.naturalColumns(j); ok {
+		if len(names) > 0 {
+			if on, ok := sc.joinOn(j, names); ok {
+				j.Condition = &ast.OnCondition{Expr: on}
+			}
+		} else {
+			// Inputs that share no column still make a NATURAL join, which
+			// lists a RIGHT join's right input first; an outer join needs a
+			// condition, and MariaDB writes on(1) (SELECT * FROM p NATURAL
+			// RIGHT JOIN q).
+			sc.joinOnNothing(j)
+			if j.Type != ast.JoinNatural {
+				j.Condition = &ast.OnCondition{Expr: noColumnsCondition()}
+			}
 		}
 	}
 
@@ -651,25 +654,23 @@ func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *scopepkg.Scope) {
 
 // expandUsingCondition converts a USING condition into an ON condition with
 // fully qualified column references, then replaces the condition on the join.
-func (r *Resolver) expandUsingCondition(j *ast.JoinClause, using *ast.UsingCondition) {
+// When an input's columns are unknown, each side is qualified by the name of
+// its input if that is a table.
+func (r *Resolver) expandUsingCondition(j *ast.JoinClause, using *ast.UsingCondition, sc *fromScope) {
+	if len(using.Columns) == 0 {
+		return
+	}
+	if on, ok := sc.joinOn(j, using.Columns); ok {
+		j.Condition = &ast.OnCondition{Expr: on}
+		return
+	}
+
 	leftName := tableExprEffectiveName(j.Left)
 	rightName := tableExprEffectiveName(j.Right)
-
-	if len(using.Columns) > 0 && leftName != "" && rightName != "" {
+	if leftName != "" && rightName != "" {
 		j.Condition = &ast.OnCondition{
 			Expr: buildColumnEqualityChain(using.Columns, leftName, rightName),
 		}
-	}
-}
-
-// lookupTableExpr returns the ResolverTable for a table expression.
-// Only works for simple TableRef nodes.
-func (r *Resolver) lookupTableExpr(tbl ast.TableExpr) *ResolverTable {
-	switch t := tbl.(type) {
-	case *ast.TableRef:
-		return r.Lookup(t.Name)
-	default:
-		return nil
 	}
 }
 

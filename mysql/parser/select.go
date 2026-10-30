@@ -514,30 +514,41 @@ func (p *Parser) firstTokenPastParens() Token {
 // parseSelectNoParens left-factors the grammar so a nested "((...))" and a
 // parenthesized set-op operand are parsed by the same path.
 //
-// The result depends only on where the parse starts, so a failure is recorded
-// (see parenQueryFail) and returned again without reparsing. Completion mode
-// records its failures with the effects a reparse would repeat (see
-// parenQueryReplay).
+// The result depends only on where the parse starts and how deeply it is
+// nested, so a failure is recorded (see parenQueryFail) and returned again
+// without reparsing. Completion mode records its failures with the effects a
+// reparse would repeat (see parenQueryReplay).
+//
+// A record made at nesting depth d stands for a parse that passed every
+// enterNesting it reached from d; started no deeper, a reparse passes them
+// all again and fails the same way, so the record is replayed only then.
+// Started deeper, a reparse may reach the nesting limit first, so it parses
+// again. A record never holds a nesting error, which depends on the depth the
+// parse started at.
 func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 	start := p.pos()
-	if err, ok := p.parenQueryFail[start]; ok {
-		return nil, err
+	if r, ok := p.parenQueryFail[start]; ok && p.depth <= r.depth {
+		return nil, r.err
 	}
 	if p.completing {
 		return p.parseSelectWithParensCompleting(start)
 	}
+	depth := p.depth
 	sel, err := p.parseSelectWithParensAt(start)
-	if err != nil {
-		p.recordParenQueryFail(start, err)
+	if err != nil && !isNestingError(err) {
+		if p.parenQueryFail == nil {
+			p.parenQueryFail = make(map[int]parenQueryFailRecord)
+		}
+		p.parenQueryFail[start] = parenQueryFailRecord{err: err, depth: depth}
 	}
 	return sel, err
 }
 
-func (p *Parser) recordParenQueryFail(start int, err error) {
-	if p.parenQueryFail == nil {
-		p.parenQueryFail = make(map[int]error)
-	}
-	p.parenQueryFail[start] = err
+// parenQueryFailRecord is a parseSelectWithParens failure outside completion
+// mode and the nesting depth the failed parse started at.
+type parenQueryFailRecord struct {
+	err   error
+	depth int
 }
 
 // parenQueryKey identifies a completion-mode parse of a parenthesized query
@@ -558,17 +569,19 @@ type parenQueryFailure struct {
 	end      scanState
 	ctePos   []int
 	aliasPos []int
+	depth    int // the nesting depth the failed parse started at
 }
 
 // parseSelectWithParensCompleting is parseSelectWithParens in completion
 // mode. Returning a failure again without its effects would lose candidates,
 // so a replay restores them instead of reparsing, which keeps the speculation
 // at every level of `((((SELECT 1) = 0) = 0) = 0)` linear: reparsing took 8 s
-// at 10,000 levels. A failure at the nesting limit is recorded plainly, as
-// outside completion mode: completion stops there.
+// at 10,000 levels. As outside completion mode, a record is replayed only at
+// its own nesting depth or shallower, and a failure at the nesting limit is
+// not recorded.
 func (p *Parser) parseSelectWithParensCompleting(start int) (*nodes.SelectStmt, error) {
 	key := parenQueryKey{start: start, collecting: p.collecting}
-	if f, ok := p.parenQueryReplay[key]; ok {
+	if f, ok := p.parenQueryReplay[key]; ok && p.depth <= f.depth {
 		e := f.end
 		*p.lexer = e.lexer
 		p.cur, p.prev, p.nextBuf, p.hasNext, p.collecting = e.cur, e.prev, e.nextBuf, e.hasNext, e.collecting
@@ -578,16 +591,16 @@ func (p *Parser) parseSelectWithParensCompleting(start int) (*nodes.SelectStmt, 
 		}
 		return nil, f.err
 	}
+	depth := p.depth
 	before := p.saveScan()
 	sel, err := p.parseSelectWithParensAt(start)
 	if err == nil {
 		return sel, nil
 	}
 	if isNestingError(err) {
-		p.recordParenQueryFail(start, err)
 		return nil, err
 	}
-	f := &parenQueryFailure{err: err, end: p.saveScan()}
+	f := &parenQueryFailure{err: err, end: p.saveScan(), depth: depth}
 	if cs := p.candidates; cs != nil {
 		if len(cs.CTEPositions) > before.ctePosLen {
 			f.ctePos = append([]int(nil), cs.CTEPositions[before.ctePosLen:]...)

@@ -368,7 +368,9 @@ func TestResolver_Section_6_4_JoinNormalization(t *testing.T) {
 		resolver := &deparse.Resolver{Lookup: catalogLookup(cat)}
 		resolved := resolver.Resolve(sel)
 		got := deparse.DeparseSelect(resolved)
-		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b`,`t3`.`a` AS `a`,`t3`.`b` AS `b` from (`t1` join `t3` on(((`t1`.`a` = `t3`.`a`) and (`t1`.`b` = `t3`.`b`))))"
+		// SELECT * lists each column USING joins on once (MySQL 8.0:
+		// SELECT * FROM t1 JOIN t2 USING (a, b, c) lists t1's a, b, c only).
+		expected := "select `t1`.`a` AS `a`,`t1`.`b` AS `b` from (`t1` join `t3` on(((`t1`.`a` = `t3`.`a`) and (`t1`.`b` = `t3`.`b`))))"
 		if got != expected {
 			t.Errorf("USING multi:\n  got:  %q\n  want: %q", got, expected)
 		}

@@ -104,7 +104,7 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 		// keep FK checks off (a SET inside the SDL must not re-arm validation).
 		c.SetCurrentDatabase(dbAtIndex[idx])
 		c.SetForeignKeyChecks(false)
-		if err := c.processUtility(stmts[idx]); err != nil {
+		if err := c.processUtility(stmts[idx], sql); err != nil {
 			return c, err
 		}
 	}

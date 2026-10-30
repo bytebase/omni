@@ -26,7 +26,7 @@ type Parser struct {
 	// nested `((((SELECT 1) = 0) = 0) = 0)` and rewinds when it fails, and the
 	// next level down fails on the same tokens; recording the failures keeps
 	// that linear.
-	parenQueryFail map[int]error
+	parenQueryFail map[int]parenQueryFailRecord
 
 	// parenQueryReplay holds the same failures in completion mode, where a
 	// failed parse also leaves candidates behind (parenQueryFailure).
