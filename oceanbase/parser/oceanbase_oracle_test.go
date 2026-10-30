@@ -57,18 +57,21 @@ func oceanBaseOracle(t *testing.T) *sql.DB {
 // engineAccepts reports whether OceanBase parses sql. It runs the statement and
 // reads the error: 1064 is a parse error, anything else means the statement parsed
 // and failed for a semantic reason, such as a missing table.
-func engineAccepts(ctx context.Context, db *sql.DB, sql string) bool {
+//
+// Anything that is not a server error — a dropped connection, a timeout — is no
+// verdict at all and comes back as one. Reporting it as acceptance would pass the
+// whole inventory against a server that never answered, because every pending case
+// expects the engine to accept and every shared case expects both sides to.
+func engineAccepts(ctx context.Context, db *sql.DB, sql string) (bool, error) {
 	_, err := db.ExecContext(ctx, sql)
 	if err == nil {
-		return true
+		return true, nil
 	}
 	var myErr *gomysql.MySQLError
 	if errors.As(err, &myErr) {
-		return myErr.Number != 1064
+		return myErr.Number != 1064, nil
 	}
-	// A connection fault is not a verdict; report accepted so a broken oracle shows
-	// up as a disagreement rather than as a silent rejection.
-	return true
+	return false, err
 }
 
 // grammarCase is one statement the inventory asks both the engine and the parser about.
@@ -151,7 +154,10 @@ func TestOceanBaseGrammarInventory(t *testing.T) {
 			t.Run(c.name, func(t *testing.T) {
 				_, parseErr := Parse(c.sql)
 				parserTakes := parseErr == nil
-				engineTakes := engineAccepts(ctx, db, c.sql)
+				engineTakes, err := engineAccepts(ctx, db, c.sql)
+				if err != nil {
+					t.Fatalf("the oracle gave no verdict on %q: %v", c.sql, err)
+				}
 
 				switch {
 				case engineTakes && !parserTakes:
@@ -173,6 +179,28 @@ func TestOceanBaseGrammarInventory(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestEngineAcceptsReportsConnectionFaults pins that a server which never answers
+// is no verdict. Reporting a fault as acceptance would pass the whole inventory
+// against a dead oracle: every pending case expects the engine to accept and the
+// parser to refuse, and every shared case expects both to accept. This test needs no
+// DSN, so it guards that in CI where the oracle itself cannot run.
+func TestEngineAcceptsReportsConnectionFaults(t *testing.T) {
+	// Port 1 is privileged and unused, so the dial is refused rather than hanging.
+	db, err := sql.Open("mysql", "root@tcp(127.0.0.1:1)/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	accepted, err := engineAccepts(context.Background(), db, "SELECT 1")
+	if err == nil {
+		t.Fatal("a refused connection must come back as an error, not a verdict")
+	}
+	if accepted {
+		t.Error("a refused connection must not report the statement as accepted")
 	}
 }
 
