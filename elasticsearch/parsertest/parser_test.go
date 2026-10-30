@@ -170,6 +170,72 @@ func TestParse(t *testing.T) {
 	}
 }
 
+// TestParseNULIsAnOrdinaryCharacter: the parser took rune 0 for the end of
+// the text, so a NUL byte ended the parse there and every request after it
+// was dropped without an error. The upstream ends at the empty string that
+// text.charAt returns past the end, and reads a NUL byte as any other
+// character: whitespace between tokens, part of a URL, string or comment.
+// Each want is what the upstream parser (Kibana's console parser.js) returns
+// for the same input.
+func TestParseNULIsAnOrdinaryCharacter(t *testing.T) {
+	testCases := []struct {
+		description string
+		input       string
+		want        []parser.ParsedRequest
+	}{
+		{
+			description: "in a URL",
+			input:       "GET /a\x00b\nGET /c",
+			want:        []parser.ParsedRequest{{StartOffset: 0, EndOffset: 8}, {StartOffset: 9, EndOffset: 15}},
+		},
+		{
+			description: "at the end of a URL",
+			input:       "GET /a\x00",
+			want:        []parser.ParsedRequest{{StartOffset: 0, EndOffset: 7}},
+		},
+		{
+			description: "before the first request",
+			input:       "\x00GET /x",
+			want:        []parser.ParsedRequest{{StartOffset: 1, EndOffset: 7}},
+		},
+		{
+			description: "in a body string",
+			input:       "GET /x\n{\"a\": \"b\x00c\"}\nGET /y",
+			want:        []parser.ParsedRequest{{StartOffset: 0, EndOffset: 19}, {StartOffset: 20, EndOffset: 26}},
+		},
+		{
+			description: "between body tokens",
+			input:       "GET /x\n{\"a\":\x001}\nGET /y",
+			want:        []parser.ParsedRequest{{StartOffset: 0, EndOffset: 15}, {StartOffset: 16, EndOffset: 22}},
+		},
+		{
+			description: "in a line comment",
+			input:       "# c\x00omment\nGET /z",
+			want:        []parser.ParsedRequest{{StartOffset: 11, EndOffset: 17}},
+		},
+		{
+			description: "in a block comment",
+			input:       "GET /x\n/* a\x00b */\nGET /y",
+			want:        []parser.ParsedRequest{{StartOffset: 0, EndOffset: 6}, {StartOffset: 17, EndOffset: 23}},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			result, err := parser.Parse(tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, result.Requests)
+			require.Empty(t, result.Errors)
+
+			stmts, err := es.SplitMultiSQL(tc.input)
+			require.NoError(t, err)
+			require.Len(t, stmts, len(tc.want))
+			for i, r := range tc.want {
+				require.Equal(t, tc.input[r.StartOffset:r.EndOffset], stmts[i].Text)
+			}
+		})
+	}
+}
+
 func TestGetEditorRequest(t *testing.T) {
 	testCases := []struct {
 		description string
