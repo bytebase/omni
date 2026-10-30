@@ -157,13 +157,14 @@ func (*UnaryExpr) exprNode()     {}
 // Predicate nodes
 // ===========================================================================
 
-// InExpr represents `expr [NOT] IN (…)` — either a parenthesized expression
-// list or a subquery.
+// InExpr represents `expr [NOT] IN rhs` — a parenthesized expression list,
+// a subquery, or any other expression, such as `[1, 2]` or `(1) + 1`, which
+// List holds alone.
 //
 // Grammar: exprPredicate#PredicateIn
 type InExpr struct {
 	Expr     ExprNode
-	List     []ExprNode // populated when the RHS is an expression list
+	List     []ExprNode // the list items, or the RHS expression alone
 	Subquery StmtNode   // populated when the RHS is a parenthesized SELECT
 	Not      bool
 	Loc      Loc

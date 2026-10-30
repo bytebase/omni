@@ -17,6 +17,12 @@ func (p *Parser) parseMathOp00() (ast.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.parseMathOp00Rest(left)
+}
+
+// parseMathOp00Rest parses the `|| mathOp01` operations that follow left,
+// the mathOp00's first operand.
+func (p *Parser) parseMathOp00Rest(left ast.ExprNode) (ast.ExprNode, error) {
 	for p.cur.Type == tokCONCAT {
 		p.advance()
 		right, err := p.parseMathOp01()
@@ -44,6 +50,12 @@ func (p *Parser) parseMathOp01() (ast.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.parseMathOp01Rest(left)
+}
+
+// parseMathOp01Rest parses the `+ mathOp02` and `- mathOp02` operations that
+// follow left, the mathOp01's first operand.
+func (p *Parser) parseMathOp01Rest(left ast.ExprNode) (ast.ExprNode, error) {
 	for p.cur.Type == tokPLUS || p.cur.Type == tokMINUS {
 		op := ast.BinOpAdd
 		if p.cur.Type == tokMINUS {
@@ -75,6 +87,12 @@ func (p *Parser) parseMathOp02() (ast.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.parseMathOp02Rest(left)
+}
+
+// parseMathOp02Rest parses the `*`, `/` and `%` operations that follow left,
+// the mathOp02's first operand.
+func (p *Parser) parseMathOp02Rest(left ast.ExprNode) (ast.ExprNode, error) {
 	for p.cur.Type == tokASTERISK || p.cur.Type == tokSLASH_FORWARD || p.cur.Type == tokPERCENT {
 		var op ast.BinOp
 		switch p.cur.Type {
@@ -279,18 +297,25 @@ func (p *Parser) parseIsBody(left ast.ExprNode, not bool, startLoc int) (*ast.Is
 // parseInBody parses the RHS of `expr [NOT] IN ...`. The caller has
 // NOT yet consumed IN.
 //
-// Grammar: exprPredicate#PredicateIn (lines 487-488).
+// Grammar: exprPredicate#PredicateIn (lines 487-488):
+//
+//	lhs=exprPredicate NOT? IN PAREN_LEFT expr PAREN_RIGHT
+//	lhs=exprPredicate NOT? IN rhs=mathOp00
 //
 // Supports two forms:
 //  1. Parenthesized: `IN (expr)` or `IN (expr, expr, ...)`. A lone query,
 //     `IN (SELECT ...)`, fills Subquery; anything else fills List.
-//  2. Expression form: `IN expr` where expr is typically an array
-//     literal like `[1, 2, 3]`.
+//  2. Expression form: `IN rhs` for any other mathOp00, such as the array
+//     literal `[1, 2, 3]`. List holds the rhs alone. A mathOp00 may begin
+//     with a parenthesized operand, as in `IN (1) + 1`, `IN (x).y` and the
+//     graph match `IN (g MATCH (n))`; the parentheses are then read as
+//     that operand rather than as form 1.
 func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.InExpr, error) {
 	p.advance() // consume IN
 
 	// Parenthesized form: IN (expr, expr, ...)
 	if p.cur.Type == tokPAREN_LEFT {
+		open := p.cur.Loc.Start
 		p.advance() // consume (
 		// The grammar requires at least one expr inside the parens
 		// (g4:487 — `NOT? IN PAREN_LEFT expr PAREN_RIGHT`). An empty list
@@ -320,9 +345,42 @@ func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.In
 			}
 			p.advance() // consume ,
 		}
+		// `IN (g MATCH (n))`: an expr followed by MATCH is the graph match
+		// exprGraphMatchMany (g4:625-626), an exprPrimary, so only g4:488
+		// reads these parentheses, as the first operand of rhs=mathOp00.
+		// parseParenExprBody parses it the same way.
+		if len(list) == 1 && p.cur.Type == tokMATCH {
+			match, err := p.parseGraphMatch(list[0])
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(tokPAREN_RIGHT); err != nil {
+				return nil, err
+			}
+			return p.finishInRHS(left, not, startLoc, match)
+		}
 		rp, err := p.expect(tokPAREN_RIGHT)
 		if err != nil {
 			return nil, err
+		}
+		// A path step or an arithmetic or || operator after the ')' extends
+		// a mathOp00 whose first operand is the parenthesized expr
+		// (exprTerm#ExprTermWrappedQuery, g4:543), as in `a IN (1) + 1` or
+		// `a IN (x)[0]`. g4:487 cannot read the tokens after its ')', so
+		// the input is g4:488's, and the rhs is the tree parseMathOp00
+		// builds for those tokens: the parentheses add no node, and a
+		// SubLink spans them, as parseParenExprBody makes it. Several items
+		// followed by an operator, `a IN (1, 2) + 1`, would make a valueList
+		// the operand; outside IN no node represents one (parseParenExprBody
+		// defers it), so that input is still rejected at the operator.
+		if len(list) == 1 && continuesMathOp00(p.cur.Type) {
+			operand := list[0]
+			if sub, ok := operand.(*ast.SubLink); ok {
+				wrapped := *sub
+				wrapped.Loc = ast.Loc{Start: open, End: rp.Loc.End}
+				operand = &wrapped
+			}
+			return p.finishInRHS(left, not, startLoc, operand)
 		}
 		in := &ast.InExpr{
 			Expr: left,
@@ -353,6 +411,60 @@ func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.In
 		Not:  not,
 		Loc:  ast.Loc{Start: startLoc, End: rhs.GetLoc().End},
 	}, nil
+}
+
+// finishInRHS completes the expression form of IN when the rhs=mathOp00
+// (g4:488) began with a parenthesized exprPrimary that parseInBody has
+// already parsed: operand, with p.cur on the token after its ')'. The
+// InExpr ends at the last token of the rhs, which is past the end of the
+// rhs node when the rhs ends in a parenthesized operand, as in
+// `a IN (1) + (2)`: the parentheses add no node.
+func (p *Parser) finishInRHS(left ast.ExprNode, not bool, startLoc int, operand ast.ExprNode) (*ast.InExpr, error) {
+	rhs, err := p.parseMathOp00From(operand)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.InExpr{
+		Expr: left,
+		List: []ast.ExprNode{rhs},
+		Not:  not,
+		Loc:  ast.Loc{Start: startLoc, End: p.prev.Loc.End},
+	}, nil
+}
+
+// continuesMathOp00 reports whether a token after an exprPrimary continues
+// the mathOp00 it begins: a path step (g4:528, 618-623) or an operator of
+// mathOp02, mathOp01 or mathOp00 (g4:494-507).
+func continuesMathOp00(t int) bool {
+	switch t {
+	case tokASTERISK, tokSLASH_FORWARD, tokPERCENT, tokPLUS, tokMINUS, tokCONCAT:
+		return true
+	}
+	return isPathStepStart(t)
+}
+
+// parseMathOp00From parses a mathOp00 whose first exprPrimary, primary, is
+// already parsed, with p.cur on the token after it: the path steps that
+// follow it, then the operations of each layer. It builds the tree that
+// parseMathOp00 builds for the same tokens.
+func (p *Parser) parseMathOp00From(primary ast.ExprNode) (ast.ExprNode, error) {
+	left := primary
+	if isPathStepStart(p.cur.Type) {
+		path, err := p.parsePathSteps(primary)
+		if err != nil {
+			return nil, err
+		}
+		left = path
+	}
+	left, err := p.parseMathOp02Rest(left)
+	if err != nil {
+		return nil, err
+	}
+	left, err = p.parseMathOp01Rest(left)
+	if err != nil {
+		return nil, err
+	}
+	return p.parseMathOp00Rest(left)
 }
 
 // parseLikeBody parses the RHS of `expr [NOT] LIKE pattern [ESCAPE escape]`.
