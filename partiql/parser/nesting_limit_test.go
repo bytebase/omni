@@ -35,6 +35,7 @@ var nestingShapes = []struct {
 	{"IN subquery", func(n int) string { return nest(n, "SELECT a FROM t WHERE a IN (", "SELECT a FROM t", ")") }},
 	{"IN list", func(n int) string { return "SELECT * FROM t WHERE " + nest(n, "a IN (1, ", "1", ")") }},
 	{"IN operand", func(n int) string { return "SELECT * FROM t WHERE " + nest(n, "a IN (", "1", ") + 1") }},
+	{"TRIM", func(n int) string { return "SELECT " + nest(n, "TRIM(", "x", ")") + " FROM t" }},
 	{"FROM expression", func(n int) string { return "SELECT * FROM " + nest(n, "f(", "x", ")") + " AS y" }},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT * FROM t", ")") }},
 	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t CROSS JOIN ", "t", ")") }},

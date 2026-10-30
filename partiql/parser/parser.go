@@ -67,6 +67,11 @@ type Parser struct {
 	speculating int
 	parenMemo   map[int]parenReplay
 	tableMemo   map[int]parenReplay
+
+	// trimFroms records the results of the TRIM lookahead
+	// (trimHasTopLevelFrom) for the TRIMs it has read, by the offset of the
+	// TRIM's '('.
+	trimFroms map[int]bool
 }
 
 // NewParser creates a Parser that reads from the given input string.
