@@ -73,7 +73,7 @@ func TestParse(t *testing.T) {
 		},
 		{
 			description: "parses a request with a request body",
-			input: "GET _search\n{\n  \"query\": {\n    \"match_all\": {}\n  }\n}",
+			input:       "GET _search\n{\n  \"query\": {\n    \"match_all\": {}\n  }\n}",
 			got: []parser.ParsedRequest{
 				{
 					StartOffset: 0,
@@ -373,6 +373,90 @@ func TestContainsComments(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			got := parser.ContainsComments(tc.input)
 			require.Equal(t, tc.want, got, "description: %s", tc.description)
+		})
+	}
+}
+
+// TestIndentData pins what IndentData returns, which main's
+// hjson.Unmarshal-based implementation produced for each input: comments
+// gone, keys sorted, the last duplicate kept, numbers as float64, and the
+// input itself back where the body is not a JSON object once HJSON is read.
+func TestIndentData(t *testing.T) {
+	testCases := []struct {
+		description string
+		input       string
+		want        string
+	}{
+		{
+			description: "comments go and keys sort",
+			input:       "{\"query\": {\"match\": {\"f\": \"v\"}}, // c\n \"size\": [true, null, \"s\", -1.5e+3]}",
+			want:        "{\n  \"query\": {\n    \"match\": {\n      \"f\": \"v\"\n    }\n  },\n  \"size\": [\n    true,\n    null,\n    \"s\",\n    -1500\n  ]\n}",
+		},
+		{
+			description: "block comment",
+			input:       "{\"b\": 1, \"a\": 2} /* c */",
+			want:        "{\n  \"a\": 2,\n  \"b\": 1\n}",
+		},
+		{
+			description: "the last duplicate key wins",
+			input:       "{\"a\": 1, \"a\": 2} // c",
+			want:        "{\n  \"a\": 2\n}",
+		},
+		{
+			description: "keys equal once made valid UTF-8 are one key",
+			input:       "{\"\xff\": 1, \"\xfe\": 2} // c",
+			want:        "{\n  \"�\": 2\n}",
+		},
+		{
+			description: "a number HJSON accepts and JSON does not",
+			input:       "{\"a\": 1.} // c",
+			want:        "{\"a\": 1.} // c",
+		},
+		{
+			description: "a number out of float64 range",
+			input:       "{\"a\": 1e999} // c",
+			want:        "{\"a\": 1e999} // c",
+		},
+		{
+			description: "a number past float64 precision",
+			input:       "{\"a\": 123456789012345678901234567890} // c",
+			want:        "{\n  \"a\": 1.2345678901234568e+29\n}",
+		},
+		{
+			description: "an HJSON quoteless string runs to the end of the line",
+			input:       "{\"a\": quoteless // c\n}",
+			want:        "{\n  \"a\": \"quoteless // c\"\n}",
+		},
+		{
+			description: "HTML characters are escaped",
+			input:       "{\"a\": \"<&>\"} // c",
+			want:        "{\n  \"a\": \"\\u003c\\u0026\\u003e\"\n}",
+		},
+		{
+			description: "empty object and array",
+			input:       "{\"a\": {}, \"b\": []} // c",
+			want:        "{\n  \"a\": {},\n  \"b\": []\n}",
+		},
+		{
+			description: "a literal string HJSON cannot read",
+			input:       "{\"a\": \"\"\"lit\"\"\"} // c",
+			want:        "{\"a\": \"\"\"lit\"\"\"} // c",
+		},
+		{
+			description: "null",
+			input:       "null // c",
+			want:        "null",
+		},
+		{
+			description: "an array is not an object",
+			input:       "[1] // c",
+			want:        "[1] // c",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			require.Equal(t, tc.want, parser.IndentData(tc.input), "description: %s", tc.description)
 		})
 	}
 }

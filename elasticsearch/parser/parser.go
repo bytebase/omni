@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -57,49 +58,90 @@ type AdjustedParsedRequest struct {
 	EndLineNumber int
 }
 
+// Lines indexes the lines of a text once, for the functions that map a
+// request to its lines. GetAdjustedParsedRequest and GetEditorRequest split
+// the whole text and count its newlines from the start on every call, so
+// calling them for each request of a script took time quadratic in the
+// number of requests.
+type Lines struct {
+	text  string
+	lines []string
+	// starts holds the byte offset where each line starts.
+	starts []int
+}
+
+// NewLines indexes the lines of text.
+func NewLines(text string) *Lines {
+	lines := strings.Split(text, "\n")
+	starts := make([]int, len(lines))
+	offset := 0
+	for i, line := range lines {
+		starts[i] = offset
+		offset += len(line) + 1
+	}
+	return &Lines{text: text, lines: lines, starts: starts}
+}
+
+// LineEnd returns the byte offset where 0-based line n ends: the offset of
+// its newline, or the length of the text for the last line.
+func (l *Lines) LineEnd(n int) int {
+	return l.starts[n] + len(l.lines[n])
+}
+
+// newlinesBefore counts the newlines in the text before byte offset. The
+// newline that ends line i is at starts[i+1]-1, so they are as many as the
+// lines after the first that start at or before offset.
+func (l *Lines) newlinesBefore(offset int) int {
+	return max(sort.SearchInts(l.starts, offset+1)-1, 0)
+}
+
+// newlinesBetween counts the newlines at byte offsets from start up to, not
+// including, end.
+func (l *Lines) newlinesBetween(start, end int) int {
+	if start >= end {
+		return 0
+	}
+	return l.newlinesBefore(end) - l.newlinesBefore(start)
+}
+
+// startsWithMethodRegex matches a line that starts a request.
+var startsWithMethodRegex = regexp.MustCompile(`(?i)^\s*(GET|POST|PUT|PATCH|DELETE)`)
+
+// GetAdjustedParsedRequest is Lines.AdjustedParsedRequest for one request of
+// text. Callers mapping every request of a text index it once with NewLines.
+func GetAdjustedParsedRequest(r ParsedRequest, text string, nextRequest *ParsedRequest) AdjustedParsedRequest {
+	return NewLines(text).AdjustedParsedRequest(r, nextRequest)
+}
+
+// AdjustedParsedRequest returns the lines request r spans.
 // See https://sourcegraph.com/github.com/elastic/kibana/-/blob/src/platform/plugins/shared/console/public/application/containers/editor/utils/requests_utils.ts?L76.
 // Combine getRequestStartLineNumber and getRequestEndLineNumber.
-func GetAdjustedParsedRequest(r ParsedRequest, text string, nextRequest *ParsedRequest) AdjustedParsedRequest {
-	bs := []byte(text)
-	startLineNumber := 0
+func (l *Lines) AdjustedParsedRequest(r ParsedRequest, nextRequest *ParsedRequest) AdjustedParsedRequest {
+	size := len(l.text)
 	endLineNumber := 0
 	startOffset := r.StartOffset
 	// The startOffset is out of range, returning the end of document like
 	// what the model.getPositionAt does.
-	if r.StartOffset >= len(bs) {
-		startOffset = len(bs) - 1
+	if r.StartOffset >= size {
+		startOffset = size - 1
 	}
-	for i := 0; i < r.StartOffset; i++ {
-		if bs[i] == '\n' {
-			startLineNumber++
-		}
-	}
+	startLineNumber := l.newlinesBefore(r.StartOffset)
 
 	if r.EndOffset >= 0 {
 		// if the parser set an end offset for this request, then find the line number for it.
-		endLineNumber = startLineNumber
 		endOffset := r.EndOffset
-		if endOffset >= len(bs) {
-			endOffset = len(bs) - 1
+		if endOffset >= size {
+			endOffset = size - 1
 		}
-		for i := startOffset; i < endOffset; i++ {
-			if bs[i] == '\n' {
-				endLineNumber++
-			}
-		}
+		endLineNumber = startLineNumber + l.newlinesBetween(startOffset, endOffset)
 	} else {
 		// if no end offset, try to find the line before the next request starts.
 		if nextRequest != nil {
-			nextRequestStartLine := 0
 			nextRequestOffset := nextRequest.StartOffset
-			if nextRequestOffset >= len(bs) {
-				nextRequestOffset = len(bs) - 1
+			if nextRequestOffset >= size {
+				nextRequestOffset = size - 1
 			}
-			for i := 0; i < nextRequestOffset; i++ {
-				if bs[i] == '\n' {
-					nextRequestStartLine++
-				}
-			}
+			nextRequestStartLine := l.newlinesBefore(nextRequestOffset)
 			if nextRequestStartLine > startLineNumber {
 				endLineNumber = nextRequestStartLine - 1
 			} else {
@@ -107,17 +149,9 @@ func GetAdjustedParsedRequest(r ParsedRequest, text string, nextRequest *ParsedR
 			}
 		} else {
 			// If there is no next request, find the end of the text or the line that starts with a method.
-			lines := strings.Split(text, "\n")
-			nextLineNumber := 0
-			for i := 0; i < r.StartOffset; i++ {
-				if bs[i] == '\n' {
-					nextLineNumber++
-				}
-			}
-			nextLineNumber++
-			for nextLineNumber < len(lines) {
-				content := strings.TrimSpace(lines[nextLineNumber])
-				startsWithMethodRegex := regexp.MustCompile(`(?i)^\s*(GET|POST|PUT|PATCH|DELETE)`)
+			nextLineNumber := startLineNumber + 1
+			for nextLineNumber < len(l.lines) {
+				content := strings.TrimSpace(l.lines[nextLineNumber])
 				if startsWithMethodRegex.MatchString(content) {
 					break
 				}
@@ -133,8 +167,7 @@ func GetAdjustedParsedRequest(r ParsedRequest, text string, nextRequest *ParsedR
 		}
 	}
 	// if the end is empty, go up to find the first non-empty line.
-	lines := strings.Split(text, "\n")
-	for endLineNumber >= 0 && strings.TrimSpace(lines[endLineNumber]) == "" {
+	for endLineNumber >= 0 && strings.TrimSpace(l.lines[endLineNumber]) == "" {
 		endLineNumber--
 	}
 	return AdjustedParsedRequest{
@@ -208,6 +241,10 @@ func (s *state) parse() ([]ParsedRequest, error) {
 	return s.requests, nil
 }
 
+// requestStartRegex finds the next line that starts a request, where the
+// parser resumes after an error.
+var requestStartRegex = regexp.MustCompile(`(?m)^(POST|HEAD|GET|PUT|DELETE|PATCH)`)
+
 func (s *state) multiRequest() error {
 	catch := func(e error) int {
 		s.errors = append(s.errors, SyntaxError{
@@ -218,8 +255,7 @@ func (s *state) multiRequest() error {
 			return -1
 		}
 		remain := s.text[s.at:]
-		re := regexp.MustCompile(`(?m)^(POST|HEAD|GET|PUT|DELETE|PATCH)`)
-		match := re.FindStringIndex(remain)
+		match := requestStartRegex.FindStringIndex(remain)
 		if match != nil {
 			return match[0] + s.at
 		}
@@ -355,17 +391,17 @@ func (s *state) request() error {
 }
 
 func (s *state) url() (string, error) {
-	url := ""
+	var url strings.Builder
 	for s.ch != 0 && s.ch != '\n' {
-		url += string(s.ch)
+		url.WriteRune(s.ch)
 		if _, err := s.nextEmptyInput(); err != nil {
 			return "", err
 		}
 	}
-	if url == "" {
+	if url.Len() == 0 {
 		return "", fmt.Errorf("Missing url")
 	}
-	return url, nil
+	return url.String(), nil
 }
 
 func (s *state) object() (map[string]any, error) {
@@ -504,51 +540,51 @@ func (s *state) word() (any, error) {
 }
 
 func (s *state) number() (float64, error) {
-	str := ""
+	var str strings.Builder
 	if s.ch == '-' {
-		str = "-"
+		str.WriteByte('-')
 		if err := s.next('-'); err != nil {
 			return 0, err
 		}
 	}
 	for s.ch >= '0' && s.ch <= '9' {
-		str += string(s.ch)
+		str.WriteRune(s.ch)
 		if _, err := s.nextEmptyInput(); err != nil {
 			return 0, err
 		}
 	}
 	if s.ch == '.' {
-		str += "."
+		str.WriteByte('.')
 		for {
 			if _, err := s.nextEmptyInput(); err != nil {
 				return 0, err
 			}
 			if s.ch >= '0' && s.ch <= '9' {
-				str += string(s.ch)
+				str.WriteRune(s.ch)
 			} else {
 				break
 			}
 		}
 	}
 	if s.ch == 'e' || s.ch == 'E' {
-		str += string(s.ch)
+		str.WriteRune(s.ch)
 		if _, err := s.nextEmptyInput(); err != nil {
 			return 0, err
 		}
 		if s.ch == '+' || s.ch == '-' {
-			str += string(s.ch)
+			str.WriteRune(s.ch)
 			if _, err := s.nextEmptyInput(); err != nil {
 				return 0, err
 			}
 		}
 		for s.ch >= '0' && s.ch <= '9' {
-			str += string(s.ch)
+			str.WriteRune(s.ch)
 			if _, err := s.nextEmptyInput(); err != nil {
 				return 0, err
 			}
 		}
 	}
-	num, err := strconv.ParseFloat(str, 64)
+	num, err := strconv.ParseFloat(str.String(), 64)
 	if err != nil {
 		return 0, fmt.Errorf("bad number")
 	}
@@ -598,7 +634,7 @@ func (s *state) array() ([]any, error) {
 }
 
 func (s *state) string() (string, error) {
-	str := ""
+	var str strings.Builder
 	var uffff int32
 	if s.ch == '"' {
 		if s.peek(0) == '"' && s.peek(1) == '"' {
@@ -623,7 +659,7 @@ func (s *state) string() (string, error) {
 				if _, err := s.nextEmptyInput(); err != nil {
 					return "", err
 				}
-				return str, nil
+				return str.String(), nil
 			} else if s.ch == '\\' {
 				if _, err := s.nextEmptyInput(); err != nil {
 					return "", err
@@ -643,14 +679,14 @@ func (s *state) string() (string, error) {
 						uffff = (uffff << 4) | int32(hex&0xF)
 					}
 					// Treat uffff as UTF-16 encoded rune.
-					str += string(rune(uffff))
+					str.WriteRune(rune(uffff))
 				} else if v, ok := s.escapee[s.ch]; ok {
-					str += v
+					str.WriteString(v)
 				} else {
 					break
 				}
 			} else {
-				str += string(s.ch)
+				str.WriteRune(s.ch)
 			}
 		}
 	}
@@ -1002,11 +1038,17 @@ func includes[T rune](sl []T, e T) bool {
 	return false
 }
 
-// GetEditorRequest extracts a single editor request from the text using adjusted line numbers.
-// See https://sourcegraph.com/github.com/elastic/kibana/-/blob/src/platform/plugins/shared/console/public/application/containers/editor/utils/requests_utils.ts?L204.
+// GetEditorRequest is Lines.EditorRequest for one request of text. Callers
+// extracting every request of a text index it once with NewLines.
 func GetEditorRequest(text string, a AdjustedParsedRequest) *EditorRequest {
+	return NewLines(text).EditorRequest(a)
+}
+
+// EditorRequest extracts a single editor request from the text using adjusted line numbers.
+// See https://sourcegraph.com/github.com/elastic/kibana/-/blob/src/platform/plugins/shared/console/public/application/containers/editor/utils/requests_utils.ts?L204.
+func (l *Lines) EditorRequest(a AdjustedParsedRequest) *EditorRequest {
 	e := &EditorRequest{}
-	lines := strings.Split(text, "\n")
+	lines := l.lines
 	methodURLLine := strings.TrimSpace(lines[a.StartLineNumber])
 	if methodURLLine == "" {
 		return nil
@@ -1024,11 +1066,9 @@ func GetEditorRequest(text string, a AdjustedParsedRequest) *EditorRequest {
 
 	dataString := ""
 	if a.StartLineNumber < len(lines)-1 {
-		var validLines []string
-		for i := a.StartLineNumber + 1; i <= a.EndLineNumber; i++ {
-			validLines = append(validLines, lines[i])
-		}
-		dataString = strings.TrimSpace(strings.Join(validLines, "\n"))
+		// The lines after the method line through EndLineNumber, joined by
+		// their newlines.
+		dataString = strings.TrimSpace(l.text[l.starts[a.StartLineNumber+1]:l.LineEnd(a.EndLineNumber)])
 	}
 
 	data := SplitDataIntoJSONObjects(dataString)
@@ -1052,18 +1092,22 @@ func SplitDataIntoJSONObjects(s string) []string {
 	var jsonObjects []string
 	// Track the depth of nested braces
 	depth := 0
-	// Holds the current JSON object as we iterate
-	currentObject := ""
+	// Holds the current JSON object as we iterate. A builder, because
+	// appending each character to a string copied the whole object every time,
+	// which made a long body take time quadratic in its length.
+	var currentObject strings.Builder
 	// Tracks whether the current position is inside a string
 	insideString := false
-	// Iterate through each character in the input string
-	rs := []rune(s)
-	for i, r := range rs {
+	// The previous character, to tell an escaped double quote
+	prev := rune(0)
+	// Iterate through each character in the input string. An invalid UTF-8
+	// byte reads as utf8.RuneError and is written as U+FFFD.
+	for _, r := range s {
 		// Append the character to the current JSON object string
-		currentObject += string(r)
+		currentObject.WriteRune(r)
 
 		// If the character is a double quote and it is not escaped, toggle the `insideString` state
-		if r == '"' && (i == 0 || rs[i-1] != '\\') {
+		if r == '"' && prev != '\\' {
 			insideString = !insideString
 		} else if !insideString {
 			// Only modify depth if not inside a string
@@ -1077,15 +1121,16 @@ func SplitDataIntoJSONObjects(s string) []string {
 			}
 
 			if depth == 0 {
-				jsonObjects = append(jsonObjects, strings.TrimSpace(currentObject))
-				currentObject = ""
+				jsonObjects = append(jsonObjects, strings.TrimSpace(currentObject.String()))
+				currentObject.Reset()
 			}
 		}
+		prev = r
 	}
 
 	// If there's remaining data in currentObject, add it as the last JSON object.
-	if strings.TrimSpace(currentObject) != "" {
-		jsonObjects = append(jsonObjects, strings.TrimSpace(currentObject))
+	if rest := strings.TrimSpace(currentObject.String()); rest != "" {
+		jsonObjects = append(jsonObjects, rest)
 	}
 
 	// Filter out any empty strings from the result
@@ -1155,9 +1200,31 @@ func CollapseLiteralString(s string) string {
 
 // IndentData round-trips a string through HJSON to strip comments, then
 // re-marshals as indented JSON.
+//
+// It returns what json.MarshalIndent gives for the map hjson.Unmarshal
+// decodes s into, but does not let hjson.Unmarshal build it: that converts
+// the HJSON tree to JSON by marshaling every object once for each object it
+// is nested in, which made a deeply nested body take time quadratic in its
+// depth. The tree is decoded as an hjson.Node instead, which takes the same
+// parse, and jsonObject converts it in one pass.
 func IndentData(s string) string {
-	v := make(map[string]any)
-	if err := hjson.Unmarshal([]byte(s), &v); err != nil {
+	var node hjson.Node
+	// UseJSONNumber keeps numbers as hjson.Unmarshal does when it converts
+	// to JSON: as json.Number, so that jsonValue can validate them the same way.
+	if err := hjson.UnmarshalWithOptions([]byte(s), &node, hjson.DecoderOptions{UseJSONNumber: true}); err != nil {
+		return s
+	}
+	var v map[string]any
+	switch root := node.Value.(type) {
+	case nil:
+		// Decoding null into the map leaves it nil, which marshals as null.
+	case *hjson.OrderedMap:
+		var ok bool
+		if v, ok = jsonObject(root); !ok {
+			return s
+		}
+	default:
+		// No other JSON value decodes into a map.
 		return s
 	}
 	m, err := json.MarshalIndent(v, "", "  ")
@@ -1165,6 +1232,80 @@ func IndentData(s string) string {
 		return s
 	}
 	return string(m)
+}
+
+// jsonObject converts an object of an hjson.Node tree to the map
+// json.Unmarshal decodes from the JSON hjson.Unmarshal would produce for it.
+// It reports false where producing or decoding that JSON fails.
+func jsonObject(o *hjson.OrderedMap) (map[string]any, bool) {
+	m := make(map[string]any, len(o.Keys))
+	for _, key := range o.Keys {
+		child, ok := o.Map[key].(*hjson.Node)
+		if !ok {
+			return nil, false
+		}
+		v, ok := jsonValue(child)
+		if !ok {
+			return nil, false
+		}
+		// Keys that become equal once made valid UTF-8 decode as one key, the
+		// last one written.
+		m[jsonString(key)] = v
+	}
+	return m, true
+}
+
+// jsonValue is jsonObject for any value of an hjson.Node tree.
+func jsonValue(n *hjson.Node) (any, bool) {
+	switch v := n.Value.(type) {
+	case *hjson.OrderedMap:
+		return jsonObject(v)
+	case []any:
+		a := make([]any, 0, len(v))
+		for _, e := range v {
+			child, ok := e.(*hjson.Node)
+			if !ok {
+				return nil, false
+			}
+			ev, ok := jsonValue(child)
+			if !ok {
+				return nil, false
+			}
+			a = append(a, ev)
+		}
+		return a, true
+	case string:
+		return jsonString(v), true
+	case json.Number:
+		// json.Marshal rejects a number HJSON accepts and JSON does not, such
+		// as "1.", and json.Unmarshal one outside the range of float64.
+		if _, err := json.Marshal(v); err != nil {
+			return nil, false
+		}
+		literal := string(v)
+		if literal == "" {
+			// json.Marshal writes the zero Number as 0.
+			literal = "0"
+		}
+		f, err := strconv.ParseFloat(literal, 64)
+		if err != nil {
+			return nil, false
+		}
+		return f, true
+	case bool, nil:
+		return v, true
+	default:
+		return nil, false
+	}
+}
+
+// jsonString returns s as it decodes after json.Marshal, which writes each
+// byte of s that is not valid UTF-8 as U+FFFD.
+func jsonString(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+	return string([]rune(s))
 }
 
 // ContainsComments checks whether a string contains JSON/JS-style comments
