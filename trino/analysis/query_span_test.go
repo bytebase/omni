@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -918,6 +919,53 @@ func TestGetQuerySpanNestedSubqueriesStayLinear(t *testing.T) {
 			}
 		case <-time.After(2 * time.Second):
 			t.Fatalf("%s: GetQuerySpan through %d nested subqueries took over 2s", tc.name, depth)
+		}
+	}
+}
+
+// TestGetQuerySpanScalarChainsStayLinear: nested scalar subqueries that each
+// add columns, SELECT a1 + (SELECT a2 + (…)). The lineage of each level holds
+// the columns of every level inside it, and building it as a copy at each
+// level made 2,000 levels of 8 columns take 30s. The result column's lineage
+// is still every column in order; it takes milliseconds.
+func TestGetQuerySpanScalarChainsStayLinear(t *testing.T) {
+	const depth, width = 2000, 8
+	for _, from := range []string{"", " FROM t", " FROM (SELECT x FROM t) d"} {
+		var b strings.Builder
+		var want []ColumnRef
+		b.WriteString("SELECT ")
+		for i := 0; i < depth; i++ {
+			for j := 0; j < width; j++ {
+				col := "a" + strconv.Itoa(i) + "_" + strconv.Itoa(j)
+				b.WriteString(col + " + ")
+				want = append(want, ColumnRef{Column: col})
+			}
+			b.WriteString("(SELECT ")
+		}
+		b.WriteString("0")
+		for i := 0; i <= depth; i++ {
+			b.WriteString(from + ")")
+		}
+		sql := strings.TrimSuffix(b.String(), ")")
+		type result struct {
+			span *QuerySpan
+			err  error
+		}
+		done := make(chan result, 1)
+		go func() {
+			span, err := GetQuerySpan(sql)
+			done <- result{span, err}
+		}()
+		select {
+		case r := <-done:
+			if r.err != nil {
+				t.Fatalf("FROM %q: GetQuerySpan error = %v", from, r.err)
+			}
+			if len(r.span.Results) != 1 || !reflect.DeepEqual(r.span.Results[0].SourceColumns, want) {
+				t.Errorf("FROM %q: the result's lineage is not every column in order", from)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("FROM %q: GetQuerySpan through %d scalar subqueries of %d columns took over 2s", from, depth, width)
 		}
 	}
 }

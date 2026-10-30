@@ -448,28 +448,8 @@ func resolveSpecCols(spec *parser.QuerySpec, cte *cteDefs) []outCol {
 	scope := newRScope(spec.From, cte)
 	out := make([]outCol, 0, len(spec.Items))
 	for idx, item := range spec.Items {
-		switch item.Kind {
-		case parser.SelectAll:
-			if exp := scope.starExpansion(""); exp != nil {
-				out = append(out, stampStar(exp, idx, nil)...)
-			} else {
-				out = append(out, outCol{name: "*", item: idx, opaque: true})
-			}
-			continue
-		case parser.SelectAllFrom:
-			if q := starQualifier(item.Expr); q != "" {
-				if exp := scope.starExpansion(q); exp != nil {
-					out = append(out, stampStar(exp, idx, item.Aliases)...)
-					continue
-				}
-			}
-			name := renderExprName(item.Expr)
-			if name == "" {
-				name = "*"
-			} else {
-				name += ".*"
-			}
-			out = append(out, outCol{name: name, sources: scope.resolveExprRefs(item.Expr), item: idx, opaque: true})
+		if cols, ok := scope.starItemCols(item, idx); ok {
+			out = append(out, cols...)
 			continue
 		}
 		name := identName(item.Alias)
@@ -479,6 +459,32 @@ func resolveSpecCols(spec *parser.QuerySpec, cte *cteDefs) []outCol {
 		out = append(out, outCol{name: name, sources: scope.resolveExprRefs(item.Expr), item: idx})
 	}
 	return out
+}
+
+// starItemCols returns the output columns of select item idx when it is a
+// star, and ok false when it is not.
+func (s *rscope) starItemCols(item parser.SelectItem, idx int) (cols []outCol, ok bool) {
+	switch item.Kind {
+	case parser.SelectAll:
+		if exp := s.starExpansion(""); exp != nil {
+			return stampStar(exp, idx, nil), true
+		}
+		return []outCol{{name: "*", item: idx, opaque: true}}, true
+	case parser.SelectAllFrom:
+		if q := starQualifier(item.Expr); q != "" {
+			if exp := s.starExpansion(q); exp != nil {
+				return stampStar(exp, idx, item.Aliases), true
+			}
+		}
+		name := renderExprName(item.Expr)
+		if name == "" {
+			name = "*"
+		} else {
+			name += ".*"
+		}
+		return []outCol{{name: name, sources: s.resolveExprRefs(item.Expr), item: idx, opaque: true}}, true
+	}
+	return nil, false
 }
 
 // starQualifier returns the relation qualifier a `<rel>.*` select item names:
@@ -535,6 +541,11 @@ type rscope struct {
 	starAll  []outCol
 	starRels int
 	starDone bool
+
+	// recovering is set once a relation of rels[:recoverChecked] has a
+	// column with sources (see recovers).
+	recovering     bool
+	recoverChecked int
 }
 
 // relIndex indexes a scope's relations and their columns by name, by
@@ -836,22 +847,6 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 	return out
 }
 
-// resolveRefs resolves a list of result-column refs through the scope,
-// deduplicating the result while preserving first-seen order.
-func (s *rscope) resolveRefs(refs []ColumnRef) []ColumnRef {
-	var out []ColumnRef
-	seen := make(map[ColumnRef]bool)
-	for _, ref := range refs {
-		for _, r := range s.resolveRef(ref) {
-			if !seen[r] {
-				seen[r] = true
-				out = append(out, r)
-			}
-		}
-	}
-	return out
-}
-
 // resolveRef resolves a single column ref through the scope, ADDITIVELY: the
 // original ref is always kept, and any base refs recovered through a derived
 // relation are appended. This guarantees the resolved source set is a superset
@@ -927,31 +922,202 @@ func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 // (outer) scope, so a correlated reference to an outer relation — e.g. the `d`
 // in SELECT (SELECT d.phone) AS sp FROM (SELECT phone FROM customer) d — is
 // resolved to its base column rather than left as the unmaskable alias ref.
+//
+// The result is, without repeats, the direct refs resolved through the scope,
+// then the subqueries' sources resolved through it, where resolving a list
+// replaces each ref by what resolveRef returns for it. See lineage for how
+// it is computed.
 func (s *rscope) resolveExprRefs(expr parser.Expr) []ColumnRef {
-	var refs []ColumnRef       // direct column refs
-	var subSources []ColumnRef // scalar-subquery output sources
-	ew := exprWalk{
-		followSub: false,
-		onColumn:  func(ref ColumnRef) { refs = append(refs, ref) },
-		onSubquery: func(sub *parser.SubqueryExpr) {
-			subSources = append(subSources, scalarSubquerySources(sub, s.cte)...)
-		},
+	l := &lineage{
+		out:    refSet{refs: []ColumnRef{}, seen: make(map[ColumnRef]bool)},
+		levels: []lineageLevel{{scope: s}},
 	}
-	ew.walk(expr)
-	return unionRefs(s.resolveRefs(refs), s.resolveRefs(subSources))
+	l.expr(expr, 0)
+	return l.out.refs
 }
 
-// scalarSubquerySources recovers the resolved base-column sources of a scalar
-// subquery used as a value (e.g. SELECT (SELECT phone FROM customer) AS sp). The
-// subquery's query (the tree the strict parse built in place, or else its raw
-// text parsed again) has its output columns resolved (recursively,
-// in the enclosing CTE scope); the union of those columns' sources is the
-// lineage feeding the enclosing expression. EXISTS subqueries yield a boolean and
-// are skipped. Best-effort: a correlated reference to an outer column is not
-// resolved to the outer relation (it resolves within the subquery's own scope).
-func scalarSubquerySources(sub *parser.SubqueryExpr, cte *cteDefs) []ColumnRef {
+// lineage computes the result of resolveExprRefs for one expression.
+//
+// Collecting the sources of each scalar subquery, resolving them through the
+// scope, and returning them, as each level of nested subqueries did, copied
+// at each level the lineage of every level inside it: n levels that each add
+// a column, SELECT a1 + (SELECT a2 + (…)), cost O(n²). Instead, each ref is
+// passed up the levels of subqueries as it is found, and only a level whose
+// scope may recover sources for it resolves it; any other passes it on
+// unchanged, as resolving it there would. A level is found through byKey, so
+// a ref passes the levels that do not recover anything for it in one step.
+// A ref resolved at a level once is not resolved there again: its first
+// pass already brought everything it resolves to.
+//
+// The result is what resolving the levels' lists one inside the other gives,
+// because resolving a list replaces each ref by a list that depends on that
+// ref alone, and the result keeps the first of each repeated ref: resolving
+// a list that has lost repeats of a ref, or that holds more, gives the same.
+type lineage struct {
+	out refSet
+	// levels[0] is the scope of the expression; levels[i] that of the scalar
+	// subquery at levels[i-1] whose select items are being resolved.
+	levels []lineageLevel
+	// byKey lists, by refKey and in increasing order, the levels from 1 on
+	// whose scope may recover sources for a ref of that key (see push).
+	// The scope of levels[0] is asked directly: registering it for every
+	// expression of a select list would make the list cost the product of
+	// its length and its scope's width.
+	byKey map[refKey][]int
+}
+
+type lineageLevel struct {
+	scope *rscope
+	seen  map[ColumnRef]bool // the refs resolved at this level already
+	keys  []refKey           // the keys registered for this level
+}
+
+// refKey is what resolveRef matches a ref by: its table, or "" for a bare
+// ref, and its column, each by foldKey.
+type refKey struct{ table, column string }
+
+func keyOf(ref ColumnRef) refKey {
+	return refKey{table: foldKey(ref.Table), column: foldKey(ref.Column)}
+}
+
+// refSet collects refs in the order they first come, each once.
+type refSet struct {
+	refs []ColumnRef
+	seen map[ColumnRef]bool
+}
+
+func (a *refSet) add(ref ColumnRef) {
+	if !a.seen[ref] {
+		a.seen[ref] = true
+		a.refs = append(a.refs, ref)
+	}
+}
+
+// expr passes on the lineage of expr, at level i: its direct refs resolved
+// through the level's scope, then its scalar subqueries' sources.
+func (l *lineage) expr(expr parser.Expr, i int) {
+	var refs []ColumnRef
+	var subs []*parser.SubqueryExpr
+	exprWalk{
+		onColumn:   func(ref ColumnRef) { refs = append(refs, ref) },
+		onSubquery: func(sub *parser.SubqueryExpr) { subs = append(subs, sub) },
+	}.walk(expr)
+	s := l.levels[i].scope
+	for _, ref := range refs {
+		if !s.recovers() {
+			l.up(ref, i)
+			continue
+		}
+		for _, r := range s.resolveRef(ref) {
+			l.up(r, i)
+		}
+	}
+	for _, sub := range subs {
+		l.scalarSubquery(sub, s.cte, i+1)
+	}
+}
+
+// up passes ref, a ref of level i, on through the levels below i.
+func (l *lineage) up(ref ColumnRef, i int) {
+	if i == 0 {
+		l.out.add(ref)
+		return
+	}
+	j := 0
+	if l.byKey != nil {
+		stack := l.byKey[keyOf(ref)]
+		if k := sort.SearchInts(stack, i) - 1; k >= 0 {
+			j = stack[k]
+		}
+	}
+	// levels[j] is the first level below i that may resolve ref to more than
+	// itself; the levels between pass it on unchanged.
+	lv := &l.levels[j]
+	if j == 0 && !lv.scope.recovers() {
+		l.out.add(ref)
+		return
+	}
+	if lv.seen[ref] {
+		return
+	}
+	if lv.seen == nil {
+		lv.seen = make(map[ColumnRef]bool)
+	}
+	lv.seen[ref] = true
+	for _, r := range lv.scope.resolveRef(ref) {
+		l.up(r, j)
+	}
+}
+
+// push makes s, the scope of a scalar subquery of level i-1, level i.
+func (l *lineage) push(s *rscope, i int) {
+	l.levels = append(l.levels[:i], lineageLevel{scope: s})
+	if !s.recovers() {
+		return
+	}
+	lv := &l.levels[i]
+	if l.byKey == nil {
+		l.byKey = make(map[refKey][]int)
+	}
+	register := func(k refKey) {
+		stack := l.byKey[k]
+		if n := len(stack); n > 0 && stack[n-1] == i {
+			return
+		}
+		l.byKey[k] = append(stack, i)
+		lv.keys = append(lv.keys, k)
+	}
+	// resolveRef recovers sources for a bare ref from a column of that name
+	// in any relation, and for a qualified one from a column of that name in
+	// a relation of that name.
+	for _, rb := range s.rels {
+		rel := foldKey(rb.name)
+		for _, c := range rb.cols {
+			if len(c.sources) == 0 {
+				continue
+			}
+			col := foldKey(c.name)
+			register(refKey{column: col})
+			register(refKey{table: rel, column: col})
+		}
+	}
+}
+
+// pop ends level i, the last.
+func (l *lineage) pop(i int) {
+	for _, k := range l.levels[i].keys {
+		stack := l.byKey[k]
+		l.byKey[k] = stack[:len(stack)-1]
+	}
+	l.levels = l.levels[:i]
+}
+
+// recovers reports whether a relation in scope has a column with sources.
+// When none has, resolveRef resolves every ref to itself alone.
+func (s *rscope) recovers() bool {
+	for ; !s.recovering && s.recoverChecked < len(s.rels); s.recoverChecked++ {
+		for _, c := range s.rels[s.recoverChecked].cols {
+			if len(c.sources) > 0 {
+				s.recovering = true
+				break
+			}
+		}
+	}
+	return s.recovering
+}
+
+// scalarSubquery passes on the resolved base-column sources of a scalar
+// subquery used as a value (e.g. SELECT (SELECT phone FROM customer) AS sp),
+// as refs of level i. The subquery's query (the tree the strict parse built
+// in place, or else its raw text parsed again) has its output columns
+// resolved (recursively, in the enclosing CTE scope); the sources of those
+// columns are the lineage feeding the enclosing expression. EXISTS
+// subqueries yield a boolean and are skipped. Best-effort: a correlated
+// reference to an outer column is not resolved to the outer relation (it
+// resolves within the subquery's own scope).
+func (l *lineage) scalarSubquery(sub *parser.SubqueryExpr, cte *cteDefs, i int) {
 	if sub == nil || sub.Kind != parser.SubqueryScalar {
-		return nil
+		return
 	}
 	// The walker already failed the span closed on any subquery that does not
 	// parse (analyzeSubqueryText), so by the time lineage resolution runs every
@@ -961,7 +1127,7 @@ func scalarSubquerySources(sub *parser.SubqueryExpr, cte *cteDefs) []ColumnRef {
 	if sub.Query == nil {
 		file, err := parser.Parse(sub.RawText)
 		if err != nil || file == nil {
-			return nil
+			return
 		}
 		queries = queries[:0]
 		for _, stmt := range file.Stmts {
@@ -970,13 +1136,48 @@ func scalarSubquerySources(sub *parser.SubqueryExpr, cte *cteDefs) []ColumnRef {
 			}
 		}
 	}
-	var out []ColumnRef
 	for _, q := range queries {
-		for _, c := range resolveQueryCols(q, cte) {
-			out = append(out, c.sources...)
+		l.query(q, cte, i)
+	}
+}
+
+// query passes on the sources of the output columns resolveQueryCols
+// resolves for q, in order, as refs of level i. A select block's scope
+// becomes level i while its items are resolved.
+func (l *lineage) query(q *parser.Query, parent *cteDefs, i int) {
+	if q == nil {
+		return
+	}
+	cte := buildCTEDefs(q, parent)
+	switch n := q.Body.(type) {
+	case *parser.QuerySpec:
+		if n == nil {
+			return
+		}
+		scope := newRScope(n.From, cte)
+		l.push(scope, i)
+		for idx, item := range n.Items {
+			if cols, ok := scope.starItemCols(item, idx); ok {
+				l.cols(cols, i)
+				continue
+			}
+			l.expr(item.Expr, i)
+		}
+		l.pop(i)
+	case *parser.ParenQuery:
+		l.query(n.Inner, cte, i)
+	default:
+		l.cols(resolveNodeCols(q.Body, cte), i)
+	}
+}
+
+// cols passes on the sources of cols, in order, as refs of level i.
+func (l *lineage) cols(cols []outCol, i int) {
+	for _, c := range cols {
+		for _, ref := range c.sources {
+			l.up(ref, i)
 		}
 	}
-	return out
 }
 
 // unionRefs returns the deduplicated concatenation of a and b, preserving a's

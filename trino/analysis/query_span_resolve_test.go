@@ -36,6 +36,46 @@ func TestScopeIndexMatchesScan(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_NestedScalarSubqueryLineage: the sources of a scalar
+// subquery are resolved through the scope of every query around it, from the
+// innermost out, and each scope adds what a relation of it recovers for a ref
+// right after that ref. The sources are passed out a level at a time, a ref
+// resolved only at the levels whose scope may recover something for it; this
+// pins the order they come out in, with every scope indexed and with none.
+// Names match as strings.EqualFold matches them: "K" is k, and "ſ" is s.
+func TestGetQuerySpan_NestedScalarSubqueryLineage(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want []ColumnRef
+	}{
+		{
+			`SELECT (SELECT x + (SELECT x + d.x FROM (SELECT name AS x FROM customer) e) FROM (SELECT phone AS x FROM customer) d) AS v FROM (SELECT id AS x FROM customer) d`,
+			[]ColumnRef{{Column: "x"}, {Column: "id"}, {Column: "phone"}, {Column: "name"}, {Table: "d", Column: "x"}},
+		},
+		{
+			`SELECT (SELECT k.a + (SELECT "K".a + s.b FROM t) FROM (SELECT name AS a, id AS b FROM customer) "K") AS v FROM (SELECT phone AS a, token AS b FROM secrets) "ſ"`,
+			[]ColumnRef{{Table: "k", Column: "a"}, {Column: "name"}, {Table: "K", Column: "a"}, {Table: "s", Column: "b"}, {Column: "token"}},
+		},
+		{
+			`SELECT d.x + (SELECT (SELECT (SELECT d.x + y))) AS v FROM (SELECT phone AS x, name AS y FROM customer) d`,
+			[]ColumnRef{{Table: "d", Column: "x"}, {Column: "phone"}, {Column: "y"}, {Column: "name"}},
+		},
+	} {
+		for _, indexMin := range []int{1 << 30, 0} {
+			saved := scopeIndexMin
+			scopeIndexMin = indexMin
+			span, err := GetQuerySpan(tc.sql)
+			scopeIndexMin = saved
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", tc.sql, err)
+			}
+			if len(span.Results) != 1 || !reflect.DeepEqual(span.Results[0].SourceColumns, tc.want) {
+				t.Errorf("GetQuerySpan(%q), scopes indexed from %d:\n got %+v\nwant %+v", tc.sql, indexMin, span.Results, tc.want)
+			}
+		}
+	}
+}
+
 // hasSource reports whether a result column's resolved sources contain want.
 func hasSource(srcs []ColumnRef, want ColumnRef) bool {
 	return slices.Contains(srcs, want)
