@@ -14,7 +14,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		stmtTokens := []int{
 			kwSELECT, kwINSERT, kwUPDATE, kwDELETE,
 			kwCREATE, kwALTER, kwDROP, kwTRUNCATE, kwRENAME,
-			kwWITH, kwTABLE, kwVALUES, kwREPLACE,
+			kwWITH, kwVALUES, kwREPLACE,
 			kwSET, kwSHOW, kwUSE,
 			kwDESCRIBE, kwDESC, kwEXPLAIN,
 			kwBEGIN, kwSTART, kwCOMMIT, kwROLLBACK, kwSAVEPOINT, kwRELEASE,
@@ -35,14 +35,8 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwWITH:
 		return p.parseWithStmt()
 
-	case kwSELECT:
-		return p.parseSelectStmt()
-
-	case kwTABLE:
-		return p.parseTableStmt()
-
-	case kwVALUES:
-		return p.parseValuesStmt()
+	case kwSELECT, kwVALUES:
+		return p.parseQueryStatement()
 
 	case kwINSERT:
 		return p.parseInsertStmt()
@@ -223,7 +217,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case '(':
 		// Parenthesized subquery / select
-		return p.parseSelectStmt()
+		return p.parseQueryStatement()
 
 	default:
 		return nil, p.syntaxErrorAtCur()

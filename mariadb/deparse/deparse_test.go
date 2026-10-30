@@ -1252,15 +1252,16 @@ func TestDeparseSelect_ParenthesizedQueryExpressions(t *testing.T) {
 			input:    "((SELECT 1) UNION (SELECT 2)) ORDER BY 1",
 			expected: "((select 1 AS `1`) union (select 2 AS `2`)) order by 1",
 		},
+		// The next two are MariaDB 11.8's own SHOW CREATE VIEW text.
 		{
-			name:     "table_query_primary_operand",
-			input:    "(SELECT 1) UNION (TABLE t)",
-			expected: "(select 1 AS `1`) union (table `t`)",
+			name:     "values_query_primary_left_operand",
+			input:    "(VALUES (1)) UNION VALUES (2) ORDER BY 1",
+			expected: "(values (1)) union values (2) order by 1",
 		},
 		{
 			name:     "values_query_primary_operand",
-			input:    "(SELECT 1) UNION (VALUES ROW(2))",
-			expected: "(select 1 AS `1`) union (values row(2))",
+			input:    "(SELECT 1) UNION (VALUES (2))",
+			expected: "(select 1 AS `1`) union (values (2))",
 		},
 	}
 
@@ -1275,23 +1276,29 @@ func TestDeparseSelect_ParenthesizedQueryExpressions(t *testing.T) {
 	}
 }
 
-// TestDeparseSelect_SourceClauses: the ORDER BY and LIMIT after a TABLE or
-// VALUES query primary are deparsed once, from the SelectStmt that holds them,
-// and the output parses back to the same text.
+// TestDeparseSelect_SourceClauses: the ORDER BY, LIMIT, and locking after a
+// table value constructor are deparsed once, from the SelectStmt that holds
+// them, in MariaDB's form, and the output parses back to the same text. The
+// rows are written (...), not MySQL's ROW(...), which MariaDB rejects. Where
+// MariaDB 11.8 stores a view over the query, its SHOW CREATE VIEW text is the
+// expected text, except that it qualifies column names.
 func TestDeparseSelect_SourceClauses(t *testing.T) {
 	cases := []struct {
 		input    string
 		expected string
 	}{
-		{"(TABLE t ORDER BY a) ORDER BY b", "(table `t` order by `a`) order by `b`"},
-		{"(TABLE t ORDER BY a LIMIT 2) ORDER BY b LIMIT 1", "(table `t` order by `a` limit 2) order by `b` limit 1"},
-		{"(VALUES ROW(1) ORDER BY 1 LIMIT 1) ORDER BY 1", "(values row(1) order by 1 limit 1) order by 1"},
-		{"(TABLE t) UNION TABLE u ORDER BY a", "(table `t`) union table `u` order by `a`"},
-		{"SELECT 1 UNION TABLE t ORDER BY a LIMIT 1", "select 1 AS `1` union table `t` order by `a` limit 1"},
-		{"SELECT 1 UNION VALUES ROW(2) ORDER BY 1 LIMIT 1", "select 1 AS `1` union values row(2) order by 1 limit 1"},
-		{"SELECT 1 UNION (TABLE t ORDER BY a LIMIT 1) ORDER BY 1 LIMIT 2", "select 1 AS `1` union (table `t` order by `a` limit 1) order by 1 limit 2"},
-		{"SELECT a FROM t WHERE a IN (TABLE s ORDER BY a LIMIT 1)", "select `a` AS `a` from `t` where `a` in (table `s` order by `a` limit 1)"},
-		{"SELECT a FROM t ORDER BY (TABLE s ORDER BY (VALUES ROW(1) LIMIT 1) LIMIT 1)", "select `a` AS `a` from `t` order by (table `s` order by (values row(1) limit 1) limit 1)"},
+		{"(VALUES (1) ORDER BY 1 LIMIT 1) ORDER BY 1", "(values (1) order by 1 limit 1) order by 1"},
+		{"(VALUES (1), (2) ORDER BY 1 LIMIT 2) ORDER BY 1 LIMIT 1", "(values (1),(2) order by 1 limit 2) order by 1 limit 1"},
+		{"SELECT 1 UNION VALUES (2) ORDER BY 1 LIMIT 1", "select 1 AS `1` union values (2) order by 1 limit 1"},
+		{"SELECT 1 UNION (VALUES (2) ORDER BY 1 LIMIT 1) ORDER BY 1 LIMIT 2", "select 1 AS `1` union (values (2) order by 1 limit 1) order by 1 limit 2"},
+		{"SELECT a FROM t WHERE a IN (VALUES (1), (2))", "select `a` AS `a` from `t` where `a` in (values (1),(2))"},
+		{"SELECT a FROM t WHERE a IN (VALUES (1) ORDER BY 1 LIMIT 1)", "select `a` AS `a` from `t` where `a` in (values (1) order by 1 limit 1)"},
+		{"SELECT a FROM t ORDER BY (VALUES (1) ORDER BY (VALUES (2) LIMIT 1) LIMIT 1)", "select `a` AS `a` from `t` order by (values (1) order by (values (2) limit 1) limit 1)"},
+		{"VALUES (1, 'a'), (2, 'b') ORDER BY 1 DESC LIMIT 1, 1", "values (1,'a'),(2,'b') order by 1 desc limit 1,1"},
+		{"VALUES (1) LOCK IN SHARE MODE", "values (1) lock in share mode"},
+		// A value is written as writeExpr writes any expression, which
+		// parenthesizes 1 + 1 where MariaDB does not.
+		{"VALUES (1 + 1, 'x') UNION VALUES (3, 'y')", "values ((1 + 1),'x') union values (3,'y')"},
 	}
 	for _, tc := range cases {
 		got := DeparseSelect(parseSelect(t, tc.input))

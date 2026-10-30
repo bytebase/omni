@@ -106,11 +106,20 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 	}
 
 	switch p.cur.Type {
-	case kwSELECT, '(':
-		// A SELECT leaf or a parenthesized query body:
+	case kwSELECT, kwVALUES, '(':
+		// A SELECT leaf, a table value constructor, or a parenthesized
+		// query body, and the INTO a statement may end with:
 		//   WITH ... SELECT ...
-		//   WITH ... (SELECT ...) [set-op] [ORDER BY / LIMIT]
-		return p.parseSelectClauseAndTrailing(start, ctes)
+		//   WITH ... VALUES (...) [INTO ...]
+		//   WITH ... (SELECT ...) [set-op] [ORDER BY / LIMIT] [INTO ...]
+		sel, err := p.parseSelectClauseAndTrailing(start, ctes)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.parseTrailingInto(sel); err != nil {
+			return nil, err
+		}
+		return sel, nil
 
 	case kwINSERT, kwREPLACE:
 		isReplace := p.cur.Type == kwREPLACE
@@ -139,7 +148,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 
 	default:
 		return nil, &ParseError{
-			Message:  "expected SELECT, INSERT, UPDATE, DELETE, or '(' after WITH clause",
+			Message:  "expected SELECT, VALUES, INSERT, UPDATE, DELETE, or '(' after WITH clause",
 			Position: p.cur.Loc,
 		}
 	}
@@ -149,8 +158,14 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 // optional WITH clause, a query-expression body (a SELECT leaf, a parenthesized
 // query, or a UNION/INTERSECT/EXCEPT chain), and any trailing ORDER BY / LIMIT.
 // It is the entry point every query-bearing context uses (statement level,
-// subqueries, INSERT/CTAS/VIEW sources, routine bodies).
+// subqueries, INSERT/CTAS/VIEW sources, routine bodies). A query nested in an
+// ON DUPLICATE KEY UPDATE assignment reads VALUES as a table value
+// constructor again.
 func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
+	if p.valuesIsFunction {
+		p.valuesIsFunction = false
+		defer func() { p.valuesIsFunction = true }()
+	}
 	return p.parseSelectNoParens()
 }
 
@@ -187,6 +202,13 @@ func (p *Parser) parseSelectClauseAndTrailing(start int, ctes []*nodes.CommonTab
 	if body == nil { // collecting completion candidates
 		return nil, nil
 	}
+	return p.parseQueryExpressionTail(body, start, ctes)
+}
+
+// parseQueryExpressionTail attaches ctes and start to body, a parsed
+// select_clause, and parses the trailing ORDER BY / LIMIT that applies to a
+// parenthesized query or set-operation result.
+func (p *Parser) parseQueryExpressionTail(body *nodes.SelectStmt, start int, ctes []*nodes.CommonTableExpr) (*nodes.SelectStmt, error) {
 	if len(ctes) > 0 {
 		body.CTEs = ctes
 	}
@@ -267,7 +289,12 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 	if left == nil { // collecting completion candidates
 		return nil, nil
 	}
+	return p.parseSetOperations(left, minPrec)
+}
 
+// parseSetOperations parses the set operations, of at least minPrec
+// precedence, that follow left, the query primary already parsed.
+func (p *Parser) parseSetOperations(left *nodes.SelectStmt, minPrec int) (*nodes.SelectStmt, error) {
 	for {
 		prec := setOpPrecedence(p.cur.Type)
 		if prec == 0 || prec < minPrec {
@@ -351,68 +378,42 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 }
 
 // parseSelectClausePrimary parses a single query primary: a parenthesized query
-// (select_with_parens), a simple SELECT leaf, TABLE, or VALUES.
+// (select_with_parens), a simple SELECT leaf, or a table value constructor.
+// MariaDB has no TABLE query primary, which MySQL 8.0 has: its simple_table
+// (sql_yacc.yy line 8963) is query_specification or table_value_constructor.
 func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
-	if p.cur.Type == '(' {
+	switch p.cur.Type {
+	case '(':
 		return p.parseSelectWithParens()
-	}
-	if p.cur.Type == kwSELECT {
+	case kwSELECT:
 		return p.parseSimpleSelect()
-	}
-	// A TABLE or VALUES primary becomes a SelectStmt that holds the source and
-	// is the only owner of the ORDER BY, LIMIT, and INTO after it, as in the
-	// MySQL grammar this parser keeps them from (MariaDB 11.8 rejects both;
-	// MySQL 8.0.40 sql/sql_yacc.yy): explicit_table (line 10064) is TABLE
-	// table_ident and table_value_constructor (10057) is VALUES
-	// values_row_list, while query_expression (9914) holds opt_order_clause
-	// and opt_limit_clause and select_stmt_with_into (9863) the into_clause.
-	// Had the source kept the clauses too, every walk would visit them twice,
-	// and a TABLE nested in the ORDER BY of another would double the walk at
-	// each level.
-	if p.cur.Type == kwTABLE {
-		table, err := p.parseExplicitTable()
-		if err != nil {
-			return nil, err
-		}
-		stmt := &nodes.SelectStmt{Loc: table.Loc, TableSource: table}
-		if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
-			return nil, err
-		}
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
-	if p.cur.Type == kwVALUES {
-		values, err := p.parseValuesConstructor()
-		if err != nil {
-			return nil, err
-		}
-		stmt := &nodes.SelectStmt{Loc: values.Loc, ValuesSource: values}
-		if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
-			return nil, err
-		}
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
-	if p.cur.Type == tokEOF {
+	case kwVALUES:
+		return p.parseValuesPrimary()
+	case tokEOF:
 		return nil, p.syntaxErrorAtCur()
 	}
 	return nil, &ParseError{
-		Message:  "expected SELECT, TABLE, VALUES, or '('",
+		Message:  "expected SELECT, VALUES, or '('",
 		Position: p.cur.Loc,
 	}
 }
 
-func isQueryPrimaryStartToken(tokenType int) bool {
+// isQueryPrimaryStart reports whether a token of type tokenType begins a
+// query expression. VALUES does not where it names the VALUES(col) function
+// (see valuesIsFunction).
+func (p *Parser) isQueryPrimaryStart(tokenType int) bool {
 	switch tokenType {
-	case kwSELECT, kwWITH, kwTABLE, kwVALUES:
+	case kwSELECT, kwWITH:
 		return true
+	case kwVALUES:
+		return !p.valuesIsFunction
 	default:
 		return false
 	}
 }
 
 func (p *Parser) isQueryExpressionStart() bool {
-	if isQueryPrimaryStartToken(p.cur.Type) {
+	if p.isQueryPrimaryStart(p.cur.Type) {
 		return true
 	}
 	if p.cur.Type != '(' {
@@ -423,10 +424,10 @@ func (p *Parser) isQueryExpressionStart() bool {
 	// scalar expression — `(((a = b) AND (c = d)))`, as written by hand or
 	// copied from a MySQL view definition. A fixed one-token lookahead cannot
 	// tell them apart; scan past the run of '(' to the first non-'(' token — a
-	// query primary (SELECT/WITH/TABLE/VALUES) means a query expression,
-	// anything else means a scalar expression or, in a FROM clause, a
-	// parenthesized join group.
-	return isQueryPrimaryStartToken(p.firstTokenPastParens().Type)
+	// query primary (SELECT/WITH/VALUES) means a query expression, anything
+	// else means a scalar expression or, in a FROM clause, a parenthesized
+	// join group.
+	return p.isQueryPrimaryStart(p.firstTokenPastParens().Type)
 }
 
 // scanState captures the full lexical scan position so a speculative lookahead
@@ -2185,146 +2186,165 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 	return defs, nil
 }
 
-// parseTableStmt parses a TABLE statement (MySQL 8.0.19+): a TABLE query
-// primary that stands alone, as a statement, an EXPLAIN target, or the
-// source of INSERT ... TABLE, and so holds its own clauses.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
-//
-//	TABLE table_name
-//	    [ORDER BY column_name]
-//	    [LIMIT number [OFFSET number]]
-//	    [INTO OUTFILE 'file_name'
-//	        [{FIELDS | COLUMNS} ...]
-//	        [LINES ...]
-//	    | INTO DUMPFILE 'file_name'
-//	    | INTO var_name [, var_name] ...]
-func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
-	stmt, err := p.parseExplicitTable()
+// parseValuesPrimary parses a table value constructor as a query primary,
+// with the ORDER BY, LIMIT, and locking clauses after it.
+func (p *Parser) parseValuesPrimary() (*nodes.SelectStmt, error) {
+	values, err := p.parseValuesConstructor()
 	if err != nil {
 		return nil, err
 	}
-	if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
-		return nil, err
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	return p.parseValuesTail(values)
 }
 
-// parseExplicitTable parses TABLE table_name, MySQL's explicit_table, into a
-// TableStmt that holds only the table.
-func (p *Parser) parseExplicitTable() (*nodes.TableStmt, error) {
-	start := p.pos()
-	p.advance() // consume TABLE
-
-	ref, err := p.parseTableRef()
-	if err != nil {
-		return nil, err
-	}
-	return &nodes.TableStmt{
-		Loc:   nodes.Loc{Start: start, End: p.prev.End},
-		Table: ref,
-	}, nil
-}
-
-// parseSourceClauses parses the ORDER BY, LIMIT, and, when withInto is set,
-// INTO clauses that may follow a TABLE or VALUES query primary.
-func (p *Parser) parseSourceClauses(withInto bool) ([]*nodes.OrderByItem, *nodes.Limit, *nodes.IntoClause, error) {
-	var orderBy []*nodes.OrderByItem
-	if p.cur.Type == kwORDER {
-		p.advance()
-		if _, err := p.expect(kwBY); err != nil {
-			return nil, nil, nil, err
-		}
-		list, err := p.parseOrderByList()
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		orderBy = list
-	}
-
-	var limit *nodes.Limit
-	if _, ok := p.match(kwLIMIT); ok {
-		l, err := p.parseLimitClause()
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		limit = l
-	}
-
-	var into *nodes.IntoClause
-	if withInto && p.cur.Type == kwINTO {
-		p.advance()
-		i, err := p.parseIntoClause()
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		into = i
-	}
-	return orderBy, limit, into, nil
-}
-
-// parseValuesStmt parses a VALUES statement (MySQL 8.0.19+): a VALUES query
-// primary that stands alone, as a statement or an EXPLAIN target, and so
-// holds its own clauses.
+// parseValuesConstructor parses a MariaDB table value constructor, VALUES
+// (row) [, (row)] ..., into a ValuesStmt that holds only the rows. The
+// current token is VALUES, or VALUE where MariaDB reads it as VALUES (see
+// parseInsertOrReplace).
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/values.html
-//
-//	VALUES ROW(value_list) [, ROW(value_list)] ...
-//	    [ORDER BY column_designator] [LIMIT number [OFFSET number]]
-func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
-	stmt, err := p.parseValuesConstructor()
-	if err != nil {
-		return nil, err
-	}
-	if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
-		return nil, err
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseValuesConstructor parses VALUES ROW(...) [, ROW(...)] ..., MySQL's
-// table_value_constructor, into a ValuesStmt that holds only the rows.
+// Ref: https://mariadb.com/kb/en/table-value-constructors/
+// MariaDB 11.8.8 sql/sql_yacc.yy: table_value_constructor (line 8968) is
+// VALUES values_list, and values_list (13748) is a list of '(' opt_values
+// ')'. A row is not written ROW(...), as in MySQL 8.0, and may be empty;
+// MariaDB rejects an empty row, or rows of different lengths, only when it
+// runs the statement (errors 4141 and 4099, from sql/sql_tvc.cc).
 func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
 	start := p.pos()
 	p.advance() // consume VALUES
-
-	stmt := &nodes.ValuesStmt{
-		Loc: nodes.Loc{Start: start},
+	rows, err := p.parseValuesRows()
+	if err != nil {
+		return nil, err
 	}
+	return &nodes.ValuesStmt{
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		Rows: rows,
+	}, nil
+}
 
-	// Parse ROW(...) list
-	for {
-		if _, err := p.expect(kwROW); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-
-		var row []nodes.ExprNode
-		if p.cur.Type != ')' {
-			exprs, err := p.parseExprList()
-			if err != nil {
-				return nil, err
-			}
-			row = exprs
-		}
-
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		stmt.Rows = append(stmt.Rows, row)
-
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
+// parseValuesTail wraps a table value constructor in the SelectStmt that is
+// the query primary, and parses onto that SelectStmt the ORDER BY, LIMIT, and
+// locking clauses after the constructor, so they have one owner.
+//
+// In MariaDB's grammar those clauses follow a whole query expression body
+// (query_expression_body_ext, line 9112, then opt_query_expression_tail,
+// 13009, which is opt_order_limit_lock), never one operand of a set
+// operation: VALUES (1) LIMIT 1 UNION VALUES (2) is a syntax error. A set
+// operator after them is rejected here. Like a SELECT's own clauses, the
+// clauses after the last operand move to the set operation (see
+// parseSetOperations). INTO is not one of them: MariaDB takes it only after a
+// query expression that stands as a statement (see parseTrailingInto).
+func (p *Parser) parseValuesTail(values *nodes.ValuesStmt) (*nodes.SelectStmt, error) {
+	stmt := &nodes.SelectStmt{Loc: values.Loc, ValuesSource: values}
+	if err := p.parseOuterOrderByLimit(stmt); err != nil {
+		return nil, err
 	}
-
+	if (len(stmt.OrderBy) > 0 || stmt.Limit != nil || stmt.ForUpdate != nil) && setOpPrecedence(p.cur.Type) > 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseQueryAfterValues parses the rest of a query expression whose first
+// query primary is a table value constructor the caller has parsed: the
+// clauses after it, any set operations, and the clauses after those. INSERT
+// and CREATE TABLE parse VALUES rows first and come here when what follows
+// makes them a query expression, as in INSERT INTO t VALUES (1) UNION
+// VALUES (2).
+func (p *Parser) parseQueryAfterValues(values *nodes.ValuesStmt) (*nodes.SelectStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	left, err := p.parseValuesTail(values)
+	if err != nil {
+		return nil, err
+	}
+	body, err := p.parseSetOperations(left, 0)
+	if err != nil {
+		return nil, err
+	}
+	if body == nil { // collecting completion candidates
+		return nil, nil
+	}
+	return p.parseQueryExpressionTail(body, values.Loc.Start, nil)
+}
+
+// atQueryExpressionTail reports whether the current token continues a query
+// expression past its first query primary: a set operator or a clause that
+// applies to the whole expression.
+func (p *Parser) atQueryExpressionTail() bool {
+	switch p.cur.Type {
+	case kwORDER, kwLIMIT, kwFOR, kwLOCK:
+		return true
+	}
+	return setOpPrecedence(p.cur.Type) > 0
+}
+
+// parseQueryStatement parses a query expression that stands as a statement or
+// an EXPLAIN target, and the INTO after it.
+func (p *Parser) parseQueryStatement() (*nodes.SelectStmt, error) {
+	sel, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.parseTrailingInto(sel); err != nil {
+		return nil, err
+	}
+	return sel, nil
+}
+
+// parseTrailingInto parses the INTO clause, and a locking clause after it,
+// that MariaDB accepts after a whole query expression standing as a
+// statement: the select rule (sql_yacc.yy line 8895) ends in
+// opt_procedure_or_into (13013), INTO then opt_select_lock_type. A SELECT
+// also takes INTO among its own clauses (select_into, 8927), and this parser
+// reads it there, so the clause parsed here follows something else: a table
+// value constructor, a ')' or the clauses of a set operation, as in
+// VALUES (1) INTO @x or (SELECT 1) INTO @x. It is held by the SelectStmt
+// for the whole expression. A statement takes one INTO.
+func (p *Parser) parseTrailingInto(sel *nodes.SelectStmt) error {
+	if sel == nil || p.cur.Type != kwINTO || hasInto(sel) {
+		return nil
+	}
+	p.advance() // consume INTO
+	into, err := p.parseIntoClause()
+	if err != nil {
+		return err
+	}
+	sel.Into = into
+	if sel.ForUpdate == nil {
+		switch p.cur.Type {
+		case kwFOR:
+			if sel.ForUpdate, err = p.parseForUpdateClause(); err != nil {
+				return err
+			}
+		case kwLOCK:
+			if sel.ForUpdate, err = p.parseLockInShareMode(); err != nil {
+				return err
+			}
+		}
+	}
+	sel.Loc.End = p.prev.End
+	return nil
+}
+
+// hasInto reports whether the query expression or the query primary it ends
+// with, through set operations and parentheses, already holds an INTO.
+func hasInto(sel *nodes.SelectStmt) bool {
+	for sel != nil {
+		if sel.Into != nil {
+			return true
+		}
+		switch {
+		case sel.SetOp != nodes.SetOpNone:
+			sel = sel.Right
+		case sel.ParenSource != nil:
+			sel = sel.ParenSource
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // parseSubqueryExpr parses a subquery expression: SELECT ... or a

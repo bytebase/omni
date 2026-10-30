@@ -1513,7 +1513,11 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 //	{EXPLAIN | DESCRIBE | DESC} ANALYZE [explain_type] explainable_stmt
 //	explain_type: { FORMAT = format_name }
 //	format_name: { TRADITIONAL | JSON | TREE }
-//	explainable_stmt: { SELECT | TABLE | VALUES | DELETE | INSERT | REPLACE | UPDATE }
+//	explainable_stmt: { query_expression | DELETE | INSERT | REPLACE | UPDATE }
+//
+// MariaDB has no TABLE statement; a query expression starts with SELECT,
+// VALUES, WITH, or '(' (MariaDB 11.8.8 sql/sql_yacc.yy, explainable_command,
+// line 14834).
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
 	isDescribe := p.cur.Type == kwDESCRIBE || p.cur.Type == kwDESC
@@ -1610,7 +1614,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	if p.collectMode() {
 		for _, t := range []int{
 			kwANALYZE, kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
-			kwSELECT, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
+			kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -1619,8 +1623,10 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 
 	// Parse the explainable statement
 	switch p.cur.Type {
-	case kwSELECT:
-		sel, err := p.parseSelectStmt()
+	case kwSELECT, kwVALUES, kwWITH, '(':
+		// A query expression, as at statement level (MariaDB's
+		// explainable_command is select, insert, replace, update, or delete).
+		sel, err := p.parseQueryStatement()
 		if err != nil {
 			return nil, err
 		}
@@ -1649,18 +1655,6 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, err
 		}
 		stmt.Stmt = rep
-	case kwTABLE:
-		tbl, err := p.parseTableStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = tbl
-	case kwVALUES:
-		vals, err := p.parseValuesStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = vals
 	default:
 		// For other tokens, try to parse as a table ref (EXPLAIN table_name)
 		ref, err := p.parseTableRef()

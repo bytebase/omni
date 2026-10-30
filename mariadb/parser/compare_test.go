@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -1522,14 +1523,28 @@ func TestParseInsertValues(t *testing.T) {
 	}
 }
 
-// TestParseInsertValuesRow tests INSERT ... VALUES ROW(...) row constructor syntax.
+// TestParseInsertValuesRow: MySQL 8.0's ROW(...) row constructor is not a
+// row of INSERT ... VALUES in MariaDB 11.8, which rejects it (pinned against
+// the engine in TestTableValueConstructorOracle).
 func TestParseInsertValuesRow(t *testing.T) {
-	ParseAndCheck(t, "INSERT INTO t VALUES ROW(1, 2, 3)")
+	for _, sql := range []string{
+		"INSERT INTO t VALUES ROW(1, 2, 3)",
+		"INSERT INTO t VALUES ROW(1, 'a'), ROW(2, 'b'), ROW(3, 'c')",
+		"INSERT INTO t VALUES (1, 'a'), ROW(2, 'b')",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
 }
 
-// TestParseInsertValuesRowMultiple tests multiple ROW constructors in INSERT.
+// TestParseInsertValuesRowMultiple tests multiple rows in INSERT, and empty
+// ones, which MariaDB fills with the column defaults.
 func TestParseInsertValuesRowMultiple(t *testing.T) {
-	ParseAndCheck(t, "INSERT INTO t VALUES ROW(1, 'a'), ROW(2, 'b'), ROW(3, 'c')")
+	stmt := parseInsert(t, "INSERT INTO t VALUES (1, 'a'), (), (3, 'c')")
+	if len(stmt.Values) != 3 || len(stmt.Values[0]) != 2 || len(stmt.Values[1]) != 0 || len(stmt.Values[2]) != 2 {
+		t.Errorf("Values = %#v, want rows of 2, 0, and 2 values", stmt.Values)
+	}
 }
 
 // TestParseInsertSelect tests INSERT ... SELECT parsing.
@@ -1737,24 +1752,29 @@ func TestParseInsertOnDupKey(t *testing.T) {
 // Batch 99 (review_dml): INSERT ... TABLE source
 // ---------------------------------------------------------------------------
 
-// TestParseInsertTableSource tests INSERT INTO t1 TABLE t2 (MySQL 8.0.19+).
+// TestParseInsertTableSource: INSERT INTO t1 TABLE t2 is MySQL 8.0.19+;
+// MariaDB 11.8 has no TABLE statement and rejects it. Rows followed by a set
+// operation are a query source instead.
 func TestParseInsertTableSource(t *testing.T) {
-	stmt := parseInsert(t, "INSERT INTO t1 TABLE t2")
-	if stmt.TableSource == nil {
-		t.Fatal("expected TableSource to be non-nil")
-	}
-	if stmt.TableSource.Table.Name != "t2" {
-		t.Errorf("TableSource.Table.Name = %q, want %q", stmt.TableSource.Table.Name, "t2")
-	}
-
-	// REPLACE ... TABLE
-	rep := parseReplace(t, "REPLACE INTO t1 TABLE t2")
-	if rep.TableSource == nil {
-		t.Fatal("expected TableSource to be non-nil for REPLACE")
+	for _, sql := range []string{
+		"INSERT INTO t1 TABLE t2",
+		"REPLACE INTO t1 TABLE t2",
+		"INSERT INTO t1 TABLE t2 ON DUPLICATE KEY UPDATE col = 1",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
 	}
 
-	// INSERT with ON DUPLICATE KEY UPDATE after TABLE source
-	ParseAndCheck(t, "INSERT INTO t1 TABLE t2 ON DUPLICATE KEY UPDATE col = 1")
+	stmt := parseInsert(t, "INSERT INTO t1 VALUES (1) UNION VALUES (2) ON DUPLICATE KEY UPDATE col = 1")
+	if stmt.Values != nil || stmt.Select == nil || stmt.Select.SetOp != ast.SetOpUnion || stmt.OnDuplicateKey == nil {
+		t.Errorf("got Values %v, Select %v, OnDuplicateKey %v; want a UNION source and the ON DUPLICATE KEY UPDATE",
+			stmt.Values, stmt.Select, stmt.OnDuplicateKey)
+	}
+	rep := parseReplace(t, "REPLACE INTO t1 (VALUES (1))")
+	if rep.Select == nil || rep.Select.ParenSource == nil || rep.Select.ParenSource.ValuesSource == nil {
+		t.Errorf("REPLACE source = %v, want the parenthesized VALUES", rep.Select)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -4918,7 +4938,7 @@ func TestParseExplain(t *testing.T) {
 	})
 
 	t.Run("explain analyze values", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN ANALYZE VALUES ROW(1, 2)")}
+		p := &Parser{lexer: NewLexer("EXPLAIN ANALYZE VALUES (1, 2)")}
 		p.advance()
 		stmt, err := p.parseExplainStmt()
 		if err != nil {
@@ -4927,12 +4947,12 @@ func TestParseExplain(t *testing.T) {
 		if !stmt.Analyze {
 			t.Error("Analyze = false, want true")
 		}
-		values, ok := stmt.Stmt.(*ast.ValuesStmt)
-		if !ok {
-			t.Fatalf("Stmt type = %T, want *ast.ValuesStmt", stmt.Stmt)
+		sel, ok := stmt.Stmt.(*ast.SelectStmt)
+		if !ok || sel.ValuesSource == nil {
+			t.Fatalf("Stmt = %T, want a *ast.SelectStmt over VALUES", stmt.Stmt)
 		}
-		if len(values.Rows) != 1 || len(values.Rows[0]) != 2 {
-			t.Fatalf("VALUES rows shape = %#v, want one ROW with two expressions", values.Rows)
+		if rows := sel.ValuesSource.Rows; len(rows) != 1 || len(rows[0]) != 2 {
+			t.Fatalf("VALUES rows shape = %#v, want one row with two expressions", rows)
 		}
 	})
 
@@ -7684,55 +7704,42 @@ func TestParseCloseCursor(t *testing.T) {
 // Batch 33: TABLE and VALUES statements
 // ============================================================================
 
+// TestParseTableStmt: TABLE t is MySQL 8.0.19+; MariaDB 11.8 has no TABLE
+// statement and rejects it at TABLE.
 func TestParseTableStmt(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "TABLE t1",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}",
-		},
-		{
-			sql:  "TABLE mydb.t1",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :schema mydb :name t1}}",
-		},
-		{
-			sql:  "TABLE t1 ORDER BY id",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col id}})}",
-		},
-		{
-			sql:  "TABLE t1 LIMIT 10",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :limit {LIMIT :loc 15 :count {INT_LIT :val 10 :loc 15}}}",
-		},
-		{
-			sql:  "TABLE t1 ORDER BY name LIMIT 5 OFFSET 10",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col name}}) :limit {LIMIT :loc 29 :count {INT_LIT :val 5 :loc 29} :offset {INT_LIT :val 10 :loc 38}}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			result := ParseAndCheck(t, tt.sql)
-			got := ast.NodeToString(result.Items[0])
-			if got != tt.want {
-				t.Errorf("got:  %s\nwant: %s", got, tt.want)
-			}
-		})
+	for _, sql := range []string{
+		"TABLE t1",
+		"TABLE mydb.t1",
+		"TABLE t1 ORDER BY id",
+		"TABLE t1 LIMIT 10",
+		"TABLE t1 ORDER BY name LIMIT 5 OFFSET 10",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || pe.Position != 0 {
+			t.Errorf("Parse(%q) = %v, want a syntax error at TABLE", sql, err)
+		}
 	}
 }
 
+// TestParseValuesStmt: a VALUES statement is a MariaDB table value
+// constructor, a SelectStmt over a ValuesStmt that holds the rows.
 func TestParseValuesStmt(t *testing.T) {
 	tests := []struct {
 		sql  string
 		want string
 	}{
 		{
-			sql:  "VALUES ROW(1, 2, 3)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}",
+			sql:  "VALUES (1, 2, 3)",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 8} {INT_LIT :val 2 :loc 11} {INT_LIT :val 3 :loc 14}))}}",
 		},
 		{
-			sql:  "VALUES ROW(1, 2), ROW(3, 4)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}",
+			sql:  "VALUES (1, 2), (3, 4)",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 8} {INT_LIT :val 2 :loc 11}) ({INT_LIT :val 3 :loc 16} {INT_LIT :val 4 :loc 19}))}}",
+		},
+		{
+			sql:  "VALUES ()",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (())}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7752,16 +7759,20 @@ func TestParseValuesRow(t *testing.T) {
 		want string
 	}{
 		{
-			sql:  "VALUES ROW('a', 'b')",
-			want: `{VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}`,
+			sql:  "VALUES ('a', 'b')",
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 8} {STRING_LIT :val "b" :loc 13}))}}`,
 		},
 		{
-			sql:  "VALUES ROW(1, 'hello', NULL)",
-			want: `{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}`,
+			sql:  "VALUES (1, 'hello', NULL)",
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 8} {STRING_LIT :val "hello" :loc 11} {NULL_LIT :loc 20}))}}`,
 		},
 		{
-			sql:  "VALUES ROW(1) LIMIT 1",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11})) :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}}}",
+			sql:  "VALUES (1) LIMIT 1",
+			want: "{SELECT :loc 0 :limit {LIMIT :loc 17 :count {INT_LIT :val 1 :loc 17}} :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 8}))}}",
+		},
+		{
+			sql:  "VALUES (1) INTO @x",
+			want: "{SELECT :loc 0 :into {INTO :loc 16 :vars {VAR :name x :loc 16}} :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 8}))}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7773,19 +7784,24 @@ func TestParseValuesRow(t *testing.T) {
 			}
 		})
 	}
+	// MySQL 8.0's ROW(...) rows are not MariaDB's.
+	for _, sql := range []string{"VALUES ROW('a', 'b')", "VALUES ROW(1) LIMIT 1", "VALUES (1), ROW(2)"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
 }
 
 func TestParseTableUnion(t *testing.T) {
-	// TABLE statement can be parsed standalone
-	ParseAndCheck(t, "TABLE t1")
 	// VALUES statement can be parsed standalone
-	ParseAndCheck(t, "VALUES ROW(1, 2)")
-	// TABLE with ORDER BY and LIMIT
-	ParseAndCheck(t, "TABLE t1 ORDER BY id LIMIT 10")
+	ParseAndCheck(t, "VALUES (1, 2)")
 	// VALUES with multiple rows
-	ParseAndCheck(t, "VALUES ROW(1, 2), ROW(3, 4), ROW(5, 6)")
-	// VALUES with ORDER BY
-	ParseAndCheck(t, "VALUES ROW(1, 'a'), ROW(2, 'b') ORDER BY column_0")
+	ParseAndCheck(t, "VALUES (1, 2), (3, 4), (5, 6)")
+	// VALUES with ORDER BY and LIMIT
+	ParseAndCheck(t, "VALUES (1, 'a'), (2, 'b') ORDER BY 1 LIMIT 1")
+	// VALUES in a set operation, either side
+	ParseAndCheck(t, "VALUES (1, 2) UNION SELECT 3, 4")
+	ParseAndCheck(t, "SELECT 1, 2 UNION ALL VALUES (3, 4) ORDER BY 1")
 }
 
 func TestParseCreateTablespace(t *testing.T) {
@@ -8348,9 +8364,8 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"SET ROLE DEFAULT",
 		"GRANT r1 TO u1",
 
-		// TABLE / VALUES (batch 33)
-		"TABLE t1",
-		"VALUES ROW(1, 2), ROW(3, 4)",
+		// VALUES (batch 33)
+		"VALUES (1, 2), (3, 4)",
 
 		// Utility (batch 34)
 		"CHECKSUM TABLE t1",
@@ -11519,7 +11534,11 @@ func TestReviewBatch109_ExplainTableWild(t *testing.T) {
 }
 
 func TestReviewBatch109_ExplainTableStmt(t *testing.T) {
-	ParseAndCheck(t, "EXPLAIN TABLE t")
+	ParseAndCheck(t, "EXPLAIN VALUES (1) UNION VALUES (2)")
+	ParseAndCheck(t, "EXPLAIN (VALUES (1))")
+	if _, err := Parse("EXPLAIN TABLE t"); err == nil {
+		t.Error("Parse(EXPLAIN TABLE t) succeeded; MariaDB has no TABLE statement")
+	}
 }
 
 func TestReviewBatch109_ExplainAnalyze(t *testing.T) {
@@ -11595,23 +11614,23 @@ func TestReviewBatch110_LoadIndexIntoCacheMultiTable(t *testing.T) {
 }
 
 func TestReviewBatch110_TableIntoOutfile(t *testing.T) {
-	ParseAndCheck(t, "TABLE t1 INTO OUTFILE '/tmp/out.csv'")
+	ParseAndCheck(t, "VALUES (1, 2) INTO OUTFILE '/tmp/out.csv'")
 }
 
 func TestReviewBatch110_TableIntoDumpfile(t *testing.T) {
-	ParseAndCheck(t, "TABLE t1 INTO DUMPFILE '/tmp/out.dat'")
+	ParseAndCheck(t, "VALUES (1, 2) INTO DUMPFILE '/tmp/out.dat'")
 }
 
 func TestReviewBatch110_TableIntoVar(t *testing.T) {
-	ParseAndCheck(t, "TABLE t1 INTO @v1, @v2")
+	ParseAndCheck(t, "VALUES (1, 2) INTO @v1, @v2")
 }
 
 func TestReviewBatch110_ValuesBasic(t *testing.T) {
-	ParseAndCheck(t, "VALUES ROW(1, 2), ROW(3, 4)")
+	ParseAndCheck(t, "VALUES (1, 2), (3, 4)")
 }
 
 func TestReviewBatch110_ValuesOrderByLimit(t *testing.T) {
-	ParseAndCheck(t, "VALUES ROW(1, 2), ROW(3, 4) ORDER BY column_0 LIMIT 1")
+	ParseAndCheck(t, "VALUES (1, 2), (3, 4) ORDER BY 1 LIMIT 1")
 }
 
 // --- Batch 111: review_maintenance_utility ---

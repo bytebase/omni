@@ -29,6 +29,14 @@ type Parser struct {
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 
+	// valuesIsFunction is set while parsing the expressions in which MariaDB
+	// reads VALUES as the VALUES(col) function rather than a table value
+	// constructor: the assignments of ON DUPLICATE KEY UPDATE and the
+	// expression of PARTITION BY LIST, but not the queries nested in them.
+	// MariaDB's lexer turns VALUES into VALUE_SYM there (sql/sql_lex.cc,
+	// IN_UPDATE_ON_DUP_KEY and IN_PART_FUNC).
+	valuesIsFunction bool
+
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
 
 	// Completion mode fields.

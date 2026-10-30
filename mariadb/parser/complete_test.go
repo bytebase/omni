@@ -256,11 +256,15 @@ func TestCollectExplainKeywords(t *testing.T) {
 	}
 	for _, tok := range []int{
 		kwANALYZE, kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
-		kwSELECT, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
+		kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
 	} {
 		if !cs.HasToken(tok) {
 			t.Errorf("missing EXPLAIN keyword: %s", TokenName(tok))
 		}
+	}
+	// MariaDB has no TABLE statement.
+	if cs.HasToken(kwTABLE) {
+		t.Error("EXPLAIN offers TABLE")
 	}
 }
 

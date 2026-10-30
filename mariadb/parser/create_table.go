@@ -64,10 +64,17 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		return stmt, nil
 	}
 
+	// MariaDB reads VALUE as VALUES, starting a table value constructor,
+	// until a '(' or a PARTITION clause follows the table name (create sets
+	// BEFORE_OPT_LIST, MariaDB 11.8.8 sql/sql_yacc.yy line 2531; see
+	// sql/sql_lex.cc): CREATE TABLE t2 VALUE (1) and CREATE TABLE t2 AS
+	// VALUE (1) are queries, CREATE TABLE t2 (a INT) VALUE (1) is not.
+	valueIsValues := true
+
 	// CREATE TABLE ... AS SELECT
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseSelectStmt()
+		sel, err := p.parseCreateSelect(valueIsValues)
 		if err != nil {
 			return nil, err
 		}
@@ -78,11 +85,12 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 
 	// Parenthesized create definitions (columns and constraints)
 	if p.cur.Type == '(' {
+		valueIsValues = false
 		next := p.peekNext()
 		// Check for CREATE TABLE ... (query) — query source without AS. Let
 		// parseSelectStmt consume the parentheses and any following set-op /
 		// ORDER BY / LIMIT so "(SELECT 1) UNION (SELECT 2)" stays one source.
-		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' {
+		if next.Type == kwSELECT || next.Type == kwVALUES || next.Type == kwWITH || next.Type == '(' {
 			sel, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
@@ -119,7 +127,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 	// CREATE TABLE t (cols) [IGNORE|REPLACE] [AS] SELECT ...
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseSelectStmt()
+		sel, err := p.parseCreateSelect(valueIsValues)
 		if err != nil {
 			return nil, err
 		}
@@ -144,6 +152,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 
 	// Partition clause
 	if p.cur.Type == kwPARTITION {
+		valueIsValues = false
 		part, err := p.parsePartitionClause()
 		if err != nil {
 			return nil, err
@@ -160,16 +169,21 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		stmt.Replace = true
 	}
 
-	// [AS] SELECT ... — bare SELECT or AS SELECT after options/partitions
-	if p.cur.Type == kwAS {
+	// [AS] query — the query of opt_create_select (MariaDB 11.8.8
+	// sql/sql_yacc.yy line 4821), with or without AS, after the options and
+	// partitions: SELECT, a table value constructor, WITH, or a
+	// parenthesized query.
+	switch {
+	case p.cur.Type == kwAS:
 		p.advance()
-		sel, err := p.parseSelectStmt()
+		sel, err := p.parseCreateSelect(valueIsValues)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
-	} else if p.cur.Type == kwSELECT {
-		sel, err := p.parseSelectStmt()
+	case p.cur.Type == kwSELECT || p.cur.Type == kwVALUES || p.cur.Type == kwWITH || p.cur.Type == '(' ||
+		p.cur.Type == kwVALUE && valueIsValues:
+		sel, err := p.parseCreateSelect(valueIsValues)
 		if err != nil {
 			return nil, err
 		}
@@ -178,6 +192,19 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseCreateSelect parses the query of CREATE TABLE ... [AS] query. When
+// valueIsValues is set, MariaDB still reads VALUE as VALUES there.
+func (p *Parser) parseCreateSelect(valueIsValues bool) (*nodes.SelectStmt, error) {
+	if p.cur.Type == kwVALUE && valueIsValues {
+		values, err := p.parseValuesConstructor()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseQueryAfterValues(values)
+	}
+	return p.parseSelectStmt()
 }
 
 // parseCreateDefinitions parses column definitions and table constraints
@@ -1666,7 +1693,12 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
+			// MariaDB reads VALUES here as the VALUES(col) function
+			// (IN_PART_FUNC, MariaDB 11.8.8 sql/sql_yacc.yy line 4964),
+			// which then fails as a partition function (error 1564).
+			p.valuesIsFunction = true
 			expr, err := p.parseExpr()
+			p.valuesIsFunction = false
 			if err != nil {
 				return nil, err
 			}
