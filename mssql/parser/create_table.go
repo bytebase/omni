@@ -583,39 +583,34 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		col.Collation = collation
 	}
 
-	// Column-level options in any order
-	for {
-		consumed := false
-
-		// FILESTREAM
-		if p.cur.Type == kwFILESTREAM {
-			col.Filestream = true
-			p.advance()
-			consumed = true
+	// The options SQL Server takes once each, in this order, before any
+	// constraint: GENERATED ALWAYS ... [ HIDDEN ], or else SPARSE and
+	// FILESTREAM in either order, then MASKED WITH or ENCRYPTED WITH (not
+	// after FILESTREAM). After a constraint or one another out of this order,
+	// SQL Server rejects them, as NOT NULL SPARSE and MASKED WITH (...)
+	// ENCRYPTED WITH (...) are.
+	if p.cur.Type == kwGENERATED {
+		genAlways, genErr := p.parseGeneratedAlways()
+		if genErr != nil {
+			return nil, genErr
 		}
-
-		// SPARSE
-		if p.cur.Type == kwSPARSE {
-			col.Sparse = true
-			p.advance()
-			consumed = true
-		}
-
-		// ROWGUIDCOL
-		if p.cur.Type == kwROWGUIDCOL {
-			col.Rowguidcol = true
-			p.advance()
-			consumed = true
-		}
-
-		// HIDDEN (standalone, not after GENERATED ALWAYS)
+		col.GeneratedAlways = genAlways
 		if p.cur.Type == kwHIDDEN {
 			col.Hidden = true
 			p.advance()
-			consumed = true
 		}
-
-		// MASKED WITH (FUNCTION = 'mask_function')
+	} else {
+		for {
+			if p.cur.Type == kwSPARSE && !col.Sparse {
+				col.Sparse = true
+				p.advance()
+			} else if p.cur.Type == kwFILESTREAM && !col.Filestream {
+				col.Filestream = true
+				p.advance()
+			} else {
+				break
+			}
+		}
 		if p.cur.Type == kwMASKED {
 			p.advance() // MASKED
 			if p.cur.Type == kwWITH {
@@ -636,74 +631,56 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 					p.expect(')')
 				}
 			}
-			consumed = true
-		}
-
-		// ENCRYPTED WITH (...)
-		if p.cur.Type == kwENCRYPTED {
+		} else if p.cur.Type == kwENCRYPTED && !col.Filestream {
 			encWith, encErr := p.parseEncryptedWith()
 			if encErr != nil {
 				return nil, encErr
 			}
 			col.EncryptedWith = encWith
-			consumed = true
 		}
+	}
 
-		// GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END } [ HIDDEN ]
-		if p.cur.Type == kwGENERATED {
-			genAlways, genErr := p.parseGeneratedAlways()
-			if genErr != nil {
-				return nil, genErr
-			}
-			col.GeneratedAlways = genAlways
-			// GENERATED ALWAYS ... HIDDEN
-			if p.cur.Type == kwHIDDEN {
-				col.Hidden = true
-				p.advance()
-			}
-			consumed = true
-		}
-
-		// IDENTITY
-		if p.cur.Type == kwIDENTITY {
+	// The constraints, with ROWGUIDCOL and IDENTITY among them, in any order
+	// and any number of times: SQL Server's parser takes NULL NOT NULL and
+	// two IDENTITY clauses, which fail later. NOT FOR REPLICATION belongs to
+	// the IDENTITY or REFERENCES before it, and SQL Server rejects it
+	// anywhere else.
+	for {
+		switch p.cur.Type {
+		case kwROWGUIDCOL:
+			col.Rowguidcol = true
+			p.advance()
+			continue
+		case kwIDENTITY:
 			identSpec, identErr := p.parseIdentitySpec()
 			if identErr != nil {
 				return nil, identErr
 			}
 			col.Identity = identSpec
-			consumed = true
-		}
-
-		// NOT FOR REPLICATION / NOT NULL
-		if p.cur.Type == kwNOT {
-			next := p.peekNext()
-			if next.Type == kwNULL {
-				nullLoc := p.pos()
-				p.advance() // NOT
-				p.advance() // NULL
-				col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: nullLoc, End: p.prevEnd()}}
-				consumed = true
-			} else if next.Type == kwFOR {
+			if p.cur.Type == kwNOT && p.peekNext().Type == kwFOR {
 				p.advance() // NOT
 				p.advance() // FOR
 				if p.cur.Type == kwREPLICATION {
 					p.advance()
 				}
 				col.NotForReplication = true
-				consumed = true
 			}
-		}
-
-		// NULL
-		if p.cur.Type == kwNULL {
+			continue
+		case kwNOT:
+			if p.peekNext().Type != kwNULL {
+				break
+			}
+			nullLoc := p.pos()
+			p.advance() // NOT
+			p.advance() // NULL
+			col.Nullable = &nodes.NullableSpec{NotNull: true, Loc: nodes.Loc{Start: nullLoc, End: p.prevEnd()}}
+			continue
+		case kwNULL:
 			nullLoc := p.pos()
 			p.advance()
 			col.Nullable = &nodes.NullableSpec{NotNull: false, Loc: nodes.Loc{Start: nullLoc, End: p.prevEnd()}}
-			consumed = true
-		}
-
-		// DEFAULT
-		if p.cur.Type == kwDEFAULT {
+			continue
+		case kwDEFAULT:
 			p.advance()
 			// Completion: after DEFAULT → expression
 			if p.collectMode() {
@@ -718,12 +695,17 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 				return nil, p.unexpectedToken()
 			}
 			col.DefaultExpr = defExpr
-			consumed = true
-		}
-
-		// CONSTRAINT (inline column constraint)
-		if p.cur.Type == kwCONSTRAINT {
-			constraint, cErr := p.parseColumnConstraint()
+			continue
+		case kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwCHECK, kwREFERENCES:
+			// CONSTRAINT name, then the constraint, or a constraint without
+			// a name (PRIMARY KEY, UNIQUE, CHECK, inline REFERENCES).
+			var constraint *nodes.ConstraintDef
+			var cErr error
+			if p.cur.Type == kwCONSTRAINT {
+				constraint, cErr = p.parseColumnConstraint()
+			} else {
+				constraint, cErr = p.parseInlineConstraint("")
+			}
 			if cErr != nil {
 				return nil, cErr
 			}
@@ -733,57 +715,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 				}
 				col.Constraints.Items = append(col.Constraints.Items, constraint)
 			}
-			consumed = true
+			continue
 		}
-
-		// PRIMARY KEY / UNIQUE (without CONSTRAINT keyword)
-		if p.cur.Type == kwPRIMARY || p.cur.Type == kwUNIQUE {
-			constraint, cErr := p.parseInlineConstraint("")
-			if cErr != nil {
-				return nil, cErr
-			}
-			if constraint != nil {
-				if col.Constraints == nil {
-					col.Constraints = &nodes.List{}
-				}
-				col.Constraints.Items = append(col.Constraints.Items, constraint)
-			}
-			consumed = true
-		}
-
-		// CHECK (without CONSTRAINT keyword)
-		if p.cur.Type == kwCHECK {
-			constraint, cErr := p.parseInlineConstraint("")
-			if cErr != nil {
-				return nil, cErr
-			}
-			if constraint != nil {
-				if col.Constraints == nil {
-					col.Constraints = &nodes.List{}
-				}
-				col.Constraints.Items = append(col.Constraints.Items, constraint)
-			}
-			consumed = true
-		}
-
-		// REFERENCES (inline FK without CONSTRAINT keyword)
-		if p.cur.Type == kwREFERENCES {
-			constraint, cErr := p.parseInlineConstraint("")
-			if cErr != nil {
-				return nil, cErr
-			}
-			if constraint != nil {
-				if col.Constraints == nil {
-					col.Constraints = &nodes.List{}
-				}
-				col.Constraints.Items = append(col.Constraints.Items, constraint)
-			}
-			consumed = true
-		}
-
-		if !consumed {
-			break
-		}
+		break
 	}
 
 	col.Loc.End = p.prevEnd()
