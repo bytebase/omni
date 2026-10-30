@@ -26,8 +26,9 @@ type SyntaxError struct {
 
 // Position represents a location in source text.
 // Statement positions are 1-based lines and 1-based columns counted in code
-// points (the splitter converts them). SyntaxError positions keep the legacy
-// 0-based line convention that Diagnose documents.
+// points, as review.Index converts them. SyntaxError positions keep the
+// legacy 0-based line convention that Diagnose documents; their column is
+// review.Index's too.
 type Position struct {
 	Line   int `yaml:"line"`
 	Column int `yaml:"column"`
