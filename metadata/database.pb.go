@@ -373,8 +373,12 @@ type DatabaseSchemaMetadata struct {
 	// schema holds no object of that name. Every database of an instance holds
 	// the same list, as with linked_databases.
 	PublicSynonyms []*SynonymMetadata `protobuf:"bytes,12,rep,name=public_synonyms,json=publicSynonyms,proto3" json:"public_synonyms,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The default schema of the user that syncs the database (SQL Server's
+	// SCHEMA_NAME()): where an unqualified name is created, and where it is
+	// looked up before dbo. A sysadmin's is dbo.
+	DefaultSchema string `protobuf:"bytes,13,opt,name=default_schema,json=defaultSchema,proto3" json:"default_schema,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DatabaseSchemaMetadata) Reset() {
@@ -491,6 +495,13 @@ func (x *DatabaseSchemaMetadata) GetPublicSynonyms() []*SynonymMetadata {
 	return nil
 }
 
+func (x *DatabaseSchemaMetadata) GetDefaultSchema() string {
+	if x != nil {
+		return x.DefaultSchema
+	}
+	return ""
+}
+
 type LinkedDatabaseMetadata struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -586,8 +597,9 @@ type SchemaMetadata struct {
 	// The list of user-defined composite types in a schema (PostgreSQL family,
 	// CREATE TYPE ... AS). Excludes table/view row types and derived types.
 	CompositeTypes []*CompositeTypeMetadata `protobuf:"bytes,17,rep,name=composite_types,json=compositeTypes,proto3" json:"composite_types,omitempty"`
-	// The list of synonyms in a schema: Oracle's private synonyms. The public
-	// synonyms are in DatabaseSchemaMetadata.public_synonyms.
+	// The list of synonyms in a schema: Oracle's private synonyms, whose
+	// public ones are in DatabaseSchemaMetadata.public_synonyms, and SQL
+	// Server's synonyms.
 	Synonyms      []*SynonymMetadata `protobuf:"bytes,18,rep,name=synonyms,proto3" json:"synonyms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -763,7 +775,12 @@ type SynonymMetadata struct {
 	// The name of the object the synonym stands for.
 	TargetName string `protobuf:"bytes,3,opt,name=target_name,json=targetName,proto3" json:"target_name,omitempty"`
 	// The database link through which the object is reached (Oracle), if any.
-	TargetDbLink  string `protobuf:"bytes,4,opt,name=target_db_link,json=targetDbLink,proto3" json:"target_db_link,omitempty"`
+	TargetDbLink string `protobuf:"bytes,4,opt,name=target_db_link,json=targetDbLink,proto3" json:"target_db_link,omitempty"`
+	// The database the object is in (SQL Server), if the synonym names one.
+	TargetDatabase string `protobuf:"bytes,5,opt,name=target_database,json=targetDatabase,proto3" json:"target_database,omitempty"`
+	// The linked server the object is on (SQL Server), if the synonym names
+	// one.
+	TargetServer  string `protobuf:"bytes,6,opt,name=target_server,json=targetServer,proto3" json:"target_server,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -822,6 +839,20 @@ func (x *SynonymMetadata) GetTargetName() string {
 func (x *SynonymMetadata) GetTargetDbLink() string {
 	if x != nil {
 		return x.TargetDbLink
+	}
+	return ""
+}
+
+func (x *SynonymMetadata) GetTargetDatabase() string {
+	if x != nil {
+		return x.TargetDatabase
+	}
+	return ""
+}
+
+func (x *SynonymMetadata) GetTargetServer() string {
+	if x != nil {
+		return x.TargetServer
 	}
 	return ""
 }
@@ -4217,7 +4248,7 @@ var File_omni_metadata_database_proto protoreflect.FileDescriptor
 
 const file_omni_metadata_database_proto_rawDesc = "" +
 	"\n" +
-	"\x1comni/metadata/database.proto\x12\romni.metadata\"\xc9\x04\n" +
+	"\x1comni/metadata/database.proto\x12\romni.metadata\"\xf0\x04\n" +
 	"\x16DatabaseSchemaMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
 	"\aschemas\x18\x02 \x03(\v2\x1d.omni.metadata.SchemaMetadataR\aschemas\x12#\n" +
@@ -4234,7 +4265,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	" \x01(\tR\n" +
 	"searchPath\x12J\n" +
 	"\x0eevent_triggers\x18\v \x03(\v2#.omni.metadata.EventTriggerMetadataR\reventTriggers\x12G\n" +
-	"\x0fpublic_synonyms\x18\f \x03(\v2\x1e.omni.metadata.SynonymMetadataR\x0epublicSynonyms\"\\\n" +
+	"\x0fpublic_synonyms\x18\f \x03(\v2\x1e.omni.metadata.SynonymMetadataR\x0epublicSynonyms\x12%\n" +
+	"\x0edefault_schema\x18\r \x01(\tR\rdefaultSchema\"\\\n" +
 	"\x16LinkedDatabaseMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x12\n" +
@@ -4261,13 +4293,15 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"enum_types\x18\x0f \x03(\v2\x1f.omni.metadata.EnumTypeMetadataR\tenumTypes\x12\x1b\n" +
 	"\tskip_dump\x18\x10 \x01(\bR\bskipDump\x12M\n" +
 	"\x0fcomposite_types\x18\x11 \x03(\v2$.omni.metadata.CompositeTypeMetadataR\x0ecompositeTypes\x12:\n" +
-	"\bsynonyms\x18\x12 \x03(\v2\x1e.omni.metadata.SynonymMetadataR\bsynonyms\"\x91\x01\n" +
+	"\bsynonyms\x18\x12 \x03(\v2\x1e.omni.metadata.SynonymMetadataR\bsynonyms\"\xdf\x01\n" +
 	"\x0fSynonymMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rtarget_schema\x18\x02 \x01(\tR\ftargetSchema\x12\x1f\n" +
 	"\vtarget_name\x18\x03 \x01(\tR\n" +
 	"targetName\x12$\n" +
-	"\x0etarget_db_link\x18\x04 \x01(\tR\ftargetDbLink\"u\n" +
+	"\x0etarget_db_link\x18\x04 \x01(\tR\ftargetDbLink\x12'\n" +
+	"\x0ftarget_database\x18\x05 \x01(\tR\x0etargetDatabase\x12#\n" +
+	"\rtarget_server\x18\x06 \x01(\tR\ftargetServer\"u\n" +
 	"\x10EnumTypeMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06values\x18\x02 \x03(\tR\x06values\x12\x18\n" +
