@@ -40,6 +40,12 @@ message DatabaseSchemaMetadata {
   // The list of event triggers in a database (PostgreSQL specific).
   // Event triggers are database-level objects, not schema-scoped.
   repeated EventTriggerMetadata event_triggers = 11;
+
+  // The public synonyms of the database's instance (Oracle): the synonyms
+  // owned by PUBLIC, to which an unqualified name resolves when the current
+  // schema holds no object of that name. Every database of an instance holds
+  // the same list, as with linked_databases.
+  repeated SynonymMetadata public_synonyms = 12;
 }
 
 message LinkedDatabaseMetadata {
@@ -101,17 +107,16 @@ message SchemaMetadata {
   // CREATE TYPE ... AS). Excludes table/view row types and derived types.
   repeated CompositeTypeMetadata composite_types = 17;
 
-  // The list of synonyms in a schema. Oracle: the schema's private synonyms;
-  // the public synonyms are those of the schema named PUBLIC, which no
-  // database owns and Bytebase stores once per instance. A synonym whose
-  // object is gone, or not accessible to the syncing user, may be missing
-  // (Oracle's ALL_SYNONYMS omits it), so a name absent from the list can
-  // still be taken by a synonym.
+  // The list of synonyms in a schema: Oracle's private synonyms. The public
+  // synonyms are in DatabaseSchemaMetadata.public_synonyms.
   repeated SynonymMetadata synonyms = 18;
 }
 
 // SynonymMetadata is a synonym: another name for an object, which the engine
-// resolves only when the synonym is used.
+// resolves only when the synonym is used. A synced list may lack a synonym
+// whose object is gone or not accessible to the syncing user (Oracle's
+// ALL_SYNONYMS omits it), so a name absent from the list can still be taken
+// by a synonym.
 message SynonymMetadata {
   // The name of the synonym.
   string name = 1;
