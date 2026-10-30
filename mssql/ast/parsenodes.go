@@ -2100,6 +2100,30 @@ type SemanticTableRef struct {
 func (n *SemanticTableRef) nodeTag()   {}
 func (n *SemanticTableRef) tableExpr() {}
 
+// PredictTableRef is PREDICT used as a table source: it scores the rows of
+// DATA with a stored model and returns them with the columns WITH declares.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/predict-transact-sql
+//
+//	PREDICT ( MODEL = model , DATA = table_source [ [ AS ] table_alias ]
+//	          [ , RUNTIME = ONNX ] )
+//	WITH ( { column_name data_type [ COLLATE collation_name ] [ NULL | NOT NULL ] } [ ,...n ] )
+//	[ [ AS ] table_alias ]
+//
+// The arguments may come in any order. RUNTIME = ONNX is Azure Synapse
+// Analytics only. Mirrors SqlScriptDOM PredictTableReference.
+type PredictTableRef struct {
+	Model   ExprNode  // MODEL = @variable, literal, or other scalar expression
+	Data    TableExpr // DATA = *TableRef, *TableVarRef, *SubqueryExpr, or *AliasedTableRef (a table-valued function or an aliased derived table)
+	Runtime string    // "ONNX" for RUNTIME = ONNX; "" when absent
+	Columns *List     // WITH ( ... ): *RowsetColumnDef items
+	Alias   string
+	Loc     Loc
+}
+
+func (n *PredictTableRef) nodeTag()   {}
+func (n *PredictTableRef) tableExpr() {}
+
 // DataType represents a T-SQL data type reference.
 type DataType struct {
 	Name      string   // INT, VARCHAR, NVARCHAR, DECIMAL, etc.
@@ -2172,18 +2196,21 @@ type AdHocTableRef struct {
 func (n *AdHocTableRef) nodeTag()   {}
 func (n *AdHocTableRef) tableExpr() {}
 
-// RowsetColumnDef is a column of the WITH schema of OPENJSON or OPENXML.
+// RowsetColumnDef is a column of the WITH schema of OPENJSON, OPENXML, or
+// PREDICT.
 //
 //	column_name data_type [ COLLATE collation_name ] [ column_path ] [ AS JSON ]
+//	column_name data_type [ COLLATE collation_name ] [ NULL | NOT NULL ]   -- PREDICT
 //
 // Path is the JSON path of OPENJSON or the XPath pattern of OPENXML, a
-// string literal. AsJSON is OPENJSON only.
+// string literal. AsJSON is OPENJSON only, Nullable PREDICT only.
 type RowsetColumnDef struct {
 	Name      string
 	DataType  *DataType
 	Collation string
 	Path      *Literal
 	AsJSON    bool
+	Nullable  *NullableSpec
 	Loc       Loc
 }
 
@@ -3664,31 +3691,6 @@ type CreateRemoteTableAsSelectStmt struct {
 
 func (n *CreateRemoteTableAsSelectStmt) nodeTag()  {}
 func (n *CreateRemoteTableAsSelectStmt) stmtNode() {}
-
-// PredictStmt represents a PREDICT statement (SQL Server 2022+).
-//
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/predict-transact-sql
-//
-//	PREDICT (
-//	  MODEL = @model | model_literal,
-//	  DATA = object AS <table_alias>
-//	  [, RUNTIME = ONNX ]
-//	)
-//	WITH ( <result_set_definition> )
-//
-//	<result_set_definition> ::=
-//	  { column_name data_type [ COLLATE collation_name ] [ NULL | NOT NULL ] } [,...n]
-type PredictStmt struct {
-	Model       ExprNode // MODEL = @var | 'literal' | (subquery)
-	Data        ExprNode // DATA = table_source
-	DataAlias   string   // AS alias for DATA
-	Runtime     string   // RUNTIME = ONNX (optional)
-	WithColumns *List    // WITH ( column_def [,...n] )
-	Loc         Loc
-}
-
-func (n *PredictStmt) nodeTag()  {}
-func (n *PredictStmt) stmtNode() {}
 
 // ---------- Batch 127: Structured Query Hints ----------
 

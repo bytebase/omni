@@ -218,8 +218,8 @@ func allKnownNodes() []Node {
 		// Statements — Service Broker
 		&ServiceBrokerStmt{}, &ReceiveStmt{},
 
-		// Statements — PREDICT / COPY INTO
-		&PredictStmt{}, &CopyIntoStmt{},
+		// Statements — COPY INTO
+		&CopyIntoStmt{},
 
 		// Statements — USE FEDERATION
 		&UseFederationStmt{},
@@ -240,7 +240,7 @@ func allKnownNodes() []Node {
 		&SelectAssign{},
 
 		// Table expressions
-		&TableRef{}, &JoinClause{}, &AliasedTableRef{},
+		&TableRef{}, &JoinClause{}, &AliasedTableRef{}, &PredictTableRef{},
 
 		// DDL components
 		&ColumnDef{}, &ConstraintDef{}, &InlineIndexDef{},

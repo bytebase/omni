@@ -157,6 +157,13 @@ internal static class Shape
                     type = si.ColumnDefinition?.DataType?.Name?.BaseIdentifier?.Value,
                 }).ToList();
                 break;
+            case PredictTableReference pr:
+                with_cols = pr.SchemaDeclarationItems?.Select(si => (object)new
+                {
+                    name = si.ColumnDefinition?.ColumnIdentifier?.Value,
+                    type = si.ColumnDefinition?.DataType?.Name?.BaseIdentifier?.Value,
+                }).ToList();
+                break;
             case QualifiedJoin qj:
                 return new
                 {

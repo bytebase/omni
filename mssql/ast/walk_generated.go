@@ -630,10 +630,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.ForCol)
 		}
 		walkList(v, n.InValues)
-	case *PredictStmt:
+	case *PredictTableRef:
 		Walk(v, n.Model)
 		Walk(v, n.Data)
-		walkList(v, n.WithColumns)
+		walkList(v, n.Columns)
 	case *PrintStmt:
 		Walk(v, n.Expr)
 	case *QueryHint:
@@ -687,6 +687,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Path != nil {
 			Walk(v, n.Path)
+		}
+		if n.Nullable != nil {
+			Walk(v, n.Nullable)
 		}
 	case *SecurityKeyStmt:
 		walkList(v, n.Options)

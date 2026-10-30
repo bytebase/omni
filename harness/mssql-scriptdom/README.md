@@ -40,8 +40,10 @@ Only the fields we currently diff on:
 - **select list**: SelectScalar (alias + expr_kind), SelectStar, SelectSetVariable
 - **FROM table references**: NamedTableReference, QueryDerivedTable,
   InlineDerivedTable, SchemaObjectFunctionTableReference, OpenJsonTableReference,
-  VariableMethodCallTableReference, QualifiedJoin / UnqualifiedJoin
-- **alias** + **columns[]** (plain name list) + **with_cols[{name,type}]** (WITH-clause)
+  PredictTableReference, VariableMethodCallTableReference, QualifiedJoin /
+  UnqualifiedJoin
+- **alias** + **columns[]** (plain name list) + **with_cols[{name,type}]** (WITH-clause
+  of OPENJSON and PREDICT)
 
 Extend `Program.cs::Shape.OfTableRef` / `OfSelectElement` as new scenarios
 require additional fields.
