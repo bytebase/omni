@@ -2479,7 +2479,7 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			if dropStmt.ObjectType == nodes.DropFulltextIndex {
 				// DROP FULLTEXT INDEX ON table_name
 				if _, ok := p.match(kwON); ok {
-					if ref , _ := p.parseTableRef(); ref != nil {
+					if ref, _ := p.parseTableRef(); ref != nil {
 						nameItems = append(nameItems, ref)
 					}
 				}

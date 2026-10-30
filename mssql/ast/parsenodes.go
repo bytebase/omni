@@ -107,11 +107,11 @@ type ForClause struct {
 	RootName     string // optional name for ROOT('name')
 
 	// XML-specific options
-	Elements       bool   // ELEMENTS
-	ElementsMode   string // "" (default), "XSINIL", "ABSENT"
-	XmlData        bool   // XMLDATA
-	XmlSchema      bool   // XMLSCHEMA [('TargetNameSpaceURI')]
-	XmlSchemaURI   string // optional target namespace URI
+	Elements     bool   // ELEMENTS
+	ElementsMode string // "" (default), "XSINIL", "ABSENT"
+	XmlData      bool   // XMLDATA
+	XmlSchema    bool   // XMLSCHEMA [('TargetNameSpaceURI')]
+	XmlSchemaURI string // optional target namespace URI
 
 	// JSON-specific options
 	IncludeNullValues   bool // INCLUDE_NULL_VALUES
@@ -185,7 +185,7 @@ type UpdateStmt struct {
 	WithClause   *WithClause
 	Top          *TopClause
 	Relation     TableExpr // *TableRef or *TableVarRef
-	SetClause    *List // list of SetExpr
+	SetClause    *List     // list of SetExpr
 	OutputClause *OutputClause
 	FromClause   *List
 	WhereClause  ExprNode
@@ -301,9 +301,9 @@ type CreateTableStmt struct {
 	PeriodEndCol   string
 
 	// Table storage options: ON filegroup, TEXTIMAGE_ON, FILESTREAM_ON
-	OnFilegroup        string
-	TextImageOn        string
-	FilestreamOn       string
+	OnFilegroup  string
+	TextImageOn  string
+	FilestreamOn string
 
 	// Inline indexes (INDEX ... inside CREATE TABLE body)
 	Indexes *List // list of *InlineIndexDef
@@ -416,9 +416,9 @@ func (n *EncryptedWithSpec) nodeTag() {}
 
 // GeneratedAlwaysSpec represents GENERATED ALWAYS AS { ROW | TRANSACTION_ID | SEQUENCE_NUMBER } { START | END }.
 type GeneratedAlwaysSpec struct {
-	Kind    string // "ROW", "TRANSACTION_ID", "SEQUENCE_NUMBER"
+	Kind     string // "ROW", "TRANSACTION_ID", "SEQUENCE_NUMBER"
 	StartEnd string // "START" or "END"
-	Loc     Loc
+	Loc      Loc
 }
 
 func (n *GeneratedAlwaysSpec) nodeTag() {}
@@ -429,8 +429,8 @@ type TableOption struct {
 	Value string // e.g. ON, OFF, SCHEMA_ONLY, ROW, PAGE
 
 	// For SYSTEM_VERSIONING = ON (HISTORY_TABLE = schema.table, ...)
-	HistoryTable          string
-	DataConsistencyCheck  string // ON or OFF
+	HistoryTable           string
+	DataConsistencyCheck   string // ON or OFF
 	HistoryRetentionPeriod string
 
 	Loc Loc
@@ -440,12 +440,12 @@ func (n *TableOption) nodeTag() {}
 
 // ConstraintDef represents a table or column constraint.
 type ConstraintDef struct {
-	Type       ConstraintType
-	Name       string   // constraint name (optional)
-	Columns    *List    // columns for PK, UNIQUE, INDEX
-	Expr       ExprNode // CHECK expression, default expression
-	RefTable   *TableRef
-	RefColumns *List // FK referenced columns
+	Type              ConstraintType
+	Name              string   // constraint name (optional)
+	Columns           *List    // columns for PK, UNIQUE, INDEX
+	Expr              ExprNode // CHECK expression, default expression
+	RefTable          *TableRef
+	RefColumns        *List // FK referenced columns
 	OnDelete          ReferentialAction
 	OnUpdate          ReferentialAction
 	Clustered         *bool  // true=CLUSTERED, false=NONCLUSTERED, nil=unspecified
@@ -510,14 +510,14 @@ type AlterTableAction struct {
 	ColName    string
 	Constraint *ConstraintDef
 	DataType   *DataType
-	Collation  string   // ALTER COLUMN ... COLLATE collation_name
-	Options    *List    // generic options list (e.g., SET options, REBUILD options, WITH options)
+	Collation  string    // ALTER COLUMN ... COLLATE collation_name
+	Options    *List     // generic options list (e.g., SET options, REBUILD options, WITH options)
 	TargetName *TableRef // SWITCH ... TO target_table
-	Names      *List    // constraint/trigger name list for CHECK/NOCHECK/ENABLE/DISABLE; ADD PERIOD's two columns; the period name of a DROP item that inherits ATDropPeriod
-	Partition  ExprNode // SWITCH PARTITION n / REBUILD PARTITION = n
-	TargetPart ExprNode // SWITCH TO ... PARTITION n
-	WithCheck  string   // "CHECK" or "NOCHECK" prefix for WITH { CHECK | NOCHECK }
-	IfExists   bool     // DROP COLUMN IF EXISTS / DROP CONSTRAINT IF EXISTS
+	Names      *List     // constraint/trigger name list for CHECK/NOCHECK/ENABLE/DISABLE; ADD PERIOD's two columns; the period name of a DROP item that inherits ATDropPeriod
+	Partition  ExprNode  // SWITCH PARTITION n / REBUILD PARTITION = n
+	TargetPart ExprNode  // SWITCH TO ... PARTITION n
+	WithCheck  string    // "CHECK" or "NOCHECK" prefix for WITH { CHECK | NOCHECK }
+	IfExists   bool      // DROP COLUMN IF EXISTS / DROP CONSTRAINT IF EXISTS
 	Loc        Loc
 }
 
@@ -532,22 +532,22 @@ const (
 	ATAlterColumn
 	ATAddConstraint
 	ATDropConstraint
-	ATCheckConstraint       // [WITH CHECK|NOCHECK] CHECK CONSTRAINT { ALL | name [,...n] }
-	ATNocheckConstraint     // [WITH CHECK|NOCHECK] NOCHECK CONSTRAINT { ALL | name [,...n] }
-	ATEnableTrigger         // ENABLE TRIGGER { ALL | name [,...n] }
-	ATDisableTrigger        // DISABLE TRIGGER { ALL | name [,...n] }
-	ATEnableChangeTracking  // ENABLE CHANGE_TRACKING [WITH (...)]
-	ATDisableChangeTracking // DISABLE CHANGE_TRACKING
-	ATSwitchPartition       // SWITCH [PARTITION n] TO target [PARTITION n]
-	ATRebuild               // REBUILD [PARTITION = ALL|n] [WITH (...)]
-	ATSet                   // SET (LOCK_ESCALATION = ..., FILESTREAM_ON = ..., SYSTEM_VERSIONING = ...)
-	ATAlterColumnAddDrop          // ALTER COLUMN col {ADD|DROP} {ROWGUIDCOL|PERSISTED|...}
-	ATEnableFiletableNamespace    // ENABLE FILETABLE_NAMESPACE
-	ATDisableFiletableNamespace   // DISABLE FILETABLE_NAMESPACE
-	ATAddPeriod                   // ADD PERIOD FOR SYSTEM_TIME (start_col, end_col)
-	ATDropPeriod                  // DROP PERIOD FOR SYSTEM_TIME, or a bare name after it in the DROP list (in Names)
-	ATSplitRange                  // SPLIT RANGE (boundary_value)
-	ATMergeRange                  // MERGE RANGE (boundary_value)
+	ATCheckConstraint           // [WITH CHECK|NOCHECK] CHECK CONSTRAINT { ALL | name [,...n] }
+	ATNocheckConstraint         // [WITH CHECK|NOCHECK] NOCHECK CONSTRAINT { ALL | name [,...n] }
+	ATEnableTrigger             // ENABLE TRIGGER { ALL | name [,...n] }
+	ATDisableTrigger            // DISABLE TRIGGER { ALL | name [,...n] }
+	ATEnableChangeTracking      // ENABLE CHANGE_TRACKING [WITH (...)]
+	ATDisableChangeTracking     // DISABLE CHANGE_TRACKING
+	ATSwitchPartition           // SWITCH [PARTITION n] TO target [PARTITION n]
+	ATRebuild                   // REBUILD [PARTITION = ALL|n] [WITH (...)]
+	ATSet                       // SET (LOCK_ESCALATION = ..., FILESTREAM_ON = ..., SYSTEM_VERSIONING = ...)
+	ATAlterColumnAddDrop        // ALTER COLUMN col {ADD|DROP} {ROWGUIDCOL|PERSISTED|...}
+	ATEnableFiletableNamespace  // ENABLE FILETABLE_NAMESPACE
+	ATDisableFiletableNamespace // DISABLE FILETABLE_NAMESPACE
+	ATAddPeriod                 // ADD PERIOD FOR SYSTEM_TIME (start_col, end_col)
+	ATDropPeriod                // DROP PERIOD FOR SYSTEM_TIME, or a bare name after it in the DROP list (in Names)
+	ATSplitRange                // SPLIT RANGE (boundary_value)
+	ATMergeRange                // MERGE RANGE (boundary_value)
 )
 
 // AlterColumnOption represents a typed ADD/DROP option in ALTER COLUMN.
@@ -843,19 +843,19 @@ func (n *CreateProcedureStmt) stmtNode() {}
 // CreateDatabaseStmt represents a CREATE DATABASE statement.
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-database-transact-sql
 type CreateDatabaseStmt struct {
-	Name          string
-	Containment   string          // NONE | PARTIAL (empty if not specified)
-	OnPrimary     *List           // list of *DatabaseFileSpec for PRIMARY filegroup
-	Filegroups    *List           // list of *DatabaseFilegroup for additional filegroups
-	LogOn         *List           // list of *DatabaseFileSpec for LOG ON
-	Collation     string          // COLLATE collation_name
-	WithOptions   *List           // list of *DatabaseOption for WITH options
-	ForAttach     bool            // FOR ATTACH
-	AttachOptions *List           // WITH options for ATTACH (as *DatabaseOption nodes)
-	ForAttachRebuildLog bool      // FOR ATTACH_REBUILD_LOG
-	SnapshotOf    string          // AS SNAPSHOT OF source_database
-	Options       *List           // legacy options field (kept for backward compat)
-	Loc           Loc
+	Name                string
+	Containment         string // NONE | PARTIAL (empty if not specified)
+	OnPrimary           *List  // list of *DatabaseFileSpec for PRIMARY filegroup
+	Filegroups          *List  // list of *DatabaseFilegroup for additional filegroups
+	LogOn               *List  // list of *DatabaseFileSpec for LOG ON
+	Collation           string // COLLATE collation_name
+	WithOptions         *List  // list of *DatabaseOption for WITH options
+	ForAttach           bool   // FOR ATTACH
+	AttachOptions       *List  // WITH options for ATTACH (as *DatabaseOption nodes)
+	ForAttachRebuildLog bool   // FOR ATTACH_REBUILD_LOG
+	SnapshotOf          string // AS SNAPSHOT OF source_database
+	Options             *List  // legacy options field (kept for backward compat)
+	Loc                 Loc
 }
 
 func (n *CreateDatabaseStmt) nodeTag()  {}
@@ -881,8 +881,8 @@ type DatabaseOption struct {
 	Value string // option value (ON, OFF, identifier, number, string literal)
 
 	// For FILESTREAM option
-	FilestreamAccess   string // NON_TRANSACTED_ACCESS value: OFF, READ_ONLY, FULL
-	FilestreamDirName  string // DIRECTORY_NAME value
+	FilestreamAccess  string // NON_TRANSACTED_ACCESS value: OFF, READ_ONLY, FULL
+	FilestreamDirName string // DIRECTORY_NAME value
 
 	// For PERSISTENT_LOG_BUFFER = ON (DIRECTORY_NAME = 'path')
 	PersistentLogDir string // DIRECTORY_NAME value
@@ -910,15 +910,15 @@ func (n *SizeValue) nodeTag() {}
 //	  [, MAXSIZE = { max_size [KB|MB|GB|TB] | UNLIMITED }]
 //	  [, FILEGROWTH = growth_increment [KB|MB|GB|TB|%]] )
 type DatabaseFileSpec struct {
-	Name       string     // logical file name
-	NewName    string     // new logical name (NEWNAME, for ALTER DATABASE MODIFY FILE)
-	Filename   string     // OS file path
-	Size       *SizeValue // e.g. 10 MB
-	MaxSize    *SizeValue // e.g. 100 MB or nil (check MaxSizeUnlimited)
-	MaxSizeUnlimited bool // MAXSIZE = UNLIMITED
-	FileGrowth *SizeValue // e.g. 5 MB or 10 %
-	Offline    bool       // OFFLINE flag (for ALTER DATABASE MODIFY FILE)
-	Loc        Loc
+	Name             string     // logical file name
+	NewName          string     // new logical name (NEWNAME, for ALTER DATABASE MODIFY FILE)
+	Filename         string     // OS file path
+	Size             *SizeValue // e.g. 10 MB
+	MaxSize          *SizeValue // e.g. 100 MB or nil (check MaxSizeUnlimited)
+	MaxSizeUnlimited bool       // MAXSIZE = UNLIMITED
+	FileGrowth       *SizeValue // e.g. 5 MB or 10 %
+	Offline          bool       // OFFLINE flag (for ALTER DATABASE MODIFY FILE)
+	Loc              Loc
 }
 
 func (n *DatabaseFileSpec) nodeTag() {}
@@ -929,12 +929,12 @@ func (n *DatabaseFileSpec) nodeTag() {}
 //	    | CONTAINS MEMORY_OPTIMIZED_DATA
 //	    <filespec> [, ...n]
 type DatabaseFilegroup struct {
-	Name              string
-	ContainsFilestream bool
+	Name                    string
+	ContainsFilestream      bool
 	ContainsMemoryOptimized bool
-	IsDefault         bool
-	Files             *List // list of *DatabaseFileSpec
-	Loc               Loc
+	IsDefault               bool
+	Files                   *List // list of *DatabaseFileSpec
+	Loc                     Loc
 }
 
 func (n *DatabaseFilegroup) nodeTag() {}
@@ -1242,9 +1242,9 @@ func (n *BeginTransStmt) stmtNode() {}
 
 // CommitTransStmt represents COMMIT TRANSACTION.
 type CommitTransStmt struct {
-	Name             string
+	Name              string
 	DelayedDurability string // OFF or ON, empty if not specified
-	Loc              Loc
+	Loc               Loc
 }
 
 func (n *CommitTransStmt) nodeTag()  {}
@@ -1472,12 +1472,12 @@ func (n *CreateTypeStmt) stmtNode() {}
 //	    ( column_name [ ASC | DESC ] [ ,...n ] )
 //	    [ INCLUDE ( column_name [ ,...n ] ) ]
 type TableTypeIndex struct {
-	Name        string // index name
-	Clustered   *bool  // true=CLUSTERED, false=NONCLUSTERED, nil=unspecified
-	Hash        bool   // HASH index (memory-optimized)
+	Name        string   // index name
+	Clustered   *bool    // true=CLUSTERED, false=NONCLUSTERED, nil=unspecified
+	Hash        bool     // HASH index (memory-optimized)
 	BucketCount ExprNode // BUCKET_COUNT for hash index
-	Columns     *List  // IndexColumn list
-	IncludeCols *List  // INCLUDE columns (string names)
+	Columns     *List    // IndexColumn list
+	IncludeCols *List    // INCLUDE columns (string names)
 	Loc         Loc
 }
 
@@ -1544,7 +1544,7 @@ type GrantStmt struct {
 	StmtType       GrantType // GRANT, REVOKE, DENY
 	GrantOptionFor bool      // REVOKE GRANT OPTION FOR ...
 	Privileges     *List
-	OnType         string    // securable class: SCHEMA, OBJECT, DATABASE, LOGIN, etc.
+	OnType         string // securable class: SCHEMA, OBJECT, DATABASE, LOGIN, etc.
 	OnName         *TableRef
 	Principals     *List  // TO/FROM principals
 	WithGrant      bool   // WITH GRANT OPTION
@@ -1627,7 +1627,7 @@ type FuncCallExpr struct {
 	Name             *TableRef // potentially schema-qualified
 	Args             *List
 	Distinct         bool
-	Star             bool // e.g., COUNT(*)
+	Star             bool   // e.g., COUNT(*)
 	TrimOption       string // LEADING, TRAILING, or BOTH for TRIM
 	NullTreatment    string // IGNORE or RESPECT for window null treatment
 	JsonNullClause   string // NULL or ABSENT for JSON constructors
@@ -1950,11 +1950,11 @@ func (n *SubqueryExpr) tableExpr() {}
 //	scalar_expression { = | <> | != | > | >= | !> | < | <= | !< }
 //	    { ALL | SOME | ANY } ( subquery )
 type SubqueryComparisonExpr struct {
-	Left     ExprNode // left-hand scalar expression
-	Op       BinaryOp // comparison operator
-	Quantifier string // "ALL", "SOME", or "ANY"
-	Subquery StmtNode // subquery (SelectStmt)
-	Loc      Loc
+	Left       ExprNode // left-hand scalar expression
+	Op         BinaryOp // comparison operator
+	Quantifier string   // "ALL", "SOME", or "ANY"
+	Subquery   StmtNode // subquery (SelectStmt)
+	Loc        Loc
 }
 
 func (n *SubqueryComparisonExpr) nodeTag()  {}
@@ -2170,7 +2170,7 @@ const (
 
 // AliasedTableRef represents a table reference with optional alias.
 type AliasedTableRef struct {
-	Table       TableExpr          // TableRef, SubqueryExpr, etc.
+	Table       TableExpr // TableRef, SubqueryExpr, etc.
 	Alias       string
 	Columns     *List              // alias column list (*String), or the WITH schema of OPENJSON and OPENXML (*RowsetColumnDef)
 	WithTable   *TableRef          // OPENXML WITH table_name: the table whose columns OPENXML takes
@@ -2222,9 +2222,9 @@ func (n *RowsetColumnDef) nodeTag() {}
 //
 //	window_name AS ( window_specification )
 type WindowDef struct {
-	Name        string     // window name
-	PartitionBy *List      // PARTITION BY expressions
-	OrderBy     *List      // ORDER BY items
+	Name        string // window name
+	PartitionBy *List  // PARTITION BY expressions
+	OrderBy     *List  // ORDER BY items
 	Frame       *WindowFrame
 	RefName     string // reference to another named window
 	Loc         Loc
@@ -2306,7 +2306,7 @@ const (
 // SetExpr represents SET column = expr in UPDATE.
 type SetExpr struct {
 	Column      *ColumnRef
-	Variable    string // @var = expr
+	Variable    string     // @var = expr
 	VarColumn   *ColumnRef // @variable = column = expression (dual assignment)
 	Operator    string     // "=" (default), "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|="
 	WriteMethod bool       // column.WRITE(expression, @Offset, @Length) form
@@ -2614,11 +2614,11 @@ func (n *BeginDistributedTransStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-statistics-transact-sql
 type CreateStatisticsStmt struct {
-	Name    string     // statistics name
-	Table   *TableRef  // table or indexed view
-	Columns *List      // column name list
-	Where   ExprNode   // WHERE filter predicate (optional)
-	Options *List      // WITH options as String nodes
+	Name    string    // statistics name
+	Table   *TableRef // table or indexed view
+	Columns *List     // column name list
+	Where   ExprNode  // WHERE filter predicate (optional)
+	Options *List     // WITH options as String nodes
 	Loc     Loc
 }
 
@@ -2690,10 +2690,10 @@ func (n *CreatePartitionFunctionStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-partition-function-transact-sql
 type AlterPartitionFunctionStmt struct {
-	Name      string   // partition function name
-	Action    string   // SPLIT or MERGE
+	Name          string   // partition function name
+	Action        string   // SPLIT or MERGE
 	BoundaryValue ExprNode // boundary value
-	Loc       Loc
+	Loc           Loc
 }
 
 func (n *AlterPartitionFunctionStmt) nodeTag()  {}
@@ -2703,11 +2703,11 @@ func (n *AlterPartitionFunctionStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-partition-scheme-transact-sql
 type CreatePartitionSchemeStmt struct {
-	Name            string // partition scheme name
-	FunctionName    string // partition function name
-	FileGroups      *List  // file group names as String nodes; "ALL" if single [ALL TO]
-	AllToFileGroup  string // if ALL TO filegroup, stores the filegroup name
-	Loc             Loc
+	Name           string // partition scheme name
+	FunctionName   string // partition function name
+	FileGroups     *List  // file group names as String nodes; "ALL" if single [ALL TO]
+	AllToFileGroup string // if ALL TO filegroup, stores the filegroup name
+	Loc            Loc
 }
 
 func (n *CreatePartitionSchemeStmt) nodeTag()  {}
@@ -2731,12 +2731,12 @@ func (n *AlterPartitionSchemeStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-fulltext-index-transact-sql
 type CreateFulltextIndexStmt struct {
-	Columns      *List  // fulltext index columns
-	Table        *TableRef
-	KeyIndex     string // unique index name
-	CatalogName  string // fulltext catalog (optional)
-	Options      *List  // WITH options as String nodes
-	Loc          Loc
+	Columns     *List // fulltext index columns
+	Table       *TableRef
+	KeyIndex    string // unique index name
+	CatalogName string // fulltext catalog (optional)
+	Options     *List  // WITH options as String nodes
+	Loc         Loc
 }
 
 func (n *CreateFulltextIndexStmt) nodeTag()  {}
@@ -2792,9 +2792,9 @@ func (n *AlterFulltextCatalogStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-xml-schema-collection-transact-sql
 type CreateXmlSchemaCollectionStmt struct {
-	Name           *TableRef // relational_schema.sql_identifier
+	Name                *TableRef // relational_schema.sql_identifier
 	XmlSchemaNamespaces ExprNode  // xml_Schema_namespace expression
-	Loc            Loc
+	Loc                 Loc
 }
 
 func (n *CreateXmlSchemaCollectionStmt) nodeTag()  {}
@@ -2819,9 +2819,9 @@ func (n *AlterXmlSchemaCollectionStmt) stmtNode() {}
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-assembly-transact-sql
 type CreateAssemblyStmt struct {
 	Name          string
-	Authorization string   // AUTHORIZATION owner_name
-	FromFiles     *List    // file paths as String nodes
-	PermissionSet string   // SAFE, EXTERNAL_ACCESS, UNSAFE
+	Authorization string // AUTHORIZATION owner_name
+	FromFiles     *List  // file paths as String nodes
+	PermissionSet string // SAFE, EXTERNAL_ACCESS, UNSAFE
 	Loc           Loc
 }
 
@@ -2874,10 +2874,10 @@ func (n *AssemblyFile) nodeTag() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/service-broker-statements
 type ServiceBrokerStmt struct {
-	Action     string   // CREATE, ALTER, DROP, SEND, RECEIVE, BEGIN, END, GET
-	ObjectType string   // MESSAGE TYPE, CONTRACT, QUEUE, SERVICE, ROUTE, CONVERSATION, etc.
-	Name       string   // object name (may be empty for some forms)
-	Options    *List    // options as String nodes
+	Action     string // CREATE, ALTER, DROP, SEND, RECEIVE, BEGIN, END, GET
+	ObjectType string // MESSAGE TYPE, CONTRACT, QUEUE, SERVICE, ROUTE, CONVERSATION, etc.
+	Name       string // object name (may be empty for some forms)
+	Options    *List  // options as String nodes
 	Loc        Loc
 }
 
@@ -2903,12 +2903,12 @@ func (n *ServiceBrokerOption) nodeTag() {}
 //	    [ INTO table_variable ]
 //	    [ WHERE { conversation_handle = @handle | conversation_group_id = @group_id } ]
 type ReceiveStmt struct {
-	Top         ExprNode   // optional TOP (n) expression
-	Columns     *List      // list of ReceiveColumn nodes, or nil for *
-	AllColumns  bool       // true if RECEIVE *
-	Queue       *TableRef  // FROM queue
-	IntoVar     string     // INTO @table_variable
-	WhereClause ExprNode   // WHERE condition
+	Top         ExprNode  // optional TOP (n) expression
+	Columns     *List     // list of ReceiveColumn nodes, or nil for *
+	AllColumns  bool      // true if RECEIVE *
+	Queue       *TableRef // FROM queue
+	IntoVar     string    // INTO @table_variable
+	WhereClause ExprNode  // WHERE condition
 	Loc         Loc
 }
 
@@ -3001,12 +3001,12 @@ func (n *KillQueryNotificationStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/readtext-transact-sql
 type ReadtextStmt struct {
-	Column    *ColumnRef
-	TextPtr   ExprNode
-	Offset    ExprNode
-	Size      ExprNode
-	HoldLock  bool
-	Loc       Loc
+	Column   *ColumnRef
+	TextPtr  ExprNode
+	Offset   ExprNode
+	Size     ExprNode
+	HoldLock bool
+	Loc      Loc
 }
 
 func (n *ReadtextStmt) nodeTag()  {}
@@ -3225,12 +3225,12 @@ func (n *ServerConfigOption) nodeTag() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-fulltext-stoplist-transact-sql
 type CreateFulltextStoplistStmt struct {
-	Name          string // stoplist name
-	SourceDB      string // optional source database name
-	SourceList    string // optional source stoplist name
-	SystemStoplist bool  // FROM SYSTEM STOPLIST
-	Authorization string // AUTHORIZATION owner_name
-	Loc           Loc
+	Name           string // stoplist name
+	SourceDB       string // optional source database name
+	SourceList     string // optional source stoplist name
+	SystemStoplist bool   // FROM SYSTEM STOPLIST
+	Authorization  string // AUTHORIZATION owner_name
+	Loc            Loc
 }
 
 func (n *CreateFulltextStoplistStmt) nodeTag()  {}
@@ -3312,14 +3312,14 @@ func (n *DropSearchPropertyListStmt) stmtNode() {}
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-security-policy-transact-sql
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/drop-security-policy-transact-sql
 type SecurityPolicyStmt struct {
-	Action          string   // CREATE, ALTER, DROP
-	Name            *TableRef // [schema.]policy_name
-	IfExists        bool     // DROP IF EXISTS
-	Predicates      *List    // list of *SecurityPredicate (for CREATE/ALTER)
-	StateOn         *bool    // WITH (STATE = ON|OFF); nil if unspecified
-	SchemaBinding   *bool    // WITH (SCHEMABINDING = ON|OFF); nil if unspecified
+	Action            string    // CREATE, ALTER, DROP
+	Name              *TableRef // [schema.]policy_name
+	IfExists          bool      // DROP IF EXISTS
+	Predicates        *List     // list of *SecurityPredicate (for CREATE/ALTER)
+	StateOn           *bool     // WITH (STATE = ON|OFF); nil if unspecified
+	SchemaBinding     *bool     // WITH (SCHEMABINDING = ON|OFF); nil if unspecified
 	NotForReplication bool
-	Loc             Loc
+	Loc               Loc
 }
 
 func (n *SecurityPolicyStmt) nodeTag()  {}
@@ -3327,12 +3327,12 @@ func (n *SecurityPolicyStmt) stmtNode() {}
 
 // SecurityPredicate represents a FILTER/BLOCK PREDICATE in a security policy.
 type SecurityPredicate struct {
-	Action        string   // ADD, ALTER, DROP
-	PredicateType string   // FILTER or BLOCK
+	Action        string    // ADD, ALTER, DROP
+	PredicateType string    // FILTER or BLOCK
 	Function      *TableRef // schema.function_name
-	Args          *List    // function arguments (column names / expressions)
+	Args          *List     // function arguments (column names / expressions)
 	Table         *TableRef // ON schema.table
-	BlockDMLOp    string   // AFTER INSERT, AFTER UPDATE, BEFORE UPDATE, BEFORE DELETE, or ""
+	BlockDMLOp    string    // AFTER INSERT, AFTER UPDATE, BEFORE UPDATE, BEFORE DELETE, or ""
 	Loc           Loc
 }
 
@@ -3356,11 +3356,11 @@ func (n *SensitivityClassificationStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/add-signature-transact-sql
 type SignatureStmt struct {
-	Action      string // ADD or DROP
-	IsCounter   bool   // COUNTER SIGNATURE
-	ModuleClass string // OBJECT, ASSEMBLY, etc. (default OBJECT)
+	Action      string    // ADD or DROP
+	IsCounter   bool      // COUNTER SIGNATURE
+	ModuleClass string    // OBJECT, ASSEMBLY, etc. (default OBJECT)
 	ModuleName  *TableRef // module name
-	CryptoList  *List  // list of *CryptoItem with certificate/key references
+	CryptoList  *List     // list of *CryptoItem with certificate/key references
 	Loc         Loc
 }
 
@@ -3423,10 +3423,10 @@ func (n *CreateSpatialIndexStmt) stmtNode() {}
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-aggregate-transact-sql
 type CreateAggregateStmt struct {
-	Name         *TableRef  // [schema.]aggregate_name
-	Params       *List      // parameters as *ParamDef
-	ReturnType   *DataType  // RETURNS type
-	ExternalName string     // EXTERNAL NAME assembly[.class]
+	Name         *TableRef // [schema.]aggregate_name
+	Params       *List     // parameters as *ParamDef
+	ReturnType   *DataType // RETURNS type
+	ExternalName string    // EXTERNAL NAME assembly[.class]
 	Loc          Loc
 }
 
@@ -3725,12 +3725,12 @@ func (n *CreateRemoteTableAsSelectStmt) stmtNode() {}
 //	  | USE PLAN N'xml_plan'
 //	  | TABLE HINT ( exposed_object_name [ , <table_hint> [ , ...n ] ] )
 type QueryHint struct {
-	Kind       string   // Hint kind: "RECOMPILE", "HASH JOIN", "OPTIMIZE FOR", "TABLE HINT", etc.
-	Value      ExprNode // Numeric value for MAXDOP, MAXRECURSION, FAST, QUERYTRACEON, MAX_GRANT_PERCENT, MIN_GRANT_PERCENT
-	StrValue   string   // String value for PARAMETERIZATION mode, USE PLAN xml string
-	Params     *List    // OPTIMIZE FOR params (*OptimizeForParam list), USE HINT string values
+	Kind       string    // Hint kind: "RECOMPILE", "HASH JOIN", "OPTIMIZE FOR", "TABLE HINT", etc.
+	Value      ExprNode  // Numeric value for MAXDOP, MAXRECURSION, FAST, QUERYTRACEON, MAX_GRANT_PERCENT, MIN_GRANT_PERCENT
+	StrValue   string    // String value for PARAMETERIZATION mode, USE PLAN xml string
+	Params     *List     // OPTIMIZE FOR params (*OptimizeForParam list), USE HINT string values
 	TableName  *TableRef // exposed_object_name for TABLE HINT
-	TableHints *List    // list of *TableHint for TABLE HINT
+	TableHints *List     // list of *TableHint for TABLE HINT
 	Loc        Loc
 }
 
@@ -3753,10 +3753,10 @@ func (n *OptimizeForParam) nodeTag() {}
 // CERTIFICATE cert_name [ WITH PASSWORD = 'password' | WITH SIGNATURE = signed_blob ]
 // ASYMMETRIC KEY key_name [ WITH PASSWORD = 'password' | WITH SIGNATURE = signed_blob ]
 type CryptoItem struct {
-	Mechanism string    // "CERTIFICATE" or "ASYMMETRIC KEY"
-	Name      string    // certificate or key name
-	WithType  string    // "PASSWORD" or "SIGNATURE" (empty if none)
-	WithValue string    // password or signature blob value
+	Mechanism string // "CERTIFICATE" or "ASYMMETRIC KEY"
+	Name      string // certificate or key name
+	WithType  string // "PASSWORD" or "SIGNATURE" (empty if none)
+	WithValue string // password or signature blob value
 	Loc       Loc
 }
 
@@ -3777,8 +3777,8 @@ func (n *SensitivityOption) nodeTag() {}
 //
 //	CREATE FEDERATION federation_name ( distribution_name data_type RANGE )
 type CreateFederationStmt struct {
-	Name             string // federation name
-	DistributionName string // distribution column name
+	Name             string    // federation name
+	DistributionName string    // distribution column name
 	DataType         *DataType // scalar data type
 	Loc              Loc
 }
