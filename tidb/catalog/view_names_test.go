@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"github.com/bytebase/omni/tidb/parser"
 	"reflect"
 	"strings"
 	"testing"
@@ -44,6 +45,8 @@ var viewNameCases = []struct{ name, sql string }{
 	{`a12`, `SELECT a IN (SELECT a FROM n1), a in (1,2) FROM n1`},
 	{`a13`, "SELECT a + 1 AS `x + y`, count(*) AS `count(z)` FROM n1"},
 	{`a14`, `SELECT EXISTS (SELECT 1 UNION SELECT 2), a IN (SELECT 1 UNION SELECT 2) FROM n1`},
+	{`a15`, "SELECT * FROM (SELECT `a`+1 FROM n1) d"},
+	{`a16`, "SELECT * FROM (SELECT a AS `x``y` FROM n1) d"},
 	{`b01`, `SELECT * FROM (j1 JOIN j2 USING (k1)) JOIN j3 USING (k2)`},
 	{`b02`, `SELECT * FROM j3 JOIN (j1 JOIN j2 USING (k1)) USING (k2)`},
 	{`b03`, `SELECT j1.a, k2, c FROM (j1 JOIN j2 ON j1.k1 = j2.k1) JOIN j3 USING (k2)`},
@@ -96,6 +99,15 @@ func viewNameCatalog(t *testing.T) *Catalog {
 // checks against TiDB.
 func TestViewNamesAndJoinColumns(t *testing.T) {
 	c := viewNameCatalog(t)
+	// A name can hold a backtick, from a quoted identifier or the source text
+	// of an unaliased item, and is written with it doubled, so the definition
+	// parses back.
+	for _, name := range []string{"a15", "a16"} {
+		def := c.GetDatabase("test").Views[name].Definition
+		if _, err := parser.Parse(def); err != nil {
+			t.Errorf("%s: definition does not parse: %v\n%s", name, err, def)
+		}
+	}
 	for name, want := range map[string][]string{
 		"a06": {"(a)", "((b))", "1", "0004", "- 2", "x'41'", "B'10'", "TRUE", "date '2020-01-01'", "e", "NULL"},
 		"a07": {"a /* c  + 1", "a +2"},

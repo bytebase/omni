@@ -807,13 +807,13 @@ func showCreateView(v *View) string {
 	b.WriteString(fmt.Sprintf(" SQL SECURITY %s", strings.ToUpper(sqlSecurity)))
 
 	// VIEW name
-	b.WriteString(fmt.Sprintf(" VIEW `%s`", v.Name))
+	b.WriteString(" VIEW " + backtickIDQ(v.Name))
 
 	// Column list (only if explicitly specified by user in CREATE VIEW).
 	if v.ExplicitColumns && len(v.Columns) > 0 {
 		cols := make([]string, len(v.Columns))
 		for i, c := range v.Columns {
-			cols[i] = fmt.Sprintf("`%s`", c)
+			cols[i] = backtickIDQ(c)
 		}
 		b.WriteString(fmt.Sprintf(" (%s)", strings.Join(cols, ",")))
 	}

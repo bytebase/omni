@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"github.com/bytebase/omni/mysql/parser"
 	"reflect"
 	"strings"
 	"testing"
@@ -67,6 +68,10 @@ var viewNameCases = []struct{ name, sql, want string }{
 		"select (`n1`.`a` + 1) AS `x + y`,count(0) AS `count(z)` from `n1`"},
 	{`a14`, `SELECT EXISTS (SELECT 1 UNION SELECT 2), a IN (SELECT 1 UNION SELECT 2) FROM n1`,
 		"select exists(select 1 union select 2) AS `EXISTS (SELECT 1 UNION SELECT 2)`,`n1`.`a` in (select 1 union select 2) AS `a IN (SELECT 1 UNION SELECT 2)` from `n1`"},
+	{`a15`, "SELECT * FROM (SELECT `a`+1 FROM n1) d",
+		"select `d`.```a``+1` AS ```a``+1` from (select (`n1`.`a` + 1) AS ```a``+1` from `n1`) `d`"},
+	{`a16`, "SELECT * FROM (SELECT a AS `x``y` FROM n1) d",
+		"select `d`.`x``y` AS `x``y` from (select `n1`.`a` AS `x``y` from `n1`) `d`"},
 	{`b01`, `SELECT * FROM (j1 JOIN j2 USING (k1)) JOIN j3 USING (k2)`,
 		"select `j2`.`k2` AS `k2`,`j1`.`k1` AS `k1`,`j1`.`a` AS `a`,`j2`.`b` AS `b`,`j3`.`k3` AS `k3`,`j3`.`c` AS `c` from ((`j1` join `j2` on((`j1`.`k1` = `j2`.`k1`))) join `j3` on((`j2`.`k2` = `j3`.`k2`)))"},
 	{`b02`, `SELECT * FROM j3 JOIN (j1 JOIN j2 USING (k1)) USING (k2)`,
@@ -142,6 +147,15 @@ func viewNameCatalog(t *testing.T) *Catalog {
 
 func TestViewNamesAndJoinColumns(t *testing.T) {
 	c := viewNameCatalog(t)
+	// A name can hold a backtick, from a quoted identifier or the source text
+	// of an unaliased item, and is written with it doubled, so the definition
+	// parses back.
+	for _, name := range []string{"a15", "a16"} {
+		def := c.GetDatabase("test").Views[name].Definition
+		if _, err := parser.Parse(def); err != nil {
+			t.Errorf("%s: definition does not parse: %v\n%s", name, err, def)
+		}
+	}
 	for _, tc := range viewNameCases {
 		got := extractSelectBody(c.ShowCreateView("test", tc.name))
 		if got != tc.want {

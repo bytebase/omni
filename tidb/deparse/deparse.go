@@ -133,9 +133,8 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString("`")
-			b.WriteString(wd.Name)
-			b.WriteString("` AS ")
+			b.WriteString(quoteIdent(wd.Name))
+			b.WriteString(" AS ")
 			writeWindowBody(b, wd)
 		}
 		b.WriteString(" ")
@@ -200,9 +199,7 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 			if i > 0 {
 				b.WriteString(",")
 			}
-			b.WriteString("`")
-			b.WriteString(tbl.Name)
-			b.WriteString("`")
+			b.WriteString(quoteIdent(tbl.Name))
 		}
 	}
 
@@ -342,9 +339,7 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString("`")
-		b.WriteString(cte.Name)
-		b.WriteString("`")
+		b.WriteString(quoteIdent(cte.Name))
 
 		// Column list
 		if len(cte.Columns) > 0 {
@@ -353,9 +348,7 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 				if j > 0 {
 					b.WriteString(",")
 				}
-				b.WriteString("`")
-				b.WriteString(col)
-				b.WriteString("`")
+				b.WriteString(quoteIdent(col))
 			}
 			b.WriteString(")")
 		}
@@ -407,12 +400,11 @@ func writeResTarget(b *strings.Builder, node ast.ExprNode, position int) {
 	// MySQL 8.0 uses double-space before AS for window function expressions.
 	// The OVER clause already ends with " )", and MySQL adds an extra space.
 	if hasWindowFunction(expr) {
-		b.WriteString("  AS `")
+		b.WriteString("  AS ")
 	} else {
-		b.WriteString(" AS `")
+		b.WriteString(" AS ")
 	}
-	b.WriteString(alias)
-	b.WriteString("`")
+	b.WriteString(quoteIdent(alias))
 }
 
 // hasWindowFunction checks if an expression is or contains a window function
@@ -1120,15 +1112,7 @@ func writeUsingAsOn(b *strings.Builder, columns []string, leftName, rightName st
 		if i > 0 {
 			b.WriteString(" and ")
 		}
-		b.WriteString("(`")
-		b.WriteString(leftName)
-		b.WriteString("`.`")
-		b.WriteString(col)
-		b.WriteString("` = `")
-		b.WriteString(rightName)
-		b.WriteString("`.`")
-		b.WriteString(col)
-		b.WriteString("`)")
+		b.WriteString("(" + quoteIdent(leftName) + "." + quoteIdent(col) + " = " + quoteIdent(rightName) + "." + quoteIdent(col) + ")")
 		if i > 0 {
 			b.WriteString(")")
 		}
@@ -1144,9 +1128,7 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 	}
 	b.WriteString(")")
 	if s.Alias != "" {
-		b.WriteString(" `")
-		b.WriteString(s.Alias)
-		b.WriteString("`")
+		b.WriteString(" " + quoteIdent(s.Alias))
 	}
 }
 
@@ -1154,17 +1136,12 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 func deparseTableRef(t *ast.TableRef) string {
 	var b strings.Builder
 	if t.Schema != "" {
-		b.WriteString("`")
-		b.WriteString(t.Schema)
-		b.WriteString("`.")
+		b.WriteString(quoteIdent(t.Schema))
+		b.WriteString(".")
 	}
-	b.WriteString("`")
-	b.WriteString(t.Name)
-	b.WriteString("`")
+	b.WriteString(quoteIdent(t.Name))
 	if t.Alias != "" {
-		b.WriteString(" `")
-		b.WriteString(t.Alias)
-		b.WriteString("`")
+		b.WriteString(" " + quoteIdent(t.Alias))
 	}
 	return b.String()
 }
@@ -1312,12 +1289,12 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 
 func deparseColumnRef(n *ast.ColumnRef) string {
 	if n.Schema != "" {
-		return "`" + n.Schema + "`.`" + n.Table + "`.`" + n.Column + "`"
+		return quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + quoteIdent(n.Column)
 	}
 	if n.Table != "" {
-		return "`" + n.Table + "`.`" + n.Column + "`"
+		return quoteIdent(n.Table) + "." + quoteIdent(n.Column)
 	}
-	return "`" + n.Column + "`"
+	return quoteIdent(n.Column)
 }
 
 func binaryOpToString(op ast.BinaryOp) string {
@@ -1800,9 +1777,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 func writeWindowDef(b *strings.Builder, wd *ast.WindowDef) {
 	// Named window reference: OVER `window_name`
 	if wd.RefName != "" && len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
-		b.WriteString("OVER `")
-		b.WriteString(wd.RefName)
-		b.WriteString("`")
+		b.WriteString("OVER " + quoteIdent(wd.RefName))
 		return
 	}
 
@@ -2020,4 +1995,12 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 	}
 
 	b.WriteString(")")
+}
+
+// quoteIdent quotes an identifier in backticks, doubling any backtick inside
+// it, as MySQL writes identifiers in SHOW CREATE output. A name can hold one:
+// a quoted identifier written with “, or an unaliased item named after its
+// source text, such as `a`+1.
+func quoteIdent(name string) string {
+	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
 }
