@@ -38,7 +38,7 @@ Status: decided 2026-10-27; §10 records the decisions. Step 4 of [the engines d
 | --- | --- | --- | --- |
 | schema | root | schemas | exists (2714), missing (2760 for a creation in it, 15151 for `DROP`/`ALTER SCHEMA`), not empty (3729) |
 | object | schema | every `sys.objects` name: tables, views, procedures, functions, sequences, synonyms, DML triggers, and PK, UQ, FK, CK, and DF constraints; also CLR modules, legacy `CREATE DEFAULT`/`RULE` objects, queues, and edge constraints | exists (2714; 15335 for `sp_rename`), of another kind (3705, 2010), missing (208; 15225 for `sp_rename`) |
-| relation | schema | tables, views, and sequences: the kinds the sync lists completely | missing or of another kind (3701/3705 for `DROP`, 4902/4909 `ALTER TABLE`, 1088 `CREATE`/`ALTER INDEX`, 4701/4708 `TRUNCATE`, 1767/1768 a foreign key's target, 8197 `CREATE TRIGGER ... ON`, 15151 `ALTER SEQUENCE`, 208/2010 `ALTER VIEW`) |
+| relation | schema | tables, views, sequences, and synonyms: the kinds the sync lists completely | missing or of another kind (3701/3705 for `DROP`, 4902/4909 `ALTER TABLE`, 1088 `CREATE`/`ALTER INDEX`, 4701/4708 `TRUNCATE`, 1767/1768 a foreign key's target, 8197 `CREATE TRIGGER ... ON`, 15151 `ALTER SEQUENCE`, 208/2010 `ALTER VIEW`, 208 a DML target) |
 | column | schema.table | columns | exists (2705; 15335), missing (4924, 1752, 15248) |
 | index | schema.table | indexes, the PK's and UQ's included | exists (1913; 15335), missing (3701, 7999, 2727, 15248), backs a constraint (3723) |
 | constraint | schema.table | the table's PK, UQ, FK, CK, and DF constraints | missing (3728, 3733, 4917) |
@@ -100,7 +100,7 @@ Present is trusted for every name the sync lists. The sync (`backend/plugin/db/m
 
 **Absent is trusted for:**
 - **schemas:** every name but the excluded ones, which stay Unknown. guest and db_owner can hold tables (verified).
-- **relations** (tables, views, sequences) in a synced schema. `sys.tables`, `sys.views`, and `sys.sequences` are read unfiltered; every view has a `sys.sql_modules` row, an encrypted one with a NULL definition (verified). A schema that certainly does not exist holds none.
+- **relations** (tables, views, sequences, synonyms) in a synced schema. `sys.tables`, `sys.views`, `sys.sequences`, and `sys.synonyms` are read unfiltered; every view has a `sys.sql_modules` row, an encrypted one with a NULL definition, and `sys.synonyms` lists a synonym whose object is gone (verified). Bytebase syncs the synonyms since bytebase/bytebase#21718. A schema that certainly does not exist holds none.
 - **columns** of a synced table. `sys.columns` is read unfiltered, so hidden period and graph columns are listed too.
 - **index names** of a synced table:
   - the PK and UQ constraints' indexes (`getKeys`);
@@ -115,7 +115,6 @@ Each "missing" claim also needs the parent to hold no marked name (§2.1).
 
 **Never trusted Absent:**
 - **the object space.** The sync skips objects that each hold a name in it (each one probed made `CREATE TABLE` of its name fail with 2714):
-  - synonyms;
   - CLR procedures, functions, and triggers;
   - disabled triggers;
   - procedures and functions marked `microsoft_database_tools_support` (the SSMS diagram objects);
@@ -123,7 +122,7 @@ Each "missing" claim also needs the parent to hold no marked name (§2.1).
   - queues;
   - edge constraints.
 
-  So "already exists" is claimed only on Present. DML targets and procedures, functions, triggers, and synonyms are claimed missing only from the change's own facts, as after a `DROP` of the name.
+  So "already exists" is claimed only on Present. Procedures, functions, and triggers are claimed missing only from the change's own facts, as after a `DROP` of the name. A DML target is claimed missing from the relation space: DML resolves only to a table, view, or synonym, and on any other name fails, with 208 for a procedure, function, sequence, constraint, or table type, 416 for a queue, and 216 for a table-valued function (verified).
 - **types and statistics,** which are not synced;
 - **the excluded schemas and other databases;**
 - **keys the name rule leaves Unknown.**
@@ -214,14 +213,14 @@ Views are not dependencies: dropping a table a view reads succeeds.
 | `DROP VIEW [IF EXISTS] v, ...` | each v Present (3701), and a view under `IF EXISTS` too (3705); a name twice (3701) | v Absent with its indexes; its triggers May-removed |
 | `CREATE` / `CREATE OR ALTER` / `ALTER` `PROCEDURE` / `FUNCTION p` | schema Present (2760); `CREATE`: p Absent (2714), but a numbered `CREATE PROCEDURE p;2` joins p's group, which it needs as `ALTER` does (2730); `CREATE OR ALTER`: p of its kind if it exists (2010); `ALTER`: p Present (208, from the change's facts alone) and of its kind (2010) | p Present of its kind; a procedure's body runs to the end of its batch, so the walk skips to the next `GO` (§6) |
 | `CREATE` / `CREATE OR ALTER` / `ALTER TRIGGER tr ON t` (DML) | t Present and a table or view (8197, 1088), an unqualified t looked up as any reference, not in tr's schema; tr's schema t's (2103), unless t is certainly missing; `CREATE`: tr Absent (2714); `ALTER`: tr Present (208, from the change's facts alone) and a trigger (2010) | tr Present (trigger); a trigger may fire on t; the walk skips to the next `GO` |
-| `DROP PROCEDURE` / `FUNCTION` / `TRIGGER` / `SEQUENCE` / `SYNONYM [IF EXISTS] x, ...` | each x Present (3701), from the change's facts alone except for sequences, unless `IF EXISTS`; of the statement's kind, under `IF EXISTS` too (3705) | x Absent |
+| `DROP PROCEDURE` / `FUNCTION` / `TRIGGER` / `SEQUENCE` / `SYNONYM [IF EXISTS] x, ...` | each x Present (3701), from the change's facts alone except for sequences and synonyms, unless `IF EXISTS`; of the statement's kind, under `IF EXISTS` too (3705) | x Absent |
 | `CREATE SEQUENCE s`, `CREATE SYNONYM s FOR ...` | schema Present (2760); s Absent (2714) | s Present of its kind |
 | `ALTER SEQUENCE s` | s Present and a sequence (15151) | none |
 | `CREATE TYPE ty`, `DROP TYPE [IF EXISTS] ty` | schema Present (2760); ty Absent (219) / Present (218), from the change's facts alone | ty Present / Absent |
 | `EXEC sp_rename 'x', 'n' [, 'OBJECT']` of a table, view, procedure, function, sequence, or synonym | x Present (15225), from the change's facts alone; n Absent in the object space (15335) | x and its columns and indexes move to n; a constraint, a trigger, or an object of unknown kind ends the walk |
 | `EXEC sp_rename 't.c', 'n', 'COLUMN'` | t Present and a table (15248); c Present (15248); n Absent (15335) | c moves to n |
 | `EXEC sp_rename 't.i', 'n', 'INDEX'` | t Present (15248); i Present (15248); n Absent (15335) | i moves to n; an index that backs a constraint ends the walk |
-| `INSERT`, `UPDATE`, `DELETE`, `MERGE` | the target Present (208), from the change's facts alone; never a CTE, an alias, or a table variable | none; ends the walk when a trigger may fire (§6), and always after an `UPDATE`, `DELETE`, or `MERGE` of a table |
+| `INSERT`, `UPDATE`, `DELETE`, `MERGE` | the target Present in the relation space (208); never a CTE, an alias, or a table variable | none; ends the walk when a trigger may fire (§6), and always after an `UPDATE`, `DELETE`, or `MERGE` of a table |
 | `IF cond s [ELSE s]` (M5) | none | each branch's statements as May-effects (`walk.Builder.Optional`) |
 | `SELECT` without `INTO`, `PRINT`, `DECLARE`, `SET @v`, `SET` options other than §6's, `BEGIN TRAN`, `COMMIT`, `SAVE TRAN`, `GRANT`/`DENY`/`REVOKE`, `UPDATE STATISTICS`, `RAISERROR`, `THROW`, `WAITFOR`, `EXEC sp_addextendedproperty`/`sp_updateextendedproperty`/`sp_dropextendedproperty` | none | none |
 
@@ -249,7 +248,7 @@ Notes:
 - a synced trigger exists on any table or view, of an ambiguous parent too (§3);
 - the change created a trigger or enabled one;
 - `OtherSpecs` is set;
-- the target may lead to another database, whose triggers are not synced: a name in another database or one the walk cannot place, a CTE or a FROM item the walk does not resolve, and an object the sync does not list as a table or view, which may be a synonym;
+- the target may lead to another database, whose triggers are not synced: a name in another database or one the walk cannot place, a CTE or a FROM item the walk does not resolve, and a synonym or a name the walk does not know as a table or view;
 - or the statement is an `UPDATE`, `DELETE`, or `MERGE` of a table, not of a temporary table or a table variable: a foreign key's cascaded action may reach a table of a schema the sync excludes, whose triggers it does not list.
 
 A trigger can run DDL, and a cascaded action fires the triggers of other tables, so the trigger need not be on the target. Without any trigger, DML changes no name. With the default schema unset, every unqualified DML target is one the walk cannot place, so the walk ends there.

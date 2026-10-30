@@ -379,13 +379,14 @@ func (b *builder) exec(v *ast.ExecStmt) bool {
 	return false
 }
 
-// dml follows INSERT, UPDATE, DELETE, and MERGE: the target must exist
-// (208), which the walk knows only from the change's own facts, since the
-// sync does not list synonyms. A CTE, an alias of the FROM list, or a
-// table variable is no target to check. The statement ends the walk after
-// its checks when a trigger may fire (spec §6): one the sync lists or the
-// change created or enabled, or one of another database, which a synonym
-// or a qualified name may reach. An UPDATE, DELETE, or MERGE of a table
+// dml follows INSERT, UPDATE, DELETE, and MERGE: the target must be a
+// table, view, sequence, or synonym, which the relation space lists. On a
+// name it does not hold, DML fails: with 208, or with an error of its own
+// on a queue or a table-valued function (verified). A CTE, an alias of
+// the FROM list, or a table variable is no target to check. The statement
+// ends the walk after its checks when a trigger may fire (spec §6): one
+// the sync lists or the change created or enabled, or one of another
+// database, which a synonym or a qualified name may reach. An UPDATE, DELETE, or MERGE of a table
 // (cascades) ends it always: a cascaded action fires the triggers of the
 // tables it reaches, and those of a schema the sync excludes are not
 // listed (verified).
@@ -421,11 +422,11 @@ func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List
 			break
 		}
 		if check {
-			b.needs(spaceObject, r.parent, r.n, nil, note(r.rng, msgMissing("object", r.written), ""))
+			b.needs(spaceRelation, r.parent, r.n, nil, note(r.rng, msgMissing("object", r.written), ""))
 		}
-		// A synonym, which the sync does not list, may lead to another
-		// database.
-		reaches = b.see(spaceRelation, r.parent, r.n).fact != walk.Present
+		// A synonym may lead to another database.
+		s := b.see(spaceRelation, r.parent, r.n)
+		reaches = s.fact != walk.Present || s.kind != kindTable && s.kind != kindView && s.kind != kindSequence
 	default:
 		reaches = !r.temp
 	}
