@@ -22,6 +22,7 @@ func TestCompletionScopeStaysLinear(t *testing.T) {
 		cte.WriteString(", c" + strconv.Itoa(i) + " AS (SELECT * FROM c" + strconv.Itoa(i-1) + ")")
 	}
 	cte.WriteString(" SELECT * FROM c10000 WHERE ")
+	unionGroups := "SELECT * FROM " + strings.Repeat("(SELECT a FROM t UNION SELECT b FROM u) x, ", 10000) + "(SELECT  FROM v) y"
 	for _, tc := range []struct {
 		name, sql string
 		caret     int
@@ -33,6 +34,8 @@ func TestCompletionScopeStaysLinear(t *testing.T) {
 		{"set operations", "SELECT a FROM t" + strings.Repeat(" UNION SELECT a FROM t", 20000) + " WHERE ", -1},
 		{"scalar subqueries", strings.Repeat("SELECT (", 10000) + "SELECT a FROM t" + strings.Repeat(") FROM t", 10000), -1},
 		{"derived-table list", "SELECT * FROM " + strings.Repeat("(SELECT a FROM t) x, ", 10000) + "t WHERE ", -1},
+		{"derived tables with set operations", unionGroups, strings.LastIndex(unionGroups, "SELECT ") + len("SELECT ")},
+		{"IN subqueries with set operations", "SELECT * FROM t WHERE " + strings.Repeat("a IN (SELECT b FROM u UNION SELECT c FROM w) AND ", 10000), -1},
 	} {
 		caret := tc.caret
 		if caret < 0 {

@@ -144,10 +144,11 @@ func collectOracleScopeAndCTEs(tokens []Token, cursorOffset int) (*ScopeSnapshot
 	refs = append(append([]RangeReference{}, ctes...), refs...)
 	localRefs := refs
 	outerRefs := [][]RangeReference(nil)
-	if selectIdx, selectDepth, ok := innermostOracleSelectBeforeCursor(stmtTokens, cursorOffset); ok {
-		armStart, armEnd := r.armBounds(selectIdx, len(stmtTokens))
-		localRefs = r.selectRefsInRange(armStart, armEnd, selectDepth, len(stmtTokens))
-		outerRefs = r.outerSelectRefs(cursorOffset, selectDepth)
+	if selects := index.enclosingSelects(cursorOffset); len(selects) > 0 {
+		inner := selects[len(selects)-1]
+		armStart, armEnd := r.armBounds(inner, len(stmtTokens))
+		localRefs = r.selectRefsInRange(armStart, armEnd, index.depth[inner], len(stmtTokens))
+		outerRefs = r.outerSelectRefs(cursorOffset, selects[:len(selects)-1])
 	} else if len(dmlRefs) > 0 {
 		localRefs = dmlRefs
 	} else if len(ddlRefs) > 0 {
@@ -181,7 +182,9 @@ type oracleTokenIndex struct {
 	// and its ')', as oracleParenRunsNestAtLeast counts them.
 	runs []int
 	// setOp[i] is, for a SELECT, the index of the last set operator before
-	// it at its depth, or -1.
+	// it inside the same parentheses, or -1. One at the same depth in an
+	// earlier group is not it: in (SELECT a FROM t UNION SELECT b FROM u) x,
+	// (SELECT c FROM v) y, the arm of SELECT c starts at SELECT c.
 	setOp []int
 }
 
@@ -199,12 +202,15 @@ func newOracleTokenIndex(toks []Token) *oracleTokenIndex {
 	// continues, one that opens right after it, not counted.
 	type openParen struct{ idx, nest, inRun int }
 	var open []openParen
-	var lastSetOp []int // by depth
+	// lastSetOp holds, by depth, the last set operator inside each '(' open,
+	// so a '(' forgets those of the groups closed before it at its depth.
+	var lastSetOp []int
 	for i, tok := range toks {
 		x.depth[i], x.match[i], x.setOp[i] = len(open), -1, -1
 		switch tok.Type {
 		case '(':
 			open = append(open, openParen{idx: i})
+			lastSetOp = lastSetOp[:min(len(lastSetOp), len(open))]
 		case ')':
 			n := len(open)
 			if n == 0 {
@@ -346,19 +352,28 @@ func (r *oracleRefReader) dmlRefs() []RangeReference {
 			}
 		}
 	case kwDELETE:
-		for i := first + 1; i < len(tokens); i++ {
-			if tokens[i].Type == kwFROM {
-				_, ref, ok := r.rangeReference(i+1, len(tokens))
-				if ok {
-					ref.Kind = RangeReferenceDMLTarget
-					return []RangeReference{ref}
-				}
-				break
-			}
+		// The target follows DELETE or DELETE FROM, after any hint. A FROM
+		// further on is a subquery's: DELETE t WHERE a IN (SELECT b FROM u).
+		i := first + 1
+		if i < len(tokens) && tokens[i].Type == tokHINT {
+			i++
+		}
+		if i < len(tokens) && tokens[i].Type == kwFROM {
+			i++
+		}
+		_, ref, ok := r.rangeReference(i, len(tokens))
+		if ok {
+			ref.Kind = RangeReferenceDMLTarget
+			return []RangeReference{ref}
 		}
 	case kwMERGE:
 		var refs []RangeReference
 		for i := first + 1; i < len(tokens); i++ {
+			if r.depth[i] != 0 {
+				// An INTO or USING in parentheses is not MERGE's: USING
+				// (SELECT a FROM t JOIN u USING (id)) s.
+				continue
+			}
 			switch tokens[i].Type {
 			case kwINTO:
 				next, ref, ok := r.rangeReference(i+1, len(tokens))
@@ -444,38 +459,23 @@ func (r *oracleRefReader) selectRefs() []RangeReference {
 }
 
 // selectRefsInRange returns the references of the FROM clauses at depth
-// want among toks[start:end], hi bounding what a reference may read.
+// want among toks[start:end], hi bounding what a reference may read. A group
+// that opens at depth want or deeper holds no FROM clause at want and is
+// stepped over whole.
 //
-// depth is counted as this scan has always counted it, not taken from the
-// index: it skips the tokens each FROM clause read. An arm can start after
-// a set operator in an earlier sibling group, (SELECT a FROM t UNION SELECT
-// b FROM u) x, (SELECT c FROM v) y; the FROM clause there reads to where
-// its group closes, and depth stays want past it, so which FROM clauses
-// count after it follows that count. A group that opens at depth want or
-// deeper holds no FROM clause at want and is stepped over whole.
+// The depth is the index's. This scan once counted it itself and missed
+// the ')' a FROM clause read up to, so when a range ran past the end of the
+// group it started in, it took each later group for a deeper one.
 func (r *oracleRefReader) selectRefsInRange(start, end, want, hi int) []RangeReference {
 	var refs []RangeReference
-	depth := 0
-	if start < end {
-		depth = r.depth[start]
-	}
 	for i := start; i < end; i++ {
-		switch r.toks[i].Type {
-		case '(':
-			if depth >= want {
-				if c := r.match[i]; c >= 0 && c < end {
-					i = c
-					continue
-				}
-				return refs
+		depth := r.depth[i]
+		if r.toks[i].Type == '(' && depth >= want {
+			if c := r.match[i]; c >= 0 && c < end {
+				i = c
+				continue
 			}
-			depth++
-			continue
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-			continue
+			return refs
 		}
 		if depth != want {
 			continue
@@ -604,38 +604,48 @@ func (r *oracleRefReader) markUnsupportedTransform(ref RangeReference, start, en
 	return ref
 }
 
-func innermostOracleSelectBeforeCursor(tokens []Token, cursorOffset int) (int, int, bool) {
+// enclosingSelects returns the SELECTs whose query blocks hold the cursor,
+// outermost first: at each depth up to the cursor's, the last SELECT before
+// the cursor inside the parentheses still open there. A SELECT in a group
+// closed before the cursor heads none of them: the scalar subquery in
+// SELECT a, (SELECT max(b) FROM u), | FROM t, or the IN subquery in a IN
+// (SELECT b FROM u) AND nvl((SELECT 1 FROM w WHERE |), 0) = 1.
+func (x *oracleTokenIndex) enclosingSelects(cursorOffset int) []int {
+	// last holds, by depth, the last SELECT inside each '(' open, or -1.
+	var last []int
 	depth := 0
-	bestIdx := -1
-	bestDepth := -1
-	for i, tok := range tokens {
+	for i, tok := range x.toks {
 		if tok.Loc >= cursorOffset {
 			break
 		}
+		depth = x.depth[i]
 		switch tok.Type {
 		case '(':
+			last = last[:min(len(last), depth+1)]
 			depth++
-			continue
 		case ')':
-			if depth > 0 {
-				depth--
-			}
-			continue
+			depth = max(depth-1, 0)
 		case kwSELECT:
-			bestIdx = i
-			bestDepth = depth
+			for len(last) <= depth {
+				last = append(last, -1)
+			}
+			last[depth] = i
 		}
 	}
-	if bestIdx < 0 {
-		return 0, 0, false
+	var selects []int
+	for _, sel := range last[:min(len(last), depth+1)] {
+		if sel >= 0 {
+			selects = append(selects, sel)
+		}
 	}
-	return bestIdx, bestDepth, true
+	return selects
 }
 
 // armBounds returns the tokens toks[start:end] of the set-operation arm
 // the SELECT at selectIdx heads, hi bounding them: from after the last set
-// operator before it at its depth, anywhere before it, to the first set
-// operator after it at its depth or the end of the parentheses around it.
+// operator before it at its depth inside the same parentheses, to the first
+// set operator after it at its depth or the end of the parentheses around
+// it.
 func (r *oracleRefReader) armBounds(selectIdx, hi int) (int, int) {
 	start := selectIdx
 	if p := r.setOp[selectIdx]; p >= 0 {
@@ -668,52 +678,26 @@ func (r *oracleRefReader) armEnd(selectIdx, hi int) int {
 	return hi
 }
 
-func (r *oracleRefReader) outerSelectRefs(cursorOffset int, innerDepth int) [][]RangeReference {
-	if innerDepth <= 0 {
+// outerSelectRefs returns the references of each SELECT in selects, the
+// query blocks around the cursor's own, nearest first.
+func (r *oracleRefReader) outerSelectRefs(cursorOffset int, selects []int) [][]RangeReference {
+	if len(selects) == 0 {
 		return nil
 	}
 	tokens := r.toks
-	type selectAtDepth struct {
-		idx   int
-		depth int
-	}
-	latest := make(map[int]selectAtDepth)
-	depth := 0
-	for i, tok := range tokens {
-		if tok.Loc >= cursorOffset {
-			break
-		}
-		switch tok.Type {
-		case '(':
-			depth++
-			continue
-		case ')':
-			if depth > 0 {
-				depth--
-			}
-			continue
-		case kwSELECT:
-			if depth < innerDepth {
-				latest[depth] = selectAtDepth{idx: i, depth: depth}
-			}
-		}
-	}
 	insideLateral := r.cursorInsideLateral(cursorOffset)
 	cursorIdx := len(tokens)
 	if insideLateral {
 		cursorIdx = oracleTokenIndexAtOrAfterOffset(tokens, cursorOffset)
 	}
 	var levels [][]RangeReference
-	for d := innerDepth - 1; d >= 0; d-- {
-		sel, ok := latest[d]
-		if !ok {
-			continue
-		}
-		start, end := r.armBounds(sel.idx, len(tokens))
+	for k := len(selects) - 1; k >= 0; k-- {
+		sel := selects[k]
+		start, end := r.armBounds(sel, len(tokens))
 		if insideLateral && cursorIdx < end {
 			end = cursorIdx
 		}
-		refs := r.selectRefsInRange(start, end, sel.depth, len(tokens))
+		refs := r.selectRefsInRange(start, end, r.depth[sel], len(tokens))
 		if len(refs) > 0 {
 			levels = append(levels, refs)
 		}
