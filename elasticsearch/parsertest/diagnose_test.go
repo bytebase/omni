@@ -55,6 +55,17 @@ func TestDiagnose(t *testing.T) {
 			wantFirstLine:   0,
 			wantFirstColumn: 2,
 		},
+		{
+			// The body of the last request fails, and no request follows to
+			// resume at: the error, then "Syntax error" for the text left
+			// over. Parse returned the second as its error and Diagnose
+			// reported nothing.
+			name:            "body of the last request fails",
+			statement:       "GET _a\nGET /_search\n{\"a\": x}\n",
+			wantCount:       2,
+			wantFirstLine:   2,
+			wantFirstColumn: 8,
+		},
 	}
 
 	for _, tc := range tests {

@@ -16,7 +16,9 @@ type DiagnosticRange struct {
 
 // Diagnostic holds a single parse diagnostic (error, warning, …) produced by
 // Diagnose. Positions are 0-based line and column values matching LSP
-// conventions so callers can forward them without conversion.
+// conventions so callers can forward them without conversion. Columns count
+// code points, as review.Index does; LSP counts UTF-16 code units, which is
+// the same unless a character outside the BMP comes earlier on the line.
 type Diagnostic struct {
 	Range    DiagnosticRange
 	Severity DiagnosticSeverity

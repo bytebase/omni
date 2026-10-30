@@ -177,7 +177,10 @@ func (l *Lines) AdjustedParsedRequest(r ParsedRequest, nextRequest *ParsedReques
 }
 
 type state struct {
-	// at is the current rune's byte offset in the input string.
+	// at is the byte offset just past the current rune, ch. Reading past the
+	// end of the text moves at past len(text) and sets ch to 0, as the
+	// upstream's text.charAt moves at past the end and returns ''; eof tells
+	// that state apart from a NUL byte in the text.
 	at       int
 	ch       rune
 	escapee  map[rune]string
@@ -210,6 +213,16 @@ func newState(text string) *state {
 	}
 }
 
+// eof reports whether the parser has read past the last rune of the text.
+// The upstream tests its current character for the empty string, which only
+// the end of the text gives: a NUL byte is an ordinary character there,
+// whitespace between tokens and part of a URL, string or comment. Testing ch
+// for 0 instead stopped the parse at a NUL byte as if the text ended there
+// and dropped the requests after it without an error.
+func (s *state) eof() bool {
+	return s.at > len(s.text)
+}
+
 // Parse parses the input text and returns the raw parse result.
 func Parse(text string) (*ParseResult, error) {
 	s := newState(text)
@@ -232,11 +245,13 @@ func (s *state) parse() ([]ParsedRequest, error) {
 		return nil, err
 	}
 
-	if err := s.white(); err != nil {
-		return nil, err
-	}
-	if s.ch != 0 {
-		return nil, fmt.Errorf("Syntax error")
+	// Text is left over only when multiRequest stopped at an error with no
+	// request after it to resume at. The upstream records the leftover as one
+	// more error of the script, "Syntax error", rather than throwing, so the
+	// requests before it, and the one that failed, are still returned. A white
+	// that fails stops at a byte it cannot decode, which leaves text over too.
+	if err := s.white(); err != nil || !s.eof() {
+		s.errors = append(s.errors, SyntaxError{ByteOffset: s.at, Message: "Syntax error"})
 	}
 	return s.requests, nil
 }
@@ -261,7 +276,7 @@ func (s *state) multiRequest() error {
 		}
 		return -1
 	}
-	for s.ch != 0 {
+	for !s.eof() {
 		if err := s.white(); err != nil {
 			if next := catch(err); next >= 0 {
 				if err := s.reset(next); err != nil {
@@ -271,7 +286,7 @@ func (s *state) multiRequest() error {
 				return nil
 			}
 		}
-		if s.ch == 0 {
+		if s.eof() {
 			continue
 		}
 		if err := s.comment(); err != nil {
@@ -292,7 +307,7 @@ func (s *state) multiRequest() error {
 				return nil
 			}
 		}
-		if s.ch == 0 {
+		if s.eof() {
 			continue
 		}
 		if err := s.request(); err != nil {
@@ -392,7 +407,7 @@ func (s *state) request() error {
 
 func (s *state) url() (string, error) {
 	var url strings.Builder
-	for s.ch != 0 && s.ch != '\n' {
+	for !s.eof() && s.ch != '\n' {
 		url.WriteRune(s.ch)
 		if _, err := s.nextEmptyInput(); err != nil {
 			return "", err
@@ -422,7 +437,7 @@ func (s *state) object() (map[string]any, error) {
 			// empty object
 			return object, nil
 		}
-		for s.ch != 0 {
+		for !s.eof() {
 			var err error
 			key, err = s.string()
 			if err != nil {
@@ -607,7 +622,7 @@ func (s *state) array() ([]any, error) {
 			// empty array
 			return array, nil
 		}
-		for s.ch != 0 {
+		for !s.eof() {
 			v, err := s.value()
 			if err != nil {
 				return nil, err
@@ -648,11 +663,10 @@ func (s *state) string() (string, error) {
 			return s.nextUpTo(`"""`, `failed to find closing '"""'`)
 		}
 		for {
-			r, err := s.nextEmptyInput()
-			if err != nil {
+			if _, err := s.nextEmptyInput(); err != nil {
 				return "", err
 			}
-			if r == 0 {
+			if s.eof() {
 				break
 			}
 			if s.ch == '"' {
@@ -736,7 +750,7 @@ func (s *state) newLine() error {
 }
 
 func (s *state) strictWhite() error {
-	for s.ch != 0 && (s.ch == ' ' || s.ch == '\t') {
+	for s.ch == ' ' || s.ch == '\t' {
 		if _, err := s.nextEmptyInput(); err != nil {
 			return err
 		}
@@ -891,8 +905,13 @@ func (s *state) addRequestEnd() error {
 	return nil
 }
 
+// updateRequestEnd ends the request before the current character, as the
+// upstream's at - 1 does. Past the end of the text, that is the end of the
+// text. The test used to be at >= len(text), which also held while the
+// current character was the last one, and a request followed by a
+// multi-byte last character then ended inside it.
 func (s *state) updateRequestEnd() error {
-	if s.at >= len(s.text) {
+	if s.eof() {
 		s.requestEndOffset = s.at - 1
 		return nil
 	}
@@ -912,7 +931,7 @@ func (s *state) updateRequestEnd() error {
 
 func (s *state) comment() error {
 	for s.ch == '#' {
-		for s.ch != 0 && s.ch != '\n' {
+		for !s.eof() && s.ch != '\n' {
 			if _, err := s.nextEmptyInput(); err != nil {
 				return err
 			}
@@ -945,9 +964,9 @@ func (s *state) peek(offset uint) rune {
 }
 
 func (s *state) white() error {
-	for s.ch != 0 {
-		// Skip whitespace.
-		for s.ch != 0 && s.ch <= ' ' {
+	for !s.eof() {
+		// Skip whitespace, NUL included.
+		for !s.eof() && s.ch <= ' ' {
 			if _, err := s.nextEmptyInput(); err != nil {
 				return err
 			}
@@ -957,7 +976,7 @@ func (s *state) white() error {
 		// we are on the single line comment.
 		if s.ch == '#' || (s.ch == '/' && s.peek(0) == '/') {
 			// Until we are on the new line, skip to the next char.
-			for s.ch != 0 && s.ch != '\n' {
+			for !s.eof() && s.ch != '\n' {
 				if _, err := s.nextEmptyInput(); err != nil {
 					return err
 				}
@@ -967,13 +986,13 @@ func (s *state) white() error {
 			if err := s.nNextEmptyInput(2); err != nil {
 				return err
 			}
-			for s.ch != 0 && (s.ch != '*' || s.peek(0) != '/') {
+			for !s.eof() && (s.ch != '*' || s.peek(0) != '/') {
 				// Until we have closing tags '*', skip to the next char.
 				if _, err := s.nextEmptyInput(); err != nil {
 					return err
 				}
 			}
-			if s.ch != 0 {
+			if !s.eof() {
 				if err := s.nNextEmptyInput(2); err != nil {
 					return err
 				}

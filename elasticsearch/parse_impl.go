@@ -4,8 +4,10 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/elasticsearch/parser"
+	"github.com/bytebase/omni/review"
 )
 
 // ParseElasticsearchREST parses the Elasticsearch REST API request text into
@@ -64,10 +66,12 @@ func parseREST(text string, cleanData bool) (*ParseResult, []int, error) {
 		ends = append(ends, requestEnd(text, lines, pr, nextRequest, adjustedOffset.EndLineNumber))
 	}
 
-	// Convert errors
+	// Convert errors. A stable sort keeps the order in which errors at one
+	// offset were recorded: the "Syntax error" for text left over after the
+	// last request comes after the error that stopped it.
 	var syntaxErrors []*SyntaxError
 
-	slices.SortFunc(raw.Errors, func(a, b parser.SyntaxError) int {
+	slices.SortStableFunc(raw.Errors, func(a, b parser.SyntaxError) int {
 		if a.ByteOffset < b.ByteOffset {
 			return -1
 		}
@@ -77,39 +81,11 @@ func parseREST(text string, cleanData bool) (*ParseResult, []int, error) {
 		return 0
 	})
 
-	for i, rawErr := range raw.Errors {
-		line := 0
-		column := 0
-		pos := 0
-		if i > 0 {
-			line = syntaxErrors[i-1].Position.Line
-			column = syntaxErrors[i-1].Position.Column
-			pos = raw.Errors[i-1].ByteOffset
-		}
-		boundary := rawErr.ByteOffset
-		if boundary >= len(text) {
-			boundary = len(text) - 1
-		}
-
-		for j := pos; j <= boundary; j++ {
-			if text[j] == '\n' {
-				if j == boundary {
-					// Decorate the \n position instead of the next line.
-					column++
-					continue
-				}
-				line++
-				column = 0
-			} else {
-				column++
-			}
-		}
+	index := review.Index(text)
+	for _, rawErr := range raw.Errors {
 		syntaxErrors = append(syntaxErrors, &SyntaxError{
-			Position: Position{
-				Line:   line,
-				Column: column,
-			},
-			Message: rawErr.Message,
+			Position: errorPosition(text, index, rawErr.ByteOffset),
+			Message:  rawErr.Message,
 		})
 	}
 
@@ -117,6 +93,21 @@ func parseREST(text string, cleanData bool) (*ParseResult, []int, error) {
 		Requests: requests,
 		Errors:   syntaxErrors,
 	}, ends, nil
+}
+
+// errorPosition returns the position of a syntax error at byte offset: the
+// line review.Index gives, made 0-based as Diagnose documents, and its column,
+// 1-based and counted in code points, so a byte that is not UTF-8 counts as
+// one. An offset at or past the end of the text stands for the last
+// character. The column was counted in bytes, and an error on the line of the
+// error before it counted that error's byte a second time.
+func errorPosition(text string, index *review.Text, offset int) Position {
+	if offset >= len(text) {
+		_, size := utf8.DecodeLastRuneInString(text)
+		offset = len(text) - size
+	}
+	line, column := index.Position(offset)
+	return Position{Line: line - 1, Column: column}
 }
 
 // requestEnd returns the byte offset where the text of request r ends. A
