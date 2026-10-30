@@ -102,7 +102,7 @@ func (c *Catalog) DefineView(stmt *nodes.CreateViewStmt) error {
 	if stmt == nil || stmt.Name == nil || stmt.Name.Name == "" {
 		return errWrongArguments("DefineView")
 	}
-	return c.createView(stmt)
+	return c.createView(stmt, "")
 }
 
 // DefineIndex installs an index on an existing table.

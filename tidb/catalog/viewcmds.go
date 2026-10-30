@@ -8,7 +8,9 @@ import (
 	"github.com/bytebase/omni/tidb/deparse"
 )
 
-func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
+// createView applies CREATE VIEW. source is the text the statement was parsed
+// from, or "" when there is none (see deparseViewSelect).
+func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -44,7 +46,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
 	hasExplicit := len(stmt.Columns) > 0
@@ -68,7 +70,8 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt) error {
 	return nil
 }
 
-func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
+// alterView applies ALTER VIEW; source is as for createView.
+func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -96,7 +99,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt) error {
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, db)
+	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
 	// Use explicit column list if provided, otherwise derive from SELECT target list.
 	hasExplicit := len(stmt.Columns) > 0
@@ -145,7 +148,12 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 // If the AST is nil (parser didn't produce one), falls back to the raw SelectText.
 // Returns the deparsed definition and the derived column names from the resolved
 // SELECT target list (used when no explicit column list is specified).
-func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *Database) (string, []string) {
+//
+// source is the text the statement was parsed from, which the AST's Loc
+// offsets index into. An unaliased select item is named after its text in
+// source, as the engine names it; with no source ("" from DefineView), the
+// name is rebuilt from the AST.
+func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source string, db *Database) (string, []string) {
 	if sel == nil {
 		return rawText, nil
 	}
@@ -163,6 +171,7 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText string, db *D
 	resolver := &deparse.Resolver{
 		Lookup:         lookup,
 		DefaultCharset: charset,
+		Source:         source,
 	}
 	resolver.Resolve(sel)
 

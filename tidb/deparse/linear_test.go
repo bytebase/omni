@@ -90,6 +90,12 @@ func TestResolveLongJoinChainStaysLinear(t *testing.T) {
 		{"qualified columns", "SELECT t0.a FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%[1]d ON t%[1]d.a = T%[1]d.b"), "`.`b`", n - 1},
 		{"unqualified columns", "SELECT a FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%d ON a = b"), "(`t0`.`a` = `t0`.`b`)", n - 1},
 		{"qualified stars", "SELECT " + numberedTerms(n, "t0.*", ", T%d.*") + " FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%d"), "` AS `b`", n},
+		// A NATURAL or USING join finds the columns it joins on in its
+		// inputs; SELECT * lists each such column once.
+		{"USING chain", "SELECT * FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%d USING (a)"), "` AS `b`", n},
+		{"USING chain on two columns", "SELECT * FROM " + numberedTerms(n, "t AS t0", " JOIN t AS t%d USING (b, a)"), "` AS `b`", 1},
+		{"NATURAL chain", "SELECT * FROM " + numberedTerms(n, "t AS t0", " NATURAL JOIN t AS t%d"), "(`t0`.`b` = `t", n - 1},
+		{"right-nested USING", "SELECT * FROM " + numberedTerms(9000, "", "t AS t%d JOIN (") + "t AS t0" + strings.Repeat(") USING (a)", 8999), "` AS `b`", 9000},
 	} {
 		stmt := parseSelectOrFatal(t, tc.name, tc.sql)
 		done := make(chan string, 1)
