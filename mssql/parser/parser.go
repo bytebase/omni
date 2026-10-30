@@ -484,17 +484,6 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 			if p.cur.Type == kwREVERT {
 				return p.parseRevertStmt()
 			}
-			// PREDICT (ML scoring)
-			if p.cur.Type == kwPREDICT {
-				loc := p.pos()
-				p.advance() // consume PREDICT
-				stmt, err := p.parsePredictStmt()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Loc.Start = loc
-				return stmt, nil
-			}
 			// ADD SENSITIVITY CLASSIFICATION / ADD [COUNTER] SIGNATURE
 			if p.cur.Type == kwADD {
 				return p.parseAddStmt()
@@ -2490,7 +2479,7 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			if dropStmt.ObjectType == nodes.DropFulltextIndex {
 				// DROP FULLTEXT INDEX ON table_name
 				if _, ok := p.match(kwON); ok {
-					if ref , _ := p.parseTableRef(); ref != nil {
+					if ref, _ := p.parseTableRef(); ref != nil {
 						nameItems = append(nameItems, ref)
 					}
 				}
@@ -2652,6 +2641,16 @@ func (p *Parser) peekNext() Token {
 func (p *Parser) peekSecond() Token {
 	p.peekNext()
 	pos, start, lexErr := p.lexer.pos, p.lexer.start, p.lexer.Err
+	tok := p.lexer.NextToken()
+	p.lexer.pos, p.lexer.start, p.lexer.Err = pos, start, lexErr
+	return tok
+}
+
+// peekThird returns the third token after cur without consuming any.
+func (p *Parser) peekThird() Token {
+	p.peekNext()
+	pos, start, lexErr := p.lexer.pos, p.lexer.start, p.lexer.Err
+	p.lexer.NextToken()
 	tok := p.lexer.NextToken()
 	p.lexer.pos, p.lexer.start, p.lexer.Err = pos, start, lexErr
 	return tok

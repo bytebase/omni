@@ -229,6 +229,15 @@ func omniTableRef(n ast.Node) any {
 			out["alias"] = v.Alias
 		}
 		return out
+	case *ast.PredictTableRef:
+		out := map[string]any{"kind": "PredictTableReference"}
+		if v.Alias != "" {
+			out["alias"] = v.Alias
+		}
+		if wc := withCols(v.Columns); wc != nil {
+			out["with_cols"] = wc
+		}
+		return out
 	case *ast.SemanticTableRef:
 		out := map[string]any{"kind": "SemanticTableReference"}
 		if v.Alias != "" {
@@ -405,6 +414,10 @@ func TestScriptDOMDiff(t *testing.T) {
 		{name: "semantic-keyphrase", sql: `SELECT * FROM SEMANTICKEYPHRASETABLE(t, b) s`},
 		{name: "semantic-similarity", sql: `SELECT * FROM SEMANTICSIMILARITYTABLE(t, (a, b), 1) s`},
 		{name: "semantic-similarity-details", sql: `SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(t, a, 1, b, 2) s`},
+		// PREDICT is a table source with a WITH schema and an alias.
+		{name: "predict", sql: `SELECT * FROM PREDICT(MODEL = @model, DATA = dbo.mytable AS d) WITH (Score FLOAT, Label NVARCHAR(10)) AS p`},
+		{name: "predict-no-alias", sql: `SELECT * FROM PREDICT(MODEL = 0x01, DATA = dbo.mytable) WITH (Score FLOAT)`},
+		{name: "predict-cross-apply", sql: `SELECT * FROM dbo.t CROSS APPLY PREDICT(MODEL = @m, DATA = dbo.fn(1) AS d) WITH (s float) p`},
 	}
 
 	for _, f := range fixtures {
@@ -419,6 +432,7 @@ func TestScriptDOMDiff(t *testing.T) {
 				t.Fatalf("ScriptDOM rejected: %v", errs)
 			}
 			delete(want, "errors")
+			delete(want, "exprs") // compared by TestCollatePrecedence
 			if diff := cmp.Diff(want, gotShape); diff != "" {
 				t.Errorf("shape mismatch for %q\n-scriptdom +omni\n%s", f.sql, diff)
 			}

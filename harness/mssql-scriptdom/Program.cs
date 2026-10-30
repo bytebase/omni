@@ -71,6 +71,7 @@ public static class Program
             }).ToList();
         }
         output["shape"] = Shape.Of(tree);
+        output["exprs"] = Shape.SelectExpressions(tree);
         return JsonSerializer.Serialize(output, new JsonSerializerOptions
         {
             WriteIndented = false,
@@ -97,6 +98,51 @@ internal static class Shape
         InsertStatement ins => new { kind = "Insert" },
         _ => new { kind = frag.GetType().Name },
     };
+
+    // SelectExpressions returns, for a script whose first statement is a
+    // SELECT query specification, the operator shape of each select item:
+    // binary and unary operators, AT TIME ZONE, parentheses, and the
+    // collation ScriptDOM keeps on a PrimaryExpression, with every other
+    // operand as "#". Null for any other script.
+    public static List<string>? SelectExpressions(TSqlFragment? frag)
+    {
+        var first = (frag as TSqlScript)?.Batches.FirstOrDefault()?.Statements.FirstOrDefault();
+        if (first is not SelectStatement { QueryExpression: QuerySpecification qs })
+            return null;
+        return qs.SelectElements.Select(e => e is SelectScalarExpression sse ? OfExpression(sse.Expression) : "*").ToList();
+    }
+
+    private static string OfExpression(ScalarExpression? e)
+    {
+        if (e == null) return "nil";
+        var s = e switch
+        {
+            BinaryExpression b => "(" + b.BinaryExpressionType switch
+            {
+                BinaryExpressionType.Add => "+",
+                BinaryExpressionType.Subtract => "-",
+                BinaryExpressionType.Multiply => "*",
+                BinaryExpressionType.Divide => "/",
+                BinaryExpressionType.Modulo => "%",
+                BinaryExpressionType.BitwiseAnd => "&",
+                BinaryExpressionType.BitwiseOr => "|",
+                BinaryExpressionType.BitwiseXor => "^",
+                var other => other.ToString(),
+            } + " " + OfExpression(b.FirstExpression) + " " + OfExpression(b.SecondExpression) + ")",
+            UnaryExpression u => "(" + u.UnaryExpressionType switch
+            {
+                UnaryExpressionType.Positive => "u+",
+                UnaryExpressionType.Negative => "u-",
+                _ => "u~",
+            } + " " + OfExpression(u.Expression) + ")",
+            AtTimeZoneCall a => "(atz " + OfExpression(a.DateValue) + " " + OfExpression(a.TimeZone) + ")",
+            ParenthesisExpression p => "(paren " + OfExpression(p.Expression) + ")",
+            _ => "#",
+        };
+        if (e is PrimaryExpression { Collation: not null } pe)
+            s = "(collate " + s + " " + pe.Collation.Value + ")";
+        return s;
+    }
 
     private static object OfSelectElement(SelectElement e) => e switch
     {
@@ -152,6 +198,13 @@ internal static class Shape
                 break;
             case OpenJsonTableReference oj:
                 with_cols = oj.SchemaDeclarationItems?.Select(si => (object)new
+                {
+                    name = si.ColumnDefinition?.ColumnIdentifier?.Value,
+                    type = si.ColumnDefinition?.DataType?.Name?.BaseIdentifier?.Value,
+                }).ToList();
+                break;
+            case PredictTableReference pr:
+                with_cols = pr.SchemaDeclarationItems?.Select(si => (object)new
                 {
                     name = si.ColumnDefinition?.ColumnIdentifier?.Value,
                     type = si.ColumnDefinition?.DataType?.Name?.BaseIdentifier?.Value,

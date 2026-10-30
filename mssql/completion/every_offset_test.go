@@ -10,8 +10,8 @@ import (
 // tableSourceForms are the FROM-clause and rowset forms whose argument and
 // column lists completion parses with loops of their own.
 var tableSourceForms = []string{
-	"PREDICT (MODEL = @model, DATA = dbo.mytable AS d) WITH (Score FLOAT, Label NVARCHAR(10)) AS p",
-	"PREDICT (MODEL = @model, DATA = dbo.mytable AS d, RUNTIME = ONNX) WITH (Score DECIMAL(10, 2) COLLATE Latin1_General_CI_AS NOT NULL)",
+	"SELECT * FROM PREDICT (MODEL = @model, DATA = dbo.mytable AS d) WITH (Score FLOAT, Label NVARCHAR(10)) AS p",
+	"SELECT * FROM PREDICT (MODEL = @model, DATA = dbo.mytable AS d, RUNTIME = ONNX) WITH (Score DECIMAL(10, 2) COLLATE Latin1_General_CI_AS NOT NULL)",
 	"SELECT d.*, p.Score FROM PREDICT (MODEL = (SELECT model FROM models WHERE id = 1), DATA = dbo.mytable AS d) WITH (Score FLOAT, Label NVARCHAR(10)) AS p",
 	"SELECT * FROM OPENJSON(@json) WITH (id INT '$.id', name NVARCHAR(100) '$.name', tags NVARCHAR(MAX) '$.tags' AS JSON) AS j",
 	"SELECT * FROM OPENJSON(@json, '$.items') AS j CROSS APPLY OPENJSON(j.value) WITH (k INT) AS x",

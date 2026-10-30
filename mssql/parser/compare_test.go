@@ -488,8 +488,8 @@ func TestParseNames(t *testing.T) {
 
 	t.Run("bracketed identifiers", func(t *testing.T) {
 		tests := []struct {
-			sql  string
-			col  string
+			sql string
+			col string
 		}{
 			{"SELECT [my column]", "my column"},
 			{"SELECT [select]", "select"},
@@ -6486,7 +6486,6 @@ func TestParseRestoreExtendedMasterKey(t *testing.T) {
 	})
 }
 
-
 // TestParseExternalLibrary tests batch 65: CREATE/ALTER/DROP EXTERNAL LIBRARY.
 func TestParseExternalLibrary(t *testing.T) {
 	tests := []string{
@@ -7857,8 +7856,8 @@ func TestParseForXmlJsonOptions(t *testing.T) {
 
 	t.Run("for_xml_elements", func(t *testing.T) {
 		tests := []struct {
-			sql  string
-			chk  func(t *testing.T, fc *ast.ForClause)
+			sql string
+			chk func(t *testing.T, fc *ast.ForClause)
 		}{
 			{
 				sql: "SELECT col1 FROM t FOR XML RAW, ELEMENTS",
@@ -7969,8 +7968,8 @@ func TestParseForXmlJsonOptions(t *testing.T) {
 
 	t.Run("for_json_root", func(t *testing.T) {
 		tests := []struct {
-			sql  string
-			chk  func(t *testing.T, fc *ast.ForClause)
+			sql string
+			chk func(t *testing.T, fc *ast.ForClause)
 		}{
 			{
 				sql: "SELECT col1 FROM t FOR JSON PATH, ROOT('data')",
@@ -8015,8 +8014,8 @@ func TestParseForXmlJsonOptions(t *testing.T) {
 
 	t.Run("for_json_options", func(t *testing.T) {
 		tests := []struct {
-			sql  string
-			chk  func(t *testing.T, fc *ast.ForClause)
+			sql string
+			chk func(t *testing.T, fc *ast.ForClause)
 		}{
 			{
 				sql: "SELECT col1 FROM t FOR JSON PATH, INCLUDE_NULL_VALUES",
@@ -8274,11 +8273,11 @@ func TestParseCreateDatabaseDepth(t *testing.T) {
 
 	t.Run("create_database_for_attach", func(t *testing.T) {
 		tests := []struct {
-			name              string
-			sql               string
-			forAttach         bool
-			forAttachRebuild  bool
-			hasAttachOptions  bool
+			name             string
+			sql              string
+			forAttach        bool
+			forAttachRebuild bool
+			hasAttachOptions bool
 		}{
 			{
 				"basic attach",
@@ -8734,10 +8733,10 @@ func TestParseSubqueryComparison(t *testing.T) {
 func TestParseGrantDepth(t *testing.T) {
 	t.Run("grant_on_schema", func(t *testing.T) {
 		tests := []struct {
-			name       string
-			sql        string
-			onType     string
-			wantGrant  bool
+			name      string
+			sql       string
+			onType    string
+			wantGrant bool
 		}{
 			{"grant select on schema", "GRANT SELECT ON SCHEMA::dbo TO user1", "SCHEMA", false},
 			{"grant select on schema with grant option", "GRANT SELECT ON SCHEMA::Sales TO user1 WITH GRANT OPTION", "SCHEMA", true},
@@ -9146,9 +9145,9 @@ func TestParseAlterDatabaseDepth(t *testing.T) {
 	// --- SET PARTNER (batch 117) ---
 	t.Run("alter_database_set_partner", func(t *testing.T) {
 		tests := []struct {
-			name     string
-			sql      string
-			wantOpt  string
+			name    string
+			sql     string
+			wantOpt string
 		}{
 			{"partner server", "ALTER DATABASE mydb SET PARTNER = 'TCP://server2:5022'", "PARTNER='TCP://server2:5022'"},
 			{"partner off", "ALTER DATABASE mydb SET PARTNER OFF", "PARTNER=OFF"},
@@ -13931,99 +13930,6 @@ func TestParseAvailabilityRemainingDepth(t *testing.T) {
 	}
 }
 
-// TestParsePredictStmt tests batch 118: PREDICT statement.
-func TestParsePredictStmt(t *testing.T) {
-	tests := []struct {
-		name        string
-		sql         string
-		wantModel   bool
-		wantData    bool
-		wantAlias   string
-		wantRuntime string
-		wantCols    int
-	}{
-		// predict_basic: basic PREDICT with model variable and data table
-		{
-			name:      "predict_basic",
-			sql:       "PREDICT (MODEL = @model, DATA = dbo.mytable AS d) WITH (Score FLOAT)",
-			wantModel: true,
-			wantData:  true,
-			wantAlias: "d",
-			wantCols:  1,
-		},
-		// predict_with_runtime: PREDICT with RUNTIME = ONNX (Azure Synapse)
-		{
-			name:        "predict_with_runtime",
-			sql:         "PREDICT (MODEL = @model, DATA = dbo.mytable AS d, RUNTIME = ONNX) WITH (Score FLOAT)",
-			wantModel:   true,
-			wantData:    true,
-			wantAlias:   "d",
-			wantRuntime: "ONNX",
-			wantCols:    1,
-		},
-		// predict with string literal model
-		{
-			name:      "predict_model_literal",
-			sql:       "PREDICT (MODEL = 'my_model_binary', DATA = dbo.input_data AS d) WITH (prediction INT, probability FLOAT)",
-			wantModel: true,
-			wantData:  true,
-			wantAlias: "d",
-			wantCols:  2,
-		},
-		// predict with NOT NULL columns
-		{
-			name:      "predict_with_notnull",
-			sql:       "PREDICT (MODEL = @model, DATA = dbo.mytable AS d) WITH (Score FLOAT NOT NULL, Label NVARCHAR(100) NULL)",
-			wantModel: true,
-			wantData:  true,
-			wantAlias: "d",
-			wantCols:  2,
-		},
-		// predict without alias
-		{
-			name:      "predict_no_alias",
-			sql:       "PREDICT (MODEL = @model, DATA = dbo.mytable) WITH (Score FLOAT)",
-			wantModel: true,
-			wantData:  true,
-			wantCols:  1,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ParseAndCheck(t, tt.sql)
-			if result.Len() != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
-			}
-			stmt, ok := result.Items[0].(*ast.PredictStmt)
-			if !ok {
-				t.Fatalf("Parse(%q): expected *PredictStmt, got %T", tt.sql, result.Items[0])
-			}
-			if tt.wantModel && stmt.Model == nil {
-				t.Errorf("Parse(%q): expected non-nil Model", tt.sql)
-			}
-			if tt.wantData && stmt.Data == nil {
-				t.Errorf("Parse(%q): expected non-nil Data", tt.sql)
-			}
-			if stmt.DataAlias != tt.wantAlias {
-				t.Errorf("Parse(%q): DataAlias = %q, want %q", tt.sql, stmt.DataAlias, tt.wantAlias)
-			}
-			if stmt.Runtime != tt.wantRuntime {
-				t.Errorf("Parse(%q): Runtime = %q, want %q", tt.sql, stmt.Runtime, tt.wantRuntime)
-			}
-			if tt.wantCols > 0 {
-				if stmt.WithColumns == nil || len(stmt.WithColumns.Items) != tt.wantCols {
-					gotCols := 0
-					if stmt.WithColumns != nil {
-						gotCols = len(stmt.WithColumns.Items)
-					}
-					t.Errorf("Parse(%q): got %d WITH columns, want %d", tt.sql, gotCols, tt.wantCols)
-				}
-			}
-			checkLocation(t, tt.sql, "PredictStmt", stmt.Loc)
-		})
-	}
-}
-
 // TestParseEdgeConstraint tests EDGE CONSTRAINT for graph tables (batch 119).
 func TestParseEdgeConstraint(t *testing.T) {
 	// CREATE TABLE with single edge constraint connection
@@ -14677,10 +14583,10 @@ func TestParseCreateDatabaseOptionsDepth(t *testing.T) {
 
 	t.Run("database_filestream_options", func(t *testing.T) {
 		tests := []struct {
-			name           string
-			sql            string
-			wantAccess     string
-			wantDirName    string
+			name        string
+			sql         string
+			wantAccess  string
+			wantDirName string
 		}{
 			{
 				name:       "filestream_non_transacted_access",
@@ -14866,17 +14772,21 @@ func TestParseCreateDatabaseOptionsDepth(t *testing.T) {
 func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 	t.Run("create_user_structured_options", func(t *testing.T) {
 		tests := []struct {
-			name string
-			sql  string
+			name  string
+			sql   string
 			check func(t *testing.T, stmt *ast.SecurityStmt)
 		}{
 			{
 				name: "user_with_password",
 				sql:  "CREATE USER testUser WITH PASSWORD = 'StrongPass123'",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
-					if stmt.Name != "testUser" { t.Errorf("name = %q", stmt.Name) }
+					if stmt.Name != "testUser" {
+						t.Errorf("name = %q", stmt.Name)
+					}
 					opt := findSecOpt(t, stmt, "PASSWORD")
-					if opt.Value != "StrongPass123" { t.Errorf("password = %q", opt.Value) }
+					if opt.Value != "StrongPass123" {
+						t.Errorf("password = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -14884,7 +14794,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE USER testUser WITH DEFAULT_SCHEMA = dbo",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "DEFAULT_SCHEMA")
-					if opt.Value != "dbo" { t.Errorf("default_schema = %q", opt.Value) }
+					if opt.Value != "dbo" {
+						t.Errorf("default_schema = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -14892,9 +14804,13 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE USER testUser FOR LOGIN testLogin WITH DEFAULT_SCHEMA = Sales",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					loginOpt := findSecOpt(t, stmt, "LOGIN")
-					if loginOpt.Value != "testLogin" { t.Errorf("login = %q", loginOpt.Value) }
+					if loginOpt.Value != "testLogin" {
+						t.Errorf("login = %q", loginOpt.Value)
+					}
 					schemaOpt := findSecOpt(t, stmt, "DEFAULT_SCHEMA")
-					if schemaOpt.Value != "Sales" { t.Errorf("schema = %q", schemaOpt.Value) }
+					if schemaOpt.Value != "Sales" {
+						t.Errorf("schema = %q", schemaOpt.Value)
+					}
 				},
 			},
 			{
@@ -14902,7 +14818,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE USER testUser WITH DEFAULT_LANGUAGE = English",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "DEFAULT_LANGUAGE")
-					if opt.Value != "English" { t.Errorf("language = %q", opt.Value) }
+					if opt.Value != "English" {
+						t.Errorf("language = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -14910,7 +14828,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE USER testUser WITH ALLOW_ENCRYPTED_VALUE_MODIFICATIONS = ON",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "ALLOW_ENCRYPTED_VALUE_MODIFICATIONS")
-					if opt.Value != "ON" { t.Errorf("allow_encrypted = %q", opt.Value) }
+					if opt.Value != "ON" {
+						t.Errorf("allow_encrypted = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -14918,7 +14838,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE USER testUser WITH SID = 0x01020304",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "SID")
-					if opt.Value == "" { t.Errorf("sid is empty") }
+					if opt.Value == "" {
+						t.Errorf("sid is empty")
+					}
 				},
 			},
 			{
@@ -14926,7 +14848,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "ALTER USER testUser WITH NAME = newUser",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "NAME")
-					if opt.Value != "newUser" { t.Errorf("name = %q", opt.Value) }
+					if opt.Value != "newUser" {
+						t.Errorf("name = %q", opt.Value)
+					}
 				},
 			},
 		}
@@ -14934,13 +14858,17 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				result := ParseAndCheck(t, tt.sql)
 				stmt, ok := result.Items[0].(*ast.SecurityStmt)
-				if !ok { t.Fatalf("expected *SecurityStmt, got %T", result.Items[0]) }
+				if !ok {
+					t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
+				}
 				tt.check(t, stmt)
 				// Verify all options are SecurityPrincipalOption nodes
 				if stmt.Options != nil {
 					for i, item := range stmt.Options.Items {
 						opt, ok := item.(*ast.SecurityPrincipalOption)
-						if !ok { t.Errorf("option[%d]: expected *SecurityPrincipalOption, got %T", i, item) }
+						if !ok {
+							t.Errorf("option[%d]: expected *SecurityPrincipalOption, got %T", i, item)
+						}
 						checkLocation(t, tt.sql, "SecurityPrincipalOption", opt.Loc)
 					}
 				}
@@ -14950,8 +14878,8 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 
 	t.Run("create_login_structured_options", func(t *testing.T) {
 		tests := []struct {
-			name string
-			sql  string
+			name  string
+			sql   string
 			check func(t *testing.T, stmt *ast.SecurityStmt)
 		}{
 			{
@@ -14959,7 +14887,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE LOGIN testLogin WITH PASSWORD = 'StrongPass123'",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "PASSWORD")
-					if opt.Value != "StrongPass123" { t.Errorf("password = %q", opt.Value) }
+					if opt.Value != "StrongPass123" {
+						t.Errorf("password = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -14967,8 +14897,12 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE LOGIN testLogin WITH PASSWORD = 'TempPass!' MUST_CHANGE",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "PASSWORD")
-					if opt.Value != "TempPass!" { t.Errorf("password = %q", opt.Value) }
-					if !opt.MustChange { t.Errorf("expected MustChange=true") }
+					if opt.Value != "TempPass!" {
+						t.Errorf("password = %q", opt.Value)
+					}
+					if !opt.MustChange {
+						t.Errorf("expected MustChange=true")
+					}
 				},
 			},
 			{
@@ -14976,7 +14910,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE LOGIN testLogin WITH PASSWORD = 0x01020304 HASHED",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "PASSWORD")
-					if !opt.Hashed { t.Errorf("expected Hashed=true") }
+					if !opt.Hashed {
+						t.Errorf("expected Hashed=true")
+					}
 				},
 			},
 			{
@@ -14985,11 +14921,17 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					findSecOpt(t, stmt, "PASSWORD")
 					dbOpt := findSecOpt(t, stmt, "DEFAULT_DATABASE")
-					if dbOpt.Value != "mydb" { t.Errorf("default_database = %q", dbOpt.Value) }
+					if dbOpt.Value != "mydb" {
+						t.Errorf("default_database = %q", dbOpt.Value)
+					}
 					expOpt := findSecOpt(t, stmt, "CHECK_EXPIRATION")
-					if expOpt.Value != "ON" { t.Errorf("check_expiration = %q", expOpt.Value) }
+					if expOpt.Value != "ON" {
+						t.Errorf("check_expiration = %q", expOpt.Value)
+					}
 					polOpt := findSecOpt(t, stmt, "CHECK_POLICY")
-					if polOpt.Value != "OFF" { t.Errorf("check_policy = %q", polOpt.Value) }
+					if polOpt.Value != "OFF" {
+						t.Errorf("check_policy = %q", polOpt.Value)
+					}
 				},
 			},
 			{
@@ -14997,7 +14939,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE LOGIN testLogin WITH PASSWORD = 'Pass123', CREDENTIAL = MyCred",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "CREDENTIAL")
-					if opt.Value != "MyCred" { t.Errorf("credential = %q", opt.Value) }
+					if opt.Value != "MyCred" {
+						t.Errorf("credential = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -15005,9 +14949,13 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE LOGIN [DOMAIN\\user] FROM WINDOWS WITH DEFAULT_DATABASE = master",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					fromOpt := findSecOpt(t, stmt, "FROM")
-					if fromOpt.Value != "WINDOWS" { t.Errorf("from = %q", fromOpt.Value) }
+					if fromOpt.Value != "WINDOWS" {
+						t.Errorf("from = %q", fromOpt.Value)
+					}
 					dbOpt := findSecOpt(t, stmt, "DEFAULT_DATABASE")
-					if dbOpt.Value != "master" { t.Errorf("default_database = %q", dbOpt.Value) }
+					if dbOpt.Value != "master" {
+						t.Errorf("default_database = %q", dbOpt.Value)
+					}
 				},
 			},
 			{
@@ -15015,7 +14963,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE LOGIN testLogin FROM CERTIFICATE MyCert",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					fromOpt := findSecOpt(t, stmt, "FROM")
-					if fromOpt.Value != "CERTIFICATE MyCert" { t.Errorf("from = %q", fromOpt.Value) }
+					if fromOpt.Value != "CERTIFICATE MyCert" {
+						t.Errorf("from = %q", fromOpt.Value)
+					}
 				},
 			},
 			{
@@ -15023,7 +14973,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE LOGIN testLogin FROM ASYMMETRIC KEY MyKey",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					fromOpt := findSecOpt(t, stmt, "FROM")
-					if fromOpt.Value != "ASYMMETRIC KEY MyKey" { t.Errorf("from = %q", fromOpt.Value) }
+					if fromOpt.Value != "ASYMMETRIC KEY MyKey" {
+						t.Errorf("from = %q", fromOpt.Value)
+					}
 				},
 			},
 			{
@@ -15031,7 +14983,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE LOGIN testLogin FROM EXTERNAL PROVIDER",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					fromOpt := findSecOpt(t, stmt, "FROM")
-					if fromOpt.Value != "EXTERNAL PROVIDER" { t.Errorf("from = %q", fromOpt.Value) }
+					if fromOpt.Value != "EXTERNAL PROVIDER" {
+						t.Errorf("from = %q", fromOpt.Value)
+					}
 				},
 			},
 			{
@@ -15047,7 +15001,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				result := ParseAndCheck(t, tt.sql)
 				stmt, ok := result.Items[0].(*ast.SecurityStmt)
-				if !ok { t.Fatalf("expected *SecurityStmt, got %T", result.Items[0]) }
+				if !ok {
+					t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
+				}
 				tt.check(t, stmt)
 			})
 		}
@@ -15055,8 +15011,8 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 
 	t.Run("alter_login_structured_options", func(t *testing.T) {
 		tests := []struct {
-			name string
-			sql  string
+			name  string
+			sql   string
 			check func(t *testing.T, stmt *ast.SecurityStmt)
 		}{
 			{
@@ -15078,7 +15034,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "ALTER LOGIN testLogin WITH PASSWORD = 'NewPass'",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "PASSWORD")
-					if opt.Value != "NewPass" { t.Errorf("password = %q", opt.Value) }
+					if opt.Value != "NewPass" {
+						t.Errorf("password = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -15086,8 +15044,12 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "ALTER LOGIN testLogin WITH PASSWORD = 'NewPass' OLD_PASSWORD = 'OldPass'",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "PASSWORD")
-					if opt.Value != "NewPass" { t.Errorf("password = %q", opt.Value) }
-					if opt.OldPassword != "OldPass" { t.Errorf("old_password = %q", opt.OldPassword) }
+					if opt.Value != "NewPass" {
+						t.Errorf("password = %q", opt.Value)
+					}
+					if opt.OldPassword != "OldPass" {
+						t.Errorf("old_password = %q", opt.OldPassword)
+					}
 				},
 			},
 			{
@@ -15095,7 +15057,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "ALTER LOGIN testLogin WITH DEFAULT_DATABASE = newdb",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "DEFAULT_DATABASE")
-					if opt.Value != "newdb" { t.Errorf("default_database = %q", opt.Value) }
+					if opt.Value != "newdb" {
+						t.Errorf("default_database = %q", opt.Value)
+					}
 				},
 			},
 		}
@@ -15103,7 +15067,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				result := ParseAndCheck(t, tt.sql)
 				stmt, ok := result.Items[0].(*ast.SecurityStmt)
-				if !ok { t.Fatalf("expected *SecurityStmt, got %T", result.Items[0]) }
+				if !ok {
+					t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
+				}
 				tt.check(t, stmt)
 			})
 		}
@@ -15111,8 +15077,8 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 
 	t.Run("create_app_role_structured_options", func(t *testing.T) {
 		tests := []struct {
-			name string
-			sql  string
+			name  string
+			sql   string
 			check func(t *testing.T, stmt *ast.SecurityStmt)
 		}{
 			{
@@ -15120,7 +15086,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "CREATE APPLICATION ROLE myAppRole WITH PASSWORD = 'AppPass123'",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "PASSWORD")
-					if opt.Value != "AppPass123" { t.Errorf("password = %q", opt.Value) }
+					if opt.Value != "AppPass123" {
+						t.Errorf("password = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -15129,7 +15097,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					findSecOpt(t, stmt, "PASSWORD")
 					opt := findSecOpt(t, stmt, "DEFAULT_SCHEMA")
-					if opt.Value != "dbo" { t.Errorf("default_schema = %q", opt.Value) }
+					if opt.Value != "dbo" {
+						t.Errorf("default_schema = %q", opt.Value)
+					}
 				},
 			},
 			{
@@ -15137,7 +15107,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 				sql:  "ALTER APPLICATION ROLE myAppRole WITH NAME = newAppRole",
 				check: func(t *testing.T, stmt *ast.SecurityStmt) {
 					opt := findSecOpt(t, stmt, "NAME")
-					if opt.Value != "newAppRole" { t.Errorf("name = %q", opt.Value) }
+					if opt.Value != "newAppRole" {
+						t.Errorf("name = %q", opt.Value)
+					}
 				},
 			},
 		}
@@ -15145,7 +15117,9 @@ func TestParseSecurityPrincipalOptionsDepth(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				result := ParseAndCheck(t, tt.sql)
 				stmt, ok := result.Items[0].(*ast.SecurityStmt)
-				if !ok { t.Fatalf("expected *SecurityStmt, got %T", result.Items[0]) }
+				if !ok {
+					t.Fatalf("expected *SecurityStmt, got %T", result.Items[0])
+				}
 				tt.check(t, stmt)
 			})
 		}
@@ -15172,9 +15146,9 @@ func findSecOpt(t *testing.T, stmt *ast.SecurityStmt, name string) *ast.Security
 func TestParseDbccWithOptionsDepth(t *testing.T) {
 	t.Run("dbcc_with_options_structured", func(t *testing.T) {
 		tests := []struct {
-			name     string
-			sql      string
-			wantOpts int
+			name      string
+			sql       string
+			wantOpts  int
 			wantNames []string
 		}{
 			{
@@ -16501,9 +16475,9 @@ func TestParseEndpointOptionsStringsDepth(t *testing.T) {
 				"sb_auth_encryption_forwarding_combined",
 				"CREATE ENDPOINT ep1 AS TCP (LISTENER_PORT = 4022) FOR SERVICE_BROKER (AUTHENTICATION = WINDOWS, ENCRYPTION = REQUIRED ALGORITHM AES, MESSAGE_FORWARDING = DISABLED, MESSAGE_FORWARD_SIZE = 5)",
 				map[string]string{
-					"AUTHENTICATION":      "WINDOWS",
-					"ENCRYPTION":          "REQUIRED ALGORITHM AES",
-					"MESSAGE_FORWARDING":  "DISABLED",
+					"AUTHENTICATION":       "WINDOWS",
+					"ENCRYPTION":           "REQUIRED ALGORITHM AES",
+					"MESSAGE_FORWARDING":   "DISABLED",
 					"MESSAGE_FORWARD_SIZE": "5",
 				},
 			},

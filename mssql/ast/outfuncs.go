@@ -198,6 +198,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeFullTextTableRef(sb, n)
 	case *SemanticTableRef:
 		writeSemanticTableRef(sb, n)
+	case *PredictTableRef:
+		writePredictTableRef(sb, n)
 	case *CastExpr:
 		writeCastExpr(sb, n)
 	case *ConvertExpr:
@@ -482,8 +484,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateTableAsSelectStmt(sb, n)
 	case *CreateRemoteTableAsSelectStmt:
 		writeCreateRemoteTableAsSelectStmt(sb, n)
-	case *PredictStmt:
-		writePredictStmt(sb, n)
 	case *QueryHint:
 		writeQueryHint(sb, n)
 	case *OptimizeForParam:
@@ -2698,6 +2698,10 @@ func writeRowsetColumnDef(sb *strings.Builder, n *RowsetColumnDef) {
 	if n.AsJSON {
 		sb.WriteString(" :asJSON true")
 	}
+	if n.Nullable != nil {
+		sb.WriteString(" :nullable ")
+		writeNode(sb, n.Nullable)
+	}
 	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
@@ -4533,8 +4537,8 @@ func writeCreateRemoteTableAsSelectStmt(sb *strings.Builder, n *CreateRemoteTabl
 	sb.WriteString("}")
 }
 
-func writePredictStmt(sb *strings.Builder, n *PredictStmt) {
-	sb.WriteString("{PREDICT")
+func writePredictTableRef(sb *strings.Builder, n *PredictTableRef) {
+	sb.WriteString("{PREDICT-TABLE")
 	if n.Model != nil {
 		sb.WriteString(" :model ")
 		writeNode(sb, n.Model)
@@ -4543,18 +4547,17 @@ func writePredictStmt(sb *strings.Builder, n *PredictStmt) {
 		sb.WriteString(" :data ")
 		writeNode(sb, n.Data)
 	}
-	if n.DataAlias != "" {
-		fmt.Fprintf(sb, " :dataAlias \"%s\"", escapeString(n.DataAlias))
-	}
 	if n.Runtime != "" {
 		fmt.Fprintf(sb, " :runtime \"%s\"", escapeString(n.Runtime))
 	}
-	if n.WithColumns != nil && len(n.WithColumns.Items) > 0 {
-		sb.WriteString(" :withColumns ")
-		writeNode(sb, n.WithColumns)
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
 	}
-	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
-	sb.WriteString("}")
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias \"%s\"", escapeString(n.Alias))
+	}
+	fmt.Fprintf(sb, " :loc %d %d}", n.Loc.Start, n.Loc.End)
 }
 
 func writeQueryHint(sb *strings.Builder, n *QueryHint) {

@@ -1140,6 +1140,11 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		return p.parseVariableTableSource()
 	}
 
+	// PREDICT ( MODEL = ..., DATA = ... ) WITH ( ... ) [ [AS] alias ]
+	if p.predictAhead() {
+		return p.parsePredictTableRef()
+	}
+
 	// Table reference
 	ref, err := p.parseTableRef()
 	if err != nil {

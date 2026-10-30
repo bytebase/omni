@@ -40,8 +40,16 @@ Only the fields we currently diff on:
 - **select list**: SelectScalar (alias + expr_kind), SelectStar, SelectSetVariable
 - **FROM table references**: NamedTableReference, QueryDerivedTable,
   InlineDerivedTable, SchemaObjectFunctionTableReference, OpenJsonTableReference,
-  VariableMethodCallTableReference, QualifiedJoin / UnqualifiedJoin
-- **alias** + **columns[]** (plain name list) + **with_cols[{name,type}]** (WITH-clause)
+  PredictTableReference, VariableMethodCallTableReference, QualifiedJoin /
+  UnqualifiedJoin
+- **alias** + **columns[]** (plain name list) + **with_cols[{name,type}]** (WITH-clause
+  of OPENJSON and PREDICT)
+- **exprs[]** (top level, beside `shape`): when the first statement is a
+  SELECT query specification, the operator shape of each select item, such
+  as `(+ # (collate # Latin1_General_CI_AS))` for `'a' + 'b' COLLATE
+  Latin1_General_CI_AS`: binary and unary operators, AT TIME ZONE (`atz`),
+  parentheses, and where ScriptDOM keeps a collation, with any other operand
+  as `#`
 
 Extend `Program.cs::Shape.OfTableRef` / `OfSelectElement` as new scenarios
 require additional fields.
