@@ -112,10 +112,19 @@ var walkCases = []walkCase{
 		"CREATE TABLE other.ot (a NUMBER)",
 		"CREATE PUBLIC SYNONYM nokey FOR other.ot",
 	}, change: "DROP TABLE nokey;\nINSERT INTO nokey VALUES (1);", complete: true},
-	{name: "public synonyms the change makes", setup: []string{"CREATE TABLE other.ot (a NUMBER)"}, change: "CREATE PUBLIC SYNONYM pub_ot FOR other.ot;\nDROP PUBLIC SYNONYM pub_ot;\nINSERT INTO pub_ot VALUES (1);\nCREATE PUBLIC SYNONYM pub_ot FOR other.ot;\nINSERT INTO pub_ot VALUES (1);", complete: true},
+	{name: "public synonyms the change drops and makes", setup: []string{
+		"CREATE TABLE other.ot (a NUMBER)",
+		"CREATE PUBLIC SYNONYM pub_ot FOR other.ot",
+	}, change: "DROP PUBLIC SYNONYM pub_ot;\nINSERT INTO pub_ot VALUES (1);\nCREATE PUBLIC SYNONYM pub_ot FOR other.ot;\nINSERT INTO pub_ot VALUES (1);", complete: true},
+	// A synonym whose object is gone is left out of the sync, and the change
+	// may make its object.
+	{name: "a synonym whose object the change makes", setup: []string{
+		"CREATE SYNONYM s_later FOR later_t",
+		"CREATE PUBLIC SYNONYM pub_later FOR other.later_t",
+	}, change: "CREATE TABLE later_t (a NUMBER);\nINSERT INTO s_later VALUES (1);\nCREATE TABLE other.later_t (a NUMBER);\nINSERT INTO pub_later VALUES (1);", complete: true},
 	// Oracle Free has a public synonym SYN, so these name their own.
 	{name: "private synonyms the change makes", setup: []string{"CREATE SYNONYM shop_syn FOR t"}, change: "DROP SYNONYM shop_syn;\nINSERT INTO shop_syn (id, code) VALUES (5, 'x');\nCREATE SYNONYM shop_syn FOR nokey;\nINSERT INTO shop_syn VALUES (1);", complete: true},
-	{name: "a renamed synonym", asShop: true, setup: []string{"CREATE SYNONYM shop_syn FOR t"}, change: "RENAME shop_syn TO shop_syn2;\nINSERT INTO shop_syn (id, code) VALUES (5, 'x');\nINSERT INTO shop_syn2 (id, code) VALUES (5, 'x');", complete: true},
+	{name: "a renamed synonym", asShop: true, setup: []string{"CREATE SYNONYM shop_syn FOR t"}, change: "RENAME shop_syn TO shop_syn2;\nINSERT INTO shop.shop_syn (id, code) VALUES (5, 'x');\nINSERT INTO shop_syn2 (id, code) VALUES (5, 'x');", complete: true},
 	// The session.
 	{name: "CURRENT_SCHEMA", setup: []string{"CREATE TABLE other.t (a NUMBER)"}, change: "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);\nCREATE TABLE shop.t (a NUMBER);\nALTER SESSION SET CURRENT_SCHEMA = shop;\nCREATE TABLE t (a NUMBER);\nCREATE TABLE other.x (a NUMBER);", complete: true},
 	// DML, which may run code that changes a schema.

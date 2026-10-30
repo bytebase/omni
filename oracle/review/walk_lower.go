@@ -65,7 +65,10 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.SelectStmt:
 		b.Last = b.callsUserCode(n)
 		return true
-	case *ast.CommentStmt, *ast.GrantStmt, *ast.RevokeStmt, *ast.LockTableStmt, *ast.AnalyzeStmt,
+	case *ast.GrantStmt:
+		b.mayRestoreSynonyms()
+		return true
+	case *ast.CommentStmt, *ast.RevokeStmt, *ast.LockTableStmt, *ast.AnalyzeStmt,
 		*ast.ExplainPlanStmt, *ast.PurgeStmt, *ast.AuditStmt, *ast.NoauditStmt, *ast.CommitStmt,
 		*ast.RollbackStmt, *ast.SavepointStmt, *ast.SetTransactionStmt, *ast.SetConstraintsStmt:
 		// None changes a name the walk keeps: DDL commits as it runs, so a
@@ -485,6 +488,7 @@ func (b *builder) publicSynonymNamed(name *ast.ObjectName, f walk.Fact) bool {
 	}
 	kind := ""
 	if f == walk.Present {
+		b.mayRestoreSynonyms()
 		kind = kindSynonym
 	}
 	b.Set(publicKey(name.Name), f, kind)
@@ -887,6 +891,7 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 	switch {
 	case f != walk.Present || kind == "":
 		// An object of a kind the walk does not know.
+		b.mayRestoreSynonyms()
 		b.leaveObject(from)
 		b.forgetObject(to)
 		b.Set(to.key(spaceObject), walk.Present, "")
@@ -896,8 +901,10 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 		b.Last = b.domain(from)
 		b.moveTable(from, to)
 	default:
-		b.leaveObject(from)
+		// to arrives first: its arrival weakens every synonym's absence,
+		// and from's, which it certainly lacks, is set after.
 		b.arriveObject(to, kind)
+		b.leaveObject(from)
 		b.dropOwned(from)
 	}
 	return true
@@ -907,8 +914,8 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 // indexes, constraint names, and triggers keep their names, of a kind the
 // walk no longer has (spec §5).
 func (b *builder) moveTable(from, to objRef) {
-	b.leaveObject(from)
 	b.arriveObject(to, kindTable)
+	b.leaveObject(from)
 	b.Move(from.path(), to.path())
 	b.dropOwned(from)
 }

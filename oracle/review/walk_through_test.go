@@ -344,6 +344,18 @@ func TestWalkThroughOracleDMLTargets(t *testing.T) {
 	noFinding(t, "CREATE PUBLIC SYNONYM ps FOR t;\nINSERT INTO ps (id) VALUES (1);", shop)
 	oneFinding(t, "DROP PUBLIC SYNONYM pubt;\nINSERT INTO pubt VALUES (1, 1);", 1, "Table or view PUBT does not exist", shop)
 	noFinding(t, "DROP TABLE nokey;\nCREATE PUBLIC SYNONYM nokey FOR p;\nINSERT INTO nokey (id) VALUES (1);", shop)
+	// The sync leaves out a synonym whose object is gone or out of reach,
+	// which a later object or grant may restore: after one, no synonym's
+	// absence is trusted, but a name the change itself frees.
+	noFinding(t, "CREATE TABLE nosuch2 (a NUMBER);\nINSERT INTO s_gone VALUES (1);", shop)
+	noFinding(t, "CREATE VIEW v2 AS SELECT 1 a FROM dual;\nINSERT INTO s_gone VALUES (1);", shop)
+	noFinding(t, "CREATE SYNONYM s2 FOR t;\nINSERT INTO s_gone VALUES (1);", shop)
+	noFinding(t, "CREATE PUBLIC SYNONYM ps FOR t;\nINSERT INTO s_gone VALUES (1);", shop)
+	noFinding(t, "GRANT SELECT ON t TO PUBLIC;\nINSERT INTO s_gone VALUES (1);", shop)
+	noFinding(t, "RENAME nokey TO nokey2;\nINSERT INTO s_gone VALUES (1);", shop)
+	noFinding(t, "ALTER TABLE nokey RENAME TO nokey2;\nINSERT INTO s_gone VALUES (1);", shop)
+	oneFinding(t, "RENAME syn TO syn2;\nINSERT INTO shop.syn (id) VALUES (1);", 1, "Table or view SHOP.SYN does not exist", shop)
+	oneFinding(t, "CREATE INDEX i ON nokey (a);\nINSERT INTO s_gone VALUES (1);", 1, "Table or view S_GONE does not exist", shop)
 	// An object of another kind refuses DML with an error of its own.
 	oneFinding(t, "DELETE FROM sq;", 0, "A sequence is not allowed here: SQ", shop)
 	oneFinding(t, "INSERT INTO pkg VALUES (1);", 0, "A procedure, function, package, or type is not allowed here: PKG", shop)
