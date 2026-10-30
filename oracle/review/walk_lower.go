@@ -34,8 +34,7 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.alterSequence(v)
 	case *ast.CreateSynonymStmt:
 		if v.Public {
-			// The walk never relies on a public synonym's absence.
-			return true
+			return b.publicSynonymNamed(v.Name, walk.Present)
 		}
 		return b.createObject(v.Name, kindSynonym, false, v.OrReplace)
 	case *ast.CreateTypeStmt:
@@ -401,7 +400,7 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		return true
 	case ast.OBJECT_SYNONYM:
 		if b.publicSynonym(v.Loc) {
-			return true
+			return b.publicSynonymNamed(name, walk.Absent)
 		}
 	}
 	r, ok := b.ref(name)
@@ -476,6 +475,20 @@ func (b *builder) publicSynonym(loc ast.Loc) bool {
 		}
 	}
 	return false
+}
+
+// publicSynonymNamed records what CREATE or DROP PUBLIC SYNONYM leaves of
+// the synonym, which the walk claims nothing about.
+func (b *builder) publicSynonymNamed(name *ast.ObjectName, f walk.Fact) bool {
+	if name == nil || name.Name == "" || name.Schema != "" || name.DBLink != "" {
+		return false
+	}
+	kind := ""
+	if f == walk.Present {
+		kind = kindSynonym
+	}
+	b.Set(publicKey(name.Name), f, kind)
+	return true
 }
 
 // exists adds the check that a DROP's or ALTER's object exists, of one of
@@ -945,11 +958,11 @@ func (b *builder) alterSession(v *ast.AlterSessionStmt) bool {
 	return true
 }
 
-// dml follows INSERT, UPDATE, DELETE, and MERGE, which name no object the
-// walk checks: a target follows synonyms. One that may run code that
-// changes a schema ends the walk after its checks (spec §6): it may fire a
-// trigger, when the snapshot or the change has one, or a target is not a
-// table the walk knows in its schema, which a public synonym may make a
+// dml follows INSERT, UPDATE, DELETE, and MERGE: each target must name
+// something the statement can write (missingTarget). One that may run code
+// that changes a schema ends the walk after its checks (spec §6): it may
+// fire a trigger, when the snapshot or the change has one, or a target is
+// not a table the walk knows in its schema, which a synonym may make a
 // table of another schema; or it may call a function of a schema.
 func (b *builder) dml(n ast.Node) bool {
 	targets, ok := dmlTargets(n)
@@ -959,12 +972,52 @@ func (b *builder) dml(n ast.Node) bool {
 		if !ok {
 			return false
 		}
+		b.missingTarget(t, r)
 		if f, kind := b.look(r.key(spaceTable)); f != walk.Present || kind != kindTable || b.domain(r) {
 			fires = true
 		}
 	}
 	b.Last = fires || b.callsUserCode(n)
 	return true
+}
+
+// missingTarget adds the check that a DML target names something the
+// statement can write. Oracle looks an unqualified name up in the current
+// schema, private synonyms included, and then among the public synonyms,
+// and a qualified one in its schema alone (verified). A name of a
+// sequence, routine, or type is refused (02201, 04044); a name nothing
+// holds, as the tables, views, and synonyms show, fails with 00942. A
+// type or another object the sync does not list fails all the same, with
+// an error of its own (04044, 11563, 42429, verified).
+func (b *builder) missingTarget(t *ast.ObjectName, r objRef) {
+	if generated(spaceTable, r.name) {
+		return
+	}
+	ok := r.key(spaceObject)
+	if f, kind := b.look(ok); f == walk.Present {
+		msg := ""
+		switch kind {
+		case kindSequence:
+			msg = "A sequence is not allowed here: " + r.written
+		case kindType, kindProcedure, kindFunction, kindPackage:
+			msg = "A procedure, function, package, or type is not allowed here: " + r.written
+		}
+		if msg != "" {
+			b.need(ok, walk.Present, []string{kindTable, kindMView, kindView, kindSynonym}, r.rng, missingTable(r.written), msg)
+		}
+		return
+	}
+	keys := []walk.Key{r.key(spaceTable), r.key(spaceView), r.key(spaceSynonym)}
+	if t.Schema == "" {
+		keys = append(keys, publicKey(r.name))
+	}
+	for _, k := range keys {
+		if f, _ := b.look(k); f != walk.Absent {
+			return
+		}
+	}
+	msg := missingTable(r.written)
+	b.Fail(keys, walk.Absent, &walkNote{rng: r.rng, absent: msg, present: msg})
 }
 
 // dmlTargets lists the tables a DML statement writes, false when one is

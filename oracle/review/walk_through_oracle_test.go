@@ -52,7 +52,7 @@ type walkCase struct {
 
 var walkCases = []walkCase{
 	// Names a CREATE takes, in the shared object namespace.
-	{name: "the object namespace", change: "CREATE TABLE t (a NUMBER);\nCREATE TABLE pv (a NUMBER);\nCREATE TABLE mv (a NUMBER);\nCREATE SEQUENCE f;\nCREATE VIEW sq AS SELECT 1 a FROM dual;\nCREATE SYNONYM pkg FOR t;\nCREATE TYPE pr AS OBJECT (a NUMBER);\n/\nCREATE OR REPLACE PROCEDURE f AS BEGIN NULL; END;\n/\nCREATE OR REPLACE VIEW t AS SELECT 1 a FROM dual;\nCREATE OR REPLACE SYNONYM pv FOR t;\nCREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);\nCREATE INDEX t ON nokey (a);\nCREATE TRIGGER t BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;", complete: true},
+	{name: "the object namespace", change: "CREATE TABLE t (a NUMBER);\nCREATE TABLE syn (a NUMBER);\nCREATE TABLE pv (a NUMBER);\nCREATE TABLE mv (a NUMBER);\nCREATE SEQUENCE f;\nCREATE VIEW sq AS SELECT 1 a FROM dual;\nCREATE SYNONYM pkg FOR t;\nCREATE TYPE pr AS OBJECT (a NUMBER);\n/\nCREATE OR REPLACE PROCEDURE f AS BEGIN NULL; END;\n/\nCREATE OR REPLACE VIEW t AS SELECT 1 a FROM dual;\nCREATE OR REPLACE SYNONYM pv FOR t;\nCREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);\nCREATE INDEX t ON nokey (a);\nCREATE TRIGGER t BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;", complete: true},
 	{name: "OR REPLACE of its own kind", change: "CREATE OR REPLACE VIEW pv AS SELECT 1 a FROM dual;\nCREATE OR REPLACE FUNCTION f RETURN NUMBER AS BEGIN RETURN 2; END;\n/\nCREATE OR REPLACE SYNONYM syn FOR p;\nCREATE OR REPLACE PACKAGE pkg AS y NUMBER; END;\n/\nCREATE OR REPLACE TYPE ty2 AS OBJECT (a NUMBER);\n/\nCREATE OR REPLACE TYPE ty2 AS OBJECT (b NUMBER);", complete: true},
 	{name: "IF NOT EXISTS", change: "CREATE TABLE IF NOT EXISTS t (a NUMBER);\nCREATE TABLE IF NOT EXISTS pv (a NUMBER);\nCREATE TABLE IF NOT EXISTS t (a NUMBER, b NUMBER CONSTRAINT ck_n CHECK (b > 0));\nCREATE TABLE IF NOT EXISTS t (a NUMBER, a NUMBER);\nCREATE SEQUENCE IF NOT EXISTS sq;\nCREATE INDEX IF NOT EXISTS ix_n ON nokey (a);\nCREATE INDEX IF NOT EXISTS ix_n ON pv (id);\nCREATE TABLE IF NOT EXISTS x (a NUMBER);\nCREATE TABLE x (a NUMBER);", complete: true},
 	{name: "a new table's text", change: "CREATE TABLE x (a NUMBER, a NUMBER);\nCREATE TABLE x (a NUMBER CONSTRAINT c1 CHECK (a > 0), b NUMBER CONSTRAINT c1 NOT NULL);\nCREATE TABLE x (a NUMBER PRIMARY KEY, b NUMBER, PRIMARY KEY (b));\nCREATE TABLE x (a NUMBER CONSTRAINT ck_n CHECK (a > 0));\nCREATE TABLE x (a NUMBER CONSTRAINT nn_code NOT NULL);\nCREATE TABLE x (a NUMBER, CONSTRAINT fk_p FOREIGN KEY (a) REFERENCES p (id));", complete: true},
@@ -97,7 +97,25 @@ var walkCases = []walkCase{
 	// What the walk leaves Unknown by design (spec §3, §7): names the sync
 	// does not list, the targets of statements that follow synonyms, and
 	// constraints a table may have that the sync does not show.
-	{name: "unknown by design", setup: []string{"CREATE TABLE other.t (a NUMBER)"}, change: "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE t (a NUMBER);\nALTER SESSION SET CURRENT_SCHEMA = shop;\nCREATE TABLE syn (a NUMBER);\nCREATE TABLE ty (a NUMBER);\nALTER TABLE t DROP CONSTRAINT ck_n DROP CONSTRAINT nosuch;\nCREATE INDEX i ON nosuch (a);\nCREATE INDEX i ON syn (n);\nRENAME nosuch TO x;\nRENAME ty TO g;\nCOMMENT ON COLUMN t.nosuch IS 'x';\nINSERT INTO nosuch VALUES (1);\nGRANT SELECT ON nosuch TO PUBLIC;\nDROP INDEX pk_t;"},
+	{name: "unknown by design", setup: []string{"CREATE TABLE other.t (a NUMBER)"}, change: "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE t (a NUMBER);\nALTER SESSION SET CURRENT_SCHEMA = shop;\nCREATE TABLE ty (a NUMBER);\nALTER TABLE t DROP CONSTRAINT ck_n DROP CONSTRAINT nosuch;\nCREATE INDEX i ON nosuch (a);\nCREATE INDEX i ON syn (n);\nRENAME nosuch TO x;\nRENAME ty TO g;\nCOMMENT ON COLUMN t.nosuch IS 'x';\nGRANT SELECT ON nosuch TO PUBLIC;\nDROP INDEX pk_t;"},
+	// DML targets: the current schema's objects, private synonyms included,
+	// then the public synonyms for an unqualified name (spec §4). A synonym
+	// whose object is gone fails with 00980, and a type with 04044; the
+	// claims hold all the same.
+	{name: "DML targets that name nothing", setup: []string{
+		"CREATE TABLE other.ot (a NUMBER)",
+		"CREATE SYNONYM s_other FOR other.ot",
+		"CREATE SYNONYM s_gone FOR nosuch",
+	}, change: "INSERT INTO nosuch VALUES (1);\nUPDATE shop.nosuch SET a = 1;\nINSERT INTO shop.pubt (id, a) VALUES (1, 1);\nDELETE FROM s_gone;\nDELETE FROM sq;\nINSERT INTO pr VALUES (1);\nINSERT INTO ty VALUES (1, 1);\nMERGE INTO nosuch k USING p ON (k.a = p.id) WHEN MATCHED THEN UPDATE SET k.a = 1;\nINSERT ALL INTO nokey VALUES (1) INTO nosuch VALUES (1) SELECT 1 FROM dual;\nDROP TABLE nokey;\nINSERT INTO nokey VALUES (1);\nINSERT INTO s_other VALUES (1);", complete: true},
+	{name: "DML through a public synonym", change: "INSERT INTO pubt (id, a) VALUES (1, 1);\nINSERT INTO \"PUBLIC\".pubt (id, a) VALUES (2, 2);", complete: true},
+	{name: "a public synonym of a dropped table's name", setup: []string{
+		"CREATE TABLE other.ot (a NUMBER)",
+		"CREATE PUBLIC SYNONYM nokey FOR other.ot",
+	}, change: "DROP TABLE nokey;\nINSERT INTO nokey VALUES (1);", complete: true},
+	{name: "public synonyms the change makes", setup: []string{"CREATE TABLE other.ot (a NUMBER)"}, change: "CREATE PUBLIC SYNONYM pub_ot FOR other.ot;\nDROP PUBLIC SYNONYM pub_ot;\nINSERT INTO pub_ot VALUES (1);\nCREATE PUBLIC SYNONYM pub_ot FOR other.ot;\nINSERT INTO pub_ot VALUES (1);", complete: true},
+	// Oracle Free has a public synonym SYN, so these name their own.
+	{name: "private synonyms the change makes", setup: []string{"CREATE SYNONYM shop_syn FOR t"}, change: "DROP SYNONYM shop_syn;\nINSERT INTO shop_syn (id, code) VALUES (5, 'x');\nCREATE SYNONYM shop_syn FOR nokey;\nINSERT INTO shop_syn VALUES (1);", complete: true},
+	{name: "a renamed synonym", asShop: true, setup: []string{"CREATE SYNONYM shop_syn FOR t"}, change: "RENAME shop_syn TO shop_syn2;\nINSERT INTO shop_syn (id, code) VALUES (5, 'x');\nINSERT INTO shop_syn2 (id, code) VALUES (5, 'x');", complete: true},
 	// The session.
 	{name: "CURRENT_SCHEMA", setup: []string{"CREATE TABLE other.t (a NUMBER)"}, change: "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);\nCREATE TABLE shop.t (a NUMBER);\nALTER SESSION SET CURRENT_SCHEMA = shop;\nCREATE TABLE t (a NUMBER);\nCREATE TABLE other.x (a NUMBER);", complete: true},
 	// DML, which may run code that changes a schema.
@@ -181,16 +199,20 @@ func (w *walkSchemas) exec(t testing.TB, conn *sql.Conn, q string) {
 }
 
 // resetWalk recreates the users shop and other, and shop's objects from
-// base, made by an administrator whose CURRENT_SCHEMA is shop. It returns
-// that administrator's session, as Bytebase opens it for the change, and
-// one as shop.
+// base, made by an administrator whose CURRENT_SCHEMA is shop. It drops
+// the public synonyms for their objects first, which a case may make and
+// which outlive the users. It returns that administrator's session, as
+// Bytebase opens it for the change, and one as shop.
 func resetWalk(t testing.TB, admin *sql.DB, shop, other string, base []string) *walkSchemas {
 	t.Helper()
 	ctx, cancel := walkContext()
 	defer cancel()
 	for _, q := range []string{
 		fmt.Sprintf(`BEGIN
-  FOR u IN (SELECT username FROM dba_users WHERE username IN ('%s', '%s')) LOOP
+  FOR s IN (SELECT synonym_name FROM dba_synonyms WHERE owner = 'PUBLIC' AND table_owner IN ('%[1]s', '%[2]s')) LOOP
+    EXECUTE IMMEDIATE 'DROP PUBLIC SYNONYM "' || s.synonym_name || '"';
+  END LOOP;
+  FOR u IN (SELECT username FROM dba_users WHERE username IN ('%[1]s', '%[2]s')) LOOP
     EXECUTE IMMEDIATE 'DROP USER ' || u.username || ' CASCADE';
   END LOOP;
 END;`, shop, other),
@@ -462,6 +484,10 @@ func (e *oracleEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 	case spaceSequence:
 		ok, _ := first(rows(`SELECT sequence_name, 'SEQUENCE' FROM dba_sequences WHERE sequence_owner = :1 AND sequence_name = :2`, owner, k.Name))
 		return ok, kindSequence
+	case spaceSynonym:
+		// The synonyms a name resolves through, as the sync reads them.
+		ok, _ := first(rows(`SELECT synonym_name, 'SYNONYM' FROM all_synonyms WHERE owner = :1 AND synonym_name = :2`, owner, k.Name))
+		return ok, kindSynonym
 	case spaceColumn:
 		return first(rows(`SELECT column_name, '' FROM dba_tab_cols WHERE owner = :1 AND table_name = :2 AND column_name = :3`, owner, path[1], k.Name))
 	case spacePrimary:
@@ -536,16 +562,19 @@ ORDER BY 1`
 // SYS_C; the indexes of the schema's tables and materialized views that
 // back no constraint of their name, are not named SYS_, and hold a column
 // the user made; the triggers of the schema on its own tables and views;
-// and its views, materialized views, sequences but identity ones, and
-// functions, procedures, and packages.
+// its views, materialized views, sequences but identity ones, and
+// functions, procedures, and packages; and its synonyms and the public
+// ones.
 //
 // Bytebase reads the ALL_ views; to SYSTEM they show the schema's rows as
 // the DBA_ views do, but their privilege checks cost seconds of hard parse
 // per sync, and the sync runs once per case and per sweep base. For the
 // same reason the materialized views are read first and their containers
-// left out here, not by a subquery on them in the tables' query.
+// left out here, not by a subquery on them in the tables' query. The
+// synonyms are the exception: ALL_SYNONYMS leaves out a synonym whose
+// object is gone, even to SYSTEM, where DBA_SYNONYMS lists it (verified).
 //
-// bytebase: backend/plugin/db/oracle/sync.go — getTables, getTableColumns, getConstraints, getIndexesAndConstraints, getTriggers, getViews, getMaterializedViews, getSequences, getRoutines
+// bytebase: backend/plugin/db/oracle/sync.go — getTables, getTableColumns, getConstraints, getIndexesAndConstraints, getTriggers, getViews, getMaterializedViews, getSequences, getRoutines, getSynonyms
 func walkSync(t testing.TB, conn *sql.Conn, schema string) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	ctx, cancel := walkContext()
@@ -664,7 +693,15 @@ UNION ALL SELECT table_name, 1 FROM dba_object_tables WHERE owner = :1`, func(v 
 			s.Packages = append(s.Packages, &metadata.PackageMetadata{Name: v[0].String})
 		}
 	})
-	return &metadata.DatabaseSchemaMetadata{Name: schema, Schemas: []*metadata.SchemaMetadata{s}}
+	synonyms := func(owner string) []*metadata.SynonymMetadata {
+		var out []*metadata.SynonymMetadata
+		query(`SELECT synonym_name, table_owner, table_name, db_link FROM all_synonyms WHERE owner = `+owner+` ORDER BY synonym_name`, func(v []sql.NullString) {
+			out = append(out, &metadata.SynonymMetadata{Name: v[0].String, TargetSchema: v[1].String, TargetName: v[2].String, TargetDbLink: v[3].String})
+		})
+		return out
+	}
+	s.Synonyms = synonyms(":1")
+	return &metadata.DatabaseSchemaMetadata{Name: schema, Schemas: []*metadata.SchemaMetadata{s}, PublicSynonyms: synonyms("'PUBLIC'")}
 }
 
 // walkSweepPerBase is how many changes of the sweep run on one base.
@@ -792,7 +829,7 @@ func walkSweepChange(rng *rand.Rand, shop, other string, n int) string {
 		case 27:
 			stmt = fmt.Sprintf("RENAME %s TO %s", name(), name())
 		case 28:
-			stmt = fmt.Sprintf("INSERT INTO %s (x) VALUES (1)", tbl())
+			stmt = fmt.Sprintf(pick("INSERT INTO %s (x) VALUES (1)", "UPDATE %s SET x = 1", "DELETE FROM %s"), tbl())
 		case 29:
 			stmt = "ALTER SESSION SET CURRENT_SCHEMA = " + strings.ToLower(pick(shop, shop, other))
 		case 30:

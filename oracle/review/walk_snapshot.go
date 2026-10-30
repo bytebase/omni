@@ -16,12 +16,15 @@ import (
 // that kind. A column, the primary key, and a constraint as DROP
 // CONSTRAINT finds it on its table are keys of the table's path; a
 // constraint name, an index, and a trigger are keys of the schema, each in
-// a namespace of its own, of the kind of the table path they are on.
+// a namespace of its own, of the kind of the table path they are on. The
+// synonym space holds the synonyms a name resolves through, private ones
+// in their schema and public ones in PUBLIC; only DML reads it (spec §3).
 const (
 	spaceObject          = "object"
 	spaceTable           = "table"
 	spaceView            = "view"
 	spaceSequence        = "sequence"
+	spaceSynonym         = "synonym"
 	spaceColumn          = "column"
 	spacePrimary         = "primary key"
 	spaceTableConstraint = "table constraint"
@@ -29,6 +32,10 @@ const (
 	spaceIndex           = "index"
 	spaceTrigger         = "trigger"
 )
+
+// publicSchema owns the public synonyms. No user can take its name
+// (01920), so no schema of the walk is named so.
+const publicSchema = "PUBLIC"
 
 // Object kinds, as Oracle names them.
 const (
@@ -69,15 +76,20 @@ func tablePath(schema, name string) string { return walk.Path(schema, name) }
 // schema, the database the target names (spec §3). It answers Present for
 // what Bytebase's sync lists, and Absent where that sync lists every object
 // of a space: tables and materialized views, views, and sequences; the
-// columns of a table whose columns it lists in full; and whether a table
-// has a primary key. Constraint names, indexes, and triggers it lists only
-// in part, and the object namespace holds synonyms and types the sync does
-// not list, so their absence is Unknown. Anything of another schema is
-// Unknown.
+// columns of a table whose columns it lists in full; whether a table has a
+// primary key; and the synonyms a name resolves through, the schema's and
+// the public ones. Constraint names, indexes, and triggers it lists only
+// in part, and the object namespace holds types and other objects the
+// sync does not list, so their absence is Unknown. Anything of another
+// schema is Unknown.
 type oracleSnapshot struct {
 	schema  string
 	objects map[string]string
 	tables  map[string]*syncedTable
+	// synonyms and publicSynonyms hold the names of the schema's private
+	// synonyms and of the public synonyms.
+	synonyms       map[string]bool
+	publicSynonyms map[string]bool
 	// constraints, indexes, and triggers map a name to the table or view
 	// it is on. constraintIndexes holds the names of the primary and unique
 	// constraints, whose indexes may have those names, another, or none.
@@ -121,6 +133,11 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		triggers:          make(map[string]string),
 		domainTables:      make(map[string]bool),
 		domainIndexes:     make(map[string]bool),
+		synonyms:          make(map[string]bool),
+		publicSynonyms:    make(map[string]bool),
+	}
+	for _, syn := range db.GetPublicSynonyms() {
+		s.publicSynonyms[syn.GetName()] = true
 	}
 	for _, schema := range db.GetSchemas() {
 		if name := schema.GetName(); name != "" && name != s.schema {
@@ -176,6 +193,10 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 		}
 		for _, p := range schema.GetPackages() {
 			s.objects[p.GetName()] = kindPackage
+		}
+		for _, syn := range schema.GetSynonyms() {
+			s.objects[syn.GetName()] = kindSynonym
+			s.synonyms[syn.GetName()] = true
 		}
 	}
 	return s
@@ -264,10 +285,15 @@ func quotedNames(cond string) []string {
 // Lookup implements walk.Snapshot.
 func (s *oracleSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 	path := walk.Names(k.Parent)
+	if k.Space == spaceSynonym && len(path) == 1 && path[0] == publicSchema {
+		return synonymFact(s.publicSynonyms, k.Name)
+	}
 	if len(path) == 0 || path[0] != s.schema {
 		return walk.Unknown, ""
 	}
 	switch k.Space {
+	case spaceSynonym:
+		return synonymFact(s.synonyms, k.Name)
 	case spaceObject:
 		if kind, ok := s.objects[k.Name]; ok {
 			return walk.Present, kind
@@ -325,4 +351,18 @@ func (s *oracleSnapshot) Lookup(k walk.Key) (walk.Fact, string) {
 		}
 	}
 	return walk.Unknown, ""
+}
+
+// synonymFact answers the synonym space from a list of synonyms. The sync
+// leaves out a synonym whose object is gone or that the syncing user
+// cannot reach, and DML through it fails too (00980, 00942, verified), so
+// a name the list lacks resolves through no synonym.
+func synonymFact(synonyms map[string]bool, name string) (walk.Fact, string) {
+	switch {
+	case synonyms[name]:
+		return walk.Present, kindSynonym
+	case generated(spaceSynonym, name):
+		return walk.Unknown, ""
+	}
+	return walk.Absent, ""
 }

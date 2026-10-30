@@ -55,11 +55,19 @@ func walkSchema(triggers bool) *metadata.DatabaseSchemaMetadata {
 		Functions:         []*metadata.FunctionMetadata{{Name: "F"}},
 		Procedures:        []*metadata.ProcedureMetadata{{Name: "PR"}},
 		Packages:          []*metadata.PackageMetadata{{Name: "PKG"}},
+		Synonyms:          []*metadata.SynonymMetadata{{Name: "SYN", TargetSchema: "SHOP", TargetName: "T"}},
 	}
 	if triggers {
 		s.Tables = append(s.Tables, &metadata.TableMetadata{Name: "TRG", Columns: cols("A"), Triggers: []*metadata.TriggerMetadata{{Name: "TR"}}})
 	}
-	return &metadata.DatabaseSchemaMetadata{Name: "SHOP", Schemas: []*metadata.SchemaMetadata{s}}
+	return &metadata.DatabaseSchemaMetadata{
+		Name:    "SHOP",
+		Schemas: []*metadata.SchemaMetadata{s},
+		PublicSynonyms: []*metadata.SynonymMetadata{
+			{Name: "DUAL", TargetSchema: "SYS", TargetName: "DUAL"},
+			{Name: "PUBT", TargetSchema: "SYSTEM", TargetName: "PUBT"},
+		},
+	}
 }
 
 func walkFindings(t *testing.T, sql string, target review.Target) []review.Finding {
@@ -314,6 +322,36 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	noFinding(t, "CREATE TABLE t (a NUMBER);", other)
 	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);", 1, "Name X is already used by an existing object", other)
 	noFinding(t, "CREATE TABLE x (a NUMBER);\nINSERT INTO x VALUES (1);\nCREATE TABLE x (a NUMBER);", other)
+}
+
+func TestWalkThroughOracleDMLTargets(t *testing.T) {
+	shop := review.Target{Schema: walkSchema(false)}
+	// Nothing holds the name: the schema's tables, views, and synonyms, and
+	// for an unqualified name the public synonyms, show it.
+	oneFinding(t, "INSERT INTO nosuch VALUES (1);", 0, "Table or view NOSUCH does not exist", shop)
+	oneFinding(t, "UPDATE shop.nosuch SET a = 1;", 0, "Table or view SHOP.NOSUCH does not exist", shop)
+	oneFinding(t, "MERGE INTO nosuch k USING p ON (k.a = p.id) WHEN MATCHED THEN UPDATE SET k.a = 1;", 0, "Table or view NOSUCH does not exist", shop)
+	oneFinding(t, "INSERT ALL INTO nokey VALUES (1) INTO nosuch VALUES (1) SELECT 1 FROM dual;", 0, "Table or view NOSUCH does not exist", shop)
+	oneFinding(t, "DROP TABLE nokey;\nINSERT INTO nokey VALUES (1);", 1, "Table or view NOKEY does not exist", shop)
+	// A qualified name skips the public synonyms.
+	noFinding(t, "INSERT INTO pubt VALUES (1, 1);", shop)
+	oneFinding(t, "INSERT INTO shop.pubt VALUES (1, 1);", 0, "Table or view SHOP.PUBT does not exist", shop)
+	noFinding(t, "INSERT INTO \"PUBLIC\".pubt VALUES (1, 1);", shop)
+	// Synonyms, the synced ones and the change's own.
+	noFinding(t, "INSERT INTO syn (id) VALUES (1);", shop)
+	oneFinding(t, "DROP SYNONYM syn;\nINSERT INTO syn (id) VALUES (1);", 1, "Table or view SYN does not exist", shop)
+	noFinding(t, "CREATE SYNONYM s2 FOR t;\nINSERT INTO s2 (id) VALUES (1);", shop)
+	noFinding(t, "CREATE PUBLIC SYNONYM ps FOR t;\nINSERT INTO ps (id) VALUES (1);", shop)
+	oneFinding(t, "DROP PUBLIC SYNONYM pubt;\nINSERT INTO pubt VALUES (1, 1);", 1, "Table or view PUBT does not exist", shop)
+	noFinding(t, "DROP TABLE nokey;\nCREATE PUBLIC SYNONYM nokey FOR p;\nINSERT INTO nokey (id) VALUES (1);", shop)
+	// An object of another kind refuses DML with an error of its own.
+	oneFinding(t, "DELETE FROM sq;", 0, "A sequence is not allowed here: SQ", shop)
+	oneFinding(t, "INSERT INTO pkg VALUES (1);", 0, "A procedure, function, package, or type is not allowed here: PKG", shop)
+	noFinding(t, "INSERT INTO pv VALUES (1, 'a');", shop)
+	// What the walk does not know.
+	noFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nINSERT INTO nosuch VALUES (1);", shop)
+	noFinding(t, "INSERT INTO other.nosuch VALUES (1);", shop)
+	noFinding(t, "INSERT INTO nosuch VALUES (1);", review.Target{Schema: walkSchema(false), OtherSpecs: true})
 }
 
 func TestWalkThroughOracleTargets(t *testing.T) {
