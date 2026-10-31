@@ -108,6 +108,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *GroupedQuery:
 		return v.Loc
+	case *IntoOutfileClause:
+		return v.Loc
 	case *CreateTableStmt:
 		return v.Loc
 	case *ColumnDef:

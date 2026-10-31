@@ -167,7 +167,33 @@ func (p *Parser) parseDropDatabase() (ast.Node, error) {
 //	PROPERTIES ("key"="value" [, "key"="value" ...])
 //
 // cur must be kwPROPERTIES on entry; it is consumed here.
+//
+// Separators are loose here: an empty list, a missing comma between items and
+// a trailing comma are all tolerated, none of which the engine accepts
+// (container-verified). Fixing that reaches every PROPERTIES in the tree, so
+// a caller whose clause is the grammar's propertyItemList asks for
+// parsePropertiesStrict instead.
 func (p *Parser) parseProperties() ([]*ast.Property, error) {
+	return p.parsePropertyList(false)
+}
+
+// parsePropertiesStrict parses the same PROPERTIES(...) as parseProperties,
+// held to the shape the grammar gives the list:
+//
+//	propertyItemList : propertyItem (COMMA propertyItem)*
+//
+// So the list carries at least one item, items are comma-separated, and it
+// does not end on a comma. The engine rejects PROPERTIES(),
+// PROPERTIES("k"="v" "k2"="v2") and PROPERTIES("k"="v",) alike — all three
+// container-verified.
+func (p *Parser) parsePropertiesStrict() ([]*ast.Property, error) {
+	return p.parsePropertyList(true)
+}
+
+// parsePropertyList is the shared body behind both. strictSeparators selects
+// whether the propertyItemList shape above is enforced.
+func (p *Parser) parsePropertyList(strictSeparators bool) ([]*ast.Property, error) {
+	openTok := p.cur
 	p.advance() // consume PROPERTIES
 
 	if _, err := p.expect(int('(')); err != nil {
@@ -207,10 +233,24 @@ func (p *Parser) parseProperties() ([]*ast.Property, error) {
 			Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
 		})
 
-		// Optional comma separator
+		// Separator between items.
 		if p.cur.Kind == int(',') {
 			p.advance()
+			if strictSeparators && p.cur.Kind == int(')') {
+				// Trailing comma — the list does not end on a separator.
+				// Reported at the ')', which is where the engine reports it.
+				return nil, p.syntaxErrorAtCur()
+			}
+			continue
 		}
+		if strictSeparators && p.cur.Kind != int(')') {
+			// Two items with nothing between them.
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
+	if strictSeparators && len(props) == 0 {
+		return nil, syntaxErrorAt(openTok)
 	}
 
 	if _, err := p.expect(int(')')); err != nil {
