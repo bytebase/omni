@@ -419,6 +419,11 @@ func showIndex(idx *Index) string {
 		b.WriteString(" /*!80000 INVISIBLE */")
 	}
 
+	// OceanBase prints the index scope last, after the other options.
+	if idx.Scope != "" {
+		b.WriteString(" " + strings.ToUpper(idx.Scope))
+	}
+
 	return b.String()
 }
 
@@ -672,7 +677,13 @@ func showPartitioning(pi *PartitionInfo) string {
 	// Partition definitions.
 	// For HASH/KEY partitions with NumParts > 0, auto-generated partition defs
 	// are rendered as "PARTITIONS N" (matching MySQL 8.0's SHOW CREATE TABLE).
-	hashKeyAutoGen := pi.NumParts > 0 && (pi.Type == "HASH" || pi.Type == "KEY")
+	// A HASH or KEY table with PARTITIONS N renders as that count alone, which cannot
+	// express subpartitions. OceanBase's SUBPARTITION TEMPLATE puts explicit ones on those
+	// generated partitions, so the count would hide them -- and canonicalPartitionSpec
+	// reads this same text, which made a template change diff empty. An unstated
+	// SUBPARTITIONS N keeps UseDefaultSubpartitions true and so keeps the short form.
+	explicitSubparts := pi.SubType != "" && !pi.UseDefaultSubpartitions
+	hashKeyAutoGen := pi.NumParts > 0 && (pi.Type == "HASH" || pi.Type == "KEY") && !explicitSubparts
 	if hashKeyAutoGen {
 		b.WriteString(fmt.Sprintf("\nPARTITIONS %d", pi.NumParts))
 	} else if len(pi.Partitions) > 0 {

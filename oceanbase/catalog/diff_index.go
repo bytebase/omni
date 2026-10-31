@@ -302,8 +302,23 @@ func canonicalIndex(idx *Index, n *Normalizer) string {
 		"comment", n.CanonicalComment(idx.Comment),
 		"visible", strconv.FormatBool(idx.Visible),
 		"kbs", canonicalIndexKeyBlockSize(idx, n),
+		"scope", canonicalIndexScope(idx),
 		"cols", strings.Join(parts, ","),
 	)
+}
+
+// canonicalIndexScope returns the index scope as a key fragment, with OceanBase's default
+// folded away. 4.3.5 prints LOCAL on every secondary index, partitioned or not, whether or
+// not the DDL asked for it, so comparing the raw value makes every table whose DDL omits a
+// scope report a spurious index MODIFY against its own readback — a bogus DROP INDEX and
+// ADD INDEX in the migration. LOCAL therefore carries no information and folds to "", the
+// same treatment IgnoreRowFormat gives an unstated ROW_FORMAT. GLOBAL is only ever present
+// because someone wrote it, so it stays and a LOCAL-to-GLOBAL change still diffs.
+func canonicalIndexScope(idx *Index) string {
+	if strings.EqualFold(strings.TrimSpace(idx.Scope), "LOCAL") {
+		return ""
+	}
+	return strings.ToUpper(strings.TrimSpace(idx.Scope))
 }
 
 // canonicalIndexType returns the index's USING type, upper-cased, but only when it is a

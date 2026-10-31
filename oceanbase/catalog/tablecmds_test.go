@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func mustExec(t *testing.T, c *Catalog, sql string) {
 	t.Helper()
@@ -302,5 +305,136 @@ func TestCreateTableWithFK(t *testing.T) {
 	}
 	if fkIdx == nil {
 		t.Fatal("FK backing index not found")
+	}
+}
+
+// TestCreateTableSubpartitionTemplate pins that OceanBase's SUBPARTITION TEMPLATE reaches
+// the catalog, for partitions the DDL names and for the ones PARTITIONS N generates. The
+// parser accepts the clause, so a conversion that ignored it would give every partition one
+// auto-generated subpartition and quietly change the layout. Both forms are accepted by
+// 5.7.25-OceanBase_CE-v4.3.5.6.
+func TestCreateTableSubpartitionTemplate(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		ddl   string
+		parts []string
+	}{
+		{
+			"explicit outer partitions",
+			`CREATE TABLE t (a INT, b INT)
+				PARTITION BY RANGE COLUMNS(a)
+				SUBPARTITION BY KEY(b)
+				SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1)
+				(PARTITION q0 VALUES LESS THAN (10), PARTITION q1 VALUES LESS THAN (20))`,
+			[]string{"q0", "q1"},
+		},
+		{
+			// HASH with PARTITIONS N names no partitions of its own, so these are
+			// generated after the template would otherwise have been applied.
+			"generated outer partitions",
+			`CREATE TABLE t (a INT, b INT)
+				PARTITION BY HASH(a) PARTITIONS 2
+				SUBPARTITION BY KEY(b)
+				SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1)`,
+			[]string{"p0", "p1"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := setupWithDB(t)
+			mustExec(t, c, tc.ddl)
+
+			tbl := c.GetDatabase("testdb").GetTable("t")
+			if tbl == nil {
+				t.Fatal("table t not found")
+			}
+			pi := tbl.Partitioning
+			if pi == nil {
+				t.Fatal("table t has no partitioning")
+			}
+			if pi.NumSubParts != 2 {
+				t.Errorf("NumSubParts = %d, want 2", pi.NumSubParts)
+			}
+			if pi.UseDefaultSubpartitions || pi.UseDefaultNumSubpartitions {
+				t.Errorf("the template is explicit, but UseDefaultSubpartitions=%v UseDefaultNumSubpartitions=%v",
+					pi.UseDefaultSubpartitions, pi.UseDefaultNumSubpartitions)
+			}
+			if len(pi.Partitions) != len(tc.parts) {
+				t.Fatalf("partitions = %d, want %d", len(pi.Partitions), len(tc.parts))
+			}
+			for i, pd := range pi.Partitions {
+				if pd.Name != tc.parts[i] {
+					t.Errorf("partition %d named %q, want %q", i, pd.Name, tc.parts[i])
+				}
+				var got []string
+				for _, sp := range pd.SubPartitions {
+					got = append(got, sp.Name)
+				}
+				if len(got) != 2 || got[0] != "s0" || got[1] != "s1" {
+					t.Errorf("partition %s subpartitions = %v, want [s0 s1]", pd.Name, got)
+				}
+			}
+		})
+	}
+}
+
+// TestCreateTableGlobalUniqueKeyPartitionCoverage pins which unique indexes must cover the
+// partitioning columns. A GLOBAL index is not partitioned with the table, so it enforces
+// uniqueness across all partitions and needs none of them; LOCAL and an unstated scope do.
+// Each expectation below is the verdict of a live 5.7.25-OceanBase_CE-v4.3.5.6.
+func TestCreateTableGlobalUniqueKeyPartitionCoverage(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		ddl        string
+		wantAccept bool
+	}{
+		{"GLOBAL excluding the partition column", "UNIQUE KEY ua (a) GLOBAL", true},
+		{"GLOBAL covering the partition column", "UNIQUE KEY ua (id, a) GLOBAL", true},
+		{"LOCAL excluding the partition column", "UNIQUE KEY ua (a) LOCAL", false},
+		{"unstated excluding the partition column", "UNIQUE KEY ua (a)", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := setupWithDB(t)
+			results, err := c.Exec("CREATE TABLE t (id INT PRIMARY KEY, a INT, "+tc.ddl+") PARTITION BY HASH(id) PARTITIONS 2", nil)
+			for _, r := range results {
+				if r.Error != nil {
+					err = r.Error
+				}
+			}
+			if gotAccept := err == nil; gotAccept != tc.wantAccept {
+				t.Errorf("accepted = %v, want %v (err: %v)", gotAccept, tc.wantAccept, err)
+			}
+		})
+	}
+}
+
+// TestCreateTableLikeKeepsIndexScope pins that CREATE TABLE LIKE carries an index scope
+// across. The copy lists index fields one by one, so a new field is silently dropped
+// unless it is added there. 5.7.25-OceanBase_CE-v4.3.5.6 preserves the scope through LIKE,
+// which is why copying it is the right behaviour and not an invention.
+func TestCreateTableLikeKeepsIndexScope(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE src (id INT, a INT, PRIMARY KEY (id), KEY ka (a) GLOBAL) PARTITION BY KEY(id) PARTITIONS 2")
+	mustExec(t, c, "CREATE TABLE dst LIKE src")
+
+	for _, name := range []string{"src", "dst"} {
+		tbl := c.GetDatabase("testdb").GetTable(name)
+		if tbl == nil {
+			t.Fatalf("table %s not found", name)
+		}
+		var idx *Index
+		for _, i := range tbl.Indexes {
+			if i.Name == "ka" {
+				idx = i
+			}
+		}
+		if idx == nil {
+			t.Fatalf("%s: index ka not found", name)
+		}
+		if idx.Scope != "GLOBAL" {
+			t.Errorf("%s: Scope = %q, want GLOBAL", name, idx.Scope)
+		}
+	}
+	if got := c.ShowCreateTable("testdb", "dst"); !strings.Contains(got, "GLOBAL") {
+		t.Errorf("the copy's SHOW CREATE TABLE dropped the scope:\n%s", got)
 	}
 }

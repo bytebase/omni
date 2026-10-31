@@ -99,6 +99,23 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	{name: "create materialized view", sql: "CREATE MATERIALIZED VIEW obprobe_mv1 REFRESH COMPLETE ON DEMAND AS SELECT a FROM obprobe_t", pending: true},
 	{name: "column group", sql: "CREATE TABLE obprobe_t3 (a INT) WITH COLUMN GROUP(all columns, each column)", pending: true},
 	{name: "alter system major freeze", sql: "ALTER SYSTEM MAJOR FREEZE", pending: true},
+
+	// The storage and index clauses OceanBase prints in SHOW CREATE TABLE, and the
+	// index scope it takes in DDL. Read from a 4.3.5 readback and from DDL a customer
+	// reported as rejected, then implemented, so none of these is pending.
+	{name: "organization index", sql: "CREATE TABLE obprobe_oi (a INT PRIMARY KEY) ORGANIZATION INDEX"},
+	{name: "storage options", sql: "CREATE TABLE obprobe_so (a INT) REPLICA_NUM = 1 BLOCK_SIZE = 16384 TABLET_SIZE = 134217728 PCTFREE = 0 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE"},
+	{name: "auto increment mode", sql: "CREATE TABLE obprobe_ai (a INT AUTO_INCREMENT PRIMARY KEY) AUTO_INCREMENT_MODE = 'ORDER'"},
+	{name: "local index", sql: "CREATE TABLE obprobe_li (a INT, KEY obprobe_ia (a) LOCAL)"},
+	{name: "global index", sql: "CREATE TABLE obprobe_gi (a INT, KEY obprobe_ia (a) GLOBAL)"},
+	{name: "index block size", sql: "CREATE TABLE obprobe_ib (a INT, KEY obprobe_ia (a) BLOCK_SIZE 16384)"},
+	{name: "index block size then scope", sql: "CREATE TABLE obprobe_ibl (a INT, KEY obprobe_ia (a) BLOCK_SIZE 16384 LOCAL)"},
+	{name: "alter add index global", sql: "ALTER TABLE obprobe_t ADD UNIQUE INDEX obprobe_uk (a) GLOBAL"},
+	{name: "subpartition template", sql: "CREATE TABLE obprobe_sp (a INT, b INT) PARTITION BY RANGE COLUMNS(a) SUBPARTITION BY KEY(b) SUBPARTITION TEMPLATE (SUBPARTITION p0, SUBPARTITION p1) (PARTITION q0 VALUES LESS THAN (10))"},
+	// OceanBase takes this clause and then refuses it with 1235, because the table is
+	// not partitioned. engineAccepts reads only 1064 as a syntax refusal, so the entry
+	// pins the grammar, which is all this parser owes.
+	{name: "dynamic partition policy", sql: "CREATE TABLE obprobe_dp (a INT) DYNAMIC_PARTITION_POLICY = (ENABLE = TRUE, TIME_UNIT = 'DAY')"},
 }
 
 // sharedGrammar is the subtractive side: MySQL syntax this parser accepts, which
@@ -122,6 +139,19 @@ var sharedGrammar = []grammarCase{
 	{name: "values statement", sql: "VALUES ROW(1), ROW(2)"},
 	{name: "intersect", sql: "SELECT 1 INTERSECT SELECT 1"},
 	{name: "except", sql: "SELECT 1 EXCEPT SELECT 2"},
+}
+
+// foreignGrammar is the guard side: syntax neither MySQL nor OceanBase has, which users
+// write anyway after porting from another dialect. Both sides must refuse it, so an entry
+// fails if this parser grows too permissive, and fails the other way if OceanBase ever
+// adds the form, which is then grammar to implement rather than a guard to keep.
+//
+// Read against 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-10-31: the engine answers 1064 for
+// all three. IF EXISTS on a DROP inside ALTER TABLE is MariaDB and PostgreSQL syntax.
+var foreignGrammar = []grammarCase{
+	{name: "alter drop index if exists", sql: "ALTER TABLE obprobe_t DROP INDEX IF EXISTS obprobe_ia"},
+	{name: "alter drop column if exists", sql: "ALTER TABLE obprobe_t DROP COLUMN IF EXISTS a"},
+	{name: "drop index if exists on", sql: "DROP INDEX IF EXISTS obprobe_ia ON obprobe_t"},
 }
 
 // TestOceanBaseGrammarInventory holds this parser to OceanBase rather than to MySQL.
@@ -149,7 +179,7 @@ func TestOceanBaseGrammarInventory(t *testing.T) {
 		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obprobe")
 	})
 
-	for _, group := range [][]grammarCase{oceanBaseOnlyGrammar, sharedGrammar} {
+	for _, group := range [][]grammarCase{oceanBaseOnlyGrammar, sharedGrammar, foreignGrammar} {
 		for _, c := range group {
 			t.Run(c.name, func(t *testing.T) {
 				_, parseErr := Parse(c.sql)

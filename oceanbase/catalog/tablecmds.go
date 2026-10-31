@@ -907,6 +907,38 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		}
 	}
 
+	// OceanBase's SUBPARTITION TEMPLATE gives every partition the same subpartitions,
+	// where MySQL repeats them inside each one. This sits after the outer partitions are
+	// built, generated ones included, because HASH and KEY with PARTITIONS N define none
+	// of their own and a template has to reach those too. Clearing
+	// UseDefaultSubpartitions is also what stops the block below inventing a second set.
+	if len(pc.SubPartTemplate) > 0 {
+		for _, pdi := range pi.Partitions {
+			if len(pdi.SubPartitions) > 0 {
+				continue
+			}
+			for _, spd := range pc.SubPartTemplate {
+				spdi := &SubPartitionDefInfo{
+					Name:    spd.Name,
+					Engine:  pdi.Engine,
+					Comment: pdi.Comment,
+				}
+				for _, opt := range spd.Options {
+					switch toLower(opt.Name) {
+					case "engine":
+						spdi.Engine = opt.Value
+					case "comment":
+						spdi.Comment = opt.Value
+					}
+				}
+				pdi.SubPartitions = append(pdi.SubPartitions, spdi)
+			}
+		}
+		pi.NumSubParts = len(pc.SubPartTemplate)
+		pi.UseDefaultSubpartitions = false
+		pi.UseDefaultNumSubpartitions = false
+	}
+
 	// Auto-generate subpartition definitions when SUBPARTITIONS N is specified
 	// without explicit subpartition definitions.
 	// MySQL naming convention: <partition_name>sp0, <partition_name>sp1, ...
@@ -1261,6 +1293,13 @@ func validateUniqueKeysCoverPartitionColumns(tbl *Table, partCols []string) erro
 	}
 	for _, idx := range tbl.Indexes {
 		if !idx.Unique && !idx.Primary {
+			continue
+		}
+		// A GLOBAL unique index is not partitioned with the table, so it enforces
+		// uniqueness across every partition and needs none of the partitioning
+		// columns. 4.3.5 accepts exactly that and rejects the LOCAL and unstated
+		// forms with this same 1503, which is why only GLOBAL is exempt.
+		if strings.EqualFold(idx.Scope, "GLOBAL") {
 			continue
 		}
 		idxCols := map[string]bool{}
@@ -1753,6 +1792,8 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			case *nodes.IntLit:
 				idx.KeyBlockSize = int(n.Value)
 			}
+		case "LOCAL", "GLOBAL":
+			idx.Scope = strings.ToUpper(opt.Name)
 		}
 	}
 }
@@ -2452,6 +2493,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Visible:      srcIdx.Visible,
 			Comment:      srcIdx.Comment,
 			KeyBlockSize: srcIdx.KeyBlockSize,
+			Scope:        srcIdx.Scope,
 		}
 		cols := make([]*IndexColumn, len(srcIdx.Columns))
 		for i, sc := range srcIdx.Columns {

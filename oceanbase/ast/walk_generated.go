@@ -648,6 +648,11 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		Walk(v, n.SubPartExpr)
+		for _, item := range n.SubPartTemplate {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *PartitionDef:
 		Walk(v, n.Values)
 		for _, item := range n.Options {

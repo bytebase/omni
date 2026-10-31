@@ -391,3 +391,35 @@ func TestAlterTableMultiCommandSuccess(t *testing.T) {
 		t.Error("column 'score' not found")
 	}
 }
+
+// TestAlterAddIndexKeepsOptions pins that an index added by ALTER keeps its options. This
+// path used to build the Index and drop con.IndexOptions on the floor, so a comment, a
+// visibility, a block size or an OceanBase scope survived CREATE TABLE but not ALTER —
+// which also made a scope change impossible to apply, since the migration is a DROP and
+// an ADD.
+func TestAlterAddIndexKeepsOptions(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT)")
+	mustExec(t, c, "ALTER TABLE t ADD KEY ka (a) COMMENT 'ka note' KEY_BLOCK_SIZE=8")
+	mustExec(t, c, "ALTER TABLE t ADD UNIQUE KEY ua (b) COMMENT 'ua note'")
+	mustExec(t, c, "ALTER TABLE t ADD KEY kg (a) GLOBAL")
+
+	find := func(name string) *Index {
+		for _, i := range c.GetDatabase("testdb").GetTable("t").Indexes {
+			if i.Name == name {
+				return i
+			}
+		}
+		t.Fatalf("index %s not found", name)
+		return nil
+	}
+	if idx := find("ka"); idx.Comment != "ka note" || idx.KeyBlockSize != 8 {
+		t.Errorf("ka: Comment=%q KeyBlockSize=%d, want %q and 8", idx.Comment, idx.KeyBlockSize, "ka note")
+	}
+	if idx := find("ua"); idx.Comment != "ua note" {
+		t.Errorf("ua: Comment=%q, want %q", idx.Comment, "ua note")
+	}
+	if idx := find("kg"); idx.Scope != "GLOBAL" {
+		t.Errorf("kg: Scope=%q, want GLOBAL", idx.Scope)
+	}
+}

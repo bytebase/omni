@@ -380,6 +380,14 @@ func formatIndexDefinition(idx *Index, _ *Normalizer) string {
 		b.WriteString(" /*!80000 INVISIBLE */")
 	}
 
+	// Index scope, last, as OceanBase prints it. Without this a LOCAL to GLOBAL change
+	// recreates the index at the default scope, so the change never lands and the next
+	// diff reports it again. The diff folds an unstated LOCAL away (canonicalIndexScope),
+	// so what reaches here is a scope someone wrote.
+	if idx.Scope != "" {
+		b.WriteString(" " + strings.ToUpper(idx.Scope))
+	}
+
 	return b.String()
 }
 
