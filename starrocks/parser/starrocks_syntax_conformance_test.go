@@ -203,6 +203,71 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"paren_select", "(SELECT 1)", true},
 		{"from_table_named_selected", "SELECT * FROM selected", true},
 		{"create_table_primary_key", "CREATE TABLE conf_pk (id BIGINT NOT NULL, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)", true},
+
+		// --- Property lists. The grammar gives every one of them as
+		// property (COMMA property)* -- so at least one item,
+		// comma-separated, not ending on a comma. Each clause below reaches a
+		// different one of the parsers that used to carry its own copy of the
+		// list loop with the comma optional, so each accepted all three
+		// departures the engine refuses.
+		{"props_create_table", `CREATE TABLE zzp1 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v","k2"="v2")`, true},
+		{"props_create_table_missing_comma_rejected", `CREATE TABLE zzp2 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v" "k2"="v2")`, false},
+		{"props_create_table_trailing_comma_rejected", `CREATE TABLE zzp3 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v",)`, false},
+		{"props_create_table_empty_rejected", `CREATE TABLE zzp4 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES()`, false},
+
+		{"props_create_database", `CREATE DATABASE zzpdb PROPERTIES("k"="v","k2"="v2")`, true},
+		{"props_create_database_missing_comma_rejected", `CREATE DATABASE zzpdb2 PROPERTIES("k"="v" "k2"="v2")`, false},
+		{"props_create_database_trailing_comma_rejected", `CREATE DATABASE zzpdb3 PROPERTIES("k"="v",)`, false},
+		{"props_create_database_empty_rejected", `CREATE DATABASE zzpdb4 PROPERTIES()`, false},
+
+		{"props_create_external_catalog", `CREATE EXTERNAL CATALOG zzpc PROPERTIES("k"="v","k2"="v2")`, true},
+		{"props_create_external_catalog_missing_comma_rejected", `CREATE EXTERNAL CATALOG zzpc2 PROPERTIES("k"="v" "k2"="v2")`, false},
+		{"props_create_external_catalog_trailing_comma_rejected", `CREATE EXTERNAL CATALOG zzpc3 PROPERTIES("k"="v",)`, false},
+		{"props_create_external_catalog_empty_rejected", `CREATE EXTERNAL CATALOG zzpc4 PROPERTIES()`, false},
+
+		// The bare list, with no PROPERTIES keyword in front of it.
+		{"props_using_gin", `CREATE TABLE zzg1 (a INT, INDEX idx (a) USING GIN ("imp_type"="clucene","parser"="english")) DISTRIBUTED BY HASH(a) BUCKETS 1`, true},
+		{"props_using_gin_missing_comma_rejected", `CREATE TABLE zzg2 (a INT, INDEX idx (a) USING GIN ("a"="b" "c"="d")) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_using_gin_trailing_comma_rejected", `CREATE TABLE zzg3 (a INT, INDEX idx (a) USING GIN ("a"="b",)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_using_gin_empty_rejected", `CREATE TABLE zzg4 (a INT, INDEX idx (a) USING GIN ()) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+
+		{"props_alter_table_set", `ALTER TABLE t SET ("k"="v","k2"="v2")`, true},
+		{"props_alter_table_set_missing_comma_rejected", `ALTER TABLE t SET ("k"="v" "k2"="v2")`, false},
+		{"props_alter_table_set_trailing_comma_rejected", `ALTER TABLE t SET ("k"="v",)`, false},
+		{"props_alter_table_set_empty_rejected", `ALTER TABLE t SET ()`, false},
+
+		// One config, because that is all the engine takes here -- the
+		// multi-item form is a reject, where Doris accepts it. That arity is
+		// a difference of its own and this parser still accepts several, so
+		// only the single-item form is pinned.
+		{"props_admin_frontend_config", `ADMIN SET FRONTEND CONFIG ("k"="v")`, true},
+		{"props_admin_frontend_config_missing_comma_rejected", `ADMIN SET FRONTEND CONFIG ("k"="v" "k2"="v2")`, false},
+		{"props_admin_frontend_config_trailing_comma_rejected", `ADMIN SET FRONTEND CONFIG ("k"="v",)`, false},
+		{"props_admin_frontend_config_empty_rejected", `ADMIN SET FRONTEND CONFIG ()`, false},
+
+		{"props_create_mv", `CREATE MATERIALIZED VIEW zzpmv DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v","k2"="v2") AS SELECT 1 AS a`, true},
+		{"props_create_mv_missing_comma_rejected", `CREATE MATERIALIZED VIEW zzpmv2 DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v" "k2"="v2") AS SELECT 1 AS a`, false},
+		{"props_create_mv_trailing_comma_rejected", `CREATE MATERIALIZED VIEW zzpmv3 DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v",) AS SELECT 1 AS a`, false},
+		{"props_create_mv_empty_rejected", `CREATE MATERIALIZED VIEW zzpmv4 DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES() AS SELECT 1 AS a`, false},
+
+		{"props_routine_load_job", `CREATE ROUTINE LOAD zzrl ON t PROPERTIES("k"="v","k2"="v2") FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`, true},
+		{"props_routine_load_job_missing_comma_rejected", `CREATE ROUTINE LOAD zzrl2 ON t PROPERTIES("k"="v" "k2"="v2") FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`, false},
+		{"props_routine_load_job_trailing_comma_rejected", `CREATE ROUTINE LOAD zzrl3 ON t PROPERTIES("k"="v",) FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`, false},
+		{"props_routine_load_source_missing_comma_rejected", `CREATE ROUTINE LOAD zzrl4 ON t PROPERTIES("desired_concurrent_number"="3") FROM KAFKA("k"="v" "k2"="v2")`, false},
+		{"props_routine_load_source_empty_rejected", `CREATE ROUTINE LOAD zzrl5 ON t PROPERTIES("desired_concurrent_number"="3") FROM KAFKA()`, false},
+
+		{"props_outfile", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v","k2"="v2")`, true},
+		{"props_outfile_missing_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v" "k2"="v2")`, false},
+		{"props_outfile_trailing_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v",)`, false},
+		{"props_outfile_empty_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES()`, false},
+
+		// ALTER CATALOG ... PROPERTY (...) reaches the sixth list parser, but
+		// it gets no rows here: the engine rejects that statement form
+		// outright, well-formed list and all, so a parity row would pin the
+		// form rather than the list. omni accepting a form the engine does not
+		// have -- and rejecting ALTER CATALOG c SET ("k"="v"), which it does --
+		// is a separate, pre-existing divergence; the list shape for that
+		// parser is covered by TestPropertyListSeparators.
 	}
 
 	for _, tc := range cases {
