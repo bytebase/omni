@@ -128,6 +128,25 @@ func TestExplainModifiers(t *testing.T) {
 	}
 }
 
+// TestCostsStaysAnIdentifier guards the cost of adding COSTS to the keyword table
+// for the EXPLAIN modifier above. IsReserved is `kind >= 700 &&
+// !nonReservedKeywords[kind]`, so a newly registered keyword is reserved by default
+// and stops being usable as a bare identifier. StarRocks lists COSTS in its
+// nonReserved rule and a 3.4.10 container accepts every statement below, so the
+// token needs the non-reserved entry as well as the keyword entry.
+func TestCostsStaysAnIdentifier(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT costs FROM t",
+		"SELECT 1 AS costs",
+		"CREATE TABLE costs (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1",
+		"SELECT t.costs FROM t",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("%s: unexpected errors: %v", sql, errs)
+		}
+	}
+}
+
 // TestExplainRejectsDorisModifiers is the half that keeps the fork honest. These
 // spellings are Doris's, not StarRocks's, and this parser accepted them only
 // because it inherited Doris's modifier list. Without this test the list drifts

@@ -1155,6 +1155,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwCONVERT:                true,
 	kwCONVERT_LSC:            true,
 	kwCOPY:                   true,
+	kwCOSTS:                  true,
 	kwCOUNT:                  true,
 	kwCREATION:               true,
 	kwCRON:                   true,
