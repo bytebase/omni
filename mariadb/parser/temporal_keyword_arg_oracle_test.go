@@ -43,8 +43,11 @@ var temporalKeywordArgCorpus = []string{
 	// --- accept: the unit is a keyword, so it is also still a column name ---
 	"SELECT second FROM tu2",
 	"CREATE TABLE tu3 (second INT, quarter INT)",
-	// --- accept: a schema-qualified name is a stored function, not the builtin ---
-	"SELECT test.my_diff(1, 2)",
+	// --- accept: a schema-qualified name is a stored function, so its first
+	// argument is an ordinary expression even when the name matches a builtin.
+	// Without the dispatch guard this is rejected for want of a time unit.
+	"SELECT s.timestampdiff(1, 2, 3)",
+	"SELECT s.get_format(1, 2)",
 
 	// --- reject (1064): compound units are not in interval_time_stamp ---
 	"SELECT TIMESTAMPDIFF(DAY_HOUR, a, b) FROM tu",
@@ -75,7 +78,6 @@ func TestMariaDBTemporalKeywordArgOracle(t *testing.T) {
 	for _, ddl := range []string{
 		"CREATE TABLE IF NOT EXISTS tu (a DATETIME, b DATETIME)",
 		"CREATE TABLE IF NOT EXISTS tu2 (second INT, quarter INT)",
-		"CREATE FUNCTION IF NOT EXISTS my_diff(x INT, y INT) RETURNS INT DETERMINISTIC RETURN x - y",
 	} {
 		if _, err := o.db.ExecContext(o.ctx, ddl); err != nil {
 			t.Fatalf("seed %q: %v", ddl, err)

@@ -43,8 +43,11 @@ var temporalKeywordArgCorpus = []string{
 	// --- accept: the unit is a keyword, so it is also still a column name ---
 	"SELECT second FROM tu2",
 	"CREATE TABLE tu3 (second INT, quarter INT)",
-	// --- accept: a schema-qualified name is a stored function, not the builtin ---
-	"SELECT test.my_diff(1, 2)",
+	// --- accept: a schema-qualified name is a stored function, so its first
+	// argument is an ordinary expression even when the name matches a builtin.
+	// Without the dispatch guard this is rejected for want of a time unit.
+	"SELECT s.timestampdiff(1, 2, 3)",
+	"SELECT s.get_format(1, 2)",
 
 	// --- reject (1064): compound units are not in interval_time_stamp ---
 	"SELECT TIMESTAMPDIFF(DAY_HOUR, a, b) FROM tu",
@@ -67,28 +70,30 @@ var temporalKeywordArgCorpus = []string{
 	"SELECT GET_FORMAT(DATE) FROM tu",
 }
 
-// TestTiDBTemporalKeywordArgOracle asserts omni agrees with the package's
-// MySQL 8.0 oracle on every statement above (container test). The syntax is
-// MySQL's, so MySQL is the right reference for it.
+// TestTiDBTemporalKeywordArgOracle asserts omni agrees with a live TiDB v8.5.5
+// on every statement above (container test). MySQL compatibility is not
+// evidence of TiDB's behaviour, so the target engine answers for it.
 func TestTiDBTemporalKeywordArgOracle(t *testing.T) {
-	o := startParserOracle(t)
+	tc := startTiDB(t)
+
+	tc.db.ExecContext(tc.ctx, "CREATE DATABASE IF NOT EXISTS omni_tka")
+	tc.db.ExecContext(tc.ctx, "USE omni_tka")
+	defer tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS omni_tka")
 
 	for _, ddl := range []string{
 		"CREATE TABLE IF NOT EXISTS tu (a DATETIME, b DATETIME)",
 		"CREATE TABLE IF NOT EXISTS tu2 (second INT, quarter INT)",
-		"CREATE FUNCTION IF NOT EXISTS my_diff(x INT, y INT) RETURNS INT DETERMINISTIC RETURN x - y",
 	} {
-		if _, err := o.db.ExecContext(o.ctx, ddl); err != nil {
+		if err := tc.canExecute(ddl); err != nil {
 			t.Fatalf("seed %q: %v", ddl, err)
 		}
 	}
 
 	for _, sqlStr := range temporalKeywordArgCorpus {
-		_, perr := Parse(sqlStr)
-		omniAccepts := perr == nil
-		engineAccepts := o.checkSyntax(t, sqlStr)
-		if omniAccepts != engineAccepts {
-			t.Errorf("DIVERGENCE omni=%v mysql=%v for %q", omniAccepts, engineAccepts, sqlStr)
+		tidbAccepts := !tidbRejectedSyntax(tc.canExecute(sqlStr))
+		_, err := Parse(sqlStr)
+		if (err == nil) != tidbAccepts {
+			t.Errorf("%q: omni accepts=%v (err=%v), TiDB accepts=%v", sqlStr, err == nil, err, tidbAccepts)
 		}
 	}
 }
