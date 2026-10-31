@@ -167,90 +167,55 @@ func (p *Parser) parseDropDatabase() (ast.Node, error) {
 //	PROPERTIES ("key"="value" [, "key"="value" ...])
 //
 // cur must be kwPROPERTIES on entry; it is consumed here.
-//
-// Separators are loose here: an empty list, a missing comma between items and
-// a trailing comma are all tolerated, none of which the engine accepts
-// (container-verified). Fixing that reaches every PROPERTIES in the tree, so
-// a caller whose clause is the grammar's propertyItemList asks for
-// parsePropertiesStrict instead.
 func (p *Parser) parseProperties() ([]*ast.Property, error) {
-	return p.parsePropertyList(false)
-}
-
-// parsePropertiesStrict parses the same PROPERTIES(...) as parseProperties,
-// held to the shape the grammar gives the list:
-//
-//	propertyItemList : propertyItem (COMMA propertyItem)*
-//
-// So the list carries at least one item, items are comma-separated, and it
-// does not end on a comma. The engine rejects PROPERTIES(),
-// PROPERTIES("k"="v" "k2"="v2") and PROPERTIES("k"="v",) alike — all three
-// container-verified.
-func (p *Parser) parsePropertiesStrict() ([]*ast.Property, error) {
-	return p.parsePropertyList(true)
-}
-
-// parsePropertyList is the shared body behind both. strictSeparators selects
-// whether the propertyItemList shape above is enforced.
-func (p *Parser) parsePropertyList(strictSeparators bool) ([]*ast.Property, error) {
-	openTok := p.cur
 	p.advance() // consume PROPERTIES
 
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
 
+	return p.parsePropertyItems(p.parseStringProperty)
+}
+
+// parsePropertyItems parses the body of a property list -- the grammar's
+//
+//	propertyItemList : propertyItem (COMMA propertyItem)*
+//
+// -- from the first item through the closing ')', which it consumes. cur must
+// be on the first item's first token, the caller having consumed the '('.
+//
+// So the list carries at least one item, items are comma-separated, and it
+// does not end on a comma. The engine refuses all three departures --
+// PROPERTIES(), PROPERTIES("k"="v" "k2"="v2") and PROPERTIES("k"="v",) --
+// in every clause that takes a property list, container-verified across
+// CREATE TABLE / DATABASE / CATALOG / RESOURCE / WORKLOAD GROUP /
+// STORAGE VAULT / FILE / MATERIALIZED VIEW, EXPORT, ALTER TABLE ... SET,
+// ALTER CATALOG, ROUTINE LOAD's job and data-source lists, and
+// ADMIN SET FRONTEND CONFIG. Each of those clauses had its own copy of this
+// loop treating the comma as optional, so each accepted statements the engine
+// rejects; the shape lives here once instead.
+//
+// parseItem reads one item. The clauses differ in what they take for a key
+// and a value, not in the shape of the list.
+func (p *Parser) parsePropertyItems(parseItem func() (*ast.Property, error)) ([]*ast.Property, error) {
 	var props []*ast.Property
-
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		startLoc := p.cur.Loc
-
-		// Key — must be a string literal
-		if p.cur.Kind != tokString {
+	for {
+		if p.cur.Kind == int(')') || p.cur.Kind == tokEOF {
+			// An empty list, or one that ended on its separator. The grammar
+			// wants an item here, and this is where the engine reports it.
 			return nil, p.syntaxErrorAtCur()
 		}
-		key := p.cur.Str
-		keyEnd := p.cur.Loc.End
-		p.advance()
-
-		// '='
-		if _, err := p.expect(int('=')); err != nil {
+		item, err := parseItem()
+		if err != nil {
 			return nil, err
 		}
-
-		// Value — must be a string literal
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
+		props = append(props, item)
+		if p.cur.Kind != int(',') {
+			// No separator, so the list ends here: a second item with nothing
+			// between them is left to expect(')') to refuse.
+			break
 		}
-		val := p.cur.Str
-		endLoc := p.cur.Loc
-		p.advance()
-
-		_ = keyEnd
-		props = append(props, &ast.Property{
-			Key:   key,
-			Value: val,
-			Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
-		})
-
-		// Separator between items.
-		if p.cur.Kind == int(',') {
-			p.advance()
-			if strictSeparators && p.cur.Kind == int(')') {
-				// Trailing comma — the list does not end on a separator.
-				// Reported at the ')', which is where the engine reports it.
-				return nil, p.syntaxErrorAtCur()
-			}
-			continue
-		}
-		if strictSeparators && p.cur.Kind != int(')') {
-			// Two items with nothing between them.
-			return nil, p.syntaxErrorAtCur()
-		}
-	}
-
-	if strictSeparators && len(props) == 0 {
-		return nil, syntaxErrorAt(openTok)
+		p.advance() // consume ','
 	}
 
 	if _, err := p.expect(int(')')); err != nil {
@@ -258,4 +223,35 @@ func (p *Parser) parsePropertyList(strictSeparators bool) ([]*ast.Property, erro
 	}
 
 	return props, nil
+}
+
+// parseStringProperty reads one "key"="value" item, both sides string
+// literals. This is the common propertyItem: the engine's own propertyKey and
+// propertyValue are `identifier | constant`, which is wider, but widening it
+// is a change of its own and refusing the extra forms fails closed.
+func (p *Parser) parseStringProperty() (*ast.Property, error) {
+	startLoc := p.cur.Loc
+
+	if p.cur.Kind != tokString {
+		return nil, p.syntaxErrorAtCur()
+	}
+	key := p.cur.Str
+	p.advance()
+
+	if _, err := p.expect(int('=')); err != nil {
+		return nil, err
+	}
+
+	if p.cur.Kind != tokString {
+		return nil, p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	endLoc := p.cur.Loc
+	p.advance()
+
+	return &ast.Property{
+		Key:   key,
+		Value: val,
+		Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
+	}, nil
 }

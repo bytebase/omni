@@ -534,53 +534,42 @@ func (p *Parser) parseMTMVPropertyList() ([]*ast.Property, error) {
 		return nil, err
 	}
 
-	var props []*ast.Property
+	return p.parsePropertyItems(p.parseMTMVProperty)
+}
 
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		startLoc := p.cur.Loc
+// parseMTMVProperty reads one item of a materialized view's property list,
+// whose key may be written bare as well as quoted.
+func (p *Parser) parseMTMVProperty() (*ast.Property, error) {
+	startLoc := p.cur.Loc
 
-		// Key — string literal or bare identifier
-		var key string
-		if p.cur.Kind == tokString {
-			key = p.cur.Str
-			p.advance()
-		} else {
-			var err error
-			key, _, err = p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// '='
-		if _, err := p.expect(int('=')); err != nil {
-			return nil, err
-		}
-
-		// Value — string literal
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		val := p.cur.Str
-		endLoc := p.cur.Loc
+	var key string
+	if p.cur.Kind == tokString {
+		key = p.cur.Str
 		p.advance()
-
-		props = append(props, &ast.Property{
-			Key:   key,
-			Value: val,
-			Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
-		})
-
-		if p.cur.Kind == int(',') {
-			p.advance()
+	} else {
+		var err error
+		key, _, err = p.parseIdentifier()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	if _, err := p.expect(int(')')); err != nil {
+	if _, err := p.expect(int('=')); err != nil {
 		return nil, err
 	}
 
-	return props, nil
+	if p.cur.Kind != tokString {
+		return nil, p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	endLoc := p.cur.Loc
+	p.advance()
+
+	return &ast.Property{
+		Key:   key,
+		Value: val,
+		Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
+	}, nil
 }
 
 // parseCancelMTMVTask parses a CANCEL MATERIALIZED VIEW TASK task_id ON mv_name statement.

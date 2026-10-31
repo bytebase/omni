@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/bytebase/omni/doris/ast"
@@ -414,5 +415,57 @@ func TestDropTable_NowSupported(t *testing.T) {
 	}
 	if _, ok := file.Stmts[0].(*ast.DropTableStmt); !ok {
 		t.Errorf("expected *ast.DropTableStmt, got %T", file.Stmts[0])
+	}
+}
+
+// TestPropertyListSeparators pins the shape the grammar gives every property
+// list — propertyItemList : propertyItem (COMMA propertyItem)* — across the
+// clauses that reach each of the parsers for one. Every clause below used to
+// carry its own copy of the list loop with the comma optional, so each
+// accepted an empty list, a missing comma and a trailing comma, none of which
+// the engine takes (see the props_* rows in TestDorisSyntaxConformance for the
+// container-verified verdicts).
+func TestPropertyListSeparators(t *testing.T) {
+	// %s is the property-list body.
+	clauses := []struct{ name, tmpl string }{
+		{"create_table", `CREATE TABLE zzp (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES(%s)`},
+		{"create_database", `CREATE DATABASE zzpdb PROPERTIES(%s)`},
+		{"alter_catalog_set_properties", `ALTER CATALOG zzc SET PROPERTIES (%s)`},
+		// The engine rejects this statement form outright (see
+		// TestDorisSyntaxConformance), so these rows pin the list shape for
+		// parsePropertyClause only -- they are not engine-backed.
+		{"alter_catalog_property", `ALTER CATALOG zzc PROPERTY (%s)`},
+		{"alter_table_set", `ALTER TABLE t SET (%s)`},
+		{"admin_set_frontend_config", `ADMIN SET FRONTEND CONFIG (%s)`},
+		{"create_mv", `CREATE MATERIALIZED VIEW zzpmv BUILD IMMEDIATE REFRESH COMPLETE DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES(%s) AS SELECT 1 AS a`},
+		{"routine_load_job", `CREATE ROUTINE LOAD zzrl ON t PROPERTIES(%s) FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`},
+		{"outfile", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES(%s)`},
+	}
+	bodies := []struct {
+		name       string
+		body       string
+		wantAccept bool
+	}{
+		{"one item", `"k"="v"`, true},
+		{"two items", `"k"="v","k2"="v2"`, true},
+		{"three items", `"k"="v","k2"="v2","k3"="v3"`, true},
+		{"empty", ``, false},
+		{"missing comma", `"k"="v" "k2"="v2"`, false},
+		{"missing commas", `"k"="v" "k2"="v2" "k3"="v3"`, false},
+		{"trailing comma", `"k"="v",`, false},
+		{"leading comma", `,"k"="v"`, false},
+		{"doubled comma", `"k"="v",,"k2"="v2"`, false},
+		{"comma only", `,`, false},
+	}
+	for _, cl := range clauses {
+		for _, b := range bodies {
+			t.Run(cl.name+"/"+b.name, func(t *testing.T) {
+				sql := fmt.Sprintf(cl.tmpl, b.body)
+				_, errs := parseForTest(sql)
+				if got := len(errs) == 0; got != b.wantAccept {
+					t.Errorf("accept = %v, want %v for %q (errs=%v)", got, b.wantAccept, sql, errs)
+				}
+			})
+		}
 	}
 }
