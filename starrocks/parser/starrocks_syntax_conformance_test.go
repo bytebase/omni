@@ -65,6 +65,56 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		// Unlike Doris, the parenthesized single-parameter form is accepted.
 		{"lambda_single_param_parenthesized", "SELECT array_map((x) -> x + 1, [1, 2])", true},
 
+		// The -> JSON path operator (BYT-10088). Unlike Doris, which has no
+		// `->` at all, StarRocks extracts a JSON path with it. The engine's
+		// rule, pinned by these cases: `X -> Y` is accepted when Y is a bare
+		// string literal (the arrow, X any primary expression) or when X is an
+		// identifier or identifier list (a lambda, Y any expression).
+		//
+		// omni implements the arrow branch in full. It keeps the lambda branch
+		// scoped to function-argument position, where the analyzer is the only
+		// consumer that can use one, so engine-parseable oddities such as
+		// `SELECT x -> 1` stay rejected here. That under-acceptance predates
+		// this operator and is not pinned below.
+		{"json_arrow", "SELECT j->'$.a' FROM t", true},
+		{"json_arrow_spaced", "SELECT j -> '$.a' FROM t", true},
+		{"json_arrow_double_quoted_path", `SELECT j->"$.a" FROM t`, true},
+		{"json_arrow_in_function_call", "SELECT length(j->'$.a') FROM t", true},
+		{"json_arrow_chained", "SELECT j->'$.b'->'$.c' FROM t", true},
+		{"json_arrow_aliased", "SELECT j->'$.a' AS v FROM t", true},
+		{"json_arrow_in_where", "SELECT id FROM t WHERE j->'$.a' = 1", true},
+		// A left operand of the wrong type is a semantic error on the engine,
+		// not a syntax one, so each of these still parses.
+		{"json_arrow_qualified_left", "SELECT t.j->'$.a' FROM t", true},
+		{"json_arrow_paren_left", "SELECT (j)->'$.a' FROM t", true},
+		{"json_arrow_func_left", `SELECT PARSE_JSON('{"a":1}')->'$.a'`, true},
+		{"json_arrow_int_left", "SELECT 1->'$.a'", true},
+		{"json_arrow_null_left", "SELECT NULL->'$.a'", true},
+		// Suffix chaining in either order, and tighter binding than the
+		// operators either side.
+		{"json_arrow_then_subscript", "SELECT j->'$.b'['c'] FROM t", true},
+		{"json_arrow_after_subscript", "SELECT j['b']->'$.c' FROM t", true},
+		{"json_arrow_tighter_than_eq", "SELECT j->'$.a' = 1 FROM t", true},
+		{"json_arrow_tighter_than_not", "SELECT NOT j->'$.a' FROM t", true},
+		{"json_arrow_tighter_than_unary_minus", "SELECT -id->'$.a' FROM t", true},
+		// The ambiguous corner: in higher-order argument position the engine
+		// reads `-> '<string>'` as the arrow, then rejects the call in its
+		// analyzer with "There are no lambda functions in high-order function
+		// array_map" — so it parses, and omni takes the same reading, which is
+		// also the one that keeps the left column in lineage.
+		{"json_arrow_wins_over_lambda", "SELECT array_map(j -> '$.a', [1, 2])", true},
+		{"json_arrow_wins_over_paren_lambda", "SELECT array_map((x) -> '$.a', [1, 2])", true},
+		{"json_arrow_wins_then_concat", "SELECT array_map(x -> 'a' || 'b', [1, 2])", true},
+		// A parenthesized parameter LIST is not a primary expression, so the
+		// arrow branch cannot apply and the lambda reading stands.
+		{"lambda_multi_param_string_body", "SELECT array_map((x, y) -> '$.a', [1, 2], [3, 4])", true},
+		{"lambda_body_contains_arrow", `SELECT array_map(x -> PARSE_JSON('{}')->'$.a', [1, 2])`, true},
+		// Satisfying neither branch is a syntax error on the engine.
+		{"json_arrow_int_rhs_rejected", "SELECT 1 -> 1", false},
+		{"json_arrow_string_lhs_int_rhs_rejected", "SELECT 'a' -> 1", false},
+		// StarRocks has no unquoting arrow at all.
+		{"json_double_arrow_rejected", "SELECT j->>'$.a' FROM t", false},
+
 		// Optimizer hints.
 		{"set_var_hint", "SELECT /*+ SET_VAR(query_timeout = 100) */ 1", true},
 
@@ -132,10 +182,6 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"tablesample_rejected", "SELECT * FROM t TABLESAMPLE(1000 ROWS)", false},
 		{"group_by_with_rollup_rejected", "SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP", false},
 		{"show_databases_from", "SHOW DATABASES FROM default_catalog", true},
-		// Unlike Doris, StarRocks HAS the -> JSON path operator (the engine
-		// accepts SELECT j->'$.a'); omni's rejection is a known gap tracked
-		// separately — a conformance case would assert the wrong side, and
-		// parsing it as a lambda would shadow the column out of lineage.
 		{"stray_comment_close_rejected", "SELECT 1 */ 2", false},
 		{"explain_incomplete_rejected", "EXPLAIN SELECT * FROM", false},
 		{"explain_bare_rejected", "EXPLAIN", false},

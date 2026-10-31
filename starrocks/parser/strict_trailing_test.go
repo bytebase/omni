@@ -16,7 +16,9 @@ func TestStrictParseRejectsTrailingTokens(t *testing.T) {
 	for _, sql := range []string{
 		"SELECT 1 )))",
 		"SELECT 1 */ 2",
-		"SELECT j->'$.a' FROM t",
+		// `->` itself is now the JSON path operator (BYT-10088), so the arrow
+		// canary moved to `->>`, which this engine has no form of at all.
+		"SELECT j->>'$.a' FROM t",
 		"SELECT a FROM t WHERE x = 1 ) ) ) DROP",
 		// Engine-rejected StarRocks forms that used to ride the swallow.
 		"SELECT * FROM t TABLESAMPLE(1000 ROWS)",
