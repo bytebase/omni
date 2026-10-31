@@ -229,6 +229,17 @@ func (p *Parser) parseQueryTail(node ast.Node) (ast.Node, error) {
 	return p.parseTrailingQueryClauses(node)
 }
 
+// parseQueryStmt parses a complete query statement: the tail a query itself
+// can carry, then the statement-level INTO OUTFILE clause. Callers that are
+// parsing a query operand rather than a statement use parseQueryTail.
+func (p *Parser) parseQueryStmt(node ast.Node) (ast.Node, error) {
+	node, err := p.parseQueryTail(node)
+	if err != nil {
+		return nil, err
+	}
+	return p.parseOutfileTail(node)
+}
+
 // parseTrailingQueryClauses parses trailing ORDER BY / LIMIT groups
 // following a query and attaches them to the node, extending its range over
 // the consumed clauses. A group that would repeat a clause the node already
@@ -1331,4 +1342,147 @@ func (p *Parser) parseLimitClause() (ast.Node, ast.Node, error) {
 	}
 
 	return limitExpr, offsetExpr, nil
+}
+
+// ---------------------------------------------------------------------------
+// INTO OUTFILE clause
+// ---------------------------------------------------------------------------
+
+// parseOutfileTail parses the statement-level INTO OUTFILE clause that may
+// follow a complete query and attaches it to that query's outermost node.
+//
+// The clause sits outside `query` in the grammar — `statementBase : explain?
+// query outFileClause?` — so it follows everything a query carries, ORDER BY
+// and LIMIT included, and cannot appear within one. Only parseStmt's query
+// entries call this: the paren, subquery, CTE, INSERT and MTMV paths run
+// parseQueryTail without it, which is what keeps the engine's rejects
+// rejected — `(SELECT 1 INTO OUTFILE 'p')`, `SELECT * FROM (SELECT 1 INTO
+// OUTFILE 'p') x`, `SELECT 1 UNION (SELECT 1 INTO OUTFILE 'p')` and
+// `INSERT INTO t SELECT 1 INTO OUTFILE 'p'` are all container-verified
+// rejects, as is anything following the clause (a second INTO, UNION,
+// ORDER BY, LIMIT), which the strict trailing-token check reports.
+func (p *Parser) parseOutfileTail(node ast.Node) (ast.Node, error) {
+	if p.cur.Kind != kwINTO {
+		return node, nil
+	}
+	if !canCarryOutfile(node) {
+		// No node to hold the clause, so the INTO does not belong here.
+		return nil, p.syntaxErrorAtCur()
+	}
+	into, err := p.parseIntoOutfileClause()
+	if err != nil {
+		return nil, err
+	}
+	attachIntoOutfile(node, into)
+	return node, nil
+}
+
+// canCarryOutfile reports whether node is one of the three query nodes a
+// statement's outermost query can be, and so can carry an INTO OUTFILE.
+func canCarryOutfile(node ast.Node) bool {
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.GroupedQuery:
+		return true
+	}
+	return false
+}
+
+// queryIntoOutfile returns the INTO OUTFILE clause node carries, or nil if
+// it carries none or is not a node that can.
+func queryIntoOutfile(node ast.Node) *ast.IntoOutfileClause {
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		return n.Into
+	case *ast.SetOpStmt:
+		return n.Into
+	case *ast.GroupedQuery:
+		return n.Into
+	}
+	return nil
+}
+
+// attachIntoOutfile stores into on node and extends node's range over the
+// clause. node must satisfy canCarryOutfile.
+func attachIntoOutfile(node ast.Node, into *ast.IntoOutfileClause) {
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		n.Into, n.Loc.End = into, into.Loc.End
+	case *ast.SetOpStmt:
+		n.Into, n.Loc.End = into, into.Loc.End
+	case *ast.GroupedQuery:
+		n.Into, n.Loc.End = into, into.Loc.End
+	}
+}
+
+// parseIntoOutfileClause parses:
+//
+//	INTO OUTFILE 'path'
+//	  [FORMAT AS format_type]
+//	  [PROPERTIES ("key" = "value", ...)]
+//
+// cur must be kwINTO on entry.
+func (p *Parser) parseIntoOutfileClause() (*ast.IntoOutfileClause, error) {
+	startLoc := p.cur.Loc
+	p.advance() // consume INTO
+
+	if _, err := p.expect(kwOUTFILE); err != nil {
+		return nil, err
+	}
+
+	// The grammar spells the path `constant`, so the engine also takes
+	// `INTO OUTFILE 1` and only refuses it later ("Please specify BROKER
+	// properties or check your local file path"). Nothing but a string can
+	// name a path, so a non-string is refused here rather than carried as
+	// one: a deliberate narrowing, and one that fails closed.
+	if p.cur.Kind != tokString {
+		return nil, p.syntaxErrorAtCur()
+	}
+	clause := &ast.IntoOutfileClause{
+		Path: p.cur.Str,
+		Loc:  ast.Loc{Start: startLoc.Start},
+	}
+	p.advance() // consume the path
+
+	// FORMAT AS <identifier>. The engine wants an identifier and not text:
+	// it takes FORMAT AS PARQUET and FORMAT AS `PARQUET`, and rejects
+	// FORMAT AS "PARQUET" and the reserved FORMAT AS select. The AS is not
+	// optional — bare FORMAT PARQUET is a reject. All container-verified.
+	// An unknown format name parses and fails in analysis ("format:xyz is
+	// not supported"), so the name is not checked here.
+	if p.cur.Kind == kwFORMAT {
+		p.advance() // consume FORMAT
+		if _, err := p.expect(kwAS); err != nil {
+			return nil, err
+		}
+		format, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		clause.Format = format
+	}
+
+	// PROPERTIES(...). The grammar's propertyItemList holds at least one
+	// item and the engine rejects an empty list, which the shared
+	// parseProperties tolerates for its other callers, so the emptiness is
+	// checked here. parseProperties is otherwise stricter than this clause's
+	// grammar — propertyKey and propertyValue are `identifier | constant`,
+	// so the engine also takes PROPERTIES(k = "v") and PROPERTIES("k" = 1),
+	// which it refuses. That is the shared helper's behaviour at every
+	// PROPERTIES in the tree, it fails closed, and widening it reaches every
+	// DDL caller, so it is left alone here.
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		if len(props) == 0 {
+			// prev is the ')' that closed the empty list, which is where the
+			// engine reports it too.
+			return nil, syntaxErrorAt(p.prev)
+		}
+		clause.Properties = props
+	}
+
+	clause.Loc.End = p.prev.Loc.End
+	return clause, nil
 }

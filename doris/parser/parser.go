@@ -209,21 +209,26 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 }
 
 // syntaxErrorAtCur returns a *ParseError describing a syntax error at
-// the current token position. If cur is tokEOF, the message says "at
-// end of input"; otherwise "at or near X".
+// the current token position.
 func (p *Parser) syntaxErrorAtCur() *ParseError {
+	return syntaxErrorAt(p.cur)
+}
+
+// syntaxErrorAt returns a *ParseError describing a syntax error at tok. If
+// tok is tokEOF, the message says "at end of input"; otherwise "at or near X".
+func syntaxErrorAt(tok Token) *ParseError {
 	var msg string
-	if p.cur.Kind == tokEOF {
+	if tok.Kind == tokEOF {
 		msg = "syntax error at end of input"
 	} else {
-		text := p.cur.Str
+		text := tok.Str
 		if text == "" {
-			text = TokenName(p.cur.Kind)
+			text = TokenName(tok.Kind)
 		}
 		msg = "syntax error at or near " + text
 	}
 	return &ParseError{
-		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Position: tok.Loc.Start, End: tok.Loc.End,
 		Message: msg,
 	}
 }
@@ -528,9 +533,15 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.parseQueryTail(left)
+		return p.parseQueryStmt(left)
 	case int('('):
-		return p.parseParenQueryStmt()
+		node, err := p.parseParenQueryStmt()
+		if err != nil {
+			return nil, err
+		}
+		// `(SELECT 1) INTO OUTFILE 'p'` is an engine accept: the clause
+		// attaches outside the parens (see parseOutfileTail).
+		return p.parseOutfileTail(node)
 	case kwWITH:
 		stmt, err := p.parseWithSelect()
 		if err != nil {
@@ -538,7 +549,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		}
 		// WITH ... SELECT continues with set operators and their trailing
 		// clauses just like a bare SELECT (engine-verified).
-		return p.parseQueryTail(stmt)
+		return p.parseQueryStmt(stmt)
 	case kwINSERT:
 		return p.parseInsert()
 	case kwUPDATE:
@@ -998,6 +1009,20 @@ func (p *Parser) validateRawQueries() []ParseError {
 		}
 		if !isQueryBody(res.File.Stmts[0]) {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
+			continue
+		}
+		// A body is a `query`, and INTO OUTFILE is not part of one: the
+		// grammar hangs it off the statement instead (`statementBase :
+		// explain? query outFileClause?`). The inner parse is a statement
+		// parse, so it accepts the clause and this is where the body's turn
+		// to refuse it falls — `SELECT * FROM (SELECT a FROM t INTO OUTFILE
+		// 'p') x` is an engine reject.
+		if into := queryIntoOutfile(res.File.Stmts[0]); into != nil {
+			out = append(out, ParseError{
+				Position: q.start + into.Loc.Start,
+				End:      q.start + into.Loc.End,
+				Message:  "INTO OUTFILE is not allowed in a subquery",
+			})
 		}
 	}
 	return out

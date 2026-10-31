@@ -140,6 +140,13 @@ var dorisSyntaxErrMarkers = []string{
 	"extraneous input",
 	"no viable alternative",
 	"Syntax error",
+	// ANTLR's single-token-insertion recovery, which reports a parse failure
+	// without any of the fragments above: "missing 'AS' at 'PARQUET'", and
+	// "missing {'[', '{'} at ')'" when more than one token would serve. Both
+	// quote forms are matched so the marker cannot hit a semantic message
+	// that merely contains the word "missing".
+	"missing '",
+	"missing {",
 }
 
 // accepts reports whether Doris accepted sql at the PARSE layer: executed OK,
@@ -403,6 +410,70 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"quantified_any", "SELECT * FROM t WHERE a = ANY (SELECT b FROM t)", false},
 		{"quantified_all", "SELECT * FROM t WHERE a > ALL (SELECT b FROM t)", false},
 		{"quantified_some", "SELECT * FROM t WHERE a = SOME (SELECT b FROM t)", false},
+
+		// --- INTO OUTFILE (BOT-92). The clause is statement-level in the
+		// grammar — `statementBase : explain? query outFileClause?` — so it
+		// follows every clause a query carries and cannot appear inside one.
+		{"outfile", "SELECT 1 INTO OUTFILE '/tmp/x'", true},
+		{"outfile_double_quoted_path", `SELECT * FROM t INTO OUTFILE "s3://b/pre"`, true},
+		{"outfile_format_parquet", `SELECT * FROM t INTO OUTFILE "s3://b/pre" FORMAT AS PARQUET`, true},
+		{"outfile_format_csv", `SELECT * FROM t INTO OUTFILE "s3://b/pre" FORMAT AS CSV`, true},
+		{"outfile_format_orc", `SELECT * FROM t INTO OUTFILE "s3://b/pre" FORMAT AS ORC`, true},
+		{"outfile_format_non_keyword", `SELECT * FROM t INTO OUTFILE "s3://b/pre" FORMAT AS csv_with_names`, true},
+		{"outfile_format_quoted_ident", "SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS `PARQUET`", true},
+		// An unknown format name is a semantic failure, not a parse one.
+		{"outfile_format_unknown_name", "SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS no_such_format", true},
+		{"outfile_properties", `SELECT * FROM t INTO OUTFILE "s3://b/pre" PROPERTIES("k" = "v")`, true},
+		{"outfile_format_and_properties", `SELECT * FROM t INTO OUTFILE "s3://b/pre" FORMAT AS CSV PROPERTIES("column_separator" = ",")`, true},
+		{"outfile_properties_multiple", `SELECT * FROM t INTO OUTFILE "s3://b/pre" PROPERTIES("k" = "v", "k2" = "v2")`, true},
+		{"outfile_after_order_by_limit", "SELECT * FROM t ORDER BY a LIMIT 10 INTO OUTFILE '/tmp/x'", true},
+		{"outfile_after_mysql_limit", "SELECT * FROM t LIMIT 5,10 INTO OUTFILE '/tmp/x'", true},
+		{"outfile_full_query", "SELECT a FROM t WHERE a = 1 GROUP BY a HAVING a > 0 ORDER BY a LIMIT 1 INTO OUTFILE '/tmp/x'", true},
+		{"outfile_on_set_op", "SELECT a FROM t UNION SELECT a FROM t INTO OUTFILE '/tmp/x'", true},
+		{"outfile_after_parens", "(SELECT * FROM t) INTO OUTFILE '/tmp/x'", true},
+		{"outfile_after_parens_limit", "(SELECT * FROM t) LIMIT 10 INTO OUTFILE '/tmp/x'", true},
+		{"outfile_after_repeated_order_by", "(SELECT 1 ORDER BY 1) ORDER BY 1 INTO OUTFILE '/tmp/x'", true},
+		{"outfile_with_cte", "WITH c AS (SELECT 1 AS a) SELECT * FROM c INTO OUTFILE '/tmp/x'", true},
+		// `explain? query outFileClause?`: EXPLAIN takes the clause too.
+		{"outfile_explain", "EXPLAIN SELECT 1 INTO OUTFILE '/tmp/x'", true},
+
+		// Nothing may follow the clause: it is the last thing in a statement.
+		{"outfile_then_order_by_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' ORDER BY 1", false},
+		{"outfile_then_limit_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' LIMIT 1", false},
+		{"outfile_then_union_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' UNION SELECT 2", false},
+		{"outfile_twice_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' INTO OUTFILE '/tmp/y'", false},
+		{"outfile_before_union_rejected", "SELECT a FROM t INTO OUTFILE '/tmp/x' UNION SELECT a FROM t", false},
+		// And it cannot appear inside a query: not in parens, a derived
+		// table, or a parenthesized set-operation arm.
+		{"outfile_inside_parens_rejected", "(SELECT 1 INTO OUTFILE '/tmp/x')", false},
+		{"outfile_inside_derived_table_rejected", "SELECT * FROM (SELECT a FROM t INTO OUTFILE '/tmp/x') x", false},
+		{"outfile_inside_set_op_arm_rejected", "SELECT 1 UNION (SELECT a FROM t INTO OUTFILE '/tmp/x')", false},
+		{"outfile_on_insert_rejected", "INSERT INTO t SELECT 1 INTO OUTFILE '/tmp/x'", false},
+		// Clause shape.
+		{"outfile_no_path_rejected", "SELECT 1 INTO OUTFILE", false},
+		{"outfile_without_outfile_kw_rejected", "SELECT 1 INTO '/tmp/x'", false},
+		{"outfile_without_into_kw_rejected", "SELECT 1 OUTFILE '/tmp/x'", false},
+		{"outfile_format_without_as_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' FORMAT PARQUET", false},
+		{"outfile_format_as_text_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS "PARQUET"`, false},
+		{"outfile_format_as_reserved_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS select", false},
+		{"outfile_format_as_nothing_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS", false},
+		{"outfile_properties_bare_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES", false},
+		{"outfile_properties_empty_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES()", false},
+		{"outfile_trailing_garbage_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' GARBAGE", false},
+		// MySQL spellings the engine does not share.
+		{"outfile_into_var_rejected", "SELECT 1 INTO @v", false},
+		{"outfile_dumpfile_rejected", "SELECT 1 INTO DUMPFILE '/tmp/x'", false},
+		// Three forms the engine accepts and this parser refuses are left out
+		// of the matrix rather than asserted, since a parity row would have to
+		// claim agreement that does not exist. Each fails closed:
+		//   INTO OUTFILE 1                 — the grammar's path is `constant`,
+		//                                    and only a string names a path
+		//                                    (see parseIntoOutfileClause).
+		//   PROPERTIES(k = "v")            — propertyKey is
+		//                                    `identifier | constant`, and the
+		//   PROPERTIES("k" = 1)              shared parseProperties takes a
+		//                                    string on both sides at every
+		//                                    PROPERTIES in the tree.
 	}
 
 	for _, tc := range cases {

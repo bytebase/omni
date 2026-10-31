@@ -1023,3 +1023,269 @@ func TestLateralView(t *testing.T) {
 		}
 	}
 }
+
+// intoOf returns the INTO OUTFILE clause carried by a statement's outermost
+// query node, whichever of the three kinds that node is.
+func intoOf(t *testing.T, stmt ast.Node) *ast.IntoOutfileClause {
+	t.Helper()
+	switch n := stmt.(type) {
+	case *ast.SelectStmt:
+		return n.Into
+	case *ast.SetOpStmt:
+		return n.Into
+	case *ast.GroupedQuery:
+		return n.Into
+	default:
+		t.Fatalf("stmt = %T, want a query node", stmt)
+		return nil
+	}
+}
+
+func TestIntoOutfileClause(t *testing.T) {
+	// The whole point of the node: a query that exports is no longer
+	// indistinguishable from the same query without the clause.
+	file, errs := parseForTest("SELECT 1")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if into := intoOf(t, file.Stmts[0]); into != nil {
+		t.Errorf("plain SELECT carries Into = %+v, want nil", into)
+	}
+
+	file, errs = parseForTest(`SELECT * FROM t INTO OUTFILE "s3://b/pre" FORMAT AS CSV PROPERTIES("column_separator" = ",", "line_delimiter" = "\n")`)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	into := intoOf(t, file.Stmts[0])
+	if into == nil {
+		t.Fatal("Into = nil, want the INTO OUTFILE clause")
+	}
+	if into.Path != "s3://b/pre" {
+		t.Errorf("Path = %q, want %q", into.Path, "s3://b/pre")
+	}
+	if into.Format != "CSV" {
+		t.Errorf("Format = %q, want %q", into.Format, "CSV")
+	}
+	if len(into.Properties) != 2 {
+		t.Fatalf("Properties = %d, want 2", len(into.Properties))
+	}
+	if into.Properties[0].Key != "column_separator" || into.Properties[0].Value != "," {
+		t.Errorf("Properties[0] = %q=%q, want column_separator=,", into.Properties[0].Key, into.Properties[0].Value)
+	}
+
+	// Path only: FORMAT and PROPERTIES are optional and stay empty.
+	file, errs = parseForTest("SELECT 1 INTO OUTFILE '/tmp/x'")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	into = intoOf(t, file.Stmts[0])
+	if into == nil || into.Path != "/tmp/x" {
+		t.Fatalf("Into = %+v, want path /tmp/x", into)
+	}
+	if into.Format != "" || into.Properties != nil {
+		t.Errorf("Format = %q, Properties = %v, want both empty", into.Format, into.Properties)
+	}
+
+	// FORMAT AS takes an identifier, so a backtick-quoted name arrives
+	// unquoted, like every other identifier in the tree.
+	file, errs = parseForTest("SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS `PARQUET`")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if into = intoOf(t, file.Stmts[0]); into == nil || into.Format != "PARQUET" {
+		t.Errorf("Format = %+v, want PARQUET", into)
+	}
+}
+
+func TestIntoOutfileAttachesToOutermostQuery(t *testing.T) {
+	// The clause is statement-level, so it lands on whichever node the
+	// statement's outermost query is — never on an operand inside it.
+	cases := []struct {
+		name string
+		sql  string
+		want ast.NodeTag
+	}{
+		{"select", "SELECT * FROM t ORDER BY a LIMIT 10 INTO OUTFILE '/tmp/x'", ast.T_SelectStmt},
+		{"with", "WITH c AS (SELECT 1 AS a) SELECT * FROM c INTO OUTFILE '/tmp/x'", ast.T_SelectStmt},
+		{"parenthesized", "(SELECT * FROM t) INTO OUTFILE '/tmp/x'", ast.T_SelectStmt},
+		{"set_op", "SELECT a FROM t UNION SELECT a FROM t INTO OUTFILE '/tmp/x'", ast.T_SetOpStmt},
+		{"grouped", "(SELECT 1 ORDER BY 1) ORDER BY 1 INTO OUTFILE '/tmp/x'", ast.T_GroupedQuery},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			file, errs := parseForTest(tc.sql)
+			if len(errs) != 0 {
+				t.Fatalf("errors: %v", errs)
+			}
+			if got := file.Stmts[0].Tag(); got != tc.want {
+				t.Fatalf("stmt tag = %v, want %v", got, tc.want)
+			}
+			if into := intoOf(t, file.Stmts[0]); into == nil {
+				t.Fatalf("Into = nil on the outermost %v", tc.want)
+			}
+		})
+	}
+
+	// A set operation keeps the clause out here rather than on an arm, which
+	// is what the engine means by it: the export applies to the whole result.
+	file, errs := parseForTest("SELECT a FROM t UNION SELECT a FROM t INTO OUTFILE '/tmp/x'")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp := file.Stmts[0].(*ast.SetOpStmt)
+	if setOp.Right.(*ast.SelectStmt).Into != nil {
+		t.Error("Into landed on the right arm, not on the set operation")
+	}
+
+	// EXPLAIN takes the clause too (`explain? query outFileClause?`), and it
+	// belongs to the explained query.
+	file, errs = parseForTest("EXPLAIN SELECT 1 INTO OUTFILE '/tmp/x'")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	explain, ok := file.Stmts[0].(*ast.ExplainStmt)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.ExplainStmt", file.Stmts[0])
+	}
+	if intoOf(t, explain.Query) == nil {
+		t.Error("Into = nil on the explained query")
+	}
+}
+
+func TestIntoOutfileLoc(t *testing.T) {
+	// Loc is a byte range into the text handed to the parser, ending at the
+	// clause's last token, and the clause extends the query node's range.
+	const sql = `SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS CSV PROPERTIES("k" = "v")`
+	file, errs := parseForTest(sql)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	into := intoOf(t, file.Stmts[0])
+	if into == nil {
+		t.Fatal("Into = nil")
+	}
+	if got := sql[into.Loc.Start:into.Loc.End]; got != `INTO OUTFILE '/tmp/x' FORMAT AS CSV PROPERTIES("k" = "v")` {
+		t.Errorf("Loc spans %q", got)
+	}
+	if got := ast.NodeLoc(file.Stmts[0]).End; got != len(sql) {
+		t.Errorf("statement ends at %d, want %d (the clause extends it)", got, len(sql))
+	}
+
+	// Offsets stay absolute for a statement that is not the first in a script.
+	const script = "SELECT 1; SELECT 2 INTO OUTFILE '/tmp/x'"
+	file, errs = parseForTest(script)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if len(file.Stmts) != 2 {
+		t.Fatalf("stmts = %d, want 2", len(file.Stmts))
+	}
+	into = intoOf(t, file.Stmts[1])
+	if into == nil {
+		t.Fatal("Into = nil on the second statement")
+	}
+	if got := script[into.Loc.Start:into.Loc.End]; got != "INTO OUTFILE '/tmp/x'" {
+		t.Errorf("Loc spans %q, want the clause", got)
+	}
+}
+
+func TestIntoOutfileWalkReachesClause(t *testing.T) {
+	// A consumer that walks the tree reaches the clause and its properties;
+	// before the node existed there was nothing there to find.
+	file, errs := parseForTest(`SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k" = "v")`)
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	var clauses, props int
+	ast.Inspect(file.Stmts[0], func(n ast.Node) bool {
+		if n == nil {
+			return true
+		}
+		switch n.Tag() {
+		case ast.T_IntoOutfileClause:
+			clauses++
+		case ast.T_Property:
+			props++
+		}
+		return true
+	})
+	if clauses != 1 {
+		t.Errorf("IntoOutfileClause visited %d times, want 1", clauses)
+	}
+	if props != 1 {
+		t.Errorf("Property visited %d times, want 1", props)
+	}
+}
+
+func TestIntoOutfileRejects(t *testing.T) {
+	// Each of these is a container-verified engine reject; see
+	// TestDorisSyntaxConformance for the matrix this mirrors.
+	for _, sql := range []string{
+		"SELECT 1 INTO OUTFILE",
+		"SELECT 1 INTO '/tmp/x'",
+		"SELECT 1 OUTFILE '/tmp/x'",
+		"SELECT 1 INTO OUTFILE '/tmp/x' FORMAT PARQUET",
+		`SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS "PARQUET"`,
+		"SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS select",
+		"SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS",
+		"SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES",
+		"SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES()",
+		"SELECT 1 INTO OUTFILE '/tmp/x' ORDER BY 1",
+		"SELECT 1 INTO OUTFILE '/tmp/x' LIMIT 1",
+		"SELECT 1 INTO OUTFILE '/tmp/x' UNION SELECT 2",
+		"SELECT 1 INTO OUTFILE '/tmp/x' INTO OUTFILE '/tmp/y'",
+		"SELECT 1 INTO OUTFILE '/tmp/x' GARBAGE",
+		"SELECT a FROM t INTO OUTFILE '/tmp/x' UNION SELECT a FROM t",
+		// The clause cannot appear inside a query.
+		"(SELECT 1 INTO OUTFILE '/tmp/x')",
+		"SELECT * FROM (SELECT a FROM t INTO OUTFILE '/tmp/x') x",
+		"SELECT 1 UNION (SELECT a FROM t INTO OUTFILE '/tmp/x')",
+		"INSERT INTO t SELECT 1 INTO OUTFILE '/tmp/x'",
+		// MySQL spellings Doris does not share.
+		"SELECT 1 INTO @v",
+		"SELECT 1 INTO DUMPFILE '/tmp/x'",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want a syntax error", sql)
+		}
+	}
+}
+
+func TestIntoOutfilePathMustBeAString(t *testing.T) {
+	// The one place this clause is deliberately stricter than the engine.
+	// The grammar spells the path `constant`, so Doris parses
+	// `INTO OUTFILE 1` and only refuses it in analysis ("Please specify
+	// BROKER properties or check your local file path") — container-verified,
+	// which is why it is not a row in TestDorisSyntaxConformance. Nothing but
+	// a string can name a path, and refusing it here fails closed.
+	for _, sql := range []string{
+		"SELECT 1 INTO OUTFILE 1",
+		"SELECT 1 INTO OUTFILE 1.5",
+		"SELECT 1 INTO OUTFILE NULL",
+		"SELECT 1 INTO OUTFILE ['/tmp/x']",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want a syntax error (the path must be a string)", sql)
+		}
+	}
+}
+
+func TestIntoOutfileNotAKeywordMatch(t *testing.T) {
+	// OUTFILE inside a string literal, a quoted identifier or a comment is
+	// not an export, which is the whole reason to decide this on the tree
+	// rather than on the text.
+	for _, sql := range []string{
+		`SELECT a FROM t WHERE a = 'into outfile'`,
+		"SELECT `INTO OUTFILE` FROM t",
+		"SELECT * FROM t /* INTO OUTFILE */",
+		"SELECT * FROM t -- INTO OUTFILE 's3://b/'",
+	} {
+		file, errs := parseForTest(sql)
+		if len(errs) != 0 {
+			t.Fatalf("%q: errors: %v", sql, errs)
+		}
+		if into := intoOf(t, file.Stmts[0]); into != nil {
+			t.Errorf("%q carries Into = %+v, want nil", sql, into)
+		}
+	}
+}
