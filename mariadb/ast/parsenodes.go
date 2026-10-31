@@ -1971,6 +1971,21 @@ type IntervalExpr struct {
 func (e *IntervalExpr) nodeTag()  {}
 func (e *IntervalExpr) exprNode() {}
 
+// KeywordArg represents a bare keyword in a function argument position: the
+// temporal unit of TIMESTAMPDIFF/TIMESTAMPADD (timestampdiff(SECOND,a,b)) or
+// the format type of GET_FORMAT (get_format(DATE,'USA')). MySQL lexes these
+// positions as keywords, never identifiers — a quoted `SECOND` is a syntax
+// error (oracle mariadb 11.8.8) — so deparse must render Keyword unquoted.
+// Keyword is stored normalized: uppercase, SQL_TSI_ prefix stripped, and
+// GET_FORMAT's TIMESTAMP folded to DATETIME, matching SHOW CREATE VIEW.
+type KeywordArg struct {
+	Loc     Loc
+	Keyword string
+}
+
+func (e *KeywordArg) nodeTag()  {}
+func (e *KeywordArg) exprNode() {}
+
 // CollateExpr represents a COLLATE expression.
 type CollateExpr struct {
 	Loc       Loc

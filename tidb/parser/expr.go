@@ -610,6 +610,20 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		return p.parseGroupConcatFunc(fc)
 	}
 
+	// Keyword-argument builtins: their first argument (or a trailing clause)
+	// is a bare keyword the engine lexes as a token, never an identifier —
+	// a backtick-quoted unit is a syntax error (oracle mysql 8.0).
+	// Only the unqualified builtin has this shape; a schema-qualified name is
+	// a stored function whose arguments are ordinary expressions.
+	if schema == "" {
+		switch upperName {
+		case "TIMESTAMPDIFF", "TIMESTAMPADD":
+			return p.parseTimestampFunc(fc)
+		case "GET_FORMAT":
+			return p.parseGetFormatFunc(fc)
+		}
+	}
+
 	// Completion: at the start of the function argument list (including
 	// empty parens), offer columnref/func_name candidates.
 	p.checkCursor()
@@ -1700,13 +1714,14 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 
 	// Parse unit: DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.
 	// Use parseKeywordOrIdent because compound interval units (DAY_HOUR, etc.)
-	// are registered as reserved keywords.
+	// are registered as reserved keywords. SQL_TSI_ synonyms fold to their
+	// canonical unit, matching the engine's stored form.
 	unit, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
 	}
 
-	upper := strings.ToUpper(unit)
+	upper := normalizeTimeUnit(unit)
 	if !isValidIntervalUnit(upper) {
 		return nil, &ParseError{
 			Position: p.pos(),
@@ -1748,6 +1763,160 @@ var validIntervalUnits = map[string]bool{
 // isValidIntervalUnit returns true if unit (already uppercased) is a valid MySQL interval unit.
 func isValidIntervalUnit(unit string) bool {
 	return validIntervalUnits[unit]
+}
+
+// sqlTSIUnits maps the SQL_TSI_-prefixed unit synonyms MySQL's lexer
+// registers to their canonical unit. Only these eight exist —
+// SQL_TSI_MICROSECOND is not a token and the engine rejects it
+// (oracle mysql 8.0: error 1064).
+var sqlTSIUnits = map[string]string{
+	"SQL_TSI_SECOND":  "SECOND",
+	"SQL_TSI_MINUTE":  "MINUTE",
+	"SQL_TSI_HOUR":    "HOUR",
+	"SQL_TSI_DAY":     "DAY",
+	"SQL_TSI_WEEK":    "WEEK",
+	"SQL_TSI_MONTH":   "MONTH",
+	"SQL_TSI_QUARTER": "QUARTER",
+	"SQL_TSI_YEAR":    "YEAR",
+}
+
+// normalizeTimeUnit uppercases unit and folds a SQL_TSI_ synonym to its
+// canonical name. This mirrors the engine's stored form: SHOW CREATE VIEW
+// renders timestampdiff(sql_tsi_second,...) as timestampdiff(SECOND,...)
+// (oracle mysql 8.0).
+func normalizeTimeUnit(unit string) string {
+	u := strings.ToUpper(unit)
+	if canon, ok := sqlTSIUnits[u]; ok {
+		return canon
+	}
+	return u
+}
+
+// simpleTimeUnits is the unit set TIMESTAMPDIFF/TIMESTAMPADD accept
+// (interval_time_stamp in sql_yacc.yy): the nine simple units only.
+// Compound units are a syntax error there (oracle mysql 8.0:
+// TIMESTAMPDIFF(DAY_HOUR,...) → 1064).
+var simpleTimeUnits = map[string]bool{
+	"MICROSECOND": true,
+	"SECOND":      true,
+	"MINUTE":      true,
+	"HOUR":        true,
+	"DAY":         true,
+	"WEEK":        true,
+	"MONTH":       true,
+	"QUARTER":     true,
+	"YEAR":        true,
+}
+
+// parseTimeUnitKeyword parses a bare temporal-unit keyword and returns it as
+// a normalized KeywordArg. The engine lexes the unit as a keyword token —
+// quoted identifiers and string literals are syntax errors in this position
+// (oracle mysql 8.0) — so only keyword tokens are accepted; all valid
+// units are registered keywords. simpleOnly restricts to the
+// TIMESTAMPDIFF/TIMESTAMPADD set; otherwise the full interval-unit set
+// (including compound units) is allowed.
+func (p *Parser) parseTimeUnitKeyword(simpleOnly bool) (*nodes.KeywordArg, error) {
+	if p.cur.Type < 700 {
+		return nil, &ParseError{Message: "expected time unit keyword", Position: p.cur.Loc}
+	}
+	tok := p.advance()
+	unit := normalizeTimeUnit(tok.Str)
+	valid := isValidIntervalUnit(unit)
+	if simpleOnly {
+		valid = simpleTimeUnits[unit]
+	}
+	if !valid {
+		return nil, &ParseError{Message: "invalid time unit: " + tok.Str, Position: tok.Loc}
+	}
+	return &nodes.KeywordArg{
+		Loc:     nodes.Loc{Start: tok.Loc, End: p.prev.End},
+		Keyword: unit,
+	}, nil
+}
+
+// parseTimestampFunc parses TIMESTAMPDIFF(unit, expr, expr) and
+// TIMESTAMPADD(unit, expr, expr) — the unit is a bare keyword argument.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_timestampdiff
+func (p *Parser) parseTimestampFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	// Completion parity with the generic argument path.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	unit, err := p.parseTimeUnitKeyword(true)
+	if err != nil {
+		return nil, err
+	}
+	fc.Args = append(fc.Args, unit)
+	for range 2 {
+		if _, err := p.expect(','); err != nil {
+			return nil, err
+		}
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		fc.Args = append(fc.Args, arg)
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Loc.End = p.prev.End
+	return fc, nil
+}
+
+// parseGetFormatFunc parses GET_FORMAT({DATE|TIME|DATETIME|TIMESTAMP}, expr).
+// The first argument is a bare keyword; TIMESTAMP is a synonym the engine
+// stores as DATETIME, and anything else — including YEAR and string
+// literals — is a syntax error (oracle mysql 8.0).
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_get-format
+func (p *Parser) parseGetFormatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	// Completion parity with the generic argument path.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	if p.cur.Type < 700 {
+		return nil, &ParseError{Message: "expected DATE, TIME, DATETIME, or TIMESTAMP", Position: p.cur.Loc}
+	}
+	tok := p.advance()
+	kind := strings.ToUpper(tok.Str)
+	switch kind {
+	case "DATE", "TIME", "DATETIME":
+	case "TIMESTAMP":
+		kind = "DATETIME"
+	default:
+		return nil, &ParseError{Message: "invalid GET_FORMAT type: " + tok.Str, Position: tok.Loc}
+	}
+	fc.Args = append(fc.Args, &nodes.KeywordArg{
+		Loc:     nodes.Loc{Start: tok.Loc, End: p.prev.End},
+		Keyword: kind,
+	})
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	arg, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc.Args = append(fc.Args, arg)
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Loc.End = p.prev.End
+	return fc, nil
 }
 
 // parseMatchExpr parses MATCH (col_list) AGAINST (expr [modifier]).

@@ -705,6 +705,11 @@ type ConstExprQ struct {
 	// Value is the textual form as the lexer produced it. Quoting and
 	// numeric format are preserved so deparse can reproduce the original.
 	Value string
+	// Keyword marks a bare keyword argument — the temporal unit of
+	// TIMESTAMPDIFF/TIMESTAMPADD, the format type of GET_FORMAT. It carries no
+	// lineage, like any constant, but deparse must not quote it: the engine
+	// lexes the position as a keyword and rejects timestampdiff('SECOND',...).
+	Keyword bool
 }
 
 func (*ConstExprQ) analyzedExprTag()          {}
