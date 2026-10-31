@@ -389,3 +389,35 @@ func TestDiffIndex_ScopeChange(t *testing.T) {
 		t.Errorf("SHOW CREATE TABLE dropped the scope:\n%s", got)
 	}
 }
+
+// TestDiffIndex_ScopeMigrationRoundTrip asserts the generated migration actually effects a
+// scope change. The diff reporting one is not enough: if the ADD INDEX omits the scope, the
+// index comes back at the default and the next diff reports the same change forever.
+func TestDiffIndex_ScopeMigrationRoundTrip(t *testing.T) {
+	tbl := func(scope string) string {
+		return "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a) " + scope +
+			") PARTITION BY KEY(id) PARTITIONS 2"
+	}
+	for _, tc := range []struct{ name, from, to string }{
+		{"LOCAL to GLOBAL", "LOCAL", "GLOBAL"},
+		{"unstated to GLOBAL", "", "GLOBAL"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			n := NormalizerFor(MySQL80)
+			from := loadCat(t, dbDDL+tbl(tc.from))
+			to := loadCat(t, dbDDL+tbl(tc.to))
+			plan := GenerateMigrationWithNormalizer(from, to, DiffWithNormalizer(from, to, n), n)
+			sql := plan.SQL()
+			if !strings.Contains(strings.ToUpper(sql), "GLOBAL") {
+				t.Fatalf("the migration does not mention the target scope:\n%s", sql)
+			}
+			// Applying it must reach the target, or the change repeats on every run.
+			applied := loadCat(t, dbDDL+tbl(tc.from))
+			mustExec(t, applied, sql)
+			if d := DiffWithNormalizer(applied, to, n); !d.IsEmpty() {
+				t.Errorf("the migration did not land the scope, so it would repeat: %s\n%s",
+					describeDiff(d), sql)
+			}
+		})
+	}
+}
