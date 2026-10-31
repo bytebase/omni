@@ -196,3 +196,30 @@ func TestOracle_PartitionChangeDetected(t *testing.T) {
 		}
 	}
 }
+
+// TestDiffPartition_SubpartitionTemplate asserts a subpartition template reaches the
+// partition spec the diff compares. canonicalPartitionSpec renders through
+// showPartitioning, and a HASH table with PARTITIONS N used to render as that count alone,
+// which cannot express subpartitions -- so changing a template's entries diffed empty and
+// generated no migration.
+func TestDiffPartition_SubpartitionTemplate(t *testing.T) {
+	ddl := func(subs string) string {
+		return dbDDL + "CREATE TABLE t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2 " +
+			"SUBPARTITION BY KEY(b) SUBPARTITION TEMPLATE (" + subs + ")"
+	}
+	two := ddl("SUBPARTITION s0, SUBPARTITION s1")
+	three := ddl("SUBPARTITION s0, SUBPARTITION s1, SUBPARTITION s2")
+
+	if d := DiffWithNormalizer(loadCat(t, two), loadCat(t, three), NormalizerFor(MySQL80)); d.IsEmpty() {
+		t.Error("a two-entry template against a three-entry one diffed empty, so no migration")
+	}
+	if d := DiffWithNormalizer(loadCat(t, two), loadCat(t, two), NormalizerFor(MySQL80)); !d.IsEmpty() {
+		t.Errorf("the same template must be empty, got: %s", describeDiff(d))
+	}
+	// The rendered form has to be loadable, since the spec is compared as text and a
+	// template repeats its subpartition names across partitions.
+	rendered := loadCat(t, two).ShowCreateTable("app", "t")
+	if !strings.Contains(rendered, "SUBPARTITION s0") {
+		t.Errorf("the rendered form states no subpartitions:\n%s", rendered)
+	}
+}

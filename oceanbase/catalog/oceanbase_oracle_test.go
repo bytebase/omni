@@ -150,6 +150,10 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 		{"partitioned", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a)) PARTITION BY KEY(id) PARTITIONS 2"},
 		{"global written", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a) GLOBAL) PARTITION BY KEY(id) PARTITIONS 2"},
 		{"explicit partitions", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a)) PARTITION BY KEY(id) (PARTITION p0, PARTITION p1)"},
+		// OceanBase prints a template back as a template over named partitions, while
+		// this catalog renders it expanded onto each one. Both have to describe the same
+		// layout or a templated table phantom-diffs against its own readback.
+		{"subpartition template", "CREATE TABLE t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2 SUBPARTITION BY KEY(b) SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1)"},
 	} {
 		t.Run(probe.id, func(t *testing.T) {
 			readback, err := storeAndRead(ctx, o, "obscope_"+strings.ReplaceAll(probe.id, " ", "_"), probe.create, "t")
@@ -172,7 +176,12 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 						ie.Name, ie.Action, strings.TrimSpace(probe.create), strings.TrimSpace(readback))
 				}
 				if te.PartitionChanged {
-					t.Logf("known gap: the partition form also differs for %s", probe.id)
+					if probe.id == "subpartition template" {
+						t.Errorf("the template does not canonicalize against its readback\n  user:   %s\n  stored: %s",
+							strings.TrimSpace(probe.create), strings.TrimSpace(readback))
+					} else {
+						t.Logf("known gap: the partition form also differs for %s", probe.id)
+					}
 				}
 			}
 		})
