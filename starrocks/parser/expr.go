@@ -320,7 +320,11 @@ func (p *Parser) parsePostfixSuffixes(node ast.Node) (ast.Node, error) {
 			}
 
 		case p.cur.Kind == tokArrow && p.peekNext().Kind == tokString:
-			node = p.parseJSONArrow(node)
+			arrow, err := p.parseJSONArrow(node)
+			if err != nil {
+				return nil, err
+			}
+			node = arrow
 
 		default:
 			return node, nil
@@ -351,10 +355,15 @@ func (p *Parser) parsePostfixSuffixes(node ast.Node) (ast.Node, error) {
 // The path is a bare string token, matching the grammar: the engine does not
 // take a parenthesized or computed path here (`j -> ('$.a')` and
 // `j -> CONCAT('$.','a')` fall through to its lambda branch), and it does not
-// concatenate adjacent string literals.
-func (p *Parser) parseJSONArrow(left ast.Node) ast.Node {
+// concatenate adjacent string literals. The caller's lookahead decides whether
+// to enter this production at all; the path is still taken with expect, so the
+// production reports a missing one the way every other one does.
+func (p *Parser) parseJSONArrow(left ast.Node) (ast.Node, error) {
 	p.advance() // consume '->'
-	pathTok := p.advance()
+	pathTok, err := p.expect(tokString)
+	if err != nil {
+		return nil, err
+	}
 	return &ast.BinaryExpr{
 		Op:   ast.BinJSONArrow,
 		Left: left,
@@ -364,7 +373,7 @@ func (p *Parser) parseJSONArrow(left ast.Node) ast.Node {
 			Loc:   pathTok.Loc,
 		},
 		Loc: ast.Loc{Start: ast.NodeLoc(left).Start, End: pathTok.Loc.End},
-	}
+	}, nil
 }
 
 // ---------------------------------------------------------------------------
