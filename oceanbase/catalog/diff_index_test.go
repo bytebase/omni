@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -337,5 +338,54 @@ func TestCanonicalIndex_VersionFlaggedAttrs(t *testing.T) {
 	}
 	if canonicalIndex(plain, n80) != canonicalIndex(kbs, n80) {
 		t.Errorf("8.0: index KEY_BLOCK_SIZE must be ignored in the key")
+	}
+}
+
+// TestDiffIndex_ScopeChange pins the index-scope matrix. OceanBase prints LOCAL on every
+// secondary index whether or not the DDL asked for it, so an unstated scope must compare
+// equal to an echoed LOCAL or every table phantom-diffs against its own readback. GLOBAL
+// is only ever written deliberately, so a change into or out of it must still diff.
+func TestDiffIndex_ScopeChange(t *testing.T) {
+	tbl := func(scope string) string {
+		return dbDDL + "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a) " + scope +
+			") PARTITION BY KEY(id) PARTITIONS 2"
+	}
+	for _, tc := range []struct {
+		name      string
+		from, to  string
+		wantEmpty bool
+	}{
+		{"unstated against the echoed LOCAL", "", "LOCAL", true},
+		{"LOCAL against LOCAL", "LOCAL", "LOCAL", true},
+		{"GLOBAL against GLOBAL", "GLOBAL", "GLOBAL", true},
+		{"LOCAL to GLOBAL", "LOCAL", "GLOBAL", false},
+		{"GLOBAL to LOCAL", "GLOBAL", "LOCAL", false},
+		{"unstated to GLOBAL", "", "GLOBAL", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := Diff(loadCat(t, tbl(tc.from)), loadCat(t, tbl(tc.to)))
+			if got := d.IsEmpty(); got != tc.wantEmpty {
+				t.Errorf("empty = %v, want %v (%s)", got, tc.wantEmpty, describeDiff(d))
+			}
+		})
+	}
+
+	// The scope still has to reach the catalog and SHOW CREATE TABLE, folded or not.
+	cat := loadCat(t, tbl("GLOBAL"))
+	table := cat.GetDatabase("app").GetTable("t")
+	var idx *Index
+	for _, i := range table.Indexes {
+		if i.Name == "ka" {
+			idx = i
+		}
+	}
+	if idx == nil {
+		t.Fatal("index ka not found")
+	}
+	if idx.Scope != "GLOBAL" {
+		t.Errorf("Scope = %q, want GLOBAL", idx.Scope)
+	}
+	if got := cat.ShowCreateTable("app", "t"); !strings.Contains(got, "GLOBAL") {
+		t.Errorf("SHOW CREATE TABLE dropped the scope:\n%s", got)
 	}
 }

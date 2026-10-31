@@ -1381,7 +1381,9 @@ func (p *Parser) consumeOptionValue() (string, error) {
 			}
 			return name, nil
 		}
-		return "", nil
+		// Every option routed here takes a value, so a missing one is a syntax error
+		// rather than an empty string: returning "" let a truncated option parse.
+		return "", &ParseError{Message: "expected a value for the table option", Position: p.cur.Loc}
 	}
 }
 

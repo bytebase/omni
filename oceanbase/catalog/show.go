@@ -419,6 +419,11 @@ func showIndex(idx *Index) string {
 		b.WriteString(" /*!80000 INVISIBLE */")
 	}
 
+	// OceanBase prints the index scope last, after the other options.
+	if idx.Scope != "" {
+		b.WriteString(" " + strings.ToUpper(idx.Scope))
+	}
+
 	return b.String()
 }
 

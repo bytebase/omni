@@ -134,6 +134,51 @@ func TestOracle_OceanBaseCanonicalization(t *testing.T) {
 	}
 }
 
+// TestOracle_OceanBaseIndexScopeEcho pins that the index scope OceanBase echoes does not
+// read as a schema change. 4.3.5 prints LOCAL on every secondary index, partitioned table
+// or not, whether or not the DDL asked for it, so an unstated scope has to canonicalize
+// equal to that readback or every indexed table reports a spurious index MODIFY and the
+// migration grows a DROP INDEX and ADD INDEX nobody asked for.
+//
+// This needs its own probes because diffIdempotenceProbes has no secondary index at all,
+// which is how the diff carried the raw scope for a while without anything failing.
+func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
+	o := oceanBaseOracle(t)
+	ctx := context.Background()
+	for _, probe := range []struct{ id, create string }{
+		{"unpartitioned", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))"},
+		{"partitioned", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a)) PARTITION BY KEY(id) PARTITIONS 2"},
+		{"global written", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a) GLOBAL) PARTITION BY KEY(id) PARTITIONS 2"},
+		{"explicit partitions", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a)) PARTITION BY KEY(id) (PARTITION p0, PARTITION p1)"},
+	} {
+		t.Run(probe.id, func(t *testing.T) {
+			readback, err := storeAndRead(ctx, o, "obscope_"+strings.ReplaceAll(probe.id, " ", "_"), probe.create, "t")
+			if err != nil {
+				t.Fatalf("OceanBase would not take the form: %v", err)
+			}
+			sc := serverCharsetFor(o.version)
+			n := NormalizerFor(o.version)
+			userCat, userTbl := loadOneTable(t, sc, probe.create, "t")
+			storedCat, storedTbl := loadOneTable(t, sc, readback, "t")
+			d := DiffWithNormalizer(userCat, storedCat, n)
+			_, _ = userTbl, storedTbl
+			// Only the index half is asserted here. A partitioned table also differs at
+			// the partition level on this engine, and every table differs by the
+			// obEchoedRowFormat gap, both recorded elsewhere; this probe exists to catch
+			// the scope echo reading as a change.
+			for _, te := range d.Tables {
+				for _, ie := range te.Indexes {
+					t.Errorf("index %s reported %s, so the echoed scope read as a change\n  user:   %s\n  stored: %s",
+						ie.Name, ie.Action, strings.TrimSpace(probe.create), strings.TrimSpace(readback))
+				}
+				if te.PartitionChanged {
+					t.Logf("known gap: the partition form also differs for %s", probe.id)
+				}
+			}
+		})
+	}
+}
+
 // requireFormOceanBaseRejects accepts the one apply failure this test tolerates: the
 // engine answering 1064 for a form obUnsupportedForms names. A different error means the
 // oracle is broken, and an unlisted probe means the dialect moved and nobody said so.

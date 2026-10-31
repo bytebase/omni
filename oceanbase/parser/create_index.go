@@ -311,10 +311,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		}
 		return nil, false, &ParseError{Message: "expected string after COMMENT", Position: p.cur.Loc}
 
-	// LOCAL and GLOBAL give an index on a partitioned table its scope: LOCAL is
-	// partitioned with the table, GLOBAL spans it. OceanBase prints one on every
-	// index of a partitioned table, and takes either in CREATE TABLE and in
-	// ALTER TABLE ... ADD INDEX (verified on 4.3.5).
+	// LOCAL and GLOBAL give an index its scope: LOCAL is partitioned with the table,
+	// GLOBAL spans it. 4.3.5 prints a scope on every secondary index, partitioned table
+	// or not, and takes either in CREATE TABLE and in ALTER TABLE ... ADD INDEX.
 	case p.cur.Type == kwLOCAL, p.cur.Type == kwGLOBAL:
 		name := "LOCAL"
 		if p.cur.Type == kwGLOBAL {

@@ -1759,6 +1759,8 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			case *nodes.IntLit:
 				idx.KeyBlockSize = int(n.Value)
 			}
+		case "LOCAL", "GLOBAL":
+			idx.Scope = strings.ToUpper(opt.Name)
 		}
 	}
 }
