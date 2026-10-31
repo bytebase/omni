@@ -1269,6 +1269,13 @@ func validateUniqueKeysCoverPartitionColumns(tbl *Table, partCols []string) erro
 		if !idx.Unique && !idx.Primary {
 			continue
 		}
+		// A GLOBAL unique index is not partitioned with the table, so it enforces
+		// uniqueness across every partition and needs none of the partitioning
+		// columns. 4.3.5 accepts exactly that and rejects the LOCAL and unstated
+		// forms with this same 1503, which is why only GLOBAL is exempt.
+		if strings.EqualFold(idx.Scope, "GLOBAL") {
+			continue
+		}
 		idxCols := map[string]bool{}
 		for _, ic := range idx.Columns {
 			idxCols[toLower(ic.Name)] = true

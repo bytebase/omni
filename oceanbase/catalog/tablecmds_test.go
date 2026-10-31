@@ -344,3 +344,33 @@ func TestCreateTableSubpartitionTemplate(t *testing.T) {
 		}
 	}
 }
+
+// TestCreateTableGlobalUniqueKeyPartitionCoverage pins which unique indexes must cover the
+// partitioning columns. A GLOBAL index is not partitioned with the table, so it enforces
+// uniqueness across all partitions and needs none of them; LOCAL and an unstated scope do.
+// Each expectation below is the verdict of a live 5.7.25-OceanBase_CE-v4.3.5.6.
+func TestCreateTableGlobalUniqueKeyPartitionCoverage(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		ddl        string
+		wantAccept bool
+	}{
+		{"GLOBAL excluding the partition column", "UNIQUE KEY ua (a) GLOBAL", true},
+		{"GLOBAL covering the partition column", "UNIQUE KEY ua (id, a) GLOBAL", true},
+		{"LOCAL excluding the partition column", "UNIQUE KEY ua (a) LOCAL", false},
+		{"unstated excluding the partition column", "UNIQUE KEY ua (a)", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := setupWithDB(t)
+			results, err := c.Exec("CREATE TABLE t (id INT PRIMARY KEY, a INT, "+tc.ddl+") PARTITION BY HASH(id) PARTITIONS 2", nil)
+			for _, r := range results {
+				if r.Error != nil {
+					err = r.Error
+				}
+			}
+			if gotAccept := err == nil; gotAccept != tc.wantAccept {
+				t.Errorf("accepted = %v, want %v (err: %v)", gotAccept, tc.wantAccept, err)
+			}
+		})
+	}
+}
