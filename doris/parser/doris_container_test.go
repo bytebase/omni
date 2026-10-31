@@ -467,6 +467,50 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"outfile_properties_leading_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES(,"k"="v")`, false},
 		{"outfile_properties_double_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v",,"k2"="v2")`, false},
 		{"outfile_trailing_garbage_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' GARBAGE", false},
+		// --- Property lists. The grammar gives every one of them as
+		// propertyItemList: propertyItem (COMMA propertyItem)* -- so at least
+		// one item, comma-separated, not ending on a comma. Each clause below
+		// reaches a different one of the parsers that used to carry its own
+		// copy of the list loop with the comma optional, so each accepted all
+		// three departures the engine refuses.
+		{"props_create_table", `CREATE TABLE zzp1 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v","k2"="v2")`, true},
+		{"props_create_table_missing_comma_rejected", `CREATE TABLE zzp2 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v" "k2"="v2")`, false},
+		{"props_create_table_trailing_comma_rejected", `CREATE TABLE zzp3 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v",)`, false},
+		{"props_create_table_empty_rejected", `CREATE TABLE zzp4 (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES()`, false},
+
+		{"props_create_database", `CREATE DATABASE zzpdb PROPERTIES("k"="v","k2"="v2")`, true},
+		{"props_create_database_missing_comma_rejected", `CREATE DATABASE zzpdb2 PROPERTIES("k"="v" "k2"="v2")`, false},
+		{"props_create_database_trailing_comma_rejected", `CREATE DATABASE zzpdb3 PROPERTIES("k"="v",)`, false},
+		{"props_create_database_empty_rejected", `CREATE DATABASE zzpdb4 PROPERTIES()`, false},
+
+		{"props_alter_table_set", `ALTER TABLE t SET ("k"="v","k2"="v2")`, true},
+		{"props_alter_table_set_missing_comma_rejected", `ALTER TABLE t SET ("k"="v" "k2"="v2")`, false},
+		{"props_alter_table_set_trailing_comma_rejected", `ALTER TABLE t SET ("k"="v",)`, false},
+		{"props_alter_table_set_empty_rejected", `ALTER TABLE t SET ()`, false},
+
+		{"props_admin_frontend_config", `ADMIN SET FRONTEND CONFIG ("k"="v","k2"="v2")`, true},
+		{"props_admin_frontend_config_missing_comma_rejected", `ADMIN SET FRONTEND CONFIG ("k"="v" "k2"="v2")`, false},
+		{"props_admin_frontend_config_trailing_comma_rejected", `ADMIN SET FRONTEND CONFIG ("k"="v",)`, false},
+		{"props_admin_frontend_config_empty_rejected", `ADMIN SET FRONTEND CONFIG ()`, false},
+
+		// ALTER CATALOG ... PROPERTY (...) reaches the sixth list parser, but
+		// it gets no rows here: the engine rejects that statement form
+		// outright, well-formed list and all, so a parity row would pin the
+		// form rather than the list. omni accepting a form the engine does not
+		// have is a separate, pre-existing divergence; the list shape for that
+		// parser is covered by TestPropertyListSeparators.
+
+		{"props_create_mv", `CREATE MATERIALIZED VIEW zzpmv BUILD IMMEDIATE REFRESH COMPLETE DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v","k2"="v2") AS SELECT 1 AS a`, true},
+		{"props_create_mv_missing_comma_rejected", `CREATE MATERIALIZED VIEW zzpmv2 BUILD IMMEDIATE REFRESH COMPLETE DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v" "k2"="v2") AS SELECT 1 AS a`, false},
+		{"props_create_mv_trailing_comma_rejected", `CREATE MATERIALIZED VIEW zzpmv3 BUILD IMMEDIATE REFRESH COMPLETE DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("k"="v",) AS SELECT 1 AS a`, false},
+		{"props_create_mv_empty_rejected", `CREATE MATERIALIZED VIEW zzpmv4 BUILD IMMEDIATE REFRESH COMPLETE DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES() AS SELECT 1 AS a`, false},
+
+		{"props_routine_load_job", `CREATE ROUTINE LOAD zzrl ON t PROPERTIES("k"="v","k2"="v2") FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`, true},
+		{"props_routine_load_job_missing_comma_rejected", `CREATE ROUTINE LOAD zzrl2 ON t PROPERTIES("k"="v" "k2"="v2") FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`, false},
+		{"props_routine_load_job_trailing_comma_rejected", `CREATE ROUTINE LOAD zzrl3 ON t PROPERTIES("k"="v",) FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`, false},
+		{"props_routine_load_source_missing_comma_rejected", `CREATE ROUTINE LOAD zzrl4 ON t PROPERTIES("desired_concurrent_number"="3") FROM KAFKA("k"="v" "k2"="v2")`, false},
+		{"props_routine_load_source_empty_rejected", `CREATE ROUTINE LOAD zzrl5 ON t PROPERTIES("desired_concurrent_number"="3") FROM KAFKA()`, false},
+
 		// MySQL spellings the engine does not share.
 		{"outfile_into_var_rejected", "SELECT 1 INTO @v", false},
 		{"outfile_dumpfile_rejected", "SELECT 1 INTO DUMPFILE '/tmp/x'", false},

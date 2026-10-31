@@ -1461,19 +1461,13 @@ func (p *Parser) parseIntoOutfileClause() (*ast.IntoOutfileClause, error) {
 		clause.Format = format
 	}
 
-	// PROPERTIES(...), held to the grammar's propertyItemList: at least one
-	// item, comma-separated, no trailing comma. The shared parseProperties
-	// is loose about all three for its other callers, so this clause asks
-	// for the strict form.
-	//
-	// It is stricter than the grammar in the other direction, though:
-	// propertyKey and propertyValue are `identifier | constant`, so the
-	// engine also takes PROPERTIES(k = "v") and PROPERTIES("k" = 1), which
-	// the shared helper refuses at every PROPERTIES in the tree. That fails
-	// closed, and widening it reaches every DDL caller, so it is left alone
-	// here.
+	// PROPERTIES(...) is the grammar's propertyItemList, which
+	// parsePropertyItems holds every clause to. It stays stricter than the
+	// grammar on the item itself -- propertyKey and propertyValue are
+	// `identifier | constant`, so the engine also takes PROPERTIES(k = "v")
+	// and PROPERTIES("k" = 1) -- which fails closed; see parseStringProperty.
 	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parsePropertiesStrict()
+		props, err := p.parseProperties()
 		if err != nil {
 			return nil, err
 		}
