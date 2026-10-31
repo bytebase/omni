@@ -306,42 +306,71 @@ func TestCreateTableWithFK(t *testing.T) {
 }
 
 // TestCreateTableSubpartitionTemplate pins that OceanBase's SUBPARTITION TEMPLATE reaches
-// the catalog. The parser accepts the clause, so a conversion that ignored it would give
-// every partition one auto-generated subpartition and quietly change the layout.
+// the catalog, for partitions the DDL names and for the ones PARTITIONS N generates. The
+// parser accepts the clause, so a conversion that ignored it would give every partition one
+// auto-generated subpartition and quietly change the layout. Both forms are accepted by
+// 5.7.25-OceanBase_CE-v4.3.5.6.
 func TestCreateTableSubpartitionTemplate(t *testing.T) {
-	c := setupWithDB(t)
-	mustExec(t, c, `CREATE TABLE t (a INT, b INT)
-		PARTITION BY RANGE COLUMNS(a)
-		SUBPARTITION BY KEY(b)
-		SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1)
-		(PARTITION q0 VALUES LESS THAN (10), PARTITION q1 VALUES LESS THAN (20))`)
+	for _, tc := range []struct {
+		name  string
+		ddl   string
+		parts []string
+	}{
+		{
+			"explicit outer partitions",
+			`CREATE TABLE t (a INT, b INT)
+				PARTITION BY RANGE COLUMNS(a)
+				SUBPARTITION BY KEY(b)
+				SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1)
+				(PARTITION q0 VALUES LESS THAN (10), PARTITION q1 VALUES LESS THAN (20))`,
+			[]string{"q0", "q1"},
+		},
+		{
+			// HASH with PARTITIONS N names no partitions of its own, so these are
+			// generated after the template would otherwise have been applied.
+			"generated outer partitions",
+			`CREATE TABLE t (a INT, b INT)
+				PARTITION BY HASH(a) PARTITIONS 2
+				SUBPARTITION BY KEY(b)
+				SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1)`,
+			[]string{"p0", "p1"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := setupWithDB(t)
+			mustExec(t, c, tc.ddl)
 
-	tbl := c.GetDatabase("testdb").GetTable("t")
-	if tbl == nil {
-		t.Fatal("table t not found")
-	}
-	pi := tbl.Partitioning
-	if pi == nil {
-		t.Fatal("table t has no partitioning")
-	}
-	if pi.NumSubParts != 2 {
-		t.Errorf("NumSubParts = %d, want 2", pi.NumSubParts)
-	}
-	if pi.UseDefaultSubpartitions || pi.UseDefaultNumSubpartitions {
-		t.Errorf("the template is explicit, but UseDefaultSubpartitions=%v UseDefaultNumSubpartitions=%v",
-			pi.UseDefaultSubpartitions, pi.UseDefaultNumSubpartitions)
-	}
-	if len(pi.Partitions) != 2 {
-		t.Fatalf("partitions = %d, want 2", len(pi.Partitions))
-	}
-	for _, pd := range pi.Partitions {
-		var got []string
-		for _, sp := range pd.SubPartitions {
-			got = append(got, sp.Name)
-		}
-		if len(got) != 2 || got[0] != "s0" || got[1] != "s1" {
-			t.Errorf("partition %s subpartitions = %v, want [s0 s1]", pd.Name, got)
-		}
+			tbl := c.GetDatabase("testdb").GetTable("t")
+			if tbl == nil {
+				t.Fatal("table t not found")
+			}
+			pi := tbl.Partitioning
+			if pi == nil {
+				t.Fatal("table t has no partitioning")
+			}
+			if pi.NumSubParts != 2 {
+				t.Errorf("NumSubParts = %d, want 2", pi.NumSubParts)
+			}
+			if pi.UseDefaultSubpartitions || pi.UseDefaultNumSubpartitions {
+				t.Errorf("the template is explicit, but UseDefaultSubpartitions=%v UseDefaultNumSubpartitions=%v",
+					pi.UseDefaultSubpartitions, pi.UseDefaultNumSubpartitions)
+			}
+			if len(pi.Partitions) != len(tc.parts) {
+				t.Fatalf("partitions = %d, want %d", len(pi.Partitions), len(tc.parts))
+			}
+			for i, pd := range pi.Partitions {
+				if pd.Name != tc.parts[i] {
+					t.Errorf("partition %d named %q, want %q", i, pd.Name, tc.parts[i])
+				}
+				var got []string
+				for _, sp := range pd.SubPartitions {
+					got = append(got, sp.Name)
+				}
+				if len(got) != 2 || got[0] != "s0" || got[1] != "s1" {
+					t.Errorf("partition %s subpartitions = %v, want [s0 s1]", pd.Name, got)
+				}
+			}
+		})
 	}
 }
 

@@ -865,20 +865,14 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 				pdi.Comment = opt.Value
 			}
 		}
-		// Subpartitions. OceanBase's SUBPARTITION TEMPLATE gives every partition the
-		// same subpartitions, where MySQL repeats them inside each one, so a partition
-		// that declares none of its own takes the template's.
-		subParts := pd.SubPartitions
-		if len(subParts) == 0 {
-			subParts = pc.SubPartTemplate
-		}
-		if len(subParts) > 0 {
+		// Subpartitions.
+		if len(pd.SubPartitions) > 0 {
 			if !explicitSubpartitions {
 				explicitSubpartitions = true
-				explicitSubpartitionCount = len(subParts)
+				explicitSubpartitionCount = len(pd.SubPartitions)
 			}
 		}
-		for _, spd := range subParts {
+		for _, spd := range pd.SubPartitions {
 			spdi := &SubPartitionDefInfo{
 				Name:    spd.Name,
 				Engine:  pdi.Engine,
@@ -911,6 +905,38 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 				Name: fmt.Sprintf("p%d", i),
 			})
 		}
+	}
+
+	// OceanBase's SUBPARTITION TEMPLATE gives every partition the same subpartitions,
+	// where MySQL repeats them inside each one. This sits after the outer partitions are
+	// built, generated ones included, because HASH and KEY with PARTITIONS N define none
+	// of their own and a template has to reach those too. Clearing
+	// UseDefaultSubpartitions is also what stops the block below inventing a second set.
+	if len(pc.SubPartTemplate) > 0 {
+		for _, pdi := range pi.Partitions {
+			if len(pdi.SubPartitions) > 0 {
+				continue
+			}
+			for _, spd := range pc.SubPartTemplate {
+				spdi := &SubPartitionDefInfo{
+					Name:    spd.Name,
+					Engine:  pdi.Engine,
+					Comment: pdi.Comment,
+				}
+				for _, opt := range spd.Options {
+					switch toLower(opt.Name) {
+					case "engine":
+						spdi.Engine = opt.Value
+					case "comment":
+						spdi.Comment = opt.Value
+					}
+				}
+				pdi.SubPartitions = append(pdi.SubPartitions, spdi)
+			}
+		}
+		pi.NumSubParts = len(pc.SubPartTemplate)
+		pi.UseDefaultSubpartitions = false
+		pi.UseDefaultNumSubpartitions = false
 	}
 
 	// Auto-generate subpartition definitions when SUBPARTITIONS N is specified
