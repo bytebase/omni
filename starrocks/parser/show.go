@@ -589,8 +589,7 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 
 // parseExplain parses EXPLAIN statements.
 //
-//	EXPLAIN [VERBOSE|GRAPH|PARSED|ANALYZED|REWRITTEN|PLAN|PHYSICAL|
-//	         MEMO|SHAPE|DUMP|OPTIMIZED|PLAN PROCESS] query
+//	EXPLAIN [ANALYZE|VERBOSE|LOGICAL|COSTS|SCHEDULER] query
 //
 // On entry, EXPLAIN has NOT yet been consumed.
 func (p *Parser) parseExplain() (ast.Node, error) {
@@ -599,45 +598,27 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 
 	stmt := &ast.ExplainStmt{Loc: startLoc}
 
-	// Optional explain type modifier.
+	// Optional explain type modifier. StarRocks takes ANALYZE, VERBOSE, LOGICAL,
+	// COSTS and SCHEDULER, and nothing else: a 3.4.10 container rejects GRAPH,
+	// PARSED, ANALYZED, REWRITTEN, PLAN, PLAN PROCESS, PHYSICAL, MEMO, SHAPE,
+	// DUMP and OPTIMIZED, which this fork accepted because it inherited Doris's
+	// list rather than StarRocks's.
 	switch p.cur.Kind {
+	case kwANALYZE:
+		// EXPLAIN ANALYZE profiles by running the query, unlike the others here.
+		stmt.Type = "ANALYZE"
+		p.advance()
 	case kwVERBOSE:
 		stmt.Type = "VERBOSE"
 		p.advance()
-	case kwGRAPH:
-		stmt.Type = "GRAPH"
+	case kwLOGICAL:
+		stmt.Type = "LOGICAL"
 		p.advance()
-	case kwPARSED:
-		stmt.Type = "PARSED"
+	case kwCOSTS:
+		stmt.Type = "COSTS"
 		p.advance()
-	case kwANALYZED:
-		stmt.Type = "ANALYZED"
-		p.advance()
-	case kwREWRITTEN:
-		stmt.Type = "REWRITTEN"
-		p.advance()
-	case kwPLAN:
-		p.advance() // consume PLAN
-		if p.cur.Kind == kwPROCESS {
-			stmt.Type = "PLAN PROCESS"
-			p.advance()
-		} else {
-			stmt.Type = "PLAN"
-		}
-	case kwPHYSICAL:
-		stmt.Type = "PHYSICAL"
-		p.advance()
-	case kwMEMO:
-		stmt.Type = "MEMO"
-		p.advance()
-	case kwSHAPE:
-		stmt.Type = "SHAPE"
-		p.advance()
-	case kwDUMP:
-		stmt.Type = "DUMP"
-		p.advance()
-	case kwOPTIMIZED:
-		stmt.Type = "OPTIMIZED"
+	case kwSCHEDULER:
+		stmt.Type = "SCHEDULER"
 		p.advance()
 	default:
 		// No modifier — empty Type.

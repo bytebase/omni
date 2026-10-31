@@ -165,3 +165,48 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		})
 	}
 }
+
+// TestStarRocksExplainModifiers pins the EXPLAIN modifier set to StarRocks's own.
+// This fork inherited Doris's list, which is a different one: a 3.4.10 container
+// accepts only ANALYZE, VERBOSE, LOGICAL, COSTS and SCHEDULER, and rejects the
+// eleven Doris spellings below. The reject arm is the load-bearing half — without
+// it the parser drifts back toward the sibling grammar, which is how it got here.
+//
+// ANALYZE is the one that executes rather than plans, so a caller gating a
+// read-only path has to look at Type, not just at the statement being an EXPLAIN.
+func TestStarRocksExplainModifiers(t *testing.T) {
+	c := startStarRocks(t)
+
+	cases := []struct {
+		name       string
+		sql        string
+		wantAccept bool
+	}{
+		{"explain_plain", "EXPLAIN SELECT a FROM conf_t", true},
+		{"explain_analyze", "EXPLAIN ANALYZE SELECT a FROM conf_t", true},
+		{"explain_verbose", "EXPLAIN VERBOSE SELECT a FROM conf_t", true},
+		{"explain_logical", "EXPLAIN LOGICAL SELECT a FROM conf_t", true},
+		{"explain_costs", "EXPLAIN COSTS SELECT a FROM conf_t", true},
+		{"explain_scheduler", "EXPLAIN SCHEDULER SELECT a FROM conf_t", true},
+		// EXPLAIN ANALYZE runs what it wraps, so the engine takes it over DML too.
+		{"explain_analyze_insert", "EXPLAIN ANALYZE INSERT INTO conf_t SELECT a FROM conf_t", true},
+		// Doris modifiers StarRocks does not have.
+		{"explain_graph_rejected", "EXPLAIN GRAPH SELECT a FROM conf_t", false},
+		{"explain_parsed_rejected", "EXPLAIN PARSED SELECT a FROM conf_t", false},
+		{"explain_analyzed_rejected", "EXPLAIN ANALYZED SELECT a FROM conf_t", false},
+		{"explain_rewritten_rejected", "EXPLAIN REWRITTEN SELECT a FROM conf_t", false},
+		{"explain_plan_rejected", "EXPLAIN PLAN SELECT a FROM conf_t", false},
+		{"explain_plan_process_rejected", "EXPLAIN PLAN PROCESS SELECT a FROM conf_t", false},
+		{"explain_physical_rejected", "EXPLAIN PHYSICAL SELECT a FROM conf_t", false},
+		{"explain_memo_rejected", "EXPLAIN MEMO SELECT a FROM conf_t", false},
+		{"explain_shape_rejected", "EXPLAIN SHAPE SELECT a FROM conf_t", false},
+		{"explain_dump_rejected", "EXPLAIN DUMP SELECT a FROM conf_t", false},
+		{"explain_optimized_rejected", "EXPLAIN OPTIMIZED SELECT a FROM conf_t", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c.assertParity(t, tc.sql, tc.wantAccept)
+		})
+	}
+}
