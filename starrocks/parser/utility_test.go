@@ -103,47 +103,62 @@ func TestExplainVerbose(t *testing.T) {
 	}
 }
 
-func TestExplainGraph(t *testing.T) {
-	file, errs := parseForTest("EXPLAIN GRAPH SELECT 1 FROM t")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ExplainStmt)
-	if n.Type != "GRAPH" {
-		t.Errorf("Type = %q, want GRAPH", n.Type)
-	}
-}
-
-func TestExplainPlan(t *testing.T) {
-	file, errs := parseForTest("EXPLAIN PLAN SELECT 1")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ExplainStmt)
-	if n.Type != "PLAN" {
-		t.Errorf("Type = %q, want PLAN", n.Type)
-	}
-}
-
-func TestExplainShape(t *testing.T) {
-	file, errs := parseForTest("EXPLAIN SHAPE SELECT 1")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ExplainStmt)
-	if n.Type != "SHAPE" {
-		t.Errorf("Type = %q, want SHAPE", n.Type)
+// TestExplainModifiers covers the EXPLAIN modifier set StarRocks actually has.
+// A 3.4.10 container accepts exactly these five and rejects the eleven Doris
+// spellings in TestExplainRejectsDorisModifiers; the container-backed parity
+// cases live in TestStarRocksExplainModifiers.
+func TestExplainModifiers(t *testing.T) {
+	for _, want := range []string{"ANALYZE", "VERBOSE", "LOGICAL", "COSTS", "SCHEDULER"} {
+		file, errs := parseForTest("EXPLAIN " + want + " SELECT 1 FROM t")
+		if len(errs) != 0 {
+			t.Errorf("EXPLAIN %s: unexpected errors: %v", want, errs)
+			continue
+		}
+		n, ok := file.Stmts[0].(*ast.ExplainStmt)
+		if !ok {
+			t.Errorf("EXPLAIN %s: got %T, want *ast.ExplainStmt", want, file.Stmts[0])
+			continue
+		}
+		if n.Type != want {
+			t.Errorf("EXPLAIN %s: Type = %q, want %q", want, n.Type, want)
+		}
+		if n.Query == nil {
+			t.Errorf("EXPLAIN %s: Query is nil", want)
+		}
 	}
 }
 
-func TestExplainMemo(t *testing.T) {
-	file, errs := parseForTest("EXPLAIN MEMO SELECT 1")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
+// TestCostsStaysAnIdentifier guards the cost of adding COSTS to the keyword table
+// for the EXPLAIN modifier above. IsReserved is `kind >= 700 &&
+// !nonReservedKeywords[kind]`, so a newly registered keyword is reserved by default
+// and stops being usable as a bare identifier. StarRocks lists COSTS in its
+// nonReserved rule and a 3.4.10 container accepts every statement below, so the
+// token needs the non-reserved entry as well as the keyword entry.
+func TestCostsStaysAnIdentifier(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT costs FROM t",
+		"SELECT 1 AS costs",
+		"CREATE TABLE costs (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1",
+		"SELECT t.costs FROM t",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("%s: unexpected errors: %v", sql, errs)
+		}
 	}
-	n := file.Stmts[0].(*ast.ExplainStmt)
-	if n.Type != "MEMO" {
-		t.Errorf("Type = %q, want MEMO", n.Type)
+}
+
+// TestExplainRejectsDorisModifiers is the half that keeps the fork honest. These
+// spellings are Doris's, not StarRocks's, and this parser accepted them only
+// because it inherited Doris's modifier list. Without this test the list drifts
+// back toward the sibling grammar, which is how it came to be wrong.
+func TestExplainRejectsDorisModifiers(t *testing.T) {
+	for _, m := range []string{
+		"GRAPH", "PARSED", "ANALYZED", "REWRITTEN", "PLAN", "PLAN PROCESS",
+		"PHYSICAL", "MEMO", "SHAPE", "DUMP", "OPTIMIZED",
+	} {
+		if _, errs := parseForTest("EXPLAIN " + m + " SELECT 1 FROM t"); len(errs) == 0 {
+			t.Errorf("EXPLAIN %s parsed, want rejected: StarRocks has no such modifier", m)
+		}
 	}
 }
 
