@@ -2493,6 +2493,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Visible:      srcIdx.Visible,
 			Comment:      srcIdx.Comment,
 			KeyBlockSize: srcIdx.KeyBlockSize,
+			Scope:        srcIdx.Scope,
 		}
 		cols := make([]*IndexColumn, len(srcIdx.Columns))
 		for i, sc := range srcIdx.Columns {

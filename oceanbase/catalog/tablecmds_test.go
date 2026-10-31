@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func mustExec(t *testing.T, c *Catalog, sql string) {
 	t.Helper()
@@ -401,5 +404,37 @@ func TestCreateTableGlobalUniqueKeyPartitionCoverage(t *testing.T) {
 				t.Errorf("accepted = %v, want %v (err: %v)", gotAccept, tc.wantAccept, err)
 			}
 		})
+	}
+}
+
+// TestCreateTableLikeKeepsIndexScope pins that CREATE TABLE LIKE carries an index scope
+// across. The copy lists index fields one by one, so a new field is silently dropped
+// unless it is added there. 5.7.25-OceanBase_CE-v4.3.5.6 preserves the scope through LIKE,
+// which is why copying it is the right behaviour and not an invention.
+func TestCreateTableLikeKeepsIndexScope(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE src (id INT, a INT, PRIMARY KEY (id), KEY ka (a) GLOBAL) PARTITION BY KEY(id) PARTITIONS 2")
+	mustExec(t, c, "CREATE TABLE dst LIKE src")
+
+	for _, name := range []string{"src", "dst"} {
+		tbl := c.GetDatabase("testdb").GetTable(name)
+		if tbl == nil {
+			t.Fatalf("table %s not found", name)
+		}
+		var idx *Index
+		for _, i := range tbl.Indexes {
+			if i.Name == "ka" {
+				idx = i
+			}
+		}
+		if idx == nil {
+			t.Fatalf("%s: index ka not found", name)
+		}
+		if idx.Scope != "GLOBAL" {
+			t.Errorf("%s: Scope = %q, want GLOBAL", name, idx.Scope)
+		}
+	}
+	if got := c.ShowCreateTable("testdb", "dst"); !strings.Contains(got, "GLOBAL") {
+		t.Errorf("the copy's SHOW CREATE TABLE dropped the scope:\n%s", got)
 	}
 }
