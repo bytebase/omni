@@ -62,6 +62,23 @@ func TestOceanBaseDynamicPartitionPolicy(t *testing.T) {
 	}
 }
 
+// TestOceanBaseRejectsMalformedDynamicPartitionPolicy pins that the policy's contents are
+// parsed, not just counted for balanced parentheses. A parser that took any parenthesized
+// text would pass DDL through review that the server then refuses.
+func TestOceanBaseRejectsMalformedDynamicPartitionPolicy(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (a INT) DYNAMIC_PARTITION_POLICY = (ENABLE =)",
+		"CREATE TABLE t (a INT) DYNAMIC_PARTITION_POLICY = (SELECT * FROM x)",
+		"CREATE TABLE t (a INT) DYNAMIC_PARTITION_POLICY = (ENABLE = TRUE,)",
+		"CREATE TABLE t (a INT) DYNAMIC_PARTITION_POLICY = ()",
+		"CREATE TABLE t (a INT) DYNAMIC_PARTITION_POLICY = (ENABLE = TRUE",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("parsed %q, but it is not a list of policy assignments", sql)
+		}
+	}
+}
+
 func TestOceanBaseIndexOptions(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -124,12 +141,20 @@ func TestOceanBaseAlterIndexClauses(t *testing.T) {
 	}
 }
 
-// TestOceanBaseRejectsDropIndexIfExists pins that the parser does not take IF
-// EXISTS in ALTER TABLE ... DROP INDEX. A customer reported it as rejected, and
-// OceanBase 4.3.5 does answer 1064 for it, so accepting it here would let a
-// statement through review that the server then refuses.
-func TestOceanBaseRejectsDropIndexIfExists(t *testing.T) {
-	if _, err := Parse("ALTER TABLE t DROP INDEX IF EXISTS i"); err == nil {
-		t.Error("ALTER TABLE ... DROP INDEX IF EXISTS parsed, but OceanBase rejects it")
+// TestOceanBaseRejectsForeignGrammar keeps the parser half of foreignGrammar honest
+// without an engine. The inventory asks OceanBase the same statements, but it skips
+// without a container and CI never has one, so this is what guards against the parser
+// growing permissive: accepting any of these would pass a statement through review that
+// the server answers 1064 for. A customer reported the DROP INDEX form as rejected.
+func TestOceanBaseRejectsForeignGrammar(t *testing.T) {
+	if len(foreignGrammar) == 0 {
+		t.Fatal("foreignGrammar is empty, so this proves nothing")
+	}
+	for _, c := range foreignGrammar {
+		t.Run(c.name, func(t *testing.T) {
+			if _, err := Parse(c.sql); err == nil {
+				t.Errorf("parsed %q, but neither MySQL nor OceanBase takes it", c.sql)
+			}
+		})
 	}
 }

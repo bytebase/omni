@@ -1286,30 +1286,39 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
-	// DYNAMIC_PARTITION_POLICY takes a parenthesized sub-list of its own, ENABLE
-	// and TIME_UNIT in the form read on 4.3.5. Nothing downstream reads inside it,
-	// so the group is kept as written rather than modelled.
+	// DYNAMIC_PARTITION_POLICY takes a parenthesized list of assignments of its own,
+	// ENABLE = TRUE and TIME_UNIT = 'DAY' in the form read on 4.3.5. Nothing downstream
+	// reads inside it, so the group is kept as written rather than modelled, but the
+	// assignments are still parsed: accepting any parenthesized text would pass DDL
+	// through review that the server then refuses.
 	if p.cur.Type == kwDYNAMIC_PARTITION_POLICY {
 		p.advance()
 		p.match('=')
-		if p.cur.Type != '(' {
-			return nil, false, &ParseError{Message: "expected ( after DYNAMIC_PARTITION_POLICY", Position: p.cur.Loc}
-		}
 		open := p.pos()
-		depth := 0
+		if _, err := p.expect('('); err != nil {
+			return nil, false, err
+		}
 		for {
-			switch p.cur.Type {
-			case '(':
-				depth++
-			case ')':
-				depth--
-			case tokEOF:
-				return nil, false, &ParseError{Message: "unclosed ( after DYNAMIC_PARTITION_POLICY", Position: p.cur.Loc}
+			if _, _, err := p.parseIdent(); err != nil {
+				return nil, false, err
 			}
-			p.advance()
-			if depth == 0 {
+			p.match('=')
+			switch p.cur.Type {
+			// TRUE and FALSE are reserved, so parseIdent would refuse the very form
+			// OceanBase writes.
+			case tokICONST, tokSCONST, kwTRUE, kwFALSE:
+				p.advance()
+			default:
+				if _, _, err := p.parseIdent(); err != nil {
+					return nil, false, err
+				}
+			}
+			if _, ok := p.match(','); !ok {
 				break
 			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, false, err
 		}
 		return &nodes.TableOption{
 			Loc:   nodes.Loc{Start: start, End: p.prev.End},

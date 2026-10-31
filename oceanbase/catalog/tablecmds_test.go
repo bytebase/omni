@@ -304,3 +304,43 @@ func TestCreateTableWithFK(t *testing.T) {
 		t.Fatal("FK backing index not found")
 	}
 }
+
+// TestCreateTableSubpartitionTemplate pins that OceanBase's SUBPARTITION TEMPLATE reaches
+// the catalog. The parser accepts the clause, so a conversion that ignored it would give
+// every partition one auto-generated subpartition and quietly change the layout.
+func TestCreateTableSubpartitionTemplate(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, `CREATE TABLE t (a INT, b INT)
+		PARTITION BY RANGE COLUMNS(a)
+		SUBPARTITION BY KEY(b)
+		SUBPARTITION TEMPLATE (SUBPARTITION s0, SUBPARTITION s1)
+		(PARTITION q0 VALUES LESS THAN (10), PARTITION q1 VALUES LESS THAN (20))`)
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t not found")
+	}
+	pi := tbl.Partitioning
+	if pi == nil {
+		t.Fatal("table t has no partitioning")
+	}
+	if pi.NumSubParts != 2 {
+		t.Errorf("NumSubParts = %d, want 2", pi.NumSubParts)
+	}
+	if pi.UseDefaultSubpartitions || pi.UseDefaultNumSubpartitions {
+		t.Errorf("the template is explicit, but UseDefaultSubpartitions=%v UseDefaultNumSubpartitions=%v",
+			pi.UseDefaultSubpartitions, pi.UseDefaultNumSubpartitions)
+	}
+	if len(pi.Partitions) != 2 {
+		t.Fatalf("partitions = %d, want 2", len(pi.Partitions))
+	}
+	for _, pd := range pi.Partitions {
+		var got []string
+		for _, sp := range pd.SubPartitions {
+			got = append(got, sp.Name)
+		}
+		if len(got) != 2 || got[0] != "s0" || got[1] != "s1" {
+			t.Errorf("partition %s subpartitions = %v, want [s0 s1]", pd.Name, got)
+		}
+	}
+}

@@ -865,14 +865,20 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 				pdi.Comment = opt.Value
 			}
 		}
-		// Subpartitions.
-		if len(pd.SubPartitions) > 0 {
+		// Subpartitions. OceanBase's SUBPARTITION TEMPLATE gives every partition the
+		// same subpartitions, where MySQL repeats them inside each one, so a partition
+		// that declares none of its own takes the template's.
+		subParts := pd.SubPartitions
+		if len(subParts) == 0 {
+			subParts = pc.SubPartTemplate
+		}
+		if len(subParts) > 0 {
 			if !explicitSubpartitions {
 				explicitSubpartitions = true
-				explicitSubpartitionCount = len(pd.SubPartitions)
+				explicitSubpartitionCount = len(subParts)
 			}
 		}
-		for _, spd := range pd.SubPartitions {
+		for _, spd := range subParts {
 			spdi := &SubPartitionDefInfo{
 				Name:    spd.Name,
 				Engine:  pdi.Engine,

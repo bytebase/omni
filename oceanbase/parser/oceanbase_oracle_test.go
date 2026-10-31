@@ -141,6 +141,19 @@ var sharedGrammar = []grammarCase{
 	{name: "except", sql: "SELECT 1 EXCEPT SELECT 2"},
 }
 
+// foreignGrammar is the guard side: syntax neither MySQL nor OceanBase has, which users
+// write anyway after porting from another dialect. Both sides must refuse it, so an entry
+// fails if this parser grows too permissive, and fails the other way if OceanBase ever
+// adds the form, which is then grammar to implement rather than a guard to keep.
+//
+// Read against 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-10-31: the engine answers 1064 for
+// all three. IF EXISTS on a DROP inside ALTER TABLE is MariaDB and PostgreSQL syntax.
+var foreignGrammar = []grammarCase{
+	{name: "alter drop index if exists", sql: "ALTER TABLE obprobe_t DROP INDEX IF EXISTS obprobe_ia"},
+	{name: "alter drop column if exists", sql: "ALTER TABLE obprobe_t DROP COLUMN IF EXISTS a"},
+	{name: "drop index if exists on", sql: "DROP INDEX IF EXISTS obprobe_ia ON obprobe_t"},
+}
+
 // TestOceanBaseGrammarInventory holds this parser to OceanBase rather than to MySQL.
 // For each statement it compares what OceanBase accepts with what Parse accepts, and
 // pins the gap: a pending case is one OceanBase takes and the parser does not yet, so
@@ -166,7 +179,7 @@ func TestOceanBaseGrammarInventory(t *testing.T) {
 		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obprobe")
 	})
 
-	for _, group := range [][]grammarCase{oceanBaseOnlyGrammar, sharedGrammar} {
+	for _, group := range [][]grammarCase{oceanBaseOnlyGrammar, sharedGrammar, foreignGrammar} {
 		for _, c := range group {
 			t.Run(c.name, func(t *testing.T) {
 				_, parseErr := Parse(c.sql)

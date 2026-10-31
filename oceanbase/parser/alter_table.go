@@ -529,7 +529,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 	case kwINDEX, kwKEY:
 		// DROP {INDEX | KEY} index_name. OceanBase 4.3.5 does not take IF EXISTS
 		// here, it answers 1064, so the parser must not accept it either: see
-		// TestOceanBaseRejectsDropIndexIfExists.
+		// foreignGrammar and TestOceanBaseRejectsForeignGrammar.
 		p.advance()
 		cmd.Type = nodes.ATDropIndex
 		// Completion: after DROP INDEX, offer index_ref.
