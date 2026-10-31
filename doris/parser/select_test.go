@@ -1069,6 +1069,9 @@ func TestIntoOutfileClause(t *testing.T) {
 	if len(into.Properties) != 2 {
 		t.Fatalf("Properties = %d, want 2", len(into.Properties))
 	}
+	if into.Properties[1].Key != "line_delimiter" {
+		t.Errorf("Properties[1].Key = %q, want line_delimiter", into.Properties[1].Key)
+	}
 	if into.Properties[0].Key != "column_separator" || into.Properties[0].Value != "," {
 		t.Errorf("Properties[0] = %q=%q, want column_separator=,", into.Properties[0].Key, into.Properties[0].Value)
 	}
@@ -1229,7 +1232,14 @@ func TestIntoOutfileRejects(t *testing.T) {
 		"SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS select",
 		"SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS",
 		"SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES",
+		// propertyItemList: at least one item, comma-separated, and the list
+		// does not end on a comma.
 		"SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES()",
+		`SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v" "k2"="v2")`,
+		`SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v" "k2"="v2" "k3"="v3")`,
+		`SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v",)`,
+		`SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES(,"k"="v")`,
+		`SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v",,"k2"="v2")`,
 		"SELECT 1 INTO OUTFILE '/tmp/x' ORDER BY 1",
 		"SELECT 1 INTO OUTFILE '/tmp/x' LIMIT 1",
 		"SELECT 1 INTO OUTFILE '/tmp/x' UNION SELECT 2",

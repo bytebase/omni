@@ -459,6 +459,13 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"outfile_format_as_nothing_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' FORMAT AS", false},
 		{"outfile_properties_bare_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES", false},
 		{"outfile_properties_empty_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES()", false},
+		// propertyItemList is propertyItem (COMMA propertyItem)*, so the items
+		// are comma-separated and the list does not end on one.
+		{"outfile_properties_missing_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v" "k2"="v2")`, false},
+		{"outfile_properties_missing_commas_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v" "k2"="v2" "k3"="v3")`, false},
+		{"outfile_properties_trailing_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v",)`, false},
+		{"outfile_properties_leading_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES(,"k"="v")`, false},
+		{"outfile_properties_double_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v",,"k2"="v2")`, false},
 		{"outfile_trailing_garbage_rejected", "SELECT 1 INTO OUTFILE '/tmp/x' GARBAGE", false},
 		// MySQL spellings the engine does not share.
 		{"outfile_into_var_rejected", "SELECT 1 INTO @v", false},
@@ -474,6 +481,10 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		//   PROPERTIES("k" = 1)              shared parseProperties takes a
 		//                                    string on both sides at every
 		//                                    PROPERTIES in the tree.
+		//
+		// The separator and emptiness rules above are the other direction —
+		// the shared helper is loose where the engine is not — and this clause
+		// takes the strict list so they are asserted rather than excused.
 	}
 
 	for _, tc := range cases {

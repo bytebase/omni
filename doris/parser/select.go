@@ -1461,24 +1461,21 @@ func (p *Parser) parseIntoOutfileClause() (*ast.IntoOutfileClause, error) {
 		clause.Format = format
 	}
 
-	// PROPERTIES(...). The grammar's propertyItemList holds at least one
-	// item and the engine rejects an empty list, which the shared
-	// parseProperties tolerates for its other callers, so the emptiness is
-	// checked here. parseProperties is otherwise stricter than this clause's
-	// grammar — propertyKey and propertyValue are `identifier | constant`,
-	// so the engine also takes PROPERTIES(k = "v") and PROPERTIES("k" = 1),
-	// which it refuses. That is the shared helper's behaviour at every
-	// PROPERTIES in the tree, it fails closed, and widening it reaches every
-	// DDL caller, so it is left alone here.
+	// PROPERTIES(...), held to the grammar's propertyItemList: at least one
+	// item, comma-separated, no trailing comma. The shared parseProperties
+	// is loose about all three for its other callers, so this clause asks
+	// for the strict form.
+	//
+	// It is stricter than the grammar in the other direction, though:
+	// propertyKey and propertyValue are `identifier | constant`, so the
+	// engine also takes PROPERTIES(k = "v") and PROPERTIES("k" = 1), which
+	// the shared helper refuses at every PROPERTIES in the tree. That fails
+	// closed, and widening it reaches every DDL caller, so it is left alone
+	// here.
 	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
+		props, err := p.parsePropertiesStrict()
 		if err != nil {
 			return nil, err
-		}
-		if len(props) == 0 {
-			// prev is the ')' that closed the empty list, which is where the
-			// engine reports it too.
-			return nil, syntaxErrorAt(p.prev)
 		}
 		clause.Properties = props
 	}
