@@ -11,8 +11,6 @@ import (
 	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
-
-	obparser "github.com/bytebase/omni/oceanbase/parser"
 )
 
 // The OceanBase oracle for this package. The TestOracle_* family answers for the
@@ -27,9 +25,14 @@ const oceanBaseDSNEnv = "OCEANBASE_WALK_DSN"
 
 // oceanBaseOracle opens the server OCEANBASE_WALK_DSN names, or skips.
 //
-// The version is MySQL80 because OceanBase 4.x takes 8.0's grammar and utf8mb4
-// server defaults even though it reports a 5.7 version string. Nothing else pins
-// that choice, so this test is what holds it: a wrong normalizer shows up here as a
+// The version is MySQL80, which the probes below measure rather than assume. Under
+// MySQL80 every probe either canonicalizes empty or disagrees only in the ROW_FORMAT
+// echo; under MySQL57 twenty disagree, twelve because 5.7 assumes a latin1 server
+// default where OceanBase defaults to utf8mb4, and eight on column forms, since 5.7
+// injects display widths and then needs them to match. 4.3.5 does report a 5.7 version
+// string, and does print 5.7-style widths, but the stored form it prints is the one
+// MySQL80's normalizer reproduces: 8.0 strips widths from both sides. Nothing else pins
+// the choice, so this test is what holds it, and a wrong normalizer shows up here as a
 // non-empty diff rather than as a phantom change in a user's release.
 func oceanBaseOracle(t *testing.T) *oracleConn {
 	t.Helper()
@@ -72,13 +75,15 @@ var obUnsupportedForms = map[string]string{
 	"adjacent-literal-default": "adjacent string literals in DEFAULT",
 }
 
-// obUnreadTableOptions are the table options OceanBase prints in SHOW CREATE TABLE,
-// named by the token the parser stops at. Each is grammar this parser owes;
-// implementing them clears the pending branch below in the same change.
-var obUnreadTableOptions = []string{
-	"ORGANIZATION", "REPLICA_NUM", "BLOCK_SIZE", "TABLET_SIZE", "PCTFREE",
-	"USE_BLOOM_FILTER", "ENABLE_MACRO_BLOCK_BLOOM_FILTER", "COMPRESSION", "ROW_FORMAT",
-}
+// obEchoedRowFormat is the ROW_FORMAT OceanBase stores for a table whose DDL declares
+// none. MySQL echoes ROW_FORMAT only when the user declared a non-DEFAULT value, and
+// rowFormatChanged rests on that: the undeclared user side canonicalizes to "" while
+// the readback's DYNAMIC is significant, so on OceanBase every table whose DDL omits
+// ROW_FORMAT phantom-diffs MODIFY. Normalizing the echo away needs an engine axis the
+// version-keyed Normalizer does not have, so this test records the disagreement exactly
+// rather than skipping over it: notRowFormatEcho tolerates that one shape and fails on
+// anything else. Adding the axis empties these diffs and makes the tolerance unreachable.
+const obEchoedRowFormat = "DYNAMIC"
 
 // storeAndRead applies createSQL to OceanBase and returns the form it stores. Unlike
 // oracleConn.showCreate it keeps the error, so the caller can tell a form the engine
@@ -107,11 +112,9 @@ func storeAndRead(ctx context.Context, o *oracleConn, dbName, createSQL, table s
 // stored form to canonicalize equal — TestOracle_DiffIdempotence's property, answered by
 // the engine Bytebase runs instead of by MySQL standing in for it.
 //
-// Nothing here is skipped. A form OceanBase rejects must be named in
-// obUnsupportedForms, and a stored form that will not load must stop the parser at a
-// table option in obUnreadTableOptions; every other failure fails the test. Read against
-// 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-10-30, no stored form loads yet, so the
-// canonicalization assertion starts running by itself once that grammar lands.
+// Nothing here is skipped. A form OceanBase rejects must be named in obUnsupportedForms,
+// and a non-empty diff must be the obEchoedRowFormat disagreement alone; every other
+// failure, a stored form that will not parse included, fails the test.
 func TestOracle_OceanBaseCanonicalization(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
@@ -126,19 +129,9 @@ func TestOracle_OceanBaseCanonicalization(t *testing.T) {
 				requireFormOceanBaseRejects(t, probe.id, err)
 				return
 			}
-			if _, err := LoadSQL(wrapForLoad(serverCharsetFor(o.version), readback)); err != nil {
-				requireUnreadTableOption(t, err, readback)
-				return
-			}
-			assertDiffEmptyAgainstReadback(t, o, dbName, probe.create, probe.table)
+			assertDiffEmptyOrRowFormatEcho(t, o, readback, probe.create, probe.table)
 		})
 	}
-}
-
-// wrapForLoad mirrors loadOneTable's wrapping so a readback loads under the same server
-// charset the comparison would use.
-func wrapForLoad(serverCharset, createSQL string) string {
-	return fmt.Sprintf("CREATE DATABASE diffdb DEFAULT CHARSET=%s;\nUSE diffdb;\n%s", serverCharset, createSQL)
 }
 
 // requireFormOceanBaseRejects accepts the one apply failure this test tolerates: the
@@ -157,22 +150,147 @@ func requireFormOceanBaseRejects(t *testing.T, id string, err error) {
 	t.Logf("OceanBase does not accept %s (%s), so it stores no form to compare", id, why)
 }
 
-// requireUnreadTableOption accepts the one load failure this test tolerates: the parser
-// stopping at a table option obUnreadTableOptions names. It reads the token the parser
-// reported rather than asking whether the option appears anywhere in the DDL, so a
-// regression on a column, a default or the wrapper fails here instead of passing as
-// pending.
-func requireUnreadTableOption(t *testing.T, err error, readback string) {
+// assertDiffEmptyOrRowFormatEcho is assertDiffEmptyAgainstReadback over a stored form the
+// caller already read back, with the obEchoedRowFormat tolerance. Both self-diffs must
+// still be empty, and user against stored must be empty or that echo alone in each
+// direction, since Drop and Add are direction-sensitive.
+func assertDiffEmptyOrRowFormatEcho(t *testing.T, o *oracleConn, readback, userDDL, table string) {
 	t.Helper()
-	var pe *obparser.ParseError
-	if !errors.As(err, &pe) {
-		t.Fatalf("the stored form failed to load with no parse position:\n  stored: %s\n  err: %v", strings.TrimSpace(readback), err)
+	sc := serverCharsetFor(o.version)
+	n := NormalizerFor(o.version)
+	userCat, userTbl := loadOneTable(t, sc, userDDL, table)
+	storedCat, storedTbl := loadOneTable(t, sc, readback, table)
+
+	if d := DiffWithNormalizer(storedCat, storedCat, n); !d.IsEmpty() {
+		t.Errorf("IDEMPOTENCE: self-diff of stored form not empty for %s:\n  stored: %s\n  diff: %s",
+			table, strings.TrimSpace(readback), describeDiff(d))
 	}
-	for _, opt := range obUnreadTableOptions {
-		if strings.Contains(pe.Message, fmt.Sprintf("%q", opt)) {
-			t.Logf("pending: the parser stops at %s (line %d, column %d), a table option it does not read yet", opt, pe.Line, pe.Column)
-			return
+	if d := DiffWithNormalizer(userCat, userCat, n); !d.IsEmpty() {
+		t.Errorf("self-diff of user form not empty for %s:\n  user: %s\n  diff: %s",
+			table, strings.TrimSpace(userDDL), describeDiff(d))
+	}
+	for _, dir := range []struct {
+		name     string
+		from, to *Catalog
+	}{
+		{"user vs stored", userCat, storedCat},
+		{"stored vs user", storedCat, userCat},
+	} {
+		d := DiffWithNormalizer(dir.from, dir.to, n)
+		if d.IsEmpty() {
+			continue
+		}
+		if why := notRowFormatEcho(d, userTbl, storedTbl, table, n); why != "" {
+			t.Errorf("CANONICALIZATION (%s) for %s: %s\n  user:   %s\n  stored: %s\n  diff: %s",
+				dir.name, table, why, strings.TrimSpace(userDDL), strings.TrimSpace(readback), describeDiff(d))
 		}
 	}
-	t.Fatalf("the stored form failed to load at %s, which is not an unread table option:\n  stored: %s", pe.Message, strings.TrimSpace(readback))
+}
+
+// notRowFormatEcho reports why a non-empty diff is more than the obEchoedRowFormat
+// disagreement, or "" when it is exactly that. It requires the diff to carry nothing but
+// one MODIFY on this table with no sub-object entry, and requires every table option
+// tableOptionsChanged compares except ROW_FORMAT to agree — so a column, index,
+// constraint, partition, engine, charset, collation or comment phantom fails here instead
+// of passing as the known gap. The two sides are named by role, not by diff direction,
+// because only "the user declared none and the engine echoed DYNAMIC" is tolerated: a
+// readback that echoed some other format disagrees with the user's own declaration and is
+// a real difference.
+func notRowFormatEcho(d *SchemaDiff, userTbl, storedTbl *Table, table string, n *Normalizer) string {
+	switch {
+	case len(d.Views) > 0 || len(d.Functions) > 0 || len(d.Procedures) > 0 || len(d.Triggers) > 0 || len(d.Events) > 0:
+		return "the diff reaches objects other than the table"
+	case len(d.Tables) != 1:
+		return fmt.Sprintf("the diff names %d tables, not 1", len(d.Tables))
+	}
+	e := d.Tables[0]
+	switch {
+	case e.Action != DiffModify:
+		return fmt.Sprintf("the table is %s, not MODIFY", e.Action)
+	case !strings.EqualFold(e.Name, table):
+		return fmt.Sprintf("the diff names table %q, not %q", e.Name, table)
+	case len(e.Columns) > 0 || len(e.Indexes) > 0 || len(e.Constraints) > 0 || len(e.ForeignKeys) > 0 || len(e.Checks) > 0 || e.PartitionChanged:
+		return "the table differs in a column, index, constraint or partition, not only in its options"
+	case n.CanonicalEngine(userTbl) != n.CanonicalEngine(storedTbl):
+		return fmt.Sprintf("the storage engines disagree: %q vs %q", n.CanonicalEngine(userTbl), n.CanonicalEngine(storedTbl))
+	case foldCharset(userTbl.Charset) != foldCharset(storedTbl.Charset):
+		return fmt.Sprintf("the charsets disagree: %q vs %q", userTbl.Charset, storedTbl.Charset)
+	case n.effectiveTableCollation(userTbl) != n.effectiveTableCollation(storedTbl):
+		return fmt.Sprintf("the collations disagree: %q vs %q", n.effectiveTableCollation(userTbl), n.effectiveTableCollation(storedTbl))
+	case n.CanonicalComment(userTbl.Comment) != n.CanonicalComment(storedTbl.Comment):
+		return fmt.Sprintf("the comments disagree: %q vs %q", userTbl.Comment, storedTbl.Comment)
+	case !n.IgnoreRowFormat(userTbl) || !strings.EqualFold(storedTbl.RowFormat, obEchoedRowFormat):
+		return fmt.Sprintf("the ROW_FORMAT disagreement is %q against %q, not an undeclared form against the echoed %s",
+			userTbl.RowFormat, storedTbl.RowFormat, obEchoedRowFormat)
+	}
+	return ""
+}
+
+// TestNotRowFormatEcho pins what the obEchoedRowFormat tolerance will and will not
+// excuse. notRowFormatEcho is a pure verdict over a diff and the two table forms, so this
+// needs no engine — and without it the tolerance above is only as narrow as it looks.
+func TestNotRowFormatEcho(t *testing.T) {
+	const table = "t"
+	undeclared := &Table{Name: table, Charset: "utf8mb4"}
+	echoed := &Table{Name: table, Charset: "utf8mb4", RowFormat: obEchoedRowFormat}
+	modify := func(mutate func(*TableDiffEntry)) *SchemaDiff {
+		e := TableDiffEntry{Action: DiffModify, Name: table}
+		if mutate != nil {
+			mutate(&e)
+		}
+		return &SchemaDiff{Tables: []TableDiffEntry{e}}
+	}
+
+	tests := []struct {
+		name         string
+		diff         *SchemaDiff
+		user, stored *Table
+		tolerated    bool
+	}{
+		{"the echo itself", modify(nil), undeclared, echoed, true},
+		{"ROW_FORMAT=DEFAULT is undeclared too", modify(nil), &Table{Name: table, Charset: "utf8mb4", RowFormat: "DEFAULT"}, echoed, true},
+		{"a column also differs", modify(func(e *TableDiffEntry) {
+			e.Columns = []ColumnDiffEntry{{Action: DiffModify, Name: "a"}}
+		}), undeclared, echoed, false},
+		{"an index also differs", modify(func(e *TableDiffEntry) {
+			e.Indexes = []IndexDiffEntry{{Action: DiffAdd, Name: "ia"}}
+		}), undeclared, echoed, false},
+		{"a constraint also differs", modify(func(e *TableDiffEntry) {
+			e.Constraints = []ConstraintDiffEntry{{Action: DiffAdd, Name: "pk"}}
+		}), undeclared, echoed, false},
+		{"the partitioning also differs", modify(func(e *TableDiffEntry) {
+			e.PartitionChanged = true
+		}), undeclared, echoed, false},
+		// The collations are held equal because the collation check behind the charset
+		// one would otherwise catch any differing charset by itself.
+		{"the charsets differ while the collations agree", modify(nil),
+			&Table{Name: table, Charset: "latin1", Collation: "utf8mb4_bin"},
+			&Table{Name: table, Charset: "utf8mb4", Collation: "utf8mb4_bin", RowFormat: obEchoedRowFormat}, false},
+		{"the collations differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Collation: "utf8mb4_bin"}, echoed, false},
+		{"the engines differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Engine: "MyISAM"}, echoed, false},
+		{"the comments differ", modify(nil), &Table{Name: table, Charset: "utf8mb4", Comment: "mine"}, echoed, false},
+		{"the user declared a format too", modify(nil), &Table{Name: table, Charset: "utf8mb4", RowFormat: "COMPRESSED"}, echoed, false},
+		{"the engine echoed another format", modify(nil), undeclared, &Table{Name: table, Charset: "utf8mb4", RowFormat: "COMPRESSED"}, false},
+		{"the table is dropped, not modified", &SchemaDiff{
+			Tables: []TableDiffEntry{{Action: DiffDrop, Name: table}},
+		}, undeclared, echoed, false},
+		{"the diff names another table", modify(func(e *TableDiffEntry) { e.Name = "other" }), undeclared, echoed, false},
+		{"two tables differ", &SchemaDiff{
+			Tables: []TableDiffEntry{{Action: DiffModify, Name: table}, {Action: DiffModify, Name: "u"}},
+		}, undeclared, echoed, false},
+		{"a view also differs", &SchemaDiff{
+			Tables: []TableDiffEntry{{Action: DiffModify, Name: table}},
+			Views:  []ViewDiffEntry{{Action: DiffAdd, Name: "v"}},
+		}, undeclared, echoed, false},
+	}
+
+	n := NormalizerFor(MySQL80)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			why := notRowFormatEcho(tc.diff, tc.user, tc.stored, table, n)
+			if tolerated := why == ""; tolerated != tc.tolerated {
+				t.Fatalf("tolerated = %v, want %v (verdict %q)", tolerated, tc.tolerated, why)
+			}
+		})
+	}
 }

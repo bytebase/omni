@@ -311,6 +311,38 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		}
 		return nil, false, &ParseError{Message: "expected string after COMMENT", Position: p.cur.Loc}
 
+	// LOCAL and GLOBAL give an index on a partitioned table its scope: LOCAL is
+	// partitioned with the table, GLOBAL spans it. OceanBase prints one on every
+	// index of a partitioned table, and takes either in CREATE TABLE and in
+	// ALTER TABLE ... ADD INDEX (verified on 4.3.5).
+	case p.cur.Type == kwLOCAL, p.cur.Type == kwGLOBAL:
+		name := "LOCAL"
+		if p.cur.Type == kwGLOBAL {
+			name = "GLOBAL"
+		}
+		p.advance()
+		return &nodes.IndexOption{
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+			Name: name,
+		}, true, nil
+
+	// BLOCK_SIZE is OceanBase's per-index block size. 4.3.5 takes it with no '=',
+	// which MySQL's KEY_BLOCK_SIZE requires, so the '=' is optional here.
+	case p.cur.Type == kwBLOCK_SIZE:
+		p.advance()
+		p.match('=') // optional =
+		valStart := p.pos()
+		if p.cur.Type != tokICONST {
+			return nil, false, &ParseError{Message: "expected an integer for BLOCK_SIZE", Position: p.cur.Loc}
+		}
+		val := p.cur.Ival
+		p.advance()
+		return &nodes.IndexOption{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			Name:  "BLOCK_SIZE",
+			Value: &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: val},
+		}, true, nil
+
 	case p.cur.Type == kwVISIBLE:
 		p.advance()
 		return &nodes.IndexOption{

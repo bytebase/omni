@@ -1286,12 +1286,56 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
-	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
+	// DYNAMIC_PARTITION_POLICY takes a parenthesized sub-list of its own, ENABLE
+	// and TIME_UNIT in the form read on 4.3.5. Nothing downstream reads inside it,
+	// so the group is kept as written rather than modelled.
+	if p.cur.Type == kwDYNAMIC_PARTITION_POLICY {
+		p.advance()
+		p.match('=')
+		if p.cur.Type != '(' {
+			return nil, false, &ParseError{Message: "expected ( after DYNAMIC_PARTITION_POLICY", Position: p.cur.Loc}
+		}
+		open := p.pos()
+		depth := 0
+		for {
+			switch p.cur.Type {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			case tokEOF:
+				return nil, false, &ParseError{Message: "unclosed ( after DYNAMIC_PARTITION_POLICY", Position: p.cur.Loc}
+			}
+			p.advance()
+			if depth == 0 {
+				break
+			}
+		}
+		return &nodes.TableOption{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			Name:  "DYNAMIC_PARTITION_POLICY",
+			Value: p.inputText(open, p.prev.End),
+		}, true, nil
+	}
+
+	// ORGANIZATION INDEX is OceanBase's index-organized table, which it prints on
+	// every table SHOW CREATE TABLE returns (verified on 4.3.5). It takes no value.
+	if p.cur.Type == kwORGANIZATION && p.peekNext().Type == kwINDEX {
+		p.advance()
+		p.advance()
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ORGANIZATION INDEX"}, true, nil
+	}
+
+	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.,
+	// and OceanBase's storage options, which it prints on every table.
 	switch p.cur.Type {
 	case kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
-		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE:
+		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE,
+		kwBLOCK_SIZE, kwREPLICA_NUM, kwTABLET_SIZE, kwPCTFREE,
+		kwUSE_BLOOM_FILTER, kwENABLE_MACRO_BLOCK_BLOOM_FILTER,
+		kwAUTO_INCREMENT_MODE:
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
@@ -1560,6 +1604,30 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if p.cur.Type == tokICONST {
 				part.NumSubParts = int(p.cur.Ival)
 				p.advance()
+			}
+		}
+
+		// OceanBase: SUBPARTITION TEMPLATE (subpartition_definition, ...) gives
+		// every partition the same subpartitions, where MySQL repeats them inside
+		// each partition (verified on 4.3.5).
+		if p.cur.Type == kwSUBPARTITION && p.peekNext().Type == kwTEMPLATE {
+			p.advance() // SUBPARTITION
+			p.advance() // TEMPLATE
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			for {
+				sub, err := p.parseSubPartitionDef()
+				if err != nil {
+					return nil, err
+				}
+				part.SubPartTemplate = append(part.SubPartTemplate, sub)
+				if _, ok := p.match(','); !ok {
+					break
+				}
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
 			}
 		}
 	}
