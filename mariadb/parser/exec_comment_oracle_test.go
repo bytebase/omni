@@ -31,3 +31,23 @@ func TestExecCommentBoundary_Oracle(t *testing.T) {
 		}
 	}
 }
+
+// TestExecCommentQuotedDelimiters_Oracle proves against a live MariaDB 11.8
+// container that omni ends an executable comment where the server does when a
+// "/*" or "*/" sits inside a string, a quoted identifier or a line comment.
+func TestExecCommentQuotedDelimiters_Oracle(t *testing.T) {
+	o := startMariaDB(t)
+
+	for _, list := range [][]string{execCommentQuotedAccepted, execCommentQuotedHeldClose} {
+		for _, sql := range list {
+			v, _, msg := o.classify(sql)
+			if v == vErrored {
+				t.Fatalf("server: %q: %s", sql, msg)
+			}
+			_, err := Parse(sql)
+			if (err == nil) != (v == vAccepted) {
+				t.Errorf("%q: omni accepts=%v (err=%v), MariaDB accepts=%v", sql, err == nil, err, v == vAccepted)
+			}
+		}
+	}
+}

@@ -1732,6 +1732,13 @@ type Lexer struct {
 	errPos int
 	hasErr bool
 
+	// execUnclosedPos records the start of an executable comment that never
+	// closed. It is reported only when lexing the body raised nothing more
+	// specific, because the server names the token that actually ran off the end:
+	// in "/*! /* c */ SELECT 'x */" that is the string, not the comment.
+	execUnclosedPos int
+	execUnclosed    bool
+
 	// execStack holds every executable comment (/*! ... */) the lexer is inside,
 	// innermost last. The lexer reads a comment's body in place rather than
 	// copying it into a new buffer, so every token keeps its byte offset in the
@@ -1791,9 +1798,6 @@ func (l *Lexer) skipExecClose() bool {
 		}
 		l.execStack = l.execStack[:n-1]
 		if c.close < l.pos {
-			// A token swallowed the closing "*/", so the comment never closed.
-			// MariaDB 11.8.8 rejects that, as MySQL does; TiDB accepts it, so its
-			// fork of this lexer leaves the shape to the grammar instead.
 			l.setError("unterminated comment", c.start)
 			continue
 		}
@@ -1802,6 +1806,91 @@ func (l *Lexer) skipExecClose() bool {
 		return true
 	}
 	return false
+}
+
+// execCommentClose returns the offset of the "*/" that closes an executable
+// comment whose body starts at pos, or -1 when the input ends first.
+//
+// The scan steps over whatever the lexer itself would read as one token: a
+// string literal, a quoted identifier, a line comment, and a nested block
+// comment, which does not nest and so ends at its own first "*/". A "*/" inside
+// any of those does not close the comment and a "/*" inside one opens nothing,
+// so a raw byte scan cannot stand in for this: MySQL 8.0, MariaDB 11.8.8 and
+// TiDB v8.5.5 all run `SELECT 1 /*! + LENGTH('/*') */`, and MySQL and MariaDB
+// both reject `SELECT 'x' /*! , 'a*/'`.
+func (l *Lexer) execCommentClose(pos int) int {
+	for pos < len(l.input) {
+		switch ch := l.input[pos]; {
+		case ch == '*' && pos+1 < len(l.input) && l.input[pos+1] == '/':
+			return pos
+
+		case ch == '\'' || ch == '"' || ch == '`':
+			// A doubled delimiter escapes itself, and a backslash escapes the
+			// next byte everywhere but inside a quoted identifier, as scanString
+			// and scanBacktickIdent read them.
+			pos++
+			for pos < len(l.input) {
+				if l.input[pos] == '\\' && ch != '`' {
+					pos += 2
+					continue
+				}
+				if l.input[pos] != ch {
+					pos++
+					continue
+				}
+				if pos+1 < len(l.input) && l.input[pos+1] == ch {
+					pos += 2
+					continue
+				}
+				pos++
+				break
+			}
+
+		case ch == '#', ch == '-' && pos+1 < len(l.input) && l.input[pos+1] == '-' &&
+			(pos+2 >= len(l.input) || l.input[pos+2] == ' ' || l.input[pos+2] == '\t' || l.input[pos+2] == '\n' || l.input[pos+2] == '\r'):
+			// A line comment runs to the end of the line, taking any "*/" with it.
+			for pos < len(l.input) && l.input[pos] != '\n' {
+				pos++
+			}
+
+		case ch == '/' && pos+1 < len(l.input) && l.input[pos+1] == '*':
+			pos += 2
+			closed := false
+			for pos < len(l.input) {
+				if l.input[pos] == '*' && pos+1 < len(l.input) && l.input[pos+1] == '/' {
+					pos += 2
+					closed = true
+					break
+				}
+				pos++
+			}
+			if !closed {
+				return -1
+			}
+
+		default:
+			pos++
+		}
+	}
+	return -1
+}
+
+// noteUnclosedExec remembers the first executable comment that never closed, to
+// be reported once the body has been lexed.
+func (l *Lexer) noteUnclosedExec(pos int) {
+	if l.execUnclosed {
+		return
+	}
+	l.execUnclosed = true
+	l.execUnclosedPos = pos
+}
+
+// enterUnclosedExecComment steps over the opener [l.pos, bodyStart) of an
+// executable comment that never closes, leaving the rest of the input to be
+// lexed as ordinary SQL.
+func (l *Lexer) enterUnclosedExecComment(bodyStart int) {
+	l.execMarkers = append(l.execMarkers, execMarker{l.pos, bodyStart})
+	l.pos = bodyStart
 }
 
 // expandedText returns l.input[start:end] as the server reads it: without the
@@ -2012,32 +2101,17 @@ func (l *Lexer) skipWhitespaceAndComments() {
 				for vpos < len(l.input) && l.input[vpos] >= '0' && l.input[vpos] <= '9' {
 					vpos++
 				}
-				// Find the matching */. closeStart marks the '*' of the closing "*/"
-				// when found; it stays -1 if EOF is reached first.
-				end := vpos
-				closeStart := -1
-				depth := 1
-				for end < len(l.input) && depth > 0 {
-					if l.input[end] == '*' && end+1 < len(l.input) && l.input[end+1] == '/' {
-						depth--
-						if depth == 0 {
-							closeStart = end
-							break
-						}
-						end += 2
-					} else if l.input[end] == '/' && end+1 < len(l.input) && l.input[end+1] == '*' {
-						depth++
-						end += 2
-					} else {
-						end++
-					}
-				}
+				// closeStart marks the '*' of the closing "*/" when the comment
+				// closes; it stays -1 if the input ends first.
+				closeStart := l.execCommentClose(vpos)
 				if closeStart < 0 {
-					// Unterminated executable comment: no closing */ before EOF.
-					// Consume to EOF and record a clean lex error.
-					l.setError("unterminated comment", commentStart)
-					l.pos = len(l.input)
-					return
+					// The comment never closes. Lex the body anyway, so a token inside
+					// it that ran off the end — an unterminated string, say — is
+					// reported at its own position; the missing close is reported only
+					// when the body itself lexed cleanly.
+					l.noteUnclosedExec(commentStart)
+					l.enterUnclosedExecComment(vpos)
+					continue
 				}
 				// Lex the body in place: step over "/*!NNNNN" and remember where
 				// the comment closes, so tokens keep their offsets in the input.

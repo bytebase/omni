@@ -13,10 +13,11 @@ type unterminatedCase struct {
 	want string
 }
 
-// unterminatedCases covers every token the lexer scans to a closing delimiter,
-// including TiDB's own /*T![feature] ... */ comments. A ';' inside the open
-// token is deliberate: Split must not read it as a statement boundary and hand
-// the parser a segment that looks complete.
+// unterminatedCases covers the tokens the lexer scans to a closing delimiter
+// and that TiDB rejects when they run off the end of the input. A ';' inside the
+// open token is deliberate: Split must not read it as a statement boundary and
+// hand the parser a segment that looks complete. An executable comment is not
+// here, because TiDB drops an opener that never closes: see unclosedExecCases.
 var unterminatedCases = []unterminatedCase{
 	{"string literal", "SELECT 'oops;", "unterminated string literal"},
 	{"double-quoted string", `SELECT "oops;`, "unterminated string literal"},
@@ -25,12 +26,26 @@ var unterminatedCases = []unterminatedCase{
 	{"quoted variable name", "SELECT @`oops;", "unterminated quoted identifier"},
 	{"block comment", "SELECT 1 /* oops;", "unterminated comment"},
 	{"block comment alone", "/* oops", "unterminated comment"},
-	{"executable comment", "SELECT 1 /*!40000 oops", "unterminated comment"},
-	{"tidb comment", "SELECT 1 /*T! oops", "unterminated comment"},
-	{"tidb feature comment", "SELECT 1 /*T![clustered_index] oops", "unterminated comment"},
+	// A feature TiDB does not know, and a malformed gate, make the comment an
+	// ordinary one, which must still close.
 	{"tidb unsupported feature", "SELECT 1 /*T![nonexistent_feature] oops", "unterminated comment"},
 	{"tidb feature bracket", "SELECT 1 /*T![oops", "unterminated comment"},
-	{"tidb comment alone", "/*T! SELECT 1", "unterminated comment"},
+}
+
+// unclosedExecCases are executable comments that never close. TiDB v8.5.5 drops
+// the opener and reads the rest of the input as ordinary SQL, so each of these
+// parses as the statement left behind: `SELECT 1 /*T! oops` is `SELECT 1 oops`,
+// an aliased column. MySQL and MariaDB reject every one as an unterminated
+// comment, which is why only this fork carries the list.
+var unclosedExecCases = []string{
+	"SELECT 1 /*!40000 oops",
+	"SELECT 1 /*T! oops",
+	"SELECT 1 /*T![clustered_index] oops",
+	"/*T! SELECT 1",
+	"SELECT /*T! 1",
+	"SELECT /*T![ttl] 1",
+	"SELECT /*T![auto_rand] col",
+	"SELECT 1 /*! ",
 }
 
 // terminatedCounterparts are the same statements with their delimiters closed.
@@ -71,6 +86,17 @@ func TestUnterminatedLiteralRejected(t *testing.T) {
 
 func TestTerminatedCounterpartsAccepted(t *testing.T) {
 	for _, sql := range terminatedCounterparts {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+}
+
+// TestUnclosedExecCommentDropsTheOpener pins TiDB's handling of an executable
+// comment that never closes: the opener is dropped and the rest of the input is
+// read as ordinary SQL, so the statement stands or falls on what is left.
+func TestUnclosedExecCommentDropsTheOpener(t *testing.T) {
+	for _, sql := range unclosedExecCases {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v", sql, err)
 		}

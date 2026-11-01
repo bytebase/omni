@@ -85,16 +85,20 @@ func TestTiDBCommentEmpty(t *testing.T) {
 
 func TestTiDBCommentUnclosed(t *testing.T) {
 	// Unclosed TiDB comments must not panic.
+	// TiDB v8.5.5 drops the opener of an executable comment that never closes and
+	// reads the rest as ordinary SQL, so the first four are the statements left
+	// behind — SELECT 1, SELECT 1, SELECT col, SELECT 1 — and none is an error.
 	tests := []struct {
 		sql     string
 		wantErr bool
 	}{
-		{"SELECT /*T! 1", true},              // unclosed, incomplete SQL
-		{"SELECT /*T![ttl] 1", true},         // unclosed with feature gate
-		{"SELECT /*T![auto_rand] col", true}, // unclosed, dangling identifier
-		// An unclosed comment is an error whatever its body reads as: whether the
-		// tokens before it happened to form a statement decided this before.
-		{"/*T! SELECT 1", true},
+		{"SELECT /*T! 1", false},
+		{"SELECT /*T![ttl] 1", false},
+		{"SELECT /*T![auto_rand] col", false},
+		{"/*T! SELECT 1", false},
+		// These two are ordinary comments rather than gates, so they must close.
+		{"SELECT /*T![nonexistent] 1", true},
+		{"SELECT /*T![ 1", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {

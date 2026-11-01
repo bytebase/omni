@@ -210,6 +210,10 @@ var categoryCaseSQLs = []string{
 	// MySQL-only syntax MariaDB has no grammar for: omni must refuse it too, so
 	// these assert agreement rather than pin a divergence.
 	"SELECT CAST(name AS JSON ARRAY) FROM t",
+	// A string holding what reads as the executable comment's closing "*/":
+	// MariaDB runs the statement and so does omni, which ends the comment at the
+	// first "*/" outside every token rather than at the first one in the bytes.
+	"/*!50000 SELECT 'a*/' */",
 	// MariaDB accepts, omni rejects (UNDER findings): productions omni's mariadb
 	// tree never inherited from mysql.
 	"SELECT WEIGHT_STRING(name AS CHAR(4)) FROM t",
@@ -217,7 +221,6 @@ var categoryCaseSQLs = []string{
 	"CREATE TABLE t_adjacent_default (c VARCHAR(8) DEFAULT 'a' 'b')",
 	"SELECT * FROM t WHERE name = 'a' 'b'",
 	"SELECT * FROM (VALUES ('a' 'b')) x",
-	"/*!50000 SELECT 'a*/' */",
 }
 
 // containerFatalVerbs name statements whose *execution* would kill the shared
@@ -336,11 +339,6 @@ var subtractiveDivergences = []divergence{
 		sql:      "SELECT * FROM (VALUES ('a' 'b')) x",
 		omniSide: false, // same missing folding, row position.
 		reason:   "Adjacent string literals in a row: same missing foldAdjacentStringLits as the DEFAULT case.",
-	},
-	{
-		sql:      "/*!50000 SELECT 'a*/' */",
-		omniSide: false, // MariaDB accepts; omni rejects in the grammar, not the lexer.
-		reason:   "A string holding an executable comment's closing \"*/\": MariaDB 11.8.8 accepts the statement, omni rejects it with a syntax error at the trailing \"*/\" once the string has consumed the real close. The lexer is not the cause — the shape reaches the grammar the same way with and without the unterminated-comment guard.",
 	},
 }
 

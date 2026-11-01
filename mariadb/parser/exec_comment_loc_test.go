@@ -241,3 +241,49 @@ func TestExecCommentLoc_ErrorPosition(t *testing.T) {
 		})
 	}
 }
+
+// execCommentQuotedAccepted are executable comments that close at a "*/"
+// outside every string, quoted identifier and line comment, though an earlier
+// "/*" or "*/" sits inside one of those tokens.
+var execCommentQuotedAccepted = []string{
+	"SELECT 1 /*! + LENGTH('/*') */",
+	"SELECT 1 /*!50000 + LENGTH('/*') */",
+	"SELECT 1 /*! + LENGTH('*/') */",
+	`SELECT 1 /*! + LENGTH("/*") */`,
+	"SELECT 1 /*! + LENGTH(`a*/`) */",
+	`SELECT 1 /*! + LENGTH('a\'*/') */`,
+	"/*!50000 SELECT 'a*/' */",
+	"SELECT 1 /*! /* inner */ + 1 */",
+}
+
+// execCommentQuotedHeldClose are executable comments whose only "*/" is held
+// inside a string or a line comment, so the comment never closes.
+var execCommentQuotedHeldClose = []string{
+	"SELECT 'x' /*! , 'a*/'",
+	"SELECT 1 /*!50000 + 1 -- c */\n",
+	"SELECT 1 /*! + 1 # c */\n",
+	"SELECT 1 /*! + LENGTH('a--*/') -- */\n",
+}
+
+// TestExecCommentClose_SkipsQuotedDelimiters pins where an executable comment
+// ends when "/*" or "*/" sits inside a token. A string literal, a quoted
+// identifier and a line comment hold no delimiter the comment can close on, so
+// the close is the first "*/" outside all of them; a comment whose only "*/"
+// is held inside a token never closes, and that is an error.
+func TestExecCommentClose_SkipsQuotedDelimiters(t *testing.T) {
+	for _, sql := range execCommentQuotedAccepted {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+	for _, sql := range execCommentQuotedHeldClose {
+		_, err := Parse(sql)
+		if err == nil {
+			t.Errorf("Parse(%q) accepted a comment whose close is held inside a token", sql)
+			continue
+		}
+		if !strings.Contains(err.Error(), "unterminated comment") {
+			t.Errorf("Parse(%q) error = %v, want an unterminated comment", sql, err)
+		}
+	}
+}

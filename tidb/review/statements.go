@@ -113,8 +113,8 @@ func startsWithWith(sql string, loc ast.Loc) bool {
 
 // inFeatureGate reports whether an offset lies inside one of the TiDB
 // /*T![feature] ... */ comments that open the range, read past comments
-// and other gates before it. A gate ends at the "*/" that closes it by
-// depth, past any comment nested in it, as the lexer and TiDB read it.
+// and other gates before it. A gate ends where gateEnd says, which is where
+// the lexer and TiDB end it.
 func inFeatureGate(sql string, r review.Range, offset int) bool {
 	i := r.Start
 	for {
@@ -131,19 +131,53 @@ func inFeatureGate(sql string, r review.Range, offset int) bool {
 }
 
 // gateEnd returns the offset of the "*/" that closes the /*T![ comment at
-// start by depth, or end when none does.
+// start, or end when none does. The scan steps over whatever the lexer reads
+// as one token — a string, a quoted identifier, a line comment, and a nested
+// block comment, consumed whole — because a "*/" inside any of those closes
+// nothing. This mirrors execCommentClose in parser/lexer.go; the two have to
+// agree or a gate ends in one place for the rules and another for the parser.
 func gateEnd(sql string, start, end int) int {
-	depth := 1
-	for j := start + len("/*T!["); j+1 < end; j++ {
-		switch {
-		case sql[j] == '/' && sql[j+1] == '*':
-			depth++
+	j := start + len("/*T![")
+	for j < end {
+		switch c := sql[j]; {
+		case c == '*' && j+1 < end && sql[j+1] == '/':
+			return j
+
+		case c == '\'' || c == '"' || c == '`':
 			j++
-		case sql[j] == '*' && sql[j+1] == '/':
-			depth--
-			if depth == 0 {
-				return j
+			for j < end {
+				if sql[j] == '\\' && c != '`' {
+					j += 2
+					continue
+				}
+				if sql[j] != c {
+					j++
+					continue
+				}
+				if j+1 < end && sql[j+1] == c {
+					j += 2
+					continue
+				}
+				j++
+				break
 			}
+
+		case c == '#', c == '-' && j+1 < end && sql[j+1] == '-' &&
+			(j+2 >= end || isSpace(sql[j+2])):
+			for j < end && sql[j] != '\n' {
+				j++
+			}
+
+		case c == '/' && j+1 < end && sql[j+1] == '*':
+			j += 2
+			for j < end && !(sql[j] == '*' && j+1 < end && sql[j+1] == '/') {
+				j++
+			}
+			if j < end {
+				j += 2
+			}
+
+		default:
 			j++
 		}
 	}

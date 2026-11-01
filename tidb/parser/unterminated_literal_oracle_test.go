@@ -2,33 +2,45 @@ package parser
 
 import "testing"
 
-// TestUnterminatedLiteralOracle proves against a live MySQL 8.0 container that
+// TestUnterminatedLiteralOracle proves against a live TiDB v8.5.5 container that
 // the guards refuse only what the server refuses: every unterminated token is a
-// 1064 syntax error there, and every closed counterpart parses. checkSyntax
-// reads a non-1064 error as parsed, so a closed statement may still fail for a
-// semantic reason such as an unknown column.
+// 1064 syntax error there, every closed counterpart parses, and an executable
+// comment that never closes is accepted because TiDB drops the opener.
+// tidbRejectedSyntax reads a non-1064 error as parsed, so a statement may still
+// fail for a semantic reason such as an unknown column.
 //
-// The oracle is MySQL, not TiDB, so it reads /*T! ... */ as an ordinary block
-// comment rather than TiDB SQL. That is enough for these cases: an unterminated
-// comment is a syntax error either way, and a closed one is skipped.
+// The oracle is TiDB and not MySQL because /*T! ... */ and its feature gates are
+// TiDB's own syntax: MySQL reads them as ordinary block comments and never takes
+// the executable-comment branches these cases cover.
 func TestUnterminatedLiteralOracle(t *testing.T) {
-	o := startParserOracle(t)
+	tc := startTiDB(t)
 
-	for _, tc := range unterminatedCases {
-		t.Run(tc.name, func(t *testing.T) {
-			if o.checkSyntax(t, tc.sql) {
-				t.Errorf("the oracle parsed %q, so omni must not reject it", tc.sql)
+	for _, c := range unterminatedCases {
+		t.Run(c.name, func(t *testing.T) {
+			if !tidbRejectedSyntax(tc.canExecute(c.sql)) {
+				t.Errorf("TiDB parsed %q, so omni must not reject it", c.sql)
 			}
-			if _, err := Parse(tc.sql); err == nil {
-				t.Errorf("Parse(%q) accepted what the oracle rejects", tc.sql)
+			if _, err := Parse(c.sql); err == nil {
+				t.Errorf("Parse(%q) accepted what TiDB rejects", c.sql)
 			}
 		})
 	}
 
 	for _, sql := range terminatedCounterparts {
 		t.Run("closed/"+sql, func(t *testing.T) {
-			if !o.checkSyntax(t, sql) {
-				t.Errorf("the oracle rejected %q, so it is not a valid control", sql)
+			if tidbRejectedSyntax(tc.canExecute(sql)) {
+				t.Errorf("TiDB rejected %q, so it is not a valid control", sql)
+			}
+			if _, err := Parse(sql); err != nil {
+				t.Errorf("Parse(%q): %v", sql, err)
+			}
+		})
+	}
+
+	for _, sql := range unclosedExecCases {
+		t.Run("unclosed/"+sql, func(t *testing.T) {
+			if tidbRejectedSyntax(tc.canExecute(sql)) {
+				t.Errorf("TiDB rejected %q, so omni must not accept it", sql)
 			}
 			if _, err := Parse(sql); err != nil {
 				t.Errorf("Parse(%q): %v", sql, err)

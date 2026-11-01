@@ -419,7 +419,7 @@ func Split(sql string) []Segment {
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.
-// Handles '' escape and \ backslash escape. Returns position after the closing
+// Handles ” escape and \ backslash escape. Returns position after the closing
 // quote (or end of input if unterminated).
 func skipSingleQuoteMySQL(sql string, i int) int {
 	i++ // skip opening '
@@ -468,7 +468,7 @@ func skipDoubleQuoteMySQL(sql string, i int) int {
 }
 
 // skipBacktick skips a backtick-quoted identifier starting at position i.
-// Only `` (double backtick) is an escape. Returns position after the closing
+// Only “ (double backtick) is an escape. Returns position after the closing
 // backtick (or end of input if unterminated).
 func skipBacktick(sql string, i int) int {
 	i++ // skip opening `
@@ -527,9 +527,9 @@ func skipHashComment(sql string, i int) int {
 }
 
 // isExecutableCommentStart reports whether sql[i:] opens an executable
-// comment (/*!...*/). The lexer searches for THAT comment's own close by
-// depth-counting nested /* sequences (lexer.go), so Split must agree on where
-// it ends; only an ordinary comment closes at the first */.
+// comment (/*!...*/). The lexer searches for THAT comment's own close at the
+// first */ outside every token (lexer.go), so Split must agree on where it
+// ends; an ordinary comment closes at the first */ whatever surrounds it.
 func isExecutableCommentStart(sql string, i int) bool {
 	return i+2 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == '!'
 }
@@ -537,12 +537,22 @@ func isExecutableCommentStart(sql string, i int) bool {
 // skipBlockCommentMySQL skips a block comment starting at position i. An
 // ordinary MySQL or MariaDB block comment ends at the FIRST closing */, even
 // if its content contains further /* sequences; an executable comment
-// (/*!...*/) is depth-counted instead, matching how the lexer finds its
-// close. Returns position after the closing */ (or end of input).
+// (/*!...*/) ends at the first */ outside every token, as the lexer reads
+// it. Returns position after the closing */ (or end of input).
 func skipBlockCommentMySQL(sql string, i int) int {
 	if isExecutableCommentStart(sql, i) {
-		return skipBlockCommentDepthCounted(sql, i)
+		// MySQL and MariaDB reject an executable comment that never closes, so
+		// the remainder stays in one segment and the lexer reports the error.
+		end, _ := skipExecutableComment(sql, i)
+		return end
 	}
+	return skipOrdinaryBlockComment(sql, i)
+}
+
+// skipOrdinaryBlockComment skips a non-executable block comment starting at i.
+// Block comments do not nest, so it ends at the FIRST closing */ whatever its
+// content holds. Returns the position after that */, or end of input.
+func skipOrdinaryBlockComment(sql string, i int) int {
 	i += 2 // skip /*
 	for i < len(sql) {
 		if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
@@ -553,24 +563,35 @@ func skipBlockCommentMySQL(sql string, i int) int {
 	return i
 }
 
-// skipBlockCommentDepthCounted finds the close of an executable comment
-// (/*!...*/) by depth-counting nested /* sequences, matching the lexer's own
-// exec-comment scan. Returns position after the closing */ (or end of input).
-func skipBlockCommentDepthCounted(sql string, i int) int {
+// skipExecutableComment finds the close of an executable comment the way the
+// lexer's execCommentClose does: at the first */ outside every string, quoted
+// identifier and line comment, because a */ the lexer reads as part of a token
+// closes nothing. Returns the position after the closing */ and whether one was
+// found. Split has to agree with the lexer here, or a ';' after such a comment
+// is a statement boundary to one and not to the other.
+func skipExecutableComment(sql string, i int) (int, bool) {
 	i += 2 // skip /*
-	depth := 1
-	for i < len(sql) && depth > 0 {
-		if sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' {
-			depth++
-			i += 2
-		} else if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
-			depth--
-			i += 2
-		} else {
+	for i < len(sql) {
+		switch {
+		case sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/':
+			return i + 2, true
+		case sql[i] == '\'':
+			i = skipSingleQuoteMySQL(sql, i)
+		case sql[i] == '"':
+			i = skipDoubleQuoteMySQL(sql, i)
+		case sql[i] == '`':
+			i = skipBacktick(sql, i)
+		case isDashComment(sql, i):
+			i = skipDashComment(sql, i)
+		case sql[i] == '#':
+			i = skipHashComment(sql, i)
+		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			i = skipOrdinaryBlockComment(sql, i)
+		default:
 			i++
 		}
 	}
-	return i
+	return i, false
 }
 
 // blockCommentTerminated reports whether the block comment starting at i (on
