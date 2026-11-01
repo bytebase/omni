@@ -89,10 +89,12 @@ func TestTiDBCommentUnclosed(t *testing.T) {
 		sql     string
 		wantErr bool
 	}{
-		{"SELECT /*T! 1", true},          // unclosed, incomplete SQL
-		{"SELECT /*T![ttl] 1", true},     // unclosed with feature gate
+		{"SELECT /*T! 1", true},              // unclosed, incomplete SQL
+		{"SELECT /*T![ttl] 1", true},         // unclosed with feature gate
 		{"SELECT /*T![auto_rand] col", true}, // unclosed, dangling identifier
-		{"/*T! SELECT 1", false},         // unclosed but inner SQL is valid after injection
+		// An unclosed comment is an error whatever its body reads as: whether the
+		// tokens before it happened to form a statement decided this before.
+		{"/*T! SELECT 1", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {

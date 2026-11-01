@@ -15,6 +15,11 @@ func TestExecCommentBoundary_Oracle(t *testing.T) {
 		"/*!SELECT 1*/2",
 		"/*!SELECT 'v' x*/y",
 		"SELECT /*!50000 1, */ 2",
+		// A token that swallows the closing "*/" leaves the comment open, which
+		// MariaDB rejects. TiDB accepts both of these, so its fork of the lexer
+		// does not treat the shape as unterminated.
+		`SELECT 'x' /*! , 'a*/'`,
+		"SELECT 1 /*!50000 + 1 -- c */\n",
 	} {
 		v, _, msg := o.classify(sql)
 		if v == vErrored {

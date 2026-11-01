@@ -222,6 +222,11 @@ func TestExecCommentLoc_ErrorPosition(t *testing.T) {
 		// A syntax error inside the comment body names the token's offset.
 		{"/*!50000 SELECT FROM t */", "syntax error", 16},
 		{"SELECT 1; /*!80000 SELECT a FROM WHERE */", "expected identifier", 33},
+		// A string or a line comment that swallows the comment's closing */
+		// leaves the comment open, which MariaDB rejects; the error names the
+		// comment's start.
+		{"SELECT 'x' /*! , 'a*/'", "unterminated comment", 11},
+		{"SELECT 1 /*!50000 + 1 -- c */\n", "unterminated comment", 9},
 	}
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {

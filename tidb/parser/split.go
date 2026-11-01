@@ -40,6 +40,12 @@ func (s Segment) Empty() bool {
 			if i+3 < len(t) && t[i+2] == 'T' && t[i+3] == '!' {
 				return false
 			}
+			// An unterminated block comment (no closing */ before EOF) is malformed
+			// input, not empty whitespace: keep the segment so the lexer surfaces a
+			// clean "unterminated comment" error instead of Split silently dropping it.
+			if !blockCommentTerminated(t, i) {
+				return false
+			}
 			prev := i
 			i = skipBlockCommentMySQL(t, i)
 			if i == prev {
@@ -51,6 +57,19 @@ func (s Segment) Empty() bool {
 		return false
 	}
 	return true
+}
+
+// blockCommentTerminated reports whether the block comment starting at i has a
+// closing "*/" before the end of sql.
+func blockCommentTerminated(sql string, i int) bool {
+	i += 2 // skip /*
+	for i < len(sql) {
+		if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
+			return true
+		}
+		i++
+	}
+	return false
 }
 
 // isIdentByte returns true if b is a valid identifier byte [a-zA-Z0-9_].

@@ -1724,6 +1724,14 @@ type Lexer struct {
 	prevTokenEnd int // end position of the previously emitted token (for adjacency checks)
 	baseOffset   int // added to all token Loc values for absolute positioning
 
+	// errMsg/errPos record the first lexing error (unterminated comment, string,
+	// or quoted identifier). A malformed token that runs to EOF without its closing
+	// delimiter must never index past the buffer; instead the scan stops at EOF and
+	// records the error here, which the parser surfaces as a clean ParseError.
+	errMsg string
+	errPos int
+	hasErr bool
+
 	// execStack holds every executable comment (/*! ... */) the lexer is inside,
 	// innermost last. The lexer reads a comment's body in place rather than
 	// copying it into a new buffer, so every token keeps its byte offset in the
@@ -1749,6 +1757,18 @@ type execMarker struct {
 	start, end int
 }
 
+// setError records the first lexing error and ignores any later ones. Because the
+// lexer scans strictly left-to-right, the first error recorded is also the leftmost
+// (earliest) in the input.
+func (l *Lexer) setError(msg string, pos int) {
+	if l.hasErr {
+		return
+	}
+	l.hasErr = true
+	l.errMsg = msg
+	l.errPos = pos
+}
+
 // enterExecComment steps over the opener [l.pos, bodyStart) of an executable
 // comment whose closing "*/" starts at closeStart, leaving the lexer at the
 // first byte of the body.
@@ -1771,6 +1791,10 @@ func (l *Lexer) skipExecClose() bool {
 		}
 		l.execStack = l.execStack[:n-1]
 		if c.close < l.pos {
+			// A token swallowed the closing "*/", so the comment never closed.
+			// MariaDB 11.8.8 rejects that, as MySQL does; TiDB accepts it, so its
+			// fork of this lexer leaves the shape to the grammar instead.
+			l.setError("unterminated comment", c.start)
 			continue
 		}
 		l.execMarkers = append(l.execMarkers, execMarker{c.close, c.close + 2})
@@ -1977,6 +2001,7 @@ func (l *Lexer) skipWhitespaceAndComments() {
 
 		// Block comment: /* ... */
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+			commentStart := l.pos
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
 			// These should be parsed as SQL, not skipped.
 			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
@@ -1987,13 +2012,16 @@ func (l *Lexer) skipWhitespaceAndComments() {
 				for vpos < len(l.input) && l.input[vpos] >= '0' && l.input[vpos] <= '9' {
 					vpos++
 				}
-				// Find the matching */
+				// Find the matching */. closeStart marks the '*' of the closing "*/"
+				// when found; it stays -1 if EOF is reached first.
 				end := vpos
+				closeStart := -1
 				depth := 1
 				for end < len(l.input) && depth > 0 {
 					if l.input[end] == '*' && end+1 < len(l.input) && l.input[end+1] == '/' {
 						depth--
 						if depth == 0 {
+							closeStart = end
 							break
 						}
 						end += 2
@@ -2004,26 +2032,35 @@ func (l *Lexer) skipWhitespaceAndComments() {
 						end++
 					}
 				}
-				// If comment is unclosed (no matching */), treat as regular block comment.
-				if depth > 0 {
+				if closeStart < 0 {
+					// Unterminated executable comment: no closing */ before EOF.
+					// Consume to EOF and record a clean lex error.
+					l.setError("unterminated comment", commentStart)
 					l.pos = len(l.input)
-					continue
+					return
 				}
 				// Lex the body in place: step over "/*!NNNNN" and remember where
 				// the comment closes, so tokens keep their offsets in the input.
-				l.enterExecComment(vpos, end)
+				l.enterExecComment(vpos, closeStart)
 				continue
 			}
 
 			l.pos += 2
 			// Regular block comment: MySQL and MariaDB do not nest block comments,
 			// so this skips to the FIRST closing */, not a depth-matched one.
+			closed := false
 			for l.pos < len(l.input) {
 				if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
 					l.pos += 2
+					closed = true
 					break
 				}
 				l.pos++
+			}
+			if !closed {
+				// Unterminated block comment: reached EOF before the closing */.
+				l.setError("unterminated comment", commentStart)
+				return
 			}
 			continue
 		}
@@ -2053,6 +2090,11 @@ func (l *Lexer) scanVariable() Token {
 		name = l.input[nameStart:l.pos]
 		if l.pos < len(l.input) {
 			l.pos++ // skip closing backtick
+		} else {
+			// EOF reached before the closing backtick: unterminated `-quoted
+			// variable name. Record a clean error rather than accepting a
+			// half-open identifier (mirrors scanBacktickIdent).
+			l.setError("unterminated quoted identifier", start)
 		}
 	} else {
 		nameStart := l.pos
@@ -2074,6 +2116,7 @@ func (l *Lexer) scanBacktickIdent() Token {
 	start := l.pos
 	l.pos++ // skip opening backtick
 	var sb strings.Builder
+	closed := false
 	for l.pos < len(l.input) {
 		if l.input[l.pos] == '`' {
 			// Double backtick is an escape
@@ -2082,12 +2125,16 @@ func (l *Lexer) scanBacktickIdent() Token {
 				l.pos += 2
 			} else {
 				l.pos++ // skip closing backtick
+				closed = true
 				break
 			}
 		} else {
 			sb.WriteByte(l.input[l.pos])
 			l.pos++
 		}
+	}
+	if !closed {
+		l.setError("unterminated quoted identifier", start)
 	}
 	return Token{Type: tokIDENT, Str: sb.String(), Loc: start}
 }
@@ -2096,6 +2143,7 @@ func (l *Lexer) scanString(quote byte) Token {
 	start := l.pos
 	l.pos++ // skip opening quote
 	var sb strings.Builder
+	closed := false
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
 		if ch == quote {
@@ -2105,6 +2153,7 @@ func (l *Lexer) scanString(quote byte) Token {
 				l.pos += 2
 			} else {
 				l.pos++ // skip closing quote
+				closed = true
 				break
 			}
 		} else if ch == '\\' {
@@ -2145,6 +2194,9 @@ func (l *Lexer) scanString(quote byte) Token {
 			sb.WriteByte(ch)
 			l.pos++
 		}
+	}
+	if !closed {
+		l.setError("unterminated string literal", start)
 	}
 	return Token{Type: tokSCONST, Str: sb.String(), Loc: start}
 }
