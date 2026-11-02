@@ -254,6 +254,35 @@ func TestWalkThroughMariaDBNamesOutsideASCII(t *testing.T) {
 	oneFinding(t, "DROP EVENT nosuch;", 0, "Event nosuch does not exist", target)
 }
 
+// TestWalkThroughMariaDBSequenceEngineTables pins that the walk judges no
+// name the SEQUENCE engine answers for (sequenceEngineTable): such a table
+// is in every database though the sync lists none, so DROP TABLE and
+// CREATE TRIGGER take it, and DML on it fails for another reason (1031).
+// A name that only resembles one is still judged.
+func TestWalkThroughMariaDBSequenceEngineTables(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	for _, sql := range []string{
+		"DROP TABLE seq_1_to_4;",
+		"DROP TABLE seq_1_to_4;\nDROP TABLE seq_1_to_4;",
+		"DROP TABLE seq_0_to_0;",
+		"CREATE TRIGGER trq BEFORE INSERT ON seq_1_to_3 FOR EACH ROW SET @x = 1;",
+		"INSERT INTO seq_1_to_3 VALUES (1);",
+		"UPDATE seq_1_to_10_step_2 SET seq = 1;",
+		"ALTER TABLE seq_1_to_100 ENGINE = BLACKHOLE;",
+	} {
+		noFinding(t, sql, shop)
+	}
+	oneFinding(t, "DROP TABLE seq_1_to_3x;", 0, "Table seq_1_to_3x does not exist", shop)
+	oneFinding(t, "DROP TABLE seq_1_to_;", 0, "Table seq_1_to_ does not exist", shop)
+	oneFinding(t, "DROP TABLE SEQ_1_TO_3;", 0, "Table SEQ_1_TO_3 does not exist", shop)
+	noFinding(t, "DROP TABLE SEQ_1_TO_3;", review.Target{Schema: walkSchema(), LowerCaseTableNames: 1})
+	// A table of such a name the sync lists keeps its triggers.
+	synced := walkSchema()
+	synced.Schemas[0].Tables = append(synced.Schemas[0].Tables, &metadata.TableMetadata{Name: "seq_1_to_3", Triggers: []*metadata.TriggerMetadata{{Name: "trq"}}})
+	noFinding(t, "DROP TRIGGER trq;", review.Target{Schema: synced})
+	oneFinding(t, "DROP TRIGGER trq;\nDROP TRIGGER trq;", 1, "Trigger trq does not exist", review.Target{Schema: synced})
+}
+
 func TestWalkThroughMariaDBSession(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	// Another database is unknown, until the change makes it.

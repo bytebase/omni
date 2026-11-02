@@ -301,8 +301,48 @@ func generatedFKs(table string) string {
 	return strings.ToLower(table) + "_ibfk_"
 }
 
+// key returns the key of a name a statement writes, false when the walk
+// cannot read it. A relation name the SEQUENCE engine answers for is one
+// it cannot: such a table is in every database, though the sync lists
+// none, and comes back when a table of its name is dropped.
 func (b *builder) key(space, name string) (string, bool) {
-	return nameKey(space, name, b.w.foldTables)
+	k, ok := nameKey(space, name, b.w.foldTables)
+	if ok && space == spaceRelation && sequenceEngineTable(k) {
+		return "", false
+	}
+	return k, ok
+}
+
+// sequenceEngineTable reports whether a relation key is a name MariaDB's
+// SEQUENCE engine, built in and enabled by default, answers for in any
+// database: seq_<from>_to_<to>, or that with _step_<step> after
+// (storage/sequence/sequence.cc). On 11.8.8 SELECT reads seq_1_to_3 and
+// mysql.seq_1_to_3, DROP TABLE and CREATE TRIGGER take it, CREATE TABLE
+// finds it (1050), and DML fails, but not for want of a table (1031). The
+// engine reads the step with sscanf, which takes a sign or a space before
+// it; the walk takes anything after _step_.
+func sequenceEngineTable(k string) bool {
+	digits := func(s string) (string, bool) {
+		i := 0
+		for i < len(s) && '0' <= s[i] && s[i] <= '9' {
+			i++
+		}
+		return s[i:], i > 0
+	}
+	rest, ok := strings.CutPrefix(k, "seq_")
+	if !ok {
+		return false
+	}
+	if rest, ok = digits(rest); !ok {
+		return false
+	}
+	if rest, ok = strings.CutPrefix(rest, "_to_"); !ok {
+		return false
+	}
+	if rest, ok = digits(rest); !ok {
+		return false
+	}
+	return rest == "" || strings.HasPrefix(rest, "_step_")
 }
 
 // tableRef is a table reference as the walk resolves it: the keys of its

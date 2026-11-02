@@ -115,6 +115,15 @@ var walkCases = []walkCase{
 	// follows none. CAFé is café as a column and KÉ is ké as an index; ſ is
 	// s as a column and an index, and é is e as a routine and an event.
 	{name: "names outside ASCII", change: "CREATE TABLE x (id int, café int, KEY ké (id));\nALTER TABLE x DROP COLUMN CAFé;\nALTER TABLE x DROP INDEX KÉ;\nALTER TABLE x DROP INDEX Ké;\nALTER TABLE x DROP COLUMN zz;"},
+	// The SEQUENCE engine answers for seq_1_to_3 in every database, which
+	// the sync does not list: DROP TABLE and CREATE TRIGGER take it, and
+	// DML fails, but not for want of a table (1031). A trigger left on one
+	// keeps its database from being dropped (errno 39).
+	{name: "SEQUENCE engine tables", change: "SELECT COUNT(*) FROM seq_1_to_3;\nINSERT INTO seq_1_to_3 VALUES (1);\nUPDATE seq_1_to_10_step_2 SET seq = 1;\nDELETE FROM shop.seq_1_to_3;\nDROP TABLE nosuch;"},
+	{name: "SEQUENCE engine table dropped", change: "DROP TABLE seq_1_to_4;\nSELECT COUNT(*) FROM seq_1_to_4;\nDROP TABLE seq_1_to_4;"},
+	{name: "trigger on a SEQUENCE engine table", change: "CREATE TRIGGER trq BEFORE INSERT ON seq_1_to_3 FOR EACH ROW SET @x = 1;\nDROP TRIGGER trq;"},
+	{name: "SEQUENCE engine table altered", change: "ALTER TABLE seq_1_to_5 ENGINE = InnoDB;\nALTER TABLE seq_1_to_5 ADD COLUMN b int;"},
+	{name: "a name like a SEQUENCE engine table", change: "DROP TABLE seq_1_to_3x;\nINSERT INTO SEQ_1_TO_3 VALUES (1);\nDROP TABLE seq_1_to_;", complete: true},
 	{name: "an ASCII name may be one outside ASCII", setup: "CREATE TABLE ls (ſ int, a int, KEY ſ (a));\nCREATE PROCEDURE `pé`() SELECT 1;\nCREATE FUNCTION `fé`() RETURNS int DETERMINISTIC RETURN 1;\nCREATE EVENT `eé` ON SCHEDULE EVERY 1 DAY DO SELECT 1;", change: "ALTER TABLE ls DROP COLUMN s;\nALTER TABLE ls DROP INDEX s;\nDROP PROCEDURE pe;\nDROP FUNCTION shop.fe;\nDROP EVENT ee;\nALTER TABLE ls DROP COLUMN zz;\nDROP PROCEDURE nosuch;\nALTER TABLE t DROP COLUMN zz;"},
 	// Each assignment of a SET has a scope of its own (MariaDB spec §2.2): an
 	// unprefixed one the statement's, an @@session or bare @@ one the
