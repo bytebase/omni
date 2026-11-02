@@ -19,6 +19,16 @@ func TestNameText(t *testing.T) {
 		{"1 /*!80023 +3*/ + 1", "1  + 1"},
 		{"1 /*!50699 +3*/ + 1", "1  +3 + 1"},
 		{"a /*!+3*/ + 1", "a +3 + 1"},
+		// MariaDB's own /*M! is executable too, and does not nest with /*!:
+		// MariaDB 11.8.8 names "1 /*M!+3*/" as "1 +3".
+		{"a /*M!+3*/ + 1", "a +3 + 1"},
+		{"a /*M!100100 +3*/ + 1", "a  +3 + 1"},
+		{"a /*! /*M! +3 */ + 1", "a   +3  + 1"},
+		// A version no server reaches, mariadb-dump's sandbox marker among them,
+		// is skipped unread: MariaDB 11.8.8 names "1 /*M!999999 x */ + 1" and
+		// "1 /*!999999 x */ + 1" as "1  + 1".
+		{"a /*M!999999 x */ + 1", "a  + 1"},
+		{"a /*!999999 x */ + 1", "a  + 1"},
 		// An executable comment opened before the item closes inside it.
 		{"a */ + 1", "a  + 1"},
 		{"a*/*c*/b", "a*/*c*/b"},

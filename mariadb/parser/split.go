@@ -28,7 +28,7 @@ func (s Segment) Empty() bool {
 			i = skipHashComment(t, i)
 			continue
 		}
-		// Skip block comments, but NOT conditional comments /*!...*/.
+		// Skip block comments, but NOT conditional comments /*!...*/ or /*M!...*/.
 		// Conditional comments contain executable SQL — segment is not empty.
 		if b == '/' && i+1 < len(t) && t[i+1] == '*' {
 			// A comment MariaDB skips unread is a comment; one that never closes
@@ -41,7 +41,7 @@ func (s Segment) Empty() bool {
 				i = end
 				continue
 			}
-			if i+2 < len(t) && t[i+2] == '!' {
+			if _, ok := execOpener(t, i); ok {
 				return false
 			}
 			// An unterminated block comment (no closing */ before EOF) is malformed

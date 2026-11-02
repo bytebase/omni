@@ -45,6 +45,9 @@ var execNestingCases = []struct {
 	{"SELECT 1 /*!80023 + 1", false},
 	{"SELECT 1 /*!80023 + 1 /*", false},
 	{"SELECT 1 /*!80023 + LENGTH('*/') */", false},
+	{"SELECT 1 /*! + 1 /*M! + 2 */", true},
+	{"SELECT 1 /*M! + 1 /*M! + 2 */", true},
+	{"SELECT 1 /*M! + 1 /*M! + 2 */ */", false},
 }
 
 // TestExecCommentsDoNotNest pins omni to execNestingCases, which
