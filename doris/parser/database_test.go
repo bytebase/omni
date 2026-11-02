@@ -684,6 +684,12 @@ func TestPartitionWithoutValues(t *testing.T) {
 		{`PARTITION p1 (("1"), ("2"))`, [][]string{{"1"}, {"2"}}, 0},
 		{`PARTITION p1 ("replication_num"="1")`, nil, 1},
 		{`PARTITION p1 ("1") ("replication_num"="1")`, [][]string{{"1"}}, 1},
+		{`PARTITION p1 (-1)`, [][]string{{"-1"}}, 0},
+		{`PARTITION p1 (NULL, "1")`, [][]string{{"NULL"}, {"1"}}, 0},
+		// A key of more than one token is still a key.
+		{`PARTITION p1 (-1="v")`, nil, 1},
+		{`PARTITION p1 (DATE "2020-01-01"="v")`, nil, 1},
+		{`PARTITION p1 ([1]="v")`, nil, 1},
 	}
 	for _, tc := range cases {
 		file, errs := parseForTest(wrap(tc.def))

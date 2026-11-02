@@ -933,9 +933,11 @@ func (p *Parser) parsePartitionItem() (*ast.PartitionItem, error) {
 // parenOpensPropertyList reports whether the '(' at cur opens a partition's
 // property list rather than its value list, for a partition written without
 // VALUES, where both may follow the name. A property list's first item is
-// `key = ...`; a value list holds values or nested value lists. An empty pair
-// of parentheses counts as a property list, so that the list's own check
-// rejects it: neither form may be empty.
+// `key = ...`, and the key may take several tokens (-1, DATE "2020-01-01",
+// [1]), so the whole key is read before looking for the '='; a value list
+// holds values or nested value lists, and never has one. An empty pair of
+// parentheses counts as a property list, so that the list's own check rejects
+// it: neither form may be empty.
 func (p *Parser) parenOpensPropertyList() bool {
 	cp := p.save()
 	defer p.restore(cp)
@@ -946,7 +948,9 @@ func (p *Parser) parenOpensPropertyList() bool {
 	case int('('), tokEOF:
 		return false
 	}
-	p.advance() // the key's first token
+	if _, _, err := p.parsePropertyAtom(); err != nil {
+		return false
+	}
 	return p.cur.Kind == int('=')
 }
 

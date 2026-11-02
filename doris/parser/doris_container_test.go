@@ -630,6 +630,12 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"partition_list_without_values_empty_rejected", `CREATE TABLE zzpp33 (a INT) PARTITION BY LIST(a) (PARTITION p1 ()) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
 		{"partition_list_without_values_junk_rejected", `CREATE TABLE zzpp34 (a INT) PARTITION BY LIST(a) (PARTITION p1 (SELECT)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
 		{"partition_list_without_values_empty_props_rejected", `CREATE TABLE zzpp35 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("1") ()) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		// A property key may take more than one token, so the '(' after a
+		// bare partition name is classified only once the whole key is read.
+		{"partition_list_without_values_negative_key_props", `CREATE TABLE zzpp36 (a INT) PARTITION BY LIST(a) (PARTITION p1 (-1="v")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_typed_key_props", `CREATE TABLE zzpp37 (a INT) PARTITION BY LIST(a) (PARTITION p1 (DATE "2020-01-01"="v")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_array_key_props", `CREATE TABLE zzpp38 (a INT) PARTITION BY LIST(a) (PARTITION p1 ([1]="v")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_negative_value", `CREATE TABLE zzpp39 (a INT) PARTITION BY LIST(a) (PARTITION p1 (-1)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
 
 		// WITH BROKER name (...): the same propertyItemList, but a broker load
 		// takes a string on both sides of each item where EXPORT takes the
