@@ -47,6 +47,14 @@ var optionValueCases = []optionValueCase{
 	{"ALTER TABLE ta LOCK", 1064, ""},
 	{"ALTER TABLE ta CONVERT TO CHARACTER SET", 1064, ""},
 	{"ALTER TABLE ta CONVERT TO CHARACTER SET utf8mb4 COLLATE", 1064, ""},
+	// CHARACTER is an option only before SET: alone, it used to be dropped.
+	{"CREATE TABLE t (a INT) CHARACTER", 1064, ""},
+	{"CREATE TABLE t (a INT) CHARACTER ENGINE = InnoDB", 1064, "ENGINE"},
+	{"ALTER TABLE ta COMMENT 'x' CHARACTER", 1064, ""},
+	// Another table option may follow one without a comma; any other action
+	// may not.
+	{"ALTER TABLE ta COMMENT 'x' DISABLE KEYS", 1064, "DISABLE"},
+	{"ALTER TABLE ta COMMENT 'x' ADD COLUMN b3 INT", 1064, "ADD"},
 
 	{"CREATE TABLE t (a INT) KEY_BLOCK_SIZE = 8", 0, ""},
 	{"CREATE TABLE t (a INT) ENGINE = InnoDB ROW_FORMAT = DYNAMIC", 0, ""},
@@ -58,6 +66,14 @@ var optionValueCases = []optionValueCase{
 	{"ALTER TABLE ta COMMENT 'x'", 0, ""},
 	{"ALTER TABLE ta ALGORITHM = INPLACE, LOCK = NONE", 0, ""},
 	{"ALTER TABLE ta CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_bin", 0, ""},
+	{"CREATE TABLE t (a INT) CHARACTER SET utf8mb4", 0, ""},
+	{"ALTER TABLE ta ENGINE = InnoDB COMMENT 'x'", 0, ""},
+	{"ALTER TABLE ta ENGINE = InnoDB ROW_FORMAT = DYNAMIC", 0, ""},
+	{"ALTER TABLE ta COMMENT 'x' ENGINE = InnoDB, ALGORITHM = INPLACE", 0, ""},
+	{"ALTER TABLE ta ADD COLUMN b2 INT COMMENT 'c', ENGINE = InnoDB COMMENT 'z'", 0, ""},
+	{"ALTER TABLE ta DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_bin", 0, ""},
+	{"ALTER TABLE ta AUTO_INCREMENT = 5 COMMENT 'x' ENGINE = InnoDB", 0, ""},
+	{"CREATE TABLE t (a INT) DEFAULT CHARACTER SET = utf8mb4 COLLATE utf8mb4_bin", 0, ""},
 }
 
 // TestTableOptionValue holds the parser to optionValueCases. A rejection is a
