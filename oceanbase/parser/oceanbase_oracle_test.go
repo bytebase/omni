@@ -175,6 +175,13 @@ var sharedGrammar = []grammarCase{
 	// truncatedGrammar's COMMENT, CONNECTION and PASSWORD entries. Read against
 	// 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-11-02.
 	{name: "string table options", sql: "CREATE TABLE obprobe_so2 (a INT) COMMENT = 'x' CONNECTION 'y' PASSWORD = 'z'"},
+	// The column, key and routine comments with their strings, the accepted side of
+	// truncatedGrammar's comment entries. Read against 5.7.25-OceanBase_CE-v4.3.5.6
+	// on 2026-11-02.
+	{name: "column comments", sql: "CREATE TABLE obprobe_cc (a INT COMMENT 'x' NOT NULL, b INT NOT NULL COMMENT \"y\" DEFAULT 1)"},
+	{name: "key comments", sql: "CREATE TABLE obprobe_kc (a INT, PRIMARY KEY (a) COMMENT 'x', KEY obprobe_ia (a) COMMENT 'y' USING BTREE)"},
+	{name: "alter add index comment", sql: "ALTER TABLE obprobe_t ADD INDEX obprobe_ic (a) COMMENT 'x', ADD COLUMN obprobe_c INT"},
+	{name: "procedure comment", sql: "CREATE PROCEDURE obprobe_p() COMMENT 'x' SELECT 1"},
 }
 
 // foreignGrammar is the guard side: syntax neither MySQL nor OceanBase has, which users
@@ -204,6 +211,26 @@ var truncatedGrammar = []grammarCase{
 	{name: "password equals without value", sql: "CREATE TABLE obprobe_tv (a INT) PASSWORD ="},
 	{name: "alter comment without value", sql: "ALTER TABLE obprobe_t COMMENT"},
 	{name: "key block size without value", sql: "CREATE TABLE obprobe_tv (a INT) KEY_BLOCK_SIZE"},
+
+	// A COMMENT outside the table options written without its string, and a key's
+	// index option without its value, which a key in CREATE TABLE or ALTER TABLE ...
+	// ADD used to drop rather than report. Read against 5.7.25-OceanBase_CE-v4.3.5.6
+	// on 2026-11-02: the engine answers 1064 for all of them, as MySQL 8.0 does.
+	{name: "column comment without value", sql: "CREATE TABLE obprobe_tv (a INT COMMENT)"},
+	{name: "column comment before an attribute", sql: "CREATE TABLE obprobe_tv (a INT COMMENT NOT NULL)"},
+	{name: "modify column comment without value", sql: "ALTER TABLE obprobe_t MODIFY a INT COMMENT"},
+	{name: "key comment without value", sql: "CREATE TABLE obprobe_tv (a INT, KEY obprobe_ia (a) COMMENT)"},
+	{name: "primary key comment without value", sql: "CREATE TABLE obprobe_tv (a INT, PRIMARY KEY (a) COMMENT, b INT)"},
+	{name: "index block size without value", sql: "CREATE TABLE obprobe_tv (a INT, KEY obprobe_ia (a) BLOCK_SIZE)"},
+	{name: "index using without type", sql: "CREATE TABLE obprobe_tv (a INT, KEY obprobe_ia (a) USING)"},
+	{name: "alter add index comment without value", sql: "ALTER TABLE obprobe_t ADD INDEX obprobe_ia (a) COMMENT"},
+	{name: "procedure comment without value", sql: "CREATE PROCEDURE obprobe_pv() COMMENT SELECT 1"},
+	{name: "alter procedure comment without value", sql: "ALTER PROCEDURE obprobe_pv COMMENT"},
+	{name: "alter event comment without value", sql: "ALTER EVENT obprobe_e COMMENT"},
+	{name: "user comment without value", sql: "CREATE USER obprobe_u COMMENT"},
+	{name: "user attribute without value", sql: "ALTER USER obprobe_u ATTRIBUTE"},
+	{name: "tablespace comment without value", sql: "CREATE TABLESPACE obprobe_ts ADD DATAFILE 'obprobe_ts.ibd' COMMENT"},
+	{name: "logfile group comment without value", sql: "CREATE LOGFILE GROUP obprobe_lg ADD UNDOFILE 'obprobe_u.dat' COMMENT ="},
 }
 
 // bareValuesGrammar is the guard side for a partition bound cut short: VALUES with

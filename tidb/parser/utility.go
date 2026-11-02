@@ -1269,10 +1269,12 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 		case p.cur.Type == kwCOMMENT:
 			p.advance()
 			p.match('=')
-			if p.cur.Type == tokSCONST {
-				stmt.Comment = p.cur.Str
-				p.advance()
+			// The comment is a quoted string and is required (1064 without it).
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			stmt.Comment = p.cur.Str
+			p.advance()
 		case p.cur.Type == kwENGINE:
 			p.advance()
 			p.match('=')
@@ -2429,10 +2431,12 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 			if p.cur.Type == '=' {
 				p.advance()
 			}
-			if p.cur.Type == tokSCONST {
-				stmt.Comment = p.cur.Str
-				p.advance()
+			// The comment is a quoted string and is required (1064 without it).
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			stmt.Comment = p.cur.Str
+			p.advance()
 		case p.cur.Type == kwENGINE:
 			p.advance()
 			if p.cur.Type == '=' {
