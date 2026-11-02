@@ -289,11 +289,12 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		// unit is a syntax error (8.0.32 + 5.7.25: 1064). These probes prove
 		// user forms and engine readbacks canonicalize equal for every
 		// keyword-argument position.
-		// TIMESTAMPDIFF: unit stored bare UPPERCASE, case-folded, SQL_TSI_
-		// synonyms folded. All nine simple units in one view.
+		// TIMESTAMPDIFF: unit stored bare UPPERCASE, case-folded. All nine
+		// simple units in one view. No SQL_TSI_ synonym: OceanBase refuses them
+		// (parser sqlTSIUnitCases), so this tree cannot load one.
 		{"tsdiff-all-units", []string{
 			"CREATE TABLE t (a DATETIME, b DATETIME)",
-			"CREATE VIEW v AS SELECT TIMESTAMPDIFF(MICROSECOND,a,b) AS c1, timestampdiff(second,a,b) AS c2, TIMESTAMPDIFF(MINUTE,a,b) AS c3, TIMESTAMPDIFF(HOUR,a,b) AS c4, TIMESTAMPDIFF(DAY,a,b) AS c5, TIMESTAMPDIFF(WEEK,a,b) AS c6, TIMESTAMPDIFF(MONTH,a,b) AS c7, TIMESTAMPDIFF(SQL_TSI_QUARTER,a,b) AS c8, TIMESTAMPDIFF(YEAR,a,b) AS c9 FROM t",
+			"CREATE VIEW v AS SELECT TIMESTAMPDIFF(MICROSECOND,a,b) AS c1, timestampdiff(second,a,b) AS c2, TIMESTAMPDIFF(MINUTE,a,b) AS c3, TIMESTAMPDIFF(HOUR,a,b) AS c4, TIMESTAMPDIFF(DAY,a,b) AS c5, TIMESTAMPDIFF(WEEK,a,b) AS c6, TIMESTAMPDIFF(MONTH,a,b) AS c7, TIMESTAMPDIFF(QUARTER,a,b) AS c8, TIMESTAMPDIFF(YEAR,a,b) AS c9 FROM t",
 		}, []string{"t"}, []string{"v"}, both()},
 		// The stock sys.innodb_lock_waits shape (the dogfood bug): a
 		// timestampdiff over a column and now().
@@ -316,7 +317,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		// EXTRACT: lowercase unit, simple + compound, over a column.
 		{"extract-units", []string{
 			"CREATE TABLE t (a DATETIME)",
-			"CREATE VIEW v AS SELECT EXTRACT(SECOND FROM a) AS c1, extract(day from a) AS c2, EXTRACT(QUARTER FROM a) AS c3, EXTRACT(DAY_HOUR FROM a) AS c4, EXTRACT(YEAR_MONTH FROM a) AS c5, EXTRACT(HOUR_MICROSECOND FROM a) AS c6, EXTRACT(SQL_TSI_WEEK FROM a) AS c7 FROM t",
+			"CREATE VIEW v AS SELECT EXTRACT(SECOND FROM a) AS c1, extract(day from a) AS c2, EXTRACT(QUARTER FROM a) AS c3, EXTRACT(DAY_HOUR FROM a) AS c4, EXTRACT(YEAR_MONTH FROM a) AS c5, EXTRACT(HOUR_MICROSECOND FROM a) AS c6, EXTRACT(WEEK FROM a) AS c7 FROM t",
 		}, []string{"t"}, []string{"v"}, both()},
 		// GET_FORMAT: bare UPPERCASE first argument, TIMESTAMP folds to
 		// DATETIME, and the stored form keeps a space after the first comma.
