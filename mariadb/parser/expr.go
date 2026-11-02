@@ -638,6 +638,20 @@ func (p *Parser) backtickQuotedAt(off int) bool {
 
 // parseFuncCall parses a function call after the name has been consumed.
 func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, error) {
+	// The builtins below take their special argument syntax (COUNT(*),
+	// DISTINCT, TRIM's FROM, SUBSTRING's FROM and FOR, GROUP_CONCAT's ORDER BY
+	// and SEPARATOR, the keyword arguments, OVER) from the grammar's keyword for
+	// the name, and only an unquoted name is that keyword. A backtick-quoted
+	// name is an identifier, and a schema-qualified one a stored function: the
+	// call is an ordinary one, with ordinary expressions for arguments and no
+	// window. MariaDB 11.8.8 parses `count`(a) and `trim`(b, 'x') and answers
+	// 1630 for the missing stored function, and answers 1064 for `count`(*),
+	// `trim`(LEADING 'x' FROM b), test.count(DISTINCT a), `sum`(a) OVER ()
+	// and the other special forms under a quoted name or a qualified one. The
+	// exception is below: a qualified TRIM or SUBSTRING. p.prev is the name's
+	// token, the one after the dot when the name is qualified.
+	nameQuoted := p.backtickQuotedAt(p.prev.Loc)
+	builtin := schema == "" && !nameQuoted
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
@@ -650,51 +664,45 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// Handle special function forms
 	upperName := strings.ToUpper(name)
 
-	// COUNT(*)
-	if upperName == "COUNT" && p.cur.Type == '*' {
-		p.advance()
-		fc.Star = true
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
+	if builtin {
+		// COUNT(*)
+		if upperName == "COUNT" && p.cur.Type == '*' {
+			p.advance()
+			fc.Star = true
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			goto overCheck
 		}
-		goto overCheck
-	}
 
-	// Aggregate with DISTINCT: COUNT(DISTINCT ...), SUM(DISTINCT ...), etc.
-	if p.cur.Type == kwDISTINCT {
-		fc.Distinct = true
-		p.advance()
-	}
+		// Aggregate with DISTINCT: COUNT(DISTINCT ...), SUM(DISTINCT ...), etc.
+		if p.cur.Type == kwDISTINCT {
+			fc.Distinct = true
+			p.advance()
+		}
 
-	// TRIM special syntax: TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str)
-	if upperName == "TRIM" {
-		return p.parseTrimFunc(fc)
-	}
-
-	// SUBSTRING special syntax: SUBSTRING(str, pos, len) or SUBSTRING(str FROM pos FOR len)
-	if upperName == "SUBSTRING" || upperName == "SUBSTR" {
-		return p.parseSubstringFunc(fc)
-	}
-
-	// GROUP_CONCAT special syntax
-	if upperName == "GROUP_CONCAT" {
-		return p.parseGroupConcatFunc(fc)
-	}
-
-	// Keyword-argument builtins: their first argument (or a trailing clause)
-	// is a bare keyword the engine lexes as a token, never an identifier —
-	// a backtick-quoted unit is a syntax error (oracle mariadb 11.8.8).
-	// Only the unqualified, unquoted builtin has this shape. A schema-qualified
-	// name is a stored function, and a backtick-quoted name is an identifier
-	// rather than the keyword the grammar reads the builtin from: either way the
-	// arguments are ordinary expressions. MariaDB 11.8.8 parses
-	// `timestampdiff`(1, 2, 3) and answers 1630 for the missing stored function.
-	if schema == "" && !p.backtickQuotedAt(start) {
 		switch upperName {
+		case "TRIM":
+			// TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str)
+			return p.parseTrimFunc(fc)
+		case "SUBSTRING", "SUBSTR":
+			// SUBSTRING(str, pos, len) or SUBSTRING(str FROM pos FOR len)
+			return p.parseSubstringFunc(fc)
+		case "GROUP_CONCAT":
+			return p.parseGroupConcatFunc(fc)
+		// Keyword-argument builtins: their first argument (or a trailing
+		// clause) is a bare keyword the engine lexes as a token, never an
+		// identifier — a backtick-quoted unit is a syntax error (oracle
+		// mariadb 11.8.8).
 		case "TIMESTAMPDIFF", "TIMESTAMPADD":
 			return p.parseTimestampFunc(fc)
 		case "GET_FORMAT":
 			return p.parseGetFormatFunc(fc)
+		}
+	} else if schema != "" && !nameQuoted {
+		switch upperName {
+		case "TRIM", "SUBSTRING", "SUBSTR":
+			return p.parseQualifiedTrimSubstring(fc)
 		}
 	}
 
@@ -715,7 +723,13 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 
 	// Regular argument list
 	for {
-		arg, err := p.parseExpr()
+		var arg nodes.ExprNode
+		var err error
+		if builtin {
+			arg, err = p.parseExpr()
+		} else {
+			arg, err = p.parseOrdinaryCallArg()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -770,7 +784,7 @@ overCheck:
 	//     | expr PRECEDING
 	//     | expr FOLLOWING
 	//   }
-	if p.cur.Type == kwOVER {
+	if builtin && p.cur.Type == kwOVER {
 		p.advance()
 		wd, err := p.parseOverClause()
 		if err != nil {
@@ -1102,6 +1116,89 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		}
 	}
 
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Loc.End = p.prev.End
+	return fc, nil
+}
+
+// parseOrdinaryCallArg parses one argument of an ordinary call: a stored
+// function's, or a builtin's under a quoted or qualified name. It is an
+// expression, which neither * nor a bare INTERVAL is: MariaDB 11.8.8 answers
+// 1064 for `count`(*) and `date_add`(d, INTERVAL 1 DAY), and parses
+// `f`(d + INTERVAL 1 DAY).
+func (p *Parser) parseOrdinaryCallArg() (nodes.ExprNode, error) {
+	if p.cur.Type == '*' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	arg, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, bare := arg.(*nodes.IntervalExpr); bare {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return arg, nil
+}
+
+// parseQualifiedTrimSubstring parses a schema-qualified TRIM, SUBSTRING or
+// SUBSTR whose name is unquoted. MariaDB reads that name as the builtin's
+// keyword, and takes the builtin's own argument syntax or an ordinary argument
+// list after it (MariaDB 11.8.8):
+//
+//	test.trim(LEADING 'x' FROM b), test.trim('x' FROM b),
+//	test.substring(b FROM 1 FOR 2)            1128, the function is not defined
+//	test.trim(b, 'x', 1), test.substring()    1630, no such stored function
+//	test.`trim`(LEADING 'x' FROM b)           1064, an ordinary call
+//
+// The arguments are ordinary ones either way, and the call has no window:
+// test.trim(DISTINCT b), test.substring(b FROM INTERVAL 1 DAY) and
+// test.trim(b) OVER () are 1064.
+func (p *Parser) parseQualifiedTrimSubstring(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	trim := fc.Name == "TRIM"
+	if trim {
+		switch p.cur.Type {
+		case kwLEADING, kwTRAILING, kwBOTH:
+			return p.parseTrimFunc(fc)
+		}
+	}
+	if p.cur.Type != ')' {
+		arg, err := p.parseOrdinaryCallArg()
+		if err != nil {
+			return nil, err
+		}
+		fc.Args = append(fc.Args, arg)
+		if p.cur.Type == kwFROM {
+			// TRIM(remstr FROM str) or SUBSTRING(str FROM pos [FOR len]).
+			p.advance()
+			next, err := p.parseOrdinaryCallArg()
+			if err != nil {
+				return nil, err
+			}
+			fc.Args = append(fc.Args, next)
+			if !trim && p.cur.Type == kwFOR {
+				p.advance()
+				length, err := p.parseOrdinaryCallArg()
+				if err != nil {
+					return nil, err
+				}
+				fc.Args = append(fc.Args, length)
+			}
+		} else {
+			for p.cur.Type == ',' {
+				p.advance()
+				arg, err := p.parseOrdinaryCallArg()
+				if err != nil {
+					return nil, err
+				}
+				fc.Args = append(fc.Args, arg)
+			}
+		}
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}

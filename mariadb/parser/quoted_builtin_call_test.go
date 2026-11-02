@@ -1,0 +1,222 @@
+package parser
+
+import (
+	"testing"
+
+	"github.com/bytebase/omni/mariadb/ast"
+)
+
+// quotedBuiltinCallCases are calls whose name is a backtick-quoted or
+// schema-qualified builtin with special argument syntax: COUNT(*), DISTINCT,
+// TRIM's and SUBSTRING's FROM, GROUP_CONCAT's ORDER BY and SEPARATOR, a bare
+// INTERVAL, OVER. The grammar reads that syntax from the name's keyword, and a
+// quoted name is an identifier, so the call is an ordinary one: MariaDB
+// 11.8.8 parses each accepted case and answers 1630 (or 1305) for the stored
+// function it then cannot find, and answers 1064 for every rejected one.
+//
+// A schema-qualified name is a stored function too, with one exception:
+// MariaDB reads an unquoted TRIM, SUBSTRING or SUBSTR after the dot as the
+// builtin's keyword, and takes its own syntax there as well as an ordinary
+// argument list, answering 1128 (the function is not defined) or 1630.
+//
+// tq has a INT, b VARCHAR(20) and d DATE.
+var quotedBuiltinCallCases = []struct {
+	sql    string
+	accept bool
+}{
+	// A quoted name takes ordinary arguments, so a stored function by that name
+	// can be called with any number of them.
+	{"SELECT `count`(a) FROM tq", true},
+	{"SELECT `count`()", true},
+	{"SELECT `sum`(a) FROM tq", true},
+	{"SELECT `trim`(b) FROM tq", true},
+	{"SELECT `trim`(b, 'x') FROM tq", true},
+	{"SELECT `trim`() FROM tq", true},
+	{"SELECT `substring`(b, 1, 2) FROM tq", true},
+	{"SELECT `substring`(b) FROM tq", true},
+	{"SELECT `substring`(b, 1, 2, 3) FROM tq", true},
+	{"SELECT `substr`(b, 1) FROM tq", true},
+	{"SELECT `group_concat`(b) FROM tq", true},
+	{"SELECT `group_concat`(a, b) FROM tq", true},
+	{"SELECT `rank`() FROM tq", true},
+	{"SELECT `row_number`() FROM tq", true},
+	{"SELECT `cast`(a) FROM tq", true},
+	{"SELECT `extract`(d) FROM tq", true},
+	{"SELECT `position`(b) FROM tq", true},
+	{"SELECT `char`(65)", true},
+	{"SELECT `date_add`(d, 1) FROM tq", true},
+	{"SELECT `f`(d + INTERVAL 1 DAY) FROM tq", true},
+	{"SELECT test.count(a) FROM tq", true},
+	{"SELECT test.replace(b, 'x', 'y') FROM tq", true},
+	// ... and none of the builtin's own syntax.
+	{"SELECT `count`(*) FROM tq", false},
+	{"SELECT `COUNT`(*) FROM tq", false},
+	{"SELECT `count`(*, a) FROM tq", false},
+	{"SELECT `count`(DISTINCT a) FROM tq", false},
+	{"SELECT `count`(DISTINCT a, b) FROM tq", false},
+	{"SELECT `sum`(DISTINCT a) FROM tq", false},
+	{"SELECT `avg`(DISTINCT a) FROM tq", false},
+	{"SELECT `min`(DISTINCT a) FROM tq", false},
+	{"SELECT `max`(DISTINCT a) FROM tq", false},
+	{"SELECT `json_arrayagg`(DISTINCT a) FROM tq", false},
+	{"SELECT `group_concat`(DISTINCT b) FROM tq", false},
+	{"SELECT `group_concat`(b SEPARATOR ',') FROM tq", false},
+	{"SELECT `group_concat`(b ORDER BY b) FROM tq", false},
+	{"SELECT `group_concat`(b ORDER BY b SEPARATOR ',') FROM tq", false},
+	{"SELECT `trim`(LEADING 'x' FROM b) FROM tq", false},
+	{"SELECT `trim`(BOTH FROM b) FROM tq", false},
+	{"SELECT `trim`('x' FROM b) FROM tq", false},
+	{"SELECT `substring`(b FROM 1) FROM tq", false},
+	{"SELECT `substring`(b FROM 1 FOR 2) FROM tq", false},
+	{"SELECT `substring`(DISTINCT b) FROM tq", false},
+	{"SELECT `substr`(b FROM 1) FROM tq", false},
+	{"SELECT `date_add`(d, INTERVAL 1 DAY) FROM tq", false},
+	{"SELECT `adddate`(d, INTERVAL 1 DAY) FROM tq", false},
+	{"SELECT `sum`(a) OVER () FROM tq", false},
+	{"SELECT `rank`() OVER () FROM tq", false},
+	{"SELECT `row_number`() OVER () FROM tq", false},
+	{"SELECT `lag`(a) OVER () FROM tq", false},
+	{"SELECT `json_arrayagg`(a) OVER () FROM tq", false},
+	{"SELECT `json_objectagg`(a, b) OVER () FROM tq", false},
+	{"SELECT `count`(a) OVER w FROM tq WINDOW w AS ()", false},
+	{"SELECT `count`(ALL a) FROM tq", false},
+	{"SELECT `cast`(a AS CHAR) FROM tq", false},
+	{"SELECT `convert`(b USING utf8mb4) FROM tq", false},
+	{"SELECT `convert`(b, CHAR) FROM tq", false},
+	{"SELECT `extract`(YEAR FROM d) FROM tq", false},
+	{"SELECT `position`('a' IN b) FROM tq", false},
+	{"SELECT `char`(65 USING utf8mb4)", false},
+	{"SELECT * FROM tq WHERE `match`(b) AGAINST ('x')", false},
+	{"SELECT * FROM `json_table`('[1]', '$[*]' COLUMNS (x INT PATH '$')) AS jt", false},
+	{"SELECT test.count(*) FROM tq", false},
+	{"SELECT test.count(DISTINCT a) FROM tq", false},
+	{"SELECT test.sum(DISTINCT a) FROM tq", false},
+	{"SELECT test.group_concat(b SEPARATOR ',') FROM tq", false},
+	{"SELECT test.group_concat(b ORDER BY b) FROM tq", false},
+	{"SELECT test.group_concat(DISTINCT b) FROM tq", false},
+	{"SELECT test.date_add(d, INTERVAL 1 DAY) FROM tq", false},
+	{"SELECT test.sum(a) OVER () FROM tq", false},
+	{"SELECT test.count(a) OVER () FROM tq", false},
+
+	// A qualified, unquoted TRIM or SUBSTRING takes the builtin's syntax ...
+	{"SELECT test.trim(LEADING 'x' FROM b) FROM tq", true},
+	{"SELECT test.TRIM(TRAILING 'x' FROM b) FROM tq", true},
+	{"SELECT test.trim('x' FROM b) FROM tq", true},
+	{"SELECT `test`.trim(LEADING 'x' FROM b) FROM tq", true},
+	{"SELECT test.substring(b FROM 1) FROM tq", true},
+	{"SELECT test.Substring(b FROM 1 FOR 2) FROM tq", true},
+	{"SELECT test.substr(b FROM 1) FROM tq", true},
+	// ... or an ordinary argument list,
+	{"SELECT test.trim() FROM tq", true},
+	{"SELECT test.trim(b) FROM tq", true},
+	{"SELECT test.trim(b, 'x') FROM tq", true},
+	{"SELECT test.trim(b, 'x', 1) FROM tq", true},
+	{"SELECT test.substring() FROM tq", true},
+	{"SELECT test.substring(b) FROM tq", true},
+	{"SELECT test.substring(b, 1, 2) FROM tq", true},
+	{"SELECT test.substring(b, 1, 2, 3) FROM tq", true},
+	{"SELECT test.substr() FROM tq", true},
+	{"SELECT test.substr(b, 1, 2, 3) FROM tq", true},
+	// ... but ordinary arguments either way, and no window.
+	{"SELECT test.trim(DISTINCT b) FROM tq", false},
+	{"SELECT test.trim(*) FROM tq", false},
+	{"SELECT test.trim('x' FROM b, 1) FROM tq", false},
+	{"SELECT test.trim(d, INTERVAL 1 DAY) FROM tq", false},
+	{"SELECT test.substring(DISTINCT b, 1) FROM tq", false},
+	{"SELECT test.substring(b FROM 1, 2) FROM tq", false},
+	{"SELECT test.substring(b, 1 FOR 2) FROM tq", false},
+	{"SELECT test.substring(d, INTERVAL 1 DAY) FROM tq", false},
+	{"SELECT test.substring(b FROM INTERVAL 1 DAY) FROM tq", false},
+	{"SELECT test.trim(b) OVER () FROM tq", false},
+	{"SELECT test.substring(b, 1) OVER () FROM tq", false},
+	// A quoted name after the dot is an identifier again.
+	{"SELECT test.`trim`(LEADING 'x' FROM b) FROM tq", false},
+	{"SELECT `test`.`trim`(LEADING 'x' FROM b) FROM tq", false},
+	{"SELECT test.`substring`(b FROM 1) FROM tq", false},
+
+	// The unquoted builtin keeps its own grammar.
+	{"SELECT COUNT(*) FROM tq", true},
+	{"SELECT COUNT(DISTINCT a) FROM tq", true},
+	{"SELECT TRIM(LEADING 'x' FROM b) FROM tq", true},
+	{"SELECT SUBSTRING(b FROM 1 FOR 2) FROM tq", true},
+	{"SELECT GROUP_CONCAT(b ORDER BY b SEPARATOR ',') FROM tq", true},
+	{"SELECT SUM(a) OVER () FROM tq", true},
+	{"SELECT DATE_ADD(d, INTERVAL 1 DAY) FROM tq", true},
+	{"SELECT JSON_ARRAYAGG(DISTINCT a) FROM tq", true},
+}
+
+// TestQuotedBuiltinCall holds the parser to quotedBuiltinCallCases.
+func TestQuotedBuiltinCall(t *testing.T) {
+	for _, tc := range quotedBuiltinCallCases {
+		if _, err := Parse(tc.sql); (err == nil) != tc.accept {
+			t.Errorf("Parse(%q) error = %v, want accepted %v", tc.sql, err, tc.accept)
+		}
+	}
+}
+
+// TestQuotedSpecialFormCallAST pins the tree of a quoted or qualified call
+// whose name is a builtin with special syntax: a call that keeps every
+// argument, with no star, DISTINCT or window.
+func TestQuotedSpecialFormCallAST(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		schema string
+		name   string
+		args   int
+	}{
+		{"SELECT `count`(a) FROM tq", "", "COUNT", 1},
+		{"SELECT `trim`(b, 'x') FROM tq", "", "TRIM", 2},
+		{"SELECT `group_concat`(a, b) FROM tq", "", "GROUP_CONCAT", 2},
+		{"SELECT test.trim(b, 'x', 1) FROM tq", "test", "TRIM", 3},
+		{"SELECT test.trim('x' FROM b) FROM tq", "test", "TRIM", 2},
+		{"SELECT test.substring(b, 1, 2, 3) FROM tq", "test", "SUBSTRING", 4},
+		{"SELECT test.substring(b FROM 1 FOR 2) FROM tq", "test", "SUBSTRING", 3},
+	} {
+		list, err := Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", tc.sql, err)
+		}
+		var call *ast.FuncCallExpr
+		ast.Inspect(list.Items[0], func(n ast.Node) bool {
+			if fc, ok := n.(*ast.FuncCallExpr); ok && call == nil {
+				call = fc
+			}
+			return true
+		})
+		if call == nil || call.Schema != tc.schema || call.Name != tc.name || len(call.Args) != tc.args {
+			t.Fatalf("%q: call = %+v, want %s.%s with %d arguments", tc.sql, call, tc.schema, tc.name, tc.args)
+		}
+		if call.Star || call.Distinct || call.Over != nil {
+			t.Errorf("%q: call = %+v, want no star, DISTINCT or window", tc.sql, call)
+		}
+		if call.Loc.Start != len("SELECT ") || call.Loc.End != len(tc.sql)-len(" FROM tq") {
+			t.Errorf("%q: call Loc = %+v, want the call's own span", tc.sql, call.Loc)
+		}
+	}
+}
+
+// TestQuotedBuiltinCallOracle asserts omni agrees with a live MariaDB on
+// quotedBuiltinCallCases (container test).
+func TestQuotedBuiltinCallOracle(t *testing.T) {
+	o := startMariaDB(t)
+	for _, ddl := range []string{
+		"CREATE TABLE tq (a INT, b VARCHAR(20), d DATE)",
+		"CREATE FULLTEXT INDEX ft ON tq (b)",
+	} {
+		if _, err := o.db.ExecContext(o.ctx, ddl); err != nil {
+			t.Fatalf("seed %q: %v", ddl, err)
+		}
+	}
+	for _, tc := range quotedBuiltinCallCases {
+		v, code, msg := o.classify(tc.sql)
+		if v == vErrored {
+			t.Fatalf("MariaDB gave no verdict for %q: %s", tc.sql, msg)
+		}
+		if got := v == vAccepted; got != tc.accept {
+			t.Errorf("MariaDB accepts %q = %v (code %d: %s), want %v", tc.sql, got, code, msg, tc.accept)
+		}
+		if _, err := Parse(tc.sql); (err == nil) != (v == vAccepted) {
+			t.Errorf("omni accepts %q = %v (err %v), MariaDB = %v", tc.sql, err == nil, err, v == vAccepted)
+		}
+	}
+}
