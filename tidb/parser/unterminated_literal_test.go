@@ -26,10 +26,12 @@ var unterminatedCases = []unterminatedCase{
 	{"quoted variable name", "SELECT @`oops;", "unterminated quoted identifier"},
 	{"block comment", "SELECT 1 /* oops;", "unterminated comment"},
 	{"block comment alone", "/* oops", "unterminated comment"},
-	// A feature TiDB does not know, and a malformed gate, make the comment an
-	// ordinary one, which must still close.
+	// A feature TiDB does not know makes the comment an ordinary one, which must
+	// still close.
 	{"tidb unsupported feature", "SELECT 1 /*T![nonexistent_feature] oops", "unterminated comment"},
-	{"tidb feature bracket", "SELECT 1 /*T![oops", "unterminated comment"},
+	// A feature list TiDB cannot read leaves "/*T!" an executable comment whose
+	// body starts at the "[", and TiDB v8.5.5 rejects it there (column 14).
+	{"tidb feature bracket", "SELECT 1 /*T![oops", `syntax error at or near "["`},
 }
 
 // unclosedExecCases are executable comments that never close. TiDB v8.5.5 drops

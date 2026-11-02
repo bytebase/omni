@@ -2,12 +2,16 @@ package review
 
 import (
 	"context"
+	"math/rand"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
+	"github.com/bytebase/omni/tidb/parser"
 )
 
 // finding is a finding as the tests compare it: the statement, the text
@@ -509,6 +513,14 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{6, "WITH y AS (SELECT 7 AS id) UPDATE t SET n = 7 WHERE id IN (SELECT id FROM y)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
 		},
 		{
+			// TiDB drops the opener of a gate that never closes and runs the
+			// WITH after it as ordinary SQL, so the rule reads it.
+			name:   "more than five statements on one table, with WITH after a gate that never closes",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nUPDATE t SET n = 3 WHERE id = 3;\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\n/*T![clustered_index] WITH x AS (SELECT 6 AS id) UPDATE t SET n = 6 WHERE id IN (SELECT id FROM x);",
+			change: backup,
+			want:   []finding{{5, "WITH x AS (SELECT 6 AS id) UPDATE t SET n = 6 WHERE id IN (SELECT id FROM x)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
+		},
+		{
 			name:   "past the limit with a WITH clause on a statement not certain",
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nUPDATE t SET n = 3 WHERE id = 3;\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\nWITH x AS (SELECT 1 AS id) UPDATE t JOIN p ON p.id = t.p_id SET t.n = 1 WHERE t.id IN (SELECT id FROM x);",
 			change: backup,
@@ -601,28 +613,61 @@ func TestPriorBackup(t *testing.T) {
 	})
 }
 
-// TestGateEndSkipsQuotedDelimiters pins where a /*T![feature] gate ends when a
-// "*/" sits inside a token: the gate closes at the first "*/" the lexer would
-// read as one, so a quoted or commented-out "*/" does not end it and a gate
-// whose only "*/" is held inside a token does not close at all.
-func TestGateEndSkipsQuotedDelimiters(t *testing.T) {
-	cases := []struct {
-		name string
-		sql  string
-		want int // offset of the closing "*/", or len(sql) for none
-	}{
-		{"plain gate", "/*T![clustered_index] SELECT 1 */", 31},
-		{"quoted close does not end the gate", "/*T![clustered_index] SELECT '*/' */", 34},
-		{"quoted opener adds no nesting", "/*T![clustered_index] SELECT '/*' */", 34},
-		{"nested comment is consumed whole", "/*T![clustered_index] /* c */ SELECT 1 */", 39},
-		{"line comment takes the close with it", "/*T![clustered_index] SELECT 1 -- */", 36},
-		{"no close at all", "/*T![clustered_index] SELECT 1", 30},
+// TestInFeatureGateStaysLinear: openers of gates that never close, ahead of a
+// WITH, are answered by one scan. Asking parser.FeatureGate again for each one
+// took seconds for 8,000 of them.
+func TestInFeatureGateStaysLinear(t *testing.T) {
+	sql := strings.Repeat("/*T![clustered_index] ", 20000) + "WITH x AS (SELECT 1 AS id) SELECT id FROM x"
+	start := time.Now()
+	if inFeatureGate(sql, review.Range{Start: 0, End: len(sql)}, strings.Index(sql, "WITH")) {
+		t.Errorf("a WITH after gates that never close reads as gated")
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := gateEnd(tc.sql, 0, len(tc.sql)); got != tc.want {
-				t.Errorf("gateEnd(%q) = %d, want %d", tc.sql, got, tc.want)
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("inFeatureGate over 20,000 unclosed gates took %v", elapsed)
+	}
+}
+
+// TestInFeatureGateAgrees holds inFeatureGate, which stops at the first gate
+// that never closes, to the loop that reads on past it, from every offset of
+// random gate-heavy input.
+func TestInFeatureGateAgrees(t *testing.T) {
+	readOn := func(sql string, r review.Range, offset int) bool {
+		i := r.Start
+		for {
+			i = skipTrivia(sql, i, r.End)
+			if i >= offset {
+				return false
 			}
-		})
+			body, closeStart, ok := parser.FeatureGate(sql[:r.End], i)
+			if !ok {
+				return false
+			}
+			if closeStart < 0 {
+				i = body
+				continue
+			}
+			if offset < closeStart {
+				return true
+			}
+			i = closeStart + len("*/")
+		}
+	}
+	pieces := []string{
+		"/*T![clustered_index] ", "/*T![no_such_feature] ", "/*T! ", "/*! ", "/* c */ ", "/* ", "*/ ",
+		"'", "'*/' ", "-- */\n", "# x\n", " ", "WITH ", "x ", "\n",
+	}
+	rng := rand.New(rand.NewSource(1))
+	for iter := 0; iter < 20000; iter++ {
+		var sb strings.Builder
+		for k := rng.Intn(12); k >= 0; k-- {
+			sb.WriteString(pieces[rng.Intn(len(pieces))])
+		}
+		sql := sb.String()
+		r := review.Range{Start: 0, End: len(sql)}
+		for offset := 0; offset <= len(sql); offset++ {
+			if got, want := inFeatureGate(sql, r, offset), readOn(sql, r, offset); got != want {
+				t.Fatalf("inFeatureGate(%q, %d) = %v, reading on gives %v", sql, offset, got, want)
+			}
+		}
 	}
 }

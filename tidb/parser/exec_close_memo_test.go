@@ -67,10 +67,9 @@ func TestExecCommentCloseMemoAgrees(t *testing.T) {
 			sb.WriteString(pieces[rng.Intn(len(pieces))])
 		}
 		input := sb.String()
-		plain := &Lexer{input: input}
 		want := make([]int, len(input))
 		for p := range input {
-			want[p] = plain.scanExecClose(p, nil)
+			want[p] = scanExecClose(input, p, nil)
 		}
 		inOrder := &Lexer{input: input, execMemo: newExecCloseMemo(len(input))}
 		for p := range input {
