@@ -207,6 +207,20 @@ var categoryCaseSQLs = []string{
 	"SELECT * FROM t WHERE id = 1 FOR SHARE",
 	"SELECT name -> '$.b' FROM t",
 	"SELECT name ->> '$.b' FROM t",
+	// MySQL-only syntax MariaDB has no grammar for: omni must refuse it too, so
+	// these assert agreement rather than pin a divergence.
+	"SELECT CAST(name AS JSON ARRAY) FROM t",
+	// A string holding what reads as the executable comment's closing "*/":
+	// MariaDB runs the statement and so does omni, which ends the comment at the
+	// first "*/" outside every token rather than at the first one in the bytes.
+	"/*!50000 SELECT 'a*/' */",
+	// MariaDB accepts, omni rejects (UNDER findings): productions omni's mariadb
+	// tree never inherited from mysql.
+	"SELECT WEIGHT_STRING(name AS CHAR(4)) FROM t",
+	"SELECT WEIGHT_STRING(name LEVEL 1) FROM t",
+	"CREATE TABLE t_adjacent_default (c VARCHAR(8) DEFAULT 'a' 'b')",
+	"SELECT * FROM t WHERE name = 'a' 'b'",
+	"SELECT * FROM (VALUES ('a' 'b')) x",
 }
 
 // containerFatalVerbs name statements whose *execution* would kill the shared
@@ -300,6 +314,31 @@ var subtractiveDivergences = []divergence{
 		sql:      "SELECT name ->> '$.b' FROM t",
 		omniSide: true, // ->> shares the -> divergence.
 		reason:   "JSON ->> column-path unquote operator: MySQL-only; same divergence as -> (omni over-accepts, MariaDB rejects 1064). Deferred with the -> prune.",
+	},
+	{
+		sql:      "SELECT WEIGHT_STRING(name AS CHAR(4)) FROM t",
+		omniSide: false, // MariaDB accepts; omni rejects for want of the production.
+		reason:   "WEIGHT_STRING(x AS CHAR(n)): MariaDB 11.8.8 and MySQL 8.0 both accept it; mysql/parser has parseWeightStringFunc and the mariadb tree never inherited it, so omni rejects at parse. Candidate: port parseWeightStringFunc to mariadb and tidb.",
+	},
+	{
+		sql:      "SELECT WEIGHT_STRING(name LEVEL 1) FROM t",
+		omniSide: false, // the LEVEL form of the same missing production.
+		reason:   "WEIGHT_STRING(x LEVEL n): the LEVEL form of the same missing production — ports with parseWeightStringFunc.",
+	},
+	{
+		sql:      "CREATE TABLE t_adjacent_default (c VARCHAR(8) DEFAULT 'a' 'b')",
+		omniSide: false, // MariaDB folds the adjacent literals; omni rejects.
+		reason:   "Adjacent string literals in a DEFAULT: SQL concatenates 'a' 'b' into 'ab' and MariaDB accepts it; mysql/parser folds them in foldAdjacentStringLits, which the mariadb tree never inherited, so omni rejects everywhere but the select list. Candidate: port foldAdjacentStringLits to mariadb and tidb.",
+	},
+	{
+		sql:      "SELECT * FROM t WHERE name = 'a' 'b'",
+		omniSide: false, // same missing folding, predicate position.
+		reason:   "Adjacent string literals in a predicate: same missing foldAdjacentStringLits as the DEFAULT case.",
+	},
+	{
+		sql:      "SELECT * FROM (VALUES ('a' 'b')) x",
+		omniSide: false, // same missing folding, row position.
+		reason:   "Adjacent string literals in a row: same missing foldAdjacentStringLits as the DEFAULT case.",
 	},
 }
 

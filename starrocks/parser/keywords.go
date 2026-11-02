@@ -98,6 +98,7 @@ const (
 	kwCONVERT
 	kwCONVERT_LSC // matches 'CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS'
 	kwCOPY
+	kwCOSTS
 	kwCOUNT
 	kwCREATE
 	kwCREATION
@@ -639,6 +640,7 @@ var keywordMap = map[string]TokenKind{
 	"convert":                              kwCONVERT,
 	"convert_light_schema_change_process":  kwCONVERT_LSC,
 	"copy":                                 kwCOPY,
+	"costs":                                kwCOSTS,
 	"count":                                kwCOUNT,
 	"create":                               kwCREATE,
 	"creation":                             kwCREATION,
@@ -1153,6 +1155,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwCONVERT:                true,
 	kwCONVERT_LSC:            true,
 	kwCOPY:                   true,
+	kwCOSTS:                  true,
 	kwCOUNT:                  true,
 	kwCREATION:               true,
 	kwCRON:                   true,

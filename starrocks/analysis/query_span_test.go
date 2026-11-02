@@ -579,6 +579,84 @@ func TestGetQuerySpan_LambdaSourceColumns(t *testing.T) {
 	}
 }
 
+func TestGetQuerySpan_JSONArrowSourceColumns(t *testing.T) {
+	// The reason the JSON path operator is a BinaryExpr and not a lambda
+	// (BYT-10088). Both readings parse `secret_col->'$.a'`, but a LambdaExpr
+	// would bind secret_col as a parameter, and columnRefCollector drops bound
+	// names — the column masking keys on would vanish from SourceColumns while
+	// the query still returned its value. So assert the column is there, in
+	// every position the operator can appear.
+	tests := []struct {
+		name string
+		sql  string
+		want []string
+	}{
+		{
+			name: "select item",
+			sql:  "SELECT secret_col->'$.a' FROM sensitive_table",
+			want: []string{"secret_col"},
+		},
+		{
+			name: "qualified left operand",
+			sql:  "SELECT t.secret_col->'$.a' FROM sensitive_table t",
+			want: []string{"secret_col"},
+		},
+		{
+			name: "inside a function call",
+			sql:  "SELECT length(secret_col->'$.a') FROM sensitive_table",
+			want: []string{"secret_col"},
+		},
+		{
+			name: "chained paths",
+			sql:  "SELECT secret_col->'$.a'->'$.b' FROM sensitive_table",
+			want: []string{"secret_col"},
+		},
+		{
+			name: "interleaved with a subscript",
+			sql:  "SELECT secret_col['a']->'$.b' FROM sensitive_table",
+			want: []string{"secret_col"},
+		},
+		{
+			name: "compared in the select list",
+			sql:  "SELECT secret_col->'$.a' = other_col FROM sensitive_table",
+			want: []string{"secret_col", "other_col"},
+		},
+		{
+			name: "in higher-order argument position, where a lambda also lives",
+			sql:  "SELECT array_map(secret_col -> '$.a', scores) FROM sensitive_table",
+			want: []string{"secret_col", "scores"},
+		},
+		{
+			name: "arrow inside a lambda body keeps the body's column",
+			sql:  "SELECT array_map(x -> secret_col->'$.a', scores) FROM sensitive_table",
+			want: []string{"secret_col", "scores"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			span, err := GetQuerySpan(tt.sql)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q) error: %v", tt.sql, err)
+			}
+			if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "sensitive_table" {
+				t.Fatalf("AccessTables = %+v, want [sensitive_table]", span.AccessTables)
+			}
+			if len(span.Results) != 1 {
+				t.Fatalf("Results len = %d, want 1 (%+v)", len(span.Results), span.Results)
+			}
+			got := map[string]bool{}
+			for _, sc := range span.Results[0].SourceColumns {
+				got[sc.Column] = true
+			}
+			for _, want := range tt.want {
+				if !got[want] {
+					t.Errorf("SourceColumns %+v missing %q", span.Results[0].SourceColumns, want)
+				}
+			}
+		})
+	}
+}
+
 func TestGetQuerySpan_SubscriptKeepsTableAccess(t *testing.T) {
 	// Before BYT-10084 the parser silently dropped everything after `[`, so
 	// this query lost its FROM clause and the span reported no table access —
@@ -629,13 +707,15 @@ func TestGetQuerySpan_QualifiedSubscriptKeepsTableAccess(t *testing.T) {
 func TestGetQuerySpan_FailsClosedOnParseError(t *testing.T) {
 	// Engine-invalid SQL the parser used to swallow must now yield an error,
 	// never a silently smaller span (BYT-10085).
-	if _, err := GetQuerySpan("SELECT j->'$.a' FROM t"); err == nil {
+	// `->` is the JSON path operator as of BYT-10088; `->>` is the shape this
+	// engine still has no form of.
+	if _, err := GetQuerySpan("SELECT j->>'$.a' FROM t"); err == nil {
 		t.Fatal("GetQuerySpan accepted a statement with trailing junk")
 	}
 
 	// A subquery that does not fully parse fails the whole span: its table
 	// reads would otherwise vanish from AccessTables.
-	if _, err := GetQuerySpan("SELECT (SELECT j->'$.a' FROM t2) x FROM t1"); err == nil {
+	if _, err := GetQuerySpan("SELECT (SELECT j->>'$.a' FROM t2) x FROM t1"); err == nil {
 		t.Fatal("GetQuerySpan accepted an unparseable subquery")
 	}
 

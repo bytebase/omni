@@ -69,8 +69,8 @@ func TestAutoAliasWithoutSource(t *testing.T) {
 			"select exists(select distinct `a` from `t` union all select 1) AS `EXISTS(SELECT DISTINCT a FROM t UNION ALL SELECT 1)`",
 		},
 		{
-			"SELECT (TABLE t ORDER BY a LIMIT 1)",
-			"select (table `t` order by `a` limit 1) AS `(TABLE t ORDER BY a LIMIT 1)`",
+			"SELECT (VALUES (1) ORDER BY 1 LIMIT 1)",
+			"select (values (1) order by 1 limit 1) AS `(VALUES (1) ORDER BY 1 LIMIT 1)`",
 		},
 	} {
 		stmt := parseSelectOrFatal(t, tc.sql, tc.sql)

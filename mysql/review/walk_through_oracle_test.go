@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -324,32 +323,20 @@ func judgeWalk(t *testing.T, db *sql.DB, s walkServer, change string, complete b
 
 // mysqlEngine is the oracle's MySQL side of one change. MySQL commits DDL
 // as it runs, so a rejected statement leaves the database as it was only
-// through its own atomicity, which Digest checks. With oceanBase, it is
-// OceanBase's side (walk_through_oceanbase_oracle_test.go).
+// through its own atomicity, which Digest checks.
 type mysqlEngine struct {
-	conn      *sql.Conn
-	db        *sql.DB
-	fold      bool
-	target    review.Target
-	oceanBase bool
+	conn   *sql.Conn
+	db     *sql.DB
+	fold   bool
+	target review.Target
 }
 
 func (e *mysqlEngine) Statements(change string) []string { return splitWalk(change) }
 
 // exec runs one statement on the change's session.
 func (e *mysqlEngine) exec(stmt string) error {
-	return e.retry(func() error {
-		_, err := e.conn.ExecContext(context.Background(), stmt)
-		return err
-	})
-}
-
-// retry runs f, on OceanBase again while it reports a transient error.
-func (e *mysqlEngine) retry(f func() error) error {
-	if e.oceanBase {
-		return retryTransient(f)
-	}
-	return f()
+	_, err := e.conn.ExecContext(context.Background(), stmt)
+	return err
 }
 
 func (e *mysqlEngine) Exec(t testing.TB, stmt string) walktest.Outcome {
@@ -369,11 +356,7 @@ func (e *mysqlEngine) Report(t testing.TB, change string) *walktest.Finding {
 	if strings.TrimSpace(change) == "" {
 		return nil
 	}
-	rev := Review
-	if e.oceanBase {
-		rev = ReviewOceanBase
-	}
-	result, err := rev(context.Background(), change, review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{e.target})
+	result, err := Review(context.Background(), change, review.Options{Rules: []review.Rule{review.WalkThrough}}, []review.Target{e.target})
 	if err != nil {
 		t.Fatalf("Review: %v", err)
 	}
@@ -398,7 +381,7 @@ func (e *mysqlEngine) Violation(t testing.TB, change string) *walk.Violation {
 	if syntax != nil {
 		t.Fatalf("syntax: %s", syntax.Message)
 	}
-	v, err := walkThrough(context.Background(), change, stmts, e.target, dialect{oceanBase: e.oceanBase})
+	v, err := walkThrough(context.Background(), change, stmts, e.target, dialect{})
 	if err != nil || v == nil {
 		t.Fatalf("no violation for a change Review reports on (%v):\n%s", err, change)
 	}
@@ -471,9 +454,6 @@ func (e *mysqlEngine) Codes(message string) []string {
 			break
 		}
 	}
-	if e.oceanBase {
-		codes = append(slices.Clone(codes), oceanBaseCodes(message)...)
-	}
 	return codes
 }
 
@@ -516,7 +496,7 @@ func (e *mysqlEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 	count := func(q string, args ...any) bool {
 		t.Helper()
 		var n int
-		if err := e.retry(func() error { return e.db.QueryRowContext(ctx, q, args...).Scan(&n) }); err != nil {
+		if err := e.db.QueryRowContext(ctx, q, args...).Scan(&n); err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
 		return n > 0
@@ -529,9 +509,6 @@ func (e *mysqlEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 		err := e.conn.QueryRowContext(ctx, "SHOW CREATE TABLE `"+unmark(names[0])+"`.`"+name+"`").Scan(&tbl, &ddl)
 		return err == nil && strings.HasPrefix(ddl, "CREATE TEMPORARY TABLE"), ""
 	case spaceRelation:
-		if e.oceanBase {
-			return e.oceanBaseRelation(t, unmark(names[0]), name)
-		}
 		var kind string
 		err := e.db.QueryRowContext(ctx, "SELECT TABLE_TYPE FROM information_schema.TABLES WHERE "+eq("TABLE_SCHEMA", tableFolds)+" AND "+eq("TABLE_NAME", tableFolds && nameFolds), unmark(names[0]), name).Scan(&kind)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -576,7 +553,7 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 	var b strings.Builder
 	read := func(q string, args ...any) []string {
 		var got [][]sql.NullString
-		if err := e.retry(func() error {
+		if err := func() error {
 			got = nil
 			rows, err := e.db.QueryContext(context.Background(), q, args...)
 			if err != nil {
@@ -596,7 +573,7 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 				got = append(got, vals)
 			}
 			return rows.Err()
-		}); err != nil {
+		}(); err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
 		var first []string
@@ -611,9 +588,6 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 		return first
 	}
 	system := "'mysql', 'information_schema', 'performance_schema', 'sys'"
-	if e.oceanBase {
-		system = oceanBaseSystem
-	}
 	dbs := read("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN (" + system + ") ORDER BY 1")
 	if len(dbs) == 0 {
 		return b.String()
@@ -631,15 +605,7 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 		"SELECT TRIGGER_SCHEMA, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN " + in + " ORDER BY 1, 2",
 		"SELECT ROUTINE_SCHEMA, ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
 	}
-	if e.oceanBase {
-		// OceanBase lists a dropped database's events for some seconds
-		// after DROP DATABASE (about 5 on 4.3.5), so the events of a reset
-		// leave information_schema.EVENTS during the next change, and the
-		// digest leaves them out.
-		queries = append(queries, "SELECT OWNER, MVIEW_NAME FROM oceanbase.DBA_MVIEWS WHERE OWNER IN "+in+" ORDER BY 1, 2")
-	} else {
-		queries = append(queries, "SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN "+in+" ORDER BY 1, 2")
-	}
+	queries = append(queries, "SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN "+in+" ORDER BY 1, 2")
 	for _, q := range queries {
 		read(q, args...)
 	}

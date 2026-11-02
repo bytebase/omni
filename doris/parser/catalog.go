@@ -256,46 +256,5 @@ func (p *Parser) parsePropertyClause() ([]*ast.Property, error) {
 		return nil, err
 	}
 
-	var props []*ast.Property
-
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		startLoc := p.cur.Loc
-
-		// Key — must be a string literal
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		key := p.cur.Str
-		p.advance()
-
-		// '='
-		if _, err := p.expect(int('=')); err != nil {
-			return nil, err
-		}
-
-		// Value — must be a string literal
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		val := p.cur.Str
-		endLoc := p.cur.Loc
-		p.advance()
-
-		props = append(props, &ast.Property{
-			Key:   key,
-			Value: val,
-			Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
-		})
-
-		// Optional comma separator
-		if p.cur.Kind == int(',') {
-			p.advance()
-		}
-	}
-
-	if _, err := p.expect(int(')')); err != nil {
-		return nil, err
-	}
-
-	return props, nil
+	return p.parsePropertyItems(p.parseStringProperty)
 }
