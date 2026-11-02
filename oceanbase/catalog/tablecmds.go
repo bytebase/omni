@@ -2646,6 +2646,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Comment:      srcIdx.Comment,
 			KeyBlockSize: srcIdx.KeyBlockSize,
 			Scope:        srcIdx.Scope,
+			// OceanBase copies a fulltext index's parser with the table
+			// (TestOracle_OceanBaseFulltextParserEcho).
+			Parser:           srcIdx.Parser,
+			ParserProperties: copyParserProperties(srcIdx.ParserProperties),
 		}
 		cols := make([]*IndexColumn, len(srcIdx.Columns))
 		for i, sc := range srcIdx.Columns {

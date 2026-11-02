@@ -983,8 +983,14 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 			constr.Name, _, _ = p.parseIdent()
 		}
 		// FULLTEXT opt_key_or_index opt_index_name opt_index_using_algorithm '('
-		// (v4.3.5_CE_BP6): 4.3.5.6 takes FULLTEXT KEY fk USING BTREE (c).
-		p.parseIndexTypeClause(constr)
+		// (v4.3.5_CE_BP6): 4.3.5.6 takes FULLTEXT KEY fk USING BTREE (c). USING
+		// needs its algorithm: FULLTEXT KEY fk USING (c) is a 1064.
+		if p.cur.Type == kwUSING {
+			if next := p.peekNext(); next.Type != tokIDENT && next.Type < 700 {
+				return nil, p.syntaxErrorAtTok(next)
+			}
+			p.parseIndexTypeClause(constr)
+		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
 			return nil, err

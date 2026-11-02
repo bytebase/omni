@@ -152,6 +152,37 @@ func TestFulltextParserRendering(t *testing.T) {
 	}
 }
 
+// fulltextLikeSource is a table whose fulltext index names a parser and its properties,
+// which CREATE TABLE ... LIKE copies.
+const fulltextLikeSource = "CREATE TABLE src (id INT NOT NULL, c VARCHAR(100), PRIMARY KEY (id), FULLTEXT KEY fk (c) WITH PARSER ngram PARSER_PROPERTIES=(ngram_token_size=3))"
+
+// TestFulltextParserCreateTableLike pins that CREATE TABLE ... LIKE copies a fulltext
+// index's parser and properties, and that the copy does not share them with the source.
+func TestFulltextParserCreateTableLike(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE d; USE d; "+fulltextLikeSource+"; CREATE TABLE t LIKE src;", nil); err != nil {
+		t.Fatal(err)
+	}
+	var src, dst *Index
+	for _, idx := range c.GetDatabase("d").GetTable("src").Indexes {
+		if idx.Fulltext {
+			src = idx
+		}
+	}
+	for _, idx := range c.GetDatabase("d").GetTable("t").Indexes {
+		if idx.Fulltext {
+			dst = idx
+		}
+	}
+	if dst == nil || dst.Parser != "ngram" || dst.ParserProperties["ngram_token_size"] != "3" {
+		t.Fatalf("the copy's fulltext index is %+v, want ngram with ngram_token_size 3", dst)
+	}
+	dst.ParserProperties["ngram_token_size"] = "4"
+	if src.ParserProperties["ngram_token_size"] != "3" {
+		t.Error("the copy shares its parser properties with the source")
+	}
+}
+
 // TestOracle_OceanBaseFulltextParserEcho creates each of fulltextEchoCases on OceanBase,
 // requires the engine to print the recorded line, and requires the DDL and the readback
 // to compare equal on their indexes. Each of fulltextChangeCases, applied as from and
@@ -180,6 +211,25 @@ func TestOracle_OceanBaseFulltextParserEcho(t *testing.T) {
 			}
 		})
 	}
+	t.Run("create table like", func(t *testing.T) {
+		if _, err := storeAndRead(ctx, o, "obft_like", fulltextLikeSource, "src"); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _, _ = o.db.ExecContext(ctx, "DROP DATABASE IF EXISTS obft_like") })
+		if _, err := o.db.ExecContext(ctx, "CREATE TABLE t LIKE src"); err != nil {
+			t.Fatalf("OceanBase refused CREATE TABLE LIKE: %v", err)
+		}
+		var readback string
+		if err := o.db.QueryRowContext(ctx, "SHOW CREATE TABLE obft_like.t").Scan(new(string), &readback); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(readback, "WITH PARSER ngram PARSER_PROPERTIES=(ngram_token_size=3)") {
+			t.Errorf("OceanBase does not copy the parser:\n%s", readback)
+		}
+		if d := indexDiffs(t, fulltextLikeSource+";\nCREATE TABLE t LIKE src;", readback); len(d) > 0 {
+			t.Errorf("%s %s against the copy's readback\n%s", d[0].Name, d[0].Action, readback)
+		}
+	})
 	for i, tc := range fulltextChangeCases {
 		t.Run(tc.from+" -> "+tc.to, func(t *testing.T) {
 			dbName := fmt.Sprintf("obftchg_%d", i)

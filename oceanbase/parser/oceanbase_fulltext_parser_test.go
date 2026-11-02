@@ -57,6 +57,9 @@ var fulltextParserCases = []fulltextParserCase{
 	{ftTable + "USING BTREE (c))", true, ""},
 	{ftTable + "(c) USING BTREE)", true, ""},
 	{"CREATE TABLE t (id INT PRIMARY KEY, c VARCHAR(100), FULLTEXT KEY USING BTREE fk (c))", false, "fk (c)"},
+	{ftTable + "USING HASH (c))", true, ""},
+	{ftTable + "USING (c))", false, "(c))"},
+	{"ALTER TABLE obft_t ADD FULLTEXT KEY fk USING (c)", false, "(c)"},
 	// The list is key '=' value with a bare key of nine, an unsigned integer for a size
 	// and a string literal for the rest.
 	{ftTable + "(c) PARSER_PROPERTIES=())", false, "))"},

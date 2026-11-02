@@ -72,6 +72,19 @@ func parserPropertiesFromOption(opt *nodes.IndexOption) map[string]string {
 	return props
 }
 
+// copyParserProperties returns a copy of props, nil for nil, so a copied index does not
+// share its properties with the one it was copied from.
+func copyParserProperties(props map[string]string) map[string]string {
+	if props == nil {
+		return nil
+	}
+	out := make(map[string]string, len(props))
+	for k, v := range props {
+		out[k] = v
+	}
+	return out
+}
+
 // canonicalFulltextParser returns a fulltext index's parser and the properties SHOW
 // CREATE TABLE prints for it, with OceanBase's defaults filled in, as a key fragment;
 // "" for any other index. A readback and the DDL it came from give the same fragment,
