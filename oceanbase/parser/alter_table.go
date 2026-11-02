@@ -71,11 +71,26 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 			break
 		}
 
-		cmd, err := p.parseAlterTableCmd()
-		if err != nil {
-			return nil, err
+		if p.cur.Type == kwSET {
+			cmds, err := p.parseAlterTableSet()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Commands = append(stmt.Commands, cmds...)
+		} else {
+			cmd, err := p.parseAlterTableCmd()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Commands = append(stmt.Commands, cmd)
+			if cmd.Type == nodes.ATTableOption {
+				more, err := p.parseMoreAlterTableOptions()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Commands = append(stmt.Commands, more...)
+			}
 		}
-		stmt.Commands = append(stmt.Commands, cmd)
 
 		if p.cur.Type != ',' {
 			break
@@ -85,6 +100,59 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseAlterTableSet parses OceanBase's `SET table_option [table_option ...]`, one
+// ALTER TABLE action. alter_table_action in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6) reads `opt_set table_option_list_space_seperated`: SET may lead
+// the options, which follow one another without commas, with or without it. 4.3.5.6
+// applies `ALTER TABLE t SET COMMENT 'x'` as `ALTER TABLE t COMMENT 'x'`, and reads
+// back each option set this way (alterTableSetCases). SET with no table option after
+// it is a 1064. Each option becomes its own ATTableOption command, the first one
+// spanning the SET.
+func (p *Parser) parseAlterTableSet() ([]*nodes.AlterTableCmd, error) {
+	start := p.pos()
+	p.advance() // consume SET
+	opt, ok, err := p.parseTableOption()
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	cmds := []*nodes.AlterTableCmd{{
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Type:   nodes.ATTableOption,
+		Option: opt,
+	}}
+	more, err := p.parseMoreAlterTableOptions()
+	if err != nil {
+		return nil, err
+	}
+	return append(cmds, more...), nil
+}
+
+// parseMoreAlterTableOptions parses the table options that follow one in the same
+// ALTER TABLE action, without commas between them: `ALTER TABLE t PCTFREE = 5 COMMENT
+// 'x'`, which OceanBase reads as table_option_list_space_seperated, with or without a
+// leading SET.
+func (p *Parser) parseMoreAlterTableOptions() ([]*nodes.AlterTableCmd, error) {
+	var cmds []*nodes.AlterTableCmd
+	for {
+		start := p.pos()
+		opt, ok, err := p.parseTableOption()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return cmds, nil
+		}
+		cmds = append(cmds, &nodes.AlterTableCmd{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Type:   nodes.ATTableOption,
+			Option: opt,
+		})
+	}
 }
 
 // parseAlterTableCmd parses a single ALTER TABLE operation.
