@@ -1343,11 +1343,13 @@ func comparePartitionBounds(a, b nodes.Node, kind rangeBoundKind) (int, bool) {
 
 // compareTemporalLiterals orders two date or time literals written in one
 // shape: equal length, digits in the same places and the same separators
-// between them, as '2020-01-31' and '2021-12-01' are. Zero-padded fields of
-// one width then sort as their bytes do; '2020-9-1' against '2020-10-01' does
-// not, and is left open.
+// between them, as '2020-01-31' and '2021-12-01' are, and a four-digit year
+// first. Zero-padded fields of one width then sort as their bytes do;
+// '2020-9-1' against '2020-10-01' does not, and neither does a two-digit year,
+// which reads 70-99 as 1970-1999 and 00-69 as 2000-2069, so both are left
+// open.
 func compareTemporalLiterals(x, y string) (int, bool) {
-	if len(x) != len(y) {
+	if len(x) != len(y) || !fourDigitYear(x) {
 		return 0, false
 	}
 	for i := 0; i < len(x); i++ {
@@ -1360,6 +1362,20 @@ func compareTemporalLiterals(x, y string) (int, bool) {
 		return -1, true
 	}
 	return 1, true
+}
+
+// fourDigitYear reports whether a date literal leads with a four-digit year
+// and a separator after it.
+func fourDigitYear(s string) bool {
+	if len(s) < 5 {
+		return false
+	}
+	for i := 0; i < 4; i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return s[4] < '0' || s[4] > '9'
 }
 
 func partitionBoundInt(n nodes.Node) (int64, bool) {

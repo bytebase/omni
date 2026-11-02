@@ -37,6 +37,7 @@ var rangeColumnsCases = []rangeColumnsCase{
 	{"string bounds decreasing", "", "CREATE TABLE rr5 (a VARCHAR(10), b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN ('b', MAXVALUE), PARTITION p1 VALUES LESS THAN ('a', 1))", "rr5", 1493, nil},
 	{"language collation", "", "CREATE TABLE rc6 (a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish2_ci) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('cz'), PARTITION p1 VALUES LESS THAN ('ch'))", "rc6", 0, []string{"'cz'", "'ch'"}},
 	{"unpadded dates", "", "CREATE TABLE rc8 (a DATE) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('2020-9-1'), PARTITION p1 VALUES LESS THAN ('2020-10-01'))", "rc8", 0, []string{"'2020-9-1'", "'2020-10-01'"}},
+	{"two-digit years", "", "CREATE TABLE rc10 (a DATE) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('70-01-01'), PARTITION p1 VALUES LESS THAN ('69-01-01'))", "rc10", 0, []string{"'70-01-01'", "'69-01-01'"}},
 	{"padded dates decreasing", "", "CREATE TABLE rr7 (a DATE) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('2021-01-01'), PARTITION p1 VALUES LESS THAN ('2020-12-31'))", "rr7", 1493, nil},
 	{"range maxvalue not last", "", "CREATE TABLE rr6 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE, PARTITION p1 VALUES LESS THAN (10))", "rr6", 1481, nil},
 }
