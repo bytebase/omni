@@ -502,6 +502,11 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 	case *IndexOption:
 		Walk(v, n.Value)
+		for _, item := range n.Properties {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *InsertStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -640,6 +645,8 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *ParserProperty:
+		Walk(v, n.Value)
 	case *PartitionClause:
 		Walk(v, n.Expr)
 		for _, item := range n.Partitions {

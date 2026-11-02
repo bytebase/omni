@@ -130,8 +130,8 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	{name: "repeated index scope", sql: "CREATE TABLE obprobe_rs (id INT PRIMARY KEY, a INT, KEY obprobe_ka (a) LOCAL GLOBAL)"},
 	{name: "alter add primary key global", sql: "ALTER TABLE obprobe_t ADD PRIMARY KEY (a) GLOBAL"},
 	// The form 4.3.5.6 prints for every fulltext index in SHOW CREATE TABLE, which this
-	// parser cannot read yet.
-	{name: "fulltext parser properties", sql: "CREATE TABLE obprobe_fp (id INT PRIMARY KEY, c VARCHAR(100), FULLTEXT KEY obprobe_fk (c) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384)", pending: true},
+	// parser reads since it took PARSER_PROPERTIES (fulltextParserCases).
+	{name: "fulltext parser properties", sql: "CREATE TABLE obprobe_fp (id INT PRIMARY KEY, c VARCHAR(100), FULLTEXT KEY obprobe_fk (c) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384)"},
 	{name: "subpartition template", sql: "CREATE TABLE obprobe_sp (a INT, b INT) PARTITION BY RANGE COLUMNS(a) SUBPARTITION BY KEY(b) SUBPARTITION TEMPLATE (SUBPARTITION p0, SUBPARTITION p1) (PARTITION q0 VALUES LESS THAN (10))"},
 	// RANGE and LIST subpartitioning, which MySQL does not have, and which 4.3.5.6 then
 	// prints in SHOW CREATE TABLE (read on 2026-11-02); see subpartitionCases.

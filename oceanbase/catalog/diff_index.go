@@ -286,7 +286,9 @@ func indexesChanged(a, b *Index, n *Normalizer) bool {
 //     from phantom-diffing against the 8.0 readback that drops it.
 //
 // Kind (primary/unique/fulltext/spatial), USING type, comment, and visibility are
-// version-independent and compared directly. The index NAME is the identity key (handled by the
+// version-independent and compared directly. A fulltext index's parser is compared with
+// OceanBase's defaults filled in (canonicalFulltextParser), since the engine prints them
+// on every fulltext index. The index NAME is the identity key (handled by the
 // caller's map), not part of this content key.
 func canonicalIndex(idx *Index, n *Normalizer) string {
 	parts := make([]string, 0, len(idx.Columns))
@@ -303,6 +305,7 @@ func canonicalIndex(idx *Index, n *Normalizer) string {
 		"visible", strconv.FormatBool(idx.Visible),
 		"kbs", canonicalIndexKeyBlockSize(idx, n),
 		"scope", canonicalIndexScope(idx),
+		"parser", canonicalFulltextParser(idx),
 		"cols", strings.Join(parts, ","),
 	)
 }

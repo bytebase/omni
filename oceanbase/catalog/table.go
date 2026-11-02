@@ -315,6 +315,12 @@ func cloneTable(src *Table) Table {
 			cols[j] = &ic
 		}
 		idx.Columns = cols
+		if si.ParserProperties != nil {
+			idx.ParserProperties = make(map[string]string, len(si.ParserProperties))
+			for k, v := range si.ParserProperties {
+				idx.ParserProperties[k] = v
+			}
+		}
 		dst.Indexes[i] = &idx
 	}
 
