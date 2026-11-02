@@ -216,10 +216,11 @@ func TestDiffPartition_SubpartitionTemplate(t *testing.T) {
 	if d := DiffWithNormalizer(loadCat(t, two), loadCat(t, two), NormalizerFor(MySQL80)); !d.IsEmpty() {
 		t.Errorf("the same template must be empty, got: %s", describeDiff(d))
 	}
-	// The rendered form has to be loadable, since the spec is compared as text and a
-	// template repeats its subpartition names across partitions.
+	// The rendered form has to be loadable, since the spec is compared as text. Each
+	// subpartition carries the name OceanBase gives it, partition name, "s", template
+	// entry, so the names stay unique across the table.
 	rendered := loadCat(t, two).ShowCreateTable("app", "t")
-	if !strings.Contains(rendered, "SUBPARTITION s0") {
+	if !strings.Contains(rendered, "SUBPARTITION p0ss0") || !strings.Contains(rendered, "SUBPARTITION p1ss1") {
 		t.Errorf("the rendered form states no subpartitions:\n%s", rendered)
 	}
 }

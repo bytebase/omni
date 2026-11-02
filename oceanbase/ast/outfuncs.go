@@ -3001,6 +3001,15 @@ func writePartitionClause(sb *strings.Builder, n *PartitionClause) {
 	if n.NumSubParts > 0 {
 		fmt.Fprintf(sb, " :num_sub_parts %d", n.NumSubParts)
 	}
+	if len(n.SubPartTemplate) > 0 {
+		sb.WriteString(" :sub_part_template ")
+		for i, sp := range n.SubPartTemplate {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, sp)
+		}
+	}
 	sb.WriteString("}")
 }
 

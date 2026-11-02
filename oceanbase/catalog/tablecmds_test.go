@@ -312,7 +312,8 @@ func TestCreateTableWithFK(t *testing.T) {
 // the catalog, for partitions the DDL names and for the ones PARTITIONS N generates. The
 // parser accepts the clause, so a conversion that ignored it would give every partition one
 // auto-generated subpartition and quietly change the layout. Both forms are accepted by
-// 5.7.25-OceanBase_CE-v4.3.5.6.
+// 5.7.25-OceanBase_CE-v4.3.5.6, which names each subpartition after its partition and the
+// template entry: information_schema.PARTITIONS lists q0ss0 and q0ss1 for q0.
 func TestCreateTableSubpartitionTemplate(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -369,8 +370,9 @@ func TestCreateTableSubpartitionTemplate(t *testing.T) {
 				for _, sp := range pd.SubPartitions {
 					got = append(got, sp.Name)
 				}
-				if len(got) != 2 || got[0] != "s0" || got[1] != "s1" {
-					t.Errorf("partition %s subpartitions = %v, want [s0 s1]", pd.Name, got)
+				want0, want1 := pd.Name+"ss0", pd.Name+"ss1"
+				if len(got) != 2 || got[0] != want0 || got[1] != want1 {
+					t.Errorf("partition %s subpartitions = %v, want [%s %s]", pd.Name, got, want0, want1)
 				}
 			}
 		})

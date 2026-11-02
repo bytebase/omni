@@ -133,6 +133,9 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	// parser cannot read yet.
 	{name: "fulltext parser properties", sql: "CREATE TABLE obprobe_fp (id INT PRIMARY KEY, c VARCHAR(100), FULLTEXT KEY obprobe_fk (c) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384)", pending: true},
 	{name: "subpartition template", sql: "CREATE TABLE obprobe_sp (a INT, b INT) PARTITION BY RANGE COLUMNS(a) SUBPARTITION BY KEY(b) SUBPARTITION TEMPLATE (SUBPARTITION p0, SUBPARTITION p1) (PARTITION q0 VALUES LESS THAN (10))"},
+	// RANGE and LIST subpartitioning, which MySQL does not have, and which 4.3.5.6 then
+	// prints in SHOW CREATE TABLE (read on 2026-11-02).
+	{name: "range subpartition template", sql: "CREATE TABLE obprobe_rsp (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY RANGE(b) SUBPARTITION TEMPLATE (SUBPARTITION s0 VALUES LESS THAN (5), SUBPARTITION s1 VALUES LESS THAN (MAXVALUE)) (PARTITION p0 VALUES LESS THAN (10))", pending: true},
 	// OceanBase takes this clause and then refuses it with 1235, because the table is
 	// not partitioned. engineAccepts reads only 1064 as a syntax refusal, so the entry
 	// pins the grammar, which is all this parser owes.

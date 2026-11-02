@@ -1691,6 +1691,24 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
+	// With a SUBPARTITION TEMPLATE no partition may list its own subpartitions:
+	// 4.3.5.6 answers 1064 for `SUBPARTITION TEMPLATE (...) (PARTITION p0 VALUES LESS
+	// THAN (10) (SUBPARTITION z0), ...)` (templateCases).
+	if len(part.SubPartTemplate) > 0 {
+		for _, pd := range part.Partitions {
+			if len(pd.SubPartitions) > 0 {
+				sub := pd.SubPartitions[0]
+				line, col := p.lineCol(sub.Loc.Start)
+				return nil, &ParseError{
+					Message:  "a partition cannot list subpartitions when the table has a SUBPARTITION TEMPLATE",
+					Position: sub.Loc.Start,
+					Line:     line,
+					Column:   col,
+				}
+			}
+		}
+	}
+
 	part.Loc.End = p.prev.End
 	return part, nil
 }

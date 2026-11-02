@@ -893,6 +893,26 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	if explicitSubpartitions {
 		pi.UseDefaultSubpartitions = false
 		pi.UseDefaultNumSubpartitions = false
+		// OceanBase lets a partition list no subpartitions beside ones that do, and
+		// gives it SUBPARTITIONS N of them, or one when N is unstated, named
+		// <partition>sp<i> (4.3.5.6). The table then has no template, so the count
+		// stops at CREATE: a partition added later gets one (addedPartitionSubpartitions).
+		fill := pc.NumSubParts
+		if fill == 0 {
+			fill = 1
+		}
+		for _, pdi := range pi.Partitions {
+			if len(pdi.SubPartitions) > 0 {
+				continue
+			}
+			for j := 0; j < fill; j++ {
+				pdi.SubPartitions = append(pdi.SubPartitions, &SubPartitionDefInfo{
+					Name:    fmt.Sprintf("%ssp%d", pdi.Name, j),
+					Engine:  pdi.Engine,
+					Comment: pdi.Comment,
+				})
+			}
+		}
 		pi.NumSubParts = explicitSubpartitionCount
 	}
 
@@ -912,26 +932,23 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	// built, generated ones included, because HASH and KEY with PARTITIONS N define none
 	// of their own and a template has to reach those too. Clearing
 	// UseDefaultSubpartitions is also what stops the block below inventing a second set.
+	// The template is kept, because a partition added later takes it too.
 	if len(pc.SubPartTemplate) > 0 {
-		for _, pdi := range pi.Partitions {
-			if len(pdi.SubPartitions) > 0 {
-				continue
+		for _, spd := range pc.SubPartTemplate {
+			st := &SubPartitionDefInfo{Name: spd.Name}
+			for _, opt := range spd.Options {
+				switch toLower(opt.Name) {
+				case "engine":
+					st.Engine = opt.Value
+				case "comment":
+					st.Comment = opt.Value
+				}
 			}
-			for _, spd := range pc.SubPartTemplate {
-				spdi := &SubPartitionDefInfo{
-					Name:    spd.Name,
-					Engine:  pdi.Engine,
-					Comment: pdi.Comment,
-				}
-				for _, opt := range spd.Options {
-					switch toLower(opt.Name) {
-					case "engine":
-						spdi.Engine = opt.Value
-					case "comment":
-						spdi.Comment = opt.Value
-					}
-				}
-				pdi.SubPartitions = append(pdi.SubPartitions, spdi)
+			pi.SubPartTemplate = append(pi.SubPartTemplate, st)
+		}
+		for _, pdi := range pi.Partitions {
+			if len(pdi.SubPartitions) == 0 {
+				pdi.SubPartitions = templateSubpartitions(pi.SubPartTemplate, pdi)
 			}
 		}
 		pi.NumSubParts = len(pc.SubPartTemplate)
@@ -952,9 +969,40 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 				}
 			}
 		}
+		// OceanBase keeps SUBPARTITIONS N as a template of p0 ... p<N-1>: SHOW CREATE
+		// TABLE prints `subpartition template (subpartition p0, subpartition p1)`, and a
+		// partition added later takes it, so templateSubpartitions names its
+		// subpartitions <partition>sp<i> as above.
+		for j := 0; j < pi.NumSubParts; j++ {
+			pi.SubPartTemplate = append(pi.SubPartTemplate, &SubPartitionDefInfo{Name: fmt.Sprintf("p%d", j)})
+		}
 	}
 
 	return pi
+}
+
+// templateSubpartitions gives partition pd the subpartitions of a SUBPARTITION
+// TEMPLATE. OceanBase names each one after the partition and the template entry,
+// partition name, "s", entry name: a template of s0 and s1 gives partition p0 the
+// subpartitions p0ss0 and p0ss1 (information_schema.PARTITIONS on 4.3.5.6), which keeps
+// the names unique across the table, as a subpartition name has to be.
+func templateSubpartitions(template []*SubPartitionDefInfo, pd *PartitionDefInfo) []*SubPartitionDefInfo {
+	out := make([]*SubPartitionDefInfo, 0, len(template))
+	for _, st := range template {
+		sp := &SubPartitionDefInfo{
+			Name:    pd.Name + "s" + st.Name,
+			Engine:  pd.Engine,
+			Comment: pd.Comment,
+		}
+		if st.Engine != "" {
+			sp.Engine = st.Engine
+		}
+		if st.Comment != "" {
+			sp.Comment = st.Comment
+		}
+		out = append(out, sp)
+	}
+	return out
 }
 
 func (c *Catalog) applyTimestampSessionDefaults(cols []*Column, defs []*nodes.ColumnDef) {
@@ -1190,9 +1238,12 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	if err := validateSubpartitionDefinitions(pc); err != nil {
-		return err
-	}
+	// MySQL requires every partition to list the same number of subpartitions, or
+	// none to. OceanBase does not: 4.3.5.6 takes partitions with different numbers of
+	// subpartitions, partitions that list none beside ones that do, and lists that
+	// disagree with SUBPARTITIONS N, and prints the first of these back in SHOW CREATE
+	// TABLE once a partition is added with subpartitions of its own. Holding it to the
+	// MySQL rule refused the engine's own readbacks, so there is no such check here.
 	expr := strings.ToLower(nodeToSQL(pc.Expr))
 	if strings.Contains(expr, "concat(") {
 		return &Error{Code: 1491, SQLState: "HY000", Message: "The PARTITION function returns the wrong type"}
@@ -1212,45 +1263,6 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	return nil
-}
-
-func validateSubpartitionDefinitions(pc *nodes.PartitionClause) error {
-	if pc.SubPartType == 0 && pc.SubPartExpr == nil && len(pc.SubPartColumns) == 0 {
-		return nil
-	}
-	explicitCount := 0
-	seenExplicit := false
-	for i, pd := range pc.Partitions {
-		count := len(pd.SubPartitions)
-		if count == 0 {
-			if seenExplicit {
-				return errWrongNumberOfSubpartitions()
-			}
-			continue
-		}
-		if !seenExplicit {
-			if i > 0 {
-				return errWrongNumberOfSubpartitions()
-			}
-			seenExplicit = true
-			explicitCount = count
-		}
-		if count != explicitCount {
-			return errWrongNumberOfSubpartitions()
-		}
-		if pc.NumSubParts > 0 && count != pc.NumSubParts {
-			return errWrongNumberOfSubpartitions()
-		}
-	}
-	return nil
-}
-
-func errWrongNumberOfSubpartitions() error {
-	return &Error{
-		Code:     1064,
-		SQLState: "42000",
-		Message:  "Wrong number of subpartitions defined, mismatch with previous setting",
-	}
 }
 
 func containsPartitionDefaultExpr(n nodes.Node) bool {

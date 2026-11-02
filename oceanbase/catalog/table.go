@@ -55,6 +55,13 @@ type PartitionInfo struct {
 	// partition_info::use_default_num_subpartitions.
 	UseDefaultSubpartitions    bool
 	UseDefaultNumSubpartitions bool
+	// SubPartTemplate is OceanBase's SUBPARTITION TEMPLATE, kept after CREATE because
+	// a partition ALTER TABLE ... ADD PARTITION adds later without subpartitions of its
+	// own takes the template's. SUBPARTITIONS N is a template of p0 ... p<N-1> on
+	// OceanBase. nil when the partitions each listed their own subpartitions. SHOW
+	// CREATE TABLE stops printing the template once a partition is added with its own,
+	// but the engine keeps applying it, and so does the catalog.
+	SubPartTemplate []*SubPartitionDefInfo
 }
 
 // PartitionDefInfo holds a single partition definition.
@@ -323,6 +330,13 @@ func cloneTable(src *Table) Table {
 		pi := *src.Partitioning
 		pi.Columns = append([]string{}, src.Partitioning.Columns...)
 		pi.SubColumns = append([]string{}, src.Partitioning.SubColumns...)
+		if src.Partitioning.SubPartTemplate != nil {
+			pi.SubPartTemplate = make([]*SubPartitionDefInfo, len(src.Partitioning.SubPartTemplate))
+			for i, st := range src.Partitioning.SubPartTemplate {
+				sd := *st
+				pi.SubPartTemplate[i] = &sd
+			}
+		}
 		pi.Partitions = make([]*PartitionDefInfo, len(src.Partitioning.Partitions))
 		for i, sp := range src.Partitioning.Partitions {
 			pd := *sp
