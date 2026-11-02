@@ -227,3 +227,41 @@ func TestExecCommentLoc_ErrorPosition(t *testing.T) {
 		})
 	}
 }
+
+// execCommentQuotedAccepted are executable comments that close at a "*/"
+// outside every string, quoted identifier and line comment, though an earlier
+// "/*" or "*/" sits inside one of those tokens.
+var execCommentQuotedAccepted = []string{
+	"SELECT 1 /*! + LENGTH('/*') */",
+	"SELECT 1 /*!50000 + LENGTH('/*') */",
+	"SELECT 1 /*! + LENGTH('*/') */",
+	`SELECT 1 /*! + LENGTH("/*") */`,
+	"SELECT 1 /*! + LENGTH(`a*/`) */",
+	`SELECT 1 /*! + LENGTH('a\'*/') */`,
+	"/*!50000 SELECT 'a*/' */",
+	"SELECT 1 /*! /* inner */ + 1 */",
+}
+
+// execCommentQuotedHeldClose are executable comments whose only "*/" is held
+// inside a string or a line comment, so the comment never closes.
+var execCommentQuotedHeldClose = []string{
+	"SELECT 'x' /*! , 'a*/'",
+	"SELECT 1 /*!50000 + 1 -- c */\n",
+	"SELECT 1 /*! + 1 # c */\n",
+	"SELECT 1 /*! + LENGTH('a--*/') -- */\n",
+}
+
+// TestExecCommentClose_SkipsQuotedDelimiters pins where an executable comment
+// ends when "/*" or "*/" sits inside a token: the close is the first "*/"
+// outside every string, quoted identifier and line comment. TiDB drops the
+// opener of a comment that never closes and reads the rest as ordinary SQL, so
+// the held-close list parses here where MySQL and MariaDB reject it.
+func TestExecCommentClose_SkipsQuotedDelimiters(t *testing.T) {
+	for _, list := range [][]string{execCommentQuotedAccepted, execCommentQuotedHeldClose} {
+		for _, sql := range list {
+			if _, err := Parse(sql); err != nil {
+				t.Errorf("Parse(%q): %v", sql, err)
+			}
+		}
+	}
+}

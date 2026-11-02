@@ -43,3 +43,16 @@ func TestExecCommentBoundary_Oracle(t *testing.T) {
 		t.Errorf("Parse(%q) target = %#v, want the string %q the server returns", sql, list.Items[0].(*ast.SelectStmt).TargetList[0], server)
 	}
 }
+
+// TestExecCommentQuotedDelimiters_Oracle proves against the live container that
+// omni ends an executable comment where the server does when a "/*" or "*/"
+// sits inside a string, a quoted identifier or a line comment.
+func TestExecCommentQuotedDelimiters_Oracle(t *testing.T) {
+	o := startParserOracle(t)
+
+	for _, list := range [][]string{execCommentQuotedAccepted, execCommentQuotedHeldClose} {
+		for _, sql := range list {
+			assertOracleMatch(t, o, sql)
+		}
+	}
+}
