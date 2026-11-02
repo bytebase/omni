@@ -3,6 +3,7 @@ package validate
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 
@@ -199,7 +200,7 @@ END my_block`,
 			_, _ = o.db.ExecContext(o.ctx, p.dropSQL)
 
 			omniAccept, omniDetail := parseAndValidateAccepts(p.sql)
-			mysqlAccept, mysqlDetail := mysqlExecAccepts(o, p.sql)
+			mysqlAccept, mysqlDetail := mysqlExecAccepts(t, o, p.sql)
 			if omniAccept != mysqlAccept {
 				t.Fatalf("acceptance mismatch\nomni accept: %v (%s)\nmysql accept: %v (%s)\nsql: %s",
 					omniAccept, omniDetail, mysqlAccept, mysqlDetail, p.sql)
@@ -224,15 +225,24 @@ func parseAndValidateAccepts(sql string) (bool, string) {
 	return false, strings.Join(codes, ",")
 }
 
-func mysqlExecAccepts(o *routineValidationOracle, sql string) (bool, string) {
+// mysqlExecAccepts reports whether MySQL runs sql without an error, and the error
+// it answered otherwise.
+//
+// Anything that is not a server error — a dropped connection, a timeout — is no
+// verdict at all and fails the test. Reporting it as a rejection would pass every
+// probe that expects MySQL to refuse, against a server that never answered.
+func mysqlExecAccepts(t testing.TB, o *routineValidationOracle, sql string) (bool, string) {
+	t.Helper()
 	_, err := o.db.ExecContext(o.ctx, sql)
 	if err == nil {
 		return true, "ok"
 	}
-	if myErr, ok := err.(*gomysql.MySQLError); ok {
+	var myErr *gomysql.MySQLError
+	if errors.As(err, &myErr) {
 		return false, "ERR " + mysqlOracleItoa(int(myErr.Number)) + ": " + trimFirstLine(myErr.Message)
 	}
-	return false, trimFirstLine(err.Error())
+	t.Fatalf("MySQL gave no verdict for %q: %v", sql, err)
+	return false, ""
 }
 
 func mustExecRoutineOracle(t *testing.T, o *routineValidationOracle, sql string) {

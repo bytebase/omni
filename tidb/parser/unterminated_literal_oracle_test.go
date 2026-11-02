@@ -17,7 +17,7 @@ func TestUnterminatedLiteralOracle(t *testing.T) {
 
 	for _, c := range unterminatedCases {
 		t.Run(c.name, func(t *testing.T) {
-			if !tidbRejectedSyntax(tc.canExecute(c.sql)) {
+			if !tidbRejectedSyntax(t, tc.canExecute(c.sql)) {
 				t.Errorf("TiDB parsed %q, so omni must not reject it", c.sql)
 			}
 			if _, err := Parse(c.sql); err == nil {
@@ -28,7 +28,7 @@ func TestUnterminatedLiteralOracle(t *testing.T) {
 
 	for _, sql := range terminatedCounterparts {
 		t.Run("closed/"+sql, func(t *testing.T) {
-			if tidbRejectedSyntax(tc.canExecute(sql)) {
+			if tidbRejectedSyntax(t, tc.canExecute(sql)) {
 				t.Errorf("TiDB rejected %q, so it is not a valid control", sql)
 			}
 			if _, err := Parse(sql); err != nil {
@@ -39,7 +39,7 @@ func TestUnterminatedLiteralOracle(t *testing.T) {
 
 	for _, sql := range unclosedExecCases {
 		t.Run("unclosed/"+sql, func(t *testing.T) {
-			if tidbRejectedSyntax(tc.canExecute(sql)) {
+			if tidbRejectedSyntax(t, tc.canExecute(sql)) {
 				t.Errorf("TiDB rejected %q, so omni must not accept it", sql)
 			}
 			if _, err := Parse(sql); err != nil {

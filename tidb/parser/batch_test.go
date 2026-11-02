@@ -203,9 +203,14 @@ func TestBatchSerialize(t *testing.T) {
 }
 
 // tidbRejectedSyntax reports whether a TiDB execution error is a parse error
-// (ER_PARSE_ERROR, 1064). Any other error (e.g. 1146 table-not-found) means
-// TiDB parsed the statement, so the syntax is accepted.
-func tidbRejectedSyntax(err error) bool {
+// (ER_PARSE_ERROR, 1064). Any other server error (e.g. 1146 table-not-found)
+// means TiDB parsed the statement, so the syntax is accepted.
+//
+// Anything that is not a server error — a dropped connection, a timeout — is no
+// verdict at all and fails the test. Reporting it as acceptance would pass every
+// case that expects TiDB to accept, against a server that never answered.
+func tidbRejectedSyntax(t testing.TB, err error) bool {
+	t.Helper()
 	if err == nil {
 		return false
 	}
@@ -213,6 +218,7 @@ func tidbRejectedSyntax(err error) bool {
 	if errors.As(err, &myErr) {
 		return myErr.Number == 1064
 	}
+	t.Fatalf("TiDB gave no verdict: %v", err)
 	return false
 }
 
@@ -231,7 +237,7 @@ func TestBatchTiDBOracle(t *testing.T) {
 			_, omniErr := Parse(c.sql)
 			omniAccepts := omniErr == nil
 
-			tidbAccepts := !tidbRejectedSyntax(tc.canExecute(c.sql))
+			tidbAccepts := !tidbRejectedSyntax(t, tc.canExecute(c.sql))
 
 			if omniAccepts != tidbAccepts {
 				t.Errorf("MISMATCH %q: omni accepts=%v (err=%v), TiDB accepts=%v",
