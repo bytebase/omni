@@ -211,9 +211,6 @@ func (p *Parser) parseCreateSelect(valueIsValues bool) (*nodes.SelectStmt, error
 // inside the parentheses of a CREATE TABLE statement.
 func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 	for {
-		if p.cur.Type == ')' {
-			break
-		}
 
 		// Completion: at start of a column/constraint definition, offer constraint keywords.
 		p.checkCursor()
@@ -1836,9 +1833,6 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
 			pd, err := p.parsePartitionDef()
 			if err != nil {
 				return nil, err
@@ -2075,9 +2069,6 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
 			spd, err := p.parseSubPartitionDef()
 			if err != nil {
 				return nil, err
