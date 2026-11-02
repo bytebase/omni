@@ -2344,6 +2344,10 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		return "b'" + val + "'"
 	case *nodes.ParenExpr:
 		return "(" + nodeToSQLGenerated(n.Expr, charset) + ")"
+	case *nodes.KeywordArg:
+		// Bare keyword argument (timestampdiff unit, get_format type) —
+		// stored unquoted in generated-column bodies exactly like view bodies.
+		return n.Keyword
 	case *nodes.BinaryExpr:
 		left := nodeToSQLGenerated(n.Left, charset)
 		right := nodeToSQLGenerated(n.Right, charset)

@@ -1,0 +1,342 @@
+package catalog
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestFunctionalIndexHiddenColumnsVisibleAndHiddenViews(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec("CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));", nil)
+	if err != nil {
+		t.Fatalf("exec create table: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec create table result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	tbl.Columns = append(tbl.Columns, &Column{
+		Position:   3,
+		Name:       "!hidden!idx_lower!0!0",
+		DataType:   "varchar",
+		ColumnType: "varchar(64)",
+		Hidden:     ColumnHiddenSystem,
+		Generated:  &GeneratedColumnInfo{Expr: "lower(`name`)", Stored: false},
+	})
+	rebuildColIndex(tbl)
+
+	if got := len(tbl.VisibleColumns()); got != 2 {
+		t.Fatalf("visible columns = %d, want 2", got)
+	}
+	if got := len(tbl.HiddenColumns()); got != 1 {
+		t.Fatalf("hidden columns = %d, want 1", got)
+	}
+
+	show := c.ShowCreateTable("testdb", "t")
+	if strings.Contains(show, "!hidden!idx_lower!0!0") {
+		t.Fatalf("ShowCreateTable leaked system-hidden column:\n%s", show)
+	}
+}
+
+func TestFunctionalIndexCreateTableAutoNamesAndHiddenColumns(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (
+			a INT,
+			INDEX ((a + 1)),
+			INDEX ((a * 2))
+		);
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec create table: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec create table result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	if got := len(tbl.HiddenColumns()); got != 2 {
+		t.Fatalf("hidden columns = %d, want 2", got)
+	}
+
+	wantIndexes := []struct {
+		name      string
+		hiddenCol string
+		exprSub   string
+	}{
+		{"functional_index", "!hidden!functional_index!0!0", "`a` + 1"},
+		{"functional_index_2", "!hidden!functional_index_2!0!0", "`a` * 2"},
+	}
+	for _, want := range wantIndexes {
+		idx := findIndexForTest(tbl, want.name)
+		if idx == nil {
+			t.Fatalf("index %q missing", want.name)
+		}
+		if len(idx.Columns) != 1 {
+			t.Fatalf("index %q columns = %d, want 1", want.name, len(idx.Columns))
+		}
+		if idx.Columns[0].Name != want.hiddenCol {
+			t.Fatalf("index %q column name = %q, want %q", want.name, idx.Columns[0].Name, want.hiddenCol)
+		}
+		if !strings.Contains(idx.Columns[0].Expr, want.exprSub) {
+			t.Fatalf("index %q expr = %q, want containing %q", want.name, idx.Columns[0].Expr, want.exprSub)
+		}
+		hidden := tbl.GetColumn(want.hiddenCol)
+		if hidden == nil {
+			t.Fatalf("hidden column %q missing", want.hiddenCol)
+		}
+		if hidden.Hidden != ColumnHiddenSystem {
+			t.Fatalf("hidden column %q Hidden = %v, want ColumnHiddenSystem", want.hiddenCol, hidden.Hidden)
+		}
+		if hidden.Generated == nil || hidden.Generated.Stored {
+			t.Fatalf("hidden column %q should be virtual generated column", want.hiddenCol)
+		}
+	}
+}
+
+func TestFunctionalIndexCreateTableNamedMultiPartHiddenColumns(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec("CREATE TABLE t (a INT, INDEX fx ((a + 1), (a * 2)));", nil)
+	if err != nil {
+		t.Fatalf("exec create table: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec create table result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	idx := findIndexForTest(tbl, "fx")
+	if idx == nil {
+		t.Fatal("index fx missing")
+	}
+	if len(idx.Columns) != 2 {
+		t.Fatalf("index fx columns = %d, want 2", len(idx.Columns))
+	}
+	for i, wantName := range []string{"!hidden!fx!0!0", "!hidden!fx!1!0"} {
+		if idx.Columns[i].Name != wantName {
+			t.Fatalf("key part %d name = %q, want %q", i, idx.Columns[i].Name, wantName)
+		}
+		if col := tbl.GetColumn(wantName); col == nil || col.Hidden != ColumnHiddenSystem {
+			t.Fatalf("hidden column %q missing or not system-hidden", wantName)
+		}
+	}
+}
+
+func TestFunctionalIndexCreateIndexSynthesizesHiddenColumn(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+		CREATE INDEX idx_lower ON t ((LOWER(name)));
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec ddl: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec ddl result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	if got := len(tbl.HiddenColumns()); got != 1 {
+		t.Fatalf("hidden columns = %d, want 1", got)
+	}
+
+	idx := findIndexForTest(tbl, "idx_lower")
+	if idx == nil {
+		t.Fatal("index idx_lower missing")
+	}
+	if len(idx.Columns) != 1 {
+		t.Fatalf("index idx_lower columns = %d, want 1", len(idx.Columns))
+	}
+	if idx.Columns[0].Name != "!hidden!idx_lower!0!0" {
+		t.Fatalf("index idx_lower column name = %q, want !hidden!idx_lower!0!0", idx.Columns[0].Name)
+	}
+	if !strings.Contains(strings.ToLower(idx.Columns[0].Expr), "lower(`name`)") {
+		t.Fatalf("index idx_lower expr = %q, want lower(`name`)", idx.Columns[0].Expr)
+	}
+
+	show := strings.ToLower(c.ShowCreateTable("testdb", "t"))
+	if strings.Contains(show, "!hidden!idx_lower!0!0") {
+		t.Fatalf("ShowCreateTable leaked hidden column:\n%s", show)
+	}
+	if !strings.Contains(show, "key `idx_lower` ((lower(`name`)))") {
+		t.Fatalf("ShowCreateTable missing functional key part:\n%s", show)
+	}
+}
+
+func TestFunctionalIndexDropIndexRemovesHiddenColumn(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+		CREATE INDEX idx_lower ON t ((LOWER(name)));
+		DROP INDEX idx_lower ON t;
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec ddl: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec ddl result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	if got := len(tbl.HiddenColumns()); got != 0 {
+		t.Fatalf("hidden columns = %d, want 0", got)
+	}
+	if col := tbl.GetColumn("!hidden!idx_lower!0!0"); col != nil {
+		t.Fatalf("hidden column still present after DROP INDEX: %#v", col)
+	}
+}
+
+func TestFunctionalIndexDropHiddenColumnRejected(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+		CREATE INDEX idx_lower ON t ((LOWER(name)));
+		ALTER TABLE t DROP COLUMN `+"`!hidden!idx_lower!0!0`"+`;
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec ddl: %v", err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("results = %d, want 3", len(results))
+	}
+	if results[0].Error != nil {
+		t.Fatalf("create table error: %v", results[0].Error)
+	}
+	if results[1].Error != nil {
+		t.Fatalf("create index error: %v", results[1].Error)
+	}
+	if results[2].Error == nil {
+		t.Fatal("drop hidden column accepted, want error")
+	}
+	catErr, ok := results[2].Error.(*Error)
+	if !ok {
+		t.Fatalf("drop hidden column error type = %T, want *Error", results[2].Error)
+	}
+	if catErr.Code != ErrDependentByGenCol {
+		t.Fatalf("drop hidden column error code = %d, want %d", catErr.Code, ErrDependentByGenCol)
+	}
+	if !strings.Contains(catErr.Message, "functional index") {
+		t.Fatalf("drop hidden column message = %q, want functional index", catErr.Message)
+	}
+}
+
+func TestFunctionalIndexRenameIndexRenamesHiddenColumn(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(64));
+		CREATE INDEX idx_lower ON t ((LOWER(name)));
+		ALTER TABLE t RENAME INDEX idx_lower TO idx_lc;
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec ddl: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec ddl result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	if col := tbl.GetColumn("!hidden!idx_lower!0!0"); col != nil {
+		t.Fatalf("old hidden column still present after RENAME INDEX: %#v", col)
+	}
+	if col := tbl.GetColumn("!hidden!idx_lc!0!0"); col == nil || col.Hidden != ColumnHiddenSystem {
+		t.Fatalf("new hidden column missing or not system-hidden: %#v", col)
+	}
+	idx := findIndexForTest(tbl, "idx_lc")
+	if idx == nil {
+		t.Fatal("index idx_lc missing")
+	}
+	if idx.Columns[0].Name != "!hidden!idx_lc!0!0" {
+		t.Fatalf("renamed index key part column = %q, want !hidden!idx_lc!0!0", idx.Columns[0].Name)
+	}
+}
+
+func TestFunctionalIndexHiddenColumnTypeInference(t *testing.T) {
+	c := scenarioNewCatalog(t)
+	results, err := c.Exec(`
+		CREATE TABLE t (
+			a INT,
+			b INT,
+			name VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+			payload JSON,
+			INDEX k_sum ((a + b)),
+			INDEX k_low ((LOWER(name))),
+			INDEX k_cast ((CAST(payload->'$.age' AS UNSIGNED)))
+		);
+	`, nil)
+	if err != nil {
+		t.Fatalf("exec create table: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("exec create table result error: %v", r.Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl == nil {
+		t.Fatal("table t missing")
+	}
+	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_sum!0!0", "bigint", "bigint", "", "")
+	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_low!0!0", "varchar", "varchar(64)", "utf8mb4", "utf8mb4_0900_ai_ci")
+	assertHiddenColumnTypeForTest(t, tbl, "!hidden!k_cast!0!0", "bigint", "bigint unsigned", "", "")
+}
+
+func assertHiddenColumnTypeForTest(t *testing.T, tbl *Table, name, dataType, columnType, charset, collation string) {
+	t.Helper()
+	col := tbl.GetColumn(name)
+	if col == nil {
+		t.Fatalf("hidden column %q missing", name)
+	}
+	if col.DataType != dataType {
+		t.Fatalf("%s DataType = %q, want %q", name, col.DataType, dataType)
+	}
+	if col.ColumnType != columnType {
+		t.Fatalf("%s ColumnType = %q, want %q", name, col.ColumnType, columnType)
+	}
+	if col.Charset != charset {
+		t.Fatalf("%s Charset = %q, want %q", name, col.Charset, charset)
+	}
+	if col.Collation != collation {
+		t.Fatalf("%s Collation = %q, want %q", name, col.Collation, collation)
+	}
+}
+
+func findIndexForTest(tbl *Table, name string) *Index {
+	for _, idx := range tbl.Indexes {
+		if strings.EqualFold(idx.Name, name) {
+			return idx
+		}
+	}
+	return nil
+}

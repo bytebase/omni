@@ -14,8 +14,7 @@ import (
 // certainly fails on the target, given that the statements before it
 // succeeded. The walk follows the change on review/walk's ledger, seeded
 // with the synced schema as mysqlSnapshot trusts it; the scope is
-// docs/specs/2026-10-22-walk-through-mysql.md, with OceanBase's deltas in
-// docs/specs/2026-10-27-walk-through-oceanbase.md.
+// docs/specs/2026-10-22-walk-through-mysql.md.
 func checkWalkThrough(ctx context.Context, sql string, stmts []statement, t review.Target, d dialect, r *reporter) error {
 	v, err := walkThrough(ctx, sql, stmts, t, d)
 	if err != nil || v == nil {
@@ -122,20 +121,16 @@ type walker struct {
 	anyFunction bool
 	// ignoresFKs lists the tables whose engine may ignore foreign keys.
 	ignoresFKs map[walk.Key]bool
-	// oceanBase is OceanBase's MySQL mode, whose deltas from MySQL each
-	// lowering gates on it.
-	oceanBase bool
 }
 
 func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walker {
 	fold := t.LowerCaseTableNames != 0
-	snap := newMySQLSnapshot(t.Schema, fold, d.oceanBase)
+	snap := newMySQLSnapshot(t.Schema, fold)
 	w := &walker{
 		sql:        sql,
 		stmts:      stmts,
 		snap:       snap,
 		foldTables: fold,
-		oceanBase:  d.oceanBase,
 		current:    snap.db,
 		fkChecks:   t.ForeignKeyChecks,
 		triggered:  make(map[walk.Key]bool),
@@ -268,11 +263,6 @@ func keepsFKs(engine string) bool {
 	return false
 }
 
-// keeps reports whether a table of the engine keeps foreign keys. OceanBase
-// ignores ENGINE (a warning, 1286), and every table keeps them (verified on
-// 4.3.5).
-func (b *builder) keeps(engine string) bool { return b.w.oceanBase || keepsFKs(engine) }
-
 // engineOf returns the ENGINE a statement's table options name, "" for
 // none.
 func engineOf(opts []*ast.TableOption) string {
@@ -287,16 +277,12 @@ func engineOf(opts []*ast.TableOption) string {
 
 // generatedFKs returns the prefix of the foreign key names the server
 // generates for a table: MySQL's <table>_ibfk_<n>, which RENAME TABLE
-// renames along with the table (verified on 8.0 and 8.4), and OceanBase's
-// <table>_OBFK_<16 digits>, which it keeps (verified on 4.3.5). For a name
+// renames along with the table (verified on 8.0 and 8.4). For a name
 // outside ASCII it returns "", which takes in every name: such a foreign
 // key's key is its exact spelling, which the table's key need not be.
-func (b *builder) generatedFKs(table string) string {
-	switch {
-	case strings.HasPrefix(table, nonASCII):
+func (*builder) generatedFKs(table string) string {
+	if strings.HasPrefix(table, nonASCII) {
 		return ""
-	case b.w.oceanBase:
-		return strings.ToLower(table) + "_obfk_"
 	}
 	return strings.ToLower(table) + "_ibfk_"
 }
@@ -372,20 +358,11 @@ func (b *builder) resolve(r tableRef) (f walk.Fact, temp bool, kind string) {
 	return f, false, kind
 }
 
-// tooLong fails a statement that names an identifier of the space longer
-// than 64 characters, before anything is looked up (1059, verified).
-// OceanBase takes 128 for a database, a column, and a foreign key (1059,
-// and 1406 for a foreign key, beyond; verified on 4.3.5). Only an ASCII
+// tooLong fails a statement that names an identifier longer than 64
+// characters, before anything is looked up (1059, verified). Only an ASCII
 // name is judged.
-func (b *builder) tooLong(space, name string, rng review.Range) bool {
-	limit := 64
-	if b.w.oceanBase {
-		switch space {
-		case spaceDatabase, spaceColumn, spaceForeignKey:
-			limit = 128
-		}
-	}
-	if len(name) <= limit {
+func (b *builder) tooLong(name string, rng review.Range) bool {
+	if len(name) <= 64 {
 		return false
 	}
 	for i := 0; i < len(name); i++ {

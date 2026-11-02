@@ -550,6 +550,10 @@ type PartitionClause struct {
 	SubPartColumns []string      // SUBPARTITION BY KEY (columns)
 	SubPartAlgo    int           // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
 	NumSubParts    int           // SUBPARTITIONS num
+	// SubPartTemplate holds OceanBase's SUBPARTITION TEMPLATE (...) list, which
+	// gives every partition the same subpartitions. MySQL has no template and
+	// repeats them per partition instead.
+	SubPartTemplate []*SubPartitionDef
 }
 
 func (p *PartitionClause) nodeTag() {}

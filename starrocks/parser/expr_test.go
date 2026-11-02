@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -1541,6 +1542,232 @@ func TestExprLambdaInFunctionArg(t *testing.T) {
 	}
 	if _, ok := lam.Body.(*ast.BinaryExpr); !ok {
 		t.Errorf("body = %T, want *ast.BinaryExpr", lam.Body)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// JSON path operator (->)
+// ---------------------------------------------------------------------------
+
+// jsonArrowOperands asserts input parses to a BinJSONArrow BinaryExpr and
+// returns its two operands.
+func jsonArrowOperands(t *testing.T, input string) (ast.Node, *ast.Literal) {
+	t.Helper()
+	node := mustParseExpr(t, input)
+	bin, ok := node.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("parseExpr(%q) = %T, want *ast.BinaryExpr", input, node)
+	}
+	if bin.Op != ast.BinJSONArrow {
+		t.Fatalf("parseExpr(%q) op = %q, want ->", input, bin.Op)
+	}
+	path, ok := bin.Right.(*ast.Literal)
+	if !ok {
+		t.Fatalf("parseExpr(%q) right = %T, want *ast.Literal", input, bin.Right)
+	}
+	if path.Kind != ast.LitString {
+		t.Errorf("parseExpr(%q) path kind = %d, want LitString", input, path.Kind)
+	}
+	return bin.Left, path
+}
+
+func TestExprJSONArrow(t *testing.T) {
+	// The left operand stays an ordinary ColumnRef operand. That is what keeps
+	// lineage working: a lambda reading would bind `j` as a parameter and hide
+	// it from SourceColumns (see TestGetQuerySpan_JSONArrowSourceColumns).
+	left, path := jsonArrowOperands(t, "j->'$.a'")
+	col, ok := left.(*ast.ColumnRef)
+	if !ok {
+		t.Fatalf("left = %T, want *ast.ColumnRef", left)
+	}
+	if col.Name == nil || len(col.Name.Parts) != 1 || col.Name.Parts[0] != "j" {
+		t.Errorf("left column = %+v, want j", col.Name)
+	}
+	if path.Value != "$.a" {
+		t.Errorf("path = %q, want %q", path.Value, "$.a")
+	}
+}
+
+func TestExprJSONArrowLoc(t *testing.T) {
+	// The node ends at the path string, not at the token after it.
+	const input = "j->'$.a'"
+	node := mustParseExpr(t, input)
+	if loc := ast.NodeLoc(node); loc.Start != 0 || loc.End != len(input) {
+		t.Errorf("Loc = %+v, want {0 %d}", loc, len(input))
+	}
+}
+
+func TestExprJSONArrowLeftOperandShapes(t *testing.T) {
+	// The engine takes any primary expression on the left and reports a
+	// non-JSON operand as a semantic error, not a syntax one, so each of these
+	// parses. A qualified name must stay qualified for lineage.
+	left, _ := jsonArrowOperands(t, "t.j->'$.a'")
+	col, ok := left.(*ast.ColumnRef)
+	if !ok {
+		t.Fatalf("left = %T, want *ast.ColumnRef", left)
+	}
+	if col.Name == nil || len(col.Name.Parts) != 2 {
+		t.Fatalf("left column = %+v, want t.j", col.Name)
+	}
+
+	for input, wantLeft := range map[string]string{
+		"PARSE_JSON('{\"a\":1}')->'$.a'": "*ast.FuncCallExpr",
+		"(j)->'$.a'":                     "*ast.ParenExpr",
+		"1->'$.a'":                       "*ast.Literal",
+		"NULL->'$.a'":                    "*ast.Literal",
+	} {
+		left, _ := jsonArrowOperands(t, input)
+		if got := fmt.Sprintf("%T", left); got != wantLeft {
+			t.Errorf("parseExpr(%q) left = %s, want %s", input, got, wantLeft)
+		}
+	}
+}
+
+func TestExprJSONArrowChains(t *testing.T) {
+	// `j->'$.b'->'$.c'` is left-associative: the engine returns 2 for
+	// PARSE_JSON('{"b":{"c":2}}')->'$.b'->'$.c'.
+	left, path := jsonArrowOperands(t, "j->'$.b'->'$.c'")
+	if path.Value != "$.c" {
+		t.Errorf("outer path = %q, want %q", path.Value, "$.c")
+	}
+	inner, ok := left.(*ast.BinaryExpr)
+	if !ok || inner.Op != ast.BinJSONArrow {
+		t.Fatalf("left = %T (%v), want an inner -> BinaryExpr", left, inner)
+	}
+	if lit, ok := inner.Right.(*ast.Literal); !ok || lit.Value != "$.b" {
+		t.Errorf("inner path = %+v, want $.b", inner.Right)
+	}
+}
+
+func TestExprJSONArrowInterleavesWithSubscripts(t *testing.T) {
+	// Both orders parse on the engine (the errors there are "cannot subscript
+	// type JSON", a semantic complaint), so one postfix loop must take both
+	// suffix forms.
+	left, _ := jsonArrowOperands(t, "j['b']->'$.c'")
+	if _, ok := left.(*ast.ElementAtExpr); !ok {
+		t.Errorf("j['b']->'$.c' left = %T, want *ast.ElementAtExpr", left)
+	}
+
+	node := mustParseExpr(t, "j->'$.b'['c']")
+	elem, ok := node.(*ast.ElementAtExpr)
+	if !ok {
+		t.Fatalf("j->'$.b'['c'] = %T, want *ast.ElementAtExpr", node)
+	}
+	if bin, ok := elem.Value.(*ast.BinaryExpr); !ok || bin.Op != ast.BinJSONArrow {
+		t.Errorf("subscripted value = %T, want an -> BinaryExpr", elem.Value)
+	}
+}
+
+func TestExprJSONArrowBindsTighterThanOperators(t *testing.T) {
+	// The engine returns 1 (true) for `j->'$.a' = 1`, so the arrow binds
+	// tighter than comparison; `-id->'$.a'` raises the arrow's own type error,
+	// so it binds tighter than unary minus too.
+	node := mustParseExpr(t, "j->'$.a' = 1")
+	eq, ok := node.(*ast.BinaryExpr)
+	if !ok || eq.Op != ast.BinEq {
+		t.Fatalf("j->'$.a' = 1 parsed as %T (%v), want an = BinaryExpr", node, eq)
+	}
+	if bin, ok := eq.Left.(*ast.BinaryExpr); !ok || bin.Op != ast.BinJSONArrow {
+		t.Errorf("= left = %T, want an -> BinaryExpr", eq.Left)
+	}
+
+	node = mustParseExpr(t, "-id->'$.a'")
+	neg, ok := node.(*ast.UnaryExpr)
+	if !ok || neg.Op != ast.UnaryMinus {
+		t.Fatalf("-id->'$.a' parsed as %T, want a unary minus", node)
+	}
+	if bin, ok := neg.Expr.(*ast.BinaryExpr); !ok || bin.Op != ast.BinJSONArrow {
+		t.Errorf("unary operand = %T, want an -> BinaryExpr", neg.Expr)
+	}
+}
+
+func TestExprJSONArrowWinsOverLambdaInFunctionArg(t *testing.T) {
+	// The ambiguous corner. The engine resolves `->` followed by a string
+	// literal as the arrow even here, then rejects the call in its analyzer
+	// with "There are no lambda functions in high-order function array_map" —
+	// which is how we know it did not read a lambda. The arrow reading is also
+	// the lineage-safe one, so omni follows it.
+	for _, input := range []string{
+		"array_map(j -> '$.a', [1,2])",
+		"array_map(x -> 'a', [1,2])",
+		"array_map((x) -> '$.a', [1,2])",
+	} {
+		node := mustParseExpr(t, input)
+		fc, ok := node.(*ast.FuncCallExpr)
+		if !ok {
+			t.Fatalf("parseExpr(%q) = %T, want *ast.FuncCallExpr", input, node)
+		}
+		if _, isLambda := fc.Args[0].(*ast.LambdaExpr); isLambda {
+			t.Errorf("parseExpr(%q) args[0] is a LambdaExpr, want an -> BinaryExpr", input)
+			continue
+		}
+		bin, ok := fc.Args[0].(*ast.BinaryExpr)
+		if !ok || bin.Op != ast.BinJSONArrow {
+			t.Errorf("parseExpr(%q) args[0] = %T, want an -> BinaryExpr", input, fc.Args[0])
+		}
+	}
+
+	// `x -> 'a' || 'b'` goes the same way: the engine reads the arrow first and
+	// the concatenation continues from it, so array_map still sees no lambda.
+	node := mustParseExpr(t, "array_map(x -> 'a' || 'b', [1,2])")
+	fc := node.(*ast.FuncCallExpr)
+	concat, ok := fc.Args[0].(*ast.BinaryExpr)
+	if !ok || concat.Op != ast.BinOr {
+		t.Fatalf("args[0] = %T (%v), want a || BinaryExpr", fc.Args[0], concat)
+	}
+	if bin, ok := concat.Left.(*ast.BinaryExpr); !ok || bin.Op != ast.BinJSONArrow {
+		t.Errorf("|| left = %T, want an -> BinaryExpr", concat.Left)
+	}
+}
+
+func TestExprLambdaStillWinsWhenBodyIsNotAString(t *testing.T) {
+	// The other side of the same rule: a `->` whose right side is not a string
+	// literal stays a lambda, which is what every higher-order call relies on.
+	for input, wantParams := range map[string][]string{
+		"array_map(x -> x + 1, [1,2,3])":                 {"x"},
+		"array_map((x, y) -> x + y, [1,2], [3,4])":       {"x", "y"},
+		"array_map((x) -> x + 1, [1,2])":                 {"x"},
+		"array_map(x -> concat('a', x), [1,2])":          {"x"},
+		"array_filter(x -> x > 1, [1,2,3])":              {"x"},
+		"array_map(x -> PARSE_JSON('{}')->'$.a', [1,2])": {"x"},
+		"array_map((x, y) -> '$.a', [1,2], [3,4])":       {"x", "y"},
+	} {
+		node := mustParseExpr(t, input)
+		fc, ok := node.(*ast.FuncCallExpr)
+		if !ok {
+			t.Fatalf("parseExpr(%q) = %T, want *ast.FuncCallExpr", input, node)
+		}
+		lam, ok := fc.Args[0].(*ast.LambdaExpr)
+		if !ok {
+			t.Errorf("parseExpr(%q) args[0] = %T, want *ast.LambdaExpr", input, fc.Args[0])
+			continue
+		}
+		if len(lam.Params) != len(wantParams) {
+			t.Errorf("parseExpr(%q) params = %v, want %v", input, lam.Params, wantParams)
+			continue
+		}
+		for i, want := range wantParams {
+			if lam.Params[i] != want {
+				t.Errorf("parseExpr(%q) params = %v, want %v", input, lam.Params, wantParams)
+				break
+			}
+		}
+	}
+}
+
+func TestExprJSONArrowRejectedForms(t *testing.T) {
+	// `X -> Y` needs Y to be a string (the arrow) or X to be an identifier
+	// list (a lambda). These satisfy neither, and the engine answers with a
+	// syntax error.
+	for _, sql := range []string{
+		"SELECT 1 -> 1",
+		"SELECT 'a' -> 1",
+		// StarRocks has no unquoting arrow at all.
+		"SELECT j->>'$.a' FROM t",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want syntax error", sql)
+		}
 	}
 }
 

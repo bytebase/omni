@@ -181,6 +181,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCollateExpr(sb, n)
 	case *IntervalExpr:
 		writeIntervalExpr(sb, n)
+	case *KeywordArg:
+		writeKeywordArg(sb, n)
 	case *MatchExpr:
 		writeMatchExpr(sb, n)
 	case *ConvertExpr:
@@ -2388,6 +2390,12 @@ func writeCollateExpr(sb *strings.Builder, n *CollateExpr) {
 	fmt.Fprintf(sb, " :loc %d :expr ", n.Loc.Start)
 	writeNode(sb, n.Expr)
 	fmt.Fprintf(sb, " :collation %s", n.Collation)
+	sb.WriteString("}")
+}
+
+func writeKeywordArg(sb *strings.Builder, n *KeywordArg) {
+	sb.WriteString("{KEYWORDARG")
+	fmt.Fprintf(sb, " :loc %d :keyword %s", n.Loc.Start, n.Keyword)
 	sb.WriteString("}")
 }
 

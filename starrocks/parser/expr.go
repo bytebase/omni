@@ -287,34 +287,93 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.parsePostfixSubscripts(node)
+		return p.parsePostfixSuffixes(node)
 	}
 }
 
-// parsePostfixSubscripts parses any chain of element-access suffixes after a
-// primary expression: m['k'], arr[1][2]. Subscripts bind tighter than any
-// operator. The index is a valueExpression — comparisons are allowed but
+// parsePostfixSuffixes parses any chain of suffixes that binds tighter than
+// every operator: element access (m['k'], arr[1][2]) and the JSON path
+// operator (j->'$.a'). The engine chains them in either order —
+// `j->'$.b'['c']` and `j['b']->'$.c'` both parse — so one loop takes both.
+//
+// A subscript index is a valueExpression — comparisons are allowed but
 // AND/OR/NOT are not, hence bpNot+1. Unlike Doris, the slice form
 // `arr[begin:end]` is engine-rejected here, so a ':' inside the brackets
 // stays a syntax error.
-func (p *Parser) parsePostfixSubscripts(node ast.Node) (ast.Node, error) {
-	for p.cur.Kind == int('[') {
-		p.advance() // consume '['
-		index, err := p.parseExprPrec(bpNot + 1)
-		if err != nil {
-			return nil, err
-		}
-		closeTok, err := p.expect(int(']'))
-		if err != nil {
-			return nil, err
-		}
-		node = &ast.ElementAtExpr{
-			Value: node,
-			Index: index,
-			Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: closeTok.Loc.End},
+func (p *Parser) parsePostfixSuffixes(node ast.Node) (ast.Node, error) {
+	for {
+		switch {
+		case p.cur.Kind == int('['):
+			p.advance() // consume '['
+			index, err := p.parseExprPrec(bpNot + 1)
+			if err != nil {
+				return nil, err
+			}
+			closeTok, err := p.expect(int(']'))
+			if err != nil {
+				return nil, err
+			}
+			node = &ast.ElementAtExpr{
+				Value: node,
+				Index: index,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: closeTok.Loc.End},
+			}
+
+		case p.cur.Kind == tokArrow && p.peekNext().Kind == tokString:
+			arrow, err := p.parseJSONArrow(node)
+			if err != nil {
+				return nil, err
+			}
+			node = arrow
+
+		default:
+			return node, nil
 		}
 	}
-	return node, nil
+}
+
+// parseJSONArrow parses the `-> '<path>'` suffix of the JSON path operator,
+// given the already-parsed expression to its left.
+//
+// The one-token lookahead in the caller is the engine's own disambiguation
+// rule, not a heuristic: StarRocks 3.4.10 accepts `X -> Y` exactly when Y is
+// a bare string literal (the JSON arrow, X any primary expression) or X is an
+// identifier or identifier list (a lambda, Y any expression). `SELECT 1 -> 1`
+// satisfies neither and is a syntax error. So a `->` followed by a string is
+// the arrow wherever it appears, including in the higher-order argument
+// position a lambda also lives in: the engine reads `array_map(j -> '$.a',
+// [1,2])` as the arrow and then reports "There are no lambda functions in
+// high-order function array_map". parseFuncArgList's lambda check runs after
+// this one for the same reason.
+//
+// That ordering is also what lineage needs. The arrow reading keeps the left
+// operand an ordinary operand of a BinaryExpr, so ast.Walk reaches a ColumnRef
+// there and query_span reports it as a source column. Reading it as a lambda
+// instead would bind `j` as a parameter, and the collector drops bound names —
+// `SELECT secret->'$.a' FROM t` would lose the column that masking keys on.
+//
+// The path is a bare string token, matching the grammar: the engine does not
+// take a parenthesized or computed path here (`j -> ('$.a')` and
+// `j -> CONCAT('$.','a')` fall through to its lambda branch), and it does not
+// concatenate adjacent string literals. The caller's lookahead decides whether
+// to enter this production at all; the path is still taken with expect, so the
+// production reports a missing one the way every other one does.
+func (p *Parser) parseJSONArrow(left ast.Node) (ast.Node, error) {
+	p.advance() // consume '->'
+	pathTok, err := p.expect(tokString)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.BinaryExpr{
+		Op:   ast.BinJSONArrow,
+		Left: left,
+		Right: &ast.Literal{
+			Kind:  ast.LitString,
+			Value: pathTok.Str,
+			Loc:   pathTok.Loc,
+		},
+		Loc: ast.Loc{Start: ast.NodeLoc(left).Start, End: pathTok.Loc.End},
+	}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -990,10 +1049,17 @@ func (p *Parser) tryParseParenLambda() (ast.Node, bool, error) {
 }
 
 // parseFuncArgList parses a function-call argument list. Unlike a plain
-// expression list it also accepts a lambda (`x -> body`), which the grammar
-// permits only here, as an argument to a higher-order array function. Keeping
-// lambdas scoped to this position means a stray `->` anywhere else stays a
-// syntax error — matching the engine, which has no `->` JSON operator.
+// expression list it also accepts a lambda (`x -> body`), which the engine's
+// analyzer permits only here, as an argument to a higher-order array function.
+//
+// A `->` followed by a string literal has already been taken as the JSON path
+// operator by then (see parseJSONArrow), which is how the engine resolves that
+// overlap too. What reaches the lambda check below is therefore a `->` whose
+// right side is not a string — `x -> x + 1`. Keeping the remaining lambda
+// forms scoped to this position means a stray `->` elsewhere stays a syntax
+// error; the engine's parser is laxer there and accepts a bare lambda in any
+// expression position, leaving omni under-accepting in the fail-safe
+// direction.
 func (p *Parser) parseFuncArgList() ([]ast.Node, error) {
 	var list []ast.Node
 	for {

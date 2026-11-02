@@ -1,0 +1,316 @@
+package catalog
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+// MySQL SDL generate — stored routines (functions + procedures).
+//
+// This is the MySQL analog of PG's generateFunctionDDL (pg/catalog/migration_function.go). A
+// single generate hook covers both routine kinds: wired into GenerateMigrationWithNormalizer
+// (migration.go), it consumes BOTH SchemaDiff.Functions and SchemaDiff.Procedures and emits the
+// CREATE / DROP / ALTER ops (OpCreateFunction / OpDropFunction / OpCreateProcedure /
+// OpDropProcedure, priorityRoutine for PhaseMain ops, priorityRoutineDrop for drops).
+//
+// MySQL has NO `CREATE OR REPLACE` and NO `ALTER` for a routine's body/params/RETURNS. So a
+// change to any of those is a DROP followed by a CREATE. `ALTER FUNCTION/PROCEDURE` can change
+// ONLY the characteristics SQL SECURITY, COMMENT, and DATA ACCESS (verified on both live
+// engines — DETERMINISTIC is NOT alterable). diff_routine.go's routineAlterSuffices decides
+// which path a MODIFY takes; this generator renders it:
+//   - DiffAdd                       → CREATE.
+//   - DiffDrop                      → DROP.
+//   - DiffModify, ALTER suffices    → ALTER (one statement, the changed characteristics).
+//   - DiffModify, ALTER insufficient → DROP + CREATE.
+//
+// Ordering (mirrors the index node's drop-before-add discipline): DROPs run in PhasePre at
+// priorityRoutineDrop, CREATEs and ALTERs in PhaseMain at priorityRoutine. So a MODIFY's DROP
+// (PhasePre) always precedes its CREATE (PhaseMain) — the name is free for re-creation — and a
+// routine dropped in one place and created in another never reverses. sortMigrationOps re-imposes
+// the global phase/priority/name order.
+//
+// The priorities are direction-split against VIEWS (live-verified on 8.0.32 and 5.7.25):
+//   - CREATE/ALTER at priorityRoutine (< priorityView): CREATE VIEW eagerly validates the
+//     functions its body calls (Error 1305 when one is missing), while a routine body is lazily
+//     validated (CREATE FUNCTION referencing a missing function/view/table is accepted), so every
+//     routine created in a plan is hoisted above every view create — unconditionally safe, no
+//     dependency detection needed, and a function→view→view chain composes with the view node's
+//     own depth ordering.
+//   - DROP at priorityRoutineDrop (> priorityView): a dropped dependent view goes before the function
+//     it calls. MySQL tolerates dropping a function a view still references (the view merely goes
+//     invalid), so this is the safe semantic order rather than an apply-success requirement.
+//
+// Rendering routes through the same form SHOW CREATE uses (showCreateRoutineBody), MINUS the
+// DEFINER clause: DEFINER is ignored in the diff (it is environment, not schema-as-code), so the
+// emitted CREATE must NOT pin a definer — a DEFINER-less CREATE adopts CURRENT_USER on apply,
+// which is the correct release behavior and avoids requiring SET_USER_ID/SUPER for an account the
+// user never named. Because the body/params/characteristics are rendered in the engine's stored
+// form, the readback of the emitted CREATE canonicalizes equal to `to` and apply-correctness holds.
+func generateRoutineDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
+	if diff == nil {
+		return nil
+	}
+	var ops []MigrationOp
+	for i := range diff.Functions {
+		ops = append(ops, routineOps(&diff.Functions[i], n)...)
+	}
+	for i := range diff.Procedures {
+		ops = append(ops, routineOps(&diff.Procedures[i], n)...)
+	}
+
+	sort.SliceStable(ops, func(i, j int) bool {
+		if ops[i].Phase != ops[j].Phase {
+			return ops[i].Phase < ops[j].Phase
+		}
+		return ops[i].sortName < ops[j].sortName
+	})
+	return ops
+}
+
+// routineOps renders the ops for a single routine diff entry, choosing CREATE / DROP / ALTER /
+// DROP+CREATE per the entry's action and the ALTER-suffices test.
+func routineOps(e *RoutineDiffEntry, n *Normalizer) []MigrationOp {
+	switch e.Action {
+	case DiffAdd:
+		if e.To == nil {
+			return nil
+		}
+		// A brand-new routine emits a BARE CREATE (→ server-default session): there is no
+		// original context to preserve (nil framing source).
+		return []MigrationOp{createRoutineOp(e, e.To, nil, n)}
+	case DiffDrop:
+		if e.From == nil {
+			return nil
+		}
+		return []MigrationOp{dropRoutineOp(e, e.From)}
+	case DiffModify:
+		if e.From == nil || e.To == nil {
+			return nil
+		}
+		if routineAlterSuffices(e.From, e.To, n) {
+			return []MigrationOp{alterRoutineOp(e, e.To)}
+		}
+		// Body/params/RETURNS/DETERMINISTIC changed → DROP (PhasePre) then CREATE (PhaseMain).
+		// The recreate runs under the OLD routine's session context (e.From), so a routine
+		// authored under a non-default sql_mode/charset/collation is re-created identically.
+		return []MigrationOp{dropRoutineOp(e, e.From), createRoutineOp(e, e.To, e.From, n)}
+	}
+	return nil
+}
+
+// createRoutineOp builds a CREATE FUNCTION/PROCEDURE op (PhaseMain, priorityRoutine — before
+// view creates; see the file doc). The SQL is the DEFINER-less stored form. When `from` is
+// non-nil AND carries synced session context, the emitted CREATE is wrapped in a save/restore
+// of that OLD context (renderWithSessionContext) so a recreate preserves the routine's
+// original sql_mode/charset/collation; on a first-time create `from` is nil → bare CREATE.
+func createRoutineOp(e *RoutineDiffEntry, r, from *Routine, n *Normalizer) MigrationOp {
+	sql := renderCreateRoutine(e.Database, r, n)
+	if from != nil && from.HasSessionContext {
+		sql = renderWithSessionContext(sql, routineSessionContext(from), false)
+	}
+	return MigrationOp{
+		Type:       createRoutineOpType(e.IsProcedure),
+		Database:   e.Database,
+		ObjectName: e.Name,
+		SQL:        sql,
+		Phase:      PhaseMain,
+		Priority:   priorityRoutine,
+		sortName:   routineSortName(e.Database, e.Name),
+	}
+}
+
+// routineSessionContext bundles a routine's captured session context for the recreate
+// framing (routines have no time_zone axis).
+func routineSessionContext(r *Routine) SessionContext {
+	return SessionContext{
+		SQLMode:             r.SQLMode,
+		CharacterSetClient:  r.CharacterSetClient,
+		CollationConnection: r.CollationConnection,
+	}
+}
+
+// priorityRoutineDrop orders a routine DROP within PhasePre AFTER view drops (priorityView): when
+// a view and a function it calls are both dropped, the dependent view goes first. MySQL tolerates
+// the reverse (live-verified — the view merely goes invalid), so this is the safe semantic order
+// rather than an apply-success requirement. The PhaseMain side (CREATE/ALTER) uses priorityRoutine
+// (migration.go), which sorts routines BEFORE view creates; see the file doc for the evidence.
+const priorityRoutineDrop = priorityView + 10
+
+// dropRoutineOp builds a DROP FUNCTION/PROCEDURE op (PhasePre at priorityRoutineDrop, so it precedes
+// any re-CREATE in the same plan and follows view drops — a dropped dependent view goes first).
+// IF EXISTS is NOT used: the diff already established the routine is present in `from`, and an
+// unconditional DROP keeps the emitted DDL minimal and explicit (matching the table node's DROP
+// TABLE, which is likewise unconditional).
+func dropRoutineOp(e *RoutineDiffEntry, r *Routine) MigrationOp {
+	kw := "FUNCTION"
+	if e.IsProcedure {
+		kw = "PROCEDURE"
+	}
+	return MigrationOp{
+		Type:       dropRoutineOpType(e.IsProcedure),
+		Database:   e.Database,
+		ObjectName: e.Name,
+		SQL:        fmt.Sprintf("DROP %s %s", kw, routineIdent(e.Database, r.Name)),
+		Phase:      PhasePre,
+		Priority:   priorityRoutineDrop,
+		sortName:   routineSortName(e.Database, e.Name),
+	}
+}
+
+// alterRoutineOp builds an ALTER FUNCTION/PROCEDURE op carrying the routine's full ALTER-able
+// characteristic set (DATA ACCESS, SQL SECURITY, COMMENT) in their canonical default-folded
+// form. It re-states ALL three (not just the changed ones): re-applying a characteristic to its
+// existing value is a harmless no-op, and emitting the whole set keeps the op self-contained and
+// order-independent of what the synced side held. The op runs in PhaseMain at
+// priorityRoutine (grouped with routine CREATEs; an ALTER touches an existing routine, so
+// its position relative to views is immaterial — the shared priority just keeps routine PhaseMain
+// ops together).
+//
+// ALTER is chosen only when routineAlterSuffices(from, to) held — i.e. params, RETURNS, body, and
+// DETERMINISTIC are unchanged — so this never needs to touch a DROP+CREATE-only attribute.
+func alterRoutineOp(e *RoutineDiffEntry, to *Routine) MigrationOp {
+	kw := "FUNCTION"
+	if e.IsProcedure {
+		kw = "PROCEDURE"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "ALTER %s %s", kw, routineIdent(e.Database, to.Name))
+	for _, clause := range routineAlterableCharacteristicClauses(to) {
+		b.WriteString(" ")
+		b.WriteString(clause)
+	}
+	return MigrationOp{
+		Type:       createRoutineOpType(e.IsProcedure), // ALTER reuses the CREATE op-type key (no OpAlter* in the set)
+		Database:   e.Database,
+		ObjectName: e.Name,
+		SQL:        b.String(),
+		Phase:      PhaseMain,
+		Priority:   priorityRoutine,
+		sortName:   routineSortName(e.Database, e.Name),
+	}
+}
+
+// renderCreateRoutine renders a DEFINER-less CREATE FUNCTION/PROCEDURE in MySQL's canonical
+// stored form. It mirrors showCreateRoutine (routinecmds.go) — same parameter rendering, same
+// RETURNS, same characteristic lines, same body placement — but omits the DEFINER clause (see the
+// file doc) and emits characteristics in default-folded canonical form so the readback matches.
+//
+// Characteristic emission policy: only NON-DEFAULT characteristics are emitted (SHOW CREATE drops
+// defaults, so emitting them would still round-trip, but matching SHOW CREATE's policy keeps the
+// emitted DDL byte-identical to a subsequent readback's shape):
+//   - DETERMINISTIC only when YES (NOT DETERMINISTIC is the default and is omitted).
+//   - DATA ACCESS only when not CONTAINS SQL (the default).
+//   - SQL SECURITY only when INVOKER (DEFINER is the default).
+//   - COMMENT only when non-empty.
+func renderCreateRoutine(database string, r *Routine, _ *Normalizer) string {
+	var b strings.Builder
+	kw := "FUNCTION"
+	if r.IsProcedure {
+		kw = "PROCEDURE"
+	}
+	fmt.Fprintf(&b, "CREATE %s %s(", kw, routineIdent(database, r.Name))
+
+	// Parameters: "DIR `name` type" for procedures (direction shown), "`name` type" for functions.
+	// The parameter NAME is backtick-quoted: a name that is a reserved word (e.g. `select`) or
+	// needs quoting would otherwise produce invalid DDL. Always-quoting is safe for round-trip —
+	// the loader strips backticks from a parameter name (the canonical key uses the decoded name),
+	// so a quoted emission and an unquoted user form canonicalize equal. MySQL stores the
+	// parameter list verbatim, so the readback echoes the quoted form, which reloads to the same
+	// decoded name.
+	for i, p := range r.Params {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		if r.IsProcedure && strings.TrimSpace(p.Direction) != "" {
+			fmt.Fprintf(&b, "%s %s %s", strings.ToUpper(p.Direction), migrationQuoteIdent(p.Name), p.TypeName)
+		} else {
+			fmt.Fprintf(&b, "%s %s", migrationQuoteIdent(p.Name), p.TypeName)
+		}
+	}
+	b.WriteString(")")
+
+	// RETURNS (functions only).
+	if !r.IsProcedure && strings.TrimSpace(r.Returns) != "" {
+		fmt.Fprintf(&b, " RETURNS %s", r.Returns)
+	}
+
+	// Characteristics, default-folded (non-defaults only), each on its own indented line, in the
+	// order SHOW CREATE uses for a freshly created routine (DETERMINISTIC, DATA ACCESS, SQL
+	// SECURITY, COMMENT).
+	if strings.EqualFold(r.Characteristics["DETERMINISTIC"], "YES") {
+		b.WriteString("\n    DETERMINISTIC")
+	}
+	if da := strings.ToUpper(strings.TrimSpace(r.Characteristics["DATA ACCESS"])); da != "" && da != "CONTAINS SQL" {
+		fmt.Fprintf(&b, "\n    %s", da)
+	}
+	if sec := strings.ToUpper(strings.TrimSpace(r.Characteristics["SQL SECURITY"])); sec == "INVOKER" {
+		b.WriteString("\n    SQL SECURITY INVOKER")
+	}
+	if cmt := r.Characteristics["COMMENT"]; cmt != "" {
+		fmt.Fprintf(&b, "\n    COMMENT '%s'", escapeComment(cmt))
+	}
+
+	// Body on its own line (matches SHOW CREATE).
+	if r.Body != "" {
+		b.WriteString("\n")
+		b.WriteString(r.Body)
+	}
+	return b.String()
+}
+
+// routineAlterableCharacteristicClauses returns the ALTER-able characteristic clauses for a
+// routine in canonical default-folded form, always all three (DATA ACCESS, SQL SECURITY,
+// COMMENT) so the ALTER fully establishes the target characteristic state regardless of the
+// synced side. DETERMINISTIC is excluded (not ALTER-able). The DATA ACCESS clause is the keyword
+// itself (CONTAINS SQL / NO SQL / READS SQL DATA / MODIFIES SQL DATA).
+func routineAlterableCharacteristicClauses(r *Routine) []string {
+	clauses := make([]string, 0, 3)
+
+	da := strings.ToUpper(strings.TrimSpace(r.Characteristics["DATA ACCESS"]))
+	if da == "" {
+		da = "CONTAINS SQL"
+	}
+	clauses = append(clauses, da)
+
+	sec := strings.ToUpper(strings.TrimSpace(r.Characteristics["SQL SECURITY"]))
+	if sec == "" {
+		sec = "DEFINER"
+	}
+	clauses = append(clauses, "SQL SECURITY "+sec)
+
+	clauses = append(clauses, fmt.Sprintf("COMMENT '%s'", escapeComment(r.Characteristics["COMMENT"])))
+	return clauses
+}
+
+// createRoutineOpType returns the CREATE op-type for the routine kind.
+func createRoutineOpType(isProcedure bool) MigrationOpType {
+	if isProcedure {
+		return OpCreateProcedure
+	}
+	return OpCreateFunction
+}
+
+// dropRoutineOpType returns the DROP op-type for the routine kind.
+func dropRoutineOpType(isProcedure bool) MigrationOpType {
+	if isProcedure {
+		return OpDropProcedure
+	}
+	return OpDropFunction
+}
+
+// routineIdent returns the backtick-quoted database.routine identifier for migration DDL, using
+// ORIGINAL-CASE names (matching tableIdent's case discipline — a case-sensitive server stores the
+// declared casing). The database qualifier is omitted when empty (the synced single-database
+// release path may load with no qualifying database).
+func routineIdent(database, name string) string {
+	if database == "" {
+		return migrationQuoteIdent(name)
+	}
+	return migrationQuoteIdent(database) + "." + migrationQuoteIdent(name)
+}
+
+// routineSortName is the stable secondary sort key for a routine op: lower-cased database.name.
+func routineSortName(database, name string) string {
+	return strings.ToLower(database) + "." + strings.ToLower(name)
+}

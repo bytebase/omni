@@ -600,3 +600,29 @@ func TestPriorBackup(t *testing.T) {
 		},
 	})
 }
+
+// TestGateEndSkipsQuotedDelimiters pins where a /*T![feature] gate ends when a
+// "*/" sits inside a token: the gate closes at the first "*/" the lexer would
+// read as one, so a quoted or commented-out "*/" does not end it and a gate
+// whose only "*/" is held inside a token does not close at all.
+func TestGateEndSkipsQuotedDelimiters(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+		want int // offset of the closing "*/", or len(sql) for none
+	}{
+		{"plain gate", "/*T![clustered_index] SELECT 1 */", 31},
+		{"quoted close does not end the gate", "/*T![clustered_index] SELECT '*/' */", 34},
+		{"quoted opener adds no nesting", "/*T![clustered_index] SELECT '/*' */", 34},
+		{"nested comment is consumed whole", "/*T![clustered_index] /* c */ SELECT 1 */", 39},
+		{"line comment takes the close with it", "/*T![clustered_index] SELECT 1 -- */", 36},
+		{"no close at all", "/*T![clustered_index] SELECT 1", 30},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := gateEnd(tc.sql, 0, len(tc.sql)); got != tc.want {
+				t.Errorf("gateEnd(%q) = %d, want %d", tc.sql, got, tc.want)
+			}
+		})
+	}
+}

@@ -1257,6 +1257,108 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 	return 0, false, nil
 }
 
+// parenOpensQuery reports whether the '(' at p.cur opens a parenthesized
+// query expression, as opposed to a join group or a parenthesized expression,
+// without consuming input. It does when its content begins with a query
+// primary, or begins with a block that opens a query and is followed by a
+// token that continues a query expression: the ')', a set operator, ORDER BY,
+// LIMIT, or a locking clause. Any other token past that inner block makes it
+// the first operand of something else: a derived table in a join group,
+// `((SELECT 1) d JOIN t ON ...)`, as MySQL writes a view over a derived table
+// joined to a table.
+//
+// MySQL 8.0.46 sql/sql_yacc.yy: a derived_table (line 12072) is a
+// query_expression_parens (9965) with its alias, and joined_table_parens
+// (12067) and table_reference_list_parens (12045) may begin with one; inside
+// query_expression_parens, a parenthesized operand is followed by UNION,
+// EXCEPT, INTERSECT (query_expression_body, 9930), ORDER BY, LIMIT, a
+// locking clause (query_expression_with_opt_locking_clauses, 13299), or the
+// ')'.
+//
+// A block's verdict depends only on the run of '(' it starts and the token
+// after each of their blocks, so the verdicts of a run are recorded together,
+// and a scan records the token after every block it passes: asking again at
+// each level as the parser descends costs nothing.
+func (p *Parser) parenOpensQuery() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	if v, ok := p.parenQuery[p.cur.Loc]; ok {
+		return v
+	}
+	if !p.isQueryExpressionStart() {
+		return false
+	}
+	saved := p.saveScan()
+	defer p.restoreScan(saved)
+	var run []int
+	for p.cur.Type == '(' {
+		run = append(run, p.cur.Loc)
+		p.advance()
+	}
+	if len(run) == 1 {
+		return true
+	}
+	if _, ok := p.parenAfter[run[0]]; !ok {
+		p.restoreScan(saved)
+		p.scanParenBlock()
+	}
+	if p.parenQuery == nil {
+		p.parenQuery = make(map[int]bool)
+	}
+	query := true
+	p.parenQuery[run[len(run)-1]] = query
+	for i := len(run) - 2; i >= 0; i-- {
+		query = query && continuesParenQuery(p.parenAfter[run[i+1]])
+		p.parenQuery[run[i]] = query
+	}
+	return query
+}
+
+// continuesParenQuery reports whether a token of type tokenType, following a
+// parenthesized query that opens a block, keeps the block a query expression.
+// The end of input does, so an unclosed block reads as it did before the
+// inner block was looked at.
+func continuesParenQuery(tokenType int) bool {
+	switch tokenType {
+	case ')', kwUNION, kwEXCEPT, kwINTERSECT, kwORDER, kwLIMIT, kwFOR, kwLOCK, tokEOF:
+		return true
+	default:
+		return false
+	}
+}
+
+// scanParenBlock consumes the block the '(' at p.cur opens, through its
+// matching ')', and records in parenAfter, for every '(' in it, the type of
+// the token after its matching ')' (tokEOF for one never closed).
+func (p *Parser) scanParenBlock() {
+	if p.parenAfter == nil {
+		p.parenAfter = make(map[int]int)
+	}
+	var open []int
+	for {
+		switch p.cur.Type {
+		case '(':
+			open = append(open, p.cur.Loc)
+		case ')':
+			loc := open[len(open)-1]
+			open = open[:len(open)-1]
+			p.advance()
+			p.parenAfter[loc] = p.cur.Type
+			if len(open) == 0 {
+				return
+			}
+			continue
+		case tokEOF:
+			for _, loc := range open {
+				p.parenAfter[loc] = tokEOF
+			}
+			return
+		}
+		p.advance()
+	}
+}
+
 // parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
 func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	if err := p.enterNesting(); err != nil {
@@ -1323,17 +1425,18 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 	if p.cur.Type == '(' {
 		startPos := p.pos()
-		p.advance()
 
 		// Disambiguate the parenthesized table factor. A leading run of '(' may
 		// open either a derived-table subquery — `(SELECT ...)`, `((SELECT ...))`,
 		// `((SELECT ...) UNION (...))` — or a parenthesized join group using
 		// MySQL nested-join semantics — `(a JOIN b ON ...)`,
 		// `((a LEFT JOIN b ON ...) JOIN c ON ...)` (the canonical SHOW CREATE VIEW
-		// form for multi-table joins). The deciding token is the first one past
-		// the parens: a query primary (SELECT/WITH/TABLE/VALUES) means a subquery,
-		// anything else (a table reference) means a join group.
-		if isQueryPrimaryStartToken(p.firstTokenPastParens().Type) {
+		// form for multi-table joins), whose first operand may itself be a
+		// derived table — `((SELECT ...) d JOIN b ON ...)`. parenOpensQuery
+		// tells them apart.
+		derived := p.parenOpensQuery()
+		p.advance()
+		if derived {
 			sel, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
@@ -1382,6 +1485,18 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
+		}
+		// MySQL parenthesizes a single table, a join, or a list of two or
+		// more table references, but not a lone derived table or table
+		// function: table_factor (8.0.46 sql_yacc.yy line 12034) has
+		// single_table_parens, joined_table_parens, and
+		// table_reference_list_parens, and no parenthesized derived_table or
+		// table_function, so `((SELECT 1) d)` is a 1064 at the ')'.
+		if len(refs) == 1 {
+			switch refs[0].(type) {
+			case *nodes.SubqueryExpr, *nodes.JsonTableExpr:
+				return nil, p.syntaxErrorAtTok(p.prev)
+			}
 		}
 		return foldTableReferenceList(refs), nil
 	}
