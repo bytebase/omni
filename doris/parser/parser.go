@@ -89,11 +89,14 @@ func (p *Parser) replayParen(r parenReplay) {
 // rawQuery is a query body captured as raw text: the text, the absolute
 // byte offset of its first character in the parser's input, and the nesting
 // depth it was captured at, which the nested parse that validates it starts
-// from so the depth limit counts the levels around it too.
+// from so the depth limit counts the levels around it too. ctas marks the
+// query of CREATE TABLE ... AS, which is not a subquery and is not called one
+// in the errors it gets.
 type rawQuery struct {
 	text  string
 	start int
 	depth int
+	ctas  bool
 }
 
 // nextToken returns the next token from the lexer, transparently skipping
@@ -1018,10 +1021,17 @@ func (p *Parser) validateRawQueries() []ParseError {
 		// to refuse it falls — `SELECT * FROM (SELECT a FROM t INTO OUTFILE
 		// 'p') x` is an engine reject.
 		if into := queryIntoOutfile(res.File.Stmts[0]); into != nil {
+			msg := "INTO OUTFILE is not allowed in a subquery"
+			if q.ctas {
+				// CREATE TABLE t AS SELECT 1 INTO OUTFILE 'p' is an engine
+				// reject too, but its query is the statement's own, not a
+				// subquery.
+				msg = "INTO OUTFILE is not allowed in the query of CREATE TABLE ... AS"
+			}
 			out = append(out, ParseError{
 				Position: q.start + into.Loc.Start,
 				End:      q.start + into.Loc.End,
-				Message:  "INTO OUTFILE is not allowed in a subquery",
+				Message:  msg,
 			})
 		}
 	}

@@ -449,6 +449,36 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"outfile_inside_derived_table_rejected", "SELECT * FROM (SELECT a FROM t INTO OUTFILE '/tmp/x') x", false},
 		{"outfile_inside_set_op_arm_rejected", "SELECT 1 UNION (SELECT a FROM t INTO OUTFILE '/tmp/x')", false},
 		{"outfile_on_insert_rejected", "INSERT INTO t SELECT 1 INTO OUTFILE '/tmp/x'", false},
+		// A job's DO body is supportedDmlStatement, so it cannot carry the
+		// clause, nor be a query at all.
+		{"job_do_insert", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO zz_nope SELECT 1", true},
+		{"job_do_insert_values", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO zz_nope VALUES (1)", true},
+		{"job_do_insert_overwrite", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT OVERWRITE TABLE zz_nope SELECT 1", true},
+		{"job_do_update", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO UPDATE zz_nope SET a = 1 WHERE a = 2", true},
+		{"job_do_delete", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO DELETE FROM zz_nope WHERE a = 1", true},
+		{"job_do_explain_insert", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO EXPLAIN INSERT INTO zz_nope SELECT 1", true},
+		{"job_do_explain_update", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO EXPLAIN UPDATE zz_nope SET a = 1", true},
+		{"job_do_load", `CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO LOAD LABEL zzl (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope)`, true},
+		{"job_do_export", `CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO EXPORT TABLE zz_nope TO "hdfs://h/p"`, true},
+		{"job_do_select_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 1", false},
+		{"job_do_select_outfile_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 1 INTO OUTFILE '/tmp/x'", false},
+		{"job_do_select_union_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 1 UNION SELECT 2", false},
+		{"job_do_paren_select_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO (SELECT 1)", false},
+		{"job_do_with_select_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO WITH c AS (SELECT 1) SELECT * FROM c", false},
+		{"job_do_explain_select_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO EXPLAIN SELECT 1", false},
+		{"job_do_create_table_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO CREATE TABLE zzx (a INT)", false},
+		{"job_do_show_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SHOW TABLES", false},
+		{"job_do_set_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SET x = 1", false},
+		{"job_do_truncate_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO TRUNCATE TABLE zz_nope", false},
+		{"job_do_merge_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO MERGE INTO zz_nope USING zz_nope2 ON zz_nope.a = zz_nope2.a WHEN MATCHED THEN DELETE", false},
+		{"job_do_create_job_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO CREATE JOB zzjob2 ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO zz_nope SELECT 1", false},
+		// ALTER JOB gets no rows: the engine has no ALTER JOB statement, so a
+		// row would pin the form, not its body. Its DO body is held to the
+		// same rule by TestJobDoBodyIsDML.
+		// The query of CREATE TABLE ... AS is not a subquery, but cannot
+		// carry the clause either.
+		{"ctas_outfile_rejected", "CREATE TABLE zzctas1 AS SELECT 1 INTO OUTFILE '/tmp/x'", false},
+		{"ctas_set_op_outfile_rejected", "CREATE TABLE zzctas2 AS SELECT 1 UNION SELECT 2 INTO OUTFILE '/tmp/x'", false},
 		// Clause shape.
 		{"outfile_no_path_rejected", "SELECT 1 INTO OUTFILE", false},
 		{"outfile_without_outfile_kw_rejected", "SELECT 1 INTO '/tmp/x'", false},

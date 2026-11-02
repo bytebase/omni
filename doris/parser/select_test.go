@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/doris/ast"
@@ -1257,6 +1258,33 @@ func TestIntoOutfileRejects(t *testing.T) {
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want a syntax error", sql)
+		}
+	}
+}
+
+// TestIntoOutfileInCTASQuery: the query of CREATE TABLE ... AS cannot carry
+// the clause either (container-verified reject), but it is not a subquery,
+// and its error said it was. The position is the clause's, as before.
+func TestIntoOutfileInCTASQuery(t *testing.T) {
+	cases := []struct{ sql, msg string }{
+		{"CREATE TABLE t2 AS SELECT 1 INTO OUTFILE 'p'", "INTO OUTFILE is not allowed in the query of CREATE TABLE ... AS"},
+		{`CREATE TABLE t2 PROPERTIES("replication_num"="1") AS SELECT 1 AS a INTO OUTFILE 'p'`, "INTO OUTFILE is not allowed in the query of CREATE TABLE ... AS"},
+		{"CREATE TABLE t2 AS SELECT 1 UNION SELECT 2 INTO OUTFILE 'p'", "INTO OUTFILE is not allowed in the query of CREATE TABLE ... AS"},
+		// A subquery inside that query is still a subquery.
+		{"CREATE TABLE t2 AS SELECT * FROM (SELECT 1 INTO OUTFILE 'p') x", "INTO OUTFILE is not allowed in a subquery"},
+		{"SELECT * FROM (SELECT a FROM t INTO OUTFILE 'p') x", "INTO OUTFILE is not allowed in a subquery"},
+	}
+	for _, tc := range cases {
+		_, errs := parseForTest(tc.sql)
+		if len(errs) != 1 {
+			t.Errorf("%q: errs = %v, want one", tc.sql, errs)
+			continue
+		}
+		if errs[0].Message != tc.msg {
+			t.Errorf("%q: message %q, want %q", tc.sql, errs[0].Message, tc.msg)
+		}
+		if want := strings.Index(tc.sql, "INTO OUTFILE"); errs[0].Position != want {
+			t.Errorf("%q: error at %d, want %d", tc.sql, errs[0].Position, want)
 		}
 	}
 }
