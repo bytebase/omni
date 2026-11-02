@@ -76,6 +76,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	applyIndexOptions(idx, stmt.Options)
+	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {
+		return err
+	}
 	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
 		return err
 	}

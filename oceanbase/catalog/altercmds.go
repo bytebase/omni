@@ -26,6 +26,40 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	repartition := alterRepartition(stmt.Commands)
+	if tbl.Partitioning == nil && repartition == nil {
+		return c.alterTableCommands(db, tbl, key, stmt)
+	}
+	// A unique key on a partitioned table must cover the partitioning columns.
+	// OceanBase checks the table the statement leaves, after a duplicate column (1060)
+	// or a missing index to drop (1091) in ADD UNIQUE (b), ADD COLUMN a ..., and leaves
+	// the table as it was: snapshot it to undo the commands when the check fails.
+	before := make(map[*Index]bool, len(tbl.Indexes))
+	for _, idx := range tbl.Indexes {
+		before[idx] = true
+	}
+	snapshot := cloneTable(tbl)
+	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
+		return err
+	}
+	if err := validateAlteredUniqueKeys(tbl, before, stmt.Commands, repartition); err != nil {
+		if newKey := toLower(tbl.Name); newKey != key {
+			delete(db.Tables, newKey)
+			db.Tables[key] = tbl
+		}
+		*tbl = snapshot
+		return err
+	}
+	if repartition != nil && tbl.Partitioning != nil {
+		// The catalog does not apply a repartition, so the partitioning it keeps no
+		// longer says which columns a unique key needs.
+		tbl.Partitioning.keyColumns = nil
+	}
+	return nil
+}
+
+// alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
+func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) <= 1 {
 		// Single command: no rollback needed.
 		if len(stmt.Commands) == 1 {
@@ -1084,6 +1118,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 			}
 		}
 	}
+	renamePartitionKeyColumn(tbl, oldName, newName)
 }
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.

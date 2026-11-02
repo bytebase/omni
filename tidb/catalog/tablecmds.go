@@ -414,8 +414,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 	}
 
-	// The indexes so far come from column definitions; TiDB orders them after
-	// the table-level ones when it looks for an implicit primary key.
+	// The indexes so far come from column definitions. TiDB checks them after
+	// the table-level ones, when it looks for an implicit primary key and when
+	// it holds unique keys to the partitioning columns.
 	columnIndexes := len(tbl.Indexes)
 
 	// Process table-level constraints.
@@ -600,7 +601,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 	// Process partition clause.
 	if stmt.Partitions != nil {
+		if err := validateCreateTableUniqueKeys(tbl, columnIndexes, stmt.Partitions); err != nil {
+			return err
+		}
 		tbl.Partitioning = buildPartitionInfo(stmt.Partitions)
+		tbl.Partitioning.keyColumns = partitionKeyColumns(tbl, stmt.Partitions)
 	}
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
