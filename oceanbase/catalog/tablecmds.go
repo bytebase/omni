@@ -1295,7 +1295,42 @@ func canonicalBitLiteral(bits string) string {
 	return "b'" + bits + "'"
 }
 
+// errSubpartitionBoundKind is OceanBase's answer to a subpartition whose bound does not
+// fit SUBPARTITION BY: a RANGE subpartition without VALUES LESS THAN, a LIST one
+// without VALUES IN, or a HASH or KEY one with either. The grammar takes them, and
+// 4.3.5.6 refuses the table with 1210.
+func errSubpartitionBoundKind() error {
+	return &Error{Code: 1210, SQLState: "HY000", Message: "Invalid argument"}
+}
+
+// checkSubpartitionBoundKinds checks the subpartitions a partition lists against the
+// table's SUBPARTITION BY type.
+func checkSubpartitionBoundKinds(subType nodes.PartitionType, subs []*nodes.SubPartitionDef) error {
+	for _, spd := range subs {
+		var ok bool
+		switch subType {
+		case nodes.PartitionRange:
+			ok = spd.Values != nil && !spd.ValuesIn
+		case nodes.PartitionList:
+			ok = spd.Values != nil && spd.ValuesIn
+		default:
+			ok = spd.Values == nil
+		}
+		if !ok {
+			return errSubpartitionBoundKind()
+		}
+	}
+	return nil
+}
+
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0 {
+		for _, pd := range pc.Partitions {
+			if err := checkSubpartitionBoundKinds(pc.SubPartType, pd.SubPartitions); err != nil {
+				return err
+			}
+		}
+	}
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
@@ -1431,6 +1466,11 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 					subParts[j] = partitionValueItemSQL(sub.(nodes.ExprNode))
 				}
 				parts[i] = "(" + strings.Join(subParts, ",") + ")"
+			} else if s, ok := item.(*nodes.String); ok {
+				// MAXVALUE beside other bounds, as in RANGE COLUMNS
+				// VALUES LESS THAN (5, MAXVALUE). Asserting it to an expression
+				// panicked.
+				parts[i] = s.Str
 			} else {
 				parts[i] = partitionValueItemSQL(item.(nodes.ExprNode))
 			}

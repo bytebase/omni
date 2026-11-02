@@ -1138,6 +1138,13 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
 	}
+	if tbl.Partitioning.SubType != "" {
+		for _, pd := range cmd.PartitionDefs {
+			if err := checkSubpartitionBoundKinds(partitionTypeFromString(tbl.Partitioning.SubType), pd.SubPartitions); err != nil {
+				return err
+			}
+		}
+	}
 	for _, pd := range cmd.PartitionDefs {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,

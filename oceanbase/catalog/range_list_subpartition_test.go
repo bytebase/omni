@@ -2,9 +2,12 @@ package catalog
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
 // subpartitionValueLayout lists a table's partitions with their subpartitions and each
@@ -110,6 +113,52 @@ var rangeListSubpartitionCases = []struct {
 		"CREATE TABLE t (a INT, b VARCHAR(10), c INT) PARTITION BY RANGE(a) SUBPARTITION BY LIST COLUMNS(b, c) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES IN (('x', 1), ('y', 2)), SUBPARTITION s1 VALUES IN (DEFAULT)))",
 		"CREATE TABLE `t` (\n  `a` int(11) DEFAULT NULL,\n  `b` varchar(10) DEFAULT NULL,\n  `c` int(11) DEFAULT NULL\n)\n partition by range(`a`) subpartition by list columns(`b`, `c`)\n(partition `p0` values less than (10) (\nsubpartition `s0` values in (('x',1),('y',2)),\nsubpartition `s1` values in (DEFAULT)))",
 		[]string{"p0:s0<('x',1),('y',2)>,s1<DEFAULT>"}},
+	// MAXVALUE beside other bounds, which the catalog panicked on, for a partition
+	// too.
+	{"range columns template with a mixed bound",
+		"CREATE TABLE t (a INT, b INT, c INT) PARTITION BY RANGE(a) SUBPARTITION BY RANGE COLUMNS(b, c) SUBPARTITION TEMPLATE (SUBPARTITION s0 VALUES LESS THAN (5, MAXVALUE)) (PARTITION p0 VALUES LESS THAN (10))",
+		"CREATE TABLE `t` (\n  `a` int(11) DEFAULT NULL,\n  `b` int(11) DEFAULT NULL,\n  `c` int(11) DEFAULT NULL\n)\n partition by range(`a`) subpartition by range columns(`b`, `c`) subpartition template (\nsubpartition `s0` values less than (5,MAXVALUE))\n(partition `p0` values less than (10))",
+		[]string{"p0:p0ss0<5,MAXVALUE>"}},
+	{"range columns partition with a mixed bound",
+		"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (5, MAXVALUE))",
+		"CREATE TABLE `t` (\n  `a` int(11) DEFAULT NULL,\n  `b` int(11) DEFAULT NULL\n)\n partition by range columns(`a`, `b`)\n(partition `p0` values less than (5,MAXVALUE))",
+		[]string{"p0:"}},
+}
+
+// subpartitionBoundKindRefusals list subpartitions whose bound does not fit SUBPARTITION
+// BY. The grammar takes each, and OceanBase refuses the statement with 1210.
+var subpartitionBoundKindRefusals = []struct{ setup, ddl string }{
+	{"", "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES IN (5)))"},
+	{"", "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0))"},
+	{"", "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY LIST(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES LESS THAN (5)))"},
+	{"", "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES LESS THAN (3)))"},
+	{"", "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0), PARTITION p1 VALUES LESS THAN (20) (SUBPARTITION s1 VALUES LESS THAN (5)))"},
+	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES LESS THAN (5)))",
+		"ALTER TABLE t ADD PARTITION (PARTITION p1 VALUES LESS THAN (20) (SUBPARTITION z0 VALUES IN (5)))"},
+	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0))",
+		"ALTER TABLE t ADD PARTITION (PARTITION p1 VALUES LESS THAN (20) (SUBPARTITION z0 VALUES LESS THAN (5)))"},
+}
+
+// TestSubpartitionBoundKindRefused pins that the catalog refuses each of
+// subpartitionBoundKindRefusals with OceanBase's 1210, rather than storing the bound
+// under the wrong kind.
+func TestSubpartitionBoundKindRefused(t *testing.T) {
+	for _, tc := range subpartitionBoundKindRefusals {
+		t.Run(tc.ddl, func(t *testing.T) {
+			c := New()
+			if _, err := c.Exec("CREATE DATABASE d; USE d; "+tc.setup+";", nil); err != nil {
+				t.Fatal(err)
+			}
+			results, err := c.Exec(tc.ddl+";", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var catErr *Error
+			if len(results) != 1 || !errors.As(results[0].Error, &catErr) || catErr.Code != 1210 {
+				t.Errorf("Exec gave %+v, want error 1210", results)
+			}
+		})
+	}
 }
 
 // rangeListAddPartitionScenarios add partitions to RANGE and LIST subpartitioned tables.
@@ -254,15 +303,19 @@ func TestOracle_OceanBaseRangeListSubpartitions(t *testing.T) {
 		if !strings.Contains(readback, clause) {
 			t.Errorf("OceanBase prints\n%s\nthe case records%s", readback, clause)
 		}
-		rows, err := o.db.QueryContext(ctx, "SELECT PARTITION_NAME, SUBPARTITION_NAME FROM information_schema.PARTITIONS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 't' ORDER BY PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION", dbName)
+		// A table without subpartitions has a NULL SUBPARTITION_NAME. The pool holds one
+		// connection, so the rows are read to the end before anything can fail.
+		rows, err := o.db.QueryContext(ctx, "SELECT PARTITION_NAME, COALESCE(SUBPARTITION_NAME, '') FROM information_schema.PARTITIONS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 't' ORDER BY PARTITION_ORDINAL_POSITION, SUBPARTITION_ORDINAL_POSITION", dbName)
 		if err != nil {
 			t.Fatal(err)
 		}
 		var engine []string
+		var scanErr error
 		for rows.Next() {
 			var part, sub string
 			if err := rows.Scan(&part, &sub); err != nil {
-				t.Fatal(err)
+				scanErr = err
+				break
 			}
 			if n := len(engine); n > 0 && strings.HasPrefix(engine[n-1], part+":") {
 				engine[n-1] += "," + sub
@@ -271,6 +324,9 @@ func TestOracle_OceanBaseRangeListSubpartitions(t *testing.T) {
 			}
 		}
 		_ = rows.Close()
+		if scanErr != nil {
+			t.Fatal(scanErr)
+		}
 		var names []string
 		for _, l := range layout {
 			part, subs, _ := strings.Cut(l, ":")
@@ -289,6 +345,24 @@ func TestOracle_OceanBaseRangeListSubpartitions(t *testing.T) {
 	for i, sc := range rangeListAddPartitionScenarios {
 		t.Run(sc.name, func(t *testing.T) {
 			check(t, fmt.Sprintf("obrladd_%d", i), sc.ddl, sc.readback, sc.layout)
+		})
+	}
+	for i, tc := range subpartitionBoundKindRefusals {
+		t.Run("refused "+tc.ddl, func(t *testing.T) {
+			dbName := fmt.Sprintf("obrlkind_%d", i)
+			setup := tc.setup
+			if setup == "" {
+				setup = "CREATE TABLE seed (a INT)"
+			}
+			if _, err := storeAndRead(ctx, o, dbName, setup, map[bool]string{true: "seed", false: "t"}[tc.setup == ""]); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _, _ = o.db.ExecContext(ctx, "DROP DATABASE IF EXISTS "+dbName) })
+			_, err := o.db.ExecContext(ctx, tc.ddl)
+			var myErr *gomysql.MySQLError
+			if !errors.As(err, &myErr) || myErr.Number != 1210 {
+				t.Errorf("OceanBase answered %v, want 1210", err)
+			}
 		})
 	}
 }

@@ -586,8 +586,11 @@ type SubPartitionDef struct {
 	Name string
 	// Values is an OceanBase RANGE or LIST subpartition's VALUES LESS THAN or VALUES
 	// IN, kept as PartitionDef.Values keeps a partition's; nil for HASH and KEY.
-	Values  Node
-	Options []*TableOption
+	Values Node
+	// ValuesIn is set when Values came from VALUES IN rather than VALUES LESS THAN,
+	// which a multi-column bound's list does not tell apart.
+	ValuesIn bool
+	Options  []*TableOption
 }
 
 func (d *SubPartitionDef) nodeTag() {}

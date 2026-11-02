@@ -1921,10 +1921,15 @@ func (p *Parser) parseSubPartitionDef(want partitionValuesKind, first bool) (*no
 	if err != nil {
 		return nil, 0, err
 	}
+	// VALUES LESS THAN or VALUES IN with no bound after it is no bound at all.
+	if got != noPartitionValues && values == nil {
+		return nil, 0, p.syntaxErrorAtCur()
+	}
 	if err := p.checkLoneDefaultValue(values); err != nil {
 		return nil, 0, err
 	}
 	spd.Values = values
+	spd.ValuesIn = got == valuesIn
 	for {
 		opt, ok, err := p.parseTableOption()
 		if err != nil {
