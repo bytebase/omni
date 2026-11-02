@@ -42,15 +42,7 @@ var Rules = []review.Rule{
 // package for the meaning of each input and of the result. A panic in the
 // parser or a rule is returned as an error: the review could not be
 // evaluated, and the caller's goroutine survives.
-func Review(ctx context.Context, sql string, opts review.Options, targets []review.Target) (*review.Result, error) {
-	return reviewDialect(ctx, sql, opts, targets, dialect{})
-}
-
-// dialect is what the engine a change is for alters in the rules.
-type dialect struct {
-}
-
-func reviewDialect(ctx context.Context, sql string, opts review.Options, targets []review.Target, d dialect) (result *review.Result, err error) {
+func Review(ctx context.Context, sql string, opts review.Options, targets []review.Target) (result *review.Result, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			result, err = nil, fmt.Errorf("mysql/review: panic: %v", p)
@@ -100,10 +92,9 @@ func reviewDialect(ctx context.Context, sql string, opts review.Options, targets
 		}
 	}
 	work := targetWork{
-		backup:  backup,
-		online:  on[review.OnlineMigration] && opts.Change.OnlineMigration,
-		walks:   on[review.WalkThrough],
-		dialect: d,
+		backup: backup,
+		online: on[review.OnlineMigration] && opts.Change.OnlineMigration,
+		walks:  on[review.WalkThrough],
 	}
 	if on[review.DisallowDropConstraint] {
 		work.drops = checkDisallowDropConstraint(sql, stmts, r)

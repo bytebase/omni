@@ -381,7 +381,7 @@ func (e *mysqlEngine) Violation(t testing.TB, change string) *walk.Violation {
 	if syntax != nil {
 		t.Fatalf("syntax: %s", syntax.Message)
 	}
-	v, err := walkThrough(context.Background(), change, stmts, e.target, dialect{})
+	v, err := walkThrough(context.Background(), change, stmts, e.target)
 	if err != nil || v == nil {
 		t.Fatalf("no violation for a change Review reports on (%v):\n%s", err, change)
 	}
@@ -552,38 +552,31 @@ func (e *mysqlEngine) Digest(t testing.TB) string {
 	t.Helper()
 	var b strings.Builder
 	read := func(q string, args ...any) []string {
-		var got [][]sql.NullString
-		if err := func() error {
-			got = nil
-			rows, err := e.db.QueryContext(context.Background(), q, args...)
-			if err != nil {
-				return err
-			}
-			defer rows.Close()
-			cols, _ := rows.Columns()
-			for rows.Next() {
-				vals := make([]sql.NullString, len(cols))
-				ptrs := make([]any, len(cols))
-				for i := range vals {
-					ptrs[i] = &vals[i]
-				}
-				if err := rows.Scan(ptrs...); err != nil {
-					return err
-				}
-				got = append(got, vals)
-			}
-			return rows.Err()
-		}(); err != nil {
+		rows, err := e.db.QueryContext(context.Background(), q, args...)
+		if err != nil {
 			t.Fatalf("%s: %v", q, err)
 		}
+		defer rows.Close()
+		cols, _ := rows.Columns()
 		var first []string
-		for _, vals := range got {
+		for rows.Next() {
+			vals := make([]sql.NullString, len(cols))
+			ptrs := make([]any, len(cols))
+			for i := range vals {
+				ptrs[i] = &vals[i]
+			}
+			if err := rows.Scan(ptrs...); err != nil {
+				t.Fatalf("%s: %v", q, err)
+			}
 			first = append(first, vals[0].String)
 			for _, v := range vals {
 				b.WriteString(v.String)
 				b.WriteByte(0)
 			}
 			b.WriteByte('\n')
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatalf("%s: %v", q, err)
 		}
 		return first
 	}
