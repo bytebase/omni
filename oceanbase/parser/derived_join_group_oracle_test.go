@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -53,6 +54,14 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 		}
 		assertOracleMatch(t, o, sql)
 	}
+	// The lone parenthesized factors are the OceanBase delta: MySQL refuses
+	// them and this parser, following OceanBase, does not, so only MySQL's
+	// half is asserted here.
+	for _, sql := range loneParenthesizedFactors {
+		if o.checkSyntax(t, sql) {
+			t.Errorf("MySQL accepts %q, so it is no longer an OceanBase delta", sql)
+		}
+	}
 
 	groups := 0
 	for i, ddl := range derivedJoinGroupViews {
@@ -82,5 +91,66 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 	// join group that begins with a derived table.
 	if groups < 5 {
 		t.Errorf("MySQL wrote %d view definitions with a derived-first join group, want at least 5", groups)
+	}
+}
+
+// derivedJoinGroupOceanBaseGaps are statements of derivedJoinGroupAccepted that
+// MySQL accepts and OceanBase answers 1064 for, read on 2026-11-02: OceanBase has no
+// TABLE statement, and takes no locking clause on a parenthesized query inside a
+// derived table. This parser still reads them the MySQL way. That is an open gap
+// with its own fix, so it is recorded exactly here rather than skipped: the test
+// fails when either side moves.
+var derivedJoinGroupOceanBaseGaps = map[string]bool{
+	"select * from ((table j1) d join j2 on 1)":       true,
+	"select * from ((select 1) for update) d":         true,
+	"select * from ((select 1) lock in share mode) d": true,
+}
+
+// TestDerivedJoinGroupOceanBase asks OceanBase about every statement of
+// TestDerivedJoinGroup. It accepts what MySQL accepts, apart from
+// derivedJoinGroupOceanBaseGaps, refuses what MySQL refuses, and also accepts
+// loneParenthesizedFactors.
+//
+//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+func TestDerivedJoinGroupOceanBase(t *testing.T) {
+	db := oceanBaseOracle(t)
+	ctx := context.Background()
+	for _, stmt := range []string{
+		"CREATE DATABASE IF NOT EXISTS obderived",
+		"USE obderived",
+		"DROP TABLE IF EXISTS j1, j2, j3",
+		"CREATE TABLE j1 (k1 INT, a INT, KEY i (k1))",
+		"CREATE TABLE j2 (k1 INT, b INT)",
+		"CREATE TABLE j3 (k1 INT, c INT)",
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed %q: %v", stmt, err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obderived")
+	})
+	check := func(sql string, want bool) {
+		t.Helper()
+		engineTakes, err := engineAccepts(ctx, db, sql)
+		if err != nil {
+			t.Fatalf("the oracle gave no verdict on %q: %v", sql, err)
+		}
+		if engineTakes != want {
+			t.Errorf("OceanBase accepts=%v, want %v for %q", engineTakes, want, sql)
+		}
+		_, perr := Parse(sql)
+		if gap := derivedJoinGroupOceanBaseGaps[sql]; (perr == nil) != (engineTakes != gap) {
+			t.Errorf("DIVERGENCE omni accepts=%v, OceanBase accepts=%v, recorded gap %v for %q: %v", perr == nil, engineTakes, gap, sql, perr)
+		}
+	}
+	for _, sql := range derivedJoinGroupAccepted {
+		check(sql, !derivedJoinGroupOceanBaseGaps[sql])
+	}
+	for _, sql := range loneParenthesizedFactors {
+		check(sql, true)
+	}
+	for _, sql := range derivedJoinGroupRejected {
+		check(sql, false)
 	}
 }

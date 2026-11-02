@@ -1486,18 +1486,16 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		// MySQL parenthesizes a single table, a join, or a list of two or
-		// more table references, but not a lone derived table or table
-		// function: table_factor (8.0.46 sql_yacc.yy line 12034) has
-		// single_table_parens, joined_table_parens, and
-		// table_reference_list_parens, and no parenthesized derived_table or
-		// table_function, so `((SELECT 1) d)` is a 1064 at the ')'.
-		if len(refs) == 1 {
-			switch refs[0].(type) {
-			case *nodes.SubqueryExpr, *nodes.JsonTableExpr:
-				return nil, p.syntaxErrorAtTok(p.prev)
-			}
-		}
+		// OceanBase delta. MySQL parenthesizes a single table, a join, or a
+		// list of two or more table references, but not a lone derived table
+		// or table function (8.0.46 sql_yacc.yy table_factor, line 12034), so
+		// mysql/parser rejects `((SELECT 1) d)` at the ')'. OceanBase accepts
+		// a lone derived table, LATERAL derived table, or JSON_TABLE in
+		// parentheses: 5.7.25-OceanBase_CE-v4.3.5.6 runs
+		// `SELECT * FROM ((SELECT 1) d)`, `SELECT * FROM t0, (LATERAL
+		// (SELECT 1) d)` and `SELECT * FROM (JSON_TABLE(...) AS jt)`
+		// (loneParenthesizedFactors, TestLoneParenthesizedFactorsOceanBase).
+		// The parentheses add nothing, so the factor is returned as written.
 		return foldTableReferenceList(refs), nil
 	}
 
