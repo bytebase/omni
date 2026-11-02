@@ -30,6 +30,21 @@ var execNestingCases = []struct {
 	{"SELECT 1 /*!50000 + 1 /*!50000 + 2 */ */", false},
 	{"/*!50000 /*!50100 SELECT 1 */ */", false},
 	{"SELECT 1 /*M! + 1 /*! + 2 */ */", false},
+	// MariaDB skips a comment versioned for MySQL 5.7 or 8.0 (50700 to
+	// 99999) unread, counting nesting over raw bytes, inside an executable
+	// comment too.
+	{"SELECT 1 /*!80023 + 1 /* c */ + 2 */ + 3", true},
+	{"SELECT 1 /*!80023 + 1 /*!80023 + 2 */ */ + 3", true},
+	{"SELECT 1 /*!80023 + 1 /*! + 2 */ */ + 3", true},
+	{"SELECT 1 /*!80023 'x */ + 3", true},
+	{"SELECT 1 /*! + 1 /*!80023 + 2 */ */", true},
+	{"SELECT 1 /*! + 1 /*!80023 + 2 /* c */ */ */ + 3", true},
+	{"SELECT 1 /*!50700 + 1 */ + 3", true},
+	{"SELECT 1 /*!080023 + 1 */ + 3", true},
+	{"SELECT 1 /*! + 1 /*!80023 + 2 */", false},
+	{"SELECT 1 /*!80023 + 1", false},
+	{"SELECT 1 /*!80023 + 1 /*", false},
+	{"SELECT 1 /*!80023 + LENGTH('*/') */", false},
 }
 
 // TestExecCommentsDoNotNest pins omni to execNestingCases, which
@@ -129,5 +144,39 @@ func TestExecCommentNestingSplit_Oracle(t *testing.T) {
 	}
 	if _, ok := list.Items[1].(*nodes.DropTableStmt); !ok {
 		t.Errorf("statement 2: got %T, want a DROP TABLE", list.Items[1])
+	}
+}
+
+// TestSkippedCommentIsNotRead: MariaDB reads nothing inside a comment versioned
+// for MySQL 5.7 or 8.0, so "SELECT 1 /*!80023 , 2 */" selects one column, and a
+// script of that comment alone is empty, while "/*!50699 , 2 */" is read.
+func TestSkippedCommentIsNotRead(t *testing.T) {
+	for _, c := range []struct {
+		sql   string
+		items int
+	}{
+		{"SELECT 1 /*!80023 , 2 */", 1},
+		{"SELECT 1 /*!99999 , 2 */", 1},
+		{"SELECT 1 /*!50699 , 2 */", 2},
+		{"SELECT 1 /*!100000 , 2 */", 2},
+	} {
+		list, err := Parse(c.sql)
+		if err != nil {
+			t.Fatalf("%q: %v", c.sql, err)
+		}
+		sel, ok := list.Items[0].(*nodes.SelectStmt)
+		if !ok || len(sel.TargetList) != c.items {
+			t.Errorf("%q: got %d select items, want %d", c.sql, len(sel.TargetList), c.items)
+		}
+	}
+	if segs := Split("/*!80023 SELECT 1 */"); len(segs) != 0 {
+		t.Errorf("Split kept a comment MariaDB skips as a statement: %+v", segs)
+	}
+	if segs := Split("SELECT 1 /*!80023 ; */; SELECT 2"); len(segs) != 2 {
+		t.Errorf("Split read a ';' inside a comment MariaDB skips as a boundary: %+v", segs)
+	}
+	// The skipped comment ends where its nesting closes, at the second "*/".
+	if segs := Split("SELECT 1 /*!80023 /* c */ ; */; SELECT 2"); len(segs) != 2 {
+		t.Errorf("Split ended a comment MariaDB skips before its nesting closed: %+v", segs)
 	}
 }

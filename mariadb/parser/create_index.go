@@ -363,17 +363,6 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			Name: "VISIBLE",
 		}, true, nil
 
-	case p.cur.Type == kwINVISIBLE && p.cur.MySQLOnly:
-		// MySQL's SHOW CREATE TABLE writes an invisible index as
-		// /*!80000 INVISIBLE */. MariaDB skips a comment of that version
-		// unread, so the statement stands and the index stays visible; only an
-		// INVISIBLE MariaDB would read is the syntax error.
-		p.advance()
-		return &nodes.IndexOption{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Name: "INVISIBLE",
-		}, true, nil
-
 	case p.atUnquotedKeyword("IGNORED"):
 		p.advance()
 		return &nodes.IndexOption{

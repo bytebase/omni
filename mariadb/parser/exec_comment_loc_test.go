@@ -75,7 +75,7 @@ func nodeTexts(t *testing.T, sql string) []string {
 }
 
 var execCommentLocCases = []string{
-	"/*!80000 SELECT * FROM t WHERE n = NULL */",
+	"/*!50000 SELECT * FROM t WHERE n = NULL */",
 	"/*! SELECT a FROM t WHERE b = 1 */",
 	"SELECT /*!40001 SQL_NO_CACHE */ a FROM t WHERE b = NULL",
 	"SELECT a FROM t WHERE /*!50000 b = NULL */ AND c = 2",
@@ -83,10 +83,10 @@ var execCommentLocCases = []string{
 	// "*/" closes both.
 	"/*!50000 /*!50100 SELECT a FROM t WHERE b = NULL */",
 	"/*!*/SELECT a FROM t WHERE b = NULL",
-	"SELECT 1;\n/*!80000 SELECT a FROM t WHERE n = NULL */",
+	"SELECT 1;\n/*!50000 SELECT a FROM t WHERE n = NULL */",
 	"CREATE TABLE t (a INT) /*!50100 PARTITION BY HASH (a) PARTITIONS 4 */",
-	"CREATE TABLE t (a INT /*!80023 INVISIBLE */, b INT)",
-	"CREATE DATABASE d /*!40100 DEFAULT CHARACTER SET utf8mb4 */ /*!80016 DEFAULT ENCRYPTION='N' */",
+	"CREATE TABLE t (a INT /*!100300 INVISIBLE */, b INT)",
+	"CREATE DATABASE d /*!40100 DEFAULT CHARACTER SET utf8mb4 */ /*!50016 DEFAULT ENCRYPTION='N' */",
 	"/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NULL */",
 	"/*!50001 CREATE ALGORITHM=UNDEFINED */ /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */ /*!50001 VIEW v AS select a from t where b = 1 */",
 	"/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 PROCEDURE p() BEGIN SELECT a FROM t WHERE b = NULL; END */",
@@ -116,7 +116,7 @@ func TestExecCommentLoc_SlicesSource(t *testing.T) {
 		want []string
 	}{
 		{
-			sql:  "/*!80000 CREATE TABLE t (a INT, b VARCHAR(10)) */",
+			sql:  "/*!50000 CREATE TABLE t (a INT, b VARCHAR(10)) */",
 			want: []string{"ColumnDef: a INT", "ColumnDef: b VARCHAR(10)", "DataType: INT"},
 		},
 		{
@@ -128,7 +128,7 @@ func TestExecCommentLoc_SlicesSource(t *testing.T) {
 			want: []string{"ColumnRef: c"},
 		},
 		{
-			sql:  "SELECT 1;\n/*!80000 CREATE TABLE t (a INT) */",
+			sql:  "SELECT 1;\n/*!50000 CREATE TABLE t (a INT) */",
 			want: []string{"ColumnDef: a INT"},
 		},
 		{
@@ -156,7 +156,7 @@ func TestExecCommentLoc_SlicesSource(t *testing.T) {
 // from inside an executable comment slices the input to its own text, and the
 // comment syntax moves no token.
 func TestExecCommentLoc_Tokens(t *testing.T) {
-	sql := "/*!80000 SELECT a, 'x' FROM t */ WHERE /*! b = NULL */"
+	sql := "/*!50000 SELECT a, 'x' FROM t */ WHERE /*! b = NULL */"
 	want := []string{"SELECT", "a", ",", "'x'", "FROM", "t", "WHERE", "b", "=", "NULL"}
 	toks := Tokenize(sql)
 	var got []string
@@ -171,16 +171,22 @@ func TestExecCommentLoc_Tokens(t *testing.T) {
 		t.Fatalf("token count %d, want %d", len(toks), len(blank))
 	}
 	for i := range toks {
-		// MySQLOnly marks the tokens of /*!80000 ... */, which MariaDB skips
-		// for its MySQL version, and not those of the unversioned /*! ... */.
-		if want := i < 6; toks[i].MySQLOnly != want {
-			t.Errorf("token %d %q: MySQLOnly = %v, want %v", i, got[i], toks[i].MySQLOnly, want)
-		}
-		tok := toks[i]
-		tok.MySQLOnly = false
-		if tok != blank[i] {
+		if toks[i] != blank[i] {
 			t.Errorf("token %d = %+v, want %+v", i, toks[i], blank[i])
 		}
+	}
+}
+
+// TestExecCommentLoc_SkippedTokens: MariaDB skips a comment versioned for MySQL
+// 5.7 or 8.0 unread, so no token comes from inside one.
+func TestExecCommentLoc_SkippedTokens(t *testing.T) {
+	sql := "/*!80000 SELECT a, 'x' FROM t */ WHERE /*! b = NULL */"
+	var got []string
+	for _, tok := range Tokenize(sql) {
+		got = append(got, sql[tok.Loc:tok.End])
+	}
+	if want := []string{"WHERE", "b", "=", "NULL"}; strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Errorf("token texts = %q, want %q", got, want)
 	}
 }
 
@@ -230,7 +236,7 @@ func TestExecCommentLoc_ErrorPosition(t *testing.T) {
 	}{
 		// A syntax error inside the comment body names the token's offset.
 		{"/*!50000 SELECT FROM t */", "syntax error", 16},
-		{"SELECT 1; /*!80000 SELECT a FROM WHERE */", "expected identifier", 33},
+		{"SELECT 1; /*!50000 SELECT a FROM WHERE */", "expected identifier", 33},
 		// A string or a line comment that swallows the comment's closing */
 		// leaves the comment open, which MariaDB rejects; the error names the
 		// comment's start.

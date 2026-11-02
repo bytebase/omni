@@ -1713,10 +1713,6 @@ type Token struct {
 	Ival int64  // integer value for ICONST
 	Loc  int    // byte offset in source text
 	End  int    // byte offset past the end of the token in the source text
-
-	// MySQLOnly marks a token inside an executable comment versioned for MySQL
-	// alone (see execComment.mysqlOnly), which MariaDB skips unread.
-	MySQLOnly bool
 }
 
 // Lexer implements a MySQL SQL lexer.
@@ -1768,17 +1764,9 @@ type Lexer struct {
 // execComment is an executable comment the lexer is inside: start is the offset
 // of its "/*!", close the offset of its closing "*/", and outer the comment it
 // is nested in, if any.
-//
-// mysqlOnly is set when this comment or one it is nested in carries a version
-// from 50700 to 99999. MariaDB reads those numbers as MySQL 5.7 and 8.0
-// releases and skips such a comment as an ordinary one ("Ignore all versioned
-// comments with MySQL versions in the range 50700-999999", sql/sql_lex.cc,
-// mariadb-11.8.8 lines 2454-2460). The lexer still reads the body, as it
-// always has; the flag lets the parser tell where MariaDB never looks.
 type execComment struct {
 	start, close int
 	outer        *execComment
-	mysqlOnly    bool
 }
 
 // execMarker is a run of executable-comment syntax, [start, end) in l.input.
@@ -1803,29 +1791,8 @@ func (l *Lexer) setError(msg string, pos int) {
 // first byte of the body.
 func (l *Lexer) enterExecComment(bodyStart, closeStart int) {
 	l.execMarkers = append(l.execMarkers, execMarker{l.pos, bodyStart})
-	mysqlOnly := mysqlOnlyVersion(l.input[l.pos+3 : bodyStart])
-	if l.execStack != nil && l.execStack.mysqlOnly {
-		mysqlOnly = true
-	}
-	l.execStack = &execComment{l.pos, closeStart, l.execStack, mysqlOnly}
+	l.execStack = &execComment{l.pos, closeStart, l.execStack}
 	l.pos = bodyStart
-}
-
-// mysqlOnlyVersion reports whether the digits after "/*!" name a version MariaDB
-// skips as MySQL's: it reads five digits, or six when a sixth follows, and skips
-// 50700 through 99999 (sql/sql_lex.cc, mariadb-11.8.8 lines 2432-2460).
-func mysqlOnlyVersion(digits string) bool {
-	if len(digits) < 5 {
-		return false
-	}
-	if len(digits) > 6 {
-		digits = digits[:6]
-	}
-	v := 0
-	for i := 0; i < len(digits); i++ {
-		v = v*10 + int(digits[i]-'0')
-	}
-	return v >= 50700 && v <= 99999
 }
 
 // skipExecClose steps over the "*/" that closes the innermost executable comment
@@ -1922,6 +1889,17 @@ func (l *Lexer) scanExecClose(pos int, m *execCloseMemo) int {
 			}
 
 		case ch == '/' && pos+1 < len(l.input) && l.input[pos+1] == '*':
+			if skippedComment(l.input, pos) {
+				// MariaDB skips a comment versioned for MySQL 5.7 or 8.0 with its
+				// nesting counted, inside an executable comment too:
+				// "SELECT 1 /*! + 1 /*!80023 + 2 */ */" is 2 on MariaDB 11.8.8.
+				end := skippedCommentEnd(l.input, pos)
+				if end < 0 {
+					return -1
+				}
+				pos = end
+				continue
+			}
 			if body, ok := execOpener(l.input, pos); ok {
 				// An opener inside an executable comment is dropped, as the
 				// lexer drops it, so the comment ends at the first "*/".
@@ -2020,9 +1998,6 @@ func NewLexerWithOffset(input string, baseOffset int) *Lexer {
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
 	tok := l.nextToken()
-	// The comment a token was read in stays on execStack until the next call
-	// steps over its close.
-	tok.MySQLOnly = l.execStack != nil && l.execStack.mysqlOnly
 	tok.End = l.pos + l.baseOffset // set end position before returning
 	tok.Loc += l.baseOffset        // apply base offset for absolute positioning
 	l.prevToken = tok.Type
@@ -2178,6 +2153,17 @@ func (l *Lexer) skipWhitespaceAndComments() {
 		// Block comment: /* ... */
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
 			commentStart := l.pos
+			// A comment versioned for MySQL 5.7 or 8.0 is one MariaDB skips
+			// unread, counting nesting as it goes (skippedComment).
+			if skippedComment(l.input, l.pos) {
+				end := skippedCommentEnd(l.input, l.pos)
+				if end < 0 {
+					l.setError("unterminated comment", commentStart)
+					return
+				}
+				l.pos = end
+				continue
+			}
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
 			// These should be parsed as SQL, not skipped.
 			if vpos, ok := execOpener(l.input, l.pos); ok {
