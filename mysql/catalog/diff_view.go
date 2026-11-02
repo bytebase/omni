@@ -205,10 +205,10 @@ func explicitColumnsComparable(v *View, n *Normalizer) bool {
 //   - inside a string literal: a single-quoted literal may contain the text "`db`." (e.g.
 //     `SELECT '`vt`.x'`); blind replacement would mutate the literal's value and make two
 //     genuinely different views collide. So single-quoted regions are skipped.
-//   - a relation literally named the same as the database: `\`vt\`.\`vt\`.\`a\“ (db vt, table vt,
-//     column a) must lose only the LEADING `\`vt\`.` (the database slot), yielding
-//     `\`vt\`.\`a\“ (table vt, column a) — NOT both, which would destroy the table qualifier. So
-//     the prefix is stripped only when its `\`db\“ segment is the HEAD of a dotted chain (it is
+//   - a relation literally named the same as the database: `vt`.`vt`.`a` (db vt, table vt,
+//     column a) must lose only the LEADING `vt`. (the database slot), yielding
+//     `vt`.`a` (table vt, column a) — NOT both, which would destroy the table qualifier. So
+//     the prefix is stripped only when its `db` segment is the HEAD of a dotted chain (it is
 //     not itself immediately preceded by a '.', which would make it a table/column segment).
 func canonicalViewBody(v *View) string {
 	body := v.Definition
@@ -226,9 +226,9 @@ func canonicalViewBody(v *View) string {
 //   - the prefix is only stripped at the HEAD of a dotted-identifier chain (its leading backtick is
 //     not itself immediately preceded by '.'), AND after a strip the immediately-following
 //     identifier segment is copied verbatim. The latter is what protects a relation/column literally
-//     named the same as the database: in `\`vt\`.\`vt\`.\`a\“ the leading `\`vt\`.` (database) is
-//     dropped, then the next `\`vt\“ (the table) is copied untouched, yielding `\`vt\`.\`a\“ — not
-//     `\`a\“ (which would destroy the table qualifier).
+//     named the same as the database: in `vt`.`vt`.`a` the leading `vt`. (database) is
+//     dropped, then the next `vt` (the table) is copied untouched, yielding `vt`.`a` — not
+//     `a` (which would destroy the table qualifier).
 func stripOwnDatabaseQualifier(body, prefix string) string {
 	var b strings.Builder
 	b.Grow(len(body))
@@ -284,7 +284,7 @@ func stripOwnDatabaseQualifier(body, prefix string) string {
 
 // copyBacktickIdent copies a single backtick-quoted identifier starting at i (if one is there) from
 // src into b, returning the index just past it. A backtick inside the identifier is escaped by
-// doubling (“); the scan consumes both. If src[i] is not an opening backtick, nothing is copied and
+// doubling; the scan consumes both. If src[i] is not an opening backtick, nothing is copied and
 // i is returned unchanged.
 func copyBacktickIdent(b *strings.Builder, src string, i int) int {
 	if i >= len(src) || src[i] != '`' {

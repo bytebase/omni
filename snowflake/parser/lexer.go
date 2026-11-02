@@ -245,7 +245,7 @@ func (l *Lexer) scanBlockComment() {
 // scanString reads a single-quoted string literal. Snowflake supports two
 // escape mechanisms inside '...':
 //   - backslash escapes: \n \t \r \0 \\ \' \"  (and \<other> → <other>)
-//   - doubled-quote escape: ” inside a string is a literal '
+//   - doubled-quote escape: two single quotes inside a string are a literal '
 //
 // Token.Str contains the unescaped content (no surrounding quotes). The
 // literal may span newlines (Snowflake string constants can contain literal

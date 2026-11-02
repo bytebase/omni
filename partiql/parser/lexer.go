@@ -940,7 +940,7 @@ func (s *ionScanner) scanQuoted(quote byte) bool {
 // likewise NOT valid content: it must be escaped, so encountering one is a
 // match failure, not content. Without this, a long string carrying a raw NUL
 // before an inner backtick would stay open ACROSS that backtick and close
-// only at a LATER ”' — hiding the standalone backtick (the real ION_CLOSURE)
+// only at a LATER triple quote — hiding the standalone backtick (the real ION_CLOSURE)
 // and swallowing the SQL that follows (Codex round-4 P2). On failure the
 // caller degrades the opening quotes through QUOTED_SYMBOL to ION_ANY (the
 // same maximal-munch fallback ANTLR applies), so the first standalone backtick
@@ -955,10 +955,12 @@ func (s *ionScanner) scanQuoted(quote byte) bool {
 // authoritative over grammar text per correctness-protocol.md — was queried
 // differentially with a long string carrying a raw VT (and FF) before a
 // standalone backtick. In BOTH cases the single ION_CLOSURE token spans to the
-// LATER ”'+backtick (e.g. for VT: ION_CLOSURE text `”'\vX`Y”' `), i.e. the
-// long string KEEPS VT/FF as content — identical to the indisputably-allowed
-// CR (0x0D) and OPPOSITE the indisputably-disallowed NUL (0x00), whose
-// ION_CLOSURE ends at the FIRST backtick. So ionLongTextDisallowsRaw correctly
+// LATER triple quote and backtick (e.g. for VT the ION_CLOSURE text is a
+// backtick, a triple quote, \vX`Y, a triple quote, a space and the closing
+// backtick, as lexer_test.go records), i.e. the long string KEEPS VT/FF as
+// content — identical to the indisputably-allowed CR (0x0D) and OPPOSITE the
+// indisputably-disallowed NUL (0x00), whose ION_CLOSURE ends at the FIRST
+// backtick. So ionLongTextDisallowsRaw correctly
 // admits VT/FF; Codex's grammar-text reading is rebutted by the oracle.
 func (s *ionScanner) scanLongString() bool {
 	s.pos += 3 // skip opening '''

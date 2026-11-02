@@ -823,7 +823,7 @@ func looksLikeBitLiteral(s string) bool {
 //   - quoted string  'AB'            -> big-endian integer of the raw bytes (A=0x41 high)
 //   - bare integer   5               -> that decimal integer
 //
-// The empty string ” yields 0 (MySQL stores b'0'). Returns ok=false for a form it cannot
+// The empty string yields 0 (MySQL stores b'0'). Returns ok=false for a form it cannot
 // interpret (e.g. CURRENT_TIMESTAMP — handled earlier by DefaultKind, never reaching here),
 // so the caller can fall back rather than fabricate a value.
 func bitColumnDefaultValue(raw string) (string, bool) {
@@ -1058,7 +1058,7 @@ func (n *Normalizer) columnsCastCharsetWildcardEqual(fromTbl, toTbl *Table, a, b
 }
 
 // scanStringLiteral returns the index just past a single-quoted string literal that
-// starts at i (expr[i]=='\”), honoring doubled-quote escapes (”) and backslash
+// starts at i (expr[i] is a single quote), honoring doubled-quote escapes and backslash
 // escapes (\'). If the literal is unterminated it returns len(expr). The returned index
 // is always a valid slice bound (≤ len(expr)), so callers never read past the end.
 func scanStringLiteral(expr string, i int) int {
@@ -1358,7 +1358,8 @@ func (n *Normalizer) IgnoreRowFormat(table *Table) bool {
 // stores the DECODED comment content (embedded single quotes un-doubled), so the stored
 // value IS the canonical content and is returned as-is. (entry comment-escaping: the diff
 // compares decoded content, not the quoted surface form.) Re-running an un-doubling pass
-// here would be wrong — it would collapse a genuine `a”b` content down to `a'b`.
+// here would be wrong — content that genuinely holds two adjacent quotes (between a and b,
+// say) would collapse to one, `a'b`.
 func (n *Normalizer) CanonicalComment(comment string) string {
 	return comment
 }

@@ -38,7 +38,7 @@ import "strings"
 
 // SessionContext is the session state captured when a routine/trigger/event was created.
 // Every field is the value as stored in the synced metadata; empty strings are legal and
-// are preserved verbatim (an authored empty sql_mode round-trips as SET sql_mode=”). A
+// are preserved verbatim (an authored empty sql_mode round-trips as SET sql_mode to empty). A
 // PARTIAL context (some axes empty) preserves the populated axes and leaves the session
 // default for the rest — synced information_schema metadata always carries sql_mode /
 // charset / collation for a real object, so this only arises for a hand-built context.
@@ -85,7 +85,7 @@ type SessionContextMap struct {
 // stays false → bare recreate); a map entry with no matching object is ignored.
 //
 // Marking HasSessionContext lets the generator distinguish "context applied, sql_mode empty"
-// (emit SET sql_mode=”) from "no context" (bare CREATE), so an authored empty sql_mode
+// (emit SET sql_mode to empty) from "no context" (bare CREATE), so an authored empty sql_mode
 // round-trips.
 func (c *Catalog) ApplySessionContext(m SessionContextMap) {
 	if c == nil {
@@ -178,7 +178,7 @@ func lookupContext(m map[string]SessionContext, key, name string) (SessionContex
 // framed block is a well-formed statement sequence inside one MigrationOp.SQL.
 //
 // sql_mode is emitted UNCONDITIONALLY when framing (even when empty) so an authored empty
-// sql_mode (”) forces empty modes rather than inheriting the server default — the framing
+// sql_mode forces empty modes rather than inheriting the server default — the framing
 // is only ever invoked with a known-present context. character_set_client,
 // collation_connection, and time_zone are emitted only when non-empty: their values are
 // bare identifiers / literals and an empty value would produce invalid SQL, and a synced

@@ -36,7 +36,7 @@ import (
 //     to NOT PRESERVE.
 //   - DEFINER. Always resolves to the executing user (`root`@`%` on the oracle box) regardless of
 //     whether the user wrote it (verified on live 8.0: `DEFINER=CURRENT_USER` and an omitted
-//     definer both store as “ `root`@`%` “), so it is NOT part of the schema's logical identity
+//     definer both store as `root`@`%`), so it is NOT part of the schema's logical identity
 //     and is dropped from the key (ignore-in-diff).
 //
 // FLAG 1 (recorded to the state document): because the engine stores an auto-injected STARTS
@@ -255,7 +255,7 @@ func peelScheduleClause(body, keyword string) (head, value string) {
 
 // lastTopLevelKeyword returns the byte index of the last ` <keyword> ` (case-insensitive,
 // space-delimited) occurrence that is NOT inside a quoted region, or -1 if none. Quoting tracks
-// both ' and " and treats a doubled quote (”) as an escaped quote within the same region — which
+// both ' and " and treats a doubled quote as an escaped quote within the same region — which
 // is exactly how MySQL's SHOW CREATE EVENT renders quotes inside a stored schedule literal (the
 // only quoting form that appears here). Backslash escapes are not interpreted; they do not occur in
 // canonical stored-schedule timestamps, so this is sufficient for the inputs this scan sees.

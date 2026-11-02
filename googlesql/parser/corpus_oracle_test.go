@@ -260,7 +260,7 @@ func (h *corpusHarness) close() {
 // NOTE: spanner/lexical.md#2 is a GENUINE omni divergence (not just a
 // non-authoritative oracle), recorded as a flagged divergence in the v2 store —
 // omni accepts adjacent string literals with no separating whitespace
-// (`'It”s a test'`) while BOTH the emulator AND the legacy .g4 string_literal
+// (`'It'` written directly against `'s a test'`) while BOTH the emulator AND the legacy .g4 string_literal
 // rule (which "requires whitespace between" adjacent components) reject it. It is
 // excluded here so the corpus gate stays green; the fix lives in the lexer/expr
 // nodes (outside corpus-closure's writes scope) and is tracked in the ledger.

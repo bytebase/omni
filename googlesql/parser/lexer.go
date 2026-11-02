@@ -302,9 +302,10 @@ func isQuote(ch byte) bool {
 // by the caller; raw indicates whether it was present. l.start must already
 // point at the first byte of the whole literal (prefix or quote).
 //
-// Supports all four quote forms: '...', "...", ”'...”', """...""". Triple-
-// quoted strings may span newlines and may contain unescaped single quotes;
-// single/double-quoted strings may not span an unescaped newline.
+// Supports all four quote forms: '...', "...", and each of them tripled (three
+// quotes on each side). Triple-quoted strings may span newlines and may contain
+// unescaped single quotes; single/double-quoted strings may not span an
+// unescaped newline.
 //
 // Token.Str is the verbatim body with the surrounding quotes stripped but
 // escape sequences PRESERVED (the lexer does not unescape — escape resolution
@@ -332,8 +333,8 @@ func (l *Lexer) scanBytes(raw bool) Token {
 // scanQuotedBody is the shared scanner for single/double, single/triple-quoted
 // string and bytes literals. l.pos points at the first opening quote byte.
 //
-//   - quote is '\” or '"'.
-//   - triple selects the ”'...”' / """...""" form.
+//   - quote is the single-quote or the double-quote byte.
+//   - triple selects the tripled form (three quotes on each side).
 //   - tokType is tokString or tokBytes.
 //   - raw sets Token.IsRaw.
 //   - unterminatedMsg is the LexError message on EOF/newline before close.

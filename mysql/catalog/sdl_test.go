@@ -776,8 +776,8 @@ END;
 // string default — single (_utf8mb4'x') or folded (_utf8mb4'x' 'y') — is
 // stored and rendered by VALUE, the way MySQL stores it (SHOW CREATE TABLE
 // echoes DEFAULT 'x' / DEFAULT 'xy'; oracle 8.0.32 + 5.7.25). Deparsing the
-// introducer into the default rendered DEFAULT '_utf8mb4'x” — invalid SQL
-// the engine rejects with 1064 on apply.
+// introducer into the default rendered DEFAULT '_utf8mb4'x followed by two
+// single quotes — invalid SQL the engine rejects with 1064 on apply.
 func TestSDLIntroducerDefaultRendersBareValue(t *testing.T) {
 	target, err := LoadSDL(`
 CREATE DATABASE d1;

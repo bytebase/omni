@@ -156,7 +156,7 @@ func matchKeyword(sql string, i int, kw string) bool {
 }
 
 // skipSingleQuote skips a single-quoted string starting at position i.
-// Handles ” escape. Returns position after the closing quote (or end of input).
+// Handles a doubled quote. Returns position after the closing quote (or end of input).
 func skipSingleQuote(sql string, i int) int {
 	i++ // skip opening '
 	for i < len(sql) {
