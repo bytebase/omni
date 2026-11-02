@@ -988,21 +988,32 @@ func (p *Parser) parsePartitionItem() (*ast.PartitionItem, error) {
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
+
+		// Optional partition properties: the grammar's
+		//
+		//	singleRangePartition : PARTITION (IF NOT EXISTS)? identifier VALUES partitionKeyDesc propertyList?
+		//	propertyList         : '(' property (',' property)* ')'
+		//	property             : key=string '=' value=string
+		//
+		// and the same propertyList? after a list partition's values. These
+		// used to be skipped to the next ')' unread, so (), ("k"="v",) and
+		// anything else at all parsed, and the properties never reached the
+		// tree.
+		if p.cur.Kind == int('(') {
+			props, err := p.parsePropertyList()
+			if err != nil {
+				return nil, err
+			}
+			item.Properties = props
+			item.Loc.End = p.prev.Loc.End
+		}
 	}
 
-	// Optional partition properties
-	if p.cur.Kind == int('(') {
-		// Skip inline partition properties
-		p.advance()
-		for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-			p.advance()
-		}
-		if p.cur.Kind == int(')') {
-			item.Loc.End = p.cur.Loc.End
-			p.advance()
-		}
-	}
-
+	// A property list belongs to the VALUES form. Without VALUES a '(' here
+	// opens nothing the grammar has, and is left for the partition list to
+	// reject: PARTITION p1 ("1") and PARTITION p1 ("k"="v") are engine
+	// rejects (container-verified). Doris differs, since its list partitions
+	// may leave VALUES IN out.
 	return item, nil
 }
 

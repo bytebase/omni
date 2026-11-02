@@ -52,7 +52,10 @@ func (p *Parser) parseAdminStmt(adminLoc ast.Loc) (ast.Node, error) {
 	// Capture the object keyword(s) and optional structured fields.
 	switch strings.ToUpper(verb) {
 	case "SHOW":
-		endLoc = p.parseAdminShowBody(stmt, endLoc)
+		endLoc, err = p.parseAdminShowBody(stmt, endLoc)
+		if err != nil {
+			return nil, err
+		}
 	case "REBALANCE":
 		// REBALANCE DISK [ON (...)]
 		stmt.Object = "DISK"
@@ -77,10 +80,8 @@ func (p *Parser) parseAdminStmt(adminLoc ast.Loc) (ast.Node, error) {
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		name, nameLoc, nameErr := p.parseMultipartIdentifierOptional()
-		if nameErr == nil && name != nil {
-			stmt.Target = name
-			endLoc = nameLoc
+		if endLoc, err = p.parseAdminTarget(stmt, endLoc); err != nil {
+			return nil, err
 		}
 		endLoc = p.collectRawArgs(stmt, endLoc)
 	case "CHECK":
@@ -90,16 +91,10 @@ func (p *Parser) parseAdminStmt(adminLoc ast.Loc) (ast.Node, error) {
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		// consume tablet id list and optional PROPERTIES
-		endLoc = p.collectRawArgs(stmt, endLoc)
-		if p.cur.Kind == kwPROPERTIES {
-			props, propErr := p.parseProperties()
-			if propErr == nil {
-				stmt.Properties = props
-				if len(props) > 0 {
-					endLoc = ast.NodeLoc(props[len(props)-1])
-				}
-			}
+		// The tablet id list is raw args; the PROPERTIES tail is parsed.
+		endLoc = p.collectRawArgsBefore(stmt, endLoc, kwPROPERTIES)
+		if endLoc, err = p.parseAdminProperties(stmt, endLoc); err != nil {
+			return nil, err
 		}
 	case "REPAIR":
 		// REPAIR TABLE name [PARTITION(p)]
@@ -108,16 +103,18 @@ func (p *Parser) parseAdminStmt(adminLoc ast.Loc) (ast.Node, error) {
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		name, nameLoc, nameErr := p.parseMultipartIdentifierOptional()
-		if nameErr == nil && name != nil {
-			stmt.Target = name
-			endLoc = nameLoc
+		if endLoc, err = p.parseAdminTarget(stmt, endLoc); err != nil {
+			return nil, err
 		}
 		endLoc = p.collectRawArgs(stmt, endLoc)
 	case "CANCEL":
-		endLoc = p.parseAdminCancelBody(stmt, endLoc)
+		if endLoc, err = p.parseAdminCancelBody(stmt, endLoc); err != nil {
+			return nil, err
+		}
 	case "SET":
-		endLoc = p.parseAdminSetBody(stmt, endLoc)
+		if endLoc, err = p.parseAdminSetBody(stmt, endLoc); err != nil {
+			return nil, err
+		}
 	case "CLEAN":
 		// CLEAN TRASH [ON (...)]
 		stmt.Object = "TRASH"
@@ -133,15 +130,9 @@ func (p *Parser) parseAdminStmt(adminLoc ast.Loc) (ast.Node, error) {
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		endLoc = p.collectRawArgs(stmt, endLoc)
-		if p.cur.Kind == kwPROPERTIES {
-			props, propErr := p.parseProperties()
-			if propErr == nil {
-				stmt.Properties = props
-				if len(props) > 0 {
-					endLoc = ast.NodeLoc(props[len(props)-1])
-				}
-			}
+		endLoc = p.collectRawArgsBefore(stmt, endLoc, kwPROPERTIES)
+		if endLoc, err = p.parseAdminProperties(stmt, endLoc); err != nil {
+			return nil, err
 		}
 	case "DECOMMISSION":
 		// DECOMMISSION BACKEND BY HOSTNAME 'host:port'
@@ -177,7 +168,8 @@ func (p *Parser) parseAdminVerb() (string, ast.Loc, error) {
 
 // parseAdminShowBody parses the body of ADMIN SHOW ... and fills stmt fields.
 // Returns the updated endLoc.
-func (p *Parser) parseAdminShowBody(stmt *ast.AdminStmt, endLoc ast.Loc) ast.Loc {
+func (p *Parser) parseAdminShowBody(stmt *ast.AdminStmt, endLoc ast.Loc) (ast.Loc, error) {
+	var err error
 	// Next token determines the object.
 	obj := p.peekKeywordStr()
 	switch obj {
@@ -187,30 +179,15 @@ func (p *Parser) parseAdminShowBody(stmt *ast.AdminStmt, endLoc ast.Loc) ast.Loc
 		p.advance() // consume REPLICA
 		// sub-verb: DISTRIBUTION or STATUS
 		switch p.peekKeywordStr() {
-		case "DISTRIBUTION":
+		case "DISTRIBUTION", "STATUS":
 			endLoc = p.cur.Loc
-			p.advance() // consume DISTRIBUTION
-			// optional FROM table [PARTITION p]
+			p.advance() // consume DISTRIBUTION / STATUS
+			// optional FROM table [PARTITION p] / [WHERE ...]
 			if p.cur.Kind == kwFROM {
 				endLoc = p.cur.Loc
 				p.advance()
-				name, nameLoc, err := p.parseMultipartIdentifierOptional()
-				if err == nil && name != nil {
-					stmt.Target = name
-					endLoc = nameLoc
-				}
-			}
-			endLoc = p.collectRawArgs(stmt, endLoc)
-		case "STATUS":
-			endLoc = p.cur.Loc
-			p.advance() // consume STATUS
-			if p.cur.Kind == kwFROM {
-				endLoc = p.cur.Loc
-				p.advance()
-				name, nameLoc, err := p.parseMultipartIdentifierOptional()
-				if err == nil && name != nil {
-					stmt.Target = name
-					endLoc = nameLoc
+				if endLoc, err = p.parseAdminTarget(stmt, endLoc); err != nil {
+					return endLoc, err
 				}
 			}
 			endLoc = p.collectRawArgs(stmt, endLoc)
@@ -246,11 +223,12 @@ func (p *Parser) parseAdminShowBody(stmt *ast.AdminStmt, endLoc ast.Loc) ast.Loc
 	default:
 		endLoc = p.collectRawArgs(stmt, endLoc)
 	}
-	return endLoc
+	return endLoc, nil
 }
 
 // parseAdminCancelBody parses ADMIN CANCEL ... and fills stmt fields.
-func (p *Parser) parseAdminCancelBody(stmt *ast.AdminStmt, endLoc ast.Loc) ast.Loc {
+func (p *Parser) parseAdminCancelBody(stmt *ast.AdminStmt, endLoc ast.Loc) (ast.Loc, error) {
+	var err error
 	obj := p.peekKeywordStr()
 	switch obj {
 	case "REBALANCE":
@@ -270,20 +248,19 @@ func (p *Parser) parseAdminCancelBody(stmt *ast.AdminStmt, endLoc ast.Loc) ast.L
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		name, nameLoc, nameErr := p.parseMultipartIdentifierOptional()
-		if nameErr == nil && name != nil {
-			stmt.Target = name
-			endLoc = nameLoc
+		if endLoc, err = p.parseAdminTarget(stmt, endLoc); err != nil {
+			return endLoc, err
 		}
 		endLoc = p.collectRawArgs(stmt, endLoc)
 	default:
 		endLoc = p.collectRawArgs(stmt, endLoc)
 	}
-	return endLoc
+	return endLoc, nil
 }
 
 // parseAdminSetBody parses ADMIN SET ... and fills stmt fields.
-func (p *Parser) parseAdminSetBody(stmt *ast.AdminStmt, endLoc ast.Loc) ast.Loc {
+func (p *Parser) parseAdminSetBody(stmt *ast.AdminStmt, endLoc ast.Loc) (ast.Loc, error) {
+	var err error
 	obj := p.peekKeywordStr()
 	switch obj {
 	case "REPLICA":
@@ -295,51 +272,31 @@ func (p *Parser) parseAdminSetBody(stmt *ast.AdminStmt, endLoc ast.Loc) ast.Loc 
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		if p.cur.Kind == kwPROPERTIES {
-			props, propErr := p.parseProperties()
-			if propErr == nil {
-				stmt.Properties = props
-				if len(props) > 0 {
-					endLoc = ast.NodeLoc(props[len(props)-1])
-				}
-			}
+		if endLoc, err = p.parseAdminProperties(stmt, endLoc); err != nil {
+			return endLoc, err
 		}
 	case "TABLE":
 		stmt.Object = "TABLE STATUS"
 		endLoc = p.cur.Loc
 		p.advance() // consume TABLE
-		name, nameLoc, nameErr := p.parseMultipartIdentifierOptional()
-		if nameErr == nil && name != nil {
-			stmt.Target = name
-			endLoc = nameLoc
+		if endLoc, err = p.parseAdminTarget(stmt, endLoc); err != nil {
+			return endLoc, err
 		}
 		// STATUS PROPERTIES(...)
 		if p.peekKeywordStr() == "STATUS" {
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		if p.cur.Kind == kwPROPERTIES {
-			props, propErr := p.parseProperties()
-			if propErr == nil {
-				stmt.Properties = props
-				if len(props) > 0 {
-					endLoc = ast.NodeLoc(props[len(props)-1])
-				}
-			}
+		if endLoc, err = p.parseAdminProperties(stmt, endLoc); err != nil {
+			return endLoc, err
 		}
 	case "PARTITION":
 		stmt.Object = "PARTITION VERSION"
 		endLoc = p.cur.Loc
 		p.advance() // consume PARTITION
-		endLoc = p.collectRawArgs(stmt, endLoc)
-		if p.cur.Kind == kwPROPERTIES {
-			props, propErr := p.parseProperties()
-			if propErr == nil {
-				stmt.Properties = props
-				if len(props) > 0 {
-					endLoc = ast.NodeLoc(props[len(props)-1])
-				}
-			}
+		endLoc = p.collectRawArgsBefore(stmt, endLoc, kwPROPERTIES)
+		if endLoc, err = p.parseAdminProperties(stmt, endLoc); err != nil {
+			return endLoc, err
 		}
 	case "FRONTEND":
 		// ADMIN SET FRONTEND CONFIG ("key"="value")
@@ -350,22 +307,52 @@ func (p *Parser) parseAdminSetBody(stmt *ast.AdminStmt, endLoc ast.Loc) ast.Loc 
 			endLoc = p.cur.Loc
 			p.advance() // consume CONFIG
 		}
-		// The config is a ("key"="value") list — reuse parseProperties with '(' already expected
+		// The config is a bare ("key"="value") list, with no PROPERTIES
+		// keyword in front of it.
 		if p.cur.Kind == int('(') {
-			// parseProperties expects the PROPERTIES keyword has been consumed;
-			// here we manually parse the parens list.
-			props, propErr := p.parseFrontendConfigList()
-			if propErr == nil {
-				stmt.Properties = props
-				if len(props) > 0 {
-					endLoc = ast.NodeLoc(props[len(props)-1])
-				}
+			props, err := p.parseFrontendConfigList()
+			if err != nil {
+				return endLoc, err
 			}
+			stmt.Properties = props
+			endLoc = p.prev.Loc
 		}
 	default:
 		endLoc = p.collectRawArgs(stmt, endLoc)
 	}
-	return endLoc
+	return endLoc, nil
+}
+
+// parseAdminTarget parses the optional table name an ADMIN statement names
+// into stmt.Target, returning the updated endLoc. An error from the name is
+// returned rather than dropped.
+func (p *Parser) parseAdminTarget(stmt *ast.AdminStmt, endLoc ast.Loc) (ast.Loc, error) {
+	name, nameLoc, err := p.parseMultipartIdentifierOptional()
+	if err != nil {
+		return endLoc, err
+	}
+	if name != nil {
+		stmt.Target = name
+		endLoc = nameLoc
+	}
+	return endLoc, nil
+}
+
+// parseAdminProperties parses an optional PROPERTIES(...) list at cur into
+// stmt.Properties and returns the updated endLoc, which ends at the list's
+// closing ')'. An error in the list is returned rather than dropped: at the
+// end of the input nothing after it would catch it, so ADMIN SET REPLICA
+// STATUS PROPERTIES( used to parse (container-verified reject).
+func (p *Parser) parseAdminProperties(stmt *ast.AdminStmt, endLoc ast.Loc) (ast.Loc, error) {
+	if p.cur.Kind != kwPROPERTIES {
+		return endLoc, nil
+	}
+	props, err := p.parseProperties()
+	if err != nil {
+		return endLoc, err
+	}
+	stmt.Properties = props
+	return p.prev.Loc, nil
 }
 
 // parseFrontendConfigList parses ("key"="value") without consuming a leading
@@ -418,12 +405,18 @@ func (p *Parser) peekKeywordStr() string {
 }
 
 // collectRawArgs collects all remaining tokens (up to EOF) into stmt.Args as
-// space-separated text. Stops at EOF.  Does not consume PROPERTIES or other
-// structured tails that callers want to handle separately.
-// Returns the updated endLoc (last non-EOF token seen).
+// space-separated text. Returns the updated endLoc (last non-EOF token seen).
 func (p *Parser) collectRawArgs(stmt *ast.AdminStmt, endLoc ast.Loc) ast.Loc {
+	return p.collectRawArgsBefore(stmt, endLoc, tokEOF)
+}
+
+// collectRawArgsBefore is collectRawArgs stopping at the first stop token, so
+// a structured tail the caller parses itself (the PROPERTIES list of ADMIN
+// CHECK TABLET / COPY TABLET) is left for it. Collecting to EOF instead took
+// that list as raw text, where nothing held it to the list's grammar.
+func (p *Parser) collectRawArgsBefore(stmt *ast.AdminStmt, endLoc ast.Loc, stop TokenKind) ast.Loc {
 	var parts []string
-	for p.cur.Kind != tokEOF {
+	for p.cur.Kind != tokEOF && p.cur.Kind != stop {
 		text := p.cur.Str
 		if text == "" {
 			text = TokenName(p.cur.Kind)
@@ -496,11 +489,16 @@ func (p *Parser) parseSystemAlter(alterLoc ast.Loc) (ast.Node, error) {
 	endLoc = verbTok.Loc
 	p.advance()
 
+	var err error
 	switch strings.ToUpper(verb) {
 	case "ADD":
-		endLoc = p.parseSystemAlterAddBody(stmt, endLoc)
+		if endLoc, err = p.parseSystemAlterAddBody(stmt, endLoc); err != nil {
+			return nil, err
+		}
 	case "DROP":
-		endLoc = p.parseSystemAlterDropBody(stmt, endLoc)
+		if endLoc, err = p.parseSystemAlterDropBody(stmt, endLoc); err != nil {
+			return nil, err
+		}
 	case "DECOMMISSION":
 		// DECOMMISSION BACKEND 'host:port' [, ...]
 		stmt.Object = "BACKEND"
@@ -530,13 +528,12 @@ func (p *Parser) parseSystemAlter(alterLoc ast.Loc) (ast.Node, error) {
 			endLoc = p.cur.Loc
 			p.advance()
 			if p.cur.Kind == int('(') {
-				props, propErr := p.parseFrontendConfigList()
-				if propErr == nil {
-					stmt.SetClause = props
-					if len(props) > 0 {
-						endLoc = ast.NodeLoc(props[len(props)-1])
-					}
+				props, err := p.parseFrontendConfigList()
+				if err != nil {
+					return nil, err
 				}
+				stmt.SetClause = props
+				endLoc = p.prev.Loc
 			}
 		}
 	case "SET":
@@ -552,14 +549,8 @@ func (p *Parser) parseSystemAlter(alterLoc ast.Loc) (ast.Node, error) {
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		if p.cur.Kind == kwPROPERTIES {
-			props, propErr := p.parseProperties()
-			if propErr == nil {
-				stmt.Properties = props
-				if len(props) > 0 {
-					endLoc = ast.NodeLoc(props[len(props)-1])
-				}
-			}
+		if endLoc, err = p.parseSystemAlterProperties(stmt, endLoc); err != nil {
+			return nil, err
 		}
 	default:
 		// Unknown verb — collect as args
@@ -573,8 +564,37 @@ func (p *Parser) parseSystemAlter(alterLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
+// parseSystemAlterProperties parses an optional PROPERTIES(...) list at cur
+// into stmt.Properties and returns the updated endLoc, which ends at the
+// list's closing ')'. An error in the list is returned, not dropped.
+func (p *Parser) parseSystemAlterProperties(stmt *ast.SystemAlterStmt, endLoc ast.Loc) (ast.Loc, error) {
+	if p.cur.Kind != kwPROPERTIES {
+		return endLoc, nil
+	}
+	props, err := p.parseProperties()
+	if err != nil {
+		return endLoc, err
+	}
+	stmt.Properties = props
+	return p.prev.Loc, nil
+}
+
+// parseSystemAlterBroker parses the broker name of ALTER SYSTEM ADD / DROP
+// [ALL] BROKER into stmt.BrokerName, returning the updated endLoc. The name
+// is required: a missing one used to be dropped silently, so ALTER SYSTEM ADD
+// BROKER parsed (container-verified reject).
+func (p *Parser) parseSystemAlterBroker(stmt *ast.SystemAlterStmt) (ast.Loc, error) {
+	brokerName, brokerLoc, err := p.parseIdentifierOrString()
+	if err != nil {
+		return ast.Loc{}, err
+	}
+	stmt.BrokerName = brokerName
+	return brokerLoc, nil
+}
+
 // parseSystemAlterAddBody parses the body of ALTER SYSTEM ADD ...
-func (p *Parser) parseSystemAlterAddBody(stmt *ast.SystemAlterStmt, endLoc ast.Loc) ast.Loc {
+func (p *Parser) parseSystemAlterAddBody(stmt *ast.SystemAlterStmt, endLoc ast.Loc) (ast.Loc, error) {
+	var err error
 	obj := strings.ToUpper(p.cur.Str)
 	if obj == "" {
 		obj = strings.ToUpper(TokenName(p.cur.Kind))
@@ -591,14 +611,8 @@ func (p *Parser) parseSystemAlterAddBody(stmt *ast.SystemAlterStmt, endLoc ast.L
 			endLoc = hostsEnd
 		}
 		// optional PROPERTIES
-		if p.cur.Kind == kwPROPERTIES {
-			props, propErr := p.parseProperties()
-			if propErr == nil {
-				stmt.Properties = props
-				if len(props) > 0 {
-					endLoc = ast.NodeLoc(props[len(props)-1])
-				}
-			}
+		if endLoc, err = p.parseSystemAlterProperties(stmt, endLoc); err != nil {
+			return endLoc, err
 		}
 	case "FOLLOWER":
 		stmt.Object = "FOLLOWER"
@@ -623,10 +637,8 @@ func (p *Parser) parseSystemAlterAddBody(stmt *ast.SystemAlterStmt, endLoc ast.L
 		endLoc = p.cur.Loc
 		p.advance()
 		// broker_name 'host:port' [, ...]
-		brokerName, brokerLoc, brokerErr := p.parseIdentifierOrString()
-		if brokerErr == nil {
-			stmt.BrokerName = brokerName
-			endLoc = brokerLoc
+		if endLoc, err = p.parseSystemAlterBroker(stmt); err != nil {
+			return endLoc, err
 		}
 		hosts, hostsEnd := p.parseHostList()
 		stmt.Hosts = hosts
@@ -640,11 +652,12 @@ func (p *Parser) parseSystemAlterAddBody(stmt *ast.SystemAlterStmt, endLoc ast.L
 			p.advance()
 		}
 	}
-	return endLoc
+	return endLoc, nil
 }
 
 // parseSystemAlterDropBody parses the body of ALTER SYSTEM DROP ...
-func (p *Parser) parseSystemAlterDropBody(stmt *ast.SystemAlterStmt, endLoc ast.Loc) ast.Loc {
+func (p *Parser) parseSystemAlterDropBody(stmt *ast.SystemAlterStmt, endLoc ast.Loc) (ast.Loc, error) {
+	var err error
 	// Check for DROP ALL BROKER
 	if p.cur.Kind == kwALL {
 		stmt.DropAll = true
@@ -656,12 +669,7 @@ func (p *Parser) parseSystemAlterDropBody(stmt *ast.SystemAlterStmt, endLoc ast.
 			endLoc = p.cur.Loc
 			p.advance()
 		}
-		brokerName, brokerLoc, brokerErr := p.parseIdentifierOrString()
-		if brokerErr == nil {
-			stmt.BrokerName = brokerName
-			endLoc = brokerLoc
-		}
-		return endLoc
+		return p.parseSystemAlterBroker(stmt)
 	}
 
 	obj := strings.ToUpper(p.cur.Str)
@@ -700,10 +708,8 @@ func (p *Parser) parseSystemAlterDropBody(stmt *ast.SystemAlterStmt, endLoc ast.
 		stmt.Object = "BROKER"
 		endLoc = p.cur.Loc
 		p.advance()
-		brokerName, brokerLoc, brokerErr := p.parseIdentifierOrString()
-		if brokerErr == nil {
-			stmt.BrokerName = brokerName
-			endLoc = brokerLoc
+		if endLoc, err = p.parseSystemAlterBroker(stmt); err != nil {
+			return endLoc, err
 		}
 		hosts, hostsEnd := p.parseHostList()
 		stmt.Hosts = hosts
@@ -716,7 +722,7 @@ func (p *Parser) parseSystemAlterDropBody(stmt *ast.SystemAlterStmt, endLoc ast.
 			p.advance()
 		}
 	}
-	return endLoc
+	return endLoc, nil
 }
 
 // parseHostList parses a comma-separated list of string literal host:port

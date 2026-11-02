@@ -293,11 +293,14 @@ func (p *Parser) parseLoad() (ast.Node, error) {
 		}
 		stmt.BrokerName = brokerName
 
-		// Optional broker properties (...)
+		// Optional broker properties: brokerDesc's props=propertyList?, each
+		// item a string on both sides.
 		if p.cur.Kind == int('(') {
-			if err := p.skipParenthesized(); err != nil {
+			props, err := p.parsePropertyList()
+			if err != nil {
 				return nil, err
 			}
+			stmt.BrokerProperties = props
 		}
 	}
 
@@ -534,24 +537,6 @@ func (p *Parser) captureUntilLoadClauseEnd() string {
 	return sb.String()
 }
 
-// skipParenthesized skips a '(' ... ')' block without capturing content.
-func (p *Parser) skipParenthesized() error {
-	if _, err := p.expect(int('(')); err != nil {
-		return err
-	}
-	depth := 1
-	for depth > 0 && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case int('('):
-			depth++
-		case int(')'):
-			depth--
-		}
-		p.advance()
-	}
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // EXPORT TABLE (T6.1)
 // ---------------------------------------------------------------------------
@@ -634,11 +619,14 @@ func (p *Parser) parseExport() (ast.Node, error) {
 		}
 		stmt.BrokerName = brokerName
 
-		// Optional broker properties (...)
+		// Optional broker properties: brokerDesc's props=propertyList?, each
+		// item a string on both sides.
 		if p.cur.Kind == int('(') {
-			if err := p.skipParenthesized(); err != nil {
+			props, err := p.parsePropertyList()
+			if err != nil {
 				return nil, err
 			}
+			stmt.BrokerProperties = props
 		}
 	}
 

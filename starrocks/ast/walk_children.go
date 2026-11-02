@@ -318,7 +318,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, p)
 		}
 	case *PartitionItem:
-		// leaf-ish node, values stored as strings
+		// Values are stored as strings; the inline property list is walked.
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *DistributionDesc:
 		// leaf-ish node, no Node children
 	case *RollupDef:
@@ -446,6 +449,9 @@ func walkChildren(v Visitor, node Node) {
 		for _, desc := range n.DataDescs {
 			Walk(v, desc)
 		}
+		for _, prop := range n.BrokerProperties {
+			Walk(v, prop)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
@@ -457,6 +463,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Where)
 		}
 		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		for _, prop := range n.BrokerProperties {
 			Walk(v, prop)
 		}
 

@@ -446,55 +446,23 @@ func (p *Parser) parseSyncStmt(startLoc ast.Loc) (ast.Node, error) {
 // Shared helper
 // ---------------------------------------------------------------------------
 
-// parseParenthesisedProperties parses a parenthesised key=value list where
-// values may be string literals or plain identifiers/numbers. This is used for
-// the data source properties in ROUTINE LOAD:
+// parseParenthesisedProperties parses the parenthesised data-source property
+// list of a routine load:
 //
-//	( "key" = "value" [, "key" = "value"] ... )
+//	FROM KAFKA ( "key" = "value" [, "key" = "value"] ... )
 //
 // cur must be '(' on entry.
+//
+// The grammar gives the list as a propertyItemList, whose items may take an
+// identifier or any constant on either side, but the engine holds a routine
+// load to a string on both: (kafka_broker_list = "h:9092"), ("k" = 1),
+// ("k" = tp), ("k" = NULL) and ("k" = true) are all rejects, reported by its
+// legacy parser (container-verified). The item used to take any single token
+// as the value, so ("a" = ,), ("a" = )) and ("a" = ( ) parsed.
 func (p *Parser) parseParenthesisedProperties() ([]*ast.Property, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
 
-	return p.parsePropertyItems(p.parseRoutineLoadProperty)
-}
-
-// parseRoutineLoadProperty reads one item of a routine load's job or
-// data-source property list, which takes a bare key and an unquoted value as
-// well as quoted ones.
-func (p *Parser) parseRoutineLoadProperty() (*ast.Property, error) {
-	startLoc := p.cur.Loc
-
-	// Key — string literal or identifier/keyword
-	var key string
-	if p.cur.Kind == tokString {
-		key = p.cur.Str
-		p.advance()
-	} else {
-		var err error
-		key, _, err = p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if _, err := p.expect(int('=')); err != nil {
-		return nil, err
-	}
-
-	// Value — string literal, integer, or raw identifier/keyword text.
-	if p.cur.Kind == tokEOF {
-		return nil, p.syntaxErrorAtCur()
-	}
-	val := p.cur.Str
-	endLoc := p.cur.Loc
-	p.advance()
-
-	return &ast.Property{
-		Key:   key,
-		Value: val,
-		Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
-	}, nil
+	return p.parsePropertyItems(p.parseStringProperty)
 }

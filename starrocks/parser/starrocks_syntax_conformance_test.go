@@ -266,6 +266,105 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"props_outfile_trailing_comma_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES("k"="v",)`, false},
 		{"props_outfile_empty_rejected", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES()`, false},
 
+		// --- Property lists whose errors were dropped or that were skipped
+		// unread, the follow-up to the props_* rows above. At the end of the
+		// input nothing after a dropped error was left to notice it. Forms the
+		// engine has no grammar for at all (ADMIN COPY TABLET, ADMIN SET TABLE
+		// ... STATUS, ALTER SYSTEM ADD BACKEND ... PROPERTIES) get no rows, for
+		// the reason given for ALTER CATALOG ... PROPERTY below.
+		{"props_admin_frontend_config_open_rejected", `ADMIN SET FRONTEND CONFIG (`, false},
+		{"props_admin_frontend_config_no_value_rejected", `ADMIN SET FRONTEND CONFIG ("k"=`, false},
+		{"props_admin_frontend_config_unclosed_rejected", `ADMIN SET FRONTEND CONFIG ("k"="v"`, false},
+		{"props_modify_backend", `ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET ("labels.location"="a:b")`, true},
+		{"props_modify_backend_open_rejected", `ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET (`, false},
+		{"props_modify_backend_no_value_rejected", `ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET ("k"=`, false},
+		{"props_modify_backend_trailing_comma_rejected", `ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET ("labels.location"="a:b",)`, false},
+		{"props_admin_set_replica_status", `ADMIN SET REPLICA STATUS PROPERTIES("tablet_id"="1","backend_id"="1","status"="bad")`, true},
+		{"props_admin_set_replica_status_open_rejected", `ADMIN SET REPLICA STATUS PROPERTIES(`, false},
+		// CHECK TABLET took its PROPERTIES list as raw args.
+		{"props_admin_check_tablet", `ADMIN CHECK TABLET (1) PROPERTIES("type"="consistency")`, true},
+		{"props_admin_check_tablet_open_rejected", `ADMIN CHECK TABLET (1) PROPERTIES(`, false},
+		{"props_admin_check_tablet_empty_rejected", `ADMIN CHECK TABLET (1) PROPERTIES()`, false},
+		{"props_admin_check_tablet_trailing_comma_rejected", `ADMIN CHECK TABLET (1) PROPERTIES("type"="consistency",)`, false},
+		{"props_load_errors_hub", `ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES("type"="null")`, true},
+		{"props_load_errors_hub_open_rejected", `ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES(`, false},
+		{"alter_system_add_broker_no_name_rejected", `ALTER SYSTEM ADD BROKER`, false},
+		{"alter_system_drop_broker_no_name_rejected", `ALTER SYSTEM DROP BROKER`, false},
+		{"alter_system_drop_all_broker_no_name_rejected", `ALTER SYSTEM DROP ALL BROKER`, false},
+		{"alter_system_drop_all_broker", `ALTER SYSTEM DROP ALL BROKER zz_no_broker`, true},
+		{"show_alter_table_from_db", `SHOW ALTER TABLE COLUMN FROM srtest`, true},
+		{"show_alter_table_from_missing_db_rejected", `SHOW ALTER TABLE COLUMN FROM`, false},
+		{"show_alter_table_from_string_rejected", `SHOW ALTER TABLE COLUMN FROM 'x'`, false},
+
+		// A partition's inline properties: propertyList after the VALUES
+		// clause, `property : key=string '=' value=string`.
+		{"props_partition", `CREATE TABLE zzpp01 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_single_quoted", `CREATE TABLE zzpp02 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ('replication_num'='1')) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_empty_rejected", `CREATE TABLE zzpp03 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ()) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_trailing_comma_rejected", `CREATE TABLE zzpp04 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1",)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_missing_comma_rejected", `CREATE TABLE zzpp05 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1" "k2"="v2")) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_junk_rejected", `CREATE TABLE zzpp06 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k" "v" SELECT DROP *)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_unclosed_rejected", `CREATE TABLE zzpp07 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (`, false},
+		{"props_partition_bare_key_rejected", `CREATE TABLE zzpp08 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (replication_num="1")) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_number_value_rejected", `CREATE TABLE zzpp09 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"=1)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_identifier_value_rejected", `CREATE TABLE zzpp10 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("storage_medium"=HDD)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_missing_value_rejected", `CREATE TABLE zzpp11 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_maxvalue", `CREATE TABLE zzpp12 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN MAXVALUE ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_fixed_range", `CREATE TABLE zzpp13 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES [("1"), ("10")) ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_list", `CREATE TABLE zzpp14 (a INT) PARTITION BY LIST(a) (PARTITION p1 VALUES IN ("1") ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_list_multi", `CREATE TABLE zzpp15 (a INT) PARTITION BY LIST(a) (PARTITION p1 VALUES IN (("1"), ("2")) ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_list_empty_rejected", `CREATE TABLE zzpp16 (a INT) PARTITION BY LIST(a) (PARTITION p1 VALUES IN ("1") ()) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_twice_rejected", `CREATE TABLE zzpp17 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1") ("k"="v")) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		// The property list belongs to the VALUES form; unlike Doris, a
+		// partition cannot leave VALUES out and go straight to a list.
+		{"partition_without_values_list_rejected", `CREATE TABLE zzpp18 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("1")) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"partition_without_values_props_rejected", `CREATE TABLE zzpp19 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"partition_without_values_junk_rejected", `CREATE TABLE zzpp20 (a INT) PARTITION BY LIST(a) (PARTITION p1 (SELECT)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+
+		// WITH BROKER name (...): brokerDesc's propertyList, string items.
+		{"props_load_broker", `LOAD LABEL zzl01 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u","password"="p")`, true},
+		{"props_load_broker_single_quoted", `LOAD LABEL zzl02 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ('k'='v')`, true},
+		{"props_load_broker_empty_rejected", `LOAD LABEL zzl03 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ()`, false},
+		{"props_load_broker_trailing_comma_rejected", `LOAD LABEL zzl04 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u",)`, false},
+		{"props_load_broker_missing_comma_rejected", `LOAD LABEL zzl05 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u" "password"="p")`, false},
+		{"props_load_broker_junk_rejected", `LOAD LABEL zzl06 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k" "v" SELECT DROP *)`, false},
+		{"props_load_broker_unclosed_rejected", `LOAD LABEL zzl07 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (`, false},
+		{"props_load_broker_bare_key_rejected", `LOAD LABEL zzl08 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (username="u")`, false},
+		{"props_load_broker_number_value_rejected", `LOAD LABEL zzl09 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=1)`, false},
+		{"props_load_broker_identifier_value_rejected", `LOAD LABEL zzl10 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=v)`, false},
+		{"props_export_broker", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u","password"="p")`, true},
+		{"props_export_broker_empty_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ()`, false},
+		{"props_export_broker_trailing_comma_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u",)`, false},
+		{"props_export_broker_missing_comma_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u" "password"="p")`, false},
+		{"props_export_broker_junk_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k" "v" SELECT DROP *)`, false},
+		{"props_export_broker_unclosed_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb (`, false},
+		{"props_export_broker_bare_key_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb (username="u")`, false},
+		{"props_export_broker_number_value_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k"=1)`, false},
+		{"props_export_broker_identifier_value_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k"=v)`, false},
+
+		// A routine load's data-source items: a string on both sides. The
+		// value used to be any single token.
+		{"props_routine_load_source", `CREATE ROUTINE LOAD zzrl6 ON zz_nope FROM KAFKA ('kafka_broker_list'='h:9092', "kafka_topic"="tp")`, true},
+		{"props_routine_load_source_comma_value_rejected", `CREATE ROUTINE LOAD zzrl7 ON zz_nope FROM KAFKA ("a" = ,)`, false},
+		{"props_routine_load_source_paren_value_rejected", `CREATE ROUTINE LOAD zzrl8 ON zz_nope FROM KAFKA ("a" = ))`, false},
+		{"props_routine_load_source_open_paren_value_rejected", `CREATE ROUTINE LOAD zzrl9 ON zz_nope FROM KAFKA ("a" = ( )`, false},
+		{"props_routine_load_source_bare_key_rejected", `CREATE ROUTINE LOAD zzrl10 ON zz_nope FROM KAFKA (kafka_broker_list="h:9092")`, false},
+		{"props_routine_load_source_number_value_rejected", `CREATE ROUTINE LOAD zzrl11 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_partitions"=1)`, false},
+		{"props_routine_load_source_identifier_value_rejected", `CREATE ROUTINE LOAD zzrl12 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_topic"=tp)`, false},
+		{"props_routine_load_source_null_value_rejected", `CREATE ROUTINE LOAD zzrl13 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=NULL)`, false},
+		{"props_routine_load_source_boolean_value_rejected", `CREATE ROUTINE LOAD zzrl14 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=true)`, false},
+		{"props_alter_routine_load_source", `ALTER ROUTINE LOAD FOR zzrl15 FROM KAFKA ("kafka_partitions"="1")`, true},
+		{"props_alter_routine_load_source_comma_value_rejected", `ALTER ROUTINE LOAD FOR zzrl16 FROM KAFKA ("a" = ,)`, false},
+		{"props_alter_routine_load_source_number_value_rejected", `ALTER ROUTINE LOAD FOR zzrl17 FROM KAFKA ("kafka_partitions"=1)`, false},
+		{"props_alter_routine_load_source_bare_key_rejected", `ALTER ROUTINE LOAD FOR zzrl18 FROM KAFKA (kafka_partitions="1")`, false},
+
+		// INSERT INTO FILES(...): FILES is outside the grammar's nonReserved,
+		// so `FILES (` always opens the sink's property list.
+		{"insert_files_trailing_comma_rejected", `INSERT INTO FILES("path"="s3://b/p",) SELECT 1`, false},
+		{"insert_files_missing_comma_rejected", `INSERT INTO FILES("path"="s3://b/p" "format"="parquet") SELECT 1`, false},
+		{"insert_files_bare_key_rejected", `INSERT INTO FILES(path="s3://b/p") SELECT 1`, false},
+		{"insert_files_column_list_rejected", `INSERT INTO files (a) SELECT 1`, false},
+
 		// ALTER CATALOG ... PROPERTY (...) reaches the sixth list parser, but
 		// it gets no rows here: the engine rejects that statement form
 		// outright, well-formed list and all, so a parity row would pin the

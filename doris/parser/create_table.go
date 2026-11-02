@@ -894,22 +894,60 @@ func (p *Parser) parsePartitionItem() (*ast.PartitionItem, error) {
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
+	} else if p.cur.Kind == int('(') && !p.parenOpensPropertyList() {
+		// inPartitionDef takes its values with VALUES IN left out:
+		//
+		//	PARTITION (IF NOT EXISTS)? partitionName=identifier ((VALUES IN)?
+		//	    ((LEFT_PAREN partitionValueList (COMMA partitionValueList)*
+		//	    RIGHT_PAREN) | constants=partitionValueList))?
+		//
+		// (DorisParser.g4), so PARTITION p1 ("1") and PARTITION p1 (("1"),
+		// ("2")) are list partitions, container-verified.
+		inVals, endLoc, err := p.parseInPartitionValues()
+		if err != nil {
+			return nil, err
+		}
+		item.InValues = inVals
+		item.Loc.End = endLoc
 	}
 
-	// Optional partition properties
+	// Optional partition properties:
+	//
+	//	partitionDef : (...PartitionDef) (LEFT_PAREN partitionProperties=propertyItemList RIGHT_PAREN)?
+	//
+	// These used to be skipped to the next ')' unread, so (), ("k"="v",) and
+	// anything else at all parsed, and the properties never reached the tree.
 	if p.cur.Kind == int('(') {
-		// Skip inline partition properties
-		p.advance()
-		for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-			p.advance()
+		p.advance() // consume '('
+		props, err := p.parsePropertyItems(p.parsePropertyItem)
+		if err != nil {
+			return nil, err
 		}
-		if p.cur.Kind == int(')') {
-			item.Loc.End = p.cur.Loc.End
-			p.advance()
-		}
+		item.Properties = props
+		item.Loc.End = p.prev.Loc.End
 	}
 
 	return item, nil
+}
+
+// parenOpensPropertyList reports whether the '(' at cur opens a partition's
+// property list rather than its value list, for a partition written without
+// VALUES, where both may follow the name. A property list's first item is
+// `key = ...`; a value list holds values or nested value lists. An empty pair
+// of parentheses counts as a property list, so that the list's own check
+// rejects it: neither form may be empty.
+func (p *Parser) parenOpensPropertyList() bool {
+	cp := p.save()
+	defer p.restore(cp)
+	p.advance() // consume '('
+	switch p.cur.Kind {
+	case int(')'):
+		return true
+	case int('('), tokEOF:
+		return false
+	}
+	p.advance() // the key's first token
+	return p.cur.Kind == int('=')
 }
 
 // parseStepPartition parses: FROM (values) TO (values) INTERVAL n [unit]
