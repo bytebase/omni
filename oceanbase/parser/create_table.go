@@ -1315,11 +1315,16 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
-	// DYNAMIC_PARTITION_POLICY takes a parenthesized list of assignments of its own,
-	// ENABLE = TRUE and TIME_UNIT = 'DAY' in the form read on 4.3.5. Nothing downstream
-	// reads inside it, so the group is kept as written rather than modelled, but the
-	// assignments are still parsed: accepting any parenthesized text would pass DDL
-	// through review that the server then refuses.
+	// DYNAMIC_PARTITION_POLICY [=] (key = value [[,] key = value] ...). Nothing
+	// downstream reads inside the list, so it is kept as written rather than
+	// modelled, but every assignment is parsed the way 4.3.5.6 reads it
+	// (dynamicPartitionPolicyCases): the key is one of dynamicPartitionPolicyKeys,
+	// written bare; the '=' is required; ENABLE takes TRUE or FALSE, and every
+	// other key a string literal, adjacent literals included. The engine answers
+	// 1064 for anything else, so a looser reading would pass DDL through review for
+	// the server to refuse. The comma between assignments is the one exception: the
+	// engine parses a list without it and refuses it afterwards with 1210, so the
+	// parser takes it, as it takes any statement the grammar does.
 	if p.cur.Type == kwDYNAMIC_PARTITION_POLICY {
 		p.advance()
 		p.match('=')
@@ -1328,23 +1333,31 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			return nil, false, err
 		}
 		for {
-			if _, _, err := p.parseIdent(); err != nil {
+			key, ok := p.dynamicPartitionPolicyKey()
+			if !ok {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if _, err := p.expect('='); err != nil {
 				return nil, false, err
 			}
-			p.match('=')
-			switch p.cur.Type {
-			// TRUE and FALSE are reserved, so parseIdent would refuse the very form
-			// OceanBase writes.
-			case tokICONST, tokSCONST, kwTRUE, kwFALSE:
+			if key == "ENABLE" {
+				if p.cur.Type != kwTRUE && p.cur.Type != kwFALSE {
+					return nil, false, p.syntaxErrorAtCur()
+				}
 				p.advance()
-			default:
-				if _, _, err := p.parseIdent(); err != nil {
-					return nil, false, err
+			} else {
+				if p.cur.Type != tokSCONST {
+					return nil, false, p.syntaxErrorAtCur()
+				}
+				for p.cur.Type == tokSCONST {
+					p.advance()
 				}
 			}
-			if _, ok := p.match(','); !ok {
+			if p.cur.Type == ')' {
 				break
 			}
+			p.match(',')
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, false, err
@@ -1356,24 +1369,53 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}, true, nil
 	}
 
-	// ORGANIZATION INDEX is OceanBase's index-organized table, which it prints on
-	// every table SHOW CREATE TABLE returns (verified on 4.3.5). It takes no value.
-	if p.cur.Type == kwORGANIZATION && p.peekNext().Type == kwINDEX {
+	// ORGANIZATION [=] {INDEX | HEAP}: OceanBase's index-organized or heap table.
+	// 4.3.5 prints ORGANIZATION INDEX on every table SHOW CREATE TABLE returns, and
+	// takes either word, with or without the '=', in CREATE TABLE and ALTER TABLE
+	// (organizationCases). The option keeps the name it has always had for INDEX.
+	if p.cur.Type == kwORGANIZATION {
 		p.advance()
+		p.match('=')
+		var name string
+		switch {
+		case p.cur.Type == kwINDEX:
+			name = "ORGANIZATION INDEX"
+		case p.isBareWord("HEAP"):
+			name = "ORGANIZATION HEAP"
+		default:
+			return nil, false, p.syntaxErrorAtCur()
+		}
 		p.advance()
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ORGANIZATION INDEX"}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name}, true, nil
 	}
 
-	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.,
-	// and OceanBase's storage options, which it prints on every table.
+	// OceanBase's storage options each take one kind of value. table_option in
+	// sql_parser_mysql_mode.y (v4.3.5_CE) reads `REPLICA_NUM opt_equal_mark INTNUM`,
+	// BLOCK_SIZE, TABLET_SIZE and PCTFREE the same way, `USE_BLOOM_FILTER
+	// opt_equal_mark BOOL_VALUE`, and `AUTO_INCREMENT_MODE opt_equal_mark
+	// STRING_VALUE`; ENABLE_MACRO_BLOCK_BLOOM_FILTER is newer than that tag, and
+	// 4.3.5.6 takes TRUE or FALSE for it. Any other value is a 1064
+	// (tableOptionValueCases), where consumeOptionValue below takes any word.
+	if want, ok := oceanBaseOptionValue[p.cur.Type]; ok {
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		if !want(p.cur.Type) {
+			return nil, false, &ParseError{Message: "expected a value for the table option", Position: p.cur.Loc}
+		}
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+	}
+
+	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
 	switch p.cur.Type {
 	case kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
-		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE,
-		kwBLOCK_SIZE, kwREPLICA_NUM, kwTABLET_SIZE, kwPCTFREE,
-		kwUSE_BLOOM_FILTER, kwENABLE_MACRO_BLOCK_BLOOM_FILTER,
-		kwAUTO_INCREMENT_MODE:
+		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE:
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
@@ -1385,6 +1427,51 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	}
 
 	return nil, false, nil
+}
+
+// oceanBaseOptionValue maps each OceanBase storage option to the token types its
+// value may be.
+var oceanBaseOptionValue = map[int]func(int) bool{
+	kwBLOCK_SIZE:                      isIntegerToken,
+	kwREPLICA_NUM:                     isIntegerToken,
+	kwTABLET_SIZE:                     isIntegerToken,
+	kwPCTFREE:                         isIntegerToken,
+	kwUSE_BLOOM_FILTER:                isBoolToken,
+	kwENABLE_MACRO_BLOCK_BLOOM_FILTER: isBoolToken,
+	kwAUTO_INCREMENT_MODE:             isStringToken,
+}
+
+func isIntegerToken(t int) bool { return t == tokICONST }
+func isBoolToken(t int) bool    { return t == kwTRUE || t == kwFALSE }
+func isStringToken(t int) bool  { return t == tokSCONST }
+
+// dynamicPartitionPolicyKeys are the keys DYNAMIC_PARTITION_POLICY takes on
+// 4.3.5.6. Any other key, a quoted one included, is a 1064.
+var dynamicPartitionPolicyKeys = []string{
+	"ENABLE", "TIME_UNIT", "PRECREATE_TIME", "EXPIRE_TIME", "TIME_ZONE", "BIGINT_PRECISION",
+}
+
+// dynamicPartitionPolicyKey reports which of dynamicPartitionPolicyKeys the
+// current token spells, without consuming it.
+func (p *Parser) dynamicPartitionPolicyKey() (string, bool) {
+	for _, key := range dynamicPartitionPolicyKeys {
+		if p.isBareWord(key) {
+			return key, true
+		}
+	}
+	return "", false
+}
+
+// isBareWord reports whether the current token is word, in any case and not
+// quoted: an identifier or a keyword, but not `word`.
+func (p *Parser) isBareWord(word string) bool {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return false
+	}
+	if !strings.EqualFold(p.cur.Str, word) {
+		return false
+	}
+	return !strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "`")
 }
 
 // consumeOptionValue reads the next token as an option value string.

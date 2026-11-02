@@ -140,6 +140,12 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	// not partitioned. engineAccepts reads only 1064 as a syntax refusal, so the entry
 	// pins the grammar, which is all this parser owes.
 	{name: "dynamic partition policy", sql: "CREATE TABLE obprobe_dp (a INT) DYNAMIC_PARTITION_POLICY = (ENABLE = TRUE, TIME_UNIT = 'DAY')"},
+	// 4.3.5 prints ORGANIZATION HEAP for a heap table, so a readback of one did not
+	// parse until this parser took HEAP (read on 2026-11-02).
+	{name: "organization heap", sql: "CREATE TABLE obprobe_oh (a INT PRIMARY KEY) ORGANIZATION HEAP"},
+	// ALTER TABLE ... SET takes any table option, not only TABLEGROUP (read on 2026-11-02).
+	{name: "alter table set table option", sql: "ALTER TABLE obprobe_t SET PCTFREE = 5", pending: true},
+	{name: "alter table set dynamic partition policy", sql: "ALTER TABLE obprobe_t SET DYNAMIC_PARTITION_POLICY (ENABLE = FALSE)", pending: true},
 }
 
 // sharedGrammar is the subtractive side: MySQL syntax this parser accepts, which
