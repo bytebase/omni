@@ -404,7 +404,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
 			Columns:   idxCols,
@@ -412,7 +412,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Primary:   true,
 			IndexType: "",
 			Visible:   true,
-		})
+		}
+		// The CREATE TABLE path applies the options of every index kind; this one
+		// used to drop them, so an index added by ALTER lost its comment,
+		// visibility and block size.
+		applyIndexOptions(pkIdx, con.IndexOptions)
+		// TiDB v8.5.5 refuses the statement rather than add an invisible key.
+		if !pkIdx.Visible {
+			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+		}
+		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      "PRIMARY",
 			Type:      ConPrimaryKey,
@@ -433,14 +442,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		uqIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Unique:    true,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(uqIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
 			Type:      ConUniqueKey,
@@ -503,13 +514,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		keyIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(keyIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
 		idxName := con.Name
@@ -519,14 +532,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Fulltext:  true,
 			IndexType: "FULLTEXT",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(ftIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrSpatialIndex:
 		idxName := con.Name
@@ -536,14 +551,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		spIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Spatial:   true,
 			IndexType: "SPATIAL",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(spIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, spIdx)
 	}
 
 	return nil
