@@ -422,9 +422,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(pkIdx, con.IndexOptions)
-		if !pkIdx.Visible {
-			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
-		}
+		// MySQL refuses an invisible primary key with 3522. OceanBase takes
+		// INVISIBLE here and ignores it: on 4.3.5.6, ALTER TABLE t ADD PRIMARY KEY
+		// (id) INVISIBLE succeeds, SHOW CREATE TABLE prints PRIMARY KEY (`id`), and
+		// information_schema.STATISTICS reports the key visible. It drops a COMMENT
+		// given here the same way, though it keeps one given in CREATE TABLE
+		// (TestOracle_OceanBaseAlterAddPrimaryKey). CREATE TABLE refuses INVISIBLE at
+		// parse time.
+		pkIdx.Visible = true
+		pkIdx.Comment = ""
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      "PRIMARY",
@@ -860,6 +866,13 @@ func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, in
 func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, visible bool) error {
 	key := toLower(cmd.Name)
 	for _, idx := range tbl.Indexes {
+		// OceanBase does not reach the primary key through ALTER INDEX: on 4.3.5.6,
+		// ALTER TABLE t ALTER INDEX `PRIMARY` {VISIBLE | INVISIBLE} answers 1176, Key
+		// 'PRIMARY' doesn't exist, where MySQL answers 3522 for INVISIBLE. Setting it
+		// invisible here made a key the engine never hides.
+		if idx.Primary {
+			continue
+		}
 		if toLower(idx.Name) == key {
 			idx.Visible = visible
 			return nil
