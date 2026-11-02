@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // alterAddIndexBase and alterAddIndexAlters add one index of every kind by ALTER
 // TABLE, each with the options MySQL 8.0 keeps for it. alterAddConstraint used to
@@ -79,5 +82,45 @@ func TestContainer_AlterAddIndexOptions(t *testing.T) {
 	}
 	if omniDDL := c.ShowCreateTable("test", "t"); normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
 		t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
+	}
+
+	// An invisible primary key is refused whole: 3522, and the column stays nullable.
+	mustExec(t, c, "CREATE TABLE tn (id INT)")
+	if err := ctr.execSQL("CREATE TABLE tn (id INT)"); err != nil {
+		t.Fatalf("container exec: %v", err)
+	}
+	if err := ctr.execSQL(invisiblePrimaryKey); err == nil {
+		t.Errorf("MySQL accepted %q", invisiblePrimaryKey)
+	}
+	if results, _ := c.Exec(invisiblePrimaryKey, nil); len(results) != 1 || results[0].Error == nil {
+		t.Errorf("the catalog accepted %q", invisiblePrimaryKey)
+	}
+	ctrDDL, err = ctr.showCreateTable("tn")
+	if err != nil {
+		t.Fatalf("SHOW CREATE TABLE tn: %v", err)
+	}
+	if omniDDL := c.ShowCreateTable("test", "tn"); normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+		t.Errorf("mismatch after the refused key:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
+	}
+}
+
+const invisiblePrimaryKey = "ALTER TABLE tn ADD PRIMARY KEY (id) INVISIBLE"
+
+// TestAlterAddInvisiblePrimaryKey pins that the refused key leaves the table as it
+// was. The 3522 check used to run after the columns were marked NOT NULL.
+func TestAlterAddInvisiblePrimaryKey(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE tn (id INT)")
+	results, err := c.Exec(invisiblePrimaryKey, nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	var catErr *Error
+	if len(results) != 1 || !errors.As(results[0].Error, &catErr) || catErr.Code != 3522 {
+		t.Fatalf("got %+v, want error 3522", results)
+	}
+	tbl := c.GetDatabase("testdb").GetTable("tn")
+	if len(tbl.Indexes) != 0 || !tbl.GetColumn("id").Nullable {
+		t.Errorf("the refused key changed the table:\n%s", c.ShowCreateTable("testdb", "tn"))
 	}
 }

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -68,11 +69,12 @@ func TestAlterAddIndexKeepsOptions(t *testing.T) {
 
 // TestAlterAddInvisiblePrimaryKey pins TiDB's refusal of an invisible primary key.
 // Reading the options on this path is what lets the catalog see INVISIBLE at all,
-// and adding the key anyway would leave a table TiDB never has.
+// and adding the key anyway would leave a table TiDB never has. TiDB refuses the
+// statement whole, so the column it names stays nullable.
 func TestAlterAddInvisiblePrimaryKey(t *testing.T) {
 	c := setupWithDB(t)
-	mustExec(t, c, alterAddIndexBase)
-	results, err := c.Exec("ALTER TABLE t ADD PRIMARY KEY (id) INVISIBLE", nil)
+	mustExec(t, c, "CREATE TABLE tn (id INT)")
+	results, err := c.Exec("ALTER TABLE tn ADD PRIMARY KEY (id) INVISIBLE", nil)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -80,8 +82,12 @@ func TestAlterAddInvisiblePrimaryKey(t *testing.T) {
 	if len(results) != 1 || !errors.As(results[0].Error, &catErr) || catErr.Code != 3522 {
 		t.Fatalf("got %+v, want error 3522", results)
 	}
-	if n := len(c.GetDatabase("testdb").GetTable("t").Indexes); n != 0 {
+	tbl := c.GetDatabase("testdb").GetTable("tn")
+	if n := len(tbl.Indexes); n != 0 {
 		t.Errorf("the refused key was added: %d indexes", n)
+	}
+	if !tbl.GetColumn("id").Nullable {
+		t.Error("the refused key made id NOT NULL")
 	}
 }
 
@@ -127,10 +133,16 @@ func TestContainerAlterAddIndexOptions(t *testing.T) {
 		}
 	}
 
-	mustExecTiDB(t, tc, "CREATE TABLE t2 (id INT NOT NULL)")
-	_, err := tc.db.ExecContext(tc.ctx, "ALTER TABLE t2 ADD PRIMARY KEY (id) INVISIBLE")
+	mustExecTiDB(t, tc, "CREATE TABLE tn (id INT)")
+	_, err := tc.db.ExecContext(tc.ctx, "ALTER TABLE tn ADD PRIMARY KEY (id) INVISIBLE")
 	var myErr *gomysql.MySQLError
 	if !errors.As(err, &myErr) || myErr.Number != 3522 {
 		t.Errorf("TiDB answered %v for an invisible primary key, want 3522", err)
+	}
+	if err := tc.db.QueryRowContext(tc.ctx, "SHOW CREATE TABLE tn").Scan(&name, &readback); err != nil {
+		t.Fatalf("SHOW CREATE TABLE tn: %v", err)
+	}
+	if !strings.Contains(readback, "`id` int DEFAULT NULL") {
+		t.Errorf("TiDB changed id when it refused the key:\n%s", readback)
 	}
 }

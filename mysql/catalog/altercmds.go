@@ -404,13 +404,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 			return err
 		}
-		// Mark PK columns as NOT NULL.
-		for _, colName := range cols {
-			col := tbl.GetColumn(colName)
-			if col != nil {
-				col.Nullable = false
-			}
-		}
 		idxCols := buildIndexColumns(con)
 		pkIdx := &Index{
 			Name:      "PRIMARY",
@@ -422,8 +415,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(pkIdx, con.IndexOptions)
+		// Refused before the columns change: MySQL 8.0 leaves them nullable.
 		if !pkIdx.Visible {
 			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+		}
+		// Mark PK columns as NOT NULL.
+		for _, colName := range cols {
+			col := tbl.GetColumn(colName)
+			if col != nil {
+				col.Nullable = false
+			}
 		}
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{

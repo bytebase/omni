@@ -396,13 +396,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errMultiplePriKey()
 			}
 		}
-		// Mark PK columns as NOT NULL.
-		for _, colName := range cols {
-			col := tbl.GetColumn(colName)
-			if col != nil {
-				col.Nullable = false
-			}
-		}
 		idxCols := buildIndexColumns(con)
 		pkIdx := &Index{
 			Name:      "PRIMARY",
@@ -417,9 +410,17 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// used to drop them, so an index added by ALTER lost its comment,
 		// visibility and block size.
 		applyIndexOptions(pkIdx, con.IndexOptions)
-		// TiDB v8.5.5 refuses the statement rather than add an invisible key.
+		// TiDB v8.5.5 refuses the statement rather than add an invisible key, and
+		// refuses it whole: the columns stay nullable.
 		if !pkIdx.Visible {
 			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+		}
+		// Mark PK columns as NOT NULL.
+		for _, colName := range cols {
+			col := tbl.GetColumn(colName)
+			if col != nil {
+				col.Nullable = false
+			}
 		}
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
