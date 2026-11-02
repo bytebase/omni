@@ -1652,10 +1652,12 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		// KEY(b) SUBPARTITIONS 2 PARTITIONS 3. It takes it once, before or after.
 		if part.NumParts == 0 && p.cur.Type == kwPARTITIONS {
 			p.advance()
-			if p.cur.Type == tokICONST {
-				part.NumParts = int(p.cur.Ival)
-				p.advance()
+			// partition_num is PARTITIONS INTNUM: the count is not optional.
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			part.NumParts = int(p.cur.Ival)
+			p.advance()
 		}
 	}
 

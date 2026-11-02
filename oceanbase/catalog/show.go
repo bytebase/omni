@@ -730,7 +730,7 @@ func showPartitioning(pi *PartitionInfo) string {
 					}
 					b.WriteString("SUBPARTITION ")
 					b.WriteString(spd.Name)
-					b.WriteString(subpartitionValuesSQL(pi.SubType, spd.ValueExpr))
+					b.WriteString(subpartitionValuesSQL(pi.SubType, len(pi.SubColumns), spd.ValueExpr))
 					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
 					if spd.Comment != "" {
 						b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(spd.Comment)))
@@ -761,15 +761,21 @@ func formatPartitionColumnsPlain(cols []string) string {
 }
 
 // subpartitionValuesSQL renders an OceanBase RANGE or LIST subpartition's bound, with a
-// leading space, as a partition's is rendered, or "" for HASH and KEY.
-func subpartitionValuesSQL(subType, value string) string {
+// leading space, as a partition's is rendered, or "" for HASH and KEY. columns is the
+// number of RANGE COLUMNS columns: an all-MAXVALUE bound is kept as one marker, and
+// OceanBase prints it with one MAXVALUE per column, (MAXVALUE,MAXVALUE) for two.
+func subpartitionValuesSQL(subType string, columns int, value string) string {
 	switch {
 	case value == "":
 		return ""
 	case strings.HasPrefix(subType, "RANGE"):
 		if value == "MAXVALUE" {
 			if subType == "RANGE COLUMNS" {
-				return " VALUES LESS THAN (MAXVALUE)"
+				maxes := make([]string, max(columns, 1))
+				for i := range maxes {
+					maxes[i] = "MAXVALUE"
+				}
+				return " VALUES LESS THAN (" + strings.Join(maxes, ",") + ")"
 			}
 			return " VALUES LESS THAN MAXVALUE"
 		}

@@ -261,6 +261,19 @@ func TestRangeListAddPartition(t *testing.T) {
 	}
 }
 
+// TestRangeListSubpartitionMaxvalueArity pins that an all-MAXVALUE RANGE COLUMNS
+// subpartition bound renders with one MAXVALUE per column, as OceanBase prints it,
+// although the catalog keeps it as one marker.
+func TestRangeListSubpartitionMaxvalueArity(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE d; USE d; CREATE TABLE t (a INT, b VARCHAR(10), c DATE) PARTITION BY RANGE COLUMNS(a) SUBPARTITION BY RANGE COLUMNS(b, c) SUBPARTITION TEMPLATE (SUBPARTITION s0 VALUES LESS THAN ('m', '2020-01-01'), SUBPARTITION s1 VALUES LESS THAN (MAXVALUE, MAXVALUE)) (PARTITION p0 VALUES LESS THAN (10));", nil); err != nil {
+		t.Fatal(err)
+	}
+	if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "SUBPARTITION p0ss1 VALUES LESS THAN (MAXVALUE,MAXVALUE)") {
+		t.Errorf("SHOW CREATE TABLE renders\n%s\nwant SUBPARTITION p0ss1 VALUES LESS THAN (MAXVALUE,MAXVALUE)", ddl)
+	}
+}
+
 // TestRangeListSubpartitionRendering pins that the catalog's own rendering of a RANGE or
 // LIST subpartitioned table reads back to the same table.
 func TestRangeListSubpartitionRendering(t *testing.T) {
