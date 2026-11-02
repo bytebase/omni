@@ -1381,9 +1381,11 @@ func fourDigitYear(s string) bool {
 func partitionBoundInt(n nodes.Node) (int64, bool) {
 	if e, ok := n.(nodes.ExprNode); ok {
 		if v, ok := foldConstIntExpr(e); ok {
-			// The lexer clamps a literal past int64, so either end may not
-			// be the value written.
-			if v == math.MaxInt64 || v == math.MinInt64 {
+			// The lexer clamps a literal past int64 to MaxInt64, and a minus
+			// before it folds to -MaxInt64, so a value at either end may not
+			// be the one written: -9223372036854775808 reads as
+			// -9223372036854775807.
+			if v >= math.MaxInt64 || v <= -math.MaxInt64 {
 				return 0, false
 			}
 			return v, true

@@ -157,4 +157,10 @@ func TestRangeColumnsUnsignedPastInt64(t *testing.T) {
 	if code, _ := rangeColumnsOmni(t, tc); code != 0 {
 		t.Errorf("catalog answered %d for bounds the engine takes", code)
 	}
+	// A minus before a clamped literal folds to -MaxInt64, beside the real
+	// -9223372036854775807.
+	tc = rangeColumnsCase{"signed at the bottom of int64", "", "CREATE TABLE ru2 (a BIGINT) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN (-9223372036854775808), PARTITION p1 VALUES LESS THAN (-9223372036854775807))", "ru2", 0, nil}
+	if code, _ := rangeColumnsOmni(t, tc); code != 0 {
+		t.Errorf("catalog answered %d for bounds the engine takes", code)
+	}
 }
