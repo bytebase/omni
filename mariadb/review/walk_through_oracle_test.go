@@ -160,9 +160,11 @@ var walkCases = []walkCase{
 	// among them, and every trigger.
 	{name: "relations and triggers the sync does not list", change: "ALTER TABLE nosuch ADD COLUMN a int;\nDROP VIEW nosuch;\nDROP SEQUENCE nosuch;\nTRUNCATE TABLE nosuch;\nINSERT INTO nosuch VALUES (1);\nUPDATE nosuch SET a = 1;\nDELETE FROM nosuch;\nDROP TRIGGER nosuch;\nRENAME TABLE nosuch TO x;\nCREATE INDEX i ON nosuch (a);", complete: true},
 	{name: "a multi-table drop of a missing table", change: "DROP TABLE t, nosuch;", complete: true},
-	// MySQL's ALTER INDEX INVISIBLE, which omni's parser takes and MariaDB
-	// rejects, ends the walk.
-	{name: "MySQL forms", change: "ALTER TABLE t ALTER INDEX nosuch INVISIBLE;\nALTER TABLE t ALTER COLUMN a SET NOT NULL;"},
+	// MySQL's ALTER COLUMN ... SET NOT NULL, which omni's parser takes and
+	// MariaDB rejects, ends the walk, and so does MariaDB's ALTER INDEX ...
+	// IGNORED, which the walk does not follow.
+	{name: "MySQL forms", change: "ALTER TABLE t ALTER COLUMN a SET NOT NULL;"},
+	{name: "ALTER INDEX", change: "ALTER TABLE t ALTER INDEX nosuch IGNORED;"},
 	// MariaDB drops what exists of a multi-object drop, and a failed CREATE
 	// OR REPLACE TABLE may have dropped the old table: Judge stops at such
 	// a statement (walktest.PartialRejecter).

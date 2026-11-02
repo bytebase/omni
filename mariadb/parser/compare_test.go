@@ -4146,9 +4146,12 @@ func TestParseAlterTableColumnVisible(t *testing.T) {
 	})
 }
 
+// TestParseAlterTableIndexVisible pins MariaDB's ALTER INDEX ... [NOT] IGNORED,
+// which reuses MySQL's visibility command types. MySQL's VISIBLE and INVISIBLE
+// are refused there (index_ignorability_test.go).
 func TestParseAlterTableIndexVisible(t *testing.T) {
-	t.Run("alter index visible", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER INDEX idx_name VISIBLE")
+	t.Run("alter index not ignored", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER INDEX idx_name NOT IGNORED")
 		cmd := stmt.Commands[0]
 		if cmd.Type != ast.ATAlterIndexVisible {
 			t.Errorf("Type = %d, want ATAlterIndexVisible", cmd.Type)
@@ -4158,8 +4161,8 @@ func TestParseAlterTableIndexVisible(t *testing.T) {
 		}
 	})
 
-	t.Run("alter index invisible", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER INDEX idx_name INVISIBLE")
+	t.Run("alter index ignored", func(t *testing.T) {
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER INDEX idx_name IGNORED")
 		cmd := stmt.Commands[0]
 		if cmd.Type != ast.ATAlterIndexInvisible {
 			t.Errorf("Type = %d, want ATAlterIndexInvisible", cmd.Type)
@@ -9510,7 +9513,7 @@ func TestParseCreateTableConstraintIndexOption(t *testing.T) {
 		"CREATE TABLE t (id INT, INDEX idx (name) KEY_BLOCK_SIZE 512 COMMENT 'idx')",
 		"CREATE TABLE t (id INT, FULLTEXT KEY ft_idx (content) COMMENT 'fulltext')",
 		"CREATE TABLE t (id INT, PRIMARY KEY (id) VISIBLE)",
-		"CREATE TABLE t (id INT, UNIQUE KEY idx (name) INVISIBLE)",
+		"CREATE TABLE t (id INT, UNIQUE KEY idx (name) IGNORED)",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

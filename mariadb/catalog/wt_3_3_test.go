@@ -224,11 +224,11 @@ func TestWalkThrough_3_3_IndexComment(t *testing.T) {
 	}
 }
 
-// --- Index INVISIBLE ---
+// --- Index IGNORED (MariaDB's spelling of MySQL's INVISIBLE) ---
 
 func TestWalkThrough_3_3_IndexInvisible(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100), INDEX idx_name (name) INVISIBLE)")
+	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100), INDEX idx_name (name) IGNORED)")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
@@ -244,7 +244,7 @@ func TestWalkThrough_3_3_IndexInvisible(t *testing.T) {
 		t.Fatal("index idx_name not found")
 	}
 	if idx.Visible {
-		t.Error("expected Visible=false for INVISIBLE index")
+		t.Error("expected Visible=false for an IGNORED index")
 	}
 }
 

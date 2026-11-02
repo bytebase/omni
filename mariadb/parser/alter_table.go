@@ -735,7 +735,7 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 }
 
 // parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET NOT NULL | DROP NOT NULL | SET VISIBLE | SET INVISIBLE}
-// and ALTER INDEX index_name {VISIBLE | INVISIBLE}.
+// and ALTER {INDEX | KEY} [IF EXISTS] index_name [NOT] IGNORED.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
 //
@@ -746,22 +746,38 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 //	  | SET NOT NULL
 //	  | DROP NOT NULL
 //	}
-//	ALTER INDEX index_name {VISIBLE | INVISIBLE}
+//	ALTER {INDEX | KEY} [IF EXISTS] index_name [NOT] IGNORED
 func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume ALTER
 
-	// ALTER INDEX index_name {VISIBLE | INVISIBLE}
-	if p.cur.Type == kwINDEX {
+	// ALTER {INDEX | KEY} [IF EXISTS] index_name [NOT] IGNORED, MariaDB's
+	// "ALTER key_or_index opt_if_exists_table_element ident ignorability"
+	// (sql/sql_yacc.yy, mariadb-11.8.8 line 8101). The ignorability is
+	// required, and MySQL's VISIBLE and INVISIBLE are not it: MariaDB 11.8.8
+	// answers 1064 for both and for a bare ALTER INDEX i.
+	// Ref: https://mariadb.com/docs/server/reference/sql-statements/data-definition/alter/alter-table
+	if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
 		p.advance()
+		ifExists, err := p.parseOptIfExists()
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfExists = ifExists
 		name, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
 		cmd.Name = name
-		if _, ok := p.match(kwVISIBLE); ok {
-			cmd.Type = nodes.ATAlterIndexVisible
-		} else if _, ok := p.match(kwINVISIBLE); ok {
+		switch {
+		case p.atUnquotedKeyword("IGNORED"):
+			p.advance()
 			cmd.Type = nodes.ATAlterIndexInvisible
+		case p.atNotIgnored():
+			p.advance() // NOT
+			p.advance() // IGNORED
+			cmd.Type = nodes.ATAlterIndexVisible
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 		cmd.Loc.End = p.prev.End
 		return cmd, nil

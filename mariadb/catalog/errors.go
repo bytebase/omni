@@ -80,6 +80,8 @@ const (
 	ErrKeyColumnDoesNotExist             = 1072
 	ErrKeyIncludesPeriodColumn           = 4170
 	ErrPeriodFieldsDifferentTypes        = 4153
+	ErrKeyDoesNotExist                   = 1176
+	ErrPKIndexCantBeIgnored              = 4174
 )
 
 var sqlStateMap = map[int]string{
@@ -146,6 +148,8 @@ var sqlStateMap = map[int]string{
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckConstraintDupName:            "HY000",
+	ErrKeyDoesNotExist:                   "42000",
+	ErrPKIndexCantBeIgnored:              "HY000",
 }
 
 func sqlState(code int) string {
@@ -198,6 +202,20 @@ func errWrongNameForIndex(name string) error {
 func errMultiplePriKey() error {
 	return &Error{Code: ErrMultiplePriKey, SQLState: sqlState(ErrMultiplePriKey),
 		Message: "Multiple primary key defined"}
+}
+
+// errKeyDoesNotExist is MariaDB's answer to an ALTER INDEX that names no index
+// of the table (1176, verified on 11.8.8).
+func errKeyDoesNotExist(key, table string) error {
+	return &Error{Code: ErrKeyDoesNotExist, SQLState: sqlState(ErrKeyDoesNotExist),
+		Message: fmt.Sprintf("Key '%s' doesn't exist in table '%s'", key, table)}
+}
+
+// errPKIndexCantBeIgnored is MariaDB's answer to an ignored primary key,
+// explicit or implicit (4174, verified on 11.8.8).
+func errPKIndexCantBeIgnored() error {
+	return &Error{Code: ErrPKIndexCantBeIgnored, SQLState: sqlState(ErrPKIndexCantBeIgnored),
+		Message: "A primary key cannot be marked as IGNORE"}
 }
 
 func errInvalidDefault(name string) error {
