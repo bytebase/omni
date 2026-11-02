@@ -63,10 +63,14 @@ var _ Node = (*DescribeStmt)(nil)
 
 // ExplainStmt represents EXPLAIN [modifier] query.
 //
-//	EXPLAIN [VERBOSE | GRAPH | PARSED | ANALYZED | REWRITTEN | PLAN |
-//	         PHYSICAL | MEMO | SHAPE | DUMP | OPTIMIZED | PLAN PROCESS] query
+//	EXPLAIN [ANALYZE | VERBOSE | LOGICAL | COSTS | SCHEDULER] query
+//
+// These are StarRocks's modifiers (explainDesc in StarRocks.g4), not the
+// Doris list this fork started from.
 type ExplainStmt struct {
-	// Type is the optional explain modifier, e.g. "VERBOSE", "GRAPH", "PLAN", "".
+	// Type is the optional explain modifier, upper-cased: "ANALYZE",
+	// "VERBOSE", "LOGICAL", "COSTS", "SCHEDULER", or "" for none. ANALYZE
+	// runs the explained statement rather than only planning it.
 	Type  string
 	Query Node // the explained query (SelectStmt, InsertStmt, etc.)
 	Loc   Loc
