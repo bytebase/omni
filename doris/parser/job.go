@@ -14,13 +14,13 @@ import (
 //	CREATE JOB [IF NOT EXISTS] job_name
 //	    ON SCHEDULE { EVERY interval [STARTS ts] [ENDS ts] | AT ts }
 //	    [COMMENT 'text']
-//	    DO statement
+//	    DO dml_statement
 //
 // or:
 //
 //	CREATE JOB [IF NOT EXISTS] job_name AS STREAMING
 //	    [COMMENT 'text']
-//	    DO statement
+//	    DO dml_statement
 func (p *Parser) parseCreateJob(startLoc ast.Loc) (ast.Node, error) {
 	// Consume JOB
 	if _, err := p.expect(kwJOB); err != nil {
@@ -86,7 +86,7 @@ func (p *Parser) parseCreateJob(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 
-	doStmt, err := p.parseStmt()
+	doStmt, err := p.parseJobDoBody()
 	if err != nil {
 		return nil, err
 	}
@@ -94,6 +94,67 @@ func (p *Parser) parseCreateJob(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt.Loc = startLoc.Merge(ast.NodeLoc(doStmt))
 	return stmt, nil
+}
+
+// parseJobDoBody parses the statement after a job's DO, which the grammar
+// limits to a DML statement:
+//
+//	CREATE JOB ... DO supportedDmlStatement
+//	supportedDmlStatement : explain? cte? INSERT ... | explain? cte? UPDATE ...
+//	                      | explain? cte? DELETE ... | LOAD LABEL ...
+//	                      | EXPORT TABLE ... | replayCommand
+//
+// (DorisParser.g4). It used to take any statement, so DO SELECT 1 INTO
+// OUTFILE 'p', DO CREATE TABLE ... and DO SHOW TABLES parsed. The engine
+// rejects each of those at the body's first token and names DELETE, DESC,
+// DESCRIBE, EXPLAIN, EXPORT, INSERT, LOAD, PLAN, UPDATE and WITH as what it
+// expects there; it also rejects DO EXPLAIN SELECT 1 and DO WITH ... SELECT,
+// where the query after the prefix is not DML (container-verified).
+//
+// ALTER JOB ... DO takes the same body. The pinned engine has no ALTER JOB at
+// all, so that statement form is a divergence of its own; holding its body to
+// the same rule keeps it from carrying what CREATE JOB may not.
+func (p *Parser) parseJobDoBody() (ast.Node, error) {
+	start := p.cur.Loc
+	switch p.cur.Kind {
+	case kwINSERT, kwUPDATE, kwDELETE, kwLOAD, kwEXPORT,
+		kwWITH, kwEXPLAIN, kwDESC, kwDESCRIBE, kwPLAN:
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	body, err := p.parseStmt()
+	if err != nil {
+		return nil, err
+	}
+	if !isJobDML(body) {
+		// The prefix took a query that is not DML: EXPLAIN SELECT ...,
+		// WITH ... SELECT ..., DESC t. Point at the query when there is one.
+		at := start
+		if explain, ok := body.(*ast.ExplainStmt); ok && explain.Query != nil {
+			at = ast.NodeLoc(explain.Query)
+		}
+		return nil, &ParseError{
+			Position: at.Start, End: at.End,
+			Message: "a job's DO takes INSERT, UPDATE, DELETE, LOAD or EXPORT",
+		}
+	}
+	return body, nil
+}
+
+// isJobDML reports whether n is a statement a job's DO may run: one of the
+// grammar's supportedDmlStatement forms that this parser builds.
+func isJobDML(n ast.Node) bool {
+	switch n := n.(type) {
+	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.ExportStmt:
+		return true
+	case *ast.ExplainStmt:
+		// explain? applies to INSERT, UPDATE and DELETE only.
+		switch n.Query.(type) {
+		case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+			return true
+		}
+	}
+	return false
 }
 
 // parseJobSchedule parses the schedule portion after ON SCHEDULE:
@@ -166,7 +227,7 @@ func (p *Parser) parseJobSchedule() (*ast.JobSchedule, error) {
 //
 // Syntax:
 //
-//	ALTER JOB job_name { PROPERTIES(...) | DO statement }
+//	ALTER JOB job_name { PROPERTIES(...) | DO dml_statement }
 func (p *Parser) parseAlterJob(startLoc ast.Loc) (ast.Node, error) {
 	// Consume JOB
 	if _, err := p.expect(kwJOB); err != nil {
@@ -193,7 +254,7 @@ func (p *Parser) parseAlterJob(startLoc ast.Loc) (ast.Node, error) {
 
 	case kwDO:
 		p.advance() // consume DO
-		doStmt, err := p.parseStmt()
+		doStmt, err := p.parseJobDoBody()
 		if err != nil {
 			return nil, err
 		}
