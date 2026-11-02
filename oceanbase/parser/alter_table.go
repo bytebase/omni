@@ -424,7 +424,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	// ADD [CONSTRAINT ...] PRIMARY KEY / UNIQUE / FOREIGN KEY / CHECK
 	if p.isTableConstraintStart() {
 		cmd.Type = nodes.ATAddConstraint
-		constr, err := p.parseTableConstraint()
+		constr, err := p.parseTableConstraint(true)
 		if err != nil {
 			return nil, err
 		}

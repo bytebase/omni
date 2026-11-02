@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -201,11 +200,8 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 
 		// Table-level constraints: PRIMARY KEY, UNIQUE, INDEX, KEY, FULLTEXT, SPATIAL, FOREIGN KEY, CONSTRAINT, CHECK
 		if p.isTableConstraintStart() {
-			constr, err := p.parseTableConstraint()
+			constr, err := p.parseTableConstraint(false)
 			if err != nil {
-				return err
-			}
-			if err := p.rejectPrimaryKeyIndexScope(constr); err != nil {
 				return err
 			}
 			stmt.Constraints = append(stmt.Constraints, constr)
@@ -222,34 +218,6 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 			break
 		}
 		p.advance() // consume ','
-	}
-	return nil
-}
-
-// rejectPrimaryKeyIndexScope refuses OceanBase's index scope and block size on a
-// PRIMARY KEY in a CREATE TABLE element list. table_element in
-// sql_parser_mysql_mode.y (v4.3.5_CE) reads `[CONSTRAINT [name]] PRIMARY KEY
-// opt_index_name opt_index_using_algorithm '(' column_name_list ')'
-// opt_index_using_algorithm opt_comment`, so LOCAL, GLOBAL and BLOCK_SIZE, which
-// parseIndexOption takes for every index, are a 1064 there on 4.3.5.6
-// (primaryKeyScopeCases). ALTER TABLE ... ADD PRIMARY KEY reads opt_index_option_list
-// instead and takes them, so this applies to CREATE TABLE only.
-func (p *Parser) rejectPrimaryKeyIndexScope(constr *nodes.Constraint) error {
-	if constr.Type != nodes.ConstrPrimaryKey {
-		return nil
-	}
-	for _, opt := range constr.IndexOptions {
-		switch opt.Name {
-		case "LOCAL", "GLOBAL", "BLOCK_SIZE":
-			word := strings.Fields(p.inputText(opt.Loc.Start, opt.Loc.End))[0]
-			line, col := p.lineCol(opt.Loc.Start)
-			return &ParseError{
-				Message:  fmt.Sprintf("syntax error at or near %q", word),
-				Position: opt.Loc.Start,
-				Line:     line,
-				Column:   col,
-			}
-		}
 	}
 	return nil
 }
@@ -861,12 +829,16 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 //	[CONSTRAINT [symbol]] CHECK (expr)
 //	{INDEX | KEY} [name] (col,...) [index_option]
 //	{FULLTEXT | SPATIAL} [INDEX|KEY] [name] (col,...) [index_option]
-func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
+//
+// inAlter is true for ALTER TABLE ... ADD, whose PRIMARY KEY grammar differs from
+// CREATE TABLE's (parsePrimaryKey).
+func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 	start := p.pos()
 	constr := &nodes.Constraint{Loc: nodes.Loc{Start: start}}
 
 	// Optional CONSTRAINT [name]
-	if _, ok := p.match(kwCONSTRAINT); ok {
+	_, afterConstraint := p.match(kwCONSTRAINT)
+	if afterConstraint {
 		if p.isIdentToken() && p.cur.Type != kwPRIMARY && p.cur.Type != kwUNIQUE &&
 			p.cur.Type != kwFOREIGN && p.cur.Type != kwCHECK {
 			constr.Name, _, _ = p.parseIdent()
@@ -875,22 +847,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 
 	switch p.cur.Type {
 	case kwPRIMARY:
-		p.advance()
-		p.match(kwKEY)
-		constr.Type = nodes.ConstrPrimaryKey
-		// Optional index name (undocumented but accepted by MySQL 8.0, silently ignored)
-		if p.isIdentToken() && p.cur.Type != '(' {
-			p.parseIdent() // consume and discard — MySQL ignores PK index names
-		}
-		// Optional index type
-		p.parseIndexTypeClause(constr)
-		idxCols, err := p.parseParenIndexKeyParts()
-		if err != nil {
+		if err := p.parsePrimaryKey(constr, afterConstraint, inAlter); err != nil {
 			return nil, err
 		}
-		constr.IndexColumns = idxCols
-		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
 
 	case kwUNIQUE:
 		p.advance()
@@ -1051,6 +1010,102 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 
 	constr.Loc.End = p.prev.End
 	return constr, nil
+}
+
+// parsePrimaryKey parses a table-level PRIMARY KEY from PRIMARY on. OceanBase's
+// grammar for it is narrower than MySQL's, and differs between CREATE TABLE and
+// ALTER TABLE ... ADD. sql_parser_mysql_mode.y (v4.3.5_CE_BP6) reads, in CREATE
+// TABLE's table_element,
+//
+//	CONSTRAINT [name] PRIMARY KEY [USING type] (column_name_list) [USING type] [COMMENT 'string']
+//	PRIMARY KEY [index_name] [USING type] (column_name_list) [USING type] [COMMENT 'string']
+//
+// and in ALTER TABLE's add_constraint_pri_key and add_primary_key,
+//
+//	CONSTRAINT [name] PRIMARY KEY (column_name_list) [index_option ...]
+//	PRIMARY KEY [index_name] (column_name_list) [index_option ...]
+//
+// 4.3.5.6 answers 1064 for everything else (primaryKeyGrammarCases): KEY left
+// out, an index name after CONSTRAINT, a USING before the columns in ALTER TABLE,
+// a column prefix, ASC or DESC, or an expression in the column list, and in CREATE
+// TABLE any option but one USING then one COMMENT, so KEY_BLOCK_SIZE, VISIBLE,
+// INVISIBLE, WITH PARSER, LOCAL, GLOBAL and BLOCK_SIZE, and a COMMENT before the
+// USING. Each is left unread, so the statement fails at it, as OceanBase's "near"
+// says.
+func (p *Parser) parsePrimaryKey(constr *nodes.Constraint, afterConstraint, inAlter bool) error {
+	p.advance() // PRIMARY
+	if _, err := p.expect(kwKEY); err != nil {
+		return err
+	}
+	constr.Type = nodes.ConstrPrimaryKey
+	// The index name, which the engine ignores, as MySQL does.
+	if p.isIdentToken() && p.cur.Type != '(' {
+		if afterConstraint {
+			return p.syntaxErrorAtCur()
+		}
+		if _, _, err := p.parseIdent(); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type == kwUSING {
+		if inAlter {
+			return p.syntaxErrorAtCur()
+		}
+		p.parseIndexTypeClause(constr)
+	}
+	cols, err := p.parsePrimaryKeyColumns()
+	if err != nil {
+		return err
+	}
+	constr.IndexColumns = cols
+	constr.Columns = indexColumnsToNames(cols)
+	if inAlter {
+		p.parseConstraintIndexOptions(constr)
+		return nil
+	}
+	for _, kw := range []int{kwUSING, kwCOMMENT} {
+		if p.cur.Type != kw {
+			continue
+		}
+		opt, _, err := p.parseIndexOption()
+		if err != nil {
+			return err
+		}
+		constr.IndexOptions = append(constr.IndexOptions, opt)
+	}
+	return nil
+}
+
+// parsePrimaryKeyColumns parses a PRIMARY KEY's parenthesized column_name_list:
+// plain column names, which is all OceanBase takes there.
+func (p *Parser) parsePrimaryKeyColumns() ([]*nodes.IndexColumn, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var cols []*nodes.IndexColumn
+	for {
+		// Completion: offer columnref, as for any key part.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		loc := nodes.Loc{Start: start, End: p.prev.End}
+		cols = append(cols, &nodes.IndexColumn{Loc: loc, Expr: &nodes.ColumnRef{Loc: loc, Column: name}})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return cols, nil
 }
 
 // parseConstraintIndexOptions parses index_option list after a table constraint's key parts.
