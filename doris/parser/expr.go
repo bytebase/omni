@@ -1016,7 +1016,10 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, e
 	if p.strictTrailing {
 		cp := p.save()
 		n, err := p.parseStmt()
-		if err == nil && isQueryBody(n) && p.cur.Kind == int(')') &&
+		// parseStmt parses a statement, so it also takes the statement-level
+		// INTO OUTFILE clause, which a body may not carry. Such a body falls
+		// through to the raw scan and validateRawQueries reports it there.
+		if err == nil && isQueryBody(n) && queryIntoOutfile(n) == nil && p.cur.Kind == int(')') &&
 			len(p.errors) == cp.errLen && len(p.lexer.errors) == cp.lexErrLen {
 			sub := p.finishSubqueryPlaceholder(startOffset, subStart)
 			sub.Query = n

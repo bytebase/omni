@@ -172,6 +172,9 @@ const (
 	// ORDER BY / LIMIT group on an already-clause-bearing query).
 	T_GroupedQuery
 
+	// T_IntoOutfileClause is the tag for *IntoOutfileClause (INTO OUTFILE).
+	T_IntoOutfileClause
+
 	// DDL — CREATE TABLE nodes (T2.1).
 
 	// T_CreateTableStmt is the tag for *CreateTableStmt.
@@ -738,6 +741,8 @@ func (t NodeTag) String() string {
 		return "SetOpStmt"
 	case T_GroupedQuery:
 		return "GroupedQuery"
+	case T_IntoOutfileClause:
+		return "IntoOutfileClause"
 	case T_CreateTableStmt:
 		return "CreateTableStmt"
 	case T_ColumnDef:

@@ -48,8 +48,6 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 
 // dialect is what the engine a change is for alters in the rules.
 type dialect struct {
-	// oceanBase is OceanBase's MySQL mode: see ReviewOceanBase.
-	oceanBase bool
 }
 
 func reviewDialect(ctx context.Context, sql string, opts review.Options, targets []review.Target, d dialect) (result *review.Result, err error) {
@@ -73,10 +71,6 @@ func reviewDialect(ctx context.Context, sql string, opts review.Options, targets
 
 	on := enabled(opts.Rules)
 	backup := on[review.PriorBackup] && opts.Change.PriorBackup
-	if backup && d.oceanBase {
-		checkPriorBackupOceanBase(r)
-		backup = false
-	}
 	if on[review.OnlineMigration] && opts.Change.OnlineMigration {
 		checkOnlineMigration(sql, stmts, r)
 	}
@@ -116,10 +110,7 @@ func reviewDialect(ctx context.Context, sql string, opts review.Options, targets
 	}
 	if on[review.RequirePrimaryKey] {
 		checkRequirePrimaryKey(sql, stmts, r)
-		// OceanBase refuses to drop a column of the primary key.
-		if !d.oceanBase {
-			work.columns = columnDropSteps(sql, stmts)
-		}
+		work.columns = columnDropSteps(sql, stmts)
 	}
 	if work.backup {
 		work.made = madeByChange(stmts)

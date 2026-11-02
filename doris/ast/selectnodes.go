@@ -49,6 +49,7 @@ var _ Node = (*CTE)(nil)
 //	  [QUALIFY condition]
 //	  [ORDER BY expr [ASC|DESC] [NULLS FIRST|LAST], ...]
 //	  [LIMIT count [OFFSET offset]]
+//	  [INTO OUTFILE ...]
 type SelectStmt struct {
 	With              *WithClause    // optional WITH clause (nil if absent)
 	Distinct          bool           // DISTINCT keyword present
@@ -63,7 +64,13 @@ type SelectStmt struct {
 	OrderBy           []*OrderByItem // ORDER BY items
 	Limit             Node           // LIMIT expression (nil if absent)
 	Offset            Node           // OFFSET expression (nil if absent)
-	Loc               Loc
+
+	// Into holds the INTO OUTFILE clause when this statement is the whole
+	// query of a statement — see IntoOutfileClause for why it can also sit
+	// on SetOpStmt and GroupedQuery.
+	Into *IntoOutfileClause
+
+	Loc Loc
 }
 
 // Tag implements Node.
@@ -71,6 +78,42 @@ func (n *SelectStmt) Tag() NodeTag { return T_SelectStmt }
 
 // Compile-time assertion that *SelectStmt satisfies Node.
 var _ Node = (*SelectStmt)(nil)
+
+// IntoOutfileClause represents an INTO OUTFILE clause, which writes the
+// query's result set out to S3, HDFS or a local path:
+//
+//	INTO OUTFILE 'path'
+//	  [FORMAT AS format_type]
+//	  [PROPERTIES ("key" = "value", ...)]
+//
+// Doris attaches it to a whole statement, not to a query operand:
+//
+//	statementBase : explain? query outFileClause?   #statementDefault
+//	query         : cte? queryTerm queryOrganization ;
+//	queryOrganization : sortClause? limitClause? ;
+//
+// (DorisParser.g4, branch-3.1.) So the clause follows everything a query can
+// carry, ORDER BY and LIMIT included, and cannot appear inside parentheses:
+// `(SELECT 1) INTO OUTFILE 'p'` parses and `(SELECT 1 INTO OUTFILE 'p')` does
+// not — both container-verified. That is why Into sits on each of the three
+// node types a statement's outermost query can be (SelectStmt, SetOpStmt,
+// GroupedQuery) rather than only on SelectStmt: a consumer reads the clause
+// off the node it is handed and never walks into an operand looking for one.
+//
+// StarRocks's sibling node carries the same fields, but its parser attaches
+// the clause inside the SELECT, so there it can land on a set-operation arm.
+type IntoOutfileClause struct {
+	Path       string      // file path (S3, HDFS, or local)
+	Format     string      // format type: CSV, PARQUET, ORC, etc. (empty if not specified)
+	Properties []*Property // PROPERTIES key-value pairs
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *IntoOutfileClause) Tag() NodeTag { return T_IntoOutfileClause }
+
+// Compile-time assertion that *IntoOutfileClause satisfies Node.
+var _ Node = (*IntoOutfileClause)(nil)
 
 // ---------------------------------------------------------------------------
 // SELECT list item
@@ -228,6 +271,11 @@ type SetOpStmt struct {
 	Limit   Node
 	Offset  Node
 
+	// Into is the INTO OUTFILE clause applied to the combined result, as in
+	// SELECT a FROM t1 UNION SELECT a FROM t2 INTO OUTFILE 'p'. The engine
+	// rejects the clause inside an arm, so it only ever sits out here.
+	Into *IntoOutfileClause
+
 	Loc Loc
 }
 
@@ -248,7 +296,12 @@ type GroupedQuery struct {
 	OrderBy []*OrderByItem
 	Limit   Node
 	Offset  Node
-	Loc     Loc
+
+	// Into is the INTO OUTFILE clause applied to the grouped result, as in
+	// (SELECT 1 ORDER BY 1) ORDER BY 1 INTO OUTFILE 'p'.
+	Into *IntoOutfileClause
+
+	Loc Loc
 }
 
 // Tag implements Node.

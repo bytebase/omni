@@ -338,36 +338,7 @@ func (p *Parser) parseParenProperties() ([]*ast.Property, error) {
 		return nil, err
 	}
 
-	var props []*ast.Property
-	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-		startLoc := p.cur.Loc
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		key := p.cur.Str
-		p.advance()
-		if _, err := p.expect(int('=')); err != nil {
-			return nil, err
-		}
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		val := p.cur.Str
-		endLoc := p.cur.Loc
-		p.advance()
-		props = append(props, &ast.Property{
-			Key:   key,
-			Value: val,
-			Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
-		})
-		if p.cur.Kind == int(',') {
-			p.advance()
-		}
-	}
-	if _, err := p.expect(int(')')); err != nil {
-		return nil, err
-	}
-	return props, nil
+	return p.parsePropertyItems(p.parseStringProperty)
 }
 
 // parseAddRollup parses ADD ROLLUP name (cols) [FROM base_rollup] [PROPERTIES(...)]

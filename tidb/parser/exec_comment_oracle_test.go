@@ -28,3 +28,21 @@ func TestExecCommentBoundary_Oracle(t *testing.T) {
 		}
 	}
 }
+
+// TestExecCommentQuotedDelimiters_Oracle proves against a live TiDB v8.5.5
+// container that omni ends an executable comment where the server does when a
+// "/*" or "*/" sits inside a string, a quoted identifier or a line comment,
+// and that TiDB accepts a comment whose close is held inside a token.
+func TestExecCommentQuotedDelimiters_Oracle(t *testing.T) {
+	tc := startTiDB(t)
+
+	for _, list := range [][]string{execCommentQuotedAccepted, execCommentQuotedHeldClose} {
+		for _, sql := range list {
+			tidbAccepts := !tidbRejectedSyntax(tc.canExecute(sql))
+			_, err := Parse(sql)
+			if (err == nil) != tidbAccepts {
+				t.Errorf("%q: omni accepts=%v (err=%v), TiDB accepts=%v", sql, err == nil, err, tidbAccepts)
+			}
+		}
+	}
+}
