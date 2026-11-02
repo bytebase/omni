@@ -1134,11 +1134,13 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCOMMENT:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		// The value is a quoted string and is required: the server answers 1064
+		// for a bare COMMENT, CONNECTION or PASSWORD.
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COMMENT", Value: val}, true, nil
 
 	case kwROW_FORMAT:
@@ -1153,21 +1155,21 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCONNECTION:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CONNECTION", Value: val}, true, nil
 
 	case kwPASSWORD:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PASSWORD", Value: val}, true, nil
 
 	case kwSTORAGE:

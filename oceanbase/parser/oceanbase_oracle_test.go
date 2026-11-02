@@ -139,6 +139,10 @@ var sharedGrammar = []grammarCase{
 	{name: "values statement", sql: "VALUES ROW(1), ROW(2)"},
 	{name: "intersect", sql: "SELECT 1 INTERSECT SELECT 1"},
 	{name: "except", sql: "SELECT 1 EXCEPT SELECT 2"},
+	// The string-valued table options with their values, the accepted side of
+	// truncatedGrammar's COMMENT, CONNECTION and PASSWORD entries. Read against
+	// 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-11-02.
+	{name: "string table options", sql: "CREATE TABLE obprobe_so2 (a INT) COMMENT = 'x' CONNECTION 'y' PASSWORD = 'z'"},
 }
 
 // foreignGrammar is the guard side: syntax neither MySQL nor OceanBase has, which users
@@ -152,6 +156,22 @@ var foreignGrammar = []grammarCase{
 	{name: "alter drop index if exists", sql: "ALTER TABLE obprobe_t DROP INDEX IF EXISTS obprobe_ia"},
 	{name: "alter drop column if exists", sql: "ALTER TABLE obprobe_t DROP COLUMN IF EXISTS a"},
 	{name: "drop index if exists on", sql: "DROP INDEX IF EXISTS obprobe_ia ON obprobe_t"},
+}
+
+// truncatedGrammar is the guard side for a statement cut short: a table option
+// written without the value it takes. Both sides must refuse it, so an entry fails
+// if this parser lets a truncated option through again, as it did for the first
+// five before.
+//
+// Read against 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-11-02: the engine answers 1064
+// for all six, as MySQL 8.0, MariaDB 11.8.8 and TiDB v8.5.5 do.
+var truncatedGrammar = []grammarCase{
+	{name: "comment without value", sql: "CREATE TABLE obprobe_tv (a INT) COMMENT"},
+	{name: "comment equals without value", sql: "CREATE TABLE obprobe_tv (a INT) COMMENT ="},
+	{name: "connection without value", sql: "CREATE TABLE obprobe_tv (a INT) CONNECTION"},
+	{name: "password equals without value", sql: "CREATE TABLE obprobe_tv (a INT) PASSWORD ="},
+	{name: "alter comment without value", sql: "ALTER TABLE obprobe_t COMMENT"},
+	{name: "key block size without value", sql: "CREATE TABLE obprobe_tv (a INT) KEY_BLOCK_SIZE"},
 }
 
 // TestOceanBaseGrammarInventory holds this parser to OceanBase rather than to MySQL.
@@ -179,7 +199,7 @@ func TestOceanBaseGrammarInventory(t *testing.T) {
 		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obprobe")
 	})
 
-	for _, group := range [][]grammarCase{oceanBaseOnlyGrammar, sharedGrammar, foreignGrammar} {
+	for _, group := range [][]grammarCase{oceanBaseOnlyGrammar, sharedGrammar, foreignGrammar, truncatedGrammar} {
 		for _, c := range group {
 			t.Run(c.name, func(t *testing.T) {
 				_, parseErr := Parse(c.sql)
