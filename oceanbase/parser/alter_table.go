@@ -454,25 +454,19 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// ADD PARTITION (partition_definition, ...)
+	// ADD PARTITION (partition_definition, ...). MySQL also takes ADD PARTITION
+	// PARTITIONS n, and partitions without VALUES for a HASH or KEY table. OceanBase's
+	// ADD PARTITION reads opt_partition_range_or_list alone (v4.3.5_CE_BP6), so
+	// 4.3.5.6 answers 1064 for both, at PARTITIONS and at the token after the
+	// partition's name (partitionOptionCases).
 	if p.cur.Type == kwPARTITION {
 		p.advance()
 		cmd.Type = nodes.ATAddPartition
-		if p.cur.Type == kwPARTITIONS {
-			p.advance()
-			if p.cur.Type != tokICONST {
-				return nil, &ParseError{Message: "expected partition count", Position: p.cur.Loc}
-			}
-			cmd.Number = int(p.cur.Ival)
-			p.advance()
-			cmd.Loc.End = p.prev.End
-			return cmd, nil
-		}
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
 		for {
-			pd, err := p.parsePartitionDef()
+			pd, err := p.parsePartitionDef(true)
 			if err != nil {
 				return nil, err
 			}
@@ -1074,7 +1068,8 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 	}
 	cmd.PartitionNames = names
 
-	// INTO (partition_definitions)
+	// INTO (partition_definitions). OceanBase reads opt_partition_range_or_list here
+	// too (v4.3.5_CE_BP6), so a partition without VALUES is a 1064, as in ADD PARTITION.
 	if _, err := p.expect(kwINTO); err != nil {
 		return nil, err
 	}
@@ -1082,7 +1077,7 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 		return nil, err
 	}
 	for {
-		pd, err := p.parsePartitionDef()
+		pd, err := p.parsePartitionDef(true)
 		if err != nil {
 			return nil, err
 		}

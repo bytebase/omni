@@ -61,18 +61,16 @@ func partitionDiffProbes() []diffProbe {
 		{"key-algorithm-1", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY ALGORITHM=1 (id) PARTITIONS 3", "t", both()},
 		// LINEAR KEY.
 		{"linear-key", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 2", "t", both()},
-		// Per-partition COMMENT (echoed as `COMMENT = '...' ENGINE = ...`).
-		{"part-comment", "CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3) COMMENT 'first', PARTITION pb VALUES IN (4,5,6) COMMENT 'second')", "t", both()},
+		// No per-partition COMMENT probe: OceanBase refuses COMMENT on a partition with
+		// 1064 (parser partitionOptionCases), so this tree cannot load one.
 		// Subpartitions via SUBPARTITIONS N (default subpartition names psp).
 		{"subpart-n", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", "t", both()},
 		// Subpartitions with explicit subpartition definitions (named, parenthesized per partition).
 		{"subpart-explicit", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) (PARTITION p0 VALUES LESS THAN (2010) (SUBPARTITION s0a, SUBPARTITION s0b), PARTITION p1 VALUES LESS THAN MAXVALUE (SUBPARTITION s1a, SUBPARTITION s1b))", "t", both()},
 		// Subpartition BY KEY.
 		{"subpart-key", "CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY KEY (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", "t", both()},
-		// MyISAM-partitioned table (5.7 only — 8.0 rejects native MyISAM partitioning): the
-		// per-partition engine echo is ENGINE = MyISAM, so the empty→table-engine fold must use
-		// the table's engine, not a hardcoded InnoDB.
-		{"myisam-explicit", "CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) ENGINE=MyISAM PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3), PARTITION pb VALUES IN (4,5,6))", "t", only(MySQL57)},
+		// No MyISAM-partitioned probe: 5.7 echoes ENGINE = MyISAM on each partition, and
+		// OceanBase takes only ENGINE = InnoDB there (parser partitionOptionCases).
 
 		// --- Constant-folded partition bounds (entry partition-constant-folding). The engine folds
 		//     a non-literal RANGE/LIST bound to an integer literal at storage time (verified on both
