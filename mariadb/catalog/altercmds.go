@@ -42,11 +42,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return err
 	}
 	if err := validateAlteredUniqueKeys(tbl, before, repartition); err != nil {
-		if newKey := toLower(tbl.Name); newKey != key {
-			delete(db.Tables, newKey)
-			db.Tables[key] = tbl
-		}
-		*tbl = snapshot
+		undoAlter(db, key, tbl, snapshot)
 		return err
 	}
 	if repartition != nil && tbl.Partitioning != nil {
@@ -133,15 +129,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	snapshot := cloneTable(tbl)
 	origKey := key
 
-	rollback := func() {
-		// If a RENAME changed the map key, undo it, then restore all fields.
-		newKey := toLower(tbl.Name)
-		if newKey != origKey {
-			delete(db.Tables, newKey)
-			db.Tables[origKey] = tbl
-		}
-		*tbl = snapshot
-	}
+	rollback := func() { undoAlter(db, origKey, tbl, snapshot) }
 
 	for _, cmd := range stmt.Commands {
 		if skip[cmd] {
@@ -169,6 +157,17 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
+// in the statement may have moved the table to another database, under another name,
+// so its entry there goes first.
+func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
+	if cur := tbl.Database; cur != nil && cur.Tables[toLower(tbl.Name)] == tbl {
+		delete(cur.Tables, toLower(tbl.Name))
+	}
+	*tbl = snapshot
+	db.Tables[key] = tbl
 }
 
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {

@@ -160,3 +160,72 @@ func TestContainerPartitionKeyCoverage(t *testing.T) {
 		})
 	}
 }
+
+// crossDatabaseRenameCases are ALTER TABLE statements MariaDB 11.8.8 refuses while they
+// also rename the table into another database. It keeps d1.t whichever command
+// comes first; the catalog used to undo only a rename within the database.
+var crossDatabaseRenameCases = []struct {
+	setup, stmt string
+	code        int
+}{
+	{"CREATE TABLE d1.t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2", "ALTER TABLE d1.t ADD UNIQUE (b), RENAME TO d2.t", 1503},
+	{"CREATE TABLE d1.t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2", "ALTER TABLE d1.t RENAME TO d2.u, ADD UNIQUE (b)", 1503},
+	{"CREATE TABLE d1.t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2", "ALTER TABLE d1.t ADD UNIQUE (b), RENAME TO d1.v", 1503},
+	{"CREATE TABLE d1.t (a INT, b INT)", "ALTER TABLE d1.t RENAME TO d2.u, ADD COLUMN a INT", 1060},
+	{"CREATE TABLE d1.t (a INT, b INT)", "ALTER TABLE d1.t ADD COLUMN a INT, RENAME TO d2.u", 1060},
+}
+
+// TestRefusedAlterKeepsTableInPlace pins that a refused ALTER TABLE leaves the table
+// in its database under its name, whatever RENAME TO the statement carries.
+func TestRefusedAlterKeepsTableInPlace(t *testing.T) {
+	for _, tc := range crossDatabaseRenameCases {
+		t.Run(tc.stmt, func(t *testing.T) {
+			c := New()
+			mustExec(t, c, "CREATE DATABASE d1")
+			mustExec(t, c, "CREATE DATABASE d2")
+			mustExec(t, c, tc.setup)
+			results, err := c.Exec(tc.stmt, nil)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			var catErr *Error
+			if len(results) != 1 || !errors.As(results[0].Error, &catErr) || catErr.Code != tc.code {
+				t.Fatalf("got %+v, want error %d", results, tc.code)
+			}
+			d1, d2 := c.GetDatabase("d1"), c.GetDatabase("d2")
+			if tbl := d1.GetTable("t"); tbl == nil || tbl.Database != d1 || tbl.Name != "t" {
+				t.Errorf("d1.t is gone or moved: %+v", tbl)
+			}
+			if len(d1.Tables) != 1 || len(d2.Tables) != 0 {
+				t.Errorf("tables after the refused statement: d1 %d, d2 %d, want 1 and 0", len(d1.Tables), len(d2.Tables))
+			}
+		})
+	}
+}
+
+// TestContainerRefusedAlterKeepsTableInPlace reads each case's verdict and the tables
+// it leaves off MariaDB 11.8.8 (container test).
+func TestContainerRefusedAlterKeepsTableInPlace(t *testing.T) {
+	db := startOrReplaceMariaDB(t)
+	ctx := context.Background()
+	for _, tc := range crossDatabaseRenameCases {
+		t.Run(tc.stmt, func(t *testing.T) {
+			for _, stmt := range []string{"DROP DATABASE IF EXISTS d1", "DROP DATABASE IF EXISTS d2", "CREATE DATABASE d1", "CREATE DATABASE d2", tc.setup} {
+				if _, err := db.ExecContext(ctx, stmt); err != nil {
+					t.Fatalf("setup %q: %v", stmt, err)
+				}
+			}
+			_, err := db.ExecContext(ctx, tc.stmt)
+			if code, msg := mariadbErr(t, tc.stmt, err); code != tc.code {
+				t.Fatalf("MariaDB answered %d %q, want %d", code, msg, tc.code)
+			}
+			var tables string
+			if err := db.QueryRowContext(ctx, "SELECT GROUP_CONCAT(CONCAT(table_schema, '.', table_name)) FROM information_schema.tables WHERE table_schema IN ('d1', 'd2')").Scan(&tables); err != nil {
+				t.Fatal(err)
+			}
+			if tables != "d1.t" {
+				t.Errorf("MariaDB leaves %q, want d1.t", tables)
+			}
+		})
+	}
+}

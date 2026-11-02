@@ -174,3 +174,73 @@ func TestContainer_PartitionKeyCoverage(t *testing.T) {
 		})
 	}
 }
+
+// crossDatabaseRenameCases are ALTER TABLE statements MySQL 8.0 refuses while they
+// also rename the table into another database. It keeps d1.t whichever command
+// comes first; the catalog used to undo only a rename within the database.
+var crossDatabaseRenameCases = []struct {
+	setup, stmt string
+	code        int
+}{
+	{"CREATE TABLE d1.t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2", "ALTER TABLE d1.t ADD UNIQUE (b), RENAME TO d2.t", 1503},
+	{"CREATE TABLE d1.t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2", "ALTER TABLE d1.t RENAME TO d2.u, ADD UNIQUE (b)", 1503},
+	{"CREATE TABLE d1.t (a INT, b INT) PARTITION BY HASH(a) PARTITIONS 2", "ALTER TABLE d1.t ADD UNIQUE (b), RENAME TO d1.v", 1503},
+	{"CREATE TABLE d1.t (a INT, b INT)", "ALTER TABLE d1.t RENAME TO d2.u, ADD COLUMN a INT", 1060},
+	{"CREATE TABLE d1.t (a INT, b INT)", "ALTER TABLE d1.t ADD COLUMN a INT, RENAME TO d2.u", 1060},
+}
+
+// TestRefusedAlterKeepsTableInPlace pins that a refused ALTER TABLE leaves the table
+// in its database under its name, whatever RENAME TO the statement carries.
+func TestRefusedAlterKeepsTableInPlace(t *testing.T) {
+	for _, tc := range crossDatabaseRenameCases {
+		t.Run(tc.stmt, func(t *testing.T) {
+			c := New()
+			mustExec(t, c, "CREATE DATABASE d1")
+			mustExec(t, c, "CREATE DATABASE d2")
+			mustExec(t, c, tc.setup)
+			results, err := c.Exec(tc.stmt, nil)
+			if err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			var catErr *Error
+			if len(results) != 1 || !errors.As(results[0].Error, &catErr) || catErr.Code != tc.code {
+				t.Fatalf("got %+v, want error %d", results, tc.code)
+			}
+			d1, d2 := c.GetDatabase("d1"), c.GetDatabase("d2")
+			if tbl := d1.GetTable("t"); tbl == nil || tbl.Database != d1 || tbl.Name != "t" {
+				t.Errorf("d1.t is gone or moved: %+v", tbl)
+			}
+			if len(d1.Tables) != 1 || len(d2.Tables) != 0 {
+				t.Errorf("tables after the refused statement: d1 %d, d2 %d, want 1 and 0", len(d1.Tables), len(d2.Tables))
+			}
+		})
+	}
+}
+
+// TestContainer_RefusedAlterKeepsTableInPlace reads each case's verdict and the
+// tables it leaves off MySQL 8.0 (container test).
+func TestContainer_RefusedAlterKeepsTableInPlace(t *testing.T) {
+	for _, tc := range crossDatabaseRenameCases {
+		t.Run(tc.stmt, func(t *testing.T) {
+			ctr, cleanup := startContainer(t)
+			defer cleanup()
+			for _, stmt := range []string{"CREATE DATABASE d1", "CREATE DATABASE d2", tc.setup} {
+				if err := ctr.execSQL(stmt); err != nil {
+					t.Fatalf("setup %q: %v", stmt, err)
+				}
+			}
+			err := ctr.execSQL(tc.stmt)
+			var myErr *gomysql.MySQLError
+			if !errors.As(err, &myErr) || int(myErr.Number) != tc.code {
+				t.Fatalf("MySQL answered %v, want %d", err, tc.code)
+			}
+			tables, err := queryStrings(ctr, "SELECT CONCAT(table_schema, '.', table_name) FROM information_schema.tables WHERE table_schema IN ('d1', 'd2')")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(tables) != 1 || tables[0] != "d1.t" {
+				t.Errorf("MySQL leaves %v, want [d1.t]", tables)
+			}
+		})
+	}
+}
