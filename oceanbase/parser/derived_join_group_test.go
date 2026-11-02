@@ -80,18 +80,29 @@ var derivedJoinGroupAccepted = []string{
 	"select * from ((select 1) lock in share mode) d",
 }
 
-// derivedJoinGroupRejected are rejected by MySQL 8.0 with 1064
-// (TestDerivedJoinGroupOracle). MySQL does not parenthesize a lone derived
-// table or table function.
-var derivedJoinGroupRejected = []string{
+// loneParenthesizedFactors put a lone derived table, LATERAL derived table,
+// or JSON_TABLE in parentheses. MySQL 8.0 rejects every one with 1064
+// (TestDerivedJoinGroupOracle), and OceanBase accepts every one
+// (TestDerivedJoinGroupOceanBase), so this parser follows OceanBase.
+var loneParenthesizedFactors = []string{
 	"select * from ((select k1 from j1) d)",
 	"select * from (((select k1 from j1) d))",
 	"select * from ((select k1 from j1) as d)",
+	"select * from ((select k1 from j1) d (x))",
 	"select * from ((select k1 from j1) d) join j2 on 1",
 	"select * from (((select 1) d) join j2 on 1)",
 	"select * from (((select 1) d), j2)",
 	"select * from j1, (lateral (select j1.k1) d)",
+	"select * from j1, ((lateral (select j1.k1) as d))",
+	"select * from j1 join (lateral (select j1.k1) d) on 1",
 	"select * from (json_table('[1]', '$[*]' columns (x int path '$')) jt)",
+	"select * from ((json_table('[1]', '$[*]' columns (x int path '$')) as jt))",
+	"select * from (json_table('[1]', '$[*]' columns (x int path '$')) jt) join j2 on 1",
+}
+
+// derivedJoinGroupRejected are rejected by MySQL 8.0 and by OceanBase with
+// 1064 (TestDerivedJoinGroupOracle, TestDerivedJoinGroupOceanBase).
+var derivedJoinGroupRejected = []string{
 	"select * from ((select k1 from j1) d join j2 on 1",
 	"select * from ((select k1 from j1) d join)",
 	"select * from ((select k1 from j1) d d2 join j2 on 1)",
@@ -104,6 +115,9 @@ var derivedJoinGroupRejected = []string{
 
 func TestDerivedJoinGroup(t *testing.T) {
 	for _, sql := range derivedJoinGroupAccepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+	for _, sql := range loneParenthesizedFactors {
 		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
 	}
 	for _, sql := range derivedJoinGroupRejected {
@@ -143,18 +157,36 @@ func TestDerivedJoinGroupTree(t *testing.T) {
 	}
 }
 
-// TestLoneParenthesizedDerivedTableError: MySQL rejects a lone derived table
-// or table function in parentheses at the ')' (8.0.46: "near ')'").
-func TestLoneParenthesizedDerivedTableError(t *testing.T) {
-	for _, sql := range []string{
-		"select * from ((select 1) d)",
-		"select * from (lateral (select 1) d)",
-		"select * from (json_table('[1]', '$[*]' columns (x int path '$')) jt)",
+// TestLoneParenthesizedFactorTree: OceanBase reads a lone table factor in
+// parentheses as the factor itself, so the parentheses leave no node of their
+// own and the factor keeps its span.
+func TestLoneParenthesizedFactorTree(t *testing.T) {
+	for _, tc := range []struct {
+		sql, span string
+		check     func(nodes.TableExpr) bool
+	}{
+		{"select * from ((select 1) d)", "(select 1) d", func(e nodes.TableExpr) bool {
+			s, ok := e.(*nodes.SubqueryExpr)
+			return ok && s.Alias == "d" && !s.Lateral
+		}},
+		{"select * from (lateral (select 1) d)", "lateral (select 1) d", func(e nodes.TableExpr) bool {
+			s, ok := e.(*nodes.SubqueryExpr)
+			return ok && s.Alias == "d" && s.Lateral
+		}},
+		{"select * from (json_table('[1]', '$[*]' columns (x int path '$')) jt)", "json_table('[1]', '$[*]' columns (x int path '$')) jt", func(e nodes.TableExpr) bool {
+			j, ok := e.(*nodes.JsonTableExpr)
+			return ok && j.Alias == "jt"
+		}},
 	} {
-		_, err := Parse(sql)
-		var pe *ParseError
-		if !errors.As(err, &pe) || pe.Position != len(sql)-1 {
-			t.Errorf("Parse(%q) = %v, want a syntax error at the last ')' (offset %d)", sql, err, len(sql)-1)
+		list := ParseAndCheck(t, tc.sql)
+		from := list.Items[0].(*nodes.SelectStmt).From
+		if len(from) != 1 || !tc.check(from[0]) {
+			t.Errorf("Parse(%q) FROM = %#v, want the factor itself", tc.sql, from)
+			continue
+		}
+		loc := tableExprLoc(from[0])
+		if got := tc.sql[loc.Start:loc.End]; got != tc.span {
+			t.Errorf("Parse(%q) factor spans %q, want %q", tc.sql, got, tc.span)
 		}
 	}
 }

@@ -100,6 +100,14 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	{name: "column group", sql: "CREATE TABLE obprobe_t3 (a INT) WITH COLUMN GROUP(all columns, each column)", pending: true},
 	{name: "alter system major freeze", sql: "ALTER SYSTEM MAJOR FREEZE", pending: true},
 
+	// A lone derived table, LATERAL derived table or JSON_TABLE in parentheses, which
+	// MySQL 8.0 refuses with 1064 and 4.3.5 runs (read on 2026-11-02). mysql/parser
+	// rejects them since #560 and this parser did too after #570; see
+	// loneParenthesizedFactors for the wider corpus.
+	{name: "lone parenthesized derived table", sql: "SELECT * FROM ((SELECT 1) d)"},
+	{name: "lone parenthesized lateral", sql: "SELECT * FROM obprobe_t, (LATERAL (SELECT 1) d)"},
+	{name: "lone parenthesized json table", sql: "SELECT * FROM (JSON_TABLE('[1]', '$[*]' COLUMNS (v INT PATH '$')) AS jt)"},
+
 	// The storage and index clauses OceanBase prints in SHOW CREATE TABLE, and the
 	// index scope it takes in DDL. Read from a 4.3.5 readback and from DDL a customer
 	// reported as rejected, then implemented, so none of these is pending.
