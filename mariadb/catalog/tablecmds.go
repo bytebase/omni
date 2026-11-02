@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -1376,9 +1377,10 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 		// bounds that strictly increase, compared column by column, and it
 		// answers 1493 otherwise. Holding it to RANGE's 1481 refused
 		// "(5, MAXVALUE), (6, 1)", which the engine runs.
+		kinds := rangeColumnsBoundKinds(tbl, pc.Columns)
 		for i := 1; i < len(pc.Partitions); i++ {
 			prev, cur := pc.Partitions[i-1].Values, pc.Partitions[i].Values
-			if prev != nil && cur != nil && rangeColumnsNotIncreasing(prev, cur) {
+			if prev != nil && cur != nil && rangeColumnsNotIncreasing(prev, cur, kinds) {
 				return &Error{Code: 1493, SQLState: "HY000", Message: "VALUES LESS THAN value must be strictly increasing for each partition"}
 			}
 		}
@@ -1424,14 +1426,12 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 // certainly not greater than prev, which the engine refuses with 1493. It
 // compares column by column, as MySQL and MariaDB do: MAXVALUE is greater than
 // any value, and a MAXVALUE in both ends the comparison as equal, so
-// "(MAXVALUE, 5), (MAXVALUE, 10)" is refused. Integer literals compare by
-// value; string literals compare when equal, or at their first differing byte
-// when both bytes are digits or both lowercase letters, an order every
-// collation keeps. Any other pair leaves the answer open, and nothing is
-// reported.
-func rangeColumnsNotIncreasing(prev, cur nodes.Node) bool {
+// "(MAXVALUE, 5), (MAXVALUE, 10)" is refused. Below MAXVALUE, two bounds are
+// compared only where their column's type settles the order (kinds); any other
+// pair leaves the answer open, and nothing is reported.
+func rangeColumnsNotIncreasing(prev, cur nodes.Node, kinds []rangeBoundKind) bool {
 	ps, cs := partitionBoundItems(prev), partitionBoundItems(cur)
-	if len(ps) != len(cs) {
+	if len(ps) != len(cs) || len(ps) != len(kinds) {
 		return false
 	}
 	for i := range ps {
@@ -1442,7 +1442,7 @@ func rangeColumnsNotIncreasing(prev, cur nodes.Node) bool {
 		case cm:
 			return false
 		}
-		order, known := comparePartitionBounds(ps[i], cs[i])
+		order, known := comparePartitionBounds(ps[i], cs[i], kinds[i])
 		if !known {
 			return false
 		}
@@ -1451,6 +1451,61 @@ func rangeColumnsNotIncreasing(prev, cur nodes.Node) bool {
 		}
 	}
 	return true
+}
+
+// rangeBoundKind is how a RANGE COLUMNS column's literal bounds compare where
+// the order is certain.
+type rangeBoundKind int
+
+const (
+	rangeBoundOpen     rangeBoundKind = iota // nothing is decided
+	rangeBoundInteger                        // integer literals, by value
+	rangeBoundString                         // string literals, by byte where the collation keeps it
+	rangeBoundTemporal                       // date and time literals of one fixed, zero-padded shape
+)
+
+// rangeColumnsBoundKinds reads each partitioning column's kind off the table.
+// A string column compares only under a collation with no tailoring of ASCII
+// letters and digits: a language collation such as utf8mb4_spanish2_ci sorts
+// "ch" after "cz", which byte order cannot see.
+func rangeColumnsBoundKinds(tbl *Table, cols []string) []rangeBoundKind {
+	kinds := make([]rangeBoundKind, len(cols))
+	for i, name := range cols {
+		col := tbl.GetColumn(name)
+		if col == nil {
+			continue
+		}
+		switch strings.ToLower(col.DataType) {
+		case "tinyint", "smallint", "mediumint", "int", "integer", "bigint":
+			kinds[i] = rangeBoundInteger
+		case "binary", "varbinary":
+			kinds[i] = rangeBoundString
+		case "char", "varchar":
+			if plainCollation(col.Collation) {
+				kinds[i] = rangeBoundString
+			}
+		case "date", "datetime":
+			kinds[i] = rangeBoundTemporal
+		}
+	}
+	return kinds
+}
+
+// plainCollation reports whether a collation orders ASCII digits and lowercase
+// letters as their bytes do: binary ones and the untailored defaults.
+func plainCollation(c string) bool {
+	c = strings.ToLower(c)
+	if c == "" || c == "binary" || strings.HasSuffix(c, "_bin") {
+		return true
+	}
+	switch c {
+	case "utf8mb4_0900_ai_ci", "utf8mb4_0900_as_ci", "utf8mb4_0900_as_cs", "utf8mb4_general_ci",
+		"utf8mb4_unicode_ci", "utf8mb4_unicode_520_ci", "utf8mb3_general_ci", "utf8mb3_unicode_ci",
+		"utf8_general_ci", "utf8_unicode_ci", "latin1_swedish_ci", "latin1_general_ci", "latin1_general_cs",
+		"ascii_general_ci", "utf8mb4_uca1400_ai_ci", "utf8mb4_uca1400_as_ci", "utf8mb4_uca1400_as_cs", "utf8mb4_uca1400_ai_cs", "utf8mb3_uca1400_ai_ci":
+		return true
+	}
+	return false
 }
 
 func partitionBoundItems(n nodes.Node) []nodes.Node {
@@ -1465,49 +1520,82 @@ func isPartitionMaxvalue(n nodes.Node) bool {
 	return ok && strings.EqualFold(s.Str, "MAXVALUE")
 }
 
-// comparePartitionBounds orders two bounds, a against b, when the order is
-// certain: -1, 0 or 1, and whether it is known.
-func comparePartitionBounds(a, b nodes.Node) (int, bool) {
-	if x, ok := partitionBoundInt(a); ok {
-		if y, ok := partitionBoundInt(b); ok {
-			switch {
-			case x < y:
-				return -1, true
-			case x > y:
-				return 1, true
-			}
-			return 0, true
-		}
-		return 0, false
-	}
-	x, ok1 := a.(*nodes.StringLit)
-	y, ok2 := b.(*nodes.StringLit)
-	if !ok1 || !ok2 {
-		return 0, false
-	}
-	if x.Value == y.Value {
-		return 0, true
-	}
-	for i := 0; i < len(x.Value) && i < len(y.Value); i++ {
-		c, d := x.Value[i], y.Value[i]
-		if c == d {
-			continue
-		}
-		digits := c >= '0' && c <= '9' && d >= '0' && d <= '9'
-		lower := c >= 'a' && c <= 'z' && d >= 'a' && d <= 'z'
-		if !digits && !lower {
+// comparePartitionBounds orders two bounds of a column of the given kind, a
+// against b, when the order is certain: -1, 0 or 1, and whether it is known.
+func comparePartitionBounds(a, b nodes.Node, kind rangeBoundKind) (int, bool) {
+	switch kind {
+	case rangeBoundInteger:
+		x, ok1 := partitionBoundInt(a)
+		y, ok2 := partitionBoundInt(b)
+		if !ok1 || !ok2 {
 			return 0, false
 		}
-		if c < d {
+		switch {
+		case x < y:
 			return -1, true
+		case x > y:
+			return 1, true
 		}
-		return 1, true
+		return 0, true
+	case rangeBoundString, rangeBoundTemporal:
+		x, ok1 := a.(*nodes.StringLit)
+		y, ok2 := b.(*nodes.StringLit)
+		if !ok1 || !ok2 {
+			return 0, false
+		}
+		if x.Value == y.Value {
+			return 0, true
+		}
+		if kind == rangeBoundTemporal {
+			return compareTemporalLiterals(x.Value, y.Value)
+		}
+		for i := 0; i < len(x.Value) && i < len(y.Value); i++ {
+			c, d := x.Value[i], y.Value[i]
+			if c == d {
+				continue
+			}
+			digits := c >= '0' && c <= '9' && d >= '0' && d <= '9'
+			lower := c >= 'a' && c <= 'z' && d >= 'a' && d <= 'z'
+			if !digits && !lower {
+				return 0, false
+			}
+			if c < d {
+				return -1, true
+			}
+			return 1, true
+		}
 	}
 	return 0, false
 }
 
+// compareTemporalLiterals orders two date or time literals written in one
+// shape: equal length, digits in the same places and the same separators
+// between them, as '2020-01-31' and '2021-12-01' are. Zero-padded fields of
+// one width then sort as their bytes do; '2020-9-1' against '2020-10-01' does
+// not, and is left open.
+func compareTemporalLiterals(x, y string) (int, bool) {
+	if len(x) != len(y) {
+		return 0, false
+	}
+	for i := 0; i < len(x); i++ {
+		xd, yd := x[i] >= '0' && x[i] <= '9', y[i] >= '0' && y[i] <= '9'
+		if xd != yd || (!xd && x[i] != y[i]) {
+			return 0, false
+		}
+	}
+	if x < y {
+		return -1, true
+	}
+	return 1, true
+}
+
 func partitionBoundInt(n nodes.Node) (int64, bool) {
 	if lit, ok := n.(*nodes.IntLit); ok {
+		// The lexer clamps a literal past int64, so either end may not be
+		// the value written.
+		if lit.Value == math.MaxInt64 || lit.Value == math.MinInt64 {
+			return 0, false
+		}
 		return lit.Value, true
 	}
 	return 0, false

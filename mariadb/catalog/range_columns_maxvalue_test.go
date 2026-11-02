@@ -35,6 +35,9 @@ var rangeColumnsCases = []rangeColumnsCase{
 	{"maxvalue ends the comparison", "", "CREATE TABLE rr3 (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (MAXVALUE, 5), PARTITION p1 VALUES LESS THAN (MAXVALUE, 10))", "rr3", 1493, nil},
 	{"maxvalue after an equal column", "", "CREATE TABLE rr4 (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN (5, MAXVALUE), PARTITION p1 VALUES LESS THAN (5, 10))", "rr4", 1493, nil},
 	{"string bounds decreasing", "", "CREATE TABLE rr5 (a VARCHAR(10), b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p0 VALUES LESS THAN ('b', MAXVALUE), PARTITION p1 VALUES LESS THAN ('a', 1))", "rr5", 1493, nil},
+	{"language collation", "", "CREATE TABLE rc6 (a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_spanish2_ci) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('cz'), PARTITION p1 VALUES LESS THAN ('ch'))", "rc6", 0, []string{"'cz'", "'ch'"}},
+	{"unpadded dates", "", "CREATE TABLE rc8 (a DATE) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('2020-9-1'), PARTITION p1 VALUES LESS THAN ('2020-10-01'))", "rc8", 0, []string{"'2020-9-1'", "'2020-10-01'"}},
+	{"padded dates decreasing", "", "CREATE TABLE rr7 (a DATE) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN ('2021-01-01'), PARTITION p1 VALUES LESS THAN ('2020-12-31'))", "rr7", 1493, nil},
 	{"range maxvalue not last", "", "CREATE TABLE rr6 (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE, PARTITION p1 VALUES LESS THAN (10))", "rr6", 1481, nil},
 }
 
@@ -141,4 +144,16 @@ func rangeColumnsOmni(t *testing.T, tc rangeColumnsCase) (int, string) {
 		}
 	}
 	return 0, c.ShowCreateTable("rc_test", tc.table)
+}
+
+// TestRangeColumnsUnsignedPastInt64: the lexer clamps an integer literal past
+// int64, so two different BIGINT UNSIGNED bounds there can read as one value;
+// the check leaves them open rather than refuse the table, which the engine
+// creates. (The engine then answers 1654 to SHOW CREATE TABLE for it, so the
+// oracle does not read it back.)
+func TestRangeColumnsUnsignedPastInt64(t *testing.T) {
+	tc := rangeColumnsCase{"unsigned past int64", "", "CREATE TABLE ru1 (a BIGINT UNSIGNED) PARTITION BY RANGE COLUMNS(a) (PARTITION p0 VALUES LESS THAN (9223372036854775807), PARTITION p1 VALUES LESS THAN (9223372036854775808))", "ru1", 0, nil}
+	if code, _ := rangeColumnsOmni(t, tc); code != 0 {
+		t.Errorf("catalog answered %d for bounds the engine takes", code)
+	}
 }
