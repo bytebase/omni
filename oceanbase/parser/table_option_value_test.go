@@ -16,6 +16,14 @@ func TestTableOptionRequiresValue(t *testing.T) {
 		"CREATE TABLE t (a INT) USE_BLOOM_FILTER =",
 		"CREATE TABLE t (a INT) TABLET_SIZE =",
 		"CREATE TABLE t (a INT) AUTO_INCREMENT_MODE",
+		// COMMENT, CONNECTION and PASSWORD read their string themselves rather than
+		// through the helper, and had the same hole: OceanBase 4.3.5 answers 1064.
+		"CREATE TABLE t (a INT) COMMENT",
+		"CREATE TABLE t (a INT) COMMENT =",
+		"CREATE TABLE t (a INT) COMMENT ENGINE = InnoDB",
+		"CREATE TABLE t (a INT) CONNECTION",
+		"CREATE TABLE t (a INT) PASSWORD =",
+		"ALTER TABLE t COMMENT",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("parsed %q, but the option has no value", sql)
@@ -27,6 +35,8 @@ func TestTableOptionRequiresValue(t *testing.T) {
 		"CREATE TABLE t (a INT) STATS_SAMPLE_PAGES = DEFAULT",
 		"CREATE TABLE t (a INT) REPLICA_NUM = 1 BLOCK_SIZE = 16384",
 		"CREATE TABLE t (a INT) USE_BLOOM_FILTER = FALSE AUTO_INCREMENT_MODE = 'ORDER'",
+		"CREATE TABLE t (a INT) COMMENT = 'x' CONNECTION 'y' PASSWORD = 'z'",
+		"ALTER TABLE t COMMENT 'x'",
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("%q: %v", sql, err)
