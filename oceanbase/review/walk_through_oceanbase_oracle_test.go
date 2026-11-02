@@ -24,7 +24,7 @@ import (
 // about 8 GB, which CI does not have: the tests read OCEANBASE_WALK_DSN,
 // which scripts/oceanbase-oracle.sh sets, and skip without it.
 //
-//	scripts/oceanbase-oracle.sh go test ./mysql/review/ -run 'OceanBase' -count=1 -timeout 3h
+//	scripts/oceanbase-oracle.sh go test ./oceanbase/review/ -run 'OceanBase' -count=1 -timeout 3h
 
 // oceanBaseWalkBase is walkBase with the relations only OceanBase has: an
 // external table, which reads files under secure_file_priv (the script

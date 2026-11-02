@@ -229,6 +229,7 @@ var chainShapes = []struct {
 	{"IN", func(n int) string { return "SELECT a" + strings.Repeat(" IN (1)", n) }},
 	{"BETWEEN", func(n int) string { return "SELECT a" + strings.Repeat(" BETWEEN 1 AND 2", n) }},
 	{"subscripts", func(n int) string { return "SELECT a" + strings.Repeat("[1]", n) }},
+	{"JSON arrows", func(n int) string { return "SELECT a" + strings.Repeat("->'$.x'", n) }},
 	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
 	{"UNION of parenthesized queries", func(n int) string { return strings.Repeat("(SELECT 1) UNION ", n) + "(SELECT 1)" }},
 	{"INTERSECT", func(n int) string { return strings.Repeat("SELECT 1 INTERSECT ", n) + "SELECT 1" }},

@@ -865,6 +865,8 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		writeExprAlias(b, n.Value)
 		b.WriteString(" ")
 		b.WriteString(strings.ToUpper(n.Unit))
+	case *ast.KeywordArg:
+		b.WriteString(n.Keyword)
 	default:
 		// Fallback: use the regular deparsed text
 		writeExpr(b, node)
@@ -922,7 +924,7 @@ func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
 			if i > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString("ROW(")
+			b.WriteString("(")
 			for j, expr := range row {
 				if j > 0 {
 					b.WriteString(", ")
@@ -1338,6 +1340,11 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		writeConvertExpr(b, n)
 	case *ast.IntervalExpr:
 		writeIntervalExpr(b, n)
+	case *ast.KeywordArg:
+		// Bare keyword argument (timestampdiff unit, get_format type) —
+		// never quoted: the engine stores timestampdiff(SECOND,...) and
+		// rejects a backtick-quoted unit.
+		b.WriteString(n.Keyword)
 	case *ast.CollateExpr:
 		writeCollateExpr(b, n)
 	case *ast.FuncCallExpr:

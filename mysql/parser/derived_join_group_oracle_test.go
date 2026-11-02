@@ -42,13 +42,13 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 		}
 	}
 	for _, sql := range derivedJoinGroupAccepted {
-		if !o.checkSyntax(sql) {
+		if !o.checkSyntax(t, sql) {
 			t.Errorf("MySQL rejects %q", sql)
 		}
 		assertOracleMatch(t, o, sql)
 	}
 	for _, sql := range derivedJoinGroupRejected {
-		if o.checkSyntax(sql) {
+		if o.checkSyntax(t, sql) {
 			t.Errorf("MySQL accepts %q", sql)
 		}
 		assertOracleMatch(t, o, sql)

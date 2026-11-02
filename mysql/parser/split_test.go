@@ -190,12 +190,26 @@ func TestSplitQuotingAndComments(t *testing.T) {
 			want: []string{"INSERT INTO t3 SELECT * FROM t /* /* */", " DROP TABLE t4"},
 		},
 		{
-			// An executable comment's OWN close is still found by depth-counting
-			// (matching the lexer's exec-comment scan), so a plain comment nested
-			// inside it does not end the executable comment early.
+			// A plain comment nested inside an executable comment is consumed
+			// whole, so its close does not end the executable comment early and the
+			// ';' inside the body is not a statement boundary.
 			name: "nested plain comment inside an executable comment",
 			sql:  "/*! /* c */ SELECT 1; */ SELECT 2;",
 			want: []string{"/*! /* c */ SELECT 1; */ SELECT 2"},
+		},
+		{
+			// A "/*" inside a string opens nothing, so the executable comment closes
+			// at the "*/" after it and the ';' that follows is a boundary. MySQL,
+			// MariaDB, OceanBase and TiDB all read this as two statements.
+			name: "quoted comment opener inside an executable comment",
+			sql:  "SELECT 1 /*! + LENGTH('/*') */; SELECT 2;",
+			want: []string{"SELECT 1 /*! + LENGTH('/*') */", " SELECT 2"},
+		},
+		{
+			// Nor does a "*/" inside a string close the comment early.
+			name: "quoted comment close inside an executable comment",
+			sql:  "/*!50000 SELECT 'a*/' */; SELECT 2;",
+			want: []string{"/*!50000 SELECT 'a*/' */", " SELECT 2"},
 		},
 		{
 			name: "-- without space is not comment",

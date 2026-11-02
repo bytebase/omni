@@ -208,6 +208,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Offset != nil {
 			Walk(v, n.Offset)
 		}
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
 	case *SelectItem:
 		if n.Expr != nil {
 			Walk(v, n.Expr)
@@ -260,6 +263,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Offset != nil {
 			Walk(v, n.Offset)
 		}
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
 	case *GroupedQuery:
 		Walk(v, n.Query)
 		for _, item := range n.OrderBy {
@@ -270,6 +276,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Offset != nil {
 			Walk(v, n.Offset)
+		}
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
+	case *IntoOutfileClause:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
 		}
 
 	// DDL — CREATE TABLE nodes (T2.1).

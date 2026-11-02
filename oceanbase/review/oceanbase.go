@@ -7,10 +7,9 @@ import (
 )
 
 // ReviewOceanBase evaluates opts.Rules over sql, a change for OceanBase's
-// MySQL mode, for every target, as Review does for MySQL. Bytebase reads
-// OceanBase as the MySQL dialect: it parses it with the MySQL parser and
-// reviews it with the MySQL advisors, so every rule here is the MySQL one,
-// but for PRIOR_BACKUP, which Bytebase does not take on OceanBase.
+// MySQL mode, for every target, as Review does for MySQL. The rules are
+// MySQL's, inherited with this tree, but for PRIOR_BACKUP, which Bytebase
+// does not take on OceanBase.
 //
 // WALK_THROUGH is the MySQL walk with OceanBase's deltas, each verified
 // on OceanBase CE 4.3.5: docs/specs/2026-10-27-walk-through-oceanbase.md.
@@ -29,7 +28,8 @@ import (
 // tell the two apart, so it does not report the request itself.
 //
 // bytebase: backend/plugin/advisor/builtin_rules.go;
-// backend/plugin/parser/mysql — the OceanBase registrations.
+// backend/plugin/parser/oceanbase and backend/plugin/advisor/oceanbase — the
+// OceanBase registrations.
 func ReviewOceanBase(ctx context.Context, sql string, opts review.Options, targets []review.Target) (*review.Result, error) {
 	return reviewDialect(ctx, sql, opts, targets, dialect{oceanBase: true})
 }
