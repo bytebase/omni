@@ -1724,7 +1724,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	}
 
 	// VALUES LESS THAN or VALUES IN
-	values, _, err := p.parsePartitionValues()
+	values, _, err := p.parsePartitionValues(false)
 	if err != nil {
 		return nil, err
 	}
@@ -1781,14 +1781,19 @@ const (
 )
 
 // parsePartitionValues parses a partition's or a subpartition's VALUES LESS THAN or
-// VALUES IN when the next token is VALUES, and reports which it read.
-func (p *Parser) parsePartitionValues() (nodes.Node, partitionValuesKind, error) {
+// VALUES IN when the next token is VALUES, and reports which it read. A partition's
+// VALUES LESS has always taken THAN as optional here; requireThan, set for a
+// subpartition, holds it to the grammar's LESS THAN, as OceanBase does (subpartitionCases).
+func (p *Parser) parsePartitionValues(requireThan bool) (nodes.Node, partitionValuesKind, error) {
 	var values nodes.Node
 	kind := noPartitionValues
 	if _, ok := p.match(kwVALUES); ok {
 		if p.cur.Type == kwLESS {
 			kind = valuesLessThan
 			p.advance() // LESS
+			if requireThan && p.cur.Type != kwTHAN {
+				return nil, 0, p.syntaxErrorAtCur()
+			}
 			if p.cur.Type == kwTHAN {
 				p.advance() // THAN
 			}
@@ -1919,7 +1924,7 @@ func (p *Parser) parseSubPartitionDef(want partitionValuesKind, first bool) (*no
 		}
 		return nil, 0, p.syntaxErrorAtCur()
 	}
-	values, got, err := p.parsePartitionValues()
+	values, got, err := p.parsePartitionValues(true)
 	if err != nil {
 		return nil, 0, err
 	}
