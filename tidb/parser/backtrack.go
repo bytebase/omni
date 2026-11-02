@@ -18,7 +18,7 @@ type tokenStreamState struct {
 	pos, start         int
 	prevToken          int
 	prevTokenEnd       int
-	execStack          []execComment
+	execStack          *execComment
 	execMarkers        []execMarker
 }
 

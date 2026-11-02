@@ -220,6 +220,10 @@ func Split(sql string) []Segment {
 	// level (so IF (expr) THEN, SELECT IF(...), DROP TABLE IF EXISTS all read
 	// correctly regardless of comments between the keyword and what follows).
 	atStmtStart := true
+	// closes keeps the scans for executable comments' closes linear in total:
+	// TiDB reads on past an opener that never closes, so every later opener
+	// would rescan the rest of the input.
+	var closes splitCloses
 
 	for i < len(sql) {
 		// Check for DELIMITER directive (only at statement-start position).
@@ -273,7 +277,7 @@ func Split(sql string) []Segment {
 
 		// Block comment (including conditional /*!...*/): transparent to atStmtStart.
 		case b == '/' && i+1 < len(sql) && sql[i+1] == '*':
-			i = skipBlockCommentMySQL(sql, i)
+			i = skipBlockComment(sql, i, &closes)
 
 		// Dash line comment: transparent to atStmtStart.
 		case isDashComment(sql, i):
@@ -433,8 +437,8 @@ func Split(sql string) []Segment {
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.
-// Handles ” escape and \ backslash escape. Returns position after the closing
-// quote (or end of input if unterminated).
+// Handles a doubled quote and a backslash escape. Returns position after the
+// closing quote (or end of input if unterminated).
 func skipSingleQuoteMySQL(sql string, i int) int {
 	i++ // skip opening '
 	for i < len(sql) {
@@ -482,7 +486,7 @@ func skipDoubleQuoteMySQL(sql string, i int) int {
 }
 
 // skipBacktick skips a backtick-quoted identifier starting at position i.
-// Only “ (double backtick) is an escape. Returns position after the closing
+// Only a doubled backtick is an escape. Returns position after the closing
 // backtick (or end of input if unterminated).
 func skipBacktick(sql string, i int) int {
 	i++ // skip opening `
@@ -568,8 +572,14 @@ func isExecutableCommentStart(sql string, i int) bool {
 // as the lexer reads it. Returns position after the closing */ (or end of
 // input).
 func skipBlockCommentMySQL(sql string, i int) int {
+	return skipBlockComment(sql, i, nil)
+}
+
+// skipBlockComment is skipBlockCommentMySQL with the memo Split keeps for the
+// closes of its executable comments; closes may be nil.
+func skipBlockComment(sql string, i int, closes *splitCloses) int {
 	if isExecutableCommentStart(sql, i) {
-		end, closed := skipExecutableComment(sql, i)
+		end, closed := skipExecutableComment(sql, i, closes)
 		if !closed {
 			// TiDB drops the opener of an executable comment that never closes and
 			// reads the rest as ordinary SQL, so a ';' after it is still a
@@ -601,9 +611,49 @@ func skipOrdinaryBlockComment(sql string, i int) int {
 // closes nothing. Returns the position after the closing */ and whether one was
 // found. Split has to agree with the lexer here, or a ';' after such a comment
 // is a statement boundary to one and not to the other.
-func skipExecutableComment(sql string, i int) (int, bool) {
+func skipExecutableComment(sql string, i int, closes *splitCloses) (int, bool) {
+	if closes == nil {
+		return scanExecutableComment(sql, i, nil)
+	}
+	if closes.memo == nil {
+		if !execMemoAfter(closes.walked, len(sql)) {
+			end, closed := scanExecutableComment(sql, i, nil)
+			closes.walked += end - i
+			return end, closed
+		}
+		closes.memo = newExecCloseMemo(len(sql))
+	}
+	closes.memo.begin()
+	end, closed := scanExecutableComment(sql, i, closes.memo)
+	res := -1
+	if closed {
+		res = end - 2
+	}
+	closes.memo.end(res)
+	return end, closed
+}
+
+// splitCloses is the state that keeps one Split's executable-comment scans
+// linear in total: the bytes they have walked, and the memo built once that
+// passes twice the input's length (exec_close_memo.go).
+type splitCloses struct {
+	walked int
+	memo   *execCloseMemo
+}
+
+// scanExecutableComment is skipExecutableComment's scan. With a memo, it stops
+// at the first offset a recorded scan stood on and returns that scan's result.
+func scanExecutableComment(sql string, i int, m *execCloseMemo) (int, bool) {
 	i += 2 // skip /*
 	for i < len(sql) {
+		if m != nil {
+			if res, ok := m.visit(i); ok {
+				if res < 0 {
+					return len(sql), false
+				}
+				return res + 2, true
+			}
+		}
 		switch {
 		case sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/':
 			return i + 2, true
@@ -618,6 +668,16 @@ func skipExecutableComment(sql string, i int) (int, bool) {
 		case sql[i] == '#':
 			i = skipHashComment(sql, i)
 		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			if m != nil {
+				// Openers nested in one another start their nested comments at
+				// different offsets, each running to the same "*/".
+				if at := m.rawClose(sql, i+2); at >= 0 {
+					i = at + 2
+				} else {
+					i = len(sql)
+				}
+				continue
+			}
 			i = skipOrdinaryBlockComment(sql, i)
 		default:
 			i++
