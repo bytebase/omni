@@ -102,7 +102,7 @@ func TestTiDBTemporalKeywordArgOracle(t *testing.T) {
 	}
 
 	for _, sqlStr := range temporalKeywordArgCorpus {
-		tidbAccepts := !tidbRejectedSyntax(tc.canExecute(sqlStr))
+		tidbAccepts := !tidbRejectedSyntax(t, tc.canExecute(sqlStr))
 		_, err := Parse(sqlStr)
 		if (err == nil) != tidbAccepts {
 			t.Errorf("%q: omni accepts=%v (err=%v), TiDB accepts=%v", sqlStr, err == nil, err, tidbAccepts)
