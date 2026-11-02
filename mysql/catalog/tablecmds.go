@@ -11,7 +11,10 @@ import (
 
 const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
 
-func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
+// createTable installs the table stmt defines. declared is true when stmt lists
+// its keys in the order they were declared, as a CREATE TABLE statement does,
+// and false for a loader's snapshot, which lists them in an order of its own.
+func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -124,6 +127,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Track whether we have a primary key (to detect multiple PKs).
 	hasPK := false
 	autoIncrementColumn := ""
+	// The UNIQUE keys in the order the statement declares them, for the
+	// implicit primary key.
+	var uniqueKeys []declaredUniqueKey
 
 	// Defer FK backing index creation until after all explicit indexes are added,
 	// so that explicit indexes can satisfy FK requirements without creating duplicates.
@@ -340,14 +346,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
 		if isSerial {
 			idxName := allocIndexName(tbl, colDef.Name)
-			tbl.Indexes = append(tbl.Indexes, &Index{
+			serialIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
 				Columns:   []*IndexColumn{{Name: colDef.Name}},
 				Unique:    true,
 				IndexType: "",
 				Visible:   true,
-			})
+			}
+			tbl.Indexes = append(tbl.Indexes, serialIdx)
+			uniqueKeys = append(uniqueKeys, declaredUniqueKey{serialIdx, colDef.Loc.Start})
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      idxName,
 				Type:      ConUniqueKey,
@@ -389,14 +397,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				})
 			case nodes.ColConstrUnique:
 				idxName := allocIndexName(tbl, colDef.Name)
-				tbl.Indexes = append(tbl.Indexes, &Index{
+				uqIdx := &Index{
 					Name:      idxName,
 					Table:     tbl,
 					Columns:   []*IndexColumn{{Name: colDef.Name}},
 					Unique:    true,
 					IndexType: "",
 					Visible:   true,
-				})
+				}
+				tbl.Indexes = append(tbl.Indexes, uqIdx)
+				uniqueKeys = append(uniqueKeys, declaredUniqueKey{uqIdx, cc.Loc.Start})
 				tbl.Constraints = append(tbl.Constraints, &Constraint{
 					Name:      idxName,
 					Type:      ConUniqueKey,
@@ -481,6 +491,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				return err
 			}
 			tbl.Indexes = append(tbl.Indexes, uqIdx)
+			uniqueKeys = append(uniqueKeys, declaredUniqueKey{uqIdx, con.Loc.Start})
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      idxName,
 				Type:      ConUniqueKey,
@@ -634,6 +645,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if !hasPK {
 			addGeneratedInvisiblePrimaryKey(tbl)
 			hasPK = true
+		}
+	}
+
+	// Without a primary key MySQL 8.0 refuses a table whose implicit one is
+	// invisible. A generated invisible primary key is a primary key, so the
+	// check comes after it. A snapshot does not keep the declaration order the
+	// check needs, and the table it describes passed the check on the server.
+	if !hasPK && declared {
+		if err := checkImplicitPrimaryKeyVisible(tbl, uniqueKeys); err != nil {
+			return err
 		}
 	}
 

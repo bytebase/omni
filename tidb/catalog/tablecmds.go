@@ -9,7 +9,10 @@ import (
 	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
-func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
+// createTable installs the table stmt defines. declared is true when stmt lists
+// its indexes in the order they were declared, as a CREATE TABLE statement does,
+// and false for a loader's snapshot, which lists them in an order of its own.
+func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -411,6 +414,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
+	// The indexes so far come from column definitions; TiDB orders them after
+	// the table-level ones when it looks for an implicit primary key.
+	columnIndexes := len(tbl.Indexes)
+
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
@@ -439,6 +446,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(pkIdx, con.IndexOptions)
+			// TiDB v8.5.5 refuses the table rather than create an invisible key,
+			// as its ALTER TABLE ... ADD PRIMARY KEY path does.
+			if !pkIdx.Visible {
+				return errPrimaryKeyInvisible()
+			}
 			tbl.Indexes = append(tbl.Indexes, pkIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      "PRIMARY",
@@ -562,6 +574,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			applyIndexOptions(spIdx, con.IndexOptions)
 			tbl.Indexes = append(tbl.Indexes, spIdx)
+		}
+	}
+
+	// Without a primary key TiDB v8.5.5 refuses a table whose implicit one is
+	// invisible. A snapshot does not keep the declaration order the check needs,
+	// and the table it describes passed the check on the server.
+	if !hasPK && declared {
+		if err := checkImplicitPrimaryKeyVisible(tbl, tbl.Indexes[columnIndexes:], tbl.Indexes[:columnIndexes]); err != nil {
+			return err
 		}
 	}
 
