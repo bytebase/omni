@@ -147,6 +147,36 @@ func TestCostsStaysAnIdentifier(t *testing.T) {
 	}
 }
 
+// TestDorisExplainWordsAreIdentifiers: the Doris modifiers that EXPLAIN no
+// longer takes are not keywords in StarRocks at all -- only PLAN is a token
+// there, and a non-reserved one -- and a 3.4.10 container takes each as a
+// column, an alias and a table name. DUMP was the one still reserved here, so
+// those statements failed. The words stay in the keyword table, non-reserved:
+// as plain identifiers they would also start to parse where this parser takes
+// any bare identifier, as a type name or an interval unit, and CAST(1 AS dump)
+// is an engine reject.
+func TestDorisExplainWordsAreIdentifiers(t *testing.T) {
+	for _, w := range []string{
+		"graph", "parsed", "analyzed", "rewritten", "plan", "process",
+		"physical", "memo", "shape", "dump", "optimized",
+	} {
+		for _, sql := range []string{
+			"SELECT " + w + " FROM t",
+			"SELECT 1 AS " + w,
+			"SELECT 1 " + w,
+			"CREATE TABLE " + w + " (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1",
+			"SELECT " + w + ".a FROM t " + w,
+		} {
+			if _, errs := parseForTest(sql); len(errs) != 0 {
+				t.Errorf("%s: unexpected errors: %v", sql, errs)
+			}
+		}
+		if _, errs := parseForTest("SELECT CAST(1 AS " + w + ")"); len(errs) == 0 {
+			t.Errorf("SELECT CAST(1 AS %s) parsed; StarRocks has no such type", w)
+		}
+	}
+}
+
 // TestExplainRejectsDorisModifiers is the half that keeps the fork honest. These
 // spellings are Doris's, not StarRocks's, and this parser accepted them only
 // because it inherited Doris's modifier list. Without this test the list drifts
