@@ -1298,8 +1298,11 @@ func validateUniqueKeysCoverPartitionColumns(tbl *Table, partCols []string) erro
 		// A GLOBAL unique index is not partitioned with the table, so it enforces
 		// uniqueness across every partition and needs none of the partitioning
 		// columns. 4.3.5 accepts exactly that and rejects the LOCAL and unstated
-		// forms with this same 1503, which is why only GLOBAL is exempt.
-		if strings.EqualFold(idx.Scope, "GLOBAL") {
+		// forms with this same 1503, which is why only GLOBAL is exempt. The primary
+		// key never is: CREATE TABLE refuses a scope on it (1064), and ALTER TABLE ...
+		// ADD PRIMARY KEY (a) GLOBAL on a table partitioned by another column is still
+		// a 1503 on 4.3.5.6.
+		if !idx.Primary && strings.EqualFold(idx.Scope, "GLOBAL") {
 			continue
 		}
 		idxCols := map[string]bool{}
@@ -1793,7 +1796,13 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 				idx.KeyBlockSize = int(n.Value)
 			}
 		case "LOCAL", "GLOBAL":
-			idx.Scope = strings.ToUpper(opt.Name)
+			// A repeated scope takes the last one, as 4.3.5.6 does: KEY k (a) LOCAL
+			// GLOBAL reads back GLOBAL. The primary key keeps none: ALTER TABLE ...
+			// ADD PRIMARY KEY (id) GLOBAL is accepted and reads back as PRIMARY KEY
+			// (`id`), and CREATE TABLE refuses a scope on it.
+			if !idx.Primary {
+				idx.Scope = strings.ToUpper(opt.Name)
+			}
 		}
 	}
 }

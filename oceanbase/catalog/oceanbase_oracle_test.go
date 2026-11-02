@@ -149,6 +149,8 @@ func TestOracle_OceanBaseIndexScopeEcho(t *testing.T) {
 		{"unpartitioned", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))"},
 		{"partitioned", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a)) PARTITION BY KEY(id) PARTITIONS 2"},
 		{"global written", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a) GLOBAL) PARTITION BY KEY(id) PARTITIONS 2"},
+		// A repeated scope reads back as its last one.
+		{"repeated scope", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a) LOCAL GLOBAL, KEY kb (a) GLOBAL LOCAL) PARTITION BY KEY(id) PARTITIONS 2"},
 		{"explicit partitions", "CREATE TABLE t (id INT, a INT, PRIMARY KEY (id), KEY ka (a)) PARTITION BY KEY(id) (PARTITION p0, PARTITION p1)"},
 		// OceanBase prints a template back as a template over named partitions, while
 		// this catalog renders it expanded onto each one. Both have to describe the same

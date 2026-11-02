@@ -111,6 +111,19 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	{name: "index block size", sql: "CREATE TABLE obprobe_ib (a INT, KEY obprobe_ia (a) BLOCK_SIZE 16384)"},
 	{name: "index block size then scope", sql: "CREATE TABLE obprobe_ibl (a INT, KEY obprobe_ia (a) BLOCK_SIZE 16384 LOCAL)"},
 	{name: "alter add index global", sql: "ALTER TABLE obprobe_t ADD UNIQUE INDEX obprobe_uk (a) GLOBAL"},
+	// The scope where it is not a bug that the parser takes it, read on 2026-11-02: on
+	// FULLTEXT and SPATIAL, which 4.3.5.6 parses (a GLOBAL fulltext index is then refused
+	// with 1235), repeated, where the last one stands, and on ALTER TABLE ... ADD
+	// PRIMARY KEY. CREATE TABLE's PRIMARY KEY is the one place the grammar refuses it;
+	// see primaryKeyScopeCases.
+	{name: "fulltext index local", sql: "CREATE TABLE obprobe_fl (id INT PRIMARY KEY, c VARCHAR(100), FULLTEXT KEY obprobe_fk (c) LOCAL)"},
+	{name: "fulltext index global", sql: "CREATE TABLE obprobe_fg (id INT PRIMARY KEY, c VARCHAR(100), FULLTEXT KEY obprobe_fk (c) GLOBAL)"},
+	{name: "spatial index global", sql: "CREATE TABLE obprobe_sg (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL KEY obprobe_sk (g) GLOBAL)"},
+	{name: "repeated index scope", sql: "CREATE TABLE obprobe_rs (id INT PRIMARY KEY, a INT, KEY obprobe_ka (a) LOCAL GLOBAL)"},
+	{name: "alter add primary key global", sql: "ALTER TABLE obprobe_t ADD PRIMARY KEY (a) GLOBAL"},
+	// The form 4.3.5.6 prints for every fulltext index in SHOW CREATE TABLE, which this
+	// parser cannot read yet.
+	{name: "fulltext parser properties", sql: "CREATE TABLE obprobe_fp (id INT PRIMARY KEY, c VARCHAR(100), FULLTEXT KEY obprobe_fk (c) WITH PARSER space PARSER_PROPERTIES=(min_token_size=3,max_token_size=84) BLOCK_SIZE 16384)", pending: true},
 	{name: "subpartition template", sql: "CREATE TABLE obprobe_sp (a INT, b INT) PARTITION BY RANGE COLUMNS(a) SUBPARTITION BY KEY(b) SUBPARTITION TEMPLATE (SUBPARTITION p0, SUBPARTITION p1) (PARTITION q0 VALUES LESS THAN (10))"},
 	// OceanBase takes this clause and then refuses it with 1235, because the table is
 	// not partitioned. engineAccepts reads only 1064 as a syntax refusal, so the entry

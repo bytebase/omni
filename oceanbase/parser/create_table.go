@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -204,6 +205,9 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 			if err != nil {
 				return err
 			}
+			if err := p.rejectPrimaryKeyIndexScope(constr); err != nil {
+				return err
+			}
 			stmt.Constraints = append(stmt.Constraints, constr)
 		} else {
 			// Column definition
@@ -218,6 +222,34 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 			break
 		}
 		p.advance() // consume ','
+	}
+	return nil
+}
+
+// rejectPrimaryKeyIndexScope refuses OceanBase's index scope and block size on a
+// PRIMARY KEY in a CREATE TABLE element list. table_element in
+// sql_parser_mysql_mode.y (v4.3.5_CE) reads `[CONSTRAINT [name]] PRIMARY KEY
+// opt_index_name opt_index_using_algorithm '(' column_name_list ')'
+// opt_index_using_algorithm opt_comment`, so LOCAL, GLOBAL and BLOCK_SIZE, which
+// parseIndexOption takes for every index, are a 1064 there on 4.3.5.6
+// (primaryKeyScopeCases). ALTER TABLE ... ADD PRIMARY KEY reads opt_index_option_list
+// instead and takes them, so this applies to CREATE TABLE only.
+func (p *Parser) rejectPrimaryKeyIndexScope(constr *nodes.Constraint) error {
+	if constr.Type != nodes.ConstrPrimaryKey {
+		return nil
+	}
+	for _, opt := range constr.IndexOptions {
+		switch opt.Name {
+		case "LOCAL", "GLOBAL", "BLOCK_SIZE":
+			word := strings.Fields(p.inputText(opt.Loc.Start, opt.Loc.End))[0]
+			line, col := p.lineCol(opt.Loc.Start)
+			return &ParseError{
+				Message:  fmt.Sprintf("syntax error at or near %q", word),
+				Position: opt.Loc.Start,
+				Line:     line,
+				Column:   col,
+			}
+		}
 	}
 	return nil
 }
