@@ -537,19 +537,22 @@ func (o *TableOption) nodeTag() {}
 
 // PartitionClause represents a PARTITION BY clause.
 type PartitionClause struct {
-	Loc            Loc
-	Type           PartitionType
-	Linear         bool // LINEAR HASH or LINEAR KEY
-	Expr           ExprNode
-	Columns        []string
-	Algorithm      int // ALGORITHM={1|2} for KEY partitioning (0 if not specified)
-	NumParts       int
-	Partitions     []*PartitionDef
-	SubPartType    PartitionType // SUBPARTITION BY type (0 if no subpartitioning)
-	SubPartExpr    ExprNode      // SUBPARTITION BY ... (expr)
-	SubPartColumns []string      // SUBPARTITION BY KEY (columns)
-	SubPartAlgo    int           // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
-	NumSubParts    int           // SUBPARTITIONS num
+	Loc        Loc
+	Type       PartitionType
+	Linear     bool // LINEAR HASH or LINEAR KEY
+	Expr       ExprNode
+	Columns    []string
+	Algorithm  int // ALGORITHM={1|2} for KEY partitioning (0 if not specified)
+	NumParts   int
+	Partitions []*PartitionDef
+	// SubPartType is the SUBPARTITION BY type. Its zero value is PartitionRange, so a
+	// clause is subpartitioned when SubPartExpr or SubPartColumns is set, as OceanBase's
+	// RANGE and LIST subpartitioning always sets one of them.
+	SubPartType    PartitionType
+	SubPartExpr    ExprNode // SUBPARTITION BY {HASH | RANGE | LIST} (expr)
+	SubPartColumns []string // SUBPARTITION BY {KEY | RANGE COLUMNS | LIST COLUMNS} (columns)
+	SubPartAlgo    int      // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
+	NumSubParts    int      // SUBPARTITIONS num
 	// SubPartTemplate holds OceanBase's SUBPARTITION TEMPLATE (...) list, which
 	// gives every partition the same subpartitions. MySQL has no template and
 	// repeats them per partition instead.
@@ -579,8 +582,11 @@ type PartitionDef struct {
 
 // SubPartitionDef represents a subpartition definition.
 type SubPartitionDef struct {
-	Loc     Loc
-	Name    string
+	Loc  Loc
+	Name string
+	// Values is an OceanBase RANGE or LIST subpartition's VALUES LESS THAN or VALUES
+	// IN, kept as PartitionDef.Values keeps a partition's; nil for HASH and KEY.
+	Values  Node
 	Options []*TableOption
 }
 

@@ -3045,6 +3045,10 @@ func writePartitionDef(sb *strings.Builder, n *PartitionDef) {
 func writeSubPartitionDef(sb *strings.Builder, n *SubPartitionDef) {
 	sb.WriteString("{SUBPARTITION_DEF")
 	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Values != nil {
+		sb.WriteString(" :values ")
+		writeNode(sb, n.Values)
+	}
 	if len(n.Options) > 0 {
 		sb.WriteString(" :options ")
 		for i, o := range n.Options {

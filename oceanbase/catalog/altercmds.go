@@ -1182,6 +1182,9 @@ func addedPartitionSubpartitions(pi *PartitionInfo, pdi *PartitionDefInfo, pd *n
 	case len(pd.SubPartitions) > 0:
 		for _, spd := range pd.SubPartitions {
 			spdi := &SubPartitionDefInfo{Name: spd.Name, Engine: pdi.Engine, Comment: pdi.Comment}
+			if spd.Values != nil {
+				spdi.ValueExpr = partitionValueToString(spd.Values, partitionTypeFromString(pi.SubType))
+			}
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
@@ -1197,7 +1200,7 @@ func addedPartitionSubpartitions(pi *PartitionInfo, pdi *PartitionDefInfo, pd *n
 	case len(pi.SubPartTemplate) > 0:
 		pdi.SubPartitions = templateSubpartitions(pi.SubPartTemplate, pdi)
 	default:
-		pdi.SubPartitions = []*SubPartitionDefInfo{{Name: pdi.Name + "sp0"}}
+		pdi.SubPartitions = []*SubPartitionDefInfo{{Name: pdi.Name + "sp0", ValueExpr: defaultSubpartitionValue(pi.SubType)}}
 	}
 }
 

@@ -1642,121 +1642,19 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
-	// SUBPARTITION BY {HASH(expr) | KEY [ALGORITHM=N] (column_list)}
+	// SUBPARTITION BY ..., then a SUBPARTITION TEMPLATE or SUBPARTITIONS n.
 	if p.cur.Type == kwSUBPARTITION {
-		p.advance() // SUBPARTITION
-		if _, err := p.expect(kwBY); err != nil {
+		if err := p.parseSubpartitionClause(part); err != nil {
 			return nil, err
 		}
-		switch {
-		case p.cur.Type == kwHASH:
-			p.advance()
-			part.SubPartType = nodes.PartitionHash
-			if _, err := p.expect('('); err != nil {
-				return nil, err
-			}
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			part.SubPartExpr = expr
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-		case p.cur.Type == kwKEY:
-			p.advance()
-			part.SubPartType = nodes.PartitionKey
-			// Optional ALGORITHM = N
-			if p.cur.Type == kwALGORITHM {
-				p.advance()
-				p.match('=')
-				if p.cur.Type == tokICONST {
-					part.SubPartAlgo = int(p.cur.Ival)
-					p.advance()
-				}
-			}
-			// KEY () with empty column list means "use PK columns".
-			if p.cur.Type == '(' && p.peekNext().Type == ')' {
-				p.advance() // consume '('
-				p.advance() // consume ')'
-			} else {
-				cols, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				part.SubPartColumns = cols
-			}
-		case p.cur.Type == kwLINEAR:
-			p.advance() // LINEAR
-			if p.cur.Type == kwHASH {
-				p.advance()
-				part.SubPartType = nodes.PartitionHash
-				if _, err := p.expect('('); err != nil {
-					return nil, err
-				}
-				expr, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if expr == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				part.SubPartExpr = expr
-				if _, err := p.expect(')'); err != nil {
-					return nil, err
-				}
-			} else if p.cur.Type == kwKEY {
-				p.advance()
-				part.SubPartType = nodes.PartitionKey
-				if p.cur.Type == kwALGORITHM {
-					p.advance()
-					p.match('=')
-					if p.cur.Type == tokICONST {
-						part.SubPartAlgo = int(p.cur.Ival)
-						p.advance()
-					}
-				}
-				cols, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				part.SubPartColumns = cols
-			}
-		}
-
-		// SUBPARTITIONS num
-		if p.cur.Type == kwSUBPARTITIONS {
+		// OceanBase's partition_options also takes PARTITIONS n after the subpartition
+		// clause (v4.3.5_CE_BP6): 4.3.5.6 takes PARTITION BY HASH(a) SUBPARTITION BY
+		// KEY(b) SUBPARTITIONS 2 PARTITIONS 3. It takes it once, before or after.
+		if part.NumParts == 0 && p.cur.Type == kwPARTITIONS {
 			p.advance()
 			if p.cur.Type == tokICONST {
-				part.NumSubParts = int(p.cur.Ival)
+				part.NumParts = int(p.cur.Ival)
 				p.advance()
-			}
-		}
-
-		// OceanBase: SUBPARTITION TEMPLATE (subpartition_definition, ...) gives
-		// every partition the same subpartitions, where MySQL repeats them inside
-		// each partition (verified on 4.3.5).
-		if p.cur.Type == kwSUBPARTITION && p.peekNext().Type == kwTEMPLATE {
-			p.advance() // SUBPARTITION
-			p.advance() // TEMPLATE
-			if _, err := p.expect('('); err != nil {
-				return nil, err
-			}
-			for {
-				sub, err := p.parseSubPartitionDef()
-				if err != nil {
-					return nil, err
-				}
-				part.SubPartTemplate = append(part.SubPartTemplate, sub)
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
 			}
 		}
 	}
@@ -1824,8 +1722,70 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	}
 
 	// VALUES LESS THAN or VALUES IN
+	values, _, err := p.parsePartitionValues()
+	if err != nil {
+		return nil, err
+	}
+	pd.Values = values
+
+	// Optional table options for partition
+	for {
+		opt, ok, err := p.parseTableOption()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+		pd.Options = append(pd.Options, opt)
+	}
+
+	// Optional subpartition definitions. OceanBase's opt_subpartition_list is a list
+	// of HASH, RANGE or LIST subpartitions, without VALUES, with VALUES LESS THAN or
+	// with VALUES IN, and the first entry sets which (v4.3.5_CE_BP6): 4.3.5.6 answers
+	// 1064 for a list that mixes them. Whether the kind matches SUBPARTITION BY it
+	// checks after parsing, with 1210.
+	if p.cur.Type == '(' {
+		p.advance()
+		kind := noPartitionValues
+		for i := 0; ; i++ {
+			spd, got, err := p.parseSubPartitionDef(kind, i == 0)
+			if err != nil {
+				return nil, err
+			}
+			kind = got
+			pd.SubPartitions = append(pd.SubPartitions, spd)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+
+	pd.Loc.End = p.prev.End
+	return pd, nil
+}
+
+// partitionValuesKind tells a partition's VALUES LESS THAN from its VALUES IN.
+type partitionValuesKind int
+
+const (
+	noPartitionValues partitionValuesKind = iota
+	valuesLessThan
+	valuesIn
+)
+
+// parsePartitionValues parses a partition's or a subpartition's VALUES LESS THAN or
+// VALUES IN when the next token is VALUES, and reports which it read.
+func (p *Parser) parsePartitionValues() (nodes.Node, partitionValuesKind, error) {
+	var values nodes.Node
+	kind := noPartitionValues
 	if _, ok := p.match(kwVALUES); ok {
 		if p.cur.Type == kwLESS {
+			kind = valuesLessThan
 			p.advance() // LESS
 			if p.cur.Type == kwTHAN {
 				p.advance() // THAN
@@ -1843,10 +1803,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						allMax = false
 						expr, err := p.parseExpr()
 						if err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						if expr == nil {
-							return nil, p.syntaxErrorAtCur()
+							return nil, 0, p.syntaxErrorAtCur()
 						}
 						items = append(items, expr)
 					}
@@ -1858,17 +1818,18 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 				p.match(')')
 				if allMax && len(items) > 0 {
 					// All MAXVALUE — store as single string marker
-					pd.Values = &nodes.String{Str: "MAXVALUE"}
+					values = &nodes.String{Str: "MAXVALUE"}
 				} else if len(items) == 1 {
-					pd.Values = items[0]
+					values = items[0]
 				} else {
-					pd.Values = &nodes.List{Items: items}
+					values = &nodes.List{Items: items}
 				}
 			} else if p.cur.Type == kwMAXVALUE {
-				pd.Values = &nodes.String{Str: "MAXVALUE"}
+				values = &nodes.String{Str: "MAXVALUE"}
 				p.advance()
 			}
 		} else if _, ok := p.match(kwIN); ok {
+			kind = valuesIn
 			if p.cur.Type == '(' {
 				p.advance()
 				var items []nodes.Node
@@ -1880,10 +1841,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						for {
 							expr, err := p.parseExpr()
 							if err != nil {
-								return nil, err
+								return nil, 0, err
 							}
 							if expr == nil {
-								return nil, p.syntaxErrorAtCur()
+								return nil, 0, p.syntaxErrorAtCur()
 							}
 							tupleVals = append(tupleVals, expr)
 							if p.cur.Type != ',' {
@@ -1892,16 +1853,16 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 							p.advance()
 						}
 						if _, err := p.expect(')'); err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						items = append(items, &nodes.List{Items: tupleVals})
 					} else {
 						expr, err := p.parseExpr()
 						if err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						if expr == nil {
-							return nil, p.syntaxErrorAtCur()
+							return nil, 0, p.syntaxErrorAtCur()
 						}
 						items = append(items, expr)
 					}
@@ -1911,66 +1872,63 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					p.advance()
 				}
 				p.match(')')
-				pd.Values = &nodes.List{Items: items}
+				values = &nodes.List{Items: items}
 			}
 		}
 	}
 
-	// Optional table options for partition
-	for {
-		opt, ok, err := p.parseTableOption()
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			break
-		}
-		pd.Options = append(pd.Options, opt)
-	}
-
-	// Optional subpartition definitions: (SUBPARTITION name [table_options], ...)
-	if p.cur.Type == '(' {
-		p.advance()
-		for {
-			spd, err := p.parseSubPartitionDef()
-			if err != nil {
-				return nil, err
-			}
-			pd.SubPartitions = append(pd.SubPartitions, spd)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-	}
-
-	pd.Loc.End = p.prev.End
-	return pd, nil
+	return values, kind, nil
 }
 
 // parseSubPartitionDef parses a single subpartition definition.
 //
-//	SUBPARTITION logical_name [table_options]
-func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
+//	SUBPARTITION logical_name [VALUES {LESS THAN (...) | IN (...)}] [table_options]
+//
+// OceanBase's subpartitions take VALUES as its partitions do: a HASH or KEY
+// subpartition none, a RANGE one LESS THAN and a LIST one IN. want is the kind this
+// one must be, unless first is set, and the kind read is returned. A subpartition of
+// the wrong kind fails at its VALUES, at LESS or IN, or where VALUES was due, as
+// 4.3.5.6's "near" says (subpartitionCases).
+func (p *Parser) parseSubPartitionDef(want partitionValuesKind, first bool) (*nodes.SubPartitionDef, partitionValuesKind, error) {
 	start := p.pos()
 	if _, err := p.expect(kwSUBPARTITION); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	name, _, err := p.parseIdent()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	spd := &nodes.SubPartitionDef{
 		Loc:  nodes.Loc{Start: start},
 		Name: name,
 	}
+	got := noPartitionValues
+	if p.cur.Type == kwVALUES {
+		switch p.peekNext().Type {
+		case kwLESS:
+			got = valuesLessThan
+		case kwIN:
+			got = valuesIn
+		}
+	}
+	if !first && got != want {
+		if got != noPartitionValues && want != noPartitionValues {
+			return nil, 0, p.syntaxErrorAtTok(p.peekNext())
+		}
+		return nil, 0, p.syntaxErrorAtCur()
+	}
+	values, got, err := p.parsePartitionValues()
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := p.checkLoneDefaultValue(values); err != nil {
+		return nil, 0, err
+	}
+	spd.Values = values
 	for {
 		opt, ok, err := p.parseTableOption()
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if !ok {
 			break
@@ -1978,5 +1936,147 @@ func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
 		spd.Options = append(spd.Options, opt)
 	}
 	spd.Loc.End = p.prev.End
-	return spd, nil
+	return spd, got, nil
+}
+
+// checkLoneDefaultValue refuses a VALUES IN list that holds DEFAULT beside other values.
+// OceanBase's list_partition_expr is '(' list_expr ')' or '(' DEFAULT ')' (v4.3.5_CE_BP6),
+// so DEFAULT stands alone: 4.3.5.6 answers 1064 for a subpartition's VALUES IN
+// (DEFAULT, 1), at the comma, and at DEFAULT when it is not first.
+func (p *Parser) checkLoneDefaultValue(values nodes.Node) error {
+	list, ok := values.(*nodes.List)
+	if !ok || len(list.Items) < 2 {
+		return nil
+	}
+	for i, item := range list.Items {
+		def, ok := item.(*nodes.DefaultExpr)
+		if !ok {
+			continue
+		}
+		at := def.Loc.Start
+		if i == 0 {
+			// The comma after it.
+			at = def.Loc.End
+			for c := p.inputText(at, at+1); c != "" && strings.ContainsAny(c, " \t\r\n"); c = p.inputText(at, at+1) {
+				at++
+			}
+		}
+		line, col := p.lineCol(at)
+		return &ParseError{Message: "DEFAULT must be the only value of VALUES IN", Position: at, Line: line, Column: col}
+	}
+	return nil
+}
+
+// parseSubpartitionClause parses OceanBase's subpartition_option from SUBPARTITION on:
+//
+//	SUBPARTITION BY {HASH (expr) | KEY (column_list) | RANGE (expr)
+//	                 | RANGE COLUMNS (column_list) | LIST (expr) | LIST COLUMNS (column_list)}
+//	    [SUBPARTITION TEMPLATE (subpartition_definition, ...) | SUBPARTITIONS n]
+//
+// as subpartition_template_option and subpartition_individual_option read it
+// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6). MySQL subpartitions by HASH and KEY only,
+// and takes LINEAR, KEY ALGORITHM = n and KEY (). OceanBase subpartitions by RANGE and
+// LIST too and takes none of those three, SUBPARTITIONS n only for HASH and KEY and not
+// beside a template, and template entries of the subpartitioning's kind. 4.3.5.6
+// answers 1064 for the rest (subpartitionCases), and SHOW CREATE TABLE prints RANGE
+// and LIST subpartitioning in this form.
+func (p *Parser) parseSubpartitionClause(part *nodes.PartitionClause) error {
+	p.advance() // SUBPARTITION
+	if _, err := p.expect(kwBY); err != nil {
+		return err
+	}
+	want := noPartitionValues
+	switch p.cur.Type {
+	case kwHASH:
+		p.advance()
+		part.SubPartType = nodes.PartitionHash
+		expr, err := p.parseParenPartitionExpr()
+		if err != nil {
+			return err
+		}
+		part.SubPartExpr = expr
+	case kwKEY:
+		p.advance()
+		part.SubPartType = nodes.PartitionKey
+		cols, err := p.parseParenIdentList()
+		if err != nil {
+			return err
+		}
+		part.SubPartColumns = cols
+	case kwRANGE, kwLIST:
+		part.SubPartType, want = nodes.PartitionRange, valuesLessThan
+		if p.cur.Type == kwLIST {
+			part.SubPartType, want = nodes.PartitionList, valuesIn
+		}
+		p.advance()
+		if _, ok := p.match(kwCOLUMNS); ok {
+			cols, err := p.parseParenIdentList()
+			if err != nil {
+				return err
+			}
+			part.SubPartColumns = cols
+		} else {
+			expr, err := p.parseParenPartitionExpr()
+			if err != nil {
+				return err
+			}
+			part.SubPartExpr = expr
+		}
+	default:
+		return p.syntaxErrorAtCur()
+	}
+
+	switch {
+	case p.cur.Type == kwSUBPARTITION && p.peekNext().Type == kwTEMPLATE:
+		// OceanBase: SUBPARTITION TEMPLATE (subpartition_definition, ...) gives every
+		// partition the same subpartitions, where MySQL repeats them inside each
+		// partition (verified on 4.3.5).
+		p.advance() // SUBPARTITION
+		p.advance() // TEMPLATE
+		if _, err := p.expect('('); err != nil {
+			return err
+		}
+		for {
+			sub, _, err := p.parseSubPartitionDef(want, false)
+			if err != nil {
+				return err
+			}
+			part.SubPartTemplate = append(part.SubPartTemplate, sub)
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
+	case p.cur.Type == kwSUBPARTITIONS:
+		if want != noPartitionValues {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type == tokICONST {
+			part.NumSubParts = int(p.cur.Ival)
+			p.advance()
+		}
+	}
+	return nil
+}
+
+// parseParenPartitionExpr parses the parenthesized expression of a [SUB]PARTITION BY
+// HASH, RANGE or LIST.
+func (p *Parser) parseParenPartitionExpr() (nodes.ExprNode, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return expr, nil
 }

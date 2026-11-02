@@ -805,6 +805,7 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 	case *SubPartitionDef:
+		Walk(v, n.Values)
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
