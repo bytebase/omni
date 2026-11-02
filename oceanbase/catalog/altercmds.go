@@ -1153,12 +1153,52 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 				pdi.Comment = opt.Value
 			}
 		}
+		addedPartitionSubpartitions(tbl.Partitioning, pdi, pd)
 		tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, pdi)
 	}
 	if len(cmd.PartitionDefs) > 0 {
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 	}
 	return nil
+}
+
+// addedPartitionSubpartitions gives a partition that ALTER TABLE adds to a
+// subpartitioned table its subpartitions, as OceanBase 4.3.5.6 does
+// (addPartitionScenarios):
+//
+//   - the ones the partition defines. SHOW CREATE TABLE then prints every
+//     partition's subpartitions rather than a template or a count, so the table
+//     stops rendering as SUBPARTITIONS N; the template itself survives, and a
+//     partition added after that without subpartitions still takes it;
+//   - else the template's, named as templateSubpartitions names them, which
+//     covers SUBPARTITIONS N;
+//   - else one, <partition>sp0, which is what the engine gives a table whose
+//     partitions each listed their own.
+func addedPartitionSubpartitions(pi *PartitionInfo, pdi *PartitionDefInfo, pd *nodes.PartitionDef) {
+	if pi.SubType == "" {
+		return
+	}
+	switch {
+	case len(pd.SubPartitions) > 0:
+		for _, spd := range pd.SubPartitions {
+			spdi := &SubPartitionDefInfo{Name: spd.Name, Engine: pdi.Engine, Comment: pdi.Comment}
+			for _, opt := range spd.Options {
+				switch toLower(opt.Name) {
+				case "engine":
+					spdi.Engine = opt.Value
+				case "comment":
+					spdi.Comment = opt.Value
+				}
+			}
+			pdi.SubPartitions = append(pdi.SubPartitions, spdi)
+		}
+		pi.UseDefaultSubpartitions = false
+		pi.UseDefaultNumSubpartitions = false
+	case len(pi.SubPartTemplate) > 0:
+		pdi.SubPartitions = templateSubpartitions(pi.SubPartTemplate, pdi)
+	default:
+		pdi.SubPartitions = []*SubPartitionDefInfo{{Name: pdi.Name + "sp0"}}
+	}
 }
 
 // alterDropPartition drops named partitions from a partitioned table.
@@ -1214,6 +1254,13 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return fmt.Errorf("ALTER TABLE REORGANIZE PARTITION: table '%s' is not partitioned", tbl.Name)
+	}
+	// OceanBase refuses REORGANIZE PARTITION on a subpartitioned table, splitting or
+	// merging, templated or not: 4.3.5.6 answers 1235 "split subpartition is not
+	// supported". Reorganizing it here would invent partitions the engine never makes,
+	// and used to drop their subpartitions besides.
+	if tbl.Partitioning.SubType != "" {
+		return &Error{Code: 1235, SQLState: "42000", Message: "split subpartition is not supported"}
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)

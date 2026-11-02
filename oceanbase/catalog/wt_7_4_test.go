@@ -363,10 +363,14 @@ func TestWalkThrough_7_4_ExplicitSubpartitionsInheritParentOptions(t *testing.T)
 	}
 }
 
-func TestWalkThrough_7_4_ExplicitSubpartitionsMustMatchDeclaredCount(t *testing.T) {
+// TestWalkThrough_7_4_ExplicitSubpartitionsMayDifferFromDeclaredCount: MySQL refuses
+// explicit subpartition lists that disagree with SUBPARTITIONS N (1064), and this test
+// held that rule when the package was forked from mysql. OceanBase takes this statement
+// as written: 5.7.25-OceanBase_CE-v4.3.5.6 creates p0 with s0, s1 and p1 with s2, s3.
+func TestWalkThrough_7_4_ExplicitSubpartitionsMayDifferFromDeclaredCount(t *testing.T) {
 	c := wtSetup(t)
 
-	results, err := c.Exec(`CREATE TABLE t_bad_subparts (
+	results, err := c.Exec(`CREATE TABLE t_subparts (
 		id INT NOT NULL,
 		purchased DATE NOT NULL
 	) PARTITION BY RANGE (YEAR(purchased))
@@ -388,7 +392,18 @@ func TestWalkThrough_7_4_ExplicitSubpartitionsMustMatchDeclaredCount(t *testing.
 	if len(results) != 1 {
 		t.Fatalf("expected one result, got %d", len(results))
 	}
-	assertError(t, results[0].Error, 1064)
+	if results[0].Error != nil {
+		t.Fatalf("OceanBase accepts the statement, the catalog refused it: %v", results[0].Error)
+	}
+	var got []string
+	for _, pd := range c.GetDatabase("testdb").GetTable("t_subparts").Partitioning.Partitions {
+		for _, sp := range pd.SubPartitions {
+			got = append(got, pd.Name+"."+sp.Name)
+		}
+	}
+	if want := "p0.s0 p0.s1 p1.s2 p1.s3"; strings.Join(got, " ") != want {
+		t.Errorf("subpartitions = %v, want %s", got, want)
+	}
 }
 
 // Scenario 7: ALTER TABLE TRUNCATE PARTITION — no structural change

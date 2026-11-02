@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -131,6 +132,12 @@ func TestOceanBaseSubpartitionTemplate(t *testing.T) {
 	}
 	if len(part.Partitions) != 1 {
 		t.Errorf("partitions = %d, want 1", len(part.Partitions))
+	}
+	// The node printer writes the template too, so two trees that differ only in
+	// it do not print the same.
+	if out := nodes.NodeToString(part); !strings.Contains(out, ":sub_part_template {SUBPARTITION_DEF") ||
+		!strings.Contains(out, ":name p1}") {
+		t.Errorf("NodeToString omits the template: %s", out)
 	}
 }
 
