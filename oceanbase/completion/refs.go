@@ -1,6 +1,9 @@
 package completion
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/oceanbase/parser"
 )
@@ -12,18 +15,47 @@ type TableRef struct {
 	Alias    string // AS alias
 }
 
-// extractTableRefs parses the SQL and returns table references visible at cursor.
+// extractTableRefs returns the table references visible at the cursor. It reads
+// only the statement that holds the cursor, so another statement in the script
+// that does not parse, such as one still being typed, cannot cost this one its
+// table scope, and the tables another statement names do not leak into it.
 func extractTableRefs(sql string, cursorOffset int) (refs []TableRef) {
+	stmt, cursor := cursorStatement(sql, cursorOffset)
 	defer func() {
 		if r := recover(); r != nil {
-			refs = extractTableRefsLexer(sql, cursorOffset)
+			refs = extractTableRefsLexer(stmt)
 		}
 	}()
-	return extractTableRefsInner(sql, cursorOffset)
+	return extractTableRefsInner(stmt, cursor)
+}
+
+// cursorStatement returns the statement that holds cursorOffset and the cursor's
+// offset within it. It picks the text parser.Collect completes, so the table
+// references come from the statement the candidates are for: the segment of
+// parser.Split that contains the cursor, else the text after the last segment
+// when the cursor is past it, else the whole input. A TableRef carries no
+// position, so the statement is parsed on its own.
+func cursorStatement(sql string, cursorOffset int) (string, int) {
+	segments := parser.Split(sql)
+	for _, seg := range segments {
+		if seg.Empty() {
+			continue
+		}
+		if cursorOffset >= seg.ByteStart && cursorOffset <= seg.ByteEnd {
+			return seg.Text, cursorOffset - seg.ByteStart
+		}
+	}
+	if len(segments) > 0 {
+		last := segments[len(segments)-1]
+		if last.ByteEnd < len(sql) && cursorOffset >= last.ByteEnd {
+			return sql[last.ByteEnd:], cursorOffset - last.ByteEnd
+		}
+	}
+	return sql, cursorOffset
 }
 
 func extractTableRefsInner(sql string, cursorOffset int) []TableRef {
-	list, err := parser.Parse(sql)
+	list, err := parseClosingTokens(sql)
 	if err != nil || list == nil || len(list.Items) == 0 {
 		// Fallback: try with placeholder appended at cursor.
 		if cursorOffset <= len(sql) {
@@ -31,9 +63,9 @@ func extractTableRefsInner(sql string, cursorOffset int) []TableRef {
 			if cursorOffset < len(sql) {
 				patched += sql[cursorOffset:]
 			}
-			list, err = parser.Parse(patched)
+			list, err = parseClosingTokens(patched)
 			if err != nil || list == nil {
-				return extractTableRefsLexer(sql, cursorOffset)
+				return extractTableRefsLexer(sql)
 			}
 		} else {
 			return nil
@@ -45,9 +77,63 @@ func extractTableRefsInner(sql string, cursorOffset int) []TableRef {
 		refs = append(refs, extractRefsFromStmt(item)...)
 	}
 	if len(refs) == 0 {
-		return extractTableRefsLexer(sql, cursorOffset)
+		return extractTableRefsLexer(sql)
 	}
 	return refs
+}
+
+// maxClosedTokens bounds how many unterminated tokens parseClosingTokens closes.
+// A string inside an executable comment that is itself unclosed takes two, and
+// a string that ends in a lone backslash takes its quote twice, because the
+// first quote is read as escaped.
+const maxClosedTokens = 4
+
+// parseClosingTokens parses a statement whose last token may still be open: a
+// string, quoted identifier or comment that runs to the end of the text without
+// its closing delimiter. parser.Parse rejects such a token, as the server does,
+// but in a statement being edited it is the usual state of whatever the user is
+// typing, often after the cursor. So each time Parse reports one, this appends
+// the delimiter that closes it and parses again, completing the fragment rather
+// than loosening Parse. The tokens before the open one, where the table
+// references are, are lexed the same either way. Any other error is returned
+// as is.
+func parseClosingTokens(sql string) (*ast.List, error) {
+	list, err := parser.Parse(sql)
+	for range maxClosedTokens {
+		var pe *parser.ParseError
+		if err == nil || !errors.As(err, &pe) || !strings.HasPrefix(pe.Message, "unterminated ") {
+			break
+		}
+		closer := closingDelimiter(sql, pe.Position)
+		if closer == "" {
+			break
+		}
+		sql += closer
+		list, err = parser.Parse(sql)
+	}
+	return list, err
+}
+
+// closingDelimiter returns the text that closes the token starting at pos, which
+// the lexer reported as unterminated and which therefore runs to the end of sql,
+// or "" when no such token starts at pos.
+func closingDelimiter(sql string, pos int) string {
+	if pos < 0 || pos >= len(sql) {
+		return ""
+	}
+	switch sql[pos] {
+	case '\'', '"', '`':
+		return sql[pos : pos+1]
+	case '@': // a user variable quoted as @`name`
+		return "`"
+	case '/':
+		if strings.HasPrefix(sql[pos:], "/*") {
+			// The body of an executable comment can end in a line comment,
+			// which would swallow a close on the same line.
+			return "\n*/"
+		}
+	}
+	return ""
 }
 
 // extractRefsFromStmt extracts table references from a single statement node.
@@ -160,13 +246,15 @@ func extractRefsFromDelete(s *ast.DeleteStmt) []TableRef {
 }
 
 // extractTableRefsLexer is a fallback using lexer-based pattern matching
-// when the SQL doesn't parse (e.g., incomplete SQL being edited).
-func extractTableRefsLexer(sql string, cursorOffset int) []TableRef {
+// when the SQL doesn't parse (e.g., incomplete SQL being edited). The caller
+// passes only the statement that holds the cursor, so it reads all of it: the
+// FROM clause of `SELECT | FROM t WHERE ...` comes after the cursor.
+func extractTableRefsLexer(sql string) []TableRef {
 	lex := parser.NewLexer(sql)
 	var tokens []parser.Token
 	for {
 		tok := lex.NextToken()
-		if tok.Type == 0 || tok.Loc >= cursorOffset {
+		if tok.Type == 0 {
 			break
 		}
 		tokens = append(tokens, tok)
