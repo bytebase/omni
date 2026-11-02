@@ -509,6 +509,14 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{6, "WITH y AS (SELECT 7 AS id) UPDATE t SET n = 7 WHERE id IN (SELECT id FROM y)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
 		},
 		{
+			// TiDB drops the opener of a gate that never closes and runs the
+			// WITH after it as ordinary SQL, so the rule reads it.
+			name:   "more than five statements on one table, with WITH after a gate that never closes",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nUPDATE t SET n = 3 WHERE id = 3;\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\n/*T![clustered_index] WITH x AS (SELECT 6 AS id) UPDATE t SET n = 6 WHERE id IN (SELECT id FROM x);",
+			change: backup,
+			want:   []finding{{5, "WITH x AS (SELECT 6 AS id) UPDATE t SET n = 6 WHERE id IN (SELECT id FROM x)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
+		},
+		{
 			name:   "past the limit with a WITH clause on a statement not certain",
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nUPDATE t SET n = 3 WHERE id = 3;\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\nWITH x AS (SELECT 1 AS id) UPDATE t JOIN p ON p.id = t.p_id SET t.n = 1 WHERE t.id IN (SELECT id FROM x);",
 			change: backup,
@@ -599,30 +607,4 @@ func TestPriorBackup(t *testing.T) {
 			change: backup,
 		},
 	})
-}
-
-// TestGateEndSkipsQuotedDelimiters pins where a /*T![feature] gate ends when a
-// "*/" sits inside a token: the gate closes at the first "*/" the lexer would
-// read as one, so a quoted or commented-out "*/" does not end it and a gate
-// whose only "*/" is held inside a token does not close at all.
-func TestGateEndSkipsQuotedDelimiters(t *testing.T) {
-	cases := []struct {
-		name string
-		sql  string
-		want int // offset of the closing "*/", or len(sql) for none
-	}{
-		{"plain gate", "/*T![clustered_index] SELECT 1 */", 31},
-		{"quoted close does not end the gate", "/*T![clustered_index] SELECT '*/' */", 34},
-		{"quoted opener adds no nesting", "/*T![clustered_index] SELECT '/*' */", 34},
-		{"nested comment is consumed whole", "/*T![clustered_index] /* c */ SELECT 1 */", 39},
-		{"line comment takes the close with it", "/*T![clustered_index] SELECT 1 -- */", 36},
-		{"no close at all", "/*T![clustered_index] SELECT 1", 30},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := gateEnd(tc.sql, 0, len(tc.sql)); got != tc.want {
-				t.Errorf("gateEnd(%q) = %d, want %d", tc.sql, got, tc.want)
-			}
-		})
-	}
 }

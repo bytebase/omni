@@ -1872,9 +1872,10 @@ func (l *Lexer) enterExecComment(bodyStart, closeStart int) {
 }
 
 // skipExecClose steps over the "*/" that closes the innermost executable comment
-// when the lexer stands on it, and reports whether it did. A close the lexer has
-// already passed was swallowed by a token (a string or a line comment holding
-// the "*/"); it no longer ends anything and is dropped.
+// when the lexer stands on it, and reports whether it did. execCommentClose
+// finds that close outside every token the lexer reads, so the lexer cannot pass
+// it inside a token; if it ever did, the comment would be left open, and that is
+// reported as an unterminated comment rather than read past.
 func (l *Lexer) skipExecClose() bool {
 	for c := l.execStack; c != nil; c = c.outer {
 		if c.close > l.pos {
@@ -1897,7 +1898,8 @@ func (l *Lexer) skipExecClose() bool {
 //
 // The scan steps over whatever the lexer itself would read as one token: a
 // string literal, a quoted identifier, a line comment, and a nested block
-// comment, which does not nest and so ends at its own first "*/". A "*/" inside
+// comment, which does not nest and so ends at its own first "*/". It steps over
+// a nested executable comment's opener alone, as the lexer does (execOpener). A "*/" inside
 // any of those does not close the comment and a "/*" inside one opens nothing,
 // so a raw byte scan cannot stand in for this: MySQL 8.0, MariaDB 11.8.8 and
 // TiDB v8.5.5 all run `SELECT 1 /*! + LENGTH('/*') */`, and MySQL and MariaDB
@@ -1905,7 +1907,7 @@ func (l *Lexer) skipExecClose() bool {
 func (l *Lexer) execCommentClose(pos int) int {
 	if l.execMemo == nil {
 		if !execMemoAfter(l.execWalked, len(l.input)) {
-			res := l.scanExecClose(pos, nil)
+			res := scanExecClose(l.input, pos, nil)
 			if res < 0 {
 				l.execWalked += len(l.input) - pos
 			} else {
@@ -1916,22 +1918,22 @@ func (l *Lexer) execCommentClose(pos int) int {
 		l.execMemo = newExecCloseMemo(len(l.input))
 	}
 	l.execMemo.begin()
-	res := l.scanExecClose(pos, l.execMemo)
+	res := scanExecClose(l.input, pos, l.execMemo)
 	l.execMemo.end(res)
 	return res
 }
 
 // scanExecClose is execCommentClose's scan. With a memo, it stops at the first
 // offset a recorded scan stood on and returns that scan's result.
-func (l *Lexer) scanExecClose(pos int, m *execCloseMemo) int {
-	for pos < len(l.input) {
+func scanExecClose(input string, pos int, m *execCloseMemo) int {
+	for pos < len(input) {
 		if m != nil {
 			if res, ok := m.visit(pos); ok {
 				return res
 			}
 		}
-		switch ch := l.input[pos]; {
-		case ch == '*' && pos+1 < len(l.input) && l.input[pos+1] == '/':
+		switch ch := input[pos]; {
+		case ch == '*' && pos+1 < len(input) && input[pos+1] == '/':
 			return pos
 
 		case ch == '\'' || ch == '"' || ch == '`':
@@ -1939,16 +1941,16 @@ func (l *Lexer) scanExecClose(pos int, m *execCloseMemo) int {
 			// next byte everywhere but inside a quoted identifier, as scanString
 			// and scanBacktickIdent read them.
 			pos++
-			for pos < len(l.input) {
-				if l.input[pos] == '\\' && ch != '`' {
+			for pos < len(input) {
+				if input[pos] == '\\' && ch != '`' {
 					pos += 2
 					continue
 				}
-				if l.input[pos] != ch {
+				if input[pos] != ch {
 					pos++
 					continue
 				}
-				if pos+1 < len(l.input) && l.input[pos+1] == ch {
+				if pos+1 < len(input) && input[pos+1] == ch {
 					pos += 2
 					continue
 				}
@@ -1956,18 +1958,26 @@ func (l *Lexer) scanExecClose(pos int, m *execCloseMemo) int {
 				break
 			}
 
-		case ch == '#', ch == '-' && pos+1 < len(l.input) && l.input[pos+1] == '-' &&
-			(pos+2 >= len(l.input) || l.input[pos+2] == ' ' || l.input[pos+2] == '\t' || l.input[pos+2] == '\n' || l.input[pos+2] == '\r'):
+		case ch == '#', ch == '-' && pos+1 < len(input) && input[pos+1] == '-' &&
+			(pos+2 >= len(input) || input[pos+2] == ' ' || input[pos+2] == '\t' || input[pos+2] == '\n' || input[pos+2] == '\r'):
 			// A line comment runs to the end of the line, taking any "*/" with it.
-			for pos < len(l.input) && l.input[pos] != '\n' {
+			for pos < len(input) && input[pos] != '\n' {
 				pos++
 			}
 
-		case ch == '/' && pos+1 < len(l.input) && l.input[pos+1] == '*':
+		case ch == '/' && pos+1 < len(input) && input[pos+1] == '*':
+			if body, ok := execOpener(input, pos); ok {
+				// TiDB does not nest executable comments: an opener inside one is
+				// dropped, and the first "*/" outside a token ends them both.
+				// "SELECT 1 /*! + 1 /*! + 2 /* x */ + 3 */" is 7 on TiDB v8.5.5,
+				// and "SELECT 1 /*! + 1 /*! + 2 */ */" a 1064 at the second "*/".
+				pos = body
+				continue
+			}
 			if m != nil {
 				// Openers nested in one another start their nested comments at
 				// different offsets, each running to the same "*/".
-				at := m.rawClose(l.input, pos+2)
+				at := m.rawClose(input, pos+2)
 				if at < 0 {
 					return -1
 				}
@@ -1976,8 +1986,8 @@ func (l *Lexer) scanExecClose(pos int, m *execCloseMemo) int {
 			}
 			pos += 2
 			closed := false
-			for pos < len(l.input) {
-				if l.input[pos] == '*' && pos+1 < len(l.input) && l.input[pos+1] == '/' {
+			for pos < len(input) {
+				if input[pos] == '*' && pos+1 < len(input) && input[pos+1] == '/' {
 					pos += 2
 					closed = true
 					break
@@ -2203,76 +2213,31 @@ func (l *Lexer) skipWhitespaceAndComments() {
 		// Block comment: /* ... */
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
 			commentStart := l.pos
-			// TiDB comments: /*T! ... */ or /*T![feature] ... */
-			if l.pos+3 < len(l.input) && l.input[l.pos+2] == 'T' && l.input[l.pos+3] == '!' {
-				innerStart := l.pos + 4 // after /*T!
-
-				// Check for feature bracket: /*T![feature_id]
-				if innerStart < len(l.input) && l.input[innerStart] == '[' {
-					bracketEnd := innerStart + 1
-					for bracketEnd < len(l.input) && l.input[bracketEnd] != ']' {
-						bracketEnd++
-					}
-					if bracketEnd >= len(l.input) {
-						// Malformed: no closing bracket, skip as regular comment.
-						newPos, closed := l.skipToBlockCommentClose(l.pos + 2)
-						l.pos = newPos
-						if !closed {
-							// Unterminated block comment: reached EOF before the closing */.
-							l.setError("unterminated comment", commentStart)
-							return
-						}
-						continue
-					}
-					featureStr := l.input[innerStart+1 : bracketEnd]
-					if !allTiDBFeaturesSupported(featureStr) {
-						// Unsupported feature — skip entire comment.
-						newPos, closed := l.skipToBlockCommentClose(l.pos + 2)
-						l.pos = newPos
-						if !closed {
-							// Unterminated block comment: reached EOF before the closing */.
-							l.setError("unterminated comment", commentStart)
-							return
-						}
-						continue
-					}
-					innerStart = bracketEnd + 1 // SQL starts after ]
-				}
-
-				closeStart := l.execCommentClose(innerStart)
-				if closeStart < 0 {
-					l.enterUnclosedExecComment(innerStart)
+			// Executable comments: /*!NNNNN ... */, /*T! ... */ and a
+			// /*T![feature] ... */ gate whose features TiDB supports.
+			if body, ok := execOpener(l.input, l.pos); ok {
+				if l.execStack != nil {
+					// TiDB does not nest executable comments: an opener inside one
+					// is dropped, and the first "*/" outside a token, which
+					// execCommentClose found for the comment it is in, ends them both.
+					l.execMarkers = append(l.execMarkers, execMarker{l.pos, body})
+					l.pos = body
 					continue
 				}
-				// Lex the body in place: step over "/*T![feature]" and remember where
+				closeStart := l.execCommentClose(body)
+				if closeStart < 0 {
+					l.enterUnclosedExecComment(body)
+					continue
+				}
+				// Lex the body in place: step over the opener and remember where
 				// the comment closes, so tokens keep their offsets in the input.
-				l.enterExecComment(innerStart, closeStart)
+				l.enterExecComment(body, closeStart)
 				continue
 			}
 
-			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
-			// These should be parsed as SQL, not skipped.
-			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
-				// Skip /*!
-				innerStart := l.pos + 3
-				// Skip optional version number (digits)
-				vpos := innerStart
-				for vpos < len(l.input) && l.input[vpos] >= '0' && l.input[vpos] <= '9' {
-					vpos++
-				}
-				closeStart := l.execCommentClose(vpos)
-				if closeStart < 0 {
-					l.enterUnclosedExecComment(vpos)
-					continue
-				}
-				// Lex the body in place: step over "/*!NNNNN" and remember where
-				// the comment closes, so tokens keep their offsets in the input.
-				l.enterExecComment(vpos, closeStart)
-				continue
-			}
-
-			// Regular block comment: MySQL, MariaDB, and TiDB do not nest block
-			// comments, so this skips to the FIRST closing */, not a depth-matched one.
+			// Regular block comment, a gate for a feature TiDB does not support
+			// included: MySQL, MariaDB, and TiDB do not nest block comments, so this
+			// skips to the FIRST closing */, not a depth-matched one.
 			newPos, closed := l.skipToBlockCommentClose(l.pos + 2)
 			l.pos = newPos
 			if !closed {

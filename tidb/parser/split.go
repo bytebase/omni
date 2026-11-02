@@ -1,7 +1,5 @@
 package parser
 
-import "strings"
-
 // Segment represents a portion of SQL text delimited by top-level semicolons.
 type Segment struct {
 	Text      string // the raw text of this segment (without trailing semicolon)
@@ -545,24 +543,14 @@ func skipHashComment(sql string, i int) int {
 }
 
 // isExecutableCommentStart reports whether sql[i:] opens an executable
-// comment (/*!...*/ or TiDB's /*T!...*/). The lexer searches for THAT
-// comment's own close at the first */ outside every token (lexer.go), so
-// Split must agree on where it ends; an ordinary comment closes at the first
-// */ whatever surrounds it. Like the lexer, a /*T![...] gate with a malformed
-// bracket or an unsupported feature is an ordinary comment.
+// comment (/*!...*/, /*T!...*/, or a /*T![feature] gate TiDB supports), as the
+// lexer reads one (execOpener). The lexer searches for THAT comment's own close
+// at the first */ outside every token (lexer.go), so Split must agree on where
+// it ends; an ordinary comment, a gate for a feature TiDB does not support
+// included, closes at the first */ whatever surrounds it.
 func isExecutableCommentStart(sql string, i int) bool {
-	if i+2 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == '!' {
-		return true
-	}
-	if !(i+3 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == 'T' && sql[i+3] == '!') {
-		return false
-	}
-	gate := i + 4
-	if gate >= len(sql) || sql[gate] != '[' {
-		return true
-	}
-	bracketEnd := strings.IndexByte(sql[gate+1:], ']')
-	return bracketEnd >= 0 && allTiDBFeaturesSupported(sql[gate+1:gate+1+bracketEnd])
+	_, ok := execOpener(sql, i)
+	return ok
 }
 
 // skipBlockCommentMySQL skips a block comment starting at position i. An
@@ -668,6 +656,12 @@ func scanExecutableComment(sql string, i int, m *execCloseMemo) (int, bool) {
 		case sql[i] == '#':
 			i = skipHashComment(sql, i)
 		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			if body, ok := execOpener(sql, i); ok {
+				// TiDB does not nest executable comments: an opener inside one is
+				// dropped, as the lexer drops it.
+				i = body
+				continue
+			}
 			if m != nil {
 				// Openers nested in one another start their nested comments at
 				// different offsets, each running to the same "*/".

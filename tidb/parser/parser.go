@@ -141,10 +141,21 @@ func ParseExpr(sql string) (nodes.ExprNode, error) {
 	start := p.cur.Loc
 	expr, err := p.parseExpr()
 	if err != nil {
+		// A lexing error (an unterminated string, comment or identifier) is the
+		// more specific cause, as in Parse.
+		if lexErr := p.lexerError(); lexErr != nil {
+			return nil, p.enrichError(lexErr)
+		}
 		return nil, p.enrichError(err)
 	}
 	if p.cur.Type != tokEOF {
+		if lexErr := p.lexerError(); lexErr != nil {
+			return nil, p.enrichError(lexErr)
+		}
 		return nil, p.syntaxErrorAtCur()
+	}
+	if lexErr := p.lexerError(); lexErr != nil {
+		return nil, p.enrichError(lexErr)
 	}
 	if treeTooHigh(expr, p.prev.End-start) {
 		return nil, p.enrichError(nestedTooDeeply(start))
