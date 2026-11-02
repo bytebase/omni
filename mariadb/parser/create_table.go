@@ -1973,13 +1973,11 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 				p.advance()
 				// Parse comma-separated list of values (may include MAXVALUE tokens and expressions).
 				var items []nodes.Node
-				allMax := true
 				for {
 					if p.cur.Type == kwMAXVALUE {
 						items = append(items, &nodes.String{Str: "MAXVALUE"})
 						p.advance()
 					} else {
-						allMax = false
 						expr, err := p.parseExpr()
 						if err != nil {
 							return nil, err
@@ -1995,10 +1993,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					p.advance()
 				}
 				p.match(')')
-				if allMax && len(items) > 0 {
-					// All MAXVALUE — store as single string marker
-					pd.Values = &nodes.String{Str: "MAXVALUE"}
-				} else if len(items) == 1 {
+				// A single bound is stored as itself, MAXVALUE as a String; a
+				// tuple keeps every column, MAXVALUE ones included, so
+				// "(MAXVALUE, MAXVALUE)" reads back with both.
+				if len(items) == 1 {
 					pd.Values = items[0]
 				} else {
 					pd.Values = &nodes.List{Items: items}

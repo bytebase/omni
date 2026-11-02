@@ -1144,7 +1144,18 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
-	if pc.Type == nodes.PartitionRange {
+	if pc.Type == nodes.PartitionRange && len(pc.Columns) > 0 {
+		// RANGE COLUMNS takes MAXVALUE in any partition: what it requires is
+		// bounds that strictly increase, compared column by column, and it
+		// answers 1493 otherwise. Holding it to RANGE's 1481 refused
+		// "(5, MAXVALUE), (6, 1)", which the engine runs.
+		for i := 1; i < len(pc.Partitions); i++ {
+			prev, cur := pc.Partitions[i-1].Values, pc.Partitions[i].Values
+			if prev != nil && cur != nil && rangeColumnsNotIncreasing(prev, cur) {
+				return &Error{Code: 1493, SQLState: "HY000", Message: "VALUES LESS THAN value must be strictly increasing for each partition"}
+			}
+		}
+	} else if pc.Type == nodes.PartitionRange {
 		for i, pd := range pc.Partitions {
 			if pd.Values != nil && strings.Contains(strings.ToUpper(partitionValueToString(pd.Values, pc.Type)), "MAXVALUE") && i != len(pc.Partitions)-1 {
 				return &Error{Code: 1481, SQLState: "HY000", Message: "MAXVALUE can only be used in last partition definition"}
@@ -1180,6 +1191,101 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	return nil
+}
+
+// rangeColumnsNotIncreasing reports whether the RANGE COLUMNS bound cur is
+// certainly not greater than prev, which the engine refuses with 1493. It
+// compares column by column, as MySQL and MariaDB do: MAXVALUE is greater than
+// any value, and a MAXVALUE in both ends the comparison as equal, so
+// "(MAXVALUE, 5), (MAXVALUE, 10)" is refused. Integer literals compare by
+// value; string literals compare when equal, or at their first differing byte
+// when both bytes are digits or both lowercase letters, an order every
+// collation keeps. Any other pair leaves the answer open, and nothing is
+// reported.
+func rangeColumnsNotIncreasing(prev, cur nodes.Node) bool {
+	ps, cs := partitionBoundItems(prev), partitionBoundItems(cur)
+	if len(ps) != len(cs) {
+		return false
+	}
+	for i := range ps {
+		pm, cm := isPartitionMaxvalue(ps[i]), isPartitionMaxvalue(cs[i])
+		switch {
+		case pm:
+			return true
+		case cm:
+			return false
+		}
+		order, known := comparePartitionBounds(ps[i], cs[i])
+		if !known {
+			return false
+		}
+		if order != 0 {
+			return order > 0
+		}
+	}
+	return true
+}
+
+func partitionBoundItems(n nodes.Node) []nodes.Node {
+	if l, ok := n.(*nodes.List); ok {
+		return l.Items
+	}
+	return []nodes.Node{n}
+}
+
+func isPartitionMaxvalue(n nodes.Node) bool {
+	s, ok := n.(*nodes.String)
+	return ok && strings.EqualFold(s.Str, "MAXVALUE")
+}
+
+// comparePartitionBounds orders two bounds, a against b, when the order is
+// certain: -1, 0 or 1, and whether it is known.
+func comparePartitionBounds(a, b nodes.Node) (int, bool) {
+	if x, ok := partitionBoundInt(a); ok {
+		if y, ok := partitionBoundInt(b); ok {
+			switch {
+			case x < y:
+				return -1, true
+			case x > y:
+				return 1, true
+			}
+			return 0, true
+		}
+		return 0, false
+	}
+	x, ok1 := a.(*nodes.StringLit)
+	y, ok2 := b.(*nodes.StringLit)
+	if !ok1 || !ok2 {
+		return 0, false
+	}
+	if x.Value == y.Value {
+		return 0, true
+	}
+	for i := 0; i < len(x.Value) && i < len(y.Value); i++ {
+		c, d := x.Value[i], y.Value[i]
+		if c == d {
+			continue
+		}
+		digits := c >= '0' && c <= '9' && d >= '0' && d <= '9'
+		lower := c >= 'a' && c <= 'z' && d >= 'a' && d <= 'z'
+		if !digits && !lower {
+			return 0, false
+		}
+		if c < d {
+			return -1, true
+		}
+		return 1, true
+	}
+	return 0, false
+}
+
+func partitionBoundInt(n nodes.Node) (int64, bool) {
+	if e, ok := n.(nodes.ExprNode); ok {
+		if v, ok := foldConstIntExpr(e); ok {
+			return v, true
+		}
+	}
+	return 0, false
 }
 
 func validateSubpartitionDefinitions(pc *nodes.PartitionClause) error {
@@ -1299,11 +1405,11 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 				// Tuple: (val1, val2) for multi-column LIST COLUMNS
 				subParts := make([]string, len(subList.Items))
 				for j, sub := range subList.Items {
-					subParts[j] = partitionValueItemSQL(sub.(nodes.ExprNode))
+					subParts[j] = partitionBoundSQL(sub)
 				}
 				parts[i] = "(" + strings.Join(subParts, ",") + ")"
 			} else {
-				parts[i] = partitionValueItemSQL(item.(nodes.ExprNode))
+				parts[i] = partitionBoundSQL(item)
 			}
 		}
 		return strings.Join(parts, ",")
@@ -1312,6 +1418,20 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 	default:
 		return ""
 	}
+}
+
+// partitionBoundSQL renders one bound in a partition's value list. MAXVALUE
+// reaches it as a String beside the expressions, as in RANGE COLUMNS
+// VALUES LESS THAN (5, MAXVALUE); asserting every item to an expression
+// panicked Exec on that statement.
+func partitionBoundSQL(n nodes.Node) string {
+	switch n := n.(type) {
+	case *nodes.String:
+		return n.Str
+	case nodes.ExprNode:
+		return partitionValueItemSQL(n)
+	}
+	return ""
 }
 
 // partitionValueItemSQL renders one scalar partition bound, constant-folding it to an integer

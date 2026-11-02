@@ -789,11 +789,11 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 				// Tuple: (val1, val2) for multi-column LIST COLUMNS
 				subParts := make([]string, len(subList.Items))
 				for j, sub := range subList.Items {
-					subParts[j] = nodeToSQL(sub.(nodes.ExprNode))
+					subParts[j] = partitionBoundSQL(sub)
 				}
 				parts[i] = "(" + strings.Join(subParts, ",") + ")"
 			} else {
-				parts[i] = nodeToSQL(item.(nodes.ExprNode))
+				parts[i] = partitionBoundSQL(item)
 			}
 		}
 		return strings.Join(parts, ",")
@@ -802,6 +802,20 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 	default:
 		return ""
 	}
+}
+
+// partitionBoundSQL renders one bound in a partition's value list. MAXVALUE
+// reaches it as a String beside the expressions, as in RANGE COLUMNS
+// VALUES LESS THAN (5, MAXVALUE); asserting every item to an expression
+// panicked Exec on that statement.
+func partitionBoundSQL(n nodes.Node) string {
+	switch n := n.(type) {
+	case *nodes.String:
+		return n.Str
+	case nodes.ExprNode:
+		return nodeToSQL(n)
+	}
+	return ""
 }
 
 // validateForeignKeys checks all FK constraints on a table against the referenced tables.
