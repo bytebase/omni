@@ -2,12 +2,16 @@ package review
 
 import (
 	"context"
+	"math/rand"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
+	"github.com/bytebase/omni/tidb/parser"
 )
 
 // finding is a finding as the tests compare it: the statement, the text
@@ -607,4 +611,63 @@ func TestPriorBackup(t *testing.T) {
 			change: backup,
 		},
 	})
+}
+
+// TestInFeatureGateStaysLinear: openers of gates that never close, ahead of a
+// WITH, are answered by one scan. Asking parser.FeatureGate again for each one
+// took seconds for 8,000 of them.
+func TestInFeatureGateStaysLinear(t *testing.T) {
+	sql := strings.Repeat("/*T![clustered_index] ", 20000) + "WITH x AS (SELECT 1 AS id) SELECT id FROM x"
+	start := time.Now()
+	if inFeatureGate(sql, review.Range{Start: 0, End: len(sql)}, strings.Index(sql, "WITH")) {
+		t.Errorf("a WITH after gates that never close reads as gated")
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("inFeatureGate over 20,000 unclosed gates took %v", elapsed)
+	}
+}
+
+// TestInFeatureGateAgrees holds inFeatureGate, which stops at the first gate
+// that never closes, to the loop that reads on past it, from every offset of
+// random gate-heavy input.
+func TestInFeatureGateAgrees(t *testing.T) {
+	readOn := func(sql string, r review.Range, offset int) bool {
+		i := r.Start
+		for {
+			i = skipTrivia(sql, i, r.End)
+			if i >= offset {
+				return false
+			}
+			body, closeStart, ok := parser.FeatureGate(sql[:r.End], i)
+			if !ok {
+				return false
+			}
+			if closeStart < 0 {
+				i = body
+				continue
+			}
+			if offset < closeStart {
+				return true
+			}
+			i = closeStart + len("*/")
+		}
+	}
+	pieces := []string{
+		"/*T![clustered_index] ", "/*T![no_such_feature] ", "/*T! ", "/*! ", "/* c */ ", "/* ", "*/ ",
+		"'", "'*/' ", "-- */\n", "# x\n", " ", "WITH ", "x ", "\n",
+	}
+	rng := rand.New(rand.NewSource(1))
+	for iter := 0; iter < 20000; iter++ {
+		var sb strings.Builder
+		for k := rng.Intn(12); k >= 0; k-- {
+			sb.WriteString(pieces[rng.Intn(len(pieces))])
+		}
+		sql := sb.String()
+		r := review.Range{Start: 0, End: len(sql)}
+		for offset := 0; offset <= len(sql); offset++ {
+			if got, want := inFeatureGate(sql, r, offset), readOn(sql, r, offset); got != want {
+				t.Fatalf("inFeatureGate(%q, %d) = %v, reading on gives %v", sql, offset, got, want)
+			}
+		}
+	}
 }

@@ -114,8 +114,7 @@ func startsWithWith(sql string, loc ast.Loc) bool {
 // inFeatureGate reports whether an offset lies inside one of the TiDB
 // /*T![feature] ... */ comments that open the range, read past comments
 // and other gates before it. parser.FeatureGate says where a gate ends, which
-// is where the lexer and TiDB end it. A gate that never closes gates nothing:
-// TiDB drops its opener and reads the rest as ordinary SQL.
+// is where the lexer and TiDB end it.
 func inFeatureGate(sql string, r review.Range, offset int) bool {
 	i := r.Start
 	for {
@@ -123,13 +122,17 @@ func inFeatureGate(sql string, r review.Range, offset int) bool {
 		if i >= offset {
 			return false
 		}
-		body, closeStart, ok := parser.FeatureGate(sql[:r.End], i)
+		_, closeStart, ok := parser.FeatureGate(sql[:r.End], i)
 		if !ok {
 			return false
 		}
 		if closeStart < 0 {
-			i = body
-			continue
+			// A gate that never closes gates nothing: TiDB drops its opener and
+			// reads the rest as ordinary SQL. No later gate in the range closes
+			// either, because the scan for this one's close stepped over each
+			// later opener onto its body and found no close from there, so
+			// nothing after it is gated and there is nothing left to scan.
+			return false
 		}
 		if offset < closeStart {
 			return true
