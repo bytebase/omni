@@ -692,14 +692,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		uqIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Unique:    true,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(uqIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
 			Type:      ConUniqueKey,
@@ -786,6 +788,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
 		}
+		// The CREATE TABLE path reads these; this one used to drop them, so an index
+		// added by ALTER lost its comment and block size.
+		applyIndexOptions(keyIdx, con.IndexOptions)
 		coerceInnoDBHashIndex(tbl, keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
@@ -802,14 +807,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Fulltext:  true,
 			IndexType: "FULLTEXT",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(ftIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrSpatialIndex:
 		idxName := con.Name
@@ -830,14 +837,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
 			return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
 		}
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		spIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Spatial:   true,
 			IndexType: "SPATIAL",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(spIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, spIdx)
 	}
 
 	return nil
