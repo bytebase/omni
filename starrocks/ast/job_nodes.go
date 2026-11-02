@@ -10,6 +10,10 @@ package ast
 //   - RESUME JOB
 //   - CANCEL TASK FOR job_name task_id
 //   - SHOW JOB / SHOW JOB TASK FOR job_name
+//
+// StarRocks has none of these statements, and the parser produces none of
+// these nodes (see starrocks/parser/job.go). The types stay because callers
+// name them in type switches.
 
 // ---------------------------------------------------------------------------
 // JobSchedule — ON SCHEDULE clause

@@ -536,66 +536,6 @@ func (p *Parser) parseRefreshMTMV(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parsePauseMTMVJob parses a PAUSE MATERIALIZED VIEW JOB ON mv_name statement.
-// On entry, PAUSE has been consumed and cur is MATERIALIZED.
-func (p *Parser) parsePauseMTMVJob(startLoc ast.Loc) (ast.Node, error) {
-	// Consume MATERIALIZED
-	if _, err := p.expect(kwMATERIALIZED); err != nil {
-		return nil, err
-	}
-	// Consume VIEW
-	if _, err := p.expect(kwVIEW); err != nil {
-		return nil, err
-	}
-	// Consume JOB
-	if _, err := p.expect(kwJOB); err != nil {
-		return nil, err
-	}
-	// Consume ON
-	if _, err := p.expect(kwON); err != nil {
-		return nil, err
-	}
-
-	stmt := &ast.PauseMTMVJobStmt{}
-	name, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
-	return stmt, nil
-}
-
-// parseResumeMTMVJob parses a RESUME MATERIALIZED VIEW JOB ON mv_name statement.
-// On entry, RESUME has been consumed and cur is MATERIALIZED.
-func (p *Parser) parseResumeMTMVJob(startLoc ast.Loc) (ast.Node, error) {
-	// Consume MATERIALIZED
-	if _, err := p.expect(kwMATERIALIZED); err != nil {
-		return nil, err
-	}
-	// Consume VIEW
-	if _, err := p.expect(kwVIEW); err != nil {
-		return nil, err
-	}
-	// Consume JOB
-	if _, err := p.expect(kwJOB); err != nil {
-		return nil, err
-	}
-	// Consume ON
-	if _, err := p.expect(kwON); err != nil {
-		return nil, err
-	}
-
-	stmt := &ast.ResumeMTMVJobStmt{}
-	name, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
-	return stmt, nil
-}
-
 // parseMTMVPropertyList parses a parenthesised key=value list:
 //
 //	( "key" = "val" [, "key" = "val"] ... )
@@ -642,42 +582,4 @@ func (p *Parser) parseMTMVProperty() (*ast.Property, error) {
 		Value: val,
 		Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
 	}, nil
-}
-
-// parseCancelMTMVTask parses a CANCEL MATERIALIZED VIEW TASK task_id ON mv_name statement.
-// On entry, CANCEL has been consumed and cur is MATERIALIZED.
-func (p *Parser) parseCancelMTMVTask(startLoc ast.Loc) (ast.Node, error) {
-	// Consume MATERIALIZED
-	if _, err := p.expect(kwMATERIALIZED); err != nil {
-		return nil, err
-	}
-	// Consume VIEW
-	if _, err := p.expect(kwVIEW); err != nil {
-		return nil, err
-	}
-	// Consume TASK
-	if _, err := p.expect(kwTASK); err != nil {
-		return nil, err
-	}
-
-	stmt := &ast.CancelMTMVTaskStmt{}
-
-	// task_id — integer
-	if p.cur.Kind != tokInt {
-		return nil, p.syntaxErrorAtCur()
-	}
-	stmt.TaskID = p.cur.Ival
-	p.advance()
-
-	// ON mv_name
-	if _, err := p.expect(kwON); err != nil {
-		return nil, err
-	}
-	name, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
-	return stmt, nil
 }

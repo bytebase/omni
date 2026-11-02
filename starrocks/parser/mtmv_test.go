@@ -479,68 +479,6 @@ func TestRefreshMTMV_Partitions(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// PAUSE / RESUME MATERIALIZED VIEW JOB
-// ---------------------------------------------------------------------------
-
-func TestPauseMTMVJob(t *testing.T) {
-	file, errs := parseForTest("PAUSE MATERIALIZED VIEW JOB ON mv")
-	if len(errs) != 0 {
-		t.Fatalf("Parse errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("got %d stmts, want 1", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.PauseMTMVJobStmt)
-	if !ok {
-		t.Fatalf("expected *ast.PauseMTMVJobStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name.String() != "mv" {
-		t.Errorf("Name = %q, want mv", stmt.Name.String())
-	}
-}
-
-func TestResumeMTMVJob(t *testing.T) {
-	file, errs := parseForTest("RESUME MATERIALIZED VIEW JOB ON mv")
-	if len(errs) != 0 {
-		t.Fatalf("Parse errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("got %d stmts, want 1", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.ResumeMTMVJobStmt)
-	if !ok {
-		t.Fatalf("expected *ast.ResumeMTMVJobStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name.String() != "mv" {
-		t.Errorf("Name = %q, want mv", stmt.Name.String())
-	}
-}
-
-// ---------------------------------------------------------------------------
-// CANCEL MATERIALIZED VIEW TASK
-// ---------------------------------------------------------------------------
-
-func TestCancelMTMVTask(t *testing.T) {
-	file, errs := parseForTest("CANCEL MATERIALIZED VIEW TASK 12345 ON mv")
-	if len(errs) != 0 {
-		t.Fatalf("Parse errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("got %d stmts, want 1", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.CancelMTMVTaskStmt)
-	if !ok {
-		t.Fatalf("expected *ast.CancelMTMVTaskStmt, got %T", file.Stmts[0])
-	}
-	if stmt.TaskID != 12345 {
-		t.Errorf("TaskID = %d, want 12345", stmt.TaskID)
-	}
-	if stmt.Name.String() != "mv" {
-		t.Errorf("Name = %q, want mv", stmt.Name.String())
-	}
-}
-
-// ---------------------------------------------------------------------------
 // Node tags
 // ---------------------------------------------------------------------------
 

@@ -45,9 +45,10 @@ func (p *Parser) parseShow() (ast.Node, error) {
 		p.advance()
 	}
 
-	// SHOW JOB (T8.1) — special-case routing
-	if p.cur.Kind == kwJOB {
-		return p.parseShowJob(startLoc)
+	// SHOW JOB and SHOW JOBS are Doris statements StarRocks does not have;
+	// parseShowGeneric below would take them, so they are rejected here.
+	if p.cur.Kind == kwJOB || p.cur.Kind == kwJOBS {
+		return nil, p.rejectJobStatement()
 	}
 
 	// SHOW ANALYZE / SHOW STATS / SHOW CONSTRAINTS (T8.3) — special-case routing
