@@ -48,6 +48,15 @@ var temporalKeywordArgCorpus = []string{
 	// Without the dispatch guard this is rejected for want of a time unit.
 	"SELECT s.timestampdiff(1, 2, 3)",
 	"SELECT s.get_format(1, 2)",
+	// --- accept: a backtick-quoted name is an identifier, not the keyword the
+	// grammar reads the builtin from, so the call is an ordinary one too and SECOND
+	// in it is a column. Without the quoting guard these are rejected for want of
+	// a time unit.
+	"SELECT `timestampdiff`(1, 2, 3)",
+	"SELECT `TIMESTAMPDIFF`(SECOND, a, b) FROM tu",
+	"SELECT `timestampadd`(a, 2, 3) FROM tu",
+	"SELECT `get_format`(1, 2)",
+	"SELECT `timestampdiff`()",
 
 	// --- reject (1064): compound units are not in interval_time_stamp ---
 	"SELECT TIMESTAMPDIFF(DAY_HOUR, a, b) FROM tu",
@@ -68,6 +77,9 @@ var temporalKeywordArgCorpus = []string{
 	"SELECT TIMESTAMPDIFF(SECOND, a) FROM tu",
 	"SELECT TIMESTAMPDIFF(SECOND, a, b, a) FROM tu",
 	"SELECT GET_FORMAT(DATE) FROM tu",
+	// --- reject (1064): the quoted name's ordinary argument list cannot hold the
+	// reserved DAY_HOUR as a column ---
+	"SELECT `timestampdiff`(DAY_HOUR, a, b) FROM tu",
 }
 
 // TestTiDBTemporalKeywordArgOracle asserts omni agrees with a live TiDB v8.5.5

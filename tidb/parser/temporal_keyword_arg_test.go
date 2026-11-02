@@ -52,6 +52,33 @@ func TestTemporalKeywordArgAST(t *testing.T) {
 	}
 }
 
+// TestQuotedTemporalBuiltinAST pins the tree a backtick-quoted name gives: an
+// ordinary call whose first argument is the column it names. The engine reads
+// the quoted name as an identifier, so the unit production does not apply.
+func TestQuotedTemporalBuiltinAST(t *testing.T) {
+	list, err := Parse("SELECT `timestampdiff`(SECOND, a, b) FROM t")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var call *ast.FuncCallExpr
+	ast.Walk(keywordArgCollector(func(n ast.Node) {
+		switch node := n.(type) {
+		case *ast.FuncCallExpr:
+			if call == nil {
+				call = node
+			}
+		case *ast.KeywordArg:
+			t.Errorf("a quoted name built a KeywordArg %q", node.Keyword)
+		}
+	}), list.Items[0])
+	if call == nil || call.Name != "TIMESTAMPDIFF" || len(call.Args) != 3 {
+		t.Fatalf("call = %+v, want TIMESTAMPDIFF with three arguments", call)
+	}
+	if col, ok := call.Args[0].(*ast.ColumnRef); !ok || col.Column != "SECOND" {
+		t.Errorf("first argument = %#v, want the column SECOND", call.Args[0])
+	}
+}
+
 // keywordArgCollector adapts a visit function to ast.Visitor.
 type keywordArgCollector func(ast.Node)
 
