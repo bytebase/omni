@@ -204,6 +204,19 @@ var truncatedGrammar = []grammarCase{
 	{name: "key block size without value", sql: "CREATE TABLE obprobe_tv (a INT) KEY_BLOCK_SIZE"},
 }
 
+// bareValuesGrammar is the guard side for a partition bound cut short: VALUES with
+// neither LESS THAN nor IN after it, on a partition or a subpartition. Both sides must
+// refuse it; the parser consumed the word and went on until it stopped.
+//
+// Read against 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-11-02: the engine answers 1064 for
+// all four.
+var bareValuesGrammar = []grammarCase{
+	{name: "bare values in a subpartition template", sql: "CREATE TABLE obprobe_bv1 (a INT, b INT) PARTITION BY HASH(a) SUBPARTITION BY HASH(b) SUBPARTITION TEMPLATE (SUBPARTITION s0 VALUES)"},
+	{name: "bare values in a subpartition", sql: "CREATE TABLE obprobe_bv2 (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES ENGINE=InnoDB))"},
+	{name: "bare values in a range partition", sql: "CREATE TABLE obprobe_bv3 (a INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES)"},
+	{name: "bare values in a hash partition", sql: "CREATE TABLE obprobe_bv4 (a INT) PARTITION BY HASH(a) (PARTITION p0 VALUES ENGINE = InnoDB)"},
+}
+
 // TestOceanBaseGrammarInventory holds this parser to OceanBase rather than to MySQL.
 // For each statement it compares what OceanBase accepts with what Parse accepts, and
 // pins the gap: a pending case is one OceanBase takes and the parser does not yet, so
@@ -229,7 +242,7 @@ func TestOceanBaseGrammarInventory(t *testing.T) {
 		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obprobe")
 	})
 
-	for _, group := range [][]grammarCase{oceanBaseOnlyGrammar, sharedGrammar, foreignGrammar, truncatedGrammar} {
+	for _, group := range [][]grammarCase{oceanBaseOnlyGrammar, sharedGrammar, foreignGrammar, truncatedGrammar, bareValuesGrammar} {
 		for _, c := range group {
 			t.Run(c.name, func(t *testing.T) {
 				_, parseErr := Parse(c.sql)

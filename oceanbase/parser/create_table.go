@@ -1894,6 +1894,11 @@ func (p *Parser) parsePartitionValues(strict bool) (nodes.Node, partitionValuesK
 				}
 				values = &nodes.List{Items: items}
 			}
+		} else {
+			// VALUES with neither LESS THAN nor IN after it is no bound: 4.3.5.6
+			// answers 1064 at the next token, for a partition and a subpartition
+			// (bareValuesCases).
+			return nil, 0, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -1924,11 +1929,19 @@ func (p *Parser) parseSubPartitionDef(want partitionValuesKind, first bool) (*no
 	}
 	got := noPartitionValues
 	if p.cur.Type == kwVALUES {
-		switch p.peekNext().Type {
+		switch next := p.peekNext(); next.Type {
 		case kwLESS:
 			got = valuesLessThan
 		case kwIN:
 			got = valuesIn
+		default:
+			// A bare VALUES fails where its bound was due, or at VALUES itself for a
+			// HASH or KEY template entry, which takes none: 4.3.5.6 says near
+			// 'VALUES)' there (subpartitionCases).
+			if !first && want == noPartitionValues {
+				return nil, 0, p.syntaxErrorAtCur()
+			}
+			return nil, 0, p.syntaxErrorAtTok(next)
 		}
 	}
 	if !first && got != want {
