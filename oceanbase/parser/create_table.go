@@ -1782,16 +1782,17 @@ const (
 
 // parsePartitionValues parses a partition's or a subpartition's VALUES LESS THAN or
 // VALUES IN when the next token is VALUES, and reports which it read. A partition's
-// VALUES LESS has always taken THAN as optional here; requireThan, set for a
-// subpartition, holds it to the grammar's LESS THAN, as OceanBase does (subpartitionCases).
-func (p *Parser) parsePartitionValues(requireThan bool) (nodes.Node, partitionValuesKind, error) {
+// VALUES has always taken THAN after LESS, and the bound's closing parenthesis, as
+// optional here; strict, set for a subpartition, holds it to the grammar's LESS THAN
+// and (...), as OceanBase does (subpartitionCases).
+func (p *Parser) parsePartitionValues(strict bool) (nodes.Node, partitionValuesKind, error) {
 	var values nodes.Node
 	kind := noPartitionValues
 	if _, ok := p.match(kwVALUES); ok {
 		if p.cur.Type == kwLESS {
 			kind = valuesLessThan
 			p.advance() // LESS
-			if requireThan && p.cur.Type != kwTHAN {
+			if strict && p.cur.Type != kwTHAN {
 				return nil, 0, p.syntaxErrorAtCur()
 			}
 			if p.cur.Type == kwTHAN {
@@ -1822,7 +1823,13 @@ func (p *Parser) parsePartitionValues(requireThan bool) (nodes.Node, partitionVa
 					}
 					p.advance()
 				}
-				p.match(')')
+				if strict {
+					if _, err := p.expect(')'); err != nil {
+						return nil, 0, err
+					}
+				} else {
+					p.match(')')
+				}
 				if allMax && len(items) > 0 {
 					// All MAXVALUE — store as single string marker
 					values = &nodes.String{Str: "MAXVALUE"}
@@ -1878,7 +1885,13 @@ func (p *Parser) parsePartitionValues(requireThan bool) (nodes.Node, partitionVa
 					}
 					p.advance()
 				}
-				p.match(')')
+				if strict {
+					if _, err := p.expect(')'); err != nil {
+						return nil, 0, err
+					}
+				} else {
+					p.match(')')
+				}
 				values = &nodes.List{Items: items}
 			}
 		}
