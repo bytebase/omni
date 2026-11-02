@@ -231,19 +231,13 @@ func TestQuotedBuiltinCallOracle(t *testing.T) {
 }
 
 // oceanBaseCrashCases are the quotedBuiltinCallCases kept off the OceanBase
-// oracle. OceanBase resolves a quoted name to its own function, and
-// SELECT `cast`(a) FROM t took the 4.3.5.6 observer down with SIGSEGV rather
-// than answer, which would leave every later case without a verdict. The
-// parser test and the MySQL 8.0 oracle still hold each of them.
+// oracle. OceanBase resolves a quoted name to its own function where it has
+// one, answering 1582 for `trim`() or `extract`(d), but SELECT `cast`(a)
+// FROM t took the 4.3.5.6 observer down with SIGSEGV rather than answer,
+// which would leave every later case without a verdict. The parser test and
+// the MySQL 8.0 oracle still hold it.
 var oceanBaseCrashCases = map[string]bool{
-	"SELECT `cast`(a) FROM tq":        true,
-	"SELECT `rank`() FROM tq":         true,
-	"SELECT `row_number`() FROM tq":   true,
-	"SELECT `trim`() FROM tq":         true,
-	"SELECT `char`(65)":               true,
-	"SELECT `position`(b) FROM tq":    true,
-	"SELECT `extract`(d) FROM tq":     true,
-	"SELECT `date_add`(d, 1) FROM tq": true,
+	"SELECT `cast`(a) FROM tq": true,
 }
 
 // TestOceanBaseQuotedBuiltinCall asks OceanBase about quotedBuiltinCallCases. It
