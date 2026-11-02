@@ -51,12 +51,16 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		}
 	}
 
-	if err := checkAlterIndexIgnorability(tbl, stmt.Commands); err != nil {
+	skip, err := checkAlterIndexIgnorability(tbl, stmt.Commands)
+	if err != nil {
 		return err
 	}
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
+		if skip[cmd] {
+			return nil
+		}
 		// A versioned table can be made inconsistent by any column change (a
 		// dropped/modified/renamed ROW START/END or period column), so route the
 		// command through post-mutation validation when the table is already
@@ -106,6 +110,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 
 	for _, cmd := range stmt.Commands {
+		if skip[cmd] {
+			continue
+		}
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
 			rollback()
 			return err
@@ -1131,8 +1138,9 @@ func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, in
 // alterIndexVisibility toggles the Visible flag on an index.
 // alterIndexVisibility applies ALTER {INDEX | KEY} [IF EXISTS] name [NOT]
 // IGNORED. checkAlterIndexIgnorability has held the name to the table the
-// statement found; a missing index is 1176, or nothing with IF EXISTS
-// (MariaDB 11.8.8 answers a note).
+// statement found and dropped the IF EXISTS commands that name no index of
+// it, so an index missing here went with another command of the statement,
+// which MariaDB 11.8.8 answers with 1176, IF EXISTS or not.
 func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, visible bool) error {
 	key := toLower(cmd.Name)
 	for _, idx := range tbl.Indexes {
@@ -1140,9 +1148,6 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			idx.Visible = visible
 			return nil
 		}
-	}
-	if cmd.IfExists {
-		return nil
 	}
 	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }

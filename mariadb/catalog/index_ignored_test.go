@@ -62,6 +62,18 @@ var ignoredIndexCases = []struct {
 		},
 	},
 	{
+		// IF EXISTS asks about the table the statement found, so an index the
+		// same statement adds or renames to the name is left as it is.
+		name: "ALTER INDEX IF EXISTS of an index the statement makes",
+		stmts: []string{
+			"CREATE TABLE t (a INT, b INT, KEY k (a))",
+			"ALTER TABLE t ADD INDEX n (b), ALTER INDEX IF EXISTS n IGNORED, ALTER INDEX k IGNORED",
+			"ALTER TABLE t RENAME INDEX n TO n2, ALTER INDEX IF EXISTS n2 IGNORED",
+		},
+		ignored: map[string]bool{"k": true, "n2": false},
+		lines:   []string{"KEY `k` (`a`) IGNORED", "KEY `n2` (`b`)"},
+	},
+	{
 		name:    "the last ALTER INDEX of a statement wins",
 		stmts:   []string{"CREATE TABLE t (a INT, KEY k (a))", "ALTER TABLE t ALTER INDEX k NOT IGNORED, ALTER INDEX k IGNORED"},
 		ignored: map[string]bool{"k": true},
@@ -159,6 +171,10 @@ var ignoredIndexErrorCases = []struct {
 	{name: "ALTER INDEX then RENAME INDEX", setup: []string{"CREATE TABLE t (a INT, KEY k (a))"}, stmt: "ALTER TABLE t ALTER INDEX k IGNORED, RENAME INDEX k TO k2", code: 1176},
 	{name: "RENAME INDEX then ALTER INDEX", setup: []string{"CREATE TABLE t (a INT, KEY k (a))"}, stmt: "ALTER TABLE t RENAME INDEX k TO k2, ALTER INDEX k2 IGNORED", code: 1176},
 	{name: "ADD INDEX then ALTER INDEX", setup: []string{"CREATE TABLE t (a INT)"}, stmt: "ALTER TABLE t ADD INDEX n (a), ALTER INDEX n IGNORED", code: 1176},
+	{name: "ALTER INDEX IF EXISTS then DROP INDEX", setup: []string{"CREATE TABLE t (a INT, KEY k (a))"}, stmt: "ALTER TABLE t ALTER INDEX IF EXISTS k IGNORED, DROP INDEX k", code: 1176},
+	{name: "ALTER INDEX IF EXISTS then RENAME INDEX", setup: []string{"CREATE TABLE t (a INT, KEY k (a))"}, stmt: "ALTER TABLE t ALTER INDEX IF EXISTS k IGNORED, RENAME INDEX k TO k2", code: 1176},
+	{name: "an index dropped and added again", setup: []string{"CREATE TABLE t (a INT, KEY k (a))"}, stmt: "ALTER TABLE t DROP INDEX k, ADD INDEX k (a), ALTER INDEX k IGNORED", code: 1176},
+	{name: "an index dropped and added again, IF EXISTS", setup: []string{"CREATE TABLE t (a INT, KEY k (a))"}, stmt: "ALTER TABLE t DROP INDEX k, ADD INDEX k (a), ALTER INDEX IF EXISTS k IGNORED", code: 1176},
 
 	{name: "DROP PRIMARY KEY promotes an ignored key", setup: []string{"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY u (b) IGNORED)"}, stmt: "ALTER TABLE t DROP PRIMARY KEY", code: 4174},
 	{name: "MODIFY NOT NULL promotes an ignored key", setup: []string{"CREATE TABLE t (a INT, UNIQUE KEY u (a) IGNORED)"}, stmt: "ALTER TABLE t MODIFY a INT NOT NULL", code: 4174},

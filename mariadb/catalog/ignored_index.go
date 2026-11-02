@@ -237,14 +237,20 @@ func hasIgnoredIndex(tbl *Table) bool {
 
 // checkAlterIndexIgnorability checks every ALTER INDEX of an ALTER TABLE
 // against the table as the statement found it, as MariaDB does
-// (mysql_prepare_alter_table, sql/sql_table.cc, mariadb-11.8.8): the index must
-// be one of the table's, and not one the same statement drops or renames,
-// else 1176 unless IF EXISTS; and it must not be the primary key, declared or
-// implicit, whichever ignorability is asked (4174, also with IF EXISTS).
-// Verified on 11.8.8: ALTER INDEX k IGNORED, DROP INDEX k and ALTER INDEX k
-// IGNORED, RENAME INDEX k TO k2 both answer 1176 in either order.
-func checkAlterIndexIgnorability(tbl *Table, cmds []*nodes.AlterTableCmd) error {
-	return nil
+// (mysql_prepare_alter_table, sql/sql_table.cc, mariadb-11.8.8), and returns
+// the ones the statement skips:
+//
+//   - An index the table did not have is 1176, or with IF EXISTS skipped,
+//     even when the same statement adds or renames one to that name.
+//   - An index the same statement drops or renames is 1176, IF EXISTS or not.
+//   - The primary key, declared or implicit, is 4174 whichever ignorability
+//     is asked, IF EXISTS or not.
+//
+// Verified on 11.8.8: ALTER INDEX [IF EXISTS] k IGNORED with DROP INDEX k or
+// RENAME INDEX k TO k2, in either order, answers 1176, as does DROP INDEX k,
+// ADD INDEX k (a), ALTER INDEX [IF EXISTS] k IGNORED; ADD INDEX n (a), ALTER
+// INDEX IF EXISTS n IGNORED leaves n as added.
+func checkAlterIndexIgnorability(tbl *Table, cmds []*nodes.AlterTableCmd) (map[*nodes.AlterTableCmd]bool, error) {
 	gone := map[string]bool{}
 	alters := false
 	for _, cmd := range cmds {
@@ -260,9 +266,10 @@ func checkAlterIndexIgnorability(tbl *Table, cmds []*nodes.AlterTableCmd) error 
 		}
 	}
 	if !alters {
-		return nil
+		return nil, nil
 	}
 	pk := tablePrimaryKey(tbl, false)
+	var skip map[*nodes.AlterTableCmd]bool
 	for _, cmd := range cmds {
 		if cmd.Type != nodes.ATAlterIndexVisible && cmd.Type != nodes.ATAlterIndexInvisible {
 			continue
@@ -274,15 +281,17 @@ func checkAlterIndexIgnorability(tbl *Table, cmds []*nodes.AlterTableCmd) error 
 				break
 			}
 		}
-		if idx == nil || gone[toLower(cmd.Name)] {
-			if cmd.IfExists {
-				continue
+		switch {
+		case idx == nil && cmd.IfExists:
+			if skip == nil {
+				skip = map[*nodes.AlterTableCmd]bool{}
 			}
-			return errKeyDoesNotExist(cmd.Name, tbl.Name)
-		}
-		if idx == pk {
-			return errPKIndexCantBeIgnored()
+			skip[cmd] = true
+		case idx == nil, gone[toLower(cmd.Name)]:
+			return nil, errKeyDoesNotExist(cmd.Name, tbl.Name)
+		case idx == pk:
+			return nil, errPKIndexCantBeIgnored()
 		}
 	}
-	return nil
+	return skip, nil
 }
