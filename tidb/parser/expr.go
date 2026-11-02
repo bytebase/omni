@@ -565,6 +565,13 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
+// backtickQuotedAt reports whether the token at absolute offset off is a
+// backtick-quoted identifier.
+func (p *Parser) backtickQuotedAt(off int) bool {
+	i := off - p.lexer.baseOffset
+	return i >= 0 && i < len(p.lexer.input) && p.lexer.input[i] == '`'
+}
+
 // parseFuncCall parses a function call after the name has been consumed.
 func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, error) {
 	p.advance() // consume '('
@@ -613,9 +620,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// Keyword-argument builtins: their first argument (or a trailing clause)
 	// is a bare keyword the engine lexes as a token, never an identifier —
 	// a backtick-quoted unit is a syntax error (oracle mysql 8.0).
-	// Only the unqualified builtin has this shape; a schema-qualified name is
-	// a stored function whose arguments are ordinary expressions.
-	if schema == "" {
+	// Only the unqualified, unquoted builtin has this shape. A schema-qualified
+	// name is a stored function, and a backtick-quoted name is an identifier
+	// rather than the keyword the grammar reads the builtin from: either way the
+	// arguments are ordinary expressions. TiDB v8.5.5 runs
+	// `timestampdiff`(1, 2, 3), and reads SECOND in `timestampdiff`(SECOND, a, b) as a column.
+	if schema == "" && !p.backtickQuotedAt(start) {
 		switch upperName {
 		case "TIMESTAMPDIFF", "TIMESTAMPADD":
 			return p.parseTimestampFunc(fc)
