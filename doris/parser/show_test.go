@@ -41,6 +41,21 @@ func TestShowTablesLike(t *testing.T) {
 	}
 }
 
+// TestShowLikeNeedsPattern: LIKE takes a pattern, which the end of the input
+// does not supply (container-verified reject). Best-effort parsing still
+// yields the statement.
+func TestShowLikeNeedsPattern(t *testing.T) {
+	for _, sql := range []string{"SHOW TABLES LIKE", "SHOW DATABASES LIKE"} {
+		_, errs := parseForTest(sql)
+		if len(errs) == 0 || errs[0].Position != len(sql) {
+			t.Errorf("%q: errs = %v, want one at the end of the input", sql, errs)
+		}
+		if r := ParseBestEffort(sql); len(r.File.Stmts) != 1 {
+			t.Errorf("ParseBestEffort(%q): stmts = %d, want 1", sql, len(r.File.Stmts))
+		}
+	}
+}
+
 func TestShowFullTables(t *testing.T) {
 	file, errs := parseForTest("SHOW FULL TABLES")
 	if len(errs) != 0 {

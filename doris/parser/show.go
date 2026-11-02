@@ -403,6 +403,12 @@ func (p *Parser) parseShowAlterTable(stmt *ast.ShowStmt) (ast.Node, error) {
 		dbName, _, err := p.parseIdentifier()
 		if err == nil {
 			stmt.From = dbName
+		} else if p.strictTrailing {
+			// The raw capture below would swallow the token that is not a
+			// database name, or there is none at all, so SHOW ALTER TABLE
+			// COLUMN FROM and ... FROM 'x' parsed clean (container-verified
+			// rejects). Best-effort keeps the raw recovery.
+			return nil, err
 		}
 	}
 
@@ -498,9 +504,14 @@ func (p *Parser) parseShowLikeWhere(stmt *ast.ShowStmt) error {
 		if p.cur.Kind == tokString {
 			stmt.Like = p.cur.Str
 			p.advance()
+		} else if p.strictTrailing {
+			// SHOW TABLES LIKE with no pattern ends at EOF, which the
+			// leftover-token check cannot flag; the string is required. This
+			// was once recorded as an engine accept, but the engine reports
+			// "missing STRING_LITERAL at '<EOF>'", a parse failure the
+			// container oracle used to miss (see dorisMissingTokenMarker).
+			return p.syntaxErrorAtCur()
 		}
-		// A bare LIKE with no pattern is engine-accepted here
-		// (container-verified; StarRocks rejects it and its helper differs).
 		return nil
 	}
 	if p.cur.Kind == kwWHERE {

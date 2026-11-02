@@ -254,6 +254,7 @@ type LoadDataStmt struct {
 	Label       string          // load label (db_name.label_name or label_name)
 	DataDescs   []*LoadDataDesc // one or more data descriptions
 	BrokerName  string          // optional WITH BROKER name
+	BrokerProperties []*Property // optional WITH BROKER name (...) list
 	Properties  []*Property     // optional PROPERTIES(...)
 	Comment     string          // optional COMMENT '...'
 	Loc         Loc
@@ -282,6 +283,7 @@ type ExportStmt struct {
 	Path       string      // TO 'path'
 	Properties []*Property // optional PROPERTIES(...)
 	BrokerName string      // optional WITH BROKER name
+	BrokerProperties []*Property // optional WITH BROKER name (...) list
 	Loc        Loc
 }
 

@@ -157,6 +157,7 @@ type PartitionItem struct {
 	ToValues   []string
 	Interval   string // interval amount
 	IntervalUnit string // interval unit (e.g., "DAY")
+	Properties []*Property // optional inline (key = value, ...) list after the values
 	Loc        Loc
 }
 

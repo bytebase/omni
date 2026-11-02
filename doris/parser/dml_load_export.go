@@ -293,11 +293,20 @@ func (p *Parser) parseLoad() (ast.Node, error) {
 		}
 		stmt.BrokerName = brokerName
 
-		// Optional broker properties (...)
+		// Optional broker properties (...). The grammar gives them as a
+		// propertyItemList, whose items may take an identifier or any
+		// constant on either side, but the engine holds a broker load to a
+		// string on both: (username = "u"), ("k" = 1) and ("k" = v) are
+		// rejects, reported by its legacy parser ("Syntax error ...
+		// Encountered: IDENTIFIER"), while EXPORT's list takes all three
+		// (container-verified both ways).
 		if p.cur.Kind == int('(') {
-			if err := p.skipParenthesized(); err != nil {
+			p.advance() // consume '('
+			props, err := p.parsePropertyItems(p.parseStringProperty)
+			if err != nil {
 				return nil, err
 			}
+			stmt.BrokerProperties = props
 		}
 	}
 
@@ -534,24 +543,6 @@ func (p *Parser) captureUntilLoadClauseEnd() string {
 	return sb.String()
 }
 
-// skipParenthesized skips a '(' ... ')' block without capturing content.
-func (p *Parser) skipParenthesized() error {
-	if _, err := p.expect(int('(')); err != nil {
-		return err
-	}
-	depth := 1
-	for depth > 0 && p.cur.Kind != tokEOF {
-		switch p.cur.Kind {
-		case int('('):
-			depth++
-		case int(')'):
-			depth--
-		}
-		p.advance()
-	}
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // EXPORT TABLE (T6.1)
 // ---------------------------------------------------------------------------
@@ -634,11 +625,16 @@ func (p *Parser) parseExport() (ast.Node, error) {
 		}
 		stmt.BrokerName = brokerName
 
-		// Optional broker properties (...)
+		// Optional broker properties: withRemoteStorageSystem's
+		// (LEFT_PAREN brokerProperties=propertyItemList RIGHT_PAREN)?, in the
+		// grammar's full item form (see parsePropertyItem).
 		if p.cur.Kind == int('(') {
-			if err := p.skipParenthesized(); err != nil {
+			p.advance() // consume '('
+			props, err := p.parsePropertyItems(p.parsePropertyItem)
+			if err != nil {
 				return nil, err
 			}
+			stmt.BrokerProperties = props
 		}
 	}
 
