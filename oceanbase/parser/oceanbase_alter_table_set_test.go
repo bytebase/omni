@@ -80,6 +80,13 @@ var alterTableSetCases = []alterTableSetCase{
 	{"ALTER TABLE obset_t SET CONVERT TO CHARACTER SET utf8mb4", false, "CONVERT"},
 	{"ALTER TABLE obset_t SET PARTITION BY HASH(a) PARTITIONS 2", false, "PARTITION BY"},
 	{"ALTER TABLE obset_t `SET` COMMENT 'x'", false, "`SET`"},
+	// A table option that starts and does not finish fails, rather than being dropped.
+	{"ALTER TABLE obset_t COMMENT 'x' CHARACTER", false, ""},
+	{"ALTER TABLE obset_t SET COMMENT 'x' CHARACTER", false, ""},
+	{"ALTER TABLE obset_t COMMENT 'x' CHARACTER, ADD COLUMN b INT", false, ", ADD COLUMN"},
+	{"ALTER TABLE obset_t SET COMMENT 'x' DEFAULT CHARACTER", false, ""},
+	{"CREATE TABLE obset_u (a INT) CHARACTER", false, ""},
+	{"CREATE TABLE obset_u (a INT) COMMENT 'x' CHARACTER", false, ""},
 }
 
 // TestOceanBaseAlterTableSetGrammar holds the parser to alterTableSetCases. A refused

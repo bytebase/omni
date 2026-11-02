@@ -1149,7 +1149,10 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			}
 			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHARACTER SET", Value: val}, true, nil
 		}
-		return nil, false, nil
+		// CHARACTER without SET is no option. Returning "not an option" after consuming
+		// it dropped the word, so `CREATE TABLE t (a INT) CHARACTER` and `ALTER TABLE t
+		// COMMENT 'x' CHARACTER` parsed; OceanBase answers 1064 for both.
+		return nil, false, p.syntaxErrorAtCur()
 
 	case kwCOLLATE:
 		p.advance()
