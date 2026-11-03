@@ -40,12 +40,22 @@ var dropKinds = map[ast.DropObjectType]string{
 // or a control-of-flow block around it. Dropping a constraint belongs to
 // DisallowDropConstraint.
 func checkDisallowDropObject(s *statement, r *reporter) {
-	report := func(loc ast.Loc, kind string, names ...string) {
-		msg := "drops " + kind
-		if len(names) > 0 {
-			msg += " " + strings.Join(names, ", ")
+	// reportItems writes "Drops <kind> <items>.", each item already
+	// Markdown, the kind in the plural for several, or "Drops the <kind>."
+	// for none.
+	reportItems := func(loc ast.Loc, kind string, items ...string) {
+		msg := "Drops the " + kind + "."
+		if len(items) > 0 {
+			msg = "Drops " + review.Plural(kind, len(items)) + " " + review.Join(items...) + "."
 		}
 		r.report(review.DisallowDropObject, s.index, rangeOf(loc), msg)
+	}
+	report := func(loc ast.Loc, kind string, names ...string) {
+		items := make([]string, len(names))
+		for i, name := range names {
+			items[i] = review.Code(name)
+		}
+		reportItems(loc, kind, items...)
 	}
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
@@ -54,24 +64,24 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 			if !ok {
 				kind = "object"
 			}
-			var names []string
+			var items []string
 			if v.Names != nil {
 				for i, item := range v.Names.Items {
 					ref, ok := item.(*ast.TableRef)
 					if !ok {
 						continue
 					}
-					name := object(ref)
+					name := review.Code(object(ref))
 					// An index name is unique only on its table.
 					if v.OnTables != nil && i < len(v.OnTables.Items) {
 						if on, ok := v.OnTables.Items[i].(*ast.TableRef); ok && on != nil {
-							name += " on " + object(on)
+							name += " of " + review.Code(object(on))
 						}
 					}
-					names = append(names, name)
+					items = append(items, name)
 				}
 			}
-			report(v.Loc, kind, names...)
+			reportItems(v.Loc, kind, items...)
 		case *ast.SecurityStmt:
 			if strings.EqualFold(v.Action, "DROP") {
 				// A principal, endpoint, audit, or pool has a one-part
@@ -125,15 +135,19 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 						}
 					}
 				}
-				report(v.Loc, "sensitivity classification of", names...)
+				msg := "Drops the sensitivity classification"
+				if len(names) > 0 {
+					msg += " of " + review.Names(names...)
+				}
+				r.report(review.DisallowDropObject, s.index, rangeOf(v.Loc), msg+".")
 			}
 		case *ast.SignatureStmt:
 			if strings.EqualFold(v.Action, "DROP") {
-				kind := "signature of"
+				kind := "signature"
 				if v.IsCounter {
-					kind = "counter signature of"
+					kind = "counter signature"
 				}
-				report(v.Loc, kind, object(v.ModuleName))
+				r.report(review.DisallowDropObject, s.index, rangeOf(v.Loc), "Drops the "+kind+" of "+review.Code(object(v.ModuleName))+".")
 			}
 		case *ast.DropStatisticsStmt:
 			var names []string
@@ -159,7 +173,7 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 			}
 			for _, item := range v.Actions.Items {
 				if a, ok := item.(*ast.AlterTableAction); ok && a.Type == ast.ATDropColumn {
-					report(a.Loc, "column", ident(a.ColName)+" of "+object(v.Name))
+					reportItems(a.Loc, "column", review.Code(ident(a.ColName))+" of "+review.Code(object(v.Name)))
 				}
 			}
 		}

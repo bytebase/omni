@@ -182,7 +182,7 @@ func reviewGroup(ctx context.Context, stmts []statement, work targetWork, g targ
 				continue
 			}
 			if kind := x.relationKind(rn.name); kind != "" {
-				r.report(review.DisallowRename, rn.statement, rangeOf(rn.loc), "renames "+kind+" "+object(rn.name)+" to "+ident(rn.newName))
+				r.report(review.DisallowRename, rn.statement, rangeOf(rn.loc), "Renames "+kind+" "+review.Code(object(rn.name))+" to "+review.Code(ident(rn.newName))+".")
 			}
 		}
 	}

@@ -117,7 +117,7 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 			}
 			// A FileTable has a primary key in its fixed schema.
 			if on[review.RequirePrimaryKey] && !block && judgedTable(v.Name) && !v.IsFileTable && !createsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
-				r.report(review.RequirePrimaryKey, s.index, rangeOf(loc), "creates table "+object(v.Name)+" without a primary key")
+				r.report(review.RequirePrimaryKey, s.index, rangeOf(loc), "Creates table "+review.Code(object(v.Name))+" without a primary key.")
 			}
 		case *ast.AlterTableStmt:
 			if v.Actions == nil {
@@ -258,10 +258,10 @@ func reportDrop(stmts []statement, pos int, s *statement, loc ast.Loc, v *ast.Al
 		return
 	}
 	if on[review.DisallowDropConstraint] {
-		r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), "drops "+label+" "+ident(name)+" of "+object(v.Name))
+		r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), "Drops "+label+" "+review.Code(ident(name))+" of "+review.Code(object(v.Name))+".")
 	}
 	if on[review.RequirePrimaryKey] && !nested && kind == ast.ConstraintPrimaryKey && !addsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
-		r.report(review.RequirePrimaryKey, s.index, rangeOf(loc), "removes the primary key of "+object(v.Name)+", and the change adds none back")
+		r.report(review.RequirePrimaryKey, s.index, rangeOf(loc), "Removes the primary key of "+review.Code(object(v.Name))+", and the change doesn't add one back.")
 	}
 }
 

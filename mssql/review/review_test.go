@@ -135,23 +135,23 @@ func TestRequireWhere(t *testing.T) {
 			name: "UPDATE and DELETE without WHERE",
 			sql:  "UPDATE t SET n = 1;\nDELETE FROM dbo.t;\nUPDATE t SET n = 1 WHERE id = 1;\nDELETE x FROM t AS x JOIN p ON x.p_id = p.id;",
 			want: []finding{
-				{0, "UPDATE t SET n = 1", "UPDATE t has no WHERE clause", []int{0}},
-				{1, "DELETE FROM dbo.t", "DELETE FROM dbo.t has no WHERE clause", []int{0}},
-				{3, "DELETE x FROM t AS x JOIN p ON x.p_id = p.id", "DELETE FROM x has no WHERE clause", []int{0}},
+				{0, "UPDATE t SET n = 1", "`UPDATE` of `t` has no `WHERE` clause.", []int{0}},
+				{1, "DELETE FROM dbo.t", "`DELETE` from `dbo.t` has no `WHERE` clause.", []int{0}},
+				{3, "DELETE x FROM t AS x JOIN p ON x.p_id = p.id", "`DELETE` from `x` has no `WHERE` clause.", []int{0}},
 			},
 		},
 		{
 			name: "inside IF and a procedure",
 			sql:  "IF 1 = 1 DELETE FROM t;\nGO\nCREATE PROCEDURE pr AS BEGIN UPDATE t SET n = 1 END",
 			want: []finding{
-				{0, "DELETE FROM t", "DELETE FROM t has no WHERE clause", []int{0}},
-				{2, "UPDATE t SET n = 1", "UPDATE t has no WHERE clause", []int{0}},
+				{0, "DELETE FROM t", "`DELETE` from `t` has no `WHERE` clause.", []int{0}},
+				{2, "UPDATE t SET n = 1", "`UPDATE` of `t` has no `WHERE` clause.", []int{0}},
 			},
 		},
 		{
 			name: "a table variable",
 			sql:  "DECLARE @rows TABLE (n INT);\nDELETE FROM @rows;",
-			want: []finding{{1, "DELETE FROM @rows", "DELETE FROM @rows has no WHERE clause", []int{0}}},
+			want: []finding{{1, "DELETE FROM @rows", "`DELETE` from `@rows` has no `WHERE` clause.", []int{0}}},
 		},
 	})
 }
@@ -162,26 +162,26 @@ func TestRequireIsNull(t *testing.T) {
 			name: "comparisons a predicate tests",
 			sql:  "SELECT * FROM t WHERE n = NULL OR NULL <> code;\nUPDATE t SET n = 1 WHERE NOT (code != NULL);\nIF @x = NULL PRINT 1;",
 			want: []finding{
-				{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}},
-				{0, "NULL <> code", `"NULL <> code" is never true; use IS NOT NULL`, []int{0}},
-				{1, "code != NULL", `"code != NULL" is never true; use IS NOT NULL`, []int{0}},
-				{2, "@x = NULL", `"@x = NULL" is never true; use IS NULL`, []int{0}},
+				{0, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "NULL <> code", "`NULL <> code` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{1, "code != NULL", "`code != NULL` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{2, "@x = NULL", "`@x = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
 			},
 		},
 		{
 			name: "a comparison with a block comment holding dashes",
 			sql:  "SELECT * FROM t WHERE n /* -- note */ = NULL;",
-			want: []finding{{0, "n /* -- note */ = NULL", `"n /* -- note */ = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{0, "n /* -- note */ = NULL", "`n /* -- note */ = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
 			name: "a comparison with a line comment inside it",
 			sql:  "SELECT * FROM t WHERE n -- note\n = NULL;",
-			want: []finding{{0, "n -- note\n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{0, "n -- note\n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
 			name: "a bracketed name with an escaped bracket",
 			sql:  "SELECT * FROM t WHERE [a]]  b] =\n NULL;",
-			want: []finding{{0, "[a]]  b] =\n NULL", `"[a]]  b] = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{0, "[a]]  b] =\n NULL", "`[a]]  b] = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
 			name: "a value, IS NULL, and after SET ANSI_NULLS OFF",
@@ -190,40 +190,40 @@ func TestRequireIsNull(t *testing.T) {
 		{
 			name: "ANSI_NULLS set back ON",
 			sql:  "SET ANSI_NULLS OFF;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_NULLS ON;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_DEFAULTS OFF;\nSELECT * FROM t WHERE n = NULL;",
-			want: []finding{{3, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{3, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
 			name: "ANSI_NULLS set in a block, under a condition, or in a routine body",
 			sql:  "BEGIN SET ANSI_NULLS OFF; END;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_NULLS ON;\nIF @x = 1 SET ANSI_NULLS OFF;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_NULLS ON;\nCREATE PROCEDURE pr2 AS BEGIN SET ANSI_NULLS OFF; END;\nGO\nSELECT * FROM t WHERE n = NULL;",
-			want: []finding{{8, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{8, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
 			name: "ANSI_NULLS set in a list of options",
 			sql:  "SET QUOTED_IDENTIFIER, ANSI_NULLS OFF;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_PADDING, ANSI_NULLS ON;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_PADDING, ANSI_DEFAULTS OFF;\nSELECT * FROM t WHERE n = NULL;",
-			want: []finding{{3, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{3, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
 			name: "ANSI_NULLS set back ON in a block after a condition",
 			sql:  "BEGIN IF @x = 1 SET ANSI_NULLS OFF; SET ANSI_NULLS ON; END;\nSELECT * FROM t WHERE n = NULL;",
-			want: []finding{{1, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{1, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
 			name: "IIF",
 			sql:  "SELECT IIF(n = NULL, 1, 0) FROM t;",
-			want: []finding{{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{0, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
 			name: "MERGE conditions",
 			sql:  "MERGE t USING p ON t.id = NULL WHEN MATCHED AND p.note <> NULL THEN UPDATE SET n = 1;",
 			want: []finding{
-				{0, "t.id = NULL", `"t.id = NULL" is never true; use IS NULL`, []int{0}},
-				{0, "p.note <> NULL", `"p.note <> NULL" is never true; use IS NOT NULL`, []int{0}},
+				{0, "t.id = NULL", "`t.id = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "p.note <> NULL", "`p.note <> NULL` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
 			},
 		},
 		{
 			name: "quoted text kept as written",
 			sql:  "SELECT * FROM t WHERE [a  b] = NULL;",
-			want: []finding{{0, "[a  b] = NULL", "\"[a  b] = NULL\" is never true; use IS NULL", []int{0}}},
+			want: []finding{{0, "[a  b] = NULL", "`[a  b] = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 	})
 }
@@ -233,84 +233,92 @@ func TestDisallowDropObject(t *testing.T) {
 		{
 			name: "a user, whose name is one part",
 			sql:  "DROP USER [a. b];",
-			want: []finding{{0, "DROP USER [a. b]", "drops user [a. b]", []int{0}}},
+			want: []finding{{0, "DROP USER [a. b]", "Drops user `[a. b]`.", []int{0}}},
 		},
 		{
 			name: "an external library, whose name is one part",
 			sql:  "DROP EXTERNAL LIBRARY [a. b];",
-			want: []finding{{0, "DROP EXTERNAL LIBRARY [a. b]", "drops external library [a. b]", []int{0}}},
+			want: []finding{{0, "DROP EXTERNAL LIBRARY [a. b]", "Drops external library `[a. b]`.", []int{0}}},
 		},
 		{
 			name: "Service Broker objects, whose names are one part",
 			sql:  "DROP MESSAGE TYPE [//Adventure-Works.com/Expenses];\nDROP QUEUE dbo.q;",
 			want: []finding{
-				{0, "DROP MESSAGE TYPE [//Adventure-Works.com/Expenses]", "drops message type [//Adventure-Works.com/Expenses]", []int{0}},
-				{1, "DROP QUEUE dbo.q", "drops queue dbo.q", []int{0}},
+				{0, "DROP MESSAGE TYPE [//Adventure-Works.com/Expenses]", "Drops message type `[//Adventure-Works.com/Expenses]`.", []int{0}},
+				{1, "DROP QUEUE dbo.q", "Drops queue `dbo.q`.", []int{0}},
 			},
 		},
 		{
 			name: "indexes of the same name on two tables",
 			sql:  "DROP INDEX ix ON dbo.t, ix ON dbo.p;\nDROP INDEX t.ix_n;",
 			want: []finding{
-				{0, "DROP INDEX ix ON dbo.t, ix ON dbo.p", "drops index ix on dbo.t, ix on dbo.p", []int{0}},
-				{1, "DROP INDEX t.ix_n", "drops index t.ix_n", []int{0}},
+				{0, "DROP INDEX ix ON dbo.t, ix ON dbo.p", "Drops indexes `ix` of `dbo.t` and `ix` of `dbo.p`.", []int{0}},
+				{1, "DROP INDEX t.ix_n", "Drops index `t.ix_n`.", []int{0}},
 			},
 		},
 		{
 			name: "every DROP",
 			sql:  "DROP TABLE IF EXISTS t, dbo.p;\nDROP VIEW v;\nDROP INDEX ix_n ON t;\nDROP PROCEDURE pr;\nDROP FUNCTION f;\nDROP SCHEMA s;\nDROP DATABASE d;\nDROP USER u;\nALTER TABLE t DROP COLUMN n, code;",
 			want: []finding{
-				{0, "DROP TABLE IF EXISTS t, dbo.p", "drops table t, dbo.p", []int{0}},
-				{1, "DROP VIEW v", "drops view v", []int{0}},
-				{2, "DROP INDEX ix_n ON t", "drops index ix_n on t", []int{0}},
-				{3, "DROP PROCEDURE pr", "drops procedure pr", []int{0}},
-				{4, "DROP FUNCTION f", "drops function f", []int{0}},
-				{5, "DROP SCHEMA s", "drops schema s", []int{0}},
-				{6, "DROP DATABASE d", "drops database d", []int{0}},
-				{7, "DROP USER u", "drops user u", []int{0}},
-				{8, "n", "drops column n of t", []int{0}},
-				{8, "code", "drops column code of t", []int{0}},
+				{0, "DROP TABLE IF EXISTS t, dbo.p", "Drops tables `t` and `dbo.p`.", []int{0}},
+				{1, "DROP VIEW v", "Drops view `v`.", []int{0}},
+				{2, "DROP INDEX ix_n ON t", "Drops index `ix_n` of `t`.", []int{0}},
+				{3, "DROP PROCEDURE pr", "Drops procedure `pr`.", []int{0}},
+				{4, "DROP FUNCTION f", "Drops function `f`.", []int{0}},
+				{5, "DROP SCHEMA s", "Drops schema `s`.", []int{0}},
+				{6, "DROP DATABASE d", "Drops database `d`.", []int{0}},
+				{7, "DROP USER u", "Drops user `u`.", []int{0}},
+				{8, "n", "Drops column `n` of `t`.", []int{0}},
+				{8, "code", "Drops column `code` of `t`.", []int{0}},
 			},
 		},
 		{
 			name: "a column after a constraint in one DROP",
 			sql:  "ALTER TABLE t DROP CONSTRAINT uk_code, COLUMN n, code;",
 			want: []finding{
-				{0, "n", "drops column n of t", []int{0}},
-				{0, "code", "drops column code of t", []int{0}},
+				{0, "n", "Drops column `n` of `t`.", []int{0}},
+				{0, "code", "Drops column `code` of `t`.", []int{0}},
 			},
 		},
 		{name: "a constraint belongs to DisallowDropConstraint", sql: "ALTER TABLE t DROP CONSTRAINT ck_n;"},
 		{
 			name: "a name with a line break",
 			sql:  "DROP TABLE [a\nb];",
-			want: []finding{{0, "DROP TABLE [a\nb]", "drops table [a\\nb]", []int{0}}},
+			want: []finding{{0, "DROP TABLE [a\nb]", "Drops table `[a\\nb]`.", []int{0}}},
 		},
 		{
 			name: "DROP SENSITIVITY CLASSIFICATION and DROP SIGNATURE",
 			sql:  "DROP SENSITIVITY CLASSIFICATION FROM dbo.t.n;\nDROP SIGNATURE FROM pr BY CERTIFICATE c1;",
 			want: []finding{
-				{0, "DROP SENSITIVITY CLASSIFICATION FROM dbo.t.n", "drops sensitivity classification of dbo.t.n", []int{0}},
-				{1, "DROP SIGNATURE FROM pr BY CERTIFICATE c1", "drops signature of pr", []int{0}},
+				{0, "DROP SENSITIVITY CLASSIFICATION FROM dbo.t.n", "Drops the sensitivity classification of `dbo.t.n`.", []int{0}},
+				{1, "DROP SIGNATURE FROM pr BY CERTIFICATE c1", "Drops the signature of `pr`.", []int{0}},
+			},
+		},
+		{
+			name: "DROP COUNTER SIGNATURE and a key without a name",
+			sql:  "DROP COUNTER SIGNATURE FROM pr BY CERTIFICATE c1;\nDROP MASTER KEY;",
+			want: []finding{
+				{0, "DROP COUNTER SIGNATURE FROM pr BY CERTIFICATE c1", "Drops the counter signature of `pr`.", []int{0}},
+				{1, "DROP MASTER KEY", "Drops the master key.", []int{0}},
 			},
 		},
 		{
 			name: "a name with a part left out",
 			sql:  "DROP TABLE shop..t;",
-			want: []finding{{0, "DROP TABLE shop..t", "drops table shop..t", []int{0}}},
+			want: []finding{{0, "DROP TABLE shop..t", "Drops table `shop..t`.", []int{0}}},
 		},
 		{
 			name: "DROP STATISTICS names each",
 			sql:  "DROP STATISTICS t.s1, dbo.t.s2;",
-			want: []finding{{0, "DROP STATISTICS t.s1, dbo.t.s2", "drops statistics t.s1, dbo.t.s2", []int{0}}},
+			want: []finding{{0, "DROP STATISTICS t.s1, dbo.t.s2", "Drops statistics `t.s1` and `dbo.t.s2`.", []int{0}}},
 		},
 		{
 			name: "dotted and listed names of DROP",
 			sql:  "DROP EXTERNAL TABLE dbo.t;\nDROP EVENT NOTIFICATION n1, n2 ON SERVER;\nDROP QUEUE dbo.q;",
 			want: []finding{
-				{0, "DROP EXTERNAL TABLE dbo.t", "drops external table dbo.t", []int{0}},
-				{1, "DROP EVENT NOTIFICATION n1, n2 ON SERVER", "drops event notification n1, n2", []int{0}},
-				{2, "DROP QUEUE dbo.q", "drops queue dbo.q", []int{0}},
+				{0, "DROP EXTERNAL TABLE dbo.t", "Drops external table `dbo.t`.", []int{0}},
+				{1, "DROP EVENT NOTIFICATION n1, n2 ON SERVER", "Drops event notifications `n1` and `n2`.", []int{0}},
+				{2, "DROP QUEUE dbo.q", "Drops queue `dbo.q`.", []int{0}},
 			},
 		},
 	})
@@ -322,8 +330,8 @@ func TestDisallowTruncate(t *testing.T) {
 			name: "TRUNCATE TABLE",
 			sql:  "TRUNCATE TABLE t;\nTRUNCATE TABLE dbo.p WITH (PARTITIONS (1));",
 			want: []finding{
-				{0, "TRUNCATE TABLE t", "truncates t", []int{0}},
-				{1, "TRUNCATE TABLE dbo.p WITH (PARTITIONS (1))", "truncates partitions of dbo.p", []int{0}},
+				{0, "TRUNCATE TABLE t", "Truncates `t`.", []int{0}},
+				{1, "TRUNCATE TABLE dbo.p WITH (PARTITIONS (1))", "Truncates partitions of `dbo.p`.", []int{0}},
 			},
 		},
 	})
@@ -335,25 +343,25 @@ func TestDisallowRename(t *testing.T) {
 			name: "sp_rename of a column, a table, and a view",
 			sql:  "EXEC sp_rename 'dbo.t.n', 'm', 'COLUMN';\nEXEC sp_rename @objname = N't', @newname = N't3';\nEXEC sys.sp_rename 'v', 'v2', 'OBJECT';\nEXEC sp_rename 'dbo.t.ix_n', 'ix_m', 'INDEX';\nEXEC sp_rename 'pr', 'pr2';",
 			want: []finding{
-				{0, "EXEC sp_rename 'dbo.t.n', 'm', 'COLUMN'", "renames column n of dbo.t to m", []int{0}},
-				{1, "EXEC sp_rename @objname = N't', @newname = N't3'", "renames table t to t3", []int{0}},
-				{2, "EXEC sys.sp_rename 'v', 'v2', 'OBJECT'", "renames view v to v2", []int{0}},
+				{0, "EXEC sp_rename 'dbo.t.n', 'm', 'COLUMN'", "Renames column `n` of `dbo.t` to `m`.", []int{0}},
+				{1, "EXEC sp_rename @objname = N't', @newname = N't3'", "Renames table `t` to `t3`.", []int{0}},
+				{2, "EXEC sys.sp_rename 'v', 'v2', 'OBJECT'", "Renames view `v` to `v2`.", []int{0}},
 			},
 		},
 		{
 			name: "sp_rename of a column whose name keeps spaces inside brackets",
 			sql:  "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN';",
-			want: []finding{{0, "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN'", "renames column [ c ] of dbo.t to d", []int{0}}},
+			want: []finding{{0, "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN'", "Renames column `[ c ]` of `dbo.t` to `d`.", []int{0}}},
 		},
 		{
 			name: "sp_rename of a name the change renamed away and reused",
 			sql:  "EXEC sp_rename 'dbo.t', 'moved', 'OBJECT';\nGO\nCREATE VIEW dbo.t AS SELECT 1 AS n;\nGO\nEXEC sp_rename 'dbo.t', 'new', 'OBJECT';",
-			want: []finding{{0, "EXEC sp_rename 'dbo.t', 'moved', 'OBJECT'", "renames table dbo.t to moved", []int{0}}},
+			want: []finding{{0, "EXEC sp_rename 'dbo.t', 'moved', 'OBJECT'", "Renames table `dbo.t` to `moved`.", []int{0}}},
 		},
 		{
 			name: "sp_rename of a name renamed away and reused in the same block",
 			sql:  "BEGIN EXEC sp_rename 'dbo.v', 'moved', 'OBJECT'; CREATE TABLE dbo.v (id INT); EXEC sp_rename 'dbo.v', 'new', 'OBJECT'; END;",
-			want: []finding{{0, "EXEC sp_rename 'dbo.v', 'moved', 'OBJECT'", "renames view dbo.v to moved", []int{0}}},
+			want: []finding{{0, "EXEC sp_rename 'dbo.v', 'moved', 'OBJECT'", "Renames view `dbo.v` to `moved`.", []int{0}}},
 		},
 		{
 			name: "sp_rename of a name the change dropped and reused",
@@ -376,39 +384,39 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "constraints of the synced schema",
 			sql:  "ALTER TABLE t DROP CONSTRAINT pk_t, fk_p;\nALTER TABLE dbo.t DROP CONSTRAINT uk_code;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t DROP CONSTRAINT df_n;",
 			want: []finding{
-				{0, "pk_t", "drops primary key pk_t of t", []int{0}},
-				{0, "fk_p", "drops foreign key fk_p of t", []int{0}},
-				{1, "uk_code", "drops unique constraint uk_code of dbo.t", []int{0}},
-				{2, "ck_n", "drops check constraint ck_n of t", []int{0}},
+				{0, "pk_t", "Drops primary key `pk_t` of `t`.", []int{0}},
+				{0, "fk_p", "Drops foreign key `fk_p` of `t`.", []int{0}},
+				{1, "uk_code", "Drops unique constraint `uk_code` of `dbo.t`.", []int{0}},
+				{2, "ck_n", "Drops check constraint `ck_n` of `t`.", []int{0}},
 			},
 		},
 		{
 			name: "an item that restates CONSTRAINT or COLUMN",
 			sql:  "ALTER TABLE t DROP CONSTRAINT pk_t, CONSTRAINT fk_p;\nALTER TABLE t DROP CONSTRAINT uk_code, COLUMN n;\nALTER TABLE t DROP COLUMN code, CONSTRAINT IF EXISTS ck_n, df_n;",
 			want: []finding{
-				{0, "pk_t", "drops primary key pk_t of t", []int{0}},
-				{0, "fk_p", "drops foreign key fk_p of t", []int{0}},
-				{1, "uk_code", "drops unique constraint uk_code of t", []int{0}},
-				{2, "ck_n", "drops check constraint ck_n of t", []int{0}},
+				{0, "pk_t", "Drops primary key `pk_t` of `t`.", []int{0}},
+				{0, "fk_p", "Drops foreign key `fk_p` of `t`.", []int{0}},
+				{1, "uk_code", "Drops unique constraint `uk_code` of `t`.", []int{0}},
+				{2, "ck_n", "Drops check constraint `ck_n` of `t`.", []int{0}},
 			},
 		},
 		{
 			name: "constraints the change defined",
 			sql:  "ALTER TABLE nokey ADD CONSTRAINT ck_a CHECK (a > 0);\nALTER TABLE nokey DROP CONSTRAINT ck_a;\nALTER TABLE nokey ADD CONSTRAINT df_a DEFAULT 0 FOR a;\nALTER TABLE nokey DROP CONSTRAINT df_a;",
-			want: []finding{{1, "ck_a", "drops check constraint ck_a of nokey", []int{0}}},
+			want: []finding{{1, "ck_a", "Drops check constraint `ck_a` of `nokey`.", []int{0}}},
 		},
 		{
 			name: "a constraint on a column the change adds, or of the database named",
 			sql:  "ALTER TABLE nokey ADD extra INT CONSTRAINT ck_extra CHECK (extra >= 0);\nALTER TABLE nokey DROP CONSTRAINT ck_extra;\nALTER TABLE other.dbo.t ADD CONSTRAINT ck_y CHECK (n > 0);\nALTER TABLE dbo.t ADD CONSTRAINT ck_y CHECK (n > 0);\nALTER TABLE other.dbo.t DROP CONSTRAINT ck_y;",
 			want: []finding{
-				{1, "ck_extra", "drops check constraint ck_extra of nokey", []int{0}},
-				{4, "ck_y", "drops check constraint ck_y of other.dbo.t", []int{0}},
+				{1, "ck_extra", "Drops check constraint `ck_extra` of `nokey`.", []int{0}},
+				{4, "ck_y", "Drops check constraint `ck_y` of `other.dbo.t`.", []int{0}},
 			},
 		},
 		{
 			name: "a constraint added and dropped in a block, or defined on a table of a named schema",
 			sql:  "BEGIN ALTER TABLE nokey ADD CONSTRAINT ck_b CHECK (a > 0); ALTER TABLE nokey DROP CONSTRAINT ck_b; END;\nALTER TABLE s.t2 ADD CONSTRAINT ck_z CHECK (id > 0);\nALTER TABLE t2 DROP CONSTRAINT ck_z;",
-			want: []finding{{0, "ck_b", "drops check constraint ck_b of nokey", []int{0}}},
+			want: []finding{{0, "ck_b", "Drops check constraint `ck_b` of `nokey`.", []int{0}}},
 		},
 		{
 			name: "a definition a rollback may undo",
@@ -417,7 +425,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 		{
 			name: "a constraint dropped, added back as another kind, and dropped again in control flow",
 			sql:  "IF 1 = 1 BEGIN ALTER TABLE t DROP CONSTRAINT ck_n; ALTER TABLE t ADD CONSTRAINT ck_n DEFAULT 0 FOR n; ALTER TABLE t DROP CONSTRAINT ck_n; END;\nALTER TABLE t DROP CONSTRAINT ck_n;",
-			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
+			want: []finding{{0, "ck_n", "Drops check constraint `ck_n` of `t`.", []int{0}}},
 		},
 		{
 			name: "constraints and tables the change renames",
@@ -442,17 +450,17 @@ func TestDisallowDropConstraint(t *testing.T) {
 		{
 			name: "a constraint added back on a new column in control flow",
 			sql:  "IF 1 = 1 BEGIN ALTER TABLE t DROP CONSTRAINT ck_n; ALTER TABLE t ADD n2 INT CONSTRAINT ck_n DEFAULT 0; ALTER TABLE t DROP CONSTRAINT ck_n; END;",
-			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
+			want: []finding{{0, "ck_n", "Drops check constraint `ck_n` of `t`.", []int{0}}},
 		},
 		{
 			name: "a rollback to a savepoint, which keeps what came before it",
 			sql:  "BEGIN TRAN;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t ADD CONSTRAINT ck_n DEFAULT 0 FOR n;\nSAVE TRAN keep;\nROLLBACK TRAN keep;\nALTER TABLE t DROP CONSTRAINT ck_n;",
-			want: []finding{{1, "ck_n", "drops check constraint ck_n of t", []int{0}}},
+			want: []finding{{1, "ck_n", "Drops check constraint `ck_n` of `t`.", []int{0}}},
 		},
 		{
 			name: "a rollback in a procedure body, which does not run",
 			sql:  "ALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t ADD CONSTRAINT ck_n DEFAULT 0 FOR n;\nGO\nCREATE PROCEDURE pr AS ROLLBACK;\nGO\nALTER TABLE t DROP CONSTRAINT ck_n;",
-			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
+			want: []finding{{0, "ck_n", "Drops check constraint `ck_n` of `t`.", []int{0}}},
 		},
 		{
 			name: "a definition a rollback in control flow may undo",
@@ -465,7 +473,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{Name: "dbo"},
 				{Name: "audit", Tables: []*metadata.TableMetadata{{Name: "t3", CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck_a"}}}}},
 			}}}},
-			want: []finding{{1, "ck_a", "drops check constraint ck_a of audit.t3", []int{0}}},
+			want: []finding{{1, "ck_a", "Drops check constraint `ck_a` of `audit.t3`.", []int{0}}},
 		},
 		{
 			name: "a USE in a block",
@@ -491,8 +499,8 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "inside a routine body or IF",
 			sql:  "IF 1 = 1 ALTER TABLE t DROP CONSTRAINT fk_p;\nGO\nCREATE PROCEDURE pr AS ALTER TABLE t DROP CONSTRAINT ck_n;",
 			want: []finding{
-				{0, "fk_p", "drops foreign key fk_p of t", []int{0}},
-				{2, "ck_n", "drops check constraint ck_n of t", []int{0}},
+				{0, "fk_p", "Drops foreign key `fk_p` of `t`.", []int{0}},
+				{2, "ck_n", "Drops check constraint `ck_n` of `t`.", []int{0}},
 			},
 		},
 	})
@@ -503,7 +511,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 		{
 			name: "CREATE TABLE without a primary key",
 			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, CONSTRAINT pk_c PRIMARY KEY (id));\nCREATE TABLE #tmp (id INT);",
-			want: []finding{{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}}},
+			want: []finding{{0, "CREATE TABLE a (id INT)", "Creates table `a` without a primary key.", []int{0}}},
 		},
 		{
 			name: "settled by a later key, drop, or rename",
@@ -512,12 +520,12 @@ func TestRequirePrimaryKey(t *testing.T) {
 		{
 			name: "a column rename, which does not move a table named like it",
 			sql:  "CREATE TABLE [t].[id] (x INT);\nEXEC sp_rename 't.id', 'id2', 'COLUMN';",
-			want: []finding{{0, "CREATE TABLE [t].[id] (x INT)", "creates table t.id without a primary key", []int{0}}},
+			want: []finding{{0, "CREATE TABLE [t].[id] (x INT)", "Creates table `t.id` without a primary key.", []int{0}}},
 		},
 		{
 			name: "a primary key dropped and not added back",
 			sql:  "ALTER TABLE t DROP CONSTRAINT pk_t;\nALTER TABLE p DROP CONSTRAINT pk_p;\nALTER TABLE p ADD CONSTRAINT pk_p2 PRIMARY KEY (id, note);",
-			want: []finding{{0, "pk_t", "removes the primary key of t, and the change adds none back", []int{0}}},
+			want: []finding{{0, "pk_t", "Removes the primary key of `t`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name: "a FileTable, whose fixed schema has a primary key",
@@ -530,12 +538,12 @@ func TestRequirePrimaryKey(t *testing.T) {
 		{
 			name: "in a CREATE SCHEMA",
 			sql:  "CREATE SCHEMA s2 CREATE TABLE s2.k (id INT);",
-			want: []finding{{0, "CREATE TABLE s2.k (id INT)", "creates table s2.k without a primary key", []int{0}}},
+			want: []finding{{0, "CREATE TABLE s2.k (id INT)", "Creates table `s2.k` without a primary key.", []int{0}}},
 		},
 		{
 			name: "not settled by a column rename, nor judged in a routine body",
 			sql:  "CREATE TABLE f (id INT);\nRENAME OBJECT f COLUMN id TO id2;\nGO\nCREATE PROCEDURE pr AS ALTER TABLE t DROP CONSTRAINT pk_t;",
-			want: []finding{{0, "CREATE TABLE f (id INT)", "creates table f without a primary key", []int{0}}},
+			want: []finding{{0, "CREATE TABLE f (id INT)", "Creates table `f` without a primary key.", []int{0}}},
 		},
 	})
 }
