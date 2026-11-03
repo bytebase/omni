@@ -31,6 +31,16 @@ func (s Segment) Empty() bool {
 		// Skip block comments, but NOT conditional comments /*!...*/.
 		// Conditional comments contain executable SQL — segment is not empty.
 		if b == '/' && i+1 < len(t) && t[i+1] == '*' {
+			// A comment MariaDB skips unread is a comment; one that never closes
+			// keeps the segment, so the lexer reports it.
+			if skippedComment(t, i) {
+				end := skippedCommentEnd(t, i)
+				if end < 0 {
+					return false
+				}
+				i = end
+				continue
+			}
 			if i+2 < len(t) && t[i+2] == '!' {
 				return false
 			}
@@ -544,7 +554,8 @@ func skipHashComment(sql string, i int) int {
 // first */ outside every token (lexer.go), so Split must agree on where it
 // ends; an ordinary comment closes at the first */ whatever surrounds it.
 func isExecutableCommentStart(sql string, i int) bool {
-	return i+2 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == '!'
+	_, ok := execOpener(sql, i)
+	return ok
 }
 
 // skipBlockCommentMySQL skips a block comment starting at position i. An
@@ -553,6 +564,15 @@ func isExecutableCommentStart(sql string, i int) bool {
 // (/*!...*/) ends at the first */ outside every token, as the lexer reads
 // it. Returns position after the closing */ (or end of input).
 func skipBlockCommentMySQL(sql string, i int) int {
+	if skippedComment(sql, i) {
+		// MariaDB skips a comment versioned for MySQL 5.7 or 8.0 with its
+		// nesting counted; one that never closes keeps the rest in one
+		// segment, and the lexer reports it.
+		if end := skippedCommentEnd(sql, i); end >= 0 {
+			return end
+		}
+		return len(sql)
+	}
 	if isExecutableCommentStart(sql, i) {
 		// MySQL and MariaDB reject an executable comment that never closes, so
 		// the remainder stays in one segment and the lexer reports the error.
@@ -599,6 +619,20 @@ func skipExecutableComment(sql string, i int) (int, bool) {
 		case sql[i] == '#':
 			i = skipHashComment(sql, i)
 		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			if skippedComment(sql, i) {
+				if end := skippedCommentEnd(sql, i); end >= 0 {
+					i = end
+				} else {
+					i = len(sql)
+				}
+				continue
+			}
+			if body, ok := execOpener(sql, i); ok {
+				// Executable comments do not nest: an opener inside one is
+				// dropped, as the lexer drops it.
+				i = body
+				continue
+			}
 			i = skipOrdinaryBlockComment(sql, i)
 		default:
 			i++

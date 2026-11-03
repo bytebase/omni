@@ -1807,7 +1807,8 @@ func (l *Lexer) skipExecClose() bool {
 //
 // The scan steps over whatever the lexer itself would read as one token: a
 // string literal, a quoted identifier, a line comment, and a nested block
-// comment, which does not nest and so ends at its own first "*/". A "*/" inside
+// comment, which does not nest and so ends at its own first "*/". It steps over
+// a nested executable comment's opener alone, as the lexer does. A "*/" inside
 // any of those does not close the comment and a "/*" inside one opens nothing,
 // so a raw byte scan cannot stand in for this: MySQL 8.0, MariaDB 11.8.8 and
 // TiDB v8.5.5 all run `SELECT 1 /*! + LENGTH('/*') */`, and MySQL and MariaDB
@@ -1874,6 +1875,12 @@ func (l *Lexer) scanExecClose(pos int, m *execCloseMemo) int {
 			}
 
 		case ch == '/' && pos+1 < len(l.input) && l.input[pos+1] == '*':
+			if body, ok := execOpener(l.input, pos); ok {
+				// An opener inside an executable comment is dropped, as the
+				// lexer drops it, so the comment ends at the first "*/".
+				pos = body
+				continue
+			}
 			if m != nil {
 				// Openers nested in one another start their nested comments at
 				// different offsets, each running to the same "*/".
@@ -2123,13 +2130,17 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			commentStart := l.pos
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
 			// These should be parsed as SQL, not skipped.
-			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
-				// Skip /*!
-				innerStart := l.pos + 3
-				// Skip optional version number (digits)
-				vpos := innerStart
-				for vpos < len(l.input) && l.input[vpos] >= '0' && l.input[vpos] <= '9' {
-					vpos++
+			if vpos, ok := execOpener(l.input, l.pos); ok {
+				if l.execStack != nil {
+					// Executable comments do not nest: an opener inside one is
+					// dropped, and the first "*/" outside a token, which
+					// execCommentClose found for the comment it is in, ends them
+					// both. MySQL 8.0, MariaDB 11.8.8 and OceanBase 4.3.5 return 7
+					// for "SELECT 1 /*! + 1 /*! + 2 /* x */ + 3 */", and answer 1064
+					// at the second "*/" of "SELECT 1 /*! + 1 /*! + 2 */ */".
+					l.execMarkers = append(l.execMarkers, execMarker{l.pos, vpos})
+					l.pos = vpos
+					continue
 				}
 				// closeStart marks the '*' of the closing "*/" when the comment
 				// closes; it stays -1 if the input ends first.

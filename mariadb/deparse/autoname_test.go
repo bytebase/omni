@@ -13,11 +13,18 @@ func TestNameText(t *testing.T) {
 		{"a -- note\n + 1", "a -- note\n + 1"},
 		{"a # note\n + 1", "a # note\n + 1"},
 		// An item's text ends at its last token, before the comment's "*/".
-		{"a/*!80000 +2", "a +2"},
+		{"a/*!50000 +2", "a +2"},
+		// MariaDB skips a comment versioned for MySQL 5.7 or 8.0 unread: it
+		// names "1 /*!80023 +3*/ + 1" as "1  + 1".
+		{"1 /*!80023 +3*/ + 1", "1  + 1"},
+		{"1 /*!50699 +3*/ + 1", "1  +3 + 1"},
 		{"a /*!+3*/ + 1", "a +3 + 1"},
 		// An executable comment opened before the item closes inside it.
 		{"a */ + 1", "a  + 1"},
 		{"a*/*c*/b", "a*/*c*/b"},
+		// Executable comments do not nest: the first "*/" closes both, and the
+		// "*/*" after it is a multiplication and a comment.
+		{"a /*! + 1 /*! + 2 */ */*c*/3", "a  + 1  + 2  */*c*/3"},
 		{"'*/' + `/*!`", "'*/' + `/*!`"},
 		{`'a\'*/' + 1`, `'a\'*/' + 1`},
 	} {

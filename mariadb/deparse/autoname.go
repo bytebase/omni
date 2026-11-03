@@ -151,7 +151,7 @@ func nameText(text string) string {
 		return text
 	}
 	out := make([]byte, 0, len(text))
-	open := 0 // executable comments opened in text and not yet closed
+	open := false // an executable comment opened in text and not yet closed
 	for i := 0; i < len(text); {
 		c := text[i]
 		switch {
@@ -159,12 +159,22 @@ func nameText(text string) string {
 			j := quotedEnd(text, i)
 			out = append(out, text[i:j]...)
 			i = j
+		case skippedComment(text, i):
+			// A comment versioned for MySQL 5.7 or 8.0 is one MariaDB skips
+			// unread, so it names "1 /*!80023 +3*/ + 1" as "1  + 1".
+			if j := skippedCommentEnd(text, i); j >= 0 {
+				i = j
+			} else {
+				i = len(text)
+			}
 		case c == '/' && i+2 < len(text) && text[i+1] == '*' && text[i+2] == '!':
+			// Executable comments do not nest: an opener inside one is dropped,
+			// and the first "*/" closes both.
 			i += 3
 			for i < len(text) && text[i] >= '0' && text[i] <= '9' {
 				i++
 			}
-			open++
+			open = true
 		case c == '/' && i+1 < len(text) && text[i+1] == '*':
 			j := commentEnd(text, i+2)
 			out = append(out, text[i:j]...)
@@ -177,13 +187,11 @@ func nameText(text string) string {
 			out = append(out, text[i:j]...)
 			i = j
 		case c == '*' && i+1 < len(text) && text[i+1] == '/' &&
-			(open > 0 || i+2 == len(text) || text[i+2] != '*'):
+			(open || i+2 == len(text) || text[i+2] != '*'):
 			// Outside a quote and a comment, "*/" closes an executable comment,
 			// opened in the text or before it; "*/*" with none open is a
 			// multiplication followed by a comment.
-			if open > 0 {
-				open--
-			}
+			open = false
 			i += 2
 		default:
 			out = append(out, c)
@@ -191,6 +199,44 @@ func nameText(text string) string {
 		}
 	}
 	return string(out)
+}
+
+// skippedComment and skippedCommentEnd read the comments MariaDB skips unread,
+// as mariadb/parser's functions of the same names do: "/*!" with a version from
+// 50700 to 99999 (five digits, or six when a sixth follows), ending where its
+// nesting, counted over raw bytes, closes.
+func skippedComment(s string, i int) bool {
+	if i+2 >= len(s) || s[i] != '/' || s[i+1] != '*' || s[i+2] != '!' {
+		return false
+	}
+	j := i + 3
+	v, n := 0, 0
+	for j < len(s) && n < 6 && s[j] >= '0' && s[j] <= '9' {
+		v = v*10 + int(s[j]-'0')
+		j++
+		n++
+	}
+	return n >= 5 && v >= 50700 && v <= 99999
+}
+
+func skippedCommentEnd(s string, i int) int {
+	depth := 0
+	for i+1 < len(s) {
+		switch {
+		case s[i] == '/' && s[i+1] == '*':
+			depth++
+			i += 2
+		case s[i] == '*' && s[i+1] == '/':
+			depth--
+			i += 2
+			if depth == 0 {
+				return i
+			}
+		default:
+			i++
+		}
+	}
+	return -1
 }
 
 // isDashComment reports whether a "-- " comment starts at i: two dashes and a
