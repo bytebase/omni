@@ -53,7 +53,7 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 			if v.Table == nil || v.Temporary || v.IfNotExists || v.Like != nil || v.Select != nil || createsPrimaryKey(v) {
 				continue
 			}
-			list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: "creates table " + table(v.Table) + " without a primary key"})
+			list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: "Creates table " + review.Code(table(v.Table)) + " without a primary key."})
 		case *ast.AlterTableStmt:
 			if v.Table == nil {
 				continue
@@ -79,11 +79,11 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 				settle(v.Table)
 			}
 			if dropped != nil && !adds && !renames {
-				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(dropped.Loc), message: "removes the primary key of " + table(v.Table) + ", and the change adds none back"})
+				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(dropped.Loc), message: removesPrimaryKey(table(v.Table))})
 			}
 		case *ast.DropIndexStmt:
 			if sameName(v.Name, "PRIMARY") {
-				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: "removes the primary key of " + table(v.Table) + ", and the change adds none back"})
+				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: removesPrimaryKey(table(v.Table))})
 			}
 		case *ast.DropTableStmt:
 			// DROP TEMPORARY TABLE drops no permanent table.
@@ -114,6 +114,12 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 			r.report(review.RequirePrimaryKey, p.index, p.rng, p.message)
 		}
 	}
+}
+
+// removesPrimaryKey writes the finding for a table whose primary key the
+// change drops without adding one back.
+func removesPrimaryKey(tbl string) string {
+	return "Removes the primary key of " + review.Code(tbl) + ", and the change doesn't add one back."
 }
 
 // createsPrimaryKey reports whether a CREATE TABLE declares a primary key,

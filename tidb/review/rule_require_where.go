@@ -18,15 +18,26 @@ func checkRequireWhere(s *statement, r *reporter) {
 			return v.DryRun == ast.BatchDryRunNone
 		case *ast.UpdateStmt:
 			if v.Where == nil {
-				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "UPDATE "+tableExprs(v.Tables)+" has no WHERE clause")
+				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), noWhere("UPDATE", "of", tableExprs(v.Tables)))
 			}
 		case *ast.DeleteStmt:
 			if v.Where == nil {
-				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "DELETE FROM "+tableExprs(deleted(v))+" has no WHERE clause")
+				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), noWhere("DELETE", "from", tableExprs(deleted(v))))
 			}
 		}
 		return true
 	})
+}
+
+// noWhere writes the finding for an UPDATE or DELETE without a WHERE
+// clause: "`UPDATE` of `t` has no `WHERE` clause.", naming the tables it
+// updates or deletes from, and none when it names no table.
+func noWhere(verb, prep string, names []string) string {
+	subject := review.Code(verb)
+	if len(names) > 0 {
+		subject += " " + prep + " " + review.Names(names...)
+	}
+	return subject + " has no " + review.Code("WHERE") + " clause."
 }
 
 // deleted returns the tables a DELETE names as the ones it deletes from:

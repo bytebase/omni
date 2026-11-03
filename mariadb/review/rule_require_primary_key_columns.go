@@ -390,7 +390,7 @@ read:
 				if judging = runs; runs {
 					dropped[t] = append(dropped[t], columns...)
 					if lost != nil {
-						findings = append(findings, found{t, s.statement, rangeOf(lost.Loc), "removes the primary key of " + table(ref) + ", and the change adds none back"})
+						findings = append(findings, found{t, s.statement, rangeOf(lost.Loc), removesPrimaryKey(table(ref))})
 					}
 				}
 			}
