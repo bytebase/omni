@@ -787,8 +787,9 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.
 func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	pi := &PartitionInfo{
-		Linear:   pc.Linear,
-		NumParts: pc.NumParts,
+		Linear:     pc.Linear,
+		NumParts:   pc.NumParts,
+		keyColumns: partitionKeyColumns(tbl, pc),
 	}
 	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
 		pi.NumParts = 1
@@ -1365,14 +1366,7 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	if pc.Type == nodes.PartitionHash && pc.Expr != nil {
-		if cr, ok := pc.Expr.(*nodes.ColumnRef); ok {
-			if err := validateUniqueKeysCoverPartitionColumns(tbl, []string{cr.Column}); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
 }
 
 func containsPartitionDefaultExpr(n nodes.Node) bool {
@@ -1404,37 +1398,6 @@ func primaryKeyColumns(tbl *Table) []string {
 				cols = append(cols, ic.Name)
 			}
 			return cols
-		}
-	}
-	return nil
-}
-
-func validateUniqueKeysCoverPartitionColumns(tbl *Table, partCols []string) error {
-	if len(partCols) == 0 {
-		return nil
-	}
-	for _, idx := range tbl.Indexes {
-		if !idx.Unique && !idx.Primary {
-			continue
-		}
-		// A GLOBAL unique index is not partitioned with the table, so it enforces
-		// uniqueness across every partition and needs none of the partitioning
-		// columns. 4.3.5 accepts exactly that and rejects the LOCAL and unstated
-		// forms with this same 1503, which is why only GLOBAL is exempt. The primary
-		// key never is: CREATE TABLE refuses a scope on it (1064), and ALTER TABLE ...
-		// ADD PRIMARY KEY (a) GLOBAL on a table partitioned by another column is still
-		// a 1503 on 4.3.5.6.
-		if !idx.Primary && strings.EqualFold(idx.Scope, "GLOBAL") {
-			continue
-		}
-		idxCols := map[string]bool{}
-		for _, ic := range idx.Columns {
-			idxCols[toLower(ic.Name)] = true
-		}
-		for _, pc := range partCols {
-			if !idxCols[toLower(pc)] {
-				return &Error{Code: 1503, SQLState: "HY000", Message: "A UNIQUE INDEX must include all columns in the table's partitioning function"}
-			}
 		}
 	}
 	return nil

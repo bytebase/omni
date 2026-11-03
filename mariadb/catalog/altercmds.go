@@ -25,6 +25,36 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	repartition := alterRepartition(stmt.Commands)
+	if tbl.Partitioning == nil && repartition == nil {
+		return c.alterTableCommands(db, tbl, key, stmt)
+	}
+	// A unique key on a partitioned table must cover the partitioning columns. MariaDB
+	// checks the table the statement leaves, after every other error (1060, 1061 and
+	// 1091 come first in ADD UNIQUE (b), ADD COLUMN a ...), and leaves the table as it
+	// was: snapshot it to undo the commands when the check fails.
+	before := make(map[*Index]bool, len(tbl.Indexes))
+	for _, idx := range tbl.Indexes {
+		before[idx] = true
+	}
+	snapshot := cloneTable(tbl)
+	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
+		return err
+	}
+	if err := validateAlteredUniqueKeys(tbl, before, repartition); err != nil {
+		undoAlter(db, key, tbl, snapshot)
+		return err
+	}
+	if repartition != nil && tbl.Partitioning != nil {
+		// The catalog does not apply a repartition, so the partitioning it keeps no
+		// longer says which columns a unique key needs.
+		tbl.Partitioning.keyColumns = nil
+	}
+	return nil
+}
+
+// alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
+func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) == 0 {
 		return nil
 	}
@@ -99,15 +129,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	snapshot := cloneTable(tbl)
 	origKey := key
 
-	rollback := func() {
-		// If a RENAME changed the map key, undo it, then restore all fields.
-		newKey := toLower(tbl.Name)
-		if newKey != origKey {
-			delete(db.Tables, newKey)
-			db.Tables[origKey] = tbl
-		}
-		*tbl = snapshot
-	}
+	rollback := func() { undoAlter(db, origKey, tbl, snapshot) }
 
 	for _, cmd := range stmt.Commands {
 		if skip[cmd] {
@@ -135,6 +157,17 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
+// in the statement may have moved the table to another database, under another name,
+// so its entry there goes first.
+func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
+	if cur := tbl.Database; cur != nil && cur.Tables[toLower(tbl.Name)] == tbl {
+		delete(cur.Tables, toLower(tbl.Name))
+	}
+	*tbl = snapshot
+	db.Tables[key] = tbl
 }
 
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
@@ -1336,6 +1369,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 			}
 		}
 	}
+	renamePartitionKeyColumn(tbl, oldName, newName)
 }
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.
