@@ -574,6 +574,19 @@ func (p *Parser) backtickQuotedAt(off int) bool {
 
 // parseFuncCall parses a function call after the name has been consumed.
 func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, error) {
+	// The builtins below take their special argument syntax (COUNT(*),
+	// DISTINCT, TRIM's FROM, SUBSTRING's FROM and FOR, GROUP_CONCAT's ORDER BY
+	// and SEPARATOR, the keyword arguments, OVER) from the grammar's keyword for
+	// the name, and only the unqualified, unquoted name is that keyword. A
+	// schema-qualified name is a stored function and a backtick-quoted name an
+	// identifier: either way the call is an ordinary one, with ordinary
+	// expressions for arguments and no window. TiDB v8.5.5 runs `trim`(b, 'x')
+	// and `timestampdiff`(1, 2, 3), answers 1305 for `count`(a) and
+	// test.trim(b, 'x'), and answers 1064 for `count`(*),
+	// `trim`(LEADING 'x' FROM b), test.substring(b FROM 1), `sum`(a) OVER ()
+	// and the other special forms under a quoted or qualified name. p.prev is
+	// the name's token.
+	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc)
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
@@ -586,47 +599,36 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// Handle special function forms
 	upperName := strings.ToUpper(name)
 
-	// COUNT(*)
-	if upperName == "COUNT" && p.cur.Type == '*' {
-		p.advance()
-		fc.Star = true
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
+	if builtin {
+		// COUNT(*)
+		if upperName == "COUNT" && p.cur.Type == '*' {
+			p.advance()
+			fc.Star = true
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			goto overCheck
 		}
-		goto overCheck
-	}
 
-	// Aggregate with DISTINCT: COUNT(DISTINCT ...), SUM(DISTINCT ...), etc.
-	if p.cur.Type == kwDISTINCT {
-		fc.Distinct = true
-		p.advance()
-	}
+		// Aggregate with DISTINCT: COUNT(DISTINCT ...), SUM(DISTINCT ...), etc.
+		if p.cur.Type == kwDISTINCT {
+			fc.Distinct = true
+			p.advance()
+		}
 
-	// TRIM special syntax: TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str)
-	if upperName == "TRIM" {
-		return p.parseTrimFunc(fc)
-	}
-
-	// SUBSTRING special syntax: SUBSTRING(str, pos, len) or SUBSTRING(str FROM pos FOR len)
-	if upperName == "SUBSTRING" || upperName == "SUBSTR" {
-		return p.parseSubstringFunc(fc)
-	}
-
-	// GROUP_CONCAT special syntax
-	if upperName == "GROUP_CONCAT" {
-		return p.parseGroupConcatFunc(fc)
-	}
-
-	// Keyword-argument builtins: their first argument (or a trailing clause)
-	// is a bare keyword the engine lexes as a token, never an identifier —
-	// a backtick-quoted unit is a syntax error (oracle mysql 8.0).
-	// Only the unqualified, unquoted builtin has this shape. A schema-qualified
-	// name is a stored function, and a backtick-quoted name is an identifier
-	// rather than the keyword the grammar reads the builtin from: either way the
-	// arguments are ordinary expressions. TiDB v8.5.5 runs
-	// `timestampdiff`(1, 2, 3), and reads SECOND in `timestampdiff`(SECOND, a, b) as a column.
-	if schema == "" && !p.backtickQuotedAt(start) {
 		switch upperName {
+		case "TRIM":
+			// TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str)
+			return p.parseTrimFunc(fc)
+		case "SUBSTRING", "SUBSTR":
+			// SUBSTRING(str, pos, len) or SUBSTRING(str FROM pos FOR len)
+			return p.parseSubstringFunc(fc)
+		case "GROUP_CONCAT":
+			return p.parseGroupConcatFunc(fc)
+		// Keyword-argument builtins: their first argument (or a trailing
+		// clause) is a bare keyword the engine lexes as a token, never an
+		// identifier — a backtick-quoted unit is a syntax error (oracle mysql
+		// 8.0).
 		case "TIMESTAMPDIFF", "TIMESTAMPADD":
 			return p.parseTimestampFunc(fc)
 		case "GET_FORMAT":
@@ -651,11 +653,20 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 
 	// Regular argument list
 	for {
+		// An ordinary call's arguments are expressions, which neither * nor a
+		// bare INTERVAL is: TiDB v8.5.5 answers 1064 for `count`(*) and
+		// `date_add`(d, INTERVAL 1 DAY), and parses `f`(d + INTERVAL 1 DAY).
+		if !builtin && p.cur.Type == '*' {
+			return nil, p.syntaxErrorAtCur()
+		}
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
 		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, bare := arg.(*nodes.IntervalExpr); bare && !builtin {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
@@ -706,7 +717,7 @@ overCheck:
 	//     | expr PRECEDING
 	//     | expr FOLLOWING
 	//   }
-	if p.cur.Type == kwOVER {
+	if builtin && p.cur.Type == kwOVER {
 		p.advance()
 		wd, err := p.parseOverClause()
 		if err != nil {
