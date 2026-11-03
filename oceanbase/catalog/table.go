@@ -75,9 +75,12 @@ type PartitionDefInfo struct {
 
 // SubPartitionDefInfo holds a single subpartition definition.
 type SubPartitionDefInfo struct {
-	Name    string
-	Engine  string
-	Comment string
+	Name string
+	// ValueExpr is an OceanBase RANGE or LIST subpartition's bound, kept as
+	// PartitionDefInfo.ValueExpr keeps a partition's; "" for HASH and KEY.
+	ValueExpr string
+	Engine    string
+	Comment   string
 }
 
 type Column struct {

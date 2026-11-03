@@ -835,6 +835,18 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			pi.SubType = "KEY"
 			pi.SubColumns = pc.SubPartColumns
 			pi.SubAlgo = pc.SubPartAlgo
+		// OceanBase also subpartitions by RANGE and LIST, with or without COLUMNS.
+		case nodes.PartitionRange, nodes.PartitionList:
+			pi.SubType = "RANGE"
+			if pc.SubPartType == nodes.PartitionList {
+				pi.SubType = "LIST"
+			}
+			if len(pc.SubPartColumns) > 0 {
+				pi.SubType += " COLUMNS"
+				pi.SubColumns = pc.SubPartColumns
+			} else {
+				pi.SubExpr = nodeToSQL(pc.SubPartExpr)
+			}
 		}
 		pi.SubLinear = false // TODO: track linear for subpartitions if parser supports it
 		if pc.NumSubParts > 0 {
@@ -878,6 +890,9 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 				Engine:  pdi.Engine,
 				Comment: pdi.Comment,
 			}
+			if spd.Values != nil {
+				spdi.ValueExpr = partitionValueToString(spd.Values, pc.SubPartType)
+			}
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
@@ -901,15 +916,21 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		if fill == 0 {
 			fill = 1
 		}
+		generated := 0
 		for _, pdi := range pi.Partitions {
 			if len(pdi.SubPartitions) > 0 {
 				continue
 			}
 			for j := 0; j < fill; j++ {
+				name := fmt.Sprintf("%ssp%d", pdi.Name, j)
+				if defaultSubpartitionValue(pi.SubType) != "" {
+					name = generatedSubpartitionName(&generated)
+				}
 				pdi.SubPartitions = append(pdi.SubPartitions, &SubPartitionDefInfo{
-					Name:    fmt.Sprintf("%ssp%d", pdi.Name, j),
-					Engine:  pdi.Engine,
-					Comment: pdi.Comment,
+					Name:      name,
+					ValueExpr: defaultSubpartitionValue(pi.SubType),
+					Engine:    pdi.Engine,
+					Comment:   pdi.Comment,
 				})
 			}
 		}
@@ -936,6 +957,9 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	if len(pc.SubPartTemplate) > 0 {
 		for _, spd := range pc.SubPartTemplate {
 			st := &SubPartitionDefInfo{Name: spd.Name}
+			if spd.Values != nil {
+				st.ValueExpr = partitionValueToString(spd.Values, pc.SubPartType)
+			}
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
@@ -956,6 +980,26 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		pi.UseDefaultNumSubpartitions = false
 	}
 
+	// RANGE and LIST subpartitioning with no subpartitions listed at all. OceanBase
+	// gives each partition one, to MAXVALUE or DEFAULT, named as generatedSubpartitionName
+	// names them, prints them per partition, and keeps no template: a partition added
+	// later gets <partition>sp0 (rangeListSubpartitionCases).
+	if defaultSubpartitionValue(pi.SubType) != "" && pi.UseDefaultSubpartitions {
+		generated := 0
+		for _, part := range pi.Partitions {
+			if len(part.SubPartitions) == 0 {
+				part.SubPartitions = append(part.SubPartitions, &SubPartitionDefInfo{
+					Name:      generatedSubpartitionName(&generated),
+					ValueExpr: defaultSubpartitionValue(pi.SubType),
+					Engine:    part.Engine,
+					Comment:   part.Comment,
+				})
+			}
+		}
+		pi.UseDefaultSubpartitions = false
+		pi.UseDefaultNumSubpartitions = false
+	}
+
 	// Auto-generate subpartition definitions when SUBPARTITIONS N is specified
 	// without explicit subpartition definitions.
 	// MySQL naming convention: <partition_name>sp0, <partition_name>sp1, ...
@@ -964,7 +1008,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			if len(part.SubPartitions) == 0 {
 				for j := 0; j < pi.NumSubParts; j++ {
 					part.SubPartitions = append(part.SubPartitions, &SubPartitionDefInfo{
-						Name: fmt.Sprintf("%ssp%d", part.Name, j),
+						Name:      fmt.Sprintf("%ssp%d", part.Name, j),
+						ValueExpr: defaultSubpartitionValue(pi.SubType),
 					})
 				}
 			}
@@ -974,11 +1019,40 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		// partition added later takes it, so templateSubpartitions names its
 		// subpartitions <partition>sp<i> as above.
 		for j := 0; j < pi.NumSubParts; j++ {
-			pi.SubPartTemplate = append(pi.SubPartTemplate, &SubPartitionDefInfo{Name: fmt.Sprintf("p%d", j)})
+			pi.SubPartTemplate = append(pi.SubPartTemplate, &SubPartitionDefInfo{
+				Name:      fmt.Sprintf("p%d", j),
+				ValueExpr: defaultSubpartitionValue(pi.SubType),
+			})
 		}
 	}
 
 	return pi
+}
+
+// defaultSubpartitionValue is the bound OceanBase gives a subpartition it makes up for a
+// RANGE or LIST subpartitioned table, one the DDL did not list: MAXVALUE for RANGE and
+// DEFAULT for LIST, so it holds every row the listed ones do not. A partition added to
+// a RANGE subpartitioned table without subpartitions reads back as
+// (subpartition `p1sp0` values less than (MAXVALUE)) on 4.3.5.6.
+func defaultSubpartitionValue(subType string) string {
+	switch {
+	case strings.HasPrefix(subType, "RANGE"):
+		return "MAXVALUE"
+	case strings.HasPrefix(subType, "LIST"):
+		return "DEFAULT"
+	}
+	return ""
+}
+
+// generatedSubpartitionName names the next subpartition OceanBase makes up at CREATE
+// TABLE for a RANGE or LIST subpartitioned partition that listed none: P8192, P8193,
+// ..., counted across the table in partition order (4.3.5.6 reads back
+// PARTITION BY HASH(a) PARTITIONS 2 SUBPARTITION BY LIST(b) as p0 (P8192) and
+// p1 (P8193)). count is the number named so far.
+func generatedSubpartitionName(count *int) string {
+	name := fmt.Sprintf("P%d", 8192+*count)
+	*count++
+	return name
 }
 
 // templateSubpartitions gives partition pd the subpartitions of a SUBPARTITION
@@ -990,9 +1064,10 @@ func templateSubpartitions(template []*SubPartitionDefInfo, pd *PartitionDefInfo
 	out := make([]*SubPartitionDefInfo, 0, len(template))
 	for _, st := range template {
 		sp := &SubPartitionDefInfo{
-			Name:    pd.Name + "s" + st.Name,
-			Engine:  pd.Engine,
-			Comment: pd.Comment,
+			Name:      pd.Name + "s" + st.Name,
+			ValueExpr: st.ValueExpr,
+			Engine:    pd.Engine,
+			Comment:   pd.Comment,
 		}
 		if st.Engine != "" {
 			sp.Engine = st.Engine
@@ -1220,7 +1295,42 @@ func canonicalBitLiteral(bits string) string {
 	return "b'" + bits + "'"
 }
 
+// errSubpartitionBoundKind is OceanBase's answer to a subpartition whose bound does not
+// fit SUBPARTITION BY: a RANGE subpartition without VALUES LESS THAN, a LIST one
+// without VALUES IN, or a HASH or KEY one with either. The grammar takes them, and
+// 4.3.5.6 refuses the table with 1210.
+func errSubpartitionBoundKind() error {
+	return &Error{Code: 1210, SQLState: "HY000", Message: "Invalid argument"}
+}
+
+// checkSubpartitionBoundKinds checks the subpartitions a partition lists against the
+// table's SUBPARTITION BY type.
+func checkSubpartitionBoundKinds(subType nodes.PartitionType, subs []*nodes.SubPartitionDef) error {
+	for _, spd := range subs {
+		var ok bool
+		switch subType {
+		case nodes.PartitionRange:
+			ok = spd.Values != nil && !spd.ValuesIn
+		case nodes.PartitionList:
+			ok = spd.Values != nil && spd.ValuesIn
+		default:
+			ok = spd.Values == nil
+		}
+		if !ok {
+			return errSubpartitionBoundKind()
+		}
+	}
+	return nil
+}
+
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0 {
+		for _, pd := range pc.Partitions {
+			if err := checkSubpartitionBoundKinds(pc.SubPartType, pd.SubPartitions); err != nil {
+				return err
+			}
+		}
+	}
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
@@ -1356,6 +1466,11 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 					subParts[j] = partitionValueItemSQL(sub.(nodes.ExprNode))
 				}
 				parts[i] = "(" + strings.Join(subParts, ",") + ")"
+			} else if s, ok := item.(*nodes.String); ok {
+				// MAXVALUE beside other bounds, as in RANGE COLUMNS
+				// VALUES LESS THAN (5, MAXVALUE). Asserting it to an expression
+				// panicked.
+				parts[i] = s.Str
 			} else {
 				parts[i] = partitionValueItemSQL(item.(nodes.ExprNode))
 			}
@@ -1374,6 +1489,11 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 // falls back to the verbatim deparse, so a literal bound (the common case) is rendered unchanged and
 // an unsupported expression is preserved (and flagged as a documented round-trip limitation).
 func partitionValueItemSQL(n nodes.ExprNode) string {
+	// An OceanBase LIST subpartition's VALUES IN (DEFAULT), which 4.3.5.6 prints as
+	// written. A partition's is refused before it gets here (validatePartitionClause).
+	if _, ok := n.(*nodes.DefaultExpr); ok {
+		return "DEFAULT"
+	}
 	if v, ok := foldConstIntExpr(n); ok {
 		return strconv.FormatInt(v, 10)
 	}
