@@ -143,9 +143,11 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	// 4.3.5 prints ORGANIZATION HEAP for a heap table, so a readback of one did not
 	// parse until this parser took HEAP (read on 2026-11-02).
 	{name: "organization heap", sql: "CREATE TABLE obprobe_oh (a INT PRIMARY KEY) ORGANIZATION HEAP"},
-	// ALTER TABLE ... SET takes any table option, not only TABLEGROUP (read on 2026-11-02).
-	{name: "alter table set table option", sql: "ALTER TABLE obprobe_t SET PCTFREE = 5", pending: true},
-	{name: "alter table set dynamic partition policy", sql: "ALTER TABLE obprobe_t SET DYNAMIC_PARTITION_POLICY (ENABLE = FALSE)", pending: true},
+	// ALTER TABLE ... SET takes any table option, not only TABLEGROUP (read on
+	// 2026-11-02), and this parser reads it (alterTableSetCases). SET TABLEGROUP above
+	// stays pending with the TABLEGROUP option itself.
+	{name: "alter table set table option", sql: "ALTER TABLE obprobe_t SET PCTFREE = 5"},
+	{name: "alter table set dynamic partition policy", sql: "ALTER TABLE obprobe_t SET DYNAMIC_PARTITION_POLICY (ENABLE = FALSE)"},
 }
 
 // sharedGrammar is the subtractive side: MySQL syntax this parser accepts, which
