@@ -53,6 +53,11 @@ func reviewFindings(t *testing.T, rev review.ReviewFunc, sql string, targets ...
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
+	}
 	return result.Findings
 }
 

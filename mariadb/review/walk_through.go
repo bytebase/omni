@@ -26,7 +26,7 @@ func checkWalkThrough(ctx context.Context, sql string, stmts []statement, t revi
 	if !ok {
 		return nil
 	}
-	r.report(review.WalkThrough, stmts[v.Statement].index, note.rng, escapeLines(note.message(v)))
+	r.report(note.code(v), stmts[v.Statement].index, note.rng, escapeLines(note.message(v)))
 	return nil
 }
 
@@ -84,12 +84,15 @@ func outsideASCII(s string) bool {
 	return false
 }
 
-// walkNote is a check's finding: where it anchors and what it says when
-// the object is certainly absent or certainly present.
+// walkNote is a check's finding: where it anchors, and what it says and
+// the condition it reports when the object is certainly absent or
+// certainly present.
 type walkNote struct {
-	rng     review.Range
-	absent  string
-	present string
+	rng         review.Range
+	absent      string
+	present     string
+	absentCode  review.FindingCode
+	presentCode review.FindingCode
 }
 
 func (n *walkNote) message(v *walk.Violation) string {
@@ -97,6 +100,13 @@ func (n *walkNote) message(v *walk.Violation) string {
 		return n.absent
 	}
 	return n.present
+}
+
+func (n *walkNote) code(v *walk.Violation) review.FindingCode {
+	if v.Got == walk.Absent {
+		return n.absentCode
+	}
+	return n.presentCode
 }
 
 // walker is the session the change runs in, as far as the walk follows
@@ -220,15 +230,22 @@ func (b *builder) arrive(k walk.Key) {
 func (b *builder) anchor() review.Range { return rangeOf(b.s.loc) }
 
 // need adds a check, with the messages for a key certainly absent and
-// certainly present (or of another kind).
+// certainly present (or of another kind). The check's want gives the
+// condition: a key wanted present and absent is an object not found, and
+// present of another kind a wrong kind; one wanted absent and present is
+// a name taken.
 func (b *builder) need(k walk.Key, want walk.Fact, kinds []string, rng review.Range, absent, present string) {
-	b.Need(k, want, kinds, &walkNote{rng: rng, absent: absent, present: present})
+	note := &walkNote{rng: rng, absent: absent, present: present, absentCode: review.ObjectNotFound, presentCode: review.WrongObjectKind}
+	if want == walk.Absent {
+		note.presentCode = review.NameTaken
+	}
+	b.Need(k, want, kinds, note)
 }
 
 // fail records that the statement certainly fails, established from the
-// keys it read; with no keys, from its text.
-func (b *builder) fail(rng review.Range, keys []walk.Key, message string) {
-	b.Fail(keys, walk.Absent, &walkNote{rng: rng, absent: message, present: message})
+// keys it read; with no keys, from its text. code is the condition.
+func (b *builder) fail(rng review.Range, keys []walk.Key, code review.FindingCode, message string) {
+	b.Fail(keys, walk.Absent, &walkNote{rng: rng, absent: message, present: message, absentCode: code, presentCode: code})
 }
 
 func dbKey(db string) walk.Key { return walk.Key{Space: spaceDatabase, Name: db} }
@@ -391,7 +408,7 @@ func (b *builder) ref(tr *ast.TableRef) (tableRef, refState) {
 	case b.w.lost:
 		return r, refUnknown
 	case b.w.noDatabase:
-		b.fail(r.rng, []walk.Key{dbKey(b.w.current)}, noDatabaseMessage)
+		b.fail(r.rng, []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabaseMessage)
 		return r, refFailed
 	}
 	r.db = b.w.current
@@ -426,7 +443,7 @@ func (b *builder) tooLong(name string, rng review.Range) bool {
 			return false
 		}
 	}
-	b.fail(rng, nil, "Identifier name "+ident(name)+" is too long")
+	b.fail(rng, nil, review.NameTooLong, "Identifier name "+ident(name)+" is too long")
 	return true
 }
 

@@ -45,6 +45,11 @@ func walkFindings(t *testing.T, sql string, targets ...review.Target) []review.F
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
+	}
 	return result.Findings
 }
 

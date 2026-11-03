@@ -15,11 +15,11 @@ func checkRequireWhere(s *statement, r *reporter) {
 			return false
 		case *ast.UpdateStmt:
 			if v.Where == nil {
-				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), noWhere("UPDATE", "of", tableExprs(v.Tables)))
+				r.report(review.MissingWhere, s.index, rangeOf(v.Loc), noWhere("UPDATE", "of", tableExprs(v.Tables)))
 			}
 		case *ast.DeleteStmt:
 			if v.Where == nil {
-				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), noWhere("DELETE", "from", tableExprs(deleted(v))))
+				r.report(review.MissingWhere, s.index, rangeOf(v.Loc), noWhere("DELETE", "from", tableExprs(deleted(v))))
 			}
 		}
 		return true

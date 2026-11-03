@@ -57,6 +57,9 @@ func TestReviewOceanBase(t *testing.T) {
 			}
 			var got []finding
 			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				if f.Rule == tt.rule {
 					got = append(got, finding{f.Statement, tt.sql[f.Range.Start:f.Range.End], f.Message, f.Targets})
 				}

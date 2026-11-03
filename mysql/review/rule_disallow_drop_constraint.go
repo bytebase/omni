@@ -103,7 +103,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		case ok && !sameCase(i.table, ref):
 		case ok && i.unsure:
 		case ok && i.unique:
-			r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), dropsConstraint("unique constraint", ident(name), table(ref)))
+			r.report(review.DropsConstraint, s.index, rangeOf(loc), dropsConstraint("unique constraint", ident(name), table(ref)))
 		case !ok && !isReplaced(ref):
 			open = append(open, droppedIndex{s.index, pos, loc, ref, name})
 		}
@@ -174,7 +174,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					loc = ast.Loc{Start: rng.Start, End: rng.End}
 				}
 				if sameName(v.Name, "PRIMARY") {
-					r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), dropsPrimaryKey(table(v.Table)))
+					r.report(review.DropsConstraint, s.index, rangeOf(loc), dropsPrimaryKey(table(v.Table)))
 				} else {
 					droppedName(pos, s, loc, v.Table, v.Name)
 				}
@@ -221,7 +221,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 						droppedName(pos, s, cmd.Loc, v.Table, cmd.Name)
 					}
 					if msg != "" {
-						r.report(review.DisallowDropConstraint, s.index, rangeOf(cmd.Loc), msg)
+						r.report(review.DropsConstraint, s.index, rangeOf(cmd.Loc), msg)
 					}
 				}
 			}
@@ -243,7 +243,7 @@ func checkDroppedIndex(stmts []statement, d droppedIndex, x schemaIndex, r *repo
 		return
 	}
 	if unique, found := uniqueIndex(t, d.name); found && unique {
-		r.report(review.DisallowDropConstraint, d.statement, rangeOf(d.loc), dropsConstraint("unique constraint", ident(d.name), table(d.table)))
+		r.report(review.DropsConstraint, d.statement, rangeOf(d.loc), dropsConstraint("unique constraint", ident(d.name), table(d.table)))
 	}
 }
 

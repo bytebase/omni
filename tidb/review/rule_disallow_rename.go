@@ -17,7 +17,7 @@ func checkDisallowRename(s *statement, r *reporter) {
 				if pair == nil {
 					continue
 				}
-				r.report(review.DisallowRename, s.index, rangeOf(pair.Loc), renamesTable(table(pair.Old), table(pair.New)))
+				r.report(review.RenamesObject, s.index, rangeOf(pair.Loc), renamesTable(table(pair.Old), table(pair.New)))
 			}
 		case *ast.AlterTableStmt:
 			for _, cmd := range v.Commands {
@@ -26,12 +26,12 @@ func checkDisallowRename(s *statement, r *reporter) {
 				}
 				switch cmd.Type {
 				case ast.ATRenameTable:
-					r.report(review.DisallowRename, s.index, rangeOf(cmd.Loc), renamesTable(table(v.Table), ident(cmd.NewName)))
+					r.report(review.RenamesObject, s.index, rangeOf(cmd.Loc), renamesTable(table(v.Table), ident(cmd.NewName)))
 				case ast.ATRenameColumn:
-					r.report(review.DisallowRename, s.index, rangeOf(cmd.Loc), renamesColumn(ident(cmd.Name), table(v.Table), ident(cmd.NewName)))
+					r.report(review.RenamesObject, s.index, rangeOf(cmd.Loc), renamesColumn(ident(cmd.Name), table(v.Table), ident(cmd.NewName)))
 				case ast.ATChangeColumn:
 					if cmd.Column != nil && !sameName(cmd.Name, cmd.Column.Name) {
-						r.report(review.DisallowRename, s.index, rangeOf(cmd.Loc), renamesColumn(ident(cmd.Name), table(v.Table), ident(cmd.Column.Name)))
+						r.report(review.RenamesObject, s.index, rangeOf(cmd.Loc), renamesColumn(ident(cmd.Name), table(v.Table), ident(cmd.Column.Name)))
 					}
 				}
 			}

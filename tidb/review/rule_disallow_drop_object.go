@@ -17,12 +17,13 @@ import (
 // an index is an index here, and a unique key there.
 func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
-		// report anchors a DROP statement; reportAt a subcommand.
-		reportAt := func(rng review.Range, msg string) {
-			r.report(review.DisallowDropObject, s.index, rng, msg)
+		// report anchors a DROP statement; reportAt a subcommand. The code
+		// follows the kind the message names the object by.
+		reportAt := func(code review.FindingCode, rng review.Range, msg string) {
+			r.report(code, s.index, rng, msg)
 		}
 		report := func(loc ast.Loc, kind string, names ...string) {
-			reportAt(anchor(s, n, loc), drops(kind, names...))
+			reportAt(review.DropCode(kind), anchor(s, n, loc), drops(kind, names...))
 		}
 		switch v := n.(type) {
 		case *ast.DropTableStmt:
@@ -41,7 +42,7 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			if sameName(v.Name, "PRIMARY") {
 				return true
 			}
-			reportAt(anchor(s, n, v.Loc), dropsOf("index", table(v.Table), ident(v.Name)))
+			reportAt(review.DropCode("index"), anchor(s, n, v.Loc), dropsOf("index", table(v.Table), ident(v.Name)))
 		case *ast.DropRoutineStmt:
 			kind := "function"
 			if v.IsProcedure {
@@ -79,15 +80,15 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 				}
 				switch dropKindOf(sql, cmd) {
 				case dropColumn:
-					reportAt(rangeOf(cmd.Loc), dropsOf("column", table(v.Table), ident(cmd.Name)))
+					reportAt(review.DropCode("column"), rangeOf(cmd.Loc), dropsOf("column", table(v.Table), ident(cmd.Name)))
 				case dropIndex:
-					reportAt(rangeOf(cmd.Loc), dropsOf("index", table(v.Table), ident(cmd.Name)))
+					reportAt(review.DropCode("index"), rangeOf(cmd.Loc), dropsOf("index", table(v.Table), ident(cmd.Name)))
 				case dropPartition:
 					names := make([]string, len(cmd.PartitionNames))
 					for i, name := range cmd.PartitionNames {
 						names[i] = ident(name)
 					}
-					reportAt(rangeOf(cmd.Loc), dropsOf("partition", table(v.Table), names...))
+					reportAt(review.DropCode("partition"), rangeOf(cmd.Loc), dropsOf("partition", table(v.Table), names...))
 				}
 			}
 		}

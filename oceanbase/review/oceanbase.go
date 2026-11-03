@@ -42,5 +42,5 @@ func ReviewOceanBase(ctx context.Context, sql string, opts review.Options, targe
 // bytebase: backend/common/engine.go — EngineSupportPriorBackup;
 // backend/runner/taskrun/database_migrate_executor.go — runStandardMigration.
 func checkPriorBackupOceanBase(r *reporter) {
-	r.report(review.PriorBackup, -1, review.Range{}, "the change enables prior backup, which Bytebase does not take on OceanBase: the change runs without a backup")
+	r.report(review.PriorBackupUnsupported, -1, review.Range{}, "the change enables prior backup, which Bytebase does not take on OceanBase: the change runs without a backup")
 }

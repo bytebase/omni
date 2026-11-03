@@ -30,6 +30,7 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 		ref     *ast.TableRef
 		index   int
 		rng     review.Range
+		code    review.FindingCode
 		message string
 		settled bool
 	}
@@ -53,7 +54,7 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 			if v.Table == nil || v.Temporary || v.IfNotExists || v.Like != nil || v.Select != nil || createsPrimaryKey(v) {
 				continue
 			}
-			list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: "Creates table " + review.Code(table(v.Table)) + " without a primary key."})
+			list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), code: review.TableWithoutPrimaryKey, message: "Creates table " + review.Code(table(v.Table)) + " without a primary key."})
 		case *ast.AlterTableStmt:
 			if v.Table == nil {
 				continue
@@ -79,11 +80,11 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 				settle(v.Table)
 			}
 			if dropped != nil && !adds && !renames {
-				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(dropped.Loc), message: removesPrimaryKey(table(v.Table))})
+				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(dropped.Loc), code: review.PrimaryKeyRemoved, message: removesPrimaryKey(table(v.Table))})
 			}
 		case *ast.DropIndexStmt:
 			if sameName(v.Name, "PRIMARY") {
-				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: removesPrimaryKey(table(v.Table))})
+				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), code: review.PrimaryKeyRemoved, message: removesPrimaryKey(table(v.Table))})
 			}
 		case *ast.DropTableStmt:
 			// DROP TEMPORARY TABLE drops no permanent table.
@@ -111,7 +112,7 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 	}
 	for _, p := range list {
 		if !p.settled {
-			r.report(review.RequirePrimaryKey, p.index, p.rng, p.message)
+			r.report(p.code, p.index, p.rng, p.message)
 		}
 	}
 }
