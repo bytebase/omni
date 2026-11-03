@@ -9,7 +9,10 @@ import (
 	tidbparser "github.com/bytebase/omni/tidb/parser"
 )
 
-func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
+// createTable installs the table stmt defines. declared is true when stmt lists
+// its indexes in the order they were declared, as a CREATE TABLE statement does,
+// and false for a loader's snapshot, which lists them in an order of its own.
+func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -411,6 +414,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
+	// The indexes so far come from column definitions. TiDB checks them after
+	// the table-level ones, when it looks for an implicit primary key and when
+	// it holds unique keys to the partitioning columns.
+	columnIndexes := len(tbl.Indexes)
+
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
@@ -439,6 +447,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(pkIdx, con.IndexOptions)
+			// TiDB v8.5.5 refuses the table rather than create an invisible key,
+			// as its ALTER TABLE ... ADD PRIMARY KEY path does.
+			if !pkIdx.Visible {
+				return errPrimaryKeyInvisible()
+			}
 			tbl.Indexes = append(tbl.Indexes, pkIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:      "PRIMARY",
@@ -565,6 +578,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
+	// Without a primary key TiDB v8.5.5 refuses a table whose implicit one is
+	// invisible. A snapshot does not keep the declaration order the check needs,
+	// and the table it describes passed the check on the server.
+	if !hasPK && declared {
+		if err := checkImplicitPrimaryKeyVisible(tbl, tbl.Indexes[columnIndexes:], tbl.Indexes[:columnIndexes]); err != nil {
+			return err
+		}
+	}
+
 	// Process deferred FK backing indexes now that all explicit indexes are in place.
 	for _, fk := range pendingFKs {
 		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
@@ -579,7 +601,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	// Process partition clause.
 	if stmt.Partitions != nil {
+		if err := validateCreateTableUniqueKeys(tbl, columnIndexes, stmt.Partitions); err != nil {
+			return err
+		}
 		tbl.Partitioning = buildPartitionInfo(stmt.Partitions)
+		tbl.Partitioning.keyColumns = partitionKeyColumns(tbl, stmt.Partitions)
 	}
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
@@ -789,11 +815,11 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 				// Tuple: (val1, val2) for multi-column LIST COLUMNS
 				subParts := make([]string, len(subList.Items))
 				for j, sub := range subList.Items {
-					subParts[j] = nodeToSQL(sub.(nodes.ExprNode))
+					subParts[j] = partitionBoundSQL(sub)
 				}
 				parts[i] = "(" + strings.Join(subParts, ",") + ")"
 			} else {
-				parts[i] = nodeToSQL(item.(nodes.ExprNode))
+				parts[i] = partitionBoundSQL(item)
 			}
 		}
 		return strings.Join(parts, ",")
@@ -802,6 +828,20 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 	default:
 		return ""
 	}
+}
+
+// partitionBoundSQL renders one bound in a partition's value list. MAXVALUE
+// reaches it as a String beside the expressions, as in RANGE COLUMNS
+// VALUES LESS THAN (5, MAXVALUE); asserting every item to an expression
+// panicked Exec on that statement.
+func partitionBoundSQL(n nodes.Node) string {
+	switch n := n.(type) {
+	case *nodes.String:
+		return n.Str
+	case nodes.ExprNode:
+		return nodeToSQL(n)
+	}
+	return ""
 }
 
 // validateForeignKeys checks all FK constraints on a table against the referenced tables.
@@ -1454,7 +1494,7 @@ func isTextBlobLengthStripped(dt string) bool {
 }
 
 // escapeEnumValue escapes single quotes in ENUM/SET values for SHOW CREATE TABLE.
-// MySQL uses ” (two single quotes) to escape a single quote in enum values.
+// MySQL escapes a single quote in enum values by doubling it.
 func escapeEnumValue(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }

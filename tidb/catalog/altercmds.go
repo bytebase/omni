@@ -109,6 +109,8 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
+	case nodes.ATPartitionBy:
+		return validateRepartition(tbl, cmd.PartitionBy)
 	case nodes.ATSetTiFlashReplica:
 		tbl.TiFlashReplica = cmd.TiFlashReplica
 		// LOCATION LABELS is optional; assign (possibly empty slice)
@@ -396,15 +398,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errMultiplePriKey()
 			}
 		}
-		// Mark PK columns as NOT NULL.
-		for _, colName := range cols {
-			col := tbl.GetColumn(colName)
-			if col != nil {
-				col.Nullable = false
-			}
-		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
 			Columns:   idxCols,
@@ -412,7 +407,32 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Primary:   true,
 			IndexType: "",
 			Visible:   true,
-		})
+		}
+		// The CREATE TABLE path applies the options of every index kind; this one
+		// used to drop them, so an index added by ALTER lost its comment,
+		// visibility and block size.
+		applyIndexOptions(pkIdx, con.IndexOptions)
+		// TiDB v8.5.5 refuses the statement rather than add an invisible key, and
+		// refuses it whole: the columns stay nullable.
+		if !pkIdx.Visible {
+			return errPrimaryKeyInvisible()
+		}
+		pkIdx.addedByAlter = true
+		// TiDB refuses an added CLUSTERED primary key outright (8200), before it
+		// would look at the partitioning.
+		if con.Clustered == nil || !*con.Clustered {
+			if err := validateNewUniqueKey(tbl, pkIdx); err != nil {
+				return err
+			}
+		}
+		// Mark PK columns as NOT NULL.
+		for _, colName := range cols {
+			col := tbl.GetColumn(colName)
+			if col != nil {
+				col.Nullable = false
+			}
+		}
+		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      "PRIMARY",
 			Type:      ConPrimaryKey,
@@ -433,14 +453,19 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		uqIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Unique:    true,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(uqIdx, con.IndexOptions)
+		if err := validateNewUniqueKey(tbl, uqIdx); err != nil {
+			return err
+		}
+		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
 			Type:      ConUniqueKey,
@@ -503,13 +528,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		keyIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(keyIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
 		idxName := con.Name
@@ -519,14 +546,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Fulltext:  true,
 			IndexType: "FULLTEXT",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(ftIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrSpatialIndex:
 		idxName := con.Name
@@ -536,14 +565,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return errDupKeyName(idxName)
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		spIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Spatial:   true,
 			IndexType: "SPATIAL",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(spIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, spIdx)
 	}
 
 	return nil
@@ -948,6 +979,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 			}
 		}
 	}
+	renamePartitionKeyColumn(tbl, oldName, newName)
 }
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.

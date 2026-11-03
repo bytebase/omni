@@ -26,10 +26,10 @@ func checkDisallowRename(s *statement, r *reporter) {
 		r.report(review.DisallowRename, s.index, rng, msg)
 	}
 	renames := func(kind string, from, to *ast.ObjectName) string {
-		return "renames " + kind + " " + object(from) + " to " + object(to)
+		return "Renames " + kind + " " + review.Code(object(from)) + " to " + review.Code(object(to)) + "."
 	}
 	swaps := func(kind string, a, b *ast.ObjectName) string {
-		return "swaps the names of " + kind + " " + object(a) + " and " + object(b)
+		return "Swaps the names of " + kind + " " + review.Names(object(a), object(b)) + "."
 	}
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
@@ -47,7 +47,7 @@ func checkDisallowRename(s *statement, r *reporter) {
 				case ast.AlterTableSwapWith:
 					report(rangeOf(a.Loc), swaps("tables", v.Name, a.NewName))
 				case ast.AlterTableRenameColumn:
-					report(rangeOf(a.Loc), "renames column "+ident(a.OldName)+" of "+object(v.Name)+" to "+ident(a.NewColName))
+					report(rangeOf(a.Loc), "Renames column "+review.Code(ident(a.OldName))+" of "+review.Code(object(v.Name))+" to "+review.Code(ident(a.NewColName))+".")
 				}
 			}
 		case *ast.AlterDynamicTableStmt:

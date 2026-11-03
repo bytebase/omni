@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -115,6 +116,15 @@ var walkCases = []walkCase{
 	// follows none. CAFé is café as a column and KÉ is ké as an index; ſ is
 	// s as a column and an index, and é is e as a routine and an event.
 	{name: "names outside ASCII", change: "CREATE TABLE x (id int, café int, KEY ké (id));\nALTER TABLE x DROP COLUMN CAFé;\nALTER TABLE x DROP INDEX KÉ;\nALTER TABLE x DROP INDEX Ké;\nALTER TABLE x DROP COLUMN zz;"},
+	// The SEQUENCE engine answers for seq_1_to_3 in every database, which
+	// the sync does not list: DROP TABLE and CREATE TRIGGER take it, and
+	// DML fails, but not for want of a table (1031). A trigger left on one
+	// keeps its database from being dropped (errno 39).
+	{name: "SEQUENCE engine tables", change: "SELECT COUNT(*) FROM seq_1_to_3;\nINSERT INTO seq_1_to_3 VALUES (1);\nUPDATE seq_1_to_10_step_2 SET seq = 1;\nDELETE FROM shop.seq_1_to_3;\nDROP TABLE nosuch;"},
+	{name: "SEQUENCE engine table dropped", change: "DROP TABLE seq_1_to_4;\nSELECT COUNT(*) FROM seq_1_to_4;\nDROP TABLE seq_1_to_4;"},
+	{name: "trigger on a SEQUENCE engine table", change: "CREATE TRIGGER trq BEFORE INSERT ON seq_1_to_3 FOR EACH ROW SET @x = 1;\nDROP TRIGGER trq;"},
+	{name: "SEQUENCE engine table altered", change: "ALTER TABLE seq_1_to_5 ENGINE = InnoDB;\nALTER TABLE seq_1_to_5 ADD COLUMN b int;"},
+	{name: "a name like a SEQUENCE engine table", change: "DROP TABLE seq_1_to_3x;\nINSERT INTO SEQ_1_TO_3 VALUES (1);\nDROP TABLE seq_1_to_;", complete: true},
 	{name: "an ASCII name may be one outside ASCII", setup: "CREATE TABLE ls (ſ int, a int, KEY ſ (a));\nCREATE PROCEDURE `pé`() SELECT 1;\nCREATE FUNCTION `fé`() RETURNS int DETERMINISTIC RETURN 1;\nCREATE EVENT `eé` ON SCHEDULE EVERY 1 DAY DO SELECT 1;", change: "ALTER TABLE ls DROP COLUMN s;\nALTER TABLE ls DROP INDEX s;\nDROP PROCEDURE pe;\nDROP FUNCTION shop.fe;\nDROP EVENT ee;\nALTER TABLE ls DROP COLUMN zz;\nDROP PROCEDURE nosuch;\nALTER TABLE t DROP COLUMN zz;"},
 	// Each assignment of a SET has a scope of its own (MariaDB spec §2.2): an
 	// unprefixed one the statement's, an @@session or bare @@ one the
@@ -145,12 +155,17 @@ var walkCases = []walkCase{
 	{name: "a column's versioning makes the table system-versioned", setup: "SET GLOBAL system_versioning_alter_history = KEEP;", change: "CREATE TABLE w (a int WITH SYSTEM VERSIONING, b int);\nALTER TABLE w ADD COLUMN x int AFTER row_start;\nALTER TABLE w DROP COLUMN x;"},
 	{name: "LIKE copies the versioning", setup: "SET GLOBAL system_versioning_alter_history = KEEP;", change: "CREATE TABLE w LIKE vt;\nALTER TABLE w ADD COLUMN x int AFTER row_start;\nALTER TABLE w DROP COLUMN x;"},
 	{name: "RENAME keeps the versioning", setup: "SET GLOBAL system_versioning_alter_history = KEEP;", change: "RENAME TABLE vt TO w;\nALTER TABLE w ADD COLUMN x int AFTER row_start;\nALTER TABLE w DROP COLUMN x;"},
-	// The sync before Bytebase #21665 lost the triggers of the
-	// system-versioned tables it skipped.
-	{name: "triggers the sync may not list", change: "DROP TRIGGER vtr;\nDROP TRIGGER vtr;"},
-	// MySQL's ALTER INDEX INVISIBLE, which omni's parser takes and MariaDB
-	// rejects, ends the walk.
-	{name: "MySQL forms", change: "ALTER TABLE t ALTER INDEX nosuch INVISIBLE;\nALTER TABLE t ALTER COLUMN a SET NOT NULL;"},
+	// A system-versioned table's triggers are listed with it.
+	{name: "a system-versioned table's triggers", change: "DROP TRIGGER vtr;\nDROP TRIGGER vtr;", complete: true},
+	// The sync lists every relation, sequences and system-versioned tables
+	// among them, and every trigger.
+	{name: "relations and triggers the sync does not list", change: "ALTER TABLE nosuch ADD COLUMN a int;\nDROP VIEW nosuch;\nDROP SEQUENCE nosuch;\nTRUNCATE TABLE nosuch;\nINSERT INTO nosuch VALUES (1);\nUPDATE nosuch SET a = 1;\nDELETE FROM nosuch;\nDROP TRIGGER nosuch;\nRENAME TABLE nosuch TO x;\nCREATE INDEX i ON nosuch (a);", complete: true},
+	{name: "a multi-table drop of a missing table", change: "DROP TABLE t, nosuch;", complete: true},
+	// MySQL's ALTER COLUMN ... SET NOT NULL, which omni's parser takes and
+	// MariaDB rejects, ends the walk, and so does MariaDB's ALTER INDEX ...
+	// IGNORED, which the walk does not follow.
+	{name: "MySQL forms", change: "ALTER TABLE t ALTER COLUMN a SET NOT NULL;"},
+	{name: "ALTER INDEX", change: "ALTER TABLE t ALTER INDEX nosuch IGNORED;"},
 	// MariaDB drops what exists of a multi-object drop, and a failed CREATE
 	// OR REPLACE TABLE may have dropped the old table: Judge stops at such
 	// a statement (walktest.PartialRejecter).
@@ -161,13 +176,12 @@ var walkCases = []walkCase{
 	{name: "DROP TEMPORARY TABLE drops what exists", change: "CREATE TEMPORARY TABLE tt1 (a int);\nDROP TEMPORARY TABLE tt1, nosuch;\nDROP TEMPORARY TABLE tt1;", complete: true},
 	{name: "a failed CREATE OR REPLACE TABLE drops the table", change: "CREATE OR REPLACE TABLE nokey (a int, a int);\nCREATE TABLE nokey (a int);", complete: true},
 	{name: "a failed CREATE OR REPLACE TABLE of a foreign key name", change: "CREATE OR REPLACE TABLE nokey (a int, CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE nokey (a int);", complete: true},
-	// What the walk leaves Unknown by design: relations and triggers the
-	// sync does not list, databases other than the target, the tables a
-	// query reads, generated index names, foreign key names held per
-	// database, a key two parts of one ALTER TABLE both change, a trigger
-	// of another spelling, and a function an unqualified DROP FUNCTION may
-	// find loaded.
-	{name: "unknown by design", change: "DROP FUNCTION nosuch;\nDROP TRIGGER nosuch;\nDROP TRIGGER TR;\nDROP TABLE IF EXISTS nokey;\nDROP TABLE t, nosuch;"},
+	// What the walk leaves Unknown by design: databases other than the
+	// target, the tables a query reads, generated index names, foreign key
+	// names held per database, a key two parts of one ALTER TABLE both
+	// change, a trigger of another spelling, and a function an unqualified
+	// DROP FUNCTION may find loaded.
+	{name: "unknown by design", change: "DROP FUNCTION nosuch;\nDROP TRIGGER TR;\nDROP TABLE IF EXISTS nokey;"},
 	{name: "unknown by design, after the walk", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT * FROM nosuch;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nCREATE TABLE y (a int, CONSTRAINT fy FOREIGN KEY (a) REFERENCES r (id));\nCREATE TABLE z LIKE y;\nALTER TABLE z DROP FOREIGN KEY fy;\nALTER TABLE t ADD COLUMN z int, DROP COLUMN z;\nALTER TABLE t ADD INDEX j (b), DROP INDEX j;\nALTER TABLE t ADD COLUMN x int, RENAME COLUMN x TO y;\nALTER TABLE nosuch ADD COLUMN a int;\nCREATE TABLE IF NOT EXISTS nosuch2 (a int);\nALTER TABLE nosuch2 DROP COLUMN b;\nRENAME TABLE nosuch TO x2;"},
 	{name: "a trigger of another database may create a temporary table", setup: "DROP TRIGGER tr;\nCREATE DATABASE q;\nCREATE TABLE q.o (a int);\nCREATE TRIGGER q.ot BEFORE INSERT ON q.o FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shop.made (a int);", change: "INSERT INTO q.o VALUES (1);\nDROP TEMPORARY TABLE made;\nDROP TEMPORARY TABLE made;"},
 	{name: "a query's function may create a temporary table", setup: "CREATE FUNCTION mk() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS made (a int); RETURN 1; END;", change: "CREATE TABLE c AS SELECT mk() AS x;\nDROP TEMPORARY TABLE made;\nDROP TEMPORARY TABLE made;"},
@@ -176,24 +190,6 @@ var walkCases = []walkCase{
 	// database. A call before a base table read in one query counts too.
 	{name: "a function a view or another database holds may create a temporary table", setup: "CREATE DATABASE q;\nCREATE FUNCTION q.mk() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made (a int); RETURN 1; END;\nCREATE FUNCTION q.mk2() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made2 (a int); RETURN 1; END;\nCREATE FUNCTION q.mk3() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made3 (a int); RETURN 1; END;\nCREATE FUNCTION q.mk4() RETURNS int DETERMINISTIC BEGIN CREATE TEMPORARY TABLE IF NOT EXISTS shop.made4 (a int); RETURN 1; END;\nCREATE VIEW vv AS SELECT q.mk() AS x;\nCREATE VIEW q.qv AS SELECT q.mk3() AS x;\nINSERT INTO nokey VALUES (1);", change: "SELECT q.mk4() FROM nokey;\nDROP TEMPORARY TABLE made4;\nSELECT * FROM vv;\nDROP TEMPORARY TABLE made;\nUSE q;\nSELECT mk2();\nUSE shop;\nDROP TEMPORARY TABLE made2;\nINSERT INTO nokey SELECT x FROM q.qv;\nDROP TEMPORARY TABLE made3;\nDROP TEMPORARY TABLE made3;", complete: true},
 	{name: "a trigger may create a temporary table", change: "CREATE TRIGGER tt BEFORE INSERT ON nokey FOR EACH ROW CREATE TEMPORARY TABLE IF NOT EXISTS shadow (a int);\nINSERT INTO nokey VALUES (1);\nINSERT INTO shadow VALUES (1);\nDROP TABLE shadow;"},
-}
-
-// walkSync is how Bytebase's sync lists a MariaDB database: since #21665
-// with its sequences, and its system-versioned tables as tables marked in
-// their create options; before it with neither. The walk must hold on
-// both.
-type walkSync uint8
-
-const (
-	syncCurrent walkSync = iota
-	syncBefore21665
-)
-
-func (s walkSync) String() string {
-	if s == syncBefore21665 {
-		return "before #21665"
-	}
-	return "current"
 }
 
 var walkServer struct {
@@ -276,22 +272,16 @@ func session(t testing.TB, db *sql.DB) *sql.Conn {
 
 func TestWalkThroughAgainstMariaDB(t *testing.T) {
 	db := startWalkMariaDB(t)
-	for _, s := range []walkSync{syncCurrent, syncBefore21665} {
-		t.Run(s.String(), func(t *testing.T) {
-			var found, rejected int
-			for _, tt := range walkCases {
-				t.Run(tt.name, func(t *testing.T) {
-					resetWalk(t, db, walkBase+tt.setup)
-					// The sync before #21665 hides the base's sequence and
-					// system-versioned table, which costs recall alone.
-					f, r := judgeWalk(t, db, s, tt.change, tt.complete && s == syncCurrent)
-					found += f
-					rejected += r
-				})
-			}
-			t.Logf("found %d of the %d statements the server rejects", found, rejected)
+	var found, rejected int
+	for _, tt := range walkCases {
+		t.Run(tt.name, func(t *testing.T) {
+			resetWalk(t, db, walkBase+tt.setup)
+			f, r := judgeWalk(t, db, tt.change, tt.complete)
+			found += f
+			rejected += r
 		})
 	}
+	t.Logf("found %d of the %d statements the server rejects", found, rejected)
 }
 
 // resetWalk drops every user database and recreates shop from base, with
@@ -350,7 +340,7 @@ func splitWalk(sql string) []string {
 // judgeWalk runs the change on a fresh connection with shop selected, as
 // Bytebase runs it, and holds the walk to it (walktest.Judge). The target
 // is the database as the admin connection syncs it before the change.
-func judgeWalk(t *testing.T, db *sql.DB, s walkSync, change string, complete bool) (found, rejected int) {
+func judgeWalk(t *testing.T, db *sql.DB, change string, complete bool) (found, rejected int) {
 	t.Helper()
 	ctx := context.Background()
 	conn := session(t, db)
@@ -366,7 +356,7 @@ func judgeWalk(t *testing.T, db *sql.DB, s walkSync, change string, complete boo
 		conn: conn,
 		db:   db,
 		target: review.Target{
-			Schema:           syncWalk(t, db, s),
+			Schema:           syncWalk(t, db),
 			ForeignKeyChecks: review.SwitchOn,
 		},
 	}
@@ -609,6 +599,12 @@ func (e *mariadbEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 // temporary tables, so a rejected statement that changed one is noticed.
 // Each query names the databases, which keeps information_schema from
 // reading the system ones.
+//
+// Digest sorts each query's rows itself. information_schema compares names
+// under utf8mb3_general_ci, so tables a and A tie in an ORDER BY, and
+// MariaDB 11.8.8 can return tied rows in another order on the next read
+// when only a statement it rejected ran between. MySQL compares them under
+// utf8mb3_bin and has no such tie.
 func (e *mariadbEngine) Digest(t testing.TB) string {
 	t.Helper()
 	var b strings.Builder
@@ -624,22 +620,31 @@ func (e *mariadbEngine) Digest(t testing.TB) string {
 		for i := range vals {
 			ptrs[i] = &vals[i]
 		}
-		var first []string
+		var first, lines []string
 		for rows.Next() {
 			if err := rows.Scan(ptrs...); err != nil {
 				t.Fatal(err)
 			}
 			first = append(first, vals[0].String)
+			var line strings.Builder
 			for _, v := range vals {
-				b.WriteString(v.String)
-				b.WriteByte(0)
+				line.WriteString(v.String)
+				line.WriteByte(0)
 			}
+			lines = append(lines, line.String())
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatalf("%s: %v", query, err)
+		}
+		slices.Sort(lines)
+		for _, l := range lines {
+			b.WriteString(l)
 			b.WriteByte('\n')
 		}
 		return first
 	}
-	read(e.conn, "SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%' ORDER BY 1, 2")
-	dbs := read(e.db, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys') ORDER BY 1")
+	read(e.conn, "SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'")
+	dbs := read(e.db, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')")
 	if len(dbs) == 0 {
 		return b.String()
 	}
@@ -649,13 +654,13 @@ func (e *mariadbEngine) Digest(t testing.TB) string {
 		args[i] = d
 	}
 	for _, q := range []string{
-		"SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-		"SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3, 4",
-		"SELECT CONSTRAINT_SCHEMA, CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT TRIGGER_SCHEMA, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT ROUTINE_SCHEMA, ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-		"SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN " + in + " ORDER BY 1, 2",
+		"SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN " + in,
+		"SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN " + in,
+		"SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN " + in,
+		"SELECT CONSTRAINT_SCHEMA, CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN " + in,
+		"SELECT TRIGGER_SCHEMA, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN " + in,
+		"SELECT ROUTINE_SCHEMA, ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN " + in,
+		"SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN " + in,
 	} {
 		read(e.db, q, args...)
 	}
@@ -669,12 +674,12 @@ type querier interface {
 
 // syncWalk reads shop into the metadata Bytebase's MariaDB sync produces
 // for what WalkThrough reads: base tables with their engines, columns,
-// indexes, foreign keys, and triggers, views, routines, and events; and,
-// since #21665, sequences and system-versioned tables, which the sync
-// before it skipped with their foreign keys and triggers.
+// indexes, foreign keys, and triggers, views, routines, and events;
+// sequences; and system-versioned tables, marked WITH SYSTEM VERSIONING in
+// their create options.
 //
 // bytebase: backend/plugin/db/mysql/sync.go
-func syncWalk(t *testing.T, db *sql.DB, s walkSync) *metadata.DatabaseSchemaMetadata {
+func syncWalk(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	conn, err := db.Conn(context.Background())
 	if err != nil {
@@ -719,22 +724,52 @@ func syncWalk(t *testing.T, db *sql.DB, s walkSync) *metadata.DatabaseSchemaMeta
 		case "BASE TABLE":
 			tables = append(tables, tbl)
 		case "SYSTEM VERSIONED":
-			if s == syncCurrent {
-				tbl.CreateOptions = "WITH SYSTEM VERSIONING"
-				tables = append(tables, tbl)
-			}
+			tbl.CreateOptions = "WITH SYSTEM VERSIONING"
+			tables = append(tables, tbl)
 		case "SEQUENCE":
-			if s == syncCurrent {
-				schema.Sequences = append(schema.Sequences, &metadata.SequenceMetadata{Name: tbl.Name})
-			}
+			schema.Sequences = append(schema.Sequences, &metadata.SequenceMetadata{Name: tbl.Name})
 		}
 	}
 	schema.Tables = tables
 	return out
 }
 
+// TestWalkThroughDigestMariaDB holds Digest to one value while statements
+// MariaDB rejects run between reads, over tables whose names differ only in
+// case. A digest that moved would make Judge take each of them for a
+// partial rejection.
+func TestWalkThroughDigestMariaDB(t *testing.T) {
+	db := startWalkMariaDB(t)
+	resetWalk(t, db, "")
+	ctx := context.Background()
+	conn := session(t, db)
+	for _, q := range []string{
+		"USE shop",
+		"CREATE TABLE a (x int, y int)",
+		"CREATE TABLE A (x int, y int) WITH SYSTEM VERSIONING",
+		"CREATE TABLE b (x int, KEY x (x))",
+		"CREATE TABLE B (x int, KEY x (x))",
+	} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	e := &mariadbEngine{conn: conn, db: db}
+	want := e.Digest(t)
+	rejected := []string{"RENAME TABLE s TO a, s TO b", "DROP SEQUENCE b, b", "TRUNCATE TABLE nosuch"}
+	for i := range 300 {
+		stmt := rejected[i%len(rejected)]
+		if _, err := conn.ExecContext(ctx, stmt); err == nil {
+			t.Fatalf("MariaDB ran %q", stmt)
+		}
+		if e.Digest(t) != want {
+			t.Fatalf("the digest moved on read %d, after %q, which MariaDB rejects", i+1, stmt)
+		}
+	}
+}
+
 // TestWalkThroughSweepMariaDB runs random changes over a small pool of
-// names that collide often, case included, on each sync by turns.
+// names that collide often, case included.
 // Precision must hold on every one; recall is logged. WALK_SWEEP_N sets
 // the number of changes, WALK_SWEEP_SEED the seed, and WALK_SWEEP_IMAGE
 // the MariaDB image; the oracle's MariaDB serves its own image.
@@ -746,7 +781,6 @@ func TestWalkThroughSweepMariaDB(t *testing.T) {
 	for i := range n {
 		base := walkSweepChange(rng, 8+rng.Intn(8))
 		change := walkSweepChange(rng, 15+rng.Intn(15))
-		s := walkSync(i % 2)
 		t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
 			resetWalk(t, db, "")
 			conn := session(t, db)
@@ -758,11 +792,11 @@ func TestWalkThroughSweepMariaDB(t *testing.T) {
 				_, _ = conn.ExecContext(context.Background(), q)
 			}
 			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
-			f, r := judgeWalk(t, db, s, change, false)
+			f, r := judgeWalk(t, db, change, false)
 			found += f
 			rejected += r
 			if t.Failed() {
-				t.Logf("sync %s, base:\n%s\nchange:\n%s", s, base, change)
+				t.Logf("base:\n%s\nchange:\n%s", base, change)
 			}
 		})
 	}

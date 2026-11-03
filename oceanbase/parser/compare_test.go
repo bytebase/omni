@@ -9493,12 +9493,14 @@ func TestParseIntersectPrecedence(t *testing.T) {
 func TestParseCreateTableConstraintIndexOption(t *testing.T) {
 	tests := []string{
 		"CREATE TABLE t (id INT, PRIMARY KEY (id) USING BTREE)",
-		"CREATE TABLE t (id INT, PRIMARY KEY (id) KEY_BLOCK_SIZE 1024)",
+		// OceanBase refuses KEY_BLOCK_SIZE and VISIBLE on a CREATE TABLE PRIMARY KEY
+		// (primaryKeyGrammarCases), so these two use a secondary index.
+		"CREATE TABLE t (id INT, KEY k (id) KEY_BLOCK_SIZE 1024)",
 		"CREATE TABLE t (id INT, PRIMARY KEY (id) COMMENT 'pk')",
 		"CREATE TABLE t (id INT, UNIQUE KEY idx (name) USING HASH COMMENT 'uniq')",
 		"CREATE TABLE t (id INT, INDEX idx (name) KEY_BLOCK_SIZE 512 COMMENT 'idx')",
 		"CREATE TABLE t (id INT, FULLTEXT KEY ft_idx (content) COMMENT 'fulltext')",
-		"CREATE TABLE t (id INT, PRIMARY KEY (id) VISIBLE)",
+		"CREATE TABLE t (id INT, KEY k (id) VISIBLE)",
 		"CREATE TABLE t (id INT, UNIQUE KEY idx (name) INVISIBLE)",
 	}
 	for _, sql := range tests {
@@ -10745,8 +10747,8 @@ func TestParsePartitionKeyAlgorithm(t *testing.T) {
 		"CREATE TABLE t1 (id INT) PARTITION BY KEY ALGORITHM=2 (id)",
 		"CREATE TABLE t1 (id INT) PARTITION BY LINEAR KEY ALGORITHM=1 (id)",
 		"CREATE TABLE t1 (id INT) PARTITION BY KEY (id)",
-		"CREATE TABLE t1 (id INT) PARTITION BY KEY ALGORITHM=1 (id) SUBPARTITION BY KEY ALGORITHM=2 (id)",
-		"CREATE TABLE t1 (id INT) PARTITION BY HASH(id) SUBPARTITION BY KEY ALGORITHM=1 (id)",
+		// OceanBase refuses KEY ALGORITHM in a subpartition (subpartitionCases), so
+		// TestParseSubPartitionKeyAlgorithm holds those forms.
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -10769,35 +10771,24 @@ func TestParsePartitionKeyAlgorithm(t *testing.T) {
 			t.Errorf("expected no :algorithm in AST, got: %s", s)
 		}
 	})
-	t.Run("sub_algorithm_value_captured", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE TABLE t1 (id INT) PARTITION BY HASH(id) SUBPARTITION BY KEY ALGORITHM=1 (id)")
-		s := ast.NodeToString(result.Items[0])
-		if !strings.Contains(s, ":sub_algorithm 1") {
-			t.Errorf("expected :sub_algorithm 1 in AST, got: %s", s)
-		}
-	})
 }
 
+// TestParseSubPartitionKeyAlgorithm: MySQL takes LINEAR and KEY ALGORITHM = n in a
+// subpartition clause, which this test held when the package was forked from mysql.
+// OceanBase's subpartition_option has neither, and 4.3.5.6 answers 1064 for both
+// (subpartitionCases), so the parser refuses them.
 func TestParseSubPartitionKeyAlgorithm(t *testing.T) {
-	tests := []string{
+	for _, sql := range []string{
 		"CREATE TABLE t1 (id INT) PARTITION BY HASH(id) SUBPARTITION BY LINEAR KEY ALGORITHM=1 (id)",
 		"CREATE TABLE t1 (id INT) PARTITION BY HASH(id) SUBPARTITION BY LINEAR KEY ALGORITHM=2 (id)",
 		"CREATE TABLE t1 (id INT) PARTITION BY KEY(id) SUBPARTITION BY LINEAR KEY ALGORITHM=1 (id)",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-
-	// Verify LINEAR KEY algorithm value is captured in AST
-	t.Run("linear_sub_algorithm_value_captured", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE TABLE t1 (id INT) PARTITION BY HASH(id) SUBPARTITION BY LINEAR KEY ALGORITHM=2 (id)")
-		s := ast.NodeToString(result.Items[0])
-		if !strings.Contains(s, ":sub_algorithm 2") {
-			t.Errorf("expected :sub_algorithm 2 in AST, got: %s", s)
+		"CREATE TABLE t1 (id INT) PARTITION BY KEY ALGORITHM=1 (id) SUBPARTITION BY KEY ALGORITHM=2 (id)",
+		"CREATE TABLE t1 (id INT) PARTITION BY HASH(id) SUBPARTITION BY KEY ALGORITHM=1 (id)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) parsed; OceanBase answers 1064", sql)
 		}
-	})
+	}
 }
 
 func TestParseCreateTableAutoextendSize(t *testing.T) {

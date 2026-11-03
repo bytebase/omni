@@ -76,6 +76,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	applyIndexOptions(idx, stmt.Options)
+	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {
+		return err
+	}
 	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
 		return err
 	}
@@ -84,6 +87,11 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
+	// An IGNORED UNIQUE index can become the implicit primary key.
+	if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
+		tbl.Indexes = tbl.Indexes[:len(tbl.Indexes)-1]
+		return err
+	}
 
 	// If unique, also add a UniqueKey constraint.
 	if stmt.Unique {
@@ -123,6 +131,15 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	// Dropping a key can promote an IGNORED one to the implicit primary key,
+	// which MariaDB refuses (4174, verified on 11.8.8), so keep the table to
+	// put back.
+	var snapshot *Table
+	if hasIgnoredIndex(tbl) {
+		s := cloneTable(tbl)
+		snapshot = &s
+	}
+
 	// Find and remove index.
 	key := toLower(stmt.Name)
 	found := false
@@ -148,5 +165,11 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		}
 	}
 
+	if snapshot != nil {
+		if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
+			*tbl = *snapshot
+			return err
+		}
+	}
 	return nil
 }

@@ -40,7 +40,7 @@ const (
 // should use NewLexer(input).Errors() directly.
 //
 // Split correctly handles:
-//   - Single-quoted strings with ” and \ escapes
+//   - Single-quoted strings with doubled-quote and \ escapes
 //   - Double-quoted strings with "" escapes
 //   - Backtick-quoted identifiers
 //   - X'...' hex literals and B'...' bit literals

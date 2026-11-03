@@ -412,7 +412,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwROUTINE:
 			return p.parseCreateRoutineLoad(createTok.Loc)
 		case kwJOB:
-			return p.parseCreateJob(createTok.Loc)
+			return nil, p.rejectJobStatement()
 		default:
 			return p.unsupported("CREATE")
 		}
@@ -460,7 +460,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwSYSTEM:
 			return p.parseSystemAlter(alterTok.Loc)
 		case kwJOB:
-			return p.parseAlterJob(p.prev.Loc)
+			return nil, p.rejectJobStatement()
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -514,7 +514,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwUSER:
 			return p.parseDropUser(dropTok.Loc)
 		case kwJOB:
-			return p.parseDropJob(dropTok.Loc)
+			return nil, p.rejectJobStatement()
 		case kwSTATS:
 			p.advance() // consume STATS
 			return p.parseDropStats(dropTok.Loc, "")
@@ -699,20 +699,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Job control
 	case kwCANCEL:
 		cancelTok := p.advance() // consume CANCEL
-		if p.cur.Kind == kwMATERIALIZED {
-			return p.parseCancelMTMVTask(cancelTok.Loc)
+		if p.cur.Kind == kwMATERIALIZED || p.cur.Kind == kwTASK {
+			return nil, p.rejectJobStatement()
 		}
 		if p.cur.Kind == kwDECOMMISSION {
 			return p.parseCancelDecommission(cancelTok.Loc)
 		}
-		if p.cur.Kind == kwTASK {
-			return p.parseCancelTask(cancelTok.Loc)
-		}
 		return p.parseCancelGeneric(cancelTok.Loc)
 	case kwPAUSE:
 		pauseTok := p.advance() // consume PAUSE
-		if p.cur.Kind == kwMATERIALIZED {
-			return p.parsePauseMTMVJob(pauseTok.Loc)
+		if p.cur.Kind == kwMATERIALIZED || p.cur.Kind == kwJOB {
+			return nil, p.rejectJobStatement()
 		}
 		if p.cur.Kind == kwROUTINE {
 			return p.parsePauseRoutineLoad(pauseTok.Loc)
@@ -724,14 +721,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			}
 			return p.unsupported("PAUSE ALL")
 		}
-		if p.cur.Kind == kwJOB {
-			return p.parsePauseJob(pauseTok.Loc)
-		}
 		return p.unsupported("PAUSE")
 	case kwRESUME:
 		resumeTok := p.advance() // consume RESUME
-		if p.cur.Kind == kwMATERIALIZED {
-			return p.parseResumeMTMVJob(resumeTok.Loc)
+		if p.cur.Kind == kwMATERIALIZED || p.cur.Kind == kwJOB {
+			return nil, p.rejectJobStatement()
 		}
 		if p.cur.Kind == kwROUTINE {
 			return p.parseResumeRoutineLoad(resumeTok.Loc)
@@ -742,9 +736,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return p.parseResumeAllRoutineLoad(resumeTok.Loc)
 			}
 			return p.unsupported("RESUME ALL")
-		}
-		if p.cur.Kind == kwJOB {
-			return p.parseResumeJob(resumeTok.Loc)
 		}
 		return p.unsupported("RESUME")
 

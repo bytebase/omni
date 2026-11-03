@@ -332,9 +332,22 @@ type IndexOption struct {
 	Loc   Loc
 	Name  string
 	Value Node // heterogeneous: may be *String, *Integer, or other literal nodes
+	// Properties holds the key = value list of OceanBase's PARSER_PROPERTIES option on
+	// a fulltext index, the one option with a list; nil for every other option.
+	Properties []*ParserProperty
 }
 
 func (o *IndexOption) nodeTag() {}
+
+// ParserProperty is one key = value of an OceanBase fulltext index's
+// PARSER_PROPERTIES, such as min_token_size = 3 or ik_mode = 'smart'.
+type ParserProperty struct {
+	Loc   Loc
+	Name  string // the key, lower-cased: min_token_size, ngram_token_size, ik_mode, ...
+	Value Node   // *IntLit for a size, *StringLit for a table name or ik_mode
+}
+
+func (p *ParserProperty) nodeTag() {}
 
 // CreateViewStmt represents a CREATE VIEW statement.
 type CreateViewStmt struct {
@@ -537,19 +550,22 @@ func (o *TableOption) nodeTag() {}
 
 // PartitionClause represents a PARTITION BY clause.
 type PartitionClause struct {
-	Loc            Loc
-	Type           PartitionType
-	Linear         bool // LINEAR HASH or LINEAR KEY
-	Expr           ExprNode
-	Columns        []string
-	Algorithm      int // ALGORITHM={1|2} for KEY partitioning (0 if not specified)
-	NumParts       int
-	Partitions     []*PartitionDef
-	SubPartType    PartitionType // SUBPARTITION BY type (0 if no subpartitioning)
-	SubPartExpr    ExprNode      // SUBPARTITION BY ... (expr)
-	SubPartColumns []string      // SUBPARTITION BY KEY (columns)
-	SubPartAlgo    int           // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
-	NumSubParts    int           // SUBPARTITIONS num
+	Loc        Loc
+	Type       PartitionType
+	Linear     bool // LINEAR HASH or LINEAR KEY
+	Expr       ExprNode
+	Columns    []string
+	Algorithm  int // ALGORITHM={1|2} for KEY partitioning (0 if not specified)
+	NumParts   int
+	Partitions []*PartitionDef
+	// SubPartType is the SUBPARTITION BY type. Its zero value is PartitionRange, so a
+	// clause is subpartitioned when SubPartExpr or SubPartColumns is set, as OceanBase's
+	// RANGE and LIST subpartitioning always sets one of them.
+	SubPartType    PartitionType
+	SubPartExpr    ExprNode // SUBPARTITION BY {HASH | RANGE | LIST} (expr)
+	SubPartColumns []string // SUBPARTITION BY {KEY | RANGE COLUMNS | LIST COLUMNS} (columns)
+	SubPartAlgo    int      // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
+	NumSubParts    int      // SUBPARTITIONS num
 	// SubPartTemplate holds OceanBase's SUBPARTITION TEMPLATE (...) list, which
 	// gives every partition the same subpartitions. MySQL has no template and
 	// repeats them per partition instead.
@@ -579,9 +595,15 @@ type PartitionDef struct {
 
 // SubPartitionDef represents a subpartition definition.
 type SubPartitionDef struct {
-	Loc     Loc
-	Name    string
-	Options []*TableOption
+	Loc  Loc
+	Name string
+	// Values is an OceanBase RANGE or LIST subpartition's VALUES LESS THAN or VALUES
+	// IN, kept as PartitionDef.Values keeps a partition's; nil for HASH and KEY.
+	Values Node
+	// ValuesIn is set when Values came from VALUES IN rather than VALUES LESS THAN,
+	// which a multi-column bound's list does not tell apart.
+	ValuesIn bool
+	Options  []*TableOption
 }
 
 func (d *SubPartitionDef) nodeTag() {}
@@ -1910,8 +1932,9 @@ func (e *IntervalExpr) exprNode() {}
 // the format type of GET_FORMAT (get_format(DATE,'USA')). MySQL lexes these
 // positions as keywords, never identifiers — a quoted `SECOND` is a syntax
 // error (oracle 8.0.32 + 5.7.25) — so deparse must render Keyword unquoted.
-// Keyword is stored normalized: uppercase, SQL_TSI_ prefix stripped, and
-// GET_FORMAT's TIMESTAMP folded to DATETIME, matching SHOW CREATE VIEW.
+// Keyword is stored normalized: uppercase, and GET_FORMAT's TIMESTAMP folded
+// to DATETIME, matching SHOW CREATE VIEW. OceanBase takes no SQL_TSI_ unit, so
+// there is no synonym left to fold.
 type KeywordArg struct {
 	Loc     Loc
 	Keyword string

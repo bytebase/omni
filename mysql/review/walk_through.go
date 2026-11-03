@@ -15,8 +15,8 @@ import (
 // succeeded. The walk follows the change on review/walk's ledger, seeded
 // with the synced schema as mysqlSnapshot trusts it; the scope is
 // docs/specs/2026-10-22-walk-through-mysql.md.
-func checkWalkThrough(ctx context.Context, sql string, stmts []statement, t review.Target, d dialect, r *reporter) error {
-	v, err := walkThrough(ctx, sql, stmts, t, d)
+func checkWalkThrough(ctx context.Context, sql string, stmts []statement, t review.Target, r *reporter) error {
+	v, err := walkThrough(ctx, sql, stmts, t)
 	if err != nil || v == nil {
 		return err
 	}
@@ -30,11 +30,11 @@ func checkWalkThrough(ctx context.Context, sql string, stmts []statement, t revi
 
 // walkThrough walks the change on one target and returns the first
 // violation, or nil.
-func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Target, d dialect) (*walk.Violation, error) {
+func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Target) (*walk.Violation, error) {
 	if t.Schema == nil {
 		return nil, nil
 	}
-	w := newWalker(sql, stmts, t, d)
+	w := newWalker(sql, stmts, t)
 	var snap walk.Snapshot = w.snap
 	if t.OtherSpecs {
 		// Another spec of the plan may have changed anything first, and
@@ -123,7 +123,7 @@ type walker struct {
 	ignoresFKs map[walk.Key]bool
 }
 
-func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walker {
+func newWalker(sql string, stmts []statement, t review.Target) *walker {
 	fold := t.LowerCaseTableNames != 0
 	snap := newMySQLSnapshot(t.Schema, fold)
 	w := &walker{

@@ -1187,6 +1187,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwDO:                     true,
 	kwDORIS_INTERNAL_TABLE_ID: true,
 	kwDUAL:                   true,
+	kwDUMP:                   true,
 	kwDYNAMIC:                true,
 	kwE:                      true,
 	kwENABLE:                 true,

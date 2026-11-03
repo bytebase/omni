@@ -18,6 +18,13 @@ type Index struct {
 	// the DDL states neither. A global index is a different physical object from a local
 	// one, so it belongs in the diff rather than being dropped after parsing.
 	Scope string
+	// Parser is a fulltext index's WITH PARSER name, lower-cased, "" when the DDL names
+	// none and OceanBase uses its default, space.
+	Parser string
+	// ParserProperties is a fulltext index's PARSER_PROPERTIES, key to value, nil when
+	// the DDL gives none. A later PARSER_PROPERTIES replaces an earlier one, as on
+	// OceanBase (fulltext_parser.go).
+	ParserProperties map[string]string
 }
 
 type IndexColumn struct {

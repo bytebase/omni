@@ -224,10 +224,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE, DROP CONSTRAINT t_code_key, DROP CONSTRAINT t_p_fk, DROP CONSTRAINT t_n_check;",
 			targets: one,
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT t_pkey CASCADE", "drops primary key t_pkey of t", []int{0}},
-				{0, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of t", []int{0}},
-				{0, "DROP CONSTRAINT t_p_fk", "drops foreign key t_p_fk of t", []int{0}},
-				{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}},
+				{0, "DROP CONSTRAINT t_pkey CASCADE", "Drops primary key `t_pkey` of `t`.", []int{0}},
+				{0, "DROP CONSTRAINT t_code_key", "Drops unique constraint `t_code_key` of `t`.", []int{0}},
+				{0, "DROP CONSTRAINT t_p_fk", "Drops foreign key `t_p_fk` of `t`.", []int{0}},
+				{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}},
 			},
 		},
 		{
@@ -235,7 +235,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:     "ALTER TABLE s.t DROP CONSTRAINT t_pkey;\nSET search_path = s;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_pkey;",
 			targets: []review.Target{{Schema: shop(), SessionUser: "alice"}},
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}},
+				{0, "DROP CONSTRAINT t_pkey", "Drops unique constraint `t_pkey` of `s.t`.", []int{0}},
 			},
 		},
 		{
@@ -247,7 +247,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "a renamed constraint is followed under its new name",
 			sql:     "ALTER TABLE t RENAME CONSTRAINT t_n_check TO x;\nALTER TABLE t RENAME CONSTRAINT x TO y;\nALTER TABLE t DROP CONSTRAINT IF EXISTS x, DROP CONSTRAINT y;",
 			targets: one,
-			want:    []targetFinding{{2, "DROP CONSTRAINT y", "drops check constraint y of t", []int{0}}},
+			want:    []targetFinding{{2, "DROP CONSTRAINT y", "Drops check constraint `y` of `t`.", []int{0}}},
 		},
 		{
 			name:    "a constraint renamed onto another's name is refused",
@@ -263,7 +263,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "a constraint the change added is not reported",
 			sql:     "ALTER TABLE nokey ADD CONSTRAINT nokey_a_check CHECK (a > 0);\nALTER TABLE nokey DROP CONSTRAINT nokey_a_check;\nALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT t_n_check CHECK (n > 1);\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
-			want:    []targetFinding{{2, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{2, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "a missing constraint under IF EXISTS drops nothing",
@@ -290,30 +290,30 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:     "ALTER TABLE p DROP CONSTRAINT p_pkey CASCADE;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_p_fk;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT p_pkey CASCADE", "drops primary key p_pkey of p", []int{0}},
-				{2, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}},
+				{0, "DROP CONSTRAINT p_pkey CASCADE", "Drops primary key `p_pkey` of `p`.", []int{0}},
+				{2, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}},
 			},
 		},
 		{
 			name:    "DROP TABLE CASCADE drops the foreign keys on it",
 			sql:     "DROP TABLE p CASCADE;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_p_fk;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
-			want:    []targetFinding{{2, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{2, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "the same names in two schemas are two constraints",
 			sql:     "ALTER TABLE s.t DROP CONSTRAINT t_pkey;\nALTER TABLE public.t DROP CONSTRAINT t_pkey;",
 			targets: one,
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}},
-				{1, "DROP CONSTRAINT t_pkey", "drops primary key t_pkey of public.t", []int{0}},
+				{0, "DROP CONSTRAINT t_pkey", "Drops unique constraint `t_pkey` of `s.t`.", []int{0}},
+				{1, "DROP CONSTRAINT t_pkey", "Drops primary key `t_pkey` of `public.t`.", []int{0}},
 			},
 		},
 		{
 			name:    "a dropped table no longer holds its foreign keys",
 			sql:     "DROP TABLE t;\nALTER TABLE p DROP CONSTRAINT p_pkey;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT p_pkey", "drops primary key p_pkey of p", []int{0}}},
+			want:    []targetFinding{{1, "DROP CONSTRAINT p_pkey", "Drops primary key `p_pkey` of `p`.", []int{0}}},
 		},
 		{
 			name:    "dropping a table a foreign key references is refused without CASCADE",
@@ -324,7 +324,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "dropping both ends of a foreign key together",
 			sql:     "DROP TABLE p, t;\nALTER TABLE nokey ADD CONSTRAINT nokey_a CHECK (a > 0);\nALTER TABLE s.t DROP CONSTRAINT t_pkey;",
 			targets: one,
-			want:    []targetFinding{{2, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}}},
+			want:    []targetFinding{{2, "DROP CONSTRAINT t_pkey", "Drops unique constraint `t_pkey` of `s.t`.", []int{0}}},
 		},
 		{
 			name:    "a subcommand certain to fail refuses the statement",
@@ -351,15 +351,15 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:     "ALTER TABLE t ADD CONSTRAINT t_n_check CHECK (n > 1), DROP CONSTRAINT t_n_check, DROP COLUMN code, ADD COLUMN code int, ADD COLUMN IF NOT EXISTS id int;\nALTER TABLE s.t DROP CONSTRAINT t_pkey, ADD COLUMN x int, ALTER COLUMN id SET NOT NULL;",
 			targets: one,
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}},
-				{1, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}},
+				{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}},
+				{1, "DROP CONSTRAINT t_pkey", "Drops unique constraint `t_pkey` of `s.t`.", []int{0}},
 			},
 		},
 		{
 			name:    "a cascading drop of an unrelated column keeps the foreign keys on the key",
 			sql:     "ALTER TABLE p DROP COLUMN note CASCADE;\nALTER TABLE t DROP CONSTRAINT t_p_fk;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT t_p_fk", "drops foreign key t_p_fk of t", []int{0}}},
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_p_fk", "Drops foreign key `t_p_fk` of `t`.", []int{0}}},
 		},
 		{
 			name: "a cascading key drop takes only the foreign keys on that table",
@@ -369,8 +369,8 @@ func TestDisallowDropConstraint(t *testing.T) {
 				schema("s", withPrimaryKey(table("p", "id integer"), "p_pkey", "id")),
 			)}},
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT p_pkey CASCADE", "drops primary key p_pkey of s.p", []int{0}},
-				{1, "DROP CONSTRAINT c_fk", "drops foreign key c_fk of public.c", []int{0}},
+				{0, "DROP CONSTRAINT p_pkey CASCADE", "Drops primary key `p_pkey` of `s.p`.", []int{0}},
+				{1, "DROP CONSTRAINT c_fk", "Drops foreign key `c_fk` of `public.c`.", []int{0}},
 			},
 		},
 		{
@@ -388,7 +388,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "a new foreign key blocks only the key it references",
 			sql:     "CREATE TABLE c (t_id int REFERENCES t (id));\nALTER TABLE t DROP CONSTRAINT t_code_key;\nCREATE TABLE c2 (t_id int REFERENCES t);\nALTER TABLE t DROP CONSTRAINT t_pkey;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of t", []int{0}}},
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "Drops unique constraint `t_code_key` of `t`.", []int{0}}},
 		},
 		{
 			name: "an enabled event trigger on the command leaves its effect unknown",
@@ -399,13 +399,13 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{Schema: withEventTrigger(shop(), true, "CREATE FUNCTION"), SessionUser: "alice"},
 				{Schema: withEventTrigger(shop(), false), SessionUser: "alice"},
 			},
-			want: []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{2, 3}}},
+			want: []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{2, 3}}},
 		},
 		{
 			name:    "a new foreign key goes with its table or its name",
 			sql:     "CREATE TABLE c (t_id int REFERENCES t (id));\nDROP TABLE c;\nCREATE TABLE c2 (t_id int CONSTRAINT c2_fk REFERENCES t (id));\nALTER TABLE c2 DROP CONSTRAINT c2_fk;\nALTER TABLE t DROP CONSTRAINT t_pkey;",
 			targets: one,
-			want:    []targetFinding{{4, "DROP CONSTRAINT t_pkey", "drops primary key t_pkey of t", []int{0}}},
+			want:    []targetFinding{{4, "DROP CONSTRAINT t_pkey", "Drops primary key `t_pkey` of `t`.", []int{0}}},
 		},
 		{
 			name:    "a column added twice refuses the statement",
@@ -419,13 +419,13 @@ func TestDisallowDropConstraint(t *testing.T) {
 				schema("public", withPrimaryKey(table("p", "id integer"), "p_pkey", "id")),
 				schema("s", withPrimaryKey(table("p", "id integer"), "p_pkey", "id")),
 			)}},
-			want: []targetFinding{{1, "DROP CONSTRAINT p_pkey", "drops primary key p_pkey of public.p", []int{0}}},
+			want: []targetFinding{{1, "DROP CONSTRAINT p_pkey", "Drops primary key `p_pkey` of `public.p`.", []int{0}}},
 		},
 		{
 			name:    "a no-op CREATE TABLE IF NOT EXISTS adds no foreign key",
 			sql:     "CREATE TABLE IF NOT EXISTS public.nokey (a text REFERENCES t (code));\nALTER TABLE t DROP CONSTRAINT t_code_key;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of t", []int{0}}},
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "Drops unique constraint `t_code_key` of `t`.", []int{0}}},
 		},
 		{
 			name:    "an event trigger on function DDL",
@@ -436,7 +436,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "DROP COLUMN IF EXISTS of a missing column changes nothing",
 			sql:     "ALTER TABLE t DROP COLUMN IF EXISTS nope;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			// The snapshot leaves out NOT NULL constraints, so the drop may
@@ -449,7 +449,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "a foreign key a cascade took is not there to drop",
 			sql:     "ALTER TABLE p DROP CONSTRAINT p_pkey CASCADE;\nALTER TABLE t DROP CONSTRAINT t_p_fk;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT p_pkey CASCADE", "drops primary key p_pkey of p", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT p_pkey CASCADE", "Drops primary key `p_pkey` of `p`.", []int{0}}},
 		},
 		{
 			name:    "an event trigger on SELECT INTO in a set operation",
@@ -460,7 +460,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "the statements before an event trigger fires keep their findings",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check;\nCREATE INDEX ON t (n);\nALTER TABLE t DROP CONSTRAINT t_code_key;",
 			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE INDEX"), SessionUser: "alice"}},
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "an added check on a column the table lacks refuses the statement",
@@ -471,7 +471,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "an added check on a column the table has",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT good CHECK (n > 1);",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "a renamed column's drop takes the constraint on it",
@@ -492,7 +492,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "ALTER TABLE IF EXISTS of a table the target lacks does nothing",
 			sql:     "ALTER TABLE IF EXISTS public.missing ADD CONSTRAINT fk FOREIGN KEY (x) REFERENCES public.t (id);\nALTER TABLE public.t DROP CONSTRAINT t_code_key;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of public.t", []int{0}}},
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "Drops unique constraint `t_code_key` of `public.t`.", []int{0}}},
 		},
 		{
 			name:    "a check constraint a possible parent has too may be inherited",
@@ -503,7 +503,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "a check constraint no possible parent has",
 			sql:     "ALTER TABLE par DROP CONSTRAINT par_b_check;",
 			targets: []review.Target{{Schema: withInheritedCheck()}},
-			want:    []targetFinding{{0, "DROP CONSTRAINT par_b_check", "drops check constraint par_b_check of par", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT par_b_check", "Drops check constraint `par_b_check` of `par`.", []int{0}}},
 		},
 		{
 			name:    "ADD CONSTRAINT USING INDEX of a missing index refuses the statement",
@@ -519,7 +519,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "ADD CONSTRAINT USING INDEX of a unique index of the table",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT t_n_key UNIQUE USING INDEX t_n_uidx;",
 			targets: []review.Target{{Schema: withPlainIndex(shop(), "t", "t_n_uidx", "n", true), SessionUser: "alice"}},
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "ADD CONSTRAINT USING INDEX of an index that is not unique refuses the statement",
@@ -540,7 +540,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "a key named after the one the statement drops",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_code_key, ADD CONSTRAINT t_code_key UNIQUE (code);",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_code_key", "Drops unique constraint `t_code_key` of `t`.", []int{0}}},
 		},
 		{
 			name:    "an added foreign key to a column twice refuses the statement",
@@ -576,7 +576,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "an added foreign key to a key the table has",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT good FOREIGN KEY (p_id) REFERENCES p (id), ADD CONSTRAINT good2 FOREIGN KEY (n) REFERENCES p;",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			// The scan does not follow the keys the change makes.
@@ -598,7 +598,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "an added foreign key to its own table's key the statement adds",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT good FOREIGN KEY (n) REFERENCES t (n), ADD CONSTRAINT t_n_key UNIQUE (n);",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "an added foreign key to its own table's key the statement drops refuses the statement",
@@ -609,22 +609,22 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "the server adds a column before a constraint written ahead of it",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT replacement UNIQUE (x), ADD COLUMN x int;",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "an added foreign key to a key the change dropped refuses the statement",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_p_fk;\nALTER TABLE p DROP CONSTRAINT p_pkey;\nALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT bad FOREIGN KEY (p_id) REFERENCES p (id);",
 			targets: one,
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT t_p_fk", "drops foreign key t_p_fk of t", []int{0}},
-				{1, "DROP CONSTRAINT p_pkey", "drops primary key p_pkey of p", []int{0}},
+				{0, "DROP CONSTRAINT t_p_fk", "Drops foreign key `t_p_fk` of `t`.", []int{0}},
+				{1, "DROP CONSTRAINT p_pkey", "Drops primary key `p_pkey` of `p`.", []int{0}},
 			},
 		},
 		{
 			name:    "an added foreign key to its own table",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT self FOREIGN KEY (p_id) REFERENCES t (id);",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "an added key on a missing column refuses the statement",
@@ -640,7 +640,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "a dropped column takes its table's foreign key on it",
 			sql:     "ALTER TABLE t DROP COLUMN p_id;\nALTER TABLE p DROP CONSTRAINT p_pkey;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT p_pkey", "drops primary key p_pkey of p", []int{0}}},
+			want:    []targetFinding{{1, "DROP CONSTRAINT p_pkey", "Drops primary key `p_pkey` of `p`.", []int{0}}},
 		},
 		{
 			name:    "a cascading drop of anything but a relation ends the scan",
@@ -651,13 +651,13 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "procedural code ends the scan",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check;\nDO $$ BEGIN EXECUTE 'ALTER TABLE t RENAME TO old_t'; END $$;\nALTER TABLE t DROP CONSTRAINT t_code_key;",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "Drops check constraint `t_n_check` of `t`.", []int{0}}},
 		},
 		{
 			name:    "after RESET search_path only a qualified name is looked up",
 			sql:     "RESET search_path;\nALTER TABLE t DROP CONSTRAINT t_n_check;\nALTER TABLE public.t DROP CONSTRAINT t_code_key;",
 			targets: one,
-			want:    []targetFinding{{2, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of public.t", []int{0}}},
+			want:    []targetFinding{{2, "DROP CONSTRAINT t_code_key", "Drops unique constraint `t_code_key` of `public.t`.", []int{0}}},
 		},
 		{
 			name:    "a quoted SET search_path value leaves the path unknown",
@@ -688,7 +688,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "$user with no session user and no schema it could name",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey;",
 			targets: []review.Target{{Schema: database(`"$user", public`, shop().Schemas[0])}},
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey", "drops primary key t_pkey of t", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey", "Drops primary key `t_pkey` of `t`.", []int{0}}},
 		},
 		{
 			name: "targets with equal findings merge, different ones do not",
@@ -700,8 +700,8 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{Schema: database(`public`, schema("public", table("t", "id integer")))},
 			},
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT t_pkey", "drops primary key t_pkey of t", []int{0, 2}},
-				{0, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of t", []int{1}},
+				{0, "DROP CONSTRAINT t_pkey", "Drops primary key `t_pkey` of `t`.", []int{0, 2}},
+				{0, "DROP CONSTRAINT t_pkey", "Drops unique constraint `t_pkey` of `t`.", []int{1}},
 			},
 		},
 	}
@@ -727,7 +727,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a new table without a primary key",
 			sql:     "CREATE TABLE n (id int);\nCREATE TABLE k (id int PRIMARY KEY);\nCREATE TABLE k2 (a int, b int, CONSTRAINT k2_pk PRIMARY KEY (a, b));",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a key added later in the change counts, under any name the table has by then",
@@ -753,7 +753,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a dropped table takes its indexes, whose names are then free",
 			sql:     "DROP TABLE t;\nCREATE TABLE IF NOT EXISTS t_code_key (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS t_code_key (id int)", "creates table t_code_key without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS t_code_key (id int)", "Creates table `t_code_key` without a primary key.", []int{0}}},
 		},
 		{
 			name: "a cascading drop takes the views that read the table, in their own schema",
@@ -762,7 +762,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				Name:  "s",
 				Views: []*metadata.ViewMetadata{{Name: "reader", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}}},
 			})}},
-			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS s.reader (id int)", "creates table s.reader without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS s.reader (id int)", "Creates table `s.reader` without a primary key.", []int{0}}},
 		},
 		{
 			// m is created where the search path puts it, public, so the move
@@ -771,8 +771,8 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "CREATE TABLE public.n (id int);\nALTER TABLE public.n SET SCHEMA s;\nALTER TABLE x.n ADD PRIMARY KEY (id);\nCREATE TABLE m (id int);\nALTER TABLE public.m SET SCHEMA s;\nALTER TABLE x.m ADD PRIMARY KEY (id);",
 			targets: one,
 			want: []targetFinding{
-				{0, "CREATE TABLE public.n (id int)", "creates table public.n without a primary key", []int{0}},
-				{3, "CREATE TABLE m (id int)", "creates table m without a primary key", []int{0}},
+				{0, "CREATE TABLE public.n (id int)", "Creates table `public.n` without a primary key.", []int{0}},
+				{3, "CREATE TABLE m (id int)", "Creates table `m` without a primary key.", []int{0}},
 			},
 		},
 		{
@@ -782,7 +782,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				Name:              "public",
 				MaterializedViews: []*metadata.MaterializedViewMetadata{{Name: "mv", Indexes: []*metadata.IndexMetadata{{Name: "mv_idx"}}}},
 			})}},
-			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS mv_idx (id int)", "creates table mv_idx without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS mv_idx (id int)", "Creates table `mv_idx` without a primary key.", []int{0}}},
 		},
 		{
 			name: "dropping a view another view reads is refused without CASCADE",
@@ -805,15 +805,15 @@ func TestRequirePrimaryKey(t *testing.T) {
 					{Name: "v2", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v1", Column: "a"}}},
 				},
 			})}},
-			want: []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "the tables of CREATE SCHEMA",
 			sql:     "CREATE SCHEMA z CREATE TABLE t (id int) CREATE TABLE k (id int PRIMARY KEY) CREATE TABLE z.q (id int);",
 			targets: one,
 			want: []targetFinding{
-				{0, "CREATE TABLE t (id int)", "creates table z.t without a primary key", []int{0}},
-				{0, "CREATE TABLE z.q (id int)", "creates table z.q without a primary key", []int{0}},
+				{0, "CREATE TABLE t (id int)", "Creates table `z.t` without a primary key.", []int{0}},
+				{0, "CREATE TABLE z.q (id int)", "Creates table `z.q` without a primary key.", []int{0}},
 			},
 		},
 		{
@@ -835,13 +835,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a cascading drop takes a view the change made",
 			sql:     "CREATE VIEW w AS SELECT * FROM nokey;\nDROP TABLE nokey CASCADE;\nCREATE TABLE w (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE w (id int)", "creates table w without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE w (id int)", "Creates table `w` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a cascading drop takes the views reading a view the change made",
 			sql:     "CREATE VIEW w AS SELECT * FROM nokey;\nCREATE VIEW w2 AS SELECT * FROM public.w;\nDROP TABLE nokey CASCADE;\nCREATE TABLE w2 (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE w2 (id int)", "creates table w2 without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE w2 (id int)", "Creates table `w2` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a view renamed after it was made keeps its name uncertain",
@@ -866,7 +866,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a new view of a table in another schema does not block a drop",
 			sql:     "CREATE VIEW v AS SELECT * FROM s.t;\nDROP TABLE public.t;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "dropping a table the target lacks is refused without IF EXISTS",
@@ -877,7 +877,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "IF EXISTS drops nothing",
 			sql:     "DROP TABLE IF EXISTS public.nope, nope2;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "dropping a table a function returns is refused without CASCADE",
@@ -888,19 +888,19 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a CTE the view defines is not a relation it reads",
 			sql:     "CREATE VIEW v AS WITH t AS (SELECT 1 AS id) SELECT * FROM t;\nDROP TABLE public.t;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a view the change drops no longer reads the table",
 			sql:     "CREATE VIEW v AS SELECT * FROM public.t;\nDROP VIEW v;\nDROP TABLE public.t;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a function the change drops no longer returns the table",
 			sql:     "DROP FUNCTION f;\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a function the change creates returning the table blocks its drop",
@@ -941,7 +941,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 					{Name: "v2", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v1", Column: "id"}}},
 				},
 			})}},
-			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS v2 (id int)", "creates table v2 without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS v2 (id int)", "Creates table `v2` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "dropping one of two new overloads leaves the other",
@@ -960,7 +960,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "ADD COLUMN IF NOT EXISTS of an existing column adds no key",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nALTER TABLE t ADD COLUMN IF NOT EXISTS id int PRIMARY KEY;",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "Removes the primary key of `t`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name: "a replaced view no longer reads what it read",
@@ -970,7 +970,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				Tables: []*metadata.TableMetadata{table("base", "id integer")},
 				Views:  []*metadata.ViewMetadata{{Name: "v", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}}},
 			})}},
-			want: []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want: []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name: "a sequence another owner took stays",
@@ -995,7 +995,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "IF EXISTS of a missing table leaves the name free",
 			sql:     "DROP TABLE IF EXISTS gone;\nCREATE TABLE gone (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE gone (id int)", "creates table gone without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE gone (id int)", "Creates table `gone` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP FUNCTION IF EXISTS may drop nothing",
@@ -1006,7 +1006,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a view the change created and replaced no longer reads the table",
 			sql:     "CREATE VIEW v AS SELECT * FROM nokey;\nCREATE OR REPLACE VIEW v AS SELECT 1 AS a;\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a table in another database",
@@ -1027,7 +1027,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "ALTER TABLE IF EXISTS of a table the target lacks",
 			sql:     "ALTER TABLE IF EXISTS nope DROP CONSTRAINT x;\nCREATE TABLE m (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE m (id int)", "creates table m without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE m (id int)", "Creates table `m` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE SCHEMA of an existing schema",
@@ -1042,7 +1042,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				Columns:    []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}},
 				Partitions: []*metadata.TablePartitionMetadata{{Name: "p1", Indexes: []*metadata.IndexMetadata{{Name: "p1_idx"}}}},
 			}))}},
-			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS p1_idx (id int)", "creates table p1_idx without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS p1_idx (id int)", "Creates table `p1_idx` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP SCHEMA IF EXISTS of a missing schema leaves it missing",
@@ -1058,13 +1058,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a skipped ADD COLUMN adds no second key",
 			sql:     "ALTER TABLE t ADD COLUMN IF NOT EXISTS id int PRIMARY KEY;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "every column drop of a statement sees the table",
 			sql:     "ALTER TABLE t DROP COLUMN code, DROP COLUMN id;",
 			targets: one,
-			want:    []targetFinding{{0, "DROP COLUMN id", "removes the primary key of t, and the change adds none back", []int{0}}},
+			want:    []targetFinding{{0, "DROP COLUMN id", "Removes the primary key of `t`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name:    "EXPLAIN ANALYZE of CREATE MATERIALIZED VIEW makes the view",
@@ -1095,19 +1095,19 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a cascading view drop keeps a table's lost key",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nDROP VIEW v CASCADE;",
 			targets: []review.Target{{Schema: withView(shop(), "public", "v"), SessionUser: "alice"}},
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "Removes the primary key of `t`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name:    "a definite rename leaves the old name to another table",
 			sql:     "CREATE TABLE public.a (id int);\nALTER TABLE public.a RENAME TO b;\nCREATE TABLE public.a (id int PRIMARY KEY);\nDROP TABLE public.a;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE public.a (id int)", "creates table public.a without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE public.a (id int)", "Creates table `public.a` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a column drop frees the names of its constraints",
 			sql:     "ALTER TABLE t DROP COLUMN code, ADD CONSTRAINT t_code_key UNIQUE (n);\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE SCHEMA IF NOT EXISTS of an existing schema changes nothing",
@@ -1123,7 +1123,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE SEQUENCE IF NOT EXISTS of an existing name does nothing",
 			sql:     "CREATE SEQUENCE IF NOT EXISTS public.nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a dropped schema is gone",
@@ -1134,13 +1134,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a renamed new view keeps its reads under the new name",
 			sql:     "CREATE VIEW public.v AS SELECT * FROM public.nokey;\nALTER VIEW public.v RENAME TO w;\nDROP VIEW public.w;\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a new view dropped with the view it reads",
 			sql:     "CREATE VIEW w AS SELECT * FROM v;\nDROP VIEW v, w;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withView(shop(), "public", "v"), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a column renamed twice is gone under the middle name",
@@ -1151,7 +1151,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a column the statement adds twice gets one definition",
 			sql:     "CREATE TABLE n (id int);\nALTER TABLE n ADD COLUMN x int, ADD COLUMN IF NOT EXISTS x int PRIMARY KEY;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a new SQL-standard function body reading a table blocks its drop",
@@ -1170,7 +1170,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 					{Name: "other", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}},
 				},
 			})}},
-			want: []targetFinding{{1, "CREATE TABLE w (id int)", "creates table w without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE w (id int)", "Creates table `w` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP of a name in another database is refused",
@@ -1191,7 +1191,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP FUNCTION of a new function, matching arguments",
 			sql:     "CREATE FUNCTION g(integer) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION g(integer);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP FUNCTION of a name the target lacks is refused",
@@ -1207,25 +1207,25 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP FUNCTION IF EXISTS of a name the target lacks does nothing",
 			sql:     "DROP FUNCTION IF EXISTS public.missing();\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP FUNCTION of a name the change gave a function",
 			sql:     "CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION g() RENAME TO h;\nDROP FUNCTION h();\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP PROCEDURE retires the procedure's dependencies",
 			sql:     "CREATE PROCEDURE pr(a nokey) LANGUAGE sql AS 'SELECT 1';\nDROP PROCEDURE pr(nokey);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a renamed function keeps its dependencies",
 			sql:     "CREATE FUNCTION g(nokey) RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION g(nokey) RENAME TO h;\nDROP FUNCTION h(nokey);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a renamed function still holds the table under its new name",
@@ -1236,31 +1236,31 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a cascading drop takes the synced function on the table",
 			sql:     "DROP TABLE s.t CASCADE;\nDROP SCHEMA s;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withFunctionReturning(shop(), "s", "t"), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a cascading drop takes a function the change made on the table",
 			sql:     "CREATE FUNCTION g(a) RETURNS SETOF b LANGUAGE sql AS 'SELECT * FROM b';\nDROP TABLE a CASCADE;\nDROP TABLE b;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: database("public", schema("public", table("a", "id integer"), table("b", "id integer")))}},
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a plain table generates no names",
 			sql:     "CREATE TABLE public.a (id int);\nCREATE TABLE public.n_idx (id int);\nDROP TABLE public.a;",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE public.n_idx (id int)", "creates table public.n_idx without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE public.n_idx (id int)", "Creates table `public.n_idx` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a serial column generates a name",
 			sql:     "CREATE TABLE a (id serial);\nCREATE TABLE n_idx (id int);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE a (id serial)", "creates table a without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE a (id serial)", "Creates table `a` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "LIKE of a table the change made without a key copies none",
 			sql:     "CREATE TABLE public.a (id int);\nCREATE TABLE public.b (LIKE public.a INCLUDING INDEXES);\nDROP TABLE public.a;",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE public.b (LIKE public.a INCLUDING INDEXES)", "creates table public.b without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE public.b (LIKE public.a INCLUDING INDEXES)", "Creates table `public.b` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "LIKE of a table the change made with a key",
@@ -1271,7 +1271,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE IF NOT EXISTS in a schema the change created",
 			sql:     "CREATE SCHEMA z;\nCREATE TABLE IF NOT EXISTS z.n (id int);\nCREATE TABLE z.k (id int PRIMARY KEY);\nCREATE TABLE IF NOT EXISTS z.k (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS z.n (id int)", "creates table z.n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS z.n (id int)", "Creates table `z.n` without a primary key.", []int{0}}},
 		},
 		{
 			name: "CREATE TABLE of a type's name is refused",
@@ -1291,7 +1291,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a table_rewrite event trigger does not fire on ADD COLUMN of a plain column",
 			sql:     "ALTER TABLE t ADD COLUMN x int, ADD COLUMN y text[];\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withEvent(shop(), "TABLE_REWRITE"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a table_rewrite event trigger fires on ADD COLUMN with a default",
@@ -1307,7 +1307,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP FUNCTION IF EXISTS of a function the change made, by its arguments",
 			sql:     "CREATE FUNCTION public.f(public.nokey) RETURNS integer LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION IF EXISTS public.f(public.nokey);\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a view the change made follows the table it reads through a rename",
@@ -1327,19 +1327,19 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a renamed table without dependents drops",
 			sql:     "ALTER TABLE nokey RENAME TO u;\nDROP TABLE u;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a cascading DROP TABLE IF EXISTS of a missing table settles nothing",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nDROP TABLE IF EXISTS public.missing CASCADE;",
 			targets: one,
-			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "Removes the primary key of `t`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name:    "CREATE OR REPLACE FUNCTION redefines a synced function without arguments",
 			sql:     "CREATE OR REPLACE FUNCTION public.f() RETURNS integer LANGUAGE sql RETURN 1;\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withNoArgFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE OR REPLACE FUNCTION with arguments may add an overload",
@@ -1350,7 +1350,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a CREATE PROCEDURE tag filter does not fire on CREATE FUNCTION",
 			sql:     "CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE PROCEDURE"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a CREATE PROCEDURE tag filter fires on CREATE PROCEDURE",
@@ -1395,7 +1395,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "dropping a key frees its index's name",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_code_key;\nCREATE TABLE IF NOT EXISTS t_code_key (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS t_code_key (id int)", "creates table t_code_key without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS t_code_key (id int)", "Creates table `t_code_key` without a primary key.", []int{0}}},
 		},
 		{
 			name: "dropping a column frees the sequence it owns",
@@ -1405,13 +1405,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 				Tables:    []*metadata.TableMetadata{table("base", "id integer", "x integer")},
 				Sequences: []*metadata.SequenceMetadata{{Name: "q", OwnerTable: "base", OwnerColumn: "id"}},
 			})}},
-			want: []targetFinding{{1, "CREATE TABLE q (x int)", "creates table q without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE q (x int)", "Creates table `q` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a qualified DROP of a table the change made frees its name",
 			sql:     "CREATE TABLE public.n (id int PRIMARY KEY);\nDROP TABLE public.n;\nCREATE TABLE public.n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE public.n (id int)", "creates table public.n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE public.n (id int)", "Creates table `public.n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a DROP of a table the change made that a new view reads",
@@ -1427,7 +1427,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a rename under IF EXISTS of a relation the target lacks does nothing",
 			sql:     "ALTER TABLE IF EXISTS public.missing RENAME TO x;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "SET SCHEMA of a relation the target lacks is refused",
@@ -1438,7 +1438,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a login event trigger fires on no statement",
 			sql:     "CREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withEvent(shop(), "LOGIN"), SessionUser: "alice"}},
-			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP SCHEMA of a schema the change put a table in is refused",
@@ -1449,7 +1449,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP SCHEMA of a schema the change emptied again",
 			sql:     "CREATE SCHEMA z;\nCREATE TABLE z.x (id int PRIMARY KEY);\nDROP TABLE z.x;\nDROP SCHEMA z;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP SCHEMA of a synced schema a table was renamed in is refused",
@@ -1460,7 +1460,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a foreign key of a table the same DROP drops does not hold it",
 			sql:     "CREATE TABLE public.c (id int PRIMARY KEY, n_a int REFERENCES public.k);\nDROP TABLE public.c, public.k;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: database("public", schema("public", withPrimaryKey(table("k", "id integer"), "k_pkey", "id")))}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a foreign key of a table the change made still holds the table it references",
@@ -1486,7 +1486,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE INHERITS of a table",
 			sql:     "CREATE TABLE child (id int) INHERITS (public.nokey);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE child (id int) INHERITS (public.nokey)", "creates table child without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE child (id int) INHERITS (public.nokey)", "Creates table `child` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a second CREATE TABLE of a name the change made is refused",
@@ -1497,7 +1497,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE IF NOT EXISTS of a name the change made does nothing",
 			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nCREATE TABLE IF NOT EXISTS public.x (id int);\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER TABLE of an index is refused",
@@ -1508,19 +1508,19 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "TRUNCATE fires no event trigger",
 			sql:     "TRUNCATE t;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE INDEX"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "SET SCHEMA vacates the schema the relation leaves",
 			sql:     "ALTER TABLE s.m SET SCHEMA public;\nDROP SCHEMA s;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: database("public", schema("public"), schema("s", withUnique(table("m", "id integer"), "m_key", "id")))}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP SCHEMA after the change dropped the function it made there",
 			sql:     "CREATE SCHEMA z;\nCREATE FUNCTION z.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION z.f();\nDROP SCHEMA z;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP SCHEMA of a schema holding a function the change made is refused",
@@ -1531,7 +1531,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "an unqualified name the search path resolves elsewhere does not settle a table",
 			sql:     "CREATE TABLE public.n (id int);\nSET search_path = s, public;\nALTER TABLE n ADD PRIMARY KEY (id);",
 			targets: []review.Target{{Schema: database(`"$user", public`, schema("public"), schema("s", table("n", "id integer")))}},
-			want:    []targetFinding{{0, "CREATE TABLE public.n (id int)", "creates table public.n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE public.n (id int)", "Creates table `public.n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE with a foreign key to a table the target lacks is refused",
@@ -1552,13 +1552,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE with a foreign key to a synced key",
 			sql:     "CREATE TABLE n (id int, p_id int REFERENCES p);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int, p_id int REFERENCES p)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int, p_id int REFERENCES p)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE with a foreign key to a table the change made with a key",
 			sql:     "CREATE TABLE a (id int PRIMARY KEY);\nCREATE TABLE b (id int, a_id int REFERENCES a);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE b (id int, a_id int REFERENCES a)", "creates table b without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE b (id int, a_id int REFERENCES a)", "Creates table `b` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE with a foreign key to a table the change made without a key is refused",
@@ -1579,13 +1579,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE with a foreign key to its own unique column",
 			sql:     "CREATE TABLE n (id int UNIQUE, parent int REFERENCES n (id));",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int UNIQUE, parent int REFERENCES n (id))", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int UNIQUE, parent int REFERENCES n (id))", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a view of CREATE SCHEMA is the change's own",
 			sql:     "CREATE SCHEMA z CREATE VIEW v AS SELECT 1;\nDROP VIEW z.v;\nCREATE TABLE z.v (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE z.v (id int)", "creates table z.v without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE z.v (id int)", "Creates table `z.v` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP TYPE without CASCADE ends the scan",
@@ -1596,7 +1596,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a generated name in one schema leaves another's names alone",
 			sql:     "CREATE TABLE s1.x (id serial PRIMARY KEY);\nCREATE TABLE s2.audit_seq (id int);",
 			targets: []review.Target{{Schema: database("public", schema("public"), schema("s1"), schema("s2"))}},
-			want:    []targetFinding{{1, "CREATE TABLE s2.audit_seq (id int)", "creates table s2.audit_seq without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE s2.audit_seq (id int)", "Creates table `s2.audit_seq` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a generated name in the same schema is uncertain",
@@ -1612,13 +1612,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP COLUMN CASCADE of a column a generated column reads",
 			sql:     "ALTER TABLE g DROP COLUMN a CASCADE;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withGenerated()}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "an sql_drop event trigger does not fire on a DROP that drops nothing",
 			sql:     "DROP TABLE IF EXISTS public.missing;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withEvent(shop(), "SQL_DROP"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "an sql_drop event trigger fires on a DROP that drops",
@@ -1634,15 +1634,15 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a sequence the change made and dropped frees its name",
 			sql:     "CREATE SEQUENCE public.q;\nDROP SEQUENCE public.q;\nCREATE TABLE public.q (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE public.q (id int)", "creates table public.q without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE public.q (id int)", "Creates table `public.q` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "LIKE of a table whose key the change dropped copies none",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nCREATE TABLE n (LIKE t INCLUDING INDEXES);",
 			targets: one,
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}},
-				{1, "CREATE TABLE n (LIKE t INCLUDING INDEXES)", "creates table n without a primary key", []int{0}},
+				{0, "DROP CONSTRAINT t_pkey CASCADE", "Removes the primary key of `t`, and the change doesn't add one back.", []int{0}},
+				{1, "CREATE TABLE n (LIKE t INCLUDING INDEXES)", "Creates table `n` without a primary key.", []int{0}},
 			},
 		},
 		{
@@ -1659,7 +1659,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE VIEW of a CTE named like a missing relation",
 			sql:     "CREATE VIEW public.v AS WITH missing AS (SELECT 1 AS a) SELECT * FROM missing;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE OF a type the target lacks is refused",
@@ -1675,13 +1675,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE OF a composite type the change made",
 			sql:     "CREATE TYPE ct AS (a int);\nCREATE TABLE n OF ct;",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n OF ct", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n OF ct", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a table_rewrite event trigger does not fire on trigger toggles",
 			sql:     "ALTER TABLE t ENABLE TRIGGER ALL, DISABLE TRIGGER USER;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withEvent(shop(), "TABLE_REWRITE"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE with a foreign key naming a column twice is refused",
@@ -1692,7 +1692,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE with a foreign key to a composite key",
 			sql:     "CREATE TABLE n (a int, b text, FOREIGN KEY (a, b) REFERENCES k (id, code));",
 			targets: []review.Target{{Schema: withCompositeKey()}},
-			want:    []targetFinding{{0, "CREATE TABLE n (a int, b text, FOREIGN KEY (a, b) REFERENCES k (id, code))", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (a int, b text, FOREIGN KEY (a, b) REFERENCES k (id, code))", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE naming a constraint twice is refused",
@@ -1723,7 +1723,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "RENAME COLUMN of a column the table has",
 			sql:     "ALTER TABLE t RENAME COLUMN n TO n2;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE FUNCTION in a schema the target lacks is refused",
@@ -1742,7 +1742,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				Name:       "z",
 				Procedures: []*metadata.ProcedureMetadata{{Name: "p"}},
 			})}},
-			want: []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want: []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE AS of a name the schema holds is refused",
@@ -1753,7 +1753,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE AS IF NOT EXISTS of a name the schema holds does nothing",
 			sql:     "CREATE TABLE IF NOT EXISTS public.nokey AS SELECT 1;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "SELECT INTO a name the schema holds is refused",
@@ -1779,7 +1779,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "RENAME CONSTRAINT to a free name",
 			sql:     "ALTER TABLE t RENAME CONSTRAINT t_n_check TO t_n_check2;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER TABLE of a table the change dropped is refused",
@@ -1790,7 +1790,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP TABLE IF EXISTS of a table the change dropped does nothing",
 			sql:     "DROP TABLE public.nokey;\nDROP TABLE IF EXISTS public.nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE FUNCTION with a SQL-standard body of a relation the target lacks is refused",
@@ -1806,7 +1806,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP PROCEDURE of a procedure",
 			sql:     "DROP PROCEDURE public.p();\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSyncedProcedure()}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP FUNCTION of a scalar signature leaves an array overload",
@@ -1817,13 +1817,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP FUNCTION of an array signature",
 			sql:     "CREATE FUNCTION g(int[]) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION g(int[]);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP FUNCTION matches a built-in type however it is written",
 			sql:     "CREATE FUNCTION g(int4) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION g(integer);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE FOREIGN TABLE of a name the schema holds is refused",
@@ -1834,13 +1834,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE FOREIGN TABLE IF NOT EXISTS of a name the schema holds does nothing",
 			sql:     "CREATE FOREIGN TABLE IF NOT EXISTS public.nokey (id int) SERVER s;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a cascade of a parent of the same name in another schema leaves a child",
 			sql:     "CREATE TABLE public.n (x int) INHERITS (s.parent);\nDROP TABLE other.parent CASCADE;",
 			targets: []review.Target{{Schema: database("public", schema("public"), schema("s", table("parent", "id integer")), schema("other", table("parent", "id integer")))}},
-			want:    []targetFinding{{0, "CREATE TABLE public.n (x int) INHERITS (s.parent)", "creates table public.n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE public.n (x int) INHERITS (s.parent)", "Creates table `public.n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a cascade of a renamed parent takes its child",
@@ -1851,7 +1851,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "dropping a renamed key column removes the key",
 			sql:     "ALTER TABLE k RENAME COLUMN id TO x;\nALTER TABLE k DROP COLUMN x;",
 			targets: []review.Target{{Schema: database("public", schema("public", withPrimaryKey(table("k", "id integer", "v integer"), "k_pkey", "id")))}},
-			want:    []targetFinding{{1, "DROP COLUMN x", "removes the primary key of k, and the change adds none back", []int{0}}},
+			want:    []targetFinding{{1, "DROP COLUMN x", "Removes the primary key of `k`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name:    "a mixed ALTER with a subcommand certain to fail is refused",
@@ -1872,7 +1872,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE INDEX IF NOT EXISTS of a name the schema holds does nothing",
 			sql:     "CREATE INDEX IF NOT EXISTS nokey ON t (n);\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TYPE of a table's name is refused",
@@ -1888,7 +1888,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a foreign key to the table itself, qualified",
 			sql:     "CREATE TABLE n (id int UNIQUE, parent int REFERENCES public.n (id));",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int UNIQUE, parent int REFERENCES public.n (id))", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int UNIQUE, parent int REFERENCES public.n (id))", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a rename of a table the change made to a taken name is refused",
@@ -1909,7 +1909,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a second CREATE SCHEMA IF NOT EXISTS does nothing",
 			sql:     "CREATE SCHEMA z;\nCREATE SCHEMA IF NOT EXISTS z;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE with a check on a column it lacks is refused",
@@ -1920,7 +1920,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE with a check on its column",
 			sql:     "CREATE TABLE x (a int CHECK (a > 0));",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE x (a int CHECK (a > 0))", "creates table x without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE x (a int CHECK (a > 0))", "Creates table `x` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE with a key on a column it lacks is refused",
@@ -1951,7 +1951,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a qualified DROP of another schema's table leaves a table made by the search path",
 			sql:     "CREATE TABLE n (id int);\nDROP TABLE s.n;",
 			targets: []review.Target{{Schema: database(`"$user", public`, schema("public"), schema("s", table("n", "id integer"))), SessionUser: "alice"}},
-			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a table the search path puts in pg_temp is temporary",
@@ -1972,7 +1972,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE SCHEMA with an index on its table",
 			sql:     "CREATE SCHEMA z CREATE TABLE x (id int PRIMARY KEY) CREATE INDEX i ON x (id);\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE FOREIGN TABLE with a column twice is refused",
@@ -2003,19 +2003,19 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP NOT NULL of another column",
 			sql:     "ALTER TABLE t ALTER COLUMN n DROP NOT NULL;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "dropping the key the change added leaves the table keyless",
 			sql:     "CREATE TABLE n (id int);\nALTER TABLE n ADD PRIMARY KEY (id);\nALTER TABLE n DROP CONSTRAINT n_pkey;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "dropping a named key the change added leaves the table keyless",
 			sql:     "CREATE TABLE n (id int);\nALTER TABLE n ADD CONSTRAINT n_pk PRIMARY KEY (id);\nALTER TABLE n DROP CONSTRAINT n_pk;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "dropping another constraint leaves the added key",
@@ -2041,7 +2041,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "ALTER SEQUENCE IF EXISTS of a sequence the target lacks does nothing",
 			sql:     "ALTER SEQUENCE IF EXISTS public.missing RESTART;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER SEQUENCE of a table is refused",
@@ -2063,7 +2063,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "CREATE TABLE a (id int PRIMARY KEY);\nALTER TABLE t ADD CONSTRAINT t_a_fk FOREIGN KEY (n) REFERENCES a;\nCREATE TABLE b (id int);",
 			targets: one,
 			want: []targetFinding{
-				{2, "CREATE TABLE b (id int)", "creates table b without a primary key", []int{0}},
+				{2, "CREATE TABLE b (id int)", "Creates table `b` without a primary key.", []int{0}},
 			},
 		},
 		{
@@ -2075,7 +2075,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE FUNCTION of another signature",
 			sql:     "CREATE FUNCTION public.f(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER SEQUENCE RENAME of a table is refused",
@@ -2087,7 +2087,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "ALTER INDEX RENAME of a table renames it",
 			sql:     "ALTER INDEX public.nokey RENAME TO x;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER VIEW SET SCHEMA of a table is refused",
@@ -2113,7 +2113,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a cascade takes a view reading a table without naming a column",
 			sql:     "DROP TABLE base CASCADE;\nCREATE TABLE IF NOT EXISTS v (id int);",
 			targets: []review.Target{{Schema: withCountView("SELECT count(*) AS c FROM base")}},
-			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS v (id int)", "creates table v without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS v (id int)", "Creates table `v` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a view whose definition the scan cannot read holds every drop",
@@ -2134,7 +2134,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "OWNED BY a column the table has",
 			sql:     "ALTER SEQUENCE q OWNED BY t.n;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSequence(shop(), "q"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TYPE AS with an attribute twice is refused",
@@ -2169,7 +2169,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				db.Schemas[0].Functions = append(db.Schemas[0].Functions, &metadata.FunctionMetadata{Name: "f", Signature: "f(a integer)", Definition: "CREATE OR REPLACE FUNCTION", DependencyTables: []*metadata.DependencyTable{{Schema: "public", Table: "nokey"}}})
 				return db
 			}(), SessionUser: "alice"}},
-			want: []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want: []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE OR REPLACE VIEW renaming a column is refused",
@@ -2180,7 +2180,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE OR REPLACE VIEW adding a column",
 			sql:     "CREATE OR REPLACE VIEW public.v AS SELECT 1 AS a, 2 AS b;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withViewColumns("a")}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TRIGGER on a relation the target lacks is refused",
@@ -2201,7 +2201,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "COMMENT ON a table the target has",
 			sql:     "COMMENT ON TABLE t IS 'x';\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER FUNCTION RENAME of a signature the target lacks is refused",
@@ -2212,7 +2212,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "ALTER FUNCTION RENAME of a signature the target has",
 			sql:     "ALTER FUNCTION public.f(integer) RENAME TO g;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE OR REPLACE VIEW changing a column's type is refused",
@@ -2223,7 +2223,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE OR REPLACE VIEW keeping a column's type",
 			sql:     "CREATE OR REPLACE VIEW public.v AS SELECT 1 AS a;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withTypedView("a", "integer")}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE VIEW naming a column twice is refused",
@@ -2244,7 +2244,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "ALTER TABLE ADD COLUMN to a table the change made",
 			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nALTER TABLE public.x ADD COLUMN y int;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "OWNED BY a column a table the change made lacks is refused",
@@ -2275,7 +2275,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP CONSTRAINT of a name a table the change made gave",
 			sql:     "CREATE TABLE public.x (id int PRIMARY KEY, CONSTRAINT c CHECK (id > 0));\nALTER TABLE public.x DROP CONSTRAINT c;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE SCHEMA with a view naming an output twice is refused",
@@ -2305,7 +2305,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a function the change made follows SET SCHEMA",
 			sql:     "CREATE FUNCTION public.f() RETURNS public.nokey LANGUAGE sql AS 'SELECT NULL::public.nokey';\nALTER FUNCTION public.f() SET SCHEMA s;\nDROP FUNCTION s.f();\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE SCHEMA with a trigger on a relation the target lacks is refused",
@@ -2320,7 +2320,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				g.Columns[1].Generation = &metadata.GenerationMetadata{Expression: "('x'::text)"}
 				return database("public", schema("public", g))
 			}()}},
-			want: []targetFinding{{0, "DROP COLUMN x", "removes the primary key of g, and the change adds none back", []int{0}}},
+			want: []targetFinding{{0, "DROP COLUMN x", "Removes the primary key of `g`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name:    "CREATE VIEW with more column names than outputs is refused",
@@ -2349,7 +2349,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				db.Schemas[0].Tables[1].Triggers = []*metadata.TriggerMetadata{{Name: "tr"}}
 				return db
 			}(), SessionUser: "alice"}},
-			want: []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP FUNCTION of a signature the target lacks is refused",
@@ -2374,7 +2374,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a view the change made unqualified, dropped qualified, no longer holds a table",
 			sql:     "CREATE VIEW v AS SELECT * FROM public.nokey;\nDROP VIEW public.v;\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TABLE with a generated column of a column it lacks is refused",
@@ -2395,7 +2395,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TRIGGER after the change dropped the trigger",
 			sql:     "CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nDROP TRIGGER tr ON public.t;\nCREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf()"), SessionUser: "alice"}},
-			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE TRIGGER of a function only with arguments is refused",
@@ -2406,13 +2406,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "dropping the key a table the change made was made with",
 			sql:     "CREATE TABLE n (id int PRIMARY KEY);\nALTER TABLE n DROP CONSTRAINT n_pkey;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "dropping the named key a table the change made was made with",
 			sql:     "CREATE TABLE n (id int CONSTRAINT n_pk PRIMARY KEY);\nALTER TABLE n DROP CONSTRAINT n_pk;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int CONSTRAINT n_pk PRIMARY KEY)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int CONSTRAINT n_pk PRIMARY KEY)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "UPDATE of a table the target lacks is refused",
@@ -2428,7 +2428,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "UPDATE of a table the target has",
 			sql:     "UPDATE t SET n = 1;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE INDEX on an expression of a column the table lacks is refused",
@@ -2439,7 +2439,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE INDEX on an expression of a column the table has",
 			sql:     "CREATE INDEX i ON public.t ((n + 1));\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "SET SCHEMA where the table's index name is taken is refused",
@@ -2464,7 +2464,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE DOMAIN with a check of VALUE",
 			sql:     "CREATE DOMAIN public.d AS int CHECK (VALUE > 0);\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE OR REPLACE PROCEDURE of a function's signature is refused",
@@ -2480,7 +2480,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE OR REPLACE FUNCTION of a function's signature",
 			sql:     "CREATE OR REPLACE FUNCTION public.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(shop(), "f", "f()"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER TYPE ADD VALUE of a type the target lacks is refused",
@@ -2500,7 +2500,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 				db.Schemas[0].EnumTypes = []*metadata.EnumTypeMetadata{{Name: "mood"}}
 				return db
 			}(), SessionUser: "alice"}},
-			want: []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want: []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP INDEX of a renamed constraint index is refused",
@@ -2511,7 +2511,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a trigger of CREATE SCHEMA on its own table",
 			sql:     "CREATE SCHEMA z CREATE TABLE t (id int) CREATE TRIGGER tr BEFORE INSERT ON z.t FOR EACH ROW EXECUTE FUNCTION public.tf();",
 			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf()"), SessionUser: "alice"}},
-			want:    []targetFinding{{0, "CREATE TABLE t (id int)", "creates table z.t without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE t (id int)", "Creates table `z.t` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP TRIGGER on one table leaves the trigger of the name on another",
@@ -2531,13 +2531,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a renamed key of a table the change made, then dropped",
 			sql:     "CREATE TABLE n (id int PRIMARY KEY);\nALTER TABLE n RENAME CONSTRAINT n_pkey TO x;\nALTER TABLE n DROP CONSTRAINT x;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a renamed synced key, then dropped",
 			sql:     "ALTER TABLE public.t RENAME CONSTRAINT t_pkey TO x;\nALTER TABLE public.t DROP CONSTRAINT x;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT x", "removes the primary key of public.t, and the change adds none back", []int{0}}},
+			want:    []targetFinding{{1, "DROP CONSTRAINT x", "Removes the primary key of `public.t`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name:    "a renamed constraint is gone under its old name",
@@ -2558,13 +2558,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a renamed key's index frees the old name",
 			sql:     "ALTER TABLE public.t RENAME CONSTRAINT t_pkey TO x;\nCREATE TABLE public.t_pkey (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE public.t_pkey (id int)", "creates table public.t_pkey without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE public.t_pkey (id int)", "Creates table `public.t_pkey` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a renamed table frees its name",
 			sql:     "ALTER TABLE public.nokey RENAME TO nk;\nCREATE TABLE public.nokey (a int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE public.nokey (a int)", "creates table public.nokey without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE public.nokey (a int)", "Creates table `public.nokey` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a renamed table is gone under its old name",
@@ -2585,13 +2585,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP FUNCTION IF EXISTS of a renamed routine does nothing",
 			sql:     "ALTER FUNCTION public.f(integer) RENAME TO g;\nDROP FUNCTION IF EXISTS public.f(integer);\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a rename leaves the routine's other signatures",
 			sql:     "ALTER FUNCTION public.f(integer) RENAME TO g;\nDROP FUNCTION public.f(text);\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(withSignature(shop(), "f", "f(a integer)"), "f", "f(text)"), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "COPY of a relation the target lacks is refused",
@@ -2617,13 +2617,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "COPY TO of a table goes on",
 			sql:     "COPY public.t TO STDOUT;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "dropping a key column of a new table drops its key",
 			sql:     "CREATE TABLE n (id int PRIMARY KEY, x int);\nALTER TABLE n DROP COLUMN id;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY, x int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY, x int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a key column of a new table a policy reads",
@@ -2649,25 +2649,25 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a column type in a system schema",
 			sql:     "CREATE TABLE public.n (x pg_catalog.int4);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE public.n (x pg_catalog.int4)", "creates table public.n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE public.n (x pg_catalog.int4)", "Creates table `public.n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a new table shadows another on the path",
 			sql:     "SET search_path = public, s;\nCREATE TABLE s.n (id int);\nCREATE TABLE public.n (id int PRIMARY KEY);\nDROP TABLE n;",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE s.n (id int)", "creates table s.n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE s.n (id int)", "Creates table `s.n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a key added with its column, then dropped",
 			sql:     "CREATE TABLE n (x int);\nALTER TABLE n ADD COLUMN id int CONSTRAINT n_pk PRIMARY KEY;\nALTER TABLE n DROP CONSTRAINT n_pk;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (x int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (x int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a key added to a new table, then its column dropped",
 			sql:     "CREATE TABLE n (id int, x int);\nALTER TABLE n ADD PRIMARY KEY (id);\nALTER TABLE n DROP COLUMN id;",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int, x int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int, x int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "REINDEX of a relation the target lacks is refused",
@@ -2683,7 +2683,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "REINDEX of a table goes on",
 			sql:     "REINDEX TABLE public.t;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER FUNCTION of a signature the target lacks is refused",
@@ -2699,25 +2699,25 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "ALTER FUNCTION of a synced function goes on",
 			sql:     "ALTER FUNCTION public.f(integer) IMMUTABLE;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "NOT VALID on a table's check goes on",
 			sql:     "CREATE TABLE n (id int, CHECK (id > 0) NOT VALID);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int, CHECK (id > 0) NOT VALID)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int, CHECK (id > 0) NOT VALID)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "CREATE SCHEMA makes its tables before their indexes",
 			sql:     "CREATE SCHEMA z CREATE INDEX i ON x (id) CREATE TABLE x (id int);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE x (id int)", "creates table z.x without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE x (id int)", "Creates table `z.x` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP EXTENSION IF EXISTS of an extension the target lacks does nothing",
 			sql:     "DROP EXTENSION IF EXISTS missing;\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "DROP EVENT TRIGGER of one the target lacks is refused",
@@ -2733,7 +2733,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "COMMENT ON a column a view has",
 			sql:     "COMMENT ON COLUMN public.v.a IS 'x';\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withViewColumns("a")}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "ALTER SCHEMA OWNER of a schema the target lacks is refused",
@@ -2764,13 +2764,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 				&metadata.SchemaMetadata{Name: "public", Tables: []*metadata.TableMetadata{table("base", "id integer")}, Sequences: []*metadata.SequenceMetadata{{Name: "q", OwnerTable: "base", OwnerColumn: "id"}}},
 				&metadata.SchemaMetadata{Name: "s", Sequences: []*metadata.SequenceMetadata{{Name: "q"}}},
 			)}},
-			want: []targetFinding{{2, "CREATE TABLE public.q (id int)", "creates table public.q without a primary key", []int{0}}},
+			want: []targetFinding{{2, "CREATE TABLE public.q (id int)", "Creates table `public.q` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "an sql_drop event trigger does not fire on an ALTER TABLE that drops nothing",
 			sql:     "ALTER TABLE t ADD COLUMN x int, ALTER COLUMN n SET DEFAULT 1;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withEvent(shop(), "SQL_DROP"), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "an sql_drop event trigger fires on DROP DEFAULT",
@@ -2791,7 +2791,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a tag filter matches the tags the scan names",
 			sql:     "COMMENT ON TABLE t IS 'x';\nGRANT SELECT ON t TO PUBLIC;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE INDEX"), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name: "an sql_drop event trigger does not fire on CREATE TABLE",
@@ -2801,13 +2801,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 				db.EventTriggers = []*metadata.EventTriggerMetadata{{Name: "et", Event: "SQL_DROP", Enabled: true}}
 				return db
 			}(), SessionUser: "alice"}},
-			want: []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want: []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a cascading drop of a parent may drop a child",
 			sql:     "CREATE TABLE child (x int) INHERITS (nokey);\nCREATE TABLE other (x int);\nDROP TABLE nokey CASCADE;",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE other (x int)", "creates table other without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE other (x int)", "Creates table `other` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a table dropped again is not reported",
@@ -2823,21 +2823,21 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a partitioned table is a table",
 			sql:     "CREATE TABLE pt (id int) PARTITION BY RANGE (id);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE pt (id int) PARTITION BY RANGE (id)", "creates table pt without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE pt (id int) PARTITION BY RANGE (id)", "Creates table `pt` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "LIKE copies the key only when it includes indexes",
 			sql:     "CREATE TABLE a (LIKE t INCLUDING ALL);\nCREATE TABLE b (LIKE t INCLUDING INDEXES);\nCREATE TABLE c (LIKE t);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE c (LIKE t)", "creates table c without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE c (LIKE t)", "Creates table `c` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a table that had a key and lost it",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nALTER TABLE p DROP COLUMN id CASCADE;",
 			targets: one,
 			want: []targetFinding{
-				{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}},
-				{1, "DROP COLUMN id CASCADE", "removes the primary key of p, and the change adds none back", []int{0}},
+				{0, "DROP CONSTRAINT t_pkey CASCADE", "Removes the primary key of `t`, and the change doesn't add one back.", []int{0}},
+				{1, "DROP COLUMN id CASCADE", "Removes the primary key of `p`, and the change doesn't add one back.", []int{0}},
 			},
 		},
 		{
@@ -2854,19 +2854,19 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "pg_dump's search path, keys added at the end",
 			sql:     "SELECT pg_catalog.set_config('search_path', '', false);\nCREATE TABLE public.n (id integer NOT NULL);\nCREATE TABLE public.m (id integer NOT NULL);\nALTER TABLE ONLY public.n ADD CONSTRAINT n_pkey PRIMARY KEY (id);",
 			targets: one,
-			want:    []targetFinding{{2, "CREATE TABLE public.m (id integer NOT NULL)", "creates table public.m without a primary key", []int{0}}},
+			want:    []targetFinding{{2, "CREATE TABLE public.m (id integer NOT NULL)", "Creates table `public.m` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "an unknown search path does not hide a new table",
 			sql:     "SELECT set_config('search_path', 'public', true);\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "set_config of another setting changes nothing",
 			sql:     "SELECT set_config('lock_timeout', '1s', false);\nCREATE TABLE n (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "procedural code anywhere leaves the end unknown",
@@ -2882,19 +2882,19 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a temporary table is not reported",
 			sql:     "CREATE TEMP TABLE n (id int);\nCREATE TABLE m (id int);",
 			targets: one,
-			want:    []targetFinding{{1, "CREATE TABLE m (id int)", "creates table m without a primary key", []int{0}}},
+			want:    []targetFinding{{1, "CREATE TABLE m (id int)", "Creates table `m` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "a statement on another table leaves a new one as it is",
 			sql:     "CREATE TABLE n (id int);\nALTER TABLE IF EXISTS nope ADD COLUMN a int;\nALTER TABLE n ADD COLUMN b int, ADD CONSTRAINT n_b UNIQUE (b);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 		{
 			name:    "no schema: a change that stands on its own is still known",
 			sql:     "CREATE TABLE n (id int);\nCREATE TABLE m (id int);\nALTER TABLE m ADD PRIMARY KEY (id);",
 			targets: []review.Target{{}},
-			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "Creates table `n` without a primary key.", []int{0}}},
 		},
 	}
 	for _, tt := range tests {

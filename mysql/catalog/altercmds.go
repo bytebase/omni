@@ -26,6 +26,36 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	repartition := alterRepartition(stmt.Commands)
+	if tbl.Partitioning == nil && repartition == nil {
+		return c.alterTableCommands(db, tbl, key, stmt)
+	}
+	// A unique key on a partitioned table must cover the partitioning columns. MySQL
+	// checks the table the statement leaves, after every other error (1060, 1061 and
+	// 1091 come first in ADD UNIQUE (b), ADD COLUMN a ...), and leaves the table as it
+	// was: snapshot it to undo the commands when the check fails.
+	before := make(map[*Index]bool, len(tbl.Indexes))
+	for _, idx := range tbl.Indexes {
+		before[idx] = true
+	}
+	snapshot := cloneTable(tbl)
+	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
+		return err
+	}
+	if err := validateAlteredUniqueKeys(tbl, before, repartition); err != nil {
+		undoAlter(db, key, tbl, snapshot)
+		return err
+	}
+	if repartition != nil && tbl.Partitioning != nil {
+		// The catalog does not apply a repartition, so the partitioning it keeps no
+		// longer says which columns a unique key needs.
+		tbl.Partitioning.keyColumns = nil
+	}
+	return nil
+}
+
+// alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
+func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) <= 1 {
 		// Single command: no rollback needed.
 		if len(stmt.Commands) == 1 {
@@ -41,20 +71,24 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
-			// Rollback: if a RENAME changed the map key, undo it.
-			newKey := toLower(tbl.Name)
-			if newKey != origKey {
-				delete(db.Tables, newKey)
-				db.Tables[origKey] = tbl
-			}
-			// Restore all table fields from snapshot.
-			*tbl = snapshot
+			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
 	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
+// in the statement may have moved the table to another database, under another name,
+// so its entry there goes first.
+func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
+	if cur := tbl.Database; cur != nil && cur.Tables[toLower(tbl.Name)] == tbl {
+		delete(cur.Tables, toLower(tbl.Name))
+	}
+	*tbl = snapshot
+	db.Tables[key] = tbl
 }
 
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
@@ -404,13 +438,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 			return err
 		}
-		// Mark PK columns as NOT NULL.
-		for _, colName := range cols {
-			col := tbl.GetColumn(colName)
-			if col != nil {
-				col.Nullable = false
-			}
-		}
 		idxCols := buildIndexColumns(con)
 		pkIdx := &Index{
 			Name:      "PRIMARY",
@@ -422,8 +449,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(pkIdx, con.IndexOptions)
+		// Refused before the columns change: MySQL 8.0 leaves them nullable.
 		if !pkIdx.Visible {
 			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+		}
+		// Mark PK columns as NOT NULL.
+		for _, colName := range cols {
+			col := tbl.GetColumn(colName)
+			if col != nil {
+				col.Nullable = false
+			}
 		}
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -458,6 +493,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
 		}
+		applyIndexOptions(uqIdx, con.IndexOptions)
 		coerceInnoDBHashIndex(tbl, uqIdx)
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -546,6 +582,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
 		}
+		// The CREATE TABLE path reads these; this one used to drop them, so an index
+		// added by ALTER lost its comment, visibility and block size.
+		applyIndexOptions(keyIdx, con.IndexOptions)
 		coerceInnoDBHashIndex(tbl, keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
@@ -562,14 +601,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Fulltext:  true,
 			IndexType: "FULLTEXT",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(ftIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrSpatialIndex:
 		idxName := con.Name
@@ -590,14 +631,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
 			return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
 		}
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		spIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Spatial:   true,
 			IndexType: "SPATIAL",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(spIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, spIdx)
 	}
 
 	return nil
@@ -1063,6 +1106,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 			}
 		}
 	}
+	renamePartitionKeyColumn(tbl, oldName, newName)
 }
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.

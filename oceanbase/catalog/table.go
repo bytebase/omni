@@ -55,6 +55,17 @@ type PartitionInfo struct {
 	// partition_info::use_default_num_subpartitions.
 	UseDefaultSubpartitions    bool
 	UseDefaultNumSubpartitions bool
+	// keyColumns are the columns the partitioning and subpartitioning functions read,
+	// which every unique key must include (partition_key_coverage.go). Empty when the
+	// catalog cannot tell them, which skips the check.
+	keyColumns []string
+	// SubPartTemplate is OceanBase's SUBPARTITION TEMPLATE, kept after CREATE because
+	// a partition ALTER TABLE ... ADD PARTITION adds later without subpartitions of its
+	// own takes the template's. SUBPARTITIONS N is a template of p0 ... p<N-1> on
+	// OceanBase. nil when the partitions each listed their own subpartitions. SHOW
+	// CREATE TABLE stops printing the template once a partition is added with its own,
+	// but the engine keeps applying it, and so does the catalog.
+	SubPartTemplate []*SubPartitionDefInfo
 }
 
 // PartitionDefInfo holds a single partition definition.
@@ -68,9 +79,12 @@ type PartitionDefInfo struct {
 
 // SubPartitionDefInfo holds a single subpartition definition.
 type SubPartitionDefInfo struct {
-	Name    string
-	Engine  string
-	Comment string
+	Name string
+	// ValueExpr is an OceanBase RANGE or LIST subpartition's bound, kept as
+	// PartitionDefInfo.ValueExpr keeps a partition's; "" for HASH and KEY.
+	ValueExpr string
+	Engine    string
+	Comment   string
 }
 
 type Column struct {
@@ -305,6 +319,7 @@ func cloneTable(src *Table) Table {
 			cols[j] = &ic
 		}
 		idx.Columns = cols
+		idx.ParserProperties = copyParserProperties(si.ParserProperties)
 		dst.Indexes[i] = &idx
 	}
 
@@ -323,6 +338,14 @@ func cloneTable(src *Table) Table {
 		pi := *src.Partitioning
 		pi.Columns = append([]string{}, src.Partitioning.Columns...)
 		pi.SubColumns = append([]string{}, src.Partitioning.SubColumns...)
+		pi.keyColumns = append([]string(nil), src.Partitioning.keyColumns...)
+		if src.Partitioning.SubPartTemplate != nil {
+			pi.SubPartTemplate = make([]*SubPartitionDefInfo, len(src.Partitioning.SubPartTemplate))
+			for i, st := range src.Partitioning.SubPartTemplate {
+				sd := *st
+				pi.SubPartTemplate[i] = &sd
+			}
+		}
 		pi.Partitions = make([]*PartitionDefInfo, len(src.Partitioning.Partitions))
 		for i, sp := range src.Partitioning.Partitions {
 			pd := *sp

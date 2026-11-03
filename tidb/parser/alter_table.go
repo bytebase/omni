@@ -81,6 +81,13 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 			return nil, err
 		}
 		stmt.Commands = append(stmt.Commands, cmd)
+		if cmd.Type == nodes.ATTableOption {
+			more, err := p.parseMoreAlterTableOptions()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Commands = append(stmt.Commands, more...)
+		}
 
 		if p.cur.Type != ',' {
 			break
@@ -90,6 +97,32 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseMoreAlterTableOptions parses the table options that follow one in the
+// same ALTER TABLE action, without commas between them, each its own
+// ATTableOption command: `ALTER TABLE t ENGINE = InnoDB ROW_FORMAT = DYNAMIC`
+// and `ALTER TABLE t DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_bin`, which MySQL
+// 8.0, MariaDB 11.8.8 and TiDB v8.5.5 all run, as CREATE TABLE takes them. An
+// action other than a table option still needs a comma before it:
+// `ALTER TABLE t COMMENT 'x' DISABLE KEYS` is a 1064 on all three.
+func (p *Parser) parseMoreAlterTableOptions() ([]*nodes.AlterTableCmd, error) {
+	var cmds []*nodes.AlterTableCmd
+	for {
+		start := p.pos()
+		opt, ok, err := p.parseTableOption()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return cmds, nil
+		}
+		cmds = append(cmds, &nodes.AlterTableCmd{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Type:   nodes.ATTableOption,
+			Option: opt,
+		})
+	}
 }
 
 // parseAlterTableCmd parses a single ALTER TABLE operation.
@@ -439,9 +472,6 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			return nil, err
 		}
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
 			pd, err := p.parsePartitionDef()
 			if err != nil {
 				return nil, err
@@ -1056,9 +1086,6 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 		return nil, err
 	}
 	for {
-		if p.cur.Type == ')' {
-			break
-		}
 		pd, err := p.parsePartitionDef()
 		if err != nil {
 			return nil, err

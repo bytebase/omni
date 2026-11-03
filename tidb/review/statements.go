@@ -113,75 +113,32 @@ func startsWithWith(sql string, loc ast.Loc) bool {
 
 // inFeatureGate reports whether an offset lies inside one of the TiDB
 // /*T![feature] ... */ comments that open the range, read past comments
-// and other gates before it. A gate ends where gateEnd says, which is where
-// the lexer and TiDB end it.
+// and other gates before it. parser.FeatureGate says where a gate ends, which
+// is where the lexer and TiDB end it.
 func inFeatureGate(sql string, r review.Range, offset int) bool {
 	i := r.Start
 	for {
 		i = skipTrivia(sql, i, r.End)
-		if i >= offset || !strings.HasPrefix(sql[i:r.End], "/*T![") {
+		if i >= offset {
 			return false
 		}
-		end := gateEnd(sql, i, r.End)
-		if offset < end {
+		_, closeStart, ok := parser.FeatureGate(sql[:r.End], i)
+		if !ok {
+			return false
+		}
+		if closeStart < 0 {
+			// A gate that never closes gates nothing: TiDB drops its opener and
+			// reads the rest as ordinary SQL. No later gate in the range closes
+			// either, because the scan for this one's close stepped over each
+			// later opener onto its body and found no close from there, so
+			// nothing after it is gated and there is nothing left to scan.
+			return false
+		}
+		if offset < closeStart {
 			return true
 		}
-		i = end + len("*/")
+		i = closeStart + len("*/")
 	}
-}
-
-// gateEnd returns the offset of the "*/" that closes the /*T![ comment at
-// start, or end when none does. The scan steps over whatever the lexer reads
-// as one token — a string, a quoted identifier, a line comment, and a nested
-// block comment, consumed whole — because a "*/" inside any of those closes
-// nothing. This mirrors execCommentClose in parser/lexer.go; the two have to
-// agree or a gate ends in one place for the rules and another for the parser.
-func gateEnd(sql string, start, end int) int {
-	j := start + len("/*T![")
-	for j < end {
-		switch c := sql[j]; {
-		case c == '*' && j+1 < end && sql[j+1] == '/':
-			return j
-
-		case c == '\'' || c == '"' || c == '`':
-			j++
-			for j < end {
-				if sql[j] == '\\' && c != '`' {
-					j += 2
-					continue
-				}
-				if sql[j] != c {
-					j++
-					continue
-				}
-				if j+1 < end && sql[j+1] == c {
-					j += 2
-					continue
-				}
-				j++
-				break
-			}
-
-		case c == '#', c == '-' && j+1 < end && sql[j+1] == '-' &&
-			(j+2 >= end || isSpace(sql[j+2])):
-			for j < end && sql[j] != '\n' {
-				j++
-			}
-
-		case c == '/' && j+1 < end && sql[j+1] == '*':
-			j += 2
-			for j < end && !(sql[j] == '*' && j+1 < end && sql[j+1] == '/') {
-				j++
-			}
-			if j < end {
-				j += 2
-			}
-
-		default:
-			j++
-		}
-	}
-	return end
 }
 
 // skipTrivia returns the offset of the first byte in [start, end) that is
@@ -197,8 +154,9 @@ func skipTrivia(sql string, start, end int) int {
 				i++
 			}
 		// MySQL's /*! ... */ and TiDB's /*T! ... */ are executable comments,
-		// whose text TiDB runs.
-		case strings.HasPrefix(sql[i:end], "/*") && !strings.HasPrefix(sql[i:end], "/*!") && !strings.HasPrefix(sql[i:end], "/*T!"):
+		// whose text TiDB runs; a gate for a feature TiDB does not support is
+		// an ordinary comment.
+		case strings.HasPrefix(sql[i:end], "/*") && !parser.IsExecutableComment(sql[:end], i):
 			j := strings.Index(sql[i+2:end], "*/")
 			if j < 0 {
 				return i

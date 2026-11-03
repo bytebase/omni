@@ -658,8 +658,27 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
+// backtickQuotedAt reports whether the token at absolute offset off is a
+// backtick-quoted identifier.
+func (p *Parser) backtickQuotedAt(off int) bool {
+	i := off - p.lexer.baseOffset
+	return i >= 0 && i < len(p.lexer.input) && p.lexer.input[i] == '`'
+}
+
 // parseFuncCall parses a function call after the name has been consumed.
 func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, error) {
+	// The builtins below take their special argument syntax (COUNT(*),
+	// DISTINCT, TRIM's FROM, SUBSTRING's FROM and FOR, GROUP_CONCAT's ORDER BY
+	// and SEPARATOR, the keyword arguments, OVER) from the grammar's keyword for
+	// the name, and only the unqualified, unquoted name is that keyword. A
+	// schema-qualified name is a stored function and a backtick-quoted name an
+	// identifier: either way the call is an ordinary one, with ordinary
+	// expressions for arguments and no window. OceanBase 4.3.5 runs
+	// `timestampdiff`(1, 2, 3) and reads SECOND in `timestampdiff`(SECOND, a, b)
+	// as a column, and answers 1064 for `count`(*), `trim`(LEADING 'x' FROM b),
+	// test.substring(b FROM 1), `sum`(a) OVER () and the other special forms
+	// under a quoted or qualified name. p.prev is the name's token.
+	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc)
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
@@ -672,44 +691,36 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// Handle special function forms
 	upperName := strings.ToUpper(name)
 
-	// COUNT(*)
-	if upperName == "COUNT" && p.cur.Type == '*' {
-		p.advance()
-		fc.Star = true
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
+	if builtin {
+		// COUNT(*)
+		if upperName == "COUNT" && p.cur.Type == '*' {
+			p.advance()
+			fc.Star = true
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			goto overCheck
 		}
-		goto overCheck
-	}
 
-	// Aggregate with DISTINCT: COUNT(DISTINCT ...), SUM(DISTINCT ...), etc.
-	if p.cur.Type == kwDISTINCT {
-		fc.Distinct = true
-		p.advance()
-	}
+		// Aggregate with DISTINCT: COUNT(DISTINCT ...), SUM(DISTINCT ...), etc.
+		if p.cur.Type == kwDISTINCT {
+			fc.Distinct = true
+			p.advance()
+		}
 
-	// TRIM special syntax: TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str)
-	if upperName == "TRIM" {
-		return p.parseTrimFunc(fc)
-	}
-
-	// SUBSTRING special syntax: SUBSTRING(str, pos, len) or SUBSTRING(str FROM pos FOR len)
-	if upperName == "SUBSTRING" || upperName == "SUBSTR" {
-		return p.parseSubstringFunc(fc)
-	}
-
-	// GROUP_CONCAT special syntax
-	if upperName == "GROUP_CONCAT" {
-		return p.parseGroupConcatFunc(fc)
-	}
-
-	// Keyword-argument builtins: their first argument (or a trailing clause)
-	// is a bare keyword the engine lexes as a token, never an identifier —
-	// a backtick-quoted unit is a syntax error (oracle 8.0.32 + 5.7.25).
-	// Only the unqualified builtin has this shape; a schema-qualified name is
-	// a stored function whose arguments are ordinary expressions.
-	if schema == "" {
 		switch upperName {
+		case "TRIM":
+			// TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str)
+			return p.parseTrimFunc(fc)
+		case "SUBSTRING", "SUBSTR":
+			// SUBSTRING(str, pos, len) or SUBSTRING(str FROM pos FOR len)
+			return p.parseSubstringFunc(fc)
+		case "GROUP_CONCAT":
+			return p.parseGroupConcatFunc(fc)
+		// Keyword-argument builtins: their first argument (or a trailing
+		// clause) is a bare keyword the engine lexes as a token, never an
+		// identifier — a backtick-quoted unit is a syntax error (oracle 8.0.32
+		// + 5.7.25).
 		case "TIMESTAMPDIFF", "TIMESTAMPADD":
 			return p.parseTimestampFunc(fc)
 		case "GET_FORMAT":
@@ -736,11 +747,20 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 
 	// Regular argument list
 	for {
+		// An ordinary call's arguments are expressions, which neither * nor a
+		// bare INTERVAL is: OceanBase 4.3.5 answers 1064 for `count`(*) and
+		// `date_add`(d, INTERVAL 1 DAY), and parses `f`(d + INTERVAL 1 DAY).
+		if !builtin && p.cur.Type == '*' {
+			return nil, p.syntaxErrorAtCur()
+		}
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
 		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, bare := arg.(*nodes.IntervalExpr); bare && !builtin {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
@@ -791,7 +811,7 @@ overCheck:
 	//     | expr PRECEDING
 	//     | expr FOLLOWING
 	//   }
-	if p.cur.Type == kwOVER {
+	if builtin && p.cur.Type == kwOVER {
 		p.advance()
 		wd, err := p.parseOverClause()
 		if err != nil {
@@ -1137,67 +1157,38 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	return fc, nil
 }
 
-// sqlTSIUnits maps the SQL_TSI_-prefixed unit synonyms MySQL's lexer
-// registers to their canonical unit. Only these eight exist —
-// SQL_TSI_MICROSECOND is not a token and the engine rejects it
-// (oracle 8.0.32 + 5.7.25: error 1064).
-var sqlTSIUnits = map[string]string{
-	"SQL_TSI_SECOND":  "SECOND",
-	"SQL_TSI_MINUTE":  "MINUTE",
-	"SQL_TSI_HOUR":    "HOUR",
-	"SQL_TSI_DAY":     "DAY",
-	"SQL_TSI_WEEK":    "WEEK",
-	"SQL_TSI_MONTH":   "MONTH",
-	"SQL_TSI_QUARTER": "QUARTER",
-	"SQL_TSI_YEAR":    "YEAR",
-}
-
-// normalizeTimeUnit uppercases unit and folds a SQL_TSI_ synonym to its
-// canonical name. This mirrors the engine's stored form: SHOW CREATE VIEW
-// renders timestampdiff(sql_tsi_second,...) as timestampdiff(SECOND,...)
-// (oracle 8.0.32 + 5.7.25).
+// normalizeTimeUnit uppercases unit.
+//
+// MySQL also takes the eight SQL_TSI_ synonyms (SQL_TSI_SECOND ... SQL_TSI_YEAR)
+// wherever a unit goes and folds them to the plain unit. OceanBase does not: its
+// date_unit in sql_parser_mysql_mode.y (v4.3.5_CE_BP6) lists the twenty plain
+// units and no SQL_TSI_ one, and every unit position reads date_unit, so 4.3.5.6
+// answers 1064 for a SQL_TSI_ unit in TIMESTAMPDIFF, TIMESTAMPADD, EXTRACT,
+// DATE_ADD and its family, INTERVAL arithmetic and a window frame
+// (sqlTSIUnitCases). The words stay unreserved there, so they still name columns.
 func normalizeTimeUnit(unit string) string {
-	u := strings.ToUpper(unit)
-	if canon, ok := sqlTSIUnits[u]; ok {
-		return canon
-	}
-	return u
-}
-
-// simpleTimeUnits is the unit set TIMESTAMPDIFF/TIMESTAMPADD accept
-// (interval_time_stamp in sql_yacc.yy): the nine simple units only.
-// Compound units are a syntax error there (oracle 8.0.32 + 5.7.25:
-// TIMESTAMPDIFF(DAY_HOUR,...) → 1064).
-var simpleTimeUnits = map[string]bool{
-	"MICROSECOND": true,
-	"SECOND":      true,
-	"MINUTE":      true,
-	"HOUR":        true,
-	"DAY":         true,
-	"WEEK":        true,
-	"MONTH":       true,
-	"QUARTER":     true,
-	"YEAR":        true,
+	return strings.ToUpper(unit)
 }
 
 // parseTimeUnitKeyword parses a bare temporal-unit keyword and returns it as
 // a normalized KeywordArg. The engine lexes the unit as a keyword token —
 // quoted identifiers and string literals are syntax errors in this position
-// (oracle 8.0.32 + 5.7.25) — so only keyword tokens are accepted; all valid
-// units are registered keywords. simpleOnly restricts to the
-// TIMESTAMPDIFF/TIMESTAMPADD set; otherwise the full interval-unit set
-// (including compound units) is allowed.
-func (p *Parser) parseTimeUnitKeyword(simpleOnly bool) (*nodes.KeywordArg, error) {
+// (oracle 8.0.32 + 5.7.25, and 4.3.5.6) — so only keyword tokens are accepted;
+// all valid units are registered keywords.
+//
+// Every position takes the full unit set, compound units included. MySQL limits
+// TIMESTAMPDIFF and TIMESTAMPADD to the nine simple units (interval_time_stamp in
+// sql_yacc.yy) and answers 1064 for TIMESTAMPDIFF(DAY_HOUR, ...), but OceanBase's
+// timestamp_params reads the same date_unit as EXTRACT and INTERVAL
+// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6), and 4.3.5.6 parses DAY_HOUR,
+// YEAR_MONTH and MINUTE_SECOND there (sqlTSIUnitCases).
+func (p *Parser) parseTimeUnitKeyword() (*nodes.KeywordArg, error) {
 	if p.cur.Type < 700 {
 		return nil, &ParseError{Message: "expected time unit keyword", Position: p.cur.Loc}
 	}
 	tok := p.advance()
 	unit := normalizeTimeUnit(tok.Str)
-	valid := isValidIntervalUnit(unit)
-	if simpleOnly {
-		valid = simpleTimeUnits[unit]
-	}
-	if !valid {
+	if !isValidIntervalUnit(unit) {
 		return nil, &ParseError{Message: "invalid time unit: " + tok.Str, Position: tok.Loc}
 	}
 	return &nodes.KeywordArg{
@@ -1218,7 +1209,7 @@ func (p *Parser) parseTimestampFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		p.addRuleCandidate("func_name")
 		return nil, &ParseError{Message: "collecting"}
 	}
-	unit, err := p.parseTimeUnitKeyword(true)
+	unit, err := p.parseTimeUnitKeyword()
 	if err != nil {
 		return nil, err
 	}
@@ -1759,7 +1750,7 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 	// reserved keywords — so this must accept keyword tokens, not
 	// identifiers (oracle 8.0.32 + 5.7.25: extract(day_hour from ...) is
 	// the engine-stored form).
-	unit, err := p.parseTimeUnitKeyword(false)
+	unit, err := p.parseTimeUnitKeyword()
 	if err != nil {
 		return nil, err
 	}
@@ -2231,9 +2222,10 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 
 	// Parse unit: DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.
 	// Use parseKeywordOrIdent because compound interval units (DAY_HOUR, etc.)
-	// are registered as reserved keywords. SQL_TSI_ synonyms fold to their
-	// canonical unit, matching the engine's stored form (oracle 8.0.32 +
-	// 5.7.25: INTERVAL 1 SQL_TSI_DAY stores as interval 1 day).
+	// are registered as reserved keywords. A SQL_TSI_ synonym is not a unit
+	// here (see normalizeTimeUnit), and the error is at the unit, where
+	// OceanBase reports it.
+	unitStart := p.pos()
 	unit, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
@@ -2242,7 +2234,7 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	upper := normalizeTimeUnit(unit)
 	if !isValidIntervalUnit(upper) {
 		return nil, &ParseError{
-			Position: p.pos(),
+			Position: unitStart,
 			Message:  "invalid INTERVAL unit: " + unit,
 		}
 	}

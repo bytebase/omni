@@ -71,11 +71,26 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 			break
 		}
 
-		cmd, err := p.parseAlterTableCmd()
-		if err != nil {
-			return nil, err
+		if p.cur.Type == kwSET {
+			cmds, err := p.parseAlterTableSet()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Commands = append(stmt.Commands, cmds...)
+		} else {
+			cmd, err := p.parseAlterTableCmd()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Commands = append(stmt.Commands, cmd)
+			if cmd.Type == nodes.ATTableOption {
+				more, err := p.parseMoreAlterTableOptions()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Commands = append(stmt.Commands, more...)
+			}
 		}
-		stmt.Commands = append(stmt.Commands, cmd)
 
 		if p.cur.Type != ',' {
 			break
@@ -85,6 +100,59 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseAlterTableSet parses OceanBase's `SET table_option [table_option ...]`, one
+// ALTER TABLE action. alter_table_action in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6) reads `opt_set table_option_list_space_seperated`: SET may lead
+// the options, which follow one another without commas, with or without it. 4.3.5.6
+// applies `ALTER TABLE t SET COMMENT 'x'` as `ALTER TABLE t COMMENT 'x'`, and reads
+// back each option set this way (alterTableSetCases). SET with no table option after
+// it is a 1064. Each option becomes its own ATTableOption command, the first one
+// spanning the SET.
+func (p *Parser) parseAlterTableSet() ([]*nodes.AlterTableCmd, error) {
+	start := p.pos()
+	p.advance() // consume SET
+	opt, ok, err := p.parseTableOption()
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	cmds := []*nodes.AlterTableCmd{{
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Type:   nodes.ATTableOption,
+		Option: opt,
+	}}
+	more, err := p.parseMoreAlterTableOptions()
+	if err != nil {
+		return nil, err
+	}
+	return append(cmds, more...), nil
+}
+
+// parseMoreAlterTableOptions parses the table options that follow one in the same
+// ALTER TABLE action, without commas between them: `ALTER TABLE t PCTFREE = 5 COMMENT
+// 'x'`, which OceanBase reads as table_option_list_space_seperated, with or without a
+// leading SET.
+func (p *Parser) parseMoreAlterTableOptions() ([]*nodes.AlterTableCmd, error) {
+	var cmds []*nodes.AlterTableCmd
+	for {
+		start := p.pos()
+		opt, ok, err := p.parseTableOption()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return cmds, nil
+		}
+		cmds = append(cmds, &nodes.AlterTableCmd{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Type:   nodes.ATTableOption,
+			Option: opt,
+		})
+	}
 }
 
 // parseAlterTableCmd parses a single ALTER TABLE operation.
@@ -386,28 +454,19 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// ADD PARTITION (partition_definition, ...)
+	// ADD PARTITION (partition_definition, ...). MySQL also takes ADD PARTITION
+	// PARTITIONS n, and partitions without VALUES for a HASH or KEY table. OceanBase's
+	// ADD PARTITION reads opt_partition_range_or_list alone (v4.3.5_CE_BP6), so
+	// 4.3.5.6 answers 1064 for both, at PARTITIONS and at the token after the
+	// partition's name (partitionOptionCases).
 	if p.cur.Type == kwPARTITION {
 		p.advance()
 		cmd.Type = nodes.ATAddPartition
-		if p.cur.Type == kwPARTITIONS {
-			p.advance()
-			if p.cur.Type != tokICONST {
-				return nil, &ParseError{Message: "expected partition count", Position: p.cur.Loc}
-			}
-			cmd.Number = int(p.cur.Ival)
-			p.advance()
-			cmd.Loc.End = p.prev.End
-			return cmd, nil
-		}
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
-			pd, err := p.parsePartitionDef()
+			pd, err := p.parsePartitionDef(true)
 			if err != nil {
 				return nil, err
 			}
@@ -427,7 +486,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	// ADD [CONSTRAINT ...] PRIMARY KEY / UNIQUE / FOREIGN KEY / CHECK
 	if p.isTableConstraintStart() {
 		cmd.Type = nodes.ATAddConstraint
-		constr, err := p.parseTableConstraint()
+		constr, err := p.parseTableConstraint(true)
 		if err != nil {
 			return nil, err
 		}
@@ -1009,7 +1068,8 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 	}
 	cmd.PartitionNames = names
 
-	// INTO (partition_definitions)
+	// INTO (partition_definitions). OceanBase reads opt_partition_range_or_list here
+	// too (v4.3.5_CE_BP6), so a partition without VALUES is a 1064, as in ADD PARTITION.
 	if _, err := p.expect(kwINTO); err != nil {
 		return nil, err
 	}
@@ -1017,10 +1077,7 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 		return nil, err
 	}
 	for {
-		if p.cur.Type == ')' {
-			break
-		}
-		pd, err := p.parsePartitionDef()
+		pd, err := p.parsePartitionDef(true)
 		if err != nil {
 			return nil, err
 		}

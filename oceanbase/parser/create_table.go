@@ -188,9 +188,6 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 // inside the parentheses of a CREATE TABLE statement.
 func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 	for {
-		if p.cur.Type == ')' {
-			break
-		}
 
 		// Completion: at start of a column/constraint definition, offer constraint keywords.
 		p.checkCursor()
@@ -203,7 +200,7 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 
 		// Table-level constraints: PRIMARY KEY, UNIQUE, INDEX, KEY, FULLTEXT, SPATIAL, FOREIGN KEY, CONSTRAINT, CHECK
 		if p.isTableConstraintStart() {
-			constr, err := p.parseTableConstraint()
+			constr, err := p.parseTableConstraint(false)
 			if err != nil {
 				return err
 			}
@@ -391,10 +388,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwCOMMENT:
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			col.Comment = p.cur.Str
-			p.advance()
+		// The comment is a quoted string and is required: the server answers 1064
+		// for a bare COMMENT, as it does for the table option.
+		if p.cur.Type != tokSCONST {
+			return false, p.syntaxErrorAtCur()
 		}
+		col.Comment = p.cur.Str
+		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrComment,
@@ -832,12 +832,16 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 //	[CONSTRAINT [symbol]] CHECK (expr)
 //	{INDEX | KEY} [name] (col,...) [index_option]
 //	{FULLTEXT | SPATIAL} [INDEX|KEY] [name] (col,...) [index_option]
-func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
+//
+// inAlter is true for ALTER TABLE ... ADD, whose PRIMARY KEY grammar differs from
+// CREATE TABLE's (parsePrimaryKey).
+func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 	start := p.pos()
 	constr := &nodes.Constraint{Loc: nodes.Loc{Start: start}}
 
 	// Optional CONSTRAINT [name]
-	if _, ok := p.match(kwCONSTRAINT); ok {
+	_, afterConstraint := p.match(kwCONSTRAINT)
+	if afterConstraint {
 		if p.isIdentToken() && p.cur.Type != kwPRIMARY && p.cur.Type != kwUNIQUE &&
 			p.cur.Type != kwFOREIGN && p.cur.Type != kwCHECK {
 			constr.Name, _, _ = p.parseIdent()
@@ -846,22 +850,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 
 	switch p.cur.Type {
 	case kwPRIMARY:
-		p.advance()
-		p.match(kwKEY)
-		constr.Type = nodes.ConstrPrimaryKey
-		// Optional index name (undocumented but accepted by MySQL 8.0, silently ignored)
-		if p.isIdentToken() && p.cur.Type != '(' {
-			p.parseIdent() // consume and discard — MySQL ignores PK index names
-		}
-		// Optional index type
-		p.parseIndexTypeClause(constr)
-		idxCols, err := p.parseParenIndexKeyParts()
-		if err != nil {
+		if err := p.parsePrimaryKey(constr, afterConstraint, inAlter); err != nil {
 			return nil, err
 		}
-		constr.IndexColumns = idxCols
-		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
 
 	case kwUNIQUE:
 		p.advance()
@@ -879,7 +870,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwFOREIGN:
 		p.advance()
@@ -981,7 +974,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwFULLTEXT:
 		p.advance()
@@ -990,13 +985,24 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
+		// FULLTEXT opt_key_or_index opt_index_name opt_index_using_algorithm '('
+		// (v4.3.5_CE_BP6): 4.3.5.6 takes FULLTEXT KEY fk USING BTREE (c). USING
+		// needs its algorithm: FULLTEXT KEY fk USING (c) is a 1064.
+		if p.cur.Type == kwUSING {
+			if next := p.peekNext(); next.Type != tokIDENT && next.Type < 700 {
+				return nil, p.syntaxErrorAtTok(next)
+			}
+			p.parseIndexTypeClause(constr)
+		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
 			return nil, err
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwSPATIAL:
 		p.advance()
@@ -1011,7 +1017,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	default:
 		return nil, &ParseError{
@@ -1024,12 +1032,113 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 	return constr, nil
 }
 
-// parseConstraintIndexOptions parses index_option list after a table constraint's key parts.
-func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) {
+// parsePrimaryKey parses a table-level PRIMARY KEY from PRIMARY on. OceanBase's
+// grammar for it is narrower than MySQL's, and differs between CREATE TABLE and
+// ALTER TABLE ... ADD. sql_parser_mysql_mode.y (v4.3.5_CE_BP6) reads, in CREATE
+// TABLE's table_element,
+//
+//	CONSTRAINT [name] PRIMARY KEY [USING type] (column_name_list) [USING type] [COMMENT 'string']
+//	PRIMARY KEY [index_name] [USING type] (column_name_list) [USING type] [COMMENT 'string']
+//
+// and in ALTER TABLE's add_constraint_pri_key and add_primary_key,
+//
+//	CONSTRAINT [name] PRIMARY KEY (column_name_list) [index_option ...]
+//	PRIMARY KEY [index_name] (column_name_list) [index_option ...]
+//
+// 4.3.5.6 answers 1064 for everything else (primaryKeyGrammarCases): KEY left
+// out, an index name after CONSTRAINT, a USING before the columns in ALTER TABLE,
+// a column prefix, ASC or DESC, or an expression in the column list, and in CREATE
+// TABLE any option but one USING then one COMMENT, so KEY_BLOCK_SIZE, VISIBLE,
+// INVISIBLE, WITH PARSER, LOCAL, GLOBAL and BLOCK_SIZE, and a COMMENT before the
+// USING. Each is left unread, so the statement fails at it, as OceanBase's "near"
+// says.
+func (p *Parser) parsePrimaryKey(constr *nodes.Constraint, afterConstraint, inAlter bool) error {
+	p.advance() // PRIMARY
+	if _, err := p.expect(kwKEY); err != nil {
+		return err
+	}
+	constr.Type = nodes.ConstrPrimaryKey
+	// The index name, which the engine ignores, as MySQL does.
+	if p.isIdentToken() && p.cur.Type != '(' {
+		if afterConstraint {
+			return p.syntaxErrorAtCur()
+		}
+		if _, _, err := p.parseIdent(); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type == kwUSING {
+		if inAlter {
+			return p.syntaxErrorAtCur()
+		}
+		p.parseIndexTypeClause(constr)
+	}
+	cols, err := p.parsePrimaryKeyColumns()
+	if err != nil {
+		return err
+	}
+	constr.IndexColumns = cols
+	constr.Columns = indexColumnsToNames(cols)
+	if inAlter {
+		return p.parseConstraintIndexOptions(constr)
+	}
+	for _, kw := range []int{kwUSING, kwCOMMENT} {
+		if p.cur.Type != kw {
+			continue
+		}
+		opt, _, err := p.parseIndexOption(false)
+		if err != nil {
+			return err
+		}
+		constr.IndexOptions = append(constr.IndexOptions, opt)
+	}
+	return nil
+}
+
+// parsePrimaryKeyColumns parses a PRIMARY KEY's parenthesized column_name_list:
+// plain column names, which is all OceanBase takes there.
+func (p *Parser) parsePrimaryKeyColumns() ([]*nodes.IndexColumn, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var cols []*nodes.IndexColumn
 	for {
-		opt, ok, err := p.parseIndexOption()
-		if err != nil || !ok {
+		// Completion: offer columnref, as for any key part.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		loc := nodes.Loc{Start: start, End: p.prev.End}
+		cols = append(cols, &nodes.IndexColumn{Loc: loc, Expr: &nodes.ColumnRef{Loc: loc, Column: name}})
+		if p.cur.Type != ',' {
 			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return cols, nil
+}
+
+// parseConstraintIndexOptions parses index_option list after a table constraint's key
+// parts. An option that starts and does not finish is an error, as it is after CREATE
+// INDEX: dropping it left the rest to whatever followed, so `KEY i (a) COMMENT` and
+// `FULLTEXT KEY fk (c) WITH PARSER)` parsed, which OceanBase answers 1064 for.
+func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
+	for {
+		opt, ok, err := p.parseIndexOption(constr.Type == nodes.ConstrFulltextIndex)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
 		}
 		constr.IndexOptions = append(constr.IndexOptions, opt)
 	}
@@ -1120,7 +1229,10 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			}
 			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHARACTER SET", Value: val}, true, nil
 		}
-		return nil, false, nil
+		// CHARACTER without SET is no option. Returning "not an option" after consuming
+		// it dropped the word, so `CREATE TABLE t (a INT) CHARACTER` and `ALTER TABLE t
+		// COMMENT 'x' CHARACTER` parsed; OceanBase answers 1064 for both.
+		return nil, false, p.syntaxErrorAtCur()
 
 	case kwCOLLATE:
 		p.advance()
@@ -1134,11 +1246,13 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCOMMENT:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		// The value is a quoted string and is required: the server answers 1064
+		// for a bare COMMENT, CONNECTION or PASSWORD.
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COMMENT", Value: val}, true, nil
 
 	case kwROW_FORMAT:
@@ -1153,21 +1267,21 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCONNECTION:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CONNECTION", Value: val}, true, nil
 
 	case kwPASSWORD:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PASSWORD", Value: val}, true, nil
 
 	case kwSTORAGE:
@@ -1286,11 +1400,16 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
-	// DYNAMIC_PARTITION_POLICY takes a parenthesized list of assignments of its own,
-	// ENABLE = TRUE and TIME_UNIT = 'DAY' in the form read on 4.3.5. Nothing downstream
-	// reads inside it, so the group is kept as written rather than modelled, but the
-	// assignments are still parsed: accepting any parenthesized text would pass DDL
-	// through review that the server then refuses.
+	// DYNAMIC_PARTITION_POLICY [=] (key = value [[,] key = value] ...). Nothing
+	// downstream reads inside the list, so it is kept as written rather than
+	// modelled, but every assignment is parsed the way 4.3.5.6 reads it
+	// (dynamicPartitionPolicyCases): the key is one of dynamicPartitionPolicyKeys,
+	// written bare; the '=' is required; ENABLE takes TRUE or FALSE, and every
+	// other key a string literal, adjacent literals included. The engine answers
+	// 1064 for anything else, so a looser reading would pass DDL through review for
+	// the server to refuse. The comma between assignments is the one exception: the
+	// engine parses a list without it and refuses it afterwards with 1210, so the
+	// parser takes it, as it takes any statement the grammar does.
 	if p.cur.Type == kwDYNAMIC_PARTITION_POLICY {
 		p.advance()
 		p.match('=')
@@ -1299,23 +1418,31 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			return nil, false, err
 		}
 		for {
-			if _, _, err := p.parseIdent(); err != nil {
+			key, ok := p.dynamicPartitionPolicyKey()
+			if !ok {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if _, err := p.expect('='); err != nil {
 				return nil, false, err
 			}
-			p.match('=')
-			switch p.cur.Type {
-			// TRUE and FALSE are reserved, so parseIdent would refuse the very form
-			// OceanBase writes.
-			case tokICONST, tokSCONST, kwTRUE, kwFALSE:
+			if key == "ENABLE" {
+				if p.cur.Type != kwTRUE && p.cur.Type != kwFALSE {
+					return nil, false, p.syntaxErrorAtCur()
+				}
 				p.advance()
-			default:
-				if _, _, err := p.parseIdent(); err != nil {
-					return nil, false, err
+			} else {
+				if p.cur.Type != tokSCONST {
+					return nil, false, p.syntaxErrorAtCur()
+				}
+				for p.cur.Type == tokSCONST {
+					p.advance()
 				}
 			}
-			if _, ok := p.match(','); !ok {
+			if p.cur.Type == ')' {
 				break
 			}
+			p.match(',')
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, false, err
@@ -1327,24 +1454,53 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}, true, nil
 	}
 
-	// ORGANIZATION INDEX is OceanBase's index-organized table, which it prints on
-	// every table SHOW CREATE TABLE returns (verified on 4.3.5). It takes no value.
-	if p.cur.Type == kwORGANIZATION && p.peekNext().Type == kwINDEX {
+	// ORGANIZATION [=] {INDEX | HEAP}: OceanBase's index-organized or heap table.
+	// 4.3.5 prints ORGANIZATION INDEX on every table SHOW CREATE TABLE returns, and
+	// takes either word, with or without the '=', in CREATE TABLE and ALTER TABLE
+	// (organizationCases). The option keeps the name it has always had for INDEX.
+	if p.cur.Type == kwORGANIZATION {
 		p.advance()
+		p.match('=')
+		var name string
+		switch {
+		case p.cur.Type == kwINDEX:
+			name = "ORGANIZATION INDEX"
+		case p.isBareWord("HEAP"):
+			name = "ORGANIZATION HEAP"
+		default:
+			return nil, false, p.syntaxErrorAtCur()
+		}
 		p.advance()
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ORGANIZATION INDEX"}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name}, true, nil
 	}
 
-	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.,
-	// and OceanBase's storage options, which it prints on every table.
+	// OceanBase's storage options each take one kind of value. table_option in
+	// sql_parser_mysql_mode.y (v4.3.5_CE) reads `REPLICA_NUM opt_equal_mark INTNUM`,
+	// BLOCK_SIZE, TABLET_SIZE and PCTFREE the same way, `USE_BLOOM_FILTER
+	// opt_equal_mark BOOL_VALUE`, and `AUTO_INCREMENT_MODE opt_equal_mark
+	// STRING_VALUE`; ENABLE_MACRO_BLOCK_BLOOM_FILTER is newer than that tag, and
+	// 4.3.5.6 takes TRUE or FALSE for it. Any other value is a 1064
+	// (tableOptionValueCases), where consumeOptionValue below takes any word.
+	if want, ok := oceanBaseOptionValue[p.cur.Type]; ok {
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		if !want(p.cur.Type) {
+			return nil, false, &ParseError{Message: "expected a value for the table option", Position: p.cur.Loc}
+		}
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+	}
+
+	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
 	switch p.cur.Type {
 	case kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
-		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE,
-		kwBLOCK_SIZE, kwREPLICA_NUM, kwTABLET_SIZE, kwPCTFREE,
-		kwUSE_BLOOM_FILTER, kwENABLE_MACRO_BLOCK_BLOOM_FILTER,
-		kwAUTO_INCREMENT_MODE:
+		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE:
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
@@ -1356,6 +1512,51 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	}
 
 	return nil, false, nil
+}
+
+// oceanBaseOptionValue maps each OceanBase storage option to the token types its
+// value may be.
+var oceanBaseOptionValue = map[int]func(int) bool{
+	kwBLOCK_SIZE:                      isIntegerToken,
+	kwREPLICA_NUM:                     isIntegerToken,
+	kwTABLET_SIZE:                     isIntegerToken,
+	kwPCTFREE:                         isIntegerToken,
+	kwUSE_BLOOM_FILTER:                isBoolToken,
+	kwENABLE_MACRO_BLOCK_BLOOM_FILTER: isBoolToken,
+	kwAUTO_INCREMENT_MODE:             isStringToken,
+}
+
+func isIntegerToken(t int) bool { return t == tokICONST }
+func isBoolToken(t int) bool    { return t == kwTRUE || t == kwFALSE }
+func isStringToken(t int) bool  { return t == tokSCONST }
+
+// dynamicPartitionPolicyKeys are the keys DYNAMIC_PARTITION_POLICY takes on
+// 4.3.5.6. Any other key, a quoted one included, is a 1064.
+var dynamicPartitionPolicyKeys = []string{
+	"ENABLE", "TIME_UNIT", "PRECREATE_TIME", "EXPIRE_TIME", "TIME_ZONE", "BIGINT_PRECISION",
+}
+
+// dynamicPartitionPolicyKey reports which of dynamicPartitionPolicyKeys the
+// current token spells, without consuming it.
+func (p *Parser) dynamicPartitionPolicyKey() (string, bool) {
+	for _, key := range dynamicPartitionPolicyKeys {
+		if p.isBareWord(key) {
+			return key, true
+		}
+	}
+	return "", false
+}
+
+// isBareWord reports whether the current token is word, in any case and not
+// quoted: an identifier or a keyword, but not `word`.
+func (p *Parser) isBareWord(word string) bool {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return false
+	}
+	if !strings.EqualFold(p.cur.Str, word) {
+		return false
+	}
+	return !strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "`")
 }
 
 // consumeOptionValue reads the next token as an option value string.
@@ -1524,122 +1725,22 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
-	// SUBPARTITION BY {HASH(expr) | KEY [ALGORITHM=N] (column_list)}
+	// SUBPARTITION BY ..., then a SUBPARTITION TEMPLATE or SUBPARTITIONS n.
 	if p.cur.Type == kwSUBPARTITION {
-		p.advance() // SUBPARTITION
-		if _, err := p.expect(kwBY); err != nil {
+		if err := p.parseSubpartitionClause(part); err != nil {
 			return nil, err
 		}
-		switch {
-		case p.cur.Type == kwHASH:
+		// OceanBase's partition_options also takes PARTITIONS n after the subpartition
+		// clause (v4.3.5_CE_BP6): 4.3.5.6 takes PARTITION BY HASH(a) SUBPARTITION BY
+		// KEY(b) SUBPARTITIONS 2 PARTITIONS 3. It takes it once, before or after.
+		if part.NumParts == 0 && p.cur.Type == kwPARTITIONS {
 			p.advance()
-			part.SubPartType = nodes.PartitionHash
-			if _, err := p.expect('('); err != nil {
-				return nil, err
-			}
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if expr == nil {
+			// partition_num is PARTITIONS INTNUM: the count is not optional.
+			if p.cur.Type != tokICONST {
 				return nil, p.syntaxErrorAtCur()
 			}
-			part.SubPartExpr = expr
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-		case p.cur.Type == kwKEY:
+			part.NumParts = int(p.cur.Ival)
 			p.advance()
-			part.SubPartType = nodes.PartitionKey
-			// Optional ALGORITHM = N
-			if p.cur.Type == kwALGORITHM {
-				p.advance()
-				p.match('=')
-				if p.cur.Type == tokICONST {
-					part.SubPartAlgo = int(p.cur.Ival)
-					p.advance()
-				}
-			}
-			// KEY () with empty column list means "use PK columns".
-			if p.cur.Type == '(' && p.peekNext().Type == ')' {
-				p.advance() // consume '('
-				p.advance() // consume ')'
-			} else {
-				cols, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				part.SubPartColumns = cols
-			}
-		case p.cur.Type == kwLINEAR:
-			p.advance() // LINEAR
-			if p.cur.Type == kwHASH {
-				p.advance()
-				part.SubPartType = nodes.PartitionHash
-				if _, err := p.expect('('); err != nil {
-					return nil, err
-				}
-				expr, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if expr == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				part.SubPartExpr = expr
-				if _, err := p.expect(')'); err != nil {
-					return nil, err
-				}
-			} else if p.cur.Type == kwKEY {
-				p.advance()
-				part.SubPartType = nodes.PartitionKey
-				if p.cur.Type == kwALGORITHM {
-					p.advance()
-					p.match('=')
-					if p.cur.Type == tokICONST {
-						part.SubPartAlgo = int(p.cur.Ival)
-						p.advance()
-					}
-				}
-				cols, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				part.SubPartColumns = cols
-			}
-		}
-
-		// SUBPARTITIONS num
-		if p.cur.Type == kwSUBPARTITIONS {
-			p.advance()
-			if p.cur.Type == tokICONST {
-				part.NumSubParts = int(p.cur.Ival)
-				p.advance()
-			}
-		}
-
-		// OceanBase: SUBPARTITION TEMPLATE (subpartition_definition, ...) gives
-		// every partition the same subpartitions, where MySQL repeats them inside
-		// each partition (verified on 4.3.5).
-		if p.cur.Type == kwSUBPARTITION && p.peekNext().Type == kwTEMPLATE {
-			p.advance() // SUBPARTITION
-			p.advance() // TEMPLATE
-			if _, err := p.expect('('); err != nil {
-				return nil, err
-			}
-			for {
-				sub, err := p.parseSubPartitionDef()
-				if err != nil {
-					return nil, err
-				}
-				part.SubPartTemplate = append(part.SubPartTemplate, sub)
-				if _, ok := p.match(','); !ok {
-					break
-				}
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
 		}
 	}
 
@@ -1647,10 +1748,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
-			pd, err := p.parsePartitionDef()
+			pd, err := p.parsePartitionDef(false)
 			if err != nil {
 				return nil, err
 			}
@@ -1665,6 +1763,24 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
+	// With a SUBPARTITION TEMPLATE no partition may list its own subpartitions:
+	// 4.3.5.6 answers 1064 for `SUBPARTITION TEMPLATE (...) (PARTITION p0 VALUES LESS
+	// THAN (10) (SUBPARTITION z0), ...)` (templateCases).
+	if len(part.SubPartTemplate) > 0 {
+		for _, pd := range part.Partitions {
+			if len(pd.SubPartitions) > 0 {
+				sub := pd.SubPartitions[0]
+				line, col := p.lineCol(sub.Loc.Start)
+				return nil, &ParseError{
+					Message:  "a partition cannot list subpartitions when the table has a SUBPARTITION TEMPLATE",
+					Position: sub.Loc.Start,
+					Line:     line,
+					Column:   col,
+				}
+			}
+		}
+	}
+
 	part.Loc.End = p.prev.End
 	return part, nil
 }
@@ -1673,8 +1789,14 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 //
 //	PARTITION partition_name
 //	    [VALUES {LESS THAN (expr|MAXVALUE) | IN (value_list)}]
-//	    [table_options]
-func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
+//	    [ID n] [ENGINE = InnoDB]
+//	    [(subpartition_definition, ...)]
+//
+// requireValues is set where OceanBase takes only RANGE and LIST partitions:
+// ALTER TABLE ... ADD PARTITION reads opt_partition_range_or_list
+// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6), so 4.3.5.6 answers 1064 for a partition
+// there without VALUES, at the token after its name (partitionOptionCases).
+func (p *Parser) parsePartitionDef(requireValues bool) (*nodes.PartitionDef, error) {
 	start := p.pos()
 	if _, err := p.expect(kwPARTITION); err != nil {
 		return nil, err
@@ -1690,10 +1812,93 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		Name: name,
 	}
 
+	if requireValues && p.cur.Type != kwVALUES {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	// VALUES LESS THAN or VALUES IN
+	values, _, err := p.parsePartitionValues(false)
+	if err != nil {
+		return nil, err
+	}
+	pd.Values = values
+
+	// MySQL takes the table options a partition may carry (ENGINE, COMMENT, DATA
+	// DIRECTORY, MAX_ROWS, TABLESPACE, ...) in any number. OceanBase's
+	// range_partition_element, list_partition_element and hash_partition_element read
+	// `opt_part_id opt_engine_option` (v4.3.5_CE_BP6): ID n, then ENGINE = InnoDB.
+	// 4.3.5.6 answers 1064 for anything else there, COMMENT with or without '='
+	// included, so it is left unread and the statement fails at it
+	// (partitionOptionCases).
+	if p.isBareWord("ID") {
+		optStart := p.pos()
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		val := p.cur.Str
+		p.advance()
+		pd.Options = append(pd.Options, &nodes.TableOption{Loc: nodes.Loc{Start: optStart, End: p.prev.End}, Name: "ID", Value: val})
+	}
+	if opt, err := p.parsePartitionEngine(); err != nil {
+		return nil, err
+	} else if opt != nil {
+		pd.Options = append(pd.Options, opt)
+	}
+
+	// Optional subpartition definitions. OceanBase's opt_subpartition_list is a list
+	// of HASH, RANGE or LIST subpartitions, without VALUES, with VALUES LESS THAN or
+	// with VALUES IN, and the first entry sets which (v4.3.5_CE_BP6): 4.3.5.6 answers
+	// 1064 for a list that mixes them. Whether the kind matches SUBPARTITION BY it
+	// checks after parsing, with 1210.
+	if p.cur.Type == '(' {
+		p.advance()
+		kind := noPartitionValues
+		for i := 0; ; i++ {
+			spd, got, err := p.parseSubPartitionDef(kind, i == 0)
+			if err != nil {
+				return nil, err
+			}
+			kind = got
+			pd.SubPartitions = append(pd.SubPartitions, spd)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+
+	pd.Loc.End = p.prev.End
+	return pd, nil
+}
+
+// partitionValuesKind tells a partition's VALUES LESS THAN from its VALUES IN.
+type partitionValuesKind int
+
+const (
+	noPartitionValues partitionValuesKind = iota
+	valuesLessThan
+	valuesIn
+)
+
+// parsePartitionValues parses a partition's or a subpartition's VALUES LESS THAN or
+// VALUES IN when the next token is VALUES, and reports which it read. A partition's
+// VALUES has always taken THAN after LESS, and the bound's closing parenthesis, as
+// optional here; strict, set for a subpartition, holds it to the grammar's LESS THAN
+// and (...), as OceanBase does (subpartitionCases).
+func (p *Parser) parsePartitionValues(strict bool) (nodes.Node, partitionValuesKind, error) {
+	var values nodes.Node
+	kind := noPartitionValues
 	if _, ok := p.match(kwVALUES); ok {
 		if p.cur.Type == kwLESS {
+			kind = valuesLessThan
 			p.advance() // LESS
+			if strict && p.cur.Type != kwTHAN {
+				return nil, 0, p.syntaxErrorAtCur()
+			}
 			if p.cur.Type == kwTHAN {
 				p.advance() // THAN
 			}
@@ -1710,10 +1915,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						allMax = false
 						expr, err := p.parseExpr()
 						if err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						if expr == nil {
-							return nil, p.syntaxErrorAtCur()
+							return nil, 0, p.syntaxErrorAtCur()
 						}
 						items = append(items, expr)
 					}
@@ -1722,20 +1927,27 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					}
 					p.advance()
 				}
-				p.match(')')
+				if strict {
+					if _, err := p.expect(')'); err != nil {
+						return nil, 0, err
+					}
+				} else {
+					p.match(')')
+				}
 				if allMax && len(items) > 0 {
 					// All MAXVALUE — store as single string marker
-					pd.Values = &nodes.String{Str: "MAXVALUE"}
+					values = &nodes.String{Str: "MAXVALUE"}
 				} else if len(items) == 1 {
-					pd.Values = items[0]
+					values = items[0]
 				} else {
-					pd.Values = &nodes.List{Items: items}
+					values = &nodes.List{Items: items}
 				}
 			} else if p.cur.Type == kwMAXVALUE {
-				pd.Values = &nodes.String{Str: "MAXVALUE"}
+				values = &nodes.String{Str: "MAXVALUE"}
 				p.advance()
 			}
 		} else if _, ok := p.match(kwIN); ok {
+			kind = valuesIn
 			if p.cur.Type == '(' {
 				p.advance()
 				var items []nodes.Node
@@ -1747,10 +1959,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						for {
 							expr, err := p.parseExpr()
 							if err != nil {
-								return nil, err
+								return nil, 0, err
 							}
 							if expr == nil {
-								return nil, p.syntaxErrorAtCur()
+								return nil, 0, p.syntaxErrorAtCur()
 							}
 							tupleVals = append(tupleVals, expr)
 							if p.cur.Type != ',' {
@@ -1759,16 +1971,16 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 							p.advance()
 						}
 						if _, err := p.expect(')'); err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						items = append(items, &nodes.List{Items: tupleVals})
 					} else {
 						expr, err := p.parseExpr()
 						if err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						if expr == nil {
-							return nil, p.syntaxErrorAtCur()
+							return nil, 0, p.syntaxErrorAtCur()
 						}
 						items = append(items, expr)
 					}
@@ -1777,76 +1989,257 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					}
 					p.advance()
 				}
-				p.match(')')
-				pd.Values = &nodes.List{Items: items}
+				if strict {
+					if _, err := p.expect(')'); err != nil {
+						return nil, 0, err
+					}
+				} else {
+					p.match(')')
+				}
+				values = &nodes.List{Items: items}
 			}
+		} else {
+			// VALUES with neither LESS THAN nor IN after it is no bound: 4.3.5.6
+			// answers 1064 at the next token, for a partition and a subpartition
+			// (bareValuesCases).
+			return nil, 0, p.syntaxErrorAtCur()
 		}
 	}
 
-	// Optional table options for partition
-	for {
-		opt, ok, err := p.parseTableOption()
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			break
-		}
-		pd.Options = append(pd.Options, opt)
-	}
-
-	// Optional subpartition definitions: (SUBPARTITION name [table_options], ...)
-	if p.cur.Type == '(' {
-		p.advance()
-		for {
-			if p.cur.Type == ')' {
-				break
-			}
-			spd, err := p.parseSubPartitionDef()
-			if err != nil {
-				return nil, err
-			}
-			pd.SubPartitions = append(pd.SubPartitions, spd)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-	}
-
-	pd.Loc.End = p.prev.End
-	return pd, nil
+	return values, kind, nil
 }
 
 // parseSubPartitionDef parses a single subpartition definition.
 //
-//	SUBPARTITION logical_name [table_options]
-func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
+//	SUBPARTITION logical_name [VALUES {LESS THAN (...) | IN (...)}] [ENGINE = InnoDB]
+//
+// OceanBase's subpartitions take VALUES as its partitions do: a HASH or KEY
+// subpartition none, a RANGE one LESS THAN and a LIST one IN. want is the kind this
+// one must be, unless first is set, and the kind read is returned. A subpartition of
+// the wrong kind fails at its VALUES, at LESS or IN, or where VALUES was due, as
+// 4.3.5.6's "near" says (subpartitionCases).
+//
+// OceanBase's subpartition elements, in a SUBPARTITION TEMPLATE or under a partition,
+// end in opt_engine_option alone (v4.3.5_CE_BP6): no ID, and none of the table options
+// MySQL takes there, COMMENT included (partitionOptionCases).
+func (p *Parser) parseSubPartitionDef(want partitionValuesKind, first bool) (*nodes.SubPartitionDef, partitionValuesKind, error) {
 	start := p.pos()
 	if _, err := p.expect(kwSUBPARTITION); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	name, _, err := p.parseIdent()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	spd := &nodes.SubPartitionDef{
 		Loc:  nodes.Loc{Start: start},
 		Name: name,
 	}
-	for {
-		opt, ok, err := p.parseTableOption()
-		if err != nil {
-			return nil, err
+	got := noPartitionValues
+	if p.cur.Type == kwVALUES {
+		switch next := p.peekNext(); next.Type {
+		case kwLESS:
+			got = valuesLessThan
+		case kwIN:
+			got = valuesIn
+		default:
+			// A bare VALUES fails where its bound was due, or at VALUES itself for a
+			// HASH or KEY template entry, which takes none: 4.3.5.6 says near
+			// 'VALUES)' there (subpartitionCases).
+			if !first && want == noPartitionValues {
+				return nil, 0, p.syntaxErrorAtCur()
+			}
+			return nil, 0, p.syntaxErrorAtTok(next)
 		}
-		if !ok {
-			break
+	}
+	if !first && got != want {
+		if got != noPartitionValues && want != noPartitionValues {
+			return nil, 0, p.syntaxErrorAtTok(p.peekNext())
 		}
+		return nil, 0, p.syntaxErrorAtCur()
+	}
+	values, got, err := p.parsePartitionValues(true)
+	if err != nil {
+		return nil, 0, err
+	}
+	// VALUES LESS THAN or VALUES IN with no bound after it is no bound at all.
+	if got != noPartitionValues && values == nil {
+		return nil, 0, p.syntaxErrorAtCur()
+	}
+	if err := p.checkLoneDefaultValue(values); err != nil {
+		return nil, 0, err
+	}
+	spd.Values = values
+	spd.ValuesIn = got == valuesIn
+	if opt, err := p.parsePartitionEngine(); err != nil {
+		return nil, 0, err
+	} else if opt != nil {
 		spd.Options = append(spd.Options, opt)
 	}
 	spd.Loc.End = p.prev.End
-	return spd, nil
+	return spd, got, nil
+}
+
+// checkLoneDefaultValue refuses a VALUES IN list that holds DEFAULT beside other values.
+// OceanBase's list_partition_expr is '(' list_expr ')' or '(' DEFAULT ')' (v4.3.5_CE_BP6),
+// so DEFAULT stands alone: 4.3.5.6 answers 1064 for a subpartition's VALUES IN
+// (DEFAULT, 1), at the comma, and at DEFAULT when it is not first.
+func (p *Parser) checkLoneDefaultValue(values nodes.Node) error {
+	list, ok := values.(*nodes.List)
+	if !ok || len(list.Items) < 2 {
+		return nil
+	}
+	for i, item := range list.Items {
+		def, ok := item.(*nodes.DefaultExpr)
+		if !ok {
+			continue
+		}
+		at := def.Loc.Start
+		if i == 0 {
+			// The comma after it.
+			at = def.Loc.End
+			for c := p.inputText(at, at+1); c != "" && strings.ContainsAny(c, " \t\r\n"); c = p.inputText(at, at+1) {
+				at++
+			}
+		}
+		line, col := p.lineCol(at)
+		return &ParseError{Message: "DEFAULT must be the only value of VALUES IN", Position: at, Line: line, Column: col}
+	}
+	return nil
+}
+
+// parseSubpartitionClause parses OceanBase's subpartition_option from SUBPARTITION on:
+//
+//	SUBPARTITION BY {HASH (expr) | KEY (column_list) | RANGE (expr)
+//	                 | RANGE COLUMNS (column_list) | LIST (expr) | LIST COLUMNS (column_list)}
+//	    [SUBPARTITION TEMPLATE (subpartition_definition, ...) | SUBPARTITIONS n]
+//
+// as subpartition_template_option and subpartition_individual_option read it
+// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6). MySQL subpartitions by HASH and KEY only,
+// and takes LINEAR, KEY ALGORITHM = n and KEY (). OceanBase subpartitions by RANGE and
+// LIST too and takes none of those three, SUBPARTITIONS n only for HASH and KEY and not
+// beside a template, and template entries of the subpartitioning's kind. 4.3.5.6
+// answers 1064 for the rest (subpartitionCases), and SHOW CREATE TABLE prints RANGE
+// and LIST subpartitioning in this form.
+func (p *Parser) parseSubpartitionClause(part *nodes.PartitionClause) error {
+	p.advance() // SUBPARTITION
+	if _, err := p.expect(kwBY); err != nil {
+		return err
+	}
+	want := noPartitionValues
+	switch p.cur.Type {
+	case kwHASH:
+		p.advance()
+		part.SubPartType = nodes.PartitionHash
+		expr, err := p.parseParenPartitionExpr()
+		if err != nil {
+			return err
+		}
+		part.SubPartExpr = expr
+	case kwKEY:
+		p.advance()
+		part.SubPartType = nodes.PartitionKey
+		cols, err := p.parseParenIdentList()
+		if err != nil {
+			return err
+		}
+		part.SubPartColumns = cols
+	case kwRANGE, kwLIST:
+		part.SubPartType, want = nodes.PartitionRange, valuesLessThan
+		if p.cur.Type == kwLIST {
+			part.SubPartType, want = nodes.PartitionList, valuesIn
+		}
+		p.advance()
+		if _, ok := p.match(kwCOLUMNS); ok {
+			cols, err := p.parseParenIdentList()
+			if err != nil {
+				return err
+			}
+			part.SubPartColumns = cols
+		} else {
+			expr, err := p.parseParenPartitionExpr()
+			if err != nil {
+				return err
+			}
+			part.SubPartExpr = expr
+		}
+	default:
+		return p.syntaxErrorAtCur()
+	}
+
+	switch {
+	case p.cur.Type == kwSUBPARTITION && p.peekNext().Type == kwTEMPLATE:
+		// OceanBase: SUBPARTITION TEMPLATE (subpartition_definition, ...) gives every
+		// partition the same subpartitions, where MySQL repeats them inside each
+		// partition (verified on 4.3.5).
+		p.advance() // SUBPARTITION
+		p.advance() // TEMPLATE
+		if _, err := p.expect('('); err != nil {
+			return err
+		}
+		for {
+			sub, _, err := p.parseSubPartitionDef(want, false)
+			if err != nil {
+				return err
+			}
+			part.SubPartTemplate = append(part.SubPartTemplate, sub)
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
+	case p.cur.Type == kwSUBPARTITIONS:
+		if want != noPartitionValues {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type == tokICONST {
+			part.NumSubParts = int(p.cur.Ival)
+			p.advance()
+		}
+	}
+	return nil
+}
+
+// parseParenPartitionExpr parses the parenthesized expression of a [SUB]PARTITION BY
+// HASH, RANGE or LIST.
+func (p *Parser) parseParenPartitionExpr() (nodes.ExprNode, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return expr, nil
+}
+
+// parsePartitionEngine parses OceanBase's opt_engine_option, `ENGINE = InnoDB`, the
+// one option a partition or subpartition takes besides a partition's ID. The '=' is
+// required and InnoDB is the only engine, written bare in any case: 4.3.5.6 answers
+// 1064 for ENGINE InnoDB, ENGINE = MyISAM and ENGINE = 'InnoDB'. It returns nil when
+// the next token is not ENGINE.
+func (p *Parser) parsePartitionEngine() (*nodes.TableOption, error) {
+	if p.cur.Type != kwENGINE {
+		return nil, nil
+	}
+	start := p.pos()
+	p.advance()
+	if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+	if !p.isBareWord("INNODB") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ENGINE", Value: val}, nil
 }

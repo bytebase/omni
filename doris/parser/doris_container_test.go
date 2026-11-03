@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -149,6 +150,13 @@ var dorisSyntaxErrMarkers = []string{
 	"missing {",
 }
 
+// dorisMissingTokenMarker is the same recovery naming a token that has no
+// literal spelling by its symbolic name instead: "missing EQ at '"v"'" for
+// PROPERTIES("k" "v"). The fixed markers above need the quote or brace, so
+// they took that parse failure for an accept. The pattern wants an upper-case
+// token name followed by " at '", which no semantic message has the shape of.
+var dorisMissingTokenMarker = regexp.MustCompile(`missing [A-Z][A-Z_]* at '`)
+
 // accepts reports whether Doris accepted sql at the PARSE layer: executed OK,
 // or failed with any non-syntax error (semantic/runtime) — both imply it
 // parsed. A non-driver error (connection drop/timeout) is NOT a parse verdict —
@@ -165,12 +173,43 @@ func (c *dorisContainer) accepts(sql string) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("non-driver error (cannot determine parse verdict): %w", err)
 	}
+	return !isDorisSyntaxError(myErr.Message), nil
+}
+
+// isDorisSyntaxError reports whether msg is the engine's report of a parse
+// failure rather than a semantic or runtime one.
+func isDorisSyntaxError(msg string) bool {
 	for _, m := range dorisSyntaxErrMarkers {
-		if strings.Contains(myErr.Message, m) {
-			return false, nil
+		if strings.Contains(msg, m) {
+			return true
 		}
 	}
-	return true, nil
+	return dorisMissingTokenMarker.MatchString(msg)
+}
+
+// TestDorisSyntaxErrorMarkers holds the oracle's classifier to messages the
+// engine has returned, so a marker cannot drop out without a failure that
+// needs no container to show it.
+func TestDorisSyntaxErrorMarkers(t *testing.T) {
+	cases := []struct {
+		msg    string
+		syntax bool
+	}{
+		{"errCode = 2, detailMessage = \nmismatched input ')' expecting {'[', '{', ...}(line 1, pos 51)\n", true},
+		{"errCode = 2, detailMessage = \nmissing ')' at '<EOF>'(line 1, pos 34)\n", true},
+		{"errCode = 2, detailMessage = \nmissing EQ at '\"v\"'(line 1, pos 92)\n", true},
+		{"errCode = 2, detailMessage = \nno viable alternative at input 'ALTER JOB'(line 1, pos 6)\n", true},
+		{"errCode = 2, detailMessage = \nextraneous input '+' expecting {'[', ...}(line 1, pos 93)\n", true},
+		{"errCode = 2, detailMessage = Syntax error in line 1:\n...ope) WITH BROKER zzb (\"k\"=1)\n Encountered: INTEGER LITERAL\n", true},
+		{"errCode = 2, detailMessage = Config 'zz_no_such_config' does not exist", false},
+		{"errCode = 2, detailMessage = Unknown table 'zz_nope'", false},
+		{"errCode = 2, detailMessage = replication num should be less than the number of available backends. replication num is 1, available backend num is 0", false},
+	}
+	for _, tc := range cases {
+		if got := isDorisSyntaxError(tc.msg); got != tc.syntax {
+			t.Errorf("isDorisSyntaxError(%q) = %v, want %v", tc.msg, got, tc.syntax)
+		}
+	}
 }
 
 // assertParity asserts the omni parser and Doris agree on sql (both accept or
@@ -395,8 +434,10 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		// Unlike StarRocks, the engine rejects the SET ROLE family.
 		{"set_role_rejected", "SET ROLE admin_role", false},
 		{"set_names_collate", "SET NAMES utf8 COLLATE utf8_general_ci", true},
-		// Unlike StarRocks, the engine tolerates a bare LIKE with no pattern.
-		{"show_like_no_pattern", "SHOW TABLES LIKE", true},
+		// The pattern is required. This row once read as an accept, because
+		// the oracle missed "missing STRING_LITERAL at '<EOF>'".
+		{"show_like_no_pattern_rejected", "SHOW TABLES LIKE", false},
+		{"show_databases_like_no_pattern_rejected", "SHOW DATABASES LIKE", false},
 		{"from_table_named_selected", "SELECT * FROM selected", true},
 
 		// --- Negative arm: the grammar file allows these, the engine does not.
@@ -449,6 +490,36 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"outfile_inside_derived_table_rejected", "SELECT * FROM (SELECT a FROM t INTO OUTFILE '/tmp/x') x", false},
 		{"outfile_inside_set_op_arm_rejected", "SELECT 1 UNION (SELECT a FROM t INTO OUTFILE '/tmp/x')", false},
 		{"outfile_on_insert_rejected", "INSERT INTO t SELECT 1 INTO OUTFILE '/tmp/x'", false},
+		// A job's DO body is supportedDmlStatement, so it cannot carry the
+		// clause, nor be a query at all.
+		{"job_do_insert", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO zz_nope SELECT 1", true},
+		{"job_do_insert_values", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO zz_nope VALUES (1)", true},
+		{"job_do_insert_overwrite", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT OVERWRITE TABLE zz_nope SELECT 1", true},
+		{"job_do_update", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO UPDATE zz_nope SET a = 1 WHERE a = 2", true},
+		{"job_do_delete", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO DELETE FROM zz_nope WHERE a = 1", true},
+		{"job_do_explain_insert", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO EXPLAIN INSERT INTO zz_nope SELECT 1", true},
+		{"job_do_explain_update", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO EXPLAIN UPDATE zz_nope SET a = 1", true},
+		{"job_do_load", `CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO LOAD LABEL zzl (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope)`, true},
+		{"job_do_export", `CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO EXPORT TABLE zz_nope TO "hdfs://h/p"`, true},
+		{"job_do_select_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 1", false},
+		{"job_do_select_outfile_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 1 INTO OUTFILE '/tmp/x'", false},
+		{"job_do_select_union_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT 1 UNION SELECT 2", false},
+		{"job_do_paren_select_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO (SELECT 1)", false},
+		{"job_do_with_select_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO WITH c AS (SELECT 1) SELECT * FROM c", false},
+		{"job_do_explain_select_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO EXPLAIN SELECT 1", false},
+		{"job_do_create_table_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO CREATE TABLE zzx (a INT)", false},
+		{"job_do_show_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SHOW TABLES", false},
+		{"job_do_set_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO SET x = 1", false},
+		{"job_do_truncate_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO TRUNCATE TABLE zz_nope", false},
+		{"job_do_merge_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO MERGE INTO zz_nope USING zz_nope2 ON zz_nope.a = zz_nope2.a WHEN MATCHED THEN DELETE", false},
+		{"job_do_create_job_rejected", "CREATE JOB zzjob ON SCHEDULE AT '2030-01-01 00:00:00' DO CREATE JOB zzjob2 ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO zz_nope SELECT 1", false},
+		// ALTER JOB gets no rows: the engine has no ALTER JOB statement, so a
+		// row would pin the form, not its body. Its DO body is held to the
+		// same rule by TestJobDoBodyIsDML.
+		// The query of CREATE TABLE ... AS is not a subquery, but cannot
+		// carry the clause either.
+		{"ctas_outfile_rejected", "CREATE TABLE zzctas1 AS SELECT 1 INTO OUTFILE '/tmp/x'", false},
+		{"ctas_set_op_outfile_rejected", "CREATE TABLE zzctas2 AS SELECT 1 UNION SELECT 2 INTO OUTFILE '/tmp/x'", false},
 		// Clause shape.
 		{"outfile_no_path_rejected", "SELECT 1 INTO OUTFILE", false},
 		{"outfile_without_outfile_kw_rejected", "SELECT 1 INTO '/tmp/x'", false},
@@ -510,6 +581,130 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"props_routine_load_job_trailing_comma_rejected", `CREATE ROUTINE LOAD zzrl3 ON t PROPERTIES("k"="v",) FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`, false},
 		{"props_routine_load_source_missing_comma_rejected", `CREATE ROUTINE LOAD zzrl4 ON t PROPERTIES("desired_concurrent_number"="3") FROM KAFKA("k"="v" "k2"="v2")`, false},
 		{"props_routine_load_source_empty_rejected", `CREATE ROUTINE LOAD zzrl5 ON t PROPERTIES("desired_concurrent_number"="3") FROM KAFKA()`, false},
+
+		// --- Property lists whose errors were dropped or that were skipped
+		// unread, the follow-up to the props_* rows above. At the end of the
+		// input nothing after a dropped error was left to notice it.
+		{"props_admin_frontend_config_open_rejected", `ADMIN SET FRONTEND CONFIG (`, false},
+		{"props_admin_frontend_config_no_value_rejected", `ADMIN SET FRONTEND CONFIG ("k"=`, false},
+		{"props_admin_frontend_config_unclosed_rejected", `ADMIN SET FRONTEND CONFIG ("k"="v"`, false},
+		// The list is optional in the grammar; the engine then wants one
+		// config at execution.
+		{"props_admin_frontend_config_bare", `ADMIN SET FRONTEND CONFIG`, true},
+		{"props_modify_backend", `ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET ("tag.location"="a")`, true},
+		{"props_modify_backend_open_rejected", `ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET (`, false},
+		{"props_modify_backend_no_value_rejected", `ALTER SYSTEM MODIFY BACKEND 'nonexistent-host-zz:9050' SET ("k"=`, false},
+		{"props_admin_set_replica_status", `ADMIN SET REPLICA STATUS PROPERTIES("tablet_id"="1","backend_id"="1","status"="bad")`, true},
+		{"props_admin_set_replica_status_open_rejected", `ADMIN SET REPLICA STATUS PROPERTIES(`, false},
+		{"props_admin_set_table_status", `ADMIN SET TABLE zz_nope STATUS PROPERTIES("state"="NORMAL")`, true},
+		{"props_admin_set_table_status_open_rejected", `ADMIN SET TABLE zz_nope STATUS PROPERTIES(`, false},
+		{"props_admin_set_table_status_no_value_rejected", `ADMIN SET TABLE zz_nope STATUS PROPERTIES("k"=`, false},
+		// CHECK TABLET and COPY TABLET took their PROPERTIES list as raw args.
+		{"props_admin_check_tablet", `ADMIN CHECK TABLET (1) PROPERTIES("type"="consistency")`, true},
+		{"props_admin_check_tablet_open_rejected", `ADMIN CHECK TABLET (1) PROPERTIES(`, false},
+		{"props_admin_check_tablet_empty_rejected", `ADMIN CHECK TABLET (1) PROPERTIES()`, false},
+		{"props_admin_check_tablet_trailing_comma_rejected", `ADMIN CHECK TABLET (1) PROPERTIES("type"="consistency",)`, false},
+		{"props_admin_copy_tablet", `ADMIN COPY TABLET 1 PROPERTIES("backend_id"="1")`, true},
+		{"props_admin_copy_tablet_open_rejected", `ADMIN COPY TABLET 1 PROPERTIES(`, false},
+		{"props_admin_copy_tablet_trailing_comma_rejected", `ADMIN COPY TABLET 1 PROPERTIES("backend_id"="1",)`, false},
+		{"props_load_errors_hub", `ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES("type"="null")`, true},
+		{"props_load_errors_hub_open_rejected", `ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES(`, false},
+		// No accept row for ADD BACKEND: the engine would register the
+		// backend in the container every other row shares.
+		{"props_add_backend_open_rejected", `ALTER SYSTEM ADD BACKEND 'nonexistent-host-zz:9050' PROPERTIES(`, false},
+		{"alter_system_add_broker_no_name_rejected", `ALTER SYSTEM ADD BROKER`, false},
+		{"alter_system_drop_broker_no_name_rejected", `ALTER SYSTEM DROP BROKER`, false},
+		{"alter_system_drop_all_broker_no_name_rejected", `ALTER SYSTEM DROP ALL BROKER`, false},
+		{"alter_system_drop_all_broker", `ALTER SYSTEM DROP ALL BROKER zz_no_broker`, true},
+		{"show_alter_table_from_db", `SHOW ALTER TABLE COLUMN FROM doristest`, true},
+		{"show_alter_table_from_missing_db_rejected", `SHOW ALTER TABLE COLUMN FROM`, false},
+		{"show_alter_table_from_string_rejected", `SHOW ALTER TABLE COLUMN FROM 'x'`, false},
+
+		// A partition's inline properties: partitionDef's (LEFT_PAREN
+		// propertyItemList RIGHT_PAREN)?, with propertyKey and propertyValue
+		// each `identifier | constant`.
+		{"props_partition", `CREATE TABLE zzpp01 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_empty_rejected", `CREATE TABLE zzpp02 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ()) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_trailing_comma_rejected", `CREATE TABLE zzpp03 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1",)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_missing_comma_rejected", `CREATE TABLE zzpp04 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1" "k2"="v2")) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_junk_rejected", `CREATE TABLE zzpp05 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k" "v" SELECT DROP *)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_unclosed_rejected", `CREATE TABLE zzpp06 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (`, false},
+		{"props_partition_bare_key", `CREATE TABLE zzpp07 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (replication_num="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_keyword_key", `CREATE TABLE zzpp08 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (comment="v")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_number_key", `CREATE TABLE zzpp09 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (1="v")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_number_value", `CREATE TABLE zzpp10 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"=1)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_negative_value", `CREATE TABLE zzpp11 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=-1)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_decimal_value", `CREATE TABLE zzpp12 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=1.5)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_exponent_value", `CREATE TABLE zzpp13 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=1e3)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_null_value", `CREATE TABLE zzpp14 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=NULL)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_boolean_value", `CREATE TABLE zzpp15 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=true)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_identifier_value", `CREATE TABLE zzpp16 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("storage_medium"=HDD)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_quoted_identifier_value", "CREATE TABLE zzpp17 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN (\"10\") (\"k\"=`v`)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES(\"replication_num\"=\"1\")", true},
+		{"props_partition_array_value", `CREATE TABLE zzpp18 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=[1])) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_typed_value", `CREATE TABLE zzpp19 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=DATE "2020-01-01")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_reserved_value_rejected", `CREATE TABLE zzpp20 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=SELECT)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_dotted_value_rejected", `CREATE TABLE zzpp21 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=a.b)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_expression_value_rejected", `CREATE TABLE zzpp22 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=1+1)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_plus_value_rejected", `CREATE TABLE zzpp23 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=+1)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_missing_value_rejected", `CREATE TABLE zzpp24 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"=)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"props_partition_maxvalue", `CREATE TABLE zzpp25 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN MAXVALUE ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_fixed_range", `CREATE TABLE zzpp26 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES [("1"), ("10")) ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_list", `CREATE TABLE zzpp27 (a INT) PARTITION BY LIST(a) (PARTITION p1 VALUES IN ("1") ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"props_partition_twice_rejected", `CREATE TABLE zzpp28 (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num"="1") ("k"="v")) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		// inPartitionDef makes VALUES IN optional, so a list partition's value
+		// list may follow the name directly, then its property list.
+		{"partition_list_without_values", `CREATE TABLE zzpp29 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_nested", `CREATE TABLE zzpp30 (a INT) PARTITION BY LIST(a) (PARTITION p1 (("1"), ("2"))) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_props", `CREATE TABLE zzpp31 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_then_props", `CREATE TABLE zzpp32 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("1") ("replication_num"="1")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_empty_rejected", `CREATE TABLE zzpp33 (a INT) PARTITION BY LIST(a) (PARTITION p1 ()) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"partition_list_without_values_junk_rejected", `CREATE TABLE zzpp34 (a INT) PARTITION BY LIST(a) (PARTITION p1 (SELECT)) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		{"partition_list_without_values_empty_props_rejected", `CREATE TABLE zzpp35 (a INT) PARTITION BY LIST(a) (PARTITION p1 ("1") ()) DISTRIBUTED BY HASH(a) BUCKETS 1`, false},
+		// A property key may take more than one token, so the '(' after a
+		// bare partition name is classified only once the whole key is read.
+		{"partition_list_without_values_negative_key_props", `CREATE TABLE zzpp36 (a INT) PARTITION BY LIST(a) (PARTITION p1 (-1="v")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_typed_key_props", `CREATE TABLE zzpp37 (a INT) PARTITION BY LIST(a) (PARTITION p1 (DATE "2020-01-01"="v")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_array_key_props", `CREATE TABLE zzpp38 (a INT) PARTITION BY LIST(a) (PARTITION p1 ([1]="v")) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+		{"partition_list_without_values_negative_value", `CREATE TABLE zzpp39 (a INT) PARTITION BY LIST(a) (PARTITION p1 (-1)) DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES("replication_num"="1")`, true},
+
+		// WITH BROKER name (...): the same propertyItemList, but a broker load
+		// takes a string on both sides of each item where EXPORT takes the
+		// full item form; both lists used to be skipped unread.
+		{"props_load_broker", `LOAD LABEL zzl01 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u","password"="p")`, true},
+		{"props_load_broker_single_quoted", `LOAD LABEL zzl02 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ('k'='v')`, true},
+		{"props_load_broker_empty_rejected", `LOAD LABEL zzl03 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ()`, false},
+		{"props_load_broker_trailing_comma_rejected", `LOAD LABEL zzl04 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u",)`, false},
+		{"props_load_broker_missing_comma_rejected", `LOAD LABEL zzl05 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("username"="u" "password"="p")`, false},
+		{"props_load_broker_junk_rejected", `LOAD LABEL zzl06 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k" "v" SELECT DROP *)`, false},
+		{"props_load_broker_unclosed_rejected", `LOAD LABEL zzl07 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (`, false},
+		{"props_load_broker_bare_key_rejected", `LOAD LABEL zzl08 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb (username="u")`, false},
+		{"props_load_broker_number_value_rejected", `LOAD LABEL zzl09 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=1)`, false},
+		{"props_load_broker_identifier_value_rejected", `LOAD LABEL zzl10 (DATA INFILE("hdfs://h/p") INTO TABLE zz_nope) WITH BROKER zzb ("k"=v)`, false},
+		{"props_export_broker", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u","password"="p")`, true},
+		{"props_export_broker_empty_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ()`, false},
+		{"props_export_broker_trailing_comma_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u",)`, false},
+		{"props_export_broker_missing_comma_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("username"="u" "password"="p")`, false},
+		{"props_export_broker_junk_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k" "v" SELECT DROP *)`, false},
+		{"props_export_broker_unclosed_rejected", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb (`, false},
+		{"props_export_broker_bare_key", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb (username="u")`, true},
+		{"props_export_broker_number_value", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k"=1)`, true},
+		{"props_export_broker_identifier_value", `EXPORT TABLE zz_nope TO "hdfs://h/p" WITH BROKER zzb ("k"=v)`, true},
+
+		// A routine load's data-source items: a string on both sides. The
+		// value used to be any single token.
+		{"props_routine_load_source", `CREATE ROUTINE LOAD zzrl6 ON zz_nope FROM KAFKA ('kafka_broker_list'='h:9092', "kafka_topic"="tp")`, true},
+		{"props_routine_load_source_comma_value_rejected", `CREATE ROUTINE LOAD zzrl7 ON zz_nope FROM KAFKA ("a" = ,)`, false},
+		{"props_routine_load_source_paren_value_rejected", `CREATE ROUTINE LOAD zzrl8 ON zz_nope FROM KAFKA ("a" = ))`, false},
+		{"props_routine_load_source_open_paren_value_rejected", `CREATE ROUTINE LOAD zzrl9 ON zz_nope FROM KAFKA ("a" = ( )`, false},
+		{"props_routine_load_source_bare_key_rejected", `CREATE ROUTINE LOAD zzrl10 ON zz_nope FROM KAFKA (kafka_broker_list="h:9092")`, false},
+		{"props_routine_load_source_keyword_key_rejected", `CREATE ROUTINE LOAD zzrl11 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", comment="v")`, false},
+		{"props_routine_load_source_number_value_rejected", `CREATE ROUTINE LOAD zzrl12 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_partitions"=1)`, false},
+		{"props_routine_load_source_identifier_value_rejected", `CREATE ROUTINE LOAD zzrl13 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "kafka_topic"=tp)`, false},
+		{"props_routine_load_source_null_value_rejected", `CREATE ROUTINE LOAD zzrl14 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=NULL)`, false},
+		{"props_routine_load_source_boolean_value_rejected", `CREATE ROUTINE LOAD zzrl15 ON zz_nope FROM KAFKA ("kafka_broker_list"="h:9092", "k"=true)`, false},
+		{"props_alter_routine_load_source", `ALTER ROUTINE LOAD FOR zzrl16 FROM KAFKA ("kafka_partitions"="1")`, true},
+		{"props_alter_routine_load_source_comma_value_rejected", `ALTER ROUTINE LOAD FOR zzrl17 FROM KAFKA ("a" = ,)`, false},
+		{"props_alter_routine_load_source_number_value_rejected", `ALTER ROUTINE LOAD FOR zzrl18 FROM KAFKA ("kafka_partitions"=1)`, false},
 
 		// MySQL spellings the engine does not share.
 		{"outfile_into_var_rejected", "SELECT 1 INTO @v", false},

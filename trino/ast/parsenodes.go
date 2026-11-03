@@ -28,10 +28,10 @@ var _ Node = (*File)(nil)
 // Identifier represents a single Trino identifier — one component of a name.
 // It corresponds to the legacy grammar's `identifier` rule, whose four
 // alternatives are: an unquoted identifier, a `"double-quoted"` identifier,
-// a “ `backtick-quoted` “ identifier, and a digit-leading identifier.
+// a `backtick-quoted` identifier, and a digit-leading identifier.
 //
 // Value stores the identifier's source text with the surrounding quote
-// characters already stripped and any doubled-quote escape (`""` or “ “ “)
+// characters already stripped and any doubled-quote escape (`""`, or a doubled backtick)
 // collapsed to a single quote. Quoting metadata is preserved separately
 // because Trino's identifier resolution is case-sensitive for quoted names
 // and case-insensitive (folded to lower case) for unquoted ones — see
@@ -77,7 +77,7 @@ func (n *Identifier) Normalize() string {
 
 // String returns the source-faithful form of the identifier, re-adding the
 // original delimiter when it was quoted and escaping any embedded delimiter
-// by doubling it (`"` -> `""`, “ ` “ -> “ “ “). Unquoted identifiers
+// by doubling it (`"` -> `""`, a backtick -> two backticks). Unquoted identifiers
 // are returned verbatim with case preserved. Mirrors
 // snowflake/ast.Ident.String; useful for deparse and error messages.
 func (n *Identifier) String() string {

@@ -2006,8 +2006,8 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 
 // quoteIdent quotes an identifier in backticks, doubling any backtick inside
 // it, as MySQL writes identifiers in SHOW CREATE output. A name can hold one:
-// a quoted identifier written with “, or an unaliased item named after its
-// source text, such as `a`+1.
+// a quoted identifier written with a doubled backtick, or an unaliased item
+// named after its source text, such as `a`+1.
 func quoteIdent(name string) string {
 	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
 }

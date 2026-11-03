@@ -41,13 +41,13 @@ func TestReviewOceanBase(t *testing.T) {
 			name: "the primary key dropped",
 			rule: review.RequirePrimaryKey,
 			sql:  "ALTER TABLE plain DROP PRIMARY KEY;",
-			want: []finding{{0, "DROP PRIMARY KEY", "removes the primary key of plain, and the change adds none back", []int{0}}},
+			want: []finding{{0, "DROP PRIMARY KEY", "Removes the primary key of `plain`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name: "the MySQL rules",
 			rule: review.RequireWhere,
 			sql:  "DELETE FROM t;",
-			want: []finding{{0, "DELETE FROM t", "DELETE FROM t has no WHERE clause", []int{0}}},
+			want: []finding{{0, "DELETE FROM t", "`DELETE` from `t` has no `WHERE` clause.", []int{0}}},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

@@ -79,7 +79,9 @@ var execCommentLocCases = []string{
 	"/*! SELECT a FROM t WHERE b = 1 */",
 	"SELECT /*!40001 SQL_NO_CACHE */ a FROM t WHERE b = NULL",
 	"SELECT a FROM t WHERE /*!50000 b = NULL */ AND c = 2",
-	"/*!50000 /*!50100 SELECT a FROM t WHERE b = NULL */ */",
+	// TiDB does not nest executable comments: the inner opener is dropped and
+	// one "*/" closes both.
+	"/*!50000 /*!50100 SELECT a FROM t WHERE b = NULL */",
 	"/*!*/SELECT a FROM t WHERE b = NULL",
 	"SELECT 1;\n/*!80000 SELECT a FROM t WHERE n = NULL */",
 	"CREATE TABLE t (a INT) /*!50100 PARTITION BY HASH (a) PARTITIONS 4 */",
@@ -124,7 +126,7 @@ func TestExecCommentLoc_SlicesSource(t *testing.T) {
 			want: []string{"ColumnRef: a"},
 		},
 		{
-			sql:  "/*!50000 /*!50100 SELECT a FROM t WHERE b = ABS(c) */ */",
+			sql:  "/*!50000 /*!50100 SELECT a FROM t WHERE b = ABS(c) */",
 			want: []string{"ColumnRef: c"},
 		},
 		{

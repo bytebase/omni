@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/starrocks/ast"
@@ -435,7 +436,16 @@ func TestPropertyListSeparators(t *testing.T) {
 		{"admin_set_frontend_config", `ADMIN SET FRONTEND CONFIG (%s)`},
 		{"create_mv", `CREATE MATERIALIZED VIEW zzpmv DISTRIBUTED BY HASH(a) BUCKETS 1 PROPERTIES(%s) AS SELECT 1 AS a`},
 		{"routine_load_job", `CREATE ROUTINE LOAD zzrl ON t PROPERTIES(%s) FROM KAFKA("kafka_broker_list"="localhost:9092","kafka_topic"="tp")`},
+		{"routine_load_source", `CREATE ROUTINE LOAD zzrl ON t FROM KAFKA(%s)`},
 		{"outfile", `SELECT 1 INTO OUTFILE '/tmp/x' PROPERTIES(%s)`},
+		// The lists below were skipped unread or had their errors dropped.
+		{"partition", `CREATE TABLE zzp (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (%s)) DISTRIBUTED BY HASH(a) BUCKETS 1`},
+		{"load_broker", `LOAD LABEL zzl (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b (%s)`},
+		{"export_broker", `EXPORT TABLE t TO "hdfs://h/p" WITH BROKER b (%s)`},
+		{"insert_files", `INSERT INTO FILES(%s) SELECT 1`},
+		{"admin_check_tablet", `ADMIN CHECK TABLET (1) PROPERTIES(%s)`},
+		{"admin_set_replica_status", `ADMIN SET REPLICA STATUS PROPERTIES(%s)`},
+		{"alter_system_modify_backend", `ALTER SYSTEM MODIFY BACKEND 'h:1' SET (%s)`},
 	}
 	bodies := []struct {
 		name       string
@@ -462,6 +472,280 @@ func TestPropertyListSeparators(t *testing.T) {
 					t.Errorf("accept = %v, want %v for %q (errs=%v)", got, b.wantAccept, sql, errs)
 				}
 			})
+		}
+	}
+}
+
+// TestPropertyListAtEndOfInput: a property list cut off by the end of the
+// input is an error, reported there, in every clause. The ADMIN and ALTER
+// SYSTEM parsers used to drop the list's error, the partition and broker lists
+// were skipped to a ')' that never came, and nothing after the statement was
+// left to notice, so each of these parsed (container-verified rejects).
+func TestPropertyListAtEndOfInput(t *testing.T) {
+	prefixes := []string{
+		`ADMIN SET FRONTEND CONFIG `,
+		`ALTER SYSTEM MODIFY BACKEND 'h:1' SET `,
+		`ADMIN SET REPLICA STATUS PROPERTIES`,
+		`ADMIN SET TABLE t STATUS PROPERTIES`,
+		`ADMIN CHECK TABLET (1) PROPERTIES`,
+		`ADMIN COPY TABLET 1 PROPERTIES`,
+		`ALTER SYSTEM ADD BACKEND 'h:1' PROPERTIES`,
+		`ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES`,
+		`CREATE TABLE t (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") `,
+		`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b `,
+		`EXPORT TABLE t TO "hdfs://h/p" WITH BROKER b `,
+		`CREATE ROUTINE LOAD j ON t FROM KAFKA `,
+		`INSERT INTO FILES`,
+	}
+	cuts := []string{`(`, `("k"`, `("k"=`, `("k"="v"`, `("k"="v",`}
+	for _, prefix := range prefixes {
+		for _, cut := range cuts {
+			sql := prefix + cut
+			t.Run(sql, func(t *testing.T) {
+				_, errs := parseForTest(sql)
+				if len(errs) == 0 {
+					t.Fatalf("%q parsed; want an error at the end of the input", sql)
+				}
+				if errs[0].Position != len(sql) {
+					t.Errorf("%q: error at %d (%s), want %d", sql, errs[0].Position, errs[0].Message, len(sql))
+				}
+			})
+		}
+	}
+}
+
+// TestPropertyListEndsStatement: a statement that ends on a property list ends
+// at its closing ')', and the list reaches the tree. These statements used to
+// end at the last item's value, and the broker lists were not kept at all.
+func TestPropertyListEndsStatement(t *testing.T) {
+	systemProps := func(n ast.Node) []*ast.Property { return n.(*ast.SystemAlterStmt).Properties }
+	cases := []struct {
+		sql   string
+		props func(ast.Node) []*ast.Property
+	}{
+		{`ADMIN SET FRONTEND CONFIG ("k"="v")`, adminProps},
+		{`ADMIN SET REPLICA STATUS PROPERTIES("k"="v")`, adminProps},
+		{`ADMIN SET TABLE t STATUS PROPERTIES("k"="v")`, adminProps},
+		{`ADMIN CHECK TABLET (1) PROPERTIES("k"="v")`, adminProps},
+		{`ADMIN COPY TABLET 1 PROPERTIES("k"="v")`, adminProps},
+		{`ALTER SYSTEM ADD BACKEND 'h:1' PROPERTIES("k"="v")`, systemProps},
+		{`ALTER SYSTEM SET LOAD ERRORS HUB PROPERTIES("k"="v")`, systemProps},
+		{`ALTER SYSTEM MODIFY BACKEND 'h:1' SET ("k"="v")`, func(n ast.Node) []*ast.Property { return n.(*ast.SystemAlterStmt).SetClause }},
+		{`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b ("k"="v")`, func(n ast.Node) []*ast.Property { return n.(*ast.LoadDataStmt).BrokerProperties }},
+		{`EXPORT TABLE t TO "hdfs://h/p" WITH BROKER b ("k"="v")`, func(n ast.Node) []*ast.Property { return n.(*ast.ExportStmt).BrokerProperties }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.sql, func(t *testing.T) {
+			node := parseOne(t, tc.sql)
+			if loc := ast.NodeLoc(node); loc.Start != 0 || loc.End != len(tc.sql) {
+				t.Errorf("Loc = %+v, want [0, %d)", loc, len(tc.sql))
+			}
+			props := tc.props(node)
+			if len(props) != 1 || props[0].Key != "k" || props[0].Value != "v" {
+				t.Fatalf("properties = %+v, want [k=v]", props)
+			}
+			if got := tc.sql[props[0].Loc.Start:props[0].Loc.End]; got != `"k"="v"` {
+				t.Errorf("property text = %q, want %q", got, `"k"="v"`)
+			}
+		})
+	}
+}
+
+func adminProps(n ast.Node) []*ast.Property { return n.(*ast.AdminStmt).Properties }
+
+// TestAdminTabletPropertiesParsed: ADMIN CHECK TABLET and COPY TABLET collected
+// everything after the object as raw Args, PROPERTIES list included, so the
+// list was never held to its grammar and its branch never ran.
+func TestAdminTabletPropertiesParsed(t *testing.T) {
+	stmt := parseOne(t, `ADMIN CHECK TABLET (10000, 10001) PROPERTIES("type"="consistency")`).(*ast.AdminStmt)
+	if stmt.Args != "( 10000 , 10001 )" {
+		t.Errorf("Args = %q, want the tablet list only", stmt.Args)
+	}
+	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "type" || stmt.Properties[0].Value != "consistency" {
+		t.Errorf("Properties = %+v, want [type=consistency]", stmt.Properties)
+	}
+	stmt = parseOne(t, `ADMIN COPY TABLET 10007 PROPERTIES("backend_id"="10001","version"="1")`).(*ast.AdminStmt)
+	if stmt.Args != "10007" {
+		t.Errorf("Args = %q, want the tablet id only", stmt.Args)
+	}
+	if len(stmt.Properties) != 2 {
+		t.Errorf("Properties = %+v, want 2", stmt.Properties)
+	}
+}
+
+// TestAlterSystemBrokerName: ALTER SYSTEM ADD / DROP [ALL] BROKER needs the
+// broker's name. A missing one was an error that got dropped.
+func TestAlterSystemBrokerName(t *testing.T) {
+	for _, sql := range []string{`ALTER SYSTEM ADD BROKER`, `ALTER SYSTEM DROP BROKER`, `ALTER SYSTEM DROP ALL BROKER`} {
+		_, errs := parseForTest(sql)
+		if len(errs) == 0 || errs[0].Position != len(sql) {
+			t.Errorf("%q: errs = %v, want one at the end of the input", sql, errs)
+		}
+	}
+	stmt := parseOne(t, `ALTER SYSTEM DROP ALL BROKER b`).(*ast.SystemAlterStmt)
+	if stmt.BrokerName != "b" || !stmt.DropAll {
+		t.Errorf("BrokerName = %q DropAll = %v, want b true", stmt.BrokerName, stmt.DropAll)
+	}
+}
+
+// TestShowAlterTableFromNeedsDatabase: the database after FROM is required, and
+// a token that is not one is an error rather than raw text. Best-effort parsing
+// keeps the raw recovery.
+func TestShowAlterTableFromNeedsDatabase(t *testing.T) {
+	for _, sql := range []string{`SHOW ALTER TABLE COLUMN FROM`, `SHOW ALTER TABLE COLUMN FROM 'x'`} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed; the engine rejects it", sql)
+		}
+	}
+	if r := ParseBestEffort(`SHOW ALTER TABLE COLUMN FROM 'x'`); len(r.File.Stmts) != 1 {
+		t.Errorf("ParseBestEffort: stmts = %d, want the raw recovery kept", len(r.File.Stmts))
+	}
+}
+
+// TestPartitionProperties: a partition's inline property list is parsed into
+// the tree. It used to be skipped to the next ')' unread. StarRocks takes a
+// string on both sides of each item, and only after a VALUES clause.
+func TestPartitionProperties(t *testing.T) {
+	const sql = `CREATE TABLE t (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("replication_num" = "1", 'storage_medium' = 'HDD'), PARTITION p2 VALUES LESS THAN ("20")) DISTRIBUTED BY HASH(a) BUCKETS 1`
+	stmt := parseOne(t, sql).(*ast.CreateTableStmt)
+	p1 := stmt.PartitionBy.Partitions[0]
+	if len(p1.Properties) != 2 ||
+		p1.Properties[0].Key != "replication_num" || p1.Properties[0].Value != "1" ||
+		p1.Properties[1].Key != "storage_medium" || p1.Properties[1].Value != "HDD" {
+		t.Fatalf("Properties = %+v", p1.Properties)
+	}
+	if got := sql[p1.Loc.Start:p1.Loc.End]; got != `PARTITION p1 VALUES LESS THAN ("10") ("replication_num" = "1", 'storage_medium' = 'HDD')` {
+		t.Errorf("partition text = %q", got)
+	}
+	if p2 := stmt.PartitionBy.Partitions[1]; p2.Properties != nil {
+		t.Errorf("p2 Properties = %+v, want none", p2.Properties)
+	}
+
+	wrap := func(item string) string {
+		return `CREATE TABLE t (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") (` + item + `)) DISTRIBUTED BY HASH(a) BUCKETS 1`
+	}
+	for _, item := range []string{
+		``, `"k"="v",`, `"k"="v" "k2"="v2"`, `"k" "v" SELECT DROP *`,
+		`replication_num = "1"`, `"k" = 1`, `"k" = HDD`, `"k" =`, `"k"`,
+	} {
+		if _, errs := parseForTest(wrap(item)); len(errs) == 0 {
+			t.Errorf("(%s) parsed; the engine rejects it", item)
+		}
+	}
+	for _, def := range []string{`PARTITION p1 ("1")`, `PARTITION p1 ("replication_num"="1")`, `PARTITION p1 (SELECT)`} {
+		sql := `CREATE TABLE t (a INT) PARTITION BY LIST(a) (` + def + `) DISTRIBUTED BY HASH(a) BUCKETS 1`
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%s parsed; the engine wants VALUES before a list", def)
+		}
+	}
+}
+
+// TestBrokerPropertyItems: the WITH BROKER list takes a string on both sides
+// of each item, for LOAD and EXPORT alike.
+func TestBrokerPropertyItems(t *testing.T) {
+	for _, tmpl := range []string{
+		`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b (%s)`,
+		`EXPORT TABLE t TO "hdfs://h/p" WITH BROKER b (%s)`,
+	} {
+		for _, tc := range []struct {
+			item string
+			want bool
+		}{
+			{`"username"="u"`, true},
+			{`'k'='v'`, true},
+			{`username="u"`, false},
+			{`"k"=1`, false},
+			{`"k"=v`, false},
+			{`"k" "v" SELECT DROP *`, false},
+		} {
+			sql := fmt.Sprintf(tmpl, tc.item)
+			if _, errs := parseForTest(sql); (len(errs) == 0) != tc.want {
+				t.Errorf("%q: accept = %v, want %v (errs=%v)", sql, len(errs) == 0, tc.want, errs)
+			}
+		}
+	}
+}
+
+// TestRoutineLoadSourcePropertyItems: a routine load's data-source list takes
+// a string on both sides of each item. Its value used to be any single token,
+// so ("a" = ,) and ("a" = )) parsed.
+func TestRoutineLoadSourcePropertyItems(t *testing.T) {
+	const tmpl = `CREATE ROUTINE LOAD j ON t FROM KAFKA (%s)`
+	stmt := parseOne(t, fmt.Sprintf(tmpl, `"kafka_broker_list"="h:9092", 'kafka_topic'='tp'`)).(*ast.CreateRoutineLoadStmt)
+	if len(stmt.DataSourceProperties) != 2 || stmt.DataSourceProperties[1].Value != "tp" {
+		t.Errorf("DataSourceProperties = %+v", stmt.DataSourceProperties)
+	}
+	for _, item := range []string{
+		`"a" = ,`, `"a" = )`, `"a" = (`, `"a" =`,
+		`kafka_broker_list="h:9092"`, `"k"=1`, `"k"=tp`,
+		`"k"=NULL`, `"k"=true`, `"k"=SELECT`, "\"k\"=`v`",
+	} {
+		sql := fmt.Sprintf(tmpl, item)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed; the engine rejects it", sql)
+		}
+		alter := fmt.Sprintf(`ALTER ROUTINE LOAD FOR j FROM KAFKA (%s)`, item)
+		if _, errs := parseForTest(alter); len(errs) == 0 {
+			t.Errorf("%q parsed; the engine rejects it", alter)
+		}
+	}
+}
+
+// TestInsertFilesErrorPosition: a malformed FILES(...) list is reported at the
+// token that breaks it, where the engine reports it. The list used to be
+// parsed speculatively and, on failure, reparsed as a table named FILES with a
+// column list, which put the error at the '('.
+func TestInsertFilesErrorPosition(t *testing.T) {
+	cases := []struct {
+		sql, at string
+	}{
+		{`INSERT INTO FILES("path"="s3://b/p",) SELECT 1`, `) SELECT 1`},
+		{`INSERT INTO FILES("path"="s3://b/p" "format"="parquet") SELECT 1`, `"format"`},
+		{`INSERT INTO FILES('path'=) SELECT 1`, `) SELECT 1`},
+		{`INSERT INTO FILES("path"=1) SELECT 1`, `1) SELECT 1`},
+		{`INSERT INTO FILES(path="s3://b/p") SELECT 1`, `path=`},
+		{`INSERT INTO FILES() SELECT 1`, `) SELECT 1`},
+		{`INSERT INTO files (a) SELECT 1`, `a) SELECT 1`},
+	}
+	for _, tc := range cases {
+		_, errs := parseForTest(tc.sql)
+		if len(errs) == 0 {
+			t.Errorf("%q parsed; the engine rejects it", tc.sql)
+			continue
+		}
+		if want := strings.Index(tc.sql, tc.at); errs[0].Position != want {
+			t.Errorf("%q: error at %d (%s), want %d", tc.sql, errs[0].Position, errs[0].Message, want)
+		}
+	}
+	stmt := parseOne(t, `INSERT INTO FILES("path"="s3://b/p", "format"="parquet") SELECT 1`).(*ast.InsertStmt)
+	if len(stmt.FileTarget) != 2 || stmt.Target != nil {
+		t.Errorf("FileTarget = %+v Target = %v, want the FILES sink", stmt.FileTarget, stmt.Target)
+	}
+	// Quoted, the name is a table again.
+	stmt = parseOne(t, "INSERT INTO `files` (a) SELECT 1").(*ast.InsertStmt)
+	if stmt.Target == nil || stmt.FileTarget != nil {
+		t.Errorf("Target = %v FileTarget = %+v, want the table `files`", stmt.Target, stmt.FileTarget)
+	}
+}
+
+// TestWalkReachesPropertyLists: the walker visits the property lists that now
+// reach the tree -- a partition's, and a broker load's or export's WITH BROKER
+// list -- as it does every other property list.
+func TestWalkReachesPropertyLists(t *testing.T) {
+	for _, sql := range []string{
+		`CREATE TABLE t (a INT) PARTITION BY RANGE(a) (PARTITION p1 VALUES LESS THAN ("10") ("k"="v")) DISTRIBUTED BY HASH(a) BUCKETS 1`,
+		`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t) WITH BROKER b ("k"="v")`,
+		`EXPORT TABLE t TO "hdfs://h/p" WITH BROKER b ("k"="v")`,
+	} {
+		var keys []string
+		ast.Inspect(parseOne(t, sql), func(n ast.Node) bool {
+			if p, ok := n.(*ast.Property); ok {
+				keys = append(keys, p.Key)
+			}
+			return true
+		})
+		if len(keys) != 1 || keys[0] != "k" {
+			t.Errorf("%q: walked properties %v, want [k]", sql, keys)
 		}
 	}
 }

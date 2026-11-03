@@ -79,6 +79,13 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 			return nil, err
 		}
 		stmt.Commands = append(stmt.Commands, cmd)
+		if cmd.Type == nodes.ATTableOption {
+			more, err := p.parseMoreAlterTableOptions()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Commands = append(stmt.Commands, more...)
+		}
 
 		if p.cur.Type != ',' {
 			break
@@ -88,6 +95,32 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseMoreAlterTableOptions parses the table options that follow one in the
+// same ALTER TABLE action, without commas between them, each its own
+// ATTableOption command: `ALTER TABLE t ENGINE = InnoDB ROW_FORMAT = DYNAMIC`
+// and `ALTER TABLE t DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_bin`, which MySQL
+// 8.0, MariaDB 11.8.8 and TiDB v8.5.5 all run, as CREATE TABLE takes them. An
+// action other than a table option still needs a comma before it:
+// `ALTER TABLE t COMMENT 'x' DISABLE KEYS` is a 1064 on all three.
+func (p *Parser) parseMoreAlterTableOptions() ([]*nodes.AlterTableCmd, error) {
+	var cmds []*nodes.AlterTableCmd
+	for {
+		start := p.pos()
+		opt, ok, err := p.parseTableOption()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return cmds, nil
+		}
+		cmds = append(cmds, &nodes.AlterTableCmd{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Type:   nodes.ATTableOption,
+			Option: opt,
+		})
+	}
 }
 
 // parseAlterTableCmd parses a single ALTER TABLE operation.
@@ -407,9 +440,6 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			return nil, err
 		}
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
 			pd, err := p.parsePartitionDef()
 			if err != nil {
 				return nil, err
@@ -738,7 +768,7 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 }
 
 // parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET NOT NULL | DROP NOT NULL | SET VISIBLE | SET INVISIBLE}
-// and ALTER INDEX index_name {VISIBLE | INVISIBLE}.
+// and ALTER {INDEX | KEY} [IF EXISTS] index_name [NOT] IGNORED.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
 //
@@ -749,22 +779,38 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 //	  | SET NOT NULL
 //	  | DROP NOT NULL
 //	}
-//	ALTER INDEX index_name {VISIBLE | INVISIBLE}
+//	ALTER {INDEX | KEY} [IF EXISTS] index_name [NOT] IGNORED
 func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume ALTER
 
-	// ALTER INDEX index_name {VISIBLE | INVISIBLE}
-	if p.cur.Type == kwINDEX {
+	// ALTER {INDEX | KEY} [IF EXISTS] index_name [NOT] IGNORED, MariaDB's
+	// "ALTER key_or_index opt_if_exists_table_element ident ignorability"
+	// (sql/sql_yacc.yy, mariadb-11.8.8 line 8101). The ignorability is
+	// required, and MySQL's VISIBLE and INVISIBLE are not it: MariaDB 11.8.8
+	// answers 1064 for both and for a bare ALTER INDEX i.
+	// Ref: https://mariadb.com/docs/server/reference/sql-statements/data-definition/alter/alter-table
+	if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
 		p.advance()
+		ifExists, err := p.parseOptIfExists()
+		if err != nil {
+			return nil, err
+		}
+		cmd.IfExists = ifExists
 		name, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
 		cmd.Name = name
-		if _, ok := p.match(kwVISIBLE); ok {
-			cmd.Type = nodes.ATAlterIndexVisible
-		} else if _, ok := p.match(kwINVISIBLE); ok {
+		switch {
+		case p.atUnquotedKeyword("IGNORED"):
+			p.advance()
 			cmd.Type = nodes.ATAlterIndexInvisible
+		case p.atNotIgnored():
+			p.advance() // NOT
+			p.advance() // IGNORED
+			cmd.Type = nodes.ATAlterIndexVisible
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -1059,9 +1105,6 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 		return nil, err
 	}
 	for {
-		if p.cur.Type == ')' {
-			break
-		}
 		pd, err := p.parsePartitionDef()
 		if err != nil {
 			return nil, err

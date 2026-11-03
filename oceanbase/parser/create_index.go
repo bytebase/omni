@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -89,7 +91,7 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 
 	// [index_option] ...
 	for {
-		opt, ok, err := p.parseIndexOption()
+		opt, ok, err := p.parseIndexOption(stmt.Fulltext)
 		if err != nil {
 			return nil, err
 		}
@@ -236,10 +238,17 @@ func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
 //	index_option:
 //	    KEY_BLOCK_SIZE [=] value
 //	    | USING {BTREE | HASH}
-//	    | WITH PARSER parser_name
+//	    | WITH PARSER parser_name          -- fulltext only
+//	    | PARSER_PROPERTIES [=] (...)      -- fulltext only
 //	    | COMMENT 'string'
 //	    | {VISIBLE | INVISIBLE}
-func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
+//
+// fulltext is set for a FULLTEXT index, whose options OceanBase reads as
+// fulltext_index_option (sql_parser_mysql_mode.y, v4.3.5_CE_BP6): index_option, WITH
+// PARSER and PARSER_PROPERTIES. Every other index reads index_option alone, so
+// 4.3.5.6 answers 1064 for WITH PARSER there, at PARSER, and for PARSER_PROPERTIES
+// (fulltextParserCases).
+func (p *Parser) parseIndexOption(fulltext bool) (*nodes.IndexOption, bool, error) {
 	start := p.pos()
 
 	switch {
@@ -283,6 +292,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	case p.cur.Type == kwWITH:
 		next := p.peekNext()
 		if next.Type == kwPARSER {
+			if !fulltext {
+				return nil, false, p.syntaxErrorAtTok(next)
+			}
 			p.advance() // consume WITH
 			p.advance() // consume PARSER
 			valStart := p.pos()
@@ -297,6 +309,9 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			}, true, nil
 		}
 		return nil, false, nil
+
+	case fulltext && p.isBareWord("PARSER_PROPERTIES"):
+		return p.parseParserProperties()
 
 	case p.cur.Type == kwCOMMENT:
 		p.advance()
@@ -386,4 +401,83 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	}
 
 	return nil, false, nil
+}
+
+// parserPropertyKinds maps each key OceanBase's fulltext_parser_properties takes to
+// whether its value is an integer (true) or a string (false).
+var parserPropertyKinds = map[string]bool{
+	"min_token_size":   true,
+	"max_token_size":   true,
+	"ngram_token_size": true,
+	"min_ngram_size":   true,
+	"max_ngram_size":   true,
+	"stopword_table":   false,
+	"dict_table":       false,
+	"quantifier_table": false,
+	"ik_mode":          false,
+}
+
+// parseParserProperties parses OceanBase's PARSER_PROPERTIES option on a fulltext
+// index, from PARSER_PROPERTIES on:
+//
+//	PARSER_PROPERTIES [=] '(' property [[,] property] ... ')'
+//	property: key '=' value
+//
+// as fulltext_parser_properties_list reads it (sql_parser_mysql_mode.y,
+// v4.3.5_CE_BP6). SHOW CREATE TABLE on 4.3.5.6 prints the option on every fulltext
+// index, as PARSER_PROPERTIES=(min_token_size=3,max_token_size=84). The key is one of
+// parserPropertyKinds, bare and in any case; the '=' is required; a size takes an
+// unsigned integer and the rest a string literal, adjacent literals included. The
+// engine answers 1064 for anything else, an empty list or a trailing comma included
+// (fulltextParserCases). Which keys a parser takes, and their ranges, it checks after
+// parsing.
+func (p *Parser) parseParserProperties() (*nodes.IndexOption, bool, error) {
+	start := p.pos()
+	p.advance() // consume PARSER_PROPERTIES
+	p.match('=')
+	if _, err := p.expect('('); err != nil {
+		return nil, false, err
+	}
+	opt := &nodes.IndexOption{Name: "PARSER_PROPERTIES"}
+	for {
+		if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		key := strings.ToLower(p.cur.Str)
+		isInt, known := parserPropertyKinds[key]
+		if !known || !p.isBareWord(key) {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		propStart := p.pos()
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, false, err
+		}
+		prop := &nodes.ParserProperty{Name: key}
+		valStart := p.pos()
+		switch {
+		case isInt && p.cur.Type == tokICONST:
+			val := p.cur.Ival
+			p.advance()
+			prop.Value = &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: val}
+		case !isInt && p.cur.Type == tokSCONST:
+			var val strings.Builder
+			for p.cur.Type == tokSCONST {
+				val.WriteString(p.cur.Str)
+				p.advance()
+			}
+			prop.Value = &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: val.String()}
+		default:
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		prop.Loc = nodes.Loc{Start: propStart, End: p.prev.End}
+		opt.Properties = append(opt.Properties, prop)
+		if p.cur.Type == ')' {
+			break
+		}
+		p.match(',')
+	}
+	p.advance() // consume ')'
+	opt.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return opt, true, nil
 }

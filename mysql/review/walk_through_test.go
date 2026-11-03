@@ -337,12 +337,11 @@ var walkForms = []walktest.Form{
 }
 
 func TestWalkThroughMySQLLowersEveryForm(t *testing.T) {
-	walktest.Coverage(t, walkForms, formLowering(walkSchema(), dialect{}))
+	walktest.Coverage(t, walkForms, formLowering(walkSchema()))
 }
 
-// formLowering walks a form on the schema in the dialect, as
-// walktest.Coverage asks.
-func formLowering(schema *metadata.DatabaseSchemaMetadata, d dialect) func(t *testing.T, sql string) (n, lowered int, last bool) {
+// formLowering walks a form on the schema, as walktest.Coverage asks.
+func formLowering(schema *metadata.DatabaseSchemaMetadata) func(t *testing.T, sql string) (n, lowered int, last bool) {
 	return func(t *testing.T, sql string) (n, lowered int, last bool) {
 		t.Helper()
 		ranges := statementRanges(sql)
@@ -350,7 +349,7 @@ func formLowering(schema *metadata.DatabaseSchemaMetadata, d dialect) func(t *te
 		if syntax != nil {
 			t.Fatalf("syntax: %s\n%s", syntax.Message, sql)
 		}
-		w := newWalker(sql, stmts, review.Target{Schema: schema}, d)
+		w := newWalker(sql, stmts, review.Target{Schema: schema})
 		l := walk.NewLedger(w.snap)
 		for i := range stmts {
 			s := w.lower(i, l)

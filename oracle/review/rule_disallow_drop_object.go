@@ -35,7 +35,7 @@ var objectKinds = map[ast.ObjectType]string{
 	ast.OBJECT_FLASHBACK_ARCHIVE:          "flashback archive",
 	ast.OBJECT_JAVA:                       "Java object",
 	ast.OBJECT_LIBRARY:                    "library",
-	ast.OBJECT_MATERIALIZED_VIEW_LOG:      "materialized view log on",
+	ast.OBJECT_MATERIALIZED_VIEW_LOG:      "materialized view log",
 	ast.OBJECT_DATABASE:                   "database",
 	ast.OBJECT_DISKGROUP:                  "disk group",
 	ast.OBJECT_PLUGGABLE_DATABASE:         "pluggable database",
@@ -74,13 +74,7 @@ var objectKinds = map[ast.ObjectType]string{
 // EXECUTE IMMEDIATE, which is not read.
 func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 	report := func(loc ast.Loc, what string) {
-		r.report(review.DisallowDropObject, s.index, rangeOf(loc), "drops "+what)
-	}
-	kind := func(t ast.ObjectType) string {
-		if k, ok := objectKinds[t]; ok {
-			return k
-		}
-		return "object"
+		r.report(review.DisallowDropObject, s.index, rangeOf(loc), "Drops "+what+".")
 	}
 	switch v := s.node.(type) {
 	case *ast.DropStmt:
@@ -92,32 +86,28 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 				}
 			}
 		}
-		what := kind(v.ObjectType)
-		if len(names) > 0 {
-			what += " " + strings.Join(names, ", ")
-		}
-		report(v.Loc, what)
+		report(v.Loc, dropWhat(v.ObjectType, names...))
 	case *ast.AdminDDLStmt:
 		if strings.EqualFold(v.Action, "DROP") {
-			what := kind(v.ObjectType)
+			var names []string
 			if v.Name != nil {
-				what += " " + objectName(v.Name)
+				names = append(names, objectName(v.Name))
 			}
-			report(v.Loc, what)
+			report(v.Loc, dropWhat(v.ObjectType, names...))
 		}
 	case *ast.DropTablespaceStmt:
 		what := "tablespace "
 		if v.IsSet {
 			what = "tablespace set "
 		}
-		report(v.Loc, what+objectName(v.Name))
+		report(v.Loc, what+review.Code(objectName(v.Name)))
 	case *ast.DropAuditPolicyStmt:
-		report(v.Loc, "audit policy "+ident(v.Name))
+		report(v.Loc, "audit policy "+review.Code(ident(v.Name)))
 	case *ast.AlterTableStmt:
 		if v.Actions == nil {
 			return
 		}
-		table := objectName(v.Name)
+		table := review.Code(objectName(v.Name))
 		for _, item := range v.Actions.Items {
 			cmd, ok := item.(*ast.AlterTableCmd)
 			if !ok {
@@ -126,14 +116,10 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			switch cmd.Action {
 			case ast.AT_DROP_COLUMN:
 				names := columnList(sql, cmd)
-				if len(names) == 1 {
-					report(cmd.Loc, "column "+names[0]+" of "+table)
-				} else {
-					report(cmd.Loc, "columns "+strings.Join(names, ", ")+" of "+table)
-				}
+				report(cmd.Loc, review.Plural("column", len(names))+" "+review.Names(names...)+" of "+table)
 			case ast.AT_DROP_UNUSED_COLUMNS:
 				if strings.EqualFold(cmd.Subtype, "COLUMNS CONTINUE") {
-					report(cmd.Loc, "the columns an interrupted drop left of "+table)
+					report(cmd.Loc, "the columns an interrupted drop left in "+table)
 				} else {
 					report(cmd.Loc, "the unused columns of "+table)
 				}
@@ -142,7 +128,7 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			case ast.AT_DROP_SUBPARTITION:
 				report(cmd.Loc, partitionWhat("subpartition", sql, cmd)+" of "+table)
 			case ast.AT_DROP_PERIOD:
-				report(cmd.Loc, "period "+ident(cmd.ColumnName)+" of "+table)
+				report(cmd.Loc, "period "+review.Code(ident(cmd.ColumnName))+" of "+table)
 			}
 		}
 	case *ast.AlterTypeStmt:
@@ -150,9 +136,28 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			return
 		}
 		for _, a := range v.Attributes {
-			report(a.Loc, "attribute "+ident(a.Name)+" of type "+objectName(v.Name))
+			report(a.Loc, "attribute "+review.Code(ident(a.Name))+" of type "+review.Code(objectName(v.Name)))
 		}
 	}
+}
+
+// dropWhat writes, as Markdown, what a DROP statement of the kind drops:
+// the kind and the names, "the" kind when it names nothing, and the names
+// alone when the kind is not known. A materialized view log has no name of
+// its own; the DROP names its table.
+func dropWhat(t ast.ObjectType, names ...string) string {
+	kind, known := objectKinds[t]
+	switch {
+	case t == ast.OBJECT_MATERIALIZED_VIEW_LOG && len(names) > 0:
+		return "the materialized view log on " + review.Names(names...)
+	case !known && len(names) > 0:
+		return review.Names(names...)
+	case !known:
+		return "an object"
+	case len(names) == 0:
+		return "the " + kind
+	}
+	return review.Plural(kind, len(names)) + " " + review.Names(names...)
 }
 
 // columnList returns the columns a DROP COLUMN clause names: the one of
@@ -180,10 +185,10 @@ func columnList(sql string, cmd *ast.AlterTableCmd) []string {
 
 var keywordFor = parser.Tokenize("FOR")[0].Type
 
-// partitionWhat writes the partitions or subpartitions a clause names, as
-// "partition P1" or "partitions P1, FOR (10)": each name, or the FOR
-// clause that names one by its key, which the parser does not keep beyond
-// the first name.
+// partitionWhat writes, as Markdown, the partitions or subpartitions a
+// clause names, as "partition `P1`" or "partitions `P1` and `FOR (10)`":
+// each name, or the FOR clause that names one by its key, which the parser
+// does not keep beyond the first name.
 func partitionWhat(kind, sql string, cmd *ast.AlterTableCmd) string {
 	toks := tokens(sql, cmd.Loc)
 	// The clause starts DROP or TRUNCATE, then the kind's keyword.
@@ -219,11 +224,8 @@ func partitionWhat(kind, sql string, cmd *ast.AlterTableCmd) string {
 		}
 		i++
 	}
-	switch len(items) {
-	case 0:
+	if len(items) == 0 {
 		return "a " + kind
-	case 1:
-		return kind + " " + items[0]
 	}
-	return kind + "s " + strings.Join(items, ", ")
+	return review.Plural(kind, len(items)) + " " + review.Names(items...)
 }

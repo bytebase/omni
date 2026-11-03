@@ -255,3 +255,92 @@ func (p *Parser) parseStringProperty() (*ast.Property, error) {
 		Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
 	}, nil
 }
+
+// parsePropertyItem reads one property item in the grammar's full form:
+//
+//	propertyItem  : key=propertyKey EQ value=propertyValue
+//	propertyKey   : identifier | constant
+//	propertyValue : identifier | constant
+//
+// (DorisParser.g4). Most clauses take parseStringProperty instead, which is
+// narrower and fails closed. This one is for the lists that used to be
+// skipped unread -- a partition's inline properties and EXPORT's WITH BROKER
+// list -- where the narrower item would now refuse statements the engine
+// takes and this parser used to accept: (replication_num = "1"), ("k" = 1),
+// ("k" = HDD), ("k" = [1]) and ("k" = DATE "2020-01-01") all parse there,
+// while ("k" = SELECT), ("k" = a.b), ("k" = 1+1) and ("k" = +1) do not
+// (container-verified).
+//
+// A string keeps its unquoted text; any other key or value keeps its source
+// text.
+func (p *Parser) parsePropertyItem() (*ast.Property, error) {
+	startLoc := p.cur.Loc
+	key, _, err := p.parsePropertyAtom()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int('=')); err != nil {
+		return nil, err
+	}
+	val, endLoc, err := p.parsePropertyAtom()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.Property{
+		Key:   key,
+		Value: val,
+		Loc:   ast.Loc{Start: startLoc.Start, End: endLoc.End},
+	}, nil
+}
+
+// parsePropertyAtom reads one propertyKey or propertyValue: an identifier
+// (including a non-reserved keyword) or a constant.
+//
+//	constant : NULL | (DATE | DATEV1 | DATEV2 | TIMESTAMP) STRING_LITERAL
+//	         | number | booleanValue | STRING_LITERAL | VARBINARY_LITERAL
+//	         | arrayLiteral | mapLiteral | structLiteral | PLACEHOLDER
+//	number   : SUBTRACT? INTEGER_VALUE | SUBTRACT? (EXPONENT_VALUE | DECIMAL_VALUE)
+func (p *Parser) parsePropertyAtom() (string, ast.Loc, error) {
+	start := p.cur.Loc
+	switch p.cur.Kind {
+	case tokString:
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	case tokInt, tokFloat, tokHexLiteral, tokBitLiteral, tokPlaceholder,
+		kwNULL, kwTRUE, kwFALSE:
+		tok := p.advance()
+		return p.sourceText(tok.Loc), tok.Loc, nil
+	case int('-'):
+		if next := p.peekNext().Kind; next != tokInt && next != tokFloat {
+			p.advance() // consume '-'
+			return "", ast.Loc{}, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume '-'
+		tok := p.advance()
+		loc := ast.Loc{Start: start.Start, End: tok.Loc.End}
+		return p.sourceText(loc), loc, nil
+	case int('['), int('{'):
+		lit, err := p.parseCollectionConstant()
+		if err != nil {
+			return "", ast.Loc{}, err
+		}
+		loc := ast.NodeLoc(lit)
+		return p.sourceText(loc), loc, nil
+	case kwDATE, kwDATEV1, kwDATEV2, kwTIMESTAMP:
+		// A typed constant when a string follows; otherwise the keyword is
+		// an identifier (DATE and the others are non-reserved).
+		if p.peekNext().Kind == tokString {
+			p.advance() // consume the type keyword
+			tok := p.advance()
+			loc := ast.Loc{Start: start.Start, End: tok.Loc.End}
+			return p.sourceText(loc), loc, nil
+		}
+	}
+	return p.parseIdentifier()
+}
+
+// sourceText returns the input text loc covers. Loc values are absolute, so
+// the segment's base offset comes off before indexing the segment's text.
+func (p *Parser) sourceText(loc ast.Loc) string {
+	return p.input[loc.Start-p.baseOffset : loc.End-p.baseOffset]
+}

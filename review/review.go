@@ -177,8 +177,12 @@ type Finding struct {
 	// Range is the anchor in absolute byte offsets of the input. A zero
 	// Range with Statement >= 0 anchors the whole statement.
 	Range Range
-	// Message is one line naming the object as the SQL wrote it. It never
-	// names the target, so equal findings from different targets merge.
+	// Message is Markdown, which Bytebase shows as an issue comment, in the
+	// form docs/specs/2026-11-02-review-finding-messages.md sets out: a
+	// first line that is a one-sentence summary naming the object, then an
+	// optional body. Text taken from the SQL is written with Code, Names,
+	// Join, CodeBlock, or Escape. It never names the target, so equal
+	// findings from different targets merge.
 	Message string
 	// Targets are the indices of the targets this finding applies to,
 	// ascending. A finding that depends on the SQL alone lists every

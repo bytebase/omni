@@ -21,8 +21,9 @@ var nullFixes = map[string]string{
 // checkRequireIsNull reports a comparison of the form x = NULL, x <> NULL,
 // x != NULL, or x ^= NULL that a condition tests for truth, where it is
 // unknown for every row and so never true. Oracle treats a zero-length
-// string literal as NULL, so x = ” (or N”, or q'[]') is never true
-// either, in SQL and in PL/SQL alike. The NULL may sit on either side, and
+// string literal as NULL, so x = an empty literal (two single quotes, N and
+// two single quotes, or q'[]') is never true either, in SQL and in PL/SQL
+// alike. The NULL may sit on either side, and
 // in parentheses. Only a comparison the condition reads as its truth
 // counts: the condition itself, or an operand of AND, OR, or NOT in it,
 // parenthesized or not.
@@ -62,7 +63,7 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 			seen[v] = true
 			rng := comparisonRange(v)
 			text := strings.Join(strings.Fields(sql[rng.Start:rng.End]), " ")
-			r.report(review.RequireIsNull, s.index, rng, `"`+escapeLines(text)+`" is never true; use `+fix)
+			r.report(review.RequireIsNull, s.index, rng, review.Code(text)+" is never true.\n\nUse "+review.Code(fix)+" instead.")
 		}
 	}
 	for _, p := range conditions(s.node) {

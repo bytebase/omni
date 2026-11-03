@@ -394,7 +394,7 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 			Rule:      review.DisallowDropConstraint,
 			Statement: st.index,
 			Range:     rangeOf(cmd.Loc),
-			Message:   "drops " + con.kind + " " + ident(cmd.Name) + " of " + relation(v.Relation),
+			Message:   "Drops " + con.kind + " " + review.Code(ident(cmd.Name)) + " of " + review.Code(relation(v.Relation)) + ".",
 		})
 	}
 	if con.kind == "primary key" && out.lost == nil {

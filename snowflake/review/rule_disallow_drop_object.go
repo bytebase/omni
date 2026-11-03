@@ -21,7 +21,7 @@ import (
 // or a row access policy from a table removes no object.
 func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 	report := func(rng review.Range, kind, name string) {
-		r.report(review.DisallowDropObject, s.index, rng, "drops "+kind+" "+name)
+		r.report(review.DisallowDropObject, s.index, rng, "Drops "+kind+" "+review.Code(name)+".")
 	}
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
@@ -53,7 +53,7 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 					continue
 				}
 				for _, col := range a.DropColumnNames {
-					report(rangeOf(col.Loc), "column", ident(col)+" of "+object(v.Name))
+					r.report(review.DisallowDropObject, s.index, rangeOf(col.Loc), "Drops column "+review.Code(ident(col))+" of "+review.Code(object(v.Name))+".")
 				}
 			}
 		}

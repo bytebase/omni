@@ -1,0 +1,278 @@
+package catalog
+
+import (
+	"fmt"
+	"strings"
+
+	nodes "github.com/bytebase/omni/tidb/ast"
+)
+
+// Every unique key of a partitioned table, the primary key included, must include
+// every column the partitioning function reads, and include it whole, unless it is a
+// GLOBAL index, which this parser does not read. TiDB v8.5.5 checks a CREATE TABLE's
+// keys in its own order (pkg/ddl, checkPartitioningKeysConstraints) and each key an
+// ALTER TABLE or CREATE INDEX adds as that command runs, and names the key it
+// refuses:
+//
+//   - a clustered primary key: 1503 "A CLUSTERED INDEX must include all columns in
+//     the table's partitioning function";
+//   - a NONCLUSTERED primary key or a unique key: 8264 "Global Index is needed for
+//     index '<name>', since the unique index is not including all partitioning
+//     columns, and GLOBAL is not given as IndexOption".
+//
+// TiDB ignores SUBPARTITION BY, so only the partitioning function counts.
+
+// partitionKeyColumns returns the columns pc's partitioning function reads: the
+// column list of a COLUMNS or KEY partitioning, the column references of a RANGE,
+// LIST or HASH expression, and for KEY () the primary key. A KEY () on a table with no
+// primary key contributes nothing, so the check never asks for a column the engine
+// does not.
+func partitionKeyColumns(tbl *Table, pc *nodes.PartitionClause) []string {
+	var names []string
+	switch {
+	case len(pc.Columns) > 0:
+		names = pc.Columns
+	case pc.Type == nodes.PartitionKey:
+		names = effectivePrimaryKeyColumns(tbl)
+	default:
+		names = exprColumnNames(pc.Expr)
+	}
+	var cols []string
+	for _, name := range names {
+		if !containsFold(cols, name) {
+			cols = append(cols, name)
+		}
+	}
+	return cols
+}
+
+func exprColumnNames(expr nodes.ExprNode) []string {
+	if expr == nil {
+		return nil
+	}
+	var names []string
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+			names = append(names, ref.Column)
+		}
+		return true
+	})
+	return names
+}
+
+func containsFold(names []string, name string) bool {
+	for _, n := range names {
+		if toLower(n) == toLower(name) {
+			return true
+		}
+	}
+	return false
+}
+
+// effectivePrimaryKeyColumns returns the columns KEY () partitions by: the primary
+// key's, or else those of the first unique key whose parts are all whole NOT NULL
+// columns.
+func effectivePrimaryKeyColumns(tbl *Table) []string {
+	var key *Index
+	for _, idx := range tbl.Indexes {
+		if idx.Primary {
+			key = idx
+			break
+		}
+	}
+	if key == nil {
+		for _, idx := range tbl.Indexes {
+			if !idx.Unique || idx.Fulltext || idx.Spatial || len(idx.Columns) == 0 {
+				continue
+			}
+			whole := true
+			for _, ic := range idx.Columns {
+				col := tbl.GetColumn(ic.Name)
+				if ic.Name == "" || col == nil || col.Nullable || !keyPartIsWholeColumn(tbl, ic) {
+					whole = false
+					break
+				}
+			}
+			if whole {
+				key = idx
+				break
+			}
+		}
+	}
+	if key == nil {
+		return nil
+	}
+	cols := make([]string, 0, len(key.Columns))
+	for _, ic := range key.Columns {
+		cols = append(cols, ic.Name)
+	}
+	return cols
+}
+
+// keyPartIsWholeColumn reports whether a key part holds its whole column. A prefix
+// does not, unless it is as long as the column: UNIQUE KEY (a(20)) on a VARCHAR(20)
+// column partitioned by KEY(a) is accepted and (a(19)) is an 8264. A prefix on a
+// column whose length the catalog cannot read counts as whole, so no error is raised
+// that the engine might not raise.
+func keyPartIsWholeColumn(tbl *Table, ic *IndexColumn) bool {
+	if ic.Length == 0 {
+		return true
+	}
+	col := tbl.GetColumn(ic.Name)
+	if col == nil {
+		return true
+	}
+	switch strings.ToLower(col.DataType) {
+	case "char", "varchar", "binary", "varbinary":
+	default:
+		return true
+	}
+	open := strings.IndexByte(col.ColumnType, '(')
+	end := strings.IndexByte(col.ColumnType, ')')
+	if open < 0 || end <= open+1 {
+		return true
+	}
+	n := 0
+	for _, ch := range col.ColumnType[open+1 : end] {
+		if ch < '0' || ch > '9' {
+			return true
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return ic.Length >= n
+}
+
+// uniqueKeyCovers reports whether idx holds every one of partCols whole.
+func uniqueKeyCovers(tbl *Table, idx *Index, partCols []string) bool {
+	for _, pc := range partCols {
+		covered := false
+		for _, ic := range idx.Columns {
+			if ic.Name != "" && toLower(ic.Name) == toLower(pc) && keyPartIsWholeColumn(tbl, ic) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			return false
+		}
+	}
+	return true
+}
+
+// primaryKeyClustered reports whether TiDB clusters the table by its primary key:
+// as CLUSTERED or NONCLUSTERED says, and otherwise by default in CREATE TABLE
+// (tidb_enable_clustered_index is ON) but not in ALTER TABLE ... ADD PRIMARY KEY.
+func primaryKeyClustered(tbl *Table, pk *Index) bool {
+	for _, con := range tbl.Constraints {
+		if con.Type == ConPrimaryKey && con.Clustered != nil {
+			return *con.Clustered
+		}
+	}
+	return !pk.addedByAlter
+}
+
+// checkUniqueKeysCoverPartitionColumns checks idxs, in the order TiDB does. A
+// clustered primary key over one integer column is the row handle, which TiDB checks
+// after the indexes.
+func checkUniqueKeysCoverPartitionColumns(tbl *Table, idxs []*Index, partCols []string) error {
+	if len(partCols) == 0 {
+		return nil
+	}
+	handle := false
+	for _, idx := range idxs {
+		if !idx.Unique && !idx.Primary {
+			continue
+		}
+		// TiDB names an unnamed key over an expression expression_index, which the
+		// catalog leaves unnamed, so it cannot name the key TiDB refuses.
+		if idx.Name == "" || uniqueKeyCovers(tbl, idx, partCols) {
+			continue
+		}
+		if idx.Primary && primaryKeyClustered(tbl, idx) {
+			if isRowHandle(tbl, idx) {
+				handle = true
+				continue
+			}
+			return errClusteredIndexNeedAllFieldsInPF()
+		}
+		return errGlobalIndexNeeded(idx.Name)
+	}
+	if handle {
+		return errClusteredIndexNeedAllFieldsInPF()
+	}
+	return nil
+}
+
+func isRowHandle(tbl *Table, pk *Index) bool {
+	if len(pk.Columns) != 1 || pk.Columns[0].Length != 0 {
+		return false
+	}
+	col := tbl.GetColumn(pk.Columns[0].Name)
+	return col != nil && isIntegerType(strings.ToLower(col.DataType))
+}
+
+func errClusteredIndexNeedAllFieldsInPF() error {
+	return &Error{
+		Code:     1503,
+		SQLState: "HY000",
+		Message:  "A CLUSTERED INDEX must include all columns in the table's partitioning function",
+	}
+}
+
+func errGlobalIndexNeeded(name string) error {
+	return &Error{
+		Code:     8264,
+		SQLState: "HY000",
+		Message:  fmt.Sprintf("Global Index is needed for index '%s', since the unique index is not including all partitioning columns, and GLOBAL is not given as IndexOption", name),
+	}
+}
+
+// validateCreateTableUniqueKeys checks the keys of a CREATE TABLE in TiDB's order:
+// the table's constraints as written, then the columns' (TiDB appends a column's
+// PRIMARY KEY or UNIQUE after the table constraints), which the catalog adds first.
+func validateCreateTableUniqueKeys(tbl *Table, columnKeys int, pc *nodes.PartitionClause) error {
+	idxs := make([]*Index, 0, len(tbl.Indexes))
+	idxs = append(idxs, tbl.Indexes[columnKeys:]...)
+	idxs = append(idxs, tbl.Indexes[:columnKeys]...)
+	return checkUniqueKeysCoverPartitionColumns(tbl, idxs, partitionKeyColumns(tbl, pc))
+}
+
+// validateNewUniqueKey checks a key an ALTER TABLE or CREATE INDEX is about to add.
+func validateNewUniqueKey(tbl *Table, idx *Index) error {
+	if tbl.Partitioning == nil {
+		return nil
+	}
+	return checkUniqueKeysCoverPartitionColumns(tbl, []*Index{idx}, tbl.Partitioning.keyColumns)
+}
+
+// validateRepartition checks the unique keys of a table ALTER TABLE ... PARTITION BY
+// partitions anew. The catalog does not apply a repartition, so the partitioning it
+// keeps no longer says which columns a unique key needs.
+func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
+	if pc == nil {
+		return nil
+	}
+	if err := checkUniqueKeysCoverPartitionColumns(tbl, tbl.Indexes, partitionKeyColumns(tbl, pc)); err != nil {
+		return err
+	}
+	if tbl.Partitioning != nil {
+		tbl.Partitioning.keyColumns = nil
+	}
+	return nil
+}
+
+// renamePartitionKeyColumn follows a column rename in the partitioning's key columns,
+// as the catalog follows it in the indexes.
+func renamePartitionKeyColumn(tbl *Table, oldName, newName string) {
+	if tbl.Partitioning == nil || len(tbl.Partitioning.keyColumns) == 0 {
+		return
+	}
+	cols := make([]string, len(tbl.Partitioning.keyColumns))
+	for i, name := range tbl.Partitioning.keyColumns {
+		if toLower(name) == toLower(oldName) {
+			name = newName
+		}
+		cols[i] = name
+	}
+	tbl.Partitioning.keyColumns = cols
+}

@@ -356,6 +356,9 @@ func formatIndexDefinition(idx *Index, _ *Normalizer) string {
 	b.WriteString(strings.Join(cols, ","))
 	b.WriteString(")")
 
+	// A fulltext index's parser, so a changed one is applied (canonicalFulltextParser).
+	b.WriteString(formatFulltextParser(idx))
+
 	// USING clause: only the user-selectable BTREE/HASH, never for PRIMARY/FULLTEXT/SPATIAL
 	// (matching show.go), so a redundant FULLTEXT/SPATIAL IndexType echo is not emitted.
 	if !idx.Primary && !idx.Fulltext && !idx.Spatial && idx.IndexType != "" {

@@ -71,7 +71,8 @@ func object(ref *ast.TableRef) string {
 	return strings.Join(append(parts, ident(ref.Object)), ".")
 }
 
-// tableExpr writes the table an UPDATE or DELETE names as its target.
+// tableExpr writes the table an UPDATE or DELETE names as its target, or
+// "" when it names none.
 func tableExpr(e ast.TableExpr) string {
 	switch v := e.(type) {
 	case *ast.TableRef:
@@ -79,7 +80,7 @@ func tableExpr(e ast.TableExpr) string {
 	case *ast.TableVarRef:
 		return escapeLines(v.Name)
 	}
-	return "the target"
+	return ""
 }
 
 // sameName reports whether two names may name the same object. SQL Server

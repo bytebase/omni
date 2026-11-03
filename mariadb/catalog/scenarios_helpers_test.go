@@ -18,7 +18,7 @@ import (
 //
 // IMPORTANT: pins the underlying *sql.DB pool to a single connection. Many
 // scenario tests rely on connection-scoped state (USE testdb, SET SESSION
-// explicit_defaults_for_timestamp=0, SET SESSION sql_mode=”, etc.) that
+// explicit_defaults_for_timestamp=0, SET SESSION sql_mode to empty, etc.) that
 // only affects the current MySQL session. Without pinning, subsequent
 // queries may execute on a different pool connection and silently run
 // against the wrong schema or session settings, producing nondeterministic

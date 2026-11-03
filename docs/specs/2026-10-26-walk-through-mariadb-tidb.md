@@ -15,12 +15,9 @@ Built in `mariadb/review` (2026-10-26). The facts this section adds to the draft
 
 ### 2.1 Authority
 
-- **Relation absence is untrusted** (engines design D5, decision N2). Before Bytebase #21665 the sync listed only `BASE TABLE`s and views, and sequences and system-versioned tables share their namespace. The target does not say which sync it comes from. So:
-  - no claim that a synced database lacks a relation;
-  - "already exists" from the sync is still trusted, for the sequences #21665 lists too;
-  - so are the columns and indexes of synced tables, but for a system-versioned table's columns (below);
-  - names the change itself creates or drops are followed as on MySQL.
-- **Trigger absence is untrusted too.** The sync before #21665 lost the triggers of the tables it skipped, so `DROP TRIGGER` of one would be a false finding. Foreign key names stay trusted: the walk claims a missing one only with the table's own foreign keys, which the sync lists with the table.
+- **Relation absence is trusted** (decision N2, revisited 2026-10-30). Since Bytebase #21665 the sync lists every `TABLE_TYPE` of the namespace: `BASE TABLE`, `SYSTEM VERSIONED`, `VIEW`, and `SEQUENCE`. Bytebase's metadata is taken to be what its current sync produces, as for Oracle (O1), so a synced database lacks a relation it does not list, as on MySQL. The other `TABLE_TYPE`s are `SYSTEM VIEW`, of `information_schema` and `performance_schema` alone, and `TEMPORARY`, a session's own.
+- **SEQUENCE engine tables are Unknown.** MariaDB's SEQUENCE engine, built in and enabled by default, answers for `seq_<from>_to_<to>` and `seq_<from>_to_<to>_step_<step>` in every database, and `information_schema` lists none. On 11.8.8 `SELECT` reads `seq_1_to_3` and `mysql.seq_1_to_3`, `DROP TABLE seq_1_to_4` and `CREATE TRIGGER ... ON seq_1_to_3` succeed, `CREATE TABLE seq_1_to_6` fails with 1050, and DML on one fails with 1031, not 1146. A statement's relation of such a name is one the walk cannot read (`sequenceEngineTable`), even after a `DROP TABLE` of it, after which the engine answers for the name again. A table of the name the sync lists keeps its triggers and foreign keys.
+- **Trigger absence is trusted too.** The sync lists every trigger of the tables it lists, system-versioned ones included, and a trigger can be on no other relation: on a sequence it fails with 1361, and on a view with 1347 (verified on 11.8.8). The exception is a SEQUENCE engine table. A trigger on one exists (a second `CREATE TRIGGER` fails with 1359) and fires, though the statement then fails (1031), but neither `information_schema.TRIGGERS` nor `SHOW TRIGGERS` lists it, so `DROP TRIGGER` of it is a false finding the walk accepts. Foreign key names stay trusted: the walk claims a missing one only with the table's own foreign keys, which the sync lists with the table.
 - **Primary key absence is trusted.** MariaDB has no invisible primary key, so `DROP PRIMARY KEY` on a table the sync lists without one fails (1091).
 - **System-versioned tables:** the sync since #21665 lists one as a table, with `WITH SYSTEM VERSIONING` in its create options. Its columns are Unknown: `information_schema` does not list the hidden `row_start` and `row_end`.
 
@@ -299,6 +296,7 @@ Decided 2026-10-26 for MariaDB: N1, N2, and N3 as recommended, and N4 as one PR 
   - Recommended: so, at the cost of every "table does not exist" claim about a synced MariaDB database.
   - The alternative, trusting it, has a false finding for every sequence or system-versioned table the sync drops.
   - As decided: Bytebase #21665 now syncs both, but the target does not say which sync it comes from. A `review.Target` switch, off by default, may later let Bytebase say so. Trigger absence waits for the same switch (§2.1).
+  - Revisited 2026-10-30: Bytebase's metadata is taken to be what its current sync produces, the rule decided for Oracle (O1) on 2026-10-28, so relation and trigger absence are trusted (§2.1). The oracle mirrors the current sync alone. The sweep at 500 (seed 20261026) found 4339 of 6941 rejections, where main, running both syncs by turns, found 1282 of 6956; neither had a false finding.
 - **N3. Oracle settings.**
   - Recommended: MariaDB with `lower_case_table_names` 0 only, since the folding is MySQL's code, which runs on mysql 8.0 with 1.
   - TiDB as it ships (2).

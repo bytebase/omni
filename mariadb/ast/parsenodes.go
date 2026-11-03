@@ -269,6 +269,10 @@ const (
 	ATRemovePartitioning
 	ATAlterColumnVisible
 	ATAlterColumnInvisible
+	// ATAlterIndexVisible and ATAlterIndexInvisible are MariaDB's
+	// ALTER {INDEX | KEY} [IF EXISTS] name NOT IGNORED and IGNORED. The names
+	// come from MySQL's ALTER INDEX ... {VISIBLE | INVISIBLE}, which MariaDB
+	// does not take.
 	ATAlterIndexVisible
 	ATAlterIndexInvisible
 	ATForce
@@ -368,7 +372,9 @@ type IndexColumn struct {
 
 func (c *IndexColumn) nodeTag() {}
 
-// IndexOption represents an index option.
+// IndexOption represents an index option. MariaDB's ignorability is Name
+// "IGNORED" or "NOT IGNORED"; "VISIBLE" is MariaDB's no-op for MySQL 8.0
+// compatibility.
 type IndexOption struct {
 	Loc   Loc
 	Name  string
@@ -566,7 +572,7 @@ type Constraint struct {
 	Columns      []string       // simple column names
 	IndexColumns []*IndexColumn // key parts with optional expressions (for functional indexes)
 	IndexType    string         // BTREE, HASH
-	IndexOptions []*IndexOption // index_option list (KEY_BLOCK_SIZE, COMMENT, VISIBLE/INVISIBLE, etc.)
+	IndexOptions []*IndexOption // index_option list (KEY_BLOCK_SIZE, COMMENT, [NOT] IGNORED, etc.)
 	Expr         ExprNode       // for CHECK
 	RefTable     *TableRef      // for FOREIGN KEY
 	RefColumns   []string       // for FOREIGN KEY

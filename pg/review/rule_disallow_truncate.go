@@ -1,8 +1,6 @@
 package review
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/review"
 )
@@ -23,7 +21,7 @@ func checkDisallowTruncate(s *statement, r *reporter) {
 				}
 			}
 		}
-		r.report(review.DisallowTruncate, s.index, rangeOf(v.Loc), "truncates "+strings.Join(names, ", "))
+		r.report(review.DisallowTruncate, s.index, rangeOf(v.Loc), "Truncates "+review.Names(names...)+".")
 		return true
 	})
 }

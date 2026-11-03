@@ -175,10 +175,10 @@ func TestLexer_ErrorPosition_AroundExecComment(t *testing.T) {
 		{"inside_body_bare", "/*! SELECT 'abc */", 11},
 		{"inside_body_versioned", "/*!50100 SELECT 'x */", 16},
 		{"inside_body_nested_comment", "/*! /* c */ SELECT 'x */", 19},
-		// Nested EXECUTABLE comment: the inner /*! ... */ closes inside the outer
-		// body, and the error follows the outer comment's own */.
-		{"nested_exec_then_string", "/*! /*! SELECT 1 */ */'x", 22},
-		{"nested_exec_then_string_ws", "/*! /*! SELECT 1 */ */ 'x", 23},
+		// Nested EXECUTABLE comment: executable comments do not nest, so the inner
+		// opener is dropped, the first */ closes both, and the error follows it.
+		{"nested_exec_then_string", "/*! /*! SELECT 1 */'x", 19},
+		{"nested_exec_then_string_ws", "/*! /*! SELECT 1 */ 'x", 20},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

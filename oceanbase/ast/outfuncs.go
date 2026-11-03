@@ -269,6 +269,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeIndexColumn(sb, n)
 	case *IndexOption:
 		writeIndexOption(sb, n)
+	case *ParserProperty:
+		writeParserProperty(sb, n)
 	case *IndexHint:
 		writeIndexHint(sb, n)
 	case *CaseWhen:
@@ -3001,6 +3003,15 @@ func writePartitionClause(sb *strings.Builder, n *PartitionClause) {
 	if n.NumSubParts > 0 {
 		fmt.Fprintf(sb, " :num_sub_parts %d", n.NumSubParts)
 	}
+	if len(n.SubPartTemplate) > 0 {
+		sb.WriteString(" :sub_part_template ")
+		for i, sp := range n.SubPartTemplate {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, sp)
+		}
+	}
 	sb.WriteString("}")
 }
 
@@ -3036,6 +3047,10 @@ func writePartitionDef(sb *strings.Builder, n *PartitionDef) {
 func writeSubPartitionDef(sb *strings.Builder, n *SubPartitionDef) {
 	sb.WriteString("{SUBPARTITION_DEF")
 	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Values != nil {
+		sb.WriteString(" :values ")
+		writeNode(sb, n.Values)
+	}
 	if len(n.Options) > 0 {
 		sb.WriteString(" :options ")
 		for i, o := range n.Options {
@@ -3063,6 +3078,26 @@ func writeIndexColumn(sb *strings.Builder, n *IndexColumn) {
 
 func writeIndexOption(sb *strings.Builder, n *IndexOption) {
 	sb.WriteString("{IDX_OPT")
+	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Value != nil {
+		sb.WriteString(" :val ")
+		writeNode(sb, n.Value)
+	}
+	if len(n.Properties) > 0 {
+		sb.WriteString(" :properties (")
+		for i, prop := range n.Properties {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeParserProperty(sb, prop)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeParserProperty(sb *strings.Builder, n *ParserProperty) {
+	sb.WriteString("{PARSER_PROP")
 	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
 	if n.Value != nil {
 		sb.WriteString(" :val ")

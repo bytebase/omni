@@ -25,6 +25,36 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	repartition := alterRepartition(stmt.Commands)
+	if tbl.Partitioning == nil && repartition == nil {
+		return c.alterTableCommands(db, tbl, key, stmt)
+	}
+	// A unique key on a partitioned table must cover the partitioning columns. MariaDB
+	// checks the table the statement leaves, after every other error (1060, 1061 and
+	// 1091 come first in ADD UNIQUE (b), ADD COLUMN a ...), and leaves the table as it
+	// was: snapshot it to undo the commands when the check fails.
+	before := make(map[*Index]bool, len(tbl.Indexes))
+	for _, idx := range tbl.Indexes {
+		before[idx] = true
+	}
+	snapshot := cloneTable(tbl)
+	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
+		return err
+	}
+	if err := validateAlteredUniqueKeys(tbl, before, repartition); err != nil {
+		undoAlter(db, key, tbl, snapshot)
+		return err
+	}
+	if repartition != nil && tbl.Partitioning != nil {
+		// The catalog does not apply a repartition, so the partitioning it keeps no
+		// longer says which columns a unique key needs.
+		tbl.Partitioning.keyColumns = nil
+	}
+	return nil
+}
+
+// alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
+func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) == 0 {
 		return nil
 	}
@@ -51,14 +81,24 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		}
 	}
 
+	skip, err := checkAlterIndexIgnorability(tbl, stmt.Commands)
+	if err != nil {
+		return err
+	}
+
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
+		if skip[cmd] {
+			return nil
+		}
 		// A versioned table can be made inconsistent by any column change (a
 		// dropped/modified/renamed ROW START/END or period column), so route the
 		// command through post-mutation validation when the table is already
-		// versioned or the command itself carries versioning metadata. Plain
-		// tables keep the no-clone fast path.
-		if !alterNeedsFinalValidation(tbl, cmd) {
+		// versioned or the command itself carries versioning metadata. So does
+		// a table with an IGNORED index, which a dropped key or a column made
+		// NOT NULL can promote to the implicit primary key. Plain tables keep
+		// the no-clone fast path.
+		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) && cmd.Type != nodes.ATAlterIndexInvisible {
 			return c.execAlterCmd(db, tbl, cmd)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
@@ -77,6 +117,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			*tbl = snapshot
 			return err
 		}
+		if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
+			*tbl = snapshot
+			return err
+		}
 		return nil
 	}
 
@@ -85,17 +129,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	snapshot := cloneTable(tbl)
 	origKey := key
 
-	rollback := func() {
-		// If a RENAME changed the map key, undo it, then restore all fields.
-		newKey := toLower(tbl.Name)
-		if newKey != origKey {
-			delete(db.Tables, newKey)
-			db.Tables[origKey] = tbl
-		}
-		*tbl = snapshot
-	}
+	rollback := func() { undoAlter(db, origKey, tbl, snapshot) }
 
 	for _, cmd := range stmt.Commands {
+		if skip[cmd] {
+			continue
+		}
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
 			rollback()
 			return err
@@ -111,9 +150,24 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		rollback()
 		return err
 	}
+	if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
+		rollback()
+		return err
+	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
+// in the statement may have moved the table to another database, under another name,
+// so its entry there goes first.
+func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
+	if cur := tbl.Database; cur != nil && cur.Tables[toLower(tbl.Name)] == tbl {
+		delete(cur.Tables, toLower(tbl.Name))
+	}
+	*tbl = snapshot
+	db.Tables[key] = tbl
 }
 
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
@@ -664,8 +718,10 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(pkIdx, con.IndexOptions)
+		// The ALTER's snapshot puts the columns back: MariaDB 11.8.8 leaves
+		// them nullable.
 		if !pkIdx.Visible {
-			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+			return errPKIndexCantBeIgnored()
 		}
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -692,14 +748,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		uqIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Unique:    true,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(uqIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
 			Type:      ConUniqueKey,
@@ -786,6 +844,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
 		}
+		// The CREATE TABLE path reads these; this one used to drop them, so an index
+		// added by ALTER lost its comment and block size.
+		applyIndexOptions(keyIdx, con.IndexOptions)
 		coerceInnoDBHashIndex(tbl, keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
@@ -802,14 +863,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Fulltext:  true,
 			IndexType: "FULLTEXT",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(ftIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 	case nodes.ConstrSpatialIndex:
 		idxName := con.Name
@@ -830,14 +893,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
 			return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
 		}
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		spIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Spatial:   true,
 			IndexType: "SPATIAL",
 			Visible:   true,
-		})
+		}
+		applyIndexOptions(spIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, spIdx)
 	}
 
 	return nil
@@ -1104,6 +1169,11 @@ func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, in
 }
 
 // alterIndexVisibility toggles the Visible flag on an index.
+// alterIndexVisibility applies ALTER {INDEX | KEY} [IF EXISTS] name [NOT]
+// IGNORED. checkAlterIndexIgnorability has held the name to the table the
+// statement found and dropped the IF EXISTS commands that name no index of
+// it, so an index missing here went with another command of the statement,
+// which MariaDB 11.8.8 answers with 1176, IF EXISTS or not.
 func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, visible bool) error {
 	key := toLower(cmd.Name)
 	for _, idx := range tbl.Indexes {
@@ -1112,11 +1182,7 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			return nil
 		}
 	}
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // insertColumn inserts col into tbl at the position specified by first/after.
@@ -1303,6 +1369,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 			}
 		}
 	}
+	renamePartitionKeyColumn(tbl, oldName, newName)
 }
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.

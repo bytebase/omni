@@ -35,9 +35,9 @@ func checkDisallowRename(pos int, s *statement, r *reporter) []renamedObject {
 		case *ast.RenameStmt:
 			switch {
 			case v.ColumnName != "":
-				r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames column "+ident(v.ColumnName)+" of "+object(v.Name)+" to "+ident(v.NewColumnName))
+				r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "Renames column "+review.Code(ident(v.ColumnName))+" of "+review.Code(object(v.Name))+" to "+review.Code(ident(v.NewColumnName))+".")
 			case !strings.EqualFold(v.ObjectType, "DATABASE"):
-				r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames table "+object(v.Name)+" to "+ident(v.NewName))
+				r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "Renames table "+review.Code(object(v.Name))+" to "+review.Code(ident(v.NewName))+".")
 			}
 		case *ast.ExecStmt:
 			name, newName, kind, ok := spRename(v)
@@ -47,7 +47,7 @@ func checkDisallowRename(pos int, s *statement, r *reporter) []renamedObject {
 			switch strings.ToUpper(kind) {
 			case "COLUMN":
 				if ref, column := splitColumn(name); ref != nil {
-					r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames column "+ident(column)+" of "+object(ref)+" to "+ident(newName))
+					r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "Renames column "+review.Code(ident(column))+" of "+review.Code(object(ref))+" to "+review.Code(ident(newName))+".")
 				}
 			case "", "OBJECT":
 				// sp_rename called through another database renames an

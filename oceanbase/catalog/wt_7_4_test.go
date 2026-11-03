@@ -220,43 +220,24 @@ func TestWalkThrough_7_4_PartitionEngineOption(t *testing.T) {
 	}
 }
 
-// Scenario 5: Partition with COMMENT option
+// Scenario 5: Partition with COMMENT option. MySQL keeps a COMMENT per partition and
+// renders it, which this test held when the package was forked from mysql. OceanBase
+// takes only ID and ENGINE = InnoDB on a partition and answers 1064 for COMMENT, with
+// or without '=' (parser partitionOptionCases), so the catalog must refuse the table.
 func TestWalkThrough_7_4_PartitionCommentOption(t *testing.T) {
 	c := wtSetup(t)
 
-	wtExec(t, c, `CREATE TABLE t5 (
+	if _, err := c.Exec(`CREATE TABLE t5 (
 		id INT NOT NULL,
 		val INT NOT NULL
 	) PARTITION BY RANGE (id) (
 	    PARTITION p0 VALUES LESS THAN (100) COMMENT='first partition',
 	    PARTITION p1 VALUES LESS THAN MAXVALUE COMMENT='last partition'
-	  )`)
-
-	ddl := c.ShowCreateTable("testdb", "t5")
-	if ddl == "" {
-		t.Fatal("ShowCreateTable returned empty string")
+	  )`, nil); err == nil {
+		t.Error("a partition COMMENT parsed; OceanBase answers 1064")
 	}
-
-	// Verify COMMENT rendered per partition
-	if !strings.Contains(ddl, "COMMENT = 'first partition'") {
-		t.Errorf("expected COMMENT = 'first partition' in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "COMMENT = 'last partition'") {
-		t.Errorf("expected COMMENT = 'last partition' in DDL:\n%s", ddl)
-	}
-
-	// Verify catalog state
-	tbl := c.GetDatabase("testdb").GetTable("t5")
-	if tbl.Partitioning == nil {
-		t.Fatal("partitioning is nil")
-	}
-	p0 := tbl.Partitioning.Partitions[0]
-	if p0.Comment != "first partition" {
-		t.Errorf("expected comment 'first partition', got %q", p0.Comment)
-	}
-	p1 := tbl.Partitioning.Partitions[1]
-	if p1.Comment != "last partition" {
-		t.Errorf("expected comment 'last partition', got %q", p1.Comment)
+	if c.GetDatabase("testdb").GetTable("t5") != nil {
+		t.Error("the refused table was created")
 	}
 }
 
@@ -329,17 +310,21 @@ func TestWalkThrough_7_4_DefaultSubpartitionsDoNotRenderImplicitCount(t *testing
 	}
 }
 
+// TestWalkThrough_7_4_ExplicitSubpartitionsInheritParentOptions: a partition that lists
+// its subpartitions renders its options on them, not before the list. MySQL's form of
+// this test carried COMMENT, which OceanBase refuses on a partition and a subpartition
+// (parser partitionOptionCases), so it uses ENGINE = InnoDB, the one option both take.
 func TestWalkThrough_7_4_ExplicitSubpartitionsInheritParentOptions(t *testing.T) {
 	c := wtSetup(t)
 
-	wtExec(t, c, `CREATE TABLE t_subpart_comment (
+	wtExec(t, c, `CREATE TABLE t_subpart_engine (
 		id INT NOT NULL,
 		purchased DATE NOT NULL
 	) PARTITION BY RANGE (YEAR(purchased))
 	  SUBPARTITION BY HASH (TO_DAYS(purchased))
 	  (
-	    PARTITION p0 VALUES LESS THAN (2000) COMMENT='p0c' (
-	      SUBPARTITION s0 COMMENT='s0c',
+	    PARTITION p0 VALUES LESS THAN (2000) ENGINE = InnoDB (
+	      SUBPARTITION s0 ENGINE = InnoDB,
 	      SUBPARTITION s1
 	    ),
 	    PARTITION p1 VALUES LESS THAN MAXVALUE (
@@ -348,25 +333,34 @@ func TestWalkThrough_7_4_ExplicitSubpartitionsInheritParentOptions(t *testing.T)
 	    )
 	  )`)
 
-	ddl := c.ShowCreateTable("testdb", "t_subpart_comment")
+	ddl := c.ShowCreateTable("testdb", "t_subpart_engine")
 	if ddl == "" {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
-	if strings.Contains(ddl, "PARTITION p0 VALUES LESS THAN (2000) ENGINE = InnoDB COMMENT = 'p0c'") {
+	if strings.Contains(ddl, "PARTITION p0 VALUES LESS THAN (2000) ENGINE = InnoDB") {
 		t.Errorf("parent partition options should not be rendered directly before explicit subpartition list:\n%s", ddl)
 	}
-	if !strings.Contains(ddl, "SUBPARTITION s0 ENGINE = InnoDB COMMENT = 's0c'") {
-		t.Errorf("expected explicit subpartition comment to be rendered:\n%s", ddl)
+	for _, sub := range []string{"s0", "s1", "s2", "s3"} {
+		if !strings.Contains(ddl, "SUBPARTITION "+sub+" ENGINE = InnoDB") {
+			t.Errorf("expected subpartition %s to carry ENGINE = InnoDB:\n%s", sub, ddl)
+		}
 	}
-	if !strings.Contains(ddl, "SUBPARTITION s1 ENGINE = InnoDB COMMENT = 'p0c'") {
-		t.Errorf("expected parent comment to be inherited by subpartition without override:\n%s", ddl)
+
+	if _, err := c.Exec(`CREATE TABLE t_subpart_comment (id INT NOT NULL, purchased DATE NOT NULL)
+	  PARTITION BY RANGE (YEAR(purchased)) SUBPARTITION BY HASH (TO_DAYS(purchased))
+	  (PARTITION p0 VALUES LESS THAN (2000) (SUBPARTITION s0 COMMENT='s0c', SUBPARTITION s1))`, nil); err == nil {
+		t.Error("a subpartition COMMENT parsed; OceanBase answers 1064")
 	}
 }
 
-func TestWalkThrough_7_4_ExplicitSubpartitionsMustMatchDeclaredCount(t *testing.T) {
+// TestWalkThrough_7_4_ExplicitSubpartitionsMayDifferFromDeclaredCount: MySQL refuses
+// explicit subpartition lists that disagree with SUBPARTITIONS N (1064), and this test
+// held that rule when the package was forked from mysql. OceanBase takes this statement
+// as written: 5.7.25-OceanBase_CE-v4.3.5.6 creates p0 with s0, s1 and p1 with s2, s3.
+func TestWalkThrough_7_4_ExplicitSubpartitionsMayDifferFromDeclaredCount(t *testing.T) {
 	c := wtSetup(t)
 
-	results, err := c.Exec(`CREATE TABLE t_bad_subparts (
+	results, err := c.Exec(`CREATE TABLE t_subparts (
 		id INT NOT NULL,
 		purchased DATE NOT NULL
 	) PARTITION BY RANGE (YEAR(purchased))
@@ -388,7 +382,18 @@ func TestWalkThrough_7_4_ExplicitSubpartitionsMustMatchDeclaredCount(t *testing.
 	if len(results) != 1 {
 		t.Fatalf("expected one result, got %d", len(results))
 	}
-	assertError(t, results[0].Error, 1064)
+	if results[0].Error != nil {
+		t.Fatalf("OceanBase accepts the statement, the catalog refused it: %v", results[0].Error)
+	}
+	var got []string
+	for _, pd := range c.GetDatabase("testdb").GetTable("t_subparts").Partitioning.Partitions {
+		for _, sp := range pd.SubPartitions {
+			got = append(got, pd.Name+"."+sp.Name)
+		}
+	}
+	if want := "p0.s0 p0.s1 p1.s2 p1.s3"; strings.Join(got, " ") != want {
+		t.Errorf("subpartitions = %v, want %s", got, want)
+	}
 }
 
 // Scenario 7: ALTER TABLE TRUNCATE PARTITION — no structural change

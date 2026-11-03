@@ -23,7 +23,6 @@ type targetWork struct {
 	drops   []droppedIndex
 	columns columnDrops
 	walks   bool
-	dialect dialect
 }
 
 func (w targetWork) any() bool {
@@ -146,7 +145,7 @@ func reviewGroup(ctx context.Context, sql string, stmts []statement, work target
 	t := g.target
 	x := newSchemaIndex(targetKey(t))
 	if work.walks {
-		if err := checkWalkThrough(ctx, sql, stmts, t, work.dialect, r); err != nil {
+		if err := checkWalkThrough(ctx, sql, stmts, t, r); err != nil {
 			return nil, err
 		}
 	}

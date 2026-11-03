@@ -419,8 +419,8 @@ func Split(sql string) []Segment {
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.
-// Handles ” escape and \ backslash escape. Returns position after the closing
-// quote (or end of input if unterminated).
+// Handles a doubled quote and a backslash escape. Returns position after the
+// closing quote (or end of input if unterminated).
 func skipSingleQuoteMySQL(sql string, i int) int {
 	i++ // skip opening '
 	for i < len(sql) {
@@ -468,7 +468,7 @@ func skipDoubleQuoteMySQL(sql string, i int) int {
 }
 
 // skipBacktick skips a backtick-quoted identifier starting at position i.
-// Only “ (double backtick) is an escape. Returns position after the closing
+// Only a doubled backtick is an escape. Returns position after the closing
 // backtick (or end of input if unterminated).
 func skipBacktick(sql string, i int) int {
 	i++ // skip opening `
@@ -531,7 +531,8 @@ func skipHashComment(sql string, i int) int {
 // first */ outside every token (lexer.go), so Split must agree on where it
 // ends; an ordinary comment closes at the first */ whatever surrounds it.
 func isExecutableCommentStart(sql string, i int) bool {
-	return i+2 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == '!'
+	_, ok := execOpener(sql, i)
+	return ok
 }
 
 // skipBlockCommentMySQL skips a block comment starting at position i. An
@@ -586,6 +587,12 @@ func skipExecutableComment(sql string, i int) (int, bool) {
 		case sql[i] == '#':
 			i = skipHashComment(sql, i)
 		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			if body, ok := execOpener(sql, i); ok {
+				// Executable comments do not nest: an opener inside one is
+				// dropped, as the lexer drops it.
+				i = body
+				continue
+			}
 			i = skipOrdinaryBlockComment(sql, i)
 		default:
 			i++

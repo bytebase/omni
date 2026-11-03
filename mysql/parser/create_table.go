@@ -188,9 +188,6 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 // inside the parentheses of a CREATE TABLE statement.
 func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 	for {
-		if p.cur.Type == ')' {
-			break
-		}
 
 		// Completion: at start of a column/constraint definition, offer constraint keywords.
 		p.checkCursor()
@@ -391,10 +388,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwCOMMENT:
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			col.Comment = p.cur.Str
-			p.advance()
+		// The comment is a quoted string and is required: the server answers 1064
+		// for a bare COMMENT, as it does for the table option.
+		if p.cur.Type != tokSCONST {
+			return false, p.syntaxErrorAtCur()
 		}
+		col.Comment = p.cur.Str
+		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrComment,
@@ -861,7 +861,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwUNIQUE:
 		p.advance()
@@ -879,7 +881,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwFOREIGN:
 		p.advance()
@@ -981,7 +985,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwFULLTEXT:
 		p.advance()
@@ -996,7 +1002,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwSPATIAL:
 		p.advance()
@@ -1011,7 +1019,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	default:
 		return nil, &ParseError{
@@ -1025,11 +1035,16 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 }
 
 // parseConstraintIndexOptions parses index_option list after a table constraint's key parts.
-func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) {
+// An option that starts and then fails, such as a COMMENT without its string,
+// is a syntax error, as it is after CREATE INDEX.
+func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 	for {
 		opt, ok, err := p.parseIndexOption()
-		if err != nil || !ok {
-			break
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
 		}
 		constr.IndexOptions = append(constr.IndexOptions, opt)
 	}
@@ -1120,7 +1135,11 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			}
 			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHARACTER SET", Value: val}, true, nil
 		}
-		return nil, false, nil
+		// CHARACTER without SET is no option. Returning "not an option" after
+		// consuming it dropped the word, so `CREATE TABLE t (a INT) CHARACTER`
+		// and `ALTER TABLE t COMMENT 'x' CHARACTER` parsed; the engine answers
+		// 1064 for both.
+		return nil, false, p.syntaxErrorAtCur()
 
 	case kwCOLLATE:
 		p.advance()
@@ -1134,11 +1153,13 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCOMMENT:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		// The value is a quoted string and is required: the server answers 1064
+		// for a bare COMMENT, CONNECTION or PASSWORD.
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COMMENT", Value: val}, true, nil
 
 	case kwROW_FORMAT:
@@ -1153,21 +1174,21 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCONNECTION:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CONNECTION", Value: val}, true, nil
 
 	case kwPASSWORD:
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		val := p.cur.Str
+		p.advance()
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PASSWORD", Value: val}, true, nil
 
 	case kwSTORAGE:
@@ -1328,7 +1349,9 @@ func (p *Parser) consumeOptionValue() (string, error) {
 			}
 			return name, nil
 		}
-		return "", nil
+		// Every caller reads an option that takes a value, and MySQL 8.0 answers
+		// 1064 when it is missing (`ENGINE =`, `KEY_BLOCK_SIZE` at end of input).
+		return "", p.syntaxErrorAtCur()
 	}
 }
 
@@ -1568,9 +1591,6 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
 			pd, err := p.parsePartitionDef()
 			if err != nil {
 				return nil, err
@@ -1622,13 +1642,11 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 				p.advance()
 				// Parse comma-separated list of values (may include MAXVALUE tokens and expressions).
 				var items []nodes.Node
-				allMax := true
 				for {
 					if p.cur.Type == kwMAXVALUE {
 						items = append(items, &nodes.String{Str: "MAXVALUE"})
 						p.advance()
 					} else {
-						allMax = false
 						expr, err := p.parseExpr()
 						if err != nil {
 							return nil, err
@@ -1644,10 +1662,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					p.advance()
 				}
 				p.match(')')
-				if allMax && len(items) > 0 {
-					// All MAXVALUE — store as single string marker
-					pd.Values = &nodes.String{Str: "MAXVALUE"}
-				} else if len(items) == 1 {
+				// A single bound is stored as itself, MAXVALUE as a String; a
+				// tuple keeps every column, MAXVALUE ones included, so
+				// "(MAXVALUE, MAXVALUE)" reads back with both.
+				if len(items) == 1 {
 					pd.Values = items[0]
 				} else {
 					pd.Values = &nodes.List{Items: items}
@@ -1720,9 +1738,6 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		for {
-			if p.cur.Type == ')' {
-				break
-			}
 			spd, err := p.parseSubPartitionDef()
 			if err != nil {
 				return nil, err

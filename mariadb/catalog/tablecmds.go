@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -559,7 +560,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			applyIndexOptions(pkIdx, con.IndexOptions)
 			if !pkIdx.Visible {
-				return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+				return errPKIndexCantBeIgnored()
 			}
 			tbl.Indexes = append(tbl.Indexes, pkIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -782,6 +783,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err := validateWithoutOverlaps(tbl); err != nil {
 		return err
 	}
+	if err := validateIgnoredPrimaryKey(tbl, true); err != nil {
+		return err
+	}
 
 	db.Tables[key] = tbl
 	return nil
@@ -996,8 +1000,9 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.
 func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	pi := &PartitionInfo{
-		Linear:   pc.Linear,
-		NumParts: pc.NumParts,
+		Linear:     pc.Linear,
+		NumParts:   pc.NumParts,
+		keyColumns: partitionKeyColumns(tbl, pc),
 	}
 	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
 		pi.NumParts = 1
@@ -1371,7 +1376,19 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
-	if pc.Type == nodes.PartitionRange {
+	if pc.Type == nodes.PartitionRange && len(pc.Columns) > 0 {
+		// RANGE COLUMNS takes MAXVALUE in any partition: what it requires is
+		// bounds that strictly increase, compared column by column, and it
+		// answers 1493 otherwise. Holding it to RANGE's 1481 refused
+		// "(5, MAXVALUE), (6, 1)", which the engine runs.
+		kinds := rangeColumnsBoundKinds(tbl, pc.Columns)
+		for i := 1; i < len(pc.Partitions); i++ {
+			prev, cur := pc.Partitions[i-1].Values, pc.Partitions[i].Values
+			if prev != nil && cur != nil && rangeColumnsNotIncreasing(prev, cur, kinds) {
+				return &Error{Code: 1493, SQLState: "HY000", Message: "VALUES LESS THAN value must be strictly increasing for each partition"}
+			}
+		}
+	} else if pc.Type == nodes.PartitionRange {
 		for i, pd := range pc.Partitions {
 			if pd.Values != nil && strings.Contains(strings.ToUpper(partitionValueToString(pd.Values, pc.Type)), "MAXVALUE") && i != len(pc.Partitions)-1 {
 				return &Error{Code: 1481, SQLState: "HY000", Message: "MAXVALUE can only be used in last partition definition"}
@@ -1399,14 +1416,202 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	if pc.Type == nodes.PartitionHash && pc.Expr != nil {
-		if cr, ok := pc.Expr.(*nodes.ColumnRef); ok {
-			if err := validateUniqueKeysCoverPartitionColumns(tbl, []string{cr.Column}); err != nil {
-				return err
-			}
+	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+}
+
+// rangeColumnsNotIncreasing reports whether the RANGE COLUMNS bound cur is
+// certainly not greater than prev, which the engine refuses with 1493. It
+// compares column by column, as MySQL and MariaDB do: MAXVALUE is greater than
+// any value, and a MAXVALUE in both ends the comparison as equal, so
+// "(MAXVALUE, 5), (MAXVALUE, 10)" is refused. Below MAXVALUE, two bounds are
+// compared only where their column's type settles the order (kinds); any other
+// pair leaves the answer open, and nothing is reported.
+func rangeColumnsNotIncreasing(prev, cur nodes.Node, kinds []rangeBoundKind) bool {
+	ps, cs := partitionBoundItems(prev), partitionBoundItems(cur)
+	if len(ps) != len(cs) || len(ps) != len(kinds) {
+		return false
+	}
+	for i := range ps {
+		pm, cm := isPartitionMaxvalue(ps[i]), isPartitionMaxvalue(cs[i])
+		switch {
+		case pm:
+			return true
+		case cm:
+			return false
+		}
+		order, known := comparePartitionBounds(ps[i], cs[i], kinds[i])
+		if !known {
+			return false
+		}
+		if order != 0 {
+			return order > 0
 		}
 	}
-	return nil
+	return true
+}
+
+// rangeBoundKind is how a RANGE COLUMNS column's literal bounds compare where
+// the order is certain.
+type rangeBoundKind int
+
+const (
+	rangeBoundOpen     rangeBoundKind = iota // nothing is decided
+	rangeBoundInteger                        // integer literals, by value
+	rangeBoundString                         // string literals, by byte where the collation keeps it
+	rangeBoundTemporal                       // date and time literals of one fixed, zero-padded shape
+)
+
+// rangeColumnsBoundKinds reads each partitioning column's kind off the table.
+// A string column compares only under a collation with no tailoring of ASCII
+// letters and digits: a language collation such as utf8mb4_spanish2_ci sorts
+// "ch" after "cz", which byte order cannot see.
+func rangeColumnsBoundKinds(tbl *Table, cols []string) []rangeBoundKind {
+	kinds := make([]rangeBoundKind, len(cols))
+	for i, name := range cols {
+		col := tbl.GetColumn(name)
+		if col == nil {
+			continue
+		}
+		switch strings.ToLower(col.DataType) {
+		case "tinyint", "smallint", "mediumint", "int", "integer", "bigint":
+			kinds[i] = rangeBoundInteger
+		case "binary", "varbinary":
+			kinds[i] = rangeBoundString
+		case "char", "varchar":
+			if plainCollation(col.Collation) {
+				kinds[i] = rangeBoundString
+			}
+		case "date", "datetime":
+			kinds[i] = rangeBoundTemporal
+		}
+	}
+	return kinds
+}
+
+// plainCollation reports whether a collation orders ASCII digits and lowercase
+// letters as their bytes do: binary ones and the untailored defaults.
+func plainCollation(c string) bool {
+	c = strings.ToLower(c)
+	if c == "" || c == "binary" || strings.HasSuffix(c, "_bin") {
+		return true
+	}
+	switch c {
+	case "utf8mb4_0900_ai_ci", "utf8mb4_0900_as_ci", "utf8mb4_0900_as_cs", "utf8mb4_general_ci",
+		"utf8mb4_unicode_ci", "utf8mb4_unicode_520_ci", "utf8mb3_general_ci", "utf8mb3_unicode_ci",
+		"utf8_general_ci", "utf8_unicode_ci", "latin1_swedish_ci", "latin1_general_ci", "latin1_general_cs",
+		"ascii_general_ci", "utf8mb4_uca1400_ai_ci", "utf8mb4_uca1400_as_ci", "utf8mb4_uca1400_as_cs", "utf8mb4_uca1400_ai_cs", "utf8mb3_uca1400_ai_ci":
+		return true
+	}
+	return false
+}
+
+func partitionBoundItems(n nodes.Node) []nodes.Node {
+	if l, ok := n.(*nodes.List); ok {
+		return l.Items
+	}
+	return []nodes.Node{n}
+}
+
+func isPartitionMaxvalue(n nodes.Node) bool {
+	s, ok := n.(*nodes.String)
+	return ok && strings.EqualFold(s.Str, "MAXVALUE")
+}
+
+// comparePartitionBounds orders two bounds of a column of the given kind, a
+// against b, when the order is certain: -1, 0 or 1, and whether it is known.
+func comparePartitionBounds(a, b nodes.Node, kind rangeBoundKind) (int, bool) {
+	switch kind {
+	case rangeBoundInteger:
+		x, ok1 := partitionBoundInt(a)
+		y, ok2 := partitionBoundInt(b)
+		if !ok1 || !ok2 {
+			return 0, false
+		}
+		switch {
+		case x < y:
+			return -1, true
+		case x > y:
+			return 1, true
+		}
+		return 0, true
+	case rangeBoundString, rangeBoundTemporal:
+		x, ok1 := a.(*nodes.StringLit)
+		y, ok2 := b.(*nodes.StringLit)
+		if !ok1 || !ok2 {
+			return 0, false
+		}
+		if x.Value == y.Value {
+			return 0, true
+		}
+		if kind == rangeBoundTemporal {
+			return compareTemporalLiterals(x.Value, y.Value)
+		}
+		for i := 0; i < len(x.Value) && i < len(y.Value); i++ {
+			c, d := x.Value[i], y.Value[i]
+			if c == d {
+				continue
+			}
+			digits := c >= '0' && c <= '9' && d >= '0' && d <= '9'
+			lower := c >= 'a' && c <= 'z' && d >= 'a' && d <= 'z'
+			if !digits && !lower {
+				return 0, false
+			}
+			if c < d {
+				return -1, true
+			}
+			return 1, true
+		}
+	}
+	return 0, false
+}
+
+// compareTemporalLiterals orders two date or time literals written in one
+// shape: equal length, digits in the same places and the same separators
+// between them, as '2020-01-31' and '2021-12-01' are, and a four-digit year
+// first. Zero-padded fields of one width then sort as their bytes do;
+// '2020-9-1' against '2020-10-01' does not, and neither does a two-digit year,
+// which reads 70-99 as 1970-1999 and 00-69 as 2000-2069, so both are left
+// open.
+func compareTemporalLiterals(x, y string) (int, bool) {
+	if len(x) != len(y) || !fourDigitYear(x) {
+		return 0, false
+	}
+	for i := 0; i < len(x); i++ {
+		xd, yd := x[i] >= '0' && x[i] <= '9', y[i] >= '0' && y[i] <= '9'
+		if xd != yd || (!xd && x[i] != y[i]) {
+			return 0, false
+		}
+	}
+	if x < y {
+		return -1, true
+	}
+	return 1, true
+}
+
+// fourDigitYear reports whether a date literal leads with a four-digit year
+// and a separator after it.
+func fourDigitYear(s string) bool {
+	if len(s) < 5 {
+		return false
+	}
+	for i := 0; i < 4; i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return s[4] < '0' || s[4] > '9'
+}
+
+func partitionBoundInt(n nodes.Node) (int64, bool) {
+	if lit, ok := n.(*nodes.IntLit); ok {
+		// The lexer clamps a literal past int64, so either end may not be
+		// the value written.
+		if lit.Value == math.MaxInt64 || lit.Value == math.MinInt64 {
+			return 0, false
+		}
+		return lit.Value, true
+	}
+	return 0, false
 }
 
 func validateSubpartitionDefinitions(pc *nodes.PartitionClause) error {
@@ -1482,27 +1687,6 @@ func primaryKeyColumns(tbl *Table) []string {
 	return nil
 }
 
-func validateUniqueKeysCoverPartitionColumns(tbl *Table, partCols []string) error {
-	if len(partCols) == 0 {
-		return nil
-	}
-	for _, idx := range tbl.Indexes {
-		if !idx.Unique && !idx.Primary {
-			continue
-		}
-		idxCols := map[string]bool{}
-		for _, ic := range idx.Columns {
-			idxCols[toLower(ic.Name)] = true
-		}
-		for _, pc := range partCols {
-			if !idxCols[toLower(pc)] {
-				return &Error{Code: 1503, SQLState: "HY000", Message: "A UNIQUE INDEX must include all columns in the table's partitioning function"}
-			}
-		}
-	}
-	return nil
-}
-
 // partitionValueToString converts a partition value node to SQL string.
 func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 	switch n := v.(type) {
@@ -1518,11 +1702,11 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 				// Tuple: (val1, val2) for multi-column LIST COLUMNS
 				subParts := make([]string, len(subList.Items))
 				for j, sub := range subList.Items {
-					subParts[j] = nodeToSQL(sub.(nodes.ExprNode))
+					subParts[j] = partitionBoundSQL(sub)
 				}
 				parts[i] = "(" + strings.Join(subParts, ",") + ")"
 			} else {
-				parts[i] = nodeToSQL(item.(nodes.ExprNode))
+				parts[i] = partitionBoundSQL(item)
 			}
 		}
 		return strings.Join(parts, ",")
@@ -1531,6 +1715,20 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 	default:
 		return ""
 	}
+}
+
+// partitionBoundSQL renders one bound in a partition's value list. MAXVALUE
+// reaches it as a String beside the expressions, as in RANGE COLUMNS
+// VALUES LESS THAN (5, MAXVALUE); asserting every item to an expression
+// panicked Exec on that statement.
+func partitionBoundSQL(n nodes.Node) string {
+	switch n := n.(type) {
+	case *nodes.String:
+		return n.Str
+	case nodes.ExprNode:
+		return nodeToSQL(n)
+	}
+	return ""
 }
 
 // validateForeignKeys checks all FK constraints on a table against the referenced tables.
@@ -1928,8 +2126,14 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 	return ""
 }
 
-// applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
+// applyIndexOptions extracts COMMENT, [NOT] IGNORED, and KEY_BLOCK_SIZE
 // from AST IndexOptions and applies them to the given Index.
+//
+// Index.Visible is false for a MariaDB IGNORED index. The last ignorability
+// written wins. VISIBLE changes nothing: MariaDB takes it for MySQL 8.0
+// compatibility only, so `IGNORED VISIBLE` stays ignored. Neither does an
+// INVISIBLE, which the parser lets through only inside a comment MariaDB skips
+// by its MySQL version, so MariaDB never reads it (verified on 11.8.8).
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 	for _, opt := range opts {
 		switch strings.ToUpper(opt.Name) {
@@ -1937,10 +2141,10 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
 				idx.Comment = s.Value
 			}
-		case "VISIBLE":
-			idx.Visible = true
-		case "INVISIBLE":
+		case "IGNORED":
 			idx.Visible = false
+		case "NOT IGNORED":
+			idx.Visible = true
 		case "KEY_BLOCK_SIZE":
 			switch n := opt.Value.(type) {
 			case *nodes.Integer:
@@ -2660,7 +2864,7 @@ func isTextBlobLengthStripped(dt string) bool {
 }
 
 // escapeEnumValue escapes single quotes in ENUM/SET values for SHOW CREATE TABLE.
-// MySQL uses ” (two single quotes) to escape a single quote in enum values.
+// MySQL escapes a single quote in enum values by doubling it.
 func escapeEnumValue(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }

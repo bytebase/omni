@@ -242,8 +242,9 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.arrive(tk)
 		}
 	default:
-		// MySQL's ALTER INDEX VISIBLE and INVISIBLE, which omni's parser
-		// takes, MariaDB rejects (1064, verified): they end the walk.
+		// A command the walk does not follow ends it, unless it touches
+		// nothing the walk tracks. ALTER INDEX ... [NOT] IGNORED is one that
+		// ends it.
 		return alterNoFacts(c)
 	}
 	return true

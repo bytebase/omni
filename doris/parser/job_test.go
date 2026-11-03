@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/doris/ast"
@@ -452,4 +453,69 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// TestJobDoBodyIsDML: a job's DO takes the grammar's supportedDmlStatement --
+// INSERT, UPDATE or DELETE, optionally under EXPLAIN, or LOAD / EXPORT -- and
+// nothing else. The body used to be any statement, so DO SELECT 1 INTO OUTFILE
+// 'p' parsed (container-verified engine rejects). The error is at the body's
+// first token, as the engine reports it, or at the query an EXPLAIN prefix
+// took.
+func TestJobDoBodyIsDML(t *testing.T) {
+	const create = "CREATE JOB j ON SCHEDULE AT '2030-01-01 00:00:00' DO "
+	const alter = "ALTER JOB j DO "
+	accepted := []struct {
+		body string
+		want ast.NodeTag
+	}{
+		{"INSERT INTO t SELECT 1", ast.T_InsertStmt},
+		{"INSERT INTO t VALUES (1)", ast.T_InsertStmt},
+		{"INSERT OVERWRITE TABLE t SELECT 1", ast.T_InsertStmt},
+		{"INSERT INTO t SELECT 1 UNION SELECT 2", ast.T_InsertStmt},
+		{"UPDATE t SET a = 1 WHERE a = 2", ast.T_UpdateStmt},
+		{"DELETE FROM t WHERE a = 1", ast.T_DeleteStmt},
+		{"EXPLAIN INSERT INTO t SELECT 1", ast.T_ExplainStmt},
+		{"EXPLAIN VERBOSE INSERT INTO t SELECT 1", ast.T_ExplainStmt},
+		{"EXPLAIN UPDATE t SET a = 1", ast.T_ExplainStmt},
+		{`LOAD LABEL l (DATA INFILE("hdfs://h/p") INTO TABLE t)`, ast.T_LoadDataStmt},
+		{`EXPORT TABLE t TO "hdfs://h/p"`, ast.T_ExportStmt},
+	}
+	for _, tc := range accepted {
+		if got := parseCreateJobStmt(t, create+tc.body).DoStmt.Tag(); got != tc.want {
+			t.Errorf("CREATE JOB ... DO %s: body %v, want %v", tc.body, got, tc.want)
+		}
+		if got := parseAlterJobStmt(t, alter+tc.body).NewStmt.Tag(); got != tc.want {
+			t.Errorf("ALTER JOB ... DO %s: body %v, want %v", tc.body, got, tc.want)
+		}
+	}
+
+	rejected := []struct{ body, at string }{
+		{"SELECT 1", "SELECT 1"},
+		{"SELECT 1 INTO OUTFILE 'p'", "SELECT 1"},
+		// Refused at its first token, before the query is read at all.
+		{"SELECT 1 FROM", "SELECT 1"},
+		{"SELECT 1 UNION SELECT 2", "SELECT 1"},
+		{"(SELECT 1)", "(SELECT 1)"},
+		{"WITH c AS (SELECT 1) SELECT * FROM c", "WITH"},
+		{"EXPLAIN SELECT 1", "SELECT 1"},
+		{"CREATE TABLE x (a INT)", "CREATE TABLE"},
+		{"SHOW TABLES", "SHOW"},
+		{"SET x = 1", "SET"},
+		{"TRUNCATE TABLE t", "TRUNCATE"},
+		{"MERGE INTO t USING s ON t.a = s.a WHEN MATCHED THEN DELETE", "MERGE"},
+		{"CREATE JOB j2 ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO t SELECT 1", "CREATE JOB j2"},
+	}
+	for _, tc := range rejected {
+		for _, prefix := range []string{create, alter} {
+			sql := prefix + tc.body
+			_, errs := parseForTest(sql)
+			if len(errs) == 0 {
+				t.Errorf("%q parsed; the engine rejects it", sql)
+				continue
+			}
+			if want := len(prefix) + strings.Index(tc.body, tc.at); errs[0].Position != want {
+				t.Errorf("%q: error at %d (%s), want %d", sql, errs[0].Position, errs[0].Message, want)
+			}
+		}
+	}
 }

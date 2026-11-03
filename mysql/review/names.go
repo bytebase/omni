@@ -62,18 +62,18 @@ func table(ref *ast.TableRef) string {
 	return ident(ref.Name)
 }
 
-// tables writes a list of table references, comma separated.
-func tables(refs []*ast.TableRef) string {
+// tables writes each of a list of table references.
+func tables(refs []*ast.TableRef) []string {
 	names := make([]string, 0, len(refs))
 	for _, ref := range refs {
 		names = append(names, table(ref))
 	}
-	return strings.Join(names, ", ")
+	return names
 }
 
 // tableExprs writes the tables a list of table expressions names, the
 // sides of a join included.
-func tableExprs(exprs []ast.TableExpr) string {
+func tableExprs(exprs []ast.TableExpr) []string {
 	var names []string
 	var add func(e ast.TableExpr)
 	add = func(e ast.TableExpr) {
@@ -88,7 +88,7 @@ func tableExprs(exprs []ast.TableExpr) string {
 	for _, e := range exprs {
 		add(e)
 	}
-	return strings.Join(names, ", ")
+	return names
 }
 
 // sameCase reports whether two references of one table, as sameTable

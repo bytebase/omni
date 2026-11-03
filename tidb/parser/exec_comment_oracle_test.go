@@ -21,7 +21,7 @@ func TestExecCommentBoundary_Oracle(t *testing.T) {
 		"SELECT 'x' /*! , 'a*/'",
 		"SELECT 1 /*!50000 + 1 -- c */\n",
 	} {
-		tidbAccepts := !tidbRejectedSyntax(tc.canExecute(sql))
+		tidbAccepts := !tidbRejectedSyntax(t, tc.canExecute(sql))
 		_, err := Parse(sql)
 		if (err == nil) != tidbAccepts {
 			t.Errorf("%q: omni accepts=%v (err=%v), TiDB accepts=%v", sql, err == nil, err, tidbAccepts)
@@ -38,7 +38,7 @@ func TestExecCommentQuotedDelimiters_Oracle(t *testing.T) {
 
 	for _, list := range [][]string{execCommentQuotedAccepted, execCommentQuotedHeldClose} {
 		for _, sql := range list {
-			tidbAccepts := !tidbRejectedSyntax(tc.canExecute(sql))
+			tidbAccepts := !tidbRejectedSyntax(t, tc.canExecute(sql))
 			_, err := Parse(sql)
 			if (err == nil) != tidbAccepts {
 				t.Errorf("%q: omni accepts=%v (err=%v), TiDB accepts=%v", sql, err == nil, err, tidbAccepts)

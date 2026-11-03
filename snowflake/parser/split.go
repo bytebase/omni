@@ -41,7 +41,7 @@ const (
 // should use NewLexer(input).Errors() directly.
 //
 // Split correctly handles:
-//   - Single-quoted strings with ” and \ escapes
+//   - Single-quoted strings with doubled-quote and \ escapes
 //   - Double-quoted identifiers with "" escape
 //   - $$...$$ dollar strings
 //   - X'...' hex literals

@@ -179,7 +179,7 @@ CREATE VIEW v2 AS SELECT a FROM v1;`)
 // Regression (review blocker): a column ALIAS that matches a batch view's name must NOT create a
 // false dependency edge that reverses CREATE order. View `a` has alias `b` but does NOT reference
 // view `b`; view `b` references view `a`. The only real edge is b→a, so `a` must be created first.
-// An earlier substring-based scan saw `a`'s alias `\`b\“ as a reference to view `b`, forming a
+// An earlier substring-based scan saw `a`'s alias `b` as a reference to view `b`, forming a
 // false cycle that put `b` before `a` — which fails to apply (a doesn't exist yet).
 func TestGenerateView_AliasMatchingViewNameNoFalseEdge(t *testing.T) {
 	plan := viewPlanFor(t, MySQL80,
@@ -269,7 +269,7 @@ CREATE VIEW ctev AS WITH shared AS (SELECT id FROM t) SELECT id FROM shared;`)
 }
 
 // Regression (re-review): a `AS TABLE <view>` body (MySQL 8.0.19+ TABLE query primary) deparses to
-// `table \`v\“ and re-parses to a *TableStmt, not a *SelectStmt. The dependency extractor must
+// table `v` and re-parses to a *TableStmt, not a *SelectStmt. The dependency extractor must
 // still find the referenced view so the ordering holds — `tv AS TABLE base` must be created after
 // `base`.
 func TestGenerateView_TableQueryPrimaryOrdering(t *testing.T) {

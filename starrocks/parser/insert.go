@@ -51,18 +51,25 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	// but in Doris the order is: INSERT INTO [TEMP] table [PARTITION(...)] [WITH LABEL] [(cols)] source)
 	// According to the legacy corpus, PARTITION comes after table name.
 	// Parse table name first.
-	// Target: a FILES(propertyList) sink (StarRocks) or a table name. FILES is
-	// not a keyword, and `t (cols)` looks similar, so speculatively parse the
-	// property list and fall back to the table-name path if it isn't one.
+	// Target: a FILES(propertyList) sink (StarRocks) or a table name.
+	//
+	//	INSERT (INTO | OVERWRITE) (qualifiedName ... | (FILES propertyList) | ...)
+	//
+	// FILES is a token the grammar keeps out of nonReserved, so it cannot
+	// start a qualifiedName and `FILES (` always opens the sink's list: the
+	// engine reads INSERT INTO files (a) SELECT 1 as a property list and
+	// rejects it at `a` (container-verified). The list used to be parsed
+	// speculatively, falling back to a table named FILES with a column list
+	// when it failed, so a malformed list such as FILES("path"="p",) was
+	// reported at the '(' instead of at the token that broke it. This lexer
+	// does not reserve FILES, so the bare word still names a table elsewhere.
 	if isIdentText(p, "files") && p.peekNext().Kind == int('(') {
-		saved := p.save()
 		p.advance() // consume FILES
-		props, perr := p.parsePropertyList()
-		if perr == nil {
-			stmt.FileTarget = props
-		} else {
-			p.restore(saved)
+		props, err := p.parsePropertyList()
+		if err != nil {
+			return nil, err
 		}
+		stmt.FileTarget = props
 	}
 
 	if stmt.FileTarget == nil {

@@ -55,7 +55,7 @@ func (s Segment) Empty() bool {
 }
 
 // Split splits a PartiQL input into segments at top-level semicolons.
-// It respects single-quoted strings (with ” escape), double-quoted
+// It respects single-quoted strings (with doubled-quote escape), double-quoted
 // identifiers (with "" escape), backtick-delimited Ion literals, line
 // comments (--), and block comments (/* */ with nesting).
 //

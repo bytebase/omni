@@ -26,6 +26,36 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	repartition := alterRepartition(stmt.Commands)
+	if tbl.Partitioning == nil && repartition == nil {
+		return c.alterTableCommands(db, tbl, key, stmt)
+	}
+	// A unique key on a partitioned table must cover the partitioning columns.
+	// OceanBase checks the table the statement leaves, after a duplicate column (1060)
+	// or a missing index to drop (1091) in ADD UNIQUE (b), ADD COLUMN a ..., and leaves
+	// the table as it was: snapshot it to undo the commands when the check fails.
+	before := make(map[*Index]bool, len(tbl.Indexes))
+	for _, idx := range tbl.Indexes {
+		before[idx] = true
+	}
+	snapshot := cloneTable(tbl)
+	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
+		return err
+	}
+	if err := validateAlteredUniqueKeys(tbl, before, stmt.Commands, repartition); err != nil {
+		undoAlter(db, key, tbl, snapshot)
+		return err
+	}
+	if repartition != nil && tbl.Partitioning != nil {
+		// The catalog does not apply a repartition, so the partitioning it keeps no
+		// longer says which columns a unique key needs.
+		tbl.Partitioning.keyColumns = nil
+	}
+	return nil
+}
+
+// alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
+func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) <= 1 {
 		// Single command: no rollback needed.
 		if len(stmt.Commands) == 1 {
@@ -41,20 +71,24 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
-			// Rollback: if a RENAME changed the map key, undo it.
-			newKey := toLower(tbl.Name)
-			if newKey != origKey {
-				delete(db.Tables, newKey)
-				db.Tables[origKey] = tbl
-			}
-			// Restore all table fields from snapshot.
-			*tbl = snapshot
+			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
 	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
+// in the statement may have moved the table to another database, under another name,
+// so its entry there goes first.
+func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
+	if cur := tbl.Database; cur != nil && cur.Tables[toLower(tbl.Name)] == tbl {
+		delete(cur.Tables, toLower(tbl.Name))
+	}
+	*tbl = snapshot
+	db.Tables[key] = tbl
 }
 
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
@@ -422,9 +456,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(pkIdx, con.IndexOptions)
-		if !pkIdx.Visible {
-			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
-		}
+		// MySQL refuses an invisible primary key with 3522. OceanBase takes
+		// INVISIBLE here and ignores it: on 4.3.5.6, ALTER TABLE t ADD PRIMARY KEY
+		// (id) INVISIBLE succeeds, SHOW CREATE TABLE prints PRIMARY KEY (`id`), and
+		// information_schema.STATISTICS reports the key visible. It drops a COMMENT
+		// given here the same way, though it keeps one given in CREATE TABLE
+		// (TestOracle_OceanBaseAlterAddPrimaryKey). CREATE TABLE refuses INVISIBLE at
+		// parse time.
+		pkIdx.Visible = true
+		pkIdx.Comment = ""
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      "PRIMARY",
@@ -860,6 +900,13 @@ func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, in
 func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, visible bool) error {
 	key := toLower(cmd.Name)
 	for _, idx := range tbl.Indexes {
+		// OceanBase does not reach the primary key through ALTER INDEX: on 4.3.5.6,
+		// ALTER TABLE t ALTER INDEX `PRIMARY` {VISIBLE | INVISIBLE} answers 1176, Key
+		// 'PRIMARY' doesn't exist, where MySQL answers 3522 for INVISIBLE. Setting it
+		// invisible here made a key the engine never hides.
+		if idx.Primary {
+			continue
+		}
 		if toLower(idx.Name) == key {
 			idx.Visible = visible
 			return nil
@@ -1071,6 +1118,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 			}
 		}
 	}
+	renamePartitionKeyColumn(tbl, oldName, newName)
 }
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.
@@ -1138,6 +1186,13 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 		return nil
 	}
+	if tbl.Partitioning.SubType != "" {
+		for _, pd := range cmd.PartitionDefs {
+			if err := checkSubpartitionBoundKinds(partitionTypeFromString(tbl.Partitioning.SubType), pd.SubPartitions); err != nil {
+				return err
+			}
+		}
+	}
 	for _, pd := range cmd.PartitionDefs {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
@@ -1153,12 +1208,55 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 				pdi.Comment = opt.Value
 			}
 		}
+		addedPartitionSubpartitions(tbl.Partitioning, pdi, pd)
 		tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, pdi)
 	}
 	if len(cmd.PartitionDefs) > 0 {
 		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
 	}
 	return nil
+}
+
+// addedPartitionSubpartitions gives a partition that ALTER TABLE adds to a
+// subpartitioned table its subpartitions, as OceanBase 4.3.5.6 does
+// (addPartitionScenarios):
+//
+//   - the ones the partition defines. SHOW CREATE TABLE then prints every
+//     partition's subpartitions rather than a template or a count, so the table
+//     stops rendering as SUBPARTITIONS N; the template itself survives, and a
+//     partition added after that without subpartitions still takes it;
+//   - else the template's, named as templateSubpartitions names them, which
+//     covers SUBPARTITIONS N;
+//   - else one, <partition>sp0, which is what the engine gives a table whose
+//     partitions each listed their own.
+func addedPartitionSubpartitions(pi *PartitionInfo, pdi *PartitionDefInfo, pd *nodes.PartitionDef) {
+	if pi.SubType == "" {
+		return
+	}
+	switch {
+	case len(pd.SubPartitions) > 0:
+		for _, spd := range pd.SubPartitions {
+			spdi := &SubPartitionDefInfo{Name: spd.Name, Engine: pdi.Engine, Comment: pdi.Comment}
+			if spd.Values != nil {
+				spdi.ValueExpr = partitionValueToString(spd.Values, partitionTypeFromString(pi.SubType))
+			}
+			for _, opt := range spd.Options {
+				switch toLower(opt.Name) {
+				case "engine":
+					spdi.Engine = opt.Value
+				case "comment":
+					spdi.Comment = opt.Value
+				}
+			}
+			pdi.SubPartitions = append(pdi.SubPartitions, spdi)
+		}
+		pi.UseDefaultSubpartitions = false
+		pi.UseDefaultNumSubpartitions = false
+	case len(pi.SubPartTemplate) > 0:
+		pdi.SubPartitions = templateSubpartitions(pi.SubPartTemplate, pdi)
+	default:
+		pdi.SubPartitions = []*SubPartitionDefInfo{{Name: pdi.Name + "sp0", ValueExpr: defaultSubpartitionValue(pi.SubType)}}
+	}
 }
 
 // alterDropPartition drops named partitions from a partitioned table.
@@ -1214,6 +1312,13 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return fmt.Errorf("ALTER TABLE REORGANIZE PARTITION: table '%s' is not partitioned", tbl.Name)
+	}
+	// OceanBase refuses REORGANIZE PARTITION on a subpartitioned table, splitting or
+	// merging, templated or not: 4.3.5.6 answers 1235 "split subpartition is not
+	// supported". Reorganizing it here would invent partitions the engine never makes,
+	// and used to drop their subpartitions besides.
+	if tbl.Partitioning.SubType != "" {
+		return &Error{Code: 1235, SQLState: "42000", Message: "split subpartition is not supported"}
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)

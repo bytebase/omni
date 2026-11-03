@@ -55,6 +55,10 @@ type PartitionInfo struct {
 	// partition_info::use_default_num_subpartitions.
 	UseDefaultSubpartitions    bool
 	UseDefaultNumSubpartitions bool
+	// keyColumns are the columns the partitioning and subpartitioning functions read,
+	// which every unique key must include (partition_key_coverage.go). Empty when the
+	// catalog cannot tell them, which skips the check.
+	keyColumns []string
 }
 
 // PartitionDefInfo holds a single partition definition.
@@ -323,6 +327,7 @@ func cloneTable(src *Table) Table {
 		pi := *src.Partitioning
 		pi.Columns = append([]string{}, src.Partitioning.Columns...)
 		pi.SubColumns = append([]string{}, src.Partitioning.SubColumns...)
+		pi.keyColumns = append([]string(nil), src.Partitioning.keyColumns...)
 		pi.Partitions = make([]*PartitionDefInfo, len(src.Partitioning.Partitions))
 		for i, sp := range src.Partitioning.Partitions {
 			pd := *sp

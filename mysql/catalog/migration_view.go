@@ -211,7 +211,7 @@ func (v *View) databaseName() string {
 // JOIN positions (referencedRelations), then keeping only edges to OTHER views in this same batch.
 // Position-anchored extraction is what makes this precise: a relation appears only after `from `,
 // `join `, or an opening `(` (the deparse parenthesizes join arms), whereas a COLUMN is rendered
-// `\`tbl\`.\`col\“ and a column ALIAS as `AS \`name\“ — neither sits at a relation anchor — so a
+// `tbl`.`col` and a column ALIAS as AS `name` — neither sits at a relation anchor — so a
 // column or alias that merely shares a batch view's name does NOT produce a false edge (the bug an
 // earlier substring scan had). Matching is on the full (database, name) key, so a same-named view
 // in a different database is not conflated either.
@@ -294,7 +294,7 @@ func viewCreateOrder(entries []ViewDiffEntry) map[tableKey]int {
 //   - a SELECT (including UNION/INTERSECT/EXCEPT and parenthesized selects, all *SelectStmt) — refs
 //     come from selectTableRefs, the same FROM/JOIN extractor the SDL loader uses, which drops names
 //     bound by a top-level CTE;
-//   - a `TABLE t` query primary (MySQL 8.0.19+; deparsed as `table \`t\“ and re-parsed to a
+//   - a `TABLE t` query primary (MySQL 8.0.19+; deparsed as table `t` and re-parsed to a
 //     *TableStmt) — a TABLE primary is `SELECT * FROM t`, so its single Table ref is the relation.
 //
 // If the body fails to re-parse, or is some other statement shape, the empty set is returned, so the

@@ -25,6 +25,8 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			return &ConstExprQ{Value: "TRUE"}, nil
 		}
 		return &ConstExprQ{Value: "FALSE"}, nil
+	case *nodes.KeywordArg:
+		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
 	case *nodes.FuncCallExpr:
 		return analyzeFuncCall(c, n, scope)
 	case *nodes.ParenExpr:
