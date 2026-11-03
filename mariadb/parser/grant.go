@@ -802,12 +802,14 @@ func (p *Parser) parseCreateUserStmt(start int, orReplace bool) (*nodes.CreateUs
 	}
 
 	// [password_option | lock_option] ...
-	p.parseUserAccountOptions(
+	if err := p.parseUserAccountOptions(
 		&stmt.PasswordExpire, &stmt.PasswordHistory, &stmt.PasswordReuseInterval,
 		&stmt.PasswordRequireCurrent, &stmt.FailedLoginAttempts, &stmt.HasFailedLogin,
 		&stmt.PasswordLockTime, &stmt.AccountLock, &stmt.AccountUnlock,
 		&stmt.Comment, &stmt.Attribute,
-	)
+	); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1007,12 +1009,14 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	}
 
 	// [password_option | lock_option] ...
-	p.parseUserAccountOptions(
+	if err := p.parseUserAccountOptions(
 		&stmt.PasswordExpire, &stmt.PasswordHistory, &stmt.PasswordReuseInterval,
 		&stmt.PasswordRequireCurrent, &stmt.FailedLoginAttempts, &stmt.HasFailedLogin,
 		&stmt.PasswordLockTime, &stmt.AccountLock, &stmt.AccountUnlock,
 		&stmt.Comment, &stmt.Attribute,
-	)
+	); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1713,7 +1717,7 @@ func (p *Parser) parseUserAccountOptions(
 	passwordLockTime *string,
 	accountLock, accountUnlock *bool,
 	comment, attribute *string,
-) {
+) error {
 	for {
 		switch {
 		case p.cur.Type == kwPASSWORD:
@@ -1794,7 +1798,7 @@ func (p *Parser) parseUserAccountOptions(
 					}
 				}
 			default:
-				return
+				return nil
 			}
 
 		case p.cur.Type == kwFAILED_LOGIN_ATTEMPTS:
@@ -1825,22 +1829,26 @@ func (p *Parser) parseUserAccountOptions(
 				p.advance()
 			}
 
+		// COMMENT and ATTRIBUTE take a quoted string; the server answers 1064
+		// without it.
 		case p.cur.Type == kwCOMMENT:
 			p.advance()
-			if p.cur.Type == tokSCONST {
-				*comment = p.cur.Str
-				p.advance()
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
 			}
+			*comment = p.cur.Str
+			p.advance()
 
 		case p.cur.Type == kwATTRIBUTE:
 			p.advance()
-			if p.cur.Type == tokSCONST {
-				*attribute = p.cur.Str
-				p.advance()
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
 			}
+			*attribute = p.cur.Str
+			p.advance()
 
 		default:
-			return
+			return nil
 		}
 	}
 }

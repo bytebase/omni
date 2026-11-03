@@ -388,10 +388,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwCOMMENT:
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			col.Comment = p.cur.Str
-			p.advance()
+		// The comment is a quoted string and is required: the server answers 1064
+		// for a bare COMMENT, as it does for the table option.
+		if p.cur.Type != tokSCONST {
+			return false, p.syntaxErrorAtCur()
 		}
+		col.Comment = p.cur.Str
+		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrComment,
@@ -1125,9 +1128,9 @@ func (p *Parser) parsePrimaryKeyColumns() ([]*nodes.IndexColumn, error) {
 }
 
 // parseConstraintIndexOptions parses index_option list after a table constraint's key
-// parts. An option that starts and does not finish is an error: dropping it left the
-// rest to whatever followed, so `FULLTEXT KEY fk (c) WITH PARSER)` parsed, which
-// OceanBase answers 1064 for.
+// parts. An option that starts and does not finish is an error, as it is after CREATE
+// INDEX: dropping it left the rest to whatever followed, so `KEY i (a) COMMENT` and
+// `FULLTEXT KEY fk (c) WITH PARSER)` parsed, which OceanBase answers 1064 for.
 func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 	for {
 		opt, ok, err := p.parseIndexOption(constr.Type == nodes.ConstrFulltextIndex)

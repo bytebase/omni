@@ -229,10 +229,11 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 	// Optional: COMMENT 'string'
 	if p.cur.Type == kwCOMMENT {
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			stmt.Comment = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Comment = p.cur.Str
+		p.advance()
 	}
 
 	// Optional: DO event_body — when present, parse via the grammar.
