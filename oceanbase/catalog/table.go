@@ -315,6 +315,7 @@ func cloneTable(src *Table) Table {
 			cols[j] = &ic
 		}
 		idx.Columns = cols
+		idx.ParserProperties = copyParserProperties(si.ParserProperties)
 		dst.Indexes[i] = &idx
 	}
 

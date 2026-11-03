@@ -1927,6 +1927,17 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			case *nodes.IntLit:
 				idx.KeyBlockSize = int(n.Value)
 			}
+		case "PARSER":
+			// A repeated WITH PARSER takes the last one, as 4.3.5.6 does, and the
+			// engine prints the name lower-cased.
+			if s, ok := opt.Value.(*nodes.StringLit); ok {
+				idx.Parser = strings.ToLower(s.Value)
+			}
+		case "PARSER_PROPERTIES":
+			// A later list replaces an earlier one rather than merging with it:
+			// PARSER_PROPERTIES=(min_token_size=5) PARSER_PROPERTIES=(max_token_size=40)
+			// reads back min_token_size=3,max_token_size=40 on 4.3.5.6.
+			idx.ParserProperties = parserPropertiesFromOption(opt)
 		case "LOCAL", "GLOBAL":
 			// A repeated scope takes the last one, as 4.3.5.6 does: KEY k (a) LOCAL
 			// GLOBAL reads back GLOBAL. The primary key keeps none: ALTER TABLE ...
@@ -2635,6 +2646,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Comment:      srcIdx.Comment,
 			KeyBlockSize: srcIdx.KeyBlockSize,
 			Scope:        srcIdx.Scope,
+			// OceanBase copies a fulltext index's parser with the table
+			// (TestOracle_OceanBaseFulltextParserEcho).
+			Parser:           srcIdx.Parser,
+			ParserProperties: copyParserProperties(srcIdx.ParserProperties),
 		}
 		cols := make([]*IndexColumn, len(srcIdx.Columns))
 		for i, sc := range srcIdx.Columns {

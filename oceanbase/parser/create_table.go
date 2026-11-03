@@ -867,7 +867,9 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwFOREIGN:
 		p.advance()
@@ -969,7 +971,9 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwFULLTEXT:
 		p.advance()
@@ -978,13 +982,24 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
+		// FULLTEXT opt_key_or_index opt_index_name opt_index_using_algorithm '('
+		// (v4.3.5_CE_BP6): 4.3.5.6 takes FULLTEXT KEY fk USING BTREE (c). USING
+		// needs its algorithm: FULLTEXT KEY fk USING (c) is a 1064.
+		if p.cur.Type == kwUSING {
+			if next := p.peekNext(); next.Type != tokIDENT && next.Type < 700 {
+				return nil, p.syntaxErrorAtTok(next)
+			}
+			p.parseIndexTypeClause(constr)
+		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
 			return nil, err
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwSPATIAL:
 		p.advance()
@@ -999,7 +1014,9 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	default:
 		return nil, &ParseError{
@@ -1060,14 +1077,13 @@ func (p *Parser) parsePrimaryKey(constr *nodes.Constraint, afterConstraint, inAl
 	constr.IndexColumns = cols
 	constr.Columns = indexColumnsToNames(cols)
 	if inAlter {
-		p.parseConstraintIndexOptions(constr)
-		return nil
+		return p.parseConstraintIndexOptions(constr)
 	}
 	for _, kw := range []int{kwUSING, kwCOMMENT} {
 		if p.cur.Type != kw {
 			continue
 		}
-		opt, _, err := p.parseIndexOption()
+		opt, _, err := p.parseIndexOption(false)
 		if err != nil {
 			return err
 		}
@@ -1108,12 +1124,18 @@ func (p *Parser) parsePrimaryKeyColumns() ([]*nodes.IndexColumn, error) {
 	return cols, nil
 }
 
-// parseConstraintIndexOptions parses index_option list after a table constraint's key parts.
-func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) {
+// parseConstraintIndexOptions parses index_option list after a table constraint's key
+// parts. An option that starts and does not finish is an error: dropping it left the
+// rest to whatever followed, so `FULLTEXT KEY fk (c) WITH PARSER)` parsed, which
+// OceanBase answers 1064 for.
+func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 	for {
-		opt, ok, err := p.parseIndexOption()
-		if err != nil || !ok {
-			break
+		opt, ok, err := p.parseIndexOption(constr.Type == nodes.ConstrFulltextIndex)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
 		}
 		constr.IndexOptions = append(constr.IndexOptions, opt)
 	}

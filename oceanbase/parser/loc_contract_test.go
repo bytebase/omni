@@ -212,6 +212,8 @@ var locSpanCases = []struct {
 	{"IndexColumn", "CREATE INDEX idx ON t (a)", "a", 0},
 	{"IndexHint", "SELECT * FROM t1 USE INDEX ()", "USE INDEX ()", 0},
 	{"IndexOption", "CREATE TABLE t (id INT, KEY k (id) VISIBLE)", "VISIBLE", 0},
+	{"IndexOption", "CREATE TABLE t (c TEXT, FULLTEXT KEY fk (c) PARSER_PROPERTIES = (min_token_size = 2))", "PARSER_PROPERTIES = (min_token_size = 2)", 0},
+	{"ParserProperty", "CREATE TABLE t (c TEXT, FULLTEXT KEY fk (c) WITH PARSER ik PARSER_PROPERTIES=(ik_mode = 'max' '_word', stopword_table='none'))", "ik_mode = 'max' '_word'", 0},
 	{"InsertStmt", "INSERT INTO t1 TABLE t2", "INSERT INTO t1 TABLE t2", 0},
 	{"InstallComponentStmt", "INSTALL COMPONENT 'file://c1'", "INSTALL COMPONENT 'file://c1'", 0},
 	{"InstallPluginStmt", "INSTALL PLUGIN p SONAME 'p.so'", "INSTALL PLUGIN p SONAME 'p.so'", 0},

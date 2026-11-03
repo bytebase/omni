@@ -398,6 +398,9 @@ func showIndex(idx *Index) string {
 	b.WriteString(strings.Join(cols, ","))
 	b.WriteString(")")
 
+	// A fulltext index's parser, where OceanBase prints it.
+	b.WriteString(formatFulltextParser(idx))
+
 	// USING clause: shown when explicitly specified, not for PRIMARY/FULLTEXT/SPATIAL.
 	if !idx.Primary && !idx.Fulltext && !idx.Spatial && idx.IndexType != "" {
 		b.WriteString(fmt.Sprintf(" USING %s", strings.ToUpper(idx.IndexType)))
