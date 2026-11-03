@@ -111,6 +111,12 @@ var walkCases = []walkCase{
 	// DML.
 	{name: "DML targets", change: "INSERT INTO dbo.nosuch VALUES (1);\nINSERT INTO dbo.syn (id) VALUES (5);\nDROP TABLE dbo.nokey;\nINSERT INTO dbo.nokey VALUES (1);"},
 	{name: "DML on dropped names", change: "DROP TABLE dbo.nokey;\nUPDATE dbo.nokey SET a = 1;\nDELETE FROM dbo.nokey;\nMERGE dbo.nokey AS x USING dbo.r ON x.a = r.id WHEN MATCHED THEN DELETE;", complete: true},
+	// DML resolves through tables, views, sequences, and synonyms, which the
+	// sync lists; a synonym may lead to another database, which ends the
+	// walk.
+	{name: "DML targets through synonyms", change: "INSERT INTO dbo.nosuch VALUES (1);\nUPDATE nosuch SET a = 1;\nCREATE TABLE dbo.syn (a int);\nDROP TABLE IF EXISTS dbo.syn;\nDROP SYNONYM dbo.syn;\nDELETE FROM dbo.syn;\nEXEC sp_rename 'dbo.v', 'v2';\nINSERT INTO dbo.v VALUES (1);\nCREATE TABLE dbo.syn (a int);\nCREATE SYNONYM dbo.s2 FOR dbo.nokey;\nINSERT INTO dbo.s2 VALUES (1);", complete: true},
+	{name: "DML on what a synonym names", change: "INSERT INTO dbo.syn (id) VALUES (7);\nDROP TABLE dbo.nosuch;"},
+	{name: "unqualified DML as a user whose default schema is s", user: "u_s", defaultSchema: "s", change: "INSERT INTO st VALUES (1);\nINSERT INTO nokey VALUES (1);\nINSERT INTO nosuch VALUES (1);"},
 	{name: "DML on a CTE or an alias", change: "WITH c AS (SELECT * FROM dbo.nokey) UPDATE c SET a = 1;\nUPDATE x SET a = 1 FROM dbo.nokey AS x;\nDELETE x FROM dbo.nokey x;\nCREATE TABLE dbo.t (a int);"},
 	{name: "a trigger may run DDL", change: "CREATE TRIGGER dbo.mk ON dbo.nokey AFTER INSERT AS CREATE TABLE dbo.made (a int);\nGO\nINSERT INTO dbo.nokey VALUES (1);\nDROP TABLE dbo.made;\nDROP TABLE dbo.made;"},
 	{name: "a cascade fires another table's trigger", setup: "CREATE TABLE dbo.par (id int NOT NULL PRIMARY KEY)\nCREATE TABLE dbo.chi (id int REFERENCES dbo.par (id) ON DELETE CASCADE)\nINSERT dbo.par VALUES (1)\nINSERT dbo.chi VALUES (1)\nCREATE TRIGGER dbo.chi_tr ON dbo.chi AFTER DELETE AS CREATE TABLE dbo.made2 (a int)", change: "DELETE FROM dbo.par;\nCREATE TABLE dbo.made2 (a int);"},
@@ -127,7 +133,7 @@ var walkCases = []walkCase{
 	{name: "the default schema", user: "u_s", defaultSchema: "s", change: "CREATE TABLE t (a int);\nCREATE TABLE st (a int);\nCREATE TABLE newt (a int);\nCREATE TABLE newt (a int);\nDROP TABLE nokey;\nDROP TABLE nokey;\nDROP TABLE t;\nDROP TABLE t;\nALTER TABLE r ADD x int;"},
 	{name: "no default schema", defaultSchema: "-", change: "CREATE TABLE t (a int);\nDROP TABLE nokey;\nDROP TABLE nokey;\nCREATE TABLE dbo.t (a int);\nDROP TABLE nosuch;\nALTER TABLE nokey ADD a int;\nDROP TABLE dbo.nokey;"},
 	{name: "no default schema for a user of another", user: "u_s", defaultSchema: "-", change: "CREATE TABLE t (a int);\nCREATE TABLE st (a int);\nDROP TABLE nokey;\nDROP TABLE nokey;\nDROP TABLE st;\nDROP TABLE st;\nALTER TABLE r ADD id int;\nCREATE INDEX ix_a ON t (a);\nDROP TABLE IF EXISTS dbo.nosuch;\nINSERT INTO newt VALUES (1);\nCREATE TABLE dbo.t (a int);"},
-	{name: "unknown by design", change: "DROP TABLE IF EXISTS dbo.syn;\nALTER TABLE dbo.t ADD A int;\nCREATE INDEX IX_A ON dbo.t (b);\nEXEC sp_rename 'dbo.nosuch', 'x';\nEXEC sp_rename 'dbo.nokey', 'dbo.n3';\nDROP TABLE dbo.n3;\nCREATE TABLE master.dbo.r (a int);\nCREATE TABLE master.dbo.r (a int);\nDROP PROCEDURE dbo.nosuch;\nCREATE TABLE dbo.T (a int);\nINSERT INTO dbo.nosuch VALUES (1);\nDROP TABLE guest.nosuch;\nCREATE TABLE guest.x (a int);\nCREATE TABLE guest.x (a int);\nALTER TABLE dbo.t DROP COLUMN d;"},
+	{name: "unknown by design", change: "ALTER TABLE dbo.t ADD A int;\nCREATE INDEX IX_A ON dbo.t (b);\nEXEC sp_rename 'dbo.nosuch', 'x';\nEXEC sp_rename 'dbo.nokey', 'dbo.n3';\nDROP TABLE dbo.n3;\nCREATE TABLE master.dbo.r (a int);\nCREATE TABLE master.dbo.r (a int);\nDROP PROCEDURE dbo.nosuch;\nCREATE TABLE dbo.T (a int);\nDROP TABLE guest.nosuch;\nCREATE TABLE guest.x (a int);\nCREATE TABLE guest.x (a int);\nALTER TABLE dbo.t DROP COLUMN d;"},
 }
 
 var walkCollations = []string{"SQL_Latin1_General_CP1_CI_AS", "Latin1_General_100_CS_AS"}
@@ -702,9 +708,9 @@ func (e *walkEngine) tempTables(t testing.TB) []catObject {
 // Bytebase's MSSQL sync produces for what WalkThrough reads: the schemas
 // it lists, their tables with columns (and their default constraints'
 // names), indexes, keys, foreign keys, checks, and enabled triggers, and
-// views, sequences, functions, and procedures.
+// views, sequences, functions, procedures, and synonyms.
 //
-// bytebase: backend/plugin/db/mssql/sync.go — SyncDBSchema
+// bytebase: backend/plugin/db/mssql/sync.go — SyncDBSchema, getSynonyms
 func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	ctx := context.Background()
@@ -858,6 +864,16 @@ func walkSync(t testing.TB, conn *sql.Conn, dbName string) *metadata.DatabaseSch
 			s.Procedures = append(s.Procedures, &metadata.ProcedureMetadata{Name: name})
 		default:
 			s.Functions = append(s.Functions, &metadata.FunctionMetadata{Name: name})
+		}
+		return nil
+	})
+	query("SELECT s.name, sy.name FROM shop.sys.synonyms sy JOIN shop.sys.schemas s ON s.schema_id = sy.schema_id ORDER BY s.name, sy.name", func(r *sql.Rows) error {
+		var schema, name string
+		if err := r.Scan(&schema, &name); err != nil {
+			return err
+		}
+		if s, ok := schemas[schema]; ok {
+			s.Synonyms = append(s.Synonyms, &metadata.SynonymMetadata{Name: name})
 		}
 		return nil
 	})

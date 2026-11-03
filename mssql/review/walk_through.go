@@ -590,12 +590,12 @@ func (b *builder) knownTable(r objRef) bool {
 
 // isRelation reports whether a kind is listed in the relation space.
 func isRelation(kind string) bool {
-	return kind == kindTable || kind == kindView || kind == kindSequence
+	return kind == kindTable || kind == kindView || kind == kindSequence || kind == kindSynonym
 }
 
 // arriveObject records that an object of a kind arrives under a
-// reference's name, in the object space and, for a table, view, or
-// sequence, the relation space; an object of another kind leaves no
+// reference's name, in the object space and, for a table, view, sequence,
+// or synonym, the relation space; an object of another kind leaves no
 // relation of its name.
 func (b *builder) arriveObject(r objRef, kind string) {
 	switch r.where {

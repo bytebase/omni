@@ -166,10 +166,11 @@ func ledgerTable(t *metadata.TableMetadata) bool {
 
 // mssqlSnapshot is a target's synced schema as WalkThrough trusts it
 // (spec §3): Present for every name the sync lists; Absent for schemas,
-// for the relations of a synced schema, and for the columns, indexes,
-// constraints, and primary key of a synced table, unless the space holds
-// a marked name; never for the object space, which holds synonyms, CLR
-// modules, disabled triggers, and more that the sync skips, or for types.
+// for the relations of a synced schema (tables, views, sequences, and
+// synonyms), and for the columns, indexes, constraints, and primary key
+// of a synced table, unless the space holds a marked name; never for the
+// object space, which holds CLR modules, disabled triggers, and more that
+// the sync skips, or for types.
 // The session starts with no temporary table.
 //
 // bytebase: backend/plugin/db/mssql/sync.go — SyncDBSchema
@@ -303,6 +304,10 @@ func newMSSQLSnapshot(db *metadata.DatabaseSchemaMetadata) *mssqlSnapshot {
 		for _, q := range schema.GetSequences() {
 			objs.add(q.GetName(), kindSequence)
 			rels.add(q.GetName(), kindSequence)
+		}
+		for _, sy := range schema.GetSynonyms() {
+			objs.add(sy.GetName(), kindSynonym)
+			rels.add(sy.GetName(), kindSynonym)
 		}
 		for _, f := range schema.GetFunctions() {
 			objs.add(f.GetName(), kindFunction)

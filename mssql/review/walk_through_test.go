@@ -45,6 +45,7 @@ func walkSchema() *metadata.DatabaseSchemaMetadata {
 				},
 				Views:      []*metadata.ViewMetadata{{Name: "v"}},
 				Sequences:  []*metadata.SequenceMetadata{{Name: "sq"}},
+				Synonyms:   []*metadata.SynonymMetadata{{Name: "syn", TargetSchema: "dbo", TargetName: "t"}},
 				Procedures: []*metadata.ProcedureMetadata{{Name: "pr"}},
 				Functions:  []*metadata.FunctionMetadata{{Name: "fn"}},
 			},
@@ -109,6 +110,19 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"drop case variant twice", "DROP TABLE dbo.t;\nDROP TABLE dbo.T;", 1, "table dbo.T does not exist"},
 		{"drop then create", "DROP TABLE dbo.t;\nCREATE TABLE dbo.t (a int);\nCREATE TABLE dbo.pk_t (a int);", -1, ""},
 		{"drop then use", "DROP TABLE dbo.nokey;\nINSERT INTO dbo.nokey VALUES (1);", 1, "object dbo.nokey does not exist"},
+		// DML resolves through tables, views, sequences, and synonyms, which
+		// the sync lists.
+		{"DML on a missing name", "INSERT INTO dbo.nosuch VALUES (1);", 0, "object dbo.nosuch does not exist"},
+		{"unqualified DML on a missing name", "UPDATE nosuch SET a = 1;", 0, "object nosuch does not exist"},
+		{"DML through a synonym", "INSERT INTO dbo.syn (a) VALUES (1);", -1, ""},
+		{"DML on a view", "INSERT INTO dbo.v VALUES (1);", -1, ""},
+		{"DML after a dropped synonym", "DROP SYNONYM dbo.syn;\nDELETE FROM dbo.syn;", 1, "object dbo.syn does not exist"},
+		{"DML through a synonym the change makes", "CREATE SYNONYM dbo.s2 FOR dbo.t;\nINSERT INTO dbo.s2 (a) VALUES (1);", -1, ""},
+		{"DML through a renamed synonym", "EXEC sp_rename 'dbo.syn', 'syn2';\nINSERT INTO dbo.syn (a) VALUES (1);", 1, "object dbo.syn does not exist"},
+		{"DML through a synonym ends the walk", "INSERT INTO dbo.syn (a) VALUES (1);\nCREATE TABLE dbo.t (a int);", -1, ""},
+		{"a synonym takes its name", "CREATE TABLE dbo.syn (a int);", 0, "an object named dbo.syn already exists"},
+		{"DROP SYNONYM of a missing name", "DROP SYNONYM dbo.nosuch;", 0, "synonym dbo.nosuch does not exist"},
+		{"DROP VIEW of a synonym", "DROP VIEW dbo.syn;", 0, "dbo.syn is not a view"},
 		{"drop missing view", "DROP VIEW dbo.nosuch;", 0, "view dbo.nosuch does not exist"},
 		{"drop a table as a view", "DROP VIEW dbo.t;", 0, "dbo.t is not a view"},
 		{"drop procedure unsynced may exist", "DROP PROCEDURE dbo.nosuch;", -1, ""},
@@ -179,7 +193,6 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"rename index", "EXEC sp_rename 'dbo.t.ix_a', 'ix_b', 'INDEX';\nDROP INDEX ix_a ON dbo.t;", 1, "index ix_a does not exist on dbo.t"},
 		// Unknown by design.
 		{"no default schema", "CREATE TABLE t (a int);", -1, ""},
-		{"DML on unsynced name", "INSERT INTO dbo.nosuch VALUES (1);", -1, ""},
 		{"exec ends the walk", "EXEC dbo.pr;\nCREATE TABLE dbo.t (a int);", -1, ""},
 		{"if makes effects optional", "IF OBJECT_ID('dbo.t') IS NOT NULL DROP TABLE dbo.t;\nCREATE TABLE dbo.t (a int);", -1, ""},
 		{"if keeps the walk going", "IF 1 = 1 DROP TABLE dbo.nokey;\nCREATE TABLE dbo.r (a int);", 1, "an object named dbo.r already exists"},
@@ -469,10 +482,10 @@ var walkForms = []walktest.Form{
 	// IF.
 	{SQL: "IF OBJECT_ID('dbo.t') IS NOT NULL DROP TABLE dbo.t;"},
 	{SQL: "IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'x') BEGIN CREATE TABLE dbo.x (a int); CREATE INDEX ix ON dbo.x (a) END ELSE ALTER TABLE dbo.x ADD b int;"},
-	// DML on a table a trigger may fire on, or an object that may be a
-	// synonym: lowered, and the walk ends after it.
+	// DML on a table a trigger may fire on, or through a synonym, which may
+	// lead to another database: lowered, and the walk ends after it.
 	{SQL: "CREATE TRIGGER dbo.tr ON dbo.nokey AFTER INSERT AS SELECT 1;\nGO\nINSERT INTO dbo.nokey VALUES (1);", Last: true},
-	{SQL: "INSERT INTO dbo.nosuch VALUES (1);", Last: true},
+	{SQL: "INSERT INTO dbo.syn (a) VALUES (1);", Last: true},
 	{SQL: "INSERT INTO other.dbo.t VALUES (1);", Last: true},
 	// An UPDATE, DELETE, or MERGE of a table may cascade to a table whose
 	// triggers the sync does not list.
