@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
 
@@ -83,9 +84,9 @@ func hasRowType(kind string) bool {
 // key it resolved to and its kind. Absent means the name resolves
 // nowhere; missingSchema then names the schema the SQL wrote when it is
 // the schema that certainly does not exist. fail is set when the name
-// itself certainly fails, whatever exists. keys lists every key the
-// answer read, which the within-statement rule compares against what the
-// statement changes.
+// itself certainly fails, whatever exists: it names another database
+// (CrossDatabaseReference). keys lists every key the answer read, which
+// the within-statement rule compares against what the statement changes.
 type resolved struct {
 	fact          walk.Fact
 	key           walk.Key
@@ -267,12 +268,13 @@ func (b *builder) nameList(parts []string) resolved {
 }
 
 // created is the schema a new object goes to. fail is set when the
-// statement certainly fails for want of one; fact is Unknown when the
-// walk cannot tell where it goes.
+// statement certainly fails for want of one, with the failure's code;
+// fact is Unknown when the walk cannot tell where it goes.
 type created struct {
 	fact   walk.Fact
 	schema string
 	fail   string
+	code   review.FindingCode
 	keys   []walk.Key
 }
 
@@ -298,7 +300,7 @@ func (b *builder) creationSchema(schema string, temp bool) created {
 		sk := schemaKey(s)
 		switch f, _ := b.l.Lookup(sk); f {
 		case walk.Absent:
-			return created{fact: walk.Absent, fail: "schema " + ident(schema) + " does not exist", keys: []walk.Key{sk}}
+			return created{fact: walk.Absent, fail: "schema " + ident(schema) + " does not exist", code: review.ObjectNotFound, keys: []walk.Key{sk}}
 		case walk.Unknown:
 			// The object goes there if the statement succeeds, and then
 			// the schema exists.
@@ -327,7 +329,7 @@ func (b *builder) creationSchema(schema string, temp bool) created {
 			return created{keys: keys}
 		}
 	}
-	return created{fact: walk.Absent, fail: "no schema has been selected to create in", keys: keys}
+	return created{fact: walk.Absent, fail: "no schema has been selected to create in", code: review.NoCurrentSchema, keys: keys}
 }
 
 // typeName splits a qualified type or object name list into schema and

@@ -390,12 +390,8 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 		out.freed = append(out.freed, cmd.Name)
 	}
 	if s.on[review.DisallowDropConstraint] && con.kind != "" {
-		out.findings = append(out.findings, review.Finding{
-			Rule:      review.DisallowDropConstraint,
-			Statement: st.index,
-			Range:     rangeOf(cmd.Loc),
-			Message:   "Drops " + con.kind + " " + review.Code(ident(cmd.Name)) + " of " + review.Code(relation(v.Relation)) + ".",
-		})
+		out.findings = append(out.findings, finding(review.DropsConstraint, st.index, rangeOf(cmd.Loc),
+			"Drops "+con.kind+" "+review.Code(ident(cmd.Name))+" of "+review.Code(relation(v.Relation))+"."))
 	}
 	if con.kind == "primary key" && out.lost == nil {
 		out.lost, out.table = cmd, t

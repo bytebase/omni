@@ -197,6 +197,7 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 				t.Fatalf("Review: %v", err)
 			}
 			groups := backupTruth(t, conn, tt.change, schema)
+			checkCodes(t, result.Findings)
 			for _, f := range result.Findings {
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)

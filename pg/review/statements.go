@@ -99,7 +99,7 @@ func isSpace(c byte) bool {
 // offset, which the caller anchors to its line. Any other error, which
 // the parser does not produce today, addresses the whole change.
 func syntaxFinding(err error, ranges []review.Range) *review.Finding {
-	f := &review.Finding{Rule: review.Syntax, Statement: -1, Message: escapeLines(err.Error())}
+	f := finding(review.SyntaxError, -1, review.Range{}, escapeLines(err.Error()))
 	var perr *parser.ParseError
 	if errors.As(err, &perr) {
 		// The message quotes the offending token, which may hold a line
@@ -110,7 +110,7 @@ func syntaxFinding(err error, ranges []review.Range) *review.Finding {
 			f.Range = review.Range{Start: perr.Position, End: perr.Position}
 		}
 	}
-	return f
+	return &f
 }
 
 // unparsedFinding is the Syntax finding for a non-empty range the parser
@@ -126,12 +126,8 @@ func unparsedFinding(sql string, index int, r review.Range) *review.Finding {
 	if len(text) > 40 {
 		text = text[:40]
 	}
-	return &review.Finding{
-		Rule:      review.Syntax,
-		Statement: index,
-		Range:     review.Range{Start: start, End: start},
-		Message:   escapeLines(fmt.Sprintf("syntax error at or near %q", text)),
-	}
+	f := finding(review.SyntaxError, index, review.Range{Start: start, End: start}, escapeLines(fmt.Sprintf("syntax error at or near %q", text)))
+	return &f
 }
 
 // skipTrivia returns the offset of the first byte in [start, end) that is

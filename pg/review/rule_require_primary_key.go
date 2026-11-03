@@ -44,8 +44,12 @@ type pendingTable struct {
 	key        string
 	keyColumns []string
 
+	// statement, rng, code, and message are the finding; its code is
+	// TableWithoutPrimaryKey on a CREATE TABLE, PrimaryKeyRemoved on the
+	// statement that drops a synced table's key.
 	statement int
 	rng       review.Range
+	code      review.FindingCode
 	message   string
 	settled   bool
 }
@@ -239,6 +243,7 @@ func (s *scan) lostKey(st *statement, v *ast.AlterTableStmt, cmd *ast.AlterTable
 		existed:   true,
 		statement: st.index,
 		rng:       rangeOf(cmd.Loc),
+		code:      review.PrimaryKeyRemoved,
 		message:   "Removes the primary key of " + review.Code(relation(v.Relation)) + ", and the change doesn't add one back.",
 	})
 }
@@ -267,6 +272,7 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 				keyColumns: declaredKeyColumns(st, v),
 				statement:  st.index,
 				rng:        rangeOf(v.Loc),
+				code:       review.TableWithoutPrimaryKey,
 				message:    createsKeyless(v.Relation),
 			})
 		}
@@ -281,6 +287,7 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 		parents:   s.inheritsFrom(v),
 		statement: st.index,
 		rng:       rangeOf(v.Loc),
+		code:      review.TableWithoutPrimaryKey,
 		message:   createsKeyless(v.Relation),
 	})
 }

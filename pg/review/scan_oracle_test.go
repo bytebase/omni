@@ -443,6 +443,7 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 				t.Fatalf("Review: %v", err)
 			}
 			want, failedAt := walkTruth(t, conn, tt.change)
+			checkCodes(t, result.Findings)
 			var got []string
 			for _, f := range result.Findings {
 				if f.Rule == review.Syntax {

@@ -21,7 +21,7 @@ func checkDisallowTruncate(s *statement, r *reporter) {
 				}
 			}
 		}
-		r.report(review.DisallowTruncate, s.index, rangeOf(v.Loc), "Truncates "+review.Names(names...)+".")
+		r.report(review.TruncatesData, s.index, rangeOf(v.Loc), "Truncates "+review.Names(names...)+".")
 		return true
 	})
 }

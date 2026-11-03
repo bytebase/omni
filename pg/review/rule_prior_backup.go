@@ -84,7 +84,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 		for j, name := range names {
 			quoted[j] = ident(name)
 		}
-		r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup refuses the data-modifying WITH query "+strings.Join(quoted, ", ")+" of this statement")
+		r.report(review.StatementNotBackupable, s.index, rangeOf(statementLoc(s.node)), "prior backup refuses the data-modifying WITH query "+strings.Join(quoted, ", ")+" of this statement")
 	}
 }
 
@@ -92,7 +92,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.PriorBackup, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
 	}
 }
 
@@ -169,8 +169,8 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 				first = s.node
 				firsts[table] = first
 			}
-			if msg := selectionRefused(s.node, table, first, q, made); msg != "" {
-				r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), msg)
+			if code, msg := selectionRefused(s.node, table, first, q, made); msg != "" {
+				r.report(code, s.index, rangeOf(statementLoc(s.node)), msg)
 			}
 		}
 		first, seen := kinds[table]
@@ -180,15 +180,15 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 		}
 		if first != kind && !mixed[table] {
 			mixed[table] = true
-			r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup cannot back up both UPDATE and DELETE on "+relation(rv))
+			r.report(review.StatementsShareBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup cannot back up both UPDATE and DELETE on "+relation(rv))
 		}
 	}
 	if backsUp && findSchema(schema, backupSchema) == nil {
-		r.report(review.PriorBackup, -1, review.Range{}, "prior backup needs schema "+backupSchema+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs schema "+backupSchema+", which does not exist")
 	}
 	if backsUp {
 		if s, role := prependedRole(stmts); s != nil && madeRoles(stmts)[role] {
-			r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup runs this SET ROLE before the change, which creates role "+ident(role))
+			r.report(review.BackupReadsNewObject, s.index, rangeOf(s.loc), "prior backup runs this SET ROLE before the change, which creates role "+ident(role))
 		}
 	}
 }
@@ -251,7 +251,7 @@ func madeRoles(stmts []statement) map[string]bool {
 }
 
 func reportNotYetCreated(s *statement, rv *ast.RangeVar, r *reporter) {
-	r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup runs before the change, when "+relation(rv)+" does not exist yet")
+	r.report(review.BackupReadsNewObject, s.index, rangeOf(statementLoc(s.node)), "prior backup runs before the change, when "+relation(rv)+" does not exist yet")
 }
 
 // made is what the change makes, which the backup, run before all of
@@ -488,8 +488,8 @@ func aliasOf(rv *ast.RangeVar) string {
 }
 
 // selectionRefused reports why the query the backup runs for an UPDATE or
-// DELETE fails, or does what the change does not ask, "" when the rule
-// sees no reason. The backup copies, as written, the WITH clause of the
+// DELETE fails, or does what the change does not ask, with the reason's
+// code, "" when the rule sees no reason. The backup copies, as written, the WITH clause of the
 // table's first statement, the table and the FROM or USING list and WHERE
 // clause of each statement, into one query per table, which selects
 // through the first statement's alias, and runs it before the change:
@@ -506,17 +506,17 @@ func aliasOf(rv *ast.RangeVar) string {
 // judged.
 //
 // bytebase: backend/plugin/parser/pg/backup.go — generateSQLForTable
-func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQuery, m made) string {
+func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQuery, m made) (review.FindingCode, string) {
 	target, from, where := dmlParts(n)
 	if target == nil {
-		return ""
+		return "", ""
 	}
 	isFirst := n == first
 	with := withOf(first)
 	firstTarget, _, _ := dmlParts(first)
 	name := relation(&ast.RangeVar{Schemaname: table.schema, Relname: table.name})
 	if !isFirst && !exposesFirst(firstTarget, target) {
-		return "prior backup selects the rows of every statement on " + name + " through the first one's alias, which this statement does not use"
+		return review.StatementsShareBackup, "prior backup selects the rows of every statement on " + name + " through the first one's alias, which this statement does not use"
 	}
 	visible := make(map[string]bool)
 	if with != nil && with.Ctes != nil {
@@ -527,10 +527,10 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 		}
 	}
 	if target.Schemaname == "" && visible[target.Relname] {
-		return "prior backup copies the WITH clause of the first statement on " + name + ", whose query " + ident(target.Relname) + " then stands for the table"
+		return review.BackupReadsWrongTable, "prior backup copies the WITH clause of the first statement on " + name + ", whose query " + ident(target.Relname) + " then stands for the table"
 	}
 	if _, ok := where.(*ast.CurrentOfExpr); ok {
-		return "prior backup copies WHERE CURRENT OF, which only UPDATE and DELETE take, into its query"
+		return review.StatementNotBackupable, "prior backup copies WHERE CURRENT OF, which only UPDATE and DELETE take, into its query"
 	}
 	// The server finds the statement's table as written, along the path
 	// the query runs under, which need not be the one Bytebase grouped it
@@ -541,7 +541,7 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 			if len(h) == 1 {
 				found = "where it means " + relation(&ast.RangeVar{Schemaname: h[0], Relname: target.Relname})
 			}
-			return "prior backup reads " + ident(target.Relname) + " along the search path it runs under, " + found + ", not " + name
+			return review.BackupReadsWrongTable, "prior backup reads " + ident(target.Relname) + " along the search path it runs under, " + found + ", not " + name
 		}
 	}
 	// The parts the backup copies, beside the table.
@@ -570,7 +570,7 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 					})
 				}
 				if named {
-					return "prior backup copies only the WITH clause of the first statement on " + name + ", which does not define " + ident(c.Ctename)
+					return review.StatementsShareBackup, "prior backup copies only the WITH clause of the first statement on " + name + ", which does not define " + ident(c.Ctename)
 				}
 			}
 		}
@@ -601,10 +601,10 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 		relationsIn(part, visible, check)
 	}
 	if missing != nil {
-		return "prior backup runs before the change, when " + relation(missing) + " does not exist yet"
+		return review.BackupReadsNewObject, "prior backup runs before the change, when " + relation(missing) + " does not exist yet"
 	}
 	if msg := columnMissing(target, from, where, visible, q, m); msg != "" {
-		return msg
+		return review.BackupReadsNewObject, msg
 	}
 	// A routine named with its schema, which the schema does not hold.
 	var fn string
@@ -627,9 +627,9 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 		inspect(part)
 	}
 	if fn != "" {
-		return "prior backup runs before the change, when function " + fn + " does not exist yet"
+		return review.BackupReadsNewObject, "prior backup runs before the change, when function " + fn + " does not exist yet"
 	}
-	return ""
+	return "", ""
 }
 
 // dataModifyingCTEs returns the names of a WITH clause's queries that are

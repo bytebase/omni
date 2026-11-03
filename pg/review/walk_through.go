@@ -35,12 +35,7 @@ func checkWalkThrough(ctx context.Context, stmts []statement, plan *run, target 
 	if !ok {
 		return nil
 	}
-	r.add(review.Finding{
-		Rule:      review.WalkThrough,
-		Statement: stmts[v.Statement].index,
-		Range:     note.rng,
-		Message:   escapeLines(note.message(v)),
-	})
+	r.add(finding(note.code(v), stmts[v.Statement].index, note.rng, escapeLines(note.message(v))))
 	return nil
 }
 
@@ -67,13 +62,15 @@ func walkThrough(ctx context.Context, stmts []statement, plan *run, target revie
 	return v, err
 }
 
-// walkNote is a check's finding: where it anchors and what it says when
-// the object is certainly absent or certainly present (or of another
-// kind).
+// walkNote is a check's or a failure's finding: where it anchors and what
+// it says when the object is certainly absent or certainly present (or of
+// another kind). A failure's note carries its code in fail; a check's
+// code follows from the violation.
 type walkNote struct {
 	rng     review.Range
 	absent  string
 	present string
+	fail    review.FindingCode
 }
 
 func (n *walkNote) message(v *walk.Violation) string {
@@ -81,6 +78,21 @@ func (n *walkNote) message(v *walk.Violation) string {
 		return n.absent
 	}
 	return n.present
+}
+
+// code is the finding's code: a failure's own, or what a check found
+// against what it wanted: an object where the name had to be free, no
+// object where one was needed, or one of another kind.
+func (n *walkNote) code(v *walk.Violation) review.FindingCode {
+	switch {
+	case n.fail != "":
+		return n.fail
+	case v.Check.Want == walk.Absent:
+		return review.NameTaken
+	case v.Got == walk.Absent:
+		return review.ObjectNotFound
+	}
+	return review.WrongObjectKind
 }
 
 // walker is the session the change runs in, as far as the walk follows
@@ -372,14 +384,14 @@ func (b *builder) need(k walk.Key, want walk.Fact, kinds []string, note *walkNot
 }
 
 // fail records that the statement certainly fails, as the lowering
-// established from the keys it read, with message.
-func (b *builder) fail(keys []walk.Key, got walk.Fact, message string) {
-	b.Fail(keys, got, &walkNote{rng: b.anchor(), absent: message, present: message})
+// established from the keys it read, with code and message.
+func (b *builder) fail(keys []walk.Key, got walk.Fact, code review.FindingCode, message string) {
+	b.Fail(keys, got, &walkNote{rng: b.anchor(), absent: message, present: message, fail: code})
 }
 
 // failAt is fail with its own anchor.
-func (b *builder) failAt(rng review.Range, keys []walk.Key, message string) {
-	b.Fail(keys, walk.Absent, &walkNote{rng: rng, absent: message, present: message})
+func (b *builder) failAt(rng review.Range, keys []walk.Key, code review.FindingCode, message string) {
+	b.Fail(keys, walk.Absent, &walkNote{rng: rng, absent: message, present: message, fail: code})
 }
 
 func (b *builder) set(k walk.Key, f walk.Fact, kind string) { b.Set(k, f, kind) }
