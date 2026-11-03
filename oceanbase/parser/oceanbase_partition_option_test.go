@@ -21,7 +21,8 @@ type partitionOptionCase struct {
 // partitionOptionCases: a partition takes `[ID n] [ENGINE = InnoDB]` and a subpartition
 // `[ENGINE = InnoDB]`, nothing else; ADD PARTITION and REORGANIZE PARTITION ... INTO take
 // only RANGE and LIST partitions (parsePartitionDef). Read against
-// 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-11-02. obpart_r is partitioned by RANGE, obpart_l
+// 5.7.25-OceanBase_CE-v4.3.5.6 on 2026-11-02, the RANGE and LIST subpartitions on
+// 2026-11-03. obpart_r is partitioned by RANGE, obpart_l
 // by LIST, obpart_h by HASH and obpart_k by KEY.
 var partitionOptionCases = []partitionOptionCase{
 	// COMMENT, on a partition of every kind and on a subpartition.
@@ -71,6 +72,12 @@ var partitionOptionCases = []partitionOptionCase{
 	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 ID 3))", false, "ID 3"},
 	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY HASH(b) SUBPARTITION TEMPLATE (SUBPARTITION s0 ID 3) (PARTITION p0 VALUES LESS THAN (10))", false, "ID 3"},
 	{"CREATE TABLE t (a INT) PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN MAXVALUE)", true, ""},
+	// A RANGE or LIST subpartition carries VALUES, then ENGINE = InnoDB alone.
+	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES LESS THAN (5) ENGINE = InnoDB, SUBPARTITION s1 VALUES LESS THAN (9)))", true, ""},
+	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES LESS THAN (5) COMMENT 'x'))", false, "COMMENT"},
+	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY LIST(b) SUBPARTITION TEMPLATE (SUBPARTITION s0 VALUES IN (1) ENGINE = InnoDB, SUBPARTITION s1 VALUES IN (2)) (PARTITION p0 VALUES LESS THAN (10))", true, ""},
+	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY LIST(b) SUBPARTITION TEMPLATE (SUBPARTITION s0 VALUES IN (1) MAX_ROWS = 5) (PARTITION p0 VALUES LESS THAN (10))", false, "MAX_ROWS"},
+	{"CREATE TABLE t (a INT, b INT) PARTITION BY RANGE(a) SUBPARTITION BY LIST(b) (PARTITION p0 VALUES LESS THAN (10) (SUBPARTITION s0 VALUES IN (1) ID 3))", false, "ID 3"},
 
 	// ADD PARTITION takes a list of RANGE or LIST partitions, with VALUES each.
 	{"ALTER TABLE obpart_r ADD PARTITION PARTITIONS 2", false, "PARTITIONS"},
