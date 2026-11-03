@@ -3,13 +3,11 @@ package parser
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"os"
 	"sync"
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 )
 
 type parserOracle struct {
@@ -17,15 +15,14 @@ type parserOracle struct {
 	ctx context.Context
 }
 
-var (
-	sharedMySQL80    sharedEngine // routine alignment oracle (startParserOracle)
-	sharedMariaDB118 sharedEngine // MariaDB 11.8 divergence inventory (startMariaDB)
-)
+// sharedMariaDB118 is the MariaDB 11.8 oracle (startMariaDB) the divergence
+// inventory and the routine alignment oracle share.
+var sharedMariaDB118 sharedEngine
 
 // sharedEngine is an engine started once per test process and handed to every
 // test that asks for it, with the `test` database dropped and recreated in
-// between. Booting MySQL or MariaDB costs ~10s; the reset costs milliseconds
-// and gives each test the same empty schema a fresh container would.
+// between. Booting MariaDB costs ~10s; the reset costs milliseconds and gives
+// each test the same empty schema a fresh container would.
 type sharedEngine struct {
 	once      sync.Once
 	container testcontainers.Container
@@ -71,47 +68,8 @@ func (e *sharedEngine) terminate() {
 	}
 }
 
-// startMySQL80 boots a mysql:8.0 testcontainer for sharedEngine.acquire.
-func startMySQL80(ctx context.Context) (testcontainers.Container, *sql.DB, error) {
-	container, err := tcmysql.Run(ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("start MySQL container: %w", err)
-	}
-	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		return nil, nil, fmt.Errorf("connection string: %w", err)
-	}
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		return nil, nil, fmt.Errorf("open database: %w", err)
-	}
-	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
-		_ = testcontainers.TerminateContainer(container)
-		return nil, nil, fmt.Errorf("ping database: %w", err)
-	}
-	return container, db, nil
-}
-
-// startParserOracle returns the shared MySQL 8.0 oracle with an empty `test`
-// database selected. Used by the routine alignment oracle
-// (routine_alignment_test.go). The MariaDB 11.8 divergence inventory uses
-// startMariaDB (oracle_corpus_test.go) instead — repointing the routine oracle
-// to MariaDB is follow-up (P1+) work, out of PR1 scope.
-func startParserOracle(t *testing.T) *parserOracle {
-	t.Helper()
-	return sharedMySQL80.acquire(t, startMySQL80)
-}
-
 func TestMain(m *testing.M) {
 	code := m.Run()
-	sharedMySQL80.terminate()
 	sharedMariaDB118.terminate()
 	os.Exit(code)
 }
