@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -598,6 +599,12 @@ func (e *mariadbEngine) exists(t testing.TB, k walk.Key) (bool, string) {
 // temporary tables, so a rejected statement that changed one is noticed.
 // Each query names the databases, which keeps information_schema from
 // reading the system ones.
+//
+// Digest sorts each query's rows itself. information_schema compares names
+// under utf8mb3_general_ci, so tables a and A tie in an ORDER BY, and
+// MariaDB 11.8.8 can return tied rows in another order on the next read
+// when only a statement it rejected ran between. MySQL compares them under
+// utf8mb3_bin and has no such tie.
 func (e *mariadbEngine) Digest(t testing.TB) string {
 	t.Helper()
 	var b strings.Builder
@@ -613,22 +620,31 @@ func (e *mariadbEngine) Digest(t testing.TB) string {
 		for i := range vals {
 			ptrs[i] = &vals[i]
 		}
-		var first []string
+		var first, lines []string
 		for rows.Next() {
 			if err := rows.Scan(ptrs...); err != nil {
 				t.Fatal(err)
 			}
 			first = append(first, vals[0].String)
+			var line strings.Builder
 			for _, v := range vals {
-				b.WriteString(v.String)
-				b.WriteByte(0)
+				line.WriteString(v.String)
+				line.WriteByte(0)
 			}
+			lines = append(lines, line.String())
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatalf("%s: %v", query, err)
+		}
+		slices.Sort(lines)
+		for _, l := range lines {
+			b.WriteString(l)
 			b.WriteByte('\n')
 		}
 		return first
 	}
-	read(e.conn, "SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%' ORDER BY 1, 2")
-	dbs := read(e.db, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys') ORDER BY 1")
+	read(e.conn, "SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_TYPE LIKE 'TEMPORARY%'")
+	dbs := read(e.db, "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')")
 	if len(dbs) == 0 {
 		return b.String()
 	}
@@ -638,13 +654,13 @@ func (e *mariadbEngine) Digest(t testing.TB) string {
 		args[i] = d
 	}
 	for _, q := range []string{
-		"SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-		"SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN " + in + " ORDER BY 1, 2, 3, 4",
-		"SELECT CONSTRAINT_SCHEMA, CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT TRIGGER_SCHEMA, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN " + in + " ORDER BY 1, 2",
-		"SELECT ROUTINE_SCHEMA, ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN " + in + " ORDER BY 1, 2, 3",
-		"SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN " + in + " ORDER BY 1, 2",
+		"SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN " + in,
+		"SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA IN " + in,
+		"SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA IN " + in,
+		"SELECT CONSTRAINT_SCHEMA, CONSTRAINT_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA IN " + in,
+		"SELECT TRIGGER_SCHEMA, TRIGGER_NAME FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA IN " + in,
+		"SELECT ROUTINE_SCHEMA, ROUTINE_TYPE, ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA IN " + in,
+		"SELECT EVENT_SCHEMA, EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA IN " + in,
 	} {
 		read(e.db, q, args...)
 	}
@@ -716,6 +732,40 @@ func syncWalk(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 	}
 	schema.Tables = tables
 	return out
+}
+
+// TestWalkThroughDigestMariaDB holds Digest to one value while statements
+// MariaDB rejects run between reads, over tables whose names differ only in
+// case. A digest that moved would make Judge take each of them for a
+// partial rejection.
+func TestWalkThroughDigestMariaDB(t *testing.T) {
+	db := startWalkMariaDB(t)
+	resetWalk(t, db, "")
+	ctx := context.Background()
+	conn := session(t, db)
+	for _, q := range []string{
+		"USE shop",
+		"CREATE TABLE a (x int, y int)",
+		"CREATE TABLE A (x int, y int) WITH SYSTEM VERSIONING",
+		"CREATE TABLE b (x int, KEY x (x))",
+		"CREATE TABLE B (x int, KEY x (x))",
+	} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	e := &mariadbEngine{conn: conn, db: db}
+	want := e.Digest(t)
+	rejected := []string{"RENAME TABLE s TO a, s TO b", "DROP SEQUENCE b, b", "TRUNCATE TABLE nosuch"}
+	for i := range 300 {
+		stmt := rejected[i%len(rejected)]
+		if _, err := conn.ExecContext(ctx, stmt); err == nil {
+			t.Fatalf("MariaDB ran %q", stmt)
+		}
+		if e.Digest(t) != want {
+			t.Fatalf("the digest moved on read %d, after %q, which MariaDB rejects", i+1, stmt)
+		}
+	}
 }
 
 // TestWalkThroughSweepMariaDB runs random changes over a small pool of
