@@ -122,12 +122,11 @@ Write SQL keywords that are not quoted from the statement in upper case inside a
 
 ### 4.4 Naming objects
 
-- **As the engine reads it.** A name appears the way the engine reads the SQL:
+- **In a form the engine reads back as the same object.** A name appears:
   - qualified exactly as the SQL qualified it;
-  - an unquoted name folded the way the engine folds it, so lower case on PostgreSQL and upper case on Oracle and Snowflake;
   - quoted only when the engine needs the quotes to read it back.
 
-  Most names carry no source position, so writing them exactly as typed would mean re-reading the source for every name. The folded form is also what the engine's own catalog shows.
+  Each engine renders an unquoted name its own way: PostgreSQL folds it to lower case and Oracle to upper case, as their catalogs store it, while the others keep the SQL's case. Every one of these forms reads back as the same object. Writing every name exactly as typed would mean re-reading the source for each one, since most names carry no source position.
 - **As the engine stores it.** An object the SQL does not name, such as a foreign key found through the synced schema, appears as the engine stores it.
 - **Kind words.** Use one term per kind across engines:
   - `table`, `view`, `materialized view`, `column`, `index`, `sequence`, `schema`, `database`, `function`, `procedure`, `trigger`;
