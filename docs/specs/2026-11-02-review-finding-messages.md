@@ -390,6 +390,7 @@ Decided 2026-11-02:
 Each finding carries a code that names the specific condition it reports. The code is a field, never part of the message text.
 
 - **Two levels.** The rule, one of the 11 switches, stays the unit a project turns on and off. Under it, a code names one condition: `WT101` is "object doesn't exist".
+- **One code per way of handling it.** Conditions a reader handles the same way share a code; the message names the object kind and the cause. For a P1 rule the reader weighs a risk, so a rule has several codes only where the risk differs: DISALLOW_DROP_OBJECT separates dropping data, dropping a definition the change could create again, and dropping access. WALK_THROUGH keeps its hundreds digit as the condition (1 doesn't exist, 2 name taken, 3 another kind, 4 other), so a finer code can be added later without renumbering. Appendix C lists the 40 codes.
 - **Format.** A code is a two-letter rule prefix and three digits:
   - `SY` SYNTAX, `WT` WALK_THROUGH, `OM` ONLINE_MIGRATION, `PB` PRIOR_BACKUP;
   - `NU` REQUIRE_IS_NULL, `WH` REQUIRE_WHERE;
@@ -397,11 +398,11 @@ Each finding carries a code that names the specific condition it reports. The co
   - `PK` REQUIRE_PRIMARY_KEY.
 
   Each code also has a readable name, such as `WT101 object-not-found`.
-- **Engine-neutral.** A code means the same condition on every engine. MySQL 1146, PostgreSQL 42P01, ORA-00942, and SQL Server 208 are all `WT101`. A condition only one engine has gets its own code, and its documentation names the engine.
+- **Engine-neutral.** A code means the same condition on every engine. MySQL 1146, PostgreSQL 42P01, ORA-00942, and SQL Server 208 are all `WT101`. A condition only one engine has gets its own code only when its handling differs, and its documentation names the engine.
 - **Stable.** A published code is never renumbered or reused. A code no longer reported stays documented as such.
-- **Merged findings.** A finding that lists several reasons (§4.7) carries one code per reason.
+- **Merged findings.** A finding that lists several reasons (§4.7) carries one code per reason. Reasons sharing a code give it once.
 - **Where it lives.**
-  - omni adds `Finding.Code` (or `Codes`) and a code table in `review`.
+  - omni: `Finding.Codes`, at least one per finding, each of the finding's rule; the table in `review/codes.go` (`Codes()`, `FindingCode.Info`), which is the source of truth for Appendix C. An engine reports a code, and the rule follows from it.
   - Bytebase stores the code in the comment's review metadata and shows it as a chip that links to the code's page.
   - The page has the explanation, examples per engine, the fix, and the engine error codes it corresponds to.
 
@@ -475,3 +476,50 @@ These phrases are exact; engines differ only in the names.
 | | no name | ``Drops the primary key of `t`.``, ``Drops a unique constraint of `t`.``, ``Drops the unique constraint on (`a`, `b`) of `t`.`` |
 | DISALLOW_RENAME | ``Renames <kind> <Code(old)> to <Code(new)>.`` / ``Renames column <Code(old)> of <Code(table)> to <Code(new)>.`` | ``Renames table `logs` to `audit_logs`.``, ``Renames column `status` of `orders` to `state`.``, ``Swaps the names of tables `t` and `p`.`` |
 | REQUIRE_PRIMARY_KEY | ``Creates table <Code(t)> without a primary key.`` / ``Removes the primary key of <Code(t)>, and the change doesn't add one back.`` | |
+
+## Appendix C: finding codes
+
+The table in `review/codes.go` is the source of truth; this copy says what each code covers.
+
+| Code | Name | Title | Covers | Handling |
+| --- | --- | --- | --- | --- |
+| SY101 | `syntax-error` | Statement doesn't parse | Any statement the engine's parser refuses. `SY2xx` is reserved for syntax hints (§10). | Fix the syntax |
+| WT101 | `object-not-found` | Object doesn't exist | A table, view, sequence, synonym, column, index, constraint, primary key, schema, database, routine, trigger, type, or event the statement needs doesn't exist, in the synced schema or after an earlier statement dropped or renamed it. | Correct the name, or create the object earlier in the change |
+| WT201 | `name-taken` | Name is already taken | The name the statement creates or renames to is taken in its namespace, including a second primary key and a row type's name. | Choose another name, drop the old object first, or use `IF NOT EXISTS` |
+| WT301 | `wrong-object-kind` | Object is of another kind | The name is a view where a table is needed, a table where an index is needed, a routine or type of another kind, and so on. | Use the statement for the object's kind |
+| WT401 | `duplicate-name` | Statement uses one name twice | One statement adds, declares, or drops the same name twice. | Remove the repeat |
+| WT402 | `no-current-schema` | No database or schema selected | An unqualified name has no current database or schema to resolve in. | Qualify the name, or select a database |
+| WT403 | `name-too-long` | Name is too long | An identifier is longer than the engine allows. | Shorten it |
+| WT404 | `reserved-name` | Name is reserved | An index named `PRIMARY`, a schema named `pg_…`, a column named like a system column. | Choose another name |
+| WT405 | `schema-not-empty` | Schema still holds objects | `DROP SCHEMA` without `CASCADE` of a schema that holds objects. | Drop its objects first, or add `CASCADE` |
+| WT406 | `system-column` | System column can't be changed | The statement drops, alters, or renames a system column (PostgreSQL). | Leave the column alone |
+| WT407 | `cross-database-reference` | Name refers to another database | A name qualified with another database, which PostgreSQL refuses. | Name an object of this database |
+| WT408 | `unsupported-form` | Engine rejects this form of statement | Clauses or objects the engine refuses together, such as `DROP INDEX CONCURRENTLY` with `CASCADE`. | Split or rewrite the statement |
+| WT409 | `not-first-in-batch` | Statement must start its batch | SQL Server `CREATE VIEW`, `PROCEDURE`, `FUNCTION`, `TRIGGER`, or `SCHEMA` not first in its batch. | Put `GO` before it |
+| WT410 | `trigger-schema-mismatch` | Trigger and table are in different schemas | A SQL Server DML trigger in another schema than its table. | Create it in the table's schema |
+| WT411 | `index-backs-constraint` | Index belongs to a constraint | SQL Server `DROP INDEX` of an index that enforces a primary key or unique constraint. | Drop the constraint instead |
+| OM101 | `online-migration-unsupported` | Engine has no online migration | Online migration asked for on PostgreSQL, TiDB, SQL Server, Oracle, or Snowflake. | Turn off **Online migration** |
+| OM102 | `directive-invalid` | gh-ost directive is invalid | The directive is not a JSON object of strings, sets a flag Bytebase doesn't pass, a value of the wrong type or range, or flags that conflict. | Fix the directive |
+| OM103 | `unsupported-change` | Change doesn't fit online migration | Several statements, a statement other than `ALTER TABLE`, an `ALTER` that renames the table, names another database's table, or targets a view. | Make it one `ALTER TABLE` of a table in this database |
+| OM104 | `ghost-column-rename` | gh-ost can't rename the column | `CHANGE` that renames, a column name with whitespace, `RENAME COLUMN` (which loses the column's data). | Rename the column without online migration |
+| OM105 | `archive-database-missing` | Backup database doesn't exist | The instance has no `bbdataarchive` database for gh-ost's tables. | Create it, or turn off **Online migration** |
+| OM106 | `table-not-eligible` | Table doesn't meet gh-ost's requirements | No usable primary or unique key, a foreign key, a referencing foreign key, or a trigger. | Fix the table, or migrate without online migration |
+| PB101 | `prior-backup-unsupported` | Engine has no prior backup | Prior backup enabled on Snowflake or OceanBase. | Turn off **Prior backup** |
+| PB102 | `change-too-large` | Change exceeds the backup size limit | The change's SQL is larger than prior backup handles. | Split the change, or turn off **Prior backup** |
+| PB103 | `backup-location-missing` | Backup database or schema doesn't exist | No `bbdataarchive` database, or schema in PostgreSQL. | Create it, or turn off **Prior backup** |
+| PB104 | `nothing-to-back-up` | Change has nothing to back up | No top-level `UPDATE` or `DELETE` of a table (Oracle fails the backup). | Turn off **Prior backup** |
+| PB105 | `statements-share-backup` | Statements can't share one backup | One table both updated and deleted, statements needing different `WITH` clauses or aliases, or more statements than the engine's backup takes together. | Split the change |
+| PB106 | `backup-reads-wrong-table` | Backup may read another table | The target isn't found in its `FROM` list, a `WITH` query shadows it, or the backup's search path finds another table. | Qualify the name, or match the alias |
+| PB107 | `table-not-backupable` | Table can't be backed up | A table in another database or behind a database link, a view, a table variable or `WITH` query target, a name with a quote, a `LONG` column. | Turn off **Prior backup** for this change |
+| PB108 | `statement-not-backupable` | Statement form can't be backed up | A data-modifying `WITH`, `WHERE CURRENT OF`, `WITH XMLNAMESPACES`, `TOP`, `RETURNING`, TiDB `BATCH`, `REPLACE` or upsert, `EXPLAIN ANALYZE`. | Rewrite the statement, or turn off **Prior backup** |
+| PB109 | `backup-reads-new-object` | Backup reads what the change creates | The backup runs before the change and reads a relation, column, function, or role the change creates. | Create the object in an earlier change |
+| NU101 | `null-comparison` | Comparison with NULL is never true | `= NULL`, `<> NULL`, `!=` and the like, and an Oracle comparison with `''`, which Oracle reads as NULL. | Use `IS NULL` or `IS NOT NULL` |
+| WH101 | `missing-where` | UPDATE or DELETE has no WHERE clause | An `UPDATE` or `DELETE` of any target form without `WHERE`. | Add a `WHERE`, or accept a whole-table change |
+| DO101 | `drops-data` | Drops data | Drops a table, column, partition, sequence, schema, or database, MariaDB system versioning, or PostgreSQL `DROP OWNED`. | Accept the data loss, or keep the object |
+| DO102 | `drops-definition` | Drops a definition | Drops a view, index, routine, trigger, type, or another object the change could create again. | Check what depends on it |
+| DO103 | `drops-access` | Drops a user, role, or security object | Drops a user, role, login, policy, key, certificate, credential, audit, user mapping, or signature. | Check who loses access |
+| TR101 | `truncates-data` | Truncates data | `TRUNCATE` of tables, partitions, a cluster, a materialized view, or an error table. | Accept the data loss |
+| DC101 | `drops-constraint` | Drops a constraint | Drops a primary key, foreign key, unique, check, or other constraint. | Check the data stays valid without it |
+| RN101 | `renames-object` | Renames a table, view, or column | Renames a table, view, or column, or swaps two tables' names. | Update what reads the old name |
+| PK101 | `table-without-primary-key` | Creates a table without a primary key | A `CREATE TABLE` whose table ends the change without a primary key, reported on the `CREATE`. | Declare a primary key |
+| PK102 | `primary-key-removed` | Removes a table's primary key | A statement drops a table's primary key, by name, keyword, or column, and the change doesn't add one back; reported on the drop. | Keep the key, or add one back |
