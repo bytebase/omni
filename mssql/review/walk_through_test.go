@@ -65,6 +65,9 @@ func walkFindings(t *testing.T, sql string, targets ...review.Target) []review.F
 		t.Fatal(err)
 	}
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
 		if f.Rule == review.Syntax {
 			t.Fatalf("syntax: %s\n%s", f.Message, sql)
 		}

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/mssql/ast"
+	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
 )
 
@@ -245,7 +246,7 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	// The table is looked up first, in the default schema and then dbo
 	// when unqualified, never the trigger's (8197, 1088; verified).
 	if v.Name.Schema != "" && t.where == placed && differ(v.Name.Schema, t.schema.spelling) && b.see(spaceRelation, t.parent, t.n).fact != walk.Absent {
-		b.fail(rangeOf(v.Name.Loc), "trigger "+object(v.Name)+" must be in the schema of its table "+t.written)
+		b.fail(rangeOf(v.Name.Loc), review.TriggerSchemaMismatch, "trigger "+object(v.Name)+" must be in the schema of its table "+t.written)
 		return true
 	}
 	b.tableNeeds(t, []string{kindTable, kindView}, msgMissing("table", t.written), msgNotKind(t.written, "table or view"))

@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -31,6 +32,9 @@ func run(t *testing.T, rule review.Rule, sql string, change review.Change, targe
 	}
 	var got []finding
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
 		if f.Rule == review.Syntax && rule != review.Syntax {
 			t.Fatalf("syntax finding: %s", f.Message)
 		}
@@ -697,5 +701,169 @@ func TestStatementRanges(t *testing.T) {
 	want := []string{"SELECT 1", "UPDATE t SET n = 1 WHERE id = 1", "DELETE FROM t WHERE id = 2"}
 	if !slices.Equal(got, want) {
 		t.Errorf("statements = %q, want %q", got, want)
+	}
+}
+
+// TestFindingCodes pins the code of every condition the package reports:
+// a case's findings, in order, are all of its rule, and each carries
+// exactly the one code listed for it.
+func TestFindingCodes(t *testing.T) {
+	backup := review.Change{PriorBackup: true, MaxBackupSize: 1 << 20}
+	walks := []review.Target{walkTarget()}
+	repeat := func(code review.FindingCode, n int) []review.FindingCode {
+		return slices.Repeat([]review.FindingCode{code}, n)
+	}
+	tests := []struct {
+		name    string
+		rule    review.Rule
+		sql     string
+		change  review.Change
+		targets []review.Target // nil: shop, with its backup database
+		want    []review.FindingCode
+	}{
+		{name: "syntax error", rule: review.Syntax, sql: "SELECT 1;\nSELEC 2;", want: []review.FindingCode{review.SyntaxError}},
+
+		{name: "online migration", rule: review.OnlineMigration, sql: "ALTER TABLE t ADD m INT;", change: review.Change{OnlineMigration: true}, want: []review.FindingCode{review.OnlineMigrationUnsupported}},
+
+		{name: "comparison with NULL", rule: review.RequireIsNull, sql: "SELECT * FROM t WHERE n = NULL OR n <> NULL;", want: repeat(review.NullComparison, 2)},
+
+		{name: "no WHERE", rule: review.RequireWhere, sql: "UPDATE t SET n = 1;\nDELETE FROM t;", want: repeat(review.MissingWhere, 2)},
+
+		{
+			name: "drops of data",
+			rule: review.DisallowDropObject,
+			sql:  "DROP TABLE t;\nDROP SCHEMA s;\nDROP DATABASE d;\nDROP SEQUENCE q;\nALTER TABLE t DROP COLUMN n;",
+			want: repeat(review.DropsData, 5),
+		},
+		{
+			name: "drops of definitions",
+			rule: review.DisallowDropObject,
+			sql:  "DROP VIEW v;\nDROP INDEX ix_n ON t;\nDROP PROCEDURE pr;\nDROP TYPE ty;\nDROP SYNONYM sy;\nDROP STATISTICS t.s1;\nDROP ASSEMBLY a;\nDROP PARTITION FUNCTION pf;\nDROP PARTITION SCHEME ps;\nDROP DEFAULT d;\nDROP RULE r;\nDROP QUEUE dbo.q;",
+			want: repeat(review.DropsDefinition, 12),
+		},
+		{
+			name: "drops of access",
+			rule: review.DisallowDropObject,
+			sql:  "DROP USER u;\nDROP LOGIN l;\nDROP ROLE r;\nDROP APPLICATION ROLE ar;\nDROP SYMMETRIC KEY k;\nDROP MASTER KEY;\nDROP CERTIFICATE c;\nDROP CREDENTIAL cr;\nDROP DATABASE SCOPED CREDENTIAL dcr;\nDROP SERVER AUDIT a;\nDROP DATABASE AUDIT SPECIFICATION das;\nDROP SECURITY POLICY sp;\nDROP SIGNATURE FROM pr BY CERTIFICATE c1;\nDROP COUNTER SIGNATURE FROM pr BY CERTIFICATE c1;\nDROP SENSITIVITY CLASSIFICATION FROM dbo.t.n;",
+			want: repeat(review.DropsAccess, 15),
+		},
+
+		{name: "truncate", rule: review.DisallowTruncate, sql: "TRUNCATE TABLE t;\nTRUNCATE TABLE t WITH (PARTITIONS (1));", want: repeat(review.TruncatesData, 2)},
+
+		{
+			name: "drops of a constraint the change made and a synced one",
+			rule: review.DisallowDropConstraint,
+			sql:  "CREATE TABLE x (a INT CONSTRAINT ck_x CHECK (a > 0));\nALTER TABLE x DROP CONSTRAINT ck_x;\nALTER TABLE t DROP CONSTRAINT ck_n;",
+			want: repeat(review.DropsConstraint, 2),
+		},
+
+		{
+			name: "renames",
+			rule: review.DisallowRename,
+			sql:  "EXEC sp_rename 'dbo.t.n', 'm', 'COLUMN';\nRENAME OBJECT dbo.p TO p2;\nEXEC sp_rename 'dbo.v', 'v2';",
+			want: repeat(review.RenamesObject, 3),
+		},
+
+		{name: "a table without a primary key", rule: review.RequirePrimaryKey, sql: "CREATE TABLE x (a INT);", want: []review.FindingCode{review.TableWithoutPrimaryKey}},
+		{name: "a primary key removed", rule: review.RequirePrimaryKey, sql: "ALTER TABLE t DROP CONSTRAINT pk_t;", want: []review.FindingCode{review.PrimaryKeyRemoved}},
+
+		{
+			name:   "a change over the backup size",
+			rule:   review.PriorBackup,
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;",
+			change: review.Change{PriorBackup: true, MaxBackupSize: 8},
+			want:   []review.FindingCode{review.ChangeTooLarge},
+		},
+		{
+			name:    "no backup database",
+			rule:    review.PriorBackup,
+			sql:     "UPDATE t SET n = 1 WHERE id = 1;",
+			change:  backup,
+			targets: []review.Target{{Schema: shop()}},
+			want:    []review.FindingCode{review.BackupLocationMissing},
+		},
+		{
+			name:   "statements that cannot share a backup",
+			rule:   review.PriorBackup,
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM dbo.t WHERE id = 2;\nWITH a AS (SELECT 1 AS id) UPDATE p SET note = '' WHERE id IN (SELECT id FROM a);\nUPDATE p SET note = 'x' WHERE id = 2;",
+			change: backup,
+			want:   repeat(review.StatementsShareBackup, 2),
+		},
+		{
+			name:   "a FROM list without the target",
+			rule:   review.PriorBackup,
+			sql:    "UPDATE dbo.t SET n = p.id FROM dbo.p AS p;",
+			change: backup,
+			want:   []review.FindingCode{review.BackupReadsWrongTable},
+		},
+		{
+			name:   "targets the backup cannot copy",
+			rule:   review.PriorBackup,
+			sql:    "DECLARE @v TABLE (id INT);\nUPDATE @v SET id = 1 WHERE id = 2;\nWITH c AS (SELECT * FROM t) DELETE FROM c WHERE id = 1;",
+			change: backup,
+			want:   repeat(review.TableNotBackupable, 2),
+		},
+		{
+			name:   "statement forms the backup cannot copy",
+			rule:   review.PriorBackup,
+			sql:    "UPDATE TOP (3) p SET note = '' WHERE id > 0;\nDELETE FROM t WHERE CURRENT OF cur;\nWITH XMLNAMESPACES ('urn:x' AS x) UPDATE t SET n = 1 WHERE id = 1;",
+			change: backup,
+			want:   repeat(review.StatementNotBackupable, 3),
+		},
+		{
+			name:   "a table and a column the change makes",
+			rule:   review.PriorBackup,
+			sql:    "CREATE TABLE n2 (id INT PRIMARY KEY);\nUPDATE n2 SET id = 2 WHERE id = 1;\nALTER TABLE nokey ADD gone INT;\nDELETE FROM nokey WHERE gone = 1;",
+			change: backup,
+			want:   repeat(review.BackupReadsNewObject, 2),
+		},
+
+		{name: "a missing table", rule: review.WalkThrough, sql: "DROP TABLE dbo.nosuch;", targets: walks, want: []review.FindingCode{review.ObjectNotFound}},
+		{name: "a missing column", rule: review.WalkThrough, sql: "ALTER TABLE dbo.t DROP COLUMN nosuch;", targets: walks, want: []review.FindingCode{review.ObjectNotFound}},
+		{name: "a missing schema", rule: review.WalkThrough, sql: "CREATE TABLE nosuch.x (a INT);", targets: walks, want: []review.FindingCode{review.ObjectNotFound}},
+		{name: "an index on a missing table", rule: review.WalkThrough, sql: "DROP INDEX ix ON dbo.nosuch;", targets: walks, want: []review.FindingCode{review.ObjectNotFound}},
+		{name: "a missing constraint", rule: review.WalkThrough, sql: "ALTER TABLE dbo.t DROP CONSTRAINT nosuch;", targets: walks, want: []review.FindingCode{review.ObjectNotFound}},
+		{name: "a taken name", rule: review.WalkThrough, sql: "CREATE TABLE dbo.t (a INT);", targets: walks, want: []review.FindingCode{review.NameTaken}},
+		{name: "a taken index name", rule: review.WalkThrough, sql: "CREATE INDEX ix_a ON dbo.t (b);", targets: walks, want: []review.FindingCode{review.NameTaken}},
+		{name: "a second primary key", rule: review.WalkThrough, sql: "ALTER TABLE dbo.t ADD CONSTRAINT pk2 PRIMARY KEY (id);", targets: walks, want: []review.FindingCode{review.NameTaken}},
+		{name: "two primary keys in one statement", rule: review.WalkThrough, sql: "CREATE TABLE dbo.x (a INT PRIMARY KEY, b INT PRIMARY KEY);", targets: walks, want: []review.FindingCode{review.NameTaken}},
+		{name: "another kind", rule: review.WalkThrough, sql: "DROP TABLE dbo.v;", targets: walks, want: []review.FindingCode{review.WrongObjectKind}},
+		{name: "a column named twice", rule: review.WalkThrough, sql: "CREATE TABLE dbo.x (a INT, a INT);", targets: walks, want: []review.FindingCode{review.DuplicateName}},
+		{name: "a constraint named like its table", rule: review.WalkThrough, sql: "CREATE TABLE dbo.x (a INT CONSTRAINT x CHECK (a > 0));", targets: walks, want: []review.FindingCode{review.DuplicateName}},
+		{name: "a table dropped twice", rule: review.WalkThrough, sql: "DROP TABLE dbo.r, dbo.r;", targets: walks, want: []review.FindingCode{review.DuplicateName}},
+		{name: "a name too long", rule: review.WalkThrough, sql: "CREATE TABLE dbo." + strings.Repeat("a", 129) + " (a INT);", targets: walks, want: []review.FindingCode{review.NameTooLong}},
+		{name: "a schema that holds objects", rule: review.WalkThrough, sql: "DROP SCHEMA s;", targets: walks, want: []review.FindingCode{review.SchemaNotEmpty}},
+		{name: "a view not first in its batch", rule: review.WalkThrough, sql: "CREATE TABLE dbo.x (a INT);\nCREATE VIEW dbo.w AS SELECT 1 AS a;", targets: walks, want: []review.FindingCode{review.NotFirstInBatch}},
+		{name: "a trigger in another schema", rule: review.WalkThrough, sql: "CREATE TRIGGER s.tr ON dbo.t AFTER INSERT AS SELECT 1;", targets: walks, want: []review.FindingCode{review.TriggerSchemaMismatch}},
+		{name: "an index that backs a constraint", rule: review.WalkThrough, sql: "DROP INDEX pk_t ON dbo.t;", targets: walks, want: []review.FindingCode{review.IndexBacksConstraint}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targets := tt.targets
+			if targets == nil {
+				targets = []review.Target{{Schema: shop(), BackupDatabaseExists: true}}
+			}
+			result, err := Review(context.Background(), tt.sql, review.Options{Rules: []review.Rule{tt.rule}, Change: tt.change}, targets)
+			if err != nil {
+				t.Fatalf("Review: %v", err)
+			}
+			var got [][]review.FindingCode
+			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
+				if f.Rule != tt.rule {
+					t.Errorf("finding of %s, want %s: %s", f.Rule, tt.rule, f.Message)
+				}
+				got = append(got, f.Codes)
+			}
+			var want [][]review.FindingCode
+			for _, c := range tt.want {
+				want = append(want, []review.FindingCode{c})
+			}
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("codes mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

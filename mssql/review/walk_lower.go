@@ -93,6 +93,13 @@ func note(rng review.Range, absent, present string) *walkNote {
 	return &walkNote{rng: rng, absent: absent, present: present}
 }
 
+// as fixes the note's code, for a Fail or a check whose violation is
+// another condition than its facts name.
+func (n *walkNote) as(code review.FindingCode) *walkNote {
+	n.fixed = code
+	return n
+}
+
 // goStmt follows a GO, which ends a batch. Bytebase splits only at a GO
 // alone on its line, and repeats the batch for a count; omni parses GO
 // anywhere a statement may start, so a GO Bytebase would not split at, or
@@ -159,7 +166,7 @@ func (b *builder) first(loc ast.Loc, what string) bool {
 	if b.w.batch[b.s.index].first || b.optional {
 		return true
 	}
-	b.fail(rangeOf(loc), what+" must be the first statement in its batch")
+	b.fail(rangeOf(loc), review.NotFirstInBatch, what+" must be the first statement in its batch")
 	return false
 }
 
@@ -258,7 +265,7 @@ func (b *builder) dropSchema(v *ast.DropStmt) bool {
 	single := b.schemaKnown(sn)
 	if single && s.fact == walk.Present {
 		if k, ok := b.heldObject(sn); ok {
-			b.Fail([]walk.Key{k}, walk.Present, note(rng, "", "schema "+ident(tr.Object)+" still holds objects"))
+			b.Fail([]walk.Key{k}, walk.Present, note(rng, "", "schema "+ident(tr.Object)+" still holds objects").as(review.SchemaNotEmpty))
 		}
 	}
 	b.leave(spaceSchema, root, sn)

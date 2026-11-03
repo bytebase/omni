@@ -134,7 +134,7 @@ func isSpace(c byte) bool {
 // the finding's range starts and ends at that offset, which the caller
 // anchors to its line. Any other error addresses the whole change.
 func syntaxFinding(err error, ranges []review.Range) *review.Finding {
-	f := &review.Finding{Rule: review.Syntax, Statement: -1, Message: escapeLines(err.Error())}
+	f := &review.Finding{Rule: review.Syntax, Statement: -1, Codes: []review.FindingCode{review.SyntaxError}, Message: escapeLines(err.Error())}
 	var perr *parser.ParseError
 	if errors.As(err, &perr) {
 		f.Message = escapeLines(perr.Message)
