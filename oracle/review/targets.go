@@ -92,10 +92,14 @@ func reviewTargets(ctx context.Context, stmts []statement, work targetWork, targ
 		return nil, nil, err
 	}
 
+	// Findings merge only when they report the same conditions: one
+	// message can stand for a name missing on one target and of another
+	// kind on the other, and those stay two findings.
 	type key struct {
 		rule      review.Rule
 		statement int
 		rng       review.Range
+		codes     string
 		message   string
 	}
 	merged := make(map[key]int)
@@ -109,17 +113,9 @@ func reviewTargets(ctx context.Context, stmts []statement, work targetWork, targ
 			continue
 		}
 		for _, f := range o.findings {
-			k := key{f.Rule, f.Statement, f.Range, f.Message}
+			k := key{f.Rule, f.Statement, f.Range, fmt.Sprint(f.Codes), f.Message}
 			if j, ok := merged[k]; ok {
 				findings[j].Targets = append(findings[j].Targets, f.Targets...)
-				// One message may stand for different conditions on
-				// different targets, such as a name missing on one and of
-				// another kind on the other: the finding keeps each code.
-				for _, c := range f.Codes {
-					if !slices.Contains(findings[j].Codes, c) {
-						findings[j].Codes = append(findings[j].Codes, c)
-					}
-				}
 				continue
 			}
 			merged[k] = len(findings)

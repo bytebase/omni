@@ -635,13 +635,13 @@ func TestFindingCodes(t *testing.T) {
 		},
 		{
 			name: "drops of data",
-			sql:  "DROP TABLE t;\nDROP DYNAMIC TABLE dt;\nDROP EXTERNAL TABLE et;\nDROP SEQUENCE sq;\nDROP SCHEMA s;\nDROP DATABASE d;\nALTER TABLE t DROP COLUMN n;",
-			want: repeat(7, c(review.DisallowDropObject, review.DropsData)),
+			sql:  "DROP TABLE t;\nDROP SEQUENCE sq;\nDROP SCHEMA s;\nDROP DATABASE d;\nALTER TABLE t DROP COLUMN n;",
+			want: repeat(5, c(review.DisallowDropObject, review.DropsData)),
 		},
 		{
 			name: "drops of definitions",
-			sql:  "DROP VIEW v;\nDROP MATERIALIZED VIEW mv;\nDROP STAGE st;\nDROP PIPE pp;\nDROP STREAM sm;\nDROP TASK tk;\nDROP WAREHOUSE w;\nDROP FUNCTION f(NUMBER);\nDROP PROCEDURE pr();",
-			want: repeat(9, c(review.DisallowDropObject, review.DropsDefinition)),
+			sql:  "DROP VIEW v;\nDROP MATERIALIZED VIEW mv;\nDROP DYNAMIC TABLE dt;\nDROP EXTERNAL TABLE et;\nDROP STAGE st;\nDROP PIPE pp;\nDROP STREAM sm;\nDROP TASK tk;\nDROP WAREHOUSE w;\nDROP FUNCTION f(NUMBER);\nDROP PROCEDURE pr();",
+			want: repeat(11, c(review.DisallowDropObject, review.DropsDefinition)),
 		},
 		{
 			name: "drops of access",

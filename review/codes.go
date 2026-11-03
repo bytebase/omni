@@ -159,7 +159,8 @@ func (c FindingCode) Rule() Rule {
 // kind a message names it by, such as "table" or "materialized view": data
 // is lost with a table, column, partition, sequence, schema, or database;
 // access with a user, role, or security object; anything else is a
-// definition the change could create again.
+// definition the change could create again, including a table whose rows
+// live outside it.
 func DropCode(kind string) FindingCode {
 	k := strings.ToLower(kind)
 	switch {
@@ -183,9 +184,11 @@ var dropsData = map[string]bool{
 	"objects owned by": true, "unused columns": true,
 }
 
-// dropsDefinition are the kinds a suffix rule would misfile: a placement
-// policy says where data lives, not who may read it.
-var dropsDefinition = map[string]bool{"placement policy": true}
+// dropsDefinition are the kinds a suffix rule would misfile: an external
+// table's rows stay in the files it reads and a dynamic table's come back
+// from its query, and a placement policy says where data lives, not who
+// may read it.
+var dropsDefinition = map[string]bool{"external table": true, "dynamic table": true, "placement policy": true}
 
 // dropsAccess are the kinds whose drop takes away who may connect or what
 // they may see, beyond the "... policy", "... key", "... role",

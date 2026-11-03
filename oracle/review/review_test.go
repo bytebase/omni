@@ -798,11 +798,11 @@ func TestFindingCodes(t *testing.T) {
 		{name: "constraint dropped twice", rule: review.WalkThrough, sql: "ALTER TABLE t DROP CONSTRAINT ck_n DROP CONSTRAINT ck_n;", targets: walked, want: []C{{review.DuplicateName}}},
 		{name: "identifier too long", rule: review.WalkThrough, sql: "CREATE TABLE " + strings.Repeat("a", 129) + " (a NUMBER);", targets: walked, want: []C{{review.NameTooLong}}},
 		{
-			name:    "one message, a missing name on one target and another kind on the other",
+			name:    "one message for a missing name on one target and another kind on the other is two findings",
 			rule:    review.WalkThrough,
 			sql:     "DROP TABLE IF EXISTS pv;\nDROP SYNONYM pv;",
 			targets: []review.Target{{Schema: pvTable}, {Schema: walkSchema(false)}},
-			want:    []C{{review.ObjectNotFound, review.WrongObjectKind}},
+			want:    []C{{review.ObjectNotFound}, {review.WrongObjectKind}},
 		},
 
 		{name: "online migration", rule: review.OnlineMigration, sql: "ALTER TABLE t ADD (m NUMBER);", change: review.Change{OnlineMigration: true}, want: []C{{review.OnlineMigrationUnsupported}}},
