@@ -169,7 +169,14 @@ func TestExecCommentLoc_Tokens(t *testing.T) {
 		t.Fatalf("token count %d, want %d", len(toks), len(blank))
 	}
 	for i := range toks {
-		if toks[i] != blank[i] {
+		// MySQLOnly marks the tokens of /*!80000 ... */, which MariaDB skips
+		// for its MySQL version, and not those of the unversioned /*! ... */.
+		if want := i < 6; toks[i].MySQLOnly != want {
+			t.Errorf("token %d %q: MySQLOnly = %v, want %v", i, got[i], toks[i].MySQLOnly, want)
+		}
+		tok := toks[i]
+		tok.MySQLOnly = false
+		if tok != blank[i] {
 			t.Errorf("token %d = %+v, want %+v", i, toks[i], blank[i])
 		}
 	}

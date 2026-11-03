@@ -560,7 +560,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			applyIndexOptions(pkIdx, con.IndexOptions)
 			if !pkIdx.Visible {
-				return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+				return errPKIndexCantBeIgnored()
 			}
 			tbl.Indexes = append(tbl.Indexes, pkIdx)
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -781,6 +781,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	c.analyzeTableExpressions(tbl, stmt)
 
 	if err := validateWithoutOverlaps(tbl); err != nil {
+		return err
+	}
+	if err := validateIgnoredPrimaryKey(tbl, true); err != nil {
 		return err
 	}
 
@@ -2150,8 +2153,14 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 	return ""
 }
 
-// applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
+// applyIndexOptions extracts COMMENT, [NOT] IGNORED, and KEY_BLOCK_SIZE
 // from AST IndexOptions and applies them to the given Index.
+//
+// Index.Visible is false for a MariaDB IGNORED index. The last ignorability
+// written wins. VISIBLE changes nothing: MariaDB takes it for MySQL 8.0
+// compatibility only, so `IGNORED VISIBLE` stays ignored. Neither does an
+// INVISIBLE, which the parser lets through only inside a comment MariaDB skips
+// by its MySQL version, so MariaDB never reads it (verified on 11.8.8).
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 	for _, opt := range opts {
 		switch strings.ToUpper(opt.Name) {
@@ -2159,10 +2168,10 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
 				idx.Comment = s.Value
 			}
-		case "VISIBLE":
-			idx.Visible = true
-		case "INVISIBLE":
+		case "IGNORED":
 			idx.Visible = false
+		case "NOT IGNORED":
+			idx.Visible = true
 		case "KEY_BLOCK_SIZE":
 			switch n := opt.Value.(type) {
 			case *nodes.Integer:

@@ -472,20 +472,15 @@ ALTER TABLE t ALTER COLUMN a SET DEFAULT 5;`)
 		}
 	})
 
-	// --- AX.14 ALTER INDEX VISIBLE / INVISIBLE ---------------------------
+	// --- AX.14 ALTER INDEX [NOT] IGNORED --------------------------------
+	// MariaDB spells MySQL's ALTER INDEX ... INVISIBLE as IGNORED, which this
+	// file's MySQL 8.0 oracle refuses, so the case runs on the catalog alone;
+	// index_ignored_test.go holds the same statements to MariaDB 11.8.8.
 	t.Run("AX_14_AlterIndex_visibility", func(t *testing.T) {
-		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT, b INT, INDEX idx_a (a));
-ALTER TABLE t ALTER INDEX idx_a INVISIBLE;`)
-
-		var isVisible string
-		oracleScan(t, mc, `SELECT IS_VISIBLE FROM information_schema.STATISTICS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND INDEX_NAME='idx_a' LIMIT 1`, &isVisible)
-		if isVisible != "NO" {
-			t.Errorf("oracle idx_a IS_VISIBLE: got %q, want NO", isVisible)
-		}
+		mustExec(t, c, `CREATE TABLE t (a INT, b INT, INDEX idx_a (a));
+ALTER TABLE t ALTER INDEX idx_a IGNORED;`)
 
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil {
@@ -504,7 +499,7 @@ ALTER TABLE t ALTER INDEX idx_a INVISIBLE;`)
 			return
 		}
 		if omniIdx.Visible {
-			t.Errorf("omni idx_a Visible: got true, want false after INVISIBLE")
+			t.Errorf("omni idx_a Visible: got true, want false after IGNORED")
 		}
 	})
 

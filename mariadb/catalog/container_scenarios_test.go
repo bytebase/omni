@@ -1123,7 +1123,9 @@ func TestContainer_Section_1_16_IndexOptions(t *testing.T) {
 		table string
 	}{
 		{"index_comment", "CREATE TABLE t_idx_comment (a INT, INDEX idx_a (a) COMMENT 'description')", "t_idx_comment"},
-		{"index_invisible", "CREATE TABLE t_idx_invis (a INT, INDEX idx_a (a) INVISIBLE)", "t_idx_invis"},
+		// MySQL hides an index with INVISIBLE, which MariaDB refuses; MariaDB's
+		// IGNORED, which MySQL refuses, is held to MariaDB 11.8.8 in
+		// index_ignored_test.go. VISIBLE is a no-op in both.
 		{"index_visible", "CREATE TABLE t_idx_vis (a INT, INDEX idx_a (a) VISIBLE)", "t_idx_vis"},
 		{"index_key_block_size", "CREATE TABLE t_idx_kbs (a INT, INDEX idx_a (a) KEY_BLOCK_SIZE=4)", "t_idx_kbs"},
 	}
@@ -1600,18 +1602,9 @@ func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 			"ALTER TABLE t_ren_idx RENAME INDEX idx_old TO idx_new",
 			"t_ren_idx",
 		},
-		{
-			"alter_index_invisible",
-			"CREATE TABLE t_idx_invis (id INT PRIMARY KEY, name VARCHAR(100), KEY idx_name (name))",
-			"ALTER TABLE t_idx_invis ALTER INDEX idx_name INVISIBLE",
-			"t_idx_invis",
-		},
-		{
-			"alter_index_visible",
-			"CREATE TABLE t_idx_vis (id INT PRIMARY KEY, name VARCHAR(100), KEY idx_name (name) INVISIBLE)",
-			"ALTER TABLE t_idx_vis ALTER INDEX idx_name VISIBLE",
-			"t_idx_vis",
-		},
+		// MySQL's ALTER INDEX ... {VISIBLE | INVISIBLE} is MariaDB's ALTER
+		// INDEX ... [NOT] IGNORED, which neither engine takes from the other:
+		// index_ignored_test.go holds it to MariaDB 11.8.8.
 	}
 
 	for _, tc := range ddlCases {
@@ -5949,6 +5942,10 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 		)`, "t_all_defaults"},
 
 		// --- All index types (Phase 1.13-1.16) integration ---
+		// No hidden index: MySQL 8.0, this test's oracle, hides one with
+		// INVISIBLE and MariaDB with IGNORED, and neither takes the other's
+		// (MariaDB skips MySQL's /*!80000 INVISIBLE */ unread).
+		// index_ignored_test.go holds IGNORED to MariaDB 11.8.8.
 		{"all_index_types", `CREATE TABLE t_all_indexes (
 			id INT NOT NULL AUTO_INCREMENT,
 			name VARCHAR(255) NOT NULL,
@@ -5968,8 +5965,7 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			SPATIAL KEY sp_geo (geo_col),
 			KEY idx_expr ((UPPER(name))),
 			KEY idx_expr_calc ((score + rank_val)),
-			KEY idx_comment (name) COMMENT 'name lookup index',
-			KEY idx_invisible (score) /*!80000 INVISIBLE */
+			KEY idx_comment (name) COMMENT 'name lookup index'
 		) ENGINE=InnoDB`, "t_all_indexes"},
 
 		// --- All constraint forms (Phase 1.17-1.18) integration ---

@@ -99,17 +99,17 @@ func TestWalkThrough_12_2(t *testing.T) {
 	})
 
 	t.Run("index_with_invisible", func(t *testing.T) {
-		// Scenario 4: Index with INVISIBLE
+		// Scenario 4: Index with IGNORED, which MariaDB prints last
 		c := wtSetup(t)
 		wtExec(t, c, `CREATE TABLE t (
 			id INT NOT NULL,
 			name VARCHAR(100),
 			PRIMARY KEY (id),
-			KEY idx_name (name) INVISIBLE
+			KEY idx_name (name) IGNORED
 		)`)
 
 		got := c.ShowCreateTable("testdb", "t")
-		assertContains(t, got, "KEY `idx_name` (`name`) /*!80000 INVISIBLE */")
+		assertContains(t, got, "KEY `idx_name` (`name`) IGNORED")
 	})
 
 	t.Run("index_with_key_block_size", func(t *testing.T) {

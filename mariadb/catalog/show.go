@@ -445,9 +445,9 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(idx.Comment)))
 	}
 
-	// Invisible.
+	// Ignored, last, as MariaDB 11.8.8 prints it: KEY `i` (`a`) COMMENT 'c' IGNORED.
 	if !idx.Visible {
-		b.WriteString(" /*!80000 INVISIBLE */")
+		b.WriteString(" IGNORED")
 	}
 
 	return b.String()

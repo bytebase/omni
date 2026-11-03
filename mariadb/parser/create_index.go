@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -272,7 +274,16 @@ func (p *Parser) validateOverlapsParts(cols []*nodes.IndexColumn, allowOverlaps 
 //	    | USING {BTREE | HASH}
 //	    | WITH PARSER parser_name
 //	    | COMMENT 'string'
-//	    | {VISIBLE | INVISIBLE}
+//	    | VISIBLE
+//	    | [NOT] IGNORED
+//
+// MariaDB hides an index from the optimizer with IGNORED, not with MySQL's
+// INVISIBLE, which it refuses with 1064. It takes VISIBLE and does nothing
+// with it, "mainly for MySQL 8.0 compatibility" (all_key_opt and ignorability
+// in sql/sql_yacc.yy, mariadb-11.8.8 lines 7326-7333 and 7366-7368), so a
+// VISIBLE written after IGNORED leaves the index ignored. IGNORED is not a
+// reserved word and is matched by text; a quoted `IGNORED` is an identifier
+// and ends the options.
 func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	start := p.pos()
 
@@ -352,11 +363,30 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			Name: "VISIBLE",
 		}, true, nil
 
-	case p.cur.Type == kwINVISIBLE:
+	case p.cur.Type == kwINVISIBLE && p.cur.MySQLOnly:
+		// MySQL's SHOW CREATE TABLE writes an invisible index as
+		// /*!80000 INVISIBLE */. MariaDB skips a comment of that version
+		// unread, so the statement stands and the index stays visible; only an
+		// INVISIBLE MariaDB would read is the syntax error.
 		p.advance()
 		return &nodes.IndexOption{
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Name: "INVISIBLE",
+		}, true, nil
+
+	case p.atUnquotedKeyword("IGNORED"):
+		p.advance()
+		return &nodes.IndexOption{
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+			Name: "IGNORED",
+		}, true, nil
+
+	case p.atNotIgnored():
+		p.advance() // NOT
+		p.advance() // IGNORED
+		return &nodes.IndexOption{
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+			Name: "NOT IGNORED",
 		}, true, nil
 
 	case p.cur.Type == kwENGINE_ATTRIBUTE:
@@ -389,4 +419,15 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	}
 
 	return nil, false, nil
+}
+
+// atNotIgnored reports whether the cursor is at NOT followed by an unquoted
+// IGNORED, the visible arm of MariaDB's ignorability. NOT is left alone
+// otherwise, so a NOT that begins anything else is not consumed.
+func (p *Parser) atNotIgnored() bool {
+	if p.cur.Type != kwNOT {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == tokIDENT && strings.EqualFold(next.Str, "IGNORED") && !p.backtickQuotedAt(next.Loc)
 }

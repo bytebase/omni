@@ -297,24 +297,24 @@ func TestWalkThrough_3_5_AlterIndexVisible(t *testing.T) {
 		t.Error("index should be visible by default")
 	}
 
-	// Set invisible.
-	wtExec(t, c, "ALTER TABLE t ALTER INDEX idx_name INVISIBLE")
+	// Ignore it; MariaDB spells MySQL's INVISIBLE as IGNORED.
+	wtExec(t, c, "ALTER TABLE t ALTER INDEX idx_name IGNORED")
 	tbl = c.GetDatabase("testdb").GetTable("t")
 	for _, i := range tbl.Indexes {
 		if i.Name == "idx_name" {
 			if i.Visible {
-				t.Error("index should be invisible after ALTER INDEX INVISIBLE")
+				t.Error("index should be ignored after ALTER INDEX IGNORED")
 			}
 		}
 	}
 
-	// Set visible again.
-	wtExec(t, c, "ALTER TABLE t ALTER INDEX idx_name VISIBLE")
+	// And stop ignoring it.
+	wtExec(t, c, "ALTER TABLE t ALTER INDEX idx_name NOT IGNORED")
 	tbl = c.GetDatabase("testdb").GetTable("t")
 	for _, i := range tbl.Indexes {
 		if i.Name == "idx_name" {
 			if !i.Visible {
-				t.Error("index should be visible after ALTER INDEX VISIBLE")
+				t.Error("index should not be ignored after ALTER INDEX NOT IGNORED")
 			}
 		}
 	}

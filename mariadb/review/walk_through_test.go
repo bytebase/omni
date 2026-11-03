@@ -208,7 +208,6 @@ func TestWalkThroughMariaDBSequences(t *testing.T) {
 func TestWalkThroughMariaDBMySQLForms(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	for _, sql := range []string{
-		"ALTER TABLE t ALTER INDEX nosuch INVISIBLE;",
 		"ALTER TABLE t ALTER COLUMN nosuch SET NOT NULL;",
 		"ALTER TABLE t ALTER COLUMN nosuch SET INVISIBLE;",
 		"ALTER TABLE t ALTER CHECK c NOT ENFORCED;\nCREATE TABLE t (a int);",
@@ -216,6 +215,9 @@ func TestWalkThroughMariaDBMySQLForms(t *testing.T) {
 	} {
 		noFinding(t, sql, shop)
 	}
+	// MariaDB's own ALTER INDEX ... [NOT] IGNORED, which the walk does not
+	// follow, ends it too.
+	noFinding(t, "ALTER TABLE t ALTER INDEX nosuch IGNORED;\nCREATE TABLE t (a int);", shop)
 }
 
 func TestWalkThroughMariaDBCase(t *testing.T) {

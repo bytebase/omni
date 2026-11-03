@@ -51,14 +51,24 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		}
 	}
 
+	skip, err := checkAlterIndexIgnorability(tbl, stmt.Commands)
+	if err != nil {
+		return err
+	}
+
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
+		if skip[cmd] {
+			return nil
+		}
 		// A versioned table can be made inconsistent by any column change (a
 		// dropped/modified/renamed ROW START/END or period column), so route the
 		// command through post-mutation validation when the table is already
-		// versioned or the command itself carries versioning metadata. Plain
-		// tables keep the no-clone fast path.
-		if !alterNeedsFinalValidation(tbl, cmd) {
+		// versioned or the command itself carries versioning metadata. So does
+		// a table with an IGNORED index, which a dropped key or a column made
+		// NOT NULL can promote to the implicit primary key. Plain tables keep
+		// the no-clone fast path.
+		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) && cmd.Type != nodes.ATAlterIndexInvisible {
 			return c.execAlterCmd(db, tbl, cmd)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
@@ -74,6 +84,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 		if err := validateApplicationTimeFinalState(tbl); err != nil {
+			*tbl = snapshot
+			return err
+		}
+		if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -96,6 +110,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 
 	for _, cmd := range stmt.Commands {
+		if skip[cmd] {
+			continue
+		}
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
 			rollback()
 			return err
@@ -108,6 +125,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return err
 	}
 	if err := validateApplicationTimeFinalState(tbl); err != nil {
+		rollback()
+		return err
+	}
+	if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
 		rollback()
 		return err
 	}
@@ -664,8 +685,10 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(pkIdx, con.IndexOptions)
+		// The ALTER's snapshot puts the columns back: MariaDB 11.8.8 leaves
+		// them nullable.
 		if !pkIdx.Visible {
-			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+			return errPKIndexCantBeIgnored()
 		}
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -1113,6 +1136,11 @@ func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, in
 }
 
 // alterIndexVisibility toggles the Visible flag on an index.
+// alterIndexVisibility applies ALTER {INDEX | KEY} [IF EXISTS] name [NOT]
+// IGNORED. checkAlterIndexIgnorability has held the name to the table the
+// statement found and dropped the IF EXISTS commands that name no index of
+// it, so an index missing here went with another command of the statement,
+// which MariaDB 11.8.8 answers with 1176, IF EXISTS or not.
 func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, visible bool) error {
 	key := toLower(cmd.Name)
 	for _, idx := range tbl.Indexes {
@@ -1121,11 +1149,7 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			return nil
 		}
 	}
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // insertColumn inserts col into tbl at the position specified by first/after.
