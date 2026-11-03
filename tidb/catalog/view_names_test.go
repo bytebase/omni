@@ -12,9 +12,10 @@ import (
 // keeps USING and NATURAL as written, so the oracle compares the view's
 // column names.
 //
-// An unaliased item is named after its source text, as TiDB names it, and
-// SELECT * over a NATURAL or USING join lists the columns it joins on once,
-// first.
+// An unaliased item is named after its source text, as TiDB names it: with
+// every "*/" and every "/*!" opener dropped, in a string or a comment as well
+// (a17), and held to 64 bytes after the drop (a18). SELECT * over a NATURAL or
+// USING join lists the columns it joins on once, first.
 //
 // Not covered: TiDB rejects a WITH inside a scalar subquery of a view and a
 // scalar subquery that may return more than one row (a01-a03 of the mysql
@@ -47,6 +48,8 @@ var viewNameCases = []struct{ name, sql string }{
 	{`a14`, `SELECT EXISTS (SELECT 1 UNION SELECT 2), a IN (SELECT 1 UNION SELECT 2) FROM n1`},
 	{`a15`, "SELECT * FROM (SELECT `a`+1 FROM n1) d"},
 	{`a16`, "SELECT * FROM (SELECT a AS `x``y` FROM n1) d"},
+	{`a17`, "SELECT a */*c*/3, a + '*/', concat('/**/!x', b), a /*!50100 */*/*c*/3, a + 1 -- t */\n, b FROM n1"},
+	{`a18`, "SELECT concat('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*/*/*/*/') FROM n1"},
 	{`b01`, `SELECT * FROM (j1 JOIN j2 USING (k1)) JOIN j3 USING (k2)`},
 	{`b02`, `SELECT * FROM j3 JOIN (j1 JOIN j2 USING (k1)) USING (k2)`},
 	{`b03`, `SELECT j1.a, k2, c FROM (j1 JOIN j2 ON j1.k1 = j2.k1) JOIN j3 USING (k2)`},
