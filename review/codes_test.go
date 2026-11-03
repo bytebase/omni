@@ -55,7 +55,7 @@ func TestCodeTable(t *testing.T) {
 
 func TestDropCode(t *testing.T) {
 	tests := map[string]FindingCode{
-		"table": DropsData, "temporary table": DropsData, "foreign table": DropsData, "external table": DropsDefinition, "dynamic table": DropsDefinition,
+		"table": DropsData, "temporary table": DropsData, "foreign table": DropsDefinition, "external table": DropsDefinition, "dynamic table": DropsDefinition,
 		"column": DropsData, "columns": DropsData, "partition": DropsData, "subpartition": DropsData,
 		"schema": DropsData, "database": DropsData, "pluggable database": DropsData, "sequence": DropsData,
 		"system versioning": DropsData, "objects owned by": DropsData,

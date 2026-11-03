@@ -516,7 +516,7 @@ The table in `review/codes.go` is the source of truth; this copy says what each 
 | NU101 | `null-comparison` | Comparison with NULL is never true | `= NULL`, `<> NULL`, `!=` and the like, and an Oracle comparison with `''`, which Oracle reads as NULL. | Use `IS NULL` or `IS NOT NULL` |
 | WH101 | `missing-where` | UPDATE or DELETE has no WHERE clause | An `UPDATE` or `DELETE` of any target form without `WHERE`. | Add a `WHERE`, or accept a whole-table change |
 | DO101 | `drops-data` | Drops data | Drops a table, column, partition, sequence, schema, or database, MariaDB system versioning, or PostgreSQL `DROP OWNED`. | Accept the data loss, or keep the object |
-| DO102 | `drops-definition` | Drops a definition | Drops a view, index, routine, trigger, type, an external or dynamic table whose rows live outside it, or another object the change could create again. | Check what depends on it |
+| DO102 | `drops-definition` | Drops a definition | Drops a view, index, routine, trigger, type, a foreign, external, or dynamic table whose rows live outside it, or another object the change could create again. | Check what depends on it |
 | DO103 | `drops-access` | Drops a user, role, or security object | Drops a user, role, login, policy, network rule, key, certificate, credential, audit, user mapping, signature, share, managed account, or security integration. | Check who loses access |
 | TR101 | `truncates-data` | Truncates data | `TRUNCATE` of tables, partitions, a cluster, a materialized view, or an error table. | Accept the data loss |
 | DC101 | `drops-constraint` | Drops a constraint | Drops a primary key, foreign key, unique, check, or other constraint. | Check the data stays valid without it |

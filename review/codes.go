@@ -184,11 +184,11 @@ var dropsData = map[string]bool{
 	"objects owned by": true, "unused columns": true,
 }
 
-// dropsDefinition are the kinds a suffix rule would misfile: an external
-// table's rows stay in the files it reads and a dynamic table's come back
-// from its query, and a placement policy says where data lives, not who
-// may read it.
-var dropsDefinition = map[string]bool{"external table": true, "dynamic table": true, "placement policy": true}
+// dropsDefinition are the kinds a suffix rule would misfile: a foreign or
+// external table's rows stay where it reads them and a dynamic table's come
+// back from its query, and a placement policy says where data lives, not
+// who may read it.
+var dropsDefinition = map[string]bool{"foreign table": true, "external table": true, "dynamic table": true, "placement policy": true}
 
 // dropsAccess are the kinds whose drop takes away who may connect or what
 // they may see, beyond the "... policy", "... key", "... role",
