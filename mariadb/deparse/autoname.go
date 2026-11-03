@@ -151,7 +151,7 @@ func nameText(text string) string {
 		return text
 	}
 	out := make([]byte, 0, len(text))
-	open := 0 // executable comments opened in text and not yet closed
+	open := false // an executable comment opened in text and not yet closed
 	for i := 0; i < len(text); {
 		c := text[i]
 		switch {
@@ -168,11 +168,13 @@ func nameText(text string) string {
 				i = len(text)
 			}
 		case c == '/' && i+2 < len(text) && text[i+1] == '*' && text[i+2] == '!':
+			// Executable comments do not nest: an opener inside one is dropped,
+			// and the first "*/" closes both.
 			i += 3
 			for i < len(text) && text[i] >= '0' && text[i] <= '9' {
 				i++
 			}
-			open++
+			open = true
 		case c == '/' && i+1 < len(text) && text[i+1] == '*':
 			j := commentEnd(text, i+2)
 			out = append(out, text[i:j]...)
@@ -185,13 +187,11 @@ func nameText(text string) string {
 			out = append(out, text[i:j]...)
 			i = j
 		case c == '*' && i+1 < len(text) && text[i+1] == '/' &&
-			(open > 0 || i+2 == len(text) || text[i+2] != '*'):
+			(open || i+2 == len(text) || text[i+2] != '*'):
 			// Outside a quote and a comment, "*/" closes an executable comment,
 			// opened in the text or before it; "*/*" with none open is a
 			// multiplication followed by a comment.
-			if open > 0 {
-				open--
-			}
+			open = false
 			i += 2
 		default:
 			out = append(out, c)
