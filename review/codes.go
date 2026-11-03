@@ -1,6 +1,7 @@
 package review
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 )
@@ -193,4 +194,23 @@ var dropsAccess = map[string]bool{
 	"user": true, "role": true, "login": true, "profile": true, "certificate": true, "credential": true,
 	"user mapping": true, "signature": true, "counter signature": true, "sensitivity classification": true,
 	"cryptographic provider": true, "policy": true,
+}
+
+// CheckCodes returns an error unless f carries at least one code, every
+// code is in the table and of f's rule, and none repeats.
+func CheckCodes(f Finding) error {
+	if len(f.Codes) == 0 {
+		return fmt.Errorf("%s finding %q has no code", f.Rule, f.Message)
+	}
+	seen := make(map[FindingCode]bool, len(f.Codes))
+	for _, c := range f.Codes {
+		if rule := c.Rule(); rule != f.Rule {
+			return fmt.Errorf("%s finding %q has code %s of rule %q", f.Rule, f.Message, c, rule)
+		}
+		if seen[c] {
+			return fmt.Errorf("%s finding %q repeats code %s", f.Rule, f.Message, c)
+		}
+		seen[c] = true
+	}
+	return nil
 }

@@ -74,3 +74,20 @@ func TestDropCode(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckCodes(t *testing.T) {
+	ok := Finding{Rule: WalkThrough, Codes: []FindingCode{ObjectNotFound}}
+	if err := CheckCodes(ok); err != nil {
+		t.Errorf("CheckCodes(%+v) = %v", ok, err)
+	}
+	for _, bad := range []Finding{
+		{Rule: WalkThrough},
+		{Rule: WalkThrough, Codes: []FindingCode{DropsData}},
+		{Rule: WalkThrough, Codes: []FindingCode{"WT999"}},
+		{Rule: OnlineMigration, Codes: []FindingCode{UnsupportedChange, UnsupportedChange}},
+	} {
+		if CheckCodes(bad) == nil {
+			t.Errorf("CheckCodes(%+v) = nil, want an error", bad)
+		}
+	}
+}
