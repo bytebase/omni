@@ -193,7 +193,8 @@ var dropsDefinition = map[string]bool{"placement policy": true}
 var dropsAccess = map[string]bool{
 	"user": true, "role": true, "login": true, "profile": true, "certificate": true, "credential": true,
 	"user mapping": true, "signature": true, "counter signature": true, "sensitivity classification": true,
-	"cryptographic provider": true, "policy": true,
+	"cryptographic provider": true, "policy": true, "network rule": true, "share": true,
+	"managed account": true, "security integration": true,
 }
 
 // CheckCodes returns an error unless f carries at least one code, every

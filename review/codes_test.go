@@ -67,6 +67,8 @@ func TestDropCode(t *testing.T) {
 		"master key": DropsAccess, "symmetric key": DropsAccess, "database scoped credential": DropsAccess,
 		"server audit": DropsAccess, "database audit specification": DropsAccess, "user mapping": DropsAccess,
 		"lockdown profile": DropsAccess, "certificate": DropsAccess,
+		"network rule": DropsAccess, "share": DropsAccess, "managed account": DropsAccess,
+		"security integration": DropsAccess, "storage integration": DropsDefinition,
 	}
 	for kind, want := range tests {
 		if got := DropCode(kind); got != want {
