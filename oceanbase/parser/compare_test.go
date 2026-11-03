@@ -9493,12 +9493,14 @@ func TestParseIntersectPrecedence(t *testing.T) {
 func TestParseCreateTableConstraintIndexOption(t *testing.T) {
 	tests := []string{
 		"CREATE TABLE t (id INT, PRIMARY KEY (id) USING BTREE)",
-		"CREATE TABLE t (id INT, PRIMARY KEY (id) KEY_BLOCK_SIZE 1024)",
+		// OceanBase refuses KEY_BLOCK_SIZE and VISIBLE on a CREATE TABLE PRIMARY KEY
+		// (primaryKeyGrammarCases), so these two use a secondary index.
+		"CREATE TABLE t (id INT, KEY k (id) KEY_BLOCK_SIZE 1024)",
 		"CREATE TABLE t (id INT, PRIMARY KEY (id) COMMENT 'pk')",
 		"CREATE TABLE t (id INT, UNIQUE KEY idx (name) USING HASH COMMENT 'uniq')",
 		"CREATE TABLE t (id INT, INDEX idx (name) KEY_BLOCK_SIZE 512 COMMENT 'idx')",
 		"CREATE TABLE t (id INT, FULLTEXT KEY ft_idx (content) COMMENT 'fulltext')",
-		"CREATE TABLE t (id INT, PRIMARY KEY (id) VISIBLE)",
+		"CREATE TABLE t (id INT, KEY k (id) VISIBLE)",
 		"CREATE TABLE t (id INT, UNIQUE KEY idx (name) INVISIBLE)",
 	}
 	for _, sql := range tests {

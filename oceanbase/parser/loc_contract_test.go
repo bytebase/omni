@@ -211,7 +211,7 @@ var locSpanCases = []struct {
 	{"InExpr", "SELECT * FROM t WHERE a NOT IN (1, 2) ORDER BY a", "a NOT IN (1, 2)", 0},
 	{"IndexColumn", "CREATE INDEX idx ON t (a)", "a", 0},
 	{"IndexHint", "SELECT * FROM t1 USE INDEX ()", "USE INDEX ()", 0},
-	{"IndexOption", "CREATE TABLE t (id INT, PRIMARY KEY (id) VISIBLE)", "VISIBLE", 0},
+	{"IndexOption", "CREATE TABLE t (id INT, KEY k (id) VISIBLE)", "VISIBLE", 0},
 	{"InsertStmt", "INSERT INTO t1 TABLE t2", "INSERT INTO t1 TABLE t2", 0},
 	{"InstallComponentStmt", "INSTALL COMPONENT 'file://c1'", "INSTALL COMPONENT 'file://c1'", 0},
 	{"InstallPluginStmt", "INSTALL PLUGIN p SONAME 'p.so'", "INSTALL PLUGIN p SONAME 'p.so'", 0},
