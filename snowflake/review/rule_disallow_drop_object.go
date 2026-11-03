@@ -21,7 +21,7 @@ import (
 // or a row access policy from a table removes no object.
 func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 	report := func(rng review.Range, kind, name string) {
-		r.report(dropCode(kind), s.index, rng, "Drops "+kind+" "+review.Code(name)+".")
+		r.report(review.DropCode(kind), s.index, rng, "Drops "+kind+" "+review.Code(name)+".")
 	}
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
@@ -53,23 +53,10 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 					continue
 				}
 				for _, col := range a.DropColumnNames {
-					r.report(dropCode("column"), s.index, rangeOf(col.Loc), "Drops column "+review.Code(ident(col))+" of "+review.Code(object(v.Name))+".")
+					r.report(review.DropCode("column"), s.index, rangeOf(col.Loc), "Drops column "+review.Code(ident(col))+" of "+review.Code(object(v.Name))+".")
 				}
 			}
 		}
 		return true
 	})
-}
-
-// dropCode is the code of dropping an object of the kind the message names
-// it by. A network rule is filed with the policies, under access: it is the
-// list of network identifiers a network policy admits or blocks, and an
-// external access integration lets a function reach.
-//
-// sql: https://docs.snowflake.com/en/user-guide/network-rules
-func dropCode(kind string) review.FindingCode {
-	if kind == "network rule" {
-		return review.DropsAccess
-	}
-	return review.DropCode(kind)
 }
