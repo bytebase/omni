@@ -18,11 +18,11 @@ func checkRequireWhere(s *statement, r *reporter) {
 			return false
 		case *ast.UpdateStmt:
 			if v.WhereClause == nil {
-				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "UPDATE "+dmlTarget(v.Target)+" has no WHERE clause")
+				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "`UPDATE` of "+dmlTarget(v.Target)+" has no `WHERE` clause.")
 			}
 		case *ast.DeleteStmt:
 			if v.WhereClause == nil {
-				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "DELETE FROM "+dmlTarget(v.Target)+" has no WHERE clause")
+				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "`DELETE` from "+dmlTarget(v.Target)+" has no `WHERE` clause.")
 			}
 		}
 		return true

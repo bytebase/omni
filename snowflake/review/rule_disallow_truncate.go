@@ -17,14 +17,14 @@ func checkDisallowTruncate(s *statement, r *reporter) {
 			return false
 		}
 		if v, ok := n.(*ast.TruncateStmt); ok {
-			what := object(v.Name)
+			what := review.Code(object(v.Name))
 			switch {
 			case v.MaterializedView:
 				what = "materialized view " + what
 			case v.ErrorTable:
 				what = "the error table of " + what
 			}
-			r.report(review.DisallowTruncate, s.index, anchor(s, v, v.Loc), "truncates "+what)
+			r.report(review.DisallowTruncate, s.index, anchor(s, v, v.Loc), "Truncates "+what+".")
 		}
 		return true
 	})

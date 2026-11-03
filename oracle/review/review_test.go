@@ -171,18 +171,18 @@ func TestRequireWhere(t *testing.T) {
 			name: "UPDATE and DELETE without WHERE",
 			sql:  "UPDATE t SET n = 1;\nDELETE FROM shop.t;\nUPDATE t SET n = 1 WHERE id = 1;\nDELETE t x WHERE x.id = 1;\nUPDATE (SELECT * FROM t) SET n = 1;",
 			want: []finding{
-				{0, "UPDATE t SET n = 1", "UPDATE T has no WHERE clause", []int{0}},
-				{1, "DELETE FROM shop.t", "DELETE FROM SHOP.T has no WHERE clause", []int{0}},
-				{4, "UPDATE (SELECT * FROM t) SET n = 1", "UPDATE an inline view has no WHERE clause", []int{0}},
+				{0, "UPDATE t SET n = 1", "`UPDATE` of `T` has no `WHERE` clause.", []int{0}},
+				{1, "DELETE FROM shop.t", "`DELETE` from `SHOP.T` has no `WHERE` clause.", []int{0}},
+				{4, "UPDATE (SELECT * FROM t) SET n = 1", "`UPDATE` of an inline view has no `WHERE` clause.", []int{0}},
 			},
 		},
 		{
 			name: "inside PL/SQL",
 			sql:  "BEGIN\n  IF 1 = 1 THEN DELETE FROM t; END IF;\n  FORALL i IN 1..2 UPDATE p SET note = 'x';\nEND;\n/\nCREATE OR REPLACE TRIGGER trg AFTER INSERT ON p BEGIN DELETE FROM \"Mixed\"; END;\n/\nCREATE PROCEDURE pr AS BEGIN UPDATE t SET n = 1 WHERE id = 2; END;",
 			want: []finding{
-				{0, "DELETE FROM t", "DELETE FROM T has no WHERE clause", []int{0}},
-				{0, "UPDATE p SET note = 'x'", "UPDATE P has no WHERE clause", []int{0}},
-				{1, `DELETE FROM "Mixed"`, `DELETE FROM "Mixed" has no WHERE clause`, []int{0}},
+				{0, "DELETE FROM t", "`DELETE` from `T` has no `WHERE` clause.", []int{0}},
+				{0, "UPDATE p SET note = 'x'", "`UPDATE` of `P` has no `WHERE` clause.", []int{0}},
+				{1, `DELETE FROM "Mixed"`, "`DELETE` from `\"Mixed\"` has no `WHERE` clause.", []int{0}},
 			},
 		},
 		{name: "under EXPLAIN PLAN", sql: "EXPLAIN PLAN FOR DELETE FROM t;"},
@@ -195,21 +195,21 @@ func TestRequireIsNull(t *testing.T) {
 			name: "comparisons a condition tests",
 			sql:  "SELECT * FROM t WHERE n = NULL OR NULL <> code;\nUPDATE t SET n = 1 WHERE NOT (code != NULL) AND (n ^= (NULL));\nSELECT * FROM t JOIN p ON t.p_id = NULL GROUP BY n HAVING n = NULL;",
 			want: []finding{
-				{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}},
-				{0, "NULL <> code", `"NULL <> code" is never true; use IS NOT NULL`, []int{0}},
-				{1, "code != NULL", `"code != NULL" is never true; use IS NOT NULL`, []int{0}},
-				{1, "n ^= (NULL)", `"n ^= (NULL)" is never true; use IS NOT NULL`, []int{0}},
-				{2, "t.p_id = NULL", `"t.p_id = NULL" is never true; use IS NULL`, []int{0}},
-				{2, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}},
+				{0, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "NULL <> code", "`NULL <> code` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{1, "code != NULL", "`code != NULL` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{1, "n ^= (NULL)", "`n ^= (NULL)` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{2, "t.p_id = NULL", "`t.p_id = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{2, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
 			},
 		},
 		{
 			name: "the empty string, which Oracle treats as NULL",
 			sql:  "SELECT * FROM t WHERE code = '' OR code <> N'' OR code = q'[]';\nSELECT * FROM t WHERE code = ' ';",
 			want: []finding{
-				{0, "code = ''", `"code = ''" is never true; use IS NULL`, []int{0}},
-				{0, "code <> N''", `"code <> N''" is never true; use IS NOT NULL`, []int{0}},
-				{0, "code = q'[]'", `"code = q'[]'" is never true; use IS NULL`, []int{0}},
+				{0, "code = ''", "`code = ''` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "code <> N''", "`code <> N''` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{0, "code = q'[]'", "`code = q'[]'` is never true.\n\nUse `IS NULL` instead.", []int{0}},
 			},
 		},
 		{
@@ -220,34 +220,34 @@ func TestRequireIsNull(t *testing.T) {
 			name: "CASE, MERGE, CHECK, START WITH, and multitable INSERT",
 			sql:  "SELECT CASE WHEN n = NULL THEN 1 END FROM t START WITH n = '' CONNECT BY PRIOR id = p_id;\nMERGE INTO t USING p ON (t.id = NULL) WHEN MATCHED THEN UPDATE SET t.n = 1 WHERE p.note <> NULL DELETE WHERE t.n = NULL;\nCREATE TABLE c (a NUMBER CHECK (a <> NULL), b NUMBER, CONSTRAINT ck_b CHECK (b = ''));\nINSERT ALL WHEN a = NULL THEN INTO t (id) VALUES (a) SELECT 1 a FROM dual;",
 			want: []finding{
-				{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}},
-				{0, "n = ''", `"n = ''" is never true; use IS NULL`, []int{0}},
-				{1, "t.id = NULL", `"t.id = NULL" is never true; use IS NULL`, []int{0}},
-				{1, "p.note <> NULL", `"p.note <> NULL" is never true; use IS NOT NULL`, []int{0}},
-				{1, "t.n = NULL", `"t.n = NULL" is never true; use IS NULL`, []int{0}},
-				{2, "a <> NULL", `"a <> NULL" is never true; use IS NOT NULL`, []int{0}},
-				{2, "b = ''", `"b = ''" is never true; use IS NULL`, []int{0}},
-				{3, "a = NULL", `"a = NULL" is never true; use IS NULL`, []int{0}},
+				{0, "n = NULL", "`n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "n = ''", "`n = ''` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{1, "t.id = NULL", "`t.id = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{1, "p.note <> NULL", "`p.note <> NULL` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{1, "t.n = NULL", "`t.n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{2, "a <> NULL", "`a <> NULL` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{2, "b = ''", "`b = ''` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{3, "a = NULL", "`a = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
 			},
 		},
 		{
 			name: "PL/SQL conditions",
 			sql:  "DECLARE v NUMBER;\nBEGIN\n  IF v = NULL THEN NULL; ELSIF v <> '' THEN NULL; END IF;\n  WHILE v ~= NULL LOOP EXIT WHEN v = NULL; CONTINUE WHEN v = ''; END LOOP;\n  CASE WHEN v = NULL THEN NULL; ELSE NULL; END CASE;\n  v := CASE WHEN v = NULL THEN 1 END;\nEND;\n/\nCREATE TRIGGER trg BEFORE UPDATE ON t FOR EACH ROW WHEN (new.n = NULL) BEGIN NULL; END;",
 			want: []finding{
-				{0, "v = NULL", `"v = NULL" is never true; use IS NULL`, []int{0}},
-				{0, "v <> ''", `"v <> ''" is never true; use IS NOT NULL`, []int{0}},
-				{0, "v ~= NULL", `"v ~= NULL" is never true; use IS NOT NULL`, []int{0}},
-				{0, "v = NULL", `"v = NULL" is never true; use IS NULL`, []int{0}},
-				{0, "v = ''", `"v = ''" is never true; use IS NULL`, []int{0}},
-				{0, "v = NULL", `"v = NULL" is never true; use IS NULL`, []int{0}},
-				{0, "v = NULL", `"v = NULL" is never true; use IS NULL`, []int{0}},
-				{1, "new.n = NULL", `"new.n = NULL" is never true; use IS NULL`, []int{0}},
+				{0, "v = NULL", "`v = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "v <> ''", "`v <> ''` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{0, "v ~= NULL", "`v ~= NULL` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{0, "v = NULL", "`v = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "v = ''", "`v = ''` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "v = NULL", "`v = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{0, "v = NULL", "`v = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{1, "new.n = NULL", "`new.n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
 			},
 		},
 		{
 			name: "MATCH_RECOGNIZE DEFINE",
 			sql:  "SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id PATTERN (a) DEFINE a AS a.n = NULL);",
-			want: []finding{{0, "a.n = NULL", `"a.n = NULL" is never true; use IS NULL`, []int{0}}},
+			want: []finding{{0, "a.n = NULL", "`a.n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 	})
 }
@@ -258,38 +258,40 @@ func TestDisallowDropObject(t *testing.T) {
 			name: "ALTER TYPE DROP ATTRIBUTE",
 			sql:  "ALTER TYPE person_t DROP ATTRIBUTE (phone) CASCADE INCLUDING TABLE DATA;\nALTER TYPE hr.addr_t DROP ATTRIBUTE (zip, city) CASCADE;\nALTER TYPE person_t ADD ATTRIBUTE (email VARCHAR2(80)) CASCADE;",
 			want: []finding{
-				{0, "phone", "drops attribute PHONE of type PERSON_T", []int{0}},
-				{1, "zip", "drops attribute ZIP of type HR.ADDR_T", []int{0}},
-				{1, "city", "drops attribute CITY of type HR.ADDR_T", []int{0}},
+				{0, "phone", "Drops attribute `PHONE` of type `PERSON_T`.", []int{0}},
+				{1, "zip", "Drops attribute `ZIP` of type `HR.ADDR_T`.", []int{0}},
+				{1, "city", "Drops attribute `CITY` of type `HR.ADDR_T`.", []int{0}},
 			},
 		},
 		{
 			name: "every DROP",
-			sql:  "DROP TABLE IF EXISTS t CASCADE CONSTRAINTS PURGE;\nDROP VIEW v;\nDROP INDEX shop.ix_n;\nDROP PROCEDURE pr;\nDROP PACKAGE BODY pk;\nDROP PUBLIC SYNONYM ps;\nDROP MATERIALIZED VIEW LOG ON t;\nDROP USER u CASCADE;\nDROP TABLESPACE ts INCLUDING CONTENTS;\nDROP AUDIT POLICY ap;",
+			sql:  "DROP TABLE IF EXISTS t CASCADE CONSTRAINTS PURGE;\nDROP VIEW v;\nDROP INDEX shop.ix_n;\nDROP PROCEDURE pr;\nDROP PACKAGE BODY pk;\nDROP PUBLIC SYNONYM ps;\nDROP MATERIALIZED VIEW LOG ON t;\nDROP USER u CASCADE;\nDROP TABLESPACE ts INCLUDING CONTENTS;\nDROP AUDIT POLICY ap;\nDROP DATABASE;",
 			want: []finding{
-				{0, "DROP TABLE IF EXISTS t CASCADE CONSTRAINTS PURGE", "drops table T", []int{0}},
-				{1, "DROP VIEW v", "drops view V", []int{0}},
-				{2, "DROP INDEX shop.ix_n", "drops index SHOP.IX_N", []int{0}},
-				{3, "DROP PROCEDURE pr", "drops procedure PR", []int{0}},
-				{4, "DROP PACKAGE BODY pk", "drops package body PK", []int{0}},
-				{5, "DROP PUBLIC SYNONYM ps", "drops synonym PS", []int{0}},
-				{6, "DROP MATERIALIZED VIEW LOG ON t", "drops materialized view log on T", []int{0}},
-				{7, "DROP USER u CASCADE", "drops user U", []int{0}},
-				{8, "DROP TABLESPACE ts INCLUDING CONTENTS", "drops tablespace TS", []int{0}},
-				{9, "DROP AUDIT POLICY ap", "drops audit policy AP", []int{0}},
+				{0, "DROP TABLE IF EXISTS t CASCADE CONSTRAINTS PURGE", "Drops table `T`.", []int{0}},
+				{1, "DROP VIEW v", "Drops view `V`.", []int{0}},
+				{2, "DROP INDEX shop.ix_n", "Drops index `SHOP.IX_N`.", []int{0}},
+				{3, "DROP PROCEDURE pr", "Drops procedure `PR`.", []int{0}},
+				{4, "DROP PACKAGE BODY pk", "Drops package body `PK`.", []int{0}},
+				{5, "DROP PUBLIC SYNONYM ps", "Drops synonym `PS`.", []int{0}},
+				{6, "DROP MATERIALIZED VIEW LOG ON t", "Drops the materialized view log on `T`.", []int{0}},
+				{7, "DROP USER u CASCADE", "Drops user `U`.", []int{0}},
+				{8, "DROP TABLESPACE ts INCLUDING CONTENTS", "Drops tablespace `TS`.", []int{0}},
+				{9, "DROP AUDIT POLICY ap", "Drops audit policy `AP`.", []int{0}},
+				{10, "DROP DATABASE", "Drops the database.", []int{0}},
 			},
 		},
 		{
 			name: "ALTER TABLE clauses that drop part of a table",
-			sql:  "ALTER TABLE t DROP COLUMN n;\nALTER TABLE t DROP (n, \"Code\");\nALTER TABLE t DROP UNUSED COLUMNS;\nALTER TABLE t DROP PARTITION p1, p2 UPDATE GLOBAL INDEXES;\nALTER TABLE t DROP PARTITION FOR (10);\nALTER TABLE t DROP SUBPARTITION sp1;\nALTER TABLE t DROP (PERIOD FOR valid);",
+			sql:  "ALTER TABLE t DROP COLUMN n;\nALTER TABLE t DROP (n, \"Code\");\nALTER TABLE t DROP UNUSED COLUMNS;\nALTER TABLE t DROP PARTITION p1, p2 UPDATE GLOBAL INDEXES;\nALTER TABLE t DROP PARTITION FOR (10);\nALTER TABLE t DROP SUBPARTITION sp1;\nALTER TABLE t DROP (PERIOD FOR valid);\nALTER TABLE t DROP COLUMNS CONTINUE;",
 			want: []finding{
-				{0, "DROP COLUMN n", "drops column N of T", []int{0}},
-				{1, `DROP (n, "Code")`, `drops columns N, "Code" of T`, []int{0}},
-				{2, "DROP UNUSED COLUMNS", "drops the unused columns of T", []int{0}},
-				{3, "DROP PARTITION p1, p2 UPDATE GLOBAL INDEXES", "drops partitions P1, P2 of T", []int{0}},
-				{4, "DROP PARTITION FOR (10)", "drops partition FOR (10) of T", []int{0}},
-				{5, "DROP SUBPARTITION sp1", "drops subpartition SP1 of T", []int{0}},
-				{6, "DROP (PERIOD FOR valid)", "drops period VALID of T", []int{0}},
+				{0, "DROP COLUMN n", "Drops column `N` of `T`.", []int{0}},
+				{1, `DROP (n, "Code")`, "Drops columns `N` and `\"Code\"` of `T`.", []int{0}},
+				{2, "DROP UNUSED COLUMNS", "Drops the unused columns of `T`.", []int{0}},
+				{3, "DROP PARTITION p1, p2 UPDATE GLOBAL INDEXES", "Drops partitions `P1` and `P2` of `T`.", []int{0}},
+				{4, "DROP PARTITION FOR (10)", "Drops partition `FOR (10)` of `T`.", []int{0}},
+				{5, "DROP SUBPARTITION sp1", "Drops subpartition `SP1` of `T`.", []int{0}},
+				{6, "DROP (PERIOD FOR valid)", "Drops period `VALID` of `T`.", []int{0}},
+				{7, "DROP COLUMNS CONTINUE", "Drops the columns an interrupted drop left in `T`.", []int{0}},
 			},
 		},
 		{
@@ -305,10 +307,10 @@ func TestDisallowTruncate(t *testing.T) {
 			name: "TRUNCATE TABLE, CLUSTER, and partitions",
 			sql:  "TRUNCATE TABLE t;\nTRUNCATE CLUSTER shop.cl;\nALTER TABLE t TRUNCATE PARTITION p1, p2;\nALTER TABLE t TRUNCATE SUBPARTITION FOR (1, 2);",
 			want: []finding{
-				{0, "TRUNCATE TABLE t", "truncates table T", []int{0}},
-				{1, "TRUNCATE CLUSTER shop.cl", "truncates cluster SHOP.CL", []int{0}},
-				{2, "TRUNCATE PARTITION p1, p2", "truncates partitions P1, P2 of T", []int{0}},
-				{3, "TRUNCATE SUBPARTITION FOR (1, 2)", "truncates subpartition FOR (1, 2) of T", []int{0}},
+				{0, "TRUNCATE TABLE t", "Truncates `T`.", []int{0}},
+				{1, "TRUNCATE CLUSTER shop.cl", "Truncates cluster `SHOP.CL`.", []int{0}},
+				{2, "TRUNCATE PARTITION p1, p2", "Truncates partitions `P1` and `P2` of `T`.", []int{0}},
+				{3, "TRUNCATE SUBPARTITION FOR (1, 2)", "Truncates subpartition `FOR (1, 2)` of `T`.", []int{0}},
 			},
 		},
 	})
@@ -320,32 +322,32 @@ func TestDisallowRename(t *testing.T) {
 			name: "ALTER TABLE renames",
 			sql:  "ALTER TABLE t RENAME TO t2;\nALTER TABLE p RENAME COLUMN note TO memo;\nALTER TABLE p RENAME CONSTRAINT pk_p TO pk_p2;",
 			want: []finding{
-				{0, "RENAME TO t2", "renames table T to T2", []int{0}},
-				{1, "RENAME COLUMN note TO memo", "renames column NOTE of P to MEMO", []int{0}},
+				{0, "RENAME TO t2", "Renames table `T` to `T2`.", []int{0}},
+				{1, "RENAME COLUMN note TO memo", "Renames column `NOTE` of `P` to `MEMO`.", []int{0}},
 			},
 		},
 		{
 			name: "RENAME of a synced table, view, and sequence",
 			sql:  "RENAME t TO t3;\nRENAME v TO v2;\nRENAME seq TO seq2;\nRENAME unknown TO u2;",
 			want: []finding{
-				{0, "RENAME t TO t3", "renames table T to T3", []int{0}},
-				{1, "RENAME v TO v2", "renames view V to V2", []int{0}},
+				{0, "RENAME t TO t3", "Renames table `T` to `T3`.", []int{0}},
+				{1, "RENAME v TO v2", "Renames view `V` to `V2`.", []int{0}},
 			},
 		},
 		{
 			name: "RENAME of what the change made",
 			sql:  "CREATE TABLE n1 (id NUMBER);\nRENAME n1 TO n2;\nRENAME n2 TO n3;\nCREATE VIEW w AS SELECT 1 a FROM dual;\nRENAME w TO w2;\nCREATE SEQUENCE s1;\nRENAME s1 TO s2;\nDROP TABLE nokey;\nRENAME nokey TO nk;",
 			want: []finding{
-				{1, "RENAME n1 TO n2", "renames table N1 to N2", []int{0}},
-				{2, "RENAME n2 TO n3", "renames table N2 to N3", []int{0}},
-				{4, "RENAME w TO w2", "renames view W to W2", []int{0}},
+				{1, "RENAME n1 TO n2", "Renames table `N1` to `N2`.", []int{0}},
+				{2, "RENAME n2 TO n3", "Renames table `N2` to `N3`.", []int{0}},
+				{4, "RENAME w TO w2", "Renames view `W` to `W2`.", []int{0}},
 			},
 		},
 		{
 			name:    "without a synced schema",
 			sql:     "RENAME t TO t3;\nCREATE TABLE n1 (id NUMBER);\nRENAME n1 TO n2;",
 			targets: []review.Target{{}},
-			want:    []finding{{2, "RENAME n1 TO n2", "renames table N1 to N2", []int{0}}},
+			want:    []finding{{2, "RENAME n1 TO n2", "Renames table `N1` to `N2`.", []int{0}}},
 		},
 		{
 			name: "after the session moves to another schema",
@@ -354,7 +356,7 @@ func TestDisallowRename(t *testing.T) {
 		{
 			name: "a DROP of another namespace does not hide the table",
 			sql:  "DROP INDEX t;\nRENAME t TO t2;",
-			want: []finding{{1, "RENAME t TO t2", "renames table T to T2", []int{0}}},
+			want: []finding{{1, "RENAME t TO t2", "Renames table `T` to `T2`.", []int{0}}},
 		},
 	})
 }
@@ -365,19 +367,19 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "constraints of the synced schema",
 			sql:  "ALTER TABLE t DROP CONSTRAINT fk_p DROP CONSTRAINT uk_code;\nALTER TABLE shop.t DROP CONSTRAINT ck_n;\nALTER TABLE t DROP CONSTRAINT nn_code;\nALTER TABLE t DROP CONSTRAINT ux_n;\nALTER TABLE t DROP CONSTRAINT unknown_c;\nALTER TABLE p DROP CONSTRAINT pk_p;",
 			want: []finding{
-				{0, "DROP CONSTRAINT fk_p", "drops foreign key FK_P of T", []int{0}},
-				{0, "DROP CONSTRAINT uk_code", "drops unique constraint UK_CODE of T", []int{0}},
-				{1, "DROP CONSTRAINT ck_n", "drops check constraint CK_N of SHOP.T", []int{0}},
-				{2, "DROP CONSTRAINT nn_code", "drops check constraint NN_CODE of T", []int{0}},
-				{5, "DROP CONSTRAINT pk_p", "drops primary key PK_P of P", []int{0}},
+				{0, "DROP CONSTRAINT fk_p", "Drops foreign key `FK_P` of `T`.", []int{0}},
+				{0, "DROP CONSTRAINT uk_code", "Drops unique constraint `UK_CODE` of `T`.", []int{0}},
+				{1, "DROP CONSTRAINT ck_n", "Drops check constraint `CK_N` of `SHOP.T`.", []int{0}},
+				{2, "DROP CONSTRAINT nn_code", "Drops check constraint `NN_CODE` of `T`.", []int{0}},
+				{5, "DROP CONSTRAINT pk_p", "Drops primary key `PK_P` of `P`.", []int{0}},
 			},
 		},
 		{
 			name: "DROP PRIMARY KEY and DROP UNIQUE, from the SQL alone",
 			sql:  "ALTER TABLE nokey DROP PRIMARY KEY;\nALTER TABLE x DROP UNIQUE (a, \"b\") CASCADE;",
 			want: []finding{
-				{0, "DROP PRIMARY KEY", "drops the primary key of NOKEY", []int{0}},
-				{1, `DROP UNIQUE (a, "b") CASCADE`, `drops the unique constraint on (A, "b") of X`, []int{0}},
+				{0, "DROP PRIMARY KEY", "Drops the primary key of `NOKEY`.", []int{0}},
+				{1, `DROP UNIQUE (a, "b") CASCADE`, "Drops the unique constraint on (`A`, `\"b\"`) of `X`.", []int{0}},
 			},
 			targets: []review.Target{{}},
 		},
@@ -385,16 +387,16 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "constraints the change defined",
 			sql:  "ALTER TABLE nokey ADD CONSTRAINT ck_a CHECK (a > 0);\nALTER TABLE nokey DROP CONSTRAINT ck_a;\nCREATE TABLE n1 (id NUMBER CONSTRAINT pk_n1 PRIMARY KEY, r NUMBER CONSTRAINT fk_n1 REFERENCES p);\nALTER TABLE n1 DROP CONSTRAINT fk_n1;\nALTER TABLE n1 DROP CONSTRAINT pk_n1;\nALTER TABLE nokey DROP CONSTRAINT ck_a;",
 			want: []finding{
-				{1, "DROP CONSTRAINT ck_a", "drops check constraint CK_A of NOKEY", []int{0}},
-				{3, "DROP CONSTRAINT fk_n1", "drops foreign key FK_N1 of N1", []int{0}},
-				{4, "DROP CONSTRAINT pk_n1", "drops primary key PK_N1 of N1", []int{0}},
+				{1, "DROP CONSTRAINT ck_a", "Drops check constraint `CK_A` of `NOKEY`.", []int{0}},
+				{3, "DROP CONSTRAINT fk_n1", "Drops foreign key `FK_N1` of `N1`.", []int{0}},
+				{4, "DROP CONSTRAINT pk_n1", "Drops primary key `PK_N1` of `N1`.", []int{0}},
 			},
 		},
 		{
 			name:    "constraints the change defined, without a synced schema",
 			sql:     "ALTER TABLE nokey ADD CONSTRAINT ck_a CHECK (a > 0);\nALTER TABLE nokey DROP CONSTRAINT ck_a;\nALTER TABLE t DROP CONSTRAINT ck_n;",
 			targets: []review.Target{{}},
-			want:    []finding{{1, "DROP CONSTRAINT ck_a", "drops check constraint CK_A of NOKEY", []int{0}}},
+			want:    []finding{{1, "DROP CONSTRAINT ck_a", "Drops check constraint `CK_A` of `NOKEY`.", []int{0}}},
 		},
 		{
 			name: "a table the change recreated, renamed, or dropped a column of",
@@ -408,14 +410,14 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "a name the change freed first",
 			sql:  "ALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0);\nALTER TABLE nokey DROP CONSTRAINT ck_n;",
 			want: []finding{
-				{0, "DROP CONSTRAINT ck_n", "drops check constraint CK_N of T", []int{0}},
-				{2, "DROP CONSTRAINT ck_n", "drops check constraint CK_N of NOKEY", []int{0}},
+				{0, "DROP CONSTRAINT ck_n", "Drops check constraint `CK_N` of `T`.", []int{0}},
+				{2, "DROP CONSTRAINT ck_n", "Drops check constraint `CK_N` of `NOKEY`.", []int{0}},
 			},
 		},
 		{
 			name: "a primary key dropped out of sight, and a foreign key after CASCADE",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY CASCADE;\nALTER TABLE t DROP CONSTRAINT pk_t;\nALTER TABLE t DROP CONSTRAINT fk_p;",
-			want: []finding{{0, "DROP PRIMARY KEY CASCADE", "drops the primary key of T", []int{0}}},
+			want: []finding{{0, "DROP PRIMARY KEY CASCADE", "Drops the primary key of `T`.", []int{0}}},
 		},
 		{
 			name: "two targets with different schemas",
@@ -425,7 +427,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{Schema: &metadata.DatabaseSchemaMetadata{Name: "SHOP"}},
 				{Schema: shop()},
 			},
-			want: []finding{{0, "DROP CONSTRAINT ck_n", "drops check constraint CK_N of T", []int{0, 2}}},
+			want: []finding{{0, "DROP CONSTRAINT ck_n", "Drops check constraint `CK_N` of `T`.", []int{0, 2}}},
 		},
 	})
 }
@@ -436,14 +438,14 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name: "CREATE TABLE without a primary key",
 			sql:  "CREATE TABLE a (id NUMBER);\nCREATE TABLE b (id NUMBER PRIMARY KEY);\nCREATE TABLE c (id NUMBER, CONSTRAINT pk_c PRIMARY KEY (id));\nCREATE GLOBAL TEMPORARY TABLE g (id NUMBER);\nCREATE PRIVATE TEMPORARY TABLE ora$ptt_x (id NUMBER);\nCREATE TABLE IF NOT EXISTS d (id NUMBER);\nCREATE TABLE e AS SELECT * FROM p;\nCREATE TABLE f (id PRIMARY KEY) AS SELECT id FROM p;",
 			want: []finding{
-				{0, "CREATE TABLE a (id NUMBER)", "creates table A without a primary key", []int{0}},
-				{6, "CREATE TABLE e AS SELECT * FROM p", "creates table E without a primary key", []int{0}},
+				{0, "CREATE TABLE a (id NUMBER)", "Creates table `A` without a primary key.", []int{0}},
+				{6, "CREATE TABLE e AS SELECT * FROM p", "Creates table `E` without a primary key.", []int{0}},
 			},
 		},
 		{
 			name: "not settled by IF NOT EXISTS",
 			sql:  "CREATE TABLE a (id NUMBER);\nCREATE TABLE IF NOT EXISTS a (id NUMBER PRIMARY KEY);",
-			want: []finding{{0, "CREATE TABLE a (id NUMBER)", "creates table A without a primary key", []int{0}}},
+			want: []finding{{0, "CREATE TABLE a (id NUMBER)", "Creates table `A` without a primary key.", []int{0}}},
 		},
 		{
 			name: "settled by a later key, drop, rename, or create",
@@ -452,12 +454,12 @@ func TestRequirePrimaryKey(t *testing.T) {
 		{
 			name: "in a CREATE SCHEMA",
 			sql:  "CREATE SCHEMA AUTHORIZATION shop CREATE TABLE k (id NUMBER) CREATE VIEW kv AS SELECT * FROM k;",
-			want: []finding{{0, "CREATE TABLE k (id NUMBER)", "creates table K without a primary key", []int{0}}},
+			want: []finding{{0, "CREATE TABLE k (id NUMBER)", "Creates table `K` without a primary key.", []int{0}}},
 		},
 		{
 			name: "a primary key dropped and not added back",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY;\nALTER TABLE p DROP CONSTRAINT pk_p;\nALTER TABLE p ADD CONSTRAINT pk_p2 PRIMARY KEY (id, note);",
-			want: []finding{{0, "DROP PRIMARY KEY", "removes the primary key of T, and the change adds none back", []int{0}}},
+			want: []finding{{0, "DROP PRIMARY KEY", "Removes the primary key of `T`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
 			name: "a table that had none before the change",
@@ -467,8 +469,8 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name: "a key the change made, then dropped",
 			sql:  "CREATE TABLE a (id NUMBER CONSTRAINT pk_a PRIMARY KEY);\nALTER TABLE a DROP CONSTRAINT pk_a;\nALTER TABLE t DROP PRIMARY KEY;\nALTER TABLE t ADD PRIMARY KEY (id);\nALTER TABLE t DROP PRIMARY KEY;",
 			want: []finding{
-				{1, "DROP CONSTRAINT pk_a", "removes the primary key of A, and the change adds none back", []int{0}},
-				{4, "DROP PRIMARY KEY", "removes the primary key of T, and the change adds none back", []int{0}},
+				{1, "DROP CONSTRAINT pk_a", "Removes the primary key of `A`, and the change doesn't add one back.", []int{0}},
+				{4, "DROP PRIMARY KEY", "Removes the primary key of `T`, and the change doesn't add one back.", []int{0}},
 			},
 		},
 		{
@@ -619,9 +621,9 @@ func TestNoTargets(t *testing.T) {
 		got = append(got, string(f.Rule)+": "+f.Message)
 	}
 	want := []string{
-		"DISALLOW_DROP_OBJECT: drops table T",
-		"DISALLOW_DROP_CONSTRAINT: drops check constraint CK_A of NOKEY",
-		"REQUIRE_PRIMARY_KEY: creates table A without a primary key",
+		"DISALLOW_DROP_OBJECT: Drops table `T`.",
+		"DISALLOW_DROP_CONSTRAINT: Drops check constraint `CK_A` of `NOKEY`.",
+		"REQUIRE_PRIMARY_KEY: Creates table `A` without a primary key.",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings mismatch (-want +got):\n%s", diff)
@@ -648,14 +650,14 @@ func TestConstraintScanLosesTrack(t *testing.T) {
 		{
 			name: "IF NOT EXISTS of a table the change made keeps what it defined",
 			sql:  "CREATE TABLE a (id NUMBER, CONSTRAINT ck_a CHECK (id > 0));\nCREATE TABLE IF NOT EXISTS a (id NUMBER);\nALTER TABLE a DROP CONSTRAINT ck_a;",
-			want: []finding{{2, "DROP CONSTRAINT ck_a", "drops check constraint CK_A of A", []int{0}}},
+			want: []finding{{2, "DROP CONSTRAINT ck_a", "Drops check constraint `CK_A` of `A`.", []int{0}}},
 		},
 		{
 			name: "FLASHBACK TABLE to a time, and DROP USER without CASCADE, keep the scan",
 			sql:  "FLASHBACK TABLE t TO TIMESTAMP SYSTIMESTAMP;\nDROP USER missing;\nALTER TABLE t DROP CONSTRAINT ck_n DROP CONSTRAINT fk_p;",
 			want: []finding{
-				{2, "DROP CONSTRAINT ck_n", "drops check constraint CK_N of T", []int{0}},
-				{2, "DROP CONSTRAINT fk_p", "drops foreign key FK_P of T", []int{0}},
+				{2, "DROP CONSTRAINT ck_n", "Drops check constraint `CK_N` of `T`.", []int{0}},
+				{2, "DROP CONSTRAINT fk_p", "Drops foreign key `FK_P` of `T`.", []int{0}},
 			},
 		},
 		{
@@ -665,7 +667,7 @@ func TestConstraintScanLosesTrack(t *testing.T) {
 		{
 			name: "DROP CLUSTER may drop tables it does not name",
 			sql:  "DROP CLUSTER cl INCLUDING TABLES;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE p DROP PRIMARY KEY;",
-			want: []finding{{2, "DROP PRIMARY KEY", "drops the primary key of P", []int{0}}},
+			want: []finding{{2, "DROP PRIMARY KEY", "Drops the primary key of `P`.", []int{0}}},
 		},
 		{
 			name: "CREATE TABLE IF NOT EXISTS may leave the table there was",
@@ -674,7 +676,7 @@ func TestConstraintScanLosesTrack(t *testing.T) {
 		{
 			name: "the session moves to another schema",
 			sql:  "ALTER SESSION SET CURRENT_SCHEMA = other;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE shop.t DROP CONSTRAINT uk_code;",
-			want: []finding{{2, "DROP CONSTRAINT uk_code", "drops unique constraint UK_CODE of SHOP.T", []int{0}}},
+			want: []finding{{2, "DROP CONSTRAINT uk_code", "Drops unique constraint `UK_CODE` of `SHOP.T`.", []int{0}}},
 		},
 		{
 			name:    "a name the change qualifies, the database not known",
@@ -714,7 +716,7 @@ func TestTargetsMerge(t *testing.T) {
 		{-1, "", "prior backup needs database BBDATAARCHIVE, which does not exist", []int{1}},
 		{0, "DELETE FROM longt WHERE id = 1", "prior backup copies LONGT with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column BODY (ORA-00997)", []int{0, 2}},
 		{1, "t", "Table or view T does not exist", []int{1}},
-		{1, "DROP CONSTRAINT ck_n", "drops check constraint CK_N of T", []int{0, 2}},
+		{1, "DROP CONSTRAINT ck_n", "Drops check constraint `CK_N` of `T`.", []int{0, 2}},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("findings mismatch (-want +got):\n%s", diff)

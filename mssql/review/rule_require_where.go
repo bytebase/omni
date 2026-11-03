@@ -13,13 +13,22 @@ func checkRequireWhere(s *statement, r *reporter) {
 		switch v := n.(type) {
 		case *ast.UpdateStmt:
 			if v.WhereClause == nil {
-				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "UPDATE "+tableExpr(v.Relation)+" has no WHERE clause")
+				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "`UPDATE` of "+whereTarget(v.Relation)+" has no `WHERE` clause.")
 			}
 		case *ast.DeleteStmt:
 			if v.WhereClause == nil {
-				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "DELETE FROM "+tableExpr(v.Relation)+" has no WHERE clause")
+				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "`DELETE` from "+whereTarget(v.Relation)+" has no `WHERE` clause.")
 			}
 		}
 		return true
 	})
+}
+
+// whereTarget writes the table an UPDATE or DELETE names as its target,
+// as a code span.
+func whereTarget(e ast.TableExpr) string {
+	if name := tableExpr(e); name != "" {
+		return review.Code(name)
+	}
+	return "the target"
 }

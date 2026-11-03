@@ -127,9 +127,9 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.RequireWhere, 0, span(t, sql, "UPDATE t SET a = 1"), "UPDATE t has no WHERE clause"},
-					{review.RequireWhere, 1, span(t, sql, "DELETE FROM s.t USING u"), "DELETE FROM s.t has no WHERE clause"},
-					{review.RequireWhere, 3, span(t, sql, "DELETE FROM t RETURNING *"), "DELETE FROM t has no WHERE clause"},
+					{review.RequireWhere, 0, span(t, sql, "UPDATE t SET a = 1"), "`UPDATE` of `t` has no `WHERE` clause."},
+					{review.RequireWhere, 1, span(t, sql, "DELETE FROM s.t USING u"), "`DELETE` from `s.t` has no `WHERE` clause."},
+					{review.RequireWhere, 3, span(t, sql, "DELETE FROM t RETURNING *"), "`DELETE` from `t` has no `WHERE` clause."},
 				}
 			},
 		},
@@ -139,15 +139,15 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.RequireWhere, 4, span(t, sql, "DELETE FROM u"), "DELETE FROM u has no WHERE clause"},
-					{review.RequireWhere, 5, span(t, sql, "DELETE FROM v"), "DELETE FROM v has no WHERE clause"},
-					{review.RequireWhere, 6, span(t, sql, "DELETE FROM w"), "DELETE FROM w has no WHERE clause"},
-					{review.RequireWhere, 7, span(t, sql, "DELETE FROM x"), "DELETE FROM x has no WHERE clause"},
-					{review.RequireWhere, 8, span(t, sql, "DELETE FROM y"), "DELETE FROM y has no WHERE clause"},
-					{review.RequireWhere, 9, span(t, sql, "DELETE FROM z"), "DELETE FROM z has no WHERE clause"},
-					{review.RequireWhere, 10, span(t, sql, "DELETE FROM zz"), "DELETE FROM zz has no WHERE clause"},
-					{review.RequireWhere, 15, span(t, sql, "DELETE FROM last"), "DELETE FROM last has no WHERE clause"},
-					{review.RequireWhere, 24, span(t, sql, "DELETE FROM opts"), "DELETE FROM opts has no WHERE clause"},
+					{review.RequireWhere, 4, span(t, sql, "DELETE FROM u"), "`DELETE` from `u` has no `WHERE` clause."},
+					{review.RequireWhere, 5, span(t, sql, "DELETE FROM v"), "`DELETE` from `v` has no `WHERE` clause."},
+					{review.RequireWhere, 6, span(t, sql, "DELETE FROM w"), "`DELETE` from `w` has no `WHERE` clause."},
+					{review.RequireWhere, 7, span(t, sql, "DELETE FROM x"), "`DELETE` from `x` has no `WHERE` clause."},
+					{review.RequireWhere, 8, span(t, sql, "DELETE FROM y"), "`DELETE` from `y` has no `WHERE` clause."},
+					{review.RequireWhere, 9, span(t, sql, "DELETE FROM z"), "`DELETE` from `z` has no `WHERE` clause."},
+					{review.RequireWhere, 10, span(t, sql, "DELETE FROM zz"), "`DELETE` from `zz` has no `WHERE` clause."},
+					{review.RequireWhere, 15, span(t, sql, "DELETE FROM last"), "`DELETE` from `last` has no `WHERE` clause."},
+					{review.RequireWhere, 24, span(t, sql, "DELETE FROM opts"), "`DELETE` from `opts` has no `WHERE` clause."},
 				}
 			},
 		},
@@ -157,16 +157,16 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.RequireIsNull, 0, span(t, sql, "a = NULL"), `"a = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 0, span(t, sql, "NULL != b"), `"NULL != b" is never true; use IS NOT NULL`},
-					{review.RequireIsNull, 0, span(t, sql, "d = NULL::int"), `"d = NULL::int" is never true; use IS NULL`},
-					{review.RequireIsNull, 0, span(t, sql, "(e + 1) <> NULL"), `"(e + 1) <> NULL" is never true; use IS NOT NULL`},
-					{review.RequireIsNull, 0, span(t, sql, "h OPERATOR(pg_catalog.<>) NULL"), `"h OPERATOR(pg_catalog.<>) NULL" is never true; use IS NOT NULL`},
-					{review.RequireIsNull, 0, span(t, sql, `i = (NULL::text COLLATE "C")`), `"i = (NULL::text COLLATE "C")" is never true; use IS NULL`},
-					{review.RequireIsNull, 0, span(t, sql, `j = NULL COLLATE "C"`), `"j = NULL COLLATE "C"" is never true; use IS NULL`},
-					{review.RequireIsNull, 0, span(t, sql, `l = (NULL COLLATE "C")::text`), `"l = (NULL COLLATE "C")::text" is never true; use IS NULL`},
-					{review.RequireIsNull, 0, span(t, sql, `m = NULL COLLATE "C" COLLATE "POSIX"`), `"m = NULL COLLATE "C" COLLATE "POSIX"" is never true; use IS NULL`},
-					{review.RequireIsNull, 1, span(t, sql, "y\n  =\n NULL"), `"y = NULL" is never true; use IS NULL`},
+					{review.RequireIsNull, 0, span(t, sql, "a = NULL"), "`a = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 0, span(t, sql, "NULL != b"), "`NULL != b` is never true.\n\nUse `IS NOT NULL` instead."},
+					{review.RequireIsNull, 0, span(t, sql, "d = NULL::int"), "`d = NULL::int` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 0, span(t, sql, "(e + 1) <> NULL"), "`(e + 1) <> NULL` is never true.\n\nUse `IS NOT NULL` instead."},
+					{review.RequireIsNull, 0, span(t, sql, "h OPERATOR(pg_catalog.<>) NULL"), "`h OPERATOR(pg_catalog.<>) NULL` is never true.\n\nUse `IS NOT NULL` instead."},
+					{review.RequireIsNull, 0, span(t, sql, `i = (NULL::text COLLATE "C")`), "`i = (NULL::text COLLATE \"C\")` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 0, span(t, sql, `j = NULL COLLATE "C"`), "`j = NULL COLLATE \"C\"` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 0, span(t, sql, `l = (NULL COLLATE "C")::text`), "`l = (NULL COLLATE \"C\")::text` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 0, span(t, sql, `m = NULL COLLATE "C" COLLATE "POSIX"`), "`m = NULL COLLATE \"C\" COLLATE \"POSIX\"` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 1, span(t, sql, "y\n  =\n NULL"), "`y = NULL` is never true.\n\nUse `IS NULL` instead."},
 				}
 			},
 		},
@@ -178,15 +178,15 @@ func TestReview(t *testing.T) {
 			want: func(t *testing.T, sql string) []finding {
 				var out []finding
 				for _, expr := range []string{"b = NULL", "e = NULL", "ee = NULL", "g = NULL", "h = NULL", "k = NULL", "l = NULL"} {
-					out = append(out, finding{review.RequireIsNull, 0, span(t, sql, expr), `"` + expr + `" is never true; use IS NULL`})
+					out = append(out, finding{review.RequireIsNull, 0, span(t, sql, expr), "`" + expr + "` is never true.\n\nUse `IS NULL` instead."})
 				}
-				out = append(out, finding{review.RequireIsNull, 1, span(t, sql, "x <> NULL"), `"x <> NULL" is never true; use IS NOT NULL`})
+				out = append(out, finding{review.RequireIsNull, 1, span(t, sql, "x <> NULL"), "`x <> NULL` is never true.\n\nUse `IS NOT NULL` instead."})
 				// A comparison in a subquery's select list is a value even
 				// when the subquery is the predicate; only cc, in the
 				// subquery's own WHERE, is reported from that statement.
 				for i, expr := range []string{"m = NULL", "o = NULL", "p = NULL", "r = NULL", "NEW.s = NULL", "u = NULL", "cc = NULL"} {
 					stmt := []int{2, 3, 3, 4, 6, 7, 8}[i]
-					out = append(out, finding{review.RequireIsNull, stmt, span(t, sql, expr), `"` + expr + `" is never true; use IS NULL`})
+					out = append(out, finding{review.RequireIsNull, stmt, span(t, sql, expr), "`" + expr + "` is never true.\n\nUse `IS NULL` instead."})
 				}
 				return out
 			},
@@ -197,17 +197,17 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 0, span(t, sql, `DROP TABLE IF EXISTS a.t1, "T2" CASCADE`), `drops table a.t1, "T2"`},
-					{review.DisallowDropObject, 1, span(t, sql, "DROP VIEW v"), "drops view v"},
-					{review.DisallowDropObject, 2, span(t, sql, "DROP TRIGGER trg ON s.t"), "drops trigger trg on s.t"},
-					{review.DisallowDropObject, 3, span(t, sql, "DROP FUNCTION f(int, text)"), "drops function f(integer, text)"},
-					{review.DisallowDropObject, 4, span(t, sql, "DROP DATABASE d"), "drops database d"},
-					{review.DisallowDropObject, 5, span(t, sql, "DROP ROLE r"), "drops role r"},
-					{review.DisallowDropObject, 6, span(t, sql, "DROP SCHEMA s"), "drops schema s"},
-					{review.DisallowDropObject, 7, span(t, sql, "DROP COLUMN c"), "drops column c of t"},
-					{review.DisallowDropObject, 7, span(t, sql, "DROP c2"), "drops column c2 of t"},
-					{review.DisallowDropObject, 8, span(t, sql, "DROP INDEX CONCURRENTLY i"), "drops index i"},
-					{review.DisallowDropObject, 9, span(t, sql, "DROP OWNED BY r"), "drops objects owned by r"},
+					{review.DisallowDropObject, 0, span(t, sql, `DROP TABLE IF EXISTS a.t1, "T2" CASCADE`), "Drops tables `a.t1` and `\"T2\"`."},
+					{review.DisallowDropObject, 1, span(t, sql, "DROP VIEW v"), "Drops view `v`."},
+					{review.DisallowDropObject, 2, span(t, sql, "DROP TRIGGER trg ON s.t"), "Drops trigger `trg` on `s.t`."},
+					{review.DisallowDropObject, 3, span(t, sql, "DROP FUNCTION f(int, text)"), "Drops function `f(integer, text)`."},
+					{review.DisallowDropObject, 4, span(t, sql, "DROP DATABASE d"), "Drops database `d`."},
+					{review.DisallowDropObject, 5, span(t, sql, "DROP ROLE r"), "Drops role `r`."},
+					{review.DisallowDropObject, 6, span(t, sql, "DROP SCHEMA s"), "Drops schema `s`."},
+					{review.DisallowDropObject, 7, span(t, sql, "DROP COLUMN c"), "Drops column `c` of `t`."},
+					{review.DisallowDropObject, 7, span(t, sql, "DROP c2"), "Drops column `c2` of `t`."},
+					{review.DisallowDropObject, 8, span(t, sql, "DROP INDEX CONCURRENTLY i"), "Drops index `i`."},
+					{review.DisallowDropObject, 9, span(t, sql, "DROP OWNED BY r"), "Drops the objects owned by `r`."},
 				}
 			},
 		},
@@ -217,28 +217,31 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 0, span(t, sql, "DROP CAST (int AS text)"), "drops cast from integer to text"},
-					{review.DisallowDropObject, 1, span(t, sql, "DROP TRANSFORM FOR int LANGUAGE plpgsql"), "drops transform for integer language plpgsql"},
-					{review.DisallowDropObject, 2, span(t, sql, "DROP OPERATOR CLASS s.c USING btree"), "drops operator class s.c using btree"},
-					{review.DisallowDropObject, 3, span(t, sql, "DROP OPERATOR FAMILY f USING btree"), "drops operator family f using btree"},
-					{review.DisallowDropObject, 4, span(t, sql, "DROP OPERATOR s.+ (int, int), - (NONE, int)"), `drops operator s.+(integer, integer), -(NONE, integer)`},
-					{review.DisallowDropObject, 5, span(t, sql, "DROP AGGREGATE agg(int, text), s.agg2(*)"), "drops aggregate agg(integer, text), s.agg2(*)"},
-					{review.DisallowDropObject, 6, span(t, sql, "DROP ROUTINE r"), "drops routine r"},
-					{review.DisallowDropObject, 7, span(t, sql, "DROP RULE r ON s.t"), "drops rule r on s.t"},
-					{review.DisallowDropObject, 8, span(t, sql, "DROP POLICY p ON t"), "drops policy p on t"},
-					{review.DisallowDropObject, 9, span(t, sql, "DROP TYPE s.ty, ty2"), "drops type s.ty, ty2"},
-					{review.DisallowDropObject, 10, span(t, sql, "DROP FUNCTION f(int[], text[][])"), "drops function f(integer[], text[])"},
-					{review.DisallowDropObject, 11, span(t, sql, "DROP FUNCTION g(t.c%TYPE)"), "drops function g(t.c%TYPE)"},
+					{review.DisallowDropObject, 0, span(t, sql, "DROP CAST (int AS text)"), "Drops the cast from `integer` to `text`."},
+					{review.DisallowDropObject, 1, span(t, sql, "DROP TRANSFORM FOR int LANGUAGE plpgsql"), "Drops the transform for `integer` language `plpgsql`."},
+					{review.DisallowDropObject, 2, span(t, sql, "DROP OPERATOR CLASS s.c USING btree"), "Drops operator class `s.c` using `btree`."},
+					{review.DisallowDropObject, 3, span(t, sql, "DROP OPERATOR FAMILY f USING btree"), "Drops operator family `f` using `btree`."},
+					{review.DisallowDropObject, 4, span(t, sql, "DROP OPERATOR s.+ (int, int), - (NONE, int)"), "Drops operators `s.+(integer, integer)` and `-(NONE, integer)`."},
+					{review.DisallowDropObject, 5, span(t, sql, "DROP AGGREGATE agg(int, text), s.agg2(*)"), "Drops aggregates `agg(integer, text)` and `s.agg2(*)`."},
+					{review.DisallowDropObject, 6, span(t, sql, "DROP ROUTINE r"), "Drops routine `r`."},
+					{review.DisallowDropObject, 7, span(t, sql, "DROP RULE r ON s.t"), "Drops rule `r` on `s.t`."},
+					{review.DisallowDropObject, 8, span(t, sql, "DROP POLICY p ON t"), "Drops policy `p` on `t`."},
+					{review.DisallowDropObject, 9, span(t, sql, "DROP TYPE s.ty, ty2"), "Drops types `s.ty` and `ty2`."},
+					{review.DisallowDropObject, 10, span(t, sql, "DROP FUNCTION f(int[], text[][])"), "Drops function `f(integer[], text[])`."},
+					{review.DisallowDropObject, 11, span(t, sql, "DROP FUNCTION g(t.c%TYPE)"), "Drops function `g(t.c%TYPE)`."},
 				}
 			},
 		},
 		{
-			name:    "disallow drop object writes pg_catalog types as format_type_be does and other types as written",
-			sql:     `DROP FUNCTION f(bigint, boolean, double precision, varchar(10), timestamp with time zone, character(3), numeric(10,2), int ARRAY[3], int4, "varchar", timestamptz, "char", s."My Type", pg_catalog.text);`,
+			name: "disallow drop object writes pg_catalog types as format_type_be does and other types as written",
+			// Two statements, so neither signature is long enough for the
+			// code span to cut it.
+			sql:     `DROP FUNCTION f(bigint, boolean, double precision, varchar(10), timestamp with time zone, character(3), numeric(10,2)); DROP FUNCTION g(int ARRAY[3], int4, "varchar", timestamptz, "char", s."My Type", pg_catalog.text);`,
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 0, span(t, sql, strings.TrimSuffix(sql, ";")), `drops function f(bigint, boolean, double precision, character varying, timestamp with time zone, character, numeric, integer[], int4, "varchar", timestamptz, "char", s."My Type", text)`},
+					{review.DisallowDropObject, 0, span(t, sql, "DROP FUNCTION f(bigint, boolean, double precision, varchar(10), timestamp with time zone, character(3), numeric(10,2))"), "Drops function `f(bigint, boolean, double precision, character varying, timestamp with time zone, character, numeric)`."},
+					{review.DisallowDropObject, 1, span(t, sql, `DROP FUNCTION g(int ARRAY[3], int4, "varchar", timestamptz, "char", s."My Type", pg_catalog.text)`), "Drops function `g(integer[], int4, \"varchar\", timestamptz, \"char\", s.\"My Type\", text)`."},
 				}
 			},
 		},
@@ -248,10 +251,10 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 0, span(t, sql, "DROP TABLE t"), "drops table t"},
-					{review.DisallowTruncate, 0, span(t, sql, "TRUNCATE u"), "truncates u"},
-					{review.DisallowRename, 0, span(t, sql, "ALTER TABLE v RENAME TO w"), "renames table v to w"},
-					{review.RequireWhere, 0, span(t, sql, "DELETE FROM x"), "DELETE FROM x has no WHERE clause"},
+					{review.DisallowDropObject, 0, span(t, sql, "DROP TABLE t"), "Drops table `t`."},
+					{review.DisallowTruncate, 0, span(t, sql, "TRUNCATE u"), "Truncates `u`."},
+					{review.DisallowRename, 0, span(t, sql, "ALTER TABLE v RENAME TO w"), "Renames table `v` to `w`."},
+					{review.RequireWhere, 0, span(t, sql, "DELETE FROM x"), "`DELETE` from `x` has no `WHERE` clause."},
 				}
 			},
 		},
@@ -261,23 +264,23 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 0, span(t, sql, `DROP TABLE "select", "user", "Order", "with  two", "order", "off", "text"`), `drops table "select", "user", "Order", "with  two", "order", off, text`},
-					{review.DisallowTruncate, 1, span(t, sql, `TRUNCATE "select"."user"`), `truncates "select"."user"`},
-					{review.DisallowDropObject, 2, span(t, sql, "DROP FUNCTION f(), s.p()"), "drops function f(), s.p()"},
-					{review.DisallowDropObject, 3, span(t, sql, "DROP PROCEDURE p()"), "drops procedure p()"},
-					{review.DisallowDropObject, 4, span(t, sql, "DROP ROUTINE r()"), "drops routine r()"},
-					{review.DisallowDropObject, 5, span(t, sql, "DROP AGGREGATE a(*)"), "drops aggregate a(*)"},
-					{review.RequireIsNull, 6, span(t, sql, "\"a  b\"\n =\n  NULL"), `""a  b" = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 7, span(t, sql, "\"c\nd\" = NULL"), `""c\nd" = NULL" is never true; use IS NULL`},
-					{review.DisallowDropObject, 8, span(t, sql, "DROP TABLE \"e\r\nf\""), `drops table "e\r\nf"`},
-					{review.RequireIsNull, 9, span(t, sql, "$$a  b$$ = NULL"), `"$$a  b$$ = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 9, span(t, sql, "$tag$c\n d$tag$   =  NULL"), `"$tag$c\n d$tag$ = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 9, span(t, sql, "'e  f' = NULL"), `"'e  f' = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 9, span(t, sql, "$1 = NULL"), `"$1 = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 9, span(t, sql, "E'g\\'  h' = NULL"), `"E'g\'  h' = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 9, span(t, sql, "'i''  j' = NULL"), `"'i''  j' = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 9, span(t, sql, "k -- note\n /* block\n comment */ = NULL"), `"k = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 9, span(t, sql, "l -- note\r = NULL"), `"l = NULL" is never true; use IS NULL`},
+					{review.DisallowDropObject, 0, span(t, sql, `DROP TABLE "select", "user", "Order", "with  two", "order", "off", "text"`), "Drops tables `\"select\"`, `\"user\"`, `\"Order\"`, `\"with  two\"`, `\"order\"`, `off`, and `text`."},
+					{review.DisallowTruncate, 1, span(t, sql, `TRUNCATE "select"."user"`), "Truncates `\"select\".\"user\"`."},
+					{review.DisallowDropObject, 2, span(t, sql, "DROP FUNCTION f(), s.p()"), "Drops functions `f()` and `s.p()`."},
+					{review.DisallowDropObject, 3, span(t, sql, "DROP PROCEDURE p()"), "Drops procedure `p()`."},
+					{review.DisallowDropObject, 4, span(t, sql, "DROP ROUTINE r()"), "Drops routine `r()`."},
+					{review.DisallowDropObject, 5, span(t, sql, "DROP AGGREGATE a(*)"), "Drops aggregate `a(*)`."},
+					{review.RequireIsNull, 6, span(t, sql, "\"a  b\"\n =\n  NULL"), "`\"a  b\" = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 7, span(t, sql, "\"c\nd\" = NULL"), "`\"c\\nd\" = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.DisallowDropObject, 8, span(t, sql, "DROP TABLE \"e\r\nf\""), "Drops table `\"e\\r\\nf\"`."},
+					{review.RequireIsNull, 9, span(t, sql, "$$a  b$$ = NULL"), "`$$a  b$$ = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 9, span(t, sql, "$tag$c\n d$tag$   =  NULL"), "`$tag$c\\n d$tag$ = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 9, span(t, sql, "'e  f' = NULL"), "`'e  f' = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 9, span(t, sql, "$1 = NULL"), "`$1 = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 9, span(t, sql, "E'g\\'  h' = NULL"), "`E'g\\'  h' = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 9, span(t, sql, "'i''  j' = NULL"), "`'i''  j' = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 9, span(t, sql, "k -- note\n /* block\n comment */ = NULL"), "`k = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 9, span(t, sql, "l -- note\r = NULL"), "`l = NULL` is never true.\n\nUse `IS NULL` instead."},
 				}
 			},
 		},
@@ -287,8 +290,8 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 1, span(t, sql, "DROP ATTRIBUTE a"), "drops attribute a of type t"},
-					{review.DisallowDropObject, 2, span(t, sql, "DROP ATTRIBUTE c CASCADE"), "drops attribute c of type s.t"},
+					{review.DisallowDropObject, 1, span(t, sql, "DROP ATTRIBUTE a"), "Drops attribute `a` of type `t`."},
+					{review.DisallowDropObject, 2, span(t, sql, "DROP ATTRIBUTE c CASCADE"), "Drops attribute `c` of type `s.t`."},
 				}
 			},
 		},
@@ -298,8 +301,8 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowTruncate, 0, span(t, sql, `TRUNCATE a.t1, "T2" RESTART IDENTITY`), `truncates a.t1, "T2"`},
-					{review.DisallowTruncate, 1, span(t, sql, "TRUNCATE TABLE ONLY t CASCADE"), "truncates t"},
+					{review.DisallowTruncate, 0, span(t, sql, `TRUNCATE a.t1, "T2" RESTART IDENTITY`), "Truncates `a.t1` and `\"T2\"`."},
+					{review.DisallowTruncate, 1, span(t, sql, "TRUNCATE TABLE ONLY t CASCADE"), "Truncates `t`."},
 				}
 			},
 		},
@@ -309,15 +312,15 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowRename, 0, span(t, sql, "ALTER TABLE t RENAME TO u"), "renames table t to u"},
-					{review.DisallowRename, 1, span(t, sql, "ALTER TABLE IF EXISTS s.t RENAME COLUMN a TO b"), "renames column a of s.t to b"},
-					{review.DisallowRename, 2, span(t, sql, "ALTER VIEW v RENAME COLUMN c TO d"), "renames column c of v to d"},
-					{review.DisallowRename, 5, span(t, sql, "ALTER TABLE t RENAME a TO b"), "renames column a of t to b"},
-					{review.DisallowRename, 6, span(t, sql, "ALTER FOREIGN TABLE ft RENAME TO fu"), "renames foreign table ft to fu"},
-					{review.DisallowRename, 7, span(t, sql, "ALTER FOREIGN TABLE ft RENAME e TO f"), "renames column e of ft to f"},
-					{review.DisallowRename, 8, span(t, sql, "ALTER VIEW IF EXISTS s.v RENAME TO w"), "renames view s.v to w"},
-					{review.DisallowRename, 9, span(t, sql, "ALTER MATERIALIZED VIEW mv RENAME TO mw"), "renames materialized view mv to mw"},
-					{review.DisallowRename, 10, span(t, sql, "ALTER MATERIALIZED VIEW IF EXISTS mv RENAME COLUMN g TO h"), "renames column g of mv to h"},
+					{review.DisallowRename, 0, span(t, sql, "ALTER TABLE t RENAME TO u"), "Renames table `t` to `u`."},
+					{review.DisallowRename, 1, span(t, sql, "ALTER TABLE IF EXISTS s.t RENAME COLUMN a TO b"), "Renames column `a` of `s.t` to `b`."},
+					{review.DisallowRename, 2, span(t, sql, "ALTER VIEW v RENAME COLUMN c TO d"), "Renames column `c` of `v` to `d`."},
+					{review.DisallowRename, 5, span(t, sql, "ALTER TABLE t RENAME a TO b"), "Renames column `a` of `t` to `b`."},
+					{review.DisallowRename, 6, span(t, sql, "ALTER FOREIGN TABLE ft RENAME TO fu"), "Renames foreign table `ft` to `fu`."},
+					{review.DisallowRename, 7, span(t, sql, "ALTER FOREIGN TABLE ft RENAME e TO f"), "Renames column `e` of `ft` to `f`."},
+					{review.DisallowRename, 8, span(t, sql, "ALTER VIEW IF EXISTS s.v RENAME TO w"), "Renames view `s.v` to `w`."},
+					{review.DisallowRename, 9, span(t, sql, "ALTER MATERIALIZED VIEW mv RENAME TO mw"), "Renames materialized view `mv` to `mw`."},
+					{review.DisallowRename, 10, span(t, sql, "ALTER MATERIALIZED VIEW IF EXISTS mv RENAME COLUMN g TO h"), "Renames column `g` of `mv` to `h`."},
 				}
 			},
 		},
@@ -352,7 +355,7 @@ func TestReview(t *testing.T) {
 			opts:    review.Options{Rules: []review.Rule{review.DisallowTruncate, review.Rule("NOT_A_RULE"), review.WalkThrough}},
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
-				return []finding{{review.DisallowTruncate, 1, span(t, sql, "TRUNCATE t"), "truncates t"}}
+				return []finding{{review.DisallowTruncate, 1, span(t, sql, "TRUNCATE t"), "Truncates `t`."}}
 			},
 		},
 		{
@@ -368,10 +371,10 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 0, span(t, sql, "DROP TABLE t"), "drops table t"},
-					{review.RequireWhere, 1, span(t, sql, "DELETE FROM u"), "DELETE FROM u has no WHERE clause"},
-					{review.RequireIsNull, 2, span(t, sql, "b = NULL"), `"b = NULL" is never true; use IS NULL`},
-					{review.RequireIsNull, 2, span(t, sql, "a = NULL"), `"a = NULL" is never true; use IS NULL`},
+					{review.DisallowDropObject, 0, span(t, sql, "DROP TABLE t"), "Drops table `t`."},
+					{review.RequireWhere, 1, span(t, sql, "DELETE FROM u"), "`DELETE` from `u` has no `WHERE` clause."},
+					{review.RequireIsNull, 2, span(t, sql, "b = NULL"), "`b = NULL` is never true.\n\nUse `IS NULL` instead."},
+					{review.RequireIsNull, 2, span(t, sql, "a = NULL"), "`a = NULL` is never true.\n\nUse `IS NULL` instead."},
 				}
 			},
 		},
@@ -380,7 +383,7 @@ func TestReview(t *testing.T) {
 			sql:     "\\restrict abc\n-- a comment\n/* block */ ;\nDELETE FROM t;\n\\unrestrict abc\n",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
-				return []finding{{review.RequireWhere, 0, span(t, sql, "DELETE FROM t"), "DELETE FROM t has no WHERE clause"}}
+				return []finding{{review.RequireWhere, 0, span(t, sql, "DELETE FROM t"), "`DELETE` from `t` has no `WHERE` clause."}}
 			},
 		},
 		{
@@ -395,7 +398,7 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			ranges:  []review.Range{{Start: 0, End: 9}, {Start: 9, End: 27}},
 			want: func(t *testing.T, sql string) []finding {
-				return []finding{{review.RequireWhere, 1, span(t, sql, "DELETE FROM t"), "DELETE FROM t has no WHERE clause"}}
+				return []finding{{review.RequireWhere, 1, span(t, sql, "DELETE FROM t"), "`DELETE` from `t` has no `WHERE` clause."}}
 			},
 		},
 		{
@@ -404,7 +407,7 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			ranges:  []review.Range{{Start: 0, End: 23}},
 			want: func(t *testing.T, sql string) []finding {
-				return []finding{{review.RequireWhere, 0, span(t, sql, "DELETE FROM t"), "DELETE FROM t has no WHERE clause"}}
+				return []finding{{review.RequireWhere, 0, span(t, sql, "DELETE FROM t"), "`DELETE` from `t` has no `WHERE` clause."}}
 			},
 		},
 		{
@@ -419,7 +422,7 @@ func TestReview(t *testing.T) {
 			sql:     "DELETE FROM t",
 			targets: 0,
 			want: func(t *testing.T, sql string) []finding {
-				return []finding{{review.RequireWhere, 0, span(t, sql, "DELETE FROM t"), "DELETE FROM t has no WHERE clause"}}
+				return []finding{{review.RequireWhere, 0, span(t, sql, "DELETE FROM t"), "`DELETE` from `t` has no `WHERE` clause."}}
 			},
 		},
 	}

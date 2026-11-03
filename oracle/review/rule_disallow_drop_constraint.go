@@ -235,7 +235,7 @@ func (s *constraintScan) createTable(st *statement, v *ast.CreateTableStmt, rng 
 		s.define(k, c.name, c.kind)
 	}
 	if s.on[review.RequirePrimaryKey] && judgedTable(v) && !createsPrimaryKey(v) {
-		s.pending = append(s.pending, &pendingTable{key: k, statement: st.index, rng: rng, message: "creates table " + objectName(v.Name) + " without a primary key"})
+		s.pending = append(s.pending, &pendingTable{key: k, statement: st.index, rng: rng, message: "Creates table " + review.Code(objectName(v.Name)) + " without a primary key."})
 	}
 }
 
@@ -413,7 +413,7 @@ func (s *constraintScan) findDefined(k tableKey, name string) *definedConstraint
 // the table's primary key, whatever its name.
 func (s *constraintScan) dropPrimaryKey(st *statement, v *ast.AlterTableStmt, cmd *ast.AlterTableCmd, k tableKey) {
 	if s.on[review.DisallowDropConstraint] {
-		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "drops the primary key of "+objectName(v.Name))
+		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "Drops the primary key of "+review.Code(objectName(v.Name))+".")
 	}
 	for _, d := range s.defined {
 		if d.alive && d.kind == ast.CONSTRAINT_PRIMARY && d.table.mayBe(k) {
@@ -427,7 +427,11 @@ func (s *constraintScan) dropPrimaryKey(st *statement, v *ast.AlterTableStmt, cm
 // the unique constraint on the columns, whatever its name.
 func (s *constraintScan) dropUnique(st *statement, v *ast.AlterTableStmt, cmd *ast.AlterTableCmd, k tableKey) {
 	if s.on[review.DisallowDropConstraint] {
-		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "drops the unique constraint on "+uniqueColumns(s.sql, cmd)+" of "+objectName(v.Name))
+		what := "a unique constraint"
+		if cols := uniqueColumns(s.sql, cmd); cols != "" {
+			what = "the unique constraint on " + cols
+		}
+		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "Drops "+what+" of "+review.Code(objectName(v.Name))+".")
 	}
 	s.touch(k, func(t *tableState) { t.uniqueDropped = true })
 }
@@ -479,15 +483,16 @@ func (s *constraintScan) dropped(st *statement, v *ast.AlterTableStmt, cmd *ast.
 		return
 	}
 	if s.on[review.DisallowDropConstraint] {
-		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "drops "+label+" "+ident(name)+" of "+objectName(v.Name))
+		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "Drops "+label+" "+review.Code(ident(name))+" of "+review.Code(objectName(v.Name))+".")
 	}
 	if kind == ast.CONSTRAINT_PRIMARY {
 		s.lostPrimaryKey(st, v, cmd, k)
 	}
 }
 
-// uniqueColumns writes the column list of DROP UNIQUE (columns), which the
-// parser does not keep.
+// uniqueColumns writes, as Markdown, the column list of DROP UNIQUE
+// (columns), which the parser does not keep: "(`A`, `B`)", or "" when
+// the clause has none.
 func uniqueColumns(sql string, cmd *ast.AlterTableCmd) string {
 	var names []string
 	open := false
@@ -500,10 +505,10 @@ func uniqueColumns(sql string, cmd *ast.AlterTableCmd) string {
 				return "(" + strings.Join(names, ", ") + ")"
 			}
 		case open && tok.Type != ',':
-			names = append(names, ident(tok.Str))
+			names = append(names, review.Code(ident(tok.Str)))
 		}
 	}
-	return "its columns"
+	return ""
 }
 
 // tableConstraint is a named or unnamed constraint a CREATE TABLE

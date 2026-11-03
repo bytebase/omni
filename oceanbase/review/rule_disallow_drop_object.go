@@ -2,7 +2,6 @@ package review
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/review"
@@ -19,15 +18,11 @@ import (
 func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		// report anchors a DROP statement; reportAt a subcommand.
-		reportAt := func(rng review.Range, kind string, names ...string) {
-			msg := "drops " + kind
-			if len(names) > 0 {
-				msg += " " + strings.Join(names, ", ")
-			}
+		reportAt := func(rng review.Range, msg string) {
 			r.report(review.DisallowDropObject, s.index, rng, msg)
 		}
 		report := func(loc ast.Loc, kind string, names ...string) {
-			reportAt(anchor(s, n, loc), kind, names...)
+			reportAt(anchor(s, n, loc), drops(kind, names...))
 		}
 		switch v := n.(type) {
 		case *ast.DropTableStmt:
@@ -35,16 +30,16 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			if v.Temporary {
 				kind = "temporary table"
 			}
-			report(v.Loc, kind, tables(v.Tables))
+			report(v.Loc, kind, tables(v.Tables)...)
 		case *ast.DropViewStmt:
-			report(v.Loc, "view", tables(v.Views))
+			report(v.Loc, "view", tables(v.Views)...)
 		case *ast.DropDatabaseStmt:
 			report(v.Loc, "database", ident(v.Name))
 		case *ast.DropIndexStmt:
 			if sameName(v.Name, "PRIMARY") {
 				return true
 			}
-			report(v.Loc, "index", ident(v.Name)+" of "+table(v.Table))
+			reportAt(anchor(s, n, v.Loc), dropsOf("index", table(v.Table), ident(v.Name)))
 		case *ast.DropRoutineStmt:
 			kind := "function"
 			if v.IsProcedure {
@@ -80,20 +75,36 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 				}
 				switch dropKindOf(sql, cmd) {
 				case dropColumn:
-					reportAt(rangeOf(cmd.Loc), "column", ident(cmd.Name)+" of "+table(v.Table))
+					reportAt(rangeOf(cmd.Loc), dropsOf("column", table(v.Table), ident(cmd.Name)))
 				case dropIndex:
-					reportAt(rangeOf(cmd.Loc), "index", ident(cmd.Name)+" of "+table(v.Table))
+					reportAt(rangeOf(cmd.Loc), dropsOf("index", table(v.Table), ident(cmd.Name)))
 				case dropPartition:
 					names := make([]string, len(cmd.PartitionNames))
 					for i, name := range cmd.PartitionNames {
 						names[i] = ident(name)
 					}
-					reportAt(rangeOf(cmd.Loc), "partition", strings.Join(names, ", ")+" of "+table(v.Table))
+					reportAt(rangeOf(cmd.Loc), dropsOf("partition", table(v.Table), names...))
 				}
 			}
 		}
 		return true
 	})
+}
+
+// drops writes the finding for the DROP of objects of one kind: "Drops
+// table `t`.", "Drops tables `t` and `p`.".
+func drops(kind string, names ...string) string {
+	if len(names) == 0 {
+		return "Drops the " + kind + "."
+	}
+	return "Drops " + review.Plural(kind, len(names)) + " " + review.Names(names...) + "."
+}
+
+// dropsOf writes the finding for the DROP of objects of one kind of an
+// owner: "Drops column `n` of `t`.", "Drops partitions `p0` and `p1` of
+// `t`.".
+func dropsOf(kind, owner string, names ...string) string {
+	return "Drops " + review.Plural(kind, len(names)) + " " + review.Names(names...) + " of " + review.Code(owner) + "."
 }
 
 // accounts writes account names as the statement gave them, with a line

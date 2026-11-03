@@ -5,6 +5,7 @@ import (
 
 	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/oracle/parser"
+	"github.com/bytebase/omni/review"
 )
 
 // ident writes an identifier as Oracle needs it in a statement: bare when
@@ -54,16 +55,16 @@ func objectName(ref *ast.ObjectName) string {
 	return s
 }
 
-// dmlTarget writes the target an UPDATE or DELETE names: its table, or
-// what kind of target it is when it is not one.
+// dmlTarget writes, as Markdown, the target an UPDATE or DELETE names: its
+// table, or what kind of target it is when it is not one.
 func dmlTarget(e ast.TableExpr) string {
 	switch v := e.(type) {
 	case *ast.TableRef:
-		return objectName(v.Name)
+		return review.Code(objectName(v.Name))
 	case *ast.SubqueryRef, *ast.LateralRef:
 		return "an inline view"
 	case *ast.TableCollectionExpr:
-		return "a TABLE collection"
+		return "a `TABLE` collection"
 	}
 	return "the target"
 }

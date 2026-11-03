@@ -88,7 +88,7 @@ func assertFormatType(t *testing.T, conn *sql.Conn, spellings []string) {
 		if len(res.Findings) != 1 {
 			t.Fatalf("%s: got %d findings, want 1", sql, len(res.Findings))
 		}
-		if got, wantMsg := res.Findings[0].Message, "drops function f("+want+")"; got != wantMsg {
+		if got, wantMsg := res.Findings[0].Message, "Drops function "+review.Code("f("+want+")")+"."; got != wantMsg {
 			t.Errorf("%s: got %q, want %q", sql, got, wantMsg)
 		}
 	}

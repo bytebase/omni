@@ -18,9 +18,9 @@ func checkDisallowRename(s *statement, r *reporter) {
 		}
 		switch v.RenameType {
 		case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
-			r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames "+objectKind(v.RenameType)+" "+relation(v.Relation)+" to "+ident(v.Newname))
+			r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "Renames "+objectKind(v.RenameType)+" "+review.Code(relation(v.Relation))+" to "+review.Code(ident(v.Newname))+".")
 		case ast.OBJECT_COLUMN:
-			r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames column "+ident(v.Subname)+" of "+relation(v.Relation)+" to "+ident(v.Newname))
+			r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "Renames column "+review.Code(ident(v.Subname))+" of "+review.Code(relation(v.Relation))+" to "+review.Code(ident(v.Newname))+".")
 		}
 		return true
 	})
