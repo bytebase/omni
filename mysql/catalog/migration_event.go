@@ -29,7 +29,7 @@ import (
 // declared without an OpAlterEvent.
 //
 // DEFINER is never emitted: it is ignore-in-diff (always resolves to the executing user) and
-// omitting it lets the apply readback match the synced form (“ DEFINER=`root`@`%` “). The
+// omitting it lets the apply readback match the synced form (DEFINER=`root`@`%`). The
 // schedule is emitted verbatim from the target — applying `EVERY 1 HOUR` lets the engine inject
 // its own STARTS, whose readback canonicalizes equal to the target (canonicalizeSchedule strips
 // STARTS), so apply-correctness holds.
@@ -217,14 +217,15 @@ func renderDropEvent(e *Event) string {
 
 // writeEventBodyClauses appends the shared CREATE/ALTER EVENT clause sequence (everything after
 // the event name): ON SCHEDULE, ON COMPLETION, status, COMMENT, DO body. Every clause is emitted
-// UNCONDITIONALLY (including the explicit defaults NOT PRESERVE / ENABLE and an explicit
-// COMMENT ”) so that for the ALTER path a clause omitted from the target actually RESETS the
+// UNCONDITIONALLY (including the explicit defaults NOT PRESERVE / ENABLE and an explicit empty
+// COMMENT) so that for the ALTER path a clause omitted from the target actually RESETS the
 // event to that target value. MySQL's ALTER EVENT leaves any omitted clause unchanged, so to
-// CLEAR a comment the statement must say COMMENT ” — verified on live 5.7.25 + 8.0.32: an ALTER
-// without a COMMENT clause keeps the old comment, while COMMENT ” removes it (and a CREATE/ALTER
-// with COMMENT ” reads back with no COMMENT clause, canonicalizing equal to an empty comment). The
-// same reasoning is why status and ON COMPLETION are always rendered. The schedule is the one
-// clause that cannot be empty for a valid event, so it is emitted whenever present.
+// CLEAR a comment the statement must give an empty COMMENT — verified on live 5.7.25 + 8.0.32: an
+// ALTER without a COMMENT clause keeps the old comment, while an empty COMMENT removes it (and a
+// CREATE/ALTER with an empty COMMENT reads back with no COMMENT clause, canonicalizing equal to an
+// empty comment). The same reasoning is why status and ON COMPLETION are always rendered. The
+// schedule is the one clause that cannot be empty for a valid event, so it is emitted whenever
+// present.
 func writeEventBodyClauses(b *strings.Builder, e *Event) {
 	if sched := strings.TrimSpace(e.Schedule); sched != "" {
 		b.WriteString(" ON SCHEDULE ")

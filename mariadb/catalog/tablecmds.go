@@ -2891,7 +2891,7 @@ func isTextBlobLengthStripped(dt string) bool {
 }
 
 // escapeEnumValue escapes single quotes in ENUM/SET values for SHOW CREATE TABLE.
-// MySQL uses ” (two single quotes) to escape a single quote in enum values.
+// MySQL escapes a single quote in enum values by doubling it.
 func escapeEnumValue(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }

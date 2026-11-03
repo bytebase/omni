@@ -206,7 +206,7 @@ func (l *Lexer) scanBracketedComment() {
 // --- String / Identifier scanning ------------------------------------------
 
 // scanString reads a single-quoted string literal (STRING_). Trino is
-// standard-conforming: the only in-string escape is a doubled quote (”) which
+// standard-conforming: the only in-string escape is a doubled quote, which
 // denotes one literal quote; backslashes are ordinary characters. Newlines are
 // permitted inside the literal.
 func (l *Lexer) scanString() Token {
@@ -235,7 +235,7 @@ func (l *Lexer) scanString() Token {
 // The leading U& has already been confirmed by the caller. The optional
 // "UESCAPE 'c'" suffix and the \XXXX / \+XXXXXX escapes are part of the
 // parser's string-rule semantics (string_ -> unicodeStringLiteral), not the
-// lexer; the lexer captures the raw inter-quote bytes verbatim, with ” meaning
+// lexer; the lexer captures the raw inter-quote bytes verbatim, with a doubled quote meaning
 // a literal quote (consistent with STRING_).
 func (l *Lexer) scanUnicodeString() Token {
 	start := l.start
@@ -263,7 +263,7 @@ func (l *Lexer) scanUnicodeString() Token {
 // scanBinaryLiteral reads an X'...' binary literal (BINARY_LITERAL_). Per the
 // grammar comment, any byte except a quote is admitted between the quotes; the
 // content is validated as hex when the AST is constructed, so a more
-// descriptive error can be produced there. There is no ” escape inside X'...'.
+// descriptive error can be produced there. There is no doubled-quote escape inside X'...'.
 func (l *Lexer) scanBinaryLiteral() Token {
 	start := l.start
 	l.pos += 2 // consume X and opening quote
@@ -287,7 +287,7 @@ func (l *Lexer) scanQuotedIdent() Token {
 }
 
 // scanBackquotedIdent reads a `...` identifier (BACKQUOTED_IDENTIFIER_). A
-// doubled backtick (“) denotes one literal backtick.
+// doubled backtick denotes one literal backtick.
 func (l *Lexer) scanBackquotedIdent() Token {
 	return l.scanDelimitedIdent('`', tokBackquotedIdent)
 }

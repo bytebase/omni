@@ -597,9 +597,9 @@ func (p *Parser) isSelectIdentToken() bool {
 //
 // stringOK selects between those two grammar rules.
 //
-// The second return reports whether an alias was present at all: the empty
-// string alias AS ” is engine-valid and distinct from "no alias", so the
-// value alone cannot carry presence.
+// The second return reports whether an alias was present at all: AS followed
+// by an empty string literal is engine-valid and distinct from "no alias", so
+// the value alone cannot carry presence.
 func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool) {
 	// Explicit: AS alias
 	if p.cur.Kind == kwAS {

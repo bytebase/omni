@@ -2792,8 +2792,9 @@ func TestAnalyze_15_5_ViewFunctionTypeFlow(t *testing.T) {
 // TestAnalyze_AdjacentLiteralResName pins the implicit output column name for
 // adjacent string-literal runs: MySQL names the item after the FIRST segment
 // ('a' 'b' → "a"), and an empty derived name falls back to the positional
-// Name_exp_N form (SELECT ” 'b' → Name_exp_1, SELECT ” → Name_exp_1; second
-// position → Name_exp_2). Oracle: MySQL 8.0.32 + 5.7.25 SHOW CREATE VIEW.
+// Name_exp_N form (an empty literal then 'b' → Name_exp_1, an empty literal
+// alone → Name_exp_1; second position → Name_exp_2). Oracle: MySQL 8.0.32 +
+// 5.7.25 SHOW CREATE VIEW.
 func TestAnalyze_AdjacentLiteralResName(t *testing.T) {
 	c := wtSetup(t)
 	cases := []struct {

@@ -68,7 +68,7 @@ func isAnyKeywordIdentifier(tokenType int) bool {
 // resolution, masking) identical to the ANTLR path. In particular it
 // intentionally matches legacy by:
 //   - stripping ONLY surrounding backticks (the legacy `len >= 3 && hasPrefix
-//     "`" && hasSuffix "`"` guard, which leaves a lone "`" or "“" untouched),
+//     "`" && hasSuffix "`"` guard, which leaves a lone backtick or an empty backtick pair untouched),
 //   - NOT lower-casing (GoogleSQL unquoted identifiers ARE case-insensitive for
 //     resolution, but the legacy extractor preserved the source case here and
 //     left case-folding to the metadata layer; preserving that avoids a silent

@@ -506,9 +506,9 @@ func (p *Parser) parseTypeName() (*DataType, error) {
 // every keyword-as-identifier carries its real spelling and we return it as-is;
 // returning TokenName(tok.Type) here would yield `pkg.TYPE` / `x.VALUE`.
 //
-// An empty `tokIdentifier` (the body of an empty backtick pair “) is rejected
+// An empty `tokIdentifier` (the body of an empty backtick pair) is rejected
 // as an "invalid empty identifier" — the lexer admits empty backticks without a
-// lex error, but the GoogleSQL grammar rejects them (oracle: `CAST(NULL AS “)`
+// lex error, but the GoogleSQL grammar rejects them (oracle: `CAST(NULL AS <empty backtick pair>)`
 // → "Syntax error: Invalid empty identifier"). The emptiness check stays keyed
 // on tokIdentifier so a (hypothetical) zero-width keyword token can still fall
 // back to its canonical spelling rather than being rejected as empty.

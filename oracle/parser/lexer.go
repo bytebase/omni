@@ -1156,7 +1156,7 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 	return Token{Type: lexAgain}
 }
 
-// lexSingleQuotedString handles '...' strings with ” escape.
+// lexSingleQuotedString handles '...' strings, where a doubled quote escapes one.
 func (l *Lexer) lexSingleQuotedString() string {
 	l.pos++ // skip opening '
 	var buf strings.Builder
