@@ -67,10 +67,10 @@ type droppedConstraint struct {
 // primary key and the drop is judged.
 func reportDrop(d droppedConstraint, kind constraintKind, on map[review.Rule]bool, r *reporter) {
 	if on[review.DisallowDropConstraint] {
-		r.report(review.DisallowDropConstraint, d.statement, rangeOf(d.loc), "Drops "+kind.label()+" "+review.Code(ident(d.name))+" of "+review.Code(object(d.table))+".")
+		r.report(review.DropsConstraint, d.statement, rangeOf(d.loc), "Drops "+kind.label()+" "+review.Code(ident(d.name))+" of "+review.Code(object(d.table))+".")
 	}
 	if on[review.RequirePrimaryKey] && kind == primaryKey && d.judgePK {
-		r.report(review.RequirePrimaryKey, d.statement, rangeOf(d.loc), "Removes the primary key of "+review.Code(object(d.table))+", and the change doesn't add one back.")
+		r.report(review.PrimaryKeyRemoved, d.statement, rangeOf(d.loc), "Removes the primary key of "+review.Code(object(d.table))+", and the change doesn't add one back.")
 	}
 }
 
@@ -181,7 +181,7 @@ func checkConstraints(sql string, stmts []statement, on map[review.Rule]bool, r 
 					}
 				}
 				if top && on[review.RequirePrimaryKey] && judgedTable(v) && !createsPrimaryKey(v) && !mentionsPrimaryKey(sql, s) && !later.after(pos, v.Name) {
-					r.report(review.RequirePrimaryKey, s.index, rangeOf(s.loc), "Creates table "+review.Code(object(v.Name))+" without a primary key.")
+					r.report(review.TableWithoutPrimaryKey, s.index, rangeOf(s.loc), "Creates table "+review.Code(object(v.Name))+" without a primary key.")
 				}
 			case *ast.AlterTableStmt:
 				open = append(open, c.alterTable(later, pos, s, v, top, on, r)...)
@@ -245,18 +245,18 @@ func (c *constraintLog) alterTable(later settlers, pos int, s *statement, v *ast
 			switch {
 			case a.IsPrimaryKey:
 				if on[review.DisallowDropConstraint] {
-					r.report(review.DisallowDropConstraint, s.index, rangeOf(a.Loc), "Drops the primary key of "+review.Code(object(v.Name))+".")
+					r.report(review.DropsConstraint, s.index, rangeOf(a.Loc), "Drops the primary key of "+review.Code(object(v.Name))+".")
 				}
 				if on[review.RequirePrimaryKey] && judgePK {
-					r.report(review.RequirePrimaryKey, s.index, rangeOf(a.Loc), "Removes the primary key of "+review.Code(object(v.Name))+", and the change doesn't add one back.")
+					r.report(review.PrimaryKeyRemoved, s.index, rangeOf(a.Loc), "Removes the primary key of "+review.Code(object(v.Name))+", and the change doesn't add one back.")
 				}
 			case a.DropUnique:
 				if on[review.DisallowDropConstraint] {
-					r.report(review.DisallowDropConstraint, s.index, rangeOf(a.Loc), "Drops a unique constraint of "+review.Code(object(v.Name))+".")
+					r.report(review.DropsConstraint, s.index, rangeOf(a.Loc), "Drops a unique constraint of "+review.Code(object(v.Name))+".")
 				}
 			case a.DropForeignKey:
 				if on[review.DisallowDropConstraint] {
-					r.report(review.DisallowDropConstraint, s.index, rangeOf(a.Loc), "Drops a foreign key of "+review.Code(object(v.Name))+".")
+					r.report(review.DropsConstraint, s.index, rangeOf(a.Loc), "Drops a foreign key of "+review.Code(object(v.Name))+".")
 				}
 			case !a.ConstraintName.IsEmpty():
 				d := droppedConstraint{statement: s.index, loc: a.Loc, table: v.Name, name: a.ConstraintName, judgePK: judgePK}

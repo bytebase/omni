@@ -24,7 +24,7 @@ func checkDisallowTruncate(s *statement, r *reporter) {
 			case v.ErrorTable:
 				what = "the error table of " + what
 			}
-			r.report(review.DisallowTruncate, s.index, anchor(s, v, v.Loc), "Truncates "+what+".")
+			r.report(review.TruncatesData, s.index, anchor(s, v, v.Loc), "Truncates "+what+".")
 		}
 		return true
 	})

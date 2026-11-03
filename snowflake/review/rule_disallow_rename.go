@@ -23,7 +23,7 @@ import (
 // sql: https://docs.snowflake.com/en/sql-reference/sql/alter-table
 func checkDisallowRename(s *statement, r *reporter) {
 	report := func(rng review.Range, msg string) {
-		r.report(review.DisallowRename, s.index, rng, msg)
+		r.report(review.RenamesObject, s.index, rng, msg)
 	}
 	renames := func(kind string, from, to *ast.ObjectName) string {
 		return "Renames " + kind + " " + review.Code(object(from)) + " to " + review.Code(object(to)) + "."

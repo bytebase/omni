@@ -77,7 +77,12 @@ func contentLoc(seg parser.Segment) (loc ast.Loc, ok bool) {
 // the finding's range starts and ends at that offset, which the caller
 // anchors to its line. Any other error addresses the whole change.
 func syntaxFinding(err error, ranges []review.Range) *review.Finding {
-	f := &review.Finding{Rule: review.Syntax, Statement: -1, Message: escapeLines(err.Error())}
+	f := &review.Finding{
+		Rule:      review.SyntaxError.Rule(),
+		Codes:     []review.FindingCode{review.SyntaxError},
+		Statement: -1,
+		Message:   escapeLines(err.Error()),
+	}
 	var perr *parser.ParseError
 	if errors.As(err, &perr) {
 		// The message quotes the offending token, which may hold a line
