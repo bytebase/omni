@@ -413,7 +413,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// TiDB v8.5.5 refuses the statement rather than add an invisible key, and
 		// refuses it whole: the columns stay nullable.
 		if !pkIdx.Visible {
-			return &Error{Code: 3522, SQLState: "HY000", Message: "A primary key index cannot be invisible"}
+			return errPrimaryKeyInvisible()
 		}
 		// Mark PK columns as NOT NULL.
 		for _, colName := range cols {

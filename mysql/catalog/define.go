@@ -89,7 +89,9 @@ func (c *Catalog) DefineTable(stmt *nodes.CreateTableStmt) error {
 	if stmt == nil || stmt.Table == nil || stmt.Table.Name == "" {
 		return errWrongArguments("DefineTable")
 	}
-	return c.createTable(stmt)
+	// A loader's statement lists the keys in its snapshot's order, so it cannot
+	// tell which UNIQUE key the server takes for the implicit primary key.
+	return c.createTable(stmt, false)
 }
 
 // DefineView installs a view. stmt.Name and stmt.Name.Name must be
