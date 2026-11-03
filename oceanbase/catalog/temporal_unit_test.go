@@ -104,12 +104,12 @@ func TestTemporalUnitStoredFormRoundTrip(t *testing.T) {
 // User-declared forms must canonicalize to the engine's stored form, so a
 // no-op SDL diff against a live readback stays empty. Every `want` string is
 // an oracle readback (8.0.32 + 5.7.25 agree): the date-arithmetic function
-// family is stored as INTERVAL arithmetic, units are case-folded, SQL_TSI_
-// synonyms are folded, and GET_FORMAT(TIMESTAMP,...) stores as DATETIME.
+// family is stored as INTERVAL arithmetic, units are case-folded, and
+// GET_FORMAT(TIMESTAMP,...) stores as DATETIME. MySQL also folds the SQL_TSI_
+// synonyms, which OceanBase does not take at all (TestTemporalUnitParserRejections).
 func TestTemporalUnitUserFormCanonicalization(t *testing.T) {
 	cases := []struct{ id, user, want string }{
 		{"timestampadd", "select TIMESTAMPADD(HOUR, 1, '2020-01-01') AS `x`", "select ('2020-01-01' + interval 1 hour) AS `x`"},
-		{"timestampadd-sql-tsi", "select TIMESTAMPADD(SQL_TSI_HOUR, 1, '2020-01-01') AS `x`", "select ('2020-01-01' + interval 1 hour) AS `x`"},
 		{"date-add", "select DATE_ADD('2020-01-01', INTERVAL 1 DAY) AS `x`", "select ('2020-01-01' + interval 1 day) AS `x`"},
 		{"date-sub", "select DATE_SUB('2020-01-01', INTERVAL 1 DAY) AS `x`", "select ('2020-01-01' - interval 1 day) AS `x`"},
 		{"date-add-compound", "select DATE_ADD('2020-01-01', INTERVAL '1:1' DAY_HOUR) AS `x`", "select ('2020-01-01' + interval '1:1' day_hour) AS `x`"},
@@ -122,13 +122,10 @@ func TestTemporalUnitUserFormCanonicalization(t *testing.T) {
 		{"nested-date-add", "select DATE_ADD(DATE_ADD('2020-01-01', INTERVAL 1 DAY), INTERVAL 1 HOUR) AS `x`", "select (('2020-01-01' + interval 1 day) + interval 1 hour) AS `x`"},
 		{"bare-interval", "select NOW() + INTERVAL 1 DAY AS `x`", "select (now() + interval 1 day) AS `x`"},
 		{"interval-first-commutes", "select INTERVAL 1 DAY + NOW() AS `x`", "select (now() + interval 1 day) AS `x`"},
-		{"interval-sql-tsi", "select NOW() + INTERVAL 1 SQL_TSI_DAY AS `x`", "select (now() + interval 1 day) AS `x`"},
 		{"tsdiff-lowercase-unit", "select timestampdiff(second,'2020-01-01','2021-01-01') AS `x`", "select timestampdiff(SECOND,'2020-01-01','2021-01-01') AS `x`"},
-		{"tsdiff-sql-tsi", "select timestampdiff(SQL_TSI_SECOND,'2020-01-01','2021-01-01') AS `x`", "select timestampdiff(SECOND,'2020-01-01','2021-01-01') AS `x`"},
 		{"get-format-lowercase", "select get_format(date,'USA') AS `x`", "select get_format(DATE, 'USA') AS `x`"},
 		{"get-format-timestamp", "select GET_FORMAT(TIMESTAMP,'USA') AS `x`", "select get_format(DATETIME, 'USA') AS `x`"},
 		{"extract-uppercase-unit", "select EXTRACT(DAY_HOUR FROM '2020-01-01 10:20:30') AS `x`", "select extract(day_hour from '2020-01-01 10:20:30') AS `x`"},
-		{"extract-sql-tsi", "select EXTRACT(SQL_TSI_DAY FROM '2020-01-01') AS `x`", "select extract(day from '2020-01-01') AS `x`"},
 		{"weight-string-as-binary", "select WEIGHT_STRING('ab' AS BINARY(4)) AS `x`", "select weight_string(cast('ab' as char(4) charset binary)) AS `x`"},
 		{"weight-string-level-asc", "select WEIGHT_STRING('ab' LEVEL 1 ASC) AS `x`", "select weight_string('ab' level 1) AS `x`"},
 		// The engine clamps an out-of-range level instead of rejecting:
@@ -299,8 +296,16 @@ func TestTemporalUnitParserRejections(t *testing.T) {
 	cases := []struct{ id, body string }{
 		{"tsdiff-quoted-unit", "select timestampdiff(`SECOND`,'2020-01-01','2021-01-01') AS `x`"},
 		{"tsdiff-string-unit", "select timestampdiff('SECOND','2020-01-01','2021-01-01') AS `x`"},
-		{"tsdiff-compound-unit", "select timestampdiff(DAY_HOUR,'2020-01-01','2021-01-01') AS `x`"},
+		// MySQL also refuses timestampdiff(DAY_HOUR, ...), which OceanBase parses
+		// (parser sqlTSIUnitCases), so that case is not here.
 		{"tsdiff-sql-tsi-microsecond", "select timestampdiff(SQL_TSI_MICROSECOND,'2020-01-01','2021-01-01') AS `x`"},
+		// MySQL folds the eight SQL_TSI_ synonyms to the plain unit. OceanBase's
+		// date_unit has none of them, so 4.3.5.6 answers 1064 in every unit position
+		// (parser sqlTSIUnitCases).
+		{"timestampadd-sql-tsi", "select TIMESTAMPADD(SQL_TSI_HOUR, 1, '2020-01-01') AS `x`"},
+		{"interval-sql-tsi", "select NOW() + INTERVAL 1 SQL_TSI_DAY AS `x`"},
+		{"tsdiff-sql-tsi", "select timestampdiff(SQL_TSI_SECOND,'2020-01-01','2021-01-01') AS `x`"},
+		{"extract-sql-tsi", "select EXTRACT(SQL_TSI_DAY FROM '2020-01-01') AS `x`"},
 		{"get-format-year", "select get_format(YEAR,'USA') AS `x`"},
 		{"get-format-string", "select get_format('DATE','USA') AS `x`"},
 		{"extract-quoted-unit", "select extract(`day` from '2020-01-01') AS `x`"},

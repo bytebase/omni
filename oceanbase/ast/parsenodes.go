@@ -1919,8 +1919,9 @@ func (e *IntervalExpr) exprNode() {}
 // the format type of GET_FORMAT (get_format(DATE,'USA')). MySQL lexes these
 // positions as keywords, never identifiers — a quoted `SECOND` is a syntax
 // error (oracle 8.0.32 + 5.7.25) — so deparse must render Keyword unquoted.
-// Keyword is stored normalized: uppercase, SQL_TSI_ prefix stripped, and
-// GET_FORMAT's TIMESTAMP folded to DATETIME, matching SHOW CREATE VIEW.
+// Keyword is stored normalized: uppercase, and GET_FORMAT's TIMESTAMP folded
+// to DATETIME, matching SHOW CREATE VIEW. OceanBase takes no SQL_TSI_ unit, so
+// there is no synonym left to fold.
 type KeywordArg struct {
 	Loc     Loc
 	Keyword string
