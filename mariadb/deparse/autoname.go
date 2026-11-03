@@ -147,7 +147,7 @@ func nodeLoc(node ast.Node) (ast.Loc, bool) {
 // Verified on MariaDB 11.8: a /* c */ + 1 is named "a /* c */ + 1", a -- note
 // <newline> + 1 keeps its comment, and a /*!+3*/ is named "a +3".
 func nameText(text string) string {
-	if !strings.Contains(text, "/*!") && !strings.Contains(text, "*/") {
+	if !strings.Contains(text, "/*!") && !strings.Contains(text, "/*M!") && !strings.Contains(text, "*/") {
 		return text
 	}
 	out := make([]byte, 0, len(text))
@@ -160,20 +160,17 @@ func nameText(text string) string {
 			out = append(out, text[i:j]...)
 			i = j
 		case skippedComment(text, i):
-			// A comment versioned for MySQL 5.7 or 8.0 is one MariaDB skips
-			// unread, so it names "1 /*!80023 +3*/ + 1" as "1  + 1".
+			// A comment MariaDB skips unread drops out of the name with its body:
+			// it names "1 /*!80023 +3*/ + 1" as "1  + 1".
 			if j := skippedCommentEnd(text, i); j >= 0 {
 				i = j
 			} else {
 				i = len(text)
 			}
-		case c == '/' && i+2 < len(text) && text[i+1] == '*' && text[i+2] == '!':
+		case execOpenerAt(text, i) > 0:
 			// Executable comments do not nest: an opener inside one is dropped,
 			// and the first "*/" closes both.
-			i += 3
-			for i < len(text) && text[i] >= '0' && text[i] <= '9' {
-				i++
-			}
+			i = execOpenerAt(text, i)
 			open = true
 		case c == '/' && i+1 < len(text) && text[i+1] == '*':
 			j := commentEnd(text, i+2)
@@ -201,22 +198,36 @@ func nameText(text string) string {
 	return string(out)
 }
 
-// skippedComment and skippedCommentEnd read the comments MariaDB skips unread,
-// as mariadb/parser's functions of the same names do: "/*!" with a version from
-// 50700 to 99999 (five digits, or six when a sixth follows), ending where its
-// nesting, counted over raw bytes, closes.
+// skippedComment, skippedCommentEnd and execOpenerAt read comments as
+// mariadb/parser's skippedComment, skippedCommentEnd and execOpener do. A
+// comment MariaDB skips unread is "/*!" versioned from 50700 to 99999 (five
+// digits, or six when a sixth follows), or "/*!" or "/*M!" versioned 999999,
+// and ends where its nesting, counted over raw bytes, closes. Any other "/*!"
+// or "/*M!" is executable: MariaDB 11.8.8 names "1 /*M!+3*/" as "1 +3".
 func skippedComment(s string, i int) bool {
-	if i+2 >= len(s) || s[i] != '/' || s[i+1] != '*' || s[i+2] != '!' {
+	if i+2 >= len(s) || s[i] != '/' || s[i+1] != '*' {
 		return false
 	}
 	j := i + 3
+	mariadb := false
+	switch {
+	case s[i+2] == '!':
+	case s[i+2] == 'M' && i+3 < len(s) && s[i+3] == '!':
+		j = i + 4
+		mariadb = true
+	default:
+		return false
+	}
 	v, n := 0, 0
 	for j < len(s) && n < 6 && s[j] >= '0' && s[j] <= '9' {
 		v = v*10 + int(s[j]-'0')
 		j++
 		n++
 	}
-	return n >= 5 && v >= 50700 && v <= 99999
+	if n == 6 && v == 999999 {
+		return true
+	}
+	return !mariadb && n >= 5 && v >= 50700 && v <= 99999
 }
 
 func skippedCommentEnd(s string, i int) int {
@@ -237,6 +248,29 @@ func skippedCommentEnd(s string, i int) int {
 		}
 	}
 	return -1
+}
+
+// execOpenerAt returns the offset after the opener of the executable comment
+// starting at text[i], or 0 when none starts there.
+func execOpenerAt(text string, i int) int {
+	if i+2 >= len(text) || text[i] != '/' || text[i+1] != '*' {
+		return 0
+	}
+	j := i + 3
+	switch {
+	case text[i+2] == '!':
+	case text[i+2] == 'M' && i+3 < len(text) && text[i+3] == '!':
+		j = i + 4
+	default:
+		return 0
+	}
+	if skippedComment(text, i) {
+		return 0
+	}
+	for j < len(text) && text[j] >= '0' && text[j] <= '9' {
+		j++
+	}
+	return j
 }
 
 // isDashComment reports whether a "-- " comment starts at i: two dashes and a
