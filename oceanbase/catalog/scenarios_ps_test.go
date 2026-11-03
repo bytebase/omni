@@ -184,56 +184,27 @@ func TestScenario_PS(t *testing.T) {
 		}
 	})
 
-	// PS.6 HASH partition ADD — seeded from count.
-	// Oracle and omni should both produce the expanded partition list.
-	t.Run("PS_6_Hash_partition_ADD_seeded", func(t *testing.T) {
-		scenarioReset(t, mc)
+	// PS.6 HASH partition ADD PARTITIONS n. MySQL seeds the new partitions from
+	// the count, and this scenario held that when the package was forked from
+	// mysql. OceanBase's ADD PARTITION takes only a list of RANGE or LIST
+	// partitions and answers 1064 for the count (parser partitionOptionCases), so
+	// omni must refuse it and keep the three partitions.
+	t.Run("PS_6_Hash_partition_ADD_count_refused", func(t *testing.T) {
 		c := scenarioNewCatalog(t)
-
-		runOnBoth(t, mc, c,
-			`CREATE TABLE t (id INT) PARTITION BY HASH(id) PARTITIONS 3`)
-		// Run the ALTER on both sides and compare the resulting partition list.
-		alter := `ALTER TABLE t ADD PARTITION PARTITIONS 2`
-		if _, err := mc.db.ExecContext(mc.ctx, alter); err != nil {
-			t.Errorf("PS.6 oracle ALTER failed: %v", err)
+		if _, err := c.Exec(`CREATE TABLE t (id INT) PARTITION BY HASH(id) PARTITIONS 3`, nil); err != nil {
+			t.Fatal(err)
 		}
-
-		// Oracle partition names.
-		rows := oracleRows(t, mc, `
-            SELECT PARTITION_NAME FROM information_schema.PARTITIONS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
-            ORDER BY PARTITION_ORDINAL_POSITION`)
-		var oracleNames []string
-		for _, r := range rows {
-			oracleNames = append(oracleNames, asString(r[0]))
+		if _, err := c.Exec(`ALTER TABLE t ADD PARTITION PARTITIONS 2`, nil); err == nil {
+			t.Errorf("PS.6 omni: ADD PARTITION PARTITIONS 2 parsed; OceanBase answers 1064")
 		}
-		wantOracle := []string{"p0", "p1", "p2", "p3", "p4"}
-		if !slices.Equal(oracleNames, wantOracle) {
-			t.Errorf("PS.6 oracle partition names: got %v, want %v", oracleNames, wantOracle)
-		}
-
-		// omni side: verify the expected 5-partition layout.
-		results, parseErr := c.Exec(alter, nil)
-		var omniAlterErr error
-		if parseErr != nil {
-			omniAlterErr = parseErr
-		} else {
-			for _, r := range results {
-				if r.Error != nil {
-					omniAlterErr = r.Error
-					break
-				}
-			}
-		}
-
 		var omniNames []string
 		if tbl := c.GetDatabase("testdb").GetTable("t"); tbl != nil && tbl.Partitioning != nil {
 			for _, p := range tbl.Partitioning.Partitions {
 				omniNames = append(omniNames, p.Name)
 			}
 		}
-		if omniAlterErr != nil || !slices.Equal(omniNames, wantOracle) {
-			t.Errorf("PS.6 omni: expected partition names %v; got %v (alter err: %v)", wantOracle, omniNames, omniAlterErr)
+		if want := []string{"p0", "p1", "p2"}; !slices.Equal(omniNames, want) {
+			t.Errorf("PS.6 omni: partition names %v after the refused ADD, want %v", omniNames, want)
 		}
 	})
 

@@ -190,8 +190,8 @@ func partitionMigrationProbes() []migrationProbe {
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 2", both()},
 		{"create-subpart-n", "t", "",
 			"CREATE TABLE t (id INT NOT NULL, d DATE NOT NULL, PRIMARY KEY (id,d)) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p0 VALUES LESS THAN (2010), PARTITION p1 VALUES LESS THAN MAXVALUE)", both()},
-		{"create-part-comment", "t", "",
-			"CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3) COMMENT 'first', PARTITION pb VALUES IN (4,5,6) COMMENT 'second')", both()},
+		// No per-partition COMMENT probe: OceanBase refuses COMMENT on a partition
+		// (parser partitionOptionCases).
 
 		// ---- Add partitioning to an existing (unpartitioned) table ----
 		{"add-partitioning-hash", "t",

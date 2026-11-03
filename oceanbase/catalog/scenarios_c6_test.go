@@ -374,39 +374,18 @@ func TestScenario_C6(t *testing.T) {
 		}
 	})
 
-	// --- 6.14 Per-partition options preserved verbatim --------------
-	t.Run("6_14_per_partition_options_preserved", func(t *testing.T) {
-		scenarioReset(t, mc)
+	// --- 6.14 Per-partition options --------------------------------
+	// MySQL keeps a COMMENT given per partition, and this scenario held that when
+	// the package was forked from mysql. OceanBase takes only ID and ENGINE =
+	// InnoDB on a partition and answers 1064 for COMMENT (parser
+	// partitionOptionCases), so the catalog must refuse the table.
+	t.Run("6_14_per_partition_options_refused", func(t *testing.T) {
 		c := scenarioNewCatalog(t)
-
-		runOnBoth(t, mc, c,
-			`CREATE TABLE t (id INT) PARTITION BY HASH(id)
+		if _, err := c.Exec(`CREATE TABLE t (id INT) PARTITION BY HASH(id)
              (PARTITION p0 COMMENT='first' ENGINE=InnoDB,
-              PARTITION p1 COMMENT='second' ENGINE=InnoDB)`)
-
-		// Oracle: PARTITION_COMMENT should be set per partition.
-		rows := oracleRows(t, mc, `SELECT PARTITION_NAME, PARTITION_COMMENT
-            FROM information_schema.PARTITIONS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
-            ORDER BY PARTITION_ORDINAL_POSITION`)
-		if len(rows) != 2 {
-			t.Errorf("oracle rows: got %d, want 2", len(rows))
-		} else {
-			if s, _ := rows[0][1].(string); s != "first" {
-				t.Errorf("oracle p0 comment: got %q, want %q", s, "first")
-			}
-			if s, _ := rows[1][1].(string); s != "second" {
-				t.Errorf("oracle p1 comment: got %q, want %q", s, "second")
-			}
+              PARTITION p1 COMMENT='second' ENGINE=InnoDB)`, nil); err == nil {
+			t.Errorf("omni: a partition COMMENT parsed; OceanBase answers 1064")
 		}
-
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl == nil || tbl.Partitioning == nil || len(tbl.Partitioning.Partitions) < 2 {
-			t.Errorf("omni: table/partitioning missing or short")
-			return
-		}
-		assertStringEq(t, "omni p0 comment", tbl.Partitioning.Partitions[0].Comment, "first")
-		assertStringEq(t, "omni p1 comment", tbl.Partitioning.Partitions[1].Comment, "second")
 	})
 
 	// --- 6.15 Subpartition options inherit handling ----------------
@@ -419,7 +398,7 @@ func TestScenario_C6(t *testing.T) {
             PARTITION BY RANGE(YEAR(d))
             SUBPARTITION BY HASH(id) SUBPARTITIONS 2
             (PARTITION p0 VALUES LESS THAN (2000)
-                (SUBPARTITION s0 COMMENT='sa', SUBPARTITION s1 COMMENT='sb'),
+                (SUBPARTITION s0, SUBPARTITION s1),
              PARTITION p1 VALUES LESS THAN MAXVALUE
                 (SUBPARTITION s2, SUBPARTITION s3))`)
 
@@ -442,44 +421,25 @@ func TestScenario_C6(t *testing.T) {
 		assertIntEq(t, "omni subpartition count", total, 4)
 	})
 
-	// --- 6.16 ALTER ADD PARTITION auto-naming ---------------------
-	t.Run("6_16_add_partition_auto_naming", func(t *testing.T) {
-		scenarioReset(t, mc)
+	// --- 6.16 ALTER ADD PARTITION PARTITIONS n ---------------------
+	// MySQL adds n hash partitions this way, and this scenario held that when the
+	// package was forked from mysql. OceanBase's ADD PARTITION takes only a list
+	// of RANGE or LIST partitions and answers 1064 (parser partitionOptionCases),
+	// so the catalog must refuse it and keep the table as it was.
+	t.Run("6_16_add_partition_count_refused", func(t *testing.T) {
 		c := scenarioNewCatalog(t)
-
-		runOnBoth(t, mc, c,
-			`CREATE TABLE t (id INT) PARTITION BY HASH(id) PARTITIONS 3`)
-
-		// Try ALTER on both sides. omni may not support this — we report
-		// either outcome as assertion failures, not panics.
-		addDDL := `ALTER TABLE t ADD PARTITION PARTITIONS 2`
-		if _, err := mc.db.ExecContext(mc.ctx, addDDL); err != nil {
-			t.Errorf("oracle: ALTER ADD PARTITION failed: %v", err)
+		if _, err := c.Exec(`CREATE TABLE t (id INT) PARTITION BY HASH(id) PARTITIONS 3`, nil); err != nil {
+			t.Fatal(err)
 		}
-		names := oraclePartitionNames(t, mc, "t")
-		want := []string{"p0", "p1", "p2", "p3", "p4"}
-		assertStringEq(t, "oracle partition names after ADD",
-			strings.Join(names, ","), strings.Join(want, ","))
-
-		// omni side: tolerant — report but do not panic.
-		results, err := c.Exec(addDDL, nil)
-		if err != nil {
-			t.Errorf("omni: ALTER ADD PARTITION parse error: %v", err)
-			return
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: ALTER ADD PARTITION exec error: %v", r.Error)
-			}
+		if _, err := c.Exec(`ALTER TABLE t ADD PARTITION PARTITIONS 2`, nil); err == nil {
+			t.Errorf("omni: ADD PARTITION PARTITIONS 2 parsed; OceanBase answers 1064")
 		}
 		tbl := c.GetDatabase("testdb").GetTable("t")
 		if tbl == nil || tbl.Partitioning == nil {
-			t.Errorf("omni: table/partitioning missing")
-			return
+			t.Fatal("omni: table/partitioning missing")
 		}
-		omniNames := c6OmniPartitionNames(tbl)
-		assertStringEq(t, "omni partition names after ADD",
-			strings.Join(omniNames, ","), strings.Join(want, ","))
+		assertStringEq(t, "omni partition names after the refused ADD",
+			strings.Join(c6OmniPartitionNames(tbl), ","), "p0,p1,p2")
 	})
 
 	// --- 6.17 COALESCE PARTITION removes last N ------------------
