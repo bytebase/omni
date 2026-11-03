@@ -467,3 +467,73 @@ func TestStarRocksExplainModifiers(t *testing.T) {
 		})
 	}
 }
+
+// TestStarRocksNoJobStatements holds the job statements the Doris fork brought
+// along to the engine: StarRocks 3.4.10 has none of CREATE / ALTER / DROP /
+// PAUSE / RESUME JOB, CANCEL TASK, SHOW JOB(S), or the materialized view JOB and
+// TASK forms. The accept rows pin what the rejection must leave alone: the job
+// and task words as identifiers, and StarRocks's own statements that name a
+// job or a task.
+func TestStarRocksNoJobStatements(t *testing.T) {
+	c := startStarRocks(t)
+
+	cases := []struct {
+		name       string
+		sql        string
+		wantAccept bool
+	}{
+		{"create_job_every_rejected", "CREATE JOB j ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO t SELECT 1", false},
+		{"create_job_at_rejected", "CREATE JOB j ON SCHEDULE AT '2030-01-01 00:00:00' DO INSERT INTO t SELECT 1", false},
+		{"create_job_if_not_exists_rejected", "CREATE JOB IF NOT EXISTS j ON SCHEDULE EVERY 1 HOUR DO INSERT INTO t SELECT 1", false},
+		{"create_job_streaming_rejected", "CREATE JOB j AS STREAMING DO INSERT INTO t SELECT 1", false},
+		{"create_job_full_schedule_rejected", "CREATE JOB j ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ENDS '2031-01-01 00:00:00' COMMENT 'c' DO INSERT INTO t SELECT 1", false},
+		{"alter_job_properties_rejected", `ALTER JOB j PROPERTIES("enable" = "false")`, false},
+		{"alter_job_do_rejected", "ALTER JOB j DO INSERT INTO t SELECT 1", false},
+		{"alter_job_bare_rejected", "ALTER JOB j", false},
+		{"drop_job_rejected", "DROP JOB j", false},
+		{"drop_job_if_exists_rejected", "DROP JOB IF EXISTS j", false},
+		{"drop_job_where_rejected", "DROP JOB WHERE jobName = 'j'", false},
+		{"pause_job_rejected", "PAUSE JOB j", false},
+		{"pause_job_where_rejected", "PAUSE JOB WHERE jobName = 'j'", false},
+		{"resume_job_rejected", "RESUME JOB j", false},
+		{"resume_job_where_rejected", "RESUME JOB WHERE jobName = 'j'", false},
+		{"cancel_task_rejected", "CANCEL TASK FOR j 1", false},
+		{"cancel_task_where_rejected", "CANCEL TASK WHERE jobName = 'j' AND taskId = 1", false},
+		{"show_job_rejected", "SHOW JOB", false},
+		{"show_job_like_rejected", "SHOW JOB LIKE 'j%'", false},
+		{"show_job_where_rejected", "SHOW JOB WHERE jobName = 'j'", false},
+		{"show_job_task_rejected", "SHOW JOB TASK FOR j", false},
+		{"show_job_tasks_rejected", "SHOW JOB TASKS FOR j", false},
+		{"show_jobs_rejected", "SHOW JOBS", false},
+		{"show_jobs_where_rejected", "SHOW JOBS WHERE jobName = 'j'", false},
+		{"show_full_job_rejected", "SHOW FULL JOB", false},
+		{"show_all_job_rejected", "SHOW ALL JOB", false},
+		{"show_temporary_job_rejected", "SHOW TEMPORARY JOB", false},
+		{"pause_mv_job_rejected", "PAUSE MATERIALIZED VIEW JOB ON mv", false},
+		{"resume_mv_job_rejected", "RESUME MATERIALIZED VIEW JOB ON mv", false},
+		{"cancel_mv_task_rejected", "CANCEL MATERIALIZED VIEW TASK 1 ON mv", false},
+
+		{"job_column", "SELECT job FROM t", true},
+		{"jobs_task_tasks_columns", "SELECT jobs, task, tasks FROM t", true},
+		{"schedule_words_columns", "SELECT schedule, streaming, every, starts, ends FROM t", true},
+		{"job_alias", "SELECT 1 AS job", true},
+		{"job_table_qualified_column", "SELECT job.a FROM job", true},
+		{"job_table", "CREATE TABLE job (a INT)", true},
+		{"job_task_column_names", "CREATE TABLE zzt (job INT, task INT, schedule INT)", true},
+		{"job_database", "CREATE DATABASE job", true},
+		{"drop_job_table", "DROP TABLE IF EXISTS job", true},
+		{"alter_job_table", "ALTER TABLE job ADD COLUMN b INT", true},
+		{"show_analyze_job", "SHOW ANALYZE JOB", true},
+		{"show_routine_load_task", "SHOW ROUTINE LOAD TASK WHERE JobName = 'x'", true},
+		{"pause_routine_load", "PAUSE ROUTINE LOAD FOR job", true},
+		{"resume_routine_load", "RESUME ROUTINE LOAD FOR job", true},
+		{"cancel_refresh_mv", "CANCEL REFRESH MATERIALIZED VIEW mv", true},
+		{"cancel_load", "CANCEL LOAD WHERE LABEL = 'x'", true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c.assertParity(t, tc.sql, tc.wantAccept)
+		})
+	}
+}

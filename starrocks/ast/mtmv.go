@@ -44,10 +44,10 @@ var _ Node = (*MTMVRefreshTrigger)(nil)
 type CreateMTMVStmt struct {
 	Name           *ObjectName
 	IfNotExists    bool
-	BuildMode      string             // "IMMEDIATE", "DEFERRED", or ""
-	RefreshMethod  string             // "COMPLETE", "AUTO", "NEVER", "INCREMENTAL", or ""
+	BuildMode      string              // "IMMEDIATE", "DEFERRED", or ""
+	RefreshMethod  string              // "COMPLETE", "AUTO", "NEVER", "INCREMENTAL", or ""
 	RefreshTrigger *MTMVRefreshTrigger // ON SCHEDULE / ON COMMIT / ON MANUAL
-	Columns        []*ViewColumn      // optional column list
+	Columns        []*ViewColumn       // optional column list
 	Comment        string
 	PartitionBy    *PartitionDesc
 	DistributedBy  *DistributionDesc
@@ -128,6 +128,9 @@ var _ Node = (*RefreshMTMVStmt)(nil)
 // ---------------------------------------------------------------------------
 // PAUSE / RESUME MATERIALIZED VIEW JOB
 // ---------------------------------------------------------------------------
+
+// The parser produces none of the three statements below: they are Doris's,
+// and StarRocks has none of them (see starrocks/parser/job.go).
 
 // PauseMTMVJobStmt represents:
 //
