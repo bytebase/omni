@@ -80,6 +80,9 @@ func walkFindings(t *testing.T, sql string, target review.Target) []review.Findi
 		if f.Rule == review.Syntax {
 			t.Fatalf("syntax: %s\n%s", f.Message, sql)
 		}
+		if err := review.CheckCodes(f); err != nil {
+			t.Errorf("%v\n%s", err, sql)
+		}
 	}
 	return result.Findings
 }

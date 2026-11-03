@@ -342,6 +342,9 @@ func TestPriorBackupAgainstOracle(t *testing.T) {
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				reported[f.Statement] = f.Message
 			}
 			outcome := runBackup(t, conn, tt.change, schema.Name, !tt.noArchive)
@@ -615,6 +618,9 @@ func TestScanRulesAgainstOracle(t *testing.T) {
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				got[fmt.Sprintf("%s %d", f.Rule, f.Statement)] = true
 			}
 			want := scanTruth(t, conn, tt.change)
@@ -761,6 +767,9 @@ func TestRenameAgainstOracle(t *testing.T) {
 			for _, f := range result.Findings {
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
+				}
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
 				}
 				if _, ok := stmts[f.Statement].node.(*ast.RenameStmt); ok {
 					got[f.Statement] = true

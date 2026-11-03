@@ -24,7 +24,8 @@ func checkWalkThrough(ctx context.Context, sql string, stmts []statement, t revi
 	if !ok {
 		return nil
 	}
-	r.report(review.WalkThrough, stmts[v.Statement].index, note.rng, escapeLines(note.message(v)))
+	code, message := note.finding(v)
+	r.report(code, stmts[v.Statement].index, note.rng, escapeLines(message))
 	return nil
 }
 
@@ -46,20 +47,22 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 	return walk.Run(ctx, len(stmts), snap, w.lower)
 }
 
-// walkNote is a check's finding: where it anchors and what it says when
-// the object is certainly absent or certainly present (or of another
-// kind).
+// walkNote is a check's finding: where it anchors, and the code and what
+// it says when the object is certainly absent and when it is certainly
+// present (or of another kind).
 type walkNote struct {
-	rng     review.Range
-	absent  string
-	present string
+	rng                     review.Range
+	absent                  string
+	present                 string
+	absentCode, presentCode review.FindingCode
 }
 
-func (n *walkNote) message(v *walk.Violation) string {
+// finding returns the code and the message of the violation.
+func (n *walkNote) finding(v *walk.Violation) (review.FindingCode, string) {
 	if v.Got == walk.Absent {
-		return n.absent
+		return n.absentCode, n.absent
 	}
-	return n.present
+	return n.presentCode, n.present
 }
 
 // walker is the session the change runs in, as far as the walk follows
@@ -188,18 +191,37 @@ func (b *builder) settle(k walk.Key, f walk.Fact) {
 func (b *builder) anchor() review.Range { return rangeOf(b.s.loc) }
 
 // need adds a check, with the messages for a key certainly absent and
-// certainly present (or of another kind). A name Oracle generates is never
-// checked.
+// certainly present (or of another kind). Their codes follow from the
+// check: a Present check the key's absence violates is
+// review.ObjectNotFound, and one an object of another kind violates
+// review.WrongObjectKind; an Absent check is review.NameTaken.
 func (b *builder) need(k walk.Key, want walk.Fact, kinds []string, rng review.Range, absent, present string) {
+	presentCode := review.WrongObjectKind
+	if want == walk.Absent {
+		presentCode = review.NameTaken
+	}
+	b.needNote(k, want, kinds, &walkNote{rng: rng, absent: absent, present: present, absentCode: review.ObjectNotFound, presentCode: presentCode})
+}
+
+// needNote adds a check with its note. A name Oracle generates is never
+// checked.
+func (b *builder) needNote(k walk.Key, want walk.Fact, kinds []string, note *walkNote) {
 	if generated(k.Space, k.Name) {
 		return
 	}
-	b.Need(k, want, kinds, &walkNote{rng: rng, absent: absent, present: present})
+	b.Need(k, want, kinds, note)
 }
 
-// fail records that the statement certainly fails, from its text.
-func (b *builder) fail(rng review.Range, message string) {
-	b.Fail(nil, walk.Absent, &walkNote{rng: rng, absent: message, present: message})
+// fail records that the statement certainly fails, from its text, for
+// the condition the code names.
+func (b *builder) fail(rng review.Range, code review.FindingCode, message string) {
+	b.Fail(nil, walk.Absent, noteOf(rng, code, message))
+}
+
+// noteOf is a note with one code and one message, whatever fact violates
+// its check, as a failure the walk establishes itself has.
+func noteOf(rng review.Range, code review.FindingCode, message string) *walkNote {
+	return &walkNote{rng: rng, absent: message, present: message, absentCode: code, presentCode: code}
 }
 
 // objRef is a reference to a schema object as the walk resolves it: the
@@ -262,7 +284,7 @@ func (b *builder) tooLong(name string, rng review.Range) bool {
 	if len(name) <= identifierLimit || outsideASCII(name) {
 		return false
 	}
-	b.fail(rng, "The identifier "+ident(name[:32])+"... is longer than 128 bytes")
+	b.fail(rng, review.NameTooLong, "The identifier "+ident(name[:32])+"... is longer than 128 bytes")
 	return true
 }
 

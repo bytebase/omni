@@ -18,7 +18,7 @@ func checkDisallowTruncate(sql string, s *statement, r *reporter) {
 		if v.Cluster {
 			what = "cluster "
 		}
-		r.report(review.DisallowTruncate, s.index, rangeOf(v.Loc), "Truncates "+what+review.Code(objectName(v.Table))+".")
+		r.report(review.TruncatesData, s.index, rangeOf(v.Loc), "Truncates "+what+review.Code(objectName(v.Table))+".")
 	case *ast.AlterTableStmt:
 		if v.Actions == nil {
 			return
@@ -32,7 +32,7 @@ func checkDisallowTruncate(sql string, s *statement, r *reporter) {
 			if strings.EqualFold(cmd.Subtype, "SUBPARTITION") {
 				kind = "subpartition"
 			}
-			r.report(review.DisallowTruncate, s.index, rangeOf(cmd.Loc), "Truncates "+partitionWhat(kind, sql, cmd)+" of "+review.Code(objectName(v.Name))+".")
+			r.report(review.TruncatesData, s.index, rangeOf(cmd.Loc), "Truncates "+partitionWhat(kind, sql, cmd)+" of "+review.Code(objectName(v.Name))+".")
 		}
 	}
 }

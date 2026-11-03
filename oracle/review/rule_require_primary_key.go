@@ -32,6 +32,7 @@ import (
 // the end of the change unless a later statement settles it.
 type pendingTable struct {
 	key       tableKey
+	code      review.FindingCode
 	statement int
 	rng       review.Range
 	message   string
@@ -92,7 +93,7 @@ func (s *constraintScan) lostPrimaryKey(st *statement, v *ast.AlterTableStmt, cm
 	had := t.created || t.pkFirst == "drop" && !added
 	t.pkDropped = true
 	if s.on[review.RequirePrimaryKey] && had {
-		s.pending = append(s.pending, &pendingTable{key: k, statement: st.index, rng: rangeOf(cmd.Loc), message: "Removes the primary key of " + review.Code(objectName(v.Name)) + ", and the change doesn't add one back."})
+		s.pending = append(s.pending, &pendingTable{key: k, code: review.PrimaryKeyRemoved, statement: st.index, rng: rangeOf(cmd.Loc), message: "Removes the primary key of " + review.Code(objectName(v.Name)) + ", and the change doesn't add one back."})
 	}
 }
 
@@ -100,7 +101,7 @@ func (s *constraintScan) lostPrimaryKey(st *statement, v *ast.AlterTableStmt, cm
 func (s *constraintScan) reportPending() {
 	for _, p := range s.pending {
 		if !p.settled {
-			s.r.report(review.RequirePrimaryKey, p.statement, p.rng, p.message)
+			s.r.report(p.code, p.statement, p.rng, p.message)
 		}
 	}
 }

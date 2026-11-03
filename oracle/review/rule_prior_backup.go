@@ -65,7 +65,7 @@ import (
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.PriorBackup, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
 	}
 }
 
@@ -133,17 +133,17 @@ func groupKey(t *ast.ObjectName, db string) string {
 func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	dmls := backupDMLs(stmts)
 	if len(dmls) == 0 {
-		r.report(review.PriorBackup, -1, review.Range{}, "prior backup copies the rows of top-level UPDATE and DELETE statements on a table, and the change has none, which fails the backup")
+		r.report(review.NothingToBackUp, -1, review.Range{}, "prior backup copies the rows of top-level UPDATE and DELETE statements on a table, and the change has none, which fails the backup")
 		return
 	}
 	quoted := make(map[string]bool)
 	for _, d := range dmls {
 		switch {
 		case d.table.DBLink != "":
-			r.report(review.PriorBackup, d.stmt.index, rangeOf(d.stmt.loc), "prior backup does not support table "+objectName(d.table)+", referenced through a database link")
+			r.report(review.TableNotBackupable, d.stmt.index, rangeOf(d.stmt.loc), "prior backup does not support table "+objectName(d.table)+", referenced through a database link")
 		case strings.Contains(d.table.Name, "'") && !quoted[groupKey(d.table, "")]:
 			quoted[groupKey(d.table, "")] = true
-			r.report(review.PriorBackup, d.stmt.index, rangeOf(d.stmt.loc), "prior backup writes the name of table "+objectName(d.table)+" unescaped into a quoted comment, which its single quote breaks")
+			r.report(review.TableNotBackupable, d.stmt.index, rangeOf(d.stmt.loc), "prior backup writes the name of table "+objectName(d.table)+" unescaped into a quoted comment, which its single quote breaks")
 		}
 	}
 }
@@ -159,7 +159,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 // bytebase: backend/plugin/advisor/oracle/rule_builtin_prior_backup_check.go — oracleFindLongColumns
 func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex, m changeMade, r *reporter) {
 	if !backupExists {
-		r.report(review.PriorBackup, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
 	}
 	db := ""
 	if x.schema != nil && x.schema.GetName() != "" {
@@ -168,7 +168,7 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 	// The comment Bytebase sets on each copy holds the task's database
 	// name unescaped, in quotes.
 	if strings.Contains(db, "'") && len(backupDMLs(stmts)) > 0 {
-		r.report(review.PriorBackup, -1, review.Range{}, "prior backup writes the database name "+escapeLines(db)+" unescaped into a quoted comment, which its single quote breaks")
+		r.report(review.TableNotBackupable, -1, review.Range{}, "prior backup writes the database name "+escapeLines(db)+" unescaped into a quoted comment, which its single quote breaks")
 	}
 	type group struct {
 		first    backupDML
@@ -192,7 +192,7 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 		g.size++
 		if g.first.kind != d.kind && !g.reported {
 			g.reported = true
-			r.report(review.PriorBackup, d.stmt.index, rangeOf(d.stmt.loc), "prior backup cannot back up both UPDATE and DELETE on "+objectName(d.table))
+			r.report(review.StatementsShareBackup, d.stmt.index, rangeOf(d.stmt.loc), "prior backup cannot back up both UPDATE and DELETE on "+objectName(d.table))
 		}
 	}
 	if x.schema == nil {
@@ -205,7 +205,7 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 			k.schema = g.first.table.Schema
 		}
 		if columns := longColumns(x, k); len(columns) > 0 {
-			r.report(review.PriorBackup, g.first.stmt.index, rangeOf(g.first.stmt.loc), "prior backup copies "+objectName(g.first.table)+" with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column "+strings.Join(columns, ", ")+" (ORA-00997)")
+			r.report(review.TableNotBackupable, g.first.stmt.index, rangeOf(g.first.stmt.loc), "prior backup copies "+objectName(g.first.table)+" with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column "+strings.Join(columns, ", ")+" (ORA-00997)")
 		}
 	}
 	limit := firstSessionChange(stmts)
@@ -215,7 +215,7 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 		}
 		size := groups[groupKey(d.table, db)].size
 		if msg := backupReadsMade(d, size, x, m); msg != "" {
-			r.report(review.PriorBackup, d.stmt.index, rangeOf(d.stmt.loc), msg)
+			r.report(review.BackupReadsNewObject, d.stmt.index, rangeOf(d.stmt.loc), msg)
 		}
 	}
 }

@@ -71,10 +71,11 @@ var objectKinds = map[ast.ObjectType]string{
 // name. Dropping a constraint belongs to DisallowDropConstraint. SET
 // UNUSED, which hides a column for a later DROP UNUSED COLUMNS to remove,
 // drops nothing itself. A DROP runs inside PL/SQL only as the text of an
-// EXECUTE IMMEDIATE, which is not read.
+// EXECUTE IMMEDIATE, which is not read. Each finding has the code
+// review.DropCode gives the kind its message names.
 func checkDisallowDropObject(sql string, s *statement, r *reporter) {
-	report := func(loc ast.Loc, what string) {
-		r.report(review.DisallowDropObject, s.index, rangeOf(loc), "Drops "+what+".")
+	report := func(loc ast.Loc, kind, what string) {
+		r.report(review.DropCode(kind), s.index, rangeOf(loc), "Drops "+what+".")
 	}
 	switch v := s.node.(type) {
 	case *ast.DropStmt:
@@ -86,23 +87,23 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 				}
 			}
 		}
-		report(v.Loc, dropWhat(v.ObjectType, names...))
+		report(v.Loc, objectKinds[v.ObjectType], dropWhat(v.ObjectType, names...))
 	case *ast.AdminDDLStmt:
 		if strings.EqualFold(v.Action, "DROP") {
 			var names []string
 			if v.Name != nil {
 				names = append(names, objectName(v.Name))
 			}
-			report(v.Loc, dropWhat(v.ObjectType, names...))
+			report(v.Loc, objectKinds[v.ObjectType], dropWhat(v.ObjectType, names...))
 		}
 	case *ast.DropTablespaceStmt:
-		what := "tablespace "
+		kind := "tablespace"
 		if v.IsSet {
-			what = "tablespace set "
+			kind = "tablespace set"
 		}
-		report(v.Loc, what+review.Code(objectName(v.Name)))
+		report(v.Loc, kind, kind+" "+review.Code(objectName(v.Name)))
 	case *ast.DropAuditPolicyStmt:
-		report(v.Loc, "audit policy "+review.Code(ident(v.Name)))
+		report(v.Loc, "audit policy", "audit policy "+review.Code(ident(v.Name)))
 	case *ast.AlterTableStmt:
 		if v.Actions == nil {
 			return
@@ -116,19 +117,19 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			switch cmd.Action {
 			case ast.AT_DROP_COLUMN:
 				names := columnList(sql, cmd)
-				report(cmd.Loc, review.Plural("column", len(names))+" "+review.Names(names...)+" of "+table)
+				report(cmd.Loc, "column", review.Plural("column", len(names))+" "+review.Names(names...)+" of "+table)
 			case ast.AT_DROP_UNUSED_COLUMNS:
 				if strings.EqualFold(cmd.Subtype, "COLUMNS CONTINUE") {
-					report(cmd.Loc, "the columns an interrupted drop left in "+table)
+					report(cmd.Loc, "columns", "the columns an interrupted drop left in "+table)
 				} else {
-					report(cmd.Loc, "the unused columns of "+table)
+					report(cmd.Loc, "unused columns", "the unused columns of "+table)
 				}
 			case ast.AT_DROP_PARTITION:
-				report(cmd.Loc, partitionWhat("partition", sql, cmd)+" of "+table)
+				report(cmd.Loc, "partition", partitionWhat("partition", sql, cmd)+" of "+table)
 			case ast.AT_DROP_SUBPARTITION:
-				report(cmd.Loc, partitionWhat("subpartition", sql, cmd)+" of "+table)
+				report(cmd.Loc, "subpartition", partitionWhat("subpartition", sql, cmd)+" of "+table)
 			case ast.AT_DROP_PERIOD:
-				report(cmd.Loc, "period "+review.Code(ident(cmd.ColumnName))+" of "+table)
+				report(cmd.Loc, "period", "period "+review.Code(ident(cmd.ColumnName))+" of "+table)
 			}
 		}
 	case *ast.AlterTypeStmt:
@@ -136,7 +137,7 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			return
 		}
 		for _, a := range v.Attributes {
-			report(a.Loc, "attribute "+review.Code(ident(a.Name))+" of type "+review.Code(objectName(v.Name)))
+			report(a.Loc, "attribute", "attribute "+review.Code(ident(a.Name))+" of type "+review.Code(objectName(v.Name)))
 		}
 	}
 }

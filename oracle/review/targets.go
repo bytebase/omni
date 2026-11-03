@@ -112,6 +112,14 @@ func reviewTargets(ctx context.Context, stmts []statement, work targetWork, targ
 			k := key{f.Rule, f.Statement, f.Range, f.Message}
 			if j, ok := merged[k]; ok {
 				findings[j].Targets = append(findings[j].Targets, f.Targets...)
+				// One message may stand for different conditions on
+				// different targets, such as a name missing on one and of
+				// another kind on the other: the finding keeps each code.
+				for _, c := range f.Codes {
+					if !slices.Contains(findings[j].Codes, c) {
+						findings[j].Codes = append(findings[j].Codes, c)
+					}
+				}
 				continue
 			}
 			merged[k] = len(findings)

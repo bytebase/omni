@@ -72,6 +72,7 @@ func parseReview(sql string) ([]review.Range, []statement, *review.Finding) {
 				Rule:      review.Syntax,
 				Statement: len(ranges),
 				Range:     review.Range{Start: content.Start, End: content.Start},
+				Codes:     []review.FindingCode{review.SyntaxError},
 				Message:   "syntax error at or near " + quoteToken(sql, content),
 			}
 			ranges = append(ranges, content)
@@ -139,7 +140,7 @@ func isSpace(c byte) bool {
 // that offset, which the caller anchors to its line. An error without an
 // offset anchors the whole statement.
 func syntaxFinding(err error, index int) *review.Finding {
-	f := &review.Finding{Rule: review.Syntax, Statement: index, Message: escapeLines(err.Error())}
+	f := &review.Finding{Rule: review.Syntax, Statement: index, Codes: []review.FindingCode{review.SyntaxError}, Message: escapeLines(err.Error())}
 	var perr *parser.ParseError
 	if errors.As(err, &perr) {
 		f.Message = escapeLines(perr.Message)
