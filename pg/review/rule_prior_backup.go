@@ -1,7 +1,6 @@
 package review
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -84,7 +83,11 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 		for j, name := range names {
 			quoted[j] = ident(name)
 		}
-		r.report(review.StatementNotBackupable, s.index, rangeOf(statementLoc(s.node)), "prior backup refuses the data-modifying WITH query "+strings.Join(quoted, ", ")+" of this statement")
+		msg := "Prior backup can't back up a statement whose `WITH` query " + review.Names(quoted...) + " changes data.\n\nMove the data-modifying query into another statement, or turn off **Prior backup**."
+		if len(names) > 1 {
+			msg = "Prior backup can't back up a statement whose `WITH` queries " + review.Names(quoted...) + " change data.\n\nMove the data-modifying queries into other statements, or turn off **Prior backup**."
+		}
+		r.report(review.StatementNotBackupable, s.index, rangeOf(statementLoc(s.node)), msg)
 	}
 }
 
@@ -92,7 +95,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, "The change is larger than prior backup's "+review.Size(int64(change.MaxBackupSize))+" limit.\n\nSplit it into smaller changes, or turn off **Prior backup**.")
 	}
 }
 
@@ -180,15 +183,15 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 		}
 		if first != kind && !mixed[table] {
 			mixed[table] = true
-			r.report(review.StatementsShareBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup cannot back up both UPDATE and DELETE on "+relation(rv))
+			r.report(review.StatementsShareBackup, s.index, rangeOf(statementLoc(s.node)), "Prior backup can't back up "+review.Code(relation(rv))+": this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.")
 		}
 	}
 	if backsUp && findSchema(schema, backupSchema) == nil {
-		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs schema "+backupSchema+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "Prior backup needs the schema "+review.Code(backupSchema)+" in this database, which doesn't exist.\n\nCreate it, or turn off **Prior backup**.")
 	}
 	if backsUp {
 		if s, role := prependedRole(stmts); s != nil && madeRoles(stmts)[role] {
-			r.report(review.BackupReadsNewObject, s.index, rangeOf(s.loc), "prior backup runs this SET ROLE before the change, which creates role "+ident(role))
+			r.report(review.BackupReadsNewObject, s.index, rangeOf(s.loc), "Prior backup runs this `SET ROLE` before the change, which creates role "+review.Code(ident(role))+".\n\nCreate the role in an earlier change, or turn off **Prior backup**.")
 		}
 	}
 }
@@ -250,8 +253,14 @@ func madeRoles(stmts []statement) map[string]bool {
 	return roles
 }
 
+// notYetCreated is the message for a relation, as written, that the
+// backup's query reads before the change creates it.
+func notYetCreated(rel string) string {
+	return "Prior backup runs before the change, when " + review.Code(rel) + " doesn't exist yet.\n\nCreate " + review.Code(rel) + " in an earlier change, or turn off **Prior backup**."
+}
+
 func reportNotYetCreated(s *statement, rv *ast.RangeVar, r *reporter) {
-	r.report(review.BackupReadsNewObject, s.index, rangeOf(statementLoc(s.node)), "prior backup runs before the change, when "+relation(rv)+" does not exist yet")
+	r.report(review.BackupReadsNewObject, s.index, rangeOf(statementLoc(s.node)), notYetCreated(relation(rv)))
 }
 
 // made is what the change makes, which the backup, run before all of
@@ -516,7 +525,7 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 	firstTarget, _, _ := dmlParts(first)
 	name := relation(&ast.RangeVar{Schemaname: table.schema, Relname: table.name})
 	if !isFirst && !exposesFirst(firstTarget, target) {
-		return review.StatementsShareBackup, "prior backup selects the rows of every statement on " + name + " through the first one's alias, which this statement does not use"
+		return review.StatementsShareBackup, "Prior backup reads every statement on " + review.Code(name) + " through the first one's alias, and this statement doesn't use it.\n\nUse the same alias for " + review.Code(name) + " in every statement."
 	}
 	visible := make(map[string]bool)
 	if with != nil && with.Ctes != nil {
@@ -527,21 +536,21 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 		}
 	}
 	if target.Schemaname == "" && visible[target.Relname] {
-		return review.BackupReadsWrongTable, "prior backup copies the WITH clause of the first statement on " + name + ", whose query " + ident(target.Relname) + " then stands for the table"
+		return review.BackupReadsWrongTable, "Prior backup copies the first statement's `WITH` clause, where the query " + review.Code(ident(target.Relname)) + " would stand for " + review.Code(name) + ".\n\nRename the `WITH` query."
 	}
 	if _, ok := where.(*ast.CurrentOfExpr); ok {
-		return review.StatementNotBackupable, "prior backup copies WHERE CURRENT OF, which only UPDATE and DELETE take, into its query"
+		return review.StatementNotBackupable, "Prior backup can't back up a statement with `WHERE CURRENT OF`.\n\nUse a `WHERE` on the table's key, or turn off **Prior backup**."
 	}
 	// The server finds the statement's table as written, along the path
 	// the query runs under, which need not be the one Bytebase grouped it
 	// by: the query then reads another table, or none.
 	if target.Schemaname == "" && q.known {
 		if h := q.holders(target); len(h) != 1 || h[0] != table.schema {
-			found := "where it does not exist"
+			found := "where it doesn't exist"
 			if len(h) == 1 {
-				found = "where it means " + relation(&ast.RangeVar{Schemaname: h[0], Relname: target.Relname})
+				found = "where it means " + review.Code(relation(&ast.RangeVar{Schemaname: h[0], Relname: target.Relname}))
 			}
-			return review.BackupReadsWrongTable, "prior backup reads " + ident(target.Relname) + " along the search path it runs under, " + found + ", not " + name
+			return review.BackupReadsWrongTable, "Prior backup reads " + review.Code(ident(target.Relname)) + " along its search path, " + found + ", not " + review.Code(name) + ".\n\nWrite the name as " + review.Code(name) + "."
 		}
 	}
 	// The parts the backup copies, beside the table.
@@ -570,7 +579,7 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 					})
 				}
 				if named {
-					return review.StatementsShareBackup, "prior backup copies only the WITH clause of the first statement on " + name + ", which does not define " + ident(c.Ctename)
+					return review.StatementsShareBackup, "Prior backup copies only the first statement's `WITH` clause for " + review.Code(name) + ", which doesn't define " + review.Code(ident(c.Ctename)) + ".\n\nDefine " + review.Code(ident(c.Ctename)) + " in the first statement on " + review.Code(name) + ", or move this statement into another change."
 				}
 			}
 		}
@@ -601,7 +610,7 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 		relationsIn(part, visible, check)
 	}
 	if missing != nil {
-		return review.BackupReadsNewObject, "prior backup runs before the change, when " + relation(missing) + " does not exist yet"
+		return review.BackupReadsNewObject, notYetCreated(relation(missing))
 	}
 	if msg := columnMissing(target, from, where, visible, q, m); msg != "" {
 		return review.BackupReadsNewObject, msg
@@ -627,7 +636,7 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 		inspect(part)
 	}
 	if fn != "" {
-		return review.BackupReadsNewObject, "prior backup runs before the change, when function " + fn + " does not exist yet"
+		return review.BackupReadsNewObject, "Prior backup runs before the change, when function " + review.Code(fn) + " doesn't exist yet.\n\nCreate the function in an earlier change, or turn off **Prior backup**."
 	}
 	return "", ""
 }
@@ -728,7 +737,7 @@ func columnsMissing(target *ast.RangeVar, items []ast.Node, where ast.Node, visi
 		}
 		for _, o := range src.owners {
 			if m.columns[o][column] {
-				msg = "prior backup runs before the change, when column " + ident(column) + " of " + src.label + " does not exist yet"
+				msg = "Prior backup runs before the change, when column " + review.Code(ident(column)) + " of " + review.Code(src.label) + " doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**."
 				return
 			}
 		}
@@ -791,7 +800,7 @@ func columnsMissing(target *ast.RangeVar, items []ast.Node, where ast.Node, visi
 		}
 		for _, o := range src.owners {
 			if len(m.columns[o]) > 0 {
-				msg = "prior backup runs before the change, when " + src.label + " has fewer columns than alias " + ident(src.name) + " names"
+				msg = "Prior backup runs before the change, when " + review.Code(src.label) + " has fewer columns than alias " + review.Code(ident(src.name)) + " names.\n\nAdd the columns in an earlier change, or turn off **Prior backup**."
 				break
 			}
 		}

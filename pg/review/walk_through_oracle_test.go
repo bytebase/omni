@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"unicode"
@@ -284,13 +285,14 @@ func TestWalkThroughOracleChecksClaims(t *testing.T) {
 		msg  string
 		want bool
 	}{
-		{"an existing relation claimed absent", walk.Violation{Keys: []walk.Key{schemaKey("public"), nokey}, Facts: []walk.Fact{walk.Present, walk.Absent}}, "relation nokey does not exist", false},
+		{"an existing relation claimed absent", walk.Violation{Keys: []walk.Key{schemaKey("public"), nokey}, Facts: []walk.Fact{walk.Present, walk.Absent}}, "`nokey` doesn't exist.", false},
 		{"an existing relation claimed present", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "", true},
 		{"a missing schema claimed present", walk.Violation{Keys: []walk.Key{schemaKey("nosuch")}, Facts: []walk.Fact{walk.Present}}, "", false},
-		{"a table claimed a view", walk.Violation{Check: walk.Check{Key: nokey}, Got: walk.Present, Kind: relView}, "nokey is not a table", false},
+		{"a table claimed a view", walk.Violation{Check: walk.Check{Key: nokey}, Got: walk.Present, Kind: relView}, "`nokey` is a view, not a table.", false},
 		{"a table claimed a table", walk.Violation{Check: walk.Check{Key: nokey}, Got: walk.Present, Kind: relTable}, "", true},
-		{"an ordinary table claimed partitioned", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "cannot truncate only a partitioned table: nokey", false},
-		{"a claim about the text", walk.Violation{}, "column a specified more than once", true},
+		{"an ordinary table claimed partitioned", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "PostgreSQL doesn't accept `TRUNCATE ONLY` of partitioned table `nokey`.", false},
+		{"an ordinary table claimed partitioned for CONCURRENTLY", walk.Violation{Keys: []walk.Key{nokey}, Facts: []walk.Fact{walk.Present}}, "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` on partitioned table `nokey`.", false},
+		{"a claim about the text", walk.Violation{}, "This statement declares column `a` twice.", true},
 	} {
 		if got, why := verifyClaim(t, conn, &tt.v, tt.msg); got != tt.want {
 			t.Errorf("%s: holds = %v (%s), want %v", tt.name, got, why, tt.want)
@@ -693,11 +695,11 @@ var relkinds = map[string]string{
 // confirms too.
 func verifyClaim(t testing.TB, conn *sql.Conn, v *walk.Violation, msg string) (bool, string) {
 	t.Helper()
-	for _, prefix := range []string{"cannot truncate only a partitioned table: ", "cannot create index on partitioned table "} {
+	for _, prefix := range []string{"PostgreSQL doesn't accept `TRUNCATE ONLY` of partitioned table `", "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` on partitioned table `"} {
 		if !strings.HasPrefix(msg, prefix) {
 			continue
 		}
-		name := strings.TrimSuffix(strings.TrimPrefix(msg, prefix), " concurrently")
+		name := strings.TrimSuffix(strings.TrimPrefix(msg, prefix), "`.")
 		if !catalogAsk(t, conn, `SELECT EXISTS (SELECT 1 FROM pg_class WHERE oid = to_regclass($1) AND relkind = 'p')`, name) {
 			return false, name + " is not partitioned"
 		}
@@ -798,47 +800,62 @@ func walkFinding(t testing.TB, sql string, target review.Target) *review.Finding
 	return out
 }
 
-// walkStates lists the SQLSTATEs a finding's message stands for.
+// relationWords are the kinds a message names an object of the relation
+// namespace with.
+var relationWords = []string{"Table ", "View ", "Materialized view ", "Index ", "Sequence ", "Foreign table ", "Composite type "}
+
+// walkStates lists the SQLSTATEs a finding's message stands for. A DROP
+// of an index that does not exist is 42704, a COMMENT on one 42P01.
 func walkStates(msg string) []string {
+	relationWord := slices.ContainsFunc(relationWords, func(w string) bool { return strings.HasPrefix(msg, w) })
 	switch {
-	case strings.HasPrefix(msg, "relation ") && strings.Contains(msg, " already exists"):
+	case strings.HasPrefix(msg, "The name ") && strings.HasSuffix(msg, " is already taken."),
+		relationWord && strings.HasSuffix(msg, " already exists."),
+		strings.HasPrefix(msg, "This statement declares `"):
 		return []string{"42P07"}
-	case strings.HasPrefix(msg, "type ") && strings.HasSuffix(msg, " already exists"),
-		strings.HasPrefix(msg, "type ") && strings.Contains(msg, " already exists in schema"):
+	case strings.HasPrefix(msg, "Type ") && strings.HasSuffix(msg, " already exists."):
 		return []string{"42710", "42P07"}
-	case strings.HasPrefix(msg, "schema ") && strings.HasSuffix(msg, " already exists"):
+	case strings.HasPrefix(msg, "Schema ") && strings.HasSuffix(msg, " already exists."):
 		return []string{"42P06"}
-	case strings.HasPrefix(msg, "schema ") && strings.HasSuffix(msg, " does not exist"),
-		msg == "no schema has been selected to create in":
+	case strings.HasPrefix(msg, "Schema ") && strings.HasSuffix(msg, " doesn't exist."),
+		strings.HasPrefix(msg, "No schema on the search path exists to create "):
 		return []string{"3F000"}
-	case strings.HasPrefix(msg, "index ") && strings.HasSuffix(msg, " does not exist"),
-		strings.HasPrefix(msg, "type ") && strings.HasSuffix(msg, " does not exist"),
-		strings.HasPrefix(msg, "constraint ") && strings.HasSuffix(msg, " does not exist"):
+	case strings.HasPrefix(msg, "Index ") && strings.HasSuffix(msg, " doesn't exist."):
+		return []string{"42704", "42P01"}
+	case strings.HasPrefix(msg, "Type ") && strings.HasSuffix(msg, " doesn't exist."),
+		strings.HasPrefix(msg, "Domain ") && strings.HasSuffix(msg, " doesn't exist."),
+		strings.HasPrefix(msg, "Constraint ") && strings.Contains(msg, " doesn't exist in "),
+		strings.HasPrefix(msg, "This statement drops constraint "):
 		return []string{"42704"}
-	case strings.HasPrefix(msg, "column ") && strings.HasSuffix(msg, " does not exist"):
+	case strings.HasPrefix(msg, "Column ") && strings.Contains(msg, " doesn't exist in "),
+		strings.HasPrefix(msg, "This statement drops column "):
 		return []string{"42703"}
-	case strings.HasSuffix(msg, " does not exist"):
+	case strings.HasPrefix(msg, "`") && strings.HasSuffix(msg, " doesn't exist."),
+		relationWord && strings.HasSuffix(msg, " doesn't exist."):
 		return []string{"42P01"}
-	case strings.Contains(msg, " is not a"), strings.HasPrefix(msg, "cannot create index on relation"), strings.HasPrefix(msg, "cannot open relation"),
-		strings.HasSuffix(msg, " is a composite type"), strings.HasPrefix(msg, "cannot change schema of index"),
-		strings.HasPrefix(msg, "cannot truncate only a partitioned table"):
+	case strings.HasPrefix(msg, "`") && strings.Contains(msg, " is a") && strings.Contains(msg, ", not a"),
+		strings.HasPrefix(msg, "`") && strings.HasSuffix(msg, " isn't a domain."),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `TRUNCATE ONLY` "):
 		return []string{"42809"}
-	case strings.HasPrefix(msg, "column ") && (strings.HasSuffix(msg, " already exists") || strings.HasSuffix(msg, " specified more than once")),
-		strings.HasSuffix(msg, " conflicts with a system column name"):
+	case strings.HasPrefix(msg, "Column ") && strings.Contains(msg, " already exists in "),
+		strings.HasPrefix(msg, "This statement declares column "), strings.HasPrefix(msg, "This statement adds column "),
+		strings.HasSuffix(msg, " conflicts with a system column."):
 		return []string{"42701"}
-	case strings.HasPrefix(msg, "cannot drop system column"), strings.HasPrefix(msg, "cannot alter system column"), strings.HasPrefix(msg, "cannot rename system column"):
+	case strings.Contains(msg, " is a system column, which can't be "):
 		return []string{"0A000"}
-	case strings.HasPrefix(msg, "multiple primary keys"):
+	case strings.HasSuffix(msg, " already has a primary key."):
 		return []string{"42P16"}
-	case strings.HasPrefix(msg, "constraint ") && strings.HasSuffix(msg, " already exists"),
-		strings.HasPrefix(msg, "check constraint ") && strings.HasSuffix(msg, " already exists"):
+	case strings.HasPrefix(msg, "Constraint ") && strings.Contains(msg, " already exists in "):
 		return []string{"42710"}
-	case strings.HasPrefix(msg, "cross-database references are not implemented"), strings.HasPrefix(msg, "DROP INDEX CONCURRENTLY does not support"),
-		strings.HasPrefix(msg, "cannot create index on partitioned table "):
+	case strings.HasPrefix(msg, "This statement declares constraint "), strings.HasPrefix(msg, "This statement adds constraint "):
+		return []string{"42710", "42P07"}
+	case strings.HasSuffix(msg, " refers to another database, which PostgreSQL doesn't allow."),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `DROP INDEX CONCURRENTLY` "),
+		strings.HasPrefix(msg, "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` "):
 		return []string{"0A000"}
-	case strings.HasPrefix(msg, "cannot drop schema"):
+	case strings.HasPrefix(msg, "Schema ") && strings.HasSuffix(msg, " still holds objects."):
 		return []string{"2BP01"}
-	case strings.HasPrefix(msg, "unacceptable schema name"):
+	case strings.HasSuffix(msg, " is reserved for system schemas."):
 		return []string{"42939"}
 	}
 	return nil

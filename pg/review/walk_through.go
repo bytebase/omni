@@ -70,14 +70,132 @@ type walkNote struct {
 	rng     review.Range
 	absent  string
 	present string
-	fail    review.FindingCode
+	// presentOf, when set, writes the present text from the kind the
+	// ledger found, which present alone cannot name.
+	presentOf func(found string) string
+	fail      review.FindingCode
 }
 
 func (n *walkNote) message(v *walk.Violation) string {
-	if v.Got == walk.Absent {
+	switch {
+	case v.Got == walk.Absent:
 		return n.absent
+	case n.presentOf != nil:
+		return n.presentOf(v.Kind)
 	}
 	return n.present
+}
+
+// The texts of the findings, by code (docs/specs/2026-11-02-review-finding-
+// messages.md, Appendix E). A name is written as ident or qualified gives
+// it, and a kind with the words the ledger keeps, which are English.
+
+// notFound is ObjectNotFound's text: "Table `t` doesn't exist.", or
+// "`t` doesn't exist." when the kind is not known.
+func notFound(kind, name string) string {
+	if kind == "" {
+		return review.Code(name) + " doesn't exist."
+	}
+	return capitalized(kind) + " " + review.Code(name) + " doesn't exist."
+}
+
+// notFoundIn is ObjectNotFound's text for a column or a constraint of a
+// relation.
+func notFoundIn(kind, name, owner string) string {
+	return capitalized(kind) + " " + review.Code(name) + " doesn't exist in " + review.Code(owner) + "."
+}
+
+// schemaNotFound is ObjectNotFound's text for a schema.
+func schemaNotFound(name string) string {
+	return notFound("schema", ident(name))
+}
+
+// alreadyExists is NameTaken's text for an object of a known kind.
+func alreadyExists(kind, name string) string {
+	return capitalized(kind) + " " + review.Code(name) + " already exists."
+}
+
+// alreadyExistsIn is NameTaken's text for a column or a constraint of a
+// relation.
+func alreadyExistsIn(kind, name, owner string) string {
+	return capitalized(kind) + " " + review.Code(name) + " already exists in " + review.Code(owner) + "."
+}
+
+// hasPrimaryKey is NameTaken's text for a second primary key.
+func hasPrimaryKey(table string) string {
+	return review.Code(table) + " already has a primary key."
+}
+
+// taken is the note of a check that a name of the relation namespace is
+// free, for a statement that puts a relation of kind there, "" when that
+// kind is not known. The text names the kind when what holds the name is
+// of it, and says only that the name is taken otherwise: an object of
+// another kind, or of one the ledger does not know, holds it.
+func taken(rng review.Range, kind, name string) *walkNote {
+	return &walkNote{rng: rng, presentOf: func(found string) string {
+		if kind != "" && found == kind {
+			return alreadyExists(kind, name)
+		}
+		return "The name " + review.Code(name) + " is already taken."
+	}}
+}
+
+// ofKind is the note of a check that a relation is of a kind it needs,
+// written as needed: "`v` is a view, not a table."
+func ofKind(rng review.Range, name, needed string) *walkNote {
+	return &walkNote{rng: rng, presentOf: func(found string) string {
+		if found == "" {
+			return review.Code(name) + " isn't " + article(needed) + "."
+		}
+		return review.Code(name) + " is " + article(found) + ", not " + article(needed) + "."
+	}}
+}
+
+// twice is DuplicateName's text: "This statement adds column `a` twice."
+// A kind of "" leaves the kind out.
+func twice(verb, kind, name string) string {
+	if kind != "" {
+		kind += " "
+	}
+	return "This statement " + verb + " " + kind + review.Code(name) + " twice."
+}
+
+// unsupported is UnsupportedForm's text: what PostgreSQL refuses to run.
+func unsupported(form string) string {
+	return "PostgreSQL doesn't accept " + form + "."
+}
+
+// systemColumnMessage is SystemColumn's text, for a column a statement
+// would change as done: "dropped", "altered", or "renamed".
+func systemColumnMessage(name, done string) string {
+	return review.Code(ident(name)) + " is a system column, which can't be " + done + "."
+}
+
+// systemColumnName is ReservedName's text for a column named like a
+// system column.
+func systemColumnName(name string) string {
+	return "Column " + review.Code(ident(name)) + " conflicts with a system column."
+}
+
+// reservedSchema is ReservedName's text for a schema named with pg_.
+func reservedSchema(name string) string {
+	return review.Code(ident(name)) + " is reserved for system schemas."
+}
+
+// article writes a kind with its indefinite article.
+func article(kind string) string {
+	if kind != "" && strings.ContainsRune("aeiou", rune(kind[0])) {
+		return "an " + kind
+	}
+	return "a " + kind
+}
+
+// capitalized writes a kind at the start of a sentence.
+func capitalized(kind string) string {
+	if kind == "" {
+		return ""
+	}
+	return strings.ToUpper(kind[:1]) + kind[1:]
 }
 
 // code is the finding's code: a failure's own, or what a check found

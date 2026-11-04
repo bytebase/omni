@@ -2953,14 +2953,14 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "UPDATE t SET n = 1 WHERE id = 1;",
 			change:  review.Change{PriorBackup: true, MaxBackupSize: 10},
 			targets: []review.Target{{}, {Schema: withArchive(shop())}},
-			want:    []targetFinding{{-1, "", "the change is 32 bytes, over the 10-byte limit of prior backup", []int{0, 1}}},
+			want:    []targetFinding{{-1, "", "The change is larger than prior backup's 10 bytes limit.\n\nSplit it into smaller changes, or turn off **Prior backup**.", []int{0, 1}}},
 		},
 		{
 			name:    "no backup schema",
 			sql:     "UPDATE t SET n = 1 WHERE id = 1;",
 			change:  on,
 			targets: []review.Target{{Schema: shop()}, {Schema: withArchive(shop())}},
-			want:    []targetFinding{{-1, "", "prior backup needs schema bbdataarchive, which does not exist", []int{0}}},
+			want:    []targetFinding{{-1, "", "Prior backup needs the schema `bbdataarchive` in this database, which doesn't exist.\n\nCreate it, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "no backup schema, nothing to back up",
@@ -2974,8 +2974,8 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want: []targetFinding{
-				{2, "DELETE FROM public.t WHERE id = 3", "prior backup cannot back up both UPDATE and DELETE on public.t", []int{0}},
-				{5, "UPDATE s.t SET id = 1 WHERE id = 6", "prior backup cannot back up both UPDATE and DELETE on s.t", []int{0}},
+				{2, "DELETE FROM public.t WHERE id = 3", "Prior backup can't back up `public.t`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}},
+				{5, "UPDATE s.t SET id = 1 WHERE id = 6", "Prior backup can't back up `s.t`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -2985,7 +2985,7 @@ func TestPriorBackup(t *testing.T) {
 			// first statement's t means s.t.
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{0, "UPDATE t SET id = 1 WHERE id = 1", "prior backup reads t along the search path it runs under, where it means s.t, not public.t", []int{0}}},
+			want:    []targetFinding{{0, "UPDATE t SET id = 1 WHERE id = 1", "Prior backup reads `t` along its search path, where it means `s.t`, not `public.t`.\n\nWrite the name as `public.t`.", []int{0}}},
 		},
 		{
 			name:    "the lookup follows the synced path, not the session user",
@@ -2994,8 +2994,8 @@ func TestPriorBackup(t *testing.T) {
 			targets: []review.Target{{Schema: withArchive(database(`"$user", s, public`, shop().Schemas...)), SessionUser: "public"}},
 			// The query itself runs with $user, the session user's schema.
 			want: []targetFinding{
-				{0, "UPDATE t SET id = 1 WHERE id = 1", "prior backup reads t along the search path it runs under, where it means public.t, not s.t", []int{0}},
-				{1, "DELETE FROM s.t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on s.t", []int{0}},
+				{0, "UPDATE t SET id = 1 WHERE id = 1", "Prior backup reads `t` along its search path, where it means `public.t`, not `s.t`.\n\nWrite the name as `s.t`.", []int{0}},
+				{1, "DELETE FROM s.t WHERE id = 2", "Prior backup can't back up `s.t`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -3004,9 +3004,9 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want: []targetFinding{
-				{1, "UPDATE n SET id = 1 WHERE id = 2", "prior backup runs before the change, when n does not exist yet", []int{0}},
-				{3, "DELETE FROM tmp WHERE id = 1", "prior backup runs before the change, when tmp does not exist yet", []int{0}},
-				{5, "DELETE FROM s.m WHERE id = 1", "prior backup runs before the change, when s.m does not exist yet", []int{0}},
+				{1, "UPDATE n SET id = 1 WHERE id = 2", "Prior backup runs before the change, when `n` doesn't exist yet.\n\nCreate `n` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{3, "DELETE FROM tmp WHERE id = 1", "Prior backup runs before the change, when `tmp` doesn't exist yet.\n\nCreate `tmp` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{5, "DELETE FROM s.m WHERE id = 1", "Prior backup runs before the change, when `s.m` doesn't exist yet.\n\nCreate `s.m` in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -3014,7 +3014,7 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "ALTER TABLE nokey SET SCHEMA s;\nUPDATE s.nokey SET a = 1 WHERE a = 2;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "UPDATE s.nokey SET a = 1 WHERE a = 2", "prior backup runs before the change, when s.nokey does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "UPDATE s.nokey SET a = 1 WHERE a = 2", "Prior backup runs before the change, when `s.nokey` doesn't exist yet.\n\nCreate `s.nokey` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a table CREATE SCHEMA creates",
@@ -3022,8 +3022,8 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want: []targetFinding{
-				{1, "UPDATE z.t SET id = 1 WHERE id = 2", "prior backup runs before the change, when z.t does not exist yet", []int{0}},
-				{2, "DELETE FROM z.v WHERE a = 1", "prior backup runs before the change, when z.v does not exist yet", []int{0}},
+				{1, "UPDATE z.t SET id = 1 WHERE id = 2", "Prior backup runs before the change, when `z.t` doesn't exist yet.\n\nCreate `z.t` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{2, "DELETE FROM z.v WHERE a = 1", "Prior backup runs before the change, when `z.v` doesn't exist yet.\n\nCreate `z.v` in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -3031,35 +3031,35 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "CREATE TABLE n (id int);\nUPDATE public.n SET id = 1 WHERE id = 2;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "UPDATE public.n SET id = 1 WHERE id = 2", "prior backup runs before the change, when public.n does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "UPDATE public.n SET id = 1 WHERE id = 2", "Prior backup runs before the change, when `public.n` doesn't exist yet.\n\nCreate `public.n` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a table the change creates after the statement",
 			sql:     "UPDATE n SET id = 1 WHERE id = 2;\nCREATE TABLE n (id int);",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{0, "UPDATE n SET id = 1 WHERE id = 2", "prior backup runs before the change, when n does not exist yet", []int{0}}},
+			want:    []targetFinding{{0, "UPDATE n SET id = 1 WHERE id = 2", "Prior backup runs before the change, when `n` doesn't exist yet.\n\nCreate `n` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a table of a schema named after its owner",
 			sql:     "CREATE SCHEMA AUTHORIZATION bob CREATE TABLE t (id int);\nUPDATE bob.t SET id = 1 WHERE id = 2;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "UPDATE bob.t SET id = 1 WHERE id = 2", "prior backup runs before the change, when bob.t does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "UPDATE bob.t SET id = 1 WHERE id = 2", "Prior backup runs before the change, when `bob.t` doesn't exist yet.\n\nCreate `bob.t` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a name qualified with the current database",
 			sql:     "CREATE TABLE db.public.n (id int);\nUPDATE db.public.n SET id = 1 WHERE id = 2;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "UPDATE db.public.n SET id = 1 WHERE id = 2", "prior backup runs before the change, when db.public.n does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "UPDATE db.public.n SET id = 1 WHERE id = 2", "Prior backup runs before the change, when `db.public.n` doesn't exist yet.\n\nCreate `db.public.n` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "SELECT INTO on a branch of a set operation",
 			sql:     "SELECT 1 AS id INTO n UNION SELECT 2;\nUPDATE n SET id = 3 WHERE id = 1;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "UPDATE n SET id = 3 WHERE id = 1", "prior backup runs before the change, when n does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "UPDATE n SET id = 3 WHERE id = 1", "Prior backup runs before the change, when `n` doesn't exist yet.\n\nCreate `n` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a table the target lacks that the change does not create is left to the server",
@@ -3072,21 +3072,21 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "ALTER TABLE nokey ADD COLUMN b int;\nUPDATE nokey SET b = 1 WHERE b IS NULL;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "UPDATE nokey SET b = 1 WHERE b IS NULL", "prior backup runs before the change, when column b of nokey does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "UPDATE nokey SET b = 1 WHERE b IS NULL", "Prior backup runs before the change, when column `b` of `nokey` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a column the change renames to, through an alias",
 			sql:     "ALTER TABLE t RENAME COLUMN n TO m;\nDELETE FROM t AS x WHERE x.m > 5;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t AS x WHERE x.m > 5", "prior backup runs before the change, when column m of t does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t AS x WHERE x.m > 5", "Prior backup runs before the change, when column `m` of `t` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a column the change adds to a USING table",
 			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p WHERE t.p_id = p.id AND p.gone;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING p WHERE t.p_id = p.id AND p.gone", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING p WHERE t.p_id = p.id AND p.gone", "Prior backup runs before the change, when column `gone` of `p` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a column the backup does not read, or cannot tell",
@@ -3106,9 +3106,9 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want: []targetFinding{
-				{1, "DELETE FROM t USING ids WHERE t.id = ids.id", "prior backup runs before the change, when ids does not exist yet", []int{0}},
-				{2, "UPDATE p SET note = '' WHERE id IN (SELECT id FROM ids)", "prior backup runs before the change, when ids does not exist yet", []int{0}},
-				{3, "WITH x AS (SELECT id FROM ids) DELETE FROM nokey WHERE a IN (SELECT id FROM x)", "prior backup runs before the change, when ids does not exist yet", []int{0}},
+				{1, "DELETE FROM t USING ids WHERE t.id = ids.id", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{2, "UPDATE p SET note = '' WHERE id IN (SELECT id FROM ids)", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{3, "WITH x AS (SELECT id FROM ids) DELETE FROM nokey WHERE a IN (SELECT id FROM x)", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -3122,7 +3122,7 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "CREATE FUNCTION public.stale(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.stale(a);\nDELETE FROM t WHERE stale(id);\nDELETE FROM p WHERE pg_catalog.stale(id);",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM nokey WHERE public.stale(a)", "prior backup runs before the change, when function public.stale does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM nokey WHERE public.stale(a)", "Prior backup runs before the change, when function `public.stale` doesn't exist yet.\n\nCreate the function in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a data-modifying WITH query is refused, whatever the target",
@@ -3130,8 +3130,8 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: []review.Target{{Schema: withArchive(shop()), SessionUser: "alice"}, {}},
 			want: []targetFinding{
-				{0, "WITH d AS (DELETE FROM p RETURNING id) UPDATE t SET n = 5 WHERE p_id IN (SELECT id FROM d)", "prior backup refuses the data-modifying WITH query d of this statement", []int{0, 1}},
-				{1, "WITH d AS (DELETE FROM p RETURNING id), e AS (INSERT INTO nokey VALUES (1) RETURNING a) DELETE FROM nope WHERE id IN (SELECT id FROM d)", "prior backup refuses the data-modifying WITH query d, e of this statement", []int{0, 1}},
+				{0, "WITH d AS (DELETE FROM p RETURNING id) UPDATE t SET n = 5 WHERE p_id IN (SELECT id FROM d)", "Prior backup can't back up a statement whose `WITH` query `d` changes data.\n\nMove the data-modifying query into another statement, or turn off **Prior backup**.", []int{0, 1}},
+				{1, "WITH d AS (DELETE FROM p RETURNING id), e AS (INSERT INTO nokey VALUES (1) RETURNING a) DELETE FROM nope WHERE id IN (SELECT id FROM d)", "Prior backup can't back up a statement whose `WITH` queries `d` and `e` change data.\n\nMove the data-modifying queries into other statements, or turn off **Prior backup**.", []int{0, 1}},
 			},
 		},
 		{
@@ -3140,7 +3140,7 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want: []targetFinding{{1, "WITH x AS (SELECT 2 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x)",
-				"prior backup copies only the WITH clause of the first statement on public.nokey, which does not define x", []int{0}}},
+				"Prior backup copies only the first statement's `WITH` clause for `public.nokey`, which doesn't define `x`.\n\nDefine `x` in the first statement on `public.nokey`, or move this statement into another change.", []int{0}}},
 		},
 		{
 			name:    "a column the change adds to a table of that name in another schema",
@@ -3153,14 +3153,14 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "ALTER TABLE public.p ADD COLUMN gone bool;\nDELETE FROM t USING public.p WHERE public.p.gone;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING public.p WHERE public.p.gone", "prior backup runs before the change, when column gone of public.p does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING public.p WHERE public.p.gone", "Prior backup runs before the change, when column `gone` of `public.p` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a relation of a name only a schema off the backup's path holds",
 			sql:     "CREATE TABLE public.ids (id int);\nDELETE FROM t USING ids WHERE t.id = ids.id;",
 			change:  on,
 			targets: []review.Target{{Schema: withIDs(), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "DELETE FROM t USING ids WHERE t.id = ids.id", "prior backup runs before the change, when ids does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING ids WHERE t.id = ids.id", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a relation of a name a schema holds, the backup's path unknown",
@@ -3179,28 +3179,28 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "CREATE SEQUENCE ids;\nDELETE FROM t USING ids WHERE false;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING ids WHERE false", "prior backup runs before the change, when ids does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING ids WHERE false", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a WITH query named like the table",
 			sql:     "WITH t AS (SELECT 1 AS id) DELETE FROM t WHERE id = 1;\nWITH t AS (SELECT 1 AS id) DELETE FROM public.p WHERE id IN (SELECT id FROM t);",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{0, "WITH t AS (SELECT 1 AS id) DELETE FROM t WHERE id = 1", "prior backup copies the WITH clause of the first statement on public.t, whose query t then stands for the table", []int{0}}},
+			want:    []targetFinding{{0, "WITH t AS (SELECT 1 AS id) DELETE FROM t WHERE id = 1", "Prior backup copies the first statement's `WITH` clause, where the query `t` would stand for `public.t`.\n\nRename the `WITH` query.", []int{0}}},
 		},
 		{
 			name:    "aliases that differ between statements on a table",
 			sql:     "UPDATE t AS a SET n = 1 WHERE a.id = 1;\nUPDATE t AS b SET n = 2 WHERE b.id = 2;\nUPDATE p AS x SET note = '' WHERE x.id = 1;\nUPDATE p AS x SET note = 'y' WHERE x.id = 2;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "UPDATE t AS b SET n = 2 WHERE b.id = 2", "prior backup selects the rows of every statement on public.t through the first one's alias, which this statement does not use", []int{0}}},
+			want:    []targetFinding{{1, "UPDATE t AS b SET n = 2 WHERE b.id = 2", "Prior backup reads every statement on `public.t` through the first one's alias, and this statement doesn't use it.\n\nUse the same alias for `public.t` in every statement.", []int{0}}},
 		},
 		{
 			name:    "a view column the change renames to",
 			sql:     "ALTER VIEW v RENAME COLUMN a TO b;\nDELETE FROM t USING v WHERE v.b = t.id;\nALTER VIEW w RENAME COLUMN a TO b;\nDELETE FROM p USING w WHERE w.b = p.id;",
 			change:  on,
 			targets: []review.Target{{Schema: withViews(), SessionUser: "alice"}},
-			want:    []targetFinding{{1, "DELETE FROM t USING v WHERE v.b = t.id", "prior backup runs before the change, when column b of v does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING v WHERE v.b = t.id", "Prior backup runs before the change, when column `b` of `v` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a routine the change renames or moves",
@@ -3208,8 +3208,8 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want: []targetFinding{
-				{1, "DELETE FROM nokey WHERE public.stale(a)", "prior backup runs before the change, when function public.stale does not exist yet", []int{0}},
-				{3, "DELETE FROM t WHERE s.f(id)", "prior backup runs before the change, when function s.f does not exist yet", []int{0}},
+				{1, "DELETE FROM nokey WHERE public.stale(a)", "Prior backup runs before the change, when function `public.stale` doesn't exist yet.\n\nCreate the function in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{3, "DELETE FROM t WHERE s.f(id)", "Prior backup runs before the change, when function `s.f` doesn't exist yet.\n\nCreate the function in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -3217,14 +3217,14 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "DROP TABLE nokey;\nCREATE TABLE nokey (b int);\nDELETE FROM nokey WHERE b = 1;\nCREATE SCHEMA z CREATE TABLE p (gone bool);\nDELETE FROM t USING p WHERE p.gone;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{2, "DELETE FROM nokey WHERE b = 1", "prior backup runs before the change, when column b of nokey does not exist yet", []int{0}}},
+			want:    []targetFinding{{2, "DELETE FROM nokey WHERE b = 1", "Prior backup runs before the change, when column `b` of `nokey` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a routine the change creates in another schema",
 			sql:     "CREATE FUNCTION s.stale(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.stale(a);\nCREATE FUNCTION stale2(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.stale2(a);",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{3, "DELETE FROM nokey WHERE public.stale2(a)", "prior backup runs before the change, when function public.stale2 does not exist yet", []int{0}}},
+			want:    []targetFinding{{3, "DELETE FROM nokey WHERE public.stale2(a)", "Prior backup runs before the change, when function `public.stale2` doesn't exist yet.\n\nCreate the function in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a later statement's WITH the first one defines otherwise is not judged",
@@ -3238,8 +3238,8 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want: []targetFinding{
-				{1, "DELETE FROM t USING ids WHERE false", "prior backup runs before the change, when ids does not exist yet", []int{0}},
-				{3, "DELETE FROM p USING s.other_seq WHERE false", "prior backup runs before the change, when s.other_seq does not exist yet", []int{0}},
+				{1, "DELETE FROM t USING ids WHERE false", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{3, "DELETE FROM p USING s.other_seq WHERE false", "Prior backup runs before the change, when `s.other_seq` doesn't exist yet.\n\nCreate `s.other_seq` in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -3247,28 +3247,28 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p TABLESAMPLE SYSTEM (100) WHERE p.gone;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING p TABLESAMPLE SYSTEM (100) WHERE p.gone", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING p TABLESAMPLE SYSTEM (100) WHERE p.gone", "Prior backup runs before the change, when column `gone` of `p` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a relation named pg_ in a schema of the target",
 			sql:     "CREATE TABLE public.pg_ids (id int);\nDELETE FROM t USING public.pg_ids WHERE false;\nCREATE TABLE pg_more (id int);\nDELETE FROM p USING pg_more WHERE false;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING public.pg_ids WHERE false", "prior backup runs before the change, when public.pg_ids does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING public.pg_ids WHERE false", "Prior backup runs before the change, when `public.pg_ids` doesn't exist yet.\n\nCreate `public.pg_ids` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "WHERE CURRENT OF",
 			sql:     "UPDATE t SET n = 1 WHERE CURRENT OF c;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{0, "UPDATE t SET n = 1 WHERE CURRENT OF c", "prior backup copies WHERE CURRENT OF, which only UPDATE and DELETE take, into its query", []int{0}}},
+			want:    []targetFinding{{0, "UPDATE t SET n = 1 WHERE CURRENT OF c", "Prior backup can't back up a statement with `WHERE CURRENT OF`.\n\nUse a `WHERE` on the table's key, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "SET ROLE of a role the change creates",
 			sql:     "CREATE ROLE worker;\nSET ROLE worker;\nUPDATE public.t SET n = 1 WHERE id = 1;\nSET ROLE alice;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "SET ROLE worker", "prior backup runs this SET ROLE before the change, which creates role worker", []int{0}}},
+			want:    []targetFinding{{1, "SET ROLE worker", "Prior backup runs this `SET ROLE` before the change, which creates role `worker`.\n\nCreate the role in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "SET ROLE of a role the change creates, with nothing to back up",
@@ -3281,14 +3281,14 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "ALTER TABLE p RENAME COLUMN id TO a;\nDELETE FROM t USING p AS x(a, note) WHERE x.a = t.p_id;\nALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM nokey USING p AS y(i) WHERE y.gone;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{3, "DELETE FROM nokey USING p AS y(i) WHERE y.gone", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+			want:    []targetFinding{{3, "DELETE FROM nokey USING p AS y(i) WHERE y.gone", "Prior backup runs before the change, when column `gone` of `p` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a column named with the database",
 			sql:     "ALTER TABLE public.p ADD COLUMN gone bool;\nDELETE FROM t USING db.public.p WHERE db.public.p.gone;\nDELETE FROM nokey USING db.public.p WHERE other.public.p.gone;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING db.public.p WHERE db.public.p.gone", "prior backup runs before the change, when column gone of db.public.p does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING db.public.p WHERE db.public.p.gone", "Prior backup runs before the change, when column `gone` of `db.public.p` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "a column the change adds to a partitioned table, through a partition",
@@ -3302,8 +3302,8 @@ func TestPriorBackup(t *testing.T) {
 				return db
 			}(), SessionUser: "alice"}},
 			want: []targetFinding{
-				{1, "DELETE FROM pt1 WHERE pt1.flag", "prior backup runs before the change, when column flag of pt1 does not exist yet", []int{0}},
-				{2, "DELETE FROM pt2 WHERE pt2.flag", "prior backup runs before the change, when column flag of pt2 does not exist yet", []int{0}},
+				{1, "DELETE FROM pt1 WHERE pt1.flag", "Prior backup runs before the change, when column `flag` of `pt1` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{2, "DELETE FROM pt2 WHERE pt2.flag", "Prior backup runs before the change, when column `flag` of `pt2` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -3317,35 +3317,35 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "CREATE TABLE public.ids (id int);\nSET role TO DEFAULT;\nDELETE FROM t USING ids WHERE t.id = ids.id;",
 			change:  on,
 			targets: []review.Target{{Schema: withIDs(), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "DELETE FROM t USING ids WHERE t.id = ids.id", "prior backup runs before the change, when ids does not exist yet", []int{0}}},
+			want:    []targetFinding{{2, "DELETE FROM t USING ids WHERE t.id = ids.id", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a relation found along the session user's path after RESET ROLE",
 			sql:     "CREATE TABLE public.ids (id int);\nRESET ROLE;\nDELETE FROM t USING ids WHERE t.id = ids.id;",
 			change:  on,
 			targets: []review.Target{{Schema: withIDs(), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "DELETE FROM t USING ids WHERE t.id = ids.id", "prior backup runs before the change, when ids does not exist yet", []int{0}}},
+			want:    []targetFinding{{2, "DELETE FROM t USING ids WHERE t.id = ids.id", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a column beside a join's USING",
 			sql:     "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING p JOIN t USING (id) WHERE b;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM nokey USING p JOIN t USING (id) WHERE b", "prior backup runs before the change, when column b of nokey does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM nokey USING p JOIN t USING (id) WHERE b", "Prior backup runs before the change, when column `b` of `nokey` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a relation found along the synced path after SET search_path FROM CURRENT",
 			sql:     "CREATE TABLE public.ids (id int);\nSET search_path FROM CURRENT;\nDELETE FROM t USING ids WHERE t.id = ids.id;",
 			change:  on,
 			targets: []review.Target{{Schema: withIDs(), SessionUser: "alice"}},
-			want:    []targetFinding{{2, "DELETE FROM t USING ids WHERE t.id = ids.id", "prior backup runs before the change, when ids does not exist yet", []int{0}}},
+			want:    []targetFinding{{2, "DELETE FROM t USING ids WHERE t.id = ids.id", "Prior backup runs before the change, when `ids` doesn't exist yet.\n\nCreate `ids` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a first alias the later statement's table answers to",
 			sql:     "DELETE FROM nokey AS nokey WHERE a = 1;\nDELETE FROM nokey WHERE a = 2;\nDELETE FROM p WHERE id = 1;\nDELETE FROM p AS p WHERE id = 2;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{3, "DELETE FROM p AS p WHERE id = 2", "prior backup selects the rows of every statement on public.p through the first one's alias, which this statement does not use", []int{0}}},
+			want:    []targetFinding{{3, "DELETE FROM p AS p WHERE id = 2", "Prior backup reads every statement on `public.p` through the first one's alias, and this statement doesn't use it.\n\nUse the same alias for `public.p` in every statement.", []int{0}}},
 		},
 		{
 			name:    "a table the change renames away and back",
@@ -3360,7 +3360,7 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "SET search_path = s, public;\nDROP VIEW public.v CASCADE;\nDROP TABLE s.t;\nUPDATE t SET id = 1 WHERE id = 2;\nDROP TABLE s.p;\nCREATE TABLE s.p (id int);\nUPDATE s.p SET id = 1 WHERE id = 2;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{6, "UPDATE s.p SET id = 1 WHERE id = 2", "prior backup runs before the change, when s.p does not exist yet", []int{0}}},
+			want:    []targetFinding{{6, "UPDATE s.p SET id = 1 WHERE id = 2", "Prior backup runs before the change, when `s.p` doesn't exist yet.\n\nCreate `s.p` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a relation after DO is not judged",
@@ -3408,21 +3408,21 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON p.gone) AS j WHERE false;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING (p JOIN nokey ON p.gone) AS j WHERE false", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING (p JOIN nokey ON p.gone) AS j WHERE false", "Prior backup runs before the change, when column `gone` of `p` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "a column a join's USING names",
 			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nALTER TABLE nokey ADD COLUMN gone bool;\nDELETE FROM t USING p JOIN nokey USING (gone) WHERE false;\nDELETE FROM r USING p JOIN t USING (id) WHERE false;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{2, "DELETE FROM t USING p JOIN nokey USING (gone) WHERE false", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+			want:    []targetFinding{{2, "DELETE FROM t USING p JOIN nokey USING (gone) WHERE false", "Prior backup runs before the change, when column `gone` of `p` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "an alias's column list longer than the relation, which the change gives a column",
 			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p AS x(i, n, g) WHERE false;\nDELETE FROM nokey USING t AS y(a, b, c, d, e) WHERE false;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING p AS x(i, n, g) WHERE false", "prior backup runs before the change, when p has fewer columns than alias x names", []int{0}}},
+			want:    []targetFinding{{1, "DELETE FROM t USING p AS x(i, n, g) WHERE false", "Prior backup runs before the change, when `p` has fewer columns than alias `x` names.\n\nAdd the columns in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "a column of a foreign table the change recreates",
@@ -3433,7 +3433,7 @@ func TestPriorBackup(t *testing.T) {
 				db.Schemas[0].ExternalTables = append(db.Schemas[0].ExternalTables, &metadata.ExternalTableMetadata{Name: "ft", Columns: []*metadata.ColumnMetadata{{Name: "a"}}})
 				return []review.Target{{Schema: db, SessionUser: "alice"}}
 			}(),
-			want: []targetFinding{{2, "DELETE FROM t USING ft WHERE ft.b = t.id", "prior backup runs before the change, when column b of ft does not exist yet", []int{0}}},
+			want: []targetFinding{{2, "DELETE FROM t USING ft WHERE ft.b = t.id", "Prior backup runs before the change, when column `b` of `ft` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			// A call cannot mean a procedure.
@@ -3445,7 +3445,7 @@ func TestPriorBackup(t *testing.T) {
 				db.Schemas[0].Procedures = append(db.Schemas[0].Procedures, &metadata.ProcedureMetadata{Name: "f", Signature: "f(integer)"})
 				return []review.Target{{Schema: db, SessionUser: "alice"}}
 			}(),
-			want: []targetFinding{{1, "DELETE FROM nokey WHERE public.f()", "prior backup runs before the change, when function public.f does not exist yet", []int{0}}},
+			want: []targetFinding{{1, "DELETE FROM nokey WHERE public.f()", "Prior backup runs before the change, when function `public.f` doesn't exist yet.\n\nCreate the function in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "no schema, nothing known about the target",

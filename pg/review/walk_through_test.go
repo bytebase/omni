@@ -34,7 +34,7 @@ func walkFindings(t *testing.T, sql string, targets ...review.Target) []review.F
 
 func TestWalkThroughReportsTheFirstFailure(t *testing.T) {
 	got := walkFindings(t, "CREATE TABLE x (a int);\nALTER TABLE public.nosuch ADD COLUMN b int;\nCREATE TABLE t (a int);", review.Target{Schema: walkSchema(), SessionUser: "u"})
-	if len(got) != 1 || got[0].Statement != 1 || got[0].Message != "relation public.nosuch does not exist" {
+	if len(got) != 1 || got[0].Statement != 1 || got[0].Message != "`public.nosuch` doesn't exist." {
 		t.Fatalf("findings = %+v", got)
 	}
 	// The finding anchors at the name as written.
@@ -55,11 +55,11 @@ func TestWalkThroughLongDatabaseName(t *testing.T) {
 	schema.Name = strings.Repeat("d", 63)
 	long := `"` + schema.Name + `xyz"`
 	got := walkFindings(t, "CREATE TABLE "+long+".public.x (a int);\nCREATE TABLE "+long+".public.x (a int);", review.Target{Schema: schema, SessionUser: "u"})
-	if len(got) != 1 || got[0].Statement != 1 || got[0].Message != "relation "+schema.Name+".public.x already exists" {
+	if len(got) != 1 || got[0].Statement != 1 || got[0].Message != "Table `"+schema.Name+".public.x` already exists." {
 		t.Errorf("findings = %+v, want the second CREATE's", got)
 	}
 	got = walkFindings(t, "CREATE TABLE other.public.x (a int);", review.Target{Schema: schema, SessionUser: "u"})
-	if len(got) != 1 || got[0].Message != "cross-database references are not implemented: other.public.x" {
+	if len(got) != 1 || got[0].Message != "`other.public.x` refers to another database, which PostgreSQL doesn't allow." {
 		t.Errorf("findings = %+v, want the cross-database reference", got)
 	}
 }
@@ -75,7 +75,7 @@ func TestWalkThroughConcurrentIndexOnPartitionedTable(t *testing.T) {
 		Partitions: []*metadata.TablePartitionMetadata{{Name: "parted_1"}},
 	})
 	got := walkFindings(t, "CREATE INDEX CONCURRENTLY parted_k ON parted (k);", review.Target{Schema: schema, SessionUser: "u"})
-	if len(got) != 1 || got[0].Message != "cannot create index on partitioned table parted concurrently" {
+	if len(got) != 1 || got[0].Message != "PostgreSQL doesn't accept `CREATE INDEX CONCURRENTLY` on partitioned table `parted`." {
 		t.Errorf("findings = %+v", got)
 	}
 	if got := walkFindings(t, "CREATE INDEX CONCURRENTLY t_a ON t (a);", review.Target{Schema: schema, SessionUser: "u"}); len(got) != 0 {
@@ -97,8 +97,8 @@ func TestWalkThroughConcurrentIndexOnPartitionedTable(t *testing.T) {
 
 	// DROP INDEX CONCURRENTLY takes one index and no CASCADE (0A000).
 	for sql, want := range map[string]string{
-		"DROP INDEX CONCURRENTLY IF EXISTS x, y;":      "DROP INDEX CONCURRENTLY does not support dropping multiple objects",
-		"DROP INDEX CONCURRENTLY IF EXISTS x CASCADE;": "DROP INDEX CONCURRENTLY does not support CASCADE",
+		"DROP INDEX CONCURRENTLY IF EXISTS x, y;":      "PostgreSQL doesn't accept `DROP INDEX CONCURRENTLY` of several indexes.",
+		"DROP INDEX CONCURRENTLY IF EXISTS x CASCADE;": "PostgreSQL doesn't accept `DROP INDEX CONCURRENTLY` with `CASCADE`.",
 	} {
 		if got := walkFindings(t, sql, review.Target{Schema: schema, SessionUser: "u"}); len(got) != 1 || got[0].Message != want {
 			t.Errorf("%s: findings = %+v, want %q", sql, got, want)
@@ -185,26 +185,26 @@ func TestWalkThroughRunsAsBytebase(t *testing.T) {
 		// After the transaction: the table exists, the index does not yet
 		// go.
 		{"CREATE INDEX CONCURRENTLY i ON t2 (a);\nCREATE TABLE t2 (a int);", -1, ""},
-		{"DROP INDEX CONCURRENTLY t_a_idx;\nCREATE INDEX t_a_idx ON t (a);", 1, "relation t_a_idx already exists"},
-		{"CREATE INDEX CONCURRENTLY i ON t (a);\nCREATE INDEX i ON t (a);\nCREATE INDEX CONCURRENTLY i2 ON t (a);", 0, "relation i already exists"},
+		{"DROP INDEX CONCURRENTLY t_a_idx;\nCREATE INDEX t_a_idx ON t (a);", 1, "Index `t_a_idx` already exists."},
+		{"CREATE INDEX CONCURRENTLY i ON t (a);\nCREATE INDEX i ON t (a);\nCREATE INDEX CONCURRENTLY i2 ON t (a);", 0, "Index `i` already exists."},
 		// Matched anywhere in its text, as Bytebase matches it.
 		{"COMMENT ON TABLE t2 IS 'no DROP DATABASE here';\nCREATE TABLE t2 (a int);", -1, ""},
 		// First, in auto-commit mode.
 		{"-- txn-mode = off\nCREATE TABLE t_a_idx (a int);\nDROP INDEX CONCURRENTLY t_a_idx;", -1, ""},
-		{"-- txn-mode = off\nCREATE TABLE i (a int);\nCREATE INDEX CONCURRENTLY i ON t (a);", 0, "relation i already exists"},
+		{"-- txn-mode = off\nCREATE TABLE i (a int);\nCREATE INDEX CONCURRENTLY i ON t (a);", 0, "The name `i` is already taken."},
 		{"-- txn-isolation = SERIALIZABLE\n--   TXN-MODE=Off\nCREATE TABLE t_a_idx (a int);\nDROP INDEX CONCURRENTLY t_a_idx;", -1, ""},
-		{"-- txn-mode = off\n-- txn-mode = on\nCREATE TABLE t_a_idx (a int);\nDROP INDEX CONCURRENTLY t_a_idx;", 0, "relation t_a_idx already exists"},
+		{"-- txn-mode = off\n-- txn-mode = on\nCREATE TABLE t_a_idx (a int);\nDROP INDEX CONCURRENTLY t_a_idx;", 0, "The name `t_a_idx` is already taken."},
 		// A directive below the first statement is no directive.
-		{"CREATE TABLE t_a_idx (a int);\n-- txn-mode = off\nDROP INDEX CONCURRENTLY t_a_idx;", 0, "relation t_a_idx already exists"},
+		{"CREATE TABLE t_a_idx (a int);\n-- txn-mode = off\nDROP INDEX CONCURRENTLY t_a_idx;", 0, "The name `t_a_idx` is already taken."},
 		// A CONCURRENTLY the patterns miss fails in the transaction: the
 		// walk ends before it.
 		{"CREATE /* x */ INDEX CONCURRENTLY t_a_idx ON t (a);\nDROP TABLE nosuch;", -1, ""},
-		{"VACUUM t;\nDROP TABLE nosuch;", 1, "table nosuch does not exist"},
+		{"VACUUM t;\nDROP TABLE nosuch;", 1, "Table `nosuch` doesn't exist."},
 		{"/* x */ VACUUM t;\nDROP TABLE nosuch;", -1, ""},
-		{"-- txn-mode = off\n/* x */ VACUUM t;\nDROP TABLE nosuch;", 1, "table nosuch does not exist"},
+		{"-- txn-mode = off\n/* x */ VACUUM t;\nDROP TABLE nosuch;", 1, "Table `nosuch` doesn't exist."},
 		{"BEGIN;\nREINDEX TABLE t;\nDROP TABLE nosuch;", -1, ""},
 		// A second run of what is no SET ends the walk.
-		{"COMMENT ON TABLE t IS 'SET ROLE';\nCREATE INDEX CONCURRENTLY i ON t (a);\nDROP TABLE nosuch;", 2, "table nosuch does not exist"},
+		{"COMMENT ON TABLE t IS 'SET ROLE';\nCREATE INDEX CONCURRENTLY i ON t (a);\nDROP TABLE nosuch;", 2, "Table `nosuch` doesn't exist."},
 		{"COMMENT ON TABLE t IS 'SET ROLE';\nDROP INDEX CONCURRENTLY t_a_idx;\nDROP INDEX t_a_idx;", -1, ""},
 	} {
 		got := walkFindings(t, tc.sql, target)
@@ -406,12 +406,12 @@ func TestWalkThroughAlterTypeTakesACompositeType(t *testing.T) {
 		}
 	}
 	for sql, want := range map[string]string{
-		"ALTER TYPE t ADD ATTRIBUTE b int;":                                  "t is not a composite type",
-		"CREATE VIEW v AS SELECT 1 AS a;\nALTER TYPE v ADD ATTRIBUTE b int;": "v is not a composite type",
-		"ALTER TABLE pair ADD COLUMN b int;":                                 "pair is a composite type",
+		"ALTER TYPE t ADD ATTRIBUTE b int;":                                  "`t` is a table, not a composite type.",
+		"CREATE VIEW v AS SELECT 1 AS a;\nALTER TYPE v ADD ATTRIBUTE b int;": "`v` is a view, not a composite type.",
+		"ALTER TABLE pair ADD COLUMN b int;":                                 "`pair` is a composite type, not a table.",
 	} {
 		got := walkFindings(t, sql, target)
-		if len(got) != 1 || !strings.Contains(got[0].Message, want) || !slices.Equal(got[0].Codes, []review.FindingCode{review.WrongObjectKind}) {
+		if len(got) != 1 || got[0].Message != want || !slices.Equal(got[0].Codes, []review.FindingCode{review.WrongObjectKind}) {
 			t.Errorf("%q: findings = %+v, want one %s saying %q", sql, got, review.WrongObjectKind, want)
 		}
 	}

@@ -124,7 +124,7 @@ func (w *walker) currentDatabase(catalog string) bool {
 }
 
 func crossDatabaseMessage(written string) string {
-	return "cross-database references are not implemented: " + written
+	return review.Code(written) + " refers to another database, which PostgreSQL doesn't allow."
 }
 
 // searchPath returns the current search path with "$user" expanded, or
@@ -278,17 +278,17 @@ type created struct {
 	keys   []walk.Key
 }
 
-// creationSchema returns the schema a new relation or type goes to: the
-// schema the SQL wrote, the session's temporary schema for a temporary
-// relation, or else the first schema of the search path that exists.
-// PostgreSQL never creates in the implicitly searched pg_temp or
-// pg_catalog; a path that lists either is one the walk does not follow,
-// as is a temporary relation the SQL puts in a schema of its own, which
-// PostgreSQL refuses.
+// creationSchema returns the schema a new relation or type, name as
+// written, goes to: the schema the SQL wrote, the session's temporary
+// schema for a temporary relation, or else the first schema of the search
+// path that exists. PostgreSQL never creates in the implicitly searched
+// pg_temp or pg_catalog; a path that lists either is one the walk does
+// not follow, as is a temporary relation the SQL puts in a schema of its
+// own, which PostgreSQL refuses.
 //
 // pg: src/backend/catalog/namespace.c — RangeVarGetCreationNamespace,
 // QualifiedNameGetCreationNamespace
-func (b *builder) creationSchema(schema string, temp bool) created {
+func (b *builder) creationSchema(schema, name string, temp bool) created {
 	if schema != "" {
 		s, ok := walkName(schema)
 		switch {
@@ -300,7 +300,7 @@ func (b *builder) creationSchema(schema string, temp bool) created {
 		sk := schemaKey(s)
 		switch f, _ := b.l.Lookup(sk); f {
 		case walk.Absent:
-			return created{fact: walk.Absent, fail: "schema " + ident(schema) + " does not exist", code: review.ObjectNotFound, keys: []walk.Key{sk}}
+			return created{fact: walk.Absent, fail: schemaNotFound(schema), code: review.ObjectNotFound, keys: []walk.Key{sk}}
 		case walk.Unknown:
 			// The object goes there if the statement succeeds, and then
 			// the schema exists.
@@ -329,7 +329,7 @@ func (b *builder) creationSchema(schema string, temp bool) created {
 			return created{keys: keys}
 		}
 	}
-	return created{fact: walk.Absent, fail: "no schema has been selected to create in", code: review.NoCurrentSchema, keys: keys}
+	return created{fact: walk.Absent, fail: "No schema on the search path exists to create " + review.Code(ident(name)) + " in.", code: review.NoCurrentSchema, keys: keys}
 }
 
 // typeName splits a qualified type or object name list into schema and
