@@ -79,7 +79,7 @@ var locSpanCases = []struct {
 	want string
 	nth  int
 }{
-	{"AlterDatabaseStmt", "ALTER DATABASE mydb READ ONLY = 1", "ALTER DATABASE mydb READ ONLY = 1", 0},
+	{"AlterDatabaseStmt", "ALTER DATABASE mydb CHARSET = 'utf8mb4'", "ALTER DATABASE mydb CHARSET = 'utf8mb4'", 0},
 	{"AlterEventStmt", "ALTER EVENT ev1 ENABLE", "ALTER EVENT ev1 ENABLE", 0},
 	{"AlterInstanceStmt", "ALTER INSTANCE RELOAD TLS", "ALTER INSTANCE RELOAD TLS", 0},
 	{"AlterLogfileGroupStmt", "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' ENGINE = NDB", "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' ENGINE = NDB", 0},
@@ -154,7 +154,7 @@ var locSpanCases = []struct {
 	{"CreateViewStmt", "CREATE OR REPLACE ALGORITHM=MERGE DEFINER=root SQL SECURITY INVOKER VIEW v AS SELECT 1", "CREATE OR REPLACE ALGORITHM=MERGE DEFINER=root SQL SECURITY INVOKER VIEW v AS SELECT 1", 0},
 	{"DataType", "CREATE TABLE t (id INT)", "INT", 0},
 	{"DataType", "CREATE AGGREGATE FUNCTION f RETURNS STRING SONAME 'f.so'", "STRING", 0},
-	{"DatabaseOption", "ALTER DATABASE mydb READ ONLY = 1", "READ ONLY = 1", 0},
+	{"DatabaseOption", "ALTER DATABASE mydb CHARSET = 'utf8mb4'", "CHARSET = 'utf8mb4'", 0},
 	{"DeallocateStmt", "DEALLOCATE PREPARE stmt1", "DEALLOCATE PREPARE stmt1", 0},
 	{"DeallocateStmt", "DROP PREPARE stmt1", "DROP PREPARE stmt1", 0},
 	{"DeclareConditionStmt", "CREATE PROCEDURE p() BEGIN DECLARE c CONDITION FOR SQLSTATE '45000'; END", "DECLARE c CONDITION FOR SQLSTATE '45000'", 0},

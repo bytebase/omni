@@ -14,7 +14,6 @@ import (
 //	create_option:
 //	    [DEFAULT] CHARACTER SET [=] charset_name
 //	    | [DEFAULT] COLLATE [=] collation_name
-//	    | [DEFAULT] ENCRYPTION [=] {'Y' | 'N'}
 func (p *Parser) parseCreateDatabaseStmt(start int, orReplace bool) (*nodes.CreateDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
 
@@ -40,7 +39,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int, orReplace bool) (*nodes.Crea
 	}
 	stmt.Name = name
 
-	// Options
+	// Options. CREATE DATABASE takes none at all; ALTER DATABASE needs one.
 	for {
 		opt, ok, err := p.parseDatabaseOption()
 		if err != nil {
@@ -67,8 +66,15 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, er
 
 	stmt := &nodes.AlterDatabaseStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional database name
-	if p.isIdentToken() && p.cur.Type != kwDEFAULT && p.cur.Type != kwCHARACTER && p.cur.Type != kwCHARSET && p.cur.Type != kwCOLLATE {
+	// Optional database name. Every token that can be an unquoted identifier is
+	// read as one: that is how the engine resolves `ALTER DATABASE opt_db_name
+	// alter_database_options` against the nameless arm with one token of
+	// lookahead. CHARACTER, COLLATE and DEFAULT are reserved words and so start
+	// an option, while CHARSET is not, which is why
+	// `ALTER DATABASE CHARSET = 'utf8'` names a database and then runs out of
+	// options -- a 1064 on MariaDB 11.8.8 -- while
+	// `ALTER DATABASE COLLATE = 'utf8_bin'` parses.
+	if p.isIdentToken() {
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
@@ -86,6 +92,12 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, er
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
+	}
+	// alter_option is a one-or-more list, so an ALTER DATABASE that names no
+	// option is a 1064 -- `ALTER DATABASE`, `ALTER DATABASE d` and
+	// `ALTER DATABASE d DEFAULT` all parsed before this check.
+	if len(stmt.Options) == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -131,38 +143,41 @@ func (p *Parser) parseDropDatabaseStmt(start int) (*nodes.DropDatabaseStmt, erro
 
 // parseDatabaseOption parses a single database option.
 //
-//	create_option / alter_option:
+// Ref: https://mariadb.com/kb/en/alter-database/
+//
+//	create_option:
 //	    [DEFAULT] CHARACTER SET [=] charset_name
 //	  | [DEFAULT] COLLATE [=] collation_name
-//	  | [DEFAULT] ENCRYPTION [=] {'Y' | 'N'}
-//	  | READ ONLY [=] {DEFAULT | 0 | 1}        (ALTER DATABASE only)
+//
+//	alter_option:
+//	    create_option
+//
+// MariaDB 11.8.8 has neither of MySQL's other two: it answers 1064 to
+// ENCRYPTION and to READ ONLY on both statements, so this parser reads
+// neither. It does take a COMMENT option and DEFAULT as a charset or
+// collation name, which this parser does not read yet.
 func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	start := p.pos()
 
-	// READ ONLY [=] {DEFAULT | 0 | 1}  (no DEFAULT prefix)
-	if p.cur.Type == kwREAD {
-		p.advance()
-		if _, ok := p.match(kwONLY); ok {
-			p.match('=') // optional =
-			val := p.cur.Str
+	// Optional DEFAULT prefix, taken only when an option that reads it follows.
+	// Consuming it on its own dropped the word: `ALTER DATABASE d DEFAULT` and
+	// `ALTER DATABASE d CHARSET = utf8 DEFAULT` both parsed, and both are a
+	// 1064 on MySQL 8.0, MariaDB 11.8.8 and TiDB v8.5.5.
+	if p.cur.Type == kwDEFAULT {
+		switch p.peekNext().Type {
+		case kwCHARACTER, kwCHARSET, kwCOLLATE:
 			p.advance()
-			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.prev.End},
-				Name:  "READ ONLY",
-				Value: val,
-			}, true, nil
+		default:
+			return nil, false, nil
 		}
 	}
-
-	// Skip optional DEFAULT
-	p.match(kwDEFAULT)
 
 	switch {
 	case p.cur.Type == kwCHARACTER:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
 			p.match('=') // optional =
-			val, _, err := p.parseIdent()
+			val, err := p.parseCharsetName()
 			if err != nil {
 				return nil, false, err
 			}
@@ -172,10 +187,14 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 				Value: val,
 			}, true, nil
 		}
+		// CHARACTER with no SET after it is no option, and the word has been
+		// consumed: saying "not an option" here dropped it, so
+		// `ALTER DATABASE d CHARSET = utf8 CHARACTER` parsed.
+		return nil, false, p.syntaxErrorAtCur()
 	case p.cur.Type == kwCHARSET:
 		p.advance()
 		p.match('=') // optional =
-		val, _, err := p.parseIdent()
+		val, err := p.parseCharsetName()
 		if err != nil {
 			return nil, false, err
 		}
@@ -187,7 +206,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	case p.cur.Type == kwCOLLATE:
 		p.advance()
 		p.match('=') // optional =
-		val, _, err := p.parseIdent()
+		val, err := p.parseCollationName()
 		if err != nil {
 			return nil, false, err
 		}
@@ -196,19 +215,37 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 			Name:  "COLLATE",
 			Value: val,
 		}, true, nil
-	case p.cur.Type == kwENCRYPTION:
-		p.advance()
-		p.match('=') // optional =
-		if p.cur.Type == tokSCONST {
-			val := p.cur.Str
-			p.advance()
-			return &nodes.DatabaseOption{
-				Loc:   nodes.Loc{Start: start, End: p.prev.End},
-				Name:  "ENCRYPTION",
-				Value: val,
-			}, true, nil
-		}
 	}
 
 	return nil, false, nil
+}
+
+// parseCharsetName parses the name a database option's CHARACTER SET or
+// CHARSET takes: ident_or_text plus the reserved word BINARY. That is an
+// identifier, a non-reserved keyword, a backquoted identifier, or a string
+// literal in either quote. An integer and every other reserved keyword are a
+// 1064 -- `CHARSET = 1` and `CHARSET = select` are a syntax error on
+// MariaDB 11.8.8.
+//
+// Ref: charset_name and ident_or_text in MySQL 8.0.46 sql/sql_yacc.yy, which
+// MariaDB forked; read against MariaDB 11.8.8.
+func (p *Parser) parseCharsetName() (string, error) {
+	// BINARY is reserved, so parseIdentOrText would turn `CHARSET = binary`
+	// away; it is a charset name all the same.
+	if p.cur.Type == kwBINARY {
+		tok := p.advance()
+		return tok.Str, nil
+	}
+	name, _, err := p.parseIdentOrText()
+	return name, err
+}
+
+// parseCollationName parses the name a database option's COLLATE takes. It is
+// parseCharsetName's grammar: the collation name carries the same BINARY arm,
+// so `COLLATE = binary` parses on MariaDB 11.8.8.
+//
+// Ref: collation_name in MySQL 8.0.46 sql/sql_yacc.yy; read against MariaDB
+// 11.8.8.
+func (p *Parser) parseCollationName() (string, error) {
+	return p.parseCharsetName()
 }

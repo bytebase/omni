@@ -339,3 +339,64 @@ func TestOceanBaseOracleVersion(t *testing.T) {
 		t.Fatalf("%s points at a server that is not OceanBase: %q", oceanBaseDSNEnv, version)
 	}
 }
+
+// TestDatabaseOptionsOceanBaseOracle reads the engine column of
+// databaseOptionCases back from a live server, so the record in
+// database_options_test.go stays a measurement rather than a memory of one. It
+// runs where OCEANBASE_WALK_DSN is set:
+//
+//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//
+// Every statement runs for real, which is what engineAccepts does: a 1064 is
+// the parser's rejection and any other error means the text parsed. READ ONLY
+// leaves the database read-only, so each case puts it back before the next one
+// runs, and the cleanup drops the two databases the cases share.
+func TestDatabaseOptionsOceanBaseOracle(t *testing.T) {
+	db := oceanBaseOracle(t)
+	ctx := context.Background()
+
+	for _, stmt := range []string{
+		"DROP DATABASE IF EXISTS obdbopt",
+		"DROP DATABASE IF EXISTS obdbopt_c",
+		"CREATE DATABASE obdbopt",
+		"USE obdbopt",
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed %q: %v", stmt, err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(ctx, "ALTER DATABASE obdbopt READ WRITE")
+		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obdbopt")
+		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obdbopt_c")
+	})
+
+	for _, c := range databaseOptionCases {
+		t.Run(c.sql, func(t *testing.T) {
+			engineTakes, err := engineAccepts(ctx, db, c.sql)
+			if err != nil {
+				t.Fatalf("the oracle gave no verdict on %q: %v", c.sql, err)
+			}
+			if engineTakes != c.engine {
+				t.Errorf("OceanBase accepts %q = %v, the record says %v", c.sql, engineTakes, c.engine)
+			}
+			// A statement that parsed may have changed the database it names;
+			// put what the cases share back the way the next one expects.
+			_, _ = db.ExecContext(ctx, "ALTER DATABASE obdbopt READ WRITE")
+			_, _ = db.ExecContext(ctx, "USE obdbopt")
+
+			_, parseErr := Parse(c.sql)
+			parserTakes := parseErr == nil
+			switch {
+			case engineTakes && !parserTakes:
+				if !c.pending {
+					t.Errorf("OceanBase accepts %q and the parser does not:\n  %v", c.sql, parseErr)
+				}
+			case !engineTakes && parserTakes:
+				t.Errorf("the parser accepts %q and OceanBase does not", c.sql)
+			case engineTakes && parserTakes && c.pending:
+				t.Errorf("%q is marked pending but the parser now reads it: clear the flag", c.sql)
+			}
+		})
+	}
+}
