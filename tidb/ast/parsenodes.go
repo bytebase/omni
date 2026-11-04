@@ -1904,6 +1904,11 @@ type EventSchedule struct {
 func (s *EventSchedule) nodeTag() {}
 
 // LoadDataStmt represents a LOAD DATA statement.
+//
+// Columns holds the column-and-user-variable list: each element is a
+// *ColumnRef for a column name and a *VariableRef for a user variable, so
+// `(a, @v)` names a column and a variable rather than two columns, one of
+// them called "@v".
 type LoadDataStmt struct {
 	Loc                Loc
 	IsXML              bool // true for LOAD XML, false for LOAD DATA
@@ -1911,13 +1916,15 @@ type LoadDataStmt struct {
 	Concurrent         bool // CONCURRENT modifier
 	Local              bool
 	Infile             string
+	Format             string // TiDB: FORMAT 'delimited data' | 'sql file' | 'parquet'
+	HasFormat          bool   // FORMAT written, which FORMAT '' does not show
 	Replace            bool
 	Ignore             bool
 	Table              *TableRef
 	Partitions         []string // PARTITION (p0, p1, ...)
 	CharacterSet       string   // CHARACTER SET charset_name
 	RowsIdentifiedBy   string   // ROWS IDENTIFIED BY '<tagname>' (XML only)
-	Columns            []*ColumnRef
+	Columns            []ExprNode
 	SetList            []*Assignment
 	LinesStartingBy    string
 	LinesTerminatedBy  string
@@ -1925,11 +1932,49 @@ type LoadDataStmt struct {
 	FieldsEnclosedBy   string
 	FieldsOptionalEncl bool // OPTIONALLY ENCLOSED BY
 	FieldsEscapedBy    string
-	IgnoreRows         int
+	// TiDB: FIELDS DEFINED NULL BY 'x' [OPTIONALLY ENCLOSED]. HasDefinedNullBy
+	// is what tells DEFINED NULL BY '' from no such item.
+	FieldsDefinedNullBy    string
+	HasDefinedNullBy       bool
+	DefinedNullOptEnclosed bool
+	IgnoreRows             int
+	Options                []*LoadDataOption // TiDB: WITH detached, threads=10
 }
 
 func (s *LoadDataStmt) nodeTag()  {}
 func (s *LoadDataStmt) stmtNode() {}
+
+// LoadDataOption is one entry of TiDB's WITH list on LOAD DATA and IMPORT
+// INTO. Value is nil for a bare name such as `detached`.
+type LoadDataOption struct {
+	Loc   Loc
+	Name  string
+	Value ExprNode
+}
+
+func (o *LoadDataOption) nodeTag() {}
+
+// ImportIntoStmt represents TiDB's IMPORT INTO statement. Exactly one of
+// Path, Select and TableSource carries the source the rows come from: a file
+// path, a query, or the TABLE statement `FROM TABLE s` is. Columns holds the
+// same column-and-user-variable list LoadDataStmt documents.
+//
+// Ref: https://docs.pingcap.com/tidb/stable/sql-statement-import-into/
+type ImportIntoStmt struct {
+	Loc         Loc
+	Table       *TableRef
+	Columns     []ExprNode
+	SetList     []*Assignment
+	Path        string
+	Select      *SelectStmt // FROM select_statement
+	TableSource *TableStmt  // FROM TABLE tbl_name
+	Format      string      // FORMAT 'csv' | 'sql file' | 'parquet'
+	HasFormat   bool        // FORMAT written, which FORMAT '' does not show
+	Options     []*LoadDataOption
+}
+
+func (s *ImportIntoStmt) nodeTag()  {}
+func (s *ImportIntoStmt) stmtNode() {}
 
 // PrepareStmt represents a PREPARE statement.
 type PrepareStmt struct {
@@ -3685,15 +3730,6 @@ type UnlockInstanceStmt struct {
 
 func (s *UnlockInstanceStmt) nodeTag()  {}
 func (s *UnlockInstanceStmt) stmtNode() {}
-
-// ImportTableStmt represents an IMPORT TABLE FROM statement.
-type ImportTableStmt struct {
-	Loc   Loc
-	Files []string // .sdi file paths
-}
-
-func (s *ImportTableStmt) nodeTag()  {}
-func (s *ImportTableStmt) stmtNode() {}
 
 // BinlogStmt represents a BINLOG 'str' statement.
 type BinlogStmt struct {

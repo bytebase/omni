@@ -515,8 +515,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		fmt.Fprintf(sb, "{LOCK_INSTANCE :loc %d}", n.Loc.Start)
 	case *UnlockInstanceStmt:
 		fmt.Fprintf(sb, "{UNLOCK_INSTANCE :loc %d}", n.Loc.Start)
-	case *ImportTableStmt:
-		writeImportTableStmt(sb, n)
+	case *ImportIntoStmt:
+		writeImportIntoStmt(sb, n)
+	case *LoadDataOption:
+		writeLoadDataOption(sb, n)
 	case *BinlogStmt:
 		fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
 	case *CacheIndexStmt:
@@ -1871,6 +1873,9 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.Infile != "" {
 		fmt.Fprintf(sb, " :infile %q", n.Infile)
 	}
+	if n.HasFormat {
+		fmt.Fprintf(sb, " :format %q", n.Format)
+	}
 	if n.Replace {
 		sb.WriteString(" :replace true")
 	}
@@ -1926,9 +1931,16 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.FieldsEscapedBy != "" {
 		fmt.Fprintf(sb, " :fields_escaped %q", n.FieldsEscapedBy)
 	}
+	if n.HasDefinedNullBy {
+		fmt.Fprintf(sb, " :fields_defined_null %q", n.FieldsDefinedNullBy)
+	}
+	if n.DefinedNullOptEnclosed {
+		sb.WriteString(" :defined_null_optionally_enclosed true")
+	}
 	if n.IgnoreRows > 0 {
 		fmt.Fprintf(sb, " :ignore_rows %d", n.IgnoreRows)
 	}
+	writeLoadDataOptions(sb, n.Options)
 	sb.WriteString("}")
 }
 
@@ -5349,18 +5361,68 @@ func writeAlterInstanceStmt(sb *strings.Builder, n *AlterInstanceStmt) {
 	sb.WriteString("}")
 }
 
-func writeImportTableStmt(sb *strings.Builder, n *ImportTableStmt) {
-	sb.WriteString("{IMPORT_TABLE")
+func writeImportIntoStmt(sb *strings.Builder, n *ImportIntoStmt) {
+	sb.WriteString("{IMPORT_INTO")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if len(n.Files) > 0 {
-		sb.WriteString(" :files (")
-		for i, f := range n.Files {
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if len(n.Columns) > 0 {
+		sb.WriteString(" :columns ")
+		for i, c := range n.Columns {
 			if i > 0 {
 				sb.WriteString(" ")
 			}
-			fmt.Fprintf(sb, "%q", f)
+			writeNode(sb, c)
 		}
-		sb.WriteString(")")
+	}
+	if len(n.SetList) > 0 {
+		sb.WriteString(" :set ")
+		for i, a := range n.SetList {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, a)
+		}
+	}
+	switch {
+	case n.Select != nil:
+		sb.WriteString(" :from ")
+		writeNode(sb, n.Select)
+	case n.TableSource != nil:
+		sb.WriteString(" :from ")
+		writeNode(sb, n.TableSource)
+	default:
+		fmt.Fprintf(sb, " :path %q", n.Path)
+	}
+	if n.HasFormat {
+		fmt.Fprintf(sb, " :format %q", n.Format)
+	}
+	writeLoadDataOptions(sb, n.Options)
+	sb.WriteString("}")
+}
+
+// writeLoadDataOptions writes TiDB's WITH list, shared by LOAD DATA and
+// IMPORT INTO.
+func writeLoadDataOptions(sb *strings.Builder, opts []*LoadDataOption) {
+	if len(opts) == 0 {
+		return
+	}
+	sb.WriteString(" :with ")
+	for i, o := range opts {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeLoadDataOption(sb, o)
+	}
+}
+
+func writeLoadDataOption(sb *strings.Builder, n *LoadDataOption) {
+	fmt.Fprintf(sb, "{OPT :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Value != nil {
+		sb.WriteString(" :val ")
+		writeNode(sb, n.Value)
 	}
 	sb.WriteString("}")
 }

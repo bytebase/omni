@@ -49,6 +49,13 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dml([]*ast.TableRef{v.Table})
 	case *ast.LoadDataStmt:
 		return b.dml([]*ast.TableRef{v.Table})
+	case *ast.ImportIntoStmt:
+		// IMPORT INTO writes rows into a table that has to be there
+		// already: v8.5.5 answers 1146 for a target that is not. It
+		// creates, drops and renames nothing, so it is lowered the way
+		// LOAD DATA is -- and lowered at all, because a node the walk does
+		// not know ends the walk and hides every finding below it.
+		return b.dml([]*ast.TableRef{v.Table})
 	case *ast.UpdateStmt:
 		return b.dml(singleTarget(v.Tables))
 	case *ast.DeleteStmt:

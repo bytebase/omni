@@ -1738,6 +1738,11 @@ type EventSchedule struct {
 func (s *EventSchedule) nodeTag() {}
 
 // LoadDataStmt represents a LOAD DATA statement.
+//
+// Columns holds the column-and-user-variable list: each element is a
+// *ColumnRef for a column name and a *VariableRef for a user variable, so
+// `(a, @v)` names a column and a variable rather than two columns, one of
+// them called "@v".
 type LoadDataStmt struct {
 	Loc                Loc
 	IsXML              bool // true for LOAD XML, false for LOAD DATA
@@ -1754,7 +1759,7 @@ type LoadDataStmt struct {
 	Partitions         []string // PARTITION (p0, p1, ...)
 	CharacterSet       string   // CHARACTER SET charset_name
 	RowsIdentifiedBy   string   // ROWS IDENTIFIED BY '<tagname>' (XML only)
-	Columns            []*ColumnRef
+	Columns            []ExprNode
 	SetList            []*Assignment
 	LinesStartingBy    string
 	LinesTerminatedBy  string
