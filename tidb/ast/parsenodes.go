@@ -2058,15 +2058,12 @@ type ImportIntoStmt struct {
 	Columns []ExprNode
 	SetList []*Assignment
 	Path    string
-	// Select is the query expression FROM reads, whatever primary it
-	// begins with: a SELECT, a WITH, a parenthesized query, or a TABLE or
-	// VALUES primary, which arrive as a SelectStmt over their source the
-	// way they do everywhere else. A set operation, an ORDER BY, a LIMIT
-	// and a locking clause are all reachable here on v8.5.5, so there is
-	// one field rather than one per primary.
-	Select    *SelectStmt // FROM query_expression
-	Format    string      // FORMAT 'csv' | 'sql file' | 'parquet'
-	HasFormat bool        // FORMAT written, which FORMAT '' does not show
+	// Select is the query source: FROM select_statement, and also FROM
+	// TABLE / FROM VALUES, which are query primaries the engine reads as a
+	// SelectStmt with its own TableSource or ValuesSource.
+	Select    *SelectStmt
+	Format    string // FORMAT 'csv' | 'sql file' | 'parquet'
+	HasFormat bool   // FORMAT written, which FORMAT '' does not show
 	Options   []*LoadDataOption
 }
 

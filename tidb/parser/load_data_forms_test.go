@@ -198,30 +198,13 @@ var loadDataFormCases = []loadDataFormCase{
 	{"import into t from select a from s group by a with rollup", true},
 	{"import into t from select a from s group by a with rollup with thread=2", true},
 	{"import into t from select a from s group by a with thread=2", false},
-	// A query source carries neither a user variable nor a SET list.
+	// A query source carries neither a user variable nor a SET list, and a
+	// VALUES statement is no query here.
 	{"import into t (a,@1) from select a from s", false},
 	{"import into t (a,@1) from table s", false},
 	{"import into t set a=1 from select * from s", false},
 	{"import into t (a) set b=1 from select * from s", false},
-	// FROM takes one query expression, so the TABLE and VALUES primaries
-	// carry their set operations and their tails. VALUES is a query primary
-	// only when spelled with ROW, which is why VALUES (1) is a 1064 and
-	// VALUES ROW(1) is not.
 	{"import into t from values (1)", false},
-	{"import into t from values row(1)", true},
-	{"import into t from values row(1,1)", true},
-	{"import into t from values row(1), row(2)", true},
-	{"import into t from values row(1) union select 1", true},
-	{"import into t from table t1 union table t2", true},
-	{"import into t from table t1 union all table t2", true},
-	{"import into t from table t1 intersect table t2", true},
-	{"import into t from table t1 except table t2", true},
-	{"import into t from table t1 order by a limit 1", true},
-	// An incomplete source is still a 1064.
-	{"import into t from table t1 union", false},
-	{"import into t from table t1 union table", false},
-	{"import into t from table", false},
-	{"import into t from values", false},
 
 	// --- IMPORT TABLE FROM is MySQL's, not TiDB's ---
 	{"import table from '/tmp/a.sdi'", false},

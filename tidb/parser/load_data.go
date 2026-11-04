@@ -275,12 +275,14 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		return nil, err
 	}
 
-	// The source: a file path, or one query expression. FORMAT follows a
-	// path only.
-	//
-	// VALUES is a query primary only when it is spelled with ROW, here as
-	// in every other position: v8.5.5 answers 1064 for `IMPORT INTO t FROM
-	// VALUES (1)` and takes `FROM VALUES ROW(1)`.
+	// The source: a file path, or one whole query expression. The FROM slot
+	// takes anything parseSelectStmt reads, whichever primary comes first:
+	// v8.5.5 accepts `FROM TABLE t1 UNION TABLE t2` and
+	// `FROM VALUES ROW(1) UNION SELECT 1` as readily as `FROM SELECT 1
+	// UNION SELECT 2`, along with each primary's ORDER BY, LIMIT, locking
+	// and INTO OUTFILE tail, and answers 1064 only for the VALUES spelling
+	// without ROW. Reading the first primary alone would take a union after
+	// a SELECT and refuse one after a TABLE. FORMAT follows a path only.
 	switch p.cur.Type {
 	case tokSCONST:
 		stmt.Path = p.cur.Str
@@ -292,16 +294,7 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		}
 		stmt.Format, stmt.HasFormat = format, has
 
-	case kwSELECT, kwWITH, '(', kwTABLE, kwVALUES:
-		// FROM takes one query expression, so a TABLE or VALUES target is
-		// the query it begins rather than a leaf, and the set operation and
-		// the clauses after it have to reach the tree. v8.5.5 accepts
-		// `IMPORT INTO t FROM TABLE t1 UNION TABLE t2` and the same source
-		// with INTERSECT, EXCEPT, UNION ALL, ORDER BY a, LIMIT 1 and
-		// written parenthesized. None of that fits a bare TableStmt, which
-		// is why the node keeps one Select rather than a field per primary;
-		// a reader that took only the primary would accept the statement
-		// and drop the rest, which no corpus row can see.
+	case kwSELECT, kwWITH, kwTABLE, kwVALUES, '(':
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
