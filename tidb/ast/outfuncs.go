@@ -135,6 +135,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDoStmt(sb, n)
 	case *ChecksumTableStmt:
 		writeChecksumTableStmt(sb, n)
+	case *AdminStmt:
+		writeAdminStmt(sb, n)
 	case *ShutdownStmt:
 		writeShutdownStmt(sb, n)
 	case *RestartStmt:
@@ -5259,4 +5261,139 @@ func writeVCPUSpec(sb *strings.Builder, n *VCPUSpec) {
 	} else {
 		fmt.Fprintf(sb, "{VCPU %d-%d}", n.Start, n.End)
 	}
+}
+
+// adminKindNames spells each kind as the subcommand it stands for.
+var adminKindNames = map[AdminKind]string{
+	AdminShowDDL:                     "SHOW DDL",
+	AdminShowDDLJobs:                 "SHOW DDL JOBS",
+	AdminShowDDLJobQueries:           "SHOW DDL JOB QUERIES",
+	AdminShowDDLJobQueriesWithRange:  "SHOW DDL JOB QUERIES LIMIT",
+	AdminShowNextRowID:               "SHOW NEXT_ROW_ID",
+	AdminShowSlow:                    "SHOW SLOW",
+	AdminShowBDRRole:                 "SHOW BDR ROLE",
+	AdminCheckTable:                  "CHECK TABLE",
+	AdminCheckIndex:                  "CHECK INDEX",
+	AdminCheckIndexRange:             "CHECK INDEX RANGE",
+	AdminChecksumTable:               "CHECKSUM TABLE",
+	AdminRecoverIndex:                "RECOVER INDEX",
+	AdminCleanupIndex:                "CLEANUP INDEX",
+	AdminCleanupTableLock:            "CLEANUP TABLE LOCK",
+	AdminRepairTable:                 "REPAIR TABLE",
+	AdminCancelDDLJobs:               "CANCEL DDL JOBS",
+	AdminPauseDDLJobs:                "PAUSE DDL JOBS",
+	AdminResumeDDLJobs:               "RESUME DDL JOBS",
+	AdminAlterDDLJobs:                "ALTER DDL JOBS",
+	AdminReloadExprPushdownBlacklist: "RELOAD EXPR_PUSHDOWN_BLACKLIST",
+	AdminReloadOptRuleBlacklist:      "RELOAD OPT_RULE_BLACKLIST",
+	AdminReloadStatistics:            "RELOAD STATISTICS",
+	AdminReloadBindings:              "RELOAD BINDINGS",
+	AdminFlushBindings:               "FLUSH BINDINGS",
+	AdminCaptureBindings:             "CAPTURE BINDINGS",
+	AdminEvolveBindings:              "EVOLVE BINDINGS",
+	AdminFlushPlanCache:              "FLUSH PLAN_CACHE",
+	AdminPluginEnable:                "PLUGINS ENABLE",
+	AdminPluginDisable:               "PLUGINS DISABLE",
+	AdminSetBDRRole:                  "SET BDR ROLE",
+	AdminUnsetBDRRole:                "UNSET BDR ROLE",
+}
+
+func (k AdminKind) String() string {
+	if s, ok := adminKindNames[k]; ok {
+		return s
+	}
+	return fmt.Sprintf("?%d", int(k))
+}
+
+func (s AdminStatementScope) String() string {
+	switch s {
+	case AdminScopeSession:
+		return "SESSION"
+	case AdminScopeGlobal:
+		return "GLOBAL"
+	case AdminScopeInstance:
+		return "INSTANCE"
+	default:
+		return fmt.Sprintf("?%d", int(s))
+	}
+}
+
+func (k AdminSlowKind) String() string {
+	switch k {
+	case AdminSlowKindDefault:
+		return ""
+	case AdminSlowKindInternal:
+		return "INTERNAL"
+	case AdminSlowKindAll:
+		return "ALL"
+	default:
+		return fmt.Sprintf("?%d", int(k))
+	}
+}
+
+// writeAdminStmt dumps an ADMIN statement: its kind, then only the operands
+// that kind takes, so a dump says which subcommand was parsed and with what.
+func writeAdminStmt(sb *strings.Builder, n *AdminStmt) {
+	sb.WriteString("{ADMIN")
+	fmt.Fprintf(sb, " :kind %s :loc %d", n.Kind, n.Loc.Start)
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables ")
+		for i, t := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+	}
+	if n.Index != "" {
+		fmt.Fprintf(sb, " :index %s", n.Index)
+	}
+	for _, r := range n.Ranges {
+		fmt.Fprintf(sb, " :range (%d %d)", r.Begin, r.End)
+	}
+	if n.HasJobNumber {
+		fmt.Fprintf(sb, " :jobnumber %d", n.JobNumber)
+	}
+	if len(n.JobIDs) > 0 {
+		sb.WriteString(" :jobids")
+		for _, id := range n.JobIDs {
+			fmt.Fprintf(sb, " %d", id)
+		}
+	}
+	if n.Limit != nil {
+		fmt.Fprintf(sb, " :limit (count %d offset %d)", n.Limit.Count, n.Limit.Offset)
+	}
+	if n.Slow != nil {
+		switch {
+		case n.Slow.Recent:
+			fmt.Fprintf(sb, " :slow (recent %d)", n.Slow.Count)
+		case n.Slow.Kind == AdminSlowKindDefault:
+			fmt.Fprintf(sb, " :slow (top %d)", n.Slow.Count)
+		default:
+			fmt.Fprintf(sb, " :slow (top %s %d)", n.Slow.Kind, n.Slow.Count)
+		}
+	}
+	if len(n.Plugins) > 0 {
+		fmt.Fprintf(sb, " :plugins %s", strings.Join(n.Plugins, ", "))
+	}
+	if n.Kind == AdminFlushPlanCache {
+		fmt.Fprintf(sb, " :scope %s", n.Scope)
+	}
+	if n.BDRRole != "" {
+		fmt.Fprintf(sb, " :bdrrole %s", n.BDRRole)
+	}
+	for _, o := range n.JobOptions {
+		fmt.Fprintf(sb, " :option (%s ", o.Name)
+		writeNode(sb, o.Value)
+		sb.WriteString(")")
+	}
+	if n.Where != nil {
+		sb.WriteString(" :where ")
+		writeNode(sb, n.Where)
+	}
+	if n.CreateTable != nil {
+		sb.WriteString(" :create ")
+		writeNode(sb, n.CreateTable)
+	}
+	sb.WriteString("}")
 }

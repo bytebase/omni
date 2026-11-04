@@ -3251,3 +3251,171 @@ type RawStmt struct {
 
 func (s *RawStmt) nodeTag()  {}
 func (s *RawStmt) stmtNode() {}
+
+// AdminKind names the subcommand an AdminStmt carries. TiDB gives each ADMIN
+// subcommand its own production and its own operands rather than one
+// permissive tail, so the kind, not the shape, says what a statement does.
+//
+// Ref: TiDB v8.5.5 parser.y:11204-11425 (AdminStmt).
+type AdminKind int
+
+// The zero AdminKind is no kind, so a node built without one never reads as a
+// subcommand.
+const (
+	AdminShowDDL AdminKind = iota + 1
+	AdminShowDDLJobs
+	AdminShowDDLJobQueries
+	AdminShowDDLJobQueriesWithRange
+	AdminShowNextRowID
+	AdminShowSlow
+	AdminShowBDRRole
+	AdminCheckTable
+	AdminCheckIndex
+	AdminCheckIndexRange
+	AdminChecksumTable
+	AdminRecoverIndex
+	AdminCleanupIndex
+	AdminCleanupTableLock
+	AdminRepairTable
+	AdminCancelDDLJobs
+	AdminPauseDDLJobs
+	AdminResumeDDLJobs
+	AdminAlterDDLJobs
+	AdminReloadExprPushdownBlacklist
+	AdminReloadOptRuleBlacklist
+	AdminReloadStatistics
+	AdminReloadBindings
+	AdminFlushBindings
+	AdminCaptureBindings
+	AdminEvolveBindings
+	AdminFlushPlanCache
+	AdminPluginEnable
+	AdminPluginDisable
+	AdminSetBDRRole
+	AdminUnsetBDRRole
+)
+
+// AdminStatementScope is the scope of ADMIN FLUSH ... PLAN_CACHE. TiDB's
+// StatementScope defaults to SESSION when the scope is left out.
+//
+// Ref: TiDB v8.5.5 parser.y:16553-16568 (StatementScope).
+type AdminStatementScope int
+
+const (
+	AdminScopeSession AdminStatementScope = iota
+	AdminScopeGlobal
+	AdminScopeInstance
+)
+
+// AdminSlowKind is which statements ADMIN SHOW SLOW TOP reports on.
+type AdminSlowKind int
+
+const (
+	AdminSlowKindDefault AdminSlowKind = iota
+	AdminSlowKindInternal
+	AdminSlowKindAll
+)
+
+// AdminSlowSpec is the tail of ADMIN SHOW SLOW: RECENT n, or TOP [INTERNAL |
+// ALL] n. Recent and the kind do not combine -- RECENT takes no kind -- so
+// Recent reading true leaves Kind at its zero value.
+//
+// Ref: TiDB v8.5.5 parser.y:11460-11487 (AdminShowSlow).
+type AdminSlowSpec struct {
+	Loc    Loc
+	Recent bool
+	Kind   AdminSlowKind
+	Count  uint64
+}
+
+func (s *AdminSlowSpec) nodeTag() {}
+
+// AdminHandleRange is one (begin, end) pair of ADMIN CHECK INDEX's handle
+// range list. Both bounds are unsigned integer literals in the grammar, so
+// neither carries a sign.
+//
+// Ref: TiDB v8.5.5 parser.y:11489-11501 (HandleRangeList, HandleRange).
+type AdminHandleRange struct {
+	Loc   Loc
+	Begin int64
+	End   int64
+}
+
+func (r *AdminHandleRange) nodeTag() {}
+
+// AdminLimit is the LIMIT tail of ADMIN SHOW DDL JOB QUERIES: LIMIT count,
+// LIMIT offset, count, or LIMIT count OFFSET offset.
+//
+// Ref: TiDB v8.5.5 parser.y:11427-11440 (AdminStmtLimitOpt).
+type AdminLimit struct {
+	Loc    Loc
+	Count  uint64
+	Offset uint64
+}
+
+func (l *AdminLimit) nodeTag() {}
+
+// AdminJobOption is one `name = value` of ADMIN ALTER DDL JOBS. The grammar
+// takes any identifier for the name and any signed literal for the value;
+// TiDB's executor keeps THREAD, BATCH_SIZE, and MAX_WRITE_SPEED and answers
+// 1105 for anything else, which is a runtime answer, not a parse error.
+//
+// Ref: TiDB v8.5.5 parser.y:11442-11456 (AlterJobOptionList, AlterJobOption).
+type AdminJobOption struct {
+	Loc   Loc
+	Name  string
+	Value ExprNode
+}
+
+func (o *AdminJobOption) nodeTag() {}
+
+// AdminStmt represents a TiDB ADMIN statement. Kind says which subcommand it
+// is, and each subcommand fills only its own operands: a field a kind does not
+// take is left at its zero value.
+//
+//	Tables      CHECK/CHECKSUM TABLE, CLEANUP TABLE LOCK, SHOW ... NEXT_ROW_ID,
+//	            CHECK/RECOVER/CLEANUP INDEX, REPAIR TABLE
+//	Index       CHECK/RECOVER/CLEANUP INDEX
+//	Ranges      CHECK INDEX ... (begin, end), ...
+//	Where       SHOW DDL JOBS [n] WHERE ...
+//	JobNumber   SHOW DDL JOBS n, ALTER DDL JOBS n
+//	JobIDs      CANCEL/PAUSE/RESUME DDL JOBS, SHOW DDL JOB QUERIES
+//	Limit       SHOW DDL JOB QUERIES LIMIT ...
+//	Slow        SHOW SLOW
+//	Plugins     PLUGINS ENABLE/DISABLE
+//	Scope       FLUSH [SESSION|GLOBAL|INSTANCE] PLAN_CACHE
+//	BDRRole     SET BDR ROLE
+//	JobOptions  ALTER DDL JOBS
+//	CreateTable REPAIR TABLE
+//
+// Ref: TiDB v8.5.5 parser.y:11204-11425 (AdminStmt).
+type AdminStmt struct {
+	Loc  Loc
+	Kind AdminKind
+
+	Tables []*TableRef
+	Index  string
+	Ranges []*AdminHandleRange
+
+	Where ExprNode
+
+	// JobNumber is the job count of SHOW DDL JOBS n and the job id of ALTER
+	// DDL JOBS n. HasJobNumber separates SHOW DDL JOBS 0 from SHOW DDL JOBS,
+	// which takes no number.
+	JobNumber    int64
+	HasJobNumber bool
+	JobIDs       []int64
+	Limit        *AdminLimit
+
+	Slow    *AdminSlowSpec
+	Plugins []string
+	Scope   AdminStatementScope
+	// BDRRole is PRIMARY or SECONDARY, uppercased; the grammar takes no
+	// other word and no quoted name.
+	BDRRole     string
+	JobOptions  []*AdminJobOption
+	CreateTable *CreateTableStmt
+}
+
+func (s *AdminStmt) nodeTag()  {}
+func (s *AdminStmt) stmtNode() {}

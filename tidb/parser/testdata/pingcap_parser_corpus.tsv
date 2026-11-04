@@ -26,63 +26,63 @@ reject	accept	recommend index ignore 1
 reject	accept	recommend index set A = 1
 reject	accept	recommend index set A = 1, B = 2
 reject	accept	recommend index set A = 1, B = 2, C = 3
-reject	accept	admin show ddl;
-reject	accept	admin show ddl jobs;
-reject	accept	admin show ddl jobs where id > 0;
-reject	accept	admin show ddl jobs 20 where id=0;
+accept	accept	admin show ddl;
+accept	accept	admin show ddl jobs;
+accept	accept	admin show ddl jobs where id > 0;
+accept	accept	admin show ddl jobs 20 where id=0;
 reject	reject	admin show ddl jobs -1;
-reject	accept	admin show ddl job queries 1
-reject	accept	admin show ddl job queries 1, 2, 3, 4
-reject	accept	admin show ddl job queries limit 5
-reject	accept	admin show ddl job queries limit 5, 10
-reject	accept	admin show ddl job queries limit 3 offset 2
-reject	accept	admin show ddl job queries limit 22 offset 0
-reject	accept	admin show t1 next_row_id
+accept	accept	admin show ddl job queries 1
+accept	accept	admin show ddl job queries 1, 2, 3, 4
+accept	accept	admin show ddl job queries limit 5
+accept	accept	admin show ddl job queries limit 5, 10
+accept	accept	admin show ddl job queries limit 3 offset 2
+accept	accept	admin show ddl job queries limit 22 offset 0
+accept	accept	admin show t1 next_row_id
 reject	reject	admin create workload snapshot;
-reject	accept	admin check table t1, t2;
-reject	accept	admin check index tableName idxName;
-reject	accept	admin check index tableName idxName (1, 2), (4, 5);
-reject	accept	admin checksum table t1, t2;
-reject	accept	admin cancel ddl jobs 1
-reject	accept	admin cancel ddl jobs 1, 2
-reject	accept	admin pause ddl jobs 1, 3
-reject	accept	admin pause ddl jobs 5
+accept	accept	admin check table t1, t2;
+accept	accept	admin check index tableName idxName;
+accept	accept	admin check index tableName idxName (1, 2), (4, 5);
+accept	accept	admin checksum table t1, t2;
+accept	accept	admin cancel ddl jobs 1
+accept	accept	admin cancel ddl jobs 1, 2
+accept	accept	admin pause ddl jobs 1, 3
+accept	accept	admin pause ddl jobs 5
 reject	reject	admin pause ddl jobs
 reject	reject	admin pause ddl jobs str_not_num
-reject	accept	admin resume ddl jobs 1, 2
-reject	accept	admin resume ddl jobs 3
+accept	accept	admin resume ddl jobs 1, 2
+accept	accept	admin resume ddl jobs 3
 reject	reject	admin resume ddl jobs
 reject	reject	admin resume ddl jobs str_not_num
-reject	accept	admin recover index t1 idx_a
-reject	accept	admin cleanup index t1 idx_a
-reject	accept	admin show slow top 3
-reject	accept	admin show slow top internal 7
-reject	accept	admin show slow top all 9
-reject	accept	admin show slow recent 11
-reject	accept	admin reload expr_pushdown_blacklist
-reject	accept	admin plugins disable audit, whitelist
-reject	accept	admin plugins enable audit, whitelist
-reject	accept	admin flush bindings
-reject	accept	admin capture bindings
-reject	accept	admin evolve bindings
-reject	accept	admin reload bindings
-reject	accept	admin reload statistics
-reject	accept	admin reload stats_extended
-reject	accept	admin flush instance plan_cache
-reject	accept	admin flush session plan_cache
-reject	accept	admin flush global plan_cache
-reject	accept	admin set bdr role primary
-reject	accept	admin set bdr role secondary
-reject	accept	admin unset bdr role
-reject	accept	admin show bdr role
-reject	accept	admin alter ddl jobs 1 thread = 2
+accept	accept	admin recover index t1 idx_a
+accept	accept	admin cleanup index t1 idx_a
+accept	accept	admin show slow top 3
+accept	accept	admin show slow top internal 7
+accept	accept	admin show slow top all 9
+accept	accept	admin show slow recent 11
+accept	accept	admin reload expr_pushdown_blacklist
+accept	accept	admin plugins disable audit, whitelist
+accept	accept	admin plugins enable audit, whitelist
+accept	accept	admin flush bindings
+accept	accept	admin capture bindings
+accept	accept	admin evolve bindings
+accept	accept	admin reload bindings
+accept	accept	admin reload statistics
+accept	accept	admin reload stats_extended
+accept	accept	admin flush instance plan_cache
+accept	accept	admin flush session plan_cache
+accept	accept	admin flush global plan_cache
+accept	accept	admin set bdr role primary
+accept	accept	admin set bdr role secondary
+accept	accept	admin unset bdr role
+accept	accept	admin show bdr role
+accept	accept	admin alter ddl jobs 1 thread = 2
 reject	reject	admin alter ddl jobs 1 thread = 
 reject	reject	admin alter ddl jobs 1 thread
-reject	accept	admin alter ddl jobs 1 batch_size = 3
+accept	accept	admin alter ddl jobs 1 batch_size = 3
 reject	reject	admin alter ddl jobs 1 batch_size = 
 reject	reject	admin alter ddl jobs 1 batch_size
-reject	accept	admin alter ddl jobs 1 max_write_speed = 4
-reject	accept	admin alter ddl jobs 1 max_write_speed = _UTF8MB4'4MiB'
+accept	accept	admin alter ddl jobs 1 max_write_speed = 4
+accept	accept	admin alter ddl jobs 1 max_write_speed = _UTF8MB4'4MiB'
 reject	reject	admin alter ddl jobs 1 max_write_speed = 
 reject	reject	admin alter ddl jobs 1 max_write_speed
 accept	accept	;
@@ -497,12 +497,12 @@ accept	accept	show table t1 next_row_id
 reject	reject	show table next_row_id
 reject	accept	begin pessimistic
 reject	accept	begin optimistic
-reject	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a int)
-reject	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a char(1))
-reject	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a char(1), b int)
-reject	accept	ADMIN REPAIR TABLE t CREATE TABLE t (c1 TIME(2), c2 DATETIME(2), c3 TIMESTAMP(2));
-reject	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a TINYINT UNSIGNED);
-reject	accept	ADMIN REPAIR TABLE t CREATE TABLE t (name CHAR(50) CHARACTER SET UTF8)
+accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a int)
+accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a char(1))
+accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a char(1), b int)
+accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (c1 TIME(2), c2 DATETIME(2), c3 TIMESTAMP(2));
+accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a TINYINT UNSIGNED);
+accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (name CHAR(50) CHARACTER SET UTF8)
 accept	accept	ALTER INSTANCE RELOAD TLS
 accept	accept	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR
 reject	accept	ALTER RANGE global PLACEMENT POLICY mypolicy
@@ -3129,8 +3129,8 @@ accept	accept	LOCK TABLE t2 WRITE
 reject	accept	LOCK TABLE t2 WRITE LOCAL;
 accept	accept	LOCK TABLE t1 WRITE, t2 READ;
 reject	reject	ADMIN CLEANUP TABLE LOCK
-reject	accept	ADMIN CLEANUP TABLE LOCK t
-reject	accept	ADMIN CLEANUP TABLE LOCK t1,t2
+accept	accept	ADMIN CLEANUP TABLE LOCK t
+accept	accept	ADMIN CLEANUP TABLE LOCK t1,t2
 reject	accept	ALTER TABLE t READ ONLY
 reject	accept	ALTER TABLE t READ WRITE
 reject	reject	select * from t group by a, b rollup
