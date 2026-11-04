@@ -586,6 +586,29 @@ func TestAlterTableUpdateIndexes(t *testing.T) {
 		t.Errorf("UPDATE INDEXES (i LOCAL) was accepted")
 	}
 
+	// A name the clause gives twice is 1280 as well -- v8.5.5 refuses
+	// `(i GLOBAL, i LOCAL)` and even `(i GLOBAL, i GLOBAL)` -- so the list
+	// names each index at most once and the undo cannot depend on its order.
+	c5 := newCatalogWithTable(t, "(a INT, b INT, UNIQUE KEY i (b))")
+	err = execExpectError(t, c5, "ALTER TABLE t PARTITION BY HASH(a) PARTITIONS 2 UPDATE INDEXES (i GLOBAL, i LOCAL);")
+	if err == nil {
+		t.Fatalf("UPDATE INDEXES (i GLOBAL, i LOCAL) was accepted")
+	}
+	if !strings.Contains(err.Error(), "1280") {
+		t.Errorf("error = %v, want 1280", err)
+	}
+	if strings.Contains(c5.ShowCreateTable("d", "t"), "GLOBAL") {
+		t.Errorf("the refused statement left a GLOBAL behind:\n%s", c5.ShowCreateTable("d", "t"))
+	}
+
+	// Two distinct names both apply: v8.5.5 runs
+	// `UPDATE INDEXES (i GLOBAL, j GLOBAL)` and reads both back as GLOBAL.
+	c6 := newCatalogWithTable(t, "(a INT, b INT, c INT, UNIQUE KEY i (b), UNIQUE KEY j (c))")
+	execAll(t, c6, "ALTER TABLE t PARTITION BY HASH(a) PARTITIONS 2 UPDATE INDEXES (i GLOBAL, j GLOBAL);")
+	if got := strings.Count(c6.ShowCreateTable("d", "t"), "/*T![global_index] GLOBAL */"); got != 2 {
+		t.Errorf("%d indexes read back GLOBAL, want 2:\n%s", got, c6.ShowCreateTable("d", "t"))
+	}
+
 	// A name the table does not have is 1280, and the refused statement
 	// leaves no setting behind.
 	c4 := newCatalogWithTable(t, "(a INT, b INT, UNIQUE KEY i (b))")
@@ -624,5 +647,27 @@ func TestAlterTableRenameLeavesItsCurrentDatabase(t *testing.T) {
 	}
 	if tbl := e.Tables["v"]; tbl.Name != "v" || tbl.Database == nil || tbl.Database.Name != "e" {
 		t.Errorf("e.v = %q in %v, want v in e", tbl.Name, tbl.Database)
+	}
+}
+
+// TestAlterTableAddColumnWithConstraintIsAtomic: a column's constraints are
+// applied after the column itself is inserted, and they can fail -- a second
+// primary key, and in the forks a duplicate CHECK name. The servers leave the
+// table untouched for both, and a single-column ADD took the no-rollback fast
+// path, so the column survived the error.
+func TestAlterTableAddColumnWithConstraintIsAtomic(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT PRIMARY KEY)")
+	before := c.ShowCreateTable("d", "t")
+	if err := execExpectError(t, c, "ALTER TABLE t ADD b INT PRIMARY KEY;"); err == nil {
+		t.Fatalf("a second primary key was accepted")
+	}
+	if after := c.ShowCreateTable("d", "t"); after != before {
+		t.Errorf("the failed ADD left the table changed:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+
+	// A column with no constraint keeps the fast path and still applies.
+	execAll(t, c, "ALTER TABLE t ADD c INT;")
+	if !strings.Contains(c.ShowCreateTable("d", "t"), "`c` int") {
+		t.Errorf("ADD c INT applied nothing:\n%s", c.ShowCreateTable("d", "t"))
 	}
 }

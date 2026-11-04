@@ -180,3 +180,33 @@ func TestAlterTableRenameLeavesItsCurrentDatabase(t *testing.T) {
 		t.Errorf("the intermediate name u is still in e")
 	}
 }
+
+// TestAlterTableAddColumnWithConstraintIsAtomic: a column's constraints are
+// applied after the column itself is inserted, and they can fail -- a
+// duplicate CHECK name, a CHECK naming another column, a second primary key.
+// MySQL 8.0.46 leaves the table untouched for all three (3822, 3813 and 1068
+// respectively, read on 2026-11-04), and a single-column ADD took the
+// no-rollback fast path, so the column survived the error.
+func TestAlterTableAddColumnWithConstraintIsAtomic(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		def  string
+		sql  string
+	}{
+		{"a duplicate CHECK name", "(a INT, CONSTRAINT ck CHECK (a > 0))", "ALTER TABLE t ADD b INT CONSTRAINT ck CHECK (b > 0);"},
+		{"a CHECK naming another column", "(a INT)", "ALTER TABLE t ADD b INT CHECK (a > 0);"},
+		{"a second primary key", "(a INT PRIMARY KEY)", "ALTER TABLE t ADD b INT PRIMARY KEY;"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cat := New()
+			execAlterClauses(t, cat, "CREATE DATABASE d; USE d; CREATE TABLE t "+c.def+";")
+			before := cat.ShowCreateTable("d", "t")
+			if err := execAlterClausesExpectError(t, cat, c.sql); err == nil {
+				t.Fatalf("%q was accepted", c.sql)
+			}
+			if after := cat.ShowCreateTable("d", "t"); after != before {
+				t.Errorf("%q left the table changed:\nbefore:\n%s\nafter:\n%s", c.sql, before, after)
+			}
+		})
+	}
+}

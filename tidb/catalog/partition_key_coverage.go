@@ -285,9 +285,14 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 
 // applyUpdateIndexes sets Global on each index an UPDATE INDEXES clause names
 // and returns the function that puts the old settings back, for the caller
-// that refuses the statement afterwards. A name the table does not have is an
-// error: v8.5.5 answers 1280 ("Incorrect index name 'nosuch'") for
-// `UPDATE INDEXES (nosuch GLOBAL)`.
+// that refuses the statement afterwards.
+//
+// Two names are errors, both 1280 ("Incorrect index name '<name>'") on
+// v8.5.5: one the table does not have, and one the clause names twice --
+// `UPDATE INDEXES (i GLOBAL, i LOCAL)` and even `(i GLOBAL, i GLOBAL)` are
+// refused, so the list names each index at most once (read on 2026-11-04).
+// Each index is therefore saved once, which also means undo does not depend
+// on the order it runs in.
 func applyUpdateIndexes(tbl *Table, specs []*nodes.UpdateIndexSpec) (func(), error) {
 	type saved struct {
 		idx    *Index
@@ -299,15 +304,17 @@ func applyUpdateIndexes(tbl *Table, specs []*nodes.UpdateIndexSpec) (func(), err
 			s.idx.Global = s.global
 		}
 	}
+	seen := make(map[*Index]bool, len(specs))
 	for _, spec := range specs {
 		if spec == nil {
 			continue
 		}
 		idx := findIndexByName(tbl, spec.Name)
-		if idx == nil {
+		if idx == nil || seen[idx] {
 			undo()
 			return nil, errWrongNameForIndex(spec.Name)
 		}
+		seen[idx] = true
 		was = append(was, saved{idx: idx, global: idx.Global})
 		idx.Global = spec.Global
 	}

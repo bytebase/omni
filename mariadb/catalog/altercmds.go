@@ -99,7 +99,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// NOT NULL can promote to the implicit primary key. Plain tables keep
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
-			cmd.Type != nodes.ATAlterIndexInvisible && !compoundAdd(cmd) {
+			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
 			return c.execAlterCmd(db, tbl, cmd)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
@@ -1643,15 +1643,36 @@ func generatedExprReferencesColumn(expr, colName string) bool {
 	return strings.Contains(strings.ToLower(expr), target)
 }
 
-// compoundAdd reports whether one command carries more than one table
-// element, which `ADD [COLUMN] ( ... )` does: the paren form reads a table
-// element list, so one command can add several columns and several
-// constraints. An element that fails part-way through must not leave the
-// earlier ones installed -- MariaDB 11.8.8 leaves the table untouched for
-// `ALTER TABLE t ADD (b INT, KEY i (b))` against a table that already has i
-// (verified on 2026-11-04) -- so such a command takes the rollback path a
-// multi-command ALTER takes rather than the single-command fast path.
-func compoundAdd(cmd *nodes.AlterTableCmd) bool {
-	return cmd != nil && cmd.Type == nodes.ATAddColumn &&
-		len(cmd.Columns)+len(cmd.Constraints) > 1
+// addNeedsRollback reports whether an ADD action can fail after it has begun
+// changing the table, so that it needs the rollback a multi-command ALTER
+// gets rather than the single-command fast path. Two shapes can:
+//
+//   - `ADD [COLUMN] ( ... )` carries a table element list, so an element that
+//     fails part-way through would leave the earlier ones installed;
+//   - a column with constraints has them applied after the column itself is
+//     inserted, and those can fail -- a second primary key, a duplicate
+//     CHECK name, a CHECK naming another column.
+//
+// MariaDB 11.8.8 leaves the table untouched for all of them:
+// `ADD (b INT, KEY i (b))` against a table that already has i,
+// `ADD b INT PRIMARY KEY` against a table that already has one, and
+// `ADD b INT CONSTRAINT ck CHECK (b > 0)` against a table that already has ck
+// (read on 2026-11-04). Any column constraint counts, rather than the three
+// that fail today, so a validation added later cannot reopen this.
+func addNeedsRollback(cmd *nodes.AlterTableCmd) bool {
+	if cmd == nil || cmd.Type != nodes.ATAddColumn {
+		return false
+	}
+	if len(cmd.Columns)+len(cmd.Constraints) > 1 {
+		return true
+	}
+	if cmd.Column != nil && len(cmd.Column.Constraints) > 0 {
+		return true
+	}
+	for _, col := range cmd.Columns {
+		if col != nil && len(col.Constraints) > 0 {
+			return true
+		}
+	}
+	return false
 }
