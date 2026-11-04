@@ -1034,6 +1034,25 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if tbl.Partitioning == nil {
 		return fmt.Errorf("ALTER TABLE ADD PARTITION: table '%s' is not partitioned", tbl.Name)
 	}
+	// ADD PARTITION PARTITIONS n names the partitions it appends the way
+	// CREATE TABLE does, continuing the pN run: TiDB v8.5.5 answers p0..p4 to
+	// `PARTITION BY HASH(id) PARTITIONS 3` followed by `ADD PARTITION
+	// PARTITIONS 2`, as MySQL 8.0 does. `ADD PARTITION` with neither a count
+	// nor definitions falls through to the loop below and changes nothing,
+	// which is also what v8.5.5 does with it on a HASH table.
+	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
+		start := len(tbl.Partitioning.Partitions)
+		if start == 0 {
+			start = tbl.Partitioning.NumParts
+		}
+		for i := 0; i < cmd.Number; i++ {
+			tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, &PartitionDefInfo{
+				Name: fmt.Sprintf("p%d", start+i),
+			})
+		}
+		tbl.Partitioning.NumParts = len(tbl.Partitioning.Partitions)
+		return nil
+	}
 	for _, pd := range cmd.PartitionDefs {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
