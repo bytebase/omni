@@ -105,6 +105,14 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		return nil, err
 	}
 
+	// A comma the list never got an action for ends the statement with
+	// nothing after it: MariaDB 11.8.8 answers 1064 for
+	// `ALTER TABLE t ENGINE = InnoDB,` and for
+	// `ALTER TABLE t ADD COLUMN a INT,`.
+	if pendingComma {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -606,15 +614,30 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// ADD (col1 INT, col2 INT, ...) — multi-column form
+	// ADD [COLUMN] (table_element, ...) — the paren form, which reads a table
+	// element list and so takes constraints beside columns:
+	// `ADD COLUMN (a1 int, CONSTRAINT b1 CHECK (a1>0))` and
+	// `ADD (PRIMARY KEY (a))` are one action each. MariaDB 11.8.8 runs them,
+	// and answers 1064 for an empty list and for a trailing comma.
+	//
+	// Ref: `ADD opt_column '(' table_element_list ')'` in MySQL 8.0.46
+	// sql/sql_yacc.yy.
 	if p.cur.Type == '(' {
 		p.advance()
 		for {
-			col, err := p.parseColumnDef()
-			if err != nil {
-				return nil, err
+			if p.isTableConstraintStart() {
+				constr, err := p.parseTableConstraint()
+				if err != nil {
+					return nil, err
+				}
+				cmd.Constraints = append(cmd.Constraints, constr)
+			} else {
+				col, err := p.parseColumnDef()
+				if err != nil {
+					return nil, err
+				}
+				cmd.Columns = append(cmd.Columns, col)
 			}
-			cmd.Columns = append(cmd.Columns, col)
 			if p.cur.Type != ',' {
 				break
 			}
@@ -918,8 +941,27 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		return cmd, nil
 	}
 
-	// ALTER CHECK symbol [NOT] ENFORCED
-	if p.cur.Type == kwCHECK {
+	// ALTER {CHECK | CONSTRAINT} symbol {ENFORCED | NOT ENFORCED}
+	//
+	// The enforcement is required, not optional: MySQL 8.0.46, MariaDB 11.8.8
+	// and TiDB v8.5.5 all answer 1064 for `ALTER TABLE t ALTER CHECK ident`
+	// and for `ALTER TABLE t ALTER CONSTRAINT ident` with nothing after the
+	// name. CHECK and CONSTRAINT are the same clause spelled two ways.
+	//
+	// MariaDB has no ENFORCED at all, and answers 1064 for the whole action
+	// -- `ALTER CHECK c ENFORCED`, `ALTER CHECK c NOT ENFORCED` and
+	// `ALTER CONSTRAINT c ENFORCED` are all 1064 on 11.8.8, where MySQL
+	// 8.0.46 runs each. The action is kept here all the same: dropping it
+	// takes away forms this fork has read and pinned since it was built
+	// (compare_test.go's TestParseAlterCheckEnforced, the walk-through
+	// scenario in mariadb/catalog/wt_3_5_test.go and
+	// TestWalkThroughMariaDBMySQLForms), which is a narrowing of its own
+	// rather than part of making the enforcement required.
+	//
+	// Ref: `ALTER check_constraint_keyword ident constraint_enforcement` in
+	// MySQL 8.0.46 sql/sql_yacc.yy, whose constraint_enforcement has no
+	// empty arm.
+	if p.cur.Type == kwCHECK || p.cur.Type == kwCONSTRAINT {
 		p.advance()
 		name, _, err := p.parseIdentifier()
 		if err != nil {
@@ -927,37 +969,15 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		}
 		cmd.Name = name
 		cmd.Type = nodes.ATAlterCheckEnforced
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
+		if _, ok := p.match(kwNOT); ok {
+			if _, err := p.expect(kwENFORCED); err != nil {
+				return nil, err
 			}
 			cmd.NewName = "NOT ENFORCED"
-		} else if p.cur.Type == kwENFORCED {
-			p.advance()
-			cmd.NewName = "ENFORCED"
-		}
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
-	}
-
-	// ALTER CONSTRAINT symbol [NOT] ENFORCED
-	if p.cur.Type == kwCONSTRAINT {
-		p.advance()
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Type = nodes.ATAlterCheckEnforced
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
+		} else {
+			if _, err := p.expect(kwENFORCED); err != nil {
+				return nil, err
 			}
-			cmd.NewName = "NOT ENFORCED"
-		} else if p.cur.Type == kwENFORCED {
-			p.advance()
 			cmd.NewName = "ENFORCED"
 		}
 		cmd.Loc.End = p.prev.End
@@ -1049,7 +1069,11 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			return nil, err
 		}
 		cmd.Name = oldName
-		p.match(kwTO)
+		// TO is required: MariaDB 11.8.8 answers 1064 for
+		// `RENAME COLUMN a b` and for `RENAME INDEX a b`.
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 		newName, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -1071,7 +1095,11 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			return nil, err
 		}
 		cmd.Name = oldName
-		p.match(kwTO)
+		// TO is required: MariaDB 11.8.8 answers 1064 for
+		// `RENAME COLUMN a b` and for `RENAME INDEX a b`.
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 		newName, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -1079,9 +1107,17 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		cmd.NewName = newName
 
 	default:
-		// RENAME [TO | AS] new_tbl_name
+		// RENAME [TO | AS | =] new_tbl_name
+		//
+		// The separator may also be an equals sign: MariaDB 11.8.8 runs
+		// `ALTER TABLE t RENAME = t1` and `ALTER TABLE db.t RENAME = db1.t1`.
+		//
+		// Ref: `RENAME opt_to table_ident` in MySQL 8.0.46 sql/sql_yacc.yy,
+		// where opt_to reads `TO | = | AS | <empty>`.
 		cmd.Type = nodes.ATRenameTable
-		p.match(kwTO, kwAS)
+		if _, ok := p.match(kwTO, kwAS); !ok {
+			p.match('=')
+		}
 		newTable, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
@@ -1098,9 +1134,15 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 	p.advance() // consume CONVERT
 	cmd.Type = nodes.ATConvertCharset
 
-	p.match(kwTO)
-	p.match(kwCHARACTER)
-	p.match(kwSET)
+	// CONVERT TO CHARACTER SET, CHARSET or CHAR SET is required, and so is
+	// the charset after it: MariaDB 11.8.8 answers 1064 for `CONVERT TO utf8`, for
+	// `CONVERT CHARSET utf8` and for a `CONVERT TO` keyword with no charset.
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	if err := p.expectCharsetKw(); err != nil {
+		return nil, err
+	}
 
 	// Completion: after CONVERT TO CHARACTER SET, offer charset candidates.
 	p.checkCursor()
@@ -1109,11 +1151,15 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	charset, err := p.consumeOptionValue()
-	if err != nil {
-		return nil, err
+	if _, ok := p.match(kwDEFAULT); ok {
+		cmd.Name = "DEFAULT"
+	} else {
+		charset, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, err
+		}
+		cmd.Name = charset
 	}
-	cmd.Name = charset
 
 	if _, ok := p.match(kwCOLLATE); ok {
 		collation, err := p.consumeOptionValue()
@@ -1300,4 +1346,19 @@ func (p *Parser) parseColumnPositioning(cmd *nodes.AlterTableCmd) error {
 		cmd.After = name
 	}
 	return nil
+}
+
+// expectCharsetKw consumes the keyword that introduces a charset name. The
+// two-word spellings need both words.
+func (p *Parser) expectCharsetKw() error {
+	switch p.cur.Type {
+	case kwCHARSET:
+		p.advance()
+		return nil
+	case kwCHARACTER, kwCHAR:
+		p.advance()
+		_, err := p.expect(kwSET)
+		return err
+	}
+	return p.syntaxErrorAtCur()
 }

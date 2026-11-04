@@ -300,6 +300,25 @@ const (
 	// TiDB-specific ALTER TABLE commands.
 	ATSetTiFlashReplica // SET TIFLASH REPLICA n
 	ATRemoveTTL         // REMOVE TTL
+	ATCache             // CACHE
+	ATNoCache           // NOCACHE
+	ATCompact           // COMPACT [PARTITION names] [TIFLASH REPLICA]
+	ATWriteable         // READ ONLY | READ WRITE
+	ATAttributes        // ATTRIBUTES [=] {'str' | DEFAULT}
+	ATStatsOptions      // STATS_OPTIONS [=] {'str' | DEFAULT}
+	// ATPartitionAttributes and ATPartitionOptions are the two readings of
+	// `PARTITION name ...`: an attributes clause, or a list of the options a
+	// partition definition takes.
+	ATPartitionAttributes // PARTITION name ATTRIBUTES [=] {'str' | DEFAULT}
+	ATPartitionOptions    // PARTITION name partition_definition_option...
+	// The four interval-partition actions, which name a partition by its
+	// bound rather than by its name. LAST and FIRST are actions in the
+	// comma-separated list; SPLIT MAXVALUE and MERGE FIRST close the
+	// statement on their own.
+	ATAddLastPartition         // LAST PARTITION LESS THAN (expr)
+	ATDropFirstPartition       // FIRST PARTITION LESS THAN (expr)
+	ATReorganizeLastPartition  // SPLIT MAXVALUE PARTITION LESS THAN (expr)
+	ATReorganizeFirstPartition // MERGE FIRST PARTITION LESS THAN (expr)
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -324,14 +343,66 @@ type AlterTableCmd struct {
 	// NO_WRITE_TO_BINLOG or LOCAL modifier a partition-maintenance action
 	// takes after the PARTITION keyword. The grammar folds both spellings to
 	// one value, so the spelling used is not kept.
-	NoWriteToBinlog       bool
+	NoWriteToBinlog bool
+	// NewTable is the new name of a RENAME [TO | AS | =] action, which may
+	// carry a database qualifier. NewName holds the same name as written,
+	// qualifier and dot included, for the consumers that read a plain string.
+	NewTable              *TableRef
 	ExchangeTable         *TableRef        // for EXCHANGE PARTITION ... WITH TABLE
 	WithValidation        *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems          []*OrderByItem   // for ORDER BY operation
 	PartitionBy           *PartitionClause // for PARTITION BY (repartition)
 	TiFlashReplica        int              // TiDB: replica count for SET TIFLASH REPLICA
 	TiFlashLocationLabels []string         // TiDB: optional LOCATION LABELS clause (empty when unset)
+	// IfNotExists records the IF NOT EXISTS the ADD actions TiDB and MariaDB
+	// allow it on carry: ADD [COLUMN], ADD PARTITION, ADD {INDEX | KEY} and
+	// ADD FOREIGN KEY. MySQL 8.0.46 has none of them.
+	IfNotExists bool
+	// Constraints holds the table-level constraints an
+	// `ADD [COLUMN] (table_element, ...)` action carries beside Columns: the
+	// paren form reads a table element list, not a column list, so
+	// `ADD COLUMN (a INT, PRIMARY KEY (a))` is one action with both.
+	Constraints []*Constraint
+	// Attributes carries the value of an ATTRIBUTES or STATS_OPTIONS clause,
+	// on the table (ATAttributes, ATStatsOptions) or on one partition
+	// (ATPartitionAttributes). The command type says which clause was written.
+	Attributes *AttributesSpec
+	// Writeable is the state a READ ONLY or READ WRITE action asks for: true
+	// for READ WRITE, false for READ ONLY.
+	Writeable bool
+	// PartitionOptions holds the partition-definition options a
+	// `PARTITION name ...` action carries (ATPartitionOptions). The list is
+	// empty for `ALTER TABLE t PARTITION p`, which TiDB accepts with no
+	// options at all.
+	PartitionOptions []*TableOption
+	// CompactTiFlashReplica records the TIFLASH REPLICA that narrows a COMPACT
+	// action to the TiFlash replicas; false compacts every replica kind.
+	CompactTiFlashReplica bool
+	// PartitionBound is the bound an interval-partition action names a
+	// partition by: the expression inside LESS THAN (...).
+	PartitionBound ExprNode
+	// AnalyzeIndexFlag records the INDEX keyword of
+	// `ANALYZE PARTITION names INDEX [index_names]`, which TiDB takes with an
+	// empty name list, so the keyword and the names are kept apart.
+	AnalyzeIndexFlag bool
+	AnalyzeIndexes   []string
+	// AnalyzeOptions is the WITH list, the same one ANALYZE TABLE takes.
+	AnalyzeOptions []*AnalyzeOption
 }
+
+// AttributesSpec is the value an ATTRIBUTES or a STATS_OPTIONS clause carries.
+// Both clauses take a string literal or the word DEFAULT, and nothing else:
+// TiDB v8.5.5 answers 1064 for `ATTRIBUTES`, `ATTRIBUTES = 1` and
+// `ATTRIBUTES 1`.
+//
+// Ref: AttributesOpt and StatsOptionsOpt in TiDB v8.5.5 pkg/parser/parser.y.
+type AttributesSpec struct {
+	Loc     Loc
+	Default bool   // the clause was written as DEFAULT
+	Value   string // the string literal, when Default is false
+}
+
+func (s *AttributesSpec) nodeTag() {}
 
 func (c *AlterTableCmd) nodeTag() {}
 
@@ -546,6 +617,9 @@ const (
 	ConstrIndex
 	ConstrFulltextIndex
 	ConstrSpatialIndex
+	// ConstrVector is TiDB's VECTOR INDEX, which has no CONSTRAINT symbol
+	// form: v8.5.5 answers 1064 for `ADD CONSTRAINT c VECTOR INDEX (...)`.
+	ConstrVector
 )
 
 // Constraint represents a table-level constraint.
@@ -575,6 +649,11 @@ type Constraint struct {
 	Match        string // FULL, PARTIAL, SIMPLE
 	NotEnforced  bool   // for CHECK ... NOT ENFORCED
 	Clustered    *bool  // TiDB: nil=unset, true=CLUSTERED, false=NONCLUSTERED
+	// IfNotExists records the IF NOT EXISTS that TiDB and MariaDB allow after
+	// {INDEX | KEY}, after FOREIGN KEY and after VECTOR INDEX, and nowhere
+	// else: TiDB v8.5.5 answers 1064 for it after UNIQUE, PRIMARY KEY,
+	// FULLTEXT and CHECK.
+	IfNotExists bool
 }
 
 func (c *Constraint) nodeTag() {}
@@ -597,6 +676,11 @@ type TableOption struct {
 	Name    string
 	Value   string
 	Storage string // TABLESPACE ... STORAGE {DISK|MEMORY}
+	// Force records the FORCE that TiDB allows before AUTO_INCREMENT and
+	// AUTO_RANDOM_BASE, and before no other option. It changes what the server
+	// does -- the value is applied even when it moves the counter backwards --
+	// so it is part of the option rather than noise before it.
+	Force bool
 }
 
 func (o *TableOption) nodeTag() {}
@@ -616,7 +700,24 @@ type PartitionClause struct {
 	SubPartColumns []string      // SUBPARTITION BY KEY (columns)
 	SubPartAlgo    int           // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
 	NumSubParts    int           // SUBPARTITIONS num
+	// UpdateIndexes holds the UPDATE INDEXES clause TiDB allows after the
+	// partition definitions, which says whether each named index stays global
+	// or becomes local once the table is repartitioned.
+	UpdateIndexes []*UpdateIndexSpec
 }
+
+// UpdateIndexSpec is one entry of a TiDB UPDATE INDEXES clause. Global is true
+// for GLOBAL and false for LOCAL; one of the two is required, so there is no
+// unset state: TiDB v8.5.5 answers 1064 for `UPDATE INDEXES (i)`.
+//
+// Ref: UpdateIndexesList in TiDB v8.5.5 pkg/parser/parser.y.
+type UpdateIndexSpec struct {
+	Loc    Loc
+	Name   string
+	Global bool
+}
+
+func (s *UpdateIndexSpec) nodeTag() {}
 
 func (p *PartitionClause) nodeTag() {}
 

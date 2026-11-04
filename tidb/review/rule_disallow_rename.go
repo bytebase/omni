@@ -31,7 +31,13 @@ func checkDisallowRename(s *statement, r *reporter) {
 				}
 				switch cmd.Type {
 				case ast.ATRenameTable:
-					r.report(review.RenamesObject, s.index, rangeOf(cmd.Loc), renamesTable(table(v.Table), ident(cmd.NewName)))
+					// The new name may carry a database, so write it as a
+					// table reference rather than as one identifier.
+					to := ident(cmd.NewName)
+					if cmd.NewTable != nil {
+						to = table(cmd.NewTable)
+					}
+					r.report(review.RenamesObject, s.index, rangeOf(cmd.Loc), renamesTable(table(v.Table), to))
 				case ast.ATRenameColumn:
 					r.report(review.RenamesObject, s.index, rangeOf(cmd.Loc), renamesColumn(ident(cmd.Name), table(v.Table), ident(cmd.NewName)))
 				case ast.ATChangeColumn:

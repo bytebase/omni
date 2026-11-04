@@ -287,6 +287,11 @@ type AlterTableCmd struct {
 	WithValidation  *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems    []*OrderByItem   // for ORDER BY operation
 	PartitionBy     *PartitionClause // for PARTITION BY (repartition)
+	// Constraints holds the table-level constraints an
+	// `ADD [COLUMN] (table_element, ...)` action carries beside Columns: the
+	// paren form reads a table element list, not a column list, so
+	// `ADD COLUMN (a INT, PRIMARY KEY (a))` is one action with both.
+	Constraints []*Constraint
 }
 
 func (c *AlterTableCmd) nodeTag() {}

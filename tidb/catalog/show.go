@@ -386,6 +386,8 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf("FULLTEXT KEY `%s` (", idx.Name))
 	} else if idx.Spatial {
 		b.WriteString(fmt.Sprintf("SPATIAL KEY `%s` (", idx.Name))
+	} else if idx.Vector {
+		b.WriteString(fmt.Sprintf("VECTOR INDEX `%s` (", idx.Name))
 	} else {
 		b.WriteString(fmt.Sprintf("KEY `%s` (", idx.Name))
 	}
@@ -416,6 +418,14 @@ func showIndex(idx *Index) string {
 	// Invisible.
 	if !idx.Visible {
 		b.WriteString(" /*!80000 INVISIBLE */")
+	}
+
+	// GLOBAL, which TiDB writes last -- after COMMENT -- in its own version
+	// comment: "UNIQUE KEY `i` (`b`) COMMENT 'kept' /*T![global_index]
+	// GLOBAL */" (read from v8.5.5 on 2026-11-04). LOCAL is the default and
+	// is written as nothing.
+	if idx.Global {
+		b.WriteString(" /*T![global_index] GLOBAL */")
 	}
 
 	return b.String()

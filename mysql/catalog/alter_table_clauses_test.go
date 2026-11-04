@@ -1,0 +1,212 @@
+package catalog
+
+import (
+	"strings"
+	"testing"
+)
+
+// These tests assert what the ALTER TABLE clauses the parser newly reads do to
+// the catalog, not that they parse. A clause that parses and applies nothing
+// looks like a closed gap to a parser test. Neither test boots a container.
+
+// execAlterClauses runs a script and fails on the first statement that errors.
+func execAlterClauses(t *testing.T, c *Catalog, sql string) {
+	t.Helper()
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		t.Fatalf("Exec(%q): %v", sql, err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("Exec(%q): line %d: %v", sql, r.Line, r.Error)
+		}
+	}
+}
+
+// TestAlterTableAddColumnTableElementList: the parenthesized ADD reads a table
+// element list, so the constraints written beside the columns apply too. The
+// reader took only the columns before, which parsed and added no index.
+func TestAlterTableAddColumnTableElementList(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT);")
+	execAlterClauses(t, c, "ALTER TABLE t ADD COLUMN (b INT, c INT, PRIMARY KEY (a), UNIQUE KEY u (b));")
+
+	ddl := c.ShowCreateTable("d", "t")
+	for _, want := range []string{"`b` int", "`c` int", "PRIMARY KEY (`a`)", "UNIQUE KEY `u` (`b`)"} {
+		if !strings.Contains(ddl, want) {
+			t.Errorf("SHOW CREATE TABLE lacks %s:\n%s", want, ddl)
+		}
+	}
+}
+
+// TestAlterTablePartDefStorageEngine: STORAGE ENGINE is the other spelling of
+// a partition's ENGINE option and names the same engine.
+func TestAlterTablePartDefStorageEngine(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10));")
+	execAlterClauses(t, c, "ALTER TABLE t ADD PARTITION (PARTITION p1 VALUES LESS THAN (20) STORAGE ENGINE = InnoDB);")
+
+	tbl := c.databases["d"].Tables["t"]
+	last := tbl.Partitioning.Partitions[len(tbl.Partitioning.Partitions)-1]
+	if last.Name != "p1" {
+		t.Fatalf("the last partition is %q, want p1", last.Name)
+	}
+	if last.Engine != "InnoDB" {
+		t.Errorf("p1 engine = %q, want \"InnoDB\"", last.Engine)
+	}
+}
+
+// TestAlterTableRenameToQualifiedName: the destination of a RENAME may carry a
+// database, and then the table moves there.
+func TestAlterTableRenameToQualifiedName(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; CREATE DATABASE d2; USE d; CREATE TABLE t (a INT);")
+	execAlterClauses(t, c, "ALTER TABLE t RENAME TO d2.t2;")
+	if c.databases["d"].Tables["t"] != nil {
+		t.Errorf("d.t is still there")
+	}
+	if c.databases["d"].Tables["d2.t2"] != nil {
+		t.Errorf("a table named \"d2.t2\" was made in d")
+	}
+	moved := c.databases["d2"].Tables["t2"]
+	if moved == nil {
+		t.Fatalf("d2.t2 was not created; d2 holds %v", c.databases["d2"].Tables)
+	}
+	if moved.Database == nil || moved.Database.Name != "d2" {
+		t.Errorf("the moved table's database = %v, want d2", moved.Database)
+	}
+}
+
+// execAlterClausesExpectError runs a script and returns the first statement
+// error.
+func execAlterClausesExpectError(t *testing.T, c *Catalog, sql string) error {
+	t.Helper()
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		return err
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			return r.Error
+		}
+	}
+	return nil
+}
+
+// TestAlterTableAddTableElementListIsAtomic: the parenthesized ADD is one
+// command carrying several table elements, so a failure part-way through must
+// not leave the earlier ones installed. MySQL 8.0.46 leaves the table
+// untouched for `ALTER TABLE t ADD (b INT, KEY i (b))` against a table that
+// already has i (verified on 2026-11-04); this used to take the
+// single-command fast path and keep b.
+func TestAlterTableAddTableElementListIsAtomic(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		sql  string
+	}{
+		{"a constraint fails after a column", "ALTER TABLE t ADD (b INT, KEY i (b));"},
+		{"a column fails after a column", "ALTER TABLE t ADD (b INT, a INT);"},
+		{"a constraint fails after a constraint", "ALTER TABLE t ADD (KEY j (a), KEY i (a));"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cat := New()
+			execAlterClauses(t, cat, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT, KEY i (a));")
+			before := cat.ShowCreateTable("d", "t")
+			if err := execAlterClausesExpectError(t, cat, c.sql); err == nil {
+				t.Fatalf("%q was accepted", c.sql)
+			}
+			if after := cat.ShowCreateTable("d", "t"); after != before {
+				t.Errorf("%q left the table changed:\nbefore:\n%s\nafter:\n%s", c.sql, before, after)
+			}
+		})
+	}
+}
+
+// TestAlterTableAddColumnCheck: a column's CHECK added by ALTER is a table
+// constraint, as the CREATE TABLE path has always built one. MySQL 8.0.46
+// installs it -- `CONSTRAINT positive_b CHECK ((b > 0))` reads back from SHOW
+// CREATE TABLE -- and names an unnamed one <table>_chk_<n>, continuing the
+// table's run (read on 2026-11-04). The ALTER path dropped it, so the
+// statement reported success and installed only the column.
+func TestAlterTableAddColumnCheck(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT CHECK (a > 0));")
+	execAlterClauses(t, c, "ALTER TABLE t ADD b INT CONSTRAINT positive_b CHECK (b > 0);")
+	execAlterClauses(t, c, "ALTER TABLE t ADD c INT CHECK (c > 0);")
+
+	ddl := c.ShowCreateTable("d", "t")
+	for _, want := range []string{
+		"CONSTRAINT `t_chk_1` CHECK ((`a` > 0))",
+		"CONSTRAINT `positive_b` CHECK ((`b` > 0))",
+		"CONSTRAINT `t_chk_2` CHECK ((`c` > 0))",
+	} {
+		if !strings.Contains(ddl, want) {
+			t.Errorf("SHOW CREATE TABLE lacks %s:\n%s", want, ddl)
+		}
+	}
+
+	// The named one is a constraint ALTER CHECK can then reach, which is what
+	// dropping it made impossible (3940 on the server).
+	execAlterClauses(t, c, "ALTER TABLE t ALTER CHECK positive_b NOT ENFORCED;")
+
+	// NOT ENFORCED comes through from the column option too.
+	c2 := New()
+	execAlterClauses(t, c2, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT);")
+	execAlterClauses(t, c2, "ALTER TABLE t ADD b INT CONSTRAINT nb CHECK (b > 0) NOT ENFORCED;")
+	if want := "CONSTRAINT `nb` CHECK ((`b` > 0)) /*!80016 NOT ENFORCED */"; !strings.Contains(c2.ShowCreateTable("d", "t"), want) {
+		t.Errorf("SHOW CREATE TABLE lacks %q:\n%s", want, c2.ShowCreateTable("d", "t"))
+	}
+}
+
+// TestAlterTableRenameLeavesItsCurrentDatabase: a second rename in the same
+// statement starts from where the first one left the table, not from the
+// database the statement began in. MySQL 8.0.46 runs
+// `ALTER TABLE d.t RENAME TO e.u, RENAME TO e.v` and ends with e.v alone
+// (read on 2026-11-04); reading the starting database left the intermediate
+// destination installed.
+func TestAlterTableRenameLeavesItsCurrentDatabase(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; CREATE DATABASE e; USE d; CREATE TABLE t (a INT);")
+	execAlterClauses(t, c, "ALTER TABLE t RENAME TO e.u, RENAME TO e.v;")
+
+	d, e := c.databases["d"], c.databases["e"]
+	if len(d.Tables) != 0 {
+		t.Errorf("d holds %v, want nothing", d.Tables)
+	}
+	if len(e.Tables) != 1 || e.Tables["v"] == nil {
+		t.Fatalf("e holds %v, want just v", e.Tables)
+	}
+	if e.Tables["u"] != nil {
+		t.Errorf("the intermediate name u is still in e")
+	}
+}
+
+// TestAlterTableAddColumnWithConstraintIsAtomic: a column's constraints are
+// applied after the column itself is inserted, and they can fail -- a
+// duplicate CHECK name, a CHECK naming another column, a second primary key.
+// MySQL 8.0.46 leaves the table untouched for all three (3822, 3813 and 1068
+// respectively, read on 2026-11-04), and a single-column ADD took the
+// no-rollback fast path, so the column survived the error.
+func TestAlterTableAddColumnWithConstraintIsAtomic(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		def  string
+		sql  string
+	}{
+		{"a duplicate CHECK name", "(a INT, CONSTRAINT ck CHECK (a > 0))", "ALTER TABLE t ADD b INT CONSTRAINT ck CHECK (b > 0);"},
+		{"a CHECK naming another column", "(a INT)", "ALTER TABLE t ADD b INT CHECK (a > 0);"},
+		{"a second primary key", "(a INT PRIMARY KEY)", "ALTER TABLE t ADD b INT PRIMARY KEY;"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cat := New()
+			execAlterClauses(t, cat, "CREATE DATABASE d; USE d; CREATE TABLE t "+c.def+";")
+			before := cat.ShowCreateTable("d", "t")
+			if err := execAlterClausesExpectError(t, cat, c.sql); err == nil {
+				t.Fatalf("%q was accepted", c.sql)
+			}
+			if after := cat.ShowCreateTable("d", "t"); after != before {
+				t.Errorf("%q left the table changed:\nbefore:\n%s\nafter:\n%s", c.sql, before, after)
+			}
+		})
+	}
+}

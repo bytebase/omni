@@ -299,6 +299,12 @@ func (p *Parser) isTableConstraintStart() bool {
 		return true
 	case kwCONSTRAINT:
 		return true
+	case kwVECTOR:
+		// TiDB's VECTOR INDEX. VECTOR is also a column type, so the word only
+		// starts a constraint when INDEX follows it: `a VECTOR(3)` is a column
+		// and `VECTOR INDEX (...)` a constraint. v8.5.5 answers 1064 for
+		// `VECTOR KEY (...)`, so INDEX is the only continuation.
+		return p.peekNext().Type == kwINDEX
 	}
 	return false
 }
@@ -482,10 +488,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	case kwUNIQUE:
 		p.advance()
 		p.match(kwKEY) // optional KEY
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
+		cc := &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrUnique,
-		})
+		}
+		p.parseColumnKeyGlobalOrLocal()
+		cc.Loc.End = p.prev.End
+		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
 	case kwPRIMARY:
@@ -499,8 +508,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		}
 		if cl := p.parseClusteredAttr(); cl != nil {
 			cc.Clustered = cl
-			cc.Loc.End = p.prev.End
 		}
+		p.parseColumnKeyGlobalOrLocal()
+		cc.Loc.End = p.prev.End
 		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
@@ -513,8 +523,41 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		}
 		if cl := p.parseClusteredAttr(); cl != nil {
 			cc.Clustered = cl
-			cc.Loc.End = p.prev.End
 		}
+		p.parseColumnKeyGlobalOrLocal()
+		cc.Loc.End = p.prev.End
+		col.Constraints = append(col.Constraints, cc)
+		return true, nil
+
+	case kwCONSTRAINT:
+		// CONSTRAINT [symbol] CHECK (expr) [[NOT] ENFORCED], the column-level
+		// check the CONSTRAINT keyword may name. The symbol is optional, and
+		// CHECK is the only continuation: TiDB v8.5.5 and MySQL 8.0.46 both
+		// run `ADD a INT CONSTRAINT c CHECK (a > 1) NOT ENFORCED` and
+		// `ADD a INT CONSTRAINT CHECK (a > 1)`, and both answer 1064 for
+		// `ADD a INT CONSTRAINT c NOT NULL` and for a bare
+		// `ADD a INT CONSTRAINT c`. MariaDB 11.8.8 answers 1064 for the whole
+		// form, so this is not ported to that fork.
+		//
+		// Ref: `ColumnOption: ConstraintKeywordOpt "CHECK" '(' Expression ')'
+		// EnforcedOrNotOrNotNullOpt` in TiDB v8.5.5 pkg/parser/parser.y.
+		p.advance() // consume CONSTRAINT
+		var symbol string
+		if p.cur.Type != kwCHECK && p.isIdentToken() {
+			var err error
+			symbol, _, err = p.parseIdent()
+			if err != nil {
+				return false, err
+			}
+		}
+		if p.cur.Type != kwCHECK {
+			return false, p.syntaxErrorAtCur()
+		}
+		cc, err := p.parseColumnCheckConstraint(start)
+		if err != nil {
+			return false, err
+		}
+		cc.Name = symbol
 		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
@@ -571,36 +614,10 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 
 	case kwCHECK:
-		p.advance()
-		if _, err := p.expect('('); err != nil {
-			return false, err
-		}
-		expr, err := p.parseExpr()
+		cc, err := p.parseColumnCheckConstraint(start)
 		if err != nil {
 			return false, err
 		}
-		if expr == nil {
-			return false, p.syntaxErrorAtCur()
-		}
-		if _, err := p.expect(')'); err != nil {
-			return false, err
-		}
-		cc := &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrCheck,
-			Expr: expr,
-		}
-		// [[NOT] ENFORCED]
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
-				cc.NotEnforced = true
-			}
-		} else if p.cur.Type == kwENFORCED {
-			p.advance()
-		}
-		cc.Loc.End = p.prev.End
 		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
@@ -774,10 +791,11 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 
 	// MATCH
 	if _, ok := p.match(kwMATCH); ok {
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			// FULL, PARTIAL, SIMPLE
-			constr.Match, _, _ = p.parseKeywordOrIdent()
+		m, err := p.parseMatchType()
+		if err != nil {
+			return nil, err
 		}
+		constr.Match = m
 	}
 
 	// ON DELETE / ON UPDATE
@@ -965,7 +983,6 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		if err := p.parseConstraintIndexOptions(constr); err != nil {
 			return nil, err
 		}
-		constr.Clustered = p.parseClusteredAttr()
 
 	case kwUNIQUE:
 		p.advance()
@@ -1001,6 +1018,11 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		p.advance()
 		p.match(kwKEY)
 		constr.Type = nodes.ConstrForeignKey
+		ine, err := p.parseIfNotExists()
+		if err != nil {
+			return nil, err
+		}
+		constr.IfNotExists = ine
 		// Optional index name, kept apart from the CONSTRAINT symbol, which
 		// names the foreign key when given (see nodes.Constraint).
 		if p.isIdentToken() && p.cur.Type != '(' {
@@ -1010,11 +1032,20 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			}
 			constr.IndexName = name
 		}
-		cols, err := p.parseParenIdentListWithCompletion("columnref")
+		// The column list is a key-part list, not a plain name list: a prefix
+		// length and an ordering direction are both allowed. TiDB v8.5.5,
+		// MySQL 8.0.46 and MariaDB 11.8.8 all run
+		// `ADD FOREIGN KEY (ident, ident(1) ASC) REFERENCES t (a)`.
+		//
+		// Ref: `"FOREIGN" "KEY" IfNotExists IndexName '(' IndexPartSpecificationList
+		// ')' ReferDef` in TiDB v8.5.5 pkg/parser/parser.y; key_list in MySQL
+		// 8.0.46 sql/sql_yacc.yy.
+		fkCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
 			return nil, err
 		}
-		constr.Columns = cols
+		constr.IndexColumns = fkCols
+		constr.Columns = indexColumnsToNames(fkCols)
 		// REFERENCES
 		if p.cur.Type == kwREFERENCES {
 			p.advance()
@@ -1038,9 +1069,11 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			}
 			// MATCH
 			if _, ok := p.match(kwMATCH); ok {
-				if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-					constr.Match, _, _ = p.parseKeywordOrIdent()
+				m, err := p.parseMatchType()
+				if err != nil {
+					return nil, err
 				}
+				constr.Match = m
 			}
 			// ON DELETE / ON UPDATE
 			for p.cur.Type == kwON {
@@ -1086,6 +1119,11 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 	case kwINDEX, kwKEY:
 		p.advance()
 		constr.Type = nodes.ConstrIndex
+		ine, err := p.parseIfNotExists()
+		if err != nil {
+			return nil, err
+		}
+		constr.IfNotExists = ine
 		// Optional index name
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
@@ -1109,6 +1147,50 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		constr.Type = nodes.ConstrFulltextIndex
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
+		}
+		idxCols, err := p.parseParenIndexKeyParts()
+		if err != nil {
+			return nil, err
+		}
+		constr.IndexColumns = idxCols
+		constr.Columns = indexColumnsToNames(idxCols)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
+
+	case kwVECTOR:
+		// VECTOR INDEX [IF NOT EXISTS] [index_name] [USING type]
+		//     '(' key_part, ... ')' index_option...
+		//
+		// It is its own arm of ADD rather than a Constraint, so no CONSTRAINT
+		// symbol may precede it: v8.5.5 answers 1064 for
+		// `ADD CONSTRAINT c VECTOR INDEX ((lower(a)))` and for `VECTOR KEY`,
+		// and runs `ADD VECTOR INDEX idx USING HNSW ((lower(a)))`,
+		// `ADD VECTOR INDEX ((lower(a))) GLOBAL` and
+		// `CREATE TABLE t (a vector(3), VECTOR INDEX ((VEC_COSINE_DISTANCE(a))))`.
+		// The key list is an ordinary key-part list: v8.5.5 parses
+		// `VECTOR INDEX (a)` and `VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a)))`
+		// and rejects them later with 1149, which is not a parse error.
+		//
+		// Ref: ConstraintVectorIndex in TiDB v8.5.5 pkg/parser/parser.y.
+		if constr.Name != "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume VECTOR
+		if _, err := p.expect(kwINDEX); err != nil {
+			return nil, err
+		}
+		constr.Type = nodes.ConstrVector
+		ine, err := p.parseIfNotExists()
+		if err != nil {
+			return nil, err
+		}
+		constr.IfNotExists = ine
+		if p.isIdentToken() && p.cur.Type != '(' {
+			constr.Name, _, _ = p.parseIdent()
+		}
+		if err := p.parseIndexTypeClause(constr); err != nil {
+			return nil, err
 		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
@@ -1159,6 +1241,19 @@ func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 		}
 		if !ok {
 			return nil
+		}
+		// CLUSTERED and NONCLUSTERED are index options in the grammar, so they
+		// arrive here wherever they were written, but every consumer reads the
+		// primary key's clustering from Clustered. Record it there as well as
+		// in the option list, and let a later option win, as the grammar's own
+		// action does.
+		switch opt.Name {
+		case "CLUSTERED":
+			v := true
+			constr.Clustered = &v
+		case "NONCLUSTERED":
+			v := false
+			constr.Clustered = &v
 		}
 		constr.IndexOptions = append(constr.IndexOptions, opt)
 	}
@@ -1247,6 +1342,39 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	}
 
 	start := p.pos()
+
+	// ForceOpt, the FORCE that may precede AUTO_INCREMENT and
+	// AUTO_RANDOM_BASE and no other table option. It is TiDB's own: v8.5.5
+	// runs `ALTER TABLE t FORCE AUTO_INCREMENT 3`,
+	// `FORCE AUTO_RANDOM_BASE = 3`, `AUTO_INCREMENT 30, FORCE
+	// AUTO_RANDOM_BASE 40` and `CREATE TABLE t (a int) FORCE AUTO_INCREMENT
+	// 3`, and answers 1064 for `FORCE ENGINE = InnoDB`, `FORCE AUTO_ID_CACHE
+	// = 3` and a `FORCE AUTO_INCREMENT` with no value. MySQL 8.0.46 and
+	// MariaDB 11.8.8 answer 1064 for every FORCE-prefixed option, keeping
+	// FORCE as the standalone ALTER TABLE action all three also have.
+	//
+	// Ref: `ForceOpt "AUTO_INCREMENT" EqOpt LengthNum` and
+	// `ForceOpt "AUTO_RANDOM_BASE" EqOpt LengthNum` in TiDB v8.5.5
+	// pkg/parser/parser.y.
+	if p.cur.Type == kwFORCE {
+		switch p.peekNext().Type {
+		case kwAUTO_INCREMENT, kwAUTO_RANDOM_BASE:
+			p.advance() // consume FORCE
+			name := strings.ToUpper(p.cur.Str)
+			p.advance()
+			p.match('=')
+			val, err := p.consumeIntegerOptionValue()
+			if err != nil {
+				return nil, false, err
+			}
+			return &nodes.TableOption{
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
+				Name:  name,
+				Value: val,
+				Force: true,
+			}, true, nil
+		}
+	}
 
 	switch p.cur.Type {
 	case kwENGINE:
@@ -1424,21 +1552,23 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ENCRYPTION", Value: val}, true, nil
 
 	case kwUNION:
-		// UNION [=] (tbl_name[,tbl_name]...)
+		// UNION [=] '(' [tbl_name [, tbl_name]...] ')'
+		//
+		// The parentheses are required and the list inside them may be empty,
+		// and each name may be qualified: TiDB v8.5.5, MySQL 8.0.46 and
+		// MariaDB 11.8.8 all run `UNION = ()`, `UNION ()` and
+		// `UNION = (d.t1, d.t2)`, and all three answer 1064 for a bare
+		// `UNION`, for `UNION = (t1,)` and for `UNION = (,)`.
+		//
+		// Ref: `"UNION" EqOpt '(' TableNameListOpt ')'` in TiDB v8.5.5
+		// pkg/parser/parser.y.
 		p.advance()
 		p.match('=')
-		if p.cur.Type == '(' {
-			names, err := p.parseParenIdentList()
-			if err == nil {
-				val := strings.Join(names, ",")
-				return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNION", Value: val}, true, nil
-			}
-		}
-		val, err := p.consumeOptionValue()
+		names, err := p.parseParenTableNameListOpt()
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNION", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNION", Value: strings.Join(names, ",")}, true, nil
 
 	case kwINDEX:
 		// INDEX DIRECTORY [=] 'path' (as table option)
@@ -1505,11 +1635,26 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "AUTO_RANDOM_BASE", Value: val}, true, nil
 
 	case kwTTL_ENABLE:
+		// TTL_ENABLE [=] {'ON' | 'OFF'}. The value is a string literal, and
+		// the grammar's own action rejects any other word with a parse error
+		// rather than a later one, so this is the parser's business: TiDB
+		// v8.5.5 answers 1064 for `TTL_ENABLE = 'test_case'` and for
+		// `/*T![ttl] TTL_ENABLE = 'test_case' */`.
+		//
+		// Ref: `"TTL_ENABLE" EqOpt stringLit` in TiDB v8.5.5
+		// pkg/parser/parser.y, whose action calls yylex.AppendError and
+		// returns 1 unless the value is "on" or "off".
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return nil, false, err
+		}
+		if !strings.EqualFold(val, "ON") && !strings.EqualFold(val, "OFF") {
+			return nil, false, &ParseError{
+				Message:  "the TTL_ENABLE option has to be set 'ON' or 'OFF'",
+				Position: p.prev.Loc,
+			}
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "TTL_ENABLE", Value: val}, true, nil
 
@@ -1796,7 +1941,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	case kwRANGE:
 		p.advance()
 		part.Type = nodes.PartitionRange
-		if _, ok := p.match(kwCOLUMNS); ok {
+		if _, ok := p.match(kwCOLUMNS, kwFIELDS); ok {
 			cols, err := p.parseParenIdentList()
 			if err != nil {
 				return nil, err
@@ -1822,7 +1967,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	case kwLIST:
 		p.advance()
 		part.Type = nodes.PartitionList
-		if _, ok := p.match(kwCOLUMNS); ok {
+		if _, ok := p.match(kwCOLUMNS, kwFIELDS); ok {
 			cols, err := p.parseParenIdentList()
 			if err != nil {
 				return nil, err
@@ -1975,8 +2120,64 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
+	if err := p.parseUpdateIndexes(part); err != nil {
+		return nil, err
+	}
+
 	part.Loc.End = p.prev.End
 	return part, nil
+}
+
+// parseUpdateIndexes parses the UPDATE INDEXES clause TiDB allows at the end
+// of a partitioning clause, which says for each named index whether it stays
+// global or becomes local once the table is partitioned.
+//
+//	UPDATE INDEXES '(' index_name {GLOBAL | LOCAL} [, ...] ')'
+//
+// GLOBAL or LOCAL is required on every entry and the list may not be empty:
+// TiDB v8.5.5 runs `PARTITION BY HASH(a) UPDATE INDEXES (i GLOBAL)`,
+// `UPDATE INDEXES (i GLOBAL, j LOCAL)`,
+// `PARTITION BY HASH(a) PARTITIONS 2 UPDATE INDEXES (i GLOBAL)`,
+// `PARTITION BY RANGE(a) (PARTITION p VALUES LESS THAN (1)) UPDATE INDEXES
+// (i GLOBAL)` and the same clause on CREATE TABLE, and answers 1064 for
+// `UPDATE INDEXES ()`, `UPDATE INDEXES (i)` and `UPDATE INDEXES (i GLOBAL,)`.
+// MySQL 8.0.46 and MariaDB 11.8.8 answer 1064 for the clause itself.
+//
+// Ref: UpdateIndexesOpt and UpdateIndexesList in TiDB v8.5.5
+// pkg/parser/parser.y.
+func (p *Parser) parseUpdateIndexes(part *nodes.PartitionClause) error {
+	if p.cur.Type != kwUPDATE || p.peekNext().Type != kwINDEXES {
+		return nil
+	}
+	p.advance() // consume UPDATE
+	p.advance() // consume INDEXES
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	for {
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		tok, ok := p.match(kwGLOBAL, kwLOCAL)
+		if !ok {
+			return p.syntaxErrorAtCur()
+		}
+		part.UpdateIndexes = append(part.UpdateIndexes, &nodes.UpdateIndexSpec{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Name:   name,
+			Global: tok.Type == kwGLOBAL,
+		})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	return nil
 }
 
 // parsePartitionDef parses a single partition definition.
@@ -2000,59 +2201,31 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		Name: name,
 	}
 
+	// PartDefValuesOpt's bare DEFAULT, which names the catch-all partition
+	// without the VALUES IN (DEFAULT) spelling: TiDB v8.5.5 and MariaDB
+	// 11.8.8 run `ADD PARTITION (PARTITION p DEFAULT)`, MySQL 8.0.46 answers
+	// 1064.
+	if _, ok := p.match(kwDEFAULT); ok {
+		pd.Values = &nodes.String{Str: "DEFAULT"}
+	}
+
 	// VALUES LESS THAN or VALUES IN
-	if _, ok := p.match(kwVALUES); ok {
-		if p.cur.Type == kwLESS {
-			p.advance() // LESS
-			if p.cur.Type == kwTHAN {
-				p.advance() // THAN
-			}
-			if p.cur.Type == '(' {
-				p.advance()
-				// Parse comma-separated list of values (may include MAXVALUE tokens and expressions).
-				var items []nodes.Node
-				for {
-					if p.cur.Type == kwMAXVALUE {
-						items = append(items, &nodes.String{Str: "MAXVALUE"})
-						p.advance()
-					} else {
-						expr, err := p.parseExpr()
-						if err != nil {
-							return nil, err
-						}
-						if expr == nil {
-							return nil, p.syntaxErrorAtCur()
-						}
-						items = append(items, expr)
-					}
-					if p.cur.Type != ',' {
-						break
-					}
+	if pd.Values == nil {
+		if _, ok := p.match(kwVALUES); ok {
+			if p.cur.Type == kwLESS {
+				p.advance() // LESS
+				if p.cur.Type == kwTHAN {
+					p.advance() // THAN
+				}
+				if p.cur.Type == '(' {
 					p.advance()
-				}
-				p.match(')')
-				// A single bound is stored as itself, MAXVALUE as a String; a
-				// tuple keeps every column, MAXVALUE ones included, so
-				// "(MAXVALUE, MAXVALUE)" reads back with both.
-				if len(items) == 1 {
-					pd.Values = items[0]
-				} else {
-					pd.Values = &nodes.List{Items: items}
-				}
-			} else if p.cur.Type == kwMAXVALUE {
-				pd.Values = &nodes.String{Str: "MAXVALUE"}
-				p.advance()
-			}
-		} else if _, ok := p.match(kwIN); ok {
-			if p.cur.Type == '(' {
-				p.advance()
-				var items []nodes.Node
-				for {
-					if p.cur.Type == '(' {
-						// Tuple: (val1, val2, ...) for multi-column LIST COLUMNS
-						p.advance()
-						var tupleVals []nodes.Node
-						for {
+					// Parse comma-separated list of values (may include MAXVALUE tokens and expressions).
+					var items []nodes.Node
+					for {
+						if p.cur.Type == kwMAXVALUE {
+							items = append(items, &nodes.String{Str: "MAXVALUE"})
+							p.advance()
+						} else {
 							expr, err := p.parseExpr()
 							if err != nil {
 								return nil, err
@@ -2060,40 +2233,90 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 							if expr == nil {
 								return nil, p.syntaxErrorAtCur()
 							}
-							tupleVals = append(tupleVals, expr)
-							if p.cur.Type != ',' {
-								break
-							}
-							p.advance()
+							items = append(items, expr)
 						}
-						if _, err := p.expect(')'); err != nil {
-							return nil, err
+						if p.cur.Type != ',' {
+							break
 						}
-						items = append(items, &nodes.List{Items: tupleVals})
+						p.advance()
+					}
+					p.match(')')
+					// A single bound is stored as itself, MAXVALUE as a String; a
+					// tuple keeps every column, MAXVALUE ones included, so
+					// "(MAXVALUE, MAXVALUE)" reads back with both.
+					if len(items) == 1 {
+						pd.Values = items[0]
 					} else {
-						expr, err := p.parseExpr()
-						if err != nil {
-							return nil, err
-						}
-						if expr == nil {
-							return nil, p.syntaxErrorAtCur()
-						}
-						items = append(items, expr)
+						pd.Values = &nodes.List{Items: items}
 					}
-					if p.cur.Type != ',' {
-						break
-					}
+				} else if p.cur.Type == kwMAXVALUE {
+					pd.Values = &nodes.String{Str: "MAXVALUE"}
 					p.advance()
 				}
-				p.match(')')
-				pd.Values = &nodes.List{Items: items}
+			} else if _, ok := p.match(kwIN); ok {
+				if p.cur.Type == '(' {
+					p.advance()
+					var items []nodes.Node
+					for {
+						if p.cur.Type == '(' {
+							// Tuple: (val1, val2, ...) for multi-column LIST COLUMNS
+							p.advance()
+							var tupleVals []nodes.Node
+							for {
+								expr, err := p.parseExpr()
+								if err != nil {
+									return nil, err
+								}
+								if expr == nil {
+									return nil, p.syntaxErrorAtCur()
+								}
+								tupleVals = append(tupleVals, expr)
+								if p.cur.Type != ',' {
+									break
+								}
+								p.advance()
+							}
+							if _, err := p.expect(')'); err != nil {
+								return nil, err
+							}
+							items = append(items, &nodes.List{Items: tupleVals})
+						} else if p.cur.Type == kwDEFAULT {
+							// VALUES IN (DEFAULT) names the catch-all list
+							// partition, and DEFAULT may sit anywhere in the list:
+							// TiDB v8.5.5 runs `VALUES IN (DEFAULT)`,
+							// `VALUES IN (DEFAULT, 1)` and `VALUES IN (1, DEFAULT)`,
+							// and on CREATE TABLE too. MySQL 8.0.46 and MariaDB
+							// 11.8.8 answer 1064 for all three.
+							//
+							// Ref: DefaultOrExpressionList in TiDB v8.5.5
+							// pkg/parser/parser.y.
+							items = append(items, &nodes.String{Str: "DEFAULT"})
+							p.advance()
+						} else {
+							expr, err := p.parseExpr()
+							if err != nil {
+								return nil, err
+							}
+							if expr == nil {
+								return nil, p.syntaxErrorAtCur()
+							}
+							items = append(items, expr)
+						}
+						if p.cur.Type != ',' {
+							break
+						}
+						p.advance()
+					}
+					p.match(')')
+					pd.Values = &nodes.List{Items: items}
+				}
 			}
 		}
 	}
 
-	// Optional table options for partition
+	// Optional partition-definition options
 	for {
-		opt, ok, err := p.parseTableOption()
+		opt, ok, err := p.parsePartDefOption()
 		if err != nil {
 			return nil, err
 		}
@@ -2143,7 +2366,7 @@ func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
 		Name: name,
 	}
 	for {
-		opt, ok, err := p.parseTableOption()
+		opt, ok, err := p.parsePartDefOption()
 		if err != nil {
 			return nil, err
 		}
@@ -2154,4 +2377,260 @@ func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
 	}
 	spd.Loc.End = p.prev.End
 	return spd, nil
+}
+
+// parseIfNotExists consumes the IF NOT EXISTS a grammar position allows and
+// reports whether one was there. A bare IF, or IF NOT without EXISTS, is a
+// syntax error rather than nothing: the words are the clause.
+//
+// Ref: IfNotExists in TiDB v8.5.5 pkg/parser/parser.y, which reads
+// `/* empty */ | "IF" NotSym "EXISTS"`.
+func (p *Parser) parseIfNotExists() (bool, error) {
+	if p.cur.Type != kwIF {
+		return false, nil
+	}
+	p.advance() // consume IF
+	if _, err := p.expect(kwNOT); err != nil {
+		return false, err
+	}
+	if _, err := p.expect(kwEXISTS_KW); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// parseIfExists consumes the IF EXISTS a grammar position allows and reports
+// whether one was there.
+//
+// Ref: IfExists in TiDB v8.5.5 pkg/parser/parser.y, which reads
+// `/* empty */ | "IF" "EXISTS"`.
+func (p *Parser) parseIfExists() (bool, error) {
+	if p.cur.Type != kwIF {
+		return false, nil
+	}
+	p.advance() // consume IF
+	if _, err := p.expect(kwEXISTS_KW); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// parseColumnCheckConstraint parses the CHECK (expr) [[NOT] ENFORCED] of a
+// column option, from the CHECK keyword on. start is the option's first byte,
+// which is the CONSTRAINT keyword when one introduced it.
+func (p *Parser) parseColumnCheckConstraint(start int) (*nodes.ColumnConstraint, error) {
+	p.advance() // consume CHECK
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	cc := &nodes.ColumnConstraint{
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		Type: nodes.ColConstrCheck,
+		Expr: expr,
+	}
+	// [[NOT] ENFORCED]
+	if p.cur.Type == kwNOT {
+		p.advance()
+		if p.cur.Type == kwENFORCED {
+			p.advance()
+			cc.NotEnforced = true
+		}
+	} else if p.cur.Type == kwENFORCED {
+		p.advance()
+	}
+	cc.Loc.End = p.prev.End
+	return cc, nil
+}
+
+// parseColumnKeyGlobalOrLocal consumes the GLOBAL or LOCAL that TiDB allows
+// after a column's PRIMARY KEY, KEY or UNIQUE [KEY] option. One of the two at
+// most, after the CLUSTERED attribute rather than before it: v8.5.5 runs
+// `a INT PRIMARY KEY CLUSTERED GLOBAL`, `a INT UNIQUE LOCAL` and
+// `a INT KEY GLOBAL`, and answers 1064 for `PRIMARY KEY GLOBAL CLUSTERED` and
+// for `UNIQUE GLOBAL LOCAL`. MySQL 8.0.46 and MariaDB 11.8.8 answer 1064 for
+// every one of them.
+//
+// The word is consumed and not recorded: the grammar's own action keeps only
+// whether the index is global, which the column form never reaches a
+// consumer by -- TiDB's parser.y folds LOCAL and the empty case to the same
+// value.
+//
+// Ref: GlobalOrLocalOpt in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseColumnKeyGlobalOrLocal() {
+	p.match(kwGLOBAL, kwLOCAL)
+}
+
+// parsePartDefOption parses one of the options a partition or subpartition
+// definition takes, and reports whether one was there. The list is its own,
+// narrower than a table's: a partition definition takes STORAGE ENGINE, which
+// no table option spells, and takes none of ENGINE's neighbours such as
+// CHARSET, AUTO_INCREMENT or the TTL options.
+//
+//	part_def_option:
+//	    COMMENT [=] 'string'
+//	  | ENGINE [=] name
+//	  | STORAGE ENGINE [=] name
+//	  | INSERT_METHOD [=] name
+//	  | DATA DIRECTORY [=] 'string'
+//	  | INDEX DIRECTORY [=] 'string'
+//	  | MAX_ROWS [=] number
+//	  | MIN_ROWS [=] number
+//	  | TABLESPACE [=] name
+//	  | NODEGROUP [=] number
+//	  | PLACEMENT POLICY [=] {name | 'string' | DEFAULT}
+//	  | PLACEMENT POLICY SET DEFAULT
+//
+// TiDB v8.5.5, MySQL 8.0.46 and MariaDB 11.8.8 all run
+// `ADD PARTITION (PARTITION p VALUES LESS THAN (1) STORAGE ENGINE text)`,
+// `... STORAGE ENGINE = text`, `... MAX_ROWS 12` and
+// `... (SUBPARTITION s MIN_ROWS 11)`. PLACEMENT POLICY is TiDB's own: v8.5.5
+// runs `... PLACEMENT POLICY x` where the other two answer 1064.
+//
+// Ref: PartDefOption and PlacementPolicyOption in TiDB v8.5.5
+// pkg/parser/parser.y; opt_part_option in MySQL 8.0.46 sql/sql_yacc.yy.
+func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
+	start := p.pos()
+
+	switch p.cur.Type {
+	case kwCOMMENT:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeStringOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COMMENT", Value: val}, true, nil
+
+	case kwENGINE, kwINSERT_METHOD, kwTABLESPACE:
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, Value: val}, true, nil
+
+	case kwSTORAGE:
+		// STORAGE ENGINE [=] name. STORAGE on its own is no partition option:
+		// the table option STORAGE {DISK | MEMORY} has no partition form, and
+		// TiDB v8.5.5 answers 1064 for `PARTITION p STORAGE DISK`.
+		if p.peekNext().Type != kwENGINE {
+			return nil, false, nil
+		}
+		p.advance() // consume STORAGE
+		p.advance() // consume ENGINE
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "STORAGE ENGINE", Value: val}, true, nil
+
+	case kwMAX_ROWS, kwMIN_ROWS, kwNODEGROUP:
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		p.match('=')
+		val, err := p.consumeIntegerOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, Value: val}, true, nil
+
+	case kwDATA, kwINDEX:
+		if p.peekNext().Type != kwDIRECTORY {
+			return nil, false, nil
+		}
+		name := strings.ToUpper(p.cur.Str) + " DIRECTORY"
+		p.advance() // consume DATA or INDEX
+		p.advance() // consume DIRECTORY
+		p.match('=')
+		val, err := p.consumeStringOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, Value: val}, true, nil
+
+	case kwPLACEMENT:
+		if p.peekNext().Type != kwPOLICY {
+			return nil, false, nil
+		}
+		p.advance() // consume PLACEMENT
+		p.advance() // consume POLICY
+		// PLACEMENT POLICY SET DEFAULT is its own spelling of the default,
+		// with no = before SET.
+		if p.cur.Type == kwSET {
+			p.advance()
+			if _, err := p.expect(kwDEFAULT); err != nil {
+				return nil, false, err
+			}
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PLACEMENT POLICY", Value: "DEFAULT"}, true, nil
+		}
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PLACEMENT POLICY", Value: val}, true, nil
+	}
+
+	return nil, false, nil
+}
+
+// parseParenTableNameListOpt parses a parenthesized, possibly empty list of
+// table names, each optionally qualified by a database name. It is the value
+// of the UNION table option.
+func (p *Parser) parseParenTableNameListOpt() ([]string, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var names []string
+	if p.cur.Type == ')' {
+		p.advance()
+		return names, nil
+	}
+	for {
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		if ref.Schema != "" {
+			names = append(names, ref.Schema+"."+ref.Name)
+		} else {
+			names = append(names, ref.Name)
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// parseMatchType reads the FULL, PARTIAL or SIMPLE a MATCH clause takes. The
+// three are a keyword list, not an identifier: MySQL 8.0.46, MariaDB 11.8.8
+// and TiDB v8.5.5 all answer 1064 for
+// `ADD FOREIGN KEY (a) REFERENCES u(b) MATCH foo`.
+//
+// Ref: `Match: "MATCH" "FULL" | "MATCH" "PARTIAL" | "MATCH" "SIMPLE"` in TiDB
+// v8.5.5 pkg/parser/parser.y; opt_match_clause in MySQL 8.0.46
+// sql/sql_yacc.yy.
+func (p *Parser) parseMatchType() (string, error) {
+	if tok, ok := p.match(kwFULL, kwPARTIAL, kwSIMPLE); ok {
+		return strings.ToUpper(tok.Str), nil
+	}
+	return "", p.syntaxErrorAtCur()
 }

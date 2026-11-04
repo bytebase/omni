@@ -580,6 +580,24 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			}
 			applyIndexOptions(spIdx, con.IndexOptions)
 			tbl.Indexes = append(tbl.Indexes, spIdx)
+
+		case nodes.ConstrVector:
+			// TiDB's VECTOR INDEX, which CREATE TABLE declares as well as
+			// ALTER TABLE adds. The index type is the USING name (HNSW).
+			idxName := con.Name
+			if idxName == "" && len(cols) > 0 {
+				idxName = allocIndexName(tbl, cols[0])
+			}
+			vecIdx := &Index{
+				Name:      idxName,
+				Table:     tbl,
+				Columns:   buildIndexColumns(con),
+				Vector:    true,
+				IndexType: resolveConstraintIndexType(con),
+				Visible:   true,
+			}
+			applyIndexOptions(vecIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, vecIdx)
 		}
 	}
 
@@ -1134,6 +1152,14 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			case *nodes.IntLit:
 				idx.KeyBlockSize = int(n.Value)
 			}
+		// TiDB's GLOBAL and LOCAL. The option list may hold both, and the
+		// last one decides, as the grammar's own action does. Dropping GLOBAL
+		// here left the partition-coverage check applying the local rule to a
+		// global index, which is the 8264 that option exists to avoid.
+		case "GLOBAL":
+			idx.Global = true
+		case "LOCAL":
+			idx.Global = false
 		}
 	}
 }

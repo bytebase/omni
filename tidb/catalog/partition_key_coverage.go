@@ -183,6 +183,13 @@ func checkUniqueKeysCoverPartitionColumns(tbl *Table, idxs []*Index, partCols []
 		if !idx.Unique && !idx.Primary {
 			continue
 		}
+		// A global index is exempt: covering the partitioning columns is what
+		// GLOBAL buys an exemption from, and v8.5.5 runs
+		// `ADD UNIQUE INDEX i (b) GLOBAL` on a table partitioned by a where
+		// it answers 8264 without the option.
+		if idx.Global {
+			continue
+		}
 		// TiDB names an unnamed key over an expression expression_index, which the
 		// catalog leaves unnamed, so it cannot name the key TiDB refuses.
 		if idx.Name == "" || uniqueKeyCovers(tbl, idx, partCols) {
@@ -252,11 +259,75 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 	if pc == nil {
 		return nil
 	}
+	// UPDATE INDEXES says what each named index becomes once the table is
+	// repartitioned, so it has to apply before the coverage check rather
+	// than after: v8.5.5 runs
+	// `ALTER TABLE t PARTITION BY HASH(a) PARTITIONS 2 UPDATE INDEXES
+	// (i GLOBAL)` on a table whose unique key covers none of the new
+	// partitioning columns, and answers 8264 for the same statement without
+	// the clause (read on 2026-11-04). Checking the index's old setting left
+	// the clause parsed and unread, so the statement it exists to allow
+	// failed.
+	undo, err := applyUpdateIndexes(tbl, pc.UpdateIndexes)
+	if err != nil {
+		return err
+	}
 	if err := checkUniqueKeysCoverPartitionColumns(tbl, tbl.Indexes, partitionKeyColumns(tbl, pc)); err != nil {
+		// The statement is refused whole, so the settings go back.
+		undo()
 		return err
 	}
 	if tbl.Partitioning != nil {
 		tbl.Partitioning.keyColumns = nil
+	}
+	return nil
+}
+
+// applyUpdateIndexes sets Global on each index an UPDATE INDEXES clause names
+// and returns the function that puts the old settings back, for the caller
+// that refuses the statement afterwards.
+//
+// Two names are errors, both 1280 ("Incorrect index name '<name>'") on
+// v8.5.5: one the table does not have, and one the clause names twice --
+// `UPDATE INDEXES (i GLOBAL, i LOCAL)` and even `(i GLOBAL, i GLOBAL)` are
+// refused, so the list names each index at most once (read on 2026-11-04).
+// Each index is therefore saved once, which also means undo does not depend
+// on the order it runs in.
+func applyUpdateIndexes(tbl *Table, specs []*nodes.UpdateIndexSpec) (func(), error) {
+	type saved struct {
+		idx    *Index
+		global bool
+	}
+	var was []saved
+	undo := func() {
+		for _, s := range was {
+			s.idx.Global = s.global
+		}
+	}
+	seen := make(map[*Index]bool, len(specs))
+	for _, spec := range specs {
+		if spec == nil {
+			continue
+		}
+		idx := findIndexByName(tbl, spec.Name)
+		if idx == nil || seen[idx] {
+			undo()
+			return nil, errWrongNameForIndex(spec.Name)
+		}
+		seen[idx] = true
+		was = append(was, saved{idx: idx, global: idx.Global})
+		idx.Global = spec.Global
+	}
+	return undo, nil
+}
+
+// findIndexByName returns the index of the name, matched the way the server
+// matches an index name: case-insensitively.
+func findIndexByName(tbl *Table, name string) *Index {
+	for _, idx := range tbl.Indexes {
+		if toLower(idx.Name) == toLower(name) {
+			return idx
+		}
 	}
 	return nil
 }
