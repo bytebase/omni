@@ -22,7 +22,7 @@ func (v LocViolation) String() string {
 }
 
 // CheckLocations parses sql via Parse(), recursively walks the AST using
-// reflection, and returns all Loc violations where Start >= 0 but End <= Start.
+// reflection, and returns all Loc violations walkNodeLocs finds.
 // This does NOT call t.Fatal — callers decide how to handle violations.
 func CheckLocations(t *testing.T, sql string) []LocViolation {
 	t.Helper()
@@ -42,8 +42,23 @@ func CheckLocations(t *testing.T, sql string) []LocViolation {
 	return violations
 }
 
-// walkNodeLocs recursively walks a reflected AST value, checking every Loc field.
+// locParent is the nearest node above a walked value whose Loc is known.
+type locParent struct {
+	tag string
+	loc ast.Loc
+}
+
+// walkNodeLocs recursively walks a reflected AST value, checking every Loc
+// field: an unknown Loc is the single {-1, -1} sentinel, a known one is not
+// empty, and a known one lies within the known Loc of the nearest node
+// above it. The last catches a node built around an operand the parser
+// read first, a binary operator, a postfix test, a join, that starts at
+// its own keyword instead of where that operand starts.
 func walkNodeLocs(v reflect.Value, path string, violations *[]LocViolation) {
+	walkNodeLocsIn(v, path, locParent{loc: ast.NoLoc()}, violations)
+}
+
+func walkNodeLocsIn(v reflect.Value, path string, parent locParent, violations *[]LocViolation) {
 	// Dereference pointers and interfaces.
 	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
 		if v.IsNil() {
@@ -79,6 +94,17 @@ func walkNodeLocs(v reflect.Value, path string, violations *[]LocViolation) {
 					End:     loc.End,
 					Reason:  "Start >= 0 but End <= Start",
 				})
+			default:
+				if !parent.loc.IsUnknown() && (loc.Start < parent.loc.Start || loc.End > parent.loc.End) {
+					*violations = append(*violations, LocViolation{
+						Path:    path,
+						NodeTag: typeName,
+						Start:   loc.Start,
+						End:     loc.End,
+						Reason:  fmt.Sprintf("outside %s [%d,%d)", parent.tag, parent.loc.Start, parent.loc.End),
+					})
+				}
+				parent = locParent{tag: typeName, loc: loc}
 			}
 		}
 
@@ -92,7 +118,13 @@ func walkNodeLocs(v reflect.Value, path string, violations *[]LocViolation) {
 				continue // already checked
 			}
 			childPath := path + "." + field.Name
-			walkNodeLocs(v.Field(i), childPath, violations)
+			within := parent
+			if typeName == "InsertIntoClause" && field.Name == "When" {
+				// A multitable INSERT's WHEN condition comes before the
+				// INTO clauses of its branch, and each of them holds it.
+				within = locParent{loc: ast.NoLoc()}
+			}
+			walkNodeLocsIn(v.Field(i), childPath, within, violations)
 		}
 
 	case reflect.Slice:
@@ -110,7 +142,7 @@ func walkNodeLocs(v reflect.Value, path string, violations *[]LocViolation) {
 			if actual.IsValid() && actual.Kind() == reflect.Struct {
 				elemPath = fmt.Sprintf("%s[%d](%s)", path, i, actual.Type().Name())
 			}
-			walkNodeLocs(elem, elemPath, violations)
+			walkNodeLocsIn(elem, elemPath, parent, violations)
 		}
 	}
 }

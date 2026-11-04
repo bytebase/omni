@@ -255,12 +255,17 @@ func TestCollectExplainKeywords(t *testing.T) {
 		t.Fatal("expected non-nil candidates")
 	}
 	for _, tok := range []int{
-		kwANALYZE, kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
-		kwSELECT, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
+		kwANALYZE, kwFORMAT, kwFOR,
+		kwSELECT, kwWITH, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
 	} {
 		if !cs.HasToken(tok) {
 			t.Errorf("missing EXPLAIN keyword: %s", TokenName(tok))
 		}
+	}
+	// The table form is reachable from here too: EXPLAIN t describes a
+	// table.
+	if !cs.HasRule("table_ref") {
+		t.Error("EXPLAIN offers no table_ref, though EXPLAIN t is a statement")
 	}
 }
 

@@ -69,7 +69,12 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dml(n, singleTarget(v.Tables))
 	case *ast.SetStmt:
 		return b.set(v)
-	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt, *ast.ExplainStmt:
+	case *ast.ExplainStmt:
+		if b.callsStoredFunction(n) {
+			b.forgetTemporary()
+		}
+		return b.explain(v)
+	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
 		if b.callsStoredFunction(n) {
 			b.forgetTemporary()
 		}
@@ -84,6 +89,18 @@ func (b *builder) statement(n ast.Node) bool {
 		return true
 	}
 	return false
+}
+
+// explain lowers EXPLAIN. Reporting a plan changes nothing, so a plain
+// EXPLAIN is followed without recording anything. ANALYZE runs the statement
+// it carries, so that form is lowered as the statement it performs. No DDL is
+// explainable on MySQL 8.0 (mysql/parser/explain_forms_test.go), so what
+// ANALYZE reaches here is a query or a DML, not a schema change.
+func (b *builder) explain(v *ast.ExplainStmt) bool {
+	if !v.Analyze || v.Stmt == nil {
+		return true
+	}
+	return b.statement(v.Stmt)
 }
 
 // tableNeeds adds the check that a statement's table exists as a base

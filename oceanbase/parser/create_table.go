@@ -291,9 +291,6 @@ func (p *Parser) isColumnConstraintStart() bool {
 		kwCOLUMN_FORMAT, kwSTORAGE:
 		return true
 	}
-	if p.cur.Type == kwENGINE_ATTRIBUTE || p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
-		return true
-	}
 	if p.cur.Type == kwSRID {
 		return true
 	}
@@ -356,6 +353,11 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			Type: nodes.ColConstrAutoIncrement,
 		})
 		return true, nil
+
+	// MySQL also writes NOT NULL AUTO_INCREMENT UNIQUE as the column option
+	// SERIAL DEFAULT VALUE. OceanBase CE 4.3.5.6 does not have it — it answers
+	// 1064 for `a int serial default value` in every spelling, while taking
+	// SERIAL as a type — so it is not read here.
 
 	case kwUNIQUE:
 		p.advance()
@@ -557,39 +559,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 	}
 
-	// Handle ENGINE_ATTRIBUTE, SECONDARY_ENGINE_ATTRIBUTE column options
-	if p.cur.Type == kwENGINE_ATTRIBUTE {
-		p.advance()
-		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
-		}
-		col.EngineAttribute = val
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrEngineAttribute,
-			Name: val,
-		})
-		return true, nil
-	}
-	if p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
-		p.advance()
-		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
-		}
-		col.SecondaryEngineAttribute = val
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrSecondaryEngineAttribute,
-			Name: val,
-		})
-		return true, nil
-	}
+	// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE are not read here: OceanBase CE 4.3.5.6
+	// answers 1064 for both as a column option, as it does for both as a table
+	// option, so taking them only passed statements the server refuses.
 
 	// SRID column option (now lexes as kwSRID keyword token). Record presence even for
 	// `SRID 0`: MySQL keeps `SRID 0` as a distinct, present clause (SHOW CREATE echoes it),
@@ -1324,11 +1296,15 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}
 		return nil, false, nil
 
+	// CHECKSUM [=] n. The value is an integer and only an integer: OceanBase CE
+	// 4.3.5.6 answers 1064 for `CHECKSUM = 'abc'`, for `= DEFAULT` and for
+	// `= 1.5`, where MySQL's wider `ulong_num` takes the decimal. MySQL also
+	// names this option TABLE_CHECKSUM and OceanBase does not — it answers 1064
+	// for every spelling of it — so that name is not taken here.
 	case kwCHECKSUM:
-		// CHECKSUM [=] {0 | 1}
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeIntegerOptionValue()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1517,12 +1493,30 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
-	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
+	// Handle identifier-based options: KEY_BLOCK_SIZE, MAX_ROWS, etc.
+	//
+	// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE are absent: OceanBase CE
+	// 4.3.5.6 answers 1064 for both as a table option, as a column option and on
+	// ALTER TABLE, so reading them here only passed statements the server
+	// refuses.
 	switch p.cur.Type {
-	case kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
+	// STATS_AUTO_RECALC [=] {DEFAULT | n}. MySQL takes only 0 and 1 here;
+	// OceanBase CE 4.3.5.6 takes any integer — it accepts `= 2` and `= 10` —
+	// and answers 1064 for a string, for a negative and for a decimal.
+	case kwSTATS_AUTO_RECALC:
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeIntegerOrDefaultOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	case kwKEY_BLOCK_SIZE, kwSTATS_PERSISTENT,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
-		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE:
+		kwAUTOEXTEND_SIZE:
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
@@ -1608,6 +1602,40 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		// rather than an empty string: returning "" let a truncated option parse.
 		return "", &ParseError{Message: "expected a value for the table option", Position: p.cur.Loc}
 	}
+}
+
+// consumeIntegerOptionValue reads an option value that must be an integer.
+// A string, a decimal, a keyword and a leading sign are each a 1064.
+func (p *Parser) consumeIntegerOptionValue() (string, error) {
+	if p.cur.Type != tokICONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
+}
+
+// consumeStringOptionValue reads an option value that must be a quoted string,
+// the way COMMENT's is. An unquoted word, a number and a missing value are each
+// a 1064.
+func (p *Parser) consumeStringOptionValue() (string, error) {
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
+}
+
+// consumeIntegerOrDefaultOptionValue reads an option value that must be an
+// integer or DEFAULT. A string, a decimal and a leading sign are each a 1064.
+func (p *Parser) consumeIntegerOrDefaultOptionValue() (string, error) {
+	if p.cur.Type == kwDEFAULT {
+		val := p.cur.Str
+		p.advance()
+		return val, nil
+	}
+	return p.consumeIntegerOptionValue()
 }
 
 // parsePartitionClause parses a PARTITION BY clause.

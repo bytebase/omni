@@ -17,6 +17,16 @@ type Table struct {
 	KeyBlockSize  int
 	Partitioning  *PartitionInfo
 
+	// GlobalTemporary marks a table CREATE GLOBAL TEMPORARY TABLE made, and
+	// OnCommit the ON COMMIT clause it carries ("DELETE ROWS" or "PRESERVE
+	// ROWS"). TiDB's SHOW CREATE TABLE writes both back, so an ordinary
+	// temporary table and a global one do not report the same.
+	//
+	// Temporary is false for it: only its rows are per-session, and the table
+	// is in the ordinary namespace (see ast.CreateTableStmt.Global).
+	GlobalTemporary bool
+	OnCommit        string
+
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
 	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).

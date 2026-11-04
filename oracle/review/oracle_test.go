@@ -855,6 +855,8 @@ func TestRequireIsNullAgainstOracle(t *testing.T) {
 		{"s = N''", true},
 		{"s = q'[]'", true},
 		{"NULL = NULL", true},
+		{"n*n = NULL", true},
+		{"n + 1 <> NULL", true},
 		{"n = 1", false},
 		{"s = ' '", false},
 		{"c = ' '", false},

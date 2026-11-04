@@ -357,6 +357,30 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		})
 		return true, nil
 
+	// SERIAL DEFAULT VALUE, the three words together, which
+	// https://dev.mysql.com/doc/refman/8.0/en/numeric-type-syntax.html gives as
+	// another way to write NOT NULL AUTO_INCREMENT UNIQUE. It is recorded as
+	// those three and not as an attribute of its own, so everything downstream —
+	// the catalog's implicit primary key among it — sees the column the engine
+	// builds. All three words are required: MySQL 8.0 answers 1064 for
+	// `a int serial` and for `a int serial default`.
+	case kwSERIAL:
+		p.advance()
+		if _, err := p.expect(kwDEFAULT); err != nil {
+			return false, err
+		}
+		if _, err := p.expect(kwVALUE); err != nil {
+			return false, err
+		}
+		col.AutoIncrement = true
+		loc := nodes.Loc{Start: start, End: p.prev.End}
+		col.Constraints = append(col.Constraints,
+			&nodes.ColumnConstraint{Loc: loc, Type: nodes.ColConstrNotNull},
+			&nodes.ColumnConstraint{Loc: loc, Type: nodes.ColConstrAutoIncrement},
+			&nodes.ColumnConstraint{Loc: loc, Type: nodes.ColConstrUnique},
+		)
+		return true, nil
+
 	case kwUNIQUE:
 		p.advance()
 		p.match(kwKEY) // optional KEY
@@ -557,35 +581,29 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 	}
 
-	// Handle ENGINE_ATTRIBUTE, SECONDARY_ENGINE_ATTRIBUTE column options
-	if p.cur.Type == kwENGINE_ATTRIBUTE {
+	// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE column options. The string
+	// is required, as it is on the table option: MySQL 8.0 answers 1064 for
+	// `id INT SECONDARY_ENGINE_ATTRIBUTE`, for `id INT SECONDARY_ENGINE_ATTRIBUTE=`
+	// and for both with ENGINE_ATTRIBUTE. Taking the value as optional parsed
+	// each of them.
+	if p.cur.Type == kwENGINE_ATTRIBUTE || p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
+		secondary := p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE
 		p.advance()
 		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
+		val, err := p.consumeStringOptionValue()
+		if err != nil {
+			return false, err
 		}
-		col.EngineAttribute = val
+		constrType := nodes.ColConstrEngineAttribute
+		if secondary {
+			col.SecondaryEngineAttribute = val
+			constrType = nodes.ColConstrSecondaryEngineAttribute
+		} else {
+			col.EngineAttribute = val
+		}
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrEngineAttribute,
-			Name: val,
-		})
-		return true, nil
-	}
-	if p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
-		p.advance()
-		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
-		}
-		col.SecondaryEngineAttribute = val
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrSecondaryEngineAttribute,
+			Type: constrType,
 			Name: val,
 		})
 		return true, nil
@@ -1229,15 +1247,23 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}
 		return nil, false, nil
 
-	case kwCHECKSUM:
-		// CHECKSUM [=] {0 | 1}
+	// CHECKSUM [=] n, which TABLE_CHECKSUM is the other name for: MySQL's
+	// sql_yacc.yy gives TABLE_CHECKSUM_SYM the same `opt_equal ulong_num` as
+	// CHECKSUM_SYM. The value is a number and only a number: MySQL answers 1064
+	// for `CHECKSUM = 'abc'`, for `= DEFAULT` and for `= -1`. A decimal is part
+	// of `ulong_num`, so `= 1.5` is accepted.
+	case kwCHECKSUM, kwTABLE_CHECKSUM:
+		optName := "CHECKSUM"
+		if p.cur.Type == kwTABLE_CHECKSUM {
+			optName = "TABLE_CHECKSUM"
+		}
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeNumericOptionValue()
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHECKSUM", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 
 	case kwTABLESPACE:
 		// TABLESPACE tablespace_name [STORAGE {DISK | MEMORY}]
@@ -1327,12 +1353,39 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
-	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
+	// Handle identifier-based options: KEY_BLOCK_SIZE, MAX_ROWS, etc.
 	switch p.cur.Type {
-	case kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
+	// STATS_AUTO_RECALC [=] {DEFAULT | 0 | 1}, and nothing else: MySQL
+	// answers 1064 for `= 2`, `= 10`, `= -1`, `= 'abc'` and `= '1'`
+	// (https://dev.mysql.com/doc/refman/8.0/en/create-table.html).
+	case kwSTATS_AUTO_RECALC:
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeZeroOneOrDefaultOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE [=] 'json'. The string is
+	// required: MySQL answers 1064 for the bare name and for an `=` with
+	// nothing after it, the way it does for a bare COMMENT
+	// (https://dev.mysql.com/doc/refman/8.0/en/create-table.html).
+	case kwENGINE_ATTRIBUTE, kwSECONDARY_ENGINE_ATTRIBUTE:
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeStringOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	case kwKEY_BLOCK_SIZE, kwSTATS_PERSISTENT,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
-		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE:
+		kwAUTOEXTEND_SIZE:
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
@@ -1373,6 +1426,57 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		// 1064 when it is missing (`ENGINE =`, `KEY_BLOCK_SIZE` at end of input).
 		return "", p.syntaxErrorAtCur()
 	}
+}
+
+// consumeIntegerOptionValue reads an option value that must be an integer.
+// A string, a decimal, a keyword and a leading sign are each a 1064.
+func (p *Parser) consumeIntegerOptionValue() (string, error) {
+	if p.cur.Type != tokICONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
+}
+
+// consumeNumericOptionValue reads an option value that must be a number,
+// integer or decimal. A string, a keyword and a leading sign are each a 1064.
+func (p *Parser) consumeNumericOptionValue() (string, error) {
+	if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
+}
+
+// consumeStringOptionValue reads an option value that must be a quoted string,
+// the way COMMENT's is. An unquoted word, a number and a missing value are each
+// a 1064.
+func (p *Parser) consumeStringOptionValue() (string, error) {
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
+}
+
+// consumeZeroOneOrDefaultOptionValue reads an option value that must be 0, 1 or
+// DEFAULT, which is what STATS_AUTO_RECALC takes. Any other number, and any
+// string, is a 1064.
+func (p *Parser) consumeZeroOneOrDefaultOptionValue() (string, error) {
+	if p.cur.Type == kwDEFAULT {
+		val := p.cur.Str
+		p.advance()
+		return val, nil
+	}
+	if p.cur.Type != tokICONST || (p.cur.Ival != 0 && p.cur.Ival != 1) {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
 }
 
 // parsePartitionClause parses a PARTITION BY clause.

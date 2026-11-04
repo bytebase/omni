@@ -2316,25 +2316,47 @@ func (l *Lexer) scanString(quote byte) Token {
 	return Token{Type: tokSCONST, Str: sb.String(), Loc: start}
 }
 
+// scanNumber scans the numeric literal, or the identifier, that a token
+// starting with a digit (or with `.` before one) spells.
+//
+// A word may begin with a digit: `123a1` and `1t` are identifiers, and only a
+// word of digits alone is not one. That is why a table named 123 needs
+// backquotes and a column named 123a1 does not
+// (https://dev.mysql.com/doc/refman/8.0/en/identifiers.html). The lexer decides
+// the way MySQL's does (sql_lex.cc, state MY_LEX_NUMBER_IDENT): it reads the
+// digits and then asks what follows. A decimal point or a well-formed exponent
+// continues a number, so `1.5` and `1e1` are literals; any other identifier
+// character makes the whole word an identifier, so `12e` and `1_2` are names.
+// `0x`/`0b` are literals only with at least one digit of their base and nothing
+// an identifier could carry on with after it, so `0x61` is a hex literal and
+// `0xZZ` is a name.
 func (l *Lexer) scanNumber() Token {
 	start := l.pos
 
 	// Handle 0x hex literals
 	if l.input[l.pos] == '0' && l.pos+1 < len(l.input) && (l.input[l.pos+1] == 'x' || l.input[l.pos+1] == 'X') {
 		l.pos += 2
+		digits := l.pos
 		for l.pos < len(l.input) && isHexDigit(l.input[l.pos]) {
 			l.pos++
 		}
-		return Token{Type: tokXCONST, Str: l.input[start:l.pos], Loc: start}
+		if l.pos > digits && !l.identCharAt(l.pos) {
+			return Token{Type: tokXCONST, Str: l.input[start:l.pos], Loc: start}
+		}
+		return l.scanDigitLeadingIdent(start)
 	}
 
 	// Handle 0b binary literals
 	if l.input[l.pos] == '0' && l.pos+1 < len(l.input) && (l.input[l.pos+1] == 'b' || l.input[l.pos+1] == 'B') {
 		l.pos += 2
+		digits := l.pos
 		for l.pos < len(l.input) && (l.input[l.pos] == '0' || l.input[l.pos] == '1') {
 			l.pos++
 		}
-		return Token{Type: tokBCONST, Str: l.input[start:l.pos], Loc: start}
+		if l.pos > digits && !l.identCharAt(l.pos) {
+			return Token{Type: tokBCONST, Str: l.input[start:l.pos], Loc: start}
+		}
+		return l.scanDigitLeadingIdent(start)
 	}
 
 	// Integer part (or start of float)
@@ -2344,6 +2366,13 @@ func (l *Lexer) scanNumber() Token {
 	}
 	for l.pos < len(l.input) && l.input[l.pos] >= '0' && l.input[l.pos] <= '9' {
 		l.pos++
+	}
+
+	// Digits that run straight into an identifier character spell a name, not
+	// a number — unless that character opens an exponent. A token that began
+	// at `.` is never a name, since no identifier starts with a dot.
+	if !isFloat && l.identCharAt(l.pos) && !l.exponentAt(l.pos) {
+		return l.scanDigitLeadingIdent(start)
 	}
 
 	// Decimal point
@@ -2374,6 +2403,38 @@ func (l *Lexer) scanNumber() Token {
 
 	ival, _ := strconv.ParseInt(s, 10, 64)
 	return Token{Type: tokICONST, Str: s, Ival: ival, Loc: start}
+}
+
+// identCharAt reports whether the byte at i can appear inside an identifier.
+// Past the end of the input nothing can, so the answer there is false.
+func (l *Lexer) identCharAt(i int) bool {
+	return i < len(l.input) && isIdentChar(l.input[i])
+}
+
+// exponentAt reports whether the byte at i opens a well-formed exponent: `e`
+// or `E` with a digit after it, or with a sign and then a digit. MySQL reads
+// `1e1` and `1E+10` as numbers and `12e` and `1e+` as identifiers, which is
+// what this distinguishes.
+func (l *Lexer) exponentAt(i int) bool {
+	if i >= len(l.input) || (l.input[i] != 'e' && l.input[i] != 'E') {
+		return false
+	}
+	i++
+	if i < len(l.input) && (l.input[i] == '+' || l.input[i] == '-') {
+		i++
+	}
+	return i < len(l.input) && l.input[i] >= '0' && l.input[i] <= '9'
+}
+
+// scanDigitLeadingIdent rescans from start as an identifier, for a word that
+// began with a digit and turned out not to be a number. No keyword starts with
+// a digit, so the word is always a plain identifier.
+func (l *Lexer) scanDigitLeadingIdent(start int) Token {
+	l.pos = start
+	for l.pos < len(l.input) && isIdentChar(l.input[l.pos]) {
+		l.pos++
+	}
+	return Token{Type: tokIDENT, Str: l.input[start:l.pos], Loc: start}
 }
 
 func (l *Lexer) scanIdentOrKeyword() Token {

@@ -12,6 +12,11 @@ import (
 func checkDisallowRename(s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
+		case *ast.ExplainStmt:
+			// A plain EXPLAIN reports a plan and changes nothing, so what it
+			// carries is no change of this kind; ANALYZE runs it, and on TiDB
+			// that reaches ALTER TABLE.
+			return v.Analyze
 		case *ast.RenameTableStmt:
 			for _, pair := range v.Pairs {
 				if pair == nil {

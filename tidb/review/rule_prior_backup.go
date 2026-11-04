@@ -306,7 +306,11 @@ type madeColumn struct {
 func madeByChange(stmts []statement) changeMade {
 	var m changeMade
 	for i := range stmts[:beforeUse(stmts)] {
-		switch v := stmts[i].node.(type) {
+		// executed, not the node itself: an EXPLAIN ANALYZE runs the
+		// ALTER TABLE it carries, so the column and the name it adds are
+		// there for the statements that follow, while a plain EXPLAIN adds
+		// neither.
+		switch v := executed(stmts[i].node).(type) {
 		case *ast.CreateTableStmt:
 			if v.Table == nil {
 				continue

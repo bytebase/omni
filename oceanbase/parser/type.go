@@ -1,6 +1,9 @@
 package parser
 
 import (
+	"strconv"
+	"strings"
+
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -59,38 +62,50 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwINT, kwINTEGER:
 		dt.Name = "INT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	case kwTINYINT:
 		dt.Name = "TINYINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	case kwSMALLINT:
 		dt.Name = "SMALLINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	case kwMEDIUMINT:
 		dt.Name = "MEDIUMINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	case kwBIGINT:
 		dt.Name = "BIGINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	// Float types
 	case kwFLOAT:
 		dt.Name = "FLOAT"
 		p.advance()
-		p.parseOptionalPrecision(dt)
+		if err := p.parseOptionalPrecision(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	case kwDOUBLE:
@@ -100,14 +115,18 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if p.cur.Type == kwPRECISION {
 			p.advance()
 		}
-		p.parseOptionalPrecision(dt)
+		if err := p.parseOptionalPrecision(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	case kwREAL:
 		// REAL → DOUBLE synonym
 		dt.Name = "DOUBLE"
 		p.advance()
-		p.parseOptionalPrecision(dt)
+		if err := p.parseOptionalPrecision(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	// Decimal types
@@ -118,14 +137,18 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			dt.Name = "NUMERIC"
 		}
 		p.advance()
-		p.parseOptionalPrecision(dt)
+		if err := p.parseOptionalPrecision(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	case kwDEC, kwFIXED:
 		// DEC and FIXED → DECIMAL synonyms
 		dt.Name = "DECIMAL"
 		p.advance()
-		p.parseOptionalPrecision(dt)
+		if err := p.parseOptionalPrecision(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 
 	// Boolean
@@ -144,7 +167,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				return nil, err
 			}
 		} else {
-			p.parseOptionalLength(dt)
+			if err := p.parseOptionalLength(dt); err != nil {
+				return nil, err
+			}
 		}
 		p.parseCharsetCollate(dt)
 
@@ -159,7 +184,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwTEXT:
 		dt.Name = "TEXT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseCharsetCollate(dt)
 
 	case kwTINYTEXT:
@@ -185,28 +212,43 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwTIME:
 		dt.Name = "TIME"
 		p.advance()
-		p.parseOptionalLength(dt) // fsp
+		if err := p.parseOptionalLength(dt); err != nil { // fsp
+			return nil, err
+		}
 
 	case kwDATETIME:
 		dt.Name = "DATETIME"
 		p.advance()
-		p.parseOptionalLength(dt) // fsp
+		if err := p.parseOptionalLength(dt); err != nil { // fsp
+			return nil, err
+		}
 
 	case kwTIMESTAMP:
 		dt.Name = "TIMESTAMP"
 		p.advance()
-		p.parseOptionalLength(dt) // fsp
+		if err := p.parseOptionalLength(dt); err != nil { // fsp
+			return nil, err
+		}
 
+	// YEAR takes a display width and nothing else here. MySQL also accepts the
+	// numeric modifiers on it and names the type SQL_TSI_YEAR as well, and
+	// OceanBase CE 4.3.5.6 has neither: it answers 1064 for `YEAR ZEROFILL`,
+	// `YEAR(4) ZEROFILL` and every spelling of `SQL_TSI_YEAR`, so taking them
+	// here would only widen an over-acceptance.
 	case kwYEAR:
 		dt.Name = "YEAR"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 
 	// Blob types
 	case kwBLOB:
 		dt.Name = "BLOB"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseCharsetCollate(dt)
 
 	case kwTINYBLOB:
@@ -228,7 +270,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwBINARY:
 		dt.Name = "BINARY"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 
 	case kwVARBINARY:
 		dt.Name = "VARBINARY"
@@ -241,7 +285,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwBIT:
 		dt.Name = "BIT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 
 	// ENUM type
 	case kwENUM:
@@ -304,7 +350,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 					return nil, err
 				}
 			} else {
-				p.parseOptionalLength(dt)
+				if err := p.parseOptionalLength(dt); err != nil {
+					return nil, err
+				}
 			}
 			p.parseCharsetCollate(dt)
 		} else if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER {
@@ -334,7 +382,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			}
 		} else {
 			dt.Name = "CHAR"
-			p.parseOptionalLength(dt)
+			if err := p.parseOptionalLength(dt); err != nil {
+				return nil, err
+			}
 		}
 		p.parseCharsetCollate(dt)
 
@@ -351,42 +401,58 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwINT1:
 		dt.Name = "TINYINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 	case kwINT2:
 		dt.Name = "SMALLINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 	case kwINT3:
 		dt.Name = "MEDIUMINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 	case kwINT4:
 		dt.Name = "INT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 	case kwINT8:
 		dt.Name = "BIGINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 	case kwMIDDLEINT:
 		dt.Name = "MEDIUMINT"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 	case kwFLOAT4:
 		dt.Name = "FLOAT"
 		p.advance()
-		p.parseOptionalPrecision(dt)
+		if err := p.parseOptionalPrecision(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 	case kwFLOAT8:
 		dt.Name = "DOUBLE"
 		p.advance()
-		p.parseOptionalPrecision(dt)
+		if err := p.parseOptionalPrecision(dt); err != nil {
+			return nil, err
+		}
 		p.parseUnsignedZerofill(dt)
 	case kwLONG:
 		// LONG and the VARCHAR spellings of it -- LONG VARCHAR, LONG
@@ -428,7 +494,6 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	return dt, nil
 }
 
-// parseOptionalLength parses an optional (N) length specification.
 // parseRequiredLength parses the length a VARCHAR-shaped type must carry.
 // MySQL takes CHAR with a length or without one but VARCHAR only with one, in
 // every spelling: `varcharacter(1)`, `char varying(50)` and `nchar
@@ -442,9 +507,6 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 		}
 	}
 	p.advance()
-	// Empty parentheses are not a length. parseOptionalLength tolerates them,
-	// because a type that may leave the length out reads `(` as the start of
-	// one and gives up quietly; a type that must carry one cannot.
 	if p.cur.Type != tokICONST {
 		return &ParseError{
 			Message:  "expected a length for " + dt.Name,
@@ -463,38 +525,56 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 	return nil
 }
 
-func (p *Parser) parseOptionalLength(dt *nodes.DataType) {
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == tokICONST {
-			dt.Length = int(p.cur.Ival)
-			p.advance()
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
+// parseOptionalLength parses the `(length)` a type may leave out. The
+// parentheses are optional; what goes between them is not. Every engine answers
+// 1064 for `int()`, `year()` and `datetime()` as surely as for `varchar()`, and
+// for a length that never closes, so once `(` is there the rest is a length
+// that must carry a number and end at `)`.
+func (p *Parser) parseOptionalLength(dt *nodes.DataType) error {
+	if p.cur.Type != '(' {
+		return nil
 	}
+	return p.parseRequiredLength(dt)
 }
 
-// parseOptionalPrecision parses an optional (M) or (M,D) precision specification.
-func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) {
-	if p.cur.Type == '(' {
-		p.advance()
-		if p.cur.Type == tokICONST {
-			dt.Length = int(p.cur.Ival)
-			p.advance()
-		}
-		if p.cur.Type == ',' {
-			p.advance()
-			if p.cur.Type == tokICONST {
-				dt.Scale = int(p.cur.Ival)
-				p.advance()
-			}
-		}
-		if p.cur.Type == ')' {
-			p.advance()
+// parseOptionalPrecision parses the `(precision[, scale])` the approximate and
+// exact numeric types may leave out. As with a length, the parentheses are
+// optional and their contents are not: the engines answer 1064 for
+// `decimal(10,)`, `decimal(,2)` and `float(10,)`, so a precision that opens
+// must carry a number, a scale that follows a comma must too, and the whole
+// must close.
+func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
+	if p.cur.Type != '(' {
+		return nil
+	}
+	p.advance()
+	if p.cur.Type != tokICONST {
+		return &ParseError{
+			Message:  "expected a precision for " + dt.Name,
+			Position: p.cur.Loc,
 		}
 	}
+	dt.Length = int(p.cur.Ival)
+	p.advance()
+	if p.cur.Type == ',' {
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return &ParseError{
+				Message:  "expected a scale for " + dt.Name,
+				Position: p.cur.Loc,
+			}
+		}
+		dt.Scale = int(p.cur.Ival)
+		p.advance()
+	}
+	if p.cur.Type != ')' {
+		return &ParseError{
+			Message:  "expected ) after the precision for " + dt.Name,
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance()
+	return nil
 }
 
 // parseUnsignedZerofill parses optional SIGNED, UNSIGNED, and ZEROFILL modifiers.
@@ -556,10 +636,26 @@ func (p *Parser) parseStringValueList() ([]string, error) {
 
 	var vals []string
 	for {
-		if p.cur.Type == tokSCONST {
+		switch p.cur.Type {
+		case tokSCONST:
 			vals = append(vals, p.cur.Str)
 			p.advance()
-		} else {
+		case tokXCONST, tokBCONST:
+			// A member may be written as a hex or bit literal, in either
+			// spelling: `ENUM(0x61, 'b')` and `ENUM(x'61')` both name the
+			// member `a` (https://dev.mysql.com/doc/refman/8.0/en/hexadecimal-literals.html,
+			// .../bit-value-literals.html — in string context both are their
+			// bytes). The member is the bytes, not the text that wrote them, so
+			// it is decoded here: leaving `0x61` to a consumer would have the
+			// catalog report `enum('0x61')` and a deparse write a different
+			// table than the one the engine built.
+			val, err := p.decodeByteLiteral(p.cur)
+			if err != nil {
+				return nil, err
+			}
+			vals = append(vals, val)
+			p.advance()
+		default:
 			return nil, &ParseError{
 				Message:  "expected string literal in value list",
 				Position: p.cur.Loc,
@@ -575,4 +671,58 @@ func (p *Parser) parseStringValueList() ([]string, error) {
 		return nil, err
 	}
 	return vals, nil
+}
+
+// decodeByteLiteral reads the bytes a hex or bit literal holds.
+//
+// Which spelling wrote it is read from the source text, not from the token's
+// own text: an unquoted literal keeps its `0x` or `0b` prefix in the text the
+// lexer hands over, and a quoted one keeps only what stood between the quotes.
+// The text alone cannot tell them apart, because the contents of a quoted hex
+// literal can themselves begin with `0b` -- reading that as a prefix decoded
+// `x` + `0b61` as the member `a` instead of the two bytes 0x0b 0x61. The byte
+// at the token's own position settles it: `0` opens the unquoted spelling, and
+// `x`, `X`, `b` or `B` the quoted one.
+//
+// Digits that do not fill whole bytes are padded on the left, so `0x6` is one
+// byte, 0x06, and so is a quoted bit literal holding a single 1. The one
+// exception is the quoted hex spelling, whose digit count must be even: three
+// hex digits in quotes is a 1064 where `0x616` is a number, which is the rule
+// https://dev.mysql.com/doc/refman/8.0/en/hexadecimal-literals.html states. A
+// quoted literal with nothing between its quotes is a member with no bytes in
+// it, the empty string. MySQL 8.0, MariaDB 11.8.8 and TiDB v8.5.5 all answer
+// this way.
+func (p *Parser) decodeByteLiteral(tok Token) (string, error) {
+	base, group := 16, 2
+	if tok.Type == tokBCONST {
+		base, group = 2, 8
+	}
+
+	digits := tok.Str
+	if p.inputText(tok.Loc, tok.Loc+1) == "0" {
+		// The unquoted spelling. The lexer only makes this token when at least
+		// one digit of the base follows the prefix; anything else is a name.
+		if len(digits) < 3 {
+			return "", &ParseError{Message: "malformed byte literal", Position: tok.Loc}
+		}
+		digits = digits[2:]
+	} else if tok.Type == tokXCONST && len(digits)%group != 0 {
+		return "", &ParseError{
+			Message:  "hexadecimal literal with an odd number of digits",
+			Position: tok.Loc,
+		}
+	}
+	if r := len(digits) % group; r != 0 {
+		digits = strings.Repeat("0", group-r) + digits
+	}
+
+	out := make([]byte, 0, len(digits)/group)
+	for i := 0; i < len(digits); i += group {
+		b, err := strconv.ParseUint(digits[i:i+group], base, 8)
+		if err != nil {
+			return "", &ParseError{Message: "malformed byte literal", Position: tok.Loc}
+		}
+		out = append(out, byte(b))
+	}
+	return string(out), nil
 }

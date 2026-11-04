@@ -26,6 +26,11 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			reportAt(review.DropCode(kind), anchor(s, n, loc), drops(kind, names...))
 		}
 		switch v := n.(type) {
+		case *ast.ExplainStmt:
+			// A plain EXPLAIN reports a plan and changes nothing, so what it
+			// carries is no change of this kind; ANALYZE runs it, and on TiDB
+			// that reaches ALTER TABLE.
+			return v.Analyze
 		case *ast.DropTableStmt:
 			kind := "table"
 			if v.Temporary {

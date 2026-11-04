@@ -104,8 +104,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			tbl.Tablespace = opt.Value
 		case "pack_keys":
 			tbl.PackKeys = opt.Value
-		case "checksum":
-			tbl.Checksum = opt.Value
+		case "checksum", "table_checksum":
+			tbl.Checksum = normalizedChecksum(opt.Value)
 		case "delay_key_write":
 			tbl.DelayKeyWrite = opt.Value
 		}
@@ -2449,11 +2449,16 @@ func formatColumnType(dt *nodes.DataType) string {
 		}
 		buf.WriteString(")")
 	}
-	if dt.Unsigned || dt.Zerofill {
-		buf.WriteString(" unsigned")
-	}
-	if dt.Zerofill {
-		buf.WriteString(" zerofill")
+	// YEAR takes UNSIGNED and ZEROFILL and keeps neither: every engine's SHOW
+	// CREATE TABLE writes `year` for `year unsigned zerofill`, so a column that
+	// was declared with them is not one that reports them.
+	if name != "year" {
+		if dt.Unsigned || dt.Zerofill {
+			buf.WriteString(" unsigned")
+		}
+		if dt.Zerofill {
+			buf.WriteString(" zerofill")
+		}
 	}
 	return buf.String()
 }
@@ -2749,4 +2754,21 @@ func refActionToString(action nodes.ReferenceAction) string {
 	default:
 		return "NO ACTION"
 	}
+}
+
+// normalizedChecksum is the value CHECKSUM reports, which is not the value it
+// was given: the option is a flag, so the server records any non-zero number as
+// 1 and a zero as no option at all. `CHECKSUM=2`, `TABLE_CHECKSUM=1` and
+// `CHECKSUM=1.5` all read back as `CHECKSUM=1`, and `CHECKSUM=0` reads back as
+// nothing (MySQL 8.0 and MariaDB 11.8.8, information_schema.tables.create_options).
+//
+// TABLE_CHECKSUM is CHECKSUM's other name and reports under CHECKSUM, so it
+// comes here too.
+func normalizedChecksum(value string) string {
+	for _, c := range value {
+		if c != '0' && c != '.' && c != '+' && c != '-' {
+			return "1"
+		}
+	}
+	return "0"
 }

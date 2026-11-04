@@ -10,12 +10,13 @@ import (
 //
 //	DROP [TEMPORARY] TABLE [IF EXISTS] tbl_name [, tbl_name] ...
 //	    [RESTRICT | CASCADE]
-func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTableStmt, error) {
+func (p *Parser) parseDropTableStmt(start int, temporary, global bool) (*nodes.DropTableStmt, error) {
 	p.advance() // consume TABLE
 
 	stmt := &nodes.DropTableStmt{
 		Loc:       nodes.Loc{Start: start},
 		Temporary: temporary,
+		Global:    global,
 	}
 
 	// IF EXISTS

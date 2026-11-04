@@ -202,6 +202,17 @@ type CreateTableStmt struct {
 	Loc         Loc
 	IfNotExists bool
 	Temporary   bool
+	// Global marks CREATE GLOBAL TEMPORARY TABLE, TiDB's own kind of temporary
+	// table, and OnCommit holds the DELETE ROWS or PRESERVE ROWS that spelling
+	// must end with.
+	//
+	// Temporary stays false for it, because a global temporary table is not in
+	// the session's temporary namespace: v8.5.5 lists it in SHOW TABLES and in
+	// information_schema.tables as a BASE TABLE, refuses a base table of the
+	// same name with 1050, drops it with a plain DROP TABLE, and answers 1051
+	// to DROP TEMPORARY TABLE for it. Only its rows are per-session.
+	Global      bool
+	OnCommit    string
 	Table       *TableRef
 	Columns     []*ColumnDef
 	Constraints []*Constraint
@@ -322,8 +333,13 @@ type DropTableStmt struct {
 	IfExists  bool
 	Tables    []*TableRef
 	Temporary bool
-	Cascade   bool
-	Restrict  bool
+	// Global marks DROP GLOBAL TEMPORARY TABLE. It is another way to name a
+	// table CREATE GLOBAL TEMPORARY TABLE made, not the only one -- a plain
+	// DROP TABLE drops it too -- and Temporary stays false for it, since the
+	// table is not in the session's temporary namespace.
+	Global   bool
+	Cascade  bool
+	Restrict bool
 }
 
 func (s *DropTableStmt) nodeTag()  {}
@@ -1222,12 +1238,18 @@ func (s *UseStmt) nodeTag()  {}
 func (s *UseStmt) stmtNode() {}
 
 // ExplainStmt represents an EXPLAIN/DESCRIBE statement.
+//
+// Which fields a statement can set is TiDB's modifier list, not MySQL's:
+// Extended and Partitions are MySQL 5.7 modifiers TiDB never had, so no
+// statement sets either (tidb/parser/explain_forms_test.go). Stmt is nil for
+// the FOR CONNECTION form, which is how a consumer tells it from a connection
+// id that happens to be 0.
 type ExplainStmt struct {
 	Loc           Loc
-	Format        string // TRADITIONAL, JSON, TREE
-	Analyze       bool   // EXPLAIN ANALYZE
-	Extended      bool   // EXPLAIN EXTENDED (deprecated but still parsed)
-	Partitions    bool   // EXPLAIN PARTITIONS (deprecated but still parsed)
+	Format        string // TRADITIONAL, JSON, ROW, DOT, BRIEF, VERBOSE, TRUE_CARD_COST, TIDB_JSON, or any quoted name
+	Analyze       bool   // EXPLAIN ANALYZE, which runs the statement it carries
+	Extended      bool   // EXPLAIN EXTENDED: no TiDB syntax sets this
+	Partitions    bool   // EXPLAIN PARTITIONS: no TiDB syntax sets this
 	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
 	Stmt          StmtNode
 }

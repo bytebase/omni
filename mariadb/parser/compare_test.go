@@ -4922,30 +4922,22 @@ func TestParseExplain(t *testing.T) {
 		}
 	})
 
+	// MariaDB has no EXPLAIN ANALYZE: it spells that ANALYZE [FORMAT = JSON]
+	// stmt, a statement of its own, and answers 1064 for the MySQL spelling.
+	// explain_forms_test.go holds the whole modifier list to the engine.
 	t.Run("explain analyze select", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN ANALYZE SELECT * FROM t1")}
-		p.advance()
-		stmt, err := p.parseExplainStmt()
-		if err != nil {
-			t.Fatalf("parseExplainStmt error: %v", err)
-		}
-		if !stmt.Analyze {
-			t.Error("Analyze = false, want true")
-		}
-		if _, ok := stmt.Stmt.(*ast.SelectStmt); !ok {
-			t.Errorf("Stmt type = %T, want *ast.SelectStmt", stmt.Stmt)
-		}
+		ParseExpectError(t, "EXPLAIN ANALYZE SELECT * FROM t1")
 	})
 
-	t.Run("explain analyze values", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN ANALYZE VALUES (1, 2)")}
+	t.Run("explain values", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN VALUES (1, 2)")}
 		p.advance()
 		stmt, err := p.parseExplainStmt()
 		if err != nil {
 			t.Fatalf("parseExplainStmt error: %v", err)
 		}
-		if !stmt.Analyze {
-			t.Error("Analyze = false, want true")
+		if stmt.Analyze {
+			t.Error("Analyze = true, want false")
 		}
 		sel, ok := stmt.Stmt.(*ast.SelectStmt)
 		if !ok || sel.ValuesSource == nil {
@@ -11544,7 +11536,7 @@ func TestReviewBatch109_ExplainTableStmt(t *testing.T) {
 }
 
 func TestReviewBatch109_ExplainAnalyze(t *testing.T) {
-	ParseAndCheck(t, "EXPLAIN ANALYZE SELECT * FROM t")
+	ParseExpectError(t, "EXPLAIN ANALYZE SELECT * FROM t")
 }
 
 func TestReviewBatch109_ExplainFormatTree(t *testing.T) {

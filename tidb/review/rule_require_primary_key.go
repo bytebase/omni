@@ -44,7 +44,9 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 	}
 	for i := range stmts {
 		s := &stmts[i]
-		switch v := s.node.(type) {
+		// executed, not s.node: an EXPLAIN ANALYZE runs the ALTER TABLE it
+		// carries, so the key it drops is dropped.
+		switch v := executed(s.node).(type) {
 		case *ast.CreateTableStmt:
 			// IF NOT EXISTS of a table the change made does nothing, and a
 			// temporary table leaves the table of its name as it is.

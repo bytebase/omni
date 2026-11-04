@@ -73,6 +73,9 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dml(n, singleTarget(v.Tables))
 	case *ast.SetStmt:
 		return b.set(v)
+	// MariaDB has no EXPLAIN ANALYZE (mariadb/parser/explain_forms_test.go), so an EXPLAIN here reports a plan and
+	// never runs the statement it carries; MySQL and TiDB lower the ANALYZE
+	// form as the statement it performs.
 	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt, *ast.ExplainStmt:
 		if b.callsStoredFunction(n) {
 			b.forgetTemporary()

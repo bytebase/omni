@@ -323,6 +323,32 @@ func TestWalkThroughTiDBTargetGroups(t *testing.T) {
 	}
 }
 
+// TestWalkThroughTiDBExplain pins what EXPLAIN does to the walk. Reporting a
+// plan changes nothing, so a plain EXPLAIN is followed and recorded as
+// nothing; ANALYZE runs the statement it carries, and on TiDB that reaches
+// DDL, so the walk follows the change it makes
+// (tidb/parser/explain_forms_test.go measures both against v8.5.5).
+func TestWalkThroughTiDBExplain(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	// EXPLAIN ALTER TABLE leaves the table as it was, so the same change
+	// after it is not a repeat and a missing table is nobody's problem.
+	noFinding(t, "EXPLAIN ALTER TABLE t ADD COLUMN c int;\nALTER TABLE t ADD COLUMN c int;", shop)
+	noFinding(t, "EXPLAIN FORMAT = 'brief' ALTER TABLE t ADD COLUMN c int;\nALTER TABLE t ADD COLUMN c int;", shop)
+	noFinding(t, "EXPLAIN ALTER TABLE nosuch ADD COLUMN c int;", shop)
+	noFinding(t, "EXPLAIN ALTER TABLE t ADD COLUMN a int;", shop)
+	// EXPLAIN ANALYZE ALTER TABLE makes the change, so the column is there
+	// for the statement that follows (1060)...
+	oneFinding(t, "EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c int;\nALTER TABLE t ADD COLUMN c int;", 1,
+		"Column `c` already exists in `t`.", shop)
+	// ...and the change it carries is judged itself.
+	oneFinding(t, "EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN a int;", 0,
+		"Column `a` already exists in `t`.", shop)
+	oneFinding(t, "EXPLAIN ANALYZE ALTER TABLE nosuch ADD COLUMN c int;", 0,
+		"Table `nosuch` doesn't exist.", shop)
+	// A query EXPLAIN ANALYZE runs still changes no name the walk keeps.
+	noFinding(t, "EXPLAIN ANALYZE SELECT 1;\nEXPLAIN ANALYZE UPDATE t SET a = 1;", shop)
+}
+
 // walkForms are the statement forms the walk lowers (the MySQL spec's §5
 // table, with spec §3's TiDB deltas), each on walkSchema. A form the table
 // lists must lower.
@@ -378,6 +404,7 @@ var walkForms = []walktest.Form{
 	{SQL: "UPDATE nokey SET a = 1;"},
 	{SQL: "DELETE FROM nokey;"},
 	{SQL: "SELECT 1;"},
+	{SQL: "EXPLAIN SELECT 1;\nEXPLAIN ALTER TABLE t ADD COLUMN c int;\nEXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c int;"},
 	{SQL: "SET foreign_key_checks = 0;\nSET @@session.foreign_key_checks = 1;\nSET NAMES utf8mb4;"},
 	{SQL: "BEGIN;\nSAVEPOINT a;\nRELEASE SAVEPOINT a;\nCOMMIT;"},
 	{SQL: "SHOW TABLES;\nANALYZE TABLE t;"},

@@ -4919,30 +4919,21 @@ func TestParseExplain(t *testing.T) {
 		}
 	})
 
+	// OceanBase has no EXPLAIN ANALYZE, which MySQL and TiDB both take;
+	// explain_forms_test.go holds the whole modifier list to the engine.
 	t.Run("explain analyze select", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN ANALYZE SELECT * FROM t1")}
-		p.advance()
-		stmt, err := p.parseExplainStmt()
-		if err != nil {
-			t.Fatalf("parseExplainStmt error: %v", err)
-		}
-		if !stmt.Analyze {
-			t.Error("Analyze = false, want true")
-		}
-		if _, ok := stmt.Stmt.(*ast.SelectStmt); !ok {
-			t.Errorf("Stmt type = %T, want *ast.SelectStmt", stmt.Stmt)
-		}
+		ParseExpectError(t, "EXPLAIN ANALYZE SELECT * FROM t1")
 	})
 
-	t.Run("explain analyze values", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN ANALYZE VALUES ROW(1, 2)")}
+	t.Run("explain values", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("EXPLAIN VALUES ROW(1, 2)")}
 		p.advance()
 		stmt, err := p.parseExplainStmt()
 		if err != nil {
 			t.Fatalf("parseExplainStmt error: %v", err)
 		}
-		if !stmt.Analyze {
-			t.Error("Analyze = false, want true")
+		if stmt.Analyze {
+			t.Error("Analyze = true, want false")
 		}
 		values, ok := stmt.Stmt.(*ast.ValuesStmt)
 		if !ok {
@@ -4977,15 +4968,18 @@ func TestParseExplain(t *testing.T) {
 		}
 	})
 
+	// OceanBase's format names are TRADITIONAL and JSON, bare, and no
+	// others: TREE and every quoted name are each a 1064.
 	t.Run("explain format tree select", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN FORMAT=TREE SELECT * FROM t1")}
+		ParseExpectError(t, "EXPLAIN FORMAT=TREE SELECT * FROM t1")
+		p := &Parser{lexer: NewLexer("EXPLAIN FORMAT=JSON SELECT * FROM t1")}
 		p.advance()
 		stmt, err := p.parseExplainStmt()
 		if err != nil {
 			t.Fatalf("parseExplainStmt error: %v", err)
 		}
-		if stmt.Format != "TREE" {
-			t.Errorf("Format = %s, want TREE", stmt.Format)
+		if stmt.Format != "JSON" {
+			t.Errorf("Format = %s, want JSON", stmt.Format)
 		}
 	})
 
@@ -9812,13 +9806,17 @@ func TestParseShowExtendedColumns(t *testing.T) {
 	}
 }
 
+// OceanBase has no EXPLAIN FOR CONNECTION in any spelling, where MySQL,
+// MariaDB and TiDB all take it; explain_forms_test.go holds the whole
+// modifier list to the engine.
 func TestParseExplainForConnection(t *testing.T) {
 	tests := []string{
 		"EXPLAIN FOR CONNECTION 42",
+		"EXPLAIN FORMAT = JSON FOR CONNECTION 42",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
 }
@@ -10310,6 +10308,9 @@ func TestParseCreateTableSecondaryEngine(t *testing.T) {
 	}
 }
 
+// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE are MySQL 8.0 options OceanBase
+// does not have: CE 4.3.5.6 answers 1064 for either one as a table option, as a
+// column option and on ALTER TABLE.
 func TestParseCreateTableSecondaryEngineAttribute(t *testing.T) {
 	tests := []string{
 		"CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE = '{\"key\": \"value\"}'",
@@ -10317,7 +10318,9 @@ func TestParseCreateTableSecondaryEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but OceanBase CE 4.3.5.6 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10829,7 +10832,9 @@ func TestParseCreateTableEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but OceanBase CE 4.3.5.6 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10842,7 +10847,9 @@ func TestParseColumnEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but OceanBase CE 4.3.5.6 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10855,7 +10862,9 @@ func TestParseColumnSecondaryEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but OceanBase CE 4.3.5.6 rejects it", sql)
+			}
 		})
 	}
 }
@@ -11532,15 +11541,16 @@ func TestReviewBatch109_ExplainTableWild(t *testing.T) {
 }
 
 func TestReviewBatch109_ExplainTableStmt(t *testing.T) {
-	ParseAndCheck(t, "EXPLAIN TABLE t")
+	ParseExpectError(t, "EXPLAIN TABLE t")
 }
 
 func TestReviewBatch109_ExplainAnalyze(t *testing.T) {
-	ParseAndCheck(t, "EXPLAIN ANALYZE SELECT * FROM t")
+	ParseExpectError(t, "EXPLAIN ANALYZE SELECT * FROM t")
 }
 
 func TestReviewBatch109_ExplainFormatTree(t *testing.T) {
-	ParseAndCheck(t, "EXPLAIN FORMAT = TREE SELECT * FROM t")
+	ParseExpectError(t, "EXPLAIN FORMAT = TREE SELECT * FROM t")
+	ParseAndCheck(t, "EXPLAIN FORMAT = TRADITIONAL SELECT * FROM t")
 }
 
 func TestReviewBatch109_HelpString(t *testing.T) {

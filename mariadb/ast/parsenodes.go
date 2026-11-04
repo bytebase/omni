@@ -1307,12 +1307,19 @@ func (s *UseStmt) nodeTag()  {}
 func (s *UseStmt) stmtNode() {}
 
 // ExplainStmt represents an EXPLAIN/DESCRIBE statement.
+//
+// Which fields a statement can set is MariaDB's modifier list: EXTENDED and
+// PARTITIONS are still here, and there is no EXPLAIN ANALYZE at all -- MariaDB
+// spells that ANALYZE ... stmt, a statement of its own -- so no statement sets
+// Analyze (mariadb/parser/explain_forms_test.go). Stmt is nil for the FOR
+// CONNECTION form, which is how a consumer tells it from a connection id that
+// happens to be 0.
 type ExplainStmt struct {
 	Loc           Loc
-	Format        string // TRADITIONAL, JSON, TREE
-	Analyze       bool   // EXPLAIN ANALYZE
-	Extended      bool   // EXPLAIN EXTENDED (deprecated but still parsed)
-	Partitions    bool   // EXPLAIN PARTITIONS (deprecated but still parsed)
+	Format        string // any ident_or_text: JSON, TRADITIONAL, quoted or not
+	Analyze       bool   // EXPLAIN ANALYZE: no MariaDB syntax sets this
+	Extended      bool   // EXPLAIN EXTENDED
+	Partitions    bool   // EXPLAIN PARTITIONS
 	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
 	Stmt          StmtNode
 }
