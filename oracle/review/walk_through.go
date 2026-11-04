@@ -56,12 +56,24 @@ type walkNote struct {
 	absent                  string
 	present                 string
 	absentCode, presentCode review.FindingCode
+	// kind, when set, is the kind of object the statement takes or
+	// creates under the name written, so that the finding can say what
+	// the violation found: under a Present check an object of another
+	// known kind is "w is a <found>, not a <kind>", and under an Absent
+	// check one of kind itself "<Kind> w already exists".
+	written, kind string
 }
 
 // finding returns the code and the message of the violation.
 func (n *walkNote) finding(v *walk.Violation) (review.FindingCode, string) {
-	if v.Got == walk.Absent {
+	switch {
+	case v.Got == walk.Absent:
 		return n.absentCode, n.absent
+	case n.kind == "" || v.Kind == "":
+	case v.Check.Want == walk.Absent && v.Kind == n.kind:
+		return n.presentCode, takenKind(n.kind, n.written)
+	case v.Check.Want == walk.Present && v.Kind != n.kind:
+		return n.presentCode, wrongKind(n.written, v.Kind, kindWord(n.kind))
 	}
 	return n.presentCode, n.present
 }
@@ -476,6 +488,13 @@ func missingIn(kind, n, table string) string {
 // takenName is review.NameTaken in a namespace objects of several kinds
 // share, or of an object of a kind the walk does not know.
 func takenName(w string) string { return "The name " + review.Code(w) + " is already taken." }
+
+// takenKind is review.NameTaken by an object of the kind the statement
+// creates: "Table `T` already exists."
+func takenKind(kind, w string) string {
+	word := kindWord(kind)
+	return strings.ToUpper(word[:1]) + word[1:] + " " + review.Code(w) + " already exists."
+}
 
 func takenConstraint(n string) string {
 	return "Constraint " + review.Code(ident(n)) + " already exists."

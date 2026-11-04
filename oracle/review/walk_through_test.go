@@ -106,7 +106,7 @@ func noFinding(t *testing.T, sql string, target review.Target) {
 func TestWalkThroughOracle(t *testing.T) {
 	shop := review.Target{Schema: walkSchema(false)}
 	// Names a statement creates.
-	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE t (a NUMBER);", 1, "The name `T` is already taken.", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	oneFinding(t, "CREATE SEQUENCE pv;", 0, "The name `PV` is already taken.", shop)
 	oneFinding(t, "CREATE OR REPLACE VIEW t AS SELECT 1 a FROM dual;", 0, "The name `T` is already taken.", shop)
 	noFinding(t, "CREATE OR REPLACE VIEW pv AS SELECT 1 a FROM dual;\nCREATE OR REPLACE FUNCTION f RETURN NUMBER AS BEGIN RETURN 1; END;", shop)
@@ -117,9 +117,9 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "CREATE TABLE IF NOT EXISTS t (a NUMBER, a NUMBER);", 0, "This statement declares column `A` twice.", shop)
 	// Tables, which ALTER, DROP, and TRUNCATE take by no synonym.
 	oneFinding(t, "ALTER TABLE nosuch ADD (x NUMBER);", 0, "Table `NOSUCH` doesn't exist.", shop)
-	oneFinding(t, "ALTER TABLE pv ADD (x NUMBER);", 0, "Table `PV` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE pv ADD (x NUMBER);", 0, "`PV` is a view, not a table.", shop)
 	noFinding(t, "ALTER TABLE mv LOGGING;", shop)
-	oneFinding(t, "DROP TABLE pv;", 0, "Table `PV` doesn't exist.", shop)
+	oneFinding(t, "DROP TABLE pv;", 0, "`PV` is a view, not a table.", shop)
 	oneFinding(t, "DROP TABLE mv;", 0, "`MV` is a materialized view, not a table.", shop)
 	oneFinding(t, "DROP TABLE IF EXISTS mv;", 0, "`MV` is a materialized view, not a table.", shop)
 	noFinding(t, "DROP TABLE IF EXISTS pv;\nDROP TABLE IF EXISTS nosuch;", shop)
@@ -166,8 +166,8 @@ func TestWalkThroughOracle(t *testing.T) {
 	oneFinding(t, "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;\n/\nCREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;", 1, "Trigger `TR2` already exists.", shop)
 	oneFinding(t, "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;\n/\nCREATE OR REPLACE TRIGGER tr2 BEFORE INSERT ON p FOR EACH ROW BEGIN NULL; END;", 1, "Trigger `TR2` already exists on another table.", shop)
 	// Views, sequences, synonyms, and routines.
-	oneFinding(t, "DROP VIEW t;", 0, "View `T` doesn't exist.", shop)
-	oneFinding(t, "DROP SEQUENCE t;", 0, "Sequence `T` doesn't exist.", shop)
+	oneFinding(t, "DROP VIEW t;", 0, "`T` is a table, not a view.", shop)
+	oneFinding(t, "DROP SEQUENCE t;", 0, "`T` is a table, not a sequence.", shop)
 	oneFinding(t, "ALTER SEQUENCE nosuch INCREMENT BY 2;", 0, "Sequence `NOSUCH` doesn't exist.", shop)
 	oneFinding(t, "DROP SYNONYM t;", 0, "`T` isn't a private synonym.", shop)
 	noFinding(t, "DROP SYNONYM nosuch;\nDROP PUBLIC SYNONYM t;\nDROP PROCEDURE nosuch2;", shop)
@@ -199,7 +199,7 @@ func TestWalkThroughOracleEffects(t *testing.T) {
 	// A renamed table keeps its columns and leaves its old name.
 	oneFinding(t, "ALTER TABLE t RENAME TO t2;\nALTER TABLE t2 DROP COLUMN zz;", 1, "Column `ZZ` doesn't exist in `T2`.", shop)
 	oneFinding(t, "ALTER TABLE t RENAME TO t2;\nALTER TABLE t ADD (x NUMBER);", 1, "Table `T` doesn't exist.", shop)
-	oneFinding(t, "RENAME t TO t2;\nCREATE TABLE t2 (a NUMBER);", 1, "The name `T2` is already taken.", shop)
+	oneFinding(t, "RENAME t TO t2;\nCREATE TABLE t2 (a NUMBER);", 1, "Table `T2` already exists.", shop)
 	noFinding(t, "ALTER TABLE t RENAME TO t2;\nDROP TABLE t2;\nCREATE INDEX ix_n ON nokey (a);", shop)
 	// An index or trigger may be in another schema than its table.
 	noFinding(t, "CREATE TABLE other.o (a NUMBER);\nCREATE INDEX oi ON other.o (a);\nCREATE TRIGGER otr BEFORE INSERT ON other.o FOR EACH ROW BEGIN NULL; END;\n/\nDROP TABLE other.o;\nCREATE INDEX oi ON nokey (a);\nCREATE TRIGGER otr BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;", shop)
@@ -211,14 +211,14 @@ func TestWalkThroughOracleEffects(t *testing.T) {
 	noFinding(t, "ALTER TABLE t DROP COLUMN n;\nALTER TABLE t DROP CONSTRAINT ck_n;", shop)
 	noFinding(t, "ALTER TABLE t MODIFY (code NULL);\nALTER TABLE nokey ADD CONSTRAINT nn_code CHECK (a > 0);", shop)
 	// A nested table's storage table goes with its parent, or its column.
-	oneFinding(t, "CREATE TABLE child (a NUMBER);", 0, "The name `CHILD` is already taken.", shop)
+	oneFinding(t, "CREATE TABLE child (a NUMBER);", 0, "Table `CHILD` already exists.", shop)
 	noFinding(t, "DROP TABLE parent;\nCREATE TABLE child (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE parent DROP COLUMN c;\nCREATE TABLE child (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE parent SET UNUSED COLUMN c;\nALTER TABLE parent DROP UNUSED COLUMNS;\nCREATE TABLE child (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE nokey ADD (c nt_ty) NESTED TABLE c STORE AS s2;\nDROP TABLE s2;", shop)
-	oneFinding(t, "DROP TABLE other.o;\nCREATE TABLE child (a NUMBER);", 1, "The name `CHILD` is already taken.", shop)
+	oneFinding(t, "DROP TABLE other.o;\nCREATE TABLE child (a NUMBER);", 1, "Table `CHILD` already exists.", shop)
 	// A materialized view log's table goes with its master.
-	oneFinding(t, "CREATE TABLE mlog$_p (a NUMBER);", 0, "The name `MLOG$_P` is already taken.", shop)
+	oneFinding(t, "CREATE TABLE mlog$_p (a NUMBER);", 0, "Table `MLOG$_P` already exists.", shop)
 	noFinding(t, "DROP TABLE p;\nCREATE TABLE mlog$_p (a NUMBER);\nCREATE INDEX i_mlog$_p ON nokey (a);", shop)
 	oneFinding(t, "DROP TABLE other.o;\nCREATE INDEX i_mlog$_p ON nokey (a);", 1, "The name `I_MLOG$_P` is already taken.", shop)
 	// DROP TYPE ... FORCE takes the columns of the type, and their
@@ -241,10 +241,10 @@ func TestWalkThroughOracleSession(t *testing.T) {
 	shop := review.Target{Schema: walkSchema(false)}
 	// Another schema is unknown, until the change makes its objects.
 	noFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE t (a NUMBER);", shop)
-	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE x (a NUMBER);\nCREATE TABLE other.x (a NUMBER);", 2, "The name `OTHER.X` is already taken.", shop)
-	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE shop.t (a NUMBER);", 1, "The name `SHOP.T` is already taken.", shop)
-	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nALTER SESSION SET CURRENT_SCHEMA = shop;\nCREATE TABLE t (a NUMBER);", 2, "The name `T` is already taken.", shop)
-	oneFinding(t, "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY';\nCREATE TABLE t (a NUMBER);", 1, "The name `T` is already taken.", shop)
+	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE x (a NUMBER);\nCREATE TABLE other.x (a NUMBER);", 2, "Table `OTHER.X` already exists.", shop)
+	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE shop.t (a NUMBER);", 1, "Table `SHOP.T` already exists.", shop)
+	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nALTER SESSION SET CURRENT_SCHEMA = shop;\nCREATE TABLE t (a NUMBER);", 2, "Table `T` already exists.", shop)
+	oneFinding(t, "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY';\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	// What the walk does not follow ends it.
 	noFinding(t, "ALTER SESSION SET EDITION = e1;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "BEGIN NULL; END;\n/\nCREATE TABLE t (a NUMBER);", shop)
@@ -259,7 +259,7 @@ func TestWalkThroughOracleSession(t *testing.T) {
 	noFinding(t, "ALTER TABLE t ADD SUPPLEMENTAL LOG GROUP lg (n) ALWAYS;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "INSERT INTO t@lnk VALUES (1);\nCREATE TABLE t (a NUMBER);", shop)
 	// A string is no name.
-	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nCREATE TABLE t (a NUMBER);", 1, "The name `T` is already taken.", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 }
 
 // TestWalkThroughOracleUserCode pins where a statement may run code that
@@ -270,7 +270,7 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	// A query that calls a function of a schema.
 	noFinding(t, "SELECT f(1) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "SELECT upper(shop.f(1)) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
-	oneFinding(t, "SELECT upper('a'), nvl(1, 2), count(*) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "The name `T` is already taken.", shop)
+	oneFinding(t, "SELECT upper('a'), nvl(1, 2), count(*) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	noFinding(t, "CREATE TABLE x AS SELECT f(1) a FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE INDEX i ON nokey (f(a));\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE TABLE x AS SELECT f(1) a FROM dual;\nCREATE TABLE x (a NUMBER);", shop)
@@ -287,14 +287,14 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	noFinding(t, "INSERT INTO nokey (a) VALUES (sq2.nextval);\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "SELECT x FROM pv;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE INDEX i ON nokey (a + b);\nCREATE TABLE t (a NUMBER);", shop)
-	oneFinding(t, "CREATE INDEX i ON syn (p_id, b);\nCREATE INDEX j ON nokey (a + 1);\nCREATE TABLE t (a NUMBER);", 2, "The name `T` is already taken.", shop)
-	oneFinding(t, "UPDATE t x SET x.n = 1 WHERE x.id = 1 AND code = 'a' RETURNING n INTO :v;\nCREATE TABLE t (a NUMBER);", 1, "The name `T` is already taken.", shop)
-	oneFinding(t, "INSERT INTO nokey (a) VALUES (sq.nextval + 1);\nINSERT INTO nokey (a) SELECT p.id FROM p JOIN t ON t.p_id = p.id WHERE note = current_date;\nCREATE TABLE t (a NUMBER);", 2, "The name `T` is already taken.", shop)
-	oneFinding(t, "MERGE INTO nokey k USING p ON (k.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nDELETE FROM shop.t WHERE shop.t.id = 1;\nCREATE INDEX i ON nokey (a);\nCREATE TABLE t (a NUMBER);", 3, "The name `T` is already taken.", shop)
-	oneFinding(t, "CREATE TABLE x (a NUMBER);\nUPDATE x SET a = 1 WHERE a = 2;\nCREATE TABLE x (b NUMBER);", 2, "The name `X` is already taken.", shop)
+	oneFinding(t, "CREATE INDEX i ON syn (p_id, b);\nCREATE INDEX j ON nokey (a + 1);\nCREATE TABLE t (a NUMBER);", 2, "Table `T` already exists.", shop)
+	oneFinding(t, "UPDATE t x SET x.n = 1 WHERE x.id = 1 AND code = 'a' RETURNING n INTO :v;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
+	oneFinding(t, "INSERT INTO nokey (a) VALUES (sq.nextval + 1);\nINSERT INTO nokey (a) SELECT p.id FROM p JOIN t ON t.p_id = p.id WHERE note = current_date;\nCREATE TABLE t (a NUMBER);", 2, "Table `T` already exists.", shop)
+	oneFinding(t, "MERGE INTO nokey k USING p ON (k.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nDELETE FROM shop.t WHERE shop.t.id = 1;\nCREATE INDEX i ON nokey (a);\nCREATE TABLE t (a NUMBER);", 3, "Table `T` already exists.", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nUPDATE x SET a = 1 WHERE a = 2;\nCREATE TABLE x (b NUMBER);", 2, "Table `X` already exists.", shop)
 	// A quoted name of a function of a syntax of its own is a plain call.
 	noFinding(t, "SELECT \"EXTRACT\"(1) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
-	oneFinding(t, "SELECT extract(year FROM sysdate) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "The name `T` is already taken.", shop)
+	oneFinding(t, "SELECT extract(year FROM sysdate) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	// A domain index's indextype runs code of its own on the table's DDL
 	// and DML, and to build or drop the index.
 	for _, q := range []string{
@@ -312,7 +312,7 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	oneFinding(t, "ALTER TABLE doc ADD (body NUMBER);", 0, "Column `BODY` already exists in `DOC`.", shop)
 	// DML that may fire a trigger: any in the schema or the change, or a
 	// target the walk does not know as a table.
-	oneFinding(t, "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 1;\nDELETE FROM p;\nCREATE TABLE t (a NUMBER);", 3, "The name `T` is already taken.", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 1;\nDELETE FROM p;\nCREATE TABLE t (a NUMBER);", 3, "Table `T` already exists.", shop)
 	noFinding(t, "INSERT INTO nokey VALUES (1);\nCREATE TABLE t (a NUMBER);", triggered)
 	noFinding(t, "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;\n/\nINSERT INTO nokey VALUES (1);\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "INSERT INTO pv VALUES (1, 'a');\nCREATE TABLE t (a NUMBER);", shop)
@@ -323,7 +323,7 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	// DML ends the walk.
 	other := review.Target{Schema: walkSchema(false), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a NUMBER);", other)
-	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);", 1, "The name `X` is already taken.", other)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);", 1, "Table `X` already exists.", other)
 	noFinding(t, "CREATE TABLE x (a NUMBER);\nINSERT INTO x VALUES (1);\nCREATE TABLE x (a NUMBER);", other)
 }
 

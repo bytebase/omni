@@ -34,6 +34,9 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 	}
 	b.Order = walk.Lookups
 	k := r.key(spaceTable)
+	if b.heldByOther(k, r, kindTable) {
+		return true
+	}
 	f, kind := b.look(k)
 	b.need(k, walk.Present, nil, r.rng, missingTable(r.written), "")
 	if f == walk.Absent {

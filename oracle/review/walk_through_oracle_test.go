@@ -459,6 +459,10 @@ var walkCodes = map[string]struct {
 // found and the kind the statement takes.
 var wrongKindShape = regexp.MustCompile(`^N is an? (.+), not an? (.+)\.$`)
 
+// takenKindShape is a review.NameTaken message of an object of the kind
+// a CREATE makes, beyond the kinds walkCodes lists.
+var takenKindShape = regexp.MustCompile(`^[A-Z][a-z ]+ N already exists\.$`)
+
 func (e *oracleEngine) Codes(message string) []string {
 	m := walkShape(message)
 	if c, ok := walkCodes[m]; ok {
@@ -466,6 +470,9 @@ func (e *oracleEngine) Codes(message string) []string {
 			return c.by(e.stmt, e.anchor)
 		}
 		return c.codes
+	}
+	if takenKindShape.MatchString(m) {
+		return []string{"00955"}
 	}
 	k := wrongKindShape.FindStringSubmatch(m)
 	if k == nil {
@@ -476,6 +483,14 @@ func (e *oracleEngine) Codes(message string) []string {
 		return []string{"32318"}
 	case needed == renamable:
 		return []string{"03001"}
+	case needed == "table" && found == "materialized view":
+		return []string{"12083"}
+	// DROP and ALTER of a table, view, or sequence refuse a name another
+	// kind holds as missing.
+	case leads(e.stmt, "DROP SEQUENCE"), leads(e.stmt, "ALTER SEQUENCE"):
+		return []string{"02289"}
+	case leads(e.stmt, "DROP"), leads(e.stmt, "ALTER"):
+		return []string{"00942"}
 	case needed != "table" && needed != "table or view":
 	case found == "view":
 		return []string{"01702"}

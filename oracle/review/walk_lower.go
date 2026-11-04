@@ -119,11 +119,37 @@ func (b *builder) claimName(r objRef, ifNotExists, orReplace bool, kind string) 
 		}
 	case orReplace:
 		if f == walk.Present && got != "" && got != kind {
-			b.need(k, walk.Absent, nil, r.rng, "", takenName(r.written))
+			b.claim(k, r, kind)
 		}
 	default:
-		b.need(k, walk.Absent, nil, r.rng, "", takenName(r.written))
+		b.claim(k, r, kind)
 	}
+	return true
+}
+
+// claim adds the check that the name is free in the object namespace
+// (00955), whose finding says the object exists when one of kind holds
+// the name, and that the name is taken when another does.
+func (b *builder) claim(k walk.Key, r objRef, kind string) {
+	b.needNote(k, walk.Absent, nil, &walkNote{rng: r.rng, present: takenName(r.written),
+		absentCode: review.ObjectNotFound, presentCode: review.NameTaken, written: r.written, kind: kind})
+}
+
+// heldByOther reports whether the walk knows that k, the name's key in
+// the space of kind, is absent while an object of another kind holds the
+// name in the object namespace, and then adds the check that fails
+// there. Oracle refuses such a name as missing (00942, 02289), as it
+// refuses one nothing holds; the finding says what the name is instead.
+func (b *builder) heldByOther(k walk.Key, r objRef, kind string) bool {
+	if f, _ := b.look(k); f != walk.Absent {
+		return false
+	}
+	ok := r.key(spaceObject)
+	if f, got := b.look(ok); f != walk.Present || got == "" || got == kind {
+		return false
+	}
+	b.needNote(ok, walk.Present, []string{kind}, &walkNote{rng: r.rng, present: notKind(r.written, kindWord(kind)),
+		absentCode: review.ObjectNotFound, presentCode: review.WrongObjectKind, written: r.written, kind: kind})
 	return true
 }
 
@@ -418,6 +444,9 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 	case ast.OBJECT_TABLE:
 		return b.dropTable(v, r)
 	case ast.OBJECT_VIEW:
+		if !v.IfExists && b.heldByOther(r.key(spaceView), r, kindView) {
+			return true
+		}
 		if !b.dropsKind(r.key(spaceView), nil, v.IfExists, r.rng, missingView(r.written), "") {
 			return true
 		}
@@ -427,6 +456,9 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 			b.cascadeConstraints()
 		}
 	case ast.OBJECT_SEQUENCE:
+		if !v.IfExists && b.heldByOther(r.key(spaceSequence), r, kindSequence) {
+			return true
+		}
 		if !b.dropsKind(r.key(spaceSequence), nil, v.IfExists, r.rng, missingSequence(r.written), "") {
 			return true
 		}
@@ -535,6 +567,9 @@ func (b *builder) dropsKind(k walk.Key, kinds []string, ifExists bool, rng revie
 // (verified).
 func (b *builder) dropTable(v *ast.DropStmt, r objRef) bool {
 	k := r.key(spaceTable)
+	if !v.IfExists && b.heldByOther(k, r, kindTable) {
+		return true
+	}
 	mview := wrongKind(r.written, kindMView, kindWord(kindTable))
 	if v.IfExists {
 		if f, kind := b.look(k); f == walk.Present && kind == kindMView {
@@ -729,6 +764,9 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 		return false
 	}
 	b.Order = walk.Lookups
+	if !v.IfExists && b.heldByOther(r.key(spaceView), r, kindView) {
+		return true
+	}
 	if !b.exists(r.key(spaceView), nil, v.IfExists, r.rng, missingView(r.written), "") {
 		return true
 	}
@@ -748,6 +786,9 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 	r, ok := b.ref(v.Name)
 	if !ok {
 		return false
+	}
+	if !v.IfExists && b.heldByOther(r.key(spaceSequence), r, kindSequence) {
+		return true
 	}
 	b.exists(r.key(spaceSequence), nil, v.IfExists, r.rng, missingSequence(r.written), "")
 	return true
