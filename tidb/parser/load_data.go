@@ -275,11 +275,12 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		return nil, err
 	}
 
-	// The source: a file path, or a query. TiDB reads a SELECT, a set
-	// operation, a WITH ... SELECT, a parenthesized query, or a TABLE
-	// statement as the query, and a VALUES statement is none of them:
-	// v8.5.5 answers 1064 for `IMPORT INTO t FROM VALUES (1)` where it
-	// takes `FROM TABLE s`. FORMAT follows a path only.
+	// The source: a file path, or one query expression. FORMAT follows a
+	// path only.
+	//
+	// VALUES is a query primary only when it is spelled with ROW, here as
+	// in every other position: v8.5.5 answers 1064 for `IMPORT INTO t FROM
+	// VALUES (1)` and takes `FROM VALUES ROW(1)`.
 	switch p.cur.Type {
 	case tokSCONST:
 		stmt.Path = p.cur.Str
@@ -293,18 +294,14 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 
 	case kwSELECT, kwWITH, '(', kwTABLE, kwVALUES:
 		// FROM takes one query expression, so a TABLE or VALUES target is
-		// the query it begins rather than a leaf. v8.5.5 accepts
-		// `IMPORT INTO t FROM TABLE t1 UNION TABLE t2`, and the same source
-		// with ORDER BY a, LIMIT 1, FOR UPDATE, written parenthesized, and
-		// `FROM VALUES ROW(1)` -- none of which a bare TableStmt can hold,
-		// and the last of which #645 did not read at all.
-		//
-		// #647 adapted this arm to parseTablePrimary to make main compile
-		// again, and said so in its own comment: that reader takes the
-		// tails but the old node had nowhere to keep them, so it dropped
-		// them, and it reads no set operation. Reading the whole query
-		// expression keeps both, which is why that adaptation is
-		// superseded here rather than merged.
+		// the query it begins rather than a leaf, and the set operation and
+		// the clauses after it have to reach the tree. v8.5.5 accepts
+		// `IMPORT INTO t FROM TABLE t1 UNION TABLE t2` and the same source
+		// with INTERSECT, EXCEPT, UNION ALL, ORDER BY a, LIMIT 1 and
+		// written parenthesized. None of that fits a bare TableStmt, which
+		// is why the node keeps one Select rather than a field per primary;
+		// a reader that took only the primary would accept the statement
+		// and drop the rest, which no corpus row can see.
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
