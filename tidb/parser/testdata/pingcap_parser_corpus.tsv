@@ -945,8 +945,8 @@ reject	accept	Select (1, 1) > (1, 1)
 accept	accept	create table t (`row` int)
 reject	reject	create table t (row int)
 accept	accept	SELECT *, CAST(data AS CHAR CHARACTER SET utf8) FROM t;
-reject	accept	SELECT CAST(data AS CHARACTER);
-reject	accept	SELECT CAST(data AS CHARACTER(10) CHARACTER SET utf8);
+accept	accept	SELECT CAST(data AS CHARACTER);
+accept	accept	SELECT CAST(data AS CHARACTER(10) CHARACTER SET utf8);
 accept	accept	SELECT CAST(data AS BINARY)
 accept	accept	SELECT *, CAST(data AS JSON) FROM t;
 reject	reject	SELECT *, JSON_SUM_CRC32(data AS UNSIGNED ARRAY) FROM t;
@@ -2326,32 +2326,32 @@ reject	accept	alter table d_n.t_n add constraint foreign key ident (ident(1)) re
 reject	accept	alter table t_n add constraint ident foreign key (ident,ident(1)) references t_n match full on update set null on delete restrict
 reject	accept	alter table d_n.t_n add foreign key ident (ident, ident(1) asc) references t_n match partial on delete cascade remove partitioning
 reject	accept	alter table d_n.t_n add constraint foreign key (ident asc) references d_n.t_n match simple on update cascade on delete cascade
-reject	accept	create table t (a character varying(1));
-reject	accept	create table t (a character varying(255));
-reject	accept	create table t (a char varying(50));
-reject	accept	create table t (a varcharacter(1));
-reject	accept	create table t (a varcharacter(50));
-reject	accept	create table t (a varcharacter(1), b varcharacter(255));
+accept	accept	create table t (a character varying(1));
+accept	accept	create table t (a character varying(255));
+accept	accept	create table t (a char varying(50));
+accept	accept	create table t (a varcharacter(1));
+accept	accept	create table t (a varcharacter(50));
+accept	accept	create table t (a varcharacter(1), b varcharacter(255));
 accept	accept	create table t (a char);
-reject	accept	create table t (a character);
-reject	accept	create table t (a character varying(50), b int);
-reject	accept	create table t (a character, b int);
-reject	accept	create table t (a national character varying(50));
-reject	accept	create table t (a national char varying(50));
+accept	accept	create table t (a character);
+accept	accept	create table t (a character varying(50), b int);
+accept	accept	create table t (a character, b int);
+accept	accept	create table t (a national character varying(50));
+accept	accept	create table t (a national char varying(50));
 accept	accept	create table t (a national char);
-reject	accept	create table t (a national character);
+accept	accept	create table t (a national character);
 accept	accept	create table t (a nchar);
-reject	accept	create table t (a nchar varchar(50));
-reject	accept	create table t (a nchar varcharacter(50));
-accept	reject	create table t (a national varchar);
+accept	accept	create table t (a nchar varchar(50));
+accept	accept	create table t (a nchar varcharacter(50));
+reject	reject	create table t (a national varchar);
 accept	accept	create table t (a national varchar(50));
-reject	accept	create table t (a national varcharacter(50));
-reject	accept	create table t (a nchar varying(50));
+accept	accept	create table t (a national varcharacter(50));
+accept	accept	create table t (a nchar varying(50));
 accept	accept	create table t (a nvarchar(50));
 accept	accept	create table nchar (a int);
 accept	accept	create table nchar (a int, b nchar);
 accept	accept	create table nchar (a int, b nchar(50));
-reject	accept	alter table t_n storage disk , modify ident national varcharacter(12) column_format fixed first;
+accept	accept	alter table t_n storage disk , modify ident national varcharacter(12) column_format fixed first;
 accept	accept	create table t (a serial);
 accept	accept	create table t (a serial null);
 accept	accept	create table t (b int, a serial);
@@ -2361,23 +2361,23 @@ reject	accept	create table t (a bigint serial default value);
 reject	accept	create table t (a smallint serial default value);
 accept	accept	create table t (a long);
 accept	accept	create table t (a long varchar);
-reject	accept	create table t (a long varcharacter);
-reject	accept	create table t (a long char varying);
-reject	accept	create table t (a long character varying);
-reject	accept	create table t (a mediumtext, b long varchar, c long, d long varcharacter, e long char varying, f long character varying, g long);
+accept	accept	create table t (a long varcharacter);
+accept	accept	create table t (a long char varying);
+accept	accept	create table t (a long character varying);
+accept	accept	create table t (a mediumtext, b long varchar, c long, d long varcharacter, e long char varying, f long character varying, g long);
 accept	accept	create table t (a long varbinary);
-reject	accept	create table t (a long char varying, b long varbinary);
-reject	accept	create table t (a long char set utf8);
-reject	accept	create table t (a long char varying char set utf8);
+accept	accept	create table t (a long char varying, b long varbinary);
+accept	accept	create table t (a long char set utf8);
+accept	accept	create table t (a long char varying char set utf8);
 accept	accept	create table t (a long character set utf8);
-reject	accept	create table t (a long character varying character set utf8);
+accept	accept	create table t (a long character varying character set utf8);
 reject	accept	alter table d_n.t_n modify column ident long after ident remove partitioning
 reject	accept	alter table d_n.t_n modify column ident long char varying after ident remove partitioning
 reject	accept	alter table d_n.t_n modify column ident long character varying after ident remove partitioning
 reject	accept	alter table d_n.t_n modify column ident long varchar after ident remove partitioning
 reject	accept	alter table d_n.t_n modify column ident long varcharacter after ident remove partitioning
-reject	accept	alter table t_n change column ident ident long char varying binary charset utf8 first , tablespace ident
-reject	accept	alter table t_n change column ident ident long character varying binary charset utf8 first , tablespace ident
+accept	accept	alter table t_n change column ident ident long char varying binary charset utf8 first , tablespace ident
+accept	accept	alter table t_n change column ident ident long character varying binary charset utf8 first , tablespace ident
 accept	reject	create table t (a int) stats_auto_recalc 2;
 accept	reject	create table t (a int) stats_auto_recalc = 10;
 accept	accept	create table t (a int) stats_auto_recalc 0;
@@ -2466,7 +2466,7 @@ reject	accept	create table t (a long byte, b text ascii)
 reject	accept	create table t (a text ascii, b mediumtext ascii, c int)
 reject	accept	create table t (a int, b text ascii, c mediumtext ascii)
 reject	accept	create table t (a long ascii, b long ascii)
-reject	accept	create table t (a long character set utf8mb4, b long charset utf8mb4, c long char set utf8mb4)
+accept	accept	create table t (a long character set utf8mb4, b long charset utf8mb4, c long char set utf8mb4)
 accept	accept	create table t (a int STORAGE MEMORY, b varchar(255) STORAGE MEMORY)
 reject	accept	create table t (a int storage DISK, b varchar(255) STORAGE DEFAULT)
 reject	accept	create table t (a int STORAGE DEFAULT, b varchar(255) STORAGE DISK)
@@ -3874,7 +3874,7 @@ accept	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '10hourxx'
 accept	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '10.10.255h'
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 BOOL)
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 BOOLEAN)
-reject	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 CHARACTER VARYING(0))
+accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 CHARACTER VARYING(0))
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 FIXED)
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 FLOAT4)
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 FLOAT8)
