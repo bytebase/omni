@@ -183,6 +183,13 @@ func checkUniqueKeysCoverPartitionColumns(tbl *Table, idxs []*Index, partCols []
 		if !idx.Unique && !idx.Primary {
 			continue
 		}
+		// A global index is exempt: covering the partitioning columns is what
+		// GLOBAL buys an exemption from, and v8.5.5 runs
+		// `ADD UNIQUE INDEX i (b) GLOBAL` on a table partitioned by a where
+		// it answers 8264 without the option.
+		if idx.Global {
+			continue
+		}
 		// TiDB names an unnamed key over an expression expression_index, which the
 		// catalog leaves unnamed, so it cannot name the key TiDB refuses.
 		if idx.Name == "" || uniqueKeyCovers(tbl, idx, partCols) {

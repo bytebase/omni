@@ -56,12 +56,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 // alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
 func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
-	if len(stmt.Commands) <= 1 {
-		// Single command: no rollback needed.
-		if len(stmt.Commands) == 1 {
-			return c.execAlterCmd(db, tbl, stmt.Commands[0])
-		}
+	if len(stmt.Commands) == 0 {
 		return nil
+	}
+	if len(stmt.Commands) == 1 && !compoundAdd(stmt.Commands[0]) {
+		// Single command carrying one table element: no rollback needed.
+		return c.execAlterCmd(db, tbl, stmt.Commands[0])
 	}
 
 	// Multi-command ALTER: MySQL treats this as atomic.
@@ -1367,4 +1367,17 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 func generatedExprReferencesColumn(expr, colName string) bool {
 	target := "`" + strings.ToLower(colName) + "`"
 	return strings.Contains(strings.ToLower(expr), target)
+}
+
+// compoundAdd reports whether one command carries more than one table
+// element, which `ADD [COLUMN] ( ... )` does: the paren form reads a table
+// element list, so one command can add several columns and several
+// constraints. An element that fails part-way through must not leave the
+// earlier ones installed -- MySQL 8.0.46 leaves the table untouched for
+// `ALTER TABLE t ADD (b INT, KEY i (b))` against a table that already has i
+// (verified on 2026-11-04) -- so such a command takes the rollback path a
+// multi-command ALTER takes rather than the single-command fast path.
+func compoundAdd(cmd *nodes.AlterTableCmd) bool {
+	return cmd != nil && cmd.Type == nodes.ATAddColumn &&
+		len(cmd.Columns)+len(cmd.Constraints) > 1
 }

@@ -420,6 +420,14 @@ func showIndex(idx *Index) string {
 		b.WriteString(" /*!80000 INVISIBLE */")
 	}
 
+	// GLOBAL, which TiDB writes last -- after COMMENT -- in its own version
+	// comment: "UNIQUE KEY `i` (`b`) COMMENT 'kept' /*T![global_index]
+	// GLOBAL */" (read from v8.5.5 on 2026-11-04). LOCAL is the default and
+	// is written as nothing.
+	if idx.Global {
+		b.WriteString(" /*T![global_index] GLOBAL */")
+	}
+
 	return b.String()
 }
 

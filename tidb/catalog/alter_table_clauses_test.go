@@ -441,3 +441,74 @@ func TestAlterTableRenameToCurrentDatabase(t *testing.T) {
 		t.Fatalf("e.u was not created; e holds %v", c.databases["e"].Tables)
 	}
 }
+
+// TestAlterTableAddTableElementListIsAtomic: the parenthesized ADD is one
+// command carrying several table elements, so a failure part-way through must
+// not leave the earlier ones installed. TiDB v8.5.5 leaves the table
+// untouched for `ALTER TABLE t ADD (b INT, KEY i (b))` against a table that
+// already has i (verified on 2026-11-04); this used to take the
+// single-command fast path and keep b.
+func TestAlterTableAddTableElementListIsAtomic(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		sql  string
+	}{
+		{"a constraint fails after a column", "ALTER TABLE t ADD (b INT, KEY i (b));"},
+		{"a column fails after a column", "ALTER TABLE t ADD (b INT, a INT);"},
+		{"a constraint fails after a constraint", "ALTER TABLE t ADD (KEY j (a), KEY i (a));"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cat := New()
+			execAll(t, cat, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT, KEY i (a));")
+			before := cat.ShowCreateTable("d", "t")
+			if err := execExpectError(t, cat, c.sql); err == nil {
+				t.Fatalf("%q was accepted", c.sql)
+			}
+			if after := cat.ShowCreateTable("d", "t"); after != before {
+				t.Errorf("%q left the table changed:\nbefore:\n%s\nafter:\n%s", c.sql, before, after)
+			}
+		})
+	}
+}
+
+// TestAlterTableGlobalUniqueIndex: GLOBAL exempts a unique key from covering
+// the partitioning columns, which is the whole point of the option. v8.5.5
+// runs `ADD UNIQUE INDEX i (b) GLOBAL` on a table partitioned by a and
+// answers 8264 without it, and writes the index back with its own version
+// comment. Reading GLOBAL as an index option without carrying it into the
+// catalog left the statement failing with the error the option avoids.
+func TestAlterTableGlobalUniqueIndex(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT, b INT, c INT) PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN (10))")
+	execAll(t, c, "ALTER TABLE t ADD UNIQUE INDEX i (b) GLOBAL COMMENT 'kept';")
+
+	ddl := c.ShowCreateTable("d", "t")
+	// The comment comes last, after COMMENT, as v8.5.5 writes it.
+	if want := "UNIQUE KEY `i` (`b`) COMMENT 'kept' /*T![global_index] GLOBAL */"; !strings.Contains(ddl, want) {
+		t.Errorf("SHOW CREATE TABLE lacks %q:\n%s", want, ddl)
+	}
+
+	// A non-unique index takes GLOBAL too.
+	execAll(t, c, "ALTER TABLE t ADD INDEX j (c) GLOBAL;")
+	if want := "KEY `j` (`c`) /*T![global_index] GLOBAL */"; !strings.Contains(c.ShowCreateTable("d", "t"), want) {
+		t.Errorf("SHOW CREATE TABLE lacks %q:\n%s", want, c.ShowCreateTable("d", "t"))
+	}
+
+	// Without the option the same key is still 8264, so the exemption is the
+	// option's and not a hole in the check.
+	err := execExpectError(t, c, "ALTER TABLE t ADD UNIQUE INDEX k (b);")
+	if err == nil {
+		t.Fatalf("ADD UNIQUE INDEX k (b) without GLOBAL was accepted")
+	}
+	if !strings.Contains(err.Error(), "8264") {
+		t.Errorf("error = %v, want 8264", err)
+	}
+
+	// LOCAL is the default, writes nothing, and keeps the requirement.
+	if err := execExpectError(t, c, "ALTER TABLE t ADD UNIQUE INDEX l (b) LOCAL;"); err == nil {
+		t.Errorf("ADD UNIQUE INDEX l (b) LOCAL was accepted")
+	}
+	// A later LOCAL after GLOBAL wins, as the grammar's action does.
+	if err := execExpectError(t, c, "ALTER TABLE t ADD UNIQUE INDEX m (b) GLOBAL LOCAL;"); err == nil {
+		t.Errorf("GLOBAL LOCAL was accepted; the last option must win")
+	}
+}

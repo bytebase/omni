@@ -1152,6 +1152,14 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			case *nodes.IntLit:
 				idx.KeyBlockSize = int(n.Value)
 			}
+		// TiDB's GLOBAL and LOCAL. The option list may hold both, and the
+		// last one decides, as the grammar's own action does. Dropping GLOBAL
+		// here left the partition-coverage check applying the local rule to a
+		// global index, which is the 8264 that option exists to avoid.
+		case "GLOBAL":
+			idx.Global = true
+		case "LOCAL":
+			idx.Global = false
 		}
 	}
 }

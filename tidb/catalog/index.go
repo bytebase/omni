@@ -11,7 +11,14 @@ type Index struct {
 	// Vector marks TiDB's VECTOR INDEX, which SHOW CREATE TABLE writes with
 	// that word in place of KEY (ConstraintVector in v8.5.5
 	// pkg/parser/ast/ddl.go restores `VECTOR INDEX`).
-	Vector       bool
+	Vector bool
+	// Global marks TiDB's GLOBAL index option, which exempts a unique key on
+	// a partitioned table from covering the partitioning columns. v8.5.5
+	// answers 8264 for a unique key that covers none of them without it, and
+	// writes the one that has it as
+	// "UNIQUE KEY `i` (`b`) /*T![global_index] GLOBAL */" (read on
+	// 2026-11-04). LOCAL is the default and is written as nothing.
+	Global       bool
 	IndexType    string // BTREE, HASH, FULLTEXT, SPATIAL
 	Comment      string
 	Visible      bool

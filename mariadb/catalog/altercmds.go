@@ -98,7 +98,8 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// a table with an IGNORED index, which a dropped key or a column made
 		// NOT NULL can promote to the implicit primary key. Plain tables keep
 		// the no-clone fast path.
-		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) && cmd.Type != nodes.ATAlterIndexInvisible {
+		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
+			cmd.Type != nodes.ATAlterIndexInvisible && !compoundAdd(cmd) {
 			return c.execAlterCmd(db, tbl, cmd)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
@@ -1630,4 +1631,17 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 func generatedExprReferencesColumn(expr, colName string) bool {
 	target := "`" + strings.ToLower(colName) + "`"
 	return strings.Contains(strings.ToLower(expr), target)
+}
+
+// compoundAdd reports whether one command carries more than one table
+// element, which `ADD [COLUMN] ( ... )` does: the paren form reads a table
+// element list, so one command can add several columns and several
+// constraints. An element that fails part-way through must not leave the
+// earlier ones installed -- MariaDB 11.8.8 leaves the table untouched for
+// `ALTER TABLE t ADD (b INT, KEY i (b))` against a table that already has i
+// (verified on 2026-11-04) -- so such a command takes the rollback path a
+// multi-command ALTER takes rather than the single-command fast path.
+func compoundAdd(cmd *nodes.AlterTableCmd) bool {
+	return cmd != nil && cmd.Type == nodes.ATAddColumn &&
+		len(cmd.Columns)+len(cmd.Constraints) > 1
 }
