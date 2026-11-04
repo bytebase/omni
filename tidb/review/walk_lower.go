@@ -62,7 +62,7 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.admin(v)
 	case *ast.ExplainStmt:
 		return b.explain(v)
-	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
+	case *ast.SelectStmt, *ast.DoStmt:
 		return true
 	case *ast.CreateBindingStmt, *ast.DropBindingStmt, *ast.SetBindingStmt:
 		// A SQL plan binding records a plan for later statements; it makes,

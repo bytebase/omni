@@ -663,10 +663,6 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		sb.WriteString(" :select ")
 		writeNode(sb, n.Select)
 	}
-	if n.TableSource != nil {
-		sb.WriteString(" :table_source ")
-		writeNode(sb, n.TableSource)
-	}
 	if len(n.SetList) > 0 {
 		sb.WriteString(" :set ")
 		for i, a := range n.SetList {
@@ -4089,27 +4085,8 @@ func writeTableStmt(sb *strings.Builder, n *TableStmt) {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
 	}
-	if len(n.OrderBy) > 0 {
-		sb.WriteString(" :order_by (")
-		for i, item := range n.OrderBy {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			writeNode(sb, item)
-		}
-		sb.WriteString(")")
-	}
-	if n.Limit != nil {
-		sb.WriteString(" :limit ")
-		writeNode(sb, n.Limit)
-	}
-	if n.Into != nil {
-		sb.WriteString(" :into ")
-		writeNode(sb, n.Into)
-	}
 	sb.WriteString("}")
 }
-
 func writeValuesStmt(sb *strings.Builder, n *ValuesStmt) {
 	sb.WriteString("{VALUES_STMT")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
@@ -4130,23 +4107,8 @@ func writeValuesStmt(sb *strings.Builder, n *ValuesStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if len(n.OrderBy) > 0 {
-		sb.WriteString(" :order_by (")
-		for i, item := range n.OrderBy {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			writeNode(sb, item)
-		}
-		sb.WriteString(")")
-	}
-	if n.Limit != nil {
-		sb.WriteString(" :limit ")
-		writeNode(sb, n.Limit)
-	}
 	sb.WriteString("}")
 }
-
 func writeCloneStmt(sb *strings.Builder, n *CloneStmt) {
 	sb.WriteString("{CLONE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)

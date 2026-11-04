@@ -1741,18 +1741,14 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, err
 		}
 		stmt.Stmt = rep
-	case kwTABLE:
-		tbl, err := p.parseTableStmt()
+	case kwTABLE, kwVALUES:
+		// A TABLE or VALUES target is the query expression it begins, so
+		// "EXPLAIN TABLE t1 UNION TABLE t2" explains the set operation.
+		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Stmt = tbl
-	case kwVALUES:
-		vals, err := p.parseValuesStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = vals
+		stmt.Stmt = sel
 	case kwALTER:
 		// ALTER TABLE is the one DDL TiDB explains: ALTER DATABASE,
 		// CREATE TABLE, TRUNCATE and RENAME are each a 1064.

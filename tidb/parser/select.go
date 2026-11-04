@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strconv"
+
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
@@ -66,10 +68,13 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 			return nil, err
 		}
 
-		// Completion: inside CTE AS (, offer SELECT keyword.
+		// Completion: inside CTE AS (, offer the query primaries a body may
+		// begin with.
 		p.checkCursor()
 		if p.collectMode() {
 			p.addTokenCandidate(kwSELECT)
+			p.addTokenCandidate(kwTABLE)
+			p.addTokenCandidate(kwVALUES)
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -104,9 +109,10 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 	}
 
 	switch p.cur.Type {
-	case kwSELECT, '(':
-		// A SELECT leaf or a parenthesized query body:
+	case kwSELECT, kwTABLE, kwVALUES, '(':
+		// A query primary or a parenthesized query body:
 		//   WITH ... SELECT ...
+		//   WITH ... TABLE t   |   WITH ... VALUES ROW(1)
 		//   WITH ... (SELECT ...) [set-op] [ORDER BY / LIMIT]
 		return p.parseSelectClauseAndTrailing(start, ctes)
 
@@ -272,12 +278,15 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		}
 		p.advance() // consume UNION/INTERSECT/EXCEPT
 
-		// Completion: after the set-op keyword, offer ALL, DISTINCT, SELECT.
+		// Completion: after the set-op keyword, offer ALL, DISTINCT, and the
+		// query primaries an operand may begin with.
 		p.checkCursor()
 		if p.collectMode() {
 			p.addTokenCandidate(kwALL)
 			p.addTokenCandidate(kwDISTINCT)
 			p.addTokenCandidate(kwSELECT)
+			p.addTokenCandidate(kwTABLE)
+			p.addTokenCandidate(kwVALUES)
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -288,10 +297,12 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 			p.match(kwDISTINCT)
 		}
 
-		// Completion: after ALL/DISTINCT, offer SELECT.
+		// Completion: after ALL/DISTINCT, offer the query primaries.
 		p.checkCursor()
 		if p.collectMode() {
 			p.addTokenCandidate(kwSELECT)
+			p.addTokenCandidate(kwTABLE)
+			p.addTokenCandidate(kwVALUES)
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -338,19 +349,22 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 }
 
 // parseSelectClausePrimary parses a single query primary: a parenthesized query
-// (select_with_parens) or a simple SELECT leaf.
+// (select_with_parens), a simple SELECT leaf, TABLE, or VALUES.
 func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
-	if p.cur.Type == '(' {
+	switch p.cur.Type {
+	case '(':
 		return p.parseSelectWithParens()
-	}
-	if p.cur.Type == kwSELECT {
+	case kwSELECT:
 		return p.parseSimpleSelect()
-	}
-	if p.cur.Type == tokEOF {
+	case kwTABLE:
+		return p.parseTablePrimary()
+	case kwVALUES:
+		return p.parseValuesPrimary()
+	case tokEOF:
 		return nil, p.syntaxErrorAtCur()
 	}
 	return nil, &ParseError{
-		Message:  "expected SELECT or '('",
+		Message:  "expected SELECT, TABLE, VALUES, or '('",
 		Position: p.cur.Loc,
 	}
 }
@@ -574,16 +588,6 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.WindowClause = defs
 	}
 
-	// INTO clause (position 2: after HAVING/WINDOW, before ORDER BY)
-	if p.cur.Type == kwINTO && stmt.Into == nil {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Into = into
-	}
-
 	// ORDER BY clause
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -639,7 +643,16 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.ForUpdate = fu
 	}
 
-	// INTO clause (position 3: after locking clause)
+	// INTO clause (position 2: last, after the locking clause).
+	//
+	// TiDB takes INTO only here, after every other clause: every SelectStmt
+	// alternative (parser.y line 9629) ends in SelectStmtIntoOption (10553),
+	// and TiDB has no rule that puts INTO before ORDER BY, LIMIT or the
+	// locking clause, so
+	// "SELECT * FROM t INTO OUTFILE 'f' ORDER BY a" and
+	// "... INTO OUTFILE 'f' FOR UPDATE" are syntax errors
+	// (container-verified). An INTO before FROM (position 1 above) is a
+	// separate rule, FieldList's own into_option.
 	if p.cur.Type == kwINTO && stmt.Into == nil {
 		p.advance()
 		into, err := p.parseIntoClause()
@@ -1006,6 +1019,27 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 	return 0, false, nil
 }
 
+// atQueryPrimaryStart reports whether the cursor begins a query primary, so a
+// caller that has just consumed (or looked past) a '(' can tell a query
+// expression from a parenthesized expression, a value list, or a join group.
+// It is the one lead set every such caller shares, so a primary added to
+// parseSelectClausePrimary reaches all of them.
+//
+// VALUES counts only when ROW follows it. In an expression VALUES(col) is the
+// function that reads the row an INSERT ... ON DUPLICATE KEY UPDATE is
+// inserting (see parseValuesFunc), while a VALUES query primary always spells
+// its rows ROW(...) — TiDB rejects "VALUES (1,2)" (container-verified) — so
+// the next token separates them with no backtracking.
+func (p *Parser) atQueryPrimaryStart() bool {
+	switch p.cur.Type {
+	case kwSELECT, kwWITH, kwTABLE:
+		return true
+	case kwVALUES:
+		return p.peekNext().Type == kwROW
+	}
+	return false
+}
+
 // parenBeginsSubquery reports whether the '(' at p.cur opens a parenthesized
 // query expression (a derived table) rather than a parenthesized table
 // reference (a join). It classifies WITHOUT consuming: snapshot, scan, restore.
@@ -1026,9 +1060,7 @@ func (p *Parser) parenBeginsSubquery() bool {
 
 // consumeMatchedParenIsSubquery consumes the matched '(' ... ')' block at p.cur
 // and reports whether its content is a query expression. The lead set is
-// {SELECT, WITH} ((VALUES)/(TABLE) primaries are a separate follow-up that
-// parseSelectNoParens cannot parse as a body, so excluding them preserves
-// today's reject behavior). A nested '(' recurses, and the outer is classified
+// atQueryPrimaryStart's. A nested '(' recurses, and the outer is classified
 // by what follows the nested block: ')' or a set-op keyword inherits the nested
 // verdict; anything else (e.g. a JOIN keyword) means the nested block is a join
 // operand, not a wrapped subquery. Must run inside a snapshot/restore scope.
@@ -1051,10 +1083,10 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 	p.advance() // consume '('
 
 	var isSubquery bool
-	switch p.cur.Type {
-	case kwSELECT, kwWITH:
+	switch {
+	case p.atQueryPrimaryStart():
 		isSubquery = true
-	case '(':
+	case p.cur.Type == '(':
 		nested := p.consumeMatchedParenIsSubquery()
 		// Classify the outer by what follows the nested block. A trailing set-op
 		// keyword OR an outer ORDER BY / LIMIT continues the OUTER query
@@ -1579,7 +1611,19 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 	return limit, nil
 }
 
-// parseForUpdateClause parses FOR UPDATE / FOR SHARE.
+// parseForUpdateClause parses the FOR UPDATE / FOR SHARE locking clause.
+//
+// TiDB parser.y (v8.5.5) spells the clause out one alternative per shape
+// (SelectLockOpt, line 10633), which fixes both the order and which
+// combinations exist:
+//
+//	FOR UPDATE [OF table_list] [NOWAIT | WAIT num | SKIP LOCKED]
+//	FOR SHARE  [OF table_list] [NOWAIT | SKIP LOCKED]
+//
+// OF comes before the wait modifier, at most one modifier is allowed, and
+// WAIT is FOR UPDATE's alone: TiDB has no "FOR SHARE ... WAIT n" rule
+// (container-verified, as are "WAIT 5 OF t", "NOWAIT WAIT 5" and
+// "WAIT 5 SKIP LOCKED").
 func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 	start := p.pos()
 	p.advance() // consume FOR
@@ -1605,11 +1649,16 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 		}
 	}
 
-	// Completion: after FOR UPDATE/SHARE, offer OF, NOWAIT, SKIP.
+	// Completion: after FOR UPDATE/SHARE, offer OF, NOWAIT, SKIP, and WAIT
+	// where this is FOR UPDATE.
 	p.checkCursor()
 	if p.collectMode() {
+		p.addTokenCandidate(kwOF)
 		p.addTokenCandidate(kwNOWAIT)
 		p.addTokenCandidate(kwSKIP)
+		if !fu.Share {
+			p.addTokenCandidate(kwWAIT)
+		}
 		return nil, &ParseError{Message: "collecting"}
 	}
 
@@ -1629,16 +1678,54 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 		}
 	}
 
-	// NOWAIT / SKIP LOCKED
-	if _, ok := p.match(kwNOWAIT); ok {
+	// At most one of NOWAIT, WAIT num, SKIP LOCKED.
+	switch {
+	case p.cur.Type == kwNOWAIT:
+		p.advance()
 		fu.NoWait = true
-	} else if _, ok := p.match(kwSKIP); ok {
-		p.match(kwLOCKED)
+	case p.cur.Type == kwWAIT && !fu.Share:
+		p.advance()
+		secs, err := p.parseLockWaitSeconds()
+		if err != nil {
+			return nil, err
+		}
+		fu.WaitSeconds = secs
+		fu.HasWait = true
+	case p.cur.Type == kwSKIP:
+		p.advance()
+		if _, err := p.expect(kwLOCKED); err != nil {
+			return nil, err
+		}
 		fu.SkipLocked = true
 	}
 
 	fu.Loc.End = p.prev.End
 	return fu, nil
+}
+
+// parseLockWaitSeconds parses the number after WAIT in a locking clause.
+//
+// TiDB's rule is "WAIT" NUM (parser.y line 10659), and NUM is an unsigned
+// integer literal that fits a uint64: its lexer reads a longer run of digits
+// as a decimal and a decimal is not a NUM. So 18446744073709551615 is a wait
+// and 18446744073709551616, 5.5, 1e3, 0x10, @v and (5) are not
+// (container-verified).
+func (p *Parser) parseLockWaitSeconds() (string, error) {
+	if p.cur.Type != tokICONST {
+		return "", &ParseError{
+			Message:  "expected an integer number of seconds after WAIT",
+			Position: p.cur.Loc,
+		}
+	}
+	text := p.cur.Str
+	if _, err := strconv.ParseUint(text, 10, 64); err != nil {
+		return "", &ParseError{
+			Message:  "WAIT seconds out of range: " + text,
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance()
+	return text, nil
 }
 
 // parseLockInShareMode parses LOCK IN SHARE MODE (legacy syntax).
@@ -1940,25 +2027,36 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 	return defs, nil
 }
 
-// parseTableStmt parses a TABLE statement (MySQL 8.0.19+).
+// parseTablePrimary parses a TABLE query primary and the clauses after it.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
-//
-//	TABLE table_name [ORDER BY column_name] [LIMIT number [OFFSET number]]
-//
-// parseTableStmt parses a TABLE statement.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
+// TiDB parser.y (v8.5.5) makes it an alternative of SelectStmt itself (line
+// 9689): `"TABLE" TableName OrderByOptional SelectStmtLimitOpt SelectLockOpt
+// SelectStmtIntoOption`, building an ast.SelectStmt whose FROM is the table.
+// So the clauses after it belong to the surrounding query expression, not to
+// the TABLE.
 //
 //	TABLE table_name
 //	    [ORDER BY column_name]
 //	    [LIMIT number [OFFSET number]]
-//	    [INTO OUTFILE 'file_name'
-//	        [{FIELDS | COLUMNS} ...]
-//	        [LINES ...]
-//	    | INTO DUMPFILE 'file_name'
-//	    | INTO var_name [, var_name] ...]
-func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
+//	    [FOR {UPDATE | SHARE} ... | LOCK IN SHARE MODE]
+//	    [INTO OUTFILE 'file_name' ...]
+func (p *Parser) parseTablePrimary() (*nodes.SelectStmt, error) {
+	table, err := p.parseExplicitTable()
+	if err != nil {
+		return nil, err
+	}
+	stmt := &nodes.SelectStmt{Loc: table.Loc, TableSource: table}
+	if err := p.parseQueryPrimaryTail(stmt); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseExplicitTable parses TABLE table_name, MySQL's explicit_table, into a
+// TableStmt that holds only the table.
+func (p *Parser) parseExplicitTable() (*nodes.TableStmt, error) {
 	start := p.pos()
 	p.advance() // consume TABLE
 
@@ -1966,63 +2064,46 @@ func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	stmt := &nodes.TableStmt{
-		Loc:   nodes.Loc{Start: start},
+	return &nodes.TableStmt{
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 		Table: ref,
-	}
+	}, nil
+}
 
-	// ORDER BY clause
-	if p.cur.Type == kwORDER {
-		p.advance()
-		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
-		}
-		orderBy, err := p.parseOrderByList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OrderBy = orderBy
+// parseValuesPrimary parses a VALUES query primary and the clauses after it.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/values.html
+// TiDB parser.y (v8.5.5) makes it an alternative of SelectStmt itself (line
+// 9711), with the same trailing clauses as the TABLE alternative.
+//
+//	VALUES ROW(value_list) [, ROW(value_list)] ...
+//	    [ORDER BY column_designator]
+//	    [LIMIT number [OFFSET number]]
+//	    [FOR {UPDATE | SHARE} ... | LOCK IN SHARE MODE]
+//	    [INTO OUTFILE 'file_name' ...]
+func (p *Parser) parseValuesPrimary() (*nodes.SelectStmt, error) {
+	values, err := p.parseValuesConstructor()
+	if err != nil {
+		return nil, err
 	}
-
-	// LIMIT clause
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Limit = limit
+	stmt := &nodes.SelectStmt{Loc: values.Loc, ValuesSource: values}
+	if err := p.parseQueryPrimaryTail(stmt); err != nil {
+		return nil, err
 	}
-
-	// INTO clause
-	if p.cur.Type == kwINTO {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Into = into
-	}
-
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseValuesStmt parses a VALUES statement (MySQL 8.0.19+).
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/values.html
-//
-//	VALUES ROW(value_list) [, ROW(value_list)] ...
-//	    [ORDER BY column_designator] [LIMIT number [OFFSET number]]
-func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
+// parseValuesConstructor parses VALUES ROW(...) [, ROW(...)] ..., MySQL's
+// table_value_constructor, into a ValuesStmt that holds only the rows. A row
+// is written ROW(...) and may be empty; a bare parenthesized list is not a
+// row, which is why "VALUES (1,2)" is a syntax error (container-verified).
+func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
 	start := p.pos()
 	p.advance() // consume VALUES
 
-	stmt := &nodes.ValuesStmt{
-		Loc: nodes.Loc{Start: start},
-	}
+	stmt := &nodes.ValuesStmt{Loc: nodes.Loc{Start: start}}
 
-	// Parse ROW(...) list
 	for {
 		if _, err := p.expect(kwROW); err != nil {
 			return nil, err
@@ -2051,30 +2132,71 @@ func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
 		p.advance()
 	}
 
-	// ORDER BY clause
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseQueryPrimaryTail parses onto stmt the ORDER BY, LIMIT, locking clause
+// and INTO that may follow a TABLE or VALUES query primary, in the one order
+// TiDB takes them. A SELECT leaf parses the same tail inline (see
+// parseSimpleSelect); the clauses have one owner either way, so a walk never
+// visits them twice.
+//
+// A second ORDER BY or LIMIT is rejected here rather than left for the caller,
+// which would read it as the trailing clause of an enclosing query expression
+// and accept "TABLE t ORDER BY a ORDER BY b" (container-verified: both are
+// syntax errors).
+func (p *Parser) parseQueryPrimaryTail(stmt *nodes.SelectStmt) error {
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
+			return err
 		}
 		orderBy, err := p.parseOrderByList()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		stmt.OrderBy = orderBy
+		if p.cur.Type == kwORDER {
+			return &ParseError{Message: "duplicate ORDER BY clause", Position: p.cur.Loc}
+		}
 	}
 
-	// LIMIT clause
 	if _, ok := p.match(kwLIMIT); ok {
 		limit, err := p.parseLimitClause()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		stmt.Limit = limit
+		if p.cur.Type == kwLIMIT {
+			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
+		}
 	}
 
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	switch p.cur.Type {
+	case kwFOR:
+		fu, err := p.parseForUpdateClause()
+		if err != nil {
+			return err
+		}
+		stmt.ForUpdate = fu
+	case kwLOCK:
+		fu, err := p.parseLockInShareMode()
+		if err != nil {
+			return err
+		}
+		stmt.ForUpdate = fu
+	}
+
+	if p.cur.Type == kwINTO {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return err
+		}
+		stmt.Into = into
+	}
+	return nil
 }
 
 // parseSubqueryExpr parses a subquery expression: (SELECT ...)

@@ -191,7 +191,7 @@ var locSpanCases = []struct {
 	{"FloatLit", "SELECT TRUNCATE(1.234, 2)", "1.234", 0},
 	{"FlushStmt", "FLUSH TABLES", "FLUSH TABLES", 0},
 	{"ForPortionOf", "DELETE FROM t FOR PORTION OF app_time FROM '2020-01-01' TO '2021-01-01'", "FOR PORTION OF app_time FROM '2020-01-01' TO '2021-01-01'", 0},
-	{"ForUpdate", "SELECT * FROM t FOR SHARE", "FOR SHARE", 0},
+	{"ForUpdate", "SELECT * FROM t LOCK IN SHARE MODE", "LOCK IN SHARE MODE", 0},
 	{"FuncCallExpr", "DO SLEEP(1)", "SLEEP(1)", 0},
 	{"FuncParam", "CREATE FUNCTION myfunc(a INT) RETURNS INT RETURN a + 1", "a INT", 0},
 	{"GeneratedColumn", "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) STORED)", "GENERATED ALWAYS AS (a + b) STORED", 0},

@@ -303,7 +303,7 @@ var locSpanCases = []struct {
 	{"TableOption", "ALTER TABLE t ENGINE=InnoDB", "ENGINE=InnoDB", 0},
 	{"TableRef", "TABLE t1", "t1", 0},
 	{"TableStmt", "TABLE t1", "TABLE t1", 0},
-	{"TableStmt", "TABLE t1 ORDER BY a LIMIT 1", "TABLE t1 ORDER BY a LIMIT 1", 0},
+	{"TableStmt", "TABLE t1 ORDER BY a LIMIT 1", "TABLE t1", 0},
 	{"TableStmt", "SELECT (TABLE t1 ORDER BY a LIMIT 1)", "TABLE t1", 0},
 	{"TemporalLit", "SELECT DATE '2024-01-01' FROM t", "DATE '2024-01-01'", 0},
 	{"TriggerOrder", "CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW FOLLOWS other SET @a = 1", "FOLLOWS other", 0},

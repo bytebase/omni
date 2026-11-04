@@ -698,16 +698,6 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.WindowClause = defs
 	}
 
-	// INTO clause (position 2: after HAVING/WINDOW, before ORDER BY)
-	if p.cur.Type == kwINTO && stmt.Into == nil {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Into = into
-	}
-
 	// ORDER BY clause
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -748,7 +738,24 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.Limit = limit
 	}
 
-	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
+	// INTO clause (position 2: after LIMIT, before the locking clause).
+	//
+	// MariaDB takes INTO after the whole query expression, not between its
+	// clauses: select_into (sql/sql_yacc.yy 11.8, line 8927) follows
+	// opt_select_lock_type, and opt_procedure_or_into (13013) is INTO then
+	// opt_select_lock_type. So "... INTO OUTFILE 'f' FOR UPDATE" parses and
+	// "... INTO OUTFILE 'f' ORDER BY a" and "... INTO OUTFILE 'f' LIMIT 1" are
+	// syntax errors (container-verified).
+	if p.cur.Type == kwINTO && stmt.Into == nil {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
+	// FOR UPDATE / LOCK IN SHARE MODE
 	if p.cur.Type == kwFOR {
 		fu, err := p.parseForUpdateClause()
 		if err != nil {
@@ -763,7 +770,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.ForUpdate = fu
 	}
 
-	// INTO clause (position 3: after locking clause)
+	// INTO clause (position 3: after the locking clause)
 	if p.cur.Type == kwINTO && stmt.Into == nil {
 		p.advance()
 		into, err := p.parseIntoClause()
@@ -1715,43 +1722,100 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 
 	fu := &nodes.ForUpdate{Loc: nodes.Loc{Start: start}}
 
-	if _, ok := p.match(kwSHARE); ok {
-		fu.Share = true
-	} else if _, ok := p.match(kwUPDATE); ok {
-		// FOR UPDATE (default)
-	} else {
+	// MariaDB has no FOR SHARE: a shared read lock is LOCK IN SHARE MODE
+	// (container-verified: "SELECT * FROM t FOR SHARE" is a syntax error).
+	if p.cur.Type == kwSHARE {
 		return nil, &ParseError{
-			Message:  "expected UPDATE or SHARE after FOR",
+			Message:  "FOR SHARE is not supported in MariaDB; use LOCK IN SHARE MODE",
+			Position: p.cur.Loc,
+		}
+	}
+	if _, ok := p.match(kwUPDATE); !ok {
+		return nil, &ParseError{
+			Message:  "expected UPDATE after FOR",
 			Position: p.cur.Loc,
 		}
 	}
 
-	// Completion: after FOR UPDATE/SHARE, offer OF, NOWAIT, SKIP.
+	// Completion: after FOR UPDATE, offer the wait modifiers.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwNOWAIT)
 		p.addTokenCandidate(kwSKIP)
+		p.addTokenCandidate(kwWAIT)
 		return nil, &ParseError{Message: "collecting"}
 	}
 
 	// MariaDB removed FOR UPDATE/SHARE ... OF in 11.4 (it is MySQL-only).
 	if p.cur.Type == kwOF {
 		return nil, &ParseError{
-			Message:  "FOR UPDATE/SHARE ... OF is not supported in MariaDB",
+			Message:  "FOR UPDATE ... OF is not supported in MariaDB",
 			Position: p.cur.Loc,
 		}
 	}
 
-	// NOWAIT / SKIP LOCKED
-	if _, ok := p.match(kwNOWAIT); ok {
-		fu.NoWait = true
-	} else if _, ok := p.match(kwSKIP); ok {
-		p.match(kwLOCKED)
-		fu.SkipLocked = true
+	if err := p.parseLockWaitModifier(fu); err != nil {
+		return nil, err
 	}
 
 	fu.Loc.End = p.prev.End
 	return fu, nil
+}
+
+// isLockWaitLiteral reports whether tok is a literal MariaDB's ulong_num
+// accepts after WAIT: NUM, LONG_NUM, ULONGLONG_NUM, DECIMAL_NUM, FLOAT_NUM
+// and HEX_NUM. HEX_NUM is the 0x10 spelling only — the X'10' spelling is
+// HEX_STRING, which ulong_num does not take — and both lex to tokXCONST, so
+// the prefix separates them (container-verified: MariaDB accepts WAIT 0x10
+// and rejects WAIT X'10').
+func isLockWaitLiteral(tok Token) bool {
+	switch tok.Type {
+	case tokICONST, tokFCONST:
+		return true
+	case tokXCONST:
+		return strings.HasPrefix(tok.Str, "0x") || strings.HasPrefix(tok.Str, "0X")
+	}
+	return false
+}
+
+// parseLockWaitModifier parses the wait modifier a MariaDB locking clause may
+// carry, onto fu. MariaDB spells the three as one alternative each
+// (sql/sql_yacc.yy 11.8, opt_lock_wait_timeout_new), so at most one appears
+// and SKIP needs its LOCKED:
+//
+//	WAIT ulong_num | NOWAIT | SKIP LOCKED
+//
+// ulong_num is a numeric literal, not an expression: MariaDB takes WAIT 5,
+// WAIT 5.5, WAIT 1e3 and WAIT 0x10 (ulong_num includes HEX_NUM) and rejects
+// WAIT @v, WAIT ?, WAIT (5), WAIT -5, WAIT 0b10 and WAIT X'10'. The literal
+// is kept as written rather than converted, so nothing is invented about how
+// MariaDB rounds or clamps it. All container-verified on mariadb:11.8.8, as
+// are the rejections of "NOWAIT WAIT 5", "WAIT 5 NOWAIT", "WAIT 1 WAIT 2" and
+// a bare "SKIP".
+func (p *Parser) parseLockWaitModifier(fu *nodes.ForUpdate) error {
+	switch p.cur.Type {
+	case kwNOWAIT:
+		p.advance()
+		fu.NoWait = true
+	case kwWAIT:
+		p.advance()
+		if !isLockWaitLiteral(p.cur) {
+			return &ParseError{
+				Message:  "expected a number of seconds after WAIT",
+				Position: p.cur.Loc,
+			}
+		}
+		fu.WaitSeconds = p.cur.Str
+		fu.HasWait = true
+		p.advance()
+	case kwSKIP:
+		p.advance()
+		if _, err := p.expect(kwLOCKED); err != nil {
+			return err
+		}
+		fu.SkipLocked = true
+	}
+	return nil
 }
 
 // atForSystemTime reports whether the cursor begins a FOR SYSTEM_TIME temporal
@@ -1858,9 +1922,10 @@ func (p *Parser) consumeTransactionKeyword() bool {
 	return false
 }
 
-// parseLockInShareMode parses LOCK IN SHARE MODE (legacy syntax).
+// parseLockInShareMode parses MariaDB's shared read lock and the wait
+// modifier after it. MariaDB has no FOR SHARE, so this is the only spelling.
 //
-//	LOCK IN SHARE MODE
+//	LOCK IN SHARE MODE [WAIT n | NOWAIT | SKIP LOCKED]
 func (p *Parser) parseLockInShareMode() (*nodes.ForUpdate, error) {
 	start := p.pos()
 	p.advance() // consume LOCK
@@ -1875,11 +1940,19 @@ func (p *Parser) parseLockInShareMode() (*nodes.ForUpdate, error) {
 		return nil, err
 	}
 
-	return &nodes.ForUpdate{
-		Loc:             nodes.Loc{Start: start, End: p.prev.End},
+	fu := &nodes.ForUpdate{
+		Loc:             nodes.Loc{Start: start},
 		Share:           true,
 		LockInShareMode: true,
-	}, nil
+	}
+	// MariaDB takes the same wait modifier after LOCK IN SHARE MODE as after
+	// FOR UPDATE (container-verified: "LOCK IN SHARE MODE WAIT 5", "... NOWAIT"
+	// and "... SKIP LOCKED" are all accepted; MySQL and TiDB reject all three).
+	if err := p.parseLockWaitModifier(fu); err != nil {
+		return nil, err
+	}
+	fu.Loc.End = p.prev.End
+	return fu, nil
 }
 
 // parseIntoClause parses INTO OUTFILE / DUMPFILE / var_list.

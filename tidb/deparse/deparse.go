@@ -55,6 +55,18 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		return
 	}
 
+	// TABLE / VALUES query primary: the source holds the table or the rows,
+	// this node the clauses after it. Writing "select " for one would lose the
+	// primary and emit a query with no target list.
+	if stmt.TableSource != nil {
+		writeTableQueryPrimary(b, stmt)
+		return
+	}
+	if stmt.ValuesSource != nil {
+		writeValuesQueryPrimary(b, stmt)
+		return
+	}
+
 	// Handle set operations: UNION / UNION ALL / INTERSECT / EXCEPT
 	if stmt.SetOp != ast.SetOpNone {
 		writeSetOperation(b, stmt, suppressAlias)
@@ -172,6 +184,73 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	}
 }
 
+// writeTableQueryPrimary writes a TABLE query primary and the clauses this
+// node holds for it: table `t` order by `a` limit 1 for update.
+func writeTableQueryPrimary(b *strings.Builder, stmt *ast.SelectStmt) {
+	if len(stmt.CTEs) > 0 {
+		writeCTEs(b, stmt.CTEs)
+		b.WriteString(" ")
+	}
+	b.WriteString("table ")
+	if stmt.TableSource.Table != nil {
+		b.WriteString(deparseTableRef(stmt.TableSource.Table))
+	}
+	writeQueryPrimaryTail(b, stmt)
+}
+
+// writeValuesQueryPrimary writes a VALUES query primary and the clauses this
+// node holds for it: values row(1,2),row(3,4) order by 1 limit 1.
+func writeValuesQueryPrimary(b *strings.Builder, stmt *ast.SelectStmt) {
+	if len(stmt.CTEs) > 0 {
+		writeCTEs(b, stmt.CTEs)
+		b.WriteString(" ")
+	}
+	b.WriteString("values ")
+	for i, row := range stmt.ValuesSource.Rows {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString("row(")
+		for j, expr := range row {
+			if j > 0 {
+				b.WriteString(",")
+			}
+			writeExpr(b, expr)
+		}
+		b.WriteString(")")
+	}
+	writeQueryPrimaryTail(b, stmt)
+}
+
+// writeQueryPrimaryTail writes the ORDER BY, LIMIT and locking clause a TABLE
+// or VALUES query primary carries.
+func writeQueryPrimaryTail(b *strings.Builder, stmt *ast.SelectStmt) {
+	if len(stmt.OrderBy) > 0 {
+		b.WriteString(" order by ")
+		for i, item := range stmt.OrderBy {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			writeExpr(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" desc")
+			}
+		}
+	}
+	if stmt.Limit != nil {
+		b.WriteString(" limit ")
+		if stmt.Limit.Offset != nil {
+			writeExpr(b, stmt.Limit.Offset)
+			b.WriteString(",")
+		}
+		writeExpr(b, stmt.Limit.Count)
+	}
+	if stmt.ForUpdate != nil {
+		b.WriteString(" ")
+		b.WriteString(deparseForUpdate(stmt.ForUpdate))
+	}
+}
+
 // deparseForUpdate formats a FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE clause.
 // MySQL 8.0 format:
 //   - for update
@@ -180,6 +259,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 //   - for update of `t`
 //   - for update nowait
 //   - for update skip locked
+//   - for update wait 5 (TiDB's own modifier)
 func deparseForUpdate(fu *ast.ForUpdate) string {
 	if fu.LockInShareMode {
 		return "lock in share mode"
@@ -203,10 +283,14 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 		}
 	}
 
-	// NOWAIT / SKIP LOCKED
-	if fu.NoWait {
+	// NOWAIT / WAIT n / SKIP LOCKED
+	switch {
+	case fu.NoWait:
 		b.WriteString(" nowait")
-	} else if fu.SkipLocked {
+	case fu.HasWait:
+		b.WriteString(" wait ")
+		b.WriteString(fu.WaitSeconds)
+	case fu.SkipLocked:
 		b.WriteString(" skip locked")
 	}
 

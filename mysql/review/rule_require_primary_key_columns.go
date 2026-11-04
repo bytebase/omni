@@ -136,7 +136,7 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 				continue
 			}
 			st.kind = barrier
-		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.TableStmt, *ast.ValuesStmt, *ast.DoStmt,
+		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.LoadDataStmt, *ast.DoStmt,
 			*ast.ExplainStmt, *ast.ShowStmt, *ast.HelpStmt, *ast.TruncateStmt, *ast.LockTablesStmt, *ast.FlushStmt, *ast.SetTransactionStmt,
 			*ast.PrepareStmt, *ast.DeallocateStmt:
 			// It changes no schema object, but may fail: on a table or column

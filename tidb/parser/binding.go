@@ -274,20 +274,8 @@ func (p *Parser) parseBindableStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwWITH:
 		return p.parseBindableWithStmt()
-	case kwSELECT, '(':
+	case kwSELECT, kwTABLE, kwVALUES, '(':
 		stmt, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
-		}
-		return stmt, nil
-	case kwTABLE:
-		stmt, err := p.parseTableStmt()
-		if err != nil {
-			return nil, err
-		}
-		return stmt, nil
-	case kwVALUES:
-		stmt, err := p.parseValuesStmt()
 		if err != nil {
 			return nil, err
 		}

@@ -1738,19 +1738,24 @@ func TestParseInsertOnDupKey(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestParseInsertTableSource tests INSERT INTO t1 TABLE t2 (MySQL 8.0.19+).
+// The source is a query expression, so it lands on Select as a SelectStmt
+// over the TABLE primary, exactly as INSERT ... SELECT does.
 func TestParseInsertTableSource(t *testing.T) {
 	stmt := parseInsert(t, "INSERT INTO t1 TABLE t2")
-	if stmt.TableSource == nil {
-		t.Fatal("expected TableSource to be non-nil")
+	if stmt.Select == nil {
+		t.Fatal("expected Select to be non-nil")
 	}
-	if stmt.TableSource.Table.Name != "t2" {
-		t.Errorf("TableSource.Table.Name = %q, want %q", stmt.TableSource.Table.Name, "t2")
+	if stmt.Select.TableSource == nil {
+		t.Fatal("expected Select.TableSource to be non-nil")
+	}
+	if got := stmt.Select.TableSource.Table.Name; got != "t2" {
+		t.Errorf("Select.TableSource.Table.Name = %q, want %q", got, "t2")
 	}
 
 	// REPLACE ... TABLE
 	rep := parseReplace(t, "REPLACE INTO t1 TABLE t2")
-	if rep.TableSource == nil {
-		t.Fatal("expected TableSource to be non-nil for REPLACE")
+	if rep.Select == nil || rep.Select.TableSource == nil {
+		t.Fatal("expected Select.TableSource to be non-nil for REPLACE")
 	}
 
 	// INSERT with ON DUPLICATE KEY UPDATE after TABLE source
@@ -4927,12 +4932,15 @@ func TestParseExplain(t *testing.T) {
 		if !stmt.Analyze {
 			t.Error("Analyze = false, want true")
 		}
-		values, ok := stmt.Stmt.(*ast.ValuesStmt)
+		sel, ok := stmt.Stmt.(*ast.SelectStmt)
 		if !ok {
-			t.Fatalf("Stmt type = %T, want *ast.ValuesStmt", stmt.Stmt)
+			t.Fatalf("Stmt type = %T, want *ast.SelectStmt", stmt.Stmt)
 		}
-		if len(values.Rows) != 1 || len(values.Rows[0]) != 2 {
-			t.Fatalf("VALUES rows shape = %#v, want one ROW with two expressions", values.Rows)
+		if sel.ValuesSource == nil {
+			t.Fatalf("ValuesSource = nil, want the VALUES query primary")
+		}
+		if rows := sel.ValuesSource.Rows; len(rows) != 1 || len(rows[0]) != 2 {
+			t.Fatalf("VALUES rows shape = %#v, want one ROW with two expressions", rows)
 		}
 	})
 
@@ -7678,23 +7686,23 @@ func TestParseTableStmt(t *testing.T) {
 	}{
 		{
 			sql:  "TABLE t1",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}",
+			want: "{SELECT :loc 0 :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}}",
 		},
 		{
 			sql:  "TABLE mydb.t1",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :schema mydb :name t1}}",
+			want: "{SELECT :loc 0 :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :schema mydb :name t1}}}",
 		},
 		{
 			sql:  "TABLE t1 ORDER BY id",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col id}})}",
+			want: "{SELECT :loc 0 :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col id}}) :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}}",
 		},
 		{
 			sql:  "TABLE t1 LIMIT 10",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :limit {LIMIT :loc 15 :count {INT_LIT :val 10 :loc 15}}}",
+			want: "{SELECT :loc 0 :limit {LIMIT :loc 15 :count {INT_LIT :val 10 :loc 15}} :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}}",
 		},
 		{
 			sql:  "TABLE t1 ORDER BY name LIMIT 5 OFFSET 10",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col name}}) :limit {LIMIT :loc 29 :count {INT_LIT :val 5 :loc 29} :offset {INT_LIT :val 10 :loc 38}}}",
+			want: "{SELECT :loc 0 :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col name}}) :limit {LIMIT :loc 29 :count {INT_LIT :val 5 :loc 29} :offset {INT_LIT :val 10 :loc 38}} :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7715,11 +7723,11 @@ func TestParseValuesStmt(t *testing.T) {
 	}{
 		{
 			sql:  "VALUES ROW(1, 2, 3)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}}",
 		},
 		{
 			sql:  "VALUES ROW(1, 2), ROW(3, 4)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7740,15 +7748,15 @@ func TestParseValuesRow(t *testing.T) {
 	}{
 		{
 			sql:  "VALUES ROW('a', 'b')",
-			want: `{VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}`,
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}}`,
 		},
 		{
 			sql:  "VALUES ROW(1, 'hello', NULL)",
-			want: `{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}`,
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}}`,
 		},
 		{
 			sql:  "VALUES ROW(1) LIMIT 1",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11})) :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}}}",
+			want: "{SELECT :loc 0 :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}} :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11}))}}",
 		},
 	}
 	for _, tt := range tests {
@@ -10177,29 +10185,45 @@ func TestParseNaturalLeftOuterJoin(t *testing.T) {
 	}
 }
 
+// TestParseSelectIntoAfterHaving: INTO comes after the query expression's
+// clauses, so it may follow HAVING when nothing else does -- but an ORDER BY
+// or LIMIT after it is a syntax error, not a second position for INTO.
+// MySQL 8.0 answers 1064 for every rejected form here
+// (container-verified; see query_primary_forms_oracle_test.go).
 func TestParseSelectIntoAfterHaving(t *testing.T) {
-	tests := []string{
-		// INTO at position 2: after HAVING, before ORDER BY
+	accepted := []string{
 		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt'",
-		// INTO at position 2: after HAVING, before ORDER BY with ORDER BY
-		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat'",
+		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y",
 	}
-	for _, sql := range tests {
+	for _, sql := range accepted {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+	rejected := []string{
+		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat' ORDER BY a",
+		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
+		"SELECT a FROM t INTO OUTFILE '/tmp/result.txt' LIMIT 1",
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
+		})
+	}
 }
 
+// TestParseSelectIntoAfterHavingBeforeOrderBy: the two positions the locking
+// clause leaves for INTO, either side of it, plus the INTO before FROM that is
+// the field list's own rule.
 func TestParseSelectIntoAfterHavingBeforeOrderBy(t *testing.T) {
 	tests := []string{
-		// INTO with DUMPFILE at position 2
-		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat' ORDER BY a",
-		// INTO with variable at position 2
-		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
-		// Regression: INTO at position 1 still works
+		// INTO before FROM
 		"SELECT a INTO @x FROM t",
-		// Regression: INTO at position 3 still works
+		// INTO before the locking clause
+		"SELECT a FROM t INTO OUTFILE '/tmp/result.txt' FOR UPDATE",
+		// INTO after the locking clause
 		"SELECT a FROM t FOR UPDATE INTO OUTFILE '/tmp/result.txt'",
 	}
 	for _, sql := range tests {
@@ -12811,8 +12835,10 @@ func TestAuroraSelectIntoOutfileS3(t *testing.T) {
 		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' ENCRYPTION SSE_KMS",
 		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT CSV",
 		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' COLUMNS TERMINATED BY '|' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES STARTING BY 'X' TERMINATED BY '\\n' MANIFEST ON OVERWRITE ON ENCRYPTION ON",
-		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE S3 's3://b/p' ORDER BY a",
 		"SELECT a FROM t FOR UPDATE INTO OUTFILE S3 's3://b/p'",
+		// An ORDER BY after INTO is a syntax error for the S3 form as it is
+		// for the plain one: INTO comes after the query expression's clauses.
+		"SELECT a FROM t ORDER BY a INTO OUTFILE S3 's3://b/p'",
 		"TABLE t1 INTO OUTFILE S3 's3://b/p'",
 	} {
 		t.Run(sql, func(t *testing.T) {

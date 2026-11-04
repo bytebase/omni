@@ -182,29 +182,30 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	}
 }
 
-// deparseForUpdate formats a FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE clause.
-// MySQL 8.0 format:
+// deparseForUpdate formats a locking clause the way MariaDB's SHOW CREATE
+// VIEW does. MariaDB has no FOR SHARE, so a shared lock is always written
+// LOCK IN SHARE MODE:
 //   - for update
-//   - for share
-//   - lock in share mode (legacy syntax)
+//   - lock in share mode
 //   - for update nowait
+//   - for update wait 5
 //   - for update skip locked
 func deparseForUpdate(fu *ast.ForUpdate) string {
-	if fu.LockInShareMode {
-		return "lock in share mode"
-	}
-
 	var b strings.Builder
-	if fu.Share {
-		b.WriteString("for share")
+	if fu.LockInShareMode {
+		b.WriteString("lock in share mode")
 	} else {
 		b.WriteString("for update")
 	}
 
-	// NOWAIT / SKIP LOCKED
-	if fu.NoWait {
+	// NOWAIT / WAIT n / SKIP LOCKED
+	switch {
+	case fu.NoWait:
 		b.WriteString(" nowait")
-	} else if fu.SkipLocked {
+	case fu.HasWait:
+		b.WriteString(" wait ")
+		b.WriteString(fu.WaitSeconds)
+	case fu.SkipLocked:
 		b.WriteString(" skip locked")
 	}
 
@@ -263,6 +264,12 @@ func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(deparseTableRef(stmt.TableSource.Table))
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
+	// MariaDB has no TABLE statement, so this writer is unreachable; it still
+	// writes the locking clause rather than disagree with the VALUES writer.
+	if stmt.ForUpdate != nil {
+		b.WriteString(" ")
+		b.WriteString(deparseForUpdate(stmt.ForUpdate))
+	}
 	return b.String()
 }
 

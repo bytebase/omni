@@ -1,5 +1,7 @@
 package ast
 
+import "strconv"
+
 // -----------------------------------------------------------------------
 // Statement nodes
 // -----------------------------------------------------------------------
@@ -34,8 +36,9 @@ type SelectStmt struct {
 	Right             *SelectStmt        // right side of set operation
 	// TableSource and ValuesSource are the TABLE or VALUES query primary this
 	// node stands for. The source holds only its table or rows; the ORDER BY,
-	// LIMIT, and INTO after it are this node's, except that an ORDER BY and
-	// LIMIT after the last operand of a set operation are the set operation's.
+	// LIMIT, locking clause and INTO after it are this node's, except that an
+	// ORDER BY and LIMIT after the last operand of a set operation are the set
+	// operation's.
 	TableSource  *TableStmt  // TABLE query primary
 	ValuesSource *ValuesStmt // VALUES query primary
 	// ParenSource is the inner query of a parenthesized query expression
@@ -121,8 +124,7 @@ type InsertStmt struct {
 	Partitions     []string      // PARTITION (p0, p1, ...)
 	Columns        []*ColumnRef  // explicit column list
 	Values         [][]ExprNode  // VALUES rows
-	Select         *SelectStmt   // INSERT ... SELECT
-	TableSource    *TableStmt    // INSERT ... TABLE table_name (MySQL 8.0.19+)
+	Select         *SelectStmt   // INSERT ... SELECT, ... TABLE t, ... (query)
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
 	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
 	ColAliases     []string      // (col_alias, ...) after row_alias
@@ -2256,39 +2258,42 @@ type DeclareCursorStmt struct {
 func (s *DeclareCursorStmt) nodeTag()  {}
 func (s *DeclareCursorStmt) stmtNode() {}
 
-// TableStmt represents a TABLE statement (MySQL 8.0.19+).
+// TableStmt represents a TABLE query primary (MySQL 8.0.19+).
 // TABLE t is equivalent to SELECT * FROM t.
 //
-// A TableStmt that stands alone (a statement, an EXPLAIN target, the source
-// of INSERT ... TABLE) holds its own ORDER BY, LIMIT, and INTO. As the
-// TableSource of a SelectStmt (a subquery, a set-operation operand, a CTE or
-// view body) it holds only the table, and the SelectStmt holds the clauses.
+// The parser builds one only as the TableSource of a SelectStmt, which holds
+// the clauses after it. A TABLE statement, and a TABLE in any other position,
+// is a SelectStmt over a TableStmt.
 type TableStmt struct {
-	Loc     Loc
-	Table   *TableRef      // table name
-	OrderBy []*OrderByItem // optional ORDER BY
-	Limit   *Limit         // optional LIMIT/OFFSET
-	Into    *IntoClause    // optional INTO OUTFILE/DUMPFILE/var
+	Loc   Loc
+	Table *TableRef // table name
 }
 
 func (s *TableStmt) nodeTag()  {}
 func (s *TableStmt) stmtNode() {}
 
-// ValuesStmt represents a VALUES statement (MySQL 8.0.19+).
+// ValuesStmt represents a VALUES query primary (MySQL 8.0.19+).
 // VALUES ROW(1,2), ROW(3,4) returns rows of literal values.
 //
-// A ValuesStmt that stands alone (a statement, an EXPLAIN target) holds its
-// own ORDER BY and LIMIT. As the ValuesSource of a SelectStmt it holds only
-// the rows, and the SelectStmt holds the clauses.
+// The parser builds one only as the ValuesSource of a SelectStmt, which holds
+// the clauses after it. A VALUES statement, and a VALUES in any other
+// position, is a SelectStmt over a ValuesStmt.
 type ValuesStmt struct {
-	Loc     Loc
-	Rows    [][]ExprNode   // list of ROW(...) value lists
-	OrderBy []*OrderByItem // optional ORDER BY
-	Limit   *Limit         // optional LIMIT/OFFSET
+	Loc  Loc
+	Rows [][]ExprNode // list of ROW(...) value lists
 }
 
 func (s *ValuesStmt) nodeTag()  {}
 func (s *ValuesStmt) stmtNode() {}
+
+// ValuesColumnName returns the name of the i'th (0-based) output column of a
+// VALUES query. A VALUES row carries no names of its own, so MySQL 8.0 calls
+// the columns column_0, column_1, ... -- in a result header, in a derived
+// table or CTE over one, and in the column list of a view whose body is one
+// (container-verified).
+func ValuesColumnName(i int) string {
+	return "column_" + strconv.Itoa(i)
+}
 
 // IfStmt represents an IF/ELSEIF/ELSE compound statement.
 type IfStmt struct {

@@ -190,6 +190,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 //   - for update of `t`
 //   - for update nowait
 //   - for update skip locked
+//   - for update wait 5 (OceanBase's own modifier)
 func deparseForUpdate(fu *ast.ForUpdate) string {
 	if fu.LockInShareMode {
 		return "lock in share mode"
@@ -213,10 +214,14 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 		}
 	}
 
-	// NOWAIT / SKIP LOCKED
-	if fu.NoWait {
+	// NOWAIT / WAIT n / SKIP LOCKED
+	switch {
+	case fu.NoWait:
 		b.WriteString(" nowait")
-	} else if fu.SkipLocked {
+	case fu.HasWait:
+		b.WriteString(" wait ")
+		b.WriteString(fu.WaitSeconds)
+	case fu.SkipLocked:
 		b.WriteString(" skip locked")
 	}
 

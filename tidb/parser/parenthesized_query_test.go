@@ -304,18 +304,27 @@ func TestParenExprSubqueryRejected(t *testing.T) {
 	}
 }
 
-// Deferred boundary: TiDB PARSES (TABLE)/(VALUES) primaries as subquery bodies
-// (semantic 1054/1051), but they need non-SELECT-primary AST — a separate
-// backlog feature. The classifier lead set is {SELECT, WITH}, so omni rejects
-// them today. These document the boundary and trip if the lead set is widened.
-func TestParenExprDeferredPrimaries(t *testing.T) {
-	rejected := []string{
+// TABLE and VALUES primaries reach the subquery classifier through
+// atQueryPrimaryStart, so a parenthesized one is a subquery body wherever a
+// parenthesized SELECT is. TiDB v8.5.5 accepts each of these — the failure it
+// reports is semantic (1146 for the missing table, 1051 for a VALUES body) —
+// and rejects the FOR UPDATE form for the same reason it rejects
+// "((SELECT 1) FOR UPDATE)": the locking clause binds to the leaf, not to the
+// level past the ')'. All container-verified.
+func TestParenExprTableValuesPrimaries(t *testing.T) {
+	accepted := []string{
+		"SELECT 1 WHERE 1 IN (TABLE t)",
 		"SELECT 1 WHERE 1 IN ((TABLE t))",
+		"SELECT 1 WHERE 1 IN (VALUES ROW(1))",
 		"SELECT 1 WHERE 1 IN ((VALUES ROW(1)))",
+		"SELECT 1 WHERE 1 IN ((TABLE t) UNION (TABLE t))",
 	}
-	for _, sql := range rejected {
-		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
 	}
+	t.Run("SELECT 1 WHERE 1 IN ((TABLE t) FOR UPDATE)", func(t *testing.T) {
+		ParseExpectError(t, "SELECT 1 WHERE 1 IN ((TABLE t) FOR UPDATE)")
+	})
 }
 
 // Regression: EXISTS (unambiguous) and simple single-paren subqueries unaffected.

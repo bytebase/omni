@@ -152,7 +152,7 @@ accept	accept	ROLLBACK TO x
 accept	accept	ROLLBACK TO X
 accept	accept	ROLLBACK TO SAVEPOINT x
 accept	accept	TABLE t
-reject	accept	(TABLE t)
+accept	accept	(TABLE t)
 reject	reject	TABLE t1, t2
 accept	accept	TABLE t ORDER BY b
 accept	accept	TABLE t LIMIT 3
@@ -168,9 +168,9 @@ accept	accept	TABLE t ORDER BY a INTO OUTFILE '/tmp/abc'
 accept	accept	CREATE TABLE t.a TABLE t.b
 accept	accept	CREATE TABLE ta TABLE tb
 accept	accept	CREATE TABLE ta (x INT) TABLE tb
-reject	accept	CREATE VIEW v AS TABLE t
-reject	accept	CREATE VIEW v AS (TABLE t)
-reject	accept	SELECT * FROM t1 WHERE a IN (TABLE t2)
+accept	accept	CREATE VIEW v AS TABLE t
+accept	accept	CREATE VIEW v AS (TABLE t)
+accept	accept	SELECT * FROM t1 WHERE a IN (TABLE t2)
 accept	accept	VALUES ROW(1)
 accept	accept	VALUES ROW()
 accept	accept	VALUES ROW(1, default)
@@ -181,11 +181,11 @@ accept	accept	VALUES ROW(1,s,3.1), ROW(5,y,9.9)
 accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9), ROW(4,6,8) LIMIT 3
 accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9), ROW(4,6,8) ORDER BY a
 accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9), ROW(4,6,8) ORDER BY a LIMIT 2
-reject	accept	VALUES ROW(1,-2,3), ROW(5,7,9) INTO OUTFILE 'a.txt'
-reject	accept	VALUES ROW(1,-2,3), ROW(5,7,9) ORDER BY a INTO OUTFILE '/tmp/abc'
+accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9) INTO OUTFILE 'a.txt'
+accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9) ORDER BY a INTO OUTFILE '/tmp/abc'
 accept	accept	CREATE TABLE ta VALUES ROW(1)
-reject	accept	CREATE TABLE ta AS VALUES ROW(1)
-reject	accept	CREATE VIEW a AS VALUES ROW(1)
+accept	accept	CREATE TABLE ta AS VALUES ROW(1)
+accept	accept	CREATE VIEW a AS VALUES ROW(1)
 accept	accept	SELECT a.b.c FROM t
 reject	reject	SELECT a.b.*.c FROM t
 accept	accept	SELECT a.b.* FROM t
@@ -274,8 +274,8 @@ reject	accept	import into `t` from '/file.csv' with detached, thread=1
 accept	accept	select * from t for update
 accept	accept	select * from t for share
 accept	accept	select * from t for update nowait
-reject	accept	select * from t for update wait 5
-reject	accept	select * from t limit 1 for update wait 11
+accept	accept	select * from t for update wait 5
+accept	accept	select * from t limit 1 for update wait 11
 accept	accept	select * from t for share nowait
 accept	accept	select * from t for update skip locked
 accept	accept	select * from t for share skip locked
@@ -285,8 +285,8 @@ reject	reject	select * from t lock in share mode skip locked
 accept	accept	select * from t for update of t
 accept	accept	select * from t for share of t
 accept	accept	select * from t for update of t nowait
-reject	accept	select * from t for update of t wait 5
-reject	accept	select * from t limit 1 for update of t wait 11
+accept	accept	select * from t for update of t wait 5
+accept	accept	select * from t limit 1 for update of t wait 11
 accept	accept	select * from t for share of t nowait
 accept	accept	select * from t for update of t skip locked
 accept	accept	select * from t for share of t skip locked
@@ -3025,20 +3025,20 @@ accept	accept	select * from (select 1 union select 2) as a
 accept	accept	insert into t select c1 from t1 union select c2 from t2
 accept	accept	insert into t (c) select c1 from t1 union select c2 from t2
 accept	accept	select 2 as a from dual union select 1 as b from dual order by a
-reject	accept	table t1 union table t2
-reject	accept	table t1 union (table t2)
-reject	accept	table t1 union select * from t2
-reject	accept	select * from t1 union table t2
-reject	accept	table t1 union (select c2 from t2) order by c1 limit 1
-reject	accept	select c1 from t1 union (table t2) order by c1 limit 1
-reject	accept	(select c1 from t1) union table t2 union (select c3 from t3) order by c1 limit 1
-reject	accept	(table t1) union select c2 from t2 union (table t3) order by c1 limit 1
-reject	accept	values row(1,-2,3), row(5,7,9) union values row(1,-2,3), row(5,7,9)
-reject	accept	values row(1,-2,3), row(5,7,9) union (values row(1,-2,3), row(5,7,9))
-reject	accept	values row(1,-2,3), row(5,7,9) union select * from t
-reject	accept	values row(1,-2,3), row(5,7,9) union table t
-reject	accept	select * from t union values row(1,-2,3), row(5,7,9)
-reject	accept	table t union values row(1,-2,3), row(5,7,9)
+accept	accept	table t1 union table t2
+accept	accept	table t1 union (table t2)
+accept	accept	table t1 union select * from t2
+accept	accept	select * from t1 union table t2
+accept	accept	table t1 union (select c2 from t2) order by c1 limit 1
+accept	accept	select c1 from t1 union (table t2) order by c1 limit 1
+accept	accept	(select c1 from t1) union table t2 union (select c3 from t3) order by c1 limit 1
+accept	accept	(table t1) union select c2 from t2 union (table t3) order by c1 limit 1
+accept	accept	values row(1,-2,3), row(5,7,9) union values row(1,-2,3), row(5,7,9)
+accept	accept	values row(1,-2,3), row(5,7,9) union (values row(1,-2,3), row(5,7,9))
+accept	accept	values row(1,-2,3), row(5,7,9) union select * from t
+accept	accept	values row(1,-2,3), row(5,7,9) union table t
+accept	accept	select * from t union values row(1,-2,3), row(5,7,9)
+accept	accept	table t union values row(1,-2,3), row(5,7,9)
 accept	accept	select c1 from t1 except select c2 from t2
 accept	accept	select c1 from t1 except (select c2 from t2)
 accept	accept	select c1 from t1 except (select c2 from t2) order by c1
@@ -3054,20 +3054,20 @@ accept	accept	select * from (select 1 except select 2) as a
 accept	accept	insert into t select c1 from t1 except select c2 from t2
 accept	accept	insert into t (c) select c1 from t1 except select c2 from t2
 accept	accept	select 2 as a from dual except select 1 as b from dual order by a
-reject	accept	table t1 except table t2
-reject	accept	table t1 except (table t2)
-reject	accept	table t1 except select * from t2
-reject	accept	select * from t1 except table t2
-reject	accept	table t1 except (select c2 from t2) order by c1 limit 1
-reject	accept	select c1 from t1 except (table t2) order by c1 limit 1
-reject	accept	(select c1 from t1) except table t2 except (select c3 from t3) order by c1 limit 1
-reject	accept	(table t1) except select c2 from t2 except (table t3) order by c1 limit 1
-reject	accept	values row(1,-2,3), row(5,7,9) except values row(1,-2,3), row(5,7,9)
-reject	accept	values row(1,-2,3), row(5,7,9) except (values row(1,-2,3), row(5,7,9))
-reject	accept	values row(1,-2,3), row(5,7,9) except select * from t
-reject	accept	values row(1,-2,3), row(5,7,9) except table t
-reject	accept	select * from t except values row(1,-2,3), row(5,7,9)
-reject	accept	table t except values row(1,-2,3), row(5,7,9)
+accept	accept	table t1 except table t2
+accept	accept	table t1 except (table t2)
+accept	accept	table t1 except select * from t2
+accept	accept	select * from t1 except table t2
+accept	accept	table t1 except (select c2 from t2) order by c1 limit 1
+accept	accept	select c1 from t1 except (table t2) order by c1 limit 1
+accept	accept	(select c1 from t1) except table t2 except (select c3 from t3) order by c1 limit 1
+accept	accept	(table t1) except select c2 from t2 except (table t3) order by c1 limit 1
+accept	accept	values row(1,-2,3), row(5,7,9) except values row(1,-2,3), row(5,7,9)
+accept	accept	values row(1,-2,3), row(5,7,9) except (values row(1,-2,3), row(5,7,9))
+accept	accept	values row(1,-2,3), row(5,7,9) except select * from t
+accept	accept	values row(1,-2,3), row(5,7,9) except table t
+accept	accept	select * from t except values row(1,-2,3), row(5,7,9)
+accept	accept	table t except values row(1,-2,3), row(5,7,9)
 accept	accept	select c1 from t1 intersect select c2 from t2
 accept	accept	select c1 from t1 intersect (select c2 from t2)
 accept	accept	select c1 from t1 intersect (select c2 from t2) order by c1
@@ -3083,20 +3083,20 @@ accept	accept	select * from (select 1 intersect select 2) as a
 accept	accept	insert into t select c1 from t1 intersect select c2 from t2
 accept	accept	insert into t (c) select c1 from t1 intersect select c2 from t2
 accept	accept	select 2 as a from dual intersect select 1 as b from dual order by a
-reject	accept	table t1 intersect table t2
-reject	accept	table t1 intersect (table t2)
-reject	accept	table t1 intersect select * from t2
-reject	accept	select * from t1 intersect table t2
-reject	accept	table t1 intersect (select c2 from t2) order by c1 limit 1
-reject	accept	select c1 from t1 intersect (table t2) order by c1 limit 1
-reject	accept	(select c1 from t1) intersect table t2 intersect (select c3 from t3) order by c1 limit 1
-reject	accept	(table t1) intersect select c2 from t2 intersect (table t3) order by c1 limit 1
-reject	accept	values row(1,-2,3), row(5,7,9) intersect values row(1,-2,3), row(5,7,9)
-reject	accept	values row(1,-2,3), row(5,7,9) intersect (values row(1,-2,3), row(5,7,9))
-reject	accept	values row(1,-2,3), row(5,7,9) intersect select * from t
-reject	accept	values row(1,-2,3), row(5,7,9) intersect table t
-reject	accept	select * from t intersect values row(1,-2,3), row(5,7,9)
-reject	accept	table t intersect values row(1,-2,3), row(5,7,9)
+accept	accept	table t1 intersect table t2
+accept	accept	table t1 intersect (table t2)
+accept	accept	table t1 intersect select * from t2
+accept	accept	select * from t1 intersect table t2
+accept	accept	table t1 intersect (select c2 from t2) order by c1 limit 1
+accept	accept	select c1 from t1 intersect (table t2) order by c1 limit 1
+accept	accept	(select c1 from t1) intersect table t2 intersect (select c3 from t3) order by c1 limit 1
+accept	accept	(table t1) intersect select c2 from t2 intersect (table t3) order by c1 limit 1
+accept	accept	values row(1,-2,3), row(5,7,9) intersect values row(1,-2,3), row(5,7,9)
+accept	accept	values row(1,-2,3), row(5,7,9) intersect (values row(1,-2,3), row(5,7,9))
+accept	accept	values row(1,-2,3), row(5,7,9) intersect select * from t
+accept	accept	values row(1,-2,3), row(5,7,9) intersect table t
+accept	accept	select * from t intersect values row(1,-2,3), row(5,7,9)
+accept	accept	table t intersect values row(1,-2,3), row(5,7,9)
 accept	accept	(select c1 from t1) intersect select c2 from t2 union (select c3 from t3) order by c1 limit 1
 accept	accept	(select c1 from t1) union all select c2 from t2 except (select c3 from t3) order by c1 limit 1
 accept	accept	(select c1 from t1) except select c2 from t2 intersect (select c3 from t3) order by c1 limit 1
@@ -3724,7 +3724,7 @@ accept	accept	with cte(a) as (select 1) update t, cte set t.a=1  where t.a=cte.a
 accept	accept	with cte(a) as (select 1) delete t from t, cte where t.a=cte.a;
 accept	accept	WITH cte1 AS (SELECT 1) SELECT * FROM (WITH cte2 AS (SELECT 2) SELECT * FROM cte2 JOIN cte1) AS dt;
 accept	accept	WITH cte AS (SELECT 1) SELECT /*+ MAX_EXECUTION_TIME(1000) */ * FROM cte;
-reject	accept	with cte as (table t) table cte;
+accept	accept	with cte as (table t) table cte;
 reject	reject	with cte as (select 1) select 1 union with cte as (select 1) select * from cte;
 accept	accept	with cte as (select 1) (select 1);
 accept	accept	with cte as (select 1) (select 1 union select 1)

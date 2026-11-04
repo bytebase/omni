@@ -66,10 +66,13 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 			return nil, err
 		}
 
-		// Completion: inside CTE AS (, offer SELECT keyword.
+		// Completion: inside CTE AS (, offer the query primaries a body may
+		// begin with.
 		p.checkCursor()
 		if p.collectMode() {
 			p.addTokenCandidate(kwSELECT)
+			p.addTokenCandidate(kwTABLE)
+			p.addTokenCandidate(kwVALUES)
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -104,9 +107,10 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 	}
 
 	switch p.cur.Type {
-	case kwSELECT, '(':
-		// A SELECT leaf or a parenthesized query body:
+	case kwSELECT, kwTABLE, kwVALUES, '(':
+		// A query primary or a parenthesized query body:
 		//   WITH ... SELECT ...
+		//   WITH ... TABLE t   |   WITH ... VALUES ROW(1)
 		//   WITH ... (SELECT ...) [set-op] [ORDER BY / LIMIT]
 		return p.parseSelectClauseAndTrailing(start, ctes)
 
@@ -283,12 +287,15 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		}
 		p.advance() // consume UNION/INTERSECT/EXCEPT
 
-		// Completion: after the set-op keyword, offer ALL, DISTINCT, SELECT.
+		// Completion: after the set-op keyword, offer ALL, DISTINCT, and the
+		// query primaries an operand may begin with.
 		p.checkCursor()
 		if p.collectMode() {
 			p.addTokenCandidate(kwALL)
 			p.addTokenCandidate(kwDISTINCT)
 			p.addTokenCandidate(kwSELECT)
+			p.addTokenCandidate(kwTABLE)
+			p.addTokenCandidate(kwVALUES)
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -299,10 +306,12 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 			p.match(kwDISTINCT)
 		}
 
-		// Completion: after ALL/DISTINCT, offer SELECT.
+		// Completion: after ALL/DISTINCT, offer the query primaries.
 		p.checkCursor()
 		if p.collectMode() {
 			p.addTokenCandidate(kwSELECT)
+			p.addTokenCandidate(kwTABLE)
+			p.addTokenCandidate(kwVALUES)
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -372,7 +381,7 @@ func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 		stmt := &nodes.SelectStmt{Loc: table.Loc, TableSource: table}
-		if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
+		if err := p.parseQueryPrimaryTail(stmt); err != nil {
 			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
@@ -384,7 +393,7 @@ func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 		stmt := &nodes.SelectStmt{Loc: values.Loc, ValuesSource: values}
-		if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
+		if err := p.parseQueryPrimaryTail(stmt); err != nil {
 			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
@@ -825,16 +834,6 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.WindowClause = defs
 	}
 
-	// INTO clause (position 2: after HAVING/WINDOW, before ORDER BY)
-	if p.cur.Type == kwINTO && stmt.Into == nil {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Into = into
-	}
-
 	// ORDER BY clause
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -875,6 +874,25 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.Limit = limit
 	}
 
+	// INTO clause (position 2: after LIMIT, before the locking clause).
+	//
+	// MySQL takes INTO after the whole query expression, not between its
+	// clauses: select_stmt_with_into (sql/sql_yacc.yy line 9863) is
+	// query_expression into_clause [locking_clause_list], and
+	// query_expression (9914) is where opt_order_clause and opt_limit_clause
+	// live. So "... INTO OUTFILE 'f' FOR UPDATE" parses and
+	// "... INTO OUTFILE 'f' ORDER BY a" and "... INTO OUTFILE 'f' LIMIT 1" are
+	// syntax errors (container-verified). An INTO before FROM (position 1
+	// above) is a separate rule, query_specification's own into_clause.
+	if p.cur.Type == kwINTO && stmt.Into == nil {
+		p.advance()
+		into, err := p.parseIntoClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
 	if p.cur.Type == kwFOR {
 		fu, err := p.parseForUpdateClause()
@@ -890,7 +908,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.ForUpdate = fu
 	}
 
-	// INTO clause (position 3: after locking clause)
+	// INTO clause (position 3: after the locking clause)
 	if p.cur.Type == kwINTO && stmt.Into == nil {
 		p.advance()
 		into, err := p.parseIntoClause()
@@ -1892,11 +1910,14 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 		}
 	}
 
-	// NOWAIT / SKIP LOCKED
+	// NOWAIT / SKIP LOCKED. LOCKED is required: MySQL 8.0 (sql/sql_yacc.yy, locking_clause line 9958) spells SKIP LOCKED as
+	// one alternative, so SKIP alone is a syntax error (container-verified).
 	if _, ok := p.match(kwNOWAIT); ok {
 		fu.NoWait = true
 	} else if _, ok := p.match(kwSKIP); ok {
-		p.match(kwLOCKED)
+		if _, err := p.expect(kwLOCKED); err != nil {
+			return nil, err
+		}
 		fu.SkipLocked = true
 	}
 
@@ -2351,32 +2372,6 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 	return defs, nil
 }
 
-// parseTableStmt parses a TABLE statement (MySQL 8.0.19+): a TABLE query
-// primary that stands alone, as a statement, an EXPLAIN target, or the
-// source of INSERT ... TABLE, and so holds its own clauses.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
-//
-//	TABLE table_name
-//	    [ORDER BY column_name]
-//	    [LIMIT number [OFFSET number]]
-//	    [INTO OUTFILE 'file_name'
-//	        [{FIELDS | COLUMNS} ...]
-//	        [LINES ...]
-//	    | INTO DUMPFILE 'file_name'
-//	    | INTO var_name [, var_name] ...]
-func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
-	stmt, err := p.parseExplicitTable()
-	if err != nil {
-		return nil, err
-	}
-	if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
-		return nil, err
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseExplicitTable parses TABLE table_name, MySQL's explicit_table, into a
 // TableStmt that holds only the table.
 func (p *Parser) parseExplicitTable() (*nodes.TableStmt, error) {
@@ -2393,61 +2388,88 @@ func (p *Parser) parseExplicitTable() (*nodes.TableStmt, error) {
 	}, nil
 }
 
-// parseSourceClauses parses the ORDER BY, LIMIT, and, when withInto is set,
-// INTO clauses that may follow a TABLE or VALUES query primary.
-func (p *Parser) parseSourceClauses(withInto bool) ([]*nodes.OrderByItem, *nodes.Limit, *nodes.IntoClause, error) {
-	var orderBy []*nodes.OrderByItem
+// parseQueryPrimaryTail parses onto stmt the ORDER BY, LIMIT, locking clause
+// and INTO that may follow a TABLE or VALUES query primary. The primary holds
+// only its table or rows, so these clauses have one owner; a SELECT leaf
+// parses the same tail inline (see parseSimpleSelect).
+//
+// MySQL's grammar (sql/sql_yacc.yy, 8.0.40) puts them on the query expression
+// around the primary, not on the primary: explicit_table (line 10064) is
+// TABLE table_ident and table_value_constructor (10057) is VALUES
+// values_row_list, while query_expression (9914) holds opt_order_clause and
+// opt_limit_clause, select_stmt (9839) the locking_clause_list, and
+// select_stmt_with_into (9863) the into_clause. Had the source kept the
+// clauses too, every walk would visit them twice, and a TABLE nested in the
+// ORDER BY of another would double the walk at each level.
+//
+// A second ORDER BY or LIMIT is rejected here rather than left for the caller,
+// which would read it as the trailing clause of an enclosing query expression
+// and accept "TABLE t ORDER BY a ORDER BY b" (container-verified: both are
+// syntax errors).
+func (p *Parser) parseQueryPrimaryTail(stmt *nodes.SelectStmt) error {
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
-			return nil, nil, nil, err
+			return err
 		}
 		list, err := p.parseOrderByList()
 		if err != nil {
-			return nil, nil, nil, err
+			return err
 		}
-		orderBy = list
+		stmt.OrderBy = list
+		if p.cur.Type == kwORDER {
+			return &ParseError{Message: "duplicate ORDER BY clause", Position: p.cur.Loc}
+		}
 	}
 
-	var limit *nodes.Limit
 	if _, ok := p.match(kwLIMIT); ok {
 		l, err := p.parseLimitClause()
 		if err != nil {
-			return nil, nil, nil, err
+			return err
 		}
-		limit = l
+		stmt.Limit = l
+		if p.cur.Type == kwLIMIT {
+			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
+		}
 	}
 
-	var into *nodes.IntoClause
-	if withInto && p.cur.Type == kwINTO {
+	// INTO may come before the locking clause or after it, the two positions
+	// select_stmt_with_into gives a query expression that stands alone
+	// (container-verified: "... INTO OUTFILE 'f' FOR UPDATE" and
+	// "... FOR UPDATE INTO OUTFILE 'f'" are both accepted).
+	if p.cur.Type == kwINTO {
 		p.advance()
 		i, err := p.parseIntoClause()
 		if err != nil {
-			return nil, nil, nil, err
+			return err
 		}
-		into = i
+		stmt.Into = i
 	}
-	return orderBy, limit, into, nil
-}
 
-// parseValuesStmt parses a VALUES statement (MySQL 8.0.19+): a VALUES query
-// primary that stands alone, as a statement or an EXPLAIN target, and so
-// holds its own clauses.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/values.html
-//
-//	VALUES ROW(value_list) [, ROW(value_list)] ...
-//	    [ORDER BY column_designator] [LIMIT number [OFFSET number]]
-func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
-	stmt, err := p.parseValuesConstructor()
-	if err != nil {
-		return nil, err
+	switch p.cur.Type {
+	case kwFOR:
+		fu, err := p.parseForUpdateClause()
+		if err != nil {
+			return err
+		}
+		stmt.ForUpdate = fu
+	case kwLOCK:
+		fu, err := p.parseLockInShareMode()
+		if err != nil {
+			return err
+		}
+		stmt.ForUpdate = fu
 	}
-	if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
-		return nil, err
+
+	if p.cur.Type == kwINTO && stmt.Into == nil {
+		p.advance()
+		i, err := p.parseIntoClause()
+		if err != nil {
+			return err
+		}
+		stmt.Into = i
 	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	return nil
 }
 
 // parseValuesConstructor parses VALUES ROW(...) [, ROW(...)] ..., MySQL's
