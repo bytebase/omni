@@ -1232,12 +1232,18 @@ func (s *UseStmt) nodeTag()  {}
 func (s *UseStmt) stmtNode() {}
 
 // ExplainStmt represents an EXPLAIN/DESCRIBE statement.
+//
+// Which fields a statement can set is MySQL 8.0's modifier list: Extended and
+// Partitions went with 5.7, so no statement sets either
+// (mysql/parser/explain_forms_test.go). Stmt is nil for the FOR CONNECTION
+// form, which is how a consumer tells it from a connection id that happens to
+// be 0.
 type ExplainStmt struct {
 	Loc           Loc
-	Format        string // TRADITIONAL, JSON, TREE
-	Analyze       bool   // EXPLAIN ANALYZE
-	Extended      bool   // EXPLAIN EXTENDED (deprecated but still parsed)
-	Partitions    bool   // EXPLAIN PARTITIONS (deprecated but still parsed)
+	Format        string // any ident_or_text: TRADITIONAL, JSON, TREE, quoted or not
+	Analyze       bool   // EXPLAIN ANALYZE, which runs the statement it carries
+	Extended      bool   // EXPLAIN EXTENDED: no MySQL 8.0 syntax sets this
+	Partitions    bool   // EXPLAIN PARTITIONS: no MySQL 8.0 syntax sets this
 	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
 	Stmt          StmtNode
 }

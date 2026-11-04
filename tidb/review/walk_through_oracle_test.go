@@ -85,6 +85,11 @@ var walkCases = []walkCase{
 	// key too; the name after FOREIGN KEY or UNIQUE names them only without
 	// a symbol, and a long one fails only then.
 	{name: "a constraint's name and its index's", change: "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP INDEX cx;\nCREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nALTER TABLE y DROP FOREIGN KEY fy;\nALTER TABLE y DROP INDEX fy;\nALTER TABLE t ADD CONSTRAINT nk FOREIGN KEY fk1 (a) REFERENCES r (id);\nCREATE TABLE u (a int, b int, CONSTRAINT cu UNIQUE KEY uu (a));\nALTER TABLE u DROP INDEX cu;\nALTER TABLE u DROP INDEX cu;\nALTER TABLE u ADD CONSTRAINT cv UNIQUE INDEX uv (b);\nALTER TABLE u DROP INDEX cv;\nCREATE TABLE w (a int, CONSTRAINT cw FOREIGN KEY " + long + " (a) REFERENCES r (id));\nCREATE TABLE w2 (a int, FOREIGN KEY " + long + " (a) REFERENCES r (id));\nCREATE TABLE w3 (a int, CONSTRAINT cw3 UNIQUE KEY " + long + " (a));\nCREATE TABLE w4 (a int, UNIQUE KEY " + long + " (a));", complete: true},
+	// EXPLAIN reports a plan and changes nothing; EXPLAIN ANALYZE runs the
+	// statement it carries, and on TiDB that reaches ALTER TABLE, so the
+	// walk must follow the change the second one makes and the first one
+	// does not (tidb/parser/explain_forms_test.go measures both).
+	{name: "EXPLAIN", change: "EXPLAIN ALTER TABLE t ADD COLUMN c int;\nALTER TABLE t ADD COLUMN c int;\nEXPLAIN ANALYZE ALTER TABLE t ADD COLUMN d int;\nALTER TABLE t ADD COLUMN d int;\nEXPLAIN ANALYZE ALTER TABLE nosuch ADD COLUMN e int;\nEXPLAIN FORMAT = 'brief' ALTER TABLE t ADD COLUMN f int;\nALTER TABLE t ADD COLUMN f int;\nEXPLAIN SELECT 1;\nEXPLAIN ANALYZE SELECT 1;\nEXPLAIN t;\nEXPLAIN ANALYZE UPDATE t SET a = 1;", complete: true},
 	// With CHECK constraints off, TiDB takes a CHECK constraint's long name
 	// with a warning.
 	{name: "a CHECK constraint's long name", checksOff: true, change: "CREATE TABLE k1 (a int, CONSTRAINT " + long + " CHECK (a > 0));\nALTER TABLE k1 ADD CONSTRAINT " + long + "x CHECK (a > 1);\nCREATE TABLE k2 (a int, CHECK (a > 0), CONSTRAINT " + long + " CHECK (a > 1));\nALTER TABLE k2 DROP CHECK " + long + ";\nCREATE TABLE " + long + " (a int);", complete: true},

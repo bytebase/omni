@@ -1253,13 +1253,18 @@ func (s *UseStmt) nodeTag()  {}
 func (s *UseStmt) stmtNode() {}
 
 // ExplainStmt represents an EXPLAIN/DESCRIBE statement.
+//
+// Which fields a statement can set is OceanBase's modifier list: EXTENDED and
+// PARTITIONS are still here, as in MySQL 5.7, and there is neither an EXPLAIN
+// ANALYZE nor a FOR CONNECTION, so no statement sets Analyze or ForConnection
+// (oceanbase/parser/explain_forms_test.go).
 type ExplainStmt struct {
 	Loc           Loc
-	Format        string // TRADITIONAL, JSON, TREE
-	Analyze       bool   // EXPLAIN ANALYZE
-	Extended      bool   // EXPLAIN EXTENDED (deprecated but still parsed)
-	Partitions    bool   // EXPLAIN PARTITIONS (deprecated but still parsed)
-	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
+	Format        string // TRADITIONAL or JSON, bare
+	Analyze       bool   // EXPLAIN ANALYZE: no OceanBase syntax sets this
+	Extended      bool   // EXPLAIN EXTENDED
+	Partitions    bool   // EXPLAIN PARTITIONS
+	ForConnection int64  // EXPLAIN FOR CONNECTION: no OceanBase syntax sets this
 	Stmt          StmtNode
 }
 

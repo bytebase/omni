@@ -1504,16 +1504,30 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	}, nil
 }
 
-// parseExplainStmt parses an EXPLAIN or DESCRIBE statement.
+// parseExplainStmt parses an EXPLAIN, DESCRIBE or DESC statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/explain.html
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/explain.html; describe_stmt,
+// opt_explain_format and explainable_stmt in MySQL 8.0.46 sql/sql_yacc.yy.
 //
 //	{EXPLAIN | DESCRIBE | DESC} tbl_name [col_name | wild]
-//	{EXPLAIN | DESCRIBE | DESC} [explain_type] {explainable_stmt | FOR CONNECTION connection_id}
-//	{EXPLAIN | DESCRIBE | DESC} ANALYZE [explain_type] explainable_stmt
-//	explain_type: { FORMAT = format_name }
-//	format_name: { TRADITIONAL | JSON | TREE }
-//	explainable_stmt: { SELECT | TABLE | VALUES | DELETE | INSERT | REPLACE | UPDATE }
+//	{EXPLAIN | DESCRIBE | DESC} [ANALYZE] [FORMAT = format] {explainable_stmt | FOR CONNECTION connection_id}
+//	format: ident_or_text
+//	explainable_stmt: {SELECT | TABLE | VALUES | DELETE | INSERT | REPLACE | UPDATE}
+//
+// The modifier list is MySQL 8.0's. EXPLAIN EXTENDED and EXPLAIN PARTITIONS
+// are gone -- 8.0 folded both into the default output and each is a 1064 on
+// 8.0.46, as it is on TiDB; MariaDB is the engine in this family that still
+// takes them. ANALYZE reaches FOR CONNECTION as well as an explainable
+// statement: MySQL parses EXPLAIN ANALYZE FOR CONNECTION 1 and answers 1235,
+// while TiDB rejects it outright. A modifier rules the table form out, so
+// FORMAT = JSON t and ANALYZE t are each a 1064.
+//
+// No DDL is explainable: EXPLAIN ALTER TABLE is a 1064 on MySQL 8.0.46, and
+// TiDB is the engine in this family that explains it.
+//
+// DESC and DESCRIBE read only the table form here. MySQL takes them as full
+// EXPLAIN synonyms -- DESC FORMAT = JSON SELECT 1 parses on 8.0.46 -- which is
+// a gap this file records rather than closes.
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
 	isDescribe := p.cur.Type == kwDESCRIBE || p.cur.Type == kwDESC
@@ -1528,7 +1542,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			p.addRuleCandidate("table_ref")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		// DESCRIBE tbl_name [col_name]
+		// DESCRIBE tbl_name [col_name | wild]
 		ref, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
@@ -1539,16 +1553,8 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			Type: "COLUMNS",
 			From: ref,
 		}
-		// Optional column name
-		if p.cur.Type != tokEOF && p.cur.Type != ';' {
-			colExpr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if colExpr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			showStmt.Like = colExpr
+		if err := p.parseExplainColumn(showStmt); err != nil {
+			return nil, err
 		}
 		showStmt.Loc.End = p.prev.End
 		stmt.Stmt = showStmt
@@ -1556,51 +1562,44 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		return stmt, nil
 	}
 
-	// EXPLAIN [ANALYZE] [EXTENDED] [PARTITIONS] [FORMAT = value] stmt
-
-	// Check for ANALYZE
 	if p.cur.Type == kwANALYZE {
 		stmt.Analyze = true
 		p.advance()
 	}
 
-	// Check for EXTENDED (deprecated in 8.0 but still parsed)
-	if p.cur.Type == kwEXTENDED {
-		stmt.Extended = true
-		p.advance()
-	}
-
-	// Check for PARTITIONS (deprecated in 8.0 but still parsed)
-	if p.cur.Type == kwPARTITIONS {
-		stmt.Partitions = true
-		p.advance()
-	}
-
-	// Check for FORMAT = value
+	// FORMAT = format, whose name is ident_or_text: an identifier, a
+	// non-reserved keyword, a backquoted identifier, or a string literal in
+	// either quote. MySQL checks the name itself after parsing (1791), so
+	// FORMAT = nosuchformat and FORMAT = 'nosuchformat' both parse, while an
+	// integer and a reserved word are a 1064: FORMAT = 1, FORMAT = binary and
+	// FORMAT = select are syntax errors.
+	hasFormat := false
 	if p.cur.Type == kwFORMAT {
+		hasFormat = true
 		p.advance() // consume FORMAT
 		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
-		// Parse format value: TRADITIONAL, JSON, TREE
-		// Must accept any keyword since format values may be registered keywords.
-		formatName, _, err := p.parseKeywordOrIdent()
+		name, _, err := p.parseIdentOrText()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Format = formatName
+		stmt.Format = name
 	}
 
-	// EXPLAIN FOR CONNECTION connection_id
+	// EXPLAIN [ANALYZE] [FORMAT = format] FOR CONNECTION connection_id.
+	// CONNECTION and the id are both required, and the id is an unsigned
+	// integer: FOR 1, FOR CONNECTION and FOR CONNECTION 'x' are each a 1064.
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR
-		if p.cur.Type == kwCONNECTION {
-			p.advance() // consume CONNECTION
+		if _, err := p.expect(kwCONNECTION); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == tokICONST {
-			stmt.ForConnection = p.cur.Ival
-			p.advance()
+		tok, err := p.expect(tokICONST)
+		if err != nil {
+			return nil, err
 		}
+		stmt.ForConnection = tok.Ival
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -1609,17 +1608,25 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwANALYZE, kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
-			kwSELECT, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
+			kwANALYZE, kwFORMAT, kwFOR,
+			kwSELECT, kwWITH, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
 		} {
 			p.addTokenCandidate(t)
+		}
+		if !stmt.Analyze && !hasFormat {
+			// The table form is still reachable here, and EXPLAIN t is as
+			// valid as EXPLAIN SELECT.
+			p.addRuleCandidate("table_ref")
 		}
 		return nil, &ParseError{Message: "collecting"}
 	}
 
 	// Parse the explainable statement
 	switch p.cur.Type {
-	case kwSELECT:
+	case kwSELECT, kwWITH, '(':
+		// A query expression, which parseSelectStmt reads whole: a SELECT
+		// leaf, a WITH clause in front of one, a parenthesized body, or a
+		// set operation over them.
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
@@ -1662,7 +1669,13 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		}
 		stmt.Stmt = vals
 	default:
-		// For other tokens, try to parse as a table ref (EXPLAIN table_name)
+		// EXPLAIN tbl_name [col_name | wild], which no modifier stands in
+		// front of.
+		// hasFormat rather than Format != "": the name may be an empty
+		// string, and FORMAT = '' is a modifier all the same.
+		if stmt.Analyze || hasFormat {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ref, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
@@ -1672,16 +1685,8 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			Type: "COLUMNS",
 			From: ref,
 		}
-		// Optional column name or wildcard pattern
-		if p.cur.Type != tokEOF && p.cur.Type != ';' {
-			colExpr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if colExpr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			showStmt.Like = colExpr
+		if err := p.parseExplainColumn(showStmt); err != nil {
+			return nil, err
 		}
 		showStmt.Loc.End = p.prev.End
 		stmt.Stmt = showStmt
@@ -1689,4 +1694,34 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseExplainColumn parses the column name or wild pattern EXPLAIN and
+// DESCRIBE take after a table name, into the ShowStmt the table form lowers
+// to. MySQL's slot is opt_describe_column, which is ident or text_string and
+// nothing else: EXPLAIN t a, EXPLAIN t `a` and EXPLAIN t 'a%' all parse, while
+// a qualified name, an integer and a reserved word are each a 1064 --
+// EXPLAIN t a.b and EXPLAIN t 123 are syntax errors on 8.0.46, where TiDB
+// takes the qualified name and refuses the string.
+//
+// It is held in ShowStmt.Like, which is where the EXPLAIN table form has always
+// put it; ShowStmt has no column field of its own.
+//
+// Ref: opt_describe_column in MySQL 8.0.46 sql/sql_yacc.yy.
+func (p *Parser) parseExplainColumn(showStmt *nodes.ShowStmt) error {
+	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+		return nil
+	}
+	if p.cur.Type == tokSCONST {
+		tok := p.advance()
+		showStmt.Like = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Str}
+		return nil
+	}
+	start := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	showStmt.Like = &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Column: name}
+	return nil
 }

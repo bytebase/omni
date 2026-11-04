@@ -4945,39 +4945,29 @@ func TestParseExplain(t *testing.T) {
 		}
 	})
 
+	// EXTENDED and PARTITIONS are MySQL 5.7 modifiers: TiDB v8.5.5
+	// answers 1064 for both, and explain_forms_test.go holds the whole
+	// modifier list to the engine.
 	t.Run("explain extended select", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN EXTENDED SELECT * FROM t1")}
-		p.advance()
-		stmt, err := p.parseExplainStmt()
-		if err != nil {
-			t.Fatalf("parseExplainStmt error: %v", err)
-		}
-		if !stmt.Extended {
-			t.Error("Extended = false, want true")
-		}
+		ParseExpectError(t, "EXPLAIN EXTENDED SELECT * FROM t1")
 	})
 
 	t.Run("explain partitions select", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN PARTITIONS SELECT * FROM t1")}
-		p.advance()
-		stmt, err := p.parseExplainStmt()
-		if err != nil {
-			t.Fatalf("parseExplainStmt error: %v", err)
-		}
-		if !stmt.Partitions {
-			t.Error("Partitions = false, want true")
-		}
+		ParseExpectError(t, "EXPLAIN PARTITIONS SELECT * FROM t1")
 	})
 
+	// TREE is no bare format name on TiDB, which reads a closed list of
+	// eight; quoted, any name at all parses.
 	t.Run("explain format tree select", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN FORMAT=TREE SELECT * FROM t1")}
+		ParseExpectError(t, "EXPLAIN FORMAT=TREE SELECT * FROM t1")
+		p := &Parser{lexer: NewLexer("EXPLAIN FORMAT='tree' SELECT * FROM t1")}
 		p.advance()
 		stmt, err := p.parseExplainStmt()
 		if err != nil {
 			t.Fatalf("parseExplainStmt error: %v", err)
 		}
-		if stmt.Format != "TREE" {
-			t.Errorf("Format = %s, want TREE", stmt.Format)
+		if stmt.Format != "tree" {
+			t.Errorf("Format = %s, want tree", stmt.Format)
 		}
 	})
 
@@ -10720,8 +10710,11 @@ func TestReviewBatch109_ExplainTableColumn(t *testing.T) {
 	ParseAndCheck(t, "EXPLAIN users name")
 }
 
+// TiDB's slot after a table name is a column name, not MySQL's wild
+// pattern: EXPLAIN users '%name%' is a 1064 on v8.5.5.
 func TestReviewBatch109_ExplainTableWild(t *testing.T) {
-	ParseAndCheck(t, "EXPLAIN users '%name%'")
+	ParseExpectError(t, "EXPLAIN users '%name%'")
+	ParseAndCheck(t, "EXPLAIN users name")
 }
 
 func TestReviewBatch109_ExplainTableStmt(t *testing.T) {
@@ -10733,7 +10726,8 @@ func TestReviewBatch109_ExplainAnalyze(t *testing.T) {
 }
 
 func TestReviewBatch109_ExplainFormatTree(t *testing.T) {
-	ParseAndCheck(t, "EXPLAIN FORMAT = TREE SELECT * FROM t")
+	ParseExpectError(t, "EXPLAIN FORMAT = TREE SELECT * FROM t")
+	ParseAndCheck(t, "EXPLAIN FORMAT = 'tree' SELECT * FROM t")
 }
 
 func TestReviewBatch109_HelpString(t *testing.T) {
