@@ -204,6 +204,12 @@ func singleTarget(exprs []ast.TableExpr) []*ast.TableRef {
 // sequence. TiDB has no triggers or stored functions (1064), so DML runs
 // no code that could create or drop a temporary table.
 func (b *builder) dml(targets []*ast.TableRef) bool {
+	return b.relationsExist(targets)
+}
+
+// relationsExist adds the check that each target exists (1146) as a
+// relation of any kind: a table, a temporary table, a view, or a sequence.
+func (b *builder) relationsExist(targets []*ast.TableRef) bool {
 	for _, t := range targets {
 		r, st := b.ref(t)
 		switch st {
