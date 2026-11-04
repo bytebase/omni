@@ -61,6 +61,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.PartitionBy != nil {
 			Walk(v, n.PartitionBy)
 		}
+		for _, item := range n.Constraints {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -514,9 +519,6 @@ func walkChildren(v Visitor, node Node) {
 		if n.Select != nil {
 			Walk(v, n.Select)
 		}
-		if n.TableSource != nil {
-			Walk(v, n.TableSource)
-		}
 		for _, item := range n.SetList {
 			if item != nil {
 				Walk(v, item)
@@ -585,9 +587,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Table)
 		}
 		for _, item := range n.Columns {
-			if item != nil {
-				Walk(v, item)
-			}
+			Walk(v, item)
 		}
 		for _, item := range n.SetList {
 			if item != nil {
@@ -660,6 +660,9 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *PositionExpr:
+		Walk(v, n.Substr)
+		Walk(v, n.Str)
 	case *PurgeBinaryLogsStmt:
 		Walk(v, n.BeforeExpr)
 	case *RawStmt:
@@ -819,17 +822,6 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
-		for _, item := range n.OrderBy {
-			if item != nil {
-				Walk(v, item)
-			}
-		}
-		if n.Limit != nil {
-			Walk(v, n.Limit)
-		}
-		if n.Into != nil {
-			Walk(v, n.Into)
-		}
 	case *TruncateStmt:
 		for _, item := range n.Tables {
 			if item != nil {
@@ -861,15 +853,6 @@ func walkChildren(v Visitor, node Node) {
 			if item != nil {
 				Walk(v, item)
 			}
-		}
-	case *ValuesStmt:
-		for _, item := range n.OrderBy {
-			if item != nil {
-				Walk(v, item)
-			}
-		}
-		if n.Limit != nil {
-			Walk(v, n.Limit)
 		}
 	case *WeightStringExpr:
 		Walk(v, n.Expr)

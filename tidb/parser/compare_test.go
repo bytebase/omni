@@ -1066,8 +1066,8 @@ func TestParseFuncCall(t *testing.T) {
 			if fc.Star != tt.star {
 				t.Errorf("Star = %v, want %v", fc.Star, tt.star)
 			}
-			if fc.Distinct != tt.distinct {
-				t.Errorf("Distinct = %v, want %v", fc.Distinct, tt.distinct)
+			if fc.Quantifier.RemovesDuplicates() != tt.distinct {
+				t.Errorf("Quantifier = %v, want distinct %v", fc.Quantifier, tt.distinct)
 			}
 			if len(fc.Args) != tt.argCount {
 				t.Errorf("arg count = %d, want %d", len(fc.Args), tt.argCount)
@@ -1776,19 +1776,24 @@ func TestParseInsertOnDupKey(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestParseInsertTableSource tests INSERT INTO t1 TABLE t2 (MySQL 8.0.19+).
+// The source is a query expression, so it lands on Select as a SelectStmt
+// over the TABLE primary, exactly as INSERT ... SELECT does.
 func TestParseInsertTableSource(t *testing.T) {
 	stmt := parseInsert(t, "INSERT INTO t1 TABLE t2")
-	if stmt.TableSource == nil {
-		t.Fatal("expected TableSource to be non-nil")
+	if stmt.Select == nil {
+		t.Fatal("expected Select to be non-nil")
 	}
-	if stmt.TableSource.Table.Name != "t2" {
-		t.Errorf("TableSource.Table.Name = %q, want %q", stmt.TableSource.Table.Name, "t2")
+	if stmt.Select.TableSource == nil {
+		t.Fatal("expected Select.TableSource to be non-nil")
+	}
+	if got := stmt.Select.TableSource.Table.Name; got != "t2" {
+		t.Errorf("Select.TableSource.Table.Name = %q, want %q", got, "t2")
 	}
 
 	// REPLACE ... TABLE
 	rep := parseReplace(t, "REPLACE INTO t1 TABLE t2")
-	if rep.TableSource == nil {
-		t.Fatal("expected TableSource to be non-nil for REPLACE")
+	if rep.Select == nil || rep.Select.TableSource == nil {
+		t.Fatal("expected Select.TableSource to be non-nil for REPLACE")
 	}
 
 	// INSERT with ON DUPLICATE KEY UPDATE after TABLE source
@@ -4009,14 +4014,15 @@ func TestParseAlterTableAnalyzePartition(t *testing.T) {
 		}
 	})
 
-	t.Run("analyze all partitions", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ANALYZE PARTITION ALL")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATAnalyzePartition {
-			t.Errorf("Type = %d, want ATAnalyzePartition", cmd.Type)
-		}
-		if !cmd.AllPartitions {
-			t.Errorf("AllPartitions = false, want true")
+	// ALL is not a partition name list here. ANALYZE PARTITION is its own arm
+	// of ALTER TABLE in TiDB rather than an entry of the action list, and that
+	// arm reads PartitionNameList, which has no ALL: v8.5.5 answers 1064 for
+	// `ALTER TABLE t ANALYZE PARTITION ALL`, where CHECK, OPTIMIZE, REBUILD,
+	// REPAIR and TRUNCATE PARTITION all take it. MySQL 8.0.46 and MariaDB
+	// 11.8.8 do take it, and keep it in their own forks.
+	t.Run("analyze all partitions is rejected", func(t *testing.T) {
+		if _, err := Parse("ALTER TABLE t ANALYZE PARTITION ALL"); err == nil {
+			t.Errorf("Parse accepted ALTER TABLE t ANALYZE PARTITION ALL, which TiDB v8.5.5 answers 1064 for")
 		}
 	})
 }
@@ -4917,12 +4923,15 @@ func TestParseExplain(t *testing.T) {
 		if !stmt.Analyze {
 			t.Error("Analyze = false, want true")
 		}
-		values, ok := stmt.Stmt.(*ast.ValuesStmt)
+		sel, ok := stmt.Stmt.(*ast.SelectStmt)
 		if !ok {
-			t.Fatalf("Stmt type = %T, want *ast.ValuesStmt", stmt.Stmt)
+			t.Fatalf("Stmt type = %T, want *ast.SelectStmt", stmt.Stmt)
 		}
-		if len(values.Rows) != 1 || len(values.Rows[0]) != 2 {
-			t.Fatalf("VALUES rows shape = %#v, want one ROW with two expressions", values.Rows)
+		if sel.ValuesSource == nil {
+			t.Fatalf("ValuesSource = nil, want the VALUES query primary")
+		}
+		if rows := sel.ValuesSource.Rows; len(rows) != 1 || len(rows[0]) != 2 {
+			t.Fatalf("VALUES rows shape = %#v, want one ROW with two expressions", rows)
 		}
 	})
 
@@ -7021,23 +7030,23 @@ func TestParseTableStmt(t *testing.T) {
 	}{
 		{
 			sql:  "TABLE t1",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}",
+			want: "{SELECT :loc 0 :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}}",
 		},
 		{
 			sql:  "TABLE mydb.t1",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :schema mydb :name t1}}",
+			want: "{SELECT :loc 0 :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :schema mydb :name t1}}}",
 		},
 		{
 			sql:  "TABLE t1 ORDER BY id",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col id}})}",
+			want: "{SELECT :loc 0 :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col id}}) :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}}",
 		},
 		{
 			sql:  "TABLE t1 LIMIT 10",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :limit {LIMIT :loc 15 :count {INT_LIT :val 10 :loc 15}}}",
+			want: "{SELECT :loc 0 :limit {LIMIT :loc 15 :count {INT_LIT :val 10 :loc 15}} :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}}",
 		},
 		{
 			sql:  "TABLE t1 ORDER BY name LIMIT 5 OFFSET 10",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col name}}) :limit {LIMIT :loc 29 :count {INT_LIT :val 5 :loc 29} :offset {INT_LIT :val 10 :loc 38}}}",
+			want: "{SELECT :loc 0 :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col name}}) :limit {LIMIT :loc 29 :count {INT_LIT :val 5 :loc 29} :offset {INT_LIT :val 10 :loc 38}} :table_source {TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7058,11 +7067,11 @@ func TestParseValuesStmt(t *testing.T) {
 	}{
 		{
 			sql:  "VALUES ROW(1, 2, 3)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}}",
 		},
 		{
 			sql:  "VALUES ROW(1, 2), ROW(3, 4)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7083,15 +7092,15 @@ func TestParseValuesRow(t *testing.T) {
 	}{
 		{
 			sql:  "VALUES ROW('a', 'b')",
-			want: `{VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}`,
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}}`,
 		},
 		{
 			sql:  "VALUES ROW(1, 'hello', NULL)",
-			want: `{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}`,
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}}`,
 		},
 		{
 			sql:  "VALUES ROW(1) LIMIT 1",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11})) :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}}}",
+			want: "{SELECT :loc 0 :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}} :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11}))}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7913,8 +7922,11 @@ func TestParseUnlockInstance(t *testing.T) {
 	ParseAndCompare(t, "UNLOCK INSTANCE", "{UNLOCK_INSTANCE :loc 0}")
 }
 
-func TestParseImportTable(t *testing.T) {
-	ParseAndCheck(t, "IMPORT TABLE FROM '/tmp/t1.sdi', '/tmp/t2.sdi'")
+// IMPORT TABLE FROM is MySQL's and not TiDB's: v8.5.5 answers 1064 for it,
+// where mysql:8.0.46 takes it. TiDB's only IMPORT is IMPORT INTO, which
+// load_data_forms_test.go covers.
+func TestParseImportTableIsNotTiDBs(t *testing.T) {
+	ParseExpectError(t, "IMPORT TABLE FROM '/tmp/t1.sdi', '/tmp/t2.sdi'")
 }
 
 // ============================================================================
@@ -9409,16 +9421,30 @@ func TestParseNaturalLeftOuterJoin(t *testing.T) {
 	}
 }
 
+// TestParseSelectIntoAfterHaving: INTO is the last clause of a TiDB query, so
+// it may follow HAVING when nothing else does — but an ORDER BY after it is a
+// syntax error, not a second position for INTO. TiDB v8.5.5 answers 1064 for
+// "... INTO OUTFILE 'f' ORDER BY a", "... INTO OUTFILE 'f' LIMIT 1" and
+// "... INTO OUTFILE 'f' FOR UPDATE" (container-verified; the accepts are
+// recorded in select_into_forms_oracle_test.go).
 func TestParseSelectIntoAfterHaving(t *testing.T) {
-	tests := []string{
-		// INTO at position 2: after HAVING, before ORDER BY
+	accepted := []string{
 		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt'",
-		// INTO at position 2: after HAVING, before ORDER BY with ORDER BY
-		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+		"SELECT a FROM t WHERE a > 1 INTO OUTFILE '/tmp/result.txt'",
 	}
-	for _, sql := range tests {
+	for _, sql := range accepted {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
+		})
+	}
+	rejected := []string{
+		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+		"SELECT a FROM t INTO OUTFILE '/tmp/result.txt' LIMIT 1",
+		"SELECT a FROM t INTO OUTFILE '/tmp/result.txt' FOR UPDATE",
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
 		})
 	}
 }

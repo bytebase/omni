@@ -825,16 +825,6 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.WindowClause = defs
 	}
 
-	// INTO clause (position 2: after HAVING/WINDOW, before ORDER BY)
-	if p.cur.Type == kwINTO && stmt.Into == nil {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Into = into
-	}
-
 	// ORDER BY clause
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -890,7 +880,14 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.ForUpdate = fu
 	}
 
-	// INTO clause (position 3: after locking clause)
+	// INTO clause (position 2: last, after the locking clause).
+	//
+	// OceanBase takes INTO only here, after every other clause, so
+	// "SELECT * FROM t INTO OUTFILE 'f' ORDER BY a",
+	// "... INTO OUTFILE 'f' LIMIT 1" and "... INTO OUTFILE 'f' FOR UPDATE"
+	// are syntax errors (container-verified on
+	// oceanbase/oceanbase-ce:4.3.5-lts). An INTO before FROM (position 1
+	// above) is a separate rule.
 	if p.cur.Type == kwINTO && stmt.Into == nil {
 		p.advance()
 		into, err := p.parseIntoClause()
@@ -1866,11 +1863,15 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 		}
 	}
 
-	// Completion: after FOR UPDATE/SHARE, offer OF, NOWAIT, SKIP.
+	// Completion: after FOR UPDATE/SHARE, offer OF, NOWAIT, SKIP, and WAIT
+	// where this is FOR UPDATE.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwNOWAIT)
 		p.addTokenCandidate(kwSKIP)
+		if !fu.Share {
+			p.addTokenCandidate(kwWAIT)
+		}
 		return nil, &ParseError{Message: "collecting"}
 	}
 
@@ -1890,11 +1891,35 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 		}
 	}
 
-	// NOWAIT / SKIP LOCKED
-	if _, ok := p.match(kwNOWAIT); ok {
+	// At most one of NOWAIT, WAIT n, SKIP LOCKED. OceanBase 4.3 spells each as
+	// one alternative, so SKIP needs its LOCKED and "NOWAIT WAIT 5",
+	// "WAIT 5 NOWAIT" and "WAIT 1 WAIT 2" are syntax errors. WAIT takes a
+	// numeric literal, not an expression: WAIT 5, WAIT 5.5 and WAIT 1e3 are
+	// accepted, WAIT @v, WAIT ?, WAIT (5), WAIT -5 and WAIT 0x10 are not
+	// (MariaDB takes the hex form, OceanBase does not). The literal is kept as
+	// written rather than converted, so nothing is invented about how
+	// OceanBase rounds or clamps it. All container-verified on
+	// oceanbase/oceanbase-ce:4.3.5-lts.
+	switch {
+	case p.cur.Type == kwNOWAIT:
+		p.advance()
 		fu.NoWait = true
-	} else if _, ok := p.match(kwSKIP); ok {
-		p.match(kwLOCKED)
+	case p.cur.Type == kwWAIT && !fu.Share:
+		p.advance()
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return nil, &ParseError{
+				Message:  "expected a number of seconds after WAIT",
+				Position: p.cur.Loc,
+			}
+		}
+		fu.WaitSeconds = p.cur.Str
+		fu.HasWait = true
+		p.advance()
+	case p.cur.Type == kwSKIP:
+		p.advance()
+		if _, err := p.expect(kwLOCKED); err != nil {
+			return nil, err
+		}
 		fu.SkipLocked = true
 	}
 

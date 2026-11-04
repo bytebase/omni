@@ -1367,11 +1367,7 @@ func TestDeparse_Section_5_8_ForUpdate(t *testing.T) {
 			"select `a` AS `a` from `t` for update",
 		},
 		{
-			"for_share",
-			"SELECT a FROM t FOR SHARE",
-			"select `a` AS `a` from `t` for share",
-		},
-		{
+			// MariaDB has no FOR SHARE; the shared lock is LOCK IN SHARE MODE.
 			"lock_in_share_mode",
 			"SELECT a FROM t LOCK IN SHARE MODE",
 			"select `a` AS `a` from `t` lock in share mode",
@@ -1385,6 +1381,28 @@ func TestDeparse_Section_5_8_ForUpdate(t *testing.T) {
 			"for_update_skip_locked",
 			"SELECT a FROM t FOR UPDATE SKIP LOCKED",
 			"select `a` AS `a` from `t` for update skip locked",
+		},
+		{
+			"for_update_wait",
+			"SELECT a FROM t FOR UPDATE WAIT 5",
+			"select `a` AS `a` from `t` for update wait 5",
+		},
+		{
+			// The literal round-trips as written: MariaDB's WAIT takes any
+			// numeric literal, and nothing here converts it.
+			"for_update_wait_decimal",
+			"SELECT a FROM t FOR UPDATE WAIT 5.5",
+			"select `a` AS `a` from `t` for update wait 5.5",
+		},
+		{
+			"lock_in_share_mode_wait",
+			"SELECT a FROM t LOCK IN SHARE MODE WAIT 5",
+			"select `a` AS `a` from `t` lock in share mode wait 5",
+		},
+		{
+			"lock_in_share_mode_nowait",
+			"SELECT a FROM t LOCK IN SHARE MODE NOWAIT",
+			"select `a` AS `a` from `t` lock in share mode nowait",
 		},
 	}
 

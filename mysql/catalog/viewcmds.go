@@ -268,6 +268,11 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		// whose WeightStringExpr.Expr is a CastExpr (oracle 8.0.32:
 		// IS_NULLABLE=YES for both over a nullable column).
 		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.PositionExpr:
+		// mysql:8.0: IS_NULLABLE is YES for position('x' in s) over a
+		// nullable s and for position('x' in NULL), NO over a NOT NULL column.
+		return inferViewExprNullable(e.Substr, relations) ||
+			inferViewExprNullable(e.Str, relations)
 	case *nodes.NullLit:
 		return true
 	default:
@@ -666,7 +671,7 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	resolver.Resolve(sel)
 
 	// Extract column names from the resolved target list.
-	derivedCols := extractViewColumns(sel)
+	derivedCols := extractViewColumns(sel, lookup)
 
 	// Rewrite: NOT folding, boolean context wrapping.
 	deparse.RewriteSelectStmt(sel)
@@ -676,8 +681,10 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.
-// This produces the column list that MySQL would derive for a view.
-func extractViewColumns(sel *nodes.SelectStmt) []string {
+// This produces the column list that MySQL would derive for a view. lookup
+// resolves the table of a TABLE query primary, which has no target list to
+// read.
+func extractViewColumns(sel *nodes.SelectStmt, lookup deparse.TableLookup) []string {
 	if sel == nil {
 		return nil
 	}
@@ -685,6 +692,20 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 	// parenthesized-query wrappers and walk set-operation left arms to reach it,
 	// so a parenthesized or set-op view body (CREATE VIEW v AS (SELECT a, b) or
 	// (SELECT 1 AS a) UNION (SELECT 2 AS a)) derives columns from that SELECT.
+	// A TABLE query primary is SELECT * FROM t and a VALUES primary a row
+	// constructor, so neither has a target list to read. Their columns are
+	// derived by the same code the resolver uses for a CTE or derived table
+	// over one, which searches the query's own CTE scope before lookup's
+	// tables (container-verified: CREATE VIEW v AS TABLE t declares the
+	// columns of t, CREATE VIEW v AS VALUES ROW(1,2) declares column_0 and
+	// column_1, and WITH x AS (SELECT 1 AS a) TABLE x declares a).
+	if primary := deparse.PrimaryOutputColumns(sel, lookup); primary != nil {
+		cols := make([]string, 0, len(primary))
+		for _, c := range primary {
+			cols = append(cols, c.Name)
+		}
+		return cols
+	}
 	sel = nodes.LeftmostQueryLeaf(sel)
 	var cols []string
 	for _, target := range sel.TargetList {

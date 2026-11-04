@@ -1029,8 +1029,8 @@ func TestParseFuncCall(t *testing.T) {
 			if fc.Star != tt.star {
 				t.Errorf("Star = %v, want %v", fc.Star, tt.star)
 			}
-			if fc.Distinct != tt.distinct {
-				t.Errorf("Distinct = %v, want %v", fc.Distinct, tt.distinct)
+			if fc.Quantifier.RemovesDuplicates() != tt.distinct {
+				t.Errorf("Quantifier = %v, want distinct %v", fc.Quantifier, tt.distinct)
 			}
 			if len(fc.Args) != tt.argCount {
 				t.Errorf("arg count = %d, want %d", len(fc.Args), tt.argCount)
@@ -1323,23 +1323,27 @@ func TestParseSelectUnion(t *testing.T) {
 	}
 }
 
-// TestParseSelectForUpdate tests SELECT with FOR UPDATE.
+// TestParseSelectForUpdate tests SELECT with a locking clause. MariaDB has no
+// FOR SHARE: a shared read lock is LOCK IN SHARE MODE, and mariadb:11.8.8
+// answers 1064 for FOR SHARE (see locking_read_forms_oracle_test.go).
 func TestParseSelectForUpdate(t *testing.T) {
 	sel := parseSelect(t, "SELECT * FROM t FOR UPDATE")
 	if sel.ForUpdate == nil {
 		t.Fatal("expected FOR UPDATE clause")
 	}
 	if sel.ForUpdate.Share {
-		t.Error("expected FOR UPDATE, not FOR SHARE")
+		t.Error("expected FOR UPDATE, not a shared lock")
 	}
 
-	sel2 := parseSelect(t, "SELECT * FROM t FOR SHARE")
+	sel2 := parseSelect(t, "SELECT * FROM t LOCK IN SHARE MODE")
 	if sel2.ForUpdate == nil {
-		t.Fatal("expected FOR SHARE clause")
+		t.Fatal("expected LOCK IN SHARE MODE clause")
 	}
-	if !sel2.ForUpdate.Share {
-		t.Error("expected FOR SHARE")
+	if !sel2.ForUpdate.Share || !sel2.ForUpdate.LockInShareMode {
+		t.Errorf("ForUpdate = %+v, want a shared lock written LOCK IN SHARE MODE", sel2.ForUpdate)
 	}
+
+	ParseExpectError(t, "SELECT * FROM t FOR SHARE")
 }
 
 // TestParseSelectDistinct tests SELECT DISTINCT.
@@ -10126,29 +10130,45 @@ func TestParseNaturalLeftOuterJoin(t *testing.T) {
 	}
 }
 
+// TestParseSelectIntoAfterHaving: INTO comes after the query expression's
+// clauses, so it may follow HAVING when nothing else does -- but an ORDER BY
+// or LIMIT after it is a syntax error, not a second position for INTO.
+// MariaDB 11.8.8 answers 1064 for every rejected form here
+// (container-verified; see locking_read_forms_oracle_test.go).
 func TestParseSelectIntoAfterHaving(t *testing.T) {
-	tests := []string{
-		// INTO at position 2: after HAVING, before ORDER BY
+	accepted := []string{
 		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt'",
-		// INTO at position 2: after HAVING, before ORDER BY with ORDER BY
-		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat'",
+		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y",
 	}
-	for _, sql := range tests {
+	for _, sql := range accepted {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+	rejected := []string{
+		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat' ORDER BY a",
+		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
+		"SELECT a FROM t INTO OUTFILE '/tmp/result.txt' LIMIT 1",
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
+		})
+	}
 }
 
+// TestParseSelectIntoAfterHavingBeforeOrderBy: the two positions the locking
+// clause leaves for INTO, either side of it, plus the INTO before FROM that is
+// the field list's own rule.
 func TestParseSelectIntoAfterHavingBeforeOrderBy(t *testing.T) {
 	tests := []string{
-		// INTO with DUMPFILE at position 2
-		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat' ORDER BY a",
-		// INTO with variable at position 2
-		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
-		// Regression: INTO at position 1 still works
+		// INTO before FROM
 		"SELECT a INTO @x FROM t",
-		// Regression: INTO at position 3 still works
+		// INTO before the locking clause
+		"SELECT a FROM t INTO OUTFILE '/tmp/result.txt' FOR UPDATE",
+		// INTO after the locking clause
 		"SELECT a FROM t FOR UPDATE INTO OUTFILE '/tmp/result.txt'",
 	}
 	for _, sql := range tests {

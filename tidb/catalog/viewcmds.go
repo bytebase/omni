@@ -176,7 +176,7 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	resolver.Resolve(sel)
 
 	// Extract column names from the resolved target list.
-	derivedCols := extractViewColumns(sel)
+	derivedCols := extractViewColumns(sel, lookup)
 
 	// Rewrite: NOT folding, boolean context wrapping.
 	deparse.RewriteSelectStmt(sel)
@@ -186,8 +186,10 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 }
 
 // extractViewColumns extracts column names from a resolved SELECT target list.
-// This produces the column list that MySQL would derive for a view.
-func extractViewColumns(sel *nodes.SelectStmt) []string {
+// This produces the column list that MySQL would derive for a view. lookup
+// resolves the table of a TABLE query primary, which has no target list to
+// read.
+func extractViewColumns(sel *nodes.SelectStmt, lookup deparse.TableLookup) []string {
 	if sel == nil {
 		return nil
 	}
@@ -195,6 +197,26 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 	// parenthesized-query wrappers and walk set-operation left arms to reach it,
 	// so a parenthesized or set-op view body (CREATE VIEW v AS (SELECT a, b) or
 	// (SELECT 1 AS a) UNION (SELECT 2 AS a)) derives columns from that SELECT.
+	// A TABLE query primary is SELECT * FROM t and a VALUES primary a row
+	// constructor, so neither has a target list to read. The resolver leaves
+	// the primary alone — TiDB's SHOW CREATE VIEW keeps the body as
+	// TABLE `t` — so its columns are derived here, by the same code the
+	// resolver uses for a CTE or derived table over one, which searches the
+	// query's own CTE scope before lookup's tables.
+	//
+	// Container-verified: CREATE VIEW v AS TABLE t declares the columns of t,
+	// and WITH x AS (SELECT 1 AS a) TABLE x declares a. A VALUES primary's
+	// columns are ValuesColumnName's; TiDB cannot run a VALUES query at all
+	// -- every form answers error 1051, Unknown table '', a view of one
+	// included -- so the names are MySQL's, whose VALUES statement TiDB's
+	// grammar implements.
+	if primary := deparse.PrimaryOutputColumns(sel, lookup); primary != nil {
+		cols := make([]string, 0, len(primary))
+		for _, c := range primary {
+			cols = append(cols, c.Name)
+		}
+		return cols
+	}
 	sel = nodes.LeftmostQueryLeaf(sel)
 	var cols []string
 	for _, target := range sel.TargetList {

@@ -200,7 +200,7 @@ func TestQuotedSpecialFormCallAST(t *testing.T) {
 		if call == nil || call.Schema != tc.schema || call.Name != tc.name || len(call.Args) != tc.args {
 			t.Fatalf("%q: call = %+v, want %s.%s with %d arguments", tc.sql, call, tc.schema, tc.name, tc.args)
 		}
-		if call.Star || call.Distinct || call.Over != nil {
+		if call.Star || call.Quantifier != ast.AggQuantNone || call.Over != nil {
 			t.Errorf("%q: call = %+v, want no star, DISTINCT or window", tc.sql, call)
 		}
 		if col, ok := call.Args[0].(*ast.ColumnRef); !ok || col.Column == "" {

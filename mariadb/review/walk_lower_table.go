@@ -144,6 +144,11 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 				return false
 			}
 		}
+		// The parenthesized form reads a table element list, so an index or a
+		// constraint written beside the columns is part of the same action.
+		for _, con := range c.Constraints {
+			b.addConstraint(r, con)
+		}
 	case ast.ATDropColumn:
 		k, ok := b.key(spaceColumn, c.Name)
 		if !ok {

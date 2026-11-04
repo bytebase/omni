@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -96,6 +98,13 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 			break
 		}
 		p.advance() // consume ','
+		// A comma the list never got an action for ends the statement with
+		// nothing after it: OceanBase CE 4.3.5.6 answers 1064 for
+		// `ALTER TABLE t ENGINE = InnoDB,` and for
+		// `ALTER TABLE t ADD COLUMN a INT,`.
+		if p.cur.Type == tokEOF || p.cur.Type == ';' {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -787,8 +796,17 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		return cmd, nil
 	}
 
-	// ALTER CHECK symbol [NOT] ENFORCED
-	if p.cur.Type == kwCHECK {
+	// ALTER {CHECK | CONSTRAINT} symbol {ENFORCED | NOT ENFORCED}
+	//
+	// The enforcement is required, not optional: OceanBase CE 4.3.5.6
+	// answers 1064 for `ALTER TABLE t ALTER CHECK ident` and for
+	// `ALTER TABLE t ALTER CONSTRAINT ident` with nothing after the name.
+	// CHECK and CONSTRAINT are the same clause spelled two ways.
+	//
+	// Ref: `ALTER check_constraint_keyword ident constraint_enforcement` in
+	// MySQL 8.0.46 sql/sql_yacc.yy, whose constraint_enforcement has no
+	// empty arm.
+	if p.cur.Type == kwCHECK || p.cur.Type == kwCONSTRAINT {
 		p.advance()
 		name, _, err := p.parseIdentifier()
 		if err != nil {
@@ -796,37 +814,15 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		}
 		cmd.Name = name
 		cmd.Type = nodes.ATAlterCheckEnforced
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
+		if _, ok := p.match(kwNOT); ok {
+			if _, err := p.expect(kwENFORCED); err != nil {
+				return nil, err
 			}
 			cmd.NewName = "NOT ENFORCED"
-		} else if p.cur.Type == kwENFORCED {
-			p.advance()
-			cmd.NewName = "ENFORCED"
-		}
-		cmd.Loc.End = p.prev.End
-		return cmd, nil
-	}
-
-	// ALTER CONSTRAINT symbol [NOT] ENFORCED
-	if p.cur.Type == kwCONSTRAINT {
-		p.advance()
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		cmd.Name = name
-		cmd.Type = nodes.ATAlterCheckEnforced
-		if p.cur.Type == kwNOT {
-			p.advance()
-			if p.cur.Type == kwENFORCED {
-				p.advance()
+		} else {
+			if _, err := p.expect(kwENFORCED); err != nil {
+				return nil, err
 			}
-			cmd.NewName = "NOT ENFORCED"
-		} else if p.cur.Type == kwENFORCED {
-			p.advance()
 			cmd.NewName = "ENFORCED"
 		}
 		cmd.Loc.End = p.prev.End
@@ -845,7 +841,16 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	if _, ok := p.match(kwSET); ok {
 		if _, ok := p.match(kwDEFAULT); ok {
 			cmd.Type = nodes.ATAlterColumnDefault
-			// Default value: literal or (expr)
+			// SET DEFAULT takes a signed literal, or any expression inside
+			// parentheses, and nothing in between: OceanBase CE 4.3.5.6 answers
+			// 1064 for `SET DEFAULT CURRENT_TIMESTAMP`, `SET DEFAULT NOW()` and
+			// `SET DEFAULT 1+1`, and runs `SET DEFAULT (CURRENT_TIMESTAMP)`,
+			// `SET DEFAULT (1+1)` and `SET DEFAULT -1`.
+			//
+			// Ref: `ALTER opt_column ident SET DEFAULT signed_literal` and
+			// `... SET DEFAULT '(' expr ')'` in MySQL 8.0.46
+			// sql/sql_yacc.yy; signed_literal reads
+			// `literal | '+' NUM_literal | '-' NUM_literal`.
 			if p.cur.Type == '(' {
 				p.advance()
 				expr, err := p.parseExpr()
@@ -860,12 +865,9 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 				}
 				cmd.DefaultExpr = expr
 			} else {
-				expr, err := p.parseExpr()
+				expr, err := p.parseSignedLiteral()
 				if err != nil {
 					return nil, err
-				}
-				if expr == nil {
-					return nil, p.syntaxErrorAtCur()
 				}
 				cmd.DefaultExpr = expr
 			}
@@ -918,7 +920,11 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			return nil, err
 		}
 		cmd.Name = oldName
-		p.match(kwTO)
+		// TO is required: OceanBase CE 4.3.5.6 answers 1064 for
+		// `RENAME COLUMN a b` and for `RENAME INDEX a b`.
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 		newName, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -940,7 +946,11 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			return nil, err
 		}
 		cmd.Name = oldName
-		p.match(kwTO)
+		// TO is required: OceanBase CE 4.3.5.6 answers 1064 for
+		// `RENAME COLUMN a b` and for `RENAME INDEX a b`.
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 		newName, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -949,6 +959,10 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 
 	default:
 		// RENAME [TO | AS] new_tbl_name
+		//
+		// No equals sign: OceanBase CE 4.3.5.6 answers 1064 for
+		// `ALTER TABLE t RENAME = t1`, where MySQL 8.0.46 and MariaDB 11.8.8
+		// take it, so the separator is not widened here.
 		cmd.Type = nodes.ATRenameTable
 		p.match(kwTO, kwAS)
 		newTable, err := p.parseTableRef()
@@ -967,9 +981,16 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 	p.advance() // consume CONVERT
 	cmd.Type = nodes.ATConvertCharset
 
-	p.match(kwTO)
-	p.match(kwCHARACTER)
-	p.match(kwSET)
+	// CONVERT TO CHARACTER SET or CHAR SET is required, and so is the
+	// charset after it: OceanBase CE 4.3.5.6 answers 1064 for
+	// `CONVERT TO utf8`, for
+	// `CONVERT CHARSET utf8` and for a `CONVERT TO` keyword with no charset.
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	if err := p.expectCharsetKw(); err != nil {
+		return nil, err
+	}
 
 	// Completion: after CONVERT TO CHARACTER SET, offer charset candidates.
 	p.checkCursor()
@@ -978,6 +999,13 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// DEFAULT is no charset name here: OceanBase CE 4.3.5.6 answers 1064 for
+	// `CONVERT TO CHARACTER SET DEFAULT`, which MySQL 8.0.46, MariaDB 11.8.8
+	// and TiDB v8.5.5 all run. consumeOptionValue takes any keyword, so the
+	// word has to be refused before it.
+	if p.cur.Type == kwDEFAULT {
+		return nil, p.syntaxErrorAtCur()
+	}
 	charset, err := p.consumeOptionValue()
 	if err != nil {
 		return nil, err
@@ -1169,4 +1197,93 @@ func (p *Parser) parseColumnPositioning(cmd *nodes.AlterTableCmd) error {
 		cmd.After = name
 	}
 	return nil
+}
+
+// expectCharsetKw consumes the keyword that introduces a charset name. The
+// two-word spellings need both words.
+func (p *Parser) expectCharsetKw() error {
+	switch p.cur.Type {
+	// CHARSET as one word is not a spelling OceanBase CE 4.3.5.6 takes: it answers
+	// 1064 for `CONVERT TO CHARSET utf8` and runs
+	// `CONVERT TO CHAR SET utf8`.
+	case kwCHARACTER, kwCHAR:
+		p.advance()
+		_, err := p.expect(kwSET)
+		return err
+	}
+	return p.syntaxErrorAtCur()
+}
+
+// parseSignedLiteral parses the signed_literal a SET DEFAULT takes outside
+// parentheses: one literal, optionally signed. A function call, a keyword such
+// as CURRENT_TIMESTAMP and an arithmetic expression are all syntax errors
+// here, which is why this is not parseExpr.
+//
+// Ref: signed_literal in MySQL 8.0.46 sql/sql_yacc.yy, which reads
+// `literal | '+' NUM_literal | '-' NUM_literal`.
+func (p *Parser) parseSignedLiteral() (nodes.ExprNode, error) {
+	start := p.pos()
+	if tok, ok := p.match('+', '-'); ok {
+		// Only a number may be signed.
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		operand, err := p.parseLiteralOnly()
+		if err != nil {
+			return nil, err
+		}
+		op := nodes.UnaryPlus
+		opText := "+"
+		if tok.Type == '-' {
+			op = nodes.UnaryMinus
+			opText = "-"
+		}
+		return &nodes.UnaryExpr{
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
+			Op:         op,
+			Operand:    operand,
+			OriginalOp: opText,
+		}, nil
+	}
+	return p.parseLiteralOnly()
+}
+
+// parseLiteralOnly parses one literal: a number, a string with or without a
+// charset introducer, a hex or bit literal, NULL, TRUE or FALSE, and a
+// temporal literal.
+// Adjacent string literals concatenate, which parsePrimaryExpr already does.
+func (p *Parser) parseLiteralOnly() (nodes.ExprNode, error) {
+	start := p.pos()
+	switch p.cur.Type {
+	case tokICONST, tokFCONST, tokSCONST, tokBCONST, tokXCONST:
+		expr, err := p.parsePrimaryExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return expr, nil
+	case kwNULL:
+		p.advance()
+		return &nodes.NullLit{Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+	case kwTRUE, kwFALSE:
+		value := p.cur.Type == kwTRUE
+		p.advance()
+		return &nodes.BoolLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Value: value}, nil
+	case kwDATE, kwTIME, kwTIMESTAMP:
+		// A temporal literal, which OceanBase CE 4.3.5.6 takes here:
+		// `SET DEFAULT DATE '2020-01-01'` runs. The word is only a literal
+		// when a string follows it.
+		if p.peekNext().Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parsePrimaryExpr()
+	}
+	// A charset introducer followed by a string, as in _utf8'x', is a literal
+	// too, and the introducer reaches the parser as an identifier.
+	if p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "_") && p.peekNext().Type == tokSCONST {
+		return p.parsePrimaryExpr()
+	}
+	return nil, p.syntaxErrorAtCur()
 }

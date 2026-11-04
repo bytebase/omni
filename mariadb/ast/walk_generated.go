@@ -74,6 +74,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.PartitionBy != nil {
 			Walk(v, n.PartitionBy)
 		}
+		for _, item := range n.Constraints {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -625,9 +630,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Table)
 		}
 		for _, item := range n.Columns {
-			if item != nil {
-				Walk(v, item)
-			}
+			Walk(v, item)
 		}
 		for _, item := range n.SetList {
 			if item != nil {
@@ -706,6 +709,9 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *PositionExpr:
+		Walk(v, n.Substr)
+		Walk(v, n.Str)
 	case *PreviousValueForExpr:
 		if n.Sequence != nil {
 			Walk(v, n.Sequence)

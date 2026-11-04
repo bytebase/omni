@@ -96,7 +96,7 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 				Source:         r.Source,
 			}
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
-			if vt := buildCTEVirtualTable(cte); vt != nil {
+			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup); vt != nil {
 				mergedCTETables[strings.ToLower(cte.Name)] = vt
 			}
 		}
@@ -135,7 +135,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 					Source:         r.Source,
 				}
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
-				vt := buildCTEVirtualTable(cte)
+				vt := buildCTEVirtualTable(cte, cteResolver.Lookup)
 				if vt != nil {
 					mergedCTETables[strings.ToLower(cte.Name)] = vt
 				}
@@ -186,7 +186,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
 			// Step 2: Build virtual table from left branch's target list and add CTE to scope
-			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left)
+			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left, leftResolver.Lookup)
 			if vt != nil {
 				localCTETables[strings.ToLower(cte.Name)] = vt
 			}
@@ -207,7 +207,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			}
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
-			vt := buildCTEVirtualTable(cte)
+			vt := buildCTEVirtualTable(cte, cteResolver.Lookup)
 			if vt != nil {
 				localCTETables[strings.ToLower(cte.Name)] = vt
 			}
@@ -228,6 +228,19 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 
 	// Resolve target list (may expand stars)
 	stmt.TargetList = r.resolveTargetList(stmt.TargetList, sc)
+
+	// Resolve the rows of a VALUES query primary. A VALUES primary has no
+	// target list and no FROM, so nothing above reaches its rows -- and a row
+	// may hold a subquery, whose own SELECT needs resolving before deparse
+	// writes it: `VALUES ROW((SELECT * FROM t))` otherwise came out as
+	// `values row((select  from `t`))`, which is not SQL.
+	if stmt.ValuesSource != nil {
+		for _, row := range stmt.ValuesSource.Rows {
+			for i, expr := range row {
+				row[i] = r.resolveExpr(expr, sc)
+			}
+		}
+	}
 
 	// Resolve WHERE
 	if stmt.Where != nil {
@@ -293,7 +306,7 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		// from its target list so outer queries can reference derived columns.
 		if t.Select != nil {
 			r.Resolve(t.Select)
-			vt := buildDerivedVirtualTable(t)
+			vt := buildDerivedVirtualTable(t, r.Lookup)
 			if vt != nil && t.Alias != "" {
 				sc.add(t, t.Alias, vt)
 			}
@@ -504,6 +517,13 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 	case *ast.ConvertExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
 		r.resolveCastCharset(n.TypeName)
+		return n
+	case *ast.PositionExpr:
+		n.Substr = r.resolveExpr(n.Substr, sc)
+		n.Str = r.resolveExpr(n.Str, sc)
+		return n
+	case *ast.ExtractExpr:
+		n.Expr = r.resolveExpr(n.Expr, sc)
 		return n
 	case *ast.CollateExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
@@ -804,7 +824,7 @@ func collectSetOpCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
 // buildCTEVirtualTableFromSelect constructs a ResolverTable from a specific SELECT branch.
 // Used for recursive CTEs where we need to build the virtual table from the non-recursive
 // (left) branch before resolving the recursive (right) branch.
-func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *ast.SelectStmt) *ResolverTable {
+func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *ast.SelectStmt, lookup TableLookup) *ResolverTable {
 	if sel == nil {
 		return nil
 	}
@@ -818,14 +838,7 @@ func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *as
 		return &ResolverTable{Name: cteName, Columns: cols}
 	}
 
-	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
-	sel = ast.LeftmostQueryLeaf(sel)
-
-	var cols []ResolverColumn
-	for i, target := range sel.TargetList {
-		name := cteColumnName(target, i+1)
-		cols = append(cols, ResolverColumn{Name: name, Position: i + 1})
-	}
+	cols := queryOutputColumns(sel, lookup)
 	if len(cols) == 0 {
 		return nil
 	}
@@ -834,7 +847,7 @@ func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *as
 
 // buildCTEVirtualTable constructs a ResolverTable from a CTE's SELECT target list.
 // This allows the main query to resolve column references to CTE columns.
-func buildCTEVirtualTable(cte *ast.CommonTableExpr) *ResolverTable {
+func buildCTEVirtualTable(cte *ast.CommonTableExpr, lookup TableLookup) *ResolverTable {
 	if cte.Select == nil {
 		return nil
 	}
@@ -848,20 +861,220 @@ func buildCTEVirtualTable(cte *ast.CommonTableExpr) *ResolverTable {
 		return &ResolverTable{Name: cte.Name, Columns: cols}
 	}
 
-	// Otherwise, derive columns from the CTE's SELECT target list
-	sel := cte.Select
-	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
-	sel = ast.LeftmostQueryLeaf(sel)
-
-	var cols []ResolverColumn
-	for i, target := range sel.TargetList {
-		name := cteColumnName(target, i+1)
-		cols = append(cols, ResolverColumn{Name: name, Position: i + 1})
-	}
+	// Otherwise, derive columns from the CTE's query expression
+	cols := queryOutputColumns(cte.Select, lookup)
 	if len(cols) == 0 {
 		return nil
 	}
 	return &ResolverTable{Name: cte.Name, Columns: cols}
+}
+
+// PrimaryOutputColumns returns the columns a query expression outputs when its
+// leftmost output query is a TABLE or VALUES primary, and nil when it is a
+// SELECT, whose target list the caller reads with its own naming rules.
+//
+// It is the catalog's way in to the derivation the resolver already uses for a
+// CTE or derived table over a primary, so a view body that is one gets the
+// columns the server gives it. A database-only lookup is not enough on its
+// own: the primary may name a CTE of its own query expression, and that name
+// may shadow a real table -- `WITH t AS (SELECT 9 AS z) TABLE t` outputs z on
+// both v8.5.5 and mysql:8.0, where resolving t to the stored table answered
+// with the table's columns instead (container-verified).
+func PrimaryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverColumn {
+	leaf := ast.LeftmostQueryLeaf(sel)
+	if leaf == nil || (leaf.TableSource == nil && leaf.ValuesSource == nil) {
+		return nil
+	}
+	return queryOutputColumns(sel, lookup)
+}
+
+// queryOutputColumns returns the columns a query expression outputs, for the
+// virtual table a CTE or derived table over it stands for. The names come from
+// its leftmost output query, which is one of three shapes:
+//
+//   - a SELECT: its target list, named as cteColumnName reads it;
+//   - a TABLE query primary: the primary is SELECT * FROM t, so the columns are
+//     the table's, in table order, which lookup resolves -- unless the name is
+//     a CTE of the query itself;
+//   - a VALUES query primary: a row carries no names, so the columns are
+//     ValuesColumnName's.
+//
+// A primary has no target list, so deriving from that alone left a CTE or
+// derived table over one with no columns at all -- and SELECT * over it then
+// expanded to nothing, which deparsed to an invalid "select  from `c`".
+// Container-verified: a view over `WITH c AS (TABLE t) SELECT * FROM c` or
+// `SELECT * FROM (TABLE t) d` has the columns of t.
+func queryOutputColumns(sel *ast.SelectStmt, lookup TableLookup) []ResolverColumn {
+	return queryOutputColumnsIn(sel, nil, lookup, nil)
+}
+
+// queryOutputColumnsIn is queryOutputColumns with the WITH scopes that enclose
+// sel from outside it (innermost first) and the set of CTE declarations whose
+// bodies are already being read. Both exist for one reason: a TABLE primary may name
+// a CTE rather than a table, that CTE's body may be a primary naming another
+// CTE, and a body may name itself.
+func queryOutputColumnsIn(sel *ast.SelectStmt, outer []cteScope, lookup TableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
+	scopes := append(cteScopesOf(sel), outer...)
+	sel = ast.LeftmostQueryLeaf(sel)
+	if sel == nil {
+		return nil
+	}
+	switch {
+	case sel.TableSource != nil:
+		if sel.TableSource.Table == nil {
+			return nil
+		}
+		// The primary may name a CTE in scope rather than a table. Only an
+		// unqualified name can: a schema-qualified one always denotes a real
+		// object, so `WITH t AS (SELECT 9 AS z) TABLE mydb.t` is the stored
+		// table even where a CTE t shadows the unqualified name
+		// (container-verified on both servers; the same rule the catalog's own
+		// CTE-name check states).
+		if sel.TableSource.Table.Schema == "" {
+			if cols := cteOutputColumns(scopes, sel.TableSource.Table.Name, lookup, seen); cols != nil {
+				return cols
+			}
+		}
+		if lookup == nil {
+			return nil
+		}
+		table := lookup(sel.TableSource.Table.Name)
+		if table == nil {
+			return nil
+		}
+		sorted := sortedResolverColumns(table)
+		cols := make([]ResolverColumn, 0, len(sorted))
+		for i, c := range sorted {
+			cols = append(cols, ResolverColumn{Name: c.Name, Position: i + 1})
+		}
+		return cols
+	case sel.ValuesSource != nil:
+		if len(sel.ValuesSource.Rows) == 0 {
+			return nil
+		}
+		cols := make([]ResolverColumn, 0, len(sel.ValuesSource.Rows[0]))
+		for i := range sel.ValuesSource.Rows[0] {
+			cols = append(cols, ResolverColumn{Name: ast.ValuesColumnName(i), Position: i + 1})
+		}
+		return cols
+	}
+	var cols []ResolverColumn
+	for i, target := range sel.TargetList {
+		cols = append(cols, ResolverColumn{Name: cteColumnName(target, i+1), Position: i + 1})
+	}
+	return cols
+}
+
+// cteScope is one WITH clause's CTEs.
+type cteScope []*ast.CommonTableExpr
+
+// cteScopesOf returns the WITH scopes that enclose root's leftmost output
+// query, innermost first: each level's own CTEs, from root down through the
+// parenthesized wrappers and set-operation left arms between root and that
+// query.
+//
+// A set operation's RIGHT operand is not on that path: its CTEs are local to
+// it, and a name the left operand uses resolves outside it. Searching them
+// made `TABLE t UNION (WITH t AS (...) SELECT * FROM t)` read the left
+// operand's t as the sibling's CTE, where both servers read the stored table
+// (container-verified). A set operation's own WITH lives on the set-op node
+// and is visible to both arms, so it is on the path.
+func cteScopesOf(root *ast.SelectStmt) []cteScope {
+	var scopes []cteScope
+	for root != nil {
+		if len(root.CTEs) > 0 {
+			scopes = append(scopes, root.CTEs)
+		}
+		switch {
+		case root.ParenSource != nil:
+			root = root.ParenSource
+		case root.SetOp != ast.SetOpNone:
+			root = root.Left
+		default:
+			root = nil
+		}
+	}
+	// Collected outermost first; the search wants innermost first.
+	for i, j := 0, len(scopes)-1; i < j; i, j = i+1, j-1 {
+		scopes[i], scopes[j] = scopes[j], scopes[i]
+	}
+	return scopes
+}
+
+// cteOutputColumns returns the columns of the CTE named name declared in
+// scopes, or nil when none is. A CTE's explicit column list answers directly;
+// otherwise its body is read as a query expression of its own, with the scopes
+// outside it still in scope -- so `WITH x AS (SELECT 1 AS a), y AS (TABLE x)
+// TABLE y` follows y into x and answers a, as both servers do.
+//
+// seen carries the DECLARATIONS already being read, not their names: a body
+// may declare a CTE of the same name as the one it belongs to, and that inner
+// declaration is a different one. Keying by name read
+// `WITH x AS (WITH x AS (SELECT 1 AS a) TABLE x) TABLE x` as a cycle and
+// derived nothing, where both servers give that view a. Keying by declaration
+// still stops a body that names itself or a pair that name each other
+// (`WITH RECURSIVE x AS (TABLE x)`, `WITH x AS (TABLE y), y AS (TABLE x)`,
+// neither of which the servers will run), since those come back to the same
+// declaration.
+func cteOutputColumns(scopes []cteScope, name string, lookup TableLookup, seen map[*ast.CommonTableExpr]bool) []ResolverColumn {
+	cte, rest := findCTE(scopes, name)
+	if cte == nil {
+		return nil
+	}
+	if len(cte.Columns) > 0 {
+		cols := make([]ResolverColumn, len(cte.Columns))
+		for i, n := range cte.Columns {
+			cols[i] = ResolverColumn{Name: n, Position: i + 1}
+		}
+		return cols
+	}
+	if cte.Select == nil {
+		return nil
+	}
+	if seen[cte] {
+		return nil
+	}
+	next := make(map[*ast.CommonTableExpr]bool, len(seen)+1)
+	for k := range seen {
+		next[k] = true
+	}
+	next[cte] = true
+	return queryOutputColumnsIn(cte.Select, rest, lookup, next)
+}
+
+// bodyScopes returns the WITH scopes in scope inside the body of the CTE found
+// at scopes[i][j]: the siblings declared before it in its own WITH, then
+// everything outside that WITH.
+//
+// A body sees an earlier sibling -- `WITH x AS (SELECT 1 AS a), y AS (TABLE x)
+// TABLE y` outputs a on both servers -- and not a later one, which both refuse
+// as a missing table (error 1146).
+func bodyScopes(scopes []cteScope, i, j int) []cteScope {
+	rest := make([]cteScope, 0, len(scopes)-i)
+	if j > 0 {
+		rest = append(rest, scopes[i][:j])
+	}
+	return append(rest, scopes[i+1:]...)
+}
+
+// findCTE finds the CTE named name in scopes and returns it with the scopes
+// that remain in scope inside its body (see bodyScopes).
+//
+// The scopes are searched OUTERMOST first, which is what v8.5.5 does with a
+// nested WITH that shadows an outer declaration of the same name:
+// `WITH t AS (SELECT 1 AS z) (WITH t AS (SELECT 2 AS q) TABLE t)` answers z
+// there, and its SHOW CREATE VIEW drops the inner WITH from the body
+// altogether. mysql:8.0 answers q, the innermost, which is what the MySQL tree
+// does; both container-verified, and this is the delta between them.
+func findCTE(scopes []cteScope, name string) (*ast.CommonTableExpr, []cteScope) {
+	for i := len(scopes) - 1; i >= 0; i-- {
+		for j, cte := range scopes[i] {
+			if cte != nil && strings.EqualFold(cte.Name, name) {
+				return cte, bodyScopes(scopes, i, j)
+			}
+		}
+	}
+	return nil, nil
 }
 
 // cteColumnName extracts the column name from a target list entry.
@@ -884,20 +1097,12 @@ func cteColumnName(target ast.ExprNode, position int) string {
 
 // buildDerivedVirtualTable constructs a ResolverTable from a derived table's SELECT target list.
 // This allows the outer query to resolve column references to derived table columns.
-func buildDerivedVirtualTable(sub *ast.SubqueryExpr) *ResolverTable {
+func buildDerivedVirtualTable(sub *ast.SubqueryExpr, lookup TableLookup) *ResolverTable {
 	if sub.Select == nil || sub.Alias == "" {
 		return nil
 	}
 
-	sel := sub.Select
-	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
-	sel = ast.LeftmostQueryLeaf(sel)
-
-	var cols []ResolverColumn
-	for i, target := range sel.TargetList {
-		name := cteColumnName(target, i+1)
-		cols = append(cols, ResolverColumn{Name: name, Position: i + 1})
-	}
+	cols := queryOutputColumns(sub.Select, lookup)
 	if len(cols) == 0 {
 		return nil
 	}

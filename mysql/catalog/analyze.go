@@ -28,6 +28,16 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		return c.analyzeSetOpWithCTEs(stmt, parentScope, inheritedCTEMap)
 	}
 
+	// A TABLE query primary is SELECT * FROM t, so analyze that: without it
+	// the node has no FROM and no target list, and a consumer reading the
+	// result columns (a view's column list, lineage) would see none.
+	if stmt.TableSource != nil {
+		return c.analyzeTableSourceWithCTEs(stmt, parentScope, inheritedCTEMap)
+	}
+	if stmt.ValuesSource != nil {
+		return c.analyzeValuesSourceWithCTEs(stmt, parentScope, inheritedCTEMap)
+	}
+
 	q := &Query{
 		CommandType: CmdSelect,
 		JoinTree:    &JoinTreeQ{},
@@ -109,6 +119,80 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	q.Distinct = stmt.DistinctKind != nodes.DistinctNone && stmt.DistinctKind != nodes.DistinctAll
 
 	return q, nil
+}
+
+// analyzeTableSourceWithCTEs analyzes a TABLE query primary as the SELECT *
+// FROM t it stands for. The clauses the node holds (CTEs, ORDER BY, LIMIT,
+// locking, INTO) come along unchanged; only the primary is rewritten, on a
+// copy, so the caller's AST is left alone.
+func (c *Catalog) analyzeTableSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	if stmt.TableSource == nil || stmt.TableSource.Table == nil {
+		return nil, fmt.Errorf("TABLE query primary with no table")
+	}
+	equivalent := *stmt
+	equivalent.TableSource = nil
+	equivalent.From = []nodes.TableExpr{stmt.TableSource.Table}
+	equivalent.TargetList = []nodes.ExprNode{&nodes.StarExpr{Loc: stmt.TableSource.Loc}}
+	return c.analyzeSelectStmtWithCTEs(&equivalent, parentScope, inheritedCTEMap)
+}
+
+// analyzeValuesSourceWithCTEs analyzes a VALUES query primary as the query it
+// stands for: one SELECT of a row's expressions per row, combined with
+// UNION ALL, which is what a table value constructor is. The clauses the node
+// holds (CTEs, ORDER BY, LIMIT, locking, INTO) ride on the result, and only
+// the primary is rewritten, on copies, so the caller's AST is left alone.
+//
+// The output names and arity are the first row's, as the first arm of a union
+// gives them (container-verified: MySQL 8.0 answers a single column_0 for
+// `VALUES ROW(1), ROW(2)`, and the same for `SELECT 1 AS column_0 UNION ALL
+// SELECT 2`). Every row's expressions are real target entries of their own
+// arm, so a row that names a table (`VALUES ROW(1), ROW((SELECT a FROM t))`)
+// keeps that dependency, and the IR deparses back to a query of the same
+// cardinality. Analyzing only the first row dropped the rest; folding them
+// into the first as junk entries kept the dependency but still deparsed to one
+// row.
+func (c *Catalog) analyzeValuesSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	if stmt.ValuesSource == nil || len(stmt.ValuesSource.Rows) == 0 {
+		return nil, fmt.Errorf("VALUES query primary with no rows")
+	}
+	rows := stmt.ValuesSource.Rows
+	loc := stmt.ValuesSource.Loc
+
+	// One arm per row, every arm naming its columns. A union takes its output
+	// names from its first arm, as a VALUES result does from its first row, so
+	// naming the rest changes nothing about the result -- and leaving them
+	// unnamed left the IR deparsing to `select 2 as \`\``, an empty alias.
+	arms := make([]*nodes.SelectStmt, 0, len(rows))
+	for _, row := range rows {
+		targets := make([]nodes.ExprNode, 0, len(row))
+		for j, expr := range row {
+			targets = append(targets, &nodes.ResTarget{
+				Loc:  loc,
+				Name: nodes.ValuesColumnName(j),
+				Val:  expr,
+			})
+		}
+		arms = append(arms, &nodes.SelectStmt{Loc: loc, TargetList: targets})
+	}
+
+	equivalent := *stmt
+	equivalent.ValuesSource = nil
+	equivalent.From = nil
+	if len(arms) == 1 {
+		// One row is one SELECT; a union of one arm is not a union.
+		equivalent.TargetList = arms[0].TargetList
+		return c.analyzeSelectStmtWithCTEs(&equivalent, parentScope, inheritedCTEMap)
+	}
+	// Left-deep, as the parser builds a UNION ALL chain.
+	left := arms[0]
+	for _, right := range arms[1 : len(arms)-1] {
+		left = &nodes.SelectStmt{Loc: loc, SetOp: nodes.SetOpUnion, SetAll: true, Left: left, Right: right}
+	}
+	equivalent.SetOp = nodes.SetOpUnion
+	equivalent.SetAll = true
+	equivalent.Left = left
+	equivalent.Right = arms[len(arms)-1]
+	return c.analyzeSelectStmtWithCTEs(&equivalent, parentScope, inheritedCTEMap)
 }
 
 // analyzeFromClause processes the FROM clause, populating the query's

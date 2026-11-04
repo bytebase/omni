@@ -505,6 +505,10 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		n.Expr = r.resolveExpr(n.Expr, sc)
 		r.resolveCastCharset(n.TypeName)
 		return n
+	case *ast.PositionExpr:
+		n.Substr = r.resolveExpr(n.Substr, sc)
+		n.Str = r.resolveExpr(n.Str, sc)
+		return n
 	case *ast.CollateExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
 		return n

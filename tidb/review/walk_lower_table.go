@@ -93,7 +93,18 @@ func alterNoFacts(c *ast.AlterTableCmd) bool {
 		ast.ATAddPartition, ast.ATDropPartition, ast.ATCoalescePartition, ast.ATReorganizePartition,
 		ast.ATExchangePartition, ast.ATTruncatePartition, ast.ATAnalyzePartition, ast.ATCheckPartition,
 		ast.ATOptimizePartition, ast.ATRebuildPartition, ast.ATRepairPartition, ast.ATDiscardPartitionTablespace,
-		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning, ast.ATPartitionBy:
+		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning, ast.ATPartitionBy,
+		// TiDB's own actions, none of which changes a name the walk keeps:
+		// CACHE and NOCACHE move the table in and out of the cache, READ ONLY
+		// and READ WRITE set a flag on it, COMPACT rewrites its data,
+		// ATTRIBUTES and STATS_OPTIONS are server-side settings, and the four
+		// interval-partition actions and the per-partition clauses work on
+		// partitions, whose names the walk does not follow.
+		ast.ATCache, ast.ATNoCache, ast.ATWriteable, ast.ATCompact,
+		ast.ATAttributes, ast.ATStatsOptions,
+		ast.ATPartitionAttributes, ast.ATPartitionOptions,
+		ast.ATAddLastPartition, ast.ATDropFirstPartition,
+		ast.ATReorganizeLastPartition, ast.ATReorganizeFirstPartition:
 		return true
 	case ast.ATAddConstraint:
 		return c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck
@@ -110,9 +121,23 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			cols = append([]*ast.ColumnDef{c.Column}, cols...)
 		}
 		for _, col := range cols {
+			if c.IfNotExists {
+				// ADD COLUMN IF NOT EXISTS of a column the table already has
+				// is a note and adds nothing (1060, verified on v8.5.5), so
+				// the walk claims nothing about the column either way.
+				if !b.addColumnIfNotExists(r, col, c.After, rangeOf(col.Loc)) {
+					return false
+				}
+				continue
+			}
 			if !b.addColumn(r, col, c.After, rangeOf(col.Loc)) {
 				return false
 			}
+		}
+		// The parenthesized form reads a table element list, so an index or a
+		// constraint written beside the columns is part of the same action.
+		for _, con := range c.Constraints {
+			b.addConstraint(r, con)
 		}
 	case ast.ATDropColumn:
 		k, ok := b.key(spaceColumn, c.Name)
@@ -139,13 +164,30 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		// An index loses the column, and goes with its last one.
 		b.MayRemove(walk.Scope{Space: spaceIndex, Parent: tablePath(r.db, r.name)})
 	case ast.ATModifyColumn:
-		if c.Column == nil || !b.columnNeeds(r, c.Column.Name, rng) {
+		if c.Column == nil {
+			return false
+		}
+		// MODIFY COLUMN IF EXISTS of a column the table does not have is a
+		// note and changes nothing (1054, verified on v8.5.5), so the walk
+		// neither fails the statement nor claims anything about the column.
+		if skip, ok := b.skipMissingColumn(r, c.Column.Name, c.IfExists); skip || !ok {
+			return ok
+		}
+		if !b.columnNeeds(r, c.Column.Name, rng) {
 			return false
 		}
 		b.after(r, c.After, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATChangeColumn:
-		if c.Column == nil || !b.renameColumn(r, c.Name, c.Column.Name, rng) {
+		if c.Column == nil {
+			return false
+		}
+		// CHANGE COLUMN IF EXISTS, as MODIFY takes it: the old name is the
+		// one that has to be there.
+		if skip, ok := b.skipMissingColumn(r, c.Name, c.IfExists); skip || !ok {
+			return ok
+		}
+		if !b.renameColumn(r, c.Name, c.Column.Name, rng) {
 			return false
 		}
 		b.after(r, c.After, rng)
@@ -161,7 +203,8 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		}
 		b.addConstraint(r, c.Constraint)
 	case ast.ATDropIndex:
-		return b.dropIndexName(r, c.Name, rng, false)
+		// DROP {INDEX | KEY} IF EXISTS of a missing index is a note, not 1091.
+		return b.dropIndexName(r, c.Name, rng, c.IfExists)
 	case ast.ATDropConstraint:
 		switch dropKindOf(b.w.sql, c) {
 		case dropPrimaryKey:
@@ -433,7 +476,16 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			// IF NOT EXISTS makes a duplicate index name a note (1061,
+			// verified on v8.5.5) rather than an error, and the index stays
+			// the one that was there.
+			if c.IfNotExists {
+				if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
+					return
+				}
+			} else {
+				b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			}
 		}
 	}
 	b.constraint(r, c)
@@ -462,9 +514,14 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range, ifExi
 
 // alterRename follows ALTER TABLE ... RENAME [TO] t2.
 func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd) bool {
-	// TiDB's AST gives RENAME TO only a name: the qualified form is a
-	// syntax error in its parser, and a quoted `db.t` is one name.
+	// RENAME [TO | AS | =] takes a table name, which may carry a database
+	// qualifier and then moves the table there: v8.5.5 runs
+	// `ALTER TABLE t RENAME TO d.t1`. NewName holds the name as written, so
+	// reading it alone would have made a table called "d.t1".
 	dest := &ast.TableRef{Name: c.NewName, Loc: c.Loc}
+	if c.NewTable != nil {
+		dest.Schema, dest.Name = c.NewTable.Schema, c.NewTable.Name
+	}
 	to, st := b.ref(dest)
 	switch st {
 	case refFailed:
@@ -613,4 +670,38 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 		}
 	}
 	return true
+}
+
+// addColumnIfNotExists follows ADD COLUMN IF NOT EXISTS: a column the table
+// already has leaves the table alone with a note (1060, verified on v8.5.5),
+// so the walk neither fails the statement nor claims the column is new.
+func (b *builder) addColumnIfNotExists(r tableRef, col *ast.ColumnDef, after string, rng review.Range) bool {
+	k, ok := b.key(spaceColumn, col.Name)
+	if !ok {
+		return false
+	}
+	switch f, _ := b.l.Lookup(colKey(r.db, r.name, k)); f {
+	case walk.Present:
+		return true
+	case walk.Unknown:
+		b.after(r, after, rng)
+		return true
+	}
+	return b.addColumn(r, col, after, rng)
+}
+
+// skipMissingColumn reports whether an action written with IF EXISTS names a
+// column the ledger does not hold, which the server answers with a note rather
+// than an error. ok is false when the name cannot be folded, which the caller
+// has to give up on as it does elsewhere.
+func (b *builder) skipMissingColumn(r tableRef, name string, ifExists bool) (skip, ok bool) {
+	if !ifExists {
+		return false, true
+	}
+	k, ok := b.key(spaceColumn, name)
+	if !ok {
+		return false, false
+	}
+	f, _ := b.l.Lookup(colKey(r.db, r.name, k))
+	return f == walk.Absent || f == walk.Unknown, true
 }

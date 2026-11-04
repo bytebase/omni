@@ -242,6 +242,33 @@ var grantFormCases = []grantFormCase{
 	// when the TO arrives.
 	{"GRANT LOAD FROM S3 TO u1", true},
 	{"GRANT INVOKE LAMBDA TO u1", true},
+	// --- a name that spells a privilege word, and a clause that is not one ---
+	// A word written backquoted is a name, not the keyword, so it is a role
+	// name even where the keyword is a privilege or is reserved. The
+	// multi-word completions are closed to it for the same reason.
+	{"GRANT `grant` TO u1", true},
+	{"REVOKE `grant` FROM u1", true},
+	{"GRANT `option` TO u1", true},
+	{"GRANT `select` TO u1", true},
+	// A backquoted name holding a space is one name, and so still a role.
+	{"GRANT `grant option` TO u1", true},
+	{"GRANT `app reader` TO u1", true},
+	{"REVOKE `app reader` FROM u1", true},
+	{"GRANT `app reader` ON *.* TO u1", true},
+	// So the second word of a two-word privilege is not read after one: the
+	// VIEW and the SLAVE below are left over, and the statement ends there.
+	{"GRANT `create` VIEW ON *.* TO u1", false},
+	{"GRANT `replication` SLAVE ON *.* TO u1", false},
+	// An @host is an @host only where the source says so. The lexer strips
+	// the backquotes, so "`@localhost`" reaches this parser as an
+	// identifier whose text is "@localhost", exactly like a real one.
+	{"CREATE USER 'u1' `@localhost`", false},
+	{"DROP USER 'u1' `@localhost`", false},
+	// A bare IDENTIFIED is not a clause, on a user spec or on a grantee.
+	{"CREATE USER u1@'%' IDENTIFIED", false},
+	{"GRANT SELECT ON *.* TO u1 IDENTIFIED", false},
+	{"REVOKE SELECT ON *.* FROM u1 IDENTIFIED", false},
+	{"GRANT SELECT ON *.* TO u1 IDENTIFIED BY", false},
 }
 
 // TestGrantForms holds this parser to the verdicts above. It needs no

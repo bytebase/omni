@@ -256,6 +256,16 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
 	case *nodes.UnaryExpr:
 		return inferViewExprNullable(e.Operand, relations)
+	case *nodes.PositionExpr:
+		// mariadb:11.8.8: IS_NULLABLE is YES for position('x' in s)
+		// over a nullable s and for position('x' in NULL), NO over a NOT NULL
+		// column.
+		return inferViewExprNullable(e.Substr, relations) ||
+			inferViewExprNullable(e.Str, relations)
+	case *nodes.ExtractExpr:
+		// mariadb:11.8.8: IS_NULLABLE is YES for extract(day from a) over a
+		// nullable a.
+		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.NullLit:
 		return true
 	default:

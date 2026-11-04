@@ -1714,35 +1714,6 @@ func (p *Parser) parseUnlockInstanceStmt(start int) (*nodes.UnlockInstanceStmt, 
 	return stmt, nil
 }
 
-// parseImportTableStmt parses IMPORT TABLE FROM sdi_file [, sdi_file] ...
-// p.cur is IMPORT.
-func (p *Parser) parseImportTableStmt() (*nodes.ImportTableStmt, error) {
-	start := p.pos()
-	p.advance() // consume IMPORT
-	p.advance() // consume TABLE
-	p.advance() // consume FROM
-
-	stmt := &nodes.ImportTableStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	for {
-		if p.cur.Type == tokSCONST {
-			stmt.Files = append(stmt.Files, p.cur.Str)
-			p.advance()
-		} else {
-			break
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseBinlogStmt parses BINLOG 'str'.
 // p.cur is BINLOG.
 func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {

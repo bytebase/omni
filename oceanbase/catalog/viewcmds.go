@@ -268,6 +268,12 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		// whose WeightStringExpr.Expr is a CastExpr (oracle 8.0.32:
 		// IS_NULLABLE=YES for both over a nullable column).
 		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.PositionExpr:
+		// mysql:8.0, whose view metadata this catalog follows: IS_NULLABLE
+		// is YES for position('x' in s) over a nullable s and for
+		// position('x' in NULL), NO over a NOT NULL column.
+		return inferViewExprNullable(e.Substr, relations) ||
+			inferViewExprNullable(e.Str, relations)
 	case *nodes.NullLit:
 		return true
 	default:

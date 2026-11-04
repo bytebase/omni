@@ -55,6 +55,18 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		return
 	}
 
+	// TABLE / VALUES query primary: the source holds the table or the rows,
+	// this node the clauses after it. Writing "select " for one would lose the
+	// primary and emit a query with no target list.
+	if stmt.TableSource != nil {
+		writeTableQueryPrimary(b, stmt)
+		return
+	}
+	if stmt.ValuesSource != nil {
+		writeValuesQueryPrimary(b, stmt)
+		return
+	}
+
 	// Handle set operations: UNION / UNION ALL / INTERSECT / EXCEPT
 	if stmt.SetOp != ast.SetOpNone {
 		writeSetOperation(b, stmt, suppressAlias)
@@ -172,6 +184,73 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 	}
 }
 
+// writeTableQueryPrimary writes a TABLE query primary and the clauses this
+// node holds for it: table `t` order by `a` limit 1 for update.
+func writeTableQueryPrimary(b *strings.Builder, stmt *ast.SelectStmt) {
+	if len(stmt.CTEs) > 0 {
+		writeCTEs(b, stmt.CTEs)
+		b.WriteString(" ")
+	}
+	b.WriteString("table ")
+	if stmt.TableSource.Table != nil {
+		b.WriteString(deparseTableRef(stmt.TableSource.Table))
+	}
+	writeQueryPrimaryTail(b, stmt)
+}
+
+// writeValuesQueryPrimary writes a VALUES query primary and the clauses this
+// node holds for it: values row(1,2),row(3,4) order by 1 limit 1.
+func writeValuesQueryPrimary(b *strings.Builder, stmt *ast.SelectStmt) {
+	if len(stmt.CTEs) > 0 {
+		writeCTEs(b, stmt.CTEs)
+		b.WriteString(" ")
+	}
+	b.WriteString("values ")
+	for i, row := range stmt.ValuesSource.Rows {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString("row(")
+		for j, expr := range row {
+			if j > 0 {
+				b.WriteString(",")
+			}
+			writeExpr(b, expr)
+		}
+		b.WriteString(")")
+	}
+	writeQueryPrimaryTail(b, stmt)
+}
+
+// writeQueryPrimaryTail writes the ORDER BY, LIMIT and locking clause a TABLE
+// or VALUES query primary carries.
+func writeQueryPrimaryTail(b *strings.Builder, stmt *ast.SelectStmt) {
+	if len(stmt.OrderBy) > 0 {
+		b.WriteString(" order by ")
+		for i, item := range stmt.OrderBy {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			writeExpr(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" desc")
+			}
+		}
+	}
+	if stmt.Limit != nil {
+		b.WriteString(" limit ")
+		if stmt.Limit.Offset != nil {
+			writeExpr(b, stmt.Limit.Offset)
+			b.WriteString(",")
+		}
+		writeExpr(b, stmt.Limit.Count)
+	}
+	if stmt.ForUpdate != nil {
+		b.WriteString(" ")
+		b.WriteString(deparseForUpdate(stmt.ForUpdate))
+	}
+}
+
 // deparseForUpdate formats a FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE clause.
 // MySQL 8.0 format:
 //   - for update
@@ -180,6 +259,7 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 //   - for update of `t`
 //   - for update nowait
 //   - for update skip locked
+//   - for update wait 5 (TiDB's own modifier)
 func deparseForUpdate(fu *ast.ForUpdate) string {
 	if fu.LockInShareMode {
 		return "lock in share mode"
@@ -203,10 +283,14 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 		}
 	}
 
-	// NOWAIT / SKIP LOCKED
-	if fu.NoWait {
+	// NOWAIT / WAIT n / SKIP LOCKED
+	switch {
+	case fu.NoWait:
 		b.WriteString(" nowait")
-	} else if fu.SkipLocked {
+	case fu.HasWait:
+		b.WriteString(" wait ")
+		b.WriteString(fu.WaitSeconds)
+	case fu.SkipLocked:
 		b.WriteString(" skip locked")
 	}
 
@@ -632,10 +716,13 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			return
 		}
 		b.WriteString(name)
-		if n.Distinct {
-			b.WriteString("(DISTINCT ")
-		} else {
-			b.WriteString("(")
+		b.WriteString("(")
+		// The engine names an unaliased item after its own text, so the
+		// quantifier appears as written: SUM(DISTINCTROW ALL c1) is the column
+		// name TiDB v8.5.5, MySQL 8.0 and MariaDB 11.8 all give.
+		if q := n.Quantifier.String(); q != "" {
+			b.WriteString(q)
+			b.WriteString(" ")
 		}
 		for i, arg := range n.Args {
 			if i > 0 {
@@ -652,12 +739,27 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString("(")
 		writeExprAlias(b, n.Expr)
 		b.WriteString(")")
+	case *ast.ExtractExpr:
+		b.WriteString("EXTRACT(")
+		b.WriteString(n.Unit)
+		b.WriteString(" FROM ")
+		writeExprAlias(b, n.Expr)
+		b.WriteString(")")
+	case *ast.PositionExpr:
+		b.WriteString("POSITION(")
+		writeExprAlias(b, n.Substr)
+		b.WriteString(" IN ")
+		writeExprAlias(b, n.Str)
+		b.WriteString(")")
 	case *ast.CastExpr:
 		// MySQL 8.0 auto-alias: "CAST(a AS CHAR)" — uppercase keywords, no charset.
 		b.WriteString("CAST(")
 		writeExprAlias(b, n.Expr)
 		b.WriteString(" AS ")
 		b.WriteString(deparseDataTypeAlias(n.TypeName))
+		if n.Array {
+			b.WriteString(" ARRAY")
+		}
 		b.WriteString(")")
 	case *ast.ConvertExpr:
 		b.WriteString("CONVERT(")
@@ -1199,6 +1301,10 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		writeConvertExpr(b, n)
 	case *ast.IntervalExpr:
 		writeIntervalExpr(b, n)
+	case *ast.ExtractExpr:
+		writeExtractExpr(b, n)
+	case *ast.PositionExpr:
+		writePositionExpr(b, n)
 	case *ast.KeywordArg:
 		// Bare keyword argument (timestampdiff unit, get_format type) —
 		// never quoted: the engine stores timestampdiff(SECOND,...) and
@@ -1579,6 +1685,35 @@ func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
 	writeExpr(b, n.Expr)
 	b.WriteString(" as ")
 	b.WriteString(deparseDataType(n.TypeName))
+	if n.Array {
+		// SHOW CREATE TABLE renders a multi-valued index as
+		// ((cast(`b` as signed array))) (oracle TiDB v8.5.5, MySQL 8.0).
+		b.WriteString(" array")
+	}
+	b.WriteString(")")
+}
+
+// writeExtractExpr writes EXTRACT(unit FROM expr). The unit is a bare keyword
+// the engine stores as written, with a SQL_TSI_ synonym folded to its
+// canonical unit by the parser (oracle TiDB v8.5.5: extract(day_hour from
+// `a`)).
+func writeExtractExpr(b *strings.Builder, n *ast.ExtractExpr) {
+	b.WriteString("extract(")
+	b.WriteString(strings.ToLower(n.Unit))
+	b.WriteString(" from ")
+	writeExpr(b, n.Expr)
+	b.WriteString(")")
+}
+
+// writePositionExpr writes POSITION(substr IN str). TiDB v8.5.5 stores the
+// call that way; MySQL 8.0 and MariaDB 11.8 store it as locate(substr, str),
+// the same function under its other name. Keeping POSITION makes the text
+// parse back to this node on every engine.
+func writePositionExpr(b *strings.Builder, n *ast.PositionExpr) {
+	b.WriteString("position(")
+	writeExpr(b, n.Substr)
+	b.WriteString(" in ")
+	writeExpr(b, n.Str)
 	b.WriteString(")")
 }
 
@@ -1759,7 +1894,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	default:
 		// Build argument list with no spaces after commas
 		b.WriteString("(")
-		if n.Distinct {
+		// The engine keeps only whether duplicates are removed: it stores
+		// sum(distinct `c1`) for every DISTINCT, DISTINCTROW and DISTINCT ALL
+		// spelling and drops a bare ALL, which is the default (oracle TiDB
+		// v8.5.5, MySQL 8.0, MariaDB 11.8: SHOW CREATE VIEW).
+		if n.Quantifier.RemovesDuplicates() {
 			b.WriteString("distinct ")
 		}
 		for i, arg := range n.Args {
@@ -1920,9 +2059,9 @@ func writeSubqueryExpr(b *strings.Builder, n *ast.SubqueryExpr) {
 func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("GROUP_CONCAT(")
 
-	// DISTINCT
-	if n.Distinct {
-		b.WriteString("DISTINCT ")
+	if q := n.Quantifier.String(); q != "" {
+		b.WriteString(q)
+		b.WriteString(" ")
 	}
 
 	// Arguments
@@ -1956,6 +2095,10 @@ func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 	}
 
 	b.WriteString(")")
+	if n.Over != nil {
+		b.WriteString(" ")
+		writeWindowDefAlias(b, n.Over)
+	}
 }
 
 // writeGroupConcat handles GROUP_CONCAT with its special syntax:
@@ -1965,7 +2108,7 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("group_concat(")
 
 	// DISTINCT
-	if n.Distinct {
+	if n.Quantifier.RemovesDuplicates() {
 		b.WriteString("distinct ")
 	}
 
@@ -2002,6 +2145,11 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 	}
 
 	b.WriteString(")")
+	// The call takes a window, like any other aggregate's.
+	if n.Over != nil {
+		b.WriteString(" ")
+		writeWindowDef(b, n.Over)
+	}
 }
 
 // quoteIdent quotes an identifier in backticks, doubling any backtick inside

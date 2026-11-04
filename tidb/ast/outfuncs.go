@@ -213,6 +213,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCastExpr(sb, n)
 	case *ExtractExpr:
 		writeExtractExpr(sb, n)
+	case *PositionExpr:
+		writePositionExpr(sb, n)
 	case *ParenExpr:
 		writeParenExpr(sb, n)
 	case *CollateExpr:
@@ -513,8 +515,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		fmt.Fprintf(sb, "{LOCK_INSTANCE :loc %d}", n.Loc.Start)
 	case *UnlockInstanceStmt:
 		fmt.Fprintf(sb, "{UNLOCK_INSTANCE :loc %d}", n.Loc.Start)
-	case *ImportTableStmt:
-		writeImportTableStmt(sb, n)
+	case *ImportIntoStmt:
+		writeImportIntoStmt(sb, n)
+	case *LoadDataOption:
+		writeLoadDataOption(sb, n)
 	case *BinlogStmt:
 		fmt.Fprintf(sb, "{BINLOG :loc %d :str %q}", n.Loc.Start, n.Str)
 	case *CacheIndexStmt:
@@ -686,6 +690,14 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 			writeNode(sb, n.Right)
 		}
 	}
+	if n.TableSource != nil {
+		sb.WriteString(" :table_source ")
+		writeNode(sb, n.TableSource)
+	}
+	if n.ValuesSource != nil {
+		sb.WriteString(" :values_source ")
+		writeNode(sb, n.ValuesSource)
+	}
 	if n.ParenSource != nil {
 		sb.WriteString(" :paren_source ")
 		writeNode(sb, n.ParenSource)
@@ -742,10 +754,6 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 	if n.Select != nil {
 		sb.WriteString(" :select ")
 		writeNode(sb, n.Select)
-	}
-	if n.TableSource != nil {
-		sb.WriteString(" :table_source ")
-		writeNode(sb, n.TableSource)
 	}
 	if len(n.SetList) > 0 {
 		sb.WriteString(" :set ")
@@ -1865,6 +1873,9 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.Infile != "" {
 		fmt.Fprintf(sb, " :infile %q", n.Infile)
 	}
+	if n.HasFormat {
+		fmt.Fprintf(sb, " :format %q", n.Format)
+	}
 	if n.Replace {
 		sb.WriteString(" :replace true")
 	}
@@ -1920,9 +1931,16 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.FieldsEscapedBy != "" {
 		fmt.Fprintf(sb, " :fields_escaped %q", n.FieldsEscapedBy)
 	}
+	if n.HasDefinedNullBy {
+		fmt.Fprintf(sb, " :fields_defined_null %q", n.FieldsDefinedNullBy)
+	}
+	if n.DefinedNullOptEnclosed {
+		sb.WriteString(" :defined_null_optionally_enclosed true")
+	}
 	if n.IgnoreRows > 0 {
 		fmt.Fprintf(sb, " :ignore_rows %d", n.IgnoreRows)
 	}
+	writeLoadDataOptions(sb, n.Options)
 	sb.WriteString("}")
 }
 
@@ -2642,8 +2660,8 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Schema != "" {
 		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
-	if n.Distinct {
-		sb.WriteString(" :distinct true")
+	if q := n.Quantifier.String(); q != "" {
+		fmt.Fprintf(sb, " :quantifier %s", q)
 	}
 	if n.Star {
 		sb.WriteString(" :star true")
@@ -2793,6 +2811,9 @@ func writeCastExpr(sb *strings.Builder, n *CastExpr) {
 	writeNode(sb, n.Expr)
 	sb.WriteString(" :type ")
 	writeNode(sb, n.TypeName)
+	if n.Array {
+		sb.WriteString(" :array true")
+	}
 	sb.WriteString("}")
 }
 
@@ -2800,6 +2821,15 @@ func writeExtractExpr(sb *strings.Builder, n *ExtractExpr) {
 	sb.WriteString("{EXTRACT")
 	fmt.Fprintf(sb, " :loc %d :unit %s :expr ", n.Loc.Start, n.Unit)
 	writeNode(sb, n.Expr)
+	sb.WriteString("}")
+}
+
+func writePositionExpr(sb *strings.Builder, n *PositionExpr) {
+	sb.WriteString("{POSITION")
+	fmt.Fprintf(sb, " :loc %d :substr ", n.Loc.Start)
+	writeNode(sb, n.Substr)
+	sb.WriteString(" :str ")
+	writeNode(sb, n.Str)
 	sb.WriteString("}")
 }
 
@@ -3560,6 +3590,10 @@ func writeForUpdate(sb *strings.Builder, n *ForUpdate) {
 	}
 	if n.NoWait {
 		sb.WriteString(" :nowait true")
+	}
+	if n.HasWait {
+		sb.WriteString(" :wait ")
+		sb.WriteString(n.WaitSeconds)
 	}
 	if n.SkipLocked {
 		sb.WriteString(" :skip_locked true")
@@ -4509,24 +4543,6 @@ func writeTableStmt(sb *strings.Builder, n *TableStmt) {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
 	}
-	if len(n.OrderBy) > 0 {
-		sb.WriteString(" :order_by (")
-		for i, item := range n.OrderBy {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			writeNode(sb, item)
-		}
-		sb.WriteString(")")
-	}
-	if n.Limit != nil {
-		sb.WriteString(" :limit ")
-		writeNode(sb, n.Limit)
-	}
-	if n.Into != nil {
-		sb.WriteString(" :into ")
-		writeNode(sb, n.Into)
-	}
 	sb.WriteString("}")
 }
 
@@ -4549,20 +4565,6 @@ func writeValuesStmt(sb *strings.Builder, n *ValuesStmt) {
 			sb.WriteString(")")
 		}
 		sb.WriteString(")")
-	}
-	if len(n.OrderBy) > 0 {
-		sb.WriteString(" :order_by (")
-		for i, item := range n.OrderBy {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			writeNode(sb, item)
-		}
-		sb.WriteString(")")
-	}
-	if n.Limit != nil {
-		sb.WriteString(" :limit ")
-		writeNode(sb, n.Limit)
 	}
 	sb.WriteString("}")
 }
@@ -5359,18 +5361,68 @@ func writeAlterInstanceStmt(sb *strings.Builder, n *AlterInstanceStmt) {
 	sb.WriteString("}")
 }
 
-func writeImportTableStmt(sb *strings.Builder, n *ImportTableStmt) {
-	sb.WriteString("{IMPORT_TABLE")
+func writeImportIntoStmt(sb *strings.Builder, n *ImportIntoStmt) {
+	sb.WriteString("{IMPORT_INTO")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if len(n.Files) > 0 {
-		sb.WriteString(" :files (")
-		for i, f := range n.Files {
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if len(n.Columns) > 0 {
+		sb.WriteString(" :columns ")
+		for i, c := range n.Columns {
 			if i > 0 {
 				sb.WriteString(" ")
 			}
-			fmt.Fprintf(sb, "%q", f)
+			writeNode(sb, c)
 		}
-		sb.WriteString(")")
+	}
+	if len(n.SetList) > 0 {
+		sb.WriteString(" :set ")
+		for i, a := range n.SetList {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, a)
+		}
+	}
+	switch {
+	case n.Select != nil:
+		sb.WriteString(" :from ")
+		writeNode(sb, n.Select)
+	case n.TableSource != nil:
+		sb.WriteString(" :from ")
+		writeNode(sb, n.TableSource)
+	default:
+		fmt.Fprintf(sb, " :path %q", n.Path)
+	}
+	if n.HasFormat {
+		fmt.Fprintf(sb, " :format %q", n.Format)
+	}
+	writeLoadDataOptions(sb, n.Options)
+	sb.WriteString("}")
+}
+
+// writeLoadDataOptions writes TiDB's WITH list, shared by LOAD DATA and
+// IMPORT INTO.
+func writeLoadDataOptions(sb *strings.Builder, opts []*LoadDataOption) {
+	if len(opts) == 0 {
+		return
+	}
+	sb.WriteString(" :with ")
+	for i, o := range opts {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeLoadDataOption(sb, o)
+	}
+}
+
+func writeLoadDataOption(sb *strings.Builder, n *LoadDataOption) {
+	fmt.Fprintf(sb, "{OPT :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Value != nil {
+		sb.WriteString(" :val ")
+		writeNode(sb, n.Value)
 	}
 	sb.WriteString("}")
 }

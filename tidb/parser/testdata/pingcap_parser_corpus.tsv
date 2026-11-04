@@ -152,7 +152,7 @@ accept	accept	ROLLBACK TO x
 accept	accept	ROLLBACK TO X
 accept	accept	ROLLBACK TO SAVEPOINT x
 accept	accept	TABLE t
-reject	accept	(TABLE t)
+accept	accept	(TABLE t)
 reject	reject	TABLE t1, t2
 accept	accept	TABLE t ORDER BY b
 accept	accept	TABLE t LIMIT 3
@@ -168,9 +168,9 @@ accept	accept	TABLE t ORDER BY a INTO OUTFILE '/tmp/abc'
 accept	accept	CREATE TABLE t.a TABLE t.b
 accept	accept	CREATE TABLE ta TABLE tb
 accept	accept	CREATE TABLE ta (x INT) TABLE tb
-reject	accept	CREATE VIEW v AS TABLE t
-reject	accept	CREATE VIEW v AS (TABLE t)
-reject	accept	SELECT * FROM t1 WHERE a IN (TABLE t2)
+accept	accept	CREATE VIEW v AS TABLE t
+accept	accept	CREATE VIEW v AS (TABLE t)
+accept	accept	SELECT * FROM t1 WHERE a IN (TABLE t2)
 accept	accept	VALUES ROW(1)
 accept	accept	VALUES ROW()
 accept	accept	VALUES ROW(1, default)
@@ -181,11 +181,11 @@ accept	accept	VALUES ROW(1,s,3.1), ROW(5,y,9.9)
 accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9), ROW(4,6,8) LIMIT 3
 accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9), ROW(4,6,8) ORDER BY a
 accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9), ROW(4,6,8) ORDER BY a LIMIT 2
-reject	accept	VALUES ROW(1,-2,3), ROW(5,7,9) INTO OUTFILE 'a.txt'
-reject	accept	VALUES ROW(1,-2,3), ROW(5,7,9) ORDER BY a INTO OUTFILE '/tmp/abc'
+accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9) INTO OUTFILE 'a.txt'
+accept	accept	VALUES ROW(1,-2,3), ROW(5,7,9) ORDER BY a INTO OUTFILE '/tmp/abc'
 accept	accept	CREATE TABLE ta VALUES ROW(1)
-reject	accept	CREATE TABLE ta AS VALUES ROW(1)
-reject	accept	CREATE VIEW a AS VALUES ROW(1)
+accept	accept	CREATE TABLE ta AS VALUES ROW(1)
+accept	accept	CREATE VIEW a AS VALUES ROW(1)
 accept	accept	SELECT a.b.c FROM t
 reject	reject	SELECT a.b.*.c FROM t
 accept	accept	SELECT a.b.* FROM t
@@ -233,14 +233,14 @@ reject	reject	load data local infile '/tmp/t.csv' into table t fields terminated
 accept	accept	load data local infile '/tmp/t.csv' into table t lines starting by 'ab' terminated by 'xy' ignore 1 lines
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' enclosed by 'b' escaped by '*' ignore 1 lines (a,b)
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' enclosed by 'b' escaped by ''
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D0D';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'1101';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'110100001101';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by B'110101101101011' terminated by B'110101101101011';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by X'6B6B' terminated by X'6B6B';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D0D';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'1101';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'110100001101';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by B'110101101101011' terminated by B'110101101101011';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by X'6B6B' terminated by X'6B6B';
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' enclosed by 'b' enclosed by 'b'
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' escaped by '' enclosed by 'b'
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' escaped by '' enclosed by 'b' SET b = CAST(CONV(MID(@var1, 3, LENGTH(@var1)-3), 2, 10) AS UNSIGNED)
@@ -254,28 +254,28 @@ accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @dummy, column
 accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @var1) SET column2 = @var1/100
 accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @var1, @var2) SET column2 = @var1/100, column3 = DEFAULT, column4=CURRENT_TIMESTAMP, column5=@var2+1
 accept	accept	load data infile 's3://bucket-name/t.csv' into table t
-reject	accept	load data infile '/tmp/t.csv' into table t fields defined null by 'nil'
-reject	accept	load data infile '/tmp/t.csv' into table t fields defined null by X'00'
-reject	accept	load data infile '/tmp/t.csv' into table t fields defined null by 'NULL' optionally enclosed ignore 1 lines
-reject	accept	load data infile '/tmp/t.csv' format 'delimited data' into table t (column1, @var1) SET column2 = @var1/100
-reject	accept	load data local infile '/tmp/t.sql' format 'sql file' replace into table t (a,b)
-reject	accept	load data infile '/tmp/t.parquet' format 'parquet' into table t (column1, @var1) SET column2 = @var1/100
-reject	accept	load data infile '/tmp/t.csv' into table t with detached
-reject	accept	load data infile '/tmp/t.csv' into table `t` with threads=10
-reject	accept	load data infile '/tmp/t.csv' into table `t` with threads=10, detached
-reject	accept	import into t from '/file.csv'
-reject	accept	import into t (a,b) from '/file.csv'
-reject	accept	import into t (a,@1) from '/file.csv'
-reject	accept	import into t (a,@1) set b=@1+100 from '/file.csv'
-reject	accept	import into t from '/file.csv' format 'sql file'
-reject	accept	import into t from '/file.csv' with detached
-reject	accept	import into `t` from '/file.csv' with thread=1
-reject	accept	import into `t` from '/file.csv' with detached, thread=1
+accept	accept	load data infile '/tmp/t.csv' into table t fields defined null by 'nil'
+accept	accept	load data infile '/tmp/t.csv' into table t fields defined null by X'00'
+accept	accept	load data infile '/tmp/t.csv' into table t fields defined null by 'NULL' optionally enclosed ignore 1 lines
+accept	accept	load data infile '/tmp/t.csv' format 'delimited data' into table t (column1, @var1) SET column2 = @var1/100
+accept	accept	load data local infile '/tmp/t.sql' format 'sql file' replace into table t (a,b)
+accept	accept	load data infile '/tmp/t.parquet' format 'parquet' into table t (column1, @var1) SET column2 = @var1/100
+accept	accept	load data infile '/tmp/t.csv' into table t with detached
+accept	accept	load data infile '/tmp/t.csv' into table `t` with threads=10
+accept	accept	load data infile '/tmp/t.csv' into table `t` with threads=10, detached
+accept	accept	import into t from '/file.csv'
+accept	accept	import into t (a,b) from '/file.csv'
+accept	accept	import into t (a,@1) from '/file.csv'
+accept	accept	import into t (a,@1) set b=@1+100 from '/file.csv'
+accept	accept	import into t from '/file.csv' format 'sql file'
+accept	accept	import into t from '/file.csv' with detached
+accept	accept	import into `t` from '/file.csv' with thread=1
+accept	accept	import into `t` from '/file.csv' with detached, thread=1
 accept	accept	select * from t for update
 accept	accept	select * from t for share
 accept	accept	select * from t for update nowait
-reject	accept	select * from t for update wait 5
-reject	accept	select * from t limit 1 for update wait 11
+accept	accept	select * from t for update wait 5
+accept	accept	select * from t limit 1 for update wait 11
 accept	accept	select * from t for share nowait
 accept	accept	select * from t for update skip locked
 accept	accept	select * from t for share skip locked
@@ -285,8 +285,8 @@ reject	reject	select * from t lock in share mode skip locked
 accept	accept	select * from t for update of t
 accept	accept	select * from t for share of t
 accept	accept	select * from t for update of t nowait
-reject	accept	select * from t for update of t wait 5
-reject	accept	select * from t limit 1 for update of t wait 11
+accept	accept	select * from t for update of t wait 5
+accept	accept	select * from t limit 1 for update of t wait 11
 accept	accept	select * from t for share of t nowait
 accept	accept	select * from t for update of t skip locked
 accept	accept	select * from t for share of t skip locked
@@ -744,7 +744,7 @@ accept	accept	set role `role1`
 accept	accept	SET ROLE DEFAULT
 accept	accept	SET ROLE ALL
 accept	accept	SET ROLE ALL EXCEPT `role1`, `role2`
-accept	accept	SET DEFAULT ROLE administrator, developer TO `joe`@`10.0.0.1`
+reject	accept	SET DEFAULT ROLE administrator, developer TO `joe`@`10.0.0.1`
 reject	accept	set names utf8, @@session.sql_mode=1;
 reject	accept	set @@session.sql_mode=1, names utf8, charset utf8;
 reject	accept	set config TIKV LOG.LEVEL='info'
@@ -897,10 +897,10 @@ accept	accept	SELECT SUBSTRING('Quadratically' FROM 5);
 accept	accept	SELECT SUBSTRING('Quadratically' FROM 5 FOR 3);
 accept	accept	SELECT CONVERT('111', SIGNED);
 accept	accept	SELECT LEAST(), LEAST(1, 2, 3);
-reject	accept	SELECT INTERVAL(1, 0, 1, 2)
-reject	accept	SELECT (INTERVAL(1, 0, 1, 2)+5)*7+INTERVAL(1, 0, 1, 2)/2
-reject	accept	SELECT INTERVAL(0, (1*5)/2)+INTERVAL(5, 4, 3)
-reject	accept	SELECT DATE_ADD('2008-01-02', INTERVAL INTERVAL(1, 0, 1) DAY);
+accept	accept	SELECT INTERVAL(1, 0, 1, 2)
+accept	accept	SELECT (INTERVAL(1, 0, 1, 2)+5)*7+INTERVAL(1, 0, 1, 2)/2
+accept	accept	SELECT INTERVAL(0, (1*5)/2)+INTERVAL(5, 4, 3)
+accept	accept	SELECT DATE_ADD('2008-01-02', INTERVAL INTERVAL(1, 0, 1) DAY);
 accept	accept	SELECT DATABASE();
 reject	accept	SELECT SCHEMA();
 accept	accept	SELECT USER();
@@ -964,8 +964,8 @@ accept	accept	select cast(1 as float(54));
 accept	accept	select cast(1 as real);
 accept	accept	select cast('2000' as year);
 accept	accept	select cast(time '2000' as year);
-reject	accept	select cast(b as signed array);
-reject	accept	select cast(b as char(10) array);
+accept	accept	select cast(b as signed array);
+accept	accept	select cast(b as char(10) array);
 accept	accept	SELECT last_insert_id();
 accept	accept	SELECT last_insert_id(1);
 accept	accept	SELECT binary 'a';
@@ -1090,17 +1090,17 @@ accept	accept	select extract(week from "2011-11-11 10:10:10.123456")
 accept	accept	select extract(month from "2011-11-11 10:10:10.123456")
 accept	accept	select extract(quarter from "2011-11-11 10:10:10.123456")
 accept	accept	select extract(year from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(second_microsecond from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(minute_microsecond from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(minute_second from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(hour_microsecond from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(hour_second from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(hour_minute from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(day_microsecond from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(day_second from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(day_minute from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(day_hour from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(year_month from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(second_microsecond from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(minute_microsecond from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(minute_second from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(hour_microsecond from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(hour_second from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(hour_minute from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(day_microsecond from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(day_second from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(day_minute from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(day_hour from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(year_month from "2011-11-11 10:10:10.123456")
 accept	accept	select from_unixtime(1447430881)
 accept	accept	select from_unixtime(1447430881.123456)
 accept	accept	select from_unixtime(1447430881.1234567)
@@ -1128,7 +1128,7 @@ accept	accept	SELECT MID('Sakila', -5, 3)
 accept	accept	SELECT OCT(12)
 accept	accept	SELECT OCTET_LENGTH('text')
 accept	accept	SELECT ORD('2')
-reject	accept	SELECT POSITION('bar' IN 'foobarbar')
+accept	accept	SELECT POSITION('bar' IN 'foobarbar')
 accept	accept	SELECT QUOTE('Don\'t!')
 accept	accept	SELECT BIN(12)
 accept	accept	SELECT ELT(1, 'ej', 'Heja', 'hej', 'foo')
@@ -1291,64 +1291,64 @@ accept	accept	select unix_timestamp()
 accept	accept	select unix_timestamp('2015-11-13 10:20:19.012')
 accept	accept	SELECT GET_LOCK('lock1',10);
 accept	accept	SELECT RELEASE_LOCK('lock1');
-accept	reject	select avg(), avg(c1,c2) from t;
+reject	reject	select avg(), avg(c1,c2) from t;
 accept	accept	select avg(distinct c1) from t;
-reject	accept	select avg(distinctrow c1) from t;
-reject	accept	select avg(distinct all c1) from t;
-reject	accept	select avg(distinctrow all c1) from t;
+accept	accept	select avg(distinctrow c1) from t;
+accept	accept	select avg(distinct all c1) from t;
+accept	accept	select avg(distinctrow all c1) from t;
 accept	accept	select avg(c2) from t;
 accept	accept	select bit_and(c1) from t;
-reject	accept	select bit_and(all c1) from t;
-accept	reject	select bit_and(distinct c1) from t;
+accept	accept	select bit_and(all c1) from t;
+reject	reject	select bit_and(distinct c1) from t;
 reject	reject	select bit_and(distinctrow c1) from t;
 reject	reject	select bit_and(distinctrow all c1) from t;
 reject	reject	select bit_and(distinct all c1) from t;
-accept	reject	select bit_and(), bit_and(distinct c1) from t;
+reject	reject	select bit_and(), bit_and(distinct c1) from t;
 reject	reject	select bit_and(), bit_and(distinctrow c1) from t;
 reject	reject	select bit_and(), bit_and(all c1) from t;
 accept	accept	select bit_or(c1) from t;
-reject	accept	select bit_or(all c1) from t;
-accept	reject	select bit_or(distinct c1) from t;
+accept	accept	select bit_or(all c1) from t;
+reject	reject	select bit_or(distinct c1) from t;
 reject	reject	select bit_or(distinctrow c1) from t;
 reject	reject	select bit_or(distinctrow all c1) from t;
 reject	reject	select bit_or(distinct all c1) from t;
-accept	reject	select bit_or(), bit_or(distinct c1) from t;
+reject	reject	select bit_or(), bit_or(distinct c1) from t;
 reject	reject	select bit_or(), bit_or(distinctrow c1) from t;
 reject	reject	select bit_or(), bit_or(all c1) from t;
 accept	accept	select bit_xor(c1) from t;
-reject	accept	select bit_xor(all c1) from t;
-accept	reject	select bit_xor(distinct c1) from t;
+accept	accept	select bit_xor(all c1) from t;
+reject	reject	select bit_xor(distinct c1) from t;
 reject	reject	select bit_xor(distinctrow c1) from t;
 reject	reject	select bit_xor(distinctrow all c1) from t;
-accept	reject	select bit_xor(), bit_xor(distinct c1) from t;
+reject	reject	select bit_xor(), bit_xor(distinct c1) from t;
 reject	reject	select bit_xor(), bit_xor(distinctrow c1) from t;
 reject	reject	select bit_xor(), bit_xor(all c1) from t;
-accept	reject	select max(c1,c2) from t;
+reject	reject	select max(c1,c2) from t;
 accept	accept	select max(distinct c1) from t;
-reject	accept	select max(distinctrow c1) from t;
-reject	accept	select max(distinct all c1) from t;
-reject	accept	select max(distinctrow all c1) from t;
+accept	accept	select max(distinctrow c1) from t;
+accept	accept	select max(distinct all c1) from t;
+accept	accept	select max(distinctrow all c1) from t;
 accept	accept	select max(c2) from t;
-accept	reject	select min(c1,c2) from t;
+reject	reject	select min(c1,c2) from t;
 accept	accept	select min(distinct c1) from t;
-reject	accept	select min(distinctrow c1) from t;
-reject	accept	select min(distinct all c1) from t;
-reject	accept	select min(distinctrow all c1) from t;
+accept	accept	select min(distinctrow c1) from t;
+accept	accept	select min(distinct all c1) from t;
+accept	accept	select min(distinctrow all c1) from t;
 accept	accept	select min(c2) from t;
-accept	reject	select sum(c1,c2) from t;
+reject	reject	select sum(c1,c2) from t;
 accept	accept	select sum(distinct c1) from t;
-reject	accept	select sum(distinctrow c1) from t;
-reject	accept	select sum(distinct all c1) from t;
-reject	accept	select sum(distinctrow all c1) from t;
+accept	accept	select sum(distinctrow c1) from t;
+accept	accept	select sum(distinct all c1) from t;
+accept	accept	select sum(distinctrow all c1) from t;
 accept	accept	select sum(c2) from t;
 accept	accept	select count(c1) from t;
-accept	reject	select count(distinct *) from t;
+reject	reject	select count(distinct *) from t;
 reject	reject	select count(distinctrow *) from t;
 accept	accept	select count(*) from t;
 accept	accept	select count(distinct c1, c2) from t;
-reject	accept	select count(distinctrow c1, c2) from t;
-accept	reject	select count(c1, c2) from t;
-reject	accept	select count(all c1) from t;
+accept	accept	select count(distinctrow c1, c2) from t;
+reject	reject	select count(c1, c2) from t;
+accept	accept	select count(all c1) from t;
 reject	reject	select count(distinct all c1) from t;
 reject	reject	select count(distinctrow all c1) from t;
 accept	accept	select approx_count_distinct(c1) from t;
@@ -1360,34 +1360,34 @@ accept	accept	select approx_percentile(c1, 123) from t;
 accept	accept	select group_concat(c2,c1) from t group by c1;
 accept	accept	select group_concat(c2,c1 SEPARATOR ';') from t group by c1;
 accept	accept	select group_concat(distinct c2,c1) from t group by c1;
-reject	accept	select group_concat(distinctrow c2,c1) from t group by c1;
+accept	accept	select group_concat(distinctrow c2,c1) from t group by c1;
 accept	accept	SELECT student_name, GROUP_CONCAT(DISTINCT test_score ORDER BY test_score DESC SEPARATOR ' ') FROM student GROUP BY student_name;
-reject	accept	select std(c1), std(all c1), std(distinct c1) from t
-accept	reject	select std(c1, c2) from t
-reject	accept	select stddev(c1), stddev(all c1), stddev(distinct c1) from t
-accept	reject	select stddev(c1, c2) from t
-reject	accept	select stddev_pop(c1), stddev_pop(all c1), stddev_pop(distinct c1) from t
-accept	reject	select stddev_pop(c1, c2) from t
-reject	accept	select stddev_samp(c1), stddev_samp(all c1), stddev_samp(distinct c1) from t
-accept	reject	select stddev_samp(c1, c2) from t
-reject	accept	select variance(c1), variance(all c1), variance(distinct c1) from t
-accept	reject	select variance(c1, c2) from t
-reject	accept	select var_pop(c1), var_pop(all c1), var_pop(distinct c1) from t
-accept	reject	select var_pop(c1, c2) from t
-reject	accept	select var_samp(c1), var_samp(all c1), var_samp(distinct c1) from t
-accept	reject	select var_samp(c1, c2) from t
+accept	accept	select std(c1), std(all c1), std(distinct c1) from t
+reject	reject	select std(c1, c2) from t
+accept	accept	select stddev(c1), stddev(all c1), stddev(distinct c1) from t
+reject	reject	select stddev(c1, c2) from t
+accept	accept	select stddev_pop(c1), stddev_pop(all c1), stddev_pop(distinct c1) from t
+reject	reject	select stddev_pop(c1, c2) from t
+accept	accept	select stddev_samp(c1), stddev_samp(all c1), stddev_samp(distinct c1) from t
+reject	reject	select stddev_samp(c1, c2) from t
+accept	accept	select variance(c1), variance(all c1), variance(distinct c1) from t
+reject	reject	select variance(c1, c2) from t
+accept	accept	select var_pop(c1), var_pop(all c1), var_pop(distinct c1) from t
+reject	reject	select var_pop(c1, c2) from t
+accept	accept	select var_samp(c1), var_samp(all c1), var_samp(distinct c1) from t
+reject	reject	select var_samp(c1, c2) from t
 accept	accept	select json_arrayagg(c2) from t group by c1
-accept	reject	select json_arrayagg(c1, c2) from t group by c1
-accept	reject	select json_arrayagg(distinct c2) from t group by c1
-reject	accept	select json_arrayagg(all c2) from t group by c1
+reject	reject	select json_arrayagg(c1, c2) from t group by c1
+reject	reject	select json_arrayagg(distinct c2) from t group by c1
+accept	accept	select json_arrayagg(all c2) from t group by c1
 accept	accept	select json_objectagg(c1, c2) from t group by c1
-accept	reject	select json_objectagg(c1, c2, c3) from t group by c1
-accept	reject	select json_objectagg(distinct c1, c2) from t group by c1
+reject	reject	select json_objectagg(c1, c2, c3) from t group by c1
+reject	reject	select json_objectagg(distinct c1, c2) from t group by c1
 reject	reject	select json_objectagg(c1, distinct c2) from t group by c1
 reject	reject	select json_objectagg(distinct c1, distinct c2) from t group by c1
-reject	accept	select json_objectagg(all c1, c2) from t group by c1
-reject	accept	select json_objectagg(c1, all c2) from t group by c1
-reject	accept	select json_objectagg(all c1, all c2) from t group by c1
+accept	accept	select json_objectagg(all c1, c2) from t group by c1
+accept	accept	select json_objectagg(c1, all c2) from t group by c1
+accept	accept	select json_objectagg(all c1, all c2) from t group by c1
 accept	accept	select AES_ENCRYPT('text',UNHEX('F3229A0B371ED2D9441B830D21A390C3'))
 accept	accept	select AES_DECRYPT(@crypt_str,@key_str)
 accept	accept	select AES_DECRYPT(@crypt_str,@key_str,@init_vector);
@@ -1511,8 +1511,8 @@ reject	reject	CREATE TABLE foo (a, b.c);
 reject	reject	CREATE TABLE (name CHAR(50) BINARY)
 accept	accept	CREATE TABLE foo (name CHAR(50) COLLATE ascii_bin PRIMARY KEY COLLATE latin1_bin, INDEX (name ASC))
 accept	accept	CREATE TABLE foo (name CHAR(50) COLLATE ascii_bin PRIMARY KEY COLLATE latin1_bin, INDEX (name DESC))
-reject	accept	ALTER TABLE tmp CACHE
-reject	accept	ALTER TABLE tmp NOCACHE
+accept	accept	ALTER TABLE tmp CACHE
+accept	accept	ALTER TABLE tmp NOCACHE
 accept	accept	CREATE TEMPORARY TABLE t (a varchar(50), b int);
 accept	accept	CREATE TEMPORARY TABLE t LIKE t1
 accept	accept	DROP TEMPORARY TABLE t
@@ -1574,10 +1574,10 @@ accept	accept	create table t1 (c1 int) compression="zlib";
 accept	accept	create table t1 (c1 int) collate=binary;
 accept	accept	create table t1 (c1 int) collate=utf8mb4_0900_as_cs;
 accept	accept	create table t1 (c1 int) default charset=binary collate=binary;
-reject	accept	ALTER TABLE t_n UNION ( ), KEY_BLOCK_SIZE = 1
+accept	accept	ALTER TABLE t_n UNION ( ), KEY_BLOCK_SIZE = 1
 accept	accept	ALTER TABLE d_n.t_n UNION ( t_n ) REMOVE PARTITIONING
-reject	accept	ALTER TABLE d_n.t_n LOCK DEFAULT , UNION = ( t_n , d_n.t_n ) REMOVE PARTITIONING
-reject	accept	ALTER TABLE d_n.t_n ALGORITHM = DEFAULT , MAX_ROWS 10, UNION ( d_n.t_n ) , ROW_FORMAT REDUNDANT, STATS_PERSISTENT = DEFAULT
+accept	accept	ALTER TABLE d_n.t_n LOCK DEFAULT , UNION = ( t_n , d_n.t_n ) REMOVE PARTITIONING
+accept	accept	ALTER TABLE d_n.t_n ALGORITHM = DEFAULT , MAX_ROWS 10, UNION ( d_n.t_n ) , ROW_FORMAT REDUNDANT, STATS_PERSISTENT = DEFAULT
 accept	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (not 3), partition p2 values less than (20));
 accept	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (1 or 3), partition p2 values less than (20));
 accept	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (3 is null), partition p2 values less than (20));
@@ -1632,10 +1632,10 @@ reject	reject	alter table t learner_constraints="ww";
 reject	reject	alter table t /*T![placement] primary_region="us" */;
 accept	accept	alter table t placement policy="ww";
 accept	accept	alter table t /*T![placement] placement policy="ww" */;
-reject	accept	alter table t compact;
-reject	accept	alter table t compact tiflash replica;
-reject	accept	alter table t compact partition p1,p2;
-reject	accept	alter table t compact partition p1,p2 tiflash replica;
+accept	accept	alter table t compact;
+accept	accept	alter table t compact tiflash replica;
+accept	accept	alter table t compact partition p1,p2;
+accept	accept	alter table t compact partition p1,p2 tiflash replica;
 reject	reject	create database t primary_region="us";
 reject	reject	create database t regions="us,3";
 reject	reject	create database t followers=3;
@@ -1698,8 +1698,8 @@ reject	reject	alter table m partition t leader_constraints="ww";
 reject	reject	alter table m partition t follower_constraints="ww";
 reject	reject	alter table m partition t voter_constraints="ww";
 reject	reject	alter table m partition t learner_constraints="ww";
-reject	accept	alter table m partition t placement policy="ww";
-reject	accept	alter table m partition t /*T![placement] placement policy="ww" */;
+accept	accept	alter table m partition t placement policy="ww";
+accept	accept	alter table m partition t /*T![placement] placement policy="ww" */;
 reject	reject	alter table m add partition (partition p1 values less than (200) primary_region="us");
 reject	reject	alter table m add partition (partition p1 values less than (200) regions="us,3");
 reject	reject	alter table m add partition (partition p1 values less than (200) followers=3);
@@ -1853,29 +1853,29 @@ accept	accept	create table t (a int) encryption = 'n';
 accept	accept	create table t (a int) encryption 'n';
 accept	accept	alter table t encryption = 'y';
 accept	accept	alter table t encryption 'y';
-reject	accept	create table t (a int key global)
-reject	accept	create table t (a int key local)
-reject	accept	create table t (a int primary key local)
-reject	accept	create table t (a int primary key global)
-reject	accept	create table t (a int UNIQUE local)
-reject	accept	create table t (a int UNIQUE global)
-reject	accept	create table t (a int UNIQUE key local)
-reject	accept	create table t (a int UNIQUE key global)
+accept	accept	create table t (a int key global)
+accept	accept	create table t (a int key local)
+accept	accept	create table t (a int primary key local)
+accept	accept	create table t (a int primary key global)
+accept	accept	create table t (a int UNIQUE local)
+accept	accept	create table t (a int UNIQUE global)
+accept	accept	create table t (a int UNIQUE key local)
+accept	accept	create table t (a int UNIQUE key global)
 accept	accept	alter table t add index (a)
-reject	accept	alter table t add index (a) local
-reject	accept	alter table t add index (a) global
+accept	accept	alter table t add index (a) local
+accept	accept	alter table t add index (a) global
 accept	accept	alter table t add unique (a)
-reject	accept	alter table t add unique (a) local
-reject	accept	alter table t add unique (a) global
-reject	accept	alter table t add unique key (a) global
+accept	accept	alter table t add unique (a) local
+accept	accept	alter table t add unique (a) global
+accept	accept	alter table t add unique key (a) global
 accept	accept	alter table t add unique key (a)
-reject	accept	alter table t add unique key (a) local
-reject	accept	alter table t add primary key (a) global
+accept	accept	alter table t add unique key (a) local
+accept	accept	alter table t add primary key (a) global
 accept	accept	alter table t add primary key (a)
-reject	accept	alter table t add primary key (a) local
+accept	accept	alter table t add primary key (a) local
 accept	accept	create index i on t (a)
-reject	accept	create index i on t (a) local
-reject	accept	create index i on t (a) global
+accept	accept	create index i on t (a) local
+accept	accept	create index i on t (a) global
 accept	accept	ALTER DATABASE t CHARACTER SET = 'utf8'
 accept	accept	ALTER DATABASE CHARACTER SET = 'utf8'
 accept	accept	ALTER DATABASE t DEFAULT CHARACTER SET = 'utf8'
@@ -1896,20 +1896,20 @@ accept	accept	ALTER DATABASE DEFAULT CHARSET = 'utf8mb4' COLLATE = 'utf8_bin'
 accept	accept	ALTER DATABASE DEFAULT CHARSET = 'utf8mb4' DEFAULT COLLATE = 'utf8mb4_general_ci' CHARACTER SET = 'utf8' COLLATE = 'utf8mb4_bin'
 accept	accept	ALTER TABLE t ADD COLUMN (a SMALLINT UNSIGNED)
 reject	reject	ALTER TABLE t.* ADD COLUMN (a SMALLINT UNSIGNED)
-reject	accept	ALTER TABLE t ADD COLUMN IF NOT EXISTS (a SMALLINT UNSIGNED)
+accept	accept	ALTER TABLE t ADD COLUMN IF NOT EXISTS (a SMALLINT UNSIGNED)
 reject	reject	ALTER TABLE ADD COLUMN (a SMALLINT UNSIGNED)
 accept	accept	ALTER TABLE t ADD COLUMN (a SMALLINT UNSIGNED, b varchar(255))
-reject	accept	ALTER TABLE t ADD COLUMN IF NOT EXISTS (a SMALLINT UNSIGNED, b varchar(255))
+accept	accept	ALTER TABLE t ADD COLUMN IF NOT EXISTS (a SMALLINT UNSIGNED, b varchar(255))
 reject	reject	ALTER TABLE t ADD COLUMN (a SMALLINT UNSIGNED FIRST)
 accept	accept	ALTER TABLE t ADD COLUMN a SMALLINT UNSIGNED
 accept	accept	ALTER TABLE t ADD COLUMN a SMALLINT UNSIGNED FIRST
 accept	accept	ALTER TABLE t ADD COLUMN a SMALLINT UNSIGNED AFTER b
-reject	accept	ALTER TABLE t ADD COLUMN IF NOT EXISTS a SMALLINT UNSIGNED AFTER b
+accept	accept	ALTER TABLE t ADD COLUMN IF NOT EXISTS a SMALLINT UNSIGNED AFTER b
 accept	accept	ALTER TABLE employees ADD PARTITION
 accept	accept	ALTER TABLE employees ADD PARTITION ( PARTITION P1 VALUES LESS THAN (2010))
 accept	accept	ALTER TABLE employees ADD PARTITION ( PARTITION P2 VALUES LESS THAN MAXVALUE)
-reject	accept	ALTER TABLE employees ADD PARTITION IF NOT EXISTS ( PARTITION P2 VALUES LESS THAN MAXVALUE)
-reject	accept	ALTER TABLE employees ADD PARTITION IF NOT EXISTS PARTITIONS 5
+accept	accept	ALTER TABLE employees ADD PARTITION IF NOT EXISTS ( PARTITION P2 VALUES LESS THAN MAXVALUE)
+accept	accept	ALTER TABLE employees ADD PARTITION IF NOT EXISTS PARTITIONS 5
 accept	accept	alter table t add partition (partition x values in ((3, 4), (5, 6)))
 accept	accept	ALTER TABLE employees ADD PARTITION NO_WRITE_TO_BINLOG
 accept	accept	ALTER TABLE employees ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 10
@@ -1924,9 +1924,9 @@ accept	accept	ALTER TABLE t_n REBUILD PARTITION LOCAL local
 accept	accept	ALTER TABLE t_n REBUILD PARTITION LOCAL local, local
 accept	accept	alter table t drop partition p1;
 accept	accept	alter table t drop partition p2;
-reject	accept	alter table t drop partition if exists p2;
+accept	accept	alter table t drop partition if exists p2;
 accept	accept	alter table t drop partition p1, p2;
-reject	accept	alter table t drop partition if exists p1, p2;
+accept	accept	alter table t drop partition if exists p1, p2;
 accept	accept	alter table t check partition all;
 accept	accept	alter table t check partition p;
 accept	accept	alter table t check partition p1, p2;
@@ -1939,18 +1939,18 @@ accept	accept	alter table clients coalesce partition local 4;
 accept	accept	ALTER TABLE t DISABLE KEYS
 accept	accept	ALTER TABLE t ENABLE KEYS
 accept	accept	ALTER TABLE t MODIFY COLUMN a varchar(255)
-reject	accept	ALTER TABLE t MODIFY COLUMN IF EXISTS a varchar(255)
+accept	accept	ALTER TABLE t MODIFY COLUMN IF EXISTS a varchar(255)
 accept	accept	ALTER TABLE t CHANGE COLUMN a b varchar(255)
-reject	accept	ALTER TABLE t CHANGE COLUMN IF EXISTS a b varchar(255)
+accept	accept	ALTER TABLE t CHANGE COLUMN IF EXISTS a b varchar(255)
 accept	accept	ALTER TABLE t CHANGE COLUMN a b varchar(255) CHARACTER SET UTF8 BINARY
 accept	accept	ALTER TABLE t CHANGE COLUMN a b varchar(255) FIRST
-reject	accept	ALTER TABLE db.t RENAME to db1.t1
-reject	accept	ALTER TABLE db.t RENAME db1.t1
-reject	accept	ALTER TABLE db.t RENAME = db1.t1
-reject	accept	ALTER TABLE db.t RENAME as db1.t1
+accept	accept	ALTER TABLE db.t RENAME to db1.t1
+accept	accept	ALTER TABLE db.t RENAME db1.t1
+accept	accept	ALTER TABLE db.t RENAME = db1.t1
+accept	accept	ALTER TABLE db.t RENAME as db1.t1
 accept	accept	ALTER TABLE t RENAME to t1
 accept	accept	ALTER TABLE t RENAME t1
-reject	accept	ALTER TABLE t RENAME = t1
+accept	accept	ALTER TABLE t RENAME = t1
 accept	accept	ALTER TABLE t RENAME as t1
 accept	accept	ALTER TABLE t_n ORDER BY ident
 accept	accept	ALTER TABLE t_n ORDER BY ident ASC
@@ -1973,9 +1973,9 @@ reject	reject	ALTER TABLE t RENAME COLUMN a TO t.b
 reject	reject	ALTER TABLE t RENAME COLUMN t.a TO b
 accept	accept	ALTER TABLE t ALTER COLUMN a SET DEFAULT 1
 accept	accept	ALTER TABLE t ALTER a SET DEFAULT 1
-accept	reject	ALTER TABLE t ALTER COLUMN a SET DEFAULT CURRENT_TIMESTAMP
-accept	reject	ALTER TABLE t ALTER COLUMN a SET DEFAULT NOW()
-accept	reject	ALTER TABLE t ALTER COLUMN a SET DEFAULT 1+1
+reject	reject	ALTER TABLE t ALTER COLUMN a SET DEFAULT CURRENT_TIMESTAMP
+reject	reject	ALTER TABLE t ALTER COLUMN a SET DEFAULT NOW()
+reject	reject	ALTER TABLE t ALTER COLUMN a SET DEFAULT 1+1
 accept	accept	ALTER TABLE t ALTER COLUMN a SET DEFAULT (CURRENT_TIMESTAMP())
 accept	accept	ALTER TABLE t ALTER COLUMN a SET DEFAULT (NOW())
 accept	accept	ALTER TABLE t ALTER COLUMN a SET DEFAULT (1+1)
@@ -1998,7 +1998,7 @@ accept	accept	ALTER TABLE t ADD FULLTEXT KEY `FullText` (`name` ASC)
 accept	accept	ALTER TABLE t ADD FULLTEXT `FullText` (`name` ASC)
 accept	accept	ALTER TABLE t ADD FULLTEXT INDEX `FullText` (`name` ASC)
 accept	accept	ALTER TABLE t ADD INDEX (a) USING BTREE COMMENT 'a'
-reject	accept	ALTER TABLE t ADD INDEX IF NOT EXISTS (a) USING BTREE COMMENT 'a'
+accept	accept	ALTER TABLE t ADD INDEX IF NOT EXISTS (a) USING BTREE COMMENT 'a'
 accept	accept	ALTER TABLE t ADD INDEX (a) USING RTREE COMMENT 'a'
 reject	reject	ALTER TABLE t ADD INDEX (a) PRE_SPLIT_REGIONS = 4
 reject	reject	ALTER TABLE t ADD INDEX (a) PRE_SPLIT_REGIONS 4
@@ -2014,8 +2014,8 @@ reject	reject	ALTER TABLE t ADD INDEX idx(a) pre_split_regions = 100, ADD INDEX 
 accept	accept	ALTER TABLE t ADD KEY (a) USING HASH COMMENT 'a'
 accept	accept	ALTER TABLE t ADD INDEX (a) USING BTREE /*T![global_index] GLOBAL */ COMMENT 'a'
 accept	accept	ALTER TABLE t ADD UNIQUE INDEX (a) /*T![global_index] GLOBAL */
-reject	accept	ALTER TABLE t ADD UNIQUE INDEX (a) LOCAL
-reject	accept	ALTER TABLE t ADD KEY IF NOT EXISTS (a) USING HASH COMMENT 'a'
+accept	accept	ALTER TABLE t ADD UNIQUE INDEX (a) LOCAL
+accept	accept	ALTER TABLE t ADD KEY IF NOT EXISTS (a) USING HASH COMMENT 'a'
 accept	accept	ALTER TABLE t ADD PRIMARY KEY ident USING RTREE ( a DESC , b   )
 accept	accept	ALTER TABLE t ADD KEY USING RTREE   ( a ) 
 accept	accept	ALTER TABLE t ADD KEY USING RTREE ( ident ASC , ident ( 123 ) )
@@ -2028,14 +2028,14 @@ reject	reject	ALTER TABLE t ADD VECTOR (VEC_COSINE_DISTANCE(a)) USING HNSW COMME
 reject	reject	ALTER TABLE t ADD VECTOR ((VEC_COSINE_DISTANCE(a))) USING HASH COMMENT 'a'
 reject	reject	ALTER TABLE t ADD VECTOR ((VEC_COSINE_DISTANCE(a, b))) USING HNSW COMMENT 'a'
 reject	reject	ALTER TABLE t ADD VECTOR KEY ((VEC_COSINE_DISTANCE(a, b))) USING HNSW COMMENT 'a'
-reject	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a, b))) USING HNSW COMMENT 'a'
-reject	accept	ALTER TABLE t ADD VECTOR INDEX ((lower(a))) USING HNSW COMMENT 'a'
+accept	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a, b))) USING HNSW COMMENT 'a'
+accept	accept	ALTER TABLE t ADD VECTOR INDEX ((lower(a))) USING HNSW COMMENT 'a'
 reject	reject	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a), a)) USING HNSW COMMENT 'a'
-reject	accept	ALTER TABLE t ADD VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
-reject	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HYPO COMMENT 'a'
-reject	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) COMMENT 'a'
-reject	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
-reject	accept	ALTER TABLE t ADD VECTOR INDEX IF NOT EXISTS ((VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
+accept	accept	ALTER TABLE t ADD VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
+accept	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HYPO COMMENT 'a'
+accept	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) COMMENT 'a'
+accept	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
+accept	accept	ALTER TABLE t ADD VECTOR INDEX IF NOT EXISTS ((VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
 reject	reject	ALTER TABLE t ADD VECTOR INDEX IF NOT EXISTS ((VEC_COSINE_DISTANCE(a))) ADD_COLUMNAR_REPLICA_ON_DEMAND USING HNSW COMMENT 'a'
 reject	reject	ALTER TABLE t ADD COLUMNAR (a) USING INVERTED COMMENT 'a'
 reject	reject	ALTER TABLE t ADD COLUMNAR ((a - 1)) USING INVERTED COMMENT 'a'
@@ -2048,7 +2048,7 @@ reject	reject	ALTER TABLE t ADD COLUMNAR INDEX (a) USING HYPO COMMENT 'a'
 reject	reject	ALTER TABLE t ADD COLUMNAR INDEX ((a - 1)) USING HYPO COMMENT 'a'
 reject	reject	ALTER TABLE t ADD COLUMNAR INDEX IF NOT EXISTS (a) USING INVERTED COMMENT 'a'
 accept	accept	ALTER TABLE t ADD CONSTRAINT fk_t2_id FOREIGN KEY (t2_id) REFERENCES t(id)
-reject	accept	ALTER TABLE t ADD CONSTRAINT fk_t2_id FOREIGN KEY IF NOT EXISTS (t2_id) REFERENCES t(id)
+accept	accept	ALTER TABLE t ADD CONSTRAINT fk_t2_id FOREIGN KEY IF NOT EXISTS (t2_id) REFERENCES t(id)
 accept	accept	ALTER TABLE t ADD CONSTRAINT c_1 CHECK (1+1) NOT ENFORCED, ADD UNIQUE (a)
 accept	accept	ALTER TABLE t ADD CONSTRAINT c_1 CHECK (1+1) ENFORCED, ADD UNIQUE (a)
 accept	accept	ALTER TABLE t ADD CONSTRAINT c_1 CHECK (1+1), ADD UNIQUE (a)
@@ -2067,24 +2067,24 @@ accept	accept	ALTER TABLE t default COLLATE = UTF8_GENERAL_CI, ENGINE = '', ADD 
 accept	accept	ALTER TABLE t shard_row_id_bits = 1
 accept	accept	ALTER TABLE t AUTO_INCREMENT 3
 accept	accept	ALTER TABLE t AUTO_INCREMENT = 3
-reject	accept	ALTER TABLE t FORCE AUTO_INCREMENT 3
-reject	accept	ALTER TABLE t FORCE AUTO_INCREMENT = 3
+accept	accept	ALTER TABLE t FORCE AUTO_INCREMENT 3
+accept	accept	ALTER TABLE t FORCE AUTO_INCREMENT = 3
 accept	accept	ALTER TABLE `hello-world@dev`.`User` ADD COLUMN `name` mediumtext CHARACTER SET UTF8MB4 COLLATE UTF8MB4_UNICODE_CI NOT NULL , ALGORITHM = DEFAULT;
 accept	accept	ALTER TABLE `hello-world@dev`.`User` ADD COLUMN `name` mediumtext CHARACTER SET UTF8MB4 COLLATE UTF8MB4_UNICODE_CI NOT NULL , ALGORITHM = INPLACE;
 accept	accept	ALTER TABLE `hello-world@dev`.`User` ADD COLUMN `name` mediumtext CHARACTER SET UTF8MB4 COLLATE UTF8MB4_UNICODE_CI NOT NULL , ALGORITHM = COPY;
 accept	accept	ALTER TABLE `hello-world@dev`.`User` ADD COLUMN `name` MEDIUMTEXT CHARACTER SET UTF8MB4 COLLATE UTF8MB4_UNICODE_CI NOT NULL, ALGORITHM = INSTANT;
 accept	accept	ALTER TABLE t CONVERT TO CHARACTER SET UTF8;
-reject	accept	ALTER TABLE t CONVERT TO CHARSET UTF8;
+accept	accept	ALTER TABLE t CONVERT TO CHARSET UTF8;
 accept	accept	ALTER TABLE t CONVERT TO CHARACTER SET UTF8 COLLATE UTF8_BIN;
-reject	accept	ALTER TABLE t CONVERT TO CHARSET UTF8 COLLATE UTF8_BIN;
+accept	accept	ALTER TABLE t CONVERT TO CHARSET UTF8 COLLATE UTF8_BIN;
 accept	accept	alter table d_n.t_n convert to character set default
-reject	accept	alter table d_n.t_n convert to charset default
-reject	accept	alter table d_n.t_n convert to char set default
+accept	accept	alter table d_n.t_n convert to charset default
+accept	accept	alter table d_n.t_n convert to char set default
 accept	accept	alter table d_n.t_n convert to character set default collate utf8mb4_0900_ai_ci
 accept	accept	ALTER TABLE t FORCE
 reject	reject	ALTER TABLE t DROP INDEX;
 accept	accept	ALTER TABLE t DROP INDEX a
-reject	accept	ALTER TABLE t DROP INDEX IF EXISTS a
+accept	accept	ALTER TABLE t DROP INDEX IF EXISTS a
 accept	accept	ALTER TABLE t ALTER INDEX a INVISIBLE
 accept	accept	ALTER TABLE t ALTER INDEX a VISIBLE
 accept	accept	ALTER TABLE t DROP FOREIGN KEY a
@@ -2102,21 +2102,21 @@ accept	accept	ALTER TABLE t_n ALTER CHECK ident ENFORCED;
 accept	accept	ALTER TABLE t_n ALTER CHECK ident NOT ENFORCED;
 accept	accept	ALTER TABLE t_n DROP CONSTRAINT ident
 accept	accept	ALTER TABLE t_n DROP CHECK ident
-accept	reject	ALTER TABLE t_n ALTER CONSTRAINT ident
+reject	reject	ALTER TABLE t_n ALTER CONSTRAINT ident
 accept	accept	ALTER TABLE t_n ALTER CONSTRAINT ident enforced
 accept	accept	ALTER TABLE t_n ALTER CHECK ident not enforced
 accept	accept	alter table t analyze partition a
-reject	accept	alter table t analyze partition a with 4 buckets
-reject	accept	alter table t analyze partition a index b
-reject	accept	alter table t analyze partition a index b with 4 buckets
+accept	accept	alter table t analyze partition a with 4 buckets
+accept	accept	alter table t analyze partition a index b
+accept	accept	alter table t analyze partition a index b with 4 buckets
 accept	accept	alter table t partition by hash(a)
 accept	accept	alter table t add column a int partition by hash(a)
-reject	accept	alter table t add column a int partition by hash(a) update indexes (idx_a global)
-reject	accept	alter table t add column a int partition by hash(a) update indexes (idx_a global, idx_b local)
+accept	accept	alter table t add column a int partition by hash(a) update indexes (idx_a global)
+accept	accept	alter table t add column a int partition by hash(a) update indexes (idx_a global, idx_b local)
 reject	reject	alter table t add column a int partition by hash(a) update indexes (idx_a normal)
 reject	reject	alter table t add column a int partition by hash(a) update indexes (global)
 accept	accept	alter table t partition by range(a)
-reject	accept	alter table t partition by range(a) update indexes (a local)
+accept	accept	alter table t partition by range(a) update indexes (a local)
 accept	accept	alter table t partition by range(a) (partition x values less than (75))
 reject	reject	alter table t add column a int, partition by range(a) (partition x values less than (75))
 accept	accept	alter table t comment 'cmt' partition by hash(a)
@@ -2124,10 +2124,10 @@ accept	accept	alter table t enable keys, comment = 'cmt' partition by hash(a)
 reject	reject	alter table t enable keys, comment = 'cmt', partition by hash(a)
 reject	reject	alter table t partition by hash(a) enable keys
 reject	reject	alter table t partition by hash(a), enable keys
-reject	accept	alter table t partition by range FIELDS(a) (partition x values less than maxvalue)
-reject	accept	alter table t partition by list FIELDS(a) (PARTITION p0 VALUES IN (5, 10, 15))
-reject	accept	alter table t partition by range FIELDS(a,b,c) (partition p1 values less than (1,1,1));
-reject	accept	alter table t partition by list FIELDS(a,b,c) (PARTITION p0 VALUES IN ((5, 10, 15)))
+accept	accept	alter table t partition by range FIELDS(a) (partition x values less than maxvalue)
+accept	accept	alter table t partition by list FIELDS(a) (PARTITION p0 VALUES IN (5, 10, 15))
+accept	accept	alter table t partition by range FIELDS(a,b,c) (partition p1 values less than (1,1,1));
+accept	accept	alter table t partition by list FIELDS(a,b,c) (PARTITION p0 VALUES IN ((5, 10, 15)))
 accept	accept	alter table t with validation, add column b int as (a + 1)
 accept	accept	alter table t without validation, add column b int as (a + 1)
 accept	accept	alter table t without validation, with validation, add column b int as (a + 1)
@@ -2145,23 +2145,23 @@ accept	accept	ALTER TABLE members REORGANIZE PARTITION LOCAL n0 INTO (PARTITION 
 accept	accept	ALTER TABLE members REORGANIZE PARTITION p1,p2,p3 INTO ( PARTITION s0 VALUES LESS THAN (1960), PARTITION s1 VALUES LESS THAN (1970));
 reject	reject	alter table t reorganize partition remove partition;
 accept	accept	alter table t reorganize partition no_write_to_binlog remove into (partition p0 VALUES LESS THAN (1991));
-reject	accept	ALTER TABLE t ATTRIBUTES='str'
-reject	accept	ALTER TABLE t ATTRIBUTES='str1,str2'
-reject	accept	ALTER TABLE t ATTRIBUTES="str1,str2"
-reject	accept	ALTER TABLE t ATTRIBUTES 'str1,str2'
-reject	accept	ALTER TABLE t ATTRIBUTES "str1,str2"
-reject	accept	ALTER TABLE t ATTRIBUTES=DEFAULT
-reject	accept	ALTER TABLE t ATTRIBUTES=default
-reject	accept	ALTER TABLE t ATTRIBUTES=DeFaUlT
+accept	accept	ALTER TABLE t ATTRIBUTES='str'
+accept	accept	ALTER TABLE t ATTRIBUTES='str1,str2'
+accept	accept	ALTER TABLE t ATTRIBUTES="str1,str2"
+accept	accept	ALTER TABLE t ATTRIBUTES 'str1,str2'
+accept	accept	ALTER TABLE t ATTRIBUTES "str1,str2"
+accept	accept	ALTER TABLE t ATTRIBUTES=DEFAULT
+accept	accept	ALTER TABLE t ATTRIBUTES=default
+accept	accept	ALTER TABLE t ATTRIBUTES=DeFaUlT
 reject	reject	ALTER TABLE t ATTRIBUTES
-reject	accept	ALTER TABLE t PARTITION p ATTRIBUTES='str'
-reject	accept	ALTER TABLE t PARTITION p ATTRIBUTES='str1,str2'
-reject	accept	ALTER TABLE t PARTITION p ATTRIBUTES="str1,str2"
-reject	accept	ALTER TABLE t PARTITION p ATTRIBUTES 'str1,str2'
-reject	accept	ALTER TABLE t PARTITION p ATTRIBUTES "str1,str2"
-reject	accept	ALTER TABLE t PARTITION p ATTRIBUTES=DEFAULT
-reject	accept	ALTER TABLE t PARTITION p ATTRIBUTES=default
-reject	accept	ALTER TABLE t PARTITION p ATTRIBUTES=DeFaUlT
+accept	accept	ALTER TABLE t PARTITION p ATTRIBUTES='str'
+accept	accept	ALTER TABLE t PARTITION p ATTRIBUTES='str1,str2'
+accept	accept	ALTER TABLE t PARTITION p ATTRIBUTES="str1,str2"
+accept	accept	ALTER TABLE t PARTITION p ATTRIBUTES 'str1,str2'
+accept	accept	ALTER TABLE t PARTITION p ATTRIBUTES "str1,str2"
+accept	accept	ALTER TABLE t PARTITION p ATTRIBUTES=DEFAULT
+accept	accept	ALTER TABLE t PARTITION p ATTRIBUTES=default
+accept	accept	ALTER TABLE t PARTITION p ATTRIBUTES=DeFaUlT
 reject	reject	ALTER TABLE t PARTITION p ATTRIBUTES
 accept	accept	CREATE TABLE t1 (attributes int);
 accept	accept	CREATE INDEX idx ON t (a)
@@ -2322,10 +2322,10 @@ reject	reject	alter table t add column a int, add index (c), remove partitioning
 reject	reject	alter table t remove partitioning add column a int
 reject	reject	alter table t remove partitioning, add column a int
 accept	accept	alter table t add column a double (4,2) zerofill references b match full on update set null first
-reject	accept	alter table d_n.t_n add constraint foreign key ident (ident(1)) references d_n.t_n match full on delete set null
-reject	accept	alter table t_n add constraint ident foreign key (ident,ident(1)) references t_n match full on update set null on delete restrict
-reject	accept	alter table d_n.t_n add foreign key ident (ident, ident(1) asc) references t_n match partial on delete cascade remove partitioning
-reject	accept	alter table d_n.t_n add constraint foreign key (ident asc) references d_n.t_n match simple on update cascade on delete cascade
+accept	accept	alter table d_n.t_n add constraint foreign key ident (ident(1)) references d_n.t_n match full on delete set null
+accept	accept	alter table t_n add constraint ident foreign key (ident,ident(1)) references t_n match full on update set null on delete restrict
+accept	accept	alter table d_n.t_n add foreign key ident (ident, ident(1) asc) references t_n match partial on delete cascade remove partitioning
+accept	accept	alter table d_n.t_n add constraint foreign key (ident asc) references d_n.t_n match simple on update cascade on delete cascade
 accept	accept	create table t (a character varying(1));
 accept	accept	create table t (a character varying(255));
 accept	accept	create table t (a char varying(50));
@@ -2405,37 +2405,37 @@ accept	accept	create table t (a int, index type type btree (a));
 reject	reject	create table t (a int, index type btree (a));
 accept	accept	create table t (a int, index type using btree (a));
 accept	accept	create table t (a int, index using btree (a));
-reject	accept	ALTER TABLE d_n.t_n WITHOUT VALIDATION , ADD PARTITION ( PARTITION ident VALUES LESS THAN ( MAXVALUE ) STORAGE ENGINE text_string MAX_ROWS 12 )
-reject	accept	ALTER TABLE d_n.t_n WITH VALIDATION , ADD PARTITION NO_WRITE_TO_BINLOG (PARTITION ident VALUES LESS THAN MAXVALUE STORAGE ENGINE = text_string, PARTITION ident VALUES LESS THAN ( MAXVALUE ) (SUBPARTITION text_string MIN_ROWS 11))
-reject	accept	ALTER TABLE d_n.t_n WITHOUT VALIDATION , ADD PARTITION ( PARTITION ident VALUES IN ( DEFAULT ) STORAGE ENGINE text_string MAX_ROWS 12 )
-reject	accept	ALTER TABLE d_n.t_n WITH VALIDATION , ADD PARTITION NO_WRITE_TO_BINLOG ( PARTITION ident VALUES IN ( DEFAULT ) STORAGE ENGINE text_string MAX_ROWS 12 )
+accept	accept	ALTER TABLE d_n.t_n WITHOUT VALIDATION , ADD PARTITION ( PARTITION ident VALUES LESS THAN ( MAXVALUE ) STORAGE ENGINE text_string MAX_ROWS 12 )
+accept	accept	ALTER TABLE d_n.t_n WITH VALIDATION , ADD PARTITION NO_WRITE_TO_BINLOG (PARTITION ident VALUES LESS THAN MAXVALUE STORAGE ENGINE = text_string, PARTITION ident VALUES LESS THAN ( MAXVALUE ) (SUBPARTITION text_string MIN_ROWS 11))
+accept	accept	ALTER TABLE d_n.t_n WITHOUT VALIDATION , ADD PARTITION ( PARTITION ident VALUES IN ( DEFAULT ) STORAGE ENGINE text_string MAX_ROWS 12 )
+accept	accept	ALTER TABLE d_n.t_n WITH VALIDATION , ADD PARTITION NO_WRITE_TO_BINLOG ( PARTITION ident VALUES IN ( DEFAULT ) STORAGE ENGINE text_string MAX_ROWS 12 )
 accept	accept	ALTER TABLE d_n.t_n ADD PARTITION ( PARTITION ident VALUES IN ( DEFAULT ), partition ptext values in ('default') )
-reject	accept	ALTER TABLE d_n.t_n WITH VALIDATION , ADD PARTITION NO_WRITE_TO_BINLOG (PARTITION ident VALUES LESS THAN MAXVALUE STORAGE ENGINE = text_string, PARTITION ident VALUES IN ( DEFAULT ) (SUBPARTITION text_string MIN_ROWS 11))
+accept	accept	ALTER TABLE d_n.t_n WITH VALIDATION , ADD PARTITION NO_WRITE_TO_BINLOG (PARTITION ident VALUES LESS THAN MAXVALUE STORAGE ENGINE = text_string, PARTITION ident VALUES IN ( DEFAULT ) (SUBPARTITION text_string MIN_ROWS 11))
 accept	accept	ALTER TABLE d_n.t_n ADD PARTITION (PARTITION ident VALUES IN ( DEFAULT ))
 accept	accept	ALTER TABLE d_n.t_n ADD PARTITION (PARTITION ident VALUES IN (1, default ))
 accept	accept	ALTER TABLE t IMPORT TABLESPACE;
 accept	accept	ALTER TABLE t DISCARD TABLESPACE;
 accept	accept	ALTER TABLE db.t IMPORT TABLESPACE;
 accept	accept	ALTER TABLE db.t DISCARD TABLESPACE;
-reject	accept	ALTER TABLE t ADD ( CHECK ( true ) )
-reject	accept	ALTER TABLE t ADD ( CONSTRAINT CHECK ( true ) )
-reject	accept	ALTER TABLE t ADD COLUMN ( CONSTRAINT ident CHECK ( 1>2 ) NOT ENFORCED )
-reject	accept	alter table t add column (b int, constraint c unique key (b))
-reject	accept	ALTER TABLE t ADD COLUMN ( CONSTRAINT CHECK ( true ) )
-reject	accept	ALTER TABLE t ADD COLUMN ( CONSTRAINT CHECK ( true ) ENFORCED , CHECK ( true ) )
-reject	accept	ALTER TABLE t ADD COLUMN (a1 int, CONSTRAINT b1 CHECK (a1>0))
-reject	accept	ALTER TABLE t ADD COLUMN (a1 int, a2 int, CONSTRAINT b1 CHECK (a1>0), CONSTRAINT b2 CHECK (a2<10))
-reject	accept	ALTER TABLE `t` ADD COLUMN (`a1` INT, PRIMARY KEY (`a1`))
-reject	accept	ALTER TABLE t ADD (a1 int, CONSTRAINT PRIMARY KEY (a1))
-reject	accept	ALTER TABLE t ADD (a1 int, a2 int, PRIMARY KEY (a1), UNIQUE (a2))
-reject	accept	ALTER TABLE t ADD (a1 int, a2 int, PRIMARY KEY (a1), CONSTRAINT b2 UNIQUE (a2))
-reject	accept	ALTER TABLE ident ADD ( CONSTRAINT FOREIGN KEY ident ( EXECUTE ( 123 ) ) REFERENCES t ( a ) MATCH SIMPLE ON DELETE CASCADE ON UPDATE SET NULL )
+accept	accept	ALTER TABLE t ADD ( CHECK ( true ) )
+accept	accept	ALTER TABLE t ADD ( CONSTRAINT CHECK ( true ) )
+accept	accept	ALTER TABLE t ADD COLUMN ( CONSTRAINT ident CHECK ( 1>2 ) NOT ENFORCED )
+accept	accept	alter table t add column (b int, constraint c unique key (b))
+accept	accept	ALTER TABLE t ADD COLUMN ( CONSTRAINT CHECK ( true ) )
+accept	accept	ALTER TABLE t ADD COLUMN ( CONSTRAINT CHECK ( true ) ENFORCED , CHECK ( true ) )
+accept	accept	ALTER TABLE t ADD COLUMN (a1 int, CONSTRAINT b1 CHECK (a1>0))
+accept	accept	ALTER TABLE t ADD COLUMN (a1 int, a2 int, CONSTRAINT b1 CHECK (a1>0), CONSTRAINT b2 CHECK (a2<10))
+accept	accept	ALTER TABLE `t` ADD COLUMN (`a1` INT, PRIMARY KEY (`a1`))
+accept	accept	ALTER TABLE t ADD (a1 int, CONSTRAINT PRIMARY KEY (a1))
+accept	accept	ALTER TABLE t ADD (a1 int, a2 int, PRIMARY KEY (a1), UNIQUE (a2))
+accept	accept	ALTER TABLE t ADD (a1 int, a2 int, PRIMARY KEY (a1), CONSTRAINT b2 UNIQUE (a2))
+accept	accept	ALTER TABLE ident ADD ( CONSTRAINT FOREIGN KEY ident ( EXECUTE ( 123 ) ) REFERENCES t ( a ) MATCH SIMPLE ON DELETE CASCADE ON UPDATE SET NULL )
 accept	accept	ALTER TABLE t ADD COLUMN a DATE CHECK ( a > 0 ) FIRST
-reject	accept	ALTER TABLE t ADD a1 int CONSTRAINT ident CHECK ( a1 > 1 ) REFERENCES b ON DELETE CASCADE ON UPDATE CASCADE;
-reject	accept	ALTER TABLE t ADD COLUMN a DATE CONSTRAINT CHECK ( a > 0 ) FIRST
-reject	accept	ALTER TABLE t ADD a TINYBLOB CONSTRAINT ident CHECK ( 1>2 ) REFERENCES b ON DELETE CASCADE ON UPDATE CASCADE
-reject	accept	ALTER TABLE t ADD a2 int CONSTRAINT ident CHECK (a2 > 1) ENFORCED
-reject	accept	ALTER TABLE t ADD a2 int CONSTRAINT ident CHECK (a2 > 1) NOT ENFORCED
+accept	accept	ALTER TABLE t ADD a1 int CONSTRAINT ident CHECK ( a1 > 1 ) REFERENCES b ON DELETE CASCADE ON UPDATE CASCADE;
+accept	accept	ALTER TABLE t ADD COLUMN a DATE CONSTRAINT CHECK ( a > 0 ) FIRST
+accept	accept	ALTER TABLE t ADD a TINYBLOB CONSTRAINT ident CHECK ( 1>2 ) REFERENCES b ON DELETE CASCADE ON UPDATE CASCADE
+accept	accept	ALTER TABLE t ADD a2 int CONSTRAINT ident CHECK (a2 > 1) ENFORCED
+accept	accept	ALTER TABLE t ADD a2 int CONSTRAINT ident CHECK (a2 > 1) NOT ENFORCED
 reject	reject	ALTER TABLE t ADD a2 int CONSTRAINT ident primary key REFERENCES b ON DELETE CASCADE ON UPDATE CASCADE;
 reject	reject	ALTER TABLE t ADD a2 int CONSTRAINT ident primary key (a2))
 reject	reject	ALTER TABLE t ADD a2 int CONSTRAINT ident unique key (a2))
@@ -2539,8 +2539,8 @@ accept	accept	create table t (a bigint auto_random(3) primary key) auto_random_b
 accept	accept	create table t (a bigint primary key auto_random(4), b varchar(100)) auto_random_base 200
 accept	accept	alter table t auto_random_base = 50
 accept	accept	alter table t auto_increment 30, auto_random_base 40
-reject	accept	alter table t force auto_random_base = 50
-reject	accept	alter table t auto_increment 30, force auto_random_base 40
+accept	accept	alter table t force auto_random_base = 50
+accept	accept	alter table t auto_increment 30, force auto_random_base 40
 reject	reject	alter sequence seq
 reject	reject	alter sequence seq comment="haha"
 accept	accept	alter sequence seq start = 1
@@ -2560,8 +2560,8 @@ accept	accept	create table t (a int, b varchar(255) primary key clustered)
 accept	accept	create table t (a int, b varchar(255) default 'a' primary key clustered)
 accept	accept	create table t (a int, b varchar(255) primary key nonclustered, primary key(b, a) nonclustered)
 accept	accept	create table t (a int, b varchar(255), primary key(b, a) using RTREE nonclustered)
-reject	accept	create table t (a int, b varchar(255), primary key(b, a) using RTREE clustered nonclustered)
-reject	accept	create table t (a int, b varchar(255), primary key(b, a) using RTREE nonclustered clustered)
+accept	accept	create table t (a int, b varchar(255), primary key(b, a) using RTREE clustered nonclustered)
+accept	accept	create table t (a int, b varchar(255), primary key(b, a) using RTREE nonclustered clustered)
 reject	reject	create table t (a int, b varchar(255) clustered primary key)
 reject	reject	create table t (a int, b varchar(255) primary key nonclustered clustered)
 accept	accept	alter table t add primary key (`a`, `b`) clustered
@@ -2793,14 +2793,14 @@ accept	accept	CREATE TABLE t (a int, b int) STATS_COL_LIST='a,b'
 reject	reject	CREATE TABLE t (a int, b int) STATS_COL_LIST=1
 accept	accept	CREATE TABLE t (a int) STATS_BUCKETS=1,STATS_TOPN=1
 accept	accept	CREATE TABLE t (a int) STATS_BUCKETS=1,STATS_TOPN=1 PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (200))
-reject	accept	ALTER TABLE t STATS_OPTIONS='str'
-reject	accept	ALTER TABLE t STATS_OPTIONS='str1,str2'
-reject	accept	ALTER TABLE t STATS_OPTIONS="str1,str2"
-reject	accept	ALTER TABLE t STATS_OPTIONS 'str1,str2'
-reject	accept	ALTER TABLE t STATS_OPTIONS "str1,str2"
-reject	accept	ALTER TABLE t STATS_OPTIONS=DEFAULT
-reject	accept	ALTER TABLE t STATS_OPTIONS=default
-reject	accept	ALTER TABLE t STATS_OPTIONS=DeFaUlT
+accept	accept	ALTER TABLE t STATS_OPTIONS='str'
+accept	accept	ALTER TABLE t STATS_OPTIONS='str1,str2'
+accept	accept	ALTER TABLE t STATS_OPTIONS="str1,str2"
+accept	accept	ALTER TABLE t STATS_OPTIONS 'str1,str2'
+accept	accept	ALTER TABLE t STATS_OPTIONS "str1,str2"
+accept	accept	ALTER TABLE t STATS_OPTIONS=DEFAULT
+accept	accept	ALTER TABLE t STATS_OPTIONS=default
+accept	accept	ALTER TABLE t STATS_OPTIONS=DeFaUlT
 reject	reject	ALTER TABLE t STATS_OPTIONS
 accept	accept	CREATE TABLE t (a int) INSERT_METHOD=FIRST
 accept	accept	select x'0a', X'11', 0x11
@@ -2825,10 +2825,10 @@ accept	accept	CREATE USER 'ttt' REQUIRE SSL;
 accept	accept	CREATE USER 'ttt' REQUIRE NONE;
 accept	accept	CREATE USER 'ttt' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=MySQL/CN=CA/emailAddress=ca@example.com' AND CIPHER 'EDH-RSA-DES-CBC3-SHA';
 accept	accept	CREATE USER 'ttt' REQUIRE ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=MySQL/CN=CA/emailAddress=ca@example.com' CIPHER 'EDH-RSA-DES-CBC3-SHA' SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=MySQL/CN=CA/emailAddress=ca@example.com';
-accept	accept	CREATE USER 'ttt' REQUIRE SAN 'DNS:mysql-user, URI:spiffe://example.org/myservice'
+reject	accept	CREATE USER 'ttt' REQUIRE SAN 'DNS:mysql-user, URI:spiffe://example.org/myservice'
 accept	accept	CREATE USER 'ttt' WITH MAX_QUERIES_PER_HOUR 2;
 accept	accept	CREATE USER 'ttt'@'localhost' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 10 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK;
-accept	accept	CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK ;
+reject	accept	CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK ;
 accept	accept	CREATE USER 'test'
 accept	accept	CREATE USER test
 accept	accept	CREATE USER `test`
@@ -2838,14 +2838,14 @@ accept	accept	CREATE USER 'test-user'
 accept	accept	CREATE USER `test-user`
 accept	accept	CREATE USER 'test.user'
 accept	accept	CREATE USER `test.user`
-accept	accept	CREATE USER uesr1@LOCALhost
-accept	accept	CREATE USER `uesr1`@localhost
-accept	accept	CREATE USER uesr1@`localhost`
-accept	accept	CREATE USER `uesr1`@`localhost`
-accept	accept	CREATE USER 'uesr1'@localhost
+reject	accept	CREATE USER uesr1@LOCALhost
+reject	accept	CREATE USER `uesr1`@localhost
+reject	accept	CREATE USER uesr1@`localhost`
+reject	accept	CREATE USER `uesr1`@`localhost`
+reject	accept	CREATE USER 'uesr1'@localhost
 accept	accept	CREATE USER uesr1@'localhost'
 accept	accept	CREATE USER 'uesr1'@'localhost'
-accept	accept	CREATE USER 'uesr1'@`localhost`
+reject	accept	CREATE USER 'uesr1'@`localhost`
 accept	accept	CREATE USER `uesr1`@'localhost'
 accept	accept	create user 'test@localhost' password expire;
 accept	accept	create user 'test@localhost' password expire never;
@@ -2856,12 +2856,12 @@ accept	accept	create user 'test@localhost' identified by 'password' failed_login
 accept	accept	create user 'test@localhost' identified by 'password' failed_login_attempts 3;
 accept	accept	create user 'test@localhost' identified by 'password' password_lock_time 3;
 accept	accept	create user 'test@localhost' identified by 'password' password_lock_time unbounded;
-accept	accept	CREATE USER 'sha_test'@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY 'sha_test'
-accept	accept	CREATE USER 'sha_test3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS 0x24412430303524255B03496C662C1055127B3B654A2F04207D01485276703644704B76303247474564416A516662346C5868646D32764C6B514F43585A473779565947514F34
-accept	accept	CREATE USER 'sha_test4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '$A$005$%[Ilf,U{;eJ/ }HRvp6DpKv02GGEdAjQfb4lXhdm2vLkQOCXZG7yVYGQO4'
-accept	accept	CREATE USER `user@pingcap.com`@'localhost' IDENTIFIED WITH 'tidb_auth_token' REQUIRE token_issuer 'issuer-abc' ATTRIBUTE '{"email": "user@pingcap.com"}'
-accept	accept	CREATE USER 'nopwd_native'@'localhost' IDENTIFIED WITH 'mysql_native_password'
-accept	accept	CREATE USER 'nopwd_sha'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+reject	accept	CREATE USER 'sha_test'@'localhost' IDENTIFIED WITH 'caching_sha2_password' BY 'sha_test'
+reject	accept	CREATE USER 'sha_test3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS 0x24412430303524255B03496C662C1055127B3B654A2F04207D01485276703644704B76303247474564416A516662346C5868646D32764C6B514F43585A473779565947514F34
+reject	accept	CREATE USER 'sha_test4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '$A$005$%[Ilf,U{;eJ/ }HRvp6DpKv02GGEdAjQfb4lXhdm2vLkQOCXZG7yVYGQO4'
+reject	accept	CREATE USER `user@pingcap.com`@'localhost' IDENTIFIED WITH 'tidb_auth_token' REQUIRE token_issuer 'issuer-abc' ATTRIBUTE '{"email": "user@pingcap.com"}'
+reject	accept	CREATE USER 'nopwd_native'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+reject	accept	CREATE USER 'nopwd_sha'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 accept	accept	CREATE ROLE `test-role`, `role1`@'localhost'
 accept	accept	CREATE ROLE `test-role`
 accept	accept	CREATE ROLE role1
@@ -2871,14 +2871,14 @@ accept	accept	create user 'bug19354014user'@'%' identified WITH mysql_native_pas
 accept	accept	create user 'bug19354014user'@'%' identified WITH mysql_native_password as 'hashstring'
 accept	accept	CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED BY 'new-password'
 accept	accept	CREATE USER 'root'@'localhost' IDENTIFIED BY 'new-password'
-accept	accept	CREATE USER 'root'@'localhost' IDENTIFIED BY PASSWORD 'hashstring'
-accept	accept	CREATE USER 'root'@'localhost' IDENTIFIED BY 'new-password', 'root'@'127.0.0.1' IDENTIFIED BY PASSWORD 'hashstring'
+reject	accept	CREATE USER 'root'@'localhost' IDENTIFIED BY PASSWORD 'hashstring'
+reject	accept	CREATE USER 'root'@'localhost' IDENTIFIED BY 'new-password', 'root'@'127.0.0.1' IDENTIFIED BY PASSWORD 'hashstring'
 accept	accept	CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY 'hashstring' RESOURCE GROUP rg1
 accept	accept	ALTER USER IF EXISTS 'root'@'localhost' IDENTIFIED BY 'new-password'
 accept	accept	ALTER USER 'root'@'localhost' IDENTIFIED BY 'new-password'
 accept	accept	ALTER USER 'root'@'localhost' RESOURCE GROUP rg2
-accept	accept	ALTER USER 'root'@'localhost' IDENTIFIED BY PASSWORD 'hashstring'
-accept	accept	ALTER USER 'root'@'localhost' IDENTIFIED BY 'new-password', 'root'@'127.0.0.1' IDENTIFIED BY PASSWORD 'hashstring'
+reject	accept	ALTER USER 'root'@'localhost' IDENTIFIED BY PASSWORD 'hashstring'
+reject	accept	ALTER USER 'root'@'localhost' IDENTIFIED BY 'new-password', 'root'@'127.0.0.1' IDENTIFIED BY PASSWORD 'hashstring'
 accept	accept	ALTER USER USER() IDENTIFIED BY 'new-password'
 accept	accept	ALTER USER IF EXISTS USER() IDENTIFIED BY 'new-password'
 accept	accept	alter user 'test@localhost' password expire;
@@ -2918,14 +2918,14 @@ accept	accept	GRANT SELECT, INSERT ON mydb.* TO 'someuser'@'somehost';
 accept	accept	GRANT ALL ON mydb.mytbl TO 'someuser'@'somehost';
 accept	accept	GRANT SELECT, INSERT ON mydb.mytbl TO 'someuser'@'somehost';
 accept	accept	GRANT SELECT (col1), INSERT (col1,col2) ON mydb.mytbl TO 'someuser'@'somehost';
-accept	accept	grant all privileges on zabbix.* to 'zabbix'@'localhost' identified by 'password';
+reject	accept	grant all privileges on zabbix.* to 'zabbix'@'localhost' identified by 'password';
 accept	accept	GRANT SELECT ON test.* to 'test'
-accept	accept	grant PROCESS,usage, REPLICATION SLAVE, REPLICATION CLIENT on *.* to 'xxxxxxxxxx'@'%' identified by password 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-accept	accept	/* rds internal mark */ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, RELOAD, PROCESS, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES,      EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT,      TRIGGER on *.* to 'root2'@'%' identified by password '*sdsadsdsadssadsadsadsadsada' with grant option
-accept	accept	GRANT 'role1', 'role2' TO 'user1'@'LOCalhost', 'user2'@'LOcalhost';
-accept	accept	GRANT 'u1' TO 'u1';
-accept	accept	GRANT 'app_read'@'%','app_write'@'%' TO 'rw_user1'@'localhost'
-accept	accept	GRANT 'app_developer' TO 'dev1'@'localhost';
+reject	accept	grant PROCESS,usage, REPLICATION SLAVE, REPLICATION CLIENT on *.* to 'xxxxxxxxxx'@'%' identified by password 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+reject	accept	/* rds internal mark */ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, RELOAD, PROCESS, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES,      EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT,      TRIGGER on *.* to 'root2'@'%' identified by password '*sdsadsdsadssadsadsadsadsada' with grant option
+reject	accept	GRANT 'role1', 'role2' TO 'user1'@'LOCalhost', 'user2'@'LOcalhost';
+reject	accept	GRANT 'u1' TO 'u1';
+reject	accept	GRANT 'app_read'@'%','app_write'@'%' TO 'rw_user1'@'localhost'
+reject	accept	GRANT 'app_developer' TO 'dev1'@'localhost';
 accept	accept	GRANT SHUTDOWN ON *.* TO 'dev1'@'localhost';
 accept	accept	GRANT CONFIG ON *.* TO 'dev1'@'localhost';
 accept	accept	GRANT CREATE ON *.* TO 'dev1'@'localhost';
@@ -2933,11 +2933,11 @@ accept	accept	GRANT CREATE TABLESPACE ON *.* TO 'dev1'@'localhost';
 accept	accept	GRANT EXECUTE ON FUNCTION db1.anomaly_score TO 'user1'@'domain-or-ip-address1'
 accept	accept	GRANT EXECUTE ON PROCEDURE mydb.myproc TO 'someuser'@'somehost'
 accept	accept	GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN ON *.* TO 'root'@'localhost'
-accept	accept	GRANT LOAD FROM S3, SELECT INTO S3, INVOKE LAMBDA, INVOKE SAGEMAKER, INVOKE COMPREHEND ON *.* TO 'root'@'localhost'
+reject	accept	GRANT LOAD FROM S3, SELECT INTO S3, INVOKE LAMBDA, INVOKE SAGEMAKER, INVOKE COMPREHEND ON *.* TO 'root'@'localhost'
 accept	accept	GRANT PROXY ON 'localuser'@'localhost' TO 'externaluser'@'somehost'
 accept	accept	GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 accept	accept	GRANT PROXY ON 'proxied_user' TO 'proxy_user1', 'proxy_user2'
-accept	accept	grant grant option on *.* to u1
+reject	accept	grant grant option on *.* to u1
 accept	accept	REVOKE ALL ON db1.* FROM 'jeffrey'@'LOCalhost';
 accept	accept	REVOKE SELECT ON db2.invoice FROM 'jeffrey'@'localhost';
 accept	accept	REVOKE ALL ON *.* FROM 'someuser'@'somehost';
@@ -2947,8 +2947,8 @@ accept	accept	REVOKE SELECT, INSERT ON mydb.* FROM 'someuser'@'somehost';
 accept	accept	REVOKE ALL ON mydb.mytbl FROM 'someuser'@'somehost';
 accept	accept	REVOKE SELECT, INSERT ON mydb.mytbl FROM 'someuser'@'somehost';
 accept	accept	REVOKE SELECT (col1), INSERT (col1,col2) ON mydb.mytbl FROM 'someuser'@'somehost';
-accept	accept	REVOKE all privileges on zabbix.* FROM 'zabbix'@'localhost' identified by 'password';
-accept	accept	REVOKE 'role1', 'role2' FROM 'user1'@'localhost', 'user2'@'localhost';
+reject	accept	REVOKE all privileges on zabbix.* FROM 'zabbix'@'localhost' identified by 'password';
+reject	accept	REVOKE 'role1', 'role2' FROM 'user1'@'localhost', 'user2'@'localhost';
 accept	accept	REVOKE SHUTDOWN ON *.* FROM 'dev1'@'localhost';
 accept	accept	REVOKE CONFIG ON *.* FROM 'dev1'@'localhost';
 accept	accept	REVOKE EXECUTE ON FUNCTION db.func FROM 'user'@'localhost'
@@ -3025,20 +3025,20 @@ accept	accept	select * from (select 1 union select 2) as a
 accept	accept	insert into t select c1 from t1 union select c2 from t2
 accept	accept	insert into t (c) select c1 from t1 union select c2 from t2
 accept	accept	select 2 as a from dual union select 1 as b from dual order by a
-reject	accept	table t1 union table t2
-reject	accept	table t1 union (table t2)
-reject	accept	table t1 union select * from t2
-reject	accept	select * from t1 union table t2
-reject	accept	table t1 union (select c2 from t2) order by c1 limit 1
-reject	accept	select c1 from t1 union (table t2) order by c1 limit 1
-reject	accept	(select c1 from t1) union table t2 union (select c3 from t3) order by c1 limit 1
-reject	accept	(table t1) union select c2 from t2 union (table t3) order by c1 limit 1
-reject	accept	values row(1,-2,3), row(5,7,9) union values row(1,-2,3), row(5,7,9)
-reject	accept	values row(1,-2,3), row(5,7,9) union (values row(1,-2,3), row(5,7,9))
-reject	accept	values row(1,-2,3), row(5,7,9) union select * from t
-reject	accept	values row(1,-2,3), row(5,7,9) union table t
-reject	accept	select * from t union values row(1,-2,3), row(5,7,9)
-reject	accept	table t union values row(1,-2,3), row(5,7,9)
+accept	accept	table t1 union table t2
+accept	accept	table t1 union (table t2)
+accept	accept	table t1 union select * from t2
+accept	accept	select * from t1 union table t2
+accept	accept	table t1 union (select c2 from t2) order by c1 limit 1
+accept	accept	select c1 from t1 union (table t2) order by c1 limit 1
+accept	accept	(select c1 from t1) union table t2 union (select c3 from t3) order by c1 limit 1
+accept	accept	(table t1) union select c2 from t2 union (table t3) order by c1 limit 1
+accept	accept	values row(1,-2,3), row(5,7,9) union values row(1,-2,3), row(5,7,9)
+accept	accept	values row(1,-2,3), row(5,7,9) union (values row(1,-2,3), row(5,7,9))
+accept	accept	values row(1,-2,3), row(5,7,9) union select * from t
+accept	accept	values row(1,-2,3), row(5,7,9) union table t
+accept	accept	select * from t union values row(1,-2,3), row(5,7,9)
+accept	accept	table t union values row(1,-2,3), row(5,7,9)
 accept	accept	select c1 from t1 except select c2 from t2
 accept	accept	select c1 from t1 except (select c2 from t2)
 accept	accept	select c1 from t1 except (select c2 from t2) order by c1
@@ -3054,20 +3054,20 @@ accept	accept	select * from (select 1 except select 2) as a
 accept	accept	insert into t select c1 from t1 except select c2 from t2
 accept	accept	insert into t (c) select c1 from t1 except select c2 from t2
 accept	accept	select 2 as a from dual except select 1 as b from dual order by a
-reject	accept	table t1 except table t2
-reject	accept	table t1 except (table t2)
-reject	accept	table t1 except select * from t2
-reject	accept	select * from t1 except table t2
-reject	accept	table t1 except (select c2 from t2) order by c1 limit 1
-reject	accept	select c1 from t1 except (table t2) order by c1 limit 1
-reject	accept	(select c1 from t1) except table t2 except (select c3 from t3) order by c1 limit 1
-reject	accept	(table t1) except select c2 from t2 except (table t3) order by c1 limit 1
-reject	accept	values row(1,-2,3), row(5,7,9) except values row(1,-2,3), row(5,7,9)
-reject	accept	values row(1,-2,3), row(5,7,9) except (values row(1,-2,3), row(5,7,9))
-reject	accept	values row(1,-2,3), row(5,7,9) except select * from t
-reject	accept	values row(1,-2,3), row(5,7,9) except table t
-reject	accept	select * from t except values row(1,-2,3), row(5,7,9)
-reject	accept	table t except values row(1,-2,3), row(5,7,9)
+accept	accept	table t1 except table t2
+accept	accept	table t1 except (table t2)
+accept	accept	table t1 except select * from t2
+accept	accept	select * from t1 except table t2
+accept	accept	table t1 except (select c2 from t2) order by c1 limit 1
+accept	accept	select c1 from t1 except (table t2) order by c1 limit 1
+accept	accept	(select c1 from t1) except table t2 except (select c3 from t3) order by c1 limit 1
+accept	accept	(table t1) except select c2 from t2 except (table t3) order by c1 limit 1
+accept	accept	values row(1,-2,3), row(5,7,9) except values row(1,-2,3), row(5,7,9)
+accept	accept	values row(1,-2,3), row(5,7,9) except (values row(1,-2,3), row(5,7,9))
+accept	accept	values row(1,-2,3), row(5,7,9) except select * from t
+accept	accept	values row(1,-2,3), row(5,7,9) except table t
+accept	accept	select * from t except values row(1,-2,3), row(5,7,9)
+accept	accept	table t except values row(1,-2,3), row(5,7,9)
 accept	accept	select c1 from t1 intersect select c2 from t2
 accept	accept	select c1 from t1 intersect (select c2 from t2)
 accept	accept	select c1 from t1 intersect (select c2 from t2) order by c1
@@ -3083,20 +3083,20 @@ accept	accept	select * from (select 1 intersect select 2) as a
 accept	accept	insert into t select c1 from t1 intersect select c2 from t2
 accept	accept	insert into t (c) select c1 from t1 intersect select c2 from t2
 accept	accept	select 2 as a from dual intersect select 1 as b from dual order by a
-reject	accept	table t1 intersect table t2
-reject	accept	table t1 intersect (table t2)
-reject	accept	table t1 intersect select * from t2
-reject	accept	select * from t1 intersect table t2
-reject	accept	table t1 intersect (select c2 from t2) order by c1 limit 1
-reject	accept	select c1 from t1 intersect (table t2) order by c1 limit 1
-reject	accept	(select c1 from t1) intersect table t2 intersect (select c3 from t3) order by c1 limit 1
-reject	accept	(table t1) intersect select c2 from t2 intersect (table t3) order by c1 limit 1
-reject	accept	values row(1,-2,3), row(5,7,9) intersect values row(1,-2,3), row(5,7,9)
-reject	accept	values row(1,-2,3), row(5,7,9) intersect (values row(1,-2,3), row(5,7,9))
-reject	accept	values row(1,-2,3), row(5,7,9) intersect select * from t
-reject	accept	values row(1,-2,3), row(5,7,9) intersect table t
-reject	accept	select * from t intersect values row(1,-2,3), row(5,7,9)
-reject	accept	table t intersect values row(1,-2,3), row(5,7,9)
+accept	accept	table t1 intersect table t2
+accept	accept	table t1 intersect (table t2)
+accept	accept	table t1 intersect select * from t2
+accept	accept	select * from t1 intersect table t2
+accept	accept	table t1 intersect (select c2 from t2) order by c1 limit 1
+accept	accept	select c1 from t1 intersect (table t2) order by c1 limit 1
+accept	accept	(select c1 from t1) intersect table t2 intersect (select c3 from t3) order by c1 limit 1
+accept	accept	(table t1) intersect select c2 from t2 intersect (table t3) order by c1 limit 1
+accept	accept	values row(1,-2,3), row(5,7,9) intersect values row(1,-2,3), row(5,7,9)
+accept	accept	values row(1,-2,3), row(5,7,9) intersect (values row(1,-2,3), row(5,7,9))
+accept	accept	values row(1,-2,3), row(5,7,9) intersect select * from t
+accept	accept	values row(1,-2,3), row(5,7,9) intersect table t
+accept	accept	select * from t intersect values row(1,-2,3), row(5,7,9)
+accept	accept	table t intersect values row(1,-2,3), row(5,7,9)
 accept	accept	(select c1 from t1) intersect select c2 from t2 union (select c3 from t3) order by c1 limit 1
 accept	accept	(select c1 from t1) union all select c2 from t2 except (select c3 from t3) order by c1 limit 1
 accept	accept	(select c1 from t1) except select c2 from t2 intersect (select c3 from t3) order by c1 limit 1
@@ -3131,8 +3131,8 @@ accept	accept	LOCK TABLE t1 WRITE, t2 READ;
 reject	reject	ADMIN CLEANUP TABLE LOCK
 accept	accept	ADMIN CLEANUP TABLE LOCK t
 accept	accept	ADMIN CLEANUP TABLE LOCK t1,t2
-reject	accept	ALTER TABLE t READ ONLY
-reject	accept	ALTER TABLE t READ WRITE
+accept	accept	ALTER TABLE t READ ONLY
+accept	accept	ALTER TABLE t READ WRITE
 reject	reject	select * from t group by a, b rollup
 accept	accept	select * from t group by a, b with rollup
 reject	accept	select * from t group by (a, b) with rollup
@@ -3578,7 +3578,7 @@ reject	reject	create table t1 (a int) partition by range columns () (partition x
 reject	reject	create table t1 (a int) partition by list columns () (partition x default)
 reject	reject	create table t1 (a int) partition by range (a) (partition x values less than ())
 reject	reject	create table t1 (a int) partition by list (a) (partition x values in ())
-reject	accept	create table t1 (a int) partition by list (a) (partition x default)
+accept	accept	create table t1 (a int) partition by list (a) (partition x default)
 reject	reject	create table t1 (a int, b int) partition by range (a) subpartition by range (b) (partition x values less than maxvalue)
 accept	accept	create table t1 (a int) partition by hash (a) partitions 2 (partition x)
 accept	accept	create table t1 (a int) partition by hash (a) partitions 2 (partition x, partition y)
@@ -3592,8 +3592,8 @@ accept	accept	create table t1 (a int, b int) partition by range (a) subpartition
 reject	reject	create table t1 (a int) partition by system_time interval 7 day limit 50000 (partition x history, partition y current)
 reject	accept	create table t1 (a int) partition by system_time interval 7 day (partition x history, partition y current)
 reject	accept	create table t1 (a int) partition by system_time limit 50000 (partition x history, partition y current)
-reject	accept	create table t1 (a int) partition by hash(a) (partition x engine InnoDB comment 'xxxx' data directory '/var/data' index directory '/var/index' max_rows 70000 min_rows 50 tablespace `innodb_file_per_table` nodegroup 255)
-reject	accept	create table t1 (a int, b int) partition by range(a) subpartition by hash(b) (partition x values less than maxvalue (subpartition y engine InnoDB comment 'xxxx' data directory '/var/data' index directory '/var/index' max_rows 70000 min_rows 50 tablespace `innodb_file_per_table` nodegroup 255))
+accept	accept	create table t1 (a int) partition by hash(a) (partition x engine InnoDB comment 'xxxx' data directory '/var/data' index directory '/var/index' max_rows 70000 min_rows 50 tablespace `innodb_file_per_table` nodegroup 255)
+accept	accept	create table t1 (a int, b int) partition by range(a) subpartition by hash(b) (partition x values less than maxvalue (subpartition y engine InnoDB comment 'xxxx' data directory '/var/data' index directory '/var/index' max_rows 70000 min_rows 50 tablespace `innodb_file_per_table` nodegroup 255))
 accept	accept	select * from t partition (p0,p1)
 accept	accept	select * from t1 where not exists (select * from t2 where t1.a = t2.a)
 accept	accept	SELECT CUME_DIST() OVER w FROM t;
@@ -3623,7 +3623,7 @@ accept	accept	SELECT SUM(profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT AVG(profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT BIT_XOR(profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT COUNT(profit) OVER() AS country_profit FROM sales;
-reject	accept	SELECT COUNT(ALL profit) OVER() AS country_profit FROM sales;
+accept	accept	SELECT COUNT(ALL profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT COUNT(*) OVER() AS country_profit FROM sales;
 accept	accept	SELECT MAX(profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT MIN(profit) OVER() AS country_profit FROM sales;
@@ -3724,7 +3724,7 @@ accept	accept	with cte(a) as (select 1) update t, cte set t.a=1  where t.a=cte.a
 accept	accept	with cte(a) as (select 1) delete t from t, cte where t.a=cte.a;
 accept	accept	WITH cte1 AS (SELECT 1) SELECT * FROM (WITH cte2 AS (SELECT 2) SELECT * FROM cte2 JOIN cte1) AS dt;
 accept	accept	WITH cte AS (SELECT 1) SELECT /*+ MAX_EXECUTION_TIME(1000) */ * FROM cte;
-reject	accept	with cte as (table t) table cte;
+accept	accept	with cte as (table t) table cte;
 reject	reject	with cte as (select 1) select 1 union with cte as (select 1) select * from cte;
 accept	accept	with cte as (select 1) (select 1);
 accept	accept	with cte as (select 1) (select 1 union select 1)
@@ -3842,14 +3842,14 @@ reject	accept	CREATE TABLE t (c1 int, c2 date) PARTITION BY RANGE (c2) INTERVAL 
 accept	accept	CREATE TABLE t (c1 int, c2 date) PARTITION BY RANGE (c1) (partition p1 values less than (22))
 reject	reject	CREATE TABLE t (c1 int, c2 date) PARTITION BY RANGE COLUMNS (c2) INTERVAL (1 year) first partition less than ("2022-02-01")
 reject	accept	CREATE TABLE t (c1 int, c2 datetime) PARTITION BY RANGE COLUMNS (c2) INTERVAL (1 day) first partition less than ("2022-01-02") last partition less than ("2022-06-01") NULL PARTITION MAXVALUE PARTITION
-reject	accept	ALTER TABLE t LAST PARTITION LESS THAN (1000)
+accept	accept	ALTER TABLE t LAST PARTITION LESS THAN (1000)
 reject	reject	ALTER TABLE t REORGANIZE MAX PARTITION INTO NEW LAST PARTITION LESS THAN (1000)
 reject	reject	ALTER TABLE t REORGANIZE MAX PARTITION INTO LAST PARTITION LESS THAN (1000)
 reject	reject	ALTER TABLE t REORGANIZE MAXVALUE PARTITION INTO NEW LAST PARTITION LESS THAN (1000)
 reject	reject	ALTER TABLE t REORGANIZE MAXVALUE PARTITION INTO LAST PARTITION LESS THAN (1000)
-reject	accept	ALTER TABLE t split MAXVALUE PARTITION LESS THAN (1000)
-reject	accept	ALTER TABLE t merge first PARTITION LESS THAN (1000)
-reject	accept	ALTER TABLE t first PARTITION LESS THAN (1000)
+accept	accept	ALTER TABLE t split MAXVALUE PARTITION LESS THAN (1000)
+accept	accept	ALTER TABLE t merge first PARTITION LESS THAN (1000)
+accept	accept	ALTER TABLE t first PARTITION LESS THAN (1000)
 accept	accept	create table t (created_at datetime) TTL = created_at + INTERVAL 3.1415 YEAR
 accept	accept	create table t (created_at datetime) TTL = created_at + INTERVAL '1 1:1:1' DAY_SECOND
 accept	accept	create table t (created_at datetime) TTL = created_at + INTERVAL 1 YEAR
@@ -3866,9 +3866,9 @@ accept	accept	alter table t /*T![ttl] ttl=created_at + INTERVAL 1 YEAR ttl_enabl
 accept	accept	alter table t /*T![ttl] ttl=created_at + INTERVAL 1 YEAR ttl_enable='ON' TTL_JOB_INTERVAL='8h'*/
 accept	accept	alter table t /*T![ttl] ttl=created_at + INTERVAL 1 YEAR ttl_enable='ON' TTL_JOB_INTERVAL='8.645124531235h'*/
 accept	accept	alter table t remove ttl
-accept	reject	create table t (created_at datetime) TTL_ENABLE = 'test_case'
-accept	reject	create table t (created_at datetime) /*T![ttl] TTL_ENABLE = 'test_case' */
-accept	reject	alter table t /*T![ttl] TTL_ENABLE = 'test_case' */
+reject	reject	create table t (created_at datetime) TTL_ENABLE = 'test_case'
+reject	reject	create table t (created_at datetime) /*T![ttl] TTL_ENABLE = 'test_case' */
+reject	reject	alter table t /*T![ttl] TTL_ENABLE = 'test_case' */
 accept	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '@monthly'
 accept	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '10hourxx'
 accept	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '10.10.255h'

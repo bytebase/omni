@@ -39,14 +39,13 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwWITH:
 		return p.parseWithStmt()
 
-	case kwSELECT:
+	// TABLE and VALUES are query primaries, not statements of their own, so a
+	// statement that begins with one is the query expression it begins: it may
+	// be combined with UNION/INTERSECT/EXCEPT and carry the clauses of a whole
+	// query expression (container-verified: "table t1 union table t2",
+	// "values row(1) union select 1").
+	case kwSELECT, kwTABLE, kwVALUES:
 		return p.parseSelectStmt()
-
-	case kwTABLE:
-		return p.parseTableStmt()
-
-	case kwVALUES:
-		return p.parseValuesStmt()
 
 	case kwINSERT:
 		return p.parseInsertStmt()
@@ -203,7 +202,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parsePurgeBinaryLogsStmt()
 
 	case kwIMPORT:
-		return p.parseImportTableStmt()
+		return p.parseImportDispatch()
 
 	case kwBINLOG:
 		return p.parseBinlogStmt()
@@ -445,6 +444,21 @@ func (p *Parser) parseLoadDispatch() (nodes.Node, error) {
 
 	// Fall through to LOAD DATA / LOAD XML
 	return p.parseLoadDataStmt(start)
+}
+
+// parseImportDispatch dispatches IMPORT statements. TiDB has one, IMPORT
+// INTO; MySQL's `IMPORT TABLE FROM 'x.sdi'` is not TiDB's and v8.5.5 answers
+// 1064 for it, where mysql:8.0.46 takes it (mariadb:11.8.8 and OceanBase
+// 4.3.5 answer 1064 too, read on 2026-11-04). This parser used to read it,
+// which also left `IMPORT INTO t` parsing as an IMPORT TABLE of no files.
+func (p *Parser) parseImportDispatch() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume IMPORT
+
+	if p.cur.Type != kwINTO {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseImportIntoStmt(start)
 }
 
 // parseCreateDispatch dispatches CREATE statements to the appropriate parser.

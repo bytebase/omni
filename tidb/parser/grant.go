@@ -543,7 +543,8 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 	// (RolenameComposed, parser.y:11377), whether the word is a keyword or
 	// an identifier.
 	if p.isIdentToken() {
-		if next := p.peekNext(); next.Type == tokIDENT && strings.HasPrefix(next.Str, "@") {
+		if next := p.peekNext(); next.Type == tokIDENT && strings.HasPrefix(next.Str, "@") &&
+			!strings.HasPrefix(p.inputText(next.Loc, next.End), "`") {
 			name, _, err := p.parseIdent()
 			if err != nil {
 				return privOrRole{}, err
@@ -556,12 +557,32 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 		}
 	}
 
-	keyword := p.cur.Type != tokIDENT
-	name, err := p.parsePrivilegeName()
+	name, word, err := p.parsePrivilegeName()
 	if err != nil {
 		return privOrRole{}, err
 	}
-	return privOrRole{name: name, privOnly: keyword}, nil
+	// GRANT on its own is no privilege name, and the word GRANT is no role
+	// name either, so a bare GRANT is neither: v8.5.5 answers 1064 for
+	// `GRANT GRANT ON *.* TO u` and for `GRANT GRANT TO u`.
+	if word.keyword && name == "GRANT" {
+		return privOrRole{}, p.syntaxErrorAtCur()
+	}
+	return privOrRole{name: name, privOnly: word.keyword}, nil
+}
+
+// privWord records what parsePrivilegeName read. The caller needs it because
+// a privilege word and a name that happens to spell one are not the same
+// thing: v8.5.5, mysql:8.0 and mariadb:11.8 all run `GRANT `grant` TO u` and `GRANT `create view` TO u`,
+// where the backquoted word is a role name, and answer 1064 for `GRANT
+// `create` VIEW ON *.* TO u`.
+type privWord struct {
+	// keyword is true when the first token was a keyword rather than an
+	// identifier. Only a keyword starts a privilege word, which is why the
+	// multi-word completions below are closed to identifiers.
+	keyword bool
+	// multiToken is true when the name spans more than one token. No role
+	// name does; a backquoted name holding a space is still one token.
+	multiToken bool
 }
 
 // parsePrivilegeName parses a single privilege name.
@@ -570,14 +591,16 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 // LOCK TABLES, REPLICATION CLIENT, REPLICATION SLAVE, CREATE TABLESPACE,
 // CREATE USER, CREATE ROLE, DROP ROLE.
 // Column-level: SELECT (col1, col2), INSERT (col1).
-func (p *Parser) parsePrivilegeName() (string, error) {
+func (p *Parser) parsePrivilegeName() (string, privWord, error) {
 	var name string
+	var word privWord
 	switch p.cur.Type {
 	case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwCREATE, kwDROP, kwALTER,
 		kwINDEX, kwEXECUTE, kwGRANT, kwREFERENCES, kwTRIGGER, kwEVENT,
 		kwSHOW, kwLOCK:
 		tok := p.advance()
 		name = strings.ToUpper(tok.Str)
+		word.keyword = true
 	case tokIDENT:
 		tok := p.advance()
 		name = strings.ToUpper(tok.Str)
@@ -587,23 +610,49 @@ func (p *Parser) parsePrivilegeName() (string, error) {
 		// backquoted or not, so it stops at ON, at a comma and at any
 		// keyword, while `GRANT INVOKE `LAMBDA` ON *.* TO u` runs on
 		// v8.5.5 as the bare spelling does.
-		for p.cur.Type == tokIDENT && !strings.HasPrefix(p.cur.Str, "@") {
-			name += " " + strings.ToUpper(p.advance().Str)
+		//
+		// The run is unbounded, so the words are joined once rather than
+		// concatenated per word: a 20,000-word run is a 40 KB statement,
+		// and growing the name in place would copy it 20,000 times.
+		if p.cur.Type == tokIDENT && !p.atAtIdent() {
+			var b strings.Builder
+			b.WriteString(name)
+			for p.cur.Type == tokIDENT && !p.atAtIdent() {
+				b.WriteByte(' ')
+				b.WriteString(strings.ToUpper(p.advance().Str))
+				word.multiToken = true
+			}
+			name = b.String()
 		}
 	default:
 		// Try accepting any keyword as a privilege name
 		if p.cur.Type >= 700 {
 			tok := p.advance()
 			name = strings.ToUpper(tok.Str)
+			word.keyword = true
 		} else {
-			return "", &ParseError{
+			return "", word, &ParseError{
 				Message:  "expected privilege name",
 				Position: p.cur.Loc,
 			}
 		}
 	}
 
-	// Handle multi-word privilege names
+	// The multi-word privilege names. Every second word here is a keyword
+	// in this lexer, so the completions are reached only from a keyword
+	// first word: a backquoted `create` is a name, and the VIEW after it is
+	// not part of it.
+	if word.keyword {
+		before := name
+		name = p.completePrivilegeName(name)
+		word.multiToken = name != before
+	}
+	return p.parsePrivilegeColumns(name, word)
+}
+
+// completePrivilegeName reads the second word of a two-word privilege name,
+// where there is one.
+func (p *Parser) completePrivilegeName(name string) string {
 	switch name {
 	case "CREATE":
 		// CREATE VIEW, CREATE TEMPORARY TABLES, CREATE TABLESPACE, CREATE USER, CREATE ROLE, CREATE ROUTINE
@@ -637,14 +686,14 @@ func (p *Parser) parsePrivilegeName() (string, error) {
 			name = "ALTER ROUTINE"
 		}
 	case "GRANT":
-		// GRANT OPTION is the privilege (parser.y:14886); GRANT on its own
-		// is not one, and v8.5.5 answers 1064 for `GRANT GRANT ON *.* TO
-		// u`. REVOKE's `ALL PRIVILEGES, GRANT OPTION` form does not come
-		// through here: its caller reads the two words itself.
-		if _, ok := p.match(kwOPTION); !ok {
-			return "", p.syntaxErrorAtCur()
+		// GRANT OPTION is the privilege; GRANT on its own is not one, so
+		// an unmatched OPTION leaves the name as GRANT and the caller
+		// rejects it. The server agrees: `GRANT GRANT ON *.* TO u` is
+		// 1064. REVOKE's `ALL PRIVILEGES, GRANT OPTION` form does not
+		// come through here -- its caller reads the two words itself.
+		if _, ok := p.match(kwOPTION); ok {
+			name = "GRANT OPTION"
 		}
-		name = "GRANT OPTION"
 	case "SHOW":
 		// SHOW DATABASES, SHOW VIEW
 		if p.cur.Type == kwDATABASES || p.cur.Type == kwDATABASE {
@@ -676,29 +725,32 @@ func (p *Parser) parsePrivilegeName() (string, error) {
 			name = "REPLICATION SLAVE"
 		}
 	}
+	return name
+}
 
-	// Column-level privilege: priv_type (col_list)
-	if p.cur.Type == '(' {
-		p.advance()
-		var cols []string
-		for {
-			col, _, err := p.parseIdent()
-			if err != nil {
-				return "", err
-			}
-			cols = append(cols, col)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		if _, err := p.expect(')'); err != nil {
-			return "", err
-		}
-		name = name + "(" + strings.Join(cols, ", ") + ")"
+// parsePrivilegeColumns reads the optional column list of a column-level
+// privilege: priv_type (col_list).
+func (p *Parser) parsePrivilegeColumns(name string, word privWord) (string, privWord, error) {
+	if p.cur.Type != '(' {
+		return name, word, nil
 	}
-
-	return name, nil
+	p.advance()
+	var cols []string
+	for {
+		col, _, err := p.parseIdent()
+		if err != nil {
+			return "", word, err
+		}
+		cols = append(cols, col)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return "", word, err
+	}
+	return name + "(" + strings.Join(cols, ", ") + ")", word, nil
 }
 
 // parseGrantTarget parses the ON clause target of a GRANT/REVOKE.
@@ -945,6 +997,21 @@ func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error)
 	return name, host, hasHost, err
 }
 
+// atAtIdent reports whether the current token is an '@' the lexer scanned as
+// the start of a name, with or without a host attached.
+//
+// The spelling has to be checked against the source and not the token's text,
+// because scanBacktickIdent strips the backquotes: "`@localhost`" arrives as
+// an identifier whose text is "@localhost", exactly like the "@localhost" of
+// `u@localhost`, and it is not a host. v8.5.5, mysql:8.0 and mariadb:11.8 all answer 1064 for
+// `CREATE USER 'u' `@localhost“.
+func (p *Parser) atAtIdent() bool {
+	if p.cur.Type != tokIDENT || !strings.HasPrefix(p.cur.Str, "@") {
+		return false
+	}
+	return !strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "`")
+}
+
 // parseUserHostOpt consumes the optional @host half of a user name.
 //
 // The lexer folds `@word` and "@`word`" into a single identifier token, which
@@ -955,7 +1022,7 @@ func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error)
 // mariadb:11.8 all answer 1064 for CREATE USER u@ 'h' and run CREATE USER
 // u @'h'. A '@' with nothing attached is an empty host, which all three run.
 func (p *Parser) parseUserHostOpt() (string, bool, error) {
-	if p.cur.Type != tokIDENT || !strings.HasPrefix(p.cur.Str, "@") {
+	if !p.atAtIdent() {
 		return "", false, nil
 	}
 	if len(p.cur.Str) > 1 {
@@ -1657,6 +1724,9 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 // where it was: v8.5.5 answers 1064 for `IDENTIFIED BY RANDOM PASSWORD`, so
 // taking it is a false accept, and one to retire on its own rather than
 // alongside the clauses this change adds.
+// A bare IDENTIFIED is not a clause: v8.5.5, mysql:8.0, mariadb:11.8 and oceanbase-ce:4.3.5 all answer
+// 1064 for `CREATE USER u@'h' IDENTIFIED` and for the same tail on a GRANT
+// grantee, so an arm has to follow.
 func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) error {
 	p.advance() // consume IDENTIFIED
 	switch p.cur.Type {
@@ -1714,6 +1784,8 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) error {
 			}
 			spec.AuthHash = hash
 		}
+	default:
+		return p.syntaxErrorAtCur()
 	}
 	return nil
 }
