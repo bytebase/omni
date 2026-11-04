@@ -566,7 +566,7 @@ func TestOnlineMigration(t *testing.T) {
 			sql:     "ALTER TABLE t ADD COLUMN m INT;",
 			change:  review.Change{OnlineMigration: true},
 			targets: []review.Target{{Schema: shop()}, {}},
-			want:    []finding{{-1, "", "the change requests online migration, which Snowflake does not support", []int{0, 1}}},
+			want:    []finding{{-1, "", "Snowflake doesn't support online migration.\n\nTurn off **Online migration** for this change.", []int{0, 1}}},
 		},
 	})
 }
@@ -579,7 +579,7 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "UPDATE t SET n = 1 WHERE id = 1;",
 			change:  review.Change{PriorBackup: true, MaxBackupSize: 1 << 20},
 			targets: []review.Target{{Schema: shop(), BackupDatabaseExists: true}, {}},
-			want:    []finding{{-1, "", "the change enables prior backup, which Bytebase does not take on Snowflake: the change runs without a backup", []int{0, 1}}},
+			want:    []finding{{-1, "", "Bytebase doesn't take a prior backup on Snowflake.\n\nThe change runs without one. Turn off **Prior backup** for this change.", []int{0, 1}}},
 		},
 	})
 }
