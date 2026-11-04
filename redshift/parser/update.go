@@ -522,7 +522,10 @@ func (p *Parser) parseMergeValuesClause() (*nodes.List, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	list := p.parseExprList()
+	list, err := p.parseExprList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}

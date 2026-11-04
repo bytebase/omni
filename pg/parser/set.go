@@ -302,9 +302,9 @@ func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
 				Name: varName,
 			}, nil
 		}
-		args := p.parseVarList()
-		if args == nil {
-			return nil, p.syntaxErrorAtCur()
+		args, err := p.parseVarList()
+		if err != nil {
+			return nil, err
 		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_VALUE,
@@ -358,21 +358,24 @@ func (p *Parser) parseVarName() string {
 //
 //	var_value
 //	| var_list ',' var_value
-func (p *Parser) parseVarList() *nodes.List {
+//
+// Every element is a var_value, so the list is never empty and a comma
+// with no value after it is a syntax error at the token after the comma.
+func (p *Parser) parseVarList() (*nodes.List, error) {
 	val := p.parseVarValue()
 	if val == nil {
-		return nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	items := []nodes.Node{val}
 	for p.cur.Type == ',' {
 		p.advance()
 		v := p.parseVarValue()
 		if v == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, v)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseVarValue parses a single variable value.

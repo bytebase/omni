@@ -396,7 +396,10 @@ func (p *Parser) parseImportForeignSchemaStmt() (nodes.Node, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		tableList = p.parseRelationExprList()
+		var err error
+		if tableList, err = p.parseRelationExprList(); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -406,7 +409,10 @@ func (p *Parser) parseImportForeignSchemaStmt() (nodes.Node, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		tableList = p.parseRelationExprList()
+		var err error
+		if tableList, err = p.parseRelationExprList(); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}

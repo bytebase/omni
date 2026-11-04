@@ -505,7 +505,10 @@ func (p *Parser) parseTruncateStmt() (nodes.Node, error) {
 	}
 
 	// relation_expr_list
-	relations := p.parseRelationExprList()
+	relations, err := p.parseRelationExprList()
+	if err != nil {
+		return nil, err
+	}
 
 	// opt_restart_seqs
 	restartSeqs := p.parseOptRestartSeqs()
@@ -526,23 +529,35 @@ func (p *Parser) parseTruncateStmt() (nodes.Node, error) {
 //	relation_expr_list:
 //	    relation_expr
 //	    | relation_expr_list ',' relation_expr
-func (p *Parser) parseRelationExprList() *nodes.List {
-	rel, _ := p.parseRelationExpr()
+//
+// Every element is a relation, so a comma with no relation after it is a
+// syntax error at the token after the comma.
+func (p *Parser) parseRelationExprList() (*nodes.List, error) {
+	rel, err := p.parseRelationExpr()
+	if err != nil {
+		return nil, err
+	}
 	if rel == nil {
-		return nil
+		return nil, nil
 	}
 	result := &nodes.List{Items: []nodes.Node{rel}}
 
 	for p.cur.Type == ',' {
 		p.advance()
-		rel, _ = p.parseRelationExpr()
+		rel, err = p.parseRelationExpr()
+		if err != nil {
+			return nil, err
+		}
 		if rel == nil {
-			break
+			if p.collectMode() {
+				break
+			}
+			return nil, p.syntaxErrorAtCur()
 		}
 		result.Items = append(result.Items, rel)
 	}
 
-	return result
+	return result, nil
 }
 
 // parseOptRestartSeqs parses the optional RESTART IDENTITY / CONTINUE IDENTITY clause.

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/pg/ast"
 )
 
@@ -38,7 +40,15 @@ func (p *Parser) parseSelectNoParens() (*nodes.SelectStmt, error) {
 		}
 	}
 
-	// 2. Parse select_clause (handles UNION/INTERSECT/EXCEPT)
+	return p.finishSelectNoParens(loc, withClause)
+}
+
+// finishSelectNoParens parses what follows a select_no_parens's optional
+// with_clause: the select_clause, then its sort clause and, in either
+// order, its locking clauses and select_limit. loc is where the statement
+// starts, at WITH when there is one.
+func (p *Parser) finishSelectNoParens(loc int, withClause *nodes.WithClause) (*nodes.SelectStmt, error) {
+	// select_clause (handles UNION/INTERSECT/EXCEPT)
 	stmt, err := p.parseSelectClause(setOpPrecNone)
 	if err != nil {
 		return nil, err
@@ -47,25 +57,25 @@ func (p *Parser) parseSelectNoParens() (*nodes.SelectStmt, error) {
 		return nil, nil
 	}
 
-	// 3. Optional ORDER BY
+	// opt_sort_clause
+	var sortClause *nodes.List
 	if p.cur.Type == ORDER {
 		p.advance()
 		if _, err := p.expect(BY); err != nil {
 			return nil, err
 		}
-		stmt.SortClause, err = p.parseSortByList()
+		sortClause, err = p.parseSortByList()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// 4. Parse LIMIT/OFFSET and FOR locking in either order
-	if err := p.parseSelectOptions(stmt); err != nil {
+	locking, limit, err := p.parseSelectOptions()
+	if err != nil {
 		return nil, err
 	}
-
-	if withClause != nil {
-		stmt.WithClause = withClause
+	if err := p.insertSelectOptions(stmt, sortClause, locking, limit, withClause); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
@@ -442,140 +452,495 @@ func (p *Parser) parseSetQuantifier() nodes.SetQuantifier {
 	return nodes.SET_QUANTIFIER_DEFAULT
 }
 
-// parseSelectOptions parses ORDER BY, LIMIT/OFFSET, and FOR locking clauses.
-// These can appear in various orders.
-func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) error {
-	// Parse LIMIT/OFFSET/FETCH and FOR locking in either order
-	for {
+// parseSelectOptions parses the locking clauses and the select_limit that
+// follow a select_no_parens's sort clause. gram.y takes them in either
+// order but only once each:
+//
+//	select_no_parens:
+//	    ...
+//	    | select_clause opt_sort_clause for_locking_clause opt_select_limit
+//	    | select_clause opt_sort_clause select_limit opt_for_locking_clause
+//
+// so a second select_limit, or locking clauses on both sides of one, is a
+// syntax error at the clause that cannot follow.
+func (p *Parser) parseSelectOptions() (*nodes.List, *selectLimit, error) {
+	if p.collectMode() {
+		for _, t := range []int{LIMIT, OFFSET, FETCH, FOR, ';'} {
+			p.addTokenCandidate(t)
+		}
+		return nil, nil, nil
+	}
+	var locking *nodes.List
+	var limit *selectLimit
+	var err error
+	switch {
+	case p.cur.Type == FOR:
+		if locking, err = p.parseForLockingClause(); err != nil {
+			return nil, nil, err
+		}
 		if p.collectMode() {
 			for _, t := range []int{LIMIT, OFFSET, FETCH, FOR, ';'} {
 				p.addTokenCandidate(t)
 			}
-			return nil
+			return locking, nil, nil
 		}
-		if p.cur.Type == LIMIT || p.cur.Type == OFFSET || p.cur.Type == FETCH {
-			if err := p.parseSelectLimit(stmt); err != nil {
-				return err
+		if p.isSelectLimitStart() {
+			if limit, err = p.parseSelectLimit(); err != nil {
+				return nil, nil, err
 			}
-		} else if p.cur.Type == FOR {
-			locking, err := p.parseForLockingClause()
-			if err != nil {
-				return err
+		}
+	case p.isSelectLimitStart():
+		if limit, err = p.parseSelectLimit(); err != nil {
+			return nil, nil, err
+		}
+		if p.collectMode() {
+			p.addTokenCandidate(FOR)
+			p.addTokenCandidate(';')
+			return nil, limit, nil
+		}
+		if p.cur.Type == FOR {
+			if locking, err = p.parseForLockingClause(); err != nil {
+				return nil, nil, err
 			}
-			if locking != nil {
-				stmt.LockingClause = locking
+		}
+	}
+	return locking, limit, nil
+}
+
+// insertSelectOptions applies the sort, locking, limit, and WITH clauses
+// of a select_no_parens to the SelectStmt its select_clause built, as
+// gram.y's insertSelectOptions does. A parenthesized select_clause may
+// already carry its own, and gram.y refuses a second ORDER BY, OFFSET,
+// LIMIT, or WITH there, a second limit option, and the WITH TIES
+// combinations it cannot run; locking clauses accumulate. Each error
+// points where the server's does: at the second clause's expression or
+// WITH, or, for the limit options, which the server reports without a
+// position, at the limit clause.
+//
+// pg: src/backend/parser/gram.y — insertSelectOptions
+func (p *Parser) insertSelectOptions(stmt *nodes.SelectStmt, sortClause, locking *nodes.List, limit *selectLimit, withClause *nodes.WithClause) error {
+	if sortClause != nil {
+		if stmt.SortClause != nil {
+			return &ParseError{Message: "multiple ORDER BY clauses not allowed", Position: p.sortClauseLocation(sortClause)}
+		}
+		stmt.SortClause = sortClause
+	}
+	if locking != nil {
+		stmt.LockingClause = concatNodeLists(stmt.LockingClause, locking)
+	}
+	if limit != nil {
+		if limit.offset != nil {
+			if stmt.LimitOffset != nil {
+				return &ParseError{Message: "multiple OFFSET clauses not allowed", Position: p.exprLocation(limit.offset, limit.offsetStart)}
 			}
-		} else {
-			break
+			stmt.LimitOffset = limit.offset
+		}
+		if limit.count != nil {
+			if stmt.LimitCount != nil {
+				return &ParseError{Message: "multiple LIMIT clauses not allowed", Position: p.limitCountLocation(limit)}
+			}
+			stmt.LimitCount = limit.count
+		}
+		if stmt.LimitOption != nodes.LIMIT_OPTION_COUNT {
+			return &ParseError{Message: "multiple limit options not allowed", Position: limit.loc}
+		}
+		if limit.option == nodes.LIMIT_OPTION_WITH_TIES {
+			if stmt.SortClause == nil {
+				return &ParseError{Message: "WITH TIES cannot be specified without ORDER BY clause", Position: limit.loc}
+			}
+			if stmt.LockingClause != nil {
+				for _, item := range stmt.LockingClause.Items {
+					if lc, ok := item.(*nodes.LockingClause); ok && lc.WaitPolicy == int(nodes.LockWaitSkip) {
+						return &ParseError{Message: "SKIP LOCKED and WITH TIES options cannot be used together", Position: limit.loc}
+					}
+				}
+			}
+		}
+		stmt.LimitOption = limit.option
+	}
+	if withClause != nil {
+		if stmt.WithClause != nil {
+			return &ParseError{Message: "multiple WITH clauses not allowed", Position: withClause.Loc.Start}
+		}
+		stmt.WithClause = withClause
+	}
+	return nil
+}
+
+// sortClauseLocation is where the server places an error about a sort
+// clause: at its first sort expression (exprLocation of a SortBy).
+func (p *Parser) sortClauseLocation(sortClause *nodes.List) int {
+	if len(sortClause.Items) > 0 {
+		if sb, ok := sortClause.Items[0].(*nodes.SortBy); ok {
+			return p.exprLocation(sb.Node, sb.Loc.Start)
+		}
+	}
+	return -1
+}
+
+// exprLocation is the byte offset the server reports an error about an
+// expression at, as nodeFuncs.c's exprLocation finds it: the leftmost
+// token a node of the expression records. omni's Loc covers the
+// parentheses of '(' a_expr ')', which record nothing, so they are
+// skipped, except where a subquery or a row constructor on the
+// expression's left edge records its '('. fallback is used when the node
+// carries no Loc. It walks the left edge once, so it costs time linear in
+// the expression's depth, and runs only to place an error.
+func (p *Parser) exprLocation(n nodes.Node, fallback int) int {
+	loc := nodes.NodeLoc(n).Start
+	if loc < 0 {
+		return fallback
+	}
+	if loc >= len(p.source) || p.source[loc] != '(' {
+		return loc
+	}
+	recorded := make(map[int]bool)
+	for c := n; c != nil; c = leftOperand(c) {
+		switch c.(type) {
+		case *nodes.SubLink, *nodes.RowExpr:
+			recorded[nodes.NodeLoc(c).Start] = true
+		}
+	}
+	for loc < len(p.source) && p.source[loc] == '(' && !recorded[loc] {
+		loc = skipSQLSpace(p.source, loc+1)
+	}
+	return loc
+}
+
+// limitCountLocation is where the server reports a second count: at its
+// expression, at ALL or the sign of a signed FETCH count, which record
+// their own location, or, for FETCH's implicit count of one, at no
+// position, which the error replaces with the limit clause's.
+func (p *Parser) limitCountLocation(l *selectLimit) int {
+	switch {
+	case l.countStart < 0:
+		return l.loc
+	case l.countAtStart:
+		return l.countStart
+	}
+	return p.exprLocation(l.count, l.countStart)
+}
+
+// leftOperand is the operand an expression starts with, or nil when it
+// starts with a token of its own.
+func leftOperand(n nodes.Node) nodes.Node {
+	switch v := n.(type) {
+	case *nodes.A_Expr:
+		return v.Lexpr
+	case *nodes.TypeCast:
+		return v.Arg
+	case *nodes.CollateClause:
+		return v.Arg
+	case *nodes.NullTest:
+		return v.Arg
+	case *nodes.BooleanTest:
+		return v.Arg
+	case *nodes.A_Indirection:
+		return v.Arg
+	case *nodes.SubLink:
+		return v.Testexpr
+	case *nodes.BoolExpr:
+		if v.Boolop != nodes.NOT_EXPR && v.Args != nil && len(v.Args.Items) > 0 {
+			return v.Args.Items[0]
 		}
 	}
 	return nil
 }
 
+// skipSQLSpace returns the offset of the first byte at or after i that is
+// neither whitespace nor inside a comment.
+func skipSQLSpace(s string, i int) int {
+	for i < len(s) {
+		switch {
+		case s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r' || s[i] == '\f' || s[i] == '\v':
+			i++
+		case strings.HasPrefix(s[i:], "--"):
+			for i < len(s) && s[i] != '\n' {
+				i++
+			}
+		case strings.HasPrefix(s[i:], "/*"):
+			depth := 0
+			for i < len(s) {
+				if strings.HasPrefix(s[i:], "/*") {
+					depth++
+					i += 2
+				} else if strings.HasPrefix(s[i:], "*/") {
+					depth--
+					i += 2
+					if depth == 0 {
+						break
+					}
+				} else {
+					i++
+				}
+			}
+		default:
+			return i
+		}
+	}
+	return i
+}
+
 // ---------------------------------------------------------------------------
 // LIMIT / OFFSET / FETCH
 
-// parseSelectLimit parses LIMIT, OFFSET, and FETCH clauses.
+// selectLimit is gram.y's SelectLimit: what one select_limit sets, with
+// where its parts start for insertSelectOptions's errors.
+type selectLimit struct {
+	offset       nodes.Node
+	count        nodes.Node
+	option       nodes.LimitOption
+	offsetStart  int  // first token of the offset expression
+	countStart   int  // first token of the count; -1 for FETCH's implicit one
+	countAtStart bool // the count is located at countStart: ALL, or a signed FETCH constant
+	loc          int  // start of the limit clause, or of the offset clause without one
+}
+
+// parseSelectLimit parses a select_limit: at most one limit_clause and one
+// offset_clause, in either order.
 //
 //	select_limit:
 //	    limit_clause offset_clause
 //	    | offset_clause limit_clause
 //	    | limit_clause
 //	    | offset_clause
-func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) error {
-	for {
-		switch p.cur.Type {
-		case LIMIT:
-			p.advance()
-			if p.cur.Type == ALL {
-				p.advance()
-				stmt.LimitCount = &nodes.A_Const{Isnull: true}
-				stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
-			} else {
-				var err error
-				stmt.LimitCount, err = p.parseAExpr(0)
-				if err != nil {
-					return err
-				}
-				stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
-				// Check for deprecated LIMIT #,# syntax
-				if p.cur.Type == ',' {
-					p.advance()
-					// In MySQL-compatible syntax: LIMIT offset, count
-					// Swap: what we parsed as count is actually offset
-					stmt.LimitOffset = stmt.LimitCount
-					stmt.LimitCount, err = p.parseAExpr(0)
-					if err != nil {
-						return err
-					}
-				}
+func (p *Parser) parseSelectLimit() (*selectLimit, error) {
+	l := &selectLimit{offsetStart: -1, countStart: -1, loc: p.pos()}
+	if p.cur.Type == OFFSET {
+		if err := p.parseOffsetClause(l); err != nil {
+			return nil, err
+		}
+		if p.collectMode() {
+			p.addTokenCandidate(LIMIT)
+			p.addTokenCandidate(FETCH)
+			return l, nil
+		}
+		if p.cur.Type == LIMIT || p.cur.Type == FETCH {
+			l.loc = p.pos()
+			if err := p.parseLimitClause(l); err != nil {
+				return nil, err
 			}
-		case OFFSET:
-			p.advance()
-			// Could be: OFFSET select_offset_value
-			// or: OFFSET select_fetch_first_value row_or_rows
-			expr, err := p.parseAExpr(0)
-			if err != nil {
-				return err
-			}
-			// Check if followed by ROW or ROWS (SQL:2008 syntax)
-			if p.cur.Type == ROW || p.cur.Type == ROWS {
-				p.advance()
-			}
-			stmt.LimitOffset = expr
-		case FETCH:
-			if err := p.parseFetchClause(stmt); err != nil {
-				return err
-			}
-		default:
-			return nil
+		}
+		return l, nil
+	}
+	if err := p.parseLimitClause(l); err != nil {
+		return nil, err
+	}
+	if p.collectMode() {
+		p.addTokenCandidate(OFFSET)
+		return l, nil
+	}
+	if p.cur.Type == OFFSET {
+		if err := p.parseOffsetClause(l); err != nil {
+			return nil, err
 		}
 	}
+	return l, nil
 }
 
-// parseFetchClause parses FETCH FIRST/NEXT ... ROWS ONLY/WITH TIES.
+// parseLimitClause parses a limit_clause.
+//
+//	limit_clause:
+//	    LIMIT select_limit_value
+//	    | LIMIT select_limit_value ',' select_offset_value
+//	    | FETCH first_or_next select_fetch_first_value row_or_rows ONLY
+//	    | FETCH first_or_next select_fetch_first_value row_or_rows WITH TIES
+//	    | FETCH first_or_next row_or_rows ONLY
+//	    | FETCH first_or_next row_or_rows WITH TIES
+//	select_limit_value: a_expr | ALL
+//
+// gram.y reads the LIMIT #,# form only to refuse it, at LIMIT, once the
+// offset after the comma is read.
+func (p *Parser) parseLimitClause(l *selectLimit) error {
+	if p.cur.Type == FETCH {
+		return p.parseFetchClause(l)
+	}
+	limitLoc := p.pos()
+	p.advance() // LIMIT
+	l.option = nodes.LIMIT_OPTION_COUNT
+	if p.cur.Type == ALL {
+		// LIMIT ALL is represented as a NULL constant.
+		l.countStart, l.countAtStart = p.pos(), true
+		p.advance()
+		l.count = &nodes.A_Const{Isnull: true}
+	} else {
+		start := p.pos()
+		count, err := p.parseAExpr(0)
+		if err != nil {
+			return err
+		}
+		if count == nil {
+			return p.syntaxErrorAtCur()
+		}
+		l.count, l.countStart = count, start
+	}
+	if p.cur.Type == ',' {
+		p.advance()
+		offset, err := p.parseAExpr(0)
+		if err != nil {
+			return err
+		}
+		if offset == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return &ParseError{Message: "LIMIT #,# syntax is not supported", Position: limitLoc}
+	}
+	return nil
+}
+
+// parseOffsetClause parses an offset_clause.
+//
+//	offset_clause:
+//	    OFFSET select_offset_value
+//	    | OFFSET select_fetch_first_value row_or_rows
+//	select_offset_value: a_expr
+//	select_fetch_first_value: c_expr | '+' I_or_F_const | '-' I_or_F_const
+//
+// ROW or ROWS may follow only a select_fetch_first_value, so an offset
+// that is any other a_expr, such as 1 + 1, is a syntax error at ROW or
+// ROWS. The value is read as a c_expr first and continued as an a_expr
+// only when no ROW or ROWS follows it, without parsing it twice.
+func (p *Parser) parseOffsetClause(l *selectLimit) error {
+	p.advance() // OFFSET
+	start := p.pos()
+	var offset nodes.Node
+	var err error
+	fetchValue := false
+	switch p.cur.Type {
+	case '+', '-', NOT, Op:
+		// A prefix operator starts an a_expr; with '+' or '-' and a
+		// numeric constant alone it is also a select_fetch_first_value.
+		signed := p.cur.Type == '+' || p.cur.Type == '-'
+		operand := p.peekNext()
+		if offset, err = p.parseAExpr(0); err != nil {
+			return err
+		}
+		fetchValue = signed && (operand.Type == ICONST || operand.Type == FCONST) && p.prev.Loc == operand.Loc
+	default:
+		if offset, err = p.parseFetchFirstCExpr(); err != nil {
+			return err
+		}
+		// The a_expr tail also runs in collect mode, where it offers the
+		// operators that may continue the value, as parseAExpr does.
+		if offset != nil && p.cur.Type != ROW && p.cur.Type != ROWS {
+			if offset, err = p.parseAExprTail(offset, start, 0); err != nil {
+				return err
+			}
+		} else {
+			fetchValue = true
+		}
+	}
+	if offset == nil {
+		if p.collectMode() {
+			return nil
+		}
+		return p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == ROW || p.cur.Type == ROWS {
+		if !fetchValue {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+	}
+	l.offset, l.offsetStart = offset, start
+	return nil
+}
+
+// parseFetchFirstCExpr parses the c_expr of a select_fetch_first_value.
+// Of the c_expr productions (gram.y:15355) only columnref (ColId
+// indirection), PARAM opt_indirection, '(' a_expr ')' opt_indirection,
+// and select_with_parens indirection take subscripts; a constant, an
+// ARRAY constructor, CASE, or a function call takes none, so
+// ARRAY[1][1] is a syntax error at the second '['. parseCExpr reads the
+// subscripts of all of them but columnref, which omni's a_expr applies as
+// a postfix operator, so a columnref's are applied here.
+func (p *Parser) parseFetchFirstCExpr() (nodes.Node, error) {
+	start := p.pos()
+	n, err := p.parseCExpr()
+	if err != nil || n == nil {
+		return n, err
+	}
+	if _, ok := n.(*nodes.ColumnRef); !ok {
+		return n, nil
+	}
+	for p.cur.Type == '[' {
+		if n, err = p.parseAExprInfix(n, precTypecast); err != nil {
+			return nil, err
+		}
+		setNodeLoc(n, start, p.prev.End)
+	}
+	return n, nil
+}
+
+// parseFetchClause parses the FETCH forms of limit_clause.
 //
 //	FETCH first_or_next select_fetch_first_value row_or_rows ONLY
 //	| FETCH first_or_next select_fetch_first_value row_or_rows WITH TIES
 //	| FETCH first_or_next row_or_rows ONLY
 //	| FETCH first_or_next row_or_rows WITH TIES
-func (p *Parser) parseFetchClause(stmt *nodes.SelectStmt) error {
+//	first_or_next: FIRST_P | NEXT
+//	row_or_rows: ROW | ROWS
+//	select_fetch_first_value: c_expr | '+' I_or_F_const | '-' I_or_F_const
+//
+// FIRST or NEXT, and ROW or ROWS, are required.
+func (p *Parser) parseFetchClause(l *selectLimit) error {
 	p.advance() // consume FETCH
-	// first_or_next: FIRST | NEXT (ignored semantically)
-	if p.cur.Type == FIRST_P || p.cur.Type == NEXT {
-		p.advance()
+	if p.cur.Type != FIRST_P && p.cur.Type != NEXT {
+		if p.collectMode() {
+			p.addTokenCandidate(FIRST_P)
+			p.addTokenCandidate(NEXT)
+			return errCollecting
+		}
+		return p.syntaxErrorAtCur()
 	}
+	p.advance()
 
-	// Check if next is ROW/ROWS (no count specified, defaults to 1)
 	if p.cur.Type == ROW || p.cur.Type == ROWS {
+		// No count: one row.
 		p.advance()
-		stmt.LimitCount = &nodes.A_Const{Val: &nodes.Integer{Ival: 1}}
+		l.count = &nodes.A_Const{Val: &nodes.Integer{Ival: 1}}
 	} else {
-		// select_fetch_first_value: c_expr | '+' c_expr | '-' c_expr
+		start := p.pos()
+		var count nodes.Node
 		var err error
-		if p.cur.Type == '+' {
-			p.advance()
-			stmt.LimitCount, err = p.parseCExpr()
-			if err != nil {
+		switch p.cur.Type {
+		case '+', '-':
+			// '+' I_or_F_const | '-' I_or_F_const, located at the sign.
+			sign := p.advance()
+			if p.cur.Type != ICONST && p.cur.Type != FCONST {
+				if p.collectMode() {
+					p.addTokenCandidate(ICONST)
+					p.addTokenCandidate(FCONST)
+					return errCollecting
+				}
+				return p.syntaxErrorAtCur()
+			}
+			if count, err = p.parseCExpr(); err != nil {
 				return err
 			}
-		} else if p.cur.Type == '-' {
-			p.advance()
-			limitExpr, err := p.parseCExpr()
-			if err != nil {
+			if sign.Type == '-' {
+				count = doNegate(count)
+				setNodeLoc(count, start, p.prev.End)
+			}
+			l.count, l.countStart, l.countAtStart = count, start, true
+		default:
+			if count, err = p.parseFetchFirstCExpr(); err != nil {
 				return err
 			}
-			stmt.LimitCount = doNegate(limitExpr)
-		} else {
-			stmt.LimitCount, err = p.parseCExpr()
-			if err != nil {
-				return err
+			if count == nil {
+				return p.syntaxErrorAtCur()
 			}
+			l.count, l.countStart = count, start
 		}
-		// row_or_rows: ROW | ROWS
-		if p.cur.Type == ROW || p.cur.Type == ROWS {
-			p.advance()
+		if p.cur.Type != ROW && p.cur.Type != ROWS {
+			if p.collectMode() {
+				p.addTokenCandidate(ROW)
+				p.addTokenCandidate(ROWS)
+				return errCollecting
+			}
+			return p.syntaxErrorAtCur()
 		}
+		p.advance()
 	}
 
 	// ONLY or WITH TIES
@@ -584,12 +949,12 @@ func (p *Parser) parseFetchClause(stmt *nodes.SelectStmt) error {
 		if _, err := p.expect(TIES); err != nil {
 			return err
 		}
-		stmt.LimitOption = nodes.LIMIT_OPTION_WITH_TIES
+		l.option = nodes.LIMIT_OPTION_WITH_TIES
 	} else {
 		if _, err := p.expect(ONLY); err != nil {
 			return err
 		}
-		stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
+		l.option = nodes.LIMIT_OPTION_COUNT
 	}
 	return nil
 }
@@ -871,7 +1236,10 @@ func (p *Parser) parseOptSearchClause() (nodes.Node, error) {
 	if _, err := p.expect(BY); err != nil {
 		return nil, err
 	}
-	colList := p.parseColumnList()
+	colList, err := p.parseColumnList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(SET); err != nil {
 		return nil, err
 	}
@@ -902,7 +1270,10 @@ func (p *Parser) parseOptCycleClause() (nodes.Node, error) {
 	}
 	p.advance() // consume CYCLE
 
-	colList := p.parseColumnList()
+	colList, err := p.parseColumnList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(SET); err != nil {
 		return nil, err
 	}
@@ -1044,8 +1415,10 @@ func (p *Parser) parseFromListFull() (*nodes.List, error) {
 		if err != nil {
 			return nil, err
 		}
+		// from_list: table_ref | from_list ',' table_ref. A comma
+		// promises a table_ref.
 		if item == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, item)
 	}

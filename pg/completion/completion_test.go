@@ -296,7 +296,6 @@ func TestCollectCommentOn(t *testing.T) {
 	}
 }
 
-
 func TestCompleteCommentOnColumn(t *testing.T) {
 	cat := catalog.New()
 	cat.Exec("CREATE TABLE users (id int, name text);", nil)
@@ -542,6 +541,27 @@ func TestCompleteAlterViewRenameColumn(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("expected column candidates after %q", sql)
+		}
+	}
+}
+
+func TestCompleteOperatorsAfterOffsetValue(t *testing.T) {
+	// An OFFSET value may go on as an a_expr, so the operators that
+	// continue it are offered after it as after a LIMIT value.
+	for _, sql := range []string{
+		"SELECT 1 OFFSET 1 ",
+		"SELECT 1 OFFSET a ",
+		"SELECT 1 LIMIT 1 OFFSET 1 ",
+		"SELECT 1 LIMIT 1 ",
+	} {
+		got := map[string]bool{}
+		for _, c := range Complete(sql, len(sql), nil) {
+			got[c.Text] = true
+		}
+		for _, want := range []string{"+", "*", "AND", "IS"} {
+			if !got[want] {
+				t.Errorf("Complete(%q) lacks %q", sql, want)
+			}
 		}
 	}
 }

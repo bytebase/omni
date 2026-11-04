@@ -259,7 +259,10 @@ func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		columns := p.parseColumnList()
+		columns, err := p.parseColumnList()
+		if err != nil {
+			return nil, err
+		}
 		if columns == nil {
 			return nil, p.syntaxErrorAtCur()
 		}

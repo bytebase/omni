@@ -315,7 +315,7 @@ func TestParseCTEWithLimit(t *testing.T) {
 }
 
 func TestParseFetchFirstWithTies(t *testing.T) {
-	input := "SELECT * FROM t FETCH FIRST 3 ROWS WITH TIES"
+	input := "SELECT * FROM t ORDER BY a FETCH FIRST 3 ROWS WITH TIES"
 
 	result, err := parse(input)
 	if err != nil {
@@ -342,7 +342,7 @@ func TestParseFetchFirstWithTies(t *testing.T) {
 
 func TestParseFetchNextRowWithTies(t *testing.T) {
 	// FETCH NEXT ROW WITH TIES implies LIMIT 1 WITH TIES
-	input := "SELECT * FROM t FETCH NEXT ROW WITH TIES"
+	input := "SELECT * FROM t ORDER BY a FETCH NEXT ROW WITH TIES"
 
 	result, err := parse(input)
 	if err != nil {

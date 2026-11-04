@@ -249,8 +249,10 @@ func (p *Parser) parseTransactionModeListOrEmpty() (*nodes.List, error) {
 	}
 	items := []nodes.Node{item}
 	for {
-		// Items can be separated by commas or just juxtaposed.
-		if p.cur.Type == ',' {
+		// Items can be separated by commas or just juxtaposed
+		// (transaction_mode_list), but a comma promises an item.
+		comma := p.cur.Type == ','
+		if comma {
 			p.advance()
 		}
 		next, err := p.parseTransactionModeItem()
@@ -258,6 +260,9 @@ func (p *Parser) parseTransactionModeListOrEmpty() (*nodes.List, error) {
 			return nil, err
 		}
 		if next == nil {
+			if comma && !p.collectMode() {
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		items = append(items, next)

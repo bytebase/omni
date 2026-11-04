@@ -1779,12 +1779,17 @@ func (p *Parser) parseParenExprOrRow() (nodes.Node, error) {
 
 	if p.cur.Type == ',' {
 		// Implicit row: (expr, expr, ...)
+		// implicit_row: '(' expr_list ',' a_expr ')'. A comma promises
+		// an expression.
 		items := []nodes.Node{first}
 		for p.cur.Type == ',' {
 			p.advance()
 			expr, err := p.parseAExpr(0)
 			if err != nil {
 				return nil, err
+			}
+			if expr == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			items = append(items, expr)
 		}
@@ -1927,9 +1932,18 @@ func (p *Parser) parseArrayExpr() (nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// array_expr_list: array_expr | array_expr_list ',' array_expr.
+		// A comma promises another '[' ... ']'.
 		items := []nodes.Node{first}
 		for p.cur.Type == ',' {
 			p.advance()
+			if p.cur.Type != '[' {
+				if p.collectMode() {
+					p.addTokenCandidate('[')
+					return nil, errCollecting
+				}
+				return nil, p.syntaxErrorAtCur()
+			}
 			elem, err := p.parseArrayExpr()
 			if err != nil {
 				return nil, err
@@ -2903,6 +2917,9 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node
 		if err != nil {
 			return nil, err
 		}
+		if varArg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		fc.Args = &nodes.List{Items: []nodes.Node{varArg}}
 		fc.AggOrder, err = p.parseOptSortClause()
 		if err != nil {
@@ -2927,6 +2944,9 @@ func (p *Parser) parseFuncApplication(funcName *nodes.List, loc int) (nodes.Node
 				variadicArg, err := p.parseFuncArgExpr()
 				if err != nil {
 					return nil, err
+				}
+				if variadicArg == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				args.Items = append(args.Items, variadicArg)
 			}
@@ -3047,6 +3067,11 @@ func (p *Parser) parseSortBy() (nodes.Node, error) {
 	expr, err := p.parseAExpr(0)
 	if err != nil {
 		return nil, err
+	}
+	// sortby starts with an a_expr, so sortby_list takes neither an empty
+	// list nor a trailing comma.
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	dir := nodes.SORTBY_DEFAULT
 	var useOp *nodes.List
@@ -3384,13 +3409,17 @@ func (p *Parser) parseIntervalConst() (nodes.Node, error) {
 // parseExprListFull parses a comma-separated list of a_expr.
 //
 //	expr_list: a_expr | expr_list ',' a_expr
+//
+// The list takes no empty element: an empty list, or a comma with no
+// expression after it, is a syntax error at the token that cannot start
+// one, as gram.y gives it no empty alternative.
 func (p *Parser) parseExprListFull() (*nodes.List, error) {
 	first, err := p.parseAExpr(0)
 	if err != nil {
 		return nil, err
 	}
 	if first == nil {
-		return &nodes.List{}, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
@@ -3400,7 +3429,7 @@ func (p *Parser) parseExprListFull() (*nodes.List, error) {
 			return nil, err
 		}
 		if expr == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, expr)
 	}
@@ -3424,6 +3453,9 @@ func (p *Parser) parseFuncArgExpr() (nodes.Node, error) {
 			if err != nil {
 				return nil, err
 			}
+			if arg == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 			return &nodes.NamedArgExpr{
 				Name:      nameTok.Str,
 				Arg:       arg,
@@ -3436,13 +3468,18 @@ func (p *Parser) parseFuncArgExpr() (nodes.Node, error) {
 }
 
 // parseFuncArgListFull parses a comma-separated list of func_arg_expr.
+//
+//	func_arg_list: func_arg_expr | func_arg_list ',' func_arg_expr
+//
+// Like expr_list it takes no empty element: a comma with no argument
+// after it is a syntax error at the token that cannot start one.
 func (p *Parser) parseFuncArgListFull() (*nodes.List, error) {
 	first, err := p.parseFuncArgExpr()
 	if err != nil {
 		return nil, err
 	}
 	if first == nil {
-		return &nodes.List{}, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
@@ -3457,7 +3494,7 @@ func (p *Parser) parseFuncArgListFull() (*nodes.List, error) {
 			return nil, err
 		}
 		if expr == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, expr)
 	}
@@ -3498,8 +3535,11 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 		if err != nil {
 			return nil, err
 		}
+		// target_list: target_el | target_list ',' target_el. Only the
+		// whole list is optional (opt_target_list); a comma promises an
+		// element.
 		if el == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, el)
 	}

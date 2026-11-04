@@ -247,61 +247,70 @@ func (p *Parser) parseOptTypeModifiers() (*nodes.List, error) {
 		return nil, nil
 	}
 	p.advance()
-	exprs := p.parseExprList()
+	exprs, err := p.parseExprList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 	return exprs, nil
 }
 
-// parseExprList parses a comma-separated list of expressions.
-// This is a minimal implementation for type modifiers (integer constants).
-// The full implementation will be in batch 3 (expressions).
-func (p *Parser) parseExprList() *nodes.List {
-	first := p.parseAExprForTypmod()
+// parseExprList parses the expr_list of a type modifier. Like every
+// expr_list it takes no empty element: an empty list, or a comma with no
+// expression after it, is a syntax error at the token that cannot start
+// one.
+func (p *Parser) parseExprList() (*nodes.List, error) {
+	first, err := p.parseAExprForTypmod()
+	if err != nil {
+		return nil, err
+	}
 	if first == nil {
-		return nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	items := []nodes.Node{first}
 	for p.cur.Type == ',' {
 		p.advance()
-		expr := p.parseAExprForTypmod()
+		expr, err := p.parseAExprForTypmod()
+		if err != nil {
+			return nil, err
+		}
 		if expr == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, expr)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseAExprForTypmod parses a simple expression suitable for type modifiers.
 // For now, this only handles integer constants and signed integers.
 // The full a_expr will be implemented in batch 3.
-func (p *Parser) parseAExprForTypmod() nodes.Node {
+func (p *Parser) parseAExprForTypmod() (nodes.Node, error) {
 	if p.cur.Type == ICONST {
 		tok := p.advance()
 		return &nodes.A_Const{
 			Val: &nodes.Integer{Ival: tok.Ival},
 			Loc: nodes.Loc{Start: tok.Loc, End: p.pos()},
-		}
+		}, nil
 	}
 	if p.cur.Type == FCONST {
 		tok := p.advance()
 		return &nodes.A_Const{
 			Val: &nodes.Float{Fval: tok.Str},
 			Loc: nodes.Loc{Start: tok.Loc, End: p.pos()},
-		}
+		}, nil
 	}
 	if p.cur.Type == SCONST {
 		tok := p.advance()
 		return &nodes.A_Const{
 			Val: &nodes.String{Str: tok.Str},
 			Loc: nodes.Loc{Start: tok.Loc, End: p.pos()},
-		}
+		}, nil
 	}
 	// Fall back to full a_expr for complex expressions
-	result, _ := p.parseAExpr(0)
-	return result
+	return p.parseAExpr(0)
 }
 
 // parseOptFloat parses opt_float after FLOAT keyword.
@@ -340,7 +349,10 @@ func (p *Parser) parseBit() (*nodes.TypeName, error) {
 	if p.cur.Type == '(' {
 		// BitWithLength
 		p.advance()
-		exprs := p.parseExprList()
+		exprs, err := p.parseExprList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}

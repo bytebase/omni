@@ -810,7 +810,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		return nil, nil
 	}
 
-	if p.isTableConstraintStart() {
+	if p.startsTableConstraint() {
 		// ADD TableConstraint
 		constr, err := p.parseTableConstraint()
 		if err != nil {
