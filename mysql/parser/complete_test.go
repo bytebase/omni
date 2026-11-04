@@ -262,6 +262,11 @@ func TestCollectExplainKeywords(t *testing.T) {
 			t.Errorf("missing EXPLAIN keyword: %s", TokenName(tok))
 		}
 	}
+	// The table form is reachable from here too: EXPLAIN t describes a
+	// table.
+	if !cs.HasRule("table_ref") {
+		t.Error("EXPLAIN offers no table_ref, though EXPLAIN t is a statement")
+	}
 }
 
 // --- UPDATE positions ---

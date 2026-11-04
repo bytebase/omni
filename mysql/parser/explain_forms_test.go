@@ -193,6 +193,33 @@ var explainFormCases = []explainFormCase{
 	{"EXPLAIN ANALYZE 'sqldigest'", false},
 }
 
+// explainFormEmptyFormatTableForm are statements where an empty format name
+// stands in front of the table form. A modifier rules that form out, so each
+// is a syntax error, and the guard that says so has to track whether FORMAT
+// was read rather than whether the name it read is empty.
+//
+// They are held to the parser alone and not to the server: MySQL 8.0.46 raises
+// 1791 for the empty name, which it does not have, while it is still
+// parsing, before it reads the shape at all, so it gives no verdict on
+// these. The non-empty
+// FORMAT = 'tree' t, in explainFormCases, is the one the server settles, and
+// TiDB settles the empty one too (tidb/parser/explain_forms_test.go).
+var explainFormEmptyFormatTableForm = []string{
+	"EXPLAIN FORMAT = '' t1",
+	"EXPLAIN FORMAT = '' t1 a",
+	`EXPLAIN FORMAT = "" t1`,
+}
+
+func TestExplainFormEmptyFormatRulesTheTableFormOut(t *testing.T) {
+	for _, sql := range explainFormEmptyFormatTableForm {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted; a FORMAT, empty name and all, rules the table form out", sql)
+			}
+		})
+	}
+}
+
 func TestExplainFormsAccepted(t *testing.T) {
 	for _, c := range explainFormCases {
 		if !c.accept {

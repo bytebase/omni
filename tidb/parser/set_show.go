@@ -1562,7 +1562,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		p.advance()
 	}
 
+	hasFormat := false
 	if p.cur.Type == kwFORMAT {
+		hasFormat = true
 		p.advance() // consume FORMAT
 		if _, err := p.expect('='); err != nil {
 			return nil, err
@@ -1601,6 +1603,11 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			kwSELECT, kwWITH, kwTABLE, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES, kwALTER,
 		} {
 			p.addTokenCandidate(t)
+		}
+		if !stmt.Analyze && !hasFormat {
+			// The table form is still reachable here, and EXPLAIN t is as
+			// valid as EXPLAIN SELECT.
+			p.addRuleCandidate("table_ref")
 		}
 		return nil, &ParseError{Message: "collecting"}
 	}
@@ -1668,7 +1675,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		stmt.Stmt = alt
 	default:
 		// EXPLAIN tbl_name [col_name], which no modifier stands in front of.
-		if stmt.Analyze || stmt.Format != "" {
+		// hasFormat rather than Format != "": the name may be an empty
+		// string, and FORMAT = '' is a modifier all the same.
+		if stmt.Analyze || hasFormat {
 			return nil, p.syntaxErrorAtCur()
 		}
 		ref, err := p.parseTableRef()

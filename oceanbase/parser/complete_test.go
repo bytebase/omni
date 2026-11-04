@@ -262,6 +262,34 @@ func TestCollectExplainKeywords(t *testing.T) {
 			t.Errorf("missing EXPLAIN keyword: %s", TokenName(tok))
 		}
 	}
+	// The table form is reachable from here too: EXPLAIN t describes a
+	// table.
+	if !cs.HasRule("table_ref") {
+		t.Error("EXPLAIN offers no table_ref, though EXPLAIN t is a statement")
+	}
+}
+
+// TestCollectAfterExplainModifier pins the candidates at a cursor right after
+// EXTENDED or PARTITIONS. Nothing follows the word there, so strict parsing
+// reads it as the table name of the table form -- EXPLAIN EXTENDED on its own
+// describes a table called `extended`, which the server accepts -- while the
+// caller is about to type the statement the modifier takes. Both readings are
+// offered.
+func TestCollectAfterExplainModifier(t *testing.T) {
+	for _, sql := range []string{"EXPLAIN EXTENDED ", "EXPLAIN PARTITIONS "} {
+		cs := Collect(sql, len(sql))
+		if cs == nil {
+			t.Fatalf("%q: expected non-nil candidates", sql)
+		}
+		for _, tok := range []int{kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES, kwWITH} {
+			if !cs.HasToken(tok) {
+				t.Errorf("%q: missing explainable statement keyword %s", sql, TokenName(tok))
+			}
+		}
+		if !cs.HasRule("table_ref") {
+			t.Errorf("%q: missing table_ref, which the word itself could still be", sql)
+		}
+	}
 }
 
 // --- UPDATE positions ---

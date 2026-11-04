@@ -187,6 +187,16 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropEvent(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
+	case *nodes.ExplainStmt:
+		// EXPLAIN ANALYZE runs the statement it carries, and on TiDB that
+		// reaches ALTER TABLE: EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c
+		// adds the column (tidb/parser/explain_forms_test.go measures it
+		// against v8.5.5), so the catalog applies what it carries. A plain
+		// EXPLAIN reports a plan and changes nothing.
+		if s.Analyze && s.Stmt != nil {
+			return c.processUtility(s.Stmt, source)
+		}
+		return nil
 	default:
 		return nil
 	}
@@ -279,6 +289,10 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.DropEventStmt:
 		return s.Loc.Start
 	case *nodes.SetStmt:
+		return s.Loc.Start
+	case *nodes.ExplainStmt:
+		// The whole EXPLAIN, not the statement it carries: an ExecResult's
+		// line is the line the caller wrote.
 		return s.Loc.Start
 	case *nodes.SelectStmt:
 		return s.Loc.Start

@@ -203,6 +203,13 @@ var explainFormCases = []explainFormCase{
 	// 1064 and so is a column name after that.
 	{"EXPLAIN FORMAT = 'row' t1", false},
 	{"EXPLAIN FORMAT = 'row' t1 a", false},
+	// ...and an empty name is a modifier like any other, so it rules the
+	// table form out too. TiDB settles the shape before it judges the name
+	// (1064 rather than the 1791 it answers for FORMAT = '' SELECT 1), which
+	// is what makes these two assertable here; MySQL and MariaDB answer 1791
+	// first and never reach the shape.
+	{"EXPLAIN FORMAT = '' t1", false},
+	{"EXPLAIN FORMAT = '' t1 a", false},
 	{"EXPLAIN FORMAT = ROW t1", false},
 	{"EXPLAIN ANALYZE t1", false},
 	{"EXPLAIN ANALYZE t1 a", false},

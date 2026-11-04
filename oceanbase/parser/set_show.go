@@ -1605,20 +1605,22 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	// EXPLAIN EXTENDED t reads as the table form, describing a table called
 	// `extended`, and parses on the server. One token of lookahead settles
 	// which arm the word starts, as the engine's own grammar does.
+	hasFormat := false
 	switch p.cur.Type {
 	case kwEXTENDED:
-		if !startsExplainableStmt(p.peekNext().Type) {
+		if !p.explainModifierAhead() {
 			break
 		}
 		stmt.Extended = true
 		p.advance()
 	case kwPARTITIONS:
-		if !startsExplainableStmt(p.peekNext().Type) {
+		if !p.explainModifierAhead() {
 			break
 		}
 		stmt.Partitions = true
 		p.advance()
 	case kwFORMAT:
+		hasFormat = true
 		p.advance() // consume FORMAT
 		if _, err := p.expect('='); err != nil {
 			return nil, err
@@ -1638,6 +1640,13 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			kwSELECT, kwWITH, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
 		} {
 			p.addTokenCandidate(t)
+		}
+		if !hasFormat {
+			// The table form is still reachable: EXPLAIN t is as valid as
+			// EXPLAIN SELECT, and a cursor right after EXTENDED or
+			// PARTITIONS is the one place that word could still be the
+			// table's name. Only a FORMAT rules the form out.
+			p.addRuleCandidate("table_ref")
 		}
 		return nil, &ParseError{Message: "collecting"}
 	}
@@ -1686,7 +1695,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	default:
 		// EXPLAIN tbl_name [col_name | wild], which no modifier stands in
 		// front of.
-		if stmt.Extended || stmt.Partitions || stmt.Format != "" {
+		// hasFormat rather than Format != "": the name may be an empty
+		// string, and FORMAT = '' is a modifier all the same.
+		if stmt.Extended || stmt.Partitions || hasFormat {
 			return nil, p.syntaxErrorAtCur()
 		}
 		ref, err := p.parseTableRef()
@@ -1719,6 +1730,24 @@ func startsExplainableStmt(tokenType int) bool {
 		return true
 	}
 	return false
+}
+
+// explainModifierAhead reports whether EXTENDED or PARTITIONS at the current
+// token is the modifier rather than the table name of the table form, which
+// what follows it decides.
+//
+// Completion asks from the other side. With the cursor right after the word,
+// as in "EXPLAIN EXTENDED |", nothing follows it yet: strict parsing reads the
+// table form, which is what the server does with EXPLAIN EXTENDED on its own,
+// while the caller is about to type the statement the modifier takes. So a
+// cursor there picks the modifier, and the candidates that arm collects name
+// the table form too.
+func (p *Parser) explainModifierAhead() bool {
+	next := p.peekNext()
+	if startsExplainableStmt(next.Type) {
+		return true
+	}
+	return p.completing && next.Loc >= p.cursorOff
 }
 
 // parseExplainColumn parses the column name or wild pattern EXPLAIN and
