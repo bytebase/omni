@@ -299,11 +299,24 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		stmt.Select = sel
 
 	case kwTABLE:
-		src, err := p.parseTableStmt()
+		// MERGE ADAPTATION, not this change's family: #645 wrote this call
+		// against an earlier revision of #642, which landed the TABLE
+		// query primary as parseTablePrimary returning the SelectStmt the
+		// TABLE folds into rather than a parseTableStmt returning a
+		// TableStmt, so main does not compile. The table itself is that
+		// SelectStmt's own TableSource.
+		//
+		// parseTablePrimary is the right reader for this position: v8.5.5
+		// takes `IMPORT INTO t FROM TABLE s` with each of the tails it
+		// reads -- ORDER BY, LIMIT, FOR UPDATE and INTO OUTFILE (measured
+		// on 2026-11-04) -- so the statement is accepted exactly as the
+		// server accepts it, and the tails are dropped because this node
+		// has nowhere to keep them. Whether it should is #645's call.
+		sel, err := p.parseTablePrimary()
 		if err != nil {
 			return nil, err
 		}
-		stmt.TableSource = src
+		stmt.TableSource = sel.TableSource
 
 	default:
 		return nil, p.syntaxErrorAtCur()
