@@ -199,6 +199,43 @@ func TestImportIntoQueryPrimarySourcesKeepTheirTails(t *testing.T) {
 	}
 }
 
+// TestImportIntoSourceIsAWholeQueryExpression pins that the FROM slot reads a
+// set operation whichever primary comes first. v8.5.5 accepts all of these
+// (measured by PREPARE and by execution, which agree), so reading only the
+// first primary would take a union after SELECT and refuse one after TABLE.
+func TestImportIntoSourceIsAWholeQueryExpression(t *testing.T) {
+	for _, sql := range []string{
+		"IMPORT INTO t FROM SELECT 1 UNION SELECT 2",
+		"IMPORT INTO t FROM TABLE t1 UNION TABLE t2",
+		"IMPORT INTO t FROM TABLE t1 UNION SELECT 1",
+		"IMPORT INTO t FROM TABLE t1 INTERSECT TABLE t2",
+		"IMPORT INTO t FROM TABLE t1 EXCEPT TABLE t2",
+		"IMPORT INTO t FROM VALUES ROW(1) UNION SELECT 1",
+		"IMPORT INTO t FROM VALUES ROW(1) UNION TABLE t2",
+	} {
+		stmt := parseImportInto(t, sql)
+		if stmt.Select == nil {
+			t.Errorf("Select is unset for %q", sql)
+		}
+	}
+}
+
+// TestImportIntoRejectsIncompleteSource pins that the query expression still
+// has to be complete: v8.5.5 answers 1064 for each of these.
+func TestImportIntoRejectsIncompleteSource(t *testing.T) {
+	for _, sql := range []string{
+		"IMPORT INTO t FROM TABLE t1 UNION",
+		"IMPORT INTO t FROM TABLE t1 UNION TABLE",
+		"IMPORT INTO t FROM TABLE t1 ORDER BY",
+		"IMPORT INTO t FROM TABLE t1 garbage",
+		"IMPORT INTO t FROM TABLE",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a syntax error", sql)
+		}
+	}
+}
+
 // TestImportIntoRejectsValuesWithoutRow pins the one VALUES spelling v8.5.5
 // answers 1064 for, which is what makes VALUES ROW(...) worth reading.
 func TestImportIntoRejectsValuesWithoutRow(t *testing.T) {

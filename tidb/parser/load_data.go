@@ -275,13 +275,14 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		return nil, err
 	}
 
-	// The source: a file path, or a query. TiDB reads a SELECT, a set
-	// operation, a WITH ... SELECT, a parenthesized query, or a TABLE or
-	// VALUES primary, each carrying the clauses a query primary takes --
-	// v8.5.5 runs `IMPORT INTO t FROM TABLE s ORDER BY a LIMIT 1` and
-	// `IMPORT INTO t FROM VALUES ROW(1,1) ORDER BY 1 LIMIT 1`, and answers
-	// 1064 only for the VALUES spelling without ROW. FORMAT follows a path
-	// only.
+	// The source: a file path, or one whole query expression. The FROM slot
+	// takes anything parseSelectStmt reads, whichever primary comes first:
+	// v8.5.5 accepts `FROM TABLE t1 UNION TABLE t2` and
+	// `FROM VALUES ROW(1) UNION SELECT 1` as readily as `FROM SELECT 1
+	// UNION SELECT 2`, along with each primary's ORDER BY, LIMIT, locking
+	// and INTO OUTFILE tail, and answers 1064 only for the VALUES spelling
+	// without ROW. Reading the first primary alone would take a union after
+	// a SELECT and refuse one after a TABLE. FORMAT follows a path only.
 	switch p.cur.Type {
 	case tokSCONST:
 		stmt.Path = p.cur.Str
@@ -293,22 +294,8 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		}
 		stmt.Format, stmt.HasFormat = format, has
 
-	case kwSELECT, kwWITH, '(':
+	case kwSELECT, kwWITH, kwTABLE, kwVALUES, '(':
 		sel, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Select = sel
-
-	case kwTABLE:
-		sel, err := p.parseTablePrimary()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Select = sel
-
-	case kwVALUES:
-		sel, err := p.parseValuesPrimary()
 		if err != nil {
 			return nil, err
 		}
