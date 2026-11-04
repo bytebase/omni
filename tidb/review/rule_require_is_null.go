@@ -101,6 +101,14 @@ func predicates(root ast.Node) []ast.Node {
 			if v.Where != nil {
 				add(v.Where)
 			}
+		case *ast.PlanReplayerStmt:
+			// The WHERE of a SLOW QUERY dump narrows the slow-query log it
+			// reads. It is tested for truth like any other, so `= NULL`
+			// there selects nothing, whether or not the dump runs the
+			// statement it carries.
+			if v.Where != nil {
+				add(v.Where)
+			}
 		case *ast.HandlerReadStmt:
 			if v.Where != nil {
 				add(v.Where)

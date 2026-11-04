@@ -71,7 +71,19 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dropStats(v)
 	case *ast.CreateStatisticsStmt:
 		return b.createStatistics(v)
-	case *ast.ExplainStmt, *ast.TraceStmt, *ast.PlanReplayerStmt:
+	case *ast.ExplainStmt, *ast.TraceStmt:
+		return b.wrapper(v)
+	case *ast.PlanReplayerStmt:
+		if v.Load {
+			// PLAN REPLAYER LOAD puts back the schemas the dump carries,
+			// and the dump is a file the walk cannot read, so it drops out
+			// below with RESTORE and RECOVER rather than claim the schema
+			// is still what it was. Measured on pingcap/tidb:v8.5.5: with
+			// `t` dropped, LOAD of a dump taken over it recreates the
+			// table with its columns, and a second LOAD of the same dump
+			// answers 1050.
+			break
+		}
 		return b.wrapper(v)
 	case *ast.SelectStmt, *ast.DoStmt:
 		return true
@@ -129,7 +141,9 @@ func (b *builder) statement(n ast.Node) bool {
 	// rename -- t must be gone already and t1 is created. BACKUP changes
 	// nothing at all, but it does fail on a table that is not there (1146
 	// for BACKUP TABLE nosuch on v8.5.5, read on 2026-11-04), which is the
-	// LOCK STATS case exactly.
+	// LOCK STATS case exactly. PLAN REPLAYER LOAD is here for the first
+	// half of it: the dump it reads creates the relations it holds, and
+	// nothing in the statement says which.
 	return false
 }
 

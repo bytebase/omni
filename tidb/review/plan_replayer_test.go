@@ -138,13 +138,14 @@ func TestPlanReplayerIsWhatThePriorBackupReads(t *testing.T) {
 // there on, so an unmodelled PlanReplayerStmt would quietly stop the name
 // tracking for every statement after it. That holds for the forms that carry
 // no statement at all, which is where an unmodelled node is easiest to miss.
+//
+// LOAD is not among them, and TestPlanReplayerLoadStopsTheWalk says why.
 func TestPlanReplayerKeepsTheWalkGoing(t *testing.T) {
 	shop := []review.Target{{Schema: walkSchema()}}
 	for _, first := range []string{
 		"PLAN REPLAYER DUMP EXPLAIN SELECT 1",
 		"PLAN REPLAYER DUMP EXPLAIN SLOW QUERY LIMIT 10",
 		"PLAN REPLAYER DUMP EXPLAIN 'sql.txt'",
-		"PLAN REPLAYER LOAD '/tmp/a.zip'",
 		"PLAN REPLAYER CAPTURE '123' '456'",
 		"PLAN REPLAYER CAPTURE REMOVE '123' '456'",
 	} {
@@ -157,5 +158,64 @@ func TestPlanReplayerKeepsTheWalkGoing(t *testing.T) {
 	// And the table a dumped statement names is still checked.
 	if got := run(t, review.Syntax, "PLAN REPLAYER DUMP EXPLAIN INSERT INTO nosuch VALUES (1);", review.Change{}, shop); len(got) != 0 {
 		t.Errorf("syntax findings = %+v, want none", got)
+	}
+}
+
+// TestPlanReplayerLoadStopsTheWalk pins the one form that is not a harmless
+// wrapper. PLAN REPLAYER LOAD puts back the schemas its dump carries, and the
+// dump is a file no rule can read, so the walk cannot keep its names accurate
+// past it and drops out instead -- where RESTORE and RECOVER already are, for
+// the same reason.
+//
+// Measured on pingcap/tidb:v8.5.5: a dump taken over `t` and loaded after `t`
+// was dropped recreates the table with both its columns, and loading the same
+// dump again answers 1050. So a table the walk believes is missing may be one
+// the dump created.
+func TestPlanReplayerLoadStopsTheWalk(t *testing.T) {
+	shop := []review.Target{{Schema: walkSchema()}}
+	// Without the LOAD the walk reports the missing table, which is what
+	// makes the silence after it meaningful rather than incidental.
+	const alter = "ALTER TABLE nosuch ADD COLUMN b int;"
+	if got := run(t, review.WalkThrough, alter, review.Change{}, shop); len(got) != 1 {
+		t.Fatalf("%s: findings = %+v, want one: the table is not in the schema", alter, got)
+	}
+	if got := run(t, review.WalkThrough, "PLAN REPLAYER LOAD '/tmp/a.zip';\n"+alter, review.Change{}, shop); len(got) != 0 {
+		t.Errorf("after a LOAD: findings = %+v, want none: the dump may have created the table", got)
+	}
+	// The other forms read no dump, so they do not excuse it.
+	for _, first := range []string{
+		"PLAN REPLAYER DUMP EXPLAIN SELECT 1",
+		"PLAN REPLAYER DUMP EXPLAIN SLOW QUERY LIMIT 10",
+		"PLAN REPLAYER CAPTURE '123' '456'",
+	} {
+		if got := run(t, review.WalkThrough, first+";\n"+alter, review.Change{}, shop); len(got) != 1 {
+			t.Errorf("after %s: findings = %+v, want one: it creates nothing", first, got)
+		}
+	}
+}
+
+// TestPlanReplayerSlowQueryWhereIsAPredicate pins the dump's own WHERE as a
+// predicate: `= NULL` there is never true and selects no slow query, so it is
+// judged like any other WHERE. The rule collects predicate roots by statement
+// type, so a new WHERE field is invisible to it until its statement is named.
+func TestPlanReplayerSlowQueryWhereIsAPredicate(t *testing.T) {
+	shop := []review.Target{{Schema: walkSchema()}}
+	// The bare predicate is reported, which is the baseline.
+	if got := run(t, review.RequireIsNull, "SELECT * FROM t WHERE a = NULL;", review.Change{}, shop); len(got) != 1 {
+		t.Fatalf("findings = %+v, want one", got)
+	}
+	for _, sql := range []string{
+		"PLAN REPLAYER DUMP EXPLAIN SLOW QUERY WHERE a = NULL;",
+		"PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY WHERE a = NULL LIMIT 10;",
+		"PLAN REPLAYER DUMP EXPLAIN SLOW QUERY WHERE a = NULL ORDER BY t LIMIT 10;",
+	} {
+		if got := run(t, review.RequireIsNull, sql, review.Change{}, shop); len(got) != 1 {
+			t.Errorf("%s: findings = %+v, want one", sql, got)
+		}
+	}
+	// A WHERE that compares properly is no finding, so the arm is reading
+	// the expression rather than reporting on sight.
+	if got := run(t, review.RequireIsNull, "PLAN REPLAYER DUMP EXPLAIN SLOW QUERY WHERE a IS NULL;", review.Change{}, shop); len(got) != 0 {
+		t.Errorf("IS NULL: findings = %+v, want none", got)
 	}
 }
