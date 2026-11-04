@@ -1776,6 +1776,15 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 		return p.parseFuncCall(start, "", "INTERVAL")
 	}
 
+	// The value may be another interval literal, so this cycle —
+	// parseIntervalExpr, parsePrefixExpr, parseIntervalExpr — counts its own
+	// nesting. Without it a deep enough chain overflows the Go stack, which
+	// recover cannot catch, before the post-parse tree-height check runs.
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+
 	// The literal's value is a prefix expression. The grammar takes a whole
 	// Expression — `"INTERVAL" Expression TimeUnit` — and TiDB v8.5.5 parses
 	// INTERVAL -1 DAY, INTERVAL NOT 1 DAY, INTERVAL BINARY 1 DAY,

@@ -236,30 +236,46 @@ func (p *Parser) parsePositionFunc(start int) (nodes.ExprNode, error) {
 // `select a + interval (1) day from t` as the literal and answers 1064 for
 // `select interval(1) day`, the function with one argument.
 //
-// The scan is a loop, so a deeply nested group costs tokens and not stack,
-// and it rewinds what it consumed.
+// The scan is a loop, so a deeply nested group costs tokens and not stack, and
+// it rewinds what it consumed. It records the answer for every group it
+// passes, not just the one asked about: without that, each level of
+// `interval (interval (...) day) day` would scan the levels below it again.
 func (p *Parser) parenGroupHasComma() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
+	if has, ok := p.parenHasComma[p.cur.Loc]; ok {
+		return has
+	}
 	saved := p.saveScan()
 	defer p.restoreScan(saved)
-	depth := 0
+	if p.parenHasComma == nil {
+		p.parenHasComma = make(map[int]bool)
+	}
+	start := p.cur.Loc
+	var open []int   // the '(' offsets still open, innermost last
+	var comma []bool // whether each of those has held a comma at its level
 	for {
 		switch p.cur.Type {
 		case tokEOF:
-			return false
+			// Unterminated: the parse that follows reports it. Record what the
+			// scan did learn so a group inside it is not scanned again.
+			for i, loc := range open {
+				p.parenHasComma[loc] = comma[i]
+			}
+			return p.parenHasComma[start]
 		case '(':
-			depth++
+			open = append(open, p.cur.Loc)
+			comma = append(comma, false)
 		case ')':
-			depth--
-			if depth == 0 {
-				return false
+			p.parenHasComma[open[len(open)-1]] = comma[len(comma)-1]
+			open = open[:len(open)-1]
+			comma = comma[:len(comma)-1]
+			if len(open) == 0 {
+				return p.parenHasComma[start]
 			}
 		case ',':
-			if depth == 1 {
-				return true
-			}
+			comma[len(comma)-1] = true
 		}
 		p.advance()
 	}

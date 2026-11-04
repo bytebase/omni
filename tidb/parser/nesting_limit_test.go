@@ -38,6 +38,9 @@ var nestingShapes = []struct {
 	{"assignment chain", func(n int) string { return "SELECT " + strings.Repeat("@a := ", n) + "1" }},
 	{"function call", func(n int) string { return "SELECT " + nest(n, "abs(", "1", ")") }},
 	{"CAST", func(n int) string { return "SELECT " + nest(n, "CAST(", "1", " AS SIGNED)") }},
+	{"interval literal", func(n int) string {
+		return "SELECT " + strings.Repeat("INTERVAL ", n) + "1" + strings.Repeat(" DAY", n)
+	}},
 	{"CONVERT", func(n int) string { return "SELECT " + nest(n, "CONVERT(", "1", ", SIGNED)") }},
 	{"CASE", func(n int) string { return "SELECT " + nest(n, "CASE WHEN ", "1", " THEN 1 END") }},
 	{"ROW", func(n int) string { return "SELECT " + nest(n, "ROW(", "1", ", 1)") }},

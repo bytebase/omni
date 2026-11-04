@@ -1300,6 +1300,13 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		// Bare keyword argument (timestampdiff unit, get_format type) —
 		// stored unquoted in generated-column bodies exactly like view bodies.
 		return n.Keyword
+	case *nodes.ExtractExpr:
+		// Oracle TiDB v8.5.5 stored form: extract(day_hour from `a`).
+		return "extract(" + strings.ToLower(n.Unit) + " from " + nodeToSQLGenerated(n.Expr, charset) + ")"
+	case *nodes.PositionExpr:
+		// Oracle TiDB v8.5.5 stored form: position(_utf8mb4'x' in `s`) — the
+		// keyword, where MySQL 8.0 stores locate(_utf8mb4'x',`s`).
+		return "position(" + nodeToSQLGenerated(n.Substr, charset) + " in " + nodeToSQLGenerated(n.Str, charset) + ")"
 	case *nodes.BinaryExpr:
 		left := nodeToSQLGenerated(n.Left, charset)
 		right := nodeToSQLGenerated(n.Right, charset)
