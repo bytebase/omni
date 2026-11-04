@@ -139,22 +139,46 @@ var walkCases = []walkCase{
 type walkServer struct {
 	image string
 	lctn  int
+	// shard is which of a sweep's shards the server is for, so each gets
+	// one of its own.
+	shard int
+}
+
+// walkDB is one configuration's server, started on the first ask. The
+// once is per configuration rather than over the map, so a sweep's shards
+// start their servers at once: a server takes about ten seconds to come
+// up, and a lock held across the start would add that per shard.
+type walkDB struct {
+	once sync.Once
+	db   *sql.DB
+	err  error
 }
 
 var walkServers = struct {
 	mu         sync.Mutex
-	dbs        map[walkServer]*sql.DB
+	dbs        map[walkServer]*walkDB
 	containers []testcontainers.Container
-}{dbs: make(map[walkServer]*sql.DB)}
+}{dbs: make(map[walkServer]*walkDB)}
 
 // startWalkMySQL returns a server of the configuration, started once.
 func startWalkMySQL(t *testing.T, s walkServer) *sql.DB {
 	t.Helper()
 	walkServers.mu.Lock()
-	defer walkServers.mu.Unlock()
-	if db, ok := walkServers.dbs[s]; ok {
-		return db
+	e, ok := walkServers.dbs[s]
+	if !ok {
+		e = &walkDB{}
+		walkServers.dbs[s] = e
 	}
+	walkServers.mu.Unlock()
+	e.once.Do(func() { e.db, e.err = openWalkMySQL(s) })
+	if e.err != nil {
+		t.Fatalf("mysql %v unavailable: %v", s, e.err)
+	}
+	return e.db
+}
+
+// openWalkMySQL starts a server of the configuration and connects to it.
+func openWalkMySQL(s walkServer) (*sql.DB, error) {
 	ctx := context.Background()
 	opts := []testcontainers.ContainerCustomizer{tcmysql.WithDatabase("shop"), tcmysql.WithUsername("root"), tcmysql.WithPassword("test")}
 	if s.lctn != 0 {
@@ -162,22 +186,23 @@ func startWalkMySQL(t *testing.T, s walkServer) *sql.DB {
 	}
 	c, err := tcmysql.Run(ctx, s.image, opts...)
 	if err != nil {
-		t.Fatalf("mysql %v unavailable: %v", s, err)
+		return nil, err
 	}
+	walkServers.mu.Lock()
 	walkServers.containers = append(walkServers.containers, c)
+	walkServers.mu.Unlock()
 	dsn, err := c.ConnectionString(ctx, "multiStatements=true")
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
 	if err := db.PingContext(ctx); err != nil {
-		t.Fatal(err)
+		return nil, err
 	}
-	walkServers.dbs[s] = db
-	return db
+	return db, nil
 }
 
 // session opens a session of its own, which the cleanup closes rather
@@ -703,37 +728,45 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 // WALK_SWEEP_SEED the seed, and WALK_SWEEP_IMAGE the MySQL image.
 func TestWalkThroughSweepMySQL(t *testing.T) {
 	n, seed, image := walktest.SweepParams(t, 40, 20261023, "mysql:8.0")
-	// The two settings run at once, each on its own server.
+	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
+		return walkSweepChange(rng, 8+rng.Intn(8)), walkSweepChange(rng, 15+rng.Intn(15))
+	})
+	shards := walktest.Shards(n)
+	// The two settings run at once, each on its own server, and each deals
+	// its changes over shards servers of its own.
 	for _, lctn := range []int{0, 1} {
 		t.Run(fmt.Sprintf("lctn%d", lctn), func(t *testing.T) {
 			t.Parallel()
-			s := walkServer{image: image, lctn: lctn}
-			db := startWalkMySQL(t, s)
-			rng := rand.New(rand.NewSource(seed))
-			var found, rejected int
-			for i := range n {
-				base := walkSweepChange(rng, 8+rng.Intn(8))
-				change := walkSweepChange(rng, 15+rng.Intn(15))
-				t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
-					resetWalk(t, db, "")
-					conn := session(t, db)
-					if _, err := conn.ExecContext(context.Background(), "USE shop"); err != nil {
-						t.Fatal(err)
+			for shard := range shards {
+				t.Run(fmt.Sprintf("shard%d", shard), func(t *testing.T) {
+					t.Parallel()
+					s := walkServer{image: image, lctn: lctn, shard: shard}
+					db := startWalkMySQL(t, s)
+					var found, rejected int
+					for i := shard; i < len(changes); i += shards {
+						base, change := changes[i].Base, changes[i].Change
+						t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
+							resetWalk(t, db, "")
+							conn := session(t, db)
+							if _, err := conn.ExecContext(context.Background(), "USE shop"); err != nil {
+								t.Fatal(err)
+							}
+							// The base's temporary tables end with its session, before the sync.
+							for _, q := range splitWalk(base) {
+								_, _ = conn.ExecContext(context.Background(), q)
+							}
+							_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+							f, r := judgeWalk(t, db, s, change, false)
+							found += f
+							rejected += r
+							if t.Failed() {
+								t.Logf("base:\n%s\nchange:\n%s", base, change)
+							}
+						})
 					}
-					// The base's temporary tables end with its session, before the sync.
-					for _, q := range splitWalk(base) {
-						_, _ = conn.ExecContext(context.Background(), q)
-					}
-					_ = conn.Raw(func(any) error { return driver.ErrBadConn })
-					f, r := judgeWalk(t, db, s, change, false)
-					found += f
-					rejected += r
-					if t.Failed() {
-						t.Logf("base:\n%s\nchange:\n%s", base, change)
-					}
+					t.Logf("%s lctn=%d shard=%d seed %d: found %d of the %d statements the server rejects", image, lctn, shard, seed, found, rejected)
 				})
 			}
-			t.Logf("%s lctn=%d seed %d: found %d of the %d statements the server rejects", image, lctn, seed, found, rejected)
 		})
 	}
 }

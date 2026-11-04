@@ -2,6 +2,7 @@ package walktest
 
 import (
 	"fmt"
+	"math/rand"
 	"runtime"
 	"strings"
 	"sync"
@@ -125,5 +126,76 @@ func TestJudgeGoesOnAfterAnAtomicRejection(t *testing.T) {
 	// c's rejection is missed, which complete reports.
 	if r.fatal != "" || len(r.errors) != 1 || found != 1 || rejected != 2 {
 		t.Errorf("fatal %q, errors %q, found %d of %d; want 1 of 2 and the miss of c", r.fatal, r.errors, found, rejected)
+	}
+}
+
+func TestShards(t *testing.T) {
+	// A sweep of the default size keeps to one server; the sizes CI runs
+	// spread out, up to the cap.
+	for _, c := range []struct{ n, want int }{
+		{0, 1}, {40, 1}, {60, 1}, {199, 1}, {200, 2}, {399, 3}, {400, 4}, {500, 4}, {5000, 4},
+	} {
+		if got := Shards(c.n); got != c.want {
+			t.Errorf("Shards(%d) = %d, want %d", c.n, got, c.want)
+		}
+	}
+}
+
+// TestSweepChangesComeFromOneSequence holds SweepChanges to the reason it
+// exists: the changes are generated before any of them runs, from one
+// generator over one rng, so a sweep covers the same changes however many
+// shards it deals them over. A generator moved back into a shard's loop
+// would give every shard the sequence from its start, and fail here.
+func TestSweepChangesComeFromOneSequence(t *testing.T) {
+	const n = 37
+	generator := func() (gen func(*rand.Rand) (string, string), calls *int, rngs *[]*rand.Rand) {
+		calls, rngs = new(int), new([]*rand.Rand)
+		return func(rng *rand.Rand) (string, string) {
+			*calls++
+			*rngs = append(*rngs, rng)
+			return fmt.Sprintf("base%d", rng.Int()), fmt.Sprintf("change%d", rng.Int())
+		}, calls, rngs
+	}
+
+	gen, calls, rngs := generator()
+	changes := SweepChanges(n, 20261104, gen)
+	if len(changes) != n {
+		t.Fatalf("got %d changes, want %d", len(changes), n)
+	}
+	if *calls != n {
+		t.Errorf("the generator ran %d times, want %d", *calls, n)
+	}
+	for _, rng := range *rngs {
+		if rng != (*rngs)[0] {
+			t.Fatal("the generator ran on more than one rng, so which changes a sweep covers depends on how they are dealt")
+		}
+	}
+
+	again, _, _ := generator()
+	for i, c := range SweepChanges(n, 20261104, again) {
+		if c != changes[i] {
+			t.Fatalf("change %d of a second sweep of the same seed is %q, want %q", i, c, changes[i])
+		}
+	}
+}
+
+// TestShardsDealEveryChangeOnce holds the arithmetic every sweep deals
+// its changes by: shard s takes s, s+shards, ..., and the shards together
+// take every change exactly once.
+func TestShardsDealEveryChangeOnce(t *testing.T) {
+	for n := range 40 {
+		for shards := 1; shards <= 5; shards++ {
+			dealt := make([]int, n)
+			for shard := range shards {
+				for i := shard; i < n; i += shards {
+					dealt[i]++
+				}
+			}
+			for i, times := range dealt {
+				if times != 1 {
+					t.Fatalf("%d changes over %d shards: change %d is dealt %d times", n, shards, i, times)
+				}
+			}
+		}
 	}
 }
