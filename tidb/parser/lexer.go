@@ -962,6 +962,18 @@ const (
 	// STATS_BUCKETS and STATS_TOPN are SHOW targets too, and are declared
 	// with the CREATE TABLE statistics options above, which reached them
 	// first.
+
+	// TiDB SQL plan bindings (CREATE/DROP/SET BINDING; TiDB's SQL Plan
+	// Management, https://docs.pingcap.com/tidb/v8.5/sql-plan-management/).
+	// Each is unreserved on v8.5.5 -- `CREATE TABLE t (binding int, digest
+	// int, plan int, enabled int, disabled int)` is accepted, and each word
+	// also serves as a table name and as an alias (verified; pinned by
+	// TestBindingKeywordsStayIdentifiers). HISTORY already exists.
+	kwBINDING
+	kwDIGEST
+	kwPLAN
+	kwENABLED
+	kwDISABLED
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1843,6 +1855,13 @@ var keywords = map[string]int{
 	"stats_histograms":     kwSTATS_HISTOGRAMS,
 	"stats_locked":         kwSTATS_LOCKED,
 	"stats_meta":           kwSTATS_META,
+
+	// TiDB SQL plan bindings (CREATE/DROP/SET BINDING).
+	"binding":  kwBINDING,
+	"digest":   kwDIGEST,
+	"plan":     kwPLAN,
+	"enabled":  kwENABLED,
+	"disabled": kwDISABLED,
 }
 
 // Token represents a lexical token.

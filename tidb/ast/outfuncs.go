@@ -143,6 +143,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterDatabaseStmt(sb, n)
 	case *DropDatabaseStmt:
 		writeDropDatabaseStmt(sb, n)
+	case *CreateBindingStmt:
+		writeCreateBindingStmt(sb, n)
+	case *DropBindingStmt:
+		writeDropBindingStmt(sb, n)
+	case *SetBindingStmt:
+		writeSetBindingStmt(sb, n)
 	case *CreatePlacementPolicyStmt:
 		writeCreatePlacementPolicyStmt(sb, n)
 	case *AlterPlacementPolicyStmt:
@@ -2097,6 +2103,70 @@ func writeDropDatabaseStmt(sb *strings.Builder, n *DropDatabaseStmt) {
 	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
 	sb.WriteString("}")
+}
+
+func writeCreateBindingStmt(sb *strings.Builder, n *CreateBindingStmt) {
+	sb.WriteString("{CREATE_BINDING")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	writeBindingScope(sb, n.Scope)
+	writeBindingStmts(sb, n.OriginStmt, n.HintedStmt)
+	writeBindingDigests(sb, ":plan_digests", n.PlanDigests)
+	sb.WriteString("}")
+}
+
+func writeDropBindingStmt(sb *strings.Builder, n *DropBindingStmt) {
+	sb.WriteString("{DROP_BINDING")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	writeBindingScope(sb, n.Scope)
+	writeBindingStmts(sb, n.OriginStmt, n.HintedStmt)
+	writeBindingDigests(sb, ":sql_digests", n.SQLDigests)
+	sb.WriteString("}")
+}
+
+func writeSetBindingStmt(sb *strings.Builder, n *SetBindingStmt) {
+	sb.WriteString("{SET_BINDING")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Enabled {
+		sb.WriteString(" :status ENABLED")
+	} else {
+		sb.WriteString(" :status DISABLED")
+	}
+	writeBindingStmts(sb, n.OriginStmt, n.HintedStmt)
+	if n.SQLDigest != nil {
+		sb.WriteString(" :sql_digest ")
+		writeNode(sb, n.SQLDigest)
+	}
+	sb.WriteString("}")
+}
+
+func writeBindingScope(sb *strings.Builder, scope BindingScope) {
+	if scope != BindingScopeUnset {
+		fmt.Fprintf(sb, " :scope %s", scope)
+	}
+}
+
+func writeBindingStmts(sb *strings.Builder, origin, hinted StmtNode) {
+	if origin != nil {
+		sb.WriteString(" :origin ")
+		writeNode(sb, origin)
+	}
+	if hinted != nil {
+		sb.WriteString(" :hinted ")
+		writeNode(sb, hinted)
+	}
+}
+
+func writeBindingDigests(sb *strings.Builder, label string, digests []ExprNode) {
+	if len(digests) == 0 {
+		return
+	}
+	sb.WriteString(" " + label + " ")
+	for i, d := range digests {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, d)
+	}
 }
 
 func writeCreatePlacementPolicyStmt(sb *strings.Builder, n *CreatePlacementPolicyStmt) {

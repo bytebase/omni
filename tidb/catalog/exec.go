@@ -187,6 +187,11 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropEvent(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
+	case *nodes.CreateBindingStmt, *nodes.DropBindingStmt, *nodes.SetBindingStmt:
+		// A SQL plan binding records a plan for later statements and
+		// changes no schema object. The statements it carries are not run
+		// either, so the catalog reads neither of them.
+		return nil
 	case *nodes.ExplainStmt:
 		// EXPLAIN ANALYZE runs the statement it carries, and on TiDB that
 		// reaches ALTER TABLE: EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c
@@ -289,6 +294,12 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.DropEventStmt:
 		return s.Loc.Start
 	case *nodes.SetStmt:
+		return s.Loc.Start
+	case *nodes.CreateBindingStmt:
+		return s.Loc.Start
+	case *nodes.DropBindingStmt:
+		return s.Loc.Start
+	case *nodes.SetBindingStmt:
 		return s.Loc.Start
 	case *nodes.ExplainStmt:
 		// The whole EXPLAIN, not the statement it carries: an ExecResult's
