@@ -49,7 +49,7 @@ import (
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, "The change is over prior backup's size limit of "+review.Size(int64(change.MaxBackupSize))+".\n\nSplit it into smaller changes, or turn off **Prior backup**.")
 	}
 }
 
@@ -70,7 +70,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 		code, msg := review.StatementNotBackupable, ""
 		switch v := s.node.(type) {
 		case *ast.BatchStmt:
-			msg = "prior backup does not support TiDB BATCH (non-transactional DML) statements"
+			msg = "Prior backup can't back up a TiDB " + review.Code("BATCH") + " statement.\n\nTurn off **Prior backup** for this change."
 		case *ast.DeleteStmt:
 			// The backup matches each target of a multi-table DELETE to the
 			// FROM list, without case, and refuses one it cannot.
@@ -105,23 +105,24 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 					name = target.Alias
 				}
 				if !from[strings.ToLower(name)] && msg == "" {
-					code, msg = review.BackupReadsWrongTable, "prior backup does not find DELETE target "+ident(name)+" in the FROM list"
+					code, msg = review.BackupReadsWrongTable, "Prior backup can't find the "+review.Code("DELETE")+" target "+review.Code(ident(name))+" in the "+review.Code("FROM")+" list.\n\nWrite the target as the "+review.Code("FROM")+" list writes it."
 				}
 			}
 		case *ast.InsertStmt:
 			if overwrites(v) {
-				msg = "prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements"
+				msg = "Prior backup can't back up " + review.Code("REPLACE") + " or " + review.Code("INSERT ... ON DUPLICATE KEY UPDATE") + ".\n\nTurn off **Prior backup** for this change."
 			}
 		case *ast.ExplainStmt:
 			if !v.Analyze {
 				break
 			}
+			analyze := "Prior backup can't back up " + review.Code("EXPLAIN ANALYZE") + " of a statement that changes rows.\n\nRemove " + review.Code("EXPLAIN ANALYZE") + ", or turn off **Prior backup**."
 			switch w := v.Stmt.(type) {
 			case *ast.UpdateStmt, *ast.DeleteStmt, *ast.BatchStmt:
-				msg = "prior backup does not support EXPLAIN ANALYZE of an UPDATE, DELETE, or BATCH statement"
+				msg = analyze
 			case *ast.InsertStmt:
 				if overwrites(w) {
-					msg = "prior backup does not support EXPLAIN ANALYZE of a REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statement"
+					msg = analyze
 				}
 			}
 		}
@@ -181,7 +182,7 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 				in = db
 			}
 			if !strings.EqualFold(in, db) {
-				r.report(review.TableNotBackupable, s.index, rangeOf(s.loc), "prior backup does not support an UPDATE or DELETE of "+table(ref)+", a table of another database")
+				r.report(review.TableNotBackupable, s.index, rangeOf(s.loc), "Prior backup can't back up "+review.Code(table(ref))+", a table of another database.\n\nRun that statement in a change on its own database, or turn off **Prior backup**.")
 			}
 			all = append(all, copied{s, in, ref.Name, s.with})
 		}
@@ -198,11 +199,11 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 		})
 		switch {
 		case tables && with:
-			r.report(review.StatementsShareBackup, -1, review.Range{}, fmt.Sprintf("prior backup cannot back up more than %d statements over more than one table, or with a WITH clause", maxMixedTables))
+			r.report(review.StatementsShareBackup, -1, review.Range{}, fmt.Sprintf("Prior backup can't back up more than %d statements across several tables, or with a %s clause.\n\nSplit the change, or turn off **Prior backup**.", maxMixedTables, review.Code("WITH")))
 		case tables:
-			r.report(review.StatementsShareBackup, -1, review.Range{}, fmt.Sprintf("prior backup cannot back up more than %d statements over more than one table", maxMixedTables))
+			r.report(review.StatementsShareBackup, -1, review.Range{}, fmt.Sprintf("Prior backup can't back up more than %d statements across several tables.\n\nSplit the change, or turn off **Prior backup**.", maxMixedTables))
 		case with:
-			r.report(review.StatementsShareBackup, -1, review.Range{}, fmt.Sprintf("prior backup does not support a WITH clause when it backs up more than %d statements", maxMixedTables))
+			r.report(review.StatementsShareBackup, -1, review.Range{}, fmt.Sprintf("Prior backup can't back up a %s clause when the change has more than %d statements to back up.\n\nSplit the change, or turn off **Prior backup**.", review.Code("WITH"), maxMixedTables))
 		}
 		return
 	}
@@ -210,10 +211,10 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 	for _, c := range all {
 		switch {
 		case !strings.EqualFold(c.db, first.db) || !strings.EqualFold(c.name, first.name):
-			r.report(review.StatementsShareBackup, c.s.index, rangeOf(c.s.loc), fmt.Sprintf("prior backup cannot back up more than %d statements over more than one table", maxMixedTables))
+			r.report(review.StatementsShareBackup, c.s.index, rangeOf(c.s.loc), fmt.Sprintf("Prior backup can't back up more than %d statements across several tables.\n\nSplit the change, or turn off **Prior backup**.", maxMixedTables))
 			return
 		case c.with:
-			r.report(review.StatementsShareBackup, c.s.index, rangeOf(c.s.loc), fmt.Sprintf("prior backup does not support a WITH clause when more than %d statements change one table", maxMixedTables))
+			r.report(review.StatementsShareBackup, c.s.index, rangeOf(c.s.loc), fmt.Sprintf("Prior backup can't back up a %s clause when more than %d statements change one table.\n\nSplit the change, or turn off **Prior backup**.", review.Code("WITH"), maxMixedTables))
 			return
 		}
 	}
@@ -373,7 +374,7 @@ func madeByChange(stmts []statement) changeMade {
 // change's first USE reads that only the change makes.
 func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x schemaIndex, m changeMade, r *reporter) {
 	if !t.BackupDatabaseExists {
-		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "Prior backup needs the backup database "+review.Code(backupDatabase)+", which doesn't exist on this instance.\n\nCreate it, or turn off **Prior backup**.")
 	}
 	if x.schema == nil {
 		return
@@ -386,7 +387,7 @@ func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x sc
 		refs, _ := backupTargets(s)
 		for _, ref := range refs {
 			if x.inDatabase(ref) && x.isView(ref.Name) {
-				r.report(review.TableNotBackupable, s.index, rangeOf(s.loc), "prior backup copies tables with CREATE TABLE ... LIKE, which refuses view "+table(ref))
+				r.report(review.TableNotBackupable, s.index, rangeOf(s.loc), "Prior backup can't back up "+review.Code(table(ref))+": it is a view.\n\nTurn off **Prior backup** for this change.")
 			}
 		}
 	}
@@ -510,7 +511,8 @@ func backupReadsMade(n ast.Node, x schemaIndex, m changeMade) string {
 		})
 	}
 	if missing != nil {
-		return "prior backup runs before the change, when " + table(missing) + " does not exist yet"
+		name := review.Code(table(missing))
+		return "Prior backup runs before the change, when " + name + " doesn't exist yet.\n\nCreate " + name + " in an earlier change, or turn off **Prior backup**."
 	}
 	return columnMissing(from, quals, x, m)
 }
@@ -586,7 +588,7 @@ func columnMissing(from []ast.TableExpr, quals []ast.Node, x schemaIndex, m chan
 			return
 		}
 		if m.madeColumnOn(x, src.ref, column) {
-			msg = "prior backup runs before the change, when column " + ident(column) + " of " + table(src.ref) + " does not exist yet"
+			msg = "Prior backup runs before the change, when column " + review.Code(ident(column)) + " of " + review.Code(table(src.ref)) + " doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**."
 		}
 	}
 	// USING names a column each side has: one no source of a side may

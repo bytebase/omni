@@ -48,12 +48,14 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 
 // walkNote is a check's finding: where it anchors and what it says when
 // the object is certainly absent or certainly present (or of another
-// kind). fixed is the code of a Fail, and of a check whose violation is a
-// condition other than the one its wanted and found facts name.
+// kind). present writes its text from the kind found, "" when the ledger
+// does not tell it. fixed is the code of a Fail, and of a check whose
+// violation is a condition other than the one its wanted and found facts
+// name.
 type walkNote struct {
 	rng     review.Range
 	absent  string
-	present string
+	present func(found string) string
 	fixed   review.FindingCode
 }
 
@@ -61,7 +63,19 @@ func (n *walkNote) message(v *walk.Violation) string {
 	if v.Got == walk.Absent {
 		return n.absent
 	}
-	return n.present
+	if n.present == nil {
+		return ""
+	}
+	return n.present(foundKind(v.Kind))
+}
+
+// foundKind is the kind a violation found: a class key's fact holds the
+// kind and spelling of the class's one object.
+func foundKind(fact string) string {
+	if kind, _, ok := single(fact); ok {
+		return kind
+	}
+	return fact
 }
 
 // code is the violation's finding code: fixed when set, else the
@@ -237,7 +251,7 @@ func (b *builder) anchor() review.Range { return rangeOf(b.s.loc) }
 // fail records that the statement certainly fails, from its text, for the
 // condition code names.
 func (b *builder) fail(rng review.Range, code review.FindingCode, message string) {
-	b.Fail(nil, walk.Absent, &walkNote{rng: rng, absent: message, present: message, fixed: code})
+	b.Fail(nil, walk.Absent, &walkNote{rng: rng, absent: message, present: text(message), fixed: code})
 }
 
 // sight is what the ledger shows of one spelling of a name: its fact,
@@ -735,7 +749,7 @@ func (b *builder) tooLong(spelling string, local bool, rng review.Range) bool {
 			return false
 		}
 	}
-	b.fail(rng, review.NameTooLong, "the identifier "+ident(spelling[:min(len(spelling), 32)])+"... is longer than "+strconv.Itoa(limit)+" characters")
+	b.fail(rng, review.NameTooLong, "The name "+review.Code(ident(spelling))+" is longer than SQL Server's "+strconv.Itoa(limit)+"-character limit.")
 	return true
 }
 

@@ -324,6 +324,9 @@ type tidbEngine struct {
 	conn   *sql.Conn
 	db     *sql.DB
 	target review.Target
+	// reported is the statement of the finding Report returned last, which
+	// walktest passes to Codes next.
+	reported string
 }
 
 // RejectsPartially marks TiDB as a server that may change the database in
@@ -370,6 +373,10 @@ func (e *tidbEngine) Report(t testing.TB, change string) *walktest.Finding {
 			out = &walktest.Finding{Statement: f.Statement, Message: f.Message}
 		}
 	}
+	e.reported = ""
+	if stmts := e.Statements(change); out != nil && out.Statement < len(stmts) {
+		e.reported = stmts[out.Statement]
+	}
 	return out
 }
 
@@ -387,55 +394,104 @@ func (e *tidbEngine) Violation(t testing.TB, change string) *walk.Violation {
 }
 
 // walkCodes maps a finding's message to the TiDB errors it stands for.
-// 8200 is TiDB's "Unsupported operate same column" and its kin.
+// 8200 is TiDB's "Unsupported operate same column" and its kin. Where one
+// text stands for several statements' errors, the statement it is on
+// (leads) tells them apart: DROP TABLE and TRUNCATE refuse a view as a
+// missing table.
 var walkCodes = []struct {
-	match func(string) bool
+	match func(m, stmt string) bool
 	codes []string
 }{
-	{func(m string) bool { return strings.HasPrefix(m, "Temporary table ") }, []string{"1051"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Foreign key target ") }, []string{"1824", "3734", "3780"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Foreign key ") && (strings.Contains(m, " specified twice ") || strings.Contains(m, " added twice ") || strings.Contains(m, " already exists in table "))
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Temporary table ") && strings.HasSuffix(m, " already exists.")
+	}, []string{"1050"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Temporary table ") }, []string{"1051"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Referenced table ") || strings.HasSuffix(m, ", not a table a foreign key can reference.")
+	}, []string{"1824", "3734", "3780"}},
+	{func(m, _ string) bool {
+		return saysTwice(m, "foreign key", "declares", "adds") || strings.HasPrefix(m, "Foreign key ") && strings.Contains(m, " already exists in ")
 	}, []string{"1826"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "View ") && strings.HasSuffix(m, " cannot move to another database")
-	}, []string{"1450"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Foreign key ") }, []string{"1091"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " already exists") }, []string{"1050"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " already has a primary key")
-	}, []string{"1068", "8200"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " has no primary key")
+	{func(m, _ string) bool { return strings.HasPrefix(m, "TiDB doesn't accept `RENAME TABLE` of view ") }, []string{"1450"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Foreign key ") || saysTwice(m, "foreign key", "drops")
 	}, []string{"1091"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " does not exist") }, []string{"1146", "1051"}},
-	{func(m string) bool { return strings.HasPrefix(m, "View ") }, []string{"1051"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Sequence ") }, []string{"4139"}},
-	{func(m string) bool {
-		return strings.HasSuffix(m, " is not a base table") || strings.HasSuffix(m, " is not a view") || strings.HasSuffix(m, " is not a sequence")
-	}, []string{"1347"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Database ") && strings.HasSuffix(m, " already exists")
+	{func(m, _ string) bool {
+		return (strings.HasPrefix(m, "Table ") || strings.HasPrefix(m, "View ") || strings.HasPrefix(m, "Sequence ")) && strings.HasSuffix(m, " already exists.") ||
+			strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, " is already taken.")
+	}, []string{"1050"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " already has a primary key.") }, []string{"1068", "8200"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " has no primary key.") }, []string{"1091"}},
+	{func(m, stmt string) bool {
+		return strings.HasSuffix(m, ", not a table.") && leads(stmt, "DROP TABLE", "DROP TABLES", "TRUNCATE")
+	}, []string{"1146", "1051"}},
+	{func(m, _ string) bool {
+		return (strings.HasPrefix(m, "Table ") || strings.HasPrefix(m, "`")) && strings.HasSuffix(m, " doesn't exist.")
+	}, []string{"1146", "1051"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "View ") }, []string{"1051"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Sequence ") }, []string{"4139"}},
+	{func(m, _ string) bool { return saysWrongKind(m) }, []string{"1347"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Database ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1007"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Database ") }, []string{"1049", "1008", "1025"}},
-	{func(m string) bool { return m == noDatabaseMessage }, []string{"1046"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Column ") && (strings.Contains(m, " already exists in ") || strings.Contains(m, " twice "))
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Database ") }, []string{"1049", "1008", "1025"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "No database is selected for ") }, []string{"1046"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in ") || saysTwice(m, "column", "declares", "adds", "drops")
 	}, []string{"1060", "1091", "8200"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Index ") && (strings.Contains(m, " already exists in ") || strings.Contains(m, " specified twice") || strings.Contains(m, " added twice"))
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Index ") && strings.Contains(m, " already exists in ") || saysTwice(m, "index", "declares", "adds")
 	}, []string{"1061", "8200"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Index name PRIMARY") }, []string{"1280"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Index ") }, []string{"1091", "1176", "8200"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Multiple primary keys") }, []string{"1068", "8200"}},
-	{func(m string) bool { return strings.HasPrefix(m, "RENAME TO cannot be combined") }, []string{"8200"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Identifier name ") }, []string{"1059"}},
+	{func(m, _ string) bool { return m == reservedPrimary }, []string{"1280"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Index ") || saysTwice(m, "index", "drops") || m == "This statement drops the primary key twice."
+	}, []string{"1091", "1176", "8200"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "TiDB doesn't accept `RENAME TO` with other changes ")
+	}, []string{"8200"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, "'s 64-character limit.")
+	}, []string{"1059"}},
+}
+
+// saysTwice reports whether a message says the statement names kind
+// twice, by one of verbs.
+func saysTwice(m, kind string, verbs ...string) bool {
+	for _, v := range verbs {
+		if strings.HasPrefix(m, "This statement "+v+" "+kind+" ") && strings.HasSuffix(m, " twice.") {
+			return true
+		}
+	}
+	return false
+}
+
+// saysWrongKind reports whether a message says a relation is of another
+// kind than the statement needs.
+func saysWrongKind(m string) bool {
+	for _, need := range []string{"table", "view", "sequence"} {
+		if strings.HasSuffix(m, ", not a "+need+".") || strings.HasSuffix(m, " isn't a "+need+".") {
+			return true
+		}
+	}
+	return false
+}
+
+// leads reports whether a statement starts with one of phrases, each a
+// run of keywords.
+func leads(stmt string, phrases ...string) bool {
+	f := strings.Fields(strings.ToUpper(stmt))
+	for _, p := range phrases {
+		if w := strings.Fields(p); len(f) >= len(w) && slices.Equal(f[:len(w)], w) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *tidbEngine) Codes(message string) []string {
 	for _, c := range walkCodes {
-		if c.match(message) {
+		if c.match(message, e.reported) {
 			return c.codes
 		}
 	}

@@ -495,7 +495,7 @@ func TestOnlineMigration(t *testing.T) {
 			name:   "asked for",
 			sql:    "ALTER TABLE t ADD (m NUMBER);",
 			change: review.Change{OnlineMigration: true},
-			want:   []finding{{-1, "", "the change requests online migration, which Oracle does not support", []int{0}}},
+			want:   []finding{{-1, "", "Oracle doesn't support online migration.\n\nTurn off **Online migration** for this change.", []int{0}}},
 		},
 	})
 }
@@ -513,69 +513,69 @@ func TestPriorBackup(t *testing.T) {
 				s.Name = "S'HOP"
 				return s
 			}(), BackupDatabaseExists: true}},
-			want: []finding{{-1, "", "prior backup writes the database name S'HOP unescaped into a quoted comment, which its single quote breaks", []int{0}}},
+			want: []finding{{-1, "", "Prior backup can't run: the single quote in the database's name breaks the backup's comment.\n\nTurn off **Prior backup** for this change.", []int{0}}},
 		},
 		{
 			name:   "an updatable view with a LONG column",
 			sql:    "UPDATE longv SET body = NULL WHERE ROWNUM = 1;",
 			change: backup,
-			want:   []finding{{0, "UPDATE longv SET body = NULL WHERE ROWNUM = 1", "prior backup copies LONGV with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column BODY (ORA-00997)", []int{0}}},
+			want:   []finding{{0, "UPDATE longv SET body = NULL WHERE ROWNUM = 1", "Prior backup can't copy `LONGV`: `CREATE TABLE AS SELECT` rejects its `LONG` column `BODY`.\n\nTurn off **Prior backup** for this change.", []int{0}}},
 		},
 		{
 			name:    "no BBDATAARCHIVE",
 			sql:     "UPDATE t SET n = 1 WHERE id = 1;",
 			change:  backup,
 			targets: []review.Target{{Schema: shop()}},
-			want:    []finding{{-1, "", "prior backup needs database BBDATAARCHIVE, which does not exist", []int{0}}},
+			want:    []finding{{-1, "", "Prior backup needs the backup schema `BBDATAARCHIVE`, which doesn't exist.\n\nCreate it, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "over the size limit",
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;",
 			change: review.Change{PriorBackup: true, MaxBackupSize: 10},
-			want:   []finding{{-1, "", "the change is 32 bytes, over the 10-byte limit of prior backup", []int{0}}},
+			want:   []finding{{-1, "", "The change is over prior backup's size limit of 10 bytes.\n\nSplit it into smaller changes, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "nothing to back up",
 			sql:    "ALTER TABLE t ADD (m NUMBER);\nINSERT INTO t (id) VALUES (3);\nMERGE INTO t USING p ON (t.id = p.id) WHEN MATCHED THEN UPDATE SET t.n = 1;\nBEGIN DELETE FROM t WHERE id = 1; END;\n/\nUPDATE (SELECT * FROM t) SET n = 1 WHERE id = 1;",
 			change: backup,
-			want:   []finding{{-1, "", "prior backup copies the rows of top-level UPDATE and DELETE statements on a table, and the change has none, which fails the backup", []int{0}}},
+			want:   []finding{{-1, "", "Prior backup fails on this change: it has no `UPDATE` or `DELETE` of a table.\n\nTurn off **Prior backup** for this change.", []int{0}}},
 		},
 		{
 			name:   "a database link, and a quote in a name",
 			sql:    "UPDATE t@lnk SET n = 1 WHERE id = 1;\nDELETE FROM \"a'b\" WHERE id = 1;\nDELETE FROM \"a'b\" WHERE id = 2;",
 			change: backup,
 			want: []finding{
-				{0, "UPDATE t@lnk SET n = 1 WHERE id = 1", "prior backup does not support table T@LNK, referenced through a database link", []int{0}},
-				{1, `DELETE FROM "a'b" WHERE id = 1`, `prior backup writes the name of table "a'b" unescaped into a quoted comment, which its single quote breaks`, []int{0}},
+				{0, "UPDATE t@lnk SET n = 1 WHERE id = 1", "Prior backup can't back up `T@LNK` through a database link.\n\nTurn off **Prior backup** for this change.", []int{0}},
+				{1, `DELETE FROM "a'b" WHERE id = 1`, "Prior backup can't back up `\"a'b\"`: the single quote in its name breaks the backup's comment.\n\nTurn off **Prior backup** for this change.", []int{0}},
 			},
 		},
 		{
 			name:   "UPDATE and DELETE on one table",
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM shop.t WHERE id = 2;\nDELETE FROM other.p WHERE id = 1;\nUPDATE p SET note = 'x' WHERE id = 1;",
 			change: backup,
-			want:   []finding{{1, "DELETE FROM shop.t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on SHOP.T", []int{0}}},
+			want:   []finding{{1, "DELETE FROM shop.t WHERE id = 2", "Prior backup can't back up `SHOP.T`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:    "UPDATE and DELETE on one table, without a synced schema",
 			sql:     "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM shop.t WHERE id = 2;\nDELETE FROM t WHERE id = 3;",
 			change:  backup,
 			targets: []review.Target{{BackupDatabaseExists: true}},
-			want:    []finding{{2, "DELETE FROM t WHERE id = 3", "prior backup cannot back up both UPDATE and DELETE on T", []int{0}}},
+			want:    []finding{{2, "DELETE FROM t WHERE id = 3", "Prior backup can't back up `T`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "a LONG column",
 			sql:    "DELETE FROM longt WHERE id = 1;\nDELETE FROM longt WHERE id = 2;",
 			change: backup,
-			want:   []finding{{0, "DELETE FROM longt WHERE id = 1", "prior backup copies LONGT with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column BODY (ORA-00997)", []int{0}}},
+			want:   []finding{{0, "DELETE FROM longt WHERE id = 1", "Prior backup can't copy `LONGT`: `CREATE TABLE AS SELECT` rejects its `LONG` column `BODY`.\n\nTurn off **Prior backup** for this change.", []int{0}}},
 		},
 		{
 			name:   "a table the change makes, named with its schema",
 			sql:    "CREATE TABLE n2 (id NUMBER PRIMARY KEY);\nUPDATE shop.n2 SET id = 2 WHERE id = 1;\nDELETE FROM t WHERE id IN (SELECT id FROM shop.n2);\nUPDATE n2 SET id = 3 WHERE id = 2;",
 			change: backup,
 			want: []finding{
-				{1, "UPDATE shop.n2 SET id = 2 WHERE id = 1", "prior backup runs before the change, when SHOP.N2 does not exist yet", []int{0}},
-				{2, "DELETE FROM t WHERE id IN (SELECT id FROM shop.n2)", "prior backup runs before the change, when SHOP.N2 does not exist yet", []int{0}},
-				{3, "UPDATE n2 SET id = 3 WHERE id = 2", "prior backup runs before the change, when N2 does not exist yet", []int{0}},
+				{1, "UPDATE shop.n2 SET id = 2 WHERE id = 1", "Prior backup runs before the change, when `SHOP.N2` doesn't exist yet.\n\nCreate `SHOP.N2` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{2, "DELETE FROM t WHERE id IN (SELECT id FROM shop.n2)", "Prior backup runs before the change, when `SHOP.N2` doesn't exist yet.\n\nCreate `SHOP.N2` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{3, "UPDATE n2 SET id = 3 WHERE id = 2", "Prior backup runs before the change, when `N2` doesn't exist yet.\n\nCreate `N2` in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -593,15 +593,15 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "ALTER TABLE nokey ADD (gone NUMBER);\nDELETE FROM nokey WHERE gone = 1;\nALTER TABLE p RENAME COLUMN note TO memo;\nUPDATE p x SET x.id = 1 WHERE x.memo = 'a';\nUPDATE t SET n = 1 WHERE n IN (SELECT gone FROM nokey);\nALTER TABLE t ADD (gone2 NUMBER);\nUPDATE t SET gone2 = 1 WHERE id = 1;",
 			change: backup,
 			want: []finding{
-				{1, "DELETE FROM nokey WHERE gone = 1", "prior backup runs before the change, when column GONE of NOKEY does not exist yet", []int{0}},
-				{3, "UPDATE p x SET x.id = 1 WHERE x.memo = 'a'", "prior backup runs before the change, when column MEMO of P does not exist yet", []int{0}},
+				{1, "DELETE FROM nokey WHERE gone = 1", "Prior backup runs before the change, when column `GONE` of `NOKEY` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{3, "UPDATE p x SET x.id = 1 WHERE x.memo = 'a'", "Prior backup runs before the change, when column `MEMO` of `P` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
 			name:   "a column of a joined table in an UPDATE's FROM list",
 			sql:    "ALTER TABLE p ADD (memo NUMBER);\nUPDATE t SET n = 1 FROM p WHERE t.p_id = p.id AND p.memo = 1;",
 			change: backup,
-			want:   []finding{{1, "UPDATE t SET n = 1 FROM p WHERE t.p_id = p.id AND p.memo = 1", "prior backup runs before the change, when column MEMO of P does not exist yet", []int{0}}},
+			want:   []finding{{1, "UPDATE t SET n = 1 FROM p WHERE t.p_id = p.id AND p.memo = 1", "Prior backup runs before the change, when column `MEMO` of `P` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "statements after the session moves to another schema",
@@ -723,9 +723,9 @@ func TestTargetsMerge(t *testing.T) {
 		got = append(got, finding{f.Statement, sql[f.Range.Start:f.Range.End], f.Message, f.Targets})
 	}
 	want := []finding{
-		{-1, "", "prior backup needs database BBDATAARCHIVE, which does not exist", []int{1}},
-		{0, "DELETE FROM longt WHERE id = 1", "prior backup copies LONGT with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column BODY (ORA-00997)", []int{0, 2}},
-		{1, "t", "Table or view T does not exist", []int{1}},
+		{-1, "", "Prior backup needs the backup schema `BBDATAARCHIVE`, which doesn't exist.\n\nCreate it, or turn off **Prior backup**.", []int{1}},
+		{0, "DELETE FROM longt WHERE id = 1", "Prior backup can't copy `LONGT`: `CREATE TABLE AS SELECT` rejects its `LONG` column `BODY`.\n\nTurn off **Prior backup** for this change.", []int{0, 2}},
+		{1, "t", "Table `T` doesn't exist.", []int{1}},
 		{1, "DROP CONSTRAINT ck_n", "Drops check constraint `CK_N` of `T`.", []int{0, 2}},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {

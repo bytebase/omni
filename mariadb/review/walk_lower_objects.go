@@ -43,7 +43,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return false
 	}
 	if k == primaryIndex {
-		b.fail(rng, nil, review.ReservedName, "Index name PRIMARY is reserved for the primary key") // 1280
+		b.fail(rng, nil, review.ReservedName, reservedPrimary) // 1280
 		return true
 	}
 	ik := idxKey(r.db, r.name, k)
@@ -54,7 +54,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		b.Next()
 		b.Optional()
 	default:
-		b.need(ik, walk.Absent, nil, rng, "", "Index "+ident(v.IndexName)+" already exists in table "+r.written) // 1061
+		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
 	}
 	b.Set(ik, walk.Present, "")
 	return true
@@ -85,10 +85,10 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	k := relKey(r.db, r.name)
 	if v.OrReplace {
 		if f, _ := b.l.Lookup(k); f == walk.Present {
-			b.need(k, walk.Present, []string{relView}, r.rng, "", r.written+" is not a view") // 1347
+			b.needKind(k, []string{relView}, r.rng, "", r.written, "view") // 1347
 		}
 	} else {
-		b.need(k, walk.Absent, nil, r.rng, "", "Table "+r.written+" already exists") // 1050
+		b.needFree(k, r.rng, r.written, relView) // 1050
 	}
 	b.Set(k, walk.Present, relView)
 	return true
@@ -100,7 +100,7 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 	case refFailed:
 		return true
 	case refOK:
-		b.need(relKey(r.db, r.name), walk.Present, []string{relView}, r.rng, "Table "+r.written+" does not exist", r.written+" is not a view") // 1146, 1347
+		b.needKind(relKey(r.db, r.name), []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
 	}
 	return true
 }
@@ -121,7 +121,7 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 		k := relKey(r.db, r.name)
 		f, kind := b.l.Lookup(k)
 		if !v.IfExists {
-			b.need(k, walk.Present, []string{relView}, r.rng, "View "+r.written+" does not exist", r.written+" is not a view") // 4092
+			b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 4092
 		}
 		switch {
 		case kind == relView:
@@ -156,7 +156,7 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	switch {
 	case f == walk.Present && spelling == v.Name:
 		if !v.IfNotExists && !v.OrReplace {
-			b.need(tk, walk.Absent, nil, rng, "", "Trigger "+ident(v.Name)+" already exists") // 1359
+			b.need(tk, walk.Absent, nil, rng, "", alreadyExists("trigger", ident(v.Name), "")) // 1359
 		}
 	case f == walk.Present:
 		// A case variant, or a spelling the walk does not have: MariaDB
@@ -182,7 +182,7 @@ func (b *builder) dropTrigger(v *ast.DropTriggerStmt) bool {
 	}
 	tk := objKey(spaceTrigger, db, k)
 	if !v.IfExists {
-		b.need(tk, walk.Present, nil, b.anchor(), "Trigger "+ident(v.Name.Name)+" does not exist", "") // 1360
+		b.need(tk, walk.Present, nil, b.anchor(), notFound("trigger", table(v.Name), ""), "") // 1360
 	}
 	if f, spelling := b.l.Lookup(tk); f == walk.Present && spelling == v.Name.Name || f == walk.Absent {
 		b.Set(tk, walk.Absent, "")
@@ -215,7 +215,7 @@ func (b *builder) dbObject(space string, tr *ast.TableRef) (string, string, refS
 	case b.w.lost:
 		return "", "", refUnknown
 	case b.w.noDatabase:
-		b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabaseMessage)
+		b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabase(table(tr)))
 		return "", "", refFailed
 	}
 	return k, b.w.current, refOK
@@ -234,9 +234,9 @@ func (b *builder) createdObject(space string, tr *ast.TableRef) (string, string,
 
 func routineSpace(procedure bool) (string, string) {
 	if procedure {
-		return spaceProcedure, "PROCEDURE "
+		return spaceProcedure, "procedure"
 	}
-	return spaceFunction, "FUNCTION "
+	return spaceFunction, "function"
 }
 
 func (b *builder) createRoutine(v *ast.CreateFunctionStmt) bool {
@@ -254,7 +254,7 @@ func (b *builder) createRoutine(v *ast.CreateFunctionStmt) bool {
 	}
 	rk := objKey(space, db, k)
 	if !v.IfNotExists && !v.OrReplace {
-		b.need(rk, walk.Absent, nil, b.anchor(), "", word+ident(v.Name.Name)+" already exists") // 1304
+		b.need(rk, walk.Absent, nil, b.anchor(), "", alreadyExists(word, table(v.Name), "")) // 1304
 	}
 	b.Set(rk, walk.Present, "")
 	return true
@@ -263,7 +263,7 @@ func (b *builder) createRoutine(v *ast.CreateFunctionStmt) bool {
 func (b *builder) alterRoutine(v *ast.AlterRoutineStmt) bool {
 	space, word := routineSpace(v.IsProcedure)
 	if k, db, st := b.dbObject(space, v.Name); st == refOK {
-		b.need(objKey(space, db, k), walk.Present, nil, b.anchor(), word+ident(v.Name.Name)+" does not exist", "") // 1305
+		b.need(objKey(space, db, k), walk.Present, nil, b.anchor(), notFound(word, table(v.Name), ""), "") // 1305
 	}
 	return true
 }
@@ -296,7 +296,7 @@ func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 		return true
 	}
 	if !v.IfExists {
-		b.need(rk, walk.Present, nil, b.anchor(), word+ident(v.Name.Name)+" does not exist", "") // 1305
+		b.need(rk, walk.Present, nil, b.anchor(), notFound(word, table(v.Name), ""), "") // 1305
 	}
 	b.Set(rk, walk.Absent, "")
 	return true
@@ -316,7 +316,7 @@ func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
 		return st == refFailed
 	}
 	if !v.IfNotExists && !v.OrReplace {
-		b.need(ek, walk.Absent, nil, b.anchor(), "", "Event "+ident(v.Name)+" already exists") // 1537
+		b.need(ek, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.Name), "")) // 1537
 	}
 	b.Set(ek, walk.Present, "")
 	return true
@@ -327,14 +327,14 @@ func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
 	if st != refOK {
 		return st == refFailed
 	}
-	b.need(ek, walk.Present, nil, b.anchor(), "Event "+ident(v.Name)+" does not exist", "") // 1539
+	b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
 	if v.RenameTo != "" {
 		nk, st := b.event(v.RenameTo)
 		if st != refOK {
 			return st == refFailed
 		}
 		if nk != ek {
-			b.need(nk, walk.Absent, nil, b.anchor(), "", "Event "+ident(v.RenameTo)+" already exists") // 1537
+			b.need(nk, walk.Absent, nil, b.anchor(), "", alreadyExists("event", ident(v.RenameTo), "")) // 1537
 			b.Set(ek, walk.Absent, "")
 		}
 		b.Set(nk, walk.Present, "")
@@ -348,7 +348,7 @@ func (b *builder) dropEvent(v *ast.DropEventStmt) bool {
 		return st == refFailed
 	}
 	if !v.IfExists {
-		b.need(ek, walk.Present, nil, b.anchor(), "Event "+ident(v.Name)+" does not exist", "") // 1539
+		b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
 	}
 	b.Set(ek, walk.Absent, "")
 	return true
@@ -388,7 +388,7 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 		switch {
 		case temp:
 		case f == walk.Absent:
-			b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, "Table "+r.written+" does not exist", "") // 1146
+			b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, notFound("", r.written, ""), "") // 1146
 		case f == walk.Unknown, kind != relTable:
 			fires = true
 		default:

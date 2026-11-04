@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -55,12 +56,24 @@ type walkNote struct {
 	absent                  string
 	present                 string
 	absentCode, presentCode review.FindingCode
+	// kind, when set, is the kind of object the statement takes or
+	// creates under the name written, so that the finding can say what
+	// the violation found: under a Present check an object of another
+	// known kind is "w is a <found>, not a <kind>", and under an Absent
+	// check one of kind itself "<Kind> w already exists".
+	written, kind string
 }
 
 // finding returns the code and the message of the violation.
 func (n *walkNote) finding(v *walk.Violation) (review.FindingCode, string) {
-	if v.Got == walk.Absent {
+	switch {
+	case v.Got == walk.Absent:
 		return n.absentCode, n.absent
+	case n.kind == "" || v.Kind == "":
+	case v.Check.Want == walk.Absent && v.Kind == n.kind:
+		return n.presentCode, takenKind(n.kind, n.written)
+	case v.Check.Want == walk.Present && v.Kind != n.kind:
+		return n.presentCode, wrongKind(n.written, v.Kind, kindWord(n.kind))
 	}
 	return n.presentCode, n.present
 }
@@ -284,7 +297,7 @@ func (b *builder) tooLong(name string, rng review.Range) bool {
 	if len(name) <= identifierLimit || outsideASCII(name) {
 		return false
 	}
-	b.fail(rng, review.NameTooLong, "The identifier "+ident(name[:32])+"... is longer than 128 bytes")
+	b.fail(rng, review.NameTooLong, "The name "+review.Code(ident(name[:32])+"…")+" is longer than Oracle's "+strconv.Itoa(identifierLimit)+"-byte limit.")
 	return true
 }
 
@@ -431,21 +444,83 @@ func contains(xs []string, x string) bool {
 	return false
 }
 
-// article writes an object kind with its article, for a message.
-func article(kind string) string {
-	return "a " + strings.ToLower(kind)
+// kindWord writes an object kind as a message names it: "table",
+// "materialized view".
+func kindWord(kind string) string { return strings.ToLower(kind) }
+
+// article writes a kind word with its article.
+func article(word string) string {
+	if word != "" && strings.ContainsRune("aeiou", rune(word[0])) {
+		return "an " + word
+	}
+	return "a " + word
 }
 
-// Messages, worded as Oracle's errors are.
-func missingTable(w string) string { return "Table or view " + w + " does not exist" }
-func takenName(w string) string    { return "Name " + w + " is already used by an existing object" }
-func takenConstraint(n string) string {
-	return "Name " + ident(n) + " is already used by an existing constraint"
+// renamable names the kinds RENAME renames, for a message.
+const renamable = "table, view, sequence, or private synonym"
+
+// Messages, one shape per finding code. w is a reference as objectName
+// writes it, n a bare identifier, each written as a code span.
+
+// missingKind is review.ObjectNotFound of an object of a kind: "Table `T`
+// doesn't exist."
+func missingKind(kind, w string) string {
+	word := kindWord(kind)
+	return strings.ToUpper(word[:1]) + word[1:] + " " + review.Code(w) + " doesn't exist."
 }
-func missingObject(w string) string   { return "Object " + w + " does not exist" }
-func missingIndex(w string) string    { return "Index " + w + " does not exist" }
-func missingTrigger(w string) string  { return "Trigger " + w + " does not exist" }
-func missingSequence(w string) string { return "Sequence " + w + " does not exist" }
+
+func missingTable(w string) string    { return missingKind(kindTable, w) }
+func missingView(w string) string     { return missingKind(kindView, w) }
+func missingIndex(w string) string    { return missingKind("index", w) }
+func missingTrigger(w string) string  { return missingKind("trigger", w) }
+func missingSequence(w string) string { return missingKind(kindSequence, w) }
+func missingSynonym(w string) string  { return missingKind("private synonym", w) }
+
+// missingName is review.ObjectNotFound of a name no object of the kinds a
+// statement takes holds.
+func missingName(w string) string { return review.Code(w) + " doesn't exist." }
+
+// missingIn is review.ObjectNotFound of a column or constraint of a table.
+func missingIn(kind, n, table string) string {
+	return kind + " " + review.Code(ident(n)) + " doesn't exist in " + review.Code(table) + "."
+}
+
+// takenName is review.NameTaken in a namespace objects of several kinds
+// share, or of an object of a kind the walk does not know.
+func takenName(w string) string { return "The name " + review.Code(w) + " is already taken." }
+
+// takenKind is review.NameTaken by an object of the kind the statement
+// creates: "Table `T` already exists."
+func takenKind(kind, w string) string {
+	word := kindWord(kind)
+	return strings.ToUpper(word[:1]) + word[1:] + " " + review.Code(w) + " already exists."
+}
+
+func takenConstraint(n string) string {
+	return "Constraint " + review.Code(ident(n)) + " already exists."
+}
+
+func takenColumn(n, table string) string {
+	return "Column " + review.Code(ident(n)) + " already exists in " + review.Code(table) + "."
+}
+
+func takenPrimaryKey(table string) string { return review.Code(table) + " already has a primary key." }
+
+// wrongKind is review.WrongObjectKind: w is an object of kind found, and
+// the statement takes one of needed, a kind word.
+func wrongKind(w, found, needed string) string {
+	return review.Code(w) + " is " + article(kindWord(found)) + ", not " + article(needed) + "."
+}
+
+// notKind is review.WrongObjectKind of an object whose kind the message
+// does not name.
+func notKind(w, needed string) string { return review.Code(w) + " isn't " + article(needed) + "." }
+
+// twice is review.DuplicateName: the statement names n twice, as verb
+// says, a column or a constraint.
+func twice(verb, kind, n string) string {
+	return "This statement " + verb + " " + kind + " " + review.Code(ident(n)) + " twice."
+}
 
 // callsUserCode reports whether a statement may run code of a schema: a
 // function call that is qualified, quoted, or whose name is not an Oracle

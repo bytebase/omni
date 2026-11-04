@@ -53,7 +53,7 @@ func (b *builder) statement(n ast.Node) bool {
 		// Another kind of relation fails, under IF EXISTS too (42809,
 		// verified on PostgreSQL 17).
 		if r := b.exists(v.Sequence, v.MissingOk); r.fact == walk.Present {
-			b.need(r.key, walk.Present, []string{relSequence}, &walkNote{rng: rangeOf(v.Sequence.Loc), present: "cannot open relation " + relation(v.Sequence)})
+			b.need(r.key, walk.Present, []string{relSequence}, ofKind(rangeOf(v.Sequence.Loc), relation(v.Sequence), relSequence))
 		}
 		return true
 	case *ast.RefreshMatViewStmt:
@@ -141,12 +141,13 @@ func qualifiedCatalog(fc *ast.FuncCall) bool {
 	return len(parts) == 2 && parts[0] == "pg_catalog"
 }
 
-// missing is the message for a relation that resolves nowhere.
-func missing(r resolved, written string) string {
+// missing is the message for a relation that resolves nowhere, of the
+// kind the statement names, "" for any.
+func missing(r resolved, kind, written string) string {
 	if r.missingSchema != "" {
-		return "schema " + ident(r.missingSchema) + " does not exist"
+		return schemaNotFound(r.missingSchema)
 	}
-	return "relation " + written + " does not exist"
+	return notFound(kind, written)
 }
 
 // exists checks that a relation the statement names exists (42P01; a
@@ -157,7 +158,7 @@ func (b *builder) exists(rv *ast.RangeVar, missingOK bool) resolved {
 	case r.fail != "":
 		b.failAt(rangeOf(rv.Loc), nil, review.CrossDatabaseReference, r.fail)
 	case r.fact == walk.Absent && !missingOK:
-		b.failAt(rangeOf(rv.Loc), r.keys, review.ObjectNotFound, missing(r, relation(rv)))
+		b.failAt(rangeOf(rv.Loc), r.keys, review.ObjectNotFound, missing(r, "", relation(rv)))
 	}
 	return r
 }
@@ -173,7 +174,7 @@ func (b *builder) opened(rv *ast.RangeVar) resolved {
 	case r.fail != "":
 		b.failAt(rangeOf(rv.Loc), nil, review.CrossDatabaseReference, r.fail)
 	case r.fact == walk.Absent:
-		b.failAt(rangeOf(rv.Loc), r.keys, review.ObjectNotFound, "relation "+relation(rv)+" does not exist")
+		b.failAt(rangeOf(rv.Loc), r.keys, review.ObjectNotFound, notFound("", relation(rv)))
 	}
 	return r
 }
@@ -189,7 +190,7 @@ func hasColumns(kind string) bool {
 // existsOfKind checks that a relation exists and is of the kind (42809).
 func (b *builder) existsOfKind(rv *ast.RangeVar, kind, word string) {
 	if r := b.exists(rv, false); r.fact == walk.Present {
-		b.need(r.key, walk.Present, []string{kind}, &walkNote{rng: rangeOf(rv.Loc), present: relation(rv) + " is not a " + word})
+		b.need(r.key, walk.Present, []string{kind}, ofKind(rangeOf(rv.Loc), relation(rv), word))
 	}
 }
 
@@ -238,13 +239,13 @@ func (b *builder) createSchema(v *ast.CreateSchemaStmt) bool {
 		return true
 	}
 	if strings.HasPrefix(name, "pg_") {
-		b.fail(nil, walk.Present, review.ReservedName, "unacceptable schema name "+ident(written)) // 42939
+		b.fail(nil, walk.Present, review.ReservedName, reservedSchema(written)) // 42939
 		return true
 	}
 	k := schemaKey(name)
 	prior, _ := b.l.Lookup(k)
 	if !v.IfNotExists {
-		b.need(k, walk.Absent, nil, &walkNote{rng: b.anchor(), present: "schema " + ident(written) + " already exists"}) // 42P06
+		b.need(k, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("schema", ident(written))}) // 42P06
 		prior = walk.Absent
 	}
 	switch prior {
@@ -391,7 +392,7 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	if b.crossDatabase(rv) {
 		return true
 	}
-	c := b.creationSchema(rv.Schemaname, temp)
+	c := b.creationSchema(rv.Schemaname, rv.Relname, temp)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.code, c.fail) // 3F000
 		return true
@@ -406,13 +407,13 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	prior, _ := b.l.Lookup(k)
 	switch {
 	case !v.IfNotExists:
-		b.need(k, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + relation(rv) + " already exists"}) // 42P07
-		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})    // 42710
+		b.need(k, walk.Absent, nil, taken(rng, relTable, relation(rv)))                                 // 42P07
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 		prior = walk.Absent
 	case prior == walk.Present:
 		return true // a notice: nothing is created
 	case prior == walk.Absent:
-		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))})
 	}
 
 	if prior == walk.Absent {
@@ -441,14 +442,14 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 					continue
 				}
 				if seen[n] {
-					b.failAt(rangeOf(col.Loc), nil, review.DuplicateName, "column "+ident(col.Colname)+" specified more than once") // 42701
+					b.failAt(rangeOf(col.Loc), nil, review.DuplicateName, twice("declares", "column", ident(col.Colname))) // 42701
 					return true
 				}
 				seen[n] = true
 			}
 			for _, col := range cols {
 				if n, ok := walkName(col.Colname); ok && systemColumns[n] {
-					b.failAt(rangeOf(col.Loc), nil, review.ReservedName, "column name "+ident(col.Colname)+" conflicts with a system column name") // 42701
+					b.failAt(rangeOf(col.Loc), nil, review.ReservedName, systemColumnName(col.Colname)) // 42701
 					return true
 				}
 			}
@@ -458,12 +459,12 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 			if con.Contype == ast.CONSTR_PRIMARY {
 				primaries++
 				if primaries > 1 {
-					b.failAt(rangeOf(con.Loc), nil, review.NameTaken, "multiple primary keys for table "+relation(rv)+" are not allowed") // 42P16
+					b.failAt(rangeOf(con.Loc), nil, review.NameTaken, hasPrimaryKey(relation(rv))) // 42P16
 					return true
 				}
 			}
 		}
-		if msg, rng, ok := duplicateConstraint(rv, cons); ok {
+		if msg, rng, ok := duplicateConstraint(cons); ok {
 			b.failAt(rng, nil, review.DuplicateName, msg)
 			return true
 		}
@@ -471,7 +472,7 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 		// table already holds (42P07, verified on PostgreSQL 17).
 		for _, con := range cons {
 			if n, ok := walkName(con.Conname); ok && n == name && indexBacked(constraintKind(con.Contype)) {
-				b.failAt(rangeOf(con.Loc), nil, review.DuplicateName, "relation "+ident(con.Conname)+" already exists")
+				b.failAt(rangeOf(con.Loc), nil, review.DuplicateName, twice("declares", "", ident(con.Conname)))
 				return true
 			}
 		}
@@ -584,27 +585,18 @@ func storedKey(name string) (string, bool) {
 //
 // pg: src/backend/catalog/heap.c — AddRelationNewConstraints;
 // src/backend/catalog/index.c — index_create
-func duplicateConstraint(rv *ast.RangeVar, cons []*ast.Constraint) (string, review.Range, bool) {
-	seen := make(map[string]string)
+func duplicateConstraint(cons []*ast.Constraint) (string, review.Range, bool) {
+	seen := make(map[string]bool)
 	for _, con := range cons {
-		kind := constraintKind(con.Contype)
 		key, ok := storedKey(con.Conname)
-		if kind == "" || !ok {
+		if constraintKind(con.Contype) == "" || !ok {
 			continue
 		}
-		prev, ok := seen[key]
-		if !ok {
-			seen[key] = kind
+		if !seen[key] {
+			seen[key] = true
 			continue
 		}
-		msg := "constraint " + ident(con.Conname) + " for relation " + relation(rv) + " already exists"
-		switch {
-		case indexBacked(prev) && indexBacked(kind):
-			msg = "relation " + ident(con.Conname) + " already exists"
-		case prev == conCheck && kind == conCheck:
-			msg = "check constraint " + ident(con.Conname) + " already exists"
-		}
-		return msg, rangeOf(con.Loc), true
+		return twice("declares", "constraint", ident(con.Conname)), rangeOf(con.Loc), true
 	}
 	return "", review.Range{}, false
 }
@@ -702,7 +694,7 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 	if con.Contype == ast.CONSTR_PRIMARY {
 		pk := primaryKeyOf(t)
 		if alter {
-			b.need(pk, walk.Absent, nil, &walkNote{rng: rng, present: "multiple primary keys for table " + relation(rv) + " are not allowed"}) // 42P16
+			b.need(pk, walk.Absent, nil, &walkNote{rng: rng, present: hasPrimaryKey(relation(rv))}) // 42P16
 		}
 		b.set(pk, walk.Present, "")
 	}
@@ -733,13 +725,13 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 	// name both in use fails on the index (verified on PostgreSQL 17).
 	if indexBacked(kind) {
 		ik := relKey(s, name)
-		b.need(ik, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + ident(con.Conname) + " already exists"}) // 42P07
+		b.need(ik, walk.Absent, nil, taken(rng, relIndex, ident(con.Conname))) // 42P07
 		b.set(ik, walk.Present, relIndex)
 		b.forget(walk.Scope{Parent: tableOf(ik), Deep: true})
 	}
 	ck := constraintKey(t, name)
 	if alter {
-		b.need(ck, walk.Absent, nil, &walkNote{rng: rng, present: "constraint " + ident(con.Conname) + " for relation " + relation(rv) + " already exists"}) // 42710
+		b.need(ck, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExistsIn("constraint", ident(con.Conname), relation(rv))}) // 42710
 	}
 	if inh && ((con.Contype == ast.CONSTR_CHECK && !con.IsNoInherit) || partitionIndexes) {
 		b.mayAdd(walk.Scope{Space: spaceConstraint, Deep: true, Prefix: name})
@@ -765,7 +757,9 @@ func (b *builder) usingIndex(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 		return
 	}
 	ik := relKey(s, idx)
-	b.need(ik, walk.Present, []string{relIndex}, &walkNote{rng: rng, absent: "index " + ident(con.Indexname) + " does not exist", present: ident(con.Indexname) + " is not an index"})
+	note := ofKind(rng, ident(con.Indexname), relIndex)
+	note.absent = notFound(relIndex, ident(con.Indexname))
+	b.need(ik, walk.Present, []string{relIndex}, note)
 	name, written := idx, con.Indexname
 	if con.Conname != "" {
 		n, ok := walkName(con.Conname)
@@ -778,14 +772,14 @@ func (b *builder) usingIndex(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 	}
 	if name != idx {
 		nk := relKey(s, name)
-		b.need(nk, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + ident(written) + " already exists"}) // 42P07
+		b.need(nk, walk.Absent, nil, taken(rng, relIndex, ident(written))) // 42P07
 		b.set(ik, walk.Absent, "")
 		b.set(nk, walk.Present, relIndex)
 		b.forget(walk.Scope{Parent: tableOf(nk), Deep: true})
 	}
 	ck := constraintKey(t, name)
 	if alter {
-		b.need(ck, walk.Absent, nil, &walkNote{rng: rng, present: "constraint " + ident(written) + " for relation " + relation(rv) + " already exists"}) // 42710
+		b.need(ck, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExistsIn("constraint", ident(written), relation(rv))}) // 42710
 	}
 	b.set(ck, walk.Present, kind)
 }
@@ -842,7 +836,7 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 	b.Last = b.w.callsUserCode(v)
 	r := b.exists(v.Relation, false)
 	if r.fact == walk.Present {
-		b.need(r.key, walk.Present, []string{relTable, relMatview}, &walkNote{rng: rangeOf(v.Relation.Loc), present: "cannot create index on relation " + relation(v.Relation)})
+		b.need(r.key, walk.Present, []string{relTable, relMatview}, ofKind(rangeOf(v.Relation.Loc), relation(v.Relation), "table or materialized view"))
 	}
 	if r.fact != walk.Present {
 		if v.Idxname != "" {
@@ -862,7 +856,7 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 		if v.Concurrent && r.kind == relTable {
 			// Unsupported (0A000, verified on PostgreSQL 17 and 18 outside
 			// a transaction, as Bytebase runs CONCURRENTLY).
-			b.failAt(rangeOf(v.Relation.Loc), nil, review.UnsupportedForm, "cannot create index on partitioned table "+relation(v.Relation)+" concurrently")
+			b.failAt(rangeOf(v.Relation.Loc), nil, review.UnsupportedForm, unsupported("`CREATE INDEX CONCURRENTLY` on partitioned table "+review.Code(relation(v.Relation))))
 			return true
 		}
 		// Each partition gets an index of its own, in its own schema.
@@ -880,7 +874,7 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 	ik := relKey(schemaOfKey(r.key), name)
 	prior, _ := b.l.Lookup(ik)
 	if !v.IfNotExists {
-		b.need(ik, walk.Absent, nil, &walkNote{rng: b.anchor(), present: "relation " + ident(v.Idxname) + " already exists"}) // 42P07
+		b.need(ik, walk.Absent, nil, taken(b.anchor(), relIndex, ident(v.Idxname))) // 42P07
 		prior = walk.Absent
 	}
 	switch prior {
@@ -915,7 +909,7 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 	if b.crossDatabase(rv) {
 		return true
 	}
-	c := b.creationSchema(rv.Schemaname, temp)
+	c := b.creationSchema(rv.Schemaname, rv.Relname, temp)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.code, c.fail)
 		return true
@@ -929,15 +923,15 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 	tk := typeKey(c.schema, name)
 	switch prior, _ := b.l.Lookup(k); {
 	case !v.Replace:
-		b.need(k, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + relation(rv) + " already exists"}) // 42P07
-		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})    // 42710
+		b.need(k, walk.Absent, nil, taken(rng, relView, relation(rv)))                                  // 42P07
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 	case prior == walk.Present:
 		// OR REPLACE replaces a view and nothing else (42809, verified on
 		// PostgreSQL 17 and 18).
-		b.need(k, walk.Present, []string{relView}, &walkNote{rng: rng, present: relation(rv) + " is not a view"})
+		b.need(k, walk.Present, []string{relView}, ofKind(rng, relation(rv), relView))
 	case prior == walk.Absent:
 		// It creates the view, whose row type takes the name (42710).
-		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))})
 	}
 	// OR REPLACE may create the view as well as replace it; holds asks
 	// the ledger whether it is still there.
@@ -970,7 +964,7 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 	if b.crossDatabase(rv) {
 		return true
 	}
-	c := b.creationSchema(rv.Schemaname, temp)
+	c := b.creationSchema(rv.Schemaname, rv.Relname, temp)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.code, c.fail)
 		return true
@@ -989,15 +983,15 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 	prior, _ := b.l.Lookup(k)
 	switch {
 	case !ifNotExists:
-		b.need(k, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + relation(rv) + " already exists"}) // 42P07
-		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})    // 42710
+		b.need(k, walk.Absent, nil, taken(rng, kind, relation(rv)))                                     // 42P07
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 		prior = walk.Absent
 	case prior == walk.Present:
 		return true
 	case prior == walk.Absent:
 		// IF NOT EXISTS looks at the relation alone (verified on
 		// PostgreSQL 17).
-		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"}) // 42710
+		b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
 	}
 	parent := tableOf(k)
 	if prior == walk.Absent {
@@ -1032,7 +1026,7 @@ func (b *builder) createSequence(v *ast.CreateSeqStmt) bool {
 	if b.crossDatabase(rv) {
 		return true
 	}
-	c := b.creationSchema(rv.Schemaname, temp)
+	c := b.creationSchema(rv.Schemaname, rv.Relname, temp)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.code, c.fail)
 		return true
@@ -1045,7 +1039,7 @@ func (b *builder) createSequence(v *ast.CreateSeqStmt) bool {
 	k := relKey(c.schema, name)
 	prior, _ := b.l.Lookup(k)
 	if !v.IfNotExists {
-		b.need(k, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + relation(rv) + " already exists"}) // 42P07
+		b.need(k, walk.Absent, nil, taken(rng, relSequence, relation(rv))) // 42P07
 		prior = walk.Absent
 	}
 	switch prior {
@@ -1073,7 +1067,7 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 	if b.crossDatabase(rv) {
 		return true
 	}
-	c := b.creationSchema(rv.Schemaname, false)
+	c := b.creationSchema(rv.Schemaname, rv.Relname, false)
 	if c.fail != "" {
 		b.failAt(rng, c.keys, c.code, c.fail)
 		return true
@@ -1085,8 +1079,8 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 	}
 	k := relKey(c.schema, name)
 	tk := typeKey(c.schema, name)
-	b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: "type " + relation(rv) + " already exists"})    // 42710
-	b.need(k, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + relation(rv) + " already exists"}) // 42P07
+	b.need(tk, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", relation(rv))}) // 42710
+	b.need(k, walk.Absent, nil, taken(rng, relComposite, relation(rv)))                             // 42P07
 	b.set(k, walk.Present, relComposite)
 	b.set(tk, walk.Present, typOther)
 	b.forget(walk.Scope{Parent: tableOf(k), Deep: true})
@@ -1101,7 +1095,7 @@ func (b *builder) createType(parts []string, kind string) bool {
 	if !ok {
 		return false
 	}
-	c := b.creationSchema(schema, false)
+	c := b.creationSchema(schema, written, false)
 	if c.fail != "" {
 		b.fail(c.keys, walk.Absent, c.code, c.fail)
 		return true
@@ -1112,7 +1106,7 @@ func (b *builder) createType(parts []string, kind string) bool {
 		return true
 	}
 	tk := typeKey(c.schema, name)
-	b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: "type " + qualified(parts) + " already exists"}) // 42710
+	b.need(tk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", qualified(parts))}) // 42710
 	b.set(tk, walk.Present, kind)
 	b.made(tk)
 	return true
@@ -1167,28 +1161,31 @@ func (b *builder) wrongKind(r resolved, rv *ast.RangeVar, obj ast.ObjectType, fo
 	if r.fact != walk.Present || r.kind == "" {
 		return false
 	}
-	note := &walkNote{rng: rangeOf(rv.Loc)}
+	// The kind the statement names, which the text says the relation is
+	// not.
+	want, own := dropKinds[obj]
+	needed := want.word
+	if !own {
+		needed = relTable
+	}
 	var kinds []string
-	switch want, own := dropKinds[obj]; {
+	switch {
 	case obj == ast.OBJECT_TYPE:
 		kinds = []string{relComposite}
-		note.present = relation(rv) + " is not a composite type"
+		needed = relComposite
 	case own && obj != ast.OBJECT_TABLE && (obj != ast.OBJECT_INDEX || form != formRename):
 		kinds = []string{want.kind}
-		note.present = relation(rv) + " is not " + want.article + " " + want.word
 	case r.kind == relComposite:
 		kinds = slices.DeleteFunc(slices.Clone(anyRelation), func(k string) bool { return k == relComposite })
-		note.present = relation(rv) + " is a composite type"
 	case r.kind == relIndex && form == formSetSchema:
 		kinds = slices.DeleteFunc(slices.Clone(anyRelation), func(k string) bool { return k == relComposite || k == relIndex })
-		note.present = "cannot change schema of index " + relation(rv)
 	default:
 		return false
 	}
 	if slices.Contains(kinds, r.kind) {
 		return false
 	}
-	b.need(r.key, walk.Present, kinds, note)
+	b.need(r.key, walk.Present, kinds, ofKind(rangeOf(rv.Loc), relation(rv), needed))
 	return true
 }
 
@@ -1311,7 +1308,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 		if con.Contype == ast.CONSTR_PRIMARY {
 			primaries++
 			if primaries > 1 {
-				b.failAt(rangeOf(con.Loc), nil, review.NameTaken, "multiple primary keys for table "+relation(rv)+" are not allowed")
+				b.failAt(rangeOf(con.Loc), nil, review.NameTaken, hasPrimaryKey(relation(rv)))
 				return
 			}
 		}
@@ -1331,7 +1328,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 				continue
 			}
 			if added[n] && !cmd.Missing_ok {
-				b.failAt(rangeOf(def.Loc), nil, review.DuplicateName, "column "+ident(def.Colname)+" of relation "+relation(rv)+" already exists")
+				b.failAt(rangeOf(def.Loc), nil, review.DuplicateName, twice("adds", "column", ident(def.Colname)))
 				return
 			}
 			added[n] = true
@@ -1341,7 +1338,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 				continue
 			}
 			if dropped[n] && !cmd.Missing_ok {
-				b.failAt(rangeOf(cmd.Loc), nil, review.DuplicateName, "column "+ident(cmd.Name)+" of relation "+relation(rv)+" does not exist")
+				b.failAt(rangeOf(cmd.Loc), nil, review.DuplicateName, twice("drops", "column", ident(cmd.Name)))
 				return
 			}
 			dropped[n] = true
@@ -1351,29 +1348,23 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 				continue
 			}
 			if droppedCons[n] && !cmd.Missing_ok {
-				b.failAt(rangeOf(cmd.Loc), nil, review.DuplicateName, "constraint "+ident(cmd.Name)+" of relation "+relation(rv)+" does not exist")
+				b.failAt(rangeOf(cmd.Loc), nil, review.DuplicateName, twice("drops", "constraint", ident(cmd.Name)))
 				return
 			}
 			droppedCons[n] = true
 		}
 	}
-	named := make(map[string]string)
+	named := make(map[string]bool)
 	for _, con := range cons {
-		kind := constraintKind(con.Contype)
 		key, ok := storedKey(con.Conname)
-		if kind == "" || !ok || con.Indexname != "" {
+		if constraintKind(con.Contype) == "" || !ok || con.Indexname != "" {
 			continue
 		}
-		prev, ok := named[key]
-		if !ok {
-			named[key] = kind
+		if !named[key] {
+			named[key] = true
 			continue
 		}
-		msg := "constraint " + ident(con.Conname) + " for relation " + relation(rv) + " already exists"
-		if indexBacked(prev) && indexBacked(kind) {
-			msg = "relation " + ident(con.Conname) + " already exists"
-		}
-		b.failAt(rangeOf(con.Loc), nil, review.DuplicateName, msg)
+		b.failAt(rangeOf(con.Loc), nil, review.DuplicateName, twice("adds", "constraint", ident(con.Conname)))
 		return
 	}
 }
@@ -1419,7 +1410,7 @@ func (b *builder) alterTableCmd(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTabl
 // synced schema does not list every constraint.
 func (b *builder) constraintExists(rv *ast.RangeVar, t walk.Key, written string, rng review.Range) {
 	if name, ok := walkName(written); ok {
-		b.need(constraintKey(t, name), walk.Present, nil, &walkNote{rng: rng, absent: "constraint " + ident(written) + " of relation " + relation(rv) + " does not exist"})
+		b.need(constraintKey(t, name), walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("constraint", ident(written), relation(rv))})
 	}
 }
 
@@ -1457,14 +1448,14 @@ func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, if
 		return
 	}
 	if systemColumns[name] {
-		b.failAt(rng, nil, review.ReservedName, "column name "+ident(def.Colname)+" conflicts with a system column name") // 42701
+		b.failAt(rng, nil, review.ReservedName, systemColumnName(def.Colname)) // 42701
 		return
 	}
 	ck := columnKey(t, name)
 	prior, _ := b.l.Lookup(ck)
 	switch {
 	case !ifNotExists:
-		b.need(ck, walk.Absent, nil, &walkNote{rng: rng, present: "column " + ident(def.Colname) + " of relation " + relation(rv) + " already exists"}) // 42701
+		b.need(ck, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExistsIn("column", ident(def.Colname), relation(rv))}) // 42701
 		prior = walk.Absent
 	case dropped:
 		prior = walk.Absent
@@ -1522,13 +1513,13 @@ func (b *builder) dropColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableCm
 	rng := rangeOf(cmd.Loc)
 	name, ok := walkName(cmd.Name)
 	if ok && systemColumns[name] {
-		b.failAt(rng, nil, review.SystemColumn, "cannot drop system column "+ident(cmd.Name)) // 0A000
+		b.failAt(rng, nil, review.SystemColumn, systemColumnMessage(cmd.Name, "dropped")) // 0A000
 		return
 	}
 	if ok {
 		ck := columnKey(t, name)
 		if !cmd.Missing_ok {
-			b.need(ck, walk.Present, nil, &walkNote{rng: rng, absent: "column " + ident(cmd.Name) + " of relation " + relation(rv) + " does not exist"}) // 42703
+			b.need(ck, walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("column", ident(cmd.Name), relation(rv))}) // 42703
 		}
 		if inh {
 			b.mayRemove(walk.Scope{Space: spaceColumn, Deep: true, Prefix: name})
@@ -1559,12 +1550,12 @@ func (b *builder) alterColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableC
 	if ok && systemColumns[name] {
 		switch sub {
 		case ast.AT_AlterColumnType, ast.AT_ColumnDefault, ast.AT_SetNotNull, ast.AT_DropNotNull:
-			b.failAt(rng, nil, review.SystemColumn, "cannot alter system column "+ident(cmd.Name)) // 0A000
+			b.failAt(rng, nil, review.SystemColumn, systemColumnMessage(cmd.Name, "altered")) // 0A000
 		}
 		return
 	}
 	if ok {
-		b.need(columnKey(t, name), walk.Present, nil, &walkNote{rng: rng, absent: "column " + ident(cmd.Name) + " of relation " + relation(rv) + " does not exist"}) // 42703
+		b.need(columnKey(t, name), walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("column", ident(cmd.Name), relation(rv))}) // 42703
 	}
 	parent := tableOf(t)
 	switch sub {
@@ -1666,10 +1657,10 @@ func (b *builder) renameRelation(v *ast.RenameStmt) bool {
 	}
 	s := schemaOfKey(r.key)
 	nk := relKey(s, newName)
-	b.need(nk, walk.Absent, nil, &walkNote{rng: b.anchor(), present: "relation " + ident(v.Newname) + " already exists"}) // 42P07
+	b.need(nk, walk.Absent, nil, taken(b.anchor(), r.kind, ident(v.Newname))) // 42P07
 	rowType := hasRowType(r.kind)
 	if rowType || r.kind == "" {
-		b.need(typeKey(s, newName), walk.Absent, nil, &walkNote{rng: b.anchor(), present: "type " + ident(v.Newname) + " already exists"}) // 42710
+		b.need(typeKey(s, newName), walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("type", ident(v.Newname))}) // 42710
 	}
 	b.set(r.key, walk.Absent, "")
 	b.set(nk, walk.Present, r.kind)
@@ -1761,15 +1752,15 @@ func (b *builder) renameColumn(v *ast.RenameStmt) bool {
 		return true
 	}
 	if systemColumns[oldName] {
-		b.failAt(rng, nil, review.SystemColumn, "cannot rename system column "+ident(v.Subname)) // 0A000
+		b.failAt(rng, nil, review.SystemColumn, systemColumnMessage(v.Subname, "renamed")) // 0A000
 		return true
 	}
 	if f, _ := b.l.Lookup(oldKey); systemColumns[newName] && f != walk.Absent {
-		b.failAt(rng, nil, review.ReservedName, "column name "+ident(v.Newname)+" conflicts with a system column name") // 42701
+		b.failAt(rng, nil, review.ReservedName, systemColumnName(v.Newname)) // 42701
 		return true
 	}
-	b.need(oldKey, walk.Present, nil, &walkNote{rng: rng, absent: "column " + ident(v.Subname) + " does not exist"})                                          // 42703
-	b.need(newKey, walk.Absent, nil, &walkNote{rng: rng, present: "column " + ident(v.Newname) + " of relation " + relation(v.Relation) + " already exists"}) // 42701
+	b.need(oldKey, walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("column", ident(v.Subname), relation(v.Relation))})      // 42703
+	b.need(newKey, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExistsIn("column", ident(v.Newname), relation(v.Relation))}) // 42701
 	if inh {
 		b.mayRemove(walk.Scope{Space: spaceColumn, Deep: true, Prefix: oldName})
 		b.mayAdd(walk.Scope{Space: spaceColumn, Deep: true, Prefix: newName})
@@ -1800,12 +1791,12 @@ func (b *builder) renameConstraint(v *ast.RenameStmt) bool {
 	}
 	oldKey := constraintKey(r.key, oldName)
 	newKey := constraintKey(r.key, newName)
-	b.need(oldKey, walk.Present, nil, &walkNote{rng: rng, absent: "constraint " + ident(v.Subname) + " for table " + relation(v.Relation) + " does not exist"})    // 42704
-	b.need(newKey, walk.Absent, nil, &walkNote{rng: rng, present: "constraint " + ident(v.Newname) + " for relation " + relation(v.Relation) + " already exists"}) // 42710
+	b.need(oldKey, walk.Present, nil, &walkNote{rng: rng, absent: notFoundIn("constraint", ident(v.Subname), relation(v.Relation))})      // 42704
+	b.need(newKey, walk.Absent, nil, &walkNote{rng: rng, present: alreadyExistsIn("constraint", ident(v.Newname), relation(v.Relation))}) // 42710
 	f, kind := b.l.Lookup(oldKey)
 	switch {
 	case f == walk.Present && indexBacked(kind):
-		b.need(relKey(s, newName), walk.Absent, nil, &walkNote{rng: rng, present: "relation " + ident(v.Newname) + " already exists"}) // 42P07
+		b.need(relKey(s, newName), walk.Absent, nil, taken(rng, relIndex, ident(v.Newname))) // 42P07
 		b.set(relKey(s, oldName), walk.Absent, "")
 		b.set(relKey(s, newName), walk.Present, relIndex)
 	case f != walk.Present:
@@ -1830,13 +1821,13 @@ func (b *builder) renameSchema(v *ast.RenameStmt) bool {
 		return false
 	}
 	if strings.HasPrefix(newName, "pg_") {
-		b.fail(nil, walk.Present, review.ReservedName, "unacceptable schema name "+ident(v.Newname)) // 42939
+		b.fail(nil, walk.Present, review.ReservedName, reservedSchema(v.Newname)) // 42939
 		return true
 	}
 	oldKey := schemaKey(oldName)
 	newKey := schemaKey(newName)
-	b.need(oldKey, walk.Present, nil, &walkNote{rng: b.anchor(), absent: "schema " + ident(v.Subname) + " does not exist"}) // 3F000
-	b.need(newKey, walk.Absent, nil, &walkNote{rng: b.anchor(), present: "schema " + ident(v.Newname) + " already exists"}) // 42P06
+	b.need(oldKey, walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(v.Subname)})                 // 3F000
+	b.need(newKey, walk.Absent, nil, &walkNote{rng: b.anchor(), present: alreadyExists("schema", ident(v.Newname))}) // 42P06
 	b.set(oldKey, walk.Absent, "")
 	b.set(newKey, walk.Present, "")
 	b.move(walk.Path(oldName), walk.Path(newName))
@@ -1904,12 +1895,13 @@ func (b *builder) setSchema(v *ast.AlterObjectSchemaStmt) bool {
 		return true
 	}
 	rng := b.anchor()
-	b.need(schemaKey(ns), walk.Present, nil, &walkNote{rng: rng, absent: "schema " + ident(v.Newschema) + " does not exist"}) // 3F000
+	b.need(schemaKey(ns), walk.Present, nil, &walkNote{rng: rng, absent: schemaNotFound(v.Newschema)}) // 3F000
 	nk := relKey(ns, r.key.Name)
-	b.need(nk, walk.Absent, nil, &walkNote{rng: rng, present: "relation " + ident(r.key.Name) + " already exists in schema " + ident(v.Newschema)}) // 42P07
+	moved := qualified([]string{v.Newschema, r.key.Name})
+	b.need(nk, walk.Absent, nil, taken(rng, r.kind, moved)) // 42P07
 	rowType := hasRowType(r.kind)
 	if rowType || r.kind == "" {
-		b.need(typeKey(ns, r.key.Name), walk.Absent, nil, &walkNote{rng: rng, present: "type " + ident(r.key.Name) + " already exists in schema " + ident(v.Newschema)}) // 42710
+		b.need(typeKey(ns, r.key.Name), walk.Absent, nil, &walkNote{rng: rng, present: alreadyExists("type", moved)}) // 42710
 	}
 	b.set(r.key, walk.Absent, "")
 	b.set(nk, walk.Present, r.kind)
@@ -1929,14 +1921,14 @@ func (b *builder) setSchema(v *ast.AlterObjectSchemaStmt) bool {
 }
 
 // dropKinds is, for each relation kind DROP names, the kind it drops and
-// the words PostgreSQL uses for it.
-var dropKinds = map[ast.ObjectType]struct{ kind, word, article string }{
-	ast.OBJECT_TABLE:         {relTable, "table", "a"},
-	ast.OBJECT_VIEW:          {relView, "view", "a"},
-	ast.OBJECT_MATVIEW:       {relMatview, "materialized view", "a"},
-	ast.OBJECT_INDEX:         {relIndex, "index", "an"},
-	ast.OBJECT_SEQUENCE:      {relSequence, "sequence", "a"},
-	ast.OBJECT_FOREIGN_TABLE: {relForeign, "foreign table", "a"},
+// the word a message uses for it.
+var dropKinds = map[ast.ObjectType]struct{ kind, word string }{
+	ast.OBJECT_TABLE:         {relTable, "table"},
+	ast.OBJECT_VIEW:          {relView, "view"},
+	ast.OBJECT_MATVIEW:       {relMatview, "materialized view"},
+	ast.OBJECT_INDEX:         {relIndex, "index"},
+	ast.OBJECT_SEQUENCE:      {relSequence, "sequence"},
+	ast.OBJECT_FOREIGN_TABLE: {relForeign, "foreign table"},
 }
 
 // dropNoFacts lists the objects whose DROP changes no name the walk keeps
@@ -1976,10 +1968,10 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		// pg: src/backend/commands/tablecmds.c — RemoveRelations
 		switch {
 		case len(v.Objects.Items) != 1:
-			b.fail(nil, walk.Present, review.UnsupportedForm, "DROP INDEX CONCURRENTLY does not support dropping multiple objects")
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`DROP INDEX CONCURRENTLY` of several indexes"))
 			return true
 		case cascade:
-			b.fail(nil, walk.Present, review.UnsupportedForm, "DROP INDEX CONCURRENTLY does not support CASCADE")
+			b.fail(nil, walk.Present, review.UnsupportedForm, unsupported("`DROP INDEX CONCURRENTLY` with `CASCADE`"))
 			return true
 		}
 	}
@@ -2035,17 +2027,13 @@ func (b *builder) dropRelation(kind ast.ObjectType, parts []string, missingOK bo
 		if missingOK {
 			return
 		}
-		msg := want.word + " " + written + " does not exist" // 42P01; 42704 for an index
-		if r.missingSchema != "" {
-			msg = "schema " + ident(r.missingSchema) + " does not exist"
-		}
-		b.fail(r.keys, walk.Absent, review.ObjectNotFound, msg)
+		b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, want.word, written)) // 42P01; 42704 for an index
 		return
 	case walk.Unknown:
 		b.dropUnknown(parts)
 		return
 	}
-	b.need(r.key, walk.Present, []string{want.kind}, &walkNote{rng: b.anchor(), present: written + " is not " + want.article + " " + want.word}) // 42809
+	b.need(r.key, walk.Present, []string{want.kind}, ofKind(b.anchor(), written, want.word)) // 42809
 	b.dropped(r.key, r.kind)
 }
 
@@ -2107,11 +2095,11 @@ func (b *builder) dropSchema(parts []string, missingOK, cascade bool) bool {
 	}
 	k := schemaKey(name)
 	if !missingOK {
-		b.need(k, walk.Present, nil, &walkNote{rng: b.anchor(), absent: "schema " + ident(parts[0]) + " does not exist"}) // 3F000
+		b.need(k, walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(parts[0])}) // 3F000
 	}
 	if f, _ := b.l.Lookup(k); f == walk.Present && !cascade {
 		if held, ok := b.holds(name); ok {
-			b.fail([]walk.Key{k, held}, walk.Present, review.SchemaNotEmpty, "cannot drop schema "+ident(parts[0])+" because other objects depend on it")
+			b.fail([]walk.Key{k, held}, walk.Present, review.SchemaNotEmpty, "Schema "+review.Code(ident(parts[0]))+" still holds objects.")
 		}
 	}
 	b.set(k, walk.Absent, "")
@@ -2175,7 +2163,7 @@ func (b *builder) dropType(parts []string, missingOK, domain bool) {
 	switch f, _ := b.l.Lookup(sk); f {
 	case walk.Absent:
 		if !missingOK {
-			b.fail([]walk.Key{sk}, walk.Absent, review.ObjectNotFound, "schema "+ident(schema)+" does not exist") // 3F000
+			b.fail([]walk.Key{sk}, walk.Absent, review.ObjectNotFound, schemaNotFound(schema)) // 3F000
 		}
 		return
 	case walk.Unknown:
@@ -2184,7 +2172,13 @@ func (b *builder) dropType(parts []string, missingOK, domain bool) {
 		return
 	}
 	tk := typeKey(s, name)
-	note := &walkNote{rng: b.anchor(), absent: "type " + qualified(parts) + " does not exist", present: qualified(parts) + " is not a domain"} // 42704
+	kind := typOther
+	if domain {
+		kind = typDomain
+	}
+	// What else the type namespace holds is a type, which says nothing
+	// against a domain: only that it isn't one.
+	note := &walkNote{rng: b.anchor(), absent: notFound(kind, qualified(parts)), present: review.Code(qualified(parts)) + " isn't a domain."} // 42704
 	switch f, _ := b.l.Lookup(tk); {
 	case domain && (f == walk.Present || !missingOK):
 		// DROP DOMAIN drops a domain and no other type, IF EXISTS or not
@@ -2205,13 +2199,13 @@ func (b *builder) dropType(parts []string, missingOK, domain bool) {
 }
 
 // commentKinds is the relation kind each COMMENT ON object kind names.
-var commentKinds = map[ast.ObjectType]struct{ kind, word, article string }{
-	ast.OBJECT_TABLE:         {relTable, "table", "a"},
-	ast.OBJECT_VIEW:          {relView, "view", "a"},
-	ast.OBJECT_MATVIEW:       {relMatview, "materialized view", "a"},
-	ast.OBJECT_INDEX:         {relIndex, "index", "an"},
-	ast.OBJECT_SEQUENCE:      {relSequence, "sequence", "a"},
-	ast.OBJECT_FOREIGN_TABLE: {relForeign, "foreign table", "a"},
+var commentKinds = map[ast.ObjectType]struct{ kind, word string }{
+	ast.OBJECT_TABLE:         {relTable, "table"},
+	ast.OBJECT_VIEW:          {relView, "view"},
+	ast.OBJECT_MATVIEW:       {relMatview, "materialized view"},
+	ast.OBJECT_INDEX:         {relIndex, "index"},
+	ast.OBJECT_SEQUENCE:      {relSequence, "sequence"},
+	ast.OBJECT_FOREIGN_TABLE: {relForeign, "foreign table"},
 }
 
 // comment follows COMMENT ON, which changes no name: the object must
@@ -2228,9 +2222,9 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 		case r.fail != "":
 			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
 		case r.fact == walk.Absent:
-			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, qualified(parts))) // 42P01
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, want.word, qualified(parts))) // 42P01
 		case r.fact == walk.Present:
-			b.need(r.key, walk.Present, []string{want.kind}, &walkNote{rng: b.anchor(), present: qualified(parts) + " is not " + want.article + " " + want.word}) // 42809
+			b.need(r.key, walk.Present, []string{want.kind}, ofKind(b.anchor(), qualified(parts), want.word)) // 42809
 		}
 	case kind == ast.OBJECT_COLUMN:
 		if len(parts) < 2 {
@@ -2242,16 +2236,16 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 		case r.fail != "":
 			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
 		case r.fact == walk.Absent:
-			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, qualified(table)))
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, "", qualified(table)))
 		case r.fact == walk.Present:
 			if col, ok := walkName(parts[len(parts)-1]); ok && !systemColumns[col] && hasColumns(r.kind) {
-				b.need(columnKey(r.key, col), walk.Present, nil, &walkNote{rng: b.anchor(), absent: "column " + ident(parts[len(parts)-1]) + " of relation " + qualified(table) + " does not exist"}) // 42703
+				b.need(columnKey(r.key, col), walk.Present, nil, &walkNote{rng: b.anchor(), absent: notFoundIn("column", ident(parts[len(parts)-1]), qualified(table))}) // 42703
 			}
 		}
 	case kind == ast.OBJECT_SCHEMA:
 		if s, ok := v.Object.(*ast.String); ok {
 			if name, ok := walkName(s.Str); ok {
-				b.need(schemaKey(name), walk.Present, nil, &walkNote{rng: b.anchor(), absent: "schema " + ident(s.Str) + " does not exist"}) // 3F000
+				b.need(schemaKey(name), walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(s.Str)}) // 3F000
 			}
 		}
 	}
@@ -2282,7 +2276,7 @@ func (b *builder) grant(v *ast.GrantStmt) bool {
 				continue
 			}
 			if name, ok := walkName(parts[0]); ok {
-				b.need(schemaKey(name), walk.Present, nil, &walkNote{rng: b.anchor(), absent: "schema " + ident(parts[0]) + " does not exist"}) // 3F000
+				b.need(schemaKey(name), walk.Present, nil, &walkNote{rng: b.anchor(), absent: schemaNotFound(parts[0])}) // 3F000
 			}
 		}
 	}
@@ -2306,9 +2300,9 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 				// (42809, verified on PostgreSQL 17 and 18).
 				//
 				// pg: src/backend/commands/tablecmds.c — ExecuteTruncate
-				b.failAt(rangeOf(rv.Loc), []walk.Key{r.key}, review.UnsupportedForm, "cannot truncate only a partitioned table: "+relation(rv))
+				b.failAt(rangeOf(rv.Loc), []walk.Key{r.key}, review.UnsupportedForm, unsupported("`TRUNCATE ONLY` of partitioned table "+review.Code(relation(rv))))
 			default:
-				b.need(r.key, walk.Present, []string{relTable, relForeign}, &walkNote{rng: rangeOf(rv.Loc), present: relation(rv) + " is not a table"})
+				b.need(r.key, walk.Present, []string{relTable, relForeign}, ofKind(rangeOf(rv.Loc), relation(rv), relTable))
 			}
 		}
 	}

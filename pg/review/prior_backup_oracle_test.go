@@ -202,7 +202,7 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}
-				if f.Statement < 0 || strings.Contains(f.Message, "both UPDATE and DELETE") {
+				if f.Statement < 0 || strings.Contains(f.Message, "both updates and deletes its rows") {
 					// The size limit and Bytebase's own refusal are not the
 					// query's to judge.
 					continue

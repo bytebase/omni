@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"strings"
 
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk"
@@ -78,18 +79,23 @@ func outsideASCII(s string) bool {
 
 // walkNote is a check's finding: where it anchors, and what it says and
 // the condition it reports when the object is certainly absent or
-// certainly present.
+// certainly present. kinded, when set, writes the text for a relation
+// present from the kind the ledger gives it.
 type walkNote struct {
 	rng         review.Range
 	absent      string
 	present     string
+	kinded      func(kind string) string
 	absentCode  review.FindingCode
 	presentCode review.FindingCode
 }
 
 func (n *walkNote) message(v *walk.Violation) string {
-	if v.Got == walk.Absent {
+	switch {
+	case v.Got == walk.Absent:
 		return n.absent
+	case n.kinded != nil:
+		return n.kinded(v.Kind)
 	}
 	return n.present
 }
@@ -99,6 +105,76 @@ func (n *walkNote) code(v *walk.Violation) review.FindingCode {
 		return n.absentCode
 	}
 	return n.presentCode
+}
+
+// engineName is the engine a WALK_THROUGH text names.
+const engineName = "TiDB"
+
+// A WALK_THROUGH finding is one sentence, shaped for the finding's code as
+// the finding message standard gives it
+// (docs/specs/2026-11-02-review-finding-messages.md, Appendix E). A name
+// is passed as TiDB reads it back (ident, table) and written as a code
+// span.
+
+// notFound reads "Table `t` doesn't exist.", with an owner "Column `c`
+// doesn't exist in `t`.", and with no kind "`t` doesn't exist.".
+func notFound(kind, name, owner string) string {
+	return named(kind, name) + " doesn't exist" + ownedBy(owner) + "."
+}
+
+// alreadyExists reads "Table `t` already exists.", with an owner "Column
+// `c` already exists in `t`.".
+func alreadyExists(kind, name, owner string) string {
+	return named(kind, name) + " already exists" + ownedBy(owner) + "."
+}
+
+// nameTaken is the text for a relation name another kind of relation
+// holds, or one of a kind the walk does not know.
+func nameTaken(name string) string {
+	return "The name " + review.Code(name) + " is already taken."
+}
+
+// wrongKind reads "`v` is a view, not a table.", and "`v` isn't a table."
+// when the kind it is is not known.
+func wrongKind(name, kind, need string) string {
+	if kind == "" {
+		return review.Code(name) + " isn't a " + need + "."
+	}
+	return review.Code(name) + " is a " + kind + ", not a " + need + "."
+}
+
+// statesTwice reads "This statement adds column `c` twice.".
+func statesTwice(verb, kind, name string) string {
+	return "This statement " + verb + " " + kind + " " + review.Code(name) + " twice."
+}
+
+// hasPrimaryKey and noPrimaryKey are the texts for a table that has a
+// primary key, or has none, where the statement needs the other.
+func hasPrimaryKey(table string) string {
+	return review.Code(table) + " already has a primary key."
+}
+
+func noPrimaryKey(table string) string {
+	return review.Code(table) + " has no primary key."
+}
+
+// reservedPrimary is the text for an index named PRIMARY (1280).
+var reservedPrimary = review.Code("PRIMARY") + " is reserved for the primary key's index."
+
+// named writes a kind and a name, "Table `t`", or the name alone.
+func named(kind, name string) string {
+	if kind == "" {
+		return review.Code(name)
+	}
+	return strings.ToUpper(kind[:1]) + kind[1:] + " " + review.Code(name)
+}
+
+// ownedBy writes " in `t`" for an owner, nothing for none.
+func ownedBy(owner string) string {
+	if owner == "" {
+		return ""
+	}
+	return " in " + review.Code(owner)
 }
 
 // walker is the session the change runs in, as far as the walk follows
@@ -206,6 +282,45 @@ func (b *builder) need(k walk.Key, want walk.Fact, kinds []string, rng review.Ra
 	b.Need(k, want, kinds, note)
 }
 
+// needKind adds the check that a relation exists as one of kinds: absent
+// is the text for a missing one, and one of another kind reads as
+// wrongKind of the name and need, the kind wanted.
+func (b *builder) needKind(k walk.Key, kinds []string, rng review.Range, absent, name, need string) {
+	b.Need(k, walk.Present, kinds, &walkNote{
+		rng:         rng,
+		absent:      absent,
+		kinded:      func(kind string) string { return wrongKind(name, relWord(k, kind), need) },
+		absentCode:  review.ObjectNotFound,
+		presentCode: review.WrongObjectKind,
+	})
+}
+
+// needFree adds the check that a relation name is free for a relation of
+// kind, "" when that is not known: one of that kind already exists, and
+// any other takes the name.
+func (b *builder) needFree(k walk.Key, rng review.Range, name, kind string) {
+	b.Need(k, walk.Absent, nil, &walkNote{
+		rng: rng,
+		kinded: func(held string) string {
+			if held != "" && held == kind {
+				return alreadyExists(relWord(k, kind), name, "")
+			}
+			return nameTaken(name)
+		},
+		absentCode:  review.ObjectNotFound,
+		presentCode: review.NameTaken,
+	})
+}
+
+// relWord is the word for a relation of a kind under a key: a temporary
+// one's is "temporary table".
+func relWord(k walk.Key, kind string) string {
+	if k.Space == spaceTemporary && kind != "" {
+		return "temporary " + kind
+	}
+	return kind
+}
+
 // fail records that the statement certainly fails, established from the
 // keys it read; with no keys, from its text. code is the condition.
 func (b *builder) fail(rng review.Range, keys []walk.Key, code review.FindingCode, message string) {
@@ -256,7 +371,11 @@ type tableRef struct {
 	rng      review.Range
 }
 
-const noDatabaseMessage = "No database selected"
+// noDatabase is the text for a name, or a statement that names none, with
+// no database selected (1046).
+func noDatabase(name string) string {
+	return "No database is selected for " + review.Code(name) + "."
+}
 
 // refState is how ref resolved a reference.
 type refState uint8
@@ -294,7 +413,7 @@ func (b *builder) ref(tr *ast.TableRef) (tableRef, refState) {
 	case b.w.lost:
 		return r, refUnknown
 	case b.w.noDatabase:
-		b.fail(r.rng, []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabaseMessage)
+		b.fail(r.rng, []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabase(r.written))
 		return r, refFailed
 	}
 	r.db = b.w.current
@@ -327,6 +446,6 @@ func (b *builder) tooLong(name string, rng review.Range) bool {
 			return false
 		}
 	}
-	b.fail(rng, nil, review.NameTooLong, "Identifier name "+ident(name)+" is too long")
+	b.fail(rng, nil, review.NameTooLong, "The name "+review.Code(ident(name))+" is longer than "+engineName+"'s 64-character limit.")
 	return true
 }

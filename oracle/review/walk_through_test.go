@@ -106,79 +106,79 @@ func noFinding(t *testing.T, sql string, target review.Target) {
 func TestWalkThroughOracle(t *testing.T) {
 	shop := review.Target{Schema: walkSchema(false)}
 	// Names a statement creates.
-	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE t (a NUMBER);", 1, "Name T is already used by an existing object", shop)
-	oneFinding(t, "CREATE SEQUENCE pv;", 0, "Name PV is already used by an existing object", shop)
-	oneFinding(t, "CREATE OR REPLACE VIEW t AS SELECT 1 a FROM dual;", 0, "Name T is already used by an existing object", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
+	oneFinding(t, "CREATE SEQUENCE pv;", 0, "The name `PV` is already taken.", shop)
+	oneFinding(t, "CREATE OR REPLACE VIEW t AS SELECT 1 a FROM dual;", 0, "The name `T` is already taken.", shop)
 	noFinding(t, "CREATE OR REPLACE VIEW pv AS SELECT 1 a FROM dual;\nCREATE OR REPLACE FUNCTION f RETURN NUMBER AS BEGIN RETURN 1; END;", shop)
 	noFinding(t, "CREATE FUNCTION IF NOT EXISTS f RETURN NUMBER IS BEGIN RETURN 1; END;\n/\nCREATE FUNCTION IF NOT EXISTS t RETURN NUMBER IS BEGIN RETURN 1; END;", shop)
-	oneFinding(t, "CREATE FUNCTION IF NOT EXISTS g RETURN NUMBER IS BEGIN RETURN 1; END;\n/\nCREATE TABLE g (a NUMBER);", 1, "Name G is already used by an existing object", shop)
-	oneFinding(t, "CREATE OR REPLACE PROCEDURE f AS BEGIN NULL; END;", 0, "Name F is already used by an existing object", shop)
+	oneFinding(t, "CREATE FUNCTION IF NOT EXISTS g RETURN NUMBER IS BEGIN RETURN 1; END;\n/\nCREATE TABLE g (a NUMBER);", 1, "The name `G` is already taken.", shop)
+	oneFinding(t, "CREATE OR REPLACE PROCEDURE f AS BEGIN NULL; END;", 0, "The name `F` is already taken.", shop)
 	noFinding(t, "CREATE TABLE IF NOT EXISTS t (a NUMBER, b NUMBER CONSTRAINT ck_n CHECK (b > 0));", shop)
-	oneFinding(t, "CREATE TABLE IF NOT EXISTS t (a NUMBER, a NUMBER);", 0, "Column A is named twice in table T", shop)
+	oneFinding(t, "CREATE TABLE IF NOT EXISTS t (a NUMBER, a NUMBER);", 0, "This statement declares column `A` twice.", shop)
 	// Tables, which ALTER, DROP, and TRUNCATE take by no synonym.
-	oneFinding(t, "ALTER TABLE nosuch ADD (x NUMBER);", 0, "Table or view NOSUCH does not exist", shop)
-	oneFinding(t, "ALTER TABLE pv ADD (x NUMBER);", 0, "Table or view PV does not exist", shop)
+	oneFinding(t, "ALTER TABLE nosuch ADD (x NUMBER);", 0, "Table `NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE pv ADD (x NUMBER);", 0, "`PV` is a view, not a table.", shop)
 	noFinding(t, "ALTER TABLE mv LOGGING;", shop)
-	oneFinding(t, "DROP TABLE pv;", 0, "Table or view PV does not exist", shop)
-	oneFinding(t, "DROP TABLE mv;", 0, "Must use DROP MATERIALIZED VIEW to drop MV", shop)
-	oneFinding(t, "DROP TABLE IF EXISTS mv;", 0, "Must use DROP MATERIALIZED VIEW to drop MV", shop)
+	oneFinding(t, "DROP TABLE pv;", 0, "`PV` is a view, not a table.", shop)
+	oneFinding(t, "DROP TABLE mv;", 0, "`MV` is a materialized view, not a table.", shop)
+	oneFinding(t, "DROP TABLE IF EXISTS mv;", 0, "`MV` is a materialized view, not a table.", shop)
 	noFinding(t, "DROP TABLE IF EXISTS pv;\nDROP TABLE IF EXISTS nosuch;", shop)
-	oneFinding(t, "TRUNCATE TABLE pv;", 0, "A view is not appropriate here: PV", shop)
-	oneFinding(t, "TRUNCATE TABLE sq;", 0, "A sequence is not allowed here: SQ", shop)
-	oneFinding(t, "TRUNCATE TABLE pkg;", 0, "A procedure, function, package, or type is not allowed here: PKG", shop)
-	oneFinding(t, "TRUNCATE TABLE nosuch;", 0, "Table or view NOSUCH does not exist", shop)
+	oneFinding(t, "TRUNCATE TABLE pv;", 0, "`PV` is a view, not a table.", shop)
+	oneFinding(t, "TRUNCATE TABLE sq;", 0, "`SQ` is a sequence, not a table.", shop)
+	oneFinding(t, "TRUNCATE TABLE pkg;", 0, "`PKG` is a package, not a table.", shop)
+	oneFinding(t, "TRUNCATE TABLE nosuch;", 0, "Table `NOSUCH` doesn't exist.", shop)
 	noFinding(t, "TRUNCATE TABLE mv;", shop)
 	// Columns, keys, and constraints.
-	oneFinding(t, "ALTER TABLE t ADD (code NUMBER);", 0, "Column CODE being added already exists in table T", shop)
-	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column ZZ does not exist in table T", shop)
-	oneFinding(t, "ALTER TABLE t DROP (n, zz);", 0, "Column ZZ does not exist in table T", shop)
-	oneFinding(t, "ALTER TABLE t RENAME COLUMN n TO code;", 0, "Column CODE already exists in table T", shop)
-	oneFinding(t, "ALTER TABLE t RENAME COLUMN n TO n;", 0, "Column N already exists in table T", shop)
-	oneFinding(t, "ALTER TABLE t MODIFY (zz NUMBER);", 0, "Column ZZ does not exist in table T", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0);", 0, "Name CK_N is already used by an existing constraint", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD (b NUMBER CONSTRAINT nn_code NOT NULL);", 0, "Name NN_CODE is already used by an existing constraint", shop)
-	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (n);", 0, "Table T can have only one primary key", shop)
-	oneFinding(t, "ALTER TABLE nokey DROP PRIMARY KEY;", 0, "Table NOKEY has no primary key to drop", shop)
-	oneFinding(t, "ALTER TABLE p DROP CONSTRAINT ck_n;", 0, "Cannot drop constraint CK_N: table P has no such constraint", shop)
-	oneFinding(t, "ALTER TABLE t DISABLE CONSTRAINT ck_p;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t ENABLE CONSTRAINT ck_n;", 2, "Cannot enable constraint CK_N: table T has no such constraint", shop)
-	oneFinding(t, "ALTER TABLE t RENAME CONSTRAINT ck_n TO fk_p;", 0, "Name FK_P is already used by an existing constraint", shop)
+	oneFinding(t, "ALTER TABLE t ADD (code NUMBER);", 0, "Column `CODE` already exists in `T`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column `ZZ` doesn't exist in `T`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP (n, zz);", 0, "Column `ZZ` doesn't exist in `T`.", shop)
+	oneFinding(t, "ALTER TABLE t RENAME COLUMN n TO code;", 0, "Column `CODE` already exists in `T`.", shop)
+	oneFinding(t, "ALTER TABLE t RENAME COLUMN n TO n;", 0, "Column `N` already exists in `T`.", shop)
+	oneFinding(t, "ALTER TABLE t MODIFY (zz NUMBER);", 0, "Column `ZZ` doesn't exist in `T`.", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0);", 0, "Constraint `CK_N` already exists.", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD (b NUMBER CONSTRAINT nn_code NOT NULL);", 0, "Constraint `NN_CODE` already exists.", shop)
+	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (n);", 0, "`T` already has a primary key.", shop)
+	oneFinding(t, "ALTER TABLE nokey DROP PRIMARY KEY;", 0, "`NOKEY` has no primary key.", shop)
+	oneFinding(t, "ALTER TABLE p DROP CONSTRAINT ck_n;", 0, "Constraint `CK_N` doesn't exist in `P`.", shop)
+	oneFinding(t, "ALTER TABLE t DISABLE CONSTRAINT ck_p;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t ENABLE CONSTRAINT ck_n;", 2, "Constraint `CK_N` doesn't exist in `T`.", shop)
+	oneFinding(t, "ALTER TABLE t RENAME CONSTRAINT ck_n TO fk_p;", 0, "Constraint `FK_P` already exists.", shop)
 	noFinding(t, "ALTER TABLE t DROP CONSTRAINT nosuch;\nALTER TABLE t ADD CONSTRAINT nosuch CHECK (n > 0);", shop)
 	// A trailing ENABLE or DISABLE sees the constraints of the statement's
 	// ADD and MODIFY clauses, and MODIFY CONSTRAINT does not.
 	noFinding(t, "CREATE TABLE x (a NUMBER);\nALTER TABLE x ADD (z NUMBER CONSTRAINT c5 CHECK (z > 0)) DISABLE CONSTRAINT c5;\nALTER TABLE x ADD (CONSTRAINT c9 CHECK (a > 0)) ENABLE CONSTRAINT c9;\nALTER TABLE x MODIFY (a CONSTRAINT nn_a NOT NULL) DISABLE CONSTRAINT nn_a;", shop)
-	oneFinding(t, "CREATE TABLE x (a NUMBER);\nALTER TABLE x ADD (z NUMBER CONSTRAINT c8 CHECK (z > 0)) MODIFY CONSTRAINT c8 DISABLE;", 1, "Cannot disable constraint C8: table X has no such constraint", shop)
-	oneFinding(t, "CREATE TABLE x (a NUMBER);\nALTER TABLE x ADD (z NUMBER CONSTRAINT c5 CHECK (z > 0)) DISABLE CONSTRAINT c6;", 1, "Cannot disable constraint C6: table X has no such constraint", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nALTER TABLE x ADD (z NUMBER CONSTRAINT c8 CHECK (z > 0)) MODIFY CONSTRAINT c8 DISABLE;", 1, "Constraint `C8` doesn't exist in `X`.", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nALTER TABLE x ADD (z NUMBER CONSTRAINT c5 CHECK (z > 0)) DISABLE CONSTRAINT c6;", 1, "Constraint `C6` doesn't exist in `X`.", shop)
 	// The text alone.
-	oneFinding(t, "CREATE TABLE x (a NUMBER, a NUMBER);", 0, "Column A is named twice in table X", shop)
-	oneFinding(t, "CREATE TABLE x (a NUMBER CONSTRAINT c CHECK (a > 0), b NUMBER CONSTRAINT c NOT NULL);", 0, "Name C is already used by an existing constraint", shop)
-	oneFinding(t, "CREATE TABLE x (a NUMBER PRIMARY KEY, b NUMBER, PRIMARY KEY (b));", 0, "Table X can have only one primary key", shop)
-	oneFinding(t, "ALTER TABLE t ADD (x NUMBER) MODIFY (x NUMBER);", 0, "Column X is named twice in the statement", shop)
-	oneFinding(t, "ALTER TABLE t DROP CONSTRAINT ck_n DROP CONSTRAINT ck_n;", 0, "Cannot drop constraint CK_N: table T has no such constraint", shop)
-	oneFinding(t, "CREATE TABLE "+strings.Repeat("a", 129)+" (a NUMBER);", 0, "The identifier "+strings.Repeat("A", 32)+"... is longer than 128 bytes", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER, a NUMBER);", 0, "This statement declares column `A` twice.", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER CONSTRAINT c CHECK (a > 0), b NUMBER CONSTRAINT c NOT NULL);", 0, "This statement declares constraint `C` twice.", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER PRIMARY KEY, b NUMBER, PRIMARY KEY (b));", 0, "`X` already has a primary key.", shop)
+	oneFinding(t, "ALTER TABLE t ADD (x NUMBER) MODIFY (x NUMBER);", 0, "This statement names column `X` twice.", shop)
+	oneFinding(t, "ALTER TABLE t DROP CONSTRAINT ck_n DROP CONSTRAINT ck_n;", 0, "This statement drops constraint `CK_N` twice.", shop)
+	oneFinding(t, "CREATE TABLE "+strings.Repeat("a", 129)+" (a NUMBER);", 0, "The name `"+strings.Repeat("A", 32)+"…` is longer than Oracle's 128-byte limit.", shop)
 	noFinding(t, "CREATE TABLE "+strings.Repeat("a", 128)+" (a NUMBER);", shop)
 	// Indexes and triggers: the sync lists them in part.
-	oneFinding(t, "CREATE INDEX ix_n ON nokey (a);", 0, "Name IX_N is already used by an existing object", shop)
-	oneFinding(t, "CREATE INDEX mv_ix ON nokey (a);", 0, "Name MV_IX is already used by an existing object", shop)
+	oneFinding(t, "CREATE INDEX ix_n ON nokey (a);", 0, "The name `IX_N` is already taken.", shop)
+	oneFinding(t, "CREATE INDEX mv_ix ON nokey (a);", 0, "The name `MV_IX` is already taken.", shop)
 	noFinding(t, "CREATE INDEX pk_t ON nokey (a);\nDROP INDEX nosuch;\nCREATE INDEX x ON nosuch (a);", shop)
-	oneFinding(t, "CREATE INDEX x ON pv (id);", 0, "A view is not appropriate here: PV", shop)
-	oneFinding(t, "CREATE INDEX i ON nokey (a);\nDROP INDEX i;\nDROP INDEX i;", 2, "Index I does not exist", shop)
-	oneFinding(t, "CREATE INDEX i ON nokey (a);\nALTER INDEX i RENAME TO ix_n;", 1, "Name IX_N is already used by an existing object", shop)
-	oneFinding(t, "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;\n/\nCREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;", 1, "Trigger TR2 already exists", shop)
-	oneFinding(t, "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;\n/\nCREATE OR REPLACE TRIGGER tr2 BEFORE INSERT ON p FOR EACH ROW BEGIN NULL; END;", 1, "Trigger TR2 already exists on another table, cannot replace it", shop)
+	oneFinding(t, "CREATE INDEX x ON pv (id);", 0, "`PV` is a view, not a table.", shop)
+	oneFinding(t, "CREATE INDEX i ON nokey (a);\nDROP INDEX i;\nDROP INDEX i;", 2, "Index `I` doesn't exist.", shop)
+	oneFinding(t, "CREATE INDEX i ON nokey (a);\nALTER INDEX i RENAME TO ix_n;", 1, "The name `IX_N` is already taken.", shop)
+	oneFinding(t, "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;\n/\nCREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;", 1, "Trigger `TR2` already exists.", shop)
+	oneFinding(t, "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;\n/\nCREATE OR REPLACE TRIGGER tr2 BEFORE INSERT ON p FOR EACH ROW BEGIN NULL; END;", 1, "Trigger `TR2` already exists on another table.", shop)
 	// Views, sequences, synonyms, and routines.
-	oneFinding(t, "DROP VIEW t;", 0, "Table or view T does not exist", shop)
-	oneFinding(t, "DROP SEQUENCE t;", 0, "Sequence T does not exist", shop)
-	oneFinding(t, "ALTER SEQUENCE nosuch INCREMENT BY 2;", 0, "Sequence NOSUCH does not exist", shop)
-	oneFinding(t, "DROP SYNONYM t;", 0, "Private synonym T to be dropped does not exist", shop)
+	oneFinding(t, "DROP VIEW t;", 0, "`T` is a table, not a view.", shop)
+	oneFinding(t, "DROP SEQUENCE t;", 0, "`T` is a table, not a sequence.", shop)
+	oneFinding(t, "ALTER SEQUENCE nosuch INCREMENT BY 2;", 0, "Sequence `NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "DROP SYNONYM t;", 0, "`T` isn't a private synonym.", shop)
 	noFinding(t, "DROP SYNONYM nosuch;\nDROP PUBLIC SYNONYM t;\nDROP PROCEDURE nosuch2;", shop)
-	oneFinding(t, "DROP SYNONYM nosuch;\nDROP PROCEDURE nosuch;", 1, "Object NOSUCH does not exist", shop)
-	oneFinding(t, "DROP FUNCTION pr;", 0, "Object PR does not exist", shop)
-	oneFinding(t, "CREATE SYNONYM s FOR t;\nDROP SYNONYM s;\nDROP SYNONYM s;", 2, "Private synonym S to be dropped does not exist", shop)
+	oneFinding(t, "DROP SYNONYM nosuch;\nDROP PROCEDURE nosuch;", 1, "Procedure `NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "DROP FUNCTION pr;", 0, "`PR` isn't a function.", shop)
+	oneFinding(t, "CREATE SYNONYM s FOR t;\nDROP SYNONYM s;\nDROP SYNONYM s;", 2, "Private synonym `S` doesn't exist.", shop)
 	// RENAME.
-	oneFinding(t, "RENAME pv TO t;", 0, "Name T is already used by an existing object", shop)
-	oneFinding(t, "RENAME f TO g;", 0, "RENAME cannot rename a function: F", shop)
-	oneFinding(t, "RENAME mv TO x;", 0, "Cannot rename materialized view MV", shop)
-	oneFinding(t, "RENAME t TO t;", 0, "Name T is already used by an existing object", shop)
+	oneFinding(t, "RENAME pv TO t;", 0, "The name `T` is already taken.", shop)
+	oneFinding(t, "RENAME f TO g;", 0, "`F` is a function, not a table, view, sequence, or private synonym.", shop)
+	oneFinding(t, "RENAME mv TO x;", 0, "`MV` is a materialized view, not a table, view, sequence, or private synonym.", shop)
+	oneFinding(t, "RENAME t TO t;", 0, "The name `T` is already taken.", shop)
 }
 
 func TestWalkThroughOracleEffects(t *testing.T) {
@@ -186,54 +186,54 @@ func TestWalkThroughOracleEffects(t *testing.T) {
 	// After IF [NOT] EXISTS on a name the walk does not know, the name is
 	// there, or gone from its kind's space; an ALTER ... IF EXISTS leaves
 	// it as it was.
-	oneFinding(t, "CREATE TABLE IF NOT EXISTS other.x (a NUMBER);\nCREATE TABLE other.x (a NUMBER);", 1, "Name OTHER.X is already used by an existing object", shop)
-	oneFinding(t, "DROP TABLE IF EXISTS other.x;\nALTER TABLE other.x ADD (a NUMBER);", 1, "Table or view OTHER.X does not exist", shop)
-	oneFinding(t, "CREATE INDEX IF NOT EXISTS i ON nokey (a);\nCREATE INDEX i ON p (note);", 1, "Name I is already used by an existing object", shop)
-	oneFinding(t, "DROP INDEX IF EXISTS i;\nDROP INDEX i;", 1, "Index I does not exist", shop)
+	oneFinding(t, "CREATE TABLE IF NOT EXISTS other.x (a NUMBER);\nCREATE TABLE other.x (a NUMBER);", 1, "The name `OTHER.X` is already taken.", shop)
+	oneFinding(t, "DROP TABLE IF EXISTS other.x;\nALTER TABLE other.x ADD (a NUMBER);", 1, "Table `OTHER.X` doesn't exist.", shop)
+	oneFinding(t, "CREATE INDEX IF NOT EXISTS i ON nokey (a);\nCREATE INDEX i ON p (note);", 1, "The name `I` is already taken.", shop)
+	oneFinding(t, "DROP INDEX IF EXISTS i;\nDROP INDEX i;", 1, "Index `I` doesn't exist.", shop)
 	noFinding(t, "ALTER INDEX IF EXISTS i REBUILD;\nDROP INDEX i;", shop)
 	noFinding(t, "DROP SYNONYM IF EXISTS s;\nDROP SYNONYM s;", shop)
 	// A dropped table takes its indexes, constraint names, and columns.
 	noFinding(t, "DROP TABLE t;\nCREATE INDEX ix_n ON nokey (a);\nALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0);\nCREATE TABLE t (z NUMBER);\nALTER TABLE t ADD (code NUMBER);", shop)
-	oneFinding(t, "DROP TABLE t;\nALTER TABLE t ADD (x NUMBER);", 1, "Table or view T does not exist", shop)
-	oneFinding(t, "DROP TABLE t;\nCREATE TABLE t (z NUMBER);\nALTER TABLE t DROP COLUMN code;", 2, "Column CODE does not exist in table T", shop)
+	oneFinding(t, "DROP TABLE t;\nALTER TABLE t ADD (x NUMBER);", 1, "Table `T` doesn't exist.", shop)
+	oneFinding(t, "DROP TABLE t;\nCREATE TABLE t (z NUMBER);\nALTER TABLE t DROP COLUMN code;", 2, "Column `CODE` doesn't exist in `T`.", shop)
 	// A renamed table keeps its columns and leaves its old name.
-	oneFinding(t, "ALTER TABLE t RENAME TO t2;\nALTER TABLE t2 DROP COLUMN zz;", 1, "Column ZZ does not exist in table T2", shop)
-	oneFinding(t, "ALTER TABLE t RENAME TO t2;\nALTER TABLE t ADD (x NUMBER);", 1, "Table or view T does not exist", shop)
-	oneFinding(t, "RENAME t TO t2;\nCREATE TABLE t2 (a NUMBER);", 1, "Name T2 is already used by an existing object", shop)
+	oneFinding(t, "ALTER TABLE t RENAME TO t2;\nALTER TABLE t2 DROP COLUMN zz;", 1, "Column `ZZ` doesn't exist in `T2`.", shop)
+	oneFinding(t, "ALTER TABLE t RENAME TO t2;\nALTER TABLE t ADD (x NUMBER);", 1, "Table `T` doesn't exist.", shop)
+	oneFinding(t, "RENAME t TO t2;\nCREATE TABLE t2 (a NUMBER);", 1, "Table `T2` already exists.", shop)
 	noFinding(t, "ALTER TABLE t RENAME TO t2;\nDROP TABLE t2;\nCREATE INDEX ix_n ON nokey (a);", shop)
 	// An index or trigger may be in another schema than its table.
 	noFinding(t, "CREATE TABLE other.o (a NUMBER);\nCREATE INDEX oi ON other.o (a);\nCREATE TRIGGER otr BEFORE INSERT ON other.o FOR EACH ROW BEGIN NULL; END;\n/\nDROP TABLE other.o;\nCREATE INDEX oi ON nokey (a);\nCREATE TRIGGER otr BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;", shop)
-	oneFinding(t, "CREATE TABLE other.o (a NUMBER);\nCREATE INDEX oi ON other.o (a);\nCREATE INDEX oi ON nokey (a);", 2, "Name OI is already used by an existing object", shop)
+	oneFinding(t, "CREATE TABLE other.o (a NUMBER);\nCREATE INDEX oi ON other.o (a);\nCREATE INDEX oi ON nokey (a);", 2, "The name `OI` is already taken.", shop)
 	// ALTER TABLE sees the table as it was.
 	noFinding(t, "ALTER TABLE t RENAME COLUMN n TO m;\nALTER TABLE t ADD (n NUMBER);\nALTER TABLE t DROP (m);", shop)
-	oneFinding(t, "ALTER TABLE t DROP COLUMN n;\nALTER TABLE t DROP COLUMN n;", 1, "Column N does not exist in table T", shop)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN n;\nALTER TABLE t DROP COLUMN n;", 1, "Column `N` doesn't exist in `T`.", shop)
 	// A column's constraints may go with it.
 	noFinding(t, "ALTER TABLE t DROP COLUMN n;\nALTER TABLE t DROP CONSTRAINT ck_n;", shop)
 	noFinding(t, "ALTER TABLE t MODIFY (code NULL);\nALTER TABLE nokey ADD CONSTRAINT nn_code CHECK (a > 0);", shop)
 	// A nested table's storage table goes with its parent, or its column.
-	oneFinding(t, "CREATE TABLE child (a NUMBER);", 0, "Name CHILD is already used by an existing object", shop)
+	oneFinding(t, "CREATE TABLE child (a NUMBER);", 0, "Table `CHILD` already exists.", shop)
 	noFinding(t, "DROP TABLE parent;\nCREATE TABLE child (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE parent DROP COLUMN c;\nCREATE TABLE child (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE parent SET UNUSED COLUMN c;\nALTER TABLE parent DROP UNUSED COLUMNS;\nCREATE TABLE child (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE nokey ADD (c nt_ty) NESTED TABLE c STORE AS s2;\nDROP TABLE s2;", shop)
-	oneFinding(t, "DROP TABLE other.o;\nCREATE TABLE child (a NUMBER);", 1, "Name CHILD is already used by an existing object", shop)
+	oneFinding(t, "DROP TABLE other.o;\nCREATE TABLE child (a NUMBER);", 1, "Table `CHILD` already exists.", shop)
 	// A materialized view log's table goes with its master.
-	oneFinding(t, "CREATE TABLE mlog$_p (a NUMBER);", 0, "Name MLOG$_P is already used by an existing object", shop)
+	oneFinding(t, "CREATE TABLE mlog$_p (a NUMBER);", 0, "Table `MLOG$_P` already exists.", shop)
 	noFinding(t, "DROP TABLE p;\nCREATE TABLE mlog$_p (a NUMBER);\nCREATE INDEX i_mlog$_p ON nokey (a);", shop)
-	oneFinding(t, "DROP TABLE other.o;\nCREATE INDEX i_mlog$_p ON nokey (a);", 1, "Name I_MLOG$_P is already used by an existing object", shop)
+	oneFinding(t, "DROP TABLE other.o;\nCREATE INDEX i_mlog$_p ON nokey (a);", 1, "The name `I_MLOG$_P` is already taken.", shop)
 	// DROP TYPE ... FORCE takes the columns of the type, and their
 	// constraints and indexes.
-	oneFinding(t, "DROP TYPE ty;\nALTER TABLE t ADD (n NUMBER);", 1, "Column N being added already exists in table T", shop)
+	oneFinding(t, "DROP TYPE ty;\nALTER TABLE t ADD (n NUMBER);", 1, "Column `N` already exists in `T`.", shop)
 	noFinding(t, "DROP TYPE ty FORCE;\nALTER TABLE t ADD (n NUMBER);\nALTER TABLE nokey ADD CONSTRAINT ck_n CHECK (a > 0);\nCREATE INDEX ix_n ON nokey (a);", shop)
 	// Columns the sync may not list: a period's, an object table's.
 	noFinding(t, "ALTER TABLE periodic DROP COLUMN vt_start;\nALTER TABLE ot DROP COLUMN xmldata;\nALTER TABLE nokey DROP COLUMN ora_archive_state;", shop)
-	oneFinding(t, "ALTER TABLE ot ADD (x NUMBER);", 0, "Column X being added already exists in table OT", shop)
+	oneFinding(t, "ALTER TABLE ot ADD (x NUMBER);", 0, "Column `X` already exists in `OT`.", shop)
 	// A key's index takes a name the walk does not know.
 	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT uq UNIQUE (a);\nCREATE INDEX uq ON p (note);", shop)
 	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT uq UNIQUE (a) USING INDEX (CREATE INDEX ux ON nokey (a));\nCREATE INDEX i ON p (note);\nDROP INDEX i;\nDROP INDEX ux;", shop)
 	// A view's triggers and constraints go with it.
 	noFinding(t, "CREATE VIEW v2 AS SELECT 1 a FROM dual WITH CHECK OPTION CONSTRAINT vck;\nDROP VIEW v2;\nALTER TABLE nokey ADD CONSTRAINT vck CHECK (a > 0);", shop)
-	oneFinding(t, "CREATE VIEW v2 AS SELECT 1 a FROM dual WITH CHECK OPTION CONSTRAINT vck;\nALTER TABLE nokey ADD CONSTRAINT vck CHECK (a > 0);", 1, "Name VCK is already used by an existing constraint", shop)
+	oneFinding(t, "CREATE VIEW v2 AS SELECT 1 a FROM dual WITH CHECK OPTION CONSTRAINT vck;\nALTER TABLE nokey ADD CONSTRAINT vck CHECK (a > 0);", 1, "Constraint `VCK` already exists.", shop)
 	noFinding(t, "CREATE VIEW v2 AS SELECT 1 a FROM dual WITH CHECK OPTION CONSTRAINT vck;\nCREATE OR REPLACE VIEW v2 AS SELECT 1 a FROM dual WITH CHECK OPTION CONSTRAINT vck;", shop)
 }
 
@@ -241,10 +241,10 @@ func TestWalkThroughOracleSession(t *testing.T) {
 	shop := review.Target{Schema: walkSchema(false)}
 	// Another schema is unknown, until the change makes its objects.
 	noFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE t (a NUMBER);", shop)
-	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE x (a NUMBER);\nCREATE TABLE other.x (a NUMBER);", 2, "Name OTHER.X is already used by an existing object", shop)
-	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE shop.t (a NUMBER);", 1, "Name SHOP.T is already used by an existing object", shop)
-	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nALTER SESSION SET CURRENT_SCHEMA = shop;\nCREATE TABLE t (a NUMBER);", 2, "Name T is already used by an existing object", shop)
-	oneFinding(t, "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY';\nCREATE TABLE t (a NUMBER);", 1, "Name T is already used by an existing object", shop)
+	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE x (a NUMBER);\nCREATE TABLE other.x (a NUMBER);", 2, "Table `OTHER.X` already exists.", shop)
+	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nCREATE TABLE shop.t (a NUMBER);", 1, "Table `SHOP.T` already exists.", shop)
+	oneFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nALTER SESSION SET CURRENT_SCHEMA = shop;\nCREATE TABLE t (a NUMBER);", 2, "Table `T` already exists.", shop)
+	oneFinding(t, "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY';\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	// What the walk does not follow ends it.
 	noFinding(t, "ALTER SESSION SET EDITION = e1;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "BEGIN NULL; END;\n/\nCREATE TABLE t (a NUMBER);", shop)
@@ -259,7 +259,7 @@ func TestWalkThroughOracleSession(t *testing.T) {
 	noFinding(t, "ALTER TABLE t ADD SUPPLEMENTAL LOG GROUP lg (n) ALWAYS;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "INSERT INTO t@lnk VALUES (1);\nCREATE TABLE t (a NUMBER);", shop)
 	// A string is no name.
-	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nCREATE TABLE t (a NUMBER);", 1, "Name T is already used by an existing object", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 }
 
 // TestWalkThroughOracleUserCode pins where a statement may run code that
@@ -270,7 +270,7 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	// A query that calls a function of a schema.
 	noFinding(t, "SELECT f(1) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "SELECT upper(shop.f(1)) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
-	oneFinding(t, "SELECT upper('a'), nvl(1, 2), count(*) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Name T is already used by an existing object", shop)
+	oneFinding(t, "SELECT upper('a'), nvl(1, 2), count(*) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	noFinding(t, "CREATE TABLE x AS SELECT f(1) a FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE INDEX i ON nokey (f(a));\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE TABLE x AS SELECT f(1) a FROM dual;\nCREATE TABLE x (a NUMBER);", shop)
@@ -287,14 +287,14 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	noFinding(t, "INSERT INTO nokey (a) VALUES (sq2.nextval);\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "SELECT x FROM pv;\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE INDEX i ON nokey (a + b);\nCREATE TABLE t (a NUMBER);", shop)
-	oneFinding(t, "CREATE INDEX i ON syn (p_id, b);\nCREATE INDEX j ON nokey (a + 1);\nCREATE TABLE t (a NUMBER);", 2, "Name T is already used by an existing object", shop)
-	oneFinding(t, "UPDATE t x SET x.n = 1 WHERE x.id = 1 AND code = 'a' RETURNING n INTO :v;\nCREATE TABLE t (a NUMBER);", 1, "Name T is already used by an existing object", shop)
-	oneFinding(t, "INSERT INTO nokey (a) VALUES (sq.nextval + 1);\nINSERT INTO nokey (a) SELECT p.id FROM p JOIN t ON t.p_id = p.id WHERE note = current_date;\nCREATE TABLE t (a NUMBER);", 2, "Name T is already used by an existing object", shop)
-	oneFinding(t, "MERGE INTO nokey k USING p ON (k.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nDELETE FROM shop.t WHERE shop.t.id = 1;\nCREATE INDEX i ON nokey (a);\nCREATE TABLE t (a NUMBER);", 3, "Name T is already used by an existing object", shop)
-	oneFinding(t, "CREATE TABLE x (a NUMBER);\nUPDATE x SET a = 1 WHERE a = 2;\nCREATE TABLE x (b NUMBER);", 2, "Name X is already used by an existing object", shop)
+	oneFinding(t, "CREATE INDEX i ON syn (p_id, b);\nCREATE INDEX j ON nokey (a + 1);\nCREATE TABLE t (a NUMBER);", 2, "Table `T` already exists.", shop)
+	oneFinding(t, "UPDATE t x SET x.n = 1 WHERE x.id = 1 AND code = 'a' RETURNING n INTO :v;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
+	oneFinding(t, "INSERT INTO nokey (a) VALUES (sq.nextval + 1);\nINSERT INTO nokey (a) SELECT p.id FROM p JOIN t ON t.p_id = p.id WHERE note = current_date;\nCREATE TABLE t (a NUMBER);", 2, "Table `T` already exists.", shop)
+	oneFinding(t, "MERGE INTO nokey k USING p ON (k.a = p.id) WHEN NOT MATCHED THEN INSERT (a) VALUES (p.id);\nDELETE FROM shop.t WHERE shop.t.id = 1;\nCREATE INDEX i ON nokey (a);\nCREATE TABLE t (a NUMBER);", 3, "Table `T` already exists.", shop)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nUPDATE x SET a = 1 WHERE a = 2;\nCREATE TABLE x (b NUMBER);", 2, "Table `X` already exists.", shop)
 	// A quoted name of a function of a syntax of its own is a plain call.
 	noFinding(t, "SELECT \"EXTRACT\"(1) FROM dual;\nCREATE TABLE t (a NUMBER);", shop)
-	oneFinding(t, "SELECT extract(year FROM sysdate) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Name T is already used by an existing object", shop)
+	oneFinding(t, "SELECT extract(year FROM sysdate) FROM dual;\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)
 	// A domain index's indextype runs code of its own on the table's DDL
 	// and DML, and to build or drop the index.
 	for _, q := range []string{
@@ -309,10 +309,10 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	} {
 		noFinding(t, q+"\nCREATE TABLE t (a NUMBER);", shop)
 	}
-	oneFinding(t, "ALTER TABLE doc ADD (body NUMBER);", 0, "Column BODY being added already exists in table DOC", shop)
+	oneFinding(t, "ALTER TABLE doc ADD (body NUMBER);", 0, "Column `BODY` already exists in `DOC`.", shop)
 	// DML that may fire a trigger: any in the schema or the change, or a
 	// target the walk does not know as a table.
-	oneFinding(t, "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 1;\nDELETE FROM p;\nCREATE TABLE t (a NUMBER);", 3, "Name T is already used by an existing object", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 1;\nDELETE FROM p;\nCREATE TABLE t (a NUMBER);", 3, "Table `T` already exists.", shop)
 	noFinding(t, "INSERT INTO nokey VALUES (1);\nCREATE TABLE t (a NUMBER);", triggered)
 	noFinding(t, "CREATE TRIGGER tr2 BEFORE INSERT ON nokey FOR EACH ROW BEGIN NULL; END;\n/\nINSERT INTO nokey VALUES (1);\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "INSERT INTO pv VALUES (1, 'a');\nCREATE TABLE t (a NUMBER);", shop)
@@ -323,7 +323,7 @@ func TestWalkThroughOracleUserCode(t *testing.T) {
 	// DML ends the walk.
 	other := review.Target{Schema: walkSchema(false), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a NUMBER);", other)
-	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);", 1, "Name X is already used by an existing object", other)
+	oneFinding(t, "CREATE TABLE x (a NUMBER);\nCREATE TABLE x (a NUMBER);", 1, "Table `X` already exists.", other)
 	noFinding(t, "CREATE TABLE x (a NUMBER);\nINSERT INTO x VALUES (1);\nCREATE TABLE x (a NUMBER);", other)
 }
 
@@ -331,21 +331,21 @@ func TestWalkThroughOracleDMLTargets(t *testing.T) {
 	shop := review.Target{Schema: walkSchema(false)}
 	// Nothing holds the name: the schema's tables, views, and synonyms, and
 	// for an unqualified name the public synonyms, show it.
-	oneFinding(t, "INSERT INTO nosuch VALUES (1);", 0, "Table or view NOSUCH does not exist", shop)
-	oneFinding(t, "UPDATE shop.nosuch SET a = 1;", 0, "Table or view SHOP.NOSUCH does not exist", shop)
-	oneFinding(t, "MERGE INTO nosuch k USING p ON (k.a = p.id) WHEN MATCHED THEN UPDATE SET k.a = 1;", 0, "Table or view NOSUCH does not exist", shop)
-	oneFinding(t, "INSERT ALL INTO nokey VALUES (1) INTO nosuch VALUES (1) SELECT 1 FROM dual;", 0, "Table or view NOSUCH does not exist", shop)
-	oneFinding(t, "DROP TABLE nokey;\nINSERT INTO nokey VALUES (1);", 1, "Table or view NOKEY does not exist", shop)
+	oneFinding(t, "INSERT INTO nosuch VALUES (1);", 0, "`NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "UPDATE shop.nosuch SET a = 1;", 0, "`SHOP.NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "MERGE INTO nosuch k USING p ON (k.a = p.id) WHEN MATCHED THEN UPDATE SET k.a = 1;", 0, "`NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "INSERT ALL INTO nokey VALUES (1) INTO nosuch VALUES (1) SELECT 1 FROM dual;", 0, "`NOSUCH` doesn't exist.", shop)
+	oneFinding(t, "DROP TABLE nokey;\nINSERT INTO nokey VALUES (1);", 1, "`NOKEY` doesn't exist.", shop)
 	// A qualified name skips the public synonyms.
 	noFinding(t, "INSERT INTO pubt VALUES (1, 1);", shop)
-	oneFinding(t, "INSERT INTO shop.pubt VALUES (1, 1);", 0, "Table or view SHOP.PUBT does not exist", shop)
+	oneFinding(t, "INSERT INTO shop.pubt VALUES (1, 1);", 0, "`SHOP.PUBT` doesn't exist.", shop)
 	noFinding(t, "INSERT INTO \"PUBLIC\".pubt VALUES (1, 1);", shop)
 	// Synonyms, the synced ones and the change's own.
 	noFinding(t, "INSERT INTO syn (id) VALUES (1);", shop)
-	oneFinding(t, "DROP SYNONYM syn;\nINSERT INTO syn (id) VALUES (1);", 1, "Table or view SYN does not exist", shop)
+	oneFinding(t, "DROP SYNONYM syn;\nINSERT INTO syn (id) VALUES (1);", 1, "`SYN` doesn't exist.", shop)
 	noFinding(t, "CREATE SYNONYM s2 FOR t;\nINSERT INTO s2 (id) VALUES (1);", shop)
 	noFinding(t, "CREATE PUBLIC SYNONYM ps FOR t;\nINSERT INTO ps (id) VALUES (1);", shop)
-	oneFinding(t, "DROP PUBLIC SYNONYM pubt;\nINSERT INTO pubt VALUES (1, 1);", 1, "Table or view PUBT does not exist", shop)
+	oneFinding(t, "DROP PUBLIC SYNONYM pubt;\nINSERT INTO pubt VALUES (1, 1);", 1, "`PUBT` doesn't exist.", shop)
 	noFinding(t, "DROP TABLE nokey;\nCREATE PUBLIC SYNONYM nokey FOR p;\nINSERT INTO nokey (id) VALUES (1);", shop)
 	// The sync leaves out a synonym whose object is gone or out of reach,
 	// which a later object or grant may restore: after one, no synonym's
@@ -357,11 +357,11 @@ func TestWalkThroughOracleDMLTargets(t *testing.T) {
 	noFinding(t, "GRANT SELECT ON t TO PUBLIC;\nINSERT INTO s_gone VALUES (1);", shop)
 	noFinding(t, "RENAME nokey TO nokey2;\nINSERT INTO s_gone VALUES (1);", shop)
 	noFinding(t, "ALTER TABLE nokey RENAME TO nokey2;\nINSERT INTO s_gone VALUES (1);", shop)
-	oneFinding(t, "RENAME syn TO syn2;\nINSERT INTO shop.syn (id) VALUES (1);", 1, "Table or view SHOP.SYN does not exist", shop)
-	oneFinding(t, "CREATE INDEX i ON nokey (a);\nINSERT INTO s_gone VALUES (1);", 1, "Table or view S_GONE does not exist", shop)
+	oneFinding(t, "RENAME syn TO syn2;\nINSERT INTO shop.syn (id) VALUES (1);", 1, "`SHOP.SYN` doesn't exist.", shop)
+	oneFinding(t, "CREATE INDEX i ON nokey (a);\nINSERT INTO s_gone VALUES (1);", 1, "`S_GONE` doesn't exist.", shop)
 	// An object of another kind refuses DML with an error of its own.
-	oneFinding(t, "DELETE FROM sq;", 0, "A sequence is not allowed here: SQ", shop)
-	oneFinding(t, "INSERT INTO pkg VALUES (1);", 0, "A procedure, function, package, or type is not allowed here: PKG", shop)
+	oneFinding(t, "DELETE FROM sq;", 0, "`SQ` is a sequence, not a table or view.", shop)
+	oneFinding(t, "INSERT INTO pkg VALUES (1);", 0, "`PKG` is a package, not a table or view.", shop)
 	noFinding(t, "INSERT INTO pv VALUES (1, 'a');", shop)
 	// What the walk does not know.
 	noFinding(t, "ALTER SESSION SET CURRENT_SCHEMA = other;\nINSERT INTO nosuch VALUES (1);", shop)

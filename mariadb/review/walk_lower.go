@@ -93,13 +93,12 @@ func (b *builder) statement(n ast.Node) bool {
 // tableNeeds adds the check that a statement's table exists as a base
 // table (1146 missing, 1347 a view).
 func (b *builder) tableNeeds(r tableRef) {
-	b.need(relKey(r.db, r.name), walk.Present, []string{relTable}, r.rng,
-		"Table "+r.written+" does not exist", r.written+" is not a base table")
+	b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
 }
 
 // databaseNeeds adds the check that a database exists (1049).
 func (b *builder) databaseNeeds(db, written string, rng review.Range) {
-	b.need(dbKey(db), walk.Present, nil, rng, "Database "+ident(written)+" does not exist", "")
+	b.need(dbKey(db), walk.Present, nil, rng, notFound("database", ident(written), ""), "")
 }
 
 func (b *builder) createDatabase(v *ast.CreateDatabaseStmt) bool {
@@ -124,7 +123,7 @@ func (b *builder) createDatabase(v *ast.CreateDatabaseStmt) bool {
 	}
 	prior, _ := b.l.Lookup(k)
 	if !v.IfNotExists {
-		b.need(k, walk.Absent, nil, rng, "", "Database "+ident(v.Name)+" already exists") // 1007
+		b.need(k, walk.Absent, nil, rng, "", alreadyExists("database", ident(v.Name), "")) // 1007
 		prior = walk.Absent
 	}
 	switch prior {
@@ -144,7 +143,7 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 	}
 	k := dbKey(d)
 	if !v.IfExists {
-		b.need(k, walk.Present, nil, b.anchor(), "Database "+ident(v.Name)+" does not exist", "") // 1008
+		b.need(k, walk.Present, nil, b.anchor(), notFound("database", ident(v.Name), ""), "") // 1008
 	}
 	b.Set(k, walk.Absent, "")
 	b.clearDatabase(d)
@@ -168,7 +167,7 @@ func (b *builder) clearDatabase(d string) {
 func (b *builder) alterDatabase(v *ast.AlterDatabaseStmt) bool {
 	if v.Name == "" {
 		if b.w.noDatabase && !b.w.lost {
-			b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabaseMessage)
+			b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabase("ALTER DATABASE"))
 		}
 		return true
 	}
@@ -232,8 +231,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			f, temp, skind := b.resolve(src)
 			if !temp && f != walk.Unknown {
 				// A view is no source (1347); a sequence is (verified).
-				b.need(relKey(src.db, src.name), walk.Present, []string{relTable, relSequence}, src.rng,
-					"Table "+src.written+" does not exist", src.written+" is not a base table")
+				b.needKind(relKey(src.db, src.name), []string{relTable, relSequence}, src.rng, notFound("table", src.written, ""), src.written, "table")
 			}
 			if f == walk.Present {
 				kind = skind
@@ -258,7 +256,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		tk := tempKey(r.db, r.name)
 		prior, _ := b.l.Lookup(tk)
 		if !v.IfNotExists && !v.OrReplace {
-			b.need(tk, walk.Absent, nil, r.rng, "", "Table "+r.written+" already exists") // 1050
+			b.needFree(tk, r.rng, r.written, relTable) // 1050
 		}
 		if v.IfNotExists && prior != walk.Absent {
 			// A note when the table exists, its text unread (verified). It
@@ -281,10 +279,10 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		// OR REPLACE replaces a table or a sequence, but not a view (1965),
 		// and leaves a temporary table of the name be (verified).
 		if prior == walk.Present {
-			b.need(k, walk.Present, []string{relTable, relSequence}, r.rng, "", r.written+" is a view")
+			b.needKind(k, []string{relTable, relSequence}, r.rng, "", r.written, "table")
 		}
 	case !v.IfNotExists:
-		b.need(k, walk.Absent, nil, r.rng, "", "Table "+r.written+" already exists") // 1050
+		b.needFree(k, r.rng, r.written, relTable) // 1050
 		prior = walk.Absent
 	case prior == walk.Present:
 		// A note: nothing is created, and the LIKE source is not read
@@ -311,7 +309,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			if n, ok := b.key(spaceForeignKey, keyName(c)); ok {
 				fk, own := fkKeys(r, n)
 				if of, _ := b.l.Lookup(own); !v.OrReplace || prior == walk.Absent || of == walk.Absent {
-					b.need(fk, walk.Absent, nil, rangeOf(c.Loc), "", "Foreign key "+ident(keyName(c))+" already exists in the database")
+					b.need(fk, walk.Absent, nil, rangeOf(c.Loc), "", alreadyExists("foreign key", ident(keyName(c)), ""))
 				}
 			}
 			b.foreignKeyTarget(r, c)
@@ -397,7 +395,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			continue
 		}
 		if columns[k] {
-			b.fail(rangeOf(c.Loc), nil, review.DuplicateName, "Column "+ident(c.Name)+" is specified twice in table "+r.written)
+			b.fail(rangeOf(c.Loc), nil, review.DuplicateName, statesTwice("declares", "column", ident(c.Name)))
 			return true
 		}
 		columns[k] = true
@@ -420,7 +418,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		case ast.ConstrForeignKey:
 			if k, ok := b.key(spaceForeignKey, keyName(c)); ok && b.fks {
 				if foreignKeys[k] {
-					b.fail(rangeOf(c.Loc), nil, review.DuplicateName, "Foreign key "+ident(keyName(c))+" is specified twice in table "+r.written)
+					b.fail(rangeOf(c.Loc), nil, review.DuplicateName, statesTwice("declares", "foreign key", ident(keyName(c))))
 					return true
 				}
 				foreignKeys[k] = true
@@ -434,16 +432,16 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		case !ok:
 			continue
 		case k == primaryIndex:
-			b.fail(rangeOf(c.Loc), nil, review.ReservedName, "Index name PRIMARY is reserved for the primary key")
+			b.fail(rangeOf(c.Loc), nil, review.ReservedName, reservedPrimary)
 			return true
 		case indexes[k]:
-			b.fail(rangeOf(c.Loc), nil, review.DuplicateName, "Index "+ident(c.Name)+" is specified twice in table "+r.written)
+			b.fail(rangeOf(c.Loc), nil, review.DuplicateName, statesTwice("declares", "index", ident(c.Name)))
 			return true
 		}
 		indexes[k] = true
 	}
 	if primaries > 1 {
-		b.fail(r.rng, nil, review.NameTaken, "Multiple primary keys for table "+r.written)
+		b.fail(r.rng, nil, review.NameTaken, hasPrimaryKey(r.written))
 		return true
 	}
 	return false
@@ -567,5 +565,5 @@ func (b *builder) foreignKeyTarget(r tableRef, c *ast.Constraint) {
 		return
 	}
 	t.written = table(c.RefTable)
-	b.need(relKey(t.db, t.name), walk.Present, []string{relTable}, t.rng, "Foreign key target table "+t.written+" does not exist", "Foreign key target "+t.written+" is not a base table")
+	b.needKind(relKey(t.db, t.name), []string{relTable}, t.rng, notFound("referenced table", t.written, ""), t.written, "table a foreign key can reference")
 }

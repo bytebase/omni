@@ -71,19 +71,19 @@ func noFinding(t *testing.T, sql string, target review.Target) {
 
 func TestWalkThroughTiDB(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
-	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE t (a int);", 1, "Table t already exists", shop)
-	oneFinding(t, "ALTER TABLE nosuch ADD COLUMN c int;", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "ALTER TABLE v ADD COLUMN c int;", 0, "v is not a base table", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN A int;", 0, "Column A already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", shop)
-	oneFinding(t, "ALTER TABLE t ADD INDEX I (a);", 0, "Index I already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (a);", 0, "Table t already has a primary key", shop)
-	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "DROP VIEW t;", 0, "t is not a view", shop)
+	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE t (a int);", 1, "Table `t` already exists.", shop)
+	oneFinding(t, "ALTER TABLE nosuch ADD COLUMN c int;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE v ADD COLUMN c int;", 0, "`v` is a view, not a table.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN A int;", 0, "Column `A` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column `zz` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD INDEX I (a);", 0, "Index `I` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (a);", 0, "`t` already has a primary key.", shop)
+	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP VIEW t;", 0, "`t` is a table, not a view.", shop)
 	noFinding(t, "RENAME TABLE t TO tmp, r TO t, tmp TO r;\nALTER TABLE r ADD COLUMN zz int;\nALTER TABLE t ADD COLUMN zz int;", shop)
-	oneFinding(t, "RENAME TABLE t TO u;\nCREATE TABLE u (a int);", 1, "Table u already exists", shop)
+	oneFinding(t, "RENAME TABLE t TO u;\nCREATE TABLE u (a int);", 1, "Table `u` already exists.", shop)
 	// A quoted `db.t` is one name, of the current database.
-	oneFinding(t, "ALTER TABLE t RENAME TO `q.t`;\nCREATE TABLE `q.t` (a int);", 1, "Table `q.t` already exists", shop)
+	oneFinding(t, "ALTER TABLE t RENAME TO `q.t`;\nCREATE TABLE `q.t` (a int);", 1, "Table `` `q.t` `` already exists.", shop)
 }
 
 // TestWalkThroughTiDBAlterTable pins spec §3.3: every subcommand is judged
@@ -93,38 +93,38 @@ func TestWalkThroughTiDBAlterTable(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	// MySQL runs the drops first; TiDB judges each against the table as it
 	// was (1060, 1061, 1054).
-	oneFinding(t, "ALTER TABLE t ADD COLUMN a int, DROP COLUMN a;", 0, "Column a already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP INDEX i, ADD INDEX i (b);", 0, "Index i already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t RENAME COLUMN a TO c, ADD COLUMN a int;", 0, "Column a already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t RENAME COLUMN a TO b, RENAME COLUMN b TO a;", 0, "Column b already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN y1 int, ADD COLUMN y2 int AFTER y1;", 0, "Column y1 does not exist in table t", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN x int, MODIFY x bigint;", 0, "Column x does not exist in table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (a);", 0, "Table t already has a primary key", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN a int, DROP COLUMN a;", 0, "Column `a` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP INDEX i, ADD INDEX i (b);", 0, "Index `i` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t RENAME COLUMN a TO c, ADD COLUMN a int;", 0, "Column `a` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t RENAME COLUMN a TO b, RENAME COLUMN b TO a;", 0, "Column `b` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN y1 int, ADD COLUMN y2 int AFTER y1;", 0, "Column `y1` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN x int, MODIFY x bigint;", 0, "Column `x` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (a);", 0, "`t` already has a primary key.", shop)
 	noFinding(t, "ALTER TABLE t DROP INDEX i, ADD INDEX j (b);\nALTER TABLE t DROP INDEX j;\nALTER TABLE t ADD INDEX i (a);", shop)
 	// Repeated subcommands (8200).
-	oneFinding(t, "ALTER TABLE t ADD COLUMN c int, ADD COLUMN c int;", 0, "Column c is added twice to table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP INDEX i, DROP INDEX I;", 0, "Index I is dropped twice from table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP PRIMARY KEY, DROP INDEX `PRIMARY`;", 0, "Index `PRIMARY` is dropped twice from table t", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD PRIMARY KEY (a), ADD PRIMARY KEY (a);", 0, "Multiple primary keys for table nokey", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN c int, ADD COLUMN c int;", 0, "This statement adds column `c` twice.", shop)
+	oneFinding(t, "ALTER TABLE t DROP INDEX i, DROP INDEX I;", 0, "This statement drops index `I` twice.", shop)
+	oneFinding(t, "ALTER TABLE t DROP PRIMARY KEY, DROP INDEX `PRIMARY`;", 0, "This statement drops index `` `PRIMARY` `` twice.", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD PRIMARY KEY (a), ADD PRIMARY KEY (a);", 0, "`nokey` already has a primary key.", shop)
 	// TiDB drops fk1 and then fails (1091): the oracle judges it by its
 	// code (walktest.PartialRejecter).
-	oneFinding(t, "ALTER TABLE t DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1;", 0, "Foreign key fk1 is dropped twice from table t", shop)
+	oneFinding(t, "ALTER TABLE t DROP FOREIGN KEY fk1, DROP FOREIGN KEY fk1;", 0, "This statement drops foreign key `fk1` twice.", shop)
 	// TiDB loops on this one's rollback, so the oracle cannot run it.
-	oneFinding(t, "ALTER TABLE t ADD CONSTRAINT f2 FOREIGN KEY (a) REFERENCES r (id), ADD CONSTRAINT F2 FOREIGN KEY (b) REFERENCES r (id);", 0, "Foreign key F2 is added twice to table t", shop)
+	oneFinding(t, "ALTER TABLE t ADD CONSTRAINT f2 FOREIGN KEY (a) REFERENCES r (id), ADD CONSTRAINT F2 FOREIGN KEY (b) REFERENCES r (id);", 0, "This statement adds foreign key `F2` twice.", shop)
 	// RENAME TO beside another subcommand (8200), but ALGORITHM and LOCK.
-	oneFinding(t, "ALTER TABLE t COMMENT 'x', RENAME TO t2;", 0, "RENAME TO cannot be combined with other changes to table t", shop)
-	oneFinding(t, "ALTER TABLE t RENAME TO t2, RENAME TO t3;", 0, "RENAME TO cannot be combined with other changes to table t", shop)
+	oneFinding(t, "ALTER TABLE t COMMENT 'x', RENAME TO t2;", 0, "TiDB doesn't accept `RENAME TO` with other changes to `t`.", shop)
+	oneFinding(t, "ALTER TABLE t RENAME TO t2, RENAME TO t3;", 0, "TiDB doesn't accept `RENAME TO` with other changes to `t`.", shop)
 	noFinding(t, "ALTER TABLE t COMMENT 'x', RENAME TO t;\nALTER TABLE t ADD COLUMN zz int, RENAME TO T;", shop)
 	noFinding(t, "ALTER TABLE t ALGORITHM = INSTANT, LOCK = NONE, RENAME TO t2;\nCREATE TABLE t (a int);\nALTER TABLE t2 ADD COLUMN zz int;", shop)
 	// DROP COLUMN IF EXISTS of a missing column is a note, and the
 	// statement goes on without it.
 	noFinding(t, "ALTER TABLE t DROP COLUMN IF EXISTS zz;\nALTER TABLE t DROP COLUMN IF EXISTS zz, DROP COLUMN IF EXISTS zz;", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN q int, DROP COLUMN IF EXISTS q;\nALTER TABLE t ADD COLUMN q int;", 1, "Column q already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP COLUMN IF EXISTS a;\nALTER TABLE t DROP COLUMN a;", 1, "Column a does not exist in table t", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN q int, DROP COLUMN IF EXISTS q;\nALTER TABLE t ADD COLUMN q int;", 1, "Column `q` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN IF EXISTS a;\nALTER TABLE t DROP COLUMN a;", 1, "Column `a` doesn't exist in `t`.", shop)
 	// TiDB checks no length in CHANGE or RENAME COLUMN.
 	long := strings.Repeat("c", 65)
 	noFinding(t, "ALTER TABLE t CHANGE a "+long+" int;\nALTER TABLE t RENAME COLUMN b TO "+long+"2;", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN "+long+" int;", 0, "Identifier name "+long+" is too long", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN "+long+" int;", 0, "The name `"+long+"` is longer than TiDB's 64-character limit.", shop)
 	// A local temporary table ends the walk (8200).
 	noFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nALTER TABLE tt ADD COLUMN b int;\nCREATE TABLE t (a int);", shop)
 }
@@ -135,18 +135,18 @@ func TestWalkThroughTiDBAlterTable(t *testing.T) {
 func TestWalkThroughTiDBForeignKeys(t *testing.T) {
 	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
 	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);\nCREATE TABLE x (a int, CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id));", on)
-	oneFinding(t, "ALTER TABLE t ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);", 0, "Foreign key FK1 already exists in table t", on)
-	oneFinding(t, "ALTER TABLE nokey DROP FOREIGN KEY fk1;", 0, "Foreign key fk1 does not exist in table nokey", on)
-	oneFinding(t, "ALTER TABLE t DROP FOREIGN KEY fk1, ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES r (id);", 0, "Foreign key fk1 already exists in table t", on)
-	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), CONSTRAINT F FOREIGN KEY (a) REFERENCES r (id));", 0, "Foreign key F is specified twice in table x", on)
+	oneFinding(t, "ALTER TABLE t ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);", 0, "Foreign key `FK1` already exists in `t`.", on)
+	oneFinding(t, "ALTER TABLE nokey DROP FOREIGN KEY fk1;", 0, "Foreign key `fk1` doesn't exist in `nokey`.", on)
+	oneFinding(t, "ALTER TABLE t DROP FOREIGN KEY fk1, ADD CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES r (id);", 0, "Foreign key `fk1` already exists in `t`.", on)
+	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT f FOREIGN KEY (a) REFERENCES r (id), CONSTRAINT F FOREIGN KEY (a) REFERENCES r (id));", 0, "This statement declares foreign key `F` twice.", on)
 	noFinding(t, "CREATE TABLE g (id int, b int, FOREIGN KEY (b) REFERENCES r (id));\nRENAME TABLE g TO h;\nALTER TABLE h DROP FOREIGN KEY fk_1;", on)
-	oneFinding(t, "CREATE TABLE g (id int, b int, FOREIGN KEY (b) REFERENCES r (id));\nRENAME TABLE g TO h;\nALTER TABLE h DROP FOREIGN KEY g_ibfk_1;", 2, "Foreign key g_ibfk_1 does not exist in table h", on)
-	oneFinding(t, "RENAME TABLE t TO u;\nALTER TABLE u DROP FOREIGN KEY fk1;\nALTER TABLE u DROP FOREIGN KEY fk1;", 2, "Foreign key fk1 does not exist in table u", on)
-	oneFinding(t, "CREATE TABLE my (a int, FOREIGN KEY (a) REFERENCES nosuch (id)) ENGINE=MyISAM;", 0, "Foreign key target table nosuch does not exist", on)
-	oneFinding(t, "CREATE TABLE my (a int) ENGINE=MyISAM;\nALTER TABLE my DROP FOREIGN KEY nosuch;", 1, "Foreign key nosuch does not exist in table my", on)
-	oneFinding(t, "ALTER TABLE nokey ENGINE=MyISAM;\nALTER TABLE nokey DROP FOREIGN KEY nosuch;", 1, "Foreign key nosuch does not exist in table nokey", on)
-	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES sq (id));", 0, "Foreign key target sq is not a base table", on)
-	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES v (id));", 0, "Foreign key target v is not a base table", on)
+	oneFinding(t, "CREATE TABLE g (id int, b int, FOREIGN KEY (b) REFERENCES r (id));\nRENAME TABLE g TO h;\nALTER TABLE h DROP FOREIGN KEY g_ibfk_1;", 2, "Foreign key `g_ibfk_1` doesn't exist in `h`.", on)
+	oneFinding(t, "RENAME TABLE t TO u;\nALTER TABLE u DROP FOREIGN KEY fk1;\nALTER TABLE u DROP FOREIGN KEY fk1;", 2, "Foreign key `fk1` doesn't exist in `u`.", on)
+	oneFinding(t, "CREATE TABLE my (a int, FOREIGN KEY (a) REFERENCES nosuch (id)) ENGINE=MyISAM;", 0, "Referenced table `nosuch` doesn't exist.", on)
+	oneFinding(t, "CREATE TABLE my (a int) ENGINE=MyISAM;\nALTER TABLE my DROP FOREIGN KEY nosuch;", 1, "Foreign key `nosuch` doesn't exist in `my`.", on)
+	oneFinding(t, "ALTER TABLE nokey ENGINE=MyISAM;\nALTER TABLE nokey DROP FOREIGN KEY nosuch;", 1, "Foreign key `nosuch` doesn't exist in `nokey`.", on)
+	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES sq (id));", 0, "`sq` is a sequence, not a table a foreign key can reference.", on)
+	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES v (id));", 0, "`v` is a view, not a table a foreign key can reference.", on)
 }
 
 // TestWalkThroughTiDBConstraintNames pins the names a key takes: a foreign
@@ -159,17 +159,17 @@ func TestWalkThroughTiDBConstraintNames(t *testing.T) {
 	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
 	long := strings.Repeat("f", 65)
 	noFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP INDEX cx;", on)
-	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY fx;", 1, "Foreign key fx does not exist in table x", on)
+	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY fx;", 1, "Foreign key `fx` doesn't exist in `x`.", on)
 	noFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nALTER TABLE y DROP FOREIGN KEY fy;", on)
 	noFinding(t, "ALTER TABLE t ADD CONSTRAINT nk FOREIGN KEY fk1 (a) REFERENCES r (id);", on)
-	oneFinding(t, "ALTER TABLE t ADD FOREIGN KEY fk1 (a) REFERENCES r (id);", 0, "Foreign key fk1 already exists in table t", on)
+	oneFinding(t, "ALTER TABLE t ADD FOREIGN KEY fk1 (a) REFERENCES r (id);", 0, "Foreign key `fk1` already exists in `t`.", on)
 	noFinding(t, "CREATE TABLE u (a int, CONSTRAINT cu UNIQUE KEY uu (a));\nALTER TABLE u DROP INDEX cu;", on)
-	oneFinding(t, "CREATE TABLE u (a int, CONSTRAINT cu UNIQUE KEY uu (a));\nALTER TABLE u DROP INDEX uu;", 1, "Index uu does not exist in table u", on)
+	oneFinding(t, "CREATE TABLE u (a int, CONSTRAINT cu UNIQUE KEY uu (a));\nALTER TABLE u DROP INDEX uu;", 1, "Index `uu` doesn't exist in `u`.", on)
 	noFinding(t, "ALTER TABLE t ADD CONSTRAINT cu UNIQUE KEY i (b);", on)
-	oneFinding(t, "ALTER TABLE t ADD CONSTRAINT i UNIQUE KEY cu (b);", 0, "Index i already exists in table t", on)
+	oneFinding(t, "ALTER TABLE t ADD CONSTRAINT i UNIQUE KEY cu (b);", 0, "Index `i` already exists in `t`.", on)
 	noFinding(t, "CREATE TABLE w (a int, CONSTRAINT cw FOREIGN KEY "+long+" (a) REFERENCES r (id), CONSTRAINT cu UNIQUE KEY "+long+"2 (a));", on)
-	oneFinding(t, "CREATE TABLE w (a int, FOREIGN KEY "+long+" (a) REFERENCES r (id));", 0, "Identifier name "+long+" is too long", on)
-	oneFinding(t, "ALTER TABLE nokey ADD UNIQUE KEY "+long+" (a);", 0, "Identifier name "+long+" is too long", on)
+	oneFinding(t, "CREATE TABLE w (a int, FOREIGN KEY "+long+" (a) REFERENCES r (id));", 0, "The name `"+long+"` is longer than TiDB's 64-character limit.", on)
+	oneFinding(t, "ALTER TABLE nokey ADD UNIQUE KEY "+long+" (a);", 0, "The name `"+long+"` is longer than TiDB's 64-character limit.", on)
 	noFinding(t, "CREATE TABLE k (a int, CONSTRAINT "+long+" CHECK (a > 0));\nALTER TABLE k ADD CONSTRAINT "+long+"2 CHECK (a > 1);", on)
 }
 
@@ -184,62 +184,62 @@ func TestWalkThroughTiDBObjects(t *testing.T) {
 	// ALTER VIEW, which TiDB rejects (1064), ends the walk.
 	noFinding(t, "ALTER VIEW v AS SELECT 1 AS a;\nCREATE TABLE t (a int);", shop)
 	// DML runs no trigger: a temporary table stays known.
-	oneFinding(t, "INSERT INTO t (id) VALUES (1);\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table nosuch does not exist", shop)
-	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nUPDATE t JOIN r ON r.id = t.a SET t.a = 1;\nCREATE TEMPORARY TABLE tt (a int);", 2, "Table tt already exists", shop)
+	oneFinding(t, "INSERT INTO t (id) VALUES (1);\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nUPDATE t JOIN r ON r.id = t.a SET t.a = 1;\nCREATE TEMPORARY TABLE tt (a int);", 2, "Temporary table `tt` already exists.", shop)
 	// Sequences are synced relations of their own kind.
-	oneFinding(t, "CREATE TABLE sq (a int);", 0, "Table sq already exists", shop)
-	oneFinding(t, "CREATE SEQUENCE SQ;", 0, "Table SQ already exists", shop)
-	oneFinding(t, "CREATE SEQUENCE t;", 0, "Table t already exists", shop)
+	oneFinding(t, "CREATE TABLE sq (a int);", 0, "The name `sq` is already taken.", shop)
+	oneFinding(t, "CREATE SEQUENCE SQ;", 0, "Sequence `SQ` already exists.", shop)
+	oneFinding(t, "CREATE SEQUENCE t;", 0, "The name `t` is already taken.", shop)
 	noFinding(t, "CREATE SEQUENCE IF NOT EXISTS sq;\nCREATE TEMPORARY TABLE sq (a int);", shop)
-	oneFinding(t, "DROP SEQUENCE nosuch;", 0, "Sequence nosuch does not exist", shop)
-	oneFinding(t, "DROP SEQUENCE t;", 0, "t is not a sequence", shop)
+	oneFinding(t, "DROP SEQUENCE nosuch;", 0, "Sequence `nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP SEQUENCE t;", 0, "`t` is a table, not a sequence.", shop)
 	noFinding(t, "DROP SEQUENCE IF EXISTS t, nosuch;\nDROP TABLE t;", shop)
-	oneFinding(t, "DROP SEQUENCE sq;\nDROP SEQUENCE sq;", 1, "Sequence sq does not exist", shop)
-	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nDROP SEQUENCE tt;", 1, "Sequence tt does not exist", shop)
-	oneFinding(t, "CREATE SEQUENCE s2;\nRENAME TABLE s2 TO s3;\nDROP SEQUENCE s2;", 2, "Sequence s2 does not exist", shop)
-	oneFinding(t, "DROP DATABASE shop;\nDROP SEQUENCE IF EXISTS sq;", 1, "No database selected", shop)
-	oneFinding(t, "ALTER TABLE sq COMMENT 'x';", 0, "sq is not a base table", shop)
-	oneFinding(t, "TRUNCATE TABLE sq;", 0, "Table sq does not exist", shop)
-	oneFinding(t, "DROP TABLE sq;", 0, "Table sq does not exist", shop)
-	oneFinding(t, "CREATE OR REPLACE VIEW sq AS SELECT 1 AS a;", 0, "sq is not a view", shop)
-	oneFinding(t, "CREATE TABLE x LIKE sq;", 0, "sq is not a base table", shop)
+	oneFinding(t, "DROP SEQUENCE sq;\nDROP SEQUENCE sq;", 1, "Sequence `sq` doesn't exist.", shop)
+	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nDROP SEQUENCE tt;", 1, "Sequence `tt` doesn't exist.", shop)
+	oneFinding(t, "CREATE SEQUENCE s2;\nRENAME TABLE s2 TO s3;\nDROP SEQUENCE s2;", 2, "Sequence `s2` doesn't exist.", shop)
+	oneFinding(t, "DROP DATABASE shop;\nDROP SEQUENCE IF EXISTS sq;", 1, "No database is selected for `sq`.", shop)
+	oneFinding(t, "ALTER TABLE sq COMMENT 'x';", 0, "`sq` is a sequence, not a table.", shop)
+	oneFinding(t, "TRUNCATE TABLE sq;", 0, "`sq` is a sequence, not a table.", shop)
+	oneFinding(t, "DROP TABLE sq;", 0, "`sq` is a sequence, not a table.", shop)
+	oneFinding(t, "CREATE OR REPLACE VIEW sq AS SELECT 1 AS a;", 0, "`sq` is a sequence, not a view.", shop)
+	oneFinding(t, "CREATE TABLE x LIKE sq;", 0, "`sq` is a sequence, not a table.", shop)
 	// DROP TABLE IF EXISTS leaves a sequence or a view with a note.
-	oneFinding(t, "DROP TABLE IF EXISTS sq;\nDROP SEQUENCE sq;\nDROP SEQUENCE sq;", 2, "Sequence sq does not exist", shop)
+	oneFinding(t, "DROP TABLE IF EXISTS sq;\nDROP SEQUENCE sq;\nDROP SEQUENCE sq;", 2, "Sequence `sq` doesn't exist.", shop)
 	noFinding(t, "DROP TABLE IF EXISTS v;\nDROP VIEW v;", shop)
 	// DROP VIEW IF EXISTS of a table or a sequence fails (1347).
-	oneFinding(t, "DROP VIEW IF EXISTS t;", 0, "t is not a view", shop)
-	oneFinding(t, "DROP VIEW IF EXISTS sq;", 0, "sq is not a view", shop)
+	oneFinding(t, "DROP VIEW IF EXISTS t;", 0, "`t` is a table, not a view.", shop)
+	oneFinding(t, "DROP VIEW IF EXISTS sq;", 0, "`sq` is a sequence, not a view.", shop)
 	noFinding(t, "DROP VIEW IF EXISTS nosuch, v;", shop)
 	// CREATE INDEX of an expression succeeds on a view or a sequence: the
 	// walk ends there.
 	noFinding(t, "CREATE INDEX k ON v ((1 + 1));\nCREATE TABLE t (a int);", shop)
 	noFinding(t, "CREATE INDEX k ON sq ((1 + 1));\nDROP INDEX k ON sq;\nCREATE TABLE t (a int);", shop)
-	oneFinding(t, "CREATE INDEX k ON nosuch (a);", 0, "Table nosuch does not exist", shop)
+	oneFinding(t, "CREATE INDEX k ON nosuch (a);", 0, "Table `nosuch` doesn't exist.", shop)
 	// TiDB drops what it can of these before it fails; the statement fails
 	// all the same, and the oracle judges each by its code.
-	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "DROP TABLE t, v;", 0, "Table v does not exist", shop)
-	oneFinding(t, "DROP TABLE t, sq;", 0, "Table sq does not exist", shop)
-	oneFinding(t, "DROP VIEW v, nosuch;", 0, "View nosuch does not exist", shop)
-	oneFinding(t, "DROP SEQUENCE sq, nosuch;", 0, "Sequence nosuch does not exist", shop)
+	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP TABLE t, v;", 0, "`v` is a view, not a table.", shop)
+	oneFinding(t, "DROP TABLE t, sq;", 0, "`sq` is a sequence, not a table.", shop)
+	oneFinding(t, "DROP VIEW v, nosuch;", 0, "View `nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP SEQUENCE sq, nosuch;", 0, "Sequence `nosuch` doesn't exist.", shop)
 	// The hidden row id is Unknown; the primary key's absence is trusted.
 	noFinding(t, "ALTER TABLE nokey ADD COLUMN x int AFTER _tidb_rowid;\nALTER TABLE nokey DROP COLUMN _tidb_rowid;", shop)
 	noFinding(t, "CREATE TABLE g (a int);\nALTER TABLE g DROP COLUMN _tidb_rowid;", shop)
-	oneFinding(t, "ALTER TABLE nokey DROP PRIMARY KEY;", 0, "Table nokey has no primary key", shop)
-	oneFinding(t, "CREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;", 1, "Table g has no primary key", shop)
+	oneFinding(t, "ALTER TABLE nokey DROP PRIMARY KEY;", 0, "`nokey` has no primary key.", shop)
+	oneFinding(t, "CREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;", 1, "`g` has no primary key.", shop)
 	// TiDB checks no length in DROP TABLE.
 	long := strings.Repeat("d", 65)
 	noFinding(t, "DROP TABLE IF EXISTS "+long+";", shop)
-	oneFinding(t, "DROP TABLE "+long+";", 0, "Table "+long+" does not exist", shop)
+	oneFinding(t, "DROP TABLE "+long+";", 0, "Table `"+long+"` doesn't exist.", shop)
 }
 
 func TestWalkThroughTiDBCase(t *testing.T) {
 	// lower_case_table_names is 2 on TiDB, whatever the target says.
 	for _, lctn := range []int{0, 1, 2} {
 		target := review.Target{Schema: walkSchema(), LowerCaseTableNames: lctn}
-		oneFinding(t, "CREATE TABLE T (a int);", 0, "Table T already exists", target)
-		oneFinding(t, "CREATE DATABASE SHOP;", 0, "Database SHOP already exists", target)
-		oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nCREATE TEMPORARY TABLE TT (a int);", 1, "Table TT already exists", target)
+		oneFinding(t, "CREATE TABLE T (a int);", 0, "Table `T` already exists.", target)
+		oneFinding(t, "CREATE DATABASE SHOP;", 0, "Database `SHOP` already exists.", target)
+		oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nCREATE TEMPORARY TABLE TT (a int);", 1, "Temporary table `TT` already exists.", target)
 	}
 }
 
@@ -253,45 +253,45 @@ func TestWalkThroughTiDBNamesOutsideASCII(t *testing.T) {
 	noFinding(t, "CREATE TABLE x (id INT, café INT);\nALTER TABLE x DROP COLUMN CAFé;", shop)
 	noFinding(t, "CREATE TABLE x (k INT);\nALTER TABLE x DROP COLUMN `\u212a`;\nALTER TABLE x DROP COLUMN zz;", shop)
 	// A string is no name.
-	oneFinding(t, "CREATE TABLE x (a int) COMMENT '中文';\nCREATE TABLE x (a int);", 1, "Table x already exists", shop)
-	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table nosuch does not exist", shop)
+	oneFinding(t, "CREATE TABLE x (a int) COMMENT '中文';\nCREATE TABLE x (a int);", 1, "Table `x` already exists.", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table `nosuch` doesn't exist.", shop)
 	kelvin := walkSchema()
 	tables := kelvin.Schemas[0].Tables
 	tables[2].Columns = append(tables[2].Columns, &metadata.ColumnMetadata{Name: "\u212a"})
 	kelvin.Schemas[0].Tables = append(tables, &metadata.TableMetadata{Name: "t\u212a"})
 	target := review.Target{Schema: kelvin}
 	noFinding(t, "ALTER TABLE nokey DROP COLUMN k;\nALTER TABLE nokey DROP COLUMN zz;\nDROP TABLE tk;\nDROP TABLE nosuch;", target)
-	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", target)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column `zz` doesn't exist in `t`.", target)
 }
 
 func TestWalkThroughTiDBSession(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	// Another database is unknown, until the change makes it.
 	noFinding(t, "USE other;\nCREATE TABLE t (a int);", shop)
-	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 2, "Table q.x already exists", shop)
-	oneFinding(t, "DROP DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database selected", shop)
-	oneFinding(t, "DROP DATABASE shop;\nCREATE SEQUENCE s;", 1, "No database selected", shop)
+	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 2, "Table `q.x` already exists.", shop)
+	oneFinding(t, "DROP DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database is selected for `x`.", shop)
+	oneFinding(t, "DROP DATABASE shop;\nCREATE SEQUENCE s;", 1, "No database is selected for `s`.", shop)
 	// A temporary table shadows the base table.
 	noFinding(t, "CREATE TEMPORARY TABLE nosuch (a int);\nALTER TABLE t ADD COLUMN zz int;\nINSERT INTO nosuch VALUES (1);", shop)
-	oneFinding(t, "DROP TEMPORARY TABLE t;", 0, "Temporary table t does not exist", shop)
+	oneFinding(t, "DROP TEMPORARY TABLE t;", 0, "Temporary table `t` doesn't exist.", shop)
 	// A foreign key's target is checked only while the checks are on.
 	noFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", shop)
-	oneFinding(t, "SET foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
+	oneFinding(t, "SET foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Referenced table `nosuch` doesn't exist.", shop)
 	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
 	noFinding(t, "SET FOREIGN_KEY_CHECKS = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
 	// Every assignment of foreign_key_checks reaches the session, GLOBAL
 	// too, in order.
 	noFinding(t, "SET GLOBAL foreign_key_checks = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
 	noFinding(t, "SET @@global.foreign_key_checks = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
-	oneFinding(t, "SET GLOBAL foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
+	oneFinding(t, "SET GLOBAL foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Referenced table `nosuch` doesn't exist.", shop)
 	noFinding(t, "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
 	noFinding(t, "SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
-	oneFinding(t, "SET GLOBAL foreign_key_checks = 0, @@session.foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
-	oneFinding(t, "SET GLOBAL sql_mode = '', foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
+	oneFinding(t, "SET GLOBAL foreign_key_checks = 0, @@session.foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Referenced table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "SET GLOBAL sql_mode = '', foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Referenced table `nosuch` doesn't exist.", shop)
 	// With another spec of the plan, only the change's own facts count.
 	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a int);", other)
-	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE x (a int);", 1, "Table x already exists", other)
+	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE x (a int);", 1, "Table `x` already exists.", other)
 }
 
 // TestWalkThroughTiDBTargetGroups pins OtherSpecs and ForeignKeyChecks in

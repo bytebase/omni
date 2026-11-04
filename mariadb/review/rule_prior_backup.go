@@ -1,7 +1,6 @@
 package review
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/mariadb/ast"
@@ -48,7 +47,7 @@ import (
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, "The change is over prior backup's size limit of "+review.Size(int64(change.MaxBackupSize))+".\n\nSplit it into smaller changes, or turn off **Prior backup**.")
 	}
 }
 
@@ -80,7 +79,7 @@ func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 			}
 			if first != kind && !reported[key] {
 				reported[key] = true
-				r.report(review.StatementsShareBackup, s.index, rangeOf(s.loc), "prior backup cannot back up both UPDATE and DELETE on "+table(ref))
+				r.report(review.StatementsShareBackup, s.index, rangeOf(s.loc), "Prior backup can't back up "+review.Code(table(ref))+": this change both updates and deletes its rows.\n\nMove the "+review.Code("UPDATE")+" and the "+review.Code("DELETE")+" into separate changes, or turn off **Prior backup**.")
 			}
 		}
 	}
@@ -111,7 +110,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 			return !returning
 		})
 		if returning {
-			r.report(review.StatementNotBackupable, s.index, rangeOf(s.loc), "prior backup reads the change as MySQL, which has no RETURNING clause")
+			r.report(review.StatementNotBackupable, s.index, rangeOf(s.loc), "Prior backup can't back up a statement with "+review.Code("RETURNING")+": it reads the change as MySQL.\n\nRemove "+review.Code("RETURNING")+", or turn off **Prior backup**.")
 		}
 		v, ok := s.node.(*ast.DeleteStmt)
 		if !ok || len(v.Using) == 0 || s.with {
@@ -128,7 +127,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 				name = target.Alias
 			}
 			if !from[name] {
-				r.report(review.BackupReadsWrongTable, s.index, rangeOf(s.loc), "prior backup does not find DELETE target "+ident(name)+" in the FROM list, written the same way")
+				r.report(review.BackupReadsWrongTable, s.index, rangeOf(s.loc), "Prior backup can't find the "+review.Code("DELETE")+" target "+review.Code(ident(name))+" in the "+review.Code("FROM")+" list, written the same way.\n\nWrite the target as the "+review.Code("FROM")+" list writes it.")
 			}
 		}
 	}
@@ -319,7 +318,7 @@ func madeByChange(stmts []statement) changeMade {
 // change's first USE reads that only the change makes.
 func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x schemaIndex, m changeMade, r *reporter) {
 	if !t.BackupDatabaseExists {
-		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "Prior backup needs the backup database "+review.Code(backupDatabase)+", which doesn't exist on this instance.\n\nCreate it, or turn off **Prior backup**.")
 	}
 	if x.schema == nil {
 		return
@@ -332,7 +331,7 @@ func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x sc
 		refs, _ := backupTargets(s)
 		for _, ref := range refs {
 			if x.inDatabase(ref) && x.isView(ref.Name) {
-				r.report(review.TableNotBackupable, s.index, rangeOf(s.loc), "prior backup copies tables with CREATE TABLE ... LIKE, which refuses view "+table(ref))
+				r.report(review.TableNotBackupable, s.index, rangeOf(s.loc), "Prior backup can't back up "+review.Code(table(ref))+": it is a view.\n\nTurn off **Prior backup** for this change.")
 			}
 		}
 	}
@@ -456,7 +455,8 @@ func backupReadsMade(n ast.Node, x schemaIndex, m changeMade) string {
 		})
 	}
 	if missing != nil {
-		return "prior backup runs before the change, when " + table(missing) + " does not exist yet"
+		name := review.Code(table(missing))
+		return "Prior backup runs before the change, when " + name + " doesn't exist yet.\n\nCreate " + name + " in an earlier change, or turn off **Prior backup**."
 	}
 	return columnMissing(from, quals, x, m)
 }
@@ -532,7 +532,7 @@ func columnMissing(from []ast.TableExpr, quals []ast.Node, x schemaIndex, m chan
 			return
 		}
 		if m.madeColumnOn(x, src.ref, column) {
-			msg = "prior backup runs before the change, when column " + ident(column) + " of " + table(src.ref) + " does not exist yet"
+			msg = "Prior backup runs before the change, when column " + review.Code(ident(column)) + " of " + review.Code(table(src.ref)) + " doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**."
 		}
 	}
 	// USING names a column each side has: one no source of a side may

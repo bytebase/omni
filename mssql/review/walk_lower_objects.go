@@ -64,7 +64,7 @@ func otherSpace(kind string) string {
 // each judged against the state before the statement, as DROP TABLE's.
 // A view takes its triggers along.
 func (b *builder) dropKind(v *ast.DropStmt, kind string) bool {
-	return b.dropEach(v, spaceObject, func(r objRef) bool {
+	return b.dropEach(v, spaceObject, kindWords[kind], func(r objRef) bool {
 		if r.temp {
 			return false
 		}
@@ -73,7 +73,7 @@ func (b *builder) dropKind(v *ast.DropStmt, kind string) bool {
 			return true
 		}
 		space := r.kindSpace(kind)
-		absent, present := msgMissing(kind, r.written), msgNotKind(r.written, kind)
+		absent, present := msgMissing(kindWords[kind], r.written), notKind(r.written, kindWords[kind], kind)
 		if !v.IfExists {
 			b.needs(space, r.parent, r.n, []string{kind}, note(r.rng, absent, present))
 		} else {
@@ -94,7 +94,7 @@ func (b *builder) dropKind(v *ast.DropStmt, kind string) bool {
 // dropTypes follows DROP TYPE [IF EXISTS]: types are not synced, so only
 // the change's own facts say one is missing (218).
 func (b *builder) dropTypes(v *ast.DropStmt) bool {
-	return b.dropEach(v, spaceType, func(r objRef) bool {
+	return b.dropEach(v, spaceType, "type", func(r objRef) bool {
 		if r.temp {
 			return false
 		}
@@ -106,7 +106,7 @@ func (b *builder) dropTypes(v *ast.DropStmt) bool {
 			return true
 		}
 		if !v.IfExists {
-			b.needs(spaceType, r.parent, r.n, nil, note(r.rng, msgMissing("type", r.written), ""))
+			b.needs(spaceType, r.parent, r.n, nil, note(r.rng, msgMissing("type", r.written), nil))
 		} else if b.see(spaceType, r.parent, r.n).fact == walk.Unknown {
 			b.maybe()
 		}
@@ -133,7 +133,7 @@ func (b *builder) createType(v *ast.CreateTypeStmt) bool {
 		return true
 	}
 	b.schemaNeeds(r)
-	b.lacks(spaceType, r.parent, r.n, note(r.rng, "", "type "+r.written+" already exists"))
+	b.lacks(spaceType, r.parent, r.n, note(r.rng, "", text(msgExists("type", r.written))))
 	b.arrive(spaceType, r.parent, r.n, "")
 	return true
 }
@@ -152,7 +152,7 @@ func (b *builder) createObject(tr *ast.TableRef, kind string) bool {
 		return true
 	}
 	b.schemaNeeds(r)
-	b.lacksObject(r)
+	b.lacksObject(r, kind)
 	b.arriveObject(r, kind)
 	return true
 }
@@ -165,7 +165,7 @@ func (b *builder) alterSequence(v *ast.AlterSequenceStmt) bool {
 		return false
 	}
 	if r.where == placed {
-		b.needs(spaceRelation, r.parent, r.n, []string{kindSequence}, note(r.rng, msgMissing("sequence", r.written), msgNotKind(r.written, "sequence")))
+		b.needs(spaceRelation, r.parent, r.n, []string{kindSequence}, note(r.rng, msgMissing("sequence", r.written), notKind(r.written, "sequence", kindSequence)))
 	}
 	return true
 }
@@ -207,17 +207,17 @@ func (b *builder) createModule(loc ast.Loc, tr *ast.TableRef, orAlter bool, kind
 // moduleChecks adds a module statement's checks on its name.
 func (b *builder) moduleChecks(r objRef, verb, kind string) {
 	space := r.kindSpace(kind)
-	present := msgNotKind(r.written, kind)
+	present := notKind(r.written, kindWords[kind], kind)
 	switch verb {
 	case "CREATE":
 		b.schemaNeeds(r)
-		b.lacksObject(r)
+		b.lacksObject(r, kind)
 		return
 	case "CREATE OR ALTER":
 		b.schemaNeeds(r)
 		b.ofKind(space, r.parent, r.n, []string{kind}, note(r.rng, "", present))
 	default:
-		b.needs(space, r.parent, r.n, []string{kind}, note(r.rng, msgMissing(kind, r.written), present))
+		b.needs(space, r.parent, r.n, []string{kind}, note(r.rng, msgMissing(kindWords[kind], r.written), present))
 	}
 	b.ofKind(otherSpace(kind), r.parent, r.n, []string{kind}, note(r.rng, "", present))
 }
@@ -246,10 +246,10 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	// The table is looked up first, in the default schema and then dbo
 	// when unqualified, never the trigger's (8197, 1088; verified).
 	if v.Name.Schema != "" && t.where == placed && differ(v.Name.Schema, t.schema.spelling) && b.see(spaceRelation, t.parent, t.n).fact != walk.Absent {
-		b.fail(rangeOf(v.Name.Loc), review.TriggerSchemaMismatch, "trigger "+object(v.Name)+" must be in the schema of its table "+t.written)
+		b.fail(rangeOf(v.Name.Loc), review.TriggerSchemaMismatch, "Trigger "+review.Code(object(v.Name))+" must be in the schema of "+review.Code(t.written)+".")
 		return true
 	}
-	b.tableNeeds(t, []string{kindTable, kindView}, msgMissing("table", t.written), msgNotKind(t.written, "table or view"))
+	b.tableNeeds(t, []string{kindTable, kindView}, msgMissing("table", t.written), notKind(t.written, "table or view", kindTable, kindView))
 	r := objRef{schema: t.schema, parent: t.parent, where: t.where, written: object(v.Name), rng: rangeOf(v.Name.Loc)}
 	if v.Name.Schema != "" {
 		r, ok = b.ref(v.Name, true)
@@ -321,7 +321,7 @@ func (b *builder) renameObject(objname string, nn name) bool {
 	rng := b.anchor()
 	r.rng = rng
 	os := b.see(spaceObject, r.parent, r.n)
-	b.needs(spaceObject, r.parent, r.n, nil, note(rng, msgMissing("object", r.written), ""))
+	b.needs(spaceObject, r.parent, r.n, nil, note(rng, msgMissing("", r.written), nil))
 	if os.fact == walk.Absent {
 		return true
 	}
@@ -337,7 +337,7 @@ func (b *builder) renameObject(objname string, nn name) bool {
 	nr := objRef{n: nn, schema: r.schema, parent: r.parent, where: placed, written: ident(nn.spelling), rng: rng}
 	same := nn.class == r.n.class
 	if !same {
-		b.lacksObject(nr)
+		b.lacksObject(nr, kind)
 	}
 	known := kind == kindTable && b.knownTable(r)
 	freshTo, _ := b.classFact(nn.classKey(spaceRelation, r.parent))
@@ -387,7 +387,7 @@ func (b *builder) renameChild(objname string, nn name, space string) bool {
 	if space == spaceIndex {
 		what = "index"
 	}
-	b.tableNeeds(r, nil, msgMissing("table", r.written), "")
+	b.tableNeeds(r, nil, msgMissing("table", r.written), nil)
 	if !b.knownTable(r) {
 		b.forgetMeant(r, space)
 		return space != spaceIndex
@@ -397,13 +397,9 @@ func (b *builder) renameChild(objname string, nn name, space string) bool {
 	if space == spaceIndex && s.fact != walk.Absent && (s.fact != walk.Present || s.kind != kindIndex) {
 		return false
 	}
-	in := " in "
-	if space == spaceIndex {
-		in = " on "
-	}
-	b.needs(space, path, cn, nil, note(rng, what+" "+ident(child)+" does not exist"+in+r.written, ""))
+	b.needs(space, path, cn, nil, note(rng, msgMissingIn(what, ident(child), r.written), nil))
 	if nn.class != cn.class {
-		b.lacks(space, path, nn, note(rng, "", what+" "+ident(nn.spelling)+" already exists"+in+r.written))
+		b.lacks(space, path, nn, note(rng, "", text(msgExistsIn(what, ident(nn.spelling), r.written))))
 	}
 	kind := ""
 	if space == spaceIndex {

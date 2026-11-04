@@ -14,5 +14,5 @@ import "github.com/bytebase/omni/review"
 // backend/plugin/parser/{mysql,tidb,tsql,plsql,pg}/backup.go — the
 // RegisterTransformDMLToSelect calls, none for Snowflake
 func checkPriorBackup(r *reporter) {
-	r.report(review.PriorBackupUnsupported, -1, review.Range{}, "the change enables prior backup, which Bytebase does not take on Snowflake: the change runs without a backup")
+	r.report(review.PriorBackupUnsupported, -1, review.Range{}, "Bytebase doesn't take a prior backup on Snowflake.\n\nThe change runs without one. Turn off **Prior backup** for this change.")
 }

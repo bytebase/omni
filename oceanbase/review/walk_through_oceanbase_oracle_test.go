@@ -107,22 +107,24 @@ var oceanBaseWalkCases = []oceanBaseCase{
 }
 
 // oceanBaseCodes lists the error codes OceanBase gives for a finding
-// beside MySQL's (spec §4.8).
-func oceanBaseCodes(m string) []string {
+// beside MySQL's (spec §4.8), for the statement it is on: two primary
+// keys in one statement are told from a primary key the table has by the
+// statement's text.
+func oceanBaseCodes(m, stmt string) []string {
 	var codes []string
 	for _, c := range []struct {
 		match bool
 		codes []string
 	}{
-		{strings.HasPrefix(m, "Foreign key target "), []string{"1146", "1215"}},
-		{strings.HasPrefix(m, "Foreign key ") && (strings.Contains(m, " specified twice ") || strings.Contains(m, " added twice ")), []string{"1215", "1235"}},
-		{strings.HasPrefix(m, "Index ") && strings.Contains(m, " dropped twice "), []string{"1072", "1235"}},
-		{strings.HasPrefix(m, "Multiple primary keys"), []string{"1062", "1235"}},
-		{strings.HasSuffix(m, " is not a base table"), []string{"1235"}},
-		{strings.HasPrefix(m, "Database ") && strings.HasSuffix(m, " does not exist"), []string{"1210"}},
-		{m == noDatabaseMessage, []string{"1210"}},
-		{strings.HasPrefix(m, "Trigger ") && strings.HasSuffix(m, " already exists"), []string{"5734", "5735"}},
-		{strings.HasPrefix(m, "Identifier name "), []string{"1406"}},
+		{strings.HasPrefix(m, "Referenced table ") || strings.HasSuffix(m, ", not a table a foreign key can reference."), []string{"1146", "1215"}},
+		{saysTwice(m, "foreign key", "declares", "adds"), []string{"1215", "1235"}},
+		{saysTwice(m, "index", "drops") || m == "This statement drops the primary key twice.", []string{"1072", "1235"}},
+		{strings.HasSuffix(m, " already has a primary key.") && strings.Count(strings.ToUpper(stmt), "PRIMARY KEY") > 1, []string{"1062", "1235"}},
+		{strings.HasSuffix(m, ", not a table.") && !leads(stmt, "DROP TABLE", "DROP TABLES", "TRUNCATE") || strings.HasSuffix(m, ", not a table a foreign key can reference."), []string{"1235"}},
+		{strings.HasPrefix(m, "Database ") && strings.HasSuffix(m, " doesn't exist."), []string{"1210"}},
+		{strings.HasPrefix(m, "No database is selected for "), []string{"1210"}},
+		{strings.HasPrefix(m, "Trigger ") && strings.HasSuffix(m, " already exists."), []string{"5734", "5735"}},
+		{strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, "-character limit."), []string{"1406"}},
 	} {
 		if c.match {
 			codes = append(codes, c.codes...)
