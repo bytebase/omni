@@ -1,5 +1,7 @@
 package ast
 
+import "strconv"
+
 // -----------------------------------------------------------------------
 // Statement nodes
 // -----------------------------------------------------------------------
@@ -32,6 +34,13 @@ type SelectStmt struct {
 	SetAll            bool               // ALL modifier for set operations
 	Left              *SelectStmt        // left side of set operation
 	Right             *SelectStmt        // right side of set operation
+	// TableSource and ValuesSource are the TABLE or VALUES query primary this
+	// node stands for. The source holds only its table or rows; the ORDER BY,
+	// LIMIT, locking clause, and INTO after it are this node's, except that an
+	// ORDER BY and LIMIT after the last operand of a set operation are the set
+	// operation's.
+	TableSource  *TableStmt  // TABLE query primary
+	ValuesSource *ValuesStmt // VALUES query primary
 	// ParenSource is the inner query of a parenthesized query expression
 	// ( SELECT ... ). When non-nil this node is a parentheses wrapper: its own
 	// OrderBy/Limit hold the OUTER trailing clauses, while ParenSource carries
@@ -115,8 +124,7 @@ type InsertStmt struct {
 	Partitions     []string      // PARTITION (p0, p1, ...)
 	Columns        []*ColumnRef  // explicit column list
 	Values         [][]ExprNode  // VALUES rows
-	Select         *SelectStmt   // INSERT ... SELECT
-	TableSource    *TableStmt    // INSERT ... TABLE table_name (MySQL 8.0.19+)
+	Select         *SelectStmt   // INSERT ... SELECT, ... TABLE t, ... (query)
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
 	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
 	ColAliases     []string      // (col_alias, ...) after row_alias
@@ -1154,12 +1162,21 @@ type IntoClause struct {
 func (c *IntoClause) nodeTag() {}
 
 // ForUpdate represents FOR UPDATE / FOR SHARE.
+//
+// NoWait, HasWait and SkipLocked are the three wait modifiers, of which a
+// locking clause carries at most one. HasWait, not a zero WaitSeconds, is
+// what says WAIT was written, so "FOR UPDATE WAIT 0" is not mistaken for no
+// WAIT at all. WaitSeconds keeps the literal's own text, since what each
+// engine accepts there differs (TiDB takes an integer that fits a uint64;
+// MariaDB and OceanBase take any numeric literal).
 type ForUpdate struct {
 	Loc             Loc
 	Share           bool // FOR SHARE instead of FOR UPDATE
 	LockInShareMode bool // LOCK IN SHARE MODE (legacy syntax)
 	Tables          []*TableRef
 	NoWait          bool
+	HasWait         bool   // WAIT n present (TiDB's own modifier; MySQL has none)
+	WaitSeconds     string // the literal after WAIT, as written; only when HasWait
 	SkipLocked      bool
 }
 
@@ -2669,30 +2686,45 @@ type DeclareCursorStmt struct {
 func (s *DeclareCursorStmt) nodeTag()  {}
 func (s *DeclareCursorStmt) stmtNode() {}
 
-// TableStmt represents a TABLE statement (MySQL 8.0.19+).
+// TableStmt represents a TABLE query primary (MySQL 8.0.19+).
 // TABLE t is equivalent to SELECT * FROM t.
+//
+// The parser builds one only as the TableSource of a SelectStmt, which holds
+// the clauses after it. A TABLE statement, and a TABLE in any other position,
+// is a SelectStmt over a TableStmt.
 type TableStmt struct {
-	Loc     Loc
-	Table   *TableRef      // table name
-	OrderBy []*OrderByItem // optional ORDER BY
-	Limit   *Limit         // optional LIMIT/OFFSET
-	Into    *IntoClause    // optional INTO OUTFILE/DUMPFILE/var
+	Loc   Loc
+	Table *TableRef // table name
 }
 
 func (s *TableStmt) nodeTag()  {}
 func (s *TableStmt) stmtNode() {}
 
-// ValuesStmt represents a VALUES statement (MySQL 8.0.19+).
+// ValuesStmt represents a VALUES query primary (MySQL 8.0.19+).
 // VALUES ROW(1,2), ROW(3,4) returns rows of literal values.
+//
+// The parser builds one only as the ValuesSource of a SelectStmt, which holds
+// the clauses after it. A VALUES statement, and a VALUES in any other
+// position, is a SelectStmt over a ValuesStmt.
 type ValuesStmt struct {
-	Loc     Loc
-	Rows    [][]ExprNode   // list of ROW(...) value lists
-	OrderBy []*OrderByItem // optional ORDER BY
-	Limit   *Limit         // optional LIMIT/OFFSET
+	Loc  Loc
+	Rows [][]ExprNode // list of ROW(...) value lists
 }
 
 func (s *ValuesStmt) nodeTag()  {}
 func (s *ValuesStmt) stmtNode() {}
+
+// ValuesColumnName returns the name of the i'th (0-based) output column of a
+// VALUES query. A VALUES row carries no names of its own, so MySQL 8.0 calls
+// the columns column_0, column_1, ... -- in a result header, in a derived
+// table or CTE over one, and in the column list of a view whose body is one
+// (container-verified).
+// TiDB's own executor refuses a VALUES query outright (error 1051, Unknown
+// table ”), so there is no TiDB result header to compare against; the names
+// are MySQL's, whose VALUES statement TiDB's grammar implements.
+func ValuesColumnName(i int) string {
+	return "column_" + strconv.Itoa(i)
+}
 
 // IfStmt represents an IF/ELSEIF/ELSE compound statement.
 type IfStmt struct {

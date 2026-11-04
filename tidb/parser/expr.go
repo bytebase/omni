@@ -1149,8 +1149,7 @@ func (p *Parser) lookaheadParenContentIsSubquery() bool {
 	case ')':
 		// Single element: a subquery iff that element's block opens one, so
 		// `(((SELECT 1) + 0))` is an expression. FOR is excluded (TiDB rejects
-		// `IN ((SELECT 1) FOR UPDATE)`); VALUES/TABLE excluded (deferred
-		// backlog).
+		// `IN ((SELECT 1) FOR UPDATE)`).
 		return p.parenBeginsSubquery()
 	case kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT:
 		return true // query-expression continuation
@@ -1202,7 +1201,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 
 	// Check for subquery (incl. a parenthesized query expression like
 	// ((SELECT 1) UNION (SELECT 2)) — classified by a backtracking scan).
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH ||
+	if p.atQueryPrimaryStart() ||
 		(p.cur.Type == '(' && p.lookaheadParenContentIsSubquery()) {
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {
@@ -1511,7 +1510,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 	// Check for subquery (incl. a parenthesized query expression like
 	// ((SELECT 1) UNION (SELECT 2)) — classified by a backtracking scan; a
 	// top-level comma instead routes to the value-list branch below).
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH ||
+	if p.atQueryPrimaryStart() ||
 		(p.cur.Type == '(' && p.lookaheadParenContentIsSubquery()) {
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {

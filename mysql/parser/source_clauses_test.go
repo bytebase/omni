@@ -17,21 +17,29 @@ var sourceClauseCases = []struct {
 	sql  string
 	want []string
 }{
-	// A source standing alone holds its own clauses.
+	// A source standing alone is a query expression too, so the SelectStmt
+	// over it holds the clauses there as well.
 	{"TABLE t ORDER BY a LIMIT 1", []string{
-		"TABLE t ORDER BY a LIMIT 1: order 1, limit",
+		"SelectStmt over TABLE t: order 1, limit",
 	}},
 	{"TABLE t LIMIT 1 INTO @x", []string{
-		"TABLE t LIMIT 1 INTO @x: limit, into",
+		"SelectStmt over TABLE t: limit, into",
 	}},
 	{"VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1", []string{
-		"VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1: order 1, limit",
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1, limit",
 	}},
 	{"INSERT INTO t TABLE u ORDER BY a LIMIT 1", []string{
-		"TABLE u ORDER BY a LIMIT 1: order 1, limit",
+		"SelectStmt over TABLE u: order 1, limit",
 	}},
 	{"EXPLAIN TABLE t ORDER BY a", []string{
-		"TABLE t ORDER BY a: order 1",
+		"SelectStmt over TABLE t: order 1",
+	}},
+	// A locking clause lands on the same SelectStmt.
+	{"TABLE t ORDER BY a LIMIT 1 FOR UPDATE", []string{
+		"SelectStmt over TABLE t: order 1, limit, for update",
+	}},
+	{"VALUES ROW(1) FOR SHARE", []string{
+		"SelectStmt over VALUES ROW(1): for share",
 	}},
 	// Inside a query expression the SelectStmt over the source holds them.
 	{"SELECT (TABLE t ORDER BY a LIMIT 1)", []string{
@@ -71,44 +79,50 @@ var sourceClauseCases = []struct {
 		"SelectStmt over TABLE t: order 1",
 	}},
 	{"TABLE t ORDER BY (TABLE u ORDER BY (VALUES ROW(1) LIMIT 1))", []string{
-		"TABLE t ORDER BY (TABLE u ORDER BY (VALUES ROW(1) LIMIT 1)): order 1",
+		"SelectStmt over TABLE t: order 1",
 		"SelectStmt over TABLE u: order 1",
 		"SelectStmt over VALUES ROW(1): limit",
 	}},
 }
 
-// TestSourceClausesHaveOneOwner: inside a query expression a TABLE or VALUES
-// query primary is a SelectStmt over a TableStmt or ValuesStmt, and the
-// SelectStmt alone holds the ORDER BY, LIMIT, and INTO, as MySQL's
-// query_expression and select_stmt_with_into do. When the source held them
-// too, every walk visited them twice, and a source nested in the ORDER BY of
-// another doubled the walk at each level. A source standing alone (a
-// statement, EXPLAIN, INSERT ... TABLE) holds its own.
+// TestSourceClausesHaveOneOwner: a TABLE or VALUES query primary is always a
+// SelectStmt over a TableStmt or ValuesStmt, and that SelectStmt alone holds
+// the ORDER BY, LIMIT, locking clause and INTO, as MySQL's query_expression,
+// select_stmt and select_stmt_with_into do. The source itself holds only its
+// table or rows, in every position — a statement, an EXPLAIN target, the
+// source of INSERT ... TABLE, a subquery, a set-operation operand, a CTE or a
+// view body — so nothing has two homes and a walk never visits a clause
+// twice.
 func TestSourceClausesHaveOneOwner(t *testing.T) {
 	for _, tc := range sourceClauseCases {
 		list := ParseAndCheck(t, tc.sql)
 		var got []string
 		wrapped := make(map[ast.Node]bool)
-		describe := func(owner string, orderBy []*ast.OrderByItem, limit *ast.Limit, into *ast.IntoClause) string {
+		describe := func(owner string, n *ast.SelectStmt) string {
 			var parts []string
-			if len(orderBy) > 0 {
-				parts = append(parts, fmt.Sprintf("order %d", len(orderBy)))
+			if len(n.OrderBy) > 0 {
+				parts = append(parts, fmt.Sprintf("order %d", len(n.OrderBy)))
 			}
-			if limit != nil {
+			if n.Limit != nil {
 				parts = append(parts, "limit")
 			}
-			if into != nil {
+			if n.Into != nil {
 				parts = append(parts, "into")
+			}
+			if fu := n.ForUpdate; fu != nil {
+				switch {
+				case fu.LockInShareMode:
+					parts = append(parts, "lock in share mode")
+				case fu.Share:
+					parts = append(parts, "for share")
+				default:
+					parts = append(parts, "for update")
+				}
 			}
 			if len(parts) == 0 {
 				parts = append(parts, "none")
 			}
 			return owner + ": " + strings.Join(parts, ", ")
-		}
-		ownClauses := func(source ast.Node, orderBy []*ast.OrderByItem, limit *ast.Limit, into *ast.IntoClause) {
-			if wrapped[source] && (len(orderBy) > 0 || limit != nil || into != nil) {
-				t.Errorf("%s: the %T holds clauses its SelectStmt holds", tc.sql, source)
-			}
 		}
 		ast.Inspect(list.Items[0], func(n ast.Node) bool {
 			switch n := n.(type) {
@@ -121,26 +135,24 @@ func TestSourceClausesHaveOneOwner(t *testing.T) {
 				case n.ValuesSource != nil:
 					source, sourceLoc = n.ValuesSource, n.ValuesSource.Loc
 				case n.SetOp != ast.SetOpNone:
-					got = append(got, describe("set operation", n.OrderBy, n.Limit, n.Into))
+					got = append(got, describe("set operation", n))
 					return true
 				case n.ParenSource != nil:
-					got = append(got, describe("parentheses", n.OrderBy, n.Limit, n.Into))
+					got = append(got, describe("parentheses", n))
 					return true
 				default:
 					return true
 				}
 				wrapped[source] = true
 				owner := "SelectStmt over " + tc.sql[sourceLoc.Start:sourceLoc.End]
-				got = append(got, describe(owner, n.OrderBy, n.Limit, n.Into))
+				got = append(got, describe(owner, n))
 			case *ast.TableStmt:
-				ownClauses(n, n.OrderBy, n.Limit, n.Into)
 				if !wrapped[n] {
-					got = append(got, describe(tc.sql[n.Loc.Start:n.Loc.End], n.OrderBy, n.Limit, n.Into))
+					t.Errorf("%s: a TableStmt that is not the TableSource of a SelectStmt", tc.sql)
 				}
 			case *ast.ValuesStmt:
-				ownClauses(n, n.OrderBy, n.Limit, nil)
 				if !wrapped[n] {
-					got = append(got, describe(tc.sql[n.Loc.Start:n.Loc.End], n.OrderBy, n.Limit, nil))
+					t.Errorf("%s: a ValuesStmt that is not the ValuesSource of a SelectStmt", tc.sql)
 				}
 			}
 			return true

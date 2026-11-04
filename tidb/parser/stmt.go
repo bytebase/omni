@@ -39,14 +39,13 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwWITH:
 		return p.parseWithStmt()
 
-	case kwSELECT:
+	// TABLE and VALUES are query primaries, not statements of their own, so a
+	// statement that begins with one is the query expression it begins: it may
+	// be combined with UNION/INTERSECT/EXCEPT and carry the clauses of a whole
+	// query expression (container-verified: "table t1 union table t2",
+	// "values row(1) union select 1").
+	case kwSELECT, kwTABLE, kwVALUES:
 		return p.parseSelectStmt()
-
-	case kwTABLE:
-		return p.parseTableStmt()
-
-	case kwVALUES:
-		return p.parseValuesStmt()
 
 	case kwINSERT:
 		return p.parseInsertStmt()

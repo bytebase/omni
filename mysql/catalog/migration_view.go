@@ -294,8 +294,9 @@ func viewCreateOrder(entries []ViewDiffEntry) map[tableKey]int {
 //   - a SELECT (including UNION/INTERSECT/EXCEPT and parenthesized selects, all *SelectStmt) — refs
 //     come from selectTableRefs, the same FROM/JOIN extractor the SDL loader uses, which drops names
 //     bound by a top-level CTE;
-//   - a `TABLE t` query primary (MySQL 8.0.19+; deparsed as table `t` and re-parsed to a
-//     *TableStmt) — a TABLE primary is `SELECT * FROM t`, so its single Table ref is the relation.
+//   - a `TABLE t` or `VALUES ROW(...)` query primary (MySQL 8.0.19+; deparsed as table `t` and
+//     re-parsed to a *SelectStmt over the primary) — selectTableRefs walks the primary too, so a
+//     TABLE primary's single Table ref is the relation.
 //
 // If the body fails to re-parse, or is some other statement shape, the empty set is returned, so the
 // view simply carries no view-on-view ordering constraint; that fallback is conservative (a missing
@@ -321,9 +322,6 @@ func referencedRelations(body, ownDB string) map[tableKey]bool {
 		for _, ref := range selectTableRefs(stmt) {
 			addRef(ref)
 		}
-	case *nodes.TableStmt:
-		// `TABLE t` is sugar for `SELECT * FROM t`; its single relation is the dependency.
-		addRef(stmt.Table)
 	}
 	return out
 }
