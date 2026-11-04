@@ -820,7 +820,9 @@ func (p *Parser) parseOffsetClause(l *selectLimit) error {
 		if offset, err = p.parseFetchFirstCExpr(); err != nil {
 			return err
 		}
-		if offset != nil && !p.collectMode() && p.cur.Type != ROW && p.cur.Type != ROWS {
+		// The a_expr tail also runs in collect mode, where it offers the
+		// operators that may continue the value, as parseAExpr does.
+		if offset != nil && p.cur.Type != ROW && p.cur.Type != ROWS {
 			if offset, err = p.parseAExprTail(offset, start, 0); err != nil {
 				return err
 			}
@@ -844,15 +846,22 @@ func (p *Parser) parseOffsetClause(l *selectLimit) error {
 	return nil
 }
 
-// parseFetchFirstCExpr parses the c_expr of a select_fetch_first_value. A
-// c_expr takes the subscripts of its columnref, PARAM, or parenthesized
-// expression (gram.y c_expr), which omni's a_expr applies as postfix
-// operators, so they are applied here.
+// parseFetchFirstCExpr parses the c_expr of a select_fetch_first_value.
+// Of the c_expr productions (gram.y:15355) only columnref (ColId
+// indirection), PARAM opt_indirection, '(' a_expr ')' opt_indirection,
+// and select_with_parens indirection take subscripts; a constant, an
+// ARRAY constructor, CASE, or a function call takes none, so
+// ARRAY[1][1] is a syntax error at the second '['. parseCExpr reads the
+// subscripts of all of them but columnref, which omni's a_expr applies as
+// a postfix operator, so a columnref's are applied here.
 func (p *Parser) parseFetchFirstCExpr() (nodes.Node, error) {
 	start := p.pos()
 	n, err := p.parseCExpr()
 	if err != nil || n == nil {
 		return n, err
+	}
+	if _, ok := n.(*nodes.ColumnRef); !ok {
+		return n, nil
 	}
 	for p.cur.Type == '[' {
 		if n, err = p.parseAExprInfix(n, precTypecast); err != nil {

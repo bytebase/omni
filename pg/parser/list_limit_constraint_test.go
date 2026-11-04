@@ -318,6 +318,24 @@ func TestSelectLimitMatchesPG(t *testing.T) {
 		{"SELECT 1 FETCH FIRST (1+1) ROWS ONLY", true},
 		{"SELECT 1 FETCH FIRST $1 ROWS ONLY", true},
 		{"SELECT 1 FETCH FIRST a[1] ROWS ONLY", true},
+
+		// select_fetch_first_value's c_expr takes subscripts only as
+		// columnref, PARAM, '(' a_expr ')', or select_with_parens
+		// (gram.y c_expr); a constant, ARRAY, CASE, or function call
+		// takes none.
+		{"SELECT 1 FETCH FIRST ARRAY[1][1] ROWS ONLY", false},
+		{"SELECT 1 FETCH FIRST f(1)[1] ROWS ONLY", false},
+		{"SELECT 1 FETCH FIRST 1[1] ROWS ONLY", false},
+		{"SELECT 1 FETCH FIRST 'a'[1] ROWS ONLY", false},
+		{"SELECT 1 FETCH FIRST CASE WHEN true THEN ARRAY[1] END[1] ROWS ONLY", false},
+		{"SELECT 1 FETCH FIRST ARRAY(SELECT 1)[1] ROWS ONLY", false},
+		{"SELECT 1 FETCH FIRST (ARRAY[1])[1] ROWS ONLY", true},
+		{"SELECT 1 FETCH FIRST $1[1] ROWS ONLY", true},
+		{"SELECT 1 FETCH FIRST a.b[1] ROWS ONLY", true},
+		{"SELECT 1 FETCH FIRST a[1][2] ROWS ONLY", true},
+		{"SELECT 1 FETCH FIRST (SELECT ARRAY[1])[1] ROWS ONLY", true},
+		{"SELECT 1 OFFSET $1[1] ROWS", true},
+		{"SELECT 1 OFFSET (SELECT ARRAY[1])[1] ROWS", true},
 		{"SELECT 1 ORDER BY 1 FETCH NEXT 2 ROW WITH TIES", true},
 
 		// insertSelectOptions on a parenthesized select.
@@ -380,6 +398,46 @@ func TestSelectLimitMatchesPG(t *testing.T) {
 		{"(SELECT 1 ORDER BY 1) ORDER BY (1) DESC", false},
 		{"(SELECT 1 ORDER BY 1) ORDER BY (a).b", false},
 	})
+}
+
+// TestSelectLimitCompletion pins the candidates after a LIMIT, OFFSET, or
+// FETCH value. A value that may go on as an a_expr offers the operators
+// that continue it, as after any a_expr; the clauses offered next are
+// those select_limit still takes, so no second LIMIT or OFFSET; and FETCH
+// offers the FIRST or NEXT and ROW or ROWS it requires.
+func TestSelectLimitCompletion(t *testing.T) {
+	operators := []int{'+', '*', AND, IS}
+	tests := []struct {
+		sql    string
+		want   []int
+		refuse []int
+	}{
+		{"SELECT 1 OFFSET 1 ", append([]int{LIMIT, FETCH, FOR, ';'}, operators...), []int{OFFSET}},
+		{"SELECT 1 OFFSET a ", append([]int{LIMIT, FETCH, FOR, ';'}, operators...), []int{OFFSET}},
+		{"SELECT 1 OFFSET (1) ", append([]int{LIMIT, FETCH, FOR, ';'}, operators...), []int{OFFSET}},
+		{"SELECT 1 OFFSET -1 ", append([]int{LIMIT, FETCH, FOR, ';'}, operators...), []int{OFFSET}},
+		{"SELECT 1 LIMIT 1 OFFSET 1 ", append([]int{FOR, ';'}, operators...), []int{LIMIT, OFFSET, FETCH}},
+		{"SELECT 1 LIMIT 1 ", append([]int{OFFSET, FOR, ';'}, operators...), []int{LIMIT, FETCH}},
+		{"SELECT 1 OFFSET 1 ROWS ", []int{LIMIT, FETCH, FOR, ';'}, append([]int{OFFSET}, operators...)},
+		{"SELECT 1 FETCH ", []int{FIRST_P, NEXT}, nil},
+		{"SELECT 1 FETCH FIRST 1 ", []int{ROW, ROWS}, []int{ONLY}},
+		{"SELECT 1 FETCH FIRST 1 ROWS ", []int{ONLY}, nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			cs := Collect(tt.sql, len(tt.sql))
+			for _, tok := range tt.want {
+				if !cs.HasToken(tok) {
+					t.Errorf("missing candidate %s", TokenName(tok))
+				}
+			}
+			for _, tok := range tt.refuse {
+				if cs.HasToken(tok) {
+					t.Errorf("unexpected candidate %s", TokenName(tok))
+				}
+			}
+		})
+	}
 }
 
 // TestIsSelectLimitStartMatchesSlice checks isSelectLimitStart against

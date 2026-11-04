@@ -115,6 +115,37 @@ func TestSelectLimit(t *testing.T) {
 	})
 }
 
+// TestSelectLimitCompletion pins the candidates after a LIMIT or OFFSET
+// value: the operators that continue it as an a_expr, and only the clauses
+// a SELECT still takes, so no second LIMIT or OFFSET.
+func TestSelectLimitCompletion(t *testing.T) {
+	operators := []int{'+', '*', AND, IS}
+	tests := []struct {
+		sql    string
+		want   []int
+		refuse []int
+	}{
+		{"SELECT 1 OFFSET 1 ", append([]int{LIMIT, FOR, ';'}, operators...), []int{OFFSET}},
+		{"SELECT 1 LIMIT 1 OFFSET 1 ", append([]int{FOR, ';'}, operators...), []int{LIMIT, OFFSET}},
+		{"SELECT 1 LIMIT 1 ", append([]int{OFFSET, FOR, ';'}, operators...), []int{LIMIT}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			cs := Collect(tt.sql, len(tt.sql))
+			for _, tok := range tt.want {
+				if !cs.HasToken(tok) {
+					t.Errorf("missing candidate %s", TokenName(tok))
+				}
+			}
+			for _, tok := range tt.refuse {
+				if cs.HasToken(tok) {
+					t.Errorf("unexpected candidate %s", TokenName(tok))
+				}
+			}
+		})
+	}
+}
+
 // TestIsSelectLimitStartMatchesSlice checks isSelectLimitStart against
 // every keyword: it accepts exactly selectLimitLeadTokens.
 func TestIsSelectLimitStartMatchesSlice(t *testing.T) {
