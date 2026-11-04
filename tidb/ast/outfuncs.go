@@ -834,6 +834,12 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.Temporary {
 		sb.WriteString(" :temporary true")
 	}
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	if n.OnCommit != "" {
+		fmt.Fprintf(sb, " :on_commit %s", n.OnCommit)
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -913,6 +919,9 @@ func writeDropTableStmt(sb *strings.Builder, n *DropTableStmt) {
 	}
 	if n.Temporary {
 		sb.WriteString(" :temporary true")
+	}
+	if n.Global {
+		sb.WriteString(" :global true")
 	}
 	if len(n.Tables) > 0 {
 		sb.WriteString(" :tables ")

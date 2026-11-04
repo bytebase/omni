@@ -16,12 +16,16 @@ import (
 //	    LIKE old_tbl_name
 //	CREATE [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name
 //	    [AS] query_expression
-func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateTableStmt, error) {
+//
+// TiDB adds GLOBAL TEMPORARY, which ends in ON COMMIT and is the one spelling
+// that does: see parseOnCommit.
+func (p *Parser) parseCreateTableStmt(start int, temporary, global bool) (*nodes.CreateTableStmt, error) {
 	p.advance() // consume TABLE
 
 	stmt := &nodes.CreateTableStmt{
 		Loc:       nodes.Loc{Start: start},
 		Temporary: temporary,
+		Global:    global,
 	}
 
 	// IF NOT EXISTS
@@ -64,6 +68,9 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 			return nil, err
 		}
 		stmt.Like = likeRef
+		if err := p.parseOnCommit(stmt); err != nil {
+			return nil, err
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -76,6 +83,9 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 			return nil, err
 		}
 		stmt.Select = sel
+		if err := p.parseOnCommit(stmt); err != nil {
+			return nil, err
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -93,6 +103,9 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 			}
 			p.match(')')
 			stmt.Select = sel
+			if err := p.parseOnCommit(stmt); err != nil {
+				return nil, err
+			}
 			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
@@ -106,6 +119,9 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 			}
 			stmt.Like = likeRef
 			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			if err := p.parseOnCommit(stmt); err != nil {
 				return nil, err
 			}
 			stmt.Loc.End = p.prev.End
@@ -129,6 +145,9 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 			return nil, err
 		}
 		stmt.Select = sel
+		if err := p.parseOnCommit(stmt); err != nil {
+			return nil, err
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -181,8 +200,58 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 		stmt.Select = sel
 	}
 
+	if err := p.parseOnCommit(stmt); err != nil {
+		return nil, err
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseOnCommit reads the ON COMMIT clause a GLOBAL TEMPORARY table ends with,
+// and holds every other table to not having one.
+//
+//	ON COMMIT {DELETE | PRESERVE} ROWS
+//
+// TiDB's grammar hangs this clause on GLOBAL TEMPORARY alone and makes it
+// mandatory there (parser.y, rule CreateTableStmt): v8.5.5 answers 1064 for
+// `create global temporary table t (a int)` with no clause, and for
+// `create temporary table t (a int) on commit delete rows` and a plain
+// `create table` with one. It comes last, after the options and after the
+// partition clause -- `... comment 'x' on commit delete rows` parses and
+// `... on commit delete rows comment 'x'` does not -- which is why this runs at
+// the end of every path through parseCreateTableStmt, the LIKE one included:
+// TiDB takes `create global temporary table t like t1 on commit delete rows`.
+//
+// PRESERVE ROWS parses and the server then refuses it with 8200, "TiDB doesn't
+// support ON COMMIT PRESERVE ROWS for now". That is a refusal and not a syntax
+// error, so the clause is taken here and the engine answers for it.
+func (p *Parser) parseOnCommit(stmt *nodes.CreateTableStmt) error {
+	if p.cur.Type != kwON || p.peekNext().Type != kwCOMMIT {
+		if stmt.Global {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	if !stmt.Global {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume ON
+	p.advance() // consume COMMIT
+	var action string
+	switch p.cur.Type {
+	case kwDELETE:
+		action = "DELETE"
+	case kwPRESERVE:
+		action = "PRESERVE"
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if _, err := p.expect(kwROWS); err != nil {
+		return err
+	}
+	stmt.OnCommit = action + " ROWS"
+	return nil
 }
 
 // parseCreateDefinitions parses column definitions and table constraints
@@ -292,9 +361,6 @@ func (p *Parser) isColumnConstraintStart() bool {
 		kwCOLUMN_FORMAT, kwSTORAGE:
 		return true
 	}
-	if p.cur.Type == kwENGINE_ATTRIBUTE || p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
-		return true
-	}
 	if p.cur.Type == kwSRID {
 		return true
 	}
@@ -362,6 +428,30 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrAutoIncrement,
 		})
+		return true, nil
+
+	// SERIAL DEFAULT VALUE, the three words together, which
+	// https://dev.mysql.com/doc/refman/8.0/en/numeric-type-syntax.html gives as
+	// another way to write NOT NULL AUTO_INCREMENT UNIQUE. It is recorded as
+	// those three and not as an attribute of its own, so everything downstream —
+	// the catalog's implicit primary key among it — sees the column the engine
+	// builds. All three words are required: TiDB answers 1064 for
+	// `a int serial` and for `a int serial default`.
+	case kwSERIAL:
+		p.advance()
+		if _, err := p.expect(kwDEFAULT); err != nil {
+			return false, err
+		}
+		if _, err := p.expect(kwVALUE); err != nil {
+			return false, err
+		}
+		col.AutoIncrement = true
+		loc := nodes.Loc{Start: start, End: p.prev.End}
+		col.Constraints = append(col.Constraints,
+			&nodes.ColumnConstraint{Loc: loc, Type: nodes.ColConstrNotNull},
+			&nodes.ColumnConstraint{Loc: loc, Type: nodes.ColConstrAutoIncrement},
+			&nodes.ColumnConstraint{Loc: loc, Type: nodes.ColConstrUnique},
+		)
 		return true, nil
 
 	case kwAUTO_RANDOM:
@@ -599,39 +689,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 	}
 
-	// Handle ENGINE_ATTRIBUTE, SECONDARY_ENGINE_ATTRIBUTE column options
-	if p.cur.Type == kwENGINE_ATTRIBUTE {
-		p.advance()
-		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
-		}
-		col.EngineAttribute = val
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrEngineAttribute,
-			Name: val,
-		})
-		return true, nil
-	}
-	if p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
-		p.advance()
-		p.match('=')
-		val := ""
-		if p.cur.Type == tokSCONST {
-			val = p.cur.Str
-			p.advance()
-		}
-		col.SecondaryEngineAttribute = val
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrSecondaryEngineAttribute,
-			Name: val,
-		})
-		return true, nil
-	}
+	// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE are not read here: TiDB
+	// answers 1064 for both as a column option, as it does for both as a table
+	// option, so taking them only passed statements the server refuses.
 
 	// SRID column option (now lexes as kwSRID keyword token)
 	if p.cur.Type == kwSRID {
@@ -1295,15 +1355,23 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		}
 		return nil, false, nil
 
-	case kwCHECKSUM:
-		// CHECKSUM [=] {0 | 1}
+	// CHECKSUM [=] n, which TABLE_CHECKSUM is the other name for: MySQL's
+	// sql_yacc.yy gives TABLE_CHECKSUM_SYM the same `opt_equal ulong_num` as
+	// CHECKSUM_SYM. The value is a number and only a number: TiDB answers 1064
+	// for `CHECKSUM = 'abc'`, for `= DEFAULT` and for `= -1`, and for `= 1.5`
+	// as well, since its own `LengthNum` is narrower than MySQL's `ulong_num`.
+	case kwCHECKSUM, kwTABLE_CHECKSUM:
+		optName := "CHECKSUM"
+		if p.cur.Type == kwTABLE_CHECKSUM {
+			optName = "TABLE_CHECKSUM"
+		}
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeIntegerOptionValue()
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "CHECKSUM", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 
 	case kwTABLESPACE:
 		// TABLESPACE tablespace_name [STORAGE {DISK | MEMORY}]
@@ -1478,12 +1546,71 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
 	}
 
-	// Handle identifier-based options: KEY_BLOCK_SIZE, STATS_AUTO_RECALC, etc.
+	// Handle identifier-based options: KEY_BLOCK_SIZE, MAX_ROWS, etc.
+	//
+	// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE are absent: they are MySQL
+	// 8.0 options TiDB does not have, and it answers 1064 for both as a table
+	// option, as a column option and on ALTER TABLE. Reading them here only
+	// passed statements the server refuses.
 	switch p.cur.Type {
-	case kwKEY_BLOCK_SIZE, kwSTATS_AUTO_RECALC, kwSTATS_PERSISTENT,
+	// TiDB's own statistics options, which MySQL does not have
+	// (parser.y, TableOptionStatsBuckets and its neighbours). Each takes the
+	// value its own kind: a count is an integer, the sample rate a number, and
+	// the column choice and list strings. TiDB answers 1064 for the others --
+	// `STATS_BUCKETS="1"`, `STATS_BUCKETS=1.5`, `STATS_COL_CHOICE=1` and the
+	// bare `STATS_COL_CHOICE=all` among them.
+	//
+	// STATS_OPTIONS is deliberately absent: TiDB takes it on ALTER TABLE and
+	// answers 1064 for it on CREATE TABLE, and this function reads the options
+	// of both, so it belongs with the ALTER TABLE family and the split that
+	// family needs.
+	case kwSTATS_BUCKETS, kwSTATS_TOPN:
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeIntegerOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	case kwSTATS_SAMPLE_RATE:
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeNumericOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	case kwSTATS_COL_CHOICE, kwSTATS_COL_LIST:
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeStringOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	// STATS_AUTO_RECALC [=] {DEFAULT | 0 | 1}, and nothing else: TiDB
+	// answers 1064 for `= 2`, `= 10`, `= -1`, `= 'abc'` and `= '1'`
+	// (https://dev.mysql.com/doc/refman/8.0/en/create-table.html).
+	case kwSTATS_AUTO_RECALC:
+		optName := p.cur.Str
+		p.advance()
+		p.match('=')
+		val, err := p.consumeZeroOneOrDefaultOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+
+	case kwKEY_BLOCK_SIZE, kwSTATS_PERSISTENT,
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
-		kwSECONDARY_ENGINE_ATTRIBUTE, kwAUTOEXTEND_SIZE, kwENGINE_ATTRIBUTE:
+		kwAUTOEXTEND_SIZE:
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
@@ -1524,6 +1651,57 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		// when it is missing (`ENGINE =`, `PLACEMENT POLICY` at end of input).
 		return "", p.syntaxErrorAtCur()
 	}
+}
+
+// consumeIntegerOptionValue reads an option value that must be an integer.
+// A string, a decimal, a keyword and a leading sign are each a 1064.
+func (p *Parser) consumeIntegerOptionValue() (string, error) {
+	if p.cur.Type != tokICONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
+}
+
+// consumeNumericOptionValue reads an option value that must be a number,
+// integer or decimal. A string, a keyword and a leading sign are each a 1064.
+func (p *Parser) consumeNumericOptionValue() (string, error) {
+	if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
+}
+
+// consumeStringOptionValue reads an option value that must be a quoted string,
+// the way COMMENT's is. An unquoted word, a number and a missing value are each
+// a 1064.
+func (p *Parser) consumeStringOptionValue() (string, error) {
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
+}
+
+// consumeZeroOneOrDefaultOptionValue reads an option value that must be 0, 1 or
+// DEFAULT, which is what STATS_AUTO_RECALC takes. Any other number, and any
+// string, is a 1064.
+func (p *Parser) consumeZeroOneOrDefaultOptionValue() (string, error) {
+	if p.cur.Type == kwDEFAULT {
+		val := p.cur.Str
+		p.advance()
+		return val, nil
+	}
+	if p.cur.Type != tokICONST || (p.cur.Ival != 0 && p.cur.Ival != 1) {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	return val, nil
 }
 
 // parsePartitionClause parses a PARTITION BY clause.

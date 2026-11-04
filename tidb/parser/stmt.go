@@ -428,15 +428,27 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
-	// TEMPORARY
-	if p.cur.Type == kwTEMPORARY {
+	// GLOBAL TEMPORARY, TiDB's own kind of temporary table (parser.y, rule
+	// CreateTableStmt with OptTemporary "GLOBAL TEMPORARY"). GLOBAL on its own
+	// opens nothing, so `CREATE GLOBAL TABLE t (a int)` falls through to the
+	// switch below and is a 1064, as it is on the server.
+	// Temporary stays false for it: only the rows of a global temporary table
+	// are per-session, and the table itself is an ordinary schema object (see
+	// ast.CreateTableStmt.Global).
+	global := false
+	if p.cur.Type == kwGLOBAL && p.peekNext().Type == kwTEMPORARY {
+		p.advance() // consume GLOBAL
+		p.advance() // consume TEMPORARY
+		global = true
+	} else if p.cur.Type == kwTEMPORARY {
+		// TEMPORARY
 		p.advance()
 		temporary = true
 	}
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(start, temporary)
+		return p.parseCreateTableStmt(start, temporary, global)
 
 	case kwINDEX:
 		return p.parseCreateIndexStmt(start, false, false, false)
@@ -746,15 +758,25 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
+	// DROP GLOBAL TEMPORARY TABLE, one of the two ways to drop a table CREATE
+	// GLOBAL TEMPORARY TABLE made: a plain DROP TABLE drops it too, and DROP
+	// TEMPORARY TABLE does not (1051, verified), so Temporary stays false here.
+	// GLOBAL reaches nothing else, so `DROP GLOBAL TABLE t` falls through to the
+	// switch below and is a 1064.
 	temporary := false
-	if p.cur.Type == kwTEMPORARY {
+	global := false
+	if p.cur.Type == kwGLOBAL && p.peekNext().Type == kwTEMPORARY {
+		p.advance() // consume GLOBAL
+		p.advance() // consume TEMPORARY
+		global = true
+	} else if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true
 	}
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseDropTableStmt(start, temporary)
+		return p.parseDropTableStmt(start, temporary, global)
 
 	case kwINDEX:
 		return p.parseDropIndexStmt(start)

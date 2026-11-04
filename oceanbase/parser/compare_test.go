@@ -10293,6 +10293,9 @@ func TestParseCreateTableSecondaryEngine(t *testing.T) {
 	}
 }
 
+// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE are MySQL 8.0 options OceanBase
+// does not have: CE 4.3.5.6 answers 1064 for either one as a table option, as a
+// column option and on ALTER TABLE.
 func TestParseCreateTableSecondaryEngineAttribute(t *testing.T) {
 	tests := []string{
 		"CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE = '{\"key\": \"value\"}'",
@@ -10300,7 +10303,9 @@ func TestParseCreateTableSecondaryEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but OceanBase CE 4.3.5.6 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10812,7 +10817,9 @@ func TestParseCreateTableEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but OceanBase CE 4.3.5.6 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10825,7 +10832,9 @@ func TestParseColumnEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but OceanBase CE 4.3.5.6 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10838,7 +10847,9 @@ func TestParseColumnSecondaryEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but OceanBase CE 4.3.5.6 rejects it", sql)
+			}
 		})
 	}
 }

@@ -58,6 +58,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		Collation:   db.Collation,
 		Engine:      "InnoDB",
 		Temporary:   stmt.Temporary,
+		// A global temporary table is its own kind: an ordinary schema object
+		// whose rows are per-session, so Temporary is not set for it and the
+		// ON COMMIT clause it reports is kept beside it.
+		GlobalTemporary: stmt.Global,
+		OnCommit:        stmt.OnCommit,
 	}
 
 	// Apply table options.
@@ -1432,11 +1437,16 @@ func formatColumnType(dt *nodes.DataType) string {
 		}
 		buf.WriteString(")")
 	}
-	if dt.Unsigned {
-		buf.WriteString(" unsigned")
-	}
-	if dt.Zerofill {
-		buf.WriteString(" zerofill")
+	// YEAR takes UNSIGNED and ZEROFILL and keeps neither: TiDB's SHOW CREATE
+	// TABLE writes `year(4)` for `year unsigned zerofill`, so a column that was
+	// declared with them is not one that reports them.
+	if name != "year" {
+		if dt.Unsigned {
+			buf.WriteString(" unsigned")
+		}
+		if dt.Zerofill {
+			buf.WriteString(" zerofill")
+		}
 	}
 	return buf.String()
 }
@@ -1527,6 +1537,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		RowFormat:    srcTbl.RowFormat,
 		KeyBlockSize: srcTbl.KeyBlockSize,
 		Temporary:    stmt.Temporary,
+		// CREATE GLOBAL TEMPORARY TABLE ... LIKE t carries its own ON COMMIT,
+		// so these come from the statement and not from the source table.
+		GlobalTemporary: stmt.Global,
+		OnCommit:        stmt.OnCommit,
 	}
 
 	// Copy columns.

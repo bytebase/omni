@@ -2281,11 +2281,17 @@ func parseDropTable(t *testing.T, input string) *ast.DropTableStmt {
 	start := p.pos()
 	p.advance() // p.cur = TABLE or TEMPORARY
 	temporary := false
-	if p.cur.Type == kwTEMPORARY {
+	global := false
+	if p.cur.Type == kwGLOBAL && p.peekNext().Type == kwTEMPORARY {
+		global = true
+		temporary = true
+		p.advance() // p.cur = TEMPORARY
+		p.advance() // p.cur = TABLE
+	} else if p.cur.Type == kwTEMPORARY {
 		temporary = true
 		p.advance() // p.cur = TABLE
 	}
-	stmt, err := p.parseDropTableStmt(start, temporary)
+	stmt, err := p.parseDropTableStmt(start, temporary, global)
 	if err != nil {
 		t.Fatalf("parseDropTableStmt(%q) error: %v", input, err)
 	}
@@ -2714,12 +2720,18 @@ func parseCreateTable(t *testing.T, input string) *ast.CreateTableStmt {
 	start := p.pos()
 	p.advance() // skip CREATE
 	temporary := false
-	// handle CREATE TEMPORARY TABLE
-	if p.cur.Type == kwTEMPORARY {
+	global := false
+	// handle CREATE [GLOBAL] TEMPORARY TABLE
+	if p.cur.Type == kwGLOBAL && p.peekNext().Type == kwTEMPORARY {
+		p.advance()
+		p.advance()
+		global = true
+		temporary = true
+	} else if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true
 	}
-	stmt, err := p.parseCreateTableStmt(start, temporary)
+	stmt, err := p.parseCreateTableStmt(start, temporary, global)
 	if err != nil {
 		t.Fatalf("parseCreateTableStmt(%q) error: %v", input, err)
 	}
@@ -9534,6 +9546,10 @@ func TestParseCreateTableSecondaryEngine(t *testing.T) {
 	}
 }
 
+// ENGINE_ATTRIBUTE and SECONDARY_ENGINE_ATTRIBUTE are MySQL 8.0 options TiDB does
+// not have: v8.5.5 answers 1064 for either one as a table option, as a column
+// option and on ALTER TABLE. SECONDARY_ENGINE on its own it does take, which is
+// what TestParseCreateTableSecondaryEngine covers.
 func TestParseCreateTableSecondaryEngineAttribute(t *testing.T) {
 	tests := []string{
 		"CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE = '{\"key\": \"value\"}'",
@@ -9541,7 +9557,9 @@ func TestParseCreateTableSecondaryEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but TiDB v8.5.5 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10064,7 +10082,9 @@ func TestParseCreateTableEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but TiDB v8.5.5 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10077,7 +10097,9 @@ func TestParseColumnEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but TiDB v8.5.5 rejects it", sql)
+			}
 		})
 	}
 }
@@ -10090,7 +10112,9 @@ func TestParseColumnSecondaryEngineAttribute(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) was accepted, but TiDB v8.5.5 rejects it", sql)
+			}
 		})
 	}
 }
