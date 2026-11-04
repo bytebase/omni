@@ -8,7 +8,8 @@ import (
 // checkRequireWhere reports an UPDATE or DELETE without a WHERE clause,
 // wherever it sits: top level, the body of a routine, trigger, or event,
 // a BATCH, or EXPLAIN ANALYZE, which runs the statement. A statement under
-// a plain EXPLAIN, or a BATCH dry run, which runs nothing, is not judged.
+// a plain EXPLAIN, a BATCH dry run, or a SQL plan binding, none of which
+// runs it, is not judged.
 func checkRequireWhere(s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
@@ -16,6 +17,11 @@ func checkRequireWhere(s *statement, r *reporter) {
 			return v.Analyze
 		case *ast.BatchStmt:
 			return v.DryRun == ast.BatchDryRunNone
+		case *ast.CreateBindingStmt, *ast.DropBindingStmt, *ast.SetBindingStmt:
+			// A SQL plan binding records a plan for a statement shape and
+			// runs neither statement it carries, so the UPDATE or DELETE
+			// inside one updates and deletes nothing.
+			return false
 		case *ast.UpdateStmt:
 			if v.Where == nil {
 				r.report(review.MissingWhere, s.index, rangeOf(v.Loc), noWhere("UPDATE", "of", tableExprs(v.Tables)))
