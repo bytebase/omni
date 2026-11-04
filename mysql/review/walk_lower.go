@@ -74,7 +74,7 @@ func (b *builder) statement(n ast.Node) bool {
 			b.forgetTemporary()
 		}
 		return b.explain(v)
-	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
+	case *ast.SelectStmt, *ast.DoStmt:
 		if b.callsStoredFunction(n) {
 			b.forgetTemporary()
 		}

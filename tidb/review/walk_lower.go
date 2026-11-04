@@ -66,7 +66,7 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.createStatistics(v)
 	case *ast.ExplainStmt, *ast.TraceStmt, *ast.PlanReplayerStmt:
 		return b.wrapper(v)
-	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
+	case *ast.SelectStmt, *ast.DoStmt:
 		return true
 	case *ast.CreateBindingStmt, *ast.DropBindingStmt, *ast.SetBindingStmt:
 		// A SQL plan binding records a plan for later statements; it makes,

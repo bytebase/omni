@@ -690,6 +690,14 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 			writeNode(sb, n.Right)
 		}
 	}
+	if n.TableSource != nil {
+		sb.WriteString(" :table_source ")
+		writeNode(sb, n.TableSource)
+	}
+	if n.ValuesSource != nil {
+		sb.WriteString(" :values_source ")
+		writeNode(sb, n.ValuesSource)
+	}
 	if n.ParenSource != nil {
 		sb.WriteString(" :paren_source ")
 		writeNode(sb, n.ParenSource)
@@ -746,10 +754,6 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 	if n.Select != nil {
 		sb.WriteString(" :select ")
 		writeNode(sb, n.Select)
-	}
-	if n.TableSource != nil {
-		sb.WriteString(" :table_source ")
-		writeNode(sb, n.TableSource)
 	}
 	if len(n.SetList) > 0 {
 		sb.WriteString(" :set ")
@@ -3634,6 +3638,10 @@ func writeForUpdate(sb *strings.Builder, n *ForUpdate) {
 	if n.NoWait {
 		sb.WriteString(" :nowait true")
 	}
+	if n.HasWait {
+		sb.WriteString(" :wait ")
+		sb.WriteString(n.WaitSeconds)
+	}
 	if n.SkipLocked {
 		sb.WriteString(" :skip_locked true")
 	}
@@ -4582,24 +4590,6 @@ func writeTableStmt(sb *strings.Builder, n *TableStmt) {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
 	}
-	if len(n.OrderBy) > 0 {
-		sb.WriteString(" :order_by (")
-		for i, item := range n.OrderBy {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			writeNode(sb, item)
-		}
-		sb.WriteString(")")
-	}
-	if n.Limit != nil {
-		sb.WriteString(" :limit ")
-		writeNode(sb, n.Limit)
-	}
-	if n.Into != nil {
-		sb.WriteString(" :into ")
-		writeNode(sb, n.Into)
-	}
 	sb.WriteString("}")
 }
 
@@ -4622,20 +4612,6 @@ func writeValuesStmt(sb *strings.Builder, n *ValuesStmt) {
 			sb.WriteString(")")
 		}
 		sb.WriteString(")")
-	}
-	if len(n.OrderBy) > 0 {
-		sb.WriteString(" :order_by (")
-		for i, item := range n.OrderBy {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			writeNode(sb, item)
-		}
-		sb.WriteString(")")
-	}
-	if n.Limit != nil {
-		sb.WriteString(" :limit ")
-		writeNode(sb, n.Limit)
 	}
 	sb.WriteString("}")
 }

@@ -3173,6 +3173,10 @@ func writeForUpdate(sb *strings.Builder, n *ForUpdate) {
 	if n.NoWait {
 		sb.WriteString(" :nowait true")
 	}
+	if n.HasWait {
+		sb.WriteString(" :wait ")
+		sb.WriteString(n.WaitSeconds)
+	}
 	if n.SkipLocked {
 		sb.WriteString(" :skip_locked true")
 	}

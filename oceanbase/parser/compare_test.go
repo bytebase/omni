@@ -10101,29 +10101,45 @@ func TestParseNaturalLeftOuterJoin(t *testing.T) {
 	}
 }
 
+// TestParseSelectIntoAfterHaving: INTO comes after the query expression's
+// clauses, so it may follow HAVING when nothing else does -- but an ORDER BY
+// or LIMIT after it is a syntax error, not a second position for INTO.
+// OceanBase CE 4.3.5 answers 1064 for every rejected form here
+// (container-verified; see locking_read_forms_test.go).
 func TestParseSelectIntoAfterHaving(t *testing.T) {
-	tests := []string{
-		// INTO at position 2: after HAVING, before ORDER BY
+	accepted := []string{
 		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt'",
-		// INTO at position 2: after HAVING, before ORDER BY with ORDER BY
-		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat'",
+		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y",
 	}
-	for _, sql := range tests {
+	for _, sql := range accepted {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+	rejected := []string{
+		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE '/tmp/result.txt' ORDER BY a",
+		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat' ORDER BY a",
+		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
+		"SELECT a FROM t INTO OUTFILE '/tmp/result.txt' LIMIT 1",
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
+		})
+	}
 }
 
+// TestParseSelectIntoAfterHavingBeforeOrderBy: OceanBase takes INTO only
+// last, after the locking clause, plus the INTO before FROM that is the field
+// list's own rule. "INTO OUTFILE 'f' FOR UPDATE" is a 1064 on
+// oceanbase-ce:4.3.5-lts, where MySQL and MariaDB take it (see
+// locking_read_forms_test.go).
 func TestParseSelectIntoAfterHavingBeforeOrderBy(t *testing.T) {
 	tests := []string{
-		// INTO with DUMPFILE at position 2
-		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat' ORDER BY a",
-		// INTO with variable at position 2
-		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
-		// Regression: INTO at position 1 still works
+		// INTO before FROM
 		"SELECT a INTO @x FROM t",
-		// Regression: INTO at position 3 still works
+		// INTO after the locking clause
 		"SELECT a FROM t FOR UPDATE INTO OUTFILE '/tmp/result.txt'",
 	}
 	for _, sql := range tests {
@@ -10131,6 +10147,8 @@ func TestParseSelectIntoAfterHavingBeforeOrderBy(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+	// INTO before the locking clause is MySQL's and MariaDB's, not OceanBase's.
+	ParseExpectError(t, "SELECT a FROM t INTO OUTFILE '/tmp/result.txt' FOR UPDATE")
 }
 
 func TestParseCreateUserRandomPassword(t *testing.T) {
@@ -12731,8 +12749,10 @@ func TestAuroraSelectIntoOutfileS3(t *testing.T) {
 		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' ENCRYPTION SSE_KMS",
 		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT CSV",
 		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' COLUMNS TERMINATED BY '|' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES STARTING BY 'X' TERMINATED BY '\\n' MANIFEST ON OVERWRITE ON ENCRYPTION ON",
-		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE S3 's3://b/p' ORDER BY a",
 		"SELECT a FROM t FOR UPDATE INTO OUTFILE S3 's3://b/p'",
+		// An ORDER BY after INTO is a syntax error for the S3 form as it is
+		// for the plain one: INTO comes after the query expression's clauses.
+		"SELECT a FROM t ORDER BY a INTO OUTFILE S3 's3://b/p'",
 		"TABLE t1 INTO OUTFILE S3 's3://b/p'",
 	} {
 		t.Run(sql, func(t *testing.T) {

@@ -204,9 +204,11 @@ var categoryCaseSQLs = []string{
 	// MariaDB subtractive divergences — Phase-0 mdbcheck OVER findings (omni accepts, MariaDB rejects)
 	"SELECT 1 MINUS SELECT 2",
 	"SELECT 1 MINUS SELECT 2 MINUS SELECT 3",
-	"SELECT * FROM t WHERE id = 1 FOR SHARE",
 	"SELECT name -> '$.b' FROM t",
 	"SELECT name ->> '$.b' FROM t",
+	// FOR SHARE was a pinned divergence until the parser stopped reading it:
+	// MariaDB has no FOR SHARE, so this now asserts agreement.
+	"SELECT * FROM t WHERE id = 1 FOR SHARE",
 	// MySQL-only syntax MariaDB has no grammar for: omni must refuse it too, so
 	// these assert agreement rather than pin a divergence.
 	"SELECT CAST(name AS JSON ARRAY) FROM t",
@@ -299,11 +301,6 @@ var subtractiveDivergences = []divergence{
 		sql:      "SELECT 1 MINUS SELECT 2 MINUS SELECT 3",
 		omniSide: true, // chained MINUS — same divergence as the 2-operand form.
 		reason:   "MINUS set operator (chained): same divergence as the single MINUS — omni over-accepts; MariaDB default-mode rejects (1064), Oracle-mode only.",
-	},
-	{
-		sql:      "SELECT * FROM t WHERE id = 1 FOR SHARE",
-		omniSide: true, // omni mirrors MySQL's FOR SHARE; MariaDB rejects it (1064).
-		reason:   "FOR SHARE locking clause: valid in MySQL 8.0 and omni mirrors it; MariaDB has no FOR SHARE (uses LOCK IN SHARE MODE) and rejects at parse (1064). Phase-0 mdbcheck OVER finding.",
 	},
 	{
 		sql:      "SELECT name -> '$.b' FROM t",

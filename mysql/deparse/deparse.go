@@ -279,6 +279,7 @@ func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(deparseTableRef(stmt.TableSource.Table))
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
+	appendForUpdate(&b, stmt.ForUpdate)
 	return b.String()
 }
 
@@ -305,7 +306,20 @@ func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(")")
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
+	appendForUpdate(&b, stmt.ForUpdate)
 	return b.String()
+}
+
+// appendForUpdate writes the locking clause a query primary carries. A primary
+// takes one as a SELECT does (MySQL accepts `TABLE t FOR UPDATE` and
+// `VALUES ROW(1) FOR SHARE`), so dropping it here would have rewritten the
+// statement's locking semantics into none.
+func appendForUpdate(b *strings.Builder, fu *ast.ForUpdate) {
+	if fu == nil {
+		return
+	}
+	b.WriteString(" ")
+	b.WriteString(deparseForUpdate(fu))
 }
 
 func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *ast.Limit) {

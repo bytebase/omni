@@ -1222,13 +1222,27 @@ type IntoClause struct {
 
 func (c *IntoClause) nodeTag() {}
 
-// ForUpdate represents FOR UPDATE / FOR SHARE.
+// ForUpdate represents FOR UPDATE / LOCK IN SHARE MODE and the wait modifier
+// after it.
+//
+// NoWait, HasWait and SkipLocked are the three wait modifiers, of which a
+// locking clause carries at most one. HasWait, not a zero WaitSeconds, is
+// what says WAIT was written, so "FOR UPDATE WAIT 0" is not mistaken for no
+// WAIT at all. WaitSeconds keeps the literal's own text, since MariaDB takes
+// any numeric literal there.
+//
+// Share and Tables are MySQL's; MariaDB has neither FOR SHARE nor
+// FOR UPDATE ... OF, and the parser never sets them (see
+// parseForUpdateClause). Share is set for LOCK IN SHARE MODE, which is
+// MariaDB's shared read lock.
 type ForUpdate struct {
 	Loc             Loc
-	Share           bool // FOR SHARE instead of FOR UPDATE
-	LockInShareMode bool // LOCK IN SHARE MODE (legacy syntax)
+	Share           bool // a shared lock: LOCK IN SHARE MODE
+	LockInShareMode bool // LOCK IN SHARE MODE rather than FOR SHARE
 	Tables          []*TableRef
 	NoWait          bool
+	HasWait         bool   // WAIT n present
+	WaitSeconds     string // the literal after WAIT, as written; only when HasWait
 	SkipLocked      bool
 }
 

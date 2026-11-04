@@ -154,16 +154,16 @@ func (p *Parser) parseTraceableStmt() (nodes.StmtNode, error) {
 	// parser fails on the token that cannot reduce.
 	open := p.cur
 	switch p.cur.Type {
-	case kwSELECT, kwWITH, '(':
+	case kwSELECT, kwWITH, '(', kwTABLE, kwVALUES:
 		// One query expression, which parseSelectStmt reads whole: a SELECT
-		// leaf, a WITH clause in front of one, a parenthesized body, or a
-		// set operation over them (SelectStmt, SelectStmtWithClause and
-		// SubSelect in TraceableStmt).
+		// leaf, a WITH clause in front of one, a parenthesized body, a TABLE
+		// or VALUES primary, or a set operation over them (SelectStmt,
+		// SelectStmtWithClause, SetOprStmt and SubSelect in TraceableStmt).
+		// A TABLE or VALUES target is the query expression it begins rather
+		// than a leaf, so `TRACE TABLE t1 UNION TABLE t2` traces the set
+		// operation; it is accepted on v8.5.5, as `TRACE VALUES ROW(1) UNION
+		// VALUES ROW(2)` is.
 		return p.parseSelectStmt()
-	case kwTABLE:
-		return p.parseTableStmt()
-	case kwVALUES:
-		return p.parseValuesStmt()
 	case kwINSERT:
 		return p.parseInsertStmt()
 	case kwREPLACE:

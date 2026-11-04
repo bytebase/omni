@@ -514,9 +514,6 @@ func walkChildren(v Visitor, node Node) {
 		if n.Select != nil {
 			Walk(v, n.Select)
 		}
-		if n.TableSource != nil {
-			Walk(v, n.TableSource)
-		}
 		for _, item := range n.SetList {
 			if item != nil {
 				Walk(v, item)
@@ -819,17 +816,6 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
-		for _, item := range n.OrderBy {
-			if item != nil {
-				Walk(v, item)
-			}
-		}
-		if n.Limit != nil {
-			Walk(v, n.Limit)
-		}
-		if n.Into != nil {
-			Walk(v, n.Into)
-		}
 	case *TruncateStmt:
 		for _, item := range n.Tables {
 			if item != nil {
@@ -861,15 +847,6 @@ func walkChildren(v Visitor, node Node) {
 			if item != nil {
 				Walk(v, item)
 			}
-		}
-	case *ValuesStmt:
-		for _, item := range n.OrderBy {
-			if item != nil {
-				Walk(v, item)
-			}
-		}
-		if n.Limit != nil {
-			Walk(v, n.Limit)
 		}
 	case *WeightStringExpr:
 		Walk(v, n.Expr)

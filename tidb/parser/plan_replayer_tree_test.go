@@ -159,15 +159,54 @@ func TestPlanReplayerCarriesInnerStatement(t *testing.T) {
 
 	t.Run("explain analyze of table", func(t *testing.T) {
 		// `... EXPLAIN ANALYZE TABLE t` is EXPLAIN ANALYZE of the TABLE
-		// statement, not an ANALYZE TABLE: ANALYZE TABLE is not explainable.
-		// The two readings parse the same text, and only the shape tells
-		// them apart.
+		// query primary, not an ANALYZE TABLE: ANALYZE TABLE is not
+		// explainable. The two readings parse the same text, and only the
+		// shape tells them apart.
 		stmt := parseOnePlanReplayer(t, "plan replayer dump explain analyze table t")
 		if !stmt.Analyze {
 			t.Error("Analyze is false; ANALYZE was read as part of the statement")
 		}
-		if _, ok := stmt.Stmt.(*ast.TableStmt); !ok {
-			t.Errorf("Stmt is %T, want *ast.TableStmt", stmt.Stmt)
+		sel, ok := stmt.Stmt.(*ast.SelectStmt)
+		if !ok {
+			t.Fatalf("Stmt is %T, want *ast.SelectStmt", stmt.Stmt)
+		}
+		if sel.TableSource == nil || sel.TableSource.Table == nil || sel.TableSource.Table.Name != "t" {
+			t.Errorf("the dumped query reads %#v, want the TABLE primary t", sel.TableSource)
+		}
+	})
+
+	t.Run("table and values primaries", func(t *testing.T) {
+		// A TABLE or VALUES target is the query expression it begins, so it
+		// arrives as a SelectStmt over the primary rather than as a
+		// statement of its own, and a set operation over two of them is one
+		// query. `... EXPLAIN TABLE t1 UNION TABLE t2` and
+		// `... EXPLAIN VALUES ROW(1) UNION VALUES ROW(2)` are accepted on
+		// v8.5.5.
+		stmt := parseOnePlanReplayer(t, "plan replayer dump explain table t")
+		sel, ok := stmt.Stmt.(*ast.SelectStmt)
+		if !ok {
+			t.Fatalf("Stmt is %T, want *ast.SelectStmt", stmt.Stmt)
+		}
+		if sel.TableSource == nil || sel.TableSource.Table == nil || sel.TableSource.Table.Name != "t" {
+			t.Errorf("the dumped query reads %#v, want the TABLE primary t", sel.TableSource)
+		}
+
+		stmt = parseOnePlanReplayer(t, "plan replayer dump explain values row(1), row(2)")
+		sel, ok = stmt.Stmt.(*ast.SelectStmt)
+		if !ok {
+			t.Fatalf("Stmt is %T, want *ast.SelectStmt", stmt.Stmt)
+		}
+		if sel.ValuesSource == nil || len(sel.ValuesSource.Rows) != 2 {
+			t.Errorf("the dumped query reads %#v, want the VALUES primary with 2 rows", sel.ValuesSource)
+		}
+
+		stmt = parseOnePlanReplayer(t, "plan replayer dump explain table t1 union table t2")
+		sel, ok = stmt.Stmt.(*ast.SelectStmt)
+		if !ok {
+			t.Fatalf("Stmt is %T, want *ast.SelectStmt", stmt.Stmt)
+		}
+		if sel.SetOp != ast.SetOpUnion {
+			t.Errorf("SetOp = %v, want UNION: the dump carries the set operation, not one operand", sel.SetOp)
 		}
 	})
 
@@ -180,8 +219,8 @@ func TestPlanReplayerCarriesInnerStatement(t *testing.T) {
 			{"plan replayer dump explain replace into t values (1)", "*ast.InsertStmt"},
 			{"plan replayer dump explain update t set a = 1", "*ast.UpdateStmt"},
 			{"plan replayer dump explain delete from t", "*ast.DeleteStmt"},
-			{"plan replayer dump explain table t", "*ast.TableStmt"},
-			{"plan replayer dump explain values row(1)", "*ast.ValuesStmt"},
+			{"plan replayer dump explain table t", "*ast.SelectStmt"},
+			{"plan replayer dump explain values row(1)", "*ast.SelectStmt"},
 			{"plan replayer dump explain with c as (select 1) select * from c", "*ast.SelectStmt"},
 		} {
 			stmt := parseOnePlanReplayer(t, c.sql)

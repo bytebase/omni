@@ -40,6 +40,12 @@ var planReplayerFormCases = []planReplayerFormCase{
 	// --- the explainable statements, which are EXPLAIN's set exactly ---
 	{"plan replayer dump explain table t", true},
 	{"plan replayer dump explain values row(1)", true},
+	// A TABLE or VALUES target is the query expression it begins, so a set
+	// operation over two of them is one explainable statement.
+	{"plan replayer dump explain table t1 union table t2", true},
+	{"plan replayer dump explain values row(1) union values row(2)", true},
+	{"plan replayer dump explain table t1 union select 1", true},
+	{"plan replayer dump explain analyze table t1 union table t2", true},
 	{"plan replayer dump explain with c as (select 1) select * from c", true},
 	{"plan replayer dump explain (select 1)", true},
 	{"plan replayer dump explain select 1 union select 2", true},

@@ -147,23 +147,18 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 		stmt.SetList = setList
 
-	case kwSELECT, kwWITH, '(':
-		// SELECT / WITH / parenthesized query source. A leading '(' reaches here
-		// when an explicit column list preceded it, e.g.
+	case kwSELECT, kwWITH, kwTABLE, '(':
+		// SELECT / WITH / TABLE / parenthesized query source. A leading '('
+		// reaches here when an explicit column list preceded it, e.g.
 		// INSERT INTO t (a) (SELECT 1) or INSERT INTO t (a) ((SELECT 1) UNION ...).
+		// TABLE is a query primary, so "INSERT INTO t TABLE t2 ORDER BY a" and
+		// "INSERT INTO t TABLE t2 UNION TABLE t3" are the query expressions
+		// they read as (container-verified).
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
-
-	case kwTABLE:
-		// TABLE table_name (MySQL 8.0.19+)
-		tblStmt, err := p.parseTableStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.TableSource = tblStmt
 
 	default:
 		// Also accept VALUE (MySQL alias for VALUES)

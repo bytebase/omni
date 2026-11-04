@@ -244,12 +244,12 @@ func (p *Parser) atExplainableStmt() bool {
 
 func (p *Parser) parseExplainableStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
-	case kwSELECT, kwWITH, '(':
+	case kwSELECT, kwWITH, '(', kwTABLE, kwVALUES:
+		// One query expression, which parseSelectStmt reads whole. A TABLE
+		// or VALUES target is the query expression it begins, not a leaf, so
+		// `... EXPLAIN TABLE t1 UNION TABLE t2` explains the set operation
+		// (accepted on v8.5.5).
 		return p.parseSelectStmt()
-	case kwTABLE:
-		return p.parseTableStmt()
-	case kwVALUES:
-		return p.parseValuesStmt()
 	case kwINSERT:
 		return p.parseInsertStmt()
 	case kwREPLACE:

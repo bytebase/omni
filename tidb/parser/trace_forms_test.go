@@ -83,6 +83,14 @@ var traceFormCases = []traceFormCase{
 	{"trace values row(1)", true},
 	{"trace values row(1), row(2)", true},
 	{"trace select 1 for update", true},
+	{"trace select 1 for share", true},
+	{"trace table t1 for update", true},
+	// A TABLE or VALUES target is the query expression it begins, so a set
+	// operation over two of them is one traceable statement.
+	{"trace table t1 union table t2", true},
+	{"trace values row(1) union values row(2)", true},
+	{"trace table t1 union select 1", true},
+	{"trace (table t1) union (table t2)", true},
 
 	// --- TraceableStmt: the DML ---
 	{"trace insert into t values (1), (2), (3)", true},

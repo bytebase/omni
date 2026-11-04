@@ -268,8 +268,17 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
-				} else if p.cur.Type == tokIDENT {
-					alias, _, _ := p.parseIdent()
+				} else if p.isIdentToken() {
+					// table_alias reads an ident, which is any unreserved
+					// keyword as well as a plain identifier, so
+					// `DELETE FROM t wait WHERE wait.a = 1` names an alias
+					// `wait` (container-verified, as are the `locked` and
+					// `nowait` forms). Testing for tokIDENT alone left any
+					// word registered as an unreserved keyword unconsumed.
+					alias, _, err := p.parseIdent()
+					if err != nil {
+						return nil, err
+					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
 				}
