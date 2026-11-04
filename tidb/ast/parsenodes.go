@@ -1941,6 +1941,111 @@ type DropPlacementPolicyStmt struct {
 func (s *DropPlacementPolicyStmt) nodeTag()  {}
 func (s *DropPlacementPolicyStmt) stmtNode() {}
 
+// BindingScope is the scope word a SQL plan binding statement carries.
+// TiDB takes GLOBAL or SESSION, or neither, in which case the server
+// picks the default for the statement; the parser records which was
+// written rather than resolving it.
+type BindingScope int
+
+const (
+	// BindingScopeUnset is a statement that names no scope.
+	BindingScopeUnset BindingScope = iota
+	// BindingScopeGlobal is GLOBAL.
+	BindingScopeGlobal
+	// BindingScopeSession is SESSION.
+	BindingScopeSession
+)
+
+func (s BindingScope) String() string {
+	switch s {
+	case BindingScopeGlobal:
+		return "GLOBAL"
+	case BindingScopeSession:
+		return "SESSION"
+	}
+	return ""
+}
+
+// CreateBindingStmt represents TiDB's CREATE BINDING, which records a plan
+// for a statement shape. It has three forms:
+//
+//	CREATE [GLOBAL | SESSION] BINDING FOR stmt USING stmt
+//	CREATE [GLOBAL | SESSION] BINDING USING stmt
+//	CREATE [GLOBAL | SESSION] BINDING FROM HISTORY USING PLAN DIGEST digest [, digest] ...
+//
+// OriginStmt is the statement after FOR, the shape the binding matches,
+// and is nil in the second and third forms, which have none. HintedStmt is
+// the statement after USING, the plan to bind, and is nil in the third
+// form, which names plans already in the statement history by digest in
+// PlanDigests. A digest is a string literal or a user variable.
+//
+// Neither inner statement is run: a binding records a plan for later
+// statements, so a consumer that reasons about what a change does stops at
+// this node rather than reading through it.
+//
+// Ref: TiDB's SQL Plan Management,
+// https://docs.pingcap.com/tidb/v8.5/sql-plan-management/ (every form
+// measured against v8.5.5 in tidb/parser/binding_oracle_test.go).
+type CreateBindingStmt struct {
+	Loc         Loc
+	Scope       BindingScope
+	OriginStmt  StmtNode
+	HintedStmt  StmtNode
+	PlanDigests []ExprNode
+}
+
+func (s *CreateBindingStmt) nodeTag()  {}
+func (s *CreateBindingStmt) stmtNode() {}
+
+// DropBindingStmt represents TiDB's DROP BINDING:
+//
+//	DROP [GLOBAL | SESSION] BINDING FOR stmt [USING stmt]
+//	DROP [GLOBAL | SESSION] BINDING FOR SQL DIGEST digest [, digest] ...
+//
+// OriginStmt is the statement after FOR and is nil in the SQL DIGEST form;
+// HintedStmt is the statement after USING, nil when none is written.
+// SQLDigests is non-empty only in the SQL DIGEST form, where a digest is a
+// string literal or a user variable. As on CreateBindingStmt, neither
+// inner statement is run.
+//
+// Ref: TiDB's SQL Plan Management,
+// https://docs.pingcap.com/tidb/v8.5/sql-plan-management/.
+type DropBindingStmt struct {
+	Loc        Loc
+	Scope      BindingScope
+	OriginStmt StmtNode
+	HintedStmt StmtNode
+	SQLDigests []ExprNode
+}
+
+func (s *DropBindingStmt) nodeTag()  {}
+func (s *DropBindingStmt) stmtNode() {}
+
+// SetBindingStmt represents TiDB's SET BINDING:
+//
+//	SET BINDING {ENABLED | DISABLED} FOR stmt [USING stmt]
+//	SET BINDING {ENABLED | DISABLED} FOR SQL DIGEST digest
+//
+// Enabled is ENABLED, and false is DISABLED. The statement takes no
+// GLOBAL or SESSION scope word: v8.5.5 answers 1064 for `SET GLOBAL
+// BINDING ENABLED FOR ...`. SQLDigest is the one digest of the second
+// form, which takes a single string literal -- not a list, and not a user
+// variable, unlike DROP BINDING FOR SQL DIGEST. As on CreateBindingStmt,
+// neither inner statement is run.
+//
+// Ref: TiDB's SQL Plan Management,
+// https://docs.pingcap.com/tidb/v8.5/sql-plan-management/.
+type SetBindingStmt struct {
+	Loc        Loc
+	Enabled    bool
+	OriginStmt StmtNode
+	HintedStmt StmtNode
+	SQLDigest  ExprNode
+}
+
+func (s *SetBindingStmt) nodeTag()  {}
+func (s *SetBindingStmt) stmtNode() {}
+
 // PlacementPolicyOption is one entry in a CREATE/ALTER PLACEMENT POLICY
 // option list (DirectPlacementOption in TiDB v8.5.5 parser.y:2013-2066).
 // The grammar accepts these as comma-separated OR whitespace-separated,

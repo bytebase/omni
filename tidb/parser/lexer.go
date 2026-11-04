@@ -963,6 +963,17 @@ const (
 	// with the CREATE TABLE statistics options above, which reached them
 	// first.
 
+	// TiDB SQL plan bindings (CREATE/DROP/SET BINDING; TiDB's SQL Plan
+	// Management, https://docs.pingcap.com/tidb/v8.5/sql-plan-management/).
+	// Each is unreserved on v8.5.5 -- `CREATE TABLE t (binding int, digest
+	// int, plan int, enabled int, disabled int)` is accepted, and each word
+	// also serves as a table name and as an alias (verified; pinned by
+	// TestBindingKeywordsStayIdentifiers). HISTORY already exists.
+	kwBINDING
+	kwDIGEST
+	kwPLAN
+	kwENABLED
+	kwDISABLED
 	// TiDB SPLIT and DISTRIBUTE statements. SPLIT, DISTRIBUTE, and REGION
 	// are TiDBKeyword upstream (parser.y:7390, 7366, 7395) and RULE and
 	// TIMEOUT are UnReservedKeyword (parser.y:7062, 7079) -- all five stay
@@ -1855,6 +1866,12 @@ var keywords = map[string]int{
 	"stats_locked":         kwSTATS_LOCKED,
 	"stats_meta":           kwSTATS_META,
 
+	// TiDB SQL plan bindings (CREATE/DROP/SET BINDING).
+	"binding":  kwBINDING,
+	"digest":   kwDIGEST,
+	"plan":     kwPLAN,
+	"enabled":  kwENABLED,
+	"disabled": kwDISABLED,
 	// TiDB SPLIT and DISTRIBUTE statement keywords.
 	"split":      kwSPLIT,
 	"distribute": kwDISTRIBUTE,

@@ -145,6 +145,14 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return p.parseSetResourceGroupStmt(start)
 	}
 
+	// SET BINDING {ENABLED | DISABLED} FOR ..., TiDB's SQL plan binding
+	// switch. BINDING is unreserved and `SET binding = 1` is an ordinary
+	// variable assignment on v8.5.5, so the status word after it is what
+	// picks this statement out.
+	if p.cur.Type == kwBINDING && (p.peekNext().Type == kwENABLED || p.peekNext().Type == kwDISABLED) {
+		return p.parseSetBindingStmt(start)
+	}
+
 	// Check for GLOBAL / SESSION / LOCAL / PERSIST / PERSIST_ONLY scope
 	scope := ""
 	switch p.cur.Type {

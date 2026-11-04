@@ -133,6 +133,31 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 //	    USING table_references
 //	    [WHERE where_condition]
 func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
+	return p.parseDeleteStmtIn(deleteAnywhere)
+}
+
+// deletePlace says which DELETE forms a position takes.
+type deletePlace int
+
+const (
+	// deleteAnywhere takes every form, as a statement of its own does.
+	deleteAnywhere deletePlace = iota
+	// deleteNoUsing leaves out the forms with a USING clause, which is
+	// what a SQL plan binding takes: TiDB binds DeleteWithoutUsingStmt,
+	// and in `DROP BINDING FOR DELETE FROM t1 USING t1, t2` the USING is
+	// the binding's, so v8.5.5 fails at `t1, t2` rather than reading a
+	// multiple-table DELETE. The FROM-first form then names one table:
+	// `DROP BINDING FOR DELETE FROM t1, t2` is a 1064 at the comma, as
+	// `DELETE FROM t1, t2` is on its own.
+	deleteNoUsing
+)
+
+// parseDeleteStmtNoUsing parses the DELETE forms a SQL plan binding takes.
+func (p *Parser) parseDeleteStmtNoUsing() (*nodes.DeleteStmt, error) {
+	return p.parseDeleteStmtIn(deleteNoUsing)
+}
+
+func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error) {
 	start := p.pos()
 	p.advance() // consume DELETE
 
@@ -152,7 +177,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 	if _, ok := p.match(kwFROM); ok {
 		// Could be single-table: DELETE FROM tbl WHERE ...
 		// or multi-table syntax 2: DELETE FROM t1, t2 USING ...
-		tables, err := p.parseDeleteTableList()
+		tables, err := p.parseDeleteTableListIn(place)
 		if err != nil {
 			return nil, err
 		}
@@ -204,13 +229,18 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		// Check for USING (multi-table syntax 2)
-		if _, ok := p.match(kwUSING); ok {
-			using, err := p.parseTableReferenceList()
-			if err != nil {
-				return nil, err
+		// Check for USING (multi-table syntax 2). A binding's FOR or USING
+		// position takes no such DELETE, and the USING there belongs to the
+		// binding, so this leaves the token where it is -- the place is
+		// tested before the match, which would consume it either way.
+		if place == deleteAnywhere {
+			if _, ok := p.match(kwUSING); ok {
+				using, err := p.parseTableReferenceList()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Using = using
 			}
-			stmt.Using = using
 		}
 	} else {
 		// Multi-table syntax 1: DELETE t1, t2 FROM table_references ...
@@ -329,6 +359,12 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 // parseDeleteTableList parses a comma-separated list of table names
 // for DELETE statements (with optional .* suffix).
 func (p *Parser) parseDeleteTableList() ([]nodes.TableExpr, error) {
+	return p.parseDeleteTableListIn(deleteAnywhere)
+}
+
+// parseDeleteTableListIn parses the list, stopping at the first name where
+// the place takes only one.
+func (p *Parser) parseDeleteTableListIn(place deletePlace) ([]nodes.TableExpr, error) {
 	var tables []nodes.TableExpr
 
 	for {
@@ -349,6 +385,11 @@ func (p *Parser) parseDeleteTableList() ([]nodes.TableExpr, error) {
 		if p.cur.Type != ',' {
 			break
 		}
+		if place == deleteNoUsing {
+			// The FROM-first form of the DELETE a binding takes names one
+			// table, so the comma is where v8.5.5 fails.
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 	}
 
@@ -359,6 +400,22 @@ func (p *Parser) parseDeleteTableList() ([]nodes.TableExpr, error) {
 // handling the optional .* suffix and schema.table.* form.
 func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 	start := p.pos()
+
+	// `*.t1`, TiDB's wildcard database, which reaches DELETE's table list
+	// through the table-name rule as it reaches every other one. It takes
+	// no `.*` suffix: `DELETE FROM *.t1.*` is a 1064.
+	if p.matchWildcardDatabase() {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.TableRef{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Schema: wildcardDatabase,
+			Name:   name,
+		}, nil
+	}
+
 	name, _, err := p.parseIdent()
 	if err != nil {
 		return nil, err

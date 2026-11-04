@@ -249,6 +249,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
 		}
+	case *CreateBindingStmt:
+		Walk(v, n.OriginStmt)
+		Walk(v, n.HintedStmt)
+		for _, item := range n.PlanDigests {
+			Walk(v, item)
+		}
 	case *CreateDatabaseStmt:
 		for _, item := range n.Options {
 			if item != nil {
@@ -402,6 +408,12 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DoStmt:
 		for _, item := range n.Exprs {
+			Walk(v, item)
+		}
+	case *DropBindingStmt:
+		Walk(v, n.OriginStmt)
+		Walk(v, n.HintedStmt)
+		for _, item := range n.SQLDigests {
 			Walk(v, item)
 		}
 	case *DropIndexStmt:
@@ -810,6 +822,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.ParenSource != nil {
 			Walk(v, n.ParenSource)
 		}
+	case *SetBindingStmt:
+		Walk(v, n.OriginStmt)
+		Walk(v, n.HintedStmt)
+		Walk(v, n.SQLDigest)
 	case *SetPasswordStmt:
 		if n.User != nil {
 			Walk(v, n.User)

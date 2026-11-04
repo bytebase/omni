@@ -554,6 +554,13 @@ var keywordCategories = map[int]keywordCategory{
 	kwSTATS_META:           kwCatUnambiguous,
 	kwSTATS_TOPN:           kwCatUnambiguous,
 
+	// TiDB's SQL plan binding keywords, each unreserved on v8.5.5, so each
+	// stays usable as a table, column, alias, or index name.
+	kwBINDING:  kwCatUnambiguous,
+	kwDIGEST:   kwCatUnambiguous,
+	kwPLAN:     kwCatUnambiguous,
+	kwENABLED:  kwCatUnambiguous,
+	kwDISABLED: kwCatUnambiguous,
 	// TiDB SPLIT and DISTRIBUTE keywords. SPLIT, DISTRIBUTE, and REGION
 	// are TiDBKeyword (parser.y:7390, 7366, 7395); RULE and TIMEOUT are
 	// UnReservedKeyword (parser.y:7062, 7079). None is reserved, so
@@ -861,6 +868,25 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 //	    | identifier '.' identifier
 func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 	start := p.pos()
+
+	if p.matchWildcardDatabase() {
+		// Completion: after "*.", offer the same candidates as after "db.".
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.TableRef{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Schema: wildcardDatabase,
+			Name:   name,
+		}, nil
+	}
+
 	name, _, err := p.parseIdent()
 	if err != nil {
 		return nil, err
@@ -892,6 +918,29 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 
 	ref.Loc.End = p.prev.End
 	return ref, nil
+}
+
+// wildcardDatabase is the database name TiDB writes as `*`, which stands
+// for any database. It reaches a table name through TiDB's cross-database
+// SQL plan bindings (`CREATE BINDING USING SELECT * FROM *.t1`), but TiDB
+// spells it in the table-name rule itself, so every statement that names a
+// table takes it: v8.5.5 accepts `SELECT * FROM *.t1`, `UPDATE *.t1 SET a =
+// 1`, `CREATE TABLE *.t (a int)` and `ANALYZE TABLE *.t1`. Only one name
+// may follow: `*.*` and `*.t1.a` are both a 1064.
+//
+// Ref: https://docs.pingcap.com/tidb/v8.5/sql-plan-management/#cross-database-binding
+const wildcardDatabase = "*"
+
+// matchWildcardDatabase consumes the `*` and the `.` of a wildcard database
+// qualifier and reports whether it did. The `.` is required before the `*`
+// is taken, so an expression's multiplication is never read as one.
+func (p *Parser) matchWildcardDatabase() bool {
+	if p.cur.Type != '*' || p.peekNext().Type != '.' {
+		return false
+	}
+	p.advance() // consume '*'
+	p.advance() // consume '.'
+	return true
 }
 
 // parseTableRefWithAlias parses a table reference with an optional alias.

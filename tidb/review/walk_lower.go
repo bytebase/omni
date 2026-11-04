@@ -62,6 +62,12 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.explain(v)
 	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
 		return true
+	case *ast.CreateBindingStmt, *ast.DropBindingStmt, *ast.SetBindingStmt:
+		// A SQL plan binding records a plan for later statements; it makes,
+		// drops, and renames nothing the walk keeps. The statements it
+		// carries are not run, so neither is lowered: `CREATE BINDING FOR
+		// DELETE FROM t USING DELETE FROM t` deletes no row.
+		return true
 	case *ast.BeginStmt, *ast.CommitStmt, *ast.SavepointStmt, *ast.SetTransactionStmt, *ast.UnlockTablesStmt,
 		*ast.ShowStmt, *ast.HelpStmt, *ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt,
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,

@@ -420,6 +420,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, // TiDB has no CREATE FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: CREATE PLACEMENT POLICY
 			kwSEQUENCE,
+			kwBINDING, // TiDB: CREATE [GLOBAL|SESSION] BINDING
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -439,6 +440,17 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			return p.parseCreateTablespaceStmt(start, true)
 		}
 		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
+	}
+
+	// CREATE [GLOBAL | SESSION] BINDING, TiDB's SQL plan binding. The scope
+	// word is read only when BINDING follows it, so `CREATE GLOBAL TEMPORARY
+	// TABLE` below and `CREATE SESSION` on its own are untouched.
+	if p.cur.Type == kwBINDING {
+		return p.parseCreateBindingStmt(start, nodes.BindingScopeUnset)
+	}
+	if (p.cur.Type == kwGLOBAL || p.cur.Type == kwSESSION) && p.peekNext().Type == kwBINDING {
+		scope := p.parseBindingScope()
+		return p.parseCreateBindingStmt(start, scope)
 	}
 
 	// GLOBAL TEMPORARY, TiDB's own kind of temporary table (parser.y, rule
@@ -765,6 +777,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, kwIF, // TiDB has no DROP FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: DROP PLACEMENT POLICY
 			kwSEQUENCE,
+			kwBINDING, // TiDB: DROP [GLOBAL|SESSION] BINDING
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -778,6 +791,16 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 			return p.parseDropTablespaceStmt(start, true)
 		}
 		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
+	}
+
+	// DROP [GLOBAL | SESSION] BINDING, read before the GLOBAL TEMPORARY
+	// prefix below for the same reason as on CREATE.
+	if p.cur.Type == kwBINDING {
+		return p.parseDropBindingStmt(start, nodes.BindingScopeUnset)
+	}
+	if (p.cur.Type == kwGLOBAL || p.cur.Type == kwSESSION) && p.peekNext().Type == kwBINDING {
+		scope := p.parseBindingScope()
+		return p.parseDropBindingStmt(start, scope)
 	}
 
 	// DROP GLOBAL TEMPORARY TABLE, one of the two ways to drop a table CREATE

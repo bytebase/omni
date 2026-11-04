@@ -3250,74 +3250,74 @@ reject	accept	trace format = 'json' update t set id = id + 1 order by id desc;
 reject	accept	trace plan select c1 from t1
 reject	accept	trace plan target = 'estimation' select c1 from t1
 reject	accept	trace plan target = 'arandomstring' select c1 from t1
-reject	accept	create global binding for select * from t using select * from t use index(a)
-reject	accept	create session binding for select * from t using select * from t use index(a)
-reject	accept	drop global binding for select * from t
-reject	accept	drop session binding for select * from t
-reject	accept	drop global binding for select * from t using select * from t use index(a)
-reject	accept	drop session binding for select * from t using select * from t use index(a)
+accept	accept	create global binding for select * from t using select * from t use index(a)
+accept	accept	create session binding for select * from t using select * from t use index(a)
+accept	accept	drop global binding for select * from t
+accept	accept	drop session binding for select * from t
+accept	accept	drop global binding for select * from t using select * from t use index(a)
+accept	accept	drop session binding for select * from t using select * from t use index(a)
 accept	accept	show global bindings
 accept	accept	show session bindings
-reject	accept	set binding enabled for select * from t
-reject	accept	set binding enabled for select * from t using select * from t use index(a)
-reject	accept	set binding disabled for select * from t
-reject	accept	set binding disabled for select * from t using select * from t use index(a)
-reject	accept	create global binding for select * from t union all select * from t using select * from t use index(a) union all select * from t use index(a)
-reject	accept	create session binding for select * from t union all select * from t using select * from t use index(a) union all select * from t use index(a)
-reject	accept	drop global binding for select * from t union all select * from t using select * from t use index(a) union all select * from t use index(a)
-reject	accept	drop session binding for select * from t union all select * from t using select * from t use index(a) union all select * from t use index(a)
-reject	accept	drop global binding for select * from t union all select * from t
-reject	accept	create session binding for select 1 union select 2 intersect select 3 using select 1 union select 2 intersect select 3
-reject	accept	drop session binding for select 1 union select 2 intersect select 3 using select 1 union select 2 intersect select 3
-reject	accept	drop session binding for select 1 union select 2 intersect select 3
-reject	accept	create global binding using select * from *.t1
-reject	accept	create global binding using select * from *.t1 where t1.a > (select max(a) from t2)
-reject	accept	create session binding using select * from *.t1
-reject	accept	create binding using select * from *.t1
-reject	accept	CREATE GLOBAL BINDING FOR UPDATE `t` SET `a`=1 WHERE `b`=1 USING UPDATE /*+ USE_INDEX(`t` `b`)*/ `t` SET `a`=1 WHERE `b`=1
-reject	accept	CREATE SESSION BINDING FOR UPDATE `t` SET `a`=1 WHERE `b`=1 USING UPDATE /*+ USE_INDEX(`t` `b`)*/ `t` SET `a`=1 WHERE `b`=1
-reject	accept	drop global binding for update t set a = 1 where b = 1
-reject	accept	drop session binding for update t set a = 1 where b = 1
-reject	accept	DROP GLOBAL BINDING FOR UPDATE `t` SET `a`=1 WHERE `b`=1 USING UPDATE /*+ USE_INDEX(`t` `b`)*/ `t` SET `a`=1 WHERE `b`=1
-reject	accept	DROP SESSION BINDING FOR UPDATE `t` SET `a`=1 WHERE `b`=1 USING UPDATE /*+ USE_INDEX(`t` `b`)*/ `t` SET `a`=1 WHERE `b`=1
-reject	accept	CREATE GLOBAL BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b` USING UPDATE /*+ INL_JOIN(`t1`)*/ `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
-reject	accept	CREATE SESSION BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b` USING UPDATE /*+ INL_JOIN(`t1`)*/ `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
-reject	accept	DROP GLOBAL BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
-reject	accept	DROP SESSION BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
-reject	accept	DROP GLOBAL BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b` USING UPDATE /*+ INL_JOIN(`t1`)*/ `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
-reject	accept	DROP SESSION BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b` USING UPDATE /*+ INL_JOIN(`t1`)*/ `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
-reject	accept	CREATE GLOBAL BINDING FOR DELETE FROM `t` WHERE `a`=1 USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
-reject	accept	CREATE SESSION BINDING FOR DELETE FROM `t` WHERE `a`=1 USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
-reject	accept	drop global binding for delete from t where a = 1
-reject	accept	drop session binding for delete from t where a = 1
-reject	accept	DROP GLOBAL BINDING FOR DELETE FROM `t` WHERE `a`=1 USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
-reject	accept	DROP SESSION BINDING FOR DELETE FROM `t` WHERE `a`=1 USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
-reject	accept	CREATE GLOBAL BINDING FOR DELETE `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1 USING DELETE /*+ HASH_JOIN(`t1`, `t2`)*/ `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1
-reject	accept	CREATE SESSION BINDING FOR DELETE `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1 USING DELETE /*+ HASH_JOIN(`t1`, `t2`)*/ `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1
-reject	accept	drop global binding for delete t1, t2 from t1 inner join t2 on t1.b = t2.b where t1.a = 1
-reject	accept	drop session binding for delete t1, t2 from t1 inner join t2 on t1.b = t2.b where t1.a = 1
-reject	accept	DROP GLOBAL BINDING FOR DELETE `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1 USING DELETE /*+ HASH_JOIN(`t1`, `t2`)*/ `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1
-reject	accept	DROP SESSION BINDING FOR DELETE `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1 USING DELETE /*+ HASH_JOIN(`t1`, `t2`)*/ `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1
-reject	accept	CREATE GLOBAL BINDING FOR INSERT INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING INSERT INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
-reject	accept	CREATE SESSION BINDING FOR INSERT INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING INSERT INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
-reject	accept	drop global binding for insert into t1 select * from t2 where t1.a=1
-reject	accept	drop session binding for insert into t1 select * from t2 where t1.a=1
-reject	accept	DROP GLOBAL BINDING FOR INSERT INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING INSERT INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
-reject	accept	DROP SESSION BINDING FOR INSERT INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING INSERT INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
-reject	accept	CREATE GLOBAL BINDING FOR REPLACE INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING REPLACE INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
-reject	accept	CREATE SESSION BINDING FOR REPLACE INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING REPLACE INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
-reject	accept	drop global binding for replace into t1 select * from t2 where t1.a=1
-reject	accept	drop session binding for replace into t1 select * from t2 where t1.a=1
-reject	accept	DROP GLOBAL BINDING FOR REPLACE INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING REPLACE INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
-reject	accept	DROP SESSION BINDING FOR REPLACE INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING REPLACE INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
-reject	accept	DROP SESSION BINDING FOR SQL DIGEST 'a'
-reject	accept	drop global binding for sql digest 's'
-reject	accept	drop global binding for sql digest @a, @b, 'test1,test2', @c, 'test333'
-reject	accept	create session binding from history using plan digest 'sss'
-reject	accept	create session binding from history using plan digest @a, @b, 'test1,test2', @c, 'test333'
-reject	accept	CREATE GLOBAL BINDING FROM HISTORY USING PLAN DIGEST 'sss'
-reject	accept	set binding enabled for sql digest '1'
-reject	accept	set binding disabled for sql digest '1'
+accept	accept	set binding enabled for select * from t
+accept	accept	set binding enabled for select * from t using select * from t use index(a)
+accept	accept	set binding disabled for select * from t
+accept	accept	set binding disabled for select * from t using select * from t use index(a)
+accept	accept	create global binding for select * from t union all select * from t using select * from t use index(a) union all select * from t use index(a)
+accept	accept	create session binding for select * from t union all select * from t using select * from t use index(a) union all select * from t use index(a)
+accept	accept	drop global binding for select * from t union all select * from t using select * from t use index(a) union all select * from t use index(a)
+accept	accept	drop session binding for select * from t union all select * from t using select * from t use index(a) union all select * from t use index(a)
+accept	accept	drop global binding for select * from t union all select * from t
+accept	accept	create session binding for select 1 union select 2 intersect select 3 using select 1 union select 2 intersect select 3
+accept	accept	drop session binding for select 1 union select 2 intersect select 3 using select 1 union select 2 intersect select 3
+accept	accept	drop session binding for select 1 union select 2 intersect select 3
+accept	accept	create global binding using select * from *.t1
+accept	accept	create global binding using select * from *.t1 where t1.a > (select max(a) from t2)
+accept	accept	create session binding using select * from *.t1
+accept	accept	create binding using select * from *.t1
+accept	accept	CREATE GLOBAL BINDING FOR UPDATE `t` SET `a`=1 WHERE `b`=1 USING UPDATE /*+ USE_INDEX(`t` `b`)*/ `t` SET `a`=1 WHERE `b`=1
+accept	accept	CREATE SESSION BINDING FOR UPDATE `t` SET `a`=1 WHERE `b`=1 USING UPDATE /*+ USE_INDEX(`t` `b`)*/ `t` SET `a`=1 WHERE `b`=1
+accept	accept	drop global binding for update t set a = 1 where b = 1
+accept	accept	drop session binding for update t set a = 1 where b = 1
+accept	accept	DROP GLOBAL BINDING FOR UPDATE `t` SET `a`=1 WHERE `b`=1 USING UPDATE /*+ USE_INDEX(`t` `b`)*/ `t` SET `a`=1 WHERE `b`=1
+accept	accept	DROP SESSION BINDING FOR UPDATE `t` SET `a`=1 WHERE `b`=1 USING UPDATE /*+ USE_INDEX(`t` `b`)*/ `t` SET `a`=1 WHERE `b`=1
+accept	accept	CREATE GLOBAL BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b` USING UPDATE /*+ INL_JOIN(`t1`)*/ `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
+accept	accept	CREATE SESSION BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b` USING UPDATE /*+ INL_JOIN(`t1`)*/ `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
+accept	accept	DROP GLOBAL BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
+accept	accept	DROP SESSION BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
+accept	accept	DROP GLOBAL BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b` USING UPDATE /*+ INL_JOIN(`t1`)*/ `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
+accept	accept	DROP SESSION BINDING FOR UPDATE `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b` USING UPDATE /*+ INL_JOIN(`t1`)*/ `t1` JOIN `t2` SET `t1`.`a`=1 WHERE `t1`.`b`=`t2`.`b`
+accept	accept	CREATE GLOBAL BINDING FOR DELETE FROM `t` WHERE `a`=1 USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
+accept	accept	CREATE SESSION BINDING FOR DELETE FROM `t` WHERE `a`=1 USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
+accept	accept	drop global binding for delete from t where a = 1
+accept	accept	drop session binding for delete from t where a = 1
+accept	accept	DROP GLOBAL BINDING FOR DELETE FROM `t` WHERE `a`=1 USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
+accept	accept	DROP SESSION BINDING FOR DELETE FROM `t` WHERE `a`=1 USING DELETE /*+ USE_INDEX(`t` `a`)*/ FROM `t` WHERE `a`=1
+accept	accept	CREATE GLOBAL BINDING FOR DELETE `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1 USING DELETE /*+ HASH_JOIN(`t1`, `t2`)*/ `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1
+accept	accept	CREATE SESSION BINDING FOR DELETE `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1 USING DELETE /*+ HASH_JOIN(`t1`, `t2`)*/ `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1
+accept	accept	drop global binding for delete t1, t2 from t1 inner join t2 on t1.b = t2.b where t1.a = 1
+accept	accept	drop session binding for delete t1, t2 from t1 inner join t2 on t1.b = t2.b where t1.a = 1
+accept	accept	DROP GLOBAL BINDING FOR DELETE `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1 USING DELETE /*+ HASH_JOIN(`t1`, `t2`)*/ `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1
+accept	accept	DROP SESSION BINDING FOR DELETE `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1 USING DELETE /*+ HASH_JOIN(`t1`, `t2`)*/ `t1`,`t2` FROM `t1` JOIN `t2` ON `t1`.`b`=`t2`.`b` WHERE `t1`.`a`=1
+accept	accept	CREATE GLOBAL BINDING FOR INSERT INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING INSERT INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
+accept	accept	CREATE SESSION BINDING FOR INSERT INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING INSERT INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
+accept	accept	drop global binding for insert into t1 select * from t2 where t1.a=1
+accept	accept	drop session binding for insert into t1 select * from t2 where t1.a=1
+accept	accept	DROP GLOBAL BINDING FOR INSERT INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING INSERT INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
+accept	accept	DROP SESSION BINDING FOR INSERT INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING INSERT INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
+accept	accept	CREATE GLOBAL BINDING FOR REPLACE INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING REPLACE INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
+accept	accept	CREATE SESSION BINDING FOR REPLACE INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING REPLACE INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
+accept	accept	drop global binding for replace into t1 select * from t2 where t1.a=1
+accept	accept	drop session binding for replace into t1 select * from t2 where t1.a=1
+accept	accept	DROP GLOBAL BINDING FOR REPLACE INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING REPLACE INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
+accept	accept	DROP SESSION BINDING FOR REPLACE INTO `t1` SELECT * FROM `t2` WHERE `t2`.`a`=1 USING REPLACE INTO `t1` SELECT /*+ USE_INDEX(`t2` `a`)*/ * FROM `t2` WHERE `t2`.`a`=1
+accept	accept	DROP SESSION BINDING FOR SQL DIGEST 'a'
+accept	accept	drop global binding for sql digest 's'
+accept	accept	drop global binding for sql digest @a, @b, 'test1,test2', @c, 'test333'
+accept	accept	create session binding from history using plan digest 'sss'
+accept	accept	create session binding from history using plan digest @a, @b, 'test1,test2', @c, 'test333'
+accept	accept	CREATE GLOBAL BINDING FROM HISTORY USING PLAN DIGEST 'sss'
+accept	accept	set binding enabled for sql digest '1'
+accept	accept	set binding disabled for sql digest '1'
 reject	reject	explain explore 'select a from t'
 reject	reject	explain explore '23adc8e6f62'
 accept	accept	create view v as select * from t
