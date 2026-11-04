@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -112,11 +113,22 @@ func dialTiDB(ctx context.Context, container testcontainers.Container, ready tim
 	return db, nil
 }
 
+// lost reports whether the harness has no server left to ask. restart clears
+// the pool and the container before rebuilding either, so a restart that
+// failed leaves the harness here, and a caller that kept going would
+// dereference a nil pool rather than collect another no-verdict error.
+func (tc *tidbContainer) lost() bool {
+	return tc.db == nil
+}
+
 // reconnect replaces the connection pool. A statement can drop the connection
 // it ran on without taking the server with it -- `kill CONNECTION_ID()` does
 // exactly that -- and until the pool is rebuilt every later statement comes
 // back as a connection error, which is no verdict at all.
 func (tc *tidbContainer) reconnect() error {
+	if tc.container == nil {
+		return errors.New("no container to reconnect to: an earlier restart could not start one")
+	}
 	if tc.db != nil {
 		tc.db.Close()
 		tc.db = nil

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -246,6 +247,14 @@ func TestTiDBCorpusEngineVerdicts(t *testing.T) {
 		if err != nil {
 			tally.addNoVerdict()
 			unanswered = append(unanswered, fmt.Sprintf("%s:%d: %v", tidbCorpusPath, c.line, err))
+			// Recovery got nothing back at all, so there is no server to ask
+			// and every row after this one would pay for another attempt to
+			// start one. Stop here and let the tally and the unanswered rows
+			// below say how far the run got.
+			if tc.lost() {
+				t.Errorf("no server left after %s:%d; stopping with %d of %d cases measured", tidbCorpusPath, c.line, i, len(cases))
+				break
+			}
 			// A server that has stopped answering will not start again, and
 			// grinding through the rest records nothing.
 			if len(unanswered) > 10 {
@@ -434,6 +443,27 @@ func TestPrepareSyntaxHoldsOneConnection(t *testing.T) {
 	}
 }
 
+// TestLostHarnessAnswersRatherThanPanics pins what a failed recovery leaves
+// behind. restart clears the pool and the container before rebuilding either,
+// so a restart that could not start a container leaves both nil -- and a nil
+// pool panics on the next statement, which would take the run down before
+// TestTiDBCorpusEngineVerdicts reports which statements went unanswered and
+// how far it got. A lost harness has to answer errors instead. This needs no
+// container.
+func TestLostHarnessAnswersRatherThanPanics(t *testing.T) {
+	tc := &tidbContainer{ctx: context.Background()}
+
+	if !tc.lost() {
+		t.Fatalf("a harness with no pool does not report itself lost")
+	}
+	if _, err := tc.prepareSyntax("SELECT 1"); err == nil {
+		t.Errorf("prepareSyntax returned a verdict with no pool")
+	}
+	if err := tc.reconnect(); err == nil {
+		t.Errorf("reconnect succeeded with no container to dial")
+	}
+}
+
 // prepareSyntax reports whether TiDB accepts the statement's syntax, without
 // running it: PREPARE parses the text and stops there. A non-nil error means
 // the server gave no verdict at all.
@@ -461,6 +491,9 @@ func TestPrepareSyntaxHoldsOneConnection(t *testing.T) {
 // turns a loss between them into an error instead, which is what syntaxVerdict
 // recovers from.
 func (tc *tidbContainer) prepareSyntax(stmt string) (bool, error) {
+	if tc.lost() {
+		return false, errors.New("the harness has no pool: an earlier recovery could not reach a server")
+	}
 	conn, err := tc.db.Conn(tc.ctx)
 	if err != nil {
 		return false, fmt.Errorf("taking a connection: %w", err)
