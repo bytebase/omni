@@ -222,6 +222,13 @@ func TestWalkThroughTiDBObjects(t *testing.T) {
 	noFinding(t, "DROP INDEX i ON t;\nDROP INDEX IF EXISTS i ON t;", shop)
 	noFinding(t, "DROP INDEX IF EXISTS i ON t;\nCREATE INDEX i ON t (a);", shop)
 	oneFinding(t, "DROP INDEX IF EXISTS i ON nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	// LOCK STATS and UNLOCK STATS are not lowered, so the walk claims nothing
+	// from them and reports nothing either.
+	noFinding(t, "LOCK STATS t;", shop)
+	noFinding(t, "UNLOCK STATS t, r;", shop)
+	noFinding(t, "LOCK STATS t PARTITION p0;", shop)
+	noFinding(t, "LOCK STATS nosuch;", shop)
+	noFinding(t, "LOCK STATS t;\nALTER TABLE t DROP COLUMN zz;", shop)
 	// TiDB drops what it can of these before it fails; the statement fails
 	// all the same, and the oracle judges each by its code.
 	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table `nosuch` doesn't exist.", shop)

@@ -161,6 +161,16 @@ var indexClauseCases = []indexClauseCase{
 	{sql: "LOCK TABLES obidx_t READ", engine: true},
 	{sql: "LOCK TABLE obidx_t READ", engine: true},
 	{sql: "LOCK = obidx_t READ"},
+	{sql: "UNLOCK TABLES", engine: true},
+	{sql: "UNLOCK TABLE", engine: true},
+	{sql: "UNLOCK = obidx_t"},
+	{sql: "UNLOCK obidx_t"},
+	// LOCK STATS and UNLOCK STATS are TiDB's own statements, which OceanBase
+	// has not: 1064 for both, with a target and without one.
+	{sql: "LOCK STATS obidx_t"},
+	{sql: "UNLOCK STATS obidx_t"},
+	{sql: "UNLOCK STATS"},
+	{sql: "LOCK STATS obidx_t PARTITION (p0)"},
 }
 
 // TestIndexClauseForms holds the parser to the recorded OceanBase verdicts. It

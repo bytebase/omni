@@ -317,8 +317,15 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/lock-tables.html
 //
 //	UNLOCK {TABLE | TABLES}
+//
+// The keyword is not optional, as it is not after LOCK: mysql:8.0 answers 1064 for
+// UNLOCK nosuch, and taking the next token without reading it let it through.
+//
+// Ref: table_or_tables in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseUnlockTablesStmt(start int) (*nodes.UnlockTablesStmt, error) {
-	p.advance() // consume TABLES
+	if _, ok := p.match(kwTABLES, kwTABLE); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	return &nodes.UnlockTablesStmt{
 		Loc: nodes.Loc{Start: start, End: p.prev.End},

@@ -114,6 +114,7 @@ var walkCases = []walkCase{
 	{name: "CREATE and DROP INDEX", change: "CREATE INDEX k ON nosuch (a);\nCREATE INDEX i ON t (b);\nCREATE INDEX I ON t (b);\nCREATE INDEX `PRIMARY` ON t (b);\nCREATE INDEX IF NOT EXISTS i ON t (b);\nDROP INDEX nosuch ON t;\nDROP INDEX i ON nosuch;\nDROP INDEX i ON t;\nDROP INDEX i ON t;", complete: true},
 	// CREATE INDEX of an expression succeeds on a view or a sequence, which
 	// ends the walk.
+	{name: "LOCK STATS and UNLOCK STATS", change: "LOCK STATS t;\nUNLOCK STATS t;\nLOCK STATS t, r;\nUNLOCK STATS t, r;\nLOCK STATS test.t;\nUNLOCK STATS test.t;"},
 	{name: "DROP INDEX IF EXISTS", change: "DROP INDEX IF EXISTS nosuch ON t;\nDROP INDEX IF EXISTS i ON nosuch;\nDROP INDEX IF EXISTS i ON t;\nDROP INDEX IF EXISTS i ON t;\nCREATE INDEX i ON t (a);\nDROP INDEX IF EXISTS i ON t;", complete: true},
 	{name: "an index on a view or a sequence", change: "CREATE INDEX k ON v ((1 + 1));\nCREATE INDEX k ON sq ((1 + 1));\nDROP INDEX k ON sq;\nCREATE TABLE t (a int);"},
 	{name: "views", change: "CREATE VIEW t AS SELECT 1 AS a;\nCREATE VIEW v AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW t AS SELECT 1 AS a;\nCREATE OR REPLACE VIEW v AS SELECT 1 AS a;\nDROP VIEW IF EXISTS t;\nDROP VIEW t;", complete: true},

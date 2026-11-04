@@ -678,12 +678,12 @@ reject	reject	show restore
 accept	accept	show replica status
 accept	accept	show slave status
 reject	accept	load stats '/tmp/stats.json'
-reject	accept	lock stats test.t
-reject	accept	lock stats t, t2
-reject	accept	lock stats t partition (p0, p1)
-reject	accept	unlock stats test.t
-reject	accept	unlock stats t, t2
-reject	accept	unlock stats t partition (p0, p1)
+accept	accept	lock stats test.t
+accept	accept	lock stats t, t2
+accept	accept	lock stats t partition (p0, p1)
+accept	accept	unlock stats test.t
+accept	accept	unlock stats t, t2
+accept	accept	unlock stats t partition (p0, p1)
 reject	accept	SET @ = 1
 reject	accept	SET @' ' = 1
 reject	reject	SET @! = 1

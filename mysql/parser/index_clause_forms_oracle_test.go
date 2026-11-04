@@ -147,11 +147,21 @@ var indexClauseCases = []indexClauseCase{
 	// A key_part list takes no trailing comma, wherever the clauses above sit.
 	{"CREATE INDEX i ON t (a,)", false},
 	{"CREATE UNIQUE INDEX i ON d.t (a, b ASC,) TYPE BTREE", false},
-	// LOCK as a statement, which the DROP INDEX rejections above lean on: the
-	// LOCK that ends a run-on must not be read as a LOCK TABLES of its value.
+	// LOCK and UNLOCK as statements, which the DROP INDEX rejections above lean
+	// on: the LOCK that ends a run-on must not be read as a LOCK TABLES of its
+	// value. Both read the keyword that says what they lock, and neither takes
+	// it as read.
 	{"LOCK TABLES t READ", true},
 	{"LOCK TABLE t READ", true},
 	{"LOCK = t READ", false},
+	{"UNLOCK TABLES", true},
+	{"UNLOCK TABLE", true},
+	{"UNLOCK nosuch", false},
+	// LOCK STATS and UNLOCK STATS are TiDB's, and this engine has neither.
+	{"LOCK STATS t", false},
+	{"UNLOCK STATS t", false},
+	{"LOCK STATS", false},
+	{"UNLOCK STATS", false},
 }
 
 // TestIndexClauseFormsOracle asserts omni agrees with a live MySQL 8.0 on

@@ -79,6 +79,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeLockTablesStmt(sb, n)
 	case *UnlockTablesStmt:
 		writeUnlockTablesStmt(sb, n)
+	case *LockStatsStmt:
+		writeStatsLock(sb, "LOCK_STATS", n.Loc, n.Tables, n.Partitions)
+	case *UnlockStatsStmt:
+		writeStatsLock(sb, "UNLOCK_STATS", n.Loc, n.Tables, n.Partitions)
 	case *GrantStmt:
 		writeGrantStmt(sb, n)
 	case *RevokeStmt:
@@ -1266,6 +1270,27 @@ func writeLockTablesStmt(sb *strings.Builder, n *LockTablesStmt) {
 			}
 			writeNode(sb, t)
 		}
+	}
+	sb.WriteString("}")
+}
+
+// writeStatsLock prints LOCK STATS and UNLOCK STATS, which carry the same
+// targets.
+func writeStatsLock(sb *strings.Builder, tag string, loc Loc, tables []*TableRef, partitions []string) {
+	sb.WriteString("{" + tag)
+	fmt.Fprintf(sb, " :loc %d", loc.Start)
+	if len(tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, t := range tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+		sb.WriteString(")")
+	}
+	if len(partitions) > 0 {
+		fmt.Fprintf(sb, " :partitions %s", strings.Join(partitions, " "))
 	}
 	sb.WriteString("}")
 }

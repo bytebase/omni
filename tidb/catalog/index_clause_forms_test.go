@@ -208,3 +208,46 @@ func TestDropIndexWithAlgorithmAndLock(t *testing.T) {
 		})
 	}
 }
+
+// TestStatsLockLeavesTheSchemaAlone runs LOCK STATS and UNLOCK STATS through
+// Exec. They change no schema, so the catalog has nothing to do with them, and
+// what matters is that they reach Exec without an error and take nothing with
+// them: before the grammar landed, `LOCK STATS t` parsed as a LOCK TABLES of a
+// table called `t`, which the catalog also ignored, so the two cannot be told
+// apart downstream without asserting the schema.
+func TestStatsLockLeavesTheSchemaAlone(t *testing.T) {
+	for _, stmt := range []string{
+		"LOCK STATS t",
+		"UNLOCK STATS t",
+		"LOCK STATS t, t2",
+		"LOCK STATS t PARTITION (p0, p1)",
+		"LOCK STATS t PARTITION p0",
+		"UNLOCK STATS test.t",
+		// A table the catalog has never heard of is no error either: the
+		// statement names nothing the catalog keeps.
+		"LOCK STATS nosuchtable",
+	} {
+		t.Run(stmt, func(t *testing.T) {
+			c := wtSetup(t)
+			wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY idx (a))")
+			wtExec(t, c, "CREATE TABLE t2 (id INT PRIMARY KEY)")
+			wtExec(t, c, stmt)
+
+			db := c.GetDatabase("testdb")
+			if db == nil {
+				t.Fatal("database testdb is gone")
+			}
+			if len(db.Tables) != 2 {
+				t.Errorf("tables = %d, want 2", len(db.Tables))
+			}
+			if idx := indexNamed(c, "t", "idx"); idx == nil {
+				t.Error("idx is gone")
+			}
+			if tbl := db.Tables["t"]; tbl == nil {
+				t.Error("t is gone")
+			} else if len(tbl.Columns) != 2 {
+				t.Errorf("t has %d columns, want 2", len(tbl.Columns))
+			}
+		})
+	}
+}
