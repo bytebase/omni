@@ -1785,17 +1785,26 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	}
 	defer p.leaveNesting()
 
-	// The literal's value is a prefix expression. The grammar takes a whole
-	// Expression — `"INTERVAL" Expression TimeUnit` — and TiDB v8.5.5 parses
-	// INTERVAL -1 DAY, INTERVAL NOT 1 DAY, INTERVAL BINARY 1 DAY,
-	// INTERVAL INTERVAL(1, 0, 1) DAY and INTERVAL 1 + 2 DAY, but reading the
-	// last of those would make the deparse write text the engine rejects: it
-	// parenthesizes a binary expression, as mysql/deparse does, and
-	// `interval (1 + 2) day` is the INTERVAL function to this grammar, where
-	// TiDB stores the literal unparenthesized as INTERVAL 1+2 DAY. So an
-	// operator in the value stays unread; mysql/parser, whose engine reads a
-	// parenthesized value as the literal, takes the whole expression.
-	val, err := p.parsePrefixExpr()
+	// The value is a primary expression, or another INTERVAL: the nested
+	// function form is what `DATE_ADD(d, INTERVAL INTERVAL(1, 0, 1) DAY)`
+	// needs.
+	//
+	// The grammar takes a whole Expression — `"INTERVAL" Expression TimeUnit`
+	// — and TiDB v8.5.5 parses INTERVAL NOT `n` DAY, INTERVAL -1 DAY and
+	// INTERVAL 1 + 2 DAY too, storing each value unparenthesized. omni's
+	// deparse parenthesizes a NOT, a CASE or a binary expression, as
+	// mysql/deparse does, and `interval (not(`n`)) day` is the INTERVAL
+	// function to this grammar — the engine answers 1582 for it — so a value
+	// whose text comes back out in parentheses stays unread here. mysql,
+	// mariadb and oceanbase take the whole expression, because their engines
+	// read a parenthesized value as the literal.
+	var val nodes.ExprNode
+	var err error
+	if p.cur.Type == kwINTERVAL {
+		val, err = p.parseIntervalExpr()
+	} else {
+		val, err = p.parsePrimaryExpr()
+	}
 	if err != nil {
 		return nil, err
 	}

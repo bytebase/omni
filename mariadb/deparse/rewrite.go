@@ -111,6 +111,11 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		}
 		return n
 
+	case *ast.PositionExpr:
+		n.Substr = rewriteExpr(n.Substr)
+		n.Str = rewriteExpr(n.Str)
+		return n
+
 	case *ast.CastExpr:
 		n.Expr = rewriteExpr(n.Expr)
 		return n

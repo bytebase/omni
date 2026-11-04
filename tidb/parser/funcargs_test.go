@@ -164,10 +164,10 @@ var funcArgCases = []struct {
 	{"SELECT INTERVAL(1)", true},
 	{"SELECT INTERVAL()", true},
 	{"SELECT a + INTERVAL (1) DAY FROM t", true},
-	// The literal takes a whole expression for its value, the INTERVAL
-	// function included.
+	// The literal's value may be the INTERVAL function, which is what this
+	// row needs. The engine takes a whole expression there, where this reader
+	// takes a primary one: TestTiDBIntervalValueStaysUnread records why.
 	{"SELECT DATE_ADD('2008-01-02', INTERVAL INTERVAL(1, 0, 1) DAY)", true},
-	{"SELECT a + INTERVAL -1 DAY FROM t", true},
 	// The function's arguments are ordinary expressions: no quantifier, no
 	// bare subquery, and no window after the call.
 	{"SELECT INTERVAL(ALL 1, 2)", false},
@@ -457,4 +457,31 @@ func targetExpr(item nodes.ExprNode) nodes.ExprNode {
 		return rt.Val
 	}
 	return item
+}
+
+// TestTiDBIntervalValueStaysUnread records the one deliberate narrowing in
+// this reader. The engine takes a whole expression for an interval literal's
+// value and parses every statement below, storing the value unparenthesized
+// (INTERVAL NOT `n` DAY, INTERVAL -1 DAY). omni's deparse parenthesizes a NOT,
+// a CASE or an operator, as mysql/deparse does, and `interval (not(`n`)) day`
+// is the INTERVAL function to this grammar — TiDB v8.5.5 answers 1582 for it —
+// so reading one of these would deparse to a statement the engine rejects.
+//
+// Accepting any of them means making its deparse round-trip first;
+// TestTiDBFunctionArgumentDeparseRoundTrip is what catches the omission.
+func TestTiDBIntervalValueStaysUnread(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT a + INTERVAL NOT c1 DAY FROM t",
+		"SELECT a + INTERVAL CASE WHEN 1 THEN 1 END DAY FROM t",
+		"SELECT a + INTERVAL -1 DAY FROM t",
+		"SELECT a + INTERVAL 1 + 2 DAY FROM t",
+		"SELECT a + INTERVAL EXISTS (SELECT 1) DAY FROM t",
+		// This one deparses to `interval 1 day`, the operator gone, which the
+		// engine does parse and means something else.
+		"SELECT a + INTERVAL BINARY 1 DAY FROM t",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) was accepted; its deparse has to round-trip first", sql)
+		}
+	}
 }

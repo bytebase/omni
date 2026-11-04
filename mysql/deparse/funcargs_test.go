@@ -57,3 +57,35 @@ func TestFunctionArgumentDeparse(t *testing.T) {
 		}
 	}
 }
+
+// POSITION's operands have to be resolved like any other expression's: the
+// resolver qualifies a column reference and expands a star, and a node its
+// type switch does not know leaves the subtree alone — a view stored from
+// that tree would carry `select /* unsupported: *ast.StarExpr */ from ...`.
+func TestFunctionArgumentResolve(t *testing.T) {
+	lookup := func(name string) *ResolverTable {
+		if name != "t" {
+			return nil
+		}
+		return &ResolverTable{Name: "t", Columns: []ResolverColumn{{Name: "s", Position: 1}}}
+	}
+	for _, tc := range []struct{ sql, want string }{
+		{"SELECT POSITION('x' IN s) FROM t", "select position('x' in `t`.`s`) AS `POSITION('x' IN s)` from `t`"},
+		{"SELECT POSITION((SELECT s FROM t) IN s) FROM t", "select position((select `t`.`s` from `t`) in `t`.`s`) AS `POSITION((SELECT s FROM t) IN s)` from `t`"},
+		{"SELECT POSITION('x' IN (SELECT * FROM t))", "select position('x' in (select `t`.`s` from `t`)) AS `Name_exp_1`"},
+		{"SELECT EXTRACT(DAY FROM (SELECT * FROM t))", "select extract(day from (select `t`.`s` from `t`)) AS `Name_exp_1`"},
+	} {
+		list, err := parser.Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", tc.sql, err)
+		}
+		sel, ok := list.Items[0].(*ast.SelectStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): %T", tc.sql, list.Items[0])
+		}
+		(&Resolver{Lookup: lookup}).Resolve(sel)
+		if got := DeparseSelect(sel); got != tc.want {
+			t.Errorf("%q resolved to\n  %q\nwant:\n  %q", tc.sql, got, tc.want)
+		}
+	}
+}
