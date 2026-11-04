@@ -585,9 +585,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Table)
 		}
 		for _, item := range n.Columns {
-			if item != nil {
-				Walk(v, item)
-			}
+			Walk(v, item)
 		}
 		for _, item := range n.SetList {
 			if item != nil {

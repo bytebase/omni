@@ -644,6 +644,29 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.ElseList {
 			Walk(v, item)
 		}
+	case *ImportIntoStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, item := range n.Columns {
+			Walk(v, item)
+		}
+		for _, item := range n.SetList {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Select != nil {
+			Walk(v, n.Select)
+		}
+		if n.TableSource != nil {
+			Walk(v, n.TableSource)
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *InExpr:
 		Walk(v, n.Expr)
 		for _, item := range n.List {
@@ -734,16 +757,21 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Items {
 			Walk(v, item)
 		}
+	case *LoadDataOption:
+		Walk(v, n.Value)
 	case *LoadDataStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
 		for _, item := range n.Columns {
+			Walk(v, item)
+		}
+		for _, item := range n.SetList {
 			if item != nil {
 				Walk(v, item)
 			}
 		}
-		for _, item := range n.SetList {
+		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
 			}

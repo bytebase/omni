@@ -7913,8 +7913,11 @@ func TestParseUnlockInstance(t *testing.T) {
 	ParseAndCompare(t, "UNLOCK INSTANCE", "{UNLOCK_INSTANCE :loc 0}")
 }
 
-func TestParseImportTable(t *testing.T) {
-	ParseAndCheck(t, "IMPORT TABLE FROM '/tmp/t1.sdi', '/tmp/t2.sdi'")
+// IMPORT TABLE FROM is MySQL's and not TiDB's: v8.5.5 answers 1064 for it,
+// where mysql:8.0.46 takes it. TiDB's only IMPORT is IMPORT INTO, which
+// load_data_forms_test.go covers.
+func TestParseImportTableIsNotTiDBs(t *testing.T) {
+	ParseExpectError(t, "IMPORT TABLE FROM '/tmp/t1.sdi', '/tmp/t2.sdi'")
 }
 
 // ============================================================================

@@ -233,14 +233,14 @@ reject	reject	load data local infile '/tmp/t.csv' into table t fields terminated
 accept	accept	load data local infile '/tmp/t.csv' into table t lines starting by 'ab' terminated by 'xy' ignore 1 lines
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' enclosed by 'b' escaped by '*' ignore 1 lines (a,b)
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' enclosed by 'b' escaped by ''
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D0D';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'1101';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'110100001101';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by B'110101101101011' terminated by B'110101101101011';
-reject	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by X'6B6B' terminated by X'6B6B';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D0D';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'1101';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'110100001101';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by B'110101101101011' terminated by B'110101101101011';
+accept	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by X'6B6B' terminated by X'6B6B';
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' enclosed by 'b' enclosed by 'b'
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' escaped by '' enclosed by 'b'
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' escaped by '' enclosed by 'b' SET b = CAST(CONV(MID(@var1, 3, LENGTH(@var1)-3), 2, 10) AS UNSIGNED)
@@ -254,23 +254,23 @@ accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @dummy, column
 accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @var1) SET column2 = @var1/100
 accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @var1, @var2) SET column2 = @var1/100, column3 = DEFAULT, column4=CURRENT_TIMESTAMP, column5=@var2+1
 accept	accept	load data infile 's3://bucket-name/t.csv' into table t
-reject	accept	load data infile '/tmp/t.csv' into table t fields defined null by 'nil'
-reject	accept	load data infile '/tmp/t.csv' into table t fields defined null by X'00'
-reject	accept	load data infile '/tmp/t.csv' into table t fields defined null by 'NULL' optionally enclosed ignore 1 lines
-reject	accept	load data infile '/tmp/t.csv' format 'delimited data' into table t (column1, @var1) SET column2 = @var1/100
-reject	accept	load data local infile '/tmp/t.sql' format 'sql file' replace into table t (a,b)
-reject	accept	load data infile '/tmp/t.parquet' format 'parquet' into table t (column1, @var1) SET column2 = @var1/100
-reject	accept	load data infile '/tmp/t.csv' into table t with detached
-reject	accept	load data infile '/tmp/t.csv' into table `t` with threads=10
-reject	accept	load data infile '/tmp/t.csv' into table `t` with threads=10, detached
-reject	accept	import into t from '/file.csv'
-reject	accept	import into t (a,b) from '/file.csv'
-reject	accept	import into t (a,@1) from '/file.csv'
-reject	accept	import into t (a,@1) set b=@1+100 from '/file.csv'
-reject	accept	import into t from '/file.csv' format 'sql file'
-reject	accept	import into t from '/file.csv' with detached
-reject	accept	import into `t` from '/file.csv' with thread=1
-reject	accept	import into `t` from '/file.csv' with detached, thread=1
+accept	accept	load data infile '/tmp/t.csv' into table t fields defined null by 'nil'
+accept	accept	load data infile '/tmp/t.csv' into table t fields defined null by X'00'
+accept	accept	load data infile '/tmp/t.csv' into table t fields defined null by 'NULL' optionally enclosed ignore 1 lines
+accept	accept	load data infile '/tmp/t.csv' format 'delimited data' into table t (column1, @var1) SET column2 = @var1/100
+accept	accept	load data local infile '/tmp/t.sql' format 'sql file' replace into table t (a,b)
+accept	accept	load data infile '/tmp/t.parquet' format 'parquet' into table t (column1, @var1) SET column2 = @var1/100
+accept	accept	load data infile '/tmp/t.csv' into table t with detached
+accept	accept	load data infile '/tmp/t.csv' into table `t` with threads=10
+accept	accept	load data infile '/tmp/t.csv' into table `t` with threads=10, detached
+accept	accept	import into t from '/file.csv'
+accept	accept	import into t (a,b) from '/file.csv'
+accept	accept	import into t (a,@1) from '/file.csv'
+accept	accept	import into t (a,@1) set b=@1+100 from '/file.csv'
+accept	accept	import into t from '/file.csv' format 'sql file'
+accept	accept	import into t from '/file.csv' with detached
+accept	accept	import into `t` from '/file.csv' with thread=1
+accept	accept	import into `t` from '/file.csv' with detached, thread=1
 accept	accept	select * from t for update
 accept	accept	select * from t for share
 accept	accept	select * from t for update nowait

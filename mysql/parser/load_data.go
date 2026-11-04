@@ -16,15 +16,8 @@ import (
 //	    INTO TABLE tbl_name
 //	    [PARTITION (partition_name [, partition_name] ...)]
 //	    [CHARACTER SET charset_name]
-//	    [{FIELDS | COLUMNS}
-//	        [TERMINATED BY 'string']
-//	        [[OPTIONALLY] ENCLOSED BY 'char']
-//	        [ESCAPED BY 'char']
-//	    ]
-//	    [LINES
-//	        [STARTING BY 'string']
-//	        [TERMINATED BY 'string']
-//	    ]
+//	    [{FIELDS | COLUMNS} field_item ...]
+//	    [LINES line_item ...]
 //	    [IGNORE number {LINES | ROWS}]
 //	    [(col_name_or_user_var [, col_name_or_user_var] ...)]
 //	    [SET col_name={expr | DEFAULT} [, col_name={expr | DEFAULT}] ...]
@@ -196,13 +189,17 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// [{FIELDS | COLUMNS} ...]
 	if p.cur.Type == kwFIELDS || p.cur.Type == kwCOLUMNS {
 		p.advance()
-		p.parseFieldsClause(stmt)
+		if err := p.parseFieldsClause(stmt); err != nil {
+			return nil, err
+		}
 	}
 
 	// [LINES ...]
 	if p.cur.Type == kwLINES {
 		p.advance()
-		p.parseLinesClause(stmt)
+		if err := p.parseLinesClause(stmt); err != nil {
+			return nil, err
+		}
 	}
 
 	// [IGNORE number {LINES | ROWS}]
@@ -216,21 +213,11 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	}
 
 	// [(col_name_or_user_var, ...)]
-	if p.cur.Type == '(' {
-		p.advance()
-		for {
-			col, err := p.parseColumnRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Columns = append(stmt.Columns, col)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		p.match(')')
+	cols, err := p.parseColumnOrUserVarList()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Columns = cols
 
 	// [SET ...]
 	if p.cur.Type == kwSET {
@@ -326,66 +313,184 @@ func (p *Parser) parseLoadDataS3Source(stmt *nodes.LoadDataStmt) error {
 	return nil
 }
 
-// parseFieldsClause parses FIELDS/COLUMNS clause options.
-func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) {
-	for {
-		if p.cur.Type == kwTERMINATED {
+// parseFieldsClause parses the one-or-more items of a FIELDS/COLUMNS clause.
+//
+// The list is never empty -- `FIELDS` with nothing after it is a 1064 on
+// mysql:8.0.46, mariadb:11.8.8, OceanBase 4.3.5 and pingcap/tidb:v8.5.5
+// alike -- its items come in any order, and a repeat is allowed, the last one
+// winning as it does in the server's own AST.
+//
+//	field_item:
+//	    TERMINATED BY terminator
+//	  | [OPTIONALLY] ENCLOSED BY terminator
+//	  | ESCAPED BY terminator
+//
+// ENCLOSED BY is not optional after OPTIONALLY: `FIELDS OPTIONALLY ENCLOSED
+// IGNORE 1 LINES` is a 1064 on all four servers, where this used to read
+// OPTIONALLY on its own (read on 2026-11-04).
+//
+// Ref: field_term in sql_yacc.yy.
+func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
+	for n := 0; ; n++ {
+		switch p.cur.Type {
+		case kwTERMINATED:
 			p.advance()
-			p.match(kwBY)
-			if p.cur.Type == tokSCONST {
-				stmt.FieldsTerminatedBy = p.cur.Str
-				p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return err
 			}
-		} else if p.cur.Type == kwOPTIONALLY {
+			v, err := p.parseFieldTerminator()
+			if err != nil {
+				return err
+			}
+			stmt.FieldsTerminatedBy = v
+
+		case kwOPTIONALLY:
 			p.advance()
+			if _, err := p.expect(kwENCLOSED); err != nil {
+				return err
+			}
+			if _, err := p.expect(kwBY); err != nil {
+				return err
+			}
+			v, err := p.parseFieldTerminator()
+			if err != nil {
+				return err
+			}
 			stmt.FieldsOptionalEncl = true
-			if p.cur.Type == kwENCLOSED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					stmt.FieldsEnclosedBy = p.cur.Str
-					p.advance()
-				}
-			}
-		} else if p.cur.Type == kwENCLOSED {
+			stmt.FieldsEnclosedBy = v
+
+		case kwENCLOSED:
 			p.advance()
-			p.match(kwBY)
-			if p.cur.Type == tokSCONST {
-				stmt.FieldsEnclosedBy = p.cur.Str
-				p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return err
 			}
-		} else if p.cur.Type == kwESCAPED {
+			v, err := p.parseFieldTerminator()
+			if err != nil {
+				return err
+			}
+			stmt.FieldsEnclosedBy = v
+
+		case kwESCAPED:
 			p.advance()
-			p.match(kwBY)
-			if p.cur.Type == tokSCONST {
-				stmt.FieldsEscapedBy = p.cur.Str
-				p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return err
 			}
-		} else {
-			break
+			v, err := p.parseFieldTerminator()
+			if err != nil {
+				return err
+			}
+			stmt.FieldsEscapedBy = v
+
+		default:
+			if n == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
 		}
 	}
 }
 
-// parseLinesClause parses LINES clause options.
-func (p *Parser) parseLinesClause(stmt *nodes.LoadDataStmt) {
-	for {
-		if p.cur.Type == kwTERMINATED {
+// parseLinesClause parses the one-or-more items of a LINES clause. As in a
+// FIELDS clause the list is never empty -- a bare `LINES` is a 1064 on
+// mysql:8.0.46, mariadb:11.8.8 and OceanBase 4.3.5, though TiDB v8.5.5 takes
+// one -- and its two items come in any order and may repeat.
+//
+// Ref: line_term in sql_yacc.yy.
+func (p *Parser) parseLinesClause(stmt *nodes.LoadDataStmt) error {
+	for n := 0; ; n++ {
+		switch p.cur.Type {
+		case kwTERMINATED:
 			p.advance()
-			p.match(kwBY)
-			if p.cur.Type == tokSCONST {
-				stmt.LinesTerminatedBy = p.cur.Str
-				p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return err
 			}
-		} else if p.cur.Type == kwSTARTING {
+			v, err := p.parseFieldTerminator()
+			if err != nil {
+				return err
+			}
+			stmt.LinesTerminatedBy = v
+
+		case kwSTARTING:
 			p.advance()
-			p.match(kwBY)
-			if p.cur.Type == tokSCONST {
-				stmt.LinesStartingBy = p.cur.Str
-				p.advance()
+			if _, err := p.expect(kwBY); err != nil {
+				return err
 			}
-		} else {
-			break
+			v, err := p.parseFieldTerminator()
+			if err != nil {
+				return err
+			}
+			stmt.LinesStartingBy = v
+
+		default:
+			if n == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
 		}
 	}
+}
+
+// parseFieldTerminator parses the value a FIELDS or LINES option takes: a
+// string literal, a hex literal, or a bit literal, the last two decoded to
+// the bytes they stand for. So `TERMINATED BY X'6B6B'` and `TERMINATED BY
+// B'110101101101011'` both read as "kk". mysql:8.0.46, mariadb:11.8.8,
+// OceanBase 4.3.5 and pingcap/tidb:v8.5.5 take the same three spellings
+// (read on 2026-11-04).
+//
+// Ref: text_string in sql_yacc.yy, which field_term and line_term both take.
+func (p *Parser) parseFieldTerminator() (string, error) {
+	switch p.cur.Type {
+	case tokSCONST:
+		tok := p.advance()
+		return tok.Str, nil
+	case tokXCONST, tokBCONST:
+		tok := p.cur
+		v, err := p.decodeByteLiteral(tok)
+		if err != nil {
+			return "", err
+		}
+		p.advance()
+		return v, nil
+	default:
+		return "", p.syntaxErrorAtCur()
+	}
+}
+
+// parseColumnOrUserVarList parses an optional parenthesized
+// column-and-user-variable list. A user variable is kept as a VariableRef and
+// not as a column whose name begins with '@': `(a, @v)` names one column and
+// one variable.
+func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
+	if p.cur.Type != '(' {
+		return nil, nil
+	}
+	p.advance()
+	var out []nodes.ExprNode
+	for {
+		if p.isUserVariable() {
+			v, err := p.parseVariableRef()
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, v)
+		} else {
+			col, err := p.parseColumnRef()
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, col)
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	p.match(')')
+	return out, nil
+}
+
+// isUserVariable reports whether p.cur is a user variable (@name). The lexer
+// emits one as tokIDENT carrying the '@'.
+func (p *Parser) isUserVariable() bool {
+	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@'
 }
