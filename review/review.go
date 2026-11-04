@@ -153,6 +153,14 @@ type Result struct {
 	// input, in order, whether or not it parsed. Findings refer to them by
 	// index.
 	Statements []Range
+	// Bodies parallels Statements: each statement's range from its first
+	// token to its last, as the engine's lexer reads them, semicolons left
+	// out. The whitespace and comments around a statement fall outside its
+	// body, and comments inside it stay, so the body's text changes only
+	// when the statement does. The markers of a MySQL-family executable
+	// comment are not tokens. A statement the lexer reads no token from
+	// keeps its Statements range.
+	Bodies []Range
 	// Findings, already merged across targets, sorted by (Statement,
 	// Range.Start, Rule, Message).
 	Findings []Finding

@@ -62,7 +62,8 @@ func reviewDialect(ctx context.Context, sql string, opts review.Options, targets
 		return nil, err
 	}
 	r := &reporter{targets: allTargets(len(targets))}
-	result = &review.Result{Statements: statementRanges(sql)}
+	ranges := statementRanges(sql)
+	result = &review.Result{Statements: ranges, Bodies: statementBodies(sql, ranges)}
 
 	stmts, syntax := parse(sql, result.Statements)
 	if syntax != nil {

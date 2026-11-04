@@ -1175,3 +1175,28 @@ func TestPriorBackup(t *testing.T) {
 		},
 	})
 }
+
+// TestStatementBodies pins Result.Bodies: each statement from its first
+// token to its last, without the whitespace, comments, and semicolons
+// around it.
+func TestStatementBodies(t *testing.T) {
+	sql := "SELECT 1;\n/* c */ # a note\nUPDATE t SET n = 1 WHERE id = 1 -- trailing\n;\n/*M!100100 SET NAMES utf8mb4 */;\nSELECT '--x', `a;b` FROM t"
+	result, err := Review(context.Background(), sql, review.Options{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Bodies) != len(result.Statements) {
+		t.Fatalf("%d bodies for %d statements", len(result.Bodies), len(result.Statements))
+	}
+	var got []string
+	for i, body := range result.Bodies {
+		if statement := result.Statements[i]; body.Start < statement.Start || body.End > statement.End {
+			t.Errorf("body %v lies outside statement %v", body, statement)
+		}
+		got = append(got, sql[body.Start:body.End])
+	}
+	want := []string{"SELECT 1", "UPDATE t SET n = 1 WHERE id = 1", "SET NAMES utf8mb4", "SELECT '--x', `a;b` FROM t"}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("bodies mismatch (-want +got):\n%s", diff)
+	}
+}
