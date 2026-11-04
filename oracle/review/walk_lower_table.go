@@ -91,13 +91,18 @@ func alterFollowed(c *ast.AlterTableCmd) bool {
 // (00972). It returns the constraint names the statement's ADD and MODIFY
 // clauses declare.
 func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) (declared []string, fails bool) {
-	columns := make(map[string]bool)
-	twice := func(name string, rng review.Range) bool {
-		if columns[name] {
-			b.fail(rng, review.DuplicateName, "Column "+ident(name)+" is named twice in the statement")
+	// columns holds what the statement does to each column it names:
+	// "adds", "modifies", or "drops".
+	columns := make(map[string]string)
+	named := func(name, verb string, rng review.Range) bool {
+		if first, ok := columns[name]; ok {
+			if first != verb {
+				verb = "names"
+			}
+			b.fail(rng, review.DuplicateName, twice(verb, "column", name))
 			return true
 		}
-		columns[name] = true
+		columns[name] = verb
 		return false
 	}
 	var d tableDecl
@@ -105,15 +110,19 @@ func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) (declared 
 	for _, c := range cmds {
 		switch c.Action {
 		case ast.AT_ADD_COLUMN, ast.AT_MODIFY_COLUMN:
+			verb := "adds"
+			if c.Action == ast.AT_MODIFY_COLUMN {
+				verb = "modifies"
+			}
 			for _, col := range alterColumns(c) {
-				if b.tooLong(col.Name, rangeOf(col.Loc)) || twice(col.Name, rangeOf(col.Loc)) {
+				if b.tooLong(col.Name, rangeOf(col.Loc)) || named(col.Name, verb, rangeOf(col.Loc)) {
 					return nil, true
 				}
 				b.declareColumn(&d, col)
 			}
 		case ast.AT_DROP_COLUMN:
 			for _, name := range b.droppedColumns(c) {
-				if twice(name, rangeOf(c.Loc)) {
+				if named(name, "drops", rangeOf(c.Loc)) {
 					return nil, true
 				}
 			}
@@ -126,7 +135,7 @@ func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) (declared 
 				continue
 			}
 			if dropped[c.Constraint.Name] {
-				b.fail(rangeOf(c.Loc), review.DuplicateName, "Cannot drop constraint "+ident(c.Constraint.Name)+": table "+r.written+" has no such constraint")
+				b.fail(rangeOf(c.Loc), review.DuplicateName, twice("drops", "constraint", c.Constraint.Name))
 				return nil, true
 			}
 			dropped[c.Constraint.Name] = true
@@ -196,7 +205,7 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 		var d tableDecl
 		for _, col := range alterColumns(c) {
 			ck := r.childKey(spaceColumn, col.Name)
-			b.need(ck, walk.Absent, nil, rangeOf(col.Loc), "", "Column "+ident(col.Name)+" being added already exists in table "+r.written)
+			b.need(ck, walk.Absent, nil, rangeOf(col.Loc), "", takenColumn(col.Name, r.written))
 			b.Set(ck, walk.Present, "")
 			b.declareColumn(&d, col)
 		}
@@ -235,7 +244,7 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 	case ast.AT_RENAME_COLUMN:
 		from, to := r.childKey(spaceColumn, c.ColumnName), r.childKey(spaceColumn, c.NewName)
 		b.columnNeeds(r, c.ColumnName, rng)
-		b.need(to, walk.Absent, nil, rng, "", "Column "+ident(c.NewName)+" already exists in table "+r.written)
+		b.need(to, walk.Absent, nil, rng, "", takenColumn(c.NewName, r.written))
 		if c.ColumnName != c.NewName {
 			b.Set(from, walk.Absent, "")
 			b.Set(to, walk.Present, "")
@@ -254,7 +263,7 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 		return b.constraintState(r, c, rng, declared)
 	case ast.AT_RENAME_CONSTRAINT:
 		from, to := c.ColumnName, c.NewName
-		b.constraintNeeds(r, from, rng, "Cannot rename constraint "+ident(from)+": table "+r.written+" has no such constraint")
+		b.constraintNeeds(r, from, rng)
 		b.need(r.schemaKey(spaceConstraint, to), walk.Absent, nil, rng, "", takenConstraint(to))
 		if from != to {
 			b.Set(r.childKey(spaceTableConstraint, from), walk.Absent, "")
@@ -294,7 +303,8 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 // schema, not another table's (02443, 23292, 02430, 02431). Another
 // table's constraint of the name leaves this table without one, the
 // condition of review.ObjectNotFound.
-func (b *builder) constraintNeeds(r objRef, name string, rng review.Range, message string) {
+func (b *builder) constraintNeeds(r objRef, name string, rng review.Range) {
+	message := missingIn("Constraint", name, r.written)
 	b.need(r.childKey(spaceTableConstraint, name), walk.Present, nil, rng, message, "")
 	b.needNote(r.schemaKey(spaceConstraint, name), walk.Present, []string{r.path()}, noteOf(rng, review.ObjectNotFound, message))
 }
@@ -315,7 +325,7 @@ func nestedStorage(opts *ast.List) bool {
 
 // columnNeeds checks that a column the clause names exists (00904).
 func (b *builder) columnNeeds(r objRef, name string, rng review.Range) {
-	b.need(r.childKey(spaceColumn, name), walk.Present, nil, rng, "Column "+ident(name)+" does not exist in table "+r.written, "")
+	b.need(r.childKey(spaceColumn, name), walk.Present, nil, rng, missingIn("Column", name, r.written), "")
 }
 
 // dropsConstraints records that a clause may drop constraints of the
@@ -334,7 +344,7 @@ func (b *builder) dropConstraint(r objRef, c *ast.AlterTableCmd, rng review.Rang
 	switch {
 	case c.Subtype == "PRIMARY KEY":
 		pk := r.childKey(spacePrimary, "")
-		b.need(pk, walk.Present, nil, rng, "Table "+r.written+" has no primary key to drop", "")
+		b.need(pk, walk.Present, nil, rng, review.Code(r.written)+" has no primary key.", "")
 		b.Set(pk, walk.Absent, "")
 		b.dropsConstraints(r)
 	case c.Subtype == "UNIQUE":
@@ -342,7 +352,7 @@ func (b *builder) dropConstraint(r objRef, c *ast.AlterTableCmd, rng review.Rang
 	case c.Constraint != nil && c.Constraint.Name != "":
 		name := c.Constraint.Name
 		ck := r.childKey(spaceTableConstraint, name)
-		b.constraintNeeds(r, name, rng, "Cannot drop constraint "+ident(name)+": table "+r.written+" has no such constraint")
+		b.constraintNeeds(r, name, rng)
 		b.Set(ck, walk.Absent, "")
 		b.Set(r.schemaKey(spaceConstraint, name), walk.Absent, "")
 		// It may be the primary key.
@@ -371,12 +381,8 @@ func (b *builder) constraintState(r objRef, c *ast.AlterTableCmd, rng review.Ran
 	}
 	switch {
 	case name != "":
-		verb := "disable"
-		if strings.HasPrefix(c.Subtype, "ENABLE") {
-			verb = "enable"
-		}
 		if c.Action == ast.AT_MODIFY_CONSTRAINT || !contains(declared, name) {
-			b.constraintNeeds(r, name, rng, "Cannot "+verb+" constraint "+ident(name)+": table "+r.written+" has no such constraint")
+			b.constraintNeeds(r, name, rng)
 		}
 		b.Set(r.schemaKey(spaceIndex, name), walk.Unknown, "")
 		if b.createsIndex(c.Loc) {

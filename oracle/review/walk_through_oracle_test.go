@@ -300,6 +300,10 @@ type oracleEngine struct {
 	w      *walkSchemas
 	conn   *sql.Conn
 	target review.Target
+	// stmt and anchor are the text of the statement the finding Report
+	// last returned is on and of the range it anchors, which tell apart
+	// the errors one message stands for (Codes).
+	stmt, anchor string
 }
 
 // Statements splits a change into its statements, each ended so that the
@@ -367,6 +371,8 @@ func (e *oracleEngine) Report(t testing.TB, change string) *walktest.Finding {
 				t.Errorf("more than one finding: %q and %q", out.Message, f.Message)
 			}
 			out = &walktest.Finding{Statement: f.Statement, Message: f.Message}
+			s := result.Statements[f.Statement]
+			e.stmt, e.anchor = change[s.Start:s.End], change[f.Range.Start:f.Range.End]
 		}
 	}
 	return out
@@ -385,53 +391,136 @@ func (e *oracleEngine) Violation(t testing.TB, change string) *walk.Violation {
 	return v
 }
 
-// walkCodes maps a finding's message to the Oracle errors it stands for.
-var walkCodes = []struct {
-	match func(string) bool
+// walkCodes maps a finding's message, its names written as N
+// (walkShape), to the Oracle errors it stands for. One message may stand
+// for errors of several statements; by, when set, picks the errors from
+// the text of the finding's statement and of its anchor.
+var walkCodes = map[string]struct {
 	codes []string
+	by    func(stmt, anchor string) []string
 }{
-	{func(m string) bool { return strings.HasPrefix(m, "Table or view ") }, []string{"00942"}},
-	{func(m string) bool { return strings.HasSuffix(m, " is already used by an existing object") }, []string{"00955"}},
-	{func(m string) bool { return strings.HasSuffix(m, " is already used by an existing constraint") }, []string{"02264"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Must use DROP MATERIALIZED VIEW") }, []string{"12083"}},
-	{func(m string) bool { return strings.HasPrefix(m, "A view is not appropriate here") }, []string{"01702"}},
-	{func(m string) bool { return strings.HasPrefix(m, "A sequence is not allowed here") }, []string{"02201"}},
-	{func(m string) bool { return strings.HasPrefix(m, "A procedure, function, package, or type") }, []string{"04044"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Sequence ") }, []string{"02289"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Private synonym ") }, []string{"01434"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Object ") }, []string{"04043"}},
-	{func(m string) bool { return strings.HasPrefix(m, "RENAME cannot rename") }, []string{"03001"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Cannot rename materialized view") }, []string{"32318"}},
-	{func(m string) bool { return strings.Contains(m, " being added already exists") }, []string{"01430"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in table ")
-	}, []string{"00957"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Column ") && strings.Contains(m, " is named twice") }, []string{"00957"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Column ") }, []string{"00904"}},
-	{func(m string) bool { return strings.HasSuffix(m, " can have only one primary key") }, []string{"02260"}},
-	{func(m string) bool { return strings.HasSuffix(m, " has no primary key to drop") }, []string{"02441"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Cannot drop constraint") }, []string{"02443"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Cannot rename constraint") }, []string{"23292"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Cannot enable constraint") }, []string{"02430"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Cannot disable constraint") }, []string{"02431"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Index ") }, []string{"01418"}},
-	{func(m string) bool {
-		return strings.HasSuffix(m, " already exists on another table, cannot replace it")
-	}, []string{"04095"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Trigger ") && strings.HasSuffix(m, " already exists")
-	}, []string{"04081"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Trigger ") }, []string{"04080"}},
-	{func(m string) bool { return strings.HasPrefix(m, "The identifier ") }, []string{"00972"}},
+	"N doesn't exist.": {by: func(stmt, _ string) []string {
+		if leads(stmt, "RENAME") {
+			return []string{"04043"}
+		}
+		return []string{"00942"}
+	}},
+	"Table N doesn't exist.":           {codes: []string{"00942"}},
+	"View N doesn't exist.":            {codes: []string{"00942"}},
+	"Sequence N doesn't exist.":        {codes: []string{"02289"}},
+	"Private synonym N doesn't exist.": {codes: []string{"01434"}},
+	"N isn't a private synonym.":       {codes: []string{"01434"}},
+	"Package N doesn't exist.":         {codes: []string{"04043"}},
+	"Procedure N doesn't exist.":       {codes: []string{"04043"}},
+	"Function N doesn't exist.":        {codes: []string{"04043"}},
+	"Type N doesn't exist.":            {codes: []string{"04043"}},
+	"N isn't a package.":               {codes: []string{"04043"}},
+	"N isn't a procedure.":             {codes: []string{"04043"}},
+	"N isn't a function.":              {codes: []string{"04043"}},
+	"N isn't a type.":                  {codes: []string{"04043"}},
+	"Index N doesn't exist.":           {codes: []string{"01418"}},
+	"Trigger N doesn't exist.":         {codes: []string{"04080"}},
+	"Column N doesn't exist in N.":     {codes: []string{"00904"}},
+	"Constraint N doesn't exist in N.": {by: func(_, anchor string) []string {
+		switch {
+		case leads(anchor, "DROP"):
+			return []string{"02443"}
+		case leads(anchor, "RENAME"):
+			return []string{"23292"}
+		case leads(anchor, "ENABLE"):
+			return []string{"02430"}
+		}
+		// DISABLE, and MODIFY CONSTRAINT.
+		return []string{"02431"}
+	}},
+	"N has no primary key.":        {codes: []string{"02441"}},
+	"The name N is already taken.": {codes: []string{"00955"}},
+	"Constraint N already exists.": {codes: []string{"02264"}},
+	"N already has a primary key.": {codes: []string{"02260"}},
+	"Trigger N already exists.":    {codes: []string{"04081"}},
+	"Column N already exists in N.": {by: func(_, anchor string) []string {
+		if leads(anchor, "RENAME COLUMN") {
+			return []string{"00957"}
+		}
+		return []string{"01430"}
+	}},
+	"Trigger N already exists on another table.":         {codes: []string{"04095"}},
+	"This statement declares constraint N twice.":        {codes: []string{"02264"}},
+	"This statement drops constraint N twice.":           {codes: []string{"02443"}},
+	"This statement declares column N twice.":            {codes: []string{"00957"}},
+	"This statement adds column N twice.":                {codes: []string{"00957"}},
+	"This statement modifies column N twice.":            {codes: []string{"00957"}},
+	"This statement drops column N twice.":               {codes: []string{"00957"}},
+	"This statement names column N twice.":               {codes: []string{"00957"}},
+	"The name N is longer than Oracle's 128-byte limit.": {codes: []string{"00972"}},
 }
 
+// wrongKindShape is a review.WrongObjectKind message that names the kind
+// found and the kind the statement takes.
+var wrongKindShape = regexp.MustCompile(`^N is an? (.+), not an? (.+)\.$`)
+
 func (e *oracleEngine) Codes(message string) []string {
-	for _, c := range walkCodes {
-		if c.match(message) {
-			return c.codes
+	m := walkShape(message)
+	if c, ok := walkCodes[m]; ok {
+		if c.by != nil {
+			return c.by(e.stmt, e.anchor)
 		}
+		return c.codes
+	}
+	k := wrongKindShape.FindStringSubmatch(m)
+	if k == nil {
+		return nil
+	}
+	switch found, needed := k[1], k[2]; {
+	case needed == renamable && found == "materialized view":
+		return []string{"32318"}
+	case needed == renamable:
+		return []string{"03001"}
+	case needed != "table" && needed != "table or view":
+	case found == "view":
+		return []string{"01702"}
+	case found == "sequence":
+		return []string{"02201"}
+	case found == "materialized view":
+		return []string{"12083"}
+	case found == "procedure", found == "function", found == "package", found == "type":
+		return []string{"04044"}
 	}
 	return nil
+}
+
+// walkShape writes a message with each code span as N, so that a name
+// cannot read as a phrase.
+func walkShape(message string) string {
+	var b strings.Builder
+	fence := 0
+	for i := 0; i < len(message); {
+		if message[i] != '`' {
+			if fence == 0 {
+				b.WriteByte(message[i])
+			}
+			i++
+			continue
+		}
+		j := i
+		for j < len(message) && message[j] == '`' {
+			j++
+		}
+		switch {
+		case fence == 0:
+			fence = j - i
+			b.WriteByte('N')
+		case j-i == fence:
+			fence = 0
+		}
+		i = j
+	}
+	return b.String()
+}
+
+// leads reports whether a text starts with the given keywords.
+func leads(text, keywords string) bool {
+	return strings.HasPrefix(strings.Join(strings.Fields(strings.ToUpper(text)), " ")+" ", keywords+" ")
 }
 
 // Holds checks each fact the violation claims against the data

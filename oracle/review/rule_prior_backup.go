@@ -1,7 +1,6 @@
 package review
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -65,9 +64,14 @@ import (
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, "The change is larger than prior backup's "+review.Size(int64(change.MaxBackupSize))+" limit.\n\n"+
+			"Split it into smaller changes, or turn off **Prior backup**.")
 	}
 }
+
+// turnOffBackup is the body of a finding whose only fix is to run the
+// change without a backup.
+const turnOffBackup = "\n\nTurn off **Prior backup** for this change."
 
 // backupDML is an UPDATE or DELETE the backup copies the rows of.
 type backupDML struct {
@@ -133,17 +137,17 @@ func groupKey(t *ast.ObjectName, db string) string {
 func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	dmls := backupDMLs(stmts)
 	if len(dmls) == 0 {
-		r.report(review.NothingToBackUp, -1, review.Range{}, "prior backup copies the rows of top-level UPDATE and DELETE statements on a table, and the change has none, which fails the backup")
+		r.report(review.NothingToBackUp, -1, review.Range{}, "Prior backup fails on this change: it has no `UPDATE` or `DELETE` of a table."+turnOffBackup)
 		return
 	}
 	quoted := make(map[string]bool)
 	for _, d := range dmls {
 		switch {
 		case d.table.DBLink != "":
-			r.report(review.TableNotBackupable, d.stmt.index, rangeOf(d.stmt.loc), "prior backup does not support table "+objectName(d.table)+", referenced through a database link")
+			r.report(review.TableNotBackupable, d.stmt.index, rangeOf(d.stmt.loc), "Prior backup can't back up "+review.Code(objectName(d.table))+" through a database link."+turnOffBackup)
 		case strings.Contains(d.table.Name, "'") && !quoted[groupKey(d.table, "")]:
 			quoted[groupKey(d.table, "")] = true
-			r.report(review.TableNotBackupable, d.stmt.index, rangeOf(d.stmt.loc), "prior backup writes the name of table "+objectName(d.table)+" unescaped into a quoted comment, which its single quote breaks")
+			r.report(review.TableNotBackupable, d.stmt.index, rangeOf(d.stmt.loc), "Prior backup can't back up "+review.Code(objectName(d.table))+": the single quote in its name breaks the backup's comment."+turnOffBackup)
 		}
 	}
 }
@@ -159,7 +163,8 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 // bytebase: backend/plugin/advisor/oracle/rule_builtin_prior_backup_check.go — oracleFindLongColumns
 func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex, m changeMade, r *reporter) {
 	if !backupExists {
-		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "Prior backup needs the backup schema "+review.Code(backupDatabase)+", which doesn't exist.\n\n"+
+			"Create it, or turn off **Prior backup**.")
 	}
 	db := ""
 	if x.schema != nil && x.schema.GetName() != "" {
@@ -168,7 +173,7 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 	// The comment Bytebase sets on each copy holds the task's database
 	// name unescaped, in quotes.
 	if strings.Contains(db, "'") && len(backupDMLs(stmts)) > 0 {
-		r.report(review.TableNotBackupable, -1, review.Range{}, "prior backup writes the database name "+escapeLines(db)+" unescaped into a quoted comment, which its single quote breaks")
+		r.report(review.TableNotBackupable, -1, review.Range{}, "Prior backup can't run: the single quote in the database's name breaks the backup's comment."+turnOffBackup)
 	}
 	type group struct {
 		first    backupDML
@@ -192,7 +197,8 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 		g.size++
 		if g.first.kind != d.kind && !g.reported {
 			g.reported = true
-			r.report(review.StatementsShareBackup, d.stmt.index, rangeOf(d.stmt.loc), "prior backup cannot back up both UPDATE and DELETE on "+objectName(d.table))
+			r.report(review.StatementsShareBackup, d.stmt.index, rangeOf(d.stmt.loc), "Prior backup can't back up "+review.Code(objectName(d.table))+": this change both updates and deletes its rows.\n\n"+
+				"Move the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.")
 		}
 	}
 	if x.schema == nil {
@@ -204,8 +210,9 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 		if g.first.table.Schema != "" {
 			k.schema = g.first.table.Schema
 		}
-		if columns := longColumns(x, k); len(columns) > 0 {
-			r.report(review.TableNotBackupable, g.first.stmt.index, rangeOf(g.first.stmt.loc), "prior backup copies "+objectName(g.first.table)+" with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column "+strings.Join(columns, ", ")+" (ORA-00997)")
+		if types, columns := longColumns(x, k); len(columns) > 0 {
+			r.report(review.TableNotBackupable, g.first.stmt.index, rangeOf(g.first.stmt.loc), "Prior backup can't copy "+review.Code(objectName(g.first.table))+
+				": `CREATE TABLE AS SELECT` rejects its "+review.Names(types...)+" "+review.Plural("column", len(columns))+" "+review.Names(columns...)+"."+turnOffBackup)
 		}
 	}
 	limit := firstSessionChange(stmts)
@@ -221,8 +228,9 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 }
 
 // longColumns returns the LONG and LONG RAW columns of the synced table,
-// or updatable view, a key names.
-func longColumns(x schemaIndex, k tableKey) []string {
+// or updatable view, a key names, and which of the two types they are of,
+// each once.
+func longColumns(x schemaIndex, k tableKey) (types, out []string) {
 	columns := x.table(k).GetColumns()
 	if columns == nil {
 		for _, v := range x.schemaOf(k).GetViews() {
@@ -231,14 +239,16 @@ func longColumns(x schemaIndex, k tableKey) []string {
 			}
 		}
 	}
-	var out []string
 	for _, c := range columns {
-		switch strings.ToUpper(strings.TrimSpace(c.GetType())) {
+		switch typ := strings.ToUpper(strings.TrimSpace(c.GetType())); typ {
 		case "LONG", "LONG RAW":
+			if !contains(types, typ) {
+				types = append(types, typ)
+			}
 			out = append(out, ident(c.GetName()))
 		}
 	}
-	return out
+	return types, out
 }
 
 // changeMade is what the change makes, which the backup, run before all of
@@ -408,7 +418,7 @@ func backupReadsMade(d backupDML, groupSize int, x schemaIndex, m changeMade) st
 		return x.lacksRelation(syncedKey(ref, x)) && m.madeRelation(ref, x)
 	}
 	if missing(d.table, d.table.Schema == x.db() || groupSize > 1) {
-		return "prior backup runs before the change, when " + objectName(d.table) + " does not exist yet"
+		return notYetCreated(d.table)
 	}
 	var reads []ast.Node
 	if d.from != nil {
@@ -427,9 +437,17 @@ func backupReadsMade(d backupDML, groupSize int, x schemaIndex, m changeMade) st
 		})
 	}
 	if found != nil {
-		return "prior backup runs before the change, when " + objectName(found) + " does not exist yet"
+		return notYetCreated(found)
 	}
 	return columnMissing(d, x, m)
+}
+
+// notYetCreated is the message for a table the backup's query reads that
+// only the change makes.
+func notYetCreated(ref *ast.ObjectName) string {
+	name := review.Code(objectName(ref))
+	return "Prior backup runs before the change, when " + name + " doesn't exist yet.\n\n" +
+		"Create " + name + " in an earlier change, or turn off **Prior backup**."
 }
 
 // backupSource is a table the backup's query reads columns from, with the
@@ -499,7 +517,8 @@ func columnMissing(d backupDML, x schemaIndex, m changeMade) string {
 			return
 		}
 		if m.madeColumnOn(src.ref, column, x) {
-			msg = "prior backup runs before the change, when column " + ident(column) + " of " + objectName(src.ref) + " does not exist yet"
+			msg = "Prior backup runs before the change, when column " + review.Code(ident(column)) + " of " + review.Code(objectName(src.ref)) + " doesn't exist yet.\n\n" +
+				"Add the column in an earlier change, or turn off **Prior backup**."
 		}
 	}
 	for _, q := range quals {

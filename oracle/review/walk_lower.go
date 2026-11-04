@@ -256,13 +256,13 @@ func (b *builder) declTextFails(d *tableDecl, r objRef) bool {
 	seen := make(map[string]bool)
 	for i, n := range d.names {
 		if seen[n] {
-			b.fail(d.rngs[i], review.DuplicateName, takenConstraint(n))
+			b.fail(d.rngs[i], review.DuplicateName, twice("declares", "constraint", n))
 			return true
 		}
 		seen[n] = true
 	}
 	if d.primaries > 1 {
-		b.fail(r.rng, review.NameTaken, "Table "+r.written+" can have only one primary key")
+		b.fail(r.rng, review.NameTaken, takenPrimaryKey(r.written))
 		return true
 	}
 	return false
@@ -276,7 +276,7 @@ func (b *builder) declChecks(d *tableDecl, r objRef) {
 		b.need(r.schemaKey(spaceConstraint, n), walk.Absent, nil, d.rngs[i], "", takenConstraint(n))
 	}
 	if d.primaries > 0 {
-		b.need(r.childKey(spacePrimary, ""), walk.Absent, nil, r.rng, "", "Table "+r.written+" can have only one primary key")
+		b.need(r.childKey(spacePrimary, ""), walk.Absent, nil, r.rng, "", takenPrimaryKey(r.written))
 	}
 }
 
@@ -327,7 +327,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	for _, c := range outOfLine(v.Constraints) {
 		b.declareConstraint(&d, c)
 	}
-	if b.refTooLong(v.Name, r) || b.namesTooLong(columns, &d) || b.columnsTwice(columns, r) {
+	if b.refTooLong(v.Name, r) || b.namesTooLong(columns, &d) || b.columnsTwice(columns) {
 		return true
 	}
 	// One object: every check holds against the state before the
@@ -377,11 +377,11 @@ func (b *builder) namesTooLong(columns []*ast.ColumnDef, d *tableDecl) bool {
 }
 
 // columnsTwice fails a column list that names a column twice (00957).
-func (b *builder) columnsTwice(columns []*ast.ColumnDef, r objRef) bool {
+func (b *builder) columnsTwice(columns []*ast.ColumnDef) bool {
 	seen := make(map[string]bool)
 	for _, c := range columns {
 		if seen[c.Name] {
-			b.fail(rangeOf(c.Loc), review.DuplicateName, "Column "+ident(c.Name)+" is named twice in table "+r.written)
+			b.fail(rangeOf(c.Loc), review.DuplicateName, twice("declares", "column", c.Name))
 			return true
 		}
 		seen[c.Name] = true
@@ -418,7 +418,7 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 	case ast.OBJECT_TABLE:
 		return b.dropTable(v, r)
 	case ast.OBJECT_VIEW:
-		if !b.dropsKind(r.key(spaceView), nil, v.IfExists, r.rng, missingTable(r.written), "") {
+		if !b.dropsKind(r.key(spaceView), nil, v.IfExists, r.rng, missingView(r.written), "") {
 			return true
 		}
 		b.leaveObject(r)
@@ -432,8 +432,7 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		}
 		b.leaveObject(r)
 	case ast.OBJECT_SYNONYM:
-		msg := "Private synonym " + r.written + " to be dropped does not exist"
-		if !b.exists(r.key(spaceObject), []string{kindSynonym}, v.IfExists, r.rng, msg, msg) {
+		if !b.exists(r.key(spaceObject), []string{kindSynonym}, v.IfExists, r.rng, missingSynonym(r.written), notKind(r.written, "private synonym")) {
 			return true
 		}
 		b.leaveObject(r)
@@ -444,8 +443,7 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 			ast.OBJECT_FUNCTION:  kindFunction,
 			ast.OBJECT_TYPE:      kindType,
 		}[v.ObjectType]
-		msg := missingObject(r.written)
-		if !b.exists(r.key(spaceObject), []string{kind}, v.IfExists, r.rng, msg, msg) {
+		if !b.exists(r.key(spaceObject), []string{kind}, v.IfExists, r.rng, missingKind(kind, r.written), notKind(r.written, kindWord(kind))) {
 			return true
 		}
 		b.leaveObject(r)
@@ -537,7 +535,7 @@ func (b *builder) dropsKind(k walk.Key, kinds []string, ifExists bool, rng revie
 // (verified).
 func (b *builder) dropTable(v *ast.DropStmt, r objRef) bool {
 	k := r.key(spaceTable)
-	mview := "Must use DROP MATERIALIZED VIEW to drop " + r.written
+	mview := wrongKind(r.written, kindMView, kindWord(kindTable))
 	if v.IfExists {
 		if f, kind := b.look(k); f == walk.Present && kind == kindMView {
 			b.need(k, walk.Present, []string{kindTable}, r.rng, "", mview)
@@ -588,12 +586,8 @@ func (b *builder) wrongTarget(r objRef, followsNone bool) {
 	f, kind := b.look(ok)
 	var msg string
 	switch kind {
-	case kindView:
-		msg = "A view is not appropriate here: " + r.written
-	case kindSequence:
-		msg = "A sequence is not allowed here: " + r.written
-	case kindType, kindProcedure, kindFunction, kindPackage:
-		msg = "A procedure, function, package, or type is not allowed here: " + r.written
+	case kindView, kindSequence, kindType, kindProcedure, kindFunction, kindPackage:
+		msg = wrongKind(r.written, kind, kindWord(kindTable))
 	}
 	switch {
 	case f == walk.Present && msg != "":
@@ -735,7 +729,7 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 		return false
 	}
 	b.Order = walk.Lookups
-	if !b.exists(r.key(spaceView), nil, v.IfExists, r.rng, missingTable(r.written), "") {
+	if !b.exists(r.key(spaceView), nil, v.IfExists, r.rng, missingView(r.written), "") {
 		return true
 	}
 	switch v.Action {
@@ -791,7 +785,7 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	switch {
 	case v.OrReplace:
 		if f == walk.Present && kind != "" && on != "" && kind != on {
-			b.need(k, walk.Absent, nil, r.rng, "", "Trigger "+r.written+" already exists on another table, cannot replace it")
+			b.need(k, walk.Absent, nil, r.rng, "", "Trigger "+review.Code(r.written)+" already exists on another table.")
 		}
 	case v.IfNotExists:
 		switch f {
@@ -803,7 +797,7 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 			b.settle(k, walk.Present)
 		}
 	default:
-		b.need(k, walk.Absent, nil, r.rng, "", "Trigger "+r.written+" already exists")
+		b.need(k, walk.Absent, nil, r.rng, "", "Trigger "+review.Code(r.written)+" already exists.")
 	}
 	b.Set(k, walk.Present, on)
 	b.Session(func() { b.w.triggers = true })
@@ -878,12 +872,10 @@ func (b *builder) rename(v *ast.RenameStmt) bool {
 	f, kind := b.look(fk)
 	present := ""
 	switch kind {
-	case kindMView:
-		present = "Cannot rename materialized view " + from.written
-	case kindType, kindProcedure, kindFunction, kindPackage:
-		present = "RENAME cannot rename " + article(kind) + ": " + from.written
+	case kindMView, kindType, kindProcedure, kindFunction, kindPackage:
+		present = wrongKind(from.written, kind, renamable)
 	}
-	b.need(fk, walk.Present, []string{kindTable, kindView, kindSequence, kindSynonym}, from.rng, missingObject(from.written), present)
+	b.need(fk, walk.Present, []string{kindTable, kindView, kindSequence, kindSynonym}, from.rng, missingName(from.written), present)
 	b.need(to.key(spaceObject), walk.Absent, nil, to.rng, "", takenName(to.written))
 	if from.name == to.name {
 		return true
@@ -1004,13 +996,11 @@ func (b *builder) missingTarget(t *ast.ObjectName, r objRef) {
 	if f, kind := b.look(ok); f == walk.Present {
 		msg := ""
 		switch kind {
-		case kindSequence:
-			msg = "A sequence is not allowed here: " + r.written
-		case kindType, kindProcedure, kindFunction, kindPackage:
-			msg = "A procedure, function, package, or type is not allowed here: " + r.written
+		case kindSequence, kindType, kindProcedure, kindFunction, kindPackage:
+			msg = wrongKind(r.written, kind, "table or view")
 		}
 		if msg != "" {
-			b.need(ok, walk.Present, []string{kindTable, kindMView, kindView, kindSynonym}, r.rng, missingTable(r.written), msg)
+			b.need(ok, walk.Present, []string{kindTable, kindMView, kindView, kindSynonym}, r.rng, missingName(r.written), msg)
 		}
 		return
 	}
@@ -1023,7 +1013,7 @@ func (b *builder) missingTarget(t *ast.ObjectName, r objRef) {
 			return
 		}
 	}
-	b.Fail(keys, walk.Absent, noteOf(r.rng, review.ObjectNotFound, missingTable(r.written)))
+	b.Fail(keys, walk.Absent, noteOf(r.rng, review.ObjectNotFound, missingName(r.written)))
 }
 
 // dmlTargets lists the tables a DML statement writes, false when one is
