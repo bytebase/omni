@@ -128,8 +128,8 @@ func TestFindingCodesAcrossTargets(t *testing.T) {
 		got = append(got, coded{f.Codes, f.Message, f.Targets})
 	}
 	want := []coded{
-		{[]review.FindingCode{review.ObjectNotFound}, "Table v does not exist", []int{0, 2}},
-		{[]review.FindingCode{review.WrongObjectKind}, "Table v does not exist", []int{1}},
+		{[]review.FindingCode{review.ObjectNotFound}, "Table `v` doesn't exist.", []int{0, 2}},
+		{[]review.FindingCode{review.WrongObjectKind}, "`v` is a view, not a table.", []int{1}},
 	}
 	if !slices.EqualFunc(got, want, func(a, b coded) bool {
 		return slices.Equal(a.codes, b.codes) && a.message == b.message && slices.Equal(a.targets, b.targets)

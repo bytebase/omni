@@ -78,27 +78,27 @@ func noFinding(t *testing.T, sql string, target review.Target) {
 
 func TestWalkThroughMariaDB(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
-	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE t (a int);", 1, "Table t already exists", shop)
-	oneFinding(t, "ALTER TABLE v ADD COLUMN b int;", 0, "v is not a base table", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN A int;", 0, "Column A already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", shop)
-	oneFinding(t, "ALTER TABLE t ADD INDEX I (a);", 0, "Index I already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (a);", 0, "Table t already has a primary key", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);", 0, "Foreign key FK1 already exists in the database", shop)
-	oneFinding(t, "DROP VIEW t;", 0, "t is not a view", shop)
-	oneFinding(t, "DROP TABLE v;", 0, "v is a view", shop)
-	oneFinding(t, "CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", 0, "Trigger tr already exists", shop)
-	oneFinding(t, "DROP PROCEDURE nosuch;", 0, "PROCEDURE nosuch does not exist", shop)
-	oneFinding(t, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1;", 0, "Event e already exists", shop)
+	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE t (a int);", 1, "Table `t` already exists.", shop)
+	oneFinding(t, "ALTER TABLE v ADD COLUMN b int;", 0, "`v` is a view, not a table.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN A int;", 0, "Column `A` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column `zz` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD INDEX I (a);", 0, "Index `I` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (a);", 0, "`t` already has a primary key.", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);", 0, "Foreign key `FK1` already exists.", shop)
+	oneFinding(t, "DROP VIEW t;", 0, "`t` is a table, not a view.", shop)
+	oneFinding(t, "DROP TABLE v;", 0, "`v` is a view, not a table.", shop)
+	oneFinding(t, "CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", 0, "Trigger `tr` already exists.", shop)
+	oneFinding(t, "DROP PROCEDURE nosuch;", 0, "Procedure `nosuch` doesn't exist.", shop)
+	oneFinding(t, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1;", 0, "Event `e` already exists.", shop)
 	// ALTER TABLE judges drops against the table as it was.
 	noFinding(t, "ALTER TABLE t ADD COLUMN a int, DROP COLUMN a;\nALTER TABLE t DROP COLUMN a;", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN b int, ADD COLUMN b int;", 0, "Column b is added twice to table t", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN b int, ADD COLUMN b int;", 0, "This statement adds column `b` twice.", shop)
 	// RENAME TABLE runs its pairs in order.
 	noFinding(t, "RENAME TABLE t TO tmp, r TO t, tmp TO r;\nALTER TABLE r ADD COLUMN zz int;\nALTER TABLE t ADD COLUMN zz int;", shop)
-	oneFinding(t, "RENAME TABLE t TO u;\nCREATE TABLE u (a int);", 1, "Table u already exists", shop)
+	oneFinding(t, "RENAME TABLE t TO u;\nCREATE TABLE u (a int);", 1, "Table `u` already exists.", shop)
 	// MariaDB has no invisible primary key.
-	oneFinding(t, "ALTER TABLE nokey DROP PRIMARY KEY;", 0, "Table nokey has no primary key", shop)
-	oneFinding(t, "CREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;", 1, "Table g has no primary key", shop)
+	oneFinding(t, "ALTER TABLE nokey DROP PRIMARY KEY;", 0, "`nokey` has no primary key.", shop)
+	oneFinding(t, "CREATE TABLE g (a int);\nALTER TABLE g DROP PRIMARY KEY;", 1, "`g` has no primary key.", shop)
 }
 
 // TestWalkThroughMariaDBAuthority pins what the sync is trusted for: the
@@ -107,17 +107,17 @@ func TestWalkThroughMariaDB(t *testing.T) {
 // system-versioned table are not all listed.
 func TestWalkThroughMariaDBAuthority(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
-	oneFinding(t, "ALTER TABLE nosuch ADD COLUMN b int;", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "DROP VIEW nosuch;", 0, "View nosuch does not exist", shop)
-	oneFinding(t, "DROP SEQUENCE nosuch;", 0, "Sequence nosuch does not exist", shop)
-	oneFinding(t, "TRUNCATE TABLE nosuch;", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "INSERT INTO nosuch VALUES (1);", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "DROP TRIGGER nosuch;", 0, "Trigger nosuch does not exist", shop)
+	oneFinding(t, "ALTER TABLE nosuch ADD COLUMN b int;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP VIEW nosuch;", 0, "View `nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP SEQUENCE nosuch;", 0, "Sequence `nosuch` doesn't exist.", shop)
+	oneFinding(t, "TRUNCATE TABLE nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "INSERT INTO nosuch VALUES (1);", 0, "`nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP TRIGGER nosuch;", 0, "Trigger `nosuch` doesn't exist.", shop)
 	noFinding(t, "DROP SEQUENCE s;\nDROP TABLE vt;", shop)
 	// What the change drops is followed.
-	oneFinding(t, "DROP TABLE nokey;\nDROP TABLE nokey;", 1, "Table nokey does not exist", shop)
-	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger tr does not exist", shop)
+	oneFinding(t, "DROP TABLE nokey;\nDROP TABLE nokey;", 1, "Table `nokey` doesn't exist.", shop)
+	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger `tr` doesn't exist.", shop)
 	// A system-versioned table hides row_start and row_end, and an ALTER
 	// TABLE of one ends the walk.
 	noFinding(t, "ALTER TABLE vt ADD COLUMN x int AFTER row_start;\nCREATE TABLE t (a int);", shop)
@@ -126,25 +126,25 @@ func TestWalkThroughMariaDBAuthority(t *testing.T) {
 	noFinding(t, "CREATE TABLE w LIKE vt;\nALTER TABLE w ADD COLUMN x int AFTER row_start;\nCREATE TABLE t (a int);", shop)
 	noFinding(t, "RENAME TABLE vt TO w;\nALTER TABLE w ADD COLUMN x int AFTER row_start;\nCREATE TABLE t (a int);", shop)
 	// Its indexes are listed as any table's.
-	oneFinding(t, "DROP INDEX nosuch ON vt;", 0, "Index nosuch does not exist in table vt", shop)
+	oneFinding(t, "DROP INDEX nosuch ON vt;", 0, "Index `nosuch` doesn't exist in `vt`.", shop)
 	// A table replaced without versioning is followed again.
-	oneFinding(t, "CREATE OR REPLACE TABLE vt (a int);\nALTER TABLE vt DROP COLUMN row_start;", 1, "Column row_start does not exist in table vt", shop)
+	oneFinding(t, "CREATE OR REPLACE TABLE vt (a int);\nALTER TABLE vt DROP COLUMN row_start;", 1, "Column `row_start` doesn't exist in `vt`.", shop)
 }
 
 func TestWalkThroughMariaDBOrReplace(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	noFinding(t, "CREATE OR REPLACE TABLE t (id int PRIMARY KEY, CONSTRAINT fk1 FOREIGN KEY (id) REFERENCES r (id));", shop)
 	noFinding(t, "CREATE OR REPLACE TABLE s (a int);\nALTER TABLE s ADD COLUMN b int;", shop)
-	oneFinding(t, "CREATE OR REPLACE TABLE v (a int);", 0, "v is a view", shop)
-	oneFinding(t, "CREATE OR REPLACE TABLE nokey (a int, CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id));", 0, "Foreign key fk1 already exists in the database", shop)
-	oneFinding(t, "CREATE OR REPLACE TABLE t (b int);\nALTER TABLE t DROP COLUMN a;", 1, "Column a does not exist in table t", shop)
+	oneFinding(t, "CREATE OR REPLACE TABLE v (a int);", 0, "`v` is a view, not a table.", shop)
+	oneFinding(t, "CREATE OR REPLACE TABLE nokey (a int, CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id));", 0, "Foreign key `fk1` already exists.", shop)
+	oneFinding(t, "CREATE OR REPLACE TABLE t (b int);\nALTER TABLE t DROP COLUMN a;", 1, "Column `a` doesn't exist in `t`.", shop)
 	noFinding(t, "CREATE OR REPLACE INDEX i ON t (a);", shop)
 	noFinding(t, "CREATE OR REPLACE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1;", shop)
 	noFinding(t, "CREATE OR REPLACE PROCEDURE p() SELECT 1;\nCREATE OR REPLACE FUNCTION f() RETURNS int DETERMINISTIC RETURN 1;", shop)
 	noFinding(t, "CREATE OR REPLACE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1;", shop)
 	// OR REPLACE of the current database leaves none selected.
-	oneFinding(t, "CREATE OR REPLACE DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database selected", shop)
-	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE OR REPLACE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 4, "Table q.x already exists", shop)
+	oneFinding(t, "CREATE OR REPLACE DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database is selected for `x`.", shop)
+	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE OR REPLACE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 4, "Table `q.x` already exists.", shop)
 }
 
 func TestWalkThroughMariaDBIfExists(t *testing.T) {
@@ -152,10 +152,10 @@ func TestWalkThroughMariaDBIfExists(t *testing.T) {
 	noFinding(t, "ALTER TABLE t DROP COLUMN IF EXISTS zz, DROP INDEX IF EXISTS zz, DROP FOREIGN KEY IF EXISTS zz, DROP CONSTRAINT IF EXISTS zz;", shop)
 	noFinding(t, "ALTER TABLE t DROP COLUMN IF EXISTS a, DROP COLUMN IF EXISTS a;", shop)
 	noFinding(t, "ALTER TABLE t DROP INDEX IF EXISTS `PRIMARY`;\nALTER TABLE t ADD PRIMARY KEY (a);", shop)
-	oneFinding(t, "ALTER TABLE t DROP COLUMN IF EXISTS a;\nALTER TABLE t DROP COLUMN a;", 1, "Column a does not exist in table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP INDEX IF EXISTS i;\nDROP INDEX i ON t;", 1, "Index i does not exist in table t", shop)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN IF EXISTS a;\nALTER TABLE t DROP COLUMN a;", 1, "Column `a` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP INDEX IF EXISTS i;\nDROP INDEX i ON t;", 1, "Index `i` doesn't exist in `t`.", shop)
 	// Another table's foreign key of the name stays.
-	oneFinding(t, "ALTER TABLE nokey DROP FOREIGN KEY IF EXISTS fk1;\nALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);", 1, "Foreign key fk1 already exists in the database", shop)
+	oneFinding(t, "ALTER TABLE nokey DROP FOREIGN KEY IF EXISTS fk1;\nALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);", 1, "Foreign key `fk1` already exists.", shop)
 	noFinding(t, "ALTER TABLE t DROP FOREIGN KEY IF EXISTS fk1;\nALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);", shop)
 }
 
@@ -163,30 +163,30 @@ func TestWalkThroughMariaDBCreateTable(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	// A temporary table needs no database.
 	noFinding(t, "CREATE DATABASE q;\nDROP DATABASE q;\nCREATE TEMPORARY TABLE q.tmp (a int);", shop)
-	oneFinding(t, "CREATE DATABASE q;\nDROP DATABASE q;\nCREATE TABLE q.x (a int);", 2, "Database q does not exist", shop)
+	oneFinding(t, "CREATE DATABASE q;\nDROP DATABASE q;\nCREATE TABLE q.x (a int);", 2, "Database `q` doesn't exist.", shop)
 	// IF NOT EXISTS of a table that exists reads no LIKE source; of a
 	// temporary table it does.
 	noFinding(t, "DROP TABLE r;\nCREATE TABLE IF NOT EXISTS t LIKE r;", shop)
-	oneFinding(t, "DROP TABLE r;\nCREATE TEMPORARY TABLE tmp (a int);\nCREATE TEMPORARY TABLE IF NOT EXISTS tmp LIKE r;", 2, "Table r does not exist", shop)
-	oneFinding(t, "DROP TABLE r;\nCREATE TABLE x LIKE r;", 1, "Table r does not exist", shop)
+	oneFinding(t, "DROP TABLE r;\nCREATE TEMPORARY TABLE tmp (a int);\nCREATE TEMPORARY TABLE IF NOT EXISTS tmp LIKE r;", 2, "Table `r` doesn't exist.", shop)
+	oneFinding(t, "DROP TABLE r;\nCREATE TABLE x LIKE r;", 1, "Table `r` doesn't exist.", shop)
 	// LIKE of a sequence makes a sequence, and of a view fails.
 	noFinding(t, "CREATE TABLE x LIKE s;\nDROP SEQUENCE x;", shop)
-	oneFinding(t, "CREATE TABLE x LIKE v;", 0, "v is not a base table", shop)
+	oneFinding(t, "CREATE TABLE x LIKE v;", 0, "`v` is a view, not a table.", shop)
 }
 
 func TestWalkThroughMariaDBSequences(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
-	oneFinding(t, "CREATE SEQUENCE t;", 0, "Table t already exists", shop)
-	oneFinding(t, "CREATE TABLE s (a int);", 0, "Table s already exists", shop)
-	oneFinding(t, "CREATE VIEW s AS SELECT 1 AS a;", 0, "Table s already exists", shop)
-	oneFinding(t, "CREATE OR REPLACE VIEW s AS SELECT 1 AS a;", 0, "s is not a view", shop)
-	oneFinding(t, "CREATE SEQUENCE x;\nCREATE SEQUENCE x;", 1, "Table x already exists", shop)
+	oneFinding(t, "CREATE SEQUENCE t;", 0, "The name `t` is already taken.", shop)
+	oneFinding(t, "CREATE TABLE s (a int);", 0, "The name `s` is already taken.", shop)
+	oneFinding(t, "CREATE VIEW s AS SELECT 1 AS a;", 0, "The name `s` is already taken.", shop)
+	oneFinding(t, "CREATE OR REPLACE VIEW s AS SELECT 1 AS a;", 0, "`s` is a sequence, not a view.", shop)
+	oneFinding(t, "CREATE SEQUENCE x;\nCREATE SEQUENCE x;", 1, "Sequence `x` already exists.", shop)
 	noFinding(t, "CREATE SEQUENCE IF NOT EXISTS t;\nCREATE OR REPLACE SEQUENCE t;\nDROP SEQUENCE t;", shop)
-	oneFinding(t, "CREATE OR REPLACE SEQUENCE v;", 0, "v is a view", shop)
-	oneFinding(t, "DROP SEQUENCE t;", 0, "t is not a sequence", shop)
-	oneFinding(t, "DROP SEQUENCE v;", 0, "v is a view", shop)
-	oneFinding(t, "DROP SEQUENCE s;\nDROP SEQUENCE s;", 1, "Sequence s does not exist", shop)
-	oneFinding(t, "DROP VIEW s;", 0, "s is not a view", shop)
+	oneFinding(t, "CREATE OR REPLACE SEQUENCE v;", 0, "`v` is a view, not a table or sequence.", shop)
+	oneFinding(t, "DROP SEQUENCE t;", 0, "`t` is a table, not a sequence.", shop)
+	oneFinding(t, "DROP SEQUENCE v;", 0, "`v` is a view, not a sequence.", shop)
+	oneFinding(t, "DROP SEQUENCE s;\nDROP SEQUENCE s;", 1, "Sequence `s` doesn't exist.", shop)
+	oneFinding(t, "DROP VIEW s;", 0, "`s` is a sequence, not a view.", shop)
 	noFinding(t, "DROP SEQUENCE IF EXISTS t, v, nosuch;", shop)
 	noFinding(t, "DROP TABLE s;\nCREATE TABLE s (a int);", shop)
 	noFinding(t, "RENAME TABLE s TO s2;\nDROP SEQUENCE s2;", shop)
@@ -200,11 +200,11 @@ func TestWalkThroughMariaDBSequences(t *testing.T) {
 	// passes over a temporary table, and DROP TEMPORARY SEQUENCE finds
 	// only a temporary sequence.
 	noFinding(t, "CREATE TEMPORARY SEQUENCE s;\nDROP SEQUENCE s;\nDROP SEQUENCE s;", shop)
-	oneFinding(t, "CREATE TEMPORARY SEQUENCE s;\nDROP SEQUENCE s;\nDROP SEQUENCE s;\nDROP SEQUENCE s;", 3, "Sequence s does not exist", shop)
+	oneFinding(t, "CREATE TEMPORARY SEQUENCE s;\nDROP SEQUENCE s;\nDROP SEQUENCE s;\nDROP SEQUENCE s;", 3, "Sequence `s` doesn't exist.", shop)
 	noFinding(t, "CREATE TEMPORARY TABLE s (a int);\nDROP SEQUENCE s;\nDROP TEMPORARY TABLE s;", shop)
-	oneFinding(t, "DROP TEMPORARY SEQUENCE s;", 0, "Temporary sequence s does not exist", shop)
-	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nDROP TEMPORARY SEQUENCE tt;", 1, "Temporary table tt is not a sequence", shop)
-	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nCREATE TEMPORARY SEQUENCE tt;", 1, "Table tt already exists", shop)
+	oneFinding(t, "DROP TEMPORARY SEQUENCE s;", 0, "Temporary sequence `s` doesn't exist.", shop)
+	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nDROP TEMPORARY SEQUENCE tt;", 1, "`tt` is a temporary table, not a sequence.", shop)
+	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nCREATE TEMPORARY SEQUENCE tt;", 1, "The name `tt` is already taken.", shop)
 	noFinding(t, "CREATE TEMPORARY SEQUENCE q.ts;", shop)
 }
 
@@ -229,11 +229,11 @@ func TestWalkThroughMariaDBCase(t *testing.T) {
 	sensitive := review.Target{Schema: walkSchema()}
 	folded := review.Target{Schema: walkSchema(), LowerCaseTableNames: 1}
 	noFinding(t, "CREATE TABLE T (a int);", sensitive)
-	oneFinding(t, "CREATE TABLE T (a int);", 0, "Table T already exists", folded)
+	oneFinding(t, "CREATE TABLE T (a int);", 0, "Table `T` already exists.", folded)
 	// Trigger names compare with case: TR beside tr is a second trigger.
 	noFinding(t, "CREATE TRIGGER TR BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", sensitive)
 	noFinding(t, "CREATE TRIGGER TR BEFORE UPDATE ON nokey FOR EACH ROW SET NEW.a = 1;\nDROP TRIGGER TR;\nDROP TRIGGER tr;", sensitive)
-	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger tr does not exist", sensitive)
+	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger `tr` doesn't exist.", sensitive)
 }
 
 // TestWalkThroughMariaDBNamesOutsideASCII pins that the walk follows no
@@ -248,8 +248,8 @@ func TestWalkThroughMariaDBNamesOutsideASCII(t *testing.T) {
 	noFinding(t, "CREATE TABLE x (s INT);\nALTER TABLE x DROP COLUMN ſ;\nALTER TABLE x DROP COLUMN zz;", shop)
 	noFinding(t, "CREATE DATABASE q;\nCREATE PROCEDURE q.`pé`() SELECT 1;\nDROP PROCEDURE q.pe;", shop)
 	// A string is no name.
-	oneFinding(t, "CREATE TABLE x (a int) COMMENT '中文';\nCREATE TABLE x (a int);", 1, "Table x already exists", shop)
-	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table nosuch does not exist", shop)
+	oneFinding(t, "CREATE TABLE x (a int) COMMENT '中文';\nCREATE TABLE x (a int);", 1, "Table `x` already exists.", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table `nosuch` doesn't exist.", shop)
 	mixed := walkSchema()
 	schema := mixed.Schemas[0]
 	schema.Tables[2].Columns = append(schema.Tables[2].Columns, &metadata.ColumnMetadata{Name: "ſ"})
@@ -257,8 +257,8 @@ func TestWalkThroughMariaDBNamesOutsideASCII(t *testing.T) {
 	target := review.Target{Schema: mixed}
 	noFinding(t, "ALTER TABLE nokey DROP COLUMN s;\nALTER TABLE nokey DROP COLUMN zz;\nDROP PROCEDURE pe;\nDROP PROCEDURE nosuch;", target)
 	// A space that lists none still knows its absent names.
-	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", target)
-	oneFinding(t, "DROP EVENT nosuch;", 0, "Event nosuch does not exist", target)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column `zz` doesn't exist in `t`.", target)
+	oneFinding(t, "DROP EVENT nosuch;", 0, "Event `nosuch` doesn't exist.", target)
 }
 
 // TestWalkThroughMariaDBSequenceEngineTables pins that the walk judges no
@@ -279,40 +279,40 @@ func TestWalkThroughMariaDBSequenceEngineTables(t *testing.T) {
 	} {
 		noFinding(t, sql, shop)
 	}
-	oneFinding(t, "DROP TABLE seq_1_to_3x;", 0, "Table seq_1_to_3x does not exist", shop)
-	oneFinding(t, "DROP TABLE seq_1_to_;", 0, "Table seq_1_to_ does not exist", shop)
-	oneFinding(t, "DROP TABLE SEQ_1_TO_3;", 0, "Table SEQ_1_TO_3 does not exist", shop)
+	oneFinding(t, "DROP TABLE seq_1_to_3x;", 0, "Table `seq_1_to_3x` doesn't exist.", shop)
+	oneFinding(t, "DROP TABLE seq_1_to_;", 0, "Table `seq_1_to_` doesn't exist.", shop)
+	oneFinding(t, "DROP TABLE SEQ_1_TO_3;", 0, "Table `SEQ_1_TO_3` doesn't exist.", shop)
 	noFinding(t, "DROP TABLE SEQ_1_TO_3;", review.Target{Schema: walkSchema(), LowerCaseTableNames: 1})
 	// A table of such a name the sync lists keeps its triggers.
 	synced := walkSchema()
 	synced.Schemas[0].Tables = append(synced.Schemas[0].Tables, &metadata.TableMetadata{Name: "seq_1_to_3", Triggers: []*metadata.TriggerMetadata{{Name: "trq"}}})
 	noFinding(t, "DROP TRIGGER trq;", review.Target{Schema: synced})
-	oneFinding(t, "DROP TRIGGER trq;\nDROP TRIGGER trq;", 1, "Trigger trq does not exist", review.Target{Schema: synced})
+	oneFinding(t, "DROP TRIGGER trq;\nDROP TRIGGER trq;", 1, "Trigger `trq` doesn't exist.", review.Target{Schema: synced})
 }
 
 func TestWalkThroughMariaDBSession(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	// Another database is unknown, until the change makes it.
 	noFinding(t, "USE other;\nCREATE TABLE t (a int);", shop)
-	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 2, "Table q.x already exists", shop)
-	oneFinding(t, "DROP DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database selected", shop)
-	oneFinding(t, "DROP DATABASE shop;\nCREATE TEMPORARY TABLE x (a int);", 1, "No database selected", shop)
+	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 2, "Table `q.x` already exists.", shop)
+	oneFinding(t, "DROP DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database is selected for `x`.", shop)
+	oneFinding(t, "DROP DATABASE shop;\nCREATE TEMPORARY TABLE x (a int);", 1, "No database is selected for `x`.", shop)
 	// A temporary table shadows the base table.
 	noFinding(t, "DROP TABLE nokey;\nCREATE TEMPORARY TABLE nokey (a int);\nINSERT INTO nokey VALUES (1);", shop)
-	oneFinding(t, "DROP TEMPORARY TABLE t;", 0, "Temporary table t does not exist", shop)
+	oneFinding(t, "DROP TEMPORARY TABLE t;", 0, "Temporary table `t` doesn't exist.", shop)
 	// A trigger may create a temporary table of any name.
 	noFinding(t, "CREATE TEMPORARY TABLE x (a int);\nDROP TEMPORARY TABLE x;\nINSERT INTO t VALUES (1, 1);\nDROP TEMPORARY TABLE x;", shop)
-	oneFinding(t, "CREATE TEMPORARY TABLE x (a int);\nDROP TEMPORARY TABLE x;\nINSERT INTO nokey VALUES (1);\nDROP TEMPORARY TABLE x;", 3, "Temporary table x does not exist", shop)
+	oneFinding(t, "CREATE TEMPORARY TABLE x (a int);\nDROP TEMPORARY TABLE x;\nINSERT INTO nokey VALUES (1);\nDROP TEMPORARY TABLE x;", 3, "Temporary table `x` doesn't exist.", shop)
 	// A foreign key's target is checked only while the checks are on.
 	noFinding(t, "DROP TABLE r;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES r (id));", shop)
-	oneFinding(t, "DROP TABLE nokey;\nSET foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nokey (a));", 2, "Foreign key target table nokey does not exist", shop)
-	oneFinding(t, "SET foreign_key_checks = 1;\nCREATE TABLE x (a bigint, FOREIGN KEY (a) REFERENCES s (next_not_cached_value));", 1, "Foreign key target s is not a base table", shop)
+	oneFinding(t, "DROP TABLE nokey;\nSET foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nokey (a));", 2, "Referenced table `nokey` doesn't exist.", shop)
+	oneFinding(t, "SET foreign_key_checks = 1;\nCREATE TABLE x (a bigint, FOREIGN KEY (a) REFERENCES s (next_not_cached_value));", 1, "`s` is a sequence, not a table a foreign key can reference.", shop)
 	// Each assignment has a scope of its own: an unprefixed one the
 	// statement's, past a prefixed one, and an @@session or bare @@ one the
 	// session's. A global one leaves the session's checks as they are.
 	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
 	const fk = "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nokey (a));"
-	const missing = "Foreign key target table nokey does not exist"
+	const missing = "Referenced table `nokey` doesn't exist."
 	oneFinding(t, "DROP TABLE nokey;\nSET GLOBAL foreign_key_checks = 0;\n"+fk, 2, missing, on)
 	oneFinding(t, "DROP TABLE nokey;\nSET @@global.foreign_key_checks = 0;\n"+fk, 2, missing, on)
 	noFinding(t, "DROP TABLE nokey;\nSET GLOBAL foreign_key_checks = 1;\n"+fk, shop)
@@ -325,7 +325,7 @@ func TestWalkThroughMariaDBSession(t *testing.T) {
 	// With another spec of the plan, only the change's own facts count.
 	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a int);", other)
-	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE x (a int);", 1, "Table x already exists", other)
+	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE x (a int);", 1, "Table `x` already exists.", other)
 }
 
 // TestWalkThroughMariaDBForeignKeyNames pins the name a foreign key and
@@ -335,15 +335,15 @@ func TestWalkThroughMariaDBForeignKeyNames(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	long := strings.Repeat("f", 65)
 	noFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP INDEX cx;", shop)
-	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY fx;", 1, "Foreign key fx does not exist in table x", shop)
+	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY fx;", 1, "Foreign key `fx` doesn't exist in `x`.", shop)
 	noFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nALTER TABLE y DROP FOREIGN KEY fy;", shop)
-	oneFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nCREATE TABLE z (a int, CONSTRAINT fy FOREIGN KEY (a) REFERENCES r (id));", 1, "Foreign key fy already exists in the database", shop)
+	oneFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nCREATE TABLE z (a int, CONSTRAINT fy FOREIGN KEY (a) REFERENCES r (id));", 1, "Foreign key `fy` already exists.", shop)
 	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT nk FOREIGN KEY fk1 (a) REFERENCES r (id);", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY fk1 (a) REFERENCES r (id);", 0, "Foreign key fk1 already exists in the database", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY fk1 (a) REFERENCES r (id);", 0, "Foreign key `fk1` already exists.", shop)
 	noFinding(t, "CREATE TABLE w (a int, CONSTRAINT cw FOREIGN KEY "+long+" (a) REFERENCES r (id));", shop)
 	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT cw FOREIGN KEY "+long+" (a) REFERENCES r (id);", shop)
-	oneFinding(t, "CREATE TABLE w (a int, FOREIGN KEY "+long+" (a) REFERENCES r (id));", 0, "Identifier name "+long+" is too long", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY "+long+" (a) REFERENCES r (id);", 0, "Identifier name "+long+" is too long", shop)
+	oneFinding(t, "CREATE TABLE w (a int, FOREIGN KEY "+long+" (a) REFERENCES r (id));", 0, "The name `"+long+"` is longer than MariaDB's 64-character limit.", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY "+long+" (a) REFERENCES r (id);", 0, "The name `"+long+"` is longer than MariaDB's 64-character limit.", shop)
 }
 
 // TestWalkThroughMariaDBNoDatabase pins what fails once the change drops
@@ -353,8 +353,8 @@ func TestWalkThroughMariaDBForeignKeyNames(t *testing.T) {
 func TestWalkThroughMariaDBNoDatabase(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	noFinding(t, "DROP DATABASE shop;\nDROP FUNCTION IF EXISTS nosuch;\nDROP FUNCTION nosuch;\nDROP FUNCTION IF EXISTS shop.f;", shop)
-	for _, stmt := range []string{"DROP PROCEDURE IF EXISTS p;", "DROP TRIGGER IF EXISTS tr;", "DROP VIEW IF EXISTS v;", "DROP EVENT IF EXISTS e;", "DROP SEQUENCE IF EXISTS s;", "CREATE FUNCTION f2() RETURNS int DETERMINISTIC RETURN 1;", "ALTER FUNCTION f COMMENT 'x';"} {
-		oneFinding(t, "DROP DATABASE shop;\n"+stmt, 1, "No database selected", shop)
+	for stmt, name := range map[string]string{"DROP PROCEDURE IF EXISTS p;": "p", "DROP TRIGGER IF EXISTS tr;": "tr", "DROP VIEW IF EXISTS v;": "v", "DROP EVENT IF EXISTS e;": "e", "DROP SEQUENCE IF EXISTS s;": "s", "CREATE FUNCTION f2() RETURNS int DETERMINISTIC RETURN 1;": "f2", "ALTER FUNCTION f COMMENT 'x';": "f"} {
+		oneFinding(t, "DROP DATABASE shop;\n"+stmt, 1, "No database is selected for `"+name+"`.", shop)
 	}
 }
 
@@ -366,7 +366,7 @@ func TestWalkThroughMariaDBParentBesideRename(t *testing.T) {
 	const gone = "CREATE TABLE p2 (id int PRIMARY KEY);\nDROP TABLE p2;\n"
 	noFinding(t, gone+"CREATE DATABASE q;\nCREATE TABLE q.p2 (id int PRIMARY KEY);\nALTER TABLE nokey RENAME TO q.nokey, ADD FOREIGN KEY (a) REFERENCES p2 (id);", on)
 	noFinding(t, gone+"ALTER TABLE nokey RENAME TO nk, ADD FOREIGN KEY (a) REFERENCES p2 (id);", on)
-	oneFinding(t, gone+"ALTER TABLE nokey ADD FOREIGN KEY (a) REFERENCES p2 (id);", 2, "Foreign key target table p2 does not exist", on)
+	oneFinding(t, gone+"ALTER TABLE nokey ADD FOREIGN KEY (a) REFERENCES p2 (id);", 2, "Referenced table `p2` doesn't exist.", on)
 }
 
 // TestWalkThroughMariaDBStoredFunctions pins the calls that may run a
@@ -385,9 +385,9 @@ func TestWalkThroughMariaDBStoredFunctions(t *testing.T) {
 	noFinding(t, "SELECT q.mk() FROM nokey WHERE a IN (SELECT id FROM r);\n"+drop, shop)
 	// A base table or a sequence runs no function, nor does a call to one
 	// the current database certainly lacks.
-	oneFinding(t, "SELECT * FROM nokey;\n"+drop, 1, "Temporary table made does not exist", shop)
-	oneFinding(t, "SELECT NEXTVAL(s) FROM s;\n"+drop, 1, "Temporary table made does not exist", shop)
-	oneFinding(t, "SELECT mk();\n"+drop, 1, "Temporary table made does not exist", shop)
+	oneFinding(t, "SELECT * FROM nokey;\n"+drop, 1, "Temporary table `made` doesn't exist.", shop)
+	oneFinding(t, "SELECT NEXTVAL(s) FROM s;\n"+drop, 1, "Temporary table `made` doesn't exist.", shop)
+	oneFinding(t, "SELECT mk();\n"+drop, 1, "Temporary table `made` doesn't exist.", shop)
 }
 
 // TestWalkThroughMariaDBSequenceRenamed pins that a relation keeps its
@@ -397,7 +397,7 @@ func TestWalkThroughMariaDBSequenceRenamed(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	noFinding(t, "CREATE TABLE t2 LIKE q.s;\nALTER TABLE t2 RENAME TO t3;\nDROP SEQUENCE t3;", shop)
 	noFinding(t, "CREATE TABLE t2 LIKE q.s;\nALTER TABLE t2 RENAME TO q.t3, COMMENT 'x';\nDROP SEQUENCE q.t3;", shop)
-	oneFinding(t, "CREATE TABLE t2 (a int);\nALTER TABLE t2 RENAME TO t3;\nDROP SEQUENCE t3;", 2, "t3 is not a sequence", shop)
+	oneFinding(t, "CREATE TABLE t2 (a int);\nALTER TABLE t2 RENAME TO t3;\nDROP SEQUENCE t3;", 2, "`t3` is a table, not a sequence.", shop)
 }
 
 // TestWalkThroughMariaDBTargetGroups pins OtherSpecs and ForeignKeyChecks

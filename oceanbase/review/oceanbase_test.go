@@ -25,7 +25,7 @@ func TestReviewOceanBase(t *testing.T) {
 			rule:   review.PriorBackup,
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;",
 			change: review.Change{PriorBackup: true, MaxBackupSize: 10},
-			want:   []finding{{-1, "", "the change enables prior backup, which Bytebase does not take on OceanBase: the change runs without a backup", []int{0}}},
+			want:   []finding{{-1, "", "Bytebase doesn't take a prior backup on OceanBase.\n\nThe change runs without one. Turn off **Prior backup** for this change.", []int{0}}},
 		},
 		{
 			name: "prior backup not asked for",

@@ -11,5 +11,5 @@ import "github.com/bytebase/omni/review"
 //
 // gh-ost (bytebase/gh-ost2): go/logic/inspect.go — validateBinlogs.
 func checkOnlineMigration(r *reporter) {
-	r.report(review.OnlineMigrationUnsupported, -1, review.Range{}, "the change requests online migration, which runs gh-ost, and TiDB has no binary log for gh-ost to read")
+	r.report(review.OnlineMigrationUnsupported, -1, review.Range{}, "TiDB doesn't support online migration.\n\ngh-ost needs a binary log, which TiDB doesn't have. Turn off **Online migration** for this change.")
 }

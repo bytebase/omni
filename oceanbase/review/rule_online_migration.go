@@ -48,6 +48,15 @@ var ghostFlagKinds = map[string]string{
 	"skip-metadata-lock-check":         "bool",
 }
 
+// ghostFlagTakes says what a value of each kind of ghostFlagKinds is.
+var ghostFlagTakes = map[string]string{
+	"int":       "an integer",
+	"bool":      "true or false",
+	"float":     "a number",
+	"load map":  "a load map such as " + review.Code("Threads_running=25"),
+	"host list": "a list of hosts",
+}
+
 // checkOnlineMigration reports, from the SQL alone, what fails a change
 // that asks for online migration before gh-ost starts: a directive whose
 // flags Bytebase cannot read, a sheet that is not one ALTER TABLE
@@ -67,12 +76,14 @@ func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 		r.report(review.DirectiveInvalid, -1, review.Range{}, msg)
 	}
 	switch {
+	case len(stmts) == 0:
+		r.report(review.UnsupportedChange, -1, review.Range{}, "Online migration runs one "+review.Code("ALTER TABLE")+", and this change has none.\n\nTurn off **Online migration** for this change.")
 	case len(stmts) != 1:
-		r.report(review.UnsupportedChange, -1, review.Range{}, fmt.Sprintf("online migration runs the change as one ALTER TABLE statement, and the change has %d statements", len(stmts)))
+		r.report(review.UnsupportedChange, -1, review.Range{}, "Online migration runs one "+review.Code("ALTER TABLE")+", and this change has more statements.\n\nMove the other statements into another change, or turn off **Online migration**.")
 	default:
 		v, ok := stmts[0].node.(*ast.AlterTableStmt)
 		if !ok {
-			r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "online migration runs only an ALTER TABLE statement")
+			r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "Online migration runs only an "+review.Code("ALTER TABLE")+".\n\nTurn off **Online migration** for this change.")
 			break
 		}
 		for _, cmd := range v.Commands {
@@ -81,13 +92,13 @@ func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 			}
 			switch {
 			case cmd.Type == ast.ATRenameTable:
-				r.report(review.UnsupportedChange, stmts[0].index, rangeOf(cmd.Loc), "gh-ost does not rename the table it migrates")
+				r.report(review.UnsupportedChange, stmts[0].index, rangeOf(cmd.Loc), "gh-ost can't rename the table it migrates.\n\nRename the table in another change, without online migration.")
 			case cmd.Type == ast.ATChangeColumn && cmd.Column != nil && cmd.Name != cmd.Column.Name:
-				r.report(review.GhostColumnRename, stmts[0].index, rangeOf(cmd.Loc), "gh-ost renames column "+ident(cmd.Name)+" to "+ident(cmd.Column.Name)+" only with approve-renamed-columns, which Bytebase does not pass")
+				r.report(review.GhostColumnRename, stmts[0].index, rangeOf(cmd.Loc), "Online migration can't rename column "+review.Code(ident(cmd.Name))+" to "+review.Code(ident(cmd.Column.Name))+".\n\ngh-ost renames a column only when told to, and Bytebase doesn't tell it. Rename the column in another change, without online migration.")
 			case cmd.Type == ast.ATChangeColumn && cmd.Column != nil && strings.ContainsAny(cmd.Name, " \t\n\f\r"):
-				r.report(review.GhostColumnRename, stmts[0].index, rangeOf(cmd.Loc), "gh-ost splits column name "+ident(cmd.Name)+" at whitespace and reads CHANGE as a rename, which it takes only with approve-renamed-columns")
+				r.report(review.GhostColumnRename, stmts[0].index, rangeOf(cmd.Loc), "gh-ost reads this "+review.Code("CHANGE")+" of column "+review.Code(ident(cmd.Name))+" as a rename, because its name contains whitespace.\n\nTurn off **Online migration** for this change.")
 			case cmd.Type == ast.ATRenameColumn:
-				r.report(review.GhostColumnRename, stmts[0].index, rangeOf(cmd.Loc), "gh-ost does not read RENAME COLUMN as a rename, and the migrated table loses the data of column "+ident(cmd.Name))
+				r.report(review.GhostColumnRename, stmts[0].index, rangeOf(cmd.Loc), "gh-ost doesn't read "+review.Code("RENAME COLUMN")+" as a rename, so column "+review.Code(ident(cmd.Name))+" would lose its data.\n\nRename the column in another change, without online migration.")
 			}
 		}
 	}
@@ -106,7 +117,7 @@ func ghostFlagsRefused(sql string) string {
 	}
 	var flags map[string]string
 	if err := json.Unmarshal([]byte(match[1]), &flags); err != nil {
-		return "online migration cannot read the gh-ost directive: " + err.Error()
+		return "The gh-ost directive can't be read.\n\nWrite its flags as a JSON object of strings, or turn off **Online migration**."
 	}
 	keys := make([]string, 0, len(flags))
 	for k := range flags {
@@ -116,7 +127,7 @@ func ghostFlagsRefused(sql string) string {
 	for _, k := range keys {
 		kind, ok := ghostFlagKinds[k]
 		if !ok {
-			return "online migration does not support gh-ost flag " + strconv.Quote(k)
+			return "Online migration doesn't pass the gh-ost flag " + review.Code(k) + ".\n\nRemove it from the directive."
 		}
 		v := flags[k]
 		var err error
@@ -133,20 +144,20 @@ func ghostFlagsRefused(sql string) string {
 			err = parseHostList(v)
 		}
 		if err != nil {
-			return fmt.Sprintf("online migration cannot read gh-ost flag %q as %s: %q", k, kind, v)
+			return "The gh-ost flag " + review.Code(k) + " takes " + ghostFlagTakes[kind] + ", and " + review.Code(v) + " isn't one.\n\nFix its value in the directive."
 		}
 		if lo, hi, ok := ghostFlagRange(k); ok {
 			if n, _ := strconv.ParseInt(v, 10, 64); n < lo || n > hi {
-				bound := fmt.Sprintf("below %d", lo)
+				bound := fmt.Sprintf("%d or more", lo)
 				if hi < math.MaxInt64 {
-					bound = fmt.Sprintf("outside %d to %d", lo, hi)
+					bound = fmt.Sprintf("%d to %d", lo, hi)
 				}
-				return fmt.Sprintf("online migration cannot take gh-ost flag %q = %d, %s", k, n, bound)
+				return "The gh-ost flag " + review.Code(k) + " takes " + bound + ", and the directive sets " + review.Code(v) + ".\n\nFix its value in the directive."
 			}
 		}
 	}
 	if isTrue(flags["switch-to-rbr"]) && isTrue(flags["assume-rbr"]) {
-		return "online migration cannot take gh-ost flags switch-to-rbr and assume-rbr together"
+		return "The gh-ost flags " + review.Code("switch-to-rbr") + " and " + review.Code("assume-rbr") + " can't be set together.\n\nRemove one of them from the directive."
 	}
 	return ""
 }
@@ -233,7 +244,7 @@ func isTrue(v string) bool {
 // flag Bytebase does not pass.
 func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaIndex, r *reporter) {
 	if !t.BackupDatabaseExists {
-		r.report(review.ArchiveDatabaseMissing, -1, review.Range{}, "online migration needs database "+backupDatabase+", which does not exist")
+		r.report(review.ArchiveDatabaseMissing, -1, review.Range{}, "Online migration needs the backup database "+review.Code(backupDatabase)+", which doesn't exist on this instance.\n\nCreate it, or turn off **Online migration**.")
 	}
 	if len(stmts) != 1 {
 		return
@@ -247,37 +258,38 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	// names (backend/component/ghost, NewMigrationContext): an ALTER of
 	// another database's table would change the task database's instead.
 	if db := t.Schema.GetName(); v.Table.Schema != "" && db != "" && !x.same(v.Table.Schema, db) {
-		r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "gh-ost migrates "+ident(v.Table.Name)+" of the task's database "+ident(db)+", not "+table(v.Table)+" as the ALTER names it")
+		r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "gh-ost migrates "+review.Code(ident(v.Table.Name))+" of this change's database, not "+review.Code(table(v.Table))+" as the "+review.Code("ALTER")+" names it.\n\nRun the change against the database that holds the table.")
 		return
 	}
 	tbl := x.table(&ast.TableRef{Name: v.Table.Name}, false)
 	if tbl == nil {
 		// gh-ost's validateTable refuses a view.
 		if x.isView(v.Table.Name) {
-			r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "online migration needs a table, and "+table(v.Table)+" is a view")
+			r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "Online migration needs a table, and "+review.Code(table(v.Table))+" is a view.\n\nTurn off **Online migration** for this change.")
 		}
 		return
 	}
 	at := func(msg string) {
 		r.report(review.TableNotEligible, stmts[0].index, rangeOf(stmts[0].loc), msg)
 	}
-	name := table(v.Table)
+	name := review.Code(table(v.Table))
+	const off = "\n\nTurn off **Online migration** for this change."
 	switch {
 	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() && !functionalKey(tbl, i) }):
-		at("online migration needs a primary or unique key on " + name + ", which has none")
+		at("gh-ost can't migrate " + name + ": it has no primary key or unique key.\n\nAdd a primary key first, or turn off **Online migration**.")
 	// One key must be all of these at once.
 	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool {
 		return (i.GetPrimary() || i.GetUnique() && !nullableKey(tbl, i)) && !functionalKey(tbl, i) && !floatOrJSONKey(tbl, i)
 	}):
-		at("online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on " + name + ", which has none")
+		at("gh-ost can't migrate " + name + ": none of its keys is one gh-ost can use.\n\ngh-ost needs a primary key, or a unique key of " + review.Code("NOT NULL") + " columns, none " + review.Code("FLOAT") + " or " + review.Code("JSON") + ". Add one first, or turn off **Online migration**.")
 	}
 	if len(tbl.GetForeignKeys()) > 0 {
-		at("online migration does not support " + name + ", which has a foreign key")
+		at("gh-ost can't migrate " + name + ": it has a foreign key." + off)
 	} else if x.referenced(tbl.GetName()) {
-		at("online migration does not support " + name + ", which a foreign key references")
+		at("gh-ost can't migrate " + name + ": a foreign key references it." + off)
 	}
 	if len(tbl.GetTriggers()) > 0 {
-		at("online migration does not support " + name + ", which has a trigger")
+		at("gh-ost can't migrate " + name + ": it has a trigger." + off)
 	}
 }
 

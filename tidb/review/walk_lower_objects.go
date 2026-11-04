@@ -24,7 +24,7 @@ func (b *builder) tableOf(tr *ast.TableRef) (tableRef, bool, bool) {
 	if temp || f == walk.Unknown || kind == relView || kind == relSequence {
 		return r, false, false
 	}
-	b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, "Table "+r.written+" does not exist", "")
+	b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, notFound("table", r.written, ""), "")
 	return r, f == walk.Present, true
 }
 
@@ -42,7 +42,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return false
 	}
 	if k == primaryIndex {
-		b.fail(rng, nil, review.ReservedName, "Index name PRIMARY is reserved for the primary key") // 1280
+		b.fail(rng, nil, review.ReservedName, reservedPrimary) // 1280
 		return true
 	}
 	ik := idxKey(r.db, r.name, k)
@@ -50,7 +50,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		b.Next()
 		b.Optional()
 	} else {
-		b.need(ik, walk.Absent, nil, rng, "", "Index "+ident(v.IndexName)+" already exists in table "+r.written) // 1061
+		b.need(ik, walk.Absent, nil, rng, "", alreadyExists("index", ident(v.IndexName), r.written)) // 1061
 	}
 	b.Set(ik, walk.Present, "")
 	return true
@@ -81,10 +81,10 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	k := relKey(r.db, r.name)
 	if v.OrReplace {
 		if f, _ := b.l.Lookup(k); f == walk.Present {
-			b.need(k, walk.Present, []string{relView}, r.rng, "", r.written+" is not a view") // 1347
+			b.needKind(k, []string{relView}, r.rng, "", r.written, "view") // 1347
 		}
 	} else {
-		b.need(k, walk.Absent, nil, r.rng, "", "Table "+r.written+" already exists") // 1050
+		b.needFree(k, r.rng, r.written, relView) // 1050
 	}
 	b.Set(k, walk.Present, relView)
 	return true
@@ -108,7 +108,7 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 		k := relKey(r.db, r.name)
 		f, kind := b.l.Lookup(k)
 		if !v.IfExists || f == walk.Present {
-			b.need(k, walk.Present, []string{relView}, r.rng, "View "+r.written+" does not exist", r.written+" is not a view") // 1051, 1347
+			b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1051, 1347
 		}
 		switch {
 		case kind == relView:
@@ -140,7 +140,7 @@ func (b *builder) createSequence(v *ast.CreateSequenceStmt) bool {
 	k := relKey(r.db, r.name)
 	prior, _ := b.l.Lookup(k)
 	if !v.IfNotExists {
-		b.need(k, walk.Absent, nil, r.rng, "", "Table "+r.written+" already exists") // 1050
+		b.needFree(k, r.rng, r.written, relSequence) // 1050
 		prior = walk.Absent
 	}
 	switch prior {
@@ -176,7 +176,7 @@ func (b *builder) dropSequence(v *ast.DropSequenceStmt) bool {
 		k := relKey(r.db, r.name)
 		f, kind := b.l.Lookup(k)
 		if !v.IfExists {
-			b.need(k, walk.Present, []string{relSequence}, r.rng, "Sequence "+r.written+" does not exist", r.written+" is not a sequence") // 4139, 1347
+			b.needKind(k, []string{relSequence}, r.rng, notFound("sequence", r.written, ""), r.written, "sequence") // 4139, 1347
 		}
 		switch {
 		case kind == relSequence:
@@ -213,7 +213,7 @@ func (b *builder) dml(targets []*ast.TableRef) bool {
 			continue
 		}
 		if f, temp, _ := b.resolve(r); !temp && f == walk.Absent {
-			b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, "Table "+r.written+" does not exist", "") // 1146
+			b.need(relKey(r.db, r.name), walk.Present, nil, r.rng, notFound("", r.written, ""), "") // 1146
 		}
 	}
 	return true

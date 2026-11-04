@@ -152,7 +152,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		ck := colKey(r.db, r.name, k)
 		// IF EXISTS makes a missing column a note (verified).
 		if !c.IfExists {
-			b.need(ck, walk.Present, nil, rng, "Column "+ident(c.Name)+" does not exist in table "+r.written, "") // 1091
+			b.need(ck, walk.Present, nil, rng, notFound("column", ident(c.Name), r.written), "") // 1091
 		}
 		b.leave(ck)
 		// An index loses the column, and goes with its last one.
@@ -212,7 +212,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			}
 			// The name must be the table's: another table's foreign key of
 			// the name fails as a missing one does (1091, verified).
-			msg := "Foreign key " + ident(c.Name) + " does not exist in table " + r.written
+			msg := notFound("foreign key", ident(c.Name), r.written)
 			b.need(fk, walk.Present, nil, rng, msg, "")  // 1091
 			b.need(own, walk.Present, nil, rng, msg, "") // 1091
 			b.Set(fk, walk.Absent, "")
@@ -235,9 +235,9 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return false
 		}
 		fk, tk := idxKey(r.db, r.name, from), idxKey(r.db, r.name, to)
-		b.need(fk, walk.Present, nil, rng, "Index "+ident(c.Name)+" does not exist in table "+r.written, "") // 1091
+		b.need(fk, walk.Present, nil, rng, notFound("index", ident(c.Name), r.written), "") // 1091
 		if from != to {
-			b.need(tk, walk.Absent, nil, rng, "", "Index "+ident(c.NewName)+" already exists in table "+r.written) // 1061
+			b.need(tk, walk.Absent, nil, rng, "", alreadyExists("index", ident(c.NewName), r.written)) // 1061
 			b.leave(fk)
 			b.arrive(tk)
 		}
@@ -280,7 +280,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			}
 			for _, col := range cols {
 				if b.tooLong(col.Name, rangeOf(col.Loc)) ||
-					twice("add column", spaceColumn, col.Name, rangeOf(col.Loc), "Column "+ident(col.Name)+" is added twice to table "+r.written) {
+					twice("add column", spaceColumn, col.Name, rangeOf(col.Loc), statesTwice("adds", "column", ident(col.Name))) {
 					return true
 				}
 				for _, cc := range col.Constraints {
@@ -290,11 +290,11 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				}
 			}
 		case ast.ATDropColumn:
-			if !c.IfExists && twice("drop column", spaceColumn, c.Name, rng, "Column "+ident(c.Name)+" is dropped twice from table "+r.written) {
+			if !c.IfExists && twice("drop column", spaceColumn, c.Name, rng, statesTwice("drops", "column", ident(c.Name))) {
 				return true
 			}
 		case ast.ATDropIndex:
-			if !c.IfExists && twice("drop index", spaceIndex, c.Name, rng, "Index "+ident(c.Name)+" is dropped twice from table "+r.written) {
+			if !c.IfExists && twice("drop index", spaceIndex, c.Name, rng, statesTwice("drops", "index", ident(c.Name))) {
 				return true
 			}
 		case ast.ATDropConstraint:
@@ -303,11 +303,11 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			}
 			switch dropKindOf(b.w.sql, c) {
 			case dropPrimaryKey:
-				if twice("drop index", spaceIndex, "PRIMARY", rng, "Index PRIMARY is dropped twice from table "+r.written) {
+				if twice("drop index", spaceIndex, "PRIMARY", rng, "This statement drops the primary key twice.") {
 					return true
 				}
 			case dropForeignKey:
-				if b.fks && twice("drop foreign key", spaceForeignKey, c.Name, rng, "Foreign key "+ident(c.Name)+" is dropped twice from table "+r.written) {
+				if b.fks && twice("drop foreign key", spaceForeignKey, c.Name, rng, statesTwice("drops", "foreign key", ident(c.Name))) {
 					return true
 				}
 			}
@@ -326,7 +326,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			from, ok1 := b.key(spaceColumn, c.Name)
 			dest, ok2 := b.key(spaceColumn, to)
 			if c.Type != ast.ATModifyColumn && ok1 && ok2 && from != dest &&
-				twice("add column", spaceColumn, to, rng, "Column "+ident(to)+" is added twice to table "+r.written) {
+				twice("add column", spaceColumn, to, rng, statesTwice("adds", "column", ident(to))) {
 				return true
 			}
 		case ast.ATAddConstraint, ast.ATAddIndex:
@@ -342,23 +342,23 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				primaries++
 			case ast.ConstrForeignKey:
 				// 1061, for the index each would add (verified).
-				if b.fks && twice("add foreign key", spaceForeignKey, keyName(con), rng, "Foreign key "+ident(keyName(con))+" is added twice to table "+r.written) {
+				if b.fks && twice("add foreign key", spaceForeignKey, keyName(con), rng, statesTwice("adds", "foreign key", ident(keyName(con)))) {
 					return true
 				}
 			case ast.ConstrCheck:
 			default:
 				if k, ok := b.key(spaceIndex, con.Name); ok && k == primaryIndex {
-					b.fail(rng, nil, review.ReservedName, "Index name PRIMARY is reserved for the primary key")
+					b.fail(rng, nil, review.ReservedName, reservedPrimary)
 					return true
 				}
-				if twice("add index", spaceIndex, con.Name, rng, "Index "+ident(con.Name)+" is added twice to table "+r.written) {
+				if twice("add index", spaceIndex, con.Name, rng, statesTwice("adds", "index", ident(con.Name))) {
 					return true
 				}
 			}
 		}
 	}
 	if primaries > 1 {
-		b.fail(b.anchor(), nil, review.NameTaken, "Multiple primary keys for table "+r.written)
+		b.fail(b.anchor(), nil, review.NameTaken, hasPrimaryKey(r.written))
 		return true
 	}
 	return false
@@ -372,7 +372,7 @@ func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after string, rng re
 		return false
 	}
 	ck := colKey(r.db, r.name, k)
-	b.need(ck, walk.Absent, nil, rng, "", "Column "+ident(col.Name)+" already exists in table "+r.written) // 1060
+	b.need(ck, walk.Absent, nil, rng, "", alreadyExists("column", ident(col.Name), r.written)) // 1060
 	b.after(r, after, rng)
 	b.Set(ck, walk.Present, "")
 	b.alterColumnKeys(r, col, rng)
@@ -382,7 +382,7 @@ func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after string, rng re
 // after checks the column a FIRST/AFTER clause names (1054).
 func (b *builder) after(r tableRef, after string, rng review.Range) {
 	if k, ok := b.key(spaceColumn, after); ok {
-		b.need(colKey(r.db, r.name, k), walk.Present, nil, rng, "Column "+ident(after)+" does not exist in table "+r.written, "") // 1054
+		b.need(colKey(r.db, r.name, k), walk.Present, nil, rng, notFound("column", ident(after), r.written), "") // 1054
 	}
 }
 
@@ -392,7 +392,7 @@ func (b *builder) columnNeeds(r tableRef, name string, rng review.Range) bool {
 	if !ok {
 		return false
 	}
-	b.need(colKey(r.db, r.name, k), walk.Present, nil, rng, "Column "+ident(name)+" does not exist in table "+r.written, "") // 1054
+	b.need(colKey(r.db, r.name, k), walk.Present, nil, rng, notFound("column", ident(name), r.written), "") // 1054
 	return true
 }
 
@@ -407,9 +407,9 @@ func (b *builder) renameColumn(r tableRef, from, to string, rng review.Range) bo
 		return true
 	}
 	fc, tc := colKey(r.db, r.name, fk), colKey(r.db, r.name, tk)
-	b.need(fc, walk.Present, nil, rng, "Column "+ident(from)+" does not exist in table "+r.written, "") // 1054
+	b.need(fc, walk.Present, nil, rng, notFound("column", ident(from), r.written), "") // 1054
 	if fk != tk {
-		b.need(tc, walk.Absent, nil, rng, "", "Column "+ident(to)+" already exists in table "+r.written) // 1060
+		b.need(tc, walk.Absent, nil, rng, "", alreadyExists("column", ident(to), r.written)) // 1060
 		b.leave(fc)
 		b.arrive(tc)
 	}
@@ -421,7 +421,7 @@ func (b *builder) renameColumn(r tableRef, from, to string, rng review.Range) bo
 func (b *builder) alterColumnKeys(r tableRef, col *ast.ColumnDef, rng review.Range) {
 	for _, cc := range col.Constraints {
 		if cc.Type == ast.ColConstrPrimaryKey {
-			b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", "Table "+r.written+" already has a primary key") // 1068
+			b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
 		}
 	}
 	b.columnKeys(r, col)
@@ -432,7 +432,7 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 	rng := rangeOf(c.Loc)
 	switch c.Type {
 	case ast.ConstrPrimaryKey:
-		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", "Table "+r.written+" already has a primary key") // 1068
+		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
 	case ast.ConstrCheck:
 		return
 	case ast.ConstrForeignKey:
@@ -440,12 +440,12 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 			break
 		}
 		if k, ok := b.key(spaceForeignKey, keyName(c)); ok {
-			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", "Foreign key "+ident(keyName(c))+" already exists in the database") // 1826; 1022 on 5.7
+			b.need(objKey(spaceForeignKey, r.db, k), walk.Absent, nil, rng, "", alreadyExists("foreign key", ident(keyName(c)), "")) // 1826; 1022 on 5.7
 		}
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", "Index "+ident(c.Name)+" already exists in table "+r.written) // 1061
+			b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
 		}
 	}
 	b.constraint(r, c)
@@ -462,9 +462,9 @@ func (b *builder) dropIndexName(r tableRef, name string, rng review.Range, ifExi
 	switch {
 	case ifExists:
 	case k == primaryIndex:
-		b.need(ik, walk.Present, nil, rng, "Table "+r.written+" has no primary key", "") // 1091
+		b.need(ik, walk.Present, nil, rng, noPrimaryKey(r.written), "") // 1091
 	default:
-		b.need(ik, walk.Present, nil, rng, "Index "+ident(name)+" does not exist in table "+r.written, "") // 1091
+		b.need(ik, walk.Present, nil, rng, notFound("index", ident(name), r.written), "") // 1091
 	}
 	b.leave(ik)
 	return true
@@ -495,7 +495,7 @@ func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd, kind string) boo
 	if dest.Schema != "" {
 		b.databaseNeeds(to.db, dest.Schema, to.rng) // 1049; 1025 on 5.7
 	}
-	b.need(relKey(to.db, to.name), walk.Absent, nil, to.rng, "", "Table "+to.written+" already exists") // 1050
+	b.needFree(relKey(to.db, to.name), to.rng, to.written, relTable) // 1050
 	b.moveTable(r, to, kind)
 	return true
 }
@@ -569,15 +569,15 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 		if _, tt, _ := b.resolve(to); temp || tt || f == walk.Unknown {
 			return false
 		}
-		b.need(fk, walk.Present, nil, from.rng, "Table "+from.written+" does not exist", "") // 1146; 1017 on 5.7
+		b.need(fk, walk.Present, nil, from.rng, notFound("", from.written, ""), "") // 1146; 1017 on 5.7
 		if p.New.Schema != "" {
 			b.databaseNeeds(to.db, p.New.Schema, to.rng) // 1049; 1025 on 5.7
 		}
 		if kind == relView && from.db != to.db {
-			b.fail(to.rng, []walk.Key{fk}, review.UnsupportedForm, "View "+from.written+" cannot move to another database") // 1450 (verified)
+			b.fail(to.rng, []walk.Key{fk}, review.UnsupportedForm, engineName+" doesn't accept "+review.Code("RENAME TABLE")+" of view "+review.Code(from.written)+" to another database.") // 1450 (verified)
 			return true
 		}
-		b.need(relKey(to.db, to.name), walk.Absent, nil, to.rng, "", "Table "+to.written+" already exists") // 1050
+		b.needFree(relKey(to.db, to.name), to.rng, to.written, kind) // 1050
 		b.moveTable(from, to, kind)
 		delete(moved, fk)
 		moved[relKey(to.db, to.name)] = kind
@@ -609,7 +609,7 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 		tf, _ := b.l.Lookup(tk)
 		if v.Temporary {
 			if !v.IfExists {
-				b.need(tk, walk.Present, nil, r.rng, "Temporary table "+r.written+" does not exist", "") // 1051
+				b.need(tk, walk.Present, nil, r.rng, notFound("temporary table", r.written, ""), "") // 1051
 			}
 			b.Set(tk, walk.Absent, "")
 			continue
@@ -630,7 +630,7 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 		f, kind := b.l.Lookup(k)
 		if !v.IfExists {
 			// A view is no table to DROP TABLE (1965, verified).
-			b.need(k, walk.Present, []string{relTable, relSequence}, r.rng, "Table "+r.written+" does not exist", r.written+" is a view")
+			b.needKind(k, []string{relTable, relSequence}, r.rng, notFound("table", r.written, ""), r.written, "table")
 		}
 		switch {
 		case f == walk.Present && kind == relView:
@@ -672,7 +672,7 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 			if kind == relSequence {
 				return false
 			}
-			b.need(relKey(r.db, r.name), walk.Present, []string{relTable}, r.rng, "Table "+r.written+" does not exist", "Table "+r.written+" does not exist")
+			b.needKind(relKey(r.db, r.name), []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
 		}
 	}
 	return true
@@ -703,7 +703,7 @@ func (b *builder) createSequence(v *ast.CreateSequenceStmt) bool {
 		switch {
 		case v.OrReplace:
 		case !v.IfNotExists:
-			b.need(tk, walk.Absent, nil, r.rng, "", "Table "+r.written+" already exists") // 1050
+			b.needFree(tk, r.rng, r.written, relSequence) // 1050
 		case prior != walk.Absent:
 			if prior == walk.Unknown {
 				b.Set(tk, walk.Present, "")
@@ -721,10 +721,10 @@ func (b *builder) createSequence(v *ast.CreateSequenceStmt) bool {
 	switch {
 	case v.OrReplace:
 		if prior == walk.Present {
-			b.need(k, walk.Present, []string{relTable, relSequence}, r.rng, "", r.written+" is a view")
+			b.needKind(k, []string{relTable, relSequence}, r.rng, "", r.written, "table or sequence")
 		}
 	case !v.IfNotExists:
-		b.need(k, walk.Absent, nil, r.rng, "", "Table "+r.written+" already exists") // 1050
+		b.needFree(k, r.rng, r.written, relSequence) // 1050
 		prior = walk.Absent
 	case prior == walk.Present:
 		return true // a note
@@ -772,7 +772,7 @@ func (b *builder) dropSequence(v *ast.DropSequenceStmt) bool {
 		tf, tkind := b.l.Lookup(tk)
 		if v.Temporary {
 			if !v.IfExists {
-				b.need(tk, walk.Present, []string{relSequence}, r.rng, "Temporary sequence "+r.written+" does not exist", "Temporary table "+r.written+" is not a sequence") // 4091
+				b.needKind(tk, []string{relSequence}, r.rng, notFound("temporary sequence", r.written, ""), r.written, "sequence") // 4091
 			}
 			switch {
 			case tf == walk.Present && tkind == relSequence:
@@ -796,11 +796,8 @@ func (b *builder) dropSequence(v *ast.DropSequenceStmt) bool {
 		}
 		f, kind := b.l.Lookup(k)
 		if !v.IfExists {
-			present := r.written + " is not a sequence" // 4090
-			if kind == relView {
-				present = r.written + " is a view" // 1965
-			}
-			b.need(k, walk.Present, []string{relSequence}, r.rng, "Sequence "+r.written+" does not exist", present) // 4091
+			// A table is 4090, a view 1965.
+			b.needKind(k, []string{relSequence}, r.rng, notFound("sequence", r.written, ""), r.written, "sequence") // 4091
 		}
 		switch {
 		case f == walk.Present && kind != relSequence && kind != "":

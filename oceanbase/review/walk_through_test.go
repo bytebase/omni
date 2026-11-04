@@ -89,32 +89,32 @@ func noFindingOf(t *testing.T, rev review.ReviewFunc, sql string, target review.
 
 func TestWalkThroughMySQL(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
-	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE t (a int);", 1, "Table t already exists", shop)
-	oneFinding(t, "ALTER TABLE nosuch ADD COLUMN b int;", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "ALTER TABLE v ADD COLUMN b int;", 0, "v is not a base table", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN A int;", 0, "Column A already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", shop)
-	oneFinding(t, "ALTER TABLE t ADD INDEX I (a);", 0, "Index I already exists in table t", shop)
-	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (a);", 0, "Table t already has a primary key", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);", 0, "Foreign key FK1 already exists in the database", shop)
-	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table nosuch does not exist", shop)
-	oneFinding(t, "DROP VIEW t;", 0, "t is not a view", shop)
-	oneFinding(t, "CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", 0, "Trigger tr already exists", shop)
-	oneFinding(t, "DROP PROCEDURE nosuch;", 0, "PROCEDURE nosuch does not exist", shop)
-	oneFinding(t, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1;", 0, "Event e already exists", shop)
+	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE t (a int);", 1, "Table `t` already exists.", shop)
+	oneFinding(t, "ALTER TABLE nosuch ADD COLUMN b int;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "ALTER TABLE v ADD COLUMN b int;", 0, "`v` is a view, not a table.", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN A int;", 0, "Column `A` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column `zz` doesn't exist in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD INDEX I (a);", 0, "Index `I` already exists in `t`.", shop)
+	oneFinding(t, "ALTER TABLE t ADD PRIMARY KEY (a);", 0, "`t` already has a primary key.", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT FK1 FOREIGN KEY (a) REFERENCES r (id);", 0, "Foreign key `FK1` already exists.", shop)
+	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFinding(t, "DROP VIEW t;", 0, "`t` is a table, not a view.", shop)
+	oneFinding(t, "CREATE TRIGGER tr BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", 0, "Trigger `tr` already exists.", shop)
+	oneFinding(t, "DROP PROCEDURE nosuch;", 0, "Procedure `nosuch` doesn't exist.", shop)
+	oneFinding(t, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1;", 0, "Event `e` already exists.", shop)
 	// ALTER TABLE judges drops against the table as it was.
 	noFinding(t, "ALTER TABLE t ADD COLUMN a int, DROP COLUMN a;\nALTER TABLE t DROP COLUMN a;", shop)
-	oneFinding(t, "ALTER TABLE t ADD COLUMN b int, ADD COLUMN b int;", 0, "Column b is added twice to table t", shop)
+	oneFinding(t, "ALTER TABLE t ADD COLUMN b int, ADD COLUMN b int;", 0, "This statement adds column `b` twice.", shop)
 	// RENAME TABLE runs its pairs in order.
 	noFinding(t, "RENAME TABLE t TO tmp, r TO t, tmp TO r;\nALTER TABLE r ADD COLUMN zz int;\nALTER TABLE t ADD COLUMN zz int;", shop)
-	oneFinding(t, "RENAME TABLE t TO u;\nCREATE TABLE u (a int);", 1, "Table u already exists", shop)
+	oneFinding(t, "RENAME TABLE t TO u;\nCREATE TABLE u (a int);", 1, "Table `u` already exists.", shop)
 }
 
 func TestWalkThroughMySQLCase(t *testing.T) {
 	sensitive := review.Target{Schema: walkSchema()}
 	folded := review.Target{Schema: walkSchema(), LowerCaseTableNames: 1}
 	noFinding(t, "CREATE TABLE T (a int);", sensitive)
-	oneFinding(t, "CREATE TABLE T (a int);", 0, "Table T already exists", folded)
+	oneFinding(t, "CREATE TABLE T (a int);", 0, "Table `T` already exists.", folded)
 	// A trigger is claimed taken only by its own spelling: 5.7 compares
 	// trigger names with case.
 	noFinding(t, "CREATE TRIGGER TR BEFORE INSERT ON nokey FOR EACH ROW SET NEW.a = 1;", sensitive)
@@ -125,7 +125,7 @@ func TestWalkThroughMySQLCase(t *testing.T) {
 	both := walkSchema()
 	both.Schemas[0].Tables[0].Triggers = append(both.Schemas[0].Tables[0].Triggers, &metadata.TriggerMetadata{Name: "TR"})
 	noFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER TR;", review.Target{Schema: both})
-	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger tr does not exist", sensitive)
+	oneFinding(t, "DROP TRIGGER tr;\nDROP TRIGGER tr;", 1, "Trigger `tr` doesn't exist.", sensitive)
 }
 
 // TestWalkThroughMySQLNamesOutsideASCII pins that the walk follows no name
@@ -140,8 +140,8 @@ func TestWalkThroughMySQLNamesOutsideASCII(t *testing.T) {
 	noFinding(t, "CREATE TABLE x (k INT);\nALTER TABLE x DROP COLUMN `\u212a`;\nALTER TABLE x DROP COLUMN zz;", shop)
 	noFinding(t, "CREATE DATABASE q;\nCREATE PROCEDURE q.`pé`() SELECT 1;\nDROP PROCEDURE q.pe;", shop)
 	// A string is no name.
-	oneFinding(t, "CREATE TABLE x (a int) COMMENT '中文';\nCREATE TABLE x (a int);", 1, "Table x already exists", shop)
-	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table nosuch does not exist", shop)
+	oneFinding(t, "CREATE TABLE x (a int) COMMENT '中文';\nCREATE TABLE x (a int);", 1, "Table `x` already exists.", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table `nosuch` doesn't exist.", shop)
 	mixed := walkSchema()
 	schema := mixed.Schemas[0]
 	schema.Tables[2].Columns = append(schema.Tables[2].Columns, &metadata.ColumnMetadata{Name: "\u212a"})
@@ -152,33 +152,33 @@ func TestWalkThroughMySQLNamesOutsideASCII(t *testing.T) {
 	noFinding(t, "ALTER TABLE nokey DROP COLUMN k;\nALTER TABLE nokey DROP COLUMN zz;\nDROP PROCEDURE pe;\nDROP PROCEDURE nosuch;\nDROP TRIGGER tre;\nDROP TRIGGER nosuch;", target)
 	noFinding(t, "DROP TABLE tk;\nDROP TABLE nosuch;", review.Target{Schema: mixed, LowerCaseTableNames: 1})
 	// A space that lists none still knows its absent names.
-	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column zz does not exist in table t", target)
-	oneFinding(t, "DROP EVENT nosuch;", 0, "Event nosuch does not exist", target)
+	oneFinding(t, "ALTER TABLE t DROP COLUMN zz;", 0, "Column `zz` doesn't exist in `t`.", target)
+	oneFinding(t, "DROP EVENT nosuch;", 0, "Event `nosuch` doesn't exist.", target)
 }
 
 func TestWalkThroughMySQLSession(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	// Another database is unknown, until the change makes it.
 	noFinding(t, "USE other;\nCREATE TABLE t (a int);", shop)
-	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 2, "Table q.x already exists", shop)
-	oneFinding(t, "DROP DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database selected", shop)
+	oneFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);", 2, "Table `q.x` already exists.", shop)
+	oneFinding(t, "DROP DATABASE shop;\nCREATE TABLE x (a int);", 1, "No database is selected for `x`.", shop)
 	// A temporary table shadows the base table.
 	noFinding(t, "CREATE TEMPORARY TABLE nosuch (a int);\nALTER TABLE t ADD COLUMN zz int;\nINSERT INTO nosuch VALUES (1);", shop)
-	oneFinding(t, "DROP TEMPORARY TABLE t;", 0, "Temporary table t does not exist", shop)
+	oneFinding(t, "DROP TEMPORARY TABLE t;", 0, "Temporary table `t` doesn't exist.", shop)
 	// A trigger may create a temporary table of any name.
 	noFinding(t, "INSERT INTO t VALUES (1, 1);\nINSERT INTO nosuch VALUES (1);", shop)
-	oneFinding(t, "INSERT INTO nokey VALUES (1);\nINSERT INTO nosuch VALUES (1);", 1, "Table nosuch does not exist", shop)
+	oneFinding(t, "INSERT INTO nokey VALUES (1);\nINSERT INTO nosuch VALUES (1);", 1, "`nosuch` doesn't exist.", shop)
 	// A foreign key's target is checked only while the checks are on.
 	noFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", shop)
-	oneFinding(t, "SET foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Foreign key target table nosuch does not exist", shop)
+	oneFinding(t, "SET foreign_key_checks = 1;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 1, "Referenced table `nosuch` doesn't exist.", shop)
 	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
-	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 0, "Foreign key target table nosuch does not exist", on)
+	oneFinding(t, "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", 0, "Referenced table `nosuch` doesn't exist.", on)
 	noFinding(t, "SET FOREIGN_KEY_CHECKS = 0;\nCREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", on)
 	// Each assignment has a scope of its own: an unprefixed one the
 	// statement's, past a prefixed one, and an @@session or bare @@ one the
 	// session's. A global one leaves the session's checks as they are.
 	const fk = "CREATE TABLE x (a int, FOREIGN KEY (a) REFERENCES nosuch (id));"
-	const missing = "Foreign key target table nosuch does not exist"
+	const missing = "Referenced table `nosuch` doesn't exist."
 	oneFinding(t, "SET GLOBAL foreign_key_checks = 0;\n"+fk, 1, missing, on)
 	oneFinding(t, "SET @@global.foreign_key_checks = 0;\n"+fk, 1, missing, on)
 	oneFinding(t, "SET PERSIST foreign_key_checks = 0;\n"+fk, 1, missing, on)
@@ -195,7 +195,7 @@ func TestWalkThroughMySQLSession(t *testing.T) {
 	// With another spec of the plan, only the change's own facts count.
 	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a int);", other)
-	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE x (a int);", 1, "Table x already exists", other)
+	oneFinding(t, "CREATE TABLE x (a int);\nCREATE TABLE x (a int);", 1, "Table `x` already exists.", other)
 }
 
 // TestWalkThroughMySQLForeignKeyNames pins the names a foreign key takes:
@@ -206,16 +206,16 @@ func TestWalkThroughMySQLForeignKeyNames(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	long := strings.Repeat("f", 65)
 	noFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY cx;\nALTER TABLE x DROP INDEX cx;", shop)
-	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY fx;", 1, "Foreign key fx does not exist in table x", shop)
+	oneFinding(t, "CREATE TABLE x (a int, CONSTRAINT cx FOREIGN KEY fx (a) REFERENCES r (id));\nALTER TABLE x DROP FOREIGN KEY fx;", 1, "Foreign key `fx` doesn't exist in `x`.", shop)
 	noFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nALTER TABLE y DROP FOREIGN KEY y_ibfk_1;", shop)
 	noFinding(t, "CREATE TABLE y (a int, FOREIGN KEY fy (a) REFERENCES r (id));\nCREATE TABLE z (a int, CONSTRAINT fy FOREIGN KEY (a) REFERENCES r (id));", shop)
 	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT nk FOREIGN KEY fk1 (a) REFERENCES r (id);", shop)
 	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT nk FOREIGN KEY f (a) REFERENCES r (id), ADD CONSTRAINT nk2 FOREIGN KEY f (a) REFERENCES r (id);", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY nk (a) REFERENCES r (id);", 0, "Foreign key fk1 already exists in the database", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY nk (a) REFERENCES r (id);", 0, "Foreign key `fk1` already exists.", shop)
 	noFinding(t, "CREATE TABLE w (a int, CONSTRAINT cw FOREIGN KEY "+long+" (a) REFERENCES r (id));", shop)
 	noFinding(t, "ALTER TABLE nokey ADD CONSTRAINT cw FOREIGN KEY "+long+" (a) REFERENCES r (id);", shop)
-	oneFinding(t, "CREATE TABLE w (a int, FOREIGN KEY "+long+" (a) REFERENCES r (id));", 0, "Identifier name "+long+" is too long", shop)
-	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY "+long+" (a) REFERENCES r (id);", 0, "Identifier name "+long+" is too long", shop)
+	oneFinding(t, "CREATE TABLE w (a int, FOREIGN KEY "+long+" (a) REFERENCES r (id));", 0, "The name `"+long+"` is longer than MySQL's 64-character limit.", shop)
+	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY "+long+" (a) REFERENCES r (id);", 0, "The name `"+long+"` is longer than MySQL's 64-character limit.", shop)
 }
 
 // TestWalkThroughMySQLNoDatabase pins what fails once the change drops
@@ -224,8 +224,8 @@ func TestWalkThroughMySQLForeignKeyNames(t *testing.T) {
 func TestWalkThroughMySQLNoDatabase(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	noFinding(t, "DROP DATABASE shop;\nDROP FUNCTION IF EXISTS nosuch;\nDROP FUNCTION nosuch;\nDROP FUNCTION IF EXISTS shop.f;", shop)
-	for _, stmt := range []string{"DROP PROCEDURE IF EXISTS p;", "DROP TRIGGER IF EXISTS tr;", "DROP VIEW IF EXISTS v;", "DROP EVENT IF EXISTS e;", "DROP TABLE IF EXISTS nokey;", "CREATE FUNCTION f2() RETURNS int DETERMINISTIC RETURN 1;", "ALTER FUNCTION f COMMENT 'x';"} {
-		oneFinding(t, "DROP DATABASE shop;\n"+stmt, 1, "No database selected", shop)
+	for stmt, name := range map[string]string{"DROP PROCEDURE IF EXISTS p;": "p", "DROP TRIGGER IF EXISTS tr;": "tr", "DROP VIEW IF EXISTS v;": "v", "DROP EVENT IF EXISTS e;": "e", "DROP TABLE IF EXISTS nokey;": "nokey", "CREATE FUNCTION f2() RETURNS int DETERMINISTIC RETURN 1;": "f2", "ALTER FUNCTION f COMMENT 'x';": "f"} {
+		oneFinding(t, "DROP DATABASE shop;\n"+stmt, 1, "No database is selected for `"+name+"`.", shop)
 	}
 }
 
@@ -236,7 +236,7 @@ func TestWalkThroughMySQLParentBesideRename(t *testing.T) {
 	on := review.Target{Schema: walkSchema(), ForeignKeyChecks: review.SwitchOn}
 	noFinding(t, "CREATE DATABASE q;\nCREATE TABLE q.p2 (id int PRIMARY KEY);\nALTER TABLE nokey RENAME TO q.nokey, ADD FOREIGN KEY (a) REFERENCES p2 (id);", on)
 	noFinding(t, "ALTER TABLE nokey RENAME TO nk, ADD FOREIGN KEY (a) REFERENCES nosuch (id);", on)
-	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY (a) REFERENCES nosuch (id);", 0, "Foreign key target table nosuch does not exist", on)
+	oneFinding(t, "ALTER TABLE nokey ADD FOREIGN KEY (a) REFERENCES nosuch (id);", 0, "Referenced table `nosuch` doesn't exist.", on)
 }
 
 // TestWalkThroughMySQLStoredFunctions pins the calls that may run a stored
@@ -257,9 +257,9 @@ func TestWalkThroughMySQLStoredFunctions(t *testing.T) {
 	noFinding(t, "SELECT q.mk() FROM nokey WHERE a IN (SELECT id FROM r);\n"+drop, shop)
 	// A base table runs no function, nor does a call to one the current
 	// database certainly lacks.
-	oneFinding(t, "SELECT * FROM nokey;\n"+drop, 1, "Temporary table made does not exist", shop)
-	oneFinding(t, "SELECT mk();\n"+drop, 1, "Temporary table made does not exist", shop)
-	oneFinding(t, "CREATE DATABASE q;\nUSE q;\nSELECT mk();\nUSE shop;\n"+drop, 4, "Temporary table made does not exist", shop)
+	oneFinding(t, "SELECT * FROM nokey;\n"+drop, 1, "Temporary table `made` doesn't exist.", shop)
+	oneFinding(t, "SELECT mk();\n"+drop, 1, "Temporary table `made` doesn't exist.", shop)
+	oneFinding(t, "CREATE DATABASE q;\nUSE q;\nSELECT mk();\nUSE shop;\n"+drop, 4, "Temporary table `made` doesn't exist.", shop)
 }
 
 // TestWalkThroughMySQLTargetGroups pins OtherSpecs and ForeignKeyChecks in

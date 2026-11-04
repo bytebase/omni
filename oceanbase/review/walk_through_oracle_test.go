@@ -332,6 +332,9 @@ type mysqlEngine struct {
 	fold      bool
 	target    review.Target
 	oceanBase bool
+	// reported is the statement of the finding Report returned last, which
+	// walktest passes to Codes next.
+	reported string
 }
 
 func (e *mysqlEngine) Statements(change string) []string { return splitWalk(change) }
@@ -392,6 +395,10 @@ func (e *mysqlEngine) Report(t testing.TB, change string) *walktest.Finding {
 			out = &walktest.Finding{Statement: f.Statement, Message: f.Message}
 		}
 	}
+	e.reported = ""
+	if stmts := e.Statements(change); out != nil && out.Statement < len(stmts) {
+		e.reported = stmts[out.Statement]
+	}
 	return out
 }
 
@@ -409,73 +416,121 @@ func (e *mysqlEngine) Violation(t testing.TB, change string) *walk.Violation {
 }
 
 // walkCodes maps a finding's message to the MySQL errors it stands for
-// (5.7's codes included).
+// (5.7's codes included). Where one text stands for several statements'
+// errors, the statement it is on (leads) tells them apart: DROP TABLE and
+// TRUNCATE refuse a view as a missing table, and ALTER VIEW reports a
+// missing view as a missing table.
 var walkCodes = []struct {
-	match func(string) bool
+	match func(m, stmt string) bool
 	codes []string
 }{
-	{func(m string) bool { return strings.HasPrefix(m, "Temporary table ") }, []string{"1051"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Foreign key target ") }, []string{"1824", "1215"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Foreign key ") && (strings.Contains(m, " specified twice ") || strings.Contains(m, " added twice "))
-	}, []string{"1826", "1061"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "View ") && strings.HasSuffix(m, " cannot move to another database")
-	}, []string{"1450"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Foreign key ") && strings.HasSuffix(m, " already exists in the database")
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Temporary table ") && strings.HasSuffix(m, " already exists.")
+	}, []string{"1050"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Temporary table ") }, []string{"1051"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Referenced table ") || strings.HasSuffix(m, ", not a table a foreign key can reference.")
+	}, []string{"1824", "1215"}},
+	{func(m, _ string) bool { return saysTwice(m, "foreign key", "declares", "adds") }, []string{"1826", "1061"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "MySQL doesn't accept `RENAME TABLE` of view ") }, []string{"1450"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Foreign key ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1826", "1022"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Foreign key ") }, []string{"1091"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " already exists") }, []string{"1050"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " already has a primary key")
-	}, []string{"1068"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " has no primary key")
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Foreign key ") || saysTwice(m, "foreign key", "drops")
 	}, []string{"1091"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Table ") && strings.HasSuffix(m, " does not exist") }, []string{"1146", "1051", "1017"}},
-	{func(m string) bool { return strings.HasPrefix(m, "View ") }, []string{"1051"}},
-	{func(m string) bool {
-		return strings.HasSuffix(m, " is not a base table") || strings.HasSuffix(m, " is not a view")
-	}, []string{"1347"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Database ") && strings.HasSuffix(m, " already exists")
+	{func(m, _ string) bool {
+		return (strings.HasPrefix(m, "Table ") || strings.HasPrefix(m, "View ")) && strings.HasSuffix(m, " already exists.") ||
+			strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, " is already taken.")
+	}, []string{"1050"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " already has a primary key.") }, []string{"1068"}},
+	{func(m, _ string) bool { return strings.HasSuffix(m, " has no primary key.") }, []string{"1091"}},
+	{func(m, stmt string) bool {
+		return strings.HasSuffix(m, ", not a table.") && leads(stmt, "DROP TABLE", "DROP TABLES", "TRUNCATE")
+	}, []string{"1146", "1051", "1017"}},
+	{func(m, _ string) bool {
+		return (strings.HasPrefix(m, "Table ") || strings.HasPrefix(m, "`")) && strings.HasSuffix(m, " doesn't exist.")
+	}, []string{"1146", "1051", "1017"}},
+	{func(m, stmt string) bool { return strings.HasPrefix(m, "View ") && leads(stmt, "ALTER") }, []string{"1146", "1051", "1017"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "View ") }, []string{"1051"}},
+	{func(m, _ string) bool { return saysWrongKind(m) }, []string{"1347"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Database ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1007"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Database ") }, []string{"1049", "1008", "1025"}},
-	{func(m string) bool { return m == noDatabaseMessage }, []string{"1046"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Column ") && (strings.Contains(m, " already exists in ") || strings.Contains(m, " twice "))
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Database ") }, []string{"1049", "1008", "1025"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "No database is selected for ") }, []string{"1046"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Column ") && strings.Contains(m, " already exists in ") || saysTwice(m, "column", "declares", "adds", "drops")
 	}, []string{"1060", "1091"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Index ") && (strings.Contains(m, " already exists in ") || strings.Contains(m, " specified twice") || strings.Contains(m, " added twice"))
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Column ") }, []string{"1054", "1091"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Index ") && strings.Contains(m, " already exists in ") || saysTwice(m, "index", "declares", "adds")
 	}, []string{"1061"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Index name PRIMARY") }, []string{"1280"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Index ") }, []string{"1091", "1176"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Multiple primary keys") }, []string{"1068"}},
-	{func(m string) bool {
-		return strings.HasPrefix(m, "Trigger ") && strings.HasSuffix(m, " already exists")
+	{func(m, _ string) bool { return m == reservedPrimary }, []string{"1280"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Index ") || saysTwice(m, "index", "drops") || m == "This statement drops the primary key twice."
+	}, []string{"1091", "1176"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Trigger ") && strings.HasSuffix(m, " already exists.")
 	}, []string{"1359"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Trigger ") }, []string{"1360"}},
-	{func(m string) bool {
-		return (strings.HasPrefix(m, "PROCEDURE ") || strings.HasPrefix(m, "FUNCTION ")) && strings.HasSuffix(m, " already exists")
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Trigger ") }, []string{"1360"}},
+	{func(m, _ string) bool {
+		return (strings.HasPrefix(m, "Procedure ") || strings.HasPrefix(m, "Function ")) && strings.HasSuffix(m, " already exists.")
 	}, []string{"1304"}},
-	{func(m string) bool { return strings.HasPrefix(m, "PROCEDURE ") || strings.HasPrefix(m, "FUNCTION ") }, []string{"1305"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Event ") && strings.HasSuffix(m, " already exists") }, []string{"1537"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Event ") }, []string{"1539"}},
-	{func(m string) bool { return strings.HasPrefix(m, "Identifier name ") }, []string{"1059"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Procedure ") || strings.HasPrefix(m, "Function ") }, []string{"1305"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "Event ") && strings.HasSuffix(m, " already exists.")
+	}, []string{"1537"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Event ") }, []string{"1539"}},
+	{func(m, _ string) bool {
+		return strings.HasPrefix(m, "The name ") && strings.HasSuffix(m, "-character limit.")
+	}, []string{"1059"}},
+}
+
+// saysTwice reports whether a message says the statement names kind twice, by
+// one of verbs.
+func saysTwice(m, kind string, verbs ...string) bool {
+	for _, v := range verbs {
+		if strings.HasPrefix(m, "This statement "+v+" "+kind+" ") && strings.HasSuffix(m, " twice.") {
+			return true
+		}
+	}
+	return false
+}
+
+// saysWrongKind reports whether a message says a relation is of another kind
+// than the statement needs.
+func saysWrongKind(m string) bool {
+	for _, need := range []string{"table", "view", "sequence"} {
+		if strings.HasSuffix(m, ", not a "+need+".") || strings.HasSuffix(m, " isn't a "+need+".") {
+			return true
+		}
+	}
+	return false
+}
+
+// leads reports whether a statement starts with one of phrases, each a
+// run of keywords.
+func leads(stmt string, phrases ...string) bool {
+	f := strings.Fields(strings.ToUpper(stmt))
+	for _, p := range phrases {
+		if w := strings.Fields(p); len(f) >= len(w) && slices.Equal(f[:len(w)], w) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *mysqlEngine) Codes(message string) []string {
 	var codes []string
 	for _, c := range walkCodes {
-		if c.match(message) {
+		if c.match(message, e.reported) {
 			codes = c.codes
 			break
 		}
 	}
 	if e.oceanBase {
-		codes = append(slices.Clone(codes), oceanBaseCodes(message)...)
+		codes = append(slices.Clone(codes), oceanBaseCodes(message, e.reported)...)
 	}
 	return codes
 }
