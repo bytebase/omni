@@ -204,6 +204,20 @@ func TestRequireIsNull(t *testing.T) {
 			want: []finding{{0, "Key_name = NULL", "`Key_name = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
 		{
+			// TiDB's own SHOW statements carry a WHERE in the same field, so
+			// the rule reaches them without knowing they exist. A new SHOW
+			// variant whose filter landed anywhere else would be a silent
+			// gap here.
+			name: "TiDB's own SHOW ... WHERE",
+			sql:  "SHOW TABLE t1 REGIONS WHERE a = NULL;\nSHOW CONFIG WHERE type = NULL;\nSHOW DISTRIBUTION JOBS WHERE id = NULL;\nSHOW PLACEMENT WHERE Target = NULL;",
+			want: []finding{
+				{0, "a = NULL", "`a = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{1, "type = NULL", "`type = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{2, "id = NULL", "`id = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{3, "Target = NULL", "`Target = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+			},
+		},
+		{
 			name: "a searched CASE statement",
 			sql:  "CREATE PROCEDURE pr() BEGIN CASE WHEN @n = NULL THEN SELECT 1; END CASE; END;",
 			want: []finding{{0, "@n = NULL", "`@n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},

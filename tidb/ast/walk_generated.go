@@ -828,6 +828,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.FromPos)
 		Walk(v, n.LimitCount)
 		Walk(v, n.LimitOffset)
+		Walk(v, n.JobID)
 	case *SignalInfoItem:
 		Walk(v, n.Value)
 	case *SignalStmt:

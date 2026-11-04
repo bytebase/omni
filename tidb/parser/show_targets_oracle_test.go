@@ -1,0 +1,353 @@
+package parser
+
+import "testing"
+
+// The SHOW target table, held to the pinned TiDB v8.5.5. One case per target
+// this parser reads and per malformed variant around it, because the forms a
+// permissive SHOW swallows are exactly the ones no test suite writes: a
+// target keyword with nothing after it, a missing FROM|IN, a singular where
+// the grammar has only a plural, two filters at once, a LIKE whose operand is
+// not a string, a FOR CHANNEL named as an identifier, and the other engines'
+// SHOW statements.
+//
+// The list is the same text in all four engine trees. What differs is this
+// column, which is where the forks part, so a row that reads differently here
+// than in a sibling tree is a dialect delta rather than an oversight.
+//
+// Measured on 2026-11-04. The expectation is what the server answered, so an
+// image upgrade that changes a verdict fails here instead of passing
+// silently.
+
+// showTargetCase is a statement and whether the engine's parser accepts it.
+type showTargetCase struct {
+	sql    string
+	accept bool
+}
+
+var showTargetCases = []showTargetCase{
+	// A SHOW whose target keyword does not complete. Every one of these
+	// left an empty SHOW behind, which then stood in front of whatever
+	// followed it.
+	{"SHOW", false},
+	{"SHOW FULL", false},
+	{"SHOW EXTENDED", false},
+	{"SHOW CREATE", false},
+	{"SHOW TABLE", false},
+	{"SHOW GLOBAL", false},
+	{"SHOW SESSION", false},
+	{"SHOW MASTER", false},
+	{"SHOW SLAVE", false},
+	{"SHOW REPLICA", false},
+	{"SHOW BINARY", false},
+	{"SHOW BINLOG", false},
+	{"SHOW RELAYLOG", false},
+	{"SHOW STORAGE", false},
+	{"SHOW OPEN", false},
+	{"SHOW CHARACTER", false},
+	{"SHOW ENGINE", false},
+	{"SHOW PROCEDURE", false},
+	{"SHOW FUNCTION", false},
+	{"SHOW COUNT", false},
+	{"SHOW COUNT(*)", false},
+	{"SHOW COUNT ERRORS", false},
+	{"SHOW COUNT(*) ERRORS", true},
+	{"SHOW COUNT(*) WARNINGS", true},
+	{"SHOW COUNT(*) TABLES", false},
+
+	// The database and table listings.
+	{"SHOW DATABASES", true},
+	{"SHOW SCHEMAS", true},
+	{"SHOW TABLES", true},
+	{"SHOW TABLES FROM test", true},
+	{"SHOW TABLES IN test", true},
+	{"SHOW FULL TABLES", true},
+	{"SHOW FULL COLUMNS FROM t", true},
+	{"SHOW FULL FIELDS FROM t", true},
+	{"SHOW FULL PROCESSLIST", true},
+	{"SHOW FULL STATUS", false},
+
+	// The column listings, and the FROM|IN target they require.
+	{"SHOW COLUMNS FROM t", true},
+	{"SHOW COLUMNS FROM t FROM test", true},
+	{"SHOW COLUMNS", false},
+	{"SHOW COLUMNS t", false},
+	{"SHOW FIELDS FROM t", true},
+
+	// The EXTENDED prefix, and what it may stand in front of.
+	{"SHOW EXTENDED COLUMNS FROM t", true},
+	{"SHOW EXTENDED FIELDS FROM t", true},
+	{"SHOW EXTENDED FULL COLUMNS FROM t", true},
+	{"SHOW EXTENDED FULL FIELDS FROM t", true},
+	{"SHOW EXTENDED TABLES", false},
+	{"SHOW EXTENDED FULL TABLES", false},
+	{"SHOW EXTENDED INDEX FROM t", false},
+	{"SHOW EXTENDED KEYS FROM t", false},
+
+	// SHOW CREATE, one line per object this engine has one for.
+	{"SHOW CREATE TABLE t", true},
+	{"SHOW CREATE DATABASE d", true},
+	{"SHOW CREATE DATABASE IF NOT EXISTS d", true},
+	{"SHOW CREATE DATABASE IF d", false},
+	{"SHOW CREATE SCHEMA d", true},
+	{"SHOW CREATE VIEW v", true},
+	{"SHOW CREATE PROCEDURE pr", true},
+	{"SHOW CREATE FUNCTION fn", false},
+	{"SHOW CREATE TRIGGER tg", false},
+	{"SHOW CREATE EVENT ev", false},
+	{"SHOW CREATE USER u", true},
+	{"SHOW CREATE USER", false},
+	{"SHOW CREATE SEQUENCE seq", true},
+	{"SHOW CREATE SEQUENCE test.seq", true},
+	{"SHOW CREATE PLACEMENT POLICY x", true},
+	{"SHOW CREATE PLACEMENT POLICY", false},
+	{"SHOW CREATE RESOURCE GROUP rg", true},
+	{"SHOW CREATE RESOURCE GROUP default", true},
+	{"SHOW CREATE RESOURCE GROUP", false},
+	{"SHOW CREATE RESOURCE rg", false},
+
+	// The index listings, whose three spellings are INDEX, INDEXES and
+	// KEYS.
+	{"SHOW INDEX FROM t", true},
+	{"SHOW INDEX IN t IN test", true},
+	{"SHOW INDEX", false},
+	{"SHOW INDEX t", false},
+	{"SHOW KEY FROM t", false},
+	{"SHOW KEYS FROM t", true},
+	{"SHOW INDEXES FROM t", true},
+
+	// The scope prefix, and what may follow it.
+	{"SHOW GLOBAL VARIABLES", true},
+	{"SHOW GLOBAL STATUS", true},
+	{"SHOW SESSION VARIABLES", true},
+	{"SHOW SESSION STATUS", true},
+	{"SHOW GLOBAL BINDINGS", true},
+	{"SHOW SESSION BINDINGS", true},
+	{"SHOW BINDINGS", true},
+	{"SHOW BINDING_CACHE STATUS", true},
+	{"SHOW BINDING_CACHE", false},
+
+	// Variables, status, warnings and errors.
+	{"SHOW VARIABLES", true},
+	{"SHOW VARIABLES LIKE 'x%'", true},
+	{"SHOW STATUS", true},
+	{"SHOW WARNINGS", true},
+	{"SHOW WARNINGS LIMIT 10", false},
+	{"SHOW WARNINGS LIMIT 5, 10", false},
+	{"SHOW ERRORS", true},
+	{"SHOW ERRORS LIMIT 10", false},
+
+	// The storage-engine reports.
+	{"SHOW ENGINES", true},
+	{"SHOW STORAGE ENGINES", false},
+	{"SHOW ENGINE INNODB STATUS", false},
+	{"SHOW ENGINE INNODB MUTEX", false},
+	{"SHOW ENGINE INNODB LOGS", false},
+	{"SHOW ENGINE INNODB", false},
+	{"SHOW PLUGINS", true},
+
+	// The replication reports, and the FOR CHANNEL whose name is a
+	// string literal rather than an identifier.
+	{"SHOW MASTER STATUS", true},
+	{"SHOW MASTER LOGS", false},
+	{"SHOW BINARY LOGS", false},
+	{"SHOW BINARY LOG STATUS", true},
+	{"SHOW BINARY LOG", false},
+	{"SHOW BINLOG STATUS", false},
+	{"SHOW SLAVE STATUS", true},
+	{"SHOW SLAVE HOSTS", false},
+	{"SHOW REPLICA STATUS", true},
+	{"SHOW REPLICA HOSTS", false},
+	{"SHOW REPLICAS", false},
+	{"SHOW SLAVE STATUS FOR CHANNEL 'c'", false},
+	{"SHOW SLAVE STATUS FOR CHANNEL c", false},
+	{"SHOW SLAVE STATUS FOR", false},
+	{"SHOW SLAVE STATUS FOR CHANNEL", false},
+	{"SHOW REPLICA STATUS FOR CHANNEL 'c'", false},
+	{"SHOW REPLICA STATUS FOR CHANNEL c", false},
+	{"SHOW BINLOG EVENT", false},
+	{"SHOW BINLOG EVENTS", false},
+	{"SHOW BINLOG EVENTS IN 'f'", false},
+	{"SHOW BINLOG EVENTS FROM 4", false},
+	{"SHOW BINLOG EVENTS LIMIT 5, 10", false},
+	{"SHOW RELAYLOG EVENT", false},
+	{"SHOW RELAYLOG EVENTS", false},
+	{"SHOW RELAYLOG EVENTS FOR CHANNEL 'c'", false},
+	{"SHOW RELAYLOG EVENTS FOR CHANNEL c", false},
+
+	// The remaining MySQL targets, whose plurals are the only spellings
+	// the grammar has.
+	{"SHOW TABLE STATUS", true},
+	{"SHOW TABLE STATUS FROM test", true},
+	{"SHOW TABLE STATUS LIKE 't'", true},
+	{"SHOW TRIGGER", false},
+	{"SHOW TRIGGERS", true},
+	{"SHOW EVENT", false},
+	{"SHOW EVENTS", true},
+	{"SHOW PROCEDURE STATUS", true},
+	{"SHOW PROCEDURE CODE pr", false},
+	{"SHOW FUNCTION STATUS", true},
+	{"SHOW FUNCTION CODE fn", false},
+	{"SHOW OPEN TABLES", true},
+	{"SHOW PRIVILEGES", true},
+	{"SHOW PROFILES", true},
+
+	// SHOW PROFILE, whose limit clause reads the comma form as well as
+	// the OFFSET one, and not both at once.
+	{"SHOW PROFILE", true},
+	{"SHOW PROFILE CPU", true},
+	{"SHOW PROFILE CPU, MEMORY FOR QUERY 2", true},
+	{"SHOW PROFILE BLOCK IO", true},
+	{"SHOW PROFILE FOR QUERY 2", true},
+	{"SHOW PROFILE CPU FOR QUERY 2 LIMIT 1", true},
+	{"SHOW PROFILE CPU FOR QUERY 2 LIMIT 1,1", true},
+	{"SHOW PROFILE CPU FOR QUERY 2 LIMIT 1 OFFSET 2", true},
+	{"SHOW PROFILE CPU LIMIT 1,1 OFFSET 2", false},
+	{"SHOW PROFILE CPU LIMIT 1,", false},
+	{"SHOW PROFILE CPU OFFSET 2", false},
+
+	// Character sets, collations, grants and the process list.
+	{"SHOW CHARACTER SET", true},
+	{"SHOW CHARSET", true},
+	{"SHOW COLLATION", true},
+	{"SHOW GRANTS", true},
+	{"SHOW GRANTS FOR u", true},
+	{"SHOW PROCESSLIST", true},
+
+	// The filter. LIKE and WHERE read different things, and only one
+	// filter may follow a target.
+	{"SHOW DATABASES LIKE 't'", true},
+	{"SHOW DATABASES LIKE @v", true},
+	{"SHOW DATABASES LIKE concat('a','%')", true},
+	{"SHOW DATABASES LIKE 1", true},
+	{"SHOW DATABASES LIKE -1", true},
+	{"SHOW DATABASES LIKE NULL", true},
+	{"SHOW DATABASES LIKE ('t')", true},
+	{"SHOW DATABASES LIKE", false},
+	{"SHOW DATABASES LIKE 't' LIKE 'u'", false},
+	{"SHOW DATABASES LIKE 't' AND 1", false},
+	{"SHOW DATABASES LIKE 't' WHERE 1=1", false},
+	{"SHOW DATABASES WHERE 1=1", true},
+	{"SHOW DATABASES WHERE", false},
+	{"SHOW DATABASES WHERE 1=1 LIKE 't'", true},
+	{"SHOW TABLES LIKE 't' WHERE 1=1", false},
+
+	// TiDB's placement statements.
+	{"SHOW PLACEMENT", true},
+	{"SHOW PLACEMENT LIKE 'POLICY foo%'", true},
+	{"SHOW PLACEMENT WHERE Target='TABLE test.t1'", true},
+	{"SHOW PLACEMENT LABELS", true},
+	{"SHOW PLACEMENT LABELS LIKE '%zone%'", true},
+	{"SHOW PLACEMENT FOR DATABASE db1", true},
+	{"SHOW PLACEMENT FOR SCHEMA db1", true},
+	{"SHOW PLACEMENT FOR TABLE tb1", true},
+	{"SHOW PLACEMENT FOR TABLE db1.tb1", true},
+	{"SHOW PLACEMENT FOR TABLE tb1 PARTITION p1", true},
+	{"SHOW PLACEMENT FOR", false},
+	{"SHOW PLACEMENT FOR DB db1", false},
+	{"SHOW PLACEMENT FOR PARTITION p1", false},
+	{"SHOW PLACEMENT FOR TABLE tb1 PARTITION", false},
+	{"SHOW PLACEMENT FOR TABLE tb1 LIKE 't'", false},
+	{"SHOW PLACEMENT FOR DATABASE db1 LIKE 't'", false},
+
+	// TiDB's SHOW TABLE forms, which share a table name and a
+	// partition list.
+	{"SHOW TABLE t1 REGIONS", true},
+	{"SHOW TABLE t1 REGIONS WHERE a=1", true},
+	{"SHOW TABLE t1 REGIONS LIKE 'x'", false},
+	{"SHOW TABLE test.t1 REGIONS", true},
+	{"SHOW TABLE t1 PARTITION (p0) REGIONS", true},
+	{"SHOW TABLE t1 PARTITION (p0,p1) REGIONS WHERE a=1", true},
+	{"SHOW TABLE t1 PARTITION p0 REGIONS", false},
+	{"SHOW TABLE t1 PARTITION () REGIONS", false},
+	{"SHOW TABLE t1 INDEX idx1 REGIONS", true},
+	{"SHOW TABLE t1 PARTITION (p0) INDEX idx1 REGIONS WHERE a=2", true},
+	{"SHOW TABLE t1 INDEX REGIONS", false},
+	{"SHOW TABLE t1 INDEX idx1", false},
+	{"SHOW TABLE t1 DISTRIBUTIONS", true},
+	{"SHOW TABLE t1 DISTRIBUTIONS WHERE a=1", true},
+	{"SHOW TABLE t1 PARTITION (p0,p1) DISTRIBUTIONS", true},
+	{"SHOW TABLE t1 NEXT_ROW_ID", true},
+	{"SHOW TABLE test.t1 NEXT_ROW_ID", true},
+	{"SHOW TABLE t1 PARTITION (p0) NEXT_ROW_ID", false},
+	{"SHOW TABLE t1 NEXT_ROW_ID WHERE a=1", false},
+	{"SHOW TABLE t1", false},
+	{"SHOW TABLE t1 REGIONS REGIONS", false},
+
+	// TiDB's distribution jobs.
+	{"SHOW DISTRIBUTION JOBS", true},
+	{"SHOW DISTRIBUTION JOBS WHERE id > 0", true},
+	{"SHOW DISTRIBUTION JOB 1", true},
+	{"SHOW DISTRIBUTION JOB 'x'", false},
+	{"SHOW DISTRIBUTION JOB", false},
+	{"SHOW DISTRIBUTION JOB 1 WHERE id > 0", false},
+	{"SHOW DISTRIBUTION JOBS 1", false},
+	{"SHOW DISTRIBUTION", false},
+
+	// TiDB's statistics, session-state, binding, backup and config
+	// targets.
+	{"SHOW SESSION_STATES", true},
+	{"SHOW STATS_EXTENDED", true},
+	{"SHOW STATS_META", true},
+	{"SHOW STATS_META WHERE table_name = 't'", true},
+	{"SHOW STATS_META LIKE 't'", true},
+	{"SHOW STATS_HISTOGRAMS", true},
+	{"SHOW STATS_TOPN", true},
+	{"SHOW STATS_BUCKETS", true},
+	{"SHOW STATS_HEALTHY", true},
+	{"SHOW STATS_LOCKED", true},
+	{"SHOW HISTOGRAMS_IN_FLIGHT", true},
+	{"SHOW COLUMN_STATS_USAGE", true},
+	{"SHOW ANALYZE STATUS", true},
+	{"SHOW ANALYZE STATUS WHERE table_name = 't'", true},
+	{"SHOW ANALYZE", false},
+	{"SHOW BUILTINS", true},
+	{"SHOW BUILTINS LIKE 'x'", false},
+	{"SHOW BACKUPS", true},
+	{"SHOW BACKUPS WHERE start_time > now()", true},
+	{"SHOW RESTORES", true},
+	{"SHOW RESTORES LIKE 'r0001'", true},
+	{"SHOW CONFIG", true},
+	{"SHOW CONFIG WHERE type='tidb'", true},
+}
+
+// TestShowTargetsOracle asserts omni agrees with the pinned TiDB on
+// showTargetCases (container test). The verdict comes from PREPARE, which
+// parses the statement without running it: 1064 is the parser's rejection,
+// and any other server error means the text parsed and failed later.
+func TestShowTargetsOracle(t *testing.T) {
+	tc := startTiDB(t)
+	assertTiDBVersion(t, tc)
+	for i, stc := range showTargetCases {
+		t.Run(stc.sql, func(t *testing.T) {
+			previous := "<start of cases>"
+			if i > 0 {
+				previous = showTargetCases[i-1].sql
+			}
+			accepts, _, err := tc.syntaxVerdict(t, stc.sql, previous)
+			if err != nil {
+				t.Fatalf("no verdict: %v", err)
+			}
+			if accepts != stc.accept {
+				t.Fatalf("TiDB %s accepts=%v, want %v for %q", tidbCorpusVersion, accepts, stc.accept, stc.sql)
+			}
+			_, perr := Parse(stc.sql)
+			if omniAccepts := perr == nil; omniAccepts != stc.accept {
+				t.Errorf("DIVERGENCE omni accepts=%v, TiDB %s accepts=%v for %q: %v",
+					omniAccepts, tidbCorpusVersion, stc.accept, stc.sql, perr)
+			}
+		})
+	}
+}
+
+// TestShowTargets holds the parser to the recorded verdicts and needs no
+// server, so it is the gate that runs without Docker.
+func TestShowTargets(t *testing.T) {
+	for _, stc := range showTargetCases {
+		t.Run(stc.sql, func(t *testing.T) {
+			_, err := Parse(stc.sql)
+			if got := err == nil; got != stc.accept {
+				t.Errorf("parser accepts=%v, want %v for %q: %v", got, stc.accept, stc.sql, err)
+			}
+		})
+	}
+}

@@ -1169,6 +1169,22 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 	if n.Channel != "" {
 		fmt.Fprintf(sb, " :channel %s", n.Channel)
 	}
+	if n.IndexName != "" {
+		fmt.Fprintf(sb, " :index_name %s", n.IndexName)
+	}
+	if n.Partition != "" {
+		fmt.Fprintf(sb, " :partition %s", n.Partition)
+	}
+	if n.PolicyName != "" {
+		fmt.Fprintf(sb, " :policy_name %s", n.PolicyName)
+	}
+	if n.ResourceGroupName != "" {
+		fmt.Fprintf(sb, " :resource_group_name %s", n.ResourceGroupName)
+	}
+	if n.JobID != nil {
+		sb.WriteString(" :job_id ")
+		writeNode(sb, n.JobID)
+	}
 	sb.WriteString("}")
 }
 

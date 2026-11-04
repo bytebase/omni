@@ -4635,34 +4635,10 @@ func TestParseShow(t *testing.T) {
 		}
 	})
 
-	t.Run("binary logs", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW BINARY LOGS")
-		if stmt.Type != "BINARY LOGS" {
-			t.Errorf("Type = %s, want BINARY LOGS", stmt.Type)
-		}
-	})
-
-	t.Run("binlog events", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW BINLOG EVENTS")
-		if stmt.Type != "BINLOG EVENTS" {
-			t.Errorf("Type = %s, want BINLOG EVENTS", stmt.Type)
-		}
-	})
-
-	t.Run("binlog events in", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW BINLOG EVENTS IN 'mysql-bin.000001'")
-		if stmt.Type != "BINLOG EVENTS" {
-			t.Errorf("Type = %s, want BINLOG EVENTS", stmt.Type)
-		}
-		if stmt.Like == nil {
-			t.Fatal("Like is nil, expected log name")
-		}
-	})
-
-	t.Run("binlog events limit", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW BINLOG EVENTS LIMIT 10")
-		if stmt.Type != "BINLOG EVENTS" {
-			t.Errorf("Type = %s, want BINLOG EVENTS", stmt.Type)
+	t.Run("binary log status", func(t *testing.T) {
+		stmt := parseShow(t, "SHOW BINARY LOG STATUS")
+		if stmt.Type != "BINARY LOG STATUS" {
+			t.Errorf("Type = %s, want BINARY LOG STATUS", stmt.Type)
 		}
 	})
 
@@ -4795,13 +4771,6 @@ func TestParseShow(t *testing.T) {
 		stmt := parseShow(t, "SHOW PROFILES")
 		if stmt.Type != "PROFILES" {
 			t.Errorf("Type = %s, want PROFILES", stmt.Type)
-		}
-	})
-
-	t.Run("relaylog events", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW RELAYLOG EVENTS")
-		if stmt.Type != "RELAYLOG EVENTS" {
-			t.Errorf("Type = %s, want RELAYLOG EVENTS", stmt.Type)
 		}
 	})
 
@@ -8064,36 +8033,36 @@ func TestParseShowCreateUser(t *testing.T) {
 	}
 }
 
-func TestParseShowReplicas(t *testing.T) {
-	tests := []struct {
-		sql      string
-		expected string
-	}{
-		{
-			"SHOW REPLICAS",
-			`{SHOW :loc 0 :type REPLICAS}`,
-		},
-		{
-			"SHOW SLAVE HOSTS",
-			`{SHOW :loc 0 :type REPLICAS}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.expected)
+// TestParseShowReplicaListIsRejected pins what replaces SHOW REPLICAS and
+// SHOW SLAVE HOSTS: nothing. Both are MySQL's and a 1064 on TiDB v8.5.5,
+// which keeps only "SHOW" Replica "STATUS" (parser.y:11885).
+// showTargetCases measures all three against the server.
+func TestParseShowReplicaListIsRejected(t *testing.T) {
+	for _, sql := range []string{"SHOW REPLICAS", "SHOW SLAVE HOSTS", "SHOW REPLICA HOSTS"} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
 		})
 	}
 }
 
-func TestParseShowEngineInnodbStatus(t *testing.T) {
-	tests := []string{
+// TestParseShowEngineIsRejected pins the absence of SHOW ENGINE. TiDB has no
+// storage engines to report on and answers 1064 on every spelling, where
+// MySQL 8.0 reads {STATUS | MUTEX | LOGS}.
+func TestParseShowEngineIsRejected(t *testing.T) {
+	for _, sql := range []string{
 		"SHOW ENGINE INNODB STATUS",
 		"SHOW ENGINE INNODB MUTEX",
+		"SHOW ENGINE INNODB LOGS",
 		"SHOW ENGINE PERFORMANCE_SCHEMA STATUS",
-	}
-	for _, sql := range tests {
+		"SHOW ENGINE INNODB",
+		"SHOW STORAGE ENGINES",
+	} {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
 		})
 	}
 }
@@ -8556,16 +8525,25 @@ func TestParseShowIndex(t *testing.T) {
 		// KEYS synonym
 		"SHOW KEYS FROM users",
 		"SHOW KEYS IN users IN mydb",
-		// EXTENDED
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+	// EXTENDED reads only FieldsOrColumns upstream
+	// (parser.y:12141), so the index spellings MySQL 8.0 takes are a 1064.
+	for _, sql := range []string{
 		"SHOW EXTENDED INDEX FROM users",
 		"SHOW EXTENDED INDEXES FROM users",
 		"SHOW EXTENDED KEYS IN users",
 		"SHOW EXTENDED INDEX FROM users FROM mydb",
 		"SHOW EXTENDED INDEX FROM users WHERE Key_name = 'idx_name'",
-	}
-	for _, sql := range tests {
+	} {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
 		})
 	}
 }
@@ -9826,86 +9804,43 @@ func TestParseAlterInstance(t *testing.T) {
 
 // --- Batch 85: depth_fix_show_event_value_capture ---
 
-func TestParseShowBinlogEventsFromLimit(t *testing.T) {
-	tests := []struct {
-		sql      string
-		expected string
-	}{
-		{
-			sql:      "SHOW BINLOG EVENTS",
-			expected: `{SHOW :loc 0 :type BINLOG EVENTS}`,
-		},
-		{
-			sql:      "SHOW BINLOG EVENTS IN 'binlog.000001'",
-			expected: `{SHOW :loc 0 :type BINLOG EVENTS :like {STRING_LIT :val "binlog.000001" :loc 22}}`,
-		},
-		{
-			sql:      "SHOW BINLOG EVENTS FROM 4",
-			expected: `{SHOW :loc 0 :type BINLOG EVENTS :from_pos {INT_LIT :val 4 :loc 24}}`,
-		},
-		{
-			sql:      "SHOW BINLOG EVENTS IN 'binlog.000001' FROM 4",
-			expected: `{SHOW :loc 0 :type BINLOG EVENTS :like {STRING_LIT :val "binlog.000001" :loc 22} :from_pos {INT_LIT :val 4 :loc 43}}`,
-		},
-		{
-			sql:      "SHOW BINLOG EVENTS LIMIT 10",
-			expected: `{SHOW :loc 0 :type BINLOG EVENTS :limit_count {INT_LIT :val 10 :loc 25}}`,
-		},
-		{
-			sql:      "SHOW BINLOG EVENTS LIMIT 5, 10",
-			expected: `{SHOW :loc 0 :type BINLOG EVENTS :limit_count {INT_LIT :val 10 :loc 28} :limit_offset {INT_LIT :val 5 :loc 25}}`,
-		},
-		{
-			sql:      "SHOW BINLOG EVENTS IN 'binlog.000001' FROM 4 LIMIT 5, 10",
-			expected: `{SHOW :loc 0 :type BINLOG EVENTS :like {STRING_LIT :val "binlog.000001" :loc 22} :from_pos {INT_LIT :val 4 :loc 43} :limit_count {INT_LIT :val 10 :loc 54} :limit_offset {INT_LIT :val 5 :loc 51}}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.expected)
+// TestParseShowBinlogAndRelaylogEventsAreRejected pins the absence of SHOW
+// BINLOG EVENTS and SHOW RELAYLOG EVENTS. TiDB v8.5.5 has neither -- it
+// writes no binlog of its own and runs no relay log -- and answers 1064 on
+// every form MySQL 8.0 reads, the IN, FROM and LIMIT clauses included.
+func TestParseShowBinlogAndRelaylogEventsAreRejected(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW BINLOG EVENTS",
+		"SHOW BINLOG EVENTS IN 'binlog.000001'",
+		"SHOW BINLOG EVENTS FROM 4",
+		"SHOW BINLOG EVENTS IN 'binlog.000001' FROM 4",
+		"SHOW BINLOG EVENTS LIMIT 10",
+		"SHOW BINLOG EVENTS LIMIT 5, 10",
+		"SHOW BINLOG EVENTS IN 'binlog.000001' FROM 4 LIMIT 5, 10",
+		"SHOW BINARY LOGS",
+		"SHOW MASTER LOGS",
+		"SHOW RELAYLOG EVENTS",
+		"SHOW RELAYLOG EVENTS IN 'relay-bin.000001'",
+		"SHOW RELAYLOG EVENTS FROM 4",
+		"SHOW RELAYLOG EVENTS LIMIT 10",
+		"SHOW RELAYLOG EVENTS LIMIT 5, 10",
+		"SHOW RELAYLOG EVENTS IN 'relay-bin.000001' FROM 100 LIMIT 20",
+		"SHOW RELAYLOG EVENTS FOR CHANNEL 'ch1'",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
 		})
 	}
 }
 
-func TestParseShowRelaylogEventsFromLimit(t *testing.T) {
-	tests := []struct {
-		sql      string
-		expected string
-	}{
-		{
-			sql:      "SHOW RELAYLOG EVENTS",
-			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS}`,
-		},
-		{
-			sql:      "SHOW RELAYLOG EVENTS IN 'relay-bin.000001'",
-			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :like {STRING_LIT :val "relay-bin.000001" :loc 24}}`,
-		},
-		{
-			sql:      "SHOW RELAYLOG EVENTS FROM 4",
-			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :from_pos {INT_LIT :val 4 :loc 26}}`,
-		},
-		{
-			sql:      "SHOW RELAYLOG EVENTS LIMIT 10",
-			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :limit_count {INT_LIT :val 10 :loc 27}}`,
-		},
-		{
-			sql:      "SHOW RELAYLOG EVENTS LIMIT 5, 10",
-			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :limit_count {INT_LIT :val 10 :loc 30} :limit_offset {INT_LIT :val 5 :loc 27}}`,
-		},
-		{
-			sql:      "SHOW RELAYLOG EVENTS IN 'relay-bin.000001' FROM 100 LIMIT 20",
-			expected: `{SHOW :loc 0 :type RELAYLOG EVENTS :like {STRING_LIT :val "relay-bin.000001" :loc 24} :from_pos {INT_LIT :val 100 :loc 48} :limit_count {INT_LIT :val 20 :loc 58}}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.expected)
-		})
-	}
-}
-
-func TestParseShowWarningsLimit(t *testing.T) {
-	tests := []struct {
+// TestParseShowWarningsHasNoLimit pins the shape of SHOW WARNINGS and SHOW
+// ERRORS. Both are filterable targets upstream (parser.y:12160-12172) and
+// nothing more: the LIMIT MySQL 8.0 reads on them is a 1064 on TiDB v8.5.5,
+// and a LIKE or WHERE takes its place.
+func TestParseShowWarningsHasNoLimit(t *testing.T) {
+	for _, tt := range []struct {
 		sql      string
 		expected string
 	}{
@@ -9914,29 +9849,41 @@ func TestParseShowWarningsLimit(t *testing.T) {
 			expected: `{SHOW :loc 0 :type WARNINGS}`,
 		},
 		{
-			sql:      "SHOW WARNINGS LIMIT 10",
-			expected: `{SHOW :loc 0 :type WARNINGS :limit_count {INT_LIT :val 10 :loc 20}}`,
-		},
-		{
-			sql:      "SHOW WARNINGS LIMIT 5, 10",
-			expected: `{SHOW :loc 0 :type WARNINGS :limit_count {INT_LIT :val 10 :loc 23} :limit_offset {INT_LIT :val 5 :loc 20}}`,
-		},
-		{
 			sql:      "SHOW ERRORS",
 			expected: `{SHOW :loc 0 :type ERRORS}`,
 		},
 		{
-			sql:      "SHOW ERRORS LIMIT 10",
-			expected: `{SHOW :loc 0 :type ERRORS :limit_count {INT_LIT :val 10 :loc 18}}`,
+			sql:      "SHOW WARNINGS WHERE Level = 'Note'",
+			expected: `{SHOW :loc 0 :type WARNINGS :where {BINEXPR :op = :loc 20 :left {COLREF :loc 20 :col Level} :right {STRING_LIT :val "Note" :loc 28}}}`,
 		},
 		{
-			sql:      "SHOW ERRORS LIMIT 5, 10",
-			expected: `{SHOW :loc 0 :type ERRORS :limit_count {INT_LIT :val 10 :loc 21} :limit_offset {INT_LIT :val 5 :loc 18}}`,
+			sql:      "SHOW COUNT(*) WARNINGS",
+			expected: `{SHOW :loc 0 :type COUNT WARNINGS}`,
 		},
-	}
-	for _, tt := range tests {
+		{
+			sql:      "SHOW COUNT(*) ERRORS",
+			expected: `{SHOW :loc 0 :type COUNT ERRORS}`,
+		},
+	} {
 		t.Run(tt.sql, func(t *testing.T) {
 			ParseAndCompare(t, tt.sql, tt.expected)
+		})
+	}
+	for _, sql := range []string{
+		"SHOW WARNINGS LIMIT 10",
+		"SHOW WARNINGS LIMIT 5, 10",
+		"SHOW ERRORS LIMIT 10",
+		"SHOW ERRORS LIMIT 5, 10",
+		"SHOW COUNT(*) WARNINGS LIMIT 1",
+		// The parens are part of the COUNT production.
+		"SHOW COUNT ERRORS",
+		"SHOW COUNT(*)",
+		"SHOW COUNT(*) TABLES",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
 		})
 	}
 }
@@ -10560,16 +10507,24 @@ func TestReviewBatch108_ShowFullTablesIn(t *testing.T) {
 	}
 }
 
-func TestReviewBatch108_ShowExtendedTables(t *testing.T) {
-	ParseAndCheck(t, "SHOW EXTENDED TABLES")
-	ParseAndCheck(t, "SHOW EXTENDED TABLES FROM mydb")
-	ParseAndCheck(t, "SHOW EXTENDED TABLES LIKE 'test%'")
-}
-
-func TestReviewBatch108_ShowExtendedFullTables(t *testing.T) {
-	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES")
-	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES IN mydb")
-	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES LIKE 'user%'")
+// TestReviewBatch108_ShowExtendedTablesIsRejected pins the absence of SHOW
+// EXTENDED TABLES, in both spellings: EXTENDED reads only FieldsOrColumns on
+// TiDB v8.5.5, so the table spellings MySQL 8.0 takes are a 1064.
+func TestReviewBatch108_ShowExtendedTablesIsRejected(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW EXTENDED TABLES",
+		"SHOW EXTENDED TABLES FROM mydb",
+		"SHOW EXTENDED TABLES LIKE 'test%'",
+		"SHOW EXTENDED FULL TABLES",
+		"SHOW EXTENDED FULL TABLES IN mydb",
+		"SHOW EXTENDED FULL TABLES LIKE 'user%'",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
+		})
+	}
 }
 
 func TestReviewBatch108_ShowCountErrors(t *testing.T) {
@@ -10586,47 +10541,35 @@ func TestReviewBatch108_ShowCountWarnings(t *testing.T) {
 	}
 }
 
-func TestReviewBatch108_ShowStorageEngines(t *testing.T) {
-	stmt := parseShow(t, "SHOW STORAGE ENGINES")
-	if stmt.Type != "ENGINES" {
-		t.Errorf("expected ENGINES, got %s", stmt.Type)
+// TestReviewBatch108_ShowChannelIsRejected pins the absence of FOR CHANNEL.
+// TiDB reads "SHOW" Replica "STATUS" and nothing after it, in either
+// spelling, so MySQL's opt_channel is a 1064 whether the channel is named as
+// an identifier or as the string literal MySQL actually reads.
+func TestReviewBatch108_ShowChannelIsRejected(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW REPLICA STATUS FOR CHANNEL ch1",
+		"SHOW REPLICA STATUS FOR CHANNEL 'ch1'",
+		"SHOW SLAVE STATUS FOR CHANNEL ch1",
+		"SHOW SLAVE STATUS FOR CHANNEL 'ch1'",
+		"SHOW RELAYLOG EVENTS FOR CHANNEL ch1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
+		})
 	}
-}
-
-func TestReviewBatch108_ShowMasterLogs(t *testing.T) {
-	stmt := parseShow(t, "SHOW MASTER LOGS")
-	if stmt.Type != "BINARY LOGS" {
-		t.Errorf("expected BINARY LOGS, got %s", stmt.Type)
-	}
-}
-
-func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL ch1")
-	if stmt.Type != "REPLICA STATUS" {
-		t.Errorf("expected REPLICA STATUS, got %s", stmt.Type)
-	}
-	if stmt.Channel != "ch1" {
-		t.Errorf("expected channel ch1, got %s", stmt.Channel)
-	}
-}
-
-func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL ch1")
-	if stmt.Type != "SLAVE STATUS" {
-		t.Errorf("expected SLAVE STATUS, got %s", stmt.Type)
-	}
-	if stmt.Channel != "ch1" {
-		t.Errorf("expected channel ch1, got %s", stmt.Channel)
-	}
-}
-
-func TestReviewBatch108_ShowRelaylogEventsForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW RELAYLOG EVENTS FOR CHANNEL ch1")
-	if stmt.Type != "RELAYLOG EVENTS" {
-		t.Errorf("expected RELAYLOG EVENTS, got %s", stmt.Type)
-	}
-	if stmt.Channel != "ch1" {
-		t.Errorf("expected channel ch1, got %s", stmt.Channel)
+	// The bare forms stay.
+	for _, tt := range []struct{ sql, want string }{
+		{"SHOW REPLICA STATUS", "REPLICA STATUS"},
+		{"SHOW SLAVE STATUS", "SLAVE STATUS"},
+		{"SHOW MASTER STATUS", "MASTER STATUS"},
+	} {
+		t.Run(tt.sql, func(t *testing.T) {
+			if got := parseShow(t, tt.sql).Type; got != tt.want {
+				t.Errorf("Type = %s, want %s", got, tt.want)
+			}
+		})
 	}
 }
 

@@ -930,6 +930,32 @@ const (
 	kwNOCACHE
 	kwCYCLE
 	kwNOCYCLE
+
+	// TiDB's own SHOW targets — all unreserved upstream, in
+	// UnReservedKeyword (parser.y:6962) or TiDBKeyword (parser.y:7353).
+	// ANALYZE, PLACEMENT, POLICY, LABELS, REGIONS, SEQUENCE and STATUS
+	// already exist.
+	kwBINDINGS
+	kwBINDING_CACHE
+	kwBUILTINS
+	kwBACKUPS
+	kwRESTORES
+	kwCOLUMN_STATS_USAGE
+	kwCONFIG
+	kwDISTRIBUTION
+	kwDISTRIBUTIONS
+	kwHISTOGRAMS_IN_FLIGHT
+	kwJOB
+	kwJOBS
+	kwNEXT_ROW_ID
+	kwSESSION_STATES
+	kwSTATS_BUCKETS
+	kwSTATS_EXTENDED
+	kwSTATS_HEALTHY
+	kwSTATS_HISTOGRAMS
+	kwSTATS_LOCKED
+	kwSTATS_META
+	kwSTATS_TOPN
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1785,6 +1811,29 @@ var keywords = map[string]int{
 	"nocache":    kwNOCACHE,
 	"cycle":      kwCYCLE,
 	"nocycle":    kwNOCYCLE,
+
+	// TiDB's own SHOW targets.
+	"bindings":             kwBINDINGS,
+	"binding_cache":        kwBINDING_CACHE,
+	"builtins":             kwBUILTINS,
+	"backups":              kwBACKUPS,
+	"restores":             kwRESTORES,
+	"column_stats_usage":   kwCOLUMN_STATS_USAGE,
+	"config":               kwCONFIG,
+	"distribution":         kwDISTRIBUTION,
+	"distributions":        kwDISTRIBUTIONS,
+	"histograms_in_flight": kwHISTOGRAMS_IN_FLIGHT,
+	"job":                  kwJOB,
+	"jobs":                 kwJOBS,
+	"next_row_id":          kwNEXT_ROW_ID,
+	"session_states":       kwSESSION_STATES,
+	"stats_buckets":        kwSTATS_BUCKETS,
+	"stats_extended":       kwSTATS_EXTENDED,
+	"stats_healthy":        kwSTATS_HEALTHY,
+	"stats_histograms":     kwSTATS_HISTOGRAMS,
+	"stats_locked":         kwSTATS_LOCKED,
+	"stats_meta":           kwSTATS_META,
+	"stats_topn":           kwSTATS_TOPN,
 }
 
 // Token represents a lexical token.

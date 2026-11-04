@@ -460,22 +460,22 @@ reject	accept	split region for partition table t1 by ('a'),('b'),('c')
 reject	accept	split region for table t1 between (1) and (1000) regions 10
 reject	accept	split partition table t1 between (1) and (1000) regions 10
 reject	accept	split region for partition table t1 between (1) and (1000) regions 10
-reject	accept	show table t1 regions
-reject	accept	show table t1 regions where a=1
+accept	accept	show table t1 regions
+accept	accept	show table t1 regions where a=1
 reject	reject	show table t1
-reject	accept	show table t1 index idx1 regions
-reject	accept	show table t1 index idx1 regions where a=2
+accept	accept	show table t1 index idx1 regions
+accept	accept	show table t1 index idx1 regions where a=2
 reject	reject	show table t1 index idx1
-reject	accept	show table t1 partition (p0,p1) regions
-reject	accept	show table t1 partition (p0) regions where a=1
+accept	accept	show table t1 partition (p0,p1) regions
+accept	accept	show table t1 partition (p0) regions where a=1
 reject	reject	show table t1 partition
-reject	accept	show table t1 partition (p0) index idx1 regions
-reject	accept	show table t1 partition (p0,p1) index idx1 regions where a=2
+accept	accept	show table t1 partition (p0) index idx1 regions
+accept	accept	show table t1 partition (p0,p1) index idx1 regions where a=2
 reject	reject	show table t1 partition index idx1
-reject	accept	show table t1 distributions
-reject	accept	show table t1 distributions where a=1
-reject	accept	show table t1 partition (p0,p1) distributions
-reject	accept	show table t1 partition (p0,p1) distributions where a=1
+accept	accept	show table t1 distributions
+accept	accept	show table t1 distributions where a=1
+accept	accept	show table t1 partition (p0,p1) distributions
+accept	accept	show table t1 partition (p0,p1) distributions where a=1
 reject	reject	distribute table t1
 reject	reject	distribute table t1 partition(p0)
 reject	reject	distribute table t1 partition(p0,p1)
@@ -486,14 +486,14 @@ reject	accept	distribute table t1 partition(p0,p1) rule = 'learner-scatter' engi
 reject	accept	distribute table t1 partition(p0) rule = 'peer-scatter' engine = 'tiflash'
 reject	accept	distribute table t1 partition(p0) rule = 'peer-scatter' engine = 'tiflash' timeout = '30m'
 reject	reject	show distribution jobs 1
-reject	accept	show distribution jobs
-reject	accept	show distribution jobs where id > 0
+accept	accept	show distribution jobs
+accept	accept	show distribution jobs where id > 0
 reject	reject	show distribution job 1 where id > 0
-reject	accept	show distribution job 1
+accept	accept	show distribution job 1
 reject	reject	cancel distribution job
 reject	accept	cancel distribution job 1
-reject	accept	show table t1.t1 next_row_id
-reject	accept	show table t1 next_row_id
+accept	accept	show table t1.t1 next_row_id
+accept	accept	show table t1 next_row_id
 reject	reject	show table next_row_id
 reject	accept	begin pessimistic
 reject	accept	begin optimistic
@@ -515,26 +515,26 @@ reject	reject	CREATE SEQUENCE seq INCREMENT -9223372036854775809
 reject	accept	select `t`.`1a`.1 from t;
 reject	accept	select * from 1db.1table;
 accept	accept	select * from t where t. status = 1;
-reject	accept	SHOW PLACEMENT
-reject	accept	SHOW PLACEMENT LIKE 'POLICY foo%'
-reject	accept	SHOW PLACEMENT WHERE Target='TABLE test.t1'
-reject	accept	SHOW PLACEMENT FOR DATABASE db1
-reject	accept	SHOW PLACEMENT FOR SCHEMA db1
-reject	accept	SHOW PLACEMENT FOR TABLE tb1
-reject	accept	SHOW PLACEMENT FOR TABLE db1.tb1
-reject	accept	SHOW PLACEMENT FOR TABLE tb1 PARTITION p1
-reject	accept	SHOW PLACEMENT FOR TABLE db1.tb1 PARTITION p1
+accept	accept	SHOW PLACEMENT
+accept	accept	SHOW PLACEMENT LIKE 'POLICY foo%'
+accept	accept	SHOW PLACEMENT WHERE Target='TABLE test.t1'
+accept	accept	SHOW PLACEMENT FOR DATABASE db1
+accept	accept	SHOW PLACEMENT FOR SCHEMA db1
+accept	accept	SHOW PLACEMENT FOR TABLE tb1
+accept	accept	SHOW PLACEMENT FOR TABLE db1.tb1
+accept	accept	SHOW PLACEMENT FOR TABLE tb1 PARTITION p1
+accept	accept	SHOW PLACEMENT FOR TABLE db1.tb1 PARTITION p1
 reject	reject	SHOW PLACEMENT FOR
 reject	reject	SHOW PLACEMENT DATABASE db1
 reject	reject	SHOW PLACEMENT FOR DB db1
-reject	reject	SHOW PLACEMENT FOR DATABASE db1 TABLE tb1
+accept	reject	SHOW PLACEMENT FOR DATABASE db1 TABLE tb1
 reject	reject	SHOW PLACEMENT FOR PARTITION p1
 reject	reject	SHOW PLACEMENT FOR DB LIKE '%'
 reject	reject	SHOW PLACEMENT FOR DB db1 LIKE '%'
-reject	accept	SHOW PLACEMENT LABELS
-reject	accept	SHOW PLACEMENT LABELS LIKE '%zone%'
-reject	accept	SHOW PLACEMENT LABELS WHERE label='l123'
-reject	accept	SHOW SESSION_STATES
+accept	accept	SHOW PLACEMENT LABELS
+accept	accept	SHOW PLACEMENT LABELS LIKE '%zone%'
+accept	accept	SHOW PLACEMENT LABELS WHERE label='l123'
+accept	accept	SHOW SESSION_STATES
 reject	accept	SET SESSION_STATES 'x'
 reject	reject	SET SESSION_STATES
 reject	reject	SET SESSION_STATES 1
@@ -624,10 +624,10 @@ accept	accept	SHOW PROFILES
 accept	accept	SHOW PROFILE
 accept	accept	SHOW PROFILE FOR QUERY 1
 accept	accept	SHOW PROFILE CPU FOR QUERY 2
-reject	accept	SHOW PROFILE CPU FOR QUERY 2 LIMIT 1,1
+accept	accept	SHOW PROFILE CPU FOR QUERY 2 LIMIT 1,1
 accept	accept	SHOW PROFILE CPU, MEMORY, BLOCK IO, CONTEXT SWITCHES, PAGE FAULTS, IPC, SWAPS, SOURCE FOR QUERY 1 limit 100
 accept	accept	SHOW MASTER STATUS
-reject	accept	SHOW BINARY LOG STATUS
+accept	accept	SHOW BINARY LOG STATUS
 accept	accept	SHOW PRIVILEGES
 accept	accept	show character set;
 accept	accept	show charset
@@ -646,33 +646,33 @@ accept	accept	show create view test.t
 accept	accept	show create view t
 accept	accept	show create database d1
 accept	accept	show create database if not exists d1
-reject	accept	show create sequence seq
-reject	accept	show create sequence test.seq
-reject	accept	show stats_extended
-reject	accept	show stats_extended where table_name = 't'
-reject	accept	show stats_meta
-reject	accept	show stats_meta where table_name = 't'
-reject	accept	show stats_locked
-reject	accept	show stats_locked where table_name = 't'
-reject	accept	show stats_histograms
-reject	accept	show stats_histograms where col_name = 'a'
-reject	accept	show stats_buckets
-reject	accept	show stats_buckets where col_name = 'a'
-reject	accept	show stats_healthy
-reject	accept	show stats_healthy where table_name = 't'
-reject	accept	show stats_topn
-reject	accept	show stats_topn where table_name = 't'
-reject	accept	show histograms_in_flight
-reject	accept	show column_stats_usage
-reject	accept	show column_stats_usage where table_name = 't'
-reject	accept	show binding_cache status
+accept	accept	show create sequence seq
+accept	accept	show create sequence test.seq
+accept	accept	show stats_extended
+accept	accept	show stats_extended where table_name = 't'
+accept	accept	show stats_meta
+accept	accept	show stats_meta where table_name = 't'
+accept	accept	show stats_locked
+accept	accept	show stats_locked where table_name = 't'
+accept	accept	show stats_histograms
+accept	accept	show stats_histograms where col_name = 'a'
+accept	accept	show stats_buckets
+accept	accept	show stats_buckets where col_name = 'a'
+accept	accept	show stats_healthy
+accept	accept	show stats_healthy where table_name = 't'
+accept	accept	show stats_topn
+accept	accept	show stats_topn where table_name = 't'
+accept	accept	show histograms_in_flight
+accept	accept	show column_stats_usage
+accept	accept	show column_stats_usage where table_name = 't'
+accept	accept	show binding_cache status
 accept	accept	show analyze status
-reject	accept	show analyze status where table_name = 't'
-reject	accept	show analyze status where table_name like '%'
-reject	accept	show builtins
-reject	accept	show backups
-reject	accept	show restores like 'r0001'
-reject	accept	show backups where start_time > now() - interval 10 hour
+accept	accept	show analyze status where table_name = 't'
+accept	accept	show analyze status where table_name like '%'
+accept	accept	show builtins
+accept	accept	show backups
+accept	accept	show restores like 'r0001'
+accept	accept	show backups where start_time > now() - interval 10 hour
 reject	reject	show backup
 reject	reject	show restore
 accept	accept	show replica status
@@ -753,9 +753,9 @@ reject	accept	set config TIDB LOG.LEVEL='info'
 reject	accept	set config '127.0.0.1:3306' LOG.LEVEL='info'
 reject	accept	set config '127.0.0.1:3306' AUTO-COMPACTION-MODE=TRUE
 reject	accept	set config '127.0.0.1:3306' LABEL-PROPERTY.REJECT-LEADER.KEY='zone'
-reject	accept	show config
-reject	accept	show config where type='tidb'
-reject	accept	show config where instance='127.0.0.1:3306'
+accept	accept	show config
+accept	accept	show config where type='tidb'
+accept	accept	show config where instance='127.0.0.1:3306'
 accept	accept	create table CONFIG (a int)
 accept	accept	flush no_write_to_binlog tables tbl1 with read lock
 accept	accept	flush table
@@ -2581,10 +2581,10 @@ accept	accept	drop placement policy x
 reject	reject	drop placement policy x, y
 accept	accept	drop placement policy if exists x
 reject	reject	drop placement policy if exists x, y
-reject	accept	show create placement policy x
+accept	accept	show create placement policy x
 reject	reject	show create placement policy if exists x
 reject	reject	show create placement policy x, y
-reject	accept	show create placement policy `placement`
+accept	accept	show create placement policy `placement`
 accept	accept	create placement policy x primary_region='us'
 reject	reject	create placement policy x region='us, 3'
 accept	accept	create placement policy x followers=3
@@ -3256,8 +3256,8 @@ reject	accept	drop global binding for select * from t
 reject	accept	drop session binding for select * from t
 reject	accept	drop global binding for select * from t using select * from t use index(a)
 reject	accept	drop session binding for select * from t using select * from t use index(a)
-reject	accept	show global bindings
-reject	accept	show session bindings
+accept	accept	show global bindings
+accept	accept	show session bindings
 reject	accept	set binding enabled for select * from t
 reject	accept	set binding enabled for select * from t using select * from t use index(a)
 reject	accept	set binding disabled for select * from t

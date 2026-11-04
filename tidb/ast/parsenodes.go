@@ -1207,6 +1207,18 @@ type ShowStmt struct {
 	LimitCount   ExprNode    // SHOW ... LIMIT count
 	LimitOffset  ExprNode    // SHOW ... LIMIT offset, count
 	Channel      string      // FOR CHANNEL channel (RELAYLOG EVENTS, REPLICA STATUS)
+
+	// TiDB's own SHOW statements. The partition list of SHOW TABLE ...
+	// REGIONS and SHOW TABLE ... DISTRIBUTIONS rides on From.Partitions,
+	// where TiDB's own parser keeps it (ShowStmt.Table.PartitionNames in
+	// parser.y:11818); Partition below is the single name of SHOW PLACEMENT
+	// FOR TABLE ... PARTITION, which TiDB keeps apart for the same reason
+	// (ShowStmt.Partition, parser.y:11977).
+	IndexName         string   // INDEX name of SHOW TABLE ... INDEX idx REGIONS
+	Partition         string   // PARTITION name of SHOW PLACEMENT FOR TABLE t PARTITION p
+	PolicyName        string   // policy name of SHOW CREATE PLACEMENT POLICY
+	ResourceGroupName string   // group name of SHOW CREATE RESOURCE GROUP
+	JobID             ExprNode // job id of SHOW DISTRIBUTION JOB n
 }
 
 func (s *ShowStmt) nodeTag()  {}
