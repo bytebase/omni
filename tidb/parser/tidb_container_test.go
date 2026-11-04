@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -16,7 +17,15 @@ import (
 type tidbContainer struct {
 	db  *sql.DB
 	ctx context.Context
+
+	// container is kept so a run that loses the server can rebuild it. The
+	// harness is used from sequential tests, so nothing guards these fields.
+	container testcontainers.Container
 }
+
+// tidbImage is the TiDB release every oracle test in this package is recorded
+// against. Changing it means rerunning those tests and reading the drift.
+const tidbImage = "pingcap/tidb:v8.5.5"
 
 var (
 	tidbOnce    sync.Once
@@ -30,51 +39,20 @@ func startTiDB(t *testing.T) *tidbContainer {
 	tidbOnce.Do(func() {
 		ctx := context.Background()
 
-		req := testcontainers.ContainerRequest{
-			Image:        "pingcap/tidb:v8.5.5",
-			ExposedPorts: []string{"4000/tcp"},
-			WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
-		}
-
-		container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		})
+		container, err := runTiDBContainer(ctx)
 		if err != nil {
-			tidbInitErr = fmt.Errorf("failed to start TiDB container: %w", err)
+			tidbInitErr = err
 			return
 		}
 
-		host, err := container.Host(ctx)
+		db, err := dialTiDB(ctx, container, newContainerReady)
 		if err != nil {
 			_ = testcontainers.TerminateContainer(container)
-			tidbInitErr = fmt.Errorf("failed to get host: %w", err)
+			tidbInitErr = err
 			return
 		}
 
-		port, err := container.MappedPort(ctx, "4000")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			tidbInitErr = fmt.Errorf("failed to get port: %w", err)
-			return
-		}
-
-		connStr := fmt.Sprintf("root@tcp(%s:%s)/test?multiStatements=true", host, port.Port())
-		db, err := sql.Open("mysql", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			tidbInitErr = fmt.Errorf("failed to open db: %w", err)
-			return
-		}
-
-		if err := pingTiDBUntilReady(ctx, db); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			tidbInitErr = fmt.Errorf("failed to ping TiDB: %w", err)
-			return
-		}
-
-		tidbInst = &tidbContainer{db: db, ctx: ctx}
+		tidbInst = &tidbContainer{db: db, ctx: ctx, container: container}
 	})
 
 	if tidbInitErr != nil {
@@ -83,6 +61,111 @@ func startTiDB(t *testing.T) *tidbContainer {
 		t.Fatalf("TiDB container required in CI but not available: %v", tidbInitErr)
 	}
 	return tidbInst
+}
+
+// runTiDBContainer starts the pinned TiDB image.
+func runTiDBContainer(ctx context.Context) (testcontainers.Container, error) {
+	req := testcontainers.ContainerRequest{
+		Image:        tidbImage,
+		ExposedPorts: []string{"4000/tcp"},
+		WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
+	}
+	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to start TiDB container: %w", err)
+	}
+	return container, nil
+}
+
+// newContainerReady is how long a freshly started container gets to answer:
+// the port starts listening a moment before the server accepts connections,
+// and on a busy host that gap is seconds.
+const newContainerReady = 90 * time.Second
+
+// runningServerReady is how long an existing server gets. A reconnect expects
+// it to be up already, so failing fast here is what makes a caller fall
+// through to a restart instead of waiting out a server that has exited.
+const runningServerReady = 5 * time.Second
+
+// dialTiDB opens a pool on the container's mapped port and waits up to ready
+// for the server to answer.
+func dialTiDB(ctx context.Context, container testcontainers.Container, ready time.Duration) (*sql.DB, error) {
+	host, err := container.Host(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get host: %w", err)
+	}
+	port, err := container.MappedPort(ctx, "4000")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get port: %w", err)
+	}
+	connStr := fmt.Sprintf("root@tcp(%s:%s)/test?multiStatements=true", host, port.Port())
+	db, err := sql.Open("mysql", connStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open db: %w", err)
+	}
+	if err := pingTiDBUntilReady(ctx, db, ready); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to ping TiDB: %w", err)
+	}
+	return db, nil
+}
+
+// lost reports whether the harness has no server left to ask. restart clears
+// the pool and the container before rebuilding either, so a restart that
+// failed leaves the harness here, and a caller that kept going would
+// dereference a nil pool rather than collect another no-verdict error.
+func (tc *tidbContainer) lost() bool {
+	return tc.db == nil
+}
+
+// reconnect replaces the connection pool. A statement can drop the connection
+// it ran on without taking the server with it -- `kill CONNECTION_ID()` does
+// exactly that -- and until the pool is rebuilt every later statement comes
+// back as a connection error, which is no verdict at all.
+func (tc *tidbContainer) reconnect() error {
+	if tc.container == nil {
+		return errors.New("no container to reconnect to: an earlier restart could not start one")
+	}
+	if tc.db != nil {
+		tc.db.Close()
+		tc.db = nil
+	}
+	db, err := dialTiDB(tc.ctx, tc.container, runningServerReady)
+	if err != nil {
+		return err
+	}
+	tc.db = db
+	return nil
+}
+
+// restart replaces the container. A statement can stop the server outright --
+// `shutdown` does, and succeeds -- and no reconnect reaches a process that has
+// exited. Every database an earlier test created goes with the old container,
+// but a restart only runs once the server is already gone, so that state was
+// lost either way.
+func (tc *tidbContainer) restart() error {
+	if tc.db != nil {
+		tc.db.Close()
+		tc.db = nil
+	}
+	if tc.container != nil {
+		_ = testcontainers.TerminateContainer(tc.container)
+		tc.container = nil
+	}
+	container, err := runTiDBContainer(tc.ctx)
+	if err != nil {
+		return err
+	}
+	tc.container = container
+	db, err := dialTiDB(tc.ctx, container, newContainerReady)
+	if err != nil {
+		return err
+	}
+	tc.db = db
+	return nil
 }
 
 // canExecute checks whether TiDB accepts the SQL syntax.
@@ -250,11 +333,12 @@ func TestTiDBContainerOracle(t *testing.T) {
 	}
 }
 
-// pingTiDBUntilReady retries the first ping. TiDB's port starts listening a
-// moment before the server accepts connections, so a single ping right after
-// wait.ForListeningPort can fail with "invalid connection" on a busy host.
-func pingTiDBUntilReady(ctx context.Context, db *sql.DB) error {
-	deadline := time.Now().Add(90 * time.Second)
+// pingTiDBUntilReady retries the first ping until ready elapses. TiDB's port
+// starts listening a moment before the server accepts connections, so a single
+// ping right after wait.ForListeningPort can fail with "invalid connection" on
+// a busy host.
+func pingTiDBUntilReady(ctx context.Context, db *sql.DB, ready time.Duration) error {
+	deadline := time.Now().Add(ready)
 	for {
 		err := db.PingContext(ctx)
 		if err == nil {
