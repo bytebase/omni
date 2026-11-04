@@ -60,7 +60,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 	}
 	r := &reporter{targets: allTargets(len(targets))}
 	ranges, stmts, syntax := parseReview(sql)
-	result = &review.Result{Statements: ranges}
+	result = &review.Result{Statements: ranges, Bodies: statementBodies(sql, ranges)}
 	if syntax != nil {
 		r.add(*syntax)
 		result.Findings = r.sorted()

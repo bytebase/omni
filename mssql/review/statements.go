@@ -241,3 +241,24 @@ func oneLine(text string) string {
 func escapeLines(s string) string {
 	return strings.NewReplacer("\r", `\r`, "\n", `\n`).Replace(s)
 }
+
+// statementBodies returns each statement's range from its first token to
+// its last, semicolons left out, as Result.Bodies sets out.
+func statementBodies(sql string, ranges []review.Range) []review.Range {
+	bodies := make([]review.Range, len(ranges))
+	for i, r := range ranges {
+		bodies[i] = r
+		found := false
+		for _, tok := range parser.Tokenize(sql[r.Start:r.End]) {
+			if tok.Type == ';' {
+				continue
+			}
+			if !found {
+				bodies[i].Start = r.Start + tok.Loc
+				found = true
+			}
+			bodies[i].End = r.Start + tok.End
+		}
+	}
+	return bodies
+}

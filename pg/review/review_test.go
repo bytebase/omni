@@ -655,3 +655,30 @@ func TestFindingCodes(t *testing.T) {
 		})
 	}
 }
+
+// TestStatementBodies pins Result.Bodies: each statement from its first
+// token to its last, without the whitespace, comments, and semicolons
+// around it.
+func TestStatementBodies(t *testing.T) {
+	sql := "SELECT 1;\n\n-- a note\n/* outer /* nested */ comment */ UPDATE t SET n = 1 WHERE id = 1 ;\nCOPY t FROM STDIN;\n'abc;\n\\.\nSELECT '--x', $$ ; $$ -- trailing\n"
+	result, err := Review(context.Background(), sql, review.Options{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Bodies) != len(result.Statements) {
+		t.Fatalf("%d bodies for %d statements", len(result.Bodies), len(result.Statements))
+	}
+	var got []string
+	for i, body := range result.Bodies {
+		if statement := result.Statements[i]; body.Start < statement.Start || body.End > statement.End {
+			t.Errorf("body %v lies outside statement %v", body, statement)
+		}
+		got = append(got, sql[body.Start:body.End])
+	}
+	// COPY's inline data is not SQL: an unmatched quote or a semicolon in it
+	// neither ends the body nor starts another statement.
+	want := []string{"SELECT 1", "UPDATE t SET n = 1 WHERE id = 1", "COPY t FROM STDIN;\n'abc;\n\\.", "SELECT '--x', $$ ; $$"}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("bodies mismatch (-want +got):\n%s", diff)
+	}
+}

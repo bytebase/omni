@@ -165,3 +165,27 @@ func oneLine(text string) string {
 func escapeLines(s string) string {
 	return strings.NewReplacer("\r", `\r`, "\n", `\n`).Replace(s)
 }
+
+// statementBodies returns each statement's range from its first token to
+// its last, semicolons left out, as Result.Bodies sets out. A lexing error
+// is the parse's to report; the tokens before it still bound the body.
+func statementBodies(sql string, ranges []review.Range) []review.Range {
+	bodies := make([]review.Range, len(ranges))
+	for i, r := range ranges {
+		bodies[i] = r
+		tokens, _ := parser.Tokenize(sql[r.Start:r.End])
+		found := false
+		// Tokenize ends with the EOF token.
+		for _, tok := range tokens[:len(tokens)-1] {
+			if tok.Type == ';' {
+				continue
+			}
+			if !found {
+				bodies[i].Start = r.Start + tok.Loc.Start
+				found = true
+			}
+			bodies[i].End = r.Start + tok.Loc.End
+		}
+	}
+	return bodies
+}
