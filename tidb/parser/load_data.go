@@ -296,7 +296,15 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		// the query it begins rather than a leaf. v8.5.5 accepts
 		// `IMPORT INTO t FROM TABLE t1 UNION TABLE t2`, and the same source
 		// with ORDER BY a, LIMIT 1, FOR UPDATE, written parenthesized, and
-		// `FROM VALUES ROW(1)` -- none of which a bare TableStmt can hold.
+		// `FROM VALUES ROW(1)` -- none of which a bare TableStmt can hold,
+		// and the last of which #645 did not read at all.
+		//
+		// #647 adapted this arm to parseTablePrimary to make main compile
+		// again, and said so in its own comment: that reader takes the
+		// tails but the old node had nowhere to keep them, so it dropped
+		// them, and it reads no set operation. Reading the whole query
+		// expression keeps both, which is why that adaptation is
+		// superseded here rather than merged.
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err

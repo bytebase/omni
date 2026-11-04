@@ -218,7 +218,7 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	// Optional FOR user[@host]
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR
-		user, err := p.parseUserSpec()
+		user, err := p.parseUserSpec(false)
 		if err != nil {
 			return nil, err
 		}
@@ -633,7 +633,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 					Name: "CURRENT_USER",
 				}
 			} else {
-				user, err := p.parseUserSpec()
+				user, err := p.parseUserSpec(false)
 				if err != nil {
 					return nil, err
 				}
@@ -1215,7 +1215,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 						Name: "CURRENT_USER",
 					}
 				} else {
-					user, err := p.parseUserSpec()
+					user, err := p.parseUserSpec(false)
 					if err != nil {
 						return nil, err
 					}
@@ -1224,7 +1224,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				// Optional USING role [, role] ...
 				if _, ok := p.match(kwUSING); ok {
 					for {
-						role, err := p.parseUserSpec()
+						role, err := p.parseUserSpec(false)
 						if err != nil {
 							return nil, err
 						}
