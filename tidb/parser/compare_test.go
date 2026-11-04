@@ -2178,26 +2178,33 @@ func TestParseAlterDatabase(t *testing.T) {
 		}
 	})
 
-	t.Run("read only", func(t *testing.T) {
-		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb READ ONLY = 1")
+	// READ ONLY was here, taken from MySQL 8.0's option list. TiDB v8.5.5 has
+	// no such option and answers 1064 to every spelling of it, which
+	// databaseOptionCases now pins; what it does take in that position is a
+	// charset name spelled as a string literal.
+	t.Run("charset as a string literal", func(t *testing.T) {
+		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb CHARSET = 'utf8mb4'")
 		if len(stmt.Options) != 1 {
 			t.Fatalf("Options count = %d, want 1", len(stmt.Options))
 		}
-		if stmt.Options[0].Name != "READ ONLY" {
-			t.Errorf("option name = %s, want READ ONLY", stmt.Options[0].Name)
+		if stmt.Options[0].Name != "CHARACTER SET" {
+			t.Errorf("option name = %s, want CHARACTER SET", stmt.Options[0].Name)
 		}
-		if stmt.Options[0].Value != "1" {
-			t.Errorf("option value = %s, want 1", stmt.Options[0].Value)
+		if stmt.Options[0].Value != "utf8mb4" {
+			t.Errorf("option value = %s, want utf8mb4", stmt.Options[0].Value)
 		}
 	})
 
-	t.Run("read only default", func(t *testing.T) {
-		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb READ ONLY DEFAULT")
+	t.Run("collate binary", func(t *testing.T) {
+		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb COLLATE = binary")
 		if len(stmt.Options) != 1 {
 			t.Fatalf("Options count = %d, want 1", len(stmt.Options))
 		}
-		if stmt.Options[0].Name != "READ ONLY" {
-			t.Errorf("option name = %s, want READ ONLY", stmt.Options[0].Name)
+		if stmt.Options[0].Name != "COLLATE" {
+			t.Errorf("option name = %s, want COLLATE", stmt.Options[0].Name)
+		}
+		if stmt.Options[0].Value != "binary" {
+			t.Errorf("option value = %s, want binary", stmt.Options[0].Value)
 		}
 	})
 

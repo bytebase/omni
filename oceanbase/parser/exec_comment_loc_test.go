@@ -86,7 +86,11 @@ var execCommentLocCases = []string{
 	"SELECT 1;\n/*!80000 SELECT a FROM t WHERE n = NULL */",
 	"CREATE TABLE t (a INT) /*!50100 PARTITION BY HASH (a) PARTITIONS 4 */",
 	"CREATE TABLE t (a INT /*!80023 INVISIBLE */, b INT)",
-	"CREATE DATABASE d /*!40100 DEFAULT CHARACTER SET utf8mb4 */ /*!80016 DEFAULT ENCRYPTION='N' */",
+	// Two executable comments in a row. mysqldump writes the second as
+	// `/*!80016 DEFAULT ENCRYPTION='N' */`, which this engine answers 1064 to
+	// because it has no ENCRYPTION option; the shape under test is the pair
+	// of comments, not the option inside them.
+	"CREATE DATABASE d /*!40100 DEFAULT CHARACTER SET utf8mb4 */ /*!80016 DEFAULT COLLATE=utf8mb4_bin */",
 	"/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET NEW.a = NULL */",
 	"/*!50001 CREATE ALGORITHM=UNDEFINED */ /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */ /*!50001 VIEW v AS select a from t where b = 1 */",
 	"/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 PROCEDURE p() BEGIN SELECT a FROM t WHERE b = NULL; END */",

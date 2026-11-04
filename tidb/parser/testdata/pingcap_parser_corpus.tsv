@@ -1876,24 +1876,24 @@ reject	accept	alter table t add primary key (a) local
 accept	accept	create index i on t (a)
 reject	accept	create index i on t (a) local
 reject	accept	create index i on t (a) global
-reject	accept	ALTER DATABASE t CHARACTER SET = 'utf8'
-reject	accept	ALTER DATABASE CHARACTER SET = 'utf8'
-reject	accept	ALTER DATABASE t DEFAULT CHARACTER SET = 'utf8'
-reject	accept	ALTER SCHEMA t DEFAULT CHARACTER SET = 'utf8'
-reject	accept	ALTER SCHEMA DEFAULT CHARACTER SET = 'utf8'
-reject	accept	ALTER SCHEMA t DEFAULT CHARSET = 'UTF8'
-reject	accept	ALTER DATABASE t COLLATE = binary
-reject	accept	ALTER DATABASE t CHARSET=binary COLLATE = binary
-reject	accept	ALTER DATABASE t COLLATE = 'utf8_bin'
-reject	accept	ALTER DATABASE COLLATE = 'utf8_bin'
-reject	accept	ALTER DATABASE t DEFAULT COLLATE = 'utf8_bin'
-reject	accept	ALTER SCHEMA t DEFAULT COLLATE = 'UTF8_BiN'
-reject	accept	ALTER SCHEMA DEFAULT COLLATE = 'UTF8_BiN'
-reject	accept	ALTER SCHEMA `` DEFAULT COLLATE = 'UTF8_BiN'
-reject	accept	ALTER DATABASE t CHARSET = 'utf8mb4' COLLATE = 'utf8_bin'
-reject	accept	ALTER DATABASE t DEFAULT CHARSET = 'utf8mb4' DEFAULT COLLATE = 'utf8mb4_general_ci' CHARACTER SET = 'utf8' COLLATE = 'utf8mb4_bin'
-reject	accept	ALTER DATABASE DEFAULT CHARSET = 'utf8mb4' COLLATE = 'utf8_bin'
-reject	accept	ALTER DATABASE DEFAULT CHARSET = 'utf8mb4' DEFAULT COLLATE = 'utf8mb4_general_ci' CHARACTER SET = 'utf8' COLLATE = 'utf8mb4_bin'
+accept	accept	ALTER DATABASE t CHARACTER SET = 'utf8'
+accept	accept	ALTER DATABASE CHARACTER SET = 'utf8'
+accept	accept	ALTER DATABASE t DEFAULT CHARACTER SET = 'utf8'
+accept	accept	ALTER SCHEMA t DEFAULT CHARACTER SET = 'utf8'
+accept	accept	ALTER SCHEMA DEFAULT CHARACTER SET = 'utf8'
+accept	accept	ALTER SCHEMA t DEFAULT CHARSET = 'UTF8'
+accept	accept	ALTER DATABASE t COLLATE = binary
+accept	accept	ALTER DATABASE t CHARSET=binary COLLATE = binary
+accept	accept	ALTER DATABASE t COLLATE = 'utf8_bin'
+accept	accept	ALTER DATABASE COLLATE = 'utf8_bin'
+accept	accept	ALTER DATABASE t DEFAULT COLLATE = 'utf8_bin'
+accept	accept	ALTER SCHEMA t DEFAULT COLLATE = 'UTF8_BiN'
+accept	accept	ALTER SCHEMA DEFAULT COLLATE = 'UTF8_BiN'
+accept	accept	ALTER SCHEMA `` DEFAULT COLLATE = 'UTF8_BiN'
+accept	accept	ALTER DATABASE t CHARSET = 'utf8mb4' COLLATE = 'utf8_bin'
+accept	accept	ALTER DATABASE t DEFAULT CHARSET = 'utf8mb4' DEFAULT COLLATE = 'utf8mb4_general_ci' CHARACTER SET = 'utf8' COLLATE = 'utf8mb4_bin'
+accept	accept	ALTER DATABASE DEFAULT CHARSET = 'utf8mb4' COLLATE = 'utf8_bin'
+accept	accept	ALTER DATABASE DEFAULT CHARSET = 'utf8mb4' DEFAULT COLLATE = 'utf8mb4_general_ci' CHARACTER SET = 'utf8' COLLATE = 'utf8mb4_bin'
 accept	accept	ALTER TABLE t ADD COLUMN (a SMALLINT UNSIGNED)
 reject	reject	ALTER TABLE t.* ADD COLUMN (a SMALLINT UNSIGNED)
 reject	accept	ALTER TABLE t ADD COLUMN IF NOT EXISTS (a SMALLINT UNSIGNED)

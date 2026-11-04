@@ -2140,53 +2140,53 @@ func TestParseAlterDatabase(t *testing.T) {
 		}
 	})
 
+	// READ ONLY carries no value here, where MySQL 8.0's reads
+	// {DEFAULT | 0 | 1}. OceanBase CE 4.3.5.6 answers 1064 to
+	// `READ ONLY = 1` and to `READ ONLY DEFAULT`, which databaseOptionCases
+	// pins.
 	t.Run("read only", func(t *testing.T) {
-		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb READ ONLY = 1")
+		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb READ ONLY")
 		if len(stmt.Options) != 1 {
 			t.Fatalf("Options count = %d, want 1", len(stmt.Options))
 		}
 		if stmt.Options[0].Name != "READ ONLY" {
 			t.Errorf("option name = %s, want READ ONLY", stmt.Options[0].Name)
 		}
-		if stmt.Options[0].Value != "1" {
-			t.Errorf("option value = %s, want 1", stmt.Options[0].Value)
+		if stmt.Options[0].Value != "" {
+			t.Errorf("option value = %s, want it empty", stmt.Options[0].Value)
 		}
 	})
 
-	t.Run("read only default", func(t *testing.T) {
-		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb READ ONLY DEFAULT")
+	// ENCRYPTION was here, taken from MySQL 8.0's option list; 4.3.5.6 has no
+	// such option on either statement. What it does take in that position is a
+	// charset name spelled as a string literal.
+	t.Run("charset as a string literal", func(t *testing.T) {
+		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb CHARSET = 'utf8mb4'")
 		if len(stmt.Options) != 1 {
 			t.Fatalf("Options count = %d, want 1", len(stmt.Options))
 		}
-		if stmt.Options[0].Name != "READ ONLY" {
-			t.Errorf("option name = %s, want READ ONLY", stmt.Options[0].Name)
+		if stmt.Options[0].Name != "CHARACTER SET" {
+			t.Errorf("option name = %s, want CHARACTER SET", stmt.Options[0].Name)
 		}
-	})
-
-	t.Run("encryption", func(t *testing.T) {
-		stmt := parseAlterDatabase(t, "ALTER DATABASE mydb ENCRYPTION = 'Y'")
-		if len(stmt.Options) != 1 {
-			t.Fatalf("Options count = %d, want 1", len(stmt.Options))
-		}
-		if stmt.Options[0].Name != "ENCRYPTION" {
-			t.Errorf("option name = %s, want ENCRYPTION", stmt.Options[0].Name)
-		}
-		if stmt.Options[0].Value != "Y" {
-			t.Errorf("option value = %s, want Y", stmt.Options[0].Value)
+		if stmt.Options[0].Value != "utf8mb4" {
+			t.Errorf("option value = %s, want utf8mb4", stmt.Options[0].Value)
 		}
 	})
 }
 
-func TestParseCreateDatabaseEncryption(t *testing.T) {
-	stmt := parseCreateDatabase(t, "CREATE DATABASE mydb DEFAULT ENCRYPTION = 'N'")
+// TestParseCreateDatabaseCharsetName replaces TestParseCreateDatabaseEncryption:
+// OceanBase CE 4.3.5.6 answers 1064 to
+// `CREATE DATABASE d DEFAULT ENCRYPTION = 'N'`.
+func TestParseCreateDatabaseCharsetName(t *testing.T) {
+	stmt := parseCreateDatabase(t, "CREATE DATABASE mydb DEFAULT COLLATE = 'utf8mb4_bin'")
 	if len(stmt.Options) != 1 {
 		t.Fatalf("Options count = %d, want 1", len(stmt.Options))
 	}
-	if stmt.Options[0].Name != "ENCRYPTION" {
-		t.Errorf("option name = %s, want ENCRYPTION", stmt.Options[0].Name)
+	if stmt.Options[0].Name != "COLLATE" {
+		t.Errorf("option name = %s, want COLLATE", stmt.Options[0].Name)
 	}
-	if stmt.Options[0].Value != "N" {
-		t.Errorf("option value = %s, want N", stmt.Options[0].Value)
+	if stmt.Options[0].Value != "utf8mb4_bin" {
+		t.Errorf("option value = %s, want utf8mb4_bin", stmt.Options[0].Value)
 	}
 }
 
