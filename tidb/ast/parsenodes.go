@@ -1965,16 +1965,18 @@ func (o *LoadDataOption) nodeTag() {}
 //
 // Ref: https://docs.pingcap.com/tidb/stable/sql-statement-import-into/
 type ImportIntoStmt struct {
-	Loc         Loc
-	Table       *TableRef
-	Columns     []ExprNode
-	SetList     []*Assignment
-	Path        string
-	Select      *SelectStmt // FROM select_statement
-	TableSource *TableStmt  // FROM TABLE tbl_name
-	Format      string      // FORMAT 'csv' | 'sql file' | 'parquet'
-	HasFormat   bool        // FORMAT written, which FORMAT '' does not show
-	Options     []*LoadDataOption
+	Loc     Loc
+	Table   *TableRef
+	Columns []ExprNode
+	SetList []*Assignment
+	Path    string
+	// Select is the query source: FROM select_statement, and also FROM
+	// TABLE / FROM VALUES, which are query primaries the engine reads as a
+	// SelectStmt with its own TableSource or ValuesSource.
+	Select    *SelectStmt
+	Format    string // FORMAT 'csv' | 'sql file' | 'parquet'
+	HasFormat bool   // FORMAT written, which FORMAT '' does not show
+	Options   []*LoadDataOption
 }
 
 func (s *ImportIntoStmt) nodeTag()  {}

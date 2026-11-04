@@ -275,11 +275,14 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		return nil, err
 	}
 
-	// The source: a file path, or a query. TiDB reads a SELECT, a set
-	// operation, a WITH ... SELECT, a parenthesized query, or a TABLE
-	// statement as the query, and a VALUES statement is none of them:
-	// v8.5.5 answers 1064 for `IMPORT INTO t FROM VALUES (1)` where it
-	// takes `FROM TABLE s`. FORMAT follows a path only.
+	// The source: a file path, or one whole query expression. The FROM slot
+	// takes anything parseSelectStmt reads, whichever primary comes first:
+	// v8.5.5 accepts `FROM TABLE t1 UNION TABLE t2` and
+	// `FROM VALUES ROW(1) UNION SELECT 1` as readily as `FROM SELECT 1
+	// UNION SELECT 2`, along with each primary's ORDER BY, LIMIT, locking
+	// and INTO OUTFILE tail, and answers 1064 only for the VALUES spelling
+	// without ROW. Reading the first primary alone would take a union after
+	// a SELECT and refuse one after a TABLE. FORMAT follows a path only.
 	switch p.cur.Type {
 	case tokSCONST:
 		stmt.Path = p.cur.Str
@@ -291,32 +294,12 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		}
 		stmt.Format, stmt.HasFormat = format, has
 
-	case kwSELECT, kwWITH, '(':
+	case kwSELECT, kwWITH, kwTABLE, kwVALUES, '(':
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
-
-	case kwTABLE:
-		// MERGE ADAPTATION, not this change's family: #645 wrote this call
-		// against an earlier revision of #642, which landed the TABLE
-		// query primary as parseTablePrimary returning the SelectStmt the
-		// TABLE folds into rather than a parseTableStmt returning a
-		// TableStmt, so main does not compile. The table itself is that
-		// SelectStmt's own TableSource.
-		//
-		// parseTablePrimary is the right reader for this position: v8.5.5
-		// takes `IMPORT INTO t FROM TABLE s` with each of the tails it
-		// reads -- ORDER BY, LIMIT, FOR UPDATE and INTO OUTFILE (measured
-		// on 2026-11-04) -- so the statement is accepted exactly as the
-		// server accepts it, and the tails are dropped because this node
-		// has nowhere to keep them. Whether it should is #645's call.
-		sel, err := p.parseTablePrimary()
-		if err != nil {
-			return nil, err
-		}
-		stmt.TableSource = sel.TableSource
 
 	default:
 		return nil, p.syntaxErrorAtCur()
@@ -326,7 +309,7 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 	// a SET list: v8.5.5 answers 1064 for `IMPORT INTO t (a,@1) FROM SELECT
 	// a FROM s` and for `IMPORT INTO t SET a=1 FROM SELECT * FROM s`, both
 	// of which it takes with a path in place of the query.
-	if stmt.Select != nil || stmt.TableSource != nil {
+	if stmt.Select != nil {
 		for _, c := range stmt.Columns {
 			if v, ok := c.(*nodes.VariableRef); ok {
 				return nil, &ParseError{

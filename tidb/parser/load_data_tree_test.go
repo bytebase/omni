@@ -143,14 +143,109 @@ func TestImportIntoTreeQuerySource(t *testing.T) {
 		})
 	}
 	stmt := parseImportInto(t, "IMPORT INTO t FROM TABLE s WITH thread=2")
-	if stmt.TableSource == nil {
-		t.Fatal("TableSource is unset for FROM TABLE s")
+	if stmt.Select == nil || stmt.Select.TableSource == nil {
+		t.Fatal("Select.TableSource is unset for FROM TABLE s")
 	}
-	if stmt.Select != nil || stmt.Path != "" {
-		t.Errorf("Select = %v, Path = %q, want neither set", stmt.Select, stmt.Path)
+	if stmt.Path != "" {
+		t.Errorf("Path = %q, want empty: the source is a query", stmt.Path)
 	}
 	if len(stmt.Options) != 1 || stmt.Options[0].Name != "thread" {
 		t.Errorf("Options = %v, want one named thread", stmt.Options)
+	}
+}
+
+// TestImportIntoQueryPrimarySourcesKeepTheirTails pins that a TABLE or VALUES
+// source is read as a full query primary, tails included. v8.5.5 runs
+// `IMPORT INTO t FROM TABLE s ORDER BY a LIMIT 1` and answers 1064 only for a
+// VALUES spelling without ROW, so reading the primary without its ORDER BY and
+// LIMIT would silently import a different set of rows.
+func TestImportIntoQueryPrimarySourcesKeepTheirTails(t *testing.T) {
+	for _, c := range []struct {
+		sql     string
+		table   bool
+		values  bool
+		orderBy int
+		limit   bool
+	}{
+		{sql: "IMPORT INTO t FROM TABLE s", table: true},
+		{sql: "IMPORT INTO t FROM TABLE s ORDER BY a", table: true, orderBy: 1},
+		{sql: "IMPORT INTO t FROM TABLE s LIMIT 1", table: true, limit: true},
+		{sql: "IMPORT INTO t FROM TABLE s ORDER BY a LIMIT 1", table: true, orderBy: 1, limit: true},
+		{sql: "IMPORT INTO t FROM TABLE s ORDER BY a, b LIMIT 1 WITH thread=2", table: true, orderBy: 2, limit: true},
+		{sql: "IMPORT INTO t FROM VALUES ROW(1,1)", values: true},
+		{sql: "IMPORT INTO t FROM VALUES ROW(1,1), ROW(2,2) ORDER BY 1 LIMIT 1", values: true, orderBy: 1, limit: true},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			stmt := parseImportInto(t, c.sql)
+			if stmt.Select == nil {
+				t.Fatalf("Select is unset for %q", c.sql)
+			}
+			if got := stmt.Select.TableSource != nil; got != c.table {
+				t.Errorf("Select.TableSource set = %v, want %v", got, c.table)
+			}
+			if got := stmt.Select.ValuesSource != nil; got != c.values {
+				t.Errorf("Select.ValuesSource set = %v, want %v", got, c.values)
+			}
+			if got := len(stmt.Select.OrderBy); got != c.orderBy {
+				t.Errorf("len(Select.OrderBy) = %d, want %d", got, c.orderBy)
+			}
+			if got := stmt.Select.Limit != nil; got != c.limit {
+				t.Errorf("Select.Limit set = %v, want %v", got, c.limit)
+			}
+			if stmt.Path != "" {
+				t.Errorf("Path = %q, want empty: the source is a query", stmt.Path)
+			}
+		})
+	}
+}
+
+// TestImportIntoSourceIsAWholeQueryExpression pins that the FROM slot reads a
+// set operation whichever primary comes first. v8.5.5 accepts all of these
+// (measured by PREPARE and by execution, which agree), so reading only the
+// first primary would take a union after SELECT and refuse one after TABLE.
+func TestImportIntoSourceIsAWholeQueryExpression(t *testing.T) {
+	for _, sql := range []string{
+		"IMPORT INTO t FROM SELECT 1 UNION SELECT 2",
+		"IMPORT INTO t FROM TABLE t1 UNION TABLE t2",
+		"IMPORT INTO t FROM TABLE t1 UNION SELECT 1",
+		"IMPORT INTO t FROM TABLE t1 INTERSECT TABLE t2",
+		"IMPORT INTO t FROM TABLE t1 EXCEPT TABLE t2",
+		"IMPORT INTO t FROM VALUES ROW(1) UNION SELECT 1",
+		"IMPORT INTO t FROM VALUES ROW(1) UNION TABLE t2",
+	} {
+		stmt := parseImportInto(t, sql)
+		if stmt.Select == nil {
+			t.Errorf("Select is unset for %q", sql)
+		}
+	}
+}
+
+// TestImportIntoRejectsIncompleteSource pins that the query expression still
+// has to be complete: v8.5.5 answers 1064 for each of these.
+func TestImportIntoRejectsIncompleteSource(t *testing.T) {
+	for _, sql := range []string{
+		"IMPORT INTO t FROM TABLE t1 UNION",
+		"IMPORT INTO t FROM TABLE t1 UNION TABLE",
+		"IMPORT INTO t FROM TABLE t1 ORDER BY",
+		"IMPORT INTO t FROM TABLE t1 garbage",
+		"IMPORT INTO t FROM TABLE",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a syntax error", sql)
+		}
+	}
+}
+
+// TestImportIntoRejectsValuesWithoutRow pins the one VALUES spelling v8.5.5
+// answers 1064 for, which is what makes VALUES ROW(...) worth reading.
+func TestImportIntoRejectsValuesWithoutRow(t *testing.T) {
+	for _, sql := range []string{
+		"IMPORT INTO t FROM VALUES (1)",
+		"IMPORT INTO t FROM VALUES (1,1)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a syntax error", sql)
+		}
 	}
 }
 

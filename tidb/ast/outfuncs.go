@@ -5390,9 +5390,6 @@ func writeImportIntoStmt(sb *strings.Builder, n *ImportIntoStmt) {
 	case n.Select != nil:
 		sb.WriteString(" :from ")
 		writeNode(sb, n.Select)
-	case n.TableSource != nil:
-		sb.WriteString(" :from ")
-		writeNode(sb, n.TableSource)
 	default:
 		fmt.Fprintf(sb, " :path %q", n.Path)
 	}
