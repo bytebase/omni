@@ -353,6 +353,12 @@ func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
 		return containsDisallowedFunctionalIndexExpr(e.Expr) ||
 			containsDisallowedFunctionalIndexExpr(e.Low) ||
 			containsDisallowedFunctionalIndexExpr(e.High)
+	case *nodes.PositionExpr:
+		// KEY ((position('x' in rand()))) is rejected exactly like
+		// KEY ((rand())), and position over a column is allowed (MySQL 8.0,
+		// whose functional-index rules this validator follows).
+		return containsDisallowedFunctionalIndexExpr(e.Substr) ||
+			containsDisallowedFunctionalIndexExpr(e.Str)
 	case *nodes.IsExpr:
 		return containsDisallowedFunctionalIndexExpr(e.Expr)
 	case *nodes.WeightStringExpr:

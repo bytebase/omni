@@ -21,6 +21,11 @@ type Parser struct {
 	parenRunStart int
 	parenRunPast  Token
 
+	// parenHasComma holds parenGroupHasComma's verdict for each '(' of the
+	// groups it scanned: one scan answers for every group it passes, so a
+	// nested INTERVAL (INTERVAL (...)) costs one pass and not one per level.
+	parenHasComma map[int]bool
+
 	// parenQuery holds parenOpensQuery's verdict for each '(' of the runs it
 	// classified, and parenAfter, for each '(' of the blocks it scanned, the
 	// type of the token after the matching ')'.

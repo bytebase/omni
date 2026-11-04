@@ -716,10 +716,13 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			return
 		}
 		b.WriteString(name)
-		if n.Distinct {
-			b.WriteString("(DISTINCT ")
-		} else {
-			b.WriteString("(")
+		b.WriteString("(")
+		// The engine names an unaliased item after its own text, so the
+		// quantifier appears as written: SUM(DISTINCTROW ALL c1) is the column
+		// name TiDB v8.5.5, MySQL 8.0 and MariaDB 11.8 all give.
+		if q := n.Quantifier.String(); q != "" {
+			b.WriteString(q)
+			b.WriteString(" ")
 		}
 		for i, arg := range n.Args {
 			if i > 0 {
@@ -736,12 +739,27 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString("(")
 		writeExprAlias(b, n.Expr)
 		b.WriteString(")")
+	case *ast.ExtractExpr:
+		b.WriteString("EXTRACT(")
+		b.WriteString(n.Unit)
+		b.WriteString(" FROM ")
+		writeExprAlias(b, n.Expr)
+		b.WriteString(")")
+	case *ast.PositionExpr:
+		b.WriteString("POSITION(")
+		writeExprAlias(b, n.Substr)
+		b.WriteString(" IN ")
+		writeExprAlias(b, n.Str)
+		b.WriteString(")")
 	case *ast.CastExpr:
 		// MySQL 8.0 auto-alias: "CAST(a AS CHAR)" — uppercase keywords, no charset.
 		b.WriteString("CAST(")
 		writeExprAlias(b, n.Expr)
 		b.WriteString(" AS ")
 		b.WriteString(deparseDataTypeAlias(n.TypeName))
+		if n.Array {
+			b.WriteString(" ARRAY")
+		}
 		b.WriteString(")")
 	case *ast.ConvertExpr:
 		b.WriteString("CONVERT(")
@@ -1283,6 +1301,10 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		writeConvertExpr(b, n)
 	case *ast.IntervalExpr:
 		writeIntervalExpr(b, n)
+	case *ast.ExtractExpr:
+		writeExtractExpr(b, n)
+	case *ast.PositionExpr:
+		writePositionExpr(b, n)
 	case *ast.KeywordArg:
 		// Bare keyword argument (timestampdiff unit, get_format type) —
 		// never quoted: the engine stores timestampdiff(SECOND,...) and
@@ -1663,6 +1685,35 @@ func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
 	writeExpr(b, n.Expr)
 	b.WriteString(" as ")
 	b.WriteString(deparseDataType(n.TypeName))
+	if n.Array {
+		// SHOW CREATE TABLE renders a multi-valued index as
+		// ((cast(`b` as signed array))) (oracle TiDB v8.5.5, MySQL 8.0).
+		b.WriteString(" array")
+	}
+	b.WriteString(")")
+}
+
+// writeExtractExpr writes EXTRACT(unit FROM expr). The unit is a bare keyword
+// the engine stores as written, with a SQL_TSI_ synonym folded to its
+// canonical unit by the parser (oracle TiDB v8.5.5: extract(day_hour from
+// `a`)).
+func writeExtractExpr(b *strings.Builder, n *ast.ExtractExpr) {
+	b.WriteString("extract(")
+	b.WriteString(strings.ToLower(n.Unit))
+	b.WriteString(" from ")
+	writeExpr(b, n.Expr)
+	b.WriteString(")")
+}
+
+// writePositionExpr writes POSITION(substr IN str). TiDB v8.5.5 stores the
+// call that way; MySQL 8.0 and MariaDB 11.8 store it as locate(substr, str),
+// the same function under its other name. Keeping POSITION makes the text
+// parse back to this node on every engine.
+func writePositionExpr(b *strings.Builder, n *ast.PositionExpr) {
+	b.WriteString("position(")
+	writeExpr(b, n.Substr)
+	b.WriteString(" in ")
+	writeExpr(b, n.Str)
 	b.WriteString(")")
 }
 
@@ -1843,7 +1894,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	default:
 		// Build argument list with no spaces after commas
 		b.WriteString("(")
-		if n.Distinct {
+		// The engine keeps only whether duplicates are removed: it stores
+		// sum(distinct `c1`) for every DISTINCT, DISTINCTROW and DISTINCT ALL
+		// spelling and drops a bare ALL, which is the default (oracle TiDB
+		// v8.5.5, MySQL 8.0, MariaDB 11.8: SHOW CREATE VIEW).
+		if n.Quantifier.RemovesDuplicates() {
 			b.WriteString("distinct ")
 		}
 		for i, arg := range n.Args {
@@ -2004,9 +2059,9 @@ func writeSubqueryExpr(b *strings.Builder, n *ast.SubqueryExpr) {
 func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("GROUP_CONCAT(")
 
-	// DISTINCT
-	if n.Distinct {
-		b.WriteString("DISTINCT ")
+	if q := n.Quantifier.String(); q != "" {
+		b.WriteString(q)
+		b.WriteString(" ")
 	}
 
 	// Arguments
@@ -2040,6 +2095,10 @@ func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 	}
 
 	b.WriteString(")")
+	if n.Over != nil {
+		b.WriteString(" ")
+		writeWindowDefAlias(b, n.Over)
+	}
 }
 
 // writeGroupConcat handles GROUP_CONCAT with its special syntax:
@@ -2049,7 +2108,7 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("group_concat(")
 
 	// DISTINCT
-	if n.Distinct {
+	if n.Quantifier.RemovesDuplicates() {
 		b.WriteString("distinct ")
 	}
 
@@ -2086,6 +2145,11 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 	}
 
 	b.WriteString(")")
+	// The call takes a window, like any other aggregate's.
+	if n.Over != nil {
+		b.WriteString(" ")
+		writeWindowDef(b, n.Over)
+	}
 }
 
 // quoteIdent quotes an identifier in backticks, doubling any backtick inside
