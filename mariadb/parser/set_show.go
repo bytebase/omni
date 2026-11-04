@@ -1214,6 +1214,19 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 	}
 
+	if p.cur.Type != tokEOF && p.cur.Type != ';' {
+		// A SHOW statement ends where its target ends: Split has already cut
+		// on the delimiter, so anything left in this segment is a second
+		// statement, and the statement loop takes one without needing a
+		// separator. That turned `SHOW DATABASES TABLE t` into a SHOW plus a
+		// `TABLE t` -- a 1064 on MariaDB 11.8.8, two statements here -- and did the
+		// same for every other target with a statement after it. The check
+		// belongs to SHOW rather than to the loop: `CREATE TABLE ta TABLE tb`
+		// is one statement the loop reads as two, and closing it there needs
+		// CREATE TABLE ... [AS] {TABLE t | VALUES ...} first.
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	if stmt.Type == "" {
 		// Unreachable: every arm above either sets Type or returns an
 		// error. The guard is here because the arms used to fall through

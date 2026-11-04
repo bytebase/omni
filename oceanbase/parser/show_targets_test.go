@@ -7,8 +7,8 @@ import "testing"
 // because the forms a permissive SHOW swallows are exactly the ones no test
 // suite writes: a target keyword with nothing after it, a missing FROM|IN, a
 // singular where the grammar has only a plural, two filters at once, a LIKE
-// whose operand is not a string, a FOR CHANNEL named as an identifier, and
-// the other engines' SHOW statements.
+// whose operand is not a string, a FOR CHANNEL named as an identifier, a
+// whole statement after the target, and the other engines' SHOW statements.
 //
 // The list is the same text in all four engine trees. What differs is the
 // engine column, which is where the forks part, so a row that reads
@@ -224,7 +224,8 @@ var showTargetCases = []showTargetCase{
 	{sql: "SHOW PROCESSLIST", engine: true},
 
 	// The filter. LIKE and WHERE read different things, and only one
-	// filter may follow a target.
+	// filter may follow a target. The operand after LIKE is one string
+	// literal here, so the COLLATE suffix TiDB reads is a 1064.
 	{sql: "SHOW DATABASES LIKE 't'", engine: true},
 	{sql: "SHOW DATABASES LIKE @v", engine: false},
 	{sql: "SHOW DATABASES LIKE concat('a','%')", engine: false},
@@ -232,6 +233,15 @@ var showTargetCases = []showTargetCase{
 	{sql: "SHOW DATABASES LIKE -1", engine: false},
 	{sql: "SHOW DATABASES LIKE NULL", engine: false},
 	{sql: "SHOW DATABASES LIKE ('t')", engine: false},
+	{sql: "SHOW DATABASES LIKE 't%' COLLATE utf8mb4_bin", engine: false},
+	{sql: "SHOW DATABASES LIKE 't%' COLLATE 'utf8mb4_bin'", engine: false},
+	{sql: "SHOW DATABASES LIKE 't%' COLLATE binary", engine: false},
+	{sql: "SHOW DATABASES LIKE 't%' COLLATE", engine: false},
+	{sql: "SHOW DATABASES LIKE 't%' COLLATE 1", engine: false},
+	{sql: "SHOW TABLES LIKE 't%' COLLATE utf8mb4_bin", engine: false},
+	{sql: "SHOW DATABASES LIKE 'a' || 'b'", engine: false},
+	{sql: "SHOW DATABASES LIKE 'a' + 1", engine: false},
+	{sql: "SHOW DATABASES LIKE 'a' -> '$.x'", engine: false},
 	{sql: "SHOW DATABASES LIKE", engine: false},
 	{sql: "SHOW DATABASES LIKE 't' LIKE 'u'", engine: false},
 	{sql: "SHOW DATABASES LIKE 't' AND 1", engine: false},
@@ -318,6 +328,27 @@ var showTargetCases = []showTargetCase{
 	{sql: "SHOW RESTORES LIKE 'r0001'", engine: false},
 	{sql: "SHOW CONFIG", engine: false},
 	{sql: "SHOW CONFIG WHERE type='tidb'", engine: false},
+
+	// A statement after the target. Split has already cut on the
+	// delimiter, so what is left in the segment is a second statement, and
+	// a SHOW that returned without reading to the end let the loop take it
+	// as one.
+	{sql: "SHOW DATABASES TABLE t", engine: false},
+	{sql: "SHOW TABLES TABLE t", engine: false},
+	{sql: "SHOW CREATE TABLE t TABLE t2", engine: false},
+	{sql: "SHOW TABLE STATUS TABLE t", engine: false},
+	{sql: "SHOW VARIABLES LIKE 'x%' TABLE t", engine: false},
+	{sql: "SHOW PLACEMENT TABLE t", engine: false},
+	{sql: "SHOW PLACEMENT FOR DATABASE db1 TABLE tb1", engine: false},
+	{sql: "SHOW PLACEMENT FOR SCHEMA db1 TABLE tb1", engine: false},
+	{sql: "SHOW PLACEMENT FOR TABLE tb1 TABLE tb2", engine: false},
+	{sql: "SHOW PLACEMENT FOR TABLE tb1 DATABASE db1", engine: false},
+	{sql: "SHOW PLACEMENT FOR TABLE tb1 PARTITION p1 PARTITION p2", engine: false},
+	{sql: "SHOW TABLE t1 REGIONS TABLE t2", engine: false},
+	{sql: "SHOW TABLE t1 NEXT_ROW_ID TABLE t2", engine: false},
+	{sql: "SHOW BUILTINS TABLE t", engine: false},
+	{sql: "SHOW DISTRIBUTION JOB 1 TABLE t", engine: false},
+	{sql: "SHOW STATS_META TABLE t", engine: false},
 }
 
 // TestShowTargets holds the parser to the recorded OceanBase verdicts. It

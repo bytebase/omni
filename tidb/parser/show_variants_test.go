@@ -334,3 +334,122 @@ func intLitValue(t *testing.T, e nodes.ExprNode) int64 {
 	}
 	return lit.Value
 }
+
+// TestShowEndsWhereItsTargetEnds pins that a SHOW reads to the end of its
+// statement. Split has already cut on the delimiter, so anything left in the
+// segment is a second statement, and the statement loop takes one without
+// needing a separator between them: every form here parsed as a SHOW plus a
+// `TABLE t`, which is a 1064 on TiDB v8.5.5.
+//
+// The verdicts are in showTargetCases, measured against the server. What this
+// test adds is the shape: a boolean accept/reject cannot tell a statement
+// that swallowed its trailing text from one that left it for the loop, and it
+// was the second. So the assertion is on the statement count.
+func TestShowEndsWhereItsTargetEnds(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW PLACEMENT FOR DATABASE db1 TABLE tb1",
+		"SHOW PLACEMENT FOR SCHEMA db1 TABLE tb1",
+		"SHOW PLACEMENT FOR TABLE tb1 TABLE tb2",
+		"SHOW PLACEMENT TABLE t",
+		"SHOW DATABASES TABLE t",
+		"SHOW TABLES TABLE t",
+		"SHOW CREATE TABLE t TABLE t2",
+		"SHOW TABLE STATUS TABLE t",
+		"SHOW TABLE t1 REGIONS TABLE t2",
+		"SHOW TABLE t1 NEXT_ROW_ID TABLE t2",
+		"SHOW BUILTINS TABLE t",
+		"SHOW DISTRIBUTION JOB 1 TABLE t",
+		"SHOW STATS_META TABLE t",
+		"SHOW VARIABLES LIKE 'x%' TABLE t",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			list, err := Parse(sql)
+			if err == nil {
+				t.Errorf("Parse(%q) accepted as %d statements; TiDB v8.5.5 answers 1064", sql, len(list.Items))
+			}
+		})
+	}
+	// What the guard does not refuse: the delimiter Split leaves behind, and
+	// a second statement that is separated from the first.
+	for _, sql := range []string{
+		"SHOW TABLES",
+		"SHOW TABLES;",
+		"SHOW TABLES ;",
+		"SHOW TABLES /* trailing comment */",
+		"CREATE PROCEDURE p() BEGIN SHOW TABLES; END",
+		"CREATE PROCEDURE p() BEGIN IF 1 THEN SHOW TABLES; END IF; END",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err != nil {
+				t.Errorf("Parse(%q): %v", sql, err)
+			}
+		})
+	}
+	// Two statements with a separator stay two statements.
+	list, err := Parse("SHOW TABLES; SHOW DATABASES")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(list.Items) != 2 {
+		t.Errorf("got %d statements, want 2", len(list.Items))
+	}
+}
+
+// TestShowLikePatternShape pins what a SHOW filter's LIKE holds. TiDB reads a
+// SimpleExpr there, so the pattern may carry a COLLATE suffix, and the
+// collation is a CollationName: a quoted name and the keyword BINARY are as
+// good as an identifier. The suffix wraps the pattern rather than replacing
+// it, so a reader still finds the string underneath.
+func TestShowLikePatternShape(t *testing.T) {
+	for _, tc := range []struct{ sql, pattern, collation string }{
+		{"SHOW DATABASES LIKE 't%'", "t%", ""},
+		{"SHOW DATABASES LIKE 't%' COLLATE utf8mb4_bin", "t%", "utf8mb4_bin"},
+		{"SHOW DATABASES LIKE 't%' COLLATE 'utf8mb4_bin'", "t%", "utf8mb4_bin"},
+		{"SHOW DATABASES LIKE 't%' COLLATE binary", "t%", "binary"},
+		{"SHOW TABLES LIKE 't%' COLLATE utf8mb4_bin", "t%", "utf8mb4_bin"},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			stmt := parseOneShow(t, tc.sql)
+			like := stmt.Like
+			if tc.collation != "" {
+				coll, ok := like.(*nodes.CollateExpr)
+				if !ok {
+					t.Fatalf("Like = %T, want *ast.CollateExpr", like)
+				}
+				if coll.Collation != tc.collation {
+					t.Errorf("Collation = %q, want %q", coll.Collation, tc.collation)
+				}
+				like = coll.Expr
+			}
+			lit, ok := like.(*nodes.StringLit)
+			if !ok {
+				t.Fatalf("pattern is %T, want *ast.StringLit", like)
+			}
+			if lit.Value != tc.pattern {
+				t.Errorf("pattern = %q, want %q", lit.Value, tc.pattern)
+			}
+			if stmt.Where != nil {
+				t.Errorf("Where = %v, want nil", stmt.Where)
+			}
+		})
+	}
+	// What a SimpleExpr is not: the comparison, boolean, arithmetic, bitwise
+	// and JSON operators of a whole Expression, and a COLLATE with no name.
+	for _, sql := range []string{
+		"SHOW DATABASES LIKE 't' LIKE 'u'",
+		"SHOW DATABASES LIKE 't' AND 1",
+		"SHOW DATABASES LIKE 'a' || 'b'",
+		"SHOW DATABASES LIKE 'a' + 1",
+		"SHOW DATABASES LIKE 'a' * 2",
+		"SHOW DATABASES LIKE 'a' | 1",
+		"SHOW DATABASES LIKE 'a' -> '$.x'",
+		"SHOW DATABASES LIKE 't%' COLLATE",
+		"SHOW DATABASES LIKE 't%' COLLATE 1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; TiDB v8.5.5 answers 1064", sql)
+			}
+		})
+	}
+}

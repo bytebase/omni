@@ -1052,6 +1052,20 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 	}
 
+	if p.cur.Type != tokEOF && p.cur.Type != ';' {
+		// A SHOW statement ends where its target ends: Split has already cut
+		// on the delimiter, so anything left in this segment is a second
+		// statement, and the statement loop takes one without needing a
+		// separator. That turned `SHOW PLACEMENT FOR DATABASE db1 TABLE tb1`
+		// into a SHOW plus a `TABLE tb1` -- a 1064 on TiDB v8.5.5, two
+		// statements here -- and did the same for every other target with a
+		// statement after it, `SHOW DATABASES TABLE t` included. The check
+		// belongs to SHOW rather than to the loop: `CREATE TABLE ta TABLE tb`
+		// is one statement the loop reads as two, and closing it there needs
+		// CREATE TABLE ... [AS] {TABLE t | VALUES ...} first.
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	if stmt.Type == "" {
 		// Unreachable: every arm above either sets Type or returns an
 		// error. The guard is here because the arms used to fall through
@@ -1242,7 +1256,7 @@ func (p *Parser) parseShowJobID() (nodes.ExprNode, error) {
 func (p *Parser) parseShowLikeOrWhere(stmt *nodes.ShowStmt) error {
 	if p.cur.Type == kwLIKE {
 		p.advance()
-		expr, err := p.parsePrefixExpr()
+		expr, err := p.parseShowLikePattern()
 		if err != nil {
 			return err
 		}
@@ -1262,6 +1276,46 @@ func (p *Parser) parseShowLikeOrWhere(stmt *nodes.ShowStmt) error {
 		stmt.Where = expr
 	}
 	return nil
+}
+
+// parseShowLikePattern reads the SimpleExpr a SHOW filter's LIKE takes
+// (parser.y:8071). SimpleExpr is prefix and atomic forms plus two infix ones,
+// `SimpleExpr "COLLATE" CollationName` (parser.y:8076) and `SimpleExpr pipes
+// SimpleExpr` (parser.y:8104), and the arithmetic, bitwise, comparison and
+// boolean operators of a whole Expression are none of it.
+//
+// Of the two infix forms only COLLATE is read here. TiDB v8.5.5 answers 1064
+// on `SHOW DATABASES LIKE 'a' || 'b'`: outside PIPES_AS_CONCAT the lexer
+// gives `||` as OR, which is no SimpleExpr, so the grammar's pipes arm is
+// unreachable in the mode the server runs in. `+`, `*`, `|` and `->` after
+// the pattern are a 1064 for the plainer reason that SimpleExpr has no arm
+// for them, and the prefix parse already stops short of all four.
+//
+// The collation is a CollationName, so a quoted name and the keyword BINARY
+// are as good as an identifier: `COLLATE 'utf8mb4_bin'` and `COLLATE binary`
+// both parse, where reading a bare identifier took neither.
+func (p *Parser) parseShowLikePattern() (nodes.ExprNode, error) {
+	start := p.pos()
+	expr, err := p.parsePrefixExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	for p.cur.Type == kwCOLLATE {
+		p.advance() // consume COLLATE
+		collation, err := p.parseCollationName()
+		if err != nil {
+			return nil, err
+		}
+		expr = &nodes.CollateExpr{
+			Loc:       nodes.Loc{Start: start, End: p.prev.End},
+			Expr:      expr,
+			Collation: collation,
+		}
+	}
+	return expr, nil
 }
 
 // parseShowFromLikeOrWhere parses optional FROM|IN db, LIKE, or WHERE for SHOW statements.

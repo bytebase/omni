@@ -169,8 +169,16 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
-				} else if p.cur.Type == tokIDENT {
-					alias, _, _ := p.parseIdent()
+				} else if p.isIdentToken() {
+					// TableAsNameOpt reads an Identifier, which is any
+					// unreserved keyword as well as a plain identifier, so
+					// `DELETE FROM t config` names an alias `config`.
+					// Testing for tokIDENT alone let any word registered as
+					// an unreserved keyword fall through unconsumed.
+					alias, _, err := p.parseIdent()
+					if err != nil {
+						return nil, err
+					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
 				}

@@ -7,8 +7,8 @@ import "testing"
 // permissive SHOW swallows are exactly the ones no test suite writes: a
 // target keyword with nothing after it, a missing FROM|IN, a singular where
 // the grammar has only a plural, two filters at once, a LIKE whose operand is
-// not a string, a FOR CHANNEL named as an identifier, and the other engines'
-// SHOW statements.
+// not a string, a FOR CHANNEL named as an identifier, a whole statement
+// after the target, and the other engines' SHOW statements.
 //
 // The list is the same text in all four engine trees. What differs is this
 // column, which is where the forks part, so a row that reads differently here
@@ -214,7 +214,9 @@ var showTargetCases = []showTargetCase{
 	{"SHOW PROCESSLIST", true},
 
 	// The filter. LIKE and WHERE read different things, and only one
-	// filter may follow a target.
+	// filter may follow a target. TiDB reads a SimpleExpr after LIKE, so a
+	// COLLATE suffix is part of the pattern there and a 1064 on the other
+	// three, where the operand is one string literal.
 	{"SHOW DATABASES LIKE 't'", true},
 	{"SHOW DATABASES LIKE @v", false},
 	{"SHOW DATABASES LIKE concat('a','%')", false},
@@ -222,6 +224,15 @@ var showTargetCases = []showTargetCase{
 	{"SHOW DATABASES LIKE -1", false},
 	{"SHOW DATABASES LIKE NULL", false},
 	{"SHOW DATABASES LIKE ('t')", false},
+	{"SHOW DATABASES LIKE 't%' COLLATE utf8mb4_bin", false},
+	{"SHOW DATABASES LIKE 't%' COLLATE 'utf8mb4_bin'", false},
+	{"SHOW DATABASES LIKE 't%' COLLATE binary", false},
+	{"SHOW DATABASES LIKE 't%' COLLATE", false},
+	{"SHOW DATABASES LIKE 't%' COLLATE 1", false},
+	{"SHOW TABLES LIKE 't%' COLLATE utf8mb4_bin", false},
+	{"SHOW DATABASES LIKE 'a' || 'b'", false},
+	{"SHOW DATABASES LIKE 'a' + 1", false},
+	{"SHOW DATABASES LIKE 'a' -> '$.x'", false},
 	{"SHOW DATABASES LIKE", false},
 	{"SHOW DATABASES LIKE 't' LIKE 'u'", false},
 	{"SHOW DATABASES LIKE 't' AND 1", false},
@@ -308,6 +319,27 @@ var showTargetCases = []showTargetCase{
 	{"SHOW RESTORES LIKE 'r0001'", false},
 	{"SHOW CONFIG", false},
 	{"SHOW CONFIG WHERE type='tidb'", false},
+
+	// A statement after the target. Split has already cut on the
+	// delimiter, so what is left in the segment is a second statement, and
+	// a SHOW that returned without reading to the end let the loop take it
+	// as one.
+	{"SHOW DATABASES TABLE t", false},
+	{"SHOW TABLES TABLE t", false},
+	{"SHOW CREATE TABLE t TABLE t2", false},
+	{"SHOW TABLE STATUS TABLE t", false},
+	{"SHOW VARIABLES LIKE 'x%' TABLE t", false},
+	{"SHOW PLACEMENT TABLE t", false},
+	{"SHOW PLACEMENT FOR DATABASE db1 TABLE tb1", false},
+	{"SHOW PLACEMENT FOR SCHEMA db1 TABLE tb1", false},
+	{"SHOW PLACEMENT FOR TABLE tb1 TABLE tb2", false},
+	{"SHOW PLACEMENT FOR TABLE tb1 DATABASE db1", false},
+	{"SHOW PLACEMENT FOR TABLE tb1 PARTITION p1 PARTITION p2", false},
+	{"SHOW TABLE t1 REGIONS TABLE t2", false},
+	{"SHOW TABLE t1 NEXT_ROW_ID TABLE t2", false},
+	{"SHOW BUILTINS TABLE t", false},
+	{"SHOW DISTRIBUTION JOB 1 TABLE t", false},
+	{"SHOW STATS_META TABLE t", false},
 }
 
 // TestShowTargetsOracle asserts omni agrees with a live MariaDB 11.8.8 on
