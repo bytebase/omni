@@ -253,7 +253,34 @@ func TestRequireIsNull(t *testing.T) {
 			sql:  "SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id PATTERN (a) DEFINE a AS a.n = NULL);",
 			want: []finding{{0, "a.n = NULL", "`a.n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
 		},
+		{
+			// The comparison is quoted and anchored from its first
+			// operand's first token, not from the operator inside it.
+			name: "compound operands",
+			sql:  "SELECT * FROM t WHERE a*b = NULL;\nSELECT * FROM t WHERE n + 1 <> NULL AND NULL = code || 'x';\nBEGIN IF (v - 1) * 2 = NULL THEN NULL; END IF; END;",
+			want: []finding{
+				{0, "a*b = NULL", "`a*b = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{1, "n + 1 <> NULL", "`n + 1 <> NULL` is never true.\n\nUse `IS NOT NULL` instead.", []int{0}},
+				{1, "NULL = code || 'x'", "`NULL = code || 'x'` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+				{2, "(v - 1) * 2 = NULL", "`(v - 1) * 2 = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+			},
+		},
 	})
+
+	sql := "SELECT * FROM t WHERE a*b = NULL;"
+	result, err := Review(context.Background(), sql, review.Options{Rules: []review.Rule{review.RequireIsNull}}, []review.Target{{Schema: shop()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 1 {
+		t.Fatalf("Findings = %v, want one", result.Findings)
+	}
+	if got, want := result.Findings[0].Range, (review.Range{Start: 22, End: 32}); got != want {
+		t.Errorf("Range = %+v, want %+v, the bytes of a*b = NULL", got, want)
+	}
+	if got, want := result.Findings[0].Message, "`a*b = NULL` is never true.\n\nUse `IS NULL` instead."; got != want {
+		t.Errorf("Message = %q, want %q", got, want)
+	}
 }
 
 func TestDisallowDropObject(t *testing.T) {

@@ -1138,14 +1138,14 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 	}
 
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
-		mrStart := p.pos()
-		mrRef, parseErr976 := p.parseMatchRecognize(mrStart)
+		// The clause wraps the table it reads, so it starts where the table
+		// does, and the table ends before it.
+		tr.Loc.End = p.prev.End
+		mrRef, parseErr976 := p.parseMatchRecognize(tr.Loc.Start)
 		if parseErr976 != nil {
 			return nil, parseErr976
 		}
 		if mrClause, ok := mrRef.(*nodes.MatchRecognizeClause); ok {
-			// Wrap: the table ref becomes the left side of a join-like construct
-			// For simplicity, return the MATCH_RECOGNIZE with the table ref embedded
 			mrClause.Source = tr
 			return p.parsePivotSuffix(mrRef)
 		}
@@ -1985,11 +1985,12 @@ func (p *Parser) parseJoinContinuation(left nodes.TableExpr) (nodes.TableExpr, e
 			return left, p.syntaxErrorAtCur()
 		}
 
+		// A join starts where its left table does.
 		jc := &nodes.JoinClause{
 			Type:  jt,
 			Left:  left,
 			Right: right,
-			Loc:   nodes.Loc{Start: joinStart},
+			Loc:   nodes.Loc{Start: exprLocStart(left, joinStart)},
 		}
 
 		// ON condition
@@ -2679,6 +2680,7 @@ func (p *Parser) unpivotClauseAhead() bool {
 // itself (both implement TableExpr), so join continuations and the alias
 // participate in the FROM chain like any other table reference. Oracle also
 // accepts chained clauses (t PIVOT (...) a PIVOT (...) b), so this loops.
+// Each clause starts where the source it wraps does.
 // A bare identifier alias is accepted; AS stays rejected (Oracle t_alias
 // takes no AS keyword). No-op when no clause follows.
 func (p *Parser) parsePivotSuffix(source nodes.TableExpr) (nodes.TableExpr, error) {
@@ -2690,6 +2692,7 @@ func (p *Parser) parsePivotSuffix(source nodes.TableExpr) (nodes.TableExpr, erro
 				return nil, err
 			}
 			pc.Source = source
+			pc.Loc.Start = exprLocStart(source, pc.Loc.Start)
 			if p.isTableAliasCandidate() {
 				pc.Alias, err = p.parseAlias()
 				if err != nil {
@@ -2704,6 +2707,7 @@ func (p *Parser) parsePivotSuffix(source nodes.TableExpr) (nodes.TableExpr, erro
 				return nil, err
 			}
 			uc.Source = source
+			uc.Loc.Start = exprLocStart(source, uc.Loc.Start)
 			if p.isTableAliasCandidate() {
 				uc.Alias, err = p.parseAlias()
 				if err != nil {

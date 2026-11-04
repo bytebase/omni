@@ -120,13 +120,13 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.LikeExpr	expression	covered	SELECT 1 FROM dual WHERE a LIKE 'x%'	LIKE expression span	none	covered	keep_regression_guard
 *nodes.IsExpr	expression	covered	SELECT 1 FROM dual WHERE a IS NOT NULL	IS expression span	none	covered	keep_regression_guard
 *nodes.ExistsExpr	expression	covered	SELECT 1 FROM dual WHERE EXISTS (SELECT 1 FROM t)	subquery expression span	none	covered	keep_regression_guard
-*nodes.SubqueryExpr	expression	deferred		subquery expression fixture deferred after coverage audit	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.SubqueryExpr	expression	covered	SELECT 1 FROM dual WHERE a IN (SELECT b FROM t) AND c > ANY (SELECT d FROM u)	subquery spans its query inside the IN and ANY parentheses	none	covered	keep_regression_guard
 *nodes.IntervalExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.ParenExpr	expression	covered	SELECT (1 + 2) FROM dual	parenthesized expression span	none	covered	keep_regression_guard
 *nodes.DecodeExpr	expression	covered	SELECT DECODE(a, 1, 'one', 'other') FROM dual	decode expression span	none	covered	keep_regression_guard
 *nodes.DecodePair	ast	covered	SELECT DECODE(a, 1, 'one', 'other') FROM dual	decode expression span	none	covered	keep_regression_guard
 *nodes.TreatExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
-*nodes.MultisetExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.MultisetExpr	expression	covered	SELECT n1 MULTISET UNION ALL n2 FROM t	multiset expression starts at its left operand	none	covered	keep_regression_guard
 *nodes.CursorExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.ContainersExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.NumberLiteral	expression	covered	SELECT 1 FROM dual	number literal span	none	covered	keep_regression_guard
@@ -164,7 +164,7 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.SampleClause	clause	covered	SELECT * FROM t SAMPLE (10)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PivotClause	clause	covered	SELECT * FROM t PIVOT (SUM(a) FOR b IN (1))	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.UnpivotClause	clause	covered	SELECT * FROM t UNPIVOT (a FOR b IN (c))	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
-*nodes.MatchRecognizeClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.MatchRecognizeClause	clause	covered	SELECT * FROM t MATCH_RECOGNIZE (ORDER BY id PATTERN (a) DEFINE a AS a.n > 0)	clause starts at the table it reads	none	covered	keep_regression_guard
 *nodes.ModelClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.ModelMainModel	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.ModelRefModel	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support

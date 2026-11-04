@@ -301,18 +301,17 @@ func (p *Parser) continuesQualifiedChoice(arg nodes.ExprNode) bool {
 //	choice [ | choice ]... => expr
 //	choice: expr | lower .. upper | OTHERS
 //	FOR iterator [ INDEX expr | SEQUENCE ] => expr
-func (p *Parser) parseChoiceAssoc(first nodes.ExprNode, firstStart int) (nodes.ExprNode, error) {
+func (p *Parser) parseChoiceAssoc(first nodes.ExprNode) (nodes.ExprNode, error) {
 	assoc := &nodes.ChoiceAssocExpr{Loc: nodes.Loc{Start: p.pos()}}
 	var err error
 	switch {
 	case first != nil:
-		// A choice starts at its first token, which a binary expression's
-		// Loc does not: it starts at the operator.
-		assoc.Loc.Start = firstStart
+		assoc.Loc.Start = exprLocStart(first, assoc.Loc.Start)
 		assoc.Choices = &nodes.List{}
-		choice, choiceStart := first, firstStart
+		choice := first
 		for {
 			if p.cur.Type == tokDOTDOT {
+				lowerStart := exprLocStart(choice, p.pos())
 				p.advance() // consume ..
 				upper, err := p.parseRequiredExpr()
 				if err != nil {
@@ -321,7 +320,7 @@ func (p *Parser) parseChoiceAssoc(first nodes.ExprNode, firstStart int) (nodes.E
 				choice = &nodes.ChoiceRange{
 					Lower: choice,
 					Upper: upper,
-					Loc:   nodes.Loc{Start: choiceStart, End: p.prev.End},
+					Loc:   nodes.Loc{Start: lowerStart, End: p.prev.End},
 				}
 			}
 			// OTHERS stands alone (PLS-00851, PLS-00750 for a | OTHERS).
@@ -333,7 +332,6 @@ func (p *Parser) parseChoiceAssoc(first nodes.ExprNode, firstStart int) (nodes.E
 				break
 			}
 			p.advance() // consume |
-			choiceStart = p.pos()
 			if choice, err = p.parseRequiredExpr(); err != nil {
 				return nil, err
 			}

@@ -4,7 +4,12 @@ import (
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
-func exprLocStart(expr nodes.ExprNode, fallback int) int {
+// exprLocStart returns where expr starts, fallback when its start is
+// unknown. A node built around an operand the parser has already read, a
+// binary operator, a postfix test, a member or a suffix, a join or a PIVOT,
+// starts where that operand starts: a + b at a, (a) = b at its '(', and
+// t JOIN u ON ... at t.
+func exprLocStart(expr nodes.Node, fallback int) int {
 	loc := nodes.NodeLoc(expr)
 	if loc.Start >= 0 {
 		return loc.Start
@@ -354,7 +359,7 @@ func (p *Parser) postfixInfo() (int, bool) {
 
 // parseBinaryInfix parses a binary infix expression.
 func (p *Parser) parseBinaryInfix(left nodes.ExprNode, prec int, op string) (nodes.ExprNode, error) {
-	locStart := p.pos()
+	locStart := exprLocStart(left, p.pos())
 	p.advance() // consume operator
 
 	var right nodes.ExprNode
@@ -413,6 +418,9 @@ func (p *Parser) parseQuantifiedComparisonOperand() (nodes.ExprNode, error) {
 	}
 	p.advance()
 	if p.atQueryStart() {
+		// The parentheses are the quantifier's, so the subquery spans the
+		// query alone, as JSON_ARRAY's does.
+		queryStart := p.pos()
 		subquery, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
@@ -422,7 +430,7 @@ func (p *Parser) parseQuantifiedComparisonOperand() (nodes.ExprNode, error) {
 		}
 		fc.Args.Items = append(fc.Args.Items, &nodes.SubqueryExpr{
 			Subquery: subquery,
-			Loc:      nodes.Loc{Start: start, End: p.prev.End},
+			Loc:      nodes.Loc{Start: queryStart, End: p.prev.End},
 		})
 	} else {
 		args, err := p.parseExprList()
@@ -443,7 +451,7 @@ func (p *Parser) parseQuantifiedComparisonOperand() (nodes.ExprNode, error) {
 
 // parseBoolInfix parses AND/OR boolean expressions.
 func (p *Parser) parseBoolInfix(left nodes.ExprNode, prec int, op string) (nodes.ExprNode, error) {
-	start := p.pos()
+	start := exprLocStart(left, p.pos())
 	var boolop nodes.BoolExprType
 	if op == "AND" {
 		boolop = nodes.BOOL_AND
@@ -458,15 +466,14 @@ func (p *Parser) parseBoolInfix(left nodes.ExprNode, prec int, op string) (nodes
 		return nil, parseErr703
 	}
 	if right == nil {
-
-		return nil, p.syntaxErrorAtCur(
-
-		// Flatten: if left is the same bool type, merge args
-		)
+		return nil, p.syntaxErrorAtCur()
 	}
 
+	// Flatten a AND b AND c into one AND of three, which then ends where c
+	// does.
 	if be, ok := left.(*nodes.BoolExpr); ok && be.Boolop == boolop {
 		be.Args.Items = append(be.Args.Items, right)
+		be.Loc.End = p.prev.End
 		return be, nil
 	}
 
@@ -1356,17 +1363,14 @@ func (p *Parser) parseSubscriptIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 		return expr, nil
 	}
 
-	// Determine start position and function name from the expression
-	var start int
-	funcNameEnd := -1
+	// The reference starts where the subscripted expression does; a column
+	// names the measure, and anything else leaves the name unknown.
+	start := exprLocStart(expr, p.pos())
 	funcName := ""
-	switch e := expr.(type) {
-	case *nodes.ColumnRef:
+	funcNameLoc := nodes.NoLoc()
+	if e, ok := expr.(*nodes.ColumnRef); ok {
 		funcName = e.Column
-		start = e.Loc.Start
-		funcNameEnd = e.Loc.End
-	default:
-		start = p.pos()
+		funcNameLoc = e.Loc
 	}
 	p.advance() // consume '['
 
@@ -1396,7 +1400,7 @@ func (p *Parser) parseSubscriptIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 	// Represent subscript access as a FuncCallExpr (reusing the existing node type).
 	// This is a MODEL cell reference: measure[dim1, dim2]
 	return &nodes.FuncCallExpr{
-		FuncName: &nodes.ObjectName{Name: funcName, Loc: nodes.Loc{Start: start, End: funcNameEnd}},
+		FuncName: &nodes.ObjectName{Name: funcName, Loc: funcNameLoc},
 		Args:     args,
 		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
@@ -1503,9 +1507,8 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		for {
 			var arg nodes.ExprNode
 			var parseErr714 error
-			argStart := p.pos()
 			if p.plsqlCode && p.atQualifiedChoice() {
-				arg, parseErr714 = p.parseChoiceAssoc(nil, argStart)
+				arg, parseErr714 = p.parseChoiceAssoc(nil)
 			} else {
 				arg, parseErr714 = p.parseExpr()
 			}
@@ -1518,7 +1521,7 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 				return nil, p.syntaxErrorAtCur()
 			}
 			if p.plsqlCode && p.continuesQualifiedChoice(arg) {
-				if arg, parseErr714 = p.parseChoiceAssoc(arg, argStart); parseErr714 != nil {
+				if arg, parseErr714 = p.parseChoiceAssoc(arg); parseErr714 != nil {
 					return nil, parseErr714
 				}
 			} else if p.cur.Type == tokASSOC {
@@ -2341,7 +2344,7 @@ func (p *Parser) parsePostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
 //
 //	expr IS [NOT] { NULL | NAN | INFINITE | EMPTY | JSON | OF ... | A SET }
 func (p *Parser) parseIsExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+	start := exprLocStart(left, p.pos())
 	p.advance() // consume IS
 
 	not := false
@@ -2383,7 +2386,7 @@ func (p *Parser) parseIsExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 //
 //	expr [NOT] BETWEEN low AND high
 func (p *Parser) parseBetweenExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, error) {
-	start := p.pos()
+	start := exprLocStart(left, p.pos())
 	p.advance() // consume BETWEEN
 
 	// Parse low bound at higher precedence to avoid consuming AND as boolean
@@ -2427,15 +2430,18 @@ func (p *Parser) parseBetweenExpr(left nodes.ExprNode, not bool) (nodes.ExprNode
 //
 //	expr [NOT] IN ( expr_list | subquery )
 func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, error) {
-	start := p.pos()
+	start := exprLocStart(left, p.pos())
 	p.advance() // consume IN
 
 	list := &nodes.List{}
 
 	if p.cur.Type == '(' {
 		p.advance()
-		// IN (SELECT ...), IN (WITH ...), or IN ((SELECT ...) UNION ...)
+		// IN (SELECT ...), IN (WITH ...), or IN ((SELECT ...) UNION ...).
+		// The parentheses are the condition's, so the subquery spans the
+		// query alone.
 		if p.atQueryStart() {
+			queryStart := p.pos()
 			sub, parseErr742 := p.parseSelectStmt()
 			if parseErr742 != nil {
 				return nil, parseErr742
@@ -2445,7 +2451,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, err
 			}
 			subExpr := &nodes.SubqueryExpr{
 				Subquery: sub,
-				Loc:      nodes.Loc{Start: start, End: p.prev.End},
+				Loc:      nodes.Loc{Start: queryStart, End: p.prev.End},
 			}
 			list.Items = append(list.Items, subExpr)
 		} else {
@@ -2610,7 +2616,7 @@ func (p *Parser) parseTreatExpr() (nodes.ExprNode, error) {
 //
 //	expr MULTISET { UNION | INTERSECT | EXCEPT } [ ALL | DISTINCT ] expr
 func (p *Parser) parseMultisetOp(left nodes.ExprNode) (nodes.ExprNode, error) {
-	start := p.pos()
+	start := exprLocStart(left, p.pos())
 	p.advance() // consume MULTISET
 
 	op := ""
