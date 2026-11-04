@@ -1705,68 +1705,17 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// Parse the explainable statement
-	switch p.cur.Type {
-	case kwSELECT, kwWITH, '(':
-		// A query expression, which parseSelectStmt reads whole: a SELECT
-		// leaf, a WITH clause in front of one, a parenthesized body, or a
-		// set operation over them (SelectStmt, SelectStmtWithClause and
-		// SubSelect in ExplainableStmt).
-		sel, err := p.parseSelectStmt()
+	// The explainable statement, which PLAN REPLAYER DUMP EXPLAIN names too:
+	// both slots are upstream's one ExplainableStmt production, and
+	// parseExplainableStmt is it. ALTER TABLE is the one DDL in the set --
+	// ALTER DATABASE, CREATE TABLE, TRUNCATE and RENAME are each a 1064.
+	if p.atExplainableStmt() {
+		inner, err := p.parseExplainableStmt()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Stmt = sel
-	case kwINSERT:
-		ins, err := p.parseInsertStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = ins
-	case kwUPDATE:
-		upd, err := p.parseUpdateStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = upd
-	case kwDELETE:
-		del, err := p.parseDeleteStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = del
-	case kwREPLACE:
-		rep, err := p.parseReplaceStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = rep
-	case kwTABLE:
-		tbl, err := p.parseTableStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = tbl
-	case kwVALUES:
-		vals, err := p.parseValuesStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = vals
-	case kwALTER:
-		// ALTER TABLE is the one DDL TiDB explains: ALTER DATABASE,
-		// CREATE TABLE, TRUNCATE and RENAME are each a 1064.
-		alterStart := p.pos()
-		p.advance() // consume ALTER
-		if p.cur.Type != kwTABLE {
-			return nil, p.syntaxErrorAtCur()
-		}
-		alt, err := p.parseAlterTableStmt(alterStart)
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = alt
-	default:
+		stmt.Stmt = inner
+	} else {
 		// EXPLAIN tbl_name [col_name], which no modifier stands in front of.
 		// hasFormat rather than Format != "": the name may be an empty
 		// string, and FORMAT = '' is a modifier all the same.

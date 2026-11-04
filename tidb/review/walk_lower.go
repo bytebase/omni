@@ -64,8 +64,8 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dropStats(v)
 	case *ast.CreateStatisticsStmt:
 		return b.createStatistics(v)
-	case *ast.ExplainStmt:
-		return b.explain(v)
+	case *ast.ExplainStmt, *ast.TraceStmt, *ast.PlanReplayerStmt:
+		return b.wrapper(v)
 	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
 		return true
 	case *ast.CreateBindingStmt, *ast.DropBindingStmt, *ast.SetBindingStmt:
@@ -179,18 +179,21 @@ func (b *builder) createStatistics(v *ast.CreateStatisticsStmt) bool {
 	return b.relationsExist([]*ast.TableRef{v.Table})
 }
 
-// explain lowers EXPLAIN. Reporting a plan changes nothing, so a plain
-// EXPLAIN is followed without recording anything. ANALYZE runs the statement
-// it carries, and on TiDB that reaches DDL: EXPLAIN ANALYZE ALTER TABLE t ADD
-// COLUMN c adds the column, while EXPLAIN ALTER TABLE t ADD COLUMN c leaves
-// the table alone (both measured on v8.5.5 in
-// tidb/parser/explain_forms_test.go). That form is lowered as the statement it
-// performs, or the walk would lose the change.
-func (b *builder) explain(v *ast.ExplainStmt) bool {
-	if !v.Analyze || v.Stmt == nil {
+// wrapper lowers the three statements that carry another: EXPLAIN, TRACE and
+// PLAN REPLAYER DUMP. The form that runs nothing -- a plain EXPLAIN, a
+// TRACE PLAN, a plain DUMP -- is followed without recording anything, since
+// reporting a plan or writing a dump changes no name the walk keeps. The form
+// that runs the statement is lowered as the statement it performs, or the walk
+// would lose the change: EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c and
+// PLAN REPLAYER DUMP EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c each add the
+// column, and TRACE runs the DML and SET it carries. wrapped says which form
+// is which, and where each verdict was measured.
+func (b *builder) wrapper(v ast.Node) bool {
+	inner, runs, _ := wrapped(v)
+	if !runs || inner == nil {
 		return true
 	}
-	return b.statement(v.Stmt)
+	return b.statement(inner)
 }
 
 // tableNeeds adds the check that a statement's table exists as a base

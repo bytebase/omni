@@ -59,9 +59,9 @@ const maxMixedTables = 5
 
 // checkPriorBackupStatements reports, from the SQL alone, a top-level
 // statement the backup refuses: BATCH, REPLACE or INSERT ... ON DUPLICATE
-// KEY UPDATE, EXPLAIN ANALYZE of an UPDATE, a DELETE, or either of those,
-// which runs the statement, and a multi-table DELETE whose target the FROM
-// list does not name.
+// KEY UPDATE, a wrapper that runs an UPDATE, a DELETE, or either of those --
+// EXPLAIN ANALYZE, TRACE, and PLAN REPLAYER DUMP EXPLAIN ANALYZE -- and a
+// multi-table DELETE whose target the FROM list does not name.
 //
 // bytebase: backend/plugin/parser/tidb/backup.go — extractTables
 func checkPriorBackupStatements(stmts []statement, r *reporter) {
@@ -112,17 +112,30 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 			if overwrites(v) {
 				msg = "Prior backup can't back up " + review.Code("REPLACE") + " or " + review.Code("INSERT ... ON DUPLICATE KEY UPDATE") + ".\n\nTurn off **Prior backup** for this change."
 			}
-		case *ast.ExplainStmt:
-			if !v.Analyze {
+		case *ast.ExplainStmt, *ast.TraceStmt, *ast.PlanReplayerStmt:
+			// A wrapper in the form that runs the statement runs a change
+			// the backup does not see: extractTables switches on the
+			// top-level node, so a wrapped UPDATE or DELETE reaches its
+			// default arm and is skipped, and the change then runs with no
+			// backup. The form that runs nothing needs none.
+			inner, runs, _ := wrapped(v)
+			if !runs {
 				break
 			}
-			analyze := "Prior backup can't back up " + review.Code("EXPLAIN ANALYZE") + " of a statement that changes rows.\n\nRemove " + review.Code("EXPLAIN ANALYZE") + ", or turn off **Prior backup**."
-			switch w := v.Stmt.(type) {
+			wrapper := review.Code("EXPLAIN ANALYZE")
+			switch v.(type) {
+			case *ast.TraceStmt:
+				wrapper = review.Code("TRACE")
+			case *ast.PlanReplayerStmt:
+				wrapper = review.Code("PLAN REPLAYER DUMP EXPLAIN ANALYZE")
+			}
+			carried := "Prior backup can't back up " + wrapper + " of a statement that changes rows.\n\nRemove " + wrapper + ", or turn off **Prior backup**."
+			switch w := inner.(type) {
 			case *ast.UpdateStmt, *ast.DeleteStmt, *ast.BatchStmt:
-				msg = analyze
+				msg = carried
 			case *ast.InsertStmt:
 				if overwrites(w) {
-					msg = analyze
+					msg = carried
 				}
 			}
 		}

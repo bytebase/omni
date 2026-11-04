@@ -3235,21 +3235,21 @@ accept	accept	DEALLOCATE PREPARE ``
 accept	accept	EXECUTE test
 accept	accept	EXECUTE test USING @var1,@var2
 accept	accept	EXECUTE `` USING @var1,@var2
-reject	accept	trace begin
-reject	accept	trace commit
-reject	accept	trace rollback
-reject	accept	trace set a = 1
-reject	accept	trace select c1 from t1
-reject	accept	trace delete t1, t2 from t1 inner join t2 inner join t3 where t1.id=t2.id and t2.id=t3.id;
-reject	accept	trace insert into t values (1), (2), (3)
+accept	accept	trace begin
+accept	accept	trace commit
+accept	accept	trace rollback
+accept	accept	trace set a = 1
+accept	accept	trace select c1 from t1
+accept	accept	trace delete t1, t2 from t1 inner join t2 inner join t3 where t1.id=t2.id and t2.id=t3.id;
+accept	accept	trace insert into t values (1), (2), (3)
 reject	accept	trace replace into foo values (1 || 2)
-reject	accept	trace update t set id = id + 1 order by id desc;
-reject	accept	trace select c1 from t1 union (select c2 from t2) limit 1, 1
-reject	accept	trace format = 'row' select c1 from t1 union (select c2 from t2) limit 1, 1
-reject	accept	trace format = 'json' update t set id = id + 1 order by id desc;
-reject	accept	trace plan select c1 from t1
-reject	accept	trace plan target = 'estimation' select c1 from t1
-reject	accept	trace plan target = 'arandomstring' select c1 from t1
+accept	accept	trace update t set id = id + 1 order by id desc;
+accept	accept	trace select c1 from t1 union (select c2 from t2) limit 1, 1
+accept	accept	trace format = 'row' select c1 from t1 union (select c2 from t2) limit 1, 1
+accept	accept	trace format = 'json' update t set id = id + 1 order by id desc;
+accept	accept	trace plan select c1 from t1
+accept	accept	trace plan target = 'estimation' select c1 from t1
+accept	accept	trace plan target = 'arandomstring' select c1 from t1
 accept	accept	create global binding for select * from t using select * from t use index(a)
 accept	accept	create session binding for select * from t using select * from t use index(a)
 accept	accept	drop global binding for select * from t
@@ -3763,22 +3763,22 @@ accept	accept	select * from t where 1 > (with cte as (select * from t) select * 
 accept	accept	( with cte(n) as ( select * from t )  select n+1 from cte  union select n+2 from cte) union select 1
 accept	accept	( with cte(n) as ( select * from t )  select n+1 from cte) union select * from t
 accept	accept	with cte as (select * from t union select * from cte) select * from cte
-reject	accept	PLAN REPLAYER DUMP EXPLAIN SELECT a FROM t
-reject	accept	PLAN REPLAYER DUMP EXPLAIN SELECT * FROM t WHERE a > 10
-reject	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SELECT * FROM t WHERE a > 10
-reject	accept	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY WHERE a > 10 and t < 1 ORDER BY t LIMIT 10
-reject	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY WHERE a > 10 and t < 1 ORDER BY t LIMIT 10
-reject	accept	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY WHERE a > 10 and t < 1 LIMIT 10
-reject	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY WHERE a > 10 and t < 1 LIMIT 10
-reject	accept	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY LIMIT 10
-reject	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY LIMIT 10
-reject	accept	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY
-reject	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY
-reject	accept	PLAN REPLAYER LOAD '/tmp/sdfaalskdjf.zip'
-reject	accept	PLAN REPLAYER DUMP EXPLAIN 'sql.txt'
-reject	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE 'sql.txt'
-reject	accept	PLAN REPLAYER CAPTURE '123' '123'
-reject	accept	PLAN REPLAYER CAPTURE REMOVE '123' '123'
+accept	accept	PLAN REPLAYER DUMP EXPLAIN SELECT a FROM t
+accept	accept	PLAN REPLAYER DUMP EXPLAIN SELECT * FROM t WHERE a > 10
+accept	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SELECT * FROM t WHERE a > 10
+accept	accept	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY WHERE a > 10 and t < 1 ORDER BY t LIMIT 10
+accept	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY WHERE a > 10 and t < 1 ORDER BY t LIMIT 10
+accept	accept	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY WHERE a > 10 and t < 1 LIMIT 10
+accept	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY WHERE a > 10 and t < 1 LIMIT 10
+accept	accept	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY LIMIT 10
+accept	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY LIMIT 10
+accept	accept	PLAN REPLAYER DUMP EXPLAIN SLOW QUERY
+accept	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE SLOW QUERY
+accept	accept	PLAN REPLAYER LOAD '/tmp/sdfaalskdjf.zip'
+accept	accept	PLAN REPLAYER DUMP EXPLAIN 'sql.txt'
+accept	accept	PLAN REPLAYER DUMP EXPLAIN ANALYZE 'sql.txt'
+accept	accept	PLAN REPLAYER CAPTURE '123' '123'
+accept	accept	PLAN REPLAYER CAPTURE REMOVE '123' '123'
 reject	reject	traffic capture to '/tmp' duration='1s' encryption_method='aes' compress=true
 reject	reject	traffic capture to '/tmp' duration '1s' encryption_method 'aes' compress true
 reject	reject	traffic capture to '/tmp' encryption_method='aes' duration='1s'
