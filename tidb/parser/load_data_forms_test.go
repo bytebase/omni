@@ -70,6 +70,9 @@ var loadDataFormCases = []loadDataFormCase{
 	{"load data infile '/x.csv' into table t fields defined null by X'00'", true},
 	{"load data infile '/x.csv' into table t fields defined null by B'1101'", true},
 	{"load data infile '/x.csv' into table t fields defined null by 'a' defined null by 'b'", true},
+	{"load data infile '/x.csv' into table t fields defined null by 'a' optionally enclosed defined null by 'b'", true},
+	{"load data infile '/x.csv' into table t fields optionally enclosed by 'a' enclosed by 'b'", true},
+	{"load data infile '/x.csv' into table t fields enclosed by 'a' optionally enclosed by 'b'", true},
 	{"load data infile '/x.csv' into table t fields terminated by 'a' defined null by 'b' enclosed by 'c'", true},
 	{"load data infile '/x.csv' into table t fields defined null by 'a' terminated by 'b'", true},
 	// Its OPTIONALLY ENCLOSED tail carries no BY and no value.
@@ -141,6 +144,9 @@ var loadDataFormCases = []loadDataFormCase{
 
 	// --- the column-and-user-variable list and SET ---
 	{"load data infile '/x.csv' into table t (a, @v) set b = @v", true},
+	// A backquoted name is a column, even one spelled with an '@'.
+	{"load data infile '/x.csv' into table t (`@v`)", true},
+	{"load data infile '/x.csv' into table t (`@v`, a)", true},
 	{"load data infile '/x.csv' into table t (a,@1) with detached", true},
 	{"load data infile '/x.csv' into table t set b = default", true},
 
@@ -184,6 +190,14 @@ var loadDataFormCases = []loadDataFormCase{
 	{"import into t from table s", true},
 	{"import into t (a,b) from select * from s", true},
 	{"import into t (a) from select a from s with thread=2", true},
+	{"import into t (`@v`) from select 1", true},
+	{"import into t from select a from s order by a with thread=2", true},
+	{"import into t from select a from s limit 1 with thread=2", true},
+	// After GROUP BY, a WITH is the query's own WITH ROLLUP, so an option
+	// list needs its own WITH after it.
+	{"import into t from select a from s group by a with rollup", true},
+	{"import into t from select a from s group by a with rollup with thread=2", true},
+	{"import into t from select a from s group by a with thread=2", false},
 	// A query source carries neither a user variable nor a SET list, and a
 	// VALUES statement is no query here.
 	{"import into t (a,@1) from select a from s", false},

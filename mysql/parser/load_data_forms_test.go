@@ -53,6 +53,8 @@ var loadDataFieldCases = []loadDataFieldCase{
 	{"load data infile '/x.csv' into table t fields enclosed by 'a' escaped by 'b' terminated by 'c'", true},
 	{"load data infile '/x.csv' into table t lines terminated by 'b' starting by 'c'", true},
 	{"load data infile '/x.csv' into table t lines starting by 'a' starting by 'b'", true},
+	{"load data infile '/x.csv' into table t fields optionally enclosed by 'a' enclosed by 'b'", true},
+	{"load data infile '/x.csv' into table t fields enclosed by 'a' optionally enclosed by 'b'", true},
 	{`load data infile '/x.csv' into table t fields optionally enclosed by '"' terminated by ','`, true},
 	// Neither clause names no item.
 	{"load data infile '/x.csv' into table t fields", false},
@@ -64,6 +66,9 @@ var loadDataFieldCases = []loadDataFieldCase{
 
 	// --- the column-and-user-variable list ---
 	{"load data infile '/x.csv' into table t (a, @v) set b = @v", true},
+	// A backquoted name is a column, even one spelled with an '@'.
+	{"load data infile '/x.csv' into table t (`@v`)", true},
+	{"load data infile '/x.csv' into table t (`@v`, a)", true},
 
 	// --- what this engine does not have ---
 	{"load data infile '/x.csv' into table t fields defined null by 'nil'", false},
@@ -97,6 +102,16 @@ func TestLoadDataFieldTree(t *testing.T) {
 		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :fields_terminated "kk"}`)
 	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t FIELDS TERMINATED BY B'110101101101011'",
 		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :fields_terminated "kk"}`)
+	// A backquoted name is a column, even one spelled with an '@'. The
+	// lexer strips the quotes, so only the source text tells the two apart.
+	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t (`@v`)",
+		"{LOAD_DATA :loc 0 :infile \"/x.csv\" :table {TABLEREF :loc 37 :name t} :columns {COLREF :loc 40 :col @v}}")
+	// A plain ENCLOSED item after an OPTIONALLY one leaves the flag set
+	// here, where TiDB clears it: mysql:8.0.46 and mariadb:11.8.8 both
+	// write `7` for `INTO OUTFILE ... FIELDS OPTIONALLY ENCLOSED BY '"'
+	// ENCLOSED BY '"'` and v8.5.5 writes `"7"` (read on 2026-11-04).
+	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t FIELDS OPTIONALLY ENCLOSED BY 'a' ENCLOSED BY 'b'",
+		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :fields_enclosed "b" :fields_optionally_enclosed true}`)
 	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t (column1, @var1) SET column2 = @var1/100",
 		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :columns {COLREF :loc 40 :col column1} {VAR :name var1 :loc 49} :set {ASSIGN :loc 60 :col {COLREF :loc 60 :col column2} :val {BINEXPR :op / :loc 70 :left {VAR :name var1 :loc 70} :right {INT_LIT :val 100 :loc 76}}}}`)
 }

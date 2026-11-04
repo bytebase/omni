@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
@@ -394,10 +396,19 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 	return out, nil
 }
 
-// isUserVariable reports whether p.cur is a user variable (@name). The lexer
-// emits one as tokIDENT carrying the '@'.
+// isUserVariable reports whether p.cur is a user variable (@name).
+//
+// The lexer emits one as tokIDENT carrying the '@', and it emits a
+// backquoted name with its quotes stripped, so a column named `@v` arrives
+// as the same token string. The source text tells them apart: a user
+// variable's starts at the '@' and a quoted name's at the backquote. Without
+// that check `(`@v`)` -- a column every one of these servers takes -- would
+// read as a variable.
 func (p *Parser) isUserVariable() bool {
-	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@'
+	if p.cur.Type != tokIDENT || len(p.cur.Str) < 2 || p.cur.Str[0] != '@' {
+		return false
+	}
+	return strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@")
 }
 
 // parseLoadSetList parses an optional `SET col = expr [, ...]`, shared by
@@ -539,6 +550,15 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 				return err
 			}
 			stmt.FieldsEnclosedBy = v
+			// Each ENCLOSED item carries its own OPTIONALLY, so a plain
+			// one after an OPTIONALLY one clears the flag. v8.5.5 writes
+			// `"7"` for `INTO OUTFILE ... FIELDS OPTIONALLY ENCLOSED BY
+			// '"' ENCLOSED BY '"'` and `7` with the OPTIONALLY one alone,
+			// so the last item wins here as everywhere in this list.
+			// MySQL 8.0.46 and MariaDB 11.8.8 do not clear it -- both
+			// write `7` for that statement -- so their copy of this
+			// clause keeps the flag (all read on 2026-11-04).
+			stmt.FieldsOptionalEncl = false
 
 		case p.cur.Type == kwESCAPED:
 			p.advance()
@@ -564,6 +584,13 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 				return err
 			}
 			stmt.FieldsDefinedNullBy, stmt.HasDefinedNullBy = v, true
+			// A repeat without the tail clears it, the last item winning:
+			// v8.5.5 reads an enclosed `"a"` as NULL for `DEFINED NULL BY
+			// 'a' OPTIONALLY ENCLOSED` and as the string "a" both for
+			// `DEFINED NULL BY 'a'` and for `DEFINED NULL BY 'a'
+			// OPTIONALLY ENCLOSED DEFINED NULL BY 'a'` (measured by
+			// loading a file on 2026-11-04).
+			stmt.DefinedNullOptEnclosed = false
 			// [OPTIONALLY ENCLOSED], with no BY and no value after it.
 			// What follows OPTIONALLY ENCLOSED here settles which of the
 			// two it is: a BY makes it the next field item instead, so

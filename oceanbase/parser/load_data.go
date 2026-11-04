@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -489,8 +491,17 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 	return out, nil
 }
 
-// isUserVariable reports whether p.cur is a user variable (@name). The lexer
-// emits one as tokIDENT carrying the '@'.
+// isUserVariable reports whether p.cur is a user variable (@name).
+//
+// The lexer emits one as tokIDENT carrying the '@', and it emits a
+// backquoted name with its quotes stripped, so a column named `@v` arrives
+// as the same token string. The source text tells them apart: a user
+// variable's starts at the '@' and a quoted name's at the backquote. Without
+// that check `(`@v`)` -- a column every one of these servers takes -- would
+// read as a variable.
 func (p *Parser) isUserVariable() bool {
-	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@'
+	if p.cur.Type != tokIDENT || len(p.cur.Str) < 2 || p.cur.Str[0] != '@' {
+		return false
+	}
+	return strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@")
 }

@@ -28,9 +28,17 @@ func TestLoadDataTreeFieldTerminators(t *testing.T) {
 	// Every option of a FIELDS and a LINES clause takes the same value.
 	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t FIELDS TERMINATED BY X'09' ENCLOSED BY X'22' ESCAPED BY X'5C' LINES STARTING BY X'3E' TERMINATED BY X'0A'",
 		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :lines_starting ">" :lines_terminated "\n" :fields_terminated "\t" :fields_enclosed "\"" :fields_escaped "\\"}`)
-	// OPTIONALLY sets the flag as well as the value.
+	// OPTIONALLY sets the flag as well as the value, and a plain ENCLOSED
+	// item after it clears the flag again: v8.5.5 writes `"7"` for `INTO
+	// OUTFILE ... FIELDS OPTIONALLY ENCLOSED BY '"' ENCLOSED BY '"'` and
+	// `7` with the OPTIONALLY item alone. MySQL and MariaDB keep the flag,
+	// which their own copy of this test records.
 	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t FIELDS OPTIONALLY ENCLOSED BY B'100010'",
 		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :fields_enclosed "\"" :fields_optionally_enclosed true}`)
+	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t FIELDS OPTIONALLY ENCLOSED BY 'a' ENCLOSED BY 'b'",
+		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :fields_enclosed "b"}`)
+	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t FIELDS ENCLOSED BY 'a' OPTIONALLY ENCLOSED BY 'b'",
+		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :fields_enclosed "b" :fields_optionally_enclosed true}`)
 }
 
 func TestLoadDataTreeDefinedNullBy(t *testing.T) {
@@ -54,6 +62,11 @@ func TestLoadDataTreeDefinedNullBy(t *testing.T) {
 	// A repeat leaves the last value, which is what the engine's own AST
 	// keeps.
 	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t FIELDS DEFINED NULL BY 'a' DEFINED NULL BY 'b'",
+		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :fields_defined_null "b"}`)
+	// The tail belongs to its own item, so a repeat without it clears it.
+	// Measured by loading a file on v8.5.5: with the tail an enclosed
+	// `"a"` reads as NULL, and after this repeat it reads as the string.
+	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t FIELDS DEFINED NULL BY 'a' OPTIONALLY ENCLOSED DEFINED NULL BY 'b'",
 		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :fields_defined_null "b"}`)
 }
 
@@ -88,6 +101,14 @@ func TestLoadDataTreeUserVariables(t *testing.T) {
 		`{LOAD_DATA :loc 0 :infile "/x.csv" :table {TABLEREF :loc 37 :name t} :columns {COLREF :loc 40 :col column1} {VAR :name var1 :loc 49} :set {ASSIGN :loc 60 :col {COLREF :loc 60 :col column2} :val {BINEXPR :op / :loc 70 :left {VAR :name var1 :loc 70} :right {INT_LIT :val 100 :loc 76}}}}`)
 	ParseAndCompare(t, "IMPORT INTO t (a,@1) FROM '/file.csv'",
 		`{IMPORT_INTO :loc 0 :table {TABLEREF :loc 12 :name t} :columns {COLREF :loc 15 :col a} {VAR :name 1 :loc 17} :path "/file.csv"}`)
+	// A backquoted name is a column, even one spelled with an '@'. The
+	// lexer strips the quotes, so only the source text tells the two
+	// apart -- and getting it wrong would also reject the IMPORT INTO
+	// below, which v8.5.5 takes.
+	ParseAndCompare(t, "LOAD DATA INFILE '/x.csv' INTO TABLE t (`@v`)",
+		"{LOAD_DATA :loc 0 :infile \"/x.csv\" :table {TABLEREF :loc 37 :name t} :columns {COLREF :loc 40 :col @v}}")
+	ParseAndCompare(t, "IMPORT INTO t (`@v`) FROM SELECT 1",
+		"{IMPORT_INTO :loc 0 :table {TABLEREF :loc 12 :name t} :columns {COLREF :loc 15 :col @v} :from {SELECT :loc 26 :targets ({INT_LIT :val 1 :loc 33})}}")
 }
 
 func TestImportIntoTree(t *testing.T) {
