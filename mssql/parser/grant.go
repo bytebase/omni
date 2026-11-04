@@ -255,7 +255,7 @@ func (p *Parser) parseGrantOnClause(stmt *nodes.GrantStmt) {
 			stmt.OnType = strings.ToUpper(p.cur.Str)
 			p.advance() // consume class
 			p.advance() // consume ::
-			stmt.OnName , _ = p.parseTableRef()
+			stmt.OnName, _ = p.parseTableRef()
 			return
 		}
 		// Check for multi-word class: peek further
@@ -266,14 +266,14 @@ func (p *Parser) parseGrantOnClause(stmt *nodes.GrantStmt) {
 			className := p.tryParseSecurableClass()
 			if className != "" {
 				stmt.OnType = className
-				stmt.OnName , _ = p.parseTableRef()
+				stmt.OnName, _ = p.parseTableRef()
 				return
 			}
 		}
 	}
 
 	// No class :: prefix, just parse the securable as a table ref
-	stmt.OnName , _ = p.parseTableRef()
+	stmt.OnName, _ = p.parseTableRef()
 }
 
 // isSecurableClassStart checks if the current token could be the start of a multi-word securable class.

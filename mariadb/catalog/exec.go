@@ -257,6 +257,19 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropEvent(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
+	case *nodes.CreateUserStmt, *nodes.AlterUserStmt, *nodes.DropUserStmt,
+		*nodes.RenameUserStmt, *nodes.CreateRoleStmt, *nodes.DropRoleStmt,
+		*nodes.SetPasswordStmt, *nodes.GrantStmt, *nodes.RevokeStmt,
+		*nodes.GrantRoleStmt, *nodes.RevokeRoleStmt, *nodes.SetRoleStmt,
+		*nodes.SetDefaultRoleStmt:
+		// The user and privilege statements. A change script holds them
+		// next to its DDL -- a GRANT on the table a migration just made,
+		// a CREATE USER for the service that will read it -- and none of
+		// them changes a schema the catalog holds: it models no user, no
+		// role and no grant. Each is applied as a no-op rather than left
+		// to the default arm, where an unmodelled statement and a
+		// deliberate no-op read the same.
+		return nil
 	default:
 		return nil
 	}
@@ -345,6 +358,32 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.UpdateStmt:
 		return s.Loc.Start
 	case *nodes.DeleteStmt:
+		return s.Loc.Start
+	case *nodes.CreateUserStmt:
+		return s.Loc.Start
+	case *nodes.AlterUserStmt:
+		return s.Loc.Start
+	case *nodes.DropUserStmt:
+		return s.Loc.Start
+	case *nodes.RenameUserStmt:
+		return s.Loc.Start
+	case *nodes.CreateRoleStmt:
+		return s.Loc.Start
+	case *nodes.DropRoleStmt:
+		return s.Loc.Start
+	case *nodes.SetPasswordStmt:
+		return s.Loc.Start
+	case *nodes.GrantStmt:
+		return s.Loc.Start
+	case *nodes.RevokeStmt:
+		return s.Loc.Start
+	case *nodes.GrantRoleStmt:
+		return s.Loc.Start
+	case *nodes.RevokeRoleStmt:
+		return s.Loc.Start
+	case *nodes.SetRoleStmt:
+		return s.Loc.Start
+	case *nodes.SetDefaultRoleStmt:
 		return s.Loc.Start
 	default:
 		return 0
