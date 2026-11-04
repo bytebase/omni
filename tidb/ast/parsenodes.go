@@ -1551,6 +1551,10 @@ type RequireClause struct {
 	Cipher  string // REQUIRE CIPHER 'cipher'
 	Issuer  string // REQUIRE ISSUER 'issuer'
 	Subject string // REQUIRE SUBJECT 'subject'
+	// SAN and TokenIssuer are TiDB's own REQUIRE options; MySQL 8.0 has
+	// neither.
+	SAN         string // REQUIRE SAN 'san'
+	TokenIssuer string // REQUIRE TOKEN_ISSUER 'issuer'
 }
 
 func (r *RequireClause) nodeTag() {}

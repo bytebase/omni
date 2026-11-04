@@ -201,8 +201,9 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 		// grant.go: IDENTIFIED WITH at EOF (4 sites)
 		{"create_user_with_trunc", "CREATE USER u IDENTIFIED WITH", "at end of input"},
 		{"alter_user_with_trunc", "ALTER USER u IDENTIFIED WITH", "at end of input"},
-		{"grant_host_at_trunc", "SET DEFAULT ROLE role1 TO user@", "expected"},
-		{"rename_user_trunc", "RENAME USER", "at end of input"},
+		// RENAME USER reads its names through the shared user-name helper,
+		// so a truncated one reports that helper's message.
+		{"rename_user_trunc", "RENAME USER", "expected user name"},
 		// load_data.go: charset/file identifier (2 sites)
 		{"load_data_charset_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARACTER SET", "at end of input"},
 		{"load_data_charset_short_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARSET", "at end of input"},

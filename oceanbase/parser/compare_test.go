@@ -9013,55 +9013,38 @@ func TestRoleIdentRejectsAmbiguous3(t *testing.T) {
 // Batch 60: GRANT/REVOKE REQUIRE and resource limits
 // ============================================================================
 
-func TestParseGrantRequireSSL(t *testing.T) {
-	t.Run("require ssl", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE SSL")
-	})
-	t.Run("require none", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE NONE")
-	})
-}
-
-func TestParseGrantRequireX509(t *testing.T) {
-	t.Run("require x509", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE X509")
-	})
-	t.Run("require cipher", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'")
-	})
-	t.Run("require issuer", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE ISSUER '/C=SE/ST=Stockholm'")
-	})
-	t.Run("require subject", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE SUBJECT '/C=SE/ST=Stockholm'")
-	})
-	t.Run("require multiple tls options", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE ISSUER '/C=SE' AND SUBJECT '/C=SE' AND CIPHER 'EDH-RSA'")
-	})
-}
-
-func TestParseGrantWithResourceLimits(t *testing.T) {
-	t.Run("max queries per hour", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_QUERIES_PER_HOUR 500")
-	})
-	t.Run("max updates per hour", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_UPDATES_PER_HOUR 100")
-	})
-	t.Run("max connections per hour", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_CONNECTIONS_PER_HOUR 50")
-	})
-	t.Run("max user connections", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_USER_CONNECTIONS 10")
-	})
-	t.Run("multiple resource limits", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_QUERIES_PER_HOUR 500 MAX_UPDATES_PER_HOUR 100")
-	})
-	t.Run("grant option with resource limits", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH GRANT OPTION MAX_QUERIES_PER_HOUR 500")
-	})
-	t.Run("require ssl with resource limits", func(t *testing.T) {
-		ParseAndCheck(t, "GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE SSL WITH MAX_QUERIES_PER_HOUR 90")
-	})
+// TestGrantCarriesNoRequireOrResourceClause pins that a GRANT reads neither
+// a REQUIRE clause nor a resource option on this engine. Both were clauses of
+// GRANT in MySQL 5.7 and moved to CREATE USER and ALTER USER in 8.0, and
+// oceanbase-ce:4.3.5 answers 1064 for every spelling below (measured on
+// 2026-11-04). This file used to assert the opposite, inherited from the fork
+// it was scaffolded from and never measured.
+//
+// MariaDB and TiDB still take both on a GRANT, which is why their forks of
+// grant.go still read them there.
+func TestGrantCarriesNoRequireOrResourceClause(t *testing.T) {
+	for _, sql := range []string{
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE SSL",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE NONE",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE X509",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE ISSUER '/C=SE/ST=Stockholm'",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE SUBJECT '/C=SE/ST=Stockholm'",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE ISSUER '/C=SE' AND SUBJECT '/C=SE' AND CIPHER 'EDH-RSA'",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_QUERIES_PER_HOUR 500",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_UPDATES_PER_HOUR 100",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_CONNECTIONS_PER_HOUR 50",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_USER_CONNECTIONS 10",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_QUERIES_PER_HOUR 500 MAX_UPDATES_PER_HOUR 100",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH GRANT OPTION MAX_QUERIES_PER_HOUR 500",
+		"GRANT ALL ON *.* TO 'jeffrey'@'localhost' REQUIRE SSL WITH MAX_QUERIES_PER_HOUR 90",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) was accepted, want rejected", sql)
+			}
+		})
+	}
 }
 
 func TestParseCreateUserRequire(t *testing.T) {
@@ -11182,10 +11165,14 @@ func TestBNFReviewSecurity(t *testing.T) {
 		// CREATE USER with 2FA chaining
 		"CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass1' AND IDENTIFIED BY 'pass2'",
 		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'pass1' AND IDENTIFIED BY 'pass2' AND IDENTIFIED BY 'pass3'",
-		// CREATE USER with INITIAL AUTHENTICATION
-		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD",
-		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password INITIAL AUTHENTICATION IDENTIFIED WITH sha256_password AS 'hash'",
-		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password INITIAL AUTHENTICATION IDENTIFIED BY 'initpass'",
+		// MySQL 8.0's INITIAL AUTHENTICATION is gone from this list: a
+		// plugin is never the whole clause on this engine, so a BY or an
+		// AS has to follow it, and oceanbase-ce:4.3.5 answers 1064 for
+		// all three of the statements that were here as well as for
+		// `IDENTIFIED WITH caching_sha2_password` on its own. The rest of
+		// the MySQL 8.0 surface this list carries -- REPLACE, RETAIN
+		// CURRENT PASSWORD, the 2FA chaining -- is not OceanBase's
+		// either, and is left for the change that measures it.
 		// ALTER USER with REPLACE
 		"ALTER USER 'user1'@'localhost' IDENTIFIED BY 'newpass' REPLACE 'oldpass'",
 		"ALTER USER 'user1'@'localhost' IDENTIFIED BY 'newpass' REPLACE 'oldpass' RETAIN CURRENT PASSWORD",
