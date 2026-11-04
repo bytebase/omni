@@ -155,3 +155,68 @@ func TestFunctionArgumentFunctionalIndexValidation(t *testing.T) {
 		}
 	}
 }
+
+// A view over POSITION has to be analyzed, not skipped. An expression the
+// analyzer does not know fails the whole view body, createView stores a nil
+// AnalyzedQuery, and ExpandMergeViews can then neither expand the view nor
+// carry its column lineage — all without an error anywhere.
+func TestFunctionArgumentViewAnalysis(t *testing.T) {
+	c := New()
+	results, err := c.Exec("CREATE DATABASE d; USE d; "+
+		"CREATE TABLE t (s VARCHAR(20), nn VARCHAR(20) NOT NULL, a DATETIME); "+
+		"CREATE VIEW v AS SELECT POSITION('x' IN s) AS p, s AS q FROM t", nil)
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("Exec: %v", r.Error)
+		}
+	}
+	v := c.GetDatabase("d").Views["v"]
+	if v == nil {
+		t.Fatal("view v is not in the catalog")
+	}
+	if v.AnalyzedQuery == nil {
+		t.Error("the view body was not analyzed, so the view carries no column lineage")
+	}
+}
+
+// The nullability of a POSITION column is its operands': mysql:8.0, whose view metadata this catalog follows, reports
+// IS_NULLABLE YES for position('x' in s) over a nullable s, for
+// position(s in nn), and for position('x' in NULL), and NO for a NOT NULL
+// operand and for two literals. Reading the node as always non-nullable
+// records a column the engine calls nullable as NOT NULL.
+func TestFunctionArgumentViewColumnNullability(t *testing.T) {
+	for _, tc := range []struct {
+		expr     string
+		nullable bool
+	}{
+		{"POSITION('x' IN s)", true},
+		{"POSITION('x' IN nn)", false},
+		{"POSITION(s IN nn)", true},
+		{"POSITION(nn IN s)", true},
+		{"POSITION('x' IN NULL)", true},
+		{"POSITION('x' IN 'abc')", false},
+	} {
+		c := New()
+		results, err := c.Exec("CREATE DATABASE d; USE d; "+
+			"CREATE TABLE t (s VARCHAR(20), nn VARCHAR(20) NOT NULL); "+
+			"CREATE VIEW v AS SELECT "+tc.expr+" AS p FROM t", nil)
+		if err != nil {
+			t.Fatalf("Exec(%q): %v", tc.expr, err)
+		}
+		for _, r := range results {
+			if r.Error != nil {
+				t.Fatalf("Exec(%q): %v", tc.expr, r.Error)
+			}
+		}
+		v := c.GetDatabase("d").Views["v"]
+		if v == nil || len(v.ColumnMetadata) != 1 {
+			t.Fatalf("%q: the view has no column metadata", tc.expr)
+		}
+		if v.ColumnMetadata[0].Nullable != tc.nullable {
+			t.Errorf("%q: nullable = %v, want %v", tc.expr, v.ColumnMetadata[0].Nullable, tc.nullable)
+		}
+	}
+}

@@ -112,3 +112,29 @@ func TestFunctionArgumentGeneratedColumns(t *testing.T) {
 		t.Errorf("column %q is not in the catalog", name)
 	}
 }
+
+// A view over POSITION has to be analyzed, not skipped. An expression the
+// analyzer does not know fails the whole view body, createView stores a nil
+// AnalyzedQuery, and ExpandMergeViews can then neither expand the view nor
+// carry its column lineage — all without an error anywhere.
+func TestFunctionArgumentViewAnalysis(t *testing.T) {
+	c := New()
+	results, err := c.Exec("CREATE DATABASE d; USE d; "+
+		"CREATE TABLE t (s VARCHAR(20), nn VARCHAR(20) NOT NULL, a DATETIME); "+
+		"CREATE VIEW v AS SELECT POSITION('x' IN s) AS p, s AS q FROM t", nil)
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatalf("Exec: %v", r.Error)
+		}
+	}
+	v := c.GetDatabase("d").Views["v"]
+	if v == nil {
+		t.Fatal("view v is not in the catalog")
+	}
+	if v.AnalyzedQuery == nil {
+		t.Error("the view body was not analyzed, so the view carries no column lineage")
+	}
+}

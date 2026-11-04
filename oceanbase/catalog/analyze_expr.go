@@ -45,6 +45,8 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeCaseExpr(c, n, scope)
 	case *nodes.CastExpr:
 		return analyzeCastExpr(c, n, scope)
+	case *nodes.PositionExpr:
+		return analyzePositionExpr(c, n, scope)
 	case *nodes.SubqueryExpr:
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:
@@ -97,6 +99,29 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		Distinct:    fc.Quantifier.RemovesDuplicates(),
 	}
 	// Phase 3: populate return type from function type table.
+	result.ResultType = functionReturnType(result.Name, result.Args)
+	return result, nil
+}
+
+// analyzePositionExpr resolves POSITION(substr IN str). The node has to be
+// analyzed and not skipped: an unanalyzed expression fails the whole view
+// body, createView then stores a nil AnalyzedQuery, and ExpandMergeViews can
+// neither expand the view nor carry its column lineage.
+//
+// MySQL 8.0, whose stored form this catalog follows, resolves
+// POSITION(a IN b) to locate(a, b), so that is the call this records. Its
+// result type is the one LOCATE already gets from the function table, which is
+// to say none: that table has no entry for either spelling.
+func analyzePositionExpr(c *Catalog, pe *nodes.PositionExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	substr, err := analyzeExpr(c, pe.Substr, scope)
+	if err != nil {
+		return nil, err
+	}
+	str, err := analyzeExpr(c, pe.Str, scope)
+	if err != nil {
+		return nil, err
+	}
+	result := &FuncCallExprQ{Name: "locate", Args: []AnalyzedExpr{substr, str}}
 	result.ResultType = functionReturnType(result.Name, result.Args)
 	return result, nil
 }
