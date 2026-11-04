@@ -401,6 +401,59 @@ func TestDatabaseOptionsOceanBaseOracle(t *testing.T) {
 	}
 }
 
+// TestShowTargetsOceanBaseOracle reads the engine column of showTargetCases
+// back from a live server, so the record in show_targets_test.go stays a
+// measurement rather than a guess. It runs only where OCEANBASE_WALK_DSN is
+// set:
+//
+//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//
+// Every statement runs for real, which is what engineAccepts does: a 1064 is
+// the parser's rejection and any other error means the text parsed. A SHOW
+// changes no schema, so the cases need nothing cleaned up after them -- but
+// they do need a current database, because a SHOW with none is a 1046 rather
+// than the verdict being measured, and a sibling oracle in this package drops
+// the database it made.
+func TestShowTargetsOceanBaseOracle(t *testing.T) {
+	db := oceanBaseOracle(t)
+	ctx := context.Background()
+
+	for _, stmt := range []string{
+		"DROP DATABASE IF EXISTS obshowt",
+		"CREATE DATABASE obshowt",
+		"USE obshowt",
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed %q: %v", stmt, err)
+		}
+	}
+	t.Cleanup(func() { _, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obshowt") })
+
+	for _, c := range showTargetCases {
+		t.Run(c.sql, func(t *testing.T) {
+			engineTakes, err := engineAccepts(ctx, db, c.sql)
+			if err != nil {
+				t.Fatalf("the oracle gave no verdict on %q: %v", c.sql, err)
+			}
+			if engineTakes != c.engine {
+				t.Errorf("OceanBase accepts %q = %v, the record says %v", c.sql, engineTakes, c.engine)
+			}
+			_, parseErr := Parse(c.sql)
+			parserTakes := parseErr == nil
+			switch {
+			case engineTakes && !parserTakes:
+				t.Errorf("OceanBase accepts %q and the parser does not:\n  %v", c.sql, parseErr)
+			case !engineTakes && parserTakes:
+				if !c.overAccepted {
+					t.Errorf("the parser accepts %q and OceanBase does not", c.sql)
+				}
+			case !engineTakes && !parserTakes && c.overAccepted:
+				t.Errorf("%q is marked overAccepted but the parser now rejects it: clear the flag", c.sql)
+			}
+		})
+	}
+}
+
 // TestCreateTableOptionsOceanBaseOracle reads the engine column of
 // createTableOptionCases back from a live server, so the record in
 // create_table_options_test.go stays a measurement rather than a memory of one.

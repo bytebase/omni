@@ -528,6 +528,31 @@ var keywordCategories = map[int]keywordCategory{
 	kwNOCACHE:    kwCatUnambiguous,
 	kwCYCLE:      kwCatUnambiguous,
 	kwNOCYCLE:    kwCatUnambiguous,
+
+	// TiDB's own SHOW targets (parser.y:6962 UnReservedKeyword,
+	// parser.y:7353 TiDBKeyword) — all unreserved upstream, so a table
+	// called config or a column called job stays valid.
+	kwBINDINGS:             kwCatUnambiguous,
+	kwBINDING_CACHE:        kwCatUnambiguous,
+	kwBUILTINS:             kwCatUnambiguous,
+	kwBACKUPS:              kwCatUnambiguous,
+	kwRESTORES:             kwCatUnambiguous,
+	kwCOLUMN_STATS_USAGE:   kwCatUnambiguous,
+	kwCONFIG:               kwCatUnambiguous,
+	kwDISTRIBUTION:         kwCatUnambiguous,
+	kwDISTRIBUTIONS:        kwCatUnambiguous,
+	kwHISTOGRAMS_IN_FLIGHT: kwCatUnambiguous,
+	kwJOB:                  kwCatUnambiguous,
+	kwJOBS:                 kwCatUnambiguous,
+	kwNEXT_ROW_ID:          kwCatUnambiguous,
+	kwSESSION_STATES:       kwCatUnambiguous,
+	kwSTATS_BUCKETS:        kwCatUnambiguous,
+	kwSTATS_EXTENDED:       kwCatUnambiguous,
+	kwSTATS_HEALTHY:        kwCatUnambiguous,
+	kwSTATS_HISTOGRAMS:     kwCatUnambiguous,
+	kwSTATS_LOCKED:         kwCatUnambiguous,
+	kwSTATS_META:           kwCatUnambiguous,
+	kwSTATS_TOPN:           kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot
