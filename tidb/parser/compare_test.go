@@ -665,6 +665,32 @@ func TestParseDataTypes(t *testing.T) {
 		{"NCHAR(10)", "{DATATYPE :loc 0 :name CHAR :len 10 :charset utf8mb3}"},
 		// NVARCHAR (regression check)
 		{"NVARCHAR(100)", "{DATATYPE :loc 0 :name VARCHAR :len 100 :charset utf8mb3}"},
+
+		// The CHARACTER, VARYING and VARCHARACTER spellings of CHAR and
+		// VARCHAR: https://dev.mysql.com/doc/refman/8.0/en/char.html
+		{"CHARACTER", "{DATATYPE :loc 0 :name CHAR}"},
+		{"CHARACTER(10)", "{DATATYPE :loc 0 :name CHAR :len 10}"},
+		{"CHAR VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
+		{"CHARACTER VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
+		{"VARCHARACTER(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
+		{"CHARACTER VARYING(10) CHARACTER SET utf8", "{DATATYPE :loc 0 :name VARCHAR :len 10 :charset utf8}"},
+		// NATIONAL and NCHAR take the same spellings, still utf8mb3.
+		{"NATIONAL CHARACTER", "{DATATYPE :loc 0 :name CHAR :charset utf8mb3}"},
+		{"NATIONAL CHARACTER VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
+		{"NATIONAL CHAR VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
+		{"NATIONAL VARCHARACTER(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
+		{"NCHAR VARCHAR(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
+		{"NCHAR VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
+		{"NCHAR VARCHARACTER(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
+		// LONG takes them too, and carries no length with any of them.
+		{"LONG VARCHARACTER", "{DATATYPE :loc 0 :name MEDIUMTEXT}"},
+		{"LONG CHAR VARYING", "{DATATYPE :loc 0 :name MEDIUMTEXT}"},
+		{"LONG CHARACTER VARYING", "{DATATYPE :loc 0 :name MEDIUMTEXT}"},
+		{"LONG CHARACTER VARYING CHARACTER SET utf8", "{DATATYPE :loc 0 :name MEDIUMTEXT :charset utf8}"},
+		// CHAR SET is CHARACTER SET in two words, so the CHAR after LONG
+		// belongs to the charset clause and not to the type.
+		{"LONG CHAR SET utf8mb4", "{DATATYPE :loc 0 :name MEDIUMTEXT :charset utf8mb4}"},
+		{"CHAR CHAR SET utf8mb4", "{DATATYPE :loc 0 :name CHAR :charset utf8mb4}"},
 	}
 
 	for _, tt := range tests {
@@ -689,6 +715,18 @@ func TestParseDataTypeError(t *testing.T) {
 		"123",
 		"'string'",
 		"(",
+
+		// Every spelling of VARCHAR carries a length, and TiDB rejects each of
+		// these; CHAR and its spellings are accepted without one above.
+		"VARCHAR",
+		"VARCHARACTER",
+		"CHAR VARYING",
+		"CHARACTER VARYING",
+		"NVARCHAR",
+		"NATIONAL VARCHAR",
+		"NATIONAL VARCHARACTER",
+		"NCHAR VARYING",
+		"VARBINARY",
 	}
 	for _, input := range inputs {
 		t.Run(input, func(t *testing.T) {

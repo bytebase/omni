@@ -142,14 +142,20 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if p.cur.Type == kwVARYING {
 			dt.Name = "VARCHAR"
 			p.advance()
+			if err := p.parseRequiredLength(dt); err != nil {
+				return nil, err
+			}
+		} else {
+			p.parseOptionalLength(dt)
 		}
-		p.parseOptionalLength(dt)
 		p.parseCharsetCollate(dt)
 
-	case kwVARCHAR:
+	case kwVARCHAR, kwVARCHARACTER:
 		dt.Name = "VARCHAR"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseRequiredLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseCharsetCollate(dt)
 
 	case kwTEXT:
@@ -229,7 +235,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwVARBINARY:
 		dt.Name = "VARBINARY"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseRequiredLength(dt); err != nil {
+			return nil, err
+		}
 
 	// Bit type
 	case kwBIT:
@@ -294,14 +302,20 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			if p.cur.Type == kwVARYING {
 				dt.Name = "VARCHAR"
 				p.advance()
+				if err := p.parseRequiredLength(dt); err != nil {
+					return nil, err
+				}
+			} else {
+				p.parseOptionalLength(dt)
 			}
-			p.parseOptionalLength(dt)
 			p.parseCharsetCollate(dt)
-		} else if p.cur.Type == kwVARCHAR {
+		} else if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER {
 			dt.Name = "VARCHAR"
 			dt.Charset = "utf8mb3"
 			p.advance()
-			p.parseOptionalLength(dt)
+			if err := p.parseRequiredLength(dt); err != nil {
+				return nil, err
+			}
 			p.parseCharsetCollate(dt)
 		} else {
 			return nil, &ParseError{
@@ -314,13 +328,16 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwNCHAR:
 		dt.Charset = "utf8mb3"
 		p.advance()
-		if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARYING {
+		if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER || p.cur.Type == kwVARYING {
 			dt.Name = "VARCHAR"
 			p.advance()
+			if err := p.parseRequiredLength(dt); err != nil {
+				return nil, err
+			}
 		} else {
 			dt.Name = "CHAR"
+			p.parseOptionalLength(dt)
 		}
-		p.parseOptionalLength(dt)
 		p.parseCharsetCollate(dt)
 
 	// NVARCHAR → VARCHAR with utf8mb3 charset
@@ -328,7 +345,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		dt.Name = "VARCHAR"
 		dt.Charset = "utf8mb3"
 		p.advance()
-		p.parseOptionalLength(dt)
+		if err := p.parseRequiredLength(dt); err != nil {
+			return nil, err
+		}
 		p.parseCharsetCollate(dt)
 
 	case kwINT1:
@@ -372,16 +391,27 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		p.parseOptionalPrecision(dt)
 		p.parseUnsignedZerofill(dt)
 	case kwLONG:
-		// LONG / LONG VARCHAR → MEDIUMTEXT, LONG VARBINARY → MEDIUMBLOB
+		// LONG and the VARCHAR spellings of it -- LONG VARCHAR, LONG
+		// VARCHARACTER, LONG CHAR VARYING, LONG CHARACTER VARYING -- are
+		// MEDIUMTEXT; LONG VARBINARY is MEDIUMBLOB. None of them carries a
+		// length. CHAR and CHARACTER after LONG are ambiguous, because
+		// `long char set utf8` is LONG with a charset clause, so the type
+		// claims either only when VARYING follows it.
 		p.advance()
-		if p.cur.Type == kwVARCHAR {
+		switch {
+		case p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER:
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
 			p.parseCharsetCollate(dt)
-		} else if p.cur.Type == kwVARBINARY {
+		case (p.cur.Type == kwCHAR || p.cur.Type == kwCHARACTER) && p.peekNext().Type == kwVARYING:
+			p.advance()
+			p.advance()
+			dt.Name = "MEDIUMTEXT"
+			p.parseCharsetCollate(dt)
+		case p.cur.Type == kwVARBINARY:
 			p.advance()
 			dt.Name = "MEDIUMBLOB"
-		} else {
+		default:
 			dt.Name = "MEDIUMTEXT"
 			p.parseCharsetCollate(dt)
 		}
@@ -419,6 +449,22 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 }
 
 // parseOptionalLength parses an optional (N) length specification.
+// parseRequiredLength parses the length a VARCHAR-shaped type must carry.
+// MySQL takes CHAR with a length or without one but VARCHAR only with one, in
+// every spelling: `varcharacter(1)`, `char varying(50)` and `nchar
+// varying(50)` are accepted and those three without a length are not. The LONG
+// forms carry no length at all, so they do not come here.
+func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
+	if p.cur.Type != '(' {
+		return &ParseError{
+			Message:  "expected a length for " + dt.Name,
+			Position: p.cur.Loc,
+		}
+	}
+	p.parseOptionalLength(dt)
+	return nil
+}
+
 func (p *Parser) parseOptionalLength(dt *nodes.DataType) {
 	if p.cur.Type == '(' {
 		p.advance()
@@ -476,12 +522,15 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 		if p.isIdentToken() || p.cur.Type == kwBINARY {
 			dt.Charset, _, _ = p.parseKeywordOrIdent()
 		}
-	} else if p.cur.Type == kwCHARACTER {
+	} else if (p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR) && p.peekNext().Type == kwSET {
+		// CHARACTER SET x, and MySQL's two-word CHAR SET x, which is what
+		// `long char set utf8` carries. Neither token is consumed unless SET
+		// follows it: a trailing CHARACTER is not a charset clause with the
+		// name left off, and MySQL rejects `long character`.
 		p.advance()
-		if _, ok := p.match(kwSET); ok {
-			if p.isIdentToken() || p.cur.Type == kwBINARY {
-				dt.Charset, _, _ = p.parseKeywordOrIdent()
-			}
+		p.advance()
+		if p.isIdentToken() || p.cur.Type == kwBINARY {
+			dt.Charset, _, _ = p.parseKeywordOrIdent()
 		}
 	}
 
