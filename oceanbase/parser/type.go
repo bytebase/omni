@@ -441,7 +441,25 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 			Position: p.cur.Loc,
 		}
 	}
-	p.parseOptionalLength(dt)
+	p.advance()
+	// Empty parentheses are not a length. parseOptionalLength tolerates them,
+	// because a type that may leave the length out reads `(` as the start of
+	// one and gives up quietly; a type that must carry one cannot.
+	if p.cur.Type != tokICONST {
+		return &ParseError{
+			Message:  "expected a length for " + dt.Name,
+			Position: p.cur.Loc,
+		}
+	}
+	dt.Length = int(p.cur.Ival)
+	p.advance()
+	if p.cur.Type != ')' {
+		return &ParseError{
+			Message:  "expected ) after the length for " + dt.Name,
+			Position: p.cur.Loc,
+		}
+	}
+	p.advance()
 	return nil
 }
 

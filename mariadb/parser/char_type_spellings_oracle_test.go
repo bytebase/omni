@@ -45,6 +45,16 @@ func TestCharTypeSpellingsMatchMariaDB(t *testing.T) {
 		`CREATE TABLE t (a NATIONAL VARCHAR)`,
 		`CREATE TABLE t (a NCHAR VARYING)`,
 		`CREATE TABLE t (a VARBINARY)`,
+		// Parentheses with no integer in them are not a length either, and a
+		// type that must carry one says so rather than reading `()` as a
+		// length it may leave out.
+		`CREATE TABLE t (a VARCHAR())`,
+		`CREATE TABLE t (a VARCHARACTER())`,
+		`CREATE TABLE t (a CHARACTER VARYING())`,
+		`CREATE TABLE t (a CHAR VARYING())`,
+		`CREATE TABLE t (a NCHAR VARYING())`,
+		`CREATE TABLE t (a NVARCHAR())`,
+		`CREATE TABLE t (a VARBINARY())`,
 		// LONG carries no length with any spelling.
 		`CREATE TABLE t (a LONG CHAR VARYING(10))`,
 		`CREATE TABLE t (a LONG VARCHARACTER(10))`,
