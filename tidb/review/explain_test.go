@@ -1,8 +1,12 @@
 package review
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 )
 
@@ -76,5 +80,52 @@ func TestExplainAnalyzeSettlesALaterStatement(t *testing.T) {
 	sql := "CREATE TABLE x (a int);\nEXPLAIN ALTER TABLE x ADD PRIMARY KEY (a);"
 	if got := run(t, review.RequirePrimaryKey, sql, review.Change{}, shop); len(got) != 1 {
 		t.Errorf("%s\nfindings = %+v, want one: a plain EXPLAIN adds no key", sql, got)
+	}
+}
+
+// TestExplainAnalyzeIsWhatThePriorBackupReads pins the other statement list a
+// rule follows across a change: what the change creates, which prior backup
+// cannot read because it runs first. An analyzed ALTER TABLE really adds the
+// column and the name, so an UPDATE that reads either one is reported exactly
+// as it is after the unwrapped ALTER; a plain EXPLAIN adds neither.
+func TestExplainAnalyzeIsWhatThePriorBackupReads(t *testing.T) {
+	schema := &metadata.DatabaseSchemaMetadata{
+		Name: "shop",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadata.ColumnMetadata{{Name: "a"}},
+				Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true}},
+			}},
+		}},
+	}
+	targets := []review.Target{{Schema: schema, BackupDatabaseExists: true}}
+	backup := review.Change{PriorBackup: true, MaxBackupSize: 1 << 20}
+	for _, tc := range []struct {
+		change string
+		// reads names what the UPDATE reads before the change makes it.
+		reads string
+	}{
+		{"ALTER TABLE t ADD COLUMN b int;\nUPDATE t SET a = 1 WHERE b = 0;", "column `b` of `t`"},
+		{"ALTER TABLE t RENAME TO u;\nUPDATE u SET a = 1;", "`u`"},
+	} {
+		// The change itself is reported, and its finding is what the two
+		// EXPLAIN forms are measured against.
+		want := run(t, review.PriorBackup, tc.change, backup, targets)
+		if len(want) != 1 || !strings.Contains(want[0].Message, tc.reads) {
+			t.Fatalf("%s\nfindings = %+v, want one naming %s", tc.change, want, tc.reads)
+		}
+		// EXPLAIN ANALYZE runs the change, so the same statement reads the
+		// same name before it exists, and the finding is the same one.
+		analyzed := "EXPLAIN ANALYZE " + tc.change
+		if got := run(t, review.PriorBackup, analyzed, backup, targets); !cmp.Equal(got, want) {
+			t.Errorf("%s\nfindings differ from the unwrapped change:\n%s", analyzed, cmp.Diff(want, got))
+		}
+		// A plain EXPLAIN makes neither the column nor the name, so prior
+		// backup reads nothing the change created.
+		plain := "EXPLAIN " + tc.change
+		if got := run(t, review.PriorBackup, plain, backup, targets); len(got) != 0 {
+			t.Errorf("%s\nfindings = %+v, want none: a plain EXPLAIN makes nothing", plain, got)
+		}
 	}
 }
