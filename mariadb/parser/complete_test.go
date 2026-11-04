@@ -255,8 +255,8 @@ func TestCollectExplainKeywords(t *testing.T) {
 		t.Fatal("expected non-nil candidates")
 	}
 	for _, tok := range []int{
-		kwANALYZE, kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
-		kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
+		kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
+		kwSELECT, kwWITH, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
 	} {
 		if !cs.HasToken(tok) {
 			t.Errorf("missing EXPLAIN keyword: %s", TokenName(tok))

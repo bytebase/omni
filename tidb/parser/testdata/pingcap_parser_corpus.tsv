@@ -3184,42 +3184,42 @@ accept	accept	explain insert into t values (1), (2), (3)
 reject	accept	explain replace into foo values (1 || 2)
 accept	accept	explain update t set id = id + 1 order by id desc;
 accept	accept	explain select c1 from t1 union (select c2 from t2) limit 1, 1
-reject	accept	explain format = "row" select c1 from t1 union (select c2 from t2) limit 1, 1
-reject	accept	explain format = 'brief' select * from t
+accept	accept	explain format = "row" select c1 from t1 union (select c2 from t2) limit 1, 1
+accept	accept	explain format = 'brief' select * from t
 accept	accept	DESC SCHE.TABL
 accept	accept	DESC SCHE.TABL COLUM
 accept	accept	DESCRIBE SCHE.TABL COLUM
 accept	accept	EXPLAIN ANALYZE SELECT 1
 accept	accept	EXPLAIN ANALYZE format=VERBOSE SELECT 1
 accept	accept	EXPLAIN ANALYZE format=TRUE_CARD_COST SELECT 1
-reject	accept	EXPLAIN ANALYZE format='VERBOSE' SELECT 1
-reject	accept	EXPLAIN ANALYZE format='TRUE_CARD_COST' SELECT 1
-reject	accept	EXPLAIN FORMAT = 'dot' SELECT 1
+accept	accept	EXPLAIN ANALYZE format='VERBOSE' SELECT 1
+accept	accept	EXPLAIN ANALYZE format='TRUE_CARD_COST' SELECT 1
+accept	accept	EXPLAIN FORMAT = 'dot' SELECT 1
 accept	accept	EXPLAIN FORMAT = DOT SELECT 1
-reject	accept	EXPLAIN FORMAT = 'row' SELECT 1
-reject	accept	EXPLAIN FORMAT = 'ROW' SELECT 1
-reject	accept	EXPLAIN FORMAT = 'BRIEF' SELECT 1
+accept	accept	EXPLAIN FORMAT = 'row' SELECT 1
+accept	accept	EXPLAIN FORMAT = 'ROW' SELECT 1
+accept	accept	EXPLAIN FORMAT = 'BRIEF' SELECT 1
 accept	accept	EXPLAIN FORMAT = BRIEF SELECT 1
-reject	accept	EXPLAIN FORMAT = 'verbose' SELECT 1
-reject	accept	EXPLAIN FORMAT = 'VERBOSE' SELECT 1
+accept	accept	EXPLAIN FORMAT = 'verbose' SELECT 1
+accept	accept	EXPLAIN FORMAT = 'VERBOSE' SELECT 1
 accept	accept	EXPLAIN FORMAT = VERBOSE SELECT 1
 accept	accept	EXPLAIN SELECT 1
 accept	accept	EXPLAIN FOR CONNECTION 1
 accept	accept	EXPLAIN FOR connection 42
-reject	accept	EXPLAIN FORMAT = 'dot' FOR CONNECTION 1
+accept	accept	EXPLAIN FORMAT = 'dot' FOR CONNECTION 1
 accept	accept	EXPLAIN FORMAT = DOT FOR CONNECTION 1
-reject	accept	EXPLAIN FORMAT = 'row' FOR connection 1
+accept	accept	EXPLAIN FORMAT = 'row' FOR connection 1
 accept	accept	EXPLAIN FORMAT = ROW FOR connection 1
 accept	accept	EXPLAIN FORMAT = TRADITIONAL FOR CONNECTION 1
 accept	accept	EXPLAIN FORMAT = TRADITIONAL SELECT 1
-reject	accept	EXPLAIN FORMAT = 'brief' SELECT 1
+accept	accept	EXPLAIN FORMAT = 'brief' SELECT 1
 accept	accept	EXPLAIN FORMAT = JSON FOR CONNECTION 1
 accept	accept	EXPLAIN FORMAT = JSON SELECT 1
-reject	accept	EXPLAIN FORMAT = 'hint' SELECT 1
-reject	accept	EXPLAIN ANALYZE FORMAT = 'verbose' SELECT 1
-reject	accept	EXPLAIN ANALYZE FORMAT = 'binary' SELECT 1
-reject	accept	EXPLAIN ALTER TABLE t1 ADD INDEX (a)
-reject	accept	EXPLAIN ALTER TABLE t1 ADD a varchar(255)
+accept	accept	EXPLAIN FORMAT = 'hint' SELECT 1
+accept	accept	EXPLAIN ANALYZE FORMAT = 'verbose' SELECT 1
+accept	accept	EXPLAIN ANALYZE FORMAT = 'binary' SELECT 1
+accept	accept	EXPLAIN ALTER TABLE t1 ADD INDEX (a)
+accept	accept	EXPLAIN ALTER TABLE t1 ADD a varchar(255)
 accept	accept	EXPLAIN FORMAT = TIDB_JSON FOR CONNECTION 1
 accept	accept	EXPLAIN FORMAT = tidb_json SELECT 1
 accept	accept	EXPLAIN ANALYZE FORMAT = tidb_json SELECT 1
@@ -3318,8 +3318,8 @@ reject	accept	create session binding from history using plan digest @a, @b, 'tes
 reject	accept	CREATE GLOBAL BINDING FROM HISTORY USING PLAN DIGEST 'sss'
 reject	accept	set binding enabled for sql digest '1'
 reject	accept	set binding disabled for sql digest '1'
-accept	reject	explain explore 'select a from t'
-accept	reject	explain explore '23adc8e6f62'
+reject	reject	explain explore 'select a from t'
+reject	reject	explain explore '23adc8e6f62'
 accept	accept	create view v as select * from t
 accept	accept	create or replace view v as select * from t
 accept	accept	create or replace algorithm = undefined view v as select * from t
@@ -3894,7 +3894,7 @@ reject	reject	CREATE TABLE t (a VECTOR<INT>)
 reject	reject	CREATE TABLE t (a VECTOR<DOUBLE>)
 reject	reject	CREATE TABLE t (a VECTOR<ABC>)
 reject	reject	CREATE TABLE t (a VECTOR(5)<FLOAT>)
-accept	reject	explain explore 'digestxxx'
+reject	reject	explain explore 'digestxxx'
 reject	reject	explain explore select 1 from t
 reject	reject	explain explore select 1 from t1, t2
 reject	reject	explain explore select 1 from t where t1.a > (select max(a) from t2)

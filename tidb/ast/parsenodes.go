@@ -1222,12 +1222,18 @@ func (s *UseStmt) nodeTag()  {}
 func (s *UseStmt) stmtNode() {}
 
 // ExplainStmt represents an EXPLAIN/DESCRIBE statement.
+//
+// Which fields a statement can set is TiDB's modifier list, not MySQL's:
+// Extended and Partitions are MySQL 5.7 modifiers TiDB never had, so no
+// statement sets either (tidb/parser/explain_forms_test.go). Stmt is nil for
+// the FOR CONNECTION form, which is how a consumer tells it from a connection
+// id that happens to be 0.
 type ExplainStmt struct {
 	Loc           Loc
-	Format        string // TRADITIONAL, JSON, TREE
-	Analyze       bool   // EXPLAIN ANALYZE
-	Extended      bool   // EXPLAIN EXTENDED (deprecated but still parsed)
-	Partitions    bool   // EXPLAIN PARTITIONS (deprecated but still parsed)
+	Format        string // TRADITIONAL, JSON, ROW, DOT, BRIEF, VERBOSE, TRUE_CARD_COST, TIDB_JSON, or any quoted name
+	Analyze       bool   // EXPLAIN ANALYZE, which runs the statement it carries
+	Extended      bool   // EXPLAIN EXTENDED: no TiDB syntax sets this
+	Partitions    bool   // EXPLAIN PARTITIONS: no TiDB syntax sets this
 	ForConnection int64  // EXPLAIN FOR CONNECTION connection_id
 	Stmt          StmtNode
 }

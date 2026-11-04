@@ -1504,20 +1504,36 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	}, nil
 }
 
-// parseExplainStmt parses an EXPLAIN or DESCRIBE statement.
+// parseExplainStmt parses an EXPLAIN, DESCRIBE or DESC statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/explain.html
+// Ref: https://mariadb.com/kb/en/explain/; describe_command and
+// opt_describe_column in MariaDB 11.8 sql/sql_yacc.yy. Measured against
+// mariadb:11.8.8.
 //
 //	{EXPLAIN | DESCRIBE | DESC} tbl_name [col_name | wild]
-//	{EXPLAIN | DESCRIBE | DESC} [explain_type] {explainable_stmt | FOR CONNECTION connection_id}
-//	{EXPLAIN | DESCRIBE | DESC} ANALYZE [explain_type] explainable_stmt
-//	explain_type: { FORMAT = format_name }
-//	format_name: { TRADITIONAL | JSON | TREE }
-//	explainable_stmt: { query_expression | DELETE | INSERT | REPLACE | UPDATE }
+//	{EXPLAIN | DESCRIBE | DESC} [EXTENDED | PARTITIONS | FORMAT = format] explainable_stmt
+//	{EXPLAIN | DESCRIBE | DESC} [FORMAT = format] FOR CONNECTION connection_id
+//	format: ident_or_text
+//	explainable_stmt: {SELECT | VALUES | DELETE | INSERT | REPLACE | UPDATE}
 //
-// MariaDB has no TABLE statement; a query expression starts with SELECT,
-// VALUES, WITH, or '(' (MariaDB 11.8.8 sql/sql_yacc.yy, explainable_command,
-// line 14834).
+// The modifier list is MariaDB's, and it is not MySQL 8.0's. EXTENDED and
+// PARTITIONS are still here, where MySQL 8.0.46 and TiDB each answer 1064 for
+// both, and they are one choice rather than a list: EXPLAIN EXTENDED
+// PARTITIONS and EXPLAIN EXTENDED FORMAT = JSON are each a 1064, and neither
+// reaches FOR CONNECTION.
+//
+// There is no EXPLAIN ANALYZE: MariaDB spells that ANALYZE [FORMAT = JSON]
+// stmt, a statement of its own, so EXPLAIN ANALYZE SELECT 1 is a 1064 here
+// where MySQL and TiDB both take it. That spelling is additive MariaDB surface
+// this parser does not read yet, not a form to port from MySQL.
+//
+// No DDL is explainable, and TABLE is no statement here: EXPLAIN TABLE t and
+// EXPLAIN ALTER TABLE t ADD INDEX (a) are both syntax errors. A modifier rules
+// the table form out, so FORMAT = JSON t is a 1064.
+//
+// DESC and DESCRIBE read only the table form here. MariaDB takes them as full
+// EXPLAIN synonyms -- DESC FORMAT = JSON SELECT 1 parses on 11.8.8 -- which is
+// a gap this file records rather than closes.
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
 	isDescribe := p.cur.Type == kwDESCRIBE || p.cur.Type == kwDESC
@@ -1532,7 +1548,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			p.addRuleCandidate("table_ref")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		// DESCRIBE tbl_name [col_name]
+		// DESCRIBE tbl_name [col_name | wild]
 		ref, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
@@ -1543,16 +1559,8 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			Type: "COLUMNS",
 			From: ref,
 		}
-		// Optional column name
-		if p.cur.Type != tokEOF && p.cur.Type != ';' {
-			colExpr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if colExpr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			showStmt.Like = colExpr
+		if err := p.parseExplainColumn(showStmt); err != nil {
+			return nil, err
 		}
 		showStmt.Loc.End = p.prev.End
 		stmt.Stmt = showStmt
@@ -1560,51 +1568,63 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		return stmt, nil
 	}
 
-	// EXPLAIN [ANALYZE] [EXTENDED] [PARTITIONS] [FORMAT = value] stmt
-
-	// Check for ANALYZE
-	if p.cur.Type == kwANALYZE {
-		stmt.Analyze = true
-		p.advance()
-	}
-
-	// Check for EXTENDED (deprecated in 8.0 but still parsed)
-	if p.cur.Type == kwEXTENDED {
+	// One modifier at most: EXTENDED, PARTITIONS or FORMAT = format. The
+	// format name is ident_or_text -- an identifier, a non-reserved keyword, a
+	// backquoted identifier, or a string literal in either quote -- and
+	// MariaDB checks the name itself after parsing (1791), so FORMAT = tree
+	// and FORMAT = 'tree' both parse while FORMAT = 1 and the reserved
+	// FORMAT = binary are each a 1064.
+	//
+	// EXTENDED and PARTITIONS are not reserved, so each is also a table name:
+	// EXPLAIN EXTENDED t reads as the table form, describing a table called
+	// `extended`, and parses on 11.8.8. One token of lookahead settles which
+	// arm the word starts, as the engine's own grammar does.
+	switch p.cur.Type {
+	case kwEXTENDED:
+		if !startsExplainableStmt(p.peekNext().Type) {
+			break
+		}
 		stmt.Extended = true
 		p.advance()
-	}
-
-	// Check for PARTITIONS (deprecated in 8.0 but still parsed)
-	if p.cur.Type == kwPARTITIONS {
+	case kwPARTITIONS:
+		if !startsExplainableStmt(p.peekNext().Type) {
+			break
+		}
 		stmt.Partitions = true
 		p.advance()
-	}
-
-	// Check for FORMAT = value
-	if p.cur.Type == kwFORMAT {
+	case kwFORMAT:
 		p.advance() // consume FORMAT
 		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
-		// Parse format value: TRADITIONAL, JSON, TREE
-		// Must accept any keyword since format values may be registered keywords.
-		formatName, _, err := p.parseKeywordOrIdent()
+		name, _, err := p.parseIdentOrText()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Format = formatName
+		stmt.Format = name
 	}
 
-	// EXPLAIN FOR CONNECTION connection_id
-	if p.cur.Type == kwFOR {
+	// EXPLAIN [FORMAT = format] FOR CONNECTION connection_id, which EXTENDED
+	// and PARTITIONS do not reach. CONNECTION and the id are both required:
+	// FOR 1 and FOR CONNECTION are each a 1064.
+	//
+	// The id is read as an unsigned integer, which is the documented form.
+	// MariaDB 11.8.8 also parses a signed number, a string literal and a user
+	// variable there -- FOR CONNECTION -1, FOR CONNECTION 'x' and
+	// FOR CONNECTION @a all reach the server, where MySQL and TiDB refuse all
+	// three -- and none of them is a connection id any layer above this parser
+	// could use, so they stay rejected here and the divergence is pinned in
+	// explain_forms_test.go instead.
+	if p.cur.Type == kwFOR && !stmt.Extended && !stmt.Partitions {
 		p.advance() // consume FOR
-		if p.cur.Type == kwCONNECTION {
-			p.advance() // consume CONNECTION
+		if _, err := p.expect(kwCONNECTION); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == tokICONST {
-			stmt.ForConnection = p.cur.Ival
-			p.advance()
+		tok, err := p.expect(tokICONST)
+		if err != nil {
+			return nil, err
 		}
+		stmt.ForConnection = tok.Ival
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -1613,8 +1633,8 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwANALYZE, kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
-			kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
+			kwEXTENDED, kwPARTITIONS, kwFORMAT, kwFOR,
+			kwSELECT, kwWITH, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, kwVALUES,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -1656,7 +1676,11 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		}
 		stmt.Stmt = rep
 	default:
-		// For other tokens, try to parse as a table ref (EXPLAIN table_name)
+		// EXPLAIN tbl_name [col_name | wild], which no modifier stands in
+		// front of.
+		if stmt.Extended || stmt.Partitions || stmt.Format != "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ref, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
@@ -1666,16 +1690,8 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			Type: "COLUMNS",
 			From: ref,
 		}
-		// Optional column name or wildcard pattern
-		if p.cur.Type != tokEOF && p.cur.Type != ';' {
-			colExpr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if colExpr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			showStmt.Like = colExpr
+		if err := p.parseExplainColumn(showStmt); err != nil {
+			return nil, err
 		}
 		showStmt.Loc.End = p.prev.End
 		stmt.Stmt = showStmt
@@ -1683,4 +1699,44 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// startsExplainableStmt reports whether a token can begin the statement
+// EXPLAIN explains. It tells EXPLAIN's one-token-lookahead arms apart: the
+// word after EXTENDED or PARTITIONS decides whether that word was a modifier
+// or the table name of the table form.
+func startsExplainableStmt(tokenType int) bool {
+	switch tokenType {
+	case kwSELECT, kwVALUES, kwWITH, '(', kwINSERT, kwUPDATE, kwDELETE, kwREPLACE:
+		return true
+	}
+	return false
+}
+
+// parseExplainColumn parses the column name or wild pattern EXPLAIN and
+// DESCRIBE take after a table name, into the ShowStmt the table form lowers
+// to. MariaDB's slot is opt_describe_column, an identifier or a string, and
+// nothing else: EXPLAIN t a, EXPLAIN t `a` and EXPLAIN t 'a%' all parse on
+// 11.8.8, while a qualified name, an integer and a reserved word are each a
+// 1064 -- EXPLAIN t a.b and EXPLAIN t 123 are syntax errors, where TiDB takes
+// the qualified name and refuses the string.
+//
+// It is held in ShowStmt.Like, which is where the EXPLAIN table form has always
+// put it; ShowStmt has no column field of its own.
+func (p *Parser) parseExplainColumn(showStmt *nodes.ShowStmt) error {
+	if p.cur.Type == tokEOF || p.cur.Type == ';' {
+		return nil
+	}
+	if p.cur.Type == tokSCONST {
+		tok := p.advance()
+		showStmt.Like = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Str}
+		return nil
+	}
+	start := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	showStmt.Like = &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Column: name}
+	return nil
 }
