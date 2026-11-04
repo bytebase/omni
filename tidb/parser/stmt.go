@@ -24,6 +24,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwANALYZE, kwOPTIMIZE, kwCHECK, kwREPAIR,
 			kwFLUSH, kwRESET, kwKILL, kwDO,
 			kwXA, kwCALL, kwHELP,
+			kwSPLIT, kwDISTRIBUTE,
 		}
 		for _, t := range stmtTokens {
 			p.addTokenCandidate(t)
@@ -218,6 +219,12 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwINSTALL:
 		return p.parseInstallStmt()
+
+	case kwSPLIT:
+		return p.parseSplitRegionStmt()
+
+	case kwDISTRIBUTE:
+		return p.parseDistributeTableStmt()
 
 	case kwUNINSTALL:
 		return p.parseUninstallStmt()

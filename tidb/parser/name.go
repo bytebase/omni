@@ -528,6 +528,17 @@ var keywordCategories = map[int]keywordCategory{
 	kwNOCACHE:    kwCatUnambiguous,
 	kwCYCLE:      kwCatUnambiguous,
 	kwNOCYCLE:    kwCatUnambiguous,
+
+	// TiDB SPLIT and DISTRIBUTE keywords. SPLIT, DISTRIBUTE, and REGION
+	// are TiDBKeyword (parser.y:7390, 7366, 7395); RULE and TIMEOUT are
+	// UnReservedKeyword (parser.y:7062, 7079). None is reserved, so
+	// `DELETE FROM t split`, `SELECT 1 AS rule`, and a column named
+	// timeout all stay valid, as they are on v8.5.5.
+	kwSPLIT:      kwCatUnambiguous,
+	kwDISTRIBUTE: kwCatUnambiguous,
+	kwREGION:     kwCatUnambiguous,
+	kwRULE:       kwCatUnambiguous,
+	kwTIMEOUT:    kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

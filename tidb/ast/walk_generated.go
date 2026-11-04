@@ -396,6 +396,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DiagnosticsItem:
 		Walk(v, n.Target)
+	case *DistributeTableStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
 	case *DoStmt:
 		for _, item := range n.Exprs {
 			Walk(v, item)
@@ -835,6 +839,20 @@ func walkChildren(v Visitor, node Node) {
 			if item != nil {
 				Walk(v, item)
 			}
+		}
+	case *SplitOption:
+		for _, item := range n.Lower {
+			Walk(v, item)
+		}
+		for _, item := range n.Upper {
+			Walk(v, item)
+		}
+	case *SplitRegionStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		if n.Opt != nil {
+			Walk(v, n.Opt)
 		}
 	case *SubPartitionDef:
 		for _, item := range n.Options {

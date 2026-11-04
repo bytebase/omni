@@ -427,39 +427,39 @@ accept	accept	select * from t1 partition (p1)
 accept	accept	select * from t1 partition (p1,p2)
 accept	accept	select * from t1 partition (`p1`, p2, p3)
 reject	reject	select * from t1 partition ()
-reject	accept	split table t1 index idx1 by ('a'),('b'),('c')
-reject	accept	split table t1 index idx1 by (1)
-reject	accept	split table t1 index idx1 by ('abc',123), ('xyz'), ('yz', 1000)
+accept	accept	split table t1 index idx1 by ('a'),('b'),('c')
+accept	accept	split table t1 index idx1 by (1)
+accept	accept	split table t1 index idx1 by ('abc',123), ('xyz'), ('yz', 1000)
 reject	reject	split table t1 index idx1 by 
-reject	accept	split table t1 index idx1 between ('a') and ('z') regions 10
-reject	accept	split table t1 index idx1 between ('a',1) and ('z',2) regions 10
-reject	accept	split table t1 index idx1 between () and () regions 10
+accept	accept	split table t1 index idx1 between ('a') and ('z') regions 10
+accept	accept	split table t1 index idx1 between ('a',1) and ('z',2) regions 10
+accept	accept	split table t1 index idx1 between () and () regions 10
 reject	reject	split table t1 index by (1)
-reject	accept	split region for table t1 index idx1 by ('a'),('b'),('c')
-reject	accept	split partition table t1 index idx1 by ('a'),('b'),('c')
-reject	accept	split region for partition table t1 index idx1 by ('a'),('b'),('c')
-reject	accept	split region for table t1 index idx1 between ('a') and ('z') regions 10
-reject	accept	split partition table t1 index idx1 between ('a') and ('z') regions 10
-reject	accept	split region for partition table t1 index idx1 between ('a') and ('z') regions 10
-reject	accept	split region for table t1 partition (p0,p1) index idx1 by ('a'),('b'),('c')
-reject	accept	split partition table t1 partition (p0) index idx1 by ('a'),('b'),('c')
-reject	accept	split region for partition table t1 partition (p0) index idx1 by ('a'),('b'),('c')
-reject	accept	split region for table t1 partition (p0) index idx1 between ('a') and ('z') regions 10
-reject	accept	split partition table t1 partition (p0) index idx1 between ('a') and ('z') regions 10
-reject	accept	split region for partition table t1 partition (p0) index idx1 between ('a') and ('z') regions 10
-reject	accept	split table t1 by ('a'),('b'),('c')
-reject	accept	split table t1 by (1)
-reject	accept	split table t1 by ('abc',123), ('xyz'), ('yz', 1000)
+accept	accept	split region for table t1 index idx1 by ('a'),('b'),('c')
+accept	accept	split partition table t1 index idx1 by ('a'),('b'),('c')
+accept	accept	split region for partition table t1 index idx1 by ('a'),('b'),('c')
+accept	accept	split region for table t1 index idx1 between ('a') and ('z') regions 10
+accept	accept	split partition table t1 index idx1 between ('a') and ('z') regions 10
+accept	accept	split region for partition table t1 index idx1 between ('a') and ('z') regions 10
+accept	accept	split region for table t1 partition (p0,p1) index idx1 by ('a'),('b'),('c')
+accept	accept	split partition table t1 partition (p0) index idx1 by ('a'),('b'),('c')
+accept	accept	split region for partition table t1 partition (p0) index idx1 by ('a'),('b'),('c')
+accept	accept	split region for table t1 partition (p0) index idx1 between ('a') and ('z') regions 10
+accept	accept	split partition table t1 partition (p0) index idx1 between ('a') and ('z') regions 10
+accept	accept	split region for partition table t1 partition (p0) index idx1 between ('a') and ('z') regions 10
+accept	accept	split table t1 by ('a'),('b'),('c')
+accept	accept	split table t1 by (1)
+accept	accept	split table t1 by ('abc',123), ('xyz'), ('yz', 1000)
 reject	reject	split table t1 by 
-reject	accept	split table t1 between ('a') and ('z') regions 10
-reject	accept	split table t1 between ('a',1) and ('z',2) regions 10
-reject	accept	split table t1 between () and () regions 10
-reject	accept	split region for table t1 by ('a'),('b'),('c')
-reject	accept	split partition table t1 by ('a'),('b'),('c')
-reject	accept	split region for partition table t1 by ('a'),('b'),('c')
-reject	accept	split region for table t1 between (1) and (1000) regions 10
-reject	accept	split partition table t1 between (1) and (1000) regions 10
-reject	accept	split region for partition table t1 between (1) and (1000) regions 10
+accept	accept	split table t1 between ('a') and ('z') regions 10
+accept	accept	split table t1 between ('a',1) and ('z',2) regions 10
+accept	accept	split table t1 between () and () regions 10
+accept	accept	split region for table t1 by ('a'),('b'),('c')
+accept	accept	split partition table t1 by ('a'),('b'),('c')
+accept	accept	split region for partition table t1 by ('a'),('b'),('c')
+accept	accept	split region for table t1 between (1) and (1000) regions 10
+accept	accept	split partition table t1 between (1) and (1000) regions 10
+accept	accept	split region for partition table t1 between (1) and (1000) regions 10
 reject	accept	show table t1 regions
 reject	accept	show table t1 regions where a=1
 reject	reject	show table t1
@@ -480,11 +480,11 @@ reject	reject	distribute table t1
 reject	reject	distribute table t1 partition(p0)
 reject	reject	distribute table t1 partition(p0,p1)
 reject	reject	distribute table t1 partition(p0,p1) engine = tikv
-reject	accept	distribute table t1 rule = 'leader-scatter' engine = 'tikv'
-reject	accept	distribute table t1 rule = "leader-scatter" engine = "tikv"
-reject	accept	distribute table t1 partition(p0,p1) rule = 'learner-scatter' engine = 'tikv'
-reject	accept	distribute table t1 partition(p0) rule = 'peer-scatter' engine = 'tiflash'
-reject	accept	distribute table t1 partition(p0) rule = 'peer-scatter' engine = 'tiflash' timeout = '30m'
+accept	accept	distribute table t1 rule = 'leader-scatter' engine = 'tikv'
+accept	accept	distribute table t1 rule = "leader-scatter" engine = "tikv"
+accept	accept	distribute table t1 partition(p0,p1) rule = 'learner-scatter' engine = 'tikv'
+accept	accept	distribute table t1 partition(p0) rule = 'peer-scatter' engine = 'tiflash'
+accept	accept	distribute table t1 partition(p0) rule = 'peer-scatter' engine = 'tiflash' timeout = '30m'
 reject	reject	show distribution jobs 1
 reject	accept	show distribution jobs
 reject	accept	show distribution jobs where id > 0

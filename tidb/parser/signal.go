@@ -105,8 +105,10 @@ func (p *Parser) parseResignalStmt() (*nodes.ResignalStmt, error) {
 			return nil, err
 		}
 		stmt.ConditionValue = condVal
-	} else if p.cur.Type == tokIDENT {
-		// condition_name — a plain identifier that is not SET
+	} else if p.isIdentToken() {
+		// condition_name — MySQL's ident rule, so a non-reserved keyword
+		// is one. SET, which starts the SET clause, is reserved and so is
+		// not read here.
 		condVal, err := p.parseSignalConditionValue()
 		if err != nil {
 			return nil, err

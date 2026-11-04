@@ -935,6 +935,17 @@ const (
 	kwNOCACHE
 	kwCYCLE
 	kwNOCYCLE
+
+	// TiDB SPLIT and DISTRIBUTE statements. SPLIT, DISTRIBUTE, and REGION
+	// are TiDBKeyword upstream (parser.y:7390, 7366, 7395) and RULE and
+	// TIMEOUT are UnReservedKeyword (parser.y:7062, 7079) -- all five stay
+	// usable as identifiers. REGIONS already exists, registered for the
+	// placement-policy options.
+	kwSPLIT
+	kwDISTRIBUTE
+	kwREGION
+	kwRULE
+	kwTIMEOUT
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1795,6 +1806,13 @@ var keywords = map[string]int{
 	"nocache":    kwNOCACHE,
 	"cycle":      kwCYCLE,
 	"nocycle":    kwNOCYCLE,
+
+	// TiDB SPLIT and DISTRIBUTE statement keywords.
+	"split":      kwSPLIT,
+	"distribute": kwDISTRIBUTE,
+	"region":     kwREGION,
+	"rule":       kwRULE,
+	"timeout":    kwTIMEOUT,
 }
 
 // Token represents a lexical token.

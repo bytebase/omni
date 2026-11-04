@@ -169,7 +169,15 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
-				} else if p.cur.Type == tokIDENT {
+				} else if p.isIdentToken() {
+					// An implicit alias is MySQL's ident rule, so a
+					// non-reserved keyword is one: TiDB takes
+					// `DELETE FROM t split WHERE split.a = 1`. Reading
+					// only tokIDENT here made every word this package
+					// registers as a keyword stop being an alias.
+					// PARTITION, WHERE, ORDER, LIMIT, and USING, the
+					// words that may follow the table instead, are all
+					// reserved, so isIdentToken leaves them alone.
 					alias, _, _ := p.parseIdent()
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End

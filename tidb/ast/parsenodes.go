@@ -3098,6 +3098,100 @@ type HelpStmt struct {
 func (s *HelpStmt) nodeTag()  {}
 func (s *HelpStmt) stmtNode() {}
 
+// SplitRegionStmt represents a TiDB SPLIT ... TABLE statement, which
+// pre-splits the regions of a table or of one of its indexes.
+//
+//	SPLIT [REGION FOR] [PARTITION] TABLE tbl [PARTITION (p, ...)]
+//	    [INDEX idx] split_option
+//
+// REGION FOR and PARTITION are spelling variants that TiDB's executor
+// ignores, so RegionFor and Partition only record what was written.
+//
+// Ref: TiDB v8.5.5 parser.y:3239-3258 (SplitRegionStmt) and
+// parser.y:3276-3299 (SplitSyntaxOption).
+type SplitRegionStmt struct {
+	Loc Loc
+	// RegionFor is whether the statement spelled REGION FOR.
+	RegionFor bool
+	// Partition is whether the statement spelled the PARTITION keyword
+	// before TABLE. It is not the PARTITION (p, ...) list, which lives on
+	// Table.Partitions.
+	Partition bool
+	// Table is the one table being split, with its PARTITION (p, ...)
+	// list in Table.Partitions.
+	Table *TableRef
+	// Index is the INDEX name, empty when the statement names none.
+	Index string
+	// IndexLoc is the INDEX name's own range, NoLoc() when there is none.
+	IndexLoc Loc
+	// Opt is the split specification, never nil: the grammar has no form
+	// without one.
+	Opt *SplitOption
+}
+
+func (s *SplitRegionStmt) nodeTag()  {}
+func (s *SplitRegionStmt) stmtNode() {}
+
+// SplitOption is a SPLIT statement's one split specification, in either the
+// enumerated or the ranged form. Ranged says which, because both forms can
+// leave every value row empty: TiDB's parser takes `BY ()` and
+// `BETWEEN () AND () REGIONS 10` and rejects the empty row only when the
+// statement runs (1136 and 1105 on v8.5.5).
+//
+//	BY (v, ...), (v, ...), ...
+//	BETWEEN (v, ...) AND (v, ...) REGIONS n
+//
+// Ref: TiDB v8.5.5 parser.y:3260-3274 (SplitOption).
+type SplitOption struct {
+	Loc Loc
+	// Ranged is whether this is the BETWEEN form.
+	Ranged bool
+	// ValueLists holds the BY form's rows, one slice per parenthesized
+	// row, in the order written. A row written `()` is an empty,
+	// non-nil slice. Nil for the ranged form.
+	ValueLists [][]ExprNode
+	// Lower and Upper are the ranged form's bound rows, each possibly
+	// empty. Nil for the enumerated form.
+	Lower []ExprNode
+	Upper []ExprNode
+	// Regions is the ranged form's REGIONS count, 0 for the enumerated
+	// form. The grammar is Int64Num, so a sign, a decimal, a string, a
+	// placeholder, and an out-of-range value are all syntax errors;
+	// REGIONS 0 is a syntax-valid statement that fails when it runs.
+	Regions int64
+}
+
+func (o *SplitOption) nodeTag() {}
+
+// DistributeTableStmt represents a TiDB DISTRIBUTE TABLE statement, which
+// schedules a table's or partition's replicas across an engine's stores.
+//
+//	DISTRIBUTE TABLE tbl [PARTITION (p, ...)]
+//	    RULE [=] 'rule' ENGINE [=] 'engine' [TIMEOUT [=] 'timeout']
+//
+// RULE and ENGINE are both mandatory and fixed in that order; each value is
+// a string literal and the `=` is optional. TIMEOUT, when present, comes
+// last. TiDB rejects any other order, a bare identifier value, and a comma
+// between the options (all 1064 on v8.5.5).
+//
+// Ref: TiDB v8.5.5 parser.y:3202-3221 (DistributeTableStmt).
+type DistributeTableStmt struct {
+	Loc Loc
+	// Table is the one table being distributed, with its
+	// PARTITION (p, ...) list in Table.Partitions.
+	Table *TableRef
+	// Rule and Engine are the mandatory RULE and ENGINE values.
+	Rule   string
+	Engine string
+	// Timeout is the TIMEOUT value, empty when the statement has no
+	// TIMEOUT clause. TIMEOUT = '' is written the same way, as upstream
+	// records it.
+	Timeout string
+}
+
+func (s *DistributeTableStmt) nodeTag()  {}
+func (s *DistributeTableStmt) stmtNode() {}
+
 // RawStmt wraps a statement node with its location span.
 type RawStmt struct {
 	Loc     Loc
