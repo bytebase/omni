@@ -227,16 +227,15 @@ func (p *Parser) parsePlanReplayerSlowQueryTail(stmt *nodes.PlanReplayerStmt) er
 // TraceableStmt holds the transaction statements, SET and LOAD DATA and holds
 // no DDL.
 //
-// IMPORT INTO is explainable on v8.5.5 and is not read here: this parser has
-// no IMPORT INTO yet, so `PLAN REPLAYER DUMP EXPLAIN IMPORT INTO t FROM 'f'`
-// stays a rejection. That is a gap this comment records rather than closes;
-// it belongs to IMPORT INTO's own grammar, not to this statement's.
+// IMPORT INTO is the other half of the set and is read here too, now that
+// this parser has it: `PLAN REPLAYER DUMP EXPLAIN IMPORT INTO t FROM 'f'`
+// parses on v8.5.5 and here.
 // atExplainableStmt reports whether the tokens at p.cur open an
 // ExplainableStmt. EXPLAIN's own statement slot needs the question answered
 // before it commits, because EXPLAIN tbl_name is the arm it falls back to.
 func (p *Parser) atExplainableStmt() bool {
 	switch p.cur.Type {
-	case kwSELECT, kwWITH, '(', kwTABLE, kwVALUES, kwINSERT, kwREPLACE, kwUPDATE, kwDELETE, kwALTER:
+	case kwSELECT, kwWITH, '(', kwTABLE, kwVALUES, kwINSERT, kwREPLACE, kwUPDATE, kwDELETE, kwALTER, kwIMPORT:
 		return true
 	}
 	return false
@@ -265,6 +264,18 @@ func (p *Parser) parseExplainableStmt() (nodes.StmtNode, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseAlterTableStmt(alterStart)
+	case kwIMPORT:
+		// parseImportDispatch owns the IMPORT INTO spelling, so the one
+		// statement IMPORT opens is read by the one parser that has it.
+		node, err := p.parseImportDispatch()
+		if err != nil {
+			return nil, err
+		}
+		inner, ok := node.(nodes.StmtNode)
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return inner, nil
 	}
 	return nil, p.syntaxErrorAtCur()
 }

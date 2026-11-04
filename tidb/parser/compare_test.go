@@ -1066,8 +1066,8 @@ func TestParseFuncCall(t *testing.T) {
 			if fc.Star != tt.star {
 				t.Errorf("Star = %v, want %v", fc.Star, tt.star)
 			}
-			if fc.Distinct != tt.distinct {
-				t.Errorf("Distinct = %v, want %v", fc.Distinct, tt.distinct)
+			if fc.Quantifier.RemovesDuplicates() != tt.distinct {
+				t.Errorf("Quantifier = %v, want distinct %v", fc.Quantifier, tt.distinct)
 			}
 			if len(fc.Args) != tt.argCount {
 				t.Errorf("arg count = %d, want %d", len(fc.Args), tt.argCount)
@@ -4014,14 +4014,15 @@ func TestParseAlterTableAnalyzePartition(t *testing.T) {
 		}
 	})
 
-	t.Run("analyze all partitions", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ANALYZE PARTITION ALL")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATAnalyzePartition {
-			t.Errorf("Type = %d, want ATAnalyzePartition", cmd.Type)
-		}
-		if !cmd.AllPartitions {
-			t.Errorf("AllPartitions = false, want true")
+	// ALL is not a partition name list here. ANALYZE PARTITION is its own arm
+	// of ALTER TABLE in TiDB rather than an entry of the action list, and that
+	// arm reads PartitionNameList, which has no ALL: v8.5.5 answers 1064 for
+	// `ALTER TABLE t ANALYZE PARTITION ALL`, where CHECK, OPTIMIZE, REBUILD,
+	// REPAIR and TRUNCATE PARTITION all take it. MySQL 8.0.46 and MariaDB
+	// 11.8.8 do take it, and keep it in their own forks.
+	t.Run("analyze all partitions is rejected", func(t *testing.T) {
+		if _, err := Parse("ALTER TABLE t ANALYZE PARTITION ALL"); err == nil {
+			t.Errorf("Parse accepted ALTER TABLE t ANALYZE PARTITION ALL, which TiDB v8.5.5 answers 1064 for")
 		}
 	})
 }
@@ -7921,8 +7922,11 @@ func TestParseUnlockInstance(t *testing.T) {
 	ParseAndCompare(t, "UNLOCK INSTANCE", "{UNLOCK_INSTANCE :loc 0}")
 }
 
-func TestParseImportTable(t *testing.T) {
-	ParseAndCheck(t, "IMPORT TABLE FROM '/tmp/t1.sdi', '/tmp/t2.sdi'")
+// IMPORT TABLE FROM is MySQL's and not TiDB's: v8.5.5 answers 1064 for it,
+// where mysql:8.0.46 takes it. TiDB's only IMPORT is IMPORT INTO, which
+// load_data_forms_test.go covers.
+func TestParseImportTableIsNotTiDBs(t *testing.T) {
+	ParseExpectError(t, "IMPORT TABLE FROM '/tmp/t1.sdi', '/tmp/t2.sdi'")
 }
 
 // ============================================================================

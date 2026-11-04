@@ -157,6 +157,13 @@ func addsPrimaryKey(cmd *ast.AlterTableCmd) bool {
 				return true
 			}
 		}
+		// `ADD [COLUMN] ( ... )` reads a table element list, so a
+		// PRIMARY KEY written beside the columns is part of this action.
+		for _, con := range cmd.Constraints {
+			if con != nil && con.Type == ast.ConstrPrimaryKey {
+				return true
+			}
+		}
 	}
 	return false
 }

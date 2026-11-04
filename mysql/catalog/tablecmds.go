@@ -2212,6 +2212,10 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 			result += " array"
 		}
 		return result + ")"
+	case *nodes.PositionExpr:
+		// Oracle mysql:8.0 stored form: locate(_utf8mb4'x',`s`) — the engine
+		// keeps the function under its other name.
+		return "locate(" + nodeToSQLGenerated(n.Substr, charset) + "," + nodeToSQLGenerated(n.Str, charset) + ")"
 	case *nodes.WeightStringExpr:
 		// Oracle 8.0.32 stored form: weight_string(`s` as char(4)).
 		var b strings.Builder

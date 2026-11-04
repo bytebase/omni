@@ -300,6 +300,25 @@ const (
 	// TiDB-specific ALTER TABLE commands.
 	ATSetTiFlashReplica // SET TIFLASH REPLICA n
 	ATRemoveTTL         // REMOVE TTL
+	ATCache             // CACHE
+	ATNoCache           // NOCACHE
+	ATCompact           // COMPACT [PARTITION names] [TIFLASH REPLICA]
+	ATWriteable         // READ ONLY | READ WRITE
+	ATAttributes        // ATTRIBUTES [=] {'str' | DEFAULT}
+	ATStatsOptions      // STATS_OPTIONS [=] {'str' | DEFAULT}
+	// ATPartitionAttributes and ATPartitionOptions are the two readings of
+	// `PARTITION name ...`: an attributes clause, or a list of the options a
+	// partition definition takes.
+	ATPartitionAttributes // PARTITION name ATTRIBUTES [=] {'str' | DEFAULT}
+	ATPartitionOptions    // PARTITION name partition_definition_option...
+	// The four interval-partition actions, which name a partition by its
+	// bound rather than by its name. LAST and FIRST are actions in the
+	// comma-separated list; SPLIT MAXVALUE and MERGE FIRST close the
+	// statement on their own.
+	ATAddLastPartition         // LAST PARTITION LESS THAN (expr)
+	ATDropFirstPartition       // FIRST PARTITION LESS THAN (expr)
+	ATReorganizeLastPartition  // SPLIT MAXVALUE PARTITION LESS THAN (expr)
+	ATReorganizeFirstPartition // MERGE FIRST PARTITION LESS THAN (expr)
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -324,14 +343,66 @@ type AlterTableCmd struct {
 	// NO_WRITE_TO_BINLOG or LOCAL modifier a partition-maintenance action
 	// takes after the PARTITION keyword. The grammar folds both spellings to
 	// one value, so the spelling used is not kept.
-	NoWriteToBinlog       bool
+	NoWriteToBinlog bool
+	// NewTable is the new name of a RENAME [TO | AS | =] action, which may
+	// carry a database qualifier. NewName holds the same name as written,
+	// qualifier and dot included, for the consumers that read a plain string.
+	NewTable              *TableRef
 	ExchangeTable         *TableRef        // for EXCHANGE PARTITION ... WITH TABLE
 	WithValidation        *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems          []*OrderByItem   // for ORDER BY operation
 	PartitionBy           *PartitionClause // for PARTITION BY (repartition)
 	TiFlashReplica        int              // TiDB: replica count for SET TIFLASH REPLICA
 	TiFlashLocationLabels []string         // TiDB: optional LOCATION LABELS clause (empty when unset)
+	// IfNotExists records the IF NOT EXISTS the ADD actions TiDB and MariaDB
+	// allow it on carry: ADD [COLUMN], ADD PARTITION, ADD {INDEX | KEY} and
+	// ADD FOREIGN KEY. MySQL 8.0.46 has none of them.
+	IfNotExists bool
+	// Constraints holds the table-level constraints an
+	// `ADD [COLUMN] (table_element, ...)` action carries beside Columns: the
+	// paren form reads a table element list, not a column list, so
+	// `ADD COLUMN (a INT, PRIMARY KEY (a))` is one action with both.
+	Constraints []*Constraint
+	// Attributes carries the value of an ATTRIBUTES or STATS_OPTIONS clause,
+	// on the table (ATAttributes, ATStatsOptions) or on one partition
+	// (ATPartitionAttributes). The command type says which clause was written.
+	Attributes *AttributesSpec
+	// Writeable is the state a READ ONLY or READ WRITE action asks for: true
+	// for READ WRITE, false for READ ONLY.
+	Writeable bool
+	// PartitionOptions holds the partition-definition options a
+	// `PARTITION name ...` action carries (ATPartitionOptions). The list is
+	// empty for `ALTER TABLE t PARTITION p`, which TiDB accepts with no
+	// options at all.
+	PartitionOptions []*TableOption
+	// CompactTiFlashReplica records the TIFLASH REPLICA that narrows a COMPACT
+	// action to the TiFlash replicas; false compacts every replica kind.
+	CompactTiFlashReplica bool
+	// PartitionBound is the bound an interval-partition action names a
+	// partition by: the expression inside LESS THAN (...).
+	PartitionBound ExprNode
+	// AnalyzeIndexFlag records the INDEX keyword of
+	// `ANALYZE PARTITION names INDEX [index_names]`, which TiDB takes with an
+	// empty name list, so the keyword and the names are kept apart.
+	AnalyzeIndexFlag bool
+	AnalyzeIndexes   []string
+	// AnalyzeOptions is the WITH list, the same one ANALYZE TABLE takes.
+	AnalyzeOptions []*AnalyzeOption
 }
+
+// AttributesSpec is the value an ATTRIBUTES or a STATS_OPTIONS clause carries.
+// Both clauses take a string literal or the word DEFAULT, and nothing else:
+// TiDB v8.5.5 answers 1064 for `ATTRIBUTES`, `ATTRIBUTES = 1` and
+// `ATTRIBUTES 1`.
+//
+// Ref: AttributesOpt and StatsOptionsOpt in TiDB v8.5.5 pkg/parser/parser.y.
+type AttributesSpec struct {
+	Loc     Loc
+	Default bool   // the clause was written as DEFAULT
+	Value   string // the string literal, when Default is false
+}
+
+func (s *AttributesSpec) nodeTag() {}
 
 func (c *AlterTableCmd) nodeTag() {}
 
@@ -546,6 +617,9 @@ const (
 	ConstrIndex
 	ConstrFulltextIndex
 	ConstrSpatialIndex
+	// ConstrVector is TiDB's VECTOR INDEX, which has no CONSTRAINT symbol
+	// form: v8.5.5 answers 1064 for `ADD CONSTRAINT c VECTOR INDEX (...)`.
+	ConstrVector
 )
 
 // Constraint represents a table-level constraint.
@@ -575,6 +649,11 @@ type Constraint struct {
 	Match        string // FULL, PARTIAL, SIMPLE
 	NotEnforced  bool   // for CHECK ... NOT ENFORCED
 	Clustered    *bool  // TiDB: nil=unset, true=CLUSTERED, false=NONCLUSTERED
+	// IfNotExists records the IF NOT EXISTS that TiDB and MariaDB allow after
+	// {INDEX | KEY}, after FOREIGN KEY and after VECTOR INDEX, and nowhere
+	// else: TiDB v8.5.5 answers 1064 for it after UNIQUE, PRIMARY KEY,
+	// FULLTEXT and CHECK.
+	IfNotExists bool
 }
 
 func (c *Constraint) nodeTag() {}
@@ -597,6 +676,11 @@ type TableOption struct {
 	Name    string
 	Value   string
 	Storage string // TABLESPACE ... STORAGE {DISK|MEMORY}
+	// Force records the FORCE that TiDB allows before AUTO_INCREMENT and
+	// AUTO_RANDOM_BASE, and before no other option. It changes what the server
+	// does -- the value is applied even when it moves the counter backwards --
+	// so it is part of the option rather than noise before it.
+	Force bool
 }
 
 func (o *TableOption) nodeTag() {}
@@ -616,7 +700,24 @@ type PartitionClause struct {
 	SubPartColumns []string      // SUBPARTITION BY KEY (columns)
 	SubPartAlgo    int           // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
 	NumSubParts    int           // SUBPARTITIONS num
+	// UpdateIndexes holds the UPDATE INDEXES clause TiDB allows after the
+	// partition definitions, which says whether each named index stays global
+	// or becomes local once the table is repartitioned.
+	UpdateIndexes []*UpdateIndexSpec
 }
+
+// UpdateIndexSpec is one entry of a TiDB UPDATE INDEXES clause. Global is true
+// for GLOBAL and false for LOCAL; one of the two is required, so there is no
+// unset state: TiDB v8.5.5 answers 1064 for `UPDATE INDEXES (i)`.
+//
+// Ref: UpdateIndexesList in TiDB v8.5.5 pkg/parser/parser.y.
+type UpdateIndexSpec struct {
+	Loc    Loc
+	Name   string
+	Global bool
+}
+
+func (s *UpdateIndexSpec) nodeTag() {}
 
 func (p *PartitionClause) nodeTag() {}
 
@@ -741,16 +842,61 @@ func (e *UnaryExpr) exprNode() {}
 
 // FuncCallExpr represents a function call.
 type FuncCallExpr struct {
-	Loc       Loc
-	Name      string
-	Schema    string // schema-qualified name
-	Args      []ExprNode
-	Distinct  bool // COUNT(DISTINCT ...)
-	Star      bool // COUNT(*)
-	HasParens bool // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
-	OrderBy   []*OrderByItem
-	Over      *WindowDef // OVER clause for window functions
-	Separator ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Loc        Loc
+	Name       string
+	Schema     string // schema-qualified name
+	Args       []ExprNode
+	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
+	Star       bool          // COUNT(*)
+	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
+	OrderBy    []*OrderByItem
+	Over       *WindowDef // OVER clause for window functions
+	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+}
+
+// AggQuantifier is the prefix an aggregate's argument list carries. It is the
+// only record of what was written, so a consumer asking whether duplicates are
+// removed asks RemovesDuplicates rather than comparing to AggQuantDistinct:
+// DISTINCTROW is a synonym, and the DISTINCT ALL forms de-duplicate too.
+type AggQuantifier uint8
+
+const (
+	AggQuantNone AggQuantifier = iota
+	AggQuantDistinct
+	AggQuantDistinctRow
+	AggQuantAll
+	AggQuantDistinctAll
+	AggQuantDistinctRowAll
+)
+
+// String returns the quantifier as written, empty for AggQuantNone.
+func (q AggQuantifier) String() string {
+	switch q {
+	case AggQuantDistinct:
+		return "DISTINCT"
+	case AggQuantDistinctRow:
+		return "DISTINCTROW"
+	case AggQuantAll:
+		return "ALL"
+	case AggQuantDistinctAll:
+		return "DISTINCT ALL"
+	case AggQuantDistinctRowAll:
+		return "DISTINCTROW ALL"
+	}
+	return ""
+}
+
+// RemovesDuplicates reports whether the quantifier makes the aggregate read
+// each distinct value once. ALL is the default and changes nothing; the
+// DISTINCT ALL forms de-duplicate, which is what the engine's grammar calls a
+// buggy distinct option (pingcap/tidb pkg/parser/parser.y,
+// BuggyDefaultFalseDistinctOpt).
+func (q AggQuantifier) RemovesDuplicates() bool {
+	switch q {
+	case AggQuantDistinct, AggQuantDistinctRow, AggQuantDistinctAll, AggQuantDistinctRowAll:
+		return true
+	}
+	return false
 }
 
 func (e *FuncCallExpr) nodeTag()  {}
@@ -861,6 +1007,10 @@ type CastExpr struct {
 	Loc      Loc
 	Expr     ExprNode
 	TypeName *DataType
+	// Array is CAST(expr AS type ARRAY), the multi-valued index form. It
+	// belongs to the cast and not to DataType: no other position takes it,
+	// and CONVERT(expr, type ARRAY) is a syntax error.
+	Array bool
 }
 
 func (e *CastExpr) nodeTag()  {}
@@ -875,6 +1025,18 @@ type ExtractExpr struct {
 
 func (e *ExtractExpr) nodeTag()  {}
 func (e *ExtractExpr) exprNode() {}
+
+// PositionExpr represents POSITION(substr IN str). The keyword separates the
+// arguments and the comma form is a syntax error, so the call cannot be a
+// FuncCallExpr: deparse would write POSITION(a, b), which no engine parses.
+type PositionExpr struct {
+	Loc    Loc
+	Substr ExprNode
+	Str    ExprNode
+}
+
+func (e *PositionExpr) nodeTag()  {}
+func (e *PositionExpr) exprNode() {}
 
 // -----------------------------------------------------------------------
 // Reference and literal nodes
@@ -1830,6 +1992,11 @@ type EventSchedule struct {
 func (s *EventSchedule) nodeTag() {}
 
 // LoadDataStmt represents a LOAD DATA statement.
+//
+// Columns holds the column-and-user-variable list: each element is a
+// *ColumnRef for a column name and a *VariableRef for a user variable, so
+// `(a, @v)` names a column and a variable rather than two columns, one of
+// them called "@v".
 type LoadDataStmt struct {
 	Loc                Loc
 	IsXML              bool // true for LOAD XML, false for LOAD DATA
@@ -1837,13 +2004,15 @@ type LoadDataStmt struct {
 	Concurrent         bool // CONCURRENT modifier
 	Local              bool
 	Infile             string
+	Format             string // TiDB: FORMAT 'delimited data' | 'sql file' | 'parquet'
+	HasFormat          bool   // FORMAT written, which FORMAT '' does not show
 	Replace            bool
 	Ignore             bool
 	Table              *TableRef
 	Partitions         []string // PARTITION (p0, p1, ...)
 	CharacterSet       string   // CHARACTER SET charset_name
 	RowsIdentifiedBy   string   // ROWS IDENTIFIED BY '<tagname>' (XML only)
-	Columns            []*ColumnRef
+	Columns            []ExprNode
 	SetList            []*Assignment
 	LinesStartingBy    string
 	LinesTerminatedBy  string
@@ -1851,11 +2020,54 @@ type LoadDataStmt struct {
 	FieldsEnclosedBy   string
 	FieldsOptionalEncl bool // OPTIONALLY ENCLOSED BY
 	FieldsEscapedBy    string
-	IgnoreRows         int
+	// TiDB: FIELDS DEFINED NULL BY 'x' [OPTIONALLY ENCLOSED]. HasDefinedNullBy
+	// is what tells DEFINED NULL BY '' from no such item.
+	FieldsDefinedNullBy    string
+	HasDefinedNullBy       bool
+	DefinedNullOptEnclosed bool
+	IgnoreRows             int
+	Options                []*LoadDataOption // TiDB: WITH detached, threads=10
 }
 
 func (s *LoadDataStmt) nodeTag()  {}
 func (s *LoadDataStmt) stmtNode() {}
+
+// LoadDataOption is one entry of TiDB's WITH list on LOAD DATA and IMPORT
+// INTO. Value is nil for a bare name such as `detached`.
+type LoadDataOption struct {
+	Loc   Loc
+	Name  string
+	Value ExprNode
+}
+
+func (o *LoadDataOption) nodeTag() {}
+
+// ImportIntoStmt represents TiDB's IMPORT INTO statement. Exactly one of
+// Path, Select and TableSource carries the source the rows come from: a file
+// path, a query, or the TABLE statement `FROM TABLE s` is. Columns holds the
+// same column-and-user-variable list LoadDataStmt documents.
+//
+// Ref: https://docs.pingcap.com/tidb/stable/sql-statement-import-into/
+type ImportIntoStmt struct {
+	Loc     Loc
+	Table   *TableRef
+	Columns []ExprNode
+	SetList []*Assignment
+	Path    string
+	// Select is the query expression FROM reads, whatever primary it
+	// begins with: a SELECT, a WITH, a parenthesized query, or a TABLE or
+	// VALUES primary, which arrive as a SelectStmt over their source the
+	// way they do everywhere else. A set operation, an ORDER BY, a LIMIT
+	// and a locking clause are all reachable here on v8.5.5, so there is
+	// one field rather than one per primary.
+	Select    *SelectStmt // FROM query_expression
+	Format    string      // FORMAT 'csv' | 'sql file' | 'parquet'
+	HasFormat bool        // FORMAT written, which FORMAT '' does not show
+	Options   []*LoadDataOption
+}
+
+func (s *ImportIntoStmt) nodeTag()  {}
+func (s *ImportIntoStmt) stmtNode() {}
 
 // PrepareStmt represents a PREPARE statement.
 type PrepareStmt struct {
@@ -3611,15 +3823,6 @@ type UnlockInstanceStmt struct {
 
 func (s *UnlockInstanceStmt) nodeTag()  {}
 func (s *UnlockInstanceStmt) stmtNode() {}
-
-// ImportTableStmt represents an IMPORT TABLE FROM statement.
-type ImportTableStmt struct {
-	Loc   Loc
-	Files []string // .sdi file paths
-}
-
-func (s *ImportTableStmt) nodeTag()  {}
-func (s *ImportTableStmt) stmtNode() {}
 
 // BinlogStmt represents a BINLOG 'str' statement.
 type BinlogStmt struct {

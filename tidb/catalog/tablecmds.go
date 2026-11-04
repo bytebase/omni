@@ -580,6 +580,24 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			}
 			applyIndexOptions(spIdx, con.IndexOptions)
 			tbl.Indexes = append(tbl.Indexes, spIdx)
+
+		case nodes.ConstrVector:
+			// TiDB's VECTOR INDEX, which CREATE TABLE declares as well as
+			// ALTER TABLE adds. The index type is the USING name (HNSW).
+			idxName := con.Name
+			if idxName == "" && len(cols) > 0 {
+				idxName = allocIndexName(tbl, cols[0])
+			}
+			vecIdx := &Index{
+				Name:      idxName,
+				Table:     tbl,
+				Columns:   buildIndexColumns(con),
+				Vector:    true,
+				IndexType: resolveConstraintIndexType(con),
+				Visible:   true,
+			}
+			applyIndexOptions(vecIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, vecIdx)
 		}
 	}
 
@@ -1134,6 +1152,14 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			case *nodes.IntLit:
 				idx.KeyBlockSize = int(n.Value)
 			}
+		// TiDB's GLOBAL and LOCAL. The option list may hold both, and the
+		// last one decides, as the grammar's own action does. Dropping GLOBAL
+		// here left the partition-coverage check applying the local rule to a
+		// global index, which is the 8264 that option exists to avoid.
+		case "GLOBAL":
+			idx.Global = true
+		case "LOCAL":
+			idx.Global = false
 		}
 	}
 }
@@ -1300,6 +1326,13 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		// Bare keyword argument (timestampdiff unit, get_format type) —
 		// stored unquoted in generated-column bodies exactly like view bodies.
 		return n.Keyword
+	case *nodes.ExtractExpr:
+		// Oracle TiDB v8.5.5 stored form: extract(day_hour from `a`).
+		return "extract(" + strings.ToLower(n.Unit) + " from " + nodeToSQLGenerated(n.Expr, charset) + ")"
+	case *nodes.PositionExpr:
+		// Oracle TiDB v8.5.5 stored form: position(_utf8mb4'x' in `s`) — the
+		// keyword, where MySQL 8.0 stores locate(_utf8mb4'x',`s`).
+		return "position(" + nodeToSQLGenerated(n.Substr, charset) + " in " + nodeToSQLGenerated(n.Str, charset) + ")"
 	case *nodes.BinaryExpr:
 		left := nodeToSQLGenerated(n.Left, charset)
 		right := nodeToSQLGenerated(n.Right, charset)

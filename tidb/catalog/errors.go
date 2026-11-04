@@ -42,6 +42,10 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	// ErrWrongNameForIndex is "Incorrect index name '<name>'", which TiDB
+	// v8.5.5 answers for an UPDATE INDEXES entry naming an index the table
+	// does not have (read on 2026-11-04).
+	ErrWrongNameForIndex = 1280
 	// TiDB error codes. 8239 is the closest match in TiDB's error
 	// catalog for "Placement policy <name> already exists" (err.go:261
 	// upstream). 8241 covers "unknown placement policy" (err.go:266).
@@ -58,6 +62,7 @@ var sqlStateMap = map[int]string{
 	ErrDupTable:                          "42S01",
 	ErrUnknownTable:                      "42S02",
 	ErrDupColumn:                         "42S21",
+	ErrWrongNameForIndex:                 "42000",
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
 	ErrMultiplePriKey:                    "42000",
@@ -158,6 +163,11 @@ func errUnknownTable(db, name string) error {
 func errFKCannotDropParent(table, fkName, refTable string) error {
 	return &Error{Code: ErrFKCannotDropParent, SQLState: sqlState(ErrFKCannotDropParent),
 		Message: fmt.Sprintf("Cannot drop table '%s' referenced by a foreign key constraint '%s' on table '%s'", table, fkName, refTable)}
+}
+
+func errWrongNameForIndex(name string) error {
+	return &Error{Code: ErrWrongNameForIndex, SQLState: sqlState(ErrWrongNameForIndex),
+		Message: fmt.Sprintf("Incorrect index name '%s'", name)}
 }
 
 func errCantDropKey(name string) error {

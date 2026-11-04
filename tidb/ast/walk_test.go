@@ -179,7 +179,7 @@ func allKnownNodes() []Node {
 		&LockInstanceStmt{}, &UnlockInstanceStmt{},
 		&TableStmt{}, &ValuesStmt{},
 		&BinlogStmt{}, &CloneStmt{}, &RestartStmt{}, &ShutdownStmt{},
-		&HelpStmt{}, &PurgeBinaryLogsStmt{}, &ImportTableStmt{},
+		&HelpStmt{}, &PurgeBinaryLogsStmt{}, &ImportIntoStmt{},
 		&RawStmt{},
 
 		// Expressions

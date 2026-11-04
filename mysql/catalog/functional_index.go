@@ -359,6 +359,11 @@ func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
 		// KEY ((weight_string(now() as char(4)))) is rejected by the engine
 		// exactly like KEY ((now())) — error 3758 (oracle 8.0.32).
 		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.PositionExpr:
+		// KEY ((position('x' in rand()))) → 3758, like KEY ((rand())), and
+		// position over a column is allowed (oracle 8.0.32, and 3758 on TiDB v8.5.5).
+		return containsDisallowedFunctionalIndexExpr(e.Substr) ||
+			containsDisallowedFunctionalIndexExpr(e.Str)
 	case *nodes.ExtractExpr:
 		// KEY ((extract(day from now()))) → 3758; extract over a column is
 		// allowed (oracle 8.0.32).

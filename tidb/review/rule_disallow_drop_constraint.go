@@ -197,14 +197,30 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 						if cmd.Constraint != nil && cmd.Constraint.Type != ast.ConstrCheck {
 							touch(v.Table, keyName(cmd.Constraint), cmd.Constraint.Type == ast.ConstrUnique)
 						}
+					case ast.ATAddColumn:
+						// `ADD [COLUMN] ( ... )` reads a table element list,
+						// so a key written beside the columns is added here.
+						for _, con := range cmd.Constraints {
+							if con != nil && con.Type != ast.ConstrCheck {
+								touch(v.Table, keyName(con), con.Type == ast.ConstrUnique)
+							}
+						}
 					case ast.ATRenameIndex:
 						// The new name keeps what the change knows of the old.
 						old, known := find(v.Table, cmd.Name)
 						touch(v.Table, cmd.Name, false)
 						touch(v.Table, cmd.NewName, known && sameCase(old.table, v.Table) && old.unique)
 					case ast.ATRenameTable:
-						// The new name stays in the table's database.
-						replace(&ast.TableRef{Schema: v.Table.Schema, Name: cmd.NewName})
+						// A new name without a database stays in the table's.
+						to := &ast.TableRef{Name: cmd.NewName}
+						if cmd.NewTable != nil {
+							copied := *cmd.NewTable
+							to = &copied
+						}
+						if to.Schema == "" {
+							to.Schema = v.Table.Schema
+						}
+						replace(to)
 					}
 					var msg string
 					switch dropKindOf(sql, cmd) {

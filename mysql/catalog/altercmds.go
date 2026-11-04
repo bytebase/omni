@@ -56,12 +56,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 // alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
 func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
-	if len(stmt.Commands) <= 1 {
-		// Single command: no rollback needed.
-		if len(stmt.Commands) == 1 {
-			return c.execAlterCmd(db, tbl, stmt.Commands[0])
-		}
+	if len(stmt.Commands) == 0 {
 		return nil
+	}
+	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
+		// Single command carrying one table element: no rollback needed.
+		return c.execAlterCmd(db, tbl, stmt.Commands[0])
 	}
 
 	// Multi-command ALTER: MySQL treats this as atomic.
@@ -152,10 +152,22 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 
 // alterAddColumn adds a new column to the table.
 func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	// Handle multi-column parenthesized form: ADD (col1 INT, col2 INT, ...)
-	if len(cmd.Columns) > 0 {
+	// The parenthesized form reads a table element list, so it carries the
+	// constraints written beside the columns:
+	// `ADD COLUMN (a1 INT, PRIMARY KEY (a1))` adds both. The columns come
+	// first, as the CREATE TABLE path builds them, and MySQL 8.0.46 makes a1
+	// the primary key for exactly that statement.
+	if len(cmd.Columns) > 0 || len(cmd.Constraints) > 0 {
 		for _, colDef := range cmd.Columns {
 			if err := c.addSingleColumn(tbl, colDef, false, ""); err != nil {
+				return err
+			}
+		}
+		for _, con := range cmd.Constraints {
+			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
+				Type:       nodes.ATAddConstraint,
+				Constraint: con,
+			}); err != nil {
 				return err
 			}
 		}
@@ -234,6 +246,36 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Table:     tbl,
 				Columns:   []string{colDef.Name},
 				IndexName: idxName,
+			})
+
+		case nodes.ColConstrCheck:
+			// A column's CHECK is a table constraint like any other, and the
+			// CREATE TABLE path has always built one; the ALTER path dropped
+			// it, so `ADD b INT CONSTRAINT positive_b CHECK (b > 0)` reported
+			// success and installed only the column. MySQL 8.0.46 installs
+			// the constraint -- `CONSTRAINT positive_b CHECK ((b > 0))` reads
+			// back from SHOW CREATE TABLE -- and names an unnamed one
+			// <table>_chk_<n>, continuing the table's run (read on
+			// 2026-11-04).
+			if cc.Expr == nil {
+				break
+			}
+			conName := cc.Name
+			if conName == "" {
+				conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+			}
+			if checkConstraintNameExists(tbl.Database, nil, conName) {
+				return errCheckConstraintDupName(conName)
+			}
+			if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
+				return err
+			}
+			tbl.Constraints = append(tbl.Constraints, &Constraint{
+				Name:        conName,
+				Type:        ConCheck,
+				Table:       tbl,
+				CheckExpr:   nodeToSQL(cc.Expr),
+				NotEnforced: cc.NotEnforced,
 			})
 		}
 	}
@@ -789,14 +831,24 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 		return err
 	}
 	newName := newTable.Name
+	// The table leaves the database it is in now, which an earlier rename in
+	// the same statement may already have changed: db is where the statement
+	// started. Deleting from db instead left the intermediate destination's
+	// entry behind, so `ALTER TABLE d.t RENAME TO e.u, RENAME TO e.v` would
+	// have left both e.u and e.v pointing at the table; MySQL 8.0.46 runs
+	// that statement and ends with e.v alone (read on 2026-11-04).
+	oldDB := db
+	if tbl.Database != nil {
+		oldDB = tbl.Database
+	}
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != db || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
 		return errDupTable(newName)
 	}
 
-	delete(db.Tables, oldKey)
+	delete(oldDB.Tables, oldKey)
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl
@@ -1183,7 +1235,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
-			case "engine":
+			// STORAGE ENGINE is the other spelling of ENGINE, and names the
+			// same engine.
+			case "engine", "storage engine":
 				pdi.Engine = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value
@@ -1282,7 +1336,9 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
-			case "engine":
+			// STORAGE ENGINE is the other spelling of ENGINE, and names the
+			// same engine.
+			case "engine", "storage engine":
 				pdi.Engine = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value
@@ -1351,4 +1407,38 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 func generatedExprReferencesColumn(expr, colName string) bool {
 	target := "`" + strings.ToLower(colName) + "`"
 	return strings.Contains(strings.ToLower(expr), target)
+}
+
+// addNeedsRollback reports whether an ADD action can fail after it has begun
+// changing the table, so that it needs the rollback a multi-command ALTER
+// gets rather than the single-command fast path. Two shapes can:
+//
+//   - `ADD [COLUMN] ( ... )` carries a table element list, so an element that
+//     fails part-way through would leave the earlier ones installed;
+//   - a column with constraints has them applied after the column itself is
+//     inserted, and those can fail -- a second primary key, a duplicate
+//     CHECK name, a CHECK naming another column.
+//
+// MySQL 8.0.46 leaves the table untouched for all of them:
+// `ADD (b INT, KEY i (b))` against a table that already has i,
+// `ADD b INT PRIMARY KEY` against a table that already has one, and
+// `ADD b INT CONSTRAINT ck CHECK (b > 0)` against a table that already has ck
+// (read on 2026-11-04). Any column constraint counts, rather than the three
+// that fail today, so a validation added later cannot reopen this.
+func addNeedsRollback(cmd *nodes.AlterTableCmd) bool {
+	if cmd == nil || cmd.Type != nodes.ATAddColumn {
+		return false
+	}
+	if len(cmd.Columns)+len(cmd.Constraints) > 1 {
+		return true
+	}
+	if cmd.Column != nil && len(cmd.Column.Constraints) > 0 {
+		return true
+	}
+	for _, col := range cmd.Columns {
+		if col != nil && len(col.Constraints) > 0 {
+			return true
+		}
+	}
+	return false
 }

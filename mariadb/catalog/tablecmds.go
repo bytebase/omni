@@ -2568,6 +2568,13 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		// Bare keyword argument (timestampdiff unit, get_format type) —
 		// stored unquoted in generated-column bodies exactly like view bodies.
 		return n.Keyword
+	case *nodes.ExtractExpr:
+		// Oracle mariadb:11.8.8 stored form: extract(day_hour from `a`).
+		return "extract(" + strings.ToLower(n.Unit) + " from " + nodeToSQLGenerated(n.Expr, charset) + ")"
+	case *nodes.PositionExpr:
+		// Oracle mariadb:11.8.8 stored form: locate('x',`s`) — the engine
+		// keeps the function under its other name.
+		return "locate(" + nodeToSQLGenerated(n.Substr, charset) + "," + nodeToSQLGenerated(n.Str, charset) + ")"
 	case *nodes.BinaryExpr:
 		left := nodeToSQLGenerated(n.Left, charset)
 		right := nodeToSQLGenerated(n.Right, charset)

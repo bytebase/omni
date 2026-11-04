@@ -57,6 +57,11 @@ var planReplayerFormCases = []planReplayerFormCase{
 	// catalog has to read what a dump carries.
 	{"plan replayer dump explain alter table t add column c int", true},
 	{"plan replayer dump explain analyze alter table t add column c int", true},
+	// IMPORT INTO is the other half of the set, and is read now that this
+	// parser has the statement.
+	{"plan replayer dump explain import into t from '/tmp/a.csv'", true},
+	{"plan replayer dump explain analyze import into t from '/tmp/a.csv'", true},
+	{"plan replayer dump explain import into t from table t1", true},
 	// Which is TRACE's set almost inverted: TraceableStmt holds the
 	// transaction statements, SET and LOAD DATA and holds no DDL, and
 	// ExplainableStmt holds none of those three and does hold ALTER TABLE.

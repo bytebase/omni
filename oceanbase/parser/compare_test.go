@@ -1028,8 +1028,8 @@ func TestParseFuncCall(t *testing.T) {
 			if fc.Star != tt.star {
 				t.Errorf("Star = %v, want %v", fc.Star, tt.star)
 			}
-			if fc.Distinct != tt.distinct {
-				t.Errorf("Distinct = %v, want %v", fc.Distinct, tt.distinct)
+			if fc.Quantifier.RemovesDuplicates() != tt.distinct {
+				t.Errorf("Quantifier = %v, want distinct %v", fc.Quantifier, tt.distinct)
 			}
 			if len(fc.Args) != tt.argCount {
 				t.Errorf("arg count = %d, want %d", len(fc.Args), tt.argCount)

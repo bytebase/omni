@@ -202,6 +202,14 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		// no-op read the same. ANALYZE TABLE reaches the default arm for
 		// the same reason and has always been a no-op there.
 		return nil
+	case *nodes.LoadDataStmt, *nodes.ImportIntoStmt:
+		// The bulk-load statements. Both write rows into a table that
+		// exists already and neither changes a schema the catalog holds --
+		// no table, column, index, or option -- so each is applied as a
+		// no-op rather than left to the default arm, where an unmodelled
+		// statement and a deliberate no-op read the same. A change script
+		// may hold either next to its DDL.
+		return nil
 	case *nodes.SplitRegionStmt, *nodes.DistributeTableStmt:
 		// SPLIT ... TABLE pre-splits regions and DISTRIBUTE TABLE
 		// schedules replicas. Neither changes a schema the catalog
@@ -392,6 +400,10 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.TraceStmt:
 		return s.Loc.Start
 	case *nodes.PlanReplayerStmt:
+		return s.Loc.Start
+	case *nodes.LoadDataStmt:
+		return s.Loc.Start
+	case *nodes.ImportIntoStmt:
 		return s.Loc.Start
 	case *nodes.SelectStmt:
 		return s.Loc.Start
