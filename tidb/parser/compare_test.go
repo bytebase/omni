@@ -10794,19 +10794,23 @@ func TestReviewBatch111_AnalyzeTableLocal(t *testing.T) {
 	}
 }
 
+// TestReviewBatch111_AnalyzeTableUsingData used to assert that this parser
+// took MySQL 8.0's `USING DATA 'json'` tail. TiDB has no such form and
+// v8.5.5 answers 1064 for it (read on 2026-11-04), so the case is a
+// rejection now; statisticsFormCases holds it beside the rest of the family,
+// where the oracle test keeps it measured.
 func TestReviewBatch111_AnalyzeTableUsingData(t *testing.T) {
-	result := ParseAndCheck(t, "ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 USING DATA '{\"key\": \"value\"}'")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, ":using_data") {
-		t.Errorf("expected :using_data, got %s", s)
+	sql := "ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 USING DATA '{\"key\": \"value\"}'"
+	if _, err := Parse(sql); err == nil {
+		t.Errorf("Parse(%q) succeeded, want a syntax error: TiDB has no USING DATA", sql)
 	}
 }
 
 func TestReviewBatch111_AnalyzeTableHistogramBuckets(t *testing.T) {
 	result := ParseAndCheck(t, "ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 100 BUCKETS")
 	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, ":buckets 100") {
-		t.Errorf("expected :buckets 100, got %s", s)
+	if !strings.Contains(s, ":value 100 :unit BUCKETS") {
+		t.Errorf("expected :value 100 :unit BUCKETS, got %s", s)
 	}
 }
 

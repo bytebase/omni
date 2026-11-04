@@ -361,21 +361,25 @@ func TestAlterTableAnalyzePartitionTree(t *testing.T) {
 	if got := cmd.AnalyzeIndexes; len(got) != 2 || got[0] != "i" || got[1] != "j" {
 		t.Errorf("AnalyzeIndexes = %v, want [i j]", got)
 	}
-	want := []struct{ name, value string }{
-		{"BUCKETS", "4"},
-		{"TOPN", "3"},
-		{"SAMPLERATE", "0.5"},
-		{"CMSKETCH DEPTH", "2"},
-		{"CMSKETCH WIDTH", "7"},
-		{"SAMPLES", "9"},
+	// The WITH list is the one ANALYZE TABLE takes, with the same unit type.
+	want := []struct {
+		unit  ast.AnalyzeOptionType
+		value string
+	}{
+		{ast.AnalyzeOptBuckets, "4"},
+		{ast.AnalyzeOptTopN, "3"},
+		{ast.AnalyzeOptSampleRate, "0.5"},
+		{ast.AnalyzeOptCMSketchDepth, "2"},
+		{ast.AnalyzeOptCMSketchWidth, "7"},
+		{ast.AnalyzeOptSamples, "9"},
 	}
 	if len(cmd.AnalyzeOptions) != len(want) {
 		t.Fatalf("AnalyzeOptions = %v, want %d entries", cmd.AnalyzeOptions, len(want))
 	}
 	for i, w := range want {
 		got := cmd.AnalyzeOptions[i]
-		if got.Name != w.name || got.Value != w.value {
-			t.Errorf("AnalyzeOptions[%d] = %s=%s, want %s=%s", i, got.Name, got.Value, w.name, w.value)
+		if got.Type != w.unit || got.Value != w.value {
+			t.Errorf("AnalyzeOptions[%d] = %s=%s, want %s=%s", i, got.Type, got.Value, w.unit, w.value)
 		}
 	}
 

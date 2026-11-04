@@ -83,6 +83,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeStatsLock(sb, "LOCK_STATS", n.Loc, n.Tables, n.Partitions)
 	case *UnlockStatsStmt:
 		writeStatsLock(sb, "UNLOCK_STATS", n.Loc, n.Tables, n.Partitions)
+	case *DropStatsStmt:
+		writeDropStatsStmt(sb, n)
+	case *LoadStatsStmt:
+		writeLoadStatsStmt(sb, n)
+	case *CreateStatisticsStmt:
+		writeCreateStatisticsStmt(sb, n)
+	case *DropStatisticsStmt:
+		writeDropStatisticsStmt(sb, n)
 	case *GrantStmt:
 		writeGrantStmt(sb, n)
 	case *RevokeStmt:
@@ -121,6 +129,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDeallocateStmt(sb, n)
 	case *AnalyzeTableStmt:
 		writeAnalyzeTableStmt(sb, n)
+	case *AnalyzeOption:
+		writeAnalyzeOption(sb, n)
 	case *OptimizeTableStmt:
 		writeOptimizeTableStmt(sb, n)
 	case *CheckTableStmt:
@@ -529,6 +539,18 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeSplitOption(sb, n)
 	case *DistributeTableStmt:
 		writeDistributeTableStmt(sb, n)
+	case *BRIEStmt:
+		writeBRIEStmt(sb, n)
+	case *BRIEOption:
+		writeBRIEOption(sb, n)
+	case *RecoverTableStmt:
+		writeRecoverTableStmt(sb, n)
+	case *FlashbackTableStmt:
+		writeFlashbackTableStmt(sb, n)
+	case *FlashbackDatabaseStmt:
+		writeFlashbackDatabaseStmt(sb, n)
+	case *FlashbackToTimestampStmt:
+		writeFlashbackToTimestampStmt(sb, n)
 
 	default:
 		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
@@ -1932,6 +1954,9 @@ func writeAnalyzeTableStmt(sb *strings.Builder, n *AnalyzeTableStmt) {
 	if n.NoWriteToBinlog {
 		sb.WriteString(" :no_write_to_binlog true")
 	}
+	if n.Incremental {
+		sb.WriteString(" :incremental true")
+	}
 	if len(n.Tables) > 0 {
 		sb.WriteString(" :tables ")
 		for i, t := range n.Tables {
@@ -1941,18 +1966,103 @@ func writeAnalyzeTableStmt(sb *strings.Builder, n *AnalyzeTableStmt) {
 			writeNode(sb, t)
 		}
 	}
+	if len(n.Partitions) > 0 {
+		fmt.Fprintf(sb, " :partitions %s", strings.Join(n.Partitions, " "))
+	}
+	if n.HasIndex {
+		sb.WriteString(" :index true")
+		if len(n.Indexes) > 0 {
+			fmt.Fprintf(sb, " :indexes %s", strings.Join(n.Indexes, " "))
+		}
+	}
+	switch n.ColumnChoice {
+	case AnalyzeAllColumns:
+		sb.WriteString(" :columns all")
+	case AnalyzePredicateColumns:
+		sb.WriteString(" :columns predicate")
+	case AnalyzeColumnList:
+		fmt.Fprintf(sb, " :columns (%s)", strings.Join(n.Columns, " "))
+	}
 	if n.HistogramOp != "" {
 		fmt.Fprintf(sb, " :histogram_op %s", n.HistogramOp)
 	}
 	if len(n.HistogramColumns) > 0 {
 		fmt.Fprintf(sb, " :histogram_columns %s", strings.Join(n.HistogramColumns, ", "))
 	}
-	if n.Buckets > 0 {
-		fmt.Fprintf(sb, " :buckets %d", n.Buckets)
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options (")
+		for i, o := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+		sb.WriteString(")")
 	}
-	if n.UsingData != "" {
-		fmt.Fprintf(sb, " :using_data \"%s\"", n.UsingData)
+	sb.WriteString("}")
+}
+
+func writeAnalyzeOption(sb *strings.Builder, n *AnalyzeOption) {
+	sb.WriteString("{ANALYZE_OPTION")
+	fmt.Fprintf(sb, " :loc %d :value %s :unit %s", n.Loc.Start, n.Value, n.Type)
+	sb.WriteString("}")
+}
+
+func writeDropStatsStmt(sb *strings.Builder, n *DropStatsStmt) {
+	sb.WriteString("{DROP_STATS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, t := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+		sb.WriteString(")")
 	}
+	if len(n.Partitions) > 0 {
+		fmt.Fprintf(sb, " :partitions %s", strings.Join(n.Partitions, " "))
+	}
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	sb.WriteString("}")
+}
+
+func writeLoadStatsStmt(sb *strings.Builder, n *LoadStatsStmt) {
+	sb.WriteString("{LOAD_STATS")
+	fmt.Fprintf(sb, " :loc %d :path \"%s\"", n.Loc.Start, n.Path)
+	sb.WriteString("}")
+}
+
+func writeCreateStatisticsStmt(sb *strings.Builder, n *CreateStatisticsStmt) {
+	sb.WriteString("{CREATE_STATISTICS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	fmt.Fprintf(sb, " :name %s :type %s", n.Name, n.Type)
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if len(n.Columns) > 0 {
+		sb.WriteString(" :columns (")
+		for i, c := range n.Columns {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, c)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeDropStatisticsStmt(sb *strings.Builder, n *DropStatisticsStmt) {
+	sb.WriteString("{DROP_STATISTICS")
+	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
 	sb.WriteString("}")
 }
 
@@ -5582,6 +5692,140 @@ func writeDistributeTableStmt(sb *strings.Builder, n *DistributeTableStmt) {
 	fmt.Fprintf(sb, " :rule %q :engine %q", n.Rule, n.Engine)
 	if n.Timeout != "" {
 		fmt.Fprintf(sb, " :timeout %q", n.Timeout)
+	}
+	sb.WriteString("}")
+}
+
+var brieKindNames = map[BRIEKind]string{
+	BRIEBackup:       "BACKUP",
+	BRIERestore:      "RESTORE",
+	BRIEBackupLogs:   "BACKUP_LOGS",
+	BRIERestorePoint: "RESTORE_POINT",
+}
+
+var brieOptionValueNames = map[BRIEOptionValue]string{
+	BRIEValueInt:            "int",
+	BRIEValueString:         "string",
+	BRIEValueLevel:          "level",
+	BRIEValueTimeAgo:        "time_ago",
+	BRIEValueRateLimit:      "rate_limit",
+	BRIEValueCSVHeaderWords: "csv_header_words",
+}
+
+var brieTargetNames = map[BRIETarget]string{
+	BRIETargetNone:       "none",
+	BRIETargetAllSchemas: "all_schemas",
+	BRIETargetSchemas:    "schemas",
+	BRIETargetTables:     "tables",
+}
+
+var flashbackScopeNames = map[FlashbackScope]string{
+	FlashbackCluster:  "cluster",
+	FlashbackTables:   "tables",
+	FlashbackDatabase: "database",
+}
+
+func writeBRIEStmt(sb *strings.Builder, n *BRIEStmt) {
+	fmt.Fprintf(sb, "{BRIE :loc %d :kind %s :target %s",
+		n.Loc.Start, brieKindNames[n.Kind], brieTargetNames[n.Target])
+	if len(n.Schemas) > 0 {
+		sb.WriteString(" :schemas (")
+		for i, name := range n.Schemas {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%q", name)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, tbl := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, tbl)
+		}
+		sb.WriteString(")")
+	}
+	fmt.Fprintf(sb, " :storage %q", n.Storage)
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options (")
+		for i, opt := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, opt)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeBRIEOption(sb *strings.Builder, n *BRIEOption) {
+	fmt.Fprintf(sb, "{BRIE_OPTION :loc %d :name %q :value %s",
+		n.Loc.Start, n.Name, brieOptionValueNames[n.Value])
+	switch n.Value {
+	case BRIEValueInt, BRIEValueRateLimit:
+		fmt.Fprintf(sb, " :int %d", n.IntValue)
+	case BRIEValueTimeAgo:
+		fmt.Fprintf(sb, " :int %d :unit %q", n.IntValue, n.Unit)
+	default:
+		fmt.Fprintf(sb, " :str %q", n.StrValue)
+	}
+	sb.WriteString("}")
+}
+
+func writeRecoverTableStmt(sb *strings.Builder, n *RecoverTableStmt) {
+	fmt.Fprintf(sb, "{RECOVER_TABLE :loc %d", n.Loc.Start)
+	if n.ByJob {
+		fmt.Fprintf(sb, " :by_job true :job_id %d}", n.JobID)
+		return
+	}
+	sb.WriteString(" :table ")
+	writeNode(sb, n.Table)
+	if n.HasJobNum {
+		fmt.Fprintf(sb, " :job_num %d", n.JobNum)
+	}
+	sb.WriteString("}")
+}
+
+func writeFlashbackTableStmt(sb *strings.Builder, n *FlashbackTableStmt) {
+	fmt.Fprintf(sb, "{FLASHBACK_TABLE :loc %d :table ", n.Loc.Start)
+	writeNode(sb, n.Table)
+	if n.NewName != "" {
+		fmt.Fprintf(sb, " :new_name %q", n.NewName)
+	}
+	sb.WriteString("}")
+}
+
+func writeFlashbackDatabaseStmt(sb *strings.Builder, n *FlashbackDatabaseStmt) {
+	fmt.Fprintf(sb, "{FLASHBACK_DATABASE :loc %d :name %q", n.Loc.Start, n.Name)
+	if n.NewName != "" {
+		fmt.Fprintf(sb, " :new_name %q", n.NewName)
+	}
+	sb.WriteString("}")
+}
+
+func writeFlashbackToTimestampStmt(sb *strings.Builder, n *FlashbackToTimestampStmt) {
+	fmt.Fprintf(sb, "{FLASHBACK_TO_POINT :loc %d :scope %s", n.Loc.Start, flashbackScopeNames[n.Scope])
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, tbl := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, tbl)
+		}
+		sb.WriteString(")")
+	}
+	if n.Database != "" {
+		fmt.Fprintf(sb, " :database %q", n.Database)
+	}
+	if n.IsTSO {
+		fmt.Fprintf(sb, " :tso %d", n.TSO)
+	} else {
+		fmt.Fprintf(sb, " :timestamp %q", n.Timestamp)
 	}
 	sb.WriteString("}")
 }

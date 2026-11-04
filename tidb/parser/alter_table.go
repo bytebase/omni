@@ -226,95 +226,18 @@ func (p *Parser) parseAlterAnalyzePartition(stmt *nodes.AlterTableStmt) error {
 		}
 	}
 
-	opts, err := p.parseAnalyzeOptionListOpt()
-	if err != nil {
-		return err
+	// The WITH list is the one ANALYZE TABLE takes, read by the same
+	// function: same units, same integer-or-number rule per unit.
+	if p.cur.Type == kwWITH {
+		opts, err := p.parseAnalyzeOptions()
+		if err != nil {
+			return err
+		}
+		cmd.AnalyzeOptions = opts
 	}
-	cmd.AnalyzeOptions = opts
 	cmd.Loc.End = p.prev.End
 	stmt.Commands = append(stmt.Commands, cmd)
 	return nil
-}
-
-// parseAnalyzeOptionListOpt parses the optional WITH list an ANALYZE clause
-// ends with, and returns nil when there is none.
-//
-//	WITH n BUCKETS | n TOPN | n CMSKETCH DEPTH | n CMSKETCH WIDTH
-//	   | n SAMPLES | num SAMPLERATE   [, ...]
-//
-// Every entry is a number followed by its own word, so a bare `WITH`, a `WITH
-// 4` with no word and a trailing comma are all syntax errors; the five counts
-// take an integer and only SAMPLERATE takes a decimal: v8.5.5 answers 1064 for
-// `WITH 0.5 BUCKETS` and runs `WITH 0.5 SAMPLERATE`. CMSKETCH needs DEPTH or
-// WIDTH after it, so a bare `WITH 2 CMSKETCH` is a syntax error too.
-//
-// TOPN, CMSKETCH, DEPTH, WIDTH, SAMPLES and SAMPLERATE are not in this
-// parser's keyword table, so each is read as a bare word; BUCKETS is a keyword
-// already.
-//
-// Ref: AnalyzeOptionListOpt and AnalyzeOption in TiDB v8.5.5
-// pkg/parser/parser.y.
-func (p *Parser) parseAnalyzeOptionListOpt() ([]*nodes.AnalyzeOption, error) {
-	if p.cur.Type != kwWITH {
-		return nil, nil
-	}
-	p.advance() // consume WITH
-	var opts []*nodes.AnalyzeOption
-	for {
-		start := p.pos()
-		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
-			return nil, p.syntaxErrorAtCur()
-		}
-		isInt := p.cur.Type == tokICONST
-		value := p.cur.Str
-		p.advance()
-
-		var name string
-		switch {
-		case p.cur.Type == kwBUCKETS:
-			name = "BUCKETS"
-			p.advance()
-		case p.isBareWord("TOPN"):
-			name = "TOPN"
-			p.advance()
-		case p.isBareWord("SAMPLES"):
-			name = "SAMPLES"
-			p.advance()
-		case p.isBareWord("SAMPLERATE"):
-			name = "SAMPLERATE"
-			p.advance()
-		case p.isBareWord("CMSKETCH"):
-			p.advance()
-			switch {
-			case p.isBareWord("DEPTH"):
-				name = "CMSKETCH DEPTH"
-				p.advance()
-			case p.isBareWord("WIDTH"):
-				name = "CMSKETCH WIDTH"
-				p.advance()
-			default:
-				return nil, p.syntaxErrorAtCur()
-			}
-		default:
-			return nil, p.syntaxErrorAtCur()
-		}
-		// Only SAMPLERATE takes a NumLiteral; the counts take an integer.
-		if !isInt && name != "SAMPLERATE" {
-			return nil, &ParseError{
-				Message:  "expected an integer before " + name,
-				Position: start,
-			}
-		}
-		opts = append(opts, &nodes.AnalyzeOption{
-			Loc:   nodes.Loc{Start: start, End: p.prev.End},
-			Name:  name,
-			Value: value,
-		})
-		if p.cur.Type != ',' {
-			return opts, nil
-		}
-		p.advance()
-	}
 }
 
 // startsAlterPartitioningTail reports whether the parser sits on one of the
