@@ -2215,6 +2215,9 @@ func writeSequenceOption(sb *strings.Builder, n *SequenceOption) {
 func writeDropIndexStmt(sb *strings.Builder, n *DropIndexStmt) {
 	sb.WriteString("{DROP_INDEX")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}

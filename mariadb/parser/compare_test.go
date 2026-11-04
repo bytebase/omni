@@ -11137,9 +11137,11 @@ func TestBatch102_CreateIndexFull(t *testing.T) {
 func TestBatch102_DropIndexFull(t *testing.T) {
 	tests := []string{
 		"DROP INDEX idx1 ON t",
-		"DROP INDEX idx1 ON t ALGORITHM = INPLACE",
-		"DROP INDEX idx1 ON t LOCK = SHARED",
-		"DROP INDEX idx1 ON t ALGORITHM = COPY LOCK = EXCLUSIVE",
+		// The ALGORITHM and LOCK clauses were here, taken from MySQL 8.0's
+		// DROP INDEX. MariaDB 11.8.8 answers 1064 to both in every spelling,
+		// DEFAULT and INPLACE alike, which indexClauseCases now pins; what it
+		// does take in that statement is IF EXISTS, which MySQL has not.
+		"DROP INDEX IF EXISTS idx1 ON t",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

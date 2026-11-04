@@ -400,3 +400,68 @@ func TestDatabaseOptionsOceanBaseOracle(t *testing.T) {
 		})
 	}
 }
+
+// TestIndexClauseFormsOceanBaseOracle reads the engine column of
+// indexClauseCases back from a live server, so the record in
+// index_clause_forms_test.go stays a measurement rather than a memory of one.
+// It runs where OCEANBASE_WALK_DSN is set:
+//
+//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//
+// Every statement runs for real, which is what engineAccepts does: a 1064 is
+// the parser's rejection and any other error means the text parsed. A statement
+// that parsed may have created a table, dropped the index the DROP cases name or
+// locked the table the LOCK cases name, so each case puts the session back the
+// way the next one expects and the cleanup drops the two databases they share.
+func TestIndexClauseFormsOceanBaseOracle(t *testing.T) {
+	db := oceanBaseOracle(t)
+	ctx := context.Background()
+
+	for _, stmt := range []string{
+		"DROP DATABASE IF EXISTS obidx",
+		"DROP DATABASE IF EXISTS obidx_d",
+		"CREATE DATABASE obidx",
+		"CREATE DATABASE obidx_d",
+		"USE obidx",
+		"CREATE TABLE obidx_t (id INT PRIMARY KEY, a INT, b INT, KEY obidx_ia (a))",
+		"CREATE TABLE obidx_d.obidx_t (a INT, b INT)",
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed %q: %v", stmt, err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = db.ExecContext(ctx, "UNLOCK TABLES")
+		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obidx")
+		_, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obidx_d")
+	})
+
+	for _, c := range indexClauseCases {
+		t.Run(c.sql, func(t *testing.T) {
+			engineTakes, err := engineAccepts(ctx, db, c.sql)
+			if err != nil {
+				t.Fatalf("the oracle gave no verdict on %q: %v", c.sql, err)
+			}
+			if engineTakes != c.engine {
+				t.Errorf("OceanBase accepts %q = %v, the record says %v", c.sql, engineTakes, c.engine)
+			}
+			// A LOCK TABLES that parsed holds the table for the rest of the
+			// session, and USE is session state the cases depend on.
+			_, _ = db.ExecContext(ctx, "UNLOCK TABLES")
+			_, _ = db.ExecContext(ctx, "USE obidx")
+
+			_, parseErr := Parse(c.sql)
+			parserTakes := parseErr == nil
+			switch {
+			case engineTakes && !parserTakes:
+				if !c.pending {
+					t.Errorf("OceanBase accepts %q and the parser does not:\n  %v", c.sql, parseErr)
+				}
+			case !engineTakes && parserTakes:
+				t.Errorf("the parser accepts %q and OceanBase does not", c.sql)
+			case engineTakes && parserTakes && c.pending:
+				t.Errorf("%q is marked pending but the parser now reads it: clear the flag", c.sql)
+			}
+		})
+	}
+}

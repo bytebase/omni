@@ -154,6 +154,12 @@ func TestWalkThroughMariaDBIfExists(t *testing.T) {
 	noFinding(t, "ALTER TABLE t DROP INDEX IF EXISTS `PRIMARY`;\nALTER TABLE t ADD PRIMARY KEY (a);", shop)
 	oneFinding(t, "ALTER TABLE t DROP COLUMN IF EXISTS a;\nALTER TABLE t DROP COLUMN a;", 1, "Column `a` doesn't exist in `t`.", shop)
 	oneFinding(t, "ALTER TABLE t DROP INDEX IF EXISTS i;\nDROP INDEX i ON t;", 1, "Index `i` doesn't exist in `t`.", shop)
+	// The standalone DROP INDEX reads IF EXISTS too, and it speaks for the
+	// index, not for the table.
+	noFinding(t, "DROP INDEX IF EXISTS nosuch ON t;", shop)
+	noFinding(t, "DROP INDEX i ON t;\nDROP INDEX IF EXISTS i ON t;", shop)
+	noFinding(t, "DROP INDEX IF EXISTS i ON t;\nCREATE INDEX i ON t (a);", shop)
+	oneFinding(t, "DROP INDEX IF EXISTS i ON nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
 	// Another table's foreign key of the name stays.
 	oneFinding(t, "ALTER TABLE nokey DROP FOREIGN KEY IF EXISTS fk1;\nALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);", 1, "Foreign key `fk1` already exists.", shop)
 	noFinding(t, "ALTER TABLE t DROP FOREIGN KEY IF EXISTS fk1;\nALTER TABLE nokey ADD CONSTRAINT fk1 FOREIGN KEY (a) REFERENCES r (id);", shop)

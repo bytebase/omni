@@ -678,9 +678,9 @@ reject	reject	show restore
 accept	accept	show replica status
 accept	accept	show slave status
 reject	accept	load stats '/tmp/stats.json'
-accept	accept	lock stats test.t
-accept	accept	lock stats t, t2
-accept	accept	lock stats t partition (p0, p1)
+reject	accept	lock stats test.t
+reject	accept	lock stats t, t2
+reject	accept	lock stats t partition (p0, p1)
 reject	accept	unlock stats test.t
 reject	accept	unlock stats t, t2
 reject	accept	unlock stats t partition (p0, p1)
@@ -2168,10 +2168,10 @@ accept	accept	CREATE INDEX idx ON t (a)
 accept	accept	CREATE INDEX IF NOT EXISTS idx ON t (a)
 accept	accept	CREATE UNIQUE INDEX idx ON t (a)
 accept	accept	CREATE UNIQUE INDEX IF NOT EXISTS idx ON t (a)
-reject	accept	CREATE UNIQUE INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE BTREE
-reject	accept	CREATE UNIQUE INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE HASH
-reject	accept	CREATE UNIQUE INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE RTREE
-reject	accept	CREATE UNIQUE INDEX ident TYPE BTREE ON d_n.t_n ( ident , ident ASC )
+accept	accept	CREATE UNIQUE INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE BTREE
+accept	accept	CREATE UNIQUE INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE HASH
+accept	accept	CREATE UNIQUE INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE RTREE
+accept	accept	CREATE UNIQUE INDEX ident TYPE BTREE ON d_n.t_n ( ident , ident ASC )
 accept	accept	CREATE UNIQUE INDEX ident USING BTREE ON d_n.t_n ( ident , ident ASC )
 accept	accept	CREATE SPATIAL INDEX idx ON t (a)
 accept	accept	CREATE SPATIAL INDEX IF NOT EXISTS idx ON t (a)
@@ -2224,19 +2224,19 @@ accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM ident
 accept	accept	drop index a on t
 accept	accept	drop index a on db.t
 accept	accept	drop index a on db.`tb-ttb`
-reject	accept	drop index if exists a on t
-reject	accept	drop index if exists a on db.t
-reject	accept	drop index if exists a on db.`tb-ttb`
-reject	accept	drop index idx on t algorithm = default
-reject	accept	drop index idx on t algorithm default
+accept	accept	drop index if exists a on t
+accept	accept	drop index if exists a on db.t
+accept	accept	drop index if exists a on db.`tb-ttb`
+accept	accept	drop index idx on t algorithm = default
+accept	accept	drop index idx on t algorithm default
 accept	accept	drop index idx on t algorithm = inplace
 accept	accept	drop index idx on t algorithm inplace
-reject	accept	drop index idx on t lock = default
-reject	accept	drop index idx on t lock default
+accept	accept	drop index idx on t lock = default
+accept	accept	drop index idx on t lock default
 accept	accept	drop index idx on t lock = shared
 accept	accept	drop index idx on t lock shared
-reject	accept	drop index idx on t algorithm = default lock = default
-reject	accept	drop index idx on t lock = default algorithm = default
+accept	accept	drop index idx on t algorithm = default lock = default
+accept	accept	drop index idx on t lock = default algorithm = default
 accept	accept	drop index idx on t algorithm = inplace lock = exclusive
 accept	accept	drop index idx on t lock = exclusive algorithm = inplace
 accept	accept	drop index idx on t algorithm = algorithm_type
@@ -2390,18 +2390,18 @@ accept	accept	create table t (a int) stats_auto_recalc = 1, stats_sample_pages =
 accept	accept	alter table t modify a bigint, ENGINE=InnoDB, stats_auto_recalc = 0
 accept	accept	create table stats_auto_recalc (a int);
 accept	accept	create table stats_auto_recalc (a int) stats_auto_recalc=1;
-reject	accept	create table t (a int, primary key type type btree (a));
+accept	accept	create table t (a int, primary key type type btree (a));
 reject	reject	create table t (a int, primary key type btree (a));
 accept	accept	create table t (a int, primary key using btree (a));
-reject	accept	create table t (a int, primary key (a) type btree);
+accept	accept	create table t (a int, primary key (a) type btree);
 accept	accept	create table t (a int, primary key (a) using btree);
-reject	accept	create table t (a int, unique index type type btree (a));
+accept	accept	create table t (a int, unique index type type btree (a));
 accept	accept	create table t (a int, unique index type using btree (a));
 reject	reject	create table t (a int, unique index type btree (a));
 accept	accept	create table t (a int, unique index using btree (a));
 accept	accept	create table t (a int, unique index (a) using btree);
 accept	accept	create table t (a int, unique key (a) using btree);
-reject	accept	create table t (a int, index type type btree (a));
+accept	accept	create table t (a int, index type type btree (a));
 reject	reject	create table t (a int, index type btree (a));
 accept	accept	create table t (a int, index type using btree (a));
 accept	accept	create table t (a int, index using btree (a));

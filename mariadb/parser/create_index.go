@@ -41,10 +41,12 @@ func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, sp
 	}
 	stmt.IndexName = name
 
-	// Optional index_type: USING {BTREE | HASH}
-	if p.cur.Type == kwUSING {
+	// Optional index_type. CREATE INDEX reads its name first and cannot leave
+	// it out, so both spellings of the clause stand here, where a key
+	// definition's position takes a bare TYPE as a name instead.
+	if p.isIndexTypeIntro() {
 		p.advance()
-		typeName, _, err := p.parseKeywordOrIdent()
+		typeName, err := p.parseIndexTypeName()
 		if err != nil {
 			return nil, err
 		}
@@ -87,27 +89,11 @@ func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, sp
 	}
 
 	// [algorithm_option | lock_option] ...
-	for {
-		if p.cur.Type == kwALGORITHM {
-			p.advance()
-			p.match('=') // optional =
-			val, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Algorithm = val
-		} else if p.cur.Type == kwLOCK {
-			p.advance()
-			p.match('=') // optional =
-			val, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Lock = val
-		} else {
-			break
-		}
+	algorithm, lock, err := p.parseIndexLockAndAlgorithm()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Algorithm, stmt.Lock = algorithm, lock
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -312,13 +298,15 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 			Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: v},
 		}, true, nil
 
-	case p.cur.Type == kwUSING:
+	case p.isIndexTypeIntro():
 		p.advance()
 		valStart := p.pos()
-		typeName, _, err := p.parseKeywordOrIdent()
+		typeName, err := p.parseIndexTypeName()
 		if err != nil {
 			return nil, false, err
 		}
+		// Either spelling is recorded as USING: TYPE is a synonym for it, and a
+		// consumer reading the index type should not have to know which was written.
 		return &nodes.IndexOption{
 			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "USING",
@@ -419,4 +407,85 @@ func (p *Parser) atNotIgnored() bool {
 	}
 	next := p.peekNext()
 	return next.Type == tokIDENT && strings.EqualFold(next.Str, "IGNORED") && !p.backtickQuotedAt(next.Loc)
+}
+
+// isIndexTypeIntro reports whether the current token opens an index_type
+// clause. MySQL spells it either way, USING or TYPE.
+//
+// Ref: index_type_clause in MySQL 8.0 sql/sql_yacc.yy.
+// https://dev.mysql.com/doc/refman/8.0/en/create-index.html
+func (p *Parser) isIndexTypeIntro() bool {
+	return p.cur.Type == kwUSING || p.cur.Type == kwTYPE
+}
+
+// parseIndexTypeName reads the name an index_type clause takes after USING or
+// TYPE.
+//
+// index_type_name is a keyword list, not an identifier, so a name that is no
+// index type and a backquoted `BTREE` are both syntax errors: mariadb:11.8.8
+// answers 1064 for USING nosuchtype and for USING `BTREE`.
+//
+// Ref: index_type_name in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseIndexTypeName() (string, error) {
+	if tok, ok := p.match(kwBTREE, kwHASH, kwRTREE); ok {
+		return tok.Str, nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parseIndexLockAndAlgorithm reads the ALGORITHM and LOCK clauses that close a
+// CREATE INDEX or a DROP INDEX statement.
+//
+// The grammar takes at most one of each, in either order, so a second
+// ALGORITHM or LOCK is a syntax error rather than a value that wins: mariadb:11.8.8
+// answers 1064 for ALGORITHM = INPLACE ALGORITHM = COPY.
+//
+// Ref: opt_index_lock_and_algorithm in MySQL 8.0 sql/sql_yacc.yy.
+// https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, err error) {
+	var haveAlgorithm, haveLock bool
+	for {
+		switch p.cur.Type {
+		case kwALGORITHM:
+			if haveAlgorithm {
+				return "", "", p.syntaxErrorAtCur()
+			}
+			p.advance()
+			p.match('=') // optional =
+			if algorithm, err = p.parseIndexLockAlgorithmValue(); err != nil {
+				return "", "", err
+			}
+			haveAlgorithm = true
+		case kwLOCK:
+			if haveLock {
+				return "", "", p.syntaxErrorAtCur()
+			}
+			p.advance()
+			p.match('=') // optional =
+			if lock, err = p.parseIndexLockAlgorithmValue(); err != nil {
+				return "", "", err
+			}
+			haveLock = true
+		default:
+			return algorithm, lock, nil
+		}
+	}
+}
+
+// parseIndexLockAlgorithmValue reads the value ALGORITHM or LOCK takes: the
+// DEFAULT keyword, or an identifier.
+//
+// DEFAULT is reserved, so the grammar gives it an arm of its own beside ident
+// rather than leaving it to be read as one. The value is not optional, and a
+// reserved word that is not DEFAULT is not a name: mariadb:11.8.8 answers 1064 for
+// ALGORITHM with nothing after it, for ALGORITHM =, and for ALGORITHM = select.
+//
+// Ref: alter_algorithm_option_value and alter_lock_option_value in MySQL 8.0
+// sql/sql_yacc.yy.
+func (p *Parser) parseIndexLockAlgorithmValue() (string, error) {
+	if tok, ok := p.match(kwDEFAULT); ok {
+		return tok.Str, nil
+	}
+	name, _, err := p.parseIdent()
+	return name, err
 }

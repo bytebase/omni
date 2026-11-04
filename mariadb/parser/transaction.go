@@ -245,7 +245,16 @@ func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 //	  | [LOW_PRIORITY] WRITE
 //	}
 func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
-	p.advance() // consume TABLES
+	// LOCK names the kind of thing it locks before the list, and the keyword is
+	// not optional: mariadb:11.8.8 answers 1064 for LOCK t READ and for LOCK = t READ. The
+	// statement is reached with LOCK consumed, so taking the next token without
+	// reading it left a run-on -- DROP INDEX i ON t LOCK = SHARED -- parsing as
+	// a DROP INDEX and a LOCK TABLES of a table called shared.
+	//
+	// Ref: table_or_tables in MySQL 8.0 sql/sql_yacc.yy.
+	if _, ok := p.match(kwTABLES, kwTABLE); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after LOCK TABLES, offer table_ref.
 	p.checkCursor()

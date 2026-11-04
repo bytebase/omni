@@ -161,11 +161,11 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		}
 		b.addConstraint(r, c.Constraint)
 	case ast.ATDropIndex:
-		return b.dropIndexName(r, c.Name, rng)
+		return b.dropIndexName(r, c.Name, rng, false)
 	case ast.ATDropConstraint:
 		switch dropKindOf(b.w.sql, c) {
 		case dropPrimaryKey:
-			return b.dropIndexName(r, "PRIMARY", rng)
+			return b.dropIndexName(r, "PRIMARY", rng, false)
 		case dropForeignKey:
 			k, ok := b.key(spaceTableForeignKey, c.Name)
 			if !ok {
@@ -440,16 +440,20 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 }
 
 // dropIndexName follows DROP INDEX, of the primary key when the name is
-// PRIMARY.
-func (b *builder) dropIndexName(r tableRef, name string, rng review.Range) bool {
+// PRIMARY. IF EXISTS makes a missing index a warning rather than a 1091
+// (pingcap/tidb:v8.5.5 answers 0 for DROP INDEX IF EXISTS nope ON t, read on
+// 2026-11-04), so the walk asks for nothing and only records the index gone.
+func (b *builder) dropIndexName(r tableRef, name string, rng review.Range, ifExists bool) bool {
 	k, ok := b.key(spaceIndex, name)
 	if !ok {
 		return false
 	}
 	ik := idxKey(r.db, r.name, k)
-	if k == primaryIndex {
+	switch {
+	case ifExists:
+	case k == primaryIndex:
 		b.need(ik, walk.Present, nil, rng, noPrimaryKey(r.written), "") // 1091
-	} else {
+	default:
 		b.need(ik, walk.Present, nil, rng, notFound("index", ident(name), r.written), "") // 1091
 	}
 	b.leave(ik)

@@ -1934,6 +1934,7 @@ func (s *DropDatabaseStmt) stmtNode() {}
 // DropIndexStmt represents a DROP INDEX statement.
 type DropIndexStmt struct {
 	Loc       Loc
+	IfExists  bool
 	Name      string
 	Table     *TableRef
 	Algorithm string

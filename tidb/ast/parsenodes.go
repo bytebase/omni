@@ -1989,6 +1989,7 @@ func (o *SequenceOption) nodeTag() {}
 // DropIndexStmt represents a DROP INDEX statement.
 type DropIndexStmt struct {
 	Loc       Loc
+	IfExists  bool
 	Name      string
 	Table     *TableRef
 	Algorithm string
