@@ -605,6 +605,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwOLTP_WRITE_ONLY:   kwCatUnambiguous,
 	kwSTART_TIME:        kwCatUnambiguous,
 	kwEND_TIME:          kwCatUnambiguous,
+	kwFLASHBACK:         kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot
