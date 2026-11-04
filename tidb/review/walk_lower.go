@@ -107,6 +107,17 @@ func (b *builder) statement(n ast.Node) bool {
 	// that is not there (1146 on pingcap/tidb:v8.5.5, read on 2026-11-04), so
 	// listing them above as statements with no effect would drop a rejection
 	// the review ought to report rather than add one it should not.
+	//
+	// TiDB's backup, restore, recover and flashback statements are here for
+	// both halves of that reason. RESTORE, RECOVER TABLE and the bring-back
+	// FLASHBACK forms each put a relation or a schema back without saying
+	// what is in it, and FLASHBACK CLUSTER ... TO TIMESTAMP rolls the whole
+	// cluster back, so the walk cannot keep its names accurate past any of
+	// them; FLASHBACK TABLE t TO t1 is no help either, since it is not a
+	// rename -- t must be gone already and t1 is created. BACKUP changes
+	// nothing at all, but it does fail on a table that is not there (1146
+	// for BACKUP TABLE nosuch on v8.5.5, read on 2026-11-04), which is the
+	// LOCK STATS case exactly.
 	return false
 }
 

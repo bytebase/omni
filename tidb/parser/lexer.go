@@ -1020,6 +1020,14 @@ const (
 	kwOLTP_WRITE_ONLY
 	kwSTART_TIME
 	kwEND_TIME
+	// TiDB's FLASHBACK statements (FLASHBACK TABLE / DATABASE / SCHEMA /
+	// CLUSTER). FLASHBACK is TiDBKeyword upstream (parser.y:7370), so it
+	// stays usable as an identifier: `CREATE TABLE t (flashback int)` and
+	// `SELECT * FROM t flashback` are both accepted on v8.5.5 (pinned by
+	// TestFlashbackKeywordStaysIdentifier). CLUSTER and TSO are keywords
+	// upstream too, but the FLASHBACK grammar is the only place either one
+	// is read, so both are read as bare words rather than registered here.
+	kwFLASHBACK
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1901,6 +1909,9 @@ var keywords = map[string]int{
 	"oltp_write_only":   kwOLTP_WRITE_ONLY,
 	"start_time":        kwSTART_TIME,
 	"end_time":          kwEND_TIME,
+
+	// TiDB's FLASHBACK statements.
+	"flashback": kwFLASHBACK,
 
 	// TiDB CREATE/ALTER/DROP SEQUENCE keywords.
 	"sequence":   kwSEQUENCE,

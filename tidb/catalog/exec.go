@@ -209,6 +209,29 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		// applied as a no-op rather than left to the default arm, where
 		// an unmodelled statement and a deliberate no-op read the same.
 		return nil
+	case *nodes.BRIEStmt, *nodes.RecoverTableStmt, *nodes.FlashbackTableStmt,
+		*nodes.FlashbackDatabaseStmt, *nodes.FlashbackToTimestampStmt:
+		// TiDB's backup, restore, recover and flashback statements. A
+		// BACKUP reads and changes nothing. The others do change a
+		// schema, but none of them says how: RESTORE, RECOVER TABLE and
+		// the two bring-back FLASHBACK forms each put back an object
+		// whose definition is in a backup or in a dropped table the
+		// catalog keeps no record of, and FLASHBACK ... TO TIMESTAMP
+		// rolls data back to a point the catalog never saw. So the
+		// catalog has nothing to apply and applies nothing, rather than
+		// guess at a definition it does not hold.
+		//
+		// In particular FLASHBACK TABLE t TO t1 is not a rename, and is
+		// deliberately not read as one: t has to be gone already for the
+		// statement to succeed, and t1 is created. Its sibling makes
+		// that plain -- v8.5.5 answers 1007, "Can't create database 'd';
+		// database exists", for FLASHBACK DATABASE d when d is still
+		// there.
+		//
+		// Each is dispatched here rather than left to the default arm,
+		// where an unmodelled statement and a deliberate no-op read the
+		// same.
+		return nil
 	case *nodes.ExplainStmt:
 		// EXPLAIN ANALYZE runs the statement it carries, and on TiDB that
 		// reaches ALTER TABLE: EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c

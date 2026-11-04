@@ -27,6 +27,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwADMIN, // TiDB's own maintenance family
 			kwSPLIT, kwDISTRIBUTE,
 			kwCALIBRATE, kwQUERY,
+			kwBACKUP, kwRESTORE, kwRECOVER, kwFLASHBACK,
 		}
 		for _, t := range stmtTokens {
 			p.addTokenCandidate(t)
@@ -239,6 +240,18 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwADMIN:
 		return p.parseAdminStmt()
+
+	case kwBACKUP:
+		return p.parseBackupStmt()
+
+	case kwRESTORE:
+		return p.parseRestoreStmt()
+
+	case kwRECOVER:
+		return p.parseRecoverTableStmt()
+
+	case kwFLASHBACK:
+		return p.parseFlashbackStmt()
 
 	case kwCALIBRATE:
 		return p.parseCalibrateResourceStmt()
