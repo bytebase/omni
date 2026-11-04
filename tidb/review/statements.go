@@ -24,19 +24,55 @@ type statement struct {
 	with bool
 }
 
-// executed returns the statement a change runs. That is the node itself
-// unless an EXPLAIN ANALYZE carries it: ANALYZE runs what it explains, and on
-// TiDB that reaches ALTER TABLE -- EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c
-// adds the column, where EXPLAIN ALTER TABLE t ADD COLUMN c reports a plan and
-// leaves the table alone (tidb/parser/explain_forms_test.go measures both
-// against v8.5.5).
+// wrapped returns the statement a wrapper carries and whether running the
+// wrapper runs it; ok is false for a node that carries none.
 //
-// A rule that reads the statement's top-level node reads it through this; a
-// rule that walks the tree stops at a plain ExplainStmt instead, since
-// ast.Walk follows what the EXPLAIN carries.
+// Three TiDB statements carry another, and each has one form that runs what it
+// carries and one that does not. Every verdict here was measured against
+// pingcap/tidb:v8.5.5:
+//
+//   - EXPLAIN ANALYZE runs it, and on TiDB that reaches ALTER TABLE:
+//     EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c adds the column, where a
+//     plain EXPLAIN reports a plan and leaves the table alone
+//     (tidb/parser/explain_forms_test.go).
+//   - TRACE runs it: TRACE SET foreign_key_checks = 0 leaves the session
+//     variable at 0, where TRACE PLAN traces the optimizer and leaves it at 1
+//     (tidb/parser/trace_forms_test.go). TRACE carries no DDL -- upstream's
+//     TraceableStmt names none -- but it does carry DML and SET.
+//   - PLAN REPLAYER DUMP EXPLAIN ANALYZE runs it, reaching ALTER TABLE the
+//     way EXPLAIN ANALYZE does, where the plain DUMP writes a dump and
+//     changes nothing (tidb/parser/plan_replayer_forms_test.go).
+//
+// A rule that walks the tree has to stop at the form that runs nothing, or it
+// judges a statement the server never performs; ast.Walk follows what each of
+// the three carries.
+func wrapped(n ast.Node) (inner ast.Node, runs bool, ok bool) {
+	switch v := n.(type) {
+	case *ast.ExplainStmt:
+		return v.Stmt, v.Analyze, true
+	case *ast.TraceStmt:
+		return v.Stmt, !v.TracePlan, true
+	case *ast.PlanReplayerStmt:
+		return v.Stmt, v.Analyze, true
+	}
+	return nil, false, false
+}
+
+// runsWrapped reports whether a wrapper runs the statement it carries. It is
+// what a walking rule returns from its wrapper arm: true follows the carried
+// statement, false leaves it unjudged. A node that carries nothing is not a
+// wrapper and gets false, so every caller names the three wrapper types.
+func runsWrapped(n ast.Node) bool {
+	_, runs, _ := wrapped(n)
+	return runs
+}
+
+// executed returns the statement a change runs: the node itself, unless it is
+// a wrapper whose form runs what it carries. A rule that reads the
+// statement's top-level node reads it through this.
 func executed(n ast.Node) ast.Node {
-	if e, ok := n.(*ast.ExplainStmt); ok && e.Analyze && e.Stmt != nil {
-		return e.Stmt
+	if inner, runs, _ := wrapped(n); runs && inner != nil {
+		return inner
 	}
 	return n
 }

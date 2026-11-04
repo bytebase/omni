@@ -148,6 +148,11 @@ var explainFormCases = []explainFormCase{
 	{"EXPLAIN FORMAT = 'brief' ALTER TABLE t1 ADD INDEX (a)", true},
 	{"EXPLAIN FORMAT = DOT ALTER TABLE t1 ADD INDEX (a)", true},
 	{"EXPLAIN ANALYZE ALTER TABLE t1 ADD INDEX (a)", true},
+	// IMPORT INTO is the other DDL-adjacent statement in ExplainableStmt,
+	// and EXPLAIN reads it now that this parser has the statement.
+	{"EXPLAIN IMPORT INTO t FROM '/tmp/a.csv'", true},
+	{"EXPLAIN ANALYZE IMPORT INTO t FROM '/tmp/a.csv'", true},
+	{"EXPLAIN IMPORT INTO t FROM TABLE t1", true},
 	{"EXPLAIN ANALYZE FORMAT = 'brief' ALTER TABLE t1 ADD INDEX (a)", true},
 	// A parenthesized query and a WITH clause in front of one, which are
 	// SubSelect and SelectStmtWithClause in ExplainableStmt.

@@ -869,6 +869,18 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *PlanReplayerStmt:
+		Walk(v, n.HistoricalStats)
+		Walk(v, n.Stmt)
+		Walk(v, n.Where)
+		for _, item := range n.OrderBy {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
 	case *PositionExpr:
 		Walk(v, n.Substr)
 		Walk(v, n.Str)
@@ -1068,6 +1080,8 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
+	case *TraceStmt:
+		Walk(v, n.Stmt)
 	case *TruncateStmt:
 		for _, item := range n.Tables {
 			if item != nil {

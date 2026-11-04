@@ -263,6 +263,36 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 			return c.processUtility(s.Stmt, source)
 		}
 		return nil
+	case *nodes.PlanReplayerStmt:
+		// PLAN REPLAYER DUMP EXPLAIN ANALYZE runs the statement it carries
+		// for the same reason EXPLAIN ANALYZE does, and reaches the same one
+		// DDL: on pingcap/tidb:v8.5.5 PLAN REPLAYER DUMP EXPLAIN ANALYZE
+		// ALTER TABLE t ADD COLUMN c adds the column, while PLAN REPLAYER
+		// DUMP EXPLAIN ALTER TABLE t ADD COLUMN c writes a dump and leaves
+		// the table alone (both measured; pinned by
+		// tidb/catalog/plan_replayer_test.go). Every other form -- SLOW
+		// QUERY, a file name, LOAD and CAPTURE -- carries no statement and
+		// changes no schema the catalog holds.
+		if s.Analyze && s.Stmt != nil {
+			return c.processUtility(s.Stmt, source)
+		}
+		return nil
+	case *nodes.TraceStmt:
+		// TRACE runs the statement it traces, so the catalog applies it:
+		// TRACE SET foreign_key_checks = 0 leaves the session variable at 0
+		// on v8.5.5. TRACE PLAN and TRACE PLAN TARGET = '...' trace the
+		// optimizer instead and run nothing, leaving it at 1 (both
+		// measured; pinned by tidb/catalog/trace_test.go).
+		//
+		// The traced statement is never DDL -- upstream's TraceableStmt
+		// names none, and TRACE ALTER TABLE t ADD COLUMN c is a 1064 -- so
+		// SET is the one thing here the catalog models. It is applied
+		// through the same arm all the same, rather than special-cased,
+		// because what TRACE runs is what the catalog must see.
+		if !s.TracePlan && s.Stmt != nil {
+			return c.processUtility(s.Stmt, source)
+		}
+		return nil
 	default:
 		return nil
 	}
@@ -405,6 +435,10 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.ExplainStmt:
 		// The whole EXPLAIN, not the statement it carries: an ExecResult's
 		// line is the line the caller wrote.
+		return s.Loc.Start
+	case *nodes.TraceStmt:
+		return s.Loc.Start
+	case *nodes.PlanReplayerStmt:
 		return s.Loc.Start
 	case *nodes.LoadDataStmt:
 		return s.Loc.Start

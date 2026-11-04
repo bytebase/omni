@@ -67,6 +67,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeUseStmt(sb, n)
 	case *ExplainStmt:
 		writeExplainStmt(sb, n)
+	case *TraceStmt:
+		writeTraceStmt(sb, n)
+	case *PlanReplayerStmt:
+		writePlanReplayerStmt(sb, n)
 	case *BeginStmt:
 		writeBeginStmt(sb, n)
 	case *CommitStmt:
@@ -1286,6 +1290,75 @@ func writeExplainStmt(sb *strings.Builder, n *ExplainStmt) {
 	if n.Stmt != nil {
 		sb.WriteString(" :stmt ")
 		writeNode(sb, n.Stmt)
+	}
+	sb.WriteString("}")
+}
+
+func writeTraceStmt(sb *strings.Builder, n *TraceStmt) {
+	sb.WriteString("{TRACE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.TracePlan {
+		sb.WriteString(" :trace_plan true")
+	}
+	if n.Format != "" {
+		fmt.Fprintf(sb, " :format %s", n.Format)
+	}
+	if n.Target != "" {
+		fmt.Fprintf(sb, " :target %s", n.Target)
+	}
+	if n.Stmt != nil {
+		sb.WriteString(" :stmt ")
+		writeNode(sb, n.Stmt)
+	}
+	sb.WriteString("}")
+}
+
+func writePlanReplayerStmt(sb *strings.Builder, n *PlanReplayerStmt) {
+	sb.WriteString("{PLAN_REPLAYER")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Analyze {
+		sb.WriteString(" :analyze true")
+	}
+	if n.SlowQuery {
+		sb.WriteString(" :slow_query true")
+	}
+	if n.Load {
+		sb.WriteString(" :load true")
+	}
+	if n.Capture {
+		sb.WriteString(" :capture true")
+	}
+	if n.Remove {
+		sb.WriteString(" :remove true")
+	}
+	if n.File != "" {
+		fmt.Fprintf(sb, " :file %s", n.File)
+	}
+	if n.SQLDigest != "" {
+		fmt.Fprintf(sb, " :sql_digest %s", n.SQLDigest)
+	}
+	if n.PlanDigest != "" {
+		fmt.Fprintf(sb, " :plan_digest %s", n.PlanDigest)
+	}
+	if n.HistoricalStats != nil {
+		sb.WriteString(" :historical_stats ")
+		writeNode(sb, n.HistoricalStats)
+	}
+	if n.Stmt != nil {
+		sb.WriteString(" :stmt ")
+		writeNode(sb, n.Stmt)
+	}
+	if n.Where != nil {
+		sb.WriteString(" :where ")
+		writeNode(sb, n.Where)
+	}
+	if len(n.OrderBy) > 0 {
+		sb.WriteString(" :order_by ")
+		writeOrderByList(sb, n.OrderBy)
+	}
+	if n.Limit != nil {
+		sb.WriteString(" :limit ")
+		writeNode(sb, n.Limit)
 	}
 	sb.WriteString("}")
 }
@@ -5386,11 +5459,10 @@ func writeImportIntoStmt(sb *strings.Builder, n *ImportIntoStmt) {
 			writeNode(sb, a)
 		}
 	}
-	switch {
-	case n.Select != nil:
+	if n.Select != nil {
 		sb.WriteString(" :from ")
 		writeNode(sb, n.Select)
-	default:
+	} else {
 		fmt.Fprintf(sb, " :path %q", n.Path)
 	}
 	if n.HasFormat {

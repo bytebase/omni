@@ -28,6 +28,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwSPLIT, kwDISTRIBUTE,
 			kwCALIBRATE, kwQUERY,
 			kwBACKUP, kwRESTORE, kwRECOVER, kwFLASHBACK,
+			kwPLAN, // PLAN REPLAYER
 		}
 		for _, t := range stmtTokens {
 			p.addTokenCandidate(t)
@@ -265,11 +266,25 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		}
 		return nil, p.syntaxErrorAtCur()
 
+	case kwPLAN:
+		// PLAN REPLAYER, TiDB's plan-reproduction dump. PLAN starts no other
+		// statement; it is a keyword here only so the SQL plan bindings can
+		// read it, and stays an ordinary identifier everywhere else, so
+		// REPLAYER after it is what makes a statement.
+		return p.parsePlanReplayerStmt()
+
 	case '(':
 		// Parenthesized subquery / select
 		return p.parseSelectStmt()
 
 	default:
+		// TRACE, TiDB's execution and optimizer tracer. It is not a keyword
+		// in this lexer and needs none: it is read as a bare word here, so
+		// `trace` stays usable as a table name, a column name and an
+		// implicit alias, which registering it would have put at risk.
+		if p.isBareWord("TRACE") {
+			return p.parseTraceStmt()
+		}
 		return nil, p.syntaxErrorAtCur()
 	}
 }

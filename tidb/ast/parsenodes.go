@@ -1448,6 +1448,94 @@ type ExplainStmt struct {
 func (s *ExplainStmt) nodeTag()  {}
 func (s *ExplainStmt) stmtNode() {}
 
+// TraceStmt represents TRACE, TiDB's execution and optimizer tracer.
+//
+// TRACE wraps a statement and reports how the server ran it. The wrapped
+// statement is the engine's TraceableStmt, which holds DML, queries, LOAD
+// DATA, ANALYZE TABLE, the transaction statements and SET -- and no DDL at
+// all. TRACE ALTER TABLE t ADD COLUMN c is a 1064 on v8.5.5, which is why
+// this node carries no DDL arm (tidb/parser/trace_forms_test.go measures the
+// whole traceable set and the DDL that is not in it).
+//
+// TracePlan says whether the statement runs. Plain TRACE and TRACE FORMAT =
+// 'json' run it -- TRACE SET foreign_key_checks = 0 leaves the session
+// variable at 0 -- while TRACE PLAN and TRACE PLAN TARGET = 'estimation'
+// trace the optimizer and run nothing, leaving it at 1. Both were measured on
+// v8.5.5 and are what the catalog and review's walk follow.
+//
+// Format is the name FORMAT = gave, empty when the statement names none. The
+// engine's own node defaults it to "row" instead; this one keeps ExplainStmt's
+// convention, so a consumer can tell TRACE from TRACE FORMAT = 'row'.
+type TraceStmt struct {
+	Loc Loc
+	// Format is FORMAT = 'name'. It is a string literal in the grammar and
+	// nothing else: TRACE FORMAT = row SELECT 1 is a 1064, where EXPLAIN
+	// takes the bare name.
+	Format string
+	// TracePlan is TRACE PLAN, which traces the optimizer rather than
+	// running the statement.
+	TracePlan bool
+	// Target is TRACE PLAN TARGET = 'name'. The engine checks the name when
+	// the statement runs, not when it parses, so any text parses --
+	// TARGET = 'arandomstring' included.
+	Target string
+	Stmt   StmtNode
+}
+
+func (s *TraceStmt) nodeTag()  {}
+func (s *TraceStmt) stmtNode() {}
+
+// PlanReplayerStmt represents PLAN REPLAYER, TiDB's plan-reproduction dump.
+//
+// The statement has four shapes, and the flags say which one:
+//
+//   - DUMP EXPLAIN [ANALYZE] <stmt>, which carries Stmt
+//   - DUMP EXPLAIN [ANALYZE] SLOW QUERY ..., which sets SlowQuery
+//   - DUMP EXPLAIN [ANALYZE] 'file' and LOAD 'file', which carry File
+//   - CAPTURE [REMOVE] 'sqlDigest' 'planDigest', which carry both digests
+//
+// Analyze is the one flag with an effect outside the dump: like EXPLAIN's, it
+// runs the statement it carries, and the statement it carries may be DDL.
+// PLAN REPLAYER DUMP EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c adds the
+// column on v8.5.5, while PLAN REPLAYER DUMP EXPLAIN ALTER TABLE t ADD COLUMN
+// c writes a dump and leaves the table alone (both measured; pinned by
+// tidb/parser/plan_replayer_forms_test.go and applied by
+// tidb/catalog/exec.go).
+type PlanReplayerStmt struct {
+	Loc Loc
+	// Analyze is the ANALYZE after EXPLAIN, which runs the statement.
+	Analyze bool
+	// SlowQuery is the SLOW QUERY form, which dumps the slow-query log
+	// rather than one statement. It is a flag of its own because every
+	// other field of that form is optional: PLAN REPLAYER DUMP EXPLAIN
+	// SLOW QUERY sets nothing else.
+	SlowQuery bool
+	// Load is PLAN REPLAYER LOAD 'file', which reads a dump back.
+	Load bool
+	// Capture is PLAN REPLAYER CAPTURE, and Remove its REMOVE form. Both
+	// carry SQLDigest and PlanDigest.
+	Capture bool
+	Remove  bool
+	// File is the file LOAD reads, or the one the DUMP EXPLAIN 'file' form
+	// reads statements from.
+	File       string
+	SQLDigest  string
+	PlanDigest string
+	// HistoricalStats is the expression in DUMP WITH STATS AS OF TIMESTAMP
+	// <expr>, which dumps the statistics as of that time. WITH STATS is not
+	// optional in itself: PLAN REPLAYER DUMP WITH STATS EXPLAIN SELECT 1 is
+	// a 1064.
+	HistoricalStats ExprNode
+	// Stmt is the dumped statement, nil for every form that carries none.
+	Stmt    StmtNode
+	Where   ExprNode
+	OrderBy []*OrderByItem
+	Limit   *Limit
+}
+
+func (s *PlanReplayerStmt) nodeTag()  {}
+func (s *PlanReplayerStmt) stmtNode() {}
+
 // BeginStmt represents BEGIN / START TRANSACTION.
 type BeginStmt struct {
 	Loc                    Loc

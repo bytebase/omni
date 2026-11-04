@@ -12,11 +12,13 @@ import (
 func checkDisallowRename(s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
-		case *ast.ExplainStmt:
-			// A plain EXPLAIN reports a plan and changes nothing, so what it
-			// carries is no change of this kind; ANALYZE runs it, and on TiDB
-			// that reaches ALTER TABLE.
-			return v.Analyze
+		case *ast.ExplainStmt, *ast.TraceStmt, *ast.PlanReplayerStmt:
+			// A plain EXPLAIN reports a plan, TRACE PLAN traces the
+			// optimizer and a plain PLAN REPLAYER DUMP writes a dump, so
+			// what any of the three carries is no change of this kind. The
+			// form that runs the statement is followed; wrapped says which
+			// form that is.
+			return runsWrapped(v)
 		case *ast.RenameTableStmt:
 			for _, pair := range v.Pairs {
 				if pair == nil {

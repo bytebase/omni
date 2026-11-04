@@ -205,6 +205,25 @@ var loadDataFormCases = []loadDataFormCase{
 	{"import into t set a=1 from select * from s", false},
 	{"import into t (a) set b=1 from select * from s", false},
 	{"import into t from values (1)", false},
+	// The TABLE and VALUES primaries, their set operations and their tails.
+	// The query-source tests in load_data_tree_test.go assert the same
+	// verdicts, but as constants; these cases are re-measured against the
+	// pinned container by TestLoadDataFormsMatchTiDB on every run, which is
+	// what would catch one of those verdicts going stale.
+	{"import into t from values row(1)", true},
+	{"import into t from values row(1,1)", true},
+	{"import into t from values row(1), row(2)", true},
+	{"import into t from values row(1) union select 1", true},
+	{"import into t from table t1 union table t2", true},
+	{"import into t from table t1 union all table t2", true},
+	{"import into t from table t1 intersect table t2", true},
+	{"import into t from table t1 except table t2", true},
+	{"import into t from table t1 order by a limit 1", true},
+	// An incomplete source is still a 1064.
+	{"import into t from table t1 union", false},
+	{"import into t from table t1 union table", false},
+	{"import into t from table", false},
+	{"import into t from values", false},
 
 	// --- IMPORT TABLE FROM is MySQL's, not TiDB's ---
 	{"import table from '/tmp/a.sdi'", false},
