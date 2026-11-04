@@ -177,6 +177,10 @@ type Finding struct {
 	// Range is the anchor in absolute byte offsets of the input. A zero
 	// Range with Statement >= 0 anchors the whole statement.
 	Range Range
+	// Codes are the conditions the finding reports, one per reason it
+	// names, the first the main one; every finding has at least one, and
+	// every code is one of its Rule's.
+	Codes []FindingCode
 	// Message is Markdown, which Bytebase shows as an issue comment, in the
 	// form docs/specs/2026-11-02-review-finding-messages.md sets out: a
 	// first line that is a one-sentence summary naming the object, then an

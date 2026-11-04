@@ -52,6 +52,9 @@ func TestParserCorpus(t *testing.T) {
 			}
 		}
 		for _, fd := range result.Findings {
+			if err := review.CheckCodes(fd); err != nil {
+				t.Errorf("%s: %v", f, err)
+			}
 			if fd.Rule == review.Syntax {
 				syntax++
 			}

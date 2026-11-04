@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -30,6 +31,9 @@ func run(t *testing.T, rule review.Rule, sql string, change review.Change, targe
 	}
 	var got []finding
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
 		if f.Rule == review.Syntax && rule != review.Syntax {
 			t.Fatalf("syntax finding: %s", f.Message)
 		}
@@ -615,6 +619,9 @@ func TestNoTargets(t *testing.T) {
 	}
 	var got []string
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
 		if len(f.Targets) != 0 {
 			t.Errorf("%s: Targets = %v, want none", f.Rule, f.Targets)
 		}
@@ -710,6 +717,9 @@ func TestTargetsMerge(t *testing.T) {
 	}
 	var got []finding
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
 		got = append(got, finding{f.Statement, sql[f.Range.Start:f.Range.End], f.Message, f.Targets})
 	}
 	want := []finding{
@@ -736,6 +746,9 @@ func TestNoPanic(t *testing.T) {
 		}
 		syntax := 0
 		for _, f := range result.Findings {
+			if err := review.CheckCodes(f); err != nil {
+				t.Fatalf("prefix %d: %v", i, err)
+			}
 			if f.Rule == review.Syntax {
 				syntax++
 			}
@@ -743,5 +756,131 @@ func TestNoPanic(t *testing.T) {
 		if syntax > 0 && len(result.Findings) != 1 {
 			t.Fatalf("prefix %d: a syntax error with other findings: %v", i, result.Findings)
 		}
+	}
+}
+
+// TestFindingCodes pins the code of every condition the package reports:
+// each finding of the rule, in order, with its rule and exact codes.
+func TestFindingCodes(t *testing.T) {
+	backup := review.Change{PriorBackup: true}
+	walked := []review.Target{{Schema: walkSchema(false)}}
+	// Two targets on which one message stands for two conditions: PV is a
+	// table the first drops, and the second's view.
+	pvTable := &metadata.DatabaseSchemaMetadata{Name: "SHOP", Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{{Name: "PV", Columns: columns("A")}}}}}
+	quotedDB := shop()
+	quotedDB.Name = "S'HOP"
+	type C = []review.FindingCode
+	tests := []struct {
+		name    string
+		rule    review.Rule
+		sql     string
+		change  review.Change
+		targets []review.Target
+		want    []C
+	}{
+		{name: "syntax error", rule: review.Syntax, sql: "SELECT 1 FROM dual;\nSELEC 2;", want: []C{{review.SyntaxError}}},
+
+		{name: "missing table", rule: review.WalkThrough, sql: "ALTER TABLE nosuch ADD (x NUMBER);", targets: walked, want: []C{{review.ObjectNotFound}}},
+		{name: "missing DML target", rule: review.WalkThrough, sql: "INSERT INTO nosuch VALUES (1);", targets: walked, want: []C{{review.ObjectNotFound}}},
+		{name: "another table's constraint", rule: review.WalkThrough, sql: "ALTER TABLE p DROP CONSTRAINT ck_n;", targets: walked, want: []C{{review.ObjectNotFound}}},
+		{name: "missing column", rule: review.WalkThrough, sql: "ALTER TABLE t DROP COLUMN zz;", targets: walked, want: []C{{review.ObjectNotFound}}},
+		{name: "name taken", rule: review.WalkThrough, sql: "CREATE TABLE t (a NUMBER);", targets: walked, want: []C{{review.NameTaken}}},
+		{name: "column taken", rule: review.WalkThrough, sql: "ALTER TABLE t ADD (code NUMBER);", targets: walked, want: []C{{review.NameTaken}}},
+		{name: "second primary key", rule: review.WalkThrough, sql: "ALTER TABLE t ADD PRIMARY KEY (n);", targets: walked, want: []C{{review.NameTaken}}},
+		{name: "two primary keys in one statement", rule: review.WalkThrough, sql: "CREATE TABLE x (a NUMBER PRIMARY KEY, b NUMBER, PRIMARY KEY (b));", targets: walked, want: []C{{review.NameTaken}}},
+		{name: "DROP TABLE of a materialized view", rule: review.WalkThrough, sql: "DROP TABLE mv;", targets: walked, want: []C{{review.WrongObjectKind}}},
+		{name: "DROP SYNONYM of a table", rule: review.WalkThrough, sql: "DROP SYNONYM t;", targets: walked, want: []C{{review.WrongObjectKind}}},
+		{name: "TRUNCATE of a view", rule: review.WalkThrough, sql: "TRUNCATE TABLE pv;", targets: walked, want: []C{{review.WrongObjectKind}}},
+		{name: "DML on a sequence", rule: review.WalkThrough, sql: "DELETE FROM sq;", targets: walked, want: []C{{review.WrongObjectKind}}},
+		{name: "column named twice", rule: review.WalkThrough, sql: "CREATE TABLE x (a NUMBER, a NUMBER);", targets: walked, want: []C{{review.DuplicateName}}},
+		{name: "column named twice in an ALTER", rule: review.WalkThrough, sql: "ALTER TABLE t ADD (x NUMBER) MODIFY (x NUMBER);", targets: walked, want: []C{{review.DuplicateName}}},
+		{name: "constraint named twice", rule: review.WalkThrough, sql: "CREATE TABLE x (a NUMBER CONSTRAINT c CHECK (a > 0), b NUMBER CONSTRAINT c NOT NULL);", targets: walked, want: []C{{review.DuplicateName}}},
+		{name: "constraint dropped twice", rule: review.WalkThrough, sql: "ALTER TABLE t DROP CONSTRAINT ck_n DROP CONSTRAINT ck_n;", targets: walked, want: []C{{review.DuplicateName}}},
+		{name: "identifier too long", rule: review.WalkThrough, sql: "CREATE TABLE " + strings.Repeat("a", 129) + " (a NUMBER);", targets: walked, want: []C{{review.NameTooLong}}},
+		{
+			name:    "one message for a missing name on one target and another kind on the other is two findings",
+			rule:    review.WalkThrough,
+			sql:     "DROP TABLE IF EXISTS pv;\nDROP SYNONYM pv;",
+			targets: []review.Target{{Schema: pvTable}, {Schema: walkSchema(false)}},
+			want:    []C{{review.ObjectNotFound}, {review.WrongObjectKind}},
+		},
+
+		{name: "online migration", rule: review.OnlineMigration, sql: "ALTER TABLE t ADD (m NUMBER);", change: review.Change{OnlineMigration: true}, want: []C{{review.OnlineMigrationUnsupported}}},
+
+		{name: "over the size limit", rule: review.PriorBackup, sql: "UPDATE t SET n = 1 WHERE id = 1;", change: review.Change{PriorBackup: true, MaxBackupSize: 10}, want: []C{{review.ChangeTooLarge}}},
+		{name: "no BBDATAARCHIVE", rule: review.PriorBackup, sql: "UPDATE t SET n = 1 WHERE id = 1;", change: backup, targets: []review.Target{{Schema: shop()}}, want: []C{{review.BackupLocationMissing}}},
+		{name: "nothing to back up", rule: review.PriorBackup, sql: "INSERT INTO t (id) VALUES (3);", change: backup, want: []C{{review.NothingToBackUp}}},
+		{name: "UPDATE and DELETE on one table", rule: review.PriorBackup, sql: "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;", change: backup, want: []C{{review.StatementsShareBackup}}},
+		{
+			name:   "a database link, a quote in a table's name, and a LONG column",
+			rule:   review.PriorBackup,
+			sql:    "UPDATE t@lnk SET n = 1 WHERE id = 1;\nDELETE FROM \"a'b\" WHERE id = 1;\nDELETE FROM longt WHERE id = 1;",
+			change: backup,
+			want:   []C{{review.TableNotBackupable}, {review.TableNotBackupable}, {review.TableNotBackupable}},
+		},
+		{name: "a quote in the database's name", rule: review.PriorBackup, sql: "UPDATE t SET n = 1 WHERE id = 1;", change: backup, targets: []review.Target{{Schema: quotedDB, BackupDatabaseExists: true}}, want: []C{{review.TableNotBackupable}}},
+		{name: "a column the change makes", rule: review.PriorBackup, sql: "ALTER TABLE nokey ADD (gone NUMBER);\nDELETE FROM nokey WHERE gone = 1;", change: backup, want: []C{{review.BackupReadsNewObject}}},
+		{name: "a table the change makes", rule: review.PriorBackup, sql: "CREATE TABLE n2 (id NUMBER PRIMARY KEY);\nUPDATE shop.n2 SET id = 2 WHERE id = 1;", change: backup, want: []C{{review.BackupReadsNewObject}}},
+
+		{name: "= NULL and = ''", rule: review.RequireIsNull, sql: "SELECT * FROM t WHERE n = NULL OR code <> ''", want: []C{{review.NullComparison}, {review.NullComparison}}},
+
+		{name: "UPDATE and DELETE without WHERE", rule: review.RequireWhere, sql: "UPDATE t SET n = 1;\nDELETE FROM t;", want: []C{{review.MissingWhere}, {review.MissingWhere}}},
+
+		{
+			name: "drops of data",
+			rule: review.DisallowDropObject,
+			sql:  "DROP TABLE t;\nDROP SEQUENCE seq;\nALTER TABLE t DROP (n, code);\nALTER TABLE t DROP UNUSED COLUMNS;\nALTER TABLE t DROP COLUMNS CONTINUE;\nALTER TABLE t DROP PARTITION p1;\nALTER TABLE t DROP SUBPARTITION sp1;\nALTER TYPE ty DROP ATTRIBUTE (a);\nDROP DATABASE;",
+			want: []C{{review.DropsData}, {review.DropsData}, {review.DropsData}, {review.DropsData}, {review.DropsData}, {review.DropsData}, {review.DropsData}, {review.DropsData}, {review.DropsData}},
+		},
+		{
+			name: "drops of definitions",
+			rule: review.DisallowDropObject,
+			sql:  "DROP VIEW v;\nDROP INDEX ix_n;\nDROP SYNONYM s;\nDROP MATERIALIZED VIEW LOG ON t;\nDROP CLUSTER cl;\nDROP PACKAGE pkg;\nDROP TABLESPACE ts;\nALTER TABLE t DROP (PERIOD FOR valid);",
+			want: []C{{review.DropsDefinition}, {review.DropsDefinition}, {review.DropsDefinition}, {review.DropsDefinition}, {review.DropsDefinition}, {review.DropsDefinition}, {review.DropsDefinition}, {review.DropsDefinition}},
+		},
+		{
+			name: "drops of access",
+			rule: review.DisallowDropObject,
+			sql:  "DROP USER u CASCADE;\nDROP ROLE r;\nDROP PROFILE pf;\nDROP AUDIT POLICY ap;",
+			want: []C{{review.DropsAccess}, {review.DropsAccess}, {review.DropsAccess}, {review.DropsAccess}},
+		},
+
+		{name: "TRUNCATE", rule: review.DisallowTruncate, sql: "TRUNCATE TABLE t;\nTRUNCATE CLUSTER cl;\nALTER TABLE t TRUNCATE PARTITION p1;", want: []C{{review.TruncatesData}, {review.TruncatesData}, {review.TruncatesData}}},
+
+		{name: "dropped constraints", rule: review.DisallowDropConstraint, sql: "ALTER TABLE t DROP CONSTRAINT fk_p;\nALTER TABLE t DROP UNIQUE (code);\nALTER TABLE t DROP PRIMARY KEY;", want: []C{{review.DropsConstraint}, {review.DropsConstraint}, {review.DropsConstraint}}},
+
+		{name: "renames", rule: review.DisallowRename, sql: "ALTER TABLE t RENAME COLUMN n TO m;\nALTER TABLE p RENAME TO q;\nRENAME v TO w;", want: []C{{review.RenamesObject}, {review.RenamesObject}, {review.RenamesObject}}},
+
+		{
+			name: "tables without a primary key, and a removed one",
+			rule: review.RequirePrimaryKey,
+			sql:  "CREATE TABLE a (id NUMBER);\nCREATE TABLE b AS SELECT * FROM t;\nALTER TABLE t DROP PRIMARY KEY;",
+			want: []C{{review.TableWithoutPrimaryKey}, {review.TableWithoutPrimaryKey}, {review.PrimaryKeyRemoved}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			targets := tt.targets
+			if targets == nil {
+				targets = []review.Target{{Schema: shop(), BackupDatabaseExists: true}}
+			}
+			result, err := Review(context.Background(), tt.sql, review.Options{Rules: []review.Rule{tt.rule}, Change: tt.change}, targets)
+			if err != nil {
+				t.Fatalf("Review: %v", err)
+			}
+			var got []C
+			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
+				if f.Rule != tt.rule {
+					t.Fatalf("%s finding: %s", f.Rule, f.Message)
+				}
+				got = append(got, f.Codes)
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("codes mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

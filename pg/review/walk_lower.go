@@ -155,9 +155,9 @@ func (b *builder) exists(rv *ast.RangeVar, missingOK bool) resolved {
 	r := b.rangeVar(rv)
 	switch {
 	case r.fail != "":
-		b.failAt(rangeOf(rv.Loc), nil, r.fail)
+		b.failAt(rangeOf(rv.Loc), nil, review.CrossDatabaseReference, r.fail)
 	case r.fact == walk.Absent && !missingOK:
-		b.failAt(rangeOf(rv.Loc), r.keys, missing(r, relation(rv)))
+		b.failAt(rangeOf(rv.Loc), r.keys, review.ObjectNotFound, missing(r, relation(rv)))
 	}
 	return r
 }
@@ -171,9 +171,9 @@ func (b *builder) opened(rv *ast.RangeVar) resolved {
 	r := b.rangeVar(rv)
 	switch {
 	case r.fail != "":
-		b.failAt(rangeOf(rv.Loc), nil, r.fail)
+		b.failAt(rangeOf(rv.Loc), nil, review.CrossDatabaseReference, r.fail)
 	case r.fact == walk.Absent:
-		b.failAt(rangeOf(rv.Loc), r.keys, "relation "+relation(rv)+" does not exist")
+		b.failAt(rangeOf(rv.Loc), r.keys, review.ObjectNotFound, "relation "+relation(rv)+" does not exist")
 	}
 	return r
 }
@@ -199,7 +199,7 @@ func (b *builder) crossDatabase(rv *ast.RangeVar) bool {
 	if !b.w.crossDatabase(rv.Catalogname) {
 		return false
 	}
-	b.failAt(rangeOf(rv.Loc), nil, crossDatabaseMessage(relation(rv)))
+	b.failAt(rangeOf(rv.Loc), nil, review.CrossDatabaseReference, crossDatabaseMessage(relation(rv)))
 	return true
 }
 
@@ -238,7 +238,7 @@ func (b *builder) createSchema(v *ast.CreateSchemaStmt) bool {
 		return true
 	}
 	if strings.HasPrefix(name, "pg_") {
-		b.fail(nil, walk.Present, "unacceptable schema name "+ident(written)) // 42939
+		b.fail(nil, walk.Present, review.ReservedName, "unacceptable schema name "+ident(written)) // 42939
 		return true
 	}
 	k := schemaKey(name)
@@ -393,7 +393,7 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 	}
 	c := b.creationSchema(rv.Schemaname, temp)
 	if c.fail != "" {
-		b.failAt(rng, c.keys, c.fail) // 3F000
+		b.failAt(rng, c.keys, c.code, c.fail) // 3F000
 		return true
 	}
 	name, ok := walkName(rv.Relname)
@@ -441,14 +441,14 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 					continue
 				}
 				if seen[n] {
-					b.failAt(rangeOf(col.Loc), nil, "column "+ident(col.Colname)+" specified more than once") // 42701
+					b.failAt(rangeOf(col.Loc), nil, review.DuplicateName, "column "+ident(col.Colname)+" specified more than once") // 42701
 					return true
 				}
 				seen[n] = true
 			}
 			for _, col := range cols {
 				if n, ok := walkName(col.Colname); ok && systemColumns[n] {
-					b.failAt(rangeOf(col.Loc), nil, "column name "+ident(col.Colname)+" conflicts with a system column name") // 42701
+					b.failAt(rangeOf(col.Loc), nil, review.ReservedName, "column name "+ident(col.Colname)+" conflicts with a system column name") // 42701
 					return true
 				}
 			}
@@ -458,20 +458,20 @@ func (b *builder) createTable(v *ast.CreateStmt) bool {
 			if con.Contype == ast.CONSTR_PRIMARY {
 				primaries++
 				if primaries > 1 {
-					b.failAt(rangeOf(con.Loc), nil, "multiple primary keys for table "+relation(rv)+" are not allowed") // 42P16
+					b.failAt(rangeOf(con.Loc), nil, review.NameTaken, "multiple primary keys for table "+relation(rv)+" are not allowed") // 42P16
 					return true
 				}
 			}
 		}
 		if msg, rng, ok := duplicateConstraint(rv, cons); ok {
-			b.failAt(rng, nil, msg)
+			b.failAt(rng, nil, review.DuplicateName, msg)
 			return true
 		}
 		// A key's index takes the name in the relation namespace the
 		// table already holds (42P07, verified on PostgreSQL 17).
 		for _, con := range cons {
 			if n, ok := walkName(con.Conname); ok && n == name && indexBacked(constraintKind(con.Contype)) {
-				b.failAt(rangeOf(con.Loc), nil, "relation "+ident(con.Conname)+" already exists")
+				b.failAt(rangeOf(con.Loc), nil, review.DuplicateName, "relation "+ident(con.Conname)+" already exists")
 				return true
 			}
 		}
@@ -862,7 +862,7 @@ func (b *builder) createIndex(v *ast.IndexStmt) bool {
 		if v.Concurrent && r.kind == relTable {
 			// Unsupported (0A000, verified on PostgreSQL 17 and 18 outside
 			// a transaction, as Bytebase runs CONCURRENTLY).
-			b.failAt(rangeOf(v.Relation.Loc), nil, "cannot create index on partitioned table "+relation(v.Relation)+" concurrently")
+			b.failAt(rangeOf(v.Relation.Loc), nil, review.UnsupportedForm, "cannot create index on partitioned table "+relation(v.Relation)+" concurrently")
 			return true
 		}
 		// Each partition gets an index of its own, in its own schema.
@@ -917,7 +917,7 @@ func (b *builder) createView(v *ast.ViewStmt) bool {
 	}
 	c := b.creationSchema(rv.Schemaname, temp)
 	if c.fail != "" {
-		b.failAt(rng, c.keys, c.fail)
+		b.failAt(rng, c.keys, c.code, c.fail)
 		return true
 	}
 	name, ok := walkName(rv.Relname)
@@ -972,7 +972,7 @@ func (b *builder) createTableAs(into *ast.IntoClause, matview, ifNotExists bool,
 	}
 	c := b.creationSchema(rv.Schemaname, temp)
 	if c.fail != "" {
-		b.failAt(rng, c.keys, c.fail)
+		b.failAt(rng, c.keys, c.code, c.fail)
 		return true
 	}
 	name, ok := walkName(rv.Relname)
@@ -1034,7 +1034,7 @@ func (b *builder) createSequence(v *ast.CreateSeqStmt) bool {
 	}
 	c := b.creationSchema(rv.Schemaname, temp)
 	if c.fail != "" {
-		b.failAt(rng, c.keys, c.fail)
+		b.failAt(rng, c.keys, c.code, c.fail)
 		return true
 	}
 	name, ok := walkName(rv.Relname)
@@ -1075,7 +1075,7 @@ func (b *builder) createCompositeType(v *ast.CompositeTypeStmt) bool {
 	}
 	c := b.creationSchema(rv.Schemaname, false)
 	if c.fail != "" {
-		b.failAt(rng, c.keys, c.fail)
+		b.failAt(rng, c.keys, c.code, c.fail)
 		return true
 	}
 	name, ok := walkName(rv.Relname)
@@ -1103,7 +1103,7 @@ func (b *builder) createType(parts []string, kind string) bool {
 	}
 	c := b.creationSchema(schema, false)
 	if c.fail != "" {
-		b.fail(c.keys, walk.Absent, c.fail)
+		b.fail(c.keys, walk.Absent, c.code, c.fail)
 		return true
 	}
 	name, ok := walkName(written)
@@ -1307,7 +1307,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 		if con.Contype == ast.CONSTR_PRIMARY {
 			primaries++
 			if primaries > 1 {
-				b.failAt(rangeOf(con.Loc), nil, "multiple primary keys for table "+relation(rv)+" are not allowed")
+				b.failAt(rangeOf(con.Loc), nil, review.NameTaken, "multiple primary keys for table "+relation(rv)+" are not allowed")
 				return
 			}
 		}
@@ -1327,7 +1327,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 				continue
 			}
 			if added[n] && !cmd.Missing_ok {
-				b.failAt(rangeOf(def.Loc), nil, "column "+ident(def.Colname)+" of relation "+relation(rv)+" already exists")
+				b.failAt(rangeOf(def.Loc), nil, review.DuplicateName, "column "+ident(def.Colname)+" of relation "+relation(rv)+" already exists")
 				return
 			}
 			added[n] = true
@@ -1337,7 +1337,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 				continue
 			}
 			if dropped[n] && !cmd.Missing_ok {
-				b.failAt(rangeOf(cmd.Loc), nil, "column "+ident(cmd.Name)+" of relation "+relation(rv)+" does not exist")
+				b.failAt(rangeOf(cmd.Loc), nil, review.DuplicateName, "column "+ident(cmd.Name)+" of relation "+relation(rv)+" does not exist")
 				return
 			}
 			dropped[n] = true
@@ -1347,7 +1347,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 				continue
 			}
 			if droppedCons[n] && !cmd.Missing_ok {
-				b.failAt(rangeOf(cmd.Loc), nil, "constraint "+ident(cmd.Name)+" of relation "+relation(rv)+" does not exist")
+				b.failAt(rangeOf(cmd.Loc), nil, review.DuplicateName, "constraint "+ident(cmd.Name)+" of relation "+relation(rv)+" does not exist")
 				return
 			}
 			droppedCons[n] = true
@@ -1369,7 +1369,7 @@ func (b *builder) repeated(rv *ast.RangeVar, cmds []*ast.AlterTableCmd) {
 		if indexBacked(prev) && indexBacked(kind) {
 			msg = "relation " + ident(con.Conname) + " already exists"
 		}
-		b.failAt(rangeOf(con.Loc), nil, msg)
+		b.failAt(rangeOf(con.Loc), nil, review.DuplicateName, msg)
 		return
 	}
 }
@@ -1453,7 +1453,7 @@ func (b *builder) addColumn(rv *ast.RangeVar, t walk.Key, def *ast.ColumnDef, if
 		return
 	}
 	if systemColumns[name] {
-		b.failAt(rng, nil, "column name "+ident(def.Colname)+" conflicts with a system column name") // 42701
+		b.failAt(rng, nil, review.ReservedName, "column name "+ident(def.Colname)+" conflicts with a system column name") // 42701
 		return
 	}
 	ck := columnKey(t, name)
@@ -1518,7 +1518,7 @@ func (b *builder) dropColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableCm
 	rng := rangeOf(cmd.Loc)
 	name, ok := walkName(cmd.Name)
 	if ok && systemColumns[name] {
-		b.failAt(rng, nil, "cannot drop system column "+ident(cmd.Name)) // 0A000
+		b.failAt(rng, nil, review.SystemColumn, "cannot drop system column "+ident(cmd.Name)) // 0A000
 		return
 	}
 	if ok {
@@ -1555,7 +1555,7 @@ func (b *builder) alterColumn(rv *ast.RangeVar, t walk.Key, cmd *ast.AlterTableC
 	if ok && systemColumns[name] {
 		switch sub {
 		case ast.AT_AlterColumnType, ast.AT_ColumnDefault, ast.AT_SetNotNull, ast.AT_DropNotNull:
-			b.failAt(rng, nil, "cannot alter system column "+ident(cmd.Name)) // 0A000
+			b.failAt(rng, nil, review.SystemColumn, "cannot alter system column "+ident(cmd.Name)) // 0A000
 		}
 		return
 	}
@@ -1757,11 +1757,11 @@ func (b *builder) renameColumn(v *ast.RenameStmt) bool {
 		return true
 	}
 	if systemColumns[oldName] {
-		b.failAt(rng, nil, "cannot rename system column "+ident(v.Subname)) // 0A000
+		b.failAt(rng, nil, review.SystemColumn, "cannot rename system column "+ident(v.Subname)) // 0A000
 		return true
 	}
 	if f, _ := b.l.Lookup(oldKey); systemColumns[newName] && f != walk.Absent {
-		b.failAt(rng, nil, "column name "+ident(v.Newname)+" conflicts with a system column name") // 42701
+		b.failAt(rng, nil, review.ReservedName, "column name "+ident(v.Newname)+" conflicts with a system column name") // 42701
 		return true
 	}
 	b.need(oldKey, walk.Present, nil, &walkNote{rng: rng, absent: "column " + ident(v.Subname) + " does not exist"})                                          // 42703
@@ -1826,7 +1826,7 @@ func (b *builder) renameSchema(v *ast.RenameStmt) bool {
 		return false
 	}
 	if strings.HasPrefix(newName, "pg_") {
-		b.fail(nil, walk.Present, "unacceptable schema name "+ident(v.Newname)) // 42939
+		b.fail(nil, walk.Present, review.ReservedName, "unacceptable schema name "+ident(v.Newname)) // 42939
 		return true
 	}
 	oldKey := schemaKey(oldName)
@@ -1972,10 +1972,10 @@ func (b *builder) drop(v *ast.DropStmt) bool {
 		// pg: src/backend/commands/tablecmds.c — RemoveRelations
 		switch {
 		case len(v.Objects.Items) != 1:
-			b.fail(nil, walk.Present, "DROP INDEX CONCURRENTLY does not support dropping multiple objects")
+			b.fail(nil, walk.Present, review.UnsupportedForm, "DROP INDEX CONCURRENTLY does not support dropping multiple objects")
 			return true
 		case cascade:
-			b.fail(nil, walk.Present, "DROP INDEX CONCURRENTLY does not support CASCADE")
+			b.fail(nil, walk.Present, review.UnsupportedForm, "DROP INDEX CONCURRENTLY does not support CASCADE")
 			return true
 		}
 	}
@@ -2023,7 +2023,7 @@ func (b *builder) dropRelation(kind ast.ObjectType, parts []string, missingOK bo
 	written := qualified(parts)
 	r := b.nameList(parts)
 	if r.fail != "" {
-		b.fail(nil, walk.Absent, r.fail)
+		b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
 		return
 	}
 	switch r.fact {
@@ -2035,7 +2035,7 @@ func (b *builder) dropRelation(kind ast.ObjectType, parts []string, missingOK bo
 		if r.missingSchema != "" {
 			msg = "schema " + ident(r.missingSchema) + " does not exist"
 		}
-		b.fail(r.keys, walk.Absent, msg)
+		b.fail(r.keys, walk.Absent, review.ObjectNotFound, msg)
 		return
 	case walk.Unknown:
 		b.dropUnknown(parts)
@@ -2107,7 +2107,7 @@ func (b *builder) dropSchema(parts []string, missingOK, cascade bool) bool {
 	}
 	if f, _ := b.l.Lookup(k); f == walk.Present && !cascade {
 		if held, ok := b.holds(name); ok {
-			b.fail([]walk.Key{k, held}, walk.Present, "cannot drop schema "+ident(parts[0])+" because other objects depend on it")
+			b.fail([]walk.Key{k, held}, walk.Present, review.SchemaNotEmpty, "cannot drop schema "+ident(parts[0])+" because other objects depend on it")
 		}
 	}
 	b.set(k, walk.Absent, "")
@@ -2171,7 +2171,7 @@ func (b *builder) dropType(parts []string, missingOK, domain bool) {
 	switch f, _ := b.l.Lookup(sk); f {
 	case walk.Absent:
 		if !missingOK {
-			b.fail([]walk.Key{sk}, walk.Absent, "schema "+ident(schema)+" does not exist") // 3F000
+			b.fail([]walk.Key{sk}, walk.Absent, review.ObjectNotFound, "schema "+ident(schema)+" does not exist") // 3F000
 		}
 		return
 	case walk.Unknown:
@@ -2222,9 +2222,9 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 		r := b.nameList(parts)
 		switch {
 		case r.fail != "":
-			b.fail(nil, walk.Absent, r.fail)
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
 		case r.fact == walk.Absent:
-			b.fail(r.keys, walk.Absent, missing(r, qualified(parts))) // 42P01
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, qualified(parts))) // 42P01
 		case r.fact == walk.Present:
 			b.need(r.key, walk.Present, []string{want.kind}, &walkNote{rng: b.anchor(), present: qualified(parts) + " is not " + want.article + " " + want.word}) // 42809
 		}
@@ -2236,9 +2236,9 @@ func (b *builder) comment(v *ast.CommentStmt) bool {
 		r := b.nameList(table)
 		switch {
 		case r.fail != "":
-			b.fail(nil, walk.Absent, r.fail)
+			b.fail(nil, walk.Absent, review.CrossDatabaseReference, r.fail)
 		case r.fact == walk.Absent:
-			b.fail(r.keys, walk.Absent, missing(r, qualified(table)))
+			b.fail(r.keys, walk.Absent, review.ObjectNotFound, missing(r, qualified(table)))
 		case r.fact == walk.Present:
 			if col, ok := walkName(parts[len(parts)-1]); ok && !systemColumns[col] && hasColumns(r.kind) {
 				b.need(columnKey(r.key, col), walk.Present, nil, &walkNote{rng: b.anchor(), absent: "column " + ident(parts[len(parts)-1]) + " of relation " + qualified(table) + " does not exist"}) // 42703
@@ -2302,7 +2302,7 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 				// (42809, verified on PostgreSQL 17 and 18).
 				//
 				// pg: src/backend/commands/tablecmds.c — ExecuteTruncate
-				b.failAt(rangeOf(rv.Loc), []walk.Key{r.key}, "cannot truncate only a partitioned table: "+relation(rv))
+				b.failAt(rangeOf(rv.Loc), []walk.Key{r.key}, review.UnsupportedForm, "cannot truncate only a partitioned table: "+relation(rv))
 			default:
 				b.need(r.key, walk.Present, []string{relTable, relForeign}, &walkNote{rng: rangeOf(rv.Loc), present: relation(rv) + " is not a table"})
 			}

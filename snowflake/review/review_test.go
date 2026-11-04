@@ -30,6 +30,9 @@ func run(t *testing.T, rule review.Rule, sql string, change review.Change, targe
 	}
 	var got []finding
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
 		if f.Rule == review.Syntax && rule != review.Syntax {
 			t.Fatalf("syntax finding: %s", f.Message)
 		}
@@ -164,7 +167,7 @@ func TestSyntax(t *testing.T) {
 	if len(result.Statements) != 3 {
 		t.Errorf("Statements = %v, want 3", result.Statements)
 	}
-	want := []review.Finding{{Rule: review.Syntax, Statement: 2, Range: review.Range{Start: 34, End: 34}, Message: "unknown or unsupported statement starting with SELEC", Targets: []int{0, 1}}}
+	want := []review.Finding{{Rule: review.Syntax, Codes: []review.FindingCode{review.SyntaxError}, Statement: 2, Range: review.Range{Start: 34, End: 34}, Message: "unknown or unsupported statement starting with SELEC", Targets: []int{0, 1}}}
 	if diff := cmp.Diff(want, result.Findings); diff != "" {
 		t.Errorf("findings mismatch (-want +got):\n%s", diff)
 	}
@@ -179,6 +182,9 @@ func TestOptions(t *testing.T) {
 		}
 		var rules []review.Rule
 		for _, f := range result.Findings {
+			if err := review.CheckCodes(f); err != nil {
+				t.Error(err)
+			}
 			rules = append(rules, f.Rule)
 		}
 		return rules
@@ -576,4 +582,119 @@ func TestPriorBackup(t *testing.T) {
 			want:    []finding{{-1, "", "the change enables prior backup, which Bytebase does not take on Snowflake: the change runs without a backup", []int{0, 1}}},
 		},
 	})
+}
+
+// TestFindingCodes reviews a change of each condition with every rule on
+// and checks each finding's rule and codes, in the findings' order. Two
+// targets with equal synced schemas are reviewed apart and merged, so a
+// finding of the synced schema keeps its code through the merge.
+func TestFindingCodes(t *testing.T) {
+	type coded struct {
+		Rule  review.Rule
+		Codes []review.FindingCode
+	}
+	c := func(rule review.Rule, codes ...review.FindingCode) coded {
+		return coded{rule, codes}
+	}
+	repeat := func(n int, f coded) []coded {
+		out := make([]coded, n)
+		for i := range out {
+			out[i] = f
+		}
+		return out
+	}
+	cases := []struct {
+		name   string
+		sql    string
+		change review.Change
+		want   []coded
+	}{
+		{name: "syntax error", sql: "SELECT 1;\nSELEC 2;", want: []coded{c(review.Syntax, review.SyntaxError)}},
+		{name: "lex error", sql: "/* open", want: []coded{c(review.Syntax, review.SyntaxError)}},
+		{
+			name:   "online migration",
+			sql:    "ALTER TABLE t ADD COLUMN m INT;",
+			change: review.Change{OnlineMigration: true},
+			want:   []coded{c(review.OnlineMigration, review.OnlineMigrationUnsupported)},
+		},
+		{
+			name:   "prior backup",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;",
+			change: review.Change{PriorBackup: true},
+			want:   []coded{c(review.PriorBackup, review.PriorBackupUnsupported)},
+		},
+		{
+			name: "comparisons with NULL",
+			sql:  "SELECT * FROM t WHERE n = NULL;\nSELECT * FROM t WHERE n <> NULL;",
+			want: repeat(2, c(review.RequireIsNull, review.NullComparison)),
+		},
+		{
+			name: "UPDATE and DELETE without WHERE",
+			sql:  "UPDATE t SET n = 1;\nDELETE FROM t;",
+			want: repeat(2, c(review.RequireWhere, review.MissingWhere)),
+		},
+		{
+			name: "drops of data",
+			sql:  "DROP TABLE t;\nDROP SEQUENCE sq;\nDROP SCHEMA s;\nDROP DATABASE d;\nALTER TABLE t DROP COLUMN n;",
+			want: repeat(5, c(review.DisallowDropObject, review.DropsData)),
+		},
+		{
+			name: "drops of definitions",
+			sql:  "DROP VIEW v;\nDROP MATERIALIZED VIEW mv;\nDROP DYNAMIC TABLE dt;\nDROP EXTERNAL TABLE et;\nDROP STAGE st;\nDROP PIPE pp;\nDROP STREAM sm;\nDROP TASK tk;\nDROP WAREHOUSE w;\nDROP FUNCTION f(NUMBER);\nDROP PROCEDURE pr();",
+			want: repeat(11, c(review.DisallowDropObject, review.DropsDefinition)),
+		},
+		{
+			name: "drops of access",
+			sql:  "DROP USER u;\nDROP ROLE r;\nDROP ROW ACCESS POLICY rap;\nDROP MASKING POLICY mp;\nDROP SESSION POLICY sp;\nDROP NETWORK POLICY np;\nDROP NETWORK RULE nr;",
+			want: repeat(7, c(review.DisallowDropObject, review.DropsAccess)),
+		},
+		{name: "TRUNCATE", sql: "TRUNCATE TABLE t;", want: []coded{c(review.DisallowTruncate, review.TruncatesData)}},
+		{
+			name: "constraint drops, from the SQL and from the synced schema",
+			sql:  "ALTER TABLE t DROP UNIQUE (code);\nALTER TABLE t DROP CONSTRAINT fk_p;",
+			want: repeat(2, c(review.DisallowDropConstraint, review.DropsConstraint)),
+		},
+		{
+			name: "renames and a swap",
+			sql:  "ALTER TABLE t RENAME TO t2;\nALTER TABLE p SWAP WITH q;\nALTER TABLE u RENAME COLUMN n TO m;\nALTER VIEW v RENAME TO v2;",
+			want: repeat(4, c(review.DisallowRename, review.RenamesObject)),
+		},
+		{
+			name: "a table created without a primary key",
+			sql:  "CREATE TABLE a (id INT);",
+			want: []coded{c(review.RequirePrimaryKey, review.TableWithoutPrimaryKey)},
+		},
+		{
+			name: "a primary key removed, by keyword and by synced name",
+			sql:  "ALTER TABLE t DROP PRIMARY KEY;\nALTER TABLE p DROP CONSTRAINT pk_p;",
+			want: []coded{
+				c(review.DisallowDropConstraint, review.DropsConstraint),
+				c(review.RequirePrimaryKey, review.PrimaryKeyRemoved),
+				c(review.DisallowDropConstraint, review.DropsConstraint),
+				c(review.RequirePrimaryKey, review.PrimaryKeyRemoved),
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			targets := []review.Target{{Schema: shop()}, {Schema: shop()}}
+			result, err := Review(context.Background(), tt.sql, review.Options{Change: tt.change}, targets)
+			if err != nil {
+				t.Fatalf("Review: %v", err)
+			}
+			var got []coded
+			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
+				if diff := cmp.Diff([]int{0, 1}, f.Targets); diff != "" {
+					t.Errorf("%s targets (-want +got):\n%s", f.Message, diff)
+				}
+				got = append(got, coded{f.Rule, f.Codes})
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("codes mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }

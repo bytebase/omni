@@ -13,8 +13,8 @@ import (
 // tree is walked, so a DROP inside BEGIN ATOMIC is reported where it is.
 // Dropping a constraint belongs to DisallowDropConstraint.
 func checkDisallowDropObject(s *statement, r *reporter) {
-	report := func(rng review.Range, msg string) {
-		r.report(review.DisallowDropObject, s.index, rng, msg)
+	report := func(kind string, rng review.Range, msg string) {
+		r.report(review.DropCode(kind), s.index, rng, msg)
 	}
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		checkDropNode(n, report)
@@ -22,7 +22,11 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 	})
 }
 
-func checkDropNode(n ast.Node, report func(review.Range, string)) {
+// checkDropNode reports each drop with the kind word its message names
+// the object by, which gives the finding its code (review.DropCode). A
+// message that names it by a phrase passes the phrase's kind: cast,
+// transform, user mapping, objects owned by.
+func checkDropNode(n ast.Node, report func(kind string, rng review.Range, msg string)) {
 	switch v := n.(type) {
 	case *ast.DropStmt:
 		kind := ast.ObjectType(v.RemoveType)
@@ -34,19 +38,19 @@ func checkDropNode(n ast.Node, report func(review.Range, string)) {
 				}
 			}
 		}
-		report(rangeOf(v.Loc), dropsMessage(kind, targets))
+		report(objectKind(kind), rangeOf(v.Loc), dropsMessage(kind, targets))
 	case *ast.DropdbStmt:
-		report(rangeOf(v.Loc), drops("database", []string{ident(v.Dbname)}))
+		report("database", rangeOf(v.Loc), drops("database", []string{ident(v.Dbname)}))
 	case *ast.DropRoleStmt:
-		report(rangeOf(v.Loc), drops("role", roleNames(v.Roles)))
+		report("role", rangeOf(v.Loc), drops("role", roleNames(v.Roles)))
 	case *ast.DropTableSpaceStmt:
-		report(rangeOf(v.Loc), drops("tablespace", []string{ident(v.Tablespacename)}))
+		report("tablespace", rangeOf(v.Loc), drops("tablespace", []string{ident(v.Tablespacename)}))
 	case *ast.DropSubscriptionStmt:
-		report(rangeOf(v.Loc), drops("subscription", []string{ident(v.Subname)}))
+		report("subscription", rangeOf(v.Loc), drops("subscription", []string{ident(v.Subname)}))
 	case *ast.DropUserMappingStmt:
-		report(rangeOf(v.Loc), "Drops the user mapping for "+review.Code(roleName(v.User))+" on server "+review.Code(ident(v.Servername))+".")
+		report("user mapping", rangeOf(v.Loc), "Drops the user mapping for "+review.Code(roleName(v.User))+" on server "+review.Code(ident(v.Servername))+".")
 	case *ast.DropOwnedStmt:
-		report(rangeOf(v.Loc), "Drops the objects owned by "+review.Names(roleNames(v.Roles)...)+".")
+		report("objects owned by", rangeOf(v.Loc), "Drops the objects owned by "+review.Names(roleNames(v.Roles)...)+".")
 	case *ast.AlterTableStmt:
 		if v.Cmds == nil {
 			return
@@ -62,7 +66,7 @@ func checkDropNode(n ast.Node, report func(review.Range, string)) {
 			if !ok || ast.AlterTableType(cmd.Subtype) != ast.AT_DropColumn {
 				continue
 			}
-			report(rangeOf(cmd.Loc), "Drops "+kind+" "+review.Code(ident(cmd.Name))+" of "+of+review.Code(relation(v.Relation))+".")
+			report(kind, rangeOf(cmd.Loc), "Drops "+kind+" "+review.Code(ident(cmd.Name))+" of "+of+review.Code(relation(v.Relation))+".")
 		}
 	}
 }

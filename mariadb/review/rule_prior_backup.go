@@ -48,7 +48,7 @@ import (
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.PriorBackup, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
 	}
 }
 
@@ -80,7 +80,7 @@ func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 			}
 			if first != kind && !reported[key] {
 				reported[key] = true
-				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup cannot back up both UPDATE and DELETE on "+table(ref))
+				r.report(review.StatementsShareBackup, s.index, rangeOf(s.loc), "prior backup cannot back up both UPDATE and DELETE on "+table(ref))
 			}
 		}
 	}
@@ -111,7 +111,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 			return !returning
 		})
 		if returning {
-			r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup reads the change as MySQL, which has no RETURNING clause")
+			r.report(review.StatementNotBackupable, s.index, rangeOf(s.loc), "prior backup reads the change as MySQL, which has no RETURNING clause")
 		}
 		v, ok := s.node.(*ast.DeleteStmt)
 		if !ok || len(v.Using) == 0 || s.with {
@@ -128,7 +128,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 				name = target.Alias
 			}
 			if !from[name] {
-				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup does not find DELETE target "+ident(name)+" in the FROM list, written the same way")
+				r.report(review.BackupReadsWrongTable, s.index, rangeOf(s.loc), "prior backup does not find DELETE target "+ident(name)+" in the FROM list, written the same way")
 			}
 		}
 	}
@@ -319,7 +319,7 @@ func madeByChange(stmts []statement) changeMade {
 // change's first USE reads that only the change makes.
 func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x schemaIndex, m changeMade, r *reporter) {
 	if !t.BackupDatabaseExists {
-		r.report(review.PriorBackup, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
 	}
 	if x.schema == nil {
 		return
@@ -332,7 +332,7 @@ func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x sc
 		refs, _ := backupTargets(s)
 		for _, ref := range refs {
 			if x.inDatabase(ref) && x.isView(ref.Name) {
-				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup copies tables with CREATE TABLE ... LIKE, which refuses view "+table(ref))
+				r.report(review.TableNotBackupable, s.index, rangeOf(s.loc), "prior backup copies tables with CREATE TABLE ... LIKE, which refuses view "+table(ref))
 			}
 		}
 	}
@@ -349,7 +349,7 @@ func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x sc
 			continue
 		}
 		if msg := backupReadsMade(s.node, x, m); msg != "" {
-			r.report(review.PriorBackup, s.index, rangeOf(s.loc), msg)
+			r.report(review.BackupReadsNewObject, s.index, rangeOf(s.loc), msg)
 		}
 	}
 }

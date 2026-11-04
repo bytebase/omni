@@ -230,7 +230,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 	}
 	for _, p := range s.pending {
 		if !p.settled {
-			r.report(review.RequirePrimaryKey, p.statement, p.rng, p.message)
+			r.report(p.code, p.statement, p.rng, p.message)
 		}
 	}
 	return nil

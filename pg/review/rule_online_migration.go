@@ -9,5 +9,5 @@ func checkOnlineMigration(change review.Change, r *reporter) {
 	if !change.OnlineMigration {
 		return
 	}
-	r.report(review.OnlineMigration, -1, review.Range{}, "the change requests online migration, which PostgreSQL does not support")
+	r.report(review.OnlineMigrationUnsupported, -1, review.Range{}, "the change requests online migration, which PostgreSQL does not support")
 }

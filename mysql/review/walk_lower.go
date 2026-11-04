@@ -154,7 +154,7 @@ func (b *builder) clearDatabase(d string) {
 func (b *builder) alterDatabase(v *ast.AlterDatabaseStmt) bool {
 	if v.Name == "" {
 		if b.w.noDatabase && !b.w.lost {
-			b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, noDatabaseMessage)
+			b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabaseMessage)
 		}
 		return true
 	}
@@ -332,7 +332,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 			continue
 		}
 		if columns[k] {
-			b.fail(rangeOf(c.Loc), nil, "Column "+ident(c.Name)+" is specified twice in table "+r.written)
+			b.fail(rangeOf(c.Loc), nil, review.DuplicateName, "Column "+ident(c.Name)+" is specified twice in table "+r.written)
 			return true
 		}
 		columns[k] = true
@@ -355,7 +355,7 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		case ast.ConstrForeignKey:
 			if k, ok := b.key(spaceForeignKey, c.Name); ok && b.fks {
 				if foreignKeys[k] {
-					b.fail(rangeOf(c.Loc), nil, "Foreign key "+ident(c.Name)+" is specified twice in table "+r.written)
+					b.fail(rangeOf(c.Loc), nil, review.DuplicateName, "Foreign key "+ident(c.Name)+" is specified twice in table "+r.written)
 					return true
 				}
 				foreignKeys[k] = true
@@ -369,16 +369,16 @@ func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 		case !ok:
 			continue
 		case k == primaryIndex:
-			b.fail(rangeOf(c.Loc), nil, "Index name PRIMARY is reserved for the primary key")
+			b.fail(rangeOf(c.Loc), nil, review.ReservedName, "Index name PRIMARY is reserved for the primary key")
 			return true
 		case indexes[k]:
-			b.fail(rangeOf(c.Loc), nil, "Index "+ident(c.Name)+" is specified twice in table "+r.written)
+			b.fail(rangeOf(c.Loc), nil, review.DuplicateName, "Index "+ident(c.Name)+" is specified twice in table "+r.written)
 			return true
 		}
 		indexes[k] = true
 	}
 	if primaries > 1 {
-		b.fail(r.rng, nil, "Multiple primary keys for table "+r.written)
+		b.fail(r.rng, nil, review.NameTaken, "Multiple primary keys for table "+r.written)
 		return true
 	}
 	return false

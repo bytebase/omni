@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/bytebase/omni/metadata"
@@ -119,8 +120,8 @@ func groupTargets(targets []review.Target) []targetGroup {
 
 // reviewTargets evaluates the rules that read a target: each distinct
 // target once, concurrently, then the findings merged by (rule,
-// statement, range, message) so equal findings from different targets
-// become one finding listing them all. A group that could not be
+// statement, range, codes, message) so equal findings from different
+// targets become one finding listing them all. A group that could not be
 // evaluated becomes a failure per target.
 func reviewTargets(ctx context.Context, stmts []statement, on map[review.Rule]bool, todo work, targets []review.Target) ([]review.Finding, []review.TargetFailure, error) {
 	groups := groupTargets(targets)
@@ -150,6 +151,7 @@ func reviewTargets(ctx context.Context, stmts []statement, on map[review.Rule]bo
 		rule      review.Rule
 		statement int
 		rng       review.Range
+		codes     string
 		message   string
 	}
 	merged := make(map[key]int)
@@ -163,7 +165,7 @@ func reviewTargets(ctx context.Context, stmts []statement, on map[review.Rule]bo
 			continue
 		}
 		for _, f := range o.findings {
-			k := key{f.Rule, f.Statement, f.Range, f.Message}
+			k := key{f.Rule, f.Statement, f.Range, codesKey(f.Codes), f.Message}
 			if j, ok := merged[k]; ok {
 				findings[j].Targets = append(findings[j].Targets, f.Targets...)
 				continue
@@ -177,6 +179,20 @@ func reviewTargets(ctx context.Context, stmts []statement, on map[review.Rule]bo
 	}
 	slices.SortFunc(failures, func(a, b review.TargetFailure) int { return a.Target - b.Target })
 	return findings, failures, nil
+}
+
+// codesKey writes a finding's codes, in order, as one comparable value.
+// A code is letters and digits, so the space between two never joins
+// them.
+func codesKey(codes []review.FindingCode) string {
+	var b strings.Builder
+	for i, c := range codes {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		b.WriteString(string(c))
+	}
+	return b.String()
 }
 
 // reviewGroup evaluates one distinct target. A panic is the group's

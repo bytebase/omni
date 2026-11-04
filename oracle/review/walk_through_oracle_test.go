@@ -356,6 +356,9 @@ func (e *oracleEngine) Report(t testing.TB, change string) *walktest.Finding {
 	}
 	var out *walktest.Finding
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Errorf("%v\n%s", err, change)
+		}
 		switch f.Rule {
 		case review.Syntax:
 			t.Fatalf("syntax: %s\n%s", f.Message, change)

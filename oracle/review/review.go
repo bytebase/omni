@@ -168,13 +168,15 @@ type reporter struct {
 	findings []review.Finding
 }
 
-// report records a finding against every target. A statement of -1
-// addresses the whole change.
-func (r *reporter) report(rule review.Rule, statement int, rng review.Range, message string) {
+// report records a finding of the condition a code names against every
+// target: the code's rule, with the code. A statement of -1 addresses the
+// whole change.
+func (r *reporter) report(code review.FindingCode, statement int, rng review.Range, message string) {
 	r.add(review.Finding{
-		Rule:      rule,
+		Rule:      code.Rule(),
 		Statement: statement,
 		Range:     rng,
+		Codes:     []review.FindingCode{code},
 		Message:   message,
 	})
 }

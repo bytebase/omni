@@ -14,7 +14,7 @@ func checkDisallowTruncate(s *statement, r *reporter) {
 			if v.Partitions != nil && len(v.Partitions.Items) > 0 {
 				what = "partitions of " + what
 			}
-			r.report(review.DisallowTruncate, s.index, rangeOf(v.Loc), "Truncates "+what+".")
+			r.report(review.TruncatesData, s.index, rangeOf(v.Loc), "Truncates "+what+".")
 		}
 		return true
 	})

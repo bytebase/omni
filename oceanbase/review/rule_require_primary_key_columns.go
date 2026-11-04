@@ -391,7 +391,7 @@ read:
 		}
 	}
 	for _, f := range findings {
-		r.report(review.RequirePrimaryKey, f.statement, f.rng, f.message)
+		r.report(review.PrimaryKeyRemoved, f.statement, f.rng, f.message)
 	}
 }
 

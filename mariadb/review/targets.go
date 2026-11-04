@@ -71,8 +71,8 @@ func groupTargets(targets []review.Target) []targetGroup {
 
 // reviewTargets evaluates the rules that read a target: each distinct
 // target once, concurrently, then the findings merged by (rule,
-// statement, range, message) so equal findings from different targets
-// become one finding listing them all. A group that could not be
+// statement, range, codes, message) so equal findings from different
+// targets become one finding listing them all. A group that could not be
 // evaluated becomes a failure per target.
 func reviewTargets(ctx context.Context, sql string, stmts []statement, work targetWork, targets []review.Target) ([]review.Finding, []review.TargetFailure, error) {
 	groups := groupTargets(targets)
@@ -102,6 +102,7 @@ func reviewTargets(ctx context.Context, sql string, stmts []statement, work targ
 		rule      review.Rule
 		statement int
 		rng       review.Range
+		codes     string
 		message   string
 	}
 	merged := make(map[key]int)
@@ -115,7 +116,7 @@ func reviewTargets(ctx context.Context, sql string, stmts []statement, work targ
 			continue
 		}
 		for _, f := range o.findings {
-			k := key{f.Rule, f.Statement, f.Range, f.Message}
+			k := key{f.Rule, f.Statement, f.Range, fmt.Sprint(f.Codes), f.Message}
 			if j, ok := merged[k]; ok {
 				findings[j].Targets = append(findings[j].Targets, f.Targets...)
 				continue

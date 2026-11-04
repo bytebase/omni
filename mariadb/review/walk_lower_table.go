@@ -263,7 +263,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			return false
 		}
 		if seen[[2]string{kind, k}] {
-			b.fail(rng, nil, message)
+			b.fail(rng, nil, review.DuplicateName, message)
 			return true
 		}
 		seen[[2]string{kind, k}] = true
@@ -348,7 +348,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			case ast.ConstrCheck:
 			default:
 				if k, ok := b.key(spaceIndex, con.Name); ok && k == primaryIndex {
-					b.fail(rng, nil, "Index name PRIMARY is reserved for the primary key")
+					b.fail(rng, nil, review.ReservedName, "Index name PRIMARY is reserved for the primary key")
 					return true
 				}
 				if twice("add index", spaceIndex, con.Name, rng, "Index "+ident(con.Name)+" is added twice to table "+r.written) {
@@ -358,7 +358,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 		}
 	}
 	if primaries > 1 {
-		b.fail(b.anchor(), nil, "Multiple primary keys for table "+r.written)
+		b.fail(b.anchor(), nil, review.NameTaken, "Multiple primary keys for table "+r.written)
 		return true
 	}
 	return false
@@ -574,7 +574,7 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 			b.databaseNeeds(to.db, p.New.Schema, to.rng) // 1049; 1025 on 5.7
 		}
 		if kind == relView && from.db != to.db {
-			b.fail(to.rng, []walk.Key{fk}, "View "+from.written+" cannot move to another database") // 1450 (verified)
+			b.fail(to.rng, []walk.Key{fk}, review.UnsupportedForm, "View "+from.written+" cannot move to another database") // 1450 (verified)
 			return true
 		}
 		b.need(relKey(to.db, to.name), walk.Absent, nil, to.rng, "", "Table "+to.written+" already exists") // 1050

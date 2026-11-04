@@ -146,7 +146,7 @@ func (b *builder) defTextFails(r objRef, d *tableDef) bool {
 			return true
 		}
 		if seen[c.Name] {
-			b.fail(rangeOf(c.Loc), "column "+ident(c.Name)+" is named twice in the statement")
+			b.fail(rangeOf(c.Loc), review.DuplicateName, "column "+ident(c.Name)+" is named twice in the statement")
 			return true
 		}
 		seen[c.Name] = true
@@ -170,12 +170,12 @@ func (b *builder) defTextFails(r objRef, d *tableDef) bool {
 			return true
 		}
 		if names[c.Name] {
-			b.fail(rangeOf(c.Loc), msgNameTwice(c.Name))
+			b.fail(rangeOf(c.Loc), review.DuplicateName, msgNameTwice(c.Name))
 			return true
 		}
 		names[c.Name] = true
 		if !r.temp && c.Name == r.n.spelling {
-			b.fail(rangeOf(c.Loc), msgExists(ident(c.Name)))
+			b.fail(rangeOf(c.Loc), review.DuplicateName, msgExists(ident(c.Name)))
 			return true
 		}
 	}
@@ -187,13 +187,13 @@ func (b *builder) defTextFails(r objRef, d *tableDef) bool {
 			return true
 		}
 		if names[i.Name] {
-			b.fail(rangeOf(i.Loc), msgNameTwice(i.Name))
+			b.fail(rangeOf(i.Loc), review.DuplicateName, msgNameTwice(i.Name))
 			return true
 		}
 		names[i.Name] = true
 	}
 	if pks > 1 {
-		b.fail(b.anchor(), "the statement adds two primary keys to "+r.written)
+		b.fail(b.anchor(), review.NameTaken, "the statement adds two primary keys to "+r.written)
 		return true
 	}
 	return false
@@ -472,7 +472,7 @@ func (b *builder) alterTextFails(r objRef, actions []*ast.AlterTableAction) bool
 				dropped[a.Type] = map[string]bool{}
 			}
 			if dropped[a.Type][nm] {
-				b.fail(rangeOf(a.Loc), msgNameTwice(nm))
+				b.fail(rangeOf(a.Loc), review.DuplicateName, msgNameTwice(nm))
 				return true
 			}
 			dropped[a.Type][nm] = true
@@ -750,7 +750,7 @@ func (b *builder) dropEach(v *ast.DropStmt, lookup string, lower func(r objRef) 
 		// dbo.[x.y] and [dbo.x].y are two objects.
 		written := strings.Join([]string{tr.Server, tr.Database, tr.Schema, tr.Object}, "\x00")
 		if seen[written] && !v.IfExists {
-			b.fail(r.rng, r.written+" is dropped twice")
+			b.fail(r.rng, review.DuplicateName, r.written+" is dropped twice")
 			return true
 		}
 		seen[written] = true
@@ -908,7 +908,7 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		}
 		key := strings.Join([]string{on.Server, on.Database, on.Schema, on.Object, ix.Object}, "\x00")
 		if seen[key] && !v.IfExists {
-			b.fail(rangeOf(ix.Loc), "index "+ident(ix.Object)+" is dropped twice")
+			b.fail(rangeOf(ix.Loc), review.DuplicateName, "index "+ident(ix.Object)+" is dropped twice")
 			return true
 		}
 		seen[key] = true
@@ -942,7 +942,7 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		case s.fact == walk.Unknown:
 			b.maybe()
 		}
-		b.ofKind(spaceIndex, path, in, []string{kindIndex, kindXMLIndex}, note(rng, "", "index "+ident(ix.Object)+" of "+r.written+" enforces a constraint"))
+		b.ofKind(spaceIndex, path, in, []string{kindIndex, kindXMLIndex}, note(rng, "", "index "+ident(ix.Object)+" of "+r.written+" enforces a constraint").as(review.IndexBacksConstraint))
 		b.leave(spaceIndex, path, in)
 		if s.fact != walk.Present || s.kind != kindIndex {
 			// A primary XML index takes its secondary ones along.

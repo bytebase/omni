@@ -94,7 +94,7 @@ func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) (declared 
 	columns := make(map[string]bool)
 	twice := func(name string, rng review.Range) bool {
 		if columns[name] {
-			b.fail(rng, "Column "+ident(name)+" is named twice in the statement")
+			b.fail(rng, review.DuplicateName, "Column "+ident(name)+" is named twice in the statement")
 			return true
 		}
 		columns[name] = true
@@ -126,7 +126,7 @@ func (b *builder) alterTextFails(cmds []*ast.AlterTableCmd, r objRef) (declared 
 				continue
 			}
 			if dropped[c.Constraint.Name] {
-				b.fail(rangeOf(c.Loc), "Cannot drop constraint "+ident(c.Constraint.Name)+": table "+r.written+" has no such constraint")
+				b.fail(rangeOf(c.Loc), review.DuplicateName, "Cannot drop constraint "+ident(c.Constraint.Name)+": table "+r.written+" has no such constraint")
 				return nil, true
 			}
 			dropped[c.Constraint.Name] = true
@@ -291,10 +291,12 @@ func (b *builder) alterCmd(r objRef, c *ast.AlterTableCmd, declared []string) bo
 
 // constraintNeeds checks that a constraint the clause names is the
 // table's: on the table, and, since constraint names are unique in the
-// schema, not another table's (02443, 23292, 02430, 02431).
+// schema, not another table's (02443, 23292, 02430, 02431). Another
+// table's constraint of the name leaves this table without one, the
+// condition of review.ObjectNotFound.
 func (b *builder) constraintNeeds(r objRef, name string, rng review.Range, message string) {
 	b.need(r.childKey(spaceTableConstraint, name), walk.Present, nil, rng, message, "")
-	b.need(r.schemaKey(spaceConstraint, name), walk.Present, []string{r.path()}, rng, message, message)
+	b.needNote(r.schemaKey(spaceConstraint, name), walk.Present, []string{r.path()}, noteOf(rng, review.ObjectNotFound, message))
 }
 
 // nestedStorage reports whether an ADD names a nested table's storage

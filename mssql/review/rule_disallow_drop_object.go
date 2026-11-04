@@ -42,13 +42,13 @@ var dropKinds = map[ast.DropObjectType]string{
 func checkDisallowDropObject(s *statement, r *reporter) {
 	// reportItems writes "Drops <kind> <items>.", each item already
 	// Markdown, the kind in the plural for several, or "Drops the <kind>."
-	// for none.
+	// for none, under the code for dropping the kind.
 	reportItems := func(loc ast.Loc, kind string, items ...string) {
 		msg := "Drops the " + kind + "."
 		if len(items) > 0 {
 			msg = "Drops " + review.Plural(kind, len(items)) + " " + review.Join(items...) + "."
 		}
-		r.report(review.DisallowDropObject, s.index, rangeOf(loc), msg)
+		r.report(review.DropCode(kind), s.index, rangeOf(loc), msg)
 	}
 	report := func(loc ast.Loc, kind string, names ...string) {
 		items := make([]string, len(names))
@@ -135,11 +135,12 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 						}
 					}
 				}
-				msg := "Drops the sensitivity classification"
+				kind := "sensitivity classification"
+				msg := "Drops the " + kind
 				if len(names) > 0 {
 					msg += " of " + review.Names(names...)
 				}
-				r.report(review.DisallowDropObject, s.index, rangeOf(v.Loc), msg+".")
+				r.report(review.DropCode(kind), s.index, rangeOf(v.Loc), msg+".")
 			}
 		case *ast.SignatureStmt:
 			if strings.EqualFold(v.Action, "DROP") {
@@ -147,7 +148,7 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 				if v.IsCounter {
 					kind = "counter signature"
 				}
-				r.report(review.DisallowDropObject, s.index, rangeOf(v.Loc), "Drops the "+kind+" of "+review.Code(object(v.ModuleName))+".")
+				r.report(review.DropCode(kind), s.index, rangeOf(v.Loc), "Drops the "+kind+" of "+review.Code(object(v.ModuleName))+".")
 			}
 		case *ast.DropStatisticsStmt:
 			var names []string

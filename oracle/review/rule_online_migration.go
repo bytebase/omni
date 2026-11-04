@@ -9,5 +9,5 @@ import "github.com/bytebase/omni/review"
 //
 // bytebase: backend/runner/taskrun/database_migrate_executor.go — RunOnce (ghost.IsGhostEnabled)
 func checkOnlineMigration(r *reporter) {
-	r.report(review.OnlineMigration, -1, review.Range{}, "the change requests online migration, which Oracle does not support")
+	r.report(review.OnlineMigrationUnsupported, -1, review.Range{}, "the change requests online migration, which Oracle does not support")
 }

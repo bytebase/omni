@@ -198,6 +198,7 @@ func runTargetRule(t *testing.T, rule review.Rule, sql string, change review.Cha
 	if len(result.Failures) != 0 {
 		t.Fatalf("Failures = %v", result.Failures)
 	}
+	checkCodes(t, result.Findings)
 	var got []targetFinding
 	for _, f := range result.Findings {
 		if f.Rule == review.Syntax {
@@ -3496,6 +3497,7 @@ CREATE TABLE pt1 PARTITION OF pt FOR VALUES FROM (1) TO (10);`
 	if len(result.Failures) != 0 {
 		t.Fatalf("Failures = %v", result.Failures)
 	}
+	checkCodes(t, result.Findings)
 	var walked int
 	for _, f := range result.Findings {
 		if f.Rule == review.DisallowDropConstraint || f.Rule == review.RequirePrimaryKey {

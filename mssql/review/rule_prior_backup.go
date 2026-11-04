@@ -46,7 +46,7 @@ import (
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.PriorBackup, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
 	}
 }
 
@@ -72,37 +72,38 @@ func dmlOf(n ast.Node) (dmlTarget, bool) {
 }
 
 // backupTable returns the DML of a statement and the table its backup
-// copies, or why the backup refuses the statement: a table variable or a
-// WITH query as the target, WHERE CURRENT OF, or WITH XMLNAMESPACES. ref
-// is nil, with no refusal, for a statement the backup skips, a temporary
-// table's, or one whose target the rule does not know.
+// copies, or why the backup refuses the statement, with the refusal's
+// code: a table variable or a WITH query as the target, WHERE CURRENT OF,
+// or WITH XMLNAMESPACES. ref is nil, with no refusal, for a statement the
+// backup skips, a temporary table's, or one whose target the rule does
+// not know.
 //
 // bytebase: backend/plugin/parser/tsql/backup.go — prepareTransformation,
 // generateSQLForTable
-func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, refusal string) {
+func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, code review.FindingCode, refusal string) {
 	d, ok := dmlOf(s.node)
 	if !ok {
-		return d, nil, ""
+		return d, nil, "", ""
 	}
 	switch t := d.target.(type) {
 	case *ast.TableVarRef:
-		return d, nil, "prior backup does not support the table variable " + t.Name + " as the target"
+		return d, nil, review.TableNotBackupable, "prior backup does not support the table variable " + t.Name + " as the target"
 	case *ast.TableRef:
 		ref = backedUp(t, d.from)
 	}
 	switch {
 	case ref == nil || strings.HasPrefix(ref.Object, "#"):
-		return d, nil, ""
+		return d, nil, "", ""
 	case ref.Schema == "" && ref.Database == "" && withNames(d.with)[strings.ToLower(ref.Object)]:
-		return d, nil, "prior backup does not support the WITH query " + ident(ref.Object) + " as the target"
+		return d, nil, review.TableNotBackupable, "prior backup does not support the WITH query " + ident(ref.Object) + " as the target"
 	}
 	if _, ok := d.where.(*ast.CurrentOfExpr); ok {
-		return d, nil, "prior backup does not support WHERE CURRENT OF"
+		return d, nil, review.StatementNotBackupable, "prior backup does not support WHERE CURRENT OF"
 	}
 	if d.with != nil && d.with.XmlNamespaces != nil && len(d.with.XmlNamespaces.Items) > 0 {
-		return d, nil, "prior backup does not support WITH XMLNAMESPACES"
+		return d, nil, review.StatementNotBackupable, "prior backup does not support WITH XMLNAMESPACES"
 	}
-	return d, ref, ""
+	return d, ref, "", ""
 }
 
 // checkPriorBackupStatements reports, from the SQL alone, what the backup
@@ -112,17 +113,17 @@ func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, refusal string) 
 func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	for i := range stmts {
 		s := &stmts[i]
-		d, ref, refusal := backupTable(s)
+		d, ref, code, refusal := backupTable(s)
 		switch {
 		case refusal != "":
-			r.report(review.PriorBackup, s.index, rangeOf(s.loc), refusal)
+			r.report(code, s.index, rangeOf(s.loc), refusal)
 		case ref == nil:
 		default:
 			if !fromNames(d.from, ref) {
-				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup selects "+object(ref)+".* from the statement's FROM list, which does not name it")
+				r.report(review.BackupReadsWrongTable, s.index, rangeOf(s.loc), "prior backup selects "+object(ref)+".* from the statement's FROM list, which does not name it")
 			}
 			if d.top != nil {
-				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup copies TOP after the select list of its query, which SQL Server rejects")
+				r.report(review.StatementNotBackupable, s.index, rangeOf(s.loc), "prior backup copies TOP after the select list of its query, which SQL Server rejects")
 			}
 		}
 	}
@@ -146,12 +147,12 @@ func checkPriorBackupGroups(sql string, stmts []statement, db string, r *reporte
 	groups := make(map[string]*group)
 	for i := range stmts {
 		s := &stmts[i]
-		d, ref, refusal := backupTable(s)
+		d, ref, _, refusal := backupTable(s)
 		if ref == nil || refusal != "" {
 			continue
 		}
 		report := func(msg string) {
-			r.report(review.PriorBackup, s.index, rangeOf(s.loc), msg)
+			r.report(review.StatementsShareBackup, s.index, rangeOf(s.loc), msg)
 		}
 		database := ref.Database
 		if database == "" {
@@ -435,7 +436,7 @@ func (m changeMade) madeColumnOn(ref *ast.TableRef, column string, x schemaIndex
 // change's first USE reads that only the change makes.
 func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex, m changeMade, r *reporter) {
 	if !backupExists {
-		r.report(review.PriorBackup, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
 	}
 	if x.schema == nil {
 		return
@@ -443,12 +444,12 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 	for i := range stmts[:beforeUse(stmts)] {
 		s := &stmts[i]
 		// Only a statement the backup copies a table for runs its query.
-		d, ref, refusal := backupTable(s)
+		d, ref, _, refusal := backupTable(s)
 		if ref == nil || refusal != "" || d.with != nil {
 			continue
 		}
 		if msg := backupReadsMade(d, x, m); msg != "" {
-			r.report(review.PriorBackup, s.index, rangeOf(s.loc), msg)
+			r.report(review.BackupReadsNewObject, s.index, rangeOf(s.loc), msg)
 		}
 	}
 }

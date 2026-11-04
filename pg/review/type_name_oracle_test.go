@@ -85,6 +85,7 @@ func assertFormatType(t *testing.T, conn *sql.Conn, spellings []string) {
 		if err != nil {
 			t.Fatalf("%s: %v", sql, err)
 		}
+		checkCodes(t, res.Findings)
 		if len(res.Findings) != 1 {
 			t.Fatalf("%s: got %d findings, want 1", sql, len(res.Findings))
 		}

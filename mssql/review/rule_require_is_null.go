@@ -49,7 +49,7 @@ func checkRequireIsNull(sql string, s *statement, ansiNullsOff bool, r *reporter
 				if rng.Start < rng.End && rng.End <= len(sql) {
 					text = oneLine(sql[rng.Start:rng.End])
 				}
-				r.report(review.RequireIsNull, s.index, rng, review.Code(text)+" is never true.\n\nUse "+review.Code(fix)+" instead.")
+				r.report(review.NullComparison, s.index, rng, review.Code(text)+" is never true.\n\nUse "+review.Code(fix)+" instead.")
 			}
 		}
 	}

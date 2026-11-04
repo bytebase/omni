@@ -289,6 +289,9 @@ func TestPriorBackupAgainstTiDB(t *testing.T) {
 			}
 			reported := make(map[int]string)
 			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}
@@ -467,6 +470,9 @@ func TestScanRulesAgainstTiDB(t *testing.T) {
 			}
 			got := make(map[string]bool)
 			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}
@@ -631,6 +637,9 @@ func TestColumnDropAgainstTiDB(t *testing.T) {
 				t.Fatalf("Review: %v", err)
 			}
 			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				t.Errorf("reported %s: %s", f.Rule, f.Message)
 			}
 			if _, err := conn.ExecContext(ctx, tt.change); err == nil || !strings.Contains(err.Error(), tt.err) {

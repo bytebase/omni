@@ -357,6 +357,9 @@ func (e *tidbEngine) Report(t testing.TB, change string) *walktest.Finding {
 	}
 	var out *walktest.Finding
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
 		switch f.Rule {
 		case review.Syntax:
 			t.Fatalf("syntax: %s\n%s", f.Message, change)

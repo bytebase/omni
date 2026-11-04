@@ -28,6 +28,7 @@ func walkFindings(t *testing.T, sql string, targets ...review.Target) []review.F
 	if err != nil {
 		t.Fatal(err)
 	}
+	checkCodes(t, result.Findings)
 	return result.Findings
 }
 

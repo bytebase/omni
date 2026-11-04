@@ -11,5 +11,5 @@ import "github.com/bytebase/omni/review"
 // ghost.IsGhostEnabled branch to runGhostMigration;
 // backend/component/ghost/config.go — NewMigrationContext
 func checkOnlineMigration(r *reporter) {
-	r.report(review.OnlineMigration, -1, review.Range{}, "the change requests online migration, which Snowflake does not support")
+	r.report(review.OnlineMigrationUnsupported, -1, review.Range{}, "the change requests online migration, which Snowflake does not support")
 }

@@ -780,6 +780,7 @@ func walkFinding(t testing.TB, sql string, target review.Target) *review.Finding
 	if err != nil {
 		t.Fatalf("Review: %v", err)
 	}
+	checkCodes(t, result.Findings)
 	var out *review.Finding
 	for i, f := range result.Findings {
 		switch f.Rule {

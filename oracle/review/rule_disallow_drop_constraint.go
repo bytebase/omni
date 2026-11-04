@@ -235,7 +235,7 @@ func (s *constraintScan) createTable(st *statement, v *ast.CreateTableStmt, rng 
 		s.define(k, c.name, c.kind)
 	}
 	if s.on[review.RequirePrimaryKey] && judgedTable(v) && !createsPrimaryKey(v) {
-		s.pending = append(s.pending, &pendingTable{key: k, statement: st.index, rng: rng, message: "Creates table " + review.Code(objectName(v.Name)) + " without a primary key."})
+		s.pending = append(s.pending, &pendingTable{key: k, code: review.TableWithoutPrimaryKey, statement: st.index, rng: rng, message: "Creates table " + review.Code(objectName(v.Name)) + " without a primary key."})
 	}
 }
 
@@ -413,7 +413,7 @@ func (s *constraintScan) findDefined(k tableKey, name string) *definedConstraint
 // the table's primary key, whatever its name.
 func (s *constraintScan) dropPrimaryKey(st *statement, v *ast.AlterTableStmt, cmd *ast.AlterTableCmd, k tableKey) {
 	if s.on[review.DisallowDropConstraint] {
-		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "Drops the primary key of "+review.Code(objectName(v.Name))+".")
+		s.r.report(review.DropsConstraint, st.index, rangeOf(cmd.Loc), "Drops the primary key of "+review.Code(objectName(v.Name))+".")
 	}
 	for _, d := range s.defined {
 		if d.alive && d.kind == ast.CONSTRAINT_PRIMARY && d.table.mayBe(k) {
@@ -431,7 +431,7 @@ func (s *constraintScan) dropUnique(st *statement, v *ast.AlterTableStmt, cmd *a
 		if cols := uniqueColumns(s.sql, cmd); cols != "" {
 			what = "the unique constraint on " + cols
 		}
-		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "Drops "+what+" of "+review.Code(objectName(v.Name))+".")
+		s.r.report(review.DropsConstraint, st.index, rangeOf(cmd.Loc), "Drops "+what+" of "+review.Code(objectName(v.Name))+".")
 	}
 	s.touch(k, func(t *tableState) { t.uniqueDropped = true })
 }
@@ -483,7 +483,7 @@ func (s *constraintScan) dropped(st *statement, v *ast.AlterTableStmt, cmd *ast.
 		return
 	}
 	if s.on[review.DisallowDropConstraint] {
-		s.r.report(review.DisallowDropConstraint, st.index, rangeOf(cmd.Loc), "Drops "+label+" "+review.Code(ident(name))+" of "+review.Code(objectName(v.Name))+".")
+		s.r.report(review.DropsConstraint, st.index, rangeOf(cmd.Loc), "Drops "+label+" "+review.Code(ident(name))+" of "+review.Code(objectName(v.Name))+".")
 	}
 	if kind == ast.CONSTRAINT_PRIMARY {
 		s.lostPrimaryKey(st, v, cmd, k)

@@ -25,7 +25,7 @@ func checkWalkThrough(ctx context.Context, sql string, stmts []statement, t revi
 	if !ok {
 		return nil
 	}
-	r.report(review.WalkThrough, stmts[v.Statement].index, note.rng, escapeLines(note.message(v)))
+	r.report(note.code(v), stmts[v.Statement].index, note.rng, escapeLines(note.message(v)))
 	return nil
 }
 
@@ -48,11 +48,13 @@ func walkThrough(ctx context.Context, sql string, stmts []statement, t review.Ta
 
 // walkNote is a check's finding: where it anchors and what it says when
 // the object is certainly absent or certainly present (or of another
-// kind).
+// kind). fixed is the code of a Fail, and of a check whose violation is a
+// condition other than the one its wanted and found facts name.
 type walkNote struct {
 	rng     review.Range
 	absent  string
 	present string
+	fixed   review.FindingCode
 }
 
 func (n *walkNote) message(v *walk.Violation) string {
@@ -60,6 +62,24 @@ func (n *walkNote) message(v *walk.Violation) string {
 		return n.absent
 	}
 	return n.present
+}
+
+// code is the violation's finding code: fixed when set, else the
+// condition the check's wanted and found facts name. A name wanted and
+// absent doesn't exist, one wanted absent and present is taken, and one
+// wanted and present is of another kind.
+func (n *walkNote) code(v *walk.Violation) review.FindingCode {
+	switch {
+	case n.fixed != "":
+		return n.fixed
+	case v.Check.Want == walk.Present && v.Got == walk.Absent:
+		return review.ObjectNotFound
+	case v.Check.Want == walk.Absent && v.Got == walk.Present:
+		return review.NameTaken
+	case v.Check.Want == walk.Present && v.Got == walk.Present:
+		return review.WrongObjectKind
+	}
+	return ""
 }
 
 // dbState is what the walk knows of the database a name means.
@@ -214,9 +234,10 @@ func (b *builder) maybe() {
 
 func (b *builder) anchor() review.Range { return rangeOf(b.s.loc) }
 
-// fail records that the statement certainly fails, from its text.
-func (b *builder) fail(rng review.Range, message string) {
-	b.Fail(nil, walk.Absent, &walkNote{rng: rng, absent: message, present: message})
+// fail records that the statement certainly fails, from its text, for the
+// condition code names.
+func (b *builder) fail(rng review.Range, code review.FindingCode, message string) {
+	b.Fail(nil, walk.Absent, &walkNote{rng: rng, absent: message, present: message, fixed: code})
 }
 
 // sight is what the ledger shows of one spelling of a name: its fact,
@@ -714,7 +735,7 @@ func (b *builder) tooLong(spelling string, local bool, rng review.Range) bool {
 			return false
 		}
 	}
-	b.fail(rng, "the identifier "+ident(spelling[:min(len(spelling), 32)])+"... is longer than "+strconv.Itoa(limit)+" characters")
+	b.fail(rng, review.NameTooLong, "the identifier "+ident(spelling[:min(len(spelling), 32)])+"... is longer than "+strconv.Itoa(limit)+" characters")
 	return true
 }
 

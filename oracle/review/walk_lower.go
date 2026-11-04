@@ -256,13 +256,13 @@ func (b *builder) declTextFails(d *tableDecl, r objRef) bool {
 	seen := make(map[string]bool)
 	for i, n := range d.names {
 		if seen[n] {
-			b.fail(d.rngs[i], takenConstraint(n))
+			b.fail(d.rngs[i], review.DuplicateName, takenConstraint(n))
 			return true
 		}
 		seen[n] = true
 	}
 	if d.primaries > 1 {
-		b.fail(r.rng, "Table "+r.written+" can have only one primary key")
+		b.fail(r.rng, review.NameTaken, "Table "+r.written+" can have only one primary key")
 		return true
 	}
 	return false
@@ -381,7 +381,7 @@ func (b *builder) columnsTwice(columns []*ast.ColumnDef, r objRef) bool {
 	seen := make(map[string]bool)
 	for _, c := range columns {
 		if seen[c.Name] {
-			b.fail(rangeOf(c.Loc), "Column "+ident(c.Name)+" is named twice in table "+r.written)
+			b.fail(rangeOf(c.Loc), review.DuplicateName, "Column "+ident(c.Name)+" is named twice in table "+r.written)
 			return true
 		}
 		seen[c.Name] = true
@@ -1023,8 +1023,7 @@ func (b *builder) missingTarget(t *ast.ObjectName, r objRef) {
 			return
 		}
 	}
-	msg := missingTable(r.written)
-	b.Fail(keys, walk.Absent, &walkNote{rng: r.rng, absent: msg, present: msg})
+	b.Fail(keys, walk.Absent, noteOf(r.rng, review.ObjectNotFound, missingTable(r.written)))
 }
 
 // dmlTargets lists the tables a DML statement writes, false when one is

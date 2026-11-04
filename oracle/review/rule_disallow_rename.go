@@ -21,9 +21,9 @@ func checkDisallowRename(s *statement, r *reporter) {
 		}
 		switch {
 		case cmd.Action == ast.AT_RENAME && cmd.NewName != "":
-			r.report(review.DisallowRename, s.index, rangeOf(cmd.Loc), "Renames table "+review.Code(objectName(v.Name))+" to "+review.Code(ident(cmd.NewName))+".")
+			r.report(review.RenamesObject, s.index, rangeOf(cmd.Loc), "Renames table "+review.Code(objectName(v.Name))+" to "+review.Code(ident(cmd.NewName))+".")
 		case cmd.Action == ast.AT_RENAME_COLUMN:
-			r.report(review.DisallowRename, s.index, rangeOf(cmd.Loc), "Renames column "+review.Code(ident(cmd.ColumnName))+" of "+review.Code(objectName(v.Name))+" to "+review.Code(ident(cmd.NewName))+".")
+			r.report(review.RenamesObject, s.index, rangeOf(cmd.Loc), "Renames column "+review.Code(ident(cmd.ColumnName))+" of "+review.Code(objectName(v.Name))+" to "+review.Code(ident(cmd.NewName))+".")
 		}
 	}
 }
@@ -57,7 +57,7 @@ func checkRenames(stmts []statement, x schemaIndex, r *reporter) {
 		}
 		k := keyIn(v.OldName, schemas[pos])
 		if kind := relationKindAt(stmts, schemas, pos, k, x); kind != "" {
-			r.report(review.DisallowRename, stmts[pos].index, rangeOf(stmts[pos].loc), "Renames "+kind+" "+review.Code(objectName(v.OldName))+" to "+review.Code(objectName(v.NewName))+".")
+			r.report(review.RenamesObject, stmts[pos].index, rangeOf(stmts[pos].loc), "Renames "+kind+" "+review.Code(objectName(v.OldName))+" to "+review.Code(objectName(v.NewName))+".")
 		}
 	}
 }

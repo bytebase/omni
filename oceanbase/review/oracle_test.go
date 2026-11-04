@@ -319,6 +319,9 @@ func TestPriorBackupAgainstMySQL(t *testing.T) {
 			}
 			reported := make(map[int]string)
 			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}
@@ -496,6 +499,9 @@ func TestScanRulesAgainstMySQL(t *testing.T) {
 			}
 			got := make(map[string]bool)
 			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}
@@ -814,6 +820,9 @@ func TestColumnDropAgainstMySQL(t *testing.T) {
 			}
 			reported := false
 			for _, f := range result.Findings {
+				if err := review.CheckCodes(f); err != nil {
+					t.Error(err)
+				}
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}

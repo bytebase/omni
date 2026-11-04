@@ -34,6 +34,9 @@ func run(t *testing.T, rule review.Rule, sql string, change review.Change, targe
 	}
 	var got []finding
 	for _, f := range result.Findings {
+		if err := review.CheckCodes(f); err != nil {
+			t.Error(err)
+		}
 		if f.Rule == review.Syntax && rule != review.Syntax {
 			t.Fatalf("syntax finding: %s", f.Message)
 		}

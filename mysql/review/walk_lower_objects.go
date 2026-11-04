@@ -41,7 +41,7 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 		return false
 	}
 	if k == primaryIndex {
-		b.fail(rng, nil, "Index name PRIMARY is reserved for the primary key") // 1280
+		b.fail(rng, nil, review.ReservedName, "Index name PRIMARY is reserved for the primary key") // 1280
 		return true
 	}
 	ik := idxKey(r.db, r.name, k)
@@ -209,7 +209,7 @@ func (b *builder) dbObject(space string, tr *ast.TableRef) (string, string, refS
 	case b.w.lost:
 		return "", "", refUnknown
 	case b.w.noDatabase:
-		b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, noDatabaseMessage)
+		b.fail(b.anchor(), []walk.Key{dbKey(b.w.current)}, review.NoCurrentSchema, noDatabaseMessage)
 		return "", "", refFailed
 	}
 	return k, b.w.current, refOK
