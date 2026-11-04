@@ -75,13 +75,20 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,
 		*ast.SplitRegionStmt, *ast.DistributeTableStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
-		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.CreateRoleStmt, *ast.DropRoleStmt:
+		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.CreateRoleStmt, *ast.DropRoleStmt,
+		*ast.CreateResourceGroupStmt, *ast.AlterResourceGroupStmt, *ast.DropResourceGroupStmt,
+		*ast.SetResourceGroupStmt, *ast.CalibrateResourceStmt,
+		*ast.AddQueryWatchStmt, *ast.DropQueryWatchStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
 		// SPLIT ... TABLE and DISTRIBUTE TABLE are here for the same
 		// reason ANALYZE TABLE is: each needs its table, and the index
 		// form its index, but neither creates, drops, or renames one, so
 		// the walk follows both and records nothing.
+		// The resource control statements name resource groups and watch
+		// list entries, neither of which the walk holds; dropping out here
+		// instead would end the walk and lose every statement after one.
+
 		return true
 	}
 	// Everything else leaves the walk claiming nothing from here on, which is

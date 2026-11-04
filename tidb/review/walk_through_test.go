@@ -449,3 +449,35 @@ func TestWalkThroughTiDBLowersEveryForm(t *testing.T) {
 		return len(stmts), len(stmts), false
 	})
 }
+
+// TestWalkThroughTiDBResourceControl pins that the resource control
+// statements are statements the walk follows. None of them names a relation
+// or a database the walk holds, so each must be followed and leave the ledger
+// as it was. Returning false for one instead would end the walk there and
+// lose every statement after it: the `CREATE TABLE t` below would never be
+// judged, and the finding this asserts would silently disappear.
+func TestWalkThroughTiDBResourceControl(t *testing.T) {
+	shop := review.Target{Schema: walkSchema()}
+	for _, stmt := range []string{
+		"CREATE RESOURCE GROUP rg RU_PER_SEC = 1000",
+		"CREATE RESOURCE GROUP IF NOT EXISTS rg RU_PER_SEC = UNLIMITED, PRIORITY = HIGH, BURSTABLE",
+		"ALTER RESOURCE GROUP rg QUERY_LIMIT = (EXEC_ELAPSED '10s' ACTION KILL)",
+		"ALTER RESOURCE GROUP IF EXISTS rg BACKGROUND = (TASK_TYPES 'br')",
+		"DROP RESOURCE GROUP rg",
+		"DROP RESOURCE GROUP IF EXISTS rg",
+		"SET RESOURCE GROUP rg",
+		"SET RESOURCE GROUP DEFAULT",
+		"CALIBRATE RESOURCE",
+		"CALIBRATE RESOURCE WORKLOAD TPCC",
+		"CALIBRATE RESOURCE START_TIME now() DURATION '20m'",
+		"QUERY WATCH ADD RESOURCE GROUP rg SQL TEXT SIMILAR TO 'select 1'",
+		"QUERY WATCH REMOVE 1",
+		"CREATE USER 'u'@'h' RESOURCE GROUP rg",
+		"ALTER USER 'u'@'h' RESOURCE GROUP rg",
+	} {
+		// The table the statement precedes is the one the walk must still
+		// reach, and the one it follows is the one it must not undo.
+		sql := "CREATE TABLE x (a int);\n" + stmt + ";\nCREATE TABLE t (a int);"
+		oneFinding(t, sql, 2, "Table `t` already exists.", shop)
+	}
+}

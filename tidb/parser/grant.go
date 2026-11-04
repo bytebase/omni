@@ -688,6 +688,50 @@ func (p *Parser) parseUserList() ([]string, error) {
 	return users, nil
 }
 
+// parseRoleList parses a comma-separated list of role names, the grammar's
+// RolenameList (TiDB v8.5.5 parser.y:11405).
+func (p *Parser) parseRoleList() ([]string, error) {
+	var roles []string
+	for {
+		role, err := p.parseRoleName()
+		if err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return roles, nil
+}
+
+// parseRoleName parses Rolename (TiDB v8.5.5 parser.y:11395), which is not
+// Username (parser.y:11333). A role written on its own is RoleNameString
+// (parser.y:11371) -- a string literal or a plain identifier -- where a user
+// written on its own is StringName (parser.y:13843) and so may be any
+// unreserved keyword. That is the whole difference, and it is why v8.5.5
+// takes CREATE USER resource and answers 1064 for CREATE ROLE RESOURCE while
+// running the same statement with the role name quoted. Only the role@host
+// form reaches StringName on both sides, so a keyword is a role name there.
+//
+// GRANT and REVOKE read their role list as a privilege list first and settle
+// which it was on the TO or FROM that follows, so their names do not come
+// through here.
+func (p *Parser) parseRoleName() (string, error) {
+	if p.cur.Type >= 700 && !isReserved(p.cur.Type) {
+		next := p.peekNext()
+		if next.Type != tokIDENT || !strings.HasPrefix(next.Str, "@") {
+			return "", &ParseError{
+				Message:  "expected role name",
+				Position: p.cur.Loc,
+			}
+		}
+	}
+	return p.parseUserName()
+}
+
 // parseUserName parses a user identifier, which may be 'user'@'host'.
 func (p *Parser) parseUserName() (string, error) {
 	var name string
@@ -813,8 +857,41 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 		return nil, err
 	}
 
+	// [RESOURCE GROUP group_name]
+	if err := p.parseUserResourceGroup(&stmt.ResourceGroup); err != nil {
+		return nil, err
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseUserResourceGroup parses the RESOURCE GROUP clause CREATE USER and
+// ALTER USER take last, after the comment and attribute options
+// (ResourceGroupNameOption, TiDB v8.5.5 parser.y:14213). It is TiDB's and not
+// MySQL's: v8.5.5 runs `CREATE USER u RESOURCE GROUP rg` and MySQL 8.0
+// answers 1064 for it.
+//
+// The clause ends the statement, so `RESOURCE GROUP rg COMMENT 'c'` is 1064
+// where `COMMENT 'c' RESOURCE GROUP rg` is not, and a second RESOURCE GROUP
+// is 1064 too.
+func (p *Parser) parseUserResourceGroup(out *string) error {
+	if p.cur.Type != kwRESOURCE {
+		return nil
+	}
+	p.advance() // consume RESOURCE
+	if _, ok := p.match(kwGROUP); !ok {
+		return &ParseError{
+			Message:  "expected GROUP after RESOURCE",
+			Position: p.cur.Loc,
+		}
+	}
+	name, err := p.parseResourceGroupName()
+	if err != nil {
+		return err
+	}
+	*out = name
+	return nil
 }
 
 // parseDropUserStmt parses a DROP USER statement.
@@ -1017,6 +1094,11 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 		&stmt.PasswordLockTime, &stmt.AccountLock, &stmt.AccountUnlock,
 		&stmt.Comment, &stmt.Attribute,
 	); err != nil {
+		return nil, err
+	}
+
+	// [RESOURCE GROUP group_name]
+	if err := p.parseUserResourceGroup(&stmt.ResourceGroup); err != nil {
 		return nil, err
 	}
 
@@ -1351,7 +1433,7 @@ func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
 	}
 
 	// role [, role] ...
-	roles, err := p.parseUserList()
+	roles, err := p.parseRoleList()
 	if err != nil {
 		return nil, err
 	}
@@ -1377,7 +1459,7 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	}
 
 	// role [, role] ...
-	roles, err := p.parseUserList()
+	roles, err := p.parseRoleList()
 	if err != nil {
 		return nil, err
 	}
@@ -1450,7 +1532,7 @@ func (p *Parser) parseSetDefaultRoleStmt(start int) (*nodes.SetDefaultRoleStmt, 
 		stmt.All = true
 		p.advance()
 	default:
-		roles, err := p.parseUserList()
+		roles, err := p.parseRoleList()
 		if err != nil {
 			return nil, err
 		}
@@ -1492,14 +1574,14 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 		// ALL EXCEPT role [, role] ...
 		if p.cur.Type == kwEXCEPT {
 			p.advance()
-			roles, err := p.parseUserList()
+			roles, err := p.parseRoleList()
 			if err != nil {
 				return nil, err
 			}
 			stmt.AllExcept = roles
 		}
 	default:
-		roles, err := p.parseUserList()
+		roles, err := p.parseRoleList()
 		if err != nil {
 			return nil, err
 		}
@@ -1857,13 +1939,25 @@ func (p *Parser) parseUserAccountOptions(
 	}
 }
 
-// parseSetResourceGroupStmt parses SET RESOURCE GROUP group_name [FOR thread_id [, thread_id] ...].
+// parseSetResourceGroupStmt parses SET RESOURCE GROUP group_name.
 // SET already consumed. p.cur is RESOURCE.
+//
+// Ref: TiDB v8.5.5 parser.y:11017
+//
+//	SET RESOURCE GROUP group_name
+//
+// MySQL's `FOR thread_id [, thread_id] ...` is not TiDB's: v8.5.5 answers
+// 1064 for `SET RESOURCE GROUP x FOR 1`.
 func (p *Parser) parseSetResourceGroupStmt(start int) (*nodes.SetResourceGroupStmt, error) {
 	p.advance() // consume RESOURCE
-	p.advance() // consume GROUP (identifier)
+	if _, ok := p.match(kwGROUP); !ok {
+		return nil, &ParseError{
+			Message:  "expected GROUP after RESOURCE",
+			Position: p.cur.Loc,
+		}
+	}
 
-	name, _, err := p.parseIdent()
+	name, err := p.parseResourceGroupName()
 	if err != nil {
 		return nil, err
 	}
@@ -1871,24 +1965,6 @@ func (p *Parser) parseSetResourceGroupStmt(start int) (*nodes.SetResourceGroupSt
 	stmt := &nodes.SetResourceGroupStmt{
 		Loc:  nodes.Loc{Start: start},
 		Name: name,
-	}
-
-	// Optional: FOR thread_id [, thread_id] ...
-	if p.cur.Type == kwFOR {
-		p.advance() // consume FOR
-		for {
-			if p.cur.Type == tokICONST {
-				id, _ := strconv.ParseInt(p.cur.Str, 10, 64)
-				stmt.ThreadIDs = append(stmt.ThreadIDs, id)
-				p.advance()
-			} else {
-				break
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
 	}
 
 	stmt.Loc.End = p.prev.End

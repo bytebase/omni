@@ -83,7 +83,6 @@ var locSpanCases = []struct {
 	{"AlterEventStmt", "ALTER EVENT ev1 ENABLE", "ALTER EVENT ev1 ENABLE", 0},
 	{"AlterInstanceStmt", "ALTER INSTANCE RELOAD TLS", "ALTER INSTANCE RELOAD TLS", 0},
 	{"AlterLogfileGroupStmt", "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' ENGINE = NDB", "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' ENGINE = NDB", 0},
-	{"AlterResourceGroupStmt", "ALTER RESOURCE GROUP rg1 VCPU = 0-3", "ALTER RESOURCE GROUP rg1 VCPU = 0-3", 0},
 	{"AlterRoutineStmt", "ALTER FUNCTION f1 COMMENT 'test'", "ALTER FUNCTION f1 COMMENT 'test'", 0},
 	{"AlterServerStmt", "ALTER SERVER s1 OPTIONS (USER 'admin')", "ALTER SERVER s1 OPTIONS (USER 'admin')", 0},
 	{"AlterTableCmd", "ALTER TABLE t FORCE", "FORCE", 0},
@@ -141,7 +140,6 @@ var locSpanCases = []struct {
 	{"CreateIndexStmt", "CREATE INDEX idx ON t (a)", "CREATE INDEX idx ON t (a)", 0},
 	{"CreateIndexStmt", "CREATE UNIQUE INDEX idx ON t (a)", "CREATE UNIQUE INDEX idx ON t (a)", 0},
 	{"CreateLogfileGroupStmt", "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' ENGINE = NDB", "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' ENGINE = NDB", 0},
-	{"CreateResourceGroupStmt", "CREATE RESOURCE GROUP rg1 TYPE = USER", "CREATE RESOURCE GROUP rg1 TYPE = USER", 0},
 	{"CreateRoleStmt", "CREATE ROLE r1", "CREATE ROLE r1", 0},
 	{"CreateServerStmt", "CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (USER 'root')", "CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (USER 'root')", 0},
 	{"CreateSpatialRefSysStmt", "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[]'", "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[]'", 0},
@@ -170,7 +168,6 @@ var locSpanCases = []struct {
 	{"DropEventStmt", "DROP EVENT ev1", "DROP EVENT ev1", 0},
 	{"DropIndexStmt", "DROP INDEX idx ON t", "DROP INDEX idx ON t", 0},
 	{"DropLogfileGroupStmt", "DROP LOGFILE GROUP lg1 ENGINE = NDB", "DROP LOGFILE GROUP lg1 ENGINE = NDB", 0},
-	{"DropResourceGroupStmt", "DROP RESOURCE GROUP rg1", "DROP RESOURCE GROUP rg1", 0},
 	{"DropRoleStmt", "DROP ROLE r1", "DROP ROLE r1", 0},
 	{"DropRoutineStmt", "DROP FUNCTION f1", "DROP FUNCTION f1", 0},
 	{"DropRoutineStmt", "DROP PROCEDURE IF EXISTS p", "DROP PROCEDURE IF EXISTS p", 0},
@@ -282,7 +279,6 @@ var locSpanCases = []struct {
 	{"SelectStmt", "SELECT (TABLE t1 ORDER BY a LIMIT 1)", "TABLE t1 ORDER BY a LIMIT 1", 1},
 	{"SetDefaultRoleStmt", "SET DEFAULT ROLE ALL TO root", "SET DEFAULT ROLE ALL TO root", 0},
 	{"SetPasswordStmt", "SET PASSWORD TO RANDOM", "SET PASSWORD TO RANDOM", 0},
-	{"SetResourceGroupStmt", "SET RESOURCE GROUP rg1", "SET RESOURCE GROUP rg1", 0},
 	{"SetRoleStmt", "SET ROLE ALL", "SET ROLE ALL", 0},
 	{"SetStmt", "SET x = 1", "SET x = 1", 0},
 	{"SetTransactionStmt", "SET TRANSACTION READ ONLY", "SET TRANSACTION READ ONLY", 0},
@@ -362,7 +358,11 @@ func TestLocSpans(t *testing.T) {
 // locKindsNotBuilt lists the node kinds with a Loc that the parser never
 // builds, so TestLocSpans cannot pin them.
 var locKindsNotBuilt = map[string]string{
-	"RawStmt": "Parse returns statement nodes unwrapped",
+	"AlterResourceGroupStmt":  "OceanBase has no resource group statement",
+	"CreateResourceGroupStmt": "OceanBase has no resource group statement",
+	"DropResourceGroupStmt":   "OceanBase has no resource group statement",
+	"SetResourceGroupStmt":    "OceanBase has no resource group statement",
+	"RawStmt":                 "Parse returns statement nodes unwrapped",
 }
 
 // TestLocSpansCoverEveryNodeKind requires a TestLocSpans case for every

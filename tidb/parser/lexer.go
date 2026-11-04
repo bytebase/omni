@@ -984,6 +984,42 @@ const (
 	kwREGION
 	kwRULE
 	kwTIMEOUT
+	// TiDB's resource control statements: CREATE/ALTER/DROP RESOURCE GROUP,
+	// CALIBRATE RESOURCE and QUERY WATCH. All are unreserved upstream, in
+	// UnReservedKeyword (CALIBRATE parser.y:349, DIGEST 402, the workload
+	// names 525-528 and 667-668, WORKLOAD 699) or NotKeywordToken (the rest,
+	// parser.y:707-833), so every one of them stays usable as an identifier.
+	// ACTION, GROUP, KILL, MEDIUM, QUERY, RESOURCE and TEXT already exist, and
+	// so do DIGEST and PLAN, which the SQL plan binding family declares above.
+	kwRU_PER_SEC
+	kwPRIORITY
+	kwBURSTABLE
+	kwQUERY_LIMIT
+	kwBACKGROUND
+	kwTASK_TYPES
+	kwUTILIZATION_LIMIT
+	kwEXEC_ELAPSED
+	kwPROCESSED_KEYS
+	kwRU
+	kwWATCH
+	kwDURATION
+	kwDRYRUN
+	kwCOOLDOWN
+	kwSWITCH_GROUP
+	kwEXACT
+	kwSIMILAR
+	kwUNLIMITED
+	kwLOW
+	kwHIGH
+	kwCALIBRATE
+	kwWORKLOAD
+	kwTPCC
+	kwTPCH_10
+	kwOLTP_READ_WRITE
+	kwOLTP_READ_ONLY
+	kwOLTP_WRITE_ONLY
+	kwSTART_TIME
+	kwEND_TIME
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1834,6 +1870,37 @@ var keywords = map[string]int{
 	"batch": kwBATCH,
 	"dry":   kwDRY,
 	"run":   kwRUN,
+
+	// TiDB's resource control statements.
+	"ru_per_sec":        kwRU_PER_SEC,
+	"priority":          kwPRIORITY,
+	"burstable":         kwBURSTABLE,
+	"query_limit":       kwQUERY_LIMIT,
+	"background":        kwBACKGROUND,
+	"task_types":        kwTASK_TYPES,
+	"utilization_limit": kwUTILIZATION_LIMIT,
+	"exec_elapsed":      kwEXEC_ELAPSED,
+	"processed_keys":    kwPROCESSED_KEYS,
+	"ru":                kwRU,
+	"watch":             kwWATCH,
+	"duration":          kwDURATION,
+	"dryrun":            kwDRYRUN,
+	"cooldown":          kwCOOLDOWN,
+	"switch_group":      kwSWITCH_GROUP,
+	"exact":             kwEXACT,
+	"similar":           kwSIMILAR,
+	"unlimited":         kwUNLIMITED,
+	"low":               kwLOW,
+	"high":              kwHIGH,
+	"calibrate":         kwCALIBRATE,
+	"workload":          kwWORKLOAD,
+	"tpcc":              kwTPCC,
+	"tpch_10":           kwTPCH_10,
+	"oltp_read_write":   kwOLTP_READ_WRITE,
+	"oltp_read_only":    kwOLTP_READ_ONLY,
+	"oltp_write_only":   kwOLTP_WRITE_ONLY,
+	"start_time":        kwSTART_TIME,
+	"end_time":          kwEND_TIME,
 
 	// TiDB CREATE/ALTER/DROP SEQUENCE keywords.
 	"sequence":   kwSEQUENCE,

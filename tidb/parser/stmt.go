@@ -26,6 +26,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwXA, kwCALL, kwHELP,
 			kwADMIN, // TiDB's own maintenance family
 			kwSPLIT, kwDISTRIBUTE,
+			kwCALIBRATE, kwQUERY,
 		}
 		for _, t := range stmtTokens {
 			p.addTokenCandidate(t)
@@ -238,6 +239,19 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwADMIN:
 		return p.parseAdminStmt()
+
+	case kwCALIBRATE:
+		return p.parseCalibrateResourceStmt()
+
+	case kwQUERY:
+		// QUERY WATCH ADD / REMOVE, TiDB's runaway-query watch list. QUERY
+		// starts no other statement, but it is an unreserved keyword and so
+		// an ordinary identifier everywhere else; only WATCH after it makes
+		// a statement.
+		if p.peekNext().Type == kwWATCH {
+			return p.parseQueryWatchStmt()
+		}
+		return nil, p.syntaxErrorAtCur()
 
 	case '(':
 		// Parenthesized subquery / select

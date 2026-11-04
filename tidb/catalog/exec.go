@@ -308,6 +308,20 @@ func stmtLocStart(node nodes.Node) int {
 		return s.Loc.Start
 	case *nodes.SetBindingStmt:
 		return s.Loc.Start
+	case *nodes.CreateResourceGroupStmt:
+		return s.Loc.Start
+	case *nodes.AlterResourceGroupStmt:
+		return s.Loc.Start
+	case *nodes.DropResourceGroupStmt:
+		return s.Loc.Start
+	case *nodes.SetResourceGroupStmt:
+		return s.Loc.Start
+	case *nodes.CalibrateResourceStmt:
+		return s.Loc.Start
+	case *nodes.AddQueryWatchStmt:
+		return s.Loc.Start
+	case *nodes.DropQueryWatchStmt:
+		return s.Loc.Start
 	case *nodes.ExplainStmt:
 		// The whole EXPLAIN, not the statement it carries: an ExecResult's
 		// line is the line the caller wrote.

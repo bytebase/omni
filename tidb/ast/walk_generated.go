@@ -6,6 +6,12 @@ package ast
 // for each child. This function is generated from parsenodes.go.
 func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
+	case *AddQueryWatchStmt:
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AdminJobOption:
 		Walk(v, n.Value)
 	case *AdminStmt:
@@ -46,6 +52,12 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Body)
 	case *AlterPlacementPolicyStmt:
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *AlterResourceGroupStmt:
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
@@ -166,6 +178,14 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Right)
 	case *CacheIndexStmt:
 		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *CalibrateResourceOption:
+		Walk(v, n.Ts)
+	case *CalibrateResourceStmt:
+		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -327,6 +347,12 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 	case *CreatePlacementPolicyStmt:
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *CreateResourceGroupStmt:
 		for _, item := range n.Options {
 			if item != nil {
 				Walk(v, item)
@@ -755,6 +781,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *PurgeBinaryLogsStmt:
 		Walk(v, n.BeforeExpr)
+	case *QueryWatchOption:
+		Walk(v, n.ResourceGroupExpr)
+		Walk(v, n.Pattern)
 	case *RawStmt:
 		Walk(v, n.Stmt)
 	case *RenameTablePair:
@@ -791,6 +820,17 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Val)
 	case *ResignalStmt:
 		for _, item := range n.SetItems {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *ResourceGroupOption:
+		for _, item := range n.Runaway {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Background {
 			if item != nil {
 				Walk(v, item)
 			}

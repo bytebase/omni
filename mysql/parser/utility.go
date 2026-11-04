@@ -1769,6 +1769,14 @@ func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
 	var specs []nodes.VCPUSpec
 	for {
 		if p.cur.Type != tokICONST {
+			if len(specs) == 0 {
+				// vcpu_spec_list is not optional once VCPU is written:
+				// mysql:8.0 answers 1064 for `VCPU =` with nothing after it.
+				return nil, &ParseError{
+					Message:  "expected a CPU number after VCPU",
+					Position: p.cur.Loc,
+				}
+			}
 			break
 		}
 		start := p.cur.Ival
@@ -1806,14 +1814,14 @@ func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
 // It sets VCPU, THREAD_PRIORITY, ENABLE/DISABLE on the provided pointers.
 func (p *Parser) parseResourceGroupOptions(vcpus *[]nodes.VCPUSpec, threadPriority **int64, enable **bool) error {
 	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		switch {
-		case p.cur.Type == kwVCPU:
+		switch p.cur.Type {
+		case kwVCPU:
 			specs, err := p.parseVCPUSpecs()
 			if err != nil {
 				return err
 			}
 			*vcpus = specs
-		case p.cur.Type == kwTHREAD_PRIORITY:
+		case kwTHREAD_PRIORITY:
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
@@ -1836,14 +1844,18 @@ func (p *Parser) parseResourceGroupOptions(vcpus *[]nodes.VCPUSpec, threadPriori
 			}
 			p.advance()
 			*threadPriority = &val
-		case p.cur.Type == kwENABLE:
+		case kwENABLE, kwDISABLE:
+			// One of the two, once: `ENABLE DISABLE` is 1064 on mysql:8.0,
+			// because the grammar has a single opt_resource_group_enable_disable.
+			if *enable != nil {
+				return &ParseError{
+					Message:  "ENABLE or DISABLE, not both",
+					Position: p.cur.Loc,
+				}
+			}
+			v := p.cur.Type == kwENABLE
 			p.advance()
-			t := true
-			*enable = &t
-		case p.cur.Type == kwDISABLE:
-			p.advance()
-			f := false
-			*enable = &f
+			*enable = &v
 		default:
 			return nil
 		}
@@ -1881,21 +1893,33 @@ func (p *Parser) parseCreateResourceGroupStmt(start int) (*nodes.CreateResourceG
 		Name: name,
 	}
 
-	// TYPE = {SYSTEM | USER}
-	if p.cur.Type == kwTYPE {
-		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			typeName, _, _ := p.parseKeywordOrIdent()
-			stmt.Type = typeName
+	// TYPE = {SYSTEM | USER}, which is required and takes those two words
+	// only: mysql:8.0 answers 1064 for `CREATE RESOURCE GROUP x` and for
+	// `TYPE = foo`.
+	if p.cur.Type != kwTYPE {
+		return nil, &ParseError{
+			Message:  "expected TYPE after the resource group name",
+			Position: p.cur.Loc,
 		}
 	}
+	p.advance() // consume TYPE
+	if p.cur.Type == '=' {
+		p.advance()
+	}
+	if p.cur.Type != kwSYSTEM && p.cur.Type != kwUSER {
+		return nil, &ParseError{
+			Message:  "expected SYSTEM or USER for TYPE",
+			Position: p.cur.Loc,
+		}
+	}
+	typeName, _, err := p.parseKeywordOrIdent()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Type = typeName
 
 	// Optional VCPU, THREAD_PRIORITY, ENABLE/DISABLE
-	err = p.parseResourceGroupOptions(&stmt.VCPUs, &stmt.ThreadPriority, &stmt.Enable)
-	if err != nil {
+	if err := p.parseResourceGroupOptions(&stmt.VCPUs, &stmt.ThreadPriority, &stmt.Enable); err != nil {
 		return nil, err
 	}
 

@@ -8018,81 +8018,6 @@ func TestParseDropSpatialRefSys(t *testing.T) {
 	}
 }
 
-func TestParseCreateResourceGroup(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "CREATE RESOURCE GROUP rg1 TYPE = USER",
-			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type USER}",
-		},
-		{
-			sql:  "CREATE RESOURCE GROUP rg1 TYPE = SYSTEM VCPU = 0-3 THREAD_PRIORITY = 0 ENABLE",
-			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type SYSTEM :vcpus (0-3) :thread_priority 0 :enable true}",
-		},
-		{
-			sql:  "CREATE RESOURCE GROUP rg1 TYPE = USER VCPU = 0, 2, 4-7 DISABLE",
-			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type USER :vcpus (0 2 4-7) :enable false}",
-		},
-		{
-			sql:  "CREATE RESOURCE GROUP rg1 TYPE = SYSTEM THREAD_PRIORITY = -10",
-			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type SYSTEM :thread_priority -10}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseAlterResourceGroup(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "ALTER RESOURCE GROUP rg1 VCPU = 0-3",
-			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :vcpus (0-3)}",
-		},
-		{
-			sql:  "ALTER RESOURCE GROUP rg1 THREAD_PRIORITY = 5 ENABLE",
-			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :thread_priority 5 :enable true}",
-		},
-		{
-			sql:  "ALTER RESOURCE GROUP rg1 DISABLE FORCE",
-			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :enable false :force true}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropResourceGroup(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP RESOURCE GROUP rg1",
-			want: "{DROP_RESOURCE_GROUP :loc 0 :name rg1}",
-		},
-		{
-			sql:  "DROP RESOURCE GROUP rg1 FORCE",
-			want: "{DROP_RESOURCE_GROUP :loc 0 :name rg1 :force true}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Batch 39: ALTER VIEW/EVENT/FUNCTION/PROCEDURE, DROP FUNCTION/PROCEDURE/TRIGGER/EVENT
 // ---------------------------------------------------------------------------
@@ -8387,10 +8312,8 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (HOST '127.0.0.1')",
 		"DROP SERVER s1",
 
-		// SRS/Resource Group (batch 38)
+		// SRS (batch 38)
 		"DROP SPATIAL REFERENCE SYSTEM 4326",
-		"CREATE RESOURCE GROUP rg1 TYPE = USER",
-		"DROP RESOURCE GROUP rg1",
 
 		// ALTER/DROP misc (batch 39)
 		"ALTER VIEW v AS SELECT 1",
@@ -8756,37 +8679,8 @@ func TestParseRenameUser(t *testing.T) {
 	}
 }
 
-func TestParseSetResourceGroup(t *testing.T) {
-	tests := []struct {
-		sql      string
-		expected string
-	}{
-		{
-			"SET RESOURCE GROUP rg1",
-			"{SET_RESOURCE_GROUP :loc 0 :name rg1}",
-		},
-		{
-			"SET RESOURCE GROUP rg1 FOR 1, 2, 3",
-			"{SET_RESOURCE_GROUP :loc 0 :name rg1 :threads (1 2 3)}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.expected)
-		})
-	}
-}
-
 func TestParseHelp(t *testing.T) {
 	ParseAndCompare(t, "HELP 'contents'", "{HELP :loc 0 :topic \"contents\"}")
-}
-
-// ============================================================================
-// Batch 49: VCPUSpec depth fix (tested via CREATE RESOURCE GROUP)
-// ============================================================================
-
-func TestDeparseCreateResourceGroup(t *testing.T) {
-	ParseAndCheck(t, "CREATE RESOURCE GROUP rg1 TYPE = USER VCPU = 0-3")
 }
 
 // ============================================================================
@@ -11576,10 +11470,6 @@ func TestReviewBatch109_ExplainFormatTree(t *testing.T) {
 
 func TestReviewBatch109_HelpString(t *testing.T) {
 	ParseAndCheck(t, "HELP 'SELECT'")
-}
-
-func TestReviewBatch109_SetResourceGroupFor(t *testing.T) {
-	ParseAndCheck(t, "SET RESOURCE GROUP rg1 FOR 10, 20")
 }
 
 // ============================================================================

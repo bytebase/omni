@@ -599,13 +599,6 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause", Position: p.cur.Loc}
 		}
 
-	case kwRESOURCE:
-		if orReplace {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume RESOURCE
-		return p.parseCreateResourceGroupStmt(start)
-
 	default:
 		return nil, &ParseError{
 			Message:  "unexpected token after CREATE",
@@ -741,10 +734,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwLOGFILE:
 		return p.parseAlterLogfileGroupStmt(start)
 
-	case kwRESOURCE:
-		p.advance() // consume RESOURCE
-		return p.parseAlterResourceGroupStmt(start)
-
 	case kwINSTANCE:
 		return p.parseAlterInstanceStmt(start)
 
@@ -831,10 +820,6 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	case kwSPATIAL:
 		p.advance() // consume SPATIAL
 		return p.parseDropSpatialRefSysStmt(start)
-
-	case kwRESOURCE:
-		p.advance() // consume RESOURCE
-		return p.parseDropResourceGroupStmt(start)
 
 	case kwPREPARE:
 		// DROP PREPARE stmt_name (alias for DEALLOCATE PREPARE)

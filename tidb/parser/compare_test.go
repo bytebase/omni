@@ -7339,20 +7339,12 @@ func TestParseCreateResourceGroup(t *testing.T) {
 		want string
 	}{
 		{
-			sql:  "CREATE RESOURCE GROUP rg1 TYPE = USER",
-			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type USER}",
+			sql:  "CREATE RESOURCE GROUP rg1 RU_PER_SEC = 1000",
+			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :options {RESOURCE_GROUP_OPTION :loc 26 :name RU_PER_SEC :int_value 1000}}",
 		},
 		{
-			sql:  "CREATE RESOURCE GROUP rg1 TYPE = SYSTEM VCPU = 0-3 THREAD_PRIORITY = 0 ENABLE",
-			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type SYSTEM :vcpus (0-3) :thread_priority 0 :enable true}",
-		},
-		{
-			sql:  "CREATE RESOURCE GROUP rg1 TYPE = USER VCPU = 0, 2, 4-7 DISABLE",
-			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type USER :vcpus (0 2 4-7) :enable false}",
-		},
-		{
-			sql:  "CREATE RESOURCE GROUP rg1 TYPE = SYSTEM THREAD_PRIORITY = -10",
-			want: "{CREATE_RESOURCE_GROUP :loc 0 :name rg1 :type SYSTEM :thread_priority -10}",
+			sql:  "CREATE RESOURCE GROUP IF NOT EXISTS rg1 RU_PER_SEC = UNLIMITED, PRIORITY = HIGH, BURSTABLE",
+			want: "{CREATE_RESOURCE_GROUP :loc 0 :if_not_exists true :name rg1 :options {RESOURCE_GROUP_OPTION :loc 40 :name RU_PER_SEC :unlimited true} {RESOURCE_GROUP_OPTION :loc 64 :name PRIORITY :value HIGH} {RESOURCE_GROUP_OPTION :loc 81 :name BURSTABLE :burstable true}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7368,16 +7360,12 @@ func TestParseAlterResourceGroup(t *testing.T) {
 		want string
 	}{
 		{
-			sql:  "ALTER RESOURCE GROUP rg1 VCPU = 0-3",
-			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :vcpus (0-3)}",
+			sql:  "ALTER RESOURCE GROUP rg1 RU_PER_SEC = 2000",
+			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :options {RESOURCE_GROUP_OPTION :loc 25 :name RU_PER_SEC :int_value 2000}}",
 		},
 		{
-			sql:  "ALTER RESOURCE GROUP rg1 THREAD_PRIORITY = 5 ENABLE",
-			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :thread_priority 5 :enable true}",
-		},
-		{
-			sql:  "ALTER RESOURCE GROUP rg1 DISABLE FORCE",
-			want: "{ALTER_RESOURCE_GROUP :loc 0 :name rg1 :enable false :force true}",
+			sql:  "ALTER RESOURCE GROUP IF EXISTS rg1 BURSTABLE = FALSE",
+			want: "{ALTER_RESOURCE_GROUP :loc 0 :if_exists true :name rg1 :options {RESOURCE_GROUP_OPTION :loc 35 :name BURSTABLE :burstable false}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7397,8 +7385,8 @@ func TestParseDropResourceGroup(t *testing.T) {
 			want: "{DROP_RESOURCE_GROUP :loc 0 :name rg1}",
 		},
 		{
-			sql:  "DROP RESOURCE GROUP rg1 FORCE",
-			want: "{DROP_RESOURCE_GROUP :loc 0 :name rg1 :force true}",
+			sql:  "DROP RESOURCE GROUP IF EXISTS rg1",
+			want: "{DROP_RESOURCE_GROUP :loc 0 :if_exists true :name rg1}",
 		},
 	}
 	for _, tt := range tests {
@@ -7625,7 +7613,7 @@ func TestParsePhase2Dispatch(t *testing.T) {
 
 		// SRS/Resource Group (batch 38)
 		"DROP SPATIAL REFERENCE SYSTEM 4326",
-		"CREATE RESOURCE GROUP rg1 TYPE = USER",
+		"CREATE RESOURCE GROUP rg1 RU_PER_SEC = 1000",
 		"DROP RESOURCE GROUP rg1",
 
 		// ALTER/DROP misc (batch 39)
@@ -7996,8 +7984,12 @@ func TestParseSetResourceGroup(t *testing.T) {
 			"{SET_RESOURCE_GROUP :loc 0 :name rg1}",
 		},
 		{
-			"SET RESOURCE GROUP rg1 FOR 1, 2, 3",
-			"{SET_RESOURCE_GROUP :loc 0 :name rg1 :threads (1 2 3)}",
+			"SET RESOURCE GROUP `default`",
+			"{SET_RESOURCE_GROUP :loc 0 :name default}",
+		},
+		{
+			"SET RESOURCE GROUP DEFAULT",
+			"{SET_RESOURCE_GROUP :loc 0 :name DEFAULT}",
 		},
 	}
 	for _, tt := range tests {
@@ -8012,11 +8004,11 @@ func TestParseHelp(t *testing.T) {
 }
 
 // ============================================================================
-// Batch 49: VCPUSpec depth fix (tested via CREATE RESOURCE GROUP)
+// Batch 49: CREATE RESOURCE GROUP
 // ============================================================================
 
 func TestDeparseCreateResourceGroup(t *testing.T) {
-	ParseAndCheck(t, "CREATE RESOURCE GROUP rg1 TYPE = USER VCPU = 0-3")
+	ParseAndCheck(t, "CREATE RESOURCE GROUP rg1 RU_PER_SEC = 1000 BURSTABLE")
 }
 
 // ============================================================================
@@ -10701,8 +10693,8 @@ func TestReviewBatch109_HelpString(t *testing.T) {
 	ParseAndCheck(t, "HELP 'SELECT'")
 }
 
-func TestReviewBatch109_SetResourceGroupFor(t *testing.T) {
-	ParseAndCheck(t, "SET RESOURCE GROUP rg1 FOR 10, 20")
+func TestReviewBatch109_SetResourceGroup(t *testing.T) {
+	ParseAndCheck(t, "SET RESOURCE GROUP rg1")
 }
 
 // ============================================================================
