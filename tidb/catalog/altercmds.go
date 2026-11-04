@@ -40,20 +40,26 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
-			// Rollback: if a RENAME changed the map key, undo it.
-			newKey := toLower(tbl.Name)
-			if newKey != origKey {
-				delete(db.Tables, newKey)
-				db.Tables[origKey] = tbl
-			}
-			// Restore all table fields from snapshot.
-			*tbl = snapshot
+			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
 	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO
+// earlier in the statement may have moved the table to another database, under
+// another name, so its entry there goes first: a rollback that repaired only
+// db's own map left the table in two databases at once, and left db without it
+// at all when the move kept the name.
+func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
+	if cur := tbl.Database; cur != nil && cur.Tables[toLower(tbl.Name)] == tbl {
+		delete(cur.Tables, toLower(tbl.Name))
+	}
+	*tbl = snapshot
+	db.Tables[key] = tbl
 }
 
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
@@ -459,6 +465,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		return nil
 	}
 
+	// IF NOT EXISTS covers an index the table already has: TiDB v8.5.5 raises
+	// note 1061 and leaves the table alone rather than failing, so
+	// `ADD INDEX IF NOT EXISTS i (a)` run twice is one index.
+	if con.IfNotExists && con.Name != "" && indexNameExists(tbl, con.Name) {
+		return nil
+	}
+
 	cols := extractColumnNames(con)
 
 	switch con.Type {
@@ -646,6 +659,29 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		applyIndexOptions(spIdx, con.IndexOptions)
 		tbl.Indexes = append(tbl.Indexes, spIdx)
+
+	case nodes.ConstrVector:
+		// TiDB's VECTOR INDEX, which is an index like the rest: it takes a
+		// name, key parts and index options, and `ADD VECTOR INDEX` that
+		// applied nothing would read as a successful no-op for a statement
+		// that changes the schema. The index type is the USING name (HNSW),
+		// which is where a vector index carries its algorithm.
+		idxName := con.Name
+		if idxName == "" && len(cols) > 0 {
+			idxName = allocIndexName(tbl, cols[0])
+		} else if idxName != "" && indexNameExists(tbl, idxName) {
+			return errDupKeyName(idxName)
+		}
+		vecIdx := &Index{
+			Name:      idxName,
+			Table:     tbl,
+			Columns:   buildIndexColumns(con),
+			Vector:    true,
+			IndexType: resolveConstraintIndexType(con),
+			Visible:   true,
+		}
+		applyIndexOptions(vecIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, vecIdx)
 	}
 
 	return nil
@@ -782,25 +818,24 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	// MySQL 8.0.46 and MariaDB 11.8.8 all run `ALTER TABLE t RENAME TO d.t1`.
 	// NewName holds the name as written, so reading it alone would have made
 	// a table called "d.t1" in the database the statement started in.
-	newName := cmd.NewName
-	newDB := db
-	if cmd.NewTable != nil {
-		newName = cmd.NewTable.Name
-		if cmd.NewTable.Schema != "" {
-			var err error
-			newDB, err = c.resolveDatabase(cmd.NewTable.Schema)
-			if err != nil {
-				return err
-			}
-		}
+	//
+	// A destination with no qualifier lands in the current database, not in
+	// the renamed table's: `USE e; ALTER TABLE d.t RENAME TO u` leaves u in e
+	// on TiDB v8.5.5 and on MySQL 8.0.46 (read on 2026-11-04).
+	newTable := cmd.NewTable
+	if newTable == nil {
+		newTable = &nodes.TableRef{Name: cmd.NewName}
 	}
+	newDB, err := c.resolveDatabase(newTable.Schema)
+	if err != nil {
+		return err
+	}
+	newName := newTable.Name
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if newDB != db || newKey != oldKey {
-		if newDB.Tables[newKey] != nil {
-			return errDupTable(newName)
-		}
+	if (newDB != db || newKey != oldKey) && newDB.Tables[newKey] != nil {
+		return errDupTable(newName)
 	}
 
 	delete(db.Tables, oldKey)

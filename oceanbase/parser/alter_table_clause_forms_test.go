@@ -55,6 +55,13 @@ var alterTableClauseCases = []alterTableClauseCase{
 	{"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u(b) MATCH FULL", true},
 	{"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u(b) MATCH SIMPLE", true},
 	{"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u(b) MATCH foo", false},
+	// A foreign key's list is key_list, not the key_list_with_expression an
+	// index takes, so a functional key part is a syntax error even where
+	// `ADD INDEX ((a + 1))` runs.
+	{"ALTER TABLE t ADD FOREIGN KEY ((a + 1)) REFERENCES u(b)", false},
+	{"ALTER TABLE t ADD CONSTRAINT c FOREIGN KEY ((a+1)) REFERENCES u(b)", false},
+	{"CREATE TABLE t (a INT, FOREIGN KEY ((a + 1)) REFERENCES u(b))", false},
+	{"ALTER TABLE t ADD INDEX ((a + 1))", true},
 	{"ALTER TABLE t ADD ( CHECK ( true ) )", false},
 	{"alter table t add column (b int, constraint c unique key (b))", false},
 	{"ALTER TABLE `t` ADD COLUMN (`a1` INT, PRIMARY KEY (`a1`))", false},

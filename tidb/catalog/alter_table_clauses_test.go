@@ -307,3 +307,137 @@ func TestAlterTableClausesKeepTheRestOfTheStatement(t *testing.T) {
 		}
 	}
 }
+
+// TestAlterTableAddIndexIfNotExists: IF NOT EXISTS on an index makes a
+// duplicate name a no-op rather than 1061, and keeps the index that is there.
+// TiDB v8.5.5 raises note 1061 and leaves the table alone.
+func TestAlterTableAddIndexIfNotExists(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT, b INT, KEY i (a))")
+	execAll(t, c, "ALTER TABLE t ADD INDEX IF NOT EXISTS i (b);")
+	ddl := c.ShowCreateTable("d", "t")
+	if !strings.Contains(ddl, "KEY `i` (`a`)") {
+		t.Errorf("IF NOT EXISTS replaced the existing index:\n%s", ddl)
+	}
+	if strings.Count(ddl, "KEY `i`") != 1 {
+		t.Errorf("IF NOT EXISTS added a second index of the name:\n%s", ddl)
+	}
+
+	// Without it the same statement is an error.
+	if err := execExpectError(t, c, "ALTER TABLE t ADD INDEX i (b);"); err == nil {
+		t.Errorf("ADD INDEX i on a table that has i was accepted")
+	}
+
+	// A name that is not there is still added.
+	execAll(t, c, "ALTER TABLE t ADD KEY IF NOT EXISTS j (b);")
+	if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "KEY `j` (`b`)") {
+		t.Errorf("ADD KEY IF NOT EXISTS j added nothing:\n%s", ddl)
+	}
+}
+
+// TestAlterTableAddVectorIndex: ADD VECTOR INDEX adds an index. It parsed and
+// applied nothing before, which reads as a successful no-op for a statement
+// that changes the schema.
+func TestAlterTableAddVectorIndex(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT, b INT)")
+	execAll(t, c, "ALTER TABLE t ADD VECTOR INDEX idx ((lower(a))) USING HNSW;")
+
+	tbl := c.databases["d"].Tables["t"]
+	var vec *Index
+	for _, idx := range tbl.Indexes {
+		if idx.Vector {
+			vec = idx
+		}
+	}
+	if vec == nil {
+		t.Fatalf("no vector index among %v", tbl.Indexes)
+	}
+	if vec.Name != "idx" {
+		t.Errorf("Name = %q, want \"idx\"", vec.Name)
+	}
+	if vec.IndexType != "HNSW" {
+		t.Errorf("IndexType = %q, want \"HNSW\"", vec.IndexType)
+	}
+	if len(vec.Columns) != 1 {
+		t.Errorf("Columns = %v, want one key part", vec.Columns)
+	}
+	// SHOW CREATE TABLE writes the word TiDB writes: ConstraintVector in
+	// v8.5.5 pkg/parser/ast/ddl.go restores `VECTOR INDEX`.
+	if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "VECTOR INDEX `idx`") {
+		t.Errorf("SHOW CREATE TABLE lacks the vector index:\n%s", ddl)
+	}
+
+	// A duplicate name is 1061, and IF NOT EXISTS makes it a no-op.
+	if err := execExpectError(t, c, "ALTER TABLE t ADD VECTOR INDEX idx ((lower(b)));"); err == nil {
+		t.Errorf("a second vector index named idx was accepted")
+	}
+	execAll(t, c, "ALTER TABLE t ADD VECTOR INDEX IF NOT EXISTS idx ((lower(b)));")
+
+	// CREATE TABLE declares one too.
+	c2 := New()
+	execAll(t, c2, "CREATE DATABASE d2; USE d2; CREATE TABLE t (a INT, VECTOR INDEX v ((lower(a))));")
+	if ddl := c2.ShowCreateTable("d2", "t"); !strings.Contains(ddl, "VECTOR INDEX `v`") {
+		t.Errorf("CREATE TABLE lost the vector index:\n%s", ddl)
+	}
+}
+
+// TestAlterTableRenameRollback: a cross-database rename beside an action that
+// fails must leave the table where it was, and in one database only. The
+// rollback repaired the starting database's map alone, so the destination kept
+// an entry pointing at the restored table -- and when the move kept the name,
+// the starting database was left without it.
+func TestAlterTableRenameRollback(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		sql  string
+		want string // the name the table keeps in d
+	}{
+		{"a new name in another database", "ALTER TABLE t RENAME TO e.u, DROP COLUMN missing;", "t"},
+		{"the same name in another database", "ALTER TABLE t RENAME TO e.t, DROP COLUMN missing;", "t"},
+		{"a new name in the same database", "ALTER TABLE t RENAME TO u, DROP COLUMN missing;", "t"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cat := New()
+			execAll(t, cat, "CREATE DATABASE d; CREATE DATABASE e; USE d; CREATE TABLE t (a INT);")
+			if err := execExpectError(t, cat, c.sql); err == nil {
+				t.Fatalf("%q was accepted", c.sql)
+			}
+			d, e := cat.databases["d"], cat.databases["e"]
+			if len(e.Tables) != 0 {
+				t.Errorf("e holds %v after the rollback, want nothing", e.Tables)
+			}
+			if len(d.Tables) != 1 || d.Tables[c.want] == nil {
+				t.Fatalf("d holds %v, want just %q", d.Tables, c.want)
+			}
+			tbl := d.Tables[c.want]
+			if tbl.Name != "t" {
+				t.Errorf("the table is named %q, want \"t\"", tbl.Name)
+			}
+			if tbl.Database == nil || tbl.Database.Name != "d" {
+				t.Errorf("the table's database = %v, want d", tbl.Database)
+			}
+			// The catalog must still work on it afterwards.
+			execAll(t, cat, "ALTER TABLE d.t ADD COLUMN b INT;")
+			if ddl := cat.ShowCreateTable("d", "t"); !strings.Contains(ddl, "`b` int") {
+				t.Errorf("the restored table does not take a later ALTER:\n%s", ddl)
+			}
+		})
+	}
+}
+
+// TestAlterTableRenameToCurrentDatabase: a destination with no qualifier lands
+// in the current database, not in the renamed table's. `USE e;
+// ALTER TABLE d.t RENAME TO u` leaves u in e on TiDB v8.5.5 and MySQL 8.0.46.
+func TestAlterTableRenameToCurrentDatabase(t *testing.T) {
+	c := New()
+	execAll(t, c, "CREATE DATABASE d; CREATE DATABASE e; CREATE TABLE d.t (a INT); USE e;")
+	execAll(t, c, "ALTER TABLE d.t RENAME TO u;")
+	if c.databases["d"].Tables["t"] != nil {
+		t.Errorf("d.t is still there")
+	}
+	if c.databases["d"].Tables["u"] != nil {
+		t.Errorf("u landed in d, not in the current database")
+	}
+	if c.databases["e"].Tables["u"] == nil {
+		t.Fatalf("e.u was not created; e holds %v", c.databases["e"].Tables)
+	}
+}

@@ -386,6 +386,8 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf("FULLTEXT KEY `%s` (", idx.Name))
 	} else if idx.Spatial {
 		b.WriteString(fmt.Sprintf("SPATIAL KEY `%s` (", idx.Name))
+	} else if idx.Vector {
+		b.WriteString(fmt.Sprintf("VECTOR INDEX `%s` (", idx.Name))
 	} else {
 		b.WriteString(fmt.Sprintf("KEY `%s` (", idx.Name))
 	}

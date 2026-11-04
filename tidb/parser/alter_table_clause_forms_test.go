@@ -314,6 +314,16 @@ var alterTableClauseCases = []alterTableClauseCase{
 	{"alter table d_n.t_n add foreign key ident (ident, ident(1) asc) references t_n match partial on delete cascade remove partitioning", true},
 	{"alter table d_n.t_n add constraint foreign key (ident asc) references d_n.t_n match simple on update cascade on delete cascade", true},
 	{"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u(b) MATCH foo", false},
+	// A functional key part in a foreign key's list parses on TiDB, whose
+	// own grammar reads the same IndexPartSpecificationList an index takes;
+	// v8.5.5 then crashes building the key (1105, a nil dereference), which
+	// is not a parse error. MySQL 8.0.46, MariaDB 11.8.8 and OceanBase CE
+	// 4.3.5.6 all answer 1064, and their forks reject it.
+	{"ALTER TABLE t ADD FOREIGN KEY ((a + 1)) REFERENCES u(b)", true},
+	{"ALTER TABLE t ADD CONSTRAINT c FOREIGN KEY ((a+1)) REFERENCES u(b)", true},
+	{"CREATE TABLE t (a INT, FOREIGN KEY ((a + 1)) REFERENCES u(b))", true},
+	// IF NOT EXISTS on a vector index, which the catalog honours too.
+	{"ALTER TABLE t ADD VECTOR INDEX IF NOT EXISTS idx ((lower(a)))", true},
 
 	// A partition definition's own options, which are not a table's: STORAGE
 	// ENGINE is one of them and STORAGE {DISK | MEMORY} is not, and the

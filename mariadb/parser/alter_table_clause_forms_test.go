@@ -55,6 +55,16 @@ var alterTableClauseCases = []alterTableClauseCase{
 	{"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u(b) MATCH FULL", true},
 	{"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u(b) MATCH SIMPLE", true},
 	{"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u(b) MATCH foo", false},
+	// A foreign key's list is key_list, not the key_list_with_expression an
+	// index takes, so a functional key part is a syntax error even where
+	// `ADD INDEX ((a + 1))` runs.
+	{"ALTER TABLE t ADD FOREIGN KEY ((a + 1)) REFERENCES u(b)", false},
+	{"ALTER TABLE t ADD CONSTRAINT c FOREIGN KEY ((a+1)) REFERENCES u(b)", false},
+	{"CREATE TABLE t (a INT, FOREIGN KEY ((a + 1)) REFERENCES u(b))", false},
+	// `ADD INDEX ((a + 1))` is left out: MariaDB 11.8.8 answers 1064 for a
+	// functional index at all, where MySQL 8.0.46 runs it, and this parser
+	// still reads one. That over-acceptance came in with the fork and is its
+	// own change; the foreign-key rows above hold whichever way it goes.
 	{"ALTER TABLE t ADD ( CHECK ( true ) )", true},
 	{"alter table t add column (b int, constraint c unique key (b))", true},
 	{"ALTER TABLE `t` ADD COLUMN (`a1` INT, PRIMARY KEY (`a1`))", true},

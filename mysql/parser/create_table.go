@@ -931,12 +931,28 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		// length and an ordering direction are both allowed. MySQL 8.0.46 runs
 		// `ADD FOREIGN KEY (ident, ident(1) ASC) REFERENCES t (a)`.
 		//
+		// A functional key part is not allowed, though, because a foreign
+		// key's list is key_list and not the key_list_with_expression an
+		// index takes: MySQL 8.0.46 answers 1064 for
+		// `ADD FOREIGN KEY ((a + 1)) REFERENCES u (b)` and for the same list
+		// on CREATE TABLE, where it runs `ADD INDEX ((a + 1))`. (TiDB v8.5.5
+		// does parse it, through its own IndexPartSpecificationList, and then
+		// crashes building the key -- 1105, a nil dereference -- so the fork
+		// there keeps the wider list and this one does not.)
+		//
 		// Ref: `FOREIGN KEY opt_index_name '(' key_list ')' references` in
-		// MySQL 8.0.46 sql/sql_yacc.yy, whose key_list is the same key_part
-		// list an index takes.
+		// MySQL 8.0.46 sql/sql_yacc.yy.
 		fkCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
 			return nil, err
+		}
+		for _, kp := range fkCols {
+			if kp.Functional {
+				return nil, &ParseError{
+					Message:  "a foreign key takes no functional key part",
+					Position: kp.Loc.Start,
+				}
+			}
 		}
 		constr.IndexColumns = fkCols
 		constr.Columns = indexColumnsToNames(fkCols)

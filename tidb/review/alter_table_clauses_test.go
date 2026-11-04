@@ -101,6 +101,16 @@ func TestWalkAlterTableIfExistsClauses(t *testing.T) {
 	oneFinding(t, "ALTER TABLE t CHANGE COLUMN IF EXISTS a c int;\nALTER TABLE t DROP COLUMN a;",
 		1, "Column `a` doesn't exist in `t`.", shop)
 
+	// A duplicate index name with IF NOT EXISTS is a note, not 1061, and the
+	// index stays the one that was there.
+	noFinding(t, "ALTER TABLE t ADD INDEX IF NOT EXISTS i (a);", shop)
+	noFinding(t, "ALTER TABLE t ADD KEY IF NOT EXISTS i (a);\nALTER TABLE t DROP INDEX i;", shop)
+	// Without it the same statement is reported.
+	oneFinding(t, "ALTER TABLE t ADD INDEX i (a);", 0, "Index `i` already exists in `t`.", shop)
+	// A name that is not there is still added.
+	oneFinding(t, "ALTER TABLE t ADD INDEX IF NOT EXISTS j (a);\nALTER TABLE t ADD INDEX j (a);",
+		1, "Index `j` already exists in `t`.", shop)
+
 	// A missing index with IF EXISTS is a note, not 1091.
 	noFinding(t, "ALTER TABLE t DROP INDEX IF EXISTS nosuch;", shop)
 	noFinding(t, "ALTER TABLE t DROP KEY IF EXISTS nosuch;", shop)

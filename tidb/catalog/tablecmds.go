@@ -580,6 +580,24 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			}
 			applyIndexOptions(spIdx, con.IndexOptions)
 			tbl.Indexes = append(tbl.Indexes, spIdx)
+
+		case nodes.ConstrVector:
+			// TiDB's VECTOR INDEX, which CREATE TABLE declares as well as
+			// ALTER TABLE adds. The index type is the USING name (HNSW).
+			idxName := con.Name
+			if idxName == "" && len(cols) > 0 {
+				idxName = allocIndexName(tbl, cols[0])
+			}
+			vecIdx := &Index{
+				Name:      idxName,
+				Table:     tbl,
+				Columns:   buildIndexColumns(con),
+				Vector:    true,
+				IndexType: resolveConstraintIndexType(con),
+				Visible:   true,
+			}
+			applyIndexOptions(vecIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, vecIdx)
 		}
 	}
 

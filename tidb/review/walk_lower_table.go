@@ -476,7 +476,16 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			// IF NOT EXISTS makes a duplicate index name a note (1061,
+			// verified on v8.5.5) rather than an error, and the index stays
+			// the one that was there.
+			if c.IfNotExists {
+				if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
+					return
+				}
+			} else {
+				b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			}
 		}
 	}
 	b.constraint(r, c)
