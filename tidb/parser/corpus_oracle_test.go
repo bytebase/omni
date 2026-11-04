@@ -396,6 +396,44 @@ func waitForTiDBGone(t *testing.T, tc *tidbContainer) {
 	}
 }
 
+// TestPrepareSyntaxHoldsOneConnection pins the connection the bind and the
+// PREPARE share. The statement reaches the server as a session variable, and a
+// session variable lives on one connection: a PREPARE that reaches a different
+// one reads a variable nothing ever set, and the server answers that with an
+// error prepareVerdict cannot tell from a verdict about the statement. A
+// corpus row recorded from one of those describes a statement the server never
+// saw, and nothing later in the run can detect it.
+//
+// A pool told to keep no idle connection is the cheapest way to force the two
+// apart. In a run it is a connection dropped between them that does it:
+// database/sql retries a statement whose connection went bad on a fresh one,
+// where the variable is unset, so the loss would be recorded as a verdict
+// instead of reaching the recovery in syntaxVerdict.
+func TestPrepareSyntaxHoldsOneConnection(t *testing.T) {
+	tc := startTiDB(t)
+
+	// The pool is shared with every other test in this package; two is the
+	// database/sql default this package relies on everywhere else.
+	defer tc.db.SetMaxIdleConns(2)
+	tc.db.SetMaxIdleConns(0)
+
+	for _, c := range []struct {
+		stmt string
+		want bool
+	}{
+		{"SELECT 1", true},
+		{"SELEKT 1", false},
+	} {
+		accepts, err := tc.prepareSyntax(c.stmt)
+		if err != nil {
+			t.Fatalf("no verdict for %q: %v", c.stmt, err)
+		}
+		if accepts != c.want {
+			t.Errorf("%q: accepts=%v, want %v; the bind and the PREPARE reached different connections", c.stmt, accepts, c.want)
+		}
+	}
+}
+
 // prepareSyntax reports whether TiDB accepts the statement's syntax, without
 // running it: PREPARE parses the text and stops there. A non-nil error means
 // the server gave no verdict at all.
@@ -414,13 +452,27 @@ func waitForTiDBGone(t *testing.T, tc *tidbContainer) {
 // escaped and no byte in it can end the literal that carries it. The corpus
 // holds rows that are not valid UTF-8, rows ending in spaces, and rows with a
 // CR inside a string literal; all of them reach the server unchanged this way.
+//
+// The three statements run on one connection the caller holds, because the
+// variable that carries the statement lives on the connection that set it.
+// Taken from the pool separately they can land on different connections, and
+// then PREPARE reads a variable nothing set and answers 1064 -- a rejection
+// recorded against a statement the server never saw. Holding the connection
+// turns a loss between them into an error instead, which is what syntaxVerdict
+// recovers from.
 func (tc *tidbContainer) prepareSyntax(stmt string) (bool, error) {
-	if _, err := tc.db.ExecContext(tc.ctx, "SET @omni_corpus = ?", stmt); err != nil {
+	conn, err := tc.db.Conn(tc.ctx)
+	if err != nil {
+		return false, fmt.Errorf("taking a connection: %w", err)
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(tc.ctx, "SET @omni_corpus = ?", stmt); err != nil {
 		return false, fmt.Errorf("binding the statement: %w", err)
 	}
-	_, err := tc.db.ExecContext(tc.ctx, "PREPARE omni_corpus_stmt FROM @omni_corpus")
+	_, err = conn.ExecContext(tc.ctx, "PREPARE omni_corpus_stmt FROM @omni_corpus")
 	if err == nil {
-		_, _ = tc.db.ExecContext(tc.ctx, "DEALLOCATE PREPARE omni_corpus_stmt")
+		_, _ = conn.ExecContext(tc.ctx, "DEALLOCATE PREPARE omni_corpus_stmt")
 	}
 	return prepareVerdict(err)
 }
