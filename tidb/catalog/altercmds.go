@@ -123,6 +123,28 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.TTLEnable = false
 		tbl.TTLJobInterval = ""
 		return nil
+
+	// The TiDB actions that change no schema the catalog models. Each is
+	// named rather than left to the default arm, so a reader sees the
+	// decision: CACHE and NOCACHE move the table in and out of the cache
+	// without touching its definition, READ ONLY and READ WRITE set a flag
+	// on it, COMPACT rewrites its data, ANALYZE PARTITION recomputes
+	// statistics, and ATTRIBUTES, STATS_OPTIONS and the per-partition
+	// attributes and options are server-side settings that no field of
+	// Table or PartitionDefInfo holds.
+	case nodes.ATCache, nodes.ATNoCache, nodes.ATWriteable, nodes.ATCompact,
+		nodes.ATAnalyzePartition, nodes.ATAttributes, nodes.ATStatsOptions,
+		nodes.ATPartitionAttributes, nodes.ATPartitionOptions:
+		return nil
+
+	// The interval-partition actions name a partition by its bound rather
+	// than by its name, which needs the INTERVAL clause this catalog does
+	// not model, so they are recorded as understood and left without effect
+	// rather than treated as unknown.
+	case nodes.ATAddLastPartition, nodes.ATDropFirstPartition,
+		nodes.ATReorganizeLastPartition, nodes.ATReorganizeFirstPartition:
+		return nil
+
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
@@ -131,10 +153,29 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 
 // alterAddColumn adds a new column to the table.
 func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	// Handle multi-column parenthesized form: ADD (col1 INT, col2 INT, ...)
-	if len(cmd.Columns) > 0 {
+	// The parenthesized form reads a table element list, so it carries the
+	// constraints written beside the columns:
+	// `ADD COLUMN (a1 INT, PRIMARY KEY (a1))` adds both. The columns come
+	// first, as the CREATE TABLE path builds them.
+	//
+	// TiDB resolves a constraint's columns against the table as it stood
+	// before the statement, so `ADD COLUMN (c INT, PRIMARY KEY (c))` is an
+	// error (1072, "column does not exist: c") on v8.5.5 where MySQL 8.0.46
+	// makes c the primary key. This catalog does not model that: it validates
+	// no key column anywhere, so `ADD INDEX i (nosuch)` is accepted too, and
+	// singling this one statement out would be the only such check in the
+	// package.
+	if len(cmd.Columns) > 0 || len(cmd.Constraints) > 0 {
 		for _, colDef := range cmd.Columns {
-			if err := c.addSingleColumn(tbl, colDef, false, ""); err != nil {
+			if err := c.addSingleColumnIfNotExists(tbl, colDef, cmd.IfNotExists, false, ""); err != nil {
+				return err
+			}
+		}
+		for _, con := range cmd.Constraints {
+			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
+				Type:       nodes.ATAddConstraint,
+				Constraint: con,
+			}); err != nil {
 				return err
 			}
 		}
@@ -146,7 +187,20 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return nil
 	}
 
-	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After)
+	return c.addSingleColumnIfNotExists(tbl, colDef, cmd.IfNotExists, cmd.First, cmd.After)
+}
+
+// addSingleColumnIfNotExists adds one column, and does nothing rather than
+// failing when the column is already there and the action was written with
+// IF NOT EXISTS. TiDB v8.5.5 raises warning 1060 and leaves the table alone;
+// a catalog has no warnings, so the table is what it records.
+func (c *Catalog) addSingleColumnIfNotExists(tbl *Table, colDef *nodes.ColumnDef, ifNotExists, first bool, after string) error {
+	if ifNotExists {
+		if _, exists := tbl.colByName[toLower(colDef.Name)]; exists {
+			return nil
+		}
+	}
+	return c.addSingleColumn(tbl, colDef, first, after)
 }
 
 // addSingleColumn adds one column definition to the table.
@@ -321,12 +375,29 @@ func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if cmd.Column == nil {
 		return nil
 	}
+	if skipMissingColumn(tbl, cmd.Column.Name, cmd.IfExists) {
+		return nil
+	}
 	return c.alterReplaceColumn(tbl, cmd.Column.Name, cmd)
+}
+
+// skipMissingColumn reports whether an action written with IF EXISTS names a
+// column the table does not have, which TiDB answers with a note (1054,
+// verified on v8.5.5) rather than an error.
+func skipMissingColumn(tbl *Table, name string, ifExists bool) bool {
+	if !ifExists {
+		return false
+	}
+	_, exists := tbl.colByName[toLower(name)]
+	return !exists
 }
 
 // alterChangeColumn replaces a column (old name -> new name + new definition).
 func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if cmd.Column == nil {
+		return nil
+	}
+	if skipMissingColumn(tbl, cmd.Name, cmd.IfExists) {
 		return nil
 	}
 	return c.alterReplaceColumn(tbl, cmd.Name, cmd)
@@ -706,19 +777,36 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // alterRenameTable moves a table to a new name.
 func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// The new name may carry a database qualifier, and then the rename moves
+	// the table to that database, exactly as RENAME TABLE does: TiDB v8.5.5,
+	// MySQL 8.0.46 and MariaDB 11.8.8 all run `ALTER TABLE t RENAME TO d.t1`.
+	// NewName holds the name as written, so reading it alone would have made
+	// a table called "d.t1" in the database the statement started in.
 	newName := cmd.NewName
+	newDB := db
+	if cmd.NewTable != nil {
+		newName = cmd.NewTable.Name
+		if cmd.NewTable.Schema != "" {
+			var err error
+			newDB, err = c.resolveDatabase(cmd.NewTable.Schema)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if newKey != oldKey {
-		if db.Tables[newKey] != nil {
+	if newDB != db || newKey != oldKey {
+		if newDB.Tables[newKey] != nil {
 			return errDupTable(newName)
 		}
 	}
 
 	delete(db.Tables, oldKey)
 	tbl.Name = newName
-	db.Tables[newKey] = tbl
+	tbl.Database = newDB
+	newDB.Tables[newKey] = tbl
 	return nil
 }
 
@@ -1054,6 +1142,11 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		return nil
 	}
 	for _, pd := range cmd.PartitionDefs {
+		// IF NOT EXISTS covers a partition the table already has: TiDB v8.5.5
+		// raises warning 1517 and adds nothing.
+		if cmd.IfNotExists && partitionExists(tbl, pd.Name) {
+			continue
+		}
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
 		}
@@ -1062,7 +1155,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
-			case "engine":
+			// STORAGE ENGINE is the other spelling of ENGINE, and names the
+			// same engine.
+			case "engine", "storage engine":
 				pdi.Engine = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value
@@ -1073,9 +1168,26 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	return nil
 }
 
+// partitionExists reports whether the table already has a partition of this
+// name, matched the way the server matches partition names: case-insensitively.
+func partitionExists(tbl *Table, name string) bool {
+	if tbl.Partitioning == nil {
+		return false
+	}
+	for _, pd := range tbl.Partitioning.Partitions {
+		if toLower(pd.Name) == toLower(name) {
+			return true
+		}
+	}
+	return false
+}
+
 // alterDropPartition drops named partitions from a partitioned table.
 func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
+		// DROP PARTITION IF EXISTS on an unpartitioned table is still an
+		// error on TiDB v8.5.5 (1505); IF EXISTS covers a missing partition,
+		// not a missing partitioning.
 		return fmt.Errorf("ALTER TABLE DROP PARTITION: table '%s' is not partitioned", tbl.Name)
 	}
 	dropSet := make(map[string]bool)

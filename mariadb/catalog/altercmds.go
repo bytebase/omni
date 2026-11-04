@@ -403,10 +403,22 @@ func colDefHasVersioningMeta(colDef *nodes.ColumnDef) bool {
 
 // alterAddColumn adds a new column to the table.
 func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	// Handle multi-column parenthesized form: ADD (col1 INT, col2 INT, ...)
-	if len(cmd.Columns) > 0 {
+	// The parenthesized form reads a table element list, so it carries the
+	// constraints written beside the columns:
+	// `ADD COLUMN (a1 INT, PRIMARY KEY (a1))` adds both. The columns come
+	// first, as the CREATE TABLE path builds them, and MariaDB 11.8.8 makes a1
+	// the primary key for exactly that statement.
+	if len(cmd.Columns) > 0 || len(cmd.Constraints) > 0 {
 		for _, colDef := range cmd.Columns {
 			if err := c.addSingleColumn(tbl, colDef, false, ""); err != nil {
+				return err
+			}
+		}
+		for _, con := range cmd.Constraints {
+			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
+				Type:       nodes.ATAddConstraint,
+				Constraint: con,
+			}); err != nil {
 				return err
 			}
 		}
@@ -1446,7 +1458,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
-			case "engine":
+			// STORAGE ENGINE is the other spelling of ENGINE, and names the
+			// same engine.
+			case "engine", "storage engine":
 				pdi.Engine = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value
@@ -1545,7 +1559,9 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 		}
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
-			case "engine":
+			// STORAGE ENGINE is the other spelling of ENGINE, and names the
+			// same engine.
+			case "engine", "storage engine":
 				pdi.Engine = opt.Value
 			case "comment":
 				pdi.Comment = opt.Value

@@ -871,10 +871,11 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 
 	// MATCH
 	if _, ok := p.match(kwMATCH); ok {
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			// FULL, PARTIAL, SIMPLE
-			constr.Match, _, _ = p.parseKeywordOrIdent()
+		m, err := p.parseMatchType()
+		if err != nil {
+			return nil, err
 		}
+		constr.Match = m
 	}
 
 	// ON DELETE / ON UPDATE
@@ -1140,11 +1141,19 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			}
 			constr.IndexName = name
 		}
-		cols, err := p.parseParenIdentListWithCompletion("columnref")
+		// The column list is a key-part list, not a plain name list: a prefix
+		// length and an ordering direction are both allowed. MariaDB 11.8.8 runs
+		// `ADD FOREIGN KEY (ident, ident(1) ASC) REFERENCES t (a)`.
+		//
+		// Ref: `FOREIGN KEY opt_index_name '(' key_list ')' references` in
+		// MySQL 8.0.46 sql/sql_yacc.yy, whose key_list is the same key_part
+		// list an index takes.
+		fkCols, err := p.parseParenIndexKeyParts(constrAllowsOverlaps(constr.Type))
 		if err != nil {
 			return nil, err
 		}
-		constr.Columns = cols
+		constr.IndexColumns = fkCols
+		constr.Columns = indexColumnsToNames(fkCols)
 		// REFERENCES
 		if p.cur.Type == kwREFERENCES {
 			p.advance()
@@ -1168,9 +1177,11 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			}
 			// MATCH
 			if _, ok := p.match(kwMATCH); ok {
-				if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-					constr.Match, _, _ = p.parseKeywordOrIdent()
+				m, err := p.parseMatchType()
+				if err != nil {
+					return nil, err
 				}
+				constr.Match = m
 			}
 			// ON DELETE / ON UPDATE
 			for p.cur.Type == kwON {
@@ -1530,21 +1541,22 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "ENCRYPTION", Value: val}, true, nil
 
 	case kwUNION:
-		// UNION [=] (tbl_name[,tbl_name]...)
+		// UNION [=] '(' [tbl_name [, tbl_name]...] ')'
+		//
+		// The parentheses are required and the list inside them may be empty,
+		// and each name may be qualified: MariaDB 11.8.8 runs `UNION = ()`,
+		// `UNION ()` and `UNION = (d.t1, d.t2)`, and answers 1064 for a bare
+		// `UNION`, for `UNION = (t1,)` and for `UNION = (,)`.
+		//
+		// Ref: `UNION opt_equal '(' opt_table_list ')'` in MySQL 8.0.46
+		// sql/sql_yacc.yy.
 		p.advance()
 		p.match('=')
-		if p.cur.Type == '(' {
-			names, err := p.parseParenIdentList()
-			if err == nil {
-				val := strings.Join(names, ",")
-				return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNION", Value: val}, true, nil
-			}
-		}
-		val, err := p.consumeOptionValue()
+		names, err := p.parseParenTableNameListOpt()
 		if err != nil {
 			return nil, false, err
 		}
-		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNION", Value: val}, true, nil
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNION", Value: strings.Join(names, ",")}, true, nil
 
 	case kwINDEX:
 		// INDEX DIRECTORY [=] 'path' (as table option)
@@ -1802,7 +1814,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	case kwRANGE:
 		p.advance()
 		part.Type = nodes.PartitionRange
-		if _, ok := p.match(kwCOLUMNS); ok {
+		if _, ok := p.match(kwCOLUMNS, kwFIELDS); ok {
 			cols, err := p.parseParenIdentList()
 			if err != nil {
 				return nil, err
@@ -1828,7 +1840,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	case kwLIST:
 		p.advance()
 		part.Type = nodes.PartitionList
-		if _, ok := p.match(kwCOLUMNS); ok {
+		if _, ok := p.match(kwCOLUMNS, kwFIELDS); ok {
 			cols, err := p.parseParenIdentList()
 			if err != nil {
 				return nil, err
@@ -2199,9 +2211,9 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		}
 	}
 
-	// Optional table options for partition
+	// Optional partition-definition options
 	for {
-		opt, ok, err := p.parseTableOption()
+		opt, ok, err := p.parsePartDefOption()
 		if err != nil {
 			return nil, err
 		}
@@ -2251,7 +2263,7 @@ func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
 		Name: name,
 	}
 	for {
-		opt, ok, err := p.parseTableOption()
+		opt, ok, err := p.parsePartDefOption()
 		if err != nil {
 			return nil, err
 		}
@@ -2262,4 +2274,141 @@ func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
 	}
 	spd.Loc.End = p.prev.End
 	return spd, nil
+}
+
+// parseParenTableNameListOpt parses a parenthesized, possibly empty list of
+// table names, each optionally qualified by a database name. It is the value
+// of the UNION table option.
+func (p *Parser) parseParenTableNameListOpt() ([]string, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var names []string
+	if p.cur.Type == ')' {
+		p.advance()
+		return names, nil
+	}
+	for {
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		if ref.Schema != "" {
+			names = append(names, ref.Schema+"."+ref.Name)
+		} else {
+			names = append(names, ref.Name)
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// parseMatchType reads the FULL, PARTIAL or SIMPLE a MATCH clause takes. The
+// three are a keyword list, not an identifier: MariaDB 11.8.8 answers 1064 for
+// `ADD FOREIGN KEY (a) REFERENCES u(b) MATCH foo`.
+//
+// Ref: opt_match_clause in MySQL 8.0.46 sql/sql_yacc.yy.
+func (p *Parser) parseMatchType() (string, error) {
+	if tok, ok := p.match(kwFULL, kwPARTIAL, kwSIMPLE); ok {
+		return strings.ToUpper(tok.Str), nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// parsePartDefOption parses one of the options a partition or subpartition
+// definition takes, and reports whether one was there. The list is its own,
+// narrower than a table's: a partition definition takes STORAGE ENGINE, which
+// no table option spells, and takes none of ENGINE's neighbours such as
+// CHARSET, AUTO_INCREMENT or ROW_FORMAT.
+//
+//	part_def_option:
+//	    COMMENT [=] 'string'
+//	  | ENGINE [=] name
+//	  | STORAGE ENGINE [=] name
+//	  | DATA DIRECTORY [=] 'string'
+//	  | INDEX DIRECTORY [=] 'string'
+//	  | MAX_ROWS [=] number
+//	  | MIN_ROWS [=] number
+//	  | TABLESPACE [=] name
+//	  | NODEGROUP [=] number
+//
+// MariaDB 11.8.8 runs `ADD PARTITION (PARTITION p VALUES LESS THAN (1) STORAGE
+// ENGINE text)`, `... STORAGE ENGINE = text`, `... MAX_ROWS 12`,
+// `... NODEGROUP 2`, `... TABLESPACE ts`, `... DATA DIRECTORY '/x'` and
+// `... (SUBPARTITION s MIN_ROWS 11)`, and answers 1064 for
+// `... STORAGE DISK`, `... CHARSET utf8`, `... AUTO_INCREMENT = 1`,
+// `... ROW_FORMAT = DYNAMIC` and `... INSERT_METHOD = FIRST`, all of which
+// the table-option reader used here before took.
+//
+// Ref: opt_part_option in MySQL 8.0.46 sql/sql_yacc.yy.
+func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
+	start := p.pos()
+
+	switch p.cur.Type {
+	case kwCOMMENT:
+		p.advance()
+		p.match('=')
+		val, err := p.consumeStringOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COMMENT", Value: val}, true, nil
+
+	case kwENGINE, kwTABLESPACE:
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, Value: val}, true, nil
+
+	case kwSTORAGE:
+		// STORAGE ENGINE [=] name. STORAGE on its own is no partition option:
+		// the table option STORAGE {DISK | MEMORY} has no partition form.
+		if p.peekNext().Type != kwENGINE {
+			return nil, false, nil
+		}
+		p.advance() // consume STORAGE
+		p.advance() // consume ENGINE
+		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "STORAGE ENGINE", Value: val}, true, nil
+
+	case kwMAX_ROWS, kwMIN_ROWS, kwNODEGROUP:
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		p.match('=')
+		val, err := p.consumeIntegerOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, Value: val}, true, nil
+
+	case kwDATA, kwINDEX:
+		if p.peekNext().Type != kwDIRECTORY {
+			return nil, false, nil
+		}
+		name := strings.ToUpper(p.cur.Str) + " DIRECTORY"
+		p.advance() // consume DATA or INDEX
+		p.advance() // consume DIRECTORY
+		p.match('=')
+		val, err := p.consumeStringOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, Value: val}, true, nil
+	}
+
+	return nil, false, nil
 }

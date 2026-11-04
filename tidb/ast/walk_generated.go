@@ -102,6 +102,9 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.NewTable != nil {
+			Walk(v, n.NewTable)
+		}
 		if n.ExchangeTable != nil {
 			Walk(v, n.ExchangeTable)
 		}
@@ -112,6 +115,25 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.PartitionBy != nil {
 			Walk(v, n.PartitionBy)
+		}
+		for _, item := range n.Constraints {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Attributes != nil {
+			Walk(v, n.Attributes)
+		}
+		for _, item := range n.PartitionOptions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.PartitionBound)
+		for _, item := range n.AnalyzeOptions {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *AlterTableStmt:
 		if n.Table != nil {
@@ -767,6 +789,11 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		Walk(v, n.SubPartExpr)
+		for _, item := range n.UpdateIndexes {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *PartitionDef:
 		Walk(v, n.Values)
 		for _, item := range n.Options {

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
@@ -224,10 +226,45 @@ func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
 //	    | WITH PARSER parser_name
 //	    | COMMENT 'string'
 //	    | {VISIBLE | INVISIBLE}
+//	    | {CLUSTERED | NONCLUSTERED}
+//	    | {GLOBAL | LOCAL}
+//
+// CLUSTERED, NONCLUSTERED, GLOBAL and LOCAL are TiDB's own, and are index
+// options rather than a suffix of one key kind: IndexOption in v8.5.5
+// pkg/parser/parser.y reads `IndexInvisible | WithClustered | "GLOBAL" |
+// "LOCAL"` beside COMMENT and the rest, so they appear in any order and more
+// than once. v8.5.5 runs `ADD INDEX (a) GLOBAL COMMENT 'c'`,
+// `ADD INDEX (a) COMMENT 'c' GLOBAL`, `ADD INDEX (a) GLOBAL LOCAL`,
+// `ADD INDEX (a) NONCLUSTERED`, `ADD PRIMARY KEY (a) CLUSTERED GLOBAL`,
+// `ADD PRIMARY KEY (a) GLOBAL CLUSTERED`, `CREATE TABLE t (a int, INDEX (a)
+// GLOBAL)` and `CREATE INDEX i ON t (a) GLOBAL`; MySQL 8.0.46 and MariaDB
+// 11.8.8 answer 1064 to every one of them (read on 2026-11-04).
 func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
+	// Completion: offer the index options, TiDB's own among them. Record the
+	// candidates without failing, because this runs inside an option loop
+	// whose caller expects "no option here" rather than an error.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{
+			kwKEY_BLOCK_SIZE, kwUSING, kwWITH, kwCOMMENT, kwVISIBLE, kwINVISIBLE,
+			kwCLUSTERED, kwNONCLUSTERED, kwGLOBAL, kwLOCAL,
+		} {
+			p.addTokenCandidate(t)
+		}
+	}
+
 	start := p.pos()
 
 	switch {
+	case p.cur.Type == kwGLOBAL, p.cur.Type == kwLOCAL,
+		p.cur.Type == kwCLUSTERED, p.cur.Type == kwNONCLUSTERED:
+		name := strings.ToUpper(p.cur.Str)
+		p.advance()
+		return &nodes.IndexOption{
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+			Name: name,
+		}, true, nil
+
 	case p.cur.Type == kwKEY_BLOCK_SIZE:
 		p.advance()
 		p.match('=') // optional =
@@ -360,10 +397,11 @@ func (p *Parser) isIndexTypeIntro() bool {
 // index type and a backquoted `BTREE` are both syntax errors: pingcap/tidb:v8.5.5
 // answers 1064 for USING nosuchtype and for USING `BTREE`.
 //
-// TiDB adds HNSW, the vector index type MySQL has no token for, and takes it
-// unquoted only: v8.5.5 parses USING HNSW and USING hnsw, and answers 1064 for
-// USING `HNSW` (read on 2026-11-04). It is not in this parser's keyword table,
-// so it is read as a bare word rather than as a token.
+// TiDB adds HNSW and HYPO, the two index types MySQL has no token for, and
+// takes each unquoted only: v8.5.5 parses USING HNSW, USING hnsw and
+// USING HYPO, and answers 1064 for USING `HNSW` and USING `HYPO` (read on
+// 2026-11-04). Neither is in this parser's keyword table, so both are read as
+// bare words rather than as tokens.
 //
 // Ref: IndexTypeName in pingcap/tidb pkg/parser/parser.y; index_type_name in
 // MySQL 8.0 sql/sql_yacc.yy.
@@ -371,7 +409,7 @@ func (p *Parser) parseIndexTypeName() (string, error) {
 	if tok, ok := p.match(kwBTREE, kwHASH, kwRTREE); ok {
 		return tok.Str, nil
 	}
-	if p.isBareWord("HNSW") {
+	if p.isBareWord("HNSW") || p.isBareWord("HYPO") {
 		return p.advance().Str, nil
 	}
 	return "", p.syntaxErrorAtCur()
