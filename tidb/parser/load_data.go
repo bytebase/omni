@@ -276,10 +276,12 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 	}
 
 	// The source: a file path, or a query. TiDB reads a SELECT, a set
-	// operation, a WITH ... SELECT, a parenthesized query, or a TABLE
-	// statement as the query, and a VALUES statement is none of them:
-	// v8.5.5 answers 1064 for `IMPORT INTO t FROM VALUES (1)` where it
-	// takes `FROM TABLE s`. FORMAT follows a path only.
+	// operation, a WITH ... SELECT, a parenthesized query, or a TABLE or
+	// VALUES primary, each carrying the clauses a query primary takes --
+	// v8.5.5 runs `IMPORT INTO t FROM TABLE s ORDER BY a LIMIT 1` and
+	// `IMPORT INTO t FROM VALUES ROW(1,1) ORDER BY 1 LIMIT 1`, and answers
+	// 1064 only for the VALUES spelling without ROW. FORMAT follows a path
+	// only.
 	switch p.cur.Type {
 	case tokSCONST:
 		stmt.Path = p.cur.Str
@@ -299,11 +301,18 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 		stmt.Select = sel
 
 	case kwTABLE:
-		src, err := p.parseTableStmt()
+		sel, err := p.parseTablePrimary()
 		if err != nil {
 			return nil, err
 		}
-		stmt.TableSource = src
+		stmt.Select = sel
+
+	case kwVALUES:
+		sel, err := p.parseValuesPrimary()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Select = sel
 
 	default:
 		return nil, p.syntaxErrorAtCur()
@@ -313,7 +322,7 @@ func (p *Parser) parseImportIntoStmt(start int) (*nodes.ImportIntoStmt, error) {
 	// a SET list: v8.5.5 answers 1064 for `IMPORT INTO t (a,@1) FROM SELECT
 	// a FROM s` and for `IMPORT INTO t SET a=1 FROM SELECT * FROM s`, both
 	// of which it takes with a path in place of the query.
-	if stmt.Select != nil || stmt.TableSource != nil {
+	if stmt.Select != nil {
 		for _, c := range stmt.Columns {
 			if v, ok := c.(*nodes.VariableRef); ok {
 				return nil, &ParseError{
