@@ -70,9 +70,15 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// Parse comma-separated alter operations
+	// Parse comma-separated alter operations, which one partitioning clause
+	// may close.
+	pendingComma := false
 	for {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
+			break
+		}
+		// A partitioning clause belongs to the tail below, not to this list.
+		if p.startsAlterPartitioningTail() {
 			break
 		}
 
@@ -88,15 +94,101 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 			}
 			stmt.Commands = append(stmt.Commands, more...)
 		}
+		pendingComma = false
 
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance() // consume ','
+		pendingComma = true
+	}
+
+	if err := p.parseAlterPartitioningTail(stmt, pendingComma); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// startsAlterPartitioningTail reports whether the parser sits on the
+// partitioning clause that closes an ALTER TABLE: PARTITION BY ... or REMOVE
+// PARTITIONING. PARTITION not followed by BY, and REMOVE not followed by
+// PARTITIONING, belong to the action list instead.
+func (p *Parser) startsAlterPartitioningTail() bool {
+	switch p.cur.Type {
+	case kwPARTITION:
+		return p.peekNext().Type == kwBY
+	case kwREMOVE:
+		return p.peekNext().Type == kwPARTITIONING
+	default:
+		return false
+	}
+}
+
+// parseAlterPartitioningTail parses the one partitioning clause an ALTER TABLE
+// may end with, and is a no-op when there is none.
+//
+// Ref: alter_commands in MySQL 8.0.46 sql/sql_yacc.yy, which spells the
+// statement's tail as `alter_list opt_partitioning`, `alter_list
+// remove_partitioning`, `partitioning` or `remove_partitioning`: PARTITION BY
+// ... or REMOVE PARTITIONING follows the comma-separated action list without a
+// comma of its own, at most once, with nothing after it. MySQL 8.0.46, MariaDB
+// 11.8.8 and TiDB v8.5.5 all run
+// `ALTER TABLE t ADD COLUMN a INT REMOVE PARTITIONING` and
+// `ALTER TABLE t COMMENT 'c' PARTITION BY HASH(a)`, and all three answer 1064
+// to the same statements with a comma before the clause, to two clauses in a
+// row, and to an action after one.
+func (p *Parser) parseAlterPartitioningTail(stmt *nodes.AlterTableStmt, pendingComma bool) error {
+	if !p.startsAlterPartitioningTail() {
+		return nil
+	}
+	if pendingComma {
+		return &ParseError{
+			Message:  "a partitioning clause takes no comma before it",
+			Position: p.cur.Loc,
+		}
+	}
+	cmd := &nodes.AlterTableCmd{Loc: nodes.Loc{Start: p.pos()}}
+	if p.cur.Type == kwREMOVE {
+		p.advance() // consume REMOVE
+		if _, err := p.expect(kwPARTITIONING); err != nil {
+			return err
+		}
+		cmd.Type = nodes.ATRemovePartitioning
+		cmd.Loc.End = p.prev.End
+		stmt.Commands = append(stmt.Commands, cmd)
+		return nil
+	}
+	part, err := p.parsePartitionClause()
+	if err != nil {
+		return err
+	}
+	cmd.Type = nodes.ATPartitionBy
+	cmd.PartitionBy = part
+	cmd.Loc.End = p.prev.End
+	stmt.Commands = append(stmt.Commands, cmd)
+	return nil
+}
+
+// parseNoWriteToBinlog consumes the modifier that follows the PARTITION keyword
+// on a partition-maintenance action and reports whether one was there.
+//
+// Ref: opt_no_write_to_binlog in MySQL 8.0.46 sql/sql_yacc.yy, which reads
+// `/* empty */ | NO_WRITE_TO_BINLOG | LOCAL_SYM` and folds both spellings to
+// the same value, so one bool is the whole clause. TiDB v8.5.5 takes it on
+// ADD, REBUILD, OPTIMIZE, REPAIR, COALESCE and REORGANIZE PARTITION, and
+// answers 1064 for it on CHECK, TRUNCATE, DROP and ANALYZE PARTITION -- MySQL
+// 8.0.46 and MariaDB 11.8.8 take it on ANALYZE, TiDB does not -- for a second
+// modifier after the first, and for one after the partition names.
+func (p *Parser) parseNoWriteToBinlog() bool {
+	if _, ok := p.match(kwNO_WRITE_TO_BINLOG); ok {
+		return true
+	}
+	if _, ok := p.match(kwLOCAL); ok {
+		return true
+	}
+	return false
 }
 
 // parseMoreAlterTableOptions parses the table options that follow one in the
@@ -241,9 +333,10 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		}
 
 	case kwOPTIMIZE:
-		// OPTIMIZE PARTITION ...
+		// OPTIMIZE PARTITION [NO_WRITE_TO_BINLOG | LOCAL] ...
 		p.advance()
 		if _, ok := p.match(kwPARTITION); ok {
+			cmd.NoWriteToBinlog = p.parseNoWriteToBinlog()
 			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATOptimizePartition)
 		}
 		return nil, &ParseError{
@@ -252,9 +345,10 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		}
 
 	case kwREBUILD:
-		// REBUILD PARTITION ...
+		// REBUILD PARTITION [NO_WRITE_TO_BINLOG | LOCAL] ...
 		p.advance()
 		if _, ok := p.match(kwPARTITION); ok {
+			cmd.NoWriteToBinlog = p.parseNoWriteToBinlog()
 			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATRebuildPartition)
 		}
 		return nil, &ParseError{
@@ -263,9 +357,10 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		}
 
 	case kwREPAIR:
-		// REPAIR PARTITION ...
+		// REPAIR PARTITION [NO_WRITE_TO_BINLOG | LOCAL] ...
 		p.advance()
 		if _, ok := p.match(kwPARTITION); ok {
+			cmd.NoWriteToBinlog = p.parseNoWriteToBinlog()
 			return p.parseAlterPartitionNamesOrAll(cmd, nodes.ATRepairPartition)
 		}
 		return nil, &ParseError{
@@ -361,34 +456,22 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		return cmd, nil
 
 	case kwPARTITION:
-		// PARTITION BY ... (repartition)
-		if p.peekNext().Type == kwBY {
-			part, err := p.parsePartitionClause()
-			if err != nil {
-				return nil, err
-			}
-			cmd.Type = nodes.ATPartitionBy
-			cmd.PartitionBy = part
-			cmd.Loc.End = p.prev.End
-			return cmd, nil
-		}
+		// PARTITION BY ... is the statement's tail, which
+		// parseAlterPartitioningTail takes before this dispatch sees it.
+		p.advance() // consume PARTITION
 		return nil, &ParseError{
 			Message:  "expected BY after PARTITION",
 			Position: p.cur.Loc,
 		}
 
 	case kwREMOVE:
+		// TiDB: REMOVE TTL. REMOVE PARTITIONING is the statement's tail, which
+		// parseAlterPartitioningTail takes before this dispatch sees it.
 		p.advance()
-		if p.cur.Type == kwTTL {
-			// TiDB: REMOVE TTL
-			p.advance()
-			cmd.Type = nodes.ATRemoveTTL
-			cmd.Loc.End = p.prev.End
-			return cmd, nil
+		if _, err := p.expect(kwTTL); err != nil {
+			return nil, err
 		}
-		// REMOVE PARTITIONING
-		p.match(kwPARTITIONING)
-		cmd.Type = nodes.ATRemovePartitioning
+		cmd.Type = nodes.ATRemoveTTL
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
@@ -464,13 +547,29 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// ADD PARTITION (partition_definition, ...)
+	// ADD PARTITION [NO_WRITE_TO_BINLOG | LOCAL] [PARTITIONS n | (partition_definition, ...)]
 	if p.cur.Type == kwPARTITION {
 		p.advance()
 		cmd.Type = nodes.ATAddPartition
-		if _, err := p.expect('('); err != nil {
-			return nil, err
+		cmd.NoWriteToBinlog = p.parseNoWriteToBinlog()
+		if p.cur.Type == kwPARTITIONS {
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, &ParseError{Message: "expected partition count", Position: p.cur.Loc}
+			}
+			cmd.Number = int(p.cur.Ival)
+			p.advance()
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
 		}
+		// add_part_extra is optional: MySQL 8.0.46, MariaDB 11.8.8 and TiDB
+		// v8.5.5 all run `ALTER TABLE t ADD PARTITION` and
+		// `ADD PARTITION LOCAL` with nothing after them.
+		if p.cur.Type != '(' {
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
+		p.advance() // consume '('
 		for {
 			pd, err := p.parsePartitionDef()
 			if err != nil {
@@ -1051,10 +1150,15 @@ func (p *Parser) parseAlterCoalescePartition(cmd *nodes.AlterTableCmd) (*nodes.A
 		return nil, err
 	}
 	cmd.Type = nodes.ATCoalescePartition
-	if p.cur.Type == tokICONST {
-		cmd.Number = int(p.cur.Ival)
-		p.advance()
+	cmd.NoWriteToBinlog = p.parseNoWriteToBinlog()
+	// real_ulong_num is not optional: MySQL 8.0.46, MariaDB 11.8.8 and TiDB
+	// v8.5.5 all answer 1064 to `ALTER TABLE t COALESCE PARTITION` and to
+	// `COALESCE PARTITION LOCAL`.
+	if p.cur.Type != tokICONST {
+		return nil, p.syntaxErrorAtCur()
 	}
+	cmd.Number = int(p.cur.Ival)
+	p.advance()
 	cmd.Loc.End = p.prev.End
 	return cmd, nil
 }
@@ -1070,6 +1174,16 @@ func (p *Parser) parseAlterReorganizePartition(cmd *nodes.AlterTableCmd) (*nodes
 		return nil, err
 	}
 	cmd.Type = nodes.ATReorganizePartition
+	cmd.NoWriteToBinlog = p.parseNoWriteToBinlog()
+
+	// REORGANIZE PARTITION with no names is its own arm and takes no INTO:
+	// MySQL 8.0.46, MariaDB 11.8.8 and TiDB v8.5.5 all run
+	// `ALTER TABLE t REORGANIZE PARTITION LOCAL` and all answer 1064 to
+	// `REORGANIZE PARTITION LOCAL INTO (...)`.
+	if p.cur.Type == tokEOF || p.cur.Type == ';' || p.cur.Type == ',' {
+		cmd.Loc.End = p.prev.End
+		return cmd, nil
+	}
 
 	// Parse partition names
 	names, err := p.parseIdentList()

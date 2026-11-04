@@ -1575,7 +1575,7 @@ accept	accept	create table t1 (c1 int) collate=binary;
 accept	accept	create table t1 (c1 int) collate=utf8mb4_0900_as_cs;
 accept	accept	create table t1 (c1 int) default charset=binary collate=binary;
 reject	accept	ALTER TABLE t_n UNION ( ), KEY_BLOCK_SIZE = 1
-reject	accept	ALTER TABLE d_n.t_n UNION ( t_n ) REMOVE PARTITIONING
+accept	accept	ALTER TABLE d_n.t_n UNION ( t_n ) REMOVE PARTITIONING
 reject	accept	ALTER TABLE d_n.t_n LOCK DEFAULT , UNION = ( t_n , d_n.t_n ) REMOVE PARTITIONING
 reject	accept	ALTER TABLE d_n.t_n ALGORITHM = DEFAULT , MAX_ROWS 10, UNION ( d_n.t_n ) , ROW_FORMAT REDUNDANT, STATS_PERSISTENT = DEFAULT
 accept	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (not 3), partition p2 values less than (20));
@@ -1905,23 +1905,23 @@ accept	accept	ALTER TABLE t ADD COLUMN a SMALLINT UNSIGNED
 accept	accept	ALTER TABLE t ADD COLUMN a SMALLINT UNSIGNED FIRST
 accept	accept	ALTER TABLE t ADD COLUMN a SMALLINT UNSIGNED AFTER b
 reject	accept	ALTER TABLE t ADD COLUMN IF NOT EXISTS a SMALLINT UNSIGNED AFTER b
-reject	accept	ALTER TABLE employees ADD PARTITION
+accept	accept	ALTER TABLE employees ADD PARTITION
 accept	accept	ALTER TABLE employees ADD PARTITION ( PARTITION P1 VALUES LESS THAN (2010))
 accept	accept	ALTER TABLE employees ADD PARTITION ( PARTITION P2 VALUES LESS THAN MAXVALUE)
 reject	accept	ALTER TABLE employees ADD PARTITION IF NOT EXISTS ( PARTITION P2 VALUES LESS THAN MAXVALUE)
 reject	accept	ALTER TABLE employees ADD PARTITION IF NOT EXISTS PARTITIONS 5
 accept	accept	alter table t add partition (partition x values in ((3, 4), (5, 6)))
-reject	accept	ALTER TABLE employees ADD PARTITION NO_WRITE_TO_BINLOG
-reject	accept	ALTER TABLE employees ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 10
-reject	accept	ALTER TABLE employees ADD PARTITION LOCAL
-reject	accept	ALTER TABLE employees ADD PARTITION LOCAL PARTITIONS 10
+accept	accept	ALTER TABLE employees ADD PARTITION NO_WRITE_TO_BINLOG
+accept	accept	ALTER TABLE employees ADD PARTITION NO_WRITE_TO_BINLOG PARTITIONS 10
+accept	accept	ALTER TABLE employees ADD PARTITION LOCAL
+accept	accept	ALTER TABLE employees ADD PARTITION LOCAL PARTITIONS 10
 accept	accept	ALTER TABLE t_n REBUILD PARTITION ALL
-reject	accept	ALTER TABLE d_n.t_n REBUILD PARTITION LOCAL ALL
-reject	accept	ALTER TABLE t_n REBUILD PARTITION LOCAL ident
-reject	accept	ALTER TABLE t_n REBUILD PARTITION NO_WRITE_TO_BINLOG ident , ident
-accept	reject	ALTER TABLE t_n REBUILD PARTITION LOCAL
-reject	accept	ALTER TABLE t_n REBUILD PARTITION LOCAL local
-reject	accept	ALTER TABLE t_n REBUILD PARTITION LOCAL local, local
+accept	accept	ALTER TABLE d_n.t_n REBUILD PARTITION LOCAL ALL
+accept	accept	ALTER TABLE t_n REBUILD PARTITION LOCAL ident
+accept	accept	ALTER TABLE t_n REBUILD PARTITION NO_WRITE_TO_BINLOG ident , ident
+reject	reject	ALTER TABLE t_n REBUILD PARTITION LOCAL
+accept	accept	ALTER TABLE t_n REBUILD PARTITION LOCAL local
+accept	accept	ALTER TABLE t_n REBUILD PARTITION LOCAL local, local
 accept	accept	alter table t drop partition p1;
 accept	accept	alter table t drop partition p2;
 reject	accept	alter table t drop partition if exists p2;
@@ -1930,12 +1930,12 @@ reject	accept	alter table t drop partition if exists p1, p2;
 accept	accept	alter table t check partition all;
 accept	accept	alter table t check partition p;
 accept	accept	alter table t check partition p1, p2;
-reject	accept	alter table employees add partition partitions 1;
-reject	accept	alter table employees add partition partitions 2;
+accept	accept	alter table employees add partition partitions 1;
+accept	accept	alter table employees add partition partitions 2;
 accept	accept	alter table clients coalesce partition 3;
 accept	accept	alter table clients coalesce partition 4;
-reject	accept	alter table clients coalesce partition no_write_to_binlog 4;
-reject	accept	alter table clients coalesce partition local 4;
+accept	accept	alter table clients coalesce partition no_write_to_binlog 4;
+accept	accept	alter table clients coalesce partition local 4;
 accept	accept	ALTER TABLE t DISABLE KEYS
 accept	accept	ALTER TABLE t ENABLE KEYS
 accept	accept	ALTER TABLE t MODIFY COLUMN a varchar(255)
@@ -2110,7 +2110,7 @@ reject	accept	alter table t analyze partition a with 4 buckets
 reject	accept	alter table t analyze partition a index b
 reject	accept	alter table t analyze partition a index b with 4 buckets
 accept	accept	alter table t partition by hash(a)
-reject	accept	alter table t add column a int partition by hash(a)
+accept	accept	alter table t add column a int partition by hash(a)
 reject	accept	alter table t add column a int partition by hash(a) update indexes (idx_a global)
 reject	accept	alter table t add column a int partition by hash(a) update indexes (idx_a global, idx_b local)
 reject	reject	alter table t add column a int partition by hash(a) update indexes (idx_a normal)
@@ -2118,12 +2118,12 @@ reject	reject	alter table t add column a int partition by hash(a) update indexes
 accept	accept	alter table t partition by range(a)
 reject	accept	alter table t partition by range(a) update indexes (a local)
 accept	accept	alter table t partition by range(a) (partition x values less than (75))
-accept	reject	alter table t add column a int, partition by range(a) (partition x values less than (75))
-reject	accept	alter table t comment 'cmt' partition by hash(a)
-reject	accept	alter table t enable keys, comment = 'cmt' partition by hash(a)
-accept	reject	alter table t enable keys, comment = 'cmt', partition by hash(a)
+reject	reject	alter table t add column a int, partition by range(a) (partition x values less than (75))
+accept	accept	alter table t comment 'cmt' partition by hash(a)
+accept	accept	alter table t enable keys, comment = 'cmt' partition by hash(a)
+reject	reject	alter table t enable keys, comment = 'cmt', partition by hash(a)
 reject	reject	alter table t partition by hash(a) enable keys
-accept	reject	alter table t partition by hash(a), enable keys
+reject	reject	alter table t partition by hash(a), enable keys
 reject	accept	alter table t partition by range FIELDS(a) (partition x values less than maxvalue)
 reject	accept	alter table t partition by list FIELDS(a) (PARTITION p0 VALUES IN (5, 10, 15))
 reject	accept	alter table t partition by range FIELDS(a,b,c) (partition p1 values less than (1,1,1));
@@ -2133,18 +2133,18 @@ accept	accept	alter table t without validation, add column b int as (a + 1)
 accept	accept	alter table t without validation, with validation, add column b int as (a + 1)
 accept	accept	alter table t with validation, modify column b int as (a + 2) 
 accept	accept	alter table t with validation, change column b c int as (a + 2)
-reject	accept	ALTER TABLE d_n.t_n ADD PARTITION NO_WRITE_TO_BINLOG
-reject	accept	ALTER TABLE d_n.t_n ADD PARTITION LOCAL
+accept	accept	ALTER TABLE d_n.t_n ADD PARTITION NO_WRITE_TO_BINLOG
+accept	accept	ALTER TABLE d_n.t_n ADD PARTITION LOCAL
 accept	accept	alter table t with validation, exchange partition p with table nt without validation;
 accept	accept	alter table t exchange partition p with table nt with validation;
-reject	accept	alter table t reorganize partition;
-reject	accept	alter table t reorganize partition local;
-reject	accept	alter table t reorganize partition no_write_to_binlog;
+accept	accept	alter table t reorganize partition;
+accept	accept	alter table t reorganize partition local;
+accept	accept	alter table t reorganize partition no_write_to_binlog;
 accept	accept	ALTER TABLE members REORGANIZE PARTITION n0 INTO (PARTITION s0 VALUES LESS THAN (1960), PARTITION s1 VALUES LESS THAN (1970));
-reject	accept	ALTER TABLE members REORGANIZE PARTITION LOCAL n0 INTO (PARTITION s0 VALUES LESS THAN (1960), PARTITION s1 VALUES LESS THAN (1970));
+accept	accept	ALTER TABLE members REORGANIZE PARTITION LOCAL n0 INTO (PARTITION s0 VALUES LESS THAN (1960), PARTITION s1 VALUES LESS THAN (1970));
 accept	accept	ALTER TABLE members REORGANIZE PARTITION p1,p2,p3 INTO ( PARTITION s0 VALUES LESS THAN (1960), PARTITION s1 VALUES LESS THAN (1970));
 reject	reject	alter table t reorganize partition remove partition;
-reject	accept	alter table t reorganize partition no_write_to_binlog remove into (partition p0 VALUES LESS THAN (1991));
+accept	accept	alter table t reorganize partition no_write_to_binlog remove into (partition p0 VALUES LESS THAN (1991));
 reject	accept	ALTER TABLE t ATTRIBUTES='str'
 reject	accept	ALTER TABLE t ATTRIBUTES='str1,str2'
 reject	accept	ALTER TABLE t ATTRIBUTES="str1,str2"
@@ -2314,13 +2314,13 @@ reject	reject	flashback schema test to tso 0
 reject	reject	flashback schema test to tso -100
 accept	accept	alter table t remove partitioning
 accept	accept	alter table db.ident remove partitioning
-reject	accept	alter table t lock = default remove partitioning
-reject	accept	alter table t add column a int remove partitioning
-reject	accept	alter table t add column a int, add index (c) remove partitioning
-accept	reject	alter table t add column a int, remove partitioning
-accept	reject	alter table t add column a int, add index (c), remove partitioning
+accept	accept	alter table t lock = default remove partitioning
+accept	accept	alter table t add column a int remove partitioning
+accept	accept	alter table t add column a int, add index (c) remove partitioning
+reject	reject	alter table t add column a int, remove partitioning
+reject	reject	alter table t add column a int, add index (c), remove partitioning
 reject	reject	alter table t remove partitioning add column a int
-accept	reject	alter table t remove partitioning, add column a int
+reject	reject	alter table t remove partitioning, add column a int
 accept	accept	alter table t add column a double (4,2) zerofill references b match full on update set null first
 reject	accept	alter table d_n.t_n add constraint foreign key ident (ident(1)) references d_n.t_n match full on delete set null
 reject	accept	alter table t_n add constraint ident foreign key (ident,ident(1)) references t_n match full on update set null on delete restrict
@@ -2371,11 +2371,11 @@ accept	accept	create table t (a long char set utf8);
 accept	accept	create table t (a long char varying char set utf8);
 accept	accept	create table t (a long character set utf8);
 accept	accept	create table t (a long character varying character set utf8);
-reject	accept	alter table d_n.t_n modify column ident long after ident remove partitioning
-reject	accept	alter table d_n.t_n modify column ident long char varying after ident remove partitioning
-reject	accept	alter table d_n.t_n modify column ident long character varying after ident remove partitioning
-reject	accept	alter table d_n.t_n modify column ident long varchar after ident remove partitioning
-reject	accept	alter table d_n.t_n modify column ident long varcharacter after ident remove partitioning
+accept	accept	alter table d_n.t_n modify column ident long after ident remove partitioning
+accept	accept	alter table d_n.t_n modify column ident long char varying after ident remove partitioning
+accept	accept	alter table d_n.t_n modify column ident long character varying after ident remove partitioning
+accept	accept	alter table d_n.t_n modify column ident long varchar after ident remove partitioning
+accept	accept	alter table d_n.t_n modify column ident long varcharacter after ident remove partitioning
 accept	accept	alter table t_n change column ident ident long char varying binary charset utf8 first , tablespace ident
 accept	accept	alter table t_n change column ident ident long character varying binary charset utf8 first , tablespace ident
 accept	reject	create table t (a int) stats_auto_recalc 2;
@@ -3488,33 +3488,33 @@ accept	accept	ALTER TABLE t1 TRUNCATE PARTITION ALL
 reject	reject	ALTER TABLE t1 TRUNCATE PARTITION ALL, p0
 reject	reject	ALTER TABLE t1 TRUNCATE PARTITION p0, ALL
 accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION p0
-reject	accept	ALTER TABLE t1 OPTIMIZE PARTITION NO_WRITE_TO_BINLOG p0
-reject	accept	ALTER TABLE t1 OPTIMIZE PARTITION LOCAL p0
+accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION NO_WRITE_TO_BINLOG p0
+accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION LOCAL p0
 accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION p0, p1
-reject	accept	ALTER TABLE t1 OPTIMIZE PARTITION NO_WRITE_TO_BINLOG p0, p1
-reject	accept	ALTER TABLE t1 OPTIMIZE PARTITION LOCAL p0, p1
+accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION NO_WRITE_TO_BINLOG p0, p1
+accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION LOCAL p0, p1
 accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION ALL
-reject	accept	ALTER TABLE t1 OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
-reject	accept	ALTER TABLE t1 OPTIMIZE PARTITION LOCAL ALL
+accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION NO_WRITE_TO_BINLOG ALL
+accept	accept	ALTER TABLE t1 OPTIMIZE PARTITION LOCAL ALL
 reject	reject	ALTER TABLE t1 OPTIMIZE PARTITION ALL, p0
 reject	reject	ALTER TABLE t1 OPTIMIZE PARTITION p0, ALL
-accept	reject	ALTER TABLE t_n OPTIMIZE PARTITION LOCAL
-reject	accept	ALTER TABLE t_n OPTIMIZE PARTITION LOCAL local
-reject	accept	ALTER TABLE t_n OPTIMIZE PARTITION LOCAL local, local
+reject	reject	ALTER TABLE t_n OPTIMIZE PARTITION LOCAL
+accept	accept	ALTER TABLE t_n OPTIMIZE PARTITION LOCAL local
+accept	accept	ALTER TABLE t_n OPTIMIZE PARTITION LOCAL local, local
 accept	accept	ALTER TABLE t1 REPAIR PARTITION p0
-reject	accept	ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG p0
-reject	accept	ALTER TABLE t1 REPAIR PARTITION LOCAL p0
+accept	accept	ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG p0
+accept	accept	ALTER TABLE t1 REPAIR PARTITION LOCAL p0
 accept	accept	ALTER TABLE t1 REPAIR PARTITION p0, p1
-reject	accept	ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG p0, p1
-reject	accept	ALTER TABLE t1 REPAIR PARTITION LOCAL p0, p1
+accept	accept	ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG p0, p1
+accept	accept	ALTER TABLE t1 REPAIR PARTITION LOCAL p0, p1
 accept	accept	ALTER TABLE t1 REPAIR PARTITION ALL
-reject	accept	ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
-reject	accept	ALTER TABLE t1 REPAIR PARTITION LOCAL ALL
+accept	accept	ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG ALL
+accept	accept	ALTER TABLE t1 REPAIR PARTITION LOCAL ALL
 reject	reject	ALTER TABLE t1 REPAIR PARTITION ALL, p0
 reject	reject	ALTER TABLE t1 REPAIR PARTITION p0, ALL
-accept	reject	ALTER TABLE t_n REPAIR PARTITION LOCAL
-reject	accept	ALTER TABLE t_n REPAIR PARTITION LOCAL local
-reject	accept	ALTER TABLE t_n REPAIR PARTITION LOCAL local, local
+reject	reject	ALTER TABLE t_n REPAIR PARTITION LOCAL
+accept	accept	ALTER TABLE t_n REPAIR PARTITION LOCAL local
+accept	accept	ALTER TABLE t_n REPAIR PARTITION LOCAL local, local
 accept	accept	ALTER TABLE t1 IMPORT PARTITION p0 TABLESPACE
 accept	accept	ALTER TABLE t1 IMPORT PARTITION p0, p1 TABLESPACE
 accept	accept	ALTER TABLE t1 IMPORT PARTITION ALL TABLESPACE

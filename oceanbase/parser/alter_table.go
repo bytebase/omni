@@ -1014,6 +1014,20 @@ func (p *Parser) parseIdentList() ([]string, error) {
 }
 
 // parseAlterPartitionNamesOrAll parses {partition_names | ALL} for partition operations.
+//
+// MySQL's opt_no_write_to_binlog -- the NO_WRITE_TO_BINLOG or LOCAL modifier
+// after the PARTITION keyword, which mysql, mariadb and tidb take on ADD,
+// REBUILD, OPTIMIZE, REPAIR, ANALYZE, COALESCE and REORGANIZE PARTITION -- is
+// deliberately not here, and neither is the trailing partitioning clause those
+// three read as `alter_list remove_partitioning` and `alter_list
+// opt_partitioning`. OceanBase CE 4.3.5.6 answers 1064 to the whole surface
+// they belong to: OPTIMIZE, REPAIR, REBUILD, ANALYZE and COALESCE PARTITION
+// are not actions it has at all, REMOVE PARTITIONING is a 1064 standing alone
+// or trailing, and PARTITION BY after another action is a 1064 while `ALTER
+// TABLE t PARTITION BY HASH(a), ADD COLUMN a INT` -- which the other three
+// reject -- parses. Adding the modifier to actions the engine does not have
+// would only widen an over-acceptance; tightening that surface to what 4.3.5.6
+// carries is its own change.
 func (p *Parser) parseAlterPartitionNamesOrAll(cmd *nodes.AlterTableCmd, cmdType nodes.AlterTableCmdType) (*nodes.AlterTableCmd, error) {
 	cmd.Type = cmdType
 	if p.cur.Type == kwALL {

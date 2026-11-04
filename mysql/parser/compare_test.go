@@ -12491,16 +12491,20 @@ func TestAlterTablePartitionBy(t *testing.T) {
 		ParseAndCheck(t, "ALTER TABLE t PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 4")
 	})
 
-	t.Run("combined with ALTER TABLE options", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4, ALGORITHM=INPLACE")
-		if len(stmt.Commands) != 2 {
-			t.Fatalf("Commands count = %d, want 2", len(stmt.Commands))
-		}
-		if stmt.Commands[0].Type != ast.ATPartitionBy {
-			t.Errorf("first cmd Type = %d, want ATPartitionBy", stmt.Commands[0].Type)
-		}
-		if stmt.Commands[1].Type != ast.ATAlgorithm {
-			t.Errorf("second cmd Type = %d, want ATAlgorithm", stmt.Commands[1].Type)
+	// A partitioning clause closes the statement, so no action follows it,
+	// with or without a comma -- ALGORITHM and LOCK included. MySQL 8.0.46,
+	// MariaDB 11.8.8 and TiDB v8.5.5 all answer 1064 to every statement here
+	// (partitionModifierOracleCases in mysql and mariadb,
+	// partitionMaintenanceModifiersRejected in tidb carry the same rule).
+	t.Run("rejected: an action after the partitioning clause", func(t *testing.T) {
+		for _, sql := range []string{
+			"ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4, ALGORITHM=INPLACE",
+			"ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4, LOCK=NONE",
+			"ALTER TABLE t PARTITION BY HASH(id) ALGORITHM=INPLACE",
+			"ALTER TABLE t PARTITION BY HASH(id), ENABLE KEYS",
+			"ALTER TABLE t REMOVE PARTITIONING, ALGORITHM=INPLACE",
+		} {
+			ParseExpectError(t, sql)
 		}
 	})
 
