@@ -8,6 +8,7 @@ import (
 
 	"github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/pg/internal/copyscan"
 	"github.com/bytebase/omni/pg/internal/metacmd"
 	"github.com/bytebase/omni/pg/parser"
 	"github.com/bytebase/omni/review"
@@ -41,20 +42,41 @@ func statementRanges(sql string) []review.Range {
 func statementBodies(sql string, ranges []review.Range) []review.Range {
 	bodies := make([]review.Range, len(ranges))
 	for i, r := range ranges {
-		bodies[i] = r
-		found := false
-		for _, tok := range parser.Tokenize(sql[r.Start:r.End]) {
-			if tok.Type == ';' {
-				continue
-			}
-			if !found {
-				bodies[i].Start = r.Start + tok.Loc
-				found = true
-			}
-			bodies[i].End = r.Start + tok.End
-		}
+		bodies[i] = statementBody(sql, r)
 	}
 	return bodies
+}
+
+// statementBody is statementBodies for one statement. pg.Split ends a
+// segment at every top-level semicolon but one: a COPY ... FROM STDIN keeps
+// the inline data that follows on the next lines, as the parser does. The
+// data is not SQL, so the body runs through it, to its "\." line, rather
+// than lexing it.
+func statementBody(sql string, r review.Range) review.Range {
+	body := r
+	found := false
+	depth := 0
+	for _, tok := range parser.Tokenize(sql[r.Start:r.End]) {
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ';':
+			semicolon := r.Start + tok.End
+			if found && depth == 0 && copyscan.RestOfLineBlank(sql[:r.End], semicolon) && strings.TrimSpace(sql[semicolon:r.End]) != "" {
+				body.End = r.Start + len(strings.TrimRight(sql[r.Start:r.End], " \t\r\n"))
+				return body
+			}
+			continue
+		}
+		if !found {
+			body.Start = r.Start + tok.Loc
+			found = true
+		}
+		body.End = r.Start + tok.End
+	}
+	return body
 }
 
 // parse splits the text with pg.Split and parses each non-empty segment

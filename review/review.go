@@ -158,8 +158,10 @@ type Result struct {
 	// out. The whitespace and comments around a statement fall outside its
 	// body, and comments inside it stay, so the body's text changes only
 	// when the statement does. The markers of a MySQL-family executable
-	// comment are not tokens. A statement the lexer reads no token from
-	// keeps its Statements range.
+	// comment are not tokens. A PostgreSQL COPY ... FROM STDIN's inline
+	// data belongs to its statement, so the body runs through the data's
+	// "\." line. A statement the lexer reads no token from keeps its
+	// Statements range.
 	Bodies []Range
 	// Findings, already merged across targets, sorted by (Statement,
 	// Range.Start, Rule, Message).

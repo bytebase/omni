@@ -660,7 +660,7 @@ func TestFindingCodes(t *testing.T) {
 // token to its last, without the whitespace, comments, and semicolons
 // around it.
 func TestStatementBodies(t *testing.T) {
-	sql := "SELECT 1;\n\n-- a note\n/* outer /* nested */ comment */ UPDATE t SET n = 1 WHERE id = 1 ;\nSELECT '--x', $$ ; $$ -- trailing\n"
+	sql := "SELECT 1;\n\n-- a note\n/* outer /* nested */ comment */ UPDATE t SET n = 1 WHERE id = 1 ;\nCOPY t FROM STDIN;\n'abc;\n\\.\nSELECT '--x', $$ ; $$ -- trailing\n"
 	result, err := Review(context.Background(), sql, review.Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -675,7 +675,9 @@ func TestStatementBodies(t *testing.T) {
 		}
 		got = append(got, sql[body.Start:body.End])
 	}
-	want := []string{"SELECT 1", "UPDATE t SET n = 1 WHERE id = 1", "SELECT '--x', $$ ; $$"}
+	// COPY's inline data is not SQL: an unmatched quote or a semicolon in it
+	// neither ends the body nor starts another statement.
+	want := []string{"SELECT 1", "UPDATE t SET n = 1 WHERE id = 1", "COPY t FROM STDIN;\n'abc;\n\\.", "SELECT '--x', $$ ; $$"}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("bodies mismatch (-want +got):\n%s", diff)
 	}
