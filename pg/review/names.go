@@ -80,35 +80,11 @@ func nameParts(list *ast.List) []string {
 	return parts
 }
 
-// objectName writes a DROP object as the SQL named it. Each object kind
-// has its own list shape: a cast is two types, a transform a type and a
-// language, an operator class or family an access method then a name,
-// a trigger, policy, or rule a relation then a name, and a routine or
-// operator a name with argument types.
+// objectName writes a DROP object that is one name as the SQL named it:
+// a name, a type, or a routine or operator with its argument types. The
+// objects named by parts of several kinds, such as a cast or a trigger,
+// are written by dropTarget.
 func objectName(kind ast.ObjectType, obj ast.Node) string {
-	switch kind {
-	case ast.OBJECT_CAST:
-		types := typeNames(listOf(obj))
-		if len(types) == 2 {
-			return "from " + types[0] + " to " + types[1]
-		}
-	case ast.OBJECT_TRANSFORM:
-		if l := listOf(obj); l != nil && len(l.Items) == 2 {
-			tn, _ := l.Items[0].(*ast.TypeName)
-			lang, _ := l.Items[1].(*ast.String)
-			if tn != nil && lang != nil {
-				return "for " + typeName(tn) + " language " + ident(lang.Str)
-			}
-		}
-	case ast.OBJECT_OPCLASS, ast.OBJECT_OPFAMILY:
-		if parts := nameParts(listOf(obj)); len(parts) > 1 {
-			return qualified(parts[1:]) + " using " + ident(parts[0])
-		}
-	case ast.OBJECT_TRIGGER, ast.OBJECT_POLICY, ast.OBJECT_RULE:
-		if parts := nameParts(listOf(obj)); len(parts) > 1 {
-			return ident(parts[len(parts)-1]) + " on " + qualified(parts[:len(parts)-1])
-		}
-	}
 	switch v := obj.(type) {
 	case *ast.String:
 		return ident(v.Str)

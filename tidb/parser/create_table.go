@@ -430,10 +430,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwCOMMENT:
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			col.Comment = p.cur.Str
-			p.advance()
+		// The comment is a quoted string and is required: the server answers 1064
+		// for a bare COMMENT, as it does for the table option.
+		if p.cur.Type != tokSCONST {
+			return false, p.syntaxErrorAtCur()
 		}
+		col.Comment = p.cur.Str
+		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
 			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			Type: nodes.ColConstrComment,
@@ -897,7 +900,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 		constr.Clustered = p.parseClusteredAttr()
 
 	case kwUNIQUE:
@@ -924,7 +929,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwFOREIGN:
 		p.advance()
@@ -1026,7 +1033,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwFULLTEXT:
 		p.advance()
@@ -1041,7 +1050,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	case kwSPATIAL:
 		p.advance()
@@ -1056,7 +1067,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		constr.IndexColumns = idxCols
 		constr.Columns = indexColumnsToNames(idxCols)
-		p.parseConstraintIndexOptions(constr)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
 
 	default:
 		return nil, &ParseError{
@@ -1070,11 +1083,16 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 }
 
 // parseConstraintIndexOptions parses index_option list after a table constraint's key parts.
-func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) {
+// An option that starts and then fails, such as a COMMENT without its string,
+// is a syntax error, as it is after CREATE INDEX.
+func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 	for {
 		opt, ok, err := p.parseIndexOption()
-		if err != nil || !ok {
-			break
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
 		}
 		constr.IndexOptions = append(constr.IndexOptions, opt)
 	}

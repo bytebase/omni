@@ -18,6 +18,9 @@ func TestNameText(t *testing.T) {
 		// An executable comment opened before the item closes inside it.
 		{"a */ + 1", "a  + 1"},
 		{"a*/*c*/b", "a*/*c*/b"},
+		// Executable comments do not nest: the first "*/" closes both, and the
+		// "*/*" after it is a multiplication and a comment.
+		{"a /*! + 1 /*! + 2 */ */*c*/3", "a  + 1  + 2  */*c*/3"},
 		{"'*/' + `/*!`", "'*/' + `/*!`"},
 		{`'a\'*/' + 1`, `'a\'*/' + 1`},
 	} {

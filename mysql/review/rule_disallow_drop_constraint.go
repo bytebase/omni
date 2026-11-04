@@ -103,7 +103,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		case ok && !sameCase(i.table, ref):
 		case ok && i.unsure:
 		case ok && i.unique:
-			r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), "drops unique key "+ident(name)+" of "+table(ref))
+			r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), dropsConstraint("unique constraint", ident(name), table(ref)))
 		case !ok && !isReplaced(ref):
 			open = append(open, droppedIndex{s.index, pos, loc, ref, name})
 		}
@@ -174,7 +174,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					loc = ast.Loc{Start: rng.Start, End: rng.End}
 				}
 				if sameName(v.Name, "PRIMARY") {
-					r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), "drops the primary key of "+table(v.Table))
+					r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), dropsPrimaryKey(table(v.Table)))
 				} else {
 					droppedName(pos, s, loc, v.Table, v.Name)
 				}
@@ -210,13 +210,13 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					var msg string
 					switch dropKindOf(sql, cmd) {
 					case dropPrimaryKey:
-						msg = "drops the primary key of " + table(v.Table)
+						msg = dropsPrimaryKey(table(v.Table))
 					case dropForeignKey:
-						msg = "drops foreign key " + ident(cmd.Name) + " of " + table(v.Table)
+						msg = dropsConstraint("foreign key", ident(cmd.Name), table(v.Table))
 					case dropCheck:
-						msg = "drops check constraint " + ident(cmd.Name) + " of " + table(v.Table)
+						msg = dropsConstraint("check constraint", ident(cmd.Name), table(v.Table))
 					case dropConstraint:
-						msg = "drops constraint " + ident(cmd.Name) + " of " + table(v.Table)
+						msg = dropsConstraint("constraint", ident(cmd.Name), table(v.Table))
 					case dropIndex:
 						droppedName(pos, s, cmd.Loc, v.Table, cmd.Name)
 					}
@@ -243,6 +243,19 @@ func checkDroppedIndex(stmts []statement, d droppedIndex, x schemaIndex, r *repo
 		return
 	}
 	if unique, found := uniqueIndex(t, d.name); found && unique {
-		r.report(review.DisallowDropConstraint, d.statement, rangeOf(d.loc), "drops unique key "+ident(d.name)+" of "+table(d.table))
+		r.report(review.DisallowDropConstraint, d.statement, rangeOf(d.loc), dropsConstraint("unique constraint", ident(d.name), table(d.table)))
 	}
+}
+
+// dropsConstraint writes the finding for the drop of a constraint of a
+// table: "Drops foreign key `fk` of `t`.", kind "constraint" when the
+// statement does not say which kind it drops.
+func dropsConstraint(kind, name, tbl string) string {
+	return "Drops " + kind + " " + review.Code(name) + " of " + review.Code(tbl) + "."
+}
+
+// dropsPrimaryKey writes the finding for the drop of a table's primary
+// key, which has no name of its own.
+func dropsPrimaryKey(tbl string) string {
+	return "Drops the primary key of " + review.Code(tbl) + "."
 }

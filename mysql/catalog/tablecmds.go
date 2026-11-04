@@ -644,6 +644,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			return errGIPKColumnNameReserved()
 		}
 		if !hasPK {
+			// MySQL 8.0 generates no key for a partitioned table and refuses it, so the
+			// partition-key check below never sees a my_row_id key the engine would not add.
+			if stmt.Partitions != nil {
+				return errGIPKPartitioned()
+			}
 			addGeneratedInvisiblePrimaryKey(tbl)
 			hasPK = true
 		}
@@ -685,6 +690,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 	db.Tables[key] = tbl
 	return nil
+}
+
+func errGIPKPartitioned() error {
+	return &Error{
+		Code:     1235,
+		SQLState: "42000",
+		Message:  "This version of MySQL doesn't yet support 'generating invisible primary key for the partitioned tables'",
+	}
 }
 
 func errGIPKColumnNameReserved() error {
@@ -809,8 +822,9 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.
 func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	pi := &PartitionInfo{
-		Linear:   pc.Linear,
-		NumParts: pc.NumParts,
+		Linear:     pc.Linear,
+		NumParts:   pc.NumParts,
+		keyColumns: partitionKeyColumns(tbl, pc),
 	}
 	if pi.NumParts == 0 && len(pc.Partitions) == 0 && (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) {
 		pi.NumParts = 1
@@ -1206,14 +1220,7 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	if pc.Type == nodes.PartitionHash && pc.Expr != nil {
-		if cr, ok := pc.Expr.(*nodes.ColumnRef); ok {
-			if err := validateUniqueKeysCoverPartitionColumns(tbl, []string{cr.Column}); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
 }
 
 // rangeColumnsNotIncreasing reports whether the RANGE COLUMNS bound cur is
@@ -1483,27 +1490,6 @@ func primaryKeyColumns(tbl *Table) []string {
 				cols = append(cols, ic.Name)
 			}
 			return cols
-		}
-	}
-	return nil
-}
-
-func validateUniqueKeysCoverPartitionColumns(tbl *Table, partCols []string) error {
-	if len(partCols) == 0 {
-		return nil
-	}
-	for _, idx := range tbl.Indexes {
-		if !idx.Unique && !idx.Primary {
-			continue
-		}
-		idxCols := map[string]bool{}
-		for _, ic := range idx.Columns {
-			idxCols[toLower(ic.Name)] = true
-		}
-		for _, pc := range partCols {
-			if !idxCols[toLower(pc)] {
-				return &Error{Code: 1503, SQLState: "HY000", Message: "A UNIQUE INDEX must include all columns in the table's partitioning function"}
-			}
 		}
 	}
 	return nil

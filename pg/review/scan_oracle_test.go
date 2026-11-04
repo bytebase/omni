@@ -783,21 +783,21 @@ func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 					_, existed := initial[oid]
 					kind := map[string]string{"p": "primary key", "f": "foreign key", "u": "unique constraint", "c": "check constraint"}[c.kind]
 					if c.table == altered && c.name == cmd.Name && existed && !gone && kind != "" {
-						want = append(want, fmt.Sprintf("%d %s %q: drops %s %s of %s", i, review.DisallowDropConstraint, at(rangeOf(cmd.Loc)), kind, ident(c.name), relation(alter.Relation)))
+						want = append(want, fmt.Sprintf("%d %s %q: Drops %s %s of %s.", i, review.DisallowDropConstraint, at(rangeOf(cmd.Loc)), kind, review.Code(ident(c.name)), review.Code(relation(alter.Relation))))
 					}
 				}
 			}
 			if before := tablesBefore[altered]; keyedAtStart[altered] && keyed(before) {
 				if after, ok := tablesAfter[altered]; ok && after.keyName == "" {
 					rng := keyDropAnchor(alter, before.keyName, before.keyCols)
-					unkeyed[altered] = fmt.Sprintf("%d %s %q: removes the primary key of %s, and the change adds none back", i, review.RequirePrimaryKey, at(rng), relation(alter.Relation))
+					unkeyed[altered] = fmt.Sprintf("%d %s %q: Removes the primary key of %s, and the change doesn't add one back.", i, review.RequirePrimaryKey, at(rng), review.Code(relation(alter.Relation)))
 				}
 			}
 		}
 		if create, ok := node.(*ast.CreateStmt); ok && create.Partbound == nil {
 			for oid := range tablesAfter {
 				if _, existed := tablesBefore[oid]; !existed {
-					created[oid] = fmt.Sprintf("%d %s %q: creates table %s without a primary key", i, review.RequirePrimaryKey, at(rangeOf(create.Loc)), relation(create.Relation))
+					created[oid] = fmt.Sprintf("%d %s %q: Creates table %s without a primary key.", i, review.RequirePrimaryKey, at(rangeOf(create.Loc)), review.Code(relation(create.Relation)))
 				}
 			}
 		}
@@ -809,7 +809,7 @@ func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 				}
 				for _, elt := range schema.SchemaElts.Items {
 					if create, ok := elt.(*ast.CreateStmt); ok && create.Partbound == nil && create.Relation.Relname == tb.name {
-						created[oid] = fmt.Sprintf("%d %s %q: creates table %s without a primary key", i, review.RequirePrimaryKey, at(rangeOf(create.Loc)), relation(&ast.RangeVar{Schemaname: tb.schema, Relname: tb.name}))
+						created[oid] = fmt.Sprintf("%d %s %q: Creates table %s without a primary key.", i, review.RequirePrimaryKey, at(rangeOf(create.Loc)), review.Code(relation(&ast.RangeVar{Schemaname: tb.schema, Relname: tb.name})))
 					}
 				}
 			}

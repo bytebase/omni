@@ -12,6 +12,9 @@ type Index struct {
 	Comment      string
 	Visible      bool
 	KeyBlockSize int
+	// addedByAlter marks a primary key ALTER TABLE added, which TiDB builds
+	// NONCLUSTERED unless told CLUSTERED.
+	addedByAlter bool
 }
 
 type IndexColumn struct {

@@ -153,7 +153,8 @@ func TestIndexIgnorabilityAST(t *testing.T) {
 		{"CREATE TABLE t (a INT, KEY i (a) NOT IGNORED VISIBLE)", []string{"NOT IGNORED", "VISIBLE"}},
 		{"CREATE INDEX i ON t (a) IGNORED", []string{"IGNORED"}},
 		{"ALTER TABLE t ADD UNIQUE u (a) NOT IGNORED", []string{"NOT IGNORED"}},
-		{"CREATE TABLE t (a INT, KEY i (a) /*!80000 INVISIBLE */)", []string{"INVISIBLE"}},
+		// MariaDB skips /*!80000 ... */ unread, so the index has no option.
+		{"CREATE TABLE t (a INT, KEY i (a) /*!80000 INVISIBLE */)", nil},
 	} {
 		got := options(t, tc.sql)
 		if len(got) != len(tc.want) {

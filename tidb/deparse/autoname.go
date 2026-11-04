@@ -143,57 +143,49 @@ func nodeLoc(node ast.Node) (ast.Loc, bool) {
 	return loc, ok
 }
 
-// nameText returns an item's text as TiDB names it: an executable comment
-// /*!NNNNN ... */ loses its markers, any other block comment loses its
-// closing "*/", and everything else stays as written.
+// nameText returns an item's text as TiDB names it. TiDB reads the text once,
+// left to right, and drops two things wherever they stand, in a string, a
+// quoted identifier and a comment alike:
 //
-// Verified on TiDB v8.5: a /* c */ + 1 is named "a /* c  + 1", a -- note
-// <newline> + 1 keeps its comment, and a/*!80000 +2*/ is named "a +2".
+//   - "/*!", with the version after it when one follows: an optional M and
+//     five or six digits;
+//   - "*/".
+//
+// What a drop leaves is not read again, so "/**/!x" becomes "/*!x".
+//
+// Verified with views on TiDB v8.5.5 (TestNameText, and the oracle cases in
+// catalog's view_names_test.go), which names
+//
+//	a /* c */ + 1     "a /* c  + 1"
+//	a/*!80000 +2*/    "a +2"
+//	a */*c*/3         "a *c3"
+//	a + '*/'          "a + ''"
+//
+// and keeps a -- note <newline> + 1 as written.
 func nameText(text string) string {
 	if !strings.Contains(text, "/*!") && !strings.Contains(text, "*/") {
 		return text
 	}
 	out := make([]byte, 0, len(text))
-	open := 0 // executable comments opened in text and not yet closed
 	for i := 0; i < len(text); {
-		c := text[i]
 		switch {
-		case c == '\'' || c == '"' || c == '`':
-			j := quotedEnd(text, i)
-			out = append(out, text[i:j]...)
-			i = j
-		case c == '/' && i+2 < len(text) && text[i+1] == '*' && text[i+2] == '!':
+		case strings.HasPrefix(text[i:], "/*!"):
 			i += 3
-			for i < len(text) && text[i] >= '0' && text[i] <= '9' {
-				i++
-			}
-			open++
-		case c == '/' && i+1 < len(text) && text[i+1] == '*':
-			j := commentEnd(text, i+2)
-			body := text[i:j]
-			if strings.HasSuffix(body, "*/") && len(body) >= 4 {
-				body = body[:len(body)-2]
-			}
-			out = append(out, body...)
-			i = j
-		case c == '#' || isDashComment(text, i):
 			j := i
-			for j < len(text) && text[j] != '\n' {
+			if j < len(text) && text[j] == 'M' {
 				j++
 			}
-			out = append(out, text[i:j]...)
-			i = j
-		case c == '*' && i+1 < len(text) && text[i+1] == '/' &&
-			(open > 0 || i+2 == len(text) || text[i+2] != '*'):
-			// Outside a quote and a comment, "*/" closes an executable comment,
-			// opened in the text or before it; "*/*" with none open is a
-			// multiplication followed by a comment.
-			if open > 0 {
-				open--
+			k := j
+			for k < len(text) && k-j < 6 && text[k] >= '0' && text[k] <= '9' {
+				k++
 			}
+			if k-j >= 5 {
+				i = k
+			}
+		case strings.HasPrefix(text[i:], "*/"):
 			i += 2
 		default:
-			out = append(out, c)
+			out = append(out, text[i])
 			i++
 		}
 	}
@@ -212,26 +204,6 @@ func commentEnd(text string, i int) int {
 	for ; i+1 < len(text); i++ {
 		if text[i] == '*' && text[i+1] == '/' {
 			return i + 2
-		}
-	}
-	return len(text)
-}
-
-// quotedEnd returns the offset just past the quoted string or identifier
-// starting at i. A doubled quote stands for itself; inside a string, a
-// backslash escapes the next byte.
-func quotedEnd(text string, i int) int {
-	q := text[i]
-	for j := i + 1; j < len(text); j++ {
-		switch {
-		case text[j] == '\\' && q != '`':
-			j++
-		case text[j] == q:
-			if j+1 < len(text) && text[j+1] == q {
-				j++
-				continue
-			}
-			return j + 1
 		}
 	}
 	return len(text)

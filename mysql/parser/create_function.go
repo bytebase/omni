@@ -260,7 +260,9 @@ func (p *Parser) parseRoutineCharacteristic() (*nodes.RoutineCharacteristic, boo
 				Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "COMMENT", Value: val,
 			}, true, nil
 		}
-		return nil, false, nil
+		// COMMENT takes a quoted string. Reporting "no characteristic" here, with
+		// COMMENT already consumed, let the body or the end of the statement follow.
+		return nil, false, p.syntaxErrorAtCur()
 
 	case p.cur.Type == kwLANGUAGE:
 		p.advance()

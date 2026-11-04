@@ -79,7 +79,9 @@ var execCommentLocCases = []string{
 	"/*! SELECT a FROM t WHERE b = 1 */",
 	"SELECT /*!40001 SQL_NO_CACHE */ a FROM t WHERE b = NULL",
 	"SELECT a FROM t WHERE /*!50000 b = NULL */ AND c = 2",
-	"/*!50000 /*!50100 SELECT a FROM t WHERE b = NULL */ */",
+	// Executable comments do not nest: the inner opener is dropped and one
+	// "*/" closes both.
+	"/*!50000 /*!50100 SELECT a FROM t WHERE b = NULL */",
 	"/*!*/SELECT a FROM t WHERE b = NULL",
 	"SELECT 1;\n/*!80000 SELECT a FROM t WHERE n = NULL */",
 	"CREATE TABLE t (a INT) /*!50100 PARTITION BY HASH (a) PARTITIONS 4 */",
@@ -122,7 +124,7 @@ func TestExecCommentLoc_SlicesSource(t *testing.T) {
 			want: []string{"SelectStmt: SELECT a FROM t1 JOIN t2 ON t1.id = t2.id", "TableRef: t1", "TableRef: t2"},
 		},
 		{
-			sql:  "/*!50000 /*!50100 SELECT a FROM t WHERE b = ABS(c) */ */",
+			sql:  "/*!50000 /*!50100 SELECT a FROM t WHERE b = ABS(c) */",
 			want: []string{"SelectStmt: SELECT a FROM t WHERE b = ABS(c)", "FuncCallExpr: ABS(c)"},
 		},
 		{

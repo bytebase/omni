@@ -50,6 +50,7 @@ var viewNameCases = []struct{ name, sql string }{
 	{`a14`, `SELECT EXISTS (SELECT 1 UNION SELECT 2), a IN (SELECT 1 UNION SELECT 2) FROM n1`},
 	{`a15`, "SELECT * FROM (SELECT `a`+1 FROM n1) d"},
 	{`a16`, "SELECT * FROM (SELECT a AS `x``y` FROM n1) d"},
+	{`a17`, `SELECT a /*! + 1 /*! + 2 */ */*c*/3 FROM n1`},
 	{`b01`, `SELECT * FROM (j1 JOIN j2 USING (k1)) JOIN j3 USING (k2)`},
 	{`b02`, `SELECT * FROM j3 JOIN (j1 JOIN j2 USING (k1)) USING (k2)`},
 	{`b03`, `SELECT j1.a, k2, c FROM (j1 JOIN j2 ON j1.k1 = j2.k1) JOIN j3 USING (k2)`},

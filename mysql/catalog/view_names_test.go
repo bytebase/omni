@@ -72,6 +72,8 @@ var viewNameCases = []struct{ name, sql, want string }{
 		"select `d`.```a``+1` AS ```a``+1` from (select (`n1`.`a` + 1) AS ```a``+1` from `n1`) `d`"},
 	{`a16`, "SELECT * FROM (SELECT a AS `x``y` FROM n1) d",
 		"select `d`.`x``y` AS `x``y` from (select `n1`.`a` AS `x``y` from `n1`) `d`"},
+	{`a17`, `SELECT a /*! + 1 /*! + 2 */ */*c*/3 FROM n1`,
+		"select ((`n1`.`a` + 1) + (2 * 3)) AS `a  + 1  + 2  */*c*/3` from `n1`"},
 	{`b01`, `SELECT * FROM (j1 JOIN j2 USING (k1)) JOIN j3 USING (k2)`,
 		"select `j2`.`k2` AS `k2`,`j1`.`k1` AS `k1`,`j1`.`a` AS `a`,`j2`.`b` AS `b`,`j3`.`k3` AS `k3`,`j3`.`c` AS `c` from ((`j1` join `j2` on((`j1`.`k1` = `j2`.`k1`))) join `j3` on((`j2`.`k2` = `j3`.`k2`)))"},
 	{`b02`, `SELECT * FROM j3 JOIN (j1 JOIN j2 USING (k1)) USING (k2)`,

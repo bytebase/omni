@@ -239,7 +239,7 @@ func (s *scan) lostKey(st *statement, v *ast.AlterTableStmt, cmd *ast.AlterTable
 		existed:   true,
 		statement: st.index,
 		rng:       rangeOf(cmd.Loc),
-		message:   "removes the primary key of " + relation(v.Relation) + ", and the change adds none back",
+		message:   "Removes the primary key of " + review.Code(relation(v.Relation)) + ", and the change doesn't add one back.",
 	})
 }
 
@@ -267,7 +267,7 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 				keyColumns: declaredKeyColumns(st, v),
 				statement:  st.index,
 				rng:        rangeOf(v.Loc),
-				message:    "creates table " + relation(v.Relation) + " without a primary key",
+				message:    createsKeyless(v.Relation),
 			})
 		}
 		return
@@ -281,8 +281,14 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 		parents:   s.inheritsFrom(v),
 		statement: st.index,
 		rng:       rangeOf(v.Loc),
-		message:   "creates table " + relation(v.Relation) + " without a primary key",
+		message:   createsKeyless(v.Relation),
 	})
+}
+
+// createsKeyless is the message of a CREATE TABLE that leaves the table
+// without a primary key.
+func createsKeyless(rv *ast.RangeVar) string {
+	return "Creates table " + review.Code(relation(rv)) + " without a primary key."
 }
 
 // declaredKeyColumns returns the columns of the primary key a CREATE TABLE

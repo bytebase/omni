@@ -92,7 +92,7 @@ func (s *constraintScan) lostPrimaryKey(st *statement, v *ast.AlterTableStmt, cm
 	had := t.created || t.pkFirst == "drop" && !added
 	t.pkDropped = true
 	if s.on[review.RequirePrimaryKey] && had {
-		s.pending = append(s.pending, &pendingTable{key: k, statement: st.index, rng: rangeOf(cmd.Loc), message: "removes the primary key of " + objectName(v.Name) + ", and the change adds none back"})
+		s.pending = append(s.pending, &pendingTable{key: k, statement: st.index, rng: rangeOf(cmd.Loc), message: "Removes the primary key of " + review.Code(objectName(v.Name)) + ", and the change doesn't add one back."})
 	}
 }
 

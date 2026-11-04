@@ -64,6 +64,11 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 
 	applyIndexOptions(idx, stmt.Options)
+	if idx.Unique {
+		if err := validateNewUniqueKey(tbl, idx); err != nil {
+			return err
+		}
+	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
 

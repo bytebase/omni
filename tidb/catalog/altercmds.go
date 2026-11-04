@@ -109,6 +109,8 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
+	case nodes.ATPartitionBy:
+		return validateRepartition(tbl, cmd.PartitionBy)
 	case nodes.ATSetTiFlashReplica:
 		tbl.TiFlashReplica = cmd.TiFlashReplica
 		// LOCATION LABELS is optional; assign (possibly empty slice)
@@ -415,6 +417,14 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if !pkIdx.Visible {
 			return errPrimaryKeyInvisible()
 		}
+		pkIdx.addedByAlter = true
+		// TiDB refuses an added CLUSTERED primary key outright (8200), before it
+		// would look at the partitioning.
+		if con.Clustered == nil || !*con.Clustered {
+			if err := validateNewUniqueKey(tbl, pkIdx); err != nil {
+				return err
+			}
+		}
 		// Mark PK columns as NOT NULL.
 		for _, colName := range cols {
 			col := tbl.GetColumn(colName)
@@ -452,6 +462,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
+		if err := validateNewUniqueKey(tbl, uqIdx); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
@@ -966,6 +979,7 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 			}
 		}
 	}
+	renamePartitionKeyColumn(tbl, oldName, newName)
 }
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.

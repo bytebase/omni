@@ -5987,9 +5987,11 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			CONSTRAINT fk_code FOREIGN KEY (parent_code) REFERENCES t_parent(code) ON UPDATE SET NULL,
 			CONSTRAINT fk_self FOREIGN KEY (self_ref) REFERENCES t_all_constraints(id) ON DELETE SET NULL ON UPDATE CASCADE,
 			CONSTRAINT chk_val CHECK (val > 0),
-			CONSTRAINT chk_score CHECK (score >= 0 AND score <= 100),
-			CONSTRAINT chk_not_enforced CHECK (val < 1000) /*!80016 NOT ENFORCED */
+			CONSTRAINT chk_score CHECK (score >= 0 AND score <= 100)
 		)`, "t_all_constraints"},
+		// No unenforced check: MySQL 8.0, this test's oracle, writes one as
+		// /*!80016 NOT ENFORCED */, which MariaDB skips unread, and MariaDB has no
+		// NOT ENFORCED to take its place.
 
 		// --- Partitioned table output (Phase 4.1) integration ---
 		{"partitioned_range", `CREATE TABLE t_part_range (

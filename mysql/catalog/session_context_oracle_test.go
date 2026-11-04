@@ -3,11 +3,12 @@ package catalog
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
 // End-to-end apply-correctness proof for BYT-9832 against the LIVE 8.0 engine (:13306): a
@@ -19,14 +20,23 @@ import (
 // framing these assertions fail (the object comes back under the deploy session's mode) —
 // which is the whole point of the change.
 //
-// 5.7 is exercised too when reachable; connectOracle skips a version that is down.
+// 5.7 is exercised too; connectOracle falls back to a container for a version with no local
+// instance (oracle_fallback_test.go).
 
 const scOracleDB = "byt9832_sc_apply"
 
-// applyUnderSession runs the setup DDL on a dedicated connection whose session is first set
+// sessionExecer is the part of *sql.Conn the setup helpers use.
+type sessionExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// execUnderSession runs the setup DDL on a dedicated connection whose session is first set
 // to the given sql_mode / time_zone, so the created object captures that context — mirroring
 // how a real routine/event acquires its stored sql_mode.
-func execUnderSession(t *testing.T, conn *sql.Conn, ctx context.Context, sqlMode, timeZone string, stmts ...string) bool {
+//
+// Every engine this runs on creates the seed, so a failure, a dropped connection included,
+// fails the test: skipping would pass the proof without running it.
+func execUnderSession(t testing.TB, conn sessionExecer, ctx context.Context, sqlMode, timeZone string, stmts ...string) {
 	t.Helper()
 	pre := []string{"SET SESSION sql_mode = " + quoteStringLiteral(sqlMode)}
 	if timeZone != "" {
@@ -34,11 +44,9 @@ func execUnderSession(t *testing.T, conn *sql.Conn, ctx context.Context, sqlMode
 	}
 	for _, s := range append(pre, stmts...) {
 		if _, err := conn.ExecContext(ctx, s); err != nil {
-			t.Logf("setup exec failed (may be version-specific): %q: %v", s, err)
-			return false
+			t.Fatalf("setup under sql_mode %q: %q: %v", sqlMode, s, err)
 		}
 	}
-	return true
 }
 
 // TestOracle_RoutineRecreatePreservesSQLMode proves the routine DROP+CREATE recreate framing
@@ -68,14 +76,12 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 			}
 			for _, s := range setup {
 				if _, err := conn.ExecContext(ctx, s); err != nil {
-					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+					t.Fatalf("[%s] setup: %q: %v", o.name, s, err)
 				}
 			}
 			// Create the function under the ORIGINAL mode.
-			if !execUnderSession(t, conn, ctx, origMode, "",
-				"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 1") {
-				t.Skipf("[%s] could not create seed routine", o.name)
-			}
+			execUnderSession(t, conn, ctx, origMode, "",
+				"CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 1")
 
 			// Build source (from) catalog = current state, and stamp the synced context onto it.
 			from := mustLoadUnderDB(t, db, "CREATE FUNCTION f(a INT) RETURNS INT DETERMINISTIC RETURN a + 1", version)
@@ -135,16 +141,17 @@ func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
 			}
 			for _, s := range setup {
 				if _, err := conn.ExecContext(ctx, s); err != nil {
-					// event_scheduler toggle may lack privilege; ignore that one.
-					if !strings.Contains(strings.ToLower(s), "event_scheduler") {
-						t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+					// A user without SUPER cannot toggle event_scheduler, and the event is
+					// created DISABLE anyway, so the server's refusal of that one is fine.
+					// Anything else, and any answer that is not the server's, fails.
+					var myErr *gomysql.MySQLError
+					if !strings.Contains(strings.ToLower(s), "event_scheduler") || !errors.As(err, &myErr) {
+						t.Fatalf("[%s] setup: %q: %v", o.name, s, err)
 					}
 				}
 			}
-			if !execUnderSession(t, conn, ctx, origMode, origTZ,
-				"CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1") {
-				t.Skipf("[%s] could not create seed event", o.name)
-			}
+			execUnderSession(t, conn, ctx, origMode, origTZ,
+				"CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1")
 
 			from := mustLoadUnderDB(t, db, "CREATE EVENT e ON SCHEDULE EVERY 1 HOUR DISABLE DO SET @x = 1", version)
 			from.ApplySessionContext(SessionContextMap{Events: map[string]SessionContext{
