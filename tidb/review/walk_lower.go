@@ -58,6 +58,8 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dml(singleTarget(v.Tables))
 	case *ast.SetStmt:
 		return b.set(v)
+	case *ast.AdminStmt:
+		return b.admin(v)
 	case *ast.ExplainStmt:
 		return b.explain(v)
 	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
@@ -89,6 +91,34 @@ func (b *builder) statement(n ast.Node) bool {
 	// listing them above as statements with no effect would drop a rejection
 	// the review ought to report rather than add one it should not.
 	return false
+}
+
+// admin lowers TiDB's ADMIN. Nothing in the family changes a name the walk
+// keeps, so no kind records anything, but a kind that names relations needs
+// each of them to exist: v8.5.5 answers 1146 for ADMIN CHECK TABLE nosuch,
+// ADMIN CHECKSUM TABLE nosuch, ADMIN SHOW nosuch NEXT_ROW_ID, ADMIN
+// CLEANUP TABLE LOCK nosuch, and ADMIN CHECK, RECOVER, and CLEANUP INDEX
+// nosuch idx. A view and a sequence are relations here, not a wrong kind:
+// ADMIN CHECK TABLE and ADMIN CHECKSUM TABLE both succeed on either.
+//
+// Everything else these statements fail on is a runtime check the walk does
+// not model and does not claim: a missing index (1105), a temporary table
+// (8006 for ADMIN CHECK TABLE, 1146 for ADMIN SHOW ... NEXT_ROW_ID, both
+// against a table the walk knows is there), a missing plugin (1105), a
+// disabled feature (1105 for EVOLVE BINDINGS and RELOAD STATISTICS), and
+// the server not running in repair mode (8215 for every ADMIN REPAIR
+// TABLE). ADMIN REPAIR TABLE's CREATE TABLE is a table's definition, but
+// the statement never creates a table: in repair mode it rewrites the
+// metadata of one that is already there, so the walk neither records the
+// table nor needs its name free.
+func (b *builder) admin(v *ast.AdminStmt) bool {
+	switch v.Kind {
+	case ast.AdminCheckTable, ast.AdminChecksumTable, ast.AdminShowNextRowID,
+		ast.AdminCleanupTableLock, ast.AdminCheckIndex, ast.AdminCheckIndexRange,
+		ast.AdminRecoverIndex, ast.AdminCleanupIndex:
+		return b.relationsExist(v.Tables)
+	}
+	return true
 }
 
 // explain lowers EXPLAIN. Reporting a plan changes nothing, so a plain

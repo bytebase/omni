@@ -6,6 +6,34 @@ package ast
 // for each child. This function is generated from parsenodes.go.
 func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
+	case *AdminJobOption:
+		Walk(v, n.Value)
+	case *AdminStmt:
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Ranges {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.Where)
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Slow != nil {
+			Walk(v, n.Slow)
+		}
+		for _, item := range n.JobOptions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.CreateTable != nil {
+			Walk(v, n.CreateTable)
+		}
 	case *AlterDatabaseStmt:
 		for _, item := range n.Options {
 			if item != nil {

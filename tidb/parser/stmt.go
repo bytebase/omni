@@ -24,6 +24,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwANALYZE, kwOPTIMIZE, kwCHECK, kwREPAIR,
 			kwFLUSH, kwRESET, kwKILL, kwDO,
 			kwXA, kwCALL, kwHELP,
+			kwADMIN, // TiDB's own maintenance family
 			kwSPLIT, kwDISTRIBUTE,
 		}
 		for _, t := range stmtTokens {
@@ -234,6 +235,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwUNINSTALL:
 		return p.parseUninstallStmt()
+
+	case kwADMIN:
+		return p.parseAdminStmt()
 
 	case '(':
 		// Parenthesized subquery / select
