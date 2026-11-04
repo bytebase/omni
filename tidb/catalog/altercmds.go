@@ -468,7 +468,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	// IF NOT EXISTS covers an index the table already has: TiDB v8.5.5 raises
 	// note 1061 and leaves the table alone rather than failing, so
 	// `ADD INDEX IF NOT EXISTS i (a)` run twice is one index.
-	if con.IfNotExists && con.Name != "" && indexNameExists(tbl, con.Name) {
+	//
+	// A foreign key is not in that namespace and is not covered either way:
+	// an index named fk does not stand in the way of a foreign key of the
+	// name -- v8.5.5 runs `ADD CONSTRAINT fk FOREIGN KEY IF NOT EXISTS (a)
+	// REFERENCES p (a)` against a table that has `KEY fk (a)` and keeps both
+	// -- and a foreign key of the name is 1826 even with IF NOT EXISTS
+	// written, which is an error and not a note (read on 2026-11-04). So the
+	// guard skips foreign keys and leaves them to the duplicate check below.
+	if con.IfNotExists && con.Type != nodes.ConstrForeignKey &&
+		con.Name != "" && indexNameExists(tbl, con.Name) {
 		return nil
 	}
 
@@ -831,14 +840,25 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 		return err
 	}
 	newName := newTable.Name
+	// The table leaves the database it is in now, which an earlier rename in
+	// the same statement may already have changed: db is where the statement
+	// started. Deleting from db instead left the intermediate destination's
+	// entry behind, so `RENAME TO e.u, RENAME TO e.v` would have left both
+	// e.u and e.v pointing at the table. TiDB v8.5.5 answers 8200
+	// ("Unsupported multi schema change for rename table") to that statement,
+	// but MySQL 8.0.46 and MariaDB 11.8.8 both run it and end with e.v alone.
+	oldDB := db
+	if tbl.Database != nil {
+		oldDB = tbl.Database
+	}
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != db || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
 		return errDupTable(newName)
 	}
 
-	delete(db.Tables, oldKey)
+	delete(oldDB.Tables, oldKey)
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl

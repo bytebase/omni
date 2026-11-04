@@ -1079,14 +1079,24 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 		return err
 	}
 	newName := newTable.Name
+	// The table leaves the database it is in now, which an earlier rename in
+	// the same statement may already have changed: db is where the statement
+	// started. Deleting from db instead left the intermediate destination's
+	// entry behind, so `ALTER TABLE d.t RENAME TO e.u, RENAME TO e.v` would
+	// have left both e.u and e.v pointing at the table; MariaDB 11.8.8 runs
+	// that statement and ends with e.v alone (read on 2026-11-04).
+	oldDB := db
+	if tbl.Database != nil {
+		oldDB = tbl.Database
+	}
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != db || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
 		return errDupTable(newName)
 	}
 
-	delete(db.Tables, oldKey)
+	delete(oldDB.Tables, oldKey)
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl

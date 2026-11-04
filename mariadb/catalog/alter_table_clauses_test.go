@@ -121,3 +121,26 @@ func TestAlterTableAddTableElementListIsAtomic(t *testing.T) {
 		})
 	}
 }
+
+// TestAlterTableRenameLeavesItsCurrentDatabase: a second rename in the same
+// statement starts from where the first one left the table, not from the
+// database the statement began in. MariaDB 11.8.8 runs
+// `ALTER TABLE d.t RENAME TO e.u, RENAME TO e.v` and ends with e.v alone
+// (read on 2026-11-04); reading the starting database left the intermediate
+// destination installed.
+func TestAlterTableRenameLeavesItsCurrentDatabase(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; CREATE DATABASE e; USE d; CREATE TABLE t (a INT);")
+	execAlterClauses(t, c, "ALTER TABLE t RENAME TO e.u, RENAME TO e.v;")
+
+	d, e := c.databases["d"], c.databases["e"]
+	if len(d.Tables) != 0 {
+		t.Errorf("d holds %v, want nothing", d.Tables)
+	}
+	if len(e.Tables) != 1 || e.Tables["v"] == nil {
+		t.Fatalf("e holds %v, want just v", e.Tables)
+	}
+	if e.Tables["u"] != nil {
+		t.Errorf("the intermediate name u is still in e")
+	}
+}

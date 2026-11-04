@@ -247,6 +247,36 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Columns:   []string{colDef.Name},
 				IndexName: idxName,
 			})
+
+		case nodes.ColConstrCheck:
+			// A column's CHECK is a table constraint like any other, and the
+			// CREATE TABLE path has always built one; the ALTER path dropped
+			// it, so `ADD b INT CONSTRAINT positive_b CHECK (b > 0)` reported
+			// success and installed only the column. MySQL 8.0.46 installs
+			// the constraint -- `CONSTRAINT positive_b CHECK ((b > 0))` reads
+			// back from SHOW CREATE TABLE -- and names an unnamed one
+			// <table>_chk_<n>, continuing the table's run (read on
+			// 2026-11-04).
+			if cc.Expr == nil {
+				break
+			}
+			conName := cc.Name
+			if conName == "" {
+				conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+			}
+			if checkConstraintNameExists(tbl.Database, nil, conName) {
+				return errCheckConstraintDupName(conName)
+			}
+			if err := validateColumnCheckReferences(colDef.Name, conName, cc.Expr); err != nil {
+				return err
+			}
+			tbl.Constraints = append(tbl.Constraints, &Constraint{
+				Name:        conName,
+				Type:        ConCheck,
+				Table:       tbl,
+				CheckExpr:   nodeToSQL(cc.Expr),
+				NotEnforced: cc.NotEnforced,
+			})
 		}
 	}
 
@@ -801,14 +831,24 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 		return err
 	}
 	newName := newTable.Name
+	// The table leaves the database it is in now, which an earlier rename in
+	// the same statement may already have changed: db is where the statement
+	// started. Deleting from db instead left the intermediate destination's
+	// entry behind, so `ALTER TABLE d.t RENAME TO e.u, RENAME TO e.v` would
+	// have left both e.u and e.v pointing at the table; MySQL 8.0.46 runs
+	// that statement and ends with e.v alone (read on 2026-11-04).
+	oldDB := db
+	if tbl.Database != nil {
+		oldDB = tbl.Database
+	}
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != db || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
 		return errDupTable(newName)
 	}
 
-	delete(db.Tables, oldKey)
+	delete(oldDB.Tables, oldKey)
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl

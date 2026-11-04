@@ -512,3 +512,117 @@ func TestAlterTableGlobalUniqueIndex(t *testing.T) {
 		t.Errorf("GLOBAL LOCAL was accepted; the last option must win")
 	}
 }
+
+// TestAlterTableForeignKeyIfNotExistsNamespace: a foreign key's IF NOT EXISTS
+// is not about the index namespace. v8.5.5 runs
+// `ADD CONSTRAINT fk FOREIGN KEY IF NOT EXISTS (a) REFERENCES p (a)` against
+// a table that already has `KEY fk (a)` and keeps both, and answers 1826 for a
+// foreign key of the name even with IF NOT EXISTS written. Reading the index
+// namespace here dropped the foreign key and reported success.
+func TestAlterTableForeignKeyIfNotExistsNamespace(t *testing.T) {
+	c := New()
+	execAll(t, c, "CREATE DATABASE d; USE d; CREATE TABLE p (a INT PRIMARY KEY); CREATE TABLE t (a INT, KEY fk (a));")
+	execAll(t, c, "ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY IF NOT EXISTS (a) REFERENCES p (a);")
+
+	tbl := c.databases["d"].Tables["t"]
+	var fk *Constraint
+	for _, con := range tbl.Constraints {
+		if con.Type == ConForeignKey {
+			fk = con
+		}
+	}
+	if fk == nil {
+		t.Fatalf("the foreign key was dropped; constraints = %v", tbl.Constraints)
+	}
+	if fk.Name != "fk" {
+		t.Errorf("Name = %q, want \"fk\"", fk.Name)
+	}
+	ddl := c.ShowCreateTable("d", "t")
+	for _, want := range []string{"KEY `fk` (`a`)", "CONSTRAINT `fk` FOREIGN KEY (`a`) REFERENCES `p` (`a`)"} {
+		if !strings.Contains(ddl, want) {
+			t.Errorf("SHOW CREATE TABLE lacks %s:\n%s", want, ddl)
+		}
+	}
+
+	// A foreign key of the name is not covered by the flag either -- v8.5.5
+	// answers 1826 for a second one even with IF NOT EXISTS written -- but
+	// this catalog models no foreign-key name namespace at all and so raises
+	// no 1826 for a duplicate with or without the flag. That gap is older
+	// than this family and is not asserted here; what matters for the flag is
+	// that it no longer reads the index namespace for a foreign key.
+
+	// An index of the name is still covered, which is what the flag is for.
+	execAll(t, c, "ALTER TABLE t ADD INDEX IF NOT EXISTS fk (a);")
+	if got := strings.Count(c.ShowCreateTable("d", "t"), "KEY `fk` (`a`)"); got != 1 {
+		t.Errorf("a second index named fk was added (%d):\n%s", got, c.ShowCreateTable("d", "t"))
+	}
+}
+
+// TestAlterTableUpdateIndexes: UPDATE INDEXES says what each named index
+// becomes once the table is repartitioned, so it has to apply before the
+// coverage check. v8.5.5 runs the repartition with the clause and answers 8264
+// without it, and reads the index back as GLOBAL.
+func TestAlterTableUpdateIndexes(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT, b INT, UNIQUE KEY i (b))")
+	execAll(t, c, "ALTER TABLE t PARTITION BY HASH(a) PARTITIONS 2 UPDATE INDEXES (i GLOBAL);")
+	if want := "UNIQUE KEY `i` (`b`) /*T![global_index] GLOBAL */"; !strings.Contains(c.ShowCreateTable("d", "t"), want) {
+		t.Errorf("SHOW CREATE TABLE lacks %q:\n%s", want, c.ShowCreateTable("d", "t"))
+	}
+
+	// Without the clause the same repartition is 8264.
+	c2 := newCatalogWithTable(t, "(a INT, b INT, UNIQUE KEY i (b))")
+	err := execExpectError(t, c2, "ALTER TABLE t PARTITION BY HASH(a) PARTITIONS 2;")
+	if err == nil {
+		t.Fatalf("the repartition without UPDATE INDEXES was accepted")
+	}
+	if !strings.Contains(err.Error(), "8264") {
+		t.Errorf("error = %v, want 8264", err)
+	}
+
+	// LOCAL keeps the requirement, so the clause is read and not just
+	// consumed.
+	c3 := newCatalogWithTable(t, "(a INT, b INT, UNIQUE KEY i (b))")
+	if err := execExpectError(t, c3, "ALTER TABLE t PARTITION BY HASH(a) PARTITIONS 2 UPDATE INDEXES (i LOCAL);"); err == nil {
+		t.Errorf("UPDATE INDEXES (i LOCAL) was accepted")
+	}
+
+	// A name the table does not have is 1280, and the refused statement
+	// leaves no setting behind.
+	c4 := newCatalogWithTable(t, "(a INT, b INT, UNIQUE KEY i (b))")
+	err = execExpectError(t, c4, "ALTER TABLE t PARTITION BY HASH(a) PARTITIONS 2 UPDATE INDEXES (nosuch GLOBAL);")
+	if err == nil {
+		t.Fatalf("UPDATE INDEXES (nosuch GLOBAL) was accepted")
+	}
+	if !strings.Contains(err.Error(), "1280") {
+		t.Errorf("error = %v, want 1280", err)
+	}
+	if strings.Contains(c4.ShowCreateTable("d", "t"), "GLOBAL") {
+		t.Errorf("the refused statement left a GLOBAL behind:\n%s", c4.ShowCreateTable("d", "t"))
+	}
+}
+
+// TestAlterTableRenameLeavesItsCurrentDatabase: a second rename in the same
+// statement starts from where the first one left the table, not from the
+// database the statement began in. TiDB v8.5.5 answers 8200 to two renames in
+// one ALTER, but MySQL 8.0.46 and MariaDB 11.8.8 both run it and end with one
+// entry, and reading the starting database here left the intermediate
+// destination installed.
+func TestAlterTableRenameLeavesItsCurrentDatabase(t *testing.T) {
+	c := New()
+	execAll(t, c, "CREATE DATABASE d; CREATE DATABASE e; USE d; CREATE TABLE t (a INT);")
+	execAll(t, c, "ALTER TABLE t RENAME TO e.u, RENAME TO e.v;")
+
+	d, e := c.databases["d"], c.databases["e"]
+	if len(d.Tables) != 0 {
+		t.Errorf("d holds %v, want nothing", d.Tables)
+	}
+	if len(e.Tables) != 1 || e.Tables["v"] == nil {
+		t.Fatalf("e holds %v, want just v", e.Tables)
+	}
+	if e.Tables["u"] != nil {
+		t.Errorf("the intermediate name u is still in e")
+	}
+	if tbl := e.Tables["v"]; tbl.Name != "v" || tbl.Database == nil || tbl.Database.Name != "e" {
+		t.Errorf("e.v = %q in %v, want v in e", tbl.Name, tbl.Database)
+	}
+}

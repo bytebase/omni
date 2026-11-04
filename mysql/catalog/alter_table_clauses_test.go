@@ -121,3 +121,62 @@ func TestAlterTableAddTableElementListIsAtomic(t *testing.T) {
 		})
 	}
 }
+
+// TestAlterTableAddColumnCheck: a column's CHECK added by ALTER is a table
+// constraint, as the CREATE TABLE path has always built one. MySQL 8.0.46
+// installs it -- `CONSTRAINT positive_b CHECK ((b > 0))` reads back from SHOW
+// CREATE TABLE -- and names an unnamed one <table>_chk_<n>, continuing the
+// table's run (read on 2026-11-04). The ALTER path dropped it, so the
+// statement reported success and installed only the column.
+func TestAlterTableAddColumnCheck(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT CHECK (a > 0));")
+	execAlterClauses(t, c, "ALTER TABLE t ADD b INT CONSTRAINT positive_b CHECK (b > 0);")
+	execAlterClauses(t, c, "ALTER TABLE t ADD c INT CHECK (c > 0);")
+
+	ddl := c.ShowCreateTable("d", "t")
+	for _, want := range []string{
+		"CONSTRAINT `t_chk_1` CHECK ((`a` > 0))",
+		"CONSTRAINT `positive_b` CHECK ((`b` > 0))",
+		"CONSTRAINT `t_chk_2` CHECK ((`c` > 0))",
+	} {
+		if !strings.Contains(ddl, want) {
+			t.Errorf("SHOW CREATE TABLE lacks %s:\n%s", want, ddl)
+		}
+	}
+
+	// The named one is a constraint ALTER CHECK can then reach, which is what
+	// dropping it made impossible (3940 on the server).
+	execAlterClauses(t, c, "ALTER TABLE t ALTER CHECK positive_b NOT ENFORCED;")
+
+	// NOT ENFORCED comes through from the column option too.
+	c2 := New()
+	execAlterClauses(t, c2, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT);")
+	execAlterClauses(t, c2, "ALTER TABLE t ADD b INT CONSTRAINT nb CHECK (b > 0) NOT ENFORCED;")
+	if want := "CONSTRAINT `nb` CHECK ((`b` > 0)) /*!80016 NOT ENFORCED */"; !strings.Contains(c2.ShowCreateTable("d", "t"), want) {
+		t.Errorf("SHOW CREATE TABLE lacks %q:\n%s", want, c2.ShowCreateTable("d", "t"))
+	}
+}
+
+// TestAlterTableRenameLeavesItsCurrentDatabase: a second rename in the same
+// statement starts from where the first one left the table, not from the
+// database the statement began in. MySQL 8.0.46 runs
+// `ALTER TABLE d.t RENAME TO e.u, RENAME TO e.v` and ends with e.v alone
+// (read on 2026-11-04); reading the starting database left the intermediate
+// destination installed.
+func TestAlterTableRenameLeavesItsCurrentDatabase(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; CREATE DATABASE e; USE d; CREATE TABLE t (a INT);")
+	execAlterClauses(t, c, "ALTER TABLE t RENAME TO e.u, RENAME TO e.v;")
+
+	d, e := c.databases["d"], c.databases["e"]
+	if len(d.Tables) != 0 {
+		t.Errorf("d holds %v, want nothing", d.Tables)
+	}
+	if len(e.Tables) != 1 || e.Tables["v"] == nil {
+		t.Fatalf("e holds %v, want just v", e.Tables)
+	}
+	if e.Tables["u"] != nil {
+		t.Errorf("the intermediate name u is still in e")
+	}
+}
