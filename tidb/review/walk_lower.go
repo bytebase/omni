@@ -73,10 +73,15 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.BeginStmt, *ast.CommitStmt, *ast.SavepointStmt, *ast.SetTransactionStmt, *ast.UnlockTablesStmt,
 		*ast.ShowStmt, *ast.HelpStmt, *ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt,
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,
+		*ast.SplitRegionStmt, *ast.DistributeTableStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
 		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.CreateRoleStmt, *ast.DropRoleStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
+		// SPLIT ... TABLE and DISTRIBUTE TABLE are here for the same
+		// reason ANALYZE TABLE is: each needs its table, and the index
+		// form its index, but neither creates, drops, or renames one, so
+		// the walk follows both and records nothing.
 		return true
 	}
 	// Everything else leaves the walk claiming nothing from here on, which is

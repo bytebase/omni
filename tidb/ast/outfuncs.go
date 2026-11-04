@@ -509,6 +509,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		fmt.Fprintf(sb, "{HELP :loc %d :topic %q}", n.Loc.Start, n.Topic)
 	case *VCPUSpec:
 		writeVCPUSpec(sb, n)
+	case *SplitRegionStmt:
+		writeSplitRegionStmt(sb, n)
+	case *SplitOption:
+		writeSplitOption(sb, n)
+	case *DistributeTableStmt:
+		writeDistributeTableStmt(sb, n)
 
 	default:
 		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
@@ -5394,6 +5400,71 @@ func writeAdminStmt(sb *strings.Builder, n *AdminStmt) {
 	if n.CreateTable != nil {
 		sb.WriteString(" :create ")
 		writeNode(sb, n.CreateTable)
+	}
+	sb.WriteString("}")
+}
+
+func writeSplitRegionStmt(sb *strings.Builder, n *SplitRegionStmt) {
+	sb.WriteString("{SPLIT_REGION")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.RegionFor {
+		sb.WriteString(" :region_for true")
+	}
+	if n.Partition {
+		sb.WriteString(" :partition true")
+	}
+	sb.WriteString(" :table ")
+	writeNode(sb, n.Table)
+	if n.Index != "" {
+		fmt.Fprintf(sb, " :index %q", n.Index)
+	}
+	sb.WriteString(" :opt ")
+	writeNode(sb, n.Opt)
+	sb.WriteString("}")
+}
+
+func writeSplitOption(sb *strings.Builder, n *SplitOption) {
+	sb.WriteString("{SPLIT_OPTION")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Ranged {
+		sb.WriteString(" :lower ")
+		writeExprRow(sb, n.Lower)
+		sb.WriteString(" :upper ")
+		writeExprRow(sb, n.Upper)
+		fmt.Fprintf(sb, " :regions %d", n.Regions)
+	} else {
+		sb.WriteString(" :by (")
+		for i, row := range n.ValueLists {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeExprRow(sb, row)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+// writeExprRow writes one parenthesized value row, which may be empty.
+func writeExprRow(sb *strings.Builder, row []ExprNode) {
+	sb.WriteString("(")
+	for i, e := range row {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, e)
+	}
+	sb.WriteString(")")
+}
+
+func writeDistributeTableStmt(sb *strings.Builder, n *DistributeTableStmt) {
+	sb.WriteString("{DISTRIBUTE_TABLE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	sb.WriteString(" :table ")
+	writeNode(sb, n.Table)
+	fmt.Fprintf(sb, " :rule %q :engine %q", n.Rule, n.Engine)
+	if n.Timeout != "" {
+		fmt.Fprintf(sb, " :timeout %q", n.Timeout)
 	}
 	sb.WriteString("}")
 }

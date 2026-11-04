@@ -25,6 +25,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwFLUSH, kwRESET, kwKILL, kwDO,
 			kwXA, kwCALL, kwHELP,
 			kwADMIN, // TiDB's own maintenance family
+			kwSPLIT, kwDISTRIBUTE,
 		}
 		for _, t := range stmtTokens {
 			p.addTokenCandidate(t)
@@ -225,6 +226,12 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwINSTALL:
 		return p.parseInstallStmt()
+
+	case kwSPLIT:
+		return p.parseSplitRegionStmt()
+
+	case kwDISTRIBUTE:
+		return p.parseDistributeTableStmt()
 
 	case kwUNINSTALL:
 		return p.parseUninstallStmt()

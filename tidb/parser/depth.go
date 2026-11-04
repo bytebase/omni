@@ -83,14 +83,17 @@ func treeHeightExceeds(root nodes.Node, limit int) bool {
 		}
 		kids.entered, kids.children = false, kids.children[:0]
 		nodes.Walk(&kids, top.node)
-		// Walk skips the rows of INSERT ... VALUES and of a VALUES
-		// statement, which NodeToString and deparse recurse into.
+		// Walk skips the rows of INSERT ... VALUES, of a VALUES
+		// statement, and of a SPLIT ... BY option, which NodeToString
+		// and deparse recurse into.
 		var rows [][]nodes.ExprNode
 		switch n := top.node.(type) {
 		case *nodes.InsertStmt:
 			rows = n.Values
 		case *nodes.ValuesStmt:
 			rows = n.Rows
+		case *nodes.SplitOption:
+			rows = n.ValueLists
 		}
 		for _, row := range rows {
 			for _, e := range row {

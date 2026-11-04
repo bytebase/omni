@@ -192,6 +192,13 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		// changes no schema object. The statements it carries are not run
 		// either, so the catalog reads neither of them.
 		return nil
+	case *nodes.SplitRegionStmt, *nodes.DistributeTableStmt:
+		// SPLIT ... TABLE pre-splits regions and DISTRIBUTE TABLE
+		// schedules replicas. Neither changes a schema the catalog
+		// holds -- no table, column, index, or option -- so both are
+		// applied as a no-op rather than left to the default arm, where
+		// an unmodelled statement and a deliberate no-op read the same.
+		return nil
 	case *nodes.ExplainStmt:
 		// EXPLAIN ANALYZE runs the statement it carries, and on TiDB that
 		// reaches ALTER TABLE: EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c
