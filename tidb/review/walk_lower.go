@@ -200,8 +200,10 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
 	}
 	// Every base table keeps foreign keys, whatever its ENGINE; a
-	// temporary table takes none (1215, verified).
-	b.fks = !v.Temporary
+	// temporary table takes none (1215, verified), and neither does a global
+	// temporary table, which is an ordinary schema object everywhere else
+	// (1215 on v8.5.5, verified).
+	b.fks = !v.Temporary && !v.Global
 	// The LIKE source is checked even when IF NOT EXISTS finds the table
 	// (verified).
 	if v.Like != nil {

@@ -202,6 +202,17 @@ type CreateTableStmt struct {
 	Loc         Loc
 	IfNotExists bool
 	Temporary   bool
+	// Global marks CREATE GLOBAL TEMPORARY TABLE, TiDB's own kind of temporary
+	// table, and OnCommit holds the DELETE ROWS or PRESERVE ROWS that spelling
+	// must end with.
+	//
+	// Temporary stays false for it, because a global temporary table is not in
+	// the session's temporary namespace: v8.5.5 lists it in SHOW TABLES and in
+	// information_schema.tables as a BASE TABLE, refuses a base table of the
+	// same name with 1050, drops it with a plain DROP TABLE, and answers 1051
+	// to DROP TEMPORARY TABLE for it. Only its rows are per-session.
+	Global      bool
+	OnCommit    string
 	Table       *TableRef
 	Columns     []*ColumnDef
 	Constraints []*Constraint
@@ -322,8 +333,13 @@ type DropTableStmt struct {
 	IfExists  bool
 	Tables    []*TableRef
 	Temporary bool
-	Cascade   bool
-	Restrict  bool
+	// Global marks DROP GLOBAL TEMPORARY TABLE. It is another way to name a
+	// table CREATE GLOBAL TEMPORARY TABLE made, not the only one -- a plain
+	// DROP TABLE drops it too -- and Temporary stays false for it, since the
+	// table is not in the session's temporary namespace.
+	Global   bool
+	Cascade  bool
+	Restrict bool
 }
 
 func (s *DropTableStmt) nodeTag()  {}

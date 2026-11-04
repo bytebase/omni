@@ -1126,8 +1126,8 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		tbl.Tablespace = opt.Value
 	case "pack_keys":
 		tbl.PackKeys = opt.Value
-	case "checksum":
-		tbl.Checksum = opt.Value
+	case "checksum", "table_checksum":
+		tbl.Checksum = normalizedChecksum(opt.Value)
 	case "delay_key_write":
 		tbl.DelayKeyWrite = opt.Value
 	}

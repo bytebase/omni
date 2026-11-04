@@ -428,15 +428,36 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
-	// TEMPORARY
-	if p.cur.Type == kwTEMPORARY {
+	// GLOBAL TEMPORARY, TiDB's own kind of temporary table (parser.y, rule
+	// CreateTableStmt with OptTemporary "GLOBAL TEMPORARY"). GLOBAL on its own
+	// opens nothing, so `CREATE GLOBAL TABLE t (a int)` falls through to the
+	// switch below and is a 1064, as it is on the server.
+	// Temporary stays false for it: only the rows of a global temporary table
+	// are per-session, and the table itself is an ordinary schema object (see
+	// ast.CreateTableStmt.Global).
+	//
+	// TABLE is the only target the prefix reaches, and it is required here
+	// rather than left to the switch below: v8.5.5 answers 1064 for `CREATE
+	// GLOBAL TEMPORARY VIEW`, `... INDEX`, `... DATABASE` and `... SEQUENCE`,
+	// and falling through would have read each of them as an ordinary statement
+	// of whatever followed, with the prefix dropped on the floor.
+	global := false
+	if p.cur.Type == kwGLOBAL && p.peekNext().Type == kwTEMPORARY {
+		p.advance() // consume GLOBAL
+		p.advance() // consume TEMPORARY
+		global = true
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+	} else if p.cur.Type == kwTEMPORARY {
+		// TEMPORARY
 		p.advance()
 		temporary = true
 	}
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(start, temporary)
+		return p.parseCreateTableStmt(start, temporary, global)
 
 	case kwINDEX:
 		return p.parseCreateIndexStmt(start, false, false, false)
@@ -746,15 +767,33 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
+	// DROP GLOBAL TEMPORARY TABLE, one of the two ways to drop a table CREATE
+	// GLOBAL TEMPORARY TABLE made: a plain DROP TABLE drops it too, and DROP
+	// TEMPORARY TABLE does not (1051, verified), so Temporary stays false here.
+	//
+	// As on CREATE, TABLE is the only target the prefix reaches and is required
+	// here: v8.5.5 answers 1064 for `DROP GLOBAL TEMPORARY DATABASE`, `... VIEW`
+	// and `... INDEX`, each of which the switch below would have read as the
+	// ordinary drop of whatever followed. GLOBAL without TEMPORARY after it is
+	// not consumed at all, so `DROP GLOBAL TABLE t` reaches a switch with no arm
+	// for it and is a 1064 as well.
 	temporary := false
-	if p.cur.Type == kwTEMPORARY {
+	global := false
+	if p.cur.Type == kwGLOBAL && p.peekNext().Type == kwTEMPORARY {
+		p.advance() // consume GLOBAL
+		p.advance() // consume TEMPORARY
+		global = true
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+	} else if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true
 	}
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseDropTableStmt(start, temporary)
+		return p.parseDropTableStmt(start, temporary, global)
 
 	case kwINDEX:
 		return p.parseDropIndexStmt(start)

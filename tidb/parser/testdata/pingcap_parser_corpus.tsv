@@ -1454,11 +1454,11 @@ reject	reject	select 1 full, 1 row, 1 abs
 reject	accept	select 1 full, 1 `row`, 1 abs
 reject	reject	select * from t full, t1 row, t2 abs
 accept	accept	select * from t full, t1 `row`, t2 abs
-reject	accept	create database 123test
+accept	accept	create database 123test
 reject	reject	create database 123
 accept	accept	create database `123`
 accept	accept	create database `12``3`
-reject	accept	create table `123` (123a1 int)
+accept	accept	create table `123` (123a1 int)
 reject	reject	create table 123 (123a1 int)
 accept	accept	select .78+123
 accept	accept	select .78+.21
@@ -1516,14 +1516,14 @@ reject	accept	ALTER TABLE tmp NOCACHE
 accept	accept	CREATE TEMPORARY TABLE t (a varchar(50), b int);
 accept	accept	CREATE TEMPORARY TABLE t LIKE t1
 accept	accept	DROP TEMPORARY TABLE t
-reject	accept	create global temporary table t (a int, b varchar(255)) on commit delete rows
+accept	accept	create global temporary table t (a int, b varchar(255)) on commit delete rows
 accept	accept	create temporary table t (a int, b varchar(255))
 reject	reject	create global temporary table t (a int, b varchar(255))
 reject	reject	create temporary table t (a int, b varchar(255)) on commit delete rows
 reject	reject	create table t (a int, b varchar(255)) on commit delete rows
-reject	accept	create global temporary table t (a int, b varchar(255)) partition by hash(a) partitions 10 on commit delete rows
-reject	accept	create global temporary table t (a int, b varchar(255)) on commit preserve rows
-reject	accept	drop global temporary table t
+accept	accept	create global temporary table t (a int, b varchar(255)) partition by hash(a) partitions 10 on commit delete rows
+accept	accept	create global temporary table t (a int, b varchar(255)) on commit preserve rows
+accept	accept	drop global temporary table t
 accept	accept	drop temporary table t
 accept	accept	CREATE TABLE foo (node_id varchar(50), b int);
 accept	accept	CREATE TABLE foo (node_state varchar(50), b int);
@@ -1531,8 +1531,8 @@ accept	accept	create table t (c int) avg_row_length = 3
 accept	accept	create table t (c int) avg_row_length 3
 accept	accept	create table t (c int) checksum = 0
 accept	accept	create table t (c int) checksum 1
-reject	accept	create table t (c int) table_checksum = 0
-reject	accept	create table t (c int) table_checksum 1
+accept	accept	create table t (c int) table_checksum = 0
+accept	accept	create table t (c int) table_checksum 1
 accept	accept	create table t (c int) compression = 'NONE'
 accept	accept	create table t (c int) compression 'lz4'
 accept	accept	create table t (c int) connection = 'abc'
@@ -2355,10 +2355,10 @@ accept	accept	alter table t_n storage disk , modify ident national varcharacter(
 accept	accept	create table t (a serial);
 accept	accept	create table t (a serial null);
 accept	accept	create table t (b int, a serial);
-reject	accept	create table t (a int serial default value);
-reject	accept	create table t (a int serial default value null);
-reject	accept	create table t (a bigint serial default value);
-reject	accept	create table t (a smallint serial default value);
+accept	accept	create table t (a int serial default value);
+accept	accept	create table t (a int serial default value null);
+accept	accept	create table t (a bigint serial default value);
+accept	accept	create table t (a smallint serial default value);
 accept	accept	create table t (a long);
 accept	accept	create table t (a long varchar);
 accept	accept	create table t (a long varcharacter);
@@ -2378,8 +2378,8 @@ accept	accept	alter table d_n.t_n modify column ident long varchar after ident r
 accept	accept	alter table d_n.t_n modify column ident long varcharacter after ident remove partitioning
 accept	accept	alter table t_n change column ident ident long char varying binary charset utf8 first , tablespace ident
 accept	accept	alter table t_n change column ident ident long character varying binary charset utf8 first , tablespace ident
-accept	reject	create table t (a int) stats_auto_recalc 2;
-accept	reject	create table t (a int) stats_auto_recalc = 10;
+reject	reject	create table t (a int) stats_auto_recalc 2;
+reject	reject	create table t (a int) stats_auto_recalc = 10;
 accept	accept	create table t (a int) stats_auto_recalc 0;
 accept	accept	create table t (a int) stats_auto_recalc default;
 accept	accept	create table t (a int) stats_auto_recalc = 0;
@@ -2447,9 +2447,9 @@ accept	accept	ALTER DATABASE t SET TIFLASH REPLICA 1 SET TIFLASH REPLICA 2 LOCAT
 accept	accept	ALTER DATABASE t SET TIFLASH REPLICA 1 SET TIFLASH REPLICA 2
 accept	accept	ALTER DATABASE t SET TIFLASH REPLICA 1 LOCATION LABELS 'a','b' SET TIFLASH REPLICA 2
 accept	accept	ALTER DATABASE t SET TIFLASH REPLICA 1 LOCATION LABELS 'a','b' SET TIFLASH REPLICA 2 LOCATION LABELS 'a', 'b'
-reject	accept	CREATE TABLE IF NOT EXISTS table_ident (a SQL_TSI_YEAR(4), b SQL_TSI_YEAR);
-reject	accept	CREATE TABLE IF NOT EXISTS table_ident (ident1 BOOL COMMENT "text_string" unique, ident2 SQL_TSI_YEAR(4) ZEROFILL);
-reject	accept	create table t (y sql_tsi_year(4), y1 sql_tsi_year)
+accept	accept	CREATE TABLE IF NOT EXISTS table_ident (a SQL_TSI_YEAR(4), b SQL_TSI_YEAR);
+accept	accept	CREATE TABLE IF NOT EXISTS table_ident (ident1 BOOL COMMENT "text_string" unique, ident2 SQL_TSI_YEAR(4) ZEROFILL);
+accept	accept	create table t (y sql_tsi_year(4), y1 sql_tsi_year)
 reject	accept	create table t (y sql_tsi_year(4) unsigned zerofill zerofill, y1 sql_tsi_year signed unsigned zerofill)
 accept	accept	insert into t set a = default
 reject	accept	insert into t set a := default
@@ -2777,22 +2777,22 @@ reject	accept	set resource group default;
 reject	reject	set resource group x y
 accept	accept	CREATE ROLE `RESOURCE`
 accept	reject	CREATE ROLE RESOURCE
-reject	accept	CREATE TABLE t (a int) STATS_BUCKETS=1
+accept	accept	CREATE TABLE t (a int) STATS_BUCKETS=1
 reject	reject	CREATE TABLE t (a int) STATS_BUCKETS='abc'
 reject	reject	CREATE TABLE t (a int) STATS_BUCKETS=
-reject	accept	CREATE TABLE t (a int) STATS_TOPN=1
+accept	accept	CREATE TABLE t (a int) STATS_TOPN=1
 reject	reject	CREATE TABLE t (a int) STATS_TOPN='abc'
 accept	accept	CREATE TABLE t (a int) STATS_AUTO_RECALC=1
-accept	reject	CREATE TABLE t (a int) STATS_AUTO_RECALC='abc'
-reject	accept	CREATE TABLE t(a int) STATS_SAMPLE_RATE=0.1
+reject	reject	CREATE TABLE t (a int) STATS_AUTO_RECALC='abc'
+accept	accept	CREATE TABLE t(a int) STATS_SAMPLE_RATE=0.1
 reject	reject	CREATE TABLE t (a int) STATS_SAMPLE_RATE='abc'
-reject	accept	CREATE TABLE t (a int) STATS_COL_CHOICE='all'
-reject	accept	CREATE TABLE t (a int) STATS_COL_CHOICE='list'
+accept	accept	CREATE TABLE t (a int) STATS_COL_CHOICE='all'
+accept	accept	CREATE TABLE t (a int) STATS_COL_CHOICE='list'
 reject	reject	CREATE TABLE t (a int) STATS_COL_CHOICE=1
-reject	accept	CREATE TABLE t (a int, b int) STATS_COL_LIST='a,b'
+accept	accept	CREATE TABLE t (a int, b int) STATS_COL_LIST='a,b'
 reject	reject	CREATE TABLE t (a int, b int) STATS_COL_LIST=1
-reject	accept	CREATE TABLE t (a int) STATS_BUCKETS=1,STATS_TOPN=1
-reject	accept	CREATE TABLE t (a int) STATS_BUCKETS=1,STATS_TOPN=1 PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (200))
+accept	accept	CREATE TABLE t (a int) STATS_BUCKETS=1,STATS_TOPN=1
+accept	accept	CREATE TABLE t (a int) STATS_BUCKETS=1,STATS_TOPN=1 PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (200))
 reject	accept	ALTER TABLE t STATS_OPTIONS='str'
 reject	accept	ALTER TABLE t STATS_OPTIONS='str1,str2'
 reject	accept	ALTER TABLE t STATS_OPTIONS="str1,str2"
@@ -2811,8 +2811,8 @@ accept	accept	select 0x4920616D2061206C6F6E672068657820737472696E67
 accept	accept	select 0b01, 0b0, b'11', B'11'
 accept	accept	create table t (c1 enum('a', 'b'), c2 set('a', 'b'))
 accept	accept	create table t (c1 enum('a', 'b') binary, c2 set('a', 'b') binary)
-reject	accept	create table t (c1 enum(0x61, 'b'), c2 set(0x61, 'b'))
-reject	accept	create table t (c1 enum(0b01100001, 'b'), c2 set(0b01100001, 'b'))
+accept	accept	create table t (c1 enum(0x61, 'b'), c2 set(0x61, 'b'))
+accept	accept	create table t (c1 enum(0b01100001, 'b'), c2 set(0b01100001, 'b'))
 reject	reject	create table t (c1 enum)
 reject	reject	create table t (c1 set)
 accept	accept	create table t (c1 blob(1024), c2 text(1024))
@@ -3898,16 +3898,16 @@ reject	reject	explain explore 'digestxxx'
 reject	reject	explain explore select 1 from t
 reject	reject	explain explore select 1 from t1, t2
 reject	reject	explain explore select 1 from t where t1.a > (select max(a) from t2)
-accept	reject	CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}'
-accept	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}')
-accept	reject	CREATE TABLE t (id INT) TABLESPACE ts1 SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}'
+reject	reject	CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}'
+reject	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}')
+reject	reject	CREATE TABLE t (id INT) TABLESPACE ts1 SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}'
 accept	reject	CREATE TABLE t (id INT,INDEX idx (id) INVISIBLE SECONDARY_ENGINE_ATTRIBUTE='{"key1":"value1"}')
 reject	reject	CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE=
-accept	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE=)
+reject	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE=)
 reject	reject	CREATE TABLE t (id INT) TABLESPACE ts1 SECONDARY_ENGINE_ATTRIBUTE=
 reject	reject	CREATE TABLE t (id INT, INDEX idx (id) SECONDARY_ENGINE_ATTRIBUTE=)
 reject	reject	CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE
-accept	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE)
+reject	reject	CREATE TABLE t (id INT SECONDARY_ENGINE_ATTRIBUTE)
 reject	reject	CREATE TABLE t (id INT) TABLESPACE ts1 SECONDARY_ENGINE_ATTRIBUTE
 reject	reject	CREATE TABLE t (id INT, INDEX idx (id) SECONDARY_ENGINE_ATTRIBUTE)
 accept	reject	CREATE INDEX i ON t (a) SECONDARY_ENGINE_ATTRIBUTE = '{}'
