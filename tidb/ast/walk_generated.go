@@ -160,6 +160,17 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Column)
 		}
 		Walk(v, n.Value)
+	case *BRIEStmt:
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *BatchStmt:
 		if n.ShardColumn != nil {
 			Walk(v, n.ShardColumn)
@@ -522,6 +533,16 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Stmt)
 	case *ExtractExpr:
 		Walk(v, n.Expr)
+	case *FlashbackTableStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+	case *FlashbackToTimestampStmt:
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *FlushStmt:
 		for _, item := range n.Tables {
 			if item != nil {
@@ -786,6 +807,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Pattern)
 	case *RawStmt:
 		Walk(v, n.Stmt)
+	case *RecoverTableStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
 	case *RenameTablePair:
 		if n.Old != nil {
 			Walk(v, n.Old)

@@ -2278,36 +2278,36 @@ accept	accept	create table t (a int column_format fixed)
 accept	accept	create table t (a int column_format default)
 accept	accept	create table t (a int column_format dynamic)
 accept	accept	alter table t modify column a bigint column_format default
-reject	accept	recover table by job 11
+accept	accept	recover table by job 11
 reject	reject	recover table by job 11,12,13
 reject	reject	recover table by job
-reject	accept	recover table by job 0
-reject	accept	recover table t1
+accept	accept	recover table by job 0
+accept	accept	recover table t1
 reject	reject	recover table t1,t2
 reject	reject	recover table 
-reject	accept	recover table t1 100
+accept	accept	recover table t1 100
 reject	reject	recover table t1 abc
-reject	accept	flashback table t
-reject	accept	flashback table t TO t1
-reject	accept	flashback table t TO timestamp
-reject	accept	flashback database db1
-reject	accept	flashback schema db1
-reject	accept	flashback database db1 to db2
-reject	accept	flashback schema db1 to db2
-reject	accept	flashback cluster to timestamp '2021-05-26 16:45:26'
-reject	accept	flashback table t to timestamp '2021-05-26 16:45:26'
-reject	accept	flashback table t,t1 to timestamp '2021-05-26 16:45:26'
-reject	accept	flashback database test to timestamp '2021-05-26 16:45:26'
-reject	accept	flashback schema test to timestamp '2021-05-26 16:45:26'
+accept	accept	flashback table t
+accept	accept	flashback table t TO t1
+accept	accept	flashback table t TO timestamp
+accept	accept	flashback database db1
+accept	accept	flashback schema db1
+accept	accept	flashback database db1 to db2
+accept	accept	flashback schema db1 to db2
+accept	accept	flashback cluster to timestamp '2021-05-26 16:45:26'
+accept	accept	flashback table t to timestamp '2021-05-26 16:45:26'
+accept	accept	flashback table t,t1 to timestamp '2021-05-26 16:45:26'
+accept	accept	flashback database test to timestamp '2021-05-26 16:45:26'
+accept	accept	flashback schema test to timestamp '2021-05-26 16:45:26'
 reject	reject	flashback cluster to timestamp TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW())
 reject	reject	flashback cluster to timestamp DATE_SUB(NOW(), INTERVAL 3 SECOND)
 reject	reject	flashback table to timestamp '2021-05-26 16:45:26'
 reject	reject	flashback database to timestamp '2021-05-26 16:45:26'
-reject	accept	flashback cluster to tso 445494955052105721
-reject	accept	flashback table t to tso 445494955052105722
-reject	accept	flashback table t,t1 to tso 445494955052105723
-reject	accept	flashback database test to tso 445494955052105724
-reject	accept	flashback schema test to tso 445494955052105725
+accept	accept	flashback cluster to tso 445494955052105721
+accept	accept	flashback table t to tso 445494955052105722
+accept	accept	flashback table t,t1 to tso 445494955052105723
+accept	accept	flashback database test to tso 445494955052105724
+accept	accept	flashback schema test to tso 445494955052105725
 reject	reject	flashback table to tso 445494955052105726
 reject	reject	flashback database to tso 445494955052105727
 reject	reject	flashback schema test to tso 0
@@ -3663,35 +3663,35 @@ reject	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP '2015-09-21 00:07:01'
 reject	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(_UTF8MB4'2015-09-21 00:07:01', NOW())
 reject	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW())
 reject	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(_UTF8MB4'2015-09-21 00:07:01', '2021-04-27 11:26:13')
-reject	accept	BACKUP DATABASE a TO 'local:///tmp/archive01/'
-reject	accept	BACKUP SCHEMA a TO 'local:///tmp/archive01/'
-reject	accept	BACKUP DATABASE a,b,c TO 'noop://'
+accept	accept	BACKUP DATABASE a TO 'local:///tmp/archive01/'
+accept	accept	BACKUP SCHEMA a TO 'local:///tmp/archive01/'
+accept	accept	BACKUP DATABASE a,b,c TO 'noop://'
 reject	reject	BACKUP DATABASE a.b TO 'noop://'
-reject	accept	BACKUP DATABASE * TO 'noop://'
+accept	accept	BACKUP DATABASE * TO 'noop://'
 reject	reject	BACKUP DATABASE *, a TO 'noop://'
 reject	reject	BACKUP DATABASE a, * TO 'noop://'
 reject	reject	BACKUP DATABASE TO 'noop://'
-reject	accept	BACKUP TABLE a TO 'noop://' checksum_concurrency 4 compression_level 4 ignore_stats 1 compression_type 'lz4'
-reject	accept	RESTORE TABLE a FROM 'noop://' checksum_concurrency 4 wait_tiflash_ready 1 with_sys_table 1
-reject	accept	BACKUP TABLE a.b TO 'noop://'
-reject	accept	BACKUP TABLE a.b,c.d,e TO 'noop://'
+accept	accept	BACKUP TABLE a TO 'noop://' checksum_concurrency 4 compression_level 4 ignore_stats 1 compression_type 'lz4'
+accept	accept	RESTORE TABLE a FROM 'noop://' checksum_concurrency 4 wait_tiflash_ready 1 with_sys_table 1
+accept	accept	BACKUP TABLE a.b TO 'noop://'
+accept	accept	BACKUP TABLE a.b,c.d,e TO 'noop://'
 reject	reject	BACKUP TABLE a.* TO 'noop://'
 reject	reject	BACKUP TABLE * TO 'noop://'
 reject	reject	BACKUP TABLE TO 'noop://'
-reject	accept	RESTORE DATABASE * FROM 's3://bucket/path/'
-reject	accept	BACKUP DATABASE * TO 'noop://' LAST_BACKUP = '2020-02-02 14:14:14'
-reject	accept	BACKUP DATABASE * TO 'noop://' LAST_BACKUP = 1234567890
-reject	accept	backup database * to 'noop://' rate_limit 500 MB/second snapshot 5 minute ago
-reject	accept	backup database * to 'noop://' snapshot = '2020-03-18 18:13:54'
-reject	accept	backup database * to 'noop://' snapshot = 1234567890
-reject	accept	restore table g from 'noop://' concurrency 40 checksum 0 online 1
-reject	accept	backup table x to 's3://bucket/path/?endpoint=https://test-cluster-s3.local&access-key=aaaaaaaaa&secret-access-key=bbbbbbbb&force-path-style=1'
-reject	accept	backup database * to 's3://bucket/path/?provider=alibaba&region=us-west-9&storage-class=glacier&sse=AES256&acl=authenticated-read&use-accelerate-endpoint=1' send_credentials_to_tikv = 1
-reject	accept	restore database * from 'gcs://bucket/path/?endpoint=https://test-cluster.gcs.local&storage-class=coldline&predefined-acl=OWNER&credentials-file=/data/private/creds.json'
-reject	accept	restore table g from 'noop://' checksum off
-reject	accept	restore table g from 'noop://' checksum optional
-reject	accept	backup logs to 'noop://'
-reject	accept	backup logs to 'noop://' start_ts='20220304'
+accept	accept	RESTORE DATABASE * FROM 's3://bucket/path/'
+accept	accept	BACKUP DATABASE * TO 'noop://' LAST_BACKUP = '2020-02-02 14:14:14'
+accept	accept	BACKUP DATABASE * TO 'noop://' LAST_BACKUP = 1234567890
+accept	accept	backup database * to 'noop://' rate_limit 500 MB/second snapshot 5 minute ago
+accept	accept	backup database * to 'noop://' snapshot = '2020-03-18 18:13:54'
+accept	accept	backup database * to 'noop://' snapshot = 1234567890
+accept	accept	restore table g from 'noop://' concurrency 40 checksum 0 online 1
+accept	accept	backup table x to 's3://bucket/path/?endpoint=https://test-cluster-s3.local&access-key=aaaaaaaaa&secret-access-key=bbbbbbbb&force-path-style=1'
+accept	accept	backup database * to 's3://bucket/path/?provider=alibaba&region=us-west-9&storage-class=glacier&sse=AES256&acl=authenticated-read&use-accelerate-endpoint=1' send_credentials_to_tikv = 1
+accept	accept	restore database * from 'gcs://bucket/path/?endpoint=https://test-cluster.gcs.local&storage-class=coldline&predefined-acl=OWNER&credentials-file=/data/private/creds.json'
+accept	accept	restore table g from 'noop://' checksum off
+accept	accept	restore table g from 'noop://' checksum optional
+accept	accept	backup logs to 'noop://'
+accept	accept	backup logs to 'noop://' start_ts='20220304'
 reject	accept	pause backup logs
 reject	accept	pause backup logs gc_ttl='20220304'
 reject	accept	resume backup logs
@@ -3702,10 +3702,10 @@ reject	accept	show br job query 1234
 reject	accept	cancel br job 1234
 reject	accept	purge backup logs from 'noop://'
 reject	accept	purge backup logs from 'noop://' until_ts='2012122304'
-reject	accept	restore point from 'noop://log_backup'
-reject	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log'
-reject	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log' restored_ts='20230123'
-reject	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log' start_ts='20230101' restored_ts='20230123'
+accept	accept	restore point from 'noop://log_backup'
+accept	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log'
+accept	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log' restored_ts='20230123'
+accept	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log' start_ts='20230101' restored_ts='20230123'
 reject	accept	create statistics stats1 (cardinality) on t(a,b,c)
 reject	accept	create statistics stats2 (dependency) on t(a,b)
 reject	accept	create statistics stats3 (correlation) on t(a,b)

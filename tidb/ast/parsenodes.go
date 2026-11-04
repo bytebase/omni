@@ -3695,3 +3695,293 @@ type AdminStmt struct {
 
 func (s *AdminStmt) nodeTag()  {}
 func (s *AdminStmt) stmtNode() {}
+
+// BRIEKind says which of TiDB's backup and restore statements a BRIEStmt is.
+// Upstream calls the family BRIE, for backup, restore, import and export.
+//
+// Ref: TiDB v8.5.5 parser.y:5623-5721 (BRIEStmt).
+type BRIEKind int
+
+const (
+	// BRIEBackup is BACKUP DATABASE|SCHEMA|TABLE ... TO 'storage'.
+	BRIEBackup BRIEKind = iota
+	// BRIERestore is RESTORE DATABASE|SCHEMA|TABLE ... FROM 'storage'.
+	BRIERestore
+	// BRIEBackupLogs is BACKUP LOGS TO 'storage', which starts a log
+	// backup task rather than taking one snapshot.
+	BRIEBackupLogs
+	// BRIERestorePoint is RESTORE POINT FROM 'storage', the point-in-time
+	// restore.
+	BRIERestorePoint
+)
+
+// BRIETarget says what a BACKUP or RESTORE names, which the grammar's
+// BRIETables decides. BACKUP LOGS and RESTORE POINT name nothing.
+//
+// Ref: TiDB v8.5.5 parser.y:5725-5737 (BRIETables).
+type BRIETarget int
+
+const (
+	// BRIETargetNone is BACKUP LOGS and RESTORE POINT, which name no
+	// database and no table.
+	BRIETargetNone BRIETarget = iota
+	// BRIETargetAllSchemas is DATABASE *, every database in the cluster.
+	// The asterisk is the bare token: `DATABASE `*`` is a one-element
+	// database list naming a database called `*`.
+	BRIETargetAllSchemas
+	// BRIETargetSchemas is DATABASE a, b, c, with the names in Schemas.
+	BRIETargetSchemas
+	// BRIETargetTables is TABLE a.b, c, with the tables in Tables.
+	BRIETargetTables
+)
+
+// BRIEStmt represents one of TiDB's backup and restore statements.
+//
+//	BACKUP  DATABASE {* | db, ...} TO   'storage' [option ...]
+//	BACKUP  TABLE    tbl, ...      TO   'storage' [option ...]
+//	BACKUP  LOGS                   TO   'storage' [option ...]
+//	RESTORE DATABASE {* | db, ...} FROM 'storage' [option ...]
+//	RESTORE TABLE    tbl, ...      FROM 'storage' [option ...]
+//	RESTORE POINT                  FROM 'storage' [option ...]
+//
+// SCHEMA is DATABASE: TiDB's lexer maps the two words to one token, so the
+// node cannot say which was written, and neither can upstream's.
+//
+// Ref: TiDB v8.5.5 parser.y:5623-5721 (BRIEStmt), 5725-5747 (BRIETables,
+// DBNameList).
+// Ref: https://docs.pingcap.com/tidb/stable/sql-statement-backup/
+type BRIEStmt struct {
+	Loc  Loc
+	Kind BRIEKind
+	// Target says which of Schemas and Tables is filled, and separates
+	// DATABASE * from both.
+	Target BRIETarget
+	// Schemas are the database names of the DATABASE a, b, c form.
+	Schemas []string
+	// Tables are the tables of the TABLE form, each a bare or qualified
+	// name with no alias, partition list, or index hint.
+	Tables []*TableRef
+	// Storage is the destination or source URL, the one string literal
+	// after TO or FROM. The grammar's stringLit is a single literal here:
+	// `TO 'a' 'b'` is a syntax error, where the same two literals
+	// concatenate inside an expression.
+	Storage string
+	// StorageLoc is the string literal's own range.
+	StorageLoc Loc
+	// Options is the option list, in written order, empty when the
+	// statement gave none. A repeated option is not an error and is kept
+	// twice; TiDB's executor takes the last.
+	Options []*BRIEOption
+}
+
+func (s *BRIEStmt) nodeTag()  {}
+func (s *BRIEStmt) stmtNode() {}
+
+// BRIEOptionValue says which of a BRIEOption's value fields carries its
+// value. The option's name does not decide this on its own: SNAPSHOT and
+// LAST_BACKUP each take a string or a number, SNAPSHOT also takes
+// `n <unit> AGO`, and CHECKSUM and ANALYZE each take a boolean or a level.
+//
+// Ref: TiDB v8.5.5 parser.y:5871-6039 (BRIEOption).
+type BRIEOptionValue int
+
+const (
+	// BRIEValueInt is a value in IntValue: the integer options, and a
+	// boolean option, where TRUE and FALSE arrive as 1 and 0.
+	BRIEValueInt BRIEOptionValue = iota
+	// BRIEValueString is a value in StrValue, from a string literal or,
+	// for BACKEND and ON_DUPLICATE, from an identifier.
+	BRIEValueString
+	// BRIEValueLevel is CHECKSUM or ANALYZE written as a level, with OFF,
+	// OPTIONAL or REQUIRED uppercased in StrValue.
+	BRIEValueLevel
+	// BRIEValueTimeAgo is SNAPSHOT n <unit> AGO, with n in IntValue and
+	// the unit uppercased in Unit.
+	BRIEValueTimeAgo
+	// BRIEValueRateLimit is RATE_LIMIT n MB/SECOND, with n in IntValue.
+	// MB per second is the only rate the grammar spells.
+	BRIEValueRateLimit
+	// BRIEValueCSVHeaderWords is CSV_HEADER = FIELDS or COLUMNS, with the
+	// word uppercased in StrValue.
+	BRIEValueCSVHeaderWords
+)
+
+// BRIEOption is one option of a BACKUP or RESTORE statement.
+//
+// Name is the option's own word, uppercased. `ON DUPLICATE` and
+// `ON_DUPLICATE` are the same option and both arrive as ON_DUPLICATE.
+// Value says which field holds the value.
+//
+// Every option name is read as a bare word, which is what upstream's
+// keyword tokens come to: v8.5.5 answers 1064 for every backquoted
+// spelling, `CONCURRENCY` and `OFF` included, and takes a backquoted
+// identifier only where the grammar names one, which is BACKEND's and
+// ON_DUPLICATE's value.
+//
+// Ref: TiDB v8.5.5 parser.y:5759-5869 (the option name rules),
+// 5871-6039 (BRIEOption).
+type BRIEOption struct {
+	Loc   Loc
+	Name  string
+	Value BRIEOptionValue
+	// StrValue carries the value of BRIEValueString, BRIEValueLevel and
+	// BRIEValueCSVHeaderWords.
+	StrValue string
+	// IntValue carries the value of BRIEValueInt, BRIEValueTimeAgo and
+	// BRIEValueRateLimit, unscaled: `RATE_LIMIT 500 MB/SECOND` is 500 and
+	// `SNAPSHOT 5 MINUTE AGO` is 5, where upstream multiplies each out.
+	IntValue uint64
+	// Unit is the time unit of BRIEValueTimeAgo, uppercased, one of the
+	// grammar's TimestampUnit words.
+	Unit string
+}
+
+func (o *BRIEOption) nodeTag() {}
+
+// RecoverTableStmt represents TiDB's RECOVER TABLE, which brings back a
+// table dropped within the GC lifetime.
+//
+//	RECOVER TABLE BY JOB job_id
+//	RECOVER TABLE tbl [job_num]
+//
+// The two forms are different productions, not one with an optional BY JOB:
+// the first names a DDL job and no table, and the second names one table
+// and an optional number. ByJob says which was written, so
+// `RECOVER TABLE BY JOB 11` and `RECOVER TABLE t1 100` never read alike.
+//
+// Each number is the grammar's Int64Num, an unsigned literal checked
+// against int64: v8.5.5 takes `BY JOB 0` and `t1 0` and answers 1064 for
+// `BY JOB -1`, `t1 -1` and 9223372036854775808.
+//
+// Ref: TiDB v8.5.5 parser.y:3039-3059 (RecoverTableStmt).
+// Ref: https://docs.pingcap.com/tidb/stable/sql-statement-recover-table/
+type RecoverTableStmt struct {
+	Loc Loc
+	// ByJob is whether the statement named a DDL job rather than a table.
+	ByJob bool
+	// JobID is the job id of the BY JOB form.
+	JobID int64
+	// Table is the one table of the table form, nil in the BY JOB form.
+	Table *TableRef
+	// JobNum is the optional number after the table, and HasJobNum
+	// separates `RECOVER TABLE t1 0` from `RECOVER TABLE t1`.
+	JobNum    int64
+	HasJobNum bool
+}
+
+func (s *RecoverTableStmt) nodeTag()  {}
+func (s *RecoverTableStmt) stmtNode() {}
+
+// FlashbackTableStmt represents FLASHBACK TABLE, which brings back a table
+// dropped or truncated within the GC lifetime, optionally under a new name.
+//
+//	FLASHBACK TABLE tbl [TO new_name]
+//
+// This is not a rename of a live table: the table named must already be
+// gone, and the statement creates the new name. Its sibling makes that
+// plain -- FLASHBACK DATABASE on a database that is still there answers
+// 1007, "Can't create database 'd'; database exists", on v8.5.5.
+//
+// It is a different statement from FLASHBACK TABLE ... TO TIMESTAMP, which
+// is FlashbackToTimestampStmt. Upstream separates the two in the lexer:
+// `TO TIMESTAMP` becomes one token only when a string literal follows it,
+// so `FLASHBACK TABLE t TO timestamp` renames to a table called
+// `timestamp` and `FLASHBACK TABLE t TO TIMESTAMP '...'` does not.
+//
+// Ref: TiDB v8.5.5 parser.y:3134-3156 (FlashbackTableStmt,
+// FlashbackToNewName), lexer.go:272-280 (the toTimestamp token).
+// Ref: https://docs.pingcap.com/tidb/stable/sql-statement-flashback-table/
+type FlashbackTableStmt struct {
+	Loc Loc
+	// Table is the table being brought back, bare or qualified.
+	Table *TableRef
+	// NewName is the TO name, empty when the statement gave none. It is a
+	// bare identifier, never qualified: `TO c.d` is a syntax error.
+	NewName string
+	// NewNameLoc is the new name's own range, NoLoc() when there is none.
+	NewNameLoc Loc
+}
+
+func (s *FlashbackTableStmt) nodeTag()  {}
+func (s *FlashbackTableStmt) stmtNode() {}
+
+// FlashbackDatabaseStmt represents FLASHBACK DATABASE, which brings back a
+// dropped database, optionally under a new name.
+//
+//	FLASHBACK {DATABASE | SCHEMA} db [TO new_db]
+//
+// Like FlashbackTableStmt this creates the new name rather than renaming a
+// live database: v8.5.5 answers 1007, "Can't create database 'd'; database
+// exists", for FLASHBACK DATABASE d when d is still there. It is a
+// different statement from FLASHBACK DATABASE ... TO TIMESTAMP.
+//
+// Ref: TiDB v8.5.5 parser.y:3160-3166 (FlashbackDatabaseStmt).
+// Ref: https://docs.pingcap.com/tidb/stable/sql-statement-flashback-database/
+type FlashbackDatabaseStmt struct {
+	Loc Loc
+	// Name is the database being brought back, a bare identifier:
+	// `FLASHBACK DATABASE a.b` is a syntax error.
+	Name string
+	// NameLoc is that name's own range.
+	NameLoc Loc
+	// NewName is the TO name, empty when the statement gave none.
+	NewName string
+	// NewNameLoc is the new name's own range, NoLoc() when there is none.
+	NewNameLoc Loc
+}
+
+func (s *FlashbackDatabaseStmt) nodeTag()  {}
+func (s *FlashbackDatabaseStmt) stmtNode() {}
+
+// FlashbackScope says what a FLASHBACK ... TO TIMESTAMP or TO TSO rolls
+// back.
+type FlashbackScope int
+
+const (
+	// FlashbackCluster is FLASHBACK CLUSTER, the whole cluster.
+	FlashbackCluster FlashbackScope = iota
+	// FlashbackTables is FLASHBACK TABLE t, ..., one or more tables.
+	FlashbackTables
+	// FlashbackDatabase is FLASHBACK DATABASE|SCHEMA db.
+	FlashbackDatabase
+)
+
+// FlashbackToTimestampStmt represents FLASHBACK ... TO TIMESTAMP and
+// FLASHBACK ... TO TSO, which roll data back to a point in time.
+//
+//	FLASHBACK CLUSTER              TO TIMESTAMP 'ts'
+//	FLASHBACK TABLE tbl, ...       TO TIMESTAMP 'ts'
+//	FLASHBACK {DATABASE|SCHEMA} db TO TIMESTAMP 'ts'
+//	FLASHBACK CLUSTER              TO TSO n
+//	FLASHBACK TABLE tbl, ...       TO TSO n
+//	FLASHBACK {DATABASE|SCHEMA} db TO TSO n
+//
+// The timestamp is one string literal, unvalidated by the parser: v8.5.5
+// takes `TO TIMESTAMP 'x'` and fails it when the statement runs. The TSO
+// is the grammar's LengthNum and must be above zero: v8.5.5 answers 1064
+// for `TO TSO 0`, `TO TSO -100` and `TO TSO 18446744073709551616`.
+//
+// Ref: TiDB v8.5.5 parser.y:3067-3124 (FlashbackToTimestampStmt).
+// Ref: https://docs.pingcap.com/tidb/stable/sql-statement-flashback-cluster/
+type FlashbackToTimestampStmt struct {
+	Loc Loc
+	// Scope says which of Tables and Database is filled, and separates the
+	// cluster form, which fills neither.
+	Scope FlashbackScope
+	// Tables are the tables of the TABLE form.
+	Tables []*TableRef
+	// Database is the database of the DATABASE form.
+	Database string
+	// DatabaseLoc is that name's own range, NoLoc() in the other forms.
+	DatabaseLoc Loc
+	// IsTSO says whether TO TSO was written rather than TO TIMESTAMP, and
+	// so which of TSO and Timestamp holds the point rolled back to.
+	IsTSO bool
+	// Timestamp is the TO TIMESTAMP string, as written without its quotes.
+	Timestamp string
+	// TSO is the TO TSO value, always above zero.
+	TSO uint64
+}
+
+func (s *FlashbackToTimestampStmt) nodeTag()  {}
+func (s *FlashbackToTimestampStmt) stmtNode() {}
