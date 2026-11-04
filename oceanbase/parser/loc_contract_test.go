@@ -266,7 +266,7 @@ var locSpanCases = []struct {
 	{"ResetPersistStmt", "RESET PERSIST", "RESET PERSIST", 0},
 	{"ResetReplicaStmt", "RESET SLAVE", "RESET SLAVE", 0},
 	{"ResignalStmt", "RESIGNAL", "RESIGNAL", 0},
-	{"ResourceOption", "GRANT ALL ON *.* TO 'jeffrey'@'localhost' WITH MAX_USER_CONNECTIONS 10", "MAX_USER_CONNECTIONS 10", 0},
+	{"ResourceOption", "CREATE USER 'jeffrey'@'localhost' WITH MAX_USER_CONNECTIONS 10", "MAX_USER_CONNECTIONS 10", 0},
 	{"RestartStmt", "RESTART", "RESTART", 0},
 	{"ReturnStmt", "CREATE FUNCTION myfunc() RETURNS INT RETURN 1", "RETURN 1", 0},
 	{"RevokeRoleStmt", "REVOKE myrole FROM myuser", "REVOKE myrole FROM myuser", 0},

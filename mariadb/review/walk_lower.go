@@ -85,9 +85,14 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.ShowStmt, *ast.HelpStmt, *ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt,
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
-		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.CreateRoleStmt, *ast.DropRoleStmt:
+		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt,
+		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
+		// RENAME USER and SET PASSWORD join the other user statements:
+		// both parsed already, and both reached the default arm, so
+		// either one in the middle of a change script ended the walk and
+		// hid every finding below it.
 		return true
 	}
 	return false

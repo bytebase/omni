@@ -281,7 +281,11 @@ var locSpanCases = []struct {
 	{"SelectStmt", "SELECT (VALUES (1) ORDER BY a LIMIT 1)", "VALUES (1) ORDER BY a LIMIT 1", 1},
 	{"SelectStmt", "VALUES (1) UNION VALUES (2) INTO @x", "VALUES (1) UNION VALUES (2) INTO @x", 0},
 	{"SelectStmt", "(VALUES (1)) INTO @x FOR UPDATE", "(VALUES (1)) INTO @x FOR UPDATE", 0},
-	{"SetDefaultRoleStmt", "SET DEFAULT ROLE ALL TO root", "SET DEFAULT ROLE ALL TO root", 0},
+	// MariaDB's form names one role and says FOR, not TO: mariadb:11.8
+	// answers 1064 for `SET DEFAULT ROLE ALL TO root`, which this row used
+	// to carry, and runs the two below.
+	{"SetDefaultRoleStmt", "SET DEFAULT ROLE role1 FOR root", "SET DEFAULT ROLE role1 FOR root", 0},
+	{"SetDefaultRoleStmt", "SET DEFAULT ROLE NONE FOR root", "SET DEFAULT ROLE NONE FOR root", 0},
 	{"SetPasswordStmt", "SET PASSWORD TO RANDOM", "SET PASSWORD TO RANDOM", 0},
 	{"SetRoleStmt", "SET ROLE ALL", "SET ROLE ALL", 0},
 	{"SetStmt", "SET x = 1", "SET x = 1", 0},

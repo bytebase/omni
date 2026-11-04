@@ -80,7 +80,8 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.SplitRegionStmt, *ast.DistributeTableStmt,
 		*ast.LoadStatsStmt, *ast.DropStatisticsStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
-		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.CreateRoleStmt, *ast.DropRoleStmt,
+		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt,
+		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt,
 		*ast.CreateResourceGroupStmt, *ast.AlterResourceGroupStmt, *ast.DropResourceGroupStmt,
 		*ast.SetResourceGroupStmt, *ast.CalibrateResourceStmt,
 		*ast.AddQueryWatchStmt, *ast.DropQueryWatchStmt:
@@ -98,6 +99,10 @@ func (b *builder) statement(n ast.Node) bool {
 		// The resource control statements name resource groups and watch
 		// list entries, neither of which the walk holds; dropping out here
 		// instead would end the walk and lose every statement after one.
+		// RENAME USER and SET PASSWORD join the other user statements for
+		// that reason: both parsed already, and both reached the default
+		// arm, so either one in the middle of a change script ended the
+		// walk and hid every finding below it.
 
 		return true
 	}

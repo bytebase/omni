@@ -7001,21 +7001,30 @@ func TestParseSetDefaultRole(t *testing.T) {
 		sql  string
 		want string
 	}{
+		// MariaDB names one role, has no ALL, says FOR rather than TO,
+		// and leaves the user out to mean the current one. mariadb:11.8
+		// answers 1064 for the MySQL forms this test used to carry --
+		// `SET DEFAULT ROLE NONE TO root`, `... ALL TO root`,
+		// `... myrole TO root` and `... role1, role2 TO user1, user2`.
 		{
-			sql:  "SET DEFAULT ROLE NONE TO root",
+			sql:  "SET DEFAULT ROLE NONE",
+			want: "{SET_DEFAULT_ROLE :loc 0 :none true}",
+		},
+		{
+			sql:  "SET DEFAULT ROLE myrole",
+			want: "{SET_DEFAULT_ROLE :loc 0 :roles myrole}",
+		},
+		{
+			sql:  "SET DEFAULT ROLE NONE FOR root",
 			want: "{SET_DEFAULT_ROLE :loc 0 :none true :to root}",
 		},
 		{
-			sql:  "SET DEFAULT ROLE ALL TO root",
-			want: "{SET_DEFAULT_ROLE :loc 0 :all true :to root}",
-		},
-		{
-			sql:  "SET DEFAULT ROLE myrole TO root",
+			sql:  "SET DEFAULT ROLE myrole FOR root",
 			want: "{SET_DEFAULT_ROLE :loc 0 :roles myrole :to root}",
 		},
 		{
-			sql:  "SET DEFAULT ROLE role1, role2 TO user1, user2",
-			want: "{SET_DEFAULT_ROLE :loc 0 :roles role1, role2 :to user1, user2}",
+			sql:  "SET DEFAULT ROLE 'myrole' FOR 'root'@'localhost'",
+			want: "{SET_DEFAULT_ROLE :loc 0 :roles myrole :to root@localhost}",
 		},
 	}
 	for _, tt := range tests {
@@ -7079,9 +7088,12 @@ func TestParseGrantRole(t *testing.T) {
 			sql:  "GRANT myrole TO myuser",
 			want: "{GRANT_ROLE :loc 0 :roles MYROLE :to myuser}",
 		},
+		// A MariaDB role grant names one role and any number of
+		// grantees: mariadb:11.8 answers 1064 for `GRANT role1, role2 TO
+		// user1, user2`, which this case used to carry.
 		{
-			sql:  "GRANT role1, role2 TO user1, user2",
-			want: "{GRANT_ROLE :loc 0 :roles ROLE1, ROLE2 :to user1, user2}",
+			sql:  "GRANT myrole TO user1, user2",
+			want: "{GRANT_ROLE :loc 0 :roles MYROLE :to user1, user2}",
 		},
 		{
 			sql:  "GRANT myrole TO myuser WITH ADMIN OPTION",
@@ -7108,9 +7120,11 @@ func TestParseRevokeRole(t *testing.T) {
 			sql:  "REVOKE myrole FROM myuser",
 			want: "{REVOKE_ROLE :loc 0 :roles MYROLE :from myuser}",
 		},
+		// One role here too: mariadb:11.8 answers 1064 for `REVOKE
+		// role1, role2 FROM user1, user2`.
 		{
-			sql:  "REVOKE role1, role2 FROM user1, user2",
-			want: "{REVOKE_ROLE :loc 0 :roles ROLE1, ROLE2 :from user1, user2}",
+			sql:  "REVOKE myrole FROM user1, user2",
+			want: "{REVOKE_ROLE :loc 0 :roles MYROLE :from user1, user2}",
 		},
 	}
 	for _, tt := range tests {
@@ -10148,8 +10162,6 @@ func TestParseCreateUserRandomPassword(t *testing.T) {
 	tests := []string{
 		// IDENTIFIED BY RANDOM PASSWORD
 		"CREATE USER 'jeffrey'@'localhost' IDENTIFIED BY RANDOM PASSWORD",
-		// IDENTIFIED WITH plugin BY RANDOM PASSWORD
-		"CREATE USER 'jeffrey'@'localhost' IDENTIFIED WITH caching_sha2_password BY RANDOM PASSWORD",
 		// Multiple users with RANDOM PASSWORD
 		"CREATE USER 'u1'@'localhost' IDENTIFIED BY RANDOM PASSWORD, 'u2'@'localhost' IDENTIFIED BY RANDOM PASSWORD",
 	}
@@ -10164,8 +10176,6 @@ func TestParseAlterUserRetainCurrentPassword(t *testing.T) {
 	tests := []string{
 		// RETAIN CURRENT PASSWORD
 		"ALTER USER 'jeffrey'@'localhost' IDENTIFIED BY 'new_password' RETAIN CURRENT PASSWORD",
-		// RETAIN CURRENT PASSWORD with auth plugin
-		"ALTER USER 'jeffrey'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'new_password' RETAIN CURRENT PASSWORD",
 		// RANDOM PASSWORD with RETAIN CURRENT PASSWORD
 		"ALTER USER 'jeffrey'@'localhost' IDENTIFIED BY RANDOM PASSWORD RETAIN CURRENT PASSWORD",
 	}
@@ -11171,9 +11181,14 @@ func TestBNFReviewSecurity(t *testing.T) {
 		"SET PASSWORD FOR 'user1'@'localhost' = 'newpass' REPLACE 'oldpass' RETAIN CURRENT PASSWORD",
 		// CREATE USER DEFAULT ROLE
 		"CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass' DEFAULT ROLE role1, role2",
-		// CREATE USER with 2FA chaining
+		// CREATE USER with 2FA chaining. The arm that put a password
+		// after the plugin is gone: a MariaDB plugin takes no password,
+		// and mariadb:11.8 answers 1064 for `IDENTIFIED WITH p BY 'pw'`
+		// however the rest of the statement reads. The MySQL 8.0 surface
+		// the rest of this list carries -- the chaining itself, REPLACE,
+		// RETAIN CURRENT PASSWORD, INITIAL AUTHENTICATION -- is not
+		// MariaDB's either, and is left for the change that measures it.
 		"CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass1' AND IDENTIFIED BY 'pass2'",
-		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'pass1' AND IDENTIFIED BY 'pass2' AND IDENTIFIED BY 'pass3'",
 		// CREATE USER with INITIAL AUTHENTICATION
 		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password INITIAL AUTHENTICATION IDENTIFIED BY RANDOM PASSWORD",
 		"CREATE USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password INITIAL AUTHENTICATION IDENTIFIED WITH sha256_password AS 'hash'",
@@ -11181,8 +11196,6 @@ func TestBNFReviewSecurity(t *testing.T) {
 		// ALTER USER with REPLACE
 		"ALTER USER 'user1'@'localhost' IDENTIFIED BY 'newpass' REPLACE 'oldpass'",
 		"ALTER USER 'user1'@'localhost' IDENTIFIED BY 'newpass' REPLACE 'oldpass' RETAIN CURRENT PASSWORD",
-		// ALTER USER with IDENTIFIED WITH ... BY ... REPLACE
-		"ALTER USER 'user1'@'localhost' IDENTIFIED WITH caching_sha2_password BY 'newpass' REPLACE 'oldpass'",
 		// RENAME USER with quoted names
 		"RENAME USER 'olduser'@'localhost' TO 'newuser'@'localhost'",
 		"RENAME USER 'u1'@'h1' TO 'u2'@'h2', 'u3'@'h3' TO 'u4'@'h4'",

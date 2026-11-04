@@ -40,15 +40,21 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 
 	// If we see ON, it's a privilege grant; if TO, it's a role grant.
 	if p.cur.Type == kwTO {
-		// Role grant: GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
+		// Role grant: GRANT role TO user [, user] ... [WITH ADMIN OPTION]
+		if err := p.requireSingleRole(privs, start); err != nil {
+			return nil, err
+		}
+		if err := p.requireRoles(privs, start); err != nil {
+			return nil, err
+		}
 		p.advance() // consume TO
-		users, err := p.parseUserList()
+		users, err := p.parseGranteeList()
 		if err != nil {
 			return nil, err
 		}
 		stmt := &nodes.GrantRoleStmt{
 			Loc:   nodes.Loc{Start: start},
-			Roles: privs,
+			Roles: privNames(privs),
 			To:    users,
 		}
 		// [WITH ADMIN OPTION]
@@ -67,8 +73,11 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	}
 
 	// Privilege grant
+	if err := p.requirePrivileges(privs, start); err != nil {
+		return nil, err
+	}
 	stmt := &nodes.GrantStmt{Loc: nodes.Loc{Start: start}}
-	stmt.Privileges = privs
+	stmt.Privileges = privNames(privs)
 	stmt.AllPriv = allPriv
 
 	// GRANT PROXY ON user TO user [WITH GRANT OPTION]
@@ -83,7 +92,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		if _, err := p.expect(kwTO); err != nil {
 			return nil, err
 		}
-		users, err := p.parseUserList()
+		users, err := p.parseGranteeList()
 		if err != nil {
 			return nil, err
 		}
@@ -119,7 +128,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		return nil, err
 	}
 
-	users, err := p.parseUserList()
+	users, err := p.parseGranteeList()
 	if err != nil {
 		return nil, err
 	}
@@ -154,31 +163,11 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	// [AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role [, role] ... | role [, role] ...}]]
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
-		// Parse user name
-		if p.cur.Type == tokSCONST {
-			stmt.AsUser = p.cur.Str
-			p.advance()
-		} else if p.isIdentToken() {
-			name, _, err := p.parseIdent()
-			if err != nil {
-				return nil, err
-			}
-			stmt.AsUser = name
+		asUser, err := p.parseUserName()
+		if err != nil {
+			return nil, err
 		}
-		// Optional @host
-		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				stmt.AsUser += "@" + p.cur.Str
-				p.advance()
-			} else if p.isIdentToken() {
-				host, _, err := p.parseIdent()
-				if err != nil {
-					return nil, err
-				}
-				stmt.AsUser += "@" + host
-			}
-		}
+		stmt.AsUser = asUser
 
 		// [WITH ROLE ...]
 		if p.cur.Type == kwWITH {
@@ -305,7 +294,13 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 
 	// If we see FROM, it's a role revoke; if ON, it's a privilege revoke.
 	if p.cur.Type == kwFROM {
-		// Role revoke: REVOKE role [, role] ... FROM user [, user] ...
+		// Role revoke: REVOKE role FROM user [, user] ...
+		if err := p.requireSingleRole(privs, start); err != nil {
+			return nil, err
+		}
+		if err := p.requireRoles(privs, start); err != nil {
+			return nil, err
+		}
 		p.advance() // consume FROM
 		users, err := p.parseUserList()
 		if err != nil {
@@ -314,7 +309,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		stmt := &nodes.RevokeRoleStmt{
 			Loc:      nodes.Loc{Start: start},
 			IfExists: ifExists,
-			Roles:    privs,
+			Roles:    privNames(privs),
 			From:     users,
 		}
 		// [IGNORE UNKNOWN USER]
@@ -368,9 +363,12 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	}
 
 	// Privilege revoke
+	if err := p.requirePrivileges(privs, start); err != nil {
+		return nil, err
+	}
 	stmt := &nodes.RevokeStmt{Loc: nodes.Loc{Start: start}}
 	stmt.IfExists = ifExists
-	stmt.Privileges = privs
+	stmt.Privileges = privNames(privs)
 	stmt.AllPriv = allPriv
 
 	// ON [object_type] priv_level
@@ -411,9 +409,65 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	return stmt, nil
 }
 
-// parsePrivilegeList parses a comma-separated list of privilege names.
+// privOrRole is one element of the list GRANT and REVOKE read before the ON,
+// TO or FROM that settles what it was. A bare word can be either a privilege
+// or a role, so the element carries which readings are open to it.
+type privOrRole struct {
+	name string
+	// roleOnly marks an element the privilege reading is closed to.
+	roleOnly bool
+	// privOnly marks an element the role reading is closed to: a role is
+	// one name, so a privilege written as two words is no role name.
+	// mariadb:11.8 answers 1064 for `GRANT GRANT OPTION TO u1`, for `GRANT CREATE
+	// VIEW TO u1` and for `GRANT SHOW DATABASES TO u1`.
+	privOnly bool
+}
+
+// privNames drops the priv-or-role distinction, for the statement fields that
+// hold plain names.
+func privNames(elems []privOrRole) []string {
+	if len(elems) == 0 {
+		return nil
+	}
+	names := make([]string, len(elems))
+	for i, e := range elems {
+		names[i] = e.name
+	}
+	return names
+}
+
+// requirePrivileges rejects a list that holds an element only a role reading
+// is open to.
+func (p *Parser) requirePrivileges(elems []privOrRole, at int) error {
+	for _, e := range elems {
+		if e.roleOnly {
+			return &ParseError{
+				Message:  "expected privilege name",
+				Position: at,
+			}
+		}
+	}
+	return nil
+}
+
+// requireRoles rejects a list that holds an element only a privilege reading
+// is open to.
+func (p *Parser) requireRoles(elems []privOrRole, at int) error {
+	for _, e := range elems {
+		if e.privOnly {
+			return &ParseError{
+				Message:  "expected role name",
+				Position: at,
+			}
+		}
+	}
+	return nil
+}
+
+// parsePrivilegeList parses the comma-separated list GRANT and REVOKE read
+// before the ON, TO or FROM that settles whether it held privileges or roles.
 // Returns the list and whether ALL [PRIVILEGES] was specified.
-func (p *Parser) parsePrivilegeList() ([]string, bool, error) {
+func (p *Parser) parsePrivilegeList() ([]privOrRole, bool, error) {
 	if p.cur.Type == kwALL {
 		p.advance()
 		// Optional PRIVILEGES keyword
@@ -423,24 +477,57 @@ func (p *Parser) parsePrivilegeList() ([]string, bool, error) {
 		return nil, true, nil
 	}
 
-	var privs []string
+	var privs []privOrRole
 	for {
-		name, err := p.parsePrivilegeName()
+		elem, err := p.parsePrivOrRoleElem()
 		if err != nil {
 			return nil, false, err
 		}
-		privs = append(privs, name)
+		privs = append(privs, elem)
 
 		if p.cur.Type != ',' {
 			break
 		}
-		// Peek: if comma is followed by ON, it's not a separator for privileges
-		// but actually the ON keyword is after the list. But we need to check
-		// if the next token after comma could be a privilege or ON.
 		p.advance() // consume ','
 	}
 
 	return privs, false, nil
+}
+
+// parsePrivOrRoleElem parses one element of that list.
+//
+// A privilege name is a keyword or an identifier; a role name is one of those
+// or a string literal, written on its own. A MariaDB role carries no host and
+// a role grant names one role: mariadb:11.8 answers 1064 for `GRANT
+// 'role1'@'%' TO u1`, for `GRANT role1, role2 TO u1` and for `REVOKE 'r1',
+// 'r2' FROM u1`, the last two of which requireSingleRole reports. A quoted
+// name is a role and nothing else, so `GRANT 'role1' ON *.* TO u1` is 1064
+// too, where mysql:8.0 runs it.
+func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
+	if p.cur.Type == tokSCONST {
+		name := p.cur.Str
+		p.advance()
+		return privOrRole{name: name, roleOnly: true}, nil
+	}
+	name, err := p.parsePrivilegeName()
+	if err != nil {
+		return privOrRole{}, err
+	}
+	return privOrRole{name: name, privOnly: strings.Contains(name, " ")}, nil
+}
+
+// requireSingleRole rejects a role list with more than one element. A
+// MariaDB role grant names one role where a MySQL one names a list:
+// mariadb:11.8 answers 1064 for `GRANT role1, role2 TO u1` and for `REVOKE
+// 'r1', 'r2' FROM u1`, and runs each with one role and several grantees.
+func (p *Parser) requireSingleRole(roles []privOrRole, at int) error {
+	if len(roles) <= 1 {
+		return nil
+	}
+	return &ParseError{
+		Message:  "a role grant names one role",
+		Position: at,
+	}
 }
 
 // parsePrivilegeName parses a single privilege name.
@@ -506,6 +593,15 @@ func (p *Parser) parsePrivilegeName() (string, error) {
 			p.advance()
 			name = "ALTER ROUTINE"
 		}
+	case "GRANT":
+		// GRANT OPTION is the privilege; GRANT on its own is not one, and
+		// the server answers 1064 for `GRANT GRANT ON *.* TO u`. REVOKE's
+		// `ALL PRIVILEGES, GRANT OPTION` form does not come through here:
+		// its caller reads the two words itself.
+		if _, ok := p.match(kwOPTION); !ok {
+			return "", p.syntaxErrorAtCur()
+		}
+		name = "GRANT OPTION"
 	case "SHOW":
 		// SHOW DATABASES, SHOW VIEW
 		if p.cur.Type == kwDATABASES || p.cur.Type == kwDATABASE {
@@ -671,6 +767,41 @@ func (p *Parser) parseGrantPrivLevel() (*nodes.TableRef, error) {
 
 // parseUserList parses a comma-separated list of user identifiers.
 // User can be 'user'@'host' or just a name.
+// parseGranteeList parses the grantee list of a GRANT, where each grantee may
+// carry an auth option of its own: `GRANT ALL ON db.* TO 'u'@'localhost'
+// IDENTIFIED BY '...'` is the spelling an old dump writes. MySQL 8.0 dropped
+// the tail and mariadb:11.8 runs it, on the role and PROXY forms as well as
+// the privilege one. REVOKE does not take it: mariadb:11.8 answers 1064 for
+// `REVOKE SELECT ON *.* FROM u IDENTIFIED BY '...'`, so the REVOKE arms read
+// parseUserList instead.
+//
+// The AST models a grantee as a name. Nothing downstream reads a credential
+// off a GRANT -- the catalog models no users and the review walk claims
+// nothing from one -- so the auth option is parsed and dropped rather than
+// stored.
+func (p *Parser) parseGranteeList() ([]string, error) {
+	var users []string
+	for {
+		user, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+
+		if p.cur.Type == kwIDENTIFIED {
+			if err := p.parseUserAuthOption(&nodes.UserSpec{}); err != nil {
+				return nil, err
+			}
+		}
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return users, nil
+}
+
 func (p *Parser) parseUserList() ([]string, error) {
 	var users []string
 	for {
@@ -690,47 +821,89 @@ func (p *Parser) parseUserList() ([]string, error) {
 
 // parseUserName parses a user identifier, which may be 'user'@'host'.
 func (p *Parser) parseUserName() (string, error) {
-	var name string
+	name, host, hasHost, err := p.parseUserAndHost()
+	if err != nil {
+		return "", err
+	}
+	if hasHost {
+		return name + "@" + host, nil
+	}
+	return name, nil
+}
 
-	if p.cur.Type == tokSCONST {
+// parseUserAndHost parses a user name, then optionally the @host half,
+// reporting whether one was written.
+//
+// Both halves are a string literal or an identifier, backquoted or not, and a
+// reserved word is not one: mariadb:11.8 answers 1064 for
+// CREATE USER select@localhost and runs CREATE USER comment@localhost.
+func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error) {
+	switch {
+	case p.cur.Type == tokSCONST:
 		name = p.cur.Str
 		p.advance()
-	} else if p.isIdentToken() {
-		n, _, err := p.parseIdent()
+	case p.isIdentToken():
+		name, _, err = p.parseIdent()
 		if err != nil {
-			return "", err
+			return "", "", false, err
 		}
-		name = n
-	} else {
-		return "", &ParseError{
+	default:
+		return "", "", false, &ParseError{
 			Message:  "expected user name",
 			Position: p.cur.Loc,
 		}
 	}
+	host, hasHost, err = p.parseUserHostOpt()
+	return name, host, hasHost, err
+}
 
-	// Check for @'host' - the lexer scans @ as tokIDENT with Str="@"
-	if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-		p.advance() // consume '@'
-		var host string
-		if p.cur.Type == tokSCONST {
-			host = p.cur.Str
-			p.advance()
-		} else if p.isIdentToken() {
-			h, _, err := p.parseIdent()
-			if err != nil {
-				return "", err
-			}
-			host = h
-		} else {
-			return "", &ParseError{
-				Message:  "expected host name after @",
-				Position: p.cur.Loc,
-			}
-		}
-		return name + "@" + host, nil
+// parseUserHostOpt consumes the optional @host half of a user name.
+//
+// The lexer folds `@word` and "@`word`" into a single identifier token, so a
+// host written without quotes arrives attached to its '@'. A quoted host
+// arrives as a separate string literal, and there the '@' has to touch it:
+// mariadb:11.8 answers 1064 for `CREATE USER u@ 'h'` and runs
+// `CREATE USER u @'h'`, so the gap that matters is the one after the '@'.
+// A '@' with nothing attached is an empty host, which the server takes.
+func (p *Parser) parseUserHostOpt() (string, bool, error) {
+	if p.cur.Type != tokIDENT || !strings.HasPrefix(p.cur.Str, "@") {
+		return "", false, nil
 	}
+	if len(p.cur.Str) > 1 {
+		host := strings.TrimPrefix(p.cur.Str, "@")
+		p.advance()
+		return host, true, nil
+	}
+	p.advance() // consume the bare '@'
+	if p.cur.Loc != p.prev.End {
+		return "", true, nil
+	}
+	if p.cur.Type == tokSCONST {
+		host := p.cur.Str
+		p.advance()
+		return host, true, nil
+	}
+	if p.isIdentToken() {
+		host, _, err := p.parseIdent()
+		return host, true, err
+	}
+	return "", true, nil
+}
 
-	return name, nil
+// parseAuthPlugin parses the plugin name of an IDENTIFIED WITH clause, which
+// is a string literal as well as an identifier: `IDENTIFIED WITH
+// 'caching_sha2_password'` is the spelling a mysqldump writes.
+func (p *Parser) parseAuthPlugin() (string, error) {
+	if p.cur.Type == tokSCONST {
+		name := p.cur.Str
+		p.advance()
+		return name, nil
+	}
+	if p.isIdentToken() {
+		name, _, err := p.parseIdent()
+		return name, err
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseCreateUserStmt parses a CREATE USER statement.
@@ -1208,37 +1381,11 @@ func (p *Parser) parseUserSpec() (*nodes.UserSpec, error) {
 	start := p.pos()
 	spec := &nodes.UserSpec{Loc: nodes.Loc{Start: start}}
 
-	// Parse user name
-	if p.cur.Type == tokSCONST {
-		spec.Name = p.cur.Str
-		p.advance()
-	} else if p.isIdentToken() {
-		name, _, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		spec.Name = name
-	} else {
-		return nil, &ParseError{
-			Message:  "expected user name",
-			Position: p.cur.Loc,
-		}
+	name, host, _, err := p.parseUserAndHost()
+	if err != nil {
+		return nil, err
 	}
-
-	// Optional @host — the lexer scans @ as tokIDENT with Str="@"
-	if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-		p.advance()
-		if p.cur.Type == tokSCONST {
-			spec.Host = p.cur.Str
-			p.advance()
-		} else if p.isIdentToken() {
-			host, _, err := p.parseIdent()
-			if err != nil {
-				return nil, err
-			}
-			spec.Host = host
-		}
-	}
+	spec.Name, spec.Host = name, host
 
 	// Optional IDENTIFIED BY/WITH
 	if p.cur.Type == kwIDENTIFIED {
@@ -1383,49 +1530,61 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	return stmt, nil
 }
 
-// parseUserAuthOption parses the IDENTIFIED BY/WITH portion of a user spec.
-// Caller has verified p.cur.Type == kwIDENTIFIED.
+// parseUserAuthOption parses the IDENTIFIED portion of a user spec. Caller
+// has verified p.cur.Type == kwIDENTIFIED.
+//
+//	IDENTIFIED BY 'password'
+//	IDENTIFIED BY PASSWORD 'hash'
+//	IDENTIFIED WITH auth_plugin [AS 'hash']
+//
+// A plugin takes no password: mariadb:11.8 answers 1064 for `IDENTIFIED WITH
+// p BY 'pw'`, which MySQL 8.0 runs, and the hash it takes is a string literal
+// and not a hex one. BY PASSWORD, which MySQL 8.0 dropped, it runs.
+//
+// RANDOM PASSWORD is MySQL 8.0's and not MariaDB's, but it is left where it
+// was: mariadb:11.8 answers 1064 for `IDENTIFIED BY RANDOM PASSWORD`, so
+// taking it is a false accept, and one to retire on its own rather than
+// alongside the clauses this change adds.
 func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) error {
 	p.advance() // consume IDENTIFIED
-	if p.cur.Type == kwBY {
-		// IDENTIFIED BY 'password' | IDENTIFIED BY RANDOM PASSWORD
+	switch p.cur.Type {
+	case kwBY:
 		p.advance()
+		// BY PASSWORD names the stored hash rather than the password.
+		if p.cur.Type == kwPASSWORD {
+			p.advance()
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
+			}
+			spec.AuthHash = p.cur.Str
+			p.advance()
+			return nil
+		}
 		if p.cur.Type == kwRANDOM {
 			p.advance() // consume RANDOM
 			p.advance() // consume PASSWORD
 			spec.PasswordRandom = true
-		} else if p.cur.Type == tokSCONST {
-			spec.Password = p.cur.Str
-			p.advance()
+			return nil
 		}
-	} else if p.cur.Type == kwWITH {
-		// IDENTIFIED WITH auth_plugin [BY 'password' | BY RANDOM PASSWORD | AS 'hash']
-		p.advance()
-		if p.isIdentToken() {
-			plugin, _, err := p.parseIdent()
-			if err != nil {
-				return err
-			}
-			spec.AuthPlugin = plugin
-		} else {
+		if p.cur.Type != tokSCONST {
 			return p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == kwBY {
+		spec.Password = p.cur.Str
+		p.advance()
+	case kwWITH:
+		p.advance()
+		plugin, err := p.parseAuthPlugin()
+		if err != nil {
+			return err
+		}
+		spec.AuthPlugin = plugin
+		if p.cur.Type == kwAS {
 			p.advance()
-			if p.cur.Type == kwRANDOM {
-				p.advance() // consume RANDOM
-				p.advance() // consume PASSWORD
-				spec.PasswordRandom = true
-			} else if p.cur.Type == tokSCONST {
-				spec.Password = p.cur.Str
-				p.advance()
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
 			}
-		} else if p.cur.Type == kwAS {
+			spec.AuthHash = p.cur.Str
 			p.advance()
-			if p.cur.Type == tokSCONST {
-				spec.AuthHash = p.cur.Str
-				p.advance()
-			}
 		}
 	}
 	return nil
@@ -1433,36 +1592,38 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec) error {
 
 // parseSetDefaultRoleStmt parses a SET DEFAULT ROLE statement.
 //
-//	SET DEFAULT ROLE {NONE | ALL | role [, role] ...} TO user [, user] ...
+//	SET DEFAULT ROLE {role | NONE} [FOR user]
+//
+// MariaDB's form is not MySQL's: it names one role rather than a list, has no
+// ALL, and says FOR where MySQL says TO, with the user optional because the
+// statement defaults to the current one. mariadb:11.8 runs `SET DEFAULT ROLE
+// role1`, `SET DEFAULT ROLE NONE` and `SET DEFAULT ROLE 'role1' FOR
+// u@localhost`, and answers 1064 for `SET DEFAULT ROLE role1 TO u`, for `SET
+// DEFAULT ROLE role1, role2 FOR u` and for `SET DEFAULT ROLE ALL FOR u`.
 func (p *Parser) parseSetDefaultRoleStmt(start int) (*nodes.SetDefaultRoleStmt, error) {
 	// DEFAULT and ROLE already consumed
 	stmt := &nodes.SetDefaultRoleStmt{Loc: nodes.Loc{Start: start}}
 
-	switch {
-	case p.cur.Type == kwNONE:
+	if p.cur.Type == kwNONE {
 		stmt.None = true
 		p.advance()
-	case p.cur.Type == kwALL:
-		stmt.All = true
-		p.advance()
-	default:
-		roles, err := p.parseUserList()
+	} else {
+		role, err := p.parseUserName()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Roles = roles
+		stmt.Roles = []string{role}
 	}
 
-	// TO user [, user] ...
-	if _, err := p.expect(kwTO); err != nil {
-		return nil, err
+	// [FOR user]
+	if p.cur.Type == kwFOR {
+		p.advance()
+		user, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.To = []string{user}
 	}
-
-	users, err := p.parseUserList()
-	if err != nil {
-		return nil, err
-	}
-	stmt.To = users
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1555,88 +1716,77 @@ func (p *Parser) parseRenameUserStmt(start int) (*nodes.RenameUserStmt, error) {
 // parseRenameUserPart parses a user part (name[@host]) in a RENAME USER statement.
 // Supports both quoted and unquoted user names.
 func (p *Parser) parseRenameUserPart() (string, string, error) {
-	var name, host string
-	if p.cur.Type == tokSCONST {
-		name = p.cur.Str
-		p.advance()
-	} else if p.isIdentToken() {
-		var err error
-		name, _, err = p.parseIdent()
-		if err != nil {
-			return "", "", err
-		}
-	} else {
-		return "", "", p.syntaxErrorAtCur()
-	}
-	if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-		p.advance()
-		if p.cur.Type == tokSCONST {
-			host = p.cur.Str
-			p.advance()
-		} else if p.isIdentToken() {
-			var err error
-			host, _, err = p.parseIdent()
-			if err != nil {
-				return "", "", err
-			}
-		}
+	name, host, _, err := p.parseUserAndHost()
+	if err != nil {
+		return "", "", err
 	}
 	return name, host, nil
 }
 
 // parseRequireClause parses a REQUIRE clause for TLS options.
 //
-//	REQUIRE {NONE | tls_option [[AND] tls_option] ...}
+//	REQUIRE NONE
+//	REQUIRE SSL
+//	REQUIRE X509
+//	REQUIRE tls_option [[AND] tls_option] ...
 //
 //	tls_option: {
-//	    SSL
-//	  | X509
-//	  | CIPHER 'cipher'
+//	    CIPHER 'cipher'
 //	  | ISSUER 'issuer'
 //	  | SUBJECT 'subject'
 //	}
+//
+// NONE, SSL and X509 each stand alone and join no list, so `REQUIRE SSL AND
+// X509`, `REQUIRE X509 ISSUER 'i'` and `REQUIRE NONE SSL` are all 1064 on
+// mariadb:11.8. The list is never empty, every element
+// carries a string literal, and an AND is never trailing.
 func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 	start := p.pos()
 	p.advance() // consume REQUIRE
 
 	req := &nodes.RequireClause{Loc: nodes.Loc{Start: start}}
 
-	for {
-		switch {
-		case p.cur.Type == kwNONE:
-			req.None = true
-			p.advance()
-		case p.cur.Type == kwSSL:
-			req.SSL = true
-			p.advance()
-		case p.cur.Type == kwX509:
-			req.X509 = true
-			p.advance()
-		case p.cur.Type == kwCIPHER:
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				req.Cipher = p.cur.Str
-				p.advance()
-			}
-		case p.cur.Type == kwISSUER:
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				req.Issuer = p.cur.Str
-				p.advance()
-			}
-		case p.cur.Type == kwSUBJECT:
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				req.Subject = p.cur.Str
-				p.advance()
-			}
+	switch p.cur.Type {
+	case kwNONE:
+		req.None = true
+	case kwSSL:
+		req.SSL = true
+	case kwX509:
+		req.X509 = true
+	}
+	if req.None || req.SSL || req.X509 {
+		p.advance()
+		req.Loc.End = p.prev.End
+		return req, nil
+	}
+
+	// An element is mandatory to start with, and again after an AND; between
+	// two elements the AND is optional.
+	for required := true; ; {
+		var out *string
+		switch p.cur.Type {
+		case kwCIPHER:
+			out = &req.Cipher
+		case kwISSUER:
+			out = &req.Issuer
+		case kwSUBJECT:
+			out = &req.Subject
 		default:
+			if required {
+				return nil, p.syntaxErrorAtCur()
+			}
 			req.Loc.End = p.prev.End
 			return req, nil
 		}
+		p.advance() // consume the option keyword
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		*out = p.cur.Str
+		p.advance()
 
-		// Optional AND between tls_option items
-		if p.cur.Type == kwAND {
+		required = p.cur.Type == kwAND
+		if required {
 			p.advance()
 		}
 	}
