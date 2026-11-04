@@ -305,50 +305,59 @@ func TestWalkThroughOracleChecksClaims(t *testing.T) {
 // seed, and WALK_SWEEP_IMAGE the PostgreSQL image.
 func TestWalkThroughSweep(t *testing.T) {
 	n, seed, image := walktest.SweepParams(t, 40, 20261019, "postgres:17-alpine")
-	db := startPostgresImage(t, image)
-	ctx := context.Background()
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	var version string
-	if err := conn.QueryRowContext(ctx, "SHOW server_version").Scan(&version); err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("PostgreSQL %s", version)
-	setupWalkRoles(t, conn)
-	rng := rand.New(rand.NewSource(seed))
-	var found, rejected int
-	for i := range n {
+	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
 		base := sweepChange(rng, 8+rng.Intn(8))
 		change := sweepChange(rng, 15+rng.Intn(15))
 		if rng.Intn(6) == 0 {
 			change = "-- txn-mode = off\n" + change
 		}
-		t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
-			resetWalk(t, conn, "")
-			// The base keeps only the statements the server accepts. The
-			// change then runs as Bytebase runs it, in a session of its
-			// own: no temporary relation, the default settings.
-			for _, stmt := range splitStatements(base) {
-				_, _ = conn.ExecContext(ctx, stmt)
+		return base, change
+	})
+	shards := walktest.Shards(n)
+	for shard := range shards {
+		t.Run(fmt.Sprintf("shard%d", shard), func(t *testing.T) {
+			t.Parallel()
+			db := startPostgresImage(t, image)
+			ctx := context.Background()
+			conn, err := db.Conn(ctx)
+			if err != nil {
+				t.Fatal(err)
 			}
-			for _, stmt := range []string{"RESET ALL", "RESET ROLE", "DISCARD TEMP"} {
-				if _, err := conn.ExecContext(ctx, stmt); err != nil {
-					t.Fatalf("%s: %v", stmt, err)
-				}
+			defer conn.Close()
+			var version string
+			if err := conn.QueryRowContext(ctx, "SHOW server_version").Scan(&version); err != nil {
+				t.Fatal(err)
 			}
-			schema := walkSync(t, conn)
-			f, r := judgeWalk(t, conn, schema, "postgres", change, false, false)
-			found += f
-			rejected += r
-			if t.Failed() {
-				t.Logf("base:\n%s\nchange:\n%s", base, change)
+			t.Logf("PostgreSQL %s", version)
+			setupWalkRoles(t, conn)
+			var found, rejected int
+			for i := shard; i < len(changes); i += shards {
+				base, change := changes[i].Base, changes[i].Change
+				t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
+					resetWalk(t, conn, "")
+					// The base keeps only the statements the server accepts. The
+					// change then runs as Bytebase runs it, in a session of its
+					// own: no temporary relation, the default settings.
+					for _, stmt := range splitStatements(base) {
+						_, _ = conn.ExecContext(ctx, stmt)
+					}
+					for _, stmt := range []string{"RESET ALL", "RESET ROLE", "DISCARD TEMP"} {
+						if _, err := conn.ExecContext(ctx, stmt); err != nil {
+							t.Fatalf("%s: %v", stmt, err)
+						}
+					}
+					schema := walkSync(t, conn)
+					f, r := judgeWalk(t, conn, schema, "postgres", change, false, false)
+					found += f
+					rejected += r
+					if t.Failed() {
+						t.Logf("base:\n%s\nchange:\n%s", base, change)
+					}
+				})
 			}
+			t.Logf("shard %d of seed %d: found %d of the %d statements the server rejects", shard, seed, found, rejected)
 		})
 	}
-	t.Logf("seed %d: found %d of the %d statements the server rejects", seed, found, rejected)
 }
 
 // splitStatements splits a change into its statements, each ending with a

@@ -14,6 +14,7 @@
 package walktest
 
 import (
+	"math/rand"
 	"os"
 	"slices"
 	"strconv"
@@ -200,6 +201,40 @@ func SweepParams(t testing.TB, n int, seed int64, image string) (int, int64, str
 		image = v
 	}
 	return n, seed, image
+}
+
+// Shards is how many servers a sweep of n changes spreads over. A sweep
+// runs one statement at a time against one server and waits for the
+// answer, so a single-server sweep leaves the host idle: one change
+// measured at 0.21 s costs 2 of this host's 20 cores. The changes do not
+// depend on each other -- each starts from a reset schema -- so they can
+// be dealt over servers of their own and judged at once.
+//
+// One shard per 100 changes, up to 4. A sweep of the default size keeps
+// to the one server a developer has warm; the larger ones CI runs spread
+// out.
+func Shards(n int) int {
+	return max(1, min(4, n/100))
+}
+
+// SweepChange is one change of a sweep: the base that sets the server up,
+// and the change judged on it.
+type SweepChange struct {
+	Base   string
+	Change string
+}
+
+// SweepChanges generates a sweep's n changes from seed, ahead of running
+// any, so which changes a sweep covers does not depend on how many
+// shards it deals them over.
+func SweepChanges(n int, seed int64, gen func(rng *rand.Rand) (base, change string)) []SweepChange {
+	rng := rand.New(rand.NewSource(seed))
+	changes := make([]SweepChange, n)
+	for i := range changes {
+		base, change := gen(rng)
+		changes[i] = SweepChange{Base: base, Change: change}
+	}
+	return changes
 }
 
 // Form is one statement form of an engine's statement table: SQL, a

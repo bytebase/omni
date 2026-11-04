@@ -164,9 +164,9 @@ func startWalkTiDB(t *testing.T) *sql.DB {
 
 // startSweepTiDB returns a TiDB of the image for the sweep: the package's
 // for its own image, else one started for the test, which it ends.
-func startSweepTiDB(t *testing.T, image string) *sql.DB {
+func startSweepTiDB(t *testing.T, image string, shard int) *sql.DB {
 	t.Helper()
-	if image == tidbImage {
+	if image == tidbImage && shard == 0 {
 		return startWalkTiDB(t)
 	}
 	c, db, err := runTiDB(context.Background(), image)
@@ -719,37 +719,44 @@ func walkSync(t *testing.T, db *sql.DB) *metadata.DatabaseSchemaMetadata {
 // job's rollback without end.
 func TestWalkThroughSweepTiDB(t *testing.T) {
 	n, seed, image := walktest.SweepParams(t, 40, 20261026, tidbImage)
-	db := startSweepTiDB(t, image)
-	rng := rand.New(rand.NewSource(seed))
-	var found, rejected int
-	for i := range n {
-		base := walkSweepChange(rng, 8+rng.Intn(8))
-		change := walkSweepChange(rng, 15+rng.Intn(15))
-		t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
-			resetWalk(t, db, "")
-			conn := session(t, db)
-			if _, err := conn.ExecContext(context.Background(), "USE shop"); err != nil {
-				t.Fatal(err)
+	changes := walktest.SweepChanges(n, seed, func(rng *rand.Rand) (string, string) {
+		return walkSweepChange(rng, 8+rng.Intn(8)), walkSweepChange(rng, 15+rng.Intn(15))
+	})
+	shards := walktest.Shards(n)
+	for shard := range shards {
+		t.Run(fmt.Sprintf("shard%d", shard), func(t *testing.T) {
+			t.Parallel()
+			db := startSweepTiDB(t, image, shard)
+			var found, rejected int
+			for i := shard; i < len(changes); i += shards {
+				base, change := changes[i].Base, changes[i].Change
+				t.Run(fmt.Sprintf("change%d", i), func(t *testing.T) {
+					resetWalk(t, db, "")
+					conn := session(t, db)
+					if _, err := conn.ExecContext(context.Background(), "USE shop"); err != nil {
+						t.Fatal(err)
+					}
+					// The base's temporary tables end with its session, before the sync.
+					for _, q := range splitWalk(base) {
+						_, _ = conn.ExecContext(context.Background(), q)
+					}
+					_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+					// The base may have set the global foreign_key_checks the
+					// change's session starts from.
+					if _, err := db.ExecContext(context.Background(), "SET GLOBAL foreign_key_checks = 1"); err != nil {
+						t.Fatal(err)
+					}
+					f, r := judgeWalk(t, db, change, false)
+					found += f
+					rejected += r
+					if t.Failed() {
+						t.Logf("base:\n%s\nchange:\n%s", base, change)
+					}
+				})
 			}
-			// The base's temporary tables end with its session, before the sync.
-			for _, q := range splitWalk(base) {
-				_, _ = conn.ExecContext(context.Background(), q)
-			}
-			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
-			// The base may have set the global foreign_key_checks the
-			// change's session starts from.
-			if _, err := db.ExecContext(context.Background(), "SET GLOBAL foreign_key_checks = 1"); err != nil {
-				t.Fatal(err)
-			}
-			f, r := judgeWalk(t, db, change, false)
-			found += f
-			rejected += r
-			if t.Failed() {
-				t.Logf("base:\n%s\nchange:\n%s", base, change)
-			}
+			t.Logf("shard %d of seed %d: found %d of the %d statements the server rejects", shard, seed, found, rejected)
 		})
 	}
-	t.Logf("seed %d: found %d of the %d statements the server rejects", seed, found, rejected)
 }
 
 func walkSweepChange(rng *rand.Rand, n int) string {
