@@ -202,10 +202,18 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 	switch p.cur.Type {
 	case TABLE:
 		p.advance()
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, p.parseGrantObjectAnyNameList(), nil
+		list, err := p.parseGrantObjectAnyNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, list, nil
 	case SEQUENCE:
 		p.advance()
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SEQUENCE, p.parseGrantObjectAnyNameList(), nil
+		list, err := p.parseGrantObjectAnyNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SEQUENCE, list, nil
 	case FUNCTION:
 		p.advance()
 		list, err := p.parseGrantFunctionWithArgtypesList()
@@ -229,15 +237,24 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_ROUTINE, list, nil
 	case DATABASE:
 		p.advance()
-		names, _ := p.parseNameList()
+		names, err := p.parseNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DATABASE, makeNameListAsAnyNameList(names), nil
 	case DOMAIN_P:
 		p.advance()
-		objects, _ := p.parseAnyNameList()
+		objects, err := p.parseAnyNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DOMAIN, objects, nil
 	case LANGUAGE:
 		p.advance()
-		names, _ := p.parseNameList()
+		names, err := p.parseNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LANGUAGE, makeNameListAsAnyNameList(names), nil
 	case LARGE_P:
 		p.advance()
@@ -245,26 +262,41 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LARGEOBJECT, p.parseNumericOnlyList(), nil
 	case SCHEMA:
 		p.advance()
-		names, _ := p.parseNameList()
+		names, err := p.parseNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SCHEMA, makeNameListAsAnyNameList(names), nil
 	case TABLESPACE:
 		p.advance()
-		names, _ := p.parseNameList()
+		names, err := p.parseNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLESPACE, makeNameListAsAnyNameList(names), nil
 	case TYPE_P:
 		p.advance()
-		objects, _ := p.parseAnyNameList()
+		objects, err := p.parseAnyNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TYPE, objects, nil
 	case FOREIGN:
 		p.advance()
 		if p.cur.Type == DATA_P {
 			p.advance()
 			p.expect(WRAPPER)
-			names, _ := p.parseNameList()
+			names, err := p.parseNameList()
+			if err != nil {
+				return 0, 0, nil, err
+			}
 			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FDW, makeNameListAsAnyNameList(names), nil
 		}
 		p.expect(SERVER)
-		names, _ := p.parseNameList()
+		names, err := p.parseNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FOREIGN_SERVER, makeNameListAsAnyNameList(names), nil
 	case ALL:
 		p.advance()
@@ -294,18 +326,27 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 			p.addRuleCandidate("qualified_name")
 			return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, nil, nil
 		}
-		names, _ := p.parseNameList()
+		names, err := p.parseNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
 		return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, makeNameListAsAnyNameList(names), nil
 	default:
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, p.parseGrantObjectAnyNameList(), nil
+		list, err := p.parseGrantObjectAnyNameList()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, list, nil
 	}
 }
 
-func (p *Parser) parseGrantObjectAnyNameList() *nodes.List {
+// parseGrantObjectAnyNameList parses the qualified_name_list a GRANT or
+// REVOKE names its tables or sequences by. A comma promises a name.
+func (p *Parser) parseGrantObjectAnyNameList() (*nodes.List, error) {
 	nameStart := p.pos()
 	name, err := p.parseAnyName()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	result := &nodes.List{Items: []nodes.Node{makeRangeVarFromAnyName(name, nodes.Loc{Start: nameStart, End: p.prev.End})}}
 	for p.cur.Type == ',' {
@@ -313,11 +354,11 @@ func (p *Parser) parseGrantObjectAnyNameList() *nodes.List {
 		nameStart = p.pos()
 		name, err = p.parseAnyName()
 		if err != nil {
-			break
+			return nil, err
 		}
 		result.Items = append(result.Items, makeRangeVarFromAnyName(name, nodes.Loc{Start: nameStart, End: p.prev.End}))
 	}
-	return result
+	return result, nil
 }
 
 func (p *Parser) parseNumericOnlyList() *nodes.List {
@@ -353,7 +394,7 @@ func (p *Parser) parseGrantFunctionWithArgtypesList() (*nodes.List, error) {
 			return nil, err
 		}
 		if fn == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		result.Items = append(result.Items, fn)
 	}
@@ -403,7 +444,10 @@ func (p *Parser) parseGrantFuncArgsList() (*nodes.List, error) {
 			return nil, err
 		}
 		if arg == nil {
-			break
+			if p.collectMode() {
+				break
+			}
+			return nil, p.syntaxErrorAtCur()
 		}
 		result.Items = append(result.Items, arg)
 	}
@@ -412,7 +456,9 @@ func (p *Parser) parseGrantFuncArgsList() (*nodes.List, error) {
 
 func (p *Parser) parseGrantFuncArg() (nodes.Node, error) {
 	arg := p.parseFuncArg()
-	if arg == nil {
+	// A func_arg always has a type; without one there is no argument, and
+	// a typed nil must not reach the caller's nil check.
+	if arg == nil || arg.ArgType == nil {
 		return nil, nil
 	}
 	return arg.ArgType, nil
@@ -444,8 +490,12 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
 		if err != nil {
 			return nil, err
 		}
+		// privilege_list: privilege | privilege_list ',' privilege
 		if priv == nil {
-			break
+			if p.collectMode() {
+				break
+			}
+			return nil, p.syntaxErrorAtCur()
 		}
 		result.Items = append(result.Items, priv)
 	}

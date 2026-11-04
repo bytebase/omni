@@ -288,7 +288,10 @@ func (p *Parser) parseOnConflict() (*nodes.OnConflictClause, error) {
 		// '(' index_params ')' [WHERE a_expr] DO ...
 		inferLoc := p.pos()
 		p.advance() // consume '('
-		indexElems := p.parseIndexParams()
+		indexElems, err := p.parseIndexParams()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}

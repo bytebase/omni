@@ -515,22 +515,53 @@ func (p *Parser) parseSetQuantifier() nodes.SetQuantifier {
 	return nodes.SET_QUANTIFIER_DEFAULT
 }
 
-// parseSelectOptions parses ORDER BY, LIMIT/OFFSET, and FOR locking clauses.
-// These can appear in various orders.
+// parseSelectOptions parses the locking clauses and the select_limit that
+// follow a select_no_parens's sort clause. As in PostgreSQL's gram.y, from
+// which this fork comes, they come in either order but only once each:
+//
+//	select_no_parens:
+//	    ...
+//	    | select_clause opt_sort_clause for_locking_clause opt_select_limit
+//	    | select_clause opt_sort_clause select_limit opt_for_locking_clause
+//
+// and Redshift's SELECT synopsis (r_SELECT_synopsis, r_ORDER_BY_clause)
+// gives one optional LIMIT and one optional OFFSET, so a repeated clause
+// is a syntax error at it.
 func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) error {
-	// Parse LIMIT/OFFSET/FETCH and FOR locking in either order
-	for {
+	if p.collectMode() {
+		for _, t := range []int{LIMIT, OFFSET, FETCH, FOR, ';'} {
+			p.addTokenCandidate(t)
+		}
+		return nil
+	}
+	switch {
+	case p.cur.Type == FOR:
+		locking, err := p.parseForLockingClause()
+		if err != nil {
+			return err
+		}
+		if locking != nil {
+			stmt.LockingClause = locking
+		}
 		if p.collectMode() {
 			for _, t := range []int{LIMIT, OFFSET, FETCH, FOR, ';'} {
 				p.addTokenCandidate(t)
 			}
 			return nil
 		}
-		if p.cur.Type == LIMIT || p.cur.Type == OFFSET || p.cur.Type == FETCH {
-			if err := p.parseSelectLimit(stmt); err != nil {
-				return err
-			}
-		} else if p.cur.Type == FOR {
+		if p.isSelectLimitStart() {
+			return p.parseSelectLimit(stmt)
+		}
+	case p.isSelectLimitStart():
+		if err := p.parseSelectLimit(stmt); err != nil {
+			return err
+		}
+		if p.collectMode() {
+			p.addTokenCandidate(FOR)
+			p.addTokenCandidate(';')
+			return nil
+		}
+		if p.cur.Type == FOR {
 			locking, err := p.parseForLockingClause()
 			if err != nil {
 				return err
@@ -538,8 +569,6 @@ func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) error {
 			if locking != nil {
 				stmt.LockingClause = locking
 			}
-		} else {
-			break
 		}
 	}
 	return nil
@@ -548,7 +577,8 @@ func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) error {
 // ---------------------------------------------------------------------------
 // LIMIT / OFFSET / FETCH
 
-// parseSelectLimit parses LIMIT, OFFSET, and FETCH clauses.
+// parseSelectLimit parses a select_limit: at most one limit_clause and one
+// offset_clause, in either order.
 //
 //	select_limit:
 //	    limit_clause offset_clause
@@ -556,54 +586,88 @@ func (p *Parser) parseSelectOptions(stmt *nodes.SelectStmt) error {
 //	    | limit_clause
 //	    | offset_clause
 func (p *Parser) parseSelectLimit(stmt *nodes.SelectStmt) error {
-	for {
-		switch p.cur.Type {
-		case LIMIT:
-			p.advance()
-			if p.cur.Type == ALL {
-				p.advance()
-				stmt.LimitCount = &nodes.A_Const{Isnull: true}
-				stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
-			} else {
-				var err error
-				stmt.LimitCount, err = p.parseAExpr(0)
-				if err != nil {
-					return err
-				}
-				stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
-				// Check for deprecated LIMIT #,# syntax
-				if p.cur.Type == ',' {
-					p.advance()
-					// In MySQL-compatible syntax: LIMIT offset, count
-					// Swap: what we parsed as count is actually offset
-					stmt.LimitOffset = stmt.LimitCount
-					stmt.LimitCount, err = p.parseAExpr(0)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		case OFFSET:
-			p.advance()
-			// Could be: OFFSET select_offset_value
-			// or: OFFSET select_fetch_first_value row_or_rows
-			expr, err := p.parseAExpr(0)
-			if err != nil {
-				return err
-			}
-			// Check if followed by ROW or ROWS (SQL:2008 syntax)
-			if p.cur.Type == ROW || p.cur.Type == ROWS {
-				p.advance()
-			}
-			stmt.LimitOffset = expr
-		case FETCH:
-			if err := p.parseFetchClause(stmt); err != nil {
-				return err
-			}
-		default:
+	if p.cur.Type == OFFSET {
+		if err := p.parseOffsetClause(stmt); err != nil {
+			return err
+		}
+		if p.collectMode() {
+			p.addTokenCandidate(LIMIT)
+			p.addTokenCandidate(FETCH)
 			return nil
 		}
+		if p.cur.Type == LIMIT || p.cur.Type == FETCH {
+			return p.parseLimitClause(stmt)
+		}
+		return nil
 	}
+	if err := p.parseLimitClause(stmt); err != nil {
+		return err
+	}
+	if p.collectMode() {
+		p.addTokenCandidate(OFFSET)
+		return nil
+	}
+	if p.cur.Type == OFFSET {
+		return p.parseOffsetClause(stmt)
+	}
+	return nil
+}
+
+// parseLimitClause parses a limit_clause: LIMIT { count | ALL }, or the
+// FETCH forms inherited from PostgreSQL. A count is required.
+func (p *Parser) parseLimitClause(stmt *nodes.SelectStmt) error {
+	if p.cur.Type == FETCH {
+		return p.parseFetchClause(stmt)
+	}
+	p.advance() // LIMIT
+	if p.cur.Type == ALL {
+		p.advance()
+		stmt.LimitCount = &nodes.A_Const{Isnull: true}
+		stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
+		return nil
+	}
+	count, err := p.parseAExpr(0)
+	if err != nil {
+		return err
+	}
+	if count == nil {
+		return p.syntaxErrorAtCur()
+	}
+	stmt.LimitCount = count
+	stmt.LimitOption = nodes.LIMIT_OPTION_COUNT
+	// Check for deprecated LIMIT #,# syntax
+	if p.cur.Type == ',' {
+		p.advance()
+		// In MySQL-compatible syntax: LIMIT offset, count
+		// Swap: what we parsed as count is actually offset
+		stmt.LimitOffset = stmt.LimitCount
+		stmt.LimitCount, err = p.parseAExpr(0)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// parseOffsetClause parses an offset_clause: OFFSET start, with the
+// optional ROW or ROWS inherited from PostgreSQL. A start is required.
+func (p *Parser) parseOffsetClause(stmt *nodes.SelectStmt) error {
+	p.advance() // OFFSET
+	// Could be: OFFSET select_offset_value
+	// or: OFFSET select_fetch_first_value row_or_rows
+	expr, err := p.parseAExpr(0)
+	if err != nil {
+		return err
+	}
+	if expr == nil {
+		return p.syntaxErrorAtCur()
+	}
+	// Check if followed by ROW or ROWS (SQL:2008 syntax)
+	if p.cur.Type == ROW || p.cur.Type == ROWS {
+		p.advance()
+	}
+	stmt.LimitOffset = expr
+	return nil
 }
 
 // parseFetchClause parses FETCH FIRST/NEXT ... ROWS ONLY/WITH TIES.
@@ -944,7 +1008,10 @@ func (p *Parser) parseOptSearchClause() (nodes.Node, error) {
 	if _, err := p.expect(BY); err != nil {
 		return nil, err
 	}
-	colList := p.parseColumnList()
+	colList, err := p.parseColumnList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(SET); err != nil {
 		return nil, err
 	}
@@ -975,7 +1042,10 @@ func (p *Parser) parseOptCycleClause() (nodes.Node, error) {
 	}
 	p.advance() // consume CYCLE
 
-	colList := p.parseColumnList()
+	colList, err := p.parseColumnList()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(SET); err != nil {
 		return nil, err
 	}
@@ -1117,8 +1187,10 @@ func (p *Parser) parseFromListFull() (*nodes.List, error) {
 		if err != nil {
 			return nil, err
 		}
+		// from_list: table_ref | from_list ',' table_ref. A comma
+		// promises a table_ref.
 		if item == nil {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, item)
 	}

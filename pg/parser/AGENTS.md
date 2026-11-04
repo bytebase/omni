@@ -25,7 +25,7 @@ Drift is caught at three layers:
 
 3. **Code review:** any PR introducing a bare `case TOK_A, TOK_B, TOK_C:` cluster outside a dispatch switch should be flagged. If you're tempted to write such a cluster, ask: "is this the FIRST set of some production?" If yes, route it through `isXStart`. If no, document in a comment why it's not (operator categorization, error recovery, etc.).
 
-## The six canonical predicates
+## The canonical predicates
 
 All defined in `first_sets.go` and documented inline. Read the doc comment on each before adding a new caller. (`isSelectStart` lives in `expr.go` and predates this refactor; it was reused at the migrated `copy.go` and `publication.go` call sites but is not part of the `first_sets.go` family.)
 
@@ -37,6 +37,9 @@ All defined in `first_sets.go` and documented inline. Read the doc comment on ea
 | `isFuncTypeStart` | (delegate) | thin alias for `isTypenameStart` | Yes — `TestFuncTypeLeadTokensMatchPG` via param type position |
 | `isAExprStart` | `aExprLeadTokens` (32) | set + `isConstTypenameStart` + `isColId` | Yes — `TestAExprLeadTokensMatchPG` via `SELECT X` |
 | `isTableConstraintStart` | `tableConstraintLeadTokens` (6) | set only | No — TableConstraint is only reachable via CREATE/ALTER TABLE; in-Go positive/negative test instead |
+| `isSelectLimitStart` | `selectLimitLeadTokens` (3) | set only | No — LIMIT, OFFSET, and FETCH are reserved and start nothing else after a sort or locking clause; `TestIsSelectLimitStartMatchesSlice` checks the whole `Keywords` table |
+
+`startsTableConstraint` is the call-site form of `isTableConstraintStart`. EXCLUDE is the one unreserved lead, so it starts a constraint only when `USING` or `(` follows it, and names a column otherwise (`CREATE TABLE t (exclude int)`).
 
 ## Oracle probe templates
 
@@ -160,7 +163,7 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 ## File map (for quick navigation)
 
 **FIRST-set core:**
-- `first_sets.go` — all 6 canonical FIRST-set slices and predicates
+- `first_sets.go` — all canonical FIRST-set slices and predicates
 - `first_set_oracle_test.go` — testcontainer infrastructure, candidate enumeration, probe driver, bidirectional assertion helper, and all FIRST-set tests
 - `create_function_json_test.go` — JSON / DEC / NATIONAL CHARACTER / NCHAR regression test with AST-shape assertions
 
@@ -171,9 +174,10 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 
 **Migrated call sites (FIRST-set probes use `isXStart` here):**
 - `create_function.go` — `parseFuncArg` uses `isFuncTypeStart` (canonical example)
-- `create_table.go` — `parseTableElement` and `parseTypedTableElement` use `isTableConstraintStart`
-- `alter_table.go` — `parseAlterTableAdd` uses `isTableConstraintStart`
-- `parser.go` — `isCreateTableElement` delegates to `isTableConstraintStart`
+- `create_table.go` — `parseTableElement` and `parseTypedTableElement` use `startsTableConstraint`
+- `alter_table.go` — `parseAlterTableAdd` uses `startsTableConstraint`
+- `parser.go` — `isCreateTableElement` delegates to `startsTableConstraint`
+- `select.go` — `parseSelectOptions` uses `isSelectLimitStart`
 - `copy.go` — `parsePreparableStmt` uses `isSelectStart`
 - `publication.go` — `parseRuleActionStmt` uses `isSelectStart` with WITH preserved
 - `expr.go` — `isAExprConstTypeCast` is a one-line wrapper around `isConstTypenameStart`; also defines `isSelectStart`

@@ -1051,7 +1051,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		return p.parseRedshiftAlterTableAddPartition(false)
 	}
 
-	if p.isTableConstraintStart() {
+	if p.startsTableConstraint() {
 		// ADD TableConstraint
 		constr, err := p.parseTableConstraint()
 		if err != nil {
@@ -1340,7 +1340,10 @@ func (p *Parser) parseRedshiftAlterSortkey() (*nodes.AlterTableCmd, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	cols := p.parseColumnList()
+	cols, err := p.parseColumnList()
+	if err != nil {
+		return nil, err
+	}
 	if cols == nil {
 		return nil, p.syntaxErrorAtCur()
 	}

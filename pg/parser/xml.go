@@ -62,11 +62,19 @@ func (p *Parser) parseXmlElement() (nodes.Node, error) {
 			result.NamedArgs = namedArgs
 			if p.cur.Type == ',' {
 				p.advance()
-				result.Args, _ = p.parseExprListFull()
+				args, err := p.parseExprListFull()
+				if err != nil {
+					return nil, err
+				}
+				result.Args = args
 			}
 		} else {
 			// expr_list starting with the current expression
-			result.Args = p.parseExprListFromCurrent()
+			args, err := p.parseExprListFull()
+			if err != nil {
+				return nil, err
+			}
+			result.Args = args
 		}
 	}
 
@@ -74,13 +82,6 @@ func (p *Parser) parseXmlElement() (nodes.Node, error) {
 		return nil, err
 	}
 	return result, nil
-}
-
-// parseExprListFromCurrent parses a comma-separated expression list starting
-// from the current position (first expression has not been consumed yet).
-func (p *Parser) parseExprListFromCurrent() *nodes.List {
-	result, _ := p.parseExprListFull()
-	return result
 }
 
 // parseXmlExists parses XMLEXISTS(expr PASSING expr).

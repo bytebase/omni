@@ -291,8 +291,7 @@ CREATE TABLE comprehensive_table (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
     CONSTRAINT pk_comprehensive PRIMARY KEY (id),
-    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(user_id),
-    CONSTRAINT chk_transaction_type
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES users(user_id)
 )
 BACKUP YES
 DISTSTYLE KEY;

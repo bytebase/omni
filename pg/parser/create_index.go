@@ -78,7 +78,10 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
-	indexParams := p.parseIndexParams()
+	indexParams, err := p.parseIndexParams()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -93,7 +96,10 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		includeParams = p.parseIndexParams()
+		var err error
+		if includeParams, err = p.parseIndexParams(); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -136,15 +142,21 @@ func (p *Parser) parseIndexStmt() (*nodes.IndexStmt, error) {
 //	index_params:
 //	    index_elem
 //	    | index_params ',' index_elem
-func (p *Parser) parseIndexParams() *nodes.List {
-	elem := p.parseIndexElem()
+func (p *Parser) parseIndexParams() (*nodes.List, error) {
+	elem, err := p.parseIndexElem()
+	if err != nil {
+		return nil, err
+	}
 	items := []nodes.Node{elem}
 	for p.cur.Type == ',' {
 		p.advance()
-		elem = p.parseIndexElem()
+		elem, err = p.parseIndexElem()
+		if err != nil {
+			return nil, err
+		}
 		items = append(items, elem)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseIndexElem parses a single index element.
@@ -156,12 +168,17 @@ func (p *Parser) parseIndexParams() *nodes.List {
 //	    | func_expr_windowless opt_collate any_name reloptions opt_asc_desc opt_nulls_order
 //	    | '(' a_expr ')' opt_collate opt_qualified_name opt_asc_desc opt_nulls_order
 //	    | '(' a_expr ')' opt_collate any_name reloptions opt_asc_desc opt_nulls_order
-func (p *Parser) parseIndexElem() *nodes.IndexElem {
+//
+// Each form starts with a name, a function call, or a parenthesized
+// expression, so an index_params list takes no empty element: the token
+// that cannot start one, such as the ')' after a trailing comma, is a
+// syntax error.
+func (p *Parser) parseIndexElem() (*nodes.IndexElem, error) {
 	if p.collectMode() {
 		p.addRuleCandidate("columnref")
 		p.addRuleCandidate("func_name")
 		p.addTokenCandidate('(')
-		return nil
+		return nil, nil
 	}
 	loc := p.pos()
 	elem := &nodes.IndexElem{}
@@ -169,8 +186,17 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 	if p.cur.Type == '(' {
 		// Expression index: '(' a_expr ')'
 		p.advance()
-		elem.Expr, _ = p.parseAExpr(0)
-		p.expect(')')
+		expr, err := p.parseAExpr(0)
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		elem.Expr = expr
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		elem.Collation = p.parseOptCollate()
 		elem.Opclass, elem.Opclassopts = p.parseIndexElemOpclass()
 		elem.Ordering = nodes.SortByDir(p.parseOptAscDesc())
@@ -180,9 +206,16 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 		// Route calls through the shared expression parser so SQL/JSON function
 		// syntaxes such as JSON_QUERY(... PASSING ...) are handled consistently.
 		if p.peekNext().Type == '(' {
-			elem.Expr, _ = p.parseFuncExprWindowless()
+			expr, err := p.parseFuncExprWindowless()
+			if err != nil {
+				return nil, err
+			}
+			elem.Expr = expr
 		} else {
-			name, _ := p.parseColId()
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, err
+			}
 			elem.Name = name
 		}
 
@@ -192,7 +225,14 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 		elem.NullsOrdering = nodes.SortByNulls(p.parseOptNullsOrder())
 	} else {
 		// func_expr_windowless (non-identifier start, e.g. special function syntax)
-		elem.Expr, _ = p.parseFuncExprWindowless()
+		expr, err := p.parseFuncExprWindowless()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		elem.Expr = expr
 		elem.Collation = p.parseOptCollate()
 		elem.Opclass, elem.Opclassopts = p.parseIndexElemOpclass()
 		elem.Ordering = nodes.SortByDir(p.parseOptAscDesc())
@@ -200,7 +240,7 @@ func (p *Parser) parseIndexElem() *nodes.IndexElem {
 	}
 
 	elem.Loc = nodes.Loc{Start: loc, End: p.prev.End}
-	return elem
+	return elem, nil
 }
 
 // parseIndexElemOpclass parses the optional operator class and its options.

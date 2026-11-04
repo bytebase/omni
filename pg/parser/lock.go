@@ -43,7 +43,10 @@ func (p *Parser) parseLockStmt() (nodes.Node, error) {
 	}
 
 	// relation_expr_list
-	relations := p.parseRelationExprList()
+	relations, err := p.parseRelationExprList()
+	if err != nil {
+		return nil, err
+	}
 
 	// opt_lock
 	mode, err := p.parseOptLock()

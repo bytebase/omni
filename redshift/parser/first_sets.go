@@ -218,6 +218,55 @@ func (p *Parser) isTableConstraintStart() bool {
 	return tableConstraintLeadSet[p.cur.Type]
 }
 
+// startsTableConstraint reports whether a TableConstraint, rather than a
+// column definition, starts at the current token. Every lead token but
+// EXCLUDE is reserved; EXCLUDE is an unreserved keyword, so it is also a
+// column name. It starts a constraint only when what ConstraintElem puts
+// after it follows, access_method_clause (USING) or '(':
+//
+//	ConstraintElem: ... | EXCLUDE access_method_clause '(' ExclusionConstraintList ')' ...
+//
+// Before anything else it names a column, as in CREATE TABLE t (exclude int).
+func (p *Parser) startsTableConstraint() bool {
+	if !p.isTableConstraintStart() {
+		return false
+	}
+	if p.cur.Type == EXCLUDE {
+		next := p.peekNext().Type
+		return next == '(' || next == USING
+	}
+	return true
+}
+
+// selectLimitLeadTokens is the FIRST set of select_limit: a limit_clause
+// starts with LIMIT or FETCH, an offset_clause with OFFSET.
+//
+// Grammar reference: select_limit, limit_clause, and offset_clause in
+// postgres/src/backend/parser/gram.y.
+//
+// DO NOT extend this list without also extending parseSelectLimit's and
+// parseLimitClause's dispatch in select.go, and vice versa.
+var selectLimitLeadTokens = []int{LIMIT, OFFSET, FETCH}
+
+var selectLimitLeadSet = func() map[int]bool {
+	m := make(map[int]bool, len(selectLimitLeadTokens))
+	for _, t := range selectLimitLeadTokens {
+		m[t] = true
+	}
+	return m
+}()
+
+// isSelectLimitStart reports whether the current token starts a
+// select_limit, where parseSelectOptions decides whether one follows the
+// sort or locking clauses of a select_no_parens.
+//
+// No oracle test: the three tokens are reserved keywords that start
+// nothing else at that position, so TestIsSelectLimitStartMatchesSlice
+// checks the predicate against the whole Keywords table instead.
+func (p *Parser) isSelectLimitStart() bool {
+	return selectLimitLeadSet[p.cur.Type]
+}
+
 // isFuncTypeStart reports whether the current token starts a func_type
 // production.
 //

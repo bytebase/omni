@@ -14,7 +14,10 @@ func (p *Parser) parseCreateTrigStmt(replace bool) (*nodes.CreateTrigStmt, error
 	}
 	trigname, _ := p.parseName()
 	timing := p.parseTriggerActionTime()
-	events, columns := p.parseTriggerEvents()
+	events, columns, err := p.parseTriggerEvents()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
@@ -64,7 +67,10 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 	if _, err := p.expect(AFTER); err != nil {
 		return nil, err
 	}
-	events, columns := p.parseTriggerEvents()
+	events, columns, err := p.parseTriggerEvents()
+	if err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(ON); err != nil {
 		return nil, err
 	}
@@ -139,37 +145,47 @@ func (p *Parser) parseTriggerActionTime() int64 {
 	return int64(nodes.TRIGGER_TYPE_AFTER)
 }
 
-func (p *Parser) parseTriggerEvents() (int64, *nodes.List) {
-	events, cols := p.parseTriggerOneEvent()
+func (p *Parser) parseTriggerEvents() (int64, *nodes.List, error) {
+	events, cols, err := p.parseTriggerOneEvent()
+	if err != nil {
+		return 0, nil, err
+	}
 	for p.cur.Type == OR {
 		p.advance()
-		ev2, cols2 := p.parseTriggerOneEvent()
+		ev2, cols2, err := p.parseTriggerOneEvent()
+		if err != nil {
+			return 0, nil, err
+		}
 		events |= ev2
 		cols = concatColumnLists(cols, cols2)
 	}
-	return events, cols
+	return events, cols, nil
 }
 
-func (p *Parser) parseTriggerOneEvent() (int64, *nodes.List) {
+func (p *Parser) parseTriggerOneEvent() (int64, *nodes.List, error) {
 	switch p.cur.Type {
 	case INSERT:
 		p.advance()
-		return int64(nodes.TRIGGER_TYPE_INSERT), nil
+		return int64(nodes.TRIGGER_TYPE_INSERT), nil, nil
 	case DELETE_P:
 		p.advance()
-		return int64(nodes.TRIGGER_TYPE_DELETE), nil
+		return int64(nodes.TRIGGER_TYPE_DELETE), nil, nil
 	case UPDATE:
 		p.advance()
 		if p.cur.Type == OF {
 			p.advance()
-			return int64(nodes.TRIGGER_TYPE_UPDATE), p.parseColumnList()
+			cols, err := p.parseColumnList()
+			if err != nil {
+				return 0, nil, err
+			}
+			return int64(nodes.TRIGGER_TYPE_UPDATE), cols, nil
 		}
-		return int64(nodes.TRIGGER_TYPE_UPDATE), nil
+		return int64(nodes.TRIGGER_TYPE_UPDATE), nil, nil
 	case TRUNCATE:
 		p.advance()
-		return int64(nodes.TRIGGER_TYPE_TRUNCATE), nil
+		return int64(nodes.TRIGGER_TYPE_TRUNCATE), nil, nil
 	}
-	return 0, nil
+	return 0, nil, nil
 }
 
 func concatColumnLists(a, b *nodes.List) *nodes.List {
