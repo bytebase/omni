@@ -157,18 +157,28 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		b.WriteString(opts)
 	}
 
-	// The ON COMMIT clause a global temporary table carries, which TiDB writes
-	// last on the options line: `... COLLATE=utf8mb4_bin COMMENT='hi' ON COMMIT
-	// DELETE ROWS` (v8.5.5).
-	if tbl.OnCommit != "" {
-		b.WriteString(" ON COMMIT ")
-		b.WriteString(tbl.OnCommit)
-	}
-
 	// Partition clause.
 	if tbl.Partitioning != nil {
 		b.WriteString("\n")
 		b.WriteString(showPartitioning(tbl.Partitioning))
+	}
+
+	// The ON COMMIT clause a global temporary table carries. It goes last,
+	// after the partition clause, because that is the one place the grammar
+	// takes it: `... partition by hash(a) partitions 10 on commit delete rows`
+	// parses on v8.5.5 and `... on commit delete rows comment 'x'` does not, so
+	// writing it before the partitions produced a definition this parser then
+	// refused. With no partitions it lands where the server writes it, last on
+	// the options line: `... COLLATE=utf8mb4_bin COMMENT='hi' ON COMMIT DELETE
+	// ROWS`.
+	//
+	// The server refuses the two together with 1562, "Cannot create temporary
+	// table with partitions", so a partitioned global temporary table is a state
+	// only this catalog reaches -- it does not model 1562 for an ordinary
+	// temporary table either. The order still has to be the grammar's.
+	if tbl.OnCommit != "" {
+		b.WriteString(" ON COMMIT ")
+		b.WriteString(tbl.OnCommit)
 	}
 
 	return b.String()
