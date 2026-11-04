@@ -61,7 +61,7 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 				return
 			}
 			seen[v] = true
-			rng := comparisonRange(v)
+			rng := rangeOf(v.Loc)
 			text := strings.Join(strings.Fields(sql[rng.Start:rng.End]), " ")
 			r.report(review.NullComparison, s.index, rng, review.Code(text)+" is never true.\n\nUse "+review.Code(fix)+" instead.")
 		}
@@ -69,20 +69,6 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 	for _, p := range conditions(s.node) {
 		visit(p)
 	}
-}
-
-// comparisonRange returns the range a comparison covers. The parser starts
-// a binary expression's location at its operator, so the left operand's
-// location widens it to the whole comparison.
-func comparisonRange(v *ast.BinaryExpr) review.Range {
-	loc := v.Loc
-	if l := ast.NodeLoc(v.Left); l.Start >= 0 && l.End > l.Start && l.Start < loc.Start {
-		loc.Start = l.Start
-	}
-	if r := ast.NodeLoc(v.Right); r.Start >= 0 && r.End > loc.End {
-		loc.End = r.End
-	}
-	return rangeOf(loc)
 }
 
 // isNull reports whether an expression is the NULL literal or a

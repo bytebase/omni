@@ -4936,28 +4936,15 @@ func TestParseExplain(t *testing.T) {
 		}
 	})
 
+	// EXTENDED and PARTITIONS are MySQL 5.7 modifiers: MySQL 8.0.46
+	// answers 1064 for both, and explain_forms_test.go holds the whole
+	// modifier list to the engine.
 	t.Run("explain extended select", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN EXTENDED SELECT * FROM t1")}
-		p.advance()
-		stmt, err := p.parseExplainStmt()
-		if err != nil {
-			t.Fatalf("parseExplainStmt error: %v", err)
-		}
-		if !stmt.Extended {
-			t.Error("Extended = false, want true")
-		}
+		ParseExpectError(t, "EXPLAIN EXTENDED SELECT * FROM t1")
 	})
 
 	t.Run("explain partitions select", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("EXPLAIN PARTITIONS SELECT * FROM t1")}
-		p.advance()
-		stmt, err := p.parseExplainStmt()
-		if err != nil {
-			t.Fatalf("parseExplainStmt error: %v", err)
-		}
-		if !stmt.Partitions {
-			t.Error("Partitions = false, want true")
-		}
+		ParseExpectError(t, "EXPLAIN PARTITIONS SELECT * FROM t1")
 	})
 
 	t.Run("explain format tree select", func(t *testing.T) {

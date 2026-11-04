@@ -24,6 +24,23 @@ type statement struct {
 	with bool
 }
 
+// executed returns the statement a change runs. That is the node itself
+// unless an EXPLAIN ANALYZE carries it: ANALYZE runs what it explains, and on
+// TiDB that reaches ALTER TABLE -- EXPLAIN ANALYZE ALTER TABLE t ADD COLUMN c
+// adds the column, where EXPLAIN ALTER TABLE t ADD COLUMN c reports a plan and
+// leaves the table alone (tidb/parser/explain_forms_test.go measures both
+// against v8.5.5).
+//
+// A rule that reads the statement's top-level node reads it through this; a
+// rule that walks the tree stops at a plain ExplainStmt instead, since
+// ast.Walk follows what the EXPLAIN carries.
+func executed(n ast.Node) ast.Node {
+	if e, ok := n.(*ast.ExplainStmt); ok && e.Analyze && e.Stmt != nil {
+		return e.Stmt
+	}
+	return n
+}
+
 // statementRanges lists every non-empty statement's byte range, from the
 // lexical splitter, the same parser.Split Bytebase splits with. The ranges
 // are the units parse works on.

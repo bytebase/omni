@@ -58,7 +58,9 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dml(singleTarget(v.Tables))
 	case *ast.SetStmt:
 		return b.set(v)
-	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt, *ast.ExplainStmt:
+	case *ast.ExplainStmt:
+		return b.explain(v)
+	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
 		return true
 	case *ast.BeginStmt, *ast.CommitStmt, *ast.SavepointStmt, *ast.SetTransactionStmt, *ast.UnlockTablesStmt,
 		*ast.ShowStmt, *ast.HelpStmt, *ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt,
@@ -70,6 +72,20 @@ func (b *builder) statement(n ast.Node) bool {
 		return true
 	}
 	return false
+}
+
+// explain lowers EXPLAIN. Reporting a plan changes nothing, so a plain
+// EXPLAIN is followed without recording anything. ANALYZE runs the statement
+// it carries, and on TiDB that reaches DDL: EXPLAIN ANALYZE ALTER TABLE t ADD
+// COLUMN c adds the column, while EXPLAIN ALTER TABLE t ADD COLUMN c leaves
+// the table alone (both measured on v8.5.5 in
+// tidb/parser/explain_forms_test.go). That form is lowered as the statement it
+// performs, or the walk would lose the change.
+func (b *builder) explain(v *ast.ExplainStmt) bool {
+	if !v.Analyze || v.Stmt == nil {
+		return true
+	}
+	return b.statement(v.Stmt)
 }
 
 // tableNeeds adds the check that a statement's table exists as a base
@@ -184,8 +200,10 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
 	}
 	// Every base table keeps foreign keys, whatever its ENGINE; a
-	// temporary table takes none (1215, verified).
-	b.fks = !v.Temporary
+	// temporary table takes none (1215, verified), and neither does a global
+	// temporary table, which is an ordinary schema object everywhere else
+	// (1215 on v8.5.5, verified).
+	b.fks = !v.Temporary && !v.Global
 	// The LIKE source is checked even when IF NOT EXISTS finds the table
 	// (verified).
 	if v.Like != nil {

@@ -130,6 +130,11 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		}
 		ast.Inspect(s.node, func(n ast.Node) bool {
 			switch v := n.(type) {
+			case *ast.ExplainStmt:
+				// A plain EXPLAIN reports a plan and changes nothing, so what it
+				// carries is no change of this kind; ANALYZE runs it, and on TiDB
+				// that reaches ALTER TABLE.
+				return v.Analyze
 			case *ast.UseStmt:
 				// What the change touched before on a table named without a
 				// database is of another database; one named with its

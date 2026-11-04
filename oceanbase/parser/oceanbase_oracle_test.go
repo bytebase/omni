@@ -410,10 +410,24 @@ func TestDatabaseOptionsOceanBaseOracle(t *testing.T) {
 //
 // Every statement runs for real, which is what engineAccepts does: a 1064 is
 // the parser's rejection and any other error means the text parsed. A SHOW
-// changes no schema, so the cases need no seed and no cleanup.
+// changes no schema, so the cases need nothing cleaned up after them -- but
+// they do need a current database, because a SHOW with none is a 1046 rather
+// than the verdict being measured, and a sibling oracle in this package drops
+// the database it made.
 func TestShowTargetsOceanBaseOracle(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()
+
+	for _, stmt := range []string{
+		"DROP DATABASE IF EXISTS obshowt",
+		"CREATE DATABASE obshowt",
+		"USE obshowt",
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed %q: %v", stmt, err)
+		}
+	}
+	t.Cleanup(func() { _, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obshowt") })
 
 	for _, c := range showTargetCases {
 		t.Run(c.sql, func(t *testing.T) {
@@ -435,6 +449,69 @@ func TestShowTargetsOceanBaseOracle(t *testing.T) {
 				}
 			case !engineTakes && !parserTakes && c.overAccepted:
 				t.Errorf("%q is marked overAccepted but the parser now rejects it: clear the flag", c.sql)
+			}
+		})
+	}
+}
+
+// TestCreateTableOptionsOceanBaseOracle reads the engine column of
+// createTableOptionCases back from a live server, so the record in
+// create_table_options_test.go stays a measurement rather than a memory of one.
+// It runs where OCEANBASE_WALK_DSN is set:
+//
+//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//
+// Every statement runs for real, which is what engineAccepts does: a 1064 is the
+// parser's rejection and any other error means the text parsed. The cases create
+// and alter tables, so each one drops what it may have made before the next runs.
+func TestCreateTableOptionsOceanBaseOracle(t *testing.T) {
+	db := oceanBaseOracle(t)
+	ctx := context.Background()
+
+	for _, stmt := range []string{
+		"DROP DATABASE IF EXISTS obctopt",
+		"CREATE DATABASE obctopt",
+		"USE obctopt",
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed %q: %v", stmt, err)
+		}
+	}
+	t.Cleanup(func() { _, _ = db.ExecContext(ctx, "DROP DATABASE IF EXISTS obctopt") })
+
+	// The tables the cases name, dropped between cases so a CREATE that
+	// succeeded does not turn the next one into a 1050.
+	made := []string{"obcto", "`123`", "1t"}
+	reset := func() {
+		for _, name := range made {
+			_, _ = db.ExecContext(ctx, "DROP TABLE IF EXISTS "+name)
+			_, _ = db.ExecContext(ctx, "DROP TABLE IF EXISTS "+name+"_tmp")
+		}
+	}
+
+	for _, c := range createTableOptionCases {
+		t.Run(c.sql, func(t *testing.T) {
+			reset()
+			engineTakes, err := engineAccepts(ctx, db, c.sql)
+			if err != nil {
+				t.Fatalf("the oracle gave no verdict on %q: %v", c.sql, err)
+			}
+			if engineTakes != c.engine {
+				t.Errorf("OceanBase accepts %q = %v, the record says %v", c.sql, engineTakes, c.engine)
+			}
+			_, _ = db.ExecContext(ctx, "USE obctopt")
+
+			_, parseErr := Parse(c.sql)
+			parserTakes := parseErr == nil
+			switch {
+			case engineTakes && !parserTakes:
+				if !c.pending {
+					t.Errorf("OceanBase accepts %q and the parser does not:\n  %v", c.sql, parseErr)
+				}
+			case !engineTakes && parserTakes:
+				t.Errorf("the parser accepts %q and OceanBase does not", c.sql)
+			case engineTakes && parserTakes && c.pending:
+				t.Errorf("%q is marked pending but the parser now reads it: clear the flag", c.sql)
 			}
 		})
 	}
