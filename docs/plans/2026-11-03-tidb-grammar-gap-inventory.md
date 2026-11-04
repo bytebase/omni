@@ -21,14 +21,17 @@ in pingcap's own parser test — 3,902 statements:
 |---|---:|
 | both accept | 2090 |
 | TiDB accepts, omni rejects (gap) | 1099 |
-| TiDB rejects, omni accepts (over-acceptance) | 124 |
-| both reject | 589 |
+| TiDB rejects, omni accepts (over-acceptance) | 122 |
+| both reject | 591 |
 | no verdict | 0 |
 
 - omni parses **2,090 of the 3,189 statements TiDB v8.5.5 accepts: 65.5%**.
-- omni accepts **124 statements TiDB v8.5.5 rejects**, 5.6% of what it parses.
+- omni accepts **122 statements TiDB v8.5.5 rejects**, 5.5% of what it parses.
   An earlier pass put a floor of 32 on this; the floor was the measurement,
-  not the engine.
+  not the engine. The count was 124 when this was first measured: two rows
+  closed on main while the corpus was in review, in `fix(mysql,mariadb,tidb,
+  oceanbase): require the string every COMMENT takes (#602)`, and the corpus
+  reported the drift rather than carrying a stale column.
 - Nothing went unanswered. A statement the server never answered for is
   counted in its own column and fails the test, so the agreement numbers
   cannot absorb a dropped connection.
@@ -63,7 +66,7 @@ tests (`tidbImage`). `tidbCorpusVersion` names it beside the corpus and the
 engine test refuses to run against any other release.
 
 The 713 statements TiDB v8.5.5 rejects are recorded as expected rejections,
-not as gaps: 589 omni also rejects, and 124 it should. 109 of them are
+not as gaps: 591 omni also rejects, and 122 it should. 109 of them are
 statements pingcap's own parser accepts at the extracted commit and this
 release does not: grammar added after v8.5.5, or never released, and either
 way not work for omni until the pin moves. A later bump re-records that column
@@ -774,7 +777,7 @@ and the diff is the list of what the new release added.
 - **TO TIMESTAMP** — 1
   - `flashback cluster to timestamp '2021-05-26 16:45:26'`
 
-## Over-acceptance (124)
+## Over-acceptance (122)
 
 Statements `omni/tidb/parser` accepts and TiDB v8.5.5 rejects. These are
 not features to add but strictness to restore, and they matter more than
@@ -826,10 +829,10 @@ pass a statement that then fails on the server.
   - `create table t (i int default (0))`
   - `create table t (i int default (-1))`
   - `create table t (i int default (+1))`
-- **CREATE TABLE INT INDEX** — 3
+- **CREATE TABLE INT INDEX** — 1
   - `CREATE TABLE t (id INT,INDEX idx (id) INVISIBLE SECONDARY_ENGINE_ATTRIBUTE='{"key1":"value1"}')`
-  - `CREATE TABLE t (id INT, INDEX idx (id) SECONDARY_ENGINE_ATTRIBUTE=)`
-  - `CREATE TABLE t (id INT, INDEX idx (id) SECONDARY_ENGINE_ATTRIBUTE)`
+  - The two rows that left this family are the ones #602 closed: an index
+    attribute with no string after it, and one with no `=` either.
 - **CREATE TABLE INT STATS_AUTO_RECALC** — 3
   - `create table t (a int) stats_auto_recalc 2;`
   - `create table t (a int) stats_auto_recalc = 10;`
