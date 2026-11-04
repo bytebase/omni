@@ -215,6 +215,32 @@ func TestBRIEOptionsInTree(t *testing.T) {
 			opts: []want{{name: "SNAPSHOT", value: ast.BRIEValueTimeAgo, num: 5, unit: "SQL_TSI_WEEK"}},
 		},
 		{
+			// A numeric SNAPSHOT ends at the number, so the word
+			// after it is the next option and not a unit. The two
+			// have to stay apart here, or the option list would be
+			// order-dependent.
+			sql: "BACKUP DATABASE * TO 'noop://' snapshot 1234567890 concurrency 4",
+			opts: []want{
+				{name: "SNAPSHOT", value: ast.BRIEValueInt, num: 1234567890},
+				{name: "CONCURRENCY", value: ast.BRIEValueInt, num: 4},
+			},
+		},
+		{
+			sql: "BACKUP DATABASE * TO 'noop://' snapshot 5 day ago online 1 checksum off",
+			opts: []want{
+				{name: "SNAPSHOT", value: ast.BRIEValueTimeAgo, num: 5, unit: "DAY"},
+				{name: "ONLINE", value: ast.BRIEValueInt, num: 1},
+				{name: "CHECKSUM", value: ast.BRIEValueLevel, str: "OFF"},
+			},
+		},
+		{
+			sql: "BACKUP DATABASE * TO 'noop://' LAST_BACKUP 5 concurrency 4",
+			opts: []want{
+				{name: "LAST_BACKUP", value: ast.BRIEValueInt, num: 5},
+				{name: "CONCURRENCY", value: ast.BRIEValueInt, num: 4},
+			},
+		},
+		{
 			sql:  "BACKUP DATABASE * TO 'noop://' LAST_BACKUP = '2020-02-02 14:14:14'",
 			opts: []want{{name: "LAST_BACKUP", value: ast.BRIEValueString, str: "2020-02-02 14:14:14"}},
 		},

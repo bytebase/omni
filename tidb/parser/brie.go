@@ -9,10 +9,12 @@ import (
 // TiDB's backup, restore, recover and flashback statements.
 //
 // None of this is MySQL's. MySQL had BACKUP TABLE and RESTORE TABLE until
-// 5.5 removed both, and 8.0 answers 1064 for either; MariaDB and OceanBase
-// have no equivalent of any form here. TiDB's are its own, and the grammar
-// below is v8.5.5's, read from parser.y and confirmed form by form against a
-// live v8.5.5 in brie_forms_oracle_test.go.
+// 5.5 removed both, and mysql:8.0.46 answers 1064 for every form of this
+// family, as mariadb:11.8.9 does (both read on 2026-11-04); OceanBase has no
+// equivalent either, and omni's parser for each of the three refuses the lot.
+// TiDB's are its own, and the grammar below is v8.5.5's, read from parser.y
+// and confirmed form by form against a live v8.5.5 in
+// brie_forms_oracle_test.go.
 //
 // Upstream calls the BACKUP and RESTORE family BRIE, for backup, restore,
 // import and export, and parses all of it through one BRIEStmt rule. The
@@ -520,14 +522,18 @@ func (p *Parser) parseBRIESnapshotValue(opt *nodes.BRIEOption) error {
 	if err != nil {
 		return err
 	}
+	// Only a unit opens the duration form. Any other word is the next
+	// option's name, so the number stands on its own: v8.5.5 takes
+	// `SNAPSHOT 1234567890 CONCURRENCY 4`, and a word that names no
+	// option fails in parseBRIEOptions, where `SNAPSHOT 5 nosuchopt 4`
+	// fails on the server too. Once a unit is read, AGO is required:
+	// `SNAPSHOT 5 MINUTE` and `SNAPSHOT 5 MICROSECOND CONCURRENCY 4` are
+	// both 1064.
 	unit := p.brieWord()
-	if unit == "" {
+	if !brieSnapshotUnits[unit] {
 		opt.Value = nodes.BRIEValueInt
 		opt.IntValue = val
 		return nil
-	}
-	if !brieSnapshotUnits[unit] {
-		return p.syntaxErrorAtCur()
 	}
 	p.advance()
 	if !p.matchBRIEWord("AGO") {

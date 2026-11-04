@@ -22,9 +22,11 @@ import (
 //	FLASHBACK TABLE tbl, ...          TO {TIMESTAMP 'ts' | TSO n}
 //	FLASHBACK {DATABASE|SCHEMA} db    TO {TIMESTAMP 'ts' | TSO n}
 //
-// None of it is MySQL's. MySQL dropped BACKUP TABLE and RESTORE TABLE in 5.5
-// and 8.0 answers 1064 to every shape here; MariaDB and OceanBase have no
-// equivalent, and each engine's own tests pin that refusal.
+// None of it is MySQL's. MySQL dropped BACKUP TABLE and RESTORE TABLE in 5.5,
+// and mysql:8.0.46 and mariadb:11.8.9 each answer 1064 to all of the forms
+// above (read on 2026-11-04); OceanBase has no equivalent either. omni's
+// mysql, mariadb and oceanbase parsers refuse every one of them, so none of
+// this is ported to them.
 //
 // The corpus writes 47 of these statements and almost nothing malformed, so
 // the rejections are the point of this file: the family is a set of similar
@@ -190,6 +192,34 @@ var brieCases = []brieCase{
 	{"BACKUP DATABASE * TO 'noop://' snapshot 5 minute `ago`", false},
 	{"BACKUP DATABASE * TO 'noop://' snapshot ago", false},
 	{"BACKUP DATABASE * TO 'noop://' snapshot 18446744073709551616", false},
+	// An option list is not order-dependent. A numeric SNAPSHOT or
+	// LAST_BACKUP ends at the number, so the word after it starts the
+	// next option rather than a duration; a unit, once written, still
+	// needs its AGO.
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT 1234567890 CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' CONCURRENCY 4 SNAPSHOT 1234567890", true},
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT 1234567890 ONLINE 1", true},
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT 5 CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT 5 SNAPSHOT 6", true},
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT = 5 minute ago CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT 5 day ago ONLINE 1 CONCURRENCY 4 checksum off", true},
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT 1234567890 week ago", true},
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT 5 nosuchopt 4", false},
+	{"BACKUP DATABASE * TO 'noop://' SNAPSHOT 5 microsecond CONCURRENCY 4", false},
+	{"BACKUP DATABASE * TO 'noop://' LAST_BACKUP 5 CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' csv_header 1 CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' csv_header fields CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' checksum 1 CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' checksum off CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' online 1 CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' rate_limit 500 MB/second CONCURRENCY 4", true},
+	{"BACKUP DATABASE * TO 'noop://' concurrency 4 backend local", true},
+	{"BACKUP DATABASE * TO 'noop://' backend local CONCURRENCY 4", true},
+	// BACKEND's value is an Identifier, and CONCURRENCY is an
+	// unreserved keyword upstream (parser.y:7097), so this reads
+	// CONCURRENCY as the value and is left with a bare 4 that starts
+	// no option: 1064.
+	{"BACKUP DATABASE * TO 'noop://' backend CONCURRENCY 4", false},
 	// LAST_BACKUP takes a timestamp or a TSO, and no duration.
 	{"BACKUP DATABASE * TO 'noop://' LAST_BACKUP = '2020-02-02 14:14:14'", true},
 	{"BACKUP DATABASE * TO 'noop://' LAST_BACKUP = 1234567890", true},
