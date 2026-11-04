@@ -94,6 +94,23 @@ var createTableOptionsAccepted = []string{
 	`create table t (c1 set(0b0110000101100010))`,
 	`create table t (c1 enum(0x61) charset utf8mb4)`,
 	`create table t (c1 enum(0x61, 'b') character set utf8mb4)`,
+	// Digits that do not fill whole bytes are padded on the left, and the
+	// contents of a quoted hex literal may themselves begin with `0b`, which is
+	// two bytes and not a prefix.
+	`create table t (c1 enum(0x6))`,
+	`create table t (c1 enum(0x616))`,
+	`create table t (c1 enum(0b1))`,
+	`create table t (c1 enum(0b101))`,
+	`create table t (c1 enum(x'0b61'))`,
+	`create table t (c1 enum(x'0b'))`,
+	`create table t (c1 enum(x'0B61'))`,
+	`create table t (c1 set(x'0b61'))`,
+	`create table t (c1 enum(b'1'))`,
+	`create table t (c1 enum(b'101'))`,
+	// A quoted literal with nothing between its quotes is a member with no
+	// bytes in it.
+	`create table t (c1 enum(x''))`,
+	`create table t (c1 enum(b''))`,
 	// The engine then refuses the duplicate member with 1291, which is not a
 	// syntax error: 0x61 and 'a' are the same member.
 	`create table t (c1 enum('a', 0x61))`,
@@ -203,6 +220,13 @@ var createTableOptionsRejected = []string{
 	`create table t (c1 enum(0x))`,
 	`create table t (c1 enum(0b))`,
 	`create table t (c1 enum(0xZZ))`,
+	// A quoted hex literal, and only that spelling, needs an even number of
+	// digits, where the unquoted one pads.
+	`create table t (c1 enum(x'6'))`,
+	`create table t (c1 enum(x'616'))`,
+	// Neither spelling takes the other's prefix inside the quotes.
+	`create table t (c1 enum(x'0x61'))`,
+	`create table t (c1 enum(b'0b01'))`,
 
 	// A name of digits alone, and the literals that are not names.
 	`create table 123 (123a1 int)`,
@@ -222,6 +246,14 @@ var createTableOptionsRejected = []string{
 	`create global temporary table t like t1`,
 	`create global table t (a int)`,
 	`drop global table t`,
+	// GLOBAL TEMPORARY reaches TABLE and nothing else, on either statement.
+	`create global temporary view v as select 1`,
+	`create global temporary index i on t (a)`,
+	`create global temporary database d`,
+	`create global temporary sequence s`,
+	`drop global temporary database d`,
+	`drop global temporary view v`,
+	`drop global temporary index i on t`,
 
 	// The MySQL 8.0 engine attributes, which TiDB has in no position.
 	`CREATE TABLE t (id INT) SECONDARY_ENGINE_ATTRIBUTE='{"key":"value"}'`,

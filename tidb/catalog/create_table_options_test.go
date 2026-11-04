@@ -54,6 +54,23 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin",
 		},
 		{
+			// The bytes a literal member holds, not the text that wrote them,
+			// and the two spellings are not read alike: an unquoted literal
+			// pads its digits to whole bytes while a quoted hex one must
+			// already fill them. Reading the contents of a quoted hex literal
+			// as though `0b` were a prefix decoded c1 as the member `a`.
+			name:  "a literal member keeps every byte it holds",
+			ddl:   "CREATE TABLE b (c1 ENUM(x'0b61'), c2 ENUM(x'0b'), c3 ENUM(x''), c4 ENUM(b'1'), c5 ENUM(0x6))",
+			table: "b",
+			want: "CREATE TABLE `b` (\n" +
+				"  `c1` enum('\v" + "a') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
+				"  `c2` enum('\v') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
+				"  `c3` enum('') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
+				"  `c4` enum('\x01') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
+				"  `c5` enum('\x06') COLLATE utf8mb4_bin DEFAULT NULL\n" +
+				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin",
+		},
+		{
 			// SERIAL DEFAULT VALUE is NOT NULL AUTO_INCREMENT UNIQUE, so the
 			// column is not null and auto-incrementing and the table gains the
 			// unique key — which is also what makes it the table's implicit
@@ -232,8 +249,15 @@ func TestSerialDefaultValueAST(t *testing.T) {
 // engine stored.
 func TestEnumLiteralMembersAST(t *testing.T) {
 	stmt := parseCreateTableForTest(t,
-		"CREATE TABLE t (c1 ENUM(0x61, 'b'), c2 SET(0b01100001), c3 ENUM(x'6162'), c4 ENUM(b'0110000101100010'))")
-	want := [][]string{{"a", "b"}, {"a"}, {"ab"}, {"ab"}}
+		"CREATE TABLE t (c1 ENUM(0x61, 'b'), c2 SET(0b01100001), c3 ENUM(x'6162'), "+
+			"c4 ENUM(b'0110000101100010'), c5 ENUM(x'0b61'), c6 ENUM(0x6), c7 ENUM(b'1'), c8 ENUM(x''))")
+	want := [][]string{
+		{"a", "b"}, {"a"}, {"ab"}, {"ab"},
+		// The contents of a quoted hex literal may begin with `0b`, which is
+		// two bytes and not a prefix; an unquoted literal pads its digits to
+		// whole bytes; a quoted literal with nothing in it is the empty string.
+		{"\x0ba"}, {"\x06"}, {"\x01"}, {""},
+	}
 	if len(stmt.Columns) != len(want) {
 		t.Fatalf("got %d columns, want %d", len(stmt.Columns), len(want))
 	}

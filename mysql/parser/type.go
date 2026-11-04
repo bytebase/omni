@@ -651,7 +651,7 @@ func (p *Parser) parseStringValueList() ([]string, error) {
 			// it is decoded here: leaving `0x61` to a consumer would have the
 			// catalog report `enum('0x61')` and a deparse write a different
 			// table than the one the engine built.
-			val, err := decodeByteLiteral(p.cur)
+			val, err := p.decodeByteLiteral(p.cur)
 			if err != nil {
 				return nil, err
 			}
@@ -675,30 +675,49 @@ func (p *Parser) parseStringValueList() ([]string, error) {
 	return vals, nil
 }
 
-// decodeByteLiteral reads the bytes a hex or bit literal holds. The lexer keeps
-// the token's own text, which carries the `0x`/`0b` prefix when the literal was
-// written that way and not when it was written `x'..'` or `b'..'`, so the prefix
-// comes off first.
+// decodeByteLiteral reads the bytes a hex or bit literal holds.
 //
-// Hex digits are read in pairs from the right, so an odd count takes a leading
-// zero: `0x6` is one byte, 0x06. Bits are read in groups of eight the same way.
-// This is MySQL's reading of either literal in string context.
-func decodeByteLiteral(tok Token) (string, error) {
-	digits := tok.Str
-	if len(digits) > 1 && digits[0] == '0' && (digits[1] == 'x' || digits[1] == 'X' || digits[1] == 'b' || digits[1] == 'B') {
-		digits = digits[2:]
-	}
-	if digits == "" {
-		return "", &ParseError{Message: "empty byte literal", Position: tok.Loc}
-	}
+// Which spelling wrote it is read from the source text, not from the token's
+// own text: an unquoted literal keeps its `0x` or `0b` prefix in the text the
+// lexer hands over, and a quoted one keeps only what stood between the quotes.
+// The text alone cannot tell them apart, because the contents of a quoted hex
+// literal can themselves begin with `0b` -- reading that as a prefix decoded
+// `x` + `0b61` as the member `a` instead of the two bytes 0x0b 0x61. The byte
+// at the token's own position settles it: `0` opens the unquoted spelling, and
+// `x`, `X`, `b` or `B` the quoted one.
+//
+// Digits that do not fill whole bytes are padded on the left, so `0x6` is one
+// byte, 0x06, and so is a quoted bit literal holding a single 1. The one
+// exception is the quoted hex spelling, whose digit count must be even: three
+// hex digits in quotes is a 1064 where `0x616` is a number, which is the rule
+// https://dev.mysql.com/doc/refman/8.0/en/hexadecimal-literals.html states. A
+// quoted literal with nothing between its quotes is a member with no bytes in
+// it, the empty string. MySQL 8.0, MariaDB 11.8.8 and TiDB v8.5.5 all answer
+// this way.
+func (p *Parser) decodeByteLiteral(tok Token) (string, error) {
 	base, group := 16, 2
 	if tok.Type == tokBCONST {
 		base, group = 2, 8
 	}
-	// Pad on the left so the digits divide into whole bytes.
+
+	digits := tok.Str
+	if p.inputText(tok.Loc, tok.Loc+1) == "0" {
+		// The unquoted spelling. The lexer only makes this token when at least
+		// one digit of the base follows the prefix; anything else is a name.
+		if len(digits) < 3 {
+			return "", &ParseError{Message: "malformed byte literal", Position: tok.Loc}
+		}
+		digits = digits[2:]
+	} else if tok.Type == tokXCONST && len(digits)%group != 0 {
+		return "", &ParseError{
+			Message:  "hexadecimal literal with an odd number of digits",
+			Position: tok.Loc,
+		}
+	}
 	if r := len(digits) % group; r != 0 {
 		digits = strings.Repeat("0", group-r) + digits
 	}
+
 	out := make([]byte, 0, len(digits)/group)
 	for i := 0; i < len(digits); i += group {
 		b, err := strconv.ParseUint(digits[i:i+group], base, 8)

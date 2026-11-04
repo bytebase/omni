@@ -134,6 +134,27 @@ var createTableOptionCases = []createTableOptionCase{
 	{sql: "CREATE TABLE obcto (c1 enum(0x))"},
 	{sql: "CREATE TABLE obcto (c1 enum(0b))"},
 	{sql: "CREATE TABLE obcto (c1 enum(0xZZ))"},
+	// Digits that do not fill whole bytes are padded on the left, and a quoted
+	// hex literal, alone among the spellings, needs an even number of them. The
+	// contents of one may themselves begin with `0b`, which is two bytes and
+	// not a prefix, and nothing between the quotes is a member with no bytes in
+	// it.
+	{sql: "CREATE TABLE obcto (c1 enum(0x6))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(0x616))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(0b1))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(0b101))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(x'0b61'))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(x'0b'))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(x'0B61'))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 set(x'0b61'))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(b'1'))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(b'101'))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(x''))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(b''))", engine: true},
+	{sql: "CREATE TABLE obcto (c1 enum(x'6'))"},
+	{sql: "CREATE TABLE obcto (c1 enum(x'616'))"},
+	{sql: "CREATE TABLE obcto (c1 enum(x'0x61'))"},
+	{sql: "CREATE TABLE obcto (c1 enum(b'0b01'))"},
 
 	// A name may begin with a digit as long as it is not digits alone, and the
 	// words that are numbers are not names.
@@ -173,6 +194,9 @@ var createTableOptionCases = []createTableOptionCase{
 	{sql: "CREATE TABLE obcto (a int) ON COMMIT DELETE ROWS"},
 	{sql: "CREATE GLOBAL TABLE obcto (a int)"},
 	{sql: "DROP GLOBAL TEMPORARY TABLE obcto"},
+	{sql: "CREATE GLOBAL TEMPORARY VIEW obctov AS SELECT 1"},
+	{sql: "CREATE GLOBAL TEMPORARY DATABASE obctod"},
+	{sql: "DROP GLOBAL TEMPORARY DATABASE obctod"},
 	{sql: "CREATE TEMPORARY TABLE obcto (a int)", engine: true},
 	{sql: "DROP TEMPORARY TABLE obcto", engine: true},
 }

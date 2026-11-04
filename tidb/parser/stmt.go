@@ -435,11 +435,20 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	// Temporary stays false for it: only the rows of a global temporary table
 	// are per-session, and the table itself is an ordinary schema object (see
 	// ast.CreateTableStmt.Global).
+	//
+	// TABLE is the only target the prefix reaches, and it is required here
+	// rather than left to the switch below: v8.5.5 answers 1064 for `CREATE
+	// GLOBAL TEMPORARY VIEW`, `... INDEX`, `... DATABASE` and `... SEQUENCE`,
+	// and falling through would have read each of them as an ordinary statement
+	// of whatever followed, with the prefix dropped on the floor.
 	global := false
 	if p.cur.Type == kwGLOBAL && p.peekNext().Type == kwTEMPORARY {
 		p.advance() // consume GLOBAL
 		p.advance() // consume TEMPORARY
 		global = true
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
 	} else if p.cur.Type == kwTEMPORARY {
 		// TEMPORARY
 		p.advance()
@@ -761,14 +770,22 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	// DROP GLOBAL TEMPORARY TABLE, one of the two ways to drop a table CREATE
 	// GLOBAL TEMPORARY TABLE made: a plain DROP TABLE drops it too, and DROP
 	// TEMPORARY TABLE does not (1051, verified), so Temporary stays false here.
-	// GLOBAL reaches nothing else, so `DROP GLOBAL TABLE t` falls through to the
-	// switch below and is a 1064.
+	//
+	// As on CREATE, TABLE is the only target the prefix reaches and is required
+	// here: v8.5.5 answers 1064 for `DROP GLOBAL TEMPORARY DATABASE`, `... VIEW`
+	// and `... INDEX`, each of which the switch below would have read as the
+	// ordinary drop of whatever followed. GLOBAL without TEMPORARY after it is
+	// not consumed at all, so `DROP GLOBAL TABLE t` reaches a switch with no arm
+	// for it and is a 1064 as well.
 	temporary := false
 	global := false
 	if p.cur.Type == kwGLOBAL && p.peekNext().Type == kwTEMPORARY {
 		p.advance() // consume GLOBAL
 		p.advance() // consume TEMPORARY
 		global = true
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
 	} else if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true

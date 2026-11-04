@@ -123,6 +123,27 @@ func TestCreateTableOptionsMatchMariaDB(t *testing.T) {
 		`create table t (c1 enum(0x))`,
 		`create table t (c1 enum(0b))`,
 		`create table t (c1 enum(0xZZ))`,
+		// Digits that do not fill whole bytes are padded on the left, and a
+		// quoted hex literal, alone among the spellings, needs an even number
+		// of them. The contents of one may themselves begin with `0b`, which is
+		// two bytes and not a prefix, and nothing between the quotes is a
+		// member with no bytes in it.
+		`create table t (c1 enum(0x6))`,
+		`create table t (c1 enum(0x616))`,
+		`create table t (c1 enum(0b1))`,
+		`create table t (c1 enum(0b101))`,
+		`create table t (c1 enum(x'0b61'))`,
+		`create table t (c1 enum(x'0b'))`,
+		`create table t (c1 enum(x'0B61'))`,
+		`create table t (c1 set(x'0b61'))`,
+		`create table t (c1 enum(b'1'))`,
+		`create table t (c1 enum(b'101'))`,
+		`create table t (c1 enum(x''))`,
+		`create table t (c1 enum(b''))`,
+		`create table t (c1 enum(x'6'))`,
+		`create table t (c1 enum(x'616'))`,
+		`create table t (c1 enum(x'0x61'))`,
+		`create table t (c1 enum(b'0b01'))`,
 
 		// A name may begin with a digit as long as it is not digits alone, and the
 		// words that are numbers are not names.
@@ -164,6 +185,9 @@ func TestCreateTableOptionsMatchMariaDB(t *testing.T) {
 		`create table t (a int) on commit delete rows`,
 		`create global table t (a int)`,
 		`drop global temporary table t`,
+		`create global temporary view v as select 1`,
+		`create global temporary database d`,
+		`drop global temporary database d`,
 		`create temporary table t (a int)`,
 		`drop temporary table t`,
 	}
