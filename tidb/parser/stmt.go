@@ -422,6 +422,14 @@ func (p *Parser) parseLoadDispatch() (nodes.Node, error) {
 		return p.parseLoadIndexIntoCacheStmt(start)
 	}
 
+	// LOAD STATS, which TiDB has and MySQL has not. STATS is read as a bare
+	// word for the reason statistics.go gives: v8.5.5 answers 1064 for
+	// `LOAD `STATS` 'x'`, where a backquoted name is no part of this
+	// grammar at all.
+	if p.isBareWord("STATS") {
+		return p.parseLoadStatsStmt(start)
+	}
+
 	// Fall through to LOAD DATA / LOAD XML
 	return p.parseLoadDataStmt(start)
 }
@@ -469,6 +477,12 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	if (p.cur.Type == kwGLOBAL || p.cur.Type == kwSESSION) && p.peekNext().Type == kwBINDING {
 		scope := p.parseBindingScope()
 		return p.parseCreateBindingStmt(start, scope)
+	}
+
+	// CREATE STATISTICS, TiDB's extended statistics. STATISTICS is a bare
+	// word, so `CREATE TABLE statistics (a int)` is untouched.
+	if p.isBareWord("STATISTICS") {
+		return p.parseCreateStatisticsStmt(start)
 	}
 
 	// GLOBAL TEMPORARY, TiDB's own kind of temporary table (parser.y, rule
@@ -819,6 +833,16 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	if (p.cur.Type == kwGLOBAL || p.cur.Type == kwSESSION) && p.peekNext().Type == kwBINDING {
 		scope := p.parseBindingScope()
 		return p.parseDropBindingStmt(start, scope)
+	}
+
+	// DROP STATS and DROP STATISTICS, both TiDB's own. Each word is read
+	// bare, so `DROP TABLE stats` and a table named statistics are
+	// untouched; v8.5.5 answers 1064 for `DROP `STATS` t`.
+	if p.isBareWord("STATS") {
+		return p.parseDropStatsStmt(start)
+	}
+	if p.isBareWord("STATISTICS") {
+		return p.parseDropStatisticsStmt(start)
 	}
 
 	// DROP GLOBAL TEMPORARY TABLE, one of the two ways to drop a table CREATE

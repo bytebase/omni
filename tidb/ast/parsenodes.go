@@ -1781,19 +1781,191 @@ type DeallocateStmt struct {
 func (s *DeallocateStmt) nodeTag()  {}
 func (s *DeallocateStmt) stmtNode() {}
 
+// AnalyzeColumnChoice names which columns an ANALYZE TABLE statement collects
+// statistics on, which TiDB spells four ways: nothing at all, ALL COLUMNS,
+// PREDICATE COLUMNS, or COLUMNS with a list.
+type AnalyzeColumnChoice int
+
+const (
+	// AnalyzeColumnsUnset is a statement that named no column choice.
+	AnalyzeColumnsUnset AnalyzeColumnChoice = iota
+	// AnalyzeAllColumns is ALL COLUMNS.
+	AnalyzeAllColumns
+	// AnalyzePredicateColumns is PREDICATE COLUMNS.
+	AnalyzePredicateColumns
+	// AnalyzeColumnList is COLUMNS with the list in AnalyzeTableStmt.Columns.
+	AnalyzeColumnList
+)
+
+// AnalyzeOptionType names the unit of one option in ANALYZE TABLE's WITH
+// list. The list is closed: TiDB's AnalyzeOptionType has these six and no
+// other, so a word outside it is a syntax error rather than an option whose
+// value is ignored.
+//
+// Ref: AnalyzeOption in pingcap/tidb pkg/parser/parser.y.
+type AnalyzeOptionType int
+
+const (
+	// AnalyzeOptBuckets is `n BUCKETS`.
+	AnalyzeOptBuckets AnalyzeOptionType = iota
+	// AnalyzeOptTopN is `n TOPN`.
+	AnalyzeOptTopN
+	// AnalyzeOptCMSketchWidth is `n CMSKETCH WIDTH`.
+	AnalyzeOptCMSketchWidth
+	// AnalyzeOptCMSketchDepth is `n CMSKETCH DEPTH`.
+	AnalyzeOptCMSketchDepth
+	// AnalyzeOptSamples is `n SAMPLES`.
+	AnalyzeOptSamples
+	// AnalyzeOptSampleRate is `n SAMPLERATE`, the one unit that takes a
+	// number rather than an integer.
+	AnalyzeOptSampleRate
+)
+
+// String names the option as TiDB spells it, so a tree dump and a message
+// tell CMSKETCH WIDTH from CMSKETCH DEPTH.
+func (t AnalyzeOptionType) String() string {
+	switch t {
+	case AnalyzeOptBuckets:
+		return "BUCKETS"
+	case AnalyzeOptTopN:
+		return "TOPN"
+	case AnalyzeOptCMSketchWidth:
+		return "CMSKETCH WIDTH"
+	case AnalyzeOptCMSketchDepth:
+		return "CMSKETCH DEPTH"
+	case AnalyzeOptSamples:
+		return "SAMPLES"
+	case AnalyzeOptSampleRate:
+		return "SAMPLERATE"
+	}
+	return "UNKNOWN"
+}
+
+// AnalyzeOption is one `n UNIT` entry of ANALYZE TABLE's WITH list.
+//
+// Value is the number as the statement writes it. Every unit but SAMPLERATE
+// takes a decimal integer that fits in uint64 -- v8.5.5 answers 1064 for
+// `WITH 1.5 BUCKETS`, `WITH 0x10 BUCKETS` and for an integer past that range
+// -- so a consumer reads those with strconv.ParseUint. SAMPLERATE takes any
+// unsigned number, and 4, 1.0, .5 and 1e3 all reach here as written, for
+// strconv.ParseFloat.
+type AnalyzeOption struct {
+	Loc   Loc
+	Type  AnalyzeOptionType
+	Value string
+}
+
+func (o *AnalyzeOption) nodeTag() {}
+
 // AnalyzeTableStmt represents an ANALYZE TABLE statement.
+//
+// TiDB's ANALYZE is far wider than MySQL's: besides MySQL's table list and
+// its UPDATE/DROP HISTOGRAM arms it takes one table's partitions, an index
+// list, a column choice, and a WITH list of tuning options. The arms are
+// mutually exclusive in ways only the server settles, and the fields below
+// record which one a statement took:
+//
+//	Partitions   PARTITION p, ... -- one table only
+//	Indexes      INDEX arm; HasIndex is what tells `INDEX` with an empty
+//	             list from no INDEX at all
+//	ColumnChoice ALL COLUMNS, PREDICATE COLUMNS, or COLUMNS with Columns
+//	Incremental  INCREMENTAL, which TiDB takes only with the INDEX arm
+//	Options      the WITH list, in the order written
 type AnalyzeTableStmt struct {
 	Loc              Loc
 	NoWriteToBinlog  bool
+	Incremental      bool
 	Tables           []*TableRef
+	Partitions       []string
+	Indexes          []string
+	HasIndex         bool
+	ColumnChoice     AnalyzeColumnChoice
+	Columns          []string
 	HistogramOp      string   // "UPDATE" or "DROP"
 	HistogramColumns []string // column names
-	Buckets          int      // WITH N BUCKETS
-	UsingData        string   // USING DATA 'json_data'
+	Options          []*AnalyzeOption
 }
 
 func (s *AnalyzeTableStmt) nodeTag()  {}
 func (s *AnalyzeTableStmt) stmtNode() {}
+
+// DropStatsStmt represents TiDB's DROP STATS, which discards the statistics
+// of the tables or partitions it names. MySQL has no such statement.
+//
+// The three arms are a list of tables, one table with a list of its
+// partitions, and one table with GLOBAL; Partitions and Global are set only
+// by their own arm, and v8.5.5 answers 1064 for either beside a table list.
+type DropStatsStmt struct {
+	Loc        Loc
+	Tables     []*TableRef
+	Partitions []string
+	Global     bool
+}
+
+func (s *DropStatsStmt) nodeTag()  {}
+func (s *DropStatsStmt) stmtNode() {}
+
+// LoadStatsStmt represents TiDB's LOAD STATS, which reads a statistics dump
+// back from the file it names.
+type LoadStatsStmt struct {
+	Loc  Loc
+	Path string
+}
+
+func (s *LoadStatsStmt) nodeTag()  {}
+func (s *LoadStatsStmt) stmtNode() {}
+
+// StatisticsType names the kind of extended statistics CREATE STATISTICS
+// builds. TiDB requires exactly one of the three.
+type StatisticsType int
+
+const (
+	// StatisticsCardinality is (CARDINALITY).
+	StatisticsCardinality StatisticsType = iota
+	// StatisticsDependency is (DEPENDENCY).
+	StatisticsDependency
+	// StatisticsCorrelation is (CORRELATION).
+	StatisticsCorrelation
+)
+
+// String names the type as TiDB spells it.
+func (t StatisticsType) String() string {
+	switch t {
+	case StatisticsCardinality:
+		return "CARDINALITY"
+	case StatisticsDependency:
+		return "DEPENDENCY"
+	case StatisticsCorrelation:
+		return "CORRELATION"
+	}
+	return "UNKNOWN"
+}
+
+// CreateStatisticsStmt represents TiDB's CREATE STATISTICS, which builds one
+// extended statistic over a table's columns.
+//
+//	CREATE STATISTICS [IF NOT EXISTS] name (type) ON tbl (col, ...)
+type CreateStatisticsStmt struct {
+	Loc         Loc
+	IfNotExists bool
+	Name        string
+	Type        StatisticsType
+	Table       *TableRef
+	Columns     []*ColumnRef
+}
+
+func (s *CreateStatisticsStmt) nodeTag()  {}
+func (s *CreateStatisticsStmt) stmtNode() {}
+
+// DropStatisticsStmt represents TiDB's DROP STATISTICS, which drops one
+// extended statistic by name. It takes one name and no IF EXISTS.
+type DropStatisticsStmt struct {
+	Loc  Loc
+	Name string
+}
+
+func (s *DropStatisticsStmt) nodeTag()  {}
+func (s *DropStatisticsStmt) stmtNode() {}
 
 // OptimizeTableStmt represents an OPTIMIZE TABLE statement.
 type OptimizeTableStmt struct {

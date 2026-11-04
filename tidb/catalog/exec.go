@@ -192,6 +192,16 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		// changes no schema object. The statements it carries are not run
 		// either, so the catalog reads neither of them.
 		return nil
+	case *nodes.DropStatsStmt, *nodes.LoadStatsStmt, *nodes.CreateStatisticsStmt, *nodes.DropStatisticsStmt:
+		// TiDB's standalone statistics statements. DROP STATS discards a
+		// table's statistics, LOAD STATS reads a dump back, and CREATE and
+		// DROP STATISTICS make and drop an extended statistic. None
+		// changes a schema the catalog holds -- no table, column, index,
+		// or option -- so each is applied as a no-op rather than left to
+		// the default arm, where an unmodelled statement and a deliberate
+		// no-op read the same. ANALYZE TABLE reaches the default arm for
+		// the same reason and has always been a no-op there.
+		return nil
 	case *nodes.SplitRegionStmt, *nodes.DistributeTableStmt:
 		// SPLIT ... TABLE pre-splits regions and DISTRIBUTE TABLE
 		// schedules replicas. Neither changes a schema the catalog

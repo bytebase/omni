@@ -36,8 +36,11 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		p.advance()
 	}
 
-	// TABLE
-	p.match(kwTABLE)
+	// TABLE is required. It used to be matched leniently, which left
+	// `ANALYZE t` -- a 1064 on OceanBase -- parsing as an ANALYZE of t.
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	// Completion: after ANALYZE [LOCAL] TABLE, offer table_ref.
 	p.checkCursor()

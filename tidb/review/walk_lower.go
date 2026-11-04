@@ -60,6 +60,10 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.set(v)
 	case *ast.AdminStmt:
 		return b.admin(v)
+	case *ast.DropStatsStmt:
+		return b.dropStats(v)
+	case *ast.CreateStatisticsStmt:
+		return b.createStatistics(v)
 	case *ast.ExplainStmt:
 		return b.explain(v)
 	case *ast.SelectStmt, *ast.DoStmt, *ast.ValuesStmt, *ast.TableStmt:
@@ -74,6 +78,7 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.ShowStmt, *ast.HelpStmt, *ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt,
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,
 		*ast.SplitRegionStmt, *ast.DistributeTableStmt,
+		*ast.LoadStatsStmt, *ast.DropStatisticsStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
 		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.CreateRoleStmt, *ast.DropRoleStmt,
 		*ast.CreateResourceGroupStmt, *ast.AlterResourceGroupStmt, *ast.DropResourceGroupStmt,
@@ -85,6 +90,11 @@ func (b *builder) statement(n ast.Node) bool {
 		// reason ANALYZE TABLE is: each needs its table, and the index
 		// form its index, but neither creates, drops, or renames one, so
 		// the walk follows both and records nothing.
+		// LOAD STATS names a file and DROP STATISTICS an extended
+		// statistic, and neither is a name the walk holds. v8.5.5 does
+		// not run DROP STATISTICS at all (8108, whatever the schema),
+		// which is an unsupported feature rather than a check the walk
+		// models, so it claims nothing either way.
 		// The resource control statements name resource groups and watch
 		// list entries, neither of which the walk holds; dropping out here
 		// instead would end the walk and lose every statement after one.
@@ -126,6 +136,36 @@ func (b *builder) admin(v *ast.AdminStmt) bool {
 		return b.relationsExist(v.Tables)
 	}
 	return true
+}
+
+// dropStats lowers TiDB's DROP STATS. It discards statistics and changes no
+// name the walk keeps, but every table it names has to be there: v8.5.5
+// answers 1146 for DROP STATS nosuch (read on 2026-11-04). A view is a
+// relation here and not a wrong kind -- DROP STATS on a view succeeds -- so
+// the check is relationsExist, not tableNeeds.
+//
+// What it does not claim is the partition arm: DROP STATS t PARTITION p0
+// against a table with no partitions is 1505, a runtime check the walk does
+// not model.
+func (b *builder) dropStats(v *ast.DropStatsStmt) bool {
+	return b.relationsExist(v.Tables)
+}
+
+// createStatistics lowers TiDB's CREATE STATISTICS. An extended statistic is
+// not a name the walk holds, so nothing is recorded, but the table it reads
+// has to be there: v8.5.5 resolves the table first and answers 1146 for
+// CREATE STATISTICS s (CARDINALITY) ON nosuch(a).
+//
+// With the table in place the statement still fails -- 8108, "Unsupported
+// type", for every form, since v8.5.5's executor does not run this statement
+// at all -- and that is an unsupported feature rather than a check the walk
+// models, as a disabled feature is under ADMIN. So the missing table is
+// reported and nothing else is claimed.
+func (b *builder) createStatistics(v *ast.CreateStatisticsStmt) bool {
+	if v.Table == nil {
+		return true
+	}
+	return b.relationsExist([]*ast.TableRef{v.Table})
 }
 
 // explain lowers EXPLAIN. Reporting a plan changes nothing, so a plain
