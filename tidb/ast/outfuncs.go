@@ -447,6 +447,22 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterResourceGroupStmt(sb, n)
 	case *DropResourceGroupStmt:
 		writeDropResourceGroupStmt(sb, n)
+	case *ResourceGroupOption:
+		writeResourceGroupOption(sb, n)
+	case *ResourceGroupRunawayOption:
+		writeResourceGroupRunawayOption(sb, n)
+	case *ResourceGroupBackgroundOption:
+		writeResourceGroupBackgroundOption(sb, n)
+	case *CalibrateResourceStmt:
+		writeCalibrateResourceStmt(sb, n)
+	case *CalibrateResourceOption:
+		writeCalibrateResourceOption(sb, n)
+	case *AddQueryWatchStmt:
+		writeAddQueryWatchStmt(sb, n)
+	case *QueryWatchOption:
+		writeQueryWatchOption(sb, n)
+	case *DropQueryWatchStmt:
+		writeDropQueryWatchStmt(sb, n)
 	case *AlterViewStmt:
 		writeAlterViewStmt(sb, n)
 	case *AlterEventStmt:
@@ -507,8 +523,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeSetResourceGroupStmt(sb, n)
 	case *HelpStmt:
 		fmt.Fprintf(sb, "{HELP :loc %d :topic %q}", n.Loc.Start, n.Topic)
-	case *VCPUSpec:
-		writeVCPUSpec(sb, n)
 	case *SplitRegionStmt:
 		writeSplitRegionStmt(sb, n)
 	case *SplitOption:
@@ -1466,6 +1480,9 @@ func writeCreateUserStmt(sb *strings.Builder, n *CreateUserStmt) {
 	if n.Attribute != "" {
 		fmt.Fprintf(sb, " :attribute %q", n.Attribute)
 	}
+	if n.ResourceGroup != "" {
+		fmt.Fprintf(sb, " :resource_group %s", n.ResourceGroup)
+	}
 	sb.WriteString("}")
 }
 
@@ -1576,6 +1593,9 @@ func writeAlterUserStmt(sb *strings.Builder, n *AlterUserStmt) {
 			sb.WriteString(" :challenge ***")
 		}
 		sb.WriteString("}")
+	}
+	if n.ResourceGroup != "" {
+		fmt.Fprintf(sb, " :resource_group %s", n.ResourceGroup)
 	}
 	sb.WriteString("}")
 }
@@ -4716,81 +4736,196 @@ func writeDropSpatialRefSysStmt(sb *strings.Builder, n *DropSpatialRefSysStmt) {
 	sb.WriteString("}")
 }
 
-func writeCreateResourceGroupStmt(sb *strings.Builder, n *CreateResourceGroupStmt) {
-	sb.WriteString("{CREATE_RESOURCE_GROUP")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.Type != "" {
-		fmt.Fprintf(sb, " :type %s", n.Type)
+func writeResourceGroupOption(sb *strings.Builder, n *ResourceGroupOption) {
+	fmt.Fprintf(sb, "{RESOURCE_GROUP_OPTION :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Value != "" {
+		fmt.Fprintf(sb, " :value %s", n.Value)
 	}
-	if len(n.VCPUs) > 0 {
-		sb.WriteString(" :vcpus (")
-		for i, v := range n.VCPUs {
+	switch n.Name {
+	case "RU_PER_SEC":
+		if n.Unlimited {
+			sb.WriteString(" :unlimited true")
+		} else {
+			fmt.Fprintf(sb, " :int_value %d", n.IntValue)
+		}
+	case "BURSTABLE":
+		fmt.Fprintf(sb, " :burstable %t", n.Burstable)
+	case "QUERY_LIMIT":
+		sb.WriteString(" :runaway (")
+		for i, o := range n.Runaway {
 			if i > 0 {
 				sb.WriteString(" ")
 			}
-			if v.End == -1 {
-				fmt.Fprintf(sb, "%d", v.Start)
-			} else {
-				fmt.Fprintf(sb, "%d-%d", v.Start, v.End)
+			writeNode(sb, o)
+		}
+		sb.WriteString(")")
+	case "BACKGROUND":
+		sb.WriteString(" :background (")
+		for i, o := range n.Background {
+			if i > 0 {
+				sb.WriteString(" ")
 			}
+			writeNode(sb, o)
 		}
 		sb.WriteString(")")
 	}
-	if n.ThreadPriority != nil {
-		fmt.Fprintf(sb, " :thread_priority %d", *n.ThreadPriority)
-	}
-	if n.Enable != nil {
-		if *n.Enable {
-			sb.WriteString(" :enable true")
-		} else {
-			sb.WriteString(" :enable false")
+	sb.WriteString("}")
+}
+
+func writeResourceGroupRunawayOption(sb *strings.Builder, n *ResourceGroupRunawayOption) {
+	fmt.Fprintf(sb, "{RUNAWAY_OPTION :loc %d :name %s", n.Loc.Start, n.Name)
+	switch n.Name {
+	case "EXEC_ELAPSED":
+		fmt.Fprintf(sb, " :value %s", n.Value)
+	case "PROCESSED_KEYS", "RU":
+		fmt.Fprintf(sb, " :int_value %d", n.IntValue)
+	case "ACTION":
+		fmt.Fprintf(sb, " :action %s", n.Action)
+		if n.SwitchGroup != "" {
+			fmt.Fprintf(sb, " :switch_group %s", n.SwitchGroup)
+		}
+	case "WATCH":
+		fmt.Fprintf(sb, " :watch %s", n.Watch)
+		if n.DurationUnlimited {
+			sb.WriteString(" :duration_unlimited true")
+		} else if n.Duration != "" {
+			fmt.Fprintf(sb, " :duration %s", n.Duration)
 		}
 	}
+	sb.WriteString("}")
+}
+
+func writeResourceGroupBackgroundOption(sb *strings.Builder, n *ResourceGroupBackgroundOption) {
+	fmt.Fprintf(sb, "{BACKGROUND_OPTION :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Name == "UTILIZATION_LIMIT" {
+		fmt.Fprintf(sb, " :int_value %d", n.IntValue)
+	} else {
+		fmt.Fprintf(sb, " :value %s", n.Value)
+	}
+	sb.WriteString("}")
+}
+
+func writeResourceGroupOptions(sb *strings.Builder, options []*ResourceGroupOption) {
+	if len(options) == 0 {
+		return
+	}
+	sb.WriteString(" :options ")
+	for i, o := range options {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, o)
+	}
+}
+
+func writeCreateResourceGroupStmt(sb *strings.Builder, n *CreateResourceGroupStmt) {
+	sb.WriteString("{CREATE_RESOURCE_GROUP")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	writeResourceGroupOptions(sb, n.Options)
 	sb.WriteString("}")
 }
 
 func writeAlterResourceGroupStmt(sb *strings.Builder, n *AlterResourceGroupStmt) {
 	sb.WriteString("{ALTER_RESOURCE_GROUP")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
-	if len(n.VCPUs) > 0 {
-		sb.WriteString(" :vcpus (")
-		for i, v := range n.VCPUs {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			if v.End == -1 {
-				fmt.Fprintf(sb, "%d", v.Start)
-			} else {
-				fmt.Fprintf(sb, "%d-%d", v.Start, v.End)
-			}
-		}
-		sb.WriteString(")")
-	}
-	if n.ThreadPriority != nil {
-		fmt.Fprintf(sb, " :thread_priority %d", *n.ThreadPriority)
-	}
-	if n.Enable != nil {
-		if *n.Enable {
-			sb.WriteString(" :enable true")
-		} else {
-			sb.WriteString(" :enable false")
-		}
-	}
-	if n.Force {
-		sb.WriteString(" :force true")
-	}
+	writeResourceGroupOptions(sb, n.Options)
 	sb.WriteString("}")
 }
 
 func writeDropResourceGroupStmt(sb *strings.Builder, n *DropResourceGroupStmt) {
 	sb.WriteString("{DROP_RESOURCE_GROUP")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.Force {
-		sb.WriteString(" :force true")
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
 	}
+	fmt.Fprintf(sb, " :name %s", n.Name)
+	sb.WriteString("}")
+}
+
+func writeCalibrateResourceOption(sb *strings.Builder, n *CalibrateResourceOption) {
+	fmt.Fprintf(sb, "{CALIBRATE_OPTION :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Value != "" {
+		fmt.Fprintf(sb, " :value %s", n.Value)
+	}
+	if n.Unit != "" {
+		fmt.Fprintf(sb, " :unit %s", n.Unit)
+	}
+	if n.Ts != nil {
+		sb.WriteString(" :ts ")
+		writeNode(sb, n.Ts)
+	}
+	sb.WriteString("}")
+}
+
+func writeCalibrateResourceStmt(sb *strings.Builder, n *CalibrateResourceStmt) {
+	sb.WriteString("{CALIBRATE_RESOURCE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Workload != "" {
+		fmt.Fprintf(sb, " :workload %s", n.Workload)
+	}
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options ")
+		for i, o := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeQueryWatchOption(sb *strings.Builder, n *QueryWatchOption) {
+	fmt.Fprintf(sb, "{QUERY_WATCH_OPTION :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.ResourceGroup != "" {
+		fmt.Fprintf(sb, " :resource_group %s", n.ResourceGroup)
+	}
+	if n.ResourceGroupExpr != nil {
+		sb.WriteString(" :resource_group_expr ")
+		writeNode(sb, n.ResourceGroupExpr)
+	}
+	if n.Action != "" {
+		fmt.Fprintf(sb, " :action %s", n.Action)
+	}
+	if n.SwitchGroup != "" {
+		fmt.Fprintf(sb, " :switch_group %s", n.SwitchGroup)
+	}
+	if n.Watch != "" {
+		fmt.Fprintf(sb, " :watch %s", n.Watch)
+	}
+	if n.Pattern != nil {
+		sb.WriteString(" :pattern ")
+		writeNode(sb, n.Pattern)
+	}
+	sb.WriteString("}")
+}
+
+func writeAddQueryWatchStmt(sb *strings.Builder, n *AddQueryWatchStmt) {
+	sb.WriteString("{ADD_QUERY_WATCH")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options ")
+		for i, o := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeDropQueryWatchStmt(sb *strings.Builder, n *DropQueryWatchStmt) {
+	sb.WriteString("{DROP_QUERY_WATCH")
+	fmt.Fprintf(sb, " :loc %d :id %d", n.Loc.Start, n.ID)
 	sb.WriteString("}")
 }
 
@@ -5248,25 +5383,7 @@ func writeRenameUserPair(sb *strings.Builder, n *RenameUserPair) {
 func writeSetResourceGroupStmt(sb *strings.Builder, n *SetResourceGroupStmt) {
 	sb.WriteString("{SET_RESOURCE_GROUP")
 	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
-	if len(n.ThreadIDs) > 0 {
-		sb.WriteString(" :threads (")
-		for i, id := range n.ThreadIDs {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			fmt.Fprintf(sb, "%d", id)
-		}
-		sb.WriteString(")")
-	}
 	sb.WriteString("}")
-}
-
-func writeVCPUSpec(sb *strings.Builder, n *VCPUSpec) {
-	if n.End < 0 {
-		fmt.Fprintf(sb, "{VCPU %d}", n.Start)
-	} else {
-		fmt.Fprintf(sb, "{VCPU %d-%d}", n.Start, n.End)
-	}
 }
 
 // adminKindNames spells each kind as the subcommand it stands for.

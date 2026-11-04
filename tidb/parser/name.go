@@ -571,6 +571,40 @@ var keywordCategories = map[int]keywordCategory{
 	kwREGION:     kwCatUnambiguous,
 	kwRULE:       kwCatUnambiguous,
 	kwTIMEOUT:    kwCatUnambiguous,
+	// TiDB's resource control keywords. Upstream splits them between
+	// UnReservedKeyword (parser.y:6962) and NotKeywordToken (parser.y:7400),
+	// and Identifier (parser.y:6956) takes both, so each of these stays a
+	// valid identifier — a column called priority or duration, a table
+	// called plan.
+	kwRU_PER_SEC:        kwCatUnambiguous,
+	kwPRIORITY:          kwCatUnambiguous,
+	kwBURSTABLE:         kwCatUnambiguous,
+	kwQUERY_LIMIT:       kwCatUnambiguous,
+	kwBACKGROUND:        kwCatUnambiguous,
+	kwTASK_TYPES:        kwCatUnambiguous,
+	kwUTILIZATION_LIMIT: kwCatUnambiguous,
+	kwEXEC_ELAPSED:      kwCatUnambiguous,
+	kwPROCESSED_KEYS:    kwCatUnambiguous,
+	kwRU:                kwCatUnambiguous,
+	kwWATCH:             kwCatUnambiguous,
+	kwDURATION:          kwCatUnambiguous,
+	kwDRYRUN:            kwCatUnambiguous,
+	kwCOOLDOWN:          kwCatUnambiguous,
+	kwSWITCH_GROUP:      kwCatUnambiguous,
+	kwEXACT:             kwCatUnambiguous,
+	kwSIMILAR:           kwCatUnambiguous,
+	kwUNLIMITED:         kwCatUnambiguous,
+	kwLOW:               kwCatUnambiguous,
+	kwHIGH:              kwCatUnambiguous,
+	kwCALIBRATE:         kwCatUnambiguous,
+	kwWORKLOAD:          kwCatUnambiguous,
+	kwTPCC:              kwCatUnambiguous,
+	kwTPCH_10:           kwCatUnambiguous,
+	kwOLTP_READ_WRITE:   kwCatUnambiguous,
+	kwOLTP_READ_ONLY:    kwCatUnambiguous,
+	kwOLTP_WRITE_ONLY:   kwCatUnambiguous,
+	kwSTART_TIME:        kwCatUnambiguous,
+	kwEND_TIME:          kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

@@ -218,6 +218,19 @@ func TestRequireIsNull(t *testing.T) {
 			},
 		},
 		{
+			// The resource control statements carry expressions of their
+			// own, and the walker reaches them: a subquery inside a QUERY
+			// WATCH pattern is a condition position like any other. The
+			// timestamp CALIBRATE RESOURCE takes is not a condition, so
+			// `START_TIME a = NULL` is no finding -- it is a value, not a
+			// test -- and a rule that reported it there would be wrong.
+			name: "the expressions the resource control statements carry",
+			sql:  "QUERY WATCH ADD SQL DIGEST (SELECT d FROM t WHERE a = NULL);\nCALIBRATE RESOURCE START_TIME a = NULL;",
+			want: []finding{
+				{0, "a = NULL", "`a = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}},
+			},
+		},
+		{
 			name: "a searched CASE statement",
 			sql:  "CREATE PROCEDURE pr() BEGIN CASE WHEN @n = NULL THEN SELECT 1; END CASE; END;",
 			want: []finding{{0, "@n = NULL", "`@n = NULL` is never true.\n\nUse `IS NULL` instead.", []int{0}}},
@@ -258,6 +271,17 @@ func TestDisallowDropObject(t *testing.T) {
 				{9, "DROP COLUMN n", "Drops column `n` of `t`.", []int{0}},
 				{9, "DROP INDEX idx_n", "Drops index `idx_n` of `t`.", []int{0}},
 				{9, "DROP PARTITION p0", "Drops partition `p0` of `t`.", []int{0}},
+			},
+		},
+		{
+			// The rule reads DropResourceGroupStmt, whose shape this change
+			// replaced: TiDB's DROP takes IF EXISTS and DEFAULT as a name
+			// where MySQL's took FORCE.
+			name: "a resource group with IF EXISTS",
+			sql:  "DROP RESOURCE GROUP IF EXISTS rg;\nDROP RESOURCE GROUP DEFAULT;",
+			want: []finding{
+				{0, "DROP RESOURCE GROUP IF EXISTS rg", "Drops resource group `rg`.", []int{0}},
+				{1, "DROP RESOURCE GROUP DEFAULT", "Drops resource group `` `DEFAULT` ``.", []int{0}},
 			},
 		},
 		{

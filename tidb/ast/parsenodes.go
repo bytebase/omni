@@ -1456,6 +1456,9 @@ type CreateUserStmt struct {
 	// Comment / Attribute
 	Comment   string
 	Attribute string
+	// RESOURCE GROUP group_name, the last clause of the statement
+	// (ResourceGroupNameOption, TiDB v8.5.5 parser.y:14213).
+	ResourceGroup string
 }
 
 func (s *CreateUserStmt) nodeTag()  {}
@@ -1500,6 +1503,9 @@ type AlterUserStmt struct {
 	FactorOps []*FactorOp
 	// Registration operation
 	RegistrationOp *RegistrationOp
+	// RESOURCE GROUP group_name, the last clause of the statement
+	// (ResourceGroupNameOption, TiDB v8.5.5 parser.y:14213).
+	ResourceGroup string
 }
 
 // FactorOp represents an ADD/MODIFY/DROP factor operation in ALTER USER.
@@ -2852,49 +2858,220 @@ type DropSpatialRefSysStmt struct {
 func (s *DropSpatialRefSysStmt) nodeTag()  {}
 func (s *DropSpatialRefSysStmt) stmtNode() {}
 
-// VCPUSpec represents a VCPU specification in a resource group (e.g., 0-3 or 5).
-type VCPUSpec struct {
-	Start int64
-	End   int64 // -1 means single CPU (no range)
+// ResourceGroupOption is one option of CREATE or ALTER RESOURCE GROUP
+// (DirectResourceGroupOption, TiDB v8.5.5 parser.y:1946). The options are
+// separated by commas or by nothing at all, in any order, and each may be
+// written with or without its `=`; a repeat of one the group already carries
+// is a syntax error.
+//
+// Name is the option keyword, uppercased. The field that carries the value
+// goes with the name:
+//
+//	RU_PER_SEC    IntValue, or Unlimited for RU_PER_SEC = UNLIMITED
+//	PRIORITY      Value, one of LOW, MEDIUM, HIGH
+//	BURSTABLE     Burstable; bare BURSTABLE is true, and a value is true
+//	              when it is not zero, which is what v8.5.5 stores:
+//	              BURSTABLE = 2 reads back as YES and BURSTABLE = 0 as NO
+//	QUERY_LIMIT   Runaway; nil for QUERY_LIMIT = NULL and QUERY_LIMIT = ()
+//	BACKGROUND    Background; nil for BACKGROUND = NULL and BACKGROUND = ()
+//
+// Burstable is only what the BURSTABLE option said. A group written with
+// RU_PER_SEC = UNLIMITED and no BURSTABLE at all reads back from
+// information_schema.resource_groups as burstable, but that is the server's
+// rule about an unlimited rate, not something the option list carries.
+type ResourceGroupOption struct {
+	Loc        Loc
+	Name       string
+	Value      string
+	IntValue   uint64
+	Unlimited  bool
+	Burstable  bool
+	Runaway    []*ResourceGroupRunawayOption
+	Background []*ResourceGroupBackgroundOption
 }
 
-func (v *VCPUSpec) nodeTag() {}
+func (o *ResourceGroupOption) nodeTag() {}
+
+// ResourceGroupRunawayOption is one rule inside QUERY_LIMIT
+// (DirectResourceGroupRunawayOption, TiDB v8.5.5 parser.y:1877).
+//
+//	EXEC_ELAPSED    Value, a duration time.ParseDuration reads
+//	PROCESSED_KEYS  IntValue, unsigned: the grammar's intLit carries no sign
+//	RU              IntValue, the same
+//	ACTION          Action, one of DRYRUN, COOLDOWN, KILL, SWITCH_GROUP;
+//	                SwitchGroup carries the group SWITCH_GROUP(name) names
+//	WATCH           Watch, one of EXACT, SIMILAR, PLAN, with the optional
+//	                DURATION in Duration, or DurationUnlimited for the bare
+//	                keyword DURATION = UNLIMITED
+//
+// A repeated ACTION or WATCH is a syntax error; a repeated EXEC_ELAPSED,
+// PROCESSED_KEYS or RU is not, and v8.5.5 keeps the last of them.
+type ResourceGroupRunawayOption struct {
+	Loc               Loc
+	Name              string
+	Value             string
+	IntValue          uint64
+	Action            string
+	SwitchGroup       string
+	Watch             string
+	Duration          string
+	DurationUnlimited bool
+}
+
+func (o *ResourceGroupRunawayOption) nodeTag() {}
+
+// ResourceGroupBackgroundOption is one option inside BACKGROUND
+// (DirectResourceGroupBackgroundOption, TiDB v8.5.5 parser.y:2019).
+//
+//	TASK_TYPES         Value, a comma-separated list inside one string
+//	UTILIZATION_LIMIT  IntValue
+type ResourceGroupBackgroundOption struct {
+	Loc      Loc
+	Name     string
+	Value    string
+	IntValue uint64
+}
+
+func (o *ResourceGroupBackgroundOption) nodeTag() {}
 
 // CreateResourceGroupStmt represents a CREATE RESOURCE GROUP statement.
+//
+// Ref: TiDB v8.5.5 parser.y:15733
+//
+//	CREATE RESOURCE GROUP [IF NOT EXISTS] group_name option [[,] option] ...
+//
+// At least one option is required: TiDB answers 1064 for a group with none.
 type CreateResourceGroupStmt struct {
-	Loc            Loc
-	Name           string     // group name
-	Type           string     // SYSTEM or USER
-	VCPUs          []VCPUSpec // VCPU specs
-	ThreadPriority *int64     // THREAD_PRIORITY value
-	Enable         *bool      // ENABLE or DISABLE (nil = not specified)
+	Loc         Loc
+	IfNotExists bool
+	Name        string
+	Options     []*ResourceGroupOption
 }
 
 func (s *CreateResourceGroupStmt) nodeTag()  {}
 func (s *CreateResourceGroupStmt) stmtNode() {}
 
 // AlterResourceGroupStmt represents an ALTER RESOURCE GROUP statement.
+//
+// Ref: TiDB v8.5.5 parser.y:15743
+//
+//	ALTER RESOURCE GROUP [IF EXISTS] group_name option [[,] option] ...
 type AlterResourceGroupStmt struct {
-	Loc            Loc
-	Name           string     // group name
-	VCPUs          []VCPUSpec // VCPU specs
-	ThreadPriority *int64     // THREAD_PRIORITY value
-	Enable         *bool      // ENABLE or DISABLE (nil = not specified)
-	Force          bool       // FORCE
+	Loc      Loc
+	IfExists bool
+	Name     string
+	Options  []*ResourceGroupOption
 }
 
 func (s *AlterResourceGroupStmt) nodeTag()  {}
 func (s *AlterResourceGroupStmt) stmtNode() {}
 
 // DropResourceGroupStmt represents a DROP RESOURCE GROUP statement.
+//
+// Ref: TiDB v8.5.5 parser.y:15753
+//
+//	DROP RESOURCE GROUP [IF EXISTS] group_name
+//
+// One group per statement: TiDB has no list here.
 type DropResourceGroupStmt struct {
-	Loc   Loc
-	Name  string // group name
-	Force bool   // FORCE
+	Loc      Loc
+	IfExists bool
+	Name     string
 }
 
 func (s *DropResourceGroupStmt) nodeTag()  {}
 func (s *DropResourceGroupStmt) stmtNode() {}
+
+// CalibrateResourceOption is one option of CALIBRATE RESOURCE's dynamic form
+// (DynamicCalibrateResourceOption, TiDB v8.5.5 parser.y:16929).
+//
+//	START_TIME  Ts, any expression
+//	END_TIME    Ts, any expression
+//	DURATION    Value, a duration TiDB's own parser reads (so '20d' counts),
+//	            or, for DURATION INTERVAL expr unit, Ts and Unit
+type CalibrateResourceOption struct {
+	Loc   Loc
+	Name  string
+	Ts    ExprNode
+	Value string
+	Unit  string
+}
+
+func (o *CalibrateResourceOption) nodeTag() {}
+
+// CalibrateResourceStmt represents a CALIBRATE RESOURCE statement.
+//
+// Ref: TiDB v8.5.5 parser.y:16882
+//
+//	CALIBRATE RESOURCE [WORKLOAD workload | option [[,] option] ...]
+//
+// The two forms do not mix: a statement carries a workload or dynamic
+// options, never both, and may carry neither.
+type CalibrateResourceStmt struct {
+	Loc      Loc
+	Workload string // TPCC, OLTP_READ_WRITE, OLTP_READ_ONLY, OLTP_WRITE_ONLY, TPCH_10
+	Options  []*CalibrateResourceOption
+}
+
+func (s *CalibrateResourceStmt) nodeTag()  {}
+func (s *CalibrateResourceStmt) stmtNode() {}
+
+// QueryWatchOption is one option of QUERY WATCH ADD (QueryWatchOption,
+// TiDB v8.5.5 parser.y:17010).
+//
+//	RESOURCE_GROUP  ResourceGroup, or ResourceGroupExpr for a user variable
+//	ACTION          Action, as on a runaway rule, with SwitchGroup
+//	SQL_DIGEST      Pattern
+//	PLAN_DIGEST     Pattern
+//	SQL_TEXT        Watch (EXACT, SIMILAR or PLAN) and Pattern
+//
+// One of each kind at most, and the three text kinds share one slot: a
+// statement carries a single SQL_DIGEST, PLAN_DIGEST or SQL_TEXT.
+type QueryWatchOption struct {
+	Loc               Loc
+	Name              string
+	ResourceGroup     string
+	ResourceGroupExpr ExprNode
+	Action            string
+	SwitchGroup       string
+	Watch             string
+	Pattern           ExprNode
+}
+
+func (o *QueryWatchOption) nodeTag() {}
+
+// AddQueryWatchStmt represents a QUERY WATCH ADD statement.
+//
+// Ref: TiDB v8.5.5 parser.y:16980
+//
+//	QUERY WATCH ADD option [[,] option] ...
+type AddQueryWatchStmt struct {
+	Loc     Loc
+	Options []*QueryWatchOption
+}
+
+func (s *AddQueryWatchStmt) nodeTag()  {}
+func (s *AddQueryWatchStmt) stmtNode() {}
+
+// DropQueryWatchStmt represents a QUERY WATCH REMOVE statement.
+//
+// Ref: TiDB v8.5.5 parser.y:17068
+//
+//	QUERY WATCH REMOVE watch_id
+//
+// v8.5.5 takes a watch id and nothing else: QUERY WATCH REMOVE RESOURCE
+// GROUP rg, which pingcap's parser on master reads, is 1064 there, and so
+// is a negative id.
+//
+// The id is unsigned because the grammar's NUM is: the lexer scans it with
+// no sign and up to 2^64-1, which an int64 cannot hold without wrapping.
+type DropQueryWatchStmt struct {
+	Loc Loc
+	ID  uint64
+}
+
+func (s *DropQueryWatchStmt) nodeTag()  {}
+func (s *DropQueryWatchStmt) stmtNode() {}
 
 // AlterViewStmt represents an ALTER VIEW statement.
 type AlterViewStmt struct {
@@ -3224,10 +3401,15 @@ type RenameUserPair struct {
 func (p *RenameUserPair) nodeTag() {}
 
 // SetResourceGroupStmt represents a SET RESOURCE GROUP statement.
+//
+// Ref: TiDB v8.5.5 parser.y:11017
+//
+//	SET RESOURCE GROUP group_name
+//
+// MySQL's FOR thread_id list is not TiDB's: v8.5.5 answers 1064 for it.
 type SetResourceGroupStmt struct {
-	Loc       Loc
-	Name      string  // group name
-	ThreadIDs []int64 // FOR thread_id [, thread_id] ...
+	Loc  Loc
+	Name string // group name
 }
 
 func (s *SetResourceGroupStmt) nodeTag()  {}

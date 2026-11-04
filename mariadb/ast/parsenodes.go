@@ -2676,6 +2676,12 @@ type DropSpatialRefSysStmt struct {
 func (s *DropSpatialRefSysStmt) nodeTag()  {}
 func (s *DropSpatialRefSysStmt) stmtNode() {}
 
+// The resource group nodes below came from the MySQL tree this engine was
+// forked from. MariaDB has no resource group statements at all: mariadb:11.8.8
+// answers 1064 for CREATE, ALTER and DROP RESOURCE GROUP and for SET RESOURCE
+// GROUP, so the parser reads none of them and produces none of these nodes.
+// The types stay because callers name them in type switches.
+
 // VCPUSpec represents a VCPU specification in a resource group (e.g., 0-3 or 5).
 type VCPUSpec struct {
 	Start int64
@@ -3047,7 +3053,9 @@ type RenameUserPair struct {
 
 func (p *RenameUserPair) nodeTag() {}
 
-// SetResourceGroupStmt represents a SET RESOURCE GROUP statement.
+// SetResourceGroupStmt represents a SET RESOURCE GROUP statement. This engine
+// has no such statement and the parser produces none of these; see the note on
+// VCPUSpec.
 type SetResourceGroupStmt struct {
 	Loc       Loc
 	Name      string  // group name

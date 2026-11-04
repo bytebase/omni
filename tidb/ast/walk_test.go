@@ -215,7 +215,12 @@ func allKnownNodes() []Node {
 
 		// User/grant components
 		&UserSpec{}, &RequireClause{}, &ResourceOption{},
-		&GrantTarget{}, &VCPUSpec{},
+		&GrantTarget{},
+
+		// Resource control components
+		&ResourceGroupOption{}, &ResourceGroupRunawayOption{},
+		&ResourceGroupBackgroundOption{}, &CalibrateResourceOption{},
+		&QueryWatchOption{},
 
 		// Replication components
 		&ReplicationOption{}, &ReplicationFilter{},

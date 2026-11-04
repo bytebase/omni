@@ -140,11 +140,6 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return p.parseSetPasswordStmt(start)
 	}
 
-	// Check for SET RESOURCE GROUP
-	if p.cur.Type == kwRESOURCE {
-		return p.parseSetResourceGroupStmt(start)
-	}
-
 	// Check for GLOBAL / SESSION / LOCAL / PERSIST / PERSIST_ONLY scope
 	scope := ""
 	switch p.cur.Type {

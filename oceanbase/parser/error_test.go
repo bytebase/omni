@@ -120,14 +120,14 @@ func TestParseError_Section_1_2_StmtDispatch(t *testing.T) {
 		{"stop_no_keyword", "STOP", "expected REPLICA"},
 		// parseLoadIndexIntoCacheStmt — truncated after CACHE (needs table ref)
 		{"load_index_trunc", "LOAD INDEX INTO CACHE", "at end of input"},
-		// parseCreateResourceGroupStmt — truncated after GROUP (needs name)
-		{"create_resource_group_trunc", "CREATE RESOURCE GROUP", "at end of input"},
-		// parseAlterResourceGroupStmt — truncated after GROUP (needs name)
-		{"alter_resource_group_trunc", "ALTER RESOURCE GROUP", "at end of input"},
+		// OceanBase has no CREATE RESOURCE GROUP: the dispatcher refuses the
+		// word, so a truncated one is an error at RESOURCE rather than at
+		// the end of the input.
+		{"create_resource_group_trunc", "CREATE RESOURCE GROUP", "unexpected token after CREATE"},
+		{"alter_resource_group_trunc", "ALTER RESOURCE GROUP", "unexpected token after ALTER"},
 		// parseDropSpatialRefSysStmt — truncated after SPATIAL (needs REFERENCE SYSTEM)
 		{"drop_spatial_trunc", "DROP SPATIAL", "expected REFERENCE"},
-		// parseDropResourceGroupStmt — truncated after GROUP (needs name)
-		{"drop_resource_group_trunc", "DROP RESOURCE GROUP", "at end of input"},
+		{"drop_resource_group_trunc", "DROP RESOURCE GROUP", "unexpected token after DROP"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

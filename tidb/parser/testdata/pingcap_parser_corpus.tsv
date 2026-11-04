@@ -539,47 +539,47 @@ reject	accept	SET SESSION_STATES 'x'
 reject	reject	SET SESSION_STATES
 reject	reject	SET SESSION_STATES 1
 reject	reject	SET SESSION_STATES now()
-reject	accept	calibrate resource
-reject	accept	calibrate resource START_TIME '2021-04-15 00:00:00'
-reject	accept	calibrate resource START_TIME '2023-04-01 13:00:00' END_TIME '2023-04-01 16:00:00'
-reject	accept	calibrate resource START_TIME '2023-04-01 13:00:00' DURATION '20m'
-reject	accept	calibrate resource START_TIME '2023-04-01 13:00:00' END_TIME '2023-04-01 16:00:00' DURATION '20m'
-reject	accept	calibrate resource START_TIME '2023-04-01 13:00:00',END_TIME='2023-04-01 16:00:00'
-reject	accept	calibrate resource START_TIME '2023-04-01 13:00:00',DURATION='20m'
-reject	accept	calibrate resource DURATION='20m' START_TIME '2023-04-01 13:00:00'
-reject	accept	calibrate resource   START_TIME '2023-04-01 13:00:00' END_TIME='2023-04-01 16:00:00',DURATION '20m'
-reject	accept	calibrate resource START_TIME CURRENT_TIMESTAMP() END_TIME current_timestamp()
-reject	accept	calibrate resource END_TIME now()
-reject	accept	calibrate resource START_TIME now()
-reject	accept	calibrate resource START_TIME NOW() END_TIME now()
-reject	accept	calibrate resource START_TIME CURRENT_TIMESTAMP() - interval 10 minute END_TIME now()
-reject	accept	calibrate resource START_TIME now() - 1000 END_TIME current_timestamp()
-reject	accept	calibrate resource START_TIME CURRENT_TIMESTAMP() - interval 20 minute DURATION interval 15 minute
-reject	accept	calibrate resource START_TIME CURRENT_TIMESTAMP() - interval 20 minute DURATION '15m'
-reject	accept	calibrate resource END_TIME now() START_TIME CURRENT_TIMESTAMP() - interval 20 minute
+accept	accept	calibrate resource
+accept	accept	calibrate resource START_TIME '2021-04-15 00:00:00'
+accept	accept	calibrate resource START_TIME '2023-04-01 13:00:00' END_TIME '2023-04-01 16:00:00'
+accept	accept	calibrate resource START_TIME '2023-04-01 13:00:00' DURATION '20m'
+accept	accept	calibrate resource START_TIME '2023-04-01 13:00:00' END_TIME '2023-04-01 16:00:00' DURATION '20m'
+accept	accept	calibrate resource START_TIME '2023-04-01 13:00:00',END_TIME='2023-04-01 16:00:00'
+accept	accept	calibrate resource START_TIME '2023-04-01 13:00:00',DURATION='20m'
+accept	accept	calibrate resource DURATION='20m' START_TIME '2023-04-01 13:00:00'
+accept	accept	calibrate resource   START_TIME '2023-04-01 13:00:00' END_TIME='2023-04-01 16:00:00',DURATION '20m'
+accept	accept	calibrate resource START_TIME CURRENT_TIMESTAMP() END_TIME current_timestamp()
+accept	accept	calibrate resource END_TIME now()
+accept	accept	calibrate resource START_TIME now()
+accept	accept	calibrate resource START_TIME NOW() END_TIME now()
+accept	accept	calibrate resource START_TIME CURRENT_TIMESTAMP() - interval 10 minute END_TIME now()
+accept	accept	calibrate resource START_TIME now() - 1000 END_TIME current_timestamp()
+accept	accept	calibrate resource START_TIME CURRENT_TIMESTAMP() - interval 20 minute DURATION interval 15 minute
+accept	accept	calibrate resource START_TIME CURRENT_TIMESTAMP() - interval 20 minute DURATION '15m'
+accept	accept	calibrate resource END_TIME now() START_TIME CURRENT_TIMESTAMP() - interval 20 minute
 reject	reject	calibrate resource workload
-reject	accept	calibrate resource workload tpcc
-reject	accept	calibrate resource workload oltp_read_write
-reject	accept	calibrate resource workload oltp_read_only
-reject	accept	calibrate resource workload oltp_write_only
+accept	accept	calibrate resource workload tpcc
+accept	accept	calibrate resource workload oltp_read_write
+accept	accept	calibrate resource workload oltp_read_only
+accept	accept	calibrate resource workload oltp_write_only
 reject	reject	calibrate resource workload = oltp_read_write START_TIME '2023-04-01 13:00:00'
-reject	accept	query watch add SQL DIGEST b13858789fce00208f9a262c99621b7045f4869807cd4e6568008ae7ca19a377 
-reject	accept	query watch add SQL DIGEST 'b13858789fce00208f9a262c99621b7045f4869807cd4e6568008ae7ca19a377' 
-reject	accept	query watch add PLAN DIGEST `5e3ddd388f6012e328233dbcdda5d48f404e0536c6c54d9618233210f3d5762a` 
-reject	accept	query watch add PLAN DIGEST @digest1 
-reject	accept	query watch add SQL TEXT SIMILAR to 'select 1'
-reject	accept	query watch add SQL TEXT EXACT to 'select 1'
-reject	accept	query watch add SQL TEXT PLAN to 'select 1'
-reject	accept	query watch add resource group `default` SQL TEXT SIMILAR to 'select 1'
-reject	accept	query watch add resource group @rg SQL TEXT SIMILAR to @sql1
-reject	accept	query watch add resource group rg1 SQL TEXT SIMILAR to 'select 1'
-reject	accept	query watch add SQL TEXT SIMILAR to 'select 1' resource group rg1
-reject	accept	query watch add ACTION = KILL SQL TEXT SIMILAR to 'select 1'
-reject	accept	query watch add ACTION COOLDOWN resource group rg1 SQL TEXT SIMILAR to 'select 1'
+accept	accept	query watch add SQL DIGEST b13858789fce00208f9a262c99621b7045f4869807cd4e6568008ae7ca19a377 
+accept	accept	query watch add SQL DIGEST 'b13858789fce00208f9a262c99621b7045f4869807cd4e6568008ae7ca19a377' 
+accept	accept	query watch add PLAN DIGEST `5e3ddd388f6012e328233dbcdda5d48f404e0536c6c54d9618233210f3d5762a` 
+accept	accept	query watch add PLAN DIGEST @digest1 
+accept	accept	query watch add SQL TEXT SIMILAR to 'select 1'
+accept	accept	query watch add SQL TEXT EXACT to 'select 1'
+accept	accept	query watch add SQL TEXT PLAN to 'select 1'
+accept	accept	query watch add resource group `default` SQL TEXT SIMILAR to 'select 1'
+accept	accept	query watch add resource group @rg SQL TEXT SIMILAR to @sql1
+accept	accept	query watch add resource group rg1 SQL TEXT SIMILAR to 'select 1'
+accept	accept	query watch add SQL TEXT SIMILAR to 'select 1' resource group rg1
+accept	accept	query watch add ACTION = KILL SQL TEXT SIMILAR to 'select 1'
+accept	accept	query watch add ACTION COOLDOWN resource group rg1 SQL TEXT SIMILAR to 'select 1'
 reject	reject	query watch add resource group `default` resource group `rg1` SQL TEXT SIMILAR to 'select 1'
 reject	reject	query watch add SQL SIMILAR to 'select 1'
 reject	reject	query watch add SQL TEXT SIMILAR 'select 1'
-reject	accept	query watch remove 1
+accept	accept	query watch remove 1
 reject	reject	query watch remove resource group rg1
 reject	reject	query watch remove resource group @rg
 reject	reject	query watch remove
@@ -2620,26 +2620,26 @@ reject	reject	alter placement policy x placement policy y
 reject	reject	create resource group x cpu ='8c'
 reject	reject	create resource group x region ='us, 3'
 reject	reject	create resource group x cpu='8c', io_read_bandwidth='2GB/s', io_write_bandwidth='200MB/s'
-reject	accept	create resource group x ru_per_sec=2000
-reject	accept	create resource group x ru_per_sec=200000
-reject	accept	create resource group x ru_per_sec=UNLIMITED
-reject	accept	create resource group x ru_per_sec=unlimited
+accept	accept	create resource group x ru_per_sec=2000
+accept	accept	create resource group x ru_per_sec=200000
+accept	accept	create resource group x ru_per_sec=UNLIMITED
+accept	accept	create resource group x ru_per_sec=unlimited
 reject	reject	create resource group x ru_per_sec='check'
 reject	reject	create resource group x followers=0
-reject	accept	create resource group x burstable=true
-reject	accept	create resource group x burstable=false
+accept	accept	create resource group x burstable=true
+accept	accept	create resource group x burstable=false
 reject	reject	create resource group x burstable=disable
-reject	accept	create resource group x ru_per_sec=1000, burstable
-reject	accept	create resource group x burstable, ru_per_sec=2000
-reject	accept	create resource group x ru_per_sec=3000 burstable
-reject	accept	create resource group x burstable ru_per_sec=4000
+accept	accept	create resource group x ru_per_sec=1000, burstable
+accept	accept	create resource group x burstable, ru_per_sec=2000
+accept	accept	create resource group x ru_per_sec=3000 burstable
+accept	accept	create resource group x burstable ru_per_sec=4000
 reject	reject	create resource group x BURSTABLE = UNLIMITED ru_per_sec=4000
 reject	reject	create resource group x BURSTABLE = MODERATED ru_per_sec=4000
 reject	reject	create resource group x BURSTABLE = OFF ru_per_sec=4000
-reject	accept	create resource group x ru_per_sec=20, priority=LOW, burstable
-reject	accept	create resource group default ru_per_sec=20, priority=LOW, burstable
-reject	accept	create resource group default ru_per_sec=UNLIMITED, priority=LOW, burstable
-reject	accept	create resource group x ru_per_sec=1000
+accept	accept	create resource group x ru_per_sec=20, priority=LOW, burstable
+accept	accept	create resource group default ru_per_sec=20, priority=LOW, burstable
+accept	accept	create resource group default ru_per_sec=UNLIMITED, priority=LOW, burstable
+accept	accept	create resource group x ru_per_sec=1000
 reject	reject	create resource group x ru_per_sec=1000 burstable=unlimited
 reject	reject	create resource group x ru_per_sec=1000 burstable=off
 reject	reject	create resource group x ru_per_sec=1000 burstable=moderated
@@ -2655,63 +2655,63 @@ reject	reject	create resource group x ru_per_sec=1000 , priority=LOW,burstable=m
 reject	reject	create resource group x ru_per_sec=UNLIMITED , priority=LOW,burstable=unlimited
 reject	reject	create resource group x ru_per_sec=UNLIMITED , priority=LOW,burstable=off
 reject	reject	create resource group x ru_per_sec=UNLIMITED , priority=LOW,burstable=moderated
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' ACTION DRYRUN)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10m' ACTION COOLDOWN)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT=(ACTION KILL EXEC_ELAPSED='10m')
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' WATCH=SIMILAR DURATION '10m' ACTION COOLDOWN)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH EXACT DURATION='10m')
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED '9s' ACTION COOLDOWN WATCH EXACT)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED '8s' ACTION COOLDOWN WATCH EXACT DURATION = UNLIMITED)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED '7s' ACTION COOLDOWN WATCH EXACT DURATION UNLIMITED)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED '7s' ACTION COOLDOWN WATCH EXACT DURATION 'UNLIMITED')
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' RU 100 ACTION DRYRUN)
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' PROCESSED_KEYS 100 ACTION DRYRUN)
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' WATCH SIMILAR DURATION '10m' ACTION COOLDOWN)
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' ACTION COOLDOWN WATCH EXACT DURATION '10m')
-reject	accept	create resource group x ru_per_sec=1000 background = (task_types='')
-reject	accept	create resource group x ru_per_sec=1000 background = (UTILIZATION_LIMIT=50)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' ACTION DRYRUN)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10m' ACTION COOLDOWN)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT=(ACTION KILL EXEC_ELAPSED='10m')
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' WATCH=SIMILAR DURATION '10m' ACTION COOLDOWN)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH EXACT DURATION='10m')
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED '9s' ACTION COOLDOWN WATCH EXACT)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED '8s' ACTION COOLDOWN WATCH EXACT DURATION = UNLIMITED)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED '7s' ACTION COOLDOWN WATCH EXACT DURATION UNLIMITED)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED '7s' ACTION COOLDOWN WATCH EXACT DURATION 'UNLIMITED')
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' RU 100 ACTION DRYRUN)
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' PROCESSED_KEYS 100 ACTION DRYRUN)
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' WATCH SIMILAR DURATION '10m' ACTION COOLDOWN)
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' ACTION COOLDOWN WATCH EXACT DURATION '10m')
+accept	accept	create resource group x ru_per_sec=1000 background = (task_types='')
+accept	accept	create resource group x ru_per_sec=1000 background = (UTILIZATION_LIMIT=50)
 reject	reject	create resource group x ru_per_sec=1000 background = (UTILIZATION_LIMIT="NAN")
-reject	accept	create resource group x ru_per_sec=1000 background (task_types='br,lightning')
-reject	accept	create resource group x ru_per_sec=1000 background (task_types='br,lightning',utilization_limit=50)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH EXACT DURATION='10m')  background (task_types 'br,lightning')
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH PLAN DURATION='10m')  background (task_types 'br,lightning')
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH PLAN DURATION='10m')  background (task_types 'br,lightning', utilization_limit 10)
-reject	accept	create resource group x ru_per_sec=UNLIMITED QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH PLAN DURATION='10m')  background (task_types 'br,lightning')
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED '10s')
+accept	accept	create resource group x ru_per_sec=1000 background (task_types='br,lightning')
+accept	accept	create resource group x ru_per_sec=1000 background (task_types='br,lightning',utilization_limit=50)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH EXACT DURATION='10m')  background (task_types 'br,lightning')
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH PLAN DURATION='10m')  background (task_types 'br,lightning')
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH PLAN DURATION='10m')  background (task_types 'br,lightning', utilization_limit 10)
+accept	accept	create resource group x ru_per_sec=UNLIMITED QUERY_LIMIT (EXEC_ELAPSED "10s" ACTION COOLDOWN WATCH PLAN DURATION='10m')  background (task_types 'br,lightning')
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED '10s')
 reject	reject	create resource group x ru_per_sec=1000 QUERY=(EXEC_ELAPSED '10s')
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT=EXEC_ELAPSED '10s'
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED '10s'
 reject	reject	create resource group x ru_per_sec=1000 LIMIT=(EXEC_ELAPSED '10s')
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED '10s' ACTION DRYRUN ACTION KILL)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (PROCESSED_KEYS=100)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (PROCESSED_KEYS=100)
 reject	reject	create resource group x ru_per_sec=1000 QUERY=(PROCESSED_KEYS 100)
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT=PROCESSED_KEYS 100
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT = (PROCESSED_KEYS 100
 reject	reject	create resource group x ru_per_sec=1000 LIMIT=(PROCESSED_KEYS 100)
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT = (PROCESSED_KEYS 100 ACTION DRYRUN ACTION KILL)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (RU=100)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (RU=100)
 reject	reject	create resource group x ru_per_sec=1000 QUERY=(RU 100)
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT=RU 100
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT = (RU 100
 reject	reject	create resource group x ru_per_sec=1000 LIMIT=(RU 100)
 reject	reject	create resource group x ru_per_sec=1000 QUERY_LIMIT = (RU 100 ACTION DRYRUN ACTION KILL)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED='10s' PROCESSED_KEYS=100)
-reject	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED='10s', PROCESSED_KEYS=100, RU=100)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED='10s' PROCESSED_KEYS=100)
+accept	accept	create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED='10s', PROCESSED_KEYS=100, RU=100)
 reject	reject	alter resource group x cpu ='8c'
 reject	reject	alter resource group x region ='us, 3'
-reject	accept	alter resource group x burstable=true
-reject	accept	alter resource group x burstable=false
+accept	accept	alter resource group x burstable=true
+accept	accept	alter resource group x burstable=false
 reject	reject	alter resource group x burstable=disable
-reject	accept	alter resource group default priority = high
+accept	accept	alter resource group default priority = high
 reject	reject	alter resource group x cpu='8c', io_read_bandwidth='2GB/s', io_write_bandwidth='200MB/s'
-reject	accept	alter resource group x ru_per_sec=1000
-reject	accept	alter resource group x ru_per_sec=2000, BURSTABLE
-reject	accept	alter resource group x ru_per_sec=UNLIMITED
-reject	accept	alter resource group x ru_per_sec=UNLIMITED, BURSTABLE
-reject	accept	alter resource group x ru_per_sec=unlimited, BURSTABLE
+accept	accept	alter resource group x ru_per_sec=1000
+accept	accept	alter resource group x ru_per_sec=2000, BURSTABLE
+accept	accept	alter resource group x ru_per_sec=UNLIMITED
+accept	accept	alter resource group x ru_per_sec=UNLIMITED, BURSTABLE
+accept	accept	alter resource group x ru_per_sec=unlimited, BURSTABLE
 reject	reject	alter resource group x ru_per_sec='check', BURSTABLE
-reject	accept	alter resource group x BURSTABLE, ru_per_sec=3000
-reject	accept	alter resource group x BURSTABLE ru_per_sec=4000
+accept	accept	alter resource group x BURSTABLE, ru_per_sec=3000
+accept	accept	alter resource group x BURSTABLE ru_per_sec=4000
 reject	reject	alter resource group x ru_per_sec=2000, BURSTABLE=unlimited
 reject	reject	alter resource group x ru_per_sec=2000, BURSTABLE=moderated
 reject	reject	alter resource group x ru_per_sec=2000, BURSTABLE=off
@@ -2725,8 +2725,8 @@ reject	reject	alter resource group x BURSTABLE=off, ru_per_sec=3000
 reject	reject	alter resource group x BURSTABLE=unlimited ru_per_sec=4000
 reject	reject	alter resource group x BURSTABLE=moderated ru_per_sec=4000
 reject	reject	alter resource group x BURSTABLE=off ru_per_sec=4000
-reject	accept	alter resource group x BURSTABLE
-reject	accept	alter resource group x ru_per_sec=200000 BURSTABLE
+accept	accept	alter resource group x BURSTABLE
+accept	accept	alter resource group x ru_per_sec=200000 BURSTABLE
 reject	reject	alter resource group x followers=0
 reject	reject	alter resource group x ru_per_sec=20 priority=MID BURSTABLE
 reject	reject	alter resource group x BURSTABLE=unlimited
@@ -2739,20 +2739,20 @@ reject	reject	alter resource group x ru_per_sec=20 priority=MID
 reject	reject	alter resource group x ru_per_sec=20 priority=HIGH BURSTABLE=unlimited
 reject	reject	alter resource group x ru_per_sec=20 priority=HIGH BURSTABLE=moderated
 reject	reject	alter resource group x ru_per_sec=20 priority=HIGH BURSTABLE=off
-reject	accept	alter resource group x QUERY_LIMIT=NULL
-reject	accept	alter resource group x QUERY_LIMIT=()
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' ACTION DRYRUN)
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=()
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10m' ACTION COOLDOWN)
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=( ACTION KILL EXEC_ELAPSED '10m')
-reject	accept	alter resource group x ru_per_sec=UNLIMITED QUERY_LIMIT=(EXEC_ELAPSED '10s' ACTION COOLDOWN WATCH EXACT DURATION '10m')
-reject	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED '10s')
+accept	accept	alter resource group x QUERY_LIMIT=NULL
+accept	accept	alter resource group x QUERY_LIMIT=()
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10s' ACTION DRYRUN)
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=()
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '10m' ACTION COOLDOWN)
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT=( ACTION KILL EXEC_ELAPSED '10m')
+accept	accept	alter resource group x ru_per_sec=UNLIMITED QUERY_LIMIT=(EXEC_ELAPSED '10s' ACTION COOLDOWN WATCH EXACT DURATION '10m')
+accept	accept	alter resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED '10s')
 reject	reject	alter resource group x ru_per_sec=1000 QUERY_LIMIT EXEC_ELAPSED '10s'
 reject	reject	alter resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED '10s' ACTION DRYRUN ACTION KILL)
 reject	reject	alter resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED '10s' ACTION DRYRUN WATCH SIMILAR DURATION '10m' ACTION COOLDOWN)
-reject	accept	alter resource group x background=()
-reject	accept	alter resource group x background NULL
-reject	accept	alter resource group default priority=low background = ( task_types "ttl" )
+accept	accept	alter resource group x background=()
+accept	accept	alter resource group x background NULL
+accept	accept	alter resource group default priority=low background = ( task_types "ttl" )
 reject	reject	alter resource group default burstable=unlimited background ( task_types = 'a,b,c' )
 reject	reject	alter resource group default burstable=moderated background ( task_types = 'a,b,c' )
 reject	reject	alter resource group default burstable=off background ( task_types = 'a,b,c' )
@@ -2766,17 +2766,17 @@ reject	reject	alter resource group default burstable=unlimited background ( util
 reject	reject	alter resource group default burstable=moderated background ( utilization_limit = 'abc' )
 reject	reject	alter resource group default burstable=off background ( utilization_limit = 'abc' )
 accept	accept	drop resource group x;
-reject	accept	drop resource group DEFAULT;
-reject	accept	drop resource group if exists x;
+accept	accept	drop resource group DEFAULT;
+accept	accept	drop resource group if exists x;
 reject	reject	drop resource group x,y
 reject	reject	drop resource group if exists x,y
 accept	accept	set resource group x;
 accept	accept	set resource group ``;
 accept	accept	set resource group `default`;
-reject	accept	set resource group default;
+accept	accept	set resource group default;
 reject	reject	set resource group x y
 accept	accept	CREATE ROLE `RESOURCE`
-accept	reject	CREATE ROLE RESOURCE
+reject	reject	CREATE ROLE RESOURCE
 accept	accept	CREATE TABLE t (a int) STATS_BUCKETS=1
 reject	reject	CREATE TABLE t (a int) STATS_BUCKETS='abc'
 reject	reject	CREATE TABLE t (a int) STATS_BUCKETS=
@@ -2873,10 +2873,10 @@ accept	accept	CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED BY 'new-pa
 accept	accept	CREATE USER 'root'@'localhost' IDENTIFIED BY 'new-password'
 reject	accept	CREATE USER 'root'@'localhost' IDENTIFIED BY PASSWORD 'hashstring'
 reject	accept	CREATE USER 'root'@'localhost' IDENTIFIED BY 'new-password', 'root'@'127.0.0.1' IDENTIFIED BY PASSWORD 'hashstring'
-reject	accept	CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY 'hashstring' RESOURCE GROUP rg1
+accept	accept	CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY 'hashstring' RESOURCE GROUP rg1
 accept	accept	ALTER USER IF EXISTS 'root'@'localhost' IDENTIFIED BY 'new-password'
 accept	accept	ALTER USER 'root'@'localhost' IDENTIFIED BY 'new-password'
-reject	accept	ALTER USER 'root'@'localhost' RESOURCE GROUP rg2
+accept	accept	ALTER USER 'root'@'localhost' RESOURCE GROUP rg2
 reject	accept	ALTER USER 'root'@'localhost' IDENTIFIED BY PASSWORD 'hashstring'
 reject	accept	ALTER USER 'root'@'localhost' IDENTIFIED BY 'new-password', 'root'@'127.0.0.1' IDENTIFIED BY PASSWORD 'hashstring'
 accept	accept	ALTER USER USER() IDENTIFIED BY 'new-password'
