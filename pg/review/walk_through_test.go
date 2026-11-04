@@ -388,3 +388,31 @@ func TestWalkThroughNonASCIINames(t *testing.T) {
 		}
 	}
 }
+
+// ALTER TYPE's attribute forms alter a composite type, and only one:
+// PostgreSQL refuses them on a table or view with 42809 "is not a
+// composite type", and ALTER TABLE on a composite type with "is a
+// composite type" (verified on PostgreSQL 17).
+func TestWalkThroughAlterTypeTakesACompositeType(t *testing.T) {
+	schema := walkSchema()
+	schema.Schemas[0].CompositeTypes = []*metadata.CompositeTypeMetadata{{Name: "pair"}}
+	target := review.Target{Schema: schema, SessionUser: "u"}
+	for _, sql := range []string{
+		"ALTER TYPE pair ADD ATTRIBUTE b int;",
+		"CREATE TYPE p2 AS (a int);\nALTER TYPE p2 ADD ATTRIBUTE b int, ALTER ATTRIBUTE a TYPE text;",
+	} {
+		if got := walkFindings(t, sql, target); len(got) != 0 {
+			t.Errorf("%q: findings = %+v, want none", sql, got)
+		}
+	}
+	for sql, want := range map[string]string{
+		"ALTER TYPE t ADD ATTRIBUTE b int;":                                  "t is not a composite type",
+		"CREATE VIEW v AS SELECT 1 AS a;\nALTER TYPE v ADD ATTRIBUTE b int;": "v is not a composite type",
+		"ALTER TABLE pair ADD COLUMN b int;":                                 "pair is a composite type",
+	} {
+		got := walkFindings(t, sql, target)
+		if len(got) != 1 || !strings.Contains(got[0].Message, want) || !slices.Equal(got[0].Codes, []review.FindingCode{review.WrongObjectKind}) {
+			t.Errorf("%q: findings = %+v, want one %s saying %q", sql, got, review.WrongObjectKind, want)
+		}
+	}
+}

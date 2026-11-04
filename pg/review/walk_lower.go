@@ -1156,9 +1156,10 @@ var anyRelation = []string{relTable, relView, relMatview, relSequence, relIndex,
 // takes, and reports whether the relation is certainly of another (42809,
 // verified on PostgreSQL 17 and 18, IF EXISTS or not). ALTER VIEW,
 // MATERIALIZED VIEW, SEQUENCE, and FOREIGN TABLE take their own kind
-// only, and ALTER INDEX an index only but for RENAME. ALTER TABLE takes
-// any relation but a composite type, for compatibility, and moves no
-// index to another schema.
+// only, and ALTER INDEX an index only but for RENAME. ALTER TYPE's
+// attribute forms, which parse as an ALTER of a relation, take a composite
+// type only. ALTER TABLE takes any relation but a composite type, for
+// compatibility, and moves no index to another schema.
 //
 // pg: src/backend/commands/tablecmds.c — RangeVarCallbackForAlterRelation,
 // AlterTableNamespace
@@ -1169,6 +1170,9 @@ func (b *builder) wrongKind(r resolved, rv *ast.RangeVar, obj ast.ObjectType, fo
 	note := &walkNote{rng: rangeOf(rv.Loc)}
 	var kinds []string
 	switch want, own := dropKinds[obj]; {
+	case obj == ast.OBJECT_TYPE:
+		kinds = []string{relComposite}
+		note.present = relation(rv) + " is not a composite type"
 	case own && obj != ast.OBJECT_TABLE && (obj != ast.OBJECT_INDEX || form != formRename):
 		kinds = []string{want.kind}
 		note.present = relation(rv) + " is not " + want.article + " " + want.word
