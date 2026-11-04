@@ -83,6 +83,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeStatsLock(sb, "LOCK_STATS", n.Loc, n.Tables, n.Partitions)
 	case *UnlockStatsStmt:
 		writeStatsLock(sb, "UNLOCK_STATS", n.Loc, n.Tables, n.Partitions)
+	case *DropStatsStmt:
+		writeDropStatsStmt(sb, n)
+	case *LoadStatsStmt:
+		writeLoadStatsStmt(sb, n)
+	case *CreateStatisticsStmt:
+		writeCreateStatisticsStmt(sb, n)
+	case *DropStatisticsStmt:
+		writeDropStatisticsStmt(sb, n)
 	case *GrantStmt:
 		writeGrantStmt(sb, n)
 	case *RevokeStmt:
@@ -121,6 +129,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDeallocateStmt(sb, n)
 	case *AnalyzeTableStmt:
 		writeAnalyzeTableStmt(sb, n)
+	case *AnalyzeOption:
+		writeAnalyzeOption(sb, n)
 	case *OptimizeTableStmt:
 		writeOptimizeTableStmt(sb, n)
 	case *CheckTableStmt:
@@ -1944,6 +1954,9 @@ func writeAnalyzeTableStmt(sb *strings.Builder, n *AnalyzeTableStmt) {
 	if n.NoWriteToBinlog {
 		sb.WriteString(" :no_write_to_binlog true")
 	}
+	if n.Incremental {
+		sb.WriteString(" :incremental true")
+	}
 	if len(n.Tables) > 0 {
 		sb.WriteString(" :tables ")
 		for i, t := range n.Tables {
@@ -1953,18 +1966,103 @@ func writeAnalyzeTableStmt(sb *strings.Builder, n *AnalyzeTableStmt) {
 			writeNode(sb, t)
 		}
 	}
+	if len(n.Partitions) > 0 {
+		fmt.Fprintf(sb, " :partitions %s", strings.Join(n.Partitions, " "))
+	}
+	if n.HasIndex {
+		sb.WriteString(" :index true")
+		if len(n.Indexes) > 0 {
+			fmt.Fprintf(sb, " :indexes %s", strings.Join(n.Indexes, " "))
+		}
+	}
+	switch n.ColumnChoice {
+	case AnalyzeAllColumns:
+		sb.WriteString(" :columns all")
+	case AnalyzePredicateColumns:
+		sb.WriteString(" :columns predicate")
+	case AnalyzeColumnList:
+		fmt.Fprintf(sb, " :columns (%s)", strings.Join(n.Columns, " "))
+	}
 	if n.HistogramOp != "" {
 		fmt.Fprintf(sb, " :histogram_op %s", n.HistogramOp)
 	}
 	if len(n.HistogramColumns) > 0 {
 		fmt.Fprintf(sb, " :histogram_columns %s", strings.Join(n.HistogramColumns, ", "))
 	}
-	if n.Buckets > 0 {
-		fmt.Fprintf(sb, " :buckets %d", n.Buckets)
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options (")
+		for i, o := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+		sb.WriteString(")")
 	}
-	if n.UsingData != "" {
-		fmt.Fprintf(sb, " :using_data \"%s\"", n.UsingData)
+	sb.WriteString("}")
+}
+
+func writeAnalyzeOption(sb *strings.Builder, n *AnalyzeOption) {
+	sb.WriteString("{ANALYZE_OPTION")
+	fmt.Fprintf(sb, " :loc %d :value %s :unit %s", n.Loc.Start, n.Value, n.Type)
+	sb.WriteString("}")
+}
+
+func writeDropStatsStmt(sb *strings.Builder, n *DropStatsStmt) {
+	sb.WriteString("{DROP_STATS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, t := range n.Tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+		sb.WriteString(")")
 	}
+	if len(n.Partitions) > 0 {
+		fmt.Fprintf(sb, " :partitions %s", strings.Join(n.Partitions, " "))
+	}
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	sb.WriteString("}")
+}
+
+func writeLoadStatsStmt(sb *strings.Builder, n *LoadStatsStmt) {
+	sb.WriteString("{LOAD_STATS")
+	fmt.Fprintf(sb, " :loc %d :path \"%s\"", n.Loc.Start, n.Path)
+	sb.WriteString("}")
+}
+
+func writeCreateStatisticsStmt(sb *strings.Builder, n *CreateStatisticsStmt) {
+	sb.WriteString("{CREATE_STATISTICS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	fmt.Fprintf(sb, " :name %s :type %s", n.Name, n.Type)
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if len(n.Columns) > 0 {
+		sb.WriteString(" :columns (")
+		for i, c := range n.Columns {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, c)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeDropStatisticsStmt(sb *strings.Builder, n *DropStatisticsStmt) {
+	sb.WriteString("{DROP_STATISTICS")
+	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
 	sb.WriteString("}")
 }
 

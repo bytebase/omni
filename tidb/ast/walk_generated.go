@@ -155,6 +155,11 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *Assignment:
 		if n.Column != nil {
 			Walk(v, n.Column)
@@ -383,6 +388,15 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *CreateStatisticsStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, item := range n.Columns {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *CreateTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -491,6 +505,12 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DropSequenceStmt:
 		for _, item := range n.Sequences {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *DropStatsStmt:
+		for _, item := range n.Tables {
 			if item != nil {
 				Walk(v, item)
 			}

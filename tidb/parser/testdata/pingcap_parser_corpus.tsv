@@ -677,7 +677,7 @@ reject	reject	show backup
 reject	reject	show restore
 accept	accept	show replica status
 accept	accept	show slave status
-reject	accept	load stats '/tmp/stats.json'
+accept	accept	load stats '/tmp/stats.json'
 accept	accept	lock stats test.t
 accept	accept	lock stats t, t2
 accept	accept	lock stats t partition (p0, p1)
@@ -1763,11 +1763,11 @@ accept	accept	drop view xxx
 accept	accept	drop view xxx, yyy
 accept	accept	drop view if exists xxx
 accept	accept	drop view if exists xxx, yyy
-reject	accept	drop stats t
-reject	accept	drop stats t1, t2, t3
-reject	accept	drop stats t global
-reject	accept	drop stats t partition p0
-reject	accept	drop stats t partition p0, p1, p2
+accept	accept	drop stats t
+accept	accept	drop stats t1, t2, t3
+accept	accept	drop stats t global
+accept	accept	drop stats t partition p0
+accept	accept	drop stats t partition p0, p1, p2
 accept	accept	create table t (c int KEY);
 accept	accept	CREATE TABLE t (a DECIMAL(20,0), b DECIMAL(30), c FLOAT(25,0))
 accept	accept	create table t (c int, index ci (c) USING BTREE COMMENT "123");
@@ -3407,47 +3407,47 @@ accept	accept	SHOW OPEN TABLES FROM test
 accept	accept	analyze table t1
 reject	reject	analyze table t1.*
 accept	accept	analyze table t,t1
-reject	accept	analyze table t1 index
-reject	accept	analyze table t1 index a
-reject	accept	analyze table t1 index a,b
-reject	accept	analyze table t with 4 buckets
-reject	accept	analyze table t with 4 topn
-reject	accept	analyze table t with 4 cmsketch width
-reject	accept	analyze table t with 4 cmsketch depth
-reject	accept	analyze table t with 4 samples
-reject	accept	analyze table t with 4 buckets, 4 topn, 4 cmsketch width, 4 cmsketch depth, 4 samples
-reject	accept	analyze table t index a with 4 buckets
-reject	accept	analyze table t partition a
-reject	accept	analyze table t partition a with 4 buckets
-reject	accept	analyze table t partition a index b
-reject	accept	analyze table t partition a index b with 4 buckets
-reject	accept	analyze incremental table t index
-reject	accept	analyze incremental table t index idx
+accept	accept	analyze table t1 index
+accept	accept	analyze table t1 index a
+accept	accept	analyze table t1 index a,b
+accept	accept	analyze table t with 4 buckets
+accept	accept	analyze table t with 4 topn
+accept	accept	analyze table t with 4 cmsketch width
+accept	accept	analyze table t with 4 cmsketch depth
+accept	accept	analyze table t with 4 samples
+accept	accept	analyze table t with 4 buckets, 4 topn, 4 cmsketch width, 4 cmsketch depth, 4 samples
+accept	accept	analyze table t index a with 4 buckets
+accept	accept	analyze table t partition a
+accept	accept	analyze table t partition a with 4 buckets
+accept	accept	analyze table t partition a index b
+accept	accept	analyze table t partition a index b with 4 buckets
+accept	accept	analyze incremental table t index
+accept	accept	analyze incremental table t index idx
 accept	accept	analyze table t update histogram on b with 1024 buckets
 accept	accept	analyze table t drop histogram on b
 accept	accept	analyze table t update histogram on c1, c2;
 accept	accept	analyze table t drop histogram on c1, c2;
 reject	reject	analyze table t update histogram on t.c1, t.c2
 reject	reject	analyze table t drop histogram on t.c1, t.c2
-reject	accept	analyze table t1,t2 all columns
-reject	accept	analyze table t partition a all columns
-reject	accept	analyze table t1,t2 all columns with 4 topn
-reject	accept	analyze table t partition a all columns with 1024 buckets
-reject	accept	analyze table t1,t2 predicate columns
-reject	accept	analyze table t partition a predicate columns
-reject	accept	analyze table t1,t2 predicate columns with 4 topn
-reject	accept	analyze table t partition a predicate columns with 1024 buckets
-reject	accept	analyze table t columns c1,c2
-reject	accept	analyze table t partition a columns c1,c2
+accept	accept	analyze table t1,t2 all columns
+accept	accept	analyze table t partition a all columns
+accept	accept	analyze table t1,t2 all columns with 4 topn
+accept	accept	analyze table t partition a all columns with 1024 buckets
+accept	accept	analyze table t1,t2 predicate columns
+accept	accept	analyze table t partition a predicate columns
+accept	accept	analyze table t1,t2 predicate columns with 4 topn
+accept	accept	analyze table t partition a predicate columns with 1024 buckets
+accept	accept	analyze table t columns c1,c2
+accept	accept	analyze table t partition a columns c1,c2
 reject	reject	analyze table t columns t.c1,t.c2
 reject	reject	analyze table t partition a columns t.c1,t.c2
-reject	accept	analyze table t columns c1,c2 with 4 topn
-reject	accept	analyze table t partition a columns c1,c2 with 1024 buckets
+accept	accept	analyze table t columns c1,c2 with 4 topn
+accept	accept	analyze table t partition a columns c1,c2 with 1024 buckets
 reject	reject	analyze table t index a columns c
 reject	reject	analyze table t index a all columns
 reject	reject	analyze table t index a predicate columns
-reject	accept	analyze table t with 10 samplerate
-reject	accept	analyze table t with 0.1 samplerate
+accept	accept	analyze table t with 10 samplerate
+accept	accept	analyze table t with 0.1 samplerate
 accept	accept	analyze no_write_to_binlog table t1
 accept	accept	analyze local table t,t1
 reject	accept	select * from tbl tablesample system (50);
@@ -3706,16 +3706,16 @@ accept	accept	restore point from 'noop://log_backup'
 accept	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log'
 accept	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log' restored_ts='20230123'
 accept	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log' start_ts='20230101' restored_ts='20230123'
-reject	accept	create statistics stats1 (cardinality) on t(a,b,c)
-reject	accept	create statistics stats2 (dependency) on t(a,b)
-reject	accept	create statistics stats3 (correlation) on t(a,b)
+accept	accept	create statistics stats1 (cardinality) on t(a,b,c)
+accept	accept	create statistics stats2 (dependency) on t(a,b)
+accept	accept	create statistics stats3 (correlation) on t(a,b)
 reject	reject	create statistics stats3 on t(a,b)
-reject	accept	create statistics if not exists stats1 (cardinality) on t(a,b,c)
-reject	accept	create statistics if not exists stats2 (dependency) on t(a,b)
-reject	accept	create statistics if not exists stats3 (correlation) on t(a,b)
+accept	accept	create statistics if not exists stats1 (cardinality) on t(a,b,c)
+accept	accept	create statistics if not exists stats2 (dependency) on t(a,b)
+accept	accept	create statistics if not exists stats3 (correlation) on t(a,b)
 reject	reject	create statistics if not exists stats3 on t(a,b)
-reject	accept	create statistics stats1(cardinality) on t(a,b,c)
-reject	accept	drop statistics stats1
+accept	accept	create statistics stats1(cardinality) on t(a,b,c)
+accept	accept	drop statistics stats1
 accept	accept	WITH `cte` AS (SELECT 1,2) SELECT `col1`,`col2` FROM `cte`
 accept	accept	WITH `cte` (col1, col2) AS (SELECT 1,2 UNION ALL SELECT 3,4) SELECT col1, col2 FROM cte;
 accept	accept	WITH `cte` AS (SELECT 1,2), cte2 as (select 3) SELECT `col1`,`col2` FROM `cte`
