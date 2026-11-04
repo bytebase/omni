@@ -1,7 +1,6 @@
 package review
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/mssql/ast"
@@ -46,7 +45,7 @@ import (
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.ChangeTooLarge, -1, review.Range{}, fmt.Sprintf("the change is %d bytes, over the %d-byte limit of prior backup", len(sql), change.MaxBackupSize))
+		r.report(review.ChangeTooLarge, -1, review.Range{}, "The change is larger than prior backup's "+review.Size(int64(change.MaxBackupSize))+" limit.\n\nSplit it into smaller changes, or turn off **Prior backup**.")
 	}
 }
 
@@ -87,7 +86,7 @@ func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, code review.Find
 	}
 	switch t := d.target.(type) {
 	case *ast.TableVarRef:
-		return d, nil, review.TableNotBackupable, "prior backup does not support the table variable " + t.Name + " as the target"
+		return d, nil, review.TableNotBackupable, "Prior backup can't back up the table variable " + review.Code(t.Name) + ".\n\nTurn off **Prior backup** for this change."
 	case *ast.TableRef:
 		ref = backedUp(t, d.from)
 	}
@@ -95,13 +94,13 @@ func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, code review.Find
 	case ref == nil || strings.HasPrefix(ref.Object, "#"):
 		return d, nil, "", ""
 	case ref.Schema == "" && ref.Database == "" && withNames(d.with)[strings.ToLower(ref.Object)]:
-		return d, nil, review.TableNotBackupable, "prior backup does not support the WITH query " + ident(ref.Object) + " as the target"
+		return d, nil, review.TableNotBackupable, "Prior backup can't back up through the `WITH` query " + review.Code(ident(ref.Object)) + ".\n\nChange the base table instead, or turn off **Prior backup**."
 	}
 	if _, ok := d.where.(*ast.CurrentOfExpr); ok {
-		return d, nil, review.StatementNotBackupable, "prior backup does not support WHERE CURRENT OF"
+		return d, nil, review.StatementNotBackupable, "Prior backup can't back up a statement with `WHERE CURRENT OF`.\n\nUse a `WHERE` on the table's key, or turn off **Prior backup**."
 	}
 	if d.with != nil && d.with.XmlNamespaces != nil && len(d.with.XmlNamespaces.Items) > 0 {
-		return d, nil, review.StatementNotBackupable, "prior backup does not support WITH XMLNAMESPACES"
+		return d, nil, review.StatementNotBackupable, "Prior backup can't back up a statement with `WITH XMLNAMESPACES`.\n\nTurn off **Prior backup** for this change."
 	}
 	return d, ref, "", ""
 }
@@ -120,10 +119,11 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 		case ref == nil:
 		default:
 			if !fromNames(d.from, ref) {
-				r.report(review.BackupReadsWrongTable, s.index, rangeOf(s.loc), "prior backup selects "+object(ref)+".* from the statement's FROM list, which does not name it")
+				name := review.Code(object(ref))
+				r.report(review.BackupReadsWrongTable, s.index, rangeOf(s.loc), "Prior backup reads "+name+" from the statement's `FROM` list, which doesn't name it.\n\nName "+name+" in the `FROM` list, or turn off **Prior backup**.")
 			}
 			if d.top != nil {
-				r.report(review.StatementNotBackupable, s.index, rangeOf(s.loc), "prior backup copies TOP after the select list of its query, which SQL Server rejects")
+				r.report(review.StatementNotBackupable, s.index, rangeOf(s.loc), "Prior backup can't copy this statement's `TOP`: SQL Server rejects it where the backup query puts it.\n\nUse a `WHERE` instead of `TOP`, or turn off **Prior backup**.")
 			}
 		}
 	}
@@ -176,10 +176,10 @@ func checkPriorBackupGroups(sql string, stmts []statement, db string, r *reporte
 		case g.reported:
 		case g.kind != d.kind:
 			g.reported = true
-			report("prior backup cannot back up both UPDATE and DELETE on " + object(ref))
+			report("Prior backup can't back up " + review.Code(object(ref)) + ": this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.")
 		case g.with != with:
 			g.reported = true
-			report("prior backup cannot back up statements on " + object(ref) + " with different WITH clauses")
+			report("Prior backup can't back up " + review.Code(object(ref)) + ": its statements have different `WITH` clauses.\n\nGive them the same `WITH` clause, or move them into separate changes.")
 		}
 	}
 }
@@ -436,7 +436,7 @@ func (m changeMade) madeColumnOn(ref *ast.TableRef, column string, x schemaIndex
 // change's first USE reads that only the change makes.
 func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex, m changeMade, r *reporter) {
 	if !backupExists {
-		r.report(review.BackupLocationMissing, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
+		r.report(review.BackupLocationMissing, -1, review.Range{}, "Prior backup needs the backup database "+review.Code(backupDatabase)+", which doesn't exist on this instance.\n\nCreate it, or turn off **Prior backup**.")
 	}
 	if x.schema == nil {
 		return
@@ -482,7 +482,8 @@ func backupReadsMade(d dmlTarget, x schemaIndex, m changeMade) string {
 		ast.Inspect(d.where, check)
 	}
 	if missing != nil {
-		return "prior backup runs before the change, when " + object(missing) + " does not exist yet"
+		name := review.Code(object(missing))
+		return "Prior backup runs before the change, when " + name + " doesn't exist yet.\n\nCreate " + name + " in an earlier change, or turn off **Prior backup**."
 	}
 	return columnMissing(from, d.where, x, m)
 }
@@ -554,7 +555,7 @@ func columnMissing(from []ast.Node, where ast.ExprNode, x schemaIndex, m changeM
 			return
 		}
 		if m.madeColumnOn(src.ref, column, x) {
-			msg = "prior backup runs before the change, when column " + ident(column) + " of " + object(src.ref) + " does not exist yet"
+			msg = "Prior backup runs before the change, when column " + review.Code(ident(column)) + " of " + review.Code(object(src.ref)) + " doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**."
 		}
 	}
 	for _, q := range quals {

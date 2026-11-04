@@ -78,18 +78,111 @@ func (b *builder) statement(n ast.Node) bool {
 	return false
 }
 
-// Messages, one per claim; the oracle maps each to the errors it stands
-// for.
-func msgExists(written string) string        { return "an object named " + written + " already exists" }
-func msgSchemaMissing(written string) string { return "schema " + written + " does not exist" }
-func msgMissing(kind, written string) string { return kind + " " + written + " does not exist" }
-func msgNotKind(written, kind string) string { return written + " is not a " + kind }
-func msgNameTwice(spelling string) string {
-	return "the name " + ident(spelling) + " is given twice in the statement"
+// Messages, one shape per finding code
+// (docs/specs/2026-11-02-review-finding-messages.md, Appendix E); the
+// oracle maps each to the errors it stands for. A name comes as object or
+// ident writes it, and a kind as kindWords names it.
+
+// kindWords are the walk's kinds as a message names them.
+var kindWords = map[string]string{
+	kindTable:     "table",
+	kindView:      "view",
+	kindSequence:  "sequence",
+	kindProcedure: "procedure",
+	kindFunction:  "function",
+	kindTrigger:   "trigger",
+	kindSynonym:   "synonym",
+	kindIndex:     "index",
+	kindXMLIndex:  "XML index",
+	kindPK:        "primary key",
+	kindUQ:        "unique constraint",
+	kindFK:        "foreign key",
+	kindCK:        "check constraint",
+	kindDF:        "default constraint",
+}
+
+// msgMissing says that an object of a kind doesn't exist (WT101), with
+// no kind word for a kind the walk does not know.
+func msgMissing(kind, written string) string {
+	if kind == "" {
+		return review.Code(written) + " doesn't exist."
+	}
+	return upperFirst(kind) + " " + review.Code(written) + " doesn't exist."
+}
+
+// msgMissingIn says that a table's column, index, or constraint doesn't
+// exist (WT101).
+func msgMissingIn(kind, written, table string) string {
+	return upperFirst(kind) + " " + review.Code(written) + " doesn't exist in " + review.Code(table) + "."
+}
+
+// msgExists says that an object of a kind holds the name already (WT201).
+func msgExists(kind, written string) string {
+	return upperFirst(kind) + " " + review.Code(written) + " already exists."
+}
+
+// msgExistsIn says that a table's column or index holds the name already
+// (WT201).
+func msgExistsIn(kind, written, table string) string {
+	return upperFirst(kind) + " " + review.Code(written) + " already exists in " + review.Code(table) + "."
+}
+
+// msgTwice says that the statement uses a name twice (WT401): verb is
+// what it does with the name, and kind is "" for two objects of different
+// kinds.
+func msgTwice(verb, kind, written string) string {
+	if kind != "" {
+		kind += " "
+	}
+	return "This statement " + verb + " " + kind + review.Code(written) + " twice."
+}
+
+// taken writes what the check that the name the statement gives an
+// object of a kind is free says when it is not (WT201): the kind's text
+// when the object found is of that kind, else the name's alone.
+func taken(kind, written string) func(string) string {
+	return func(found string) string {
+		if w := kindWords[kind]; w != "" && found == kind {
+			return msgExists(w, written)
+		}
+		return "The name " + review.Code(written) + " is already taken."
+	}
+}
+
+// notKind writes what the check that a name is of one of kinds, named
+// need, says when it is of another (WT301): the kind found, when the
+// ledger tells it.
+func notKind(written, need string, kinds ...string) func(string) string {
+	return func(found string) string {
+		if w := kindWords[found]; w != "" && !contains(kinds, found) {
+			return review.Code(written) + " is " + article(w) + ", not " + article(need) + "."
+		}
+		return review.Code(written) + " isn't " + article(need) + "."
+	}
+}
+
+// text writes one text whatever the kind found.
+func text(s string) func(string) string {
+	return func(string) string { return s }
+}
+
+func upperFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// article puts "a" or "an" before a kind word.
+func article(word string) string {
+	if strings.HasPrefix(word, "index") || strings.HasPrefix(word, "XML") {
+		return "an " + word
+	}
+	return "a " + word
 }
 
 // note builds a check's finding at a range.
-func note(rng review.Range, absent, present string) *walkNote {
+func note(rng review.Range, absent string, present func(string) string) *walkNote {
 	return &walkNote{rng: rng, absent: absent, present: present}
 }
 
@@ -166,7 +259,7 @@ func (b *builder) first(loc ast.Loc, what string) bool {
 	if b.w.batch[b.s.index].first || b.optional {
 		return true
 	}
-	b.fail(rangeOf(loc), review.NotFirstInBatch, what+" must be the first statement in its batch")
+	b.fail(rangeOf(loc), review.NotFirstInBatch, review.Code(what)+" must be the first statement of its batch.")
 	return false
 }
 
@@ -187,16 +280,17 @@ func (b *builder) schemaNeeds(r objRef) {
 	if r.temp || r.where != placed {
 		return
 	}
-	b.needs(spaceSchema, walk.Path(), r.schema, nil, note(r.rng, msgSchemaMissing(ident(r.schema.spelling)), ""))
+	b.needs(spaceSchema, walk.Path(), r.schema, nil, note(r.rng, msgMissing("schema", ident(r.schema.spelling)), nil))
 }
 
-// lacksObject adds the check that no object holds a reference's name
-// (2714), from the relation space too, which the sync lists completely.
-func (b *builder) lacksObject(r objRef) {
+// lacksObject adds the check that no object holds the name a reference
+// gives an object of a kind (2714), from the relation space too, which
+// the sync lists completely.
+func (b *builder) lacksObject(r objRef, kind string) {
 	if r.where != placed {
 		return
 	}
-	n := note(r.rng, "", msgExists(r.written))
+	n := note(r.rng, "", taken(kind, r.written))
 	if r.temp {
 		b.lacks(spaceTemp, walk.Path(), r.n, n)
 		return
@@ -226,7 +320,7 @@ func (b *builder) createSchema(v *ast.CreateSchemaStmt) bool {
 	if b.otherDatabase(sn) {
 		return true
 	}
-	b.lacks(spaceSchema, walk.Path(), sn, note(rng, "", "schema "+ident(v.Name)+" already exists"))
+	b.lacks(spaceSchema, walk.Path(), sn, note(rng, "", text(msgExists("schema", ident(v.Name)))))
 	fresh, _ := b.classFact(sn.classKey(spaceSchema, walk.Path()))
 	b.arrive(spaceSchema, walk.Path(), sn, "")
 	if fresh == walk.Absent {
@@ -258,14 +352,14 @@ func (b *builder) dropSchema(v *ast.DropStmt) bool {
 	s := b.see(spaceSchema, root, sn)
 	switch {
 	case !v.IfExists:
-		b.needs(spaceSchema, root, sn, nil, note(rng, msgSchemaMissing(ident(tr.Object)), ""))
+		b.needs(spaceSchema, root, sn, nil, note(rng, msgMissing("schema", ident(tr.Object)), nil))
 	case s.fact == walk.Unknown:
 		b.maybe()
 	}
 	single := b.schemaKnown(sn)
 	if single && s.fact == walk.Present {
 		if k, ok := b.heldObject(sn); ok {
-			b.Fail([]walk.Key{k}, walk.Present, note(rng, "", "schema "+ident(tr.Object)+" still holds objects").as(review.SchemaNotEmpty))
+			b.Fail([]walk.Key{k}, walk.Present, note(rng, "", text("Schema "+review.Code(ident(tr.Object))+" still holds objects.")).as(review.SchemaNotEmpty))
 		}
 	}
 	b.leave(spaceSchema, root, sn)
@@ -424,12 +518,12 @@ func (b *builder) dml(target ast.TableExpr, with *ast.WithClause, from *ast.List
 	case placed:
 		if r.temp {
 			if check {
-				b.needs(spaceTemp, walk.Path(), r.n, nil, note(r.rng, msgMissing("object", r.written), ""))
+				b.needs(spaceTemp, walk.Path(), r.n, nil, note(r.rng, msgMissing("", r.written), nil))
 			}
 			break
 		}
 		if check {
-			b.needs(spaceRelation, r.parent, r.n, nil, note(r.rng, msgMissing("object", r.written), ""))
+			b.needs(spaceRelation, r.parent, r.n, nil, note(r.rng, msgMissing("", r.written), nil))
 		}
 		// A synonym may lead to another database.
 		s := b.see(spaceRelation, r.parent, r.n)
@@ -487,7 +581,7 @@ func (b *builder) selectStmt(v *ast.SelectStmt) bool {
 		return true
 	}
 	b.schemaNeeds(r)
-	b.lacksObject(r)
+	b.lacksObject(r, kindTable)
 	b.createdTable(r, func(path string) {
 		// SELECT ... INTO adds columns the walk does not read, and no
 		// index or constraint.

@@ -10,7 +10,7 @@ import (
 
 // tableNeeds adds the check that a reference names a relation of one of
 // kinds: a table, or for some statements a view too.
-func (b *builder) tableNeeds(r objRef, kinds []string, absent, present string) {
+func (b *builder) tableNeeds(r objRef, kinds []string, absent string, present func(string) string) {
 	if r.where != placed {
 		return
 	}
@@ -137,24 +137,33 @@ func keyedConstraint(c *ast.ConstraintDef) bool {
 // defTextFails checks what a definition's text alone settles: no column,
 // constraint, or index name twice in the statement (2705, 8168), at most
 // one primary key (8110), no constraint named like the table (2714), and
-// no identifier too long (103). It reports whether the statement
+// no identifier too long (103). verb is what the statement does with the
+// definition, declares or adds. It reports whether the statement
 // certainly fails.
-func (b *builder) defTextFails(r objRef, d *tableDef) bool {
+func (b *builder) defTextFails(r objRef, d *tableDef, verb string) bool {
 	seen := make(map[string]bool)
 	for _, c := range d.columns {
 		if b.tooLong(c.Name, false, rangeOf(c.Loc)) {
 			return true
 		}
 		if seen[c.Name] {
-			b.fail(rangeOf(c.Loc), review.DuplicateName, "column "+ident(c.Name)+" is named twice in the statement")
+			b.fail(rangeOf(c.Loc), review.DuplicateName, msgTwice(verb, "column", ident(c.Name)))
 			return true
 		}
 		seen[c.Name] = true
 	}
 	// One statement may not name two constraints or indexes alike, of
 	// any kinds: a CHECK, DEFAULT, or FOREIGN KEY and an inline INDEX of
-	// one name fail too (8168, verified).
-	names := make(map[string]bool)
+	// one name fail too (8168, verified). names holds the kind word of
+	// each name's first use, which the message keeps when the second use
+	// is of the same kind.
+	names := make(map[string]string)
+	twice := func(first, kind string) string {
+		if first != kind {
+			return ""
+		}
+		return kind
+	}
 	pks := 0
 	for _, c := range d.constraints {
 		if !keyedConstraint(c) {
@@ -169,13 +178,13 @@ func (b *builder) defTextFails(r objRef, d *tableDef) bool {
 		if b.tooLong(c.Name, false, rangeOf(c.Loc)) {
 			return true
 		}
-		if names[c.Name] {
-			b.fail(rangeOf(c.Loc), review.DuplicateName, msgNameTwice(c.Name))
+		if first, ok := names[c.Name]; ok {
+			b.fail(rangeOf(c.Loc), review.DuplicateName, msgTwice(verb, twice(first, "constraint"), ident(c.Name)))
 			return true
 		}
-		names[c.Name] = true
+		names[c.Name] = "constraint"
 		if !r.temp && c.Name == r.n.spelling {
-			b.fail(rangeOf(c.Loc), review.DuplicateName, msgExists(ident(c.Name)))
+			b.fail(rangeOf(c.Loc), review.DuplicateName, msgTwice("names", "", ident(c.Name)))
 			return true
 		}
 	}
@@ -186,14 +195,14 @@ func (b *builder) defTextFails(r objRef, d *tableDef) bool {
 		if b.tooLong(i.Name, false, rangeOf(i.Loc)) {
 			return true
 		}
-		if names[i.Name] {
-			b.fail(rangeOf(i.Loc), review.DuplicateName, msgNameTwice(i.Name))
+		if first, ok := names[i.Name]; ok {
+			b.fail(rangeOf(i.Loc), review.DuplicateName, msgTwice(verb, twice(first, "index"), ident(i.Name)))
 			return true
 		}
-		names[i.Name] = true
+		names[i.Name] = "index"
 	}
 	if pks > 1 {
-		b.fail(b.anchor(), review.NameTaken, "the statement adds two primary keys to "+r.written)
+		b.fail(b.anchor(), review.NameTaken, "This statement gives "+review.Code(r.written)+" two primary keys.")
 		return true
 	}
 	return false
@@ -219,8 +228,9 @@ func (b *builder) defNameChecks(r objRef, d *tableDef) {
 			continue
 		}
 		crng := rangeOf(c.Loc)
-		b.lacks(spaceObject, r.parent, cn, note(crng, "", msgExists(ident(c.Name))))
-		b.lacks(spaceRelation, r.parent, cn, note(crng, "", msgExists(ident(c.Name))))
+		present := taken(walkConstraintKinds[c.Type], ident(c.Name))
+		b.lacks(spaceObject, r.parent, cn, note(crng, "", present))
+		b.lacks(spaceRelation, r.parent, cn, note(crng, "", present))
 	}
 }
 
@@ -237,7 +247,7 @@ func (b *builder) foreignTarget(r objRef, tr *ast.TableRef) {
 		// case-insensitive collation (verified).
 		return
 	}
-	b.tableNeeds(t, []string{kindTable}, "foreign key target "+t.written+" does not exist", "foreign key target "+t.written+" is not a table")
+	b.tableNeeds(t, []string{kindTable}, msgMissing("table", t.written), notKind(t.written, "table", kindTable))
 }
 
 // defEffects records what a definition adds to a table whose children
@@ -384,11 +394,11 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 			}
 		}
 	}
-	if b.defTextFails(r, d) {
+	if b.defTextFails(r, d, "declares") {
 		return true
 	}
 	b.schemaNeeds(r)
-	b.lacksObject(r)
+	b.lacksObject(r, kindTable)
 	b.defNameChecks(r, d)
 	fresh := b.createdTable(r, func(path string) {
 		b.Set(primaryKey(path), walk.Absent, "")
@@ -425,7 +435,7 @@ func (b *builder) alterTable(v *ast.AlterTableStmt) bool {
 		}
 		actions = append(actions, a)
 	}
-	b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), msgNotKind(r.written, "table"))
+	b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), notKind(r.written, "table", kindTable))
 	known := b.knownTable(r)
 	path := r.tablePath()
 	switch {
@@ -464,21 +474,24 @@ func (b *builder) alterTextFails(r objRef, actions []*ast.AlterTableAction) bool
 				d.constraints = append(d.constraints, a.Constraint)
 			}
 		case ast.ATDropColumn, ast.ATDropConstraint:
-			nm := a.ColName
-			if a.Type == ast.ATDropConstraint && a.Constraint != nil {
-				nm = a.Constraint.Name
+			nm, kind := a.ColName, "column"
+			if a.Type == ast.ATDropConstraint {
+				kind = "constraint"
+				if a.Constraint != nil {
+					nm = a.Constraint.Name
+				}
 			}
 			if dropped[a.Type] == nil {
 				dropped[a.Type] = map[string]bool{}
 			}
 			if dropped[a.Type][nm] {
-				b.fail(rangeOf(a.Loc), review.DuplicateName, msgNameTwice(nm))
+				b.fail(rangeOf(a.Loc), review.DuplicateName, msgTwice("drops", kind, ident(nm)))
 				return true
 			}
 			dropped[a.Type][nm] = true
 		}
 	}
-	return b.defTextFails(r, d)
+	return b.defTextFails(r, d, "adds")
 }
 
 // alterAction lowers one ALTER TABLE action, false for one the walk does
@@ -495,7 +508,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 			return false
 		}
 		if known {
-			b.lacks(spaceColumn, path, cn, note(rng, "", "column "+ident(cn.spelling)+" already exists in "+r.written))
+			b.lacks(spaceColumn, path, cn, note(rng, "", text(msgExistsIn("column", ident(cn.spelling), r.written))))
 		}
 		d := &tableDef{}
 		d.addColumn(a.Column)
@@ -521,7 +534,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		s := b.see(spaceColumn, path, cn)
 		switch {
 		case !a.IfExists:
-			b.needs(spaceColumn, path, cn, nil, note(rng, "column "+ident(cn.spelling)+" does not exist in "+r.written, ""))
+			b.needs(spaceColumn, path, cn, nil, note(rng, msgMissingIn("column", ident(cn.spelling), r.written), nil))
 		case s.fact == walk.Unknown:
 			b.maybe()
 		}
@@ -541,7 +554,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 			return false
 		}
 		if known {
-			b.needs(spaceColumn, path, cn, nil, note(rng, "column "+ident(cn.spelling)+" does not exist in "+r.written, ""))
+			b.needs(spaceColumn, path, cn, nil, note(rng, msgMissingIn("column", ident(cn.spelling), r.written), nil))
 		}
 	case ast.ATCheckConstraint, ast.ATNocheckConstraint:
 		if a.Names == nil {
@@ -560,7 +573,7 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 				return false
 			}
 			if known {
-				b.needs(spaceConstraint, path, cn, nil, note(rng, ident(cn.spelling)+" is not a constraint of "+r.written, ""))
+				b.needs(spaceConstraint, path, cn, nil, note(rng, msgMissingIn("constraint", ident(cn.spelling), r.written), nil))
 			}
 		}
 	case ast.ATEnableTrigger:
@@ -591,12 +604,12 @@ func (b *builder) addConstraintChecks(r objRef, path string, known bool, d *tabl
 		switch c.Type {
 		case ast.ConstraintPrimaryKey:
 			if f, _ := b.l.Lookup(primaryKey(path)); f == walk.Present {
-				b.Need(primaryKey(path), walk.Absent, nil, note(rangeOf(c.Loc), "", "table "+r.written+" already has a primary key"))
+				b.Need(primaryKey(path), walk.Absent, nil, note(rangeOf(c.Loc), "", text(review.Code(r.written)+" already has a primary key.")))
 			}
 			fallthrough
 		case ast.ConstraintUnique:
 			if cn, ok := keyed(c.Name); ok && c.Name != "" {
-				b.lacks(spaceIndex, path, cn, note(rangeOf(c.Loc), "", "index "+ident(c.Name)+" already exists on "+r.written))
+				b.lacks(spaceIndex, path, cn, note(rangeOf(c.Loc), "", text(msgExistsIn("index", ident(c.Name), r.written))))
 			}
 		}
 	}
@@ -613,7 +626,7 @@ func (b *builder) dropConstraint(r objRef, path string, known bool, cn name, ifE
 		kind = s.kind
 		switch {
 		case !ifExists:
-			b.needs(spaceConstraint, path, cn, nil, note(rng, ident(cn.spelling)+" is not a constraint of "+r.written, ""))
+			b.needs(spaceConstraint, path, cn, nil, note(rng, msgMissingIn("constraint", ident(cn.spelling), r.written), nil))
 		case s.fact == walk.Absent:
 			// IF EXISTS skips a name that is no constraint of the table,
 			// which another object of the schema may hold.
@@ -654,14 +667,15 @@ func (b *builder) dropConstraint(r objRef, path string, known bool, cn name, ifE
 // leave the schema, which the walk does not list: every object of the
 // schema may be gone.
 func (b *builder) dropTables(v *ast.DropStmt) bool {
-	return b.dropEach(v, spaceObject, func(r objRef) bool {
+	return b.dropEach(v, spaceObject, "table", func(r objRef) bool {
+		present := notKind(r.written, "table", kindTable)
 		if !v.IfExists {
-			b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), msgNotKind(r.written, "table"))
+			b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), present)
 		} else if r.where == placed {
 			space, parent := r.relSpace()
-			b.ofKind(space, parent, r.n, []string{kindTable}, note(r.rng, "", msgNotKind(r.written, "table")))
+			b.ofKind(space, parent, r.n, []string{kindTable}, note(r.rng, "", present))
 			if !r.temp {
-				b.ofKind(spaceObject, r.parent, r.n, []string{kindTable}, note(r.rng, "", msgNotKind(r.written, "table")))
+				b.ofKind(spaceObject, r.parent, r.n, []string{kindTable}, note(r.rng, "", present))
 			}
 			if b.see(space, parent, r.n).fact == walk.Unknown {
 				b.maybe()
@@ -724,11 +738,12 @@ func (b *builder) mayDropLedger(r objRef, known bool) bool {
 	return t != nil && t.ledger
 }
 
-// dropEach lowers a DROP of a list, one part per item, with the item's
-// checks and effects from lower, which returns false for an item the walk
-// does not follow. An unqualified name is looked up in the lookup space. A
-// name written twice fails, unless IF EXISTS skips it.
-func (b *builder) dropEach(v *ast.DropStmt, lookup string, lower func(r objRef) bool) bool {
+// dropEach lowers a DROP of a list of objects of a kind, one part per
+// item, with the item's checks and effects from lower, which returns false
+// for an item the walk does not follow. An unqualified name is looked up
+// in the lookup space. A name written twice fails, unless IF EXISTS skips
+// it.
+func (b *builder) dropEach(v *ast.DropStmt, lookup, kind string, lower func(r objRef) bool) bool {
 	if v.Names == nil {
 		return false
 	}
@@ -750,7 +765,7 @@ func (b *builder) dropEach(v *ast.DropStmt, lookup string, lower func(r objRef) 
 		// dbo.[x.y] and [dbo.x].y are two objects.
 		written := strings.Join([]string{tr.Server, tr.Database, tr.Schema, tr.Object}, "\x00")
 		if seen[written] && !v.IfExists {
-			b.fail(r.rng, review.DuplicateName, r.written+" is dropped twice")
+			b.fail(r.rng, review.DuplicateName, msgTwice("drops", kind, r.written))
 			return true
 		}
 		seen[written] = true
@@ -774,7 +789,7 @@ func (b *builder) truncate(v *ast.TruncateStmt) bool {
 	if b.refTooLong(v.Table, r) {
 		return true
 	}
-	b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), msgNotKind(r.written, "table"))
+	b.tableNeeds(r, []string{kindTable}, msgMissing("table", r.written), notKind(r.written, "table", kindTable))
 	return true
 }
 
@@ -788,7 +803,7 @@ func (b *builder) indexOn(tr *ast.TableRef) (objRef, bool) {
 	if r.where == unplaced {
 		b.forgetTable(r)
 	}
-	b.tableNeeds(r, []string{kindTable, kindView}, msgMissing("table", r.written), msgNotKind(r.written, "table or view"))
+	b.tableNeeds(r, []string{kindTable, kindView}, msgMissing("table", r.written), notKind(r.written, "table or view", kindTable, kindView))
 	return r, true
 }
 
@@ -823,10 +838,10 @@ func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	if rebuild {
 		// The index is rebuilt under its name, and a PK's or UQ's keeps
 		// its constraint.
-		b.needs(spaceIndex, path, in, nil, note(rng, "index "+ident(v.Name)+" does not exist on "+r.written, ""))
+		b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(v.Name), r.written), nil))
 		return true
 	}
-	b.lacks(spaceIndex, path, in, note(rng, "", "index "+ident(v.Name)+" already exists on "+r.written))
+	b.lacks(spaceIndex, path, in, note(rng, "", text(msgExistsIn("index", ident(v.Name), r.written))))
 	b.arrive(spaceIndex, path, in, kindIndex)
 	return true
 }
@@ -867,7 +882,7 @@ func (b *builder) alterIndex(v *ast.AlterIndexStmt) bool {
 	if !ok {
 		return false
 	}
-	b.needs(spaceIndex, r.tablePath(), in, nil, note(b.anchor(), "index "+ident(v.IndexName)+" does not exist on "+r.written, ""))
+	b.needs(spaceIndex, r.tablePath(), in, nil, note(b.anchor(), msgMissingIn("index", ident(v.IndexName), r.written), nil))
 	return true
 }
 
@@ -908,7 +923,7 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		}
 		key := strings.Join([]string{on.Server, on.Database, on.Schema, on.Object, ix.Object}, "\x00")
 		if seen[key] && !v.IfExists {
-			b.fail(rangeOf(ix.Loc), review.DuplicateName, "index "+ident(ix.Object)+" is dropped twice")
+			b.fail(rangeOf(ix.Loc), review.DuplicateName, msgTwice("drops", "index", ident(ix.Object)))
 			return true
 		}
 		seen[key] = true
@@ -924,7 +939,7 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		}
 		rng := rangeOf(ix.Loc)
 		if !v.IfExists {
-			b.tableNeeds(r, []string{kindTable, kindView}, "index "+ident(ix.Object)+" does not exist on "+r.written, msgNotKind(r.written, "table or view"))
+			b.tableNeeds(r, []string{kindTable, kindView}, msgMissingIn("index", ident(ix.Object), r.written), notKind(r.written, "table or view", kindTable, kindView))
 		}
 		known := b.knownTable(r)
 		if !known {
@@ -938,11 +953,13 @@ func (b *builder) dropIndexes(v *ast.DropStmt) bool {
 		s := b.see(spaceIndex, path, in)
 		switch {
 		case !v.IfExists:
-			b.needs(spaceIndex, path, in, nil, note(rng, "index "+ident(ix.Object)+" does not exist on "+r.written, ""))
+			b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(ix.Object), r.written), nil))
 		case s.fact == walk.Unknown:
 			b.maybe()
 		}
-		b.ofKind(spaceIndex, path, in, []string{kindIndex, kindXMLIndex}, note(rng, "", "index "+ident(ix.Object)+" of "+r.written+" enforces a constraint").as(review.IndexBacksConstraint))
+		// A key's index has the name of the constraint it enforces.
+		ixName := review.Code(ident(ix.Object))
+		b.ofKind(spaceIndex, path, in, []string{kindIndex, kindXMLIndex}, note(rng, "", text("Index "+ixName+" enforces constraint "+ixName+".")).as(review.IndexBacksConstraint))
 		b.leave(spaceIndex, path, in)
 		if s.fact != walk.Present || s.kind != kindIndex {
 			// A primary XML index takes its secondary ones along.

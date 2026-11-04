@@ -559,7 +559,7 @@ func TestOnlineMigration(t *testing.T) {
 			name:   "asked for",
 			sql:    "ALTER TABLE t ADD m INT;",
 			change: review.Change{OnlineMigration: true},
-			want:   []finding{{-1, "", "the change requests online migration, which SQL Server does not support", []int{0}}},
+			want:   []finding{{-1, "", "SQL Server doesn't support online migration.\n\nTurn off **Online migration** for this change.", []int{0}}},
 		},
 	})
 }
@@ -583,16 +583,31 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "ALTER TABLE t ADD m INT;",
 			change:  backup,
 			targets: []review.Target{{Schema: shop()}},
-			want:    []finding{{-1, "", "prior backup needs database bbdataarchive, which does not exist", []int{0}}},
+			want:    []finding{{-1, "", "Prior backup needs the backup database `bbdataarchive`, which doesn't exist on this instance.\n\nCreate it, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "what the backup refuses",
 			sql:    "DECLARE @v TABLE (id INT);\nUPDATE @v SET id = 1 WHERE id = 2;\nWITH c AS (SELECT * FROM t) DELETE FROM c WHERE id = 1;\nUPDATE TOP (3) p SET note = '' WHERE id > 0;",
 			change: backup,
 			want: []finding{
-				{1, "UPDATE @v SET id = 1 WHERE id = 2", "prior backup does not support the table variable @v as the target", []int{0}},
-				{2, "WITH c AS (SELECT * FROM t) DELETE FROM c WHERE id = 1", "prior backup does not support the WITH query c as the target", []int{0}},
-				{3, "UPDATE TOP (3) p SET note = '' WHERE id > 0", "prior backup copies TOP after the select list of its query, which SQL Server rejects", []int{0}},
+				{1, "UPDATE @v SET id = 1 WHERE id = 2", "Prior backup can't back up the table variable `@v`.\n\nTurn off **Prior backup** for this change.", []int{0}},
+				{2, "WITH c AS (SELECT * FROM t) DELETE FROM c WHERE id = 1", "Prior backup can't back up through the `WITH` query `c`.\n\nChange the base table instead, or turn off **Prior backup**.", []int{0}},
+				{3, "UPDATE TOP (3) p SET note = '' WHERE id > 0", "Prior backup can't copy this statement's `TOP`: SQL Server rejects it where the backup query puts it.\n\nUse a `WHERE` instead of `TOP`, or turn off **Prior backup**.", []int{0}},
+			},
+		},
+		{
+			name:   "a change over the size limit",
+			sql:    strings.Repeat("UPDATE t SET n = 1 WHERE id = 1;\n", 32),
+			change: review.Change{PriorBackup: true, MaxBackupSize: 1024},
+			want:   []finding{{-1, "", "The change is larger than prior backup's 1 KiB limit.\n\nSplit it into smaller changes, or turn off **Prior backup**.", []int{0}}},
+		},
+		{
+			name:   "statement forms the backup refuses",
+			sql:    "DELETE FROM t WHERE CURRENT OF cur;\nWITH XMLNAMESPACES ('urn:x' AS x) UPDATE t SET n = 1 WHERE id = 1;",
+			change: backup,
+			want: []finding{
+				{0, "DELETE FROM t WHERE CURRENT OF cur", "Prior backup can't back up a statement with `WHERE CURRENT OF`.\n\nUse a `WHERE` on the table's key, or turn off **Prior backup**.", []int{0}},
+				{1, "WITH XMLNAMESPACES ('urn:x' AS x) UPDATE t SET n = 1 WHERE id = 1", "Prior backup can't back up a statement with `WITH XMLNAMESPACES`.\n\nTurn off **Prior backup** for this change.", []int{0}},
 			},
 		},
 		{
@@ -600,29 +615,29 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM dbo.t WHERE id = 2;\nWITH a AS (SELECT 1 AS id) UPDATE p SET note = '' WHERE id IN (SELECT id FROM a);\nUPDATE p SET note = 'x' WHERE id = 2;",
 			change: backup,
 			want: []finding{
-				{1, "DELETE FROM dbo.t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on dbo.t", []int{0}},
-				{3, "UPDATE p SET note = 'x' WHERE id = 2", "prior backup cannot back up statements on p with different WITH clauses", []int{0}},
+				{1, "DELETE FROM dbo.t WHERE id = 2", "Prior backup can't back up `dbo.t`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}},
+				{3, "UPDATE p SET note = 'x' WHERE id = 2", "Prior backup can't back up `p`: its statements have different `WITH` clauses.\n\nGive them the same `WITH` clause, or move them into separate changes.", []int{0}},
 			},
 		},
 		{
 			name:   "a name without a database, the target's",
 			sql:    "DELETE FROM shop.dbo.p WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 1;\nDELETE FROM other.dbo.nokey WHERE a = 1;\nUPDATE nokey SET a = 2 WHERE a = 1;",
 			change: backup,
-			want:   []finding{{1, "UPDATE p SET note = '' WHERE id = 1", "prior backup cannot back up both UPDATE and DELETE on p", []int{0}}},
+			want:   []finding{{1, "UPDATE p SET note = '' WHERE id = 1", "Prior backup can't back up `p`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "a table SELECT INTO makes",
 			sql:    "SELECT 1 AS id INTO n4;\nUPDATE n4 SET id = 2 WHERE id = 1;",
 			change: backup,
-			want:   []finding{{1, "UPDATE n4 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n4 does not exist yet", []int{0}}},
+			want:   []finding{{1, "UPDATE n4 SET id = 2 WHERE id = 1", "Prior backup runs before the change, when `n4` doesn't exist yet.\n\nCreate `n4` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "a column sp_rename renames to, and a FROM list without the target",
 			sql:    "EXEC sp_rename 'dbo.t.n', 'm', 'COLUMN';\nUPDATE dbo.t SET code = '' WHERE m = 1;\nUPDATE dbo.t SET n = p.id FROM dbo.p AS p;\nUPDATE t SET n = 1 FROM t JOIN p ON p.id = t.p_id;",
 			change: backup,
 			want: []finding{
-				{1, "UPDATE dbo.t SET code = '' WHERE m = 1", "prior backup runs before the change, when column m of dbo.t does not exist yet", []int{0}},
-				{2, "UPDATE dbo.t SET n = p.id FROM dbo.p AS p", "prior backup selects dbo.t.* from the statement's FROM list, which does not name it", []int{0}},
+				{1, "UPDATE dbo.t SET code = '' WHERE m = 1", "Prior backup runs before the change, when column `m` of `dbo.t` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{2, "UPDATE dbo.t SET n = p.id FROM dbo.p AS p", "Prior backup reads `dbo.t` from the statement's `FROM` list, which doesn't name it.\n\nName `dbo.t` in the `FROM` list, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -630,8 +645,8 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "EXEC sp_rename 'dbo.nokey', 'n8';\nUPDATE dbo.n8 SET a = 2 WHERE a = 1;\nUPDATE dbo.t SET n = s.n FROM audit.t AS s;\nUPDATE x SET n = 1 FROM t AS x;",
 			change: backup,
 			want: []finding{
-				{1, "UPDATE dbo.n8 SET a = 2 WHERE a = 1", "prior backup runs before the change, when dbo.n8 does not exist yet", []int{0}},
-				{2, "UPDATE dbo.t SET n = s.n FROM audit.t AS s", "prior backup selects dbo.t.* from the statement's FROM list, which does not name it", []int{0}},
+				{1, "UPDATE dbo.n8 SET a = 2 WHERE a = 1", "Prior backup runs before the change, when `dbo.n8` doesn't exist yet.\n\nCreate `dbo.n8` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{2, "UPDATE dbo.t SET n = s.n FROM audit.t AS s", "Prior backup reads `dbo.t` from the statement's `FROM` list, which doesn't name it.\n\nName `dbo.t` in the `FROM` list, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -639,8 +654,8 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "RENAME OBJECT dbo.nokey TO n9;\nUPDATE dbo.n9 SET a = 2 WHERE a = 1;\nRENAME OBJECT dbo.t COLUMN n TO m2;\nUPDATE dbo.t SET code = '' WHERE m2 = 1;",
 			change: backup,
 			want: []finding{
-				{1, "UPDATE dbo.n9 SET a = 2 WHERE a = 1", "prior backup runs before the change, when dbo.n9 does not exist yet", []int{0}},
-				{3, "UPDATE dbo.t SET code = '' WHERE m2 = 1", "prior backup runs before the change, when column m2 of dbo.t does not exist yet", []int{0}},
+				{1, "UPDATE dbo.n9 SET a = 2 WHERE a = 1", "Prior backup runs before the change, when `dbo.n9` doesn't exist yet.\n\nCreate `dbo.n9` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{3, "UPDATE dbo.t SET code = '' WHERE m2 = 1", "Prior backup runs before the change, when column `m2` of `dbo.t` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
@@ -648,21 +663,21 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "CREATE TABLE n10 WITH (DISTRIBUTION = ROUND_ROBIN) AS SELECT 1 AS id;\nUPDATE n10 SET id = 2 WHERE id = 1;\nUPDATE dbo.t SET n = t.id FROM dbo.p AS t;",
 			change: backup,
 			want: []finding{
-				{1, "UPDATE n10 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n10 does not exist yet", []int{0}},
-				{2, "UPDATE dbo.t SET n = t.id FROM dbo.p AS t", "prior backup selects dbo.t.* from the statement's FROM list, which does not name it", []int{0}},
+				{1, "UPDATE n10 SET id = 2 WHERE id = 1", "Prior backup runs before the change, when `n10` doesn't exist yet.\n\nCreate `n10` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{2, "UPDATE dbo.t SET n = t.id FROM dbo.p AS t", "Prior backup reads `dbo.t` from the statement's `FROM` list, which doesn't name it.\n\nName `dbo.t` in the `FROM` list, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
 			name:   "a table a BEGIN block makes",
 			sql:    "BEGIN CREATE TABLE n7 (id INT PRIMARY KEY); END;\nUPDATE n7 SET id = 2 WHERE id = 1;",
 			change: backup,
-			want:   []finding{{1, "UPDATE n7 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n7 does not exist yet", []int{0}}},
+			want:   []finding{{1, "UPDATE n7 SET id = 2 WHERE id = 1", "Prior backup runs before the change, when `n7` doesn't exist yet.\n\nCreate `n7` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "a table a CREATE SCHEMA makes",
 			sql:    "CREATE SCHEMA s3 CREATE TABLE s3.n6 (id INT);\nUPDATE s3.n6 SET id = 2 WHERE id = 1;",
 			change: backup,
-			want:   []finding{{1, "UPDATE s3.n6 SET id = 2 WHERE id = 1", "prior backup runs before the change, when s3.n6 does not exist yet", []int{0}}},
+			want:   []finding{{1, "UPDATE s3.n6 SET id = 2 WHERE id = 1", "Prior backup runs before the change, when `s3.n6` doesn't exist yet.\n\nCreate `s3.n6` in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "a synonym, which the synced schema does not tell of",
@@ -673,16 +688,16 @@ func TestPriorBackup(t *testing.T) {
 			name:   "statements before a USE",
 			sql:    "ALTER TABLE nokey ADD gone INT;\nDELETE FROM nokey WHERE gone = 1;\nUPDATE n3 SET id = 1 WHERE id = 2;\nUSE other;\nCREATE TABLE n3 (id INT PRIMARY KEY);\nDELETE FROM nokey WHERE gone = 2;",
 			change: backup,
-			want:   []finding{{1, "DELETE FROM nokey WHERE gone = 1", "prior backup runs before the change, when column gone of nokey does not exist yet", []int{0}}},
+			want:   []finding{{1, "DELETE FROM nokey WHERE gone = 1", "Prior backup runs before the change, when column `gone` of `nokey` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "a table or column the change makes",
 			sql:    "CREATE TABLE n2 (id INT PRIMARY KEY);\nUPDATE n2 SET id = 2 WHERE id = 1;\nALTER TABLE nokey ADD gone INT;\nDELETE FROM nokey WHERE gone = 1;\nALTER TABLE p ADD memo VARCHAR(10);\nUPDATE x SET x.n = 1 FROM t AS x JOIN p ON p.memo = x.code WHERE x.id = 3;",
 			change: backup,
 			want: []finding{
-				{1, "UPDATE n2 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n2 does not exist yet", []int{0}},
-				{3, "DELETE FROM nokey WHERE gone = 1", "prior backup runs before the change, when column gone of nokey does not exist yet", []int{0}},
-				{5, "UPDATE x SET x.n = 1 FROM t AS x JOIN p ON p.memo = x.code WHERE x.id = 3", "prior backup runs before the change, when column memo of p does not exist yet", []int{0}},
+				{1, "UPDATE n2 SET id = 2 WHERE id = 1", "Prior backup runs before the change, when `n2` doesn't exist yet.\n\nCreate `n2` in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{3, "DELETE FROM nokey WHERE gone = 1", "Prior backup runs before the change, when column `gone` of `nokey` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}},
+				{5, "UPDATE x SET x.n = 1 FROM t AS x JOIN p ON p.memo = x.code WHERE x.id = 3", "Prior backup runs before the change, when column `memo` of `p` doesn't exist yet.\n\nAdd the column in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 	})
