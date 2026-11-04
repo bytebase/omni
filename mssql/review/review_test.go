@@ -599,7 +599,7 @@ func TestPriorBackup(t *testing.T) {
 			name:   "a change over the size limit",
 			sql:    strings.Repeat("UPDATE t SET n = 1 WHERE id = 1;\n", 32),
 			change: review.Change{PriorBackup: true, MaxBackupSize: 1024},
-			want:   []finding{{-1, "", "The change is larger than prior backup's 1 KiB limit.\n\nSplit it into smaller changes, or turn off **Prior backup**.", []int{0}}},
+			want:   []finding{{-1, "", "The change is over prior backup's size limit of 1 KiB.\n\nSplit it into smaller changes, or turn off **Prior backup**.", []int{0}}},
 		},
 		{
 			name:   "statement forms the backup refuses",

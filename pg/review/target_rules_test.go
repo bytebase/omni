@@ -2953,7 +2953,7 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "UPDATE t SET n = 1 WHERE id = 1;",
 			change:  review.Change{PriorBackup: true, MaxBackupSize: 10},
 			targets: []review.Target{{}, {Schema: withArchive(shop())}},
-			want:    []targetFinding{{-1, "", "The change is larger than prior backup's 10 bytes limit.\n\nSplit it into smaller changes, or turn off **Prior backup**.", []int{0, 1}}},
+			want:    []targetFinding{{-1, "", "The change is over prior backup's size limit of 10 bytes.\n\nSplit it into smaller changes, or turn off **Prior backup**.", []int{0, 1}}},
 		},
 		{
 			name:    "no backup schema",

@@ -562,7 +562,7 @@ Each reason stays its own finding (§4.7 is deferred). The summary is one senten
 | # | Engines | Now | Summary | Body |
 | --- | --- | --- | --- | --- |
 | PB-1 | snowflake, oceanbase | `the change enables prior backup, which Bytebase does not take on Snowflake: the change runs without a backup` | `Bytebase doesn't take a prior backup on Snowflake.` (the engine's name) | ``The change runs without one. Turn off **Prior backup** for this change.`` |
-| PB-2 | every engine with a backup | `the change is n bytes, over the m-byte limit of prior backup` | `The change is larger than prior backup's {limit} limit.` | ``Split it into smaller changes, or turn off **Prior backup**.`` |
+| PB-2 | every engine with a backup | `the change is n bytes, over the m-byte limit of prior backup` | `The change is over prior backup's size limit of {limit}.` | ``Split it into smaller changes, or turn off **Prior backup**.`` |
 | PB-3 | mysql family, tidb, mssql | `prior backup needs database bbdataarchive, which does not exist` | ``Prior backup needs the backup database `bbdataarchive`, which doesn't exist on this instance.`` | ``Create it, or turn off **Prior backup**.`` |
 | PB-3 | pg | `prior backup needs schema bbdataarchive, which does not exist` | ``Prior backup needs the schema `bbdataarchive` in this database, which doesn't exist.`` | ``Create it, or turn off **Prior backup**.`` |
 | PB-3 | oracle | `prior backup needs database BBDATAARCHIVE, which does not exist` | ``Prior backup needs the backup schema `BBDATAARCHIVE`, which doesn't exist.`` | ``Create it, or turn off **Prior backup**.`` |

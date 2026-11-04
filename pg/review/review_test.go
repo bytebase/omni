@@ -594,7 +594,7 @@ func TestFindingCodes(t *testing.T) {
 
 		{review.OnlineMigrationUnsupported, "SELECT 1;", review.Change{OnlineMigration: true}, shopped, -1, "PostgreSQL doesn't support online migration.\n\nTurn off **Online migration** for this change."},
 
-		{review.ChangeTooLarge, "UPDATE t SET n = 1 WHERE id = 1;", review.Change{PriorBackup: true, MaxBackupSize: 10}, backup, -1, "The change is larger than prior backup's 10 bytes limit.\n\nSplit it into smaller changes, or turn off **Prior backup**."},
+		{review.ChangeTooLarge, "UPDATE t SET n = 1 WHERE id = 1;", review.Change{PriorBackup: true, MaxBackupSize: 10}, backup, -1, "The change is over prior backup's size limit of 10 bytes.\n\nSplit it into smaller changes, or turn off **Prior backup**."},
 		{review.BackupLocationMissing, "UPDATE t SET n = 1 WHERE id = 1;", on, shopped, -1, "Prior backup needs the schema `bbdataarchive` in this database, which doesn't exist.\n\nCreate it, or turn off **Prior backup**."},
 		{review.StatementsShareBackup, "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;", on, backup, 1, "Prior backup can't back up `t`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**."},
 		{review.StatementsShareBackup, "UPDATE t AS a SET n = 1 WHERE a.id = 1;\nUPDATE t AS b SET n = 2 WHERE b.id = 2;", on, backup, 1, "Prior backup reads every statement on `public.t` through the first one's alias, and this statement doesn't use it.\n\nUse the same alias for `public.t` in every statement."},

@@ -95,7 +95,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 // It needs the SQL alone.
 func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	if change.MaxBackupSize > 0 && len(sql) > change.MaxBackupSize {
-		r.report(review.ChangeTooLarge, -1, review.Range{}, "The change is larger than prior backup's "+review.Size(int64(change.MaxBackupSize))+" limit.\n\nSplit it into smaller changes, or turn off **Prior backup**.")
+		r.report(review.ChangeTooLarge, -1, review.Range{}, "The change is over prior backup's size limit of "+review.Size(int64(change.MaxBackupSize))+".\n\nSplit it into smaller changes, or turn off **Prior backup**.")
 	}
 }
 
