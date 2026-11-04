@@ -897,10 +897,10 @@ accept	accept	SELECT SUBSTRING('Quadratically' FROM 5);
 accept	accept	SELECT SUBSTRING('Quadratically' FROM 5 FOR 3);
 accept	accept	SELECT CONVERT('111', SIGNED);
 accept	accept	SELECT LEAST(), LEAST(1, 2, 3);
-reject	accept	SELECT INTERVAL(1, 0, 1, 2)
-reject	accept	SELECT (INTERVAL(1, 0, 1, 2)+5)*7+INTERVAL(1, 0, 1, 2)/2
-reject	accept	SELECT INTERVAL(0, (1*5)/2)+INTERVAL(5, 4, 3)
-reject	accept	SELECT DATE_ADD('2008-01-02', INTERVAL INTERVAL(1, 0, 1) DAY);
+accept	accept	SELECT INTERVAL(1, 0, 1, 2)
+accept	accept	SELECT (INTERVAL(1, 0, 1, 2)+5)*7+INTERVAL(1, 0, 1, 2)/2
+accept	accept	SELECT INTERVAL(0, (1*5)/2)+INTERVAL(5, 4, 3)
+accept	accept	SELECT DATE_ADD('2008-01-02', INTERVAL INTERVAL(1, 0, 1) DAY);
 accept	accept	SELECT DATABASE();
 reject	accept	SELECT SCHEMA();
 accept	accept	SELECT USER();
@@ -964,8 +964,8 @@ accept	accept	select cast(1 as float(54));
 accept	accept	select cast(1 as real);
 accept	accept	select cast('2000' as year);
 accept	accept	select cast(time '2000' as year);
-reject	accept	select cast(b as signed array);
-reject	accept	select cast(b as char(10) array);
+accept	accept	select cast(b as signed array);
+accept	accept	select cast(b as char(10) array);
 accept	accept	SELECT last_insert_id();
 accept	accept	SELECT last_insert_id(1);
 accept	accept	SELECT binary 'a';
@@ -1090,17 +1090,17 @@ accept	accept	select extract(week from "2011-11-11 10:10:10.123456")
 accept	accept	select extract(month from "2011-11-11 10:10:10.123456")
 accept	accept	select extract(quarter from "2011-11-11 10:10:10.123456")
 accept	accept	select extract(year from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(second_microsecond from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(minute_microsecond from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(minute_second from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(hour_microsecond from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(hour_second from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(hour_minute from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(day_microsecond from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(day_second from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(day_minute from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(day_hour from "2011-11-11 10:10:10.123456")
-reject	accept	select extract(year_month from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(second_microsecond from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(minute_microsecond from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(minute_second from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(hour_microsecond from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(hour_second from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(hour_minute from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(day_microsecond from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(day_second from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(day_minute from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(day_hour from "2011-11-11 10:10:10.123456")
+accept	accept	select extract(year_month from "2011-11-11 10:10:10.123456")
 accept	accept	select from_unixtime(1447430881)
 accept	accept	select from_unixtime(1447430881.123456)
 accept	accept	select from_unixtime(1447430881.1234567)
@@ -1128,7 +1128,7 @@ accept	accept	SELECT MID('Sakila', -5, 3)
 accept	accept	SELECT OCT(12)
 accept	accept	SELECT OCTET_LENGTH('text')
 accept	accept	SELECT ORD('2')
-reject	accept	SELECT POSITION('bar' IN 'foobarbar')
+accept	accept	SELECT POSITION('bar' IN 'foobarbar')
 accept	accept	SELECT QUOTE('Don\'t!')
 accept	accept	SELECT BIN(12)
 accept	accept	SELECT ELT(1, 'ej', 'Heja', 'hej', 'foo')
@@ -1291,64 +1291,64 @@ accept	accept	select unix_timestamp()
 accept	accept	select unix_timestamp('2015-11-13 10:20:19.012')
 accept	accept	SELECT GET_LOCK('lock1',10);
 accept	accept	SELECT RELEASE_LOCK('lock1');
-accept	reject	select avg(), avg(c1,c2) from t;
+reject	reject	select avg(), avg(c1,c2) from t;
 accept	accept	select avg(distinct c1) from t;
-reject	accept	select avg(distinctrow c1) from t;
-reject	accept	select avg(distinct all c1) from t;
-reject	accept	select avg(distinctrow all c1) from t;
+accept	accept	select avg(distinctrow c1) from t;
+accept	accept	select avg(distinct all c1) from t;
+accept	accept	select avg(distinctrow all c1) from t;
 accept	accept	select avg(c2) from t;
 accept	accept	select bit_and(c1) from t;
-reject	accept	select bit_and(all c1) from t;
-accept	reject	select bit_and(distinct c1) from t;
+accept	accept	select bit_and(all c1) from t;
+reject	reject	select bit_and(distinct c1) from t;
 reject	reject	select bit_and(distinctrow c1) from t;
 reject	reject	select bit_and(distinctrow all c1) from t;
 reject	reject	select bit_and(distinct all c1) from t;
-accept	reject	select bit_and(), bit_and(distinct c1) from t;
+reject	reject	select bit_and(), bit_and(distinct c1) from t;
 reject	reject	select bit_and(), bit_and(distinctrow c1) from t;
 reject	reject	select bit_and(), bit_and(all c1) from t;
 accept	accept	select bit_or(c1) from t;
-reject	accept	select bit_or(all c1) from t;
-accept	reject	select bit_or(distinct c1) from t;
+accept	accept	select bit_or(all c1) from t;
+reject	reject	select bit_or(distinct c1) from t;
 reject	reject	select bit_or(distinctrow c1) from t;
 reject	reject	select bit_or(distinctrow all c1) from t;
 reject	reject	select bit_or(distinct all c1) from t;
-accept	reject	select bit_or(), bit_or(distinct c1) from t;
+reject	reject	select bit_or(), bit_or(distinct c1) from t;
 reject	reject	select bit_or(), bit_or(distinctrow c1) from t;
 reject	reject	select bit_or(), bit_or(all c1) from t;
 accept	accept	select bit_xor(c1) from t;
-reject	accept	select bit_xor(all c1) from t;
-accept	reject	select bit_xor(distinct c1) from t;
+accept	accept	select bit_xor(all c1) from t;
+reject	reject	select bit_xor(distinct c1) from t;
 reject	reject	select bit_xor(distinctrow c1) from t;
 reject	reject	select bit_xor(distinctrow all c1) from t;
-accept	reject	select bit_xor(), bit_xor(distinct c1) from t;
+reject	reject	select bit_xor(), bit_xor(distinct c1) from t;
 reject	reject	select bit_xor(), bit_xor(distinctrow c1) from t;
 reject	reject	select bit_xor(), bit_xor(all c1) from t;
-accept	reject	select max(c1,c2) from t;
+reject	reject	select max(c1,c2) from t;
 accept	accept	select max(distinct c1) from t;
-reject	accept	select max(distinctrow c1) from t;
-reject	accept	select max(distinct all c1) from t;
-reject	accept	select max(distinctrow all c1) from t;
+accept	accept	select max(distinctrow c1) from t;
+accept	accept	select max(distinct all c1) from t;
+accept	accept	select max(distinctrow all c1) from t;
 accept	accept	select max(c2) from t;
-accept	reject	select min(c1,c2) from t;
+reject	reject	select min(c1,c2) from t;
 accept	accept	select min(distinct c1) from t;
-reject	accept	select min(distinctrow c1) from t;
-reject	accept	select min(distinct all c1) from t;
-reject	accept	select min(distinctrow all c1) from t;
+accept	accept	select min(distinctrow c1) from t;
+accept	accept	select min(distinct all c1) from t;
+accept	accept	select min(distinctrow all c1) from t;
 accept	accept	select min(c2) from t;
-accept	reject	select sum(c1,c2) from t;
+reject	reject	select sum(c1,c2) from t;
 accept	accept	select sum(distinct c1) from t;
-reject	accept	select sum(distinctrow c1) from t;
-reject	accept	select sum(distinct all c1) from t;
-reject	accept	select sum(distinctrow all c1) from t;
+accept	accept	select sum(distinctrow c1) from t;
+accept	accept	select sum(distinct all c1) from t;
+accept	accept	select sum(distinctrow all c1) from t;
 accept	accept	select sum(c2) from t;
 accept	accept	select count(c1) from t;
-accept	reject	select count(distinct *) from t;
+reject	reject	select count(distinct *) from t;
 reject	reject	select count(distinctrow *) from t;
 accept	accept	select count(*) from t;
 accept	accept	select count(distinct c1, c2) from t;
-reject	accept	select count(distinctrow c1, c2) from t;
-accept	reject	select count(c1, c2) from t;
-reject	accept	select count(all c1) from t;
+accept	accept	select count(distinctrow c1, c2) from t;
+reject	reject	select count(c1, c2) from t;
+accept	accept	select count(all c1) from t;
 reject	reject	select count(distinct all c1) from t;
 reject	reject	select count(distinctrow all c1) from t;
 accept	accept	select approx_count_distinct(c1) from t;
@@ -1360,34 +1360,34 @@ accept	accept	select approx_percentile(c1, 123) from t;
 accept	accept	select group_concat(c2,c1) from t group by c1;
 accept	accept	select group_concat(c2,c1 SEPARATOR ';') from t group by c1;
 accept	accept	select group_concat(distinct c2,c1) from t group by c1;
-reject	accept	select group_concat(distinctrow c2,c1) from t group by c1;
+accept	accept	select group_concat(distinctrow c2,c1) from t group by c1;
 accept	accept	SELECT student_name, GROUP_CONCAT(DISTINCT test_score ORDER BY test_score DESC SEPARATOR ' ') FROM student GROUP BY student_name;
-reject	accept	select std(c1), std(all c1), std(distinct c1) from t
-accept	reject	select std(c1, c2) from t
-reject	accept	select stddev(c1), stddev(all c1), stddev(distinct c1) from t
-accept	reject	select stddev(c1, c2) from t
-reject	accept	select stddev_pop(c1), stddev_pop(all c1), stddev_pop(distinct c1) from t
-accept	reject	select stddev_pop(c1, c2) from t
-reject	accept	select stddev_samp(c1), stddev_samp(all c1), stddev_samp(distinct c1) from t
-accept	reject	select stddev_samp(c1, c2) from t
-reject	accept	select variance(c1), variance(all c1), variance(distinct c1) from t
-accept	reject	select variance(c1, c2) from t
-reject	accept	select var_pop(c1), var_pop(all c1), var_pop(distinct c1) from t
-accept	reject	select var_pop(c1, c2) from t
-reject	accept	select var_samp(c1), var_samp(all c1), var_samp(distinct c1) from t
-accept	reject	select var_samp(c1, c2) from t
+accept	accept	select std(c1), std(all c1), std(distinct c1) from t
+reject	reject	select std(c1, c2) from t
+accept	accept	select stddev(c1), stddev(all c1), stddev(distinct c1) from t
+reject	reject	select stddev(c1, c2) from t
+accept	accept	select stddev_pop(c1), stddev_pop(all c1), stddev_pop(distinct c1) from t
+reject	reject	select stddev_pop(c1, c2) from t
+accept	accept	select stddev_samp(c1), stddev_samp(all c1), stddev_samp(distinct c1) from t
+reject	reject	select stddev_samp(c1, c2) from t
+accept	accept	select variance(c1), variance(all c1), variance(distinct c1) from t
+reject	reject	select variance(c1, c2) from t
+accept	accept	select var_pop(c1), var_pop(all c1), var_pop(distinct c1) from t
+reject	reject	select var_pop(c1, c2) from t
+accept	accept	select var_samp(c1), var_samp(all c1), var_samp(distinct c1) from t
+reject	reject	select var_samp(c1, c2) from t
 accept	accept	select json_arrayagg(c2) from t group by c1
-accept	reject	select json_arrayagg(c1, c2) from t group by c1
-accept	reject	select json_arrayagg(distinct c2) from t group by c1
-reject	accept	select json_arrayagg(all c2) from t group by c1
+reject	reject	select json_arrayagg(c1, c2) from t group by c1
+reject	reject	select json_arrayagg(distinct c2) from t group by c1
+accept	accept	select json_arrayagg(all c2) from t group by c1
 accept	accept	select json_objectagg(c1, c2) from t group by c1
-accept	reject	select json_objectagg(c1, c2, c3) from t group by c1
-accept	reject	select json_objectagg(distinct c1, c2) from t group by c1
+reject	reject	select json_objectagg(c1, c2, c3) from t group by c1
+reject	reject	select json_objectagg(distinct c1, c2) from t group by c1
 reject	reject	select json_objectagg(c1, distinct c2) from t group by c1
 reject	reject	select json_objectagg(distinct c1, distinct c2) from t group by c1
-reject	accept	select json_objectagg(all c1, c2) from t group by c1
-reject	accept	select json_objectagg(c1, all c2) from t group by c1
-reject	accept	select json_objectagg(all c1, all c2) from t group by c1
+accept	accept	select json_objectagg(all c1, c2) from t group by c1
+accept	accept	select json_objectagg(c1, all c2) from t group by c1
+accept	accept	select json_objectagg(all c1, all c2) from t group by c1
 accept	accept	select AES_ENCRYPT('text',UNHEX('F3229A0B371ED2D9441B830D21A390C3'))
 accept	accept	select AES_DECRYPT(@crypt_str,@key_str)
 accept	accept	select AES_DECRYPT(@crypt_str,@key_str,@init_vector);
@@ -3623,7 +3623,7 @@ accept	accept	SELECT SUM(profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT AVG(profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT BIT_XOR(profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT COUNT(profit) OVER() AS country_profit FROM sales;
-reject	accept	SELECT COUNT(ALL profit) OVER() AS country_profit FROM sales;
+accept	accept	SELECT COUNT(ALL profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT COUNT(*) OVER() AS country_profit FROM sales;
 accept	accept	SELECT MAX(profit) OVER() AS country_profit FROM sales;
 accept	accept	SELECT MIN(profit) OVER() AS country_profit FROM sales;

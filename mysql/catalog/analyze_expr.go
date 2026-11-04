@@ -94,7 +94,7 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		Name:        lower,
 		Args:        args,
 		IsAggregate: isAggregateFunc(fc.Name),
-		Distinct:    fc.Distinct,
+		Distinct:    fc.Quantifier.RemovesDuplicates(),
 	}
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)

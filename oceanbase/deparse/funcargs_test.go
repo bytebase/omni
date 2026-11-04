@@ -1,0 +1,58 @@
+package deparse
+
+import (
+	"testing"
+
+	ast "github.com/bytebase/omni/oceanbase/ast"
+	"github.com/bytebase/omni/oceanbase/parser"
+)
+
+// What the function-argument forms deparse to, in both forms this package
+// writes at once: the engine-stored text of the item, and the name the engine
+// gives an unaliased one.
+//
+// The quantifier is the case to watch. The engine keeps only whether the
+// aggregate de-duplicates, so it stores sum(distinct `c1`) for DISTINCT,
+// DISTINCTROW and either DISTINCT ALL spelling, and drops a bare ALL — but it
+// names the column after the text as written, every spelling kept. Both
+// readings are measured with SHOW CREATE VIEW and the column name of the view
+// on mysql:8.0, whose SHOW CREATE VIEW formatting this package follows.
+//
+// A quantifier dropped on the way out would leave a statement that still
+// parses and no longer means the same, which the accept/reject gate cannot
+// see: these assertions are what catch it.
+func TestFunctionArgumentDeparse(t *testing.T) {
+	for _, tc := range []struct{ sql, want string }{
+		{"SELECT SUM(c1) FROM t", "select sum(`c1`) AS `SUM(c1)` from `t`"},
+		{"SELECT SUM(DISTINCT c1) FROM t", "select sum(distinct `c1`) AS `SUM(DISTINCT c1)` from `t`"},
+		{"SELECT SUM(DISTINCTROW c1) FROM t", "select sum(distinct `c1`) AS `SUM(DISTINCTROW c1)` from `t`"},
+		{"SELECT SUM(ALL c1) FROM t", "select sum(`c1`) AS `SUM(ALL c1)` from `t`"},
+		{"SELECT COUNT(DISTINCTROW c1, c2) FROM t", "select count(distinct `c1`,`c2`) AS `COUNT(DISTINCTROW c1, c2)` from `t`"},
+		{"SELECT COUNT(ALL c1) FROM t", "select count(`c1`) AS `COUNT(ALL c1)` from `t`"},
+		{"SELECT BIT_AND(ALL c1) FROM t", "select bit_and(`c1`) AS `BIT_AND(ALL c1)` from `t`"},
+		{"SELECT STD(ALL c1) FROM t", "select std(`c1`) AS `STD(ALL c1)` from `t`"},
+		{"SELECT JSON_ARRAYAGG(ALL c1) FROM t", "select json_arrayagg(`c1`) AS `JSON_ARRAYAGG(ALL c1)` from `t`"},
+		{"SELECT JSON_ARRAYAGG(DISTINCT c1) FROM t", "select json_arrayagg(distinct `c1`) AS `JSON_ARRAYAGG(DISTINCT c1)` from `t`"},
+		{"SELECT JSON_OBJECTAGG(c1, c2) FROM t", "select json_objectagg(`c1`,`c2`) AS `JSON_OBJECTAGG(c1, c2)` from `t`"},
+		{"SELECT LISTAGG(DISTINCT c1) OVER () FROM t", "select listagg(distinct `c1`) OVER ( )  AS `LISTAGG(DISTINCT c1) OVER ()` from `t`"},
+		{"SELECT GROUP_CONCAT(DISTINCTROW c2, c1 ORDER BY c1 SEPARATOR '-') FROM t", "select group_concat(distinct `c2`,`c1` order by `c1` ASC separator '-') AS `GROUP_CONCAT(DISTINCTROW c2, c1 ORDER BY c1 SEPARATOR '-')` from `t`"},
+		{"SELECT GROUP_CONCAT(c1) OVER () FROM t", "select group_concat(`c1` separator ',') OVER ( )  AS `GROUP_CONCAT(c1 SEPARATOR ',') OVER ()` from `t`"},
+		{"SELECT EXTRACT(DAY_HOUR FROM a) FROM t", "select extract(day_hour from `a`) AS `EXTRACT(DAY_HOUR FROM a)` from `t`"},
+		{"SELECT CAST(b AS SIGNED ARRAY) FROM t", "select cast(`b` as signed array) AS `CAST(b AS SIGNED ARRAY)` from `t`"},
+		{"SELECT CAST(b AS SIGNED) FROM t", "select cast(`b` as signed) AS `CAST(b AS SIGNED)` from `t`"},
+		{"SELECT POSITION('bar' IN c1) FROM t", "select position('bar' in `c1`) AS `POSITION('bar' IN c1)` from `t`"},
+		{"SELECT INTERVAL(c1, 1, 2) FROM t", "select interval(`c1`,1,2) AS `INTERVAL(c1, 1, 2)` from `t`"},
+	} {
+		list, err := parser.Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", tc.sql, err)
+		}
+		sel, ok := list.Items[0].(*ast.SelectStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): %T", tc.sql, list.Items[0])
+		}
+		if got := DeparseSelect(sel); got != tc.want {
+			t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.sql, got, tc.want)
+		}
+	}
+}

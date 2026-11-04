@@ -600,31 +600,20 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	upperName := strings.ToUpper(name)
 
 	if builtin {
-		// COUNT(*)
-		if upperName == "COUNT" && p.cur.Type == '*' {
-			p.advance()
-			fc.Star = true
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			goto overCheck
-		}
-
-		// Aggregate with DISTINCT: COUNT(DISTINCT ...), SUM(DISTINCT ...), etc.
-		if p.cur.Type == kwDISTINCT {
-			fc.Distinct = true
-			p.advance()
-		}
-
 		switch upperName {
+		case "COUNT":
+			// COUNT(*), COUNT(DISTINCT ...) and the rest of its own
+			// productions.
+			return p.parseCountFunc(fc)
+		case "POSITION":
+			// POSITION(substr IN str) — the keyword is the only separator.
+			return p.parsePositionFunc(start)
 		case "TRIM":
 			// TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str)
 			return p.parseTrimFunc(fc)
 		case "SUBSTRING", "SUBSTR":
 			// SUBSTRING(str, pos, len) or SUBSTRING(str FROM pos FOR len)
 			return p.parseSubstringFunc(fc)
-		case "GROUP_CONCAT":
-			return p.parseGroupConcatFunc(fc)
 		// Keyword-argument builtins: their first argument (or a trailing
 		// clause) is a bare keyword the engine lexes as a token, never an
 		// identifier — a backtick-quoted unit is a syntax error (oracle mysql
@@ -633,6 +622,30 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return p.parseTimestampFunc(fc)
 		case "GET_FORMAT":
 			return p.parseGetFormatFunc(fc)
+		}
+
+		// An aggregate's arguments may carry a quantifier prefix, and which
+		// prefixes and how many arguments is per-aggregate (see funcargs.go).
+		// A builtin that is not an aggregate takes neither: TiDB v8.5.5
+		// answers 1064 for `abs(distinct c1)`.
+		if spec, ok := aggArgSpecs[upperName]; ok {
+			// An aggregate whose grammar puts the quantifier before each
+			// argument reads it there instead, so ALL appears at most once per
+			// argument.
+			if !spec.allPerArg {
+				q, err := p.parseAggQuantifier(spec.quant)
+				if err != nil {
+					return nil, err
+				}
+				fc.Quantifier = q
+			}
+			if upperName == "GROUP_CONCAT" {
+				return p.parseGroupConcatFunc(fc)
+			}
+			if err := p.parseAggArgs(fc, spec); err != nil {
+				return nil, err
+			}
+			return p.finishFuncCall(fc, builtin)
 		}
 	}
 
@@ -648,22 +661,21 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// Empty argument list
 	if p.cur.Type == ')' {
 		p.advance()
-		goto overCheck
+		return p.finishFuncCall(fc, builtin)
 	}
 
 	// Regular argument list
 	for {
-		// An ordinary call's arguments are expressions, which neither * nor a
-		// bare INTERVAL is: TiDB v8.5.5 answers 1064 for `count`(*) and
+		// A call's arguments are expressions, which neither * nor a bare
+		// INTERVAL is: TiDB v8.5.5 answers 1064 for abs(*), `count`(*) and
 		// `date_add`(d, INTERVAL 1 DAY), and parses `f`(d + INTERVAL 1 DAY).
-		if !builtin && p.cur.Type == '*' {
-			return nil, p.syntaxErrorAtCur()
-		}
+		// COUNT is the one builtin whose grammar has a star, in its own
+		// production (see parseCountFunc).
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		if arg == nil {
+		if arg == nil || isStarArg(arg) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if _, bare := arg.(*nodes.IntervalExpr); bare && !builtin {
@@ -680,8 +692,13 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		return nil, err
 	}
 
-overCheck:
+	return p.finishFuncCall(fc, builtin)
+}
 
+// finishFuncCall reads the optional OVER clause of a builtin call and closes
+// the call's Loc. A quoted or schema-qualified name is a stored function and
+// takes no window, which is what builtin says.
+func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.ExprNode, error) {
 	// OVER clause for window functions
 	//
 	// Ref: https://dev.mysql.com/doc/refman/8.0/en/window-functions-usage.html
@@ -717,7 +734,10 @@ overCheck:
 	//     | expr PRECEDING
 	//     | expr FOLLOWING
 	//   }
-	if builtin && p.cur.Type == kwOVER {
+	// The INTERVAL function is the one builtin reached here whose production
+	// carries no windowing clause, so a window after it is a syntax error:
+	// TiDB v8.5.5 answers 1064 for `interval(c1) over ()`.
+	if builtin && fc.Name != "INTERVAL" && p.cur.Type == kwOVER {
 		p.advance()
 		wd, err := p.parseOverClause()
 		if err != nil {
@@ -1058,19 +1078,15 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 
 // parseGroupConcatFunc parses GROUP_CONCAT([DISTINCT] expr [, expr ...] [ORDER BY ...] [SEPARATOR str]).
 func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
-	if p.cur.Type == ')' {
-		p.advance()
-		fc.Loc.End = p.prev.End
-		return fc, nil
-	}
+	// Parse arguments. The grammar takes an ExpressionList, so group_concat()
+	// is a syntax error (TiDB v8.5.5: 1064).
 
-	// Parse arguments
 	for {
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		if arg == nil {
+		if arg == nil || isStarArg(arg) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
@@ -1116,8 +1132,11 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	fc.Loc.End = p.prev.End
-	return fc, nil
+	// The production ends in OptWindowingClause (parser.y), so the call takes
+	// a window: TiDB v8.5.5, MySQL 8.0 and MariaDB 11.8 all parse
+	// `group_concat(c1) over ()` and answer 1235, the unsupported-feature
+	// error, after it.
+	return p.finishFuncCall(fc, true)
 }
 
 // lookaheadParenContentIsSubquery reports whether the content just inside an
@@ -1264,6 +1283,17 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
+	// ARRAY, the multi-valued index form: `builtinCast '(' Expression "AS"
+	// CastType ArrayKwdOpt ')'` (pingcap/tidb pkg/parser/parser.y). Only CAST
+	// takes it — TiDB v8.5.5 answers 1064 for convert(b, signed array) and
+	// for a second ARRAY — and the server accepts the cast itself only inside
+	// a functional index, which it reports as 1235 after parsing.
+	array := false
+	if p.cur.Type == kwARRAY {
+		p.advance()
+		array = true
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -1272,6 +1302,7 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 		Expr:     expr,
 		TypeName: dt,
+		Array:    array,
 	}, nil
 }
 
@@ -1288,8 +1319,14 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
-	// Parse unit keyword (DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.)
-	unit, _, err := p.parseIdentifier()
+	// Parse the unit keyword. EXTRACT takes the full interval-unit set,
+	// compound units (DAY_HOUR, YEAR_MONTH, ...) included — `builtinExtract
+	// '(' TimeUnit "FROM" Expression ')'` (pingcap/tidb pkg/parser/parser.y).
+	// Those are reserved keywords, so this reads a keyword token and not an
+	// identifier: TiDB v8.5.5 answers 1064 for extract(`day_hour` from ...)
+	// and for a unit that is not one, where an identifier would make the unit
+	// a column reference and the statement mean something else.
+	unit, err := p.parseTimeUnitKeyword(false)
 	if err != nil {
 		return nil, err
 	}
@@ -1312,7 +1349,7 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 
 	return &nodes.ExtractExpr{
 		Loc:  nodes.Loc{Start: start, End: p.prev.End},
-		Unit: strings.ToUpper(unit),
+		Unit: unit.Keyword,
 		Expr: expr,
 	}, nil
 }
@@ -1728,7 +1765,28 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume INTERVAL
 
-	val, err := p.parsePrimaryExpr()
+	// INTERVAL(expr, expr, ...) is a function, not the interval literal: TiDB
+	// reads the name through FunctionNameConflict (pingcap/tidb
+	// pkg/parser/parser.y), so a '(' here always opens its argument list and
+	// no unit follows. TiDB v8.5.5 answers 1582 — the wrong-argument-count
+	// error, past parsing — for `select a + interval (1) day from t`, where
+	// MySQL 8.0 reads that as the literal. The arity is the function's own
+	// business for the same reason: `interval()` parses too.
+	if p.cur.Type == '(' {
+		return p.parseFuncCall(start, "", "INTERVAL")
+	}
+
+	// The literal's value is a prefix expression. The grammar takes a whole
+	// Expression — `"INTERVAL" Expression TimeUnit` — and TiDB v8.5.5 parses
+	// INTERVAL -1 DAY, INTERVAL NOT 1 DAY, INTERVAL BINARY 1 DAY,
+	// INTERVAL INTERVAL(1, 0, 1) DAY and INTERVAL 1 + 2 DAY, but reading the
+	// last of those would make the deparse write text the engine rejects: it
+	// parenthesizes a binary expression, as mysql/deparse does, and
+	// `interval (1 + 2) day` is the INTERVAL function to this grammar, where
+	// TiDB stores the literal unparenthesized as INTERVAL 1+2 DAY. So an
+	// operator in the value stays unread; mysql/parser, whose engine reads a
+	// parenthesized value as the literal, takes the whole expression.
+	val, err := p.parsePrefixExpr()
 	if err != nil {
 		return nil, err
 	}

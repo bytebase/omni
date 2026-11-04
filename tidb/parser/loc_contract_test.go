@@ -274,6 +274,7 @@ var locSpanCases = []struct {
 	{"PartitionClause", "ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4", "PARTITION BY HASH(id) PARTITIONS 4", 0},
 	{"PartitionDef", "ALTER TABLE t ADD PARTITION (PARTITION p4 VALUES IN (10, 20, 30))", "PARTITION p4 VALUES IN (10, 20, 30)", 0},
 	{"PlacementPolicyOption", "CREATE PLACEMENT POLICY p VOTERS = 0", "VOTERS = 0", 0},
+	{"PositionExpr", "SELECT POSITION('b' IN 'abc')", "POSITION('b' IN 'abc')", 0},
 	{"PrepareStmt", "PREPARE stmt FROM 'SELECT ?'", "PREPARE stmt FROM 'SELECT ?'", 0},
 	{"PurgeBinaryLogsStmt", "PURGE BINARY LOGS TO 'mysql-bin.010'", "PURGE BINARY LOGS TO 'mysql-bin.010'", 0},
 	{"RecoverTableStmt", "RECOVER TABLE t1 100", "RECOVER TABLE t1 100", 0},

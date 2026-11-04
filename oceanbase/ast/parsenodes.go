@@ -706,16 +706,60 @@ func (e *UnaryExpr) exprNode() {}
 
 // FuncCallExpr represents a function call.
 type FuncCallExpr struct {
-	Loc       Loc
-	Name      string
-	Schema    string // schema-qualified name
-	Args      []ExprNode
-	Distinct  bool // COUNT(DISTINCT ...)
-	Star      bool // COUNT(*)
-	HasParens bool // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
-	OrderBy   []*OrderByItem
-	Over      *WindowDef // OVER clause for window functions
-	Separator ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Loc        Loc
+	Name       string
+	Schema     string // schema-qualified name
+	Args       []ExprNode
+	Quantifier AggQuantifier // COUNT(DISTINCT ...), SUM(ALL ...)
+	Star       bool          // COUNT(*)
+	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
+	OrderBy    []*OrderByItem
+	Over       *WindowDef // OVER clause for window functions
+	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+}
+
+// AggQuantifier is the prefix an aggregate's argument list carries. It is the
+// only record of what was written, so a consumer asking whether duplicates are
+// removed asks RemovesDuplicates rather than comparing to AggQuantDistinct:
+// DISTINCTROW is a synonym, and the DISTINCT ALL forms de-duplicate too.
+type AggQuantifier uint8
+
+const (
+	AggQuantNone AggQuantifier = iota
+	AggQuantDistinct
+	AggQuantDistinctRow
+	AggQuantAll
+	AggQuantDistinctAll
+	AggQuantDistinctRowAll
+)
+
+// String returns the quantifier as written, empty for AggQuantNone.
+func (q AggQuantifier) String() string {
+	switch q {
+	case AggQuantDistinct:
+		return "DISTINCT"
+	case AggQuantDistinctRow:
+		return "DISTINCTROW"
+	case AggQuantAll:
+		return "ALL"
+	case AggQuantDistinctAll:
+		return "DISTINCT ALL"
+	case AggQuantDistinctRowAll:
+		return "DISTINCTROW ALL"
+	}
+	return ""
+}
+
+// RemovesDuplicates reports whether the quantifier makes the aggregate read
+// each distinct value once. ALL is the default and changes nothing; the
+// DISTINCT ALL forms de-duplicate, which the grammar reads as a DISTINCT over
+// an in_sum_expr whose own opt_all follows it.
+func (q AggQuantifier) RemovesDuplicates() bool {
+	switch q {
+	case AggQuantDistinct, AggQuantDistinctRow, AggQuantDistinctAll, AggQuantDistinctRowAll:
+		return true
+	}
+	return false
 }
 
 func (e *FuncCallExpr) nodeTag()  {}
@@ -846,6 +890,18 @@ type ExtractExpr struct {
 
 func (e *ExtractExpr) nodeTag()  {}
 func (e *ExtractExpr) exprNode() {}
+
+// PositionExpr represents POSITION(substr IN str). The keyword separates the
+// arguments and the comma form is a syntax error, so the call cannot be a
+// FuncCallExpr: deparse would write POSITION(a, b), which no engine parses.
+type PositionExpr struct {
+	Loc    Loc
+	Substr ExprNode
+	Str    ExprNode
+}
+
+func (e *PositionExpr) nodeTag()  {}
+func (e *PositionExpr) exprNode() {}
 
 // -----------------------------------------------------------------------
 // Reference and literal nodes

@@ -820,6 +820,9 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *PositionExpr:
+		Walk(v, n.Substr)
+		Walk(v, n.Str)
 	case *PurgeBinaryLogsStmt:
 		Walk(v, n.BeforeExpr)
 	case *QueryWatchOption:

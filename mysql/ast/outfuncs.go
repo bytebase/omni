@@ -173,6 +173,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCastExpr(sb, n)
 	case *ExtractExpr:
 		writeExtractExpr(sb, n)
+	case *PositionExpr:
+		writePositionExpr(sb, n)
 	case *ParenExpr:
 		writeParenExpr(sb, n)
 	case *CollateExpr:
@@ -2177,8 +2179,8 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Schema != "" {
 		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
-	if n.Distinct {
-		sb.WriteString(" :distinct true")
+	if q := n.Quantifier.String(); q != "" {
+		fmt.Fprintf(sb, " :quantifier %s", q)
 	}
 	if n.Star {
 		sb.WriteString(" :star true")
@@ -2338,6 +2340,15 @@ func writeExtractExpr(sb *strings.Builder, n *ExtractExpr) {
 	sb.WriteString("{EXTRACT")
 	fmt.Fprintf(sb, " :loc %d :unit %s :expr ", n.Loc.Start, n.Unit)
 	writeNode(sb, n.Expr)
+	sb.WriteString("}")
+}
+
+func writePositionExpr(sb *strings.Builder, n *PositionExpr) {
+	sb.WriteString("{POSITION")
+	fmt.Fprintf(sb, " :loc %d :substr ", n.Loc.Start)
+	writeNode(sb, n.Substr)
+	sb.WriteString(" :str ")
+	writeNode(sb, n.Str)
 	sb.WriteString("}")
 }
 
