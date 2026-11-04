@@ -1,6 +1,7 @@
 package review
 
 import (
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -122,4 +123,23 @@ func pluralWord(w string) string {
 		return w + "es"
 	}
 	return w + "s"
+}
+
+// Size writes a byte count in binary units, as a message names a limit:
+// "512 bytes", "10 KiB", "1.5 MiB".
+func Size(n int64) string {
+	if n < 1024 {
+		if n == 1 {
+			return "1 byte"
+		}
+		return strconv.FormatInt(n, 10) + " bytes"
+	}
+	value, unit := float64(n), "bytes"
+	for _, u := range []string{"KiB", "MiB", "GiB", "TiB", "PiB", "EiB"} {
+		if value < 1024 {
+			break
+		}
+		value, unit = value/1024, u
+	}
+	return strconv.FormatFloat(value, 'f', -1, 64) + " " + unit
 }

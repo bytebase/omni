@@ -156,7 +156,8 @@ Use American English. Contractions such as "doesn't" and "can't" are fine. Write
 - The summary says what fails, or what the reader asked for that will not happen.
 - The body says how to fix it, or which setting to turn off.
 - Never say "must": a P0 finding can be resolved without a change, and the deploy then proceeds (decision 1, §8). State the fact and the fix.
-- A WALK_THROUGH claim is conditional on the earlier statements running. When an earlier statement of the change caused the failure, name it: "line 2 drops it".
+- A WALK_THROUGH claim is conditional on the earlier statements running. Naming the earlier statement that caused the failure ("line 2 drops it") waits until Bytebase keys a finding's thread on its code: Bytebase#21869 keys it on the message, so a line number in the text would open a new thread whenever a line is inserted above.
+- No text that changes with unrelated edits: no line numbers, statement counts, or sizes of the change. A limit may be named.
 - No error code in the message text. Finding codes are a separate field (decision 5, §8, pending).
 
 **P1** (REQUIRE_WHERE, DISALLOW_*, REQUIRE_PRIMARY_KEY):
@@ -166,6 +167,8 @@ Use American English. Contractions such as "doesn't" and "can't" are fine. Write
 - The general risk of the operation is the rule description's job, not the message's.
 
 ### 4.7 One problem, one finding
+
+Deferred (decided 2026-11-04): until Bytebase keys a finding's thread on its code, every rule reports its own findings as it does today, duplicates included, and each reason stays its own finding. What follows is the target.
 
 - **Several reasons, one finding.** When one rule finds several reasons why the same request cannot be met, it reports one finding that lists them. This applies to ONLINE_MIGRATION and PRIOR_BACKUP. Anchor it on the statement when there is one, else on the whole change.
 - **Overlapping rules: precedence.** When two rules describe the same subcommand, only the more specific rule reports it, if that rule is enabled. Otherwise the other rule reports it.
@@ -442,11 +445,11 @@ Deferred: messages for the other rules come first. A PostgreSQL prototype of wha
 
 Each wave is one PR across every engine, forks included.
 
-1. REQUIRE_IS_NULL, REQUIRE_WHERE, DISALLOW_DROP_OBJECT, DISALLOW_TRUNCATE, DISALLOW_DROP_CONSTRAINT, DISALLOW_RENAME, and REQUIRE_PRIMARY_KEY. This wave rewords them to Appendix B and adds the `review` helpers.
-2. Precedence and merging between overlapping rules (§4.7).
-3. ONLINE_MIGRATION and PRIOR_BACKUP, with several reasons merged into one finding.
-4. WALK_THROUGH.
-5. Finding codes (§9) and SYNTAX (§10).
+1. REQUIRE_IS_NULL, REQUIRE_WHERE, DISALLOW_DROP_OBJECT, DISALLOW_TRUNCATE, DISALLOW_DROP_CONSTRAINT, DISALLOW_RENAME, and REQUIRE_PRIMARY_KEY. This wave rewords them to Appendix B and adds the `review` helpers. Done (#619).
+2. Finding codes (§9). Done (#620).
+3. ONLINE_MIGRATION and PRIOR_BACKUP, one finding per reason, reworded to Appendix D.
+4. WALK_THROUGH, reworded to Appendix E.
+5. Later: precedence and merging (§4.7), SYNTAX (§10).
 
 ## Appendix B: phrases for wave 1
 
@@ -523,3 +526,104 @@ The table in `review/codes.go` is the source of truth; this copy says what each 
 | RN101 | `renames-object` | Renames a table, view, or column | Renames a table, view, or column, or swaps two tables' names. | Update what reads the old name |
 | PK101 | `table-without-primary-key` | Creates a table without a primary key | A `CREATE TABLE` whose table ends the change without a primary key, reported on the `CREATE`. | Declare a primary key |
 | PK102 | `primary-key-removed` | Removes a table's primary key | A statement drops a table's primary key, by name, keyword, or column, and the change doesn't add one back; reported on the drop. | Keep the key, or add one back |
+
+## Appendix D: phrases for ONLINE_MIGRATION and PRIOR_BACKUP
+
+Each reason stays its own finding (§4.7 is deferred). The summary is one sentence with no Markdown but code spans; the body says what to do. `{x}` is a name through `Code`, `{xs}` a list through `Names`. A limit is written with `review.Size` (`10 MiB`); the change's own size is not written. Rows are the inventory's (`OM-n`, `PB-n`).
+
+**ONLINE_MIGRATION**
+
+| # | Engines | Now | Summary | Body |
+| --- | --- | --- | --- | --- |
+| OM-1 | pg, oracle, mssql, snowflake | `the change requests online migration, which PostgreSQL does not support` | `PostgreSQL doesn't support online migration.` (the engine's name) | ``Turn off **Online migration** for this change.`` |
+| OM-1 | tidb | `the change requests online migration, which runs gh-ost, and TiDB has no binary log for gh-ost to read` | `TiDB doesn't support online migration.` | ``gh-ost needs a binary log, which TiDB doesn't have. Turn off **Online migration** for this change.`` |
+| OM-2 | mysql family | `online migration cannot read the gh-ost directive: {json error}` | `The gh-ost directive can't be read.` | ``Write its flags as a JSON object of strings, or turn off **Online migration**.`` |
+| OM-3 | mysql family | `online migration does not support gh-ost flag "f"` | ``Online migration doesn't pass the gh-ost flag {f}.`` | `Remove it from the directive.` |
+| OM-4 | mysql family | `online migration cannot read gh-ost flag "f" as int: "v"` | ``The gh-ost flag {f} takes {an integer, true or false, a number, a load map such as `Threads_running=25`, a list of hosts}, and {v} isn't one.`` | `Fix its value in the directive.` |
+| OM-5 | mysql family | `online migration cannot take gh-ost flag "f" = n, outside 1 to 10` | ``The gh-ost flag {f} takes {1 to 10, 2 or more}, and the directive sets {n}.`` | `Fix its value in the directive.` |
+| OM-6 | mysql family | `online migration cannot take gh-ost flags switch-to-rbr and assume-rbr together` | ``The gh-ost flags `switch-to-rbr` and `assume-rbr` can't be set together.`` | `Remove one of them from the directive.` |
+| OM-7 | mysql family | `online migration runs the change as one ALTER TABLE statement, and the change has n statements` | ``Online migration runs one `ALTER TABLE`, and this change has more statements.`` | ``Move the other statements into another change, or turn off **Online migration**.`` |
+| OM-8 | mysql family | `online migration runs only an ALTER TABLE statement` | ``Online migration runs only an `ALTER TABLE`.`` | ``Turn off **Online migration** for this change.`` |
+| OM-9 | mysql family | `gh-ost does not rename the table it migrates` | `gh-ost can't rename the table it migrates.` | `Rename the table in another change, without online migration.` |
+| OM-10 | mysql family | `gh-ost renames column a to b only with approve-renamed-columns, which Bytebase does not pass` | ``Online migration can't rename column {a} to {b}.`` | `gh-ost renames a column only when told to, and Bytebase doesn't tell it. Rename the column in another change, without online migration.` |
+| OM-11 | mysql family | `gh-ost splits column name n at whitespace and reads CHANGE as a rename, …` | ``gh-ost reads this `CHANGE` of column {n} as a rename, because its name contains whitespace.`` | ``Turn off **Online migration** for this change.`` |
+| OM-12 | mysql family | `gh-ost does not read RENAME COLUMN as a rename, and the migrated table loses the data of column a` | ``gh-ost doesn't read `RENAME COLUMN` as a rename, so column {a} would lose its data.`` | `Rename the column in another change, without online migration.` |
+| OM-13 | mysql family | `online migration needs database bbdataarchive, which does not exist` | ``Online migration needs the backup database `bbdataarchive`, which doesn't exist on this instance.`` | ``Create it, or turn off **Online migration**.`` |
+| OM-14 | mysql family | `gh-ost migrates t of the task's database shop, not other.t as the ALTER names it` | ``gh-ost migrates {t} of this change's database, not {other.t} as the `ALTER` names it.`` | `Run the change against the database that holds the table.` |
+| OM-15 | mysql family | `online migration needs a table, and v is a view` | ``Online migration needs a table, and {v} is a view.`` | ``Turn off **Online migration** for this change.`` |
+| OM-16 | mysql family | `online migration needs a primary or unique key on t, which has none` | ``gh-ost can't migrate {t}: it has no primary key or unique key.`` | ``Add a primary key first, or turn off **Online migration**.`` |
+| OM-17 | mysql family | `online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on t, which has none` | ``gh-ost can't migrate {t}: none of its keys is one gh-ost can use.`` | ``gh-ost needs a primary key, or a unique key of `NOT NULL` columns, none `FLOAT` or `JSON`. Add one first, or turn off **Online migration**.`` |
+| OM-18 | mysql family | `online migration does not support t, which has a foreign key` | ``gh-ost can't migrate {t}: it has a foreign key.`` | ``Turn off **Online migration** for this change.`` |
+| OM-19 | mysql family | `online migration does not support t, which a foreign key references` | ``gh-ost can't migrate {t}: a foreign key references it.`` | ``Turn off **Online migration** for this change.`` |
+| OM-20 | mysql family | `online migration does not support t, which has a trigger` | ``gh-ost can't migrate {t}: it has a trigger.`` | ``Turn off **Online migration** for this change.`` |
+
+**PRIOR_BACKUP**
+
+| # | Engines | Now | Summary | Body |
+| --- | --- | --- | --- | --- |
+| PB-1 | snowflake, oceanbase | `the change enables prior backup, which Bytebase does not take on Snowflake: the change runs without a backup` | `Bytebase doesn't take a prior backup on Snowflake.` (the engine's name) | ``The change runs without one. Turn off **Prior backup** for this change.`` |
+| PB-2 | every engine with a backup | `the change is n bytes, over the m-byte limit of prior backup` | `The change is larger than prior backup's {limit} limit.` | ``Split it into smaller changes, or turn off **Prior backup**.`` |
+| PB-3 | mysql family, tidb, mssql | `prior backup needs database bbdataarchive, which does not exist` | ``Prior backup needs the backup database `bbdataarchive`, which doesn't exist on this instance.`` | ``Create it, or turn off **Prior backup**.`` |
+| PB-3 | pg | `prior backup needs schema bbdataarchive, which does not exist` | ``Prior backup needs the schema `bbdataarchive` in this database, which doesn't exist.`` | ``Create it, or turn off **Prior backup**.`` |
+| PB-3 | oracle | `prior backup needs database BBDATAARCHIVE, which does not exist` | ``Prior backup needs the backup schema `BBDATAARCHIVE`, which doesn't exist.`` | ``Create it, or turn off **Prior backup**.`` |
+| PB-4 | oracle | `prior backup copies the rows of top-level UPDATE and DELETE statements on a table, and the change has none, which fails the backup` | ``Prior backup fails on this change: it has no `UPDATE` or `DELETE` of a table.`` | ``Turn off **Prior backup** for this change.`` |
+| PB-5 | pg, mysql family, mssql, oracle | `prior backup cannot back up both UPDATE and DELETE on t` | ``Prior backup can't back up {t}: this change both updates and deletes its rows.`` | ``Move the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.`` |
+| PB-6 | mssql | `prior backup cannot back up statements on t with different WITH clauses` | ``Prior backup can't back up {t}: its statements have different `WITH` clauses.`` | ``Give them the same `WITH` clause, or move them into separate changes.`` |
+| PB-6 | pg | `prior backup copies only the WITH clause of the first statement on t, which does not define c` | ``Prior backup copies only the first statement's `WITH` clause for {t}, which doesn't define {c}.`` | ``Define {c} in the first statement on {t}, or move this statement into another change.`` |
+| PB-7 | tidb | `prior backup cannot back up more than 5 statements over more than one table` | `Prior backup can't back up more than 5 statements across several tables.` | ``Split the change, or turn off **Prior backup**.`` |
+| PB-8 | tidb | `prior backup does not support a WITH clause when it backs up more than 5 statements` / `… when more than 5 statements change one table` | ``Prior backup can't back up a `WITH` clause when the change has more than 5 statements to back up.`` / ``… when more than 5 statements change one table.`` | ``Split the change, or turn off **Prior backup**.`` |
+| PB-9 | tidb | `prior backup cannot back up more than 5 statements over more than one table, or with a WITH clause` | ``Prior backup can't back up more than 5 statements across several tables, or with a `WITH` clause.`` | ``Split the change, or turn off **Prior backup**.`` |
+| PB-10 | tidb | `prior backup does not support an UPDATE or DELETE of d.t, a table of another database` | ``Prior backup can't back up {d.t}, a table of another database.`` | ``Run that statement in a change on its own database, or turn off **Prior backup**.`` |
+| PB-11 | mysql family, tidb | `prior backup copies tables with CREATE TABLE ... LIKE, which refuses view v` | ``Prior backup can't back up {v}: it is a view.`` | ``Turn off **Prior backup** for this change.`` |
+| PB-12 | mysql family | `prior backup does not find DELETE target n in the FROM list, written the same way` | ``Prior backup can't find the `DELETE` target {n} in the `FROM` list, written the same way.`` | ``Write the target as the `FROM` list writes it.`` |
+| PB-12 | tidb | `prior backup does not find DELETE target n in the FROM list` | ``Prior backup can't find the `DELETE` target {n} in the `FROM` list.`` | ``Write the target as the `FROM` list writes it.`` |
+| PB-12 | mssql | `prior backup selects t.* from the statement's FROM list, which does not name it` | ``Prior backup reads {t} from the statement's `FROM` list, which doesn't name it.`` | ``Name {t} in the `FROM` list, or turn off **Prior backup**.`` |
+| PB-13 | pg | `prior backup selects the rows of every statement on t through the first one's alias, which this statement does not use` | ``Prior backup reads every statement on {t} through the first one's alias, and this statement doesn't use it.`` | ``Use the same alias for {t} in every statement.`` |
+| PB-14 | pg | `prior backup copies the WITH clause of the first statement on t, whose query c then stands for the table` | ``Prior backup copies the first statement's `WITH` clause, where the query {c} would stand for {t}.`` | ``Rename the `WITH` query.`` |
+| PB-15 | pg | `prior backup reads n along the search path it runs under, where it means s.n, not t.n` / `… where it does not exist, …` | ``Prior backup reads {n} along its search path, where it means {s.n}, not {t.n}.`` / ``… where it doesn't exist, not {t.n}.`` | ``Write the name as {t.n}.`` |
+| PB-16 | pg | `prior backup refuses the data-modifying WITH query c of this statement` | ``Prior backup can't back up a statement whose `WITH` query {cs} changes data.`` | ``Move the data-modifying query into another statement, or turn off **Prior backup**.`` |
+| PB-17 | pg, mssql | `prior backup copies WHERE CURRENT OF, …` / `prior backup does not support WHERE CURRENT OF` | ``Prior backup can't back up a statement with `WHERE CURRENT OF`.`` | ``Use a `WHERE` on the table's key, or turn off **Prior backup**.`` |
+| PB-18 | mssql | `prior backup does not support the table variable @v as the target` | ``Prior backup can't back up the table variable {@v}.`` | ``Turn off **Prior backup** for this change.`` |
+| PB-19 | mssql | `prior backup does not support the WITH query c as the target` | ``Prior backup can't back up through the `WITH` query {c}.`` | ``Change the base table instead, or turn off **Prior backup**.`` |
+| PB-20 | mssql | `prior backup does not support WITH XMLNAMESPACES` | ``Prior backup can't back up a statement with `WITH XMLNAMESPACES`.`` | ``Turn off **Prior backup** for this change.`` |
+| PB-21 | mssql | `prior backup copies TOP after the select list of its query, which SQL Server rejects` | ``Prior backup can't copy this statement's `TOP`: SQL Server rejects it where the backup query puts it.`` | ``Use a `WHERE` instead of `TOP`, or turn off **Prior backup**.`` |
+| PB-22 | oracle | `prior backup does not support table s.t@l, referenced through a database link` | ``Prior backup can't back up {s.t@l} through a database link.`` | ``Turn off **Prior backup** for this change.`` |
+| PB-23 | oracle | `prior backup writes the name of table t unescaped into a quoted comment, which its single quote breaks` | ``Prior backup can't back up {t}: the single quote in its name breaks the backup's comment.`` | ``Turn off **Prior backup** for this change.`` |
+| PB-24 | oracle | `prior backup writes the database name d unescaped into a quoted comment, which its single quote breaks` | `Prior backup can't run: the single quote in the database's name breaks the backup's comment.` | ``Turn off **Prior backup** for this change.`` |
+| PB-25 | oracle | `prior backup copies t with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column c (ORA-00997)` | ``Prior backup can't copy {t}: `CREATE TABLE AS SELECT` rejects its `LONG` column {cs}.`` (`LONG RAW` likewise) | ``Turn off **Prior backup** for this change.`` |
+| PB-26 | mariadb | `prior backup reads the change as MySQL, which has no RETURNING clause` | ``Prior backup can't back up a statement with `RETURNING`: it reads the change as MySQL.`` | ``Remove `RETURNING`, or turn off **Prior backup**.`` |
+| PB-27 | tidb | `prior backup does not support TiDB BATCH (non-transactional DML) statements` | ``Prior backup can't back up a TiDB `BATCH` statement.`` | ``Turn off **Prior backup** for this change.`` |
+| PB-28 | tidb | `prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements` | ``Prior backup can't back up `REPLACE` or `INSERT ... ON DUPLICATE KEY UPDATE`.`` | ``Turn off **Prior backup** for this change.`` |
+| PB-29 | tidb | `prior backup does not support EXPLAIN ANALYZE of an UPDATE, DELETE, or BATCH statement` (and of `REPLACE` …) | ``Prior backup can't back up `EXPLAIN ANALYZE` of a statement that changes rows.`` | ``Remove `EXPLAIN ANALYZE`, or turn off **Prior backup**.`` |
+| PB-30 | every engine with a backup | `prior backup runs before the change, when r does not exist yet` | ``Prior backup runs before the change, when {r} doesn't exist yet.`` | ``Create {r} in an earlier change, or turn off **Prior backup**.`` |
+| PB-31 | every engine with a backup | `prior backup runs before the change, when column c of t does not exist yet` | ``Prior backup runs before the change, when column {c} of {t} doesn't exist yet.`` | ``Add the column in an earlier change, or turn off **Prior backup**.`` |
+| PB-32 | pg | `prior backup runs before the change, when function s.f does not exist yet` | ``Prior backup runs before the change, when function {s.f} doesn't exist yet.`` | ``Create the function in an earlier change, or turn off **Prior backup**.`` |
+| PB-33 | pg | `prior backup runs before the change, when r has fewer columns than alias a names` | ``Prior backup runs before the change, when {r} has fewer columns than alias {a} names.`` | ``Add the columns in an earlier change, or turn off **Prior backup**.`` |
+| PB-34 | pg | `prior backup runs this SET ROLE before the change, which creates role r` | ``Prior backup runs this `SET ROLE` before the change, which creates role {r}.`` | ``Create the role in an earlier change, or turn off **Prior backup**.`` |
+
+## Appendix E: phrases for WALK_THROUGH
+
+WALK_THROUGH has hundreds of texts, one or two per check, so it gets shapes rather than rows. The shape follows the finding's code; the object kind is the one the check is about (§4.4 kind words); names go through `Code`. A WALK_THROUGH finding has no body: the condition is the fix. No line numbers (§4.6).
+
+| Code | Shape | Examples |
+| --- | --- | --- |
+| WT101, kind known | ``<Kind> {n} doesn't exist.``; a column, constraint, index, or trigger with its owner: ``<Kind> {n} doesn't exist in {t}.`` | ``Table `order_items` doesn't exist.``, ``Column `discount` doesn't exist in `orders`.``, ``Constraint `ck_n` doesn't exist in `t`.`` |
+| WT101, kind unknown | ``{n} doesn't exist.`` | ``` `order_items` doesn't exist. ``` (PostgreSQL relation, Oracle "table or view", SQL Server object) |
+| WT101, primary key | ``{t} has no primary key.`` | |
+| WT201, kind known | ``<Kind> {n} already exists.``, with owner ``… already exists in {t}.`` | ``Table `customers` already exists.``, ``Column `status` already exists in `orders`.`` |
+| WT201, the name is taken by another kind or an unknown one | ``The name {n} is already taken.`` | PostgreSQL relation namespace, Oracle "name is already used by an existing object" |
+| WT201, primary key | ``{t} already has a primary key.`` | |
+| WT301 | ``{n} is a <found kind>, not a <needed kind>.``; found kind unknown: ``{n} isn't a <needed kind>.`` | ``` `big_orders` is a view, not a table. ```, ``` `s` isn't a sequence. ``` |
+| WT401 | ``This statement <adds, declares, drops> <kind> {n} twice.`` | ``This statement adds column `a` twice.``, ``This statement drops `t` twice.`` |
+| WT402 | ``No database is selected for {n}.``; PostgreSQL: ``No schema on the search path exists to create {n} in.`` | |
+| WT403 | ``The name {n} is longer than <Engine>'s <limit>-character limit.`` | |
+| WT404 | ``{n} is reserved <for what>.`` | ``` `PRIMARY` is reserved for the primary key's index. ```, ``` `pg_x` is reserved for system schemas. ```, ``Column `oid` conflicts with a system column.`` |
+| WT405 | ``Schema {s} still holds objects.`` | |
+| WT406 | ``{c} is a system column, which can't be <dropped, altered, renamed>.`` | |
+| WT407 | ``{n} refers to another database, which PostgreSQL doesn't allow.`` | |
+| WT408 | ``<Engine> doesn't accept <form>.`` | ``PostgreSQL doesn't accept `DROP INDEX CONCURRENTLY` of several indexes.`` |
+| WT409 | ``{stmt} must be the first statement of its batch.`` | ``` `CREATE VIEW` must be the first statement of its batch. ``` |
+| WT410 | ``Trigger {tr} must be in the schema of {t}.`` | |
+| WT411 | ``Index {ix} enforces constraint {c}.`` | |
+
+Where today's text names the wrong condition, the shape of the code wins: MySQL's "Table v does not exist" for `DROP TABLE` of a view becomes ``` `v` is a view, not a table. ```
