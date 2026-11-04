@@ -1325,6 +1325,32 @@ type UnlockTablesStmt struct {
 func (s *UnlockTablesStmt) nodeTag()  {}
 func (s *UnlockTablesStmt) stmtNode() {}
 
+// LockStatsStmt represents a LOCK STATS statement, which freezes the
+// statistics of the tables or partitions it names. TiDB has it and MySQL has
+// not.
+//
+// Partitions is set only by the arm that names one table and its partitions;
+// the arm that names a list of tables leaves it empty.
+type LockStatsStmt struct {
+	Loc        Loc
+	Tables     []*TableRef
+	Partitions []string
+}
+
+func (s *LockStatsStmt) nodeTag()  {}
+func (s *LockStatsStmt) stmtNode() {}
+
+// UnlockStatsStmt represents an UNLOCK STATS statement, the other half of
+// LockStatsStmt, which takes the same targets.
+type UnlockStatsStmt struct {
+	Loc        Loc
+	Tables     []*TableRef
+	Partitions []string
+}
+
+func (s *UnlockStatsStmt) nodeTag()  {}
+func (s *UnlockStatsStmt) stmtNode() {}
+
 // RequireClause represents a REQUIRE clause for TLS options.
 type RequireClause struct {
 	Loc     Loc
@@ -2011,6 +2037,7 @@ func (o *SequenceOption) nodeTag() {}
 // DropIndexStmt represents a DROP INDEX statement.
 type DropIndexStmt struct {
 	Loc       Loc
+	IfExists  bool
 	Name      string
 	Table     *TableRef
 	Algorithm string

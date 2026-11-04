@@ -1082,20 +1082,36 @@ func indexTypeOrDefault(indexType, defaultType string) string {
 	return defaultType
 }
 
-// resolveConstraintIndexType returns the index type from a constraint,
-// checking both IndexType (USING before key parts) and IndexOptions (USING after key parts).
-func resolveConstraintIndexType(con *nodes.Constraint) string {
-	if con.IndexType != "" {
-		return strings.ToUpper(con.IndexType)
-	}
-	for _, opt := range con.IndexOptions {
+// resolveIndexUsingType returns the index type a statement declares, from the two
+// positions the grammar lets an index_type clause stand in: before the key parts
+// (the dedicated indexType slot) and among the index_option list after them.
+//
+// A statement may fill both, and the one written last stands, which is why the
+// options are scanned after the leading slot rather than before it. Read against
+// mysql:8.0 on 2026-11-04 through SHOW CREATE TABLE, which echoes the type it kept:
+// `CREATE INDEX i ON t (a) TYPE BTREE` comes back as `USING BTREE`, while
+// `CREATE INDEX i TYPE BTREE ON t (a) TYPE HASH` and
+// `KEY k USING BTREE (a) USING HASH` come back with no index type at all, the HASH
+// each of them kept having become a BTREE index by itself.
+//
+// Either spelling of the clause, USING or TYPE, reaches here as an option named
+// USING. "" means the statement named no index type.
+func resolveIndexUsingType(indexType string, opts []*nodes.IndexOption) string {
+	declared := strings.ToUpper(indexType)
+	for _, opt := range opts {
 		if strings.EqualFold(opt.Name, "USING") {
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
-				return strings.ToUpper(s.Value)
+				declared = strings.ToUpper(s.Value)
 			}
 		}
 	}
-	return ""
+	return declared
+}
+
+// resolveConstraintIndexType returns the index type from a constraint, from either
+// of the positions resolveIndexUsingType reads.
+func resolveConstraintIndexType(con *nodes.Constraint) string {
+	return resolveIndexUsingType(con.IndexType, con.IndexOptions)
 }
 
 // applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE

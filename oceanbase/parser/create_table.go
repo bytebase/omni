@@ -835,7 +835,9 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 			constr.Name, _, _ = p.parseIdent()
 		}
 		// Optional index type
-		p.parseIndexTypeClause(constr)
+		if err := p.parseIndexTypeClause(constr); err != nil {
+			return nil, err
+		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
 			return nil, err
@@ -939,7 +941,9 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
-		p.parseIndexTypeClause(constr)
+		if err := p.parseIndexTypeClause(constr); err != nil {
+			return nil, err
+		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
 			return nil, err
@@ -964,7 +968,9 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 			if next := p.peekNext(); next.Type != tokIDENT && next.Type < 700 {
 				return nil, p.syntaxErrorAtTok(next)
 			}
-			p.parseIndexTypeClause(constr)
+			if err := p.parseIndexTypeClause(constr); err != nil {
+				return nil, err
+			}
 		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
@@ -1043,7 +1049,9 @@ func (p *Parser) parsePrimaryKey(constr *nodes.Constraint, afterConstraint, inAl
 		if inAlter {
 			return p.syntaxErrorAtCur()
 		}
-		p.parseIndexTypeClause(constr)
+		if err := p.parseIndexTypeClause(constr); err != nil {
+			return err
+		}
 	}
 	cols, err := p.parsePrimaryKeyColumns()
 	if err != nil {
@@ -1116,14 +1124,28 @@ func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 	}
 }
 
-// parseIndexTypeClause parses an optional USING {BTREE|HASH} clause.
-func (p *Parser) parseIndexTypeClause(constr *nodes.Constraint) {
-	if p.cur.Type == kwUSING {
-		p.advance()
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
-			constr.IndexType, _, _ = p.parseKeywordOrIdent()
-		}
+// parseIndexTypeClause parses the optional index_type clause a key definition
+// takes in front of its column list.
+//
+// MySQL reads that position as opt_index_name_and_type, where the USING
+// spelling may stand alone and the TYPE spelling may not: TYPE is an ordinary
+// identifier, so `KEY TYPE BTREE (a)` names the index `type` and then fails on
+// BTREE, which is the 1064 mysql:8.0 answers. The caller takes the name before
+// this runs and takes a bare TYPE with it, so cur is at TYPE here only once a
+// name has been read, and nothing has to be passed in to tell the two apart.
+//
+// Ref: opt_index_name_and_type in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseIndexTypeClause(constr *nodes.Constraint) error {
+	if !p.isIndexTypeIntro() {
+		return nil
 	}
+	p.advance()
+	typeName, err := p.parseIndexTypeName()
+	if err != nil {
+		return err
+	}
+	constr.IndexType = typeName
+	return nil
 }
 
 // parseTableOption parses a single table option.

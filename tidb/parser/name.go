@@ -610,6 +610,20 @@ func (p *Parser) parseIdent() (string, int, error) {
 	}
 }
 
+// isBareWord reports whether the current token is word, written without
+// backquotes. A grammar that names something the keyword table does not hold
+// reads it this way: the token arrives as an identifier, and a backquoted
+// identifier of the same spelling is not the name the grammar means.
+func (p *Parser) isBareWord(word string) bool {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return false
+	}
+	if !strings.EqualFold(p.cur.Str, word) {
+		return false
+	}
+	return !strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "`")
+}
+
 // parseIdentifier is a thin alias for parseIdent, preserved for gradual migration
 // of existing call sites. New code should use parseIdent directly.
 func (p *Parser) parseIdentifier() (string, int, error) {

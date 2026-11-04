@@ -60,10 +60,15 @@ func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTable
 
 // parseDropIndexStmt parses a DROP INDEX statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-index.html
+// Ref: https://mariadb.com/kb/en/drop-index/
 //
-//	DROP INDEX index_name ON tbl_name
-//	    [algorithm_option | lock_option] ...
+//	DROP INDEX [IF EXISTS] index_name ON tbl_name
+//
+// MariaDB reads IF EXISTS here, which MySQL does not, and reads neither of the
+// clauses MySQL closes the statement with: mariadb:11.8.8 answers 0 for DROP
+// INDEX IF EXISTS i ON t and 1064 for ALGORITHM and LOCK in every spelling,
+// DEFAULT and INPLACE alike (read on 2026-11-04). The WAIT and NOWAIT clauses
+// it also takes there are not read yet.
 func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	p.advance() // consume INDEX
 
@@ -75,6 +80,15 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	}
 
 	stmt := &nodes.DropIndexStmt{Loc: nodes.Loc{Start: start}}
+
+	// IF EXISTS
+	if p.cur.Type == kwIF {
+		p.advance()
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
+		stmt.IfExists = true
+	}
 
 	// Index name
 	name, _, err := p.parseIdentifier()
@@ -98,21 +112,6 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 		return nil, err
 	}
 	stmt.Table = ref
-
-	// Optional ALGORITHM and LOCK
-	for p.cur.Type == kwALGORITHM || p.cur.Type == kwLOCK {
-		if _, ok := p.match(kwALGORITHM); ok {
-			p.match('=')
-			if p.isIdentToken() {
-				stmt.Algorithm, _, _ = p.parseIdentifier()
-			}
-		} else if _, ok := p.match(kwLOCK); ok {
-			p.match('=')
-			if p.isIdentToken() {
-				stmt.Lock, _, _ = p.parseIdentifier()
-			}
-		}
-	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

@@ -45,10 +45,12 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 	}
 	stmt.IndexName = name
 
-	// Optional index_type: USING {BTREE | HASH}
-	if p.cur.Type == kwUSING {
+	// Optional index_type. CREATE INDEX reads its name first and cannot leave
+	// it out, so both spellings of the clause stand here, where a key
+	// definition's position takes a bare TYPE as a name instead.
+	if p.isIndexTypeIntro() {
 		p.advance()
-		typeName, _, err := p.parseKeywordOrIdent()
+		typeName, err := p.parseIndexTypeName()
 		if err != nil {
 			return nil, err
 		}
@@ -101,28 +103,11 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 		stmt.Options = append(stmt.Options, opt)
 	}
 
-	// [algorithm_option | lock_option] ...
-	for {
-		if p.cur.Type == kwALGORITHM {
-			p.advance()
-			p.match('=') // optional =
-			val, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Algorithm = val
-		} else if p.cur.Type == kwLOCK {
-			p.advance()
-			p.match('=') // optional =
-			val, _, err := p.parseKeywordOrIdent()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Lock = val
-		} else {
-			break
-		}
-	}
+	// No [algorithm_option | lock_option]: MySQL closes CREATE INDEX with them
+	// and OceanBase does not. 5.7.25-OceanBase_CE-v4.3.5.6 answers 1064 for
+	// ALGORITHM = DEFAULT, ALGORITHM = INPLACE, LOCK = DEFAULT, LOCK = NONE and
+	// LOCK = EXCLUSIVE after a column list it otherwise parses, so stmt.Algorithm
+	// and stmt.Lock stay empty here (read on 2026-11-04).
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -276,13 +261,15 @@ func (p *Parser) parseIndexOption(fulltext bool) (*nodes.IndexOption, bool, erro
 			Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: v},
 		}, true, nil
 
-	case p.cur.Type == kwUSING:
+	case p.isIndexTypeIntro():
 		p.advance()
 		valStart := p.pos()
-		typeName, _, err := p.parseKeywordOrIdent()
+		typeName, err := p.parseIndexTypeName()
 		if err != nil {
 			return nil, false, err
 		}
+		// Either spelling is recorded as USING: TYPE is a synonym for it, and a
+		// consumer reading the index type should not have to know which was written.
 		return &nodes.IndexOption{
 			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "USING",
@@ -480,4 +467,32 @@ func (p *Parser) parseParserProperties() (*nodes.IndexOption, bool, error) {
 	p.advance() // consume ')'
 	opt.Loc = nodes.Loc{Start: start, End: p.prev.End}
 	return opt, true, nil
+}
+
+// isIndexTypeIntro reports whether the current token opens an index_type
+// clause. OceanBase spells it USING and only USING: MySQL also takes TYPE, and
+// 5.7.25-OceanBase_CE-v4.3.5.6 answers 1064 for every position it can stand in
+// -- CREATE INDEX i ON t (a) TYPE BTREE, CREATE INDEX i TYPE BTREE ON t (a),
+// KEY k (a) TYPE BTREE and KEY k TYPE BTREE (a) -- so taking it here would only
+// widen an over-acceptance (read on 2026-11-04).
+//
+// Ref: index_using_algorithm in OceanBase sql_parser_mysql_mode.y.
+// https://en.oceanbase.com/docs/common-oceanbase-database-10000000002017621
+func (p *Parser) isIndexTypeIntro() bool {
+	return p.cur.Type == kwUSING
+}
+
+// parseIndexTypeName reads the name an index_type clause takes after USING or
+// TYPE.
+//
+// index_type_name is a keyword list, not an identifier, so a name that is no
+// index type and a backquoted `BTREE` are both syntax errors: oceanbase/oceanbase-ce:4.3.5-lts
+// answers 1064 for USING nosuchtype and for USING `BTREE`.
+//
+// Ref: index_type_name in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseIndexTypeName() (string, error) {
+	if tok, ok := p.match(kwBTREE, kwHASH); ok {
+		return tok.Str, nil
+	}
+	return "", p.syntaxErrorAtCur()
 }

@@ -112,16 +112,22 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwLOCK:
 		start := p.pos()
 		p.advance() // consume LOCK
-		if p.cur.Type == kwINSTANCE {
+		switch {
+		case p.cur.Type == kwINSTANCE:
 			return p.parseLockInstanceStmt(start)
+		case p.isBareWord("STATS"):
+			return p.parseLockStatsStmt(start)
 		}
 		return p.parseLockTablesStmt(start)
 
 	case kwUNLOCK:
 		start := p.pos()
 		p.advance() // consume UNLOCK
-		if p.cur.Type == kwINSTANCE {
+		switch {
+		case p.cur.Type == kwINSTANCE:
 			return p.parseUnlockInstanceStmt(start)
+		case p.isBareWord("STATS"):
+			return p.parseUnlockStatsStmt(start)
 		}
 		return p.parseUnlockTablesStmt(start)
 

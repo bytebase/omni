@@ -71,6 +71,12 @@ func (b *builder) statement(n ast.Node) bool {
 		// what the change did; a ROLLBACK, which undoes it, is not here.
 		return true
 	}
+	// Everything else leaves the walk claiming nothing from here on, which is
+	// where LOCK TABLES has always been and where LOCK STATS and UNLOCK STATS
+	// join it. Neither changes a name the walk keeps, but both fail on a table
+	// that is not there (1146 on pingcap/tidb:v8.5.5, read on 2026-11-04), so
+	// listing them above as statements with no effect would drop a rejection
+	// the review ought to report rather than add one it should not.
 	return false
 }
 

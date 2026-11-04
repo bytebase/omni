@@ -60,10 +60,16 @@ func (p *Parser) parseDropTableStmt(start int, temporary bool) (*nodes.DropTable
 
 // parseDropIndexStmt parses a DROP INDEX statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-index.html
-//
 //	DROP INDEX index_name ON tbl_name
-//	    [algorithm_option | lock_option] ...
+//
+// OceanBase ends the statement at the table: MySQL closes it with an
+// algorithm_option or a lock_option and takes no IF EXISTS, while
+// 5.7.25-OceanBase_CE-v4.3.5.6 takes neither clause and no IF EXISTS either
+// (1064 for ALGORITHM INPLACE and for IF EXISTS, read on 2026-11-04), and
+// oceanbase/parser's foreignGrammar keeps the IF EXISTS refusal.
+//
+// Ref: https://en.oceanbase.com/docs/common-oceanbase-database-10000000002017620;
+// https://dev.mysql.com/doc/refman/8.0/en/drop-index.html
 func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	p.advance() // consume INDEX
 
@@ -98,21 +104,6 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 		return nil, err
 	}
 	stmt.Table = ref
-
-	// Optional ALGORITHM and LOCK
-	for p.cur.Type == kwALGORITHM || p.cur.Type == kwLOCK {
-		if _, ok := p.match(kwALGORITHM); ok {
-			p.match('=')
-			if p.isIdentToken() {
-				stmt.Algorithm, _, _ = p.parseIdentifier()
-			}
-		} else if _, ok := p.match(kwLOCK); ok {
-			p.match('=')
-			if p.isIdentToken() {
-				stmt.Lock, _, _ = p.parseIdentifier()
-			}
-		}
-	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

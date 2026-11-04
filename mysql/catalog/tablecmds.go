@@ -1942,22 +1942,30 @@ func indexTypeOrDefault(indexType, defaultType string) string {
 	return defaultType
 }
 
-// resolveIndexUsingType returns the declared index type from the two grammar positions MySQL allows
-// a `USING {BTREE|HASH}` clause to appear in: before the key parts (the dedicated indexType slot)
-// and as a trailing index_option (scanned from opts). The leading slot wins; "" means no USING.
-// Shared by the constraint paths (resolveConstraintIndexType) and the standalone CREATE INDEX path.
+// resolveIndexUsingType returns the index type a statement declares, from the two
+// positions the grammar lets an index_type clause stand in: before the key parts
+// (the dedicated indexType slot) and among the index_option list after them.
+//
+// A statement may fill both, and the one written last stands, which is why the
+// options are scanned after the leading slot rather than before it. Read against
+// mysql:8.0 on 2026-11-04 through SHOW CREATE TABLE, which echoes the type it kept:
+// `CREATE INDEX i ON t (a) TYPE BTREE` comes back as `USING BTREE`, while
+// `CREATE INDEX i TYPE BTREE ON t (a) TYPE HASH` and
+// `KEY k USING BTREE (a) USING HASH` come back with no index type at all, the HASH
+// each of them kept having become a BTREE index by itself.
+//
+// Either spelling of the clause, USING or TYPE, reaches here as an option named
+// USING. "" means the statement named no index type.
 func resolveIndexUsingType(indexType string, opts []*nodes.IndexOption) string {
-	if indexType != "" {
-		return strings.ToUpper(indexType)
-	}
+	declared := strings.ToUpper(indexType)
 	for _, opt := range opts {
 		if strings.EqualFold(opt.Name, "USING") {
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
-				return strings.ToUpper(s.Value)
+				declared = strings.ToUpper(s.Value)
 			}
 		}
 	}
-	return ""
+	return declared
 }
 
 // resolveConstraintIndexType returns the index type from a constraint,
