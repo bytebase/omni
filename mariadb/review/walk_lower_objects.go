@@ -65,7 +65,7 @@ func (b *builder) dropIndex(v *ast.DropIndexStmt) bool {
 	if !ok {
 		return lowered
 	}
-	return b.dropIndexName(r, v.Name, b.anchor(), false)
+	return b.dropIndexName(r, v.Name, b.anchor(), v.IfExists)
 }
 
 func (b *builder) createView(v *ast.CreateViewStmt) bool {

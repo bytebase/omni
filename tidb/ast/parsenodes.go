@@ -1223,6 +1223,18 @@ type ShowStmt struct {
 	LimitCount   ExprNode    // SHOW ... LIMIT count
 	LimitOffset  ExprNode    // SHOW ... LIMIT offset, count
 	Channel      string      // FOR CHANNEL channel (RELAYLOG EVENTS, REPLICA STATUS)
+
+	// TiDB's own SHOW statements. The partition list of SHOW TABLE ...
+	// REGIONS and SHOW TABLE ... DISTRIBUTIONS rides on From.Partitions,
+	// where TiDB's own parser keeps it (ShowStmt.Table.PartitionNames in
+	// parser.y:11818); Partition below is the single name of SHOW PLACEMENT
+	// FOR TABLE ... PARTITION, which TiDB keeps apart for the same reason
+	// (ShowStmt.Partition, parser.y:11977).
+	IndexName         string   // INDEX name of SHOW TABLE ... INDEX idx REGIONS
+	Partition         string   // PARTITION name of SHOW PLACEMENT FOR TABLE t PARTITION p
+	PolicyName        string   // policy name of SHOW CREATE PLACEMENT POLICY
+	ResourceGroupName string   // group name of SHOW CREATE RESOURCE GROUP
+	JobID             ExprNode // job id of SHOW DISTRIBUTION JOB n
 }
 
 func (s *ShowStmt) nodeTag()  {}
@@ -1324,6 +1336,32 @@ type UnlockTablesStmt struct {
 
 func (s *UnlockTablesStmt) nodeTag()  {}
 func (s *UnlockTablesStmt) stmtNode() {}
+
+// LockStatsStmt represents a LOCK STATS statement, which freezes the
+// statistics of the tables or partitions it names. TiDB has it and MySQL has
+// not.
+//
+// Partitions is set only by the arm that names one table and its partitions;
+// the arm that names a list of tables leaves it empty.
+type LockStatsStmt struct {
+	Loc        Loc
+	Tables     []*TableRef
+	Partitions []string
+}
+
+func (s *LockStatsStmt) nodeTag()  {}
+func (s *LockStatsStmt) stmtNode() {}
+
+// UnlockStatsStmt represents an UNLOCK STATS statement, the other half of
+// LockStatsStmt, which takes the same targets.
+type UnlockStatsStmt struct {
+	Loc        Loc
+	Tables     []*TableRef
+	Partitions []string
+}
+
+func (s *UnlockStatsStmt) nodeTag()  {}
+func (s *UnlockStatsStmt) stmtNode() {}
 
 // RequireClause represents a REQUIRE clause for TLS options.
 type RequireClause struct {
@@ -2011,6 +2049,7 @@ func (o *SequenceOption) nodeTag() {}
 // DropIndexStmt represents a DROP INDEX statement.
 type DropIndexStmt struct {
 	Loc       Loc
+	IfExists  bool
 	Name      string
 	Table     *TableRef
 	Algorithm string

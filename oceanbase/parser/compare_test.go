@@ -4350,15 +4350,32 @@ func TestParseCreateIndex(t *testing.T) {
 		}
 	})
 
-	t.Run("algorithm lock", func(t *testing.T) {
-		stmt := parseCreateIndex(t, "CREATE INDEX idx_id ON t (id) ALGORITHM=INPLACE LOCK=NONE")
-		if stmt.Algorithm != "INPLACE" {
-			t.Errorf("Algorithm = %s, want INPLACE", stmt.Algorithm)
+	// An ALGORITHM = INPLACE LOCK = NONE case was here, taken from MySQL 8.0's
+	// CREATE INDEX. OceanBase CE 4.3.5.6 reads neither clause, so the fields
+	// they filled stay empty and indexClauseCases pins the refusal; the index
+	// type is what it does read in that statement.
+	t.Run("index type", func(t *testing.T) {
+		stmt := parseCreateIndex(t, "CREATE INDEX idx_id ON t (id) USING HASH")
+		if got := indexTypeOption(stmt.Options); got != "HASH" {
+			t.Errorf("index type = %s, want HASH", got)
 		}
-		if stmt.Lock != "NONE" {
-			t.Errorf("Lock = %s, want NONE", stmt.Lock)
+		if stmt.Algorithm != "" || stmt.Lock != "" {
+			t.Errorf("Algorithm = %q, Lock = %q, want both empty", stmt.Algorithm, stmt.Lock)
 		}
 	})
+}
+
+// indexTypeOption returns the index type a USING option carries, or "".
+func indexTypeOption(opts []*ast.IndexOption) string {
+	for _, opt := range opts {
+		if opt.Name != "USING" {
+			continue
+		}
+		if s, ok := opt.Value.(*ast.StringLit); ok {
+			return s.Value
+		}
+	}
+	return ""
 }
 
 func TestParseCreateUniqueIndex(t *testing.T) {
@@ -11109,7 +11126,9 @@ func TestBatch102_CreateIndexFull(t *testing.T) {
 		"CREATE SPATIAL INDEX sp_idx ON t (geo_col)",
 		"CREATE INDEX idx1 USING BTREE ON t (col1, col2 DESC)",
 		"CREATE INDEX idx1 ON t (col1) KEY_BLOCK_SIZE = 1024 COMMENT 'test' VISIBLE",
-		"CREATE INDEX idx1 ON t (col1) ALGORITHM = INPLACE LOCK = NONE",
+		// ALGORITHM = INPLACE LOCK = NONE was here, taken from MySQL 8.0's
+		// CREATE INDEX. OceanBase CE 4.3.5.6 answers 1064 to either clause in
+		// every spelling, which indexClauseCases now pins.
 		"CREATE INDEX idx1 ON t ((col1 + col2))",
 		"CREATE INDEX idx1 ON t (col1) ENGINE_ATTRIBUTE = '{}'",
 		"CREATE INDEX idx1 ON t (col1) SECONDARY_ENGINE_ATTRIBUTE = '{}'",
@@ -11124,9 +11143,10 @@ func TestBatch102_CreateIndexFull(t *testing.T) {
 func TestBatch102_DropIndexFull(t *testing.T) {
 	tests := []string{
 		"DROP INDEX idx1 ON t",
-		"DROP INDEX idx1 ON t ALGORITHM = INPLACE",
-		"DROP INDEX idx1 ON t LOCK = SHARED",
-		"DROP INDEX idx1 ON t ALGORITHM = COPY LOCK = EXCLUSIVE",
+		"DROP INDEX idx1 ON d.t",
+		// The ALGORITHM and LOCK clauses were here, taken from MySQL 8.0's
+		// DROP INDEX. OceanBase CE 4.3.5.6 ends the statement at the table and
+		// answers 1064 to either clause, which indexClauseCases now pins.
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -11397,7 +11417,7 @@ func TestReviewBatch108_ShowMasterLogs(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL 'ch1'")
 	if stmt.Type != "REPLICA STATUS" {
 		t.Errorf("expected REPLICA STATUS, got %s", stmt.Type)
 	}
@@ -11407,7 +11427,7 @@ func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL 'ch1'")
 	if stmt.Type != "SLAVE STATUS" {
 		t.Errorf("expected SLAVE STATUS, got %s", stmt.Type)
 	}
@@ -11417,12 +11437,33 @@ func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowRelaylogEventsForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW RELAYLOG EVENTS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW RELAYLOG EVENTS FOR CHANNEL 'ch1'")
 	if stmt.Type != "RELAYLOG EVENTS" {
 		t.Errorf("expected RELAYLOG EVENTS, got %s", stmt.Type)
 	}
 	if stmt.Channel != "ch1" {
 		t.Errorf("expected channel ch1, got %s", stmt.Channel)
+	}
+}
+
+// TestReviewBatch108_ShowChannelNeedsAString pins what the three FOR CHANNEL
+// readers above take. The channel is MySQL's TEXT_STRING_sys_nonewline
+// (sql_yacc.yy, opt_channel), so an identifier names no channel: every form
+// here is a 1064 on the server, and reading an identifier took all of them.
+func TestReviewBatch108_ShowChannelNeedsAString(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW REPLICA STATUS FOR CHANNEL ch1",
+		"SHOW SLAVE STATUS FOR CHANNEL ch1",
+		"SHOW RELAYLOG EVENTS FOR CHANNEL ch1",
+		"SHOW SLAVE STATUS FOR",
+		"SHOW SLAVE STATUS FOR CHANNEL",
+		"SHOW SLAVE STATUS FOR CHANNEL 1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; the server answers 1064", sql)
+			}
+		})
 	}
 }
 

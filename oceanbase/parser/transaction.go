@@ -245,7 +245,16 @@ func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 //	  | [LOW_PRIORITY] WRITE
 //	}
 func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
-	p.advance() // consume TABLES
+	// LOCK names the kind of thing it locks before the list, and the keyword is
+	// not optional: 5.7.25-OceanBase_CE-v4.3.5.6 answers 1064 for LOCK t READ and for LOCK = t READ. The
+	// statement is reached with LOCK consumed, so taking the next token without
+	// reading it left a run-on -- DROP INDEX i ON t LOCK = SHARED -- parsing as
+	// a DROP INDEX and a LOCK TABLES of a table called shared.
+	//
+	// Ref: table_or_tables in MySQL 8.0 sql/sql_yacc.yy.
+	if _, ok := p.match(kwTABLES, kwTABLE); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after LOCK TABLES, offer table_ref.
 	p.checkCursor()
@@ -308,8 +317,15 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/lock-tables.html
 //
 //	UNLOCK {TABLE | TABLES}
+//
+// The keyword is not optional, as it is not after LOCK: 5.7.25-OceanBase_CE-v4.3.5.6 answers 1064 for
+// UNLOCK nosuch, and taking the next token without reading it let it through.
+//
+// Ref: table_or_tables in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseUnlockTablesStmt(start int) (*nodes.UnlockTablesStmt, error) {
-	p.advance() // consume TABLES
+	if _, ok := p.match(kwTABLES, kwTABLE); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	return &nodes.UnlockTablesStmt{
 		Loc: nodes.Loc{Start: start, End: p.prev.End},

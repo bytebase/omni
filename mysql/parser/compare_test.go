@@ -11384,7 +11384,7 @@ func TestReviewBatch108_ShowMasterLogs(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL 'ch1'")
 	if stmt.Type != "REPLICA STATUS" {
 		t.Errorf("expected REPLICA STATUS, got %s", stmt.Type)
 	}
@@ -11394,7 +11394,7 @@ func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL 'ch1'")
 	if stmt.Type != "SLAVE STATUS" {
 		t.Errorf("expected SLAVE STATUS, got %s", stmt.Type)
 	}
@@ -11404,12 +11404,33 @@ func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowRelaylogEventsForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW RELAYLOG EVENTS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW RELAYLOG EVENTS FOR CHANNEL 'ch1'")
 	if stmt.Type != "RELAYLOG EVENTS" {
 		t.Errorf("expected RELAYLOG EVENTS, got %s", stmt.Type)
 	}
 	if stmt.Channel != "ch1" {
 		t.Errorf("expected channel ch1, got %s", stmt.Channel)
+	}
+}
+
+// TestReviewBatch108_ShowChannelNeedsAString pins what the three FOR CHANNEL
+// readers above take. The channel is MySQL's TEXT_STRING_sys_nonewline
+// (sql_yacc.yy, opt_channel), so an identifier names no channel: every form
+// here is a 1064 on the server, and reading an identifier took all of them.
+func TestReviewBatch108_ShowChannelNeedsAString(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW REPLICA STATUS FOR CHANNEL ch1",
+		"SHOW SLAVE STATUS FOR CHANNEL ch1",
+		"SHOW RELAYLOG EVENTS FOR CHANNEL ch1",
+		"SHOW SLAVE STATUS FOR",
+		"SHOW SLAVE STATUS FOR CHANNEL",
+		"SHOW SLAVE STATUS FOR CHANNEL 1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; the server answers 1064", sql)
+			}
+		})
 	}
 }
 

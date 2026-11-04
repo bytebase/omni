@@ -50,7 +50,10 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		aliases = p.parseColumnList()
+		var err error
+		if aliases, err = p.parseColumnList(); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -72,7 +75,10 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 
 	if recursive {
 		// For RECURSIVE VIEW, we need to wrap the select in a CTE.
-		selectStmt, _ := p.parseSelectNoParens()
+		selectStmt, err := p.parseSelectNoParens()
+		if err != nil {
+			return nil, err
+		}
 
 		cte := &nodes.CommonTableExpr{
 			Ctename:       rv.Relname,
@@ -84,8 +90,8 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 			Recursive: true,
 		}
 		cr := &nodes.ColumnRef{
-			Fields:   &nodes.List{Items: []nodes.Node{&nodes.A_Star{Loc: nodes.NoLoc()}}},
-			Loc: nodes.NoLoc(),
+			Fields: &nodes.List{Items: []nodes.Node{&nodes.A_Star{Loc: nodes.NoLoc()}}},
+			Loc:    nodes.NoLoc(),
 		}
 		rt := &nodes.ResTarget{Val: cr, Loc: nodes.NoLoc()}
 		fromRv := &nodes.RangeVar{Relname: rv.Relname, Inh: true, Relpersistence: 'p', Loc: nodes.NoLoc()}
@@ -96,7 +102,11 @@ func (p *Parser) parseViewStmt(replace bool) (*nodes.ViewStmt, error) {
 		}
 		query = sel
 	} else {
-		query, _ = p.parseSelectNoParens()
+		sel, err := p.parseSelectNoParens()
+		if err != nil {
+			return nil, err
+		}
+		query = sel
 	}
 
 	// opt_check_option
@@ -205,7 +215,11 @@ func (p *Parser) parseCreateTableAsStmt(relpersistence byte, ifNotExists bool) (
 		}
 	} else {
 		// AS SelectStmt
-		query, _ = p.parseSelectNoParens()
+		sel, err := p.parseSelectNoParens()
+		if err != nil {
+			return nil, err
+		}
+		query = sel
 	}
 
 	// opt_with_data
@@ -289,7 +303,10 @@ func (p *Parser) parseCreateMatViewStmt(relpersistence byte) (*nodes.CreateTable
 	}
 
 	// SelectStmt
-	query, _ := p.parseSelectNoParens()
+	query, err := p.parseSelectNoParens()
+	if err != nil {
+		return nil, err
+	}
 
 	// opt_with_data
 	withData := p.parseOptWithData()

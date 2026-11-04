@@ -529,6 +529,31 @@ var keywordCategories = map[int]keywordCategory{
 	kwCYCLE:      kwCatUnambiguous,
 	kwNOCYCLE:    kwCatUnambiguous,
 
+	// TiDB's own SHOW targets (parser.y:6962 UnReservedKeyword,
+	// parser.y:7353 TiDBKeyword) — all unreserved upstream, so a table
+	// called config or a column called job stays valid.
+	kwBINDINGS:             kwCatUnambiguous,
+	kwBINDING_CACHE:        kwCatUnambiguous,
+	kwBUILTINS:             kwCatUnambiguous,
+	kwBACKUPS:              kwCatUnambiguous,
+	kwRESTORES:             kwCatUnambiguous,
+	kwCOLUMN_STATS_USAGE:   kwCatUnambiguous,
+	kwCONFIG:               kwCatUnambiguous,
+	kwDISTRIBUTION:         kwCatUnambiguous,
+	kwDISTRIBUTIONS:        kwCatUnambiguous,
+	kwHISTOGRAMS_IN_FLIGHT: kwCatUnambiguous,
+	kwJOB:                  kwCatUnambiguous,
+	kwJOBS:                 kwCatUnambiguous,
+	kwNEXT_ROW_ID:          kwCatUnambiguous,
+	kwSESSION_STATES:       kwCatUnambiguous,
+	kwSTATS_BUCKETS:        kwCatUnambiguous,
+	kwSTATS_EXTENDED:       kwCatUnambiguous,
+	kwSTATS_HEALTHY:        kwCatUnambiguous,
+	kwSTATS_HISTOGRAMS:     kwCatUnambiguous,
+	kwSTATS_LOCKED:         kwCatUnambiguous,
+	kwSTATS_META:           kwCatUnambiguous,
+	kwSTATS_TOPN:           kwCatUnambiguous,
+
 	// TiDB SPLIT and DISTRIBUTE keywords. SPLIT, DISTRIBUTE, and REGION
 	// are TiDBKeyword (parser.y:7390, 7366, 7395); RULE and TIMEOUT are
 	// UnReservedKeyword (parser.y:7062, 7079). None is reserved, so
@@ -619,6 +644,20 @@ func (p *Parser) parseIdent() (string, int, error) {
 		Message:  "expected identifier",
 		Position: p.cur.Loc,
 	}
+}
+
+// isBareWord reports whether the current token is word, written without
+// backquotes. A grammar that names something the keyword table does not hold
+// reads it this way: the token arrives as an identifier, and a backquoted
+// identifier of the same spelling is not the name the grammar means.
+func (p *Parser) isBareWord(word string) bool {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return false
+	}
+	if !strings.EqualFold(p.cur.Str, word) {
+		return false
+	}
+	return !strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "`")
 }
 
 // parseIdentifier is a thin alias for parseIdent, preserved for gradual migration

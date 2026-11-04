@@ -1095,7 +1095,7 @@ func (p *Parser) parseCreateTableOrCTASAfterParen(names *nodes.List, nameLoc nod
 // isCreateTableElement returns true if the current token starts a table element
 // that is NOT a simple column name (i.e., a table constraint or LIKE).
 func (p *Parser) isCreateTableElement() bool {
-	return p.cur.Type == LIKE || p.isTableConstraintStart()
+	return p.cur.Type == LIKE || p.startsTableConstraint()
 }
 
 // finishCTAS completes parsing a CTAS statement after names and optional column
@@ -1217,24 +1217,15 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 	case MERGE:
 		return p.parseMergeStmt(withClause)
 	default:
-		// SELECT
-		stmt, err := p.parseSelectClause(setOpPrecNone)
+		// SELECT: with_clause select_clause and the rest of a
+		// select_no_parens.
+		stmt, err := p.finishSelectNoParens(withClause.Loc.Start, withClause)
 		if err != nil {
 			return nil, err
 		}
 		if stmt == nil {
 			return nil, nil
 		}
-		if p.cur.Type == ORDER {
-			p.advance()
-			p.expect(BY)
-			stmt.SortClause, err = p.parseSortByList()
-			if err != nil {
-				return nil, err
-			}
-		}
-		p.parseSelectOptions(stmt)
-		stmt.WithClause = withClause
 		return stmt, nil
 	}
 }

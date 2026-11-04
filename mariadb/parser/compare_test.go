@@ -8797,17 +8797,22 @@ func TestParseShowCreateUser(t *testing.T) {
 	}
 }
 
+// TestParseShowReplicas pins how MariaDB names the replica list. It is SHOW
+// SLAVE HOSTS and, from 10.5.1, SHOW REPLICA HOSTS; MySQL's SHOW REPLICAS is
+// a 1064 on MariaDB 11.8.8.
+//
+// Ref: https://mariadb.com/kb/en/show-replica-hosts/
 func TestParseShowReplicas(t *testing.T) {
 	tests := []struct {
 		sql      string
 		expected string
 	}{
 		{
-			"SHOW REPLICAS",
+			"SHOW SLAVE HOSTS",
 			`{SHOW :loc 0 :type REPLICAS}`,
 		},
 		{
-			"SHOW SLAVE HOSTS",
+			"SHOW REPLICA HOSTS",
 			`{SHOW :loc 0 :type REPLICAS}`,
 		},
 	}
@@ -8815,6 +8820,9 @@ func TestParseShowReplicas(t *testing.T) {
 		t.Run(tt.sql, func(t *testing.T) {
 			ParseAndCompare(t, tt.sql, tt.expected)
 		})
+	}
+	if _, err := Parse("SHOW REPLICAS"); err == nil {
+		t.Error(`Parse("SHOW REPLICAS") accepted; MariaDB 11.8.8 answers 1064`)
 	}
 }
 
@@ -9307,16 +9315,25 @@ func TestParseShowIndex(t *testing.T) {
 		// KEYS synonym
 		"SHOW KEYS FROM users",
 		"SHOW KEYS IN users IN mydb",
-		// EXTENDED
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+	// MariaDB has no SHOW EXTENDED at all, so MySQL's EXTENDED prefix is a
+	// 1064 in every spelling.
+	for _, sql := range []string{
 		"SHOW EXTENDED INDEX FROM users",
 		"SHOW EXTENDED INDEXES FROM users",
 		"SHOW EXTENDED KEYS IN users",
 		"SHOW EXTENDED INDEX FROM users FROM mydb",
 		"SHOW EXTENDED INDEX FROM users WHERE Key_name = 'idx_name'",
-	}
-	for _, sql := range tests {
+	} {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; MariaDB 11.8.8 answers 1064", sql)
+			}
 		})
 	}
 }
@@ -9783,14 +9800,20 @@ func TestParseShowFields(t *testing.T) {
 	}
 }
 
+// TestParseShowExtendedColumns pins the absence of SHOW EXTENDED COLUMNS.
+// MySQL 8.0 reads an EXTENDED prefix on the column and index spellings;
+// MariaDB 11.8.8 reads none and answers 1064.
 func TestParseShowExtendedColumns(t *testing.T) {
 	tests := []string{
 		"SHOW EXTENDED COLUMNS FROM t1",
 		"SHOW EXTENDED FULL COLUMNS FROM t1",
+		"SHOW EXTENDED FIELDS FROM t1",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; MariaDB 11.8.8 answers 1064", sql)
+			}
 		})
 	}
 }
@@ -11129,9 +11152,11 @@ func TestBatch102_CreateIndexFull(t *testing.T) {
 func TestBatch102_DropIndexFull(t *testing.T) {
 	tests := []string{
 		"DROP INDEX idx1 ON t",
-		"DROP INDEX idx1 ON t ALGORITHM = INPLACE",
-		"DROP INDEX idx1 ON t LOCK = SHARED",
-		"DROP INDEX idx1 ON t ALGORITHM = COPY LOCK = EXCLUSIVE",
+		// The ALGORITHM and LOCK clauses were here, taken from MySQL 8.0's
+		// DROP INDEX. MariaDB 11.8.8 answers 1064 to both in every spelling,
+		// DEFAULT and INPLACE alike, which indexClauseCases now pins; what it
+		// does take in that statement is IF EXISTS, which MySQL has not.
+		"DROP INDEX IF EXISTS idx1 ON t",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -11361,16 +11386,23 @@ func TestReviewBatch108_ShowFullTablesIn(t *testing.T) {
 	}
 }
 
-func TestReviewBatch108_ShowExtendedTables(t *testing.T) {
-	ParseAndCheck(t, "SHOW EXTENDED TABLES")
-	ParseAndCheck(t, "SHOW EXTENDED TABLES FROM mydb")
-	ParseAndCheck(t, "SHOW EXTENDED TABLES LIKE 'test%'")
-}
-
-func TestReviewBatch108_ShowExtendedFullTables(t *testing.T) {
-	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES")
-	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES IN mydb")
-	ParseAndCheck(t, "SHOW EXTENDED FULL TABLES LIKE 'user%'")
+// TestReviewBatch108_ShowExtendedTablesIsRejected pins the absence of SHOW
+// EXTENDED TABLES, in both spellings, on MariaDB 11.8.8.
+func TestReviewBatch108_ShowExtendedTablesIsRejected(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW EXTENDED TABLES",
+		"SHOW EXTENDED TABLES FROM mydb",
+		"SHOW EXTENDED TABLES LIKE 'test%'",
+		"SHOW EXTENDED FULL TABLES",
+		"SHOW EXTENDED FULL TABLES IN mydb",
+		"SHOW EXTENDED FULL TABLES LIKE 'user%'",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; MariaDB 11.8.8 answers 1064", sql)
+			}
+		})
+	}
 }
 
 func TestReviewBatch108_ShowCountErrors(t *testing.T) {
@@ -11402,7 +11434,7 @@ func TestReviewBatch108_ShowMasterLogs(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW REPLICA STATUS FOR CHANNEL 'ch1'")
 	if stmt.Type != "REPLICA STATUS" {
 		t.Errorf("expected REPLICA STATUS, got %s", stmt.Type)
 	}
@@ -11412,7 +11444,7 @@ func TestReviewBatch108_ShowReplicaStatusForChannel(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW SLAVE STATUS FOR CHANNEL 'ch1'")
 	if stmt.Type != "SLAVE STATUS" {
 		t.Errorf("expected SLAVE STATUS, got %s", stmt.Type)
 	}
@@ -11422,12 +11454,33 @@ func TestReviewBatch108_ShowSlaveStatusForChannel(t *testing.T) {
 }
 
 func TestReviewBatch108_ShowRelaylogEventsForChannel(t *testing.T) {
-	stmt := parseShow(t, "SHOW RELAYLOG EVENTS FOR CHANNEL ch1")
+	stmt := parseShow(t, "SHOW RELAYLOG EVENTS FOR CHANNEL 'ch1'")
 	if stmt.Type != "RELAYLOG EVENTS" {
 		t.Errorf("expected RELAYLOG EVENTS, got %s", stmt.Type)
 	}
 	if stmt.Channel != "ch1" {
 		t.Errorf("expected channel ch1, got %s", stmt.Channel)
+	}
+}
+
+// TestReviewBatch108_ShowChannelNeedsAString pins what the three FOR CHANNEL
+// readers above take. The channel is MySQL's TEXT_STRING_sys_nonewline
+// (sql_yacc.yy, opt_channel), so an identifier names no channel: every form
+// here is a 1064 on the server, and reading an identifier took all of them.
+func TestReviewBatch108_ShowChannelNeedsAString(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW REPLICA STATUS FOR CHANNEL ch1",
+		"SHOW SLAVE STATUS FOR CHANNEL ch1",
+		"SHOW RELAYLOG EVENTS FOR CHANNEL ch1",
+		"SHOW SLAVE STATUS FOR",
+		"SHOW SLAVE STATUS FOR CHANNEL",
+		"SHOW SLAVE STATUS FOR CHANNEL 1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted; the server answers 1064", sql)
+			}
+		})
 	}
 }
 

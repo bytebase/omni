@@ -651,6 +651,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
+	case *LockStatsStmt:
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *LockTable:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -832,6 +838,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.FromPos)
 		Walk(v, n.LimitCount)
 		Walk(v, n.LimitOffset)
+		Walk(v, n.JobID)
 	case *SignalInfoItem:
 		Walk(v, n.Value)
 	case *SignalStmt:
@@ -893,6 +900,12 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *UnaryExpr:
 		Walk(v, n.Operand)
+	case *UnlockStatsStmt:
+		for _, item := range n.Tables {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *UpdateStmt:
 		for _, item := range n.Tables {
 			Walk(v, item)

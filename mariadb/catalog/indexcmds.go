@@ -71,7 +71,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		idx.Spatial = true
 		idx.IndexType = "SPATIAL"
 	default:
-		idx.IndexType = stmt.IndexType
+		// CREATE INDEX may declare the type before ON or among the options
+		// after the column list; reading only the first dropped the second.
+		idx.IndexType = resolveIndexUsingType(stmt.IndexType, stmt.Options)
 		idx.Unique = stmt.Unique
 	}
 
@@ -153,6 +155,13 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		}
 	}
 	if !found {
+		// IF EXISTS turns the missing index into a warning and leaves the table
+		// as it was: mariadb:11.8.8 answers 1091 for DROP INDEX nope ON t and 0
+		// for DROP INDEX IF EXISTS nope ON t. A missing table is still an error
+		// either way (1146), which the lookup above has already raised.
+		if stmt.IfExists {
+			return nil
+		}
 		return errCantDropKey(stmt.Name)
 	}
 	removeFunctionalIndexHiddenColumns(tbl, dropped)

@@ -215,6 +215,20 @@ func TestWalkThroughTiDBObjects(t *testing.T) {
 	noFinding(t, "CREATE INDEX k ON v ((1 + 1));\nCREATE TABLE t (a int);", shop)
 	noFinding(t, "CREATE INDEX k ON sq ((1 + 1));\nDROP INDEX k ON sq;\nCREATE TABLE t (a int);", shop)
 	oneFinding(t, "CREATE INDEX k ON nosuch (a);", 0, "Table `nosuch` doesn't exist.", shop)
+	// DROP INDEX IF EXISTS makes a missing index a warning rather than a 1091,
+	// and still fails on a table that is not there: IF EXISTS speaks for the
+	// index, not for the table.
+	noFinding(t, "DROP INDEX IF EXISTS nosuch ON t;", shop)
+	noFinding(t, "DROP INDEX i ON t;\nDROP INDEX IF EXISTS i ON t;", shop)
+	noFinding(t, "DROP INDEX IF EXISTS i ON t;\nCREATE INDEX i ON t (a);", shop)
+	oneFinding(t, "DROP INDEX IF EXISTS i ON nosuch;", 0, "Table `nosuch` doesn't exist.", shop)
+	// LOCK STATS and UNLOCK STATS are not lowered, so the walk claims nothing
+	// from them and reports nothing either.
+	noFinding(t, "LOCK STATS t;", shop)
+	noFinding(t, "UNLOCK STATS t, r;", shop)
+	noFinding(t, "LOCK STATS t PARTITION p0;", shop)
+	noFinding(t, "LOCK STATS nosuch;", shop)
+	noFinding(t, "LOCK STATS t;\nALTER TABLE t DROP COLUMN zz;", shop)
 	// TiDB drops what it can of these before it fails; the statement fails
 	// all the same, and the oracle judges each by its code.
 	oneFinding(t, "DROP TABLE t, nosuch;", 0, "Table `nosuch` doesn't exist.", shop)

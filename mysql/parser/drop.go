@@ -99,20 +99,12 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	}
 	stmt.Table = ref
 
-	// Optional ALGORITHM and LOCK
-	for p.cur.Type == kwALGORITHM || p.cur.Type == kwLOCK {
-		if _, ok := p.match(kwALGORITHM); ok {
-			p.match('=')
-			if p.isIdentToken() {
-				stmt.Algorithm, _, _ = p.parseIdentifier()
-			}
-		} else if _, ok := p.match(kwLOCK); ok {
-			p.match('=')
-			if p.isIdentToken() {
-				stmt.Lock, _, _ = p.parseIdentifier()
-			}
-		}
+	// [algorithm_option | lock_option] ...
+	algorithm, lock, err := p.parseIndexLockAndAlgorithm()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Algorithm, stmt.Lock = algorithm, lock
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

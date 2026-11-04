@@ -26,7 +26,10 @@ func (p *Parser) parseCopyStmt() (nodes.Node, error) {
 	filename := p.parseCopyFileName()
 	delimOpt := p.parseCopyDelimiter()
 	p.parseCopyOptWith()
-	options := p.parseCopyOptions()
+	options, err := p.parseCopyOptions()
+	if err != nil {
+		return nil, err
+	}
 	whereClause, _ := p.parseWhereClause()
 	stmt := &nodes.CopyStmt{
 		Relation:    rel,
@@ -67,7 +70,10 @@ func (p *Parser) parseCopyQueryStmt(loc int) (nodes.Node, error) {
 	isProgram := p.parseCopyOptProgram()
 	filename := p.parseCopyFileName()
 	p.parseCopyOptWith()
-	options := p.parseCopyOptions()
+	options, err := p.parseCopyOptions()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.CopyStmt{
 		Query:     query,
 		IsFrom:    false,
@@ -138,71 +144,84 @@ func (p *Parser) parseCopyOptWith() {
 }
 
 // parseCopyOptions: copy_opt_list | '(' utility_option_list ')'
-func (p *Parser) parseCopyOptions() *nodes.List {
+func (p *Parser) parseCopyOptions() (*nodes.List, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		opts := p.parseUtilityOptionList()
-		p.expect(')')
-		return opts
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return opts, nil
 	}
 	return p.parseCopyOptList()
 }
 
 // parseCopyOptList: copy_opt_list copy_opt_item | EMPTY
-func (p *Parser) parseCopyOptList() *nodes.List {
+func (p *Parser) parseCopyOptList() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
-		item := p.parseCopyOptItem()
+		item, err := p.parseCopyOptItem()
+		if err != nil {
+			return nil, err
+		}
 		if item == nil {
 			break
 		}
 		items = append(items, item)
 	}
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseCopyOptItem parses old-style COPY option keywords.
-func (p *Parser) parseCopyOptItem() *nodes.DefElem {
+func (p *Parser) parseCopyOptItem() (*nodes.DefElem, error) {
 	switch p.cur.Type {
 	case BINARY:
 		p.advance()
-		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "binary"}, Loc: nodes.NoLoc()}
+		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "binary"}, Loc: nodes.NoLoc()}, nil
 	case FREEZE:
 		p.advance()
-		return &nodes.DefElem{Defname: "freeze", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}
+		return &nodes.DefElem{Defname: "freeze", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}, nil
 	case DELIMITER:
 		p.advance()
 		p.parseOptAs()
 		s := p.cur.Str
-		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "delimiter", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "delimiter", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}, nil
 	case NULL_P:
 		p.advance()
 		p.parseOptAs()
 		s := p.cur.Str
-		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "null", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "null", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}, nil
 	case CSV:
 		p.advance()
-		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "csv"}, Loc: nodes.NoLoc()}
+		return &nodes.DefElem{Defname: "format", Arg: &nodes.String{Str: "csv"}, Loc: nodes.NoLoc()}, nil
 	case HEADER_P:
 		p.advance()
-		return &nodes.DefElem{Defname: "header", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}
+		return &nodes.DefElem{Defname: "header", Arg: &nodes.Boolean{Boolval: true}, Loc: nodes.NoLoc()}, nil
 	case QUOTE:
 		p.advance()
 		p.parseOptAs()
 		s := p.cur.Str
-		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "quote", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "quote", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}, nil
 	case ESCAPE:
 		p.advance()
 		p.parseOptAs()
 		s := p.cur.Str
-		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "escape", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "escape", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}, nil
 	case FORCE:
 		p.advance()
 		if p.cur.Type == QUOTE {
@@ -210,40 +229,54 @@ func (p *Parser) parseCopyOptItem() *nodes.DefElem {
 			if p.cur.Type == '*' {
 				starLoc := p.pos()
 				p.advance()
-				return &nodes.DefElem{Defname: "force_quote", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}
+				return &nodes.DefElem{Defname: "force_quote", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}, nil
 			}
-			cols := p.parseColumnList()
-			return &nodes.DefElem{Defname: "force_quote", Arg: cols, Loc: nodes.NoLoc()}
+			cols, err := p.parseColumnList()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.DefElem{Defname: "force_quote", Arg: cols, Loc: nodes.NoLoc()}, nil
 		}
 		if p.cur.Type == NOT {
 			p.advance()
-			p.expect(NULL_P)
+			if _, err := p.expect(NULL_P); err != nil {
+				return nil, err
+			}
 			if p.cur.Type == '*' {
 				starLoc := p.pos()
 				p.advance()
-				return &nodes.DefElem{Defname: "force_not_null", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}
+				return &nodes.DefElem{Defname: "force_not_null", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}, nil
 			}
-			cols := p.parseColumnList()
-			return &nodes.DefElem{Defname: "force_not_null", Arg: cols, Loc: nodes.NoLoc()}
+			cols, err := p.parseColumnList()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.DefElem{Defname: "force_not_null", Arg: cols, Loc: nodes.NoLoc()}, nil
 		}
 		if p.cur.Type == NULL_P {
 			p.advance()
 			if p.cur.Type == '*' {
 				starLoc := p.pos()
 				p.advance()
-				return &nodes.DefElem{Defname: "force_null", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}
+				return &nodes.DefElem{Defname: "force_null", Arg: &nodes.A_Star{Loc: nodes.Loc{Start: starLoc, End: p.prev.End}}, Loc: nodes.NoLoc()}, nil
 			}
-			cols := p.parseColumnList()
-			return &nodes.DefElem{Defname: "force_null", Arg: cols, Loc: nodes.NoLoc()}
+			cols, err := p.parseColumnList()
+			if err != nil {
+				return nil, err
+			}
+			return &nodes.DefElem{Defname: "force_null", Arg: cols, Loc: nodes.NoLoc()}, nil
 		}
-		return nil
+		return nil, nil
 	case ENCODING:
 		p.advance()
 		s := p.cur.Str
-		p.expect(SCONST)
-		return &nodes.DefElem{Defname: "encoding", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "encoding", Arg: &nodes.String{Str: s}, Loc: nodes.NoLoc()}, nil
+	// optional-probe: copy_opt_list terminator — parseCopyOptList breaks on nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 

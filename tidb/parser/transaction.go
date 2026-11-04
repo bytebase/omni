@@ -245,7 +245,16 @@ func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 //	  | [LOW_PRIORITY] WRITE
 //	}
 func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
-	p.advance() // consume TABLES
+	// LOCK names the kind of thing it locks before the list, and the keyword is
+	// not optional: pingcap/tidb:v8.5.5 answers 1064 for LOCK t READ and for LOCK = t READ. The
+	// statement is reached with LOCK consumed, so taking the next token without
+	// reading it left a run-on -- DROP INDEX i ON t LOCK = SHARED -- parsing as
+	// a DROP INDEX and a LOCK TABLES of a table called shared.
+	//
+	// Ref: table_or_tables in MySQL 8.0 sql/sql_yacc.yy.
+	if _, ok := p.match(kwTABLES, kwTABLE); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Completion: after LOCK TABLES, offer table_ref.
 	p.checkCursor()
@@ -305,15 +314,121 @@ func (p *Parser) parseLockTablesStmt(start int) (*nodes.LockTablesStmt, error) {
 
 // parseUnlockTablesStmt parses an UNLOCK TABLES statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/lock-tables.html
+// Ref: table_or_tables in MySQL 8.0 sql/sql_yacc.yy.
+// https://dev.mysql.com/doc/refman/8.0/en/lock-tables.html
 //
 //	UNLOCK {TABLE | TABLES}
+//
+// The keyword is not optional, as it is not after LOCK: pingcap/tidb:v8.5.5
+// answers 1064 for UNLOCK nosuch and for a bare UNLOCK STATS (read on
+// 2026-11-04), and taking the next token without reading it let both through.
 func (p *Parser) parseUnlockTablesStmt(start int) (*nodes.UnlockTablesStmt, error) {
-	p.advance() // consume TABLES
+	if _, ok := p.match(kwTABLES, kwTABLE); !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	return &nodes.UnlockTablesStmt{
 		Loc: nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
+}
+
+// parseLockStatsStmt parses LOCK STATS, which TiDB has and MySQL has not.
+//
+//	LOCK STATS tbl_name [, tbl_name] ...
+//	LOCK STATS tbl_name PARTITION [(] p_name [, p_name] ... [)]
+//
+// Ref: LockStatsStmt in pingcap/tidb pkg/parser/parser.y.
+// https://docs.pingcap.com/tidb/stable/sql-statement-lock-stats/
+//
+// STATS is a token in TiDB's lexer and is none in this one, so it is read as a
+// bare word: v8.5.5 answers 1064 for LOCK `STATS` t, where a backquoted name
+// is an ordinary table to lock (read on 2026-11-04).
+func (p *Parser) parseLockStatsStmt(start int) (*nodes.LockStatsStmt, error) {
+	p.advance() // consume STATS
+	tables, partitions, err := p.parseStatsLockTargets()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.LockStatsStmt{
+		Loc:        nodes.Loc{Start: start, End: p.prev.End},
+		Tables:     tables,
+		Partitions: partitions,
+	}, nil
+}
+
+// parseUnlockStatsStmt parses UNLOCK STATS, which takes what LOCK STATS takes.
+//
+//	UNLOCK STATS tbl_name [, tbl_name] ...
+//	UNLOCK STATS tbl_name PARTITION [(] p_name [, p_name] ... [)]
+//
+// Ref: UnlockStatsStmt in pingcap/tidb pkg/parser/parser.y.
+// https://docs.pingcap.com/tidb/stable/sql-statement-unlock-stats/
+func (p *Parser) parseUnlockStatsStmt(start int) (*nodes.UnlockStatsStmt, error) {
+	p.advance() // consume STATS
+	tables, partitions, err := p.parseStatsLockTargets()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.UnlockStatsStmt{
+		Loc:        nodes.Loc{Start: start, End: p.prev.End},
+		Tables:     tables,
+		Partitions: partitions,
+	}, nil
+}
+
+// parseStatsLockTargets reads what LOCK STATS and UNLOCK STATS name after the
+// STATS word: a list of tables, or one table and a list of its partitions.
+//
+// Neither list is optional and the partition arm takes one table, which is
+// what separates the two arms. Read against pingcap/tidb:v8.5.5 on 2026-11-04:
+// a bare LOCK STATS and a bare UNLOCK STATS are both 1064, so is
+// `LOCK STATS t, t2 PARTITION (p0)`, and the partition list's parentheses are
+// optional -- `PARTITION p0, p1` and `PARTITION (p0, p1)` both parse, while a
+// doubled paren, an empty list and a trailing comma are each 1064.
+func (p *Parser) parseStatsLockTargets() ([]*nodes.TableRef, []string, error) {
+	var tables []*nodes.TableRef
+	for {
+		// Completion: each position in the list offers a table.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("table_ref")
+			return nil, nil, &ParseError{Message: "collecting"}
+		}
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return nil, nil, err
+		}
+		tables = append(tables, ref)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+
+	if p.cur.Type != kwPARTITION {
+		return tables, nil, nil
+	}
+	if len(tables) != 1 {
+		return nil, nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume PARTITION
+	_, parens := p.match('(')
+	var partitions []string
+	for {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, nil, err
+		}
+		partitions = append(partitions, name)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if parens {
+		if _, err := p.expect(')'); err != nil {
+			return nil, nil, err
+		}
+	}
+	return tables, partitions, nil
 }
 
 // parseSetTransactionStmt parses SET [GLOBAL|SESSION] TRANSACTION.

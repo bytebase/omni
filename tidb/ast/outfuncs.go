@@ -79,6 +79,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeLockTablesStmt(sb, n)
 	case *UnlockTablesStmt:
 		writeUnlockTablesStmt(sb, n)
+	case *LockStatsStmt:
+		writeStatsLock(sb, "LOCK_STATS", n.Loc, n.Tables, n.Partitions)
+	case *UnlockStatsStmt:
+		writeStatsLock(sb, "UNLOCK_STATS", n.Loc, n.Tables, n.Partitions)
 	case *GrantStmt:
 		writeGrantStmt(sb, n)
 	case *RevokeStmt:
@@ -1184,6 +1188,22 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 	if n.Channel != "" {
 		fmt.Fprintf(sb, " :channel %s", n.Channel)
 	}
+	if n.IndexName != "" {
+		fmt.Fprintf(sb, " :index_name %s", n.IndexName)
+	}
+	if n.Partition != "" {
+		fmt.Fprintf(sb, " :partition %s", n.Partition)
+	}
+	if n.PolicyName != "" {
+		fmt.Fprintf(sb, " :policy_name %s", n.PolicyName)
+	}
+	if n.ResourceGroupName != "" {
+		fmt.Fprintf(sb, " :resource_group_name %s", n.ResourceGroupName)
+	}
+	if n.JobID != nil {
+		sb.WriteString(" :job_id ")
+		writeNode(sb, n.JobID)
+	}
 	sb.WriteString("}")
 }
 
@@ -1281,6 +1301,27 @@ func writeLockTablesStmt(sb *strings.Builder, n *LockTablesStmt) {
 			}
 			writeNode(sb, t)
 		}
+	}
+	sb.WriteString("}")
+}
+
+// writeStatsLock prints LOCK STATS and UNLOCK STATS, which carry the same
+// targets.
+func writeStatsLock(sb *strings.Builder, tag string, loc Loc, tables []*TableRef, partitions []string) {
+	sb.WriteString("{" + tag)
+	fmt.Fprintf(sb, " :loc %d", loc.Start)
+	if len(tables) > 0 {
+		sb.WriteString(" :tables (")
+		for i, t := range tables {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, t)
+		}
+		sb.WriteString(")")
+	}
+	if len(partitions) > 0 {
+		fmt.Fprintf(sb, " :partitions %s", strings.Join(partitions, " "))
 	}
 	sb.WriteString("}")
 }
@@ -2230,6 +2271,9 @@ func writeSequenceOption(sb *strings.Builder, n *SequenceOption) {
 func writeDropIndexStmt(sb *strings.Builder, n *DropIndexStmt) {
 	sb.WriteString("{DROP_INDEX")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}

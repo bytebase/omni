@@ -63,8 +63,14 @@ func (p *Parser) parseDropTableStmt(start int, temporary, global bool) (*nodes.D
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/drop-index.html
 //
-//	DROP INDEX index_name ON tbl_name
+//	DROP INDEX [IF EXISTS] index_name ON tbl_name
 //	    [algorithm_option | lock_option] ...
+//
+// IF EXISTS is TiDB's, not MySQL's: mysql:8.0 answers 1064 for it and
+// pingcap/tidb:v8.5.5 answers 0 (read on 2026-11-04).
+//
+// Ref: DropIndexStmt in pingcap/tidb pkg/parser/parser.y.
+// https://docs.pingcap.com/tidb/stable/sql-statement-drop-index/
 func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	p.advance() // consume INDEX
 
@@ -76,6 +82,15 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	}
 
 	stmt := &nodes.DropIndexStmt{Loc: nodes.Loc{Start: start}}
+
+	// IF EXISTS
+	if p.cur.Type == kwIF {
+		p.advance()
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
+		stmt.IfExists = true
+	}
 
 	// Index name
 	name, _, err := p.parseIdentifier()
@@ -100,20 +115,12 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 	}
 	stmt.Table = ref
 
-	// Optional ALGORITHM and LOCK
-	for p.cur.Type == kwALGORITHM || p.cur.Type == kwLOCK {
-		if _, ok := p.match(kwALGORITHM); ok {
-			p.match('=')
-			if p.isIdentToken() {
-				stmt.Algorithm, _, _ = p.parseIdentifier()
-			}
-		} else if _, ok := p.match(kwLOCK); ok {
-			p.match('=')
-			if p.isIdentToken() {
-				stmt.Lock, _, _ = p.parseIdentifier()
-			}
-		}
+	// [algorithm_option | lock_option] ...
+	algorithm, lock, err := p.parseIndexLockAndAlgorithm()
+	if err != nil {
+		return nil, err
 	}
+	stmt.Algorithm, stmt.Lock = algorithm, lock
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

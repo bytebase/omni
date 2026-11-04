@@ -51,10 +51,14 @@ func (p *Parser) parseRedshiftCreateTableAttributes() (*nodes.List, error) {
 			var cols nodes.Node
 			if p.cur.Type == '(' {
 				p.advance()
-				cols = p.parseColumnList()
-				if cols == nil {
+				list, err := p.parseColumnList()
+				if err != nil {
+					return nil, err
+				}
+				if list == nil {
 					return nil, p.syntaxErrorAtCur()
 				}
+				cols = list
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
 				}
@@ -78,7 +82,10 @@ func (p *Parser) parseRedshiftCreateTableAttributes() (*nodes.List, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			cols := p.parseColumnList()
+			cols, err := p.parseColumnList()
+			if err != nil {
+				return nil, err
+			}
 			if cols == nil {
 				return nil, p.syntaxErrorAtCur()
 			}

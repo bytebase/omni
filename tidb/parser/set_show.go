@@ -352,9 +352,44 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 	}, nil
 }
 
+// showOneWordTargets are TiDB's filterable SHOW targets that are a single
+// unreserved keyword, each mapped to the ShowStmt type it sets. They are a
+// table rather than switch arms because nothing distinguishes them but the
+// word (ShowTargetFilterable, parser.y:12232-12310).
+var showOneWordTargets = map[int]string{
+	kwBACKUPS:              "BACKUPS",
+	kwRESTORES:             "RESTORES",
+	kwCONFIG:               "CONFIG",
+	kwSESSION_STATES:       "SESSION_STATES",
+	kwSTATS_EXTENDED:       "STATS_EXTENDED",
+	kwSTATS_META:           "STATS_META",
+	kwSTATS_HISTOGRAMS:     "STATS_HISTOGRAMS",
+	kwSTATS_TOPN:           "STATS_TOPN",
+	kwSTATS_BUCKETS:        "STATS_BUCKETS",
+	kwSTATS_HEALTHY:        "STATS_HEALTHY",
+	kwSTATS_LOCKED:         "STATS_LOCKED",
+	kwHISTOGRAMS_IN_FLIGHT: "HISTOGRAMS_IN_FLIGHT",
+	kwCOLUMN_STATS_USAGE:   "COLUMN_STATS_USAGE",
+	kwBINDINGS:             "BINDINGS",
+}
+
 // parseShowStmt parses a SHOW statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/show.html
+// TiDB's SHOW is MySQL's target table less the statements TiDB has no
+// subsystem for, plus its own. Upstream splits it in two: ShowStmt
+// (parser.y:11755) holds the targets that take no filter, and
+// ShowTargetFilterable (parser.y:12067) the ones ShowLikeOrWhereOpt may
+// follow. Every arm below is one of those two.
+//
+// A target MySQL has that is in neither is a 1064 on TiDB v8.5.5, measured
+// in showTargetCases: SHOW ENGINE name {STATUS | MUTEX | LOGS}, SHOW STORAGE
+// ENGINES, SHOW {MASTER | BINARY} LOGS, SHOW SLAVE HOSTS, SHOW REPLICAS, SHOW
+// {BINLOG | RELAYLOG} EVENTS, SHOW EXTENDED {INDEX | KEYS | TABLES}, the LIMIT
+// of SHOW WARNINGS and SHOW ERRORS, and the FOR CHANNEL of SHOW {SLAVE |
+// REPLICA} STATUS. None is parsed here.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/show.html;
+// https://docs.pingcap.com/tidb/stable/sql-statement-show-table-regions/
 func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 	start := p.pos()
 	p.advance() // consume SHOW
@@ -365,8 +400,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		for _, t := range []int{
 			kwTABLES, kwCOLUMNS, kwINDEX, kwDATABASES,
 			kwCREATE, kwSTATUS, kwVARIABLES, kwPROCESSLIST,
-			kwWARNINGS, kwERRORS, kwENGINE, kwENGINES,
-			kwGLOBAL, kwSESSION, kwFULL, kwBINARY,
+			kwWARNINGS, kwERRORS, kwENGINES, kwBINARY,
+			kwGLOBAL, kwSESSION, kwFULL, kwPLACEMENT,
+			kwCONFIG, kwSTATS_META, kwBINDINGS,
 		} {
 			p.addTokenCandidate(t)
 		}
@@ -375,18 +411,31 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 
 	stmt := &nodes.ShowStmt{Loc: nodes.Loc{Start: start}}
 
-	// SHOW COUNT(*) ERRORS | SHOW COUNT(*) WARNINGS
+	// SHOW COUNT(*) ERRORS | SHOW COUNT(*) WARNINGS. The parens are part of
+	// the production (builtinCount '(' '*' ')', parser.y:12155), so dropping
+	// them is a 1064 rather than a bare SHOW COUNT.
 	if p.cur.Type == kwCOUNT {
 		p.advance() // consume COUNT
-		p.match('(')
-		p.match('*')
-		p.match(')')
-		if p.cur.Type == kwERRORS {
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('*'); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		switch p.cur.Type {
+		case kwERRORS:
 			stmt.Type = "COUNT ERRORS"
-			p.advance()
-		} else if p.cur.Type == kwWARNINGS {
+		case kwWARNINGS:
 			stmt.Type = "COUNT WARNINGS"
-			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
@@ -423,31 +472,14 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 
 	case kwFULL:
 		p.advance() // consume FULL
-		if p.cur.Type == kwCOLUMNS || p.cur.Type == kwFIELDS {
+		switch p.cur.Type {
+		case kwCOLUMNS, kwFIELDS:
 			stmt.Type = "FULL COLUMNS"
 			p.advance()
-			// FROM|IN tbl
-			if _, err := p.expectFromOrIn(); err != nil {
+			if err := p.parseShowColumnsTarget(stmt); err != nil {
 				return nil, err
 			}
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
-			// Optional FROM|IN db
-			if p.matchFromOrIn() {
-				dbRef, err := p.parseTableRef()
-				if err != nil {
-					return nil, err
-				}
-				// Merge: set schema on From
-				stmt.From.Schema = dbRef.Name
-			}
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
-		} else if p.cur.Type == kwTABLES {
+		case kwTABLES:
 			stmt.Type = "FULL TABLES"
 			p.advance()
 			// Optional FROM|IN db
@@ -461,38 +493,17 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
-		} else if p.cur.Type == kwPROCESSLIST {
+		case kwPROCESSLIST:
 			stmt.Type = "FULL PROCESSLIST"
 			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case kwCOLUMNS, kwFIELDS:
 		stmt.Type = "COLUMNS"
 		p.advance()
-		// FROM|IN tbl
-		if _, err := p.expectFromOrIn(); err != nil {
-			return nil, err
-		}
-		// Completion: after SHOW COLUMNS FROM, offer table_ref.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addRuleCandidate("table_ref")
-			return nil, &ParseError{Message: "collecting"}
-		}
-		ref, err := p.parseTableRef()
-		if err != nil {
-			return nil, err
-		}
-		stmt.From = ref
-		// Optional FROM|IN db
-		if p.matchFromOrIn() {
-			dbRef, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From.Schema = dbRef.Name
-		}
-		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+		if err := p.parseShowColumnsTarget(stmt); err != nil {
 			return nil, err
 		}
 
@@ -519,8 +530,12 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			// Optional IF NOT EXISTS
 			if p.cur.Type == kwIF {
 				p.advance()
-				p.match(kwNOT)
-				p.match(kwEXISTS_KW)
+				if _, err := p.expect(kwNOT); err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(kwEXISTS_KW); err != nil {
+					return nil, err
+				}
 				stmt.IfNotExists = true
 			}
 			ref, err := p.parseTableRef()
@@ -556,10 +571,50 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.From = ref
-		case kwFUNCTION, kwTRIGGER, kwEVENT:
-			// TiDB v8.5.0 has no functions/triggers/events — SHOW CREATE
-			// {FUNCTION,TRIGGER,EVENT} rejects at the object keyword.
-			return nil, p.syntaxErrorAtCur()
+		case kwSEQUENCE:
+			// SHOW CREATE SEQUENCE TableName (parser.y:11789). TiDB has
+			// sequences; MySQL 8.0 has none and answers 1064 here.
+			stmt.Type = "CREATE SEQUENCE"
+			p.advance()
+			ref, err := p.parseTableRef()
+			if err != nil {
+				return nil, err
+			}
+			stmt.From = ref
+		case kwPLACEMENT:
+			// SHOW CREATE PLACEMENT POLICY PolicyName (parser.y:11796),
+			// where PolicyName is a bare Identifier: no qualifier, no IF
+			// EXISTS, one name.
+			p.advance() // consume PLACEMENT
+			if _, err := p.expect(kwPOLICY); err != nil {
+				return nil, err
+			}
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Type = "CREATE PLACEMENT POLICY"
+			stmt.PolicyName = name
+		case kwRESOURCE:
+			// SHOW CREATE RESOURCE GROUP ResourceGroupName
+			// (parser.y:11803), where the name is an Identifier or the
+			// keyword DEFAULT (parser.y:4495).
+			p.advance() // consume RESOURCE
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
+			}
+			if p.cur.Type == kwDEFAULT {
+				p.advance()
+				stmt.Type = "CREATE RESOURCE GROUP"
+				stmt.ResourceGroupName = "DEFAULT"
+				break
+			}
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Type = "CREATE RESOURCE GROUP"
+			stmt.ResourceGroupName = name
 		case kwUSER:
 			stmt.Type = "CREATE USER"
 			p.advance()
@@ -569,7 +624,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.advance()
 				if p.cur.Type == '(' {
 					p.advance()
-					p.match(')')
+					if _, err := p.expect(')'); err != nil {
+						return nil, err
+					}
 				}
 				stmt.ForUser = &nodes.UserSpec{
 					Loc:  nodes.Loc{Start: start, End: p.prev.End},
@@ -582,110 +639,35 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				}
 				stmt.ForUser = user
 			}
+		default:
+			// TiDB v8.5.5 has no functions, triggers or events, so SHOW
+			// CREATE {FUNCTION,TRIGGER,EVENT} is a 1064 at the object
+			// keyword, and so is a CREATE with nothing after it.
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case kwEXTENDED:
+		// EXTENDED OptFull FieldsOrColumns ... (parser.y:12141) is the only
+		// arm TiDB has: SHOW EXTENDED {INDEX | KEYS | TABLES} is MySQL's and
+		// a 1064 here.
 		p.advance() // consume EXTENDED
-		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY || p.cur.Type == kwKEYS || p.cur.Type == kwINDEXES {
-			// SHOW EXTENDED {INDEX | INDEXES | KEYS} ...
-			stmt.Type = "EXTENDED INDEX"
+		if p.cur.Type == kwFULL {
 			p.advance()
-			if _, err := p.expectFromOrIn(); err != nil {
-				return nil, err
-			}
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
-			if p.matchFromOrIn() {
-				dbRef, err := p.parseTableRef()
-				if err != nil {
-					return nil, err
-				}
-				stmt.From.Schema = dbRef.Name
-			}
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
-		} else if p.cur.Type == kwFULL {
-			p.advance() // consume FULL
-			// SHOW EXTENDED FULL COLUMNS ...
-			if p.cur.Type == kwCOLUMNS || p.cur.Type == kwFIELDS {
-				stmt.Type = "EXTENDED FULL COLUMNS"
-				p.advance()
-				if _, err := p.expectFromOrIn(); err != nil {
-					return nil, err
-				}
-				ref, err := p.parseTableRef()
-				if err != nil {
-					return nil, err
-				}
-				stmt.From = ref
-				if p.matchFromOrIn() {
-					dbRef, err := p.parseTableRef()
-					if err != nil {
-						return nil, err
-					}
-					stmt.From.Schema = dbRef.Name
-				}
-				if err := p.parseShowLikeOrWhere(stmt); err != nil {
-					return nil, err
-				}
-			} else if p.cur.Type == kwTABLES {
-				// SHOW EXTENDED FULL TABLES ...
-				stmt.Type = "EXTENDED FULL TABLES"
-				p.advance()
-				if p.matchFromOrIn() {
-					ref, err := p.parseTableRef()
-					if err != nil {
-						return nil, err
-					}
-					stmt.From = ref
-				}
-				if err := p.parseShowLikeOrWhere(stmt); err != nil {
-					return nil, err
-				}
-			}
-		} else if p.cur.Type == kwCOLUMNS || p.cur.Type == kwFIELDS {
-			// SHOW EXTENDED COLUMNS ...
+			stmt.Type = "EXTENDED FULL COLUMNS"
+		} else {
 			stmt.Type = "EXTENDED COLUMNS"
-			p.advance()
-			if _, err := p.expectFromOrIn(); err != nil {
-				return nil, err
-			}
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
-			if p.matchFromOrIn() {
-				dbRef, err := p.parseTableRef()
-				if err != nil {
-					return nil, err
-				}
-				stmt.From.Schema = dbRef.Name
-			}
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
-		} else if p.cur.Type == kwTABLES {
-			// SHOW EXTENDED TABLES ...
-			stmt.Type = "EXTENDED TABLES"
-			p.advance()
-			if p.matchFromOrIn() {
-				ref, err := p.parseTableRef()
-				if err != nil {
-					return nil, err
-				}
-				stmt.From = ref
-			}
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
+		}
+		if p.cur.Type != kwCOLUMNS && p.cur.Type != kwFIELDS {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if err := p.parseShowColumnsTarget(stmt); err != nil {
+			return nil, err
 		}
 
-	case kwINDEX, kwKEY:
+	case kwINDEX:
+		// INDEX, INDEXES and KEYS are the three spellings (ShowIndexKwd,
+		// parser.y:12048); KEY on its own is not one of them and is a 1064.
 		stmt.Type = "INDEX"
 		p.advance()
 		// FROM|IN tbl
@@ -698,18 +680,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			p.addRuleCandidate("table_ref")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		ref, err := p.parseTableRef()
-		if err != nil {
+		if err := p.parseShowTableAndDatabase(stmt); err != nil {
 			return nil, err
-		}
-		stmt.From = ref
-		// Optional FROM|IN db
-		if p.matchFromOrIn() {
-			dbRef, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From.Schema = dbRef.Name
 		}
 		if err := p.parseShowLikeOrWhere(stmt); err != nil {
 			return nil, err
@@ -721,13 +693,19 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			scope = "SESSION"
 		}
 		p.advance()
-		if p.cur.Type == kwVARIABLES {
+		switch p.cur.Type {
+		case kwVARIABLES:
 			stmt.Type = scope + " VARIABLES"
-			p.advance()
-		} else if p.cur.Type == kwSTATUS {
+		case kwSTATUS:
 			stmt.Type = scope + " STATUS"
-			p.advance()
+		case kwBINDINGS:
+			// GlobalScope "BINDINGS" (parser.y:12218) — TiDB's SQL
+			// bindings, which MySQL does not have.
+			stmt.Type = scope + " BINDINGS"
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		if err := p.parseShowLikeOrWhere(stmt); err != nil {
 			return nil, err
 		}
@@ -747,208 +725,68 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 
 	case kwWARNINGS:
+		// WARNINGS and ERRORS are filterable targets and nothing more:
+		// TiDB has no LIMIT on either, where MySQL does.
 		stmt.Type = "WARNINGS"
 		p.advance()
-		// Optional LIMIT [offset,] count
-		if _, ok := p.match(kwLIMIT); ok {
-			first, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if first == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-				count, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if count == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.LimitOffset = first
-				stmt.LimitCount = count
-			} else {
-				stmt.LimitCount = first
-			}
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwERRORS:
 		stmt.Type = "ERRORS"
 		p.advance()
-		// Optional LIMIT [offset,] count
-		if _, ok := p.match(kwLIMIT); ok {
-			first, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if first == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-				count, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if count == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.LimitOffset = first
-				stmt.LimitCount = count
-			} else {
-				stmt.LimitCount = first
-			}
-		}
-
-	case kwSTORAGE:
-		// SHOW STORAGE ENGINES
-		p.advance() // consume STORAGE
-		if p.cur.Type == kwENGINES {
-			stmt.Type = "ENGINES"
-			p.advance()
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwENGINES:
 		stmt.Type = "ENGINES"
 		p.advance()
-
-	case kwENGINE:
-		// SHOW ENGINE engine_name {STATUS | MUTEX}
-		p.advance() // consume ENGINE
-		engineName, nameLoc, err := p.parseIdentifier()
-		if err != nil {
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
 			return nil, err
-		}
-		stmt.From = &nodes.TableRef{
-			Loc:  nodes.Loc{Start: nameLoc, End: p.prev.End},
-			Name: engineName,
-		}
-		if p.cur.Type == kwSTATUS {
-			stmt.Type = "ENGINE STATUS"
-			p.advance()
-		} else if p.cur.Type == kwMUTEX {
-			stmt.Type = "ENGINE MUTEX"
-			p.advance()
 		}
 
 	case kwPLUGINS:
 		stmt.Type = "PLUGINS"
 		p.advance()
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
+		}
 
 	case kwMASTER:
+		// "SHOW" "MASTER" "STATUS" (parser.y:11871). SHOW MASTER LOGS is
+		// MySQL's and a 1064 here.
 		p.advance() // consume MASTER
-		if p.cur.Type == kwSTATUS {
-			stmt.Type = "MASTER STATUS"
-			p.advance()
-		} else if p.cur.Type == kwLOGS {
-			// SHOW MASTER LOGS (synonym for SHOW BINARY LOGS)
-			stmt.Type = "BINARY LOGS"
-			p.advance()
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return nil, err
 		}
-
-	case kwSLAVE:
-		p.advance() // consume SLAVE
-		if p.cur.Type == kwSTATUS {
-			stmt.Type = "SLAVE STATUS"
-			p.advance()
-			// Optional FOR CHANNEL channel
-			if p.cur.Type == kwFOR {
-				p.advance() // consume FOR
-				if p.cur.Type == kwCHANNEL {
-					p.advance() // consume CHANNEL
-					ch, _, err := p.parseIdentifier()
-					if err != nil {
-						return nil, err
-					}
-					stmt.Channel = ch
-				}
-			}
-		} else if p.cur.Type == kwHOSTS {
-			stmt.Type = "REPLICAS"
-			p.advance()
-		}
-
-	case kwREPLICA:
-		p.advance() // consume REPLICA
-		if p.cur.Type == kwSTATUS {
-			stmt.Type = "REPLICA STATUS"
-			p.advance()
-			// Optional FOR CHANNEL channel
-			if p.cur.Type == kwFOR {
-				p.advance() // consume FOR
-				if p.cur.Type == kwCHANNEL {
-					p.advance() // consume CHANNEL
-					ch, _, err := p.parseIdentifier()
-					if err != nil {
-						return nil, err
-					}
-					stmt.Channel = ch
-				}
-			}
-		}
+		stmt.Type = "MASTER STATUS"
 
 	case kwBINARY:
+		// "SHOW" "BINARY" "LOG" "STATUS" (parser.y:11879), the MySQL 8.2
+		// spelling of SHOW MASTER STATUS. SHOW BINARY LOGS is a 1064.
 		p.advance() // consume BINARY
-		if p.cur.Type == kwLOGS {
-			stmt.Type = "BINARY LOGS"
-			p.advance()
+		if _, err := p.expect(kwLOG); err != nil {
+			return nil, err
 		}
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return nil, err
+		}
+		stmt.Type = "BINARY LOG STATUS"
 
-	case kwBINLOG:
-		p.advance() // consume BINLOG
-		stmt.Type = "BINLOG EVENTS"
-		// Expect EVENTS (as identifier since it may not be a keyword)
-		if p.cur.Type == kwEVENT || p.cur.Type == kwEVENTS {
-			p.advance()
+	case kwSLAVE, kwREPLICA:
+		// "SHOW" Replica "STATUS" (parser.y:11885), with no FOR CHANNEL and
+		// no SLAVE HOSTS.
+		replica := p.cur.Type == kwREPLICA
+		p.advance()
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return nil, err
 		}
-		// Optional IN 'log_name'
-		if p.cur.Type == kwIN {
-			p.advance()
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Like = expr
-		}
-		// Optional FROM pos
-		if _, ok := p.match(kwFROM); ok {
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.FromPos = expr
-		}
-		// Optional LIMIT [offset,] count
-		if _, ok := p.match(kwLIMIT); ok {
-			first, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if first == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-				count, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if count == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.LimitOffset = first
-				stmt.LimitCount = count
-			} else {
-				stmt.LimitCount = first
-			}
+		if replica {
+			stmt.Type = "REPLICA STATUS"
+		} else {
+			stmt.Type = "SLAVE STATUS"
 		}
 
 	case kwTABLE:
@@ -959,18 +797,22 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
+			break
+		}
+		if err := p.parseShowTableTarget(stmt); err != nil {
+			return nil, err
 		}
 
-	case kwTRIGGER:
-		// SHOW TRIGGERS (kwTRIGGER won't match plural; handled in default)
+	case kwTRIGGERS:
+		// Plural only: SHOW TRIGGER is a 1064.
 		stmt.Type = "TRIGGERS"
 		p.advance()
 		if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
 			return nil, err
 		}
 
-	case kwEVENT:
-		// SHOW EVENTS (kwEVENT won't match plural; handled in default)
+	case kwEVENTS:
+		// Plural only: SHOW EVENT is a 1064.
 		stmt.Type = "EVENTS"
 		p.advance()
 		if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
@@ -978,41 +820,36 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 
 	case kwPROCEDURE:
+		// TiDB v8.5.5 accepts only SHOW PROCEDURE STATUS — not CODE, not
+		// the bare form.
 		p.advance() // consume PROCEDURE
-		if p.cur.Type == kwSTATUS {
-			stmt.Type = "PROCEDURE STATUS"
-			p.advance()
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
-		} else {
-			// TiDB v8.5.0 accepts only SHOW PROCEDURE STATUS — not CODE, not
-			// the bare form.
-			return nil, p.syntaxErrorAtCur()
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return nil, err
+		}
+		stmt.Type = "PROCEDURE STATUS"
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwFUNCTION:
+		// As with PROCEDURE: STATUS and nothing else.
 		p.advance() // consume FUNCTION
-		if p.cur.Type == kwSTATUS {
-			stmt.Type = "FUNCTION STATUS"
-			p.advance()
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
-		} else {
-			// TiDB v8.5.0 accepts only SHOW FUNCTION STATUS — not CODE, not
-			// the bare form.
-			return nil, p.syntaxErrorAtCur()
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return nil, err
+		}
+		stmt.Type = "FUNCTION STATUS"
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwOPEN:
 		p.advance() // consume OPEN
-		if p.cur.Type == kwTABLES {
-			stmt.Type = "OPEN TABLES"
-			p.advance()
-			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
+		if _, err := p.expect(kwTABLES); err != nil {
+			return nil, err
+		}
+		stmt.Type = "OPEN TABLES"
+		if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwPRIVILEGES:
@@ -1023,80 +860,21 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		stmt.Type = "PROFILES"
 		p.advance()
 
-	case kwRELAYLOG:
-		p.advance() // consume RELAYLOG
-		stmt.Type = "RELAYLOG EVENTS"
-		if p.cur.Type == kwEVENT || p.cur.Type == kwEVENTS {
-			p.advance()
-		}
-		// Optional IN 'log_name'
-		if p.cur.Type == kwIN {
-			p.advance()
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Like = expr
-		}
-		// Optional FROM pos
-		if _, ok := p.match(kwFROM); ok {
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.FromPos = expr
-		}
-		// Optional LIMIT [offset,] count
-		if _, ok := p.match(kwLIMIT); ok {
-			first, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if first == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-				count, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if count == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.LimitOffset = first
-				stmt.LimitCount = count
-			} else {
-				stmt.LimitCount = first
-			}
-		}
-		// Optional FOR CHANNEL channel
-		if p.cur.Type == kwFOR {
-			p.advance() // consume FOR
-			if p.cur.Type == kwCHANNEL {
-				p.advance() // consume CHANNEL
-				ch, _, err := p.parseIdentifier()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Channel = ch
-			}
+	case kwPROFILE:
+		stmt.Type = "PROFILE"
+		p.advance() // consume PROFILE
+		if err := p.parseShowProfileOptions(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwCHARACTER:
 		p.advance() // consume CHARACTER
-		if p.cur.Type == kwSET {
-			stmt.Type = "CHARACTER SET"
-			p.advance()
-			if err := p.parseShowLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
+		if _, err := p.expect(kwSET); err != nil {
+			return nil, err
+		}
+		stmt.Type = "CHARACTER SET"
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwCHARSET:
@@ -1114,25 +892,96 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			return nil, err
 		}
 
-	default:
-		// SHOW PROFILE [type [, type] ...] [FOR QUERY n] [LIMIT row_count [OFFSET offset]]
-		if p.cur.Type == kwPROFILE {
-			stmt.Type = "PROFILE"
-			p.advance() // consume PROFILE
-			if err := p.parseShowProfileOptions(stmt); err != nil {
+	case kwPLACEMENT:
+		// SHOW PLACEMENT and SHOW PLACEMENT LABELS are filterable
+		// (parser.y:12297-12302); SHOW PLACEMENT FOR ShowPlacementTarget
+		// (parser.y:11932) is its own arm and takes no filter.
+		p.advance() // consume PLACEMENT
+		switch p.cur.Type {
+		case kwLABELS:
+			p.advance()
+			stmt.Type = "PLACEMENT LABELS"
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
+		case kwFOR:
+			p.advance()
+			if err := p.parseShowPlacementTarget(stmt); err != nil {
+				return nil, err
+			}
+		default:
+			stmt.Type = "PLACEMENT"
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
 		}
 
-		// SHOW REPLICAS
-		if p.cur.Type == kwREPLICAS {
-			stmt.Type = "REPLICAS"
-			p.advance()
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
+	case kwANALYZE:
+		// "ANALYZE" "STATUS" (parser.y:12277), filterable. ANALYZE is
+		// reserved, so nothing else reaches this arm.
+		p.advance() // consume ANALYZE
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return nil, err
 		}
+		stmt.Type = "ANALYZE STATUS"
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
+		}
+
+	case kwBINDING_CACHE:
+		// "BINDING_CACHE" "STATUS" (parser.y:12204).
+		p.advance() // consume BINDING_CACHE
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return nil, err
+		}
+		stmt.Type = "BINDING_CACHE STATUS"
+		if err := p.parseShowLikeOrWhere(stmt); err != nil {
+			return nil, err
+		}
+
+	case kwDISTRIBUTION:
+		// "DISTRIBUTION" "JOBS" is filterable (parser.y:12306);
+		// "SHOW" "DISTRIBUTION" "JOB" Int64Num is its own arm
+		// (parser.y:11945) and takes an integer literal and no filter.
+		p.advance() // consume DISTRIBUTION
+		switch p.cur.Type {
+		case kwJOBS:
+			p.advance()
+			stmt.Type = "DISTRIBUTION JOBS"
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+		case kwJOB:
+			p.advance()
+			id, err := p.parseShowJobID()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Type = "DISTRIBUTION JOB"
+			stmt.JobID = id
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+
+	case kwBUILTINS:
+		// Its own arm (parser.y:11926), so no filter follows it.
+		stmt.Type = "BUILTINS"
+		p.advance()
+
+	default:
+		// The remaining targets are single unreserved keywords, every one
+		// of them filterable.
+		if name, ok := showOneWordTargets[p.cur.Type]; ok {
+			stmt.Type = name
+			p.advance()
+			if err := p.parseShowLikeOrWhere(stmt); err != nil {
+				return nil, err
+			}
+			break
+		}
+
+		// SHOW REPLICAS is MySQL's SHOW SLAVE HOSTS and a 1064 on TiDB, so
+		// kwREPLICAS is not an arm.
 
 		// Handle GRANTS and PROCESSLIST as identifier-based keywords
 		if p.cur.Type == kwGRANT || p.cur.Type == kwGRANTS {
@@ -1147,7 +996,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 					// Optional ()
 					if p.cur.Type == '(' {
 						p.advance()
-						p.match(')')
+						if _, err := p.expect(')'); err != nil {
+							return nil, err
+						}
 					}
 					stmt.ForUser = &nodes.UserSpec{
 						Loc:  nodes.Loc{Start: start, End: p.prev.End},
@@ -1178,18 +1029,6 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		} else if p.cur.Type == kwPROCESSLIST {
 			stmt.Type = "PROCESSLIST"
 			p.advance()
-		} else if p.cur.Type == kwTRIGGERS {
-			stmt.Type = "TRIGGERS"
-			p.advance()
-			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
-		} else if p.cur.Type == kwEVENTS {
-			stmt.Type = "EVENTS"
-			p.advance()
-			if err := p.parseShowFromLikeOrWhere(stmt); err != nil {
-				return nil, err
-			}
 		} else if p.cur.Type == kwKEYS || p.cur.Type == kwINDEXES {
 			// SHOW INDEXES|KEYS (synonyms for SHOW INDEX)
 			stmt.Type = "INDEX"
@@ -1197,17 +1036,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if _, err := p.expectFromOrIn(); err != nil {
 				return nil, err
 			}
-			ref, err := p.parseTableRef()
-			if err != nil {
+			if err := p.parseShowTableAndDatabase(stmt); err != nil {
 				return nil, err
-			}
-			stmt.From = ref
-			if p.matchFromOrIn() {
-				dbRef, err := p.parseTableRef()
-				if err != nil {
-					return nil, err
-				}
-				stmt.From.Schema = dbRef.Name
 			}
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
@@ -1219,18 +1049,216 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
+	if p.cur.Type != tokEOF && p.cur.Type != ';' {
+		// A SHOW statement ends where its target ends: Split has already cut
+		// on the delimiter, so anything left in this segment is a second
+		// statement, and the statement loop takes one without needing a
+		// separator. That turned `SHOW PLACEMENT FOR DATABASE db1 TABLE tb1`
+		// into a SHOW plus a `TABLE tb1` -- a 1064 on TiDB v8.5.5, two
+		// statements here -- and did the same for every other target with a
+		// statement after it, `SHOW DATABASES TABLE t` included. The check
+		// belongs to SHOW rather than to the loop: `CREATE TABLE ta TABLE tb`
+		// is one statement the loop reads as two, and closing it there needs
+		// CREATE TABLE ... [AS] {TABLE t | VALUES ...} first.
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if stmt.Type == "" {
+		// Unreachable: every arm above either sets Type or returns an
+		// error. The guard is here because the arms used to fall through
+		// silently, which left an empty SHOW in front of the rest of the
+		// text -- `show analyze status` parsed as an empty SHOW plus an
+		// ANALYZE TABLE, and `SHOW FULL` parsed as a statement.
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseShowLikeOrWhere parses optional LIKE or WHERE clause for SHOW statements.
+// parseShowColumnsTarget reads the rest of SHOW [EXTENDED] [FULL]
+// {COLUMNS | FIELDS}: ShowTableAliasOpt ShowDatabaseNameOpt
+// ShowLikeOrWhereOpt (parser.y:12131). The table is required; the database
+// is the second FROM|IN and lands on the table's schema.
+func (p *Parser) parseShowColumnsTarget(stmt *nodes.ShowStmt) error {
+	if _, err := p.expectFromOrIn(); err != nil {
+		return err
+	}
+	// Completion: after SHOW COLUMNS FROM, offer table_ref.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return &ParseError{Message: "collecting"}
+	}
+	if err := p.parseShowTableAndDatabase(stmt); err != nil {
+		return err
+	}
+	return p.parseShowLikeOrWhere(stmt)
+}
+
+// parseShowTableAndDatabase reads a table reference and the optional
+// FROM|IN database that may follow it, merging the database into the
+// reference's schema.
+func (p *Parser) parseShowTableAndDatabase(stmt *nodes.ShowStmt) error {
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return err
+	}
+	stmt.From = ref
+	if p.matchFromOrIn() {
+		dbRef, err := p.parseTableRef()
+		if err != nil {
+			return err
+		}
+		stmt.From.Schema = dbRef.Name
+	}
+	return nil
+}
+
+// parseShowTableTarget reads TiDB's four SHOW TABLE forms, which share a
+// table name and a partition list:
+//
+//	SHOW TABLE tbl [PARTITION (p, ...)] REGIONS [WHERE expr]
+//	SHOW TABLE tbl [PARTITION (p, ...)] INDEX idx REGIONS [WHERE expr]
+//	SHOW TABLE tbl [PARTITION (p, ...)] DISTRIBUTIONS [WHERE expr]
+//	SHOW TABLE tbl NEXT_ROW_ID
+//
+// The partition list rides on the table reference, where upstream keeps it.
+// NEXT_ROW_ID takes no partition list and none of the four takes LIKE: the
+// filter is WhereClauseOptional, not ShowLikeOrWhereOpt.
+//
+// Ref: parser.y:11818-11849;
+// https://docs.pingcap.com/tidb/stable/sql-statement-show-table-regions/
+func (p *Parser) parseShowTableTarget(stmt *nodes.ShowStmt) error {
+	ref, err := p.parseTableRef()
+	if err != nil {
+		return err
+	}
+	stmt.From = ref
+
+	partitioned := false
+	if p.cur.Type == kwPARTITION {
+		p.advance() // consume PARTITION
+		parts, err := p.parseParenIdentList()
+		if err != nil {
+			return err
+		}
+		stmt.From.Partitions = parts
+		stmt.From.Loc.End = p.prev.End
+		partitioned = true
+	}
+
+	switch p.cur.Type {
+	case kwREGIONS:
+		p.advance()
+		stmt.Type = "TABLE REGIONS"
+	case kwDISTRIBUTIONS:
+		p.advance()
+		stmt.Type = "TABLE DISTRIBUTIONS"
+	case kwINDEX:
+		p.advance() // consume INDEX
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		if _, err := p.expect(kwREGIONS); err != nil {
+			return err
+		}
+		stmt.Type = "TABLE INDEX REGIONS"
+		stmt.IndexName = name
+	case kwNEXT_ROW_ID:
+		if partitioned {
+			// The NEXT_ROW_ID arm reads no PartitionNameListOpt.
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		stmt.Type = "TABLE NEXT_ROW_ID"
+		return nil
+	default:
+		return p.syntaxErrorAtCur()
+	}
+
+	if p.cur.Type == kwWHERE {
+		p.advance()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if expr == nil {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.Where = expr
+	}
+	return nil
+}
+
+// parseShowPlacementTarget reads what follows SHOW PLACEMENT FOR:
+//
+//	{DATABASE | SCHEMA} db
+//	TABLE tbl [PARTITION p]
+//
+// Ref: ShowPlacementTarget, parser.y:11964.
+func (p *Parser) parseShowPlacementTarget(stmt *nodes.ShowStmt) error {
+	switch p.cur.Type {
+	case kwDATABASE, kwSCHEMA:
+		p.advance()
+		name, nameStart, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		stmt.Type = "PLACEMENT FOR DATABASE"
+		stmt.From = &nodes.TableRef{
+			Loc:  nodes.Loc{Start: nameStart, End: p.prev.End},
+			Name: name,
+		}
+		return nil
+	case kwTABLE:
+		p.advance()
+		ref, err := p.parseTableRef()
+		if err != nil {
+			return err
+		}
+		stmt.Type = "PLACEMENT FOR TABLE"
+		stmt.From = ref
+		if p.cur.Type == kwPARTITION {
+			p.advance()
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
+			stmt.Type = "PLACEMENT FOR PARTITION"
+			stmt.Partition = name
+		}
+		return nil
+	default:
+		return p.syntaxErrorAtCur()
+	}
+}
+
+// parseShowJobID reads the Int64Num a job id takes (parser.y:6189): an
+// integer literal, so a string, a name or a negative number is a 1064.
+func (p *Parser) parseShowJobID() (nodes.ExprNode, error) {
+	if p.cur.Type != tokICONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	tok := p.advance()
+	return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}, nil
+}
+
+// parseShowLikeOrWhere parses the optional LIKE or WHERE of a filterable SHOW
+// target. The two take different expressions upstream
+// (ShowLikeOrWhereOpt, parser.y:12310): LIKE takes a SimpleExpr and WHERE a
+// whole Expression, so `SHOW DATABASES LIKE 't' LIKE 'u'` and `SHOW DATABASES
+// LIKE 't' AND 1` are a 1064 while the same text after WHERE parses. Reading
+// a whole expression after LIKE took both.
 func (p *Parser) parseShowLikeOrWhere(stmt *nodes.ShowStmt) error {
 	if p.cur.Type == kwLIKE {
 		p.advance()
-		expr, err := p.parseExpr()
+		expr, err := p.parseShowLikePattern()
 		if err != nil {
 			return err
 		}
@@ -1250,6 +1278,46 @@ func (p *Parser) parseShowLikeOrWhere(stmt *nodes.ShowStmt) error {
 		stmt.Where = expr
 	}
 	return nil
+}
+
+// parseShowLikePattern reads the SimpleExpr a SHOW filter's LIKE takes
+// (parser.y:8071). SimpleExpr is prefix and atomic forms plus two infix ones,
+// `SimpleExpr "COLLATE" CollationName` (parser.y:8076) and `SimpleExpr pipes
+// SimpleExpr` (parser.y:8104), and the arithmetic, bitwise, comparison and
+// boolean operators of a whole Expression are none of it.
+//
+// Of the two infix forms only COLLATE is read here. TiDB v8.5.5 answers 1064
+// on `SHOW DATABASES LIKE 'a' || 'b'`: outside PIPES_AS_CONCAT the lexer
+// gives `||` as OR, which is no SimpleExpr, so the grammar's pipes arm is
+// unreachable in the mode the server runs in. `+`, `*`, `|` and `->` after
+// the pattern are a 1064 for the plainer reason that SimpleExpr has no arm
+// for them, and the prefix parse already stops short of all four.
+//
+// The collation is a CollationName, so a quoted name and the keyword BINARY
+// are as good as an identifier: `COLLATE 'utf8mb4_bin'` and `COLLATE binary`
+// both parse, where reading a bare identifier took neither.
+func (p *Parser) parseShowLikePattern() (nodes.ExprNode, error) {
+	start := p.pos()
+	expr, err := p.parsePrefixExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	for p.cur.Type == kwCOLLATE {
+		p.advance() // consume COLLATE
+		collation, err := p.parseCollationName()
+		if err != nil {
+			return nil, err
+		}
+		expr = &nodes.CollateExpr{
+			Loc:       nodes.Loc{Start: start, End: p.prev.End},
+			Expr:      expr,
+			Collation: collation,
+		}
+	}
+	return expr, nil
 }
 
 // parseShowFromLikeOrWhere parses optional FROM|IN db, LIKE, or WHERE for SHOW statements.
@@ -1314,17 +1382,31 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 		}
 	}
 
-	// Optional LIMIT row_count [OFFSET offset]
+	// Optional LIMIT {row_count | offset ',' row_count | row_count OFFSET
+	// offset}. SHOW PROFILE reads a whole SelectStmtLimitOpt
+	// (parser.y:11911), which is the comma form as well as the OFFSET one,
+	// and the two cannot be combined.
 	if _, ok := p.match(kwLIMIT); ok {
-		count, err := p.parseExpr()
+		first, err := p.parseExpr()
 		if err != nil {
 			return err
 		}
-		if count == nil {
+		if first == nil {
 			return p.syntaxErrorAtCur()
 		}
-		stmt.LimitCount = count
-		if p.cur.Type == kwOFFSET {
+		switch p.cur.Type {
+		case ',':
+			p.advance() // consume ','
+			count, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if count == nil {
+				return p.syntaxErrorAtCur()
+			}
+			stmt.LimitOffset = first
+			stmt.LimitCount = count
+		case kwOFFSET:
 			p.advance() // consume OFFSET
 			off, err := p.parseExpr()
 			if err != nil {
@@ -1333,7 +1415,10 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 			if off == nil {
 				return p.syntaxErrorAtCur()
 			}
+			stmt.LimitCount = first
 			stmt.LimitOffset = off
+		default:
+			stmt.LimitCount = first
 		}
 	}
 
