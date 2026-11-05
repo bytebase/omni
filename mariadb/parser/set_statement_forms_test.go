@@ -94,6 +94,8 @@ var setStatementCases = []asOfCase{
 	{"set Statement sql_mode = '' for select 1", true},
 	{"l: loop select 1; end loop", false},
 
+	{"set statement sql_mode = (default) for select 1", false},
+
 	// The statement after FOR.
 	{"set statement max_statement_time = 1 for select 1", true},
 	{"set statement max_statement_time = 1 for select 1;", true},

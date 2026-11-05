@@ -198,6 +198,10 @@ func (p *Parser) parseOptionalTableAlias(tref *nodes.TableRef) error {
 	if !hasAS && !p.isIdentToken() {
 		return nil
 	}
+	// WINDOW names a table anywhere but as its alias: `UPDATE t window SET a = 1` is a 1064.
+	if p.cur.Type == kwWINDOW {
+		return p.syntaxErrorAtCur()
+	}
 	alias, _, err := p.parseIdent()
 	if err != nil {
 		return err
@@ -262,13 +266,16 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
 				// Optional [AS] alias
 				if _, ok := p.match(kwAS); ok {
+					if p.cur.Type == kwWINDOW {
+						return nil, p.syntaxErrorAtCur()
+					}
 					alias, _, err := p.parseIdent()
 					if err != nil {
 						return nil, err
 					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
-				} else if p.isIdentToken() {
+				} else if p.isIdentToken() && p.cur.Type != kwWINDOW {
 					// table_alias reads an ident, which is any unreserved
 					// keyword as well as a plain identifier, so
 					// `DELETE FROM t wait WHERE wait.a = 1` names an alias

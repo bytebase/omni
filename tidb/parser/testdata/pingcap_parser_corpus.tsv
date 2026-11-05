@@ -1428,9 +1428,9 @@ accept	accept	SELECT `uuid`()
 accept	accept	select nextval(seq)
 accept	accept	select lastval(seq)
 accept	accept	select setval(seq, 100)
-reject	accept	select next value for seq
-reject	accept	select next value for sequence
-reject	accept	select NeXt vAluE for seQuEncE2
+accept	accept	select next value for seq
+accept	accept	select next value for sequence
+accept	accept	select NeXt vAluE for seQuEncE2
 accept	accept	select regexp_like('aBc', 'abc', 'im');
 accept	accept	select regexp_substr('aBc', 'abc', 1, 1, 'im');
 accept	accept	select regexp_instr('aBc', 'abc', 1, 1, 0, 'im');
@@ -1804,7 +1804,7 @@ accept	accept	create table t (a timestamp default now())
 accept	accept	create table t (a timestamp default (((now()))))
 reject	reject	create table t (a timestamp default now() on update now)
 accept	accept	create table t (a timestamp default now() on update now())
-accept	reject	create table t (a timestamp default now() on update (now()))
+reject	reject	create table t (a timestamp default now() on update (now()))
 accept	accept	CREATE TABLE t (c TEXT) default CHARACTER SET utf8, default COLLATE utf8_general_ci;
 accept	accept	CREATE TABLE t (c TEXT) shard_row_id_bits = 1;
 accept	accept	CREATE TABLE t (c TEXT) shard_row_id_bits = 1, PRE_SPLIT_REGIONS = 1;

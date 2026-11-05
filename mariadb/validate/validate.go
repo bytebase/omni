@@ -138,6 +138,11 @@ func (v *validator) walkAssignment(s *nodes.Assignment, systemScope bool) {
 	if col == nil {
 		return
 	}
+	// SET NAMES and the charset forms hold their word on the Column field; they
+	// name no variable.
+	if s.CharsetForm {
+		return
+	}
 	// @user / @@system variables carry the prefix on the Column field; always
 	// valid, never a routine local.
 	if strings.HasPrefix(col.Column, "@") {

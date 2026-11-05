@@ -411,40 +411,10 @@ var setNamesScopesCases = []asOfCase{
 	{"create trigger g before insert on t for each row set @b = 1, new.a = 2", true},
 }
 
-// setVariableNameGap holds, by position, the words where omni and MariaDB 11.8.8 disagree,
-// because omni's keyword table holds MySQL's reservations: MariaDB reserves some words it
-// does not, and leaves others unreserved. Every name position reads that table, not only SET,
-// so the fix belongs to it. The oracle sweep fails when one of them starts to agree, so this
-// list cannot outlive the gap.
-var setVariableNameGap = map[string][]string{
-	"set %s = 1": {
-		"cube", "cume_dist", "database", "dense_rank", "empty", "first_value", "function",
-		"generated", "get", "grouping", "groups", "io_after_gtids", "io_before_gtids",
-		"json_table", "lag", "last_value", "lateral", "lead", "master_bind",
-		"master_ssl_verify_server_cert", "nth_value", "ntile", "of", "optimizer_costs", "option",
-		"percent_rank", "rank", "schema",
-		"stored", "system",
-		"variance", "virtual", "window",
-	},
-	"set global %s = 1": {
-		"cube", "cume_dist", "database", "dense_rank", "empty", "first_value", "function",
-		"generated", "get", "grouping", "groups", "io_after_gtids", "io_before_gtids",
-		"json_table", "lag", "last_value", "lateral", "lead", "master_bind",
-		"master_ssl_verify_server_cert", "nth_value", "ntile", "of", "optimizer_costs",
-		"option", "percent_rank", "rank", "schema",
-		"stored", "system",
-		"variance", "virtual", "window",
-	},
-	"set @a = 1, %s = 2": {
-		"cube", "cume_dist", "database", "dense_rank", "empty", "first_value", "function",
-		"generated", "get", "grouping", "groups", "io_after_gtids", "io_before_gtids",
-		"json_table", "lag", "last_value", "lateral", "lead", "master_bind",
-		"master_ssl_verify_server_cert", "nth_value", "ntile", "of", "optimizer_costs", "option",
-		"percent_rank", "rank", "schema",
-		"stored", "system",
-		"variance", "virtual", "window",
-	},
-}
+// setVariableNameGap holds, by position, the words where omni and MariaDB disagree. It is empty:
+// reserved_word_forms_test.go holds the keyword table to the server. The oracle sweep fails when
+// a word listed here starts to agree, so this list cannot outlive a gap.
+var setVariableNameGap = map[string][]string{}
 
 // setVariableNamePositions are the positions the oracle sweep tries every keyword in.
 var setVariableNamePositions = []string{

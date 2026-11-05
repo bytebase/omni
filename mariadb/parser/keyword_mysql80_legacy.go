@@ -29,6 +29,6 @@ func init() {
 	keywords["master_user"] = kwMASTER_USER
 	keywords["master_zstd_compression_level"] = kwMASTER_ZSTD_COMPRESSION_LEVEL
 
-	keywordCategories[kwMASTER_BIND] = kwCatReserved
-	keywordCategories[kwMASTER_SSL_VERIFY_SERVER_CERT] = kwCatReserved
+	keywordCategories[kwMASTER_BIND] = kwCatUnambiguous
+	keywordCategories[kwMASTER_SSL_VERIFY_SERVER_CERT] = kwCatUnambiguous
 }

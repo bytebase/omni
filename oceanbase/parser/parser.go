@@ -45,6 +45,8 @@ type Parser struct {
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 
+	noBareDefault bool // inside an expression that takes DEFAULT(col) but no bare DEFAULT
+
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
 
 	// Completion mode fields.

@@ -18,8 +18,7 @@ import (
 // A word running into a dot and a name is a name in every statement, whatever the word, so `SELECT
 // select.a FROM t` names a column. See beforeDotName.
 //
-// Not in this table, because omni still disagrees and each is its own change. A bare DEFAULT inside an expression, as in `SET a = 1 + DEFAULT`,
-// `SET a = (DEFAULT)` and `SELECT DEFAULT`, because parseExpr reads it everywhere. `SET @'a' = 1`. `SELECT
+// Not in this table, because omni still disagrees and each is its own change. `SELECT DEFAULT`, because parseExpr reads it everywhere but SET. `SELECT
 // @@a . b` and `SELECT @@select`, where its @@ differs from the other two. `SET @a = 1, NAMES utf8` in a
 // routine, a 1064 where the same list parses outside one, which this parser has no flag for. SYSTEM as a
 // name, which belongs to setVariableNameGap. `a VECTOR(3)` and `CREATE TABLE t (a.b INT)`, which omni does
@@ -148,6 +147,8 @@ func TestWordBeforeDot(t *testing.T) {
 }
 
 var setListCases = []asOfCase{
+	// A collation is a string or a name, and the lexer hands a user variable over as a name.
+	{"set names utf8 collate @a", false},
 	{"alter table t lock = none", true},
 	{"alter table t page_compressed = on", false},
 	{"alter table t stats_persistent = 0", true},

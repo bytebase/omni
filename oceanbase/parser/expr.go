@@ -423,6 +423,10 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 // `(@a) := 1` are syntax errors, and so is `@@a := 1`, since the lexer gives a
 // system variable as tokAt2.
 func (p *Parser) atUserVarAssign() bool {
+	if p.atQuotedUserVar() {
+		lookahead := *p.lexer
+		return lookahead.NextToken().Type == tokAssign
+	}
 	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' &&
 		p.peekNext().Type == tokAssign
 }
@@ -2615,6 +2619,9 @@ func checkRowItem(e nodes.ExprNode, start int) error {
 //	DEFAULT
 //	DEFAULT(col_name)
 func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
+	if p.noBareDefault && p.peekNext().Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
 	start := p.pos()
 	p.advance() // consume DEFAULT
 
