@@ -559,9 +559,15 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		return p.parseParenExpr()
 
 	case kwCAST:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		return p.parseCastExpr()
 
 	case kwEXTRACT:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		return p.parseExtractExpr()
 
 	case kwCONVERT:
@@ -573,9 +579,9 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwVALUES:
 		return p.parseValuesFunc()
 
-	// Window functions and GROUPING — reserved keywords used as function calls.
-	// After registration as reserved keywords, they no longer match isIdentToken(),
-	// so we dispatch them here to parseFuncCall explicitly.
+	// Words the parser reads as function calls by token. Unless `(` follows they are
+	// names, as in `SELECT count FROM t` and `SELECT now.a FROM t`, where TiDB does not
+	// reserve them.
 	case kwRANK, kwDENSE_RANK, kwROW_NUMBER, kwNTILE,
 		kwLAG, kwLEAD, kwFIRST_VALUE, kwLAST_VALUE, kwNTH_VALUE,
 		kwPERCENT_RANK, kwCUME_DIST, kwGROUPING,
@@ -594,14 +600,12 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		// Reserved keywords that are also function names (function_call_keyword / function_call_conflict)
 		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
 		kwMOD, kwREPEAT, kwREPLACE:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		start := p.pos()
 		tok := p.advance()
-		name := strings.ToUpper(tok.Str)
-		if p.cur.Type == '(' {
-			return p.parseFuncCall(start, "", name)
-		}
-		// Not followed by '(' — syntax error (these are reserved and can't be identifiers)
-		return nil, p.syntaxErrorAtCur()
+		return p.parseFuncCall(start, "", strings.ToUpper(tok.Str))
 
 	default:
 		// Variable reference
@@ -638,6 +642,12 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+// funcWordIsName reports whether the function word at p.cur is a name here, which is
+// when no `(` follows. parseIdentExpr then refuses the words TiDB reserves.
+func (p *Parser) funcWordIsName() bool {
+	return p.peekNext().Type != '('
 }
 
 // parseIdentExpr parses an identifier that could be a column ref or function call.
