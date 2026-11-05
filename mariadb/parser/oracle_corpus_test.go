@@ -201,9 +201,13 @@ var categoryCaseSQLs = []string{
 	"ALTER TABLE t PARTITION BY",
 	"ALTER TABLE t PARTITION BY RANGE(id)",
 	"SELECT DATE_ADD(d, INTERVAL 1 INVALID_UNIT) FROM t",
-	// MariaDB subtractive divergences — Phase-0 mdbcheck OVER findings (omni accepts, MariaDB rejects)
+	// MariaDB has no MINUS outside sql_mode=ORACLE, so MINUS reads as a select
+	// alias and the SELECT after it starts a second statement with no ';' in
+	// front: 1064 there. These were pinned divergences while parseSingle read
+	// statements without requiring a separator; they now assert agreement.
 	"SELECT 1 MINUS SELECT 2",
 	"SELECT 1 MINUS SELECT 2 MINUS SELECT 3",
+	// MariaDB subtractive divergences — Phase-0 mdbcheck OVER findings (omni accepts, MariaDB rejects)
 	"SELECT name -> '$.b' FROM t",
 	"SELECT name ->> '$.b' FROM t",
 	// FOR SHARE was a pinned divergence until the parser stopped reading it:
@@ -291,16 +295,6 @@ var subtractiveDivergences = []divergence{
 		sql:      "SELECT LAG(val, 2, 0) OVER (ORDER BY id) FROM t",
 		omniSide: true, // MySQL 8.0 accepts, MariaDB 11.8.8 rejects (1064); omni mirrors MySQL.
 		reason:   "LAG()/LEAD() 3rd 'default value' argument: VALID in MySQL 8.0, REJECTED by MariaDB 11.8.8 at parse (1064) — confirmed on both real engines. omni mirrors MySQL. (LEAD shares this divergence; it isn't a separate corpus statement.) P1 candidate: gate the window-function default-value arg behind a MariaDB flag.",
-	},
-	{
-		sql:      "SELECT 1 MINUS SELECT 2",
-		omniSide: true, // omni over-accepts MINUS; MariaDB rejects it in default mode (1064).
-		reason:   "MINUS set operator: omni over-accepts it unconditionally; MariaDB accepts MINUS only under sql_mode=ORACLE, rejects it in default mode (1064). Phase-0 mdbcheck OVER finding. Candidate: gate MINUS behind the Oracle sql_mode flag.",
-	},
-	{
-		sql:      "SELECT 1 MINUS SELECT 2 MINUS SELECT 3",
-		omniSide: true, // chained MINUS — same divergence as the 2-operand form.
-		reason:   "MINUS set operator (chained): same divergence as the single MINUS — omni over-accepts; MariaDB default-mode rejects (1064), Oracle-mode only.",
 	},
 	{
 		sql:      "SELECT name -> '$.b' FROM t",

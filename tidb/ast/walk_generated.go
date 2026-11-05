@@ -182,6 +182,8 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *AsOfClause:
+		Walk(v, n.Timestamp)
 	case *Assignment:
 		if n.Column != nil {
 			Walk(v, n.Column)
@@ -207,6 +209,8 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Stmts {
 			Walk(v, item)
 		}
+	case *BeginStmt:
+		Walk(v, n.AsOf)
 	case *BetweenExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Low)
@@ -1019,6 +1023,8 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *SetTransactionStmt:
+		Walk(v, n.AsOf)
 	case *ShowStmt:
 		if n.From != nil {
 			Walk(v, n.From)
@@ -1071,11 +1077,20 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Select)
 		}
 	case *TableRef:
+		if n.AsOf != nil {
+			Walk(v, n.AsOf)
+		}
 		for _, item := range n.IndexHints {
 			if item != nil {
 				Walk(v, item)
 			}
 		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+	case *TableSample:
+		Walk(v, n.Size)
+		Walk(v, n.Repeatable)
 	case *TableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)

@@ -335,7 +335,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwSUBSTR:              kwCatUnambiguous,
 	kwSUPER:               kwCatAmbiguous3,
 	kwSYSDATE:             kwCatUnambiguous,
-	kwTABLESAMPLE:         kwCatUnambiguous,
+	kwTABLESAMPLE:         kwCatReserved,
 	kwUNICODE:             kwCatAmbiguous2,
 	kwVAR_POP:             kwCatUnambiguous,
 	kwVAR_SAMP:            kwCatUnambiguous,
@@ -983,6 +983,64 @@ func (p *Parser) matchWildcardDatabase() bool {
 //	table_ref_alias:
 //	    table_ref [AS identifier | identifier]
 func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
+	ref, err := p.parseTableRefUpToAlias()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.parseTableRefIndexHints(ref); err != nil {
+		return nil, err
+	}
+	return ref, nil
+}
+
+// atAsOf reports whether the next tokens are the AS OF that starts an AsOfClause.
+//
+// TiDB's lexer joins AS and OF into one token wherever AS is followed by the word
+// OF (lexer.go:262), so AS OF never introduces an alias named of. The word next to
+// a dot is an identifier there and here, which is why `t as of.a` does not count.
+func (p *Parser) atAsOf() bool {
+	return p.cur.Type == kwAS && p.peekNext().Type == kwOF
+}
+
+// parseAsOfClause parses a stale-read clause, with the current token on AS.
+//
+// Ref: AsOfClause, parser.y:6559 (tag v8.5.5)
+//
+//	AS OF TIMESTAMP Expression
+//
+// The expression is any Expression because the grammar does not narrow it: only
+// the planner refuses `AS OF TIMESTAMP a`, with error 1054.
+func (p *Parser) parseAsOfClause() (*nodes.AsOfClause, error) {
+	clause := &nodes.AsOfClause{Loc: nodes.Loc{Start: p.pos()}}
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwOF); err != nil {
+		return nil, err
+	}
+
+	// Completion: after AS OF, the one word the clause goes on with.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwTIMESTAMP)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	if _, err := p.expect(kwTIMESTAMP); err != nil {
+		return nil, err
+	}
+	ts, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	clause.Timestamp = ts
+	clause.Loc.End = p.prev.End
+	return clause, nil
+}
+
+// parseTableRefUpToAlias parses a table name with its optional PARTITION list and
+// alias, and stops before an AS OF, which is not an alias.
+func (p *Parser) parseTableRefUpToAlias() (*nodes.TableRef, error) {
 	ref, err := p.parseTableRef()
 	if err != nil {
 		return nil, err
@@ -1002,6 +1060,9 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 	// Optional AS alias. Unlike MySQL, TiDB does NOT accept a string literal as
 	// a table alias (ident_or_text applies only to SELECT-list aliases), so this
 	// uses parseIdentifier, not parseIdentOrText.
+	if p.atAsOf() {
+		return ref, nil
+	}
 	if _, ok := p.match(kwAS); ok {
 		alias, _, err := p.parseIdentifier()
 		if err != nil {
@@ -1017,17 +1078,21 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 		ref.Loc.End = p.prev.End
 	}
 
-	// Optional index hints: USE/FORCE/IGNORE {INDEX|KEY} ...
+	return ref, nil
+}
+
+// parseTableRefIndexHints reads the optional index hints of a table reference:
+// USE/FORCE/IGNORE {INDEX|KEY} ...
+func (p *Parser) parseTableRefIndexHints(ref *nodes.TableRef) error {
 	if p.cur.Type == kwUSE || p.cur.Type == kwFORCE || p.cur.Type == kwIGNORE {
 		hints, err := p.parseIndexHints()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		ref.IndexHints = hints
 		ref.Loc.End = p.prev.End
 	}
-
-	return ref, nil
+	return nil
 }
 
 // parseVariableRef parses a user variable (@var) or system variable (@@var).
@@ -1115,8 +1180,18 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 
 // parseSysVarName parses a system variable name, which may contain dots
 // (e.g., "validate_password.length" or "comp.var1").
+//
+// The first part may be a reserved word when it touches what comes before it:
+// TiDB's lexer scans the name as part of the @@ token and never looks it up
+// (startWithAt, lexer.go:618), so `SELECT @@table` parses and fails later with
+// 1193, while `SELECT @@ table` is a 1064. Later parts are always identifiers,
+// because the word follows a dot.
 func (p *Parser) parseSysVarName() (string, int, error) {
-	name, loc, err := p.parseIdent()
+	parseFirst := p.parseIdent
+	if p.cur.Loc == p.prev.End {
+		parseFirst = p.parseKeywordOrIdent
+	}
+	name, loc, err := parseFirst()
 	if err != nil {
 		return "", 0, err
 	}
