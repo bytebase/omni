@@ -554,6 +554,9 @@ func isLvalueKeyword(t int) bool {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/identifiers.html
 func (p *Parser) parseIdent() (string, int, error) {
 	if p.cur.Type == tokIDENT {
+		if p.curIsVariableOrIntroducer() {
+			return "", 0, p.syntaxErrorAtCur()
+		}
 		tok := p.advance()
 		return tok.Str, tok.Loc, nil
 	}
@@ -569,6 +572,27 @@ func (p *Parser) parseIdent() (string, int, error) {
 		Message:  "expected identifier",
 		Position: p.cur.Loc,
 	}
+}
+
+// curIsVariableOrIntroducer reports whether the identifier token at p.cur is a user
+// variable or a character set introducer, neither of which is a name. The lexer scans @a
+// whole as an identifier for the expression reader, and _utf8 is one word to it, but the
+// server's lexer gives neither to its ident rule, so `CREATE TABLE @a (b int)`, `SELECT *
+// FROM @a` and `CREATE TABLE _utf8 (b int)` are 1064s. Backquoted, `@a` and `_utf8` are
+// ordinary names. A word right after a separating dot is read as a name with no charset
+// lookup, so `SELECT * FROM d._utf8` names a table.
+//
+// Ref: MY_LEX_IDENT (get_charset_by_csname) and MY_LEX_IDENT_START in sql_lex.cc
+// (mysql-8.0.46).
+func (p *Parser) curIsVariableOrIntroducer() bool {
+	switch p.inputText(p.cur.Loc, p.cur.Loc+1) {
+	case "@":
+		return true
+	case "_":
+		afterDot := p.prev.Type == '.' && p.prev.End == p.cur.Loc
+		return !afterDot && isCharsetIntroducer(p.cur.Str)
+	}
+	return false
 }
 
 // parseIdentOrText parses MySQL's `ident_or_text` grammar rule: either an

@@ -11735,8 +11735,9 @@ func TestReviewBatch111_FlushLogs(t *testing.T) {
 	ParseAndCheck(t, "FLUSH LOGS")
 }
 
+// MariaDB has no OPTIMIZER_COSTS flush option: 11.8.8 answers 1064 (flushFormCases).
 func TestReviewBatch111_FlushOptimizerCosts(t *testing.T) {
-	ParseAndCheck(t, "FLUSH OPTIMIZER_COSTS")
+	ParseExpectError(t, "FLUSH OPTIMIZER_COSTS")
 }
 
 func TestReviewBatch111_FlushUserResources(t *testing.T) {

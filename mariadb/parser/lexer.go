@@ -2057,10 +2057,14 @@ func (l *Lexer) nextToken() Token {
 
 	// Number: 0x hex, 0b binary, or decimal/float
 	if ch >= '0' && ch <= '9' {
+		if l.prevToken == '.' && l.prevTokenEnd == l.pos {
+			// Only a separating dot (dotSeparates) is followed straight by a digit.
+			return l.scanDigitLeadingIdent(l.pos)
+		}
 		return l.scanNumber()
 	}
 	// Also handle .N float (e.g., .5)
-	if ch == '.' && l.pos+1 < len(l.input) && l.input[l.pos+1] >= '0' && l.input[l.pos+1] <= '9' {
+	if ch == '.' && l.pos+1 < len(l.input) && l.input[l.pos+1] >= '0' && l.input[l.pos+1] <= '9' && !l.dotSeparates() {
 		return l.scanNumber()
 	}
 
@@ -2515,6 +2519,24 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 // keywords, which is how a trigger's qualifier is told from a table's.
 func (l *Lexer) beforeDotName() bool {
 	return l.pos+1 < len(l.input) && l.input[l.pos] == '.' && isIdentChar(l.input[l.pos+1])
+}
+
+// dotSeparates reports whether the dot at l.pos separates the word before it from a name
+// after it, where it would otherwise open a number such as .5. That is when the dot ends an
+// unquoted word, a keyword or a name such as 1a, with nothing between them, which the byte
+// before the dot settles: only space and comments are skipped between tokens. The server's
+// lexer then reads whatever identifier characters follow as a name, digits first or not, so
+// `SELECT t.1 FROM t`, `SELECT t.1e5 FROM t`, `SELECT t.1.5 FROM t` and `CREATE TABLE
+// d.1b (c int)` name a column, a table and a database. A quoted name does not separate, nor
+// a space, nor a number: `SELECT `t`.1`, `SELECT t .1`, `SELECT t. 1` and `SELECT 1e5.1`
+// are 1064s.
+//
+// Ref: MY_LEX_IDENT, MY_LEX_IDENT_SEP and MY_LEX_IDENT_START in sql_lex.cc (mariadb-11.8.8).
+func (l *Lexer) dotSeparates() bool {
+	if l.pos == 0 || !isIdentChar(l.input[l.pos-1]) {
+		return false
+	}
+	return l.prevToken == tokIDENT || l.prevToken >= 700
 }
 
 func isIdentStart(ch byte) bool {
