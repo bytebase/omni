@@ -86,7 +86,7 @@ var flushFormCases = []parserFormCase{
 	{"FLUSH TABLE", true},
 	{"FLUSH TABLES t", true},
 	{"FLUSH TABLES t, u", true},
-	{"FLUSH TABLES test.t", true},
+	{"FLUSH TABLES d.t", true},
 	{"FLUSH TABLES `t`", true},
 	{"FLUSH TABLES WITH READ LOCK", true},
 	{"FLUSH TABLES t WITH READ LOCK", true},

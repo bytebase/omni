@@ -30,7 +30,8 @@ func TestNameTokenFormsOracle(t *testing.T) {
 // underscored word, and holds omni's verdict to the server's. A word the server reads as
 // an introducer is a 1064 there and nowhere else, so this catches a set that is missing a
 // character set or holds one the server lacks. After a separating dot no word introduces,
-// which each introducer is checked for too.
+// which each introducer is checked for too. The qualifier names no database: the verdict
+// is the parser's, and an unknown database is refused only after parsing.
 func TestIntroducerWordsMatchMariaDB(t *testing.T) {
 	o := startMariaDB(t)
 	words := map[string]bool{"utf8": true, "filename": true, "gb18030": true, "default": true, "foo": true}
@@ -63,7 +64,7 @@ func TestIntroducerWordsMatchMariaDB(t *testing.T) {
 	for _, w := range sorted {
 		sqls := []string{"CREATE TABLE _" + w + " (b int)"}
 		if charsetIntroducerNames[w] {
-			sqls = append(sqls, "SELECT * FROM test._"+w)
+			sqls = append(sqls, "SELECT * FROM d._"+w)
 		}
 		for _, sql := range sqls {
 			server := o.prepareParses(t, sql)
