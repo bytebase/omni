@@ -130,11 +130,10 @@ func TestVectorKeyRefusals(t *testing.T) {
 // TestVectorShowCreateOracle holds the expected text to the server.
 func TestVectorShowCreateOracle(t *testing.T) {
 	ctx := context.Background()
-	conn := startDropPeriodMariaDB(t)
+	conn := mariadbDatabase(t)
 	if _, err := conn.ExecContext(ctx, vectorShowCreateDDL); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS m") })
 	var name, got string
 	if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE m").Scan(&name, &got); err != nil {
 		t.Fatal(err)
@@ -342,7 +341,7 @@ func TestVectorState(t *testing.T) {
 // TestVectorStateOracle holds vectorStateCases to the server.
 func TestVectorStateOracle(t *testing.T) {
 	ctx := context.Background()
-	conn := startDropPeriodMariaDB(t)
+	conn := mariadbDatabase(t)
 	for _, tc := range vectorStateCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := conn.ExecContext(ctx, "DROP TABLE IF EXISTS t"); err != nil {
@@ -373,7 +372,6 @@ func TestVectorStateOracle(t *testing.T) {
 			}
 		})
 	}
-	t.Cleanup(func() { _, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS t") })
 }
 
 // TestFailedCreateIndexLeavesNoHiddenColumns: a statement that fails leaves the table as it was, so
