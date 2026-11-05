@@ -58,9 +58,12 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 	}
 
-	// Parse IGNORE
-	if _, ok := p.match(kwIGNORE); ok {
-		stmt.Ignore = true
+	// Parse IGNORE. REPLACE takes none: replace_lock_option is
+	// insert_replace_option or nothing, and the replace rule has no opt_ignore.
+	if !isReplace {
+		if _, ok := p.match(kwIGNORE); ok {
+			stmt.Ignore = true
+		}
 	}
 
 	// Optional INTO
@@ -153,6 +156,10 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 
 	case kwSET:
+		// SET names its own columns, so it follows the table directly.
+		if stmt.Columns != nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // consume SET
 		setList, err := p.parseAssignmentList()
 		if err != nil {
@@ -164,9 +171,14 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		// SELECT / WITH / parenthesized query source. A leading '(' reaches here
 		// when an explicit column list preceded it, e.g.
 		// INSERT INTO t (a) (SELECT 1) or INSERT INTO t (a) ((SELECT 1) UNION ...).
+		// A SELECT's INTO reads as part of it, but MariaDB takes INTO only in a
+		// query that stands as a statement (measured: 1064 here).
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
+		}
+		if hasInto(sel) {
+			return nil, &ParseError{Message: `syntax error at or near "INTO"`, Position: sel.Loc.Start}
 		}
 		stmt.Select = sel
 
@@ -210,7 +222,9 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	return stmt, nil
 }
 
-// parseInsertColumnList parses (col1, col2, ...) for INSERT.
+// parseInsertColumnList parses (col1, col2, ...) for INSERT. The list may be
+// empty, and then comes back non-nil and empty, so that a reader can tell
+// INSERT INTO t () VALUES () from INSERT INTO t VALUES ().
 func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
@@ -223,6 +237,11 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	if p.cur.Type == ')' {
+		p.advance()
+		return []*nodes.ColumnRef{}, nil
+	}
+
 	var cols []*nodes.ColumnRef
 	for {
 		// Completion: inside column list, offer columnref candidates.
@@ -232,7 +251,8 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		ref, err := p.parseColumnRef()
+		// t.* stays: MariaDB's parser takes it here (measured).
+		ref, err := p.parseColumnNotVariable()
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +282,9 @@ func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 			return nil, err
 		}
 		var row []nodes.ExprNode
-		if p.cur.Type != ')' {
+		// Completion: inside an empty row, parseExpr still offers its candidates.
+		p.checkCursor()
+		if p.cur.Type != ')' || p.collectMode() {
 			for {
 				e, err := p.parseValuesItem()
 				if err != nil {

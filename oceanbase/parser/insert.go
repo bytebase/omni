@@ -43,13 +43,11 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		IsReplace: isReplace,
 	}
 
-	// Parse priority modifiers
+	// Parse priority modifiers. OceanBase has no DELAYED: opt_priority is
+	// HIGH_PRIORITY or LOW_PRIORITY.
 	switch p.cur.Type {
 	case kwLOW_PRIORITY:
 		stmt.Priority = nodes.InsertPriorityLow
-		p.advance()
-	case kwDELAYED:
-		stmt.Priority = nodes.InsertPriorityDelayed
 		p.advance()
 	case kwHIGH_PRIORITY:
 		if !isReplace {
@@ -101,89 +99,86 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// Optional column list: (col1, col2, ...)
+	// Optional column list: (col1, col2, ...), possibly empty.
 	if p.cur.Type == '(' {
 		// Distinguish a column list from a parenthesized query SOURCE. A column
-		// list always starts with an identifier (or ')'); a parenthesized query
-		// source starts with SELECT, WITH, or a nested '(' — none of which can
-		// begin a column name. So when the token after '(' is one of those, this
-		// is INSERT ... (query) — possibly the left operand of a set operation,
-		// e.g. (SELECT 1) UNION (SELECT 2) or ((SELECT 1) UNION (SELECT 2)).
-		// parseSelectStmt (parseSelectNoParens) consumes the parentheses and any
-		// trailing set-op / ORDER BY / LIMIT, so the '(' is NOT consumed here.
-		next := p.peekNext()
-		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' {
-			sel, err := p.parseSelectStmt()
+		// list starts with a name or ')'; a parenthesized query source starts
+		// with SELECT, VALUES, WITH, or a nested '(' — none of which can begin a
+		// column name. Such a source is left for the switch below, which parses
+		// the query and any trailing set-op / ORDER BY / LIMIT, and is followed
+		// like any source by ON DUPLICATE KEY UPDATE.
+		switch p.peekNext().Type {
+		case kwSELECT, kwVALUES, kwWITH, '(':
+		default:
+			cols, err := p.parseInsertColumnList()
 			if err != nil {
 				return nil, err
 			}
-			stmt.Select = sel
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
+			stmt.Columns = cols
 		}
-		// Otherwise, parse column list
-		cols, err := p.parseInsertColumnList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Columns = cols
 	}
 
-	// Parse the data source: VALUES, SET, or SELECT
+	// Parse the data source. OceanBase 4.3.5 sql_parser_mysql_mode.y: single_table_insert
+	// and values_clause.
+	//
+	// Rows in parentheses follow VALUE or VALUES and may be empty. ROW(...) rows
+	// follow only VALUES, and never mix with the others: VALUES ROW(...) is a
+	// query, which takes a set operation or ORDER BY after it and no row alias.
+	// A bare one still lands in Values, so that a reader finds the rows of a
+	// plain INSERT in one place.
+	aliasable := false
 	switch p.cur.Type {
-	case kwVALUES:
-		p.advance() // consume VALUES
+	case kwVALUE, kwVALUES:
+		if p.cur.Type == kwVALUES && p.peekNext().Type == kwROW {
+			if err := p.parseInsertValuesQuery(stmt); err != nil {
+				return nil, err
+			}
+			break
+		}
+		p.advance() // consume VALUE or VALUES
 		rows, err := p.parseValuesRows()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Values = rows
+		aliasable = true
 
 	case kwSET:
+		// SET names its own columns, so it follows the table directly.
+		if stmt.Columns != nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // consume SET
 		setList, err := p.parseAssignmentList()
 		if err != nil {
 			return nil, err
 		}
 		stmt.SetList = setList
+		aliasable = true
 
 	case kwSELECT, kwWITH, '(':
 		// SELECT / WITH / parenthesized query source. A leading '(' reaches here
-		// when an explicit column list preceded it, e.g.
-		// INSERT INTO t (a) (SELECT 1) or INSERT INTO t (a) ((SELECT 1) UNION ...).
+		// with or without a column list before it, e.g.
+		// INSERT INTO t (a) (SELECT 1) or INSERT INTO t ((SELECT 1) UNION ...).
+		// OceanBase has no INSERT ... TABLE: values_clause is its rows or a
+		// select_stmt, and select_stmt has no TABLE primary here (measured).
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
 
-	case kwTABLE:
-		// TABLE table_name (MySQL 8.0.19+)
-		tblStmt, err := p.parseTableStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.TableSource = tblStmt
-
 	default:
-		// Also accept VALUE (MySQL alias for VALUES)
-		if p.cur.Type == kwVALUE {
-			p.advance()
-			rows, err := p.parseValuesRows()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Values = rows
-		} else {
-			return nil, &ParseError{
-				Message:  "expected VALUES, SET, or SELECT in INSERT statement",
-				Position: p.cur.Loc,
-			}
+		return nil, &ParseError{
+			Message:  "expected VALUES, SET, or SELECT in INSERT statement",
+			Position: p.cur.Loc,
 		}
 	}
 
-	// AS row_alias [(col_alias, ...)] (MySQL 8.0.19+)
-	if p.cur.Type == kwAS {
+	// AS row_alias [(col_alias, ...)], only after rows in parentheses or SET
+	// (opt_insert_row_alias). REPLACE takes one too: OceanBase reads it with
+	// INSERT's rule (measured).
+	if aliasable && p.cur.Type == kwAS {
 		p.advance()
 		alias, _, err := p.parseIdent()
 		if err != nil {
@@ -224,7 +219,9 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	return stmt, nil
 }
 
-// parseInsertColumnList parses (col1, col2, ...) for INSERT.
+// parseInsertColumnList parses (col1, col2, ...) for INSERT. The list may be
+// empty, and then comes back non-nil and empty, so that a reader can tell
+// INSERT INTO t () VALUES () from INSERT INTO t VALUES ().
 func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
@@ -237,6 +234,11 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	if p.cur.Type == ')' {
+		p.advance()
+		return []*nodes.ColumnRef{}, nil
+	}
+
 	var cols []*nodes.ColumnRef
 	for {
 		// Completion: inside column list, offer columnref candidates.
@@ -246,7 +248,8 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		ref, err := p.parseColumnRef()
+		// t.* stays: OceanBase's parser takes it here (measured).
+		ref, err := p.parseColumnNotVariable()
 		if err != nil {
 			return nil, err
 		}
@@ -263,24 +266,33 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 	return cols, nil
 }
 
-// parseValuesRows parses one or more value rows: (val_list), (val_list), ...
-// Also accepts ROW(val_list), ROW(val_list) row constructor syntax (MySQL 8.0.19+).
+// parseInsertValuesQuery parses a VALUES ROW(...) source, the current token
+// being VALUES. It is a query expression, and goes in Select when anything
+// follows the rows that makes it more than rows.
+func (p *Parser) parseInsertValuesQuery(stmt *nodes.InsertStmt) error {
+	sel, err := p.parseSelectStmt()
+	if err != nil {
+		return err
+	}
+	if sel != nil && sel.ValuesSource != nil && len(sel.OrderBy) == 0 && sel.Limit == nil && sel.ForUpdate == nil && sel.Into == nil {
+		stmt.Values = sel.ValuesSource.Rows
+		return nil
+	}
+	stmt.Select = sel
+	return nil
+}
+
+// parseValuesRows parses the rows of INSERT ... {VALUE | VALUES}: one or more
+// parenthesized lists of values. A row may be empty, as in
+// INSERT INTO t VALUES (), (). Rows written ROW(...) are a query, which
+// parseValuesConstructor reads.
 //
-//	row_constructor_list:
-//	    ROW(value_list)[, ROW(value_list)][, ...]
+// Ref: OceanBase 4.3.5 sql_parser_mysql_mode.y, insert_vals_list and insert_vals.
 func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 	var rows [][]nodes.ExprNode
 	for {
-		// Optional ROW keyword before each parenthesized value list
-		p.match(kwROW)
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		row, err := p.parseExprList()
+		row, err := p.parseRowValue()
 		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
 		rows = append(rows, row)
@@ -290,6 +302,58 @@ func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 		p.advance()
 	}
 	return rows, nil
+}
+
+// parseRowValue parses one parenthesized list of values, possibly empty.
+func (p *Parser) parseRowValue() ([]nodes.ExprNode, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var row []nodes.ExprNode
+	// Completion: inside an empty row, parseExpr still offers its candidates.
+	p.checkCursor()
+	if p.cur.Type != ')' || p.collectMode() {
+		// insert_vals has an empty alternative, so one comma may come before the
+		// first value: VALUES (,1). The row parses and is then of no use: 4.3.5
+		// answered (,1) with 1136 on tables of one and of two columns, and (,1,2)
+		// with 1136 on a table of two (measured).
+		if p.cur.Type == ',' {
+			p.advance()
+		}
+		for {
+			e, err := p.parseValuesItem()
+			if err != nil {
+				return nil, err
+			}
+			row = append(row, e)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return row, nil
+}
+
+// parseValuesItem parses one value of a row: an expression or DEFAULT, which
+// parseExpr reads. parseExpr also reads *, which only a select list takes.
+// t.* stays: OceanBase's expr holds it, so its parser takes the row, and only
+// the resolver refuses it, with 1149 rather than 1064 (measured).
+func (p *Parser) parseValuesItem() (nodes.ExprNode, error) {
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if star, ok := e.(*nodes.StarExpr); ok {
+		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: star.Loc.Start}
+	}
+	return e, nil
 }
 
 // parseOnDuplicateKeyUpdate parses ON DUPLICATE KEY UPDATE col=val, col=val, ...

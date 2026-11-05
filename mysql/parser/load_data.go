@@ -225,11 +225,11 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	if p.cur.Type == kwSET {
 		p.advance()
 		for {
-			col, err := p.parseColumnRef()
+			col, err := p.parseNamedColumn()
 			if err != nil {
 				return nil, err
 			}
-			if _, err := p.expect('='); err != nil {
+			if err := p.expectEqual(); err != nil {
 				return nil, err
 			}
 			val, err := p.parseExpr()

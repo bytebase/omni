@@ -119,10 +119,9 @@ type InsertStmt struct {
 	Ignore         bool          // INSERT IGNORE
 	Table          *TableRef     // target table
 	Partitions     []string      // PARTITION (p0, p1, ...)
-	Columns        []*ColumnRef  // explicit column list
-	Values         [][]ExprNode  // VALUES rows
+	Columns        []*ColumnRef  // explicit column list; nil without one, non-nil and empty for ()
+	Values         [][]ExprNode  // VALUES rows; a row of () has no elements
 	Select         *SelectStmt   // INSERT ... SELECT
-	TableSource    *TableStmt    // INSERT ... TABLE table_name (MySQL 8.0.19+)
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
 	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
 	ColAliases     []string      // (col_alias, ...) after row_alias

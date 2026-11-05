@@ -27,9 +27,6 @@ var sourceClauseCases = []struct {
 	{"VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1", []string{
 		"VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1: order 1, limit",
 	}},
-	{"INSERT INTO t TABLE u ORDER BY a LIMIT 1", []string{
-		"TABLE u ORDER BY a LIMIT 1: order 1, limit",
-	}},
 	// OceanBase has no TABLE statement, so the EXPLAIN context is covered
 	// with a VALUES source: EXPLAIN TABLE t is a 1064 on
 	// 5.7.25-OceanBase_CE-v4.3.5.6 (explain_forms_test.go).

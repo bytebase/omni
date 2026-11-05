@@ -1479,13 +1479,6 @@ func TestParseInsertValues(t *testing.T) {
 			ignore:   true,
 			priority: ast.InsertPriorityHigh,
 		},
-		{
-			input:    "INSERT DELAYED INTO users (id) VALUES (1)",
-			table:    "users",
-			colCount: 1,
-			rowCount: 1,
-			priority: ast.InsertPriorityDelayed,
-		},
 	}
 
 	for _, tt := range cases {
@@ -1648,13 +1641,6 @@ func TestParseReplace(t *testing.T) {
 			rowCount: 1,
 			priority: ast.InsertPriorityLow,
 		},
-		{
-			input:    "REPLACE DELAYED INTO users (id) VALUES (1)",
-			table:    "users",
-			colCount: 1,
-			rowCount: 1,
-			priority: ast.InsertPriorityDelayed,
-		},
 	}
 
 	for _, tt := range cases {
@@ -1737,24 +1723,33 @@ func TestParseInsertOnDupKey(t *testing.T) {
 // Batch 99 (review_dml): INSERT ... TABLE source
 // ---------------------------------------------------------------------------
 
-// TestParseInsertTableSource tests INSERT INTO t1 TABLE t2 (MySQL 8.0.19+).
-func TestParseInsertTableSource(t *testing.T) {
-	stmt := parseInsert(t, "INSERT INTO t1 TABLE t2")
-	if stmt.TableSource == nil {
-		t.Fatal("expected TableSource to be non-nil")
+// TestInsertRefusesDelayed: OceanBase's opt_priority is HIGH_PRIORITY or
+// LOW_PRIORITY, and OceanBase 4.3.5 answers these with 1064.
+func TestInsertRefusesDelayed(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT DELAYED INTO users (id) VALUES (1)",
+		"REPLACE DELAYED INTO users (id) VALUES (1)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted DELAYED", sql)
+		}
 	}
-	if stmt.TableSource.Table.Name != "t2" {
-		t.Errorf("TableSource.Table.Name = %q, want %q", stmt.TableSource.Table.Name, "t2")
-	}
+}
 
-	// REPLACE ... TABLE
-	rep := parseReplace(t, "REPLACE INTO t1 TABLE t2")
-	if rep.TableSource == nil {
-		t.Fatal("expected TableSource to be non-nil for REPLACE")
+// TestInsertRefusesTableSource: OceanBase's values_clause is rows or a select_stmt,
+// so unlike MySQL 8.0.19+ it has no INSERT ... TABLE, and OceanBase 4.3.5 answers
+// these with 1064.
+func TestInsertRefusesTableSource(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT INTO t1 TABLE t2",
+		"REPLACE INTO t1 TABLE t2",
+		"INSERT INTO t1 (a) TABLE t2",
+		"INSERT INTO t1 TABLE t2 ON DUPLICATE KEY UPDATE col = 1",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted a TABLE source", sql)
+		}
 	}
-
-	// INSERT with ON DUPLICATE KEY UPDATE after TABLE source
-	ParseAndCheck(t, "INSERT INTO t1 TABLE t2 ON DUPLICATE KEY UPDATE col = 1")
 }
 
 // ---------------------------------------------------------------------------

@@ -9150,7 +9150,10 @@ func TestParseInsertPartition(t *testing.T) {
 	}
 }
 
-func TestParseInsertAsRowAlias(t *testing.T) {
+// TiDB v8.5.5 has no row alias: InsertIntoStmt ends at InsertValues and
+// OnDuplicateKeyUpdate, and the server answers these with 1064. The rows of
+// insert_forms_test.go are held to the server; this names the reason.
+func TestInsertRefusesRowAlias(t *testing.T) {
 	tests := []string{
 		"INSERT INTO t1 VALUES (1, 2) AS new ON DUPLICATE KEY UPDATE col1 = new.col1",
 		"INSERT INTO t1 VALUES (1, 2) AS new(a, b) ON DUPLICATE KEY UPDATE col1 = new.a",
@@ -9158,7 +9161,9 @@ func TestParseInsertAsRowAlias(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted a row alias", sql)
+			}
 		})
 	}
 }

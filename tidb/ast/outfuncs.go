@@ -735,7 +735,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if len(n.Columns) > 0 {
+	if n.Columns != nil && len(n.Columns) == 0 {
+		sb.WriteString(" :columns ()")
+	} else if len(n.Columns) > 0 {
 		sb.WriteString(" :columns ")
 		for i, c := range n.Columns {
 			if i > 0 {

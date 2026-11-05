@@ -643,7 +643,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if len(n.Columns) > 0 {
+	if n.Columns != nil && len(n.Columns) == 0 {
+		sb.WriteString(" :columns ()")
+	} else if len(n.Columns) > 0 {
 		sb.WriteString(" :columns ")
 		for i, c := range n.Columns {
 			if i > 0 {
@@ -666,10 +668,6 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 	if n.Select != nil {
 		sb.WriteString(" :select ")
 		writeNode(sb, n.Select)
-	}
-	if n.TableSource != nil {
-		sb.WriteString(" :table_source ")
-		writeNode(sb, n.TableSource)
 	}
 	if len(n.SetList) > 0 {
 		sb.WriteString(" :set ")

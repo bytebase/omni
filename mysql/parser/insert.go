@@ -58,9 +58,11 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 	}
 
-	// Parse IGNORE
-	if _, ok := p.match(kwIGNORE); ok {
-		stmt.Ignore = true
+	// Parse IGNORE. REPLACE takes none: replace_stmt has no opt_ignore.
+	if !isReplace {
+		if _, ok := p.match(kwIGNORE); ok {
+			stmt.Ignore = true
+		}
 	}
 
 	// Optional INTO
@@ -101,56 +103,67 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// Optional column list: (col1, col2, ...)
+	// Optional column list: (col1, col2, ...), possibly empty.
 	if p.cur.Type == '(' {
 		// Distinguish a column list from a parenthesized query SOURCE. A column
-		// list always starts with an identifier (or ')'); a parenthesized query
-		// source starts with SELECT, WITH, or a nested '(' — none of which can
-		// begin a column name. So when the token after '(' is one of those, this
-		// is INSERT ... (query) — possibly the left operand of a set operation,
-		// e.g. (SELECT 1) UNION (SELECT 2) or ((SELECT 1) UNION (SELECT 2)).
-		// parseSelectStmt (parseSelectNoParens) consumes the parentheses and any
-		// trailing set-op / ORDER BY / LIMIT, so the '(' is NOT consumed here.
-		next := p.peekNext()
-		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' {
-			sel, err := p.parseSelectStmt()
+		// list starts with a name or ')'; a parenthesized query source starts
+		// with SELECT, TABLE, VALUES, WITH, or a nested '(' — none of which can begin
+		// a column name. Such a source is left for the switch below, which parses
+		// the query and any trailing set-op / ORDER BY / LIMIT, and is followed
+		// like any source by ON DUPLICATE KEY UPDATE.
+		switch p.peekNext().Type {
+		case kwSELECT, kwTABLE, kwVALUES, kwWITH, '(':
+		default:
+			cols, err := p.parseInsertColumnList()
 			if err != nil {
 				return nil, err
 			}
-			stmt.Select = sel
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
+			stmt.Columns = cols
 		}
-		// Otherwise, parse column list
-		cols, err := p.parseInsertColumnList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Columns = cols
 	}
 
-	// Parse the data source: VALUES, SET, or SELECT
+	// Parse the data source. MySQL 8.0 sql/sql_yacc.yy: insert_from_constructor,
+	// insert_query_expression and the SET alternative of insert_stmt.
+	//
+	// Rows in parentheses follow VALUE or VALUES and may be empty. ROW(...) rows
+	// follow only VALUES, and never mix with the others: VALUES ROW(...) is a
+	// query, which takes a set operation or ORDER BY after it and no row alias.
+	// A bare one still lands in Values, so that a reader finds the rows of a
+	// plain INSERT in one place.
+	aliasable := false
 	switch p.cur.Type {
-	case kwVALUES:
-		p.advance() // consume VALUES
+	case kwVALUE, kwVALUES:
+		if p.cur.Type == kwVALUES && p.peekNext().Type == kwROW {
+			if err := p.parseInsertValuesQuery(stmt); err != nil {
+				return nil, err
+			}
+			break
+		}
+		p.advance() // consume VALUE or VALUES
 		rows, err := p.parseValuesRows()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Values = rows
+		aliasable = true
 
 	case kwSET:
+		// SET names its own columns, so it follows the table directly.
+		if stmt.Columns != nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // consume SET
 		setList, err := p.parseAssignmentList()
 		if err != nil {
 			return nil, err
 		}
 		stmt.SetList = setList
+		aliasable = true
 
 	case kwSELECT, kwWITH, kwTABLE, '(':
 		// SELECT / WITH / TABLE / parenthesized query source. A leading '('
-		// reaches here when an explicit column list preceded it, e.g.
-		// INSERT INTO t (a) (SELECT 1) or INSERT INTO t (a) ((SELECT 1) UNION ...).
+		// reaches here with or without a column list before it, e.g.
+		// INSERT INTO t (a) (SELECT 1) or INSERT INTO t ((SELECT 1) UNION ...).
 		// TABLE is a query primary, so "INSERT INTO t TABLE t2 ORDER BY a" and
 		// "INSERT INTO t TABLE t2 UNION TABLE t3" are the query expressions
 		// they read as (container-verified).
@@ -158,27 +171,21 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		if err != nil {
 			return nil, err
 		}
+		if err := rejectInsertSourceInto(sel); err != nil {
+			return nil, err
+		}
 		stmt.Select = sel
 
 	default:
-		// Also accept VALUE (MySQL alias for VALUES)
-		if p.cur.Type == kwVALUE {
-			p.advance()
-			rows, err := p.parseValuesRows()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Values = rows
-		} else {
-			return nil, &ParseError{
-				Message:  "expected VALUES, SET, or SELECT in INSERT statement",
-				Position: p.cur.Loc,
-			}
+		return nil, &ParseError{
+			Message:  "expected VALUES, SET, or SELECT in INSERT statement",
+			Position: p.cur.Loc,
 		}
 	}
 
-	// AS row_alias [(col_alias, ...)] (MySQL 8.0.19+)
-	if p.cur.Type == kwAS {
+	// AS row_alias [(col_alias, ...)] (MySQL 8.0.19+), only after rows in
+	// parentheses or SET (opt_values_reference), and never on REPLACE.
+	if aliasable && !isReplace && p.cur.Type == kwAS {
 		p.advance()
 		alias, _, err := p.parseIdent()
 		if err != nil {
@@ -219,7 +226,9 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	return stmt, nil
 }
 
-// parseInsertColumnList parses (col1, col2, ...) for INSERT.
+// parseInsertColumnList parses (col1, col2, ...) for INSERT. The list may be
+// empty, and then comes back non-nil and empty, so that a reader can tell
+// INSERT INTO t () VALUES () from INSERT INTO t VALUES ().
 func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
@@ -232,6 +241,11 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	if p.cur.Type == ')' {
+		p.advance()
+		return []*nodes.ColumnRef{}, nil
+	}
+
 	var cols []*nodes.ColumnRef
 	for {
 		// Completion: inside column list, offer columnref candidates.
@@ -241,7 +255,7 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		ref, err := p.parseColumnRef()
+		ref, err := p.parseNamedColumn()
 		if err != nil {
 			return nil, err
 		}
@@ -258,24 +272,50 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 	return cols, nil
 }
 
-// parseValuesRows parses one or more value rows: (val_list), (val_list), ...
-// Also accepts ROW(val_list), ROW(val_list) row constructor syntax (MySQL 8.0.19+).
+// parseInsertValuesQuery parses a VALUES ROW(...) source, the current token
+// being VALUES. It is a query expression, and goes in Select when anything
+// follows the rows that makes it more than rows.
+func (p *Parser) parseInsertValuesQuery(stmt *nodes.InsertStmt) error {
+	sel, err := p.parseSelectStmt()
+	if err != nil {
+		return err
+	}
+	if err := rejectInsertSourceInto(sel); err != nil {
+		return err
+	}
+	if sel != nil && sel.ValuesSource != nil && len(sel.OrderBy) == 0 && sel.Limit == nil && sel.ForUpdate == nil && sel.Into == nil {
+		stmt.Values = sel.ValuesSource.Rows
+		return nil
+	}
+	stmt.Select = sel
+	return nil
+}
+
+// rejectInsertSourceInto refuses an INTO on a TABLE or VALUES primary used as
+// an INSERT source, alone or as the last operand of a set operation. The query
+// primary reads one as it does in a statement of its own, and MySQL 8.0 refuses it
+// here (measured: 1064).
+func rejectInsertSourceInto(sel *nodes.SelectStmt) error {
+	for ; sel != nil; sel = sel.Right {
+		if sel.Into != nil && (sel.TableSource != nil || sel.ValuesSource != nil) {
+			return &ParseError{Message: `syntax error at or near "INTO"`, Position: sel.Into.Loc.Start}
+		}
+	}
+	return nil
+}
+
+// parseValuesRows parses the rows of INSERT ... {VALUE | VALUES}: one or more
+// parenthesized lists of values. A row may be empty, as in
+// INSERT INTO t VALUES (), (). Rows written ROW(...) are a query, which
+// parseValuesConstructor reads.
 //
-//	row_constructor_list:
-//	    ROW(value_list)[, ROW(value_list)][, ...]
+// Ref: MySQL 8.0 sql/sql_yacc.yy, insert_values is value_or_values values_list,
+// and row_value is '(' opt_values ')'.
 func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 	var rows [][]nodes.ExprNode
 	for {
-		// Optional ROW keyword before each parenthesized value list
-		p.match(kwROW)
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		row, err := p.parseExprList()
+		row, err := p.parseRowValue()
 		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
 		rows = append(rows, row)
@@ -285,6 +325,53 @@ func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 		p.advance()
 	}
 	return rows, nil
+}
+
+// parseRowValue parses one parenthesized list of values, possibly empty.
+func (p *Parser) parseRowValue() ([]nodes.ExprNode, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var row []nodes.ExprNode
+	// Completion: inside an empty row, parseExpr still offers its candidates.
+	p.checkCursor()
+	if p.cur.Type != ')' || p.collectMode() {
+		for {
+			e, err := p.parseValuesItem()
+			if err != nil {
+				return nil, err
+			}
+			row = append(row, e)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return row, nil
+}
+
+// parseValuesItem parses one value of a row: an expression or DEFAULT, which
+// parseExpr reads. parseExpr also reads * and t.*, which only a select list
+// takes.
+func (p *Parser) parseValuesItem() (nodes.ExprNode, error) {
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if star, ok := e.(*nodes.StarExpr); ok {
+		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: star.Loc.Start}
+	}
+	if ref, ok := e.(*nodes.ColumnRef); ok && ref.Star {
+		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
+	}
+	return e, nil
 }
 
 // parseOnDuplicateKeyUpdate parses ON DUPLICATE KEY UPDATE col=val, col=val, ...
