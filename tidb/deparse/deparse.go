@@ -1259,6 +1259,10 @@ func deparseTableRef(t *ast.TableRef) string {
 	if t.Alias != "" {
 		b.WriteString(" " + quoteIdent(t.Alias))
 	}
+	if t.AsOf != nil {
+		b.WriteString(" as of timestamp ")
+		writeExpr(&b, t.AsOf.Timestamp)
+	}
 	if t.Sample != nil {
 		b.WriteByte(' ')
 		writeTableSample(&b, t.Sample)

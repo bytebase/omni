@@ -1058,16 +1058,30 @@ func (r *ColumnRef) exprNode() {}
 // TableRef represents a table reference (possibly qualified, with alias).
 type TableRef struct {
 	Loc        Loc
-	Schema     string   // database name
-	Name       string   // table name
-	Alias      string   // AS alias
-	Partitions []string // PARTITION (p0, p1, ...)
+	Schema     string      // database name
+	Name       string      // table name
+	Alias      string      // AS alias
+	Partitions []string    // PARTITION (p0, p1, ...)
+	AsOf       *AsOfClause // AS OF TIMESTAMP clause; nil when there is none
 	IndexHints []*IndexHint
 	Sample     *TableSample // TABLESAMPLE clause; nil when there is none
 }
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// AsOfClause is the stale-read clause of a table reference:
+//
+//	AS OF TIMESTAMP expr
+//
+// Loc runs from AS to the last token of the expression, and the TableRef's Loc
+// includes it. Timestamp is never nil.
+type AsOfClause struct {
+	Loc       Loc
+	Timestamp ExprNode
+}
+
+func (c *AsOfClause) nodeTag() {}
 
 // TableSample is the TABLESAMPLE clause of a table reference:
 //

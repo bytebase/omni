@@ -117,23 +117,11 @@ func (p *Parser) parsePlanReplayerDump(stmt *nodes.PlanReplayerStmt) error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance() // consume STATS
-		if _, err := p.expect(kwAS); err != nil {
-			return err
-		}
-		if _, err := p.expect(kwOF); err != nil {
-			return err
-		}
-		if _, err := p.expect(kwTIMESTAMP); err != nil {
-			return err
-		}
-		ts, err := p.parseExpr()
+		asOf, err := p.parseAsOfClause()
 		if err != nil {
 			return err
 		}
-		if ts == nil {
-			return p.syntaxErrorAtCur()
-		}
-		stmt.HistoricalStats = ts
+		stmt.HistoricalStats = asOf.Timestamp
 	}
 
 	if _, err := p.expect(kwEXPLAIN); err != nil {

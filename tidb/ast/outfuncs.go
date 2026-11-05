@@ -243,6 +243,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeColumnRef(sb, n)
 	case *TableRef:
 		writeTableRef(sb, n)
+	case *AsOfClause:
+		writeAsOfClause(sb, n)
 	case *TableSample:
 		writeTableSample(sb, n)
 	case *IntLit:
@@ -3047,10 +3049,20 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 			writeNode(sb, h)
 		}
 	}
+	if n.AsOf != nil {
+		sb.WriteString(" :asof ")
+		writeNode(sb, n.AsOf)
+	}
 	if n.Sample != nil {
 		sb.WriteString(" :sample ")
 		writeNode(sb, n.Sample)
 	}
+	sb.WriteString("}")
+}
+
+func writeAsOfClause(sb *strings.Builder, n *AsOfClause) {
+	fmt.Fprintf(sb, "{ASOF :loc %d :timestamp ", n.Loc.Start)
+	writeNode(sb, n.Timestamp)
 	sb.WriteString("}")
 }
 
