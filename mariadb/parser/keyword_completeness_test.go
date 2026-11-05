@@ -935,6 +935,18 @@ func TestKeywordCompleteness(t *testing.T) {
 //
 // To add an entry: container-verify the word is rejected as a column name/alias
 // on mariadb:11.8.8 (1064), then list it here. (P3 temporal will likely add more.)
+// mariadbUnreservedWords are reserved on MySQL and unreserved on MariaDB 11.8, which takes each
+// as a name in the positions TestReservedWordSweepOracle tries.
+var mariadbUnreservedWords = map[string]bool{
+	"cube": true, "cume_dist": true, "database": true, "dense_rank": true, "empty": true,
+	"first_value": true, "function": true, "generated": true, "get": true, "grouping": true,
+	"groups": true, "io_after_gtids": true, "io_before_gtids": true, "json_table": true,
+	"lag": true, "last_value": true, "lateral": true, "lead": true, "master_bind": true,
+	"master_ssl_verify_server_cert": true, "nth_value": true, "ntile": true, "of": true,
+	"optimizer_costs": true, "option": true, "percent_rank": true, "rank": true, "schema": true,
+	"stored": true, "system": true, "variance": true, "virtual": true, "window": true,
+}
+
 var mariadbReservedDivergences = map[string]bool{
 	"returning": true, // column `returning`, bare alias, and AS RETURNING are all 1064 on MariaDB
 	// Each is a 1064 as a bare name, but for the bare assignment of offset.
@@ -972,6 +984,9 @@ func TestKeywordClassification(t *testing.T) {
 		// MariaDB reserves a few keywords MySQL 8.0 does not (container-verified).
 		if mariadbReservedDivergences[kw.SQL] {
 			expectedCat = kwCatReserved
+		}
+		if mariadbUnreservedWords[kw.SQL] {
+			expectedCat = kwCatUnambiguous
 		}
 		// Look up the keyword token
 		tokType, registered := keywords[kw.SQL]
