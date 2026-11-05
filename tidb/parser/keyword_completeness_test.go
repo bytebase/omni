@@ -923,6 +923,10 @@ func TestKeywordClassification(t *testing.T) {
 		if !ok {
 			continue // skip unknown categories
 		}
+		// Reserved on TiDB where MySQL leaves them unreserved, parser.y:85 and 289.
+		if kw.SQL == "array" || kw.SQL == "until" {
+			expectedCat = kwCatReserved
+		}
 		// Look up the keyword token
 		tokType, registered := keywords[kw.SQL]
 		if !registered {

@@ -8,16 +8,18 @@ import (
 
 // parseSetStmt parses a SET statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/set-variable.html
+// The rules are SetStmt, parser.y:10745, and VariableAssignment, parser.y:10942.
+// GLOBAL, SESSION and LOCAL are the only scope words VariableAssignment names, so
+// `SET PERSIST a = 1` is a 1064 on TiDB v8.5.5, which reads PERSIST as an ordinary
+// variable name and then finds a second word where it needs `=`.
 //
 //	SET variable = expr [, variable = expr] ...
-//	variable: { user_var_name | param_name | local_var_name
-//	    | {GLOBAL | @@GLOBAL.} system_var_name
-//	    | {PERSIST | @@PERSIST.} system_var_name
-//	    | {PERSIST_ONLY | @@PERSIST_ONLY.} system_var_name
-//	    | [SESSION | @@SESSION. | @@] system_var_name }
+//	variable: { @user_var | [GLOBAL | SESSION | LOCAL] name | @@[scope.]name }
 //	SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
 //	SET {CHARACTER SET | CHARSET} {charset_name | DEFAULT}
+//
+// The unreserved words that start a form below are also variable names; see
+// nextEndsVariableName.
 func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume SET
@@ -34,9 +36,12 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	stmt := &nodes.SetStmt{Loc: nodes.Loc{Start: start}}
 
+	// Whether the first word names a variable, whichever special form it could start.
+	named := p.nextEndsVariableName()
+
 	// Check for NAMES special form
 	// SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
-	if p.cur.Type == kwNAMES {
+	if p.cur.Type == kwNAMES && !named {
 		p.advance() // consume NAMES
 
 		// Completion: after SET NAMES, offer charset candidates.
@@ -82,7 +87,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	// Check for CHARACTER SET / CHARSET special form
 	// SET {CHARACTER SET | CHARSET} {charset_name | DEFAULT}
-	if p.cur.Type == kwCHARACTER || p.cur.Type == kwCHARSET {
+	if p.cur.Type == kwCHARACTER || (p.cur.Type == kwCHARSET && !named) {
 		isCharset := p.cur.Type == kwCHARSET
 		p.advance() // consume CHARACTER or CHARSET
 		if isCharset || p.cur.Type == kwSET {
@@ -130,18 +135,19 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	}
 
 	// Check for SET ROLE
-	if p.cur.Type == kwROLE {
+	if p.cur.Type == kwROLE && !named {
 		p.advance() // consume ROLE
 		return p.parseSetRoleStmt(start)
 	}
 
-	// Check for SET PASSWORD
-	if p.cur.Type == kwPASSWORD {
+	// Check for SET PASSWORD. `=` belongs to this form, so `SET PASSWORD = 1` is a 1064
+	// where `SET PASSWORD := 1` and `SET password.a = 1` assign a variable.
+	if p.cur.Type == kwPASSWORD && (!named || p.peekNext().Type == '=') {
 		return p.parseSetPasswordStmt(start)
 	}
 
 	// Check for SET RESOURCE GROUP
-	if p.cur.Type == kwRESOURCE {
+	if p.cur.Type == kwRESOURCE && !named {
 		return p.parseSetResourceGroupStmt(start)
 	}
 
@@ -153,25 +159,21 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return p.parseSetBindingStmt(start)
 	}
 
-	// Check for GLOBAL / SESSION / LOCAL / PERSIST / PERSIST_ONLY scope
+	// Check for GLOBAL / SESSION / LOCAL scope
 	scope := ""
-	switch p.cur.Type {
-	case kwGLOBAL:
-		scope = "GLOBAL"
-		p.advance()
-	case kwSESSION:
-		scope = "SESSION"
-		p.advance()
-	case kwLOCAL:
-		scope = "LOCAL"
-		p.advance()
-	case kwPERSIST:
-		scope = "PERSIST"
-		p.advance()
-	case kwPERSIST_ONLY:
-		scope = "PERSIST_ONLY"
-		p.advance()
-	default:
+	if !named {
+		switch p.cur.Type {
+		case kwGLOBAL:
+			scope = "GLOBAL"
+			p.advance()
+		case kwSESSION:
+			scope = "SESSION"
+			p.advance()
+		case kwLOCAL:
+			scope = "LOCAL"
+			p.advance()
+		default:
+		}
 	}
 
 	// Completion: after SET GLOBAL/SESSION, offer variable candidates.
@@ -185,7 +187,8 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	// SET [GLOBAL|SESSION] TRANSACTION ... Those are the only scopes SetStmt names
 	// it with (parser.y:10758-10770), so `SET LOCAL TRANSACTION READ ONLY` is a 1064.
-	if p.cur.Type == kwTRANSACTION && (scope == "" || scope == "GLOBAL" || scope == "SESSION") {
+	// TRANSACTION is also an unreserved word, so `SET TRANSACTION = 1` assigns a variable.
+	if p.cur.Type == kwTRANSACTION && (scope == "" || scope == "GLOBAL" || scope == "SESSION") && !p.nextEndsVariableName() {
 		return p.parseSetTransactionStmt(start, scope)
 	}
 
@@ -207,6 +210,21 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// nextEndsVariableName reports whether the word at p.cur is a variable's name rather
+// than the keyword of a SET form. VariableName (parser.y:10924) is always followed by
+// `=`, `:=` or `.`, and no form continues its keyword with one of those, except the `=`
+// of SET PASSWORD, which the caller settles.
+//
+// A next token at or past the completion cursor is text the user has not reached, so
+// `SET TRANSACTION <cursor> = 1` still offers what follows the keyword.
+func (p *Parser) nextEndsVariableName() bool {
+	next := p.peekNext()
+	if p.completing && next.Loc >= p.cursorOff {
+		return false
+	}
+	return next.Type == '=' || next.Type == tokAssign || next.Type == '.'
 }
 
 // parseSetPasswordStmt parses a SET PASSWORD statement.
@@ -314,10 +332,12 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 			Column: prefix + vref.Name,
 		}
 	} else {
-		// SET variable names use lvalue_ident context: excludes ambiguous_4
-		// keywords (GLOBAL, SESSION, LOCAL) which are scope modifiers, not variables.
+		// VariableName, parser.y:10924: Identifier, or two of them with a dot. An
+		// Identifier is any unreserved word, parser.y:6774, the scope words included:
+		// parseSetStmt has already read a scope when one was meant, and MySQL's narrower
+		// lvalue_ident is not TiDB's rule here.
 		colStart := p.pos()
-		name, _, err := p.parseLvalueIdent()
+		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
@@ -328,7 +348,7 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 		// Support dot-qualified variable names: schema.var
 		if p.cur.Type == '.' {
 			p.advance()
-			name2, _, err := p.parseLvalueIdent()
+			name2, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err
 			}

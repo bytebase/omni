@@ -8957,29 +8957,6 @@ func TestParseAlterUndoTablespaceSetActive(t *testing.T) {
 
 // --- Batch 70: depth_fix_set_persist_show_full ---
 
-func TestParseSetPersist(t *testing.T) {
-	tests := []string{
-		"SET PERSIST max_connections = 100",
-		"SET PERSIST innodb_buffer_pool_size = 1073741824",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseSetPersistOnly(t *testing.T) {
-	tests := []string{
-		"SET PERSIST_ONLY back_log = 100",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseShowFullTables(t *testing.T) {
 	tests := []string{
 		"SHOW FULL TABLES",
@@ -11696,23 +11673,12 @@ func TestUTCTemporalFunctions(t *testing.T) {
 }
 
 // TestLvalueIdentRejectsAmbiguous4 verifies that ambiguous_4 keywords (like GLOBAL)
-// cannot be used as SET variable names. GLOBAL is allowed as a general identifier
-// (e.g., CREATE TABLE global) but NOT as a lvalue_ident (SET target).
+// are not read where parseLvalueIdent reads a name. GLOBAL is allowed as a general
+// identifier (e.g., CREATE TABLE global). SET does not read its names this way:
+// TiDB takes `SET global = 1`, which setTransactionCases records.
 func TestLvalueIdentRejectsAmbiguous4(t *testing.T) {
 	// GLOBAL as a table name should work (general ident context).
 	ParseAndCheck(t, "CREATE TABLE global (a INT)")
-
-	// SET global = 1 should fail — GLOBAL is ambiguous_4 (scope modifier, not variable).
-	// In MySQL, `SET global = 1` is parsed as `SET GLOBAL = 1` which is incomplete
-	// (missing variable name after scope), so it's an error.
-	t.Run("SET global = 1 rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("SET global = 1")}
-		p.advance()
-		_, err := p.parseSetStmt()
-		if err == nil {
-			t.Fatal("expected error for SET global = 1 (GLOBAL is ambiguous_4, consumed as scope modifier)")
-		}
-	})
 
 	// SET begin = 1 should succeed — BEGIN is ambiguous_2 (allowed as lvalue).
 	t.Run("SET begin = 1 accepted", func(t *testing.T) {

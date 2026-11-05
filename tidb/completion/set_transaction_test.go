@@ -22,6 +22,12 @@ func TestSetTransactionCompletion(t *testing.T) {
 		{"set transaction isolation level read <|>", []string{"COMMITTED", "UNCOMMITTED"}},
 		{"set transaction read only as of <|>", []string{"TIMESTAMP"}},
 		{"set transaction read only as of timestamp now(), <|>", []string{"ISOLATION", "READ"}},
+		// TRANSACTION is a variable name only once `=`, `:=` or `.` is written after it, so
+		// text past the cursor does not take these away.
+		{"set global transaction <|>", []string{"ISOLATION", "READ"}},
+		{"set transaction <|> = 1", []string{"ISOLATION", "READ"}},
+		{"set session transaction <|> := 1", []string{"ISOLATION", "READ"}},
+		{"set transaction <|>.a = 1", []string{"ISOLATION", "READ"}},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
 			sql, cursor := splitCursor(t, tc.sql)
