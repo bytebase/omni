@@ -635,44 +635,6 @@ func (p *Parser) parseResetReplicaStmt(start int) (*nodes.ResetReplicaStmt, erro
 	return stmt, nil
 }
 
-// parsePurgeBinaryLogsStmt parses a PURGE BINARY LOGS or PURGE MASTER LOGS statement.
-// p.cur is PURGE.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/purge-binary-logs.html
-//
-//	PURGE { BINARY | MASTER } LOGS { TO 'log_name' | BEFORE datetime_expr }
-func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) {
-	start := p.pos()
-	p.advance() // consume PURGE
-	p.advance() // consume BINARY or MASTER
-	p.advance() // consume LOGS
-
-	stmt := &nodes.PurgeBinaryLogsStmt{
-		Loc: nodes.Loc{Start: start},
-	}
-
-	if p.cur.Type == kwTO {
-		p.advance() // consume TO
-		if p.cur.Type == tokSCONST {
-			stmt.To = p.cur.Str
-			p.advance()
-		}
-	} else if p.cur.Type == kwBEFORE {
-		p.advance() // consume BEFORE
-		expr, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if expr == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.BeforeExpr = expr
-	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
 // parseResetMasterStmt parses a RESET MASTER statement.
 // RESET already consumed. p.cur is MASTER.
 //

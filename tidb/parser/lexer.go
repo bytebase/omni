@@ -1984,6 +1984,16 @@ type Lexer struct {
 	// (TestLexerDotKeywordWithSpace, TestCollectAfterDotWithKeyword).
 	dotNamesWord bool
 
+	// identDot says the last word ran straight into a dot, which makes whatever
+	// comes next a name even if it starts with a digit: `SELECT a.1 FROM t`,
+	// `SELECT a. 1e5 FROM t` and `CREATE TABLE a.1b (c int)` all parse on v8.5.5
+	// where `SELECT a .1 FROM t` and `SELECT a . 1 FROM t` are 1064s. Only Parse
+	// sets it, under dotNamesWord, for the reason dotNamesWord gives.
+	//
+	// Ref: identifierDot in (*Scanner).Lex, pkg/parser/lexer.go:323, 820, 881
+	// (tag v8.5.5).
+	identDot bool
+
 	// errMsg/errPos record the first lexing error (unterminated comment, string,
 	// or quoted identifier). A malformed token that runs to EOF without its closing
 	// delimiter must never index past the buffer; instead the scan stops at EOF and
@@ -2235,8 +2245,25 @@ func NewLexerWithOffset(input string, baseOffset int) *Lexer {
 }
 
 // NextToken returns the next token from the input.
+// inputAt returns the byte at the absolute offset off, 0 if it is past the input.
+func (l *Lexer) inputAt(off int) byte {
+	if i := off - l.baseOffset; i >= 0 && i < len(l.input) {
+		return l.input[i]
+	}
+	return 0
+}
+
 func (l *Lexer) NextToken() Token {
 	tok := l.nextToken()
+	if l.dotNamesWord {
+		switch {
+		case tok.Type == tokIDENT || tok.Type >= 700:
+			l.identDot = l.pos < len(l.input) && l.input[l.pos] == '.'
+		case tok.Type == '*':
+			// `t.*` ends the qualified name, so the number after it is a number.
+			l.identDot = false
+		}
+	}
 	tok.End = l.pos + l.baseOffset // set end position before returning
 	tok.Loc += l.baseOffset        // apply base offset for absolute positioning
 	l.prevToken = tok.Type
@@ -2294,10 +2321,13 @@ func (l *Lexer) nextToken() Token {
 
 	// Number: 0x hex, 0b binary, or decimal/float
 	if ch >= '0' && ch <= '9' {
+		if l.identDot {
+			return l.scanDigitLeadingIdent(l.pos)
+		}
 		return l.scanNumber()
 	}
 	// Also handle .N float (e.g., .5)
-	if ch == '.' && l.pos+1 < len(l.input) && l.input[l.pos+1] >= '0' && l.input[l.pos+1] <= '9' {
+	if ch == '.' && !l.identDot && l.pos+1 < len(l.input) && l.input[l.pos+1] >= '0' && l.input[l.pos+1] <= '9' {
 		return l.scanNumber()
 	}
 

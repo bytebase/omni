@@ -51,6 +51,9 @@ const (
 	// v8.5.5 answers for an UPDATE INDEXES entry naming an index the table
 	// does not have (read on 2026-11-04).
 	ErrWrongNameForIndex = 1280
+	// ErrUnknownError is the code TiDB gives an error with no code of its own,
+	// such as "range name is not supported" from ALTER RANGE.
+	ErrUnknownError = 1105
 	// TiDB error codes. 8239 is the closest match in TiDB's error
 	// catalog for "Placement policy <name> already exists" (err.go:261
 	// upstream). 8241 covers "unknown placement policy" (err.go:266).
@@ -92,6 +95,7 @@ var sqlStateMap = map[int]string{
 	ErrWrongArguments:                    "HY000",
 	ErrPlacementPolicyExists:             "HY000",
 	ErrPlacementPolicyInUse:              "HY000",
+	ErrUnknownError:                      "HY000",
 	ErrPlacementPolicyMissing:            "HY000",
 }
 
@@ -120,6 +124,11 @@ func errDupPlacementPolicy(name string) error {
 func errUnknownPlacementPolicy(name string) error {
 	return &Error{Code: ErrPlacementPolicyMissing, SQLState: sqlState(ErrPlacementPolicyMissing),
 		Message: fmt.Sprintf("Unknown placement policy '%s'", name)}
+}
+
+func errRangeNameNotSupported() error {
+	return &Error{Code: ErrUnknownError, SQLState: sqlState(ErrUnknownError),
+		Message: "range name is not supported"}
 }
 
 func errPlacementPolicyInUse(name, ref string) error {

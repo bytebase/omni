@@ -895,6 +895,14 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Pattern)
 	case *RawStmt:
 		Walk(v, n.Stmt)
+	case *RecommendIndexOption:
+		Walk(v, n.Value)
+	case *RecommendIndexStmt:
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *RecoverTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -1013,6 +1021,8 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.OriginStmt)
 		Walk(v, n.HintedStmt)
 		Walk(v, n.SQLDigest)
+	case *SetConfigStmt:
+		Walk(v, n.Value)
 	case *SetPasswordStmt:
 		if n.User != nil {
 			Walk(v, n.User)

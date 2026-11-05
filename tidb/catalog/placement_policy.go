@@ -100,12 +100,40 @@ func (c *Catalog) dropPlacementPolicy(stmt *nodes.DropPlacementPolicyStmt) error
 	return nil
 }
 
+// alterRange applies ALTER RANGE, which points a key range at a placement policy.
+// Measured on pingcap/tidb:v8.5.5: a range other than global and meta answers 1105
+// whatever the policy says, a policy that does not exist answers the same error
+// ALTER DATABASE does, every spelling of default clears the range, and a range's
+// policy cannot be dropped (DROP PLACEMENT POLICY answers "still in use") until it
+// is cleared. So the range is a reference like a database's or a table's, and the
+// statement changes no schema object.
+func (c *Catalog) alterRange(stmt *nodes.AlterRangeStmt) error {
+	key := toLower(stmt.Name)
+	if key != "global" && key != "meta" {
+		return errRangeNameNotSupported()
+	}
+	if err := c.validatePolicyRef(stmt.Policy); err != nil {
+		return err
+	}
+	if policy := resolvePolicyRef(stmt.Policy); policy != "" {
+		c.rangePolicies[key] = policy
+	} else {
+		delete(c.rangePolicies, key)
+	}
+	return nil
+}
+
 // findPolicyReference returns a human-readable description of the
-// first database or table referencing the named policy, or "" if
+// first range, database or table referencing the named policy, or "" if
 // there are no references. Case-insensitive comparison matches
 // TiDB's CIStr policy-name convention.
 func (c *Catalog) findPolicyReference(name string) string {
 	target := toLower(name)
+	for _, key := range []string{"global", "meta"} {
+		if policy, ok := c.rangePolicies[key]; ok && toLower(policy) == target {
+			return fmt.Sprintf("range %q", key)
+		}
+	}
 	for _, db := range c.databases {
 		if toLower(db.PlacementPolicy) == target {
 			return fmt.Sprintf("database %q", db.Name)

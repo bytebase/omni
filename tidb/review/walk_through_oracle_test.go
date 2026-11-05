@@ -163,6 +163,12 @@ var walkCases = []walkCase{
 	// kind without reporting anything, or an ADMIN statement would end the
 	// walk and hide what comes after it.
 	{name: "ADMIN", change: "ADMIN SHOW DDL;\nADMIN SHOW DDL JOBS 5;\nADMIN CHECK TABLE t, v, sq;\nADMIN CHECK INDEX t i;\nADMIN SHOW t NEXT_ROW_ID;\nADMIN CLEANUP TABLE LOCK t;\nADMIN CHECK TABLE nosuch;\nADMIN CHECKSUM TABLE nosuch;\nADMIN SHOW nosuch NEXT_ROW_ID;\nADMIN CLEANUP TABLE LOCK nosuch;\nADMIN CHECK INDEX nosuch i;\nADMIN RECOVER INDEX nosuch i;\nADMIN CLEANUP INDEX nosuch i;\nADMIN FLUSH BINDINGS;\nADMIN SHOW SLOW TOP 3;\nDROP TABLE nokey;\nADMIN CHECK TABLE nokey;", complete: true},
+	// The standalone admin statements this harness's single tidb-server does run:
+	// the walk must follow them without reporting anything, or one in a change would
+	// end the walk and hide what comes after it. PAUSE, RESUME, STOP and PURGE BACKUP
+	// LOGS and the rest answer 1105 for want of TiKV here, which says nothing about
+	// the walk, so tidb_admin_test.go pins those.
+	{name: "standalone admin statements", change: "RECOMMEND INDEX SHOW;\nRECOMMEND INDEX RUN FOR 'select * from t where a = 1';\nSET CONFIG tikv nosuch.item = 1;\nALTER RANGE global PLACEMENT POLICY DEFAULT;\nALTER RANGE meta PLACEMENT POLICY SET DEFAULT;\nKILL 999999;\nKILL QUERY 999999;\nKILL TIDB 999999;\nKILL TIDB CONNECTION 999999;\nCANCEL BR JOB 1;\nSHOW BR JOB QUERY 1;\nSHOW BACKUP METADATA FROM 'noop://';\nFLUSH PRIVILEGES;\nDROP TABLE nosuch;", complete: true},
 	{name: "unknown by design", change: "DROP DATABASE nosuch;\nRENAME TABLE t TO nodb.t;\nCREATE VIEW nodb.w AS SELECT 1 AS a;\nCREATE TABLE x AS SELECT 1 AS a;\nCREATE TABLE x (a int, b int UNIQUE);\nALTER TABLE x DROP INDEX zz;\nALTER TABLE nokey ADD COLUMN _tidb_rowid int;\nALTER TABLE nokey ADD COLUMN y int AFTER _tidb_rowid;\nALTER TABLE nokey DROP COLUMN _tidb_rowid;\nALTER TABLE t ADD COLUMN q int, ADD INDEX kq (q);\nALTER TABLE t DROP COLUMN IF EXISTS a, DROP COLUMN a;\nALTER TABLE t ALTER COLUMN a SET DEFAULT 1, MODIFY a int;\nALTER TABLE r DROP PRIMARY KEY;\nALTER TABLE t DROP CONSTRAINT nosuch;\nINSERT INTO v VALUES (1);\nCREATE TABLE c3 (id int, a int, FOREIGN KEY (id) REFERENCES r (id), CONSTRAINT fk_1 FOREIGN KEY (a) REFERENCES r (id));\nCREATE PROCEDURE p() SELECT 1;\nCREATE TABLE t (a int);"},
 }
 

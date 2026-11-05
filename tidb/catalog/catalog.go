@@ -2,8 +2,9 @@ package catalog
 
 // Catalog is the in-memory TiDB catalog.
 type Catalog struct {
-	databases         map[string]*Database         // lowered name -> Database
-	placementPolicies map[string]*PlacementPolicy  // lowered name -> PlacementPolicy (TiDB)
+	databases         map[string]*Database        // lowered name -> Database
+	placementPolicies map[string]*PlacementPolicy // lowered name -> PlacementPolicy (TiDB)
+	rangePolicies     map[string]string           // lowered range name -> policy ALTER RANGE set (TiDB)
 	currentDB         string
 	defaultCharset    string
 	defaultCollation  string
@@ -14,6 +15,7 @@ func New() *Catalog {
 	return &Catalog{
 		databases:         make(map[string]*Database),
 		placementPolicies: make(map[string]*PlacementPolicy),
+		rangePolicies:     make(map[string]string),
 		defaultCharset:    "utf8mb4",
 		defaultCollation:  "utf8mb4_bin", // TiDB v8.5 default (MySQL 8.0 uses utf8mb4_0900_ai_ci)
 		foreignKeyChecks:  true,
@@ -27,7 +29,7 @@ func (c *Catalog) ForeignKeyChecks() bool { return c.foreignKeyChecks }
 func (c *Catalog) SetForeignKeyChecks(v bool) { c.foreignKeyChecks = v }
 
 func (c *Catalog) SetCurrentDatabase(name string) { c.currentDB = name }
-func (c *Catalog) CurrentDatabase() string         { return c.currentDB }
+func (c *Catalog) CurrentDatabase() string        { return c.currentDB }
 
 func (c *Catalog) GetDatabase(name string) *Database {
 	return c.databases[toLower(name)]

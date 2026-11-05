@@ -170,37 +170,21 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 
 // parseFlushStmt parses a FLUSH statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/flush.html
+//	FLUSH [NO_WRITE_TO_BINLOG | LOCAL] flush_option
 //
-//	FLUSH [NO_WRITE_TO_BINLOG | LOCAL] {
-//	    flush_option [, flush_option] ...
-//	  | tables_option
-//	}
+//	flush_option:
+//	    PRIVILEGES | STATUS | HOSTS | CLIENT_ERRORS_SUMMARY
+//	  | TIDB PLUGINS name [, name] ...
+//	  | [BINARY | ENGINE | ERROR | GENERAL | SLOW] LOGS
+//	  | {TABLE | TABLES} [tbl_name [, tbl_name] ...] [WITH READ LOCK]
 //
-//	flush_option: {
-//	    BINARY LOGS
-//	  | ENGINE LOGS
-//	  | ERROR LOGS
-//	  | GENERAL LOGS
-//	  | HOSTS
-//	  | LOGS
-//	  | PRIVILEGES
-//	  | OPTIMIZER_COSTS
-//	  | RELAY LOGS [FOR CHANNEL channel]
-//	  | SLOW LOGS
-//	  | STATUS
-//	  | USER_RESOURCES
-//	}
+// There is one option. MySQL's list of them, `FLUSH HOSTS, STATUS`, and its
+// RELAY LOGS, OPTIMIZER_COSTS, USER_RESOURCES and FOR EXPORT are all 1064s on
+// v8.5.5 (tidb_admin_forms_test.go measures them). PLUGINS is a list and each entry an
+// Identifier, so `FLUSH TIDB PLUGINS a, status` names two plugins, and every option
+// word has to be written bare.
 //
-//	tables_option: {
-//	    table_synonym
-//	  | table_synonym tbl_name [, tbl_name] ...
-//	  | table_synonym WITH READ LOCK
-//	  | table_synonym tbl_name [, tbl_name] ... WITH READ LOCK
-//	  | table_synonym tbl_name [, tbl_name] ... FOR EXPORT
-//	}
-//
-//	table_synonym: { TABLE | TABLES }
+// Ref: TiDB v8.5.5 parser.y:12147-12200 (FlushStmt, PluginNameList, FlushOption).
 func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 	start := p.pos()
 	p.advance() // consume FLUSH
@@ -217,138 +201,95 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 
 	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
 
-	if p.cur.Type == kwLOCAL {
-		stmt.NoWriteToBinlog = true
-		p.advance()
-	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
+	if p.cur.Type == kwLOCAL || p.cur.Type == kwNO_WRITE_TO_BINLOG {
 		stmt.NoWriteToBinlog = true
 		p.advance()
 	}
 
-	// FLUSH TABLES [tbl_name, ...] [WITH READ LOCK | FOR EXPORT]
-	if p.cur.Type == kwTABLES || p.cur.Type == kwTABLE {
+	switch {
+	case p.cur.Type == kwTABLES || p.cur.Type == kwTABLE:
 		stmt.Options = append(stmt.Options, "TABLES")
 		p.advance()
-		// Optional table list (but not WITH or FOR which are clause keywords)
-		if (p.isIdentToken() || p.cur.Type == tokSCONST) && p.cur.Type != kwWITH && p.cur.Type != kwFOR {
+		// TableNameListOpt: WITH is reserved, so it cannot be read as a name.
+		if p.isIdentToken() {
 			for {
 				ref, err := p.parseTableRef()
 				if err != nil {
 					return nil, err
 				}
 				stmt.Tables = append(stmt.Tables, ref)
-				if p.cur.Type != ',' {
+				if _, ok := p.match(','); !ok {
 					break
 				}
-				p.advance()
 			}
 		}
-		// WITH READ LOCK
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if p.cur.Type == kwREAD {
-				p.advance()
-				if p.cur.Type == kwLOCK {
-					p.advance()
-				}
-				stmt.WithReadLock = true
+		if _, ok := p.match(kwWITH); ok {
+			if _, err := p.expect(kwREAD); err != nil {
+				return nil, err
 			}
-		}
-		// FOR EXPORT
-		if p.cur.Type == kwFOR {
-			p.advance()
-			if p.cur.Type == kwEXPORT {
-				p.advance()
+			if _, err := p.expect(kwLOCK); err != nil {
+				return nil, err
 			}
-			stmt.ForExport = true
+			stmt.WithReadLock = true
 		}
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
 
-	// Flush options list
-	for {
-		if p.cur.Type == tokEOF || p.cur.Type == ';' {
-			break
-		}
-		opt := p.parseFlushOption(stmt)
-		if opt == "" {
-			break
-		}
-		stmt.Options = append(stmt.Options, opt)
-		if p.cur.Type != ',' {
-			break
-		}
+	case p.cur.Type == kwLOGS:
 		p.advance()
+		stmt.Options = append(stmt.Options, "LOGS")
+
+	case p.isBareWord("TIDB"):
+		p.advance()
+		if _, err := p.expect(kwPLUGINS); err != nil {
+			return nil, err
+		}
+		stmt.Options = append(stmt.Options, "TIDB PLUGINS")
+		for {
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Plugins = append(stmt.Plugins, name)
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+
+	default:
+		word := p.brieWord()
+		switch word {
+		case "PRIVILEGES", "STATUS", "HOSTS", "CLIENT_ERRORS_SUMMARY":
+			p.advance()
+			stmt.Options = append(stmt.Options, word)
+		case "BINARY", "ENGINE", "ERROR", "GENERAL", "SLOW":
+			p.advance()
+			if _, err := p.expect(kwLOGS); err != nil {
+				return nil, err
+			}
+			stmt.Options = append(stmt.Options, word+" LOGS")
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseFlushOption parses a single flush_option and returns the normalized name.
-// Multi-word options (ENGINE LOGS, ERROR LOGS, etc.) are combined into one string.
-func (p *Parser) parseFlushOption(stmt *nodes.FlushStmt) string {
-	// Handle keyword tokens that are also flush options
-	switch p.cur.Type {
-	case kwBINARY:
-		p.advance()
-		if p.cur.Type == kwLOGS {
-			p.advance()
-			return "BINARY LOGS"
-		}
-		return "BINARY"
-	case kwSTATUS:
-		p.advance()
-		return "STATUS"
-	case kwPRIVILEGES:
-		p.advance()
-		return "PRIVILEGES"
-	case kwOPTIMIZER_COSTS:
-		p.advance()
-		return "OPTIMIZER_COSTS"
+// isWholeExpression reports whether what parseExpr returned is an Expression in the
+// grammar's sense. parseExpr also returns forms only an enclosing production allows,
+// each readable as a whole argument here: `*`, `t.*`, bare DEFAULT and an INTERVAL.
+// `KILL foo(*)`, `KILL foo(t.*)`, `KILL foo(DEFAULT)` and `KILL foo(INTERVAL 1 DAY)`
+// are 1064s, and `KILL foo(DEFAULT(a))` parses.
+func isWholeExpression(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.StarExpr, *nodes.IntervalExpr:
+		return false
+	case *nodes.ColumnRef:
+		return !e.Star
+	case *nodes.DefaultExpr:
+		return e.Column != ""
 	}
-
-	if !p.isIdentToken() {
-		return ""
-	}
-
-	name := strings.ToUpper(p.cur.Str)
-	p.advance()
-
-	// Check for multi-word options: ENGINE LOGS, ERROR LOGS, GENERAL LOGS, RELAY LOGS, SLOW LOGS
-	switch name {
-	case "ENGINE", "ERROR", "GENERAL", "SLOW":
-		if p.cur.Type == kwLOGS {
-			p.advance()
-			return name + " LOGS"
-		}
-		return name
-	case "RELAY":
-		if p.cur.Type == kwLOGS {
-			p.advance()
-			opt := "RELAY LOGS"
-			// Optional FOR CHANNEL channel
-			if p.cur.Type == kwFOR {
-				p.advance() // consume FOR
-				if p.cur.Type == kwCHANNEL {
-					p.advance() // consume CHANNEL
-					if p.isIdentToken() || p.cur.Type == tokSCONST {
-						if p.cur.Type == tokSCONST {
-							stmt.RelayChannel = p.cur.Str
-						} else {
-							stmt.RelayChannel = p.cur.Str
-						}
-						p.advance()
-					}
-				}
-			}
-			return opt
-		}
-		return name
-	}
-
-	return name
+	return true
 }
 
 // parseResetStmt parses a RESET statement.
@@ -391,35 +332,118 @@ func (p *Parser) parseResetStmt() (*nodes.FlushStmt, error) {
 
 // parseKillStmt parses a KILL statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/kill.html
+//	KILL [TIDB] [CONNECTION | QUERY] number
+//	KILL [TIDB] function_call
 //
-//	KILL [CONNECTION | QUERY] processlist_id
+// There are no other expressions: `KILL 1 + 1`, `KILL a` and `KILL (1)` are 1064s.
+// The number is the grammar's NUM, an integer literal up to the whole uint64 range.
+// CONNECTION and QUERY take only a number, so `KILL QUERY CONNECTION_ID()` is a 1064
+// too. TIDB is not an optional word in front of a name: `KILL tidb(1)` is a 1064
+// where `KILL foo(1)` parses, and `KILL `tidb`(1)` calls a function of that name.
+//
+// Ref: TiDB v8.5.5 parser.y:15289-15331 (KillStmt, KillOrKillTiDB).
+// Ref: https://docs.pingcap.com/tidb/stable/sql-statement-kill/
 func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 	start := p.pos()
 	p.advance() // consume KILL
 
 	stmt := &nodes.KillStmt{Loc: nodes.Loc{Start: start}}
-
-	// Optional CONNECTION | QUERY
-	if p.cur.Type == kwCONNECTION {
+	if p.isBareWord("TIDB") {
+		stmt.TiDB = true
 		p.advance()
-	} else if p.cur.Type == kwQUERY {
+	}
+
+	var numOnly bool
+	switch p.cur.Type {
+	case kwCONNECTION:
+		p.advance()
+		numOnly = true
+	case kwQUERY:
 		stmt.Query = true
 		p.advance()
+		numOnly = true
 	}
 
-	// Process ID
-	expr, err := p.parseExpr()
-	if err != nil {
-		return nil, err
+	if p.cur.Type == tokICONST || numOnly {
+		numLoc := p.cur.Loc
+		ival := p.cur.Ival
+		id, err := p.parseLengthNum()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ID = id
+		stmt.ConnectionID = &nodes.IntLit{Loc: nodes.Loc{Start: numLoc, End: p.prev.End}, Value: ival}
+	} else {
+		call, err := p.parseKillFunctionCall()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ConnectionID = call
 	}
-	if expr == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
-	stmt.ConnectionID = expr
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseKillFunctionCall parses the grammar's BuiltinFunction, which is narrower than
+// its name: a function named by `identifier`, or REPLACE with at least one argument,
+// in any number of parentheses.
+//
+//	( function_call )
+//	identifier ( [expr, ...] )
+//	REPLACE ( expr, ... )
+//
+// An unreserved keyword is not an identifier here, which is the point of the table
+// curIsGrammarIdentifier reads: `KILL ascii('a')`, `KILL now()` and `KILL user()` are
+// 1064s. A name with a dot is one too, and nothing may follow the call.
+//
+// The parentheses are counted in a loop, so a run of them cannot overflow the stack.
+// Each argument goes through parseExpr, which has its own depth check.
+//
+// Ref: TiDB v8.5.5 parser.y:4058-4084 (BuiltinFunction).
+func (p *Parser) parseKillFunctionCall() (*nodes.FuncCallExpr, error) {
+	parens := 0
+	for p.cur.Type == '(' {
+		parens++
+		p.advance()
+	}
+
+	isReplace := p.cur.Type == kwREPLACE
+	if !isReplace && !p.curIsGrammarIdentifier() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	name := p.advance()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	call := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: name.Loc}, Name: name.Str, HasParens: true}
+	if p.cur.Type != ')' || isReplace {
+		for {
+			argTok := p.cur
+			arg, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if arg == nil || !isWholeExpression(arg) {
+				return nil, &ParseError{Message: "expected an expression", Position: argTok.Loc}
+			}
+			call.Args = append(call.Args, arg)
+			if _, ok := p.match(','); !ok {
+				break
+			}
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	call.Loc.End = p.prev.End
+
+	for ; parens > 0; parens-- {
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+	return call, nil
 }
 
 // parseCallStmt parses a CALL statement.

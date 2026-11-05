@@ -71,6 +71,12 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return p.parseSetBindingStmt(start)
 	}
 
+	// SET CONFIG, TiDB's dynamic configuration. CONFIG is unreserved, so as with
+	// ROLE, a word that ends a variable name here sends it to the assignments.
+	if p.cur.Type == kwCONFIG && !named {
+		return p.parseSetConfigStmt(start)
+	}
+
 	scope, scopeStart, err := p.parseSetScope()
 	if err != nil {
 		return nil, err

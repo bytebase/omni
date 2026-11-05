@@ -18,6 +18,7 @@ type tokenStreamState struct {
 	pos, start         int
 	prevToken          int
 	prevTokenEnd       int
+	identDot           bool
 	execStack          *execComment
 	execMarkers        []execMarker
 }
@@ -29,6 +30,7 @@ func (p *Parser) snapshotTokenStream() tokenStreamState {
 		cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext,
 		pos: p.lexer.pos, start: p.lexer.start,
 		prevToken: p.lexer.prevToken, prevTokenEnd: p.lexer.prevTokenEnd,
+		identDot:  p.lexer.identDot,
 		execStack: p.lexer.execStack, execMarkers: p.lexer.execMarkers,
 	}
 }
@@ -40,5 +42,6 @@ func (p *Parser) restoreTokenStream(s tokenStreamState) {
 	p.cur, p.prev, p.nextBuf, p.hasNext = s.cur, s.prev, s.nextBuf, s.hasNext
 	p.lexer.pos, p.lexer.start = s.pos, s.start
 	p.lexer.prevToken, p.lexer.prevTokenEnd = s.prevToken, s.prevTokenEnd
+	p.lexer.identDot = s.identDot
 	p.lexer.execStack, p.lexer.execMarkers = s.execStack, s.execMarkers
 }

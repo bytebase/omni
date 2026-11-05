@@ -87,6 +87,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseSetStmt()
 
 	case kwSHOW:
+		if p.isShowBRIE() {
+			return p.parseShowBRIEStmt()
+		}
 		return p.parseShowStmt()
 
 	case kwUSE:
@@ -200,7 +203,10 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseStopDispatch()
 
 	case kwPURGE:
-		return p.parsePurgeBinaryLogsStmt()
+		return p.parsePurgeStmt()
+
+	case kwRESUME:
+		return p.parseResumeBackupLogsStmt()
 
 	case kwIMPORT:
 		return p.parseImportDispatch()
@@ -284,6 +290,17 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		// implicit alias, which registering it would have put at risk.
 		if p.isBareWord("TRACE") {
 			return p.parseTraceStmt()
+		}
+		// PAUSE, CANCEL and RECOMMEND are keywords upstream and start one
+		// family of statements each. They are bare words here for the same
+		// reason TRACE is.
+		switch {
+		case p.isBareWord("PAUSE"):
+			return p.parsePauseBackupLogsStmt()
+		case p.isBareWord("CANCEL"):
+			return p.parseCancelStmt()
+		case p.isBareWord("RECOMMEND"):
+			return p.parseRecommendIndexStmt()
 		}
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -400,7 +417,11 @@ func (p *Parser) parseStopDispatch() (nodes.Node, error) {
 		return p.parseStopGroupReplicationStmt(start)
 	}
 
-	return nil, &ParseError{Message: "expected REPLICA, SLAVE, or GROUP_REPLICATION after STOP", Position: p.cur.Loc}
+	if p.cur.Type == kwBACKUP {
+		return p.parseStopBackupLogsStmt(start)
+	}
+
+	return nil, &ParseError{Message: "expected REPLICA, SLAVE, GROUP_REPLICATION, or BACKUP after STOP", Position: p.cur.Loc}
 }
 
 // parseLoadDispatch dispatches LOAD statements.
@@ -742,6 +763,9 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	case kwSEQUENCE:
 		return p.parseAlterSequenceStmt(start)
+
+	case kwRANGE:
+		return p.parseAlterRangeStmt(start)
 
 	case kwUSER:
 		return p.parseAlterUserStmt(start)
