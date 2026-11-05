@@ -3,6 +3,7 @@ package parser
 import (
 	"strings"
 	"testing"
+	"time"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
@@ -210,6 +211,27 @@ func TestExecFallbackPerStatement(t *testing.T) {
 	} {
 		if got, want := treeText(t, c.sql), treeText(t, c.reads); got != want {
 			t.Errorf("Parse(%q) is not the tree of %q:\n got %s\nwant %s", c.sql, c.reads, got, want)
+		}
+	}
+}
+
+// TestExecFallbackStaysLinear: under a client delimiter, one segment holds
+// every statement, and each one read again must not cost a pass over the
+// segment. Each reading started a new parser, which found the newlines of the
+// whole segment again for the syntax error that set off the retry: 32,000
+// such statements took 23 seconds, and twice as many four times as long.
+func TestExecFallbackStaysLinear(t *testing.T) {
+	const n = 32000
+	for _, stmt := range []string{"select 1 /*! from */;\n", "select 1 /*! select 2 */;\n"} {
+		sql := "DELIMITER //\n" + strings.Repeat(stmt, n) + "//\nDELIMITER ;"
+		start := time.Now()
+		list, err := Parse(sql)
+		elapsed := time.Since(start)
+		if err != nil || len(list.Items) != n {
+			t.Fatalf("Parse(%d x %q) = %v, want %d statements", n, stmt, err, n)
+		}
+		if elapsed > 2*time.Second {
+			t.Errorf("Parse(%d x %q) took %v", n, stmt, elapsed)
 		}
 	}
 }

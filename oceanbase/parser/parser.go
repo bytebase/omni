@@ -126,8 +126,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 				}
 				return nil, err
 			}
-			plain := &Parser{lexer: p.lexer.restartAt(from, true)}
-			plain.advance()
+			plain := p.restart(from, true)
 			first := plain.cur
 			if stmt, err = plain.readStatement(); err != nil {
 				return nil, err
@@ -140,8 +139,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			}
 			// What follows the statement is read with its executable comments
 			// in it again.
-			p = &Parser{lexer: p.lexer.restartAt(plain.cur.Loc-baseOffset, false)}
-			p.advance()
+			p = plain.restart(plain.cur.Loc-baseOffset, false)
 		}
 		if stmt != nil {
 			stmts = append(stmts, stmt)
@@ -159,6 +157,18 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 		return &nodes.List{}, nil
 	}
 	return &nodes.List{Items: stmts}, nil
+}
+
+// restart returns a parser over p's input that starts at pos, reading every
+// executable comment as a plain comment when plainExec is set. It keeps what
+// p knows of the input that does not depend on where reading starts: the
+// lexer's close-scan memo (restartAt) and the offsets of the newlines, which a
+// syntax error looks up. Rebuilding those for each statement read again would
+// make a segment of n such statements quadratic.
+func (p *Parser) restart(pos int, plainExec bool) *Parser {
+	q := &Parser{lexer: p.lexer.restartAt(pos, plainExec), newlines: p.newlines}
+	q.advance()
+	return q
 }
 
 // readStatement reads the statement at the current token, which ends at a ';'
