@@ -1492,7 +1492,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCHARSET:
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, err := p.parseTableCharsetName()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1502,7 +1502,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
 			p.matchEqual()
-			val, err := p.consumeOptionValue()
+			val, err := p.parseTableCharsetName()
 			if err != nil {
 				return nil, false, err
 			}
@@ -1517,7 +1517,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCOLLATE:
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, err := p.parseTableCollationName()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1751,6 +1751,22 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	}
 
 	return nil, false, nil
+}
+
+// parseTableCharsetName parses the name of a table's CHARACTER SET option. It is what
+// a database option takes, or DEFAULT: charset_name_or_default, which MySQL's table
+// option does not have (measured).
+func (p *Parser) parseTableCharsetName() (string, error) {
+	if p.cur.Type == kwDEFAULT {
+		return p.advance().Str, nil
+	}
+	return p.parseCharsetName()
+}
+
+// parseTableCollationName parses the name of a table's COLLATE option, which is
+// collation_name_or_default.
+func (p *Parser) parseTableCollationName() (string, error) {
+	return p.parseTableCharsetName()
 }
 
 // consumeOptionValue reads the next token as an option value string.

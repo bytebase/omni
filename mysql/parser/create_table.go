@@ -1206,7 +1206,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCHARSET:
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, err := p.parseCharsetName()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1216,7 +1216,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
 			p.matchEqual()
-			val, err := p.consumeOptionValue()
+			val, err := p.parseCharsetName()
 			if err != nil {
 				return nil, false, err
 			}
@@ -1231,7 +1231,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCOLLATE:
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, err := p.parseCollationName()
 		if err != nil {
 			return nil, false, err
 		}

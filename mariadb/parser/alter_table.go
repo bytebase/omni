@@ -1154,7 +1154,7 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 	if _, ok := p.match(kwDEFAULT); ok {
 		cmd.Name = "DEFAULT"
 	} else {
-		charset, err := p.consumeOptionValue()
+		charset, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}
@@ -1162,7 +1162,7 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 	}
 
 	if _, ok := p.match(kwCOLLATE); ok {
-		collation, err := p.consumeOptionValue()
+		collation, err := p.parseCollationName()
 		if err != nil {
 			return nil, err
 		}
