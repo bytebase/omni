@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
 )
 
 // orReplaceCase is a script run statement by statement on MariaDB and on the
@@ -340,7 +338,7 @@ var orReplaceCases = []orReplaceCase{
 // creates the new table beside the other one; the catalog reports 1050, as
 // it does for plain CREATE [TEMPORARY] TABLE there.
 func TestContainerCreateOrReplaceTable(t *testing.T) {
-	db := startOrReplaceMariaDB(t)
+	db := mariadbDatabase(t)
 	for _, tc := range orReplaceCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if len(tc.codes) != len(tc.stmts) {
@@ -419,38 +417,6 @@ func TestCreateOrReplaceTableAsSelectDropsTable(t *testing.T) {
 	if len(db.Triggers) != 0 {
 		t.Errorf("the trigger of the replaced table remains")
 	}
-}
-
-// startOrReplaceMariaDB starts the mariadb:11.8.8 container
-// TestContainerCreateOrReplaceTable asks. No connection is kept idle, so
-// every case starts a session with no temporary tables and default
-// settings.
-func startOrReplaceMariaDB(t *testing.T) *sql.DB {
-	t.Helper()
-	ctx := context.Background()
-	ctr, err := tcmariadb.Run(ctx, "mariadb:11.8.8",
-		tcmariadb.WithDatabase("test"),
-		tcmariadb.WithUsername("root"),
-		tcmariadb.WithPassword("test"),
-	)
-	if err != nil {
-		t.Fatalf("start MariaDB container: %v", err)
-	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(ctr) })
-	dsn, err := ctr.ConnectionString(ctx)
-	if err != nil {
-		t.Fatalf("connection string: %v", err)
-	}
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	db.SetMaxIdleConns(0)
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("ping: %v", err)
-	}
-	return db
 }
 
 // mariadbErr returns the code and message of a MariaDB error, 0 for none.

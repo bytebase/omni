@@ -319,7 +319,7 @@ func showCreateOn(t *testing.T, ctx context.Context, conn *sql.Conn, table strin
 // the server's SHOW CREATE TABLE into a fresh catalog, which must read the same
 // ignorability back (container test).
 func TestContainerIgnoredIndex(t *testing.T) {
-	db := startOrReplaceMariaDB(t)
+	db := mariadbDatabase(t)
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
 	if err != nil {
@@ -369,7 +369,7 @@ func TestContainerIgnoredIndex(t *testing.T) {
 // and that a refused statement leaves the table as SHOW CREATE TABLE had it
 // (container test).
 func TestContainerIgnoredIndexErrors(t *testing.T) {
-	db := startOrReplaceMariaDB(t)
+	db := mariadbDatabase(t)
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
 	if err != nil {

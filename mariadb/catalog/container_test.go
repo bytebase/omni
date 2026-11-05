@@ -266,6 +266,7 @@ func TestMain(m *testing.M) {
 		sharedMySQL.container = nil
 	}
 	sharedMySQL.Unlock()
+	terminateSharedMariaDB()
 	os.Exit(code)
 }
 

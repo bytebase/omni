@@ -140,7 +140,7 @@ func TestPartitionKeyCoverage(t *testing.T) {
 // TestContainerPartitionKeyCoverage reads each case's verdict off MariaDB 11.8.8
 // (container test).
 func TestContainerPartitionKeyCoverage(t *testing.T) {
-	db := startOrReplaceMariaDB(t)
+	db := mariadbDatabase(t)
 	ctx := context.Background()
 	for _, tc := range partitionCoverageCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -206,7 +206,7 @@ func TestRefusedAlterKeepsTableInPlace(t *testing.T) {
 // TestContainerRefusedAlterKeepsTableInPlace reads each case's verdict and the tables
 // it leaves off MariaDB 11.8.8 (container test).
 func TestContainerRefusedAlterKeepsTableInPlace(t *testing.T) {
-	db := startOrReplaceMariaDB(t)
+	db := mariadbDatabase(t)
 	ctx := context.Background()
 	for _, tc := range crossDatabaseRenameCases {
 		t.Run(tc.stmt, func(t *testing.T) {
