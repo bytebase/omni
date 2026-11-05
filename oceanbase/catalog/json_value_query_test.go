@@ -224,3 +224,32 @@ func TestOracle_JSONValueFunctionalIndex(t *testing.T) {
 		})
 	}
 }
+
+// TestStringLiteralKeepsItsKind: a string stays a string through analysis, introducer and all,
+// however its text looks: '001' is no number, and _latin1 X'303031' is the string _latin1'001'.
+func TestStringLiteralKeepsItsKind(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE d; USE d", nil); err != nil {
+		t.Fatal(err)
+	}
+	for sql, want := range map[string]string{
+		"SELECT '001' AS x":               "select '001' as `x`",
+		"SELECT '1.5' AS x":               "select '1.5' as `x`",
+		"SELECT 'TRUE' AS x":              "select 'TRUE' as `x`",
+		"SELECT _latin1'001' AS x":        "select _latin1'001' as `x`",
+		"SELECT _latin1 X'303031' AS x":   "select _latin1'001' as `x`",
+		"SELECT _latin1 b'00110001' AS x": "select _latin1'1' as `x`",
+		"SELECT 1 AS x":                   "select 1 as `x`",
+		"SELECT 1.5 AS x":                 "select 1.5 as `x`",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			_, first, second := roundTrip(t, c, sql)
+			if first != want {
+				t.Errorf("DeparseQuery(%q) = %q, want %q", sql, first, want)
+			}
+			if again := DeparseQuery(second); again != first {
+				t.Errorf("deparsed %q, which reads back as %q", first, again)
+			}
+		})
+	}
+}

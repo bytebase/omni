@@ -77,10 +77,11 @@ func writeConstExprQ(b *strings.Builder, c *ConstExprQ) {
 		b.WriteString(c.Value)
 		return
 	}
-	if isNumericLiteralQ(c.Value) || isBoolLiteralQ(c.Value) {
+	if !c.IsString && (isNumericLiteralQ(c.Value) || isBoolLiteralQ(c.Value)) {
 		b.WriteString(c.Value)
 		return
 	}
+	b.WriteString(c.Introducer)
 	b.WriteString("'")
 	b.WriteString(strings.ReplaceAll(c.Value, "'", "''"))
 	b.WriteString("'")

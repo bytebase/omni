@@ -708,6 +708,10 @@ type ConstExprQ struct {
 	// lineage, like any constant, but deparse must not quote it: the engine
 	// lexes the position as a keyword and rejects timestampdiff('SECOND',...).
 	Keyword bool
+	// IsString marks a string literal, which stays one whatever its text looks like: '001' is
+	// no number. Introducer is the charset it was written with, as in _latin1'a', "" for none.
+	IsString   bool
+	Introducer string
 }
 
 func (*ConstExprQ) analyzedExprTag()          {}

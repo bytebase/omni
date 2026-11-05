@@ -16,7 +16,7 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.IntLit:
 		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10)}, nil
 	case *nodes.StringLit:
-		return &ConstExprQ{Value: n.Value}, nil
+		return &ConstExprQ{Value: n.Value, IsString: true, Introducer: n.Charset}, nil
 	case *nodes.FloatLit:
 		return &ConstExprQ{Value: n.Value}, nil
 	case *nodes.NullLit:
