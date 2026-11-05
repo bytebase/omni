@@ -17,6 +17,15 @@ import (
 var mariaDBReservedNotInMySQL = map[string]bool{
 	"PORTION":   true, // FOR PORTION OF (application-time DML)
 	"RETURNING": true, // INSERT / DELETE … RETURNING
+
+	// Measured against mariadb:11.8.8 in mariadb/parser's SET name sweep.
+	"OFFSET":             true,
+	"SQL_AFTER_GTIDS":    true,
+	"SQL_BEFORE_GTIDS":   true,
+	"STATS_AUTO_RECALC":  true,
+	"STATS_PERSISTENT":   true,
+	"STATS_SAMPLE_PAGES": true,
+	"VECTOR":             true,
 }
 
 // TestContainer_ReservedKeywordAcceptance systematically tests whether omni

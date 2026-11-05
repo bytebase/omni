@@ -21,11 +21,9 @@ import (
 // where no text follows the assignment that raised it, and the stored program rows check the
 // same forms against a real verdict.
 //
-// Not in this table, because omni still disagrees and each is its own change: NAMES and the
-// charset forms beside other assignments, as in `SET @a = 1, NAMES utf8mb4`, and `SET CHAR
-// SET utf8mb4`. The values BINARY and ALL, and `SET @a = DEFAULT`. `SET @'a' = 1`. `SET a.1 =
-// 1`. `SET GLOBAL a = 1` in a procedure with a local a, which the server refuses in an action
-// that sees the routine's variables.
+// What a list holds besides names and scopes is in set_list_forms_test.go. Not in either: `SET
+// GLOBAL a = 1` in a procedure with a local a, which the server refuses in an action that sees the
+// routine's variables.
 
 // TestSetNamesScopesForms holds omni to the recorded verdicts without a server, so a run with
 // no Docker still reports a widened or narrowed grammar.

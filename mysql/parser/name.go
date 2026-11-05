@@ -878,6 +878,11 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 		start := p.cur.Loc
 		p.advance() // consume @@
 
+		// The name touches @@: `SELECT @@ a` is a 1064.
+		if p.cur.Loc != p.prev.End {
+			return nil, p.syntaxErrorAtCur()
+		}
+
 		ref := &nodes.VariableRef{
 			Loc:    nodes.Loc{Start: start},
 			System: true,

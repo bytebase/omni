@@ -23,10 +23,8 @@ import (
 // only where no text follows the assignment that raised it, and the stored program rows check
 // the same forms against a real verdict.
 //
-// Not in this table, because omni still disagrees and each is its own change: NAMES and the
-// charset forms beside other assignments, as in `SET @a = 1, NAMES utf8mb4`, and `SET CHAR
-// SET utf8mb4`. The values BINARY and ALL, and `SET @a = DEFAULT`. `SET @'a' = 1`. `SET a.1 =
-// 1`. SET STATEMENT, which needs a statement node of its own.
+// What is not in this table is in set_list_forms_test.go, with SET STATEMENT, which needs a
+// statement node of its own.
 
 // TestSetNamesScopesForms holds omni to the recorded verdicts without a server, so a run with
 // no Docker still reports a widened or narrowed grammar.
@@ -425,27 +423,27 @@ var setVariableNameGap = map[string][]string{
 		"generated", "get", "grouping", "groups", "io_after_gtids", "io_before_gtids",
 		"json_table", "lag", "last_value", "lateral", "lead", "master_bind",
 		"master_ssl_verify_server_cert", "nth_value", "ntile", "of", "optimizer_costs", "option",
-		"percent_rank", "rank", "schema", "sql_after_gtids", "sql_before_gtids",
-		"stats_auto_recalc", "stats_persistent", "stats_sample_pages", "stored", "system",
-		"variance", "vector", "virtual", "window",
+		"percent_rank", "rank", "schema",
+		"stored", "system",
+		"variance", "virtual", "window",
 	},
 	"set global %s = 1": {
 		"cube", "cume_dist", "database", "dense_rank", "empty", "first_value", "function",
 		"generated", "get", "grouping", "groups", "io_after_gtids", "io_before_gtids",
 		"json_table", "lag", "last_value", "lateral", "lead", "master_bind",
-		"master_ssl_verify_server_cert", "nth_value", "ntile", "of", "offset", "optimizer_costs",
-		"option", "percent_rank", "rank", "schema", "sql_after_gtids", "sql_before_gtids",
-		"stats_auto_recalc", "stats_persistent", "stats_sample_pages", "stored", "system",
-		"variance", "vector", "virtual", "window",
+		"master_ssl_verify_server_cert", "nth_value", "ntile", "of", "optimizer_costs",
+		"option", "percent_rank", "rank", "schema",
+		"stored", "system",
+		"variance", "virtual", "window",
 	},
 	"set @a = 1, %s = 2": {
 		"cube", "cume_dist", "database", "dense_rank", "empty", "first_value", "function",
 		"generated", "get", "grouping", "groups", "io_after_gtids", "io_before_gtids",
 		"json_table", "lag", "last_value", "lateral", "lead", "master_bind",
 		"master_ssl_verify_server_cert", "nth_value", "ntile", "of", "optimizer_costs", "option",
-		"percent_rank", "rank", "schema", "sql_after_gtids", "sql_before_gtids",
-		"stats_auto_recalc", "stats_persistent", "stats_sample_pages", "stored", "system",
-		"variance", "vector", "virtual", "window",
+		"percent_rank", "rank", "schema",
+		"stored", "system",
+		"variance", "virtual", "window",
 	},
 }
 

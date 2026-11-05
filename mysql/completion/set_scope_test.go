@@ -18,6 +18,11 @@ func TestSetScopeCompletion(t *testing.T) {
 		{"set @a = 1, <|>", []string{"GLOBAL", "SESSION"}},
 		{"set a = 1, b = 2, <|>", []string{"GLOBAL", "SESSION"}},
 		{"set transaction <|> = 1", []string{"ISOLATION", "READ"}},
+		{"set @a = 1, names <|>", []string{"utf8mb4"}},
+		{"set @a = 1, charset <|>", []string{"utf8mb4"}},
+		{"set @a = 1, character set <|>", []string{"utf8mb4"}},
+		{"set char set <|>", []string{"utf8mb4"}},
+		{"set names utf8, <|>", []string{"GLOBAL", "SESSION"}},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
 			sql, cursor := splitCursor(t, tc.sql)

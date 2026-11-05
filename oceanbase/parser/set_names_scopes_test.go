@@ -18,11 +18,9 @@ import (
 // LOCAL TRANSACTION READ ONLY` parses. A name takes no dot, TO stands for `=`, and NAMES, ROLE
 // and TRANSACTION are names when one of those follows.
 //
-// Not in this table, because omni still disagrees and each is its own change: NAMES and the
-// charset forms beside other assignments, as in `SET @a = 1, NAMES utf8mb4`, and `SET CHAR
-// SET utf8mb4`. The value BINARY, and `SET @a = DEFAULT` and `SET a = DEFAULT + 1`. `SET @'a'
-// = 1`. `SET NEW.a = 1` outside a trigger, a 1064 for a flag this parser does not hold, since
-// inside one it parses.
+// What a list holds besides names and scopes is in set_list_forms_test.go. Not in either: `SET
+// NEW.a = 1` outside a trigger, a 1064 for a flag this parser does not hold, since inside one it
+// parses.
 
 // TestSetNamesScopesForms holds omni to the recorded verdicts without a server, so a run with
 // no Docker still reports a widened or narrowed grammar.
