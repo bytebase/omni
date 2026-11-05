@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -680,9 +679,14 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			if next := p.peekNext().Type; next == tokXCONST || next == tokBCONST {
 				charsetTok := p.advance()
 				litTok := p.advance()
+				// The digits are held to the literal's own rules: X'GG', b'2' and X'6' are 1064.
+				value, err := p.decodeByteLiteral(litTok)
+				if err != nil {
+					return nil, err
+				}
 				return &nodes.StringLit{
 					Loc:     nodes.Loc{Start: charsetTok.Loc, End: litTok.End},
-					Value:   literalBytes(litTok),
+					Value:   value,
 					Charset: charsetTok.Str,
 				}, nil
 			}
@@ -2741,30 +2745,4 @@ func (p *Parser) parseExprList() ([]nodes.ExprNode, error) {
 		p.advance()
 	}
 	return list, nil
-}
-
-// literalBytes is the string a hex or bit literal stands for, in whole bytes from the left: X'61'
-// and b'01100001' are both "a", and b'1' is the byte 0x01.
-func literalBytes(tok Token) string {
-	digits := tok.Str
-	if tok.Type == tokXCONST {
-		digits = strings.TrimPrefix(strings.TrimPrefix(digits, "0x"), "0X")
-		if len(digits)%2 == 1 {
-			digits = "0" + digits
-		}
-		out := make([]byte, len(digits)/2)
-		for i := range out {
-			v, _ := strconv.ParseUint(digits[2*i:2*i+2], 16, 8)
-			out[i] = byte(v)
-		}
-		return string(out)
-	}
-	digits = strings.TrimPrefix(strings.TrimPrefix(digits, "0b"), "0B")
-	out := make([]byte, (len(digits)+7)/8)
-	for i := 0; i < len(digits); i++ {
-		if digits[len(digits)-1-i] == '1' {
-			out[len(out)-1-i/8] |= 1 << (i % 8)
-		}
-	}
-	return string(out)
 }

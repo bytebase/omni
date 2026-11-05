@@ -25,6 +25,8 @@ var requiredFormCases = []requiredFormCase{
 	{"SELECT JSON_VALUE('{}', '$.a' DEFAULT _latin1 X'61' ON EMPTY)", true},
 	{"SELECT JSON_VALUE('{}', '$.a' DEFAULT b'' ON EMPTY)", true},
 	{"SELECT _latin1 1", false},
+	{"SELECT _latin1 X'GG'", false},
+	{"SELECT _latin1 b'2'", false},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT N'x' ON ERROR)", true},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT n'x' ON EMPTY)", true},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT N'x' 'y' ON EMPTY)", true},

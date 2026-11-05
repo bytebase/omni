@@ -189,6 +189,11 @@ func jsonValueIndexType(dt *nodes.DataType) *ResolvedType {
 		return &ResolvedType{BaseType: BaseTypeYear}
 	}
 	rt := dataTypeToResolvedType(dt)
+	// CHAR ... CHARSET binary is a binary string: mysql:8.0.46 gives RETURNING CHAR(3) CHARSET
+	// binary a varbinary(3) hidden column.
+	if rt.BaseType == BaseTypeChar && strings.EqualFold(dt.Charset, "binary") {
+		rt.BaseType = BaseTypeBinary
+	}
 	switch rt.BaseType {
 	case BaseTypeChar, BaseTypeBinary:
 		long := !dt.HasLength || dt.Length > 512
