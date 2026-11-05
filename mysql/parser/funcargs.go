@@ -141,7 +141,7 @@ func (p *Parser) parseAggArgs(fc *nodes.FuncCallExpr, spec aggArgSpec) error {
 		if err != nil {
 			return err
 		}
-		if arg == nil || isStarArg(arg) {
+		if arg == nil || isStarArg(arg) || isBareInterval(arg) {
 			return p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)

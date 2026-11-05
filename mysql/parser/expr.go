@@ -546,36 +546,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwLOCALTIME, kwLOCALTIMESTAMP,
 		kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
-		tok := p.advance()
-		name := strings.ToUpper(tok.Str)
-		fc := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: tok.Loc}, Name: name}
-		// Optional parentheses with optional fsp argument
-		if p.cur.Type == '(' {
-			fc.HasParens = true
-			p.advance()
-			if p.cur.Type != ')' {
-				// Parse arguments (e.g., fractional seconds precision)
-				for {
-					arg, err := p.parseExpr()
-					if err != nil {
-						return nil, err
-					}
-					if arg == nil {
-						return nil, p.syntaxErrorAtCur()
-					}
-					fc.Args = append(fc.Args, arg)
-					if p.cur.Type != ',' {
-						break
-					}
-					p.advance() // consume ','
-				}
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-		}
-		fc.Loc.End = p.prev.End
-		return fc, nil
+		return p.parseTemporalKeyword()
 
 	case '*':
 		tok := p.advance()
@@ -826,7 +797,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// answers 1064 for `count`(*), `trim`(LEADING 'x' FROM b),
 	// test.substring(b FROM 1), `sum`(a) OVER () and the other special forms
 	// under a quoted or qualified name. p.prev is the name's token.
-	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc)
+	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && !p.temporalWordIsName(strings.ToUpper(name))
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
@@ -904,6 +875,15 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	if builtin {
+		if done, err := p.parseTemporalCall(fc); done {
+			if err != nil {
+				return nil, err
+			}
+			return fc, nil
+		}
+	}
+
 	// Empty argument list
 	if p.cur.Type == ')' {
 		p.advance()
@@ -924,7 +904,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		if arg == nil || isStarArg(arg) {
 			return nil, p.syntaxErrorAtCur()
 		}
-		if _, bare := arg.(*nodes.IntervalExpr); bare && !builtin {
+		if isBareInterval(arg) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
