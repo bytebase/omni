@@ -1562,9 +1562,10 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		return col, nil
 	}
 
-	// type. Not VECTOR: 11.8.8 answers 1064 for `a VECTOR(3) PATH '$'` where every column
-	// and routine takes it.
-	if p.cur.Type == kwVECTOR || p.isQuotedVectorType() {
+	// type. None of the types MariaDB reads by name: 11.8.8 answers 1064 for `a VECTOR(3)
+	// PATH '$'`, `a inet6 PATH '$'` and `a uuid PATH '$'` where every column and routine
+	// takes them.
+	if p.cur.Type == kwVECTOR || p.isQuotedVectorType() || p.isNamedScalarType() {
 		return nil, p.syntaxErrorAtCur()
 	}
 	typeName, err := p.parseDataType()
@@ -1821,7 +1822,8 @@ func isLockWaitLiteral(tok Token) bool {
 	case tokICONST, tokFCONST:
 		return true
 	case tokXCONST:
-		return strings.HasPrefix(tok.Str, "0x") || strings.HasPrefix(tok.Str, "0X")
+		// Lower case only: MariaDB answers 1064 for WAIT 0X10.
+		return strings.HasPrefix(tok.Str, "0x")
 	}
 	return false
 }

@@ -922,6 +922,12 @@ func writeDropTableStmt(sb *strings.Builder, n *DropTableStmt) {
 func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	sb.WriteString("{CREATE_INDEX")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.NoWait {
+		sb.WriteString(" :nowait true")
+	}
+	if n.HasWait {
+		fmt.Fprintf(sb, " :wait %s", n.WaitSeconds)
+	}
 	if n.OrReplace {
 		sb.WriteString(" :or_replace true")
 	}
@@ -2074,6 +2080,12 @@ func writeDropDatabaseStmt(sb *strings.Builder, n *DropDatabaseStmt) {
 func writeDropIndexStmt(sb *strings.Builder, n *DropIndexStmt) {
 	sb.WriteString("{DROP_INDEX")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.NoWait {
+		sb.WriteString(" :nowait true")
+	}
+	if n.HasWait {
+		fmt.Fprintf(sb, " :wait %s", n.WaitSeconds)
+	}
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")
 	}

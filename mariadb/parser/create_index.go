@@ -16,6 +16,7 @@ import (
 //	CREATE [OR REPLACE] [UNIQUE | FULLTEXT | SPATIAL] INDEX [IF NOT EXISTS] index_name
 //	    [index_type]
 //	    ON tbl_name (key_part,...)
+//	    [WAIT n | NOWAIT]
 //	    [index_option] ...
 //	    [algorithm_option | lock_option] ...
 func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, spatial bool) (*nodes.CreateIndexStmt, error) {
@@ -44,8 +45,12 @@ func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, sp
 
 	// Optional index_type. CREATE INDEX reads its name first and cannot leave
 	// it out, so both spellings of the clause stand here, where a key
-	// definition's position takes a bare TYPE as a name instead.
+	// definition's position takes a bare TYPE as a name instead. FULLTEXT and SPATIAL
+	// have no index type: 11.8.8 answers 1064 for any of them.
 	if p.isIndexTypeIntro() {
+		if fulltext || spatial {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		typeName, err := p.parseIndexTypeName()
 		if err != nil {
@@ -77,8 +82,15 @@ func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, sp
 	}
 	stmt.Columns = cols
 
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
+	}
+
 	// [index_option] ...
 	for {
+		if err := p.refuseIndexOption(fulltext, spatial); err != nil {
+			return nil, err
+		}
 		opt, ok, err := p.parseIndexOption()
 		if err != nil {
 			return nil, err
@@ -146,14 +158,8 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, orReplace bool) (*nodes.C
 		return nil, err
 	}
 	stmt.Columns = []*nodes.IndexColumn{part}
-	// [WAIT n | NOWAIT] says how long to wait for the table's lock and changes nothing
-	// about the index, so it is read and not kept.
-	if _, ok := p.match(kwNOWAIT); !ok {
-		if _, ok := p.match(kwWAIT); ok {
-			if _, err := p.expect(tokICONST); err != nil {
-				return nil, err
-			}
-		}
+	if stmt.NoWait, stmt.HasWait, stmt.WaitSeconds, err = p.parseIndexLockWait(); err != nil {
+		return nil, err
 	}
 	for {
 		opt, ok, err := p.parseVectorKeyOption()
@@ -170,6 +176,42 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, orReplace bool) (*nodes.C
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseIndexLockWait reads the [WAIT n | NOWAIT] of CREATE INDEX and DROP INDEX: at most
+// one of the two, right after the key parts or the table, and before any option. 11.8.8
+// answers 1064 for `(a) COMMENT 'c' WAIT 3`, for `WAIT 3 NOWAIT` and for WAIT before ON.
+// n is the literal isLockWaitLiteral reads for a locking clause: it takes WAIT 1.5, WAIT
+// 1e3 and WAIT 0x10, and answers 1064 for WAIT '3', WAIT -1, WAIT X'10' and WAIT (5).
+//
+// Ref: opt_lock_wait_timeout_new in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseIndexLockWait() (noWait, hasWait bool, seconds string, err error) {
+	if _, ok := p.match(kwNOWAIT); ok {
+		return true, false, "", nil
+	}
+	if _, ok := p.match(kwWAIT); !ok {
+		return false, false, "", nil
+	}
+	if !isLockWaitLiteral(p.cur) {
+		return false, false, "", p.syntaxErrorAtCur()
+	}
+	return false, true, p.advance().Str, nil
+}
+
+// refuseIndexOption refuses the index options a kind of index does not read, where
+// parseIndexOption, which every index shares, would take them. Only FULLTEXT has a parser:
+// 11.8.8 answers 1064 for WITH PARSER on any other index. FULLTEXT and SPATIAL have no
+// index type: it answers 1064 for USING and TYPE after their key parts as before them.
+func (p *Parser) refuseIndexOption(fulltext, spatial bool) error {
+	if p.cur.Type == kwWITH && !fulltext {
+		if next := p.peekNext(); next.Type == kwPARSER {
+			return p.syntaxErrorAtTok(next)
+		}
+	}
+	if p.isIndexTypeIntro() && (fulltext || spatial) {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // parseIndexKeyPart parses a single key_part in an index column list.
