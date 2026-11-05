@@ -182,6 +182,8 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *AsOfClause:
+		Walk(v, n.Timestamp)
 	case *Assignment:
 		if n.Column != nil {
 			Walk(v, n.Column)
@@ -1073,6 +1075,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Select)
 		}
 	case *TableRef:
+		if n.AsOf != nil {
+			Walk(v, n.AsOf)
+		}
 		for _, item := range n.IndexHints {
 			if item != nil {
 				Walk(v, item)

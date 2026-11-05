@@ -3734,10 +3734,10 @@ accept	accept	( with cte(n) as ( select 1 )  select n+1 from cte  union select n
 accept	accept	( with cte(n) as ( select 1 )  select n+1 from cte) union select 1
 accept	accept	( with cte(n) as ( select 1 )  (select n+1 from cte)) union select 1
 accept	accept	SELECT * FROM `t` AS /* comment */ a;
-reject	accept	SELECT * FROM `t` AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW());
-reject	accept	select * from `t` as of timestamp '2021-04-15 00:00:00'
-reject	accept	SELECT * FROM (`a` AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW())) JOIN `b` AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW());
-reject	accept	INSERT INTO `employees` (SELECT * FROM `employees` AS OF TIMESTAMP (DATE_SUB(NOW(), INTERVAL _UTF8MB4'60' MINUTE)) NOT IN (SELECT * FROM `employees`))
+accept	accept	SELECT * FROM `t` AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW());
+accept	accept	select * from `t` as of timestamp '2021-04-15 00:00:00'
+accept	accept	SELECT * FROM (`a` AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW())) JOIN `b` AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW());
+accept	accept	INSERT INTO `employees` (SELECT * FROM `employees` AS OF TIMESTAMP (DATE_SUB(NOW(), INTERVAL _UTF8MB4'60' MINUTE)) NOT IN (SELECT * FROM `employees`))
 reject	accept	SET TRANSACTION READ ONLY as of timestamp '2021-04-21 00:42:12'
 accept	accept	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 1 (c1,c2) PARTITIONS 4
 reject	reject	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = -1 (c1,c2) PARTITIONS 4
