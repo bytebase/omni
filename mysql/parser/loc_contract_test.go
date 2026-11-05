@@ -285,6 +285,7 @@ var locSpanCases = []struct {
 	{"SetRoleStmt", "SET ROLE ALL", "SET ROLE ALL", 0},
 	{"SetStmt", "SET x = 1", "SET x = 1", 0},
 	{"SetTransactionStmt", "SET TRANSACTION READ ONLY", "SET TRANSACTION READ ONLY", 0},
+	{"SetTransactionStmt", "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY;", "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY", 0},
 	{"ShowStmt", "SHOW TABLES", "SHOW TABLES", 0},
 	{"ShutdownStmt", "SHUTDOWN", "SHUTDOWN", 0},
 	{"SignalInfoItem", "RESIGNAL SET MESSAGE_TEXT = 'Error handled'", "MESSAGE_TEXT = 'Error handled'", 0},
