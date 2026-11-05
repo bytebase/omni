@@ -66,6 +66,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	case stmt.Spatial:
 		idx.Spatial = true
 		idx.IndexType = "SPATIAL"
+	case stmt.Vector:
+		idx.Vector = true
+		idx.IndexType = resolveIndexUsingType(stmt.IndexType, stmt.Options)
 	default:
 		// `USING {BTREE|HASH}` may appear in either grammar position — before ON
 		// (stmt.IndexType) or as a trailing index_option (stmt.Options). Resolve both via the

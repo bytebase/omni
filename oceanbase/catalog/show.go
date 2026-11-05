@@ -387,6 +387,8 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf("FULLTEXT KEY `%s` (", idx.Name))
 	} else if idx.Spatial {
 		b.WriteString(fmt.Sprintf("SPATIAL KEY `%s` (", idx.Name))
+	} else if idx.Vector {
+		b.WriteString(fmt.Sprintf("VECTOR KEY `%s` (", idx.Name))
 	} else {
 		b.WriteString(fmt.Sprintf("KEY `%s` (", idx.Name))
 	}
@@ -400,6 +402,12 @@ func showIndex(idx *Index) string {
 
 	// A fulltext index's parser, where OceanBase prints it.
 	b.WriteString(formatFulltextParser(idx))
+
+	// A vector index's parameters, straight after the key parts, as 4.3.5.6 prints them:
+	// VECTOR KEY `i` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG).
+	if idx.Vector && len(idx.VectorParams) > 0 {
+		b.WriteString(" WITH (" + strings.Join(idx.VectorParams, ", ") + ")")
+	}
 
 	// USING clause: shown when explicitly specified, not for PRIMARY/FULLTEXT/SPATIAL.
 	if !idx.Primary && !idx.Fulltext && !idx.Spatial && idx.IndexType != "" {

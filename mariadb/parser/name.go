@@ -28,6 +28,7 @@ const (
 // refined to their correct ambiguous category in later sections.
 var keywordCategories = map[int]keywordCategory{
 	kwSELECT:             kwCatReserved,
+	kwVECTOR:             kwCatReserved, // MariaDB 11.8.8 answers 1064 for `CREATE TABLE vector (vector INT)`
 	kwINSERT:             kwCatReserved,
 	kwUPDATE:             kwCatReserved,
 	kwDELETE:             kwCatReserved,

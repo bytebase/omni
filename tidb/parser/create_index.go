@@ -7,16 +7,16 @@ import (
 )
 
 // parseCreateIndexStmt parses a CREATE INDEX statement.
-// Called when p.cur is at the INDEX keyword (after consuming CREATE [UNIQUE|FULLTEXT|SPATIAL]).
+// Called when p.cur is at the INDEX keyword (after consuming CREATE [UNIQUE|FULLTEXT|SPATIAL|VECTOR]).
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/create-index.html
 //
-//	CREATE [UNIQUE | FULLTEXT | SPATIAL] INDEX index_name
+//	CREATE [UNIQUE | FULLTEXT | SPATIAL | VECTOR] INDEX index_name
 //	    [index_type]
 //	    ON tbl_name (key_part,...)
 //	    [index_option] ...
 //	    [algorithm_option | lock_option] ...
-func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spatial bool) (*nodes.CreateIndexStmt, error) {
+func (p *Parser) parseCreateIndexStmt(start int, unique, fulltext, spatial, vector bool) (*nodes.CreateIndexStmt, error) {
 	p.advance() // consume INDEX
 
 	stmt := &nodes.CreateIndexStmt{
@@ -24,6 +24,7 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 		Unique:   unique,
 		Fulltext: fulltext,
 		Spatial:  spatial,
+		Vector:   vector,
 	}
 
 	// IF NOT EXISTS (MySQL 8.0.27+)

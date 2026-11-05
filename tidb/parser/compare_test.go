@@ -4333,7 +4333,7 @@ func parseCreateIndex(t *testing.T, input string) *ast.CreateIndexStmt {
 		p.advance()
 		spatial = true
 	}
-	stmt, err := p.parseCreateIndexStmt(start, unique, fulltext, spatial)
+	stmt, err := p.parseCreateIndexStmt(start, unique, fulltext, spatial, false)
 	if err != nil {
 		t.Fatalf("parseCreateIndexStmt(%q) error: %v", input, err)
 	}

@@ -2195,18 +2195,18 @@ accept	accept	CREATE INDEX idx ON t ( a ) USING HASH VISIBLE
 accept	accept	CREATE INDEX idx ON t ( a ) USING HASH INVISIBLE
 reject	reject	CREATE VECTOR INDEX idx ON t (a) USING HNSW 
 reject	reject	CREATE VECTOR INDEX idx ON t (a, b) USING HNSW 
-reject	accept	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a)))
+accept	accept	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a)))
 reject	reject	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) TYPE BTREE
 reject	reject	CREATE VECTOR INDEX idx ON t USING HNSW ((VEC_COSINE_DISTANCE(a)))
 reject	reject	CREATE VECTOR idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
 reject	reject	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a)), a) USING HNSW
 reject	reject	CREATE VECTOR INDEX idx ON t (a, (VEC_COSINE_DISTANCE(a))) USING HNSW
 reject	reject	CREATE VECTOR KEY idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
-reject	accept	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
-reject	accept	CREATE VECTOR INDEX IF NOT EXISTS idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
-reject	accept	CREATE VECTOR INDEX IF NOT EXISTS idx ON t ((VEC_COSINE_DISTANCE(a))) TYPE HNSW
-reject	accept	CREATE VECTOR INDEX ident TYPE HNSW ON d_n.t_n ((VEC_COSINE_DISTANCE(a)))
-reject	accept	CREATE VECTOR INDEX idx USING HNSW ON t ((VEC_COSINE_DISTANCE(a)))
+accept	accept	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
+accept	accept	CREATE VECTOR INDEX IF NOT EXISTS idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
+accept	accept	CREATE VECTOR INDEX IF NOT EXISTS idx ON t ((VEC_COSINE_DISTANCE(a))) TYPE HNSW
+accept	accept	CREATE VECTOR INDEX ident TYPE HNSW ON d_n.t_n ((VEC_COSINE_DISTANCE(a)))
+accept	accept	CREATE VECTOR INDEX idx USING HNSW ON t ((VEC_COSINE_DISTANCE(a)))
 reject	reject	CREATE VECTOR INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE HNSW
 reject	reject	CREATE UNIQUE INDEX ident USING HNSW ON d_n.t_n ( ident , ident ASC )
 accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM = DEFAULT
@@ -2568,15 +2568,15 @@ accept	accept	alter table t add primary key (`a`, `b`) clustered
 accept	accept	alter table t add primary key (`a`, `b`) nonclustered
 reject	reject	create table t(a int, b vector(3), vector index(b) USING HNSW);
 reject	reject	create table t(a int, b vector(3), vector index(a, b) USING HNSW);
-reject	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b))));
+accept	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b))));
 reject	reject	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b))) USING HASH);
 reject	reject	create table t(a int, b vector(3), vector index(a, (VEC_COSINE_DISTANCE(b))) USING HNSW);
 reject	reject	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b)), a) USING HNSW);
 reject	reject	create table t(a int, b vector(3), vector index(VEC_COSINE_DISTANCE(b)) USING HNSW);
 reject	reject	create table t(a int, b vector(3), vector key((VEC_COSINE_DISTANCE(b))) TYPE HNSW);
-reject	accept	create table t(a int, b vector(3), vector index((b+1)) USING HNSW);
-reject	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(a, b))) USING HNSW);
-reject	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b))) USING HNSW);
+accept	accept	create table t(a int, b vector(3), vector index((b+1)) USING HNSW);
+accept	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(a, b))) USING HNSW);
+accept	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b))) USING HNSW);
 accept	accept	drop placement policy x
 reject	reject	drop placement policy x, y
 accept	accept	drop placement policy if exists x
@@ -3888,8 +3888,8 @@ accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 LONG VARCHAR)
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 LONG)
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 MIDDLEINT)
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 NUMERIC)
-reject	accept	CREATE TABLE t (a VECTOR)
-reject	accept	CREATE TABLE t (a VECTOR<FLOAT>)
+accept	accept	CREATE TABLE t (a VECTOR)
+accept	accept	CREATE TABLE t (a VECTOR<FLOAT>)
 reject	reject	CREATE TABLE t (a VECTOR<INT>)
 reject	reject	CREATE TABLE t (a VECTOR<DOUBLE>)
 reject	reject	CREATE TABLE t (a VECTOR<ABC>)

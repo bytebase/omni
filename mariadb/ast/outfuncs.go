@@ -922,6 +922,9 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	if n.Unique {
 		sb.WriteString(" :unique true")
 	}
+	if n.Vector {
+		sb.WriteString(" :vector true")
+	}
 	if n.Fulltext {
 		sb.WriteString(" :fulltext true")
 	}

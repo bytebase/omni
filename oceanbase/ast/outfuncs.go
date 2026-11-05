@@ -897,6 +897,9 @@ func writeCreateIndexStmt(sb *strings.Builder, n *CreateIndexStmt) {
 	if n.Fulltext {
 		sb.WriteString(" :fulltext true")
 	}
+	if n.Vector {
+		sb.WriteString(" :vector true")
+	}
 	if n.Spatial {
 		sb.WriteString(" :spatial true")
 	}

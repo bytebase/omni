@@ -711,6 +711,33 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			applyIndexOptions(ftIdx, con.IndexOptions)
 			tbl.Indexes = append(tbl.Indexes, ftIdx)
 
+		case nodes.ConstrVector:
+			idxName := con.Name
+			if idxName == "" && len(cols) > 0 {
+				idxName = allocIndexName(tbl, cols[0])
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
+			}
+			idxCols := buildIndexColumns(con)
+			if err := validateVectorIndex(tbl, idxCols); err != nil {
+				return err
+			}
+			vecIdx := &Index{
+				Name:      idxName,
+				Table:     tbl,
+				Columns:   idxCols,
+				Vector:    true,
+				IndexType: "VECTOR",
+				Visible:   true,
+			}
+			applyIndexOptions(vecIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, vecIdx)
+
 		case nodes.ConstrSpatialIndex:
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
@@ -2152,6 +2179,14 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 // by its MySQL version, so MariaDB never reads it (verified on 11.8.8).
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 	for _, opt := range opts {
+		// An engine-defined option's name is the engine's, so a quoted `comment`=1 is
+		// not a COMMENT. DEFAULT clears the option, so it prints nothing.
+		if opt.Engine {
+			if text := engineOptionText(opt); text != "" {
+				idx.EngineOptions = append(idx.EngineOptions, text)
+			}
+			continue
+		}
 		switch strings.ToUpper(opt.Name) {
 		case "COMMENT":
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
@@ -2170,6 +2205,46 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			}
 		}
 	}
+}
+
+// engineOptionText writes an engine-defined option as MariaDB 11.8.8's SHOW CREATE
+// TABLE does: the name quoted as written, a word or a number bare, a string quoted.
+// VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine
+func engineOptionText(opt *nodes.IndexOption) string {
+	switch v := opt.Value.(type) {
+	case *nodes.StringLit:
+		if opt.ValueIsWord {
+			return fmt.Sprintf("`%s`=%s", opt.Name, v.Value)
+		}
+		return fmt.Sprintf("`%s`='%s'", opt.Name, escapeComment(v.Value))
+	case *nodes.IntLit:
+		return fmt.Sprintf("`%s`=%d", opt.Name, v.Value)
+	}
+	return ""
+}
+
+// validateVectorIndex holds a VECTOR key to what MariaDB 11.8.8 refuses when the
+// statement runs: a column that is no vector (1210), a column that may be NULL (1252),
+// and a second vector index on the table (1235).
+func validateVectorIndex(tbl *Table, idxCols []*IndexColumn) error {
+	for _, idx := range tbl.Indexes {
+		if idx.Vector {
+			return &Error{Code: 1235, SQLState: "42000", Message: "This version of MariaDB doesn't yet support 'multiple VECTOR indexes'"}
+		}
+	}
+	for _, ic := range idxCols {
+		col := tbl.GetColumn(ic.Name)
+		if col == nil {
+			return errNoSuchColumn(ic.Name, "'"+tbl.Name+"'")
+		}
+		if !strings.EqualFold(col.DataType, "vector") {
+			return &Error{Code: 1210, SQLState: "HY000", Message: "Incorrect arguments to VECTOR INDEX"}
+		}
+		if col.Nullable {
+			return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a VECTOR index must be NOT NULL"}
+		}
+	}
+	return nil
 }
 
 // nextFKGeneratedNumber returns the next available counter for an auto-generated
@@ -3159,16 +3234,18 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 	// Copy indexes.
 	for _, srcIdx := range srcTbl.Indexes {
 		idx := &Index{
-			Name:         srcIdx.Name,
-			Table:        tbl,
-			Unique:       srcIdx.Unique,
-			Primary:      srcIdx.Primary,
-			Fulltext:     srcIdx.Fulltext,
-			Spatial:      srcIdx.Spatial,
-			IndexType:    srcIdx.IndexType,
-			Visible:      srcIdx.Visible,
-			Comment:      srcIdx.Comment,
-			KeyBlockSize: srcIdx.KeyBlockSize,
+			Name:          srcIdx.Name,
+			Table:         tbl,
+			Unique:        srcIdx.Unique,
+			Primary:       srcIdx.Primary,
+			Fulltext:      srcIdx.Fulltext,
+			Spatial:       srcIdx.Spatial,
+			Vector:        srcIdx.Vector,
+			EngineOptions: srcIdx.EngineOptions,
+			IndexType:     srcIdx.IndexType,
+			Visible:       srcIdx.Visible,
+			Comment:       srcIdx.Comment,
+			KeyBlockSize:  srcIdx.KeyBlockSize,
 		}
 		cols := make([]*IndexColumn, len(srcIdx.Columns))
 		for i, sc := range srcIdx.Columns {

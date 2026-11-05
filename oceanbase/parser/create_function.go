@@ -159,7 +159,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, isProcedure bool) (*nodes.Cr
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		dt, err := p.parseDataType()
+		dt, err := p.parseRoutineDataType()
 		if err != nil {
 			return nil, err
 		}
@@ -236,7 +236,7 @@ func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
 	param.Name = name
 
 	// Data type
-	dt, err := p.parseDataType()
+	dt, err := p.parseRoutineDataType()
 	if err != nil {
 		return nil, err
 	}

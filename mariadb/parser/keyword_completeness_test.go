@@ -878,7 +878,7 @@ var mysql8Keywords = []mysql8Keyword{
 	{"variance", catReserved},
 	{"varying", catReserved},
 	{"vcpu", catUnambiguous},
-	{"vector", catUnambiguous},
+	{"vector", catReserved},
 	{"verify_key_constraints", catUnambiguous},
 	{"view", catUnambiguous},
 	{"virtual", catReserved},

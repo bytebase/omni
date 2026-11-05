@@ -151,6 +151,40 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 		p.parseUnsignedZerofill(dt)
 
+	// VECTOR [<FLOAT>] [(dimension)], TiDB's own. The element type comes before the
+	// dimension and FLOAT is the only one the action takes: VECTOR<DOUBLE> reads in
+	// the grammar and its action answers 1064, as v8.5.5 does for VECTOR<INT> and
+	// VECTOR(5)<FLOAT>. The type carries no modifiers either: UNSIGNED, BINARY and
+	// CHARSET after it are 1064, while the COLLATE of a column definition is not.
+	//
+	// Ref: `"VECTOR" OptVectorElementType OptFieldLen` and OptVectorElementType in
+	// TiDB v8.5.5 pkg/parser/parser.y.
+	case kwVECTOR:
+		dt.Name = "VECTOR"
+		p.advance()
+		if p.cur.Type == '<' {
+			p.advance()
+			if _, err := p.expect(kwFLOAT); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect('>'); err != nil {
+				return nil, err
+			}
+		}
+		// A dimension past 64 bits lexes as a decimal, which is no LengthNum: v8.5.5
+		// answers 1064 for VECTOR(99999999999999999999) and parses VECTOR(16384) and
+		// refuses it later with 1105.
+		if p.cur.Type == '(' {
+			if next := p.peekNext(); next.Type == tokICONST {
+				if _, err := strconv.ParseUint(next.Str, 10, 64); err != nil {
+					return nil, p.syntaxErrorAtTok(next)
+				}
+			}
+		}
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
+
 	// Boolean
 	case kwBOOL, kwBOOLEAN:
 		dt.Name = "BOOLEAN"
