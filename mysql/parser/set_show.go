@@ -312,9 +312,10 @@ func (p *Parser) parseSetCharsetName() (string, int, error) {
 func appendSetWord(stmt *nodes.SetStmt, column, value string, start, end int) {
 	loc := nodes.Loc{Start: start, End: end}
 	stmt.Assignments = append(stmt.Assignments, &nodes.Assignment{
-		Loc:    loc,
-		Column: &nodes.ColumnRef{Loc: loc, Column: column},
-		Value:  &nodes.StringLit{Loc: loc, Value: value},
+		Loc:         loc,
+		Column:      &nodes.ColumnRef{Loc: loc, Column: column},
+		Value:       &nodes.StringLit{Loc: loc, Value: value},
+		CharsetForm: true,
 	})
 }
 
@@ -347,7 +348,11 @@ func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
 			return p.parseDefaultExpr()
 		}
 	}
+	// An expr holds no bare DEFAULT, so `SET a = (DEFAULT)` and `SET a = 1 + DEFAULT` are 1064s.
+	outer := p.noBareDefault
+	p.noBareDefault = true
 	val, err := p.parseExpr()
+	p.noBareDefault = outer
 	if err != nil {
 		return nil, err
 	}
@@ -581,6 +586,16 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 		p.advance()
 	} else if _, err := p.expect('='); err != nil {
 		return nil, err
+	}
+
+	// install_set_rvalue: an expr or ON.
+	if p.cur.Type == kwON {
+		tok := p.advance()
+		return &nodes.Assignment{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Column: col,
+			Value:  &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: true},
+		}, nil
 	}
 
 	// Parse value expression

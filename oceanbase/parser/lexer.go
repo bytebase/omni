@@ -2250,6 +2250,14 @@ func (l *Lexer) scanVariable() Token {
 			l.pos++
 		}
 		name = l.input[nameStart:l.pos]
+		// user_variable (sql_parser_mysql_mode.l:68) spells a quoted name from a short list
+		// of bytes, so @`a b` is a 1064 here.
+		for i := 0; i < len(name); i++ {
+			if b := name[i]; !isIdentChar(b) && b != '.' && b != '/' && b != '%' && b < 0x80 {
+				l.setError("unexpected character in user variable name", start)
+				break
+			}
+		}
 		if l.pos < len(l.input) {
 			l.pos++ // skip closing backtick
 		} else {

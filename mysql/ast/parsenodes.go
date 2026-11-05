@@ -1046,6 +1046,9 @@ type Assignment struct {
 	Scope  string // SET only: the scope word written on this assignment
 	Column *ColumnRef
 	Value  ExprNode
+	// CharsetForm is set for SET NAMES and the charset forms, where Column holds the form's word
+	// (NAMES, COLLATE or CHARACTER SET) and names no variable.
+	CharsetForm bool
 }
 
 func (a *Assignment) nodeTag() {}
