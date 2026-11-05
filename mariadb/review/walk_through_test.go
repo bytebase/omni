@@ -328,6 +328,15 @@ func TestWalkThroughMariaDBSession(t *testing.T) {
 	noFinding(t, "DROP TABLE nokey;\nSET GLOBAL sql_mode = DEFAULT, @@foreign_key_checks = 0;\n"+fk, on)
 	noFinding(t, "DROP TABLE nokey;\nSET @@global.foreign_key_checks = 1, foreign_key_checks = 0;\n"+fk, on)
 	noFinding(t, "DROP TABLE nokey;\nSET LOCAL foreign_key_checks = 0;\n"+fk, on)
+	// SET STATEMENT sets foreign_key_checks for its statement alone, and puts it back after,
+	// whatever the statement set it to. A variable it does not name stays as the statement set it.
+	noFinding(t, "DROP TABLE nokey;\nSET STATEMENT foreign_key_checks = 0 FOR "+fk, on)
+	oneFinding(t, "DROP TABLE nokey;\nSET STATEMENT foreign_key_checks = 0 FOR "+fk+"\n"+fk, 2, "Table `x` already exists.", on)
+	oneFinding(t, "DROP TABLE nokey;\nSET STATEMENT foreign_key_checks = 0 FOR SET foreign_key_checks = 0;\n"+fk, 2, missing, on)
+	noFinding(t, "DROP TABLE nokey;\nSET STATEMENT max_statement_time = 1 FOR SET foreign_key_checks = 0;\n"+fk, on)
+	oneFinding(t, "DROP TABLE nokey;\nSET STATEMENT max_statement_time = 1 FOR "+fk, 1, missing, on)
+	oneFinding(t, "DROP TABLE nokey;\nSET STATEMENT foreign_key_checks = 0, foreign_key_checks = 1 FOR "+fk, 1, missing, on)
+	noFinding(t, "DROP TABLE nokey;\nSET STATEMENT sql_mode = '' FOR SET STATEMENT foreign_key_checks = 0 FOR "+fk, on)
 	// A later assignment writes its own scope, and the most recent scope reaches one that
 	// writes none.
 	oneFinding(t, "DROP TABLE nokey;\nSET @a = 1, GLOBAL foreign_key_checks = 0;\n"+fk, 2, missing, on)

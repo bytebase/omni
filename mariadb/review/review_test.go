@@ -176,6 +176,14 @@ func TestRequireWhere(t *testing.T) {
 			sql:  "CREATE PROCEDURE pr() BEGIN DELETE FROM t; END;\nEXPLAIN DELETE FROM t;",
 			want: []finding{{0, "DELETE FROM t", "`DELETE` from `t` has no `WHERE` clause.", []int{0}}},
 		},
+		{
+			name: "under SET STATEMENT",
+			sql:  "SET STATEMENT max_statement_time = 1 FOR DELETE FROM t;\nSET STATEMENT sql_mode = '' FOR SET STATEMENT max_statement_time = 1 FOR UPDATE t SET n = 1;",
+			want: []finding{
+				{0, "DELETE FROM t", "`DELETE` from `t` has no `WHERE` clause.", []int{0}},
+				{1, "UPDATE t SET n = 1", "`UPDATE` of `t` has no `WHERE` clause.", []int{0}},
+			},
+		},
 	})
 }
 
@@ -692,6 +700,13 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:  "SET @x = 1, SESSION foreign_key_checks = 1;\nALTER TABLE plain DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "plain")},
 		},
+		{
+			name: "the key, dropped under SET STATEMENT",
+			sql:  "SET STATEMENT max_statement_time = 1 FOR ALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{name: "a SET under SET STATEMENT before, whose option may fail", sql: "SET STATEMENT nope = 1 FOR SET foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a SELECT under SET STATEMENT before, whose option may fail", sql: "SET STATEMENT nope = 1 FOR SELECT 1;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "the key, before CREATE OR REPLACE TABLE of its name, which drops it, or of a temporary table",

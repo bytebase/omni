@@ -141,6 +141,37 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	return nil
 }
 
+// execSetStatement applies SET STATEMENT: the statement runs with the options set, and each
+// option's variable then goes back to what it was, even if the statement set it too. A variable
+// the statement sets that no option names keeps its new value. Measured on mariadb:11.8.8.
+func (c *Catalog) execSetStatement(s *nodes.SetStatementStmt, source string) error {
+	fkChecks, generateGIPK, showGIPK, session := c.foreignKeyChecks, c.generateGIPK, c.showGIPK, c.session
+	if err := c.execSet(&nodes.SetStmt{Assignments: s.Options}); err != nil {
+		return err
+	}
+	var err error
+	if isDML(s.Stmt) {
+		err = validateExpressionSemantics(s.Stmt)
+	} else {
+		err = c.processUtility(s.Stmt, source)
+	}
+	for _, opt := range s.Options {
+		switch normalizeSetVariableName(opt.Column) {
+		case "foreign_key_checks":
+			c.foreignKeyChecks, c.session.ForeignKeyChecks = fkChecks, session.ForeignKeyChecks
+		case "sql_generate_invisible_primary_key":
+			c.generateGIPK, c.session.GenerateInvisiblePrimaryKey = generateGIPK, session.GenerateInvisiblePrimaryKey
+		case "show_gipk_in_create_table_and_information_schema":
+			c.showGIPK, c.session.ShowGIPK = showGIPK, session.ShowGIPK
+		case "explicit_defaults_for_timestamp":
+			c.session.ExplicitDefaultsForTimestamp = session.ExplicitDefaultsForTimestamp
+		case "sql_mode":
+			c.session.SQLMode = session.SQLMode
+		}
+	}
+	return err
+}
+
 func normalizeSetVariableName(col *nodes.ColumnRef) string {
 	if col == nil {
 		return ""
@@ -196,9 +227,11 @@ func nodeToSQLValue(expr nodes.ExprNode) string {
 }
 
 func isDML(stmt nodes.Node) bool {
-	switch stmt.(type) {
+	switch s := stmt.(type) {
 	case *nodes.SelectStmt, *nodes.InsertStmt, *nodes.UpdateStmt, *nodes.DeleteStmt:
 		return true
+	case *nodes.SetStatementStmt:
+		return isDML(s.Stmt)
 	default:
 		return false
 	}
@@ -257,6 +290,8 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropEvent(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
+	case *nodes.SetStatementStmt:
+		return c.execSetStatement(s, source)
 	case *nodes.CreateUserStmt, *nodes.AlterUserStmt, *nodes.DropUserStmt,
 		*nodes.RenameUserStmt, *nodes.CreateRoleStmt, *nodes.DropRoleStmt,
 		*nodes.SetPasswordStmt, *nodes.GrantStmt, *nodes.RevokeStmt,
@@ -350,6 +385,8 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.DropEventStmt:
 		return s.Loc.Start
 	case *nodes.SetStmt:
+		return s.Loc.Start
+	case *nodes.SetStatementStmt:
 		return s.Loc.Start
 	case *nodes.SelectStmt:
 		return s.Loc.Start

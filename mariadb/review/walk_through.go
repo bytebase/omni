@@ -249,7 +249,14 @@ func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 		return nil
 	}
 	b := &builder{w: w, l: l, s: &w.stmts[i]}
-	if !b.statement(w.stmts[i].node) {
+	// SET STATEMENT sets foreign_key_checks for this statement alone.
+	checks := w.fkChecks
+	if on, named := fkOption(w.stmts[i].options); named {
+		w.fkChecks, b.fkOption = on, true
+	}
+	lowered := b.statement(w.stmts[i].node)
+	w.fkChecks = checks
+	if !lowered {
 		return nil
 	}
 	return b.Step()
@@ -261,6 +268,9 @@ type builder struct {
 	w *walker
 	l *walk.Ledger
 	s *statement
+	// fkOption is set while the statement runs under a SET STATEMENT that
+	// names foreign_key_checks.
+	fkOption bool
 	// fks is set when the statement's table keeps the foreign keys it
 	// names (keepsFKs). Until a lowering sets it, the statement claims
 	// nothing of foreign keys and leaves their names Unknown.

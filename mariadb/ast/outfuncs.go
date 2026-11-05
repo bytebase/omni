@@ -59,6 +59,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeRenameTableStmt(sb, n)
 	case *SetStmt:
 		writeSetStmt(sb, n)
+	case *SetStatementStmt:
+		writeSetStatementStmt(sb, n)
 	case *SetPasswordStmt:
 		writeSetPasswordStmt(sb, n)
 	case *ShowStmt:
@@ -1053,6 +1055,20 @@ func writeRenameTableStmt(sb *strings.Builder, n *RenameTableStmt) {
 			writeNode(sb, p)
 		}
 	}
+	sb.WriteString("}")
+}
+
+func writeSetStatementStmt(sb *strings.Builder, n *SetStatementStmt) {
+	sb.WriteString("{SET_STATEMENT")
+	fmt.Fprintf(sb, " :loc %d :options ", n.Loc.Start)
+	for i, a := range n.Options {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, a)
+	}
+	sb.WriteString(" :stmt ")
+	writeNode(sb, n.Stmt)
 	sb.WriteString("}")
 }
 

@@ -22,6 +22,10 @@ type statement struct {
 	// with is whether the statement starts with a WITH clause, which the
 	// parser does not keep on an UPDATE or DELETE node.
 	with bool
+	// options are what SET STATEMENT sets for the statement's duration. node
+	// is the statement it wraps, which every rule judges as it would the
+	// statement alone, and loc stays the whole text.
+	options []*ast.Assignment
 }
 
 // statementRanges lists every non-empty statement's byte range, from the
@@ -82,7 +86,16 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 			if index >= len(ranges) {
 				continue
 			}
-			stmts = append(stmts, statement{index: index, node: node, loc: loc, with: startsWithWith(sql, loc)})
+			var options []*ast.Assignment
+			for {
+				wrapper, ok := node.(*ast.SetStatementStmt)
+				if !ok {
+					break
+				}
+				options = append(options, wrapper.Options...)
+				node = wrapper.Stmt
+			}
+			stmts = append(stmts, statement{index: index, node: node, loc: loc, with: startsWithWith(sql, loc), options: options})
 			found[index] = true
 		}
 	}

@@ -23,8 +23,7 @@ import (
 // only where no text follows the assignment that raised it, and the stored program rows check
 // the same forms against a real verdict.
 //
-// What is not in this table is in set_list_forms_test.go, with SET STATEMENT, which needs a
-// statement node of its own.
+// What is not in this table is in set_list_forms_test.go.
 
 // TestSetNamesScopesForms holds omni to the recorded verdicts without a server, so a run with
 // no Docker still reports a widened or narrowed grammar.

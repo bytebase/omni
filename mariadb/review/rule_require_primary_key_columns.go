@@ -99,6 +99,13 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 	for i := range stmts {
 		s := &stmts[i]
 		st := step{statement: s.index}
+		// An option of SET STATEMENT may name a variable the server lacks, which
+		// fails the statement, so no statement with one is sure to pass.
+		if len(s.options) > 0 && !namesTablesOrDatabase(s.node) {
+			st.kind = barrier
+			c.steps = append(c.steps, st)
+			continue
+		}
 		switch v := s.node.(type) {
 		case *ast.AlterTableStmt:
 			if drops, ok := onlyColumnDrops(sql, v); ok {
@@ -235,6 +242,17 @@ func renamedTo(cmd *ast.AlterTableCmd) *ast.TableRef {
 		return cmd.NewTable
 	}
 	return &ast.TableRef{Name: cmd.NewName}
+}
+
+// namesTablesOrDatabase reports whether columnDropSteps follows the statement for what it does
+// to a table or a database, rather than for whether it can fail.
+func namesTablesOrDatabase(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.AlterTableStmt, *ast.CreateTableStmt, *ast.CreateIndexStmt, *ast.DropIndexStmt, *ast.DropTableStmt,
+		*ast.RenameTableStmt, *ast.DropDatabaseStmt, *ast.CreateDatabaseStmt:
+		return true
+	}
+	return false
 }
 
 // setPasses reports whether a SET cannot fail: every assignment sets a

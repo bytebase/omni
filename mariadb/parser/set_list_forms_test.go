@@ -21,7 +21,7 @@ import (
 // Not in this table, because omni still disagrees and each is its own change. A bare DEFAULT inside an expression, as in `SET a = 1 + DEFAULT`,
 // `SET a = (DEFAULT)` and `SELECT DEFAULT`, because parseExpr reads it everywhere. `SET @'a' = 1`. `SET a.1 =
 // 1`, where the lexer reads .1 as a number. SYSTEM as a name, as in `SET a = SYSTEM + 1`, which belongs to
-// setVariableNameGap. `SET STATEMENT ... FOR ...`, `SET PASSWORD = OLD_PASSWORD('x')`, `a VECTOR(3)` and
+// setVariableNameGap. `SET PASSWORD = OLD_PASSWORD('x')`, `a VECTOR(3)` and
 // `CREATE TABLE t (a.b INT)`, which omni does not read. `RESET PERSIST`, which it accepts.
 
 // TestSetListForms holds omni to the recorded verdicts without a server, so a run with no Docker

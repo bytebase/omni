@@ -433,23 +433,42 @@ func (b *builder) set(v *ast.SetStmt) bool {
 		case global:
 			continue
 		}
-		if name != "foreign_key_checks" {
+		// SET STATEMENT puts a variable it names back after the statement, whatever the
+		// statement set it to (measured on 11.8).
+		if name != "foreign_key_checks" || b.fkOption {
 			continue
 		}
-		on := review.SwitchUnknown
-		switch x := a.Value.(type) {
-		case *ast.IntLit:
-			on = review.SwitchOff
-			if x.Value != 0 {
-				on = review.SwitchOn
-			}
-		case *ast.BoolLit:
-			on = review.SwitchOff
-			if x.Value {
-				on = review.SwitchOn
-			}
-		}
+		on := fkSwitch(a.Value)
 		b.Session(func() { b.w.fkChecks = on })
 	}
 	return true
+}
+
+// fkSwitch reads the value foreign_key_checks is set to.
+func fkSwitch(value ast.ExprNode) review.Switch {
+	switch x := value.(type) {
+	case *ast.IntLit:
+		if x.Value != 0 {
+			return review.SwitchOn
+		}
+		return review.SwitchOff
+	case *ast.BoolLit:
+		if x.Value {
+			return review.SwitchOn
+		}
+		return review.SwitchOff
+	}
+	return review.SwitchUnknown
+}
+
+// fkOption reads the foreign_key_checks a SET STATEMENT sets for its statement, the last it
+// names, and whether it names one.
+func fkOption(options []*ast.Assignment) (review.Switch, bool) {
+	on, named := review.SwitchUnknown, false
+	for _, a := range options {
+		if a.Column != nil && a.Column.Table == "" && strings.EqualFold(a.Column.Column, "foreign_key_checks") {
+			on, named = fkSwitch(a.Value), true
+		}
+	}
+	return on, named
 }
