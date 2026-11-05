@@ -60,7 +60,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		idx.IndexType = "SPATIAL"
 	case stmt.Vector:
 		idx.Vector = true
-		idx.IndexType = vectorIndexType(stmt.IndexType, stmt.Options)
+		idx.IndexType = vectorIndexHNSW
 	default:
 		// CREATE INDEX may declare the type before ON or among the options
 		// after the column list; reading only the first dropped the second.

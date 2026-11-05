@@ -592,7 +592,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				Table:     tbl,
 				Columns:   buildIndexColumns(con),
 				Vector:    true,
-				IndexType: vectorIndexType(con.IndexType, con.IndexOptions),
+				IndexType: vectorIndexHNSW,
 				Visible:   true,
 			}
 			applyIndexOptions(vecIdx, con.IndexOptions)
@@ -1145,17 +1145,13 @@ func vectorIndexName(tbl *Table, con *nodes.Constraint, cols []string) string {
 	return allocIndexName(tbl, "expression_index")
 }
 
-// vectorIndexType returns a vector index's type. HNSW is the only one it has, and
-// the grammar's action writes it when the statement names none, so a vector index
-// declared without USING is the same index as one declared with it.
+// vectorIndexHNSW is a vector index's type. It is the only one it has, and the grammar's actions
+// refuse any other, so every vector index that parses has it, whichever way it spelled that:
+// CREATE VECTOR INDEX lets a type among the options win and a constraint lets the one before the
+// key parts win, and with neither the action writes HNSW itself.
 //
 // Ref: CreateIndexStmt and ConstraintVectorIndex in TiDB v8.5.5 pkg/parser/parser.y.
-func vectorIndexType(indexType string, opts []*nodes.IndexOption) string {
-	if declared := resolveIndexUsingType(indexType, opts); declared != "" {
-		return declared
-	}
-	return "HNSW"
-}
+const vectorIndexHNSW = "HNSW"
 
 // applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
 // from AST IndexOptions and applies them to the given Index.

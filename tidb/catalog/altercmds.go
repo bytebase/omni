@@ -692,7 +692,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Table:     tbl,
 			Columns:   buildIndexColumns(con),
 			Vector:    true,
-			IndexType: vectorIndexType(con.IndexType, con.IndexOptions),
+			IndexType: vectorIndexHNSW,
 			Visible:   true,
 		}
 		applyIndexOptions(vecIdx, con.IndexOptions)

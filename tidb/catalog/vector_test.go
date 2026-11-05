@@ -186,3 +186,34 @@ func TestVectorCastViewText(t *testing.T) {
 		}
 	}
 }
+
+// TestVectorIndexTypeReadsBack: a definition the parser takes has the one type a vector index has,
+// whichever position named which type, so what the catalog writes reads back.
+func TestVectorIndexTypeReadsBack(t *testing.T) {
+	const part = "((VEC_COSINE_DISTANCE(b)))"
+	for name, stmt := range map[string]string{
+		"constraint, the leading type wins": "CREATE TABLE u (b VECTOR(3), VECTOR INDEX i USING HNSW " + part + " USING BTREE)",
+		"constraint, no leading type":       "CREATE TABLE u (b VECTOR(3), VECTOR INDEX i " + part + " USING HNSW)",
+		"constraint, no type":               "CREATE TABLE u (b VECTOR(3), VECTOR INDEX i " + part + ")",
+		"ALTER, the leading type wins":      "CREATE TABLE u (b VECTOR(3)); ALTER TABLE u ADD VECTOR INDEX i USING HNSW " + part + " USING BTREE",
+		"CREATE INDEX, the option wins":     "CREATE TABLE u (b VECTOR(3)); CREATE VECTOR INDEX i USING BTREE ON u " + part + " USING HNSW",
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := New()
+			if _, err := c.Exec("CREATE DATABASE d; USE d; "+stmt, nil); err != nil {
+				t.Fatal(err)
+			}
+			text := c.ShowCreateTable("d", "u")
+			if !strings.Contains(text, "USING HNSW") || strings.Contains(text, "BTREE") {
+				t.Fatalf("the index is no HNSW one:\n%s", text)
+			}
+			again := New()
+			if _, err := again.Exec("CREATE DATABASE d; USE d; "+text, nil); err != nil {
+				t.Fatalf("%s does not read back: %v", text, err)
+			}
+			if got := again.ShowCreateTable("d", "u"); got != text {
+				t.Errorf("read back as:\n%s\nwant:\n%s", got, text)
+			}
+		})
+	}
+}
