@@ -262,7 +262,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 // counted: a second one is a note (verified).
 func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 	seen := make(map[[2]string]bool)
-	vectorKeys := make(map[string]bool)
+	keyKinds := make(map[string]ast.ConstraintType)
 	twice := func(kind, space, name string, rng review.Range, message string) bool {
 		k, ok := b.key(space, name)
 		if !ok {
@@ -345,25 +345,47 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			}
 			// IF NOT EXISTS never fails from a repeat of its own kind, and what it states still
 			// counts against a plain ADD after it (1061, verified). Beside another kind of key
-			// it is 1061 in either order, as ADD INDEX i (a), ADD VECTOR IF NOT EXISTS i (v) is.
-			if con.IfNotExists && con.Type == ast.ConstrVector {
-				if k, ok := b.key(spaceIndex, con.Name); ok {
-					if seen[[2]string{"add index", k}] && !vectorKeys[k] {
-						b.fail(rng, nil, review.DuplicateName, statesTwice("adds", "index", ident(con.Name)))
-						return true
+			// it is 1061, as ADD INDEX i (a), ADD UNIQUE IF NOT EXISTS i (a) is. It is checked
+			// against the table as it was, so two of a primary key the table lacks are 1068, and
+			// two of one it has are notes (verified). A CHECK's name is no index's.
+			if con.IfNotExists && con.Type != ast.ConstrPrimaryKey {
+				if con.Type == ast.ConstrForeignKey {
+					if k, ok := b.key(spaceForeignKey, keyName(con)); ok {
+						seen[[2]string{"add foreign key", k}] = true
 					}
-					seen[[2]string{"add index", k}] = true
-					vectorKeys[k] = true
+				} else if con.Type != ast.ConstrCheck {
+					if k, ok := b.key(spaceIndex, con.Name); ok {
+						// A key the table already has makes it a note whatever else is added.
+						if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
+							continue
+						}
+						// Otherwise it runs, and PRIMARY is no index's name (1280, verified).
+						if k == primaryIndex {
+							b.fail(rng, nil, review.ReservedName, reservedPrimary)
+							return true
+						}
+						if kind, added := keyKinds[k]; added && kind != con.Type {
+							b.fail(rng, nil, review.DuplicateName, statesTwice("adds", "index", ident(con.Name)))
+							return true
+						}
+						seen[[2]string{"add index", k}] = true
+						keyKinds[k] = con.Type
+					}
 				}
 				continue
 			}
-			if con.Type == ast.ConstrVector {
+			if con.Type != ast.ConstrForeignKey && con.Type != ast.ConstrCheck && con.Type != ast.ConstrPrimaryKey {
 				if k, ok := b.key(spaceIndex, con.Name); ok {
-					vectorKeys[k] = true
+					keyKinds[k] = con.Type
 				}
 			}
 			switch con.Type {
 			case ast.ConstrPrimaryKey:
+				if con.IfNotExists {
+					if f, _ := b.l.Lookup(idxKey(r.db, r.name, primaryIndex)); f != walk.Absent {
+						continue
+					}
+				}
 				primaries++
 			case ast.ConstrForeignKey:
 				// 1061, for the index each would add (verified).
@@ -457,10 +479,32 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 	rng := rangeOf(c.Loc)
 	switch c.Type {
 	case ast.ConstrPrimaryKey:
+		// IF NOT EXISTS, here and below, makes what is there a note and leaves the
+		// table as it was (verified).
+		if c.IfNotExists {
+			if f, _ := b.l.Lookup(idxKey(r.db, r.name, primaryIndex)); f != walk.Absent {
+				return
+			}
+			break
+		}
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
 	case ast.ConstrCheck:
 		return
 	case ast.ConstrForeignKey:
+		if c.IfNotExists {
+			// It looks for the name after FOREIGN KEY or else the symbol. One with
+			// neither is always added, under a generated name.
+			name := c.IndexName
+			if name == "" {
+				name = c.Name
+			}
+			if k, ok := b.key(spaceForeignKey, name); ok {
+				_, onTable := fkKeys(r, k)
+				if f, _ := b.l.Lookup(onTable); f != walk.Absent {
+					return
+				}
+			}
+		}
 		if !b.fks {
 			break
 		}
@@ -470,8 +514,6 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			// ADD VECTOR IF NOT EXISTS makes a duplicate index name a note rather
-			// than an error, and the index stays the one that was there.
 			if c.IfNotExists {
 				if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
 					return

@@ -12,13 +12,10 @@ import "testing"
 // raised while parsing, as 1063 is for VECTOR(0), 1074 for VECTOR(16384), 1294 for an ON
 // UPDATE and 4162 for a CAST to VECTOR.
 //
-// Left out because they are no part of this family: an unknown type name, which parses
-// and answers 4161 (`a foo`, and any quoted name in type position) and which omni refuses;
-// WAIT on a plain CREATE INDEX and IF NOT EXISTS on a plain ADD INDEX, which 11.8.8 takes
-// and omni does not read yet; and WITH PARSER on a plain index, which 11.8.8 refuses and
-// omni reads. CREATE OR REPLACE VECTOR INDEX IF NOT EXISTS is 1221, a grammar action
-// omni holds in the parser as it does for every other object, so it is pinned in
-// drop_or_replace_oracle_test.go.
+// Left out because it is no part of this family: an unknown type name, which parses and
+// answers 4161 and which omni refuses (index_clause_gaps_oracle_test.go). CREATE OR REPLACE
+// VECTOR INDEX IF NOT EXISTS is 1221, a grammar action omni holds in the parser as it does
+// for every other object, so it is pinned in drop_or_replace_oracle_test.go.
 
 type vectorFormCase struct {
 	sql    string

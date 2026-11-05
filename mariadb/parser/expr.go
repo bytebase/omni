@@ -1546,6 +1546,13 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		return nil, &ParseError{Message: "Operator does not exist: 'CAST(expr AS vector)'", Position: start}
 	}
 
+	// UUID, INET4 and INET6 take no size here either, where a column's does: 11.8.8
+	// answers 1064 for CAST(a AS inet6(3)) and CONVERT(a, uuid(3)).
+	if p.isNamedScalarType() {
+		name := strings.ToUpper(p.advance().Str)
+		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name}, nil
+	}
+
 	return p.parseDataType()
 }
 

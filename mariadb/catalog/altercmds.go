@@ -81,6 +81,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		}
 	}
 
+	if err := checkAddIfNotExistsTwice(tbl, stmt.Commands); err != nil {
+		return err
+	}
+
 	skip, err := checkAlterIndexIgnorability(tbl, stmt.Commands)
 	if err != nil {
 		return err
@@ -132,9 +136,6 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 
 	rollback := func() { undoAlter(db, origKey, tbl, snapshot) }
 
-	if err := checkVectorIfNotExists(stmt.Commands); err != nil {
-		return err
-	}
 	for _, cmd := range vectorKeysLast(stmt.Commands) {
 		if skip[cmd] {
 			continue
@@ -187,26 +188,6 @@ func vectorKeysLast(cmds []*nodes.AlterTableCmd) []*nodes.AlterTableCmd {
 		}
 	}
 	return ordered
-}
-
-// checkVectorIfNotExists refuses a VECTOR IF NOT EXISTS key sharing its name with another kind
-// of key the same statement adds. 11.8.8 answers 1061 for it in either order, though
-// ADD VECTOR i (v), ADD VECTOR IF NOT EXISTS i (v) runs. Running vector keys last would otherwise
-// let the second clause find the first and stand down.
-func checkVectorIfNotExists(cmds []*nodes.AlterTableCmd) error {
-	for _, cmd := range cmds {
-		if !addsVectorKey(cmd) || !cmd.Constraint.IfNotExists || cmd.Constraint.Name == "" {
-			continue
-		}
-		for _, other := range cmds {
-			if (other.Type == nodes.ATAddIndex || other.Type == nodes.ATAddConstraint) && other.Constraint != nil &&
-				!addsVectorKey(other) && !other.Constraint.IfNotExists &&
-				toLower(other.Constraint.Name) == toLower(cmd.Constraint.Name) {
-				return errDupKeyName(cmd.Constraint.Name)
-			}
-		}
-	}
-	return nil
 }
 
 // undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
@@ -740,6 +721,132 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 }
 
 // alterAddConstraint adds a constraint or index to the table.
+// checkAddIfNotExistsTwice answers for what IF NOT EXISTS does not cover. The clause looks at
+// the table as it was when the statement began, so a primary key or CHECK the statement also
+// adds is not there to find and the two fail, in either order, where a table that has the key
+// makes the clause a note. A second index of a name goes as a note too, but only of its own kind:
+// mariadb:11.8.8 answers 1061 for ADD INDEX i (a), ADD UNIQUE IF NOT EXISTS i (a) and for the two
+// the other way round, and runs ADD INDEX i (a), ADD KEY IF NOT EXISTS i (a) (read on 2026-11-05).
+func checkAddIfNotExistsTwice(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+	var primaries int
+	checks := make(map[string]bool)
+	kinds := make(map[string]nodes.ConstraintType)
+	see := func(con *nodes.Constraint) error {
+		if con.IfNotExists && addedConstraintExists(tbl, con, extractColumnNames(con)) {
+			return nil
+		}
+		switch con.Type {
+		case nodes.ConstrPrimaryKey:
+			if primaries++; primaries > 1 {
+				return errMultiplePriKey()
+			}
+		case nodes.ConstrCheck:
+			if con.Name == "" {
+				return nil
+			}
+			name := toLower(con.Name)
+			if checks[name] {
+				return &Error{Code: ErrFKDupName, SQLState: "HY000", Message: fmt.Sprintf("Duplicate CHECK constraint name '%s'", con.Name)}
+			}
+			checks[name] = true
+		case nodes.ConstrForeignKey:
+		default:
+			name := con.Name
+			if name == "" {
+				return nil
+			}
+			key := toLower(name)
+			if kind, added := kinds[key]; added && kind != con.Type {
+				return errDupKeyName(name)
+			}
+			kinds[key] = con.Type
+		}
+		return nil
+	}
+	for _, cmd := range cmds {
+		if cmd.Constraint != nil {
+			if err := see(cmd.Constraint); err != nil {
+				return err
+			}
+		}
+		for _, con := range cmd.Constraints {
+			if err := see(con); err != nil {
+				return err
+			}
+		}
+		// A column's own PRIMARY KEY counts too, in ADD, MODIFY and CHANGE: ALTER TABLE t ADD b
+		// INT PRIMARY KEY, ADD PRIMARY KEY IF NOT EXISTS (a) is 1068 in either order.
+		columns := cmd.Columns
+		if cmd.Column != nil {
+			columns = append([]*nodes.ColumnDef{cmd.Column}, columns...)
+		}
+		for _, col := range columns {
+			for _, cc := range col.Constraints {
+				if cc.Type == nodes.ColConstrPrimaryKey {
+					if primaries++; primaries > 1 {
+						return errMultiplePriKey()
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// addedConstraintExists reports whether ADD ... IF NOT EXISTS finds what it would add,
+// which makes the clause a note and leaves the table as it was, ahead of every other check:
+// mariadb:11.8.8 runs `ADD INDEX IF NOT EXISTS k (nosuch)` where k exists and answers 1072
+// where it does not (read on 2026-11-05). What it looks for depends on the kind:
+//
+//   - a primary key looks for any primary key;
+//   - a CHECK looks for a check constraint of the name;
+//   - a foreign key looks for a foreign key on this table named after the name that follows
+//     FOREIGN KEY or else the symbol. One with neither has nothing to look for and is
+//     always added, and the symbol is not looked at when both are written, so `CONSTRAINT
+//     fky FOREIGN KEY IF NOT EXISTS fkw` on a table with fky is 1005;
+//   - any other key looks for an index of its name, which left out is its first column's:
+//     `ADD UNIQUE IF NOT EXISTS (a)` is a note beside `KEY a (a)`.
+func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) bool {
+	switch con.Type {
+	case nodes.ConstrPrimaryKey:
+		for _, idx := range tbl.Indexes {
+			if idx.Primary {
+				return true
+			}
+		}
+		return false
+	case nodes.ConstrCheck:
+		for _, existing := range tbl.Constraints {
+			if existing.Type == ConCheck && toLower(existing.Name) == toLower(con.Name) {
+				return true
+			}
+		}
+		return false
+	case nodes.ConstrForeignKey:
+		name := con.IndexName
+		if name == "" {
+			name = con.Name
+		}
+		if name == "" {
+			return false
+		}
+		// A foreign key of the name is what it looks for, on this table. An index of the
+		// name is not: with KEY k on t, ADD FOREIGN KEY IF NOT EXISTS k (b) REFERENCES r (id)
+		// adds it on 11.8.8.
+		for _, existing := range tbl.Constraints {
+			if existing.Type == ConForeignKey && toLower(existing.Name) == toLower(name) {
+				return true
+			}
+		}
+		return false
+	}
+	name := con.Name
+	if name == "" && len(cols) > 0 {
+		name = cols[0]
+	}
+	return name != "" && indexNameExists(tbl, name)
+}
+
 func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	con := cmd.Constraint
 	if con == nil {
@@ -747,6 +854,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 
 	cols := extractColumnNames(con)
+	if con.IfNotExists && addedConstraintExists(tbl, con, cols) {
+		return nil
+	}
 	if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
 		return err
 	}
@@ -945,9 +1055,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return err
 			}
 			if indexNameExists(tbl, idxName) {
-				if con.IfNotExists {
-					return nil
-				}
 				return errDupKeyName(idxName)
 			}
 		}

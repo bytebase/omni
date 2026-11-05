@@ -104,6 +104,8 @@ func TestFindingCodes(t *testing.T) {
 		{review.DisallowTruncate, "ALTER TABLE t TRUNCATE PARTITION p0;", review.Change{}, shopTarget, codes(review.TruncatesData)},
 		{review.DisallowDropConstraint, "ALTER TABLE t DROP FOREIGN KEY fk_p;", review.Change{}, shopTarget, codes(review.DropsConstraint)},
 		{review.DisallowDropConstraint, "DROP INDEX uk_code ON t;", review.Change{}, shopTarget, codes(review.DropsConstraint)},
+		{review.DisallowDropConstraint, "ALTER TABLE t ADD INDEX IF NOT EXISTS uk_code (code);\nDROP INDEX uk_code ON t;", review.Change{}, shopTarget, codes(review.DropsConstraint)},
+		{review.DisallowDropConstraint, "ALTER TABLE t ADD (INDEX IF NOT EXISTS uk_code (code));\nDROP INDEX uk_code ON t;", review.Change{}, shopTarget, codes(review.DropsConstraint)},
 		{review.DisallowRename, "RENAME TABLE t TO t2;", review.Change{}, shopTarget, codes(review.RenamesObject)},
 		{review.DisallowRename, "ALTER TABLE t RENAME COLUMN n TO m;", review.Change{}, shopTarget, codes(review.RenamesObject)},
 
