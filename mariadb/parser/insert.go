@@ -177,8 +177,8 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		if err != nil {
 			return nil, err
 		}
-		if hasInto(sel) {
-			return nil, &ParseError{Message: `syntax error at or near "INTO"`, Position: sel.Loc.Start}
+		if err := rejectInsertSourceInto(sel); err != nil {
+			return nil, err
 		}
 		stmt.Select = sel
 
@@ -220,6 +220,27 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// rejectInsertSourceInto refuses an INTO anywhere in an INSERT source: on a SELECT,
+// as an operand of a set operation on either side, or in parentheses. MariaDB takes
+// INTO only in a query that stands as a statement (measured: 1064 here). The walk
+// keeps its own stack, because this runs before the tree-height check and a set
+// operation can be as long as the statement.
+func rejectInsertSourceInto(sel *nodes.SelectStmt) error {
+	stack := []*nodes.SelectStmt{sel}
+	for len(stack) > 0 {
+		cur := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if cur == nil {
+			continue
+		}
+		if cur.Into != nil {
+			return &ParseError{Message: `syntax error at or near "INTO"`, Position: cur.Into.Loc.Start}
+		}
+		stack = append(stack, cur.Left, cur.Right, cur.ParenSource)
+	}
+	return nil
 }
 
 // parseInsertColumnList parses (col1, col2, ...) for INSERT. The list may be
