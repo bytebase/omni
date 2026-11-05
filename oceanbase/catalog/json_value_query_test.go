@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/oceanbase/deparse"
 	"github.com/bytebase/omni/oceanbase/parser"
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
 // TestJSONValueClausesRoundTrip: the clauses change what JSON_VALUE answers, so the analyzed
@@ -87,6 +89,8 @@ var jsonValueStoredForms = []string{
 	"DEFAULT TIME'10:00:00' ON EMPTY", "DEFAULT TIMESTAMP'2000-01-01 00:00:00' ON ERROR",
 	"RETURNING CHAR(0)", "RETURNING BINARY(0)", "DEFAULT 18446744073709551615 ON EMPTY",
 	"DEFAULT -9223372036854775808 ON EMPTY", "DEFAULT 99999999999999999999 ON EMPTY", "DEFAULT 007 ON EMPTY",
+	"DEFAULT b'' ON EMPTY", "DEFAULT b'0000000001000001' ON EMPTY", "DEFAULT x'' ON EMPTY", "DEFAULT 0x0041 ON EMPTY",
+	"DEFAULT _latin1 X'61' ON EMPTY", "DEFAULT _latin1 b'01100001' ON EMPTY", "DEFAULT _utf8mb4 0x61 ON EMPTY",
 	"RETURNING SIGNED DEFAULT 7 ON EMPTY DEFAULT -1 ON ERROR",
 }
 
@@ -175,6 +179,42 @@ func TestOracle_NumberIsDecimal(t *testing.T) {
 			}
 			if got, want := stored.FindString(c.ShowCreateTable("d", "g")), stored.FindString(server); got != want {
 				t.Errorf("omni: %s\nserver: %s", got, want)
+			}
+		})
+	}
+}
+
+// TestOracle_JSONValueFunctionalIndex: a functional index over JSON_VALUE is taken or refused as the
+// server takes it, with the server's code.
+func TestOracle_JSONValueFunctionalIndex(t *testing.T) {
+	o := oceanBaseOracle(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	for _, returning := range []string{"", "RETURNING SIGNED", "RETURNING CHAR(10)", "RETURNING DECIMAL(5,2)",
+		"RETURNING DATETIME(3)", "RETURNING DOUBLE", "RETURNING JSON", "RETURNING CHAR", "RETURNING CHAR(512)",
+		"RETURNING CHAR(513)", "RETURNING BINARY(3)", "RETURNING YEAR"} {
+		t.Run(returning, func(t *testing.T) {
+			table := "CREATE TABLE f (a JSON, KEY k ((JSON_VALUE(a, '$.x' " + returning + "))))"
+			serverCode := 0
+			if _, err := storeAndRead(ctx, o, "zz_json_value_index", table, "f"); err != nil {
+				var merr *gomysql.MySQLError
+				if !errors.As(err, &merr) {
+					t.Fatal(err)
+				}
+				serverCode = int(merr.Number)
+			}
+			c := New()
+			results, err := c.Exec("CREATE DATABASE d; USE d; "+table, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			catalogCode := 0
+			var cerr *Error
+			if errors.As(results[len(results)-1].Error, &cerr) {
+				catalogCode = cerr.Code
+			}
+			if catalogCode != serverCode {
+				t.Errorf("catalog answered %d, the server %d", catalogCode, serverCode)
 			}
 		})
 	}

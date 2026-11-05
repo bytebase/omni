@@ -2265,14 +2265,15 @@ func writeJSONValueDefault(b *strings.Builder, value ast.ExprNode) {
 		}
 		b.WriteString("X'" + strings.ToUpper(digits) + "'")
 	case *ast.BitLit:
-		digits := strings.TrimPrefix(strings.TrimPrefix(n.Value, "0b"), "0B")
-		i := new(big.Int)
-		i.SetString(digits, 2)
-		hex := fmt.Sprintf("%X", i)
-		if len(hex)%2 == 1 {
-			hex = "0" + hex
+		// Every byte written stays: b'0000000001000001' is X'0041' and b'' is X''.
+		bits := strings.TrimPrefix(strings.TrimPrefix(n.Value, "0b"), "0B")
+		out := make([]byte, (len(bits)+7)/8)
+		for i := 0; i < len(bits); i++ {
+			if bits[len(bits)-1-i] == '1' {
+				out[len(out)-1-i/8] |= 1 << (i % 8)
+			}
 		}
-		b.WriteString("X'" + hex + "'")
+		b.WriteString(fmt.Sprintf("X'%X'", out))
 	case *ast.TemporalLit:
 		b.WriteString(n.Type + " '" + n.Value + "'")
 	case *ast.IntLit:

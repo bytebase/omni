@@ -2318,6 +2318,14 @@ func writeJSONValueDefault(b *strings.Builder, value ast.ExprNode, charset strin
 		} else {
 			writeExpr(b, value)
 		}
+	case *ast.HexLit, *ast.BitLit:
+		// The server keeps every byte written, and an empty one is X'': b'0000000001000001'
+		// is 0x0041 and b'' is X'' (mysql:8.0.46).
+		if digits := literalHexDigits(value); digits == "" {
+			b.WriteString("X''")
+		} else {
+			b.WriteString("0x" + digits)
+		}
 	case *ast.FloatLit:
 		if strings.HasPrefix(n.Value, ".") {
 			b.WriteString("0")
@@ -2326,6 +2334,24 @@ func writeJSONValueDefault(b *strings.Builder, value ast.ExprNode, charset strin
 	default:
 		writeExpr(b, value)
 	}
+}
+
+// literalHexDigits is a hex or bit literal as lowercase hex digits, a whole number of bytes long.
+func literalHexDigits(value ast.ExprNode) string {
+	switch n := value.(type) {
+	case *ast.HexLit:
+		return evenHexDigits(strings.ToLower(strings.TrimPrefix(strings.TrimPrefix(n.Value, "0x"), "0X")))
+	case *ast.BitLit:
+		bits := strings.TrimPrefix(strings.TrimPrefix(n.Value, "0b"), "0B")
+		out := make([]byte, (len(bits)+7)/8)
+		for i := 0; i < len(bits); i++ {
+			if bits[len(bits)-1-i] == '1' {
+				out[len(out)-1-i/8] |= 1 << (i % 8)
+			}
+		}
+		return fmt.Sprintf("%x", out)
+	}
+	return ""
 }
 
 func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {

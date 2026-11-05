@@ -22,6 +22,13 @@ type requiredFormCase struct {
 }
 
 var requiredFormCases = []requiredFormCase{
+	{"SELECT _latin1 X'61'", true},
+	{"SELECT _latin1 0x61", true},
+	{"SELECT _latin1 b'01100001'", true},
+	{"SELECT _utf8mb4 x''", true},
+	{"SELECT JSON_VALUE('{}', '$.a' DEFAULT _latin1 X'61' ON EMPTY)", true},
+	{"SELECT JSON_VALUE('{}', '$.a' DEFAULT b'' ON EMPTY)", true},
+	{"SELECT _latin1 1", false},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT N'x' ON ERROR)", true},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT n'x' ON EMPTY)", true},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT N'x' 'y' ON EMPTY)", true},

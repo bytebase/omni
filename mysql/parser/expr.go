@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -672,6 +673,20 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}
 			p.foldAdjacentStringLits(lit)
 			return lit, nil
+		}
+
+		// An introducer takes a hex or bit literal too, and makes it a string of that charset:
+		// mysql:8.0.46 stores _latin1 X'61' as _latin1'a'.
+		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) {
+			if next := p.peekNext().Type; next == tokXCONST || next == tokBCONST {
+				charsetTok := p.advance()
+				litTok := p.advance()
+				return &nodes.StringLit{
+					Loc:     nodes.Loc{Start: charsetTok.Loc, End: litTok.End},
+					Value:   literalBytes(litTok),
+					Charset: charsetTok.Str,
+				}, nil
+			}
 		}
 
 		// Identifier — could be column ref or function call
@@ -2750,4 +2765,30 @@ func (p *Parser) parseExprList() ([]nodes.ExprNode, error) {
 		p.advance()
 	}
 	return list, nil
+}
+
+// literalBytes is the string a hex or bit literal stands for, in whole bytes from the left: X'61'
+// and b'01100001' are both "a", and b'1' is the byte 0x01.
+func literalBytes(tok Token) string {
+	digits := tok.Str
+	if tok.Type == tokXCONST {
+		digits = strings.TrimPrefix(strings.TrimPrefix(digits, "0x"), "0X")
+		if len(digits)%2 == 1 {
+			digits = "0" + digits
+		}
+		out := make([]byte, len(digits)/2)
+		for i := range out {
+			v, _ := strconv.ParseUint(digits[2*i:2*i+2], 16, 8)
+			out[i] = byte(v)
+		}
+		return string(out)
+	}
+	digits = strings.TrimPrefix(strings.TrimPrefix(digits, "0b"), "0B")
+	out := make([]byte, (len(digits)+7)/8)
+	for i := 0; i < len(digits); i++ {
+		if digits[len(digits)-1-i] == '1' {
+			out[len(out)-1-i/8] |= 1 << (i % 8)
+		}
+	}
+	return string(out)
 }

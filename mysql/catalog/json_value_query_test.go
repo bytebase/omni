@@ -1,8 +1,12 @@
 package catalog
 
 import (
+	"database/sql"
+	"errors"
 	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
 // TestJSONValueClausesRoundTrip: the clauses change what JSON_VALUE answers, so the analyzed
@@ -79,6 +83,8 @@ var jsonValueStoredForms = []string{
 	"DEFAULT TIME'10:00:00' ON EMPTY", "DEFAULT TIMESTAMP'2000-01-01 00:00:00' ON ERROR",
 	"RETURNING CHAR(0)", "RETURNING BINARY(0)", "RETURNING DECIMAL(0)", "DEFAULT 18446744073709551615 ON EMPTY",
 	"DEFAULT -9223372036854775808 ON EMPTY", "DEFAULT 99999999999999999999 ON EMPTY", "DEFAULT 007 ON EMPTY",
+	"DEFAULT b'' ON EMPTY", "DEFAULT b'0000000001000001' ON EMPTY", "DEFAULT x'' ON EMPTY", "DEFAULT 0x0041 ON EMPTY",
+	"DEFAULT _latin1 X'61' ON EMPTY", "DEFAULT _latin1 b'01100001' ON EMPTY", "DEFAULT _utf8mb4 0x61 ON EMPTY",
 	"RETURNING SIGNED DEFAULT 7 ON EMPTY DEFAULT -1 ON ERROR",
 }
 
@@ -161,6 +167,71 @@ func TestJSONValueStoredInConstraintsAndIndexes(t *testing.T) {
 			got := strings.ReplaceAll(c.ShowCreateTable("d", "g"), "_utf8mb4'", "'")
 			if want := strings.ReplaceAll(server, "_utf8mb4'", "'"); got != want {
 				t.Errorf("\nomni:   %s\nserver: %s", got, server)
+			}
+		})
+	}
+}
+
+// TestJSONValueFunctionalIndex: a functional index over JSON_VALUE gets a hidden column of its
+// RETURNING type, as the server makes it, and one that returns JSON is refused with the server's code.
+func TestJSONValueFunctionalIndex(t *testing.T) {
+	ctr, cleanup := startContainer(t)
+	defer cleanup()
+
+	for _, returning := range []string{"", "RETURNING SIGNED", "RETURNING UNSIGNED", "RETURNING CHAR(10)",
+		"RETURNING DECIMAL(5,2)", "RETURNING DATETIME(3)", "RETURNING DATE", "RETURNING DOUBLE", "RETURNING JSON",
+		"RETURNING CHAR", "RETURNING BINARY(3)", "RETURNING TIME(2)", "RETURNING DATETIME", "RETURNING FLOAT",
+		"RETURNING YEAR", "RETURNING NCHAR(3)", "RETURNING CHAR(3) CHARSET latin1", "RETURNING DECIMAL",
+		"RETURNING CHAR(512)", "RETURNING CHAR(513)", "RETURNING BINARY(512)", "RETURNING BINARY(513)", "RETURNING BINARY",
+		"RETURNING CHAR(600) CHARSET latin1"} {
+		t.Run(returning, func(t *testing.T) {
+			if err := ctr.execSQL("DROP TABLE IF EXISTS f"); err != nil {
+				t.Fatal(err)
+			}
+			table := "CREATE TABLE f (a JSON, KEY k ((JSON_VALUE(a, '$.x' " + returning + "))))"
+			serverCode, serverType := 0, ""
+			if err := ctr.execSQL(table); err != nil {
+				var merr *gomysql.MySQLError
+				if !errors.As(err, &merr) {
+					t.Fatal(err)
+				}
+				serverCode = int(merr.Number)
+			} else {
+				rows, err := ctr.db.Query("SHOW EXTENDED COLUMNS FROM f")
+				if err != nil {
+					t.Fatal(err)
+				}
+				for rows.Next() {
+					var field, typ string
+					var null, key, extra sql.NullString
+					var def sql.NullString
+					if err := rows.Scan(&field, &typ, &null, &key, &def, &extra); err != nil {
+						t.Fatal(err)
+					}
+					if strings.HasPrefix(field, "!hidden!") {
+						serverType = typ
+					}
+				}
+				rows.Close()
+			}
+			c := New()
+			results, err := c.Exec("CREATE DATABASE d; USE d; "+table, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			catalogCode, catalogType := 0, ""
+			var cerr *Error
+			if errors.As(results[len(results)-1].Error, &cerr) {
+				catalogCode = cerr.Code
+			} else if tbl := c.GetDatabase("d").GetTable("f"); tbl != nil {
+				for _, col := range tbl.Columns {
+					if strings.HasPrefix(col.Name, "!hidden!") {
+						catalogType = col.ColumnType
+					}
+				}
+			}
+			if catalogCode != serverCode || catalogType != serverType {
+				t.Errorf("catalog: %d %q, server: %d %q", catalogCode, catalogType, serverCode, serverType)
 			}
 		})
 	}
