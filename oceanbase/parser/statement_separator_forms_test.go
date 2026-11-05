@@ -21,14 +21,13 @@ import (
 // query in, and the forms around them.
 //
 // OceanBase has no TABLE query, so every CREATE TABLE ... TABLE form below is
-// 1064 there, where MySQL 8.0 takes it.
+// 1064 there, where MySQL 8.0 takes it, and neither is a locking clause right
+// after a lone parenthesized query (query_forms_test.go).
 //
 // Not recorded here, because this parser still disagrees and the change is not
 // about it: when an executable comment's body does not parse, OceanBase runs
 // the statement as if the comment were a plain one ("SELECT 1 /*! SELECT 2 */"
-// returns 1); and its select grammar has no TABLE query and no locking clause
-// right after a lone parenthesized query, both of which this parser still
-// takes wherever a query goes, CREATE TABLE included.
+// returns 1).
 //
 // Every case was measured against OceanBase CE 4.3.5.6
 // (oceanbase/oceanbase-ce:4.3.5-lts) through PREPARE on 2026-11-05.
@@ -122,6 +121,7 @@ var createTableQueryFormCases = []separatorFormCase{
 	{"create table t (a int) ((select 1))", true},
 	{"create table t (a int) (with c as (select 1) select * from c)", true},
 	{"create table t (a int) with c as (select 1) select * from c", true},
+	{"create table t (a int) with c as (select 1) table c", false},
 	{"create table t (a int) table u", false},
 	{"create table t (a int) (table u)", false},
 	{"create table t (a int) table u order by a limit 1", false},
@@ -129,6 +129,7 @@ var createTableQueryFormCases = []separatorFormCase{
 	{"create table t (a int) values row(1)", true},
 	{"create table t (a int) (values row(1))", true},
 	{"create table t (a int) values row(1) order by 1", true},
+	{"create table t (a int) values row(1) union table u", false},
 	{"create table t (a int) values (1)", false},
 	// The query with no column list.
 	{"create table t select 1", true},
@@ -192,10 +193,13 @@ var createTableQueryFormCases = []separatorFormCase{
 	{"create table t as", false},
 	// A locking clause on the query.
 	{"create table t (a int) select 1 for update", true},
+	{"create table t (a int) (select 1) for update", false},
 	{"create table t (a int) table u for update", false},
 	{"create table t (a int) (select 1) union (select 2) for update", true},
 	{"create table t (a int) select 1 union select 2 for update", true},
 	{"create table t (a int) (select 1) order by 1 for update", true},
+	{"create table t as (select 1) for update", false},
+	{"create table t (a int) as (select 1) for update", false},
 	// The query still ends the statement.
 	{"create table t (a int) as select 1 select 2", false},
 	{"create table t (a int) table u table v", false},
@@ -237,8 +241,7 @@ func TestCreateTableQueryIsOneStatement(t *testing.T) {
 			if !ok {
 				t.Fatalf("Parse(%q) = %T, want *ast.CreateTableStmt", c.sql, list.Items[0])
 			}
-			hasQuery := strings.Contains(c.sql, "select") || strings.Contains(c.sql, "table u") ||
-				strings.Contains(c.sql, "values")
+			hasQuery := strings.Contains(c.sql, "select") || strings.Contains(c.sql, "values")
 			if got := stmt.Select != nil; got != hasQuery {
 				t.Errorf("Parse(%q).Select set=%v, want %v", c.sql, got, hasQuery)
 			}
