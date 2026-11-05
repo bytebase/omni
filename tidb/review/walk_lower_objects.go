@@ -248,20 +248,41 @@ func (b *builder) set(v *ast.SetStmt) bool {
 		if name != "foreign_key_checks" {
 			continue
 		}
-		on := review.SwitchUnknown
-		switch x := a.Value.(type) {
-		case *ast.IntLit:
-			on = review.SwitchOff
-			if x.Value != 0 {
-				on = review.SwitchOn
-			}
-		case *ast.BoolLit:
-			on = review.SwitchOff
-			if x.Value {
-				on = review.SwitchOn
-			}
-		}
+		on := setSwitch(a.Value)
 		b.Session(func() { b.w.fkChecks = on })
 	}
 	return true
+}
+
+// setSwitch reads the value SET gives a switch: a number, a boolean, or the word ON or
+// OFF, bare or quoted. The parser hands ON over as text and OFF as a name, because ON is
+// reserved and OFF is not (verified: each form turns a foreign key to a missing table's
+// 1824 on and off).
+func setSwitch(value ast.ExprNode) review.Switch {
+	word := ""
+	switch x := value.(type) {
+	case *ast.IntLit:
+		if x.Value != 0 {
+			return review.SwitchOn
+		}
+		return review.SwitchOff
+	case *ast.BoolLit:
+		if x.Value {
+			return review.SwitchOn
+		}
+		return review.SwitchOff
+	case *ast.StringLit:
+		word = x.Value
+	case *ast.ColumnRef:
+		if x.Table == "" {
+			word = x.Column
+		}
+	}
+	switch strings.ToLower(word) {
+	case "on":
+		return review.SwitchOn
+	case "off":
+		return review.SwitchOff
+	}
+	return review.SwitchUnknown
 }
