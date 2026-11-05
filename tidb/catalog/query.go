@@ -397,6 +397,13 @@ type RangeTableEntryQ struct {
 	IsView        bool
 	ViewAlgorithm ViewAlgorithm
 
+	// Sample is the canonical text of the TABLESAMPLE clause of an RTERelation or
+	// RTECTE, empty when it has none. It is text and not analyzed expressions
+	// because the engine does not resolve it either: TiDB v8.5.5 runs `FROM t
+	// TABLESAMPLE REGIONS(no_such_column)`, so analyzing the size or the seed
+	// would refuse statements the server takes.
+	Sample string
+
 	// FuncExprs — populated for RTEFunction only (JSON_TABLE in MySQL 8.0.19+).
 	// Holds the analyzed function call expression(s). Phase 1 analyzer
 	// rejects RTEFunction; this field exists for forward compatibility.
@@ -661,7 +668,7 @@ var BoolType = &ResolvedType{
 //   - RTESubquery: recurse into Subquery.TargetList[AttNum-1].Expr
 //   - RTECTE:      recurse into the CTE body's TargetList[AttNum-1].Expr
 //   - RTEJoin:     dispatch to the underlying Left/Right RTE based on which
-//                  side the column was coalesced from
+//     side the column was coalesced from
 //
 // For RTERelation that is a view (IsView=true), the walker may call
 // (*Query).ExpandMergeViews() first to make MERGE views transparent.
@@ -811,9 +818,9 @@ const (
 	BoolNot
 )
 
-func (*BoolExprQ) analyzedExprTag()         {}
-func (*BoolExprQ) exprType() *ResolvedType  { return BoolType }
-func (*BoolExprQ) exprCollation() string    { return "" }
+func (*BoolExprQ) analyzedExprTag()        {}
+func (*BoolExprQ) exprType() *ResolvedType { return BoolType }
+func (*BoolExprQ) exprCollation() string   { return "" }
 
 // ----------------------------------------------------------------------------
 // CaseExprQ — CASE WHEN.
@@ -877,9 +884,9 @@ type NullTestExprQ struct {
 	IsNull bool // true = IS NULL, false = IS NOT NULL
 }
 
-func (*NullTestExprQ) analyzedExprTag()         {}
-func (*NullTestExprQ) exprType() *ResolvedType  { return BoolType }
-func (*NullTestExprQ) exprCollation() string    { return "" }
+func (*NullTestExprQ) analyzedExprTag()        {}
+func (*NullTestExprQ) exprType() *ResolvedType { return BoolType }
+func (*NullTestExprQ) exprCollation() string   { return "" }
 
 // ----------------------------------------------------------------------------
 // SubLinkExprQ — subquery expression (EXISTS, IN, scalar, ALL/ANY).
@@ -1002,7 +1009,8 @@ func (*RowExprQ) exprCollation() string     { return "" }
 // reason about them as needed. This decision is revisited at end of Phase 3.
 //
 // pg: src/include/nodes/parsenodes.h — TypeCast (raw form),
-//     src/include/nodes/primnodes.h — CoerceViaIO / RelabelType (analyzed form)
+//
+//	src/include/nodes/primnodes.h — CoerceViaIO / RelabelType (analyzed form)
 type CastExprQ struct {
 	Arg        AnalyzedExpr
 	TargetType *ResolvedType

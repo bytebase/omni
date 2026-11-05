@@ -1076,6 +1076,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+	case *TableSample:
+		Walk(v, n.Size)
+		Walk(v, n.Repeatable)
 	case *TableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)

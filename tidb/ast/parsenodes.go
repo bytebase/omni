@@ -1063,10 +1063,46 @@ type TableRef struct {
 	Alias      string   // AS alias
 	Partitions []string // PARTITION (p0, p1, ...)
 	IndexHints []*IndexHint
+	Sample     *TableSample // TABLESAMPLE clause; nil when there is none
 }
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// TableSample is the TABLESAMPLE clause of a table reference:
+//
+//	TABLESAMPLE [SYSTEM | BERNOULLI | REGIONS] ([expr [ROWS | PERCENT]]) [REPEATABLE (expr)]
+//
+// Loc runs from TABLESAMPLE to the closing parenthesis of the last group, and
+// the TableRef's Loc includes it.
+type TableSample struct {
+	Loc        Loc
+	Method     TableSampleMethod
+	Size       ExprNode        // nil for empty parentheses, which is not the same as a size of 0
+	Unit       TableSampleUnit // SampleUnitDefault when the size names no unit, or there is no size
+	Repeatable ExprNode        // the REPEATABLE seed; nil when the clause has none
+}
+
+func (s *TableSample) nodeTag() {}
+
+// TableSampleMethod enumerates the sampling methods TABLESAMPLE names.
+type TableSampleMethod int
+
+const (
+	SampleMethodDefault   TableSampleMethod = iota // no method written
+	SampleMethodSystem                             // SYSTEM
+	SampleMethodBernoulli                          // BERNOULLI
+	SampleMethodRegions                            // REGIONS
+)
+
+// TableSampleUnit enumerates the units a TABLESAMPLE size names.
+type TableSampleUnit int
+
+const (
+	SampleUnitDefault TableSampleUnit = iota // no unit written
+	SampleUnitRows                           // ROWS
+	SampleUnitPercent                        // PERCENT
+)
 
 // IndexHint represents an index hint (USE/FORCE/IGNORE INDEX).
 type IndexHint struct {

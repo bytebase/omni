@@ -243,6 +243,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeColumnRef(sb, n)
 	case *TableRef:
 		writeTableRef(sb, n)
+	case *TableSample:
+		writeTableSample(sb, n)
 	case *IntLit:
 		fmt.Fprintf(sb, "{INT_LIT :val %d :loc %d}", n.Value, n.Loc.Start)
 	case *FloatLit:
@@ -3044,6 +3046,24 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 			}
 			writeNode(sb, h)
 		}
+	}
+	if n.Sample != nil {
+		sb.WriteString(" :sample ")
+		writeNode(sb, n.Sample)
+	}
+	sb.WriteString("}")
+}
+
+func writeTableSample(sb *strings.Builder, n *TableSample) {
+	sb.WriteString("{TABLESAMPLE")
+	fmt.Fprintf(sb, " :loc %d :method %d :unit %d", n.Loc.Start, n.Method, n.Unit)
+	if n.Size != nil {
+		sb.WriteString(" :size ")
+		writeNode(sb, n.Size)
+	}
+	if n.Repeatable != nil {
+		sb.WriteString(" :repeatable ")
+		writeNode(sb, n.Repeatable)
 	}
 	sb.WriteString("}")
 }
