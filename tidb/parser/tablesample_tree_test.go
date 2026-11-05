@@ -10,8 +10,7 @@ import (
 )
 
 // parseSampledRef parses one SELECT and returns its first FROM item as a table
-// reference. Parse reads statements with no separator, so a statement count
-// other than one means the clause was not read as part of the reference.
+// reference. It fails the test on any statement count other than one.
 func parseSampledRef(t *testing.T, sql string) *ast.TableRef {
 	t.Helper()
 	list, err := Parse(sql)

@@ -16,9 +16,8 @@ type tableSampleCase struct {
 	accept bool
 }
 
-// parsesAsOneStatement is the acceptance these tables mean. Parse needs no
-// separator between statements, so a clause the grammar refuses could otherwise
-// pass by being read as a second statement.
+// parsesAsOneStatement is the acceptance these tables mean: the text parses, and
+// as exactly one statement.
 func parsesAsOneStatement(sql string) (bool, error) {
 	list, err := Parse(sql)
 	if err != nil {
