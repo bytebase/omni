@@ -36,6 +36,14 @@ func DeparseSelect(stmt *ast.SelectStmt) string {
 	return b.String()
 }
 
+// DeparseTableSample converts a TABLESAMPLE clause to its SQL text, which is what
+// the catalog's analyzed query holds for it.
+func DeparseTableSample(s *ast.TableSample) string {
+	var b strings.Builder
+	writeTableSample(&b, s)
+	return b.String()
+}
+
 // deparseExpr returns the text of an expression, for the callers that need it
 // as a string of its own; everything inside this file writes with writeExpr.
 func deparseExpr(node ast.ExprNode) string {
@@ -1252,6 +1260,7 @@ func deparseTableRef(t *ast.TableRef) string {
 		b.WriteString(" " + quoteIdent(t.Alias))
 	}
 	if t.Sample != nil {
+		b.WriteByte(' ')
 		writeTableSample(&b, t.Sample)
 	}
 	return b.String()
@@ -1263,7 +1272,7 @@ func deparseTableRef(t *ast.TableRef) string {
 // refuses: SELECT from such a view answers error 1105. This writes the word the
 // grammar has. TestTableSampleViewTiDBDiffers records what the server stores.
 func writeTableSample(b *strings.Builder, s *ast.TableSample) {
-	b.WriteString(" tablesample")
+	b.WriteString("tablesample")
 	switch s.Method {
 	case ast.SampleMethodSystem:
 		b.WriteString(" system")
