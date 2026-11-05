@@ -1544,7 +1544,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		expr, err := p.parseExpr()
+		expr, err := p.parseBitExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1595,7 +1595,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			expr, err := p.parseExpr()
+			expr, err := p.parseBitExpr()
 			if err != nil {
 				return nil, err
 			}
@@ -1621,7 +1621,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			expr, err := p.parseExpr()
+			expr, err := p.parseBitExpr()
 			if err != nil {
 				return nil, err
 			}
@@ -1663,7 +1663,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			expr, err := p.parseExpr()
+			expr, err := p.parseBitExpr()
 			if err != nil {
 				return nil, err
 			}
@@ -1705,7 +1705,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 				if _, err := p.expect('('); err != nil {
 					return nil, err
 				}
-				expr, err := p.parseExpr()
+				expr, err := p.parseBitExpr()
 				if err != nil {
 					return nil, err
 				}
@@ -1793,8 +1793,8 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	if _, ok := p.match(kwVALUES); ok {
 		if p.cur.Type == kwLESS {
 			p.advance() // LESS
-			if p.cur.Type == kwTHAN {
-				p.advance() // THAN
+			if _, err := p.expect(kwTHAN); err != nil {
+				return nil, err
 			}
 			if p.cur.Type == '(' {
 				p.advance()
@@ -1805,7 +1805,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						items = append(items, &nodes.String{Str: "MAXVALUE"})
 						p.advance()
 					} else {
-						expr, err := p.parseExpr()
+						expr, err := p.parseBitExpr()
 						if err != nil {
 							return nil, err
 						}
@@ -1819,7 +1819,9 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					}
 					p.advance()
 				}
-				p.match(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				// A single bound is stored as itself, MAXVALUE as a String; a
 				// tuple keeps every column, MAXVALUE ones included, so
 				// "(MAXVALUE, MAXVALUE)" reads back with both.
@@ -1831,6 +1833,8 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 			} else if p.cur.Type == kwMAXVALUE {
 				pd.Values = &nodes.String{Str: "MAXVALUE"}
 				p.advance()
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
 		} else if _, ok := p.match(kwIN); ok {
 			if p.cur.Type == '(' {
@@ -1842,7 +1846,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						p.advance()
 						var tupleVals []nodes.Node
 						for {
-							expr, err := p.parseExpr()
+							expr, err := p.parseBitExpr()
 							if err != nil {
 								return nil, err
 							}
@@ -1860,7 +1864,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						}
 						items = append(items, &nodes.List{Items: tupleVals})
 					} else {
-						expr, err := p.parseExpr()
+						expr, err := p.parseBitExpr()
 						if err != nil {
 							return nil, err
 						}
@@ -1874,9 +1878,16 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					}
 					p.advance()
 				}
-				p.match(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				pd.Values = &nodes.List{Items: items}
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
+		} else {
+			// VALUES with neither LESS THAN nor IN after it is no bound.
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 

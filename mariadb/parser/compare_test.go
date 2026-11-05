@@ -6313,18 +6313,6 @@ func TestParseJsonUnquoteExtract(t *testing.T) {
 	}
 }
 
-func TestParseMemberOf(t *testing.T) {
-	tests := []string{
-		"SELECT 17 MEMBER OF('[23, 17, 10]')",
-		"SELECT * FROM t WHERE val MEMBER OF(json_col)",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseJsonTable(t *testing.T) {
 	tests := []string{
 		"SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS(id INT PATH '$')) AS jt",

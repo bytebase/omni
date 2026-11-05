@@ -124,7 +124,6 @@ var locSpanCases = []struct {
 	{"BinaryExpr", "SELECT * FROM t WHERE a = 1 AND b = 2 ", "a = 1 AND b = 2", 0},
 	{"BinaryExpr", "SELECT * FROM t WHERE a = 1 AND b = 2 ", "a = 1", 1},
 	{"BinaryExpr", "SELECT a REGEXP 'x' FROM t", "a REGEXP 'x'", 0},
-	{"BinaryExpr", "SELECT a SOUNDS LIKE b FROM t", "a SOUNDS LIKE b", 0},
 	{"BinlogStmt", "BINLOG 'base64'", "BINLOG 'base64'", 0},
 	{"BitLit", "SELECT b'01000001' 'c'", "b'01000001'", 0},
 	{"BoolLit", "UPDATE t SET active = TRUE WHERE id = 1", "TRUE", 0},

@@ -874,6 +874,10 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		// MySQL 8.0 auto-alias for subquery: "(SELECT MAX(a) FROM t)" — uppercase keywords,
 		// unqualified column names, no backtick quoting, no column aliases.
 		if n.Select != nil {
+			if n.Quantifier != "" {
+				b.WriteString(n.Quantifier)
+				b.WriteString(" ")
+			}
 			b.WriteString("(")
 			writeSelectStmtAlias(b, n.Select)
 			b.WriteString(")")
@@ -1359,7 +1363,35 @@ func deparseBitLit(n *ast.BitLit) string {
 	return "0x" + fmt.Sprintf("%02x", i)
 }
 
+// writeQuantifiedComparison formats `expr op {ANY|SOME|ALL} (subquery)`. The
+// quantifier is the meaning of the comparison, so dropping it would turn `a > ALL
+// (q)` into a scalar comparison against q.
+//
+// TiDB v8.5.5 keeps the operator and stores SOME as ANY, so `a = ANY (q)` stays as it is
+// rather than becoming MySQL's `a in (q)`. The rest of this package's output is in
+// MySQL's shape, which is why the parentheses are too.
+func writeQuantifiedComparison(b *strings.Builder, n *ast.BinaryExpr, sub *ast.SubqueryExpr) {
+	word := "any"
+	if sub.Quantifier == "ALL" {
+		word = "all"
+	}
+	b.WriteString("(")
+	writeExpr(b, n.Left)
+	b.WriteString(" ")
+	b.WriteString(binaryOpToString(n.Op))
+	b.WriteString(" ")
+	b.WriteString(word)
+	b.WriteString(" (")
+	writeSelectStmt(b, sub.Select, true)
+	b.WriteString("))")
+}
+
 func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
+	if sub, ok := n.Right.(*ast.SubqueryExpr); ok && sub.Quantifier != "" && sub.Select != nil {
+		writeQuantifiedComparison(b, n, sub)
+		return
+	}
+
 	// Operator-to-function rewrites:
 	// REGEXP → regexp_like(left, right)
 	// -> → json_extract(left, right)

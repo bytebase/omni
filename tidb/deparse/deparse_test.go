@@ -216,7 +216,6 @@ func TestDeparse_Section_2_2_ComparisonOperators(t *testing.T) {
 		{"greater_or_equal", "a >= b", "(`a` >= `b`)"},
 		{"less_or_equal", "a <= b", "(`a` <= `b`)"},
 		{"null_safe_equal", "a <=> b", "(`a` <=> `b`)"},
-		{"sounds_like", "a SOUNDS LIKE b", "(`a` sounds like `b`)"},
 	}
 
 	for _, tc := range cases {

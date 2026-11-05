@@ -668,9 +668,6 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		Walk(v, n.Against)
-	case *MemberOfExpr:
-		Walk(v, n.Value)
-		Walk(v, n.Array)
 	case *NextValueForExpr:
 		if n.Sequence != nil {
 			Walk(v, n.Sequence)

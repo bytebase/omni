@@ -93,9 +93,9 @@ accept	accept	INSERT INTO t partition (p0) values(1234)
 accept	accept	REPLACE INTO t partition (p0) values(1234)
 accept	accept	INSERT INTO t partition (p0, p1, p2) values(1234)
 accept	accept	REPLACE INTO t partition (p0, p1, p2) values(1234)
-reject	accept	INSERT INTO foo VALUES (1 || 2)
+accept	accept	INSERT INTO foo VALUES (1 || 2)
 accept	accept	INSERT INTO foo VALUES (1 | 2)
-reject	accept	INSERT INTO foo VALUES (false || true)
+accept	accept	INSERT INTO foo VALUES (false || true)
 accept	accept	INSERT INTO foo VALUES (bar(5678))
 reject	accept	INSERT INTO foo VALUES ()
 accept	accept	SELECT * FROM t
@@ -120,9 +120,9 @@ reject	accept	INSERT INTO foo () VALUES ()
 reject	accept	INSERT INTO foo VALUE ()
 accept	accept	INSERT INTO tt VALUES (01000001783);
 accept	accept	INSERT INTO tt VALUES (default);
-reject	accept	REPLACE INTO foo VALUES (1 || 2)
+accept	accept	REPLACE INTO foo VALUES (1 || 2)
 accept	accept	REPLACE INTO foo VALUES (1 | 2)
-reject	accept	REPLACE INTO foo VALUES (false || true)
+accept	accept	REPLACE INTO foo VALUES (false || true)
 accept	accept	REPLACE INTO foo VALUES (bar(5678))
 reject	accept	REPLACE INTO foo VALUES ()
 accept	accept	REPLACE INTO foo (a,b) VALUES (42,314)
@@ -401,7 +401,7 @@ accept	accept	select 1 from dual limit 1
 accept	accept	select 1 where exists (select 2)
 accept	accept	select 1 from dual where not exists (select 2)
 accept	accept	select 1 as a from dual order by a
-reject	accept	select 1 as a from dual where 1 < any (select 2) order by a
+accept	accept	select 1 as a from dual where 1 < any (select 2) order by a
 accept	accept	select 1 order by 1
 accept	accept	(select 1);
 accept	accept	select 1 where 1=1
@@ -1422,7 +1422,7 @@ accept	accept	SELECT 1 member of (a)
 reject	reject	SELECT 1 member of a
 reject	reject	SELECT 1 member a
 reject	reject	SELECT 1 not member of a
-accept	reject	SELECT 1 member of (1+1)
+reject	reject	SELECT 1 member of (1+1)
 accept	accept	SELECT concat('a') member of (cast(1 as char(1)))
 accept	accept	SELECT `uuid`()
 accept	accept	select nextval(seq)
@@ -1578,13 +1578,13 @@ accept	accept	ALTER TABLE t_n UNION ( ), KEY_BLOCK_SIZE = 1
 accept	accept	ALTER TABLE d_n.t_n UNION ( t_n ) REMOVE PARTITIONING
 accept	accept	ALTER TABLE d_n.t_n LOCK DEFAULT , UNION = ( t_n , d_n.t_n ) REMOVE PARTITIONING
 accept	accept	ALTER TABLE d_n.t_n ALGORITHM = DEFAULT , MAX_ROWS 10, UNION ( d_n.t_n ) , ROW_FORMAT REDUNDANT, STATS_PERSISTENT = DEFAULT
-accept	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (not 3), partition p2 values less than (20));
-accept	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (1 or 3), partition p2 values less than (20));
-accept	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (3 is null), partition p2 values less than (20));
-accept	reject	create table t (b int) partition by range (b is null) (partition p0 values less than (10));
-accept	reject	create table t (b int) partition by list (not b) (partition p0 values in (10, 20));
-accept	reject	create table t (b int) partition by hash ( not b );
-accept	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (3 in (3, 4, 5)), partition p2 values less than (20));
+reject	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (not 3), partition p2 values less than (20));
+reject	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (1 or 3), partition p2 values less than (20));
+reject	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (3 is null), partition p2 values less than (20));
+reject	reject	create table t (b int) partition by range (b is null) (partition p0 values less than (10));
+reject	reject	create table t (b int) partition by list (not b) (partition p0 values in (10, 20));
+reject	reject	create table t (b int) partition by hash ( not b );
+reject	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (3 in (3, 4, 5)), partition p2 values less than (20));
 accept	accept	CREATE TABLE t (id int) ENGINE = INNDB PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
 accept	accept	create table t (c int) PARTITION BY HASH (c) PARTITIONS 32;
 accept	accept	create table t (c int) PARTITION BY HASH (Year(VDate)) (PARTITION p1980 VALUES LESS THAN (1980) ENGINE = MyISAM, PARTITION p1990 VALUES LESS THAN (1990) ENGINE = MyISAM, PARTITION pothers VALUES LESS THAN MAXVALUE ENGINE = MyISAM)
@@ -2980,16 +2980,16 @@ accept	accept	alter user commentUser COMMENT '123456'
 accept	accept	create user commentUser ATTRIBUTE '{"name": "Tom", "age", 19}'
 accept	accept	alter user commentUser ATTRIBUTE '{"name": "Tom", "age", 19}'
 accept	accept	SELECT 1 > (select 1)
-reject	accept	SELECT 1 > ANY (select 1)
-reject	accept	SELECT 1 > ALL (select 1)
-reject	accept	SELECT 1 > SOME (select 1)
+accept	accept	SELECT 1 > ANY (select 1)
+accept	accept	SELECT 1 > ALL (select 1)
+accept	accept	SELECT 1 > SOME (select 1)
 reject	reject	SELECT EXISTS select 1
 accept	accept	SELECT EXISTS (select 1)
 accept	accept	SELECT + EXISTS (select 1)
 accept	accept	SELECT - EXISTS (select 1)
 accept	accept	SELECT NOT EXISTS (select 1)
-accept	reject	SELECT + NOT EXISTS (select 1)
-accept	reject	SELECT - NOT EXISTS (select 1)
+reject	reject	SELECT + NOT EXISTS (select 1)
+reject	reject	SELECT - NOT EXISTS (select 1)
 accept	accept	SELECT * FROM t where t.a in (select a from t limit 1, 10)
 accept	accept	SELECT * FROM t where t.a in ((select a from t limit 1, 10))
 accept	accept	SELECT * FROM t where t.a in ((select a from t limit 1, 10), 1)
@@ -3181,7 +3181,7 @@ accept	accept	select "\xFF"
 accept	accept	explain select c1 from t1
 accept	accept	explain delete t1, t2 from t1 inner join t2 inner join t3 where t1.id=t2.id and t2.id=t3.id;
 accept	accept	explain insert into t values (1), (2), (3)
-reject	accept	explain replace into foo values (1 || 2)
+accept	accept	explain replace into foo values (1 || 2)
 accept	accept	explain update t set id = id + 1 order by id desc;
 accept	accept	explain select c1 from t1 union (select c2 from t2) limit 1, 1
 accept	accept	explain format = "row" select c1 from t1 union (select c2 from t2) limit 1, 1
@@ -3242,7 +3242,7 @@ accept	accept	trace set a = 1
 accept	accept	trace select c1 from t1
 accept	accept	trace delete t1, t2 from t1 inner join t2 inner join t3 where t1.id=t2.id and t2.id=t3.id;
 accept	accept	trace insert into t values (1), (2), (3)
-reject	accept	trace replace into foo values (1 || 2)
+accept	accept	trace replace into foo values (1 || 2)
 accept	accept	trace update t set id = id + 1 order by id desc;
 accept	accept	trace select c1 from t1 union (select c2 from t2) limit 1, 1
 accept	accept	trace format = 'row' select c1 from t1 union (select c2 from t2) limit 1, 1

@@ -6,24 +6,41 @@ import (
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
-// Precedence levels for Pratt parsing (low to high, matching MySQL).
+// Precedence levels for Pratt parsing (low to high).
+//
+// The levels follow the rules in MariaDB's sql_yacc.yy, which are not MySQL's:
+//
+//	expr:         expr OR expr | expr XOR expr | expr AND expr | NOT expr | boolean_test
+//	boolean_test: boolean_test IS [NOT] {TRUE|FALSE|UNKNOWN|NULL}
+//	            | boolean_test comp_op predicate
+//	            | boolean_test comp_op {ANY|ALL} (subquery) | predicate
+//	predicate:    predicate [NOT] IN (...) | predicate [NOT] BETWEEN predicate AND predicate
+//	            | predicate SOUNDS LIKE predicate | predicate [NOT] LIKE predicate
+//	            | predicate [NOT] REGEXP predicate | bit_expr
+//
+// So a predicate binds tighter than a comparison (`a = b IN (1)` is `a = (b IN
+// (1))`), and NOT reaches only as far down as an expr goes: `1 + NOT 2` is a
+// syntax error and `NOT a = b` is `NOT (a = b)`. Unlike MySQL both predicates
+// and IS TRUE chain: `1 IN (1) IN (1)`, `1 LIKE 2 LIKE 3` and `1 IS TRUE = 1`
+// all parse. Measured on mariadb:11.8.8 (see operator_forms_test.go).
 const (
 	precNone       = 0
-	precAssign     = 1  // :=
+	precAssign     = 1  // the lowest level: a whole expression
 	precOr         = 2  // OR, ||
 	precXor        = 3  // XOR
 	precAnd        = 4  // AND, &&
 	precNot        = 5  // NOT (prefix)
-	precComparison = 6  // =, <=>, >=, >, <=, <, <>, !=, IS, LIKE, REGEXP, IN, BETWEEN
-	precBitOr      = 7  // |
-	precBitAnd     = 8  // &
-	precShift      = 9  // <<, >>
-	precAdd        = 10 // +, -
-	precMul        = 11 // *, /, DIV, %, MOD
-	precBitXor     = 12 // ^
-	precUnary      = 13 // -, ~, !
-	precCollate    = 14 // COLLATE
-	precJsonAccess = 15 // ->, ->>
+	precComparison = 6  // =, <=>, >=, >, <=, <, <>, !=, IS
+	precPredicate  = 7  // [NOT] IN, BETWEEN, LIKE, REGEXP, SOUNDS LIKE, MEMBER OF
+	precBitOr      = 8  // | (the bottom of a bit_expr)
+	precBitAnd     = 9  // &
+	precShift      = 10 // <<, >>
+	precAdd        = 11 // +, -
+	precMul        = 12 // *, /, DIV, %, MOD
+	precBitXor     = 13 // ^
+	precUnary      = 14 // -, ~, !
+	precCollate    = 15 // COLLATE (the bottom of a simple_expr)
+	precJsonAccess = 16 // ->, ->>
 )
 
 // parseExpr parses an expression using Pratt parsing / precedence climbing.
@@ -31,6 +48,15 @@ const (
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/expressions.html
 func (p *Parser) parseExpr() (nodes.ExprNode, error) {
 	return p.parseExprPrec(precAssign)
+}
+
+// parseBitExpr reads a bit_expr: arithmetic, bitwise and unary operators over
+// primaries, and none of NOT, AND, OR, XOR, a comparison, IS, IN, BETWEEN, LIKE or
+// REGEXP outside parentheses. A partition expression and a partition bound are
+// each one, which is why `PARTITION BY HASH (a OR 1)` and `VALUES LESS THAN (NOT
+// 1)` are 1064 while `HASH ((a OR 1))` parses.
+func (p *Parser) parseBitExpr() (nodes.ExprNode, error) {
+	return p.parseExprPrec(precBitOr)
 }
 
 // parseExprPrec parses an expression with the given minimum precedence.
@@ -42,23 +68,45 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 	}
 	defer p.leaveNesting()
 	start := p.pos()
+	// NOT is an expr, not a primary: it stands where an expr may stand and its
+	// operand runs down to the next AND, so it is read here where the level the
+	// caller asked for is known.
+	if p.cur.Type == kwNOT {
+		if err := p.offerExprCandidates(); err != nil {
+			return nil, err
+		}
+		if minPrec > precNot {
+			return nil, p.syntaxErrorAtCur()
+		}
+		left, err := p.parseNotExpr(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parseInfixExprPrec(left, start, minPrec, precNot)
+	}
 	left, err := p.parsePrefixExpr()
 	if err != nil {
 		return nil, err
 	}
+	return p.parseInfixExprPrec(left, start, minPrec, precJsonAccess)
+}
 
+// parseInfixExprPrec continues Pratt parsing with an already-parsed left
+// operand, folding infix operators of at least minPrec. start is the offset of
+// the left operand's first token, where every folded expression starts.
+//
+// level is the highest operator that may take left as its left operand; it
+// starts at the top for a primary and drops as operators fold. That is what
+// says the grammar's non-associative rules.
+func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int, level int) (nodes.ExprNode, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	var err error
 	for {
-		// MEMBER OF special handling (not in infixPrecedence since it's keyword-based)
-		if p.cur.Type == kwMEMBER {
-			left, err = p.parseMemberOfExpr(left, start)
-			if err != nil {
-				return nil, err
-			}
-			continue
-		}
-
 		prec, binOp, ok := p.infixPrecedence()
-		if !ok || prec < minPrec {
+		if !ok || prec < minPrec || prec > level {
 			break
 		}
 
@@ -69,6 +117,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			level = precComparison
 			continue
 
 		case p.cur.Type == kwBETWEEN || (p.cur.Type == kwNOT && p.peekNext().Type == kwBETWEEN):
@@ -76,6 +125,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			level = precPredicate
 			continue
 
 		case p.cur.Type == kwIN || (p.cur.Type == kwNOT && p.peekNext().Type == kwIN):
@@ -83,6 +133,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			level = precPredicate
 			continue
 
 		case p.cur.Type == kwLIKE || (p.cur.Type == kwNOT && p.peekNext().Type == kwLIKE):
@@ -90,6 +141,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			level = precPredicate
 			continue
 
 		case p.cur.Type == kwSOUNDS:
@@ -97,6 +149,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			level = precPredicate
 			continue
 
 		case p.cur.Type == kwREGEXP || p.cur.Type == kwRLIKE ||
@@ -105,6 +158,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			level = precPredicate
 			continue
 
 		case p.cur.Type == kwCOLLATE:
@@ -129,15 +183,20 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			originalOp = "MOD"
 		case p.cur.Type == tokNotEq && p.cur.Str == "!=":
 			originalOp = "!="
+		case p.cur.Type == tokOrOr:
+			originalOp = "||"
+		case p.cur.Type == tokAndAnd:
+			originalOp = "&&"
 		}
 		isComparison := prec == precComparison
 		p.advance() // consume operator
 
 		// Quantified-subquery RHS: `expr comp_op {ANY|SOME|ALL} (subquery)`.
-		// Only after a comparison operator. The quantifier is recorded on
-		// the SubqueryExpr so consumers can distinguish from a scalar
-		// subquery comparison.
-		if isComparison && (p.cur.Type == kwANY || p.cur.Type == kwSOME || p.cur.Type == kwALL) {
+		// Only after a comparison operator, and <=> is not a comp_op: `a <=> ANY
+		// (q)` is 1064. The quantifier is recorded on the SubqueryExpr so
+		// consumers can distinguish from a scalar subquery comparison.
+		if isComparison && binOp != nodes.BinOpNullSafeEq && (p.cur.Type == kwALL || ((p.cur.Type == kwANY || p.cur.Type == kwSOME) && p.peekNext().Type == '(')) {
+			// ANY and SOME are not reserved: `1 = any` compares with a column.
 			quantTok := p.advance()
 			quantifier := strings.ToUpper(quantTok.Str)
 			if _, err := p.expect('('); err != nil {
@@ -164,16 +223,11 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 				Right:      sub,
 				OriginalOp: originalOp,
 			}
+			level = precComparison
 			continue
 		}
 
-		// Right-associative for assignment
-		nextPrec := prec + 1
-		if binOp == nodes.BinOpAssign {
-			nextPrec = prec
-		}
-
-		right, err := p.parseExprPrec(nextPrec)
+		right, err := p.parseExprPrec(prec + 1)
 		if err != nil {
 			return nil, err
 		}
@@ -185,6 +239,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			Right:      right,
 			OriginalOp: originalOp,
 		}
+		level = prec
 	}
 
 	return left, nil
@@ -194,20 +249,18 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 // if it is an infix operator.
 func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 	switch p.cur.Type {
-	case tokAssign:
-		return precAssign, nodes.BinOpAssign, true
-	case kwOR:
+	case kwOR, tokOrOr:
 		return precOr, nodes.BinOpOr, true
 	case kwXOR:
 		return precXor, nodes.BinOpXor, true
-	case kwAND:
+	case kwAND, tokAndAnd:
 		return precAnd, nodes.BinOpAnd, true
 
 	// NOT as infix: NOT IN, NOT LIKE, NOT BETWEEN, NOT REGEXP
 	case kwNOT:
 		switch p.peekNext().Type {
 		case kwIN, kwLIKE, kwBETWEEN, kwREGEXP, kwRLIKE:
-			return precComparison, 0, true // handled specially
+			return precPredicate, 0, true // handled specially
 		}
 		return 0, 0, false
 
@@ -228,16 +281,8 @@ func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 		return precComparison, nodes.BinOpGe, true
 	case kwIS:
 		return precComparison, 0, true // handled specially
-	case kwLIKE:
-		return precComparison, 0, true
-	case kwREGEXP, kwRLIKE:
-		return precComparison, 0, true
-	case kwIN:
-		return precComparison, 0, true
-	case kwBETWEEN:
-		return precComparison, 0, true
-	case kwSOUNDS:
-		return precComparison, 0, true
+	case kwLIKE, kwREGEXP, kwRLIKE, kwIN, kwBETWEEN, kwSOUNDS:
+		return precPredicate, 0, true
 
 	// Bit operators
 	case '|':
@@ -287,14 +332,40 @@ func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 	return 0, 0, false
 }
 
-// parsePrefixExpr parses prefix/primary expressions.
-func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
-	// Completion: at the start of any expression, offer column/function candidates.
+// offerExprCandidates is the completion hook at the start of any expression: it
+// offers column and function candidates when the cursor is here.
+func (p *Parser) offerExprCandidates() error {
 	p.checkCursor()
 	if p.collectMode() {
 		p.addRuleCandidate("columnref")
 		p.addRuleCandidate("func_name")
-		return nil, &ParseError{Message: "collecting"}
+		return &ParseError{Message: "collecting"}
+	}
+	return nil
+}
+
+// parseNotExpr reads `NOT expr`, whose operand runs down to the next AND, XOR or
+// OR. `!` is not this: it is a simple_expr and binds to the next primary.
+func (p *Parser) parseNotExpr(start int) (nodes.ExprNode, error) {
+	p.advance() // consume NOT
+	operand, err := p.parseExprPrec(precNot)
+	if err != nil {
+		return nil, err
+	}
+	if operand == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return &nodes.UnaryExpr{
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		Op:      nodes.UnaryNot,
+		Operand: operand,
+	}, nil
+}
+
+// parsePrefixExpr parses prefix/primary expressions.
+func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
+	if err := p.offerExprCandidates(); err != nil {
+		return nil, err
 	}
 
 	switch p.cur.Type {
@@ -319,8 +390,6 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 			}
 		}
 		return expr, err
-	case kwNOT:
-		return p.parseUnaryExpr(nodes.UnaryNot)
 	case kwEXISTS_KW:
 		return p.parseExistsExpr()
 	case kwCASE:
@@ -334,6 +403,38 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 	default:
 		return p.parsePrimaryExpr()
 	}
+}
+
+// atUserVarAssign reports whether the next two tokens start `@name := ...`. A
+// user variable is the only thing := assigns to here: `a := 1`, `1 := 2` and
+// `(@a) := 1` are syntax errors, and so is `@@a := 1`, since the lexer gives a
+// system variable as tokAt2.
+func (p *Parser) atUserVarAssign() bool {
+	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' &&
+		p.peekNext().Type == tokAssign
+}
+
+// parseUserVarAssign reads `@name := expr`, with the right side read at rhsPrec.
+func (p *Parser) parseUserVarAssign(rhsPrec int) (nodes.ExprNode, error) {
+	start := p.pos()
+	ref, err := p.parseVariableRef()
+	if err != nil {
+		return nil, err
+	}
+	p.advance() // consume :=
+	right, err := p.parseExprPrec(rhsPrec)
+	if err != nil {
+		return nil, err
+	}
+	if right == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return &nodes.BinaryExpr{
+		Loc:   nodes.Loc{Start: start, End: p.prev.End},
+		Op:    nodes.BinOpAssign,
+		Left:  ref,
+		Right: right,
+	}, nil
 }
 
 // parseUnaryExpr parses a unary expression.
@@ -500,6 +601,13 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 
 	default:
+		// `@name := expr` is a primary here (variable_aux in sql_yacc.yy), so it
+		// stands wherever a primary does and takes all of the expression to its
+		// right: `1 + @a := 2 + 3` is 6, with @a set to 5.
+		if p.atUserVarAssign() {
+			return p.parseUserVarAssign(precAssign)
+		}
+
 		// Variable reference
 		if p.isVariableRef() {
 			return p.parseVariableRef()
@@ -819,45 +927,6 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 
 	fc.Loc.End = p.prev.End
 	return fc, nil
-}
-
-// parseTrimFunc parses TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str).
-// parseMemberOfExpr parses value MEMBER OF(json_array).
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/json-search-functions.html
-//
-//	value MEMBER OF(json_array)
-func (p *Parser) parseMemberOfExpr(value nodes.ExprNode, start int) (nodes.ExprNode, error) {
-	p.advance() // consume MEMBER
-
-	// Expect OF
-	if p.cur.Type != kwOF {
-		return nil, &ParseError{
-			Message:  "expected OF after MEMBER",
-			Position: p.cur.Loc,
-		}
-	}
-	p.advance() // consume OF
-
-	if _, err := p.expect('('); err != nil {
-		return nil, err
-	}
-	array, err := p.parseExpr()
-	if err != nil {
-		return nil, err
-	}
-	if array == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
-
-	return &nodes.MemberOfExpr{
-		Loc:   nodes.Loc{Start: start, End: p.prev.End},
-		Value: value,
-		Array: array,
-	}, nil
 }
 
 // parseOverClause parses OVER (window_spec) or OVER window_name.
@@ -1593,7 +1662,8 @@ func (p *Parser) parseBetweenExpr(left nodes.ExprNode, start int) (nodes.ExprNod
 	}
 	p.advance() // consume BETWEEN
 
-	low, err := p.parseExprPrec(precAdd) // parse at higher precedence to avoid AND confusion
+	// Each side is read above AND, which is what keeps this AND the separator.
+	low, err := p.parseExprPrec(precPredicate)
 	if err != nil {
 		return nil, err
 	}
@@ -1602,7 +1672,7 @@ func (p *Parser) parseBetweenExpr(left nodes.ExprNode, start int) (nodes.ExprNod
 		return nil, err
 	}
 
-	high, err := p.parseExprPrec(precAdd)
+	high, err := p.parseExprPrec(precPredicate)
 	if err != nil {
 		return nil, err
 	}
@@ -1675,6 +1745,38 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 	return inExpr, nil
 }
 
+// parsePredicateRHS reads the right side of LIKE, REGEXP and SOUNDS LIKE: a
+// bit_expr, plus any NOT predicate after it. NOT outranks those three in
+// MariaDB's precedence declarations where IN, LIKE and REGEXP themselves do not,
+// so bison shifts at `a LIKE b . NOT REGEXP c` and that is `a LIKE (b NOT REGEXP
+// c)`, while `a LIKE b REGEXP c` reduces first and is `(a LIKE b) REGEXP c`. The
+// expression sweep in operator_sweep_oracle_test.go holds this to mariadb:11.8.8.
+func (p *Parser) parsePredicateRHS() (nodes.ExprNode, error) {
+	start := p.pos()
+	right, err := p.parseExprPrec(precBitOr)
+	if err != nil {
+		return nil, err
+	}
+	for right != nil && p.cur.Type == kwNOT {
+		switch p.peekNext().Type {
+		case kwIN:
+			right, err = p.parseInExpr(right, start)
+		case kwBETWEEN:
+			right, err = p.parseBetweenExpr(right, start)
+		case kwLIKE:
+			right, err = p.parseLikeExpr(right, start)
+		case kwREGEXP, kwRLIKE:
+			right, err = p.parseRegexpExpr(right, start)
+		default:
+			return right, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return right, nil
+}
+
 // parseLikeExpr parses [NOT] LIKE pattern [ESCAPE escape_char].
 func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	not := false
@@ -1683,7 +1785,7 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, 
 	}
 	p.advance() // consume LIKE
 
-	pattern, err := p.parseExprPrec(precComparison + 1)
+	pattern, err := p.parsePredicateRHS()
 	if err != nil {
 		return nil, err
 	}
@@ -1696,7 +1798,7 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, 
 	}
 
 	if _, ok := p.match(kwESCAPE); ok {
-		esc, err := p.parsePrimaryExpr()
+		esc, err := p.parseExprPrec(precBitOr)
 		if err != nil {
 			return nil, err
 		}
@@ -1715,7 +1817,7 @@ func (p *Parser) parseRegexpExpr(left nodes.ExprNode, start int) (nodes.ExprNode
 	}
 	p.advance() // consume REGEXP or RLIKE
 
-	pattern, err := p.parseExprPrec(precComparison + 1)
+	pattern, err := p.parsePredicateRHS()
 	if err != nil {
 		return nil, err
 	}
@@ -2134,7 +2236,7 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 	// Parse against expression with high enough precedence to avoid consuming
 	// IN (which is precComparison) as part of the expression — IN here starts
 	// the search modifier, not an IN-list comparison.
-	against, err := p.parseExprPrec(precComparison + 1)
+	against, err := p.parseExprPrec(precBitOr)
 	if err != nil {
 		return nil, err
 	}
@@ -2205,7 +2307,7 @@ func (p *Parser) parseSoundsLikeExpr(left nodes.ExprNode, start int) (nodes.Expr
 		return nil, err
 	}
 
-	right, err := p.parseExprPrec(precComparison + 1)
+	right, err := p.parsePredicateRHS()
 	if err != nil {
 		return nil, err
 	}

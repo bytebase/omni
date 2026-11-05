@@ -240,7 +240,6 @@ var locSpanCases = []struct {
 	{"LockTablesStmt", "LOCK TABLE t READ", "LOCK TABLE t READ", 0},
 	{"LoopStmt", "CREATE PROCEDURE p() BEGIN LOOP SELECT 1; END LOOP; END", "LOOP SELECT 1; END LOOP", 0},
 	{"MatchExpr", "SELECT * FROM articles WHERE MATCH (title, body) AGAINST ('database')", "MATCH (title, body) AGAINST ('database')", 0},
-	{"MemberOfExpr", "SELECT 17 MEMBER OF('[23, 17, 10]')", "17 MEMBER OF('[23, 17, 10]')", 0},
 	{"NextValueForExpr", "SELECT NEXT VALUE FOR sq", "NEXT VALUE FOR sq", 0},
 	{"NullLit", "SELECT * FROM t WHERE n = NULL ORDER BY n", "NULL", 0},
 	{"OnCondition", "SELECT * FROM a JOIN b ON a.id = b.id", "a.id = b.id", 0},

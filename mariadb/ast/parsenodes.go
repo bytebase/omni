@@ -2135,16 +2135,6 @@ type RowExpr struct {
 func (e *RowExpr) nodeTag()  {}
 func (e *RowExpr) exprNode() {}
 
-// MemberOfExpr represents a value MEMBER OF(json_array) expression.
-type MemberOfExpr struct {
-	Loc   Loc
-	Value ExprNode
-	Array ExprNode
-}
-
-func (e *MemberOfExpr) nodeTag()  {}
-func (e *MemberOfExpr) exprNode() {}
-
 // JsonTableExpr represents a JSON_TABLE() table function.
 type JsonTableExpr struct {
 	Loc     Loc

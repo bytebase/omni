@@ -9252,26 +9252,8 @@ func TestParseShowProcesslist(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Batch 75: SOUNDS LIKE, ROW(), DEFAULT(col), VALUES(col)
+// Batch 75: ROW(), DEFAULT(col), VALUES(col)
 // ---------------------------------------------------------------------------
-
-func TestParseSoundsLike(t *testing.T) {
-	tests := []string{
-		// Basic SOUNDS LIKE
-		"SELECT * FROM t WHERE name SOUNDS LIKE 'John'",
-		// SOUNDS LIKE with column references
-		"SELECT * FROM t WHERE a SOUNDS LIKE b",
-		// SOUNDS LIKE in complex expression
-		"SELECT * FROM t WHERE name SOUNDS LIKE 'John' AND age > 20",
-		// SOUNDS LIKE with function
-		"SELECT * FROM t WHERE CONCAT(first, last) SOUNDS LIKE 'JohnDoe'",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
 
 func TestParseRowConstructor(t *testing.T) {
 	tests := []string{

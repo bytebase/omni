@@ -232,6 +232,26 @@ func unwrapParen(node ast.ExprNode) ast.ExprNode {
 //   - NOT (LIKE) → not((expr like pattern)) — wraps in not(), doesn't fold
 //   - NOT (non-boolean) → (0 = expr) — e.g., NOT(a+1) → (0 = (a+1)), NOT(col) → (0 = col)
 func rewriteNot(operand ast.ExprNode) ast.ExprNode {
+	// NOT of a quantified comparison inverts the operator and swaps the quantifier:
+	// `NOT a > ALL (q)` is `a <= ANY (q)`. Flipping the operator alone would turn `NOT
+	// a = ANY (q)` into `a <> ANY (q)`, which holds whenever any row of q differs from
+	// a, where the original holds only when every row does. `= ANY` is the exception
+	// the server makes, since it stores that one as IN: `(not(a in (q)))`.
+	if binExpr, ok := unwrapParen(operand).(*ast.BinaryExpr); ok {
+		if sub, ok := binExpr.Right.(*ast.SubqueryExpr); ok && sub.Quantifier != "" {
+			inverted, canInvert := invertOp[binExpr.Op]
+			if !canInvert || (binExpr.Op == ast.BinOpEq && sub.Quantifier != "ALL") {
+				return &ast.UnaryExpr{Op: ast.UnaryNot, Operand: operand}
+			}
+			dual := *sub
+			dual.Quantifier = "ALL"
+			if sub.Quantifier == "ALL" {
+				dual.Quantifier = "ANY"
+			}
+			return &ast.BinaryExpr{Loc: binExpr.Loc, Op: inverted, Left: binExpr.Left, Right: &dual}
+		}
+	}
+
 	inner := unwrapParen(operand)
 
 	// Case 1: NOT(comparison) → invert the comparison operator
