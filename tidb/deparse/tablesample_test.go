@@ -45,6 +45,53 @@ func TestTableSampleDeparse(t *testing.T) {
 	})
 }
 
+// TestSampleExpressionKinds pins the text of the expression kinds the size and the
+// seed can hold that writeExpr once could not write. It wrote a comment in their
+// place, which left a clause with nothing in it, and `:=` came out as `?`.
+func TestSampleExpressionKinds(t *testing.T) {
+	for _, tc := range []struct{ expr, want string }{
+		{"@seed", "@`seed`"},
+		{"@`a b`", "@`a b`"},
+		{"@@autocommit", "@@autocommit"},
+		{"@@GLOBAL.autocommit", "@@global.autocommit"},
+		{"@@session.autocommit", "@@session.autocommit"},
+		{"@@local.autocommit", "@@local.autocommit"},
+		{"@@a.b", "@@a.b"},
+		{"@@table", "@@table"},
+		{"@@`a b`", "@@`a b`"},
+		{"@a := 1", "(@`a` := 1)"},
+		{"@a := @b := 1", "(@`a` := (@`b` := 1))"},
+		{"MATCH (a) AGAINST ('x')", "match (`a`) against ('x')"},
+		{"MATCH (a, t.b) AGAINST ('x' IN BOOLEAN MODE)", "match (`a`,`t`.`b`) against ('x' in boolean mode)"},
+		{"MATCH (a) AGAINST ('x' IN NATURAL LANGUAGE MODE)", "match (`a`) against ('x' in natural language mode)"},
+		{"MATCH (a) AGAINST ('x' WITH QUERY EXPANSION)", "match (`a`) against ('x' with query expansion)"},
+		{"1 MEMBER OF ('[1]')", "(1 member of ('[1]'))"},
+		{"(1 MEMBER OF ('[1]')) + 1", "((1 member of ('[1]')) + 1)"},
+		{"DEFAULT(a)", "default(`a`)"},
+	} {
+		t.Run(tc.expr, func(t *testing.T) {
+			sql := "SELECT 1 AS x FROM t TABLESAMPLE (" + tc.expr + ") REPEATABLE (" + tc.expr + ")"
+			got := deparseSampleSelect(t, sql)
+			want := "select 1 AS `x` from `t` tablesample (" + tc.want + ") repeatable (" + tc.want + ")"
+			if got != want {
+				t.Errorf("got  %s\nwant %s", got, want)
+			}
+			if again := deparseSampleSelect(t, got); again != got {
+				t.Errorf("reads back as %s, want %s", again, got)
+			}
+		})
+	}
+}
+
+// TestVariableOutsideASample checks the writer is not particular to the clause.
+func TestVariableOutsideASample(t *testing.T) {
+	got := deparseSampleSelect(t, "SELECT @x AS a, @@autocommit AS b FROM t")
+	want := "select @`x` AS `a`,@@autocommit AS `b` from `t`"
+	if got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+}
+
 func deparseSampleSelect(t *testing.T, sql string) string {
 	t.Helper()
 	list, err := parser.Parse(sql)

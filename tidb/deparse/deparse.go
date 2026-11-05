@@ -1367,9 +1367,74 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		writeExistsExpr(b, n)
 	case *ast.SubqueryExpr:
 		writeSubqueryExpr(b, n)
+	case *ast.VariableRef:
+		writeVariableRef(b, n)
+	case *ast.MatchExpr:
+		writeMatchExpr(b, n)
+	case *ast.MemberOfExpr:
+		b.WriteByte('(')
+		writeExpr(b, n.Value)
+		b.WriteString(" member of (")
+		writeExpr(b, n.Array)
+		b.WriteString("))")
+	case *ast.DefaultExpr:
+		b.WriteString("default")
+		if n.Column != "" {
+			b.WriteString("(" + quoteIdent(n.Column) + ")")
+		}
 	default:
 		fmt.Fprintf(b, "/* unsupported: %T */", node)
 	}
+}
+
+// writeVariableRef writes a user variable quoted, as it writes every other name. A
+// system variable keeps a bare name where it can: a scope such as @@global is read
+// as a scope only when written bare, and a dotted name stays one name.
+func writeVariableRef(b *strings.Builder, n *ast.VariableRef) {
+	if !n.System {
+		b.WriteString("@" + quoteIdent(n.Name))
+		return
+	}
+	b.WriteString("@@")
+	if n.Scope != "" {
+		b.WriteString(strings.ToLower(n.Scope) + ".")
+	}
+	if isBareVariableName(n.Name) {
+		b.WriteString(n.Name)
+	} else {
+		b.WriteString(quoteIdent(n.Name))
+	}
+}
+
+func isBareVariableName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		isWord := c == '_' || c == '$' || c == '.' || c >= 0x80 ||
+			(c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+		if !isWord {
+			return false
+		}
+	}
+	return true
+}
+
+func writeMatchExpr(b *strings.Builder, n *ast.MatchExpr) {
+	b.WriteString("match (")
+	for i, col := range n.Columns {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		writeExpr(b, col)
+	}
+	b.WriteString(") against (")
+	writeExpr(b, n.Against)
+	if n.Modifier != "" {
+		b.WriteString(" " + strings.ToLower(n.Modifier))
+	}
+	b.WriteByte(')')
 }
 
 func deparseStringLit(n *ast.StringLit) string {
@@ -1574,6 +1639,8 @@ func binaryOpToString(op ast.BinaryOp) string {
 		return ">>"
 	case ast.BinOpSoundsLike:
 		return "sounds like"
+	case ast.BinOpAssign:
+		return ":="
 	default:
 		return "?"
 	}

@@ -69,6 +69,27 @@ func analyzeSampled(t *testing.T, sql string) *Query {
 	return q
 }
 
+// analyzeSampledStmt analyzes a statement already parsed, for reading a query's own
+// deparsed text back.
+func analyzeSampledStmt(t *testing.T, stmt *ast.SelectStmt) *Query {
+	t.Helper()
+	c := New()
+	results, err := c.Exec("CREATE DATABASE d; USE d; "+tableSampleViewSchema, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range results {
+		if r.Error != nil {
+			t.Fatal(r.Error)
+		}
+	}
+	q, err := c.AnalyzeSelectStmt(stmt)
+	if err != nil {
+		t.Fatalf("analyzing the deparsed text: %v", err)
+	}
+	return q
+}
+
 // TestTableSampleAnalyzedQuery checks the analyzed query keeps the clause on every
 // entry that can hold one. A query deparsed without it still reads, and reads the
 // whole table.
@@ -203,6 +224,129 @@ func TestTableSampleNotResolvedTiDB(t *testing.T) {
 			analyzed = strings.ReplaceAll(analyzed, "`d`.", "`omni_tablesample_resolve`.")
 			if _, err := conn.ExecContext(ctr.ctx, analyzed); err != nil {
 				t.Errorf("TiDB refused the analyzed text %s: %v", analyzed, err)
+			}
+		})
+	}
+}
+
+// tableSampleExpressions is one of each kind of expression the size and the seed can
+// hold. The grammar takes any Expression there, so a kind the deparser cannot write
+// turns an accepted clause into one that does not read back.
+var tableSampleExpressions = []string{
+	`@seed`,
+	"@`a b`",
+	`@@autocommit`,
+	`@@global.autocommit`,
+	`@@session.autocommit`,
+	`@@local.autocommit`,
+	`@a := 1`,
+	`@a := @b := 1`,
+	`match(a) against('x')`,
+	`match(a, b) against('x' in boolean mode)`,
+	`match(a) against('x' in natural language mode)`,
+	`match(a) against('x' with query expansion)`,
+	`match(a) against('x' in natural language mode with query expansion)`,
+	`1 member of ('[1]')`,
+	`a member of ('[1]')`,
+	`default(a)`,
+	`values(a)`,
+	`a->'$.x'`,
+	`a->>'$.x'`,
+	`count(*)`,
+	`sum(a) over ()`,
+	`sum(a) over (partition by b order by a rows between 1 preceding and current row)`,
+	`row_number() over w`,
+	`group_concat(a order by a separator ',')`,
+	`_utf8mb4'x'`,
+	`x'41'`,
+	`b'1'`,
+	`date '2020-01-01'`,
+	`true`,
+	`null`,
+	`1e3`,
+	`interval 1 day + a`,
+	`now()`,
+	`current_timestamp`,
+	`current_user`,
+	`not a`,
+	`!a`,
+	`-a`,
+	`~a`,
+	`a || b`,
+	`a && b`,
+	`a xor b`,
+	`a div b`,
+	`a mod b`,
+	`a <=> b`,
+	`a in (1,2)`,
+	`a in (select 1)`,
+	`a = any (select 1)`,
+	`a > all (select 1)`,
+	`exists (select 1)`,
+	`row(1,2) = row(1,2)`,
+	`a like 'x' escape 'y'`,
+	`a regexp 'x'`,
+	`a between 1 and 2`,
+	`a is true`,
+	`a is not null`,
+	`case when a then 1 else 2 end`,
+	`case a when 1 then 2 end`,
+	`cast(a as char)`,
+	`convert(a, char)`,
+	`convert(a using utf8mb4)`,
+	`extract(day from a)`,
+	`position('a' in b)`,
+	`substring(a from 1 for 2)`,
+	`trim(both 'x' from a)`,
+	`a collate utf8mb4_bin`,
+	`binary a`,
+	`t.a`,
+	`d.t.a`,
+}
+
+// TestTableSampleExpressionsReadBack holds both ways the clause leaves the catalog to
+// the server: the text DeparseQuery writes, and the view text deparse writes, must each
+// parse on TiDB v8.5.5 for every kind of expression. The verdict comes from a prepare,
+// where a 1064 is the parser's refusal and any other answer means the text parsed.
+func TestTableSampleExpressionsReadBack(t *testing.T) {
+	ctr := startTiDBForCatalog(t)
+	conn, err := ctr.db.Conn(ctr.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	parses := func(t *testing.T, sql string) bool {
+		t.Helper()
+		st, err := conn.PrepareContext(ctr.ctx, sql)
+		if err == nil {
+			_ = st.Close()
+			return true
+		}
+		var myErr *gomysql.MySQLError
+		if !errors.As(err, &myErr) {
+			t.Fatalf("no verdict for %s: %v", sql, err)
+		}
+		return myErr.Number != 1064
+	}
+	for _, expr := range tableSampleExpressions {
+		t.Run(expr, func(t *testing.T) {
+			sql := "SELECT a FROM tbl TABLESAMPLE REGIONS(" + expr + ") REPEATABLE (" + expr + ")"
+			if !parses(t, sql) {
+				t.Fatalf("TiDB refused the source text %s", sql)
+			}
+			analyzed := DeparseQuery(analyzeSampled(t, sql))
+			if strings.Contains(analyzed, "unsupported") {
+				t.Fatalf("DeparseQuery could not write it: %s", analyzed)
+			}
+			if !parses(t, analyzed) {
+				t.Errorf("TiDB refused the analyzed text %s", analyzed)
+			}
+			list, err := parser.Parse(analyzed)
+			if err != nil {
+				t.Fatalf("omni refused its own text %s: %v", analyzed, err)
+			}
+			if again := DeparseQuery(analyzeSampledStmt(t, list.Items[0].(*ast.SelectStmt))); again != analyzed {
+				t.Errorf("reads back as %s, want %s", again, analyzed)
 			}
 		})
 	}
