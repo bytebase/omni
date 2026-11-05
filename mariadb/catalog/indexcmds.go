@@ -90,16 +90,22 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateNewIndexCoversPartitioning(tbl, idx); err != nil {
 		return err
 	}
+	// Hidden columns go on the table before the checks that can still fail, and a statement that
+	// fails leaves the table as it was, or a retry would allocate another set beside them.
+	snapshot := cloneTable(tbl)
 	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
+		*tbl = snapshot
 		return err
 	}
 	if err := validateColsWithoutOverlaps(tbl, idx.Name, idx.Columns); err != nil {
+		*tbl = snapshot
 		return err
 	}
 	// mariadb:11.8.8 answers 1072 for CREATE INDEX k ON t (nosuch), which a CREATE OR REPLACE
 	// must not read as leave to drop the old index.
 	for _, ic := range idxCols {
 		if ic.Name != "" && !ic.WithoutOverlaps && tbl.GetColumn(ic.Name) == nil {
+			*tbl = snapshot
 			return errKeyColumnDoesNotExist(ic.Name)
 		}
 	}
@@ -107,7 +113,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	tbl.Indexes = append(tbl.Indexes, idx)
 	// An IGNORED UNIQUE index can become the implicit primary key.
 	if err := validateIgnoredPrimaryKey(tbl, false); err != nil {
-		tbl.Indexes = tbl.Indexes[:len(tbl.Indexes)-1]
+		*tbl = snapshot
 		return err
 	}
 

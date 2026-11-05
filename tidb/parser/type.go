@@ -636,6 +636,7 @@ func (p *Parser) parsePrecisionAndScale(dt *nodes.DataType) (hasScale bool, err 
 			}
 		}
 		dt.Scale = int(p.cur.Ival)
+		dt.HasScale = true
 		hasScale = true
 		p.advance()
 	}

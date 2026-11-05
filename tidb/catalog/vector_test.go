@@ -217,3 +217,32 @@ func TestVectorIndexTypeReadsBack(t *testing.T) {
 		})
 	}
 }
+
+// TestFunctionalKeyPartOverAColumn: `((v))` stays a functional key part, so what SHOW CREATE TABLE
+// writes is what a vector index has to be, and reads back. TiDB v8.5.5 needs a TiFlash replica to
+// build one (8200), so the server cannot store this one: its text is the grammar's.
+func TestFunctionalKeyPartOverAColumn(t *testing.T) {
+	for name, stmt := range map[string]string{
+		"CREATE TABLE":        "CREATE TABLE t (v VECTOR(3), VECTOR INDEX i ((v)))",
+		"CREATE VECTOR INDEX": "CREATE TABLE t (v VECTOR(3)); CREATE VECTOR INDEX i ON t ((v)) USING HNSW",
+		"ALTER TABLE":         "CREATE TABLE t (v VECTOR(3)); ALTER TABLE t ADD VECTOR INDEX i ((v)) USING HNSW",
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := New()
+			if _, err := c.Exec("CREATE DATABASE d; USE d; "+stmt, nil); err != nil {
+				t.Fatal(err)
+			}
+			text := c.ShowCreateTable("d", "t")
+			if !strings.Contains(text, "((`v`))") {
+				t.Fatalf("the key part is no longer functional:\n%s", text)
+			}
+			again := New()
+			if _, err := again.Exec("CREATE DATABASE d; USE d; "+text, nil); err != nil {
+				t.Fatalf("%s does not read back: %v", text, err)
+			}
+			if got := again.ShowCreateTable("d", "t"); got != text {
+				t.Errorf("read back as:\n%s\nwant:\n%s", got, text)
+			}
+		})
+	}
+}

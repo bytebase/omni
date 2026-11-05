@@ -1001,7 +1001,8 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 				Length:     ic.Length,
 				Descending: ic.Desc,
 			}
-			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			// `((v))` is a functional key part over a column, which a vector index requires.
+			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column
 			} else {
 				idxCol.Expr = nodeToSQL(ic.Expr)
@@ -1462,8 +1463,9 @@ func formatColumnType(dt *nodes.DataType) string {
 		name = "geomcollection"
 	case "float":
 		// FLOAT(n) is a precision in bits, which picks the type and is not kept: TiDB v8.5.5
-		// shows FLOAT(10) as float and FLOAT(30) as double.
-		if dt.Length > 24 && dt.Scale == 0 {
+		// shows FLOAT(10) as float and FLOAT(30) as double. With a scale the first number is
+		// no such thing, and FLOAT(30,0) stays float.
+		if dt.Length > 24 && !dt.HasScale {
 			name = "double"
 		}
 	}

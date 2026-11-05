@@ -35,7 +35,8 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			Length:     ic.Length,
 			Descending: ic.Desc,
 		}
-		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+		// `((v))` is a functional key part over a column, which a vector index requires.
+		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 			col.Name = cr.Column
 		} else {
 			col.Expr = nodeToSQL(ic.Expr)

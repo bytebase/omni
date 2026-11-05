@@ -9,7 +9,7 @@ const floatDoubleForms = "CREATE TABLE fd (" +
 	"a DOUBLE(10,0), b REAL(10,0), c FLOAT8(10,0), d DOUBLE PRECISION(10,0), e DOUBLE(10,0) UNSIGNED, " +
 	"f DOUBLE(10,2), g DOUBLE, h FLOAT8, " +
 	"i FLOAT(10,0), j FLOAT4(10,0), k FLOAT(10,2), l FLOAT(10), m FLOAT4(5), n FLOAT(24), o FLOAT(25), " +
-	"p FLOAT(30), q FLOAT(0), r FLOAT, s FLOAT(10,0) ZEROFILL, t DOUBLE(10,2) ZEROFILL, u INT ZEROFILL, v DECIMAL(5,0))"
+	"p FLOAT(30), q FLOAT(0), r FLOAT, w FLOAT(30,0), x FLOAT(25,0), y FLOAT(53), z FLOAT(30,2), s FLOAT(10,0) ZEROFILL, t DOUBLE(10,2) ZEROFILL, u INT ZEROFILL, v DECIMAL(5,0))"
 
 // TestFloatDoubleShowCreate: a precision without a scale does not show, so what the catalog writes
 // is what the server writes, and it reads back: the parser refuses DOUBLE(10), as TiDB does.

@@ -375,3 +375,27 @@ func TestVectorStateOracle(t *testing.T) {
 	}
 	t.Cleanup(func() { _, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS t") })
 }
+
+// TestFailedCreateIndexLeavesNoHiddenColumns: a statement that fails leaves the table as it was, so
+// a retry does not allocate a second set of hidden columns beside the first.
+func TestFailedCreateIndexLeavesNoHiddenColumns(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE d; USE d; CREATE TABLE t (a INT)", nil); err != nil {
+		t.Fatal(err)
+	}
+	before := len(c.GetDatabase("d").GetTable("t").Columns)
+	results, err := c.Exec("CREATE INDEX i ON t ((a+1), nosuch)", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("results = %+v, want the statement's 1072", results)
+	}
+	tbl := c.GetDatabase("d").GetTable("t")
+	if got := len(tbl.Columns); got != before {
+		t.Errorf("the failed statement left %d columns, want %d", got, before)
+	}
+	if len(tbl.Indexes) != 0 {
+		t.Errorf("the failed statement left %d indexes", len(tbl.Indexes))
+	}
+}
