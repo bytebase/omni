@@ -2,14 +2,11 @@ package catalog
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmariadb "github.com/testcontainers/testcontainers-go/modules/mariadb"
 )
 
 // TestDropPeriodIfExistsOracle runs ALTER TABLE ... DROP PERIOD IF EXISTS on a
@@ -54,11 +51,16 @@ func TestDropPeriodIfExistsOracle(t *testing.T) {
 		{"then ADD PERIOD", app, "ALTER TABLE ta DROP PERIOD IF EXISTS FOR app, ADD PERIOD FOR p2(s, e)", 0},
 	}
 
-	conn := startDropPeriodMariaDB(t)
 	ctx := context.Background()
+	// One connection for all the cases, as the statements need no fresh session.
+	conn, err := mariadbDatabase(t).Conn(ctx)
+	if err != nil {
+		t.Fatalf("connect to MariaDB: %v", err)
+	}
+	defer conn.Close()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, stmt := range []string{"DROP DATABASE IF EXISTS test", "CREATE DATABASE test", "USE test", tc.create} {
+			for _, stmt := range []string{"DROP TABLE IF EXISTS ta", tc.create} {
 				if _, err := conn.ExecContext(ctx, stmt); err != nil {
 					t.Fatalf("MariaDB %q: %v", stmt, err)
 				}
@@ -123,34 +125,4 @@ func periodState(ddl string) string {
 		lines = append(lines, "WITH SYSTEM VERSIONING")
 	}
 	return strings.Join(lines, "\n")
-}
-
-// startDropPeriodMariaDB starts a mariadb:11.8.8 container for this test and
-// returns one connection to it, so USE holds across statements.
-func startDropPeriodMariaDB(t *testing.T) *sql.Conn {
-	t.Helper()
-	ctx := context.Background()
-	container, err := tcmariadb.Run(ctx, "mariadb:11.8.8",
-		tcmariadb.WithDatabase("test"),
-		tcmariadb.WithPassword("test"),
-	)
-	if err != nil {
-		t.Fatalf("start MariaDB container: %v", err)
-	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
-	dsn, err := container.ConnectionString(ctx)
-	if err != nil {
-		t.Fatalf("MariaDB connection string: %v", err)
-	}
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		t.Fatalf("open MariaDB: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("connect to MariaDB: %v", err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	return conn
 }

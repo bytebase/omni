@@ -68,7 +68,7 @@ func TestAlterAddIndexKeepsOptions(t *testing.T) {
 // in this one (container test). MariaDB prints an index's KEY_BLOCK_SIZE, which
 // MySQL does not.
 func TestContainerAlterAddIndexOptions(t *testing.T) {
-	db := startOrReplaceMariaDB(t)
+	db := mariadbDatabase(t)
 	ctx := context.Background()
 
 	c := setupWithDB(t)

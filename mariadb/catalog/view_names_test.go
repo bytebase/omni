@@ -80,10 +80,10 @@ var viewNameCases = []struct{ name, sql string }{
 
 // viewNameCatalog creates viewNameSchema and every case's view in a fresh
 // catalog.
-func viewNameCatalog(t *testing.T) *Catalog {
+func viewNameCatalog(t *testing.T, database string) *Catalog {
 	t.Helper()
 	c := New()
-	script := "CREATE DATABASE test; USE test; " + strings.Join(viewNameSchema, "; ") + ";"
+	script := "CREATE DATABASE " + database + "; USE " + database + "; " + strings.Join(viewNameSchema, "; ") + ";"
 	for _, tc := range viewNameCases {
 		script += "\nCREATE VIEW " + tc.name + " AS " + tc.sql + ";"
 	}
@@ -102,7 +102,7 @@ func viewNameCatalog(t *testing.T) *Catalog {
 // TestViewNamesAndJoinColumns pins columns TestViewNamesAndJoinColumnsOracle
 // checks against MariaDB.
 func TestViewNamesAndJoinColumns(t *testing.T) {
-	c := viewNameCatalog(t)
+	c := viewNameCatalog(t, "test")
 	// A name can hold a backtick, from a quoted identifier or the source text
 	// of an unaliased item, and is written with it doubled, so the definition
 	// parses back.
@@ -143,19 +143,24 @@ var qualifiedColumnRef = regexp.MustCompile("`[^`]+`\\.`[^`]+`")
 // and compares its columns in information_schema, and the qualified column
 // references of its SHOW CREATE VIEW, with the catalog's.
 func TestViewNamesAndJoinColumnsOracle(t *testing.T) {
-	db := startOrReplaceMariaDB(t)
+	db := mariadbDatabase(t)
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+	// A view's definition names its database, so the catalog's must match.
+	var database string
+	if err := conn.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&database); err != nil {
+		t.Fatal(err)
+	}
 	for _, stmt := range viewNameSchema {
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
 			t.Fatalf("%s: %v", stmt, err)
 		}
 	}
-	c := viewNameCatalog(t)
+	c := viewNameCatalog(t, database)
 	for _, tc := range viewNameCases {
 		if _, err := conn.ExecContext(ctx, "CREATE VIEW "+tc.name+" AS "+tc.sql); err != nil {
 			t.Errorf("%s: MariaDB rejects %s: %v", tc.name, tc.sql, err)
@@ -165,7 +170,7 @@ func TestViewNamesAndJoinColumnsOracle(t *testing.T) {
 		if err := conn.QueryRowContext(ctx, "SHOW CREATE VIEW "+tc.name).Scan(&name, &show, &cs, &coll); err != nil {
 			t.Fatal(err)
 		}
-		rows, err := conn.QueryContext(ctx, "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION", tc.name)
+		rows, err := conn.QueryContext(ctx, "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION", database, tc.name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -178,10 +183,10 @@ func TestViewNamesAndJoinColumnsOracle(t *testing.T) {
 			cols = append(cols, col)
 		}
 		rows.Close()
-		if got := c.GetDatabase("test").Views[tc.name].Columns; !reflect.DeepEqual(got, cols) {
+		if got := c.GetDatabase(database).Views[tc.name].Columns; !reflect.DeepEqual(got, cols) {
 			t.Errorf("%s: catalog columns %q, MariaDB columns %q", tc.name, got, cols)
 		}
-		mine := c.ShowCreateView("test", tc.name)
+		mine := c.ShowCreateView(database, tc.name)
 		if got, want := qualifiedColumnRef.FindAllString(mine, -1), qualifiedColumnRef.FindAllString(show, -1); !reflect.DeepEqual(got, want) {
 			t.Errorf("%s: catalog references %q, MariaDB references %q\ncatalog: %s\nMariaDB: %s", tc.name, got, want, mine, show)
 		}

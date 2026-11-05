@@ -61,7 +61,7 @@ func TestRangeColumnsMaxvalue(t *testing.T) {
 // TestRangeColumnsMaxvalue_Oracle proves rangeColumnsCases against MariaDB 11.8.8,
 // and that the catalog reads back the partition bounds the engine prints.
 func TestRangeColumnsMaxvalue_Oracle(t *testing.T) {
-	db := startOrReplaceMariaDB(t)
+	db := mariadbDatabase(t)
 	ctx := context.Background()
 	conn, err := db.Conn(ctx)
 	if err != nil {
