@@ -20,8 +20,7 @@ import (
 //
 // Not in this table, because omni still disagrees and each is its own change. A bare DEFAULT inside an expression, as in `SET a = 1 + DEFAULT`,
 // `SET a = (DEFAULT)` and `SELECT DEFAULT`, because parseExpr reads it everywhere. `SET @'a' = 1`. `SET a.1 =
-// 1`, where the lexer reads .1 as a number. SYSTEM as a name, as in `SET a = SYSTEM + 1`, which belongs to
-// setVariableNameGap. `SET STATEMENT ... FOR ...`, `SET PASSWORD = OLD_PASSWORD('x')`, `a VECTOR(3)` and
+// 1`, where the lexer reads .1 as a number. `SET STATEMENT ... FOR ...`, `SET PASSWORD = OLD_PASSWORD('x')`, `a VECTOR(3)` and
 // `CREATE TABLE t (a.b INT)`, which omni does not read. `RESET PERSIST`, which it accepts.
 
 // TestSetListForms holds omni to the recorded verdicts without a server, so a run with no Docker
@@ -147,6 +146,12 @@ func TestWordBeforeDot(t *testing.T) {
 }
 
 var setListCases = []asOfCase{
+	// OFFSET is reserved, but the rule for an unscoped name takes it.
+	{"set offset = 1", true},
+	{"set offset := 1", true},
+	{"set session offset = 1", false},
+	{"set global offset = 1", false},
+	{"set autocommit = 1, offset = 2", true},
 	{"alter table t lock = none", true},
 	{"alter table t page_compressed = on", false},
 	{"alter table t stats_persistent = 0", true},
