@@ -606,6 +606,11 @@ var keywordCategories = map[int]keywordCategory{
 	kwSTART_TIME:        kwCatUnambiguous,
 	kwEND_TIME:          kwCatUnambiguous,
 	kwFLASHBACK:         kwCatUnambiguous,
+
+	// Unreserved on MySQL and in ReservedKeyword on TiDB, parser.y:79, 85 and 289. Each is
+	// a 1064 as a bare name on v8.5.5.
+	kwARRAY: kwCatReserved,
+	kwUNTIL: kwCatReserved,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot
