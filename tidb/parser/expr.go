@@ -579,6 +579,14 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwVALUES:
 		return p.parseValuesFunc()
 
+	// NEXT VALUE FOR, NextValueForSequence in parser.y. VALUE after NEXT commits to this form:
+	// `SELECT next value FROM t` is a 1064 rather than a column with an alias.
+	case kwNEXT:
+		if p.peekNext().Type == kwVALUE {
+			return p.parseNextValueFor()
+		}
+		return p.parseIdentExpr()
+
 	// Words the parser reads as function calls by token. Unless `(` follows they are
 	// names, as in `SELECT count FROM t` and `SELECT now.a FROM t`, where TiDB does not
 	// reserve them.
@@ -644,6 +652,48 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	}
 }
 
+// isNextValCall reports whether a call has the one argument NEXTVAL takes, TableName: one name,
+// or two with a dot. `NEXTVAL(1)`, `NEXTVAL('a')` and `NEXTVAL(a.b.c)` are 1064s.
+func isNextValCall(call nodes.ExprNode) bool {
+	fn, ok := call.(*nodes.FuncCallExpr)
+	if !ok || len(fn.Args) != 1 {
+		return false
+	}
+	arg, ok := fn.Args[0].(*nodes.ColumnRef)
+	return ok && arg.Schema == ""
+}
+
+// parseNextValueFor reads NEXT VALUE FOR TableName. It is the tree NEXTVAL(TableName) gives,
+// as upstream's is. p.cur is NEXT.
+func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume NEXT
+	p.advance() // consume VALUE
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+	argStart := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	seq := &nodes.ColumnRef{Column: name}
+	if p.cur.Type == '.' {
+		p.advance()
+		qualified, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		seq.Table, seq.Column = name, qualified
+	}
+	seq.Loc = nodes.Loc{Start: argStart, End: p.prev.End}
+	return &nodes.FuncCallExpr{
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		Name: "NEXTVAL",
+		Args: []nodes.ExprNode{seq},
+	}, nil
+}
+
 // funcWordIsName reports whether the function word at p.cur is a name here, which is
 // when no `(` follows. parseIdentExpr then refuses the words TiDB reserves.
 func (p *Parser) funcWordIsName() bool {
@@ -662,7 +712,14 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	if p.cur.Type == '(' {
 		// But first check if this could be a schema-qualified function: name.name(
 		// No — MySQL doesn't use schema.func() syntax in expressions (use schema.func())
-		return p.parseFuncCall(start, "", name)
+		call, err := p.parseFuncCall(start, "", name)
+		if err != nil {
+			return nil, err
+		}
+		if strings.EqualFold(name, "nextval") && !isNextValCall(call) {
+			return nil, &ParseError{Message: "NEXTVAL takes a sequence name", Position: start}
+		}
+		return call, nil
 	}
 
 	// Check for qualified name: name.name or name.name.name

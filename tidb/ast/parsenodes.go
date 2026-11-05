@@ -323,22 +323,24 @@ const (
 
 // AlterTableCmd represents a single ALTER TABLE operation.
 type AlterTableCmd struct {
-	Loc            Loc
-	Type           AlterTableCmdType
-	Name           string       // column/constraint/index name
-	NewName        string       // for RENAME operations
-	Column         *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
-	Columns        []*ColumnDef // for ADD (col1, col2, ...) multi-column form
-	Constraint     *Constraint  // for ADD CONSTRAINT
-	Option         *TableOption // for table options
-	DefaultExpr    ExprNode     // for ALTER COLUMN SET DEFAULT expr
-	IfExists       bool
-	First          bool            // FIRST positioning
-	After          string          // AFTER column positioning
-	PartitionNames []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
-	AllPartitions  bool            // for partition operations using ALL
-	PartitionDefs  []*PartitionDef // for ADD PARTITION / REORGANIZE PARTITION ... INTO
-	Number         int             // for COALESCE PARTITION number / ADD PARTITION PARTITIONS number
+	OldColumnSchema string // CHANGE: the schema written before the old name
+	OldColumnTable  string // CHANGE: the table written before the old name
+	Loc             Loc
+	Type            AlterTableCmdType
+	Name            string       // column/constraint/index name
+	NewName         string       // for RENAME operations
+	Column          *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
+	Columns         []*ColumnDef // for ADD (col1, col2, ...) multi-column form
+	Constraint      *Constraint  // for ADD CONSTRAINT
+	Option          *TableOption // for table options
+	DefaultExpr     ExprNode     // for ALTER COLUMN SET DEFAULT expr
+	IfExists        bool
+	First           bool            // FIRST positioning
+	After           string          // AFTER column positioning
+	PartitionNames  []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
+	AllPartitions   bool            // for partition operations using ALL
+	PartitionDefs   []*PartitionDef // for ADD PARTITION / REORGANIZE PARTITION ... INTO
+	Number          int             // for COALESCE PARTITION number / ADD PARTITION PARTITIONS number
 	// NoWriteToBinlog records MySQL's opt_no_write_to_binlog, the
 	// NO_WRITE_TO_BINLOG or LOCAL modifier a partition-maintenance action
 	// takes after the PARTITION keyword. The grammar folds both spellings to
@@ -539,6 +541,8 @@ func (p *RenameTablePair) nodeTag() {}
 // ColumnDef represents a column definition in CREATE TABLE.
 type ColumnDef struct {
 	Loc                      Loc
+	Schema                   string // the schema written before the name, in `d.t.a INT`
+	Table                    string // the table written before the name, in `t.a INT`
 	Name                     string
 	TypeName                 *DataType
 	Constraints              []*ColumnConstraint

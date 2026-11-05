@@ -1428,9 +1428,9 @@ accept	accept	SELECT `uuid`()
 accept	accept	select nextval(seq)
 accept	accept	select lastval(seq)
 accept	accept	select setval(seq, 100)
-reject	accept	select next value for seq
-reject	accept	select next value for sequence
-reject	accept	select NeXt vAluE for seQuEncE2
+accept	accept	select next value for seq
+accept	accept	select next value for sequence
+accept	accept	select NeXt vAluE for seQuEncE2
 accept	accept	select regexp_like('aBc', 'abc', 'im');
 accept	accept	select regexp_substr('aBc', 'abc', 1, 1, 'im');
 accept	accept	select regexp_instr('aBc', 'abc', 1, 1, 0, 'im');

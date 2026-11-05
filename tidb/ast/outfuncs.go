@@ -3249,6 +3249,12 @@ func writeWindowFrameBound(sb *strings.Builder, n *WindowFrameBound) {
 func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	sb.WriteString("{COLDEF")
 	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Table != "" {
+		fmt.Fprintf(sb, " :table %s", n.Table)
+	}
+	if n.Schema != "" {
+		fmt.Fprintf(sb, " :schema %s", n.Schema)
+	}
 	if n.TypeName != nil {
 		sb.WriteString(" :type ")
 		writeNode(sb, n.TypeName)
