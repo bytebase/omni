@@ -217,7 +217,7 @@ var locSpanCases = []struct {
 	{"IntLit", "DO 1", "1", 0},
 	{"IntLit", "CREATE INDEX idx ON t (a) KEY_BLOCK_SIZE = 8", "8", 0},
 	{"IntervalExpr", "SELECT NOW() + INTERVAL 1 DAY", "INTERVAL 1 DAY", 0},
-	{"IntoClause", "TABLE t1 INTO @v1, @v2", "@v1, @v2", 0},
+	{"IntoClause", "SELECT a, b FROM t1 INTO @v1, @v2", "@v1, @v2", 0},
 	{"IsExpr", "SELECT 1 IS NULL", "1 IS NULL", 0},
 	{"IsExpr", "SELECT * FROM t WHERE a IS NOT NULL ORDER BY a", "a IS NOT NULL", 0},
 	{"IterateStmt", "CREATE PROCEDURE p_it_undecl() BEGIN ITERATE nowhere; END", "ITERATE nowhere", 0},
@@ -231,7 +231,7 @@ var locSpanCases = []struct {
 	{"LeaveStmt", "CREATE PROCEDURE p_lv_undecl() BEGIN LEAVE nowhere; END", "LEAVE nowhere", 0},
 	{"LikeExpr", "SELECT a LIKE 'foo%' FROM t", "a LIKE 'foo%'", 0},
 	{"LikeExpr", "SELECT a NOT LIKE 'f!%' ESCAPE '!' FROM t", "a NOT LIKE 'f!%' ESCAPE '!'", 0},
-	{"Limit", "TABLE t1 LIMIT 10", "10", 0},
+	{"Limit", "SELECT a FROM t1 LIMIT 10", "10", 0},
 	{"LoadDataStmt", "LOAD DATA INFILE '/tmp/x.csv' INTO TABLE t1", "LOAD DATA INFILE '/tmp/x.csv' INTO TABLE t1", 0},
 	{"LoadIndexIntoCacheStmt", "LOAD INDEX INTO CACHE t1", "LOAD INDEX INTO CACHE t1", 0},
 	{"LoadIndexTable", "LOAD INDEX INTO CACHE t1", "t1", 0},
@@ -245,7 +245,7 @@ var locSpanCases = []struct {
 	{"OnCondition", "SELECT * FROM a JOIN b ON a.id = b.id", "a.id = b.id", 0},
 	{"OpenCursorStmt", "CREATE PROCEDURE p_open_undecl() BEGIN OPEN nope; END", "OPEN nope", 0},
 	{"OptimizeTableStmt", "OPTIMIZE TABLE t1", "OPTIMIZE TABLE t1", 0},
-	{"OrderByItem", "TABLE t1 ORDER BY id", "id", 0},
+	{"OrderByItem", "SELECT a FROM t1 ORDER BY id", "id", 0},
 	{"ParenExpr", "SELECT ((1))", "((1))", 0},
 	{"PartitionClause", "ALTER TABLE t PARTITION BY HASH(id) PARTITIONS 4", "PARTITION BY HASH(id) PARTITIONS 4", 0},
 	{"PartitionDef", "ALTER TABLE t ADD PARTITION (PARTITION p4 VALUES IN (10, 20, 30))", "PARTITION p4 VALUES IN (10, 20, 30)", 0},
@@ -277,7 +277,7 @@ var locSpanCases = []struct {
 	{"RowExpr", "SELECT ROW(1, 2)", "ROW(1, 2)", 0},
 	{"SavepointStmt", "SAVEPOINT sp1", "SAVEPOINT sp1", 0},
 	{"SelectStmt", "SELECT 1", "SELECT 1", 0},
-	{"SelectStmt", "SELECT (TABLE t1 ORDER BY a LIMIT 1)", "TABLE t1 ORDER BY a LIMIT 1", 1},
+	{"SelectStmt", "SELECT (VALUES ROW(1) ORDER BY 1 LIMIT 1)", "VALUES ROW(1) ORDER BY 1 LIMIT 1", 1},
 	{"SetDefaultRoleStmt", "SET DEFAULT ROLE ALL TO root", "SET DEFAULT ROLE ALL TO root", 0},
 	{"SetPasswordStmt", "SET PASSWORD TO RANDOM", "SET PASSWORD TO RANDOM", 0},
 	{"SetRoleStmt", "SET ROLE ALL", "SET ROLE ALL", 0},
@@ -300,10 +300,7 @@ var locSpanCases = []struct {
 	{"SubPartitionDef", "CREATE TABLE t (id INT, d DATE) PARTITION BY RANGE (YEAR(d)) SUBPARTITION BY HASH (id) (PARTITION p0 VALUES LESS THAN (2000) (SUBPARTITION s0, SUBPARTITION s1))", "SUBPARTITION s0", 0},
 	{"SubqueryExpr", "SELECT (SELECT 1)", "(SELECT 1)", 0},
 	{"TableOption", "ALTER TABLE t ENGINE=InnoDB", "ENGINE=InnoDB", 0},
-	{"TableRef", "TABLE t1", "t1", 0},
-	{"TableStmt", "TABLE t1", "TABLE t1", 0},
-	{"TableStmt", "TABLE t1 ORDER BY a LIMIT 1", "TABLE t1 ORDER BY a LIMIT 1", 0},
-	{"TableStmt", "SELECT (TABLE t1 ORDER BY a LIMIT 1)", "TABLE t1", 0},
+	{"TableRef", "SELECT * FROM t1", "t1", 0},
 	{"TemporalLit", "SELECT DATE '2024-01-01' FROM t", "DATE '2024-01-01'", 0},
 	{"TriggerOrder", "CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW FOLLOWS other SET @a = 1", "FOLLOWS other", 0},
 	{"TruncateStmt", "TRUNCATE t", "TRUNCATE t", 0},
@@ -363,6 +360,7 @@ var locKindsNotBuilt = map[string]string{
 	"CreateResourceGroupStmt": "OceanBase has no resource group statement",
 	"DropResourceGroupStmt":   "OceanBase has no resource group statement",
 	"SetResourceGroupStmt":    "OceanBase has no resource group statement",
+	"TableStmt":               "OceanBase has no TABLE query",
 	"RawStmt":                 "Parse returns statement nodes unwrapped",
 }
 
@@ -465,22 +463,30 @@ func TestLocContract(t *testing.T) {
 
 func checkSegmentLocs(sql string, seg Segment, items []ast.Node) []string {
 	var failures []string
+	// A statement read again with its executable comments as plain ones
+	// (exec_fallback.go) has the tokens of that reading, so the tokens of
+	// both readings count.
 	starts, ends := map[int]bool{}, map[int]bool{}
-	first, last := -1, -1
-	lex := NewLexerWithOffset(seg.Text, seg.ByteStart)
-	for {
-		tok := lex.NextToken()
-		if tok.Type == tokEOF {
-			break
+	firsts, lasts := map[int]bool{}, map[int]bool{}
+	for _, plainExec := range []bool{false, true} {
+		first, last := -1, -1
+		lex := NewLexerWithOffset(seg.Text, seg.ByteStart)
+		lex.plainExec = plainExec
+		for {
+			tok := lex.NextToken()
+			if tok.Type == tokEOF {
+				break
+			}
+			starts[tok.Loc], ends[tok.End] = true, true
+			if tok.Type == ';' {
+				continue
+			}
+			if first < 0 {
+				first = tok.Loc
+			}
+			last = tok.End
 		}
-		starts[tok.Loc], ends[tok.End] = true, true
-		if tok.Type == ';' {
-			continue
-		}
-		if first < 0 {
-			first = tok.Loc
-		}
-		last = tok.End
+		firsts[first], lasts[last] = true, true
 	}
 	fail := func(s locSpan, format string, args ...any) {
 		text := ""
@@ -510,11 +516,11 @@ func checkSegmentLocs(sql string, seg Segment, items []ast.Node) []string {
 	}
 	if len(items) > 0 {
 		head, tail := locSpans(items[0])[0], locSpans(items[len(items)-1])[0]
-		if head.loc.Start != first {
-			fail(head, "statement starts at %d, want its first token at %d", head.loc.Start, first)
+		if !firsts[head.loc.Start] {
+			fail(head, "statement starts at %d, want its first token at one of %v", head.loc.Start, firsts)
 		}
-		if tail.loc.End != last {
-			fail(tail, "statement ends at %d, want its last token's end at %d", tail.loc.End, last)
+		if !lasts[tail.loc.End] {
+			fail(tail, "statement ends at %d, want its last token's end at one of %v", tail.loc.End, lasts)
 		}
 	}
 	return failures

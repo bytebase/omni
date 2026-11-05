@@ -64,17 +64,25 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		return stmt, nil
 	}
 
-	// MariaDB reads VALUE as VALUES, starting a table value constructor,
-	// until a '(' or a PARTITION clause follows the table name (create sets
-	// BEFORE_OPT_LIST, MariaDB 11.8.8 sql/sql_yacc.yy line 2531; see
-	// sql/sql_lex.cc): CREATE TABLE t2 VALUE (1) and CREATE TABLE t2 AS
-	// VALUE (1) are queries, CREATE TABLE t2 (a INT) VALUE (1) is not.
-	valueIsValues := true
+	// create sets parsing_place to BEFORE_OPT_LIST before the table name
+	// (MariaDB 11.8.8 sql/sql_yacc.yy line 2531), and until something sets it
+	// back, Lex_input_stream::lex_token (sql/sql_lex.cc line 1888) reads two
+	// tokens differently:
+	//   - VALUE is VALUES, starting a table value constructor: CREATE TABLE
+	//     t2 VALUE (1) and CREATE TABLE t2 AS VALUE (1) are queries, CREATE
+	//     TABLE t2 (a INT) VALUE (1) is not;
+	//   - '(' followed by WITH is LEFT_PAREN_WITH, which only
+	//     create_select_query_expression takes, the query of CREATE TABLE and
+	//     of INSERT (see parseCreateSelect).
+	// The '(' of the column list, PARTITION, and the UNION of a UNION table
+	// option set it back. Table options before the query, IGNORE, REPLACE and
+	// AS leave it.
+	beforeOptList := true
 
 	// CREATE TABLE ... AS SELECT
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseCreateSelect(valueIsValues)
+		sel, err := p.parseCreateSelect(beforeOptList)
 		if err != nil {
 			return nil, err
 		}
@@ -85,13 +93,12 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 
 	// Parenthesized create definitions (columns and constraints)
 	if p.cur.Type == '(' {
-		valueIsValues = false
 		next := p.peekNext()
 		// Check for CREATE TABLE ... (query) — query source without AS. Let
-		// parseSelectStmt consume the parentheses and any following set-op /
+		// parseCreateSelect consume the parentheses and any following set-op /
 		// ORDER BY / LIMIT so "(SELECT 1) UNION (SELECT 2)" stays one source.
 		if next.Type == kwSELECT || next.Type == kwVALUES || next.Type == kwWITH || next.Type == '(' {
-			sel, err := p.parseSelectStmt()
+			sel, err := p.parseCreateSelect(beforeOptList)
 			if err != nil {
 				return nil, err
 			}
@@ -115,6 +122,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return stmt, nil
 		}
 
+		beforeOptList = false
 		p.advance() // consume '('
 		if err := p.parseCreateDefinitions(stmt); err != nil {
 			return nil, err
@@ -127,7 +135,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 	// CREATE TABLE t (cols) [IGNORE|REPLACE] [AS] SELECT ...
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseCreateSelect(valueIsValues)
+		sel, err := p.parseCreateSelect(beforeOptList)
 		if err != nil {
 			return nil, err
 		}
@@ -136,23 +144,31 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		return stmt, nil
 	}
 
-	// Table options
+	// Table options. A comma may stand between two of them and never ends the
+	// list (create_table_options in MariaDB 11.8 sql/sql_yacc.yy), so a comma
+	// with no option after it is a syntax error rather than the end of the
+	// options: "ENGINE=InnoDB, (SELECT 1)" is 1064.
 	for {
 		opt, ok, err := p.parseTableOption()
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
+			if len(stmt.Options) > 0 && p.prev.Type == ',' {
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
-		// Optional comma between table options
+		if opt.Name == "UNION" {
+			beforeOptList = false
+		}
 		p.match(',')
 	}
 
 	// Partition clause
 	if p.cur.Type == kwPARTITION {
-		valueIsValues = false
+		beforeOptList = false
 		part, err := p.parsePartitionClause()
 		if err != nil {
 			return nil, err
@@ -172,39 +188,97 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 	// [AS] query — the query of opt_create_select (MariaDB 11.8.8
 	// sql/sql_yacc.yy line 4821), with or without AS, after the options and
 	// partitions: SELECT, a table value constructor, WITH, or a
-	// parenthesized query.
+	// parenthesized query. IGNORE or REPLACE is opt_duplicate of that rule,
+	// so a query must follow it.
 	switch {
 	case p.cur.Type == kwAS:
 		p.advance()
-		sel, err := p.parseCreateSelect(valueIsValues)
+		sel, err := p.parseCreateSelect(beforeOptList)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
 	case p.cur.Type == kwSELECT || p.cur.Type == kwVALUES || p.cur.Type == kwWITH || p.cur.Type == '(' ||
-		p.cur.Type == kwVALUE && valueIsValues:
-		sel, err := p.parseCreateSelect(valueIsValues)
+		p.cur.Type == kwVALUE && beforeOptList:
+		sel, err := p.parseCreateSelect(beforeOptList)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
+	case stmt.Ignore || stmt.Replace:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseCreateSelect parses the query of CREATE TABLE ... [AS] query. When
-// valueIsValues is set, MariaDB still reads VALUE as VALUES there.
-func (p *Parser) parseCreateSelect(valueIsValues bool) (*nodes.SelectStmt, error) {
-	if p.cur.Type == kwVALUE && valueIsValues {
+// parseCreateSelect parses the query of CREATE TABLE ... [AS] query,
+// create_select_query_expression in MariaDB 11.8.8 sql/sql_yacc.yy (line
+// 4832):
+//
+//	create_select_query_expression:
+//	      query_expression
+//	    | LEFT_PAREN_WITH with_clause query_expression_no_with_clause ')'
+//
+// beforeOptList reports whether the query starts where MariaDB's lexer still
+// reads VALUE as VALUES and '(' WITH as LEFT_PAREN_WITH (see
+// parseCreateTableStmt).
+//
+// query_expression is no statement, so it takes no INTO, and neither does any
+// query nested in it (see intoRefused).
+func (p *Parser) parseCreateSelect(beforeOptList bool) (*nodes.SelectStmt, error) {
+	saved := p.intoRefused
+	p.intoRefused = true
+	defer func() { p.intoRefused = saved }()
+
+	switch {
+	case p.cur.Type == kwVALUE && beforeOptList:
 		values, err := p.parseValuesConstructor()
 		if err != nil {
 			return nil, err
 		}
 		return p.parseQueryAfterValues(values)
+	case p.cur.Type == '(' && p.peekNext().Type == kwWITH:
+		return p.parseCreateSelectParenWith(beforeOptList)
 	}
 	return p.parseSelectStmt()
+}
+
+// parseCreateSelectParenWith parses a query of CREATE TABLE that starts with
+// '(' WITH. A parenthesized query in query_expression holds no WITH
+// (query_expression_body_ext_parens, sql/sql_yacc.yy line 9140), so the
+// query is the LEFT_PAREN_WITH alternative or nothing, and the lexer makes
+// that token only while parsing_place is BEFORE_OPT_LIST:
+//
+//	CREATE TABLE t (WITH c AS (SELECT 1) SELECT * FROM c)        -- a query
+//	CREATE TABLE t ENGINE=InnoDB (WITH c AS (SELECT 1) SELECT * FROM c)
+//	CREATE TABLE t (a INT) (WITH c AS (SELECT 1) SELECT * FROM c) -- 1064
+//
+// The alternative ends at its ')': no set operation, ORDER BY, LIMIT or
+// locking clause follows it, so "(WITH ...) UNION SELECT 2" is 1064 where
+// "(WITH ... UNION SELECT 2)" is a query. The tree is the one a
+// parenthesized query has: a SelectStmt whose ParenSource carries the WITH.
+func (p *Parser) parseCreateSelectParenWith(beforeOptList bool) (*nodes.SelectStmt, error) {
+	start := p.pos()
+	p.advance() // consume '('
+	if !beforeOptList {
+		return nil, p.syntaxErrorAtCur()
+	}
+	inner, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	if inner == nil { // collecting completion candidates
+		return nil, nil
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.SelectStmt{
+		Loc:         nodes.Loc{Start: start, End: p.prev.End},
+		ParenSource: inner,
+	}, nil
 }
 
 // parseCreateDefinitions parses column definitions and table constraints
@@ -770,7 +844,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	if p.cur.Type == kwENGINE_ATTRIBUTE || p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
 		secondary := p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return false, err
@@ -1370,7 +1444,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	switch p.cur.Type {
 	case kwENGINE:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		// Completion: after ENGINE=, offer engine candidates.
 		p.checkCursor()
 		if p.collectMode() {
@@ -1399,7 +1473,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwAUTO_INCREMENT:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1417,8 +1491,8 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwCHARSET:
 		p.advance()
-		p.match('=')
-		val, err := p.consumeOptionValue()
+		p.matchEqual()
+		val, err := p.parseTableCharsetName()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1427,8 +1501,8 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCHARACTER:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
-			p.match('=')
-			val, err := p.consumeOptionValue()
+			p.matchEqual()
+			val, err := p.parseTableCharsetName()
 			if err != nil {
 				return nil, false, err
 			}
@@ -1442,8 +1516,8 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwCOLLATE:
 		p.advance()
-		p.match('=')
-		val, err := p.consumeOptionValue()
+		p.matchEqual()
+		val, err := p.parseTableCollationName()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1451,7 +1525,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwCOMMENT:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		// The value is a quoted string and is required: the server answers 1064
 		// for a bare COMMENT, CONNECTION or PASSWORD.
 		if p.cur.Type != tokSCONST {
@@ -1463,7 +1537,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwROW_FORMAT:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1472,7 +1546,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwCONNECTION:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		if p.cur.Type != tokSCONST {
 			return nil, false, p.syntaxErrorAtCur()
 		}
@@ -1482,7 +1556,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwPASSWORD:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		if p.cur.Type != tokSCONST {
 			return nil, false, p.syntaxErrorAtCur()
 		}
@@ -1491,8 +1565,9 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PASSWORD", Value: val}, true, nil
 
 	case kwSTORAGE:
+		// STORAGE {DISK | MEMORY} has no equals sign: STORAGE = DISK is a 1064
+		// (measured).
 		p.advance()
-		p.match('=')
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1519,7 +1594,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			optName = "TABLE_CHECKSUM"
 		}
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeNumericOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1549,7 +1624,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwENCRYPTION:
 		// ENCRYPTION [=] {'Y' | 'N'}
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1567,7 +1642,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		// Ref: `UNION opt_equal '(' opt_table_list ')'` in MySQL 8.0.46
 		// sql/sql_yacc.yy.
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		names, err := p.parseParenTableNameListOpt()
 		if err != nil {
 			return nil, false, err
@@ -1579,7 +1654,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if next := p.peekNext(); next.Type == kwDIRECTORY {
 			p.advance() // consume INDEX
 			p.advance() // consume DIRECTORY
-			p.match('=')
+			p.matchEqual()
 			val, err := p.consumeOptionValue()
 			if err != nil {
 				return nil, false, err
@@ -1593,7 +1668,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if next := p.peekNext(); next.Type == kwDIRECTORY {
 			p.advance() // consume DATA
 			p.advance() // consume DIRECTORY
-			p.match('=')
+			p.matchEqual()
 			val, err := p.consumeOptionValue()
 			if err != nil {
 				return nil, false, err
@@ -1607,7 +1682,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	if p.cur.Type == kwCOMPRESSION || p.cur.Type == kwINSERT_METHOD {
 		optName := p.cur.Str
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1623,7 +1698,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwSTATS_AUTO_RECALC:
 		optName := p.cur.Str
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeZeroOneOrDefaultOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1637,7 +1712,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwENGINE_ATTRIBUTE, kwSECONDARY_ENGINE_ATTRIBUTE:
 		optName := p.cur.Str
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1650,7 +1725,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		kwAUTOEXTEND_SIZE:
 		optName := p.cur.Str
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1664,7 +1739,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// PAGE_COMPRESSED, PAGE_COMPRESSION_LEVEL, TRANSACTIONAL, PAGE_CHECKSUM, and
 	// any future plain option. The '=' is required (a bare option name is 1064),
 	// which also guards against consuming a trailing clause.
-	if p.cur.Type == tokIDENT && p.peekNext().Type == '=' {
+	if next := p.peekNext().Type; p.cur.Type == tokIDENT && (next == '=' || next == tokAssign) {
 		optName := p.cur.Str
 		p.advance()                        // option name
 		p.advance()                        // '='
@@ -1676,6 +1751,22 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	}
 
 	return nil, false, nil
+}
+
+// parseTableCharsetName parses the name of a table's CHARACTER SET option. It is what
+// a database option takes, or DEFAULT: charset_name_or_default, which MySQL's table
+// option does not have (measured).
+func (p *Parser) parseTableCharsetName() (string, error) {
+	if p.cur.Type == kwDEFAULT {
+		return p.advance().Str, nil
+	}
+	return p.parseCharsetName()
+}
+
+// parseTableCollationName parses the name of a table's COLLATE option, which is
+// collation_name_or_default.
+func (p *Parser) parseTableCollationName() (string, error) {
+	return p.parseTableCharsetName()
 }
 
 // consumeOptionValue reads the next token as an option value string.
@@ -1694,7 +1785,10 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		p.advance()
 		return val, nil
 	default:
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+		// A reserved word is no value, except DEFAULT: engine_defined_option takes a
+		// string, an ident, a number or DEFAULT, so `foo = null` and `foo = select`
+		// are each a 1064 (measured).
+		if p.cur.Type == tokIDENT || (p.cur.Type >= 700 && (!isReserved(p.cur.Type) || p.cur.Type == kwDEFAULT)) {
 			name, _, err := p.parseKeywordOrIdent()
 			if err != nil {
 				return "", err
@@ -2377,7 +2471,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 	switch p.cur.Type {
 	case kwCOMMENT:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2387,7 +2481,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 	case kwENGINE, kwTABLESPACE:
 		name := strings.ToUpper(p.cur.Str)
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2402,7 +2496,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 		}
 		p.advance() // consume STORAGE
 		p.advance() // consume ENGINE
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2412,7 +2506,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 	case kwMAX_ROWS, kwMIN_ROWS, kwNODEGROUP:
 		name := strings.ToUpper(p.cur.Str)
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeIntegerOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2426,7 +2520,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 		name := strings.ToUpper(p.cur.Str) + " DIRECTORY"
 		p.advance() // consume DATA or INDEX
 		p.advance() // consume DIRECTORY
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return nil, false, err

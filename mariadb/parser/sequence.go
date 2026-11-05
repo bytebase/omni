@@ -207,7 +207,7 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 			if p.cur.Type == kwWITH {
 				p.advance()
 			} else {
-				p.match('=')
+				p.matchEqual()
 			}
 			v, err := p.parseSequenceValue()
 			if err != nil {
@@ -219,7 +219,7 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 			if p.cur.Type == kwBY {
 				p.advance()
 			} else {
-				p.match('=')
+				p.matchEqual()
 			}
 			v, err := p.parseSequenceValue()
 			if err != nil {
@@ -228,7 +228,7 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 			opts.increment = v
 		case kwMINVALUE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			v, err := p.parseSequenceValue()
 			if err != nil {
 				return nil, err
@@ -236,7 +236,7 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 			opts.minValue = v
 		case kwMAXVALUE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			v, err := p.parseSequenceValue()
 			if err != nil {
 				return nil, err
@@ -244,7 +244,7 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 			opts.maxValue = v
 		case kwCACHE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			v, err := p.parseSequenceValue()
 			if err != nil {
 				return nil, err
@@ -287,7 +287,7 @@ func (p *Parser) parseSequenceOptions(isAlter bool) (*sequenceOptions, error) {
 			}
 			p.advance()
 			opts.restart = true
-			if p.cur.Type == kwWITH || p.cur.Type == '=' {
+			if p.cur.Type == kwWITH || p.cur.Type == '=' || p.cur.Type == tokAssign {
 				p.advance()
 				v, err := p.parseSequenceValue()
 				if err != nil {

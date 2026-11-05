@@ -290,12 +290,10 @@ func viewCreateOrder(entries []ViewDiffEntry) map[tableKey]int {
 // It works on the PARSED AST, not the body text. That is what makes it robust where a text scan is
 // not: a CTE name, a column or a column alias that matches a relation name, a relation name inside a
 // string literal, and a column reference inside an ON-clause are all correctly excluded by the
-// structural walk. Two top-level body shapes are handled:
-//   - a SELECT (including UNION/INTERSECT/EXCEPT and parenthesized selects, all *SelectStmt) — refs
-//     come from selectTableRefs, the same FROM/JOIN extractor the SDL loader uses, which drops names
-//     bound by a top-level CTE;
-//   - a `TABLE t` query primary (MySQL 8.0.19+; deparsed as table `t` and re-parsed to a
-//     *TableStmt) — a TABLE primary is `SELECT * FROM t`, so its single Table ref is the relation.
+// structural walk. The body is a SELECT (including UNION/INTERSECT/EXCEPT and parenthesized
+// selects, all *SelectStmt); its refs come from selectTableRefs, the same FROM/JOIN extractor the
+// SDL loader uses, which drops names bound by a top-level CTE. OceanBase has no TABLE query, so no
+// body is a *TableStmt.
 //
 // If the body fails to re-parse, or is some other statement shape, the empty set is returned, so the
 // view simply carries no view-on-view ordering constraint; that fallback is conservative (a missing
@@ -316,14 +314,10 @@ func referencedRelations(body, ownDB string) map[tableKey]bool {
 		}
 		out[tableKey{db: toLower(db), name: toLower(ref.Name)}] = true
 	}
-	switch stmt := list.Items[0].(type) {
-	case *nodes.SelectStmt:
+	if stmt, ok := list.Items[0].(*nodes.SelectStmt); ok {
 		for _, ref := range selectTableRefs(stmt) {
 			addRef(ref)
 		}
-	case *nodes.TableStmt:
-		// `TABLE t` is sugar for `SELECT * FROM t`; its single relation is the dependency.
-		addRef(stmt.Table)
 	}
 	return out
 }

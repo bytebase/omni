@@ -1736,22 +1736,6 @@ func TestInsertRefusesDelayed(t *testing.T) {
 	}
 }
 
-// TestInsertRefusesTableSource: OceanBase's values_clause is rows or a select_stmt,
-// so unlike MySQL 8.0.19+ it has no INSERT ... TABLE, and OceanBase 4.3.5 answers
-// these with 1064.
-func TestInsertRefusesTableSource(t *testing.T) {
-	for _, sql := range []string{
-		"INSERT INTO t1 TABLE t2",
-		"REPLACE INTO t1 TABLE t2",
-		"INSERT INTO t1 (a) TABLE t2",
-		"INSERT INTO t1 TABLE t2 ON DUPLICATE KEY UPDATE col = 1",
-	} {
-		if _, err := Parse(sql); err == nil {
-			t.Errorf("Parse(%q) accepted a TABLE source", sql)
-		}
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Batch 6: update_delete
 // ---------------------------------------------------------------------------
@@ -7690,43 +7674,6 @@ func TestParseCloseCursor(t *testing.T) {
 // Batch 33: TABLE and VALUES statements
 // ============================================================================
 
-func TestParseTableStmt(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "TABLE t1",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1}}",
-		},
-		{
-			sql:  "TABLE mydb.t1",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :schema mydb :name t1}}",
-		},
-		{
-			sql:  "TABLE t1 ORDER BY id",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col id}})}",
-		},
-		{
-			sql:  "TABLE t1 LIMIT 10",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :limit {LIMIT :loc 15 :count {INT_LIT :val 10 :loc 15}}}",
-		},
-		{
-			sql:  "TABLE t1 ORDER BY name LIMIT 5 OFFSET 10",
-			want: "{TABLE_STMT :loc 0 :table {TABLEREF :loc 6 :name t1} :order_by ({ORDER_BY :loc 18 :expr {COLREF :loc 18 :col name}}) :limit {LIMIT :loc 29 :count {INT_LIT :val 5 :loc 29} :offset {INT_LIT :val 10 :loc 38}}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			result := ParseAndCheck(t, tt.sql)
-			got := ast.NodeToString(result.Items[0])
-			if got != tt.want {
-				t.Errorf("got:  %s\nwant: %s", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestParseValuesStmt(t *testing.T) {
 	tests := []struct {
 		sql  string
@@ -7782,12 +7729,9 @@ func TestParseValuesRow(t *testing.T) {
 }
 
 func TestParseTableUnion(t *testing.T) {
-	// TABLE statement can be parsed standalone
-	ParseAndCheck(t, "TABLE t1")
-	// VALUES statement can be parsed standalone
+	// VALUES statement can be parsed standalone. OceanBase has no TABLE
+	// statement (query_forms_test.go).
 	ParseAndCheck(t, "VALUES ROW(1, 2)")
-	// TABLE with ORDER BY and LIMIT
-	ParseAndCheck(t, "TABLE t1 ORDER BY id LIMIT 10")
 	// VALUES with multiple rows
 	ParseAndCheck(t, "VALUES ROW(1, 2), ROW(3, 4), ROW(5, 6)")
 	// VALUES with ORDER BY
@@ -8283,8 +8227,7 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"SET ROLE DEFAULT",
 		"GRANT r1 TO u1",
 
-		// TABLE / VALUES (batch 33)
-		"TABLE t1",
+		// VALUES (batch 33)
 		"VALUES ROW(1, 2), ROW(3, 4)",
 
 		// Utility (batch 34)
@@ -11526,18 +11469,6 @@ func TestReviewBatch110_LoadIndexIntoCacheMultiTable(t *testing.T) {
 	ParseAndCheck(t, "LOAD INDEX INTO CACHE t1 IGNORE LEAVES, t2 INDEX (idx1)")
 }
 
-func TestReviewBatch110_TableIntoOutfile(t *testing.T) {
-	ParseAndCheck(t, "TABLE t1 INTO OUTFILE '/tmp/out.csv'")
-}
-
-func TestReviewBatch110_TableIntoDumpfile(t *testing.T) {
-	ParseAndCheck(t, "TABLE t1 INTO DUMPFILE '/tmp/out.dat'")
-}
-
-func TestReviewBatch110_TableIntoVar(t *testing.T) {
-	ParseAndCheck(t, "TABLE t1 INTO @v1, @v2")
-}
-
 func TestReviewBatch110_ValuesBasic(t *testing.T) {
 	ParseAndCheck(t, "VALUES ROW(1, 2), ROW(3, 4)")
 }
@@ -12733,7 +12664,6 @@ func TestAuroraSelectIntoOutfileS3(t *testing.T) {
 		// An ORDER BY after INTO is a syntax error for the S3 form as it is
 		// for the plain one: INTO comes after the query expression's clauses.
 		"SELECT a FROM t ORDER BY a INTO OUTFILE S3 's3://b/p'",
-		"TABLE t1 INTO OUTFILE S3 's3://b/p'",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)

@@ -87,6 +87,10 @@ func Parse(sql string) (*nodes.List, error) {
 
 // parseSingle parses a single SQL segment (without DELIMITER directives) into an AST list.
 // baseOffset is added to all token positions so Loc values are absolute within the original input.
+//
+// A statement that does not parse with its executable comments' bodies in it
+// is read again with every executable comment as a plain comment, as OceanBase
+// reads it (exec_fallback.go): "SELECT 1 /*! SELECT 2 */" is SELECT 1.
 func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 	p := &Parser{
 		lexer: NewLexerWithOffset(sql, baseOffset),
@@ -94,36 +98,59 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 	p.advance()
 
 	var stmts []nodes.Node
+	// from is where the statement being read starts in sql: past the last ';',
+	// so a retry reads an executable comment that opens the statement.
+	// opener is the offset of the first "/*!" at or after from, once looked up,
+	// or len(sql) when there is none.
+	from, opener := 0, -1
 	for p.cur.Type != tokEOF {
 		// Skip semicolons
 		if p.cur.Type == ';' {
+			from = p.cur.End - baseOffset
 			p.advance()
 			continue
 		}
-		stmtStart := p.cur.Loc
-		stmt, err := p.parseStmt()
-		if err != nil {
-			// A lexing error (unterminated comment/string/identifier) is the more
-			// specific cause; report it in preference to the derived syntax error.
-			if lexErr := p.lexerError(); lexErr != nil {
-				return nil, p.enrichError(lexErr)
-			}
-			return nil, p.enrichError(err)
+		stmt, err := p.readStatement()
+		// The nesting limit is this parser's, not a reading the engine fails:
+		// read again without the comments, the statement would lose the
+		// expression that went too deep, and "SELECT 0 /*! OR 1 OR 1 ... */"
+		// would pass as SELECT 0.
+		if isNestingError(err) {
+			return nil, err
 		}
-		if stmt == nil {
-			// parseStmt returned nil without error — unconsumed tokens remain.
-			if lexErr := p.lexerError(); lexErr != nil {
-				return nil, p.enrichError(lexErr)
+		// A statement that parsed and left an executable comment open has no
+		// retry; lexerError reports the comment after the loop.
+		if err != nil || p.lexer.hasErr {
+			if opener < from {
+				opener = len(sql)
+				if i := strings.Index(sql[from:], "/*!"); i >= 0 {
+					opener = from + i
+				}
 			}
-			if p.cur.Type != tokEOF {
-				return nil, p.syntaxErrorAtCur()
+			if opener == len(sql) || !retriesAsSQL(sql[from:]) {
+				if err == nil {
+					err = p.enrichError(p.lexerError())
+				}
+				return nil, err
 			}
-			break
+			plain := p.restart(from, true)
+			first := plain.cur
+			if stmt, err = plain.readStatement(); err != nil {
+				return nil, err
+			}
+			if lexErr := plain.lexerError(); lexErr != nil {
+				return nil, plain.enrichError(lexErr)
+			}
+			if stmt != nil && !sqlParserReads(stmt) {
+				return nil, plain.syntaxErrorAtTok(first)
+			}
+			// What follows the statement is read with its executable comments
+			// in it again.
+			p = plain.restart(plain.cur.Loc-baseOffset, false)
 		}
-		if treeTooHigh(stmt, p.prev.End-stmtStart) {
-			return nil, p.enrichError(nestedTooDeeply(stmtStart))
+		if stmt != nil {
+			stmts = append(stmts, stmt)
 		}
-		stmts = append(stmts, stmt)
 	}
 
 	// A malformed token that ran to EOF without its closing delimiter is recorded
@@ -137,6 +164,64 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 		return &nodes.List{}, nil
 	}
 	return &nodes.List{Items: stmts}, nil
+}
+
+// restart returns a parser over p's input that starts at pos, reading every
+// executable comment as a plain comment when plainExec is set. It keeps what
+// p knows of the input that does not depend on where reading starts: the
+// lexer's close-scan memo (restartAt) and the offsets of the newlines, which a
+// syntax error looks up. Rebuilding those for each statement read again would
+// make a segment of n such statements quadratic.
+func (p *Parser) restart(pos int, plainExec bool) *Parser {
+	q := &Parser{lexer: p.lexer.restartAt(pos, plainExec), newlines: p.newlines}
+	q.advance()
+	return q
+}
+
+// readStatement reads the statement at the current token, which ends at a ';'
+// or at the end of the text. It returns no statement and no error when the
+// text holds none, as when every token was in a comment.
+func (p *Parser) readStatement() (nodes.Node, error) {
+	if p.cur.Type == ';' || p.cur.Type == tokEOF {
+		return nil, nil
+	}
+	stmtStart := p.cur.Loc
+	stmt, err := p.parseStmt()
+	if err != nil {
+		// A lexing error (unterminated comment/string/identifier) is the more
+		// specific cause; report it in preference to the derived syntax error.
+		if lexErr := p.lexerError(); lexErr != nil {
+			return nil, p.enrichError(lexErr)
+		}
+		return nil, p.enrichError(err)
+	}
+	if stmt == nil {
+		// parseStmt returned nil without error — unconsumed tokens remain.
+		if lexErr := p.lexerError(); lexErr != nil {
+			return nil, p.enrichError(lexErr)
+		}
+		if p.cur.Type != tokEOF {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return nil, nil
+	}
+	if treeTooHigh(stmt, p.prev.End-stmtStart) {
+		return nil, p.enrichError(nestedTooDeeply(stmtStart))
+	}
+	// A statement ends at a ';' or at the end of the text. Any other token
+	// here starts a second statement with no separator in front of it,
+	// which the server refuses with 1064.
+	//
+	// Ref: OceanBase CE v4.3.5_CE_BP1 src/sql/parser/sql_parser_mysql_mode.y:591
+	// (stmt_list), which follows a stmt with DELIMITER or END_P and nothing
+	// else.
+	if p.cur.Type != ';' && p.cur.Type != tokEOF {
+		if lexErr := p.lexerError(); lexErr != nil {
+			return nil, p.enrichError(lexErr)
+		}
+		return nil, p.syntaxErrorAtCur()
+	}
+	return stmt, nil
 }
 
 // lexerError converts a recorded lexer error, if any, into a ParseError with an
@@ -298,7 +383,21 @@ func (p *Parser) lineCol(offset int) (int, int) {
 	if offset > len(input) {
 		offset = len(input)
 	}
+	newlines := p.newlineOffsets()
+	// The newlines before offset.
+	n := sort.SearchInts(newlines, offset)
+	lastNewline := -1
+	if n > 0 {
+		lastNewline = newlines[n-1]
+	}
+	return 1 + n, offset - lastNewline
+}
+
+// newlineOffsets returns the offsets of the input's newlines, found on first
+// use and kept for every later error (see lineCol and extractLine).
+func (p *Parser) newlineOffsets() []int {
 	if p.newlines == nil {
+		input := p.lexer.input
 		p.newlines = make([]int, 0, strings.Count(input, "\n"))
 		for i := 0; i < len(input); i++ {
 			if input[i] == '\n' {
@@ -306,13 +405,7 @@ func (p *Parser) lineCol(offset int) (int, int) {
 			}
 		}
 	}
-	// The newlines before offset.
-	n := sort.SearchInts(p.newlines, offset)
-	lastNewline := -1
-	if n > 0 {
-		lastNewline = p.newlines[n-1]
-	}
-	return 1 + n, offset - lastNewline
+	return p.newlines
 }
 
 // lineColStatic computes line and column from raw input (for use outside a Parser).
@@ -347,21 +440,25 @@ func (p *Parser) enrichError(err error) error {
 
 // extractLine returns the source line containing the given byte offset.
 // The offset is absolute (includes baseOffset), so we subtract it to index into segment text.
+//
+// The line's ends come from the newline offsets, not from a scan out from
+// offset: every statement that fails its first reading and is read again
+// (parseSingle) builds an error, and scanning a line that holds every
+// statement, as one under a client delimiter can, made that quadratic.
 func (p *Parser) extractLine(offset int) string {
 	offset -= p.lexer.baseOffset
 	input := p.lexer.input
 	if offset < 0 || offset > len(input) {
 		return ""
 	}
-	// Find start of line
-	start := offset
-	for start > 0 && input[start-1] != '\n' {
-		start--
+	newlines := p.newlineOffsets()
+	n := sort.SearchInts(newlines, offset)
+	start, end := 0, len(input)
+	if n > 0 {
+		start = newlines[n-1] + 1
 	}
-	// Find end of line
-	end := offset
-	for end < len(input) && input[end] != '\n' {
-		end++
+	if n < len(newlines) {
+		end = newlines[n]
 	}
 	line := input[start:end]
 	// Trim to reasonable length

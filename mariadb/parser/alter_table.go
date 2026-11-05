@@ -261,7 +261,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 
 	case kwALGORITHM:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		// Completion: after ALGORITHM=, offer algorithm keywords.
 		p.checkCursor()
 		if p.collectMode() {
@@ -281,7 +281,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 
 	case kwLOCK:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		cmd.Type = nodes.ATLock
 		val, err := p.consumeOptionValue()
 		if err != nil {
@@ -1154,7 +1154,7 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 	if _, ok := p.match(kwDEFAULT); ok {
 		cmd.Name = "DEFAULT"
 	} else {
-		charset, err := p.consumeOptionValue()
+		charset, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
 		}
@@ -1162,7 +1162,7 @@ func (p *Parser) parseAlterConvert(cmd *nodes.AlterTableCmd) (*nodes.AlterTableC
 	}
 
 	if _, ok := p.match(kwCOLLATE); ok {
-		collation, err := p.consumeOptionValue()
+		collation, err := p.parseCollationName()
 		if err != nil {
 			return nil, err
 		}

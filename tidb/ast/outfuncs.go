@@ -243,6 +243,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeColumnRef(sb, n)
 	case *TableRef:
 		writeTableRef(sb, n)
+	case *AsOfClause:
+		writeAsOfClause(sb, n)
+	case *TableSample:
+		writeTableSample(sb, n)
 	case *IntLit:
 		fmt.Fprintf(sb, "{INT_LIT :val %d :loc %d}", n.Value, n.Loc.Start)
 	case *FloatLit:
@@ -1368,6 +1372,9 @@ func writePlanReplayerStmt(sb *strings.Builder, n *PlanReplayerStmt) {
 func writeBeginStmt(sb *strings.Builder, n *BeginStmt) {
 	sb.WriteString("{BEGIN")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Mode != "" {
+		fmt.Fprintf(sb, " :mode %s", n.Mode)
+	}
 	if n.ReadOnly {
 		sb.WriteString(" :read_only true")
 	}
@@ -1376,6 +1383,13 @@ func writeBeginStmt(sb *strings.Builder, n *BeginStmt) {
 	}
 	if n.WithConsistentSnapshot {
 		sb.WriteString(" :consistent_snapshot true")
+	}
+	if n.CausalConsistencyOnly {
+		sb.WriteString(" :causal_consistency_only true")
+	}
+	if n.AsOf != nil {
+		sb.WriteString(" :as_of ")
+		writeNode(sb, n.AsOf)
 	}
 	sb.WriteString("}")
 }
@@ -3047,6 +3061,34 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 			writeNode(sb, h)
 		}
 	}
+	if n.AsOf != nil {
+		sb.WriteString(" :asof ")
+		writeNode(sb, n.AsOf)
+	}
+	if n.Sample != nil {
+		sb.WriteString(" :sample ")
+		writeNode(sb, n.Sample)
+	}
+	sb.WriteString("}")
+}
+
+func writeAsOfClause(sb *strings.Builder, n *AsOfClause) {
+	fmt.Fprintf(sb, "{ASOF :loc %d :timestamp ", n.Loc.Start)
+	writeNode(sb, n.Timestamp)
+	sb.WriteString("}")
+}
+
+func writeTableSample(sb *strings.Builder, n *TableSample) {
+	sb.WriteString("{TABLESAMPLE")
+	fmt.Fprintf(sb, " :loc %d :method %d :unit %d", n.Loc.Start, n.Method, n.Unit)
+	if n.Size != nil {
+		sb.WriteString(" :size ")
+		writeNode(sb, n.Size)
+	}
+	if n.Repeatable != nil {
+		sb.WriteString(" :repeatable ")
+		writeNode(sb, n.Repeatable)
+	}
 	sb.WriteString("}")
 }
 
@@ -3942,6 +3984,10 @@ func writeSetTransactionStmt(sb *strings.Builder, n *SetTransactionStmt) {
 	}
 	if n.AccessMode != "" {
 		fmt.Fprintf(sb, " :access %s", n.AccessMode)
+	}
+	if n.AsOf != nil {
+		sb.WriteString(" :as_of ")
+		writeNode(sb, n.AsOf)
 	}
 	sb.WriteString("}")
 }

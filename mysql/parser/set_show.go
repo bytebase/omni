@@ -238,8 +238,11 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 			stmt.ToRandom = true
 		}
 	} else {
-		// consume '='
-		p.match('=')
+		// The = or := is required here: PASSWORD equal, and a bare string is a 1064
+		// (measured).
+		if err := p.expectEqual(); err != nil {
+			return nil, err
+		}
 
 		// Password value: either a string literal or PASSWORD('string')
 		if p.cur.Type == kwPASSWORD {

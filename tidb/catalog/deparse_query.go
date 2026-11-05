@@ -165,6 +165,7 @@ func deparseRTERefQ(b *strings.Builder, idx int, q *Query) {
 			b.WriteString(" as ")
 			b.WriteString(backtickIDQ(rte.Alias))
 		}
+		writeRTEClausesQ(b, rte)
 	case RTESubquery:
 		b.WriteByte('(')
 		writeQueryQ(b, rte.Subquery)
@@ -176,10 +177,25 @@ func deparseRTERefQ(b *strings.Builder, idx int, q *Query) {
 			b.WriteString(" as ")
 			b.WriteString(backtickIDQ(rte.Alias))
 		}
+		writeRTEClausesQ(b, rte)
 	case RTEJoin:
 		// Synthetic; actual join structure is in JoinExprNodeQ.
 	case RTEFunction:
 		b.WriteString("/* function-in-FROM */")
+	}
+}
+
+// writeRTEClausesQ writes the AS OF and TABLESAMPLE clauses of a range table entry,
+// in that order, if it has them. Without them the query still reads, and reads the
+// current data or the whole table.
+func writeRTEClausesQ(b *strings.Builder, rte *RangeTableEntryQ) {
+	if rte.AsOf != "" {
+		b.WriteByte(' ')
+		b.WriteString(rte.AsOf)
+	}
+	if rte.Sample != "" {
+		b.WriteByte(' ')
+		b.WriteString(rte.Sample)
 	}
 }
 

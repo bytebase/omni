@@ -171,9 +171,12 @@ func TestLexer_ErrorPosition_AroundExecComment(t *testing.T) {
 		{"after_body_versioned", "/*!50100  */ SELECT 'x", 20},
 		{"after_body_double_splice", "/*!  */ /*!  */ SELECT 'x", 23},
 		// Inside the body of a terminated executable comment: the string swallows
-		// the comment's closing */ and runs to EOF unterminated.
-		{"inside_body_bare", "/*! SELECT 'abc */", 11},
-		{"inside_body_versioned", "/*!50100 SELECT 'x */", 16},
+		// the comment's closing */ and runs to EOF unterminated. Only a
+		// statement OceanBase hands to its PL parser keeps that error; any
+		// other is read again with the comment as a plain one, which makes
+		// "/*! SELECT 'abc */" an empty query (exec_fallback.go).
+		{"inside_body_bare", "CALL p(/*! 'abc */)", 11},
+		{"inside_body_versioned", "CALL p(/*!50100 'x */)", 16},
 		{"inside_body_nested_comment", "/*! /* c */ SELECT 'x */", 19},
 		// Nested EXECUTABLE comment: executable comments do not nest, so the inner
 		// opener is dropped, the first */ closes both, and the error follows it.

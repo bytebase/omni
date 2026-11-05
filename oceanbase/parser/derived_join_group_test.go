@@ -57,7 +57,6 @@ var derivedJoinGroupAccepted = []string{
 	"select * from (((select k1 from j1) except (select k1 from j2)) d join j3 on 1)",
 	"select * from (((select k1 from j1) intersect (select k1 from j2)) d join j3 on 1)",
 	"select * from ((with c as (select 1 k1) select k1 from c) d join j2 on 1)",
-	"select * from ((table j1) d join j2 on 1)",
 	"select * from ((values row(1)) d join j2 on 1)",
 	// LATERAL
 	"select * from (lateral (select 1) d join j2 on 1)",
@@ -76,6 +75,17 @@ var derivedJoinGroupAccepted = []string{
 	"select * from ((select k1 from j1) union (select k1 from j2)) d",
 	"select * from ((select k1 from j1) union select k1 from j2) d",
 	"select * from ((select k1 from j1) order by 1 limit 1) d",
+	"select * from ((select 1) order by 1 for update) d",
+	"select * from ((select 1) limit 1 lock in share mode) d",
+}
+
+// derivedJoinGroupMySQLOnly are derived tables MySQL 8.0 accepts
+// (TestDerivedJoinGroupOracle) and OceanBase answers 1064 for
+// (TestDerivedJoinGroupOceanBase), so this parser rejects them: OceanBase has
+// no TABLE query, and takes no locking clause right after a lone
+// parenthesized query (query_forms_test.go).
+var derivedJoinGroupMySQLOnly = []string{
+	"select * from ((table j1) d join j2 on 1)",
 	"select * from ((select 1) for update) d",
 	"select * from ((select 1) lock in share mode) d",
 }
@@ -121,6 +131,9 @@ func TestDerivedJoinGroup(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
 	}
 	for _, sql := range derivedJoinGroupRejected {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+	for _, sql := range derivedJoinGroupMySQLOnly {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
 	}
 }

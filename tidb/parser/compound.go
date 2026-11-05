@@ -34,9 +34,8 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		}
 		stmt.Stmts = append(stmt.Stmts, s)
 
-		// Consume optional semicolon between statements
-		if p.cur.Type == ';' {
-			p.advance()
+		if err := p.expectStoredProgramStmtTerminator(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -448,12 +447,24 @@ func (p *Parser) parseCompoundStmtList() ([]nodes.Node, error) {
 			return nil, err
 		}
 		stmts = append(stmts, s)
-		// Consume optional semicolon between statements
-		if p.cur.Type == ';' {
-			p.advance()
+		if err := p.expectStoredProgramStmtTerminator(); err != nil {
+			return nil, err
 		}
 	}
 	return stmts, nil
+}
+
+// expectStoredProgramStmtTerminator consumes the ';' that ends every
+// declaration and statement of a stored program body: ProcedureDecls and
+// ProcedureProcStmts in TiDB v8.5.5 parser.y:16126 and 16138 follow each one
+// with ';', so "BEGIN SELECT 1 SELECT 2; END" and "BEGIN BEGIN SELECT 1; END
+// END" are 1064 there.
+func (p *Parser) expectStoredProgramStmtTerminator() error {
+	if p.cur.Type == ';' {
+		p.advance()
+		return nil
+	}
+	return p.syntaxErrorAtCur()
 }
 
 // parseIfStmt parses an IF/ELSEIF/ELSE/END IF compound statement.

@@ -62,6 +62,13 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 			t.Errorf("MySQL accepts %q, so it is no longer an OceanBase delta", sql)
 		}
 	}
+	// derivedJoinGroupMySQLOnly is the delta the other way: MySQL takes them
+	// and this parser, following OceanBase, does not.
+	for _, sql := range derivedJoinGroupMySQLOnly {
+		if !o.checkSyntax(t, sql) {
+			t.Errorf("MySQL rejects %q, so it is no longer an OceanBase delta", sql)
+		}
+	}
 
 	groups := 0
 	for i, ddl := range derivedJoinGroupViews {
@@ -94,22 +101,10 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 	}
 }
 
-// derivedJoinGroupOceanBaseGaps are statements of derivedJoinGroupAccepted that
-// MySQL accepts and OceanBase answers 1064 for, read on 2026-11-02: OceanBase has no
-// TABLE statement, and takes no locking clause on a parenthesized query inside a
-// derived table. This parser still reads them the MySQL way. That is an open gap
-// with its own fix, so it is recorded exactly here rather than skipped: the test
-// fails when either side moves.
-var derivedJoinGroupOceanBaseGaps = map[string]bool{
-	"select * from ((table j1) d join j2 on 1)":       true,
-	"select * from ((select 1) for update) d":         true,
-	"select * from ((select 1) lock in share mode) d": true,
-}
-
 // TestDerivedJoinGroupOceanBase asks OceanBase about every statement of
-// TestDerivedJoinGroup. It accepts what MySQL accepts, apart from
-// derivedJoinGroupOceanBaseGaps, refuses what MySQL refuses, and also accepts
-// loneParenthesizedFactors.
+// TestDerivedJoinGroup. It accepts what MySQL accepts and refuses what MySQL
+// refuses, apart from loneParenthesizedFactors, which it accepts, and
+// derivedJoinGroupMySQLOnly, which it refuses (read on 2026-11-05).
 //
 //	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestDerivedJoinGroupOceanBase(t *testing.T) {
@@ -140,17 +135,20 @@ func TestDerivedJoinGroupOceanBase(t *testing.T) {
 			t.Errorf("OceanBase accepts=%v, want %v for %q", engineTakes, want, sql)
 		}
 		_, perr := Parse(sql)
-		if gap := derivedJoinGroupOceanBaseGaps[sql]; (perr == nil) != (engineTakes != gap) {
-			t.Errorf("DIVERGENCE omni accepts=%v, OceanBase accepts=%v, recorded gap %v for %q: %v", perr == nil, engineTakes, gap, sql, perr)
+		if (perr == nil) != engineTakes {
+			t.Errorf("DIVERGENCE omni accepts=%v, OceanBase accepts=%v for %q: %v", perr == nil, engineTakes, sql, perr)
 		}
 	}
 	for _, sql := range derivedJoinGroupAccepted {
-		check(sql, !derivedJoinGroupOceanBaseGaps[sql])
+		check(sql, true)
 	}
 	for _, sql := range loneParenthesizedFactors {
 		check(sql, true)
 	}
 	for _, sql := range derivedJoinGroupRejected {
+		check(sql, false)
+	}
+	for _, sql := range derivedJoinGroupMySQLOnly {
 		check(sql, false)
 	}
 }
