@@ -735,15 +735,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if next := p.peekNext(); next.Type == kwUPDATE {
 			p.advance() // consume ON
 			p.advance() // consume UPDATE
-			exprStart := p.pos()
-			expr, err := p.parseExpr()
+			expr, err := p.parseOnUpdateValue()
 			if err != nil {
-				return false, err
-			}
-			if expr == nil {
-				return false, p.syntaxErrorAtCur()
-			}
-			if err := refuseOnUpdateValue(expr, exprStart); err != nil {
 				return false, err
 			}
 			col.OnUpdate = expr
@@ -2750,11 +2743,36 @@ func refuseColumnValue(expr nodes.ExprNode, start int) error {
 	return nil
 }
 
-// refuseOnUpdateValue refuses what DEFAULT takes and ON UPDATE does not: ON UPDATE reads
-// NowSymOptionFractionParentheses, so `ON UPDATE NEXT VALUE FOR s` is a 1064.
-func refuseOnUpdateValue(expr nodes.ExprNode, start int) error {
-	if fn, ok := expr.(*nodes.FuncCallExpr); ok && strings.EqualFold(fn.Name, "NEXTVAL") {
-		return &ParseError{Message: "syntax error", Position: start}
+// parseOnUpdateValue reads NowSymOptionFraction, parser.y:4091, which is what ON UPDATE takes and
+// all it takes: CURRENT_TIMESTAMP, LOCALTIME or LOCALTIMESTAMP alone, one of them or NOW with `()` or
+// `(NUM)`, or CURRENT_DATE or CURDATE. So parentheses around one, as in `ON UPDATE (NOW())`, and any
+// other expression are 1064s, where DEFAULT reads a wider rule.
+func (p *Parser) parseOnUpdateValue() (nodes.ExprNode, error) {
+	first := p.cur.Type
+	switch first {
+	case kwCURRENT_TIMESTAMP, kwLOCALTIME, kwLOCALTIMESTAMP, kwNOW, kwCURRENT_DATE, kwCURDATE:
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
-	return refuseColumnValue(expr, start)
+	start := p.pos()
+	expr, err := p.parsePrimaryExpr()
+	if err != nil {
+		return nil, err
+	}
+	fn, ok := expr.(*nodes.FuncCallExpr)
+	if !ok {
+		return nil, &ParseError{Message: "syntax error", Position: start}
+	}
+	switch len(fn.Args) {
+	case 0:
+	case 1:
+		// A fraction is a number, and a date has none.
+		_, isNum := fn.Args[0].(*nodes.IntLit)
+		if !isNum || first == kwCURRENT_DATE || first == kwCURDATE {
+			return nil, &ParseError{Message: "syntax error", Position: start}
+		}
+	default:
+		return nil, &ParseError{Message: "syntax error", Position: start}
+	}
+	return expr, nil
 }

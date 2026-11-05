@@ -716,7 +716,8 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		if strings.EqualFold(name, "nextval") && !isNextValCall(call) {
+		// A quoted name is an ordinary call, which takes any arguments: `nextval`(1) parses.
+		if strings.EqualFold(name, "nextval") && !p.backtickQuotedAt(start) && !isNextValCall(call) {
 			return nil, &ParseError{Message: "NEXTVAL takes a sequence name", Position: start}
 		}
 		return call, nil

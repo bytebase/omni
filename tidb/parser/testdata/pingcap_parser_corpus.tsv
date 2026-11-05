@@ -1804,7 +1804,7 @@ accept	accept	create table t (a timestamp default now())
 accept	accept	create table t (a timestamp default (((now()))))
 reject	reject	create table t (a timestamp default now() on update now)
 accept	accept	create table t (a timestamp default now() on update now())
-accept	reject	create table t (a timestamp default now() on update (now()))
+reject	reject	create table t (a timestamp default now() on update (now()))
 accept	accept	CREATE TABLE t (c TEXT) default CHARACTER SET utf8, default COLLATE utf8_general_ci;
 accept	accept	CREATE TABLE t (c TEXT) shard_row_id_bits = 1;
 accept	accept	CREATE TABLE t (c TEXT) shard_row_id_bits = 1, PRE_SPLIT_REGIONS = 1;
