@@ -136,17 +136,22 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		return stmt, nil
 	}
 
-	// Table options
+	// Table options. A comma may stand between two of them and never ends the
+	// list (create_table_options in MariaDB 11.8 sql/sql_yacc.yy), so a comma
+	// with no option after it is a syntax error rather than the end of the
+	// options: "ENGINE=InnoDB, (SELECT 1)" is 1064.
 	for {
 		opt, ok, err := p.parseTableOption()
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
+			if len(stmt.Options) > 0 && p.prev.Type == ',' {
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
-		// Optional comma between table options
 		p.match(',')
 	}
 
@@ -172,7 +177,8 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 	// [AS] query — the query of opt_create_select (MariaDB 11.8.8
 	// sql/sql_yacc.yy line 4821), with or without AS, after the options and
 	// partitions: SELECT, a table value constructor, WITH, or a
-	// parenthesized query.
+	// parenthesized query. IGNORE or REPLACE is opt_duplicate of that rule,
+	// so a query must follow it.
 	switch {
 	case p.cur.Type == kwAS:
 		p.advance()
@@ -188,6 +194,8 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return nil, err
 		}
 		stmt.Select = sel
+	case stmt.Ignore || stmt.Replace:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
