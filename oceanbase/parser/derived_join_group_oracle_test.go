@@ -106,7 +106,7 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 // refuses, apart from loneParenthesizedFactors, which it accepts, and
 // derivedJoinGroupMySQLOnly, which it refuses (read on 2026-11-05).
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestDerivedJoinGroupOceanBase(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

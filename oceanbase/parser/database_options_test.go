@@ -19,10 +19,8 @@ import "testing"
 //     MySQL has on neither statement.
 //
 // The engine column is what 5.7.25-OceanBase_CE-v4.3.5.6 answered on
-// 2026-11-04, read with scripts/oceanbase-oracle.sh. OceanBase needs about
-// 8 GB and CI has no room for it, so TestDatabaseOptionsOceanBaseOracle reads
-// that column back from a live server only where the DSN is set; this test
-// holds the parser to the record unconditionally, which is the gate CI runs.
+// 2026-11-04. TestDatabaseOptionsOceanBaseOracle reads that column back from a
+// live server; TestDatabaseOptions holds the parser to the record without one.
 type databaseOptionCase struct {
 	sql string
 	// engine is whether OceanBase CE 4.3.5.6 parses the statement.
@@ -154,8 +152,8 @@ var databaseOptionCases = []databaseOptionCase{
 }
 
 // TestDatabaseOptions holds the parser to the recorded OceanBase verdicts. It
-// needs no server, so it is the gate CI runs: the parser must read exactly what
-// CE 4.3.5.6 parses, minus the pending rows.
+// needs no server: the parser must read exactly what CE 4.3.5.6 parses, minus
+// the pending rows.
 func TestDatabaseOptions(t *testing.T) {
 	for _, c := range databaseOptionCases {
 		t.Run(c.sql, func(t *testing.T) {

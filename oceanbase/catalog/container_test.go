@@ -12,6 +12,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
 	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
+
+	"github.com/bytebase/omni/internal/sharedserver"
 )
 
 // mysqlContainer wraps a real MySQL 8.0 container connection for container testing.
@@ -267,6 +269,7 @@ func TestMain(m *testing.M) {
 	}
 	sharedMySQL.Unlock()
 	terminateOracleFallbacks()
+	sharedserver.PrivateOceanBase.Terminate()
 	os.Exit(code)
 }
 

@@ -71,7 +71,7 @@ func TestListCommas(t *testing.T) {
 // without running the statement: 1064 for a syntax error, and for
 // REORGANIZE the 1235 its resolver raises after parsing.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestListCommasOceanBase(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

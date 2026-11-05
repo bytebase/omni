@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -17,19 +16,21 @@ import (
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk/walktest"
+
+	"github.com/bytebase/omni/internal/sharedserver"
 )
 
 // The WALK_THROUGH oracle for OceanBase's MySQL mode
-// (docs/specs/2026-10-27-walk-through-oceanbase.md §7). The server needs
-// about 8 GB, which CI does not have: the tests read OCEANBASE_WALK_DSN,
-// which scripts/oceanbase-oracle.sh sets, and skip without it.
+// (docs/specs/2026-10-27-walk-through-oceanbase.md §7). The tests run on the
+// package's own OceanBase (see sharedserver.PrivateOceanBase).
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/review/ -run 'OceanBase' -count=1 -timeout 3h
+//	go test ./oceanbase/review/ -run 'OceanBase' -count=1 -timeout 3h
 
 // oceanBaseWalkBase is walkBase with the relations only OceanBase has: an
-// external table, which reads files under secure_file_priv (the script
-// sets it), and a materialized view, whose storage table the sync lists
-// as a table.
+// external table, which reads files under secure_file_priv (set where the
+// server starts: sharedserver.StartOceanBase, CI, dev-db.sh), and a
+// materialized view, whose
+// storage table the sync lists as a table.
 const oceanBaseWalkBase = walkBase + `
 CREATE EXTERNAL TABLE ext (a int) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV');
 CREATE MATERIALIZED VIEW mv AS SELECT id FROM r;
@@ -191,12 +192,14 @@ func retryTransient(f func() error) error {
 	return err
 }
 
-// oceanBaseDB opens the server OCEANBASE_WALK_DSN names, or skips.
+// oceanBaseDB opens this process's own OceanBase: see
+// sharedserver.PrivateOceanBase. The walk drops every user database between
+// cases and sets globals, so the server can serve nothing else.
 func oceanBaseDB(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn := os.Getenv("OCEANBASE_WALK_DSN")
-	if dsn == "" {
-		t.Skip("OCEANBASE_WALK_DSN is not set: run the test through scripts/oceanbase-oracle.sh")
+	dsn, err := sharedserver.PrivateOceanBase.DSN(context.Background())
+	if err != nil {
+		t.Fatalf("OceanBase oracle: %v", err)
 	}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {

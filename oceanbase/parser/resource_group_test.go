@@ -67,9 +67,9 @@ func TestResourceGroupRejected(t *testing.T) {
 
 // TestResourceGroupOceanBaseOracle reads the table above back from a live
 // server, so "OceanBase has no resource groups" stays a measurement rather
-// than a memory of the manual. It runs where OCEANBASE_WALK_DSN is set:
+// than a memory of the manual. It runs on the package's own OceanBase:
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestResourceGroupOceanBaseOracle(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

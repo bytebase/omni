@@ -171,7 +171,7 @@ func TestSourceClausesOracle(t *testing.T) {
 // sourceClauseStatements, read through PREPARE (DSN-gated, see
 // oceanBaseOracle):
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestSourceClausesOceanBase(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

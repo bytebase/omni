@@ -17,10 +17,8 @@ import "testing"
 //     which MariaDB and TiDB do read.
 //
 // The engine column is what 5.7.25-OceanBase_CE-v4.3.5.6 answered on
-// 2026-11-04, read with scripts/oceanbase-oracle.sh. OceanBase needs about
-// 8 GB and CI has no room for it, so TestIndexClauseFormsOceanBaseOracle reads
-// that column back from a live server only where the DSN is set; this test
-// holds the parser to the record unconditionally, which is the gate CI runs.
+// 2026-11-04. TestIndexClauseFormsOceanBaseOracle reads that column back from a
+// live server; TestIndexClauseForms holds the parser to the record without one.
 //
 // Ref: index_using_algorithm in OceanBase sql_parser_mysql_mode.y;
 // index_type_clause, index_type_name, opt_index_name_and_type and
@@ -174,8 +172,8 @@ var indexClauseCases = []indexClauseCase{
 }
 
 // TestIndexClauseForms holds the parser to the recorded OceanBase verdicts. It
-// needs no server, so it is the gate CI runs: the parser must read exactly what
-// CE 4.3.5.6 parses, minus the pending rows.
+// needs no server: the parser must read exactly what CE 4.3.5.6 parses, minus
+// the pending rows.
 func TestIndexClauseForms(t *testing.T) {
 	for _, c := range indexClauseCases {
 		t.Run(c.sql, func(t *testing.T) {

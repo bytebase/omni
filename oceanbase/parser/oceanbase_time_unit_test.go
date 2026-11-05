@@ -102,7 +102,7 @@ func TestOceanBaseTimeUnitGrammar(t *testing.T) {
 // PREPARE, which parses without running anything: 1064 is a syntax error, any other
 // answer means the statement parsed.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestOceanBaseTimeUnitGrammarOracle(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

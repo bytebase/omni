@@ -125,7 +125,7 @@ func TestAlterIndexPrimaryRefused(t *testing.T) {
 // createPrimaryKeyComment, whose comment stays, and the engine to refuse
 // alterIndexPrimaryAlters with 1176.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/catalog/ -run OceanBase -count=1
+//	go test ./oceanbase/catalog/ -run OceanBase -count=1
 //
 // requirePrimaryKeyMatchesReadback loads userDDL and the engine's readback and requires
 // the readback's primary key to be visible with comment, and the two to diff empty on

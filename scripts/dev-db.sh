@@ -9,8 +9,8 @@
 #   scripts/dev-db.sh up tidb                                 # start, print nothing
 #   scripts/dev-db.sh list                                    # what is running
 #
-# Engines: mysql (8.0), mariadb (11.8.8), tidb (v8.5.5), postgres17, postgres18.
-# OceanBase needs 8 GB and stays with scripts/oceanbase-oracle.sh.
+# Engines: mysql (8.0), mariadb (11.8.8), tidb (v8.5.5), oceanbase (4.3.5.6, SLIM:
+# about 3.5 GiB), postgres17, postgres18.
 #
 # `sql` and `dsn` work in a database named after this checkout, created on first
 # use, so sessions do not see each other's tables. The account is the server's
@@ -36,6 +36,9 @@ engine_config() {
 	mysql) image=mysql:8.0 port=13380 inner=3306 family=mysql env=(-e MYSQL_ROOT_PASSWORD=test) args=(--skip-log-bin --max-connections=1000) ;;
 	mariadb) image=mariadb:11.8.8 port=13311 inner=3306 family=mariadb env=(-e MARIADB_ROOT_PASSWORD=test) args=(--max-connections=1000) ;;
 	tidb) image=pingcap/tidb:v8.5.5 port=14055 inner=4000 family=tidb env=() args=() ;;
+	# internal/sharedserver.OceanBaseImage. SLIM boots from the image's prebuilt
+	# store; the deployer refuses fewer than 20000 open files.
+	oceanbase) image=oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 port=12881 inner=2881 family=oceanbase env=(-e MODE=SLIM --ulimit nofile=65536:65536) args=() ;;
 	postgres17) image=postgres:17-alpine port=15417 inner=5432 family=postgres env=(-e POSTGRES_PASSWORD=test) args=(-c max_connections=500) ;;
 	postgres18) image=postgres:18-alpine port=15418 inner=5432 family=postgres env=(-e POSTGRES_PASSWORD=test) args=(-c max_connections=500) ;;
 	*) echo "unknown engine: $1" >&2; usage ;;
@@ -52,6 +55,7 @@ client() { # engine database [client args...]
 	case "$family" in
 	mysql) docker exec -i "$name" mysql -uroot -ptest --protocol=tcp --silent ${database:+-D "$database"} "$@" 2> >(grep -v 'Using a password' >&2) ;;
 	mariadb) docker exec -i "$name" mariadb -uroot -ptest --protocol=tcp --silent ${database:+-D "$database"} "$@" ;;
+	oceanbase) docker exec -i "$name" obclient -h127.1 -P2881 -uroot@test --silent ${database:+-D "$database"} "$@" ;;
 	tidb)
 		local ip
 		ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$name")
@@ -64,6 +68,10 @@ client() { # engine database [client args...]
 ready() { # engine
 	case "$1" in
 	postgres*) engine_config "$1"; docker exec "$name" pg_isready -q -h 127.0.0.1 -U postgres ;;
+	oceanbase)
+		engine_config "$1"
+		docker logs "$name" 2>&1 | grep -q 'boot success!' && client "$1" "" -e 'SELECT 1' >/dev/null 2>&1
+		;;
 	*) client "$1" "" -e 'SELECT 1' >/dev/null 2>&1 ;;
 	esac
 }
@@ -93,7 +101,7 @@ up() { # engine
 		exit 1
 		;;
 	esac
-	local deadline=$((SECONDS + 180))
+	local deadline=$((SECONDS + 300))
 	until ready "$engine"; do
 		if [ "$SECONDS" -ge "$deadline" ]; then
 			echo "$name did not become ready; see docker logs $name" >&2
@@ -101,6 +109,11 @@ up() { # engine
 		fi
 		sleep 1
 	done
+	# internal/sharedserver.oceanBaseSetup says why.
+	if [ "$engine" = oceanbase ]; then
+		docker exec "$name" obclient -h127.1 -P2881 -uroot@sys -e "ALTER SYSTEM SET datafile_maxsize = '8G'"
+		docker exec "$name" obclient -S /root/demo/run/sql.sock -uroot@test -e "SET GLOBAL secure_file_priv = '/'"
+	fi
 }
 
 # scratch names this checkout's database: the directory's name to read, and a
@@ -141,6 +154,7 @@ dsn)
 	case "$family" in
 	mysql | mariadb) echo "root:test@tcp(127.0.0.1:$port)/$(scratch)" ;;
 	tidb) echo "root@tcp(127.0.0.1:$port)/$(scratch)" ;;
+	oceanbase) echo "root@test:@tcp(127.0.0.1:$port)/$(scratch)" ;;
 	postgres) echo "postgres://postgres:test@127.0.0.1:$port/$(scratch)?sslmode=disable" ;;
 	esac
 	;;

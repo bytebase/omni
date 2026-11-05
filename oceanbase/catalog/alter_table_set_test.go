@@ -72,7 +72,7 @@ func TestAlterTableSetAppliesOptions(t *testing.T) {
 // DYNAMIC_PARTITION_POLICY, which the catalog does not model, must still execute in the
 // catalog and leave a readback it can load.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/catalog/ -run OceanBase -count=1
+//	go test ./oceanbase/catalog/ -run OceanBase -count=1
 func TestOracle_OceanBaseAlterTableSet(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()

@@ -16,7 +16,7 @@ import (
 // lists below: each statement either parses with the bodies in place, or
 // fails the same way with them read as plain comments (exec_fallback.go), or
 // parses with a comment left open, which OceanBase refuses without reading
-// it again. So the MySQL 8.0 oracle, which CI runs, still guards them; the
+// it again. So the MySQL 8.0 oracle guards them as well; the
 // _OceanBase tests hold them to the engine itself. Executable comments whose
 // bodies do not parse are OceanBase's own and answer to it alone, in
 // execFallbackCases.

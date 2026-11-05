@@ -29,10 +29,8 @@ import "testing"
 // with a digit, are the two things in this family OceanBase does have.
 //
 // The engine column is what 5.7.25-OceanBase_CE-v4.3.5.6 answered on 2026-11-04,
-// read with scripts/oceanbase-oracle.sh. OceanBase needs about 8 GB and CI has
-// no room for it, so TestCreateTableOptionsOceanBaseOracle reads that column
-// back from a live server only where the DSN is set; TestCreateTableOptions
-// holds the parser to the record unconditionally, which is the gate CI runs.
+// and TestCreateTableOptionsOceanBaseOracle reads it back from a live server;
+// TestCreateTableOptions holds the parser to the record without one.
 type createTableOptionCase struct {
 	sql string
 	// engine is whether OceanBase CE 4.3.5.6 parses the statement.
@@ -202,8 +200,8 @@ var createTableOptionCases = []createTableOptionCase{
 }
 
 // TestCreateTableOptions holds the parser to the recorded OceanBase verdicts. It
-// needs no server, so it is the gate CI runs: the parser must read exactly what
-// CE 4.3.5.6 parses, minus the pending rows.
+// needs no server: the parser must read exactly what CE 4.3.5.6 parses, minus
+// the pending rows.
 func TestCreateTableOptions(t *testing.T) {
 	for _, c := range createTableOptionCases {
 		t.Run(c.sql, func(t *testing.T) {

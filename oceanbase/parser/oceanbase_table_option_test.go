@@ -162,7 +162,7 @@ func TestOceanBaseTableOptionGrammar(t *testing.T) {
 // parses without creating anything: 1064 is a syntax error, any other answer
 // means the statement parsed.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestOceanBaseTableOptionGrammarOracle(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

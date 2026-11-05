@@ -5,25 +5,19 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
-	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/internal/sharedserver"
 )
 
 // The OceanBase oracle for this package. The TestOracle_* family answers for the
 // behavior this engine inherits from MySQL, against live 8.0 and 5.7; this file is
 // the one that answers for OceanBase itself.
-//
-// OceanBase needs about 8 GB, which CI does not have, so this test reads
-// OCEANBASE_WALK_DSN and skips without it:
-//
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/catalog/ -run OceanBase -count=1
-const oceanBaseDSNEnv = "OCEANBASE_WALK_DSN"
-
-// oceanBaseOracle opens the server OCEANBASE_WALK_DSN names, or skips.
+// oceanBaseOracle opens this process's own OceanBase: see
+// sharedserver.PrivateOceanBase.
 //
 // The version is MySQL80, which the probes below measure rather than assume. Under
 // MySQL80 every probe either canonicalizes empty or disagrees only in the ROW_FORMAT
@@ -36,9 +30,9 @@ const oceanBaseDSNEnv = "OCEANBASE_WALK_DSN"
 // non-empty diff rather than as a phantom change in a user's release.
 func oceanBaseOracle(t *testing.T) *oracleConn {
 	t.Helper()
-	dsn := os.Getenv(oceanBaseDSNEnv)
-	if dsn == "" {
-		t.Skipf("%s is not set: run the test through scripts/oceanbase-oracle.sh", oceanBaseDSNEnv)
+	dsn, err := sharedserver.PrivateOceanBase.DSN(context.Background())
+	if err != nil {
+		t.Fatalf("OceanBase oracle: %v", err)
 	}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -49,19 +43,6 @@ func oceanBaseOracle(t *testing.T) *oracleConn {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	t.Cleanup(func() { _ = db.Close() })
-	// The tenant answers before it can plan, so a first statement can fail while the
-	// server is still coming up.
-	deadline := time.Now().Add(3 * time.Minute)
-	for {
-		err = db.PingContext(context.Background())
-		if err == nil || time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(2 * time.Second)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
 	return &oracleConn{db: db, version: MySQL80, name: "oceanbase"}
 }
 

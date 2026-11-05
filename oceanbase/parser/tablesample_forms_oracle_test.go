@@ -7,10 +7,10 @@ import (
 
 // TestTableSampleFormsOceanBaseOracle asserts omni agrees with a live OceanBase on
 // tableSampleCases. startParserOracle boots MySQL in this package, so a real verdict
-// needs the server itself, which CI has no room for. This reads OCEANBASE_WALK_DSN and
-// skips without it:
+// needs the server itself: oceanBaseOracle runs on the package's own OceanBase (see
+// sharedserver.PrivateOceanBase):
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run TableSample -count=1
+//	go test ./oceanbase/parser/ -run TableSample -count=1
 func TestTableSampleFormsOceanBaseOracle(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

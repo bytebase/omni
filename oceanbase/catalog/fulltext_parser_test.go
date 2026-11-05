@@ -188,7 +188,7 @@ func TestFulltextParserCreateTableLike(t *testing.T) {
 // to compare equal on their indexes. Each of fulltextChangeCases, applied as from and
 // read back, must still differ from to.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/catalog/ -run OceanBase -count=1
+//	go test ./oceanbase/catalog/ -run OceanBase -count=1
 func TestOracle_OceanBaseFulltextParserEcho(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()

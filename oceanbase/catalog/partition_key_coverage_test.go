@@ -149,10 +149,9 @@ func TestPartitionKeyCoverage(t *testing.T) {
 	}
 }
 
-// TestOceanBasePartitionKeyCoverage reads each case's verdict off OceanBase, through
-// scripts/oceanbase-oracle.sh:
+// TestOceanBasePartitionKeyCoverage reads each case's verdict off OceanBase:
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/catalog/ -run OceanBasePartitionKeyCoverage -count=1
+//	go test ./oceanbase/catalog/ -run OceanBasePartitionKeyCoverage -count=1
 func TestOceanBasePartitionKeyCoverage(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
@@ -232,7 +231,7 @@ func TestRefusedAlterKeepsTableInPlace(t *testing.T) {
 }
 
 // TestOceanBaseRefusedAlterKeepsTableInPlace reads each case's verdict and the tables
-// it leaves off OceanBase, through scripts/oceanbase-oracle.sh.
+// it leaves off OceanBase.
 func TestOceanBaseRefusedAlterKeepsTableInPlace(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()

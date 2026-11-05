@@ -241,10 +241,9 @@ var oceanBaseCrashCases = map[string]bool{
 }
 
 // TestOceanBaseQuotedBuiltinCall asks OceanBase about quotedBuiltinCallCases. It
-// reads OCEANBASE_WALK_DSN and skips without it, like the rest of the OceanBase
-// oracle:
+// runs on the package's own OceanBase, like the rest of the OceanBase oracle:
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestOceanBaseQuotedBuiltinCall(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

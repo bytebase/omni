@@ -4,30 +4,24 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"os"
-	"strings"
 	"testing"
-	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/internal/sharedserver"
 )
 
 // The OceanBase oracle. oracle_test.go holds OceanBase's inherited MySQL 8.0
 // oracle, which still guards the grammar this engine shares with MySQL; this file
 // holds the one that answers for OceanBase itself.
-//
-// OceanBase needs about 8 GB, which CI does not have, so these tests read
-// OCEANBASE_WALK_DSN and skip without it:
-//
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
-const oceanBaseDSNEnv = "OCEANBASE_WALK_DSN"
 
-// oceanBaseOracle opens the server OCEANBASE_WALK_DSN names, or skips.
+// oceanBaseOracle opens this process's own OceanBase: see
+// sharedserver.PrivateOceanBase.
 func oceanBaseOracle(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn := os.Getenv(oceanBaseDSNEnv)
-	if dsn == "" {
-		t.Skipf("%s is not set: run the test through scripts/oceanbase-oracle.sh", oceanBaseDSNEnv)
+	dsn, err := sharedserver.PrivateOceanBase.DSN(context.Background())
+	if err != nil {
+		t.Fatalf("OceanBase oracle: %v", err)
 	}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -38,19 +32,6 @@ func oceanBaseOracle(t *testing.T) *sql.DB {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	t.Cleanup(func() { _ = db.Close() })
-	// The tenant answers before it is ready to plan, so a first statement can fail
-	// transiently while the server finishes starting.
-	deadline := time.Now().Add(3 * time.Minute)
-	for {
-		err = db.PingContext(context.Background())
-		if err == nil || time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(2 * time.Second)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
 	return db
 }
 
@@ -334,18 +315,17 @@ func TestOceanBaseOracleVersion(t *testing.T) {
 	if err := db.QueryRowContext(context.Background(), "SELECT VERSION()").Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("oracle reports VERSION() = %q", version)
-	if !strings.Contains(version, "OceanBase") {
-		t.Fatalf("%s points at a server that is not OceanBase: %q", oceanBaseDSNEnv, version)
+	if version != sharedserver.OceanBase.Version {
+		t.Fatalf("the oracle reports VERSION() = %q, and the verdicts here were read on %q", version, sharedserver.OceanBase.Version)
 	}
 }
 
 // TestDatabaseOptionsOceanBaseOracle reads the engine column of
 // databaseOptionCases back from a live server, so the record in
 // database_options_test.go stays a measurement rather than a memory of one. It
-// runs where OCEANBASE_WALK_DSN is set:
+// runs on the package's own OceanBase:
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 //
 // Every statement runs for real, which is what engineAccepts does: a 1064 is
 // the parser's rejection and any other error means the text parsed. READ ONLY
@@ -403,10 +383,9 @@ func TestDatabaseOptionsOceanBaseOracle(t *testing.T) {
 
 // TestShowTargetsOceanBaseOracle reads the engine column of showTargetCases
 // back from a live server, so the record in show_targets_test.go stays a
-// measurement rather than a guess. It runs only where OCEANBASE_WALK_DSN is
-// set:
+// measurement rather than a guess. It runs on the package's own OceanBase:
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 //
 // Every statement runs for real, which is what engineAccepts does: a 1064 is
 // the parser's rejection and any other error means the text parsed. A SHOW
@@ -457,9 +436,9 @@ func TestShowTargetsOceanBaseOracle(t *testing.T) {
 // TestCreateTableOptionsOceanBaseOracle reads the engine column of
 // createTableOptionCases back from a live server, so the record in
 // create_table_options_test.go stays a measurement rather than a memory of one.
-// It runs where OCEANBASE_WALK_DSN is set:
+// It runs on the package's own OceanBase:
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 //
 // Every statement runs for real, which is what engineAccepts does: a 1064 is the
 // parser's rejection and any other error means the text parsed. The cases create
@@ -520,9 +499,9 @@ func TestCreateTableOptionsOceanBaseOracle(t *testing.T) {
 // TestIndexClauseFormsOceanBaseOracle reads the engine column of
 // indexClauseCases back from a live server, so the record in
 // index_clause_forms_test.go stays a measurement rather than a memory of one.
-// It runs where OCEANBASE_WALK_DSN is set:
+// It runs on the package's own OceanBase:
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 //
 // Every statement runs for real, which is what engineAccepts does: a 1064 is
 // the parser's rejection and any other error means the text parsed. A statement

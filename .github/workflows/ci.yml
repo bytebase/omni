@@ -83,6 +83,28 @@ jobs:
           port=$(docker port "$name" 3306/tcp | head -1 | sed 's/.*://')
           echo "OMNI_SHARED_MYSQL80_DSN=root:test@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
 
+      # The packages that talk to OceanBase run on one server here, one package at
+      # a time: the review walk drops every user database between cases. SLIM boots
+      # from the image's prebuilt store in about 30 s and stays near 3.5 GiB.
+      - name: OceanBase
+        if: steps.affected.outputs.pkgs != ''
+        run: |
+          go list ${{ steps.affected.outputs.pkgs }} | grep -qE '/(oceanbase/parser|oceanbase/catalog|oceanbase/review|internal/sharedserver)$' || exit 0
+          name=omni-ci-oceanbase-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT
+          image=$(sed -n 's/^const OceanBaseImage = "\(.*\)"$/\1/p' internal/sharedserver/oceanbase.go)
+          # The deployer refuses fewer than 20000 open files.
+          docker run -d --name "$name" -e MODE=SLIM --ulimit nofile=65536:65536 -p 127.0.0.1::2881 "$image"
+          for _ in $(seq 300); do
+            docker logs "$name" 2>&1 | grep -q 'boot success!' && break
+            sleep 1
+          done
+          # internal/sharedserver.oceanBaseSetup says why.
+          docker exec "$name" obclient -h127.1 -P2881 -uroot@sys -e "ALTER SYSTEM SET datafile_maxsize = '8G'"
+          docker exec "$name" obclient -S /root/demo/run/sql.sock -uroot@test -e "SET GLOBAL secure_file_priv = '/'"
+          port=$(docker port "$name" 2881/tcp | head -1 | sed 's/.*://')
+          echo "OCEANBASE_WALK_DSN=root@test:@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
+          echo "OMNI_SHARED_OCEANBASE_DSN=root@test:@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
+
       - name: Test
         if: steps.affected.outputs.pkgs != ''
         env:
@@ -93,15 +115,22 @@ jobs:
         # go test's default 10m per package is too tight: since its WALK_THROUGH
         # sweep, oracle/review takes 7 min, and over 10 on a busy runner. 20m leaves
         # room and still lets a hung package print its goroutine dump before
-        # the job's 30-minute cap.
+        # the job's 30-minute cap. The OceanBase packages share their one server
+        # the same way, one at a time, beside the rest rather than after them.
         run: |
           pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
-          { grep -v /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=8 -count=1 -timeout=20m
-          { grep /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m
+          ob='/(oceanbase/parser|oceanbase/catalog|oceanbase/review|internal/sharedserver)$'
+          { grep -E "$ob" <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m &
+          oceanbase=$!
+          status=0
+          { grep -v /trino/ <<< "$pkgs" | grep -vE "$ob" || true; } | xargs -r go test -p=8 -count=1 -timeout=20m || status=1
+          wait "$oceanbase" || status=1
+          { grep /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m || status=1
+          exit "$status"
 
-      - name: Remove the shared MySQL 8.0
+      - name: Remove the shared MySQL 8.0 and OceanBase
         if: always()
-        run: docker rm -f "omni-ci-mysql80-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >/dev/null 2>&1 || true
+        run: docker rm -f "omni-ci-mysql80-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" "omni-ci-oceanbase-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >/dev/null 2>&1 || true
 
       - name: Nested modules (own go.mod, not reached by ./...)
         env:

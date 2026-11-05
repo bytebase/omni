@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/internal/sharedserver"
 )
 
 // TestExecFallback_OceanBase proves execFallbackCases and execVersionCases
@@ -46,7 +47,11 @@ func TestExecFallback_OceanBase(t *testing.T) {
 // again on its own.
 func TestExecFallbackScript_OceanBase(t *testing.T) {
 	oceanBaseOracle(t)
-	db, err := sql.Open("mysql", os.Getenv(oceanBaseDSNEnv)+"?multiStatements=true")
+	dsn, err := sharedserver.PrivateOceanBase.DSN(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("mysql", dsn+"?multiStatements=true")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -293,7 +293,7 @@ func TestRangeListSubpartitionRendering(t *testing.T) {
 // to print the recorded partition clause and give the recorded layout, and the catalog to
 // read both the DDL and the readback as that layout.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/catalog/ -run OceanBase -count=1
+//	go test ./oceanbase/catalog/ -run OceanBase -count=1
 func TestOracle_OceanBaseRangeListSubpartitions(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
