@@ -326,6 +326,7 @@ var locSpanCases = []struct {
 	{"SetBindingStmt", "SET BINDING ENABLED FOR SELECT * FROM t", "SET BINDING ENABLED FOR SELECT * FROM t", 0},
 	{"SetStmt", "SET x = 1", "SET x = 1", 0},
 	{"SetTransactionStmt", "SET TRANSACTION READ ONLY", "SET TRANSACTION READ ONLY", 0},
+	{"SetTransactionStmt", "SET TRANSACTION READ ONLY AS OF TIMESTAMP NOW() + 1;", "SET TRANSACTION READ ONLY AS OF TIMESTAMP NOW() + 1", 0},
 	{"ShowStmt", "SHOW TABLES", "SHOW TABLES", 0},
 	{"ShutdownStmt", "SHUTDOWN", "SHUTDOWN", 0},
 	{"SplitOption", "SPLIT TABLE t BY ('a'),('b')", "BY ('a'),('b')", 0},

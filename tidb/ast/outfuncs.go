@@ -3983,6 +3983,10 @@ func writeSetTransactionStmt(sb *strings.Builder, n *SetTransactionStmt) {
 	if n.AccessMode != "" {
 		fmt.Fprintf(sb, " :access %s", n.AccessMode)
 	}
+	if n.AsOf != nil {
+		sb.WriteString(" :as_of ")
+		writeNode(sb, n.AsOf)
+	}
 	sb.WriteString("}")
 }
 

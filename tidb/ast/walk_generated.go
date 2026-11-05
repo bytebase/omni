@@ -1023,6 +1023,8 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *SetTransactionStmt:
+		Walk(v, n.AsOf)
 	case *ShowStmt:
 		if n.From != nil {
 			Walk(v, n.From)
