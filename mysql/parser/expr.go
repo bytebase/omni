@@ -657,12 +657,14 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
-		// Charset introducer: _utf8mb4'hello', _latin1'world'. Only a real
+		// Charset introducer: _utf8mb4'hello', _latin1'world'. Only a real charset name,
+		// unquoted, forms one: `_latin1`'x' is a column with an alias (mysql:8.0.46 answers 1054
+		// for it after parsing), and `_latin1` X'61' is a 1064. Only a real
 		// charset name forms an introducer — MySQL lexes _typo'abc' as an
 		// identifier followed by a separate string literal (oracle 8.0.32 +
 		// 5.7.25: SELECT _typo'abc' → 1054 unknown column, not a syntax
 		// error), so an unknown name falls through to identifier parsing.
-		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && p.peekNext().Type == tokSCONST {
+		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && !p.backtickQuotedAt(p.cur.Loc) && p.peekNext().Type == tokSCONST {
 			charsetTok := p.advance() // consume the charset identifier
 			strTok := p.advance()     // consume the string literal
 			lit := &nodes.StringLit{
@@ -676,7 +678,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 		// An introducer takes a hex or bit literal too, and makes it a string of that charset:
 		// mysql:8.0.46 stores _latin1 X'61' as _latin1'a'.
-		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) {
+		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && !p.backtickQuotedAt(p.cur.Loc) {
 			if next := p.peekNext().Type; next == tokXCONST || next == tokBCONST {
 				charsetTok := p.advance()
 				litTok := p.advance()

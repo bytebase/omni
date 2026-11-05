@@ -36,7 +36,7 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	pathStart := p.cur
 	// The path is a text_literal: an introducer before a hex or bit literal makes a string too,
 	// but not one the path takes (1064 on mysql:8.0.46).
-	if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) {
+	if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && !p.backtickQuotedAt(p.cur.Loc) {
 		if next := p.peekNext().Type; next == tokXCONST || next == tokBCONST {
 			return nil, &ParseError{Message: "JSON_VALUE takes a string literal as its path", Position: pathStart.Loc}
 		}
