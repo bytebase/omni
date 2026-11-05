@@ -1978,6 +1978,12 @@ type Lexer struct {
 	prevTokenEnd int // end position of the previously emitted token (for adjacency checks)
 	baseOffset   int // added to all token Loc values for absolute positioning
 
+	// dotNamesWord applies afterSpacedDot to every word, as upstream does. Parse sets it.
+	// NewLexer leaves it off for the readers of incomplete text, Tokenize and completion,
+	// which read `o. FROM t` at a caret after `o.` and need FROM to stay a keyword
+	// (TestLexerDotKeywordWithSpace, TestCollectAfterDotWithKeyword).
+	dotNamesWord bool
+
 	// errMsg/errPos record the first lexing error (unterminated comment, string,
 	// or quoted identifier). A malformed token that runs to EOF without its closing
 	// delimiter must never index past the buffer; instead the scan stops at EOF and
@@ -2716,7 +2722,7 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 
 	lower := strings.ToLower(word)
 	if kwType, ok := keywords[lower]; ok {
-		if (isReserved(kwType) && l.beforeDot()) || (kwType == kwTABLESAMPLE && l.afterSpacedDot(start)) {
+		if (isReserved(kwType) && l.beforeDot()) || (l.dotNamesWord && l.afterSpacedDot(start)) {
 			return Token{Type: tokIDENT, Str: word, Loc: start}
 		}
 		return Token{Type: kwType, Str: word, Loc: start}
@@ -2737,14 +2743,13 @@ func (l *Lexer) beforeDot() bool {
 }
 
 // afterSpacedDot reports whether the last byte before start that is not a space
-// is a dot, the other half of the same upstream rule. A tab or a comment ends the
-// search, and the bytes decide, so the dot that ends a number counts too: `SELECT
-// 1. tablesample` reads an alias.
+// is a dot, the other half of the same upstream rule (isTokenIdentifier in the
+// scanner). A tab or a comment ends the search, and the bytes decide, so the dot
+// that ends a number counts too: `SELECT 1. tablesample` reads an alias, and `SELECT
+// 1. FROM t` is a 1064 for reading FROM as one.
 //
-// scanIdentOrKeyword applies this to TABLESAMPLE alone. Upstream applies it to
-// every word, and `SELECT o. FROM t` is a 1064 on the server, but completion reads
-// that text at a caret after `o.` and needs FROM to stay a keyword
-// (TestLexerDotKeywordWithSpace). TABLESAMPLE is never the next clause there.
+// Parse applies it to every word, as upstream does. See dotNamesWord for the readers
+// that do not.
 func (l *Lexer) afterSpacedDot(start int) bool {
 	for i := start - 1; i >= 0; i-- {
 		if l.input[i] != ' ' {

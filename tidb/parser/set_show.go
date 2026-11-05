@@ -489,7 +489,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.addRuleCandidate("database_ref")
 				return nil, &ParseError{Message: "collecting"}
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseShowDatabaseName()
 			if err != nil {
 				return nil, err
 			}
@@ -513,7 +513,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			p.advance()
 			// Optional FROM|IN db
 			if p.matchFromOrIn() {
-				ref, err := p.parseTableRef()
+				ref, err := p.parseShowDatabaseName()
 				if err != nil {
 					return nil, err
 				}
@@ -567,7 +567,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				}
 				stmt.IfNotExists = true
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseShowDatabaseName()
 			if err != nil {
 				return nil, err
 			}
@@ -1139,13 +1139,25 @@ func (p *Parser) parseShowTableAndDatabase(stmt *nodes.ShowStmt) error {
 	}
 	stmt.From = ref
 	if p.matchFromOrIn() {
-		dbRef, err := p.parseTableRef()
+		dbRef, err := p.parseShowDatabaseName()
 		if err != nil {
 			return err
 		}
 		stmt.From.Schema = dbRef.Name
 	}
 	return nil
+}
+
+// parseShowDatabaseName reads the DBName of ShowDatabaseNameOpt, parser.y:12128 and 4439:
+// one Identifier, so `SHOW TABLES FROM a.b` is a 1064. It holds the name the way a table
+// reference would, because stmt.From is where a SHOW's database goes.
+func (p *Parser) parseShowDatabaseName() (*nodes.TableRef, error) {
+	start := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.TableRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name}, nil
 }
 
 // parseShowTableTarget reads TiDB's four SHOW TABLE forms, which share a
@@ -1352,7 +1364,7 @@ func (p *Parser) parseShowLikePattern() (nodes.ExprNode, error) {
 // parseShowFromLikeOrWhere parses optional FROM|IN db, LIKE, or WHERE for SHOW statements.
 func (p *Parser) parseShowFromLikeOrWhere(stmt *nodes.ShowStmt) error {
 	if p.matchFromOrIn() {
-		ref, err := p.parseTableRef()
+		ref, err := p.parseShowDatabaseName()
 		if err != nil {
 			return err
 		}
