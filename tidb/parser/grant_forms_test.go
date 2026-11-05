@@ -203,6 +203,11 @@ var grantFormCases = []grantFormCase{
 	{"GRANT `select` TO u1", true},
 	{"GRANT SELECT TO u1", false},
 	{"GRANT COMMENT TO u1", false},
+	// S3 is a keyword in TiDB and so no ExtendedPriv identifier, and an unreserved
+	// keyword is neither a PrivType nor an identifier.
+	{"GRANT S3 ON *.* TO u1", false},
+	{"GRANT COMMENT ON *.* TO u1", false},
+	{"GRANT COMMENT, SELECT ON *.* TO u1", false},
 	{"GRANT usage TO u1", false},
 	{"GRANT process TO u1", false},
 	{"GRANT CREATE VIEW TO u1", false},
@@ -333,17 +338,10 @@ func TestGrantWordsStayNames(t *testing.T) {
 // grantKnownDivergences records the statements of this family this parser
 // still answers differently from pingcap/tidb:v8.5.5, with what this parser
 // answers, so each is a measured and named gap rather than an untested one.
-// Every one of them needs knowledge this parser does not hold -- which words
-// that server counts as privilege names, which user options it has -- rather
-// than a clause of the family this change closed, so each belongs to its own
-// change.
+// Every one of them needs knowledge this parser does not hold -- which user
+// options that server has -- rather than a clause of the family this change
+// closed, so each belongs to its own change.
 var grantKnownDivergences = []grantFormCase{
-	// S3 is a keyword in TiDB and so no ExtendedPriv identifier, and an
-	// unreserved keyword is neither a PrivType nor an identifier; this
-	// parser holds neither fact.
-	{"GRANT S3 ON *.* TO u1", true},
-	{"GRANT COMMENT ON *.* TO u1", true},
-	{"GRANT COMMENT, SELECT ON *.* TO u1", true},
 	// RANDOM PASSWORD is MySQL 8.0's. Retiring it moves this package's
 	// own tests, so it belongs to its own change.
 	{"CREATE USER u1@'%' IDENTIFIED BY RANDOM PASSWORD", true},

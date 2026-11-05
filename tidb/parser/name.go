@@ -613,6 +613,89 @@ var keywordCategories = map[int]keywordCategory{
 	kwUNTIL: kwCatReserved,
 }
 
+// tidbPlainIdentifiers are words this lexer holds as keywords and TiDB v8.5.5 does not, so
+// upstream's scanner hands them over as the bare identifier token. A few grammar rules take
+// that token and no keyword: RoleNameString, parser.y:11135, and ExtendedPriv, parser.y:14501.
+// `CREATE ROLE loop` parses there, where `CREATE ROLE transaction` is a 1064 though both are
+// unreserved. TestRoleNameSweepTiDBOracle holds this list to the server, so a keyword added to
+// the lexer that TiDB does not have fails there until it is listed.
+var tidbPlainIdentifiers = map[string]bool{
+	"absent": true, "accessible": true, "active": true, "aggregate": true,
+	"allow_missing_files": true, "asensitive": true,
+	"assign_gtids_to_anonymous_transactions": true, "at": true, "authentication": true,
+	"auto": true, "auto_refresh": true, "auto_refresh_source": true, "autoextend_size": true,
+	"before": true, "bulk": true, "catalog_name": true, "challenge_response": true,
+	"changed": true, "channel": true, "class_origin": true, "clone": true, "code": true,
+	"column_name": true, "completion": true, "component": true, "concat": true,
+	"concurrent": true, "condition": true, "constraint_catalog": true,
+	"constraint_name": true, "constraint_schema": true, "contains": true, "count": true,
+	"cube": true, "cursor_name": true, "datafile": true, "default_auth": true,
+	"definition": true, "description": true, "deterministic": true, "diagnostics": true,
+	"duality": true, "dumpfile": true, "each": true, "empty": true, "ends": true,
+	"engine_attribute": true, "every": true, "exclude": true, "export": true,
+	"extent_size": true, "external": true, "external_format": true, "factor": true,
+	"fast": true, "file_block_size": true, "file_format": true, "file_name": true,
+	"file_pattern": true, "file_prefix": true, "files": true, "filter": true, "finish": true,
+	"follows": true, "generate": true, "geomcollection": true, "geometry": true,
+	"geometrycollection": true, "get": true, "get_source_public_key": true, "greatest": true,
+	"group_replication": true, "grouping": true, "gtid_only": true, "gtids": true,
+	"guided": true, "header": true, "host": true, "ignore_server_ids": true, "inactive": true,
+	"initial": true, "initial_size": true, "initiate": true, "insensitive": true,
+	"install": true, "io_after_gtids": true, "io_before_gtids": true, "io_thread": true,
+	"json_duality_object": true, "json_table": true, "json_value": true, "keyring": true,
+	"lateral": true, "least": true, "leaves": true, "library": true, "linestring": true,
+	"locks": true, "logfile": true, "loop": true, "manual": true, "master_log_file": true,
+	"materialized": true, "max_size": true, "message_text": true, "mid": true,
+	"migrate": true, "modifies": true, "multilinestring": true, "multipoint": true,
+	"multipolygon": true, "mutex": true, "mysql_errno": true, "name": true, "ndb": true,
+	"ndbcluster": true, "nested": true, "network_namespace": true, "new": true,
+	"no_wait": true, "nullif": true, "number": true, "oj": true, "old": true, "one": true,
+	"optimizer_costs": true, "options": true, "ordinality": true, "organization": true,
+	"others": true, "overlay": true, "owner": true, "parallel": true, "parameters": true,
+	"parse_tree": true, "path": true, "persist": true, "persist_only": true, "phase": true,
+	"placing": true, "plugin": true, "plugin_dir": true, "polygon": true, "port": true,
+	"precedes": true, "prev": true, "privilege_checks_user": true, "qualify": true,
+	"random": true, "read_only": true, "read_write": true, "reads": true,
+	"redo_buffer_size": true, "reference": true, "registration": true, "relational": true,
+	"relay": true, "relay_log_file": true, "relay_log_pos": true, "relay_thread": true,
+	"relaylog": true, "replicate_do_db": true, "replicate_do_table": true,
+	"replicate_ignore_db": true, "replicate_ignore_table": true, "replicate_rewrite_db": true,
+	"replicate_wild_do_table": true, "replicate_wild_ignore_table": true,
+	"require_row_format": true, "require_table_primary_key_check": true, "resignal": true,
+	"retain": true, "return": true, "returned_sqlstate": true, "returning": true,
+	"returns": true, "rotate": true, "schema_name": true, "secondary_engine_attribute": true,
+	"sensitive": true, "server": true, "session_user": true, "sets": true, "signal": true,
+	"socket": true, "soname": true, "sounds": true, "source_auto_position": true,
+	"source_bind": true, "source_compression_algorithms": true, "source_connect_retry": true,
+	"source_connection_auto_failover": true, "source_delay": true,
+	"source_heartbeat_period": true, "source_host": true, "source_log_file": true,
+	"source_log_pos": true, "source_password": true, "source_port": true,
+	"source_public_key_path": true, "source_retry_count": true, "source_ssl": true,
+	"source_ssl_ca": true, "source_ssl_capath": true, "source_ssl_cert": true,
+	"source_ssl_cipher": true, "source_ssl_crl": true, "source_ssl_crlpath": true,
+	"source_ssl_key": true, "source_ssl_verify_server_cert": true,
+	"source_tls_ciphersuites": true, "source_tls_version": true, "source_user": true,
+	"source_zstd_compression_level": true, "specific": true, "sql_after_gtids": true,
+	"sql_after_mts_gaps": true, "sql_before_gtids": true, "sql_thread": true, "srid": true,
+	"st_collect": true, "stacked": true, "starts": true, "stream": true, "strict_load": true,
+	"string": true, "subclass_origin": true, "suspend": true, "sysdate": true,
+	"system_user": true, "table_name": true, "thread_priority": true, "ties": true,
+	"types": true, "undo": true, "undo_buffer_size": true, "undofile": true,
+	"uninstall": true, "unregister": true, "upgrade": true, "uri": true, "url": true,
+	"use_frm": true, "user_resources": true, "validate": true, "vcpu": true,
+	"verify_key_constraints": true, "work": true, "wrapper": true, "xa": true, "xid": true,
+	"xml": true, "zone": true,
+}
+
+// isPlainIdentifier reports whether the current token is what upstream's scanner would call
+// the bare identifier token: an identifier here, or one of tidbPlainIdentifiers.
+func (p *Parser) isPlainIdentifier() bool {
+	if p.cur.Type == tokIDENT {
+		return true
+	}
+	return p.cur.Type >= 700 && tidbPlainIdentifiers[strings.ToLower(p.cur.Str)]
+}
+
 // isReserved returns true if the token type is a reserved keyword that cannot
 // be used as an unquoted identifier.
 func isReserved(t int) bool {
