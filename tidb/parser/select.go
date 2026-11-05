@@ -1288,11 +1288,24 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		}, nil
 	}
 
-	// Regular table reference with alias. TABLESAMPLE belongs to this rule and
-	// not to parseTableRefWithAlias, which LOCK TABLES shares: TableFactor reads
-	// it (parser.y:9909), and `LOCK TABLES t TABLESAMPLE (50) READ` is a 1064.
-	ref, err := p.parseTableRefWithAlias()
+	// Regular table reference, in TableFactor's order (parser.y:9909): name,
+	// PARTITION, alias, AS OF, index hints, TABLESAMPLE. AS OF and TABLESAMPLE
+	// belong to this rule and not to parseTableRefWithAlias, which LOCK TABLES
+	// shares: `LOCK TABLES t AS OF TIMESTAMP NOW() READ` and `LOCK TABLES t
+	// TABLESAMPLE (50) READ` are 1064s.
+	ref, err := p.parseTableRefUpToAlias()
 	if err != nil {
+		return nil, err
+	}
+	if p.atAsOf() {
+		asOf, err := p.parseAsOfClause()
+		if err != nil {
+			return nil, err
+		}
+		ref.AsOf = asOf
+		ref.Loc.End = p.prev.End
+	}
+	if err := p.parseTableRefIndexHints(ref); err != nil {
 		return nil, err
 	}
 	if p.cur.Type == kwTABLESAMPLE {

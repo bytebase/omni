@@ -333,9 +333,12 @@ func lexerExtractTableAfter(tokens []parser.Token, j int) (*TableRef, int) {
 	// Check for alias (AS alias or bare ident)
 	k := consumed
 	if k < len(tokens) {
-		if tokens[k].Type == parser.AS && k+1 < len(tokens) && parser.IsIdentTokenType(tokens[k+1].Type) {
+		switch {
+		case tokens[k].Type == parser.AS && k+1 < len(tokens) && tokens[k+1].Type == parser.OF:
+			// AS OF starts a stale-read clause and never an alias named of.
+		case tokens[k].Type == parser.AS && k+1 < len(tokens) && parser.IsIdentTokenType(tokens[k+1].Type):
 			ref.Alias = tokens[k+1].Str
-		} else if parser.IsIdentTokenType(tokens[k].Type) && !isClauseKeyword(tokens[k].Type) {
+		case parser.IsIdentTokenType(tokens[k].Type) && !isClauseKeyword(tokens[k].Type):
 			ref.Alias = tokens[k].Str
 		}
 	}
