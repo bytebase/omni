@@ -57,6 +57,16 @@ var addIfNotExistsCases = []struct {
 	{name: "primary key IF NOT EXISTS then plain", table: "np", sql: "ALTER TABLE np ADD PRIMARY KEY IF NOT EXISTS (a), ADD PRIMARY KEY (id)", errCode: 1068},
 	{name: "check plain then IF NOT EXISTS", table: "t", sql: "ALTER TABLE t ADD CONSTRAINT c1 CHECK (a > 0), ADD CONSTRAINT IF NOT EXISTS c1 CHECK (a > 1)", errCode: 1826},
 	{name: "check IF NOT EXISTS then plain", table: "t", sql: "ALTER TABLE t ADD CONSTRAINT IF NOT EXISTS c1 CHECK (a > 0), ADD CONSTRAINT c1 CHECK (a > 1)", errCode: 1826},
+	// A column's own PRIMARY KEY counts as well.
+	{name: "inline primary key then IF NOT EXISTS", table: "np", sql: "ALTER TABLE np ADD b INT PRIMARY KEY, ADD PRIMARY KEY IF NOT EXISTS (id)", errCode: 1068},
+	{name: "IF NOT EXISTS then inline primary key", table: "np", sql: "ALTER TABLE np ADD PRIMARY KEY IF NOT EXISTS (id), ADD b INT PRIMARY KEY", errCode: 1068},
+	{name: "listed column's primary key", table: "np", sql: "ALTER TABLE np ADD COLUMN (b INT PRIMARY KEY), ADD PRIMARY KEY IF NOT EXISTS (id)", errCode: 1068},
+	{name: "MODIFY's primary key", table: "np", sql: "ALTER TABLE np MODIFY id INT NOT NULL PRIMARY KEY, ADD PRIMARY KEY IF NOT EXISTS (id)", errCode: 1068},
+	{name: "CHANGE's primary key", table: "np", sql: "ALTER TABLE np CHANGE id id INT NOT NULL PRIMARY KEY, ADD PRIMARY KEY IF NOT EXISTS (id)", errCode: 1068},
+	// PRIMARY is no index's name unless the clause finds the primary key and stands down.
+	{name: "PRIMARY on a table with none", table: "np", sql: "ALTER TABLE np ADD INDEX IF NOT EXISTS `PRIMARY` (a)", errCode: 1280},
+	{name: "primary, unique, on a table with none", table: "np", sql: "ALTER TABLE np ADD UNIQUE IF NOT EXISTS `primary` (a)", errCode: 1280},
+	{name: "PRIMARY on a table with one", table: "t", sql: "ALTER TABLE t ADD INDEX IF NOT EXISTS `PRIMARY` (a)", has: []string{"PRIMARY KEY (`id`)"}},
 	// A CHECK and an index have a name each.
 	{name: "check and index share a name", table: "t", sql: "ALTER TABLE t ADD CONSTRAINT IF NOT EXISTS c1 CHECK (a > 0), ADD INDEX c1 (a)", has: []string{"KEY `c1` (`a`)", "CONSTRAINT `c1` CHECK"}},
 	{name: "index and check share a name", table: "t", sql: "ALTER TABLE t ADD INDEX c2 (a), ADD CONSTRAINT IF NOT EXISTS c2 CHECK (a > 0)", has: []string{"KEY `c2` (`a`)", "CONSTRAINT `c2` CHECK"}},

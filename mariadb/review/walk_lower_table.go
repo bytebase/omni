@@ -359,6 +359,11 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 						if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
 							continue
 						}
+						// Otherwise it runs, and PRIMARY is no index's name (1280, verified).
+						if k == primaryIndex {
+							b.fail(rng, nil, review.ReservedName, reservedPrimary)
+							return true
+						}
 						if kind, added := keyKinds[k]; added && kind != con.Type {
 							b.fail(rng, nil, review.DuplicateName, statesTwice("adds", "index", ident(con.Name)))
 							return true

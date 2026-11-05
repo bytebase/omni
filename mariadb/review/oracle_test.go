@@ -468,6 +468,8 @@ func TestScanRulesAgainstMariaDB(t *testing.T) {
 	}{
 		{"constraint drops the SQL names", "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p, DROP CONSTRAINT ck_n;\nALTER TABLE t DROP CONSTRAINT uk_code;", true},
 		{"a unique index dropped by name", "ALTER TABLE t DROP INDEX uk_code;\nDROP INDEX idx_n ON t;", true},
+		{"a guarded ADD leaves the unique index it names", "ALTER TABLE t ADD INDEX IF NOT EXISTS uk_code (code);\nDROP INDEX uk_code ON t;", true},
+		{"a guarded ADD in a list leaves the unique index it names", "ALTER TABLE t ADD (INDEX IF NOT EXISTS uk_code (code));\nDROP INDEX uk_code ON t;", true},
 		{"a unique key the change makes, then drops", "ALTER TABLE nokey ADD UNIQUE KEY uk_a (a);\nALTER TABLE nokey DROP INDEX uk_a;", true},
 		{"DROP INDEX of the primary key", "DROP INDEX `PRIMARY` ON plain;", true},
 		{"DROP CONSTRAINT PRIMARY KEY", "ALTER TABLE plain DROP CONSTRAINT PRIMARY KEY;", true},

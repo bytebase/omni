@@ -34,6 +34,15 @@ func TestWalkThroughMariaDBAddIfNotExists(t *testing.T) {
 		t.Errorf("a foreign key name another table owns: findings = %+v, want one", got)
 	}
 	noFinding(t, "ALTER TABLE t ADD FOREIGN KEY IF NOT EXISTS i (a) REFERENCES r (id);\nALTER TABLE t DROP FOREIGN KEY i;", shop)
+	// PRIMARY is no index's name unless the clause finds the primary key and stands down.
+	if got := walkFindings(t, "ALTER TABLE nokey ADD INDEX IF NOT EXISTS `PRIMARY` (a);", shop); len(got) != 1 {
+		t.Errorf("PRIMARY on a table with none: findings = %+v, want one", got)
+	}
+	noFinding(t, "ALTER TABLE t ADD INDEX IF NOT EXISTS `PRIMARY` (a);", shop)
+	// A column's own PRIMARY KEY counts as a primary key the statement adds.
+	if got := walkFindings(t, "ALTER TABLE nokey ADD b INT PRIMARY KEY, ADD PRIMARY KEY IF NOT EXISTS (a);", shop); len(got) != 1 {
+		t.Errorf("an inline primary key beside IF NOT EXISTS: findings = %+v, want one", got)
+	}
 	// What it adds is there for what comes after.
 	oneFinding(t, "ALTER TABLE t ADD INDEX IF NOT EXISTS n (a);\nALTER TABLE t ADD INDEX n (a);", 1, "Index `n` already exists in `t`.", shop)
 	noFinding(t, "ALTER TABLE t ADD INDEX IF NOT EXISTS n (a);\nALTER TABLE t DROP INDEX n;", shop)

@@ -774,6 +774,21 @@ func checkAddIfNotExistsTwice(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 				return err
 			}
 		}
+		// A column's own PRIMARY KEY counts too, in ADD, MODIFY and CHANGE: ALTER TABLE t ADD b
+		// INT PRIMARY KEY, ADD PRIMARY KEY IF NOT EXISTS (a) is 1068 in either order.
+		columns := cmd.Columns
+		if cmd.Column != nil {
+			columns = append([]*nodes.ColumnDef{cmd.Column}, columns...)
+		}
+		for _, col := range columns {
+			for _, cc := range col.Constraints {
+				if cc.Type == nodes.ColConstrPrimaryKey {
+					if primaries++; primaries > 1 {
+						return errMultiplePriKey()
+					}
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -785,7 +800,7 @@ func checkAddIfNotExistsTwice(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 //
 //   - a primary key looks for any primary key;
 //   - a CHECK looks for a check constraint of the name;
-//   - a foreign key looks for a foreign key or an index named after the name that follows
+//   - a foreign key looks for a foreign key on this table named after the name that follows
 //     FOREIGN KEY or else the symbol. One with neither has nothing to look for and is
 //     always added, and the symbol is not looked at when both are written, so `CONSTRAINT
 //     fky FOREIGN KEY IF NOT EXISTS fkw` on a table with fky is 1005;
