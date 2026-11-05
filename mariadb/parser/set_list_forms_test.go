@@ -19,7 +19,7 @@ import (
 // select.a FROM t` names a column. See beforeDotName.
 //
 // Not in this table, because omni still disagrees and each is its own change. `SELECT DEFAULT`, because parseExpr reads it everywhere but SET. `SET a.1 =
-// 1`, where the lexer reads .1 as a number. `SET STATEMENT ... FOR ...`, `SET PASSWORD = OLD_PASSWORD('x')`, `a VECTOR(3)` and
+// 1`, where the lexer reads .1 as a number. `SET PASSWORD = OLD_PASSWORD('x')`, `a VECTOR(3)` and
 // `CREATE TABLE t (a.b INT)`, which omni does not read. `RESET PERSIST`, which it accepts.
 
 // TestSetListForms holds omni to the recorded verdicts without a server, so a run with no Docker

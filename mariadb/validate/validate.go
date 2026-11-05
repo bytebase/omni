@@ -107,6 +107,9 @@ func (v *validator) walk(n nodes.Node) {
 		v.walkAssignment(s, false)
 	case *nodes.SetStmt:
 		v.walkSetStmt(s)
+	case *nodes.SetStatementStmt:
+		// The options name system variables, never a routine's locals.
+		v.walk(s.Stmt)
 	}
 }
 

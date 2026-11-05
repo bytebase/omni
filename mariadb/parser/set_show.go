@@ -38,6 +38,10 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	if p.atSetStatement() {
+		return p.parseSetStatementStmt(start)
+	}
+
 	stmt := &nodes.SetStmt{Loc: nodes.Loc{Start: start}}
 
 	// Whether the first word names a variable, whichever form it could start.
@@ -209,6 +213,104 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	return stmt, nil
 }
 
+// atSetStatement reports whether p.cur is the STATEMENT of SET STATEMENT. The word is no
+// keyword of this lexer, and it is also a variable name when `=`, `:=` or `.` follows.
+func (p *Parser) atSetStatement() bool {
+	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "STATEMENT") || p.backtickQuotedAt(p.cur.Loc) {
+		return false
+	}
+	next := p.peekNext()
+	if p.completing && next.Loc >= p.cursorOff {
+		return true
+	}
+	return next.Type != '=' && next.Type != tokAssign && next.Type != '.'
+}
+
+// parseSetStatementStmt parses SET STATEMENT, with the current token on STATEMENT.
+//
+// Ref: set_param, set_stmt_option_list and set_stmt_option in MariaDB 11.8.8 sql/sql_yacc.yy
+// (lines 17011, 17095, 17161), and directly_executable_statement (line 2089).
+//
+//	SET STATEMENT name = value [, name = value] ... FOR statement
+//
+// An option reads as option_value_following_option_type does: a name and no scope, variable
+// reference, NAMES or charset form. The statement is any statement, BEGIN or a compound
+// statement, but no label and none of the forms only a stored program has, such as DECLARE.
+// SET STATEMENT is a statement, so one can wrap another.
+func (p *Parser) parseSetStatementStmt(start int) (*nodes.SetStatementStmt, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+
+	p.advance() // consume STATEMENT
+
+	stmt := &nodes.SetStatementStmt{Loc: nodes.Loc{Start: start}}
+	for {
+		// Completion: an option takes no @@ name, which is what the variable candidates are.
+		p.checkCursor()
+		if p.collectMode() {
+			return nil, &ParseError{Message: "collecting"}
+		}
+		opt, err := p.parseSetVariableAssignment(p.pos(), setStatementScope)
+		if err != nil {
+			return nil, err
+		}
+		opt.Scope = ""
+		stmt.Options = append(stmt.Options, opt)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+
+	// Completion: after the options, offer FOR.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwFOR)
+		return nil, &ParseError{Message: "collecting"}
+	}
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+
+	inner, err := p.parseSetStatementTarget()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Stmt = inner
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseSetStatementTarget reads directly_executable_statement: a statement, or a compound
+// statement with no label. omni reads no BEGIN NOT ATOMIC and no FOR loop anywhere.
+func (p *Parser) parseSetStatementTarget() (nodes.Node, error) {
+	var inner nodes.Node
+	var err error
+	switch p.cur.Type {
+	case kwIF:
+		inner, err = p.parseIfStmt()
+	case kwCASE:
+		inner, err = p.parseCaseStmt()
+	case kwWHILE:
+		inner, err = p.parseWhileStmt("", 0)
+	case kwREPEAT:
+		inner, err = p.parseRepeatStmt("", 0)
+	case kwLOOP:
+		inner, err = p.parseLoopStmt("", 0)
+	default:
+		inner, err = p.parseStmt()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return inner, nil
+}
+
+// setStatementScope stands in for a written scope while reading an option, since
+// set_stmt_option reads names as option_value_following_option_type does, after a scope.
+const setStatementScope = "STATEMENT"
+
 // parseSetItem reads one assignment of the list into stmt, after its scope. NAMES and the
 // charset forms are assignments, so they may sit anywhere in the list, and a written scope
 // takes a name and nothing else, so `SET GLOBAL NAMES utf8` is a 1064.
@@ -339,7 +441,7 @@ func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 	} else {
-		ends := next == ',' || next == ';' || next == tokEOF
+		ends := next == ',' || next == ';' || next == tokEOF || next == kwFOR
 		switch {
 		case p.cur.Type == kwON:
 			tok := p.advance()

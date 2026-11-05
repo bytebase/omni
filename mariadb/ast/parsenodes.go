@@ -1328,6 +1328,17 @@ func (v *VariableRef) exprNode() {}
 // Additional statement nodes
 // -----------------------------------------------------------------------
 
+// SetStatementStmt represents SET STATEMENT name = value [, name = value] ... FOR statement:
+// Stmt, run with each variable set for its duration.
+type SetStatementStmt struct {
+	Loc     Loc
+	Options []*Assignment
+	Stmt    Node
+}
+
+func (s *SetStatementStmt) nodeTag()  {}
+func (s *SetStatementStmt) stmtNode() {}
+
 // SetStmt represents a SET statement.
 type SetStmt struct {
 	Loc         Loc

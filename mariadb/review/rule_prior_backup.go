@@ -86,9 +86,9 @@ func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 }
 
 // checkPriorBackupStatements reports, from the SQL alone, what makes
-// Bytebase refuse the change: a statement with RETURNING, at top level or
-// in a routine, trigger, or event body, which the MySQL parser Bytebase
-// reads every statement of a MariaDB change with rejects,
+// Bytebase refuse the change: a statement with RETURNING or SET STATEMENT,
+// at top level or in a routine, trigger, or event body, which the MySQL
+// parser Bytebase reads every statement of a MariaDB change with rejects,
 // and a multi-table DELETE whose target the backup cannot find in the
 // statement's FROM list, which Bytebase matches by name or alias exactly,
 // case included. A DELETE after a WITH clause, whose targets may be its
@@ -100,15 +100,22 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	for i := range stmts {
 		s := &stmts[i]
 		returning := false
+		setStatement := len(s.options) > 0
 		ast.Inspect(s.node, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.InsertStmt:
 				returning = returning || len(v.Returning) > 0
 			case *ast.DeleteStmt:
 				returning = returning || len(v.Returning) > 0
+			case *ast.SetStatementStmt:
+				setStatement = true
 			}
 			return !returning
 		})
+		if setStatement {
+			r.report(review.StatementNotBackupable, s.index, rangeOf(s.loc), "Prior backup can't back up a statement with "+review.Code("SET STATEMENT")+": it reads the change as MySQL.\n\nRemove "+review.Code("SET STATEMENT")+", or turn off **Prior backup**.")
+			continue
+		}
 		if returning {
 			r.report(review.StatementNotBackupable, s.index, rangeOf(s.loc), "Prior backup can't back up a statement with "+review.Code("RETURNING")+": it reads the change as MySQL.\n\nRemove "+review.Code("RETURNING")+", or turn off **Prior backup**.")
 		}

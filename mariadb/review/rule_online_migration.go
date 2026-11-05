@@ -81,6 +81,12 @@ func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 	case len(stmts) != 1:
 		r.report(review.UnsupportedChange, -1, review.Range{}, "Online migration runs one "+review.Code("ALTER TABLE")+", and this change has more statements.\n\nMove the other statements into another change, or turn off **Online migration**.")
 	default:
+		// Bytebase hands gh-ost the whole sheet, so an ALTER TABLE under SET STATEMENT is no
+		// ALTER TABLE to it.
+		if len(stmts[0].options) > 0 {
+			r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "Online migration runs the sheet as one "+review.Code("ALTER TABLE")+", and "+review.Code("SET STATEMENT")+" is not part of one.\n\nRemove "+review.Code("SET STATEMENT")+", or turn off **Online migration** for this change.")
+			break
+		}
 		v, ok := stmts[0].node.(*ast.AlterTableStmt)
 		if !ok {
 			r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "Online migration runs only an "+review.Code("ALTER TABLE")+".\n\nTurn off **Online migration** for this change.")
