@@ -116,6 +116,18 @@ func TestRoleNameTrees(t *testing.T) {
 }
 
 var roleNameCases = []tableSampleCase{
+	{"grant proxy@h to u", true},
+	{"grant proxy@h, a to u", true},
+	{"grant a, proxy@h to u", true},
+	{"grant proxy@'h' to u", true},
+	{"revoke proxy@h from u", true},
+	{"create role proxy@h", true},
+	{"grant proxy to u", false},
+	{"grant proxy, a to u", false},
+	{"grant proxy on *.* to u", false},
+	{"grant proxy on a to u", true},
+	{"grant proxy on a@h to u", true},
+	{"grant `proxy` to u", true},
 	{"create role 'transaction'", true},
 	{"create role LOOP", true},
 	{"create role Loop, GET", true},

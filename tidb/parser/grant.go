@@ -35,8 +35,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	// We distinguish by looking for ON (privilege grant) vs TO (role grant).
 	var privs []privOrRole
 	var allPriv bool
-	if isProxy {
-		// PROXY is no PrivType: GrantProxyStmt spells it out, and only for GRANT.
+	if isProxy && p.peekNext().Type == kwON {
+		// PROXY is no PrivType: GrantProxyStmt spells it out, and only for GRANT. Only ON
+		// makes it that form, because `GRANT proxy@h TO u` names a role.
 		p.advance()
 		privs = []privOrRole{{name: "PROXY", privOnly: true}}
 	} else {
