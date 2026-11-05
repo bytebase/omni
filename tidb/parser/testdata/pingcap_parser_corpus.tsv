@@ -109,8 +109,8 @@ reject	reject	SELECT DISTINCTS * FROM t
 accept	accept	SELECT DISTINCT * FROM t
 accept	accept	SELECT DISTINCTROW * FROM t
 accept	accept	SELECT ALL * FROM t
-accept	accept	SELECT DISTINCT ALL * FROM t
-accept	accept	SELECT DISTINCTROW ALL * FROM t
+reject	reject	SELECT DISTINCT ALL * FROM t
+reject	reject	SELECT DISTINCTROW ALL * FROM t
 accept	accept	INSERT INTO foo (a) VALUES (42)
 reject	reject	INSERT INTO foo (a,) VALUES (42,)
 accept	accept	INSERT INTO foo (a,b) VALUES (42,314)
@@ -235,10 +235,10 @@ accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' enclosed by 'b' escaped by ''
 accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B';
 accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D';
-accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D0D';
+reject	reject	load data local infile '~/1.csv' into table `t_ascii` fields terminated by X'6B6B' enclosed by X'0D0D';
 accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011';
 accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'1101';
-accept	accept	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'110100001101';
+reject	reject	load data local infile '~/1.csv' into table `t_ascii` fields terminated by B'110101101101011' enclosed by B'110100001101';
 accept	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by B'110101101101011' terminated by B'110101101101011';
 accept	accept	load data local infile '~/1.csv' into table `t_ascii` lines starting by X'6B6B' terminated by X'6B6B';
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' enclosed by 'b' enclosed by 'b'
@@ -246,10 +246,10 @@ accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated
 accept	accept	load data local infile '/tmp/t.csv' into table t fields terminated by 'ab' escaped by '' enclosed by 'b' SET b = CAST(CONV(MID(@var1, 3, LENGTH(@var1)-3), 2, 10) AS UNSIGNED)
 accept	accept	load data infile '/tmp/t.csv' into table t fields enclosed by ''
 accept	accept	load data infile '/tmp/t.csv' into table t fields enclosed by 'a'
-accept	accept	load data infile '/tmp/t.csv' into table t fields enclosed by 'aa'
+reject	reject	load data infile '/tmp/t.csv' into table t fields enclosed by 'aa'
 accept	accept	load data infile '/tmp/t.csv' into table t fields escaped by ''
 accept	accept	load data infile '/tmp/t.csv' into table t fields escaped by 'a'
-accept	accept	load data infile '/tmp/t.csv' into table t fields escaped by 'aa'
+reject	reject	load data infile '/tmp/t.csv' into table t fields escaped by 'aa'
 accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @dummy, column2, @dummy, column3)
 accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @var1) SET column2 = @var1/100
 accept	accept	LOAD DATA INFILE 'file.txt' INTO TABLE t1 (column1, @var1, @var2) SET column2 = @var1/100, column3 = DEFAULT, column4=CURRENT_TIMESTAMP, column5=@var2+1
@@ -960,7 +960,7 @@ accept	accept	select cast(1 as float(0));
 accept	accept	select cast(1 as float(24));
 accept	accept	select cast(1 as float(25));
 accept	accept	select cast(1 as float(53));
-accept	accept	select cast(1 as float(54));
+reject	reject	select cast(1 as float(54));
 accept	accept	select cast(1 as real);
 accept	accept	select cast('2000' as year);
 accept	accept	select cast(time '2000' as year);
@@ -1587,7 +1587,7 @@ reject	reject	create table t (b int) partition by hash ( not b );
 reject	reject	create table t (b int) partition by range columns (b) (partition p0 values less than (3 in (3, 4, 5)), partition p2 values less than (20));
 accept	accept	CREATE TABLE t (id int) ENGINE = INNDB PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
 accept	accept	create table t (c int) PARTITION BY HASH (c) PARTITIONS 32;
-accept	accept	create table t (c int) PARTITION BY HASH (Year(VDate)) (PARTITION p1980 VALUES LESS THAN (1980) ENGINE = MyISAM, PARTITION p1990 VALUES LESS THAN (1990) ENGINE = MyISAM, PARTITION pothers VALUES LESS THAN MAXVALUE ENGINE = MyISAM)
+reject	reject	create table t (c int) PARTITION BY HASH (Year(VDate)) (PARTITION p1980 VALUES LESS THAN (1980) ENGINE = MyISAM, PARTITION p1990 VALUES LESS THAN (1990) ENGINE = MyISAM, PARTITION pothers VALUES LESS THAN MAXVALUE ENGINE = MyISAM)
 accept	accept	create table t (c int) PARTITION BY RANGE (Year(VDate)) (PARTITION p1980 VALUES LESS THAN (1980) ENGINE = MyISAM, PARTITION p1990 VALUES LESS THAN (1990) ENGINE = MyISAM, PARTITION pothers VALUES LESS THAN MAXVALUE ENGINE = MyISAM)
 accept	accept	create table t (c int, `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '') PARTITION BY RANGE (UNIX_TIMESTAMP(create_time)) (PARTITION p201610 VALUES LESS THAN(1477929600), PARTITION p201611 VALUES LESS THAN(1480521600),PARTITION p201612 VALUES LESS THAN(1483200000),PARTITION p201701 VALUES LESS THAN(1485878400),PARTITION p201702 VALUES LESS THAN(1488297600),PARTITION p201703 VALUES LESS THAN(1490976000))
 accept	accept	CREATE TABLE `md_product_shop` (`shopCode` varchar(4) DEFAULT NULL COMMENT '地点') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 /*!50100 PARTITION BY KEY (shopCode) PARTITIONS 19 */;
@@ -2031,8 +2031,8 @@ reject	reject	ALTER TABLE t ADD VECTOR KEY ((VEC_COSINE_DISTANCE(a, b))) USING H
 accept	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a, b))) USING HNSW COMMENT 'a'
 accept	accept	ALTER TABLE t ADD VECTOR INDEX ((lower(a))) USING HNSW COMMENT 'a'
 reject	reject	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a), a)) USING HNSW COMMENT 'a'
-accept	accept	ALTER TABLE t ADD VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
-accept	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HYPO COMMENT 'a'
+reject	reject	ALTER TABLE t ADD VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
+reject	reject	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HYPO COMMENT 'a'
 accept	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) COMMENT 'a'
 accept	accept	ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
 accept	accept	ALTER TABLE t ADD VECTOR INDEX IF NOT EXISTS ((VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'
@@ -2115,8 +2115,8 @@ accept	accept	alter table t add column a int partition by hash(a) update indexes
 accept	accept	alter table t add column a int partition by hash(a) update indexes (idx_a global, idx_b local)
 reject	reject	alter table t add column a int partition by hash(a) update indexes (idx_a normal)
 reject	reject	alter table t add column a int partition by hash(a) update indexes (global)
-accept	accept	alter table t partition by range(a)
-accept	accept	alter table t partition by range(a) update indexes (a local)
+reject	reject	alter table t partition by range(a)
+reject	reject	alter table t partition by range(a) update indexes (a local)
 accept	accept	alter table t partition by range(a) (partition x values less than (75))
 reject	reject	alter table t add column a int, partition by range(a) (partition x values less than (75))
 accept	accept	alter table t comment 'cmt' partition by hash(a)
@@ -2193,22 +2193,22 @@ accept	accept	CREATE INDEX idx ON t ( a ) INVISIBLE VISIBLE
 accept	accept	CREATE INDEX idx ON t ( a ) VISIBLE INVISIBLE
 accept	accept	CREATE INDEX idx ON t ( a ) USING HASH VISIBLE
 accept	accept	CREATE INDEX idx ON t ( a ) USING HASH INVISIBLE
-reject	accept	CREATE VECTOR INDEX idx ON t (a) USING HNSW 
-reject	accept	CREATE VECTOR INDEX idx ON t (a, b) USING HNSW 
+reject	reject	CREATE VECTOR INDEX idx ON t (a) USING HNSW 
+reject	reject	CREATE VECTOR INDEX idx ON t (a, b) USING HNSW 
 reject	accept	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a)))
-reject	accept	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) TYPE BTREE
+reject	reject	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) TYPE BTREE
 reject	reject	CREATE VECTOR INDEX idx ON t USING HNSW ((VEC_COSINE_DISTANCE(a)))
 reject	reject	CREATE VECTOR idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
-reject	accept	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a)), a) USING HNSW
-reject	accept	CREATE VECTOR INDEX idx ON t (a, (VEC_COSINE_DISTANCE(a))) USING HNSW
+reject	reject	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a)), a) USING HNSW
+reject	reject	CREATE VECTOR INDEX idx ON t (a, (VEC_COSINE_DISTANCE(a))) USING HNSW
 reject	reject	CREATE VECTOR KEY idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
 reject	accept	CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
 reject	accept	CREATE VECTOR INDEX IF NOT EXISTS idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW
 reject	accept	CREATE VECTOR INDEX IF NOT EXISTS idx ON t ((VEC_COSINE_DISTANCE(a))) TYPE HNSW
 reject	accept	CREATE VECTOR INDEX ident TYPE HNSW ON d_n.t_n ((VEC_COSINE_DISTANCE(a)))
 reject	accept	CREATE VECTOR INDEX idx USING HNSW ON t ((VEC_COSINE_DISTANCE(a)))
-reject	accept	CREATE VECTOR INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE HNSW
-accept	accept	CREATE UNIQUE INDEX ident USING HNSW ON d_n.t_n ( ident , ident ASC )
+reject	reject	CREATE VECTOR INDEX ident ON d_n.t_n ( ident , ident ASC ) TYPE HNSW
+reject	reject	CREATE UNIQUE INDEX ident USING HNSW ON d_n.t_n ( ident , ident ASC )
 accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM = DEFAULT
 accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM DEFAULT
 accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM = INPLACE
@@ -2219,8 +2219,8 @@ accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM = DEFAULT LOCK = DEFAULT
 accept	accept	CREATE INDEX idx ON t ( a ) LOCK = DEFAULT ALGORITHM = DEFAULT
 accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM = INPLACE LOCK = EXCLUSIVE
 accept	accept	CREATE INDEX idx ON t ( a ) LOCK = EXCLUSIVE ALGORITHM = INPLACE
-accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM = ident
-accept	accept	CREATE INDEX idx ON t ( a ) ALGORITHM ident
+reject	reject	CREATE INDEX idx ON t ( a ) ALGORITHM = ident
+reject	reject	CREATE INDEX idx ON t ( a ) ALGORITHM ident
 accept	accept	drop index a on t
 accept	accept	drop index a on db.t
 accept	accept	drop index a on db.`tb-ttb`
@@ -2239,10 +2239,10 @@ accept	accept	drop index idx on t algorithm = default lock = default
 accept	accept	drop index idx on t lock = default algorithm = default
 accept	accept	drop index idx on t algorithm = inplace lock = exclusive
 accept	accept	drop index idx on t lock = exclusive algorithm = inplace
-accept	accept	drop index idx on t algorithm = algorithm_type
-accept	accept	drop index idx on t algorithm algorithm_type
-accept	accept	drop index idx on t lock = lock_type
-accept	accept	drop index idx on t lock lock_type
+reject	reject	drop index idx on t algorithm = algorithm_type
+reject	reject	drop index idx on t algorithm algorithm_type
+reject	reject	drop index idx on t lock = lock_type
+reject	reject	drop index idx on t lock lock_type
 accept	accept	RENAME TABLE t TO t1
 reject	reject	RENAME TABLE t t1
 accept	accept	RENAME TABLE d.t TO d1.t1
@@ -2266,14 +2266,14 @@ accept	accept	CREATE TABLE miantiao (`扁豆焖面`       INT(11));
 accept	accept	CREATE TABLE bar (m INT)  SELECT n FROM foo;
 accept	accept	CREATE TABLE bar (m INT) IGNORE SELECT n FROM foo;
 accept	accept	CREATE TABLE bar (m INT) REPLACE SELECT n FROM foo;
-accept	accept	create table t (a timestamp, b timestamp as (a) not null on update current_timestamp);
-accept	accept	create table t (a bigint, b bigint as (a) primary key auto_increment);
-accept	accept	create table t (a bigint, b bigint as (a) not null default 10);
+reject	reject	create table t (a timestamp, b timestamp as (a) not null on update current_timestamp);
+reject	reject	create table t (a bigint, b bigint as (a) primary key auto_increment);
+reject	reject	create table t (a bigint, b bigint as (a) not null default 10);
 accept	accept	create table t (a bigint, b bigint as (a+1) not null);
 accept	accept	create table t (a bigint, b bigint as (a+1) not null comment 'ttt');
 accept	accept	create table t(a int, index idx((cast(a as binary(1)))));
-accept	accept	alter table t add column (f timestamp as (a+1) default '2019-01-01 11:11:11');
-accept	accept	alter table t modify column f int as (a+1) default 55;
+reject	reject	alter table t add column (f timestamp as (a+1) default '2019-01-01 11:11:11');
+reject	reject	alter table t modify column f int as (a+1) default 55;
 accept	accept	create table t (a int column_format fixed)
 accept	accept	create table t (a int column_format default)
 accept	accept	create table t (a int column_format dynamic)
@@ -2566,12 +2566,12 @@ reject	reject	create table t (a int, b varchar(255) clustered primary key)
 reject	reject	create table t (a int, b varchar(255) primary key nonclustered clustered)
 accept	accept	alter table t add primary key (`a`, `b`) clustered
 accept	accept	alter table t add primary key (`a`, `b`) nonclustered
-reject	accept	create table t(a int, b vector(3), vector index(b) USING HNSW);
-reject	accept	create table t(a int, b vector(3), vector index(a, b) USING HNSW);
+reject	reject	create table t(a int, b vector(3), vector index(b) USING HNSW);
+reject	reject	create table t(a int, b vector(3), vector index(a, b) USING HNSW);
 reject	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b))));
-reject	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b))) USING HASH);
-reject	accept	create table t(a int, b vector(3), vector index(a, (VEC_COSINE_DISTANCE(b))) USING HNSW);
-reject	accept	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b)), a) USING HNSW);
+reject	reject	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b))) USING HASH);
+reject	reject	create table t(a int, b vector(3), vector index(a, (VEC_COSINE_DISTANCE(b))) USING HNSW);
+reject	reject	create table t(a int, b vector(3), vector index((VEC_COSINE_DISTANCE(b)), a) USING HNSW);
 reject	reject	create table t(a int, b vector(3), vector index(VEC_COSINE_DISTANCE(b)) USING HNSW);
 reject	reject	create table t(a int, b vector(3), vector key((VEC_COSINE_DISTANCE(b))) TYPE HNSW);
 reject	accept	create table t(a int, b vector(3), vector index((b+1)) USING HNSW);
@@ -3111,7 +3111,7 @@ accept	accept	(select * from b where pk= 0 union all (select * from b where pk !
 accept	accept	(select * from b where pk= 0 union all (select * from b where pk !=0) order by pk limit 1) order by pk
 accept	accept	select "abc_" like "abc\\_" escape ''
 accept	accept	select "abc_" like "abc\\_" escape '\\'
-accept	accept	select "abc_" like "abc\\_" escape '||'
+reject	reject	select "abc_" like "abc\\_" escape '||'
 accept	accept	select "abc" like "escape" escape '+'
 accept	accept	select '''_' like '''_' escape ''''
 accept	accept	UNLOCK TABLES;
@@ -3530,48 +3530,48 @@ accept	accept	ALTER TABLE t1 ADD PARTITION (PARTITION `p5` VALUES LESS THAN (201
 accept	accept	CREATE TABLE t1 (a int not null) partition by range (a) (partition x1 values less than (5) tablespace ts1)
 accept	accept	create table t1 (a int) partition by hash (a) (partition x, partition y)
 accept	accept	create table t1 (a int) partition by key (a) (partition x, partition y)
-accept	accept	create table t1 (a int) partition by range (a) (partition x, partition y)
-accept	accept	create table t1 (a int) partition by list (a) (partition x, partition y)
-reject	accept	create table t1 (a int) partition by system_time (partition x, partition y)
-accept	accept	create table t1 (a int) partition by hash (a) (partition x values less than (10))
-accept	accept	create table t1 (a int) partition by key (a) (partition x values less than (10))
+reject	reject	create table t1 (a int) partition by range (a) (partition x, partition y)
+reject	reject	create table t1 (a int) partition by list (a) (partition x, partition y)
+reject	reject	create table t1 (a int) partition by system_time (partition x, partition y)
+reject	reject	create table t1 (a int) partition by hash (a) (partition x values less than (10))
+reject	reject	create table t1 (a int) partition by key (a) (partition x values less than (10))
 accept	accept	create table t1 (a int) partition by range (a) (partition x values less than (maxvalue))
 accept	reject	create table t1 (a int) partition by range (a) (partition x values less than (default))
 accept	accept	create table t (a varchar(100), b int) partition by list columns (a) (partition p1 values in ('a','b','DEFAULT'), partition pDef values in (default))
 accept	accept	create table t1 (a int) partition by range (a) (partition x values less than (10))
-accept	accept	create table t1 (a int) partition by list (a) (partition x values less than (10))
-reject	accept	create table t1 (a int) partition by system_time (partition x values less than (10))
-accept	accept	create table t1 (a int) partition by hash (a) (partition x values in (10))
-accept	accept	create table t1 (a int) partition by key (a) (partition x values in (10))
-accept	accept	create table t1 (a int) partition by range (a) (partition x values in (10))
+reject	reject	create table t1 (a int) partition by list (a) (partition x values less than (10))
+reject	reject	create table t1 (a int) partition by system_time (partition x values less than (10))
+reject	reject	create table t1 (a int) partition by hash (a) (partition x values in (10))
+reject	reject	create table t1 (a int) partition by key (a) (partition x values in (10))
+reject	reject	create table t1 (a int) partition by range (a) (partition x values in (10))
 accept	accept	create table t1 (a int) partition by list (a) (partition x values in (10))
 accept	accept	create table t1 (a int) partition by list (a) (partition x values in (default))
 reject	reject	create table t1 (a int) partition by list (a) (partition x values in (maxvalue))
 accept	accept	create table t1 (a int) partition by list (a) (partition x values in (default, 10))
-reject	accept	create table t1 (a int) partition by system_time (partition x values in (10))
-reject	accept	create table t1 (a int) partition by hash (a) (partition x history, partition y current)
-reject	accept	create table t1 (a int) partition by key (a) (partition x history, partition y current)
-reject	accept	create table t1 (a int) partition by range (a) (partition x history, partition y current)
-reject	accept	create table t1 (a int) partition by list (a) (partition x history, partition y current)
+reject	reject	create table t1 (a int) partition by system_time (partition x values in (10))
+reject	reject	create table t1 (a int) partition by hash (a) (partition x history, partition y current)
+reject	reject	create table t1 (a int) partition by key (a) (partition x history, partition y current)
+reject	reject	create table t1 (a int) partition by range (a) (partition x history, partition y current)
+reject	reject	create table t1 (a int) partition by list (a) (partition x history, partition y current)
 reject	accept	create table t1 (a int) partition by system_time (partition x history, partition y current)
 accept	accept	create table t1 (a int) partition by hash (a)
 accept	accept	create table t1 (a int) partition by key (a)
-accept	accept	create table t1 (a int) partition by range (a)
-accept	accept	create table t1 (a int) partition by list (a)
-reject	accept	create table t1 (a int) partition by system_time
-reject	accept	create table t1 (a int) partition by system_time (partition x history)
-reject	accept	create table t1 (a int) partition by system_time (partition x current)
-accept	accept	create table t1 (a int, b int) partition by range (a) (partition x values less than (10, 20))
-accept	accept	create table t (id int) partition by range columns (id) (partition p0 values less than (1, 2))
+reject	reject	create table t1 (a int) partition by range (a)
+reject	reject	create table t1 (a int) partition by list (a)
+reject	reject	create table t1 (a int) partition by system_time
+reject	reject	create table t1 (a int) partition by system_time (partition x history)
+reject	reject	create table t1 (a int) partition by system_time (partition x current)
+reject	reject	create table t1 (a int, b int) partition by range (a) (partition x values less than (10, 20))
+reject	reject	create table t (id int) partition by range columns (id) (partition p0 values less than (1, 2))
 accept	accept	create table t1 (a int, b int) partition by range columns (a, b) (partition x values less than (10, 20))
-accept	accept	create table t1 (a int, b int) partition by range columns (a, b) (partition x values less than (10))
-accept	accept	create table t1 (a int, b int) partition by range columns (a, b) (partition x values less than maxvalue)
-accept	accept	create table t1 (a int, b int) partition by list (a) (partition x values in ((10, 20)))
+reject	reject	create table t1 (a int, b int) partition by range columns (a, b) (partition x values less than (10))
+reject	reject	create table t1 (a int, b int) partition by range columns (a, b) (partition x values less than maxvalue)
+reject	reject	create table t1 (a int, b int) partition by list (a) (partition x values in ((10, 20)))
 accept	accept	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in ((10, 20)))
-accept	accept	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in (10, 20))
-accept	accept	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in (10, (20, 30)))
-accept	accept	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in ((10, 20), 30))
-accept	accept	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in ((10, 20), (30, 40, 50)))
+reject	reject	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in (10, 20))
+reject	reject	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in (10, (20, 30)))
+reject	reject	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in ((10, 20), 30))
+reject	reject	create table t1 (a int, b int) partition by list columns (a, b) (partition x values in ((10, 20), (30, 40, 50)))
 reject	reject	create table t1 (a int) partition by hash (a) ()
 accept	accept	create table t1 (a int primary key) partition by key ()
 reject	reject	create table t1 (a int) partition by range columns () (partition x values less than maxvalue)
@@ -3580,15 +3580,15 @@ reject	reject	create table t1 (a int) partition by range (a) (partition x values
 reject	reject	create table t1 (a int) partition by list (a) (partition x values in ())
 accept	accept	create table t1 (a int) partition by list (a) (partition x default)
 reject	reject	create table t1 (a int, b int) partition by range (a) subpartition by range (b) (partition x values less than maxvalue)
-accept	accept	create table t1 (a int) partition by hash (a) partitions 2 (partition x)
+reject	reject	create table t1 (a int) partition by hash (a) partitions 2 (partition x)
 accept	accept	create table t1 (a int) partition by hash (a) partitions 2 (partition x, partition y)
-accept	accept	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) subpartitions 2 (partition x values less than maxvalue (subpartition y))
+reject	reject	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) subpartitions 2 (partition x values less than maxvalue (subpartition y))
 accept	accept	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) subpartitions 2 (partition x values less than maxvalue (subpartition y, subpartition z))
 accept	accept	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) (partition x values less than (10) (subpartition y,subpartition z),partition a values less than (20) (subpartition b,subpartition c))
-accept	accept	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) (partition x values less than (10) (subpartition y),partition a values less than (20) (subpartition b,subpartition c))
-accept	accept	create table t1 (a int, b int) partition by range (a) (partition x values less than (10) (subpartition y))
-accept	accept	create table t1 (a int) partition by hash (a) partitions 0
-accept	accept	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) subpartitions 0 (partition x values less than (10))
+reject	reject	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) (partition x values less than (10) (subpartition y),partition a values less than (20) (subpartition b,subpartition c))
+reject	reject	create table t1 (a int, b int) partition by range (a) (partition x values less than (10) (subpartition y))
+reject	reject	create table t1 (a int) partition by hash (a) partitions 0
+reject	reject	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) subpartitions 0 (partition x values less than (10))
 reject	reject	create table t1 (a int) partition by system_time interval 7 day limit 50000 (partition x history, partition y current)
 reject	accept	create table t1 (a int) partition by system_time interval 7 day (partition x history, partition y current)
 reject	accept	create table t1 (a int) partition by system_time limit 50000 (partition x history, partition y current)
@@ -3741,8 +3741,8 @@ accept	accept	INSERT INTO `employees` (SELECT * FROM `employees` AS OF TIMESTAMP
 accept	accept	SET TRANSACTION READ ONLY as of timestamp '2021-04-21 00:42:12'
 accept	accept	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 1 (c1,c2) PARTITIONS 4
 reject	reject	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = -1 (c1,c2) PARTITIONS 4
-accept	accept	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 0 (c1,c2) PARTITIONS 4
-accept	accept	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 3 (c1,c2) PARTITIONS 4
+reject	reject	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 0 (c1,c2) PARTITIONS 4
+reject	reject	CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 3 (c1,c2) PARTITIONS 4
 accept	accept	HELP 'select'
 accept	accept	select mod(a+b, 4)+1
 accept	reject	SELECT MOD(10, 2 BETWEEN 0 and 5)
@@ -3869,9 +3869,9 @@ accept	accept	alter table t remove ttl
 reject	reject	create table t (created_at datetime) TTL_ENABLE = 'test_case'
 reject	reject	create table t (created_at datetime) /*T![ttl] TTL_ENABLE = 'test_case' */
 reject	reject	alter table t /*T![ttl] TTL_ENABLE = 'test_case' */
-accept	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '@monthly'
-accept	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '10hourxx'
-accept	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '10.10.255h'
+reject	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '@monthly'
+reject	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '10hourxx'
+reject	reject	create table t (created_at datetime) TTL_JOB_INTERVAL = '10.10.255h'
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 BOOL)
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 BOOLEAN)
 accept	accept	CREATE TABLE t(id INT PRIMARY KEY, c1 CHARACTER VARYING(0))

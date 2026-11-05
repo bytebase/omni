@@ -443,6 +443,36 @@ func TestPrepareSyntaxHoldsOneConnection(t *testing.T) {
 	}
 }
 
+// TestSyntaxProbeControls holds the probe to statements whose answer is known from
+// the grammar and the server's own order of work. Each pair differs in nothing but
+// the shape a grammar action looks at, on a table that does not exist.
+func TestSyntaxProbeControls(t *testing.T) {
+	tc := startTiDB(t)
+	assertTiDBVersion(t, tc)
+	for _, c := range []struct {
+		stmt string
+		want bool
+	}{
+		{"CREATE VECTOR INDEX i ON nosuch (a)", false},  // 1149, CreateIndexStmt's action
+		{"CREATE VECTOR INDEX i ON nosuch ((a))", true}, // 1146
+		{"SELECT nosuch", true},                         // 1054
+		{"SELECT 1 FROM nosuch -- a comment", true},     // 1146, and the tail survives the comment
+		{"CREATE TABLE t (a VECTOR(16384))", true},      // 1105, from the DDL, not the parser
+		{"SELECT @@nosuch", true},                       // 1193, a name it looks up
+		{"SELEKT 1", false},                             // 1064
+		{"SELECT DISTINCT ALL * FROM nosuch", false},    // 1221, the action on SelectStmtOpts
+		{"ALTER TABLE t ALGORITHM = nosuch", false},     // 1800
+	} {
+		accepts, err := tc.prepareSyntax(c.stmt)
+		if err != nil {
+			t.Fatalf("no verdict for %q: %v", c.stmt, err)
+		}
+		if accepts != c.want {
+			t.Errorf("%q: accepts=%v, want %v", c.stmt, accepts, c.want)
+		}
+	}
+}
+
 // TestLostHarnessAnswersRatherThanPanics pins what a failed recovery leaves
 // behind. restart clears the pool and the container before rebuilding either,
 // so a restart that could not start a container leaves both nil -- and a nil
@@ -466,7 +496,16 @@ func TestLostHarnessAnswersRatherThanPanics(t *testing.T) {
 
 // prepareSyntax reports whether TiDB accepts the statement's syntax, without
 // running it: PREPARE parses the text and stops there. A non-nil error means
-// the server gave no verdict at all.
+// the server gave no verdict at all, which covers anything that is not a server
+// error: a dropped connection, a timeout, a driver refusing a local-file request.
+//
+// ER_PARSE_ERROR (1064) is the parser's rejection, and it is not the only one: a
+// grammar action refuses text its productions read, with the code it chooses, while
+// the parse is still running. CreateIndexStmt's answers 1149 for a VECTOR INDEX over
+// a plain column, whether or not the table exists. Other errors come after the parse:
+// 1295 for a statement the prepared-statement protocol does not carry, 1146 for a
+// table that does not exist. The code alone cannot tell the two apart (1105 is both),
+// so the verdict asks the server which it was: see prepareVerdict.
 //
 // Executing the corpus cannot measure this, because statements in it destroy
 // the run. `shutdown` succeeds and stops the server, so nothing after it gets
@@ -503,28 +542,67 @@ func (tc *tidbContainer) prepareSyntax(stmt string) (bool, error) {
 	if _, err := conn.ExecContext(tc.ctx, "SET @omni_corpus = ?", stmt); err != nil {
 		return false, fmt.Errorf("binding the statement: %w", err)
 	}
-	_, err = conn.ExecContext(tc.ctx, "PREPARE omni_corpus_stmt FROM @omni_corpus")
-	if err == nil {
-		_, _ = conn.ExecContext(tc.ctx, "DEALLOCATE PREPARE omni_corpus_stmt")
+	prepare := func() error {
+		_, err := conn.ExecContext(tc.ctx, "PREPARE omni_corpus_stmt FROM @omni_corpus")
+		if err == nil {
+			_, _ = conn.ExecContext(tc.ctx, "DEALLOCATE PREPARE omni_corpus_stmt")
+		}
+		return err
 	}
-	return prepareVerdict(err)
+	return prepareVerdict(prepare(), func() error {
+		if _, err := conn.ExecContext(tc.ctx, "SET @omni_corpus = ?", stmt+syntaxProbeTail); err != nil {
+			return fmt.Errorf("binding the probe: %w", err)
+		}
+		return prepare()
+	})
 }
 
-// prepareVerdict reads the error PREPARE returned. ER_PARSE_ERROR (1064) is
-// the parser's rejection. Any other server error means the text parsed and
-// failed later: 1295 for a statement the prepared-statement protocol does not
-// carry, 1146 for a table that does not exist.
+// syntaxProbeTail is what the probe appends to a statement. It starts on a new line
+// so a trailing comment in the statement cannot swallow it.
+const syntaxProbeTail = "\n; SELECT FROM"
+
+// lookupErrorCodes are errors TiDB raises while parsing for a name it looks up in
+// what the server has: a system variable (1193), a character set (1115) and a
+// collation (1273, 1253). They are about that list and not about the shape of the
+// text, so the statement counts as read: `SELECT @@nosuch` answers 1193 while
+// parsing, and omni, which keeps no such list, reads it.
+var lookupErrorCodes = map[uint16]bool{
+	1115: true,
+	1193: true,
+	1253: true,
+	1273: true,
+}
+
+// prepareVerdict reads the error PREPARE returned, and calls probe for the error the
+// same statement gives with syntaxProbeTail after it when the first error leaves the
+// verdict open. The server reads the whole text before it looks at anything, so a
+// statement refused after parsing answers the tail's 1064, and one a grammar action
+// refused answers its own code again, because the action ended the parse before the
+// tail was read.
 //
-// Anything that is not a server error — a dropped connection, a timeout, a
-// driver refusing a local-file request — is no verdict, and comes back as an
-// error so the caller recovers or fails rather than records agreement.
-func prepareVerdict(err error) (bool, error) {
+// Anything that is not a server error is no verdict, and comes back as an error so
+// the caller recovers or fails rather than records agreement.
+func prepareVerdict(err error, probe func() error) (bool, error) {
 	if err == nil {
 		return true, nil
 	}
 	var myErr *gomysql.MySQLError
-	if errors.As(err, &myErr) {
-		return myErr.Number != 1064, nil
+	if !errors.As(err, &myErr) {
+		return false, err
 	}
-	return false, err
+	if myErr.Number == 1064 {
+		return false, nil
+	}
+	if lookupErrorCodes[myErr.Number] {
+		return true, nil
+	}
+	tailErr := probe()
+	if tailErr == nil {
+		return false, fmt.Errorf("the server took the probe's syntax error after answering %w", err)
+	}
+	var tailed *gomysql.MySQLError
+	if !errors.As(tailErr, &tailed) {
+		return false, tailErr
+	}
+	return tailed.Number != myErr.Number, nil
 }

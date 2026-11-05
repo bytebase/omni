@@ -22,7 +22,9 @@ unchanged by an `-update` run.
 Closing a grammar gap flips column 1 from `reject` to `accept`. Column 2 is not
 a knob: it records what the engine does, and a disagreement with it is the
 finding, not the thing to silence. It may be rewritten only when the pinned
-image changes, and then the diff is the list of what the new release altered.
+image changes, and then the diff is the list of what the new release altered, or when
+the reading of the engine's answer below is corrected, and then the diff is the list
+of what the old reading misreported.
 
 Some rows are deliberately awkward and must survive an edit of this file: five
 are not valid UTF-8 (pingcap's GBK and big5 cases), sixteen end in a space
@@ -64,11 +66,22 @@ them:
   server ask the client for a local file, which the driver refuses with an error
   that is not a server verdict at all.
 
-The reading is the same as everywhere else in this package: error 1064 is the
-parser's rejection, any other server error means the text parsed, and anything
-that is not a server error is no verdict and fails the test. `PREPARE` adds
-1295 to the second group, for statements the prepared-statement protocol does
-not carry.
+The reading is the same as everywhere else in this package. Error 1064 is the
+parser's rejection, and it is not the only one: TiDB's grammar actions refuse text
+their productions read, with the code each chooses, while the parse is still running.
+`CREATE VECTOR INDEX i ON nosuch (a)` answers 1149 and `CREATE VECTOR INDEX i ON
+nosuch ((a))` answers 1146. Any other server error came after the parse: 1295 for
+a statement the prepared-statement protocol does not carry, 1146 for a table that
+does not exist. Anything that is not a server error is no verdict and fails the test.
+
+A code does not say which side it is on (1105 is both), so the harness asks. It
+prepares the statement again with a syntax error after it as a second statement. The
+server reads all of the text before it looks at anything, so a statement refused after
+parsing now answers 1064, and a statement an action refused answers its own code again.
+
+One class counts as read even though it is raised while parsing: a name the server looks
+up, a system variable (1193), a character set (1115) or a collation (1273, 1253). `Parse`
+holds no such list, so those are not grammar it can follow.
 
 Checked against direct execution over 3,897 of the 3,902 statements: the two
 agree on every one except the two rows that are themselves `PREPARE`

@@ -83,11 +83,12 @@ var indexClauseCases = []indexClauseCase{
 	{"ALTER TABLE t ADD KEY k (a) USING nosuchtype", false},
 	// HNSW is TiDB's fourth index type, for a vector index, and it is a token
 	// there as the other three are: v8.5.5 reads it unquoted, in any case, and
-	// answers 1064 for the backquoted spelling. MySQL and MariaDB have no such
-	// name.
-	{"CREATE INDEX i ON t (a) USING HNSW", true},
-	{"CREATE INDEX i ON t (a) USING hnsw", true},
-	{"CREATE INDEX i ON t (a) TYPE HNSW", true},
+	// answers 1064 for the backquoted spelling. CreateIndexStmt's action answers
+	// 1149 for it on any index but a vector one, where a key definition may take
+	// it. MySQL and MariaDB have no such name.
+	{"CREATE INDEX i ON t (a) USING HNSW", false},
+	{"CREATE INDEX i ON t (a) USING hnsw", false},
+	{"CREATE INDEX i ON t (a) TYPE HNSW", false},
 	{"CREATE INDEX i ON t (a) USING `HNSW`", false},
 	{"CREATE TABLE ct10 (a INT, KEY k (a) USING HNSW)", true},
 	// The ALGORITHM and LOCK clauses that close CREATE INDEX. The value is the
@@ -101,8 +102,8 @@ var indexClauseCases = []indexClauseCase{
 	{"CREATE INDEX i ON t (a) ALGORITHM = INPLACE", true},
 	{"CREATE INDEX i ON t (a) LOCK = NONE", true},
 	{"CREATE INDEX i ON t (a) LOCK = EXCLUSIVE", true},
-	{"CREATE INDEX i ON t (a) ALGORITHM = ident", true},
-	{"CREATE INDEX i ON t (a) ALGORITHM = `default`", true},
+	{"CREATE INDEX i ON t (a) ALGORITHM = ident", false},
+	{"CREATE INDEX i ON t (a) ALGORITHM = `default`", false},
 	{"CREATE INDEX i ON t (a) ALGORITHM = DEFAULT LOCK = DEFAULT", true},
 	{"CREATE INDEX i ON t (a) LOCK = DEFAULT ALGORITHM = DEFAULT", true},
 	// Neither value is optional, neither is a number or a string, no reserved

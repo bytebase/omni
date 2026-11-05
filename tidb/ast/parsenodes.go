@@ -445,10 +445,11 @@ func (s *CreateIndexStmt) stmtNode() {}
 
 // IndexColumn represents a column in an index definition.
 type IndexColumn struct {
-	Loc    Loc
-	Expr   ExprNode // column name or expression
-	Length int      // prefix length
-	Desc   bool     // DESC ordering
+	Loc        Loc
+	Expr       ExprNode // column name or expression
+	Length     int      // prefix length
+	Desc       bool     // DESC ordering
+	Functional bool     // true when parsed from functional key-part syntax: (expr)
 }
 
 func (c *IndexColumn) nodeTag() {}

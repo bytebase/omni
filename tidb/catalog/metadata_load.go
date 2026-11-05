@@ -395,6 +395,7 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn)
 			key.Length = l
 		}
 		if isExpressionKey(expr) {
+			key.Functional = true
 			// On a parse failure the key stays a column, so the index still installs.
 			if parsed, err := parseExpr(expr); err == nil {
 				key.Expr = parsed

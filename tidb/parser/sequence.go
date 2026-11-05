@@ -348,3 +348,33 @@ func (p *Parser) parseSequenceSignedNum() (int64, error) {
 	}
 	return int64(u), nil
 }
+
+// parseSetvalArgs reads what follows `SETVAL(`, which has its own arm in the grammar:
+// a table name and a SignedNum, so no expression takes either place and a value an int64
+// cannot hold is refused. The name stays the column reference every other call's first
+// argument is.
+//
+// Ref: "SETVAL" '(' TableName ',' SignedNum ')' in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseSetvalArgs(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	table, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	start := p.cur.Loc
+	value, err := p.parseSequenceSignedNum()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Args = []nodes.ExprNode{
+		&nodes.ColumnRef{Loc: table.Loc, Table: table.Schema, Column: table.Name},
+		&nodes.IntLit{Loc: nodes.Loc{Start: start, End: p.prev.Loc}, Value: value},
+	}
+	fc.Loc.End = p.prev.End
+	return fc, nil
+}

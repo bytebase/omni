@@ -427,14 +427,27 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 
 	stmt := &nodes.SelectStmt{Loc: nodes.Loc{Start: start}}
 
-	// Parse SELECT options
+	// Parse SELECT options. SelectStmtOptsList's action answers 1221, ErrWrongUsage, for
+	// ALL beside DISTINCT or DISTINCTROW in either order, whatever sits between them.
+	var sawAll, sawDistinct bool
+	refuseAllDistinct := func() error {
+		return &ParseError{Message: "Incorrect usage of ALL and DISTINCT", Position: p.cur.Loc}
+	}
 	for {
 		switch p.cur.Type {
 		case kwALL:
+			if sawDistinct {
+				return nil, refuseAllDistinct()
+			}
+			sawAll = true
 			stmt.DistinctKind = nodes.DistinctAll
 			p.advance()
 			continue
 		case kwDISTINCT, kwDISTINCTROW:
+			if sawAll {
+				return nil, refuseAllDistinct()
+			}
+			sawDistinct = true
 			stmt.DistinctKind = nodes.DistinctOn
 			p.advance()
 			continue
@@ -1918,11 +1931,14 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			// [TERMINATED BY 'string']
 			if p.cur.Type == kwTERMINATED {
 				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsTerminatedBy = p.cur.Str
-					p.advance()
+				if _, err := p.expect(kwBY); err != nil {
+					return nil, err
 				}
+				v, err := p.parseFieldTerminator()
+				if err != nil {
+					return nil, err
+				}
+				into.FieldsTerminatedBy = v
 			}
 
 			// [[OPTIONALLY] ENCLOSED BY 'char']
@@ -1932,21 +1948,27 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			}
 			if p.cur.Type == kwENCLOSED {
 				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsEnclosedBy = p.cur.Str
-					p.advance()
+				if _, err := p.expect(kwBY); err != nil {
+					return nil, err
 				}
+				v, err := p.parseFieldEnclosure()
+				if err != nil {
+					return nil, err
+				}
+				into.FieldsEnclosedBy = v
 			}
 
 			// [ESCAPED BY 'char']
 			if p.cur.Type == kwESCAPED {
 				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsEscapedBy = p.cur.Str
-					p.advance()
+				if _, err := p.expect(kwBY); err != nil {
+					return nil, err
 				}
+				v, err := p.parseFieldEnclosure()
+				if err != nil {
+					return nil, err
+				}
+				into.FieldsEscapedBy = v
 			}
 		}
 
