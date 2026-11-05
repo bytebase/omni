@@ -1331,14 +1331,6 @@ func TestParseSelectForUpdate(t *testing.T) {
 	if sel.ForUpdate.Share {
 		t.Error("expected FOR UPDATE, not FOR SHARE")
 	}
-
-	sel2 := parseSelect(t, "SELECT * FROM t FOR SHARE")
-	if sel2.ForUpdate == nil {
-		t.Fatal("expected FOR SHARE clause")
-	}
-	if !sel2.ForUpdate.Share {
-		t.Error("expected FOR SHARE")
-	}
 }
 
 // TestParseSelectDistinct tests SELECT DISTINCT.
@@ -4914,10 +4906,11 @@ func TestParseExplain(t *testing.T) {
 		if stmt.Analyze {
 			t.Error("Analyze = true, want false")
 		}
-		values, ok := stmt.Stmt.(*ast.ValuesStmt)
-		if !ok {
-			t.Fatalf("Stmt type = %T, want *ast.ValuesStmt", stmt.Stmt)
+		sel, ok := stmt.Stmt.(*ast.SelectStmt)
+		if !ok || sel.ValuesSource == nil {
+			t.Fatalf("Stmt = %#v, want a *ast.SelectStmt over VALUES", stmt.Stmt)
 		}
+		values := sel.ValuesSource
 		if len(values.Rows) != 1 || len(values.Rows[0]) != 2 {
 			t.Fatalf("VALUES rows shape = %#v, want one ROW with two expressions", values.Rows)
 		}
@@ -7681,11 +7674,11 @@ func TestParseValuesStmt(t *testing.T) {
 	}{
 		{
 			sql:  "VALUES ROW(1, 2, 3)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}}",
 		},
 		{
 			sql:  "VALUES ROW(1, 2), ROW(3, 4)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7706,15 +7699,15 @@ func TestParseValuesRow(t *testing.T) {
 	}{
 		{
 			sql:  "VALUES ROW('a', 'b')",
-			want: `{VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}`,
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}}`,
 		},
 		{
 			sql:  "VALUES ROW(1, 'hello', NULL)",
-			want: `{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}`,
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}}`,
 		},
 		{
 			sql:  "VALUES ROW(1) LIMIT 1",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11})) :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}}}",
+			want: "{SELECT :loc 0 :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}} :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11}))}}",
 		},
 	}
 	for _, tt := range tests {

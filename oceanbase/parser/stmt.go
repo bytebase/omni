@@ -35,11 +35,8 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwWITH:
 		return p.parseWithStmt()
 
-	case kwSELECT:
-		return p.parseSelectStmt()
-
-	case kwVALUES:
-		return p.parseValuesStmt()
+	case kwSELECT, kwVALUES:
+		return p.parseQueryStatement()
 
 	case kwINSERT:
 		return p.parseInsertStmt()
@@ -220,7 +217,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case '(':
 		// Parenthesized subquery / select
-		return p.parseSelectStmt()
+		return p.parseQueryStatement()
 
 	default:
 		return nil, p.syntaxErrorAtCur()

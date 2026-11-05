@@ -71,7 +71,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	// CREATE TABLE ... AS SELECT
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseSelectStmt()
+		sel, err := p.parseQueryStatement()
 		if err != nil {
 			return nil, err
 		}
@@ -88,7 +88,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 		// parentheses and any following set-op / ORDER BY / LIMIT so
 		// "(SELECT 1) UNION (SELECT 2)" stays one source.
 		if p.isQueryExpressionStart() {
-			sel, err := p.parseSelectStmt()
+			sel, err := p.parseQueryStatement()
 			if err != nil {
 				return nil, err
 			}
@@ -124,7 +124,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	// CREATE TABLE t (cols) [IGNORE|REPLACE] [AS] SELECT ...
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseSelectStmt()
+		sel, err := p.parseQueryStatement()
 		if err != nil {
 			return nil, err
 		}
@@ -179,13 +179,13 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	switch {
 	case p.cur.Type == kwAS:
 		p.advance()
-		sel, err := p.parseSelectStmt()
+		sel, err := p.parseQueryStatement()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
 	case p.isQueryExpressionStart():
-		sel, err := p.parseSelectStmt()
+		sel, err := p.parseQueryStatement()
 		if err != nil {
 			return nil, err
 		}

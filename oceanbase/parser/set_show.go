@@ -1700,11 +1700,11 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 
 	// Parse the explainable statement
 	switch p.cur.Type {
-	case kwSELECT, kwWITH, '(':
-		// A query expression, which parseSelectStmt reads whole: a SELECT
-		// leaf, a WITH clause in front of one, a parenthesized body, or a
-		// set operation over them.
-		sel, err := p.parseSelectStmt()
+	case kwSELECT, kwVALUES, kwWITH, '(':
+		// A query expression, which parseQueryStatement reads whole: a SELECT
+		// leaf, a VALUES primary, a WITH clause in front of one, a parenthesized
+		// body, or a set operation over them.
+		sel, err := p.parseQueryStatement()
 		if err != nil {
 			return nil, err
 		}
@@ -1733,12 +1733,6 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			return nil, err
 		}
 		stmt.Stmt = rep
-	case kwVALUES:
-		vals, err := p.parseValuesStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Stmt = vals
 	default:
 		// EXPLAIN tbl_name [col_name | wild], which no modifier stands in
 		// front of.

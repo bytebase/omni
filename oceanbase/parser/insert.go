@@ -162,7 +162,7 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		// INSERT INTO t (a) (SELECT 1) or INSERT INTO t ((SELECT 1) UNION ...).
 		// OceanBase has no INSERT ... TABLE: values_clause is its rows or a
 		// select_stmt, and select_stmt has no TABLE primary here (measured).
-		sel, err := p.parseSelectStmt()
+		sel, err := p.parseQueryStatement()
 		if err != nil {
 			return nil, err
 		}
@@ -270,7 +270,7 @@ func (p *Parser) parseInsertColumnList() ([]*nodes.ColumnRef, error) {
 // being VALUES. It is a query expression, and goes in Select when anything
 // follows the rows that makes it more than rows.
 func (p *Parser) parseInsertValuesQuery(stmt *nodes.InsertStmt) error {
-	sel, err := p.parseSelectStmt()
+	sel, err := p.parseQueryStatement()
 	if err != nil {
 		return err
 	}

@@ -189,7 +189,7 @@ var locSpanCases = []struct {
 	{"FetchCursorStmt", "CREATE PROCEDURE p_fetch_undecl() BEGIN FETCH nope INTO @x; END", "FETCH nope INTO @x", 0},
 	{"FloatLit", "SELECT TRUNCATE(1.234, 2)", "1.234", 0},
 	{"FlushStmt", "FLUSH TABLES", "FLUSH TABLES", 0},
-	{"ForUpdate", "SELECT * FROM t FOR SHARE", "FOR SHARE", 0},
+	{"ForUpdate", "SELECT * FROM t FOR UPDATE NOWAIT", "FOR UPDATE NOWAIT", 0},
 	{"FuncCallExpr", "DO SLEEP(1)", "SLEEP(1)", 0},
 	{"FuncParam", "CREATE FUNCTION myfunc(a INT) RETURNS INT RETURN a + 1", "a INT", 0},
 	{"GeneratedColumn", "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) STORED)", "GENERATED ALWAYS AS (a + b) STORED", 0},

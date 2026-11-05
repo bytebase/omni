@@ -102,7 +102,7 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 
 	// SELECT statement — capture raw text
 	selectStart := p.pos()
-	sel, err := p.parseSelectStmt()
+	sel, err := p.parseQueryStatement()
 	if err != nil {
 		return nil, err
 	}
