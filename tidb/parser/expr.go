@@ -702,6 +702,9 @@ func (p *Parser) funcWordIsName() bool {
 
 // parseIdentExpr parses an identifier that could be a column ref or function call.
 func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
+	if p.refusesFunctionName() {
+		return nil, p.syntaxErrorAtTok(p.peekNext())
+	}
 	start := p.pos()
 	name, _, err := p.parseIdentifier()
 	if err != nil {
