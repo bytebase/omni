@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -37,8 +36,7 @@ func TestSetTransactionFormsTiDBOracle(t *testing.T) {
 
 // TestSetVariableNameSweepTiDBOracle holds every registered keyword to a live TiDB v8.5.5
 // in each position of a variable name, because a word that SET refuses and every other
-// statement reads fails nowhere else. Only setVariableNameGap may disagree, and only by
-// omni refusing.
+// statement reads fails nowhere else.
 func TestSetVariableNameSweepTiDBOracle(t *testing.T) {
 	tc := startTiDB(t)
 	assertTiDBVersion(t, tc)
@@ -57,12 +55,7 @@ func TestSetVariableNameSweepTiDBOracle(t *testing.T) {
 			}
 			previous = sql
 			omniAccepts, perr := parsesAsOneStatement(sql)
-			inGap := slices.Contains(setVariableNameGap, word) && !strings.Contains(position, ".")
-			switch {
-			case inGap && (!accepts || omniAccepts):
-				t.Errorf("%q is in setVariableNameGap, but TiDB %s accepts=%v and omni accepts=%v: drop it from the list",
-					sql, tidbCorpusVersion, accepts, omniAccepts)
-			case !inGap && accepts != omniAccepts:
+			if accepts != omniAccepts {
 				t.Errorf("DIVERGENCE omni accepts=%v, TiDB %s accepts=%v for %q: %v",
 					omniAccepts, tidbCorpusVersion, accepts, sql, perr)
 			}
