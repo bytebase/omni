@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -23,69 +24,97 @@ type pgContainer struct {
 }
 
 var (
-	pgContainerOnce    sync.Once
-	pgContainerInst    *pgContainer
-	pgContainerCleanup func()
-	pgContainerErr     error
-	pgSchemaCounter    atomic.Int64
+	pgContainerOnce sync.Once
+	pgContainerInst *pgContainer
+	pgContainerErr  error
+	pgSchemaCounter atomic.Int64
 )
 
-// startPGContainer starts a shared PostgreSQL 16 container. The container is reused
-// across all tests via sync.Once; individual tests get schema-level isolation.
+// startPGContainer returns the database the container tests share on the
+// PostgreSQL 17 server; individual tests get schema-level isolation.
 func startPGContainer(t *testing.T) *pgContainer {
 	t.Helper()
 	pgContainerOnce.Do(func() {
 		ctx := context.Background()
-		container, err := tcpg.Run(ctx, "postgres:16-alpine",
-			tcpg.WithDatabase("omni_test"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
+		db, err := pg17Database(ctx, "omni_test")
 		if err != nil {
 			pgContainerErr = fmt.Errorf("failed to start PG container: %w", err)
 			return
 		}
-
-		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			pgContainerErr = fmt.Errorf("failed to get connection string: %w", err)
-			return
-		}
-
-		db, err := sql.Open("pgx", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			pgContainerErr = fmt.Errorf("failed to open database: %w", err)
-			return
-		}
-
-		if err := db.PingContext(ctx); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			pgContainerErr = fmt.Errorf("failed to ping: %w", err)
-			return
-		}
-
 		pgContainerInst = &pgContainer{db: db, ctx: ctx}
-		pgContainerCleanup = func() {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-		}
 	})
 	if pgContainerErr != nil {
 		// In CI a startup failure must fail the job, not silently turn
 		// the container gate into a green no-op.
 		t.Fatalf("PG container required in CI but not available: %v", pgContainerErr)
 	}
-	t.Cleanup(func() {
-		// Don't cleanup here — container shared across tests.
-		// Will be cleaned up when process exits.
-	})
 	return pgContainerInst
+}
+
+// pg17Server is the one PostgreSQL 17 server of this package. Each oracle has a
+// database of its own on it. analyzeOracle has its own PostgreSQL 18 server:
+// pg_proc_generated.go is generated from that release, and the PG 17 oracles
+// hold results that 18 changes, such as named NOT NULL constraints.
+var pg17Server struct {
+	once  sync.Once
+	dsn   *url.URL
+	admin *sql.DB
+	err   error
+}
+
+func startPG17Server(ctx context.Context) (err error) {
+	// testcontainers-go panics from MustExtractDockerHost when the Docker
+	// socket is reachable but access is denied.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("docker provider panic: %v", r)
+		}
+	}()
+	container, err := tcpg.Run(ctx, "postgres:17-alpine",
+		tcpg.WithDatabase("omni_admin"),
+		tcpg.WithUsername("postgres"),
+		tcpg.WithPassword("test"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2)),
+	)
+	if err != nil {
+		return fmt.Errorf("container start: %w", err)
+	}
+	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		return fmt.Errorf("conn string: %w", err)
+	}
+	if pg17Server.dsn, err = url.Parse(connStr); err != nil {
+		return fmt.Errorf("conn string %q: %w", connStr, err)
+	}
+	if pg17Server.admin, err = sql.Open("pgx", connStr); err != nil {
+		return fmt.Errorf("db open: %w", err)
+	}
+	return pg17Server.admin.PingContext(ctx)
+}
+
+// pg17Database creates the named database on the PostgreSQL 17 server, started
+// on first use, and returns a pool of connections to it.
+func pg17Database(ctx context.Context, name string) (*sql.DB, error) {
+	pg17Server.once.Do(func() { pg17Server.err = startPG17Server(ctx) })
+	if pg17Server.err != nil {
+		return nil, pg17Server.err
+	}
+	if _, err := pg17Server.admin.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
+		return nil, fmt.Errorf("create database %s: %w", name, err)
+	}
+	dsn := *pg17Server.dsn
+	dsn.Path = "/" + name
+	db, err := sql.Open("pgx", dsn.String())
+	if err != nil {
+		return nil, fmt.Errorf("db open: %w", err)
+	}
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ping: %w", err)
+	}
+	return db, nil
 }
 
 // execSQL executes a SQL statement on the PG container.

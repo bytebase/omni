@@ -3,13 +3,7 @@ package review
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
-
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/review"
 )
@@ -93,56 +87,4 @@ func assertFormatType(t *testing.T, conn *sql.Conn, spellings []string) {
 			t.Errorf("%s: got %q, want %q", sql, got, wantMsg)
 		}
 	}
-}
-
-// startPostgres starts the PostgreSQL the oracle tests of this package ask.
-func startPostgres(t *testing.T) *sql.DB {
-	t.Helper()
-	return startPostgresImage(t, "postgres:17-alpine")
-}
-
-// startPostgresImage starts PostgreSQL from the image, for the cases a
-// version decides.
-func startPostgresImage(t *testing.T, image string) *sql.DB {
-	t.Helper()
-	ctx := context.Background()
-	var container *tcpg.PostgresContainer
-	var setupErr error
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				setupErr = fmt.Errorf("docker provider panic: %v", r)
-			}
-		}()
-		var err error
-		container, err = tcpg.Run(ctx, image,
-			tcpg.WithDatabase("omni_review"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
-		if err != nil {
-			setupErr = fmt.Errorf("container start: %w", err)
-		}
-	}()
-	if setupErr != nil {
-		t.Fatalf("postgres oracle unavailable: %v", setupErr)
-	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
-
-	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("conn string: %v", err)
-	}
-	db, err := sql.Open("pgx", connStr)
-	if err != nil {
-		t.Fatalf("db open: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("ping: %v", err)
-	}
-	return db
 }

@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"unicode"
 
@@ -253,14 +254,20 @@ func runWalkCases(t *testing.T, db *sql.DB) {
 	t.Logf("found %d of the %d statements the server rejects", found, rejected)
 }
 
+var walkRolesSetup sync.Mutex
+
 // setupWalkRoles creates bob, a role the cases set, and walkOwner, who
 // then owns the database.
 func setupWalkRoles(t *testing.T, conn *sql.Conn) {
 	t.Helper()
+	// Sweep shards share a server and roles belong to it. A concurrent CREATE
+	// ROLE can fail on the catalog's unique index rather than as a duplicate.
+	walkRolesSetup.Lock()
+	defer walkRolesSetup.Unlock()
 	for _, q := range []string{
 		"DO $$ BEGIN CREATE ROLE bob; EXCEPTION WHEN duplicate_object THEN NULL; END $$",
 		"DO $$ BEGIN CREATE ROLE " + walkOwner + "; EXCEPTION WHEN duplicate_object THEN NULL; END $$",
-		"ALTER DATABASE omni_review OWNER TO " + walkOwner,
+		"DO $$ BEGIN EXECUTE format('ALTER DATABASE %I OWNER TO " + walkOwner + "', current_database()); END $$",
 	} {
 		if _, err := conn.ExecContext(context.Background(), q); err != nil {
 			t.Fatalf("%s: %v", q, err)
@@ -319,7 +326,7 @@ func TestWalkThroughSweep(t *testing.T) {
 	for shard := range shards {
 		t.Run(fmt.Sprintf("shard%d", shard), func(t *testing.T) {
 			t.Parallel()
-			db := startPostgresImage(t, image)
+			db := startPostgresDatabase(t, image, fmt.Sprintf("omni_review_shard%d", shard))
 			ctx := context.Background()
 			conn, err := db.Conn(ctx)
 			if err != nil {
@@ -935,7 +942,10 @@ func resetWalk(t *testing.T, conn *sql.Conn, base string) {
 func walkSync(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	t.Helper()
 	ctx := context.Background()
-	db := &metadata.DatabaseSchemaMetadata{Name: "omni_review"}
+	db := &metadata.DatabaseSchemaMetadata{}
+	if err := conn.QueryRowContext(ctx, "SELECT current_database()").Scan(&db.Name); err != nil {
+		t.Fatal(err)
+	}
 	if err := conn.QueryRowContext(ctx, "SHOW search_path").Scan(&db.SearchPath); err != nil {
 		t.Fatal(err)
 	}
