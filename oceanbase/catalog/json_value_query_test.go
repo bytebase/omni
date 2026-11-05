@@ -239,6 +239,10 @@ func TestStringLiteralKeepsItsKind(t *testing.T) {
 		"SELECT _latin1'001' AS x":        "select _latin1'001' as `x`",
 		"SELECT _latin1 X'303031' AS x":   "select _latin1'001' as `x`",
 		"SELECT _latin1 b'00110001' AS x": "select _latin1'1' as `x`",
+		"SELECT _latin1 X'5c' AS x":       "select _latin1'\\\\' as `x`",
+		"SELECT _latin1 X'5c6e' AS x":     "select _latin1'\\\\n' as `x`",
+		"SELECT 'a\\\\b' AS x":            "select 'a\\\\b' as `x`",
+		"SELECT 'it''s' AS x":             "select 'it\\'s' as `x`",
 		"SELECT 1 AS x":                   "select 1 as `x`",
 		"SELECT 1.5 AS x":                 "select 1.5 as `x`",
 	} {

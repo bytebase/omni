@@ -83,7 +83,14 @@ func writeConstExprQ(b *strings.Builder, c *ConstExprQ) {
 	}
 	b.WriteString(c.Introducer)
 	b.WriteString("'")
-	b.WriteString(strings.ReplaceAll(c.Value, "'", "''"))
+	if c.IsString {
+		// The value is decoded, so a backslash in it is a character and is written escaped,
+		// as the AST deparser writes one: X'5c6e' is the two characters \n, not a newline.
+		escaped := strings.ReplaceAll(c.Value, `\`, `\\`)
+		b.WriteString(strings.ReplaceAll(escaped, "'", `\'`))
+	} else {
+		b.WriteString(strings.ReplaceAll(c.Value, "'", "''"))
+	}
 	b.WriteString("'")
 }
 
