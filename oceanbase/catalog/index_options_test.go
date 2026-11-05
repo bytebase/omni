@@ -218,6 +218,21 @@ func TestStoringMigration(t *testing.T) {
 	}
 }
 
+// TestVectorIndexStoringMigration: a vector index has a renderer of its own, which carries the
+// stored columns too.
+func TestVectorIndexStoringMigration(t *testing.T) {
+	load := func(sql string) *Catalog {
+		c, _ := loadOneTable(t, "utf8mb4", sql, "t")
+		return c
+	}
+	bare := load("CREATE TABLE t (a INT, b INT, v VECTOR(3) NOT NULL)")
+	stored := load("CREATE TABLE t (a INT, b INT, v VECTOR(3) NOT NULL, VECTOR KEY k (v) WITH (distance=l2, type=hnsw) STORING (b))")
+	got := GenerateMigration(bare, stored, Diff(bare, stored)).SQL()
+	if !strings.Contains(got, "STORING (`b`)") {
+		t.Errorf("a new vector index planned as:\n%s", got)
+	}
+}
+
 // TestStoringKeepsAnIndexOutOfTheBackingSet: an index that stores columns is no index a foreign
 // key made for itself, however it is named, so the diff and the plan both see it.
 func TestStoringKeepsAnIndexOutOfTheBackingSet(t *testing.T) {
@@ -259,15 +274,18 @@ func TestStoringNamesDoNotRun(t *testing.T) {
 func TestOracle_OceanBaseStoringMigration(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
-	const bare = "CREATE TABLE t (a INT, b INT, c INT, KEY k (a))"
-	for _, target := range []struct{ id, create string }{
-		{"plain", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b))"},
-		{"two", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b, c))"},
-		{"comment", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) COMMENT 'x')"},
-		{"global", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) GLOBAL)"},
-		{"unique", "CREATE TABLE t (a INT, b INT, c INT, UNIQUE KEY k (a) STORING (b))"},
+	const plainTable = "CREATE TABLE t (a INT, b INT, c INT, KEY k (a))"
+	for _, target := range []struct{ id, bare, create string }{
+		{"plain", plainTable, "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b))"},
+		{"two", plainTable, "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b, c))"},
+		{"comment", plainTable, "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) COMMENT 'x')"},
+		{"global", plainTable, "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) GLOBAL)"},
+		{"unique", plainTable, "CREATE TABLE t (a INT, b INT, c INT, UNIQUE KEY k (a) STORING (b))"},
+		// No vector index: OceanBase 4.3.5.6 answers 1235 ("setting vector index storing column is
+		// not supported") for one with STORING, so TestVectorIndexStoringMigration holds that renderer.
 	} {
 		t.Run(target.id, func(t *testing.T) {
+			bare := target.bare
 			sc := serverCharsetFor(o.version)
 			from, _ := loadOneTable(t, sc, bare, "t")
 			to, _ := loadOneTable(t, sc, target.create, "t")

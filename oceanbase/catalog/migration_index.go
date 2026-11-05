@@ -177,6 +177,8 @@ func formatCreateVectorIndex(table string, idx *Index) string {
 	if len(idx.VectorParams) > 0 {
 		b.WriteString(" WITH (" + strings.Join(idx.VectorParams, ", ") + ")")
 	}
+	// The stored columns, so a changed set is applied (canonicalStoring).
+	b.WriteString(formatStoring(idx))
 	b.WriteString(formatIndexOptions(idx))
 	return b.String()
 }
