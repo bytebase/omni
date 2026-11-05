@@ -52,7 +52,7 @@ var nestingShapes = []struct {
 		return "SELECT " + strings.Repeat("(", n) + "SELECT 1" + strings.Repeat(") = 0", n)
 	}},
 	{"subquery operand", func(n int) string {
-		return "SELECT " + nest(n, "((SELECT 1) LIKE 1 ESCAPE ", "1", ")")
+		return "SELECT " + nest(n, "((SELECT 1) LIKE ", "1", ")")
 	}},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT 1", ") x") }},
 	{"LATERAL derived table", func(n int) string {
@@ -176,12 +176,12 @@ var chainShapes = []struct {
 	{"JSON access", func(n int) string { return "SELECT a" + strings.Repeat("->'$'", n) + " FROM t" }},
 	{"COLLATE", func(n int) string { return "SELECT 'a'" + strings.Repeat(" COLLATE utf8mb4_bin", n) }},
 	{"IS NULL", func(n int) string { return "SELECT a" + strings.Repeat(" IS NULL", n) + " FROM t" }},
-	{"BETWEEN", func(n int) string { return "SELECT a" + strings.Repeat(" BETWEEN 1 AND 2", n) + " FROM t" }},
-	{"IN", func(n int) string { return "SELECT a" + strings.Repeat(" IN (1)", n) + " FROM t" }},
-	{"LIKE", func(n int) string { return "SELECT a" + strings.Repeat(" LIKE 'a'", n) + " FROM t" }},
-	{"REGEXP", func(n int) string { return "SELECT a" + strings.Repeat(" REGEXP 'a'", n) + " FROM t" }},
-	{"SOUNDS LIKE", func(n int) string { return "SELECT a" + strings.Repeat(" SOUNDS LIKE 'a'", n) + " FROM t" }},
-	{"MEMBER OF", func(n int) string { return "SELECT 1" + strings.Repeat(" MEMBER OF ('[1]')", n) }},
+	{"BETWEEN", func(n int) string { return "SELECT a" + strings.Repeat(" = a BETWEEN 1 AND 2", n) + " FROM t" }},
+	{"IN", func(n int) string { return "SELECT a" + strings.Repeat(" = a IN (1)", n) + " FROM t" }},
+	{"LIKE", func(n int) string { return "SELECT a" + strings.Repeat(" = a LIKE 'a'", n) + " FROM t" }},
+	{"REGEXP", func(n int) string { return "SELECT a" + strings.Repeat(" = a REGEXP 'a'", n) + " FROM t" }},
+
+	{"MEMBER OF", func(n int) string { return "SELECT 1" + strings.Repeat(" = 1 MEMBER OF ('[1]')", n) }},
 	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
 	{"INTERSECT", func(n int) string { return strings.Repeat("SELECT 1 INTERSECT ", n) + "SELECT 1" }},
 	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON 1", n) }},

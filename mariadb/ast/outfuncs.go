@@ -307,8 +307,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeSetTransactionStmt(sb, n)
 	case *XAStmt:
 		writeXAStmt(sb, n)
-	case *MemberOfExpr:
-		writeMemberOfExpr(sb, n)
 	case *JsonTableExpr:
 		writeJsonTableExpr(sb, n)
 	case *JsonTableColumn:
@@ -3503,16 +3501,6 @@ func writeXAStmt(sb *strings.Builder, n *XAStmt) {
 	if n.Convert {
 		sb.WriteString(" :convert true")
 	}
-	sb.WriteString("}")
-}
-
-func writeMemberOfExpr(sb *strings.Builder, n *MemberOfExpr) {
-	sb.WriteString("{MEMBER_OF")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	sb.WriteString(" :value ")
-	writeNode(sb, n.Value)
-	sb.WriteString(" :array ")
-	writeNode(sb, n.Array)
 	sb.WriteString("}")
 }
 

@@ -56,6 +56,8 @@ const (
 	tokJsonExtract // ->
 	tokJsonUnquote // ->>
 	tokAt2         // @@ (system variable prefix)
+	tokOrOr        // || (logical OR outside PIPES_AS_CONCAT)
+	tokAndAnd      // && (logical AND)
 )
 
 // Keyword token constants. Values start at 700.
@@ -2327,6 +2329,12 @@ func (l *Lexer) nextToken() Token {
 		case ch == ':' && next == '=':
 			l.pos += 2
 			return Token{Type: tokAssign, Str: ":=", Loc: l.start}
+		case ch == '|' && next == '|':
+			l.pos += 2
+			return Token{Type: tokOrOr, Str: "||", Loc: l.start}
+		case ch == '&' && next == '&':
+			l.pos += 2
+			return Token{Type: tokAndAnd, Str: "&&", Loc: l.start}
 		case ch == '-' && next == '>':
 			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '>' {
 				l.pos += 3

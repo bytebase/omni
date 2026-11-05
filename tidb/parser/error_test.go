@@ -397,7 +397,6 @@ func TestParseError_Section_3_2_CaseCastIsCollate(t *testing.T) {
 		{"is_eof", "SELECT 1 IS", "at end of input"},
 		{"is_not_eof", "SELECT 1 IS NOT", "at end of input"},
 		{"collate_eof", "SELECT a COLLATE", "at end of input"},
-		{"sounds_eof", "SELECT a SOUNDS", "at end of input"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

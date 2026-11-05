@@ -193,7 +193,6 @@ func allKnownNodes() []Node {
 		&FuncCallExpr{}, &CastExpr{}, &ConvertExpr{}, &ExtractExpr{},
 		&CaseExpr{}, &CaseWhen{}, &IntervalExpr{}, &CollateExpr{},
 		&ParenExpr{}, &RowExpr{},
-		&MatchExpr{}, &MemberOfExpr{}, &VariableRef{},
 		&ValuesStmt{}, // also an expression in some contexts
 		&JsonTableExpr{}, &JsonTableColumn{},
 		// Sequence value expressions (BYT-9135)

@@ -1563,11 +1563,22 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 	return items, nil
 }
 
+// parseLimitValue reads one LIMIT or OFFSET value. It is no expression but an
+// integer literal (`LimitOption: LengthNum | paramMarker`, parser.y), so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR
+// 2`, `LIMIT 1 || 2`, `LIMIT @a`, `LIMIT a`, `LIMIT 0x10` and `LIMIT 1.5` are all
+// 1064.
+func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
+	if p.cur.Type == tokICONST {
+		return p.parsePrimaryExpr()
+	}
+	return nil, p.syntaxErrorAtCur()
+}
+
 // parseLimitClause parses LIMIT [offset,] count or LIMIT count OFFSET offset.
 func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 	start := p.pos()
 
-	count, err := p.parseExpr()
+	count, err := p.parseLimitValue()
 	if err != nil {
 		return nil, err
 	}
@@ -1583,7 +1594,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 	// LIMIT offset, count
 	if p.cur.Type == ',' {
 		p.advance()
-		count2, err := p.parseExpr()
+		count2, err := p.parseLimitValue()
 		if err != nil {
 			return nil, err
 		}
@@ -1597,7 +1608,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 
 	// LIMIT count OFFSET offset
 	if _, ok := p.match(kwOFFSET); ok {
-		offset, err := p.parseExpr()
+		offset, err := p.parseLimitValue()
 		if err != nil {
 			return nil, err
 		}

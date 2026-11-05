@@ -1877,7 +1877,7 @@ func (p *Parser) parsePartitionDef(requireValues bool) (*nodes.PartitionDef, err
 	}
 
 	// VALUES LESS THAN or VALUES IN
-	values, _, err := p.parsePartitionValues(false)
+	values, _, err := p.parsePartitionValues()
 	if err != nil {
 		return nil, err
 	}
@@ -1949,18 +1949,15 @@ const (
 // VALUES has always taken THAN after LESS, and the bound's closing parenthesis, as
 // optional here; strict, set for a subpartition, holds it to the grammar's LESS THAN
 // and (...), as OceanBase does (subpartitionCases).
-func (p *Parser) parsePartitionValues(strict bool) (nodes.Node, partitionValuesKind, error) {
+func (p *Parser) parsePartitionValues() (nodes.Node, partitionValuesKind, error) {
 	var values nodes.Node
 	kind := noPartitionValues
 	if _, ok := p.match(kwVALUES); ok {
 		if p.cur.Type == kwLESS {
 			kind = valuesLessThan
 			p.advance() // LESS
-			if strict && p.cur.Type != kwTHAN {
-				return nil, 0, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == kwTHAN {
-				p.advance() // THAN
+			if _, err := p.expect(kwTHAN); err != nil {
+				return nil, 0, err
 			}
 			if p.cur.Type == '(' {
 				p.advance()
@@ -1987,12 +1984,8 @@ func (p *Parser) parsePartitionValues(strict bool) (nodes.Node, partitionValuesK
 					}
 					p.advance()
 				}
-				if strict {
-					if _, err := p.expect(')'); err != nil {
-						return nil, 0, err
-					}
-				} else {
-					p.match(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, 0, err
 				}
 				if allMax && len(items) > 0 {
 					// All MAXVALUE — store as single string marker
@@ -2005,6 +1998,8 @@ func (p *Parser) parsePartitionValues(strict bool) (nodes.Node, partitionValuesK
 			} else if p.cur.Type == kwMAXVALUE {
 				values = &nodes.String{Str: "MAXVALUE"}
 				p.advance()
+			} else {
+				return nil, 0, p.syntaxErrorAtCur()
 			}
 		} else if _, ok := p.match(kwIN); ok {
 			kind = valuesIn
@@ -2049,14 +2044,12 @@ func (p *Parser) parsePartitionValues(strict bool) (nodes.Node, partitionValuesK
 					}
 					p.advance()
 				}
-				if strict {
-					if _, err := p.expect(')'); err != nil {
-						return nil, 0, err
-					}
-				} else {
-					p.match(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, 0, err
 				}
 				values = &nodes.List{Items: items}
+			} else {
+				return nil, 0, p.syntaxErrorAtCur()
 			}
 		} else {
 			// VALUES with neither LESS THAN nor IN after it is no bound: 4.3.5.6
@@ -2118,7 +2111,7 @@ func (p *Parser) parseSubPartitionDef(want partitionValuesKind, first bool) (*no
 		}
 		return nil, 0, p.syntaxErrorAtCur()
 	}
-	values, got, err := p.parsePartitionValues(true)
+	values, got, err := p.parsePartitionValues()
 	if err != nil {
 		return nil, 0, err
 	}

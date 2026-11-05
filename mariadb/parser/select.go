@@ -1659,11 +1659,42 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 	return items, nil
 }
 
+// parseLimitValue reads one LIMIT or OFFSET value. It is no expression: the
+// grammar's limit_option is an identifier, a parameter marker or an integer
+// literal, so `LIMIT 1 + 1`, `LIMIT (1)`, `LIMIT -1`, `LIMIT 1 OR 2`, `LIMIT 1 || 2`,
+// `LIMIT @a`, `LIMIT 0x10` and `LIMIT 1.5` are all 1064. The identifier is a stored
+// program's local variable, and parses anywhere (ER_SP_UNDECLARED_VAR comes later).
+func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
+	if p.cur.Type == tokICONST {
+		return p.parsePrimaryExpr()
+	}
+	if p.isIdentToken() && !p.isVariableRef() {
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		ref := &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Column: name}
+		// MariaDB's limit_option also takes `ident.ident`, a package variable.
+		if p.cur.Type == '.' {
+			p.advance()
+			column, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			ref.Table, ref.Column = name, column
+			ref.Loc.End = p.prev.End
+		}
+		return ref, nil
+	}
+	return nil, p.syntaxErrorAtCur()
+}
+
 // parseLimitClause parses LIMIT [offset,] count or LIMIT count OFFSET offset.
 func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 	start := p.pos()
 
-	count, err := p.parseExpr()
+	count, err := p.parseLimitValue()
 	if err != nil {
 		return nil, err
 	}
@@ -1679,7 +1710,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 	// LIMIT offset, count
 	if p.cur.Type == ',' {
 		p.advance()
-		count2, err := p.parseExpr()
+		count2, err := p.parseLimitValue()
 		if err != nil {
 			return nil, err
 		}
@@ -1693,7 +1724,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 
 	// LIMIT count OFFSET offset
 	if _, ok := p.match(kwOFFSET); ok {
-		offset, err := p.parseExpr()
+		offset, err := p.parseLimitValue()
 		if err != nil {
 			return nil, err
 		}

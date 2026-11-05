@@ -56,6 +56,13 @@ var nestingShapes = []struct {
 	{"EXISTS", func(n int) string { return nest(n, "SELECT EXISTS (", "SELECT 1", ")") }},
 	{"IN subquery", func(n int) string { return nest(n, "SELECT 1 IN (", "SELECT 1", ")") }},
 	{"quantified subquery", func(n int) string { return nest(n, "SELECT 1 = ANY (", "SELECT 1", ")") }},
+	// The right side of LIKE, REGEXP and SOUNDS LIKE takes a following NOT predicate, so
+	// these right-deep chains recurse with no parenthesis or subquery in sight.
+	{"NOT LIKE chain", func(n int) string { return "SELECT 1 LIKE 1" + strings.Repeat(" NOT LIKE 1", n) }},
+	{"NOT REGEXP chain", func(n int) string { return "SELECT 1 REGEXP 1" + strings.Repeat(" NOT REGEXP 1", n) }},
+	{"SOUNDS LIKE into NOT LIKE chain", func(n int) string {
+		return "SELECT 1 SOUNDS LIKE 1" + strings.Repeat(" NOT LIKE 1", n)
+	}},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT 1", ") x") }},
 	{"LATERAL derived table", func(n int) string {
 		return nest(n, "SELECT * FROM t, LATERAL (", "SELECT 1", ") x")
@@ -179,12 +186,11 @@ var chainShapes = []struct {
 	{"JSON access", func(n int) string { return "SELECT a" + strings.Repeat("->'$'", n) + " FROM t" }},
 	{"COLLATE", func(n int) string { return "SELECT 'a'" + strings.Repeat(" COLLATE utf8mb4_bin", n) }},
 	{"IS NULL", func(n int) string { return "SELECT a" + strings.Repeat(" IS NULL", n) + " FROM t" }},
-	{"BETWEEN", func(n int) string { return "SELECT a" + strings.Repeat(" BETWEEN 1 AND 2", n) + " FROM t" }},
+	{"BETWEEN", func(n int) string { return "SELECT a" + strings.Repeat(" = a BETWEEN 1 AND 2", n) + " FROM t" }},
 	{"IN", func(n int) string { return "SELECT a" + strings.Repeat(" IN (1)", n) + " FROM t" }},
 	{"LIKE", func(n int) string { return "SELECT a" + strings.Repeat(" LIKE 'a'", n) + " FROM t" }},
 	{"REGEXP", func(n int) string { return "SELECT a" + strings.Repeat(" REGEXP 'a'", n) + " FROM t" }},
 	{"SOUNDS LIKE", func(n int) string { return "SELECT a" + strings.Repeat(" SOUNDS LIKE 'a'", n) + " FROM t" }},
-	{"MEMBER OF", func(n int) string { return "SELECT 1" + strings.Repeat(" MEMBER OF ('[1]')", n) }},
 	{"quantified comparisons", func(n int) string { return "SELECT 1" + strings.Repeat(" = ANY (SELECT 1)", n) }},
 	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
 	{"INTERSECT", func(n int) string { return strings.Repeat("SELECT 1 INTERSECT ", n) + "SELECT 1" }},

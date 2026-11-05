@@ -874,6 +874,10 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		// MySQL 8.0 auto-alias for subquery: "(SELECT MAX(a) FROM t)" — uppercase keywords,
 		// unqualified column names, no backtick quoting, no column aliases.
 		if n.Select != nil {
+			if n.Quantifier != "" {
+				b.WriteString(n.Quantifier)
+				b.WriteString(" ")
+			}
 			b.WriteString("(")
 			writeSelectStmtAlias(b, n.Select)
 			b.WriteString(")")
@@ -1359,7 +1363,72 @@ func deparseBitLit(n *ast.BitLit) string {
 	return "0x" + fmt.Sprintf("%02x", i)
 }
 
+// An IN over a subquery prints with no parentheses of its own, and the grammar reads it
+// as a predicate, not a bit_expr: `(a IN (q)) + 1` printed bare is a syntax error.
+// writeBitOperand writes an operand the grammar reads as a bit_expr. A quantified
+// comparison needs nothing here, since writeQuantifiedComparison parenthesizes it.
+func writeBitOperand(b *strings.Builder, node ast.ExprNode) {
+	inner := node
+	for {
+		if p, ok := inner.(*ast.ParenExpr); ok {
+			inner = p.Expr
+			continue
+		}
+		if u, ok := inner.(*ast.UnaryExpr); ok && u.Op == ast.UnaryPlus {
+			inner = u.Operand
+			continue
+		}
+		break
+	}
+	if in, ok := inner.(*ast.InExpr); !ok || in.Select == nil {
+		writeExpr(b, node)
+		return
+	}
+	b.WriteString("(")
+	writeExpr(b, node)
+	b.WriteString(")")
+}
+
+// isLogicalOrComparison reports whether op's operands may stand bare: the grammar reads
+// the left side of a comparison as a boolean primary and its right side as a predicate.
+func isLogicalOrComparison(op ast.BinaryOp) bool {
+	switch op {
+	case ast.BinOpAnd, ast.BinOpOr, ast.BinOpXor, ast.BinOpEq, ast.BinOpNe, ast.BinOpLt,
+		ast.BinOpGt, ast.BinOpLe, ast.BinOpGe, ast.BinOpNullSafeEq:
+		return true
+	}
+	return false
+}
+
+// writeQuantifiedComparison formats `expr op {ANY|SOME|ALL} (subquery)`. The
+// quantifier is the meaning of the comparison, so dropping it would turn `a > ALL
+// (q)` into a scalar comparison against q.
+//
+// TiDB v8.5.5 keeps the operator and stores SOME as ANY, so `a = ANY (q)` stays as it is
+// rather than becoming MySQL's `a in (q)`. The rest of this package's output is in
+// MySQL's shape, which is why the parentheses are too.
+func writeQuantifiedComparison(b *strings.Builder, n *ast.BinaryExpr, sub *ast.SubqueryExpr) {
+	word := "any"
+	if sub.Quantifier == "ALL" {
+		word = "all"
+	}
+	b.WriteString("(")
+	writeExpr(b, n.Left)
+	b.WriteString(" ")
+	b.WriteString(binaryOpToString(n.Op))
+	b.WriteString(" ")
+	b.WriteString(word)
+	b.WriteString(" (")
+	writeSelectStmt(b, sub.Select, true)
+	b.WriteString("))")
+}
+
 func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
+	if sub, ok := n.Right.(*ast.SubqueryExpr); ok && sub.Quantifier != "" && sub.Select != nil {
+		writeQuantifiedComparison(b, n, sub)
+		return
+	}
+
 	// Operator-to-function rewrites:
 	// REGEXP → regexp_like(left, right)
 	// -> → json_extract(left, right)
@@ -1391,12 +1460,16 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 			left, right = right, left
 		}
 	}
+	write := writeBitOperand
+	if isLogicalOrComparison(n.Op) {
+		write = writeExpr
+	}
 	b.WriteString("(")
-	writeExpr(b, left)
+	write(b, left)
 	b.WriteString(" ")
 	b.WriteString(binaryOpToString(n.Op))
 	b.WriteString(" ")
-	writeExpr(b, right)
+	write(b, right)
 	b.WriteString(")")
 }
 
@@ -1561,7 +1634,7 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 	// MySQL 8.0 does NOT wrap IN subquery in outer parens (unlike IN value list).
 	// MySQL 8.0 also omits AS aliases in the subquery's target list.
 	if n.Select != nil {
-		writeExpr(b, n.Expr)
+		writeBitOperand(b, n.Expr)
 		b.WriteString(keyword)
 		writeSelectStmt(b, n.Select, true)
 		b.WriteString(")")
@@ -1570,7 +1643,7 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 
 	// Build the value list with no spaces after commas
 	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeBitOperand(b, n.Expr)
 	b.WriteString(keyword)
 	for i, item := range n.List {
 		if i > 0 {
@@ -1583,15 +1656,15 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 
 func writeBetweenExpr(b *strings.Builder, n *ast.BetweenExpr) {
 	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeBitOperand(b, n.Expr)
 	if n.Not {
 		b.WriteString(" not between ")
 	} else {
 		b.WriteString(" between ")
 	}
-	writeExpr(b, n.Low)
+	writeBitOperand(b, n.Low)
 	b.WriteString(" and ")
-	writeExpr(b, n.High)
+	writeBitOperand(b, n.High)
 	b.WriteString(")")
 }
 
@@ -1600,12 +1673,12 @@ func writeLikeExpr(b *strings.Builder, n *ast.LikeExpr) {
 		b.WriteString("(not(")
 	}
 	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeBitOperand(b, n.Expr)
 	b.WriteString(" like ")
-	writeExpr(b, n.Pattern)
+	writeBitOperand(b, n.Pattern)
 	if n.Escape != nil {
 		b.WriteString(" escape ")
-		writeExpr(b, n.Escape)
+		writeBitOperand(b, n.Escape)
 	}
 	b.WriteString(")")
 	if n.Not {
@@ -1805,7 +1878,7 @@ func writeIntervalExpr(b *strings.Builder, n *ast.IntervalExpr) {
 
 func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
 	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeBitOperand(b, n.Expr)
 	b.WriteString(" collate ")
 	b.WriteString(n.Collation)
 	b.WriteString(")")
