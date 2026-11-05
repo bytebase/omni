@@ -50,8 +50,12 @@ var sourceClauseCases = []struct {
 	{"WITH c AS (TABLE t ORDER BY a LIMIT 1) SELECT * FROM c", []string{
 		"SelectStmt over TABLE t: order 1, limit",
 	}},
-	{"CREATE TABLE n AS TABLE t ORDER BY a LIMIT 1", []string{
-		"SelectStmt over TABLE t: order 1, limit",
+	// CREATE TABLE takes no TABLE query on OceanBase either (CREATE TABLE n
+	// AS TABLE t is a 1064 on 5.7.25-OceanBase_CE-v4.3.5.6,
+	// statement_separator_forms_test.go), so its context is covered with a
+	// VALUES source.
+	{"CREATE TABLE n AS VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1", []string{
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1, limit",
 	}},
 	// The ORDER BY and LIMIT after the last operand of a set operation apply
 	// to the whole operation.

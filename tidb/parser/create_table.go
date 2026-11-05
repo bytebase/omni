@@ -93,22 +93,12 @@ func (p *Parser) parseCreateTableStmt(start int, temporary, global bool) (*nodes
 	// Parenthesized create definitions (columns and constraints)
 	if p.cur.Type == '(' {
 		next := p.peekNext()
-		// Check for CREATE TABLE ... (SELECT ...) — subquery without AS
-		if next.Type == kwSELECT {
-			// CREATE TABLE t (SELECT ...)
-			p.advance() // consume '('
-			sel, err := p.parseSelectStmt()
-			if err != nil {
-				return nil, err
-			}
-			p.match(')')
-			stmt.Select = sel
-			if err := p.parseOnCommit(stmt); err != nil {
-				return nil, err
-			}
-			stmt.Loc.End = p.prev.End
-			return stmt, nil
-		}
+		// A '(' right after the table name opens the column list and never a
+		// query: TiDB v8.5.5 parser.y:4525 (CreateTableStmt) reads
+		// TableElementListOpt there, so "CREATE TABLE t (SELECT 1)" is 1064 while
+		// "CREATE TABLE t (a INT) (SELECT 1)" and "CREATE TABLE t AS (SELECT 1)"
+		// parse.
+		//
 		// Check for CREATE TABLE ... (LIKE old_tbl_name) — parenthesized LIKE
 		if next.Type == kwLIKE {
 			p.advance() // consume '('
@@ -152,17 +142,22 @@ func (p *Parser) parseCreateTableStmt(start int, temporary, global bool) (*nodes
 		return stmt, nil
 	}
 
-	// Table options
+	// Table options. A comma may stand between two of them and never ends the
+	// list (TableOptionList in TiDB v8.5.5 parser.y:12811), so a comma with no
+	// option after it is a syntax error rather than the end of the options:
+	// "ENGINE=InnoDB, (SELECT 1)" is 1064.
 	for {
 		opt, ok, err := p.parseTableOption()
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
+			if len(stmt.Options) > 0 && p.prev.Type == ',' {
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
-		// Optional comma between table options
 		p.match(',')
 	}
 
@@ -184,7 +179,11 @@ func (p *Parser) parseCreateTableStmt(start int, temporary, global bool) (*nodes
 		stmt.Replace = true
 	}
 
-	// [AS] SELECT ... — bare SELECT or AS SELECT after options/partitions
+	// [AS] query after the columns, options and partitioning: AsOpt
+	// CreateTableSelectOpt in TiDB v8.5.5 parser.y:4525 (CreateTableStmt), see
+	// isCreateQueryStart. Reading only SELECT here used to end the statement in
+	// front of "TABLE u" or "(SELECT 1)", which then parsed as a second
+	// statement.
 	if p.cur.Type == kwAS {
 		p.advance()
 		sel, err := p.parseSelectStmt()
@@ -192,7 +191,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary, global bool) (*nodes
 			return nil, err
 		}
 		stmt.Select = sel
-	} else if p.cur.Type == kwSELECT {
+	} else if p.isCreateQueryStart() {
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
@@ -205,6 +204,18 @@ func (p *Parser) parseCreateTableStmt(start int, temporary, global bool) (*nodes
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// isCreateQueryStart reports whether the current token opens the query of
+// CREATE TABLE ... [AS] query after the column list, the table options or the
+// partitioning: CreateTableSelectOpt in TiDB v8.5.5 parser.y:5031, which is a
+// SELECT, a WITH query, TABLE, VALUES, or a parenthesized query (SubSelect).
+func (p *Parser) isCreateQueryStart() bool {
+	switch p.cur.Type {
+	case kwSELECT, kwWITH, kwTABLE, kwVALUES, '(':
+		return true
+	}
+	return false
 }
 
 // parseOnCommit reads the ON COMMIT clause a GLOBAL TEMPORARY table ends with,

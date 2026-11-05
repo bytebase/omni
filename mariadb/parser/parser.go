@@ -121,6 +121,18 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			return nil, p.enrichError(nestedTooDeeply(stmtStart))
 		}
 		stmts = append(stmts, stmt)
+		// A statement ends at a ';' or at the end of the text. Any other token
+		// here starts a second statement with no separator in front of it,
+		// which the server refuses with 1064.
+		//
+		// Ref: query in MariaDB 11.8 sql/sql_yacc.yy, which follows
+		// directly_executable_statement with ';' or END_OF_INPUT and nothing else.
+		if p.cur.Type != ';' && p.cur.Type != tokEOF {
+			if lexErr := p.lexerError(); lexErr != nil {
+				return nil, p.enrichError(lexErr)
+			}
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	// A malformed token that ran to EOF without its closing delimiter is recorded

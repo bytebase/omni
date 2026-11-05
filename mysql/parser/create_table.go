@@ -83,10 +83,12 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	// Parenthesized create definitions (columns and constraints)
 	if p.cur.Type == '(' {
 		next := p.peekNext()
-		// Check for CREATE TABLE ... (query) — query source without AS. Let
-		// parseSelectStmt consume the parentheses and any following set-op /
-		// ORDER BY / LIMIT so "(SELECT 1) UNION (SELECT 2)" stays one source.
-		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' {
+		// Check for CREATE TABLE ... (query) — query source without AS: a
+		// parenthesized query expression, whichever query primary it opens
+		// with (SELECT, WITH, TABLE or VALUES). Let parseSelectStmt consume the
+		// parentheses and any following set-op / ORDER BY / LIMIT so
+		// "(SELECT 1) UNION (SELECT 2)" stays one source.
+		if p.isQueryExpressionStart() {
 			sel, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
@@ -132,17 +134,22 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 		return stmt, nil
 	}
 
-	// Table options
+	// Table options. A comma may stand between two of them and never ends the
+	// list (create_table_options in MySQL 8.0 sql/sql_yacc.yy), so a comma
+	// with no option after it is a syntax error rather than the end of the
+	// options: "ENGINE=InnoDB, (SELECT 1)" is 1064.
 	for {
 		opt, ok, err := p.parseTableOption()
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
+			if len(stmt.Options) > 0 && p.prev.Type == ',' {
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
-		// Optional comma between table options
 		p.match(',')
 	}
 
@@ -164,20 +171,29 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 		stmt.Replace = true
 	}
 
-	// [AS] SELECT ... — bare SELECT or AS SELECT after options/partitions
-	if p.cur.Type == kwAS {
+	// [AS] query_expression after the columns, options and partitioning:
+	// as_create_query_expression in MySQL 8.0 sql/sql_yacc.yy, which takes any
+	// query expression with or without AS -- SELECT, WITH, TABLE, VALUES or a
+	// parenthesized query -- and which IGNORE or REPLACE must be followed by
+	// (opt_duplicate_as_qe). Reading only SELECT here used to end the statement
+	// in front of "TABLE u" or "(SELECT 1)", which then parsed as a second
+	// statement.
+	switch {
+	case p.cur.Type == kwAS:
 		p.advance()
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
-	} else if p.cur.Type == kwSELECT {
+	case p.isQueryExpressionStart():
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
+	case stmt.Ignore || stmt.Replace:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
