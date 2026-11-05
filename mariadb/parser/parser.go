@@ -34,6 +34,8 @@ type Parser struct {
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 
+	noBareDefault bool // inside an expression that takes DEFAULT(col) but no bare DEFAULT
+
 	// valuesIsFunction is set while parsing the expressions in which MariaDB
 	// reads VALUES as the VALUES(col) function rather than a table value
 	// constructor: the assignments of ON DUPLICATE KEY UPDATE and the

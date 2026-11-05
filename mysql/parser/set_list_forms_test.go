@@ -18,10 +18,8 @@ import (
 // A word running into a dot and a name is a name in every statement, whatever the word, so `SELECT
 // select.a FROM t` names a column. See beforeDotName.
 //
-// Not in this table, because omni still disagrees and each is its own change. A bare DEFAULT inside an expression, as in `SET a = 1 + DEFAULT`,
-// `SET a = (DEFAULT)` and `SELECT DEFAULT`, because parseExpr reads it everywhere. `SET a = DEFAULT` for a
-// procedure's local variable and for NEW.a in a trigger, refused in an action that sees the routine.
-// `SET @'a' = 1`. `SET a.1 = 1`, where the lexer reads .1 as a number. `SET PASSWORD = PASSWORD('x')`,
+// Not in this table, because omni still disagrees and each is its own change. `SELECT DEFAULT`, because parseExpr reads it everywhere but SET. `SET a = DEFAULT` for a
+// procedure's local variable and for NEW.a in a trigger, refused in an action that sees the routine. `SET a.1 = 1`, where the lexer reads .1 as a number. `SET PASSWORD = PASSWORD('x')`,
 // which omni accepts.
 
 // TestSetListForms holds omni to the recorded verdicts without a server, so a run with no Docker

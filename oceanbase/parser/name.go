@@ -941,6 +941,14 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 	}
 
 	// User variable: @name (lexer emits as tokIDENT with "@" prefix)
+	if p.atQuotedUserVar() {
+		at := p.advance()
+		name := p.advance()
+		return &nodes.VariableRef{
+			Loc:  nodes.Loc{Start: at.Loc, End: name.End},
+			Name: name.Str,
+		}, nil
+	}
 	if p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' {
 		tok := p.cur
 		p.advance()
@@ -994,6 +1002,31 @@ func (p *Parser) isLabelIdentToken() bool {
 // Excludes ambiguous_4 keywords (GLOBAL, SESSION, LOCAL).
 func (p *Parser) isLvalueIdentToken() bool {
 	return p.cur.Type == tokIDENT || (p.cur.Type >= 700 && isLvalueKeyword(p.cur.Type))
+}
+
+// atQuotedUserVar reports whether p.cur starts @'name' or @"name". The lexer gives the @ alone,
+// since 'user'@'host' takes the same text: a string directly after it is the name, and a
+// space makes it something else.
+//
+// user_variable (sql_parser_mysql_mode.l:68) spells a quoted name from a short list of bytes,
+// so `@'a b'` is a 1064 here where MySQL and MariaDB read it.
+func (p *Parser) atQuotedUserVar() bool {
+	if p.cur.Type != tokIDENT || p.cur.Str != "@" {
+		return false
+	}
+	next := p.peekNext()
+	if next.Type != tokSCONST || next.Loc != p.cur.End {
+		return false
+	}
+	for _, b := range []byte(p.inputText(next.Loc, next.End)) {
+		switch {
+		case b >= 'a' && b <= 'z', b >= 'A' && b <= 'Z', b >= '0' && b <= '9', b >= 0x80:
+		case b == '_', b == '.', b == '$', b == '/', b == '%', b == '\'', b == '"', b == '`':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // isVariableRef returns true if the current token is a variable reference.

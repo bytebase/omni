@@ -18,8 +18,7 @@ import (
 // A word running into a dot and a name is a name in every statement, whatever the word, so `SELECT
 // select.a FROM t` names a column. See beforeDotName.
 //
-// Not in this table, because omni still disagrees and each is its own change. A bare DEFAULT inside an expression, as in `SET a = 1 + DEFAULT`,
-// `SET a = (DEFAULT)` and `SELECT DEFAULT`, because parseExpr reads it everywhere. `SET @'a' = 1`. `SET a.1 =
+// Not in this table, because omni still disagrees and each is its own change. `SELECT DEFAULT`, because parseExpr reads it everywhere but SET. `SET a.1 =
 // 1`, where the lexer reads .1 as a number. SYSTEM as a name, as in `SET a = SYSTEM + 1`, which belongs to
 // setVariableNameGap. `SET STATEMENT ... FOR ...`, `SET PASSWORD = OLD_PASSWORD('x')`, `a VECTOR(3)` and
 // `CREATE TABLE t (a.b INT)`, which omni does not read. `RESET PERSIST`, which it accepts.
