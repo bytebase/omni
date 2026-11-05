@@ -16,10 +16,8 @@ import "testing"
 // them in an action for an unknown variable and stops there, as `SET TRANSACTION = 1 2`
 // shows, so the answer says nothing of the text after it. TRANSACTION is unreserved upstream,
 // so `SET TRANSACTION = 1`, `SET SESSION TRANSACTION = 1` and `SET transaction.a = 1` all
-// reach that action, and omni refuses them; each is an error on the server either way. Nor
-// is `SET STATEMENT a = 1 FOR SET TRANSACTION READ ONLY`, which parses where omni refuses
-// every SET STATEMENT, or `SET PERSIST sql_mode = ''`, a 1064 omni accepts, because this
-// change is about the TRANSACTION form alone.
+// reach that action; setNamesScopesCases holds them. Nor is `SET STATEMENT a = 1 FOR SET
+// TRANSACTION READ ONLY`, which parses where omni refuses every SET STATEMENT.
 
 // TestSetTransactionForms holds omni to the recorded verdicts without a server, so a run
 // with no Docker still reports a widened or narrowed grammar.

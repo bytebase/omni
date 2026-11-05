@@ -181,17 +181,19 @@ func TestWalkThroughMySQLSession(t *testing.T) {
 	const missing = "Referenced table `nosuch` doesn't exist."
 	oneFinding(t, "SET GLOBAL foreign_key_checks = 0;\n"+fk, 1, missing, on)
 	oneFinding(t, "SET @@global.foreign_key_checks = 0;\n"+fk, 1, missing, on)
-	oneFinding(t, "SET PERSIST foreign_key_checks = 0;\n"+fk, 1, missing, on)
-	oneFinding(t, "SET PERSIST_ONLY foreign_key_checks = 0;\n"+fk, 1, missing, on)
 	noFinding(t, "SET GLOBAL foreign_key_checks = 1;\n"+fk, shop)
 	oneFinding(t, "SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0;\n"+fk, 1, missing, on)
 	oneFinding(t, "SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 1, foreign_key_checks = 0;\n"+fk, 1, missing, shop)
 	noFinding(t, "SET GLOBAL sql_mode = DEFAULT, @@session.foreign_key_checks = 0;\n"+fk, on)
 	noFinding(t, "SET GLOBAL sql_mode = DEFAULT, @@foreign_key_checks = 0;\n"+fk, on)
-	noFinding(t, "SET PERSIST sql_mode = DEFAULT, @@local.foreign_key_checks = 0;\n"+fk, on)
 	noFinding(t, "SET @@global.foreign_key_checks = 1, foreign_key_checks = 0;\n"+fk, on)
 	noFinding(t, "SET SESSION foreign_key_checks = 0;\n"+fk, on)
-	noFinding(t, "SET LOCAL foreign_key_checks = 0;\n"+fk, on)
+	// A later assignment writes its own scope, and on MySQL the most recent scope reaches
+	// one that writes none.
+	oneFinding(t, "SET @a = 1, GLOBAL foreign_key_checks = 0;\n"+fk, 1, missing, on)
+	noFinding(t, "SET GLOBAL sql_mode = DEFAULT, SESSION foreign_key_checks = 0;\n"+fk, on)
+	oneFinding(t, "SET SESSION sql_mode = DEFAULT, GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0;\n"+fk, 1, missing, on)
+	noFinding(t, "SET GLOBAL sql_mode = DEFAULT, SESSION sql_mode = DEFAULT, foreign_key_checks = 0;\n"+fk, on)
 	// With another spec of the plan, only the change's own facts count.
 	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a int);", other)

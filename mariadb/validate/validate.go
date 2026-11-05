@@ -111,11 +111,15 @@ func (v *validator) walk(n nodes.Node) {
 }
 
 // walkSetStmt walks each assignment in a SET statement. An explicit-scope
-// SET (GLOBAL/SESSION/LOCAL) targets system variables; skip the local-var
-// lookup entirely in that case.
+// assignment targets a system variable, and so does one after it that writes
+// no scope, the most recent scope applying; skip the local-var lookup in that
+// case.
 func (v *validator) walkSetStmt(s *nodes.SetStmt) {
-	systemScope := s.Scope != ""
+	systemScope := false
 	for _, a := range s.Assignments {
+		if a.Scope != "" {
+			systemScope = true
+		}
 		v.walkAssignment(a, systemScope)
 	}
 }

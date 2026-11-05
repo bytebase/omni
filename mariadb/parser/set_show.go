@@ -8,16 +8,22 @@ import (
 
 // parseSetStmt parses a SET statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/set-variable.html
+// Ref: option_value, option_type, option_value_following_option_type and
+// option_value_no_option_type in MariaDB 11.8.8 sql/sql_yacc.yy (lines 17128, 17137, 17206,
+// 17250).
 //
-//	SET variable = expr [, variable = expr] ...
-//	variable: { user_var_name | param_name | local_var_name
-//	    | {GLOBAL | @@GLOBAL.} system_var_name
-//	    | {PERSIST | @@PERSIST.} system_var_name
-//	    | {PERSIST_ONLY | @@PERSIST_ONLY.} system_var_name
-//	    | [SESSION | @@SESSION. | @@] system_var_name }
+//	SET assignment [, assignment] ...
+//	assignment: { [GLOBAL | SESSION | LOCAL] name {= | :=} expr
+//	    | @@[scope.]name {= | :=} expr
+//	    | @user_var {= | :=} expr }
+//	name: ident [. ident] | DEFAULT . ident
 //	SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
 //	SET {CHARACTER SET | CHARSET} {charset_name | DEFAULT}
+//
+// Every assignment may write a scope, and a scope names the system variable after it, so
+// `SET SESSION @a = 1` is a 1064. PERSIST and PERSIST_ONLY are no scopes here: they read as
+// ordinary names, so `SET PERSIST a = 1` is a 1064. The words that start a form below are
+// also variable names; see nextEndsVariableName.
 func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume SET
@@ -34,9 +40,12 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	stmt := &nodes.SetStmt{Loc: nodes.Loc{Start: start}}
 
+	// Whether the first word names a variable, whichever form it could start.
+	named := p.nextEndsVariableName()
+
 	// Check for NAMES special form
 	// SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
-	if p.cur.Type == kwNAMES {
+	if p.cur.Type == kwNAMES && !named {
 		p.advance() // consume NAMES
 
 		// Completion: after SET NAMES, offer charset candidates.
@@ -82,7 +91,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	// Check for CHARACTER SET / CHARSET special form
 	// SET {CHARACTER SET | CHARSET} {charset_name | DEFAULT}
-	if p.cur.Type == kwCHARACTER || p.cur.Type == kwCHARSET {
+	if (p.cur.Type == kwCHARACTER || p.cur.Type == kwCHARSET) && !named {
 		isCharset := p.cur.Type == kwCHARSET
 		p.advance() // consume CHARACTER or CHARSET
 		if isCharset || p.cur.Type == kwSET {
@@ -120,7 +129,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	}
 
 	// Check for SET DEFAULT ROLE
-	if p.cur.Type == kwDEFAULT {
+	if p.cur.Type == kwDEFAULT && !named {
 		p.advance() // consume DEFAULT
 		if p.cur.Type == kwROLE {
 			p.advance() // consume ROLE
@@ -130,35 +139,21 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	}
 
 	// Check for SET ROLE
-	if p.cur.Type == kwROLE {
+	if p.cur.Type == kwROLE && !named {
 		p.advance() // consume ROLE
 		return p.parseSetRoleStmt(start)
 	}
 
 	// Check for SET PASSWORD
-	if p.cur.Type == kwPASSWORD {
+	if p.cur.Type == kwPASSWORD && !named {
 		return p.parseSetPasswordStmt(start)
 	}
 
-	// Check for GLOBAL / SESSION / LOCAL / PERSIST / PERSIST_ONLY scope
+	// The scope the first assignment writes, or SET TRANSACTION's.
+	assignStart := p.pos()
 	scope := ""
-	switch p.cur.Type {
-	case kwGLOBAL:
-		scope = "GLOBAL"
-		p.advance()
-	case kwSESSION:
-		scope = "SESSION"
-		p.advance()
-	case kwLOCAL:
-		scope = "LOCAL"
-		p.advance()
-	case kwPERSIST:
-		scope = "PERSIST"
-		p.advance()
-	case kwPERSIST_ONLY:
-		scope = "PERSIST_ONLY"
-		p.advance()
-	default:
+	if !named {
+		scope = p.parseSetScope()
 	}
 
 	// Completion: after SET GLOBAL/SESSION, offer variable candidates.
@@ -171,19 +166,17 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	}
 
 	// SET [GLOBAL|SESSION|LOCAL] TRANSACTION ... option_type has no PERSIST or PERSIST_ONLY
-	// (sql_yacc.yy:17137), so `SET PERSIST TRANSACTION READ ONLY` is a 1064.
-	if p.cur.Type == kwTRANSACTION {
-		if scope == "PERSIST" || scope == "PERSIST_ONLY" {
-			return nil, p.syntaxErrorAtCur()
-		}
+	// (sql_yacc.yy:17137), which read as names, so `SET PERSIST TRANSACTION READ ONLY` is a
+	// 1064. TRANSACTION is also a name when `=`, `:=` or `.` follows.
+	if p.cur.Type == kwTRANSACTION && !p.nextEndsVariableName() {
 		return p.parseSetTransactionStmt(start, scope)
 	}
 
 	stmt.Scope = scope
 
-	// Parse assignment list.
+	// Parse assignment list. Each assignment writes its own scope.
 	for {
-		asgn, err := p.parseSetAssignment()
+		asgn, err := p.parseSetVariableAssignment(assignStart, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -193,6 +186,27 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 			break
 		}
 		p.advance() // consume ','
+
+		// Completion: where an assignment starts, offer its scope words and variables.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwGLOBAL)
+			p.addTokenCandidate(kwSESSION)
+			p.addRuleCandidate("variable")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		assignStart = p.pos()
+		scope = ""
+		if !p.nextEndsVariableName() {
+			scope = p.parseSetScope()
+		}
+		if scope != "" {
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("variable")
+				return nil, &ParseError{Message: "collecting"}
+			}
+		}
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -282,7 +296,168 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	return stmt, nil
 }
 
-// parseSetAssignment parses a single SET assignment: var = expr.
+// nextEndsVariableName reports whether the word at p.cur is a variable's name rather than
+// the keyword of a SET form. MariaDB's ident takes the scope words, ROLE, CHARSET and
+// TRANSACTION, so `=` or `:=` after one ends a name; NAMES and PASSWORD have forms of their
+// own that take `=`. The lexer reads any word directly before a dot as an identifier.
+//
+// A next token at or past the completion cursor is text the user has not reached, so
+// `SET TRANSACTION <cursor> = 1` still offers what follows the keyword.
+func (p *Parser) nextEndsVariableName() bool {
+	next := p.peekNext()
+	if p.completing && next.Loc >= p.cursorOff {
+		return false
+	}
+	switch p.cur.Type {
+	case kwGLOBAL, kwSESSION, kwLOCAL, kwPERSIST, kwPERSIST_ONLY, kwROLE, kwCHARSET, kwTRANSACTION:
+		if next.Type == '=' || next.Type == tokAssign {
+			return true
+		}
+	}
+	if next.Type != '.' {
+		return false
+	}
+	// With a space before the dot the word is still a keyword: DEFAULT has its own rule,
+	// and ident takes the unreserved words but ROLE.
+	return p.wordBeforeDot() || p.cur.Type == kwDEFAULT || (p.cur.Type >= 700 && !isReserved(p.cur.Type) && p.cur.Type != kwROLE)
+}
+
+// wordBeforeDot reports whether p.cur is a word the lexer would read as an identifier
+// because a dot follows it directly.
+func (p *Parser) wordBeforeDot() bool {
+	next := p.peekNext()
+	return p.cur.Type >= 700 && next.Type == '.' && next.Loc == p.cur.End
+}
+
+// parseSetScope consumes the scope word at p.cur, if there is one.
+func (p *Parser) parseSetScope() string {
+	scope := ""
+	switch p.cur.Type {
+	case kwGLOBAL:
+		scope = "GLOBAL"
+	case kwSESSION:
+		scope = "SESSION"
+	case kwLOCAL:
+		scope = "LOCAL"
+	default:
+		return ""
+	}
+	p.advance()
+	return scope
+}
+
+// parseSetVariableAssignment parses one assignment of a SET statement, after the scope it
+// wrote, if any. start is where the assignment began.
+func (p *Parser) parseSetVariableAssignment(start int, scope string) (*nodes.Assignment, error) {
+	var col *nodes.ColumnRef
+
+	if p.isVariableRef() {
+		// A scope names the system variable after it, never a variable reference.
+		if scope != "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// @@ takes a scope word only before a dot.
+		atScope := false
+		if p.cur.Type == tokAt2 {
+			switch p.peekNext().Type {
+			case kwGLOBAL, kwSESSION, kwLOCAL:
+				atScope = true
+			}
+		}
+		vref, err := p.parseVariableRef()
+		if err != nil {
+			return nil, err
+		}
+		if atScope && vref.Scope == "" {
+			return nil, &ParseError{Message: "unexpected scope", Position: vref.Loc.Start}
+		}
+		prefix := "@"
+		if vref.System {
+			prefix = "@@"
+			if vref.Scope != "" {
+				prefix = "@@" + vref.Scope + "."
+			}
+		}
+		col = &nodes.ColumnRef{
+			Loc:    vref.Loc,
+			Column: prefix + vref.Name,
+		}
+	} else if (p.cur.Type == kwNEW || p.cur.Type == kwOLD) && p.peekNext().Type == '.' {
+		// Trigger-only assignment form: SET NEW.col = val / SET OLD.col = val.
+		colStart := p.pos()
+		qual := strings.ToUpper(p.advance().Str)
+		p.advance() // consume '.'
+		colName, _, err := p.parseLvalueIdent()
+		if err != nil {
+			return nil, err
+		}
+		col = &nodes.ColumnRef{
+			Loc:    nodes.Loc{Start: colStart, End: p.prev.End},
+			Table:  qual,
+			Column: colName,
+		}
+	} else {
+		colStart := p.pos()
+		var name string
+		// ident. A word the lexer reads as an identifier needs no category.
+		switch {
+		case p.wordBeforeDot(), p.cur.Type == kwDEFAULT && p.peekNext().Type == '.':
+			name = p.advance().Str
+		// NAMES and PASSWORD have forms of their own that take `=`, so a later `NAMES = 1` with no
+		// scope is a 1064.
+		case scope == "" && (p.cur.Type == kwNAMES || p.cur.Type == kwPASSWORD):
+			return nil, p.syntaxErrorAtCur()
+		default:
+			var err error
+			name, _, err = p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+		}
+		col = &nodes.ColumnRef{
+			Loc:    nodes.Loc{Start: colStart},
+			Column: name,
+		}
+		// The part after the dot is an ident, which no user variable is.
+		if p.cur.Type == '.' {
+			p.advance()
+			if p.isVariableRef() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			name2, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			col.Table = name
+			col.Column = name2
+		}
+		col.Loc.End = p.prev.End
+	}
+
+	// equal: `=` or `:=`.
+	if p.cur.Type == tokAssign {
+		p.advance()
+	} else if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+
+	val, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if val == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	return &nodes.Assignment{
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Scope:  scope,
+		Column: col,
+		Value:  val,
+	}, nil
+}
+
+// parseSetAssignment parses a single var = expr of INSTALL COMPONENT ... SET.
 func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 	start := p.pos()
 

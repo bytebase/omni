@@ -13,9 +13,8 @@ import "testing"
 // GLOBAL, SESSION and LOCAL, so unlike TiDB it reads LOCAL, and unlike MySQL it refuses
 // PERSIST and PERSIST_ONLY.
 //
-// Not in this table, because omni still disagrees and this change is about the TRANSACTION
-// form alone: `SET TRANSACTION = 1` and `SET TRANSACTION := 1` parse here and omni refuses
-// them, while `SET PERSIST a = 1` and `SET `transaction`.a = 1` are 1064s omni accepts.
+// Not in this table: `SET TRANSACTION = 1` and `SET TRANSACTION := 1`, which parse with
+// TRANSACTION as a name. setNamesScopesCases holds them.
 
 // TestSetTransactionForms holds omni to the recorded verdicts without a server, so a run
 // with no Docker still reports a widened or narrowed grammar.
