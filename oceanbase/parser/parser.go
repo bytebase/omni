@@ -111,6 +111,13 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			continue
 		}
 		stmt, err := p.readStatement()
+		// The nesting limit is this parser's, not a reading the engine fails:
+		// read again without the comments, the statement would lose the
+		// expression that went too deep, and "SELECT 0 /*! OR 1 OR 1 ... */"
+		// would pass as SELECT 0.
+		if isNestingError(err) {
+			return nil, err
+		}
 		// A statement that parsed and left an executable comment open has no
 		// retry; lexerError reports the comment after the loop.
 		if err != nil || p.lexer.hasErr {
@@ -376,7 +383,21 @@ func (p *Parser) lineCol(offset int) (int, int) {
 	if offset > len(input) {
 		offset = len(input)
 	}
+	newlines := p.newlineOffsets()
+	// The newlines before offset.
+	n := sort.SearchInts(newlines, offset)
+	lastNewline := -1
+	if n > 0 {
+		lastNewline = newlines[n-1]
+	}
+	return 1 + n, offset - lastNewline
+}
+
+// newlineOffsets returns the offsets of the input's newlines, found on first
+// use and kept for every later error (see lineCol and extractLine).
+func (p *Parser) newlineOffsets() []int {
 	if p.newlines == nil {
+		input := p.lexer.input
 		p.newlines = make([]int, 0, strings.Count(input, "\n"))
 		for i := 0; i < len(input); i++ {
 			if input[i] == '\n' {
@@ -384,13 +405,7 @@ func (p *Parser) lineCol(offset int) (int, int) {
 			}
 		}
 	}
-	// The newlines before offset.
-	n := sort.SearchInts(p.newlines, offset)
-	lastNewline := -1
-	if n > 0 {
-		lastNewline = p.newlines[n-1]
-	}
-	return 1 + n, offset - lastNewline
+	return p.newlines
 }
 
 // lineColStatic computes line and column from raw input (for use outside a Parser).
@@ -425,21 +440,25 @@ func (p *Parser) enrichError(err error) error {
 
 // extractLine returns the source line containing the given byte offset.
 // The offset is absolute (includes baseOffset), so we subtract it to index into segment text.
+//
+// The line's ends come from the newline offsets, not from a scan out from
+// offset: every statement that fails its first reading and is read again
+// (parseSingle) builds an error, and scanning a line that holds every
+// statement, as one under a client delimiter can, made that quadratic.
 func (p *Parser) extractLine(offset int) string {
 	offset -= p.lexer.baseOffset
 	input := p.lexer.input
 	if offset < 0 || offset > len(input) {
 		return ""
 	}
-	// Find start of line
-	start := offset
-	for start > 0 && input[start-1] != '\n' {
-		start--
+	newlines := p.newlineOffsets()
+	n := sort.SearchInts(newlines, offset)
+	start, end := 0, len(input)
+	if n > 0 {
+		start = newlines[n-1] + 1
 	}
-	// Find end of line
-	end := offset
-	for end < len(input) && input[end] != '\n' {
-		end++
+	if n < len(newlines) {
+		end = newlines[n]
 	}
 	line := input[start:end]
 	// Trim to reasonable length

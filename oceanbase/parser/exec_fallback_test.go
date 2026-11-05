@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"math"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -70,6 +72,14 @@ var execFallbackCases = []execFallbackCase{
 	{"select 1 /*! , 2 */ from", false, ""},
 	{"select 1 /*! from */ */", false, ""},
 	{"select 1 /*! + 1 /*! + 2 */ from */", false, ""},
+	// The second reading follows OceanBase's select grammar as the first does:
+	// it has no TABLE query, and no locking clause right after a lone
+	// parenthesized query.
+	{"select 1 /*! table t */", true, "select 1"},
+	{"/*! x */ table t", false, ""},
+	{"(select 1) /*! for update */", true, "(select 1)"},
+	{"(select 1) /*! from */ for update", false, ""},
+	{"(select 1) order by 1 /*! from */ for update", true, "(select 1) order by 1 for update"},
 	// Other statements the SQL parser reads.
 	{"create table t (a int) /*! engine */", true, "create table t (a int)"},
 	{"create table t (a int) /*!50000 select 2 */", true, "create table t (a int) select 2"},
@@ -216,22 +226,80 @@ func TestExecFallbackPerStatement(t *testing.T) {
 }
 
 // TestExecFallbackStaysLinear: under a client delimiter, one segment holds
-// every statement, and each one read again must not cost a pass over the
-// segment. Each reading started a new parser, which found the newlines of the
-// whole segment again for the syntax error that set off the retry: 32,000
-// such statements took 23 seconds, and twice as many four times as long.
+// every statement, and each one read again must cost no pass over the
+// segment or over its line. Each reading started a new parser, which found
+// the newlines of the whole segment again for the syntax error that set off
+// the retry, and the error's line was found by scanning out from the error:
+// 32,000 such statements took 23 seconds one to a line and 11 seconds all on
+// one line.
 func TestExecFallbackStaysLinear(t *testing.T) {
-	const n = 32000
-	for _, stmt := range []string{"select 1 /*! from */;\n", "select 1 /*! select 2 */;\n"} {
-		sql := "DELIMITER //\n" + strings.Repeat(stmt, n) + "//\nDELIMITER ;"
-		start := time.Now()
-		list, err := Parse(sql)
-		elapsed := time.Since(start)
-		if err != nil || len(list.Items) != n {
-			t.Fatalf("Parse(%d x %q) = %v, want %d statements", n, stmt, err, n)
+	for _, stmt := range []string{
+		"select 1 /*! from */;\n",
+		"select 1 /*! from */; ",
+		"select 1 /*! select 2 */;\n",
+		"select 1 /*! select 2 */; ",
+	} {
+		assertLinearGrowth(t, stmt, func(n int) string {
+			return "DELIMITER //\n" + strings.Repeat(stmt, n) + "//\nDELIMITER ;"
+		}, 2000)
+	}
+}
+
+// assertLinearGrowth parses sql(n) and sql(8n), each the fastest of three
+// runs, and fails when the larger took more than 24 times as long as the
+// smaller: linear work grows eightfold and quadratic work sixty-fourfold, so
+// the bound holds on a slow machine and still catches quadratic work.
+func assertLinearGrowth(t *testing.T, name string, sql func(n int) string, n int) {
+	t.Helper()
+	fastest := func(text string) time.Duration {
+		best := time.Duration(math.MaxInt64)
+		for range 3 {
+			runtime.GC()
+			start := time.Now()
+			if _, err := Parse(text); err != nil {
+				t.Fatalf("%s: Parse: %v", name, err)
+			}
+			best = min(best, time.Since(start))
 		}
-		if elapsed > 2*time.Second {
-			t.Errorf("Parse(%d x %q) took %v", n, stmt, elapsed)
+		return best
+	}
+	small, large := fastest(sql(n)), fastest(sql(8*n))
+	if large > 24*small {
+		t.Errorf("%q: %d took %v and %d took %v, %.0f times as long where linear work takes 8",
+			name, n, small, 8*n, large, float64(large)/float64(small))
+	}
+}
+
+// TestExecFallbackKeepsNestingLimit: a statement that reaches the nesting
+// limit or the tree height limit inside an executable comment is refused as
+// it is outside one. Read again without the comment, it would lose the
+// expression that went too deep and pass as something else.
+func TestExecFallbackKeepsNestingLimit(t *testing.T) {
+	deep := strings.Repeat("(", maxNestingDepth+10) + "1" + strings.Repeat(")", maxNestingDepth+10)
+	long := strings.Repeat(" OR 1", maxTreeHeight+10)
+	for _, sql := range []string{
+		"select 0 /*!" + long + " */",
+		"select 0 /*! + " + deep + " */",
+		// The nesting limit stops the first reading before the FROM it would
+		// fail on.
+		"select 0 /*! + " + deep + " */ /*! from */",
+	} {
+		_, err := Parse(sql)
+		if !isNestingError(err) {
+			t.Errorf("Parse(%.40q...) error = %v, want the nesting error", sql, err)
+		}
+	}
+	// A statement whose first reading fails before it reaches a limit is read
+	// again as any other. A chain is read by a loop, so the reading of this
+	// one fails at FROM with no tree built, as OceanBase's does
+	// (TestExecFallbackNestingLimit_OceanBase).
+	for _, sql := range []string{
+		"select 0 /*!" + long + " */ /*! from */",
+		"select 0 /*!" + strings.Repeat(" OR 1", 1000) + " */ /*! from */",
+		"select 0 /*! + " + strings.Repeat("(", 100) + "1" + strings.Repeat(")", 100) + " */ /*! from */",
+	} {
+		if got, want := treeText(t, sql), treeText(t, "select 0"); got != want {
+			t.Errorf("Parse(%.40q...) = %s, want %s", sql, got, want)
 		}
 	}
 }

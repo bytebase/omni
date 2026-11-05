@@ -64,6 +64,26 @@ func TestExecFallbackScript_OceanBase(t *testing.T) {
 	}
 }
 
+// TestExecFallbackNestingLimit_OceanBase proves TestExecFallbackKeepsNestingLimit's
+// premise against a live OceanBase 4.3.5: a chain longer than this parser's
+// tree height limit inside an executable comment, followed by one whose body
+// does not parse, fails OceanBase's first reading at FROM and runs as SELECT 0,
+// which is how this parser reads it too.
+func TestExecFallbackNestingLimit_OceanBase(t *testing.T) {
+	db := oceanBaseOracle(t)
+	ctx := context.Background()
+	sql := "select 0 /*!" + strings.Repeat(" OR 1", maxTreeHeight+10) + " */ /*! from */"
+	if !prepareAcceptsOceanBase(t, ctx, db, sql) {
+		t.Fatalf("OceanBase refuses the chain followed by /*! from */")
+	}
+	if got := oceanBaseRows(t, ctx, db, sql); got != "[[0]]" {
+		t.Errorf("OceanBase returns %s, want [[0]]", got)
+	}
+	if got, want := treeText(t, sql), treeText(t, "select 0"); got != want {
+		t.Errorf("omni reads %s, want %s", got, want)
+	}
+}
+
 // oceanBaseRows runs query and returns the rows of every result set that has
 // columns, as "[[a b] [c d]] [[e]]".
 func oceanBaseRows(t *testing.T, ctx context.Context, db *sql.DB, query string) string {
