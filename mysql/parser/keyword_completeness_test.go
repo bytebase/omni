@@ -875,7 +875,7 @@ var mysql8Keywords = []mysql8Keyword{
 	{"varchar", catReserved},
 	{"varcharacter", catReserved},
 	{"variables", catUnambiguous},
-	{"variance", catReserved},
+	{"variance", catUnambiguous}, // a function word: an identifier unless ( follows, measured on 8.0.46
 	{"varying", catReserved},
 	{"vcpu", catUnambiguous},
 	{"vector", catUnambiguous},

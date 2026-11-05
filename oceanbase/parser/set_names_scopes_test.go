@@ -417,35 +417,12 @@ var setNamesScopesCases = []asOfCase{
 	{"create trigger g before insert on t for each row set old.a = 1", true},
 }
 
-// setVariableNameGap holds, by position, the words where omni and OceanBase 4.3.5.6 disagree,
-// because omni's keyword table holds MySQL's reservations: OceanBase reserves some words it
-// does not, and leaves others unreserved. Every name position reads that table, not only SET,
-// so the fix belongs to it. NEW and OLD are a trigger's. The oracle sweep fails when one of
-// them starts to agree, so this list cannot outlive the gap.
+// setVariableNameGap holds, by position, the words where omni and OceanBase 4.3.5.6 disagree as a
+// variable name. NEW and OLD are a trigger's. reservedWordSweepGap holds what remains of the words
+// across every position. The oracle sweep fails when an entry starts to agree, so this list cannot
+// outlive a gap.
 var setVariableNameGap = map[string][]string{
-	"set %s = 1": {
-		"cube", "cume_dist", "dec", "dense_rank", "empty", "event", "except", "execute", "file",
-		"first_value", "function", "grouping", "groups", "intersect", "json_table", "lag",
-		"last_value", "lateral", "lead", "none", "nth_value", "ntile", "of", "optimizer_costs",
-		"over", "percent_rank", "process", "proxy", "rank", "recursive", "reload", "replication",
-		"resource", "row_number", "shutdown", "skip", "super", "system", "variance", "window",
-	},
-	"set global %s = 1": {
-		"cube", "cume_dist", "dec", "dense_rank", "empty", "except", "first_value", "function",
-		"grouping", "groups", "intersect", "json_table", "lag", "last_value", "lateral", "lead",
-		"maxvalue", "nth_value", "ntile", "of", "optimizer_costs", "over", "percent_rank",
-		"range", "rank", "recursive", "row_number", "skip", "system", "variance", "window",
-	},
-	"set %s.a = 1": {
-		"new", "old",
-	},
-	"set @a = 1, %s = 2": {
-		"cube", "cume_dist", "dec", "dense_rank", "empty", "event", "except", "execute", "file",
-		"first_value", "function", "grouping", "groups", "intersect", "json_table", "lag",
-		"last_value", "lateral", "lead", "none", "nth_value", "ntile", "of", "optimizer_costs",
-		"over", "percent_rank", "process", "proxy", "rank", "recursive", "reload", "replication",
-		"resource", "row_number", "shutdown", "skip", "super", "system", "variance", "window",
-	},
+	"set %s.a = 1": {"new", "old"},
 }
 
 // setVariableNamePositions are the positions the oracle sweep tries every keyword in.

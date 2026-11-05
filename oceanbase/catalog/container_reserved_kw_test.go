@@ -94,6 +94,11 @@ func TestContainer_ReservedKeywordAcceptance(t *testing.T) {
 			var mismatches []string
 
 			for _, kw := range reservedKeywords {
+				// OceanBase reserves SKIP, which MySQL does not, as oceanbase/parser's
+				// TestReservedWordSweepOceanBaseOracle holds.
+				if kw == "SKIP" {
+					continue
+				}
 				sql := fmt.Sprintf(pos.template, kw)
 
 				// Try on MySQL 8.0

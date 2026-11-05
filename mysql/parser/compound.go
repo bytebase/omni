@@ -161,6 +161,39 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
+
+	// Label: check for identifier followed by ':', ahead of the statements a word can start,
+	// so `close: LOOP` is a label and not CLOSE.
+	if p.isLabelIdentToken() && p.cur.Type != kwEND {
+		next := p.peekNext()
+		if next.Type == ':' {
+			name := p.cur.Str
+			nameStart := p.pos()
+			p.advance() // consume identifier
+			p.advance() // consume ':'
+			// Labeled BEGIN...END
+			if p.cur.Type == kwBEGIN {
+				return p.parseBeginEndBlock(name, nameStart)
+			}
+			// Labeled WHILE
+			if p.cur.Type == kwWHILE {
+				return p.parseWhileStmt(name, nameStart)
+			}
+			// Labeled REPEAT
+			if p.cur.Type == kwREPEAT {
+				return p.parseRepeatStmt(name, nameStart)
+			}
+			// Labeled LOOP
+			if p.cur.Type == kwLOOP {
+				return p.parseLoopStmt(name, nameStart)
+			}
+			return nil, &ParseError{
+				Message:  "expected BEGIN, WHILE, REPEAT, or LOOP after label",
+				Position: p.cur.Loc,
+			}
+		}
+	}
+
 	// DECLARE
 	if p.cur.Type == kwDECLARE {
 		return p.parseDeclareStmt()
@@ -224,37 +257,6 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 	// CLOSE cursor
 	if p.cur.Type == kwCLOSE {
 		return p.parseCloseCursorStmt()
-	}
-
-	// Label: check for identifier followed by ':'
-	if p.isLabelIdentToken() && p.cur.Type != kwEND {
-		next := p.peekNext()
-		if next.Type == ':' {
-			name := p.cur.Str
-			nameStart := p.pos()
-			p.advance() // consume identifier
-			p.advance() // consume ':'
-			// Labeled BEGIN...END
-			if p.cur.Type == kwBEGIN {
-				return p.parseBeginEndBlock(name, nameStart)
-			}
-			// Labeled WHILE
-			if p.cur.Type == kwWHILE {
-				return p.parseWhileStmt(name, nameStart)
-			}
-			// Labeled REPEAT
-			if p.cur.Type == kwREPEAT {
-				return p.parseRepeatStmt(name, nameStart)
-			}
-			// Labeled LOOP
-			if p.cur.Type == kwLOOP {
-				return p.parseLoopStmt(name, nameStart)
-			}
-			return nil, &ParseError{
-				Message:  "expected BEGIN, WHILE, REPEAT, or LOOP after label",
-				Position: p.cur.Loc,
-			}
-		}
 	}
 
 	// Regular statement

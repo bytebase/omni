@@ -27,6 +27,28 @@ const (
 // All other registered keywords default to kwCatUnambiguous and will be
 // refined to their correct ambiguous category in later sections.
 var keywordCategories = map[int]keywordCategory{
+	kwBACKUP:             kwCatAmbiguous2,
+	kwCLOSE:              kwCatAmbiguous2,
+	kwCOMPRESSED:         kwCatAmbiguous2,
+	kwEXCLUDE:            kwCatAmbiguous2,
+	kwFOLLOWING:          kwCatAmbiguous2,
+	kwHOST:               kwCatAmbiguous2,
+	kwOPEN:               kwCatAmbiguous2,
+	kwOPTIONS:            kwCatAmbiguous2,
+	kwOTHERS:             kwCatAmbiguous2,
+	kwOWNER:              kwCatAmbiguous2,
+	kwPORT:               kwCatAmbiguous2,
+	kwPRECEDING:          kwCatAmbiguous2,
+	kwREMOVE:             kwCatAmbiguous2,
+	kwREPLICA:            kwCatAmbiguous2,
+	kwRESTORE:            kwCatAmbiguous2,
+	kwSECURITY:           kwCatAmbiguous2,
+	kwSERVER:             kwCatAmbiguous2,
+	kwSOCKET:             kwCatAmbiguous2,
+	kwSONAME:             kwCatAmbiguous2,
+	kwTIES:               kwCatAmbiguous2,
+	kwUNBOUNDED:          kwCatAmbiguous2,
+	kwWRAPPER:            kwCatAmbiguous2,
 	kwSELECT:             kwCatReserved,
 	kwINSERT:             kwCatReserved,
 	kwUPDATE:             kwCatReserved,
@@ -161,7 +183,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwROW:                kwCatUnambiguous,
 	kwROWS:               kwCatReserved,
 	kwOVER:               kwCatReserved,
-	kwWINDOW:             kwCatUnambiguous,
+	kwWINDOW:             kwCatAmbiguous2,
 	kwFORCE:              kwCatReserved,
 	kwCONVERT:            kwCatReserved,
 	kwCAST:               kwCatUnambiguous,
@@ -197,18 +219,18 @@ var keywordCategories = map[int]keywordCategory{
 	kwTHAN:               kwCatUnambiguous,
 	kwSUBPARTITIONS:      kwCatUnambiguous,
 	kwLEAVES:             kwCatUnambiguous,
-	kwPARSER:             kwCatUnambiguous,
+	kwPARSER:             kwCatAmbiguous2,
 	kwCOMPRESSION:        kwCatUnambiguous,
 	kwINSERT_METHOD:      kwCatUnambiguous,
 	kwACTION:             kwCatUnambiguous,
 	kwPARTIAL:            kwCatUnambiguous,
-	kwFORMAT:             kwCatUnambiguous,
+	kwFORMAT:             kwCatAmbiguous2,
 	kwXML:                kwCatUnambiguous,
 	kwCONCURRENT:         kwCatUnambiguous,
 	kwWORK:               kwCatUnambiguous,
 	kwXID:                kwCatUnambiguous,
 	kwEXPORT:             kwCatUnambiguous,
-	kwUPGRADE:            kwCatUnambiguous,
+	kwUPGRADE:            kwCatAmbiguous2,
 	kwFAST:               kwCatUnambiguous,
 	kwMEDIUM:             kwCatUnambiguous,
 	kwCHANGED:            kwCatUnambiguous,
@@ -222,10 +244,10 @@ var keywordCategories = map[int]keywordCategory{
 	kwHOSTS:              kwCatUnambiguous,
 	kwMUTEX:              kwCatUnambiguous,
 	kwPROFILE:            kwCatUnambiguous,
-	kwREPLICAS:           kwCatUnambiguous,
+	kwREPLICAS:           kwCatAmbiguous2,
 	kwNAMES:              kwCatUnambiguous,
 	kwACCOUNT:            kwCatUnambiguous,
-	kwOPTION:             kwCatUnambiguous,
+	kwOPTION:             kwCatAmbiguous2,
 	kwPROXY:              kwCatAmbiguous3,
 	kwROUTINE:            kwCatUnambiguous,
 	kwEXPIRE:             kwCatUnambiguous,
@@ -375,7 +397,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwFETCH:               kwCatReserved,
 	kwFLOAT:               kwCatReserved,
 	kwGENERATED:           kwCatUnambiguous,
-	kwGET:                 kwCatUnambiguous,
+	kwGET:                 kwCatAmbiguous2,
 	kwGROUP_CONCAT:        kwCatUnambiguous,
 	kwGROUPS:              kwCatUnambiguous,
 	kwHIGH_PRIORITY:       kwCatReserved,
@@ -432,7 +454,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwSQL_SMALL_RESULT:    kwCatReserved,
 	kwSSL:                 kwCatReserved,
 	kwSTARTING:            kwCatReserved,
-	kwSTORED:              kwCatUnambiguous,
+	kwSTORED:              kwCatAmbiguous2,
 	kwSTRAIGHT_JOIN:       kwCatReserved,
 	kwSUBSTRING:           kwCatUnambiguous,
 	kwSUM:                 kwCatUnambiguous,
@@ -456,18 +478,18 @@ var keywordCategories = map[int]keywordCategory{
 	kwCACHE:      kwCatAmbiguous2,
 	kwCHARSET:    kwCatAmbiguous2,
 	kwCHECKSUM:   kwCatAmbiguous2,
-	kwCLONE:      kwCatAmbiguous2,
+	kwCLONE:      kwCatUnambiguous,
 	kwCOMMENT:    kwCatAmbiguous2,
 	kwDEALLOCATE: kwCatAmbiguous2,
 	kwHANDLER:    kwCatAmbiguous2,
 	kwHELP:       kwCatAmbiguous2,
-	kwIMPORT:     kwCatAmbiguous2,
+	kwIMPORT:     kwCatUnambiguous,
 	kwINSTALL:    kwCatAmbiguous2,
 	kwLANGUAGE:   kwCatAmbiguous2,
 	kwNO:         kwCatAmbiguous2,
 	kwUNINSTALL:  kwCatAmbiguous2,
 	// Ambiguous 1 (not label, not role)
-	kwRESTART:  kwCatAmbiguous1,
+	kwRESTART:  kwCatUnambiguous,
 	kwSHUTDOWN: kwCatAmbiguous1,
 	// Ambiguous 3 (not role)
 	kwNONE:     kwCatAmbiguous3,
@@ -525,9 +547,13 @@ func isIdentKeyword(t int) bool {
 // can be used as a statement label. Includes: unambiguous, ambiguous_3, ambiguous_4.
 // Excludes: ambiguous_1 (not label, not role), ambiguous_2 (not label).
 func isLabelKeyword(t int) bool {
+	if t < 700 {
+		return false
+	}
+	// A registered keyword with no entry is unambiguous.
 	cat, ok := keywordCategories[t]
 	if !ok {
-		return false
+		return true
 	}
 	return cat == kwCatUnambiguous || cat == kwCatAmbiguous3 || cat == kwCatAmbiguous4
 }

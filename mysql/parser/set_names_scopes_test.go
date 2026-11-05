@@ -415,21 +415,10 @@ var setNamesScopesCases = []asOfCase{
 	{"create trigger g before insert on t for each row set @b = 1, new.a = 2", true},
 }
 
-// setVariableNameGap holds, by position, the words where omni and MySQL 8.0 disagree, because
-// omni's keyword table reserves them: VARIANCE is a keyword only before `(`. Every name
-// position refuses it for that reason, not only SET, so the fix belongs to the table. The
-// oracle sweep fails when one of them starts to agree, so this list cannot outlive the gap.
-var setVariableNameGap = map[string][]string{
-	"set %s = 1": {
-		"variance",
-	},
-	"set global %s = 1": {
-		"variance",
-	},
-	"set @a = 1, %s = 2": {
-		"variance",
-	},
-}
+// setVariableNameGap holds, by position, the words where omni and MySQL 8.0 disagree as a variable
+// name. It is empty now: reservedWordSweepGap holds what remains of the words across every position.
+// The oracle sweep fails when an entry starts to agree, so this list cannot outlive a gap.
+var setVariableNameGap = map[string][]string{}
 
 // setVariableNamePositions are the positions the oracle sweep tries every keyword in.
 var setVariableNamePositions = []string{
