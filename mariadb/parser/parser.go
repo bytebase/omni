@@ -42,6 +42,14 @@ type Parser struct {
 	// IN_UPDATE_ON_DUP_KEY and IN_PART_FUNC).
 	valuesIsFunction bool
 
+	// intoRefused is set while parsing the query of CREATE TABLE ... [AS]
+	// query and every query nested in it. MariaDB reads that query as
+	// query_expression (sql/sql_yacc.yy 11.8.8, line 9077), and INTO belongs
+	// only to a query that stands as a statement (select and select_into,
+	// lines 8895 and 8927), so INTO there is a syntax error: CREATE TABLE t
+	// SELECT 1 INTO @x is 1064, which MySQL 8.0 takes.
+	intoRefused bool
+
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
 
 	// Completion mode fields.
