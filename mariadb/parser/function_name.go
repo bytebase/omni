@@ -17,12 +17,13 @@ import "strings"
 var keywordsNotFunctionNames = wordSet(`
 any backup begin binlog bit bool boolean byte cache checksum close code comment commit
 compressed datetime deallocate do end enum exclude execute fixed flush following follows
-global handler help host install json language local medium names national nchar no
-number nvarchar offset open options others owner parser port precedes preceding prepare
-remove repair replica replicas reset restore role rollback savepoint security serial
-server session shutdown signed slave socket some soname sounds sql_after_gtids
-sql_before_gtids start stats_auto_recalc stats_persistent stats_sample_pages stop text
-ties unbounded unicode uninstall upgrade vector wrapper xa
+function get global handler help host install json language local medium names national
+nchar no number nvarchar offset open option options others owner parser port precedes
+preceding prepare remove repair replica replicas reset restore role rollback savepoint
+security serial server session shutdown signed slave socket some soname sounds
+sql_after_gtids sql_before_gtids start stats_auto_recalc stats_persistent
+stats_sample_pages stop stored text ties unbounded unicode uninstall upgrade vector
+window wrapper xa
 `)
 
 func wordSet(words string) map[string]bool {

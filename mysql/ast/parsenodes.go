@@ -598,10 +598,12 @@ func (d *PartitionDef) nodeTag() {}
 
 // DataType represents a MySQL data type.
 type DataType struct {
-	Loc        Loc
-	Name       string // INT, VARCHAR, DECIMAL, etc.
-	Length     int    // type length (e.g., VARCHAR(255))
-	Scale      int    // decimal scale (e.g., DECIMAL(10,2))
+	Loc    Loc
+	Name   string // INT, VARCHAR, DECIMAL, etc.
+	Length int    // type length (e.g., VARCHAR(255))
+	// HasLength records that a length was written, since CHAR(0) is no CHAR: Length is 0 for both.
+	HasLength  bool
+	Scale      int // decimal scale (e.g., DECIMAL(10,2))
 	Unsigned   bool
 	Zerofill   bool
 	Charset    string   // CHARACTER SET

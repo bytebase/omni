@@ -2195,10 +2195,10 @@ func jsonValueReturning(dt *ast.DataType) string {
 			charset = "utf8mb3"
 		}
 		if charset == "binary" {
-			return jsonValueBinary(dt.Length)
+			return jsonValueBinary(dt)
 		}
 		length := dt.Length
-		if length == 0 {
+		if !dt.HasLength {
 			length = jsonValueCharLength(charset)
 		}
 		result := fmt.Sprintf("char(%d)", length)
@@ -2210,7 +2210,7 @@ func jsonValueReturning(dt *ast.DataType) string {
 		}
 		return result
 	case "binary":
-		return jsonValueBinary(dt.Length)
+		return jsonValueBinary(dt)
 	case "decimal", "numeric":
 		if dt.Length == 0 {
 			return "decimal(10, 0)"
@@ -2225,8 +2225,9 @@ func jsonValueReturning(dt *ast.DataType) string {
 	}
 }
 
-func jsonValueBinary(length int) string {
-	if length == 0 {
+func jsonValueBinary(dt *ast.DataType) string {
+	length := dt.Length
+	if !dt.HasLength {
 		length = 4294967295
 	}
 	return fmt.Sprintf("binary(%d)", length)
@@ -2308,6 +2309,14 @@ func writeJSONValueDefault(b *strings.Builder, value ast.ExprNode, charset strin
 			b.WriteString("true")
 		} else {
 			b.WriteString("false")
+		}
+	case *ast.IntLit:
+		// The digits as written, since Value clamps what an int64 cannot hold. The server
+		// does not keep leading zeros.
+		if digits := strings.TrimLeft(n.Text, "0"); digits != "" {
+			b.WriteString(digits)
+		} else {
+			writeExpr(b, value)
 		}
 	case *ast.FloatLit:
 		if strings.HasPrefix(n.Value, ".") {

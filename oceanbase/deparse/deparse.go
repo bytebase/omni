@@ -2166,6 +2166,14 @@ func JSONValueClauses(opts *ast.JSONValueOptions) string {
 	return b.String()
 }
 
+// jsonValueZeroLength puts back a written length of 0, which the type writer takes for none.
+func jsonValueZeroLength(dt *ast.DataType, text string) string {
+	if dt.HasLength && dt.Length == 0 {
+		return strings.Replace(text, "char", "char(0)", 1)
+	}
+	return text
+}
+
 // jsonValueReturning writes RETURNING's type, which the server fills in where CAST's stored form
 // leaves it out, measured on 4.3.5.6: a char type always names its charset, DECIMAL is number(10,0),
 // and the temporal types name their precision.
@@ -2188,9 +2196,11 @@ func jsonValueReturning(dt *ast.DataType) string {
 		if strings.EqualFold(dt.Charset, "utf8mb3") || strings.EqualFold(dt.Charset, "utf8") {
 			national := *dt
 			national.Charset = "utf8mb4"
-			return deparseDataType(&national)
+			return jsonValueZeroLength(dt, deparseDataType(&national))
 		}
-		return deparseDataType(dt)
+		return jsonValueZeroLength(dt, deparseDataType(dt))
+	case "binary":
+		return jsonValueZeroLength(dt, deparseDataType(dt))
 	default:
 		return deparseDataType(dt)
 	}
@@ -2265,6 +2275,14 @@ func writeJSONValueDefault(b *strings.Builder, value ast.ExprNode) {
 		b.WriteString("X'" + hex + "'")
 	case *ast.TemporalLit:
 		b.WriteString(n.Type + " '" + n.Value + "'")
+	case *ast.IntLit:
+		// The digits as written, since Value clamps what an int64 cannot hold. The server
+		// does not keep leading zeros.
+		if digits := strings.TrimLeft(n.Text, "0"); digits != "" {
+			b.WriteString(digits)
+		} else {
+			writeExpr(b, value)
+		}
 	case *ast.FloatLit:
 		if strings.HasPrefix(n.Value, ".") {
 			b.WriteString("0")
