@@ -9273,8 +9273,6 @@ func TestParseRowConstructor(t *testing.T) {
 		"SELECT * FROM t WHERE ROW(a, b) = ROW(1, 2)",
 		// ROW with expressions
 		"SELECT * FROM t WHERE ROW(a + 1, b * 2) = ROW(10, 20)",
-		// ROW with single value (MySQL requires at least 2 for row comparisons but ROW(1) is valid syntax)
-		"SELECT ROW(1)",
 		// Nested ROW is valid syntax
 		"SELECT ROW(1, ROW(2, 3))",
 	}

@@ -186,7 +186,7 @@ func allKnownNodes() []Node {
 		// Expressions
 		&ColumnRef{}, &IntLit{}, &FloatLit{}, &StringLit{},
 		&HexLit{}, &BitLit{}, &BoolLit{}, &NullLit{}, &TemporalLit{},
-		&DefaultExpr{}, &StarExpr{},
+		&DefaultExpr{}, &IgnoreExpr{}, &StarExpr{},
 		&UnaryExpr{}, &BinaryExpr{},
 		&BetweenExpr{}, &InExpr{}, &LikeExpr{},
 		&IsExpr{}, &ExistsExpr{}, &SubqueryExpr{},

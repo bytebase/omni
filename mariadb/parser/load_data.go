@@ -174,12 +174,16 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 			if err := p.expectEqual(); err != nil {
 				return nil, err
 			}
-			val, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if val == nil {
-				return nil, p.syntaxErrorAtCur()
+			val, ok := p.parseIgnoreValue()
+			if !ok {
+				var err error
+				val, err = p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if val == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
 			}
 			stmt.SetList = append(stmt.SetList, &nodes.Assignment{
 				Loc:    nodes.Loc{Start: col.Loc.Start, End: p.prev.End},

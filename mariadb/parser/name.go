@@ -158,7 +158,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwTRIGGER:            kwCatReserved,
 	kwPARTITION:          kwCatReserved,
 	kwRANGE:              kwCatReserved,
-	kwROW:                kwCatReserved,
+	kwROW:                kwCatUnambiguous,
 	kwROWS:               kwCatReserved,
 	kwOVER:               kwCatReserved,
 	kwWINDOW:             kwCatReserved,

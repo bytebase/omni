@@ -1385,6 +1385,10 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		writeExistsExpr(b, n)
 	case *ast.SubqueryExpr:
 		writeSubqueryExpr(b, n)
+	case *ast.IgnoreExpr:
+		// MariaDB's value for "leave this column alone", in a VALUES row or an
+		// assignment.
+		b.WriteString("ignore")
 	default:
 		fmt.Fprintf(b, "/* unsupported: %T */", node)
 	}

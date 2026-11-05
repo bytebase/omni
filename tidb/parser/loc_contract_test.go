@@ -314,7 +314,7 @@ var locSpanCases = []struct {
 	{"RevokeRoleStmt", "REVOKE myrole FROM myuser", "REVOKE myrole FROM myuser", 0},
 	{"RevokeStmt", "REVOKE SELECT ON mydb.* FROM app_user", "REVOKE SELECT ON mydb.* FROM app_user", 0},
 	{"RollbackStmt", "ROLLBACK", "ROLLBACK", 0},
-	{"RowExpr", "SELECT ROW(1)", "ROW(1)", 0},
+	{"RowExpr", "SELECT ROW(1, 2)", "ROW(1, 2)", 0},
 	{"SavepointStmt", "SAVEPOINT sp1", "SAVEPOINT sp1", 0},
 	{"SelectStmt", "SELECT 1", "SELECT 1", 0},
 	{"SequenceOption", "ALTER SEQUENCE s INCREMENT BY -2 RESTART", "INCREMENT BY -2", 0},

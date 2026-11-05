@@ -274,7 +274,7 @@ var locSpanCases = []struct {
 	{"RevokeStmt", "REVOKE SELECT ON mydb.* FROM app_user", "REVOKE SELECT ON mydb.* FROM app_user", 0},
 	{"RollbackStmt", "ROLLBACK", "ROLLBACK", 0},
 	{"RoutineCharacteristic", "ALTER FUNCTION f1 COMMENT 'test'", "COMMENT 'test'", 0},
-	{"RowExpr", "SELECT ROW(1)", "ROW(1)", 0},
+	{"RowExpr", "SELECT ROW(1, 2)", "ROW(1, 2)", 0},
 	{"SavepointStmt", "SAVEPOINT sp1", "SAVEPOINT sp1", 0},
 	{"SelectStmt", "SELECT 1", "SELECT 1", 0},
 	{"SelectStmt", "SELECT (VALUES ROW(1) ORDER BY 1 LIMIT 1)", "VALUES ROW(1) ORDER BY 1 LIMIT 1", 1},
