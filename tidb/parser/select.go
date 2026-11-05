@@ -1288,8 +1288,92 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		}, nil
 	}
 
-	// Regular table reference with alias
-	return p.parseTableRefWithAlias()
+	// Regular table reference with alias. TABLESAMPLE belongs to this rule and
+	// not to parseTableRefWithAlias, which LOCK TABLES shares: TableFactor reads
+	// it (parser.y:9909), and `LOCK TABLES t TABLESAMPLE (50) READ` is a 1064.
+	ref, err := p.parseTableRefWithAlias()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwTABLESAMPLE {
+		sample, err := p.parseTableSample()
+		if err != nil {
+			return nil, err
+		}
+		ref.Sample = sample
+		ref.Loc.End = p.prev.End
+	}
+	return ref, nil
+}
+
+// parseTableSample parses the TABLESAMPLE clause of a table factor, with the
+// current token on TABLESAMPLE.
+//
+// Ref: TableSampleOpt, parser.y:9332 (tag v8.5.5)
+//
+//	TABLESAMPLE [SYSTEM | BERNOULLI | REGIONS] '(' [Expression [ROWS | PERCENT]] ')'
+//	    [REPEATABLE '(' Expression ')']
+//
+// The method and unit are bare keywords. A backquoted `system` or `percent` is
+// an identifier and a 1064 here, which isBareWord and the keyword tokens both
+// keep. PERCENT is not in the keyword table, so it arrives as an identifier.
+// The size is any Expression because the grammar does not narrow it: only the
+// planner refuses `TABLESAMPLE (a)`, with error 8128.
+func (p *Parser) parseTableSample() (*nodes.TableSample, error) {
+	sample := &nodes.TableSample{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // consume TABLESAMPLE
+
+	switch p.cur.Type {
+	case kwSYSTEM:
+		sample.Method = nodes.SampleMethodSystem
+		p.advance()
+	case kwBERNOULLI:
+		sample.Method = nodes.SampleMethodBernoulli
+		p.advance()
+	case kwREGIONS:
+		sample.Method = nodes.SampleMethodRegions
+		p.advance()
+	}
+
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != ')' {
+		size, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		sample.Size = size
+		switch {
+		case p.cur.Type == kwROWS:
+			sample.Unit = nodes.SampleUnitRows
+			p.advance()
+		case p.isBareWord("percent"):
+			sample.Unit = nodes.SampleUnitPercent
+			p.advance()
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+
+	if p.cur.Type == kwREPEATABLE {
+		p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		seed, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		sample.Repeatable = seed
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+
+	sample.Loc.End = p.prev.End
+	return sample, nil
 }
 
 // parseJsonTable parses JSON_TABLE(expr, path COLUMNS (column_list)) [AS] alias.

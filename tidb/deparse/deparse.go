@@ -1251,7 +1251,43 @@ func deparseTableRef(t *ast.TableRef) string {
 	if t.Alias != "" {
 		b.WriteString(" " + quoteIdent(t.Alias))
 	}
+	if t.Sample != nil {
+		writeTableSample(&b, t.Sample)
+	}
 	return b.String()
+}
+
+// writeTableSample formats a TABLESAMPLE clause so that it reads back.
+//
+// TiDB v8.5.5 stores REGIONS as `TABLESAMPLE REGION ()`, which its own parser
+// refuses: SELECT from such a view answers error 1105. This writes the word the
+// grammar has. TestTableSampleViewTiDBDiffers records what the server stores.
+func writeTableSample(b *strings.Builder, s *ast.TableSample) {
+	b.WriteString(" tablesample")
+	switch s.Method {
+	case ast.SampleMethodSystem:
+		b.WriteString(" system")
+	case ast.SampleMethodBernoulli:
+		b.WriteString(" bernoulli")
+	case ast.SampleMethodRegions:
+		b.WriteString(" regions")
+	}
+	b.WriteString(" (")
+	if s.Size != nil {
+		writeExpr(b, s.Size)
+		switch s.Unit {
+		case ast.SampleUnitRows:
+			b.WriteString(" rows")
+		case ast.SampleUnitPercent:
+			b.WriteString(" percent")
+		}
+	}
+	b.WriteString(")")
+	if s.Repeatable != nil {
+		b.WriteString(" repeatable (")
+		writeExpr(b, s.Repeatable)
+		b.WriteString(")")
+	}
 }
 
 func writeExpr(b *strings.Builder, node ast.ExprNode) {

@@ -335,7 +335,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwSUBSTR:              kwCatUnambiguous,
 	kwSUPER:               kwCatAmbiguous3,
 	kwSYSDATE:             kwCatUnambiguous,
-	kwTABLESAMPLE:         kwCatUnambiguous,
+	kwTABLESAMPLE:         kwCatReserved,
 	kwUNICODE:             kwCatAmbiguous2,
 	kwVAR_POP:             kwCatUnambiguous,
 	kwVAR_SAMP:            kwCatUnambiguous,
@@ -1115,8 +1115,18 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 
 // parseSysVarName parses a system variable name, which may contain dots
 // (e.g., "validate_password.length" or "comp.var1").
+//
+// The first part may be a reserved word when it touches what comes before it:
+// TiDB's lexer scans the name as part of the @@ token and never looks it up
+// (startWithAt, lexer.go:618), so `SELECT @@table` parses and fails later with
+// 1193, while `SELECT @@ table` is a 1064. Later parts are always identifiers,
+// because the word follows a dot.
 func (p *Parser) parseSysVarName() (string, int, error) {
-	name, loc, err := p.parseIdent()
+	parseFirst := p.parseIdent
+	if p.cur.Loc == p.prev.End {
+		parseFirst = p.parseKeywordOrIdent
+	}
+	name, loc, err := parseFirst()
 	if err != nil {
 		return "", 0, err
 	}

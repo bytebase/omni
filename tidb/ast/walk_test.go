@@ -197,7 +197,7 @@ func allKnownNodes() []Node {
 		&JsonTableExpr{}, &JsonTableColumn{},
 
 		// Table expressions
-		&TableRef{}, &JoinClause{},
+		&TableRef{}, &JoinClause{}, &TableSample{},
 
 		// DDL components
 		&CommonTableExpr{}, &ColumnDef{}, &ColumnConstraint{}, &Constraint{},

@@ -3450,25 +3450,25 @@ accept	accept	analyze table t with 10 samplerate
 accept	accept	analyze table t with 0.1 samplerate
 accept	accept	analyze no_write_to_binlog table t1
 accept	accept	analyze local table t,t1
-reject	accept	select * from tbl tablesample system (50);
-reject	accept	select * from tbl tablesample system (50 percent);
-reject	accept	select * from tbl tablesample system (49.9 percent);
-reject	accept	select * from tbl tablesample system (120 rows);
-reject	accept	select * from tbl tablesample bernoulli (50);
-reject	accept	select * from tbl tablesample (50);
-reject	accept	select * from tbl tablesample (50) repeatable (123456789);
-reject	accept	select * from tbl as a tablesample (50);
-reject	accept	select * from tbl `tablesample` tablesample (50);
-reject	accept	select * from tbl tablesample (50) where id > 20;
-reject	accept	select * from tbl partition (p0) tablesample (50);
-reject	accept	select * from tbl tablesample (0 percent);
-reject	accept	select * from tbl tablesample (100 percent);
-reject	accept	select * from tbl tablesample (0 rows);
-reject	accept	select * from tbl tablesample ('34');
-reject	accept	select * from tbl1 tablesample (10), tbl2 tablesample (20);
-reject	accept	select * from tbl1 a tablesample (10) join tbl2 b tablesample (20) on a.id <> b.id;
-reject	accept	select * from demo tablesample bernoulli(50) limit 1 into outfile '/tmp/sample.csv';
-reject	accept	select * from demo tablesample bernoulli(50) order by a, b into outfile '/tmp/sample.csv';
+accept	accept	select * from tbl tablesample system (50);
+accept	accept	select * from tbl tablesample system (50 percent);
+accept	accept	select * from tbl tablesample system (49.9 percent);
+accept	accept	select * from tbl tablesample system (120 rows);
+accept	accept	select * from tbl tablesample bernoulli (50);
+accept	accept	select * from tbl tablesample (50);
+accept	accept	select * from tbl tablesample (50) repeatable (123456789);
+accept	accept	select * from tbl as a tablesample (50);
+accept	accept	select * from tbl `tablesample` tablesample (50);
+accept	accept	select * from tbl tablesample (50) where id > 20;
+accept	accept	select * from tbl partition (p0) tablesample (50);
+accept	accept	select * from tbl tablesample (0 percent);
+accept	accept	select * from tbl tablesample (100 percent);
+accept	accept	select * from tbl tablesample (0 rows);
+accept	accept	select * from tbl tablesample ('34');
+accept	accept	select * from tbl1 tablesample (10), tbl2 tablesample (20);
+accept	accept	select * from tbl1 a tablesample (10) join tbl2 b tablesample (20) on a.id <> b.id;
+accept	accept	select * from demo tablesample bernoulli(50) limit 1 into outfile '/tmp/sample.csv';
+accept	accept	select * from demo tablesample bernoulli(50) order by a, b into outfile '/tmp/sample.csv';
 reject	reject	select * from tbl tablesample system(50) a;
 reject	reject	select * from tbl tablesample (50) partition (p0);
 reject	reject	select * from tbl where id > 20 tablesample system(50);
