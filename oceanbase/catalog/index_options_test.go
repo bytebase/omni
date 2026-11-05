@@ -174,3 +174,131 @@ func TestOracle_OceanBaseIndexOptions(t *testing.T) {
 		})
 	}
 }
+
+// TestStoringMigration: a plan carries the stored columns, however the index comes to be
+// written, and its text reads back as the target.
+func TestStoringMigration(t *testing.T) {
+	load := func(ddl string) *Catalog {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE d; USE d; "+ddl+";")
+		return c
+	}
+	plan := func(from, to *Catalog) string {
+		return GenerateMigration(from, to, Diff(from, to)).SQL()
+	}
+	const (
+		bare   = "CREATE TABLE t (a INT, b INT, c INT, KEY k (a))"
+		stored = "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b, c) COMMENT 'x')"
+	)
+	got := plan(load(bare), load(stored))
+	if !strings.Contains(got, "STORING (`b`,`c`)") {
+		t.Errorf("a new STORING planned as:\n%s", got)
+	}
+	replay := load(bare)
+	mustExec(t, replay, "USE d; "+got+";")
+	if d := Diff(replay, load(stored)); !d.IsEmpty() {
+		t.Errorf("the plan's text left a difference: %s", describeDiff(d))
+	}
+
+	got = plan(load(bare), load("CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (C))"))
+	if !strings.Contains(got, "STORING (`c`)") {
+		t.Errorf("a column spelled otherwise planned as:\n%s", got)
+	}
+
+	got = plan(load(stored), load(bare))
+	if strings.Contains(got, "STORING") {
+		t.Errorf("a dropped STORING planned as:\n%s", got)
+	}
+
+	empty := New()
+	mustExec(t, empty, "CREATE DATABASE d;")
+	got = plan(empty, load(stored))
+	if !strings.Contains(got, "STORING (`b`,`c`)") {
+		t.Errorf("a new table's index planned as:\n%s", got)
+	}
+}
+
+// TestStoringKeepsAnIndexOutOfTheBackingSet: an index that stores columns is no index a foreign
+// key made for itself, however it is named, so the diff and the plan both see it.
+func TestStoringKeepsAnIndexOutOfTheBackingSet(t *testing.T) {
+	load := func(storing string) *Catalog {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE d; USE d; CREATE TABLE p (id INT PRIMARY KEY); "+
+			"CREATE TABLE t (pid INT, extra INT, KEY pid (pid)"+storing+", FOREIGN KEY (pid) REFERENCES p (id));")
+		return c
+	}
+	if d := Diff(load(""), load(" STORING (extra)")); d.IsEmpty() {
+		t.Error("a STORING on an index named like a foreign key's read as no change")
+	}
+	empty := New()
+	mustExec(t, empty, "CREATE DATABASE d;")
+	target := load(" STORING (extra)")
+	if got := GenerateMigration(empty, target, Diff(empty, target)).SQL(); !strings.Contains(got, "STORING (`extra`)") {
+		t.Errorf("a new table planned as:\n%s", got)
+	}
+}
+
+// TestStoringNamesDoNotRun: a quoted name can hold the separator, and is still one column.
+func TestStoringNamesDoNotRun(t *testing.T) {
+	load := func(storing string) *Catalog {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT, b INT, c INT, bc INT, `b,c` INT, KEY k (a)"+storing+"));")
+		return c
+	}
+	for _, other := range []string{" STORING (`b,c`", " STORING (bc"} {
+		if d := Diff(load(other), load(" STORING (b, c")); d.IsEmpty() {
+			t.Errorf("%s) and STORING (b, c) read as no change", other)
+		}
+	}
+}
+
+// TestOracle_OceanBaseStoringMigration applies a plan on the server, in every order the options
+// can land in: the server takes the text, and what it prints reads as the target.
+func TestOracle_OceanBaseStoringMigration(t *testing.T) {
+	o := oceanBaseOracle(t)
+	ctx := context.Background()
+	const bare = "CREATE TABLE t (a INT, b INT, c INT, KEY k (a))"
+	for _, target := range []struct{ id, create string }{
+		{"plain", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b))"},
+		{"two", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b, c))"},
+		{"comment", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) COMMENT 'x')"},
+		{"using", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) USING BTREE STORING (b))"},
+		{"invisible", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) INVISIBLE)"},
+		{"global", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) GLOBAL)"},
+		{"unique", "CREATE TABLE t (a INT, b INT, c INT, UNIQUE KEY k (a) STORING (b))"},
+	} {
+		t.Run(target.id, func(t *testing.T) {
+			sc := serverCharsetFor(o.version)
+			from, _ := loadOneTable(t, sc, bare, "t")
+			to, _ := loadOneTable(t, sc, target.create, "t")
+			plan := GenerateMigration(from, to, Diff(from, to)).SQL()
+			if !strings.Contains(plan, "STORING") {
+				t.Fatalf("the plan lost STORING:\n%s", plan)
+			}
+			schema := "obstore_" + target.id
+			if _, err := storeAndRead(ctx, o, schema, bare, "t"); err != nil {
+				t.Fatalf("the server would not take the table: %v", err)
+			}
+			for _, stmt := range strings.Split(plan, ";\n") {
+				stmt = strings.ReplaceAll(strings.TrimSuffix(strings.TrimSpace(stmt), ";"), "`diffdb`.", "`"+schema+"`.")
+				if stmt == "" {
+					continue
+				}
+				if _, err := o.db.ExecContext(ctx, stmt); err != nil {
+					t.Fatalf("the server would not take the plan:\n%s\n%v", stmt, err)
+				}
+			}
+			var name, readback string
+			if err := o.db.QueryRowContext(ctx, "SHOW CREATE TABLE `"+schema+"`.`t`").Scan(&name, &readback); err != nil {
+				t.Fatal(err)
+			}
+			stored, _ := loadOneTable(t, sc, readback, "t")
+			// The server's echo adds table options of its own, so the index is what is held.
+			for _, te := range DiffWithNormalizer(to, stored, NormalizerFor(o.version)).Tables {
+				if len(te.Indexes) != 0 {
+					t.Errorf("the applied plan left an index difference:\n%s", readback)
+				}
+			}
+		})
+	}
+}

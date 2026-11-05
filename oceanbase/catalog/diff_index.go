@@ -243,14 +243,14 @@ func isAutoBackingIndexName(idxName string, con *Constraint) bool {
 
 // isPlainBackingIndexFor reports whether idx has exactly the shape ensureFKBackingIndex
 // produces for an FK on fkCols: a plain (non-unique, non-fulltext, non-spatial), default-type,
-// visible, comment-less, block-size-less index whose column parts are the FK columns verbatim
+// visible, comment-less, block-size-less, store-nothing index whose column parts are the FK columns verbatim
 // (no prefix length, no expression, no DESC). Anything richer is a user-managed index that
 // merely happens to cover the FK columns, and is diffed normally.
 func isPlainBackingIndexFor(idx *Index, fkCols []string) bool {
 	if idx.Primary || idx.Unique || idx.Fulltext || idx.Spatial {
 		return false
 	}
-	if idx.IndexType != "" || idx.Comment != "" || idx.KeyBlockSize != 0 || !idx.Visible {
+	if idx.IndexType != "" || idx.Comment != "" || idx.KeyBlockSize != 0 || !idx.Visible || len(idx.Storing) > 0 {
 		return false
 	}
 	if len(idx.Columns) != len(fkCols) {
@@ -322,7 +322,15 @@ func canonicalStoring(idx *Index) string {
 		names = append(names, strings.ToLower(name))
 	}
 	slices.Sort(names)
-	return strings.Join(names, ",")
+	// Each name carries its length, since a quoted name can hold the separator: STORING (`b,c`)
+	// and STORING (b, c) are different columns.
+	var b strings.Builder
+	for _, name := range names {
+		b.WriteString(strconv.Itoa(len(name)))
+		b.WriteByte(':')
+		b.WriteString(name)
+	}
+	return b.String()
 }
 
 // canonicalVectorParams returns a vector index's parameters as a key fragment, in sorted
