@@ -619,10 +619,14 @@ func (p *Parser) parseIdent() (string, int, error) {
 // Ref: MY_LEX_IDENT (get_charset_by_csname) and MY_LEX_IDENT_START in sql_lex.cc
 // (mariadb-11.8.8).
 func (p *Parser) curIsVariableOrIntroducer() bool {
-	switch p.inputText(p.cur.Loc, p.cur.Loc+1) {
-	case "@":
+	// The raw byte, as backtickQuotedAt reads it: inputText expands the executable comments
+	// before the token, which every name would pay for.
+	switch i := p.cur.Loc - p.lexer.baseOffset; {
+	case i < 0 || i >= len(p.lexer.input):
+		return false
+	case p.lexer.input[i] == '@':
 		return true
-	case "_":
+	case p.lexer.input[i] == '_':
 		afterDot := p.prev.Type == '.' && p.prev.End == p.cur.Loc
 		return !afterDot && isCharsetIntroducer(p.cur.Str)
 	}

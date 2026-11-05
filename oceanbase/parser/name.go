@@ -638,10 +638,14 @@ func (p *Parser) parseIdent() (string, int, error) {
 // Ref: user_variable, _UTF8 and the ID_DOT_ID rules in sql_parser_mysql_mode.l
 // (oceanbase v4.3.5_CE_BP6).
 func (p *Parser) curIsVariableOrIntroducer() bool {
-	switch p.inputText(p.cur.Loc, p.cur.Loc+1) {
-	case "@":
+	// The raw byte, as backtickQuotedAt reads it: inputText expands the executable comments
+	// before the token, which every name would pay for.
+	switch i := p.cur.Loc - p.lexer.baseOffset; {
+	case i < 0 || i >= len(p.lexer.input):
+		return false
+	case p.lexer.input[i] == '@':
 		return true
-	case "_":
+	case p.lexer.input[i] == '_':
 		afterDot := p.prev.Type == '.' && p.prev.End == p.cur.Loc
 		beforeDot := p.lexer.dotNameAt(p.cur.End - p.lexer.baseOffset)
 		return !afterDot && !beforeDot && isCharsetIntroducer(p.cur.Str)

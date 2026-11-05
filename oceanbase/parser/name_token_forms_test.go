@@ -2,7 +2,9 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 	"testing"
+	"time"
 )
 
 // Three ways a name position read more than a name, or less.
@@ -195,5 +197,19 @@ func TestDotSeparatorTokens(t *testing.T) {
 		if fmt.Sprint(got) != fmt.Sprint(c.want) {
 			t.Errorf("tokens of %q = %v, want %v", c.sql, got, c.want)
 		}
+	}
+}
+
+// TestNamesAfterExecCommentsStayLinear guards curIsVariableOrIntroducer, which reads the
+// first byte of every name: through inputText it expanded the executable comments before
+// the token, so 32,000 names in comments took 1.6 s to parse and 16,000 a quarter of that.
+func TestNamesAfterExecCommentsStayLinear(t *testing.T) {
+	sql := "SELECT " + strings.Repeat("/*! a, */", 64000) + "a FROM t"
+	start := time.Now()
+	if _, err := Parse(sql); err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("Parse over 64,000 names in executable comments took %v", elapsed)
 	}
 }
