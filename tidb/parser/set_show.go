@@ -183,8 +183,9 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		}
 	}
 
-	// SET [GLOBAL|SESSION] TRANSACTION ...
-	if p.cur.Type == kwTRANSACTION {
+	// SET [GLOBAL|SESSION] TRANSACTION ... Those are the only scopes SetStmt names
+	// it with (parser.y:10758-10770), so `SET LOCAL TRANSACTION READ ONLY` is a 1064.
+	if p.cur.Type == kwTRANSACTION && (scope == "" || scope == "GLOBAL" || scope == "SESSION") {
 		return p.parseSetTransactionStmt(start, scope)
 	}
 

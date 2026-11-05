@@ -10,8 +10,10 @@ import "testing"
 // The clause is AsOfClause, parser.y:6559, and among the rules that name a table only
 // TableFactor reads it (parser.y:9909), in the order name, PARTITION, alias, AS OF,
 // index hints, TABLESAMPLE. DELETE FROM, LOCK TABLES and INSERT name a table some
-// other way. The lexer joins AS and OF into one token whenever AS is followed by the
-// word OF (lexer.go:262), and OF is reserved, so AS OF never starts an alias.
+// other way. START TRANSACTION and SET TRANSACTION read the same rule: their forms are
+// in transaction_forms_test.go and set_transaction_forms_test.go. The lexer joins AS
+// and OF into one token whenever AS is followed by the word OF (lexer.go:262), and OF
+// is reserved, so AS OF never starts an alias.
 //
 // Not in this table, because they do not depend on this clause and omni does not read
 // them yet:
@@ -20,8 +22,6 @@ import "testing"
 //   - `FROM { OJ t ... }` and `DESC SELECT`, which omni does not read at all.
 //   - `SELECT t. of FROM t`, `SELECT t . of FROM t` and `FROM db . of`: the spaced-dot
 //     rule holds for TABLESAMPLE alone (see afterSpacedDot).
-//   - `START TRANSACTION READ ONLY AS OF TIMESTAMP` and `SET [scope] TRANSACTION READ
-//     ONLY AS OF TIMESTAMP`, the other two statements that read the clause.
 //
 // `LOCK TABLES t USE INDEX (i) READ` is the reverse: a 1064 that omni accepts, which
 // this clause does not touch either.

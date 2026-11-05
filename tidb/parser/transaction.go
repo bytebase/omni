@@ -99,21 +99,12 @@ func (p *Parser) parseStartTransactionStmt(start int) (*nodes.BeginStmt, error) 
 		case kwONLY:
 			p.advance()
 			stmt.ReadOnly = true
-			if _, ok := p.match(kwAS); ok {
-				if _, err := p.expect(kwOF); err != nil {
-					return nil, err
-				}
-				if _, err := p.expect(kwTIMESTAMP); err != nil {
-					return nil, err
-				}
-				ts, err := p.parseExpr()
+			if p.cur.Type == kwAS {
+				asOf, err := p.parseAsOfClause()
 				if err != nil {
 					return nil, err
 				}
-				if ts == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.AsOf = ts
+				stmt.AsOf = asOf.Timestamp
 			}
 		default:
 			return nil, p.syntaxErrorAtCur()
@@ -519,29 +510,24 @@ func (p *Parser) parseStatsLockTargets() ([]*nodes.TableRef, []string, error) {
 	return tables, partitions, nil
 }
 
-// parseSetTransactionStmt parses SET [GLOBAL|SESSION] TRANSACTION.
+// parseSetTransactionStmt parses SET [GLOBAL | SESSION] TRANSACTION, with the
+// current token on TRANSACTION.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/set-transaction.html
+// Ref: SetStmt, TransactionChars, TransactionChar and IsolationLevel in TiDB
+// v8.5.5 pkg/parser/parser.y (lines 10758-10770, 10840, 10859, 10891).
 //
-//	SET [GLOBAL | SESSION] TRANSACTION
-//	    transaction_characteristic [, transaction_characteristic] ...
+//	TransactionChars: TransactionChar [, TransactionChar] ...
 //
-//	transaction_characteristic: {
-//	    ISOLATION LEVEL level
-//	  | access_mode
-//	}
+//	TransactionChar:
+//	    ISOLATION LEVEL {REPEATABLE READ | READ COMMITTED | READ UNCOMMITTED | SERIALIZABLE}
+//	  | READ WRITE
+//	  | READ ONLY [AS OF TIMESTAMP expr]
 //
-//	level: {
-//	     REPEATABLE READ
-//	   | READ COMMITTED
-//	   | READ UNCOMMITTED
-//	   | SERIALIZABLE
-//	}
-//
-//	access_mode: {
-//	     READ WRITE
-//	   | READ ONLY
-//	}
+// The list may not be empty, each characteristic has to be whole, and it may
+// name one more than once: `SET TRANSACTION READ ONLY, READ WRITE` parses. When
+// it does, the fields hold the last of each. A characteristic that writes no AS
+// OF leaves an earlier one in place, as upstream does: the clause assigns
+// tx_read_ts, and READ WRITE assigns tx_read_only.
 func (p *Parser) parseSetTransactionStmt(start int, scope string) (*nodes.SetTransactionStmt, error) {
 	p.advance() // consume TRANSACTION
 
@@ -549,47 +535,112 @@ func (p *Parser) parseSetTransactionStmt(start int, scope string) (*nodes.SetTra
 		Loc:   nodes.Loc{Start: start},
 		Scope: scope,
 	}
-
-	// Parse transaction characteristics
 	for {
-		if p.cur.Type == kwISOLATION {
-			p.advance()
-			p.match(kwLEVEL)
-			switch p.cur.Type {
-			case kwREPEATABLE:
-				p.advance()
-				p.match(kwREAD)
-				stmt.IsolationLevel = "REPEATABLE READ"
-			case kwREAD:
-				p.advance()
-				if _, ok := p.match(kwCOMMITTED); ok {
-					stmt.IsolationLevel = "READ COMMITTED"
-				} else if _, ok := p.match(kwUNCOMMITTED); ok {
-					stmt.IsolationLevel = "READ UNCOMMITTED"
-				}
-			case kwSERIALIZABLE:
-				p.advance()
-				stmt.IsolationLevel = "SERIALIZABLE"
-			}
-		} else if p.cur.Type == kwREAD {
-			p.advance()
-			if _, ok := p.match(kwONLY); ok {
-				stmt.AccessMode = "READ ONLY"
-			} else if _, ok := p.match(kwWRITE); ok {
-				stmt.AccessMode = "READ WRITE"
-			}
-		} else {
+		if err := p.parseTransactionChar(stmt); err != nil {
+			return nil, err
+		}
+		if _, ok := p.match(','); !ok {
 			break
 		}
-
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
 	}
-
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseTransactionChar parses one characteristic of SET TRANSACTION into stmt.
+func (p *Parser) parseTransactionChar(stmt *nodes.SetTransactionStmt) error {
+	// Completion: where a characteristic starts.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwISOLATION)
+		p.addTokenCandidate(kwREAD)
+		return &ParseError{Message: "collecting"}
+	}
+
+	switch p.cur.Type {
+	case kwISOLATION:
+		p.advance()
+		if _, err := p.expect(kwLEVEL); err != nil {
+			return err
+		}
+		level, err := p.parseIsolationLevel()
+		if err != nil {
+			return err
+		}
+		stmt.IsolationLevel = level
+	case kwREAD:
+		p.advance()
+		// Completion: after READ, offer ONLY and WRITE.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwONLY)
+			p.addTokenCandidate(kwWRITE)
+			return &ParseError{Message: "collecting"}
+		}
+		switch p.cur.Type {
+		case kwWRITE:
+			p.advance()
+			stmt.AccessMode = "READ WRITE"
+		case kwONLY:
+			p.advance()
+			stmt.AccessMode = "READ ONLY"
+			if p.cur.Type == kwAS {
+				asOf, err := p.parseAsOfClause()
+				if err != nil {
+					return err
+				}
+				stmt.AsOf = asOf.Timestamp
+			}
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// parseIsolationLevel parses the level after ISOLATION LEVEL.
+func (p *Parser) parseIsolationLevel() (string, error) {
+	// Completion: after ISOLATION LEVEL, offer the words a level starts with.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwREPEATABLE)
+		p.addTokenCandidate(kwREAD)
+		p.addTokenCandidate(kwSERIALIZABLE)
+		return "", &ParseError{Message: "collecting"}
+	}
+
+	switch p.cur.Type {
+	case kwREPEATABLE:
+		p.advance()
+		if _, err := p.expect(kwREAD); err != nil {
+			return "", err
+		}
+		return "REPEATABLE READ", nil
+	case kwREAD:
+		p.advance()
+		// Completion: after READ, offer COMMITTED and UNCOMMITTED.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwCOMMITTED)
+			p.addTokenCandidate(kwUNCOMMITTED)
+			return "", &ParseError{Message: "collecting"}
+		}
+		switch p.cur.Type {
+		case kwCOMMITTED:
+			p.advance()
+			return "READ COMMITTED", nil
+		case kwUNCOMMITTED:
+			p.advance()
+			return "READ UNCOMMITTED", nil
+		}
+		return "", p.syntaxErrorAtCur()
+	case kwSERIALIZABLE:
+		p.advance()
+		return "SERIALIZABLE", nil
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseXAStmt parses an XA statement.

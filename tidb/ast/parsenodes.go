@@ -2868,6 +2868,9 @@ type SetTransactionStmt struct {
 	Scope          string // GLOBAL, SESSION, or ""
 	IsolationLevel string // READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ, SERIALIZABLE
 	AccessMode     string // READ ONLY, READ WRITE
+	// AsOf is the expression of READ ONLY AS OF TIMESTAMP expr, the time a stale
+	// read reads at; nil when there is none.
+	AsOf ExprNode
 }
 
 func (s *SetTransactionStmt) nodeTag()  {}
