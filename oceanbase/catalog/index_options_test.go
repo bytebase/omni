@@ -252,8 +252,10 @@ func TestStoringNamesDoNotRun(t *testing.T) {
 	}
 }
 
-// TestOracle_OceanBaseStoringMigration applies a plan on the server, in every order the options
-// can land in: the server takes the text, and what it prints reads as the target.
+// TestOracle_OceanBaseStoringMigration applies a plan on the server: the server takes the text,
+// and what it prints reads as the target. USING BTREE and INVISIBLE are left out, since neither
+// reads back with or without STORING: the server does not print USING BTREE, and a plan's
+// /*!80000 INVISIBLE */ is a comment to a server that reports 5.7.25.
 func TestOracle_OceanBaseStoringMigration(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()
@@ -262,8 +264,6 @@ func TestOracle_OceanBaseStoringMigration(t *testing.T) {
 		{"plain", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b))"},
 		{"two", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b, c))"},
 		{"comment", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) COMMENT 'x')"},
-		{"using", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) USING BTREE STORING (b))"},
-		{"invisible", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) INVISIBLE)"},
 		{"global", "CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b) GLOBAL)"},
 		{"unique", "CREATE TABLE t (a INT, b INT, c INT, UNIQUE KEY k (a) STORING (b))"},
 	} {
