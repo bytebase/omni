@@ -81,7 +81,7 @@ jobs:
             sleep 1
           done
           port=$(docker port "$name" 3306/tcp | head -1 | sed 's/.*://')
-          echo "OMNI_MYSQL80_DSN=root:test@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
+          echo "OMNI_SHARED_MYSQL80_DSN=root:test@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
 
       - name: Test
         if: steps.affected.outputs.pkgs != ''

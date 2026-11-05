@@ -75,7 +75,7 @@ type MySQLServer struct {
 var MySQL80 = &MySQLServer{
 	Image:   "mysql:8.0",
 	Version: "8.0.",
-	Env:     "OMNI_MYSQL80_DSN",
+	Env:     "OMNI_SHARED_MYSQL80_DSN",
 	DevDSN:  "root:test@tcp(127.0.0.1:13380)/",
 	Args:    []string{"--skip-log-bin", "--max-connections=1000"},
 }

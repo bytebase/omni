@@ -103,12 +103,14 @@ up() { # engine
 	done
 }
 
-# scratch names this checkout's database, from the directory it is in.
+# scratch names this checkout's database: the directory's name to read, and a
+# checksum of its path, since two checkouts can share a directory name.
 scratch() {
-	local top
+	local top sum base
 	top=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-	top=$(basename "$top" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9\n' '_')
-	echo "scratch_${top:0:48}"
+	sum=$(printf %s "$top" | cksum | cut -d' ' -f1)
+	base=$(basename "$top" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9\n' '_')
+	echo "scratch_${base:0:40}_$sum"
 }
 
 ensure_scratch() { # engine
@@ -124,15 +126,17 @@ ensure_scratch() { # engine
 [ $# -ge 1 ] || usage
 command=$1
 shift
+# docker exec -i reads the caller's stdin, which holds the SQL of `sql` and belongs
+# to the caller otherwise, so everything before the final client runs without it.
 case "$command" in
 up)
 	[ $# -eq 1 ] || usage
-	up "$1"
+	up "$1" </dev/null
 	;;
 dsn)
 	[ $# -eq 1 ] || usage
-	up "$1"
-	ensure_scratch "$1"
+	up "$1" </dev/null
+	ensure_scratch "$1" </dev/null
 	engine_config "$1"
 	case "$family" in
 	mysql | mariadb) echo "root:test@tcp(127.0.0.1:$port)/$(scratch)" ;;
@@ -144,8 +148,8 @@ sql)
 	[ $# -ge 1 ] || usage
 	engine=$1
 	shift
-	up "$engine"
-	ensure_scratch "$engine"
+	up "$engine" </dev/null
+	ensure_scratch "$engine" </dev/null
 	engine_config "$engine"
 	if [ $# -eq 0 ]; then
 		client "$engine" "$(scratch)"
