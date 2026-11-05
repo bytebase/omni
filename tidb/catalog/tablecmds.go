@@ -1464,6 +1464,12 @@ func formatColumnType(dt *nodes.DataType) string {
 		return "bigint unsigned"
 	case "geometrycollection":
 		name = "geomcollection"
+	case "float":
+		// FLOAT(n) is a precision in bits, which picks the type and is not kept: TiDB v8.5.5
+		// shows FLOAT(10) as float and FLOAT(30) as double.
+		if dt.Length > 24 && dt.Scale == 0 {
+			name = "double"
+		}
 	}
 
 	var buf strings.Builder
@@ -1478,7 +1484,7 @@ func formatColumnType(dt *nodes.DataType) string {
 		if dt.Zerofill {
 			width := dt.Length
 			if width == 0 {
-				width = defaultIntDisplayWidth(name, dt.Unsigned)
+				width = defaultIntDisplayWidth(name, true) // ZEROFILL implies UNSIGNED
 			}
 			fmt.Fprintf(&buf, "(%d)", width)
 		}
@@ -1497,6 +1503,11 @@ func formatColumnType(dt *nodes.DataType) string {
 		buf.WriteString("(1)")
 	} else if dt.Length > 0 && dt.Scale > 0 {
 		fmt.Fprintf(&buf, "(%d,%d)", dt.Length, dt.Scale)
+	} else if name == "float" || name == "double" {
+		// Without a scale neither shows a precision: TiDB v8.5.5 shows DOUBLE(10,0) as double,
+		// and DOUBLE(10) is a syntax error there, so printing it would not read back.
+	} else if name == "decimal" && dt.Length > 0 {
+		fmt.Fprintf(&buf, "(%d,0)", dt.Length)
 	} else if dt.Length > 0 {
 		fmt.Fprintf(&buf, "(%d)", dt.Length)
 	}
@@ -1515,7 +1526,8 @@ func formatColumnType(dt *nodes.DataType) string {
 	// TABLE writes `year(4)` for `year unsigned zerofill`, so a column that was
 	// declared with them is not one that reports them.
 	if name != "year" {
-		if dt.Unsigned {
+		// ZEROFILL implies UNSIGNED, which SHOW CREATE TABLE writes out.
+		if dt.Unsigned || dt.Zerofill {
 			buf.WriteString(" unsigned")
 		}
 		if dt.Zerofill {
