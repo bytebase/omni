@@ -158,6 +158,14 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *Query) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
+		// JSON_VALUE's document is a simple_expr, and analysis drops the parentheses a
+		// predicate or an operator needs there: JSON_VALUE(1 IN (SELECT 1), '$') is a 1064.
+		if i == 0 && f.JSONValueClauses != "" && needsDocumentParens(arg) {
+			b.WriteByte('(')
+			writeAnalyzedExpr(b, arg, q)
+			b.WriteByte(')')
+			continue
+		}
 		writeAnalyzedExpr(b, arg, q)
 	}
 	b.WriteString(f.JSONValueClauses)
@@ -405,4 +413,17 @@ func isNumericLiteralQ(s string) bool {
 func isBoolLiteralQ(s string) bool {
 	upper := strings.ToUpper(s)
 	return upper == "TRUE" || upper == "FALSE"
+}
+
+// needsDocumentParens reports a JSON_VALUE document whose writer leaves it bare where the grammar
+// wants a simple_expr: an IN list, and a subquery link other than a scalar subquery. Operators,
+// BETWEEN, IS NULL and the boolean connectives write their own parentheses.
+func needsDocumentParens(e AnalyzedExpr) bool {
+	switch v := e.(type) {
+	case *InListExprQ:
+		return true
+	case *SubLinkExprQ:
+		return v.Kind != SubLinkScalar
+	}
+	return false
 }

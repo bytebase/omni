@@ -147,6 +147,11 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 		return &nodes.JSONValueResponse{Loc: nodes.Loc{Start: begin, End: p.prev.End}, Default: value}, nil
 	}
 	p.skipNationalPrefix()
+	// OFF reads as a boolean in an expression, and signed_literal has no arm for it: DEFAULT OFF
+	// is a 1064 where DEFAULT FALSE reads.
+	if p.cur.Type == kwOFF {
+		return nil, &ParseError{Message: "JSON_VALUE takes a literal after DEFAULT", Position: start}
+	}
 	value, err := p.parseExprPrec(precUnary)
 	if err != nil {
 		return nil, err
