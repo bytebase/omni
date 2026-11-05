@@ -176,8 +176,8 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	}
 
 	// AS row_alias [(col_alias, ...)], only after rows in parentheses or SET
-	// (opt_insert_row_alias). REPLACE takes one too: OceanBase reads it with
-	// INSERT's rule (measured).
+	// (opt_insert_row_alias). REPLACE takes one too: its rule ends in the same
+	// single_table_insert as INSERT's.
 	if aliasable && p.cur.Type == kwAS {
 		p.advance()
 		alias, _, err := p.parseIdent()

@@ -281,8 +281,9 @@ func TestRowLeadingComma(t *testing.T) {
 	}
 }
 
-// TestReplaceTakesWhatInsertTakes: OceanBase reads both with insert_stmt, so REPLACE
-// takes IGNORE and a row alias, which MySQL's does not.
+// TestReplaceTakesWhatInsertTakes: OceanBase's REPLACE rule is replace_with_opt_hint
+// opt_low_priority opt_ignore opt_into single_table_insert, so it takes IGNORE and a
+// row alias, which MySQL's does not.
 func TestReplaceTakesWhatInsertTakes(t *testing.T) {
 	if stmt := insertTree(t, "REPLACE IGNORE INTO t VALUES (1)"); !stmt.IsReplace || !stmt.Ignore {
 		t.Errorf("%+v", stmt)
