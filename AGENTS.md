@@ -65,7 +65,7 @@ The rules above are the target. These places do not meet them yet; do not copy t
 - Container tests fail when Docker is missing; they do not skip. CI runs every test on every PR with no `-short` and no nightly. Never check `testing.Short()`, and never park a known gap behind a skip.
 - Pinned images are part of the recorded expectations: `trinodb/trino:482` and the Spanner emulator `1.5.54` in `.github/workflows/ci.yml`, `postgres:17-alpine` in `pg/parser`, `postgres:17-alpine` and `postgres:18-alpine` in `pg/review`, `gvenzl/oracle-free:23.26.3-slim-faststart` in `oracle/parser`, `mcr.microsoft.com/dotnet/sdk:8.0.425` (the ScriptDOM harness) in `mssql/parser`, `mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04` in `mssql/parser` and `mssql/review`. Upgrading one means rerunning its oracle tests and reading the drift, not editing expectations to match.
 - CI runs the sweeps at `PAREN_FUZZ_SIZE=10000`, `SPLITTEST_N=1000000`, `S3DIFF_N=2000`, and `WALK_SWEEP_N=500`; local defaults are smaller. Trino packages run one at a time because they share the service and run stateful DDL against the same names.
-- A PR runs the packages `scripts/affected-packages.sh` derives from the diff. A change to `go.mod`, `proto/`, `scripts/`, `harness/`, `docs/`, or any root file runs everything.
+- A PR runs the packages `scripts/affected-packages.sh` derives from the diff. A change to `go.mod`, `proto/`, `scripts/`, `harness/`, `docs/`, or any root file runs everything. The merge queue and a push to main run everything.
 
 ## Verification
 

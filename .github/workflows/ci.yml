@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
 
 permissions:
   contents: read
@@ -16,8 +17,9 @@ concurrency:
 jobs:
   ci:
     # One job on the org's self-hosted runners. A PR runs the tests of the
-    # engines it touches (scripts/affected-packages.sh); a push to main runs
-    # everything. Every test runs here; nothing is skipped and nothing is nightly.
+    # engines it touches (scripts/affected-packages.sh) against the base it last
+    # saw; a merge queue entry and a push to main run everything on the tree that
+    # lands. Every test runs here; nothing is skipped and nothing is nightly.
     runs-on: self-hosted
     timeout-minutes: 30
     env:
