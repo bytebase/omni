@@ -87,6 +87,10 @@ func Parse(sql string) (*nodes.List, error) {
 
 // parseSingle parses a single SQL segment (without DELIMITER directives) into an AST list.
 // baseOffset is added to all token positions so Loc values are absolute within the original input.
+//
+// A statement that does not parse with its executable comments' bodies in it
+// is read again with every executable comment as a plain comment, as OceanBase
+// reads it (exec_fallback.go): "SELECT 1 /*! SELECT 2 */" is SELECT 1.
 func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 	p := &Parser{
 		lexer: NewLexerWithOffset(sql, baseOffset),
@@ -94,48 +98,53 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 	p.advance()
 
 	var stmts []nodes.Node
+	// from is where the statement being read starts in sql: past the last ';',
+	// so a retry reads an executable comment that opens the statement.
+	// opener is the offset of the first "/*!" at or after from, once looked up,
+	// or len(sql) when there is none.
+	from, opener := 0, -1
 	for p.cur.Type != tokEOF {
 		// Skip semicolons
 		if p.cur.Type == ';' {
+			from = p.cur.End - baseOffset
 			p.advance()
 			continue
 		}
-		stmtStart := p.cur.Loc
-		stmt, err := p.parseStmt()
-		if err != nil {
-			// A lexing error (unterminated comment/string/identifier) is the more
-			// specific cause; report it in preference to the derived syntax error.
-			if lexErr := p.lexerError(); lexErr != nil {
-				return nil, p.enrichError(lexErr)
+		stmt, err := p.readStatement()
+		// A statement that parsed and left an executable comment open has no
+		// retry; lexerError reports the comment after the loop.
+		if err != nil || p.lexer.hasErr {
+			if opener < from {
+				opener = len(sql)
+				if i := strings.Index(sql[from:], "/*!"); i >= 0 {
+					opener = from + i
+				}
 			}
-			return nil, p.enrichError(err)
+			if opener == len(sql) || !retriesAsSQL(sql[from:]) {
+				if err == nil {
+					err = p.enrichError(p.lexerError())
+				}
+				return nil, err
+			}
+			plain := &Parser{lexer: p.lexer.restartAt(from, true)}
+			plain.advance()
+			first := plain.cur
+			if stmt, err = plain.readStatement(); err != nil {
+				return nil, err
+			}
+			if lexErr := plain.lexerError(); lexErr != nil {
+				return nil, plain.enrichError(lexErr)
+			}
+			if stmt != nil && !sqlParserReads(stmt) {
+				return nil, plain.syntaxErrorAtTok(first)
+			}
+			// What follows the statement is read with its executable comments
+			// in it again.
+			p = &Parser{lexer: p.lexer.restartAt(plain.cur.Loc-baseOffset, false)}
+			p.advance()
 		}
-		if stmt == nil {
-			// parseStmt returned nil without error — unconsumed tokens remain.
-			if lexErr := p.lexerError(); lexErr != nil {
-				return nil, p.enrichError(lexErr)
-			}
-			if p.cur.Type != tokEOF {
-				return nil, p.syntaxErrorAtCur()
-			}
-			break
-		}
-		if treeTooHigh(stmt, p.prev.End-stmtStart) {
-			return nil, p.enrichError(nestedTooDeeply(stmtStart))
-		}
-		stmts = append(stmts, stmt)
-		// A statement ends at a ';' or at the end of the text. Any other token
-		// here starts a second statement with no separator in front of it,
-		// which the server refuses with 1064.
-		//
-		// Ref: OceanBase CE v4.3.5_CE_BP1 src/sql/parser/sql_parser_mysql_mode.y:591
-		// (stmt_list), which follows a stmt with DELIMITER or END_P and nothing
-		// else.
-		if p.cur.Type != ';' && p.cur.Type != tokEOF {
-			if lexErr := p.lexerError(); lexErr != nil {
-				return nil, p.enrichError(lexErr)
-			}
-			return nil, p.syntaxErrorAtCur()
+		if stmt != nil {
+			stmts = append(stmts, stmt)
 		}
 	}
 
@@ -150,6 +159,52 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 		return &nodes.List{}, nil
 	}
 	return &nodes.List{Items: stmts}, nil
+}
+
+// readStatement reads the statement at the current token, which ends at a ';'
+// or at the end of the text. It returns no statement and no error when the
+// text holds none, as when every token was in a comment.
+func (p *Parser) readStatement() (nodes.Node, error) {
+	if p.cur.Type == ';' || p.cur.Type == tokEOF {
+		return nil, nil
+	}
+	stmtStart := p.cur.Loc
+	stmt, err := p.parseStmt()
+	if err != nil {
+		// A lexing error (unterminated comment/string/identifier) is the more
+		// specific cause; report it in preference to the derived syntax error.
+		if lexErr := p.lexerError(); lexErr != nil {
+			return nil, p.enrichError(lexErr)
+		}
+		return nil, p.enrichError(err)
+	}
+	if stmt == nil {
+		// parseStmt returned nil without error — unconsumed tokens remain.
+		if lexErr := p.lexerError(); lexErr != nil {
+			return nil, p.enrichError(lexErr)
+		}
+		if p.cur.Type != tokEOF {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return nil, nil
+	}
+	if treeTooHigh(stmt, p.prev.End-stmtStart) {
+		return nil, p.enrichError(nestedTooDeeply(stmtStart))
+	}
+	// A statement ends at a ';' or at the end of the text. Any other token
+	// here starts a second statement with no separator in front of it,
+	// which the server refuses with 1064.
+	//
+	// Ref: OceanBase CE v4.3.5_CE_BP1 src/sql/parser/sql_parser_mysql_mode.y:591
+	// (stmt_list), which follows a stmt with DELIMITER or END_P and nothing
+	// else.
+	if p.cur.Type != ';' && p.cur.Type != tokEOF {
+		if lexErr := p.lexerError(); lexErr != nil {
+			return nil, p.enrichError(lexErr)
+		}
+		return nil, p.syntaxErrorAtCur()
+	}
+	return stmt, nil
 }
 
 // lexerError converts a recorded lexer error, if any, into a ParseError with an
