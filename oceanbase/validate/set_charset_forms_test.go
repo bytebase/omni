@@ -29,13 +29,15 @@ func TestSetCharsetFormsNameNoVariable(t *testing.T) {
 			}
 		})
 	}
-	// NAMES is also a variable name here, and that one needs declaring.
-	named, err := parser.Parse("CREATE PROCEDURE p() BEGIN SET NAMES = 1; END")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if diags := Validate(named, Options{}); len(diags) != 1 {
-		t.Errorf("findings = %v, want the undeclared variable NAMES", diags)
+	// A variable that only shares a form's word still needs declaring.
+	for _, body := range []string{"SET NAMES = 1", "SET NAMES = 'x'", "SET `NAMES` = 'x'", "SET `CHARACTER SET` = 'x'"} {
+		named, err := parser.Parse("CREATE PROCEDURE p() BEGIN " + body + "; END")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if diags := Validate(named, Options{}); len(diags) != 1 {
+			t.Errorf("%s: findings = %v, want the undeclared variable", body, diags)
+		}
 	}
 
 	list, err := parser.Parse("CREATE PROCEDURE p() BEGIN SET NAMES utf8mb4, nope = 1; END")

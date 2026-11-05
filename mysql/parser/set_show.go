@@ -312,9 +312,10 @@ func (p *Parser) parseSetCharsetName() (string, int, error) {
 func appendSetWord(stmt *nodes.SetStmt, column, value string, start, end int) {
 	loc := nodes.Loc{Start: start, End: end}
 	stmt.Assignments = append(stmt.Assignments, &nodes.Assignment{
-		Loc:    loc,
-		Column: &nodes.ColumnRef{Loc: loc, Column: column},
-		Value:  &nodes.StringLit{Loc: loc, Value: value},
+		Loc:         loc,
+		Column:      &nodes.ColumnRef{Loc: loc, Column: column},
+		Value:       &nodes.StringLit{Loc: loc, Value: value},
+		CharsetForm: true,
 	})
 }
 

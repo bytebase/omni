@@ -137,8 +137,7 @@ func (v *validator) walkAssignment(s *nodes.Assignment, systemScope bool) {
 	}
 	// SET NAMES and the charset forms hold their word on the Column field; they
 	// name no variable.
-	switch col.Column {
-	case "NAMES", "COLLATE", "CHARACTER SET":
+	if s.CharsetForm {
 		return
 	}
 	// @user / @@system variables carry the prefix on the Column field; always
