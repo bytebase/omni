@@ -4,6 +4,11 @@ import nodes "github.com/bytebase/omni/tidb/ast"
 
 // createIndex handles standalone CREATE INDEX statements.
 func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
+	// The server answers this before it looks at the database or the table.
+	if stmt.SyntaxRefused() {
+		return errSyntaxRefused()
+	}
+
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -58,6 +63,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	case stmt.Spatial:
 		idx.Spatial = true
 		idx.IndexType = "SPATIAL"
+	case stmt.Vector:
+		idx.Vector = true
+		idx.IndexType = vectorIndexType(stmt.IndexType, stmt.Options)
 	default:
 		// CREATE INDEX may declare the type before ON or among the options
 		// after the column list; reading only the first dropped the second.

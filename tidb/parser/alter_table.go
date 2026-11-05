@@ -917,7 +917,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	// Completion: after ADD, offer what can be added.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwUNIQUE, kwPRIMARY, kwFOREIGN, kwCONSTRAINT, kwCHECK, kwPARTITION, kwSPATIAL, kwFULLTEXT} {
+		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwUNIQUE, kwPRIMARY, kwFOREIGN, kwCONSTRAINT, kwCHECK, kwPARTITION, kwSPATIAL, kwFULLTEXT, kwVECTOR} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -980,6 +980,16 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		cmd.Constraint = constr
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
+	}
+
+	// VECTOR after a bare ADD can only open VECTOR INDEX, which was read above. Its
+	// precedence over the column reading is what lets the grammar take VECTOR as a
+	// type, so TiDB v8.5.5 answers 1064 for `ADD vector INT` and runs `ADD COLUMN
+	// vector INT`, ``ADD `vector` INT`` and `ADD comment INT`.
+	//
+	// Ref: `%precedence vectorType` in TiDB v8.5.5 pkg/parser/parser.y.
+	if p.cur.Type == kwVECTOR {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// ADD [COLUMN] [IF NOT EXISTS]

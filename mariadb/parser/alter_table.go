@@ -520,7 +520,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	// Completion: after ADD, offer what can be added.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwUNIQUE, kwPRIMARY, kwFOREIGN, kwCONSTRAINT, kwCHECK, kwPARTITION, kwSPATIAL, kwFULLTEXT} {
+		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwUNIQUE, kwPRIMARY, kwFOREIGN, kwCONSTRAINT, kwCHECK, kwPARTITION, kwSPATIAL, kwFULLTEXT, kwVECTOR} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -570,7 +570,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	// ADD [CONSTRAINT ...] PRIMARY KEY / UNIQUE / FOREIGN KEY / CHECK
 	if p.isTableConstraintStart() {
 		cmd.Type = nodes.ATAddConstraint
-		constr, err := p.parseTableConstraint()
+		constr, err := p.parseTableConstraint(true)
 		if err != nil {
 			return nil, err
 		}
@@ -626,7 +626,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		p.advance()
 		for {
 			if p.isTableConstraintStart() {
-				constr, err := p.parseTableConstraint()
+				constr, err := p.parseTableConstraint(true)
 				if err != nil {
 					return nil, err
 				}

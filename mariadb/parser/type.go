@@ -151,6 +151,15 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 		p.parseUnsignedZerofill(dt)
 
+	// VECTOR(dimension), MariaDB's own. The word is reserved, so it reads here
+	// without a lookahead.
+	case kwVECTOR:
+		dt.Name = "VECTOR"
+		p.advance()
+		if err := p.parseVectorDimension(dt); err != nil {
+			return nil, err
+		}
+
 	// Boolean
 	case kwBOOL, kwBOOLEAN:
 		dt.Name = "BOOLEAN"
@@ -487,6 +496,18 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		// name, INET4/INET6 can be identifiers), so they are recognised here in type
 		// position only, by their identifier text, without reserving the words.
 		if p.cur.Type == tokIDENT {
+			// A quoted `VECTOR` is the same type: the type names are plugin names
+			// the grammar reads as identifiers, and only the unquoted word is the
+			// reserved keyword.
+			if p.isQuotedVectorType() {
+				dt.Name = "VECTOR"
+				p.advance()
+				if err := p.parseVectorDimension(dt); err != nil {
+					return nil, err
+				}
+				dt.Loc.End = p.prev.End
+				return dt, nil
+			}
 			switch {
 			case strings.EqualFold(p.cur.Str, "UUID"):
 				dt.Name = "UUID"
@@ -512,6 +533,52 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 
 	dt.Loc.End = p.prev.End
 	return dt, nil
+}
+
+// isQuotedVectorType reports whether the current token is a quoted `VECTOR`. The
+// unquoted word lexes as kwVECTOR, so an identifier token spelling it was quoted.
+func (p *Parser) isQuotedVectorType() bool {
+	return p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "VECTOR")
+}
+
+// parseVectorDimension reads what must follow VECTOR in a column type.
+//
+// MariaDB 11.8.8 answers 1064 for a bare VECTOR, for VECTOR(), VECTOR(3,), VECTOR(1e5),
+// VECTOR(1.5,2), VECTOR('3') and VECTOR(0x3), and takes VECTOR(3), VECTOR(3,2) and
+// VECTOR(1.5), as it does any type it reads with the float_options of sql_yacc.yy. It
+// keeps only the integer part of the first number: SHOW CREATE TABLE writes vector(3)
+// for VECTOR(3,2) and vector(1) for VECTOR(1.5), so that is what Length holds. A size
+// past 16383 parses and is refused later with 1074.
+func (p *Parser) parseVectorDimension(dt *nodes.DataType) error {
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	switch p.cur.Type {
+	case tokICONST:
+		dt.Length = int(p.cur.Ival)
+		p.advance()
+		if p.cur.Type == ',' {
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
+		}
+	case tokFCONST:
+		// DECIMAL_NUM takes a point and no exponent.
+		if strings.ContainsAny(p.cur.Str, "eE") {
+			return p.syntaxErrorAtCur()
+		}
+		whole, _, _ := strings.Cut(p.cur.Str, ".")
+		if n, err := strconv.Atoi(whole); err == nil {
+			dt.Length = n
+		}
+		p.advance()
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	_, err := p.expect(')')
+	return err
 }
 
 // parseRequiredLength parses the length a VARCHAR-shaped type must carry.

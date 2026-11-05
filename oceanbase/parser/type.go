@@ -151,6 +151,22 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 		p.parseUnsignedZerofill(dt)
 
+	// VECTOR(dimension), OceanBase's own. The dimension is required and is one integer:
+	// 4.3.5.6 answers 1064 for a bare VECTOR, for VECTOR(), VECTOR(3,2), VECTOR(1.5) and
+	// for the quoted `VECTOR`(3), and parses VECTOR(0) and VECTOR(16384), which it refuses
+	// later with 1235. A dimension past 64 bits is a decimal and so a 1064 too.
+	case kwVECTOR:
+		dt.Name = "VECTOR"
+		p.advance()
+		if next := p.peekNext(); p.cur.Type == '(' && next.Type == tokICONST {
+			if _, err := strconv.ParseUint(next.Str, 10, 64); err != nil {
+				return nil, p.syntaxErrorAtTok(next)
+			}
+		}
+		if err := p.parseRequiredLength(dt); err != nil {
+			return nil, err
+		}
+
 	// Boolean
 	case kwBOOL, kwBOOLEAN:
 		dt.Name = "BOOLEAN"
@@ -492,6 +508,16 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 
 	dt.Loc.End = p.prev.End
 	return dt, nil
+}
+
+// parseRoutineDataType reads a type where a routine's parameter, its RETURNS or a DECLARE
+// names one. VECTOR is a column type only: 4.3.5.6 answers 1064 for CREATE FUNCTION f(a
+// VECTOR(3)), where JSON_TABLE's columns take it as a table's do.
+func (p *Parser) parseRoutineDataType() (*nodes.DataType, error) {
+	if p.cur.Type == kwVECTOR {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseDataType()
 }
 
 // parseRequiredLength parses the length a VARCHAR-shaped type must carry.

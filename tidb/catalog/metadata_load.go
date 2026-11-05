@@ -344,6 +344,7 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 		indexType = ""
 	}
 	c := &nodes.Constraint{Name: idx.GetName()}
+	vector := false
 	switch {
 	case idx.GetPrimary():
 		c.Type, c.IndexType = nodes.ConstrPrimaryKey, indexType
@@ -351,10 +352,25 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 		c.Type, c.IndexType = nodes.ConstrUnique, indexType
 	case indexType == "FULLTEXT":
 		c.Type = nodes.ConstrFulltextIndex
+	case indexType == "HNSW":
+		// A vector index syncs as an index of type HNSW. Left an ordinary index,
+		// SHOW CREATE TABLE would write KEY for it and a change could not tell it
+		// from one.
+		c.Type, c.IndexType = nodes.ConstrVector, indexType
+		vector = true
 	default:
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
 	c.Columns, c.IndexColumns = indexKeyParts(idx)
+	if vector && len(c.IndexColumns) == 0 {
+		// Written in the synced text as a plain column, as in `b`. The server made this
+		// index, so it is the one functional key part SyntaxRefused looks for whatever
+		// the sync wrote.
+		for _, name := range c.Columns {
+			c.IndexColumns = append(c.IndexColumns, &nodes.IndexColumn{Expr: &nodes.ColumnRef{Column: name}, Functional: true})
+		}
+		c.Columns = nil
+	}
 	// A primary key is always visible.
 	if !idx.GetVisible() && !idx.GetPrimary() {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
@@ -395,6 +411,7 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn)
 			key.Length = l
 		}
 		if isExpressionKey(expr) {
+			key.Functional = true
 			// On a parse failure the key stays a column, so the index still installs.
 			if parsed, err := parseExpr(expr); err == nil {
 				key.Expr = parsed

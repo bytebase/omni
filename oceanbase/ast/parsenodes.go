@@ -303,6 +303,7 @@ type CreateIndexStmt struct {
 	Unique      bool
 	Fulltext    bool
 	Spatial     bool
+	Vector      bool // CREATE VECTOR INDEX
 	IfNotExists bool
 	IndexName   string
 	Table       *TableRef
@@ -332,19 +333,21 @@ type IndexOption struct {
 	Loc   Loc
 	Name  string
 	Value Node // heterogeneous: may be *String, *Integer, or other literal nodes
-	// Properties holds the key = value list of OceanBase's PARSER_PROPERTIES option on
-	// a fulltext index, the one option with a list; nil for every other option.
+	// Properties holds a key = value list: PARSER_PROPERTIES on a fulltext index, or
+	// the WITH (...) a vector index takes its parameters from. nil for every other
+	// option.
 	Properties []*ParserProperty
 }
 
 func (o *IndexOption) nodeTag() {}
 
 // ParserProperty is one key = value of an OceanBase fulltext index's
-// PARSER_PROPERTIES, such as min_token_size = 3 or ik_mode = 'smart'.
+// PARSER_PROPERTIES, such as min_token_size = 3 or ik_mode = 'smart', or of an index's
+// WITH (...), such as distance = l2 or m = 16.
 type ParserProperty struct {
 	Loc   Loc
-	Name  string // the key, lower-cased: min_token_size, ngram_token_size, ik_mode, ...
-	Value Node   // *IntLit for a size, *StringLit for a table name or ik_mode
+	Name  string // the key, lower-cased: min_token_size, ngram_token_size, ik_mode, distance, ...
+	Value Node   // *IntLit for a size, *StringLit for a table name, ik_mode, or a WITH word or decimal
 }
 
 func (p *ParserProperty) nodeTag() {}
@@ -494,6 +497,9 @@ const (
 	ConstrIndex
 	ConstrFulltextIndex
 	ConstrSpatialIndex
+	// ConstrVector is OceanBase's VECTOR {INDEX | KEY}, a table element only: 4.3.5.6
+	// answers 1064 for ADD VECTOR INDEX and for a CONSTRAINT symbol in front of it.
+	ConstrVector
 )
 
 // Constraint represents a table-level constraint.

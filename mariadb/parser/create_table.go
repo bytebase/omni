@@ -229,7 +229,7 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 			}
 		} else if p.isTableConstraintStart() {
 			// Table-level constraints: PRIMARY KEY, UNIQUE, INDEX, KEY, FULLTEXT, SPATIAL, FOREIGN KEY, CONSTRAINT, CHECK
-			constr, err := p.parseTableConstraint()
+			constr, err := p.parseTableConstraint(false)
 			if err != nil {
 				return err
 			}
@@ -257,6 +257,9 @@ func (p *Parser) isTableConstraintStart() bool {
 	case kwPRIMARY, kwUNIQUE, kwINDEX, kwKEY, kwFULLTEXT, kwSPATIAL, kwFOREIGN, kwCHECK:
 		return true
 	case kwCONSTRAINT:
+		return true
+	case kwVECTOR:
+		// VECTOR is reserved in MariaDB, so unquoted it can only open a key.
 		return true
 	}
 	return false
@@ -1071,12 +1074,13 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 //	[CONSTRAINT [symbol]] CHECK (expr)
 //	{INDEX | KEY} [name] (col,...) [index_option]
 //	{FULLTEXT | SPATIAL} [INDEX|KEY] [name] (col,...) [index_option]
-func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
+func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error) {
 	start := p.pos()
 	constr := &nodes.Constraint{Loc: nodes.Loc{Start: start}}
 
 	// Optional CONSTRAINT [name]
-	if _, ok := p.match(kwCONSTRAINT); ok {
+	_, afterConstraint := p.match(kwCONSTRAINT)
+	if afterConstraint {
 		if p.isIdentToken() && p.cur.Type != kwPRIMARY && p.cur.Type != kwUNIQUE &&
 			p.cur.Type != kwFOREIGN && p.cur.Type != kwCHECK {
 			constr.Name, _, _ = p.parseIdent()
@@ -1277,6 +1281,14 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			return nil, err
 		}
 
+	case kwVECTOR:
+		if afterConstraint {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.parseVectorKey(constr, inAlterAdd); err != nil {
+			return nil, err
+		}
+
 	case kwSPATIAL:
 		p.advance()
 		p.match(kwINDEX, kwKEY)
@@ -1303,6 +1315,83 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 
 	constr.Loc.End = p.prev.End
 	return constr, nil
+}
+
+// parseVectorKey reads a VECTOR key from the VECTOR keyword on, as a table element
+// or after ALTER TABLE ADD.
+//
+//	VECTOR [INDEX | KEY] [IF NOT EXISTS] [index_name] (col_name) [index_option] ...
+//
+// The shape is MariaDB 11.8.8's, read from the server, and is narrower than any other
+// key's. The key part is one bare column name: it answers 1064 for (a, b), (a(3)),
+// (a ASC), (a DESC), (t.a) and the functional ((a)). The word after VECTOR is optional
+// and INDEX and KEY are both taken, where CREATE VECTOR INDEX takes INDEX alone. There
+// is no index type: USING HNSW and USING BTREE are 1064 in either position. IF NOT
+// EXISTS is ALTER's only: `CREATE TABLE t (v VECTOR(3), VECTOR INDEX IF NOT EXISTS i
+// (v))` is 1064 and `ADD VECTOR IF NOT EXISTS i (v)` runs.
+func (p *Parser) parseVectorKey(constr *nodes.Constraint, inAlterAdd bool) error {
+	p.advance() // consume VECTOR
+	p.match(kwINDEX, kwKEY)
+	constr.Type = nodes.ConstrVector
+	if inAlterAdd {
+		ine, err := p.parseCreateIfNotExists(false)
+		if err != nil {
+			return err
+		}
+		constr.IfNotExists = ine
+	}
+	if p.isIdentToken() && p.cur.Type != '(' {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return err
+		}
+		constr.Name = name
+	}
+	part, err := p.parseVectorKeyPart()
+	if err != nil {
+		return err
+	}
+	constr.IndexColumns = []*nodes.IndexColumn{part}
+	constr.Columns = indexColumnsToNames(constr.IndexColumns)
+	for {
+		opt, ok, err := p.parseVectorKeyOption()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		constr.IndexOptions = append(constr.IndexOptions, opt)
+	}
+}
+
+// parseVectorKeyPart reads a vector key's one key part: '(' col_name ')'.
+func (p *Parser) parseVectorKeyPart() (*nodes.IndexColumn, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	start := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	part := &nodes.IndexColumn{
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		Expr: &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Column: name},
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return part, nil
+}
+
+// parseVectorKeyOption reads one option of a vector key. It takes what any index
+// takes except the index type and WITH PARSER, both 1064 on 11.8.8.
+func (p *Parser) parseVectorKeyOption() (*nodes.IndexOption, bool, error) {
+	if p.isIndexTypeIntro() || p.cur.Type == kwWITH {
+		return nil, false, p.syntaxErrorAtCur()
+	}
+	return p.parseIndexOption()
 }
 
 // parseConstraintIndexOptions parses index_option list after a table constraint's key parts.

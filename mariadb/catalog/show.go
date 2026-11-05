@@ -105,7 +105,7 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	// 3. Regular + SPATIAL KEYs, non-expression (creation order)
 	// 4. Expression-based KEYs (creation order)
 	// 5. FULLTEXT KEYs (creation order)
-	var idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext []*Index
+	var idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext, idxVector []*Index
 	for _, idx := range tbl.Indexes {
 		if isGeneratedInvisiblePrimaryKeyIndex(idx) && !c.showGIPK {
 			continue
@@ -117,13 +117,16 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 			idxUnique = append(idxUnique, idx)
 		case idx.Fulltext:
 			idxFulltext = append(idxFulltext, idx)
+		case idx.Vector:
+			// After every other key, as MariaDB 11.8.8 prints them.
+			idxVector = append(idxVector, idx)
 		case isExpressionIndex(idx):
 			idxExpr = append(idxExpr, idx)
 		default:
 			idxRegular = append(idxRegular, idx)
 		}
 	}
-	for _, group := range [][]*Index{idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext} {
+	for _, group := range [][]*Index{idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext, idxVector} {
 		for _, idx := range group {
 			parts = append(parts, showIndex(idx))
 		}
@@ -418,6 +421,8 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf("FULLTEXT KEY `%s` (", idx.Name))
 	} else if idx.Spatial {
 		b.WriteString(fmt.Sprintf("SPATIAL KEY `%s` (", idx.Name))
+	} else if idx.Vector {
+		b.WriteString(fmt.Sprintf("VECTOR KEY `%s` (", idx.Name))
 	} else {
 		b.WriteString(fmt.Sprintf("KEY `%s` (", idx.Name))
 	}
@@ -430,7 +435,7 @@ func showIndex(idx *Index) string {
 	b.WriteString(")")
 
 	// USING clause: shown when explicitly specified, not for PRIMARY/FULLTEXT/SPATIAL.
-	if !idx.Primary && !idx.Fulltext && !idx.Spatial && idx.IndexType != "" {
+	if !idx.Primary && !idx.Fulltext && !idx.Spatial && !idx.Vector && idx.IndexType != "" {
 		b.WriteString(fmt.Sprintf(" USING %s", strings.ToUpper(idx.IndexType)))
 	}
 
@@ -443,6 +448,12 @@ func showIndex(idx *Index) string {
 	// Comment.
 	if idx.Comment != "" {
 		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(idx.Comment)))
+	}
+
+	// Engine-defined options follow the comment and precede IGNORED, as MariaDB 11.8.8
+	// prints them: VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine.
+	for _, opt := range idx.EngineOptions {
+		b.WriteString(" " + opt)
 	}
 
 	// Ignored, last, as MariaDB 11.8.8 prints it: KEY `i` (`a`) COMMENT 'c' IGNORED.

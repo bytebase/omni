@@ -70,6 +70,12 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	case stmt.Spatial:
 		idx.Spatial = true
 		idx.IndexType = "SPATIAL"
+	case stmt.Vector:
+		if err := validateVectorIndex(tbl, idxCols); err != nil {
+			return err
+		}
+		idx.Vector = true
+		idx.IndexType = "VECTOR"
 	default:
 		// CREATE INDEX may declare the type before ON or among the options
 		// after the column list; reading only the first dropped the second.

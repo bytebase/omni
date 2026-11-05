@@ -1168,9 +1168,10 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		// and runs `ADD VECTOR INDEX idx USING HNSW ((lower(a)))`,
 		// `ADD VECTOR INDEX ((lower(a))) GLOBAL` and
 		// `CREATE TABLE t (a vector(3), VECTOR INDEX ((VEC_COSINE_DISTANCE(a))))`.
-		// The key list is an ordinary key-part list: v8.5.5 parses
-		// `VECTOR INDEX (a)` and `VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a)))`
-		// and rejects them later with 1149, which is not a parse error.
+		// The key list is an ordinary key-part list here. v8.5.5's grammar reads
+		// `VECTOR INDEX (a)` and `VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a)))` and
+		// its action then answers 1149, which the corpus does not count as a
+		// rejection, so the shape is left to Constraint.SyntaxRefused.
 		//
 		// Ref: ConstraintVectorIndex in TiDB v8.5.5 pkg/parser/parser.y.
 		if constr.Name != "" {

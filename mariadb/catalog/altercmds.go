@@ -887,6 +887,36 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		applyIndexOptions(ftIdx, con.IndexOptions)
 		tbl.Indexes = append(tbl.Indexes, ftIdx)
 
+	case nodes.ConstrVector:
+		idxName := con.Name
+		if idxName == "" && len(cols) > 0 {
+			idxName = allocIndexName(tbl, cols[0])
+		} else if idxName != "" {
+			if err := validateNonPrimaryIndexName(idxName); err != nil {
+				return err
+			}
+			if indexNameExists(tbl, idxName) {
+				if con.IfNotExists {
+					return nil
+				}
+				return errDupKeyName(idxName)
+			}
+		}
+		idxCols := buildIndexColumns(con)
+		if err := validateVectorIndex(tbl, idxCols); err != nil {
+			return err
+		}
+		vecIdx := &Index{
+			Name:      idxName,
+			Table:     tbl,
+			Columns:   idxCols,
+			Vector:    true,
+			IndexType: "VECTOR",
+			Visible:   true,
+		}
+		applyIndexOptions(vecIdx, con.IndexOptions)
+		tbl.Indexes = append(tbl.Indexes, vecIdx)
+
 	case nodes.ConstrSpatialIndex:
 		idxName := con.Name
 		if idxName == "" && len(cols) > 0 {

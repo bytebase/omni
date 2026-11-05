@@ -584,16 +584,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		case nodes.ConstrVector:
 			// TiDB's VECTOR INDEX, which CREATE TABLE declares as well as
 			// ALTER TABLE adds. The index type is the USING name (HNSW).
-			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
+			if con.SyntaxRefused() {
+				return errSyntaxRefused()
 			}
 			vecIdx := &Index{
-				Name:      idxName,
+				Name:      vectorIndexName(tbl, con, cols),
 				Table:     tbl,
 				Columns:   buildIndexColumns(con),
 				Vector:    true,
-				IndexType: resolveConstraintIndexType(con),
+				IndexType: vectorIndexType(con.IndexType, con.IndexOptions),
 				Visible:   true,
 			}
 			applyIndexOptions(vecIdx, con.IndexOptions)
@@ -1132,6 +1131,32 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 	return resolveIndexUsingType(con.IndexType, con.IndexOptions)
 }
 
+// vectorIndexName returns the name a vector index goes by: its own, or for one
+// left unnamed, the name of its one column or, for its usual functional key part,
+// the name v8.5.5 gives any unnamed key over an expression: expression_index, then
+// expression_index_2.
+func vectorIndexName(tbl *Table, con *nodes.Constraint, cols []string) string {
+	if con.Name != "" {
+		return con.Name
+	}
+	if len(cols) > 0 {
+		return allocIndexName(tbl, cols[0])
+	}
+	return allocIndexName(tbl, "expression_index")
+}
+
+// vectorIndexType returns a vector index's type. HNSW is the only one it has, and
+// the grammar's action writes it when the statement names none, so a vector index
+// declared without USING is the same index as one declared with it.
+//
+// Ref: CreateIndexStmt and ConstraintVectorIndex in TiDB v8.5.5 pkg/parser/parser.y.
+func vectorIndexType(indexType string, opts []*nodes.IndexOption) string {
+	if declared := resolveIndexUsingType(indexType, opts); declared != "" {
+		return declared
+	}
+	return "HNSW"
+}
+
 // applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
 // from AST IndexOptions and applies them to the given Index.
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
@@ -1630,6 +1655,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Primary:      srcIdx.Primary,
 			Fulltext:     srcIdx.Fulltext,
 			Spatial:      srcIdx.Spatial,
+			Vector:       srcIdx.Vector,
 			IndexType:    srcIdx.IndexType,
 			Visible:      srcIdx.Visible,
 			Comment:      srcIdx.Comment,

@@ -675,18 +675,18 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// applied nothing would read as a successful no-op for a statement
 		// that changes the schema. The index type is the USING name (HNSW),
 		// which is where a vector index carries its algorithm.
-		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
-		} else if idxName != "" && indexNameExists(tbl, idxName) {
-			return errDupKeyName(idxName)
+		if con.SyntaxRefused() {
+			return errSyntaxRefused()
+		}
+		if con.Name != "" && indexNameExists(tbl, con.Name) {
+			return errDupKeyName(con.Name)
 		}
 		vecIdx := &Index{
-			Name:      idxName,
+			Name:      vectorIndexName(tbl, con, cols),
 			Table:     tbl,
 			Columns:   buildIndexColumns(con),
 			Vector:    true,
-			IndexType: resolveConstraintIndexType(con),
+			IndexType: vectorIndexType(con.IndexType, con.IndexOptions),
 			Visible:   true,
 		}
 		applyIndexOptions(vecIdx, con.IndexOptions)

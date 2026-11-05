@@ -448,6 +448,23 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// p.cur is now INDEX or KEY; parseCreateIndexStmt consumes it
 		return p.parseCreateIndexStmt(start, false, true, false)
 
+	case kwVECTOR:
+		// CREATE VECTOR INDEX, spelled INDEX only: 4.3.5.6 answers 1064 for CREATE VECTOR
+		// KEY and CREATE VECTOR, and for OR REPLACE and TEMPORARY in front of it.
+		if temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type != kwINDEX {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt, err := p.parseCreateIndexStmt(start, false, false, false)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Vector = true
+		return stmt, nil
+
 	case kwSPATIAL:
 		p.advance()
 		// Distinguish SPATIAL REFERENCE SYSTEM from SPATIAL INDEX

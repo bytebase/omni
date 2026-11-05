@@ -7,11 +7,11 @@ import (
 )
 
 // parseCreateIndexStmt parses a CREATE INDEX statement.
-// Called when p.cur is at the INDEX keyword (after consuming CREATE [UNIQUE|FULLTEXT|SPATIAL]).
+// Called when p.cur is at the INDEX keyword (after consuming CREATE [UNIQUE|FULLTEXT|SPATIAL|VECTOR]).
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/create-index.html
 //
-//	CREATE [UNIQUE | FULLTEXT | SPATIAL] INDEX index_name
+//	CREATE [UNIQUE | FULLTEXT | SPATIAL | VECTOR] INDEX index_name
 //	    [index_type]
 //	    ON tbl_name (key_part,...)
 //	    [index_option] ...
@@ -146,6 +146,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			return nil, err
 		}
 		col.Expr = expr
+		col.Functional = true
 	} else {
 		// Column name
 		colName, _, err := p.parseIdent()
