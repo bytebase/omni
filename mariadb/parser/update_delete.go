@@ -431,6 +431,14 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 		return nil, err
 	}
 
+	if ignore, ok := p.parseIgnoreValue(); ok {
+		return &nodes.Assignment{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Column: col,
+			Value:  ignore,
+		}, nil
+	}
+
 	val, err := p.parseExpr()
 	if err != nil {
 		return nil, err

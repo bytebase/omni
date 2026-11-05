@@ -2126,6 +2126,15 @@ type DefaultExpr struct {
 func (e *DefaultExpr) nodeTag()  {}
 func (e *DefaultExpr) exprNode() {}
 
+// IgnoreExpr represents the IGNORE keyword used as a value (MariaDB): in a VALUES
+// row or an assignment, it leaves the column as the statement found it.
+type IgnoreExpr struct {
+	Loc Loc
+}
+
+func (e *IgnoreExpr) nodeTag()  {}
+func (e *IgnoreExpr) exprNode() {}
+
 // RowExpr represents a ROW(expr, expr, ...) constructor expression.
 type RowExpr struct {
 	Loc   Loc

@@ -550,7 +550,13 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		return p.parseConvertExpr()
 
 	case kwROW:
-		return p.parseRowConstructor()
+		// MariaDB's ROW_SYM is no reserved word, so it is a name unless a '(' makes it the
+		// constructor. ROW(1) is the constructor too, and refused there, rather
+		// than a call of a function named row (measured).
+		if p.peekNext().Type == '(' {
+			return p.parseRowConstructor()
+		}
+		return p.parseIdentExpr()
 
 	case kwVALUES:
 		return p.parseValuesFunc()
@@ -1395,15 +1401,15 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	// keyset `(a, b) > (?, ?)`). A single `(expr)` stays a ParenExpr; empty
 	// parens and a trailing comma remain syntax errors, matching MariaDB.
 	if p.cur.Type == ',' {
+		if err := checkRowItem(expr, start+1); err != nil {
+			return nil, err
+		}
 		row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}, Items: []nodes.ExprNode{expr}}
 		for p.cur.Type == ',' {
 			p.advance() // consume ','
-			item, err := p.parseExpr()
+			item, err := p.parseRowItem()
 			if err != nil {
 				return nil, err
-			}
-			if item == nil {
-				return nil, p.syntaxErrorAtCur()
 			}
 			row.Items = append(row.Items, item)
 		}
@@ -2343,12 +2349,9 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 	row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}}
 
 	for {
-		expr, err := p.parseExpr()
+		expr, err := p.parseRowItem()
 		if err != nil {
 			return nil, err
-		}
-		if expr == nil {
-			return nil, p.syntaxErrorAtCur()
 		}
 		row.Items = append(row.Items, expr)
 		if p.cur.Type != ',' {
@@ -2357,12 +2360,45 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 		p.advance()
 	}
 
+	// A row has at least two elements: ROW(1) is a 1064 (measured).
+	if len(row.Items) < 2 {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 
 	row.Loc.End = p.prev.End
 	return row, nil
+}
+
+// parseRowItem parses one element of a row constructor. It is an expression, so
+// not the bare DEFAULT that parseExpr also reads, and not *.
+//
+// Ref: MariaDB 11.8 sql/sql_yacc.yy: simple_expr's ROW_SYM '(' expr ',' expr_list ')'.
+func (p *Parser) parseRowItem() (nodes.ExprNode, error) {
+	start := p.pos()
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := checkRowItem(e, start); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+// checkRowItem refuses what parseExpr reads and a row does not hold, at start, where
+// the element began.
+func checkRowItem(e nodes.ExprNode, start int) error {
+	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
+		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
+	}
+	return checkNotStar(e)
 }
 
 // parseDefaultExpr parses DEFAULT or DEFAULT(col_name).

@@ -937,11 +937,11 @@ accept	accept	SELECT tidb_decode_key('abc');
 accept	accept	SELECT tidb_decode_base64_key('abc');
 accept	accept	SELECT tidb_decode_sql_digests('[]');
 accept	accept	CREATE TABLE t( c1 TIME(2), c2 DATETIME(2), c3 TIMESTAMP(2) );
-accept	reject	select row(1)
+reject	reject	select row(1)
 reject	reject	select row(1, 1,)
 reject	reject	select (1, 1,)
 accept	accept	select row(1, 1) > row(1, 1), row(1, 1, 1) > row(1, 1, 1)
-reject	accept	Select (1, 1) > (1, 1)
+accept	accept	Select (1, 1) > (1, 1)
 accept	accept	create table t (`row` int)
 reject	reject	create table t (row int)
 accept	accept	SELECT *, CAST(data AS CHAR CHARACTER SET utf8) FROM t;
@@ -3135,7 +3135,7 @@ accept	accept	ALTER TABLE t READ ONLY
 accept	accept	ALTER TABLE t READ WRITE
 reject	reject	select * from t group by a, b rollup
 accept	accept	select * from t group by a, b with rollup
-reject	accept	select * from t group by (a, b) with rollup
+accept	accept	select * from t group by (a, b) with rollup
 accept	accept	select * from t group by (a+b) with rollup
 reject	accept	select * from t use index (primary)
 accept	accept	select * from t use index (`primary`)

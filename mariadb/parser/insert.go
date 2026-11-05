@@ -309,10 +309,32 @@ func (p *Parser) parseValuesRows() ([][]nodes.ExprNode, error) {
 	return rows, nil
 }
 
-// parseValuesItem parses one value of a VALUES row: an expression or
-// DEFAULT, which parseExpr reads. parseExpr also reads * and t.*, which only
-// a select list takes.
+// parseValuesItem parses one value of a VALUES row: an expression, DEFAULT, or
+// IGNORE.
+//
+// Ref: MariaDB 11.8 sql/sql_yacc.yy: values is a list of expr_or_ignore_or_default.
 func (p *Parser) parseValuesItem() (nodes.ExprNode, error) {
+	if ignore, ok := p.parseIgnoreValue(); ok {
+		return ignore, nil
+	}
+	return p.parseExprNotStar()
+}
+
+// parseIgnoreValue parses the IGNORE that stands for a value where the grammar reads
+// expr_or_ignore: alone, not as part of an expression. MariaDB's parser takes it
+// only there, as it does with no other engine in this family (measured).
+func (p *Parser) parseIgnoreValue() (nodes.ExprNode, bool) {
+	if p.cur.Type != kwIGNORE {
+		return nil, false
+	}
+	start := p.pos()
+	p.advance()
+	return &nodes.IgnoreExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}}, true
+}
+
+// parseExprNotStar parses an expression, refusing the * and t.* that parseExpr also
+// reads, which only a select list takes.
+func (p *Parser) parseExprNotStar() (nodes.ExprNode, error) {
 	e, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -320,13 +342,21 @@ func (p *Parser) parseValuesItem() (nodes.ExprNode, error) {
 	if e == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if star, ok := e.(*nodes.StarExpr); ok {
-		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: star.Loc.Start}
-	}
-	if ref, ok := e.(*nodes.ColumnRef); ok && ref.Star {
-		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
+	if err := checkNotStar(e); err != nil {
+		return nil, err
 	}
 	return e, nil
+}
+
+// checkNotStar refuses the stars parseExpr reads, which only a select list takes.
+func checkNotStar(e nodes.ExprNode) error {
+	if star, ok := e.(*nodes.StarExpr); ok {
+		return &ParseError{Message: `syntax error at or near "*"`, Position: star.Loc.Start}
+	}
+	if ref, ok := e.(*nodes.ColumnRef); ok && ref.Star {
+		return &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
+	}
+	return nil
 }
 
 // parseOnDuplicateKeyUpdate parses ON DUPLICATE KEY UPDATE col=val, col=val, ...

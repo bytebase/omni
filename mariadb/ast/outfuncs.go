@@ -191,6 +191,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeConvertExpr(sb, n)
 	case *DefaultExpr:
 		writeDefaultExpr(sb, n)
+	case *IgnoreExpr:
+		fmt.Fprintf(sb, "{IGNORE :loc %d}", n.Loc.Start)
 	case *RowExpr:
 		writeRowExpr(sb, n)
 	case *StarExpr:

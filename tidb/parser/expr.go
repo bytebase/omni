@@ -1395,12 +1395,35 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		return sub, nil
 	}
 
+	itemStart := p.pos()
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}
 	if expr == nil {
 		return nil, p.syntaxErrorAtCur()
+	}
+
+	// (a, b) is a row, as the corpus row Select (1, 1) > (1, 1) needs; every engine
+	// in this family reads it, and TiDB v8.5.5 does (measured).
+	if p.cur.Type == ',' {
+		if err := checkRowItem(expr, itemStart); err != nil {
+			return nil, err
+		}
+		row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}, Items: []nodes.ExprNode{expr}}
+		for p.cur.Type == ',' {
+			p.advance()
+			item, err := p.parseRowItem()
+			if err != nil {
+				return nil, err
+			}
+			row.Items = append(row.Items, item)
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		row.Loc.End = p.prev.End
+		return row, nil
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -2306,12 +2329,9 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 	row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}}
 
 	for {
-		expr, err := p.parseExpr()
+		expr, err := p.parseRowItem()
 		if err != nil {
 			return nil, err
-		}
-		if expr == nil {
-			return nil, p.syntaxErrorAtCur()
 		}
 		row.Items = append(row.Items, expr)
 		if p.cur.Type != ',' {
@@ -2320,12 +2340,45 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 		p.advance()
 	}
 
+	// A row has at least two elements: ROW(1) is a 1064 (measured).
+	if len(row.Items) < 2 {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 
 	row.Loc.End = p.prev.End
 	return row, nil
+}
+
+// parseRowItem parses one element of a row constructor. It is an expression, so
+// not the bare DEFAULT that parseExpr also reads, and not *.
+//
+// Ref: TiDB parser.y (v8.5.5) line 7930: "ROW" '(' ExpressionList ',' Expression ')'.
+func (p *Parser) parseRowItem() (nodes.ExprNode, error) {
+	start := p.pos()
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := checkRowItem(e, start); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+// checkRowItem refuses what parseExpr reads and a row does not hold, at start, where
+// the element began.
+func checkRowItem(e nodes.ExprNode, start int) error {
+	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
+		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
+	}
+	return checkNotStar(e)
 }
 
 // parseDefaultExpr parses DEFAULT or DEFAULT(col_name).

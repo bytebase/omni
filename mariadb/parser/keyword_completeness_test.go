@@ -668,7 +668,7 @@ var mysql8Keywords = []mysql8Keyword{
 	{"rollup", catUnambiguous},
 	{"rotate", catUnambiguous},
 	{"routine", catUnambiguous},
-	{"row", catReserved},
+	{"row", catUnambiguous},
 	{"row_count", catUnambiguous},
 	{"row_format", catUnambiguous},
 	{"row_number", catReserved},
