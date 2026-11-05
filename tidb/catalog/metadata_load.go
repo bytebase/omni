@@ -351,6 +351,11 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 		c.Type, c.IndexType = nodes.ConstrUnique, indexType
 	case indexType == "FULLTEXT":
 		c.Type = nodes.ConstrFulltextIndex
+	case indexType == "HNSW":
+		// A vector index syncs as an index of type HNSW. Left an ordinary index,
+		// SHOW CREATE TABLE would write KEY for it and a change could not tell it
+		// from one.
+		c.Type, c.IndexType = nodes.ConstrVector, indexType
 	default:
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
@@ -395,6 +400,7 @@ func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn)
 			key.Length = l
 		}
 		if isExpressionKey(expr) {
+			key.Functional = true
 			// On a parse failure the key stays a column, so the index still installs.
 			if parsed, err := parseExpr(expr); err == nil {
 				key.Expr = parsed

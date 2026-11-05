@@ -50,6 +50,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwUNBOUNDED:          kwCatAmbiguous2,
 	kwWRAPPER:            kwCatAmbiguous2,
 	kwSELECT:             kwCatReserved,
+	kwVECTOR:             kwCatReserved, // MariaDB 11.8.8 answers 1064 for `CREATE TABLE vector (vector INT)`
 	kwINSERT:             kwCatReserved,
 	kwUPDATE:             kwCatReserved,
 	kwDELETE:             kwCatReserved,
@@ -525,7 +526,6 @@ var keywordCategories = map[int]keywordCategory{
 	kwSTATS_AUTO_RECALC:  kwCatReserved,
 	kwSTATS_PERSISTENT:   kwCatReserved,
 	kwSTATS_SAMPLE_PAGES: kwCatReserved,
-	kwVECTOR:             kwCatReserved,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

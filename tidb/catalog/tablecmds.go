@@ -587,16 +587,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		case nodes.ConstrVector:
 			// TiDB's VECTOR INDEX, which CREATE TABLE declares as well as
 			// ALTER TABLE adds. The index type is the USING name (HNSW).
-			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
-			}
 			vecIdx := &Index{
-				Name:      idxName,
+				Name:      vectorIndexName(tbl, con, cols),
 				Table:     tbl,
 				Columns:   buildIndexColumns(con),
 				Vector:    true,
-				IndexType: resolveConstraintIndexType(con),
+				IndexType: vectorIndexHNSW,
 				Visible:   true,
 			}
 			applyIndexOptions(vecIdx, con.IndexOptions)
@@ -1005,7 +1001,8 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 				Length:     ic.Length,
 				Descending: ic.Desc,
 			}
-			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			// `((v))` is a functional key part over a column, which a vector index requires.
+			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column
 			} else {
 				idxCol.Expr = nodeToSQL(ic.Expr)
@@ -1134,6 +1131,28 @@ func resolveIndexUsingType(indexType string, opts []*nodes.IndexOption) string {
 func resolveConstraintIndexType(con *nodes.Constraint) string {
 	return resolveIndexUsingType(con.IndexType, con.IndexOptions)
 }
+
+// vectorIndexName returns the name a vector index goes by: its own, or for one
+// left unnamed, the name of its one column or, for its usual functional key part,
+// the name v8.5.5 gives any unnamed key over an expression: expression_index, then
+// expression_index_2.
+func vectorIndexName(tbl *Table, con *nodes.Constraint, cols []string) string {
+	if con.Name != "" {
+		return con.Name
+	}
+	if len(cols) > 0 {
+		return allocIndexName(tbl, cols[0])
+	}
+	return allocIndexName(tbl, "expression_index")
+}
+
+// vectorIndexHNSW is a vector index's type. It is the only one it has, and the grammar's actions
+// refuse any other, so every vector index that parses has it, whichever way it spelled that:
+// CREATE VECTOR INDEX lets a type among the options win and a constraint lets the one before the
+// key parts win, and with neither the action writes HNSW itself.
+//
+// Ref: CreateIndexStmt and ConstraintVectorIndex in TiDB v8.5.5 pkg/parser/parser.y.
+const vectorIndexHNSW = "HNSW"
 
 // applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
 // from AST IndexOptions and applies them to the given Index.
@@ -1442,6 +1461,13 @@ func formatColumnType(dt *nodes.DataType) string {
 		return "bigint unsigned"
 	case "geometrycollection":
 		name = "geomcollection"
+	case "float":
+		// FLOAT(n) is a precision in bits, which picks the type and is not kept: TiDB v8.5.5
+		// shows FLOAT(10) as float and FLOAT(30) as double. With a scale the first number is
+		// no such thing, and FLOAT(30,0) stays float.
+		if dt.Length > 24 && !dt.HasScale {
+			name = "double"
+		}
 	}
 
 	var buf strings.Builder
@@ -1456,7 +1482,7 @@ func formatColumnType(dt *nodes.DataType) string {
 		if dt.Zerofill {
 			width := dt.Length
 			if width == 0 {
-				width = defaultIntDisplayWidth(name, dt.Unsigned)
+				width = defaultIntDisplayWidth(name, true) // ZEROFILL implies UNSIGNED
 			}
 			fmt.Fprintf(&buf, "(%d)", width)
 		}
@@ -1475,6 +1501,11 @@ func formatColumnType(dt *nodes.DataType) string {
 		buf.WriteString("(1)")
 	} else if dt.Length > 0 && dt.Scale > 0 {
 		fmt.Fprintf(&buf, "(%d,%d)", dt.Length, dt.Scale)
+	} else if name == "float" || name == "double" {
+		// Without a scale neither shows a precision: TiDB v8.5.5 shows DOUBLE(10,0) as double,
+		// and DOUBLE(10) is a syntax error there, so printing it would not read back.
+	} else if name == "decimal" && dt.Length > 0 {
+		fmt.Fprintf(&buf, "(%d,0)", dt.Length)
 	} else if dt.Length > 0 {
 		fmt.Fprintf(&buf, "(%d)", dt.Length)
 	}
@@ -1493,7 +1524,8 @@ func formatColumnType(dt *nodes.DataType) string {
 	// TABLE writes `year(4)` for `year unsigned zerofill`, so a column that was
 	// declared with them is not one that reports them.
 	if name != "year" {
-		if dt.Unsigned {
+		// ZEROFILL implies UNSIGNED, which SHOW CREATE TABLE writes out.
+		if dt.Unsigned || dt.Zerofill {
 			buf.WriteString(" unsigned")
 		}
 		if dt.Zerofill {
@@ -1633,6 +1665,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Primary:      srcIdx.Primary,
 			Fulltext:     srcIdx.Fulltext,
 			Spatial:      srcIdx.Spatial,
+			Vector:       srcIdx.Vector,
 			IndexType:    srcIdx.IndexType,
 			Visible:      srcIdx.Visible,
 			Comment:      srcIdx.Comment,

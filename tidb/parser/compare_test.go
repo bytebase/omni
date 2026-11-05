@@ -3360,7 +3360,7 @@ func TestParseCreateTableLike(t *testing.T) {
 	})
 
 	t.Run("partition by range columns", func(t *testing.T) {
-		stmt := parseCreateTable(t, "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b)")
+		stmt := parseCreateTable(t, "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p VALUES LESS THAN (1, 2))")
 		if stmt.Partitions == nil {
 			t.Fatal("Partitions is nil")
 		}
@@ -4333,7 +4333,7 @@ func parseCreateIndex(t *testing.T, input string) *ast.CreateIndexStmt {
 		p.advance()
 		spatial = true
 	}
-	stmt, err := p.parseCreateIndexStmt(start, unique, fulltext, spatial)
+	stmt, err := p.parseCreateIndexStmt(start, unique, fulltext, spatial, false)
 	if err != nil {
 		t.Fatalf("parseCreateIndexStmt(%q) error: %v", input, err)
 	}

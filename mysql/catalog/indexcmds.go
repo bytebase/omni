@@ -146,11 +146,22 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 
 	// Also remove any constraint that references this index.
 	for i, con := range tbl.Constraints {
-		if toLower(con.IndexName) == key || toLower(con.Name) == key {
+		if constraintOfIndex(con, key) {
 			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
 			break
 		}
 	}
 
 	return nil
+}
+
+// constraintOfIndex reports whether con is what the index named key holds up: its primary or unique
+// key. A CHECK or a foreign key may have the same name without being tied to the index, and the
+// server keeps it when the index goes.
+func constraintOfIndex(con *Constraint, key string) bool {
+	switch con.Type {
+	case ConPrimaryKey, ConUniqueKey:
+		return toLower(con.IndexName) == key || toLower(con.Name) == key
+	}
+	return false
 }

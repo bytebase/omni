@@ -252,3 +252,17 @@ func TestSequenceTruncationNoPanic(t *testing.T) {
 		}
 	}
 }
+
+// TestSetvalArgumentEndsAtItsNumber: what stands between the number and the `)` is not the number's.
+func TestSetvalArgumentEndsAtItsNumber(t *testing.T) {
+	sql := "SELECT SETVAL(s, 1 /* note */)"
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := list.Items[0].(*nodes.SelectStmt).TargetList[0].(*nodes.FuncCallExpr)
+	loc := call.Args[1].(*nodes.IntLit).Loc
+	if got := sql[loc.Start:loc.End]; got != "1" {
+		t.Errorf("the argument covers %q, want %q", got, "1")
+	}
+}

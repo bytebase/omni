@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -300,6 +301,8 @@ func canonicalIndex(idx *Index, n *Normalizer) string {
 		"unique", strconv.FormatBool(idx.Unique),
 		"fulltext", strconv.FormatBool(idx.Fulltext),
 		"spatial", strconv.FormatBool(idx.Spatial),
+		"vector", strconv.FormatBool(idx.Vector),
+		"with", canonicalVectorParams(idx),
 		"using", canonicalIndexType(idx),
 		"comment", n.CanonicalComment(idx.Comment),
 		"visible", strconv.FormatBool(idx.Visible),
@@ -308,6 +311,15 @@ func canonicalIndex(idx *Index, n *Normalizer) string {
 		"parser", canonicalFulltextParser(idx),
 		"cols", strings.Join(parts, ","),
 	)
+}
+
+// canonicalVectorParams returns a vector index's parameters as a key fragment, in sorted
+// order: the server echoes them in the order they were written, which says nothing about
+// the index.
+func canonicalVectorParams(idx *Index) string {
+	params := slices.Clone(idx.VectorParams)
+	slices.Sort(params)
+	return strings.Join(params, ",")
 }
 
 // canonicalIndexScope returns the index scope as a key fragment, with OceanBase's default

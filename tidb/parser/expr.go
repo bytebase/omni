@@ -835,6 +835,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// Handle special function forms
 	upperName := strings.ToUpper(name)
 
+	if builtin && upperName == "SETVAL" {
+		return p.parseSetvalArgs(fc)
+	}
+
 	if builtin {
 		switch upperName {
 		case "COUNT":
@@ -1633,7 +1637,16 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNSIGNED"}, nil
 	}
 
-	return p.parseDataType()
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	// CastType's action answers 1426, ErrTooBigPrecision, for a FLOAT past 53, which a
+	// column type takes no such check for.
+	if dt.Name == "FLOAT" && dt.Length >= 54 {
+		return nil, &ParseError{Message: "Too big precision specified for CAST. Maximum is 53.", Position: dt.Loc.Start}
+	}
+	return dt, nil
 }
 
 // parseConvertExpr parses CONVERT(expr, type) or CONVERT(expr USING charset).
@@ -1863,6 +1876,11 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, 
 		// parser.y:6453): `ESCAPE concat('c')` is a 1064.
 		if p.cur.Type != tokSCONST {
 			return nil, p.syntaxErrorAtCur()
+		}
+		// PredicateExpr's action answers 1210, ErrWrongArguments, for more than one
+		// byte: `ESCAPE '||'` and `ESCAPE '€'` are refused, `ESCAPE ''` is not.
+		if len(p.cur.Str) > 1 {
+			return nil, &ParseError{Message: "Incorrect arguments to ESCAPE", Position: p.cur.Loc}
 		}
 		esc, err := p.parsePrimaryExpr()
 		if err != nil {

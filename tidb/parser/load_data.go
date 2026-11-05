@@ -529,7 +529,7 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseFieldEnclosure()
 			if err != nil {
 				return err
 			}
@@ -541,7 +541,7 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseFieldEnclosure()
 			if err != nil {
 				return err
 			}
@@ -561,7 +561,7 @@ func (p *Parser) parseFieldsClause(stmt *nodes.LoadDataStmt) error {
 			if _, err := p.expect(kwBY); err != nil {
 				return err
 			}
-			v, err := p.parseFieldTerminator()
+			v, err := p.parseFieldEnclosure()
 			if err != nil {
 				return err
 			}
@@ -672,4 +672,22 @@ func (p *Parser) parseFieldTerminator() (string, error) {
 	default:
 		return "", p.syntaxErrorAtCur()
 	}
+}
+
+// parseFieldEnclosure reads the FieldTerminator of an ENCLOSED BY or ESCAPED BY item,
+// whose action answers 1083, ErrWrongFieldTerminators, for more than one byte. That
+// counts bytes, so `ESCAPED BY 'é'` and `ENCLOSED BY X'0D0D'` are refused. TERMINATED BY
+// has no such limit.
+//
+// Ref: FieldItem in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseFieldEnclosure() (string, error) {
+	start := p.cur.Loc
+	v, err := p.parseFieldTerminator()
+	if err != nil {
+		return "", err
+	}
+	if len(v) > 1 {
+		return "", &ParseError{Message: "Field separator argument is not what is expected", Position: start}
+	}
+	return v, nil
 }

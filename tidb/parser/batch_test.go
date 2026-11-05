@@ -203,8 +203,9 @@ func TestBatchSerialize(t *testing.T) {
 }
 
 // tidbRejectedSyntax reports whether a TiDB execution error is a parse error
-// (ER_PARSE_ERROR, 1064). Any other server error (e.g. 1146 table-not-found)
-// means TiDB parsed the statement, so the syntax is accepted.
+// (ER_PARSE_ERROR, 1064). It reads no other code as a refusal, which is enough for
+// the tables that call it, but a form a grammar action refuses belongs with
+// prepareSyntax, whose probe can tell: a 1149 here reads as accepted.
 //
 // Anything that is not a server error — a dropped connection, a timeout — is no
 // verdict at all and fails the test. Reporting it as acceptance would pass every

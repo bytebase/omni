@@ -321,7 +321,7 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.Declar
 	}
 
 	// Data type
-	dt, err := p.parseDataType()
+	dt, err := p.parseRoutineDataType()
 	if err != nil {
 		return nil, err
 	}

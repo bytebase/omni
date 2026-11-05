@@ -1421,11 +1421,12 @@ func (p *Parser) parseShowPlacementTarget(stmt *nodes.ShowStmt) error {
 // parseShowJobID reads the Int64Num a job id takes (parser.y:6189): an
 // integer literal, so a string, a name or a negative number is a 1064.
 func (p *Parser) parseShowJobID() (nodes.ExprNode, error) {
-	if p.cur.Type != tokICONST {
-		return nil, p.syntaxErrorAtCur()
+	start := p.cur.Loc
+	id, err := p.parseAdminInt64()
+	if err != nil {
+		return nil, err
 	}
-	tok := p.advance()
-	return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}, nil
+	return &nodes.IntLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Value: id}, nil
 }
 
 // parseShowLikeOrWhere parses the optional LIKE or WHERE of a filterable SHOW
@@ -1550,12 +1551,10 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 		// Expect QUERY
 		if p.cur.Type == kwQUERY {
 			p.advance() // consume QUERY
-			expr, err := p.parseExpr()
+			// Int64Num (parser.y:11817), so a name, an expression and 2^63 are 1064.
+			expr, err := p.parseShowJobID()
 			if err != nil {
 				return err
-			}
-			if expr == nil {
-				return p.syntaxErrorAtCur()
 			}
 			stmt.ForQuery = expr
 		}

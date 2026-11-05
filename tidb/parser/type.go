@@ -115,7 +115,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if p.cur.Type == kwPRECISION {
 			p.advance()
 		}
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -124,7 +124,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		// REAL → DOUBLE synonym
 		dt.Name = "DOUBLE"
 		p.advance()
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -150,6 +150,40 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
+
+	// VECTOR [<FLOAT>] [(dimension)], TiDB's own. The element type comes before the
+	// dimension and FLOAT is the only one the action takes: VECTOR<DOUBLE> reads in
+	// the grammar and its action answers 1064, as v8.5.5 does for VECTOR<INT> and
+	// VECTOR(5)<FLOAT>. The type carries no modifiers either: UNSIGNED, BINARY and
+	// CHARSET after it are 1064, while the COLLATE of a column definition is not.
+	//
+	// Ref: `"VECTOR" OptVectorElementType OptFieldLen` and OptVectorElementType in
+	// TiDB v8.5.5 pkg/parser/parser.y.
+	case kwVECTOR:
+		dt.Name = "VECTOR"
+		p.advance()
+		if p.cur.Type == '<' {
+			p.advance()
+			if _, err := p.expect(kwFLOAT); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect('>'); err != nil {
+				return nil, err
+			}
+		}
+		// A dimension past 64 bits lexes as a decimal, which is no LengthNum: v8.5.5
+		// answers 1064 for VECTOR(99999999999999999999) and parses VECTOR(16384) and
+		// refuses it later with 1105.
+		if p.cur.Type == '(' {
+			if next := p.peekNext(); next.Type == tokICONST {
+				if _, err := strconv.ParseUint(next.Str, 10, 64); err != nil {
+					return nil, p.syntaxErrorAtTok(next)
+				}
+			}
+		}
+		if err := p.parseOptionalLength(dt); err != nil {
+			return nil, err
+		}
 
 	// Boolean
 	case kwBOOL, kwBOOLEAN:
@@ -243,8 +277,14 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwYEAR, kwSQL_TSI_YEAR:
 		dt.Name = "YEAR"
 		p.advance()
+		// DateAndTimeType's action answers 1818, ErrInvalidYearColumnLength, for any
+		// length but 4.
+		yearLength := p.cur.Type == '('
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
+		}
+		if yearLength && dt.Length != 4 {
+			return nil, &ParseError{Message: "Supports only YEAR or YEAR(4) column", Position: p.prev.Loc}
 		}
 		p.parseUnsignedZerofill(dt)
 
@@ -454,7 +494,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwFLOAT8:
 		dt.Name = "DOUBLE"
 		p.advance()
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -541,6 +581,26 @@ func (p *Parser) parseOptionalLength(dt *nodes.DataType) error {
 	return p.parseRequiredLength(dt)
 }
 
+// parseDoublePrecision parses the precision of a type that is DOUBLE. It takes M and D
+// together or neither: NumericType's action answers 1149, ErrSyntax, for `DOUBLE(10)`
+// under the server's default strict setting, which FLOAT is free of.
+//
+// Ref: FloatingPointType FloatOpt FieldOpts in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseDoublePrecision(dt *nodes.DataType) error {
+	if p.cur.Type != '(' {
+		return nil
+	}
+	start := p.cur.Loc
+	hasScale, err := p.parsePrecisionAndScale(dt)
+	if err != nil {
+		return err
+	}
+	if !hasScale {
+		return &ParseError{Message: "DOUBLE takes both a precision and a scale", Position: start}
+	}
+	return nil
+}
+
 // parseOptionalPrecision parses the `(precision[, scale])` the approximate and
 // exact numeric types may leave out. As with a length, the parentheses are
 // optional and their contents are not: the engines answer 1064 for
@@ -551,9 +611,16 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 	if p.cur.Type != '(' {
 		return nil
 	}
+	_, err := p.parsePrecisionAndScale(dt)
+	return err
+}
+
+// parsePrecisionAndScale reads from the `(`, and reports whether a scale was written: DECIMAL(10,0)
+// has one and DECIMAL(10) does not, though dt.Scale is 0 for both.
+func (p *Parser) parsePrecisionAndScale(dt *nodes.DataType) (hasScale bool, err error) {
 	p.advance()
 	if p.cur.Type != tokICONST {
-		return &ParseError{
+		return false, &ParseError{
 			Message:  "expected a precision for " + dt.Name,
 			Position: p.cur.Loc,
 		}
@@ -563,22 +630,24 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 	if p.cur.Type == ',' {
 		p.advance()
 		if p.cur.Type != tokICONST {
-			return &ParseError{
+			return false, &ParseError{
 				Message:  "expected a scale for " + dt.Name,
 				Position: p.cur.Loc,
 			}
 		}
 		dt.Scale = int(p.cur.Ival)
+		dt.HasScale = true
+		hasScale = true
 		p.advance()
 	}
 	if p.cur.Type != ')' {
-		return &ParseError{
+		return false, &ParseError{
 			Message:  "expected ) after the precision for " + dt.Name,
 			Position: p.cur.Loc,
 		}
 	}
 	p.advance()
-	return nil
+	return hasScale, nil
 }
 
 // parseUnsignedZerofill parses optional SIGNED, UNSIGNED, and ZEROFILL modifiers.

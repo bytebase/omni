@@ -432,6 +432,7 @@ type CreateIndexStmt struct {
 	Unique      bool
 	Fulltext    bool
 	Spatial     bool
+	Vector      bool // CREATE VECTOR INDEX
 	IfNotExists bool
 	IndexName   string
 	Table       *TableRef
@@ -447,10 +448,11 @@ func (s *CreateIndexStmt) stmtNode() {}
 
 // IndexColumn represents a column in an index definition.
 type IndexColumn struct {
-	Loc    Loc
-	Expr   ExprNode // column name or expression
-	Length int      // prefix length
-	Desc   bool     // DESC ordering
+	Loc        Loc
+	Expr       ExprNode // column name or expression
+	Length     int      // prefix length
+	Desc       bool     // DESC ordering
+	Functional bool     // true when parsed from functional key-part syntax: (expr)
 }
 
 func (c *IndexColumn) nodeTag() {}
@@ -757,10 +759,12 @@ func (d *PartitionDef) nodeTag() {}
 
 // DataType represents a MySQL data type.
 type DataType struct {
-	Loc        Loc
-	Name       string // INT, VARCHAR, DECIMAL, etc.
-	Length     int    // type length (e.g., VARCHAR(255))
-	Scale      int    // decimal scale (e.g., DECIMAL(10,2))
+	Loc    Loc
+	Name   string // INT, VARCHAR, DECIMAL, etc.
+	Length int    // type length (e.g., VARCHAR(255))
+	Scale  int    // decimal scale (e.g., DECIMAL(10,2))
+	// HasScale records that a scale was written, since FLOAT(30,0) is no FLOAT(30): Scale is 0 for both.
+	HasScale   bool
 	Unsigned   bool
 	Zerofill   bool
 	Charset    string   // CHARACTER SET

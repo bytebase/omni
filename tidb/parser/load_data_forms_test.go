@@ -43,7 +43,7 @@ var loadDataFormCases = []loadDataFormCase{
 	{"load data infile '/x.csv' into table t fields enclosed by X'0D'", true},
 	// A multi-byte ENCLOSED BY parses and fails later (1083), so it is no
 	// rejection of this grammar.
-	{"load data infile '/x.csv' into table t fields enclosed by X'0D0D'", true},
+	{"load data infile '/x.csv' into table t fields enclosed by X'0D0D'", false},
 	{"load data infile '/x.csv' into table t fields escaped by X'5C'", true},
 	{"load data infile '/x.csv' into table t fields optionally enclosed by X'22'", true},
 	{"load data infile '/x.csv' into table t columns terminated by X'09'", true},

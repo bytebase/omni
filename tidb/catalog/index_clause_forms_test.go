@@ -101,9 +101,11 @@ func TestIndexTypeReachesTheCatalog(t *testing.T) {
 			want:  "HASH",
 		},
 		{
-			name:  "CREATE INDEX with TiDB's own index type",
-			ddl:   []string{"CREATE INDEX i ON t (a) USING HNSW"},
-			table: "t",
+			// CREATE INDEX itself refuses HNSW on an index that is no vector index: its
+			// grammar action answers 1149. A key definition takes it.
+			name:  "key definition with TiDB's own index type",
+			ddl:   []string{"CREATE TABLE kh (a INT, KEY i (a) USING HNSW)"},
+			table: "kh",
 			index: "i",
 			want:  "HNSW",
 		},

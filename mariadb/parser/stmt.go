@@ -466,6 +466,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// p.cur is now INDEX or KEY; parseCreateIndexStmt consumes it
 		return p.parseCreateIndexStmt(start, orReplace, false, true, false)
 
+	case kwVECTOR:
+		return p.parseCreateVectorIndexStmt(start, orReplace)
+
 	case kwSPATIAL:
 		p.advance()
 		// Distinguish SPATIAL REFERENCE SYSTEM from SPATIAL INDEX

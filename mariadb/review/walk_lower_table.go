@@ -262,6 +262,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 // counted: a second one is a note (verified).
 func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 	seen := make(map[[2]string]bool)
+	vectorKeys := make(map[string]bool)
 	twice := func(kind, space, name string, rng review.Range, message string) bool {
 		k, ok := b.key(space, name)
 		if !ok {
@@ -341,6 +342,25 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			}
 			if b.tooLong(keyName(con), rng) {
 				return true
+			}
+			// IF NOT EXISTS never fails from a repeat of its own kind, and what it states still
+			// counts against a plain ADD after it (1061, verified). Beside another kind of key
+			// it is 1061 in either order, as ADD INDEX i (a), ADD VECTOR IF NOT EXISTS i (v) is.
+			if con.IfNotExists && con.Type == ast.ConstrVector {
+				if k, ok := b.key(spaceIndex, con.Name); ok {
+					if seen[[2]string{"add index", k}] && !vectorKeys[k] {
+						b.fail(rng, nil, review.DuplicateName, statesTwice("adds", "index", ident(con.Name)))
+						return true
+					}
+					seen[[2]string{"add index", k}] = true
+					vectorKeys[k] = true
+				}
+				continue
+			}
+			if con.Type == ast.ConstrVector {
+				if k, ok := b.key(spaceIndex, con.Name); ok {
+					vectorKeys[k] = true
+				}
 			}
 			switch con.Type {
 			case ast.ConstrPrimaryKey:
@@ -450,7 +470,15 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			// ADD VECTOR IF NOT EXISTS makes a duplicate index name a note rather
+			// than an error, and the index stays the one that was there.
+			if c.IfNotExists {
+				if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
+					return
+				}
+			} else {
+				b.need(idxKey(r.db, r.name, k), walk.Absent, nil, rng, "", alreadyExists("index", ident(c.Name), r.written)) // 1061
+			}
 		}
 	}
 	b.constraint(r, c)

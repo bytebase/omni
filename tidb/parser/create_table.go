@@ -440,6 +440,18 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 	}
 
+	// ColumnDef's action calls Validate, which answers 1221 for these three beside a
+	// generated column in either order.
+	//
+	// Ref: invalidOptionForGeneratedColumn and ColumnDef.Validate in TiDB v8.5.5
+	// pkg/parser/ast/ddl.go.
+	if col.Generated != nil && (col.DefaultValue != nil || col.AutoIncrement || col.OnUpdate != nil) {
+		return nil, &ParseError{
+			Message:  "a generated column takes no DEFAULT, AUTO_INCREMENT or ON UPDATE",
+			Position: start,
+		}
+	}
+
 	col.Loc.End = p.prev.End
 	return col, nil
 }
@@ -1254,9 +1266,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		// and runs `ADD VECTOR INDEX idx USING HNSW ((lower(a)))`,
 		// `ADD VECTOR INDEX ((lower(a))) GLOBAL` and
 		// `CREATE TABLE t (a vector(3), VECTOR INDEX ((VEC_COSINE_DISTANCE(a))))`.
-		// The key list is an ordinary key-part list: v8.5.5 parses
-		// `VECTOR INDEX (a)` and `VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a)))`
-		// and rejects them later with 1149, which is not a parse error.
+		// The key list is read as an ordinary key-part list and then held to the
+		// action's shape: v8.5.5 answers 1149 for `VECTOR INDEX (a)` and for
+		// `VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a)))` while it parses.
 		//
 		// Ref: ConstraintVectorIndex in TiDB v8.5.5 pkg/parser/parser.y.
 		if constr.Name != "" {
@@ -1286,6 +1298,9 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		constr.Columns = indexColumnsToNames(idxCols)
 		if err := p.parseConstraintIndexOptions(constr); err != nil {
 			return nil, err
+		}
+		if vectorConstraintRefused(constr) {
+			return nil, refuseVectorIndexShape(constr.Loc.Start)
 		}
 
 	case kwSPATIAL:
@@ -1631,7 +1646,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		// ENCRYPTION [=] {'Y' | 'N'}
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
+		val, err := p.parseEncryptionValue()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1747,10 +1762,15 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwTTL_JOB_INTERVAL:
 		p.advance()
 		p.match('=')
-		val, err := p.consumeOptionValue()
-		if err != nil {
-			return nil, false, err
+		// A string read by TiDB's own duration parser (TableOption in v8.5.5
+		// pkg/parser/parser.y): `TTL_JOB_INTERVAL = 'foo'` is 1064.
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
 		}
+		if !tidbDuration(p.cur.Str) {
+			return nil, false, &ParseError{Message: "The TTL_JOB_INTERVAL option is not a valid duration", Position: p.cur.Loc}
+		}
+		val := p.advance().Str
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "TTL_JOB_INTERVAL", Value: val}, true, nil
 
 	case kwPLACEMENT:
@@ -2002,26 +2022,22 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		p.advance()
 		part.Type = nodes.PartitionKey
 		// Optional ALGORITHM={1|2}
-		if p.cur.Type == kwALGORITHM {
-			p.advance()
-			p.match('=')
-			if p.cur.Type == tokICONST {
-				part.Algorithm = int(p.cur.Ival)
-				p.advance()
-			}
+		algorithm, err := p.parsePartitionKeyAlgorithm()
+		if err != nil {
+			return nil, err
 		}
-		if p.cur.Type == '(' {
-			// KEY () with empty column list means "use PK columns".
-			if p.peekNext().Type == ')' {
-				p.advance() // consume '('
-				p.advance() // consume ')'
-			} else {
-				cols, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				part.Columns = cols
+		part.Algorithm = algorithm
+		// KEY () with empty column list means "use PK columns". The parentheses are
+		// required: `PARTITION BY KEY` alone is 1064.
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			p.advance() // consume '('
+			p.advance() // consume ')'
+		} else {
+			cols, err := p.parseParenIdentList()
+			if err != nil {
+				return nil, err
 			}
+			part.Columns = cols
 		}
 
 	case kwRANGE:
@@ -2086,10 +2102,11 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	// PARTITIONS num
 	if p.cur.Type == kwPARTITIONS {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			part.NumParts = int(p.cur.Ival)
-			p.advance()
+		n, err := p.parsePartitionCount("partitions")
+		if err != nil {
+			return nil, err
 		}
+		part.NumParts = n
 	}
 
 	// SUBPARTITION BY {HASH(expr) | KEY [ALGORITHM=N] (column_list)}
@@ -2120,14 +2137,11 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			p.advance()
 			part.SubPartType = nodes.PartitionKey
 			// Optional ALGORITHM = N
-			if p.cur.Type == kwALGORITHM {
-				p.advance()
-				p.match('=')
-				if p.cur.Type == tokICONST {
-					part.SubPartAlgo = int(p.cur.Ival)
-					p.advance()
-				}
+			algorithm, err := p.parsePartitionKeyAlgorithm()
+			if err != nil {
+				return nil, err
 			}
+			part.SubPartAlgo = algorithm
 			// KEY () with empty column list means "use PK columns".
 			if p.cur.Type == '(' && p.peekNext().Type == ')' {
 				p.advance() // consume '('
@@ -2161,41 +2175,45 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			} else if p.cur.Type == kwKEY {
 				p.advance()
 				part.SubPartType = nodes.PartitionKey
-				if p.cur.Type == kwALGORITHM {
-					p.advance()
-					p.match('=')
-					if p.cur.Type == tokICONST {
-						part.SubPartAlgo = int(p.cur.Ival)
-						p.advance()
-					}
+				algorithm, err := p.parsePartitionKeyAlgorithm()
+				if err != nil {
+					return nil, err
 				}
+				part.SubPartAlgo = algorithm
 				cols, err := p.parseParenIdentList()
 				if err != nil {
 					return nil, err
 				}
 				part.SubPartColumns = cols
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		// SUBPARTITIONS num
 		if p.cur.Type == kwSUBPARTITIONS {
 			p.advance()
-			if p.cur.Type == tokICONST {
-				part.NumSubParts = int(p.cur.Ival)
-				p.advance()
+			n, err := p.parsePartitionCount("subpartitions")
+			if err != nil {
+				return nil, err
 			}
+			part.NumSubParts = n
 		}
 	}
 
 	// Optional partition definitions
+	var bounds []partitionBound
 	if p.cur.Type == '(' {
 		p.advance()
 		for {
-			pd, err := p.parsePartitionDef()
+			pd, bound, err := p.parsePartitionDefAndBound()
 			if err != nil {
 				return nil, err
 			}
 			part.Partitions = append(part.Partitions, pd)
+			bounds = append(bounds, bound)
 			if p.cur.Type != ',' {
 				break
 			}
@@ -2204,6 +2222,11 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+	}
+
+	// PartitionOpt's action validates what the productions read.
+	if err := validatePartitionClause(part, bounds); err != nil {
+		return nil, err
 	}
 
 	if err := p.parseUpdateIndexes(part); err != nil {
@@ -2272,15 +2295,23 @@ func (p *Parser) parseUpdateIndexes(part *nodes.PartitionClause) error {
 //	    [VALUES {LESS THAN (expr|MAXVALUE) | IN (value_list)}]
 //	    [table_options]
 func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
+	pd, _, err := p.parsePartitionDefAndBound()
+	return pd, err
+}
+
+// parsePartitionDefAndBound is parsePartitionDef, and says which kind of bound the
+// definition wrote, which PartitionDef.Values alone leaves open for a list of values.
+func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBound, error) {
 	start := p.pos()
 	if _, err := p.expect(kwPARTITION); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	name, _, err := p.parseIdent()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
+	bound := boundNone
 
 	pd := &nodes.PartitionDef{
 		Loc:  nodes.Loc{Start: start},
@@ -2293,15 +2324,17 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	// 1064.
 	if _, ok := p.match(kwDEFAULT); ok {
 		pd.Values = &nodes.String{Str: "DEFAULT"}
+		bound = boundIn
 	}
 
 	// VALUES LESS THAN or VALUES IN
 	if pd.Values == nil {
 		if _, ok := p.match(kwVALUES); ok {
 			if p.cur.Type == kwLESS {
+				bound = boundLessThan
 				p.advance() // LESS
 				if _, err := p.expect(kwTHAN); err != nil {
-					return nil, err
+					return nil, 0, err
 				}
 				if p.cur.Type == '(' {
 					p.advance()
@@ -2314,10 +2347,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						} else {
 							expr, err := p.parseBitExpr()
 							if err != nil {
-								return nil, err
+								return nil, 0, err
 							}
 							if expr == nil {
-								return nil, p.syntaxErrorAtCur()
+								return nil, 0, p.syntaxErrorAtCur()
 							}
 							items = append(items, expr)
 						}
@@ -2327,7 +2360,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						p.advance()
 					}
 					if _, err := p.expect(')'); err != nil {
-						return nil, err
+						return nil, 0, err
 					}
 					// A single bound is stored as itself, MAXVALUE as a String; a
 					// tuple keeps every column, MAXVALUE ones included, so
@@ -2341,9 +2374,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					pd.Values = &nodes.String{Str: "MAXVALUE"}
 					p.advance()
 				} else {
-					return nil, p.syntaxErrorAtCur()
+					return nil, 0, p.syntaxErrorAtCur()
 				}
 			} else if _, ok := p.match(kwIN); ok {
+				bound = boundIn
 				if p.cur.Type == '(' {
 					p.advance()
 					var items []nodes.Node
@@ -2355,10 +2389,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 							for {
 								expr, err := p.parseExpr()
 								if err != nil {
-									return nil, err
+									return nil, 0, err
 								}
 								if expr == nil {
-									return nil, p.syntaxErrorAtCur()
+									return nil, 0, p.syntaxErrorAtCur()
 								}
 								tupleVals = append(tupleVals, expr)
 								if p.cur.Type != ',' {
@@ -2367,7 +2401,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 								p.advance()
 							}
 							if _, err := p.expect(')'); err != nil {
-								return nil, err
+								return nil, 0, err
 							}
 							items = append(items, &nodes.List{Items: tupleVals})
 						} else if p.cur.Type == kwDEFAULT {
@@ -2385,10 +2419,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						} else {
 							expr, err := p.parseBitExpr()
 							if err != nil {
-								return nil, err
+								return nil, 0, err
 							}
 							if expr == nil {
-								return nil, p.syntaxErrorAtCur()
+								return nil, 0, p.syntaxErrorAtCur()
 							}
 							items = append(items, expr)
 						}
@@ -2398,15 +2432,15 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						p.advance()
 					}
 					if _, err := p.expect(')'); err != nil {
-						return nil, err
+						return nil, 0, err
 					}
 					pd.Values = &nodes.List{Items: items}
 				} else {
-					return nil, p.syntaxErrorAtCur()
+					return nil, 0, p.syntaxErrorAtCur()
 				}
 			} else {
 				// VALUES with neither LESS THAN nor IN after it is no bound.
-				return nil, p.syntaxErrorAtCur()
+				return nil, 0, p.syntaxErrorAtCur()
 			}
 		}
 	}
@@ -2415,7 +2449,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	for {
 		opt, ok, err := p.parsePartDefOption()
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if !ok {
 			break
@@ -2429,7 +2463,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		for {
 			spd, err := p.parseSubPartitionDef()
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			pd.SubPartitions = append(pd.SubPartitions, spd)
 			if p.cur.Type != ',' {
@@ -2438,12 +2472,12 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 			p.advance()
 		}
 		if _, err := p.expect(')'); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
 
 	pd.Loc.End = p.prev.End
-	return pd, nil
+	return pd, bound, nil
 }
 
 // parseSubPartitionDef parses a single subpartition definition.

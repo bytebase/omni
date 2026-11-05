@@ -57,6 +57,10 @@ var walkCases = []walkCase{
 	// Databases and USE.
 	{name: "databases", change: "CREATE DATABASE shop;\nCREATE DATABASE q;\nCREATE DATABASE q;\nCREATE DATABASE IF NOT EXISTS q;\nDROP DATABASE IF EXISTS nosuch;\nUSE nosuch;\nCREATE TABLE q.x (a int);\nCREATE TABLE q.x (a int);\nDROP DATABASE q;\nCREATE TABLE q.y (a int);", complete: true},
 	{name: "no database selected", change: "DROP DATABASE shop;\nALTER DATABASE CHARACTER SET utf8mb4;\nCREATE TABLE x (a int);\nCREATE TEMPORARY TABLE x (a int);\nCREATE SEQUENCE s;\nCREATE PROCEDURE p2() SELECT 1;\nDROP PROCEDURE IF EXISTS p;\nDROP FUNCTION shop.f;\nDROP TRIGGER IF EXISTS tr;\nCREATE EVENT e2 ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nALTER EVENT e COMMENT 'x';", complete: true},
+	// A vector key is an index the walk follows, in every spelling, and the server runs
+	// them all. Its one-per-table limit (1235) is no name the ledger holds, so each table
+	// here takes one at a time.
+	{name: "vector keys", change: "CREATE TABLE x (id int, v VECTOR(3) NOT NULL, w VECTOR(3) NOT NULL, VECTOR KEY vi (v) M=6 DISTANCE=cosine);\nCREATE TABLE x (a int);\nCREATE INDEX VI ON x (id);\nDROP INDEX vi ON x;\nDROP INDEX vi ON x;\nCREATE VECTOR INDEX vj ON x (v);\nDROP INDEX vj ON x;\nCREATE OR REPLACE VECTOR INDEX vk ON x (w);\nCREATE OR REPLACE VECTOR INDEX vk ON x (w);\nCREATE VECTOR INDEX IF NOT EXISTS vk ON x (w);\nALTER TABLE x DROP INDEX vk;\nALTER TABLE x ADD VECTOR vl (w);\nALTER TABLE x ADD VECTOR IF NOT EXISTS vl (w);\nALTER TABLE x DROP INDEX vl;\nALTER TABLE x ADD VECTOR KEY (v);\nALTER TABLE x ADD COLUMN v VECTOR(3);\nCREATE VECTOR INDEX vm ON nosuch (v);", complete: true},
 	// With no database selected, an unqualified DROP FUNCTION looks for a
 	// loadable function alone: IF EXISTS is a note, and without it the
 	// statement fails with 1305 where none is loaded.

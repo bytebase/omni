@@ -217,7 +217,9 @@ func (p *Parser) parseResourceGroupOption() (*nodes.ResourceGroupOption, error) 
 		case kwFALSE:
 			p.advance()
 		case tokICONST:
-			val, err := p.parseLengthNum()
+			// The grammar reads this number as Int64Num, whose action answers 1105
+			// for anything an int64 cannot hold.
+			val, err := p.parseAdminInt64()
 			if err != nil {
 				return nil, err
 			}
@@ -351,18 +353,18 @@ func (p *Parser) parseRunawayOption() (*nodes.ResourceGroupRunawayOption, error)
 	case kwPROCESSED_KEYS, kwRU:
 		// The grammar names intLit here, which the lexer scans unsigned and
 		// without a sign of its own: `PROCESSED_KEYS -1` and `RU +1` are
-		// 1064 on v8.5.5, and a value up to 2^64-1 is not.
+		// 1064 on v8.5.5. The value is Int64Num's, so 2^63 answers 1105.
 		option.Name = "PROCESSED_KEYS"
 		if p.cur.Type == kwRU {
 			option.Name = "RU"
 		}
 		p.advance()
 		p.eqOpt()
-		val, err := p.parseLengthNum()
+		val, err := p.parseAdminInt64()
 		if err != nil {
 			return nil, err
 		}
-		option.IntValue = val
+		option.IntValue = uint64(val)
 
 	case kwACTION:
 		option.Name = "ACTION"
@@ -798,14 +800,14 @@ func (p *Parser) parseQueryWatchStmt() (nodes.Node, error) {
 		p.advance()
 		// A watch id and nothing else. The RESOURCE GROUP forms pingcap's
 		// parser on master reads (parser.y:17075, 17081) are 1064 on v8.5.5,
-		// and so is a negative id.
-		id, err := p.parseLengthNum()
+		// and so is a negative id, and the id is Int64Num's, so 2^63 answers 1105.
+		id, err := p.parseAdminInt64()
 		if err != nil {
 			return nil, err
 		}
 		return &nodes.DropQueryWatchStmt{
 			Loc: nodes.Loc{Start: start, End: p.prev.End},
-			ID:  id,
+			ID:  uint64(id),
 		}, nil
 	}
 	return nil, &ParseError{

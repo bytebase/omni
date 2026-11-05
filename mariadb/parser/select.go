@@ -1562,7 +1562,11 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		return col, nil
 	}
 
-	// type
+	// type. Not VECTOR: 11.8.8 answers 1064 for `a VECTOR(3) PATH '$'` where every column
+	// and routine takes it.
+	if p.cur.Type == kwVECTOR || p.isQuotedVectorType() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	typeName, err := p.parseDataType()
 	if err != nil {
 		return nil, err

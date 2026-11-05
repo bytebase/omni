@@ -1556,6 +1556,12 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNSIGNED"}, nil
 	}
 
+	// A CAST to VECTOR is no CAST: 11.8.8 answers 1064 for CAST(a AS VECTOR(3)) and,
+	// while it parses, 4162 for CAST(a AS VECTOR) and CONVERT(a, VECTOR).
+	if p.cur.Type == kwVECTOR || p.isQuotedVectorType() {
+		return nil, &ParseError{Message: "Operator does not exist: 'CAST(expr AS vector)'", Position: start}
+	}
+
 	return p.parseDataType()
 }
 

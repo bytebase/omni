@@ -477,6 +477,9 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 			p.addRuleCandidate("table_ref")
 			return nil, &ParseError{Message: "collecting"}
 		}
+		if err := refuseTableNameDatabase(name, start); err != nil {
+			return nil, err
+		}
 		name2, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err

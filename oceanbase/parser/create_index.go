@@ -7,7 +7,7 @@ import (
 )
 
 // parseCreateIndexStmt parses a CREATE INDEX statement.
-// Called when p.cur is at the INDEX keyword (after consuming CREATE [UNIQUE|FULLTEXT|SPATIAL]).
+// Called when p.cur is at the INDEX keyword (after consuming CREATE [UNIQUE|FULLTEXT|SPATIAL|VECTOR]).
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/create-index.html
 //
@@ -218,11 +218,68 @@ func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
 	return cols, nil
 }
 
+// parseIndexParams reads the WITH (name = value, ...) a vector index takes its
+// parameters from: WITH (distance = l2, type = hnsw, lib = vsag).
+//
+// It is an index option of every index and not only a vector one: 4.3.5.6 parses
+// CREATE INDEX i ON t (a) WITH (foo=bar) and ADD INDEX i (a) WITH (foo=bar) and refuses
+// them later with 1235, set index params in not vector index is not supported. The
+// names and the words are not checked until then either: WITH (foo=bar) parses on a
+// vector index.
+//
+// A name is an identifier. A value is an identifier, an unsigned number or a boolean:
+// WITH (m=16), WITH (ef_search=1.5) and WITH (a=TRUE) parse, and 1064 is the answer for
+// a string, DEFAULT, NULL, -1, +1, a parenthesized value, an expression and b.c, for an
+// empty list, a missing = and a trailing comma.
+func (p *Parser) parseIndexParams() (*nodes.IndexOption, bool, error) {
+	start := p.pos()
+	p.advance() // consume WITH
+	p.advance() // consume (
+	opt := &nodes.IndexOption{Name: "WITH"}
+	for {
+		prop := &nodes.ParserProperty{Loc: nodes.Loc{Start: p.pos()}}
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, false, err
+		}
+		prop.Name = strings.ToLower(name)
+		if _, err := p.expect('='); err != nil {
+			return nil, false, err
+		}
+		valStart := p.pos()
+		switch p.cur.Type {
+		case tokICONST:
+			prop.Value = &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.cur.End}, Value: p.cur.Ival}
+			p.advance()
+		case tokFCONST, kwTRUE, kwFALSE:
+			prop.Value = &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.cur.End}, Value: p.cur.Str}
+			p.advance()
+		default:
+			word, _, err := p.parseIdent()
+			if err != nil {
+				return nil, false, err
+			}
+			prop.Value = &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: word}
+		}
+		prop.Loc.End = p.prev.End
+		opt.Properties = append(opt.Properties, prop)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, false, err
+	}
+	opt.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return opt, true, nil
+}
+
 // parseIndexOption parses a single index_option.
 //
 //	index_option:
 //	    KEY_BLOCK_SIZE [=] value
 //	    | USING {BTREE | HASH}
+//	    | WITH (name = value, ...)
 //	    | WITH PARSER parser_name          -- fulltext only
 //	    | PARSER_PROPERTIES [=] (...)      -- fulltext only
 //	    | COMMENT 'string'
@@ -294,6 +351,9 @@ func (p *Parser) parseIndexOption(fulltext bool) (*nodes.IndexOption, bool, erro
 				Name:  "PARSER",
 				Value: &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: parserName},
 			}, true, nil
+		}
+		if next.Type == '(' {
+			return p.parseIndexParams()
 		}
 		return nil, false, nil
 

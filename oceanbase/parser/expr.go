@@ -1940,6 +1940,11 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNSIGNED"}, nil
 	}
 
+	// CAST and CONVERT have no vector type: 4.3.5.6 answers 1064 for CAST(a AS VECTOR(3)).
+	if p.cur.Type == kwVECTOR {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	return p.parseDataType()
 }
 

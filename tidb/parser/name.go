@@ -1031,6 +1031,10 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
+		if err := refuseTableNameDatabase(name, start); err != nil {
+			return nil, err
+		}
+
 		name2, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
@@ -1366,4 +1370,16 @@ func eqFold(s, t string) bool {
 		}
 	}
 	return true
+}
+
+// refuseTableNameDatabase is TableName's action, which answers 1102, ErrWrongDBName, for a
+// database name that is empty or ends in a space.
+//
+// Ref: TableName and isInCorrectIdentifierName in TiDB v8.5.5 pkg/parser/parser.y and
+// misc.go.
+func refuseTableNameDatabase(name string, pos int) error {
+	if name == "" || strings.HasSuffix(name, " ") {
+		return &ParseError{Message: "Incorrect database name '" + name + "'", Position: pos}
+	}
+	return nil
 }

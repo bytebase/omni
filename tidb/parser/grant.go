@@ -165,7 +165,10 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 			stmt.WithGrant = true
 		}
 		// resource options after GRANT OPTION or standalone
-		res := p.parseResourceOptions()
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
+		}
 		if res != nil {
 			stmt.Resource = res
 		}
@@ -1122,7 +1125,10 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 	// [WITH resource_option ...]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		res := p.parseResourceOptions()
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
+		}
 		if res != nil {
 			stmt.Resource = res
 		}
@@ -1362,7 +1368,10 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	// [WITH resource_option ...]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		res := p.parseResourceOptions()
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
+		}
 		if res != nil {
 			stmt.Resource = res
 		}
@@ -2057,7 +2066,10 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 //	  | MAX_CONNECTIONS_PER_HOUR count
 //	  | MAX_USER_CONNECTIONS count
 //	}
-func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
+//
+// Each count is Int64Num (ConnectionOption in TiDB v8.5.5 pkg/parser/parser.y), so it is
+// required and 2^63 is a syntax error.
+func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 	var res *nodes.ResourceOption
 	for p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
 		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS {
@@ -2067,38 +2079,42 @@ func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
 		switch p.cur.Type {
 		case kwMAX_QUERIES_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxQueriesPerHour = int(p.cur.Ival)
-				res.HasMaxQueries = true
-				p.advance()
+			n, err := p.parseAdminInt64()
+			if err != nil {
+				return nil, err
 			}
+			res.MaxQueriesPerHour = int(n)
+			res.HasMaxQueries = true
 		case kwMAX_UPDATES_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxUpdatesPerHour = int(p.cur.Ival)
-				res.HasMaxUpdates = true
-				p.advance()
+			n, err := p.parseAdminInt64()
+			if err != nil {
+				return nil, err
 			}
+			res.MaxUpdatesPerHour = int(n)
+			res.HasMaxUpdates = true
 		case kwMAX_CONNECTIONS_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxConnectionsPerHour = int(p.cur.Ival)
-				res.HasMaxConnections = true
-				p.advance()
+			n, err := p.parseAdminInt64()
+			if err != nil {
+				return nil, err
 			}
+			res.MaxConnectionsPerHour = int(n)
+			res.HasMaxConnections = true
 		case kwMAX_USER_CONNECTIONS:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxUserConnections = int(p.cur.Ival)
-				res.HasMaxUserConn = true
-				p.advance()
+			n, err := p.parseAdminInt64()
+			if err != nil {
+				return nil, err
 			}
+			res.MaxUserConnections = int(n)
+			res.HasMaxUserConn = true
 		}
 	}
 	if res != nil {
 		res.Loc.End = p.prev.End
 	}
-	return res
+	return res, nil
 }
 
 // parseUserAccountOptions parses password options, lock options, comment, and attribute
@@ -2140,17 +2156,14 @@ func (p *Parser) parseUserAccountOptions(
 					p.advance()
 				} else if p.cur.Type == kwINTERVAL {
 					p.advance() // consume INTERVAL
-					n := "0"
-					if p.cur.Type == tokICONST {
-						n = p.cur.Str
-						if n == "" {
-							n = strconv.FormatInt(p.cur.Ival, 10)
-						}
-						p.advance()
+					// Int64Num, so it is required and 2^63 is a syntax error.
+					days, err := p.parseAdminInt64()
+					if err != nil {
+						return err
 					}
-					// DAY
-					if p.cur.Type == kwDAY {
-						p.advance()
+					n := strconv.FormatInt(days, 10)
+					if _, err := p.expect(kwDAY); err != nil {
+						return err
 					}
 					*passwordExpire = "INTERVAL " + n + " DAY"
 				} else {
@@ -2209,20 +2222,28 @@ func (p *Parser) parseUserAccountOptions(
 
 		case p.cur.Type == kwFAILED_LOGIN_ATTEMPTS:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				*failedLoginAttempts = int(p.cur.Ival)
-				*hasFailedLogin = true
-				p.advance()
+			// Int64Num, so it is required and 2^63 is a syntax error.
+			n, err := p.parseAdminInt64()
+			if err != nil {
+				return err
 			}
+			*failedLoginAttempts = int(n)
+			*hasFailedLogin = true
 
 		case p.cur.Type == kwPASSWORD_LOCK_TIME:
 			p.advance()
 			if p.cur.Type == tokICONST {
-				*passwordLockTime = strconv.FormatInt(p.cur.Ival, 10)
-				p.advance()
+				// Int64Num, so 2^63 is a syntax error.
+				n, err := p.parseAdminInt64()
+				if err != nil {
+					return err
+				}
+				*passwordLockTime = strconv.FormatInt(n, 10)
 			} else if p.cur.Type == kwUNBOUNDED {
 				*passwordLockTime = "UNBOUNDED"
 				p.advance()
+			} else {
+				return p.syntaxErrorAtCur()
 			}
 
 		case p.cur.Type == kwACCOUNT:

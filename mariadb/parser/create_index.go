@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -95,6 +96,78 @@ func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, sp
 	}
 	stmt.Algorithm, stmt.Lock = algorithm, lock
 
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseCreateVectorIndexStmt parses CREATE VECTOR INDEX from the VECTOR keyword on.
+//
+//	CREATE [OR REPLACE] VECTOR INDEX [IF NOT EXISTS] index_name
+//	    ON tbl_name (col_name)
+//	    [WAIT n | NOWAIT]
+//	    [index_option] ...
+//	    [algorithm_option | lock_option] ...
+//
+// It is spelled INDEX only, where a table element takes KEY or no word at all: 11.8.8
+// answers 1064 for CREATE VECTOR KEY and CREATE VECTOR. The key part and the options
+// are parseVectorKey's. WAIT and NOWAIT stand before the options: `(v) WAIT 3 M=6` runs
+// and `(v) M=6 WAIT 3` is 1064.
+func (p *Parser) parseCreateVectorIndexStmt(start int, orReplace bool) (*nodes.CreateIndexStmt, error) {
+	p.advance() // consume VECTOR
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
+	}
+	stmt := &nodes.CreateIndexStmt{
+		Loc:       nodes.Loc{Start: start},
+		OrReplace: orReplace,
+		Vector:    true,
+	}
+	ifNotExists, err := p.parseCreateIfNotExists(orReplace)
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfNotExists = ifNotExists
+	if stmt.IndexName, _, err = p.parseIdent(); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
+	}
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	if stmt.Table, err = p.parseTableRef(); err != nil {
+		return nil, err
+	}
+	part, err := p.parseVectorKeyPart()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Columns = []*nodes.IndexColumn{part}
+	// [WAIT n | NOWAIT] says how long to wait for the table's lock and changes nothing
+	// about the index, so it is read and not kept.
+	if _, ok := p.match(kwNOWAIT); !ok {
+		if _, ok := p.match(kwWAIT); ok {
+			if _, err := p.expect(tokICONST); err != nil {
+				return nil, err
+			}
+		}
+	}
+	for {
+		opt, ok, err := p.parseVectorKeyOption()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			break
+		}
+		stmt.Options = append(stmt.Options, opt)
+	}
+	if stmt.Algorithm, stmt.Lock, err = p.parseIndexLockAndAlgorithm(); err != nil {
+		return nil, err
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
@@ -395,7 +468,61 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 		return nil, false, &ParseError{Message: "expected string after SECONDARY_ENGINE_ATTRIBUTE", Position: p.cur.Loc}
 	}
 
-	return nil, false, nil
+	return p.parseEngineIndexOption(start)
+}
+
+// parseEngineIndexOption reads an engine-defined option, `name = value`, the form a
+// vector index's M and DISTANCE take and one every index accepts: 11.8.8 parses
+// `CREATE INDEX i ON t (a) FOO=1` and refuses it only when it runs, with 1911.
+//
+// The name is an identifier token and no keyword, even a non-reserved one: STATUS=1 and
+// FORMAT=1 are 1064 while `select`=1 runs. The value is a string, a bare word, DEFAULT
+// or an unsigned integer that fits in 64 bits: TRUE, NULL, -1, 1.5, X'10' and b'1' are
+// all 1064, and 99999999999999999999 is too with its own message.
+//
+// Ref: engine_defined_option in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseEngineIndexOption(start int) (*nodes.IndexOption, bool, error) {
+	if p.cur.Type != tokIDENT {
+		return nil, false, nil
+	}
+	if next := p.peekNext(); next.Type != '=' && next.Type != tokAssign {
+		return nil, false, nil
+	}
+	opt := &nodes.IndexOption{Name: p.cur.Str, Engine: true}
+	p.advance() // consume the name
+	p.advance() // consume = or :=
+	valStart := p.pos()
+	switch {
+	case p.cur.Type == tokSCONST:
+		opt.Value = &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.cur.End}, Value: p.cur.Str}
+		p.advance()
+	case p.cur.Type == tokICONST:
+		if _, err := strconv.ParseUint(p.cur.Str, 10, 64); err != nil {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		opt.Value = &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.cur.End}, Value: p.cur.Ival}
+		p.advance()
+	case p.cur.Type == tokXCONST && strings.HasPrefix(p.cur.Str, "0x"):
+		// 0x10 is an integer here and X'10' is not. The token holds the digits of the
+		// one and the whole spelling of the other.
+		v, err := strconv.ParseUint(p.cur.Str[2:], 16, 64)
+		if err != nil {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		opt.Value = &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.cur.End}, Value: int64(v)}
+		p.advance()
+	case p.cur.Type == kwDEFAULT:
+		p.advance()
+	default:
+		word, _, err := p.parseIdent()
+		if err != nil {
+			return nil, false, err
+		}
+		opt.Value = &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: word}
+		opt.ValueIsWord = true
+	}
+	opt.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return opt, true, nil
 }
 
 // atNotIgnored reports whether the cursor is at NOT followed by an unquoted

@@ -71,6 +71,10 @@ var oceanBaseIncomplete = map[string]string{
 }
 
 var oceanBaseWalkCases = []oceanBaseCase{
+	// A vector index is an index the walk follows. Its one-per-column limit (1235, ahead
+	// even of IF NOT EXISTS) is no name the ledger holds, so each index here is on its own
+	// column or the last one's gone.
+	{walkCase: walkCase{name: "vector indexes", change: "CREATE TABLE x (id int, v VECTOR(3) NOT NULL, VECTOR INDEX vi (v) WITH (distance=l2, type=hnsw, lib=vsag));\nCREATE TABLE x (a int);\nCREATE INDEX VI ON x (id);\nDROP INDEX vi ON x;\nDROP INDEX vi ON x;\nCREATE VECTOR INDEX vj ON x (v) WITH (distance=l2, type=hnsw, lib=vsag);\nALTER TABLE x DROP INDEX vj;\nALTER TABLE x ADD COLUMN v VECTOR(3);\nCREATE VECTOR INDEX vk ON nosuch (v) WITH (distance=l2, type=hnsw, lib=vsag);", complete: true}},
 	// External tables and materialized views share the tables' namespace,
 	// of no kind the walk claims (spec §3). An ALTER TABLE of one ends the
 	// walk; OceanBase refuses it (1235), so the walk goes on past it.
