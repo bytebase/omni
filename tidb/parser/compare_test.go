@@ -9031,17 +9031,6 @@ func TestParseGrantProxy(t *testing.T) {
 	}
 }
 
-func TestParseRevokeProxy(t *testing.T) {
-	tests := []string{
-		"REVOKE PROXY ON 'admin'@'localhost' FROM 'user1'@'localhost'",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseGrantColumnPrivilege(t *testing.T) {
 	tests := []string{
 		"GRANT SELECT (col1, col2), INSERT (col1) ON mydb.mytbl TO 'user1'@'localhost'",
@@ -10385,7 +10374,6 @@ func TestBNFReviewSecurity(t *testing.T) {
 		// REVOKE IF EXISTS role
 		"REVOKE IF EXISTS role1 FROM user1",
 		// REVOKE PROXY IF EXISTS
-		"REVOKE IF EXISTS PROXY ON 'admin'@'localhost' FROM 'user1'@'localhost'",
 		// SET PASSWORD TO RANDOM
 		"SET PASSWORD TO RANDOM",
 		"SET PASSWORD FOR 'user1'@'localhost' TO RANDOM",

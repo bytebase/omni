@@ -1178,6 +1178,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				// Optional USING role [, role] ...
 				if _, ok := p.match(kwUSING); ok {
 					for {
+						if err := p.checkRoleName(); err != nil {
+							return nil, err
+						}
 						role, err := p.parseUserSpec()
 						if err != nil {
 							return nil, err

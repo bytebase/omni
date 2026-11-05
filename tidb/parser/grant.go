@@ -33,13 +33,26 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 
 	// Parse the names (could be privileges or roles).
 	// We distinguish by looking for ON (privilege grant) vs TO (role grant).
-	privs, allPriv, err := p.parsePrivilegeList()
-	if err != nil {
-		return nil, err
+	var privs []privOrRole
+	var allPriv bool
+	if isProxy {
+		// PROXY is no PrivType: GrantProxyStmt spells it out, and only for GRANT.
+		p.advance()
+		privs = []privOrRole{{name: "PROXY", privOnly: true}}
+	} else {
+		var err error
+		privs, allPriv, err = p.parsePrivilegeList()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// If we see ON, it's a privilege grant; if TO, it's a role grant.
 	if p.cur.Type == kwTO {
+		// ALL [PRIVILEGES] is no role, and it takes an ON: `GRANT ALL TO u` is a 1064.
+		if allPriv {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// Role grant: GRANT role [, role] ... TO user [, user] ... [WITH ADMIN OPTION]
 		if err := p.requireRoles(privs, start); err != nil {
 			return nil, err
@@ -241,10 +254,6 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		ifExists = true
 	}
 
-	// Detect PROXY keyword token before parsing the privilege list so we can
-	// avoid an eqFold string comparison after the fact.
-	isProxy := p.cur.Type == kwPROXY
-
 	// Parse the names (could be privileges or roles).
 	privs, allPriv, err := p.parsePrivilegeList()
 	if err != nil {
@@ -291,6 +300,10 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 
 	// If we see FROM, it's a role revoke; if ON, it's a privilege revoke.
 	if p.cur.Type == kwFROM {
+		// ALL [PRIVILEGES] is no role, and it takes an ON: `REVOKE ALL FROM u` is a 1064.
+		if allPriv {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// Role revoke: REVOKE role [, role] ... FROM user [, user] ...
 		if err := p.requireRoles(privs, start); err != nil {
 			return nil, err
@@ -305,41 +318,6 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			IfExists: ifExists,
 			Roles:    privNames(privs),
 			From:     users,
-		}
-		// [IGNORE UNKNOWN USER]
-		if p.cur.Type == kwIGNORE {
-			p.advance()
-			if p.cur.Type == kwUNKNOWN {
-				p.advance()
-			}
-			if p.cur.Type == kwUSER {
-				p.advance()
-			}
-			stmt.IgnoreUnknownUser = true
-		}
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
-
-	// REVOKE PROXY ON user FROM user
-	if len(privs) == 1 && isProxy && p.cur.Type == kwON {
-		p.advance() // consume ON
-		proxyUser, err := p.parseUserName()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwFROM); err != nil {
-			return nil, err
-		}
-		users, err := p.parseUserList()
-		if err != nil {
-			return nil, err
-		}
-		stmt := &nodes.RevokeStmt{
-			Loc:        nodes.Loc{Start: start},
-			IfExists:   ifExists,
-			Privileges: []string{"PROXY(" + proxyUser + ")"},
-			From:       users,
 		}
 		// [IGNORE UNKNOWN USER]
 		if p.cur.Type == kwIGNORE {
@@ -561,12 +539,6 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 	if err != nil {
 		return privOrRole{}, err
 	}
-	// GRANT on its own is no privilege name, and the word GRANT is no role
-	// name either, so a bare GRANT is neither: v8.5.5 answers 1064 for
-	// `GRANT GRANT ON *.* TO u` and for `GRANT GRANT TO u`.
-	if word.keyword && name == "GRANT" {
-		return privOrRole{}, p.syntaxErrorAtCur()
-	}
 	return privOrRole{name: name, privOnly: word.keyword}, nil
 }
 
@@ -585,6 +557,20 @@ type privWord struct {
 	multiToken bool
 }
 
+// tidbPrivilegeNames is PrivType, parser.y:14568: the privileges TiDB v8.5.5 spells with
+// keywords. It is a closed list, so `GRANT ADMIN ON *.* TO u` is a 1064. A longer privilege
+// name is a run of bare identifiers instead (ExtendedPriv), which does not come through here.
+var tidbPrivilegeNames = map[string]bool{
+	"ALL": true, "ALL PRIVILEGES": true, "ALTER": true, "CREATE": true, "CREATE USER": true,
+	"CREATE TABLESPACE": true, "TRIGGER": true, "DELETE": true, "DROP": true, "PROCESS": true,
+	"EXECUTE": true, "INDEX": true, "INSERT": true, "SELECT": true, "SUPER": true,
+	"SHOW DATABASES": true, "UPDATE": true, "GRANT OPTION": true, "REFERENCES": true,
+	"REPLICATION SLAVE": true, "REPLICATION CLIENT": true, "USAGE": true, "RELOAD": true,
+	"FILE": true, "CONFIG": true, "CREATE TEMPORARY TABLES": true, "LOCK TABLES": true,
+	"CREATE VIEW": true, "SHOW VIEW": true, "CREATE ROLE": true, "DROP ROLE": true,
+	"CREATE ROUTINE": true, "ALTER ROUTINE": true, "EVENT": true, "SHUTDOWN": true,
+}
+
 // parsePrivilegeName parses a single privilege name.
 // Privilege names can be keywords like SELECT, INSERT, UPDATE, DELETE, etc.
 // Multi-word: CREATE VIEW, ALTER ROUTINE, SHOW DATABASES, CREATE TEMPORARY TABLES,
@@ -592,9 +578,14 @@ type privWord struct {
 // CREATE USER, CREATE ROLE, DROP ROLE.
 // Column-level: SELECT (col1, col2), INSERT (col1).
 func (p *Parser) parsePrivilegeName() (string, privWord, error) {
+	start := p.pos()
 	var name string
 	var word privWord
-	switch p.cur.Type {
+	first := p.cur.Type
+	if p.isPlainIdentifier() {
+		first = tokIDENT
+	}
+	switch first {
 	case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwCREATE, kwDROP, kwALTER,
 		kwINDEX, kwEXECUTE, kwGRANT, kwREFERENCES, kwTRIGGER, kwEVENT,
 		kwSHOW, kwLOCK:
@@ -614,10 +605,10 @@ func (p *Parser) parsePrivilegeName() (string, privWord, error) {
 		// The run is unbounded, so the words are joined once rather than
 		// concatenated per word: a 20,000-word run is a 40 KB statement,
 		// and growing the name in place would copy it 20,000 times.
-		if p.cur.Type == tokIDENT && !p.atAtIdent() {
+		if p.isPlainIdentifier() && !p.atAtIdent() {
 			var b strings.Builder
 			b.WriteString(name)
-			for p.cur.Type == tokIDENT && !p.atAtIdent() {
+			for p.isPlainIdentifier() && !p.atAtIdent() {
 				b.WriteByte(' ')
 				b.WriteString(strings.ToUpper(p.advance().Str))
 				word.multiToken = true
@@ -646,6 +637,12 @@ func (p *Parser) parsePrivilegeName() (string, privWord, error) {
 		before := name
 		name = p.completePrivilegeName(name)
 		word.multiToken = name != before
+		if !tidbPrivilegeNames[name] {
+			return "", word, &ParseError{
+				Message:  "expected privilege name",
+				Position: start,
+			}
+		}
 	}
 	return p.parsePrivilegeColumns(name, word)
 }
@@ -662,10 +659,13 @@ func (p *Parser) completePrivilegeName(name string) string {
 			name = "CREATE VIEW"
 		case p.cur.Type == kwTEMPORARY:
 			p.advance()
-			if p.cur.Type == kwTABLES {
-				p.advance()
+			// TABLES is part of the name. Without it the name is no privilege, which the
+			// caller refuses.
+			if p.cur.Type != kwTABLES {
+				return "CREATE TEMPORARY"
 			}
-			name = "CREATE TEMPORARY TABLES"
+			p.advance()
+			return "CREATE TEMPORARY TABLES"
 		case p.cur.Type == kwTABLESPACE:
 			p.advance()
 			name = "CREATE TABLESPACE"
@@ -731,7 +731,9 @@ func (p *Parser) completePrivilegeName(name string) string {
 // parsePrivilegeColumns reads the optional column list of a column-level
 // privilege: priv_type (col_list).
 func (p *Parser) parsePrivilegeColumns(name string, word privWord) (string, privWord, error) {
-	if p.cur.Type != '(' {
+	// Columns follow a PrivElem. ExtendedPriv, a run of identifiers, takes none, so `GRANT
+	// a(b) ON t TO u` is a 1064.
+	if p.cur.Type != '(' || !word.keyword {
 		return name, word, nil
 	}
 	p.advance()
@@ -947,16 +949,25 @@ func (p *Parser) parseRoleList() ([]string, error) {
 // which it was on the TO or FROM that follows, so their names do not come
 // through here.
 func (p *Parser) parseRoleName() (string, error) {
-	if p.cur.Type >= 700 && !isReserved(p.cur.Type) {
+	if err := p.checkRoleName(); err != nil {
+		return "", err
+	}
+	return p.parseUserName()
+}
+
+// checkRoleName refuses a keyword upstream's scanner would not hand over as a bare
+// identifier, unless the role@host form lets a StringName through.
+func (p *Parser) checkRoleName() error {
+	if p.cur.Type >= 700 && !isReserved(p.cur.Type) && !p.isPlainIdentifier() {
 		next := p.peekNext()
 		if next.Type != tokIDENT || !strings.HasPrefix(next.Str, "@") {
-			return "", &ParseError{
+			return &ParseError{
 				Message:  "expected role name",
 				Position: p.cur.Loc,
 			}
 		}
 	}
-	return p.parseUserName()
+	return nil
 }
 
 // parseUserName parses a user identifier, which may be 'user'@'host'.
@@ -1670,8 +1681,12 @@ func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
 	// [IF NOT EXISTS]
 	if p.cur.Type == kwIF {
 		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
+		if _, err := p.expect(kwNOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
 		stmt.IfNotExists = true
 	}
 
@@ -1697,7 +1712,9 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 	// [IF EXISTS]
 	if p.cur.Type == kwIF {
 		p.advance()
-		p.match(kwEXISTS_KW)
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
 		stmt.IfExists = true
 	}
 
