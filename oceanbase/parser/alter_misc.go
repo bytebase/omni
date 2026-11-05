@@ -106,7 +106,7 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 
 	// SELECT statement — capture raw text
 	selectStart := p.pos()
-	sel, err := p.parseSelectStmt()
+	sel, err := p.parseQueryStatement()
 	if err != nil {
 		return nil, err
 	}

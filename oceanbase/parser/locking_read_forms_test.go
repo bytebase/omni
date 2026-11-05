@@ -19,10 +19,8 @@ import "testing"
 // for INTO before the locking clause, so these rows are recorded rather than
 // re-measured in CI; rerun the probe by hand before changing one.
 //
-// Not covered here, and left as found: this parser reads the MySQL 8.0.19
-// TABLE statement, FOR SHARE and FOR UPDATE ... OF, none of which OceanBase
-// CE 4.3.5 has. Those over-acceptances predate this file and want their own
-// change, with an OceanBase oracle behind it.
+// OceanBase CE 4.3.5 has no FOR SHARE and no FOR UPDATE ... OF, and
+// query_primary_forms_test.go holds those refusals to the server.
 
 // lockingReadCase is a statement and whether the engine's parser accepts it.
 type lockingReadCase struct {

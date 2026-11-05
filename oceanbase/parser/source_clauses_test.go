@@ -24,10 +24,10 @@ var sourceClauseCases = []struct {
 }{
 	// A source standing alone holds its own clauses.
 	{"VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1", []string{
-		"VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1: order 1, limit",
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1, limit",
 	}},
 	{"EXPLAIN VALUES ROW(1), ROW(2) ORDER BY 1", []string{
-		"VALUES ROW(1), ROW(2) ORDER BY 1: order 1",
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1",
 	}},
 	// Inside a query expression the SelectStmt over the source holds them.
 	{"SELECT (VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1)", []string{
@@ -67,7 +67,7 @@ var sourceClauseCases = []struct {
 		"SelectStmt over VALUES ROW(1), ROW(2): order 1",
 	}},
 	{"VALUES ROW(1) ORDER BY (VALUES ROW(2) ORDER BY (VALUES ROW(3) LIMIT 1))", []string{
-		"VALUES ROW(1) ORDER BY (VALUES ROW(2) ORDER BY (VALUES ROW(3) LIMIT 1)): order 1",
+		"SelectStmt over VALUES ROW(1): order 1",
 		"SelectStmt over VALUES ROW(2): order 1",
 		"SelectStmt over VALUES ROW(3): limit",
 	}},

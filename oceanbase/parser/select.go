@@ -104,9 +104,10 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 	}
 
 	switch p.cur.Type {
-	case kwSELECT, '(':
-		// A SELECT leaf or a parenthesized query body:
+	case kwSELECT, kwVALUES, '(':
+		// A SELECT leaf, a VALUES primary or a parenthesized query body:
 		//   WITH ... SELECT ...
+		//   WITH ... VALUES ROW(...) ...
 		//   WITH ... (SELECT ...) [set-op] [ORDER BY / LIMIT]
 		return p.parseSelectClauseAndTrailing(start, ctes)
 
@@ -249,13 +250,20 @@ func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 		// A lone parenthesized query, which takes no locking clause.
 		return nil
 	}
-	if p.cur.Type == kwFOR {
+	return p.parseLockingClause(stmt)
+}
+
+// parseLockingClause parses the opt_lock_type of select_no_parens onto stmt, if
+// there is one.
+func (p *Parser) parseLockingClause(stmt *nodes.SelectStmt) error {
+	switch p.cur.Type {
+	case kwFOR:
 		fu, err := p.parseForUpdateClause()
 		if err != nil {
 			return err
 		}
 		stmt.ForUpdate = fu
-	} else if p.cur.Type == kwLOCK {
+	case kwLOCK:
 		fu, err := p.parseLockInShareMode()
 		if err != nil {
 			return err
@@ -263,6 +271,69 @@ func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 		stmt.ForUpdate = fu
 	}
 	return nil
+}
+
+// operandEndsInClauses reports whether a query expression that a set operator
+// follows ends in an ORDER BY, LIMIT or locking clause outside parentheses, which
+// OceanBase refuses there: SELECT 1 ORDER BY 1 UNION SELECT 2 and VALUES ROW(1) FOR
+// UPDATE UNION VALUES ROW(2) are each a 1064 (measured), though the grammar's
+// select_clause_set_left_body reads as allowing the first. The ORDER BY and LIMIT of
+// a set operation's last operand have moved to the set operation by now, and its
+// locking clause has not.
+func operandEndsInClauses(sel *nodes.SelectStmt) bool {
+	if len(sel.OrderBy) > 0 || sel.Limit != nil {
+		return true
+	}
+	for sel.SetOp != nodes.SetOpNone && sel.Right != nil {
+		sel = sel.Right
+	}
+	return sel.ParenSource == nil && sel.ForUpdate != nil
+}
+
+// parseQueryStatement parses a query expression where the grammar reads
+// select_stmt: as a statement, an EXPLAIN target, a view or CREATE TABLE body, or an
+// INSERT source. There select_into adds an INTO after select_no_parens, which a lone
+// parenthesized query is not, and with_select has none of its own: a SELECT reads its
+// own INTO as a clause, so what comes here is an INTO after VALUES, a set operation
+// or a closing ')'.
+func (p *Parser) parseQueryStatement() (*nodes.SelectStmt, error) {
+	sel, err := p.parseSelectStmt()
+	if err != nil || sel == nil || p.cur.Type != kwINTO {
+		return sel, err
+	}
+	if len(sel.CTEs) > 0 || hasInto(sel) {
+		return sel, nil
+	}
+	if sel.ParenSource != nil && len(sel.OrderBy) == 0 && sel.Limit == nil {
+		return sel, nil
+	}
+	p.advance() // consume INTO
+	into, err := p.parseIntoClause()
+	if err != nil {
+		return nil, err
+	}
+	sel.Into = into
+	sel.Loc.End = p.prev.End
+	return sel, nil
+}
+
+// hasInto reports whether a query expression already holds an INTO, on itself or on
+// the last operand or body it ends in.
+func hasInto(sel *nodes.SelectStmt) bool {
+	for sel != nil {
+		if sel.Into != nil {
+			return true
+		}
+		switch {
+		case sel.SetOp != nodes.SetOpNone:
+			sel = sel.Right
+		case sel.ParenSource != nil:
+			sel = sel.ParenSource
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // parseSelectClause parses a select_clause: a query primary optionally combined
@@ -286,6 +357,9 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		prec := setOpPrecedence(p.cur.Type)
 		if prec == 0 || prec < minPrec {
 			return left, nil
+		}
+		if operandEndsInClauses(left) {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		var op nodes.SetOperation
@@ -382,9 +456,12 @@ func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 		return p.parseSimpleSelect()
 	}
 	// A VALUES primary becomes a SelectStmt that holds the source and is the
-	// only owner of the ORDER BY and LIMIT after it, as in
-	// table_values_clause_with_order_by_and_limit (line 14931). Had the source
-	// kept the clauses too, every walk would visit them twice.
+	// only owner of the clauses after it: the ORDER BY and LIMIT of
+	// table_values_clause_with_order_by_and_limit (line 14931), and the
+	// opt_lock_type select_no_parens puts after any select_clause (line 11016).
+	// Had the source kept them too, every walk would visit them twice. An INTO
+	// is select_into's, so only a query standing as a statement takes one (see
+	// parseQueryStatement).
 	if p.cur.Type == kwVALUES {
 		values, err := p.parseValuesConstructor()
 		if err != nil {
@@ -392,6 +469,9 @@ func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 		}
 		stmt := &nodes.SelectStmt{Loc: values.Loc, ValuesSource: values}
 		if stmt.OrderBy, stmt.Limit, err = p.parseSourceClauses(); err != nil {
+			return nil, err
+		}
+		if err := p.parseLockingClause(stmt); err != nil {
 			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
@@ -1855,58 +1935,33 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 	return limit, nil
 }
 
-// parseForUpdateClause parses FOR UPDATE / FOR SHARE.
+// parseForUpdateClause parses FOR UPDATE. OceanBase has neither FOR SHARE nor FOR
+// UPDATE OF: opt_for_update is FOR UPDATE and a wait option, and both of the others
+// are a 1064 (measured).
 func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 	start := p.pos()
 	p.advance() // consume FOR
 
-	// Completion: after FOR keyword, offer UPDATE and SHARE.
+	// Completion: after FOR keyword, offer UPDATE.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwUPDATE)
-		p.addTokenCandidate(kwSHARE)
 		return nil, &ParseError{Message: "collecting"}
 	}
 
 	fu := &nodes.ForUpdate{Loc: nodes.Loc{Start: start}}
 
-	if _, ok := p.match(kwSHARE); ok {
-		fu.Share = true
-	} else if _, ok := p.match(kwUPDATE); ok {
-		// FOR UPDATE (default)
-	} else {
-		return nil, &ParseError{
-			Message:  "expected UPDATE or SHARE after FOR",
-			Position: p.cur.Loc,
-		}
+	if _, err := p.expect(kwUPDATE); err != nil {
+		return nil, err
 	}
 
-	// Completion: after FOR UPDATE/SHARE, offer OF, NOWAIT, SKIP, and WAIT
-	// where this is FOR UPDATE.
+	// Completion: after FOR UPDATE, offer NOWAIT, SKIP, and WAIT.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwNOWAIT)
 		p.addTokenCandidate(kwSKIP)
-		if !fu.Share {
-			p.addTokenCandidate(kwWAIT)
-		}
+		p.addTokenCandidate(kwWAIT)
 		return nil, &ParseError{Message: "collecting"}
-	}
-
-	// OF table_list
-	if p.cur.Type == kwOF {
-		p.advance()
-		for {
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			fu.Tables = append(fu.Tables, ref)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
 	}
 
 	// At most one of NOWAIT, WAIT n, SKIP LOCKED. OceanBase 4.3 spells each as
@@ -1922,7 +1977,7 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 	case p.cur.Type == kwNOWAIT:
 		p.advance()
 		fu.NoWait = true
-	case p.cur.Type == kwWAIT && !fu.Share:
+	case p.cur.Type == kwWAIT:
 		p.advance()
 		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 			return nil, &ParseError{
@@ -2417,26 +2472,6 @@ func (p *Parser) parseSourceClauses() ([]*nodes.OrderByItem, *nodes.Limit, error
 		limit = l
 	}
 	return orderBy, limit, nil
-}
-
-// parseValuesStmt parses a VALUES statement (MySQL 8.0.19+): a VALUES query
-// primary that stands alone, as a statement or an EXPLAIN target, and so
-// holds its own clauses.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/values.html
-//
-//	VALUES ROW(value_list) [, ROW(value_list)] ...
-//	    [ORDER BY column_designator] [LIMIT number [OFFSET number]]
-func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
-	stmt, err := p.parseValuesConstructor()
-	if err != nil {
-		return nil, err
-	}
-	if stmt.OrderBy, stmt.Limit, err = p.parseSourceClauses(); err != nil {
-		return nil, err
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
 }
 
 // parseValuesConstructor parses VALUES ROW(...) [, ROW(...)] ..., MySQL's
