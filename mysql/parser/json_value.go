@@ -160,6 +160,13 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 	if p.cur.Type == kwOFF {
 		return nil, &ParseError{Message: "JSON_VALUE takes a literal after DEFAULT", Position: start}
 	}
+	// A hex or bit literal is held to its own digits, which the expression reader takes on
+	// trust: b'2', X'6' and X'GG' are 1064.
+	if p.cur.Type == tokXCONST || p.cur.Type == tokBCONST {
+		if _, err := p.decodeByteLiteral(p.cur); err != nil {
+			return nil, err
+		}
+	}
 	value, err := p.parseExprPrec(precUnary)
 	if err != nil {
 		return nil, err
