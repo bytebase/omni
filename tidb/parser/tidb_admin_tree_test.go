@@ -420,4 +420,14 @@ func TestAdminStatementsSurviveDeepInput(t *testing.T) {
 	if _, err := Parse("FLUSH TIDB PLUGINS a" + strings.Repeat(", a", n)); err != nil {
 		t.Errorf("%d plugins: %v", n, err)
 	}
+	// Adjacent literals concatenate in linear time: a quadratic join of this run
+	// allocates tens of gigabytes.
+	sql := "RECOMMEND INDEX RUN WITH a = " + strings.Repeat("'x' ", n)
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("%d adjacent literals: %v", n, err)
+	}
+	if got := list.Items[0].(*ast.RecommendIndexStmt).Options[0].Value.(*ast.StringLit).Value; len(got) != n {
+		t.Errorf("concatenated %d bytes, want %d", len(got), n)
+	}
 }

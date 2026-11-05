@@ -135,8 +135,14 @@ func (p *Parser) parseGrammarLiteral() (nodes.ExprNode, error) {
 	case tokSCONST:
 		tok := p.advance()
 		lit := &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc}, Value: tok.Str}
-		for p.cur.Type == tokSCONST {
-			lit.Value += p.advance().Str
+		if p.cur.Type == tokSCONST {
+			// A builder, so a long run of literals costs linear time.
+			var b strings.Builder
+			b.WriteString(tok.Str)
+			for p.cur.Type == tokSCONST {
+				b.WriteString(p.advance().Str)
+			}
+			lit.Value = b.String()
 		}
 		lit.Loc.End = p.prev.End
 		return lit, nil
@@ -196,9 +202,17 @@ func (p *Parser) parseSetConfigStmt(start int) (nodes.Node, error) {
 	}
 	stmt.Name = name
 
+	valueAt := p.cur.Loc
 	asg, err := p.parseSetAssignmentValue(start, nil)
 	if err != nil {
 		return nil, err
+	}
+	// SetExpr is ON, BINARY, DEFAULT or an Expression, and parseExpr also hands
+	// back what only an enclosing production takes: `= *`, `= t.*` and `= INTERVAL
+	// 1 DAY` are 1064s on v8.5.5. The bare DEFAULT parseSetAssignmentValue reads
+	// is the grammar's own arm.
+	if _, isDefault := asg.Value.(*nodes.DefaultExpr); !isDefault && !isWholeExpression(asg.Value) {
+		return nil, &ParseError{Message: "expected an expression", Position: valueAt}
 	}
 	stmt.Value = asg.Value
 	stmt.Loc.End = p.prev.End

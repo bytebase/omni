@@ -773,6 +773,17 @@ var tidbAdminCases = []tidbAdminCase{
 	{"select a.1.2.3 from t", false},
 	{"select 1.a from t", true},
 	{"select a.b.c.1 from t", false},
+	// A SET CONFIG value is a SetExpr: what only an enclosing production takes is a 1064.
+	{"set config tikv a = *", false},
+	{"set config tikv a = t.*", false},
+	{"set config tikv a = interval 1 day", false},
+	{"set config tikv a = default(b)", true},
+	{"set config tikv a = default + 1", false},
+	{"set config tikv a = on + 1", false},
+	{"set config tikv a = binary 'x'", true},
+	{"set config tikv a = row(1, 2)", true},
+	{"set config tikv a = (1, 2)", true},
+	{"set config tikv a = @x := 1", true},
 	// Refusals the mutation check asked for: each of these reads with one word dropped from the reader.
 	{"recommend index run with a = n 'x'", false},
 	{"recommend index run with a = N  'x'", false},
