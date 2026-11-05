@@ -291,15 +291,24 @@ func (p *Parser) parseInsertValuesQuery(stmt *nodes.InsertStmt) error {
 	return nil
 }
 
-// rejectInsertSourceInto refuses an INTO on a TABLE or VALUES primary used as
-// an INSERT source, alone or as the last operand of a set operation. The query
-// primary reads one as it does in a statement of its own, and MySQL 8.0 refuses it
-// here (measured: 1064).
+// rejectInsertSourceInto refuses an INTO on a TABLE or VALUES primary anywhere in
+// an INSERT source: alone, as an operand of a set operation on either side, or in
+// parentheses. The query primary reads one as it does in a statement of its own, and
+// MySQL 8.0 refuses it here (measured: 1064). A SELECT keeps its INTO, even in
+// parentheses or as an operand. The walk keeps its own stack, because this runs before
+// the tree-height check and a set operation can be as long as the statement.
 func rejectInsertSourceInto(sel *nodes.SelectStmt) error {
-	for ; sel != nil; sel = sel.Right {
-		if sel.Into != nil && (sel.TableSource != nil || sel.ValuesSource != nil) {
-			return &ParseError{Message: `syntax error at or near "INTO"`, Position: sel.Into.Loc.Start}
+	stack := []*nodes.SelectStmt{sel}
+	for len(stack) > 0 {
+		cur := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if cur == nil {
+			continue
 		}
+		if cur.Into != nil && (cur.TableSource != nil || cur.ValuesSource != nil) {
+			return &ParseError{Message: `syntax error at or near "INTO"`, Position: cur.Into.Loc.Start}
+		}
+		stack = append(stack, cur.Left, cur.Right, cur.ParenSource)
 	}
 	return nil
 }

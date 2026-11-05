@@ -102,20 +102,29 @@ var traceFormCases = []traceFormCase{
 	{"trace delete from t where a = 1 limit 1", true},
 	{"trace delete t1, t2 from t1 inner join t2 where t1.id=t2.id", true},
 
-	// --- TraceableStmt: the transaction statements. BEGIN OPTIMISTIC and
-	// BEGIN PESSIMISTIC are not here: this parser has no BEGIN modifier at
-	// all, so `begin optimistic` is a gap row in the corpus on its own and
-	// `trace begin optimistic` fails for that reason rather than for
-	// anything TRACE does. The gap belongs to the transaction grammar.
+	// --- TraceableStmt: the transaction statements, which TRACE takes in
+	// --- every form they take alone (transaction_forms_test.go) ---
 	{"trace begin", true},
+	{"trace begin pessimistic", true},
+	{"trace begin optimistic", true},
+	{"trace begin work", false},
 	{"trace start transaction", true},
 	{"trace start transaction read only", true},
+	{"trace start transaction with causal consistency only", true},
+	{"trace start transaction read only as of timestamp now()", true},
+	{"trace start transaction read only, with consistent snapshot", false},
 	{"trace commit", true},
 	{"trace commit and chain", true},
+	{"trace commit work", false},
+	{"trace commit and chain release", false},
 	{"trace rollback", true},
 	{"trace rollback to savepoint sp1", true},
+	{"trace rollback to s", true},
+	{"trace rollback to savepoint", true},
+	{"trace rollback work", false},
 	{"trace savepoint sp1", true},
 	{"trace release savepoint sp1", true},
+	{"trace release s", false},
 	// START reaches BeginTransactionStmt and nothing else START opens.
 	{"trace start replica", false},
 

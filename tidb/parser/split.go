@@ -286,13 +286,20 @@ func Split(sql string) []Segment {
 			i = skipHashComment(sql, i)
 
 		// BEGIN — compound block opener (depth++) unless it's a transaction
-		// (BEGIN WORK, lone BEGIN, XA BEGIN). After a compound BEGIN the next
-		// token is at stmt-start; after a transaction BEGIN it is not.
+		// (lone BEGIN, BEGIN PESSIMISTIC, BEGIN OPTIMISTIC, XA BEGIN). After a
+		// compound BEGIN the next token is at stmt-start; after a transaction
+		// BEGIN it is not. TiDB has no BEGIN WORK, but a script that writes
+		// one still splits at its ';' rather than running to the end. A word
+		// with a ':' after it is a label on the block's first statement:
+		// TiDB v8.5.5 takes "BEGIN work: WHILE ...", where WORK is no keyword,
+		// and answers 1064 for a label named after a BEGIN mode.
 		case (b == 'b' || b == 'B') && matchWord(sql, i, "BEGIN"):
 			endOfWord := skipToEndOfWord(sql, i)
 			next := nextWordAfter(sql, endOfWord)
 			prev := prevWord(sql, i)
-			isCompound := next != "WORK" && prev != "XA" && nextNonSpaceChar(sql, endOfWord) != ';' && nextNonSpaceChar(sql, endOfWord) != 0
+			isLabel := next != "" && nextNonSpaceChar(sql, skipToEndOfWord(sql, skipWhitespace(sql, endOfWord))) == ':'
+			isTransactionWord := !isLabel && (next == "WORK" || next == "PESSIMISTIC" || next == "OPTIMISTIC")
+			isCompound := !isTransactionWord && prev != "XA" && nextNonSpaceChar(sql, endOfWord) != ';' && nextNonSpaceChar(sql, endOfWord) != 0
 			if isCompound {
 				depth++
 				atStmtStart = true

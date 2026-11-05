@@ -519,6 +519,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Select != nil {
 			Walk(v, n.Select)
 		}
+		if n.TableSource != nil {
+			Walk(v, n.TableSource)
+		}
 		for _, item := range n.SetList {
 			if item != nil {
 				Walk(v, item)

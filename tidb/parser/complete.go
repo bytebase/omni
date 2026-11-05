@@ -234,6 +234,7 @@ const (
 	INTO    = kwINTO
 	VALUES  = kwVALUES
 	AS      = kwAS
+	OF      = kwOF
 	ON      = kwON
 	USING   = kwUSING
 	JOIN    = kwJOIN

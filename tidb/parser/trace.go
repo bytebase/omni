@@ -143,10 +143,9 @@ func (p *Parser) parseTraceStmt() (nodes.Node, error) {
 // that owns it.
 //
 // A traceable statement this parser cannot read on its own is still a
-// rejection here: `TRACE BEGIN OPTIMISTIC` fails because `BEGIN OPTIMISTIC`
-// does, which is a gap in the transaction grammar that the corpus records as
-// a row of its own. These comments record such gaps rather than close them;
-// each belongs to the grammar of the statement TRACE carries.
+// rejection here, as SET SESSION_STATES is above. These comments record such
+// gaps rather than close them; each belongs to the grammar of the statement
+// TRACE carries.
 func (p *Parser) parseTraceableStmt() (nodes.StmtNode, error) {
 	// open is the keyword the statement starts with, which is where a
 	// narrowed arm reports its rejection: the family parser read a

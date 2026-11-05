@@ -2716,10 +2716,42 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 
 	lower := strings.ToLower(word)
 	if kwType, ok := keywords[lower]; ok {
+		if (isReserved(kwType) && l.beforeDot()) || (kwType == kwTABLESAMPLE && l.afterSpacedDot(start)) {
+			return Token{Type: tokIDENT, Str: word, Loc: start}
+		}
 		return Token{Type: kwType, Str: word, Loc: start}
 	}
 
 	return Token{Type: tokIDENT, Str: word, Loc: start}
+}
+
+// beforeDot reports whether the word ending at l.pos runs straight into a dot,
+// which makes a reserved word an identifier: `SELECT table.a` names a column and
+// `SELECT table .a` is a 1064. An unreserved word reaches parseIdent as a keyword
+// either way, and the productions that match one, such as @@GLOBAL.x, keep their
+// token.
+//
+// Ref: (*Scanner).isTokenIdentifier, misc.go:1107 (tag v8.5.5)
+func (l *Lexer) beforeDot() bool {
+	return l.pos < len(l.input) && l.input[l.pos] == '.'
+}
+
+// afterSpacedDot reports whether the last byte before start that is not a space
+// is a dot, the other half of the same upstream rule. A tab or a comment ends the
+// search, and the bytes decide, so the dot that ends a number counts too: `SELECT
+// 1. tablesample` reads an alias.
+//
+// scanIdentOrKeyword applies this to TABLESAMPLE alone. Upstream applies it to
+// every word, and `SELECT o. FROM t` is a 1064 on the server, but completion reads
+// that text at a caret after `o.` and needs FROM to stay a keyword
+// (TestLexerDotKeywordWithSpace). TABLESAMPLE is never the next clause there.
+func (l *Lexer) afterSpacedDot(start int) bool {
+	for i := start - 1; i >= 0; i-- {
+		if l.input[i] != ' ' {
+			return l.input[i] == '.'
+		}
+	}
+	return false
 }
 
 func isIdentStart(ch byte) bool {
