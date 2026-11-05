@@ -430,6 +430,7 @@ type CreateIndexStmt struct {
 	Unique      bool
 	Fulltext    bool
 	Spatial     bool
+	Vector      bool // CREATE VECTOR INDEX
 	IfNotExists bool
 	IndexName   string
 	Table       *TableRef

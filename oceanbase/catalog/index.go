@@ -3,13 +3,17 @@ package catalog
 import nodes "github.com/bytebase/omni/oceanbase/ast"
 
 type Index struct {
-	Name         string
-	Table        *Table
-	Columns      []*IndexColumn
-	Unique       bool
-	Primary      bool
-	Fulltext     bool
-	Spatial      bool
+	Name     string
+	Table    *Table
+	Columns  []*IndexColumn
+	Unique   bool
+	Primary  bool
+	Fulltext bool
+	Spatial  bool
+	Vector   bool
+	// VectorParams are a vector index's WITH (...) as SHOW CREATE TABLE writes them:
+	// upper-cased, in the order written, with the server's defaults after them.
+	VectorParams []string
 	IndexType    string // BTREE, HASH, FULLTEXT, SPATIAL
 	Comment      string
 	Visible      bool

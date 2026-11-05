@@ -592,6 +592,29 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			applyIndexOptions(ftIdx, con.IndexOptions)
 			tbl.Indexes = append(tbl.Indexes, ftIdx)
 
+		case nodes.ConstrVector:
+			idxName := con.Name
+			if idxName == "" && len(cols) > 0 {
+				idxName = allocIndexName(tbl, cols[0])
+			} else if idxName != "" {
+				if err := validateNonPrimaryIndexName(idxName); err != nil {
+					return err
+				}
+				if indexNameExists(tbl, idxName) {
+					return errDupKeyName(idxName)
+				}
+			}
+			vecIdx := &Index{
+				Name:      idxName,
+				Table:     tbl,
+				Columns:   buildIndexColumns(con),
+				Vector:    true,
+				IndexType: resolveConstraintIndexType(con),
+				Visible:   true,
+			}
+			applyIndexOptions(vecIdx, con.IndexOptions)
+			tbl.Indexes = append(tbl.Indexes, vecIdx)
+
 		case nodes.ConstrSpatialIndex:
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
@@ -1880,6 +1903,46 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 
 // applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE
 // from AST IndexOptions and applies them to the given Index.
+// vectorParamDefaults are the parameters 4.3.5.6 fills in when a WITH (...) leaves them
+// out, in the order it writes them after the ones that were written. CREATE TABLE ... WITH
+// (type=hnsw, lib=vsag, m=8, distance=l2) reads back WITH (TYPE=HNSW, LIB=VSAG, M=8,
+// DISTANCE=L2, EF_CONSTRUCTION=200, EF_SEARCH=64).
+var vectorParamDefaults = []struct{ name, value string }{
+	{"LIB", "VSAG"}, {"M", "16"}, {"EF_CONSTRUCTION", "200"}, {"EF_SEARCH", "64"},
+}
+
+// vectorParamsFromOption reads a WITH (...) as SHOW CREATE TABLE writes it: upper-cased,
+// in the order written, with the defaults of those left out after them. A name given
+// twice keeps its first place and its last value.
+func vectorParamsFromOption(opt *nodes.IndexOption) []string {
+	values := make(map[string]string, len(opt.Properties))
+	var written []string
+	for _, prop := range opt.Properties {
+		value := ""
+		switch v := prop.Value.(type) {
+		case *nodes.IntLit:
+			value = strconv.FormatInt(v.Value, 10)
+		case *nodes.StringLit:
+			value = strings.ToUpper(v.Value)
+		}
+		name := strings.ToUpper(prop.Name)
+		if _, seen := values[name]; !seen {
+			written = append(written, name)
+		}
+		values[name] = value
+	}
+	params := make([]string, 0, len(written)+len(vectorParamDefaults))
+	for _, name := range written {
+		params = append(params, name+"="+values[name])
+	}
+	for _, def := range vectorParamDefaults {
+		if _, ok := values[def.name]; !ok {
+			params = append(params, def.name+"="+def.value)
+		}
+	}
+	return params
+}
+
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 	for _, opt := range opts {
 		switch strings.ToUpper(opt.Name) {
@@ -1904,6 +1967,9 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
 				idx.Parser = strings.ToLower(s.Value)
 			}
+		case "WITH":
+			// A later WITH replaces an earlier one.
+			idx.VectorParams = vectorParamsFromOption(opt)
 		case "PARSER_PROPERTIES":
 			// A later list replaces an earlier one rather than merging with it:
 			// PARSER_PROPERTIES=(min_token_size=5) PARSER_PROPERTIES=(max_token_size=40)
@@ -2318,6 +2384,11 @@ func formatColumnType(dt *nodes.DataType) string {
 		return "bigint unsigned"
 	}
 
+	// OceanBase writes the vector type in upper case, the one type it does: `v` VECTOR(3).
+	if name == "vector" {
+		return fmt.Sprintf("VECTOR(%d)", dt.Length)
+	}
+
 	var buf strings.Builder
 	buf.WriteString(name)
 
@@ -2616,6 +2687,8 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Primary:      srcIdx.Primary,
 			Fulltext:     srcIdx.Fulltext,
 			Spatial:      srcIdx.Spatial,
+			Vector:       srcIdx.Vector,
+			VectorParams: srcIdx.VectorParams,
 			IndexType:    srcIdx.IndexType,
 			Visible:      srcIdx.Visible,
 			Comment:      srcIdx.Comment,

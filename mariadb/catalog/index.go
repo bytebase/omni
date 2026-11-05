@@ -3,17 +3,21 @@ package catalog
 import nodes "github.com/bytebase/omni/mariadb/ast"
 
 type Index struct {
-	Name         string
-	Table        *Table
-	Columns      []*IndexColumn
-	Unique       bool
-	Primary      bool
-	Fulltext     bool
-	Spatial      bool
-	IndexType    string // BTREE, HASH, FULLTEXT, SPATIAL
-	Comment      string
-	Visible      bool
-	KeyBlockSize int
+	Name      string
+	Table     *Table
+	Columns   []*IndexColumn
+	Unique    bool
+	Primary   bool
+	Fulltext  bool
+	Spatial   bool
+	Vector    bool
+	IndexType string // BTREE, HASH, FULLTEXT, SPATIAL, VECTOR
+	// EngineOptions are the engine-defined options as SHOW CREATE TABLE writes them,
+	// `name`=value, in declaration order: a vector index's M and DISTANCE.
+	EngineOptions []string
+	Comment       string
+	Visible       bool
+	KeyBlockSize  int
 }
 
 type IndexColumn struct {

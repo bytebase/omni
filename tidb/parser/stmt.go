@@ -524,19 +524,37 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateTableStmt(start, temporary, global)
 
 	case kwINDEX:
-		return p.parseCreateIndexStmt(start, false, false, false)
+		return p.parseCreateIndexStmt(start, false, false, false, false)
 
 	case kwUNIQUE:
 		p.advance()
 		if p.cur.Type == kwINDEX {
-			return p.parseCreateIndexStmt(start, true, false, false)
+			return p.parseCreateIndexStmt(start, true, false, false, false)
 		}
 		return nil, &ParseError{Message: "expected INDEX after UNIQUE", Position: p.cur.Loc}
 
 	case kwFULLTEXT:
 		p.advance()
 		// p.cur is now INDEX or KEY; parseCreateIndexStmt consumes it
-		return p.parseCreateIndexStmt(start, false, true, false)
+		return p.parseCreateIndexStmt(start, false, true, false, false)
+
+	case kwVECTOR:
+		// CREATE VECTOR INDEX, which IndexKeyTypeOpt reads beside UNIQUE, SPATIAL
+		// and FULLTEXT and which is spelled INDEX only: v8.5.5 answers 1064 for
+		// CREATE VECTOR KEY, for CREATE VECTOR with no keyword after it, and for TEMPORARY
+		// in front of it.
+		if temporary || global {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type != kwINDEX {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt, err := p.parseCreateIndexStmt(start, false, false, false, true)
+		if err != nil {
+			return nil, err
+		}
+		return stmt, nil
 
 	case kwSPATIAL:
 		p.advance()
@@ -544,7 +562,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		if p.cur.Type == kwREFERENCE {
 			return p.parseCreateSpatialRefSysStmt(start, false)
 		}
-		return p.parseCreateIndexStmt(start, false, false, true)
+		return p.parseCreateIndexStmt(start, false, false, true, false)
 
 	case kwVIEW:
 		return p.parseCreateViewStmt(start, false)

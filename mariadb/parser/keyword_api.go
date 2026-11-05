@@ -83,7 +83,6 @@ var mysql80KeywordAPIExclusions = map[string]struct{}{
 	"var_pop":                {},
 	"var_samp":               {},
 	"variance":               {},
-	"vector":                 {},
 	"verify_key_constraints": {},
 }
 

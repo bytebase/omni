@@ -151,6 +151,15 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 		p.parseUnsignedZerofill(dt)
 
+	// VECTOR(dimension), MariaDB's own. The word is reserved, so it reads here
+	// without a lookahead.
+	case kwVECTOR:
+		dt.Name = "VECTOR"
+		p.advance()
+		if err := p.parseVectorDimension(dt); err != nil {
+			return nil, err
+		}
+
 	// Boolean
 	case kwBOOL, kwBOOLEAN:
 		dt.Name = "BOOLEAN"
@@ -487,6 +496,18 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		// name, INET4/INET6 can be identifiers), so they are recognised here in type
 		// position only, by their identifier text, without reserving the words.
 		if p.cur.Type == tokIDENT {
+			// A quoted `VECTOR` is the same type: the type names are plugin names
+			// the grammar reads as identifiers, and only the unquoted word is the
+			// reserved keyword.
+			if p.isQuotedVectorType() {
+				dt.Name = "VECTOR"
+				p.advance()
+				if err := p.parseVectorDimension(dt); err != nil {
+					return nil, err
+				}
+				dt.Loc.End = p.prev.End
+				return dt, nil
+			}
 			switch {
 			case strings.EqualFold(p.cur.Str, "UUID"):
 				dt.Name = "UUID"
@@ -513,6 +534,67 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	dt.Loc.End = p.prev.End
 	return dt, nil
 }
+
+// isQuotedVectorType reports whether the current token is a quoted `VECTOR`. The
+// unquoted word lexes as kwVECTOR, so an identifier token spelling it was quoted.
+func (p *Parser) isQuotedVectorType() bool {
+	return p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "VECTOR")
+}
+
+// parseVectorDimension reads what must follow VECTOR in a column type.
+//
+// MariaDB 11.8.8 answers 1064 for a bare VECTOR, for VECTOR(), VECTOR(3,), VECTOR(1e5),
+// VECTOR(1.5,2), VECTOR('3') and VECTOR(0x3), and takes VECTOR(3), VECTOR(3,2) and
+// VECTOR(1.5), as it does any type it reads with the float_options of sql_yacc.yy. It
+// keeps only the integer part of the first number: SHOW CREATE TABLE writes vector(3)
+// for VECTOR(3,2) and vector(1) for VECTOR(1.5), so that is what Length holds. While it
+// parses, the type handler refuses a dimension of 0 with 1063 and one past 16383 with
+// 1074, the integer part again deciding: VECTOR(0.9) and VECTOR(16384.5) are refused and
+// VECTOR(16383.5) is not.
+func (p *Parser) parseVectorDimension(dt *nodes.DataType) error {
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	start := p.cur.Loc
+	var whole string
+	switch p.cur.Type {
+	case tokICONST:
+		whole = p.cur.Str
+		p.advance()
+		if p.cur.Type == ',' {
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
+		}
+	case tokFCONST:
+		// DECIMAL_NUM takes a point and no exponent.
+		if strings.ContainsAny(p.cur.Str, "eE") {
+			return p.syntaxErrorAtCur()
+		}
+		whole, _, _ = strings.Cut(p.cur.Str, ".")
+		p.advance()
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	// A number too big for an int is past 16383 all the same.
+	n, err := strconv.Atoi(whole)
+	if err != nil || n > maxVectorDimension {
+		return &ParseError{Message: "Column length too big for column (max = 16383)", Position: start}
+	}
+	if n == 0 {
+		return &ParseError{Message: "Incorrect column specifier: a VECTOR takes a dimension of at least 1", Position: start}
+	}
+	dt.Length = n
+	return nil
+}
+
+// maxVectorDimension is the largest dimension a VECTOR column takes.
+const maxVectorDimension = 16383
 
 // parseRequiredLength parses the length a VARCHAR-shaped type must carry.
 // MySQL takes CHAR with a length or without one but VARCHAR only with one, in
@@ -745,4 +827,25 @@ func (p *Parser) decodeByteLiteral(tok Token) (string, error) {
 		out = append(out, byte(b))
 	}
 	return string(out), nil
+}
+
+// vectorColumnRefused holds a VECTOR column to what MariaDB 11.8.8 refuses for its
+// attributes while it parses: AUTO_INCREMENT and a COLLATE answer 1063, an ON UPDATE
+// answers 1294. A bad name in the COLLATE is refused too, with 1273 in place of 1063.
+func vectorColumnRefused(col *nodes.ColumnDef, start int) error {
+	if col.TypeName == nil || col.TypeName.Name != "VECTOR" {
+		return nil
+	}
+	if col.AutoIncrement {
+		return &ParseError{Message: "Incorrect column specifier: a VECTOR takes no AUTO_INCREMENT", Position: start}
+	}
+	if col.OnUpdate != nil {
+		return &ParseError{Message: "Invalid ON UPDATE clause: a VECTOR takes none", Position: start}
+	}
+	for _, c := range col.Constraints {
+		if c.Type == nodes.ColConstrCollate {
+			return &ParseError{Message: "Incorrect column specifier: a VECTOR takes no COLLATE", Position: start}
+		}
+	}
+	return nil
 }

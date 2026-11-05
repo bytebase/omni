@@ -29,6 +29,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		if stmt.IfNotExists {
 			return nil
 		}
+		if stmt.OrReplace {
+			return c.replaceIndex(tbl, stmt)
+		}
 		return errDupKeyName(stmt.IndexName)
 	}
 
@@ -70,6 +73,12 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	case stmt.Spatial:
 		idx.Spatial = true
 		idx.IndexType = "SPATIAL"
+	case stmt.Vector:
+		if err := validateVectorIndex(tbl, idxCols); err != nil {
+			return err
+		}
+		idx.Vector = true
+		idx.IndexType = "VECTOR"
 	default:
 		// CREATE INDEX may declare the type before ON or among the options
 		// after the column list; reading only the first dropped the second.
@@ -86,6 +95,13 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	}
 	if err := validateColsWithoutOverlaps(tbl, idx.Name, idx.Columns); err != nil {
 		return err
+	}
+	// mariadb:11.8.8 answers 1072 for CREATE INDEX k ON t (nosuch), which a CREATE OR REPLACE
+	// must not read as leave to drop the old index.
+	for _, ic := range idxCols {
+		if ic.Name != "" && !ic.WithoutOverlaps && tbl.GetColumn(ic.Name) == nil {
+			return errKeyColumnDoesNotExist(ic.Name)
+		}
 	}
 
 	tbl.Indexes = append(tbl.Indexes, idx)
@@ -112,6 +128,26 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		})
 	}
 
+	return nil
+}
+
+// replaceIndex runs CREATE OR REPLACE INDEX over an index that exists: the old index goes, and
+// the new one is held to every check as though it had never been there, so a vector index may
+// replace the table's only vector index. A statement that fails leaves the old index in place:
+// mariadb:11.8.8 answers 1072 for a missing key column and keeps what the table had.
+func (c *Catalog) replaceIndex(tbl *Table, stmt *nodes.CreateIndexStmt) error {
+	snapshot := cloneTable(tbl)
+	drop := &nodes.DropIndexStmt{Name: stmt.IndexName, Table: stmt.Table}
+	if err := c.dropIndex(drop); err != nil {
+		*tbl = snapshot
+		return err
+	}
+	create := *stmt
+	create.OrReplace = false
+	if err := c.createIndex(&create); err != nil {
+		*tbl = snapshot
+		return err
+	}
 	return nil
 }
 

@@ -356,6 +356,7 @@ type CreateIndexStmt struct {
 	Unique      bool
 	Fulltext    bool
 	Spatial     bool
+	Vector      bool // CREATE VECTOR INDEX
 	IfNotExists bool
 	IndexName   string
 	Table       *TableRef
@@ -389,6 +390,14 @@ type IndexOption struct {
 	Loc   Loc
 	Name  string
 	Value Node // heterogeneous: may be *String, *Integer, or other literal nodes
+	// Engine marks an engine-defined option, `name = value`: a name the storage
+	// engine rather than the grammar knows, such as a vector index's M and
+	// DISTANCE. Name keeps the spelling written. Value is nil for DEFAULT.
+	Engine bool
+	// ValueIsWord marks an engine-defined option whose value is a bare word,
+	// DISTANCE=cosine, which SHOW CREATE TABLE writes differently from the string
+	// DISTANCE='cosine'. Value is then a *StringLit holding the word.
+	ValueIsWord bool
 }
 
 func (o *IndexOption) nodeTag() {}
@@ -564,6 +573,9 @@ const (
 	ConstrIndex
 	ConstrFulltextIndex
 	ConstrSpatialIndex
+	// ConstrVector is MariaDB's VECTOR key, spelled VECTOR [INDEX | KEY]. It has no
+	// CONSTRAINT symbol form: 11.8.8 answers 1064 for `CONSTRAINT c VECTOR INDEX (v)`.
+	ConstrVector
 )
 
 // Constraint represents a table-level constraint.
@@ -583,6 +595,7 @@ type Constraint struct {
 	IndexColumns []*IndexColumn // key parts with optional expressions (for functional indexes)
 	IndexType    string         // BTREE, HASH
 	IndexOptions []*IndexOption // index_option list (KEY_BLOCK_SIZE, COMMENT, [NOT] IGNORED, etc.)
+	IfNotExists  bool           // for ALTER TABLE ADD VECTOR
 	Expr         ExprNode       // for CHECK
 	RefTable     *TableRef      // for FOREIGN KEY
 	RefColumns   []string       // for FOREIGN KEY

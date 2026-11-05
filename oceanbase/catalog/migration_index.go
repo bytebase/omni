@@ -128,6 +128,9 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 // other kind uses ADD <UNIQUE|FULLTEXT|SPATIAL> KEY `name` (...). The op runs in PhaseMain at
 // priorityIndex.
 func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) MigrationOp {
+	if idx.Vector {
+		return addVectorIndexOp(entry, table, idx)
+	}
 	clause := "ADD " + formatIndexDefinition(idx, n)
 	return MigrationOp{
 		Type:         OpAddIndex,
@@ -141,6 +144,41 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 		alterClause:  clause,
 		addsIndex:    idx,
 	}
+}
+
+// addVectorIndexOp builds the CREATE VECTOR INDEX a vector index needs, because OceanBase 4.3.5.6
+// has no ALTER TABLE form of it: ADD VECTOR KEY is refused. The op is a statement of its own, so
+// it carries no alterClause and never folds into an ALTER TABLE.
+func addVectorIndexOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
+	return MigrationOp{
+		Type:         OpAddIndex,
+		Database:     entry.Database,
+		ObjectName:   entry.Name,
+		ParentObject: entry.Name,
+		SQL:          formatCreateVectorIndex(table, idx),
+		Phase:        PhaseMain,
+		Priority:     priorityIndex,
+		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
+		addsIndex:    idx,
+	}
+}
+
+// formatCreateVectorIndex renders a vector index as CREATE VECTOR INDEX, with its parameters
+// where SHOW CREATE TABLE prints them, straight after the key parts.
+func formatCreateVectorIndex(table string, idx *Index) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "CREATE VECTOR INDEX %s ON %s (", migrationQuoteIdent(idx.Name), table)
+	cols := make([]string, 0, len(idx.Columns))
+	for _, ic := range idx.Columns {
+		cols = append(cols, migrationIndexColumn(ic))
+	}
+	b.WriteString(strings.Join(cols, ","))
+	b.WriteString(")")
+	if len(idx.VectorParams) > 0 {
+		b.WriteString(" WITH (" + strings.Join(idx.VectorParams, ", ") + ")")
+	}
+	b.WriteString(formatIndexOptions(idx))
+	return b.String()
 }
 
 // priorityPrimaryKeyDrop orders a standalone DROP PRIMARY KEY within PhasePre BEFORE column drops
@@ -358,6 +396,13 @@ func formatIndexDefinition(idx *Index, _ *Normalizer) string {
 
 	// A fulltext index's parser, so a changed one is applied (canonicalFulltextParser).
 	b.WriteString(formatFulltextParser(idx))
+	b.WriteString(formatIndexOptions(idx))
+	return b.String()
+}
+
+// formatIndexOptions renders what follows an index's key parts and any parameters of its kind.
+func formatIndexOptions(idx *Index) string {
+	var b strings.Builder
 
 	// USING clause: only the user-selectable BTREE/HASH, never for PRIMARY/FULLTEXT/SPATIAL
 	// (matching show.go), so a redundant FULLTEXT/SPATIAL IndexType echo is not emitted.

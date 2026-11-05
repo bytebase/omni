@@ -243,6 +243,12 @@ func (p *Parser) isTableConstraintStart() bool {
 		return true
 	case kwCONSTRAINT:
 		return true
+	case kwVECTOR:
+		// OceanBase's VECTOR {INDEX | KEY}. VECTOR is also a column's name, so the word
+		// only starts a constraint when the keyword follows it: `vector VECTOR(3)` and
+		// `vector INT KEY` are columns.
+		next := p.peekNext().Type
+		return next == kwINDEX || next == kwKEY
 	}
 	return false
 }
@@ -994,6 +1000,38 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 			if err := p.parseIndexTypeClause(constr); err != nil {
 				return nil, err
 			}
+		}
+		idxCols, err := p.parseParenIndexKeyParts()
+		if err != nil {
+			return nil, err
+		}
+		constr.IndexColumns = idxCols
+		constr.Columns = indexColumnsToNames(idxCols)
+		if err := p.parseConstraintIndexOptions(constr); err != nil {
+			return nil, err
+		}
+
+	case kwVECTOR:
+		// VECTOR {INDEX | KEY} [index_name] (key_part, ...) [index_option] ...
+		//
+		// CREATE TABLE's only: 4.3.5.6 answers 1064 for ALTER TABLE t ADD VECTOR INDEX
+		// i (v) in every spelling, adds one with CREATE VECTOR INDEX alone, and takes
+		// no CONSTRAINT symbol in front of it. The key parts are an ordinary list that
+		// it refuses later: VECTOR INDEX (a, b) and VECTOR INDEX ((f(a))) are 1235.
+		// There is no index type in front of the key parts, where the options take
+		// BTREE and HASH like any other index's and never HNSW.
+		if inAlter || afterConstraint {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume VECTOR
+		p.advance() // consume INDEX or KEY; isTableConstraintStart saw it
+		constr.Type = nodes.ConstrVector
+		if p.isIdentToken() && p.cur.Type != '(' {
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			constr.Name = name
 		}
 		idxCols, err := p.parseParenIndexKeyParts()
 		if err != nil {
