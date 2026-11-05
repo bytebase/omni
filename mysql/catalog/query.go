@@ -659,7 +659,7 @@ var BoolType = &ResolvedType{
 //   - RTESubquery: recurse into Subquery.TargetList[AttNum-1].Expr
 //   - RTECTE:      recurse into the CTE body's TargetList[AttNum-1].Expr
 //   - RTEJoin:     dispatch to the underlying Left/Right RTE based on which
-//                  side the column was coalesced from
+//     side the column was coalesced from
 //
 // For RTERelation that is a view (IsView=true), the walker may call
 // (*Query).ExpandMergeViews() first to make MERGE views transparent.
@@ -738,6 +738,9 @@ type FuncCallExprQ struct {
 	// walkers and HasAggs validation use this field directly.
 	IsAggregate bool
 
+	// JSONValue holds JSON_VALUE's clauses, nil when none were written.
+	JSONValue *JSONValueQ
+
 	// Distinct marks aggregates with DISTINCT, e.g. COUNT(DISTINCT x).
 	// Always false for non-aggregate functions.
 	Distinct bool
@@ -753,6 +756,21 @@ type FuncCallExprQ struct {
 	// Phase 1 leaves nil.
 	ResultType *ResolvedType
 	Collation  string
+}
+
+// JSONValueQ holds the clauses of a JSON_VALUE call, which change what it answers.
+type JSONValueQ struct {
+	Returning    *ResolvedType // RETURNING's type, nil when it is left out
+	ReturningSQL string        // the same type as text, which keeps what ResolvedType does not
+	OnEmpty      *JSONValueResponseQ
+	OnError      *JSONValueResponseQ
+}
+
+// JSONValueResponseQ is one ON EMPTY or ON ERROR: NULL, ERROR, or DEFAULT and a literal.
+type JSONValueResponseQ struct {
+	Error    bool
+	Default  AnalyzedExpr // the literal without its sign
+	Negative bool         // the literal was written with a minus sign
 }
 
 func (*FuncCallExprQ) analyzedExprTag()          {}
@@ -809,9 +827,9 @@ const (
 	BoolNot
 )
 
-func (*BoolExprQ) analyzedExprTag()         {}
-func (*BoolExprQ) exprType() *ResolvedType  { return BoolType }
-func (*BoolExprQ) exprCollation() string    { return "" }
+func (*BoolExprQ) analyzedExprTag()        {}
+func (*BoolExprQ) exprType() *ResolvedType { return BoolType }
+func (*BoolExprQ) exprCollation() string   { return "" }
 
 // ----------------------------------------------------------------------------
 // CaseExprQ — CASE WHEN.
@@ -875,9 +893,9 @@ type NullTestExprQ struct {
 	IsNull bool // true = IS NULL, false = IS NOT NULL
 }
 
-func (*NullTestExprQ) analyzedExprTag()         {}
-func (*NullTestExprQ) exprType() *ResolvedType  { return BoolType }
-func (*NullTestExprQ) exprCollation() string    { return "" }
+func (*NullTestExprQ) analyzedExprTag()        {}
+func (*NullTestExprQ) exprType() *ResolvedType { return BoolType }
+func (*NullTestExprQ) exprCollation() string   { return "" }
 
 // ----------------------------------------------------------------------------
 // SubLinkExprQ — subquery expression (EXISTS, IN, scalar, ALL/ANY).
@@ -1000,7 +1018,8 @@ func (*RowExprQ) exprCollation() string     { return "" }
 // reason about them as needed. This decision is revisited at end of Phase 3.
 //
 // pg: src/include/nodes/parsenodes.h — TypeCast (raw form),
-//     src/include/nodes/primnodes.h — CoerceViaIO / RelabelType (analyzed form)
+//
+//	src/include/nodes/primnodes.h — CoerceViaIO / RelabelType (analyzed form)
 type CastExprQ struct {
 	Arg        AnalyzedExpr
 	TargetType *ResolvedType

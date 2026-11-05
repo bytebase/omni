@@ -19,6 +19,12 @@ type requiredFormCase struct {
 }
 
 var requiredFormCases = []requiredFormCase{
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT N'x' ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT n'x' ON EMPTY)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT N'x' 'y' ON EMPTY)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT N 'x' ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT -N'x' ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT N ON ERROR)", false},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT -'x' ON ERROR)", false},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT -TRUE ON ERROR)", false},
 	{"SELECT JSON_VALUE(a,'$.a' DEFAULT +'x' ON ERROR)", false},

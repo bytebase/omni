@@ -33,10 +33,7 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		return nil, err
 	}
 	pathStart := p.cur
-	// N'...' is a string literal too, which the expression reader has no arm for.
-	if p.isBareWord("N") && p.peekNext().Type == tokSCONST && p.peekNext().Loc == p.cur.End {
-		p.advance()
-	}
+	p.skipNationalPrefix()
 	path, err := p.parsePrimaryExpr()
 	if err != nil {
 		return nil, err
@@ -101,6 +98,15 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	return fc, nil
 }
 
+// skipNationalPrefix steps over the N of N'...', which is a string literal too and which the
+// expression reader has no arm for: it would read the N as a column. The quote has to follow at
+// once, since `N 'x'` is a name and a string.
+func (p *Parser) skipNationalPrefix() {
+	if p.isBareWord("N") && p.peekNext().Type == tokSCONST && p.peekNext().Loc == p.cur.End {
+		p.advance()
+	}
+}
+
 func (p *Parser) startsJSONValueResponse() bool {
 	return p.cur.Type == kwNULL || p.cur.Type == kwERROR_KW || p.cur.Type == kwDEFAULT
 }
@@ -118,6 +124,7 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 	}
 	p.advance() // consume DEFAULT
 	start := p.cur.Loc
+	p.skipNationalPrefix()
 	signed := p.cur.Type == '-' || p.cur.Type == '+'
 	value, err := p.parseExprPrec(precUnary)
 	if err != nil {
