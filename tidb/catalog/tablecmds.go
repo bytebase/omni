@@ -584,9 +584,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		case nodes.ConstrVector:
 			// TiDB's VECTOR INDEX, which CREATE TABLE declares as well as
 			// ALTER TABLE adds. The index type is the USING name (HNSW).
-			if con.SyntaxRefused() {
-				return errSyntaxRefused()
-			}
 			vecIdx := &Index{
 				Name:      vectorIndexName(tbl, con, cols),
 				Table:     tbl,

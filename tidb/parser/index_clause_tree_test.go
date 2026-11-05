@@ -42,9 +42,7 @@ func TestCreateIndexClausesInTree(t *testing.T) {
 		{sql: "CREATE INDEX i ON t (a) ALGORITHM = INPLACE LOCK = NONE", before: "", options: nil, algorithm: "INPLACE", lock: "NONE"},
 		{sql: "CREATE INDEX i ON t (a) LOCK = NONE ALGORITHM = INPLACE", before: "", options: nil, algorithm: "INPLACE", lock: "NONE"},
 		{sql: "CREATE INDEX i ON t (a) TYPE BTREE ALGORITHM = DEFAULT LOCK = DEFAULT", before: "", options: []string{"BTREE"}, algorithm: "DEFAULT", lock: "DEFAULT"},
-		{sql: "CREATE INDEX i ON t (a) USING HNSW", before: "", options: []string{"HNSW"}, algorithm: "", lock: ""},
-		{sql: "CREATE INDEX i ON t (a) TYPE hnsw", before: "", options: []string{"hnsw"}, algorithm: "", lock: ""},
-		{sql: "CREATE INDEX i USING HNSW ON t (a)", before: "HNSW", options: nil, algorithm: "", lock: ""},
+		{sql: "CREATE INDEX i USING HNSW ON t (a) USING BTREE", before: "HNSW", options: []string{"BTREE"}, algorithm: "", lock: ""},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
 			stmt := parseOneCreateIndex(t, tc.sql)

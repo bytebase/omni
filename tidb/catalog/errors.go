@@ -18,7 +18,6 @@ const (
 	ErrDupTable                          = 1050
 	ErrUnknownTable                      = 1051
 	ErrDupColumn                         = 1060
-	ErrSyntaxError                       = 1149
 	ErrDupKeyName                        = 1061
 	ErrDupEntry                          = 1062
 	ErrMultiplePriKey                    = 1068
@@ -244,15 +243,4 @@ func errDependentByGeneratedColumn(column, genColumn, table string) error {
 func errWrongArguments(fn string) error {
 	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
-}
-
-// errSyntaxRefused is what TiDB answers for text its grammar reads and its grammar
-// action then refuses, such as a VECTOR INDEX over a plain column: ErrSyntax, 1149,
-// which the parser leaves to its callers (ast.CreateIndexStmt.SyntaxRefused).
-func errSyntaxRefused() error {
-	return &Error{
-		Code:     ErrSyntaxError,
-		SQLState: "42000",
-		Message:  "You have an error in your SQL syntax",
-	}
 }

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -8,85 +9,76 @@ import (
 	"github.com/bytebase/omni/oceanbase/ast"
 )
 
-// sourceClauseCases pairs statements holding TABLE and VALUES query primaries
-// with where their ORDER BY, LIMIT, and INTO end up, one line per source,
-// set operation, or parenthesized query, in walk order. A source line gives
-// the text the source's Loc covers. MySQL 8.0 accepts every statement
-// (TestSourceClausesOracle).
+// sourceClauseCases pairs statements holding VALUES query primaries with
+// where their ORDER BY and LIMIT end up, one line per source, set operation,
+// or parenthesized query, in walk order. A source line gives the text the
+// source's Loc covers. MySQL 8.0 (TestSourceClausesOracle) and OceanBase
+// (TestSourceClausesOceanBase) accept every statement.
+//
+// OceanBase has no TABLE query, so where MySQL 8.0 takes a TABLE source in
+// each of these places, OceanBase answers 1064 (query_forms_test.go), and
+// every context is covered with a VALUES source.
 var sourceClauseCases = []struct {
 	sql  string
 	want []string
 }{
 	// A source standing alone holds its own clauses.
-	{"TABLE t ORDER BY a LIMIT 1", []string{
-		"TABLE t ORDER BY a LIMIT 1: order 1, limit",
-	}},
-	{"TABLE t LIMIT 1 INTO @x", []string{
-		"TABLE t LIMIT 1 INTO @x: limit, into",
-	}},
 	{"VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1", []string{
 		"VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1: order 1, limit",
 	}},
-	{"INSERT INTO t TABLE u ORDER BY a LIMIT 1", []string{
-		"TABLE u ORDER BY a LIMIT 1: order 1, limit",
-	}},
-	// OceanBase has no TABLE statement, so the EXPLAIN context is covered
-	// with a VALUES source: EXPLAIN TABLE t is a 1064 on
-	// 5.7.25-OceanBase_CE-v4.3.5.6 (explain_forms_test.go).
 	{"EXPLAIN VALUES ROW(1), ROW(2) ORDER BY 1", []string{
 		"VALUES ROW(1), ROW(2) ORDER BY 1: order 1",
 	}},
 	// Inside a query expression the SelectStmt over the source holds them.
-	{"SELECT (TABLE t ORDER BY a LIMIT 1)", []string{
-		"SelectStmt over TABLE t: order 1, limit",
+	{"SELECT (VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1)", []string{
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1, limit",
 	}},
-	{"(TABLE t LIMIT 1 INTO @x)", []string{
+	{"(VALUES ROW(1), ROW(2) LIMIT 1)", []string{
 		"parentheses: none",
-		"SelectStmt over TABLE t: limit, into",
+		"SelectStmt over VALUES ROW(1), ROW(2): limit",
 	}},
 	{"SELECT * FROM (VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1) x", []string{
 		"SelectStmt over VALUES ROW(1), ROW(2): order 1, limit",
 	}},
-	{"WITH c AS (TABLE t ORDER BY a LIMIT 1) SELECT * FROM c", []string{
-		"SelectStmt over TABLE t: order 1, limit",
+	{"WITH c AS (VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1) SELECT * FROM c", []string{
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1, limit",
 	}},
-	{"CREATE TABLE n AS TABLE t ORDER BY a LIMIT 1", []string{
-		"SelectStmt over TABLE t: order 1, limit",
+	{"CREATE TABLE n AS VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1", []string{
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1, limit",
 	}},
 	// The ORDER BY and LIMIT after the last operand of a set operation apply
 	// to the whole operation.
-	{"CREATE VIEW v AS TABLE t UNION TABLE u ORDER BY a LIMIT 2", []string{
+	{"CREATE VIEW v AS VALUES ROW(1) UNION VALUES ROW(2) ORDER BY 1 LIMIT 2", []string{
 		"set operation: order 1, limit",
-		"SelectStmt over TABLE t: none",
-		"SelectStmt over TABLE u: none",
+		"SelectStmt over VALUES ROW(1): none",
+		"SelectStmt over VALUES ROW(2): none",
 	}},
 	{"SELECT 1 UNION VALUES ROW(2) ORDER BY 1 LIMIT 1", []string{
 		"set operation: order 1, limit",
 		"SelectStmt over VALUES ROW(2): none",
 	}},
-	{"SELECT 1 UNION (TABLE t ORDER BY a LIMIT 1) ORDER BY 1 LIMIT 2", []string{
+	{"SELECT 1 UNION (VALUES ROW(1), ROW(2) ORDER BY 1 LIMIT 1) ORDER BY 1 LIMIT 2", []string{
 		"set operation: order 1, limit",
 		"parentheses: none",
-		"SelectStmt over TABLE t: order 1, limit",
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1, limit",
 	}},
-	{"(TABLE t ORDER BY a) ORDER BY b", []string{
+	{"(VALUES ROW(1), ROW(2) ORDER BY 1) ORDER BY 1", []string{
 		"parentheses: order 1",
-		"SelectStmt over TABLE t: order 1",
+		"SelectStmt over VALUES ROW(1), ROW(2): order 1",
 	}},
-	{"TABLE t ORDER BY (TABLE u ORDER BY (VALUES ROW(1) LIMIT 1))", []string{
-		"TABLE t ORDER BY (TABLE u ORDER BY (VALUES ROW(1) LIMIT 1)): order 1",
-		"SelectStmt over TABLE u: order 1",
-		"SelectStmt over VALUES ROW(1): limit",
+	{"VALUES ROW(1) ORDER BY (VALUES ROW(2) ORDER BY (VALUES ROW(3) LIMIT 1))", []string{
+		"VALUES ROW(1) ORDER BY (VALUES ROW(2) ORDER BY (VALUES ROW(3) LIMIT 1)): order 1",
+		"SelectStmt over VALUES ROW(2): order 1",
+		"SelectStmt over VALUES ROW(3): limit",
 	}},
 }
 
-// TestSourceClausesHaveOneOwner: inside a query expression a TABLE or VALUES
-// query primary is a SelectStmt over a TableStmt or ValuesStmt, and the
-// SelectStmt alone holds the ORDER BY, LIMIT, and INTO, as MySQL's
-// query_expression and select_stmt_with_into do. When the source held them
-// too, every walk visited them twice, and a source nested in the ORDER BY of
-// another doubled the walk at each level. A source standing alone (a
-// statement, EXPLAIN, INSERT ... TABLE) holds its own.
+// TestSourceClausesHaveOneOwner: inside a query expression a VALUES query
+// primary is a SelectStmt over a ValuesStmt, and the SelectStmt alone holds the
+// ORDER BY and LIMIT, as OceanBase's table_values_clause_with_order_by_and_limit
+// does. When the source held them too, every walk visited them twice, and a
+// source nested in the ORDER BY of another doubled the walk at each level. A
+// source standing alone (a statement, EXPLAIN) holds its own.
 func TestSourceClausesHaveOneOwner(t *testing.T) {
 	for _, tc := range sourceClauseCases {
 		list := ParseAndCheck(t, tc.sql)
@@ -119,8 +111,6 @@ func TestSourceClausesHaveOneOwner(t *testing.T) {
 				var source ast.Node
 				var sourceLoc ast.Loc
 				switch {
-				case n.TableSource != nil:
-					source, sourceLoc = n.TableSource, n.TableSource.Loc
 				case n.ValuesSource != nil:
 					source, sourceLoc = n.ValuesSource, n.ValuesSource.Loc
 				case n.SetOp != ast.SetOpNone:
@@ -135,11 +125,6 @@ func TestSourceClausesHaveOneOwner(t *testing.T) {
 				wrapped[source] = true
 				owner := "SelectStmt over " + tc.sql[sourceLoc.Start:sourceLoc.End]
 				got = append(got, describe(owner, n.OrderBy, n.Limit, n.Into))
-			case *ast.TableStmt:
-				ownClauses(n, n.OrderBy, n.Limit, n.Into)
-				if !wrapped[n] {
-					got = append(got, describe(tc.sql[n.Loc.Start:n.Loc.End], n.OrderBy, n.Limit, n.Into))
-				}
 			case *ast.ValuesStmt:
 				ownClauses(n, n.OrderBy, n.Limit, nil)
 				if !wrapped[n] {
@@ -154,31 +139,45 @@ func TestSourceClausesHaveOneOwner(t *testing.T) {
 	}
 }
 
-// TestSourceClausesOracle: MySQL 8.0 accepts every statement of
-// sourceClauseCases, and the same TABLE and VALUES sources nested 30 deep in
-// one another's ORDER BY (MySQL rejects 64 nested subqueries with 1473).
-func TestSourceClausesOracle(t *testing.T) {
-	o := startParserOracle(t)
-	for _, setup := range []string{"CREATE TABLE t (a INT, b INT)", "CREATE TABLE u (a INT, b INT)"} {
-		if _, err := o.db.ExecContext(o.ctx, setup); err != nil {
-			t.Fatalf("%s: %v", setup, err)
-		}
-	}
+// sourceClauseStatements are the statements of sourceClauseCases and the
+// same VALUES sources nested 30 deep in one another's ORDER BY (MySQL rejects
+// 64 nested subqueries with 1473).
+func sourceClauseStatements() []string {
 	sqls := []string{
-		nest(30, "TABLE t ORDER BY (", "SELECT 1", ")"),
 		nest(30, "VALUES ROW(1) ORDER BY (", "SELECT 1", ")"),
-		"SELECT (" + nest(30, "TABLE t ORDER BY (", "SELECT 1", ")") + ")",
 		"SELECT (" + nest(30, "VALUES ROW(1) ORDER BY (", "SELECT 1", ")") + ")",
 	}
 	for _, tc := range sourceClauseCases {
 		sqls = append(sqls, tc.sql)
 	}
-	for _, sql := range sqls {
+	return sqls
+}
+
+// TestSourceClausesOracle: MySQL 8.0 accepts every statement of
+// sourceClauseStatements.
+func TestSourceClausesOracle(t *testing.T) {
+	o := startParserOracle(t)
+	for _, sql := range sourceClauseStatements() {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("omni rejects %q: %v", sql, err)
 		}
 		if !o.checkSyntax(t, sql) {
 			t.Errorf("MySQL 8.0 rejects %q", sql)
+		}
+	}
+}
+
+// TestSourceClausesOceanBase: OceanBase accepts every statement of
+// sourceClauseStatements, read through PREPARE (DSN-gated, see
+// oceanBaseOracle):
+//
+//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+func TestSourceClausesOceanBase(t *testing.T) {
+	db := oceanBaseOracle(t)
+	ctx := context.Background()
+	for _, sql := range sourceClauseStatements() {
+		if !prepareAcceptsOceanBase(t, ctx, db, sql) {
+			t.Errorf("OceanBase rejects %q", sql)
 		}
 	}
 }

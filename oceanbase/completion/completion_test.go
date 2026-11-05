@@ -143,6 +143,10 @@ func TestComplete_2_1_EmptySQL(t *testing.T) {
 			t.Errorf("missing expected keyword %s", kw)
 		}
 	}
+	// OceanBase has no TABLE statement, so a statement does not begin with it.
+	if containsCandidate(candidates, "TABLE", CandidateKeyword) {
+		t.Error("TABLE offered as a statement keyword")
+	}
 	// All should be keywords.
 	for _, c := range candidates {
 		if c.Type != CandidateKeyword {

@@ -156,7 +156,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwVECTOR:
 		dt.Name = "VECTOR"
 		p.advance()
-		if err := p.parseFloatOptions(dt); err != nil {
+		if err := p.parseVectorDimension(dt); err != nil {
 			return nil, err
 		}
 
@@ -502,7 +502,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			if p.isQuotedVectorType() {
 				dt.Name = "VECTOR"
 				p.advance()
-				if err := p.parseFloatOptions(dt); err != nil {
+				if err := p.parseVectorDimension(dt); err != nil {
 					return nil, err
 				}
 				dt.Loc.End = p.prev.End
@@ -522,7 +522,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				// and `c inet4(1.5)` and reads them back as inet6, uuid and inet4. It is
 				// 1064 in CAST and JSON_TABLE, which do not come here with one.
 				if p.cur.Type == '(' {
-					if err := p.parseFloatOptions(&nodes.DataType{}); err != nil {
+					if _, err := p.parseFloatOptions(); err != nil {
 						return nil, err
 					}
 				}
@@ -558,46 +558,68 @@ func (p *Parser) isNamedScalarType() bool {
 	return strings.EqualFold(p.cur.Str, "UUID") || strings.EqualFold(p.cur.Str, "INET4") || strings.EqualFold(p.cur.Str, "INET6")
 }
 
-// parseFloatOptions reads the size in parentheses that follows a type MariaDB reads by
-// name: what must follow VECTOR, and what may follow UUID, INET4 and INET6.
+// parseVectorDimension reads what must follow VECTOR in a column type.
 //
 // MariaDB 11.8.8 answers 1064 for a bare VECTOR, for VECTOR(), VECTOR(3,), VECTOR(1e5),
 // VECTOR(1.5,2), VECTOR('3') and VECTOR(0x3), and takes VECTOR(3), VECTOR(3,2) and
-// VECTOR(1.5), as it does any type it reads with the float_options of sql_yacc.yy. It
-// keeps only the integer part of the first number: SHOW CREATE TABLE writes vector(3)
-// for VECTOR(3,2) and vector(1) for VECTOR(1.5), so that is what Length holds. A size
-// past 16383 parses and is refused later with 1074.
-func (p *Parser) parseFloatOptions(dt *nodes.DataType) error {
-	if _, err := p.expect('('); err != nil {
+// VECTOR(1.5). It keeps only the integer part of the first number: SHOW CREATE TABLE writes
+// vector(3) for VECTOR(3,2) and vector(1) for VECTOR(1.5), so that is what Length holds.
+// While it parses, the type handler refuses a dimension of 0 with 1063 and one past 16383
+// with 1074, the integer part again deciding: VECTOR(0.9) and VECTOR(16384.5) are refused
+// and VECTOR(16383.5) is not.
+func (p *Parser) parseVectorDimension(dt *nodes.DataType) error {
+	start := p.cur.Loc
+	whole, err := p.parseFloatOptions()
+	if err != nil {
 		return err
 	}
+	// A number too big for an int is past 16383 all the same.
+	n, err := strconv.Atoi(whole)
+	if err != nil || n > maxVectorDimension {
+		return &ParseError{Message: "Column length too big for column (max = 16383)", Position: start}
+	}
+	if n == 0 {
+		return &ParseError{Message: "Incorrect column specifier: a VECTOR takes a dimension of at least 1", Position: start}
+	}
+	dt.Length = n
+	return nil
+}
+
+// parseFloatOptions reads the size in parentheses that follows a type MariaDB reads by
+// name, as the float_options of sql_yacc.yy, and returns the integer part of its first
+// number: what must follow VECTOR, and what may follow UUID, INET4 and INET6.
+func (p *Parser) parseFloatOptions() (string, error) {
+	if _, err := p.expect('('); err != nil {
+		return "", err
+	}
+	var whole string
 	switch p.cur.Type {
 	case tokICONST:
-		dt.Length = int(p.cur.Ival)
+		whole = p.cur.Str
 		p.advance()
 		if p.cur.Type == ',' {
 			p.advance()
 			if p.cur.Type != tokICONST {
-				return p.syntaxErrorAtCur()
+				return "", p.syntaxErrorAtCur()
 			}
 			p.advance()
 		}
 	case tokFCONST:
 		// DECIMAL_NUM takes a point and no exponent.
 		if strings.ContainsAny(p.cur.Str, "eE") {
-			return p.syntaxErrorAtCur()
+			return "", p.syntaxErrorAtCur()
 		}
-		whole, _, _ := strings.Cut(p.cur.Str, ".")
-		if n, err := strconv.Atoi(whole); err == nil {
-			dt.Length = n
-		}
+		whole, _, _ = strings.Cut(p.cur.Str, ".")
 		p.advance()
 	default:
-		return p.syntaxErrorAtCur()
+		return "", p.syntaxErrorAtCur()
 	}
 	_, err := p.expect(')')
-	return err
+	return whole, err
 }
+
+// maxVectorDimension is the largest dimension a VECTOR column takes.
+const maxVectorDimension = 16383
 
 // parseRequiredLength parses the length a VARCHAR-shaped type must carry.
 // MySQL takes CHAR with a length or without one but VARCHAR only with one, in
@@ -830,4 +852,25 @@ func (p *Parser) decodeByteLiteral(tok Token) (string, error) {
 		out = append(out, byte(b))
 	}
 	return string(out), nil
+}
+
+// vectorColumnRefused holds a VECTOR column to what MariaDB 11.8.8 refuses for its
+// attributes while it parses: AUTO_INCREMENT and a COLLATE answer 1063, an ON UPDATE
+// answers 1294. A bad name in the COLLATE is refused too, with 1273 in place of 1063.
+func vectorColumnRefused(col *nodes.ColumnDef, start int) error {
+	if col.TypeName == nil || col.TypeName.Name != "VECTOR" {
+		return nil
+	}
+	if col.AutoIncrement {
+		return &ParseError{Message: "Incorrect column specifier: a VECTOR takes no AUTO_INCREMENT", Position: start}
+	}
+	if col.OnUpdate != nil {
+		return &ParseError{Message: "Invalid ON UPDATE clause: a VECTOR takes none", Position: start}
+	}
+	for _, c := range col.Constraints {
+		if c.Type == nodes.ColConstrCollate {
+			return &ParseError{Message: "Incorrect column specifier: a VECTOR takes no COLLATE", Position: start}
+		}
+	}
+	return nil
 }

@@ -1540,12 +1540,10 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNSIGNED"}, nil
 	}
 
-	// VECTOR takes no dimension here, the reverse of a column type: 11.8.8 answers
-	// 1064 for CAST(a AS VECTOR(3)) and parses CAST(a AS VECTOR) and refuses it later
-	// with 4162, as it does CONVERT(a, VECTOR).
+	// A CAST to VECTOR is no CAST: 11.8.8 answers 1064 for CAST(a AS VECTOR(3)) and,
+	// while it parses, 4162 for CAST(a AS VECTOR) and CONVERT(a, VECTOR).
 	if p.cur.Type == kwVECTOR || p.isQuotedVectorType() {
-		p.advance()
-		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "VECTOR"}, nil
+		return nil, &ParseError{Message: "Operator does not exist: 'CAST(expr AS vector)'", Position: start}
 	}
 
 	// UUID, INET4 and INET6 take no size here either, where a column's does: 11.8.8

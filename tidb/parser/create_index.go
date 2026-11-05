@@ -16,7 +16,7 @@ import (
 //	    ON tbl_name (key_part,...)
 //	    [index_option] ...
 //	    [algorithm_option | lock_option] ...
-func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spatial bool) (*nodes.CreateIndexStmt, error) {
+func (p *Parser) parseCreateIndexStmt(start int, unique, fulltext, spatial, vector bool) (*nodes.CreateIndexStmt, error) {
 	p.advance() // consume INDEX
 
 	stmt := &nodes.CreateIndexStmt{
@@ -24,6 +24,7 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 		Unique:   unique,
 		Fulltext: fulltext,
 		Spatial:  spatial,
+		Vector:   vector,
 	}
 
 	// IF NOT EXISTS (MySQL 8.0.27+)
@@ -109,6 +110,10 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 		return nil, err
 	}
 	stmt.Algorithm, stmt.Lock = algorithm, lock
+
+	if createIndexRefused(stmt) {
+		return nil, refuseVectorIndexShape(start)
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -435,7 +440,7 @@ func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, er
 			}
 			p.advance()
 			p.match('=') // optional =
-			if algorithm, err = p.parseIndexLockAlgorithmValue(); err != nil {
+			if algorithm, err = p.parseAlgorithmValue(); err != nil {
 				return "", "", err
 			}
 			haveAlgorithm = true
@@ -445,7 +450,7 @@ func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, er
 			}
 			p.advance()
 			p.match('=') // optional =
-			if lock, err = p.parseIndexLockAlgorithmValue(); err != nil {
+			if lock, err = p.parseLockValue(); err != nil {
 				return "", "", err
 			}
 			haveLock = true
@@ -455,20 +460,46 @@ func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, er
 	}
 }
 
-// parseIndexLockAlgorithmValue reads the value ALGORITHM or LOCK takes: the
-// DEFAULT keyword, or an identifier.
+// parseAlgorithmValue reads the value of an AlgorithmClause: DEFAULT, or one of the
+// words COPY, INPLACE and INSTANT, each a token of its own. An identifier is any other
+// name and the arm for it answers 1800, ErrUnknownAlterAlgorithm, so a backquoted
+// `inplace` is refused as well as a name that is no algorithm. A reserved word is not
+// an identifier, and answers 1064.
 //
-// DEFAULT is reserved, so the grammar gives it an arm of its own beside ident
-// rather than leaving it to be read as one. The value is not optional, and a
-// reserved word that is not DEFAULT is not a name: pingcap/tidb:v8.5.5 answers 1064 for
-// ALGORITHM with nothing after it, for ALGORITHM =, and for ALGORITHM = select.
-//
-// Ref: alter_algorithm_option_value and alter_lock_option_value in MySQL 8.0
-// sql/sql_yacc.yy.
-func (p *Parser) parseIndexLockAlgorithmValue() (string, error) {
+// Ref: AlgorithmClause in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseAlgorithmValue() (string, error) {
 	if tok, ok := p.match(kwDEFAULT); ok {
 		return tok.Str, nil
 	}
+	if p.isBareWord("COPY") || p.isBareWord("INPLACE") || p.isBareWord("INSTANT") {
+		return p.advance().Str, nil
+	}
+	start := p.cur.Loc
 	name, _, err := p.parseIdent()
-	return name, err
+	if err != nil {
+		return "", err
+	}
+	return "", &ParseError{Message: "unknown ALGORITHM '" + name + "'", Position: start}
+}
+
+// parseLockValue reads the value of a LockClause: DEFAULT, or an Identifier naming
+// NONE, SHARED or EXCLUSIVE in any case. Unlike ALGORITHM's words these are read from a
+// name, so a backquoted `none` runs, and the action answers 1801, ErrUnknownAlterLock,
+// for any other name, a backquoted `default` included.
+//
+// Ref: LockClause in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseLockValue() (string, error) {
+	if tok, ok := p.match(kwDEFAULT); ok {
+		return tok.Str, nil
+	}
+	start := p.cur.Loc
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return "", err
+	}
+	switch strings.ToUpper(name) {
+	case "NONE", "SHARED", "EXCLUSIVE":
+		return name, nil
+	}
+	return "", &ParseError{Message: "unknown LOCK '" + name + "'", Position: start}
 }

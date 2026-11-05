@@ -262,6 +262,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 // counted: a second one is a note (verified).
 func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 	seen := make(map[[2]string]bool)
+	keyKinds := make(map[string]ast.ConstraintType)
 	twice := func(kind, space, name string, rng review.Range, message string) bool {
 		k, ok := b.key(space, name)
 		if !ok {
@@ -342,19 +343,36 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if b.tooLong(keyName(con), rng) {
 				return true
 			}
-			// IF NOT EXISTS never fails from the text, and what it states still counts
-			// against a plain ADD after it (1061, verified). It is checked against the
-			// table as it was, so two of a primary key the table lacks are 1068, and two
-			// of one it has are notes (verified).
+			// IF NOT EXISTS never fails from a repeat of its own kind, and what it states still
+			// counts against a plain ADD after it (1061, verified). Beside another kind of key
+			// it is 1061, as ADD INDEX i (a), ADD UNIQUE IF NOT EXISTS i (a) is. It is checked
+			// against the table as it was, so two of a primary key the table lacks are 1068, and
+			// two of one it has are notes (verified). A CHECK's name is no index's.
 			if con.IfNotExists && con.Type != ast.ConstrPrimaryKey {
 				if con.Type == ast.ConstrForeignKey {
 					if k, ok := b.key(spaceForeignKey, keyName(con)); ok {
 						seen[[2]string{"add foreign key", k}] = true
 					}
-				} else if k, ok := b.key(spaceIndex, con.Name); ok {
-					seen[[2]string{"add index", k}] = true
+				} else if con.Type != ast.ConstrCheck {
+					if k, ok := b.key(spaceIndex, con.Name); ok {
+						// A key the table already has makes it a note whatever else is added.
+						if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
+							continue
+						}
+						if kind, added := keyKinds[k]; added && kind != con.Type {
+							b.fail(rng, nil, review.DuplicateName, statesTwice("adds", "index", ident(con.Name)))
+							return true
+						}
+						seen[[2]string{"add index", k}] = true
+						keyKinds[k] = con.Type
+					}
 				}
 				continue
+			}
+			if con.Type != ast.ConstrForeignKey && con.Type != ast.ConstrCheck && con.Type != ast.ConstrPrimaryKey {
+				if k, ok := b.key(spaceIndex, con.Name); ok {
+					keyKinds[k] = con.Type
+				}
 			}
 			switch con.Type {
 			case ast.ConstrPrimaryKey:
@@ -476,8 +494,8 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 				name = c.Name
 			}
 			if k, ok := b.key(spaceForeignKey, name); ok {
-				fk, _ := fkKeys(r, k)
-				if f, _ := b.l.Lookup(fk); f != walk.Absent {
+				_, onTable := fkKeys(r, k)
+				if f, _ := b.l.Lookup(onTable); f != walk.Absent {
 					return
 				}
 			}

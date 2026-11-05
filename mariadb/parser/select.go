@@ -591,6 +591,9 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, tok := range []int{kwINTO, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR} {
+			if tok == kwINTO && p.intoRefused {
+				continue
+			}
 			p.addTokenCandidate(tok)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -598,12 +601,9 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 
 	// INTO clause (position 1: after select_expr, before FROM)
 	if p.cur.Type == kwINTO {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
+		if err := p.parseSelectInto(stmt); err != nil {
 			return nil, err
 		}
-		stmt.Into = into
 	}
 
 	// FROM clause
@@ -747,12 +747,9 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	// "... INTO OUTFILE 'f' ORDER BY a" and "... INTO OUTFILE 'f' LIMIT 1" are
 	// syntax errors (container-verified).
 	if p.cur.Type == kwINTO && stmt.Into == nil {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
+		if err := p.parseSelectInto(stmt); err != nil {
 			return nil, err
 		}
-		stmt.Into = into
 	}
 
 	// FOR UPDATE / LOCK IN SHARE MODE
@@ -772,16 +769,28 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 
 	// INTO clause (position 3: after the locking clause)
 	if p.cur.Type == kwINTO && stmt.Into == nil {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
+		if err := p.parseSelectInto(stmt); err != nil {
 			return nil, err
 		}
-		stmt.Into = into
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseSelectInto parses a SELECT's own INTO clause, at INTO, onto stmt.
+// While intoRefused is set the query takes none, and INTO is a syntax error.
+func (p *Parser) parseSelectInto(stmt *nodes.SelectStmt) error {
+	if p.intoRefused {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume INTO
+	into, err := p.parseIntoClause()
+	if err != nil {
+		return err
+	}
+	stmt.Into = into
+	return nil
 }
 
 // parseSelectExprList parses a comma-separated list of select expressions.

@@ -22,5 +22,19 @@ func TestWalkThroughMariaDBVector(t *testing.T) {
 	oneFinding(t, "ALTER TABLE t ADD VECTOR INDEX I (a);", 0, "Index `I` already exists in `t`.", shop)
 	noFinding(t, "ALTER TABLE t ADD VECTOR IF NOT EXISTS I (a);\nALTER TABLE t ADD VECTOR IF NOT EXISTS vi (a);\nALTER TABLE t DROP INDEX vi;", shop)
 	oneFinding(t, "CREATE TABLE x (v VECTOR(3) NOT NULL, VECTOR vi (v));\nCREATE INDEX vi ON x (v);", 1, "Index `vi` already exists in `x`.", shop)
+	// IF NOT EXISTS within one statement, each as 11.8.8 answers it: a repeat of a vector key
+	// is a note, and beside another kind of key or before a plain ADD it is 1061.
+	noFinding(t, "ALTER TABLE t ADD VECTOR IF NOT EXISTS I (a), ADD VECTOR IF NOT EXISTS I (a);", shop)
+	noFinding(t, "ALTER TABLE t ADD VECTOR IF NOT EXISTS vi (a), ADD VECTOR IF NOT EXISTS vi (a);", shop)
+	noFinding(t, "ALTER TABLE t ADD VECTOR vi (a), ADD VECTOR IF NOT EXISTS vi (a);", shop)
+	if got := walkFindings(t, "ALTER TABLE t ADD VECTOR IF NOT EXISTS vi (a), ADD VECTOR vi (a);", shop); len(got) != 1 {
+		t.Errorf("IF NOT EXISTS then a plain ADD: findings = %+v, want one", got)
+	}
+	if got := walkFindings(t, "ALTER TABLE t ADD INDEX vi (a), ADD VECTOR IF NOT EXISTS vi (a);", shop); len(got) != 1 {
+		t.Errorf("another kind of key then IF NOT EXISTS: findings = %+v, want one", got)
+	}
+	if got := walkFindings(t, "ALTER TABLE t ADD VECTOR IF NOT EXISTS vi (a), ADD INDEX vi (a);", shop); len(got) != 1 {
+		t.Errorf("IF NOT EXISTS then another kind of key: findings = %+v, want one", got)
+	}
 	oneFinding(t, "ALTER TABLE t ADD COLUMN c VECTOR(3);\nALTER TABLE t ADD COLUMN C VECTOR(3);", 1, "Column `C` already exists in `t`.", shop)
 }

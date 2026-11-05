@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
+	"github.com/bytebase/omni/tidb/deparse"
 )
 
 // AnalyzeSelectStmt performs semantic analysis on a parsed SELECT statement,
@@ -496,6 +497,8 @@ func analyzeTableRef(c *Catalog, ref *nodes.TableRef) (*RangeTableEntryQ, []*Col
 			Alias:     ref.Alias,
 			ERef:      eref,
 			ColNames:  colNames,
+			AsOf:      asOfText(ref),
+			Sample:    tableSampleText(ref),
 		}
 		return rte, tbl.Columns, nil
 	}
@@ -523,11 +526,29 @@ func analyzeTableRef(c *Catalog, ref *nodes.TableRef) (*RangeTableEntryQ, []*Col
 			ColNames:      colNames,
 			IsView:        true,
 			ViewAlgorithm: viewAlgorithmFromString(view.Algorithm),
+			AsOf:          asOfText(ref),
+			Sample:        tableSampleText(ref),
 		}
 		return rte, cols, nil
 	}
 
 	return nil, nil, errNoSuchTable(dbName, ref.Name)
+}
+
+// asOfText returns the text RangeTableEntryQ.AsOf holds for ref.
+func asOfText(ref *nodes.TableRef) string {
+	if ref.AsOf == nil {
+		return ""
+	}
+	return deparse.DeparseAsOf(ref.AsOf)
+}
+
+// tableSampleText returns the text RangeTableEntryQ.Sample holds for ref.
+func tableSampleText(ref *nodes.TableRef) string {
+	if ref.Sample == nil {
+		return ""
+	}
+	return deparse.DeparseTableSample(ref.Sample)
 }
 
 // viewAlgorithmFromString converts a string algorithm value to ViewAlgorithm.
@@ -959,6 +980,8 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 		CTEIndex: cteIndex,
 		CTEName:  cteQ.Name,
 		Subquery: cteQ.Query,
+		AsOf:     asOfText(ref),
+		Sample:   tableSampleText(ref),
 	}
 
 	idx := len(q.RangeTable)

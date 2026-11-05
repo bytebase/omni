@@ -76,6 +76,69 @@ func TestVectorIndexWithIsPartOfTheIndex(t *testing.T) {
 	}
 }
 
+// TestVectorIndexMigration: a plan writes a vector index as CREATE VECTOR INDEX, the only form
+// OceanBase takes, parameters and all, whether the index or the table is new or the index changed.
+func TestVectorIndexMigration(t *testing.T) {
+	load := func(ddl string) *Catalog {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE d; USE d; "+ddl+";")
+		return c
+	}
+	plan := func(from, to *Catalog) string {
+		return GenerateMigration(from, to, Diff(from, to)).SQL()
+	}
+	bare := "CREATE TABLE t (v VECTOR(3) NOT NULL)"
+	indexed := func(with string) string {
+		return "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (" + with + ") COMMENT 'c')"
+	}
+	const created = "CREATE VECTOR INDEX `i` ON `d`.`t` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG, M=16, EF_CONSTRUCTION=200, EF_SEARCH=64) COMMENT 'c'"
+
+	got := plan(load(bare), load(indexed("distance=l2, type=hnsw")))
+	if !strings.Contains(got, created) {
+		t.Errorf("an added index planned as:\n%s\nwant %s", got, created)
+	}
+	if strings.Contains(strings.ToUpper(got), "ADD KEY") || strings.Contains(strings.ToUpper(got), "ADD VECTOR") {
+		t.Errorf("an added index went through ALTER TABLE:\n%s", got)
+	}
+
+	got = plan(load(indexed("distance=l2, type=hnsw")), load(indexed("distance=cosine, type=hnsw")))
+	drop, create := strings.Index(got, "DROP INDEX `i`"), strings.Index(got, "CREATE VECTOR INDEX `i`")
+	if drop < 0 || create < drop || !strings.Contains(strings.ToLower(got), "distance=cosine") {
+		t.Errorf("a changed index planned as:\n%s\nwant a DROP, then a CREATE with the new parameters", got)
+	}
+
+	empty := New()
+	mustExec(t, empty, "CREATE DATABASE d;")
+	got = plan(empty, load(indexed("distance=l2, type=hnsw")))
+	table, create := strings.Index(got, "CREATE TABLE"), strings.Index(got, "CREATE VECTOR INDEX `i`")
+	if table < 0 || create < table {
+		t.Errorf("a new table's index planned as:\n%s\nwant the table, then the index", got)
+	}
+
+	// The plan's text reads back as the target.
+	replay := load(bare)
+	mustExec(t, replay, "USE d; "+plan(load(bare), load(indexed("distance=l2, type=hnsw")))+";")
+	if d := Diff(replay, load(indexed("distance=l2, type=hnsw"))); !d.IsEmpty() {
+		t.Errorf("the plan's text left a difference: %s", describeDiff(d))
+	}
+}
+
+// TestOracle_OceanBaseVectorIndexMigration applies those plans to the server.
+func TestOracle_OceanBaseVectorIndexMigration(t *testing.T) {
+	o := oceanBaseOracle(t)
+	n := NormalizerFor(o.version)
+	for _, p := range []migrationProbe{
+		{id: "vecadd", table: "t", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL)", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))"},
+		{id: "vecchange", table: "t", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=cosine, type=hnsw, m=8))"},
+		{id: "vecnew", table: "t", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))"},
+		{id: "vecdrop", table: "t", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL)"},
+	} {
+		t.Run(p.id, func(t *testing.T) {
+			assertApplyCorrect(t, o, n, p)
+		})
+	}
+}
+
 // TestOracle_OceanBaseVectorIndex holds the text above to the server, and the catalog's
 // reading of the DDL to its reading of the server's echo of it, so that a vector index
 // does not read as a change against its own readback.

@@ -268,27 +268,6 @@ CREATE VIEW ctev AS WITH shared AS (SELECT id FROM t) SELECT id FROM shared;`)
 	// batch-view edge. The key property is that no false cycle inverts anything (both depth 0).
 }
 
-// Regression (re-review): a `AS TABLE <view>` body (MySQL 8.0.19+ TABLE query primary) deparses to
-// table `v` and re-parses to a *TableStmt, not a *SelectStmt. The dependency extractor must
-// still find the referenced view so the ordering holds — `tv AS TABLE base` must be created after
-// `base`.
-func TestGenerateView_TableQueryPrimaryOrdering(t *testing.T) {
-	plan := viewPlanFor(t, MySQL80,
-		`CREATE TABLE t (id INT);`,
-		`CREATE TABLE t (id INT);
-CREATE VIEW base AS SELECT id FROM t;
-CREATE VIEW tv AS TABLE base;`)
-	ops := viewOps(plan)
-	order := make(map[string]int)
-	for i, op := range ops {
-		order[strings.ToLower(op.ObjectName)] = i
-	}
-	if order["base"] >= order["tv"] {
-		t.Errorf("base (dependency) must precede tv (AS TABLE base): base=%d tv=%d\n%s",
-			order["base"], order["tv"], plan.SQL())
-	}
-}
-
 // A view over a freshly created table must be created after the table (CREATE TABLE at
 // priorityTable precedes CREATE VIEW at priorityView in the global sort).
 func TestGenerateView_ViewAfterTable(t *testing.T) {

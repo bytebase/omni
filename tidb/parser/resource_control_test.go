@@ -32,7 +32,8 @@ import (
 //     so '1d' and '10' are not durations and '1h30m' and '-1s' are. DURATION
 //     also takes the keyword UNLIMITED, and the string 'unlimited' stands for
 //     it and so skips the check.
-//   - PROCESSED_KEYS and RU take the grammar's intLit, which carries no sign.
+//   - PROCESSED_KEYS and RU take the grammar's intLit, which carries no sign, and
+//     their value is Int64Num's, as a watch id is.
 //   - A second ACTION or WATCH inside QUERY_LIMIT is 1064; a second
 //     EXEC_ELAPSED, PROCESSED_KEYS or RU is not.
 //   - CALIBRATE RESOURCE takes a workload or dynamic options, never both, and
@@ -93,9 +94,9 @@ var resourceControlAccepted = []string{
 	`create resource group x burstable=1`,
 	`create resource group x burstable=0`,
 	`create resource group x burstable=2`,
+	`create resource group x burstable=9223372036854775807`,
 	`create resource group x burstable true`,
 	`create resource group x burstable 1`,
-	`create resource group x burstable=18446744073709551615`,
 
 	// The separators: a comma between options, or nothing at all.
 	`create resource group x ru_per_sec=20, priority=LOW, burstable`,
@@ -114,7 +115,6 @@ var resourceControlAccepted = []string{
 	`create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED='10s' PROCESSED_KEYS=100)`,
 	`create resource group x ru_per_sec=1000 QUERY_LIMIT = (EXEC_ELAPSED='10s', PROCESSED_KEYS=100, RU=100)`,
 	`create resource group x ru_per_sec=1000 QUERY_LIMIT = (RU=100)`,
-	`create resource group x ru_per_sec=1000 QUERY_LIMIT = (RU 18446744073709551615)`,
 	`create resource group x ru_per_sec=1000 QUERY_LIMIT = (PROCESSED_KEYS=100)`,
 	// Go's duration units, and nothing of TiDB's own.
 	`create resource group x ru_per_sec=1000 QUERY_LIMIT=(EXEC_ELAPSED '1h30m')`,
@@ -280,11 +280,8 @@ var resourceControlAccepted = []string{
 	// QUERY WATCH REMOVE.
 	`query watch remove 1`,
 	`query watch remove 0`,
+	`query watch remove 9223372036854775807`,
 	`QUERY WATCH REMOVE 1`,
-	// The id is the grammar's NUM, an unsigned literal: the whole uint64
-	// range parses and a value past it does not.
-	`query watch remove 9223372036854775808`,
-	`query watch remove 18446744073709551615`,
 
 	// The RESOURCE GROUP clause on a user, which comes last.
 	`CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY 'hashstring' RESOURCE GROUP rg1`,
@@ -331,6 +328,16 @@ var resourceControlAccepted = []string{
 }
 
 var resourceControlRejected = []string{
+	// BURSTABLE's number, RU, PROCESSED_KEYS and a watch id are Int64Num, whose action
+	// answers 1105 for what an int64 cannot hold: 2^63 is refused and 2^63-1 is not.
+	`create resource group x burstable=18446744073709551615`,
+	`create resource group x burstable=9223372036854775808`,
+	`create resource group x ru_per_sec=1000 QUERY_LIMIT = (RU 18446744073709551615)`,
+	`create resource group x ru_per_sec=1000 QUERY_LIMIT = (RU 9223372036854775808)`,
+	`create resource group x ru_per_sec=1000 QUERY_LIMIT = (PROCESSED_KEYS 9223372036854775808)`,
+	`query watch remove 9223372036854775808`,
+	`query watch remove 18446744073709551615`,
+
 	// A group with no options at all.
 	`create resource group x`,
 	`alter resource group x`,

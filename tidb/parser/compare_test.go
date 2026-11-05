@@ -2462,11 +2462,16 @@ func TestParseRenameTable(t *testing.T) {
 
 func parseBegin(t *testing.T, input string) *ast.BeginStmt {
 	t.Helper()
-	p := &Parser{lexer: NewLexer(input)}
-	p.advance()
-	stmt, err := p.parseBeginStmt()
+	list, err := Parse(input)
 	if err != nil {
-		t.Fatalf("parseBeginStmt(%q) error: %v", input, err)
+		t.Fatalf("Parse(%q) error: %v", input, err)
+	}
+	if len(list.Items) != 1 {
+		t.Fatalf("Parse(%q) = %d statements, want 1", input, len(list.Items))
+	}
+	stmt, ok := list.Items[0].(*ast.BeginStmt)
+	if !ok {
+		t.Fatalf("Parse(%q) = %T, want *ast.BeginStmt", input, list.Items[0])
 	}
 	return stmt
 }
@@ -2474,15 +2479,15 @@ func parseBegin(t *testing.T, input string) *ast.BeginStmt {
 func TestParseBegin(t *testing.T) {
 	t.Run("simple BEGIN", func(t *testing.T) {
 		stmt := parseBegin(t, "BEGIN")
-		if stmt.ReadOnly || stmt.ReadWrite || stmt.WithConsistentSnapshot {
+		if stmt.ReadOnly || stmt.ReadWrite || stmt.WithConsistentSnapshot || stmt.Mode != "" {
 			t.Error("all flags should be false for simple BEGIN")
 		}
 	})
 
-	t.Run("BEGIN WORK", func(t *testing.T) {
-		stmt := parseBegin(t, "BEGIN WORK")
-		if stmt.ReadOnly || stmt.ReadWrite || stmt.WithConsistentSnapshot {
-			t.Error("all flags should be false for BEGIN WORK")
+	t.Run("BEGIN PESSIMISTIC", func(t *testing.T) {
+		stmt := parseBegin(t, "BEGIN PESSIMISTIC")
+		if stmt.Mode != "PESSIMISTIC" {
+			t.Errorf("Mode = %q, want PESSIMISTIC", stmt.Mode)
 		}
 	})
 
@@ -3355,7 +3360,7 @@ func TestParseCreateTableLike(t *testing.T) {
 	})
 
 	t.Run("partition by range columns", func(t *testing.T) {
-		stmt := parseCreateTable(t, "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b)")
+		stmt := parseCreateTable(t, "CREATE TABLE t (a INT, b INT) PARTITION BY RANGE COLUMNS(a, b) (PARTITION p VALUES LESS THAN (1, 2))")
 		if stmt.Partitions == nil {
 			t.Fatal("Partitions is nil")
 		}
@@ -4328,7 +4333,7 @@ func parseCreateIndex(t *testing.T, input string) *ast.CreateIndexStmt {
 		p.advance()
 		spatial = true
 	}
-	stmt, err := p.parseCreateIndexStmt(start, unique, fulltext, spatial)
+	stmt, err := p.parseCreateIndexStmt(start, unique, fulltext, spatial, false)
 	if err != nil {
 		t.Fatalf("parseCreateIndexStmt(%q) error: %v", input, err)
 	}
@@ -10439,16 +10444,15 @@ func TestBNFReviewSecurity(t *testing.T) {
 // Review batch 107: transaction_xa_locking BNF review
 // -----------------------------------------------------------------------
 
+// TiDB has no WORK after COMMIT or ROLLBACK, and refuses AND CHAIN RELEASE:
+// those forms are rejections in transaction_forms_test.go.
 func TestReviewBatch107_CommitWorkAndVariants(t *testing.T) {
 	tests := []string{
-		"COMMIT WORK",
-		"COMMIT WORK AND CHAIN",
+		"COMMIT AND CHAIN",
 		"COMMIT AND NO CHAIN",
-		"COMMIT WORK AND NO CHAIN",
 		"COMMIT NO RELEASE",
-		"COMMIT WORK NO RELEASE",
-		"COMMIT WORK AND CHAIN RELEASE",
-		"COMMIT WORK AND CHAIN NO RELEASE",
+		"COMMIT AND NO CHAIN RELEASE",
+		"COMMIT AND CHAIN NO RELEASE",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -10459,14 +10463,11 @@ func TestReviewBatch107_CommitWorkAndVariants(t *testing.T) {
 
 func TestReviewBatch107_RollbackWorkAndVariants(t *testing.T) {
 	tests := []string{
-		"ROLLBACK WORK",
-		"ROLLBACK WORK TO SAVEPOINT sp1",
-		"ROLLBACK WORK TO sp1",
+		"ROLLBACK TO SAVEPOINT sp1",
+		"ROLLBACK TO sp1",
 		"ROLLBACK AND NO CHAIN",
-		"ROLLBACK WORK AND NO CHAIN",
 		"ROLLBACK NO RELEASE",
-		"ROLLBACK WORK NO RELEASE",
-		"ROLLBACK WORK AND CHAIN RELEASE",
+		"ROLLBACK AND NO CHAIN RELEASE",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

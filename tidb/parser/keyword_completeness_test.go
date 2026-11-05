@@ -782,7 +782,7 @@ var mysql8Keywords = []mysql8Keyword{
 	{"table_checksum", catUnambiguous},
 	{"table_name", catUnambiguous},
 	{"tables", catUnambiguous},
-	{"tablesample", catUnambiguous},
+	{"tablesample", catReserved},
 	{"tablespace", catUnambiguous},
 	{"temporary", catUnambiguous},
 	{"temptable", catUnambiguous},
@@ -993,9 +993,9 @@ func TestNoEqFoldForRegisteredKeywords(t *testing.T) {
 // Extracted from mysql-server sql/sql_yacc.yy function_call_keyword, function_call_nonkeyword,
 // function_call_conflict, sum_expr, window_func_call, and grouping_operation rules.
 type mysql8KeywordFunction struct {
-	SQL       string // lowercase function name
-	TestSQL   string // a minimal SELECT statement that calls this function
-	Reserved  bool   // true if this keyword is reserved in MySQL 8.0
+	SQL      string // lowercase function name
+	TestSQL  string // a minimal SELECT statement that calls this function
+	Reserved bool   // true if this keyword is reserved in MySQL 8.0
 }
 
 // mysql8KeywordFunctions is the golden list of ALL MySQL 8.0 keywords that are also function names.

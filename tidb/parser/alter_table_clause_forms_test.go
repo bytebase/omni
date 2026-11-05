@@ -139,7 +139,7 @@ var alterTableClauseCases = []alterTableClauseCase{
 	{"ALTER TABLE t PARTITION BY KEY FIELDS(a)", false},
 
 	// UPDATE INDEXES, where GLOBAL or LOCAL is required on every entry.
-	{"alter table t partition by range(a) update indexes (a local)", true},
+	{"alter table t partition by range(a) update indexes (a local)", false},
 	{"alter table t add column a int partition by hash(a) update indexes (idx_a global)", true},
 	{"alter table t add column a int partition by hash(a) update indexes (idx_a global, idx_b local)", true},
 	{"ALTER TABLE t PARTITION BY HASH(a) UPDATE INDEXES ()", false},
@@ -245,8 +245,8 @@ var alterTableClauseCases = []alterTableClauseCase{
 	// VECTOR INDEX, which takes no CONSTRAINT symbol and is spelled INDEX.
 	{"ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a, b))) USING HNSW COMMENT 'a'", true},
 	{"ALTER TABLE t ADD VECTOR INDEX ((lower(a))) USING HNSW COMMENT 'a'", true},
-	{"ALTER TABLE t ADD VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'", true},
-	{"ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HYPO COMMENT 'a'", true},
+	{"ALTER TABLE t ADD VECTOR INDEX (a, (VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'", false},
+	{"ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) USING HYPO COMMENT 'a'", false},
 	{"ALTER TABLE t ADD VECTOR INDEX ((VEC_COSINE_DISTANCE(a))) COMMENT 'a'", true},
 	{"ALTER TABLE t ADD VECTOR INDEX IF NOT EXISTS ((VEC_COSINE_DISTANCE(a))) USING HNSW COMMENT 'a'", true},
 	{"ALTER TABLE t ADD VECTOR INDEX idx USING HNSW ((lower(a)))", true},

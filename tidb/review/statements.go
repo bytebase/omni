@@ -151,57 +151,7 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 		}
 	}
 	sort.SliceStable(stmts, func(i, j int) bool { return stmts[i].loc.Start < stmts[j].loc.Start })
-	for i := range stmts {
-		if loc, refused := refusedBySyntaxAction(stmts[i].node, stmts[i].loc); refused {
-			return nil, refusedFinding(stmts[i].index, loc)
-		}
-	}
 	return stmts, nil
-}
-
-// refusedBySyntaxAction finds the part of a statement TiDB's grammar reads and its
-// grammar action refuses: a VECTOR INDEX that is not one functional key part of
-// type HNSW, and HNSW on any other index CREATE INDEX makes. The server answers
-// error 1149 for these with the text of a syntax error and before it looks at any
-// table, so it is one, whatever verdict the corpus records for the parser.
-func refusedBySyntaxAction(node ast.Node, stmt ast.Loc) (ast.Loc, bool) {
-	switch v := executed(node).(type) {
-	case *ast.CreateIndexStmt:
-		return stmt, v.SyntaxRefused()
-	case *ast.CreateTableStmt:
-		return firstRefused(v.Constraints)
-	case *ast.AlterTableStmt:
-		for _, cmd := range v.Commands {
-			constraints := cmd.Constraints
-			if cmd.Constraint != nil {
-				constraints = append([]*ast.Constraint{cmd.Constraint}, constraints...)
-			}
-			if loc, refused := firstRefused(constraints); refused {
-				return loc, true
-			}
-		}
-	}
-	return ast.Loc{}, false
-}
-
-func firstRefused(constraints []*ast.Constraint) (ast.Loc, bool) {
-	for _, c := range constraints {
-		if c.SyntaxRefused() {
-			return c.Loc, true
-		}
-	}
-	return ast.Loc{}, false
-}
-
-// refusedFinding is the Syntax finding for text refusedBySyntaxAction found.
-func refusedFinding(index int, loc ast.Loc) *review.Finding {
-	return &review.Finding{
-		Rule:      review.Syntax,
-		Statement: index,
-		Range:     review.Range{Start: loc.Start, End: loc.End},
-		Codes:     []review.FindingCode{review.SyntaxError},
-		Message:   "A vector index takes one functional key part and the index type HNSW, and HNSW takes a vector index.",
-	}
 }
 
 // nodeLoc reads a statement node's Loc field. The TiDB AST gives its

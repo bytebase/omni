@@ -248,11 +248,10 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		p.match('=') // optional =
 		// The value is a quoted 'Y' or 'N' and is required: `ENCRYPTION = N`
 		// and a bare `ENCRYPTION` are both a 1064.
-		if p.cur.Type != tokSCONST {
-			return nil, false, p.syntaxErrorAtCur()
+		val, err := p.parseEncryptionValue()
+		if err != nil {
+			return nil, false, err
 		}
-		val := p.cur.Str
-		p.advance()
 		return &nodes.DatabaseOption{
 			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "ENCRYPTION",
@@ -350,4 +349,19 @@ func (p *Parser) parseCharsetName() (string, error) {
 // 8.0.46 sql/sql_yacc.yy.
 func (p *Parser) parseCollationName() (string, error) {
 	return p.parseCharsetName()
+}
+
+// parseEncryptionValue reads EncryptionOpt: a string, whose action answers 1525,
+// ErrWrongValue, for anything but Y or N in either case.
+//
+// Ref: EncryptionOpt in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseEncryptionValue() (string, error) {
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	switch p.cur.Str {
+	case "Y", "y", "N", "n":
+		return p.advance().Str, nil
+	}
+	return "", &ParseError{Message: "Incorrect argument (should be Y or N) value: '" + p.cur.Str + "'", Position: p.cur.Loc}
 }

@@ -335,42 +335,7 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 		return p.parseStartGroupReplicationStmt(start)
 	}
 
-	// Fall through to START TRANSACTION (parseBeginStmt expects p.cur is START or BEGIN)
-	// We already consumed START, so we need to handle TRANSACTION here
-	p.match(kwTRANSACTION)
-
-	// Completion: after START TRANSACTION, offer transaction characteristic keywords.
-	p.checkCursor()
-	if p.collectMode() {
-		p.addTokenCandidate(kwWITH)
-		p.addTokenCandidate(kwREAD)
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	stmt := &nodes.BeginStmt{Loc: nodes.Loc{Start: start}}
-	for {
-		if p.cur.Type == kwWITH {
-			p.advance()
-			p.match(kwCONSISTENT)
-			p.match(kwSNAPSHOT)
-			stmt.WithConsistentSnapshot = true
-		} else if p.cur.Type == kwREAD {
-			p.advance()
-			if _, ok := p.match(kwONLY); ok {
-				stmt.ReadOnly = true
-			} else if _, ok := p.match(kwWRITE); ok {
-				stmt.ReadWrite = true
-			}
-		} else {
-			break
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	return p.parseStartTransactionStmt(start)
 }
 
 // parseResetDispatch dispatches RESET statements.
@@ -559,19 +524,19 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateTableStmt(start, temporary, global)
 
 	case kwINDEX:
-		return p.parseCreateIndexStmt(start, false, false, false)
+		return p.parseCreateIndexStmt(start, false, false, false, false)
 
 	case kwUNIQUE:
 		p.advance()
 		if p.cur.Type == kwINDEX {
-			return p.parseCreateIndexStmt(start, true, false, false)
+			return p.parseCreateIndexStmt(start, true, false, false, false)
 		}
 		return nil, &ParseError{Message: "expected INDEX after UNIQUE", Position: p.cur.Loc}
 
 	case kwFULLTEXT:
 		p.advance()
 		// p.cur is now INDEX or KEY; parseCreateIndexStmt consumes it
-		return p.parseCreateIndexStmt(start, false, true, false)
+		return p.parseCreateIndexStmt(start, false, true, false, false)
 
 	case kwVECTOR:
 		// CREATE VECTOR INDEX, which IndexKeyTypeOpt reads beside UNIQUE, SPATIAL
@@ -585,11 +550,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		if p.cur.Type != kwINDEX {
 			return nil, p.syntaxErrorAtCur()
 		}
-		stmt, err := p.parseCreateIndexStmt(start, false, false, false)
+		stmt, err := p.parseCreateIndexStmt(start, false, false, false, true)
 		if err != nil {
 			return nil, err
 		}
-		stmt.Vector = true
 		return stmt, nil
 
 	case kwSPATIAL:
@@ -598,7 +562,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		if p.cur.Type == kwREFERENCE {
 			return p.parseCreateSpatialRefSysStmt(start, false)
 		}
-		return p.parseCreateIndexStmt(start, false, false, true)
+		return p.parseCreateIndexStmt(start, false, false, true, false)
 
 	case kwVIEW:
 		return p.parseCreateViewStmt(start, false)

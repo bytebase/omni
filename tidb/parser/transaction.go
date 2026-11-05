@@ -4,76 +4,146 @@ import (
 	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
-// parseBeginStmt parses a BEGIN or START TRANSACTION statement.
+// TiDB's transaction statements are its own and not MySQL's, which this
+// parser began as a copy of. TiDB has no WORK at all: BEGIN WORK, COMMIT WORK
+// and ROLLBACK WORK are each 1064 on v8.5.5. BEGIN takes a transaction mode
+// MySQL lacks, START TRANSACTION takes one characteristic rather than a list,
+// and two of the characteristics are TiDB's own. Every verdict quoted in this
+// file was measured against pingcap/tidb:v8.5.5 through PREPARE on 2026-11-05
+// and is pinned by TestTransactionFormsMatchTiDB.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/commit.html
+// Ref: BeginTransactionStmt, CommitStmt, RollbackStmt,
+// CompletionTypeWithinTransaction, SavepointStmt and ReleaseSavepointStmt in
+// TiDB v8.5.5 pkg/parser/parser.y (lines 3431, 3599, 9209, 9227, 5603, 5609).
+
+// parseBeginStmt parses BEGIN, with the transaction mode TiDB lets it name.
 //
-//	START TRANSACTION [transaction_characteristic [, transaction_characteristic] ...]
-//	BEGIN [WORK]
+//	BEGIN [PESSIMISTIC | OPTIMISTIC]
 //
-//	transaction_characteristic:
-//	    WITH CONSISTENT SNAPSHOT
-//	    | READ WRITE
-//	    | READ ONLY
+// The two modes are not keywords in this lexer, so they are read as bare
+// words: v8.5.5 answers 1064 for BEGIN `PESSIMISTIC`.
 func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 	start := p.pos()
-	stmt := &nodes.BeginStmt{Loc: nodes.Loc{Start: start}}
+	p.advance() // consume BEGIN
 
-	if p.cur.Type == kwSTART {
-		p.advance() // consume START
-		p.match(kwTRANSACTION)
-
-		// Transaction characteristics
-		for {
-			if p.cur.Type == kwWITH {
-				p.advance()
-				p.match(kwCONSISTENT)
-				p.match(kwSNAPSHOT)
-				stmt.WithConsistentSnapshot = true
-			} else if p.cur.Type == kwREAD {
-				p.advance()
-				if _, ok := p.match(kwONLY); ok {
-					stmt.ReadOnly = true
-				} else if _, ok := p.match(kwWRITE); ok {
-					stmt.ReadWrite = true
-				}
-			} else {
-				break
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-	} else {
-		// BEGIN [WORK]
-		p.advance() // consume BEGIN
-
-		// Completion: after BEGIN, offer WORK keyword.
-		p.checkCursor()
-		if p.collectMode() {
-			return nil, &ParseError{Message: "collecting"}
-		}
-
-		if p.cur.Type == kwWORK {
-			p.advance()
-		}
+	// Completion: after BEGIN. The two modes are bare words, which are no
+	// token candidates.
+	p.checkCursor()
+	if p.collectMode() {
+		return nil, &ParseError{Message: "collecting"}
 	}
 
+	stmt := &nodes.BeginStmt{Loc: nodes.Loc{Start: start}}
+	switch {
+	case p.isBareWord("PESSIMISTIC"):
+		stmt.Mode = "PESSIMISTIC"
+		p.advance()
+	case p.isBareWord("OPTIMISTIC"):
+		stmt.Mode = "OPTIMISTIC"
+		p.advance()
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseStartTransactionStmt parses START TRANSACTION, with START consumed at
+// start.
+//
+//	START TRANSACTION [
+//	    READ WRITE
+//	  | READ ONLY [AS OF TIMESTAMP expr]
+//	  | WITH CONSISTENT SNAPSHOT
+//	  | WITH CAUSAL CONSISTENCY ONLY
+//	]
+//
+// One characteristic at most: upstream spells out each arm, so MySQL's
+// comma-separated list is 1064 on v8.5.5 (`START TRANSACTION READ ONLY, WITH
+// CONSISTENT SNAPSHOT`), and so is a characteristic cut short (`START
+// TRANSACTION WITH CONSISTENT`) or a bare START. AS OF TIMESTAMP belongs to
+// READ ONLY alone and takes any expression. CAUSAL and CONSISTENCY are bare
+// words, as the BEGIN modes are.
+func (p *Parser) parseStartTransactionStmt(start int) (*nodes.BeginStmt, error) {
+	// Completion: after START, offer TRANSACTION.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwTRANSACTION)
+		return nil, &ParseError{Message: "collecting"}
+	}
+	if _, err := p.expect(kwTRANSACTION); err != nil {
+		return nil, err
+	}
+
+	// Completion: after START TRANSACTION, offer transaction characteristic keywords.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwWITH)
+		p.addTokenCandidate(kwREAD)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	stmt := &nodes.BeginStmt{Loc: nodes.Loc{Start: start}}
+	switch p.cur.Type {
+	case kwREAD:
+		p.advance()
+		// Completion: after READ, offer ONLY and WRITE.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwONLY)
+			p.addTokenCandidate(kwWRITE)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		switch p.cur.Type {
+		case kwWRITE:
+			p.advance()
+			stmt.ReadWrite = true
+		case kwONLY:
+			p.advance()
+			stmt.ReadOnly = true
+			if p.cur.Type == kwAS {
+				asOf, err := p.parseAsOfClause()
+				if err != nil {
+					return nil, err
+				}
+				stmt.AsOf = asOf.Timestamp
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	case kwWITH:
+		p.advance()
+		switch {
+		case p.cur.Type == kwCONSISTENT:
+			p.advance()
+			if _, err := p.expect(kwSNAPSHOT); err != nil {
+				return nil, err
+			}
+			stmt.WithConsistentSnapshot = true
+		case p.isBareWord("CAUSAL"):
+			p.advance()
+			if !p.isBareWord("CONSISTENCY") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if _, err := p.expect(kwONLY); err != nil {
+				return nil, err
+			}
+			stmt.CausalConsistencyOnly = true
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
 // parseCommitStmt parses a COMMIT statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/commit.html
-//
-//	COMMIT [WORK] [AND [NO] CHAIN] [[NO] RELEASE]
+//	COMMIT [AND [NO] CHAIN] [[NO] RELEASE]
 func (p *Parser) parseCommitStmt() (*nodes.CommitStmt, error) {
 	start := p.pos()
 	p.advance() // consume COMMIT
 
-	// Completion: after COMMIT, offer AND and WORK keywords.
+	// Completion: after COMMIT, offer AND.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwAND)
@@ -81,47 +151,31 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitStmt, error) {
 	}
 
 	stmt := &nodes.CommitStmt{Loc: nodes.Loc{Start: start}}
-
-	// Optional WORK
-	if p.cur.Type == kwWORK {
-		p.advance()
+	chain, release, err := p.parseCompletionType()
+	if err != nil {
+		return nil, err
 	}
-
-	// AND [NO] CHAIN
-	if p.cur.Type == kwAND {
-		p.advance()
-		if p.cur.Type == kwNO {
-			p.advance()
-			p.match(kwCHAIN)
-		} else {
-			p.match(kwCHAIN)
-			stmt.Chain = true
-		}
-	}
-
-	// [NO] RELEASE
-	if p.cur.Type == kwNO {
-		p.advance()
-		p.match(kwRELEASE)
-	} else if _, ok := p.match(kwRELEASE); ok {
-		stmt.Release = true
-	}
-
+	stmt.Chain, stmt.Release = chain, release
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
 // parseRollbackStmt parses a ROLLBACK statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/commit.html
+//	ROLLBACK [AND [NO] CHAIN] [[NO] RELEASE]
+//	ROLLBACK TO [SAVEPOINT] identifier
 //
-//	ROLLBACK [WORK] [AND [NO] CHAIN] [[NO] RELEASE]
-//	ROLLBACK [WORK] TO [SAVEPOINT] identifier
+// SAVEPOINT is an unreserved keyword in TiDB and so a savepoint name as well:
+// in ROLLBACK TO SAVEPOINT it is the keyword when a name follows it and the
+// name when nothing does. v8.5.5 parses `ROLLBACK TO SAVEPOINT` (a savepoint
+// called savepoint) and `ROLLBACK TO SAVEPOINT savepoint`, and answers 1064
+// for `ROLLBACK TO SAVEPOINT savepoint savepoint`. ROLLBACK TO takes no
+// completion type after the name.
 func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 	start := p.pos()
 	p.advance() // consume ROLLBACK
 
-	// Completion: after ROLLBACK, offer TO and WORK keywords.
+	// Completion: after ROLLBACK, offer TO.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwTO)
@@ -129,11 +183,6 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 	}
 
 	stmt := &nodes.RollbackStmt{Loc: nodes.Loc{Start: start}}
-
-	// Optional WORK
-	if p.cur.Type == kwWORK {
-		p.advance()
-	}
 
 	// TO [SAVEPOINT] identifier
 	if _, ok := p.match(kwTO); ok {
@@ -144,7 +193,11 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		p.match(kwSAVEPOINT)
+		if p.cur.Type == kwSAVEPOINT {
+			if next := p.peekNext().Type; next != tokEOF && next != ';' {
+				p.advance() // consume SAVEPOINT, the keyword
+			}
+		}
 		name, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
@@ -154,33 +207,50 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 		return stmt, nil
 	}
 
-	// AND [NO] CHAIN
-	if p.cur.Type == kwAND {
-		p.advance()
-		if p.cur.Type == kwNO {
-			p.advance()
-			p.match(kwCHAIN)
-		} else {
-			p.match(kwCHAIN)
-			stmt.Chain = true
-		}
+	chain, release, err := p.parseCompletionType()
+	if err != nil {
+		return nil, err
 	}
-
-	// [NO] RELEASE
-	if p.cur.Type == kwNO {
-		p.advance()
-		p.match(kwRELEASE)
-	} else if _, ok := p.match(kwRELEASE); ok {
-		stmt.Release = true
-	}
-
+	stmt.Chain, stmt.Release = chain, release
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseSavepointStmt parses a SAVEPOINT statement.
+// parseCompletionType reads what may follow COMMIT or ROLLBACK, and reports
+// whether the statement chains a new transaction and whether it releases the
+// connection.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/savepoint.html
+//	[AND [NO] CHAIN] [[NO] RELEASE]
+//
+// Upstream's CompletionTypeWithinTransaction spells out seven arms, which are
+// every combination of the two optional parts but one: AND CHAIN RELEASE,
+// which v8.5.5 answers 1064 for, as MySQL does. Each part is whole, so a
+// dangling AND or NO is 1064 too.
+func (p *Parser) parseCompletionType() (chain, release bool, err error) {
+	if _, ok := p.match(kwAND); ok {
+		_, no := p.match(kwNO)
+		if _, err := p.expect(kwCHAIN); err != nil {
+			return false, false, err
+		}
+		chain = !no
+	}
+	switch p.cur.Type {
+	case kwNO:
+		p.advance()
+		if _, err := p.expect(kwRELEASE); err != nil {
+			return false, false, err
+		}
+	case kwRELEASE:
+		if chain {
+			return false, false, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		release = true
+	}
+	return chain, release, nil
+}
+
+// parseSavepointStmt parses a SAVEPOINT statement.
 //
 //	SAVEPOINT identifier
 func (p *Parser) parseSavepointStmt() (*nodes.SavepointStmt, error) {
@@ -206,13 +276,22 @@ func (p *Parser) parseSavepointStmt() (*nodes.SavepointStmt, error) {
 
 // parseReleaseSavepointStmt parses RELEASE SAVEPOINT.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/savepoint.html
-//
 //	RELEASE SAVEPOINT identifier
+//
+// SAVEPOINT is not optional: v8.5.5 answers 1064 for RELEASE s.
 func (p *Parser) parseReleaseSavepointStmt() (*nodes.SavepointStmt, error) {
 	start := p.pos()
 	p.advance() // consume RELEASE
-	p.match(kwSAVEPOINT)
+
+	// Completion: after RELEASE, offer SAVEPOINT.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwSAVEPOINT)
+		return nil, &ParseError{Message: "collecting"}
+	}
+	if _, err := p.expect(kwSAVEPOINT); err != nil {
+		return nil, err
+	}
 
 	// Completion: after RELEASE SAVEPOINT, identifier context.
 	p.checkCursor()
@@ -431,29 +510,24 @@ func (p *Parser) parseStatsLockTargets() ([]*nodes.TableRef, []string, error) {
 	return tables, partitions, nil
 }
 
-// parseSetTransactionStmt parses SET [GLOBAL|SESSION] TRANSACTION.
+// parseSetTransactionStmt parses SET [GLOBAL | SESSION] TRANSACTION, with the
+// current token on TRANSACTION.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/set-transaction.html
+// Ref: SetStmt, TransactionChars, TransactionChar and IsolationLevel in TiDB
+// v8.5.5 pkg/parser/parser.y (lines 10758-10770, 10840, 10859, 10891).
 //
-//	SET [GLOBAL | SESSION] TRANSACTION
-//	    transaction_characteristic [, transaction_characteristic] ...
+//	TransactionChars: TransactionChar [, TransactionChar] ...
 //
-//	transaction_characteristic: {
-//	    ISOLATION LEVEL level
-//	  | access_mode
-//	}
+//	TransactionChar:
+//	    ISOLATION LEVEL {REPEATABLE READ | READ COMMITTED | READ UNCOMMITTED | SERIALIZABLE}
+//	  | READ WRITE
+//	  | READ ONLY [AS OF TIMESTAMP expr]
 //
-//	level: {
-//	     REPEATABLE READ
-//	   | READ COMMITTED
-//	   | READ UNCOMMITTED
-//	   | SERIALIZABLE
-//	}
-//
-//	access_mode: {
-//	     READ WRITE
-//	   | READ ONLY
-//	}
+// The list may not be empty, each characteristic has to be whole, and it may
+// name one more than once: `SET TRANSACTION READ ONLY, READ WRITE` parses. When
+// it does, the fields hold the last of each. A characteristic that writes no AS
+// OF leaves an earlier one in place, as upstream does: the clause assigns
+// tx_read_ts, and READ WRITE assigns tx_read_only.
 func (p *Parser) parseSetTransactionStmt(start int, scope string) (*nodes.SetTransactionStmt, error) {
 	p.advance() // consume TRANSACTION
 
@@ -461,47 +535,112 @@ func (p *Parser) parseSetTransactionStmt(start int, scope string) (*nodes.SetTra
 		Loc:   nodes.Loc{Start: start},
 		Scope: scope,
 	}
-
-	// Parse transaction characteristics
 	for {
-		if p.cur.Type == kwISOLATION {
-			p.advance()
-			p.match(kwLEVEL)
-			switch p.cur.Type {
-			case kwREPEATABLE:
-				p.advance()
-				p.match(kwREAD)
-				stmt.IsolationLevel = "REPEATABLE READ"
-			case kwREAD:
-				p.advance()
-				if _, ok := p.match(kwCOMMITTED); ok {
-					stmt.IsolationLevel = "READ COMMITTED"
-				} else if _, ok := p.match(kwUNCOMMITTED); ok {
-					stmt.IsolationLevel = "READ UNCOMMITTED"
-				}
-			case kwSERIALIZABLE:
-				p.advance()
-				stmt.IsolationLevel = "SERIALIZABLE"
-			}
-		} else if p.cur.Type == kwREAD {
-			p.advance()
-			if _, ok := p.match(kwONLY); ok {
-				stmt.AccessMode = "READ ONLY"
-			} else if _, ok := p.match(kwWRITE); ok {
-				stmt.AccessMode = "READ WRITE"
-			}
-		} else {
+		if err := p.parseTransactionChar(stmt); err != nil {
+			return nil, err
+		}
+		if _, ok := p.match(','); !ok {
 			break
 		}
-
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
 	}
-
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseTransactionChar parses one characteristic of SET TRANSACTION into stmt.
+func (p *Parser) parseTransactionChar(stmt *nodes.SetTransactionStmt) error {
+	// Completion: where a characteristic starts.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwISOLATION)
+		p.addTokenCandidate(kwREAD)
+		return &ParseError{Message: "collecting"}
+	}
+
+	switch p.cur.Type {
+	case kwISOLATION:
+		p.advance()
+		if _, err := p.expect(kwLEVEL); err != nil {
+			return err
+		}
+		level, err := p.parseIsolationLevel()
+		if err != nil {
+			return err
+		}
+		stmt.IsolationLevel = level
+	case kwREAD:
+		p.advance()
+		// Completion: after READ, offer ONLY and WRITE.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwONLY)
+			p.addTokenCandidate(kwWRITE)
+			return &ParseError{Message: "collecting"}
+		}
+		switch p.cur.Type {
+		case kwWRITE:
+			p.advance()
+			stmt.AccessMode = "READ WRITE"
+		case kwONLY:
+			p.advance()
+			stmt.AccessMode = "READ ONLY"
+			if p.cur.Type == kwAS {
+				asOf, err := p.parseAsOfClause()
+				if err != nil {
+					return err
+				}
+				stmt.AsOf = asOf.Timestamp
+			}
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// parseIsolationLevel parses the level after ISOLATION LEVEL.
+func (p *Parser) parseIsolationLevel() (string, error) {
+	// Completion: after ISOLATION LEVEL, offer the words a level starts with.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwREPEATABLE)
+		p.addTokenCandidate(kwREAD)
+		p.addTokenCandidate(kwSERIALIZABLE)
+		return "", &ParseError{Message: "collecting"}
+	}
+
+	switch p.cur.Type {
+	case kwREPEATABLE:
+		p.advance()
+		if _, err := p.expect(kwREAD); err != nil {
+			return "", err
+		}
+		return "REPEATABLE READ", nil
+	case kwREAD:
+		p.advance()
+		// Completion: after READ, offer COMMITTED and UNCOMMITTED.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwCOMMITTED)
+			p.addTokenCandidate(kwUNCOMMITTED)
+			return "", &ParseError{Message: "collecting"}
+		}
+		switch p.cur.Type {
+		case kwCOMMITTED:
+			p.advance()
+			return "READ COMMITTED", nil
+		case kwUNCOMMITTED:
+			p.advance()
+			return "READ UNCOMMITTED", nil
+		}
+		return "", p.syntaxErrorAtCur()
+	case kwSERIALIZABLE:
+		p.advance()
+		return "SERIALIZABLE", nil
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseXAStmt parses an XA statement.

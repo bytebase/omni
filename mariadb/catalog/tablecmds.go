@@ -2180,11 +2180,9 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 	for _, opt := range opts {
 		// An engine-defined option's name is the engine's, so a quoted `comment`=1 is
-		// not a COMMENT. DEFAULT clears the option, so it prints nothing.
+		// not a COMMENT.
 		if opt.Engine {
-			if text := engineOptionText(opt); text != "" {
-				idx.EngineOptions = append(idx.EngineOptions, text)
-			}
+			idx.EngineOptions = setEngineOption(idx.EngineOptions, opt)
 			continue
 		}
 		switch strings.ToUpper(opt.Name) {
@@ -2211,6 +2209,7 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 // TABLE does: the name quoted as written, a word or a number bare, a string quoted.
 // VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine
 func engineOptionText(opt *nodes.IndexOption) string {
+	// DEFAULT has no value, so it prints nothing.
 	switch v := opt.Value.(type) {
 	case *nodes.StringLit:
 		if opt.ValueIsWord {
@@ -2221,6 +2220,24 @@ func engineOptionText(opt *nodes.IndexOption) string {
 		return fmt.Sprintf("`%s`=%d", opt.Name, v.Value)
 	}
 	return ""
+}
+
+// setEngineOption applies one engine-defined option to the list SHOW CREATE TABLE prints. The
+// last setting of a name wins whatever its case, and moves to where it was written: 11.8.8 prints
+// `DISTANCE`=cosine `M`=7 for M=6 DISTANCE=cosine M=7. DEFAULT clears it: M=6 M=DEFAULT prints
+// nothing, and m=6 M=DEFAULT does too.
+func setEngineOption(options []string, opt *nodes.IndexOption) []string {
+	prefix := toLower("`" + opt.Name + "`=")
+	kept := options[:0:0]
+	for _, text := range options {
+		if !strings.HasPrefix(toLower(text), prefix) {
+			kept = append(kept, text)
+		}
+	}
+	if text := engineOptionText(opt); text != "" {
+		kept = append(kept, text)
+	}
+	return kept
 }
 
 // validateVectorIndex holds a VECTOR key to what MariaDB 11.8.8 refuses when the
@@ -2235,7 +2252,7 @@ func validateVectorIndex(tbl *Table, idxCols []*IndexColumn) error {
 	for _, ic := range idxCols {
 		col := tbl.GetColumn(ic.Name)
 		if col == nil {
-			return errNoSuchColumn(ic.Name, "'"+tbl.Name+"'")
+			return errKeyColumnDoesNotExist(ic.Name)
 		}
 		if !strings.EqualFold(col.DataType, "vector") {
 			return &Error{Code: 1210, SQLState: "HY000", Message: "Incorrect arguments to VECTOR INDEX"}

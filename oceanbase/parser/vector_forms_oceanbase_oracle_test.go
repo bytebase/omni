@@ -285,17 +285,6 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE PROCEDURE p3() BEGIN DECLARE b VECTOR(3); END", false},
 }
 
-// parsesAsOneStatement reports whether sql parses, and into one statement. Parse needs no
-// separator between statements, so a tail the grammar refuses, as in `CREATE VECTOR INDEX
-// i ON t (v) SELECT 1`, would otherwise pass as a statement of its own.
-func parsesAsOneStatement(sql string) (bool, error) {
-	list, err := Parse(sql)
-	if err != nil {
-		return false, err
-	}
-	return list != nil && len(list.Items) == 1, nil
-}
-
 // TestVectorForms holds the parser to the recorded verdicts, without the server CI does
 // not have.
 func TestVectorForms(t *testing.T) {

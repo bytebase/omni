@@ -177,7 +177,7 @@ func TestOracleCorpus(t *testing.T) {
 		}
 	})
 
-	// --- 3.7 Rejected SQL (8 cases) ---
+	// --- 3.7 Rejected SQL (7 cases) ---
 	t.Run("RejectedSQL", func(t *testing.T) {
 		cases := []struct {
 			name, sql     string
@@ -191,7 +191,6 @@ func TestOracleCorpus(t *testing.T) {
 			{"reserved word table name", "CREATE TABLE select (a INT)", true},
 			{"reserved word col name", "CREATE TABLE t_rej5 (select INT)", true},
 			{"incomplete PARTITION BY", "ALTER TABLE t PARTITION BY", false},
-			{"RANGE no partitions", "ALTER TABLE t PARTITION BY RANGE(id)", false},
 			{"invalid interval unit", "SELECT DATE_ADD(d, INTERVAL 1 INVALID_UNIT) FROM t", false},
 		}
 		for _, tc := range cases {

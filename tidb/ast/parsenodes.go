@@ -1060,15 +1060,65 @@ func (r *ColumnRef) exprNode() {}
 // TableRef represents a table reference (possibly qualified, with alias).
 type TableRef struct {
 	Loc        Loc
-	Schema     string   // database name
-	Name       string   // table name
-	Alias      string   // AS alias
-	Partitions []string // PARTITION (p0, p1, ...)
+	Schema     string      // database name
+	Name       string      // table name
+	Alias      string      // AS alias
+	Partitions []string    // PARTITION (p0, p1, ...)
+	AsOf       *AsOfClause // AS OF TIMESTAMP clause; nil when there is none
 	IndexHints []*IndexHint
+	Sample     *TableSample // TABLESAMPLE clause; nil when there is none
 }
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// AsOfClause is the stale-read clause of a table reference:
+//
+//	AS OF TIMESTAMP expr
+//
+// Loc runs from AS to the last token of the expression, and the TableRef's Loc
+// includes it. Timestamp is never nil.
+type AsOfClause struct {
+	Loc       Loc
+	Timestamp ExprNode
+}
+
+func (c *AsOfClause) nodeTag() {}
+
+// TableSample is the TABLESAMPLE clause of a table reference:
+//
+//	TABLESAMPLE [SYSTEM | BERNOULLI | REGIONS] ([expr [ROWS | PERCENT]]) [REPEATABLE (expr)]
+//
+// Loc runs from TABLESAMPLE to the closing parenthesis of the last group, and
+// the TableRef's Loc includes it.
+type TableSample struct {
+	Loc        Loc
+	Method     TableSampleMethod
+	Size       ExprNode        // nil for empty parentheses, which is not the same as a size of 0
+	Unit       TableSampleUnit // SampleUnitDefault when the size names no unit, or there is no size
+	Repeatable ExprNode        // the REPEATABLE seed; nil when the clause has none
+}
+
+func (s *TableSample) nodeTag() {}
+
+// TableSampleMethod enumerates the sampling methods TABLESAMPLE names.
+type TableSampleMethod int
+
+const (
+	SampleMethodDefault   TableSampleMethod = iota // no method written
+	SampleMethodSystem                             // SYSTEM
+	SampleMethodBernoulli                          // BERNOULLI
+	SampleMethodRegions                            // REGIONS
+)
+
+// TableSampleUnit enumerates the units a TABLESAMPLE size names.
+type TableSampleUnit int
+
+const (
+	SampleUnitDefault TableSampleUnit = iota // no unit written
+	SampleUnitRows                           // ROWS
+	SampleUnitPercent                        // PERCENT
+)
 
 // IndexHint represents an index hint (USE/FORCE/IGNORE INDEX).
 type IndexHint struct {
@@ -1541,10 +1591,18 @@ func (s *PlanReplayerStmt) stmtNode() {}
 
 // BeginStmt represents BEGIN / START TRANSACTION.
 type BeginStmt struct {
-	Loc                    Loc
+	Loc Loc
+	// Mode is the transaction mode BEGIN names: "PESSIMISTIC", "OPTIMISTIC",
+	// or "" for none.
+	Mode                   string
 	ReadOnly               bool
 	ReadWrite              bool
 	WithConsistentSnapshot bool
+	// CausalConsistencyOnly is START TRANSACTION WITH CAUSAL CONSISTENCY ONLY.
+	CausalConsistencyOnly bool
+	// AsOf is the expression of START TRANSACTION READ ONLY AS OF TIMESTAMP
+	// expr, the time a stale read reads at; nil when there is none.
+	AsOf ExprNode
 }
 
 func (s *BeginStmt) nodeTag()  {}
@@ -2812,6 +2870,9 @@ type SetTransactionStmt struct {
 	Scope          string // GLOBAL, SESSION, or ""
 	IsolationLevel string // READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ, SERIALIZABLE
 	AccessMode     string // READ ONLY, READ WRITE
+	// AsOf is the expression of READ ONLY AS OF TIMESTAMP expr, the time a stale
+	// read reads at; nil when there is none.
+	AsOf ExprNode
 }
 
 func (s *SetTransactionStmt) nodeTag()  {}

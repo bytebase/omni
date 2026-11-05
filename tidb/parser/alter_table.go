@@ -547,7 +547,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 		cmd.Type = nodes.ATAlgorithm
-		val, err := p.consumeOptionValue()
+		val, err := p.parseAlgorithmValue()
 		if err != nil {
 			return nil, err
 		}
@@ -559,7 +559,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		p.advance()
 		p.match('=')
 		cmd.Type = nodes.ATLock
-		val, err := p.consumeOptionValue()
+		val, err := p.parseLockValue()
 		if err != nil {
 			return nil, err
 		}

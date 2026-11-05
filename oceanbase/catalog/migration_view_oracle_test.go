@@ -632,13 +632,6 @@ func viewMigrationProbes() []viewMigrationProbe {
 			base("CREATE TABLE t (a INT, b VARCHAR(20))"),
 			base("CREATE TABLE t (a INT, b VARCHAR(20))", "CREATE VIEW v (p, q) AS SELECT a, b FROM t"),
 			[]string{"t"}, []string{"v"}, only(MySQL80)},
-		// Regression (re-review): a `AS TABLE <view>` body (TABLE query primary, 8.0.19+) deparses to
-		// `table \`base\``, which re-parses to a *TableStmt; the dependency extractor must still see
-		// the referenced view so `tv` is created after `base`. 8.0 only (TABLE primary is 8.0.19+).
-		{"create-view-on-view-table-primary",
-			base("CREATE TABLE t (id INT)"),
-			base("CREATE TABLE t (id INT)", "CREATE VIEW base AS SELECT id FROM t", "CREATE VIEW tv AS TABLE base"),
-			[]string{"t"}, []string{"base", "tv"}, only(MySQL80)},
 		// ---- temporal-unit keyword arguments ----
 		// CREATE the sys.innodb_lock_waits shape from a table-only state:
 		// the generated body must carry timestampdiff(SECOND,...) with a

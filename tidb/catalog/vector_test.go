@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
+	mysqlparser "github.com/bytebase/omni/tidb/parser"
 )
 
 // These hold what the VECTOR type and a vector index leave in the catalog, not that they
@@ -100,9 +101,9 @@ func TestVectorIndexLike(t *testing.T) {
 	}
 }
 
-// TestVectorIndexSyntaxRefused: what the grammar's actions answer 1149 for reaches the
-// catalog as parsed text, and leaves nothing behind.
-func TestVectorIndexSyntaxRefused(t *testing.T) {
+// TestVectorIndexShapeRefused: what the grammar's actions refuse reaches the catalog as a
+// parse error, and leaves nothing behind.
+func TestVectorIndexShapeRefused(t *testing.T) {
 	for _, sql := range []string{
 		"CREATE VECTOR INDEX i ON t (b);",
 		"CREATE VECTOR INDEX i ON t ((b), a);",
@@ -114,28 +115,26 @@ func TestVectorIndexSyntaxRefused(t *testing.T) {
 		"CREATE TABLE u (b VECTOR(3), VECTOR INDEX i (b));",
 	} {
 		c := newVectorCatalog(t)
-		err := execExpectError(t, c, sql)
-		var cerr *Error
-		if !errors.As(err, &cerr) || cerr.Code != ErrSyntaxError {
-			t.Errorf("%s: error %v, want 1149", sql, err)
+		var perr *mysqlparser.ParseError
+		if _, err := c.Exec(sql, nil); !errors.As(err, &perr) {
+			t.Errorf("%s: error %v, want a parse error", sql, err)
 		}
 		if n := len(c.databases["d"].Tables["t"].Indexes); n != 0 {
 			t.Errorf("%s: left %d indexes", sql, n)
 		}
 	}
-	// The server answers 1149 first, and 1146 only for the shape it reads.
+	// The server refuses that shape first, and answers 1146 only for the shape it reads.
 	c := newVectorCatalog(t)
-	var cerr *Error
-	if err := execExpectError(t, c, "CREATE VECTOR INDEX i ON nosuch (b);"); !errors.As(err, &cerr) || cerr.Code != ErrSyntaxError {
-		t.Errorf("a refused shape on a missing table: %v, want 1149", err)
+	var perr *mysqlparser.ParseError
+	if _, err := c.Exec("CREATE VECTOR INDEX i ON nosuch (b);", nil); !errors.As(err, &perr) {
+		t.Errorf("a refused shape on a missing table: %v, want a parse error", err)
 	}
+	var cerr *Error
 	if err := execExpectError(t, c, "CREATE VECTOR INDEX i ON nosuch ((b));"); !errors.As(err, &cerr) || cerr.Code != ErrNoSuchTable {
 		t.Errorf("a good shape on a missing table: %v, want 1146", err)
 	}
 }
 
-// TestVectorIndexFromMetadata: a synced vector index stays one. It syncs as an index of
-// type HNSW, and read as an ordinary index SHOW CREATE TABLE would call it KEY.
 func TestVectorIndexFromMetadata(t *testing.T) {
 	c, report := loadTiDBSnapshot(t, snapshot(&metadata.SchemaMetadata{
 		Tables: []*metadata.TableMetadata{{
@@ -163,5 +162,27 @@ func TestVectorIndexFromMetadata(t *testing.T) {
 	}
 	if ki == nil || ki.Vector {
 		t.Errorf("ki: %+v", ki)
+	}
+}
+
+// TestVectorCastViewText: a view's stored text drops a CAST's dimension, because TiDB's does.
+// v8.5.5's SHOW CREATE VIEW writes CAST(... AS VECTOR) for VECTOR(3), for VECTOR<FLOAT>(3) and
+// for a bare VECTOR (read on 2026-11-05).
+func TestVectorCastViewText(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE VIEW vv AS SELECT CAST('[1,2,3]' AS VECTOR(3)) AS v;",
+		"CREATE VIEW vv AS SELECT CAST('[1,2,3]' AS VECTOR<FLOAT>(3)) AS v;",
+		"CREATE VIEW vv AS SELECT CONVERT('[1,2,3]', VECTOR<FLOAT>(3)) AS v;",
+		"CREATE VIEW vv AS SELECT CAST('[1,2,3]' AS VECTOR) AS v;",
+	} {
+		c := newVectorCatalog(t)
+		execAll(t, c, sql)
+		def := strings.ToLower(c.GetDatabase("d").Views["vv"].Definition)
+		if !strings.Contains(def, " vector)") && !strings.Contains(def, ", vector)") {
+			t.Errorf("%s: stored %s, want the type with no dimension", sql, def)
+		}
+		if strings.Contains(def, "vector(") || strings.Contains(def, "vector<") {
+			t.Errorf("%s: stored %s, which keeps what v8.5.5 drops", sql, def)
+		}
 	}
 }

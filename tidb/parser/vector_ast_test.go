@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"testing"
 
 	ast "github.com/bytebase/omni/tidb/ast"
@@ -102,52 +103,60 @@ func TestVectorIndexTableElementAST(t *testing.T) {
 	}
 }
 
-// TestVectorSyntaxRefused holds the shape check to CreateIndexStmt's and
-// ConstraintVectorIndex's actions. Each case answered 1149 on v8.5.5 when refused is
-// true, and any other error or none when it is false (read on 2026-11-05).
-func TestVectorSyntaxRefused(t *testing.T) {
+// TestVectorShapeRefused holds the parser to CreateIndexStmt's and
+// ConstraintVectorIndex's actions. v8.5.5 answered 1149 for each refused case while it
+// parsed, and took each other (read on 2026-11-05). The error sits where the statement or
+// the constraint starts.
+func TestVectorShapeRefused(t *testing.T) {
 	for _, c := range []struct {
 		sql     string
-		refused bool
+		refused int // byte offset of the refusal, -1 when the text parses
 	}{
-		{"CREATE VECTOR INDEX i ON t ((VEC_COSINE_DISTANCE(a)))", false},
-		{"CREATE VECTOR INDEX i ON t ((a))", false},
-		{"CREATE VECTOR INDEX i ON t ((a) DESC)", false},
-		{"CREATE VECTOR INDEX i USING HNSW ON t ((a))", false},
-		{"CREATE VECTOR INDEX i ON t ((a)) TYPE HNSW", false},
-		{"CREATE VECTOR INDEX i USING BTREE ON t ((a)) USING HNSW", false},
-		{"CREATE VECTOR INDEX i ON t (a)", true},
-		{"CREATE VECTOR INDEX i ON t (a(3))", true},
-		{"CREATE VECTOR INDEX i ON t (a, b)", true},
-		{"CREATE VECTOR INDEX i ON t ((a), (b))", true},
-		{"CREATE VECTOR INDEX i ON t ((a)) USING HYPO", true},
-		{"CREATE VECTOR INDEX i USING HASH ON t ((a))", true},
-		{"CREATE VECTOR INDEX i USING HNSW ON t ((a)) USING BTREE", true},
-		{"CREATE INDEX i ON t (a)", false},
-		{"CREATE INDEX i ON t (a) USING BTREE", false},
-		{"CREATE INDEX i USING HNSW ON t (a)", true},
-		{"CREATE UNIQUE INDEX i ON t (a) TYPE HNSW", true},
-		{"CREATE FULLTEXT INDEX i ON t (a) USING HNSW", true},
+		{"CREATE VECTOR INDEX i ON t ((VEC_COSINE_DISTANCE(a)))", -1},
+		{"CREATE VECTOR INDEX i ON t ((a))", -1},
+		{"CREATE VECTOR INDEX i ON t ((a) DESC)", -1},
+		{"CREATE VECTOR INDEX i USING HNSW ON t ((a))", -1},
+		{"CREATE VECTOR INDEX i ON t ((a)) TYPE HNSW", -1},
+		{"CREATE VECTOR INDEX i USING BTREE ON t ((a)) USING HNSW", -1},
+		{"CREATE VECTOR INDEX i ON t (a)", 0},
+		{"CREATE VECTOR INDEX i ON t (a(3))", 0},
+		{"CREATE VECTOR INDEX i ON t (a, b)", 0},
+		{"CREATE VECTOR INDEX i ON t ((a), (b))", 0},
+		{"CREATE VECTOR INDEX i ON t ((a)) USING HYPO", 0},
+		{"CREATE VECTOR INDEX i USING HASH ON t ((a))", 0},
+		{"CREATE VECTOR INDEX i USING HNSW ON t ((a)) USING BTREE", 0},
+		{"CREATE INDEX i ON t (a)", -1},
+		{"CREATE INDEX i ON t (a) USING BTREE", -1},
+		{"CREATE INDEX i USING HNSW ON t (a)", 0},
+		{"CREATE UNIQUE INDEX i ON t (a) TYPE HNSW", 0},
+		{"CREATE FULLTEXT INDEX i ON t (a) USING HNSW", 0},
+		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX ((VEC_COSINE_DISTANCE(b))))", -1},
+		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX i USING HNSW ((b)))", -1},
+		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX i USING HNSW ((b)) USING BTREE)", -1},
+		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX (b))", 29},
+		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX ((b)) USING HASH)", 29},
+		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX i USING BTREE ((b)) USING HNSW)", 29},
+		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX ((b), a))", 29},
+		{"CREATE TABLE t (a INT, INDEX (a) USING HNSW)", -1},
+		{"ALTER TABLE t ADD VECTOR INDEX ((a)) USING HNSW", -1},
+		{"ALTER TABLE t ADD VECTOR INDEX (a)", 18},
+		{"ALTER TABLE t ADD COLUMN c INT, ADD (VECTOR INDEX i (a))", 37},
+		{"ALTER TABLE t ADD INDEX (a) USING HNSW", -1},
 	} {
-		if got := oneNode(t, c.sql).(*ast.CreateIndexStmt).SyntaxRefused(); got != c.refused {
-			t.Errorf("%q: SyntaxRefused=%v, want %v", c.sql, got, c.refused)
+		_, err := Parse(c.sql)
+		if c.refused < 0 {
+			if err != nil {
+				t.Errorf("%q: %v, want it to parse", c.sql, err)
+			}
+			continue
 		}
-	}
-	for _, c := range []struct {
-		sql     string
-		refused bool
-	}{
-		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX ((VEC_COSINE_DISTANCE(b))))", false},
-		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX i USING HNSW ((b)))", false},
-		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX i USING HNSW ((b)) USING BTREE)", false},
-		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX (b))", true},
-		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX ((b)) USING HASH)", true},
-		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX i USING BTREE ((b)) USING HNSW)", true},
-		{"CREATE TABLE t (b VECTOR(3), VECTOR INDEX ((b), a))", true},
-		{"CREATE TABLE t (a INT, INDEX (a) USING HNSW)", false},
-	} {
-		if got := oneNode(t, c.sql).(*ast.CreateTableStmt).Constraints[0].SyntaxRefused(); got != c.refused {
-			t.Errorf("%q: SyntaxRefused=%v, want %v", c.sql, got, c.refused)
+		var pe *ParseError
+		if !errors.As(err, &pe) {
+			t.Errorf("%q: err=%v, want a ParseError", c.sql, err)
+			continue
+		}
+		if pe.Position != c.refused {
+			t.Errorf("%q: refused at %d, want %d", c.sql, pe.Position, c.refused)
 		}
 	}
 }

@@ -115,7 +115,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if p.cur.Type == kwPRECISION {
 			p.advance()
 		}
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -124,7 +124,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		// REAL → DOUBLE synonym
 		dt.Name = "DOUBLE"
 		p.advance()
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -277,8 +277,14 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwYEAR, kwSQL_TSI_YEAR:
 		dt.Name = "YEAR"
 		p.advance()
+		// DateAndTimeType's action answers 1818, ErrInvalidYearColumnLength, for any
+		// length but 4.
+		yearLength := p.cur.Type == '('
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
+		}
+		if yearLength && dt.Length != 4 {
+			return nil, &ParseError{Message: "Supports only YEAR or YEAR(4) column", Position: p.prev.Loc}
 		}
 		p.parseUnsignedZerofill(dt)
 
@@ -488,7 +494,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwFLOAT8:
 		dt.Name = "DOUBLE"
 		p.advance()
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -573,6 +579,25 @@ func (p *Parser) parseOptionalLength(dt *nodes.DataType) error {
 		return nil
 	}
 	return p.parseRequiredLength(dt)
+}
+
+// parseDoublePrecision parses the precision of a type that is DOUBLE. It takes M and D
+// together or neither: NumericType's action answers 1149, ErrSyntax, for `DOUBLE(10)`
+// under the server's default strict setting, which FLOAT is free of.
+//
+// Ref: FloatingPointType FloatOpt FieldOpts in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseDoublePrecision(dt *nodes.DataType) error {
+	if p.cur.Type != '(' {
+		return nil
+	}
+	start := p.cur.Loc
+	if err := p.parseOptionalPrecision(dt); err != nil {
+		return err
+	}
+	if !strings.Contains(p.inputText(start, p.prev.End), ",") {
+		return &ParseError{Message: "DOUBLE takes both a precision and a scale", Position: start}
+	}
+	return nil
 }
 
 // parseOptionalPrecision parses the `(precision[, scale])` the approximate and

@@ -136,7 +136,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 
 	rollback := func() { undoAlter(db, origKey, tbl, snapshot) }
 
-	for _, cmd := range stmt.Commands {
+	if err := checkVectorIfNotExists(stmt.Commands); err != nil {
+		return err
+	}
+	for _, cmd := range vectorKeysLast(stmt.Commands) {
 		if skip[cmd] {
 			continue
 		}
@@ -161,6 +164,52 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
+	return nil
+}
+
+// addsVectorKey reports whether cmd adds a VECTOR key.
+func addsVectorKey(cmd *nodes.AlterTableCmd) bool {
+	return (cmd.Type == nodes.ATAddIndex || cmd.Type == nodes.ATAddConstraint) &&
+		cmd.Constraint != nil && cmd.Constraint.Type == nodes.ConstrVector
+}
+
+// vectorKeysLast returns the commands with the ones adding a VECTOR key after the rest, each
+// group in the order written. MariaDB holds a vector key to the table the statement leaves, not
+// the one its clause sits in, on 11.8.8: ADD VECTOR i (v), ADD COLUMN v VECTOR(3) NOT NULL runs,
+// as does ADD VECTOR i (v), MODIFY v VECTOR(3) NOT NULL and ADD VECTOR j (v), DROP INDEX i, while
+// ADD VECTOR i (v), DROP COLUMN v and ADD VECTOR i (w), CHANGE w z ... are 1072.
+func vectorKeysLast(cmds []*nodes.AlterTableCmd) []*nodes.AlterTableCmd {
+	ordered := make([]*nodes.AlterTableCmd, 0, len(cmds))
+	for _, cmd := range cmds {
+		if !addsVectorKey(cmd) {
+			ordered = append(ordered, cmd)
+		}
+	}
+	for _, cmd := range cmds {
+		if addsVectorKey(cmd) {
+			ordered = append(ordered, cmd)
+		}
+	}
+	return ordered
+}
+
+// checkVectorIfNotExists refuses a VECTOR IF NOT EXISTS key sharing its name with another kind
+// of key the same statement adds. 11.8.8 answers 1061 for it in either order, though
+// ADD VECTOR i (v), ADD VECTOR IF NOT EXISTS i (v) runs. Running vector keys last would otherwise
+// let the second clause find the first and stand down.
+func checkVectorIfNotExists(cmds []*nodes.AlterTableCmd) error {
+	for _, cmd := range cmds {
+		if !addsVectorKey(cmd) || !cmd.Constraint.IfNotExists || cmd.Constraint.Name == "" {
+			continue
+		}
+		for _, other := range cmds {
+			if (other.Type == nodes.ATAddIndex || other.Type == nodes.ATAddConstraint) && other.Constraint != nil &&
+				!addsVectorKey(other) && !other.Constraint.IfNotExists &&
+				toLower(other.Constraint.Name) == toLower(cmd.Constraint.Name) {
+				return errDupKeyName(cmd.Constraint.Name)
+			}
+		}
+	}
 	return nil
 }
 

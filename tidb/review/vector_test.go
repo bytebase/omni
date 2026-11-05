@@ -28,21 +28,20 @@ func TestWalkThroughTiDBVector(t *testing.T) {
 	noFinding(t, "ALTER TABLE t ADD COLUMN c VECTOR(3);\nALTER TABLE t MODIFY c VECTOR(4);\nALTER TABLE t CHANGE c d VECTOR<FLOAT>(4);\nALTER TABLE t DROP COLUMN d;", shop)
 }
 
-// TestVectorSyntaxRefusedFinding: what TiDB's grammar actions answer 1149 for is a syntax
-// error to the review, at its position, and ends it as any other does.
-func TestVectorSyntaxRefusedFinding(t *testing.T) {
+// TestVectorShapeRefusedFinding: what TiDB's grammar actions refuse is a syntax error to
+// the review, at the position the parser gives, and ends it as any other does.
+func TestVectorShapeRefusedFinding(t *testing.T) {
 	for _, tc := range []struct {
 		sql       string
 		statement int
-		start     int
-		end       int
+		position  int
 	}{
-		{"CREATE VECTOR INDEX i ON t (a);", 0, 0, 30},
-		{"SELECT 1;\nCREATE VECTOR INDEX i ON t ((a)) USING BTREE;", 1, 10, 54},
-		{"CREATE INDEX i ON t (a) USING HNSW;", 0, 0, 34},
-		{"ALTER TABLE t ADD VECTOR INDEX i (a);", 0, 18, 36},
-		{"ALTER TABLE t ADD COLUMN c int, ADD (VECTOR INDEX i (a));", 0, 37, 55},
-		{"CREATE TABLE x (b VECTOR(3), VECTOR INDEX (b));", 0, 29, 45},
+		{"CREATE VECTOR INDEX i ON t (a);", 0, 0},
+		{"SELECT 1;\nCREATE VECTOR INDEX i ON t ((a)) USING BTREE;", 1, 10},
+		{"CREATE INDEX i ON t (a) USING HNSW;", 0, 0},
+		{"ALTER TABLE t ADD VECTOR INDEX i (a);", 0, 18},
+		{"ALTER TABLE t ADD COLUMN c int, ADD (VECTOR INDEX i (a));", 0, 37},
+		{"CREATE TABLE x (b VECTOR(3), VECTOR INDEX (b));", 0, 29},
 	} {
 		result, err := Review(context.Background(), tc.sql, review.Options{}, nil)
 		if err != nil {
@@ -56,8 +55,8 @@ func TestVectorSyntaxRefusedFinding(t *testing.T) {
 		if f.Rule != review.Syntax || len(f.Codes) != 1 || f.Codes[0] != review.SyntaxError {
 			t.Errorf("%s: finding %+v, want the syntax finding", tc.sql, f)
 		}
-		if f.Statement != tc.statement || f.Range.Start != tc.start || f.Range.End != tc.end {
-			t.Errorf("%s: at statement %d [%d,%d), want %d [%d,%d)", tc.sql, f.Statement, f.Range.Start, f.Range.End, tc.statement, tc.start, tc.end)
+		if f.Statement != tc.statement || f.Range.Start != tc.position || f.Range.End != tc.position {
+			t.Errorf("%s: at statement %d [%d,%d), want %d at %d", tc.sql, f.Statement, f.Range.Start, f.Range.End, tc.statement, tc.position)
 		}
 	}
 	result, err := Review(context.Background(), "CREATE VECTOR INDEX i ON t ((a));", review.Options{}, nil)

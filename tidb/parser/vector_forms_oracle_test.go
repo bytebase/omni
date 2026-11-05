@@ -1,13 +1,6 @@
 package parser
 
-import (
-	"errors"
-	"testing"
-
-	gomysql "github.com/go-sql-driver/mysql"
-
-	ast "github.com/bytebase/omni/tidb/ast"
-)
+import "testing"
 
 // The VECTOR column type and the VECTOR INDEX statement, as TiDB v8.5.5 reads them.
 //
@@ -15,10 +8,9 @@ import (
 // above all the shapes the server refuses, since a corpus of accepting rows cannot catch
 // an over-broad reader. Every verdict was read from pingcap/tidb:v8.5.5 on 2026-11-05.
 //
-// An accept here means what it means in the corpus: not 1064. Most of the CREATE VECTOR
-// INDEX shapes marked true over a plain column answer 1149, which CreateIndexStmt's
-// action raises after the grammar has read the text; ast.CreateIndexStmt.SyntaxRefused
-// and ast.Constraint.SyntaxRefused carry that verdict to the review and the catalog.
+// A refusal here means what it means in the corpus: 1064, or a code a grammar action
+// raises while parsing. CreateIndexStmt's and ConstraintVectorIndex's answer 1149 for a
+// vector index that is not one functional key part of type HNSW (prepareVerdict).
 //
 // Left out because they are no part of this family: `SELECT vector(3)`, refused like
 // every other unreserved keyword as a function name (`SELECT comment(3)` is 1064 and
@@ -37,13 +29,13 @@ type vectorFormCase struct {
 var vectorFormCases = []vectorFormCase{
 	// index shapes.
 	{"CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a)))", true},
-	{"CREATE VECTOR INDEX idx ON t (a)", true},
-	{"CREATE VECTOR INDEX idx ON t (a) USING HNSW", true},
-	{"CREATE VECTOR INDEX idx ON t (a, b) USING HNSW", true},
-	{"CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) TYPE BTREE", true},
-	{"CREATE VECTOR INDEX idx USING BTREE ON t ((VEC_COSINE_DISTANCE(a)))", true},
-	{"CREATE VECTOR INDEX idx USING HASH ON t ((VEC_COSINE_DISTANCE(a)))", true},
-	{"CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) USING HYPO", true},
+	{"CREATE VECTOR INDEX idx ON t (a)", false},
+	{"CREATE VECTOR INDEX idx ON t (a) USING HNSW", false},
+	{"CREATE VECTOR INDEX idx ON t (a, b) USING HNSW", false},
+	{"CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) TYPE BTREE", false},
+	{"CREATE VECTOR INDEX idx USING BTREE ON t ((VEC_COSINE_DISTANCE(a)))", false},
+	{"CREATE VECTOR INDEX idx USING HASH ON t ((VEC_COSINE_DISTANCE(a)))", false},
+	{"CREATE VECTOR INDEX idx ON t ((VEC_COSINE_DISTANCE(a))) USING HYPO", false},
 	{"CREATE VECTOR INDEX idx ON t USING HNSW ((VEC_COSINE_DISTANCE(a)))", false},
 	{"CREATE VECTOR idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW", false},
 	{"CREATE VECTOR KEY idx ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW", false},
@@ -54,7 +46,7 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE VECTOR INDEX idx USING HNSW ON t ((VEC_COSINE_DISTANCE(a)))", true},
 	{"CREATE VECTOR INDEX idx USING `HNSW` ON t ((VEC_COSINE_DISTANCE(a)))", false},
 	{"CREATE VECTOR INDEX idx USING hnsw ON t ((VEC_COSINE_DISTANCE(a))) TYPE hnsw", true},
-	{"CREATE VECTOR INDEX idx USING HNSW ON t ((VEC_COSINE_DISTANCE(a))) USING BTREE", true},
+	{"CREATE VECTOR INDEX idx USING HNSW ON t ((VEC_COSINE_DISTANCE(a))) USING BTREE", false},
 	{"CREATE VECTOR INDEX idx USING BTREE ON t ((VEC_COSINE_DISTANCE(a))) USING HNSW", true},
 	{"CREATE VECTOR INDEX ON t ((a))", false},
 	{"CREATE VECTOR INDEX", false},
@@ -75,7 +67,7 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE VECTOR INDEX select ON t ((a))", false},
 	{"CREATE VECTOR INDEX idx ON t ((a) DESC)", true},
 	{"CREATE VECTOR INDEX idx ON t ((a) ASC)", true},
-	{"CREATE VECTOR INDEX idx ON t (a(3))", true},
+	{"CREATE VECTOR INDEX idx ON t (a(3))", false},
 	{"CREATE VECTOR INDEX idx ON t ((a) DESC) COMMENT 'c' ALGORITHM = INPLACE LOCK = NONE", true},
 	{"CREATE VECTOR INDEX idx ON t ((a)) COMMENT 'c'", true},
 	{"CREATE VECTOR INDEX idx ON t ((a)) USING HNSW COMMENT 'c' VISIBLE", true},
@@ -95,13 +87,13 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE VECTOR INDEX idx ON t ((a)),", false},
 	{"CREATE VECTOR INDEX idx ON t ((a)) SELECT 1", false},
 	{"CREATE VECTOR INDEX idx ON t ((a)) x", false},
-	{"CREATE VECTOR INDEX idx ON t ((a), (b)) USING HNSW", true},
+	{"CREATE VECTOR INDEX idx ON t ((a), (b)) USING HNSW", false},
 	// HNSW on another kind of index.
-	{"CREATE INDEX i USING HNSW ON t (a)", true},
-	{"CREATE INDEX i ON t (a) USING HNSW", true},
-	{"CREATE UNIQUE INDEX ident USING HNSW ON d_n.t_n ( ident , ident ASC )", true},
-	{"CREATE FULLTEXT INDEX i ON t (a) USING HNSW", true},
-	{"CREATE SPATIAL INDEX i ON t (a) USING HNSW", true},
+	{"CREATE INDEX i USING HNSW ON t (a)", false},
+	{"CREATE INDEX i ON t (a) USING HNSW", false},
+	{"CREATE UNIQUE INDEX ident USING HNSW ON d_n.t_n ( ident , ident ASC )", false},
+	{"CREATE FULLTEXT INDEX i ON t (a) USING HNSW", false},
+	{"CREATE SPATIAL INDEX i ON t (a) USING HNSW", false},
 	{"ALTER TABLE t ADD INDEX (a) USING HNSW", true},
 	{"CREATE TABLE t (a INT, INDEX (a) USING HNSW)", true},
 	// type shapes.
@@ -158,8 +150,8 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR INDEX TYPE HNSW ((VEC_COSINE_DISTANCE(b))))", false},
 	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR INDEX USING HNSW ((VEC_COSINE_DISTANCE(b))))", true},
 	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR INDEX IF NOT EXISTS i ((VEC_COSINE_DISTANCE(b))))", true},
-	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR INDEX (b))", true},
-	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR INDEX ((VEC_COSINE_DISTANCE(b))) USING BTREE)", true},
+	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR INDEX (b))", false},
+	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR INDEX ((VEC_COSINE_DISTANCE(b))) USING BTREE)", false},
 	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR KEY ((VEC_COSINE_DISTANCE(b))))", false},
 	{"CREATE TABLE t (a int, b VECTOR(3), VECTOR (b))", false},
 	{"CREATE TABLE t (a int, b VECTOR(3), CONSTRAINT c VECTOR INDEX ((VEC_COSINE_DISTANCE(b))))", false},
@@ -206,7 +198,7 @@ var vectorFormCases = []vectorFormCase{
 	{"ALTER TABLE t ADD VECTOR (a)", false},
 	{"ALTER TABLE t ADD VECTOR KEY ((a))", false},
 	{"ALTER TABLE t ADD VECTOR INDEX ((a))", true},
-	{"ALTER TABLE t ADD VECTOR INDEX (a)", true},
+	{"ALTER TABLE t ADD VECTOR INDEX (a)", false},
 	{"ALTER TABLE t ADD CONSTRAINT c VECTOR INDEX ((a))", false},
 	{"ALTER TABLE t MODIFY a VECTOR(3)", true},
 	{"ALTER TABLE t MODIFY COLUMN a VECTOR<FLOAT>(3) NOT NULL", true},
@@ -247,17 +239,6 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE TABLE t (a VECTOR(3), CONSTRAINT vector UNIQUE (a))", true},
 }
 
-// parsesAsOneStatement reports whether sql parses, and into one statement. Parse needs no
-// separator between statements, so a tail the grammar refuses, as in `CREATE VECTOR INDEX
-// i ON t ((a)) SELECT 1`, would otherwise pass as a statement of its own.
-func parsesAsOneStatement(sql string) (bool, error) {
-	list, err := Parse(sql)
-	if err != nil {
-		return false, err
-	}
-	return list != nil && len(list.Items) == 1, nil
-}
-
 func TestVectorFormsOracle(t *testing.T) {
 	tc := startTiDB(t)
 	assertTiDBVersion(t, tc)
@@ -291,56 +272,6 @@ func TestVectorForms(t *testing.T) {
 			omniAccepts, perr := parsesAsOneStatement(c.sql)
 			if omniAccepts != c.accept {
 				t.Errorf("omni accepts=%v, the record says %v for %q: %v", omniAccepts, c.accept, c.sql, perr)
-			}
-		})
-	}
-}
-
-// TestVectorSyntaxRefusedOracle holds the 1149 shapes to the server: SyntaxRefused is true
-// exactly where v8.5.5 answers 1149, the error its grammar actions raise, for every case
-// of this file that parses.
-func TestVectorSyntaxRefusedOracle(t *testing.T) {
-	tc := startTiDB(t)
-	assertTiDBVersion(t, tc)
-	conn, err := tc.db.Conn(tc.ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	for _, c := range vectorFormCases {
-		list, err := Parse(c.sql)
-		if err != nil || list == nil || len(list.Items) != 1 {
-			continue
-		}
-		refused := false
-		switch n := list.Items[0].(type) {
-		case *ast.CreateIndexStmt:
-			refused = n.SyntaxRefused()
-		case *ast.CreateTableStmt:
-			for _, con := range n.Constraints {
-				refused = refused || con.SyntaxRefused()
-			}
-		case *ast.AlterTableStmt:
-			for _, cmd := range n.Commands {
-				if cmd.Constraint != nil {
-					refused = refused || cmd.Constraint.SyntaxRefused()
-				}
-				for _, con := range cmd.Constraints {
-					refused = refused || con.SyntaxRefused()
-				}
-			}
-		default:
-			continue
-		}
-		t.Run(c.sql, func(t *testing.T) {
-			if _, err := conn.ExecContext(tc.ctx, "SET @omni_vector = ?", c.sql); err != nil {
-				t.Fatal(err)
-			}
-			_, err := conn.ExecContext(tc.ctx, "PREPARE omni_vector_stmt FROM @omni_vector")
-			var myErr *gomysql.MySQLError
-			got := errors.As(err, &myErr) && myErr.Number == 1149
-			if got != refused {
-				t.Errorf("v8.5.5 answered %v, SyntaxRefused=%v for %q", err, refused, c.sql)
 			}
 		})
 	}

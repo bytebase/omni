@@ -675,9 +675,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// applied nothing would read as a successful no-op for a statement
 		// that changes the schema. The index type is the USING name (HNSW),
 		// which is where a vector index carries its algorithm.
-		if con.SyntaxRefused() {
-			return errSyntaxRefused()
-		}
 		if con.Name != "" && indexNameExists(tbl, con.Name) {
 			return errDupKeyName(con.Name)
 		}

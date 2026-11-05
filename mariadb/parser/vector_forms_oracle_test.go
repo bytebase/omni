@@ -8,7 +8,9 @@ import "testing"
 // this is inferred from either: every verdict was read from mariadb:11.8.8 on 2026-11-05.
 //
 // VECTOR is reserved here, which is why `CREATE TABLE vector (vector INT)` is refused and
-// `SELECT t.vector FROM t` is not.
+// `SELECT t.vector FROM t` is not. A refusal means what prepareParses says: 1064, or a code
+// raised while parsing, as 1063 is for VECTOR(0), 1074 for VECTOR(16384), 1294 for an ON
+// UPDATE and 4162 for a CAST to VECTOR.
 //
 // Left out because it is no part of this family: an unknown type name, which parses and
 // answers 4161 and which omni refuses (index_clause_gaps_oracle_test.go). CREATE OR REPLACE
@@ -24,10 +26,48 @@ var vectorFormCases = []vectorFormCase{
 	// column type.
 	{"CREATE TABLE t (a VECTOR)", false},
 	{"CREATE TABLE t (a VECTOR(3))", true},
-	{"CREATE TABLE t (a VECTOR(0))", true},
+	{"CREATE TABLE t (a VECTOR(0))", false},
+	{"CREATE TABLE t (a VECTOR(0.9))", false},
+	{"CREATE TABLE t (a VECTOR(0,2))", false},
+	{"CREATE TABLE t (a VECTOR(1))", true},
+	{"CREATE TABLE t (a VECTOR(1,0))", true},
 	{"CREATE TABLE t (a VECTOR(16383))", true},
-	{"CREATE TABLE t (a VECTOR(16384))", true},
-	{"CREATE TABLE t (a VECTOR(99999999999999999999))", true},
+	{"CREATE TABLE t (a VECTOR(16383.5))", true},
+	{"CREATE TABLE t (a VECTOR(16383,2))", true},
+	{"CREATE TABLE t (a VECTOR(16384.5))", false},
+	{"CREATE TABLE t (a VECTOR(16384,2))", false},
+	{"CREATE TABLE t (a `VECTOR`(0))", false},
+	{"ALTER TABLE t MODIFY a VECTOR(0)", false},
+	{"ALTER TABLE t ADD COLUMN a VECTOR(16384)", false},
+	{"CREATE FUNCTION f(a VECTOR(0)) RETURNS INT RETURN 1", false},
+	{"CREATE FUNCTION f() RETURNS VECTOR(16384) RETURN 1", false},
+	{"CREATE PROCEDURE p(a VECTOR(0)) SELECT 1", false},
+	{"CREATE PROCEDURE p() BEGIN DECLARE b VECTOR(16384); END", false},
+	// What a VECTOR takes beside it. COLLATE with a name the server does not have is left
+	// out: 1273 is a lookup (prepareParses), and omni refuses the clause whatever it names.
+	{"CREATE TABLE t (a VECTOR(3) COLLATE ascii_bin)", false},
+	{"CREATE TABLE t (a VECTOR(3) COLLATE 'utf8mb4_bin')", false},
+	{"CREATE TABLE t (a VECTOR(3) COLLATE binary)", false},
+	{"CREATE TABLE t (a VECTOR(3) COLLATE utf8mb4_bin NOT NULL)", false},
+	{"CREATE TABLE t (a `VECTOR`(3) COLLATE utf8mb4_bin)", false},
+	{"ALTER TABLE t CHANGE a b VECTOR(3) COLLATE utf8mb4_bin", false},
+	{"CREATE TABLE t (a VECTOR(3) AUTO_INCREMENT)", false},
+	{"CREATE TABLE t (a VECTOR(3) AUTO_INCREMENT PRIMARY KEY)", false},
+	{"CREATE TABLE t (a VECTOR(3) PRIMARY KEY AUTO_INCREMENT)", false},
+	{"CREATE TABLE t (a VECTOR(3) SERIAL DEFAULT VALUE)", false},
+	{"CREATE TABLE t (a `VECTOR`(3) AUTO_INCREMENT)", false},
+	{"ALTER TABLE t MODIFY a VECTOR(3) AUTO_INCREMENT", false},
+	{"CREATE TABLE t (a VECTOR(3) ON UPDATE CURRENT_TIMESTAMP)", false},
+	{"CREATE TABLE t (a VECTOR(3) ON UPDATE NOW())", false},
+	{"CREATE TABLE t (a `VECTOR`(3) ON UPDATE CURRENT_TIMESTAMP)", false},
+	{"ALTER TABLE t ADD COLUMN a VECTOR(3) ON UPDATE CURRENT_TIMESTAMP", false},
+	{"CREATE TABLE t (a VECTOR(3) DEFAULT 1)", true},
+	{"CREATE TABLE t (a VECTOR(3) INVISIBLE)", true},
+	{"CREATE TABLE t (a VECTOR(3) UNIQUE)", true},
+	{"CREATE TABLE t (a VECTOR(3) GENERATED ALWAYS AS (x))", true},
+	{"CREATE TABLE t (a VECTOR(16383))", true},
+	{"CREATE TABLE t (a VECTOR(16384))", false},
+	{"CREATE TABLE t (a VECTOR(99999999999999999999))", false},
 	{"CREATE TABLE t (a VECTOR<FLOAT>)", false},
 	{"CREATE TABLE t (a VECTOR<FLOAT>(3))", false},
 	{"CREATE TABLE t (a VECTOR(5)<FLOAT>)", false},
@@ -50,7 +90,7 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE TABLE t (a VECTOR(3) BINARY)", false},
 	{"CREATE TABLE t (a VECTOR(3) CHARSET utf8mb4)", false},
 	{"CREATE TABLE t (a VECTOR(3) CHARACTER SET utf8mb4)", false},
-	{"CREATE TABLE t (a VECTOR(3) COLLATE utf8mb4_bin)", true},
+	{"CREATE TABLE t (a VECTOR(3) COLLATE utf8mb4_bin)", false},
 	{"CREATE TABLE t (a VECTOR(3) PRIMARY KEY)", true},
 	{"CREATE TABLE t (a VECTOR(3) ARRAY)", false},
 	{"CREATE TABLE t (a VECTOR(3) GENERATED ALWAYS AS ('[1]'))", true},
@@ -170,10 +210,10 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE INDEX vector ON t (vector)", false},
 	{"DROP INDEX vector ON t", false},
 	// other places.
-	{"SELECT CAST('[1]' AS VECTOR)", true},
+	{"SELECT CAST('[1]' AS VECTOR)", false},
 	{"SELECT CAST('[1]' AS VECTOR(3))", false},
 	{"SELECT CAST('[1]' AS VECTOR(3) ARRAY)", false},
-	{"SELECT CONVERT('[1]', VECTOR)", true},
+	{"SELECT CONVERT('[1]', VECTOR)", false},
 	{"SELECT CONVERT('[1]', VECTOR(3))", false},
 	{"ALTER TABLE t ADD COLUMN a VECTOR(3)", true},
 	{"ALTER TABLE t ADD a VECTOR(3)", true},
@@ -212,15 +252,15 @@ var vectorFormCases = []vectorFormCase{
 	{"CREATE TABLE t (a INT, PRIMARY KEY (a) FOO=1)", true},
 	{"ALTER TABLE t ADD INDEX i (a) FOO=1", true},
 	{"ALTER TABLE t ADD FULLTEXT (a) FOO=1", true},
-	{"SELECT CAST('x' AS `VECTOR`)", true},
+	{"SELECT CAST('x' AS `VECTOR`)", false},
 	{"SELECT CAST('x' AS INET6)", true},
-	{"SELECT CAST('x' AS vector)", true},
+	{"SELECT CAST('x' AS vector)", false},
 	{"CREATE TABLE t (a vector(3,))", false},
 	{"CREATE TABLE t (a vector(,3))", false},
 	{"CREATE TABLE t (a vector(3,2,1))", false},
 	{"CREATE TABLE t (a vector(1e5))", false},
 	{"CREATE TABLE t (a vector(1.5,2))", false},
-	{"CREATE TABLE t (a vector(3) NOT NULL, b vector(4) AUTO_INCREMENT)", true},
+	{"CREATE TABLE t (a vector(3) NOT NULL, b vector(4) AUTO_INCREMENT)", false},
 	{"CREATE TABLE t (v vector(3), VECTOR KEY `index` (v))", true},
 	{"CREATE TABLE t (v vector(3), VECTOR `index` (v))", true},
 	{"CREATE TABLE t (v vector(3), VECTOR KEY i (v, ))", false},
@@ -354,22 +394,11 @@ var vectorFormCases = []vectorFormCase{
 	{"SELECT * FROM JSON_TABLE('[]', '$[*]' COLUMNS (a VECTOR(3) PATH '$')) AS j", false},
 }
 
-// parsesAsOneStatement reports whether sql parses, and into one statement. Parse needs no
-// separator between statements, so a tail the grammar refuses, as in `CREATE VECTOR INDEX
-// i ON t (v) SELECT 1`, would otherwise pass as a statement of its own.
-func parsesAsOneStatement(sql string) (bool, error) {
-	list, err := Parse(sql)
-	if err != nil {
-		return false, err
-	}
-	return list != nil && len(list.Items) == 1, nil
-}
-
 func TestVectorFormsOracle(t *testing.T) {
 	o := startMariaDB(t)
 	for _, tc := range vectorFormCases {
 		t.Run(tc.sql, func(t *testing.T) {
-			if got := o.prepareAccepts(t, tc.sql); got != tc.accept {
+			if got := o.prepareParses(t, tc.sql); got != tc.accept {
 				t.Fatalf("MariaDB 11.8.8 accepts=%v, want %v for %q", got, tc.accept, tc.sql)
 			}
 			omniAccepts, err := parsesAsOneStatement(tc.sql)

@@ -4,11 +4,6 @@ import nodes "github.com/bytebase/omni/tidb/ast"
 
 // createIndex handles standalone CREATE INDEX statements.
 func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
-	// The server answers this before it looks at the database or the table.
-	if stmt.SyntaxRefused() {
-		return errSyntaxRefused()
-	}
-
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
