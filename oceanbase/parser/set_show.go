@@ -170,8 +170,15 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		}
 	}
 
-	// SET [GLOBAL|SESSION] TRANSACTION ...
+	// SET [GLOBAL|SESSION|LOCAL] TRANSACTION ... Those are the only scopes
+	// set_transaction_stmt names (sql_parser_mysql_mode.y:23975), so `SET PERSIST
+	// TRANSACTION READ ONLY` is a 1064. It refuses here and not in the assignment list,
+	// which reads TRANSACTION as a name and would take `SET PERSIST TRANSACTION = 1`, also
+	// a 1064.
 	if p.cur.Type == kwTRANSACTION {
+		if scope == "PERSIST" || scope == "PERSIST_ONLY" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseSetTransactionStmt(start, scope)
 	}
 

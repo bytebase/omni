@@ -175,7 +175,8 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		}
 	}
 
-	// SET [GLOBAL|SESSION] TRANSACTION ...
+	// SET [option_type] TRANSACTION ... option_type holds every scope read above
+	// (sql_yacc.yy:15918).
 	if p.cur.Type == kwTRANSACTION {
 		return p.parseSetTransactionStmt(start, scope)
 	}

@@ -4,9 +4,8 @@ import "testing"
 
 // OceanBase has no AS OF TIMESTAMP on SET TRANSACTION. Every verdict was measured with PREPARE
 // on OceanBase CE 4.3.5.6 (oceanbase/oceanbase-ce:4.3.5-lts) on 2026-11-05: a 1064 is the parser's refusal, and every form of the clause is
-// one. These rows hold only the clause. The rest of this parser's SET TRANSACTION is
-// looser than the server, as `SET TRANSACTION` and `SET TRANSACTION READ` show: each is a
-// 1064 that omni accepts.
+// one. These rows hold only the clause; setTransactionCases holds the rest of the
+// statement.
 
 // TestSetTransactionAsOfForms holds omni to the recorded verdicts without a server.
 func TestSetTransactionAsOfForms(t *testing.T) {

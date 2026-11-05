@@ -170,8 +170,12 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		}
 	}
 
-	// SET [GLOBAL|SESSION] TRANSACTION ...
+	// SET [GLOBAL|SESSION|LOCAL] TRANSACTION ... option_type has no PERSIST or PERSIST_ONLY
+	// (sql_yacc.yy:17137), so `SET PERSIST TRANSACTION READ ONLY` is a 1064.
 	if p.cur.Type == kwTRANSACTION {
+		if scope == "PERSIST" || scope == "PERSIST_ONLY" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseSetTransactionStmt(start, scope)
 	}
 
