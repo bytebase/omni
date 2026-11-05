@@ -23,11 +23,9 @@ import (
 // TiDB reads a '(' right after the table name as the column list, so "CREATE
 // TABLE t (SELECT 1)" is 1064 there, and its stored program bodies end every
 // statement with ';' as MySQL's do. It has no BEGIN WORK, so "BEGIN WORK" is
-// 1064 alone, where MySQL takes it.
-//
-// Not recorded here, because this parser still disagrees and the change is not
-// about it: TiDB takes AS with no query after it ("CREATE TABLE t (a INT)
-// AS").
+// 1064 alone, where MySQL takes it. AS asks for no query after it: "CREATE
+// TABLE t (a INT) AS" is one statement, and so is "CREATE TABLE t AS", which
+// parses and fails when it runs (1113, a table needs a column).
 //
 // Every case was measured against TiDB v8.5.5 (pingcap/tidb:v8.5.5) through
 // PREPARE on 2026-11-05. TestStatementSeparatorFormsMatchTiDB keeps it a
@@ -185,6 +183,36 @@ var createTableQueryFormCases = []separatorFormCase{
 	{"create table t (a int) as (select 1)", true},
 	{"create table t (a int) as table u", true},
 	{"create table t (a int) as with c as (select 1) select * from c", true},
+	// AS with no query after it, which ends the statement or stands in front
+	// of the ON COMMIT clause a GLOBAL TEMPORARY table ends with.
+	{"create table t (a int) as", true},
+	{"create table t (a int) ignore as", true},
+	{"create table t (a int) replace as", true},
+	{"create table t as", true},
+	{"create table t ignore as", true},
+	{"create table t replace as", true},
+	{"create temporary table t (a int) as", true},
+	{"create table t (a int) engine=innodb as", true},
+	{"create table t engine=innodb as", true},
+	{"create table t (a int) partition by hash(a) partitions 2 as", true},
+	{"create table t (a int) engine=innodb ignore as", true},
+	{"create table t (a int) as;", true},
+	{"create global temporary table t (a int) as on commit delete rows", true},
+	{"create global temporary table t (a int) ignore as on commit delete rows", true},
+	{"create global temporary table t as on commit delete rows", true},
+	{"create global temporary table t (a int) as", false},
+	{"create table t (a int) as on commit delete rows", false},
+	// AS, then a word that opens no query.
+	{"create table t as ignore", false},
+	{"create table t (a int) as replace", false},
+	{"create table t (a int) as ignore as", false},
+	{"create table t as as", false},
+	{"create table t as like u", false},
+	{"create table t as foo", false},
+	{"create table t (a int) as engine=innodb", false},
+	{"create table t (a int) as partition by hash(a) partitions 2", false},
+	{"create table t (a int) as (a int)", false},
+	{"create table t as select", false},
 	// A locking clause on the query.
 	{"create table t (a int) select 1 for update", true},
 	{"create table t (a int) (select 1) for update", false},
@@ -239,6 +267,10 @@ func TestCreateTableQueryIsOneStatement(t *testing.T) {
 				strings.Contains(c.sql, "values")
 			if got := stmt.Select != nil; got != hasQuery {
 				t.Errorf("Parse(%q).Select set=%v, want %v", c.sql, got, hasQuery)
+			}
+			// The statement ends at its last token, a bare AS included.
+			if want := len(strings.TrimSuffix(c.sql, ";")); stmt.Loc.End != want {
+				t.Errorf("Parse(%q).Loc.End = %d, want %d", c.sql, stmt.Loc.End, want)
 			}
 		})
 	}
