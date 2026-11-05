@@ -10,10 +10,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type firstSetOracle struct {
@@ -34,47 +30,10 @@ var (
 func startFirstSetOracle(t *testing.T) *firstSetOracle {
 	t.Helper()
 	firstSetOracleOnce.Do(func() {
-		// testcontainers-go panics inside MustExtractDockerHost when the
-		// Docker socket is reachable but access is denied (e.g. sandboxed
-		// runs, containerized CI without socket mount). It panics rather
-		// than returning an error, so we have to recover() to honor the
-		// CI-vs-local skip policy below. Same pattern as
-		// pg/catalog and mysql/catalog testcontainer helpers.
-		defer func() {
-			if r := recover(); r != nil {
-				oracleSetupError = fmt.Errorf("docker provider panic: %v", r)
-			}
-		}()
-
 		ctx := context.Background()
-		container, err := tcpg.Run(ctx, "postgres:17-alpine",
-			tcpg.WithDatabase("omni_fs"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
+		db, err := OracleDatabase(ctx, "omni_fs")
 		if err != nil {
-			oracleSetupError = fmt.Errorf("container start: %w", err)
-			return
-		}
-		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			oracleSetupError = fmt.Errorf("conn string: %w", err)
-			return
-		}
-		db, err := sql.Open("pgx", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			oracleSetupError = fmt.Errorf("db open: %w", err)
-			return
-		}
-		if err := db.PingContext(ctx); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			oracleSetupError = fmt.Errorf("ping: %w", err)
+			oracleSetupError = err
 			return
 		}
 		firstSetOracleInst = &firstSetOracle{db: db, ctx: ctx}

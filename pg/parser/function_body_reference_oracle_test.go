@@ -3,13 +3,9 @@ package parser_test
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+	"github.com/bytebase/omni/pg/parser"
 )
 
 func TestFunctionBodyReferenceOracle(t *testing.T) {
@@ -140,52 +136,9 @@ func TestFunctionBodyReferenceOracle(t *testing.T) {
 
 func startFunctionBodyOracle(t *testing.T) (*sql.DB, func()) {
 	t.Helper()
-	var setupErr error
-	var container *tcpg.PostgresContainer
-
-	ctx := context.Background()
-	func() {
-		defer func() {
-			if r := recover(); r != nil {
-				setupErr = fmt.Errorf("docker provider panic: %v", r)
-			}
-		}()
-		var err error
-		container, err = tcpg.Run(ctx, "postgres:17-alpine",
-			tcpg.WithDatabase("omni_body"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
-		if err != nil {
-			setupErr = fmt.Errorf("container start: %w", err)
-		}
-	}()
-	if setupErr != nil {
-		t.Fatalf("function body oracle unavailable in CI: %v", setupErr)
-	}
-
-	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
+	db, err := parser.OracleDatabase(context.Background(), "omni_body")
 	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("conn string: %v", err)
+		t.Fatalf("function body oracle unavailable in CI: %v", err)
 	}
-	db, err := sql.Open("pgx", connStr)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("db open: %v", err)
-	}
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		_ = testcontainers.TerminateContainer(container)
-		t.Fatalf("ping: %v", err)
-	}
-
-	cleanup := func() {
-		db.Close()
-		_ = testcontainers.TerminateContainer(container)
-	}
-	return db, cleanup
+	return db, func() { db.Close() }
 }

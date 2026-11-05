@@ -12,22 +12,17 @@ import (
 
 	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/jackc/pgx/v5/pgconn"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // This file builds the PG 17 testcontainer-backed oracle harness for
 // pg-paren-dispatch Phase 2 (SCENARIOS §2.1). It mirrors the pattern in
-// first_set_oracle_test.go — sync.Once container startup, CI-vs-local
-// skip policy, per-probe transaction + rollback, recover() around
-// MustExtractDockerHost panics. Exports are consumed by the corpus
+// first_set_oracle_test.go — a database of its own on the package's shared
+// server (oracle_server_test.go), per-probe transaction + rollback. Exports are consumed by the corpus
 // workers for sections 2.2–2.8.
 
-// ParenOracle wraps the shared PG 17 container for `(` dispatch probes.
-// Tables T, U, V, W and helper function probe_f() are created in the
-// container at startup so §2.2–§2.7 corpus probes can assume them.
+// ParenOracle wraps a database on the shared PG 17 server for `(` dispatch
+// probes. Tables T, U, V, W and helper function probe_f() are created in it
+// at startup so §2.2–§2.7 corpus probes can assume them.
 type ParenOracle struct {
 	db  *sql.DB
 	ctx context.Context
@@ -50,45 +45,10 @@ var (
 func StartParenOracle(t *testing.T) *ParenOracle {
 	t.Helper()
 	parenOracleOnce.Do(func() {
-		defer func() {
-			// testcontainers-go panics from MustExtractDockerHost when
-			// the Docker socket is reachable but access is denied. Mirror
-			// first_set_oracle_test.go's recover() so the CI-vs-local
-			// skip branch below still fires.
-			if r := recover(); r != nil {
-				parenOracleSetupError = fmt.Errorf("docker provider panic: %v", r)
-			}
-		}()
-
 		ctx := context.Background()
-		container, err := tcpg.Run(ctx, "postgres:17-alpine",
-			tcpg.WithDatabase("omni_paren"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
+		db, err := OracleDatabase(ctx, "omni_paren")
 		if err != nil {
-			parenOracleSetupError = fmt.Errorf("container start: %w", err)
-			return
-		}
-		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			parenOracleSetupError = fmt.Errorf("conn string: %w", err)
-			return
-		}
-		db, err := sql.Open("pgx", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			parenOracleSetupError = fmt.Errorf("db open: %w", err)
-			return
-		}
-		if err := db.PingContext(ctx); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			parenOracleSetupError = fmt.Errorf("ping: %w", err)
+			parenOracleSetupError = err
 			return
 		}
 
@@ -110,7 +70,6 @@ func StartParenOracle(t *testing.T) *ParenOracle {
 		for _, s := range setup {
 			if _, err := db.ExecContext(ctx, s); err != nil {
 				db.Close()
-				_ = testcontainers.TerminateContainer(container)
 				parenOracleSetupError = fmt.Errorf("fixture %q: %w", s, err)
 				return
 			}
