@@ -43,8 +43,10 @@ func TestIsReservedKeyword(t *testing.T) {
 	}{
 		{"select", true},
 		{"SELECT", true},
-		{"master_bind", true},
-		{"master_ssl_verify_server_cert", true},
+		{"master_bind", false},
+		{"master_ssl_verify_server_cert", false},
+		{"rank", false},
+		{"from", true},
 		{"master_host", false},
 		{"execute", false},
 		{"customer_id", false},
