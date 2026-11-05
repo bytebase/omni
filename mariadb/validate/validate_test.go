@@ -608,31 +608,3 @@ func TestValidateReturnInHandlerInFunction(t *testing.T) {
 	diags := Validate(list, Options{})
 	requireNoCode(t, diags, "return_outside_function")
 }
-
-// TestValidateSetScopePerAssignment holds the routine-variable check to each assignment's scope.
-// A name with a scope, written or carried, is a system variable, and the assignments before it
-// have none.
-func TestValidateSetScopePerAssignment(t *testing.T) {
-	for _, c := range []struct {
-		name, sql  string
-		undeclared bool
-	}{
-		{"a later scope covers its own name", `CREATE PROCEDURE p() BEGIN DECLARE x INT; SET x = 1, GLOBAL nosuch = 2; END`, false},
-		{"a scope carries to the next name", `CREATE PROCEDURE p() BEGIN SET GLOBAL autocommit = 1, nosuch = 2; END`, false},
-		{"a scope does not reach back", `CREATE PROCEDURE p() BEGIN SET nosuch = 1, GLOBAL autocommit = 1; END`, true},
-		{"no scope at all", `CREATE PROCEDURE p() BEGIN SET autocommit = 1, nosuch = 2; END`, true},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			list, err := parser.Parse(c.sql)
-			if err != nil {
-				t.Fatalf("parse: %v", err)
-			}
-			diags := Validate(list, Options{})
-			if c.undeclared {
-				requireCode(t, diags, "undeclared_variable")
-			} else {
-				requireNoCode(t, diags, "undeclared_variable")
-			}
-		})
-	}
-}

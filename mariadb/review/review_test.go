@@ -686,13 +686,10 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			sql:  "SET SESSION foreign_key_checks = 1, @x = 1;\nALTER TABLE plain DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "plain")},
 		},
-		// Each assignment answers for its own scope, written or carried: a GLOBAL one needs
-		// a privilege and may fail the statement, and a SESSION one cannot.
-		{name: "a global assignment after a session one before", sql: "SET foreign_key_checks = 1, GLOBAL unique_checks = 1;\nALTER TABLE plain DROP COLUMN id;"},
-		{name: "a scope carried to global before", sql: "SET GLOBAL unique_checks = 1, foreign_key_checks = 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "foreign_key_checks set under a later global scope before", sql: "SET @x = 1, GLOBAL foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
 		{
-			name: "the key, after a session scope written later in the list",
-			sql:  "SET foreign_key_checks = 1, SESSION unique_checks = 1;\nALTER TABLE plain DROP COLUMN id;",
+			name: "the key, after foreign_key_checks set under a later session scope",
+			sql:  "SET @x = 1, SESSION foreign_key_checks = 1;\nALTER TABLE plain DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "plain")},
 		},
 		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},

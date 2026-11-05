@@ -1445,13 +1445,13 @@ reject	reject	select * from t as "a"
 accept	accept	select * from t a
 reject	reject	select * from ROW
 reject	reject	select COUNT from DESC
-reject	accept	select COUNT from SELECT.DESC
+accept	accept	select COUNT from SELECT.DESC
 accept	accept	use `select`
 accept	accept	use `sel``ect`
 reject	reject	use select
 accept	accept	select * from t as a
 reject	reject	select 1 full, 1 row, 1 abs
-reject	accept	select 1 full, 1 `row`, 1 abs
+accept	accept	select 1 full, 1 `row`, 1 abs
 reject	reject	select * from t full, t1 row, t2 abs
 accept	accept	select * from t full, t1 `row`, t2 abs
 accept	accept	create database 123test
@@ -1848,7 +1848,7 @@ accept	reject	create table t (i int default (0))
 accept	reject	create table t (i int default (-1))
 accept	reject	create table t (i int default (+1))
 accept	reject	create table t (a int, b int, c char(33) default (b))
-accept	reject	create table t (a int, b int, c char(33) default `b`)
+reject	reject	create table t (a int, b int, c char(33) default `b`)
 accept	accept	create table t (a int) encryption = 'n';
 accept	accept	create table t (a int) encryption 'n';
 accept	accept	alter table t encryption = 'y';

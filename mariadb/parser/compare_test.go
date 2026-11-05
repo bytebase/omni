@@ -9640,6 +9640,20 @@ func TestParseAlterUndoTablespaceSetActive(t *testing.T) {
 
 // --- Batch 70: depth_fix_set_persist_show_full ---
 
+func TestParseSetPersist(t *testing.T) {
+	// PERSIST and PERSIST_ONLY are no scopes here: mariadb:11.8.8 answers 1064, as
+	// set_names_scopes_test.go records.
+	for _, sql := range []string{
+		"SET PERSIST max_connections = 100",
+		"SET PERSIST innodb_buffer_pool_size = 1073741824",
+		"SET PERSIST_ONLY back_log = 100",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
+		})
+	}
+}
+
 func TestParseShowFullTables(t *testing.T) {
 	tests := []string{
 		"SHOW FULL TABLES",
@@ -12523,12 +12537,17 @@ func TestUTCTemporalFunctions(t *testing.T) {
 }
 
 // TestLvalueIdentRejectsAmbiguous4 verifies that ambiguous_4 keywords (like GLOBAL)
-// are not read where parseLvalueIdent reads a name. GLOBAL is allowed as a general
-// identifier (e.g., CREATE TABLE global). SET does not read its names this way:
-// MariaDB takes `SET global = 1`, which setNameCases records.
+// cannot be used as SET variable names. GLOBAL is allowed as a general identifier
+// (e.g., CREATE TABLE global) but NOT as a lvalue_ident (SET target).
 func TestLvalueIdentRejectsAmbiguous4(t *testing.T) {
 	// GLOBAL as a table name should work (general ident context).
 	ParseAndCheck(t, "CREATE TABLE global (a INT)")
+
+	// SET global = 1 parses: unlike MySQL, GLOBAL is also a variable name here, as
+	// set_names_scopes_test.go records.
+	t.Run("SET global = 1 accepted", func(t *testing.T) {
+		ParseAndCheck(t, "SET global = 1")
+	})
 
 	// SET begin = 1 should succeed — BEGIN is ambiguous_2 (allowed as lvalue).
 	t.Run("SET begin = 1 accepted", func(t *testing.T) {

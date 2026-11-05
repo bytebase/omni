@@ -1,0 +1,463 @@
+package parser
+
+import (
+	"fmt"
+	"slices"
+	"testing"
+)
+
+// SET's names and scopes as MySQL reads them, every verdict measured with PREPARE on
+// mysql:8.0 (8.0.46) on 2026-11-05: a 1064 is the parser's refusal, and any other answer is
+// a statement that parsed.
+//
+// The rules are option_value and option_type, sql_yacc.yy:15910 and 15918, and
+// lvalue_variable, sql_yacc.yy:15995. Every assignment may write a scope, and it names the
+// system variable after it, so `SET SESSION @a = 1` is a 1064. The most recent scope reaches
+// an assignment that writes none. The lexer reads a word directly before a dot as an
+// identifier, reserved or not, but check_reserved_words refuses GLOBAL, SESSION and LOCAL.
+//
+// A 1193 is the parser's action refusing an unknown variable, and it stops there: `SET a = 1
+// 2` answers 1193 where a declared local variable answers 1064. So a row holds a 1193 only
+// where no text follows the assignment that raised it, and the stored program rows check the
+// same forms against a real verdict.
+//
+// What a list holds besides names and scopes is in set_list_forms_test.go. Not in either: `SET
+// GLOBAL a = 1` in a procedure with a local a, which the server refuses in an action that sees the
+// routine's variables.
+
+// TestSetNamesScopesForms holds omni to the recorded verdicts without a server, so a run with
+// no Docker still reports a widened or narrowed grammar.
+func TestSetNamesScopesForms(t *testing.T) {
+	for _, c := range setNamesScopesCases {
+		t.Run(c.sql, func(t *testing.T) {
+			got, err := parsesAsOneStatement(c.sql)
+			if got != c.accept {
+				t.Errorf("omni accepts=%v, want %v for %q: %v", got, c.accept, c.sql, err)
+			}
+		})
+	}
+}
+
+var setNamesScopesCases = []asOfCase{
+	// Each scope word: before a name, as a name, and later in the list.
+	{"set global sql_mode = ''", true},
+	{"set global a = 1", true},
+	{"set global a.b = 1", true},
+	{"set global = 1", false},
+	{"set global := 1", false},
+	{"set global to 1", false},
+	{"set global.a = 1", false},
+	{"set global", false},
+	{"set global sql_mode", false},
+	{"set global sql_mode =", false},
+	{"set global global sql_mode = ''", false},
+	{"set global sql_mode := ''", true},
+	{"set global sql_mode to ''", false},
+	{"set sql_mode = '', global sql_mode = ''", true},
+	{"set @a = 1, global sql_mode = ''", true},
+	{"set @a = 1, global a = 1", true},
+	{"set @a = 1, global = 1", false},
+	{"set global sql_mode = '', @a = 1", true},
+	{"set global sql_mode = '', sql_mode = ''", true},
+	{"set global transaction = 1", true},
+	{"set global `transaction` = 1", true},
+	{"set global read = 1", false},
+	{"set `global` sql_mode = ''", false},
+	{"set `global` = 1", true},
+	{"set global sql_mode = '' 2", false},
+	{"set session sql_mode = ''", true},
+	{"set session a = 1", true},
+	{"set session a.b = 1", true},
+	{"set session = 1", false},
+	{"set session := 1", false},
+	{"set session to 1", false},
+	{"set session.a = 1", false},
+	{"set session", false},
+	{"set session sql_mode", false},
+	{"set session sql_mode =", false},
+	{"set session session sql_mode = ''", false},
+	{"set session sql_mode := ''", true},
+	{"set session sql_mode to ''", false},
+	{"set sql_mode = '', session sql_mode = ''", true},
+	{"set @a = 1, session sql_mode = ''", true},
+	{"set @a = 1, session a = 1", true},
+	{"set @a = 1, session = 1", false},
+	{"set session sql_mode = '', @a = 1", true},
+	{"set session sql_mode = '', sql_mode = ''", true},
+	{"set session transaction = 1", true},
+	{"set session `transaction` = 1", true},
+	{"set session read = 1", false},
+	{"set `session` sql_mode = ''", false},
+	{"set `session` = 1", true},
+	{"set session sql_mode = '' 2", false},
+	{"set local sql_mode = ''", true},
+	{"set local a = 1", true},
+	{"set local a.b = 1", true},
+	{"set local = 1", false},
+	{"set local := 1", false},
+	{"set local to 1", false},
+	{"set local.a = 1", false},
+	{"set local", false},
+	{"set local sql_mode", false},
+	{"set local sql_mode =", false},
+	{"set local local sql_mode = ''", false},
+	{"set local sql_mode := ''", true},
+	{"set local sql_mode to ''", false},
+	{"set sql_mode = '', local sql_mode = ''", true},
+	{"set @a = 1, local sql_mode = ''", true},
+	{"set @a = 1, local a = 1", true},
+	{"set @a = 1, local = 1", false},
+	{"set local sql_mode = '', @a = 1", true},
+	{"set local sql_mode = '', sql_mode = ''", true},
+	{"set local transaction = 1", true},
+	{"set local `transaction` = 1", true},
+	{"set local read = 1", false},
+	{"set `local` sql_mode = ''", false},
+	{"set `local` = 1", true},
+	{"set local sql_mode = '' 2", false},
+	{"set persist sql_mode = ''", true},
+	{"set persist a = 1", true},
+	{"set persist a.b = 1", true},
+	{"set persist = 1", false},
+	{"set persist := 1", false},
+	{"set persist to 1", false},
+	{"set persist.a = 1", true},
+	{"set persist", false},
+	{"set persist sql_mode", false},
+	{"set persist sql_mode =", false},
+	{"set persist persist sql_mode = ''", false},
+	{"set persist sql_mode := ''", true},
+	{"set persist sql_mode to ''", false},
+	{"set sql_mode = '', persist sql_mode = ''", true},
+	{"set @a = 1, persist sql_mode = ''", true},
+	{"set @a = 1, persist a = 1", true},
+	{"set @a = 1, persist = 1", false},
+	{"set persist sql_mode = '', @a = 1", true},
+	{"set persist sql_mode = '', sql_mode = ''", true},
+	{"set persist transaction = 1", true},
+	{"set persist `transaction` = 1", true},
+	{"set persist read = 1", false},
+	{"set `persist` sql_mode = ''", false},
+	{"set `persist` = 1", true},
+	{"set persist sql_mode = '' 2", false},
+	{"set persist_only sql_mode = ''", true},
+	{"set persist_only a = 1", true},
+	{"set persist_only a.b = 1", true},
+	{"set persist_only = 1", false},
+	{"set persist_only := 1", false},
+	{"set persist_only to 1", false},
+	{"set persist_only.a = 1", true},
+	{"set persist_only", false},
+	{"set persist_only sql_mode", false},
+	{"set persist_only sql_mode =", false},
+	{"set persist_only persist_only sql_mode = ''", false},
+	{"set persist_only sql_mode := ''", true},
+	{"set persist_only sql_mode to ''", false},
+	{"set sql_mode = '', persist_only sql_mode = ''", true},
+	{"set @a = 1, persist_only sql_mode = ''", true},
+	{"set @a = 1, persist_only a = 1", true},
+	{"set @a = 1, persist_only = 1", false},
+	{"set persist_only sql_mode = '', @a = 1", true},
+	{"set persist_only sql_mode = '', sql_mode = ''", true},
+	{"set persist_only transaction = 1", true},
+	{"set persist_only `transaction` = 1", true},
+	{"set persist_only read = 1", false},
+	{"set `persist_only` sql_mode = ''", false},
+	{"set `persist_only` = 1", true},
+	{"set persist_only sql_mode = '' 2", false},
+	{"set @a = 1, session transaction = 2", true},
+	{"set global . a = 1", false},
+	{"set persist . a = 1", false},
+	{"set global global = 1", false},
+	{"set global session = 1", false},
+	{"set session transaction.a = 1", true},
+	{"set session add.a = 1", true},
+	{"set global persist.a = 1", true},
+	{"set global default.a = 1", true},
+	{"set @a = 1, global transaction = 2", true},
+	{"set @a = 1, local transaction = 2", true},
+	{"set @a = 1, local a = 2", true},
+	{"set @a = 1, global.a = 2", false},
+	{"set @a = 1, global", false},
+	{"set @a = 1, global sql_mode", false},
+	{"set @a = 1, global sql_mode =", false},
+	{"set @a = 1, global global sql_mode = ''", false},
+	{"set session sql_mode = '', global sql_mode = '', local sql_mode = ''", true},
+	{"set global sql_mode = '', a = 1", true},
+	{"set global names = 1", true},
+	{"set global password = 1", true},
+	{"set session names := 1", true},
+	{"set global role = 1", true},
+	{"set global charset = 1", true},
+	{"set @a = 1, global names = 2", true},
+	{"set @a = 1, global role = 2", true},
+	{"set @a = 1, global to 2", false},
+	{"set global a to 1", false},
+	{"set session a to 1", false},
+	{"set `persist` a = 1", false},
+
+	// A variable reference: it takes no scope word, and @@ takes one only before a dot.
+	{"set global @a = 1", false},
+	{"set global @@sql_mode = ''", false},
+	{"set global @@global.sql_mode = ''", false},
+	{"set @@global.sql_mode = ''", true},
+	{"set @@global = 1", false},
+	{"set @@global.a = 1", true},
+	{"set @@global . sql_mode = ''", true},
+	{"set @a = 1, @@global.sql_mode = ''", true},
+	{"set session @a = 1", false},
+	{"set session @@sql_mode = ''", false},
+	{"set session @@global.sql_mode = ''", false},
+	{"set @@session.sql_mode = ''", true},
+	{"set @@session = 1", false},
+	{"set @@session.a = 1", true},
+	{"set @@session . sql_mode = ''", true},
+	{"set @a = 1, @@session.sql_mode = ''", true},
+	{"set local @a = 1", false},
+	{"set local @@sql_mode = ''", false},
+	{"set local @@global.sql_mode = ''", false},
+	{"set @@local.sql_mode = ''", true},
+	{"set @@local = 1", false},
+	{"set @@local.a = 1", true},
+	{"set @@local . sql_mode = ''", true},
+	{"set @a = 1, @@local.sql_mode = ''", true},
+	{"set persist @a = 1", false},
+	{"set persist @@sql_mode = ''", false},
+	{"set persist @@global.sql_mode = ''", false},
+	{"set @@persist.sql_mode = ''", true},
+	{"set @@persist = 1", false},
+	{"set @@persist.a = 1", true},
+	{"set @@persist . sql_mode = ''", true},
+	{"set @a = 1, @@persist.sql_mode = ''", true},
+	{"set persist_only @a = 1", false},
+	{"set persist_only @@sql_mode = ''", false},
+	{"set persist_only @@global.sql_mode = ''", false},
+	{"set @@persist_only.sql_mode = ''", true},
+	{"set @@persist_only = 1", false},
+	{"set @@persist_only.a = 1", true},
+	{"set @@persist_only . sql_mode = ''", true},
+	{"set @a = 1, @@persist_only.sql_mode = ''", true},
+	{"set @@sql_mode = ''", true},
+	{"set @@sql_mode := ''", true},
+	{"set @@sql_mode to ''", false},
+	{"set @@a.b = 1", true},
+	{"set @@global.a.b = 1", true},
+	{"set @@ = 1", false},
+	{"set @@. = 1", false},
+	{"set @@a = 1", true},
+	{"set @a = 1, global @b = 2", false},
+	{"set @a = 1, global @@sql_mode = ''", false},
+	{"set @a = 1, @@sql_mode to ''", false},
+	{"set global @@global.sql_mode to ''", false},
+	{"set sql_mode = '', @@session.sql_mode = '', global sql_mode = ''", true},
+
+	// The words that start a form of SET, as names.
+	{"set transaction = 1", true},
+	{"set transaction := 1", true},
+	{"set transaction to 1", false},
+	{"set transaction.a = 1", true},
+	{"set `transaction` = 1", true},
+	{"set `transaction`.a = 1", true},
+	{"set a.transaction = 1", true},
+	{"set @a = 1, transaction = 2", true},
+	{"set @a = 1, `transaction` = 2", true},
+	{"set transaction = 1, @a = 2", true},
+	{"set isolation = 1", true},
+	{"set level = 1", true},
+	{"set read = 1", false},
+	{"set only = 1", true},
+	{"set write = 1", false},
+	{"set names = 1", false},
+	{"set names := 1", false},
+	{"set names to 1", false},
+	{"set names.a = 1", true},
+	{"set charset = 1", true},
+	{"set charset := 1", true},
+	{"set charset.a = 1", true},
+	{"set character = 1", false},
+	{"set character.a = 1", true},
+	{"set char = 1", false},
+	{"set role = 1", true},
+	{"set resource = 1", true},
+	{"set resource := 1", true},
+	{"set resource.a = 1", true},
+	{"set old = 1", true},
+	{"set new = 1", true},
+	{"set role := 1", true},
+	{"set role.a = 1", true},
+	{"set password = 1", false},
+	{"set password := 1", false},
+	{"set password.a = 1", true},
+	{"set role to 1", false},
+	{"set charset to 1", false},
+	{"set password to 1", false},
+	{"set transaction . a = 1", true},
+	{"set role . a = 1", true},
+	{"set @a = 1, role = 2", true},
+	{"set @a = 1, charset = 2", true},
+	{"set @a = 1, names = 2", false},
+	{"set @a = 1, password = 2", true},
+	{"set @a = 1, password := 2", true},
+	{"set @a = 1, names := 2", false},
+	{"set @a = 1, names.a = 2", true},
+	{"set @a = 1, password.a = 2", true},
+	{"set @a = 1, transaction.a = 2", true},
+	{"set @a = 1, transaction := 2", true},
+	{"set @a = 1, transaction to 2", false},
+
+	// A name with a dot.
+	{"set a.b = 1", true},
+	{"set a . b = 1", true},
+	{"set a.b.c = 1", false},
+	{"set a.b := 1", true},
+	{"set `a`.b = 1", true},
+	{"set a.`b` = 1", true},
+	{"set `a`.`b` = 1", true},
+	{"set default.a = 1", true},
+	{"set new.a = 1", true},
+	{"set old.a = 1", true},
+	{"set a.new = 1", true},
+	{"set a.old = 1", true},
+	{"set a.default = 1", true},
+	{"set a.global = 1", true},
+	{"set a.select = 1", true},
+	{"set .a = 1", false},
+	{"set a. = 1", false},
+	{"set @a.b = 1", true},
+	{"set a.@b = 1", false},
+	{"set a . select = 1", false},
+	{"set a . transaction = 1", true},
+	{"set select .a = 1", false},
+	{"set add .a = 1", false},
+	{"set default . a = 1", true},
+	{"set default .a = 1", true},
+
+	// TO in place of `=`.
+	{"set a to 1", false},
+	{"set a.b to 1", false},
+	{"set sql_mode to ''", false},
+	{"set @a to 1", false},
+	{"set @a = 1, a to 2", false},
+	{"set @a = 1, @b to 2", false},
+
+	// Plain names, and text that does not make an assignment.
+	{"set @`global` = 1", true},
+	{"set @`session` = 1", true},
+	{"set @`local` = 1", true},
+	{"set @`persist` = 1", true},
+	{"set @`persist_only` = 1", true},
+	{"set a = 1", true},
+	{"set a := 1", true},
+	{"set `a` = 1", true},
+	{"set sql_mode = ''", true},
+	{"set `sql_mode` = ''", true},
+	{"set sql_mode := ''", true},
+	{"set 1 = 1", false},
+	{"set 'a' = 1", false},
+	{"set a", false},
+	{"set a =", false},
+	{"set = 1", false},
+	{"set", false},
+	{"set @a", false},
+	{"set @a =", false},
+	{"set @a = 1", true},
+	{"set @a := 1", true},
+	{"set @a = 1, @b = 2", true},
+	{"set @`a` = 1", true},
+	{"set a = 1,", false},
+	{"set , a = 1", false},
+	{"set @a = 1,", false},
+	{"set @a = 1 b = 2", false},
+	{"set @a = 1 2", false},
+	{"set a, b = 1", false},
+	{"set sql_mode = binary + 1", true},
+	{"set @a = 1, add.a = 2", true},
+	{"set GLOBAL SQL_MODE = ''", true},
+	{"set Global sql_mode = '', Session sql_mode = ''", true},
+
+	// In a stored program, where a declared local variable makes the answer a real verdict.
+	{"create procedure p() begin declare global int; set global = 1; end", false},
+	{"create procedure p() begin set global sql_mode = ''; end", true},
+	{"create procedure p() begin set global a; end", false},
+	{"create procedure p() begin declare session int; set session = 1; end", false},
+	{"create procedure p() begin set session sql_mode = ''; end", true},
+	{"create procedure p() begin set session a; end", false},
+	{"create procedure p() begin declare local int; set local = 1; end", false},
+	{"create procedure p() begin set local sql_mode = ''; end", true},
+	{"create procedure p() begin set local a; end", false},
+	{"create procedure p() begin declare persist int; set persist = 1; end", false},
+	{"create procedure p() begin set persist sql_mode = ''; end", true},
+	{"create procedure p() begin set persist a; end", false},
+	{"create procedure p() begin declare persist_only int; set persist_only = 1; end", false},
+	{"create procedure p() begin set persist_only sql_mode = ''; end", true},
+	{"create procedure p() begin set persist_only a; end", false},
+	{"create procedure p() begin declare transaction int; set transaction = 1; end", true},
+	{"create procedure p() begin declare transaction int; set transaction = 1 2; end", false},
+	{"create procedure p() begin declare transaction int; set transaction := 1; end", true},
+	{"create procedure p() begin declare transaction int; set transaction to 1; end", false},
+	{"create procedure p() begin declare transaction int; set @a = 1, transaction = 2; end", true},
+	{"create procedure p() begin declare a int; set a = 1; end", true},
+	{"create procedure p() begin declare a int; set a = 1 2; end", false},
+	{"create procedure p() begin declare a int; set a := 1; end", true},
+	{"create procedure p() begin declare a int; set a to 1; end", false},
+	{"create procedure p() begin declare isolation int; set isolation = 1; end", true},
+	{"create procedure p() begin declare charset int; set charset = 1; end", true},
+	{"create procedure p() begin declare role int; set role = 1; end", true},
+	{"create procedure p() begin declare password int; set password = 1; end", false},
+	{"create procedure p() begin declare statement int; set statement = 1; end", true},
+	{"create procedure p() begin declare a int; set @b = 1, a = 2; end", true},
+	{"create procedure p() begin declare a int; set a = 1, global sql_mode = ''; end", true},
+	{"create procedure p() begin declare a int; set a = 1 2, global sql_mode = ''; end", false},
+	{"create procedure p() begin declare a int; set a = 1, @b = 2 3; end", false},
+	{"create procedure p() begin declare new int; set new = 1; end", true},
+	{"create trigger g before insert on t for each row set new.a = 1", true},
+	{"create trigger g before insert on t for each row set new.a = 1, @b = 2", true},
+	{"create trigger g before insert on t for each row set @b = 1, new.a = 2", true},
+}
+
+// setVariableNameGap holds, by position, the words where omni and MySQL 8.0 disagree, because
+// omni's keyword table reserves them: VARIANCE is a keyword only before `(`. Every name
+// position refuses it for that reason, not only SET, so the fix belongs to the table. The
+// oracle sweep fails when one of them starts to agree, so this list cannot outlive the gap.
+var setVariableNameGap = map[string][]string{
+	"set %s = 1": {
+		"variance",
+	},
+	"set global %s = 1": {
+		"variance",
+	},
+	"set @a = 1, %s = 2": {
+		"variance",
+	},
+}
+
+// setVariableNamePositions are the positions the oracle sweep tries every keyword in.
+var setVariableNamePositions = []string{
+	"set %s = 1",
+	"set global %s = 1",
+	"set %s.a = 1",
+	"set a.%s = 1",
+	"set @a = 1, %s = 2",
+}
+
+// checkSetVariableNameSweep tries every keyword in every position. accepts is the server's
+// verdict. A 1193 counts as acceptance here, since nothing follows the assignment that raises
+// it.
+func checkSetVariableNameSweep(t *testing.T, accepts func(sql string) bool) {
+	t.Helper()
+	for _, position := range setVariableNamePositions {
+		gap := setVariableNameGap[position]
+		for word := range keywords {
+			sql := fmt.Sprintf(position, word)
+			server := accepts(sql)
+			omni, err := parsesAsOneStatement(sql)
+			inGap := slices.Contains(gap, word)
+			if inGap && omni == server {
+				t.Errorf("%q: omni now agrees with the server, accepts=%v: take it out of setVariableNameGap", sql, omni)
+			}
+			if !inGap && omni != server {
+				t.Errorf("DIVERGENCE omni accepts=%v, server accepts=%v for %q: %v", omni, server, sql, err)
+			}
+		}
+	}
+}

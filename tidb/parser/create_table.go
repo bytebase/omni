@@ -438,8 +438,12 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwDEFAULT:
 		p.advance()
+		exprStart := p.pos()
 		expr, err := p.parseDefaultValue()
 		if err != nil {
+			return false, err
+		}
+		if err := refuseColumnValue(expr, exprStart); err != nil {
 			return false, err
 		}
 		col.DefaultValue = expr
@@ -669,12 +673,16 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if next := p.peekNext(); next.Type == kwUPDATE {
 			p.advance() // consume ON
 			p.advance() // consume UPDATE
+			exprStart := p.pos()
 			expr, err := p.parseExpr()
 			if err != nil {
 				return false, err
 			}
 			if expr == nil {
 				return false, p.syntaxErrorAtCur()
+			}
+			if err := refuseColumnValue(expr, exprStart); err != nil {
+				return false, err
 			}
 			col.OnUpdate = expr
 			return true, nil
@@ -2667,4 +2675,15 @@ func (p *Parser) parseMatchType() (string, error) {
 		return strings.ToUpper(tok.Str), nil
 	}
 	return "", p.syntaxErrorAtCur()
+}
+
+// refuseColumnValue refuses a bare name as a column's DEFAULT or ON UPDATE value.
+// DefaultValueExpr, parser.y:4052, takes a literal, a function call, or those in
+// parentheses, and ON UPDATE only a function call, so `a INT DEFAULT b` and `a TIMESTAMP
+// DEFAULT now` are 1064s.
+func refuseColumnValue(expr nodes.ExprNode, start int) error {
+	if _, ok := expr.(*nodes.ColumnRef); ok {
+		return &ParseError{Message: "syntax error", Position: start}
+	}
+	return nil
 }

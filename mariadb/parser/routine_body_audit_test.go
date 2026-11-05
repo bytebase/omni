@@ -69,7 +69,6 @@ func TestRoutineBodyAudit(t *testing.T) {
 		accept("S", "SET @@session.var", `CREATE PROCEDURE p() BEGIN SET @@session.sql_mode = ''; END`),
 		accept("S", "SET @@GLOBAL.var", `CREATE PROCEDURE p() BEGIN SET @@GLOBAL.max_connections = 100; END`),
 		accept("S", "SET SESSION scope", `CREATE PROCEDURE p() BEGIN SET SESSION sql_mode = ''; END`),
-		accept("S", "SET PERSIST", `CREATE PROCEDURE p() BEGIN SET PERSIST max_connections = 200; END`),
 		accept("S", "SET NAMES", `CREATE PROCEDURE p() BEGIN SET NAMES utf8mb4; END`),
 		accept("S", "SET CHARACTER SET", `CREATE PROCEDURE p() BEGIN SET CHARACTER SET utf8mb4; END`),
 		accept("S", "SET TRANSACTION ISOLATION LEVEL", `CREATE PROCEDURE p() BEGIN SET TRANSACTION ISOLATION LEVEL READ COMMITTED; END`),

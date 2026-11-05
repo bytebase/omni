@@ -24,11 +24,9 @@ import (
 // since no form of SET continues its keyword with `=`, `:=` or `.` but SET PASSWORD,
 // whose `=` makes `SET PASSWORD = 1` a 1064 where `SET PASSWORD := 1` parses.
 //
-// Not in this table, because omni still disagrees and neither is about SET. A bare DEFAULT
+// Not in this table, because omni still disagrees and it is not about SET: a bare DEFAULT
 // inside an expression, as in `SET a = 1 + DEFAULT` and `SET a = (DEFAULT)`, because
-// parseExpr reads it everywhere, as in `SELECT DEFAULT FROM t`. A spaced dot after @@, as
-// in `SET @@a . b = 1`, because parseVariableRef reads it for every @@ reference. The 32 words TiDB
-// leaves unreserved and omni's table reserves after MySQL, which setVariableNameGap lists.
+// parseExpr reads it everywhere, as in `SELECT DEFAULT FROM t`.
 
 // TestSetTransactionForms holds omni to the recorded verdicts without a server, so a run
 // with no Docker still reports a widened or narrowed grammar.
@@ -652,18 +650,6 @@ var setTransactionCases = []asOfCase{
 	{"start transaction read only of timestamp now()", false},
 	{"start transaction read only timestamp now()", false},
 	{"start transaction read only as of timestamp now(), read write", false},
-}
-
-// setVariableNameGap holds the words TiDB v8.5.5 takes as a variable name and omni
-// refuses, because omni's keyword table reserves them after MySQL. Every name position
-// refuses them for that reason, not only SET, so the fix belongs to the table. The oracle
-// sweep fails when one of them starts to agree, so this list cannot outlive the gap.
-var setVariableNameGap = []string{
-	"accessible", "asensitive", "before", "condition", "cube", "declare", "deterministic",
-	"each", "empty", "function", "get", "grouping", "insensitive", "io_after_gtids",
-	"io_before_gtids", "json_table", "lateral", "loop", "modifies", "optimizer_costs",
-	"purge", "read_write", "reads", "resignal", "return", "sensitive", "separator",
-	"signal", "specific", "system", "undo", "variance",
 }
 
 // setVariableNamePositions are the positions the oracle sweep tries every keyword in.

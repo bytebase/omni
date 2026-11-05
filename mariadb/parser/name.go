@@ -496,7 +496,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwRETURNING: kwCatReserved,
 
 	// Unreserved on MySQL and reserved on MariaDB 11.8, measured: each is a 1064 as a bare
-	// name, in every position.
+	// name, but for the bare assignment of offset, which parseSetVariableAssignment holds.
 	kwOFFSET:             kwCatReserved,
 	kwSQL_AFTER_GTIDS:    kwCatReserved,
 	kwSQL_BEFORE_GTIDS:   kwCatReserved,
@@ -900,6 +900,11 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 	if p.cur.Type == tokAt2 {
 		start := p.cur.Loc
 		p.advance() // consume @@
+
+		// The name touches @@: `SELECT @@ a` is a 1064.
+		if p.cur.Loc != p.prev.End {
+			return nil, p.syntaxErrorAtCur()
+		}
 
 		ref := &nodes.VariableRef{
 			Loc:    nodes.Loc{Start: start},

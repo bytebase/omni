@@ -1126,7 +1126,7 @@ func (l *TemporalLit) exprNode() {}
 // Assignment represents a SET assignment (col = value).
 type Assignment struct {
 	Loc    Loc
-	Scope  string // SET only: the GLOBAL, SESSION or LOCAL a name takes, written or carried
+	Scope  string // SET only: the scope word written on this assignment
 	Column *ColumnRef
 	Value  ExprNode
 }
@@ -1328,7 +1328,7 @@ func (v *VariableRef) exprNode() {}
 // SetStmt represents a SET statement.
 type SetStmt struct {
 	Loc         Loc
-	Scope       string // the scope written on the first assignment; each assignment holds its own
+	Scope       string // the first assignment's scope; each assignment holds its own
 	Assignments []*Assignment
 }
 

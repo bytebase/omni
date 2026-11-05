@@ -405,16 +405,20 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 // foreign key's target is checked. A global setting reaches only later
 // sessions. Each assignment has a scope of its own, as on MySQL
 // (verified on 11.8): @@session., @@local., and a bare @@ name the
-// session's, @@global. not, and an unprefixed name the last scope written
-// before it, past any prefixed assignment between, which the parser holds
-// on Assignment.Scope. So SET GLOBAL sql_mode = DEFAULT,
-// @@session.foreign_key_checks = 0 turns the session's checks off, and SET
-// GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves them as they are.
+// session's, @@global. not, and an unprefixed name the statement's
+// GLOBAL, past any prefixed assignment between. So SET GLOBAL sql_mode =
+// DEFAULT, @@session.foreign_key_checks = 0 turns the session's checks
+// off, and SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves
+// them as they are.
 func (b *builder) set(v *ast.SetStmt) bool {
 	if b.callsStoredFunction(v) {
 		b.forgetTemporary()
 	}
+	global := false
 	for _, a := range v.Assignments {
+		if a.Scope != "" {
+			global = strings.EqualFold(a.Scope, "GLOBAL")
+		}
 		if a.Column == nil {
 			continue
 		}
@@ -426,7 +430,7 @@ func (b *builder) set(v *ast.SetStmt) bool {
 			name = name[strings.IndexByte(name, '.')+1:]
 		case strings.HasPrefix(name, "@@"):
 			name = name[2:]
-		case strings.EqualFold(a.Scope, "GLOBAL"):
+		case global:
 			continue
 		}
 		if name != "foreign_key_checks" {

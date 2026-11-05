@@ -937,8 +937,7 @@ func TestKeywordCompleteness(t *testing.T) {
 // on mariadb:11.8.8 (1064), then list it here. (P3 temporal will likely add more.)
 var mariadbReservedDivergences = map[string]bool{
 	"returning": true, // column `returning`, bare alias, and AS RETURNING are all 1064 on MariaDB
-	// Each is a 1064 as a bare name in every position setNamePositions tries, but for the
-	// bare assignment of offset, which parseSetAssignment holds.
+	// Each is a 1064 as a bare name, but for the bare assignment of offset.
 	"offset":             true,
 	"sql_after_gtids":    true,
 	"sql_before_gtids":   true,

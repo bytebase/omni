@@ -2509,10 +2509,10 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 }
 
 // beforeDotName reports whether the word ending at l.pos runs straight into a dot and a name,
-// which makes any word a name, reserved or not (MY_LEX_IDENT in sql_lex.cc). So `SELECT
-// select.a FROM t` names a column, while `SELECT select .a`, `SELECT select. a` and `SELECT
-// table.*` are 1064s. After @@ the word stays a keyword, so @@global.a reads its scope, and
-// NEW and OLD stay keywords, which is how a trigger's qualifier is told from a table's.
+// which makes it a name, reserved or not (MY_LEX_IDENT in sql_lex.cc). So `SELECT select.a FROM
+// t` names a column, while `SELECT select .a`, `SELECT select. a` and `SELECT table.*` are
+// 1064s. After @@ the word stays a keyword, so @@global.a reads its scope, and NEW and OLD stay
+// keywords, which is how a trigger's qualifier is told from a table's.
 func (l *Lexer) beforeDotName() bool {
 	return l.pos+1 < len(l.input) && l.input[l.pos] == '.' && isIdentChar(l.input[l.pos+1])
 }
