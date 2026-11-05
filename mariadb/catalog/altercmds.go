@@ -136,9 +136,6 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 
 	rollback := func() { undoAlter(db, origKey, tbl, snapshot) }
 
-	if err := checkVectorIfNotExists(stmt.Commands); err != nil {
-		return err
-	}
 	for _, cmd := range vectorKeysLast(stmt.Commands) {
 		if skip[cmd] {
 			continue
@@ -191,26 +188,6 @@ func vectorKeysLast(cmds []*nodes.AlterTableCmd) []*nodes.AlterTableCmd {
 		}
 	}
 	return ordered
-}
-
-// checkVectorIfNotExists refuses a VECTOR IF NOT EXISTS key sharing its name with another kind
-// of key the same statement adds. 11.8.8 answers 1061 for it in either order, though
-// ADD VECTOR i (v), ADD VECTOR IF NOT EXISTS i (v) runs. Running vector keys last would otherwise
-// let the second clause find the first and stand down.
-func checkVectorIfNotExists(cmds []*nodes.AlterTableCmd) error {
-	for _, cmd := range cmds {
-		if !addsVectorKey(cmd) || !cmd.Constraint.IfNotExists || cmd.Constraint.Name == "" {
-			continue
-		}
-		for _, other := range cmds {
-			if (other.Type == nodes.ATAddIndex || other.Type == nodes.ATAddConstraint) && other.Constraint != nil &&
-				!addsVectorKey(other) && !other.Constraint.IfNotExists &&
-				toLower(other.Constraint.Name) == toLower(cmd.Constraint.Name) {
-				return errDupKeyName(cmd.Constraint.Name)
-			}
-		}
-	}
-	return nil
 }
 
 // undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
@@ -744,27 +721,27 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 }
 
 // alterAddConstraint adds a constraint or index to the table.
-// checkAddIfNotExistsTwice answers for what IF NOT EXISTS does not cover. The clause looks
-// at the table as it was when the statement began, so a second primary key or CHECK in one
-// statement finds nothing and fails, where mariadb:11.8.8 lets a second index of a name go
-// as a note (read on 2026-11-05). A table that has a primary key makes both of two notes.
+// checkAddIfNotExistsTwice answers for what IF NOT EXISTS does not cover. The clause looks at
+// the table as it was when the statement began, so a primary key or CHECK the statement also
+// adds is not there to find and the two fail, in either order, where a table that has the key
+// makes the clause a note. A second index of a name goes as a note too, but only of its own kind:
+// mariadb:11.8.8 answers 1061 for ADD INDEX i (a), ADD UNIQUE IF NOT EXISTS i (a) and for the two
+// the other way round, and runs ADD INDEX i (a), ADD KEY IF NOT EXISTS i (a) (read on 2026-11-05).
 func checkAddIfNotExistsTwice(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 	var primaries int
 	checks := make(map[string]bool)
+	kinds := make(map[string]nodes.ConstraintType)
 	see := func(con *nodes.Constraint) error {
-		if !con.IfNotExists {
+		if con.IfNotExists && addedConstraintExists(tbl, con, extractColumnNames(con)) {
 			return nil
 		}
 		switch con.Type {
 		case nodes.ConstrPrimaryKey:
-			if addedConstraintExists(tbl, con, nil) {
-				return nil
-			}
 			if primaries++; primaries > 1 {
 				return errMultiplePriKey()
 			}
 		case nodes.ConstrCheck:
-			if addedConstraintExists(tbl, con, nil) {
+			if con.Name == "" {
 				return nil
 			}
 			name := toLower(con.Name)
@@ -772,6 +749,17 @@ func checkAddIfNotExistsTwice(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 				return &Error{Code: ErrFKDupName, SQLState: "HY000", Message: fmt.Sprintf("Duplicate CHECK constraint name '%s'", con.Name)}
 			}
 			checks[name] = true
+		case nodes.ConstrForeignKey:
+		default:
+			name := con.Name
+			if name == "" {
+				return nil
+			}
+			key := toLower(name)
+			if kind, added := kinds[key]; added && kind != con.Type {
+				return errDupKeyName(name)
+			}
+			kinds[key] = con.Type
 		}
 		return nil
 	}
@@ -827,12 +815,15 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 		if name == "" {
 			return false
 		}
+		// A foreign key of the name is what it looks for, on this table. An index of the
+		// name is not: with KEY k on t, ADD FOREIGN KEY IF NOT EXISTS k (b) REFERENCES r (id)
+		// adds it on 11.8.8.
 		for _, existing := range tbl.Constraints {
 			if existing.Type == ConForeignKey && toLower(existing.Name) == toLower(name) {
 				return true
 			}
 		}
-		return indexNameExists(tbl, name)
+		return false
 	}
 	name := con.Name
 	if name == "" && len(cols) > 0 {
