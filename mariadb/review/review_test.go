@@ -681,10 +681,15 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "foreign_key_checks set globally by its name before", sql: "SET @@global.foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "foreign_key_checks set to a value it lacks before", sql: "SET foreign_key_checks = 2;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a query before", sql: "SET @x = (SELECT a FROM nokey);\nALTER TABLE plain DROP COLUMN id;"},
-		{name: "a user variable set under a scope before", sql: "SET SESSION @x = 1;\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "the key, after a scope for a system variable before a user variable",
 			sql:  "SET SESSION foreign_key_checks = 1, @x = 1;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		{name: "foreign_key_checks set under a later global scope before", sql: "SET @x = 1, GLOBAL foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, after foreign_key_checks set under a later session scope",
+			sql:  "SET @x = 1, SESSION foreign_key_checks = 1;\nALTER TABLE plain DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "plain")},
 		},
 		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},

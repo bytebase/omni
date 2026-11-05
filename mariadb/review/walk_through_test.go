@@ -328,6 +328,12 @@ func TestWalkThroughMariaDBSession(t *testing.T) {
 	noFinding(t, "DROP TABLE nokey;\nSET GLOBAL sql_mode = DEFAULT, @@foreign_key_checks = 0;\n"+fk, on)
 	noFinding(t, "DROP TABLE nokey;\nSET @@global.foreign_key_checks = 1, foreign_key_checks = 0;\n"+fk, on)
 	noFinding(t, "DROP TABLE nokey;\nSET LOCAL foreign_key_checks = 0;\n"+fk, on)
+	// A later assignment writes its own scope, and the most recent scope reaches one that
+	// writes none.
+	oneFinding(t, "DROP TABLE nokey;\nSET @a = 1, GLOBAL foreign_key_checks = 0;\n"+fk, 2, missing, on)
+	noFinding(t, "DROP TABLE nokey;\nSET GLOBAL sql_mode = DEFAULT, SESSION foreign_key_checks = 0;\n"+fk, on)
+	oneFinding(t, "DROP TABLE nokey;\nSET SESSION sql_mode = DEFAULT, GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0;\n"+fk, 2, missing, on)
+	noFinding(t, "DROP TABLE nokey;\nSET GLOBAL sql_mode = DEFAULT, SESSION sql_mode = DEFAULT, foreign_key_checks = 0;\n"+fk, on)
 	// With another spec of the plan, only the change's own facts count.
 	other := review.Target{Schema: walkSchema(), OtherSpecs: true}
 	noFinding(t, "CREATE TABLE t (a int);", other)

@@ -409,14 +409,16 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 // GLOBAL, past any prefixed assignment between. So SET GLOBAL sql_mode =
 // DEFAULT, @@session.foreign_key_checks = 0 turns the session's checks
 // off, and SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves
-// them as they are. MariaDB has no PERSIST, which omni's parser takes,
-// and the parser takes a scope keyword only first.
+// them as they are.
 func (b *builder) set(v *ast.SetStmt) bool {
 	if b.callsStoredFunction(v) {
 		b.forgetTemporary()
 	}
-	global := strings.EqualFold(v.Scope, "GLOBAL") || strings.EqualFold(v.Scope, "PERSIST") || strings.EqualFold(v.Scope, "PERSIST_ONLY")
+	global := false
 	for _, a := range v.Assignments {
+		if a.Scope != "" {
+			global = strings.EqualFold(a.Scope, "GLOBAL")
+		}
 		if a.Column == nil {
 			continue
 		}

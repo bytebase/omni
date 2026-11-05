@@ -8,16 +8,23 @@ import (
 
 // parseSetStmt parses a SET statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/set-variable.html
+// Ref: var_and_val, sys_var_and_val, scope_or_scope_alias, to_or_eq and var_name in
+// OceanBase CE v4.3.5_CE_BP6 src/sql/parser/sql_parser_mysql_mode.y (lines 18651, 18698,
+// 18707, 18714, 24308).
 //
-//	SET variable = expr [, variable = expr] ...
-//	variable: { user_var_name | param_name | local_var_name
-//	    | {GLOBAL | @@GLOBAL.} system_var_name
-//	    | {PERSIST | @@PERSIST.} system_var_name
-//	    | {PERSIST_ONLY | @@PERSIST_ONLY.} system_var_name
-//	    | [SESSION | @@SESSION. | @@] system_var_name }
+//	SET assignment [, assignment] ...
+//	assignment: { [GLOBAL | SESSION] name {= | := | TO} expr
+//	    | @@[{GLOBAL | SESSION | LOCAL}.]name {= | := | TO} expr
+//	    | @user_var {= | := | TO} expr }
 //	SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
 //	SET {CHARACTER SET | CHARSET} {charset_name | DEFAULT}
+//
+// Every assignment may write a scope, and a scope names the system variable after it, so
+// `SET SESSION @a = 1` is a 1064. A name takes no dot, so `SET a.b = 1` is a 1064, but for
+// NEW and OLD in a trigger, which the server tells apart with a flag this parser lacks.
+// LOCAL, PERSIST and PERSIST_ONLY are no scopes of an assignment: they read as ordinary
+// names, so `SET LOCAL a = 1` is a 1064, while set_transaction_stmt takes LOCAL. The words
+// that start a form below are also variable names; see nextEndsVariableName.
 func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	start := p.pos()
 	p.advance() // consume SET
@@ -34,9 +41,12 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	stmt := &nodes.SetStmt{Loc: nodes.Loc{Start: start}}
 
+	// Whether the first word names a variable, whichever form it could start.
+	named := p.nextEndsVariableName()
+
 	// Check for NAMES special form
 	// SET NAMES {charset_name [COLLATE collation_name] | DEFAULT}
-	if p.cur.Type == kwNAMES {
+	if p.cur.Type == kwNAMES && !named {
 		p.advance() // consume NAMES
 
 		// Completion: after SET NAMES, offer charset candidates.
@@ -82,7 +92,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	// Check for CHARACTER SET / CHARSET special form
 	// SET {CHARACTER SET | CHARSET} {charset_name | DEFAULT}
-	if p.cur.Type == kwCHARACTER || p.cur.Type == kwCHARSET {
+	if (p.cur.Type == kwCHARACTER || p.cur.Type == kwCHARSET) && !named {
 		isCharset := p.cur.Type == kwCHARSET
 		p.advance() // consume CHARACTER or CHARSET
 		if isCharset || p.cur.Type == kwSET {
@@ -120,7 +130,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	}
 
 	// Check for SET DEFAULT ROLE
-	if p.cur.Type == kwDEFAULT {
+	if p.cur.Type == kwDEFAULT && !named {
 		p.advance() // consume DEFAULT
 		if p.cur.Type == kwROLE {
 			p.advance() // consume ROLE
@@ -130,35 +140,27 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 	}
 
 	// Check for SET ROLE
-	if p.cur.Type == kwROLE {
+	if p.cur.Type == kwROLE && !named {
 		p.advance() // consume ROLE
 		return p.parseSetRoleStmt(start)
 	}
 
 	// Check for SET PASSWORD
-	if p.cur.Type == kwPASSWORD {
+	if p.cur.Type == kwPASSWORD && !named {
 		return p.parseSetPasswordStmt(start)
 	}
 
-	// Check for GLOBAL / SESSION / LOCAL / PERSIST / PERSIST_ONLY scope
+	// The scope the first assignment writes, or SET TRANSACTION's.
+	assignStart := p.pos()
 	scope := ""
-	switch p.cur.Type {
-	case kwGLOBAL:
-		scope = "GLOBAL"
-		p.advance()
-	case kwSESSION:
-		scope = "SESSION"
-		p.advance()
-	case kwLOCAL:
+	if !named {
+		scope = p.parseSetScope()
+	}
+	// set_transaction_stmt also takes LOCAL (sql_parser_mysql_mode.y:23994), which no
+	// assignment does.
+	if scope == "" && p.cur.Type == kwLOCAL && p.peekNext().Type == kwTRANSACTION {
 		scope = "LOCAL"
 		p.advance()
-	case kwPERSIST:
-		scope = "PERSIST"
-		p.advance()
-	case kwPERSIST_ONLY:
-		scope = "PERSIST_ONLY"
-		p.advance()
-	default:
 	}
 
 	// Completion: after SET GLOBAL/SESSION, offer variable candidates.
@@ -172,21 +174,18 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 
 	// SET [GLOBAL|SESSION|LOCAL] TRANSACTION ... Those are the only scopes
 	// set_transaction_stmt names (sql_parser_mysql_mode.y:23975), so `SET PERSIST
-	// TRANSACTION READ ONLY` is a 1064. It refuses here and not in the assignment list,
-	// which reads TRANSACTION as a name and would take `SET PERSIST TRANSACTION = 1`, also
-	// a 1064.
-	if p.cur.Type == kwTRANSACTION {
-		if scope == "PERSIST" || scope == "PERSIST_ONLY" {
-			return nil, p.syntaxErrorAtCur()
-		}
+	// TRANSACTION READ ONLY` is a 1064, PERSIST reading as a name. TRANSACTION is a name
+	// when to_or_eq follows, but only with no scope: the grammar commits to
+	// set_transaction_stmt after one, so `SET SESSION TRANSACTION = 1` is a 1064.
+	if p.cur.Type == kwTRANSACTION && (scope != "" || !p.nextEndsVariableName()) {
 		return p.parseSetTransactionStmt(start, scope)
 	}
 
 	stmt.Scope = scope
 
-	// Parse assignment list.
+	// Parse assignment list. Each assignment writes its own scope.
 	for {
-		asgn, err := p.parseSetAssignment()
+		asgn, err := p.parseSetVariableAssignment(assignStart, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -196,6 +195,27 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 			break
 		}
 		p.advance() // consume ','
+
+		// Completion: where an assignment starts, offer its scope words and variables.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwGLOBAL)
+			p.addTokenCandidate(kwSESSION)
+			p.addRuleCandidate("variable")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		assignStart = p.pos()
+		scope = ""
+		if !p.nextEndsVariableName() {
+			scope = p.parseSetScope()
+		}
+		if scope != "" {
+			p.checkCursor()
+			if p.collectMode() {
+				p.addRuleCandidate("variable")
+				return nil, &ParseError{Message: "collecting"}
+			}
+		}
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -282,7 +302,138 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 	return stmt, nil
 }
 
-// parseSetAssignment parses a single SET assignment: var = expr.
+// nextEndsVariableName reports whether the word at p.cur is a variable's name rather than
+// the keyword of a SET form. var_name takes the scope words, ROLE, CHARSET, NAMES and
+// TRANSACTION as unreserved keywords, so to_or_eq after one ends a name.
+//
+// A next token at or past the completion cursor is text the user has not reached, so
+// `SET TRANSACTION <cursor> = 1` still offers what follows the keyword.
+func (p *Parser) nextEndsVariableName() bool {
+	next := p.peekNext()
+	if p.completing && next.Loc >= p.cursorOff {
+		return false
+	}
+	switch p.cur.Type {
+	case kwGLOBAL, kwSESSION, kwLOCAL, kwPERSIST, kwPERSIST_ONLY, kwROLE, kwCHARSET, kwNAMES, kwTRANSACTION:
+		return next.Type == '=' || next.Type == tokAssign || next.Type == kwTO
+	}
+	return false
+}
+
+// parseSetScope consumes the scope word at p.cur, if there is one.
+func (p *Parser) parseSetScope() string {
+	scope := ""
+	switch p.cur.Type {
+	case kwGLOBAL:
+		scope = "GLOBAL"
+	case kwSESSION:
+		scope = "SESSION"
+	default:
+		return ""
+	}
+	p.advance()
+	return scope
+}
+
+// parseSetVariableAssignment parses one assignment of a SET statement, after the scope it
+// wrote, if any. start is where the assignment began.
+func (p *Parser) parseSetVariableAssignment(start int, scope string) (*nodes.Assignment, error) {
+	var col *nodes.ColumnRef
+
+	if p.isVariableRef() {
+		// A scope names the system variable after it, never a variable reference.
+		if scope != "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// @@ takes a scope word only before a dot.
+		atScope := false
+		if p.cur.Type == tokAt2 {
+			switch p.peekNext().Type {
+			case kwGLOBAL, kwSESSION, kwLOCAL:
+				atScope = true
+			}
+		}
+		vref, err := p.parseVariableRef()
+		if err != nil {
+			return nil, err
+		}
+		if atScope && vref.Scope == "" {
+			return nil, &ParseError{Message: "unexpected scope", Position: vref.Loc.Start}
+		}
+		// var_name takes no dot, and SYSTEM_VARIABLE's scopes are GLOBAL_ALIAS and
+		// SESSION_ALIAS, which @@local. also lexes as.
+		if vref.System && (strings.Contains(vref.Name, ".") || vref.Scope == "PERSIST" || vref.Scope == "PERSIST_ONLY") {
+			return nil, &ParseError{Message: "unexpected variable name", Position: vref.Loc.Start}
+		}
+		prefix := "@"
+		if vref.System {
+			prefix = "@@"
+			if vref.Scope != "" {
+				prefix = "@@" + vref.Scope + "."
+			}
+		}
+		col = &nodes.ColumnRef{
+			Loc:    vref.Loc,
+			Column: prefix + vref.Name,
+		}
+	} else if (p.cur.Type == kwNEW || p.cur.Type == kwOLD) && p.peekNext().Type == '.' && scope == "" {
+		// Trigger-only assignment form: SET NEW.col = val / SET OLD.col = val.
+		colStart := p.pos()
+		qual := strings.ToUpper(p.advance().Str)
+		p.advance() // consume '.'
+		colName, _, err := p.parseLvalueIdent()
+		if err != nil {
+			return nil, err
+		}
+		col = &nodes.ColumnRef{
+			Loc:    nodes.Loc{Start: colStart, End: p.prev.End},
+			Table:  qual,
+			Column: colName,
+		}
+	} else {
+		colStart := p.pos()
+		var name string
+		// var_name: NAME_OB or unreserved_keyword_normal. PASSWORD is a form of its own
+		// with no scope, so a later `PASSWORD = 1` is a 1064.
+		if scope == "" && p.cur.Type == kwPASSWORD {
+			return nil, p.syntaxErrorAtCur()
+		}
+		var err error
+		name, _, err = p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		col = &nodes.ColumnRef{
+			Loc:    nodes.Loc{Start: colStart},
+			Column: name,
+		}
+		col.Loc.End = p.prev.End
+	}
+
+	// to_or_eq: `=`, `:=` or TO.
+	if p.cur.Type == tokAssign || p.cur.Type == kwTO {
+		p.advance()
+	} else if _, err := p.expect('='); err != nil {
+		return nil, err
+	}
+
+	val, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if val == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	return &nodes.Assignment{
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Scope:  scope,
+		Column: col,
+		Value:  val,
+	}, nil
+}
+
+// parseSetAssignment parses a single var = expr of INSTALL COMPONENT ... SET.
 func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 	start := p.pos()
 

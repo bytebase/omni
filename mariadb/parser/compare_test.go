@@ -9641,24 +9641,15 @@ func TestParseAlterUndoTablespaceSetActive(t *testing.T) {
 // --- Batch 70: depth_fix_set_persist_show_full ---
 
 func TestParseSetPersist(t *testing.T) {
-	tests := []string{
+	// PERSIST and PERSIST_ONLY are no scopes here: mariadb:11.8.8 answers 1064, as
+	// set_names_scopes_test.go records.
+	for _, sql := range []string{
 		"SET PERSIST max_connections = 100",
 		"SET PERSIST innodb_buffer_pool_size = 1073741824",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseSetPersistOnly(t *testing.T) {
-	tests := []string{
 		"SET PERSIST_ONLY back_log = 100",
-	}
-	for _, sql := range tests {
+	} {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
 }
@@ -12552,16 +12543,10 @@ func TestLvalueIdentRejectsAmbiguous4(t *testing.T) {
 	// GLOBAL as a table name should work (general ident context).
 	ParseAndCheck(t, "CREATE TABLE global (a INT)")
 
-	// SET global = 1 should fail — GLOBAL is ambiguous_4 (scope modifier, not variable).
-	// In MySQL, `SET global = 1` is parsed as `SET GLOBAL = 1` which is incomplete
-	// (missing variable name after scope), so it's an error.
-	t.Run("SET global = 1 rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("SET global = 1")}
-		p.advance()
-		_, err := p.parseSetStmt()
-		if err == nil {
-			t.Fatal("expected error for SET global = 1 (GLOBAL is ambiguous_4, consumed as scope modifier)")
-		}
+	// SET global = 1 parses: unlike MySQL, GLOBAL is also a variable name here, as
+	// set_names_scopes_test.go records.
+	t.Run("SET global = 1 accepted", func(t *testing.T) {
+		ParseAndCheck(t, "SET global = 1")
 	})
 
 	// SET begin = 1 should succeed — BEGIN is ambiguous_2 (allowed as lvalue).

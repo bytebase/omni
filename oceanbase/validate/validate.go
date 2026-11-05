@@ -111,12 +111,11 @@ func (v *validator) walk(n nodes.Node) {
 }
 
 // walkSetStmt walks each assignment in a SET statement. An explicit-scope
-// SET (GLOBAL/SESSION/LOCAL) targets system variables; skip the local-var
-// lookup entirely in that case.
+// assignment targets a system variable; skip the local-var lookup in that
+// case. OceanBase's grammar gives each assignment a scope of its own.
 func (v *validator) walkSetStmt(s *nodes.SetStmt) {
-	systemScope := s.Scope != ""
 	for _, a := range s.Assignments {
-		v.walkAssignment(a, systemScope)
+		v.walkAssignment(a, a.Scope != "")
 	}
 }
 

@@ -245,15 +245,18 @@ func renamedTo(cmd *ast.AlterTableCmd) *ast.TableRef {
 //
 // mariadb: https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/set-commands/set
 func setPasses(v *ast.SetStmt) bool {
-	for i, a := range v.Assignments {
+	written := ""
+	for _, a := range v.Assignments {
 		if a == nil || a.Column == nil || a.Column.Table != "" {
 			return false
 		}
-		name, scope := strings.ToLower(a.Column.Column), strings.ToUpper(v.Scope)
+		// The most recent scope applies to an assignment that writes none.
+		if a.Scope != "" {
+			written = strings.ToUpper(a.Scope)
+		}
+		name, scope := strings.ToLower(a.Column.Column), written
 		if strings.HasPrefix(name, "@") && !strings.HasPrefix(name, "@@") {
-			// A scope names the system variable after it, and the parser
-			// takes SET SESSION @x = 1, which the server refuses.
-			if i == 0 && v.Scope != "" || !literal(a.Value) {
+			if !literal(a.Value) {
 				return false
 			}
 			continue
