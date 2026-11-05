@@ -128,10 +128,10 @@ func TestOracle_OceanBaseVectorIndexMigration(t *testing.T) {
 	o := oceanBaseOracle(t)
 	n := NormalizerFor(o.version)
 	for _, p := range []migrationProbe{
-		{id: "vecadd", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL)", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))"},
-		{id: "vecchange", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=cosine, type=hnsw, m=8))"},
-		{id: "vecnew", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))"},
-		{id: "vecdrop", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL)"},
+		{id: "vecadd", table: "t", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL)", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))"},
+		{id: "vecchange", table: "t", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=cosine, type=hnsw, m=8))"},
+		{id: "vecnew", table: "t", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))"},
+		{id: "vecdrop", table: "t", fromDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) WITH (distance=l2, type=hnsw))", toDDL: "CREATE TABLE t (v VECTOR(3) NOT NULL)"},
 	} {
 		t.Run(p.id, func(t *testing.T) {
 			assertApplyCorrect(t, o, n, p)
