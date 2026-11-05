@@ -1126,10 +1126,10 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 		isScopeKeyword := p.cur.Type == kwGLOBAL || p.cur.Type == kwSESSION ||
 			p.cur.Type == kwLOCAL || p.cur.Type == kwPERSIST ||
 			p.cur.Type == kwPERSIST_ONLY
-		if isScopeKeyword {
+		if isScopeKeyword && p.cur.Loc == p.prev.End {
 			// Look ahead for '.' to distinguish scope from plain variable name
 			next := p.peekNext()
-			if next.Type == '.' {
+			if next.Type == '.' && next.Loc == p.cur.End {
 				switch {
 				case p.cur.Type == kwGLOBAL:
 					ref.Scope = "GLOBAL"
@@ -1192,17 +1192,28 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 // 1193, while `SELECT @@ table` is a 1064. Later parts are always identifiers,
 // because the word follows a dot.
 func (p *Parser) parseSysVarName() (string, int, error) {
-	parseFirst := p.parseIdent
-	if p.cur.Loc == p.prev.End {
-		parseFirst = p.parseKeywordOrIdent
+	// Upstream's scanner reads @@ and the name with its dots as one token, so a space
+	// anywhere in it ends the token: `SELECT @@ a` and `SELECT @@a . b` are 1064s.
+	if p.cur.Loc != p.prev.End {
+		return "", 0, p.syntaxErrorAtCur()
 	}
-	name, loc, err := parseFirst()
+	quoted := strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "`")
+	name, loc, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return "", 0, err
 	}
+	// A backquoted name is the whole token, so @@ then a backquoted a then .b is a 1064.
+	if quoted {
+		return name, loc, nil
+	}
 	// Consume additional .ident parts for component-style variable names
-	for p.cur.Type == '.' {
-		p.advance() // consume '.'
+	for p.cur.Type == '.' && p.cur.Loc == p.prev.End {
+		dot := p.advance() // consume '.'
+		// The token takes a dot with nothing after it, so `SELECT @@a. b` reads an alias.
+		if p.cur.Loc != dot.End || !(p.cur.Type == tokIDENT || p.cur.Type >= 700) {
+			name += "."
+			break
+		}
 		part, _, err := p.parseIdent()
 		if err != nil {
 			return "", 0, err
