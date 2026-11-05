@@ -99,6 +99,13 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 	for i := range stmts {
 		s := &stmts[i]
 		st := step{statement: s.index}
+		// An option of SET STATEMENT may name a variable the server lacks, which
+		// fails the statement, so no statement with one is sure to pass.
+		if len(s.options) > 0 && !namesTablesOrDatabase(s.node) {
+			st.kind = barrier
+			c.steps = append(c.steps, st)
+			continue
+		}
 		switch v := s.node.(type) {
 		case *ast.AlterTableStmt:
 			if drops, ok := onlyColumnDrops(sql, v); ok {
@@ -237,6 +244,17 @@ func renamedTo(cmd *ast.AlterTableCmd) *ast.TableRef {
 	return &ast.TableRef{Name: cmd.NewName}
 }
 
+// namesTablesOrDatabase reports whether columnDropSteps follows the statement for what it does
+// to a table or a database, rather than for whether it can fail.
+func namesTablesOrDatabase(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.AlterTableStmt, *ast.CreateTableStmt, *ast.CreateIndexStmt, *ast.DropIndexStmt, *ast.DropTableStmt,
+		*ast.RenameTableStmt, *ast.DropDatabaseStmt, *ast.CreateDatabaseStmt:
+		return true
+	}
+	return false
+}
+
 // setPasses reports whether a SET cannot fail: every assignment sets a
 // user variable to a literal, or the session's foreign_key_checks or
 // unique_checks, which need no privilege, to on or off. Any other may name
@@ -245,15 +263,18 @@ func renamedTo(cmd *ast.AlterTableCmd) *ast.TableRef {
 //
 // mariadb: https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/set-commands/set
 func setPasses(v *ast.SetStmt) bool {
-	for i, a := range v.Assignments {
+	written := ""
+	for _, a := range v.Assignments {
 		if a == nil || a.Column == nil || a.Column.Table != "" {
 			return false
 		}
-		name, scope := strings.ToLower(a.Column.Column), strings.ToUpper(v.Scope)
+		// The most recent scope applies to an assignment that writes none.
+		if a.Scope != "" {
+			written = strings.ToUpper(a.Scope)
+		}
+		name, scope := strings.ToLower(a.Column.Column), written
 		if strings.HasPrefix(name, "@") && !strings.HasPrefix(name, "@@") {
-			// A scope names the system variable after it, and the parser
-			// takes SET SESSION @x = 1, which the server refuses.
-			if i == 0 && v.Scope != "" || !literal(a.Value) {
+			if !literal(a.Value) {
 				return false
 			}
 			continue

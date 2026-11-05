@@ -1208,7 +1208,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			}
 			cmd.IfExists = true
 		}
-		name, _, err := p.parseIdentifier()
+		_, _, name, err := p.parseColumnName()
 		if err != nil {
 			return nil, err
 		}
@@ -1288,11 +1288,13 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	}
 
 	// Old column name
-	oldName, _, err := p.parseIdentifier()
+	oldSchema, oldTable, oldName, err := p.parseColumnName()
 	if err != nil {
 		return nil, err
 	}
 	cmd.Name = oldName
+	cmd.OldColumnSchema = oldSchema
+	cmd.OldColumnTable = oldTable
 
 	// New column definition (includes new name)
 	col, err := p.parseColumnDef()
@@ -1380,11 +1382,12 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	// ALTER [COLUMN] col_name ...
 	p.match(kwCOLUMN)
 
-	name, _, err := p.parseIdentifier()
+	schema, table, name, err := p.parseColumnName()
 	if err != nil {
 		return nil, err
 	}
 	cmd.Name = name
+	qualified := schema != "" || table != ""
 
 	if _, ok := p.match(kwSET); ok {
 		if _, ok := p.match(kwDEFAULT); ok {
@@ -1425,6 +1428,10 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			p.advance()
 			p.match(kwNULL)
 			cmd.Type = nodes.ATAlterColumnSetNotNull
+		} else if qualified && (p.cur.Type == kwVISIBLE || p.cur.Type == kwINVISIBLE) {
+			// TiDB refuses column visibility outright, and omni still reads MySQL's form for
+			// a bare name. It takes no qualifier here, so this change adds no false accept.
+			return nil, p.syntaxErrorAtCur()
 		} else if _, ok := p.match(kwVISIBLE); ok {
 			cmd.Type = nodes.ATAlterColumnVisible
 		} else if _, ok := p.match(kwINVISIBLE); ok {
@@ -1761,7 +1768,7 @@ func (p *Parser) parseColumnPositioning(cmd *nodes.AlterTableCmd) error {
 	if _, ok := p.match(kwFIRST); ok {
 		cmd.First = true
 	} else if _, ok := p.match(kwAFTER); ok {
-		name, _, err := p.parseIdentifier()
+		_, _, name, err := p.parseColumnName()
 		if err != nil {
 			return err
 		}

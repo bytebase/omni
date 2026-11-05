@@ -97,7 +97,7 @@ accept	accept	INSERT INTO foo VALUES (1 || 2)
 accept	accept	INSERT INTO foo VALUES (1 | 2)
 accept	accept	INSERT INTO foo VALUES (false || true)
 accept	accept	INSERT INTO foo VALUES (bar(5678))
-reject	accept	INSERT INTO foo VALUES ()
+accept	accept	INSERT INTO foo VALUES ()
 accept	accept	SELECT * FROM t
 accept	accept	SELECT * FROM t AS u
 accept	accept	SELECT * FROM t, v
@@ -116,20 +116,20 @@ reject	reject	INSERT INTO foo (a,) VALUES (42,)
 accept	accept	INSERT INTO foo (a,b) VALUES (42,314)
 reject	reject	INSERT INTO foo (a,b,) VALUES (42,314)
 reject	reject	INSERT INTO foo (a,b,) VALUES (42,314,)
-reject	accept	INSERT INTO foo () VALUES ()
-reject	accept	INSERT INTO foo VALUE ()
+accept	accept	INSERT INTO foo () VALUES ()
+accept	accept	INSERT INTO foo VALUE ()
 accept	accept	INSERT INTO tt VALUES (01000001783);
 accept	accept	INSERT INTO tt VALUES (default);
 accept	accept	REPLACE INTO foo VALUES (1 || 2)
 accept	accept	REPLACE INTO foo VALUES (1 | 2)
 accept	accept	REPLACE INTO foo VALUES (false || true)
 accept	accept	REPLACE INTO foo VALUES (bar(5678))
-reject	accept	REPLACE INTO foo VALUES ()
+accept	accept	REPLACE INTO foo VALUES ()
 accept	accept	REPLACE INTO foo (a,b) VALUES (42,314)
 reject	reject	REPLACE INTO foo (a,b,) VALUES (42,314)
 reject	reject	REPLACE INTO foo (a,b,) VALUES (42,314,)
-reject	accept	REPLACE INTO foo () VALUES ()
-reject	accept	REPLACE INTO foo VALUE ()
+accept	accept	REPLACE INTO foo () VALUES ()
+accept	accept	REPLACE INTO foo VALUE ()
 accept	accept	BEGIN
 accept	accept	START TRANSACTION
 accept	accept	COMMIT
@@ -369,11 +369,11 @@ accept	accept	DELETE t1, t2 FROM t1 USE INDEX(idx_a) JOIN t2 USE INDEX(idx_a) WH
 accept	reject	DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id=t2.id AND t2.id=t3.id limit 10;
 accept	reject	DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id=t2.id AND t2.id=t3.id order by t1.id;
 accept	accept	INSERT INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b);
-reject	accept	INSERT INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c:=VALUES(a)+VALUES(b);
+accept	accept	INSERT INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c:=VALUES(a)+VALUES(b);
 accept	accept	INSERT IGNORE INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c=VALUES(a)+VALUES(b);
-reject	accept	INSERT IGNORE INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c:=VALUES(a)+VALUES(b);
+accept	accept	INSERT IGNORE INTO t (a,b,c) VALUES (1,2,3),(4,5,6) ON DUPLICATE KEY UPDATE c:=VALUES(a)+VALUES(b);
 accept	accept	INSERT INTO t SET a=1,b=2
-accept	reject	INSERT INTO t (a) SET a=1
+reject	reject	INSERT INTO t (a) SET a=1
 accept	accept	UPDATE LOW_PRIORITY IGNORE t SET id = id + 1 ORDER BY id DESC;
 accept	accept	UPDATE t SET id = id + 1 ORDER BY id DESC;
 accept	accept	UPDATE t SET id = id + 1 ORDER BY id DESC limit 3 ;
@@ -715,9 +715,9 @@ accept	accept	SET LOCAL autocommit := 1
 accept	accept	SET @@global.autocommit := default
 accept	accept	SET @@global.autocommit = default
 accept	accept	SET @@session.autocommit = default
-reject	accept	SET @@character_set_results = binary
+accept	accept	SET @@character_set_results = binary
 accept	accept	SET CHARACTER SET utf8mb4;
-reject	accept	SET CHARACTER SET 'utf8mb4';
+accept	accept	SET CHARACTER SET 'utf8mb4';
 accept	accept	SET PASSWORD = 'password';
 accept	accept	SET PASSWORD FOR 'root'@'localhost' = 'password';
 accept	accept	SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ
@@ -735,18 +735,18 @@ accept	accept	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
 accept	accept	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
 accept	accept	set names utf8
 accept	accept	set names utf8 collate utf8_unicode_ci
-reject	accept	set names binary
+accept	accept	set names binary
 accept	accept	set names default
 accept	accept	set character set default
 accept	accept	set charset default
-reject	accept	set char set default
+accept	accept	set char set default
 accept	accept	set role `role1`
 accept	accept	SET ROLE DEFAULT
 accept	accept	SET ROLE ALL
 accept	accept	SET ROLE ALL EXCEPT `role1`, `role2`
 accept	accept	SET DEFAULT ROLE administrator, developer TO `joe`@`10.0.0.1`
-reject	accept	set names utf8, @@session.sql_mode=1;
-reject	accept	set @@session.sql_mode=1, names utf8, charset utf8;
+accept	accept	set names utf8, @@session.sql_mode=1;
+accept	accept	set @@session.sql_mode=1, names utf8, charset utf8;
 reject	accept	set config TIKV LOG.LEVEL='info'
 reject	accept	set config PD LOG.LEVEL='info'
 reject	accept	set config TIDB LOG.LEVEL='info'
@@ -937,11 +937,11 @@ accept	accept	SELECT tidb_decode_key('abc');
 accept	accept	SELECT tidb_decode_base64_key('abc');
 accept	accept	SELECT tidb_decode_sql_digests('[]');
 accept	accept	CREATE TABLE t( c1 TIME(2), c2 DATETIME(2), c3 TIMESTAMP(2) );
-accept	reject	select row(1)
+reject	reject	select row(1)
 reject	reject	select row(1, 1,)
 reject	reject	select (1, 1,)
 accept	accept	select row(1, 1) > row(1, 1), row(1, 1, 1) > row(1, 1, 1)
-reject	accept	Select (1, 1) > (1, 1)
+accept	accept	Select (1, 1) > (1, 1)
 accept	accept	create table t (`row` int)
 reject	reject	create table t (row int)
 accept	accept	SELECT *, CAST(data AS CHAR CHARACTER SET utf8) FROM t;
@@ -1428,9 +1428,9 @@ accept	accept	SELECT `uuid`()
 accept	accept	select nextval(seq)
 accept	accept	select lastval(seq)
 accept	accept	select setval(seq, 100)
-reject	accept	select next value for seq
-reject	accept	select next value for sequence
-reject	accept	select NeXt vAluE for seQuEncE2
+accept	accept	select next value for seq
+accept	accept	select next value for sequence
+accept	accept	select NeXt vAluE for seQuEncE2
 accept	accept	select regexp_like('aBc', 'abc', 'im');
 accept	accept	select regexp_substr('aBc', 'abc', 1, 1, 'im');
 accept	accept	select regexp_instr('aBc', 'abc', 1, 1, 0, 'im');
@@ -1445,13 +1445,13 @@ reject	reject	select * from t as "a"
 accept	accept	select * from t a
 reject	reject	select * from ROW
 reject	reject	select COUNT from DESC
-reject	accept	select COUNT from SELECT.DESC
+accept	accept	select COUNT from SELECT.DESC
 accept	accept	use `select`
 accept	accept	use `sel``ect`
 reject	reject	use select
 accept	accept	select * from t as a
 reject	reject	select 1 full, 1 row, 1 abs
-reject	accept	select 1 full, 1 `row`, 1 abs
+accept	accept	select 1 full, 1 `row`, 1 abs
 reject	reject	select * from t full, t1 row, t2 abs
 accept	accept	select * from t full, t1 `row`, t2 abs
 accept	accept	create database 123test
@@ -1804,7 +1804,7 @@ accept	accept	create table t (a timestamp default now())
 accept	accept	create table t (a timestamp default (((now()))))
 reject	reject	create table t (a timestamp default now() on update now)
 accept	accept	create table t (a timestamp default now() on update now())
-accept	reject	create table t (a timestamp default now() on update (now()))
+reject	reject	create table t (a timestamp default now() on update (now()))
 accept	accept	CREATE TABLE t (c TEXT) default CHARACTER SET utf8, default COLLATE utf8_general_ci;
 accept	accept	CREATE TABLE t (c TEXT) shard_row_id_bits = 1;
 accept	accept	CREATE TABLE t (c TEXT) shard_row_id_bits = 1, PRE_SPLIT_REGIONS = 1;
@@ -1848,7 +1848,7 @@ accept	reject	create table t (i int default (0))
 accept	reject	create table t (i int default (-1))
 accept	reject	create table t (i int default (+1))
 accept	reject	create table t (a int, b int, c char(33) default (b))
-accept	reject	create table t (a int, b int, c char(33) default `b`)
+reject	reject	create table t (a int, b int, c char(33) default `b`)
 accept	accept	create table t (a int) encryption = 'n';
 accept	accept	create table t (a int) encryption 'n';
 accept	accept	alter table t encryption = 'y';
@@ -2452,7 +2452,7 @@ accept	accept	CREATE TABLE IF NOT EXISTS table_ident (ident1 BOOL COMMENT "text_
 accept	accept	create table t (y sql_tsi_year(4), y1 sql_tsi_year)
 reject	accept	create table t (y sql_tsi_year(4) unsigned zerofill zerofill, y1 sql_tsi_year signed unsigned zerofill)
 accept	accept	insert into t set a = default
-reject	accept	insert into t set a := default
+accept	accept	insert into t set a := default
 accept	accept	replace t set a = default
 accept	accept	update t set a = default
 accept	accept	insert into t set a = default on duplicate key update a = default
@@ -3135,7 +3135,7 @@ accept	accept	ALTER TABLE t READ ONLY
 accept	accept	ALTER TABLE t READ WRITE
 reject	reject	select * from t group by a, b rollup
 accept	accept	select * from t group by a, b with rollup
-reject	accept	select * from t group by (a, b) with rollup
+accept	accept	select * from t group by (a, b) with rollup
 accept	accept	select * from t group by (a+b) with rollup
 reject	accept	select * from t use index (primary)
 accept	accept	select * from t use index (`primary`)
@@ -3159,7 +3159,7 @@ reject	accept	update delayed t set a = 2
 accept	accept	delete low_priority from t where a = 2
 reject	accept	delete high_priority from t where a = 2
 reject	accept	delete delayed from t where a = 2
-reject	accept	replace high_priority into t values (1)
+accept	accept	replace high_priority into t values (1)
 accept	accept	replace LOW_PRIORITY into t values (1)
 accept	accept	replace delayed into t values (1)
 accept	accept	select SQL_BIG_RESULT c1 from t group by c1

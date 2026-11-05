@@ -1050,7 +1050,7 @@ func (p *Parser) isSelectTerminator() bool {
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
 		kwUNION, kwINTERSECT, kwEXCEPT, kwON, kwUSING, kwJOIN, kwINNER, kwLEFT,
-		kwRIGHT, kwCROSS, kwNATURAL, kwFULL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
+		kwRIGHT, kwCROSS, kwNATURAL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
 		return true
 	}
 	return false
@@ -2239,6 +2239,10 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			}
 			p.advance()
 		}
+		// select_var_list takes at least one, so `SELECT a INTO FROM t` is a 1064.
+		if len(into.Vars) == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	into.Loc.End = p.prev.End
@@ -2507,20 +2511,8 @@ func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
 		if _, err := p.expect(kwROW); err != nil {
 			return nil, err
 		}
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-
-		var row []nodes.ExprNode
-		if p.cur.Type != ')' {
-			exprs, err := p.parseExprList()
-			if err != nil {
-				return nil, err
-			}
-			row = exprs
-		}
-
-		if _, err := p.expect(')'); err != nil {
+		row, err := p.parseRowValue()
+		if err != nil {
 			return nil, err
 		}
 		stmt.Rows = append(stmt.Rows, row)

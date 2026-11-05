@@ -198,6 +198,10 @@ func (p *Parser) parseOptionalTableAlias(tref *nodes.TableRef) error {
 	if !hasAS && !p.isIdentToken() {
 		return nil
 	}
+	// WINDOW names a table anywhere but as its alias: `UPDATE t window SET a = 1` is a 1064.
+	if p.cur.Type == kwWINDOW {
+		return p.syntaxErrorAtCur()
+	}
 	alias, _, err := p.parseIdent()
 	if err != nil {
 		return err
@@ -262,13 +266,16 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
 				// Optional [AS] alias
 				if _, ok := p.match(kwAS); ok {
+					if p.cur.Type == kwWINDOW {
+						return nil, p.syntaxErrorAtCur()
+					}
 					alias, _, err := p.parseIdent()
 					if err != nil {
 						return nil, err
 					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
-				} else if p.isIdentToken() {
+				} else if p.isIdentToken() && p.cur.Type != kwWINDOW {
 					// table_alias reads an ident, which is any unreserved
 					// keyword as well as a plain identifier, so
 					// `DELETE FROM t wait WHERE wait.a = 1` names an alias
@@ -422,13 +429,21 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 
 	start := p.pos()
 
-	col, err := p.parseColumnRef()
+	col, err := p.parseNamedColumn()
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := p.expect('='); err != nil {
+	if err := p.expectEqual(); err != nil {
 		return nil, err
+	}
+
+	if ignore, ok := p.parseIgnoreValue(); ok {
+		return &nodes.Assignment{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Column: col,
+			Value:  ignore,
+		}, nil
 	}
 
 	val, err := p.parseExpr()
@@ -444,6 +459,58 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 		Column: col,
 		Value:  val,
 	}, nil
+}
+
+// parseNamedColumn parses the column an assignment names. parseColumnRef
+// also reads a user variable, which is no column (simple_ident_nospvar), and
+// t.*, which names none; `@a` in backquotes is a column like any other.
+func (p *Parser) parseNamedColumn() (*nodes.ColumnRef, error) {
+	ref, err := p.parseColumnNotVariable()
+	if err != nil {
+		return nil, err
+	}
+	if ref.Star {
+		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
+	}
+	return ref, nil
+}
+
+// parseColumnNotVariable parses a column reference that is not a user variable.
+func (p *Parser) parseColumnNotVariable() (*nodes.ColumnRef, error) {
+	if p.isUserVariable() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseColumnRef()
+}
+
+// matchEqual consumes the = or := of an option, where the grammar makes it
+// optional, and reports whether it found one. A position the grammar writes
+// with a literal = takes no :=, such as a view's ALGORITHM, DEFINER, FORMAT, and
+// every CHANGE REPLICATION option, so those read = alone.
+//
+// Ref: MariaDB 11.8 sql/sql_yacc.yy: opt_equal is empty or equal, and opt_with and
+// opt_by read opt_equal too.
+func (p *Parser) matchEqual() bool {
+	if p.cur.Type == '=' || p.cur.Type == tokAssign {
+		p.advance()
+		return true
+	}
+	return false
+}
+
+// expectEqual consumes the = or := between a column and its value in an
+// assignment list.
+//
+// Ref: MariaDB 11.8 sql/sql_yacc.yy: update_elem, insert_update_elem, ident_eq_value
+// and load_data_set_elem all read a column, equal, and a value, and equal is
+// '=' or SET_VAR.
+func (p *Parser) expectEqual() error {
+	if p.cur.Type == tokAssign {
+		p.advance()
+		return nil
+	}
+	_, err := p.expect('=')
+	return err
 }
 
 // parseDeleteTableList parses a comma-separated list of table names

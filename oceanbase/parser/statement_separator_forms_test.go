@@ -24,11 +24,6 @@ import (
 // 1064 there, where MySQL 8.0 takes it, and neither is a locking clause right
 // after a lone parenthesized query (query_forms_test.go).
 //
-// Not recorded here, because this parser still disagrees and the change is not
-// about it: when an executable comment's body does not parse, OceanBase runs
-// the statement as if the comment were a plain one ("SELECT 1 /*! SELECT 2 */"
-// returns 1).
-//
 // Every case was measured against OceanBase CE 4.3.5.6
 // (oceanbase/oceanbase-ce:4.3.5-lts) through PREPARE on 2026-11-05.
 // TestStatementSeparatorFormsOceanBaseOracle keeps it a recording: an image
@@ -85,7 +80,12 @@ var separatorFormCases = []separatorFormCase{
 	{"select 1 # c\nselect 2", false},
 	{"select 1 /* c */ select 2", false},
 	// An executable comment's body is read in place, so a statement inside one
-	// follows the first with no separator.
+	// follows the first with no separator. OceanBase then reads the statement
+	// again with the comment as a plain one, and runs SELECT 1
+	// (exec_fallback.go).
+	{"select 1 /*! select 2 */", true},
+	{"select 1 /*!80000 select 2 */", true},
+	{"select 1 /*!100000 select 2 */", true},
 	// A statement after a stored program body, with no separator after its END.
 	{"create procedure p() begin select 1; end select 2", false},
 	{"create procedure p() select 1 select 2", false},

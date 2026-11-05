@@ -71,6 +71,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 	p := &Parser{
 		lexer: NewLexerWithOffset(sql, baseOffset),
 	}
+	p.lexer.dotNamesWord = true
 	p.advance()
 
 	var stmts []nodes.Node
@@ -149,6 +150,7 @@ func (p *Parser) lexerError() *ParseError {
 // like TTL whose value is a full expression.
 func ParseExpr(sql string) (nodes.ExprNode, error) {
 	p := &Parser{lexer: NewLexerWithOffset(sql, 0)}
+	p.lexer.dotNamesWord = true
 	p.advance()
 	start := p.cur.Loc
 	expr, err := p.parseExpr()

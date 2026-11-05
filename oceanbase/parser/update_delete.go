@@ -317,11 +317,15 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 
 	start := p.pos()
 
-	col, err := p.parseColumnRef()
+	// t.* stays: update_asgn_factor reads no_param_column_ref, which holds it, and
+	// only the resolver refuses it, with an error other than 1064 (measured).
+	col, err := p.parseColumnNotVariable()
 	if err != nil {
 		return nil, err
 	}
 
+	// = alone: update_asgn_factor is no_param_column_ref COMP_EQ expr_or_default,
+	// and OceanBase, unlike MySQL, has no := here (measured: 1064).
 	if _, err := p.expect('='); err != nil {
 		return nil, err
 	}
@@ -339,6 +343,28 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 		Column: col,
 		Value:  val,
 	}, nil
+}
+
+// parseNamedColumn parses the column a LOAD DATA assignment names. parseColumnRef
+// also reads a user variable, which is no column (simple_ident_nospvar), and
+// t.*, which names none; `@a` in backquotes is a column like any other.
+func (p *Parser) parseNamedColumn() (*nodes.ColumnRef, error) {
+	ref, err := p.parseColumnNotVariable()
+	if err != nil {
+		return nil, err
+	}
+	if ref.Star {
+		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
+	}
+	return ref, nil
+}
+
+// parseColumnNotVariable parses a column reference that is not a user variable.
+func (p *Parser) parseColumnNotVariable() (*nodes.ColumnRef, error) {
+	if p.isUserVariable() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseColumnRef()
 }
 
 // parseDeleteTableList parses a comma-separated list of table names

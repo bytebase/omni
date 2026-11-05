@@ -641,7 +641,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if len(n.Columns) > 0 {
+	if n.Columns != nil && len(n.Columns) == 0 {
+		sb.WriteString(" :columns ()")
+	} else if len(n.Columns) > 0 {
 		sb.WriteString(" :columns ")
 		for i, c := range n.Columns {
 			if i > 0 {
@@ -2540,7 +2542,11 @@ func writeVariableRef(sb *strings.Builder, n *VariableRef) {
 
 func writeAssignment(sb *strings.Builder, n *Assignment) {
 	sb.WriteString("{ASSIGN")
-	fmt.Fprintf(sb, " :loc %d :col ", n.Loc.Start)
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Scope != "" {
+		fmt.Fprintf(sb, " :scope %s", n.Scope)
+	}
+	sb.WriteString(" :col ")
 	writeNode(sb, n.Column)
 	sb.WriteString(" :val ")
 	writeNode(sb, n.Value)

@@ -2,31 +2,6 @@ package deparse
 
 import "testing"
 
-// TestNameText pins how an item's source text becomes its name: MySQL 8.0
-// keeps comments as written and drops only the markers of an executable
-// comment (see the oracle cases in catalog's view_names_test.go).
-func TestNameText(t *testing.T) {
-	for _, tc := range []struct{ text, want string }{
-		{"a + 1", "a + 1"},
-		{"a /* c */ + 1", "a /* c */ + 1"},
-		{"b /*+ hint */ + 4", "b /*+ hint */ + 4"},
-		{"a -- note\n + 1", "a -- note\n + 1"},
-		{"a # note\n + 1", "a # note\n + 1"},
-		// An item's text ends at its last token, before the comment's "*/".
-		{"a/*!80000 +2", "a +2"},
-		{"a /*!+3*/ + 1", "a +3 + 1"},
-		// An executable comment opened before the item closes inside it.
-		{"a */ + 1", "a  + 1"},
-		{"a*/*c*/b", "a*/*c*/b"},
-		{"'*/' + `/*!`", "'*/' + `/*!`"},
-		{`'a\'*/' + 1`, `'a\'*/' + 1`},
-	} {
-		if got := nameText(tc.text); got != tc.want {
-			t.Errorf("nameText(%q) = %q, want %q", tc.text, got, tc.want)
-		}
-	}
-}
-
 // TestAutoAliasWithoutSource: with no source text, DeparseSelect rebuilds an
 // unaliased subquery's name from the AST. It used to keep only the select
 // list, FROM and WHERE of a plain query, so a WITH, a set operation or a

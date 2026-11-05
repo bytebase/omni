@@ -248,12 +248,11 @@ func TestTableSampleTreeHeight(t *testing.T) {
 	}
 }
 
-// TestLexerWordTouchingDot pins upstream's rule for a reserved word beside a dot,
-// which the tables in tablesample_forms_test.go measure against the server. A
-// reserved word is an identifier when the next byte is a dot. TABLESAMPLE is one too
-// when the last byte before it that is not a space is a dot, where a tab, a newline
-// or a comment ends the search. Other reserved words keep their token there because
-// completion needs them to, and an unreserved keyword keeps its token throughout.
+// TestLexerWordTouchingDot pins the rule the word-after-a-dot tables depend on, on the lexer
+// itself. A reserved word running straight into a dot is a name. So is any word after a dot
+// and nothing but spaces, under Parse: a tab, a newline or a comment ends the search.
+// Tokenize and completion read incomplete text, so they leave that half out, and an
+// unreserved keyword before a dot keeps its token, which parseIdent takes.
 func TestLexerWordTouchingDot(t *testing.T) {
 	for _, tc := range []struct {
 		sql  string
@@ -272,23 +271,51 @@ func TestLexerWordTouchingDot(t *testing.T) {
 		{"t./**/tablesample", "tablesample", kwTABLESAMPLE},
 		{"a tablesample", "tablesample", kwTABLESAMPLE},
 		{"select.a", "select", tokIDENT},
-		{"o. from", "from", kwFROM},
+		{"o. from", "from", tokIDENT},
+		{"o .  select", "select", tokIDENT},
+		{"o.\tfrom", "from", kwFROM},
+		{"1. from", "from", tokIDENT},
 		{"global.a", "global", kwGLOBAL},
+		{"a. global", "global", tokIDENT},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
 			lex := NewLexer(tc.sql)
-			for {
-				tok := lex.NextToken()
-				if tok.Type == tokEOF {
-					t.Fatalf("no token for %q", tc.word)
-				}
-				if tok.Str == tc.word {
-					if tok.Type != tc.want {
-						t.Errorf("%q lexed as %d, want %d", tc.word, tok.Type, tc.want)
-					}
-					return
-				}
+			lex.dotNamesWord = true
+			if got := wordToken(t, lex, tc.word); got != tc.want {
+				t.Errorf("%q lexed as %d, want %d", tc.word, got, tc.want)
 			}
 		})
+	}
+
+	// The readers of incomplete text keep the keyword after a spaced dot.
+	for _, tc := range []struct {
+		sql  string
+		word string
+		want int
+	}{
+		{"o. from", "from", kwFROM},
+		{"t. tablesample", "tablesample", kwTABLESAMPLE},
+		{"select.a", "select", tokIDENT},
+		{"o.from", "from", tokIDENT},
+	} {
+		t.Run("incomplete "+tc.sql, func(t *testing.T) {
+			if got := wordToken(t, NewLexer(tc.sql), tc.word); got != tc.want {
+				t.Errorf("%q lexed as %d, want %d", tc.word, got, tc.want)
+			}
+		})
+	}
+}
+
+// wordToken returns the type of the token lex reads for word.
+func wordToken(t *testing.T, lex *Lexer, word string) int {
+	t.Helper()
+	for {
+		tok := lex.NextToken()
+		if tok.Type == tokEOF {
+			t.Fatalf("no token for %q", word)
+		}
+		if tok.Str == word {
+			return tok.Type
+		}
 	}
 }

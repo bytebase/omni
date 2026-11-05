@@ -855,7 +855,8 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 		if p.completing {
 			p.addSelectAliasPosition(aliasLoc)
 		}
-	} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+	} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && (!p.isSelectTerminator() || p.cur.Type == kwWINDOW) {
+		// WINDOW is an alias here, where no WINDOW clause can start: `SELECT a window FROM t`.
 		// Implicit alias (identifier or string literal without AS), but not if it's a keyword that starts the next clause
 		aliasLoc := p.pos()
 		alias, _, err = p.parseIdentOrText()
@@ -921,7 +922,7 @@ func (p *Parser) isSelectTerminator() bool {
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
 		kwUNION, kwINTERSECT, kwEXCEPT, kwON, kwUSING, kwJOIN, kwINNER, kwLEFT,
-		kwRIGHT, kwCROSS, kwNATURAL, kwFULL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
+		kwRIGHT, kwCROSS, kwNATURAL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
 		return true
 	}
 	return false
@@ -1256,7 +1257,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	}
 	defer p.leaveNesting()
 	// LATERAL (SELECT ...) — LATERAL derived table
-	if p.cur.Type == kwLATERAL {
+	if p.cur.Type == kwLATERAL && p.peekNext().Type == '(' {
 		latStart := p.pos()
 		p.advance() // consume LATERAL
 
@@ -1338,6 +1339,9 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 			// Optional alias: [AS] alias
 			if _, ok := p.match(kwAS); ok {
+				if p.cur.Type == kwWINDOW {
+					return nil, p.syntaxErrorAtCur()
+				}
 				alias, _, err := p.parseIdentOrText()
 				if err != nil {
 					return nil, err
@@ -1376,7 +1380,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	}
 
 	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
-	if p.cur.Type == kwJSON_TABLE {
+	if p.cur.Type == kwJSON_TABLE && p.peekNext().Type == '(' {
 		return p.parseJsonTable()
 	}
 
@@ -2143,7 +2147,8 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 					Name: name,
 				})
 			} else {
-				break
+				// INTO takes at least one target, and a comma another.
+				return nil, p.syntaxErrorAtCur()
 			}
 			if p.cur.Type != ',' {
 				break

@@ -559,9 +559,15 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		return p.parseParenExpr()
 
 	case kwCAST:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		return p.parseCastExpr()
 
 	case kwEXTRACT:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		return p.parseExtractExpr()
 
 	case kwCONVERT:
@@ -573,9 +579,17 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwVALUES:
 		return p.parseValuesFunc()
 
-	// Window functions and GROUPING — reserved keywords used as function calls.
-	// After registration as reserved keywords, they no longer match isIdentToken(),
-	// so we dispatch them here to parseFuncCall explicitly.
+	// NEXT VALUE FOR, NextValueForSequence in parser.y. VALUE after NEXT commits to this form:
+	// `SELECT next value FROM t` is a 1064 rather than a column with an alias.
+	case kwNEXT:
+		if p.peekNext().Type == kwVALUE {
+			return p.parseNextValueFor()
+		}
+		return p.parseIdentExpr()
+
+	// Words the parser reads as function calls by token. Unless `(` follows they are
+	// names, as in `SELECT count FROM t` and `SELECT now.a FROM t`, where TiDB does not
+	// reserve them.
 	case kwRANK, kwDENSE_RANK, kwROW_NUMBER, kwNTILE,
 		kwLAG, kwLEAD, kwFIRST_VALUE, kwLAST_VALUE, kwNTH_VALUE,
 		kwPERCENT_RANK, kwCUME_DIST, kwGROUPING,
@@ -594,14 +608,12 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		// Reserved keywords that are also function names (function_call_keyword / function_call_conflict)
 		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
 		kwMOD, kwREPEAT, kwREPLACE:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		start := p.pos()
 		tok := p.advance()
-		name := strings.ToUpper(tok.Str)
-		if p.cur.Type == '(' {
-			return p.parseFuncCall(start, "", name)
-		}
-		// Not followed by '(' — syntax error (these are reserved and can't be identifiers)
-		return nil, p.syntaxErrorAtCur()
+		return p.parseFuncCall(start, "", strings.ToUpper(tok.Str))
 
 	default:
 		// Variable reference
@@ -640,6 +652,54 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	}
 }
 
+// isNextValCall reports whether a call has the one argument NEXTVAL takes, TableName: one name,
+// or two with a dot. `NEXTVAL(1)`, `NEXTVAL('a')` and `NEXTVAL(a.b.c)` are 1064s.
+func isNextValCall(call nodes.ExprNode) bool {
+	fn, ok := call.(*nodes.FuncCallExpr)
+	if !ok || len(fn.Args) != 1 {
+		return false
+	}
+	arg, ok := fn.Args[0].(*nodes.ColumnRef)
+	return ok && arg.Schema == ""
+}
+
+// parseNextValueFor reads NEXT VALUE FOR TableName. It is the tree NEXTVAL(TableName) gives,
+// as upstream's is. p.cur is NEXT.
+func (p *Parser) parseNextValueFor() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume NEXT
+	p.advance() // consume VALUE
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
+	argStart := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	seq := &nodes.ColumnRef{Column: name}
+	if p.cur.Type == '.' {
+		p.advance()
+		qualified, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		seq.Table, seq.Column = name, qualified
+	}
+	seq.Loc = nodes.Loc{Start: argStart, End: p.prev.End}
+	return &nodes.FuncCallExpr{
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		Name: "NEXTVAL",
+		Args: []nodes.ExprNode{seq},
+	}, nil
+}
+
+// funcWordIsName reports whether the function word at p.cur is a name here, which is
+// when no `(` follows. parseIdentExpr then refuses the words TiDB reserves.
+func (p *Parser) funcWordIsName() bool {
+	return p.peekNext().Type != '('
+}
+
 // parseIdentExpr parses an identifier that could be a column ref or function call.
 func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	start := p.pos()
@@ -652,7 +712,15 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	if p.cur.Type == '(' {
 		// But first check if this could be a schema-qualified function: name.name(
 		// No — MySQL doesn't use schema.func() syntax in expressions (use schema.func())
-		return p.parseFuncCall(start, "", name)
+		call, err := p.parseFuncCall(start, "", name)
+		if err != nil {
+			return nil, err
+		}
+		// A quoted name is an ordinary call, which takes any arguments: `nextval`(1) parses.
+		if strings.EqualFold(name, "nextval") && !p.backtickQuotedAt(start) && !isNextValCall(call) {
+			return nil, &ParseError{Message: "NEXTVAL takes a sequence name", Position: start}
+		}
+		return call, nil
 	}
 
 	// Check for qualified name: name.name or name.name.name
@@ -1399,12 +1467,35 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		return sub, nil
 	}
 
+	itemStart := p.pos()
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
 	}
 	if expr == nil {
 		return nil, p.syntaxErrorAtCur()
+	}
+
+	// (a, b) is a row, as the corpus row Select (1, 1) > (1, 1) needs; every engine
+	// in this family reads it, and TiDB v8.5.5 does (measured).
+	if p.cur.Type == ',' {
+		if err := checkRowItem(expr, itemStart); err != nil {
+			return nil, err
+		}
+		row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}, Items: []nodes.ExprNode{expr}}
+		for p.cur.Type == ',' {
+			p.advance()
+			item, err := p.parseRowItem()
+			if err != nil {
+				return nil, err
+			}
+			row.Items = append(row.Items, item)
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		row.Loc.End = p.prev.End
+		return row, nil
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -2324,12 +2415,9 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 	row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}}
 
 	for {
-		expr, err := p.parseExpr()
+		expr, err := p.parseRowItem()
 		if err != nil {
 			return nil, err
-		}
-		if expr == nil {
-			return nil, p.syntaxErrorAtCur()
 		}
 		row.Items = append(row.Items, expr)
 		if p.cur.Type != ',' {
@@ -2338,12 +2426,45 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 		p.advance()
 	}
 
+	// A row has at least two elements: ROW(1) is a 1064 (measured).
+	if len(row.Items) < 2 {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 
 	row.Loc.End = p.prev.End
 	return row, nil
+}
+
+// parseRowItem parses one element of a row constructor. It is an expression, so
+// not the bare DEFAULT that parseExpr also reads, and not *.
+//
+// Ref: TiDB parser.y (v8.5.5) line 7930: "ROW" '(' ExpressionList ',' Expression ')'.
+func (p *Parser) parseRowItem() (nodes.ExprNode, error) {
+	start := p.pos()
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := checkRowItem(e, start); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+// checkRowItem refuses what parseExpr reads and a row does not hold, at start, where
+// the element began.
+func checkRowItem(e nodes.ExprNode, start int) error {
+	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
+		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
+	}
+	return checkNotStar(e)
 }
 
 // parseDefaultExpr parses DEFAULT or DEFAULT(col_name).

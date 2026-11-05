@@ -2499,10 +2499,22 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 
 	lower := strings.ToLower(word)
 	if kwType, ok := keywords[lower]; ok {
+		if l.beforeDotName() && l.prevToken != tokAt2 && kwType != kwNEW && kwType != kwOLD {
+			return Token{Type: tokIDENT, Str: word, Loc: start}
+		}
 		return Token{Type: kwType, Str: word, Loc: start}
 	}
 
 	return Token{Type: tokIDENT, Str: word, Loc: start}
+}
+
+// beforeDotName reports whether the word ending at l.pos runs straight into a dot and a name,
+// which makes it a name, reserved or not (MY_LEX_IDENT in sql_lex.cc). So `SELECT select.a FROM
+// t` names a column, while `SELECT select .a`, `SELECT select. a` and `SELECT table.*` are
+// 1064s. After @@ the word stays a keyword, so @@global.a reads its scope, and NEW and OLD stay
+// keywords, which is how a trigger's qualifier is told from a table's.
+func (l *Lexer) beforeDotName() bool {
+	return l.pos+1 < len(l.input) && l.input[l.pos] == '.' && isIdentChar(l.input[l.pos+1])
 }
 
 func isIdentStart(ch byte) bool {

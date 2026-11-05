@@ -643,7 +643,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if len(n.Columns) > 0 {
+	if n.Columns != nil && len(n.Columns) == 0 {
+		sb.WriteString(" :columns ()")
+	} else if len(n.Columns) > 0 {
 		sb.WriteString(" :columns ")
 		for i, c := range n.Columns {
 			if i > 0 {
@@ -2549,7 +2551,11 @@ func writeVariableRef(sb *strings.Builder, n *VariableRef) {
 
 func writeAssignment(sb *strings.Builder, n *Assignment) {
 	sb.WriteString("{ASSIGN")
-	fmt.Fprintf(sb, " :loc %d :col ", n.Loc.Start)
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Scope != "" {
+		fmt.Fprintf(sb, " :scope %s", n.Scope)
+	}
+	sb.WriteString(" :col ")
 	writeNode(sb, n.Column)
 	sb.WriteString(" :val ")
 	writeNode(sb, n.Value)
@@ -3166,10 +3172,10 @@ func writeIntoClause(sb *strings.Builder, n *IntoClause) {
 	if n.OutfileS3 {
 		sb.WriteString(" :outfile_s3 true")
 	}
-	if n.Outfile != "" {
+	if n.HasOutfile || n.Outfile != "" {
 		fmt.Fprintf(sb, " :outfile %q", n.Outfile)
 	}
-	if n.Dumpfile != "" {
+	if n.HasDumpfile || n.Dumpfile != "" {
 		fmt.Fprintf(sb, " :dumpfile %q", n.Dumpfile)
 	}
 	if n.Charset != "" {
@@ -3183,25 +3189,25 @@ func writeIntoClause(sb *strings.Builder, n *IntoClause) {
 	}
 	if n.HasFieldsClause {
 		sb.WriteString(" :fields true")
-		if n.FieldsTerminatedBy != "" {
+		if n.HasFieldsTerminatedBy || n.FieldsTerminatedBy != "" {
 			fmt.Fprintf(sb, " :fields_terminated_by %q", n.FieldsTerminatedBy)
 		}
-		if n.FieldsEnclosedBy != "" {
+		if n.HasFieldsEnclosedBy || n.FieldsEnclosedBy != "" {
 			if n.FieldsOptionalEncl {
 				sb.WriteString(" :optionally true")
 			}
 			fmt.Fprintf(sb, " :fields_enclosed_by %q", n.FieldsEnclosedBy)
 		}
-		if n.FieldsEscapedBy != "" {
+		if n.HasFieldsEscapedBy || n.FieldsEscapedBy != "" {
 			fmt.Fprintf(sb, " :fields_escaped_by %q", n.FieldsEscapedBy)
 		}
 	}
 	if n.HasLinesClause {
 		sb.WriteString(" :lines true")
-		if n.LinesStartingBy != "" {
+		if n.HasLinesStartingBy || n.LinesStartingBy != "" {
 			fmt.Fprintf(sb, " :lines_starting_by %q", n.LinesStartingBy)
 		}
-		if n.LinesTerminatedBy != "" {
+		if n.HasLinesTerminatedBy || n.LinesTerminatedBy != "" {
 			fmt.Fprintf(sb, " :lines_terminated_by %q", n.LinesTerminatedBy)
 		}
 	}

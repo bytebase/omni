@@ -122,8 +122,8 @@ type InsertStmt struct {
 	Ignore         bool          // INSERT IGNORE
 	Table          *TableRef     // target table
 	Partitions     []string      // PARTITION (p0, p1, ...)
-	Columns        []*ColumnRef  // explicit column list
-	Values         [][]ExprNode  // VALUES rows
+	Columns        []*ColumnRef  // explicit column list; nil without one, non-nil and empty for ()
+	Values         [][]ExprNode  // VALUES rows; a row of () has no elements
 	Select         *SelectStmt   // INSERT ... SELECT, ... TABLE t, ... (query)
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
 	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
@@ -323,22 +323,24 @@ const (
 
 // AlterTableCmd represents a single ALTER TABLE operation.
 type AlterTableCmd struct {
-	Loc            Loc
-	Type           AlterTableCmdType
-	Name           string       // column/constraint/index name
-	NewName        string       // for RENAME operations
-	Column         *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
-	Columns        []*ColumnDef // for ADD (col1, col2, ...) multi-column form
-	Constraint     *Constraint  // for ADD CONSTRAINT
-	Option         *TableOption // for table options
-	DefaultExpr    ExprNode     // for ALTER COLUMN SET DEFAULT expr
-	IfExists       bool
-	First          bool            // FIRST positioning
-	After          string          // AFTER column positioning
-	PartitionNames []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
-	AllPartitions  bool            // for partition operations using ALL
-	PartitionDefs  []*PartitionDef // for ADD PARTITION / REORGANIZE PARTITION ... INTO
-	Number         int             // for COALESCE PARTITION number / ADD PARTITION PARTITIONS number
+	OldColumnSchema string // CHANGE: the schema written before the old name
+	OldColumnTable  string // CHANGE: the table written before the old name
+	Loc             Loc
+	Type            AlterTableCmdType
+	Name            string       // column/constraint/index name
+	NewName         string       // for RENAME operations
+	Column          *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
+	Columns         []*ColumnDef // for ADD (col1, col2, ...) multi-column form
+	Constraint      *Constraint  // for ADD CONSTRAINT
+	Option          *TableOption // for table options
+	DefaultExpr     ExprNode     // for ALTER COLUMN SET DEFAULT expr
+	IfExists        bool
+	First           bool            // FIRST positioning
+	After           string          // AFTER column positioning
+	PartitionNames  []string        // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
+	AllPartitions   bool            // for partition operations using ALL
+	PartitionDefs   []*PartitionDef // for ADD PARTITION / REORGANIZE PARTITION ... INTO
+	Number          int             // for COALESCE PARTITION number / ADD PARTITION PARTITIONS number
 	// NoWriteToBinlog records MySQL's opt_no_write_to_binlog, the
 	// NO_WRITE_TO_BINLOG or LOCAL modifier a partition-maintenance action
 	// takes after the PARTITION keyword. The grammar folds both spellings to
@@ -541,6 +543,8 @@ func (p *RenameTablePair) nodeTag() {}
 // ColumnDef represents a column definition in CREATE TABLE.
 type ColumnDef struct {
 	Loc                      Loc
+	Schema                   string // the schema written before the name, in `d.t.a INT`
+	Table                    string // the table written before the name, in `t.a INT`
 	Name                     string
 	TypeName                 *DataType
 	Constraints              []*ColumnConstraint
@@ -1229,6 +1233,7 @@ func (l *TemporalLit) exprNode() {}
 // Assignment represents a SET assignment (col = value).
 type Assignment struct {
 	Loc    Loc
+	Scope  string // SET only: the GLOBAL, SESSION or LOCAL written on this assignment
 	Column *ColumnRef
 	Value  ExprNode
 }
@@ -1415,7 +1420,7 @@ func (v *VariableRef) exprNode() {}
 // SetStmt represents a SET statement.
 type SetStmt struct {
 	Loc         Loc
-	Scope       string // GLOBAL, SESSION, LOCAL
+	Scope       string // the first assignment's scope; each one holds its own, and none carries to the next
 	Assignments []*Assignment
 }
 

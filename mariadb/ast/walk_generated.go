@@ -820,6 +820,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.User != nil {
 			Walk(v, n.User)
 		}
+	case *SetStatementStmt:
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.Stmt)
 	case *SetStmt:
 		for _, item := range n.Assignments {
 			if item != nil {

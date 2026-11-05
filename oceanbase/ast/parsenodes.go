@@ -120,8 +120,8 @@ type InsertStmt struct {
 	Ignore         bool          // INSERT IGNORE
 	Table          *TableRef     // target table
 	Partitions     []string      // PARTITION (p0, p1, ...)
-	Columns        []*ColumnRef  // explicit column list
-	Values         [][]ExprNode  // VALUES rows
+	Columns        []*ColumnRef  // explicit column list; nil without one, non-nil and empty for ()
+	Values         [][]ExprNode  // VALUES rows; a row of () has no elements
 	Select         *SelectStmt   // INSERT ... SELECT
 	TableSource    *TableStmt    // INSERT ... TABLE table_name (MySQL 8.0.19+); never set by the parser
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
@@ -1064,8 +1064,12 @@ func (l *TemporalLit) exprNode() {}
 // Assignment represents a SET assignment (col = value).
 type Assignment struct {
 	Loc    Loc
+	Scope  string // SET only: the scope word written on this assignment
 	Column *ColumnRef
 	Value  ExprNode
+	// CharsetForm is set for SET NAMES and the charset forms, where Column holds the form's word
+	// (NAMES, COLLATE or CHARACTER SET) and names no variable.
+	CharsetForm bool
 }
 
 func (a *Assignment) nodeTag() {}
@@ -1217,6 +1221,15 @@ type IntoClause struct {
 	LinesTerminatedBy  string // LINES TERMINATED BY 'string'
 	HasFieldsClause    bool   // true if FIELDS/COLUMNS clause present
 	HasLinesClause     bool   // true if LINES clause present
+	// Each option written, even as '': an empty string turns a default off, so it
+	// is not the same as no option.
+	HasOutfile            bool
+	HasDumpfile           bool
+	HasFieldsTerminatedBy bool
+	HasFieldsEnclosedBy   bool
+	HasFieldsEscapedBy    bool
+	HasLinesStartingBy    bool
+	HasLinesTerminatedBy  bool
 
 	// Aurora MySQL: SELECT ... INTO OUTFILE S3 's3-uri' export options.
 	// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html
@@ -1240,9 +1253,9 @@ func (c *IntoClause) nodeTag() {}
 // takes any numeric literal there.
 type ForUpdate struct {
 	Loc             Loc
-	Share           bool // FOR SHARE instead of FOR UPDATE
-	LockInShareMode bool // LOCK IN SHARE MODE (legacy syntax)
-	Tables          []*TableRef
+	Share           bool        // set with LockInShareMode: OceanBase has no FOR SHARE
+	LockInShareMode bool        // LOCK IN SHARE MODE (legacy syntax)
+	Tables          []*TableRef // never set by the parser: OceanBase has no FOR UPDATE OF
 	NoWait          bool
 	HasWait         bool   // WAIT n present
 	WaitSeconds     string // the literal after WAIT, as written; only when HasWait
@@ -1257,6 +1270,7 @@ type VariableRef struct {
 	Name   string
 	System bool   // @@ (system variable) vs @ (user variable)
 	Scope  string // GLOBAL, SESSION, LOCAL for system variables
+	Bare   bool   // a bare name, the stored-program variable of SELECT ... INTO
 }
 
 func (v *VariableRef) nodeTag()  {}
@@ -1269,7 +1283,7 @@ func (v *VariableRef) exprNode() {}
 // SetStmt represents a SET statement.
 type SetStmt struct {
 	Loc         Loc
-	Scope       string // GLOBAL, SESSION, LOCAL
+	Scope       string // the first assignment's scope; each assignment holds its own
 	Assignments []*Assignment
 }
 
@@ -2375,17 +2389,17 @@ type TableStmt struct {
 func (s *TableStmt) nodeTag()  {}
 func (s *TableStmt) stmtNode() {}
 
-// ValuesStmt represents a VALUES statement (MySQL 8.0.19+).
-// VALUES ROW(1,2), ROW(3,4) returns rows of literal values.
+// ValuesStmt represents a VALUES query primary: VALUES ROW(1,2), ROW(3,4).
 //
-// A ValuesStmt that stands alone (a statement, an EXPLAIN target) holds its
-// own ORDER BY and LIMIT. As the ValuesSource of a SelectStmt it holds only
-// the rows, and the SelectStmt holds the clauses.
+// The parser builds one only as the ValuesSource of a SelectStmt, which holds its
+// clauses: a VALUES statement, in any position, is a SelectStmt over a ValuesStmt.
+// OrderBy and Limit are never set by the parser, and stay because Bytebase still
+// references this node.
 type ValuesStmt struct {
 	Loc     Loc
 	Rows    [][]ExprNode   // list of ROW(...) value lists
-	OrderBy []*OrderByItem // optional ORDER BY
-	Limit   *Limit         // optional LIMIT/OFFSET
+	OrderBy []*OrderByItem // never set by the parser
+	Limit   *Limit         // never set by the parser
 }
 
 func (s *ValuesStmt) nodeTag()  {}

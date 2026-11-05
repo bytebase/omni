@@ -416,7 +416,7 @@ func (p *Parser) parseLoadSetList() ([]*nodes.Assignment, error) {
 	p.advance()
 	var out []*nodes.Assignment
 	for {
-		col, err := p.parseColumnRef()
+		col, err := p.parseNamedColumn()
 		if err != nil {
 			return nil, err
 		}

@@ -167,19 +167,23 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	if p.cur.Type == kwSET {
 		p.advance()
 		for {
-			col, err := p.parseColumnRef()
+			col, err := p.parseNamedColumn()
 			if err != nil {
 				return nil, err
 			}
-			if _, err := p.expect('='); err != nil {
+			if err := p.expectEqual(); err != nil {
 				return nil, err
 			}
-			val, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if val == nil {
-				return nil, p.syntaxErrorAtCur()
+			val, ok := p.parseIgnoreValue()
+			if !ok {
+				var err error
+				val, err = p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if val == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
 			}
 			stmt.SetList = append(stmt.SetList, &nodes.Assignment{
 				Loc:    nodes.Loc{Start: col.Loc.Start, End: p.prev.End},
@@ -382,6 +386,9 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 // that check `(`@v`)` -- a column every one of these servers takes -- would
 // read as a variable.
 func (p *Parser) isUserVariable() bool {
+	if p.atQuotedUserVar() {
+		return true
+	}
 	if p.cur.Type != tokIDENT || len(p.cur.Str) < 2 || p.cur.Str[0] != '@' {
 		return false
 	}

@@ -1764,6 +1764,11 @@ type Lexer struct {
 	// over to read an executable comment's body: each "/*!NNNNN" opener and each
 	// closing "*/". expandedText leaves these bytes out.
 	execMarkers []execMarker
+
+	// plainExec reads every executable comment as a plain comment, which ends
+	// at the first "*/" whatever it holds. OceanBase reads a statement that way
+	// when it does not parse with the comments' bodies in it (parseSingle).
+	plainExec bool
 }
 
 // execComment is an executable comment the lexer is inside: start is the offset
@@ -1990,6 +1995,21 @@ func NewLexerWithOffset(input string, baseOffset int) *Lexer {
 	return &Lexer{input: input, baseOffset: baseOffset}
 }
 
+// restartAt returns a lexer over l's input that starts at pos, reading every
+// executable comment as a plain comment when plainExec is set. It keeps l's
+// close-scan memo, which depends on the input alone, so the scans of the
+// lexers parseSingle starts over one input stay linear in total.
+func (l *Lexer) restartAt(pos int, plainExec bool) *Lexer {
+	return &Lexer{
+		input:      l.input,
+		pos:        pos,
+		baseOffset: l.baseOffset,
+		execWalked: l.execWalked,
+		execMemo:   l.execMemo,
+		plainExec:  plainExec,
+	}
+}
+
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
 	tok := l.nextToken()
@@ -2155,8 +2175,9 @@ func (l *Lexer) skipWhitespaceAndComments() {
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
 			commentStart := l.pos
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
-			// These should be parsed as SQL, not skipped.
-			if vpos, ok := execOpener(l.input, l.pos); ok {
+			// These should be parsed as SQL, not skipped, unless the lexer
+			// reads them as plain comments (plainExec).
+			if vpos, ok := execOpener(l.input, l.pos); ok && !l.plainExec {
 				if l.execStack != nil {
 					// Executable comments do not nest: an opener inside one is
 					// dropped, and the first "*/" outside a token, which
@@ -2229,6 +2250,14 @@ func (l *Lexer) scanVariable() Token {
 			l.pos++
 		}
 		name = l.input[nameStart:l.pos]
+		// user_variable (sql_parser_mysql_mode.l:68) spells a quoted name from a short list
+		// of bytes, so @`a b` is a 1064 here.
+		for i := 0; i < len(name); i++ {
+			if b := name[i]; !isIdentChar(b) && b != '.' && b != '/' && b != '%' && b < 0x80 {
+				l.setError("unexpected character in user variable name", start)
+				break
+			}
+		}
 		if l.pos < len(l.input) {
 			l.pos++ // skip closing backtick
 		} else {
@@ -2481,10 +2510,22 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 
 	lower := strings.ToLower(word)
 	if kwType, ok := keywords[lower]; ok {
+		if l.beforeDotName() && l.prevToken != tokAt2 && kwType != kwNEW && kwType != kwOLD {
+			return Token{Type: tokIDENT, Str: word, Loc: start}
+		}
 		return Token{Type: kwType, Str: word, Loc: start}
 	}
 
 	return Token{Type: tokIDENT, Str: word, Loc: start}
+}
+
+// beforeDotName reports whether the word ending at l.pos runs straight into a dot and a name,
+// which makes it a name, reserved or not. So `SELECT select.a FROM t` names a column, while
+// `SELECT select .a`, `SELECT select. a` and `SELECT table.*` are 1064s. After @@ the word stays
+// a keyword, so @@global.a reads its scope, and NEW and OLD stay keywords, which is how a
+// trigger's qualifier is told from a table's.
+func (l *Lexer) beforeDotName() bool {
+	return l.pos+1 < len(l.input) && l.input[l.pos] == '.' && isIdentChar(l.input[l.pos+1])
 }
 
 func isIdentStart(ch byte) bool {

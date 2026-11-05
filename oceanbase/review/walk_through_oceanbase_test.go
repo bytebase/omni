@@ -140,6 +140,10 @@ func TestWalkThroughOceanBase(t *testing.T) {
 		const scoped = "SET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\n" + fk
 		oneFinding(t, scoped, 1, missing, onMySQL)
 		noFindingOB(t, scoped, on)
+		// A later assignment writes its own scope, and it reaches no other.
+		oneFindingOB(t, "SET @a = 1, GLOBAL foreign_key_checks = 0;\n"+fk, 1, missing, on)
+		noFindingOB(t, "SET GLOBAL sql_mode = '', SESSION foreign_key_checks = 0;\n"+fk, on)
+		noFindingOB(t, "SET SESSION sql_mode = '', GLOBAL sql_mode = '', foreign_key_checks = 0;\n"+fk, on)
 		oneFindingOB(t, "SET GLOBAL foreign_key_checks = 0;\n"+fk, 1, missing, on)
 		oneFindingOB(t, "SET GLOBAL foreign_key_checks = 0, wait_timeout = 28800;\n"+fk, 1, missing, on)
 		// An assignment after one to DEFAULT may not take its value.

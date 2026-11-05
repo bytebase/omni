@@ -381,6 +381,9 @@ func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if cmd.Column == nil {
 		return nil
 	}
+	if err := checkColumnQualifier(cmd.Column.Schema, cmd.Column.Table, tbl.Database.Name, tbl.Name); err != nil {
+		return err
+	}
 	if skipMissingColumn(tbl, cmd.Column.Name, cmd.IfExists) {
 		return nil
 	}
@@ -402,6 +405,12 @@ func skipMissingColumn(tbl *Table, name string, ifExists bool) bool {
 func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if cmd.Column == nil {
 		return nil
+	}
+	if err := checkColumnQualifier(cmd.OldColumnSchema, cmd.OldColumnTable, tbl.Database.Name, tbl.Name); err != nil {
+		return err
+	}
+	if err := checkColumnQualifier(cmd.Column.Schema, cmd.Column.Table, tbl.Database.Name, tbl.Name); err != nil {
+		return err
 	}
 	if skipMissingColumn(tbl, cmd.Name, cmd.IfExists) {
 		return nil

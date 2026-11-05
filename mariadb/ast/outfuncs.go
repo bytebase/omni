@@ -59,6 +59,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeRenameTableStmt(sb, n)
 	case *SetStmt:
 		writeSetStmt(sb, n)
+	case *SetStatementStmt:
+		writeSetStatementStmt(sb, n)
 	case *SetPasswordStmt:
 		writeSetPasswordStmt(sb, n)
 	case *ShowStmt:
@@ -191,6 +193,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeConvertExpr(sb, n)
 	case *DefaultExpr:
 		writeDefaultExpr(sb, n)
+	case *IgnoreExpr:
+		fmt.Fprintf(sb, "{IGNORE :loc %d}", n.Loc.Start)
 	case *RowExpr:
 		writeRowExpr(sb, n)
 	case *StarExpr:
@@ -651,7 +655,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if len(n.Columns) > 0 {
+	if n.Columns != nil && len(n.Columns) == 0 {
+		sb.WriteString(" :columns ()")
+	} else if len(n.Columns) > 0 {
 		sb.WriteString(" :columns ")
 		for i, c := range n.Columns {
 			if i > 0 {
@@ -1052,6 +1058,20 @@ func writeRenameTableStmt(sb *strings.Builder, n *RenameTableStmt) {
 			writeNode(sb, p)
 		}
 	}
+	sb.WriteString("}")
+}
+
+func writeSetStatementStmt(sb *strings.Builder, n *SetStatementStmt) {
+	sb.WriteString("{SET_STATEMENT")
+	fmt.Fprintf(sb, " :loc %d :options ", n.Loc.Start)
+	for i, a := range n.Options {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, a)
+	}
+	sb.WriteString(" :stmt ")
+	writeNode(sb, n.Stmt)
 	sb.WriteString("}")
 }
 
@@ -2586,7 +2606,11 @@ func writeVariableRef(sb *strings.Builder, n *VariableRef) {
 
 func writeAssignment(sb *strings.Builder, n *Assignment) {
 	sb.WriteString("{ASSIGN")
-	fmt.Fprintf(sb, " :loc %d :col ", n.Loc.Start)
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Scope != "" {
+		fmt.Fprintf(sb, " :scope %s", n.Scope)
+	}
+	sb.WriteString(" :col ")
 	writeNode(sb, n.Column)
 	sb.WriteString(" :val ")
 	writeNode(sb, n.Value)

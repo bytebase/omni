@@ -425,7 +425,7 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 // assignment between. So SET GLOBAL sql_mode = DEFAULT,
 // @@session.foreign_key_checks = 0 turns the session's checks off, and
 // SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves them as
-// they are. omni's parser takes a scope keyword only first.
+// they are.
 //
 // OceanBase differs twice (verified on 4.3.5). Its grammar gives each
 // assignment a scope of its own, so the statement's keyword reaches only
@@ -437,11 +437,11 @@ func (b *builder) set(v *ast.SetStmt) bool {
 	if b.callsStoredFunction(v) {
 		b.forgetTemporary()
 	}
-	global := strings.EqualFold(v.Scope, "GLOBAL") || strings.EqualFold(v.Scope, "PERSIST") || strings.EqualFold(v.Scope, "PERSIST_ONLY")
+	global := false
 	afterDefault := false
-	for i, a := range v.Assignments {
-		if i > 0 && b.w.oceanBase {
-			global = false
+	for _, a := range v.Assignments {
+		if a.Scope != "" || b.w.oceanBase {
+			global = strings.EqualFold(a.Scope, "GLOBAL") || strings.EqualFold(a.Scope, "PERSIST") || strings.EqualFold(a.Scope, "PERSIST_ONLY")
 		}
 		unknown := afterDefault && b.w.oceanBase
 		if _, ok := a.Value.(*ast.DefaultExpr); ok {

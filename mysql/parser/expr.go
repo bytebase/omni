@@ -423,6 +423,10 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 // `(@a) := 1` are syntax errors, and so is `@@a := 1`, since the lexer gives a
 // system variable as tokAt2.
 func (p *Parser) atUserVarAssign() bool {
+	if p.atQuotedUserVar() {
+		lookahead := *p.lexer
+		return lookahead.NextToken().Type == tokAssign
+	}
 	return p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' &&
 		p.peekNext().Type == tokAssign
 }
@@ -529,10 +533,6 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		tok := p.advance()
 		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: false}, nil
 
-	case kwON:
-		tok := p.advance()
-		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: true}, nil
-
 	case kwOFF:
 		tok := p.advance()
 		return &nodes.BoolLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: false}, nil
@@ -585,9 +585,15 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		return p.parseParenExpr()
 
 	case kwCAST:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		return p.parseCastExpr()
 
 	case kwEXTRACT:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		return p.parseExtractExpr()
 
 	case kwCONVERT:
@@ -599,9 +605,9 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwVALUES:
 		return p.parseValuesFunc()
 
-	// Window functions and GROUPING — reserved keywords used as function calls.
-	// After registration as reserved keywords, they no longer match isIdentToken(),
-	// so we dispatch them here to parseFuncCall explicitly.
+	// Words the parser reads as function calls by token. Unless `(` follows they are names, as
+	// in `SELECT count FROM t`, where the server's lexer reads them as identifiers; parseIdentExpr
+	// then refuses the words the server reserves.
 	case kwRANK, kwDENSE_RANK, kwROW_NUMBER, kwNTILE,
 		kwLAG, kwLEAD, kwFIRST_VALUE, kwLAST_VALUE, kwNTH_VALUE,
 		kwPERCENT_RANK, kwCUME_DIST, kwGROUPING,
@@ -620,14 +626,12 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		// Reserved keywords that are also function names (function_call_keyword / function_call_conflict)
 		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
 		kwMOD, kwREPEAT, kwREPLACE:
+		if p.funcWordIsName() {
+			return p.parseIdentExpr()
+		}
 		start := p.pos()
 		tok := p.advance()
-		name := strings.ToUpper(tok.Str)
-		if p.cur.Type == '(' {
-			return p.parseFuncCall(start, "", name)
-		}
-		// Not followed by '(' — syntax error (these are reserved and can't be identifiers)
-		return nil, p.syntaxErrorAtCur()
+		return p.parseFuncCall(start, "", strings.ToUpper(tok.Str))
 
 	default:
 		// `@name := expr` is a primary here (variable_aux in sql_yacc.yy), so it
@@ -677,6 +681,12 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+// funcWordIsName reports whether the function word at p.cur is a name here, which is when no
+// `(` follows.
+func (p *Parser) funcWordIsName() bool {
+	return p.peekNext().Type != '('
 }
 
 // parseIdentExpr parses an identifier that could be a column ref or function call.
@@ -1807,15 +1817,15 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	}
 
 	if p.cur.Type == ',' {
+		if err := checkRowItem(expr, start+1); err != nil {
+			return nil, err
+		}
 		row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}, Items: []nodes.ExprNode{expr}}
 		for p.cur.Type == ',' {
 			p.advance()
-			item, err := p.parseExpr()
+			item, err := p.parseRowItem()
 			if err != nil {
 				return nil, furthestErr(err, specErr)
-			}
-			if item == nil {
-				return nil, p.syntaxErrorAtCur()
 			}
 			row.Items = append(row.Items, item)
 		}
@@ -2589,18 +2599,20 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 	row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}}
 
 	for {
-		expr, err := p.parseExpr()
+		expr, err := p.parseRowItem()
 		if err != nil {
 			return nil, err
-		}
-		if expr == nil {
-			return nil, p.syntaxErrorAtCur()
 		}
 		row.Items = append(row.Items, expr)
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
+	}
+
+	// A row has at least two elements: ROW(1) is a 1064 (measured).
+	if len(row.Items) < 2 {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -2611,6 +2623,34 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 	return row, nil
 }
 
+// parseRowItem parses one element of a row constructor. It is an expression, so
+// not the bare DEFAULT that parseExpr also reads, and not *.
+//
+// Ref: MySQL 8.0 sql/sql_yacc.yy: simple_expr's ROW_SYM '(' expr ',' expr_list ')'.
+func (p *Parser) parseRowItem() (nodes.ExprNode, error) {
+	start := p.pos()
+	e, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := checkRowItem(e, start); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+// checkRowItem refuses what parseExpr reads and a row does not hold, at start, where
+// the element began.
+func checkRowItem(e nodes.ExprNode, start int) error {
+	if d, ok := e.(*nodes.DefaultExpr); ok && d.Column == "" {
+		return &ParseError{Message: `syntax error at or near "DEFAULT"`, Position: start}
+	}
+	return checkNotStar(e)
+}
+
 // parseDefaultExpr parses DEFAULT or DEFAULT(col_name).
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/miscellaneous-functions.html#function_default
@@ -2618,6 +2658,9 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 //	DEFAULT
 //	DEFAULT(col_name)
 func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
+	if p.noBareDefault && p.peekNext().Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
 	start := p.pos()
 	p.advance() // consume DEFAULT
 

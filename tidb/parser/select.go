@@ -472,10 +472,17 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			p.advance()
 			continue
 		case kwSQL_BUFFER_RESULT:
+			// Before a dot the word names a table, as in `SELECT sql_no_cache.a FROM t`.
+			if p.peekNext().Type == '.' {
+				break
+			}
 			stmt.BufferResult = true
 			p.advance()
 			continue
 		case kwSQL_NO_CACHE:
+			if p.peekNext().Type == '.' {
+				break
+			}
 			stmt.NoCache = true
 			p.advance()
 			continue
@@ -807,7 +814,7 @@ func (p *Parser) isSelectTerminator() bool {
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
 		kwUNION, kwINTERSECT, kwEXCEPT, kwON, kwUSING, kwJOIN, kwINNER, kwLEFT,
-		kwRIGHT, kwCROSS, kwNATURAL, kwFULL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
+		kwRIGHT, kwCROSS, kwNATURAL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
 		return true
 	}
 	return false
@@ -1162,7 +1169,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	}
 	defer p.leaveNesting()
 	// LATERAL (SELECT ...) — LATERAL derived table
-	if p.cur.Type == kwLATERAL {
+	if p.cur.Type == kwLATERAL && p.peekNext().Type == '(' {
 		latStart := p.pos()
 		p.advance() // consume LATERAL
 
@@ -1286,7 +1293,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	}
 
 	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
-	if p.cur.Type == kwJSON_TABLE {
+	if p.cur.Type == kwJSON_TABLE && p.peekNext().Type == '(' {
 		return p.parseJsonTable()
 	}
 
@@ -2238,20 +2245,8 @@ func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
 		if _, err := p.expect(kwROW); err != nil {
 			return nil, err
 		}
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-
-		var row []nodes.ExprNode
-		if p.cur.Type != ')' {
-			exprs, err := p.parseExprList()
-			if err != nil {
-				return nil, err
-			}
-			row = exprs
-		}
-
-		if _, err := p.expect(')'); err != nil {
+		row, err := p.parseRowValue()
+		if err != nil {
 			return nil, err
 		}
 		stmt.Rows = append(stmt.Rows, row)

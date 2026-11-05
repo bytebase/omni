@@ -189,7 +189,7 @@ var locSpanCases = []struct {
 	{"FetchCursorStmt", "CREATE PROCEDURE p_fetch_undecl() BEGIN FETCH nope INTO @x; END", "FETCH nope INTO @x", 0},
 	{"FloatLit", "SELECT TRUNCATE(1.234, 2)", "1.234", 0},
 	{"FlushStmt", "FLUSH TABLES", "FLUSH TABLES", 0},
-	{"ForUpdate", "SELECT * FROM t FOR SHARE", "FOR SHARE", 0},
+	{"ForUpdate", "SELECT * FROM t FOR UPDATE NOWAIT", "FOR UPDATE NOWAIT", 0},
 	{"FuncCallExpr", "DO SLEEP(1)", "SLEEP(1)", 0},
 	{"FuncParam", "CREATE FUNCTION myfunc(a INT) RETURNS INT RETURN a + 1", "a INT", 0},
 	{"GeneratedColumn", "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) STORED)", "GENERATED ALWAYS AS (a + b) STORED", 0},
@@ -211,7 +211,7 @@ var locSpanCases = []struct {
 	{"IndexOption", "CREATE TABLE t (id INT, KEY k (id) VISIBLE)", "VISIBLE", 0},
 	{"IndexOption", "CREATE TABLE t (c TEXT, FULLTEXT KEY fk (c) PARSER_PROPERTIES = (min_token_size = 2))", "PARSER_PROPERTIES = (min_token_size = 2)", 0},
 	{"ParserProperty", "CREATE TABLE t (c TEXT, FULLTEXT KEY fk (c) WITH PARSER ik PARSER_PROPERTIES=(ik_mode = 'max' '_word', stopword_table='none'))", "ik_mode = 'max' '_word'", 0},
-	{"InsertStmt", "INSERT INTO t1 VALUES (1)", "INSERT INTO t1 VALUES (1)", 0},
+	{"InsertStmt", "INSERT INTO t1 () VALUES ()", "INSERT INTO t1 () VALUES ()", 0},
 	{"InstallComponentStmt", "INSTALL COMPONENT 'file://c1'", "INSTALL COMPONENT 'file://c1'", 0},
 	{"InstallPluginStmt", "INSTALL PLUGIN p SONAME 'p.so'", "INSTALL PLUGIN p SONAME 'p.so'", 0},
 	{"IntLit", "DO 1", "1", 0},
@@ -274,7 +274,7 @@ var locSpanCases = []struct {
 	{"RevokeStmt", "REVOKE SELECT ON mydb.* FROM app_user", "REVOKE SELECT ON mydb.* FROM app_user", 0},
 	{"RollbackStmt", "ROLLBACK", "ROLLBACK", 0},
 	{"RoutineCharacteristic", "ALTER FUNCTION f1 COMMENT 'test'", "COMMENT 'test'", 0},
-	{"RowExpr", "SELECT ROW(1)", "ROW(1)", 0},
+	{"RowExpr", "SELECT ROW(1, 2)", "ROW(1, 2)", 0},
 	{"SavepointStmt", "SAVEPOINT sp1", "SAVEPOINT sp1", 0},
 	{"SelectStmt", "SELECT 1", "SELECT 1", 0},
 	{"SelectStmt", "SELECT (VALUES ROW(1) ORDER BY 1 LIMIT 1)", "VALUES ROW(1) ORDER BY 1 LIMIT 1", 1},
@@ -283,6 +283,7 @@ var locSpanCases = []struct {
 	{"SetRoleStmt", "SET ROLE ALL", "SET ROLE ALL", 0},
 	{"SetStmt", "SET x = 1", "SET x = 1", 0},
 	{"SetTransactionStmt", "SET TRANSACTION READ ONLY", "SET TRANSACTION READ ONLY", 0},
+	{"SetTransactionStmt", "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY;", "SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY", 0},
 	{"ShowStmt", "SHOW TABLES", "SHOW TABLES", 0},
 	{"ShutdownStmt", "SHUTDOWN", "SHUTDOWN", 0},
 	{"SignalInfoItem", "RESIGNAL SET MESSAGE_TEXT = 'Error handled'", "MESSAGE_TEXT = 'Error handled'", 0},
@@ -463,22 +464,30 @@ func TestLocContract(t *testing.T) {
 
 func checkSegmentLocs(sql string, seg Segment, items []ast.Node) []string {
 	var failures []string
+	// A statement read again with its executable comments as plain ones
+	// (exec_fallback.go) has the tokens of that reading, so the tokens of
+	// both readings count.
 	starts, ends := map[int]bool{}, map[int]bool{}
-	first, last := -1, -1
-	lex := NewLexerWithOffset(seg.Text, seg.ByteStart)
-	for {
-		tok := lex.NextToken()
-		if tok.Type == tokEOF {
-			break
+	firsts, lasts := map[int]bool{}, map[int]bool{}
+	for _, plainExec := range []bool{false, true} {
+		first, last := -1, -1
+		lex := NewLexerWithOffset(seg.Text, seg.ByteStart)
+		lex.plainExec = plainExec
+		for {
+			tok := lex.NextToken()
+			if tok.Type == tokEOF {
+				break
+			}
+			starts[tok.Loc], ends[tok.End] = true, true
+			if tok.Type == ';' {
+				continue
+			}
+			if first < 0 {
+				first = tok.Loc
+			}
+			last = tok.End
 		}
-		starts[tok.Loc], ends[tok.End] = true, true
-		if tok.Type == ';' {
-			continue
-		}
-		if first < 0 {
-			first = tok.Loc
-		}
-		last = tok.End
+		firsts[first], lasts[last] = true, true
 	}
 	fail := func(s locSpan, format string, args ...any) {
 		text := ""
@@ -508,11 +517,11 @@ func checkSegmentLocs(sql string, seg Segment, items []ast.Node) []string {
 	}
 	if len(items) > 0 {
 		head, tail := locSpans(items[0])[0], locSpans(items[len(items)-1])[0]
-		if head.loc.Start != first {
-			fail(head, "statement starts at %d, want its first token at %d", head.loc.Start, first)
+		if !firsts[head.loc.Start] {
+			fail(head, "statement starts at %d, want its first token at one of %v", head.loc.Start, firsts)
 		}
-		if tail.loc.End != last {
-			fail(tail, "statement ends at %d, want its last token's end at %d", tail.loc.End, last)
+		if !lasts[tail.loc.End] {
+			fail(tail, "statement ends at %d, want its last token's end at one of %v", tail.loc.End, lasts)
 		}
 	}
 	return failures

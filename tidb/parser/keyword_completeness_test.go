@@ -901,6 +901,19 @@ func TestKeywordCompleteness(t *testing.T) {
 	}
 }
 
+// tidbUnreservedWords are reserved on MySQL and unreserved on TiDB v8.5.5, which takes each
+// as a name in every position TestReservedWordSweepTiDBOracle tries. Most are not keywords
+// upstream at all, because the statement they start does not exist there.
+var tidbUnreservedWords = map[string]bool{
+	"accessible": true, "asensitive": true, "before": true, "condition": true, "cube": true,
+	"declare": true, "deterministic": true, "each": true, "empty": true, "function": true,
+	"get": true, "grouping": true, "insensitive": true, "io_after_gtids": true,
+	"io_before_gtids": true, "json_table": true, "lateral": true, "loop": true,
+	"modifies": true, "optimizer_costs": true, "purge": true, "read_write": true, "reads": true,
+	"resignal": true, "return": true, "sensitive": true, "separator": true, "signal": true,
+	"specific": true, "system": true, "undo": true, "variance": true,
+}
+
 // TestKeywordClassification verifies that every registered MySQL 8.0 keyword
 // has the correct category in omni's keywordCategories map.
 func TestKeywordClassification(t *testing.T) {
@@ -922,6 +935,13 @@ func TestKeywordClassification(t *testing.T) {
 		expectedCat, ok := catMap[kw.Category]
 		if !ok {
 			continue // skip unknown categories
+		}
+		// Reserved on TiDB where MySQL leaves them unreserved, parser.y:85 and 289.
+		if kw.SQL == "array" || kw.SQL == "until" {
+			expectedCat = kwCatReserved
+		}
+		if tidbUnreservedWords[kw.SQL] {
+			expectedCat = kwCatUnambiguous
 		}
 		// Look up the keyword token
 		tokType, registered := keywords[kw.SQL]

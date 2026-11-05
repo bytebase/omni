@@ -349,7 +349,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	switch {
 	case p.cur.Type == kwKEY_BLOCK_SIZE:
 		p.advance()
-		p.match('=') // optional =
+		p.matchEqual() // optional =
 		valStart := p.pos()
 		if p.cur.Type == tokICONST {
 			val := p.cur.Ival
@@ -441,7 +441,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 
 	case p.cur.Type == kwENGINE_ATTRIBUTE:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		if p.cur.Type == tokSCONST {
 			val := p.cur.Str
 			p.advance()
@@ -455,7 +455,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 
 	case p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		if p.cur.Type == tokSCONST {
 			val := p.cur.Str
 			p.advance()
@@ -578,7 +578,7 @@ func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, er
 				return "", "", p.syntaxErrorAtCur()
 			}
 			p.advance()
-			p.match('=') // optional =
+			p.matchEqual() // optional =
 			if algorithm, err = p.parseIndexLockAlgorithmValue(); err != nil {
 				return "", "", err
 			}
@@ -588,7 +588,7 @@ func (p *Parser) parseIndexLockAndAlgorithm() (algorithm string, lock string, er
 				return "", "", p.syntaxErrorAtCur()
 			}
 			p.advance()
-			p.match('=') // optional =
+			p.matchEqual() // optional =
 			if lock, err = p.parseIndexLockAlgorithmValue(); err != nil {
 				return "", "", err
 			}

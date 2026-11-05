@@ -14,10 +14,8 @@ import "testing"
 // not treat it as a keyword.
 //
 // Not in this table, because they do not depend on this clause or word, and omni
-// does not match them yet: `t AS OF TIMESTAMP expr`, which omni does not read;
-// `DELETE FROM t a USING t`, `LOCK TABLES t a READ`, `SELECT @@ a` and `SELECT 1.
-// from t`, which it accepts and TiDB refuses; and `SELECT t. from from t`, where
-// completion needs FROM to stay a keyword (see afterSpacedDot).
+// does not match them yet: `t AS OF TIMESTAMP expr`, which omni does not read; and
+// `DELETE FROM t a USING t` and `LOCK TABLES t a READ`, which it accepts and TiDB refuses.
 
 // tableSampleCase is a statement and whether the engine's parser accepts it.
 type tableSampleCase struct {

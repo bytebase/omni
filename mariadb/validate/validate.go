@@ -107,15 +107,22 @@ func (v *validator) walk(n nodes.Node) {
 		v.walkAssignment(s, false)
 	case *nodes.SetStmt:
 		v.walkSetStmt(s)
+	case *nodes.SetStatementStmt:
+		// The options name system variables, never a routine's locals.
+		v.walk(s.Stmt)
 	}
 }
 
 // walkSetStmt walks each assignment in a SET statement. An explicit-scope
-// SET (GLOBAL/SESSION/LOCAL) targets system variables; skip the local-var
-// lookup entirely in that case.
+// assignment targets a system variable, and so does one after it that writes
+// no scope, the most recent scope applying; skip the local-var lookup in that
+// case.
 func (v *validator) walkSetStmt(s *nodes.SetStmt) {
-	systemScope := s.Scope != ""
+	systemScope := false
 	for _, a := range s.Assignments {
+		if a.Scope != "" {
+			systemScope = true
+		}
 		v.walkAssignment(a, systemScope)
 	}
 }
@@ -129,6 +136,11 @@ func (v *validator) walkSetStmt(s *nodes.SetStmt) {
 func (v *validator) walkAssignment(s *nodes.Assignment, systemScope bool) {
 	col := s.Column
 	if col == nil {
+		return
+	}
+	// SET NAMES and the charset forms hold their word on the Column field; they
+	// name no variable.
+	if s.CharsetForm {
 		return
 	}
 	// @user / @@system variables carry the prefix on the Column field; always

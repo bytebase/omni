@@ -122,8 +122,8 @@ type InsertStmt struct {
 	Ignore         bool          // INSERT IGNORE
 	Table          *TableRef     // target table
 	Partitions     []string      // PARTITION (p0, p1, ...)
-	Columns        []*ColumnRef  // explicit column list
-	Values         [][]ExprNode  // VALUES rows
+	Columns        []*ColumnRef  // explicit column list; nil without one, non-nil and empty for ()
+	Values         [][]ExprNode  // VALUES rows; a row of () has no elements
 	Select         *SelectStmt   // INSERT ... SELECT, ... TABLE t, ... (query)
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
 	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
@@ -1043,8 +1043,12 @@ func (l *TemporalLit) exprNode() {}
 // Assignment represents a SET assignment (col = value).
 type Assignment struct {
 	Loc    Loc
+	Scope  string // SET only: the scope word written on this assignment
 	Column *ColumnRef
 	Value  ExprNode
+	// CharsetForm is set for SET NAMES and the charset forms, where Column holds the form's word
+	// (NAMES, COLLATE or CHARACTER SET) and names no variable.
+	CharsetForm bool
 }
 
 func (a *Assignment) nodeTag() {}
@@ -1240,7 +1244,7 @@ func (v *VariableRef) exprNode() {}
 // SetStmt represents a SET statement.
 type SetStmt struct {
 	Loc         Loc
-	Scope       string // GLOBAL, SESSION, LOCAL
+	Scope       string // the first assignment's scope; each assignment holds its own
 	Assignments []*Assignment
 }
 

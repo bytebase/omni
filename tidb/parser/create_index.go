@@ -153,13 +153,16 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 		col.Expr = expr
 		col.Functional = true
 	} else {
-		// Column name
-		colName, _, err := p.parseIdent()
+		// ColumnName. The server looks the name up in the table it is indexing, whatever
+		// the qualifier says, so `KEY (x.a)` indexes a.
+		schema, table, colName, err := p.parseColumnName()
 		if err != nil {
 			return nil, err
 		}
 		col.Expr = &nodes.ColumnRef{
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Schema: schema,
+			Table:  table,
 			Column: colName,
 		}
 

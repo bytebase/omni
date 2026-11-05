@@ -332,6 +332,66 @@ func (p *Parser) isTableConstraintStart() bool {
 	return false
 }
 
+// parseReferencedColumns reads the column list of REFERENCES, whose parts are ColumnNames. The
+// names it keeps are the columns', as the qualifier names nothing the foreign key uses.
+func (p *Parser) parseReferencedColumns() ([]string, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var names []string
+	for {
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		_, _, name, err := p.parseColumnName()
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// parseColumnName reads ColumnName, parser.y:3511: an Identifier, with up to two more before
+// it. So `a`, `t.a` and `d.t.a` are column names and `c.d.t.a` is a 1064. What a qualifier must
+// match is the statement's to say: CREATE TABLE, MODIFY and CHANGE check it, and ADD, ALTER and
+// DROP ignore it, which the catalog holds.
+func (p *Parser) parseColumnName() (schema, table, name string, err error) {
+	name, _, err = p.parseIdent()
+	if err != nil {
+		return "", "", "", err
+	}
+	if p.cur.Type != '.' {
+		return "", "", name, nil
+	}
+	p.advance()
+	table = name
+	name, _, err = p.parseIdent()
+	if err != nil {
+		return "", "", "", err
+	}
+	if p.cur.Type != '.' {
+		return "", table, name, nil
+	}
+	p.advance()
+	schema = table
+	table = name
+	name, _, err = p.parseIdent()
+	if err != nil {
+		return "", "", "", err
+	}
+	return schema, table, name, nil
+}
+
 // parseColumnDef parses a column definition.
 //
 //	col_name data_type [NOT NULL | NULL] [DEFAULT expr] [AUTO_INCREMENT]
@@ -341,14 +401,16 @@ func (p *Parser) isTableConstraintStart() bool {
 //	    [ON UPDATE expr]
 func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	start := p.pos()
-	name, _, err := p.parseIdent()
+	schema, table, name, err := p.parseColumnName()
 	if err != nil {
 		return nil, err
 	}
 
 	col := &nodes.ColumnDef{
-		Loc:  nodes.Loc{Start: start},
-		Name: name,
+		Loc:    nodes.Loc{Start: start},
+		Schema: schema,
+		Table:  table,
+		Name:   name,
 	}
 
 	// Completion: after column name, offer type candidates.
@@ -450,8 +512,12 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	case kwDEFAULT:
 		p.advance()
+		exprStart := p.pos()
 		expr, err := p.parseDefaultValue()
 		if err != nil {
+			return false, err
+		}
+		if err := refuseColumnValue(expr, exprStart); err != nil {
 			return false, err
 		}
 		col.DefaultValue = expr
@@ -681,12 +747,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if next := p.peekNext(); next.Type == kwUPDATE {
 			p.advance() // consume ON
 			p.advance() // consume UPDATE
-			expr, err := p.parseExpr()
+			expr, err := p.parseOnUpdateValue()
 			if err != nil {
 				return false, err
-			}
-			if expr == nil {
-				return false, p.syntaxErrorAtCur()
 			}
 			col.OnUpdate = expr
 			return true, nil
@@ -817,7 +880,7 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 
 	// Optional column list
 	if p.cur.Type == '(' {
-		cols, err := p.parseParenIdentListWithCompletion("columnref")
+		cols, err := p.parseReferencedColumns()
 		if err != nil {
 			return nil, err
 		}
@@ -1096,7 +1159,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			}
 			constr.RefTable = ref
 			if p.cur.Type == '(' {
-				refCols, err := p.parseParenIdentListWithCompletion("columnref")
+				refCols, err := p.parseReferencedColumns()
 				if err != nil {
 					return nil, err
 				}
@@ -2701,4 +2764,49 @@ func (p *Parser) parseMatchType() (string, error) {
 		return strings.ToUpper(tok.Str), nil
 	}
 	return "", p.syntaxErrorAtCur()
+}
+
+// refuseColumnValue refuses a bare name as a column's DEFAULT or ON UPDATE value.
+// DefaultValueExpr, parser.y:4052, takes a literal, a function call, or those in
+// parentheses, and ON UPDATE only a function call, so `a INT DEFAULT b` and `a TIMESTAMP
+// DEFAULT now` are 1064s.
+func refuseColumnValue(expr nodes.ExprNode, start int) error {
+	if _, ok := expr.(*nodes.ColumnRef); ok {
+		return &ParseError{Message: "syntax error", Position: start}
+	}
+	return nil
+}
+
+// parseOnUpdateValue reads NowSymOptionFraction, parser.y:4091, which is what ON UPDATE takes and
+// all it takes: CURRENT_TIMESTAMP, LOCALTIME or LOCALTIMESTAMP alone, one of them or NOW with `()` or
+// `(NUM)`, or CURRENT_DATE or CURDATE. So parentheses around one, as in `ON UPDATE (NOW())`, and any
+// other expression are 1064s, where DEFAULT reads a wider rule.
+func (p *Parser) parseOnUpdateValue() (nodes.ExprNode, error) {
+	first := p.cur.Type
+	switch first {
+	case kwCURRENT_TIMESTAMP, kwLOCALTIME, kwLOCALTIMESTAMP, kwNOW, kwCURRENT_DATE, kwCURDATE:
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	start := p.pos()
+	expr, err := p.parsePrimaryExpr()
+	if err != nil {
+		return nil, err
+	}
+	fn, ok := expr.(*nodes.FuncCallExpr)
+	if !ok {
+		return nil, &ParseError{Message: "syntax error", Position: start}
+	}
+	switch len(fn.Args) {
+	case 0:
+	case 1:
+		// A fraction is a number, and a date has none.
+		_, isNum := fn.Args[0].(*nodes.IntLit)
+		if !isNum || first == kwCURRENT_DATE || first == kwCURDATE {
+			return nil, &ParseError{Message: "syntax error", Position: start}
+		}
+	default:
+		return nil, &ParseError{Message: "syntax error", Position: start}
+	}
+	return expr, nil
 }

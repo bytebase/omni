@@ -233,9 +233,12 @@ func TestExecCommentLoc_ErrorPosition(t *testing.T) {
 		msg  string
 		want int
 	}{
-		// A syntax error inside the comment body names the token's offset.
-		{"/*!50000 SELECT FROM t */", "syntax error", 16},
-		{"SELECT 1; /*!80000 SELECT a FROM WHERE */", "expected identifier", 33},
+		// A syntax error inside the comment body names the token's offset. It
+		// stays an error only in a statement OceanBase hands to its PL parser:
+		// any other is read again with the comment as a plain one, which
+		// makes "/*!50000 SELECT FROM t */" an empty query (exec_fallback.go).
+		{"CALL p() /*!50000 FROM t */", "syntax error", 18},
+		{"SELECT 1; DROP PROCEDURE p /*!80000 FROM */", "syntax error", 36},
 		// A string or a line comment that swallows the comment's closing */
 		// leaves the comment open, which MySQL rejects; the error names the
 		// comment's start.

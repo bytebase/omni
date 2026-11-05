@@ -739,7 +739,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if len(n.Columns) > 0 {
+	if n.Columns != nil && len(n.Columns) == 0 {
+		sb.WriteString(" :columns ()")
+	} else if len(n.Columns) > 0 {
 		sb.WriteString(" :columns ")
 		for i, c := range n.Columns {
 			if i > 0 {
@@ -3120,7 +3122,11 @@ func writeVariableRef(sb *strings.Builder, n *VariableRef) {
 
 func writeAssignment(sb *strings.Builder, n *Assignment) {
 	sb.WriteString("{ASSIGN")
-	fmt.Fprintf(sb, " :loc %d :col ", n.Loc.Start)
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Scope != "" {
+		fmt.Fprintf(sb, " :scope %s", n.Scope)
+	}
+	sb.WriteString(" :col ")
 	writeNode(sb, n.Column)
 	sb.WriteString(" :val ")
 	writeNode(sb, n.Value)
@@ -3246,6 +3252,12 @@ func writeWindowFrameBound(sb *strings.Builder, n *WindowFrameBound) {
 func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	sb.WriteString("{COLDEF")
 	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.Table != "" {
+		fmt.Fprintf(sb, " :table %s", n.Table)
+	}
+	if n.Schema != "" {
+		fmt.Fprintf(sb, " :schema %s", n.Schema)
+	}
 	if n.TypeName != nil {
 		sb.WriteString(" :type ")
 		writeNode(sb, n.TypeName)

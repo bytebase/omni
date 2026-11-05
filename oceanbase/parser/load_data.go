@@ -225,7 +225,7 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	if p.cur.Type == kwSET {
 		p.advance()
 		for {
-			col, err := p.parseColumnRef()
+			col, err := p.parseNamedColumn()
 			if err != nil {
 				return nil, err
 			}
@@ -500,6 +500,9 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 // that check `(`@v`)` -- a column every one of these servers takes -- would
 // read as a variable.
 func (p *Parser) isUserVariable() bool {
+	if p.atQuotedUserVar() {
+		return true
+	}
 	if p.cur.Type != tokIDENT || len(p.cur.Str) < 2 || p.cur.Str[0] != '@' {
 		return false
 	}

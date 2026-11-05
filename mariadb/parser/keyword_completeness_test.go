@@ -668,7 +668,7 @@ var mysql8Keywords = []mysql8Keyword{
 	{"rollup", catUnambiguous},
 	{"rotate", catUnambiguous},
 	{"routine", catUnambiguous},
-	{"row", catReserved},
+	{"row", catUnambiguous},
 	{"row_count", catUnambiguous},
 	{"row_format", catUnambiguous},
 	{"row_number", catReserved},
@@ -933,10 +933,42 @@ func TestKeywordCompleteness(t *testing.T) {
 // for exactly these keys and still asserts the unchanged MySQL category for
 // every other keyword — a per-keyword override, NOT a relaxed guard.
 //
+// mariadbNotLabelWords are words mariadb:11.8.8 takes as a name but answers 1064 to as a label, which
+// is what ambiguous_2 means to isLabelKeyword.
+var mariadbNotLabelWords = map[string]bool{
+	"backup": true, "close": true, "compressed": true, "exclude": true, "following": true,
+	"format": true, "get": true, "host": true, "open": true, "option": true, "options": true,
+	"others": true, "owner": true, "parser": true, "port": true, "preceding": true,
+	"remove": true, "replica": true, "replicas": true, "restore": true, "security": true,
+	"server": true, "socket": true, "soname": true, "stored": true, "ties": true,
+	"unbounded": true, "upgrade": true, "window": true, "wrapper": true,
+}
+
 // To add an entry: container-verify the word is rejected as a column name/alias
 // on mariadb:11.8.8 (1064), then list it here. (P3 temporal will likely add more.)
+// mariadbUnreservedWords are reserved on MySQL and unreserved on MariaDB 11.8, which takes each
+// as a name in the positions TestReservedWordSweepOracle tries.
+var mariadbUnreservedWords = map[string]bool{
+	"clone": true, "import": true, "restart": true,
+	"cube": true, "cume_dist": true, "database": true, "dense_rank": true, "empty": true,
+	"first_value": true, "function": true, "generated": true, "get": true, "grouping": true,
+	"groups": true, "io_after_gtids": true, "io_before_gtids": true, "json_table": true,
+	"lag": true, "last_value": true, "lateral": true, "lead": true, "master_bind": true,
+	"master_ssl_verify_server_cert": true, "nth_value": true, "ntile": true, "of": true,
+	"optimizer_costs": true, "option": true, "percent_rank": true, "rank": true, "schema": true,
+	"stored": true, "system": true, "variance": true, "virtual": true, "window": true,
+}
+
 var mariadbReservedDivergences = map[string]bool{
 	"returning": true, // column `returning`, bare alias, and AS RETURNING are all 1064 on MariaDB
+	// Each is a 1064 as a bare name, but for the bare assignment of offset.
+	"offset":             true,
+	"sql_after_gtids":    true,
+	"sql_before_gtids":   true,
+	"stats_auto_recalc":  true,
+	"stats_persistent":   true,
+	"stats_sample_pages": true,
+	"vector":             true,
 }
 
 // TestKeywordClassification verifies that every registered MySQL 8.0 keyword
@@ -964,6 +996,12 @@ func TestKeywordClassification(t *testing.T) {
 		// MariaDB reserves a few keywords MySQL 8.0 does not (container-verified).
 		if mariadbReservedDivergences[kw.SQL] {
 			expectedCat = kwCatReserved
+		}
+		if mariadbUnreservedWords[kw.SQL] {
+			expectedCat = kwCatUnambiguous
+		}
+		if mariadbNotLabelWords[kw.SQL] {
+			expectedCat = kwCatAmbiguous2
 		}
 		// Look up the keyword token
 		tokType, registered := keywords[kw.SQL]

@@ -20,8 +20,6 @@ import "testing"
 //   - `AS OF TIMESTAMP 'a' 'b'`, `(1, 2)` and `?`: adjacent strings, a row and a
 //     parameter marker are each a 1064 from omni in any expression.
 //   - `FROM { OJ t ... }` and `DESC SELECT`, which omni does not read at all.
-//   - `SELECT t. of FROM t`, `SELECT t . of FROM t` and `FROM db . of`: the spaced-dot
-//     rule holds for TABLESAMPLE alone (see afterSpacedDot).
 //
 // `LOCK TABLES t USE INDEX (i) READ` is the reverse: a 1064 that omni accepts, which
 // this clause does not touch either.

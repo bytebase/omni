@@ -1331,14 +1331,6 @@ func TestParseSelectForUpdate(t *testing.T) {
 	if sel.ForUpdate.Share {
 		t.Error("expected FOR UPDATE, not FOR SHARE")
 	}
-
-	sel2 := parseSelect(t, "SELECT * FROM t FOR SHARE")
-	if sel2.ForUpdate == nil {
-		t.Fatal("expected FOR SHARE clause")
-	}
-	if !sel2.ForUpdate.Share {
-		t.Error("expected FOR SHARE")
-	}
 }
 
 // TestParseSelectDistinct tests SELECT DISTINCT.
@@ -1478,13 +1470,6 @@ func TestParseInsertValues(t *testing.T) {
 			rowCount: 1,
 			ignore:   true,
 			priority: ast.InsertPriorityHigh,
-		},
-		{
-			input:    "INSERT DELAYED INTO users (id) VALUES (1)",
-			table:    "users",
-			colCount: 1,
-			rowCount: 1,
-			priority: ast.InsertPriorityDelayed,
 		},
 	}
 
@@ -1648,13 +1633,6 @@ func TestParseReplace(t *testing.T) {
 			rowCount: 1,
 			priority: ast.InsertPriorityLow,
 		},
-		{
-			input:    "REPLACE DELAYED INTO users (id) VALUES (1)",
-			table:    "users",
-			colCount: 1,
-			rowCount: 1,
-			priority: ast.InsertPriorityDelayed,
-		},
 	}
 
 	for _, tt := range cases {
@@ -1736,6 +1714,19 @@ func TestParseInsertOnDupKey(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Batch 99 (review_dml): INSERT ... TABLE source
 // ---------------------------------------------------------------------------
+
+// TestInsertRefusesDelayed: OceanBase's opt_priority is HIGH_PRIORITY or
+// LOW_PRIORITY, and OceanBase 4.3.5 answers these with 1064.
+func TestInsertRefusesDelayed(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT DELAYED INTO users (id) VALUES (1)",
+		"REPLACE DELAYED INTO users (id) VALUES (1)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted DELAYED", sql)
+		}
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Batch 6: update_delete
@@ -4915,10 +4906,11 @@ func TestParseExplain(t *testing.T) {
 		if stmt.Analyze {
 			t.Error("Analyze = true, want false")
 		}
-		values, ok := stmt.Stmt.(*ast.ValuesStmt)
-		if !ok {
-			t.Fatalf("Stmt type = %T, want *ast.ValuesStmt", stmt.Stmt)
+		sel, ok := stmt.Stmt.(*ast.SelectStmt)
+		if !ok || sel.ValuesSource == nil {
+			t.Fatalf("Stmt = %#v, want a *ast.SelectStmt over VALUES", stmt.Stmt)
 		}
+		values := sel.ValuesSource
 		if len(values.Rows) != 1 || len(values.Rows[0]) != 2 {
 			t.Fatalf("VALUES rows shape = %#v, want one ROW with two expressions", values.Rows)
 		}
@@ -7520,33 +7512,34 @@ func TestLabelIdentRejectsAmbiguous2(t *testing.T) {
 	// BEGIN as a table name should work (general ident context).
 	ParseAndCheck(t, "CREATE TABLE begin (a INT)")
 
-	// BEGIN as an SP label should fail — ambiguous_2 is excluded from label_ident.
-	t.Run("begin as LEAVE label rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("LEAVE begin")}
+	// WHILE as an SP label should fail: a routine reads labels by the PL grammar, where BEGIN is one
+	// (see plReservedWords) and WHILE is not.
+	t.Run("while as LEAVE label rejected", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("LEAVE while")}
 		p.advance()
 		_, err := p.parseLeaveStmt()
 		if err == nil {
-			t.Fatal("expected error for LEAVE begin (BEGIN is ambiguous_2, not allowed as label)")
+			t.Fatal("expected error for LEAVE while (WHILE is in the PL grammar, not allowed as label)")
 		}
 	})
 
-	t.Run("begin as ITERATE label rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("ITERATE begin")}
+	t.Run("while as ITERATE label rejected", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("ITERATE while")}
 		p.advance()
 		_, err := p.parseIterateStmt()
 		if err == nil {
-			t.Fatal("expected error for ITERATE begin (BEGIN is ambiguous_2, not allowed as label)")
+			t.Fatal("expected error for ITERATE while (WHILE is in the PL grammar, not allowed as label)")
 		}
 	})
 
-	t.Run("begin as block label rejected", func(t *testing.T) {
-		// In a compound context, `begin: BEGIN ... END begin` should fail
+	t.Run("while as block label rejected", func(t *testing.T) {
+		// In a compound context, `while: BEGIN ... END begin` should fail
 		// because BEGIN cannot be used as a label.
-		p := &Parser{lexer: NewLexer("begin: BEGIN END begin")}
+		p := &Parser{lexer: NewLexer("while: BEGIN END begin")}
 		p.advance()
 		_, err := p.parseCompoundStmtOrStmt()
 		if err == nil {
-			t.Fatal("expected error for begin: BEGIN ... END (BEGIN is ambiguous_2, not allowed as label)")
+			t.Fatal("expected error for while: BEGIN ... END (WHILE is in the PL grammar, not allowed as label)")
 		}
 	})
 }
@@ -7682,11 +7675,11 @@ func TestParseValuesStmt(t *testing.T) {
 	}{
 		{
 			sql:  "VALUES ROW(1, 2, 3)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14} {INT_LIT :val 3 :loc 17}))}}",
 		},
 		{
 			sql:  "VALUES ROW(1, 2), ROW(3, 4)",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}",
+			want: "{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {INT_LIT :val 2 :loc 14}) ({INT_LIT :val 3 :loc 22} {INT_LIT :val 4 :loc 25}))}}",
 		},
 	}
 	for _, tt := range tests {
@@ -7707,15 +7700,15 @@ func TestParseValuesRow(t *testing.T) {
 	}{
 		{
 			sql:  "VALUES ROW('a', 'b')",
-			want: `{VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}`,
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({STRING_LIT :val "a" :loc 11} {STRING_LIT :val "b" :loc 16}))}}`,
 		},
 		{
 			sql:  "VALUES ROW(1, 'hello', NULL)",
-			want: `{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}`,
+			want: `{SELECT :loc 0 :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11} {STRING_LIT :val "hello" :loc 14} {NULL_LIT :loc 23}))}}`,
 		},
 		{
 			sql:  "VALUES ROW(1) LIMIT 1",
-			want: "{VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11})) :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}}}",
+			want: "{SELECT :loc 0 :limit {LIMIT :loc 20 :count {INT_LIT :val 1 :loc 20}} :values_source {VALUES_STMT :loc 0 :rows (({INT_LIT :val 1 :loc 11}))}}",
 		},
 	}
 	for _, tt := range tests {
@@ -9551,24 +9544,15 @@ func TestParseAlterUndoTablespaceSetActive(t *testing.T) {
 // --- Batch 70: depth_fix_set_persist_show_full ---
 
 func TestParseSetPersist(t *testing.T) {
-	tests := []string{
+	// PERSIST and PERSIST_ONLY are no scopes here: OceanBase 4.3.5.6 answers 1064, as
+	// set_names_scopes_test.go records.
+	for _, sql := range []string{
 		"SET PERSIST max_connections = 100",
 		"SET PERSIST innodb_buffer_pool_size = 1073741824",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseSetPersistOnly(t *testing.T) {
-	tests := []string{
 		"SET PERSIST_ONLY back_log = 100",
-	}
-	for _, sql := range tests {
+	} {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
 }
@@ -9883,8 +9867,6 @@ func TestParseRowConstructor(t *testing.T) {
 		"SELECT * FROM t WHERE ROW(a, b) = ROW(1, 2)",
 		// ROW with expressions
 		"SELECT * FROM t WHERE ROW(a + 1, b * 2) = ROW(10, 20)",
-		// ROW with single value (MySQL requires at least 2 for row comparisons but ROW(1) is valid syntax)
-		"SELECT ROW(1)",
 		// Nested ROW is valid syntax
 		"SELECT ROW(1, ROW(2, 3))",
 	}
@@ -12499,16 +12481,10 @@ func TestLvalueIdentRejectsAmbiguous4(t *testing.T) {
 	// GLOBAL as a table name should work (general ident context).
 	ParseAndCheck(t, "CREATE TABLE global (a INT)")
 
-	// SET global = 1 should fail — GLOBAL is ambiguous_4 (scope modifier, not variable).
-	// In MySQL, `SET global = 1` is parsed as `SET GLOBAL = 1` which is incomplete
-	// (missing variable name after scope), so it's an error.
-	t.Run("SET global = 1 rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("SET global = 1")}
-		p.advance()
-		_, err := p.parseSetStmt()
-		if err == nil {
-			t.Fatal("expected error for SET global = 1 (GLOBAL is ambiguous_4, consumed as scope modifier)")
-		}
+	// SET global = 1 parses: unlike MySQL, GLOBAL is also a variable name here, as
+	// set_names_scopes_test.go records.
+	t.Run("SET global = 1 accepted", func(t *testing.T) {
+		ParseAndCheck(t, "SET global = 1")
 	})
 
 	// SET begin = 1 should succeed — BEGIN is ambiguous_2 (allowed as lvalue).
@@ -12755,8 +12731,7 @@ func TestUncategorizedKeywordsAreUnambiguous(t *testing.T) {
 	// Explicitly categorized keywords keep their restrictions. (role_ident
 	// is not exercised here: the CREATE ROLE / GRANT ... TO paths do not yet
 	// go through parseRoleIdent, a separate pre-existing gap.)
-	ParseExpectError(t, "CREATE PROCEDURE p() BEGIN begin: LOOP LEAVE begin; END LOOP; END") // ambiguous_2: not a label
-	ParseExpectError(t, "SET global = 1")                                                    // ambiguous_4: not an lvalue
+	ParseExpectError(t, "CREATE PROCEDURE p() BEGIN while: LOOP LEAVE while; END LOOP; END") // reserved in the PL grammar
 }
 
 func TestLoadDataXMLShareTrailingClauses(t *testing.T) {

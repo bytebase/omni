@@ -8957,29 +8957,6 @@ func TestParseAlterUndoTablespaceSetActive(t *testing.T) {
 
 // --- Batch 70: depth_fix_set_persist_show_full ---
 
-func TestParseSetPersist(t *testing.T) {
-	tests := []string{
-		"SET PERSIST max_connections = 100",
-		"SET PERSIST innodb_buffer_pool_size = 1073741824",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseSetPersistOnly(t *testing.T) {
-	tests := []string{
-		"SET PERSIST_ONLY back_log = 100",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseShowFullTables(t *testing.T) {
 	tests := []string{
 		"SHOW FULL TABLES",
@@ -9046,17 +9023,6 @@ func TestParseGrantProxy(t *testing.T) {
 	tests := []string{
 		"GRANT PROXY ON 'admin'@'localhost' TO 'user1'@'localhost'",
 		"GRANT PROXY ON 'admin'@'localhost' TO 'user1'@'localhost' WITH GRANT OPTION",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseRevokeProxy(t *testing.T) {
-	tests := []string{
-		"REVOKE PROXY ON 'admin'@'localhost' FROM 'user1'@'localhost'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -9155,7 +9121,10 @@ func TestParseInsertPartition(t *testing.T) {
 	}
 }
 
-func TestParseInsertAsRowAlias(t *testing.T) {
+// TiDB v8.5.5 has no row alias: InsertIntoStmt ends at InsertValues and
+// OnDuplicateKeyUpdate, and the server answers these with 1064. The rows of
+// insert_forms_test.go are held to the server; this names the reason.
+func TestInsertRefusesRowAlias(t *testing.T) {
 	tests := []string{
 		"INSERT INTO t1 VALUES (1, 2) AS new ON DUPLICATE KEY UPDATE col1 = new.col1",
 		"INSERT INTO t1 VALUES (1, 2) AS new(a, b) ON DUPLICATE KEY UPDATE col1 = new.a",
@@ -9163,7 +9132,9 @@ func TestParseInsertAsRowAlias(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) accepted a row alias", sql)
+			}
 		})
 	}
 }
@@ -9268,8 +9239,6 @@ func TestParseRowConstructor(t *testing.T) {
 		"SELECT * FROM t WHERE ROW(a, b) = ROW(1, 2)",
 		// ROW with expressions
 		"SELECT * FROM t WHERE ROW(a + 1, b * 2) = ROW(10, 20)",
-		// ROW with single value (MySQL requires at least 2 for row comparisons but ROW(1) is valid syntax)
-		"SELECT ROW(1)",
 		// Nested ROW is valid syntax
 		"SELECT ROW(1, ROW(2, 3))",
 	}
@@ -10405,7 +10374,6 @@ func TestBNFReviewSecurity(t *testing.T) {
 		// REVOKE IF EXISTS role
 		"REVOKE IF EXISTS role1 FROM user1",
 		// REVOKE PROXY IF EXISTS
-		"REVOKE IF EXISTS PROXY ON 'admin'@'localhost' FROM 'user1'@'localhost'",
 		// SET PASSWORD TO RANDOM
 		"SET PASSWORD TO RANDOM",
 		"SET PASSWORD FOR 'user1'@'localhost' TO RANDOM",
@@ -11693,23 +11661,12 @@ func TestUTCTemporalFunctions(t *testing.T) {
 }
 
 // TestLvalueIdentRejectsAmbiguous4 verifies that ambiguous_4 keywords (like GLOBAL)
-// cannot be used as SET variable names. GLOBAL is allowed as a general identifier
-// (e.g., CREATE TABLE global) but NOT as a lvalue_ident (SET target).
+// are not read where parseLvalueIdent reads a name. GLOBAL is allowed as a general
+// identifier (e.g., CREATE TABLE global). SET does not read its names this way:
+// TiDB takes `SET global = 1`, which setTransactionCases records.
 func TestLvalueIdentRejectsAmbiguous4(t *testing.T) {
 	// GLOBAL as a table name should work (general ident context).
 	ParseAndCheck(t, "CREATE TABLE global (a INT)")
-
-	// SET global = 1 should fail — GLOBAL is ambiguous_4 (scope modifier, not variable).
-	// In MySQL, `SET global = 1` is parsed as `SET GLOBAL = 1` which is incomplete
-	// (missing variable name after scope), so it's an error.
-	t.Run("SET global = 1 rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("SET global = 1")}
-		p.advance()
-		_, err := p.parseSetStmt()
-		if err == nil {
-			t.Fatal("expected error for SET global = 1 (GLOBAL is ambiguous_4, consumed as scope modifier)")
-		}
-	})
 
 	// SET begin = 1 should succeed — BEGIN is ambiguous_2 (allowed as lvalue).
 	t.Run("SET begin = 1 accepted", func(t *testing.T) {

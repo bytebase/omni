@@ -302,6 +302,13 @@ func Split(sql string) []Segment {
 			}
 			i = endOfWord
 
+		// FOR — SET STATEMENT ... FOR takes a whole statement, so what follows it is at
+		// stmt-start: `SET STATEMENT a = 1 FOR IF b THEN c; END IF`. Elsewhere the next word
+		// is no IF: FOR EACH ROW, FOR UPDATE, FOR i IN.
+		case (b == 'f' || b == 'F') && matchWord(sql, i, "FOR"):
+			atStmtStart = true
+			i = skipToEndOfWord(sql, i)
+
 		// IF — compound flow-control iff at stmt-start and not preceded by END.
 		// atStmtStart encodes MySQL's yacc grammar-position disambiguation:
 		// IF in expression context (after '=', ',', '(', keywords like DROP/

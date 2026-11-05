@@ -1230,10 +1230,13 @@ func TestComplete_3_6_SetOperationsForUpdate(t *testing.T) {
 			t.Errorf("missing keyword SELECT after EXCEPT; got %v", candidates)
 		}
 	})
-	t.Run("for_share_keyword", func(t *testing.T) {
+	t.Run("for_update_keyword", func(t *testing.T) {
 		candidates := Complete("SELECT * FROM t FOR ", 20, cat)
-		if !containsCandidate(candidates, "SHARE", CandidateKeyword) {
-			t.Errorf("missing keyword SHARE after FOR; got %v", candidates)
+		if !containsCandidate(candidates, "UPDATE", CandidateKeyword) {
+			t.Errorf("missing keyword UPDATE after FOR; got %v", candidates)
+		}
+		if containsCandidate(candidates, "SHARE", CandidateKeyword) {
+			t.Errorf("OceanBase has no FOR SHARE; got %v", candidates)
 		}
 	})
 	t.Run("for_update_skip_keyword", func(t *testing.T) {

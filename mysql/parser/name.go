@@ -340,7 +340,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwVAR_POP:             kwCatUnambiguous,
 	kwVAR_SAMP:            kwCatUnambiguous,
 	kwVARCHARACTER:        kwCatReserved,
-	kwVARIANCE:            kwCatReserved,
+	kwVARIANCE:            kwCatUnambiguous,
 	// --- Section 3.1: Missing reserved classifications ---
 	kwANALYZE:             kwCatReserved,
 	kwBEFORE:              kwCatReserved,
@@ -878,6 +878,11 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 		start := p.cur.Loc
 		p.advance() // consume @@
 
+		// The name touches @@: `SELECT @@ a` is a 1064.
+		if p.cur.Loc != p.prev.End {
+			return nil, p.syntaxErrorAtCur()
+		}
+
 		ref := &nodes.VariableRef{
 			Loc:    nodes.Loc{Start: start},
 			System: true,
@@ -927,6 +932,14 @@ func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
 	}
 
 	// User variable: @name (lexer emits as tokIDENT with "@" prefix)
+	if p.atQuotedUserVar() {
+		at := p.advance()
+		name := p.advance()
+		return &nodes.VariableRef{
+			Loc:  nodes.Loc{Start: at.Loc, End: name.End},
+			Name: name.Str,
+		}, nil
+	}
 	if p.cur.Type == tokIDENT && len(p.cur.Str) > 1 && p.cur.Str[0] == '@' {
 		tok := p.cur
 		p.advance()
@@ -980,6 +993,17 @@ func (p *Parser) isLabelIdentToken() bool {
 // Excludes ambiguous_4 keywords (GLOBAL, SESSION, LOCAL).
 func (p *Parser) isLvalueIdentToken() bool {
 	return p.cur.Type == tokIDENT || (p.cur.Type >= 700 && isLvalueKeyword(p.cur.Type))
+}
+
+// atQuotedUserVar reports whether p.cur starts @'name' or @"name". The lexer gives the @ alone,
+// since 'user'@'host' takes the same text: a string directly after it is the name, and a
+// space makes it something else.
+func (p *Parser) atQuotedUserVar() bool {
+	if p.cur.Type != tokIDENT || p.cur.Str != "@" {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == tokSCONST && next.Loc == p.cur.End
 }
 
 // isVariableRef returns true if the current token is a variable reference.

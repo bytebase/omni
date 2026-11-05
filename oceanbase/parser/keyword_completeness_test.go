@@ -668,11 +668,11 @@ var mysql8Keywords = []mysql8Keyword{
 	{"rollup", catUnambiguous},
 	{"rotate", catUnambiguous},
 	{"routine", catUnambiguous},
-	{"row", catReserved},
+	{"row", catUnambiguous},
 	{"row_count", catUnambiguous},
 	{"row_format", catUnambiguous},
 	{"row_number", catReserved},
-	{"rows", catReserved},
+	{"rows", catUnambiguous},
 	{"rtree", catUnambiguous},
 	{"s3", catUnambiguous},
 	{"savepoint", catAmbiguous2},
@@ -930,6 +930,17 @@ func TestKeywordCompleteness(t *testing.T) {
 
 // TestKeywordClassification verifies that every registered MySQL 8.0 keyword
 // has the correct category in omni's keywordCategories map.
+// oceanBaseUnreservedWords are words MySQL 8.0 reserves that OceanBase 4.3.5.6 takes as a name in
+// every position TestReservedWordSweepOceanBaseOracle tries.
+var oceanBaseUnreservedWords = map[string]bool{
+	"cube": true, "cume_dist": true, "dec": true, "dense_rank": true, "empty": true,
+	"except": true, "first_value": true, "function": true, "grouping": true, "groups": true,
+	"intersect": true, "json_table": true, "lag": true, "last_value": true, "lateral": true,
+	"lead": true, "maxvalue": true, "nth_value": true, "ntile": true, "of": true,
+	"optimizer_costs": true, "over": true, "percent_rank": true, "range": true, "rank": true,
+	"recursive": true, "row_number": true, "system": true, "variance": true, "window": true,
+}
+
 func TestKeywordClassification(t *testing.T) {
 	// Map mysql8KeywordCategory to omni's keywordCategory
 	catMap := map[mysql8KeywordCategory]keywordCategory{
@@ -949,6 +960,12 @@ func TestKeywordClassification(t *testing.T) {
 		expectedCat, ok := catMap[kw.Category]
 		if !ok {
 			continue // skip unknown categories
+		}
+		if oceanBaseUnreservedWords[kw.SQL] {
+			expectedCat = kwCatUnambiguous
+		}
+		if kw.SQL == "skip" {
+			expectedCat = kwCatReserved // unreserved on MySQL; a 1064 as a name on OceanBase
 		}
 		// Look up the keyword token
 		tokType, registered := keywords[kw.SQL]

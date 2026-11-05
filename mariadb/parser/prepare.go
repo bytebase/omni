@@ -65,12 +65,17 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 	if p.cur.Type == kwUSING {
 		p.advance()
 		for {
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if expr == nil {
-				return nil, p.syntaxErrorAtCur()
+			// execute_params is a list of expr_or_ignore_or_default.
+			expr, ok := p.parseIgnoreValue()
+			if !ok {
+				var err error
+				expr, err = p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if expr == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
 			}
 			stmt.Params = append(stmt.Params, expr)
 			if p.cur.Type != ',' {

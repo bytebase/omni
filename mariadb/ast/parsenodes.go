@@ -121,8 +121,8 @@ type InsertStmt struct {
 	Ignore         bool          // INSERT IGNORE
 	Table          *TableRef     // target table
 	Partitions     []string      // PARTITION (p0, p1, ...)
-	Columns        []*ColumnRef  // explicit column list
-	Values         [][]ExprNode  // VALUES rows
+	Columns        []*ColumnRef  // explicit column list; nil without one, non-nil and empty for ()
+	Values         [][]ExprNode  // VALUES rows; a row of () has no elements
 	Select         *SelectStmt   // INSERT ... SELECT
 	TableSource    *TableStmt    // INSERT ... TABLE table_name (MySQL only; never set)
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
@@ -1139,8 +1139,12 @@ func (l *TemporalLit) exprNode() {}
 // Assignment represents a SET assignment (col = value).
 type Assignment struct {
 	Loc    Loc
+	Scope  string // SET only: the scope word written on this assignment
 	Column *ColumnRef
 	Value  ExprNode
+	// CharsetForm is set for SET NAMES and the charset forms, where Column holds the form's word
+	// (NAMES, COLLATE or CHARACTER SET) and names no variable.
+	CharsetForm bool
 }
 
 func (a *Assignment) nodeTag() {}
@@ -1337,10 +1341,21 @@ func (v *VariableRef) exprNode() {}
 // Additional statement nodes
 // -----------------------------------------------------------------------
 
+// SetStatementStmt represents SET STATEMENT name = value [, name = value] ... FOR statement:
+// Stmt, run with each variable set for its duration.
+type SetStatementStmt struct {
+	Loc     Loc
+	Options []*Assignment
+	Stmt    Node
+}
+
+func (s *SetStatementStmt) nodeTag()  {}
+func (s *SetStatementStmt) stmtNode() {}
+
 // SetStmt represents a SET statement.
 type SetStmt struct {
 	Loc         Loc
-	Scope       string // GLOBAL, SESSION, LOCAL
+	Scope       string // the first assignment's scope; each assignment holds its own
 	Assignments []*Assignment
 }
 
@@ -2138,6 +2153,15 @@ type DefaultExpr struct {
 
 func (e *DefaultExpr) nodeTag()  {}
 func (e *DefaultExpr) exprNode() {}
+
+// IgnoreExpr represents the IGNORE keyword used as a value (MariaDB): in a VALUES
+// row or an assignment, it leaves the column as the statement found it.
+type IgnoreExpr struct {
+	Loc Loc
+}
+
+func (e *IgnoreExpr) nodeTag()  {}
+func (e *IgnoreExpr) exprNode() {}
 
 // RowExpr represents a ROW(expr, expr, ...) constructor expression.
 type RowExpr struct {
