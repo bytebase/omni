@@ -148,6 +148,8 @@ func TestWordBeforeDot(t *testing.T) {
 }
 
 var setListCases = []asOfCase{
+	// A collation is a string or a name, and the lexer hands a user variable over as a name.
+	{"set names utf8 collate @a", false},
 	{"alter table t lock = none", true},
 	{"alter table t page_compressed = on", false},
 	{"alter table t stats_persistent = 0", true},
