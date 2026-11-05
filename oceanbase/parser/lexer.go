@@ -1764,6 +1764,11 @@ type Lexer struct {
 	// over to read an executable comment's body: each "/*!NNNNN" opener and each
 	// closing "*/". expandedText leaves these bytes out.
 	execMarkers []execMarker
+
+	// plainExec reads every executable comment as a plain comment, which ends
+	// at the first "*/" whatever it holds. OceanBase reads a statement that way
+	// when it does not parse with the comments' bodies in it (parseSingle).
+	plainExec bool
 }
 
 // execComment is an executable comment the lexer is inside: start is the offset
@@ -1990,6 +1995,21 @@ func NewLexerWithOffset(input string, baseOffset int) *Lexer {
 	return &Lexer{input: input, baseOffset: baseOffset}
 }
 
+// restartAt returns a lexer over l's input that starts at pos, reading every
+// executable comment as a plain comment when plainExec is set. It keeps l's
+// close-scan memo, which depends on the input alone, so the scans of the
+// lexers parseSingle starts over one input stay linear in total.
+func (l *Lexer) restartAt(pos int, plainExec bool) *Lexer {
+	return &Lexer{
+		input:      l.input,
+		pos:        pos,
+		baseOffset: l.baseOffset,
+		execWalked: l.execWalked,
+		execMemo:   l.execMemo,
+		plainExec:  plainExec,
+	}
+}
+
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
 	tok := l.nextToken()
@@ -2155,8 +2175,9 @@ func (l *Lexer) skipWhitespaceAndComments() {
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
 			commentStart := l.pos
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
-			// These should be parsed as SQL, not skipped.
-			if vpos, ok := execOpener(l.input, l.pos); ok {
+			// These should be parsed as SQL, not skipped, unless the lexer
+			// reads them as plain comments (plainExec).
+			if vpos, ok := execOpener(l.input, l.pos); ok && !l.plainExec {
 				if l.execStack != nil {
 					// Executable comments do not nest: an opener inside one is
 					// dropped, and the first "*/" outside a token, which

@@ -463,22 +463,30 @@ func TestLocContract(t *testing.T) {
 
 func checkSegmentLocs(sql string, seg Segment, items []ast.Node) []string {
 	var failures []string
+	// A statement read again with its executable comments as plain ones
+	// (exec_fallback.go) has the tokens of that reading, so the tokens of
+	// both readings count.
 	starts, ends := map[int]bool{}, map[int]bool{}
-	first, last := -1, -1
-	lex := NewLexerWithOffset(seg.Text, seg.ByteStart)
-	for {
-		tok := lex.NextToken()
-		if tok.Type == tokEOF {
-			break
+	firsts, lasts := map[int]bool{}, map[int]bool{}
+	for _, plainExec := range []bool{false, true} {
+		first, last := -1, -1
+		lex := NewLexerWithOffset(seg.Text, seg.ByteStart)
+		lex.plainExec = plainExec
+		for {
+			tok := lex.NextToken()
+			if tok.Type == tokEOF {
+				break
+			}
+			starts[tok.Loc], ends[tok.End] = true, true
+			if tok.Type == ';' {
+				continue
+			}
+			if first < 0 {
+				first = tok.Loc
+			}
+			last = tok.End
 		}
-		starts[tok.Loc], ends[tok.End] = true, true
-		if tok.Type == ';' {
-			continue
-		}
-		if first < 0 {
-			first = tok.Loc
-		}
-		last = tok.End
+		firsts[first], lasts[last] = true, true
 	}
 	fail := func(s locSpan, format string, args ...any) {
 		text := ""
@@ -508,11 +516,11 @@ func checkSegmentLocs(sql string, seg Segment, items []ast.Node) []string {
 	}
 	if len(items) > 0 {
 		head, tail := locSpans(items[0])[0], locSpans(items[len(items)-1])[0]
-		if head.loc.Start != first {
-			fail(head, "statement starts at %d, want its first token at %d", head.loc.Start, first)
+		if !firsts[head.loc.Start] {
+			fail(head, "statement starts at %d, want its first token at one of %v", head.loc.Start, firsts)
 		}
-		if tail.loc.End != last {
-			fail(tail, "statement ends at %d, want its last token's end at %d", tail.loc.End, last)
+		if !lasts[tail.loc.End] {
+			fail(tail, "statement ends at %d, want its last token's end at one of %v", tail.loc.End, lasts)
 		}
 	}
 	return failures
