@@ -2,6 +2,8 @@ package parser
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
@@ -22,12 +24,11 @@ import (
 // since no form of SET continues its keyword with `=`, `:=` or `.` but SET PASSWORD,
 // whose `=` makes `SET PASSWORD = 1` a 1064 where `SET PASSWORD := 1` parses.
 //
-// Not in this table, because omni still disagrees and each is its own change. A scope on
-// a later assignment, as in `SET a = 1, GLOBAL b = 2` and `SET a = 1, SESSION transaction
-// = 2`: the tree holds one scope per statement. The values ON and BINARY of SetExpr, as
-// in `SET a = ON`. `SET NAMES 'utf8'`. A reserved word after a spaced dot, as in `SET a .
-// select = 1`. The 32 words TiDB leaves unreserved and omni's table reserves after MySQL,
-// which setVariableNameGap lists.
+// Not in this table, because omni still disagrees and neither is about SET. A bare DEFAULT
+// inside an expression, as in `SET a = 1 + DEFAULT` and `SET a = (DEFAULT)`, because
+// parseExpr reads it everywhere, as in `SELECT DEFAULT FROM t`. A spaced dot after @@, as
+// in `SET @@a . b = 1`, because parseVariableRef reads it for every @@ reference. The 32 words TiDB
+// leaves unreserved and omni's table reserves after MySQL, which setVariableNameGap lists.
 
 // TestSetTransactionForms holds omni to the recorded verdicts without a server, so a run
 // with no Docker still reports a widened or narrowed grammar.
@@ -380,6 +381,267 @@ var setTransactionCases = []asOfCase{
 	{"select cast(a as unsigned array) from t", true},
 	{"create table t (a json, index i ((cast(a as unsigned array))))", true},
 
+	// Every assignment has its own scope, parser.y:10947-10958, which takes a VariableName and
+	// nothing else.
+	{"set a = 1, global b = 2", true},
+	{"set a = 1, session b = 2", true},
+	{"set a = 1, local b = 2", true},
+	{"set global a = 1, session b = 2", true},
+	{"set global a = 1, global b = 2", true},
+	{"set session a = 1, local b = 2", true},
+	{"set local a = 1, global b = 2", true},
+	{"set global a = 1, b = 2", true},
+	{"set a = 1, b = 2, global c = 3", true},
+	{"set a = 1, session transaction = 2", true},
+	{"set a = 1, global transaction = 2", true},
+	{"set a = 1, local transaction = 2", true},
+	{"set transaction = 1, session transaction = 2", true},
+	{"set transaction = 1, global transaction = 2", true},
+	{"set transaction = 1, local transaction = 2", true},
+	{"set a = 1, global b := 2", true},
+	{"set a = 1, global b.c = 2", true},
+	{"set a = 1, global", false},
+	{"set a = 1, global =", false},
+	{"set a = 1, global = 2", true},
+	{"set a = 1, session = 2", true},
+	{"set a = 1, local := 2", true},
+	{"set a = 1, global.b = 2", true},
+	{"set a = 1, global global = 2", true},
+	{"set a = 1, global session = 2", true},
+	{"set a = 1, global session b = 2", false},
+	{"set a = 1, persist_only b = 2", false},
+	{"set a = 1, global @b = 2", false},
+	{"set a = 1, global @@b = 2", false},
+	{"set a = 1, session @@b = 2", false},
+	{"set global @a = 1", false},
+	{"set session @a = 1", false},
+	{"set local @a = 1", false},
+	{"set global @@a = 1", false},
+	{"set session @@a = 1", false},
+	{"set global @@global.a = 1", false},
+	{"set global names utf8", false},
+	{"set session names utf8", false},
+	{"set local names utf8", false},
+	{"set global charset utf8", false},
+	{"set global character set utf8", false},
+	{"set global names = 1", true},
+	{"set global charset = 1", true},
+	{"set a = 1, global names utf8", false},
+
+	// SetExpr, parser.y:10909, for a name or @@name. @name takes an Expression, parser.y:10975.
+	// BINARY is the value only where the assignment ends.
+	{"set a = on", true},
+	{"set a = off", true},
+	{"set a = on, b = 2", true},
+	{"set a = on;", true},
+	{"set a := on", true},
+	{"set global a = on", true},
+	{"set session a = on", true},
+	{"set @@a = on", true},
+	{"set @@global.a = on", true},
+	{"set @a = on", false},
+	{"set @a := on", false},
+	{"set a = on + 1", false},
+	{"set a = (on)", false},
+	{"set a = on b", false},
+	{"set a = on on", false},
+	{"set a = 1, b = on", true},
+	{"set transaction = on", true},
+	{"set a.b = on", true},
+	{"set a = binary", true},
+	{"set a = binary, b = 2", true},
+	{"set a = binary;", true},
+	{"set a := binary", true},
+	{"set global a = binary", true},
+	{"set @@a = binary", true},
+	{"set @@character_set_results = binary", true},
+	{"set @@global.a = binary", true},
+	{"set @a = binary", false},
+	{"set a = binary 'x'", true},
+	{"set a = binary b", true},
+	{"set a = binary 1 + 1", true},
+	{"set a = binary + 1", true},
+	{"set a = binary b, c = 2", true},
+	{"set @a = binary 'x'", true},
+	{"set a = (binary)", false},
+	{"set a = binary binary", false},
+	{"set transaction = binary", true},
+	{"set a = default", true},
+	{"set @@a = default", true},
+	{"set @a = default", false},
+	{"set @a := default", false},
+	{"set a = default, b = 2", true},
+	{"set a = default + 1", false},
+	{"set a = true", true},
+	{"set a = null", true},
+	{"set a = 'on'", true},
+	{"set a = all", false},
+
+	// The kinds of assignment mix in one list.
+	{"set @a = 1, global b = 2", true},
+	{"set @@a = 1, session b = 2", true},
+	{"set @@a = 1, b = on", true},
+
+	// NAMES, parser.y:10981-11003: a string, an Identifier or BINARY. It is an assignment, so
+	// it may sit anywhere in the list.
+	{"set names 'utf8'", true},
+	{"set names \"utf8\"", true},
+	{"set names binary", true},
+	{"set names `utf8`", true},
+	{"set names 1", false},
+	{"set names @a", false},
+	{"set names", false},
+	{"set names default collate utf8_bin", false},
+	{"set names utf8 collate utf8_bin", true},
+	{"set names utf8 collate 'utf8_bin'", true},
+	{"set names 'utf8' collate 'utf8_bin'", true},
+	{"set names utf8 collate default", true},
+	{"set names utf8 collate binary", false},
+	{"set names binary collate binary", false},
+	{"set names binary collate default", true},
+	{"set names utf8 collate", false},
+	{"set names utf8 collate 1", false},
+	{"set names utf8 utf8", false},
+	{"set names utf8, a = 1", true},
+	{"set names 'utf8', a = 1", true},
+	{"set names utf8 collate utf8_bin, a = 1", true},
+	{"set names default, a = 1", true},
+	{"set names binary, a = 1", true},
+	{"set names utf8, @@session.sql_mode=1;", true},
+	{"set @@session.sql_mode=1, names utf8, charset utf8;", true},
+	{"set a = 1, names utf8", true},
+	{"set a = 1, names 'utf8'", true},
+	{"set a = 1, names default", true},
+	{"set a = 1, names binary", true},
+	{"set a = 1, names utf8 collate utf8_bin", true},
+	{"set a = 1, names = 2", true},
+	{"set a = 1, names := 2", true},
+	{"set a = 1, names.b = 2", true},
+	{"set a = 1, names", false},
+	{"set names utf8, names latin1", true},
+	{"set names utf8, charset utf8", true},
+	{"set names = 1, names utf8", true},
+
+	// CharsetKw, parser.y:13556, the same way, with no COLLATE.
+	{"set charset 'utf8'", true},
+	{"set charset binary", true},
+	{"set charset", false},
+	{"set charset 1", false},
+	{"set charset utf8 collate utf8_bin", false},
+	{"set charset utf8, a = 1", true},
+	{"set a = 1, charset utf8", true},
+	{"set a = 1, charset 'utf8'", true},
+	{"set a = 1, charset default", true},
+	{"set a = 1, charset binary", true},
+	{"set a = 1, charset = 2", true},
+	{"set a = 1, charset", false},
+	{"set character set 'utf8mb4';", true},
+	{"SET CHARACTER SET 'utf8mb4';", true},
+	{"set character set binary", true},
+	{"set character set default", true},
+	{"set character set", false},
+	{"set character set utf8 collate utf8_bin", false},
+	{"set character set utf8, a = 1", true},
+	{"set a = 1, character set utf8", true},
+	{"set a = 1, character set default", true},
+	{"set a = 1, character = 2", false},
+	{"set a = 1, character", false},
+	{"set char set default", true},
+	{"set char set utf8", true},
+	{"set char set 'utf8'", true},
+	{"set char set binary", true},
+	{"set char set", false},
+	{"set char set utf8, a = 1", true},
+	{"set a = 1, char set utf8", true},
+	{"set a = 1, char set default", true},
+	{"set char = 1", false},
+	{"set char utf8", false},
+	{"set a = 1, char = 2", false},
+	{"set charset set utf8", false},
+	{"set character utf8", false},
+
+	// The other forms are whole statements, so a list holds only the variable of that name.
+	{"set a = 1, role = 2", true},
+	{"set a = 1, role b", false},
+	{"set a = 1, role all", false},
+	{"set a = 1, default role none to u", false},
+	{"set a = 1, password = 2", true},
+	{"set a = 1, password := 2", true},
+	{"set a = 1, password = 'x'", true},
+	{"set a = 1, password for u = 'x'", false},
+	{"set a = 1, resource = 2", true},
+	{"set a = 1, resource group rg", false},
+	{"set a = 1, binding = 2", true},
+	{"set a = 1, binding enabled for select 1", false},
+	{"set a = 1, config = 2", true},
+	{"set role all, a = 1", false},
+	{"set password = 'x', a = 1", false},
+	{"set resource group rg, a = 1", false},
+	{"set default role none to u, a = 1", false},
+	{"set a = 1,", false},
+	{"set a = 1,,", false},
+	{"set , a = 1", false},
+
+	// A name after a dot.
+	{"set a .select = 1", true},
+	{"set a . /* c */ select = 1", false},
+	{"set a . `select` = 1", true},
+	{"set a . 1 = 1", false},
+	{"set a . = 1", false},
+	{"set a . select . b = 1", false},
+	{"set select . a = 1", false},
+	{"set select .a = 1", false},
+	{"set select. a = 1", true},
+	{"set @@a . select = 1", false},
+
+	// The assignments the review walk follows, and SET under TRACE.
+	{"set foreign_key_checks = on", true},
+	{"set foreign_key_checks = off", true},
+	{"set foreign_key_checks = 'on'", true},
+	{"set foreign_key_checks = binary", true},
+	{"set @@session.foreign_key_checks = 1, global foreign_key_checks = 0", true},
+	{"set global foreign_key_checks = 0, session foreign_key_checks = 1", true},
+	{"trace set a = on", true},
+	{"trace set a = 1, global b = 2", true},
+	{"trace set names 'utf8'", true},
+
+	// More around those rules.
+	{"set a.@b = 1", false},
+	{"set a = default(b)", true},
+	{"set @a = default(b)", true},
+	{"set a = default(b) + 1", true},
+	{"set a = binary)", false},
+	{"set a = on)", false},
+	{"set @@a.b = 1", true},
+	{"set global a = default", true},
+	{"set a = 1, b = binary", true},
+	{"set a = 1, b = default", true},
+	{"set names utf8 collate default, a = 1", true},
+	{"set names binary collate default, a = 1", true},
+	{"set a = 1, names utf8 collate 'utf8_bin', b = 2", true},
+	{"set a = 1, global b = 2, names utf8, session c = on, charset binary, @d = 1, @@e = binary", true},
+	{"set NAMES 'utf8'", true},
+	{"set Names Utf8 Collate Utf8_Bin", true},
+	{"set CHAR SET utf8", true},
+	{"set /* c */ names /* c */ 'utf8'", true},
+	{"set char /* c */ set utf8", true},
+	{"set global.names = 1", true},
+	{"set session names = 1", true},
+	{"set session char set utf8", false},
+	{"set session binary = 1", false},
+	{"set on = 1", false},
+	{"set binary = 1", false},
+	{"set a = on, on = 1", false},
+
+	// In a procedure body, where the statement's `;` reaches the parser.
+	{"create procedure p() begin set a = binary; end", true},
+	{"create procedure p() begin set a = binary; select 1; end", true},
+	{"create procedure p() begin set a = on; end", true},
+	{"create procedure p() begin set a = 1, global b = 2; end", true},
+	{"create procedure p() begin set names 'utf8'; end", true},
+	{"create procedure p() begin set @a = default; end", false},
+	{"create procedure p() begin set a = binary end", false},
+
 	// START TRANSACTION, which shares the rule.
 	{"start transaction read only as of timestamp now()", true},
 	{"start transaction read only as of", false},
@@ -415,6 +677,115 @@ var setVariableNamePositions = []string{
 	"set a.%s = 1",
 	"set a = 1, %s = 2",
 	"set %s = 1, a = 2",
+}
+
+// TestSetAssignmentTrees pins the assignments a list becomes: each with its own scope, the
+// words of NAMES and the charset forms under the names the catalog reads, and ON and BINARY
+// as text. Every statement's Loc ends at its last token.
+func TestSetAssignmentTrees(t *testing.T) {
+	type want struct{ scope, column, value string }
+	for _, c := range []struct {
+		sql       string
+		stmtScope string
+		want      []want
+	}{
+		{"set global a = 1, b = 2", "GLOBAL", []want{{"GLOBAL", "a", "1"}, {"", "b", "2"}}},
+		{"set a = 1, global b = 2", "", []want{{"", "a", "1"}, {"GLOBAL", "b", "2"}}},
+		{"set a = 1, session b = 2", "", []want{{"", "a", "1"}, {"SESSION", "b", "2"}}},
+		{"set a = 1, local b = 2", "", []want{{"", "a", "1"}, {"LOCAL", "b", "2"}}},
+		{"set global a = 1, session b = 2, local c = 3", "GLOBAL", []want{{"GLOBAL", "a", "1"}, {"SESSION", "b", "2"}, {"LOCAL", "c", "3"}}},
+		{"set a = 1, session transaction = 2", "", []want{{"", "a", "1"}, {"SESSION", "transaction", "2"}}},
+		{"set a = 1, global = 2", "", []want{{"", "a", "1"}, {"", "global", "2"}}},
+		{"set a = 1, global global = 2", "", []want{{"", "a", "1"}, {"GLOBAL", "global", "2"}}},
+		{"set @a = 1, global b = 2", "", []want{{"", "@a", "1"}, {"GLOBAL", "b", "2"}}},
+		{"set a = on", "", []want{{"", "a", "ON"}}},
+		{"set a = ON, b = 2", "", []want{{"", "a", "ON"}, {"", "b", "2"}}},
+		{"set a = binary", "", []want{{"", "a", "BINARY"}}},
+		{"set @@a = binary", "", []want{{"", "@@a", "BINARY"}}},
+		{"set global a = on", "GLOBAL", []want{{"GLOBAL", "a", "ON"}}},
+		{"set names 'utf8'", "", []want{{"", "NAMES", "utf8"}}},
+		{"set names binary", "", []want{{"", "NAMES", "binary"}}},
+		{"set names default", "", []want{{"", "NAMES", "DEFAULT"}}},
+		{"set names 'utf8' collate 'utf8_bin'", "", []want{{"", "NAMES", "utf8"}, {"", "COLLATE", "utf8_bin"}}},
+		{"set names utf8 collate default", "", []want{{"", "NAMES", "utf8"}, {"", "COLLATE", "DEFAULT"}}},
+		{"set charset 'utf8'", "", []want{{"", "CHARACTER SET", "utf8"}}},
+		{"set character set binary", "", []want{{"", "CHARACTER SET", "binary"}}},
+		{"set char set default", "", []want{{"", "CHARACTER SET", "DEFAULT"}}},
+		{"set a = 1, names utf8, charset latin1, @b = 2", "", []want{{"", "a", "1"}, {"", "NAMES", "utf8"}, {"", "CHARACTER SET", "latin1"}, {"", "@b", "2"}}},
+		{"set names = 1", "", []want{{"", "names", "1"}}},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			list, err := Parse(c.sql)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stmt, ok := list.Items[0].(*nodes.SetStmt)
+			if !ok {
+				t.Fatalf("got %T, want *ast.SetStmt", list.Items[0])
+			}
+			if stmt.Scope != c.stmtScope {
+				t.Errorf("statement scope = %q, want %q", stmt.Scope, c.stmtScope)
+			}
+			if stmt.Loc.Start != 0 || stmt.Loc.End != len(c.sql) {
+				t.Errorf("statement Loc = %+v, want {0 %d}", stmt.Loc, len(c.sql))
+			}
+			got := []want{}
+			for _, a := range stmt.Assignments {
+				value := ""
+				switch v := a.Value.(type) {
+				case *nodes.StringLit:
+					value = v.Value
+				case *nodes.IntLit:
+					value = strconv.FormatInt(v.Value, 10)
+				default:
+					t.Fatalf("value of %q is %T", a.Column.Column, a.Value)
+				}
+				got = append(got, want{a.Scope, a.Column.Column, value})
+			}
+			if !slices.Equal(got, c.want) {
+				t.Errorf("assignments = %v, want %v", got, c.want)
+			}
+		})
+	}
+
+	// An assignment's Loc takes in its scope word and ends at its value.
+	const sql = "set a = 1, global b = 2, c = on"
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []string{}
+	for _, a := range list.Items[0].(*nodes.SetStmt).Assignments {
+		got = append(got, sql[a.Loc.Start:a.Loc.End])
+	}
+	if want := []string{"a = 1", "global b = 2", "c = on"}; !slices.Equal(got, want) {
+		t.Errorf("assignment text = %q, want %q", got, want)
+	}
+
+	// A scope reaches the printed tree, which is what a golden comparison reads.
+	scoped, err := Parse("set a = 1, global b = 2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := nodes.NodeToString(scoped.Items[0]); !strings.Contains(got, ":loc 11 :scope GLOBAL :col") {
+		t.Errorf("printed tree has no scope on the second assignment: %s", got)
+	}
+
+	// The value keeps its kind where SetExpr hands over to an Expression.
+	for sql, check := range map[string]func(nodes.ExprNode) bool{
+		"set a = default":    func(v nodes.ExprNode) bool { _, ok := v.(*nodes.DefaultExpr); return ok },
+		"set a = default(b)": func(v nodes.ExprNode) bool { d, ok := v.(*nodes.DefaultExpr); return ok && d.Column != "" },
+		"set a = binary 'x'": func(v nodes.ExprNode) bool { _, ok := v.(*nodes.StringLit); return !ok },
+		"set a = 'on'":       func(v nodes.ExprNode) bool { s, ok := v.(*nodes.StringLit); return ok && s.Value == "on" },
+	} {
+		list, err := Parse(sql)
+		if err != nil {
+			t.Fatalf("%q: %v", sql, err)
+		}
+		if v := list.Items[0].(*nodes.SetStmt).Assignments[0].Value; !check(v) {
+			t.Errorf("%q: value is %T", sql, v)
+		}
+	}
 }
 
 // TestSetVariableNameTrees pins what the word turned into, because a verdict cannot tell

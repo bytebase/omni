@@ -150,6 +150,10 @@ var walkCases = []walkCase{
 	// Every assignment of foreign_key_checks reaches the session's checks,
 	// GLOBAL too, in order; resetWalk sets the global back.
 	{name: "SET foreign_key_checks in any scope", change: "SET GLOBAL foreign_key_checks = 1, @@session.foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1, foreign_key_checks = 0;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE z2 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @@global.foreign_key_checks = 0;\nCREATE TABLE z3 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 0, @@session.foreign_key_checks = 1;\nCREATE TABLE z4 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @@session.foreign_key_checks = 1, @@global.foreign_key_checks = 0;\nCREATE TABLE z5 (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET GLOBAL foreign_key_checks = 1;\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", complete: true},
+	// A later assignment has a scope of its own, and the words ON and OFF are the
+	// values 1 and 0, bare or quoted.
+	{name: "SET foreign_key_checks later in the list", change: "SET @x = 1, GLOBAL foreign_key_checks = 0;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET @x = 1, SESSION foreign_key_checks = 1;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", complete: true},
+	{name: "SET foreign_key_checks to a word", change: "SET foreign_key_checks = OFF;\nCREATE TABLE y (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = ON;\nCREATE TABLE z (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 'off';\nCREATE TABLE w (a int, FOREIGN KEY (a) REFERENCES nosuch (id));\nSET foreign_key_checks = 'on';\nCREATE TABLE v (a int, FOREIGN KEY (a) REFERENCES nosuch (id));", complete: true},
 	// TiDB's ADMIN. The one thing the walk predicts in this family is that
 	// a kind naming relations needs each of them (1146); a view and a
 	// sequence are relations here, and the walk must follow every other

@@ -715,9 +715,9 @@ accept	accept	SET LOCAL autocommit := 1
 accept	accept	SET @@global.autocommit := default
 accept	accept	SET @@global.autocommit = default
 accept	accept	SET @@session.autocommit = default
-reject	accept	SET @@character_set_results = binary
+accept	accept	SET @@character_set_results = binary
 accept	accept	SET CHARACTER SET utf8mb4;
-reject	accept	SET CHARACTER SET 'utf8mb4';
+accept	accept	SET CHARACTER SET 'utf8mb4';
 accept	accept	SET PASSWORD = 'password';
 accept	accept	SET PASSWORD FOR 'root'@'localhost' = 'password';
 accept	accept	SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ
@@ -735,18 +735,18 @@ accept	accept	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
 accept	accept	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
 accept	accept	set names utf8
 accept	accept	set names utf8 collate utf8_unicode_ci
-reject	accept	set names binary
+accept	accept	set names binary
 accept	accept	set names default
 accept	accept	set character set default
 accept	accept	set charset default
-reject	accept	set char set default
+accept	accept	set char set default
 accept	accept	set role `role1`
 accept	accept	SET ROLE DEFAULT
 accept	accept	SET ROLE ALL
 accept	accept	SET ROLE ALL EXCEPT `role1`, `role2`
 accept	accept	SET DEFAULT ROLE administrator, developer TO `joe`@`10.0.0.1`
-reject	accept	set names utf8, @@session.sql_mode=1;
-reject	accept	set @@session.sql_mode=1, names utf8, charset utf8;
+accept	accept	set names utf8, @@session.sql_mode=1;
+accept	accept	set @@session.sql_mode=1, names utf8, charset utf8;
 reject	accept	set config TIKV LOG.LEVEL='info'
 reject	accept	set config PD LOG.LEVEL='info'
 reject	accept	set config TIDB LOG.LEVEL='info'

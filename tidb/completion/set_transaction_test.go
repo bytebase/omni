@@ -42,3 +42,43 @@ func TestSetTransactionCompletion(t *testing.T) {
 		})
 	}
 }
+
+// TestSetListCompletion checks that a later assignment offers what the first one does:
+// the list holds the same assignments at every place.
+func TestSetListCompletion(t *testing.T) {
+	cat := catalog.New()
+	for _, tc := range []struct {
+		sql      string
+		want     []string
+		wantNone []string
+	}{
+		{"set <|>", []string{"GLOBAL", "SESSION", "CHARACTER", "@@autocommit"}, []string{"SELECT"}},
+		{"set a = 1, <|>", []string{"GLOBAL", "SESSION", "CHARACTER", "@@autocommit"}, []string{"SELECT"}},
+		{"set a = 1, global <|>", []string{"@@autocommit"}, []string{"GLOBAL", "SELECT"}},
+		{"set global a = 1, <|>", []string{"SESSION", "@@autocommit"}, []string{"SELECT"}},
+		{"set a = 1, names <|>", []string{"utf8mb4"}, []string{"SELECT"}},
+		{"set names <|>", []string{"utf8mb4"}, []string{"SELECT"}},
+		{"set a = 1, charset <|>", []string{"utf8mb4"}, []string{"SELECT"}},
+		{"set a = 1, character set <|>", []string{"utf8mb4"}, []string{"SELECT"}},
+		{"set char set <|>", []string{"utf8mb4"}, []string{"SELECT"}},
+		{"set names utf8, <|>", []string{"GLOBAL", "@@autocommit"}, []string{"SELECT"}},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			sql, cursor := splitCursor(t, tc.sql)
+			var got []string
+			for _, c := range Complete(sql, cursor, cat) {
+				got = append(got, c.Text)
+			}
+			for _, w := range tc.want {
+				if !slices.Contains(got, w) {
+					t.Errorf("candidates %v lack %q", got, w)
+				}
+			}
+			for _, w := range tc.wantNone {
+				if slices.Contains(got, w) {
+					t.Errorf("candidates %v hold %q", got, w)
+				}
+			}
+		})
+	}
+}
