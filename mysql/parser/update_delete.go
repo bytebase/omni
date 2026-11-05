@@ -359,6 +359,20 @@ func (p *Parser) parseNamedColumn() (*nodes.ColumnRef, error) {
 	return ref, nil
 }
 
+// matchEqual consumes the = or := of an option, where the grammar makes it
+// optional, and reports whether it found one. A position the grammar writes
+// with a literal = takes no :=, such as a view's ALGORITHM, DEFINER, FORMAT, and
+// every CHANGE REPLICATION option, so those read = alone.
+//
+// Ref: MySQL 8.0 sql/sql_yacc.yy: opt_equal is %empty or equal.
+func (p *Parser) matchEqual() bool {
+	if p.cur.Type == '=' || p.cur.Type == tokAssign {
+		p.advance()
+		return true
+	}
+	return false
+}
+
 // expectEqual consumes the = or := between a column and its value in an
 // assignment list.
 //

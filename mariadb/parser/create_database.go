@@ -176,7 +176,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	case p.cur.Type == kwCHARACTER:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
-			p.match('=') // optional =
+			p.matchEqual() // optional =
 			val, err := p.parseCharsetName()
 			if err != nil {
 				return nil, false, err
@@ -193,7 +193,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		return nil, false, p.syntaxErrorAtCur()
 	case p.cur.Type == kwCHARSET:
 		p.advance()
-		p.match('=') // optional =
+		p.matchEqual() // optional =
 		val, err := p.parseCharsetName()
 		if err != nil {
 			return nil, false, err
@@ -205,7 +205,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		}, true, nil
 	case p.cur.Type == kwCOLLATE:
 		p.advance()
-		p.match('=') // optional =
+		p.matchEqual() // optional =
 		val, err := p.parseCollationName()
 		if err != nil {
 			return nil, false, err

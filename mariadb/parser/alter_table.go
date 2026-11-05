@@ -261,7 +261,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 
 	case kwALGORITHM:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		// Completion: after ALGORITHM=, offer algorithm keywords.
 		p.checkCursor()
 		if p.collectMode() {
@@ -281,7 +281,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 
 	case kwLOCK:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		cmd.Type = nodes.ATLock
 		val, err := p.consumeOptionValue()
 		if err != nil {

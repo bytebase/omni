@@ -468,6 +468,21 @@ func (p *Parser) parseColumnNotVariable() (*nodes.ColumnRef, error) {
 	return p.parseColumnRef()
 }
 
+// matchEqual consumes the = or := of an option, where the grammar makes it
+// optional, and reports whether it found one. A position the grammar writes
+// with a literal = takes no :=, such as a view's ALGORITHM, DEFINER, FORMAT, and
+// every CHANGE REPLICATION option, so those read = alone.
+//
+// Ref: MariaDB 11.8 sql/sql_yacc.yy: opt_equal is empty or equal, and opt_with and
+// opt_by read opt_equal too.
+func (p *Parser) matchEqual() bool {
+	if p.cur.Type == '=' || p.cur.Type == tokAssign {
+		p.advance()
+		return true
+	}
+	return false
+}
+
 // expectEqual consumes the = or := between a column and its value in an
 // assignment list.
 //

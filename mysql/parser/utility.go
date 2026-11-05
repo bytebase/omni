@@ -907,9 +907,7 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		p.match(kwDIRECTORY)
 
 		// Optional '='
-		if p.cur.Type == '=' {
-			p.advance()
-		}
+		p.matchEqual()
 
 		// clone_dir string
 		if p.cur.Type != tokSCONST {
@@ -982,9 +980,7 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		if p.cur.Type == kwDATA {
 			p.advance() // consume DATA
 			p.match(kwDIRECTORY)
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			if p.cur.Type != tokSCONST {
 				return nil, &ParseError{
 					Message:  "expected string literal for DATA DIRECTORY",
@@ -1227,16 +1223,16 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 			p.advance()
 		case p.cur.Type == kwAUTOEXTEND_SIZE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			stmt.AutoextendSize = p.parseSizeValue()
 		case p.cur.Type == kwFILE_BLOCK_SIZE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			stmt.FileBlockSize = p.cur.Str
 			p.advance()
 		case p.cur.Type == kwENCRYPTION:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			if p.cur.Type == tokSCONST {
 				stmt.Encryption = p.cur.Str
 				p.advance()
@@ -1252,19 +1248,19 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 			stmt.UseLogfileGroup = lg
 		case p.cur.Type == kwEXTENT_SIZE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			stmt.ExtentSize = p.parseSizeValue()
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			stmt.InitialSize = p.parseSizeValue()
 		case p.cur.Type == kwMAX_SIZE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			stmt.MaxSize = p.parseSizeValue()
 		case p.cur.Type == kwNODEGROUP:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			stmt.NodeGroup = p.cur.Str
 			p.advance()
 		case p.cur.Type == kwWAIT:
@@ -1272,7 +1268,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 			stmt.Wait = true
 		case p.cur.Type == kwCOMMENT:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			// The comment is a quoted string and is required (1064 without it).
 			if p.cur.Type != tokSCONST {
 				return nil, p.syntaxErrorAtCur()
@@ -1281,7 +1277,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 			p.advance()
 		case p.cur.Type == kwENGINE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			ename, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -1289,7 +1285,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 			stmt.Engine = ename
 		case p.cur.Type == kwENGINE_ATTRIBUTE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			if p.cur.Type == tokSCONST {
 				stmt.EngineAttribute = p.cur.Str
 				p.advance()
@@ -1359,7 +1355,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 			p.advance()
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			stmt.InitialSize = p.parseSizeValue()
 		case p.cur.Type == kwWAIT:
 			p.advance()
@@ -1374,7 +1370,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 			stmt.RenameTo = rn
 		case p.cur.Type == kwAUTOEXTEND_SIZE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			stmt.AutoextendSize = p.parseSizeValue()
 		case p.cur.Type == kwSET:
 			p.advance() // consume SET
@@ -1387,14 +1383,14 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 			}
 		case p.cur.Type == kwENCRYPTION:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			if p.cur.Type == tokSCONST {
 				stmt.Encryption = p.cur.Str
 				p.advance()
 			}
 		case p.cur.Type == kwENGINE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			ename, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -1402,7 +1398,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 			stmt.Engine = ename
 		case p.cur.Type == kwENGINE_ATTRIBUTE:
 			p.advance()
-			p.match('=')
+			p.matchEqual()
 			if p.cur.Type == tokSCONST {
 				stmt.EngineAttribute = p.cur.Str
 				p.advance()
@@ -1438,9 +1434,7 @@ func (p *Parser) parseDropTablespaceStmt(start int, undo bool) (*nodes.DropTable
 	// Optional ENGINE [=] engine_name
 	if p.cur.Type == kwENGINE {
 		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
+		p.matchEqual()
 		ename, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -1765,9 +1759,7 @@ func (p *Parser) parseVCPUSpecs() ([]nodes.VCPUSpec, error) {
 	p.advance()
 
 	// Optional '='
-	if p.cur.Type == '=' {
-		p.advance()
-	}
+	p.matchEqual()
 
 	var specs []nodes.VCPUSpec
 	for {
@@ -1826,9 +1818,7 @@ func (p *Parser) parseResourceGroupOptions(vcpus *[]nodes.VCPUSpec, threadPriori
 			*vcpus = specs
 		case kwTHREAD_PRIORITY:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			// Thread priority can be negative
 			neg := false
 			if p.cur.Type == '-' {
@@ -1906,9 +1896,7 @@ func (p *Parser) parseCreateResourceGroupStmt(start int) (*nodes.CreateResourceG
 		}
 	}
 	p.advance() // consume TYPE
-	if p.cur.Type == '=' {
-		p.advance()
-	}
+	p.matchEqual()
 	if p.cur.Type != kwSYSTEM && p.cur.Type != kwUSER {
 		return nil, &ParseError{
 			Message:  "expected SYSTEM or USER for TYPE",
@@ -2428,27 +2416,19 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 		switch {
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			stmt.InitialSize = p.parseSizeValue()
 		case p.cur.Type == kwUNDO_BUFFER_SIZE:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			stmt.UndoBufferSize = p.parseSizeValue()
 		case p.cur.Type == kwREDO_BUFFER_SIZE:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			stmt.RedoBufferSize = p.parseSizeValue()
 		case p.cur.Type == kwNODEGROUP:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			stmt.NodeGroup = p.cur.Str
 			p.advance()
 		case p.cur.Type == kwWAIT:
@@ -2456,9 +2436,7 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 			stmt.Wait = true
 		case p.cur.Type == kwCOMMENT:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			// The comment is a quoted string and is required (1064 without it).
 			if p.cur.Type != tokSCONST {
 				return nil, p.syntaxErrorAtCur()
@@ -2467,9 +2445,7 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 			p.advance()
 		case p.cur.Type == kwENGINE:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			ename, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -2524,18 +2500,14 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 		switch {
 		case p.cur.Type == kwINITIAL_SIZE:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			stmt.InitialSize = p.parseSizeValue()
 		case p.cur.Type == kwWAIT:
 			p.advance()
 			stmt.Wait = true
 		case p.cur.Type == kwENGINE:
 			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+			p.matchEqual()
 			ename, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -2573,9 +2545,7 @@ func (p *Parser) parseDropLogfileGroupStmt(start int) (*nodes.DropLogfileGroupSt
 	// ENGINE [=] engine_name
 	if p.cur.Type == kwENGINE {
 		p.advance()
-		if p.cur.Type == '=' {
-			p.advance()
-		}
+		p.matchEqual()
 		ename, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err

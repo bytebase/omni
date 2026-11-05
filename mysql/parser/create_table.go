@@ -595,7 +595,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	if p.cur.Type == kwENGINE_ATTRIBUTE || p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
 		secondary := p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return false, err
@@ -1156,7 +1156,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	switch p.cur.Type {
 	case kwENGINE:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		// Completion: after ENGINE=, offer engine candidates.
 		p.checkCursor()
 		if p.collectMode() {
@@ -1171,7 +1171,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwAUTO_INCREMENT:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1189,7 +1189,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwCHARSET:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1199,7 +1199,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwCHARACTER:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
-			p.match('=')
+			p.matchEqual()
 			val, err := p.consumeOptionValue()
 			if err != nil {
 				return nil, false, err
@@ -1214,7 +1214,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwCOLLATE:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1223,7 +1223,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwCOMMENT:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		// The value is a quoted string and is required: the server answers 1064
 		// for a bare COMMENT, CONNECTION or PASSWORD.
 		if p.cur.Type != tokSCONST {
@@ -1235,7 +1235,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwROW_FORMAT:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1244,7 +1244,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwCONNECTION:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		if p.cur.Type != tokSCONST {
 			return nil, false, p.syntaxErrorAtCur()
 		}
@@ -1254,7 +1254,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 
 	case kwPASSWORD:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		if p.cur.Type != tokSCONST {
 			return nil, false, p.syntaxErrorAtCur()
 		}
@@ -1263,8 +1263,9 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "PASSWORD", Value: val}, true, nil
 
 	case kwSTORAGE:
+		// STORAGE {DISK | MEMORY} has no equals sign: STORAGE = DISK is a 1064
+		// (measured).
 		p.advance()
-		p.match('=')
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1291,7 +1292,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			optName = "TABLE_CHECKSUM"
 		}
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeNumericOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1301,7 +1302,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwTABLESPACE:
 		// TABLESPACE tablespace_name [STORAGE {DISK | MEMORY}]
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1321,7 +1322,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwENCRYPTION:
 		// ENCRYPTION [=] {'Y' | 'N'}
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1339,7 +1340,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		// Ref: `UNION opt_equal '(' opt_table_list ')'` in MySQL 8.0.46
 		// sql/sql_yacc.yy.
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		names, err := p.parseParenTableNameListOpt()
 		if err != nil {
 			return nil, false, err
@@ -1351,7 +1352,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if next := p.peekNext(); next.Type == kwDIRECTORY {
 			p.advance() // consume INDEX
 			p.advance() // consume DIRECTORY
-			p.match('=')
+			p.matchEqual()
 			val, err := p.consumeOptionValue()
 			if err != nil {
 				return nil, false, err
@@ -1365,7 +1366,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		if next := p.peekNext(); next.Type == kwDIRECTORY {
 			p.advance() // consume DATA
 			p.advance() // consume DIRECTORY
-			p.match('=')
+			p.matchEqual()
 			val, err := p.consumeOptionValue()
 			if err != nil {
 				return nil, false, err
@@ -1379,7 +1380,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	if p.cur.Type == kwCOMPRESSION || p.cur.Type == kwINSERT_METHOD {
 		optName := p.cur.Str
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1395,7 +1396,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwSTATS_AUTO_RECALC:
 		optName := p.cur.Str
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeZeroOneOrDefaultOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1409,7 +1410,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwENGINE_ATTRIBUTE, kwSECONDARY_ENGINE_ATTRIBUTE:
 		optName := p.cur.Str
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1421,8 +1422,14 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
 		kwAUTOEXTEND_SIZE:
 		optName := p.cur.Str
+		isSecondaryEngine := p.cur.Type == kwSECONDARY_ENGINE
 		p.advance()
-		p.match('=')
+		p.matchEqual()
+		// SECONDARY_ENGINE alone takes NULL: SECONDARY_ENGINE_SYM opt_equal NULL_SYM.
+		if isSecondaryEngine && p.cur.Type == kwNULL {
+			p.advance()
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: "NULL"}, true, nil
+		}
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -1449,7 +1456,9 @@ func (p *Parser) consumeOptionValue() (string, error) {
 		p.advance()
 		return val, nil
 	default:
-		if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+		// A reserved word is no value, except DEFAULT, which several options take:
+		// `MAX_ROWS = NULL` and `PACK_KEYS = SELECT` are each a 1064 (measured).
+		if p.cur.Type == tokIDENT || (p.cur.Type >= 700 && (!isReserved(p.cur.Type) || p.cur.Type == kwDEFAULT)) {
 			name, _, err := p.parseKeywordOrIdent()
 			if err != nil {
 				return "", err
@@ -2033,7 +2042,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 	switch p.cur.Type {
 	case kwCOMMENT:
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2043,7 +2052,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 	case kwENGINE, kwTABLESPACE:
 		name := strings.ToUpper(p.cur.Str)
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2058,7 +2067,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 		}
 		p.advance() // consume STORAGE
 		p.advance() // consume ENGINE
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2068,7 +2077,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 	case kwMAX_ROWS, kwMIN_ROWS, kwNODEGROUP:
 		name := strings.ToUpper(p.cur.Str)
 		p.advance()
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeIntegerOptionValue()
 		if err != nil {
 			return nil, false, err
@@ -2082,7 +2091,7 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 		name := strings.ToUpper(p.cur.Str) + " DIRECTORY"
 		p.advance() // consume DATA or INDEX
 		p.advance() // consume DIRECTORY
-		p.match('=')
+		p.matchEqual()
 		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return nil, false, err
