@@ -342,8 +342,27 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 			if b.tooLong(keyName(con), rng) {
 				return true
 			}
+			// IF NOT EXISTS never fails from the text, and what it states still counts
+			// against a plain ADD after it (1061, verified). It is checked against the
+			// table as it was, so two of a primary key the table lacks are 1068, and two
+			// of one it has are notes (verified).
+			if con.IfNotExists && con.Type != ast.ConstrPrimaryKey {
+				if con.Type == ast.ConstrForeignKey {
+					if k, ok := b.key(spaceForeignKey, keyName(con)); ok {
+						seen[[2]string{"add foreign key", k}] = true
+					}
+				} else if k, ok := b.key(spaceIndex, con.Name); ok {
+					seen[[2]string{"add index", k}] = true
+				}
+				continue
+			}
 			switch con.Type {
 			case ast.ConstrPrimaryKey:
+				if con.IfNotExists {
+					if f, _ := b.l.Lookup(idxKey(r.db, r.name, primaryIndex)); f != walk.Absent {
+						continue
+					}
+				}
 				primaries++
 			case ast.ConstrForeignKey:
 				// 1061, for the index each would add (verified).
@@ -437,10 +456,32 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 	rng := rangeOf(c.Loc)
 	switch c.Type {
 	case ast.ConstrPrimaryKey:
+		// IF NOT EXISTS, here and below, makes what is there a note and leaves the
+		// table as it was (verified).
+		if c.IfNotExists {
+			if f, _ := b.l.Lookup(idxKey(r.db, r.name, primaryIndex)); f != walk.Absent {
+				return
+			}
+			break
+		}
 		b.need(idxKey(r.db, r.name, primaryIndex), walk.Absent, nil, rng, "", hasPrimaryKey(r.written)) // 1068
 	case ast.ConstrCheck:
 		return
 	case ast.ConstrForeignKey:
+		if c.IfNotExists {
+			// It looks for the name after FOREIGN KEY or else the symbol. One with
+			// neither is always added, under a generated name.
+			name := c.IndexName
+			if name == "" {
+				name = c.Name
+			}
+			if k, ok := b.key(spaceForeignKey, name); ok {
+				fk, _ := fkKeys(r, k)
+				if f, _ := b.l.Lookup(fk); f != walk.Absent {
+					return
+				}
+			}
+		}
 		if !b.fks {
 			break
 		}
@@ -450,8 +491,6 @@ func (b *builder) addConstraint(r tableRef, c *ast.Constraint) {
 		b.foreignKeyTarget(r, c)
 	default:
 		if k, ok := b.key(spaceIndex, c.Name); ok {
-			// ADD VECTOR IF NOT EXISTS makes a duplicate index name a note rather
-			// than an error, and the index stays the one that was there.
 			if c.IfNotExists {
 				if f, _ := b.l.Lookup(idxKey(r.db, r.name, k)); f != walk.Absent {
 					return

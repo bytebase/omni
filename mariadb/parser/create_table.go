@@ -229,7 +229,7 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 			}
 		} else if p.isTableConstraintStart() {
 			// Table-level constraints: PRIMARY KEY, UNIQUE, INDEX, KEY, FULLTEXT, SPATIAL, FOREIGN KEY, CONSTRAINT, CHECK
-			constr, err := p.parseTableConstraint(false)
+			constr, err := p.parseTableConstraint(placeCreateTable)
 			if err != nil {
 				return err
 			}
@@ -1074,12 +1074,15 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 //	[CONSTRAINT [symbol]] CHECK (expr)
 //	{INDEX | KEY} [name] (col,...) [index_option]
 //	{FULLTEXT | SPATIAL} [INDEX|KEY] [name] (col,...) [index_option]
-func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error) {
+func (p *Parser) parseTableConstraint(place constraintPlace) (*nodes.Constraint, error) {
 	start := p.pos()
 	constr := &nodes.Constraint{Loc: nodes.Loc{Start: start}}
 
 	// Optional CONSTRAINT [name]
 	_, afterConstraint := p.match(kwCONSTRAINT)
+	if afterConstraint && place == placeAlterAdd && p.cur.Type == kwIF {
+		return p.parseCheckIfNotExists(constr)
+	}
 	if afterConstraint {
 		if p.isIdentToken() && p.cur.Type != kwPRIMARY && p.cur.Type != kwUNIQUE &&
 			p.cur.Type != kwFOREIGN && p.cur.Type != kwCHECK {
@@ -1090,8 +1093,15 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 	switch p.cur.Type {
 	case kwPRIMARY:
 		p.advance()
-		p.match(kwKEY)
+		// PRIMARY is nothing without KEY: 11.8.8 answers 1064 for `ADD PRIMARY (a)` and
+		// `CREATE TABLE t (a INT, PRIMARY (a))`.
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrPrimaryKey
+		if err := p.parseKeyIfNotExists(constr, place); err != nil {
+			return nil, err
+		}
 		// Optional index name (undocumented but accepted by MySQL 8.0, silently ignored)
 		if p.isIdentToken() && p.cur.Type != '(' {
 			p.parseIdent() // consume and discard — MySQL ignores PK index names
@@ -1114,6 +1124,9 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 		p.advance()
 		p.match(kwINDEX, kwKEY) // optional INDEX or KEY
 		constr.Type = nodes.ConstrUnique
+		if err := p.parseKeyIfNotExists(constr, place); err != nil {
+			return nil, err
+		}
 		// Optional index name
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
@@ -1136,6 +1149,9 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 		p.advance()
 		p.match(kwKEY)
 		constr.Type = nodes.ConstrForeignKey
+		if err := p.parseKeyIfNotExists(constr, place); err != nil {
+			return nil, err
+		}
 		// Optional index name, kept apart from the CONSTRAINT symbol, which
 		// names the foreign key when given (see nodes.Constraint).
 		if p.isIdentToken() && p.cur.Type != '(' {
@@ -1247,6 +1263,9 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 	case kwINDEX, kwKEY:
 		p.advance()
 		constr.Type = nodes.ConstrIndex
+		if err := p.parseKeyIfNotExists(constr, place); err != nil {
+			return nil, err
+		}
 		// Optional index name
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
@@ -1268,6 +1287,9 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 		p.advance()
 		p.match(kwINDEX, kwKEY)
 		constr.Type = nodes.ConstrFulltextIndex
+		if err := p.parseKeyIfNotExists(constr, place); err != nil {
+			return nil, err
+		}
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
@@ -1285,7 +1307,7 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 		if afterConstraint {
 			return nil, p.syntaxErrorAtCur()
 		}
-		if err := p.parseVectorKey(constr, inAlterAdd); err != nil {
+		if err := p.parseVectorKey(constr, place); err != nil {
 			return nil, err
 		}
 
@@ -1293,6 +1315,9 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 		p.advance()
 		p.match(kwINDEX, kwKEY)
 		constr.Type = nodes.ConstrSpatialIndex
+		if err := p.parseKeyIfNotExists(constr, place); err != nil {
+			return nil, err
+		}
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
@@ -1317,6 +1342,73 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 	return constr, nil
 }
 
+// constraintPlace says where a table constraint is being read, which decides where it
+// may carry IF NOT EXISTS.
+type constraintPlace int
+
+const (
+	// placeCreateTable is a CREATE TABLE element, which takes IF NOT EXISTS nowhere:
+	// 11.8.8 answers 1064 for it on every kind of key there.
+	placeCreateTable constraintPlace = iota
+	// placeAlterAdd is ALTER TABLE ... ADD with no parentheses.
+	placeAlterAdd
+	// placeAlterAddList is an element of ALTER TABLE ... ADD (...), which takes what
+	// placeAlterAdd takes but for CONSTRAINT IF NOT EXISTS.
+	placeAlterAddList
+)
+
+// parseKeyIfNotExists reads the IF NOT EXISTS that follows the keywords of a key after
+// ALTER TABLE ADD, or is a no-op in CREATE TABLE, where the IF is then a syntax error at
+// the next read. 11.8.8 takes it after PRIMARY KEY, UNIQUE, FOREIGN KEY, INDEX, KEY,
+// FULLTEXT, SPATIAL and VECTOR, whichever optional word follows them, and always before
+// the name: `ADD INDEX n IF NOT EXISTS (a)` is 1064.
+func (p *Parser) parseKeyIfNotExists(constr *nodes.Constraint, place constraintPlace) error {
+	if place == placeCreateTable {
+		return nil
+	}
+	ine, err := p.parseCreateIfNotExists(false)
+	if err != nil {
+		return err
+	}
+	constr.IfNotExists = ine
+	return nil
+}
+
+// parseCheckIfNotExists reads CONSTRAINT IF NOT EXISTS name CHECK (expr) from the IF on,
+// the one place IF NOT EXISTS follows CONSTRAINT. 11.8.8 answers 1064 for it on any other
+// kind of constraint, with no name, with [NOT] ENFORCED after it, in ADD's parenthesized
+// list and in CREATE TABLE.
+func (p *Parser) parseCheckIfNotExists(constr *nodes.Constraint) (*nodes.Constraint, error) {
+	ine, err := p.parseCreateIfNotExists(false)
+	if err != nil {
+		return nil, err
+	}
+	constr.IfNotExists = ine
+	constr.Type = nodes.ConstrCheck
+	if constr.Name, _, err = p.parseIdent(); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwCHECK); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	constr.Expr = expr
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	constr.Loc.End = p.prev.End
+	return constr, nil
+}
+
 // parseVectorKey reads a VECTOR key from the VECTOR keyword on, as a table element
 // or after ALTER TABLE ADD.
 //
@@ -1329,16 +1421,12 @@ func (p *Parser) parseTableConstraint(inAlterAdd bool) (*nodes.Constraint, error
 // is no index type: USING HNSW and USING BTREE are 1064 in either position. IF NOT
 // EXISTS is ALTER's only: `CREATE TABLE t (v VECTOR(3), VECTOR INDEX IF NOT EXISTS i
 // (v))` is 1064 and `ADD VECTOR IF NOT EXISTS i (v)` runs.
-func (p *Parser) parseVectorKey(constr *nodes.Constraint, inAlterAdd bool) error {
+func (p *Parser) parseVectorKey(constr *nodes.Constraint, place constraintPlace) error {
 	p.advance() // consume VECTOR
 	p.match(kwINDEX, kwKEY)
 	constr.Type = nodes.ConstrVector
-	if inAlterAdd {
-		ine, err := p.parseCreateIfNotExists(false)
-		if err != nil {
-			return err
-		}
-		constr.IfNotExists = ine
+	if err := p.parseKeyIfNotExists(constr, place); err != nil {
+		return err
 	}
 	if p.isIdentToken() && p.cur.Type != '(' {
 		name, _, err := p.parseIdent()
@@ -1398,7 +1486,11 @@ func (p *Parser) parseVectorKeyOption() (*nodes.IndexOption, bool, error) {
 // An option that starts and then fails, such as a COMMENT without its string,
 // is a syntax error, as it is after CREATE INDEX.
 func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
+	fulltext, spatial := constr.Type == nodes.ConstrFulltextIndex, constr.Type == nodes.ConstrSpatialIndex
 	for {
+		if err := p.refuseIndexOption(fulltext, spatial); err != nil {
+			return err
+		}
 		opt, ok, err := p.parseIndexOption()
 		if err != nil {
 			return err

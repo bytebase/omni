@@ -351,12 +351,17 @@ func (s *DropTableStmt) stmtNode() {}
 
 // CreateIndexStmt represents a CREATE INDEX statement.
 type CreateIndexStmt struct {
-	Loc         Loc
-	OrReplace   bool // CREATE OR REPLACE INDEX: drops an existing index of that name first
-	Unique      bool
-	Fulltext    bool
-	Spatial     bool
-	Vector      bool // CREATE VECTOR INDEX
+	Loc       Loc
+	OrReplace bool // CREATE OR REPLACE INDEX: drops an existing index of that name first
+	Unique    bool
+	Fulltext  bool
+	Spatial   bool
+	Vector    bool // CREATE VECTOR INDEX
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] after the key parts, of
+	// which there is at most one. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 	IfNotExists bool
 	IndexName   string
 	Table       *TableRef
@@ -595,7 +600,7 @@ type Constraint struct {
 	IndexColumns []*IndexColumn // key parts with optional expressions (for functional indexes)
 	IndexType    string         // BTREE, HASH
 	IndexOptions []*IndexOption // index_option list (KEY_BLOCK_SIZE, COMMENT, [NOT] IGNORED, etc.)
-	IfNotExists  bool           // for ALTER TABLE ADD VECTOR
+	IfNotExists  bool           // for ALTER TABLE ADD, the only place it is written
 	Expr         ExprNode       // for CHECK
 	RefTable     *TableRef      // for FOREIGN KEY
 	RefColumns   []string       // for FOREIGN KEY
@@ -2039,6 +2044,11 @@ type DropIndexStmt struct {
 	Table     *TableRef
 	Algorithm string
 	Lock      string
+	// NoWait, HasWait and WaitSeconds are the [WAIT n | NOWAIT] that closes the
+	// statement. WaitSeconds keeps the literal as written.
+	NoWait      bool
+	HasWait     bool
+	WaitSeconds string
 }
 
 func (s *DropIndexStmt) nodeTag()  {}

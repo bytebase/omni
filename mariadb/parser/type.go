@@ -156,7 +156,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwVECTOR:
 		dt.Name = "VECTOR"
 		p.advance()
-		if err := p.parseVectorDimension(dt); err != nil {
+		if err := p.parseFloatOptions(dt); err != nil {
 			return nil, err
 		}
 
@@ -502,7 +502,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			if p.isQuotedVectorType() {
 				dt.Name = "VECTOR"
 				p.advance()
-				if err := p.parseVectorDimension(dt); err != nil {
+				if err := p.parseFloatOptions(dt); err != nil {
 					return nil, err
 				}
 				dt.Loc.End = p.prev.End
@@ -518,6 +518,14 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			}
 			if dt.Name != "" {
 				p.advance()
+				// These take a size and drop it: 11.8.8 runs `a inet6(3)`, `b uuid(3,2)`
+				// and `c inet4(1.5)` and reads them back as inet6, uuid and inet4. It is
+				// 1064 in CAST and JSON_TABLE, which do not come here with one.
+				if p.cur.Type == '(' {
+					if err := p.parseFloatOptions(&nodes.DataType{}); err != nil {
+						return nil, err
+					}
+				}
 				dt.Loc.End = p.prev.End
 				return dt, nil
 			}
@@ -541,7 +549,17 @@ func (p *Parser) isQuotedVectorType() bool {
 	return p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "VECTOR")
 }
 
-// parseVectorDimension reads what must follow VECTOR in a column type.
+// isNamedScalarType reports whether the current token names UUID, INET4 or INET6, which
+// are identifiers the type position recognizes by their text.
+func (p *Parser) isNamedScalarType() bool {
+	if p.cur.Type != tokIDENT {
+		return false
+	}
+	return strings.EqualFold(p.cur.Str, "UUID") || strings.EqualFold(p.cur.Str, "INET4") || strings.EqualFold(p.cur.Str, "INET6")
+}
+
+// parseFloatOptions reads the size in parentheses that follows a type MariaDB reads by
+// name: what must follow VECTOR, and what may follow UUID, INET4 and INET6.
 //
 // MariaDB 11.8.8 answers 1064 for a bare VECTOR, for VECTOR(), VECTOR(3,), VECTOR(1e5),
 // VECTOR(1.5,2), VECTOR('3') and VECTOR(0x3), and takes VECTOR(3), VECTOR(3,2) and
@@ -549,7 +567,7 @@ func (p *Parser) isQuotedVectorType() bool {
 // keeps only the integer part of the first number: SHOW CREATE TABLE writes vector(3)
 // for VECTOR(3,2) and vector(1) for VECTOR(1.5), so that is what Length holds. A size
 // past 16383 parses and is refused later with 1074.
-func (p *Parser) parseVectorDimension(dt *nodes.DataType) error {
+func (p *Parser) parseFloatOptions(dt *nodes.DataType) error {
 	if _, err := p.expect('('); err != nil {
 		return err
 	}
