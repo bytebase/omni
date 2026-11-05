@@ -1426,6 +1426,94 @@ func deparseBitLit(n *ast.BitLit) string {
 	return "0x" + fmt.Sprintf("%02x", i)
 }
 
+// A quantified comparison, and an IN over a subquery, print with no parentheses of
+// their own, so whether one needs them depends on where it stands. The grammar reads
+// `a > ALL (q)` as a boolean primary and `a IN (q)` as a predicate, and neither is a
+// bit_expr: `(a > ALL (q)) + 1` printed bare is a syntax error, and `1 = (a > ALL (q))`
+// printed bare parses as `(1 = a) > ALL (q)`.
+//
+// MariaDB 11.8 parenthesizes where the grammar needs it, as this writer does.
+const (
+	printsDelimited = iota // the writer already delimits it
+	printsPredicate        // `a in (q)`
+	printsBoolPri          // `a > all (q)`
+)
+
+// bareLevel reports what node prints as, looking through what the writer drops.
+func bareLevel(node ast.ExprNode) int {
+	for {
+		switch n := node.(type) {
+		case *ast.ParenExpr:
+			node = n.Expr
+			continue
+		case *ast.UnaryExpr:
+			if n.Op == ast.UnaryPlus {
+				node = n.Operand
+				continue
+			}
+		case *ast.InExpr:
+			if n.Select != nil {
+				return printsPredicate
+			}
+		case *ast.BinaryExpr:
+			sub, ok := n.Right.(*ast.SubqueryExpr)
+			if !ok || sub.Quantifier == "" || sub.Select == nil {
+				return printsDelimited
+			}
+			all := sub.Quantifier == "ALL"
+			switch {
+			case n.Op == ast.BinOpEq && !all:
+				return printsPredicate
+			case n.Op == ast.BinOpNe && all:
+				return printsDelimited
+			}
+			return printsBoolPri
+		}
+		return printsDelimited
+	}
+}
+
+// writeBitOperand writes an operand the grammar reads as a bit_expr.
+func writeBitOperand(b *strings.Builder, node ast.ExprNode) {
+	if bareLevel(node) == printsDelimited {
+		writeExpr(b, node)
+		return
+	}
+	b.WriteString("(")
+	writeExpr(b, node)
+	b.WriteString(")")
+}
+
+// writeComparisonRight writes the right side of a comparison, which the grammar reads
+// as a predicate.
+func writeComparisonRight(b *strings.Builder, node ast.ExprNode) {
+	if bareLevel(node) != printsBoolPri {
+		writeExpr(b, node)
+		return
+	}
+	b.WriteString("(")
+	writeExpr(b, node)
+	b.WriteString(")")
+}
+
+// isComparison reports whether op is one of the grammar's comp_op operators.
+func isComparison(op ast.BinaryOp) bool {
+	switch op {
+	case ast.BinOpEq, ast.BinOpNe, ast.BinOpLt, ast.BinOpGt, ast.BinOpLe, ast.BinOpGe, ast.BinOpNullSafeEq:
+		return true
+	}
+	return false
+}
+
+// isLogical reports whether op takes whole expressions as operands.
+func isLogical(op ast.BinaryOp) bool {
+	switch op {
+	case ast.BinOpAnd, ast.BinOpOr, ast.BinOpXor:
+		return true
+	}
+	return false
+}
+
 // writeQuantifiedComparison formats `expr op {ANY|SOME|ALL} (subquery)`. The
 // quantifier is the meaning of the comparison, so dropping it would turn `a > ALL
 // (q)` into a scalar comparison against q.
@@ -1440,13 +1528,13 @@ func writeQuantifiedComparison(b *strings.Builder, n *ast.BinaryExpr, sub *ast.S
 	}
 	switch {
 	case n.Op == ast.BinOpEq && !all:
-		writeExpr(b, n.Left)
+		writeBitOperand(b, n.Left)
 		b.WriteString(" in (")
 		writeSelectStmt(b, sub.Select, true)
 		b.WriteString(")")
 	case n.Op == ast.BinOpNe && all:
 		b.WriteString("!(")
-		writeExpr(b, n.Left)
+		writeBitOperand(b, n.Left)
 		b.WriteString(" in (")
 		writeSelectStmt(b, sub.Select, true)
 		b.WriteString("))")
@@ -1500,11 +1588,22 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 		}
 	}
 	b.WriteString("(")
-	writeExpr(b, left)
+	if isLogical(n.Op) || isComparison(n.Op) {
+		writeExpr(b, left)
+	} else {
+		writeBitOperand(b, left)
+	}
 	b.WriteString(" ")
 	b.WriteString(binaryOpToString(n.Op))
 	b.WriteString(" ")
-	writeExpr(b, right)
+	switch {
+	case isLogical(n.Op):
+		writeExpr(b, right)
+	case isComparison(n.Op):
+		writeComparisonRight(b, right)
+	default:
+		writeBitOperand(b, right)
+	}
 	b.WriteString(")")
 }
 
@@ -1646,6 +1745,13 @@ func writeUnaryExpr(b *strings.Builder, n *ast.UnaryExpr) {
 			b.WriteString(")")
 		}
 	case ast.UnaryNot:
+		// MariaDB 11.8 stores NOT over an IN subquery as `!(a in (q))`.
+		if in, ok := unwrapParen(n.Operand).(*ast.InExpr); ok && in.Select != nil {
+			b.WriteString("!(")
+			writeExpr(b, n.Operand)
+			b.WriteString(")")
+			return
+		}
 		b.WriteString("(not(")
 		writeExpr(b, n.Operand)
 		b.WriteString("))")
@@ -1669,7 +1775,7 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 	// MySQL 8.0 does NOT wrap IN subquery in outer parens (unlike IN value list).
 	// MySQL 8.0 also omits AS aliases in the subquery's target list.
 	if n.Select != nil {
-		writeExpr(b, n.Expr)
+		writeBitOperand(b, n.Expr)
 		b.WriteString(keyword)
 		writeSelectStmt(b, n.Select, true)
 		b.WriteString(")")
@@ -1678,7 +1784,7 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 
 	// Build the value list with no spaces after commas
 	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeBitOperand(b, n.Expr)
 	b.WriteString(keyword)
 	for i, item := range n.List {
 		if i > 0 {
@@ -1691,15 +1797,15 @@ func writeInExpr(b *strings.Builder, n *ast.InExpr) {
 
 func writeBetweenExpr(b *strings.Builder, n *ast.BetweenExpr) {
 	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeBitOperand(b, n.Expr)
 	if n.Not {
 		b.WriteString(" not between ")
 	} else {
 		b.WriteString(" between ")
 	}
-	writeExpr(b, n.Low)
+	writeBitOperand(b, n.Low)
 	b.WriteString(" and ")
-	writeExpr(b, n.High)
+	writeBitOperand(b, n.High)
 	b.WriteString(")")
 }
 
@@ -1708,12 +1814,12 @@ func writeLikeExpr(b *strings.Builder, n *ast.LikeExpr) {
 		b.WriteString("(not(")
 	}
 	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeBitOperand(b, n.Expr)
 	b.WriteString(" like ")
-	writeExpr(b, n.Pattern)
+	writeBitOperand(b, n.Pattern)
 	if n.Escape != nil {
 		b.WriteString(" escape ")
-		writeExpr(b, n.Escape)
+		writeBitOperand(b, n.Escape)
 	}
 	b.WriteString(")")
 	if n.Not {
@@ -1907,7 +2013,7 @@ func writeIntervalExpr(b *strings.Builder, n *ast.IntervalExpr) {
 
 func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
 	b.WriteString("(")
-	writeExpr(b, n.Expr)
+	writeBitOperand(b, n.Expr)
 	b.WriteString(" collate ")
 	b.WriteString(n.Collation)
 	b.WriteString(")")

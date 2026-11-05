@@ -285,6 +285,16 @@ func rewriteNot(operand ast.ExprNode) ast.ExprNode {
 		}
 	}
 
+	// Case 2c: NOT(a IN (subquery)) — keep as not() wrapping, which is what the server
+	// stores, and what `a <> ALL (q)` prints as. `0 = a in (q)` would mean the same but
+	// would not read back as what was written.
+	if in, ok := inner.(*ast.InExpr); ok && in.Select != nil && !in.Not {
+		return &ast.UnaryExpr{
+			Op:      ast.UnaryNot,
+			Operand: operand,
+		}
+	}
+
 	// Case 3: NOT(non-boolean) → (0 = expr)
 	// This handles: NOT(column), NOT(a+1), NOT(func()), etc.
 	// MySQL rewrites these as (0 = expr).

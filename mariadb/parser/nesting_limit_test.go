@@ -56,6 +56,13 @@ var nestingShapes = []struct {
 	{"EXISTS", func(n int) string { return nest(n, "SELECT EXISTS (", "SELECT 1", ")") }},
 	{"IN subquery", func(n int) string { return nest(n, "SELECT 1 IN (", "SELECT 1", ")") }},
 	{"quantified subquery", func(n int) string { return nest(n, "SELECT 1 = ANY (", "SELECT 1", ")") }},
+	// The right side of LIKE, REGEXP and SOUNDS LIKE takes a following NOT predicate, so
+	// these right-deep chains recurse with no parenthesis or subquery in sight.
+	{"NOT LIKE chain", func(n int) string { return "SELECT 1 LIKE 1" + strings.Repeat(" NOT LIKE 1", n) }},
+	{"NOT REGEXP chain", func(n int) string { return "SELECT 1 REGEXP 1" + strings.Repeat(" NOT REGEXP 1", n) }},
+	{"SOUNDS LIKE into NOT LIKE chain", func(n int) string {
+		return "SELECT 1 SOUNDS LIKE 1" + strings.Repeat(" NOT LIKE 1", n)
+	}},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT 1", ") x") }},
 	{"LATERAL derived table", func(n int) string {
 		return nest(n, "SELECT * FROM t, LATERAL (", "SELECT 1", ") x")

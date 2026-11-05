@@ -1668,7 +1668,7 @@ func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
 		return p.parsePrimaryExpr()
 	}
-	if p.isIdentToken() && (p.cur.Type != tokIDENT || p.cur.Str[0] != '@') {
+	if p.isIdentToken() && !p.isVariableRef() {
 		start := p.pos()
 		name, _, err := p.parseIdent()
 		if err != nil {

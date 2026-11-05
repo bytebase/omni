@@ -1752,6 +1752,13 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 // c)`, while `a LIKE b REGEXP c` reduces first and is `(a LIKE b) REGEXP c`. The
 // expression sweep in operator_sweep_oracle_test.go holds this to mariadb:11.8.8.
 func (p *Parser) parsePredicateRHS() (nodes.ExprNode, error) {
+	// `1 LIKE 1 NOT LIKE 1 NOT LIKE ...` recurses here once per term, and the
+	// parseExprPrec below has returned before each step, so it counts nothing.
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+
 	start := p.pos()
 	right, err := p.parseExprPrec(precBitOr)
 	if err != nil {
