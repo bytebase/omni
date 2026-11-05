@@ -32,8 +32,11 @@ jobs:
       trino:
         # The trino oracle tests need a live Trino; the runner waits for the
         # image's health check. Keep the tag in sync with trinooracle.DefaultImage.
+        # The image allows about 40 s to start, too little on a busy runner; a
+        # probe that passes still ends the wait at once.
         image: trinodb/trino:482
         ports: ['8080']
+        options: --health-start-period=5m
       spanner:
         # The googlesql differentials record verdicts from this exact emulator
         # build (sha256:caf1bd24…); newer builds drift, so keep it pinned.
