@@ -10,10 +10,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type firstSetOracle struct {
@@ -34,45 +30,13 @@ var (
 func startFirstSetOracle(t *testing.T) *firstSetOracle {
 	t.Helper()
 	firstSetOracleOnce.Do(func() {
-		// testcontainers-go panics inside MustExtractDockerHost when the
-		// Docker socket is reachable but access is denied (e.g. sandboxed
-		// runs, containerized CI without socket mount). It panics rather
-		// than returning an error, so we have to recover() to honor the
-		// CI-vs-local skip policy below. Same pattern as
-		// pg/catalog and mysql/catalog testcontainer helpers.
-		defer func() {
-			if r := recover(); r != nil {
-				oracleSetupError = fmt.Errorf("docker provider panic: %v", r)
-			}
-		}()
-
-		if err := dockerPreflight(2 * time.Second); err != nil {
-			oracleSetupError = fmt.Errorf("docker preflight: %w", err)
+		ctx := context.Background()
+		db, err := OracleDatabase(ctx, "omni_fs")
+		if err != nil {
+			oracleSetupError = err
 			return
 		}
-
-		// Container creation is retried because a busy CI runner can
-		// transiently blow one creation deadline (image pull, dockerd
-		// contention) or lose a fresh container to the Ryuk reaper race —
-		// observed as "create container: context deadline exceeded" flakes
-		// in the redshift-container-tests job. Genuine unavailability
-		// still fails loudly: every attempt's error is preserved and the
-		// CI branch below turns the joined error into a test failure.
-		const oracleStartAttempts = 3
-		var attemptErrs []error
-		for attempt := 1; attempt <= oracleStartAttempts; attempt++ {
-			if attempt > 1 {
-				time.Sleep(2 * time.Second)
-			}
-			db, err := startFirstSetOracleAttempt()
-			if err == nil {
-				firstSetOracleInst = &firstSetOracle{db: db, ctx: context.Background()}
-				return
-			}
-			t.Logf("first-set oracle start attempt %d/%d failed: %v", attempt, oracleStartAttempts, err)
-			attemptErrs = append(attemptErrs, fmt.Errorf("attempt %d/%d: %w", attempt, oracleStartAttempts, err))
-		}
-		oracleSetupError = errors.Join(attemptErrs...)
+		firstSetOracleInst = &firstSetOracle{db: db, ctx: ctx}
 	})
 
 	if oracleSetupError != nil {
@@ -82,52 +46,6 @@ func startFirstSetOracle(t *testing.T) *firstSetOracle {
 		t.Fatalf("first-set oracle unavailable in CI: %v", oracleSetupError)
 	}
 	return firstSetOracleInst
-}
-
-// startFirstSetOracleAttempt makes one full container-bootstrap attempt:
-// create the PG 17 container, resolve the connection string, open the
-// pool, and verify liveness with a ping. It either returns an open DB or
-// tears down every partially-created resource and returns the error, so
-// the retry loop in startFirstSetOracle can begin the next attempt from
-// a clean slate.
-func startFirstSetOracleAttempt() (*sql.DB, error) {
-	// Generous per-attempt timeout: on a clean CI runner the image pull
-	// alone can exceed the 15s this used to allow. Mirrors
-	// paren_oracle_test.go and redshift/catalog's container helper.
-	startCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-
-	container, err := tcpg.Run(startCtx, "postgres:17-alpine",
-		tcpg.WithDatabase("omni_fs"),
-		tcpg.WithUsername("postgres"),
-		tcpg.WithPassword("test"),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2)),
-	)
-	if err != nil {
-		// Run can return a partially-created container alongside its
-		// error; terminate it (nil-safe) so retries don't accumulate
-		// leaked containers on the runner.
-		_ = testcontainers.TerminateContainer(container)
-		return nil, fmt.Errorf("container start: %w", err)
-	}
-	connStr, err := container.ConnectionString(startCtx, "sslmode=disable")
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		return nil, fmt.Errorf("conn string: %w", err)
-	}
-	db, err := sql.Open("pgx", connStr)
-	if err != nil {
-		_ = testcontainers.TerminateContainer(container)
-		return nil, fmt.Errorf("db open: %w", err)
-	}
-	if err := db.PingContext(startCtx); err != nil {
-		db.Close()
-		_ = testcontainers.TerminateContainer(container)
-		return nil, fmt.Errorf("ping: %w", err)
-	}
-	return db, nil
 }
 
 // probeResult classifies a PG error into accept/reject for FIRST-set purposes.
