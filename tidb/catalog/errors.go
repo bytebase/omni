@@ -1,6 +1,9 @@
 package catalog
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Error struct {
 	Code     int
@@ -18,6 +21,8 @@ const (
 	ErrDupTable                          = 1050
 	ErrUnknownTable                      = 1051
 	ErrDupColumn                         = 1060
+	ErrWrongDBName                       = 1102
+	ErrWrongTableName                    = 1103
 	ErrDupKeyName                        = 1061
 	ErrDupEntry                          = 1062
 	ErrMultiplePriKey                    = 1068
@@ -62,6 +67,8 @@ var sqlStateMap = map[int]string{
 	ErrDupTable:                          "42S01",
 	ErrUnknownTable:                      "42S02",
 	ErrDupColumn:                         "42S21",
+	ErrWrongDBName:                       "42000",
+	ErrWrongTableName:                    "42000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
@@ -133,6 +140,28 @@ func errDupTable(name string) error {
 func errNoSuchTable(db, name string) error {
 	return &Error{Code: ErrNoSuchTable, SQLState: sqlState(ErrNoSuchTable),
 		Message: fmt.Sprintf("Table '%s.%s' doesn't exist", db, name)}
+}
+
+func errWrongDBName(name string) error {
+	return &Error{Code: ErrWrongDBName, SQLState: sqlState(ErrWrongDBName),
+		Message: fmt.Sprintf("Incorrect database name '%s'", name)}
+}
+
+func errWrongTableName(name string) error {
+	return &Error{Code: ErrWrongTableName, SQLState: sqlState(ErrWrongTableName),
+		Message: fmt.Sprintf("Incorrect table name '%s'", name)}
+}
+
+// checkColumnQualifier holds what a column's qualifier must name. CREATE TABLE, MODIFY and CHANGE
+// check it, and ADD, ALTER and DROP ignore it (verified on v8.5.5). The database answers first.
+func checkColumnQualifier(schema, table, dbName, tableName string) error {
+	if schema != "" && !strings.EqualFold(schema, dbName) {
+		return errWrongDBName(schema)
+	}
+	if table != "" && !strings.EqualFold(table, tableName) {
+		return errWrongTableName(table)
+	}
+	return nil
 }
 
 func errDupColumn(name string) error {

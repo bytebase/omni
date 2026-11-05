@@ -166,6 +166,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
+		if err := checkColumnQualifier(colDef.Schema, colDef.Table, db.Name, tableName); err != nil {
+			return err
+		}
 		colKey := toLower(colDef.Name)
 		if _, exists := tbl.colByName[colKey]; exists {
 			return errDupColumn(colDef.Name)
