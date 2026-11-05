@@ -738,8 +738,10 @@ type FuncCallExprQ struct {
 	// walkers and HasAggs validation use this field directly.
 	IsAggregate bool
 
-	// JSONValue holds JSON_VALUE's clauses, nil when none were written.
-	JSONValue *JSONValueQ
+	// JSONValueClauses is what follows JSON_VALUE's path, as the engine stores it. It is text
+	// because no clause holds anything to resolve: its default is a literal, and the literals
+	// it takes (DATE'...', 0x61) keep their spelling here and have no analyzed form.
+	JSONValueClauses string
 
 	// Distinct marks aggregates with DISTINCT, e.g. COUNT(DISTINCT x).
 	// Always false for non-aggregate functions.
@@ -756,21 +758,6 @@ type FuncCallExprQ struct {
 	// Phase 1 leaves nil.
 	ResultType *ResolvedType
 	Collation  string
-}
-
-// JSONValueQ holds the clauses of a JSON_VALUE call, which change what it answers.
-type JSONValueQ struct {
-	Returning    *ResolvedType // RETURNING's type, nil when it is left out
-	ReturningSQL string        // the same type as text, which keeps what ResolvedType does not
-	OnEmpty      *JSONValueResponseQ
-	OnError      *JSONValueResponseQ
-}
-
-// JSONValueResponseQ is one ON EMPTY or ON ERROR: NULL, ERROR, or DEFAULT and a literal.
-type JSONValueResponseQ struct {
-	Error    bool
-	Default  AnalyzedExpr // the literal without its sign
-	Negative bool         // the literal was written with a minus sign
 }
 
 func (*FuncCallExprQ) analyzedExprTag()          {}

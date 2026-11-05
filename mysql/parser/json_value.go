@@ -34,18 +34,19 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		return nil, err
 	}
 	pathStart := p.cur
-	p.skipNationalPrefix()
+	national := p.skipNationalPrefix()
 	path, err := p.parsePrimaryExpr()
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := path.(*nodes.StringLit); !ok {
+	pathLit, ok := path.(*nodes.StringLit)
+	if !ok {
 		return nil, &ParseError{Message: "JSON_VALUE takes a string literal as its path", Position: pathStart.Loc}
 	}
+	pathLit.National = national
 	fc.Args = []nodes.ExprNode{doc, path}
 
 	opts := &nodes.JSONValueOptions{Loc: nodes.Loc{Start: p.pos()}}
-	any := false
 	if _, ok := p.match(kwRETURNING); ok {
 		dt, err := p.parseCastDataType()
 		if err != nil {
@@ -57,7 +58,7 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 			"MULTIPOLYGON", "GEOMETRYCOLLECTION", "GEOMCOLLECTION":
 			return nil, &ParseError{Message: "Invalid JSON type in argument 1 to function json_value", Position: dt.Loc.Start}
 		}
-		opts.Returning, any = dt, true
+		opts.Returning = dt
 	}
 	if p.startsJSONValueResponse() {
 		resp, err := p.parseJSONValueResponse()
@@ -67,7 +68,6 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		if _, err := p.expect(kwON); err != nil {
 			return nil, err
 		}
-		any = true
 		if _, ok := p.match(kwEMPTY); ok {
 			opts.OnEmpty = resp
 			if p.startsJSONValueResponse() {
@@ -88,7 +88,8 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 			opts.OnError = resp
 		}
 	}
-	if any {
+	fc.JSONValueArm = true
+	if p.prev.End > opts.Loc.Start {
 		opts.Loc.End = p.prev.End
 		fc.JSONValue = opts
 	}
@@ -101,13 +102,15 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 
 // skipNationalPrefix steps over the N of N'...', which is a string literal too and which the
 // expression reader has no arm for: it would read the N as a column. The quote has to follow at
-// once, since `N 'x'` is a name and a string.
-func (p *Parser) skipNationalPrefix() {
+// once, since `N 'x'` is a name and a string. It reports whether there was one.
+func (p *Parser) skipNationalPrefix() bool {
 	if strings.EqualFold(p.cur.Str, "N") && p.cur.Type == tokIDENT && !p.backtickQuotedAt(p.cur.Loc) {
 		if next := p.peekNext(); next.Type == tokSCONST && next.Loc == p.cur.End {
 			p.advance()
+			return true
 		}
 	}
+	return false
 }
 
 func (p *Parser) startsJSONValueResponse() bool {
@@ -126,7 +129,7 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 	}
 	p.advance() // consume DEFAULT
 	start := p.cur.Loc
-	p.skipNationalPrefix()
+	national := p.skipNationalPrefix()
 	signed := p.cur.Type == '-' || p.cur.Type == '+'
 	value, err := p.parseExprPrec(precUnary)
 	if err != nil {
@@ -134,6 +137,9 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 	}
 	if !isJSONValueDefault(value, signed) {
 		return nil, &ParseError{Message: "JSON_VALUE takes a literal after DEFAULT", Position: start}
+	}
+	if lit, ok := value.(*nodes.StringLit); ok {
+		lit.National = national
 	}
 	return &nodes.JSONValueResponse{Loc: nodes.Loc{Start: begin, End: p.prev.End}, Default: value}, nil
 }

@@ -497,6 +497,17 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 
 	default:
+		// NUMBER is DECIMAL under another name: 4.3.5.6 takes a column, a cast and JSON_VALUE's
+		// RETURNING of it, and it is how it stores JSON_VALUE's DECIMAL.
+		if p.isBareWord("NUMBER") {
+			dt.Name = "DECIMAL"
+			p.advance()
+			if err := p.parseOptionalPrecision(dt); err != nil {
+				return nil, err
+			}
+			p.parseUnsignedZerofill(dt)
+			break
+		}
 		if p.cur.Type == tokEOF {
 			return nil, p.syntaxErrorAtCur()
 		}

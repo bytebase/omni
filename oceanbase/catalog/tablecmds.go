@@ -2158,6 +2158,11 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		if n.Star {
 			return funcName + "(*)"
 		}
+		if n.JSONValueArm {
+			// Its clauses change what it answers. OceanBase 4.3.5.6 stores the strings of this
+			// call without an introducer, which writes it the way a view does.
+			return deparse.Deparse(n)
+		}
 		var args []string
 		for _, a := range n.Args {
 			args = append(args, nodeToSQLGenerated(a, charset))

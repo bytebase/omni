@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"github.com/bytebase/omni/mysql/deparse"
 )
 
 // analyzeExpr is the main expression analysis dispatcher.
@@ -100,54 +101,13 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 	}
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)
-	if fc.JSONValue != nil {
-		jv, err := analyzeJSONValueOptions(c, fc.JSONValue, scope)
-		if err != nil {
-			return nil, err
-		}
-		result.JSONValue = jv
-		if jv.Returning != nil {
-			result.ResultType = jv.Returning
+	if fc.JSONValueArm {
+		result.JSONValueClauses = deparse.JSONValueClauses(fc.JSONValue, "")
+		if fc.JSONValue != nil && fc.JSONValue.Returning != nil {
+			result.ResultType = dataTypeToResolvedType(fc.JSONValue.Returning)
 		}
 	}
 	return result, nil
-}
-
-func analyzeJSONValueOptions(c *Catalog, opts *nodes.JSONValueOptions, scope *analyzerScope) (*JSONValueQ, error) {
-	jv := &JSONValueQ{}
-	if opts.Returning != nil {
-		jv.Returning = dataTypeToResolvedType(opts.Returning)
-		jv.ReturningSQL = castTypeToSQLGenerated(opts.Returning)
-	}
-	var err error
-	if jv.OnEmpty, err = analyzeJSONValueResponse(c, opts.OnEmpty, scope); err != nil {
-		return nil, err
-	}
-	if jv.OnError, err = analyzeJSONValueResponse(c, opts.OnError, scope); err != nil {
-		return nil, err
-	}
-	return jv, nil
-}
-
-func analyzeJSONValueResponse(c *Catalog, r *nodes.JSONValueResponse, scope *analyzerScope) (*JSONValueResponseQ, error) {
-	if r == nil {
-		return nil, nil
-	}
-	out := &JSONValueResponseQ{Error: r.Error}
-	if r.Default == nil {
-		return out, nil
-	}
-	value := r.Default
-	if unary, ok := value.(*nodes.UnaryExpr); ok {
-		out.Negative = unary.Op == nodes.UnaryMinus
-		value = unary.Operand
-	}
-	analyzed, err := analyzeExpr(c, value, scope)
-	if err != nil {
-		return nil, err
-	}
-	out.Default = analyzed
-	return out, nil
 }
 
 // analyzePositionExpr resolves POSITION(substr IN str). The node has to be

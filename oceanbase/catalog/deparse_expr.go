@@ -160,50 +160,13 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *Query) {
 		}
 		writeAnalyzedExpr(b, arg, q)
 	}
-	if f.JSONValue != nil {
-		writeJSONValueQ(b, f.JSONValue, q)
-	}
+	b.WriteString(f.JSONValueClauses)
 	b.WriteByte(')')
 
 	if f.Over != nil {
 		b.WriteString(" over ")
 		writeWindowDefQ(b, f.Over, q)
 	}
-}
-
-// writeJSONValueQ writes JSON_VALUE's clauses in the order the grammar reads them.
-func writeJSONValueQ(b *strings.Builder, jv *JSONValueQ, q *Query) {
-	if jv.ReturningSQL != "" {
-		b.WriteString(" returning ")
-		b.WriteString(jv.ReturningSQL)
-	}
-	if jv.Truncate {
-		b.WriteString(" truncate")
-	}
-	if jv.ASCII {
-		b.WriteString(" ascii")
-	}
-	writeJSONValueResponseQ(b, jv.OnEmpty, "empty", q)
-	writeJSONValueResponseQ(b, jv.OnError, "error", q)
-}
-
-func writeJSONValueResponseQ(b *strings.Builder, r *JSONValueResponseQ, on string, q *Query) {
-	switch {
-	case r == nil:
-		return
-	case r.Error:
-		b.WriteString(" error")
-	case r.Default != nil:
-		b.WriteString(" default ")
-		if r.Negative {
-			b.WriteString("-")
-		}
-		writeAnalyzedExpr(b, r.Default, q)
-	default:
-		b.WriteString(" null")
-	}
-	b.WriteString(" on ")
-	b.WriteString(on)
 }
 
 func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *Query) {

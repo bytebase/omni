@@ -44,19 +44,21 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	fc.Args = []nodes.ExprNode{doc, path}
 
 	opts := &nodes.JSONValueOptions{Loc: nodes.Loc{Start: p.pos()}}
-	any := false
 	if _, ok := p.match(kwRETURNING); ok {
 		dt, err := p.parseCastDataType()
 		if err != nil {
 			return nil, err
 		}
-		opts.Returning, any = dt, true
+		opts.Returning = dt
+		// The type reader takes the ASCII of CHAR(3) ASCII, and here it is this clause's. In
+		// CHAR(3) CHARSET ascii the word is a charset's name.
+		opts.ASCII = dt.Charset == "" && p.prev.Type == kwASCII
 	}
 	if _, ok := p.match(kwTRUNCATE); ok {
-		opts.Truncate, any = true, true
+		opts.Truncate = true
 	}
 	if _, ok := p.match(kwASCII); ok {
-		opts.ASCII, any = true, true
+		opts.ASCII = true
 	}
 	if p.startsJSONValueResponse() {
 		resp, err := p.parseJSONValueResponse()
@@ -66,7 +68,6 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		if _, err := p.expect(kwON); err != nil {
 			return nil, err
 		}
-		any = true
 		if _, ok := p.match(kwEMPTY); ok {
 			opts.OnEmpty = resp
 			if p.startsJSONValueResponse() {
@@ -87,7 +88,8 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 			opts.OnError = resp
 		}
 	}
-	if any {
+	fc.JSONValueArm = true
+	if p.prev.End > opts.Loc.Start {
 		opts.Loc.End = p.prev.End
 		fc.JSONValue = opts
 	}

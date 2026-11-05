@@ -703,10 +703,14 @@ type FuncCallExpr struct {
 	Over       *WindowDef        // OVER clause for window functions
 	Separator  ExprNode          // GROUP_CONCAT SEPARATOR value (nil = not specified)
 	JSONValue  *JSONValueOptions // JSON_VALUE's clauses after its path (nil when written with none)
+	// JSONValueArm marks a call read through JSON_VALUE's own arm of the grammar, which has a
+	// stored form of its own even with no clause written. Quoted or qualified, the name is an
+	// ordinary call to whatever function has that name.
+	JSONValueArm bool
 }
 
 // JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are
-// its Args, so a call with none of these writes as an ordinary one.
+// its Args.
 //
 // Ref: JSON_VALUE_SYM in MySQL 8.0 sql/sql_yacc.yy.
 type JSONValueOptions struct {
@@ -1000,6 +1004,9 @@ type StringLit struct {
 	Loc     Loc
 	Value   string
 	Charset string // optional charset introducer (_utf8, etc.)
+	// National marks N'...'. Only JSON_VALUE's literals read it, because a generated column
+	// prints them with the charset the N stands for.
+	National bool
 	// Concatenated marks a literal folded from ADJACENT quoted segments per
 	// MySQL's adjacent string-literal concatenation ('a' 'b' → "ab"). Value
 	// holds the folded result; FirstSegment holds the first segment's value,

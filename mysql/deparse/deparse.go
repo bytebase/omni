@@ -1437,10 +1437,19 @@ func deparseHexLit(n *ast.HexLit) string {
 	val := n.Value
 	if strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
 		// Already has 0x prefix — just lowercase
-		return "0x" + strings.ToLower(val[2:])
+		return "0x" + evenHexDigits(strings.ToLower(val[2:]))
 	}
 	// X'FF' form — value is just the hex digits
-	return "0x" + strings.ToLower(val)
+	return "0x" + evenHexDigits(strings.ToLower(val))
+}
+
+// evenHexDigits pads to whole bytes, which is how the server prints 0xABC and b'101010101'
+// (0x0abc and 0x0155 on 8.0.46).
+func evenHexDigits(digits string) string {
+	if len(digits)%2 == 1 {
+		return "0" + digits
+	}
+	return digits
 }
 
 func deparseBitLit(n *ast.BitLit) string {
@@ -1453,7 +1462,7 @@ func deparseBitLit(n *ast.BitLit) string {
 	// Parse binary string to integer, then format as hex
 	i := new(big.Int)
 	i.SetString(val, 2)
-	return "0x" + fmt.Sprintf("%02x", i)
+	return "0x" + evenHexDigits(fmt.Sprintf("%x", i))
 }
 
 // A quantified comparison, and an IN over a subquery, print with no parentheses of
@@ -2113,9 +2122,8 @@ func writeTrimDirectional(b *strings.Builder, direction string, args []ast.ExprN
 	b.WriteString("trim()")
 }
 
-// writeJSONValue writes JSON_VALUE with its clauses, in the engine's order and case.
+// writeJSONValue writes JSON_VALUE as MySQL 8.0 stores it in a view.
 func writeJSONValue(b *strings.Builder, n *ast.FuncCallExpr) {
-	opts := n.JSONValue
 	b.WriteString("json_value(")
 	for i, arg := range n.Args {
 		if i > 0 {
@@ -2125,15 +2133,118 @@ func writeJSONValue(b *strings.Builder, n *ast.FuncCallExpr) {
 			writeJSONValueDocument(b, arg)
 			continue
 		}
+		if lit, ok := arg.(*ast.StringLit); ok {
+			b.WriteString(JSONValueString(lit, ""))
+			continue
+		}
 		writeExpr(b, arg)
 	}
-	if opts.Returning != nil {
-		b.WriteString(" returning ")
-		b.WriteString(deparseDataType(opts.Returning))
-	}
-	writeJSONValueResponse(b, opts.OnEmpty, "empty")
-	writeJSONValueResponse(b, opts.OnError, "error")
+	b.WriteString(JSONValueClauses(n.JSONValue, ""))
 	b.WriteString(")")
+}
+
+// JSONValueClauses returns what follows JSON_VALUE's path, with its leading space, as MySQL 8.0
+// stores it: RETURNING is always there, since leaving it out means char(512).
+//
+// charset is the column's charset in a generated column, where the server prints a string with
+// an introducer, and empty in a view, where it does not.
+func JSONValueClauses(opts *ast.JSONValueOptions, charset string) string {
+	var b strings.Builder
+	b.WriteString(" returning ")
+	var returning *ast.DataType
+	if opts != nil {
+		returning = opts.Returning
+	}
+	b.WriteString(jsonValueReturning(returning))
+	if opts != nil {
+		writeJSONValueResponse(&b, opts.OnEmpty, "empty", charset)
+		writeJSONValueResponse(&b, opts.OnError, "error", charset)
+	}
+	return b.String()
+}
+
+// JSONValueString writes one of JSON_VALUE's strings. An introducer that was written stays
+// wherever the call is stored, and N'...' becomes the charset it stands for only where the
+// server prints one at all.
+func JSONValueString(n *ast.StringLit, charset string) string {
+	text := deparseStringLit(&ast.StringLit{Value: n.Value})
+	switch {
+	case n.Charset != "":
+		return n.Charset + text
+	case charset == "":
+		return text
+	case n.National:
+		return "_utf8mb3" + text
+	default:
+		return "_" + charset + text
+	}
+}
+
+// jsonValueReturning writes RETURNING's type, which the server fills in where CAST's stored form
+// leaves it out, measured on 8.0.46: CHAR takes the longest length its charset has, DECIMAL is
+// decimal(10, 0) with a space, FLOAT drops its precision, and a BINARY attribute shows only as the
+// charset.
+func jsonValueReturning(dt *ast.DataType) string {
+	if dt == nil {
+		return "char(512)"
+	}
+	switch name := strings.ToLower(dt.Name); name {
+	case "char":
+		charset := strings.ToLower(dt.Charset)
+		if charset == "utf8" {
+			charset = "utf8mb3"
+		}
+		if charset == "binary" {
+			return jsonValueBinary(dt.Length)
+		}
+		length := dt.Length
+		if length == 0 {
+			length = jsonValueCharLength(charset)
+		}
+		result := fmt.Sprintf("char(%d)", length)
+		switch {
+		case charset != "":
+			result += " character set " + charset
+		case dt.Binary:
+			result += " character set utf8mb4"
+		}
+		return result
+	case "binary":
+		return jsonValueBinary(dt.Length)
+	case "decimal", "numeric":
+		if dt.Length == 0 {
+			return "decimal(10, 0)"
+		}
+		return fmt.Sprintf("decimal(%d, %d)", dt.Length, dt.Scale)
+	case "float":
+		return "float"
+	case "year":
+		return "year"
+	default:
+		return deparseDataType(dt)
+	}
+}
+
+func jsonValueBinary(length int) string {
+	if length == 0 {
+		length = 4294967295
+	}
+	return fmt.Sprintf("binary(%d)", length)
+}
+
+// jsonValueCharLength is the length a RETURNING CHAR with none written stores, which depends on the
+// bytes a character of its charset can take. No charset written means the default one's.
+func jsonValueCharLength(charset string) int {
+	switch charset {
+	case "", "utf8mb4", "utf16", "utf16le", "utf32", "gb18030":
+		return 1073741823
+	case "utf8mb3", "ujis", "eucjpms":
+		return 1431655764
+	case "ucs2", "gbk", "gb2312", "big5", "sjis", "cp932", "euckr":
+		return 2147483647
+	default:
+		return 4294967295
+	}
 }
 
 // writeJSONValueDocument writes JSON_VALUE's document, which the grammar reads as a simple_expr:
@@ -2167,7 +2278,7 @@ func writeJSONValueDocument(b *strings.Builder, doc ast.ExprNode) {
 	writeExpr(b, doc)
 }
 
-func writeJSONValueResponse(b *strings.Builder, r *ast.JSONValueResponse, on string) {
+func writeJSONValueResponse(b *strings.Builder, r *ast.JSONValueResponse, on, charset string) {
 	switch {
 	case r == nil:
 		return
@@ -2175,17 +2286,37 @@ func writeJSONValueResponse(b *strings.Builder, r *ast.JSONValueResponse, on str
 		b.WriteString(" error")
 	case r.Default != nil:
 		b.WriteString(" default ")
-		// A signed literal, which the parenthesized form of an expression would not reparse.
-		if unary, ok := r.Default.(*ast.UnaryExpr); ok {
-			b.WriteString("-")
-			writeExpr(b, unary.Operand)
-		} else {
-			writeExpr(b, r.Default)
-		}
+		writeJSONValueDefault(b, r.Default, charset)
 	default:
 		b.WriteString(" null")
 	}
 	b.WriteString(" on " + on)
+}
+
+// writeJSONValueDefault writes a DEFAULT literal. The sign goes straight onto the number, because
+// the parenthesized form of an expression would not read back. MySQL itself prints -1e2 as 1e2,
+// which reads back as another value, so this one keeps the sign the call was written with.
+func writeJSONValueDefault(b *strings.Builder, value ast.ExprNode, charset string) {
+	switch n := value.(type) {
+	case *ast.UnaryExpr:
+		b.WriteString("-")
+		writeJSONValueDefault(b, n.Operand, charset)
+	case *ast.StringLit:
+		b.WriteString(JSONValueString(n, charset))
+	case *ast.BoolLit:
+		if n.Value {
+			b.WriteString("true")
+		} else {
+			b.WriteString("false")
+		}
+	case *ast.FloatLit:
+		if strings.HasPrefix(n.Value, ".") {
+			b.WriteString("0")
+		}
+		b.WriteString(n.Value)
+	default:
+		writeExpr(b, value)
+	}
 }
 
 func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
@@ -2236,17 +2367,8 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		return
 	}
 
-	if n.JSONValue != nil && n.Schema == "" && name == "JSON_VALUE" {
+	if n.JSONValueArm {
 		writeJSONValue(b, n)
-		return
-	}
-	// With no clauses it prints as a plain call, and its document is still a simple_expr.
-	if n.JSONValue == nil && n.Schema == "" && name == "JSON_VALUE" && len(n.Args) == 2 {
-		b.WriteString("json_value(")
-		writeJSONValueDocument(b, n.Args[0])
-		b.WriteString(",")
-		writeExpr(b, n.Args[1])
-		b.WriteString(")")
 		return
 	}
 

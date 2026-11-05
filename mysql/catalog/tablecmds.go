@@ -2169,6 +2169,11 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		if n.Star {
 			return funcName + "(*)"
 		}
+		if n.JSONValueArm {
+			// Its clauses change what it answers, and the server stores them with a space
+			// after the document's comma (mysql:8.0.46).
+			return jsonValueToSQLGenerated(n, charset)
+		}
 		var args []string
 		for _, a := range n.Args {
 			args = append(args, nodeToSQLGenerated(a, charset))
@@ -2267,6 +2272,13 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	default:
 		return "(?)"
 	}
+}
+
+func jsonValueToSQLGenerated(n *nodes.FuncCallExpr, charset string) string {
+	doc := nodeToSQLGenerated(n.Args[0], charset)
+	path := n.Args[1].(*nodes.StringLit) // the parser holds JSON_VALUE to a literal path
+	return "json_value(" + doc + ", " + deparse.JSONValueString(path, charset) +
+		deparse.JSONValueClauses(n.JSONValue, charset) + ")"
 }
 
 // castTypeToSQLGenerated renders a CAST target type in the form SHOW CREATE

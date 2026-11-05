@@ -2187,6 +2187,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
 	}
+	if n.JSONValueArm {
+		sb.WriteString(" :json_value_arm true")
+	}
 	if n.JSONValue != nil {
 		sb.WriteString(" :json_value true")
 	}

@@ -724,10 +724,14 @@ type FuncCallExpr struct {
 	Over       *WindowDef        // OVER clause for window functions
 	Separator  ExprNode          // GROUP_CONCAT SEPARATOR value (nil = not specified)
 	JSONValue  *JSONValueOptions // JSON_VALUE's clauses after its path (nil when written with none)
+	// JSONValueArm marks a call read through JSON_VALUE's own arm of the grammar, which has a
+	// stored form of its own even with no clause written. Quoted or qualified, the name is an
+	// ordinary call to whatever function has that name.
+	JSONValueArm bool
 }
 
 // JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are
-// its Args, so a call with none of these writes as an ordinary one.
+// its Args.
 //
 // Ref: JSON_VALUE_SYM in sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
 type JSONValueOptions struct {
