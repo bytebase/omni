@@ -110,13 +110,12 @@ func (v *validator) walk(n nodes.Node) {
 	}
 }
 
-// walkSetStmt walks each assignment in a SET statement. An explicit-scope
-// SET (GLOBAL/SESSION/LOCAL) targets system variables; skip the local-var
-// lookup entirely in that case.
+// walkSetStmt walks each assignment in a SET statement. An assignment with a
+// scope, written or carried, targets a system variable; skip the local-var
+// lookup in that case. In `SET a = 1, GLOBAL b = 2` a may still be a local.
 func (v *validator) walkSetStmt(s *nodes.SetStmt) {
-	systemScope := s.Scope != ""
 	for _, a := range s.Assignments {
-		v.walkAssignment(a, systemScope)
+		v.walkAssignment(a, a.Scope != "")
 	}
 }
 
@@ -124,8 +123,8 @@ func (v *validator) walkSetStmt(s *nodes.SetStmt) {
 // routine the target is always a global session/user variable — nothing to
 // check here. See S11 in the plan; Phase 6 adds the system-variable fallback
 // before this emits undeclared_variable. When systemScope is true, the
-// enclosing SET statement specified GLOBAL/SESSION/LOCAL, which makes the
-// target a system variable regardless of the routine scope.
+// assignment has a GLOBAL/SESSION/LOCAL scope, which makes the target a system
+// variable regardless of the routine scope.
 func (v *validator) walkAssignment(s *nodes.Assignment, systemScope bool) {
 	col := s.Column
 	if col == nil {

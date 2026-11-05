@@ -405,17 +405,15 @@ func (b *builder) dml(n ast.Node, targets []*ast.TableRef) bool {
 // foreign key's target is checked. A global setting reaches only later
 // sessions. Each assignment has a scope of its own, as on MySQL
 // (verified on 11.8): @@session., @@local., and a bare @@ name the
-// session's, @@global. not, and an unprefixed name the statement's
-// GLOBAL, past any prefixed assignment between. So SET GLOBAL sql_mode =
-// DEFAULT, @@session.foreign_key_checks = 0 turns the session's checks
-// off, and SET GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves
-// them as they are. MariaDB has no PERSIST, which omni's parser takes,
-// and the parser takes a scope keyword only first.
+// session's, @@global. not, and an unprefixed name the last scope written
+// before it, past any prefixed assignment between, which the parser holds
+// on Assignment.Scope. So SET GLOBAL sql_mode = DEFAULT,
+// @@session.foreign_key_checks = 0 turns the session's checks off, and SET
+// GLOBAL sql_mode = DEFAULT, foreign_key_checks = 0 leaves them as they are.
 func (b *builder) set(v *ast.SetStmt) bool {
 	if b.callsStoredFunction(v) {
 		b.forgetTemporary()
 	}
-	global := strings.EqualFold(v.Scope, "GLOBAL") || strings.EqualFold(v.Scope, "PERSIST") || strings.EqualFold(v.Scope, "PERSIST_ONLY")
 	for _, a := range v.Assignments {
 		if a.Column == nil {
 			continue
@@ -428,7 +426,7 @@ func (b *builder) set(v *ast.SetStmt) bool {
 			name = name[strings.IndexByte(name, '.')+1:]
 		case strings.HasPrefix(name, "@@"):
 			name = name[2:]
-		case global:
+		case strings.EqualFold(a.Scope, "GLOBAL"):
 			continue
 		}
 		if name != "foreign_key_checks" {

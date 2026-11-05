@@ -494,6 +494,16 @@ var keywordCategories = map[int]keywordCategory{
 	// name or alias. This makes the SELECT alias parser stop at RETURNING, so the
 	// RETURNING clause binds to INSERT/REPLACE/single-table DELETE (BYT-9135 P2).
 	kwRETURNING: kwCatReserved,
+
+	// Unreserved on MySQL and reserved on MariaDB 11.8, measured: each is a 1064 as a bare
+	// name, in every position.
+	kwOFFSET:             kwCatReserved,
+	kwSQL_AFTER_GTIDS:    kwCatReserved,
+	kwSQL_BEFORE_GTIDS:   kwCatReserved,
+	kwSTATS_AUTO_RECALC:  kwCatReserved,
+	kwSTATS_PERSISTENT:   kwCatReserved,
+	kwSTATS_SAMPLE_PAGES: kwCatReserved,
+	kwVECTOR:             kwCatReserved,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

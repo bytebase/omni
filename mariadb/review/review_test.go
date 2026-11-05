@@ -681,10 +681,18 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		{name: "foreign_key_checks set globally by its name before", sql: "SET @@global.foreign_key_checks = 0;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "foreign_key_checks set to a value it lacks before", sql: "SET foreign_key_checks = 2;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a query before", sql: "SET @x = (SELECT a FROM nokey);\nALTER TABLE plain DROP COLUMN id;"},
-		{name: "a user variable set under a scope before", sql: "SET SESSION @x = 1;\nALTER TABLE plain DROP COLUMN id;"},
 		{
 			name: "the key, after a scope for a system variable before a user variable",
 			sql:  "SET SESSION foreign_key_checks = 1, @x = 1;\nALTER TABLE plain DROP COLUMN id;",
+			want: []finding{lost(1, "DROP COLUMN id", "plain")},
+		},
+		// Each assignment answers for its own scope, written or carried: a GLOBAL one needs
+		// a privilege and may fail the statement, and a SESSION one cannot.
+		{name: "a global assignment after a session one before", sql: "SET foreign_key_checks = 1, GLOBAL unique_checks = 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{name: "a scope carried to global before", sql: "SET GLOBAL unique_checks = 1, foreign_key_checks = 1;\nALTER TABLE plain DROP COLUMN id;"},
+		{
+			name: "the key, after a session scope written later in the list",
+			sql:  "SET foreign_key_checks = 1, SESSION unique_checks = 1;\nALTER TABLE plain DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "plain")},
 		},
 		{name: "a user variable set to a malformed hexadecimal value before", sql: "SET @x = X'4';\nALTER TABLE plain DROP COLUMN id;"},
@@ -706,7 +714,6 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		},
 		{name: "a user variable set to a hexadecimal value of an uppercase prefix before", sql: "SET @x = 0X41;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a bit value of an uppercase prefix before", sql: "SET @x = 0B01;\nALTER TABLE plain DROP COLUMN id;"},
-		{name: "a user variable set to DEFAULT before", sql: "SET @x = DEFAULT;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a malformed bit value before", sql: "SET @x = b'102';\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a double out of range before", sql: "SET @x = -1e400;\nALTER TABLE plain DROP COLUMN id;"},
 		{name: "a user variable set to a sign of a string before", sql: "SET @x = -'a';\nALTER TABLE plain DROP COLUMN id;"},
