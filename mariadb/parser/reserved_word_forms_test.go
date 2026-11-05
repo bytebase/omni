@@ -19,6 +19,10 @@ import (
 // no table's alias, because a WINDOW clause can follow one. `SELECT a window FROM t` is an alias,
 // and `SELECT * FROM t window` is a 1064.
 //
+// Labels are any name but a short list, which keyword_sp_decl and a few others make, and
+// mariadbNotLabelWords marks those as ambiguous_2. A label comes ahead of what its word starts, so
+// `after: LOOP` is a label. A column's ON UPDATE takes no bare name.
+//
 // Not in this table, because omni still disagrees. A word called as a function that MariaDB will not
 // call, as in `SELECT function(1)`, because omni takes any unreserved word there. `SELECT cast (a AS
 // CHAR)` and `SELECT extract (day FROM a)`, whose `(` has to touch. `SELECT DEFAULT FROM t`. Forms omni reads and MariaDB does not: `LATERAL (...)`, `DECLARE UNDO HANDLER`, `GRANT
@@ -41,12 +45,17 @@ var reservedWordPositions = []string{
 	"create table t (%s int)",
 	"update t set %s = 1",
 	"insert into t (%s) values (1)",
+	"create procedure p() %s: loop leave %s; end loop",
 }
 
 // reservedWordSweepGap holds the statement in the sweep where omni still disagrees. The oracle
 // sweep fails when it starts to agree, so the entry cannot outlive the gap.
 var reservedWordSweepGap = map[string]bool{
 	"select default from t": true,
+	// A 1314 is the parser's action refusing the statement before it reads on, so it says nothing
+	// of the label.
+	"create procedure p() help: loop leave help; end loop":     true,
+	"create procedure p() unlock: loop leave unlock; end loop": true,
 }
 
 // TestReservedWordForms holds omni to the recorded verdicts without a server, so a run with no
@@ -146,6 +155,28 @@ func TestFunctionWordTrees(t *testing.T) {
 }
 
 var reservedWordCases = []asOfCase{
+	// Labels, which any name but a short list takes, ahead of what the word starts.
+	{"create procedure p() after: loop leave after; end loop", true},
+	{"create procedure p() absent: loop leave absent; end loop", true},
+	{"create procedure p() begin after: loop leave after; end loop; end", true},
+	{"create procedure p() database: loop leave database; end loop", true},
+	{"create procedure p() clone: loop leave clone; end loop", true},
+	{"create procedure p() format: loop leave format; end loop", false},
+	{"create procedure p() close: loop leave close; end loop", false},
+	{"create procedure p() get: loop leave get; end loop", false},
+	{"create procedure p() window: loop leave window; end loop", false},
+	{"create procedure p() select: loop leave select; end loop", false},
+	{"create procedure p() begin declare c cursor for select 1; open c; close c; end", true},
+	{"create procedure p() l: begin select 1; end l", true},
+
+	// A column's ON UPDATE takes no bare name, though its DEFAULT does, as an expression.
+	{"create table x (a timestamp on update now)", false},
+	{"create table x (a int on update b)", false},
+	{"create table x (a timestamp on update now())", true},
+	{"create table x (a timestamp on update current_timestamp)", true},
+	{"create table x (a timestamp default now())", true},
+	{"create table x (a timestamp default current_timestamp)", true},
+
 	{"select a into from t", false},
 	{"select * from t into", false},
 	{"select a into @b, from t", false},

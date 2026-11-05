@@ -933,11 +933,23 @@ func TestKeywordCompleteness(t *testing.T) {
 // for exactly these keys and still asserts the unchanged MySQL category for
 // every other keyword — a per-keyword override, NOT a relaxed guard.
 //
+// mariadbNotLabelWords are words mariadb:11.8.8 takes as a name but answers 1064 to as a label, which
+// is what ambiguous_2 means to isLabelKeyword.
+var mariadbNotLabelWords = map[string]bool{
+	"backup": true, "close": true, "compressed": true, "exclude": true, "following": true,
+	"format": true, "get": true, "host": true, "open": true, "option": true, "options": true,
+	"others": true, "owner": true, "parser": true, "port": true, "preceding": true,
+	"remove": true, "replica": true, "replicas": true, "restore": true, "security": true,
+	"server": true, "socket": true, "soname": true, "stored": true, "ties": true,
+	"unbounded": true, "upgrade": true, "window": true, "wrapper": true,
+}
+
 // To add an entry: container-verify the word is rejected as a column name/alias
 // on mariadb:11.8.8 (1064), then list it here. (P3 temporal will likely add more.)
 // mariadbUnreservedWords are reserved on MySQL and unreserved on MariaDB 11.8, which takes each
 // as a name in the positions TestReservedWordSweepOracle tries.
 var mariadbUnreservedWords = map[string]bool{
+	"clone": true, "import": true, "restart": true,
 	"cube": true, "cume_dist": true, "database": true, "dense_rank": true, "empty": true,
 	"first_value": true, "function": true, "generated": true, "get": true, "grouping": true,
 	"groups": true, "io_after_gtids": true, "io_before_gtids": true, "json_table": true,
@@ -987,6 +999,9 @@ func TestKeywordClassification(t *testing.T) {
 		}
 		if mariadbUnreservedWords[kw.SQL] {
 			expectedCat = kwCatUnambiguous
+		}
+		if mariadbNotLabelWords[kw.SQL] {
+			expectedCat = kwCatAmbiguous2
 		}
 		// Look up the keyword token
 		tokType, registered := keywords[kw.SQL]

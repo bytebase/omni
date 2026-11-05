@@ -1050,7 +1050,7 @@ func (p *Parser) isSelectTerminator() bool {
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR, kwINTO,
 		kwUNION, kwINTERSECT, kwEXCEPT, kwON, kwUSING, kwJOIN, kwINNER, kwLEFT,
-		kwRIGHT, kwCROSS, kwNATURAL, kwFULL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
+		kwRIGHT, kwCROSS, kwNATURAL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
 		return true
 	}
 	return false
@@ -2238,6 +2238,10 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				break
 			}
 			p.advance()
+		}
+		// select_var_list takes at least one, so `SELECT a INTO FROM t` is a 1064.
+		if len(into.Vars) == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 

@@ -467,9 +467,11 @@ func (p *Parser) parseSetVariableAssignment(start int, scope string) (*nodes.Ass
 	} else {
 		colStart := p.pos()
 		var name string
-		// var_name: NAME_OB or unreserved_keyword_normal. PASSWORD is a form of its own
-		// with no scope, so a later `PASSWORD = 1` is a 1064.
-		if scope == "" && p.cur.Type == kwPASSWORD {
+		// var_name: NAME_OB or unreserved_keyword_normal, which leaves out
+		// unreserved_keyword_ambiguous_roles and unreserved_keyword_adb_compatible, though
+		// column_name after a scope takes them. PASSWORD is a form of its own with no scope,
+		// so a later `PASSWORD = 1` is a 1064.
+		if scope == "" && (p.cur.Type == kwPASSWORD || isAmbiguousRoleWord(p.cur.Type) || p.cur.Type == kwMAXVALUE || p.cur.Type == kwRANGE) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		var err error

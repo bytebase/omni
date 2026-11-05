@@ -20,8 +20,7 @@ import (
 //
 // Not in this table, because omni still disagrees and each is its own change. `SELECT DEFAULT`, because parseExpr reads it everywhere but SET. `SELECT
 // @@a . b` and `SELECT @@select`, where its @@ differs from the other two. `SET @a = 1, NAMES utf8` in a
-// routine, a 1064 where the same list parses outside one, which this parser has no flag for. SYSTEM as a
-// name, which belongs to setVariableNameGap. `a VECTOR(3)` and `CREATE TABLE t (a.b INT)`, which omni does
+// routine, a 1064 where the same list parses outside one, which this parser has no flag for. `a VECTOR(3)` and `CREATE TABLE t (a.b INT)`, which omni does
 // not read. `RESET PERSIST` and `START SLAVE UNTIL`, which it accepts.
 
 // TestSetListForms holds omni to the recorded verdicts without a server, so a run with no Docker
