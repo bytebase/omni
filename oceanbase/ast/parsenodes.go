@@ -1211,6 +1211,15 @@ type IntoClause struct {
 	LinesTerminatedBy  string // LINES TERMINATED BY 'string'
 	HasFieldsClause    bool   // true if FIELDS/COLUMNS clause present
 	HasLinesClause     bool   // true if LINES clause present
+	// Each option written, even as '': an empty string turns a default off, so it
+	// is not the same as no option.
+	HasOutfile            bool
+	HasDumpfile           bool
+	HasFieldsTerminatedBy bool
+	HasFieldsEnclosedBy   bool
+	HasFieldsEscapedBy    bool
+	HasLinesStartingBy    bool
+	HasLinesTerminatedBy  bool
 
 	// Aurora MySQL: SELECT ... INTO OUTFILE S3 's3-uri' export options.
 	// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html

@@ -273,21 +273,15 @@ func (p *Parser) parseLockingClause(stmt *nodes.SelectStmt) error {
 	return nil
 }
 
-// operandEndsInClauses reports whether a query expression that a set operator
-// follows ends in an ORDER BY, LIMIT or locking clause outside parentheses, which
-// OceanBase refuses there: SELECT 1 ORDER BY 1 UNION SELECT 2 and VALUES ROW(1) FOR
-// UPDATE UNION VALUES ROW(2) are each a 1064 (measured), though the grammar's
-// select_clause_set_left_body reads as allowing the first. The ORDER BY and LIMIT of
-// a set operation's last operand have moved to the set operation by now, and its
-// locking clause has not.
+// operandEndsInClauses reports whether a query expression that a set operator follows
+// ends in an ORDER BY, LIMIT or locking clause outside parentheses, which OceanBase
+// refuses there: SELECT 1 ORDER BY 1 UNION SELECT 2 and VALUES ROW(1) FOR UPDATE UNION
+// VALUES ROW(2) are each a 1064 (measured), though the grammar's
+// select_clause_set_left_body reads as allowing the first. Those of a set operation's
+// last operand have moved to the set operation by now, and a parenthesized query has
+// read none of its own yet.
 func operandEndsInClauses(sel *nodes.SelectStmt) bool {
-	if len(sel.OrderBy) > 0 || sel.Limit != nil {
-		return true
-	}
-	for sel.SetOp != nodes.SetOpNone && sel.Right != nil {
-		sel = sel.Right
-	}
-	return sel.ParenSource == nil && sel.ForUpdate != nil
+	return len(sel.OrderBy) > 0 || sel.Limit != nil || sel.ForUpdate != nil
 }
 
 // parseQueryStatement parses a query expression where the grammar reads
@@ -403,37 +397,38 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 
-		// Hoist a trailing ORDER BY / LIMIT off an UNPARENTHESIZED last operand
-		// onto the set-operation node: in MySQL they apply to the whole
-		// combined result. A parenthesized operand is a ParenSource wrapper whose
-		// own OrderBy/Limit are the OUTER scope, so the walk stops at it and its
-		// inner clauses stay in place — e.g. "SELECT 1 UNION (SELECT 2 LIMIT 1)"
+		// Hoist the clauses after an UNPARENTHESIZED last operand onto the
+		// set-operation node, which is what they apply to, so they stay in the order
+		// they were written: an ORDER BY, LIMIT, locking clause and INTO are read
+		// together by select_no_parens. A parenthesized operand is a ParenSource
+		// wrapper whose own clauses are the OUTER scope, so the walk stops at it and
+		// its inner clauses stay in place — e.g. "SELECT 1 UNION (SELECT 2 LIMIT 1)"
 		// keeps LIMIT 1 on operand 2.
 		var orderBy []*nodes.OrderByItem
 		var limit *nodes.Limit
+		var forUpdate *nodes.ForUpdate
+		var into *nodes.IntoClause
 		rightLeaf := right
 		for rightLeaf.SetOp != nodes.SetOpNone && rightLeaf.Right != nil {
 			rightLeaf = rightLeaf.Right
 		}
 		if rightLeaf.ParenSource == nil {
-			if len(rightLeaf.OrderBy) > 0 {
-				orderBy = rightLeaf.OrderBy
-				rightLeaf.OrderBy = nil
-			}
-			if rightLeaf.Limit != nil {
-				limit = rightLeaf.Limit
-				rightLeaf.Limit = nil
-			}
+			orderBy, rightLeaf.OrderBy = rightLeaf.OrderBy, nil
+			limit, rightLeaf.Limit = rightLeaf.Limit, nil
+			forUpdate, rightLeaf.ForUpdate = rightLeaf.ForUpdate, nil
+			into, rightLeaf.Into = rightLeaf.Into, nil
 		}
 
 		left = &nodes.SelectStmt{
-			Loc:     nodes.Loc{Start: left.Loc.Start, End: right.Loc.End},
-			SetOp:   op,
-			SetAll:  all,
-			Left:    left,
-			Right:   right,
-			OrderBy: orderBy,
-			Limit:   limit,
+			Loc:       nodes.Loc{Start: left.Loc.Start, End: right.Loc.End},
+			SetOp:     op,
+			SetAll:    all,
+			Left:      left,
+			Right:     right,
+			OrderBy:   orderBy,
+			Limit:     limit,
+			ForUpdate: forUpdate,
+			Into:      into,
 		}
 	}
 }
@@ -2126,8 +2121,16 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 	start := p.pos()
 	into := &nodes.IntoClause{Loc: nodes.Loc{Start: start}}
 
-	switch p.cur.Type {
-	case kwOUTFILE:
+	// Completion: right after INTO, offer the file forms.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwOUTFILE)
+		p.addTokenCandidate(kwDUMPFILE)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
+	switch {
+	case p.cur.Type == kwOUTFILE:
 		p.advance()
 		// Completion: INTO OUTFILE | → a file literal or the Aurora S3 form.
 		p.checkCursor()
@@ -2139,27 +2142,27 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		if p.cur.Type == kwS3 {
 			p.advance()
 			into.OutfileS3 = true
-			if p.cur.Type != tokSCONST {
-				return nil, p.syntaxErrorAtCur()
-			}
 		}
-		if p.cur.Type == tokSCONST {
-			into.Outfile = p.cur.Str
-			p.advance()
+		outfile, err := p.parseIntoString()
+		if err != nil {
+			return nil, err
 		}
+		into.Outfile, into.HasOutfile = outfile, true
 
 		// [CHARACTER SET charset_name]
 		if p.cur.Type == kwCHARACTER {
 			p.advance()
-			p.match(kwSET)
-			charset, _, csErr := p.parseIdent()
+			if _, err := p.expect(kwSET); err != nil {
+				return nil, err
+			}
+			charset, csErr := p.parseCharsetName()
 			if csErr != nil {
 				return nil, csErr
 			}
 			into.Charset = charset
 		} else if p.cur.Type == kwCHARSET {
 			p.advance()
-			charset, _, csErr := p.parseIdent()
+			charset, csErr := p.parseCharsetName()
 			if csErr != nil {
 				return nil, csErr
 			}
@@ -2184,95 +2187,42 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			}
 		}
 
-		// [{FIELDS | COLUMNS} ...]
-		if p.cur.Type == kwFIELDS || p.cur.Type == kwCOLUMNS {
-			p.advance()
-			into.HasFieldsClause = true
-
-			// [TERMINATED BY 'string']
-			if p.cur.Type == kwTERMINATED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsTerminatedBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [[OPTIONALLY] ENCLOSED BY 'char']
-			if p.cur.Type == kwOPTIONALLY {
-				p.advance()
-				into.FieldsOptionalEncl = true
-			}
-			if p.cur.Type == kwENCLOSED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsEnclosedBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [ESCAPED BY 'char']
-			if p.cur.Type == kwESCAPED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsEscapedBy = p.cur.Str
-					p.advance()
-				}
-			}
+		if err := p.parseIntoFields(into); err != nil {
+			return nil, err
+		}
+		if err := p.parseIntoLines(into); err != nil {
+			return nil, err
 		}
 
-		// [LINES ...]
-		if p.cur.Type == kwLINES {
-			p.advance()
-			into.HasLinesClause = true
-
-			// [STARTING BY 'string']
-			if p.cur.Type == kwSTARTING {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.LinesStartingBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [TERMINATED BY 'string']
-			if p.cur.Type == kwTERMINATED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.LinesTerminatedBy = p.cur.Str
-					p.advance()
-				}
-			}
-		}
-
-		// Aurora MySQL: [MANIFEST {ON | OFF}] [OVERWRITE {ON | OFF}]
-		//               [ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS ['cmk_id']}]
 		if into.OutfileS3 {
 			if err := p.parseOutfileS3Options(into); err != nil {
 				return nil, err
 			}
 		}
 
-	case kwDUMPFILE:
+	// DUMPFILE is no reserved word, so with no file after it it is a variable's
+	// name, which the default arm reads.
+	case p.cur.Type == kwDUMPFILE && p.peekNext().Type == tokSCONST:
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			into.Dumpfile = p.cur.Str
-			p.advance()
+		dumpfile, err := p.parseIntoString()
+		if err != nil {
+			return nil, err
 		}
+		into.Dumpfile, into.HasDumpfile = dumpfile, true
+
 	default:
-		// INTO var_name [, var_name ...]. Accepts @user_vars as well as bare
-		// identifiers (stored-program local variables / parameters declared
-		// via DECLARE, per MySQL's select_var alternative).
+		// INTO var_name [, var_name ...]: into_var_list, each a @user_var or a bare
+		// identifier (a stored-program variable). A system variable is no target,
+		// so INTO @@autocommit is a 1064, and neither a missing target nor a comma
+		// with nothing after it parses.
 		for {
 			if p.isVariableRef() {
 				v, err := p.parseVariableRef()
 				if err != nil {
 					return nil, err
+				}
+				if v.System {
+					return nil, &ParseError{Message: `syntax error at or near "@@"`, Position: v.Loc.Start}
 				}
 				into.Vars = append(into.Vars, v)
 			} else if p.cur.Type == tokIDENT || (p.cur.Type >= 700 && isLvalueKeyword(p.cur.Type)) {
@@ -2288,7 +2238,7 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 					Bare: true,
 				})
 			} else {
-				break
+				return nil, p.syntaxErrorAtCur()
 			}
 			if p.cur.Type != ',' {
 				break
@@ -2299,6 +2249,104 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 
 	into.Loc.End = p.prev.End
 	return into, nil
+}
+
+// parseIntoString parses a string of INTO OUTFILE: one literal, or several that the
+// server reads as one, as in INTO OUTFILE 'a' 'b' (measured).
+func (p *Parser) parseIntoString() (string, error) {
+	if p.cur.Type != tokSCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	val := p.cur.Str
+	p.advance()
+	for p.cur.Type == tokSCONST {
+		val += p.cur.Str
+		p.advance()
+	}
+	return val, nil
+}
+
+// parseIntoByString parses the BY and the string of a FIELDS or LINES option. BY is
+// required: FIELDS TERMINATED ',' is a 1064 (measured).
+func (p *Parser) parseIntoByString() (string, error) {
+	if _, err := p.expect(kwBY); err != nil {
+		return "", err
+	}
+	return p.parseIntoString()
+}
+
+// parseIntoFields parses [{FIELDS | COLUMNS} field_term ...]. OceanBase's
+// field_term_list takes at least one option, in any order, each as often as written,
+// and the last one written wins, so each is read where it stands.
+func (p *Parser) parseIntoFields(into *nodes.IntoClause) error {
+	if p.cur.Type != kwFIELDS && p.cur.Type != kwCOLUMNS {
+		return nil
+	}
+	p.advance()
+	into.HasFieldsClause = true
+	for count := 0; ; count++ {
+		var err error
+		switch p.cur.Type {
+		case kwTERMINATED:
+			p.advance()
+			into.FieldsTerminatedBy, err = p.parseIntoByString()
+			into.HasFieldsTerminatedBy = true
+		case kwOPTIONALLY:
+			p.advance()
+			if _, err := p.expect(kwENCLOSED); err != nil {
+				return err
+			}
+			into.FieldsEnclosedBy, err = p.parseIntoByString()
+			into.HasFieldsEnclosedBy, into.FieldsOptionalEncl = true, true
+		case kwENCLOSED:
+			p.advance()
+			into.FieldsEnclosedBy, err = p.parseIntoByString()
+			into.HasFieldsEnclosedBy, into.FieldsOptionalEncl = true, false
+		case kwESCAPED:
+			p.advance()
+			into.FieldsEscapedBy, err = p.parseIntoByString()
+			into.HasFieldsEscapedBy = true
+		default:
+			if count == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
+}
+
+// parseIntoLines parses [LINES line_term ...], which takes at least one option, in any
+// order, as parseIntoFields does.
+func (p *Parser) parseIntoLines(into *nodes.IntoClause) error {
+	if p.cur.Type != kwLINES {
+		return nil
+	}
+	p.advance()
+	into.HasLinesClause = true
+	for count := 0; ; count++ {
+		var err error
+		switch p.cur.Type {
+		case kwSTARTING:
+			p.advance()
+			into.LinesStartingBy, err = p.parseIntoByString()
+			into.HasLinesStartingBy = true
+		case kwTERMINATED:
+			p.advance()
+			into.LinesTerminatedBy, err = p.parseIntoByString()
+			into.HasLinesTerminatedBy = true
+		default:
+			if count == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
 }
 
 // setOpPrecedence returns the precedence for a set operation.

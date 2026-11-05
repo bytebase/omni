@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/bytebase/omni/oceanbase/ast"
@@ -63,14 +64,89 @@ func TestValuesStatementIsAQuery(t *testing.T) {
 		})
 	}
 
-	// A locking clause after a set operation's last operand stays on it, as it does
-	// for a SELECT.
-	sel := queryPrimaryStatement(t, "VALUES ROW(1) UNION VALUES ROW(2) FOR UPDATE").(*ast.SelectStmt)
-	if sel.SetOp != ast.SetOpUnion || sel.Left.ValuesSource == nil || sel.Right.ValuesSource == nil || sel.Right.ForUpdate == nil {
-		t.Errorf("%+v", sel)
+	// The clauses after a set operation's last operand are the set operation's, in the
+	// order they were written.
+	for _, sql := range []string{
+		"VALUES ROW(1) UNION VALUES ROW(2) ORDER BY 1 FOR UPDATE INTO @x",
+		"SELECT 1 UNION SELECT 2 ORDER BY 1 FOR UPDATE INTO @x",
+		"SELECT 1 FROM t UNION SELECT 2 FROM t ORDER BY 1 FOR UPDATE INTO @x",
+	} {
+		sel := queryPrimaryStatement(t, sql).(*ast.SelectStmt)
+		if sel.SetOp != ast.SetOpUnion || len(sel.OrderBy) != 1 || sel.ForUpdate == nil || sel.Into == nil {
+			t.Errorf("%s: %+v", sql, sel)
+		}
+		if r := sel.Right; len(r.OrderBy) != 0 || r.ForUpdate != nil || r.Into != nil {
+			t.Errorf("%s: the last operand kept clauses: %+v", sql, r)
+		}
+		if sel.Loc.End != len(sql) {
+			t.Errorf("%s: Loc.End = %d, want %d", sql, sel.Loc.End, len(sql))
+		}
 	}
-	if sel.Left.ForUpdate != nil || sel.ForUpdate != nil {
-		t.Errorf("the locking clause is on the wrong node: %+v", sel)
+	// Inside parentheses they stay with the operand they scope.
+	sel := queryPrimaryStatement(t, "SELECT 1 UNION (SELECT 2 FOR UPDATE)").(*ast.SelectStmt)
+	if sel.ForUpdate != nil || sel.Right.ParenSource == nil || sel.Right.ParenSource.ForUpdate == nil {
+		t.Errorf("the parenthesized operand lost its clause: %+v", sel)
+	}
+}
+
+// TestIntoHoldsWhatWasWritten: an empty option is an option, the last of a repeated one
+// wins, adjacent strings read as one, and a name that is also a keyword is a variable.
+func TestIntoHoldsWhatWasWritten(t *testing.T) {
+	into := func(sql string) *ast.IntoClause {
+		t.Helper()
+		return queryPrimaryStatement(t, sql).(*ast.SelectStmt).Into
+	}
+	i := into("VALUES ROW(1) INTO OUTFILE 'f' FIELDS TERMINATED BY '' ESCAPED BY '' LINES STARTING BY ''")
+	if !i.HasOutfile || !i.HasFieldsTerminatedBy || !i.HasFieldsEscapedBy || !i.HasLinesStartingBy || i.HasFieldsEnclosedBy || i.HasLinesTerminatedBy {
+		t.Errorf("%+v", i)
+	}
+	i = into("VALUES ROW(1) INTO OUTFILE 'a' 'b' FIELDS TERMINATED BY ',' TERMINATED BY ';' ENCLOSED BY '1' OPTIONALLY ENCLOSED BY '2'")
+	if i.Outfile != "ab" || i.FieldsTerminatedBy != ";" || i.FieldsEnclosedBy != "2" || !i.FieldsOptionalEncl {
+		t.Errorf("%+v", i)
+	}
+	i = into("VALUES ROW(1) INTO OUTFILE 'f' FIELDS OPTIONALLY ENCLOSED BY '1' ENCLOSED BY '2'")
+	if i.FieldsEnclosedBy != "2" || i.FieldsOptionalEncl {
+		t.Errorf("the last ENCLOSED BY should win, with its own OPTIONALLY: %+v", i)
+	}
+	i = into("VALUES ROW(1) INTO OUTFILE ''")
+	if !i.HasOutfile || i.Outfile != "" {
+		t.Errorf("%+v", i)
+	}
+	i = into("VALUES ROW(1) INTO DUMPFILE ''")
+	if !i.HasDumpfile || i.HasOutfile || i.Dumpfile != "" {
+		t.Errorf("%+v", i)
+	}
+	i = into("VALUES ROW(1) INTO dumpfile")
+	if i.HasDumpfile || len(i.Vars) != 1 || i.Vars[0].Name != "dumpfile" || !i.Vars[0].Bare {
+		t.Errorf("%+v", i)
+	}
+}
+
+// TestIntoRefusalsPoint: a refusal names the token at fault, or the end of the input.
+func TestIntoRefusalsPoint(t *testing.T) {
+	for _, c := range []struct {
+		sql string
+		at  int
+	}{
+		{"VALUES ROW(1) INTO", 18},
+		{"VALUES ROW(1) INTO OUTFILE", 26},
+		{"VALUES ROW(1) INTO @x,", 22},
+		{"VALUES ROW(1) INTO @@autocommit", 19},
+		{"VALUES ROW(1) INTO OUTFILE 'f' FIELDS", 37},
+		{"VALUES ROW(1) INTO OUTFILE 'f' LINES", 36},
+		{"VALUES ROW(1) INTO OUTFILE 'f' FIELDS TERMINATED ','", 49},
+		{"VALUES ROW(1) INTO OUTFILE 'f' FIELDS TERMINATED BY", 51},
+		{"VALUES ROW(1) INTO OUTFILE 'f' CHARACTER utf8mb4", 41},
+	} {
+		_, err := Parse(c.sql)
+		var perr *ParseError
+		if !errors.As(err, &perr) {
+			t.Errorf("Parse(%q) = %v, want a ParseError", c.sql, err)
+			continue
+		}
+		if perr.Position != c.at {
+			t.Errorf("Parse(%q) points at %d, want %d (%v)", c.sql, perr.Position, c.at, err)
+		}
 	}
 }
 

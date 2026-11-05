@@ -64,6 +64,31 @@ func TestDeparseKeepsQueryTail(t *testing.T) {
 			"values row(1) into outfile s3 's3://b/p' format csv header fields terminated by ',' lines terminated by 'x' manifest on overwrite off encryption sse_kms 'k'",
 		},
 		{"VALUES ROW(1) INTO OUTFILE 'it''s'", "values row(1) into outfile 'it\\'s'"},
+		// The clauses after a set operation's last operand keep their written order.
+		{"VALUES ROW(1) UNION VALUES ROW(2) ORDER BY 1 FOR UPDATE", "values row(1) union values row(2) order by 1 for update"},
+		{"VALUES ROW(1) UNION VALUES ROW(2) ORDER BY 1 LIMIT 1 FOR UPDATE INTO @x", "values row(1) union values row(2) order by 1 limit 1 for update into @`x`"},
+		{"SELECT 1 UNION SELECT 2 ORDER BY 1 FOR UPDATE", "select 1 AS `1` union select 2 AS `2` order by 1 for update"},
+		{"SELECT 1 UNION SELECT 2 ORDER BY 1 INTO @x", "select 1 AS `1` union select 2 AS `2` order by 1 into @`x`"},
+		{"SELECT 1 UNION (SELECT 2 FOR UPDATE)", "select 1 AS `1` union (select 2 AS `2` for update)"},
+		// An empty string is an option: it turns a default off.
+		{
+			"VALUES ROW(1) INTO OUTFILE 'f' FIELDS TERMINATED BY '' ESCAPED BY '' LINES TERMINATED BY ''",
+			"values row(1) into outfile 'f' fields terminated by '' escaped by '' lines terminated by ''",
+		},
+		{
+			"VALUES ROW(1) INTO OUTFILE 'f' FIELDS OPTIONALLY ENCLOSED BY '' LINES STARTING BY ''",
+			"values row(1) into outfile 'f' fields optionally enclosed by '' lines starting by ''",
+		},
+		{"VALUES ROW(1) INTO OUTFILE ''", "values row(1) into outfile ''"},
+		{"VALUES ROW(1) INTO DUMPFILE ''", "values row(1) into dumpfile ''"},
+		// Adjacent strings read as one, the last of a repeated option wins, and a
+		// keyword with no file after it is a variable.
+		{"VALUES ROW(1) INTO OUTFILE 'a' 'b'", "values row(1) into outfile 'ab'"},
+		{
+			"VALUES ROW(1) INTO OUTFILE 'f' FIELDS TERMINATED BY ',' TERMINATED BY ';'",
+			"values row(1) into outfile 'f' fields terminated by ';'",
+		},
+		{"VALUES ROW(1) INTO dumpfile", "values row(1) into `dumpfile`"},
 	} {
 		t.Run(c.input, func(t *testing.T) {
 			sel := parseSelect(t, c.input)

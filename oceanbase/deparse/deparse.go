@@ -196,9 +196,9 @@ func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
 	str := func(s string) string { return deparseStringLit(&ast.StringLit{Value: s}) }
 	b.WriteString(" into ")
 	switch {
-	case into.Dumpfile != "":
+	case into.HasDumpfile:
 		b.WriteString("dumpfile " + str(into.Dumpfile))
-	case into.Outfile != "":
+	case into.HasOutfile:
 		b.WriteString("outfile ")
 		if into.OutfileS3 {
 			b.WriteString("s3 ")
@@ -215,25 +215,25 @@ func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
 		}
 		if into.HasFieldsClause {
 			b.WriteString(" fields")
-			if into.FieldsTerminatedBy != "" {
+			if into.HasFieldsTerminatedBy {
 				b.WriteString(" terminated by " + str(into.FieldsTerminatedBy))
 			}
-			if into.FieldsEnclosedBy != "" {
+			if into.HasFieldsEnclosedBy {
 				if into.FieldsOptionalEncl {
 					b.WriteString(" optionally")
 				}
 				b.WriteString(" enclosed by " + str(into.FieldsEnclosedBy))
 			}
-			if into.FieldsEscapedBy != "" {
+			if into.HasFieldsEscapedBy {
 				b.WriteString(" escaped by " + str(into.FieldsEscapedBy))
 			}
 		}
 		if into.HasLinesClause {
 			b.WriteString(" lines")
-			if into.LinesStartingBy != "" {
+			if into.HasLinesStartingBy {
 				b.WriteString(" starting by " + str(into.LinesStartingBy))
 			}
-			if into.LinesTerminatedBy != "" {
+			if into.HasLinesTerminatedBy {
 				b.WriteString(" terminated by " + str(into.LinesTerminatedBy))
 			}
 		}
@@ -259,16 +259,10 @@ func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
 	}
 }
 
-// writeIntoVariable writes one target of INTO: @user, @@[scope.]system, or a bare
-// stored-program variable.
+// writeIntoVariable writes one target of INTO: @user, or a bare stored-program
+// variable.
 func writeIntoVariable(b *strings.Builder, v *ast.VariableRef) {
 	switch {
-	case v.System:
-		b.WriteString("@@")
-		if v.Scope != "" {
-			b.WriteString(strings.ToLower(v.Scope) + ".")
-		}
-		b.WriteString(v.Name)
 	case v.Bare:
 		b.WriteString(quoteIdent(v.Name))
 	default:
