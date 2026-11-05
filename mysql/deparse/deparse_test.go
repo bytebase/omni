@@ -387,6 +387,8 @@ func TestDeparse_Section_2_6_CaseCastConvert(t *testing.T) {
 		// (lowercase, after the type) so the functional-index expr round-trips. 8.0.17+.
 		{"cast_unsigned_array", "CAST(a AS UNSIGNED ARRAY)", "cast(`a` as unsigned array)"},
 		{"json_value_plain", "JSON_VALUE(a, '$.b')", "json_value(`a`,'$.b')"},
+		{"json_value_in_subquery", "JSON_VALUE((1 IN (SELECT 1)), '$')", "json_value((1 in (select 1)),'$')"},
+		{"json_value_in_subquery_clauses", "JSON_VALUE((1 IN (SELECT 1)), '$' NULL ON EMPTY)", "json_value((1 in (select 1)), '$' null on empty)"},
 		{"json_value_clauses", "JSON_VALUE(a, '$.b' RETURNING SIGNED NULL ON EMPTY DEFAULT -1 ON ERROR)", "json_value(`a`, '$.b' returning signed null on empty default -1 on error)"},
 		{"json_value_error", "JSON_VALUE(a, '$.b' ERROR ON ERROR)", "json_value(`a`, '$.b' error on error)"},
 		{"cast_signed_array", "CAST(a AS SIGNED ARRAY)", "cast(`a` as signed array)"},
@@ -1406,5 +1408,43 @@ func TestDeparse_Section_5_8_ForUpdate(t *testing.T) {
 				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
 			}
 		})
+	}
+}
+
+// TestJSONValueDocumentRoundTrip: JSON_VALUE's document is a simple_expr, so the parentheses
+// around a predicate over a subquery have to survive deparsing for the text to read back, with
+// or without the clauses, which print through different paths. The parentheses around anything
+// else are the printer's own business, and only the reading back is held here.
+func TestJSONValueDocumentRoundTrip(t *testing.T) {
+	documents := []string{
+		"(1 IN (SELECT 1))",
+		"(1 NOT IN (SELECT 1))",
+		"((1 IN (SELECT 1)))",
+		"(1 = ANY (SELECT 1))",
+		"(1 < ALL (SELECT 1))",
+		"(1 IN (1, 2))",
+		"(EXISTS (SELECT 1))",
+		"(SELECT 1)",
+		"(1 + 1)",
+		"(1 = 2)",
+		"(1 OR 2)",
+		"(NOT 1)",
+		"(1 IS NULL)",
+		"(1 BETWEEN 2 AND 3)",
+		"('a' LIKE 'b')",
+		"-1",
+		"a",
+		"CAST(a AS CHAR)",
+	}
+	for _, document := range documents {
+		for _, clauses := range []string{"", " NULL ON EMPTY", " RETURNING SIGNED"} {
+			input := "JSON_VALUE(" + document + ", '$'" + clauses + ")"
+			t.Run(input, func(t *testing.T) {
+				got := Deparse(parseExpr(t, input))
+				if again := Deparse(parseExpr(t, got)); again != got {
+					t.Errorf("Deparse(%q) = %q, which reads back as %q", input, got, again)
+				}
+			})
+		}
 	}
 }

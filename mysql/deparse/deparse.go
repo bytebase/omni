@@ -2121,6 +2121,10 @@ func writeJSONValue(b *strings.Builder, n *ast.FuncCallExpr) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
+		if i == 0 {
+			writeJSONValueDocument(b, arg)
+			continue
+		}
 		writeExpr(b, arg)
 	}
 	if opts.Returning != nil {
@@ -2130,6 +2134,37 @@ func writeJSONValue(b *strings.Builder, n *ast.FuncCallExpr) {
 	writeJSONValueResponse(b, opts.OnEmpty, "empty")
 	writeJSONValueResponse(b, opts.OnError, "error")
 	b.WriteString(")")
+}
+
+// writeJSONValueDocument writes JSON_VALUE's document, which the grammar reads as a simple_expr:
+// a predicate over a subquery needs the parentheses that writeExpr drops from around it, or the
+// text does not read back.
+func writeJSONValueDocument(b *strings.Builder, doc ast.ExprNode) {
+	inner := doc
+	for {
+		paren, ok := inner.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		inner = paren.Expr
+	}
+	switch n := inner.(type) {
+	case *ast.InExpr:
+		if n.Select != nil {
+			b.WriteString("(")
+			writeExpr(b, inner)
+			b.WriteString(")")
+			return
+		}
+	case *ast.BinaryExpr:
+		if sub, ok := n.Right.(*ast.SubqueryExpr); ok && sub.Quantifier != "" {
+			b.WriteString("(")
+			writeExpr(b, inner)
+			b.WriteString(")")
+			return
+		}
+	}
+	writeExpr(b, doc)
 }
 
 func writeJSONValueResponse(b *strings.Builder, r *ast.JSONValueResponse, on string) {
@@ -2203,6 +2238,15 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 
 	if n.JSONValue != nil && n.Schema == "" && name == "JSON_VALUE" {
 		writeJSONValue(b, n)
+		return
+	}
+	// With no clauses it prints as a plain call, and its document is still a simple_expr.
+	if n.JSONValue == nil && n.Schema == "" && name == "JSON_VALUE" && len(n.Args) == 2 {
+		b.WriteString("json_value(")
+		writeJSONValueDocument(b, n.Args[0])
+		b.WriteString(",")
+		writeExpr(b, n.Args[1])
+		b.WriteString(")")
 		return
 	}
 
