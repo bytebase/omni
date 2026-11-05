@@ -1479,13 +1479,6 @@ func TestParseInsertValues(t *testing.T) {
 			ignore:   true,
 			priority: ast.InsertPriorityHigh,
 		},
-		{
-			input:    "INSERT DELAYED INTO users (id) VALUES (1)",
-			table:    "users",
-			colCount: 1,
-			rowCount: 1,
-			priority: ast.InsertPriorityDelayed,
-		},
 	}
 
 	for _, tt := range cases {
@@ -1648,13 +1641,6 @@ func TestParseReplace(t *testing.T) {
 			rowCount: 1,
 			priority: ast.InsertPriorityLow,
 		},
-		{
-			input:    "REPLACE DELAYED INTO users (id) VALUES (1)",
-			table:    "users",
-			colCount: 1,
-			rowCount: 1,
-			priority: ast.InsertPriorityDelayed,
-		},
 	}
 
 	for _, tt := range cases {
@@ -1736,6 +1722,19 @@ func TestParseInsertOnDupKey(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Batch 99 (review_dml): INSERT ... TABLE source
 // ---------------------------------------------------------------------------
+
+// TestInsertRefusesDelayed: OceanBase's opt_priority is HIGH_PRIORITY or
+// LOW_PRIORITY, and OceanBase 4.3.5 answers these with 1064.
+func TestInsertRefusesDelayed(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT DELAYED INTO users (id) VALUES (1)",
+		"REPLACE DELAYED INTO users (id) VALUES (1)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) accepted DELAYED", sql)
+		}
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Batch 6: update_delete

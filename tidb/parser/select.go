@@ -2216,20 +2216,8 @@ func (p *Parser) parseValuesConstructor() (*nodes.ValuesStmt, error) {
 		if _, err := p.expect(kwROW); err != nil {
 			return nil, err
 		}
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-
-		var row []nodes.ExprNode
-		if p.cur.Type != ')' {
-			exprs, err := p.parseExprList()
-			if err != nil {
-				return nil, err
-			}
-			row = exprs
-		}
-
-		if _, err := p.expect(')'); err != nil {
+		row, err := p.parseRowValue()
+		if err != nil {
 			return nil, err
 		}
 		stmt.Rows = append(stmt.Rows, row)

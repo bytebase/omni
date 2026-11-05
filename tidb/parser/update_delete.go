@@ -332,12 +332,12 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 
 	start := p.pos()
 
-	col, err := p.parseColumnRef()
+	col, err := p.parseNamedColumn()
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := p.expect('='); err != nil {
+	if err := p.expectEqual(); err != nil {
 		return nil, err
 	}
 
@@ -354,6 +354,39 @@ func (p *Parser) parseAssignment() (*nodes.Assignment, error) {
 		Column: col,
 		Value:  val,
 	}, nil
+}
+
+// parseNamedColumn parses the column an assignment or an INSERT column list
+// names. parseColumnRef also reads a user variable, which is no column
+// (simple_ident_nospvar), and t.*, which names none; `@a` in backquotes is a
+// column like any other.
+func (p *Parser) parseNamedColumn() (*nodes.ColumnRef, error) {
+	if p.isUserVariable() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	ref, err := p.parseColumnRef()
+	if err != nil {
+		return nil, err
+	}
+	if ref.Star {
+		return nil, &ParseError{Message: `syntax error at or near "*"`, Position: ref.Loc.End - 1}
+	}
+	return ref, nil
+}
+
+// expectEqual consumes the = or := between a column and its value in an
+// assignment list.
+//
+// Ref: TiDB parser.y (v8.5.5) line 3415: Assignment is ColumnName
+// EqOrAssignmentEq ExprOrDefault. LOAD DATA and IMPORT INTO take = alone
+// (LoadDataSetItem, line 15069), so their SET lists do not come here.
+func (p *Parser) expectEqual() error {
+	if p.cur.Type == tokAssign {
+		p.advance()
+		return nil
+	}
+	_, err := p.expect('=')
+	return err
 }
 
 // parseDeleteTableList parses a comma-separated list of table names
