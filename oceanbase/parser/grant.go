@@ -1558,12 +1558,21 @@ func (p *Parser) parseCreateRoleStmt(start int) (*nodes.CreateRoleStmt, error) {
 		stmt.IfNotExists = true
 	}
 
-	// role [, role] ...
-	roles, err := p.parseUserList()
-	if err != nil {
-		return nil, err
+	// role [, role] ... An unquoted role_ident refuses a word that is a name elsewhere, so
+	// `CREATE ROLE event` is a 1064.
+	for {
+		if isAmbiguousRoleWord(p.cur.Type) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		role, err := p.parseUserName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Roles = append(stmt.Roles, role)
+		if _, ok := p.match(','); !ok {
+			break
+		}
 	}
-	stmt.Roles = roles
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil

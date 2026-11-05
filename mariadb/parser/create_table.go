@@ -776,12 +776,16 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if next := p.peekNext(); next.Type == kwUPDATE {
 			p.advance() // consume ON
 			p.advance() // consume UPDATE
+			exprStart := p.pos()
 			expr, err := p.parseExpr()
 			if err != nil {
 				return false, err
 			}
 			if expr == nil {
 				return false, p.syntaxErrorAtCur()
+			}
+			if err := refuseColumnValue(expr, exprStart); err != nil {
+				return false, err
 			}
 			col.OnUpdate = expr
 			return true, nil
@@ -876,6 +880,16 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// refuseColumnValue refuses a bare name as a column's ON UPDATE value, as the grammar's
+// now_or_signed_literal does, so `a TIMESTAMP ON UPDATE now` is a 1064. Its DEFAULT takes one, as
+// an expression.
+func refuseColumnValue(expr nodes.ExprNode, start int) error {
+	if _, ok := expr.(*nodes.ColumnRef); ok {
+		return &ParseError{Message: "syntax error", Position: start}
+	}
+	return nil
 }
 
 // parseDefaultValue parses a DEFAULT value expression.

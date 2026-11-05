@@ -340,7 +340,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwVAR_POP:             kwCatUnambiguous,
 	kwVAR_SAMP:            kwCatUnambiguous,
 	kwVARCHARACTER:        kwCatReserved,
-	kwVARIANCE:            kwCatReserved,
+	kwVARIANCE:            kwCatUnambiguous,
 	// --- Section 3.1: Missing reserved classifications ---
 	kwANALYZE:             kwCatReserved,
 	kwBEFORE:              kwCatReserved,

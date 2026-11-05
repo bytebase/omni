@@ -7512,33 +7512,34 @@ func TestLabelIdentRejectsAmbiguous2(t *testing.T) {
 	// BEGIN as a table name should work (general ident context).
 	ParseAndCheck(t, "CREATE TABLE begin (a INT)")
 
-	// BEGIN as an SP label should fail — ambiguous_2 is excluded from label_ident.
-	t.Run("begin as LEAVE label rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("LEAVE begin")}
+	// WHILE as an SP label should fail: a routine reads labels by the PL grammar, where BEGIN is one
+	// (see plReservedWords) and WHILE is not.
+	t.Run("while as LEAVE label rejected", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("LEAVE while")}
 		p.advance()
 		_, err := p.parseLeaveStmt()
 		if err == nil {
-			t.Fatal("expected error for LEAVE begin (BEGIN is ambiguous_2, not allowed as label)")
+			t.Fatal("expected error for LEAVE while (WHILE is in the PL grammar, not allowed as label)")
 		}
 	})
 
-	t.Run("begin as ITERATE label rejected", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("ITERATE begin")}
+	t.Run("while as ITERATE label rejected", func(t *testing.T) {
+		p := &Parser{lexer: NewLexer("ITERATE while")}
 		p.advance()
 		_, err := p.parseIterateStmt()
 		if err == nil {
-			t.Fatal("expected error for ITERATE begin (BEGIN is ambiguous_2, not allowed as label)")
+			t.Fatal("expected error for ITERATE while (WHILE is in the PL grammar, not allowed as label)")
 		}
 	})
 
-	t.Run("begin as block label rejected", func(t *testing.T) {
-		// In a compound context, `begin: BEGIN ... END begin` should fail
+	t.Run("while as block label rejected", func(t *testing.T) {
+		// In a compound context, `while: BEGIN ... END begin` should fail
 		// because BEGIN cannot be used as a label.
-		p := &Parser{lexer: NewLexer("begin: BEGIN END begin")}
+		p := &Parser{lexer: NewLexer("while: BEGIN END begin")}
 		p.advance()
 		_, err := p.parseCompoundStmtOrStmt()
 		if err == nil {
-			t.Fatal("expected error for begin: BEGIN ... END (BEGIN is ambiguous_2, not allowed as label)")
+			t.Fatal("expected error for while: BEGIN ... END (WHILE is in the PL grammar, not allowed as label)")
 		}
 	})
 }
@@ -12730,7 +12731,7 @@ func TestUncategorizedKeywordsAreUnambiguous(t *testing.T) {
 	// Explicitly categorized keywords keep their restrictions. (role_ident
 	// is not exercised here: the CREATE ROLE / GRANT ... TO paths do not yet
 	// go through parseRoleIdent, a separate pre-existing gap.)
-	ParseExpectError(t, "CREATE PROCEDURE p() BEGIN begin: LOOP LEAVE begin; END LOOP; END") // ambiguous_2: not a label
+	ParseExpectError(t, "CREATE PROCEDURE p() BEGIN while: LOOP LEAVE while; END LOOP; END") // reserved in the PL grammar
 }
 
 func TestLoadDataXMLShareTrailingClauses(t *testing.T) {
