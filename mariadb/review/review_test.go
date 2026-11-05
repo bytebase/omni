@@ -927,6 +927,12 @@ func TestOnlineMigration(t *testing.T) {
 			want:   []finding{{0, "CREATE INDEX i ON t (n)", "Online migration runs only an `ALTER TABLE`.\n\nTurn off **Online migration** for this change.", []int{0}}},
 		},
 		{
+			name:   "an ALTER TABLE under SET STATEMENT",
+			sql:    "SET STATEMENT max_statement_time = 1 FOR ALTER TABLE plain ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{0, "SET STATEMENT max_statement_time = 1 FOR ALTER TABLE plain ADD COLUMN m INT", "Online migration runs the sheet as one `ALTER TABLE`, and `SET STATEMENT` is not part of one.\n\nRemove `SET STATEMENT`, or turn off **Online migration** for this change.", []int{0}}},
+		},
+		{
 			name:   "flags Bytebase cannot read",
 			sql:    "-- gh-ost = {\"chunk-size\":\"many\",\"no-such-flag\":\"1\"}\nALTER TABLE plain ADD COLUMN m INT;",
 			change: ghost,
@@ -1085,6 +1091,15 @@ func TestPriorBackup(t *testing.T) {
 				{0, "DELETE FROM t WHERE id = 1 RETURNING id", "Prior backup can't back up a statement with `RETURNING`: it reads the change as MySQL.\n\nRemove `RETURNING`, or turn off **Prior backup**.", []int{0}},
 				{1, "INSERT INTO p (id) VALUES (3) RETURNING id", "Prior backup can't back up a statement with `RETURNING`: it reads the change as MySQL.\n\nRemove `RETURNING`, or turn off **Prior backup**.", []int{0}},
 				{3, "CREATE PROCEDURE pr() BEGIN DELETE FROM t WHERE id = 1 RETURNING id; END", "Prior backup can't back up a statement with `RETURNING`: it reads the change as MySQL.\n\nRemove `RETURNING`, or turn off **Prior backup**.", []int{0}},
+			},
+		},
+		{
+			name:   "a statement with SET STATEMENT",
+			sql:    "SET STATEMENT max_statement_time = 1 FOR DELETE FROM t WHERE id = 1;\nDELETE FROM p WHERE id = 2;\nDELIMITER //\nCREATE PROCEDURE pr() BEGIN SET STATEMENT max_statement_time = 1 FOR SELECT 1; END//\nDELIMITER ;",
+			change: backup,
+			want: []finding{
+				{0, "SET STATEMENT max_statement_time = 1 FOR DELETE FROM t WHERE id = 1", "Prior backup can't back up a statement with `SET STATEMENT`: it reads the change as MySQL.\n\nRemove `SET STATEMENT`, or turn off **Prior backup**.", []int{0}},
+				{2, "CREATE PROCEDURE pr() BEGIN SET STATEMENT max_statement_time = 1 FOR SELECT 1; END", "Prior backup can't back up a statement with `SET STATEMENT`: it reads the change as MySQL.\n\nRemove `SET STATEMENT`, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{

@@ -249,6 +249,14 @@ func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 		return nil
 	}
 	b := &builder{w: w, l: l, s: &w.stmts[i]}
+	// SET STATEMENT refuses an option that calls a stored function or reads a table (1970,
+	// measured on 11.8.8), and then neither runs, so what it wraps does not happen. The walk
+	// may not tell a stored function from a built-in one, so it follows no such statement.
+	for _, opt := range w.stmts[i].options {
+		if b.optionMayFail(opt.Value) {
+			return nil
+		}
+	}
 	// SET STATEMENT sets foreign_key_checks for this statement alone.
 	checks := w.fkChecks
 	if on, named := fkOption(w.stmts[i].options); named {
@@ -573,6 +581,18 @@ func (b *builder) tooLong(name string, rng review.Range) bool {
 	}
 	b.fail(rng, nil, review.NameTooLong, "The name "+review.Code(ident(name))+" is longer than "+engineName+"'s 64-character limit.")
 	return true
+}
+
+// optionMayFail reports whether SET STATEMENT may refuse this option's value.
+func (b *builder) optionMayFail(value ast.Node) bool {
+	readsTable := false
+	ast.Inspect(value, func(m ast.Node) bool {
+		if _, ok := m.(*ast.TableRef); ok {
+			readsTable = true
+		}
+		return !readsTable
+	})
+	return readsTable || b.callsStoredFunction(value)
 }
 
 // callsStoredFunction reports whether the statement may call a stored
