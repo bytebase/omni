@@ -1,7 +1,11 @@
 package parser
 
 import (
+	"errors"
+	"strings"
 	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
 )
 
 // A column has a type, and a keyword is no function name. Both are forms the parser read
@@ -18,6 +22,109 @@ type requiredFormCase struct {
 }
 
 var requiredFormCases = []requiredFormCase{
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT -'x' ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT -TRUE ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT +'x' ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT -X'41' ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT -1.5 ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT - 1 ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT --1 ON ERROR)", false},
+	// JSON_VALUE has its own arm: a simple_expr, a string literal, then its clauses. RETURNING INT,
+	// VARCHAR, TEXT and CHAR(3) ASCII wait for the CAST list in bytebase/omni#669, which this reads
+	// through. RETURNING POINT is pinned in TestJSONValueGeometryOracle, because this table's
+	// oracle reads its 4032 as parsed.
+	{"SELECT JSON_VALUE('{}','$.a')", true},
+	{"SELECT json_value(a,'$.a')", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING CHAR(3))", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING SIGNED)", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING DECIMAL(5,2))", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING JSON)", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING CHAR(3) ARRAY)", false},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING)", false},
+	{"SELECT JSON_VALUE(a,'$.a' NULL ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' ERROR ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT 'x' ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT 1 ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT b ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' NULL ON EMPTY)", true},
+	{"SELECT JSON_VALUE(a,'$.a' ERROR ON EMPTY)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT 'x' ON EMPTY)", true},
+	{"SELECT JSON_VALUE(a,'$.a' NULL ON EMPTY NULL ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' NULL ON ERROR NULL ON EMPTY)", false},
+	{"SELECT JSON_VALUE(a,'$.a' NULL ON EMPTY NULL ON EMPTY)", false},
+	{"SELECT JSON_VALUE(a,'$.a' NULL ON ERROR NULL ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING CHAR(3) NULL ON EMPTY DEFAULT 'x' ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' NULL ON EMPTY RETURNING CHAR(3))", false},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING CHAR(3) TRUNCATE)", false},
+	{"SELECT JSON_VALUE(a,'$.a' TRUNCATE)", false},
+	{"SELECT JSON_VALUE(a,'$.a' ASCII)", false},
+	{"SELECT JSON_VALUE(a,'$.a',1)", false},
+	{"SELECT JSON_VALUE(a)", false},
+	{"SELECT JSON_VALUE()", false},
+	{"SELECT JSON_VALUE(1,2)", false},
+	{"SELECT JSON_VALUE(a,b)", false},
+	{"SELECT JSON_VALUE(a,concat('$','a'))", false},
+	{"SELECT JSON_VALUE(a,_utf8mb4'$.a')", true},
+	{"SELECT JSON_VALUE(a,N'$.a')", true},
+	{"SELECT JSON_VALUE(a,X'24')", false},
+	{"SELECT JSON_VALUE(a,\"$.a\")", true},
+	{"SELECT JSON_VALUE(a,'$' '.a')", true},
+	{"SELECT JSON_VALUE(1+1,'$.a')", false},
+	{"SELECT JSON_VALUE(a+1,'$.a')", false},
+	{"SELECT JSON_VALUE((1+1),'$.a')", true},
+	{"SELECT JSON_VALUE(a->'$.b','$.a')", true},
+	{"SELECT JSON_VALUE(NOT a,'$.a')", false},
+	{"SELECT JSON_VALUE(a IS NULL,'$.a')", false},
+	{"SELECT JSON_VALUE(DISTINCT a,'$.a')", false},
+	{"SELECT JSON_VALUE(*,'$.a')", false},
+	{"SELECT `json_value`(a,'$.a')", true},
+	{"SELECT d.json_value(a,'$.a')", true},
+	{"SELECT JSON_VALUE (a,'$.a')", true},
+	{"SELECT json_value FROM t", true},
+	{"CREATE TABLE json_value (json_value INT)", true},
+	{"CREATE TABLE t (a JSON, b INT AS (JSON_VALUE(a,'$.b' RETURNING SIGNED)))", true},
+	{"CREATE TABLE t (a JSON, KEY k ((JSON_VALUE(a,'$.b' RETURNING CHAR(3)))))", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT -1 ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT +1 ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT NULL ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT 1.5 ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT TRUE ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT DATE'2000-01-01' ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT X'41' ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT _utf8mb4'x' ON ERROR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT 1+1 ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT (1) ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT @x ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' DEFAULT ? ON ERROR)", false},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING SIGNED INT)", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING UNSIGNED)", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING DATE)", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING DATETIME(3))", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING FLOAT)", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING DOUBLE)", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING BINARY(3))", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING YEAR)", true},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING SIGNED RETURNING SIGNED)", false},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING SIGNED TRUNCATE ASCII)", false},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING CHAR(3) ASCII TRUNCATE)", false},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING CHAR(3) TRUNCATE ASCII)", false},
+	{"SELECT JSON_VALUE(a,'$.a' ASCII TRUNCATE)", false},
+	{"SELECT JSON_VALUE(a,'$.a' TRUNCATE NULL ON EMPTY)", false},
+	{"SELECT JSON_VALUE(a,'$.a' NULL ON EMPTY TRUNCATE)", false},
+	{"SELECT JSON_VALUE(a,'$.a' RETURNING SIGNED ASCII)", false},
+	{"SELECT JSON_VALUE(-a,'$.a')", true},
+	{"SELECT JSON_VALUE(!a,'$.a')", true},
+	{"SELECT JSON_VALUE(a COLLATE utf8mb4_bin,'$.a')", true},
+	{"SELECT JSON_VALUE(f(a),'$.a')", true},
+	{"SELECT JSON_VALUE(@x,'$.a')", true},
+	{"SELECT JSON_VALUE(t.a,'$.a')", true},
+	{"SELECT JSON_VALUE(CASE WHEN 1 THEN a END,'$.a')", true},
+	{"SELECT JSON_VALUE(a->>'$.b','$.a')", true},
+	{"SELECT JSON_VALUE(a||b,'$.a')", false},
+	{"SELECT JSON_VALUE(a,'')", true},
+	{"SELECT JSON_VALUE(a,NULL)", false},
+	{"SELECT JSON_VALUE(a,@p)", false},
+	{"SELECT JSON_VALUE(a,?)", false},
 	// no type.
 	{"CREATE TABLE tl (a key)", false},
 	{"CREATE TABLE tl (a primary key)", false},
@@ -134,7 +241,7 @@ func TestKeywordFunctionNames(t *testing.T) {
 var functionNameShapes = []string{
 	"()", "(1)", "(1,2)", "(1,2,3)", "(1,2,3,4)", "(*)", "('a')", "(a USING utf8mb4)", "(1 AS SIGNED)",
 	"(1, INTERVAL 1 DAY)", "(1 FROM 2)", "(1 IN 2)", "(DISTINCT 1)", "() OVER ()", "(1) OVER ()", "(1,2) OVER ()",
-	"(1,2,3) OVER ()", "(1) FROM t", "(SELECT 1)", "(YEAR FROM 1)", "(DAY, 1, 2)", "(a)", "(a, b)", "(a) OVER ()",
+	"(1,2,3) OVER ()", "(1) FROM t", "(SELECT 1)", "(YEAR FROM 1)", "(DAY, 1, 2)", "(1, 'a')", "(a)", "(a, b)", "(a) OVER ()",
 }
 
 // functionArmsNotCovered is what the list cannot reach: `values` is read by an arm of its
@@ -176,4 +283,33 @@ func TestRequiredFormsOracle(t *testing.T) {
 func TestKeywordFunctionNamesOracle(t *testing.T) {
 	o := startParserOracle(t)
 	judgeKeywordFunctionNames(t, func(sql string) bool { return o.prepareAccepts(t, sql) })
+}
+
+// TestJSONValueGeometryOracle: JSON_VALUE ... RETURNING a geometry type answers 4032 while MySQL
+// parses, so the code comes back with a syntax error after the statement.
+func TestJSONValueGeometryOracle(t *testing.T) {
+	o := startParserOracle(t)
+	const sql = "SELECT JSON_VALUE(a,'$.a' RETURNING POINT)"
+	for _, text := range []string{sql, sql + "\n; SELECT FROM"} {
+		var myErr *gomysql.MySQLError
+		_, err := o.db.ExecContext(o.ctx, "PREPARE omni_jv FROM '"+strings.ReplaceAll(text, "'", "''")+"'")
+		if !errors.As(err, &myErr) || myErr.Number != 4032 {
+			t.Fatalf("%q: %v, want 4032", text, err)
+		}
+	}
+	if _, err := Parse(sql); err == nil {
+		t.Errorf("omni reads %q", sql)
+	}
+}
+
+// TestJSONValueGeometry holds the refusal without the server.
+func TestJSONValueGeometry(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT JSON_VALUE(a,'$.a' RETURNING POINT)",
+		"SELECT JSON_VALUE(a,'$.a' RETURNING MULTIPOLYGON)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("omni reads %q", sql)
+		}
+	}
 }

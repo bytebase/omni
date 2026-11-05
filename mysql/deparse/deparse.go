@@ -2113,6 +2113,46 @@ func writeTrimDirectional(b *strings.Builder, direction string, args []ast.ExprN
 	b.WriteString("trim()")
 }
 
+// writeJSONValue writes JSON_VALUE with its clauses, in the engine's order and case.
+func writeJSONValue(b *strings.Builder, n *ast.FuncCallExpr) {
+	opts := n.JSONValue
+	b.WriteString("json_value(")
+	for i, arg := range n.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		writeExpr(b, arg)
+	}
+	if opts.Returning != nil {
+		b.WriteString(" returning ")
+		b.WriteString(deparseDataType(opts.Returning))
+	}
+	writeJSONValueResponse(b, opts.OnEmpty, "empty")
+	writeJSONValueResponse(b, opts.OnError, "error")
+	b.WriteString(")")
+}
+
+func writeJSONValueResponse(b *strings.Builder, r *ast.JSONValueResponse, on string) {
+	switch {
+	case r == nil:
+		return
+	case r.Error:
+		b.WriteString(" error")
+	case r.Default != nil:
+		b.WriteString(" default ")
+		// A signed literal, which the parenthesized form of an expression would not reparse.
+		if unary, ok := r.Default.(*ast.UnaryExpr); ok {
+			b.WriteString("-")
+			writeExpr(b, unary.Operand)
+		} else {
+			writeExpr(b, r.Default)
+		}
+	default:
+		b.WriteString(" null")
+	}
+	b.WriteString(" on " + on)
+}
+
 func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	// Handle TRIM special forms: TRIM_LEADING, TRIM_TRAILING, TRIM_BOTH
 	// Parser encodes these as FuncCallExpr with Name="TRIM_LEADING" etc.
@@ -2158,6 +2198,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	// GROUP_CONCAT has special formatting
 	if name == "GROUP_CONCAT" {
 		writeGroupConcat(b, n)
+		return
+	}
+
+	if n.JSONValue != nil && n.Schema == "" && name == "JSON_VALUE" {
+		writeJSONValue(b, n)
 		return
 	}
 

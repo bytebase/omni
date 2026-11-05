@@ -30,7 +30,7 @@ file_block_size filter finish first fixed flush following follows found full gen
 generate geometry get_master_public_key get_source_public_key global grants
 group_replication gtid_only handler hash help histogram history host hosts identified
 ignore_server_ids import inactive indexes initial initial_size initiate insert_method
-install instance invisible invoker io io_thread ipc isolation issuer json json_value
+install instance invisible invoker io io_thread ipc isolation issuer json
 key_block_size keyring language last leaves less level list local locked locks logfile
 logs master master_auto_position master_compression_algorithms master_connect_retry
 master_delay master_heartbeat_period master_host master_log_file master_log_pos

@@ -817,6 +817,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// Handle special function forms
 	upperName := strings.ToUpper(name)
 
+	if builtin && upperName == "JSON_VALUE" {
+		return p.parseJSONValueFunc(fc)
+	}
+
 	if builtin {
 		switch upperName {
 		case "COUNT":

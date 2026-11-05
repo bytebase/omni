@@ -700,9 +700,31 @@ type FuncCallExpr struct {
 	Star       bool          // COUNT(*)
 	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
 	OrderBy    []*OrderByItem
-	Over       *WindowDef // OVER clause for window functions
-	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Over       *WindowDef        // OVER clause for window functions
+	Separator  ExprNode          // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	JSONValue  *JSONValueOptions // JSON_VALUE's clauses after its path (nil when written with none)
 }
+
+// JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are
+// its Args, so a call with none of these writes as an ordinary one.
+//
+// Ref: JSON_VALUE_SYM in MySQL 8.0 sql/sql_yacc.yy.
+type JSONValueOptions struct {
+	Loc       Loc
+	Returning *DataType          // RETURNING type (nil = not specified)
+	OnEmpty   *JSONValueResponse // ... ON EMPTY (nil = not specified)
+	OnError   *JSONValueResponse // ... ON ERROR (nil = not specified)
+}
+
+// JSONValueResponse is one ON EMPTY or ON ERROR: NULL, ERROR, or DEFAULT and a literal.
+type JSONValueResponse struct {
+	Loc     Loc
+	Error   bool     // ERROR
+	Default ExprNode // DEFAULT literal (nil with Error unset = NULL)
+}
+
+func (n *JSONValueOptions) nodeTag()  {}
+func (n *JSONValueResponse) nodeTag() {}
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the
 // only record of what was written, so a consumer asking whether duplicates are

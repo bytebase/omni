@@ -29,7 +29,7 @@ errors escape event events every exchange execute expansion expire export extend
 extent_size external fast faults fields file file_block_size files filter first fixed
 flush following found full general geometry global grants handler hash help histogram
 host hosts identified ignore_server_ids import indexes initial_size insert_method
-install instance invisible invoker io io_thread ipc isolation issuer json json_value
+install instance invisible invoker io io_thread ipc isolation issuer json
 key_block_size language last leaves less level list local locked locks logfile logs
 manual master master_auto_position master_connect_retry master_delay
 master_heartbeat_period master_host master_log_file master_log_pos master_password

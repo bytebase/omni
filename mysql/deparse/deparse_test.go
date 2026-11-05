@@ -386,6 +386,9 @@ func TestDeparse_Section_2_6_CaseCastConvert(t *testing.T) {
 		// Multi-valued-index CAST(... AS type ARRAY): the trailing `array` must be emitted
 		// (lowercase, after the type) so the functional-index expr round-trips. 8.0.17+.
 		{"cast_unsigned_array", "CAST(a AS UNSIGNED ARRAY)", "cast(`a` as unsigned array)"},
+		{"json_value_plain", "JSON_VALUE(a, '$.b')", "json_value(`a`,'$.b')"},
+		{"json_value_clauses", "JSON_VALUE(a, '$.b' RETURNING SIGNED NULL ON EMPTY DEFAULT -1 ON ERROR)", "json_value(`a`, '$.b' returning signed null on empty default -1 on error)"},
+		{"json_value_error", "JSON_VALUE(a, '$.b' ERROR ON ERROR)", "json_value(`a`, '$.b' error on error)"},
 		{"cast_signed_array", "CAST(a AS SIGNED ARRAY)", "cast(`a` as signed array)"},
 		{"cast_char_array", "CAST(a AS CHAR(40) ARRAY)", "cast(`a` as char(40) charset utf8mb4 array)"},
 		{"cast_decimal_array", "CAST(a AS DECIMAL(10,2) ARRAY)", "cast(`a` as decimal(10,2) array)"},

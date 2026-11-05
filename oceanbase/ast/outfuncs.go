@@ -2196,6 +2196,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
 	}
+	if n.JSONValue != nil {
+		sb.WriteString(" :json_value true")
+	}
 	if len(n.OrderBy) > 0 {
 		sb.WriteString(" :order_by ")
 		writeOrderByList(sb, n.OrderBy)
