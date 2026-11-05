@@ -9,9 +9,6 @@ import (
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/testcontainers/testcontainers-go"
-	tcpg "github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 type loaderCompatOracle struct {
@@ -28,45 +25,12 @@ var (
 func startLoaderCompatOracle(t *testing.T) *loaderCompatOracle {
 	t.Helper()
 	loaderCompatOracleOnce.Do(func() {
-		defer func() {
-			if r := recover(); r != nil {
-				loaderCompatOracleSetupErr = fmt.Errorf("docker provider panic: %v", r)
-			}
-		}()
-
 		ctx := context.Background()
-		container, err := tcpg.Run(ctx, "postgres:17-alpine",
-			tcpg.WithDatabase("omni_loader_compat"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
+		db, err := pg17Database(ctx, "omni_loader_compat")
 		if err != nil {
-			loaderCompatOracleSetupErr = fmt.Errorf("container start: %w", err)
+			loaderCompatOracleSetupErr = err
 			return
 		}
-
-		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			loaderCompatOracleSetupErr = fmt.Errorf("conn string: %w", err)
-			return
-		}
-		db, err := sql.Open("pgx", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			loaderCompatOracleSetupErr = fmt.Errorf("db open: %w", err)
-			return
-		}
-		if err := db.PingContext(ctx); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			loaderCompatOracleSetupErr = fmt.Errorf("ping: %w", err)
-			return
-		}
-
 		loaderCompatOracleInst = &loaderCompatOracle{db: db, ctx: ctx}
 	})
 
