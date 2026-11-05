@@ -206,8 +206,20 @@ func (p *Parser) parseSelectClauseAndTrailing(start int, ctes []*nodes.CommonTab
 
 // parseOuterOrderByLimit parses trailing ORDER BY, LIMIT/OFFSET, and locking
 // clauses applying to a parenthesized query or set-operation result, onto stmt's
-// own fields. MySQL accepts FOR UPDATE / LOCK IN SHARE MODE after a closing ')',
-// unlike TiDB's leaf-only locking placement.
+// own fields.
+//
+// OceanBase takes a locking clause after a set operation, and after a
+// parenthesized query only once an ORDER BY or LIMIT follows the ')'. In
+// OceanBase CE v4.3.5_CE_BP1 src/sql/parser/sql_parser_mysql_mode.y,
+// select_no_parens (line 11016) is select_clause, select_clause_set or
+// select_clause_set_with_order_and_limit, each followed by opt_lock_type, and
+// a parenthesized query is a select_clause only as
+// select_with_parens_with_order_and_limit (line 11259), a select_with_parens
+// with an order_by or a limit_clause after it. A lone select_with_parens is a
+// select_stmt (line 10969) by itself, with no opt_lock_type, so "(SELECT 1)
+// FOR UPDATE" and "((SELECT 1)) FOR UPDATE" are 1064 where MySQL 8.0 takes
+// them, while "(SELECT 1) ORDER BY 1 FOR UPDATE" and "(SELECT 1) UNION
+// (SELECT 2) FOR UPDATE" parse.
 func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -232,6 +244,10 @@ func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 		if p.cur.Type == kwLIMIT {
 			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
 		}
+	}
+	if stmt.SetOp == nodes.SetOpNone && len(stmt.OrderBy) == 0 && stmt.Limit == nil {
+		// A lone parenthesized query, which takes no locking clause.
+		return nil
 	}
 	if p.cur.Type == kwFOR {
 		fu, err := p.parseForUpdateClause()
@@ -349,7 +365,15 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 }
 
 // parseSelectClausePrimary parses a single query primary: a parenthesized query
-// (select_with_parens), a simple SELECT leaf, TABLE, or VALUES.
+// (select_with_parens), a simple SELECT leaf, or VALUES.
+//
+// OceanBase has no TABLE query. Its select_clause (OceanBase CE
+// v4.3.5_CE_BP1 src/sql/parser/sql_parser_mysql_mode.y:11088) and
+// select_clause_set_body (11162) take a SELECT, a parenthesized query and
+// table_values_clause (14920), which is VALUES values_row_list, and nothing
+// else in the grammar reads TABLE as a query, so "TABLE t" is 1064 wherever a
+// query goes: as a statement, a subquery, a CTE, a set-operation operand, or
+// the source of INSERT, CREATE TABLE or CREATE VIEW.
 func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 	if p.cur.Type == '(' {
 		return p.parseSelectWithParens()
@@ -357,34 +381,17 @@ func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 	if p.cur.Type == kwSELECT {
 		return p.parseSimpleSelect()
 	}
-	// A TABLE or VALUES primary becomes a SelectStmt that holds the source and
-	// is the only owner of the ORDER BY, LIMIT, and INTO after it, as in
-	// MySQL's grammar (sql/sql_yacc.yy, 8.0.40): explicit_table (line 10064)
-	// is TABLE table_ident and table_value_constructor (10057) is VALUES
-	// values_row_list, while query_expression (9914) holds opt_order_clause
-	// and opt_limit_clause and select_stmt_with_into (9863) the into_clause.
-	// Had the source kept the clauses too, every walk would visit them twice,
-	// and a TABLE nested in the ORDER BY of another would double the walk at
-	// each level.
-	if p.cur.Type == kwTABLE {
-		table, err := p.parseExplicitTable()
-		if err != nil {
-			return nil, err
-		}
-		stmt := &nodes.SelectStmt{Loc: table.Loc, TableSource: table}
-		if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
-			return nil, err
-		}
-		stmt.Loc.End = p.prev.End
-		return stmt, nil
-	}
+	// A VALUES primary becomes a SelectStmt that holds the source and is the
+	// only owner of the ORDER BY and LIMIT after it, as in
+	// table_values_clause_with_order_by_and_limit (line 14931). Had the source
+	// kept the clauses too, every walk would visit them twice.
 	if p.cur.Type == kwVALUES {
 		values, err := p.parseValuesConstructor()
 		if err != nil {
 			return nil, err
 		}
 		stmt := &nodes.SelectStmt{Loc: values.Loc, ValuesSource: values}
-		if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
+		if stmt.OrderBy, stmt.Limit, err = p.parseSourceClauses(); err != nil {
 			return nil, err
 		}
 		stmt.Loc.End = p.prev.End
@@ -394,14 +401,14 @@ func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	return nil, &ParseError{
-		Message:  "expected SELECT, TABLE, VALUES, or '('",
+		Message:  "expected SELECT, VALUES, or '('",
 		Position: p.cur.Loc,
 	}
 }
 
 func isQueryPrimaryStartToken(tokenType int) bool {
 	switch tokenType {
-	case kwSELECT, kwWITH, kwTABLE, kwVALUES:
+	case kwSELECT, kwWITH, kwVALUES:
 		return true
 	default:
 		return false
@@ -420,7 +427,7 @@ func (p *Parser) isQueryExpressionStart() bool {
 	// scalar expression — `((a = b))`, the redundant-paren form MySQL emits for
 	// a view's join ON condition (SHOW CREATE VIEW renders `on(((a) and (b)))`).
 	// A fixed one-token lookahead cannot tell them apart; scan past the run of
-	// '(' to the first non-'(' token — a query primary (SELECT/WITH/TABLE/VALUES)
+	// '(' to the first non-'(' token — a query primary (SELECT/WITH/VALUES)
 	// means a query expression, anything else means a scalar expression.
 	return isQueryPrimaryStartToken(p.firstTokenPastParens().Type)
 }
@@ -482,8 +489,8 @@ func (p *Parser) restoreScan(s scanState) {
 //   - an expression '(' — a parenthesized query expression `((SELECT ...))` vs.
 //     a parenthesized scalar expression `((a = b))`.
 //
-// In each case MySQL's grammar distinguishes by whether the innermost head is a
-// query primary (SELECT/WITH/TABLE/VALUES) or not; a fixed one-token lookahead
+// In each case the grammar distinguishes by whether the innermost head is a
+// query primary (SELECT/WITH/VALUES) or not; a fixed one-token lookahead
 // on '(' cannot, so we scan past the parens speculatively and rewind.
 //
 // Every '(' of a run shares the run's answer, and the parser asks again at each
@@ -2385,60 +2392,18 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 	return defs, nil
 }
 
-// parseTableStmt parses a TABLE statement (MySQL 8.0.19+): a TABLE query
-// primary that stands alone, as a statement, an EXPLAIN target, or the
-// source of INSERT ... TABLE, and so holds its own clauses.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
-//
-//	TABLE table_name
-//	    [ORDER BY column_name]
-//	    [LIMIT number [OFFSET number]]
-//	    [INTO OUTFILE 'file_name'
-//	        [{FIELDS | COLUMNS} ...]
-//	        [LINES ...]
-//	    | INTO DUMPFILE 'file_name'
-//	    | INTO var_name [, var_name] ...]
-func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
-	stmt, err := p.parseExplicitTable()
-	if err != nil {
-		return nil, err
-	}
-	if stmt.OrderBy, stmt.Limit, stmt.Into, err = p.parseSourceClauses(true); err != nil {
-		return nil, err
-	}
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
-}
-
-// parseExplicitTable parses TABLE table_name, MySQL's explicit_table, into a
-// TableStmt that holds only the table.
-func (p *Parser) parseExplicitTable() (*nodes.TableStmt, error) {
-	start := p.pos()
-	p.advance() // consume TABLE
-
-	ref, err := p.parseTableRef()
-	if err != nil {
-		return nil, err
-	}
-	return &nodes.TableStmt{
-		Loc:   nodes.Loc{Start: start, End: p.prev.End},
-		Table: ref,
-	}, nil
-}
-
-// parseSourceClauses parses the ORDER BY, LIMIT, and, when withInto is set,
-// INTO clauses that may follow a TABLE or VALUES query primary.
-func (p *Parser) parseSourceClauses(withInto bool) ([]*nodes.OrderByItem, *nodes.Limit, *nodes.IntoClause, error) {
+// parseSourceClauses parses the ORDER BY and LIMIT that may follow a VALUES
+// query primary.
+func (p *Parser) parseSourceClauses() ([]*nodes.OrderByItem, *nodes.Limit, error) {
 	var orderBy []*nodes.OrderByItem
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		list, err := p.parseOrderByList()
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		orderBy = list
 	}
@@ -2447,21 +2412,11 @@ func (p *Parser) parseSourceClauses(withInto bool) ([]*nodes.OrderByItem, *nodes
 	if _, ok := p.match(kwLIMIT); ok {
 		l, err := p.parseLimitClause()
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		limit = l
 	}
-
-	var into *nodes.IntoClause
-	if withInto && p.cur.Type == kwINTO {
-		p.advance()
-		i, err := p.parseIntoClause()
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		into = i
-	}
-	return orderBy, limit, into, nil
+	return orderBy, limit, nil
 }
 
 // parseValuesStmt parses a VALUES statement (MySQL 8.0.19+): a VALUES query
@@ -2477,7 +2432,7 @@ func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if stmt.OrderBy, stmt.Limit, _, err = p.parseSourceClauses(false); err != nil {
+	if stmt.OrderBy, stmt.Limit, err = p.parseSourceClauses(); err != nil {
 		return nil, err
 	}
 	stmt.Loc.End = p.prev.End

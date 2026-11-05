@@ -130,7 +130,8 @@ func TestParenSubqueryOperandParses(t *testing.T) {
 		"SELECT (((SELECT a FROM t ORDER BY a LIMIT 1)) = 1)",
 		"SELECT ((WITH cte AS (SELECT 1 AS c) SELECT c FROM cte) = 1)",
 		"SELECT ((VALUES ROW(1)) = 1)",
-		"SELECT ((TABLE t2) = 1)",
+		// OceanBase has no TABLE query, so "SELECT ((TABLE t2) = 1)", which
+		// MySQL 8.0 takes, is 1064 there (query_forms_test.go).
 		// Quantified comparison keeps working around these shapes.
 		"SELECT (1 = ANY ((SELECT a FROM t)))",
 		"SELECT ((SELECT max(a) FROM t) = ANY (SELECT a FROM t))",

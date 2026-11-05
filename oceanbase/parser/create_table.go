@@ -71,7 +71,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	// CREATE TABLE ... AS SELECT
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseCreateQuery()
+		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
@@ -84,11 +84,11 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	if p.cur.Type == '(' {
 		next := p.peekNext()
 		// Check for CREATE TABLE ... (query) — query source without AS: a
-		// parenthesized query expression, see isCreateQueryStart. Let
-		// parseSelectStmt consume the parentheses and any following set-op /
-		// ORDER BY / LIMIT so "(SELECT 1) UNION (SELECT 2)" stays one source.
-		if p.isCreateQueryStart() {
-			sel, err := p.parseCreateQuery()
+		// parenthesized query expression. Let parseSelectStmt consume the
+		// parentheses and any following set-op / ORDER BY / LIMIT so
+		// "(SELECT 1) UNION (SELECT 2)" stays one source.
+		if p.isQueryExpressionStart() {
+			sel, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
 			}
@@ -124,7 +124,7 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 	// CREATE TABLE t (cols) [IGNORE|REPLACE] [AS] SELECT ...
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseCreateQuery()
+		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
@@ -173,20 +173,19 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 
 	// [AS] query after the columns, options and partitioning, with or without
 	// AS, and required after IGNORE or REPLACE: create_table_stmt in OceanBase
-	// CE v4.3.5_CE_BP1 src/sql/parser/sql_parser_mysql_mode.y:5365, and see
-	// isCreateQueryStart for the queries it takes. Reading only SELECT here
-	// used to end the statement in front of "VALUES ROW(1)" or "(SELECT 1)",
-	// which then parsed as a second statement.
+	// CE v4.3.5_CE_BP1 src/sql/parser/sql_parser_mysql_mode.y:5365. Reading
+	// only SELECT here used to end the statement in front of "VALUES ROW(1)"
+	// or "(SELECT 1)", which then parsed as a second statement.
 	switch {
 	case p.cur.Type == kwAS:
 		p.advance()
-		sel, err := p.parseCreateQuery()
+		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
-	case p.isCreateQueryStart():
-		sel, err := p.parseCreateQuery()
+	case p.isQueryExpressionStart():
+		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
@@ -197,32 +196,6 @@ func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateT
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
-}
-
-// isCreateQueryStart reports whether the current token opens the query of
-// CREATE TABLE ... [AS] query: SELECT, WITH, VALUES, or a parenthesized query
-// opening with one of them. OceanBase has no TABLE query, so where MySQL 8.0
-// takes "CREATE TABLE t TABLE u", "CREATE TABLE t AS TABLE u" and
-// "CREATE TABLE t (TABLE u)", oceanbase-ce 4.3.5-lts answers 1064 for each.
-func (p *Parser) isCreateQueryStart() bool {
-	tok := p.cur
-	if tok.Type == '(' {
-		tok = p.firstTokenPastParens()
-	}
-	switch tok.Type {
-	case kwSELECT, kwWITH, kwVALUES:
-		return true
-	}
-	return false
-}
-
-// parseCreateQuery parses the query of CREATE TABLE ... [AS] query, which
-// must open the way isCreateQueryStart says.
-func (p *Parser) parseCreateQuery() (*nodes.SelectStmt, error) {
-	if !p.isCreateQueryStart() {
-		return nil, p.syntaxErrorAtCur()
-	}
-	return p.parseSelectStmt()
 }
 
 // parseCreateDefinitions parses column definitions and table constraints

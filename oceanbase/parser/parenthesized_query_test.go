@@ -94,17 +94,18 @@ func TestParenthesizedQueryRejected(t *testing.T) {
 	}
 }
 
-// TestParenthesizedQueryLocking pins MySQL 8.0 locking placement. Unlike TiDB,
-// MySQL accepts FOR UPDATE after a parenthesized query expression and after a
-// parenthesized set operation.
+// TestParenthesizedQueryLocking pins OceanBase's locking placement: a locking
+// clause goes inside the parentheses, after a set operation, or after the
+// ORDER BY or LIMIT that follows a parenthesized query. A locking clause right
+// after a lone parenthesized query, "(SELECT a FROM t) FOR UPDATE", is 1064 on
+// OceanBase where MySQL 8.0 takes it; query_forms_test.go records those forms.
 func TestParenthesizedQueryLocking(t *testing.T) {
 	for _, sql := range []string{
 		"(SELECT a FROM t FOR UPDATE)",
-		"(SELECT a FROM t) FOR UPDATE",
-		"(SELECT a FROM t) LOCK IN SHARE MODE",
+		"(SELECT a FROM t) ORDER BY a FOR UPDATE",
+		"(SELECT a FROM t) LIMIT 1 LOCK IN SHARE MODE",
 		"(SELECT a FROM t FOR UPDATE) UNION (SELECT a FROM t)",
 		"(SELECT a FROM t) UNION (SELECT a FROM t) FOR UPDATE",
-		"((SELECT a FROM t) UNION (SELECT a FROM t)) FOR UPDATE",
 		"(SELECT a FROM t) UNION (SELECT a FROM t) ORDER BY 1 FOR UPDATE",
 		"SELECT a FROM t UNION SELECT a FROM t FOR UPDATE",
 	} {
@@ -116,14 +117,13 @@ func TestParenthesizedQueryLocking(t *testing.T) {
 
 // TestParenthesizedQueryMysqlPrimaries tracks MySQL query primaries that TiDB's
 // parenthesized-query PR explicitly deferred. These require SelectStmt to model
-// non-SELECT primaries as operands, not just SELECT leaves.
+// non-SELECT primaries as operands, not just SELECT leaves. OceanBase has VALUES
+// but no TABLE query (query_forms_test.go).
 func TestParenthesizedQueryMysqlPrimaries(t *testing.T) {
 	for _, sql := range []string{
-		"(TABLE t)",
 		"(VALUES ROW(1))",
-		"(SELECT 1) UNION (TABLE t)",
-		"(TABLE t) UNION (SELECT 1)",
 		"(SELECT 1) UNION (VALUES ROW(2))",
+		"(VALUES ROW(1)) UNION (SELECT 1)",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)

@@ -36,7 +36,8 @@ type SelectStmt struct {
 	// node stands for. The source holds only its table or rows; the ORDER BY,
 	// LIMIT, and INTO after it are this node's, except that an ORDER BY and
 	// LIMIT after the last operand of a set operation are the set operation's.
-	TableSource  *TableStmt  // TABLE query primary
+	// OceanBase has no TABLE query, so the parser never sets TableSource.
+	TableSource  *TableStmt  // TABLE query primary; never set by the parser
 	ValuesSource *ValuesStmt // VALUES query primary
 	// ParenSource is the inner query of a parenthesized query expression
 	// ( SELECT ... ). When non-nil this node is a parentheses wrapper: its own
@@ -122,7 +123,7 @@ type InsertStmt struct {
 	Columns        []*ColumnRef  // explicit column list
 	Values         [][]ExprNode  // VALUES rows
 	Select         *SelectStmt   // INSERT ... SELECT
-	TableSource    *TableStmt    // INSERT ... TABLE table_name (MySQL 8.0.19+)
+	TableSource    *TableStmt    // INSERT ... TABLE table_name (MySQL 8.0.19+); never set by the parser
 	SetList        []*Assignment // INSERT ... SET col=val (MySQL extension)
 	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
 	ColAliases     []string      // (col_alias, ...) after row_alias
@@ -2348,6 +2349,10 @@ func (s *DeclareCursorStmt) stmtNode() {}
 
 // TableStmt represents a TABLE statement (MySQL 8.0.19+).
 // TABLE t is equivalent to SELECT * FROM t.
+//
+// OceanBase has no TABLE query, so the parser never builds a TableStmt: "TABLE
+// t" is 1064 there as a statement and wherever a query goes. The type stays so
+// code written against the MySQL-shaped tree keeps compiling.
 //
 // A TableStmt that stands alone (a statement, an EXPLAIN target, the source
 // of INSERT ... TABLE) holds its own ORDER BY, LIMIT, and INTO. As the

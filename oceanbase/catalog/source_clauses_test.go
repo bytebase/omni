@@ -22,14 +22,15 @@ func (c *nodeCounter) Visit(n nodes.Node) nodes.Visitor {
 	return c
 }
 
-// TestNestedSourcesWalkedOnce: a TABLE or VALUES source nested in the ORDER
-// BY of another, which MySQL 8.0 accepts, doubled the work of every walk at
-// each level while both the source and the SelectStmt over it held the ORDER
-// BY: at 20 levels ast.Walk visited 9.4 million nodes and NodeToString wrote
-// 289 MB. Each consumer must now finish 1,000 levels within the deadline.
+// TestNestedSourcesWalkedOnce: a VALUES source nested in the ORDER BY of
+// another doubled the work of every walk at each level while both the source
+// and the SelectStmt over it held the ORDER BY: at 20 levels ast.Walk visited
+// 9.4 million nodes and NodeToString wrote 289 MB. Each consumer must now
+// finish 1,000 levels within the deadline. OceanBase has no TABLE query, so
+// the TABLE source MySQL 8.0 also nests this way does not parse here.
 func TestNestedSourcesWalkedOnce(t *testing.T) {
 	const depth = 1000
-	for _, open := range []string{"TABLE t ORDER BY (", "VALUES ROW(1) ORDER BY ("} {
+	for _, open := range []string{"VALUES ROW(1) ORDER BY ("} {
 		query := "SELECT (" + strings.Repeat(open, depth) + "SELECT 1" + strings.Repeat(")", depth+1)
 		list, err := parser.Parse(query)
 		if err != nil {
