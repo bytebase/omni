@@ -179,34 +179,22 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 }
 
 // jsonValueIndexType is the hidden column a functional index over JSON_VALUE ... RETURNING gets:
-// a CHAR(n) is a varchar(n), and a temporal type keeps its precision.
-//
-// A string longer than 512 characters, which is what one with no length is, is a TEXT or a BLOB,
-// and an index over it is refused: mysql:8.0.46 takes RETURNING CHAR(512) and answers 3757 for
-// CHAR(513) and for CHAR.
+// a CHAR(n) is a varchar(n), and a temporal type keeps its precision. OceanBase 4.3.5.6 has no
+// limit on its length here: it takes RETURNING CHAR and RETURNING CHAR(513), which MySQL refuses.
 func jsonValueIndexType(dt *nodes.DataType) *ResolvedType {
 	if strings.EqualFold(dt.Name, "year") {
 		return &ResolvedType{BaseType: BaseTypeYear}
 	}
 	rt := dataTypeToResolvedType(dt)
-	// CHAR ... CHARSET binary is a binary string: mysql:8.0.46 gives RETURNING CHAR(3) CHARSET
-	// binary a varbinary(3) hidden column.
 	if rt.BaseType == BaseTypeChar && strings.EqualFold(dt.Charset, "binary") {
 		rt.BaseType = BaseTypeBinary
 	}
 	switch rt.BaseType {
-	case BaseTypeChar, BaseTypeBinary:
-		long := !dt.HasLength || dt.Length > 512
-		switch {
-		case long && rt.BaseType == BaseTypeChar:
-			rt.BaseType = BaseTypeText
-		case long:
-			rt.BaseType = BaseTypeBlob
-		case rt.BaseType == BaseTypeChar:
-			rt.BaseType = BaseTypeVarchar
-		default:
-			rt.BaseType = BaseTypeVarBinary
-		}
+	case BaseTypeChar:
+		rt.BaseType = BaseTypeVarchar
+		rt.Length = dt.Length
+	case BaseTypeBinary:
+		rt.BaseType = BaseTypeVarBinary
 		rt.Length = dt.Length
 	case BaseTypeDateTime, BaseTypeTime:
 		rt.Precision = dt.Length

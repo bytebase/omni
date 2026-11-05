@@ -34,6 +34,13 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		return nil, err
 	}
 	pathStart := p.cur
+	// The path is a text_literal: an introducer before a hex or bit literal makes a string too,
+	// but not one the path takes (1064 on mysql:8.0.46).
+	if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) {
+		if next := p.peekNext().Type; next == tokXCONST || next == tokBCONST {
+			return nil, &ParseError{Message: "JSON_VALUE takes a string literal as its path", Position: pathStart.Loc}
+		}
+	}
 	national := p.skipNationalPrefix()
 	path, err := p.parsePrimaryExpr()
 	if err != nil {
@@ -129,13 +136,30 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 	}
 	p.advance() // consume DEFAULT
 	start := p.cur.Loc
+	// signed_literal is one sign and a number straight after it, token by token: - 1, +1.5 and
+	// -1e2 read, and +~1, --1, -(1) and -0x61 are 1064 (mysql:8.0.46). The expression reader would
+	// fold the first sign into what follows, so the sign is read here.
+	if p.cur.Type == '-' || p.cur.Type == '+' {
+		sign := p.advance()
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return nil, &ParseError{Message: "JSON_VALUE takes a literal after DEFAULT", Position: start}
+		}
+		number, err := p.parsePrimaryExpr()
+		if err != nil {
+			return nil, err
+		}
+		value := number
+		if sign.Type == '-' {
+			value = &nodes.UnaryExpr{Loc: nodes.Loc{Start: sign.Loc, End: p.prev.End}, Op: nodes.UnaryMinus, Operand: number}
+		}
+		return &nodes.JSONValueResponse{Loc: nodes.Loc{Start: begin, End: p.prev.End}, Default: value}, nil
+	}
 	national := p.skipNationalPrefix()
-	signed := p.cur.Type == '-' || p.cur.Type == '+'
 	value, err := p.parseExprPrec(precUnary)
 	if err != nil {
 		return nil, err
 	}
-	if !isJSONValueDefault(value, signed) {
+	if !isJSONValueDefault(value) {
 		return nil, &ParseError{Message: "JSON_VALUE takes a literal after DEFAULT", Position: start}
 	}
 	if lit, ok := value.(*nodes.StringLit); ok {
@@ -144,20 +168,11 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 	return &nodes.JSONValueResponse{Loc: nodes.Loc{Start: begin, End: p.prev.End}, Default: value}, nil
 }
 
-// isJSONValueDefault reports whether value is what signed_literal reads. A sign takes a number,
-// and a plus sign leaves no node behind.
-func isJSONValueDefault(value nodes.ExprNode, signed bool) bool {
-	if unary, ok := value.(*nodes.UnaryExpr); ok {
-		if !signed {
-			return false
-		}
-		value = unary.Operand
-	}
+// isJSONValueDefault reports whether value is a literal that takes no sign.
+func isJSONValueDefault(value nodes.ExprNode) bool {
 	switch value.(type) {
-	case *nodes.IntLit, *nodes.FloatLit:
+	case *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.BoolLit, *nodes.HexLit, *nodes.BitLit, *nodes.TemporalLit:
 		return true
-	case *nodes.StringLit, *nodes.BoolLit, *nodes.HexLit, *nodes.BitLit, *nodes.TemporalLit:
-		return !signed
 	}
 	return false
 }
