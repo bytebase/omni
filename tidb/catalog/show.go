@@ -611,6 +611,10 @@ func showPartitioning(pi *PartitionInfo) string {
 		}
 	}
 
+	if pi.IntervalText != "" {
+		b.WriteString(" " + pi.IntervalText)
+	}
+
 	// Subpartition clause.
 	if pi.SubType != "" {
 		b.WriteString("\n")
@@ -646,7 +650,7 @@ func showPartitioning(pi *PartitionInfo) string {
 				b.WriteString(",\n ")
 			}
 			b.WriteString("PARTITION ")
-			b.WriteString(pd.Name)
+			b.WriteString(partitionNameInDDL(pd.Name))
 			if pd.ValueExpr != "" {
 				switch {
 				case strings.HasPrefix(pi.Type, "RANGE"):
@@ -712,4 +716,15 @@ func partitionEngine(engine string) string {
 		return "InnoDB"
 	}
 	return engine
+}
+
+// partitionNameInDDL quotes a partition name that needs it, as a generated
+// P_LT_2020-01-01 00:00:00 does.
+func partitionNameInDDL(name string) string {
+	for _, r := range name {
+		if r != '_' && (r < '0' || r > '9') && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
+			return "`" + name + "`"
+		}
+	}
+	return name
 }

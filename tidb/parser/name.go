@@ -57,6 +57,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwIN:                 kwCatReserved,
 	kwBETWEEN:            kwCatReserved,
 	kwLIKE:               kwCatReserved,
+	kwILIKE:              kwCatReserved,
 	kwORDER:              kwCatReserved,
 	kwGROUP:              kwCatReserved,
 	kwBY:                 kwCatReserved,

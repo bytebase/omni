@@ -64,16 +64,6 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			report(v.Loc, "user", accounts(v.Users)...)
 		case *ast.DropRoleStmt:
 			report(v.Loc, "role", accounts(v.Roles)...)
-		case *ast.DropTablespaceStmt:
-			kind := "tablespace"
-			if v.Undo {
-				kind = "undo tablespace"
-			}
-			report(v.Loc, kind, ident(v.Name))
-		case *ast.DropServerStmt:
-			report(v.Loc, "server", ident(v.Name))
-		case *ast.DropLogfileGroupStmt:
-			report(v.Loc, "logfile group", ident(v.Name))
 		case *ast.DropSpatialRefSysStmt:
 			report(v.Loc, "spatial reference system", strconv.FormatInt(v.SRID, 10))
 		case *ast.DropResourceGroupStmt:

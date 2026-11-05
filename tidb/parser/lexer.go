@@ -91,6 +91,7 @@ const (
 	kwIN
 	kwBETWEEN
 	kwLIKE
+	kwILIKE
 	kwREGEXP
 	kwRLIKE
 	kwCASE
@@ -1063,6 +1064,7 @@ var keywords = map[string]int{
 	"in":                  kwIN,
 	"between":             kwBETWEEN,
 	"like":                kwLIKE,
+	"ilike":               kwILIKE,
 	"regexp":              kwREGEXP,
 	"rlike":               kwRLIKE,
 	"case":                kwCASE,

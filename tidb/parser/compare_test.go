@@ -7116,175 +7116,6 @@ func TestParseTableUnion(t *testing.T) {
 	ParseAndCheck(t, "VALUES ROW(1, 'a'), ROW(2, 'b') ORDER BY column_0")
 }
 
-func TestParseCreateTablespace(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "CREATE TABLESPACE ts1",
-			want: "{CREATE_TABLESPACE :loc 0 :name ts1}",
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd'",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd"}`,
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE = InnoDB",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :engine InnoDB}`,
-		},
-		{
-			sql:  "CREATE UNDO TABLESPACE ts1 ADD DATAFILE 'undo_ts1.ibu'",
-			want: `{CREATE_TABLESPACE :loc 0 :undo true :name ts1 :datafile "undo_ts1.ibu"}`,
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' FILE_BLOCK_SIZE = 16384 ENCRYPTION = 'Y' ENGINE InnoDB",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :file_block_size 16384 :encryption "Y" :engine InnoDB}`,
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' AUTOEXTEND_SIZE = 4M",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :datafile "ts1.ibd" :autoextend_size 4M}`,
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 USE LOGFILE GROUP lg1",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :use_logfile_group lg1}`,
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 EXTENT_SIZE = 1M INITIAL_SIZE = 256M MAX_SIZE = 512M",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :extent_size 1M :initial_size 256M :max_size 512M}`,
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 NODEGROUP = 1 WAIT COMMENT = 'test ts' ENGINE NDB",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :nodegroup 1 :wait true :comment "test ts" :engine NDB}`,
-		},
-		{
-			sql:  "CREATE TABLESPACE ts1 ENGINE_ATTRIBUTE = '{\"key\": \"val\"}'",
-			want: `{CREATE_TABLESPACE :loc 0 :name ts1 :engine_attribute "{\"key\": \"val\"}"}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseAlterTablespace(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "ALTER TABLESPACE ts1 ADD DATAFILE 'ts1_2.ibd'",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :add_datafile "ts1_2.ibd"}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 DROP DATAFILE 'ts1_2.ibd'",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :drop_datafile "ts1_2.ibd"}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE = NDB",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :add_datafile "ts1.ibd" :engine NDB}`,
-		},
-		{
-			sql:  "ALTER UNDO TABLESPACE ts1 ADD DATAFILE 'undo.ibu'",
-			want: `{ALTER_TABLESPACE :loc 0 :undo true :name ts1 :add_datafile "undo.ibu"}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 RENAME TO ts2",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :rename_to ts2}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 AUTOEXTEND_SIZE = 4M",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :autoextend_size 4M}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 ENCRYPTION = 'Y'",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :encryption "Y"}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 ENGINE_ATTRIBUTE = '{\"key\": \"val\"}'",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :engine_attribute "{\"key\": \"val\"}"}`,
-		},
-		{
-			sql:  "ALTER TABLESPACE ts1 ADD DATAFILE 'f.ibd' WAIT ENGINE NDB",
-			want: `{ALTER_TABLESPACE :loc 0 :name ts1 :add_datafile "f.ibd" :wait true :engine NDB}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropTablespace(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP TABLESPACE ts1",
-			want: "{DROP_TABLESPACE :loc 0 :name ts1}",
-		},
-		{
-			sql:  "DROP TABLESPACE ts1 ENGINE = InnoDB",
-			want: "{DROP_TABLESPACE :loc 0 :name ts1 :engine InnoDB}",
-		},
-		{
-			sql:  "DROP UNDO TABLESPACE ts1",
-			want: "{DROP_TABLESPACE :loc 0 :undo true :name ts1}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseCreateServer(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (HOST 'remote_host', DATABASE 'test', USER 'remote_user')",
-			want: `{CREATE_SERVER :loc 0 :name s1 :wrapper mysql :options ("HOST remote_host" "DATABASE test" "USER remote_user")}`,
-		},
-		{
-			sql:  "CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (USER 'root')",
-			want: `{CREATE_SERVER :loc 0 :name s1 :wrapper mysql :options ("USER root")}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropServer(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP SERVER s1",
-			want: "{DROP_SERVER :loc 0 :name s1}",
-		},
-		{
-			sql:  "DROP SERVER IF EXISTS s1",
-			want: "{DROP_SERVER :loc 0 :if_exists true :name s1}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
 func TestParseCreateSpatialRefSys(t *testing.T) {
 	tests := []struct {
 		sql  string
@@ -7604,10 +7435,6 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"CLONE LOCAL DATA DIRECTORY = '/tmp/clone'",
 
 		// Tablespace/Server (batch 37)
-		"CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd'",
-		"DROP TABLESPACE ts1",
-		"CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (HOST '127.0.0.1')",
-		"DROP SERVER s1",
 
 		// SRS/Resource Group (batch 38)
 		"DROP SPATIAL REFERENCE SYSTEM 4326",
@@ -8902,18 +8729,6 @@ func TestParseFlushBinaryLogs(t *testing.T) {
 	}
 }
 
-func TestParseAlterUndoTablespaceSetActive(t *testing.T) {
-	tests := []string{
-		"ALTER UNDO TABLESPACE myts SET ACTIVE",
-		"ALTER UNDO TABLESPACE myts SET INACTIVE",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 // --- Batch 70: depth_fix_set_persist_show_full ---
 
 func TestParseShowFullTables(t *testing.T) {
@@ -9622,19 +9437,6 @@ func TestParseDo(t *testing.T) {
 
 // ─── Batch 83: depth_fix_utility_tests_batch2 ─────────────────────────────
 
-func TestParseAlterServer(t *testing.T) {
-	tests := []string{
-		"ALTER SERVER s1 OPTIONS (USER 'admin')",
-		"ALTER SERVER s1 OPTIONS (HOST '10.0.0.1', DATABASE 'db1')",
-		"ALTER SERVER s1 OPTIONS (USER 'root', HOST 'localhost', DATABASE 'test', PORT 3306)",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseHandlerOpenReadClose(t *testing.T) {
 	tests := []string{
 		"HANDLER t1 OPEN",
@@ -10057,101 +9859,6 @@ func TestParseChecksumTableExtended(t *testing.T) {
 			t.Errorf("expected :extended true in AST, got: %s", s)
 		}
 	})
-}
-
-func TestParseCreateLogfileGroup(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' ENGINE = NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :engine NDB}`,
-		},
-		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' INITIAL_SIZE = 16M ENGINE NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :initial_size 16M :engine NDB}`,
-		},
-		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' UNDO_BUFFER_SIZE = 8M ENGINE = NDBCLUSTER",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :undo_buffer_size 8M :engine NDBCLUSTER}`,
-		},
-		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' REDO_BUFFER_SIZE 32M ENGINE = NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :redo_buffer_size 32M :engine NDB}`,
-		},
-		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' NODEGROUP = 0 ENGINE = NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :nodegroup 0 :engine NDB}`,
-		},
-		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' WAIT ENGINE = NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :wait true :engine NDB}`,
-		},
-		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' COMMENT = 'test group' ENGINE = NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :comment "test group" :engine NDB}`,
-		},
-		{
-			sql:  "CREATE LOGFILE GROUP lg1 ADD UNDOFILE 'undo1.dat' INITIAL_SIZE 16M UNDO_BUFFER_SIZE 8M REDO_BUFFER_SIZE 32M NODEGROUP 0 WAIT COMMENT 'full opts' ENGINE NDB",
-			want: `{CREATE_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo1.dat" :initial_size 16M :undo_buffer_size 8M :redo_buffer_size 32M :nodegroup 0 :wait true :comment "full opts" :engine NDB}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseAlterLogfileGroup(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' ENGINE = NDB",
-			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :engine NDB}`,
-		},
-		{
-			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' INITIAL_SIZE = 32M ENGINE NDB",
-			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :initial_size 32M :engine NDB}`,
-		},
-		{
-			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' WAIT ENGINE = NDBCLUSTER",
-			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :wait true :engine NDBCLUSTER}`,
-		},
-		{
-			sql:  "ALTER LOGFILE GROUP lg1 ADD UNDOFILE 'undo2.dat' INITIAL_SIZE 16M WAIT ENGINE NDB",
-			want: `{ALTER_LOGFILE_GROUP :loc 0 :name lg1 :undo_file "undo2.dat" :initial_size 16M :wait true :engine NDB}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropLogfileGroup(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP LOGFILE GROUP lg1 ENGINE = NDB",
-			want: "{DROP_LOGFILE_GROUP :loc 0 :name lg1 :engine NDB}",
-		},
-		{
-			sql:  "DROP LOGFILE GROUP lg1 ENGINE NDBCLUSTER",
-			want: "{DROP_LOGFILE_GROUP :loc 0 :name lg1 :engine NDBCLUSTER}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
 }
 
 func TestParseShowCreateSchema(t *testing.T) {

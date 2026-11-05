@@ -313,6 +313,8 @@ func TestDeparse_Section_2_5_ComparisonPredicates(t *testing.T) {
 		{"not_between", "a NOT BETWEEN 1 AND 10", "(`a` not between 1 and 10)"},
 		// LIKE
 		{"like", "a LIKE 'foo%'", "(`a` like 'foo%')"},
+		{"ilike", "a ILIKE 'foo%'", "(`a` ilike 'foo%')"},
+		{"not_ilike_escape", "a NOT ILIKE 'x' ESCAPE 'y'", "(not((`a` ilike 'x' escape 'y')))"},
 		// LIKE with ESCAPE
 		{"like_escape", "a LIKE 'x' ESCAPE '\\\\'", "(`a` like 'x' escape '\\\\')"},
 		// IS NULL

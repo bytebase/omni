@@ -1183,6 +1183,9 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	if tbl.Partitioning == nil {
 		return fmt.Errorf("ALTER TABLE ADD PARTITION: table '%s' is not partitioned", tbl.Name)
 	}
+	if err := refuseHistoryPartitions(tbl, cmd.PartitionDefs, true); err != nil {
+		return err
+	}
 	// ADD PARTITION PARTITIONS n names the partitions it appends the way
 	// CREATE TABLE does, continuing the pN run: TiDB v8.5.5 answers p0..p4 to
 	// `PARTITION BY HASH(id) PARTITIONS 3` followed by `ADD PARTITION
@@ -1299,6 +1302,9 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return fmt.Errorf("ALTER TABLE REORGANIZE PARTITION: table '%s' is not partitioned", tbl.Name)
+	}
+	if err := refuseHistoryPartitions(tbl, cmd.PartitionDefs, false); err != nil {
+		return err
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)

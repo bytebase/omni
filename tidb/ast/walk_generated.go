@@ -839,6 +839,10 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		Walk(v, n.SubPartExpr)
+		if n.Interval != nil {
+			Walk(v, n.Interval)
+		}
+		Walk(v, n.SystemTimeInterval)
 		for _, item := range n.UpdateIndexes {
 			if item != nil {
 				Walk(v, item)
@@ -856,6 +860,10 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *PartitionInterval:
+		Walk(v, n.Expr)
+		Walk(v, n.First)
+		Walk(v, n.Last)
 	case *PlanReplayerStmt:
 		Walk(v, n.HistoricalStats)
 		Walk(v, n.Stmt)
