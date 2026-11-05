@@ -10,7 +10,7 @@ import "testing"
 //
 // Not in this table, because they do not depend on this word: `LOCK TABLES t
 // tablesample READ` is a 1064 as `LOCK TABLES t a READ` is, `SELECT @@ tablesample` as
-// `SELECT @@ a` is, and `SELECT @@tablesample.a` as `SELECT @@a.b` is. omni accepts them.
+// `SELECT @@ a` is, and `SELECT @@tablesample.a` as `SELECT @@a.table` is. omni accepts them.
 
 // tableSampleCase is a statement and whether the engine's parser accepts it.
 type tableSampleCase struct {
