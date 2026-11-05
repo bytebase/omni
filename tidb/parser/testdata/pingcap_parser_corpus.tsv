@@ -14,18 +14,18 @@
 # A gap closed by a parser change flips its omni column from reject to accept.
 # Do not edit a row's engine column to make a test pass: that column records
 # what the engine does, and a disagreement with it is the finding.
-reject	accept	recommend index run
-reject	accept	recommend index run with A = 1
-reject	accept	recommend index run with A = 1, B = 2
-reject	accept	recommend index run for 'select * from t where a=1'
-reject	accept	recommend index run for 'select * from t where a=1' with A = 1
-reject	accept	recommend index run for 'select * from t where a=1' with A = 1, B = 2
+accept	accept	recommend index run
+accept	accept	recommend index run with A = 1
+accept	accept	recommend index run with A = 1, B = 2
+accept	accept	recommend index run for 'select * from t where a=1'
+accept	accept	recommend index run for 'select * from t where a=1' with A = 1
+accept	accept	recommend index run for 'select * from t where a=1' with A = 1, B = 2
 reject	reject	recommend index show option
-reject	accept	recommend index apply 1
-reject	accept	recommend index ignore 1
-reject	accept	recommend index set A = 1
-reject	accept	recommend index set A = 1, B = 2
-reject	accept	recommend index set A = 1, B = 2, C = 3
+accept	accept	recommend index apply 1
+accept	accept	recommend index ignore 1
+accept	accept	recommend index set A = 1
+accept	accept	recommend index set A = 1, B = 2
+accept	accept	recommend index set A = 1, B = 2, C = 3
 accept	accept	admin show ddl;
 accept	accept	admin show ddl jobs;
 accept	accept	admin show ddl jobs where id > 0;
@@ -491,7 +491,7 @@ accept	accept	show distribution jobs where id > 0
 reject	reject	show distribution job 1 where id > 0
 accept	accept	show distribution job 1
 reject	reject	cancel distribution job
-reject	accept	cancel distribution job 1
+accept	accept	cancel distribution job 1
 accept	accept	show table t1.t1 next_row_id
 accept	accept	show table t1 next_row_id
 reject	reject	show table next_row_id
@@ -505,15 +505,15 @@ accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a TINYINT UNSIGNED);
 accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (name CHAR(50) CHARACTER SET UTF8)
 accept	accept	ALTER INSTANCE RELOAD TLS
 accept	accept	ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR
-reject	accept	ALTER RANGE global PLACEMENT POLICY mypolicy
-reject	accept	ALTER RANGE global PLACEMENT POLICY default
-reject	accept	ALTER RANGE meta PLACEMENT POLICY mypolicy
+accept	accept	ALTER RANGE global PLACEMENT POLICY mypolicy
+accept	accept	ALTER RANGE global PLACEMENT POLICY default
+accept	accept	ALTER RANGE meta PLACEMENT POLICY mypolicy
 accept	accept	CREATE SEQUENCE seq INCREMENT - 9223372036854775807
 accept	accept	CREATE SEQUENCE seq INCREMENT - 9223372036854775808
 accept	accept	CREATE SEQUENCE seq INCREMENT -9223372036854775808
 reject	reject	CREATE SEQUENCE seq INCREMENT -9223372036854775809
-reject	accept	select `t`.`1a`.1 from t;
-reject	accept	select * from 1db.1table;
+accept	accept	select `t`.`1a`.1 from t;
+accept	accept	select * from 1db.1table;
 accept	accept	select * from t where t. status = 1;
 accept	accept	SHOW PLACEMENT
 accept	accept	SHOW PLACEMENT LIKE 'POLICY foo%'
@@ -606,7 +606,7 @@ accept	accept	SHOW GRANTS FOR current_user
 accept	accept	SHOW GRANTS FOR 'u1'@'localhost' USING 'r1'
 accept	accept	SHOW GRANTS FOR 'u1'@'localhost' USING 'r1', 'r2'
 accept	accept	SHOW COLUMNS FROM City;
-reject	accept	SHOW COLUMNS FROM tv189.1_t_1_x;
+accept	accept	SHOW COLUMNS FROM tv189.1_t_1_x;
 accept	accept	SHOW FIELDS FROM City;
 accept	accept	SHOW TRIGGERS LIKE 't'
 accept	accept	SHOW DATABASES LIKE 'test2'
@@ -747,12 +747,12 @@ accept	accept	SET ROLE ALL EXCEPT `role1`, `role2`
 accept	accept	SET DEFAULT ROLE administrator, developer TO `joe`@`10.0.0.1`
 accept	accept	set names utf8, @@session.sql_mode=1;
 accept	accept	set @@session.sql_mode=1, names utf8, charset utf8;
-reject	accept	set config TIKV LOG.LEVEL='info'
-reject	accept	set config PD LOG.LEVEL='info'
-reject	accept	set config TIDB LOG.LEVEL='info'
-reject	accept	set config '127.0.0.1:3306' LOG.LEVEL='info'
-reject	accept	set config '127.0.0.1:3306' AUTO-COMPACTION-MODE=TRUE
-reject	accept	set config '127.0.0.1:3306' LABEL-PROPERTY.REJECT-LEADER.KEY='zone'
+accept	accept	set config TIKV LOG.LEVEL='info'
+accept	accept	set config PD LOG.LEVEL='info'
+accept	accept	set config TIDB LOG.LEVEL='info'
+accept	accept	set config '127.0.0.1:3306' LOG.LEVEL='info'
+accept	accept	set config '127.0.0.1:3306' AUTO-COMPACTION-MODE=TRUE
+accept	accept	set config '127.0.0.1:3306' LABEL-PROPERTY.REJECT-LEADER.KEY='zone'
 accept	accept	show config
 accept	accept	show config where type='tidb'
 accept	accept	show config where instance='127.0.0.1:3306'
@@ -768,8 +768,8 @@ accept	accept	flush tables tbl1, tbl2, tbl3
 accept	accept	flush tables tbl1, tbl2, tbl3 with read lock
 accept	accept	flush privileges
 accept	accept	flush status
-reject	accept	flush tidb plugins plugin1
-reject	accept	flush tidb plugins plugin1, plugin2
+accept	accept	flush tidb plugins plugin1
+accept	accept	flush tidb plugins plugin1, plugin2
 accept	accept	flush hosts
 accept	accept	flush logs
 accept	accept	flush binary logs
@@ -3394,9 +3394,9 @@ accept	accept	kill 23123
 accept	accept	kill CONNECTION_ID()
 accept	accept	kill connection 23123
 accept	accept	kill query 23123
-reject	accept	kill tidb 23123
-reject	accept	kill tidb connection 23123
-reject	accept	kill tidb query 23123
+accept	accept	kill tidb 23123
+accept	accept	kill tidb connection 23123
+accept	accept	kill tidb query 23123
 accept	accept	show processlist
 accept	accept	show full processlist
 accept	accept	shutdown
@@ -3692,16 +3692,16 @@ accept	accept	restore table g from 'noop://' checksum off
 accept	accept	restore table g from 'noop://' checksum optional
 accept	accept	backup logs to 'noop://'
 accept	accept	backup logs to 'noop://' start_ts='20220304'
-reject	accept	pause backup logs
-reject	accept	pause backup logs gc_ttl='20220304'
-reject	accept	resume backup logs
-reject	accept	show backup logs status
-reject	accept	show backup logs metadata from 'noop://'
-reject	accept	show br job 1234
-reject	accept	show br job query 1234
-reject	accept	cancel br job 1234
-reject	accept	purge backup logs from 'noop://'
-reject	accept	purge backup logs from 'noop://' until_ts='2012122304'
+accept	accept	pause backup logs
+accept	accept	pause backup logs gc_ttl='20220304'
+accept	accept	resume backup logs
+accept	accept	show backup logs status
+accept	accept	show backup logs metadata from 'noop://'
+accept	accept	show br job 1234
+accept	accept	show br job query 1234
+accept	accept	cancel br job 1234
+accept	accept	purge backup logs from 'noop://'
+accept	accept	purge backup logs from 'noop://' until_ts='2012122304'
 accept	accept	restore point from 'noop://log_backup'
 accept	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log'
 accept	accept	restore point from 'noop://log_backup' full_backup_storage='noop://full_log' restored_ts='20230123'

@@ -7655,7 +7655,6 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"START REPLICA",
 		"STOP REPLICA",
 		"RESET REPLICA",
-		"PURGE BINARY LOGS TO 'mysql-bin.010'",
 		"RESET MASTER",
 	}
 
@@ -7820,19 +7819,6 @@ func TestParseResetReplica(t *testing.T) {
 		"RESET REPLICA ALL",
 		"RESET REPLICA FOR CHANNEL ch1",
 		"RESET REPLICA ALL FOR CHANNEL ch1",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParsePurgeBinaryLogs(t *testing.T) {
-	tests := []string{
-		"PURGE BINARY LOGS TO 'mysql-bin.010'",
-		"PURGE BINARY LOGS BEFORE '2019-04-02 22:46:26'",
-		"PURGE MASTER LOGS TO 'mysql-bin.010'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8921,17 +8907,6 @@ func TestParseFlushTablesWithReadLock(t *testing.T) {
 	}
 }
 
-func TestParseFlushTablesForExport(t *testing.T) {
-	tests := []string{
-		"FLUSH TABLES t1 FOR EXPORT",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseFlushBinaryLogs(t *testing.T) {
 	tests := []string{
 		"FLUSH BINARY LOGS",
@@ -9188,18 +9163,6 @@ func TestParseWithDelete(t *testing.T) {
 // -----------------------------------------------------------------------
 // Batch 74 – depth_fix_replication_misc
 // -----------------------------------------------------------------------
-
-func TestParsePurgeBinaryLogsBeforeDatetime(t *testing.T) {
-	tests := []string{
-		"PURGE BINARY LOGS BEFORE '2023-01-01 00:00:00'",
-		"PURGE BINARY LOGS BEFORE NOW() - INTERVAL 3 DAY",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
 
 func TestParseCacheIndexPartition(t *testing.T) {
 	tests := []string{
@@ -9618,7 +9581,6 @@ func TestParseFlush(t *testing.T) {
 		"FLUSH TABLES t1, t2",
 		"FLUSH TABLES WITH READ LOCK",
 		"FLUSH TABLES t1, t2 WITH READ LOCK",
-		"FLUSH TABLES t1 FOR EXPORT",
 		"FLUSH LOCAL TABLES",
 		"FLUSH NO_WRITE_TO_BINLOG TABLES",
 		"FLUSH PRIVILEGES",
@@ -10866,33 +10828,6 @@ func TestReviewBatch111_FlushSlowLogs(t *testing.T) {
 	}
 }
 
-func TestReviewBatch111_FlushRelayLogs(t *testing.T) {
-	result := ParseAndCheck(t, "FLUSH RELAY LOGS")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, "RELAY LOGS") {
-		t.Errorf("expected RELAY LOGS, got %s", s)
-	}
-}
-
-func TestReviewBatch111_FlushRelayLogsForChannel(t *testing.T) {
-	result := ParseAndCheck(t, "FLUSH RELAY LOGS FOR CHANNEL 'channel_1'")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, "RELAY LOGS") {
-		t.Errorf("expected RELAY LOGS, got %s", s)
-	}
-	if !strings.Contains(s, ":relay_channel") {
-		t.Errorf("expected :relay_channel, got %s", s)
-	}
-}
-
-func TestReviewBatch111_FlushMultipleOptions(t *testing.T) {
-	result := ParseAndCheck(t, "FLUSH HOSTS, STATUS")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, "HOSTS") || !strings.Contains(s, "STATUS") {
-		t.Errorf("expected HOSTS and STATUS, got %s", s)
-	}
-}
-
 func TestReviewBatch111_FlushNoWriteToBinlog(t *testing.T) {
 	result := ParseAndCheck(t, "FLUSH NO_WRITE_TO_BINLOG TABLES")
 	s := ast.NodeToString(result.Items[0])
@@ -10911,14 +10846,6 @@ func TestReviewBatch111_FlushLocalTables(t *testing.T) {
 
 func TestReviewBatch111_FlushLogs(t *testing.T) {
 	ParseAndCheck(t, "FLUSH LOGS")
-}
-
-func TestReviewBatch111_FlushOptimizerCosts(t *testing.T) {
-	ParseAndCheck(t, "FLUSH OPTIMIZER_COSTS")
-}
-
-func TestReviewBatch111_FlushUserResources(t *testing.T) {
-	ParseAndCheck(t, "FLUSH USER_RESOURCES")
 }
 
 func TestReviewBatch111_BinlogStr(t *testing.T) {

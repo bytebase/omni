@@ -155,6 +155,8 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.alterPlacementPolicy(s)
 	case *nodes.DropPlacementPolicyStmt:
 		return c.dropPlacementPolicy(s)
+	case *nodes.AlterRangeStmt:
+		return c.alterRange(s)
 	case *nodes.DropTableStmt:
 		return c.dropTable(s)
 	case *nodes.DropDatabaseStmt:
@@ -230,10 +232,22 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		// applied as a no-op rather than left to the default arm, where
 		// an unmodelled statement and a deliberate no-op read the same.
 		return nil
+	case *nodes.RecommendIndexStmt, *nodes.SetConfigStmt, *nodes.CancelDistributionJobStmt,
+		*nodes.KillStmt, *nodes.FlushStmt:
+		// TiDB's index advisor, its dynamic configuration, a job cancel, a
+		// session kill and FLUSH. RECOMMEND INDEX RUN only reports: it plans
+		// over hypothetical indexes and leaves SHOW CREATE TABLE as it was, and
+		// APPLY, which sounds as if it adds the index, answers 1105 "unsupported
+		// action apply" on v8.5.5 (both measured). The others change a server's
+		// state, not a schema the catalog holds, so each is applied as a no-op
+		// rather than left to the default arm, where an unmodelled statement and
+		// a deliberate no-op read the same.
+		return nil
 	case *nodes.BRIEStmt, *nodes.RecoverTableStmt, *nodes.FlashbackTableStmt,
 		*nodes.FlashbackDatabaseStmt, *nodes.FlashbackToTimestampStmt:
 		// TiDB's backup, restore, recover and flashback statements. A
-		// BACKUP reads and changes nothing. The others do change a
+		// BACKUP reads and changes nothing, and neither do the log task and
+		// BR job statements. The others do change a
 		// schema, but none of them says how: RESTORE, RECOVER TABLE and
 		// the two bring-back FLASHBACK forms each put back an object
 		// whose definition is in a backup or in a dropped table the
@@ -401,6 +415,20 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.SetResourceGroupStmt:
 		return s.Loc.Start
 	case *nodes.CalibrateResourceStmt:
+		return s.Loc.Start
+	case *nodes.RecommendIndexStmt:
+		return s.Loc.Start
+	case *nodes.SetConfigStmt:
+		return s.Loc.Start
+	case *nodes.AlterRangeStmt:
+		return s.Loc.Start
+	case *nodes.CancelDistributionJobStmt:
+		return s.Loc.Start
+	case *nodes.KillStmt:
+		return s.Loc.Start
+	case *nodes.FlushStmt:
+		return s.Loc.Start
+	case *nodes.BRIEStmt:
 		return s.Loc.Start
 	case *nodes.AddQueryWatchStmt:
 		return s.Loc.Start

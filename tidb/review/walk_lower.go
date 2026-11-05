@@ -73,6 +73,13 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.createStatistics(v)
 	case *ast.ExplainStmt, *ast.TraceStmt:
 		return b.wrapper(v)
+	case *ast.BRIEStmt:
+		// The log task and BR job statements name no table, and fail only on
+		// what the walk does not hold: a task, a job, a cluster without TiKV.
+		// Every other kind drops out below.
+		if v.Kind.IsLogTaskOrJob() {
+			return true
+		}
 	case *ast.PlanReplayerStmt:
 		if v.Load {
 			// PLAN REPLAYER LOAD puts back the schemas the dump carries,
@@ -103,7 +110,9 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt,
 		*ast.CreateResourceGroupStmt, *ast.AlterResourceGroupStmt, *ast.DropResourceGroupStmt,
 		*ast.SetResourceGroupStmt, *ast.CalibrateResourceStmt,
-		*ast.AddQueryWatchStmt, *ast.DropQueryWatchStmt:
+		*ast.AddQueryWatchStmt, *ast.DropQueryWatchStmt,
+		*ast.RecommendIndexStmt, *ast.SetConfigStmt, *ast.AlterRangeStmt, *ast.CancelDistributionJobStmt,
+		*ast.KillStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
 		// SPLIT ... TABLE and DISTRIBUTE TABLE are here for the same
@@ -122,6 +131,14 @@ func (b *builder) statement(n ast.Node) bool {
 		// that reason: both parsed already, and both reached the default
 		// arm, so either one in the middle of a change script ended the
 		// walk and hid every finding below it.
+		// KILL is here for the same reason. RECOMMEND INDEX, SET CONFIG, ALTER
+		// RANGE and CANCEL DISTRIBUTION JOB name an advisor option, a config
+		// item, a placement policy and a job. The walk holds none of those, so
+		// the answers each can get on v8.5.5 (unknown option, unknown policy,
+		// range name not supported, a job that is gone) are not its to claim.
+		// RECOMMEND INDEX RUN FOR 'sql' does read the tables its text names and
+		// answers 1146 for a missing one, but that text is a string the parser
+		// never opens, so the walk claims nothing about it either.
 
 		return true
 	}

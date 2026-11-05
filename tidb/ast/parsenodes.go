@@ -2393,8 +2393,9 @@ type FlushStmt struct {
 	Options         []string
 	Tables          []*TableRef // FLUSH TABLES tbl_list
 	WithReadLock    bool        // WITH READ LOCK
-	ForExport       bool        // FOR EXPORT
-	RelayChannel    string      // RELAY LOGS FOR CHANNEL channel
+	ForExport       bool        // Never set: TiDB has no FOR EXPORT
+	RelayChannel    string      // Never set: TiDB has no FLUSH RELAY LOGS
+	Plugins         []string    // FLUSH TIDB PLUGINS name, ...
 }
 
 func (s *FlushStmt) nodeTag()  {}
@@ -2402,9 +2403,19 @@ func (s *FlushStmt) stmtNode() {}
 
 // KillStmt represents a KILL statement.
 type KillStmt struct {
-	Loc          Loc
+	Loc Loc
+	// ConnectionID is what the statement names: an *IntLit for a number, or
+	// a *FuncCallExpr for KILL CONNECTION_ID(), the one other form the
+	// grammar has. An IntLit holds an int64 and saturates there, so the
+	// number itself is in ID.
 	ConnectionID ExprNode
-	Query        bool // KILL QUERY vs KILL CONNECTION
+	// ID is the exact value of the number, which runs to the whole uint64
+	// range. It is 0 for the function form.
+	ID    uint64
+	Query bool // KILL QUERY vs KILL CONNECTION
+	// TiDB is KILL TIDB, the form TiDB documents as usable only with a client
+	// connected to the server directly.
+	TiDB bool
 }
 
 func (s *KillStmt) nodeTag()  {}
@@ -4280,7 +4291,35 @@ const (
 	// BRIERestorePoint is RESTORE POINT FROM 'storage', the point-in-time
 	// restore.
 	BRIERestorePoint
+	// BRIEStopLogs is STOP BACKUP LOGS.
+	BRIEStopLogs
+	// BRIEPauseLogs is PAUSE BACKUP LOGS [option ...].
+	BRIEPauseLogs
+	// BRIEResumeLogs is RESUME BACKUP LOGS.
+	BRIEResumeLogs
+	// BRIEPurgeLogs is PURGE BACKUP LOGS FROM 'storage' [option ...].
+	BRIEPurgeLogs
+	// BRIEShowLogsStatus is SHOW BACKUP LOGS STATUS.
+	BRIEShowLogsStatus
+	// BRIEShowLogsMetadata is SHOW BACKUP LOGS METADATA FROM 'storage'.
+	BRIEShowLogsMetadata
+	// BRIEShowBackupMetadata is SHOW BACKUP METADATA FROM 'storage'.
+	BRIEShowBackupMetadata
+	// BRIEShowJob is SHOW BR JOB job_id.
+	BRIEShowJob
+	// BRIEShowJobQuery is SHOW BR JOB QUERY job_id.
+	BRIEShowJobQuery
+	// BRIECancelJob is CANCEL BR JOB job_id.
+	BRIECancelJob
 )
+
+// IsLogTaskOrJob reports whether the statement manages a log backup task, reads
+// backup metadata, or addresses a BR job, as opposed to taking or restoring a
+// backup: everything from BRIEStopLogs on. None of them names a database or a
+// table, and none changes a schema.
+func (k BRIEKind) IsLogTaskOrJob() bool {
+	return k >= BRIEStopLogs
+}
 
 // BRIETarget says what a BACKUP or RESTORE names, which the grammar's
 // BRIETables decides. BACKUP LOGS and RESTORE POINT name nothing.
@@ -4289,8 +4328,8 @@ const (
 type BRIETarget int
 
 const (
-	// BRIETargetNone is BACKUP LOGS and RESTORE POINT, which name no
-	// database and no table.
+	// BRIETargetNone is BACKUP LOGS, RESTORE POINT and the log task and job
+	// statements, which name no database and no table.
 	BRIETargetNone BRIETarget = iota
 	// BRIETargetAllSchemas is DATABASE *, every database in the cluster.
 	// The asterisk is the bare token: `DATABASE `*`` is a one-element
@@ -4339,6 +4378,8 @@ type BRIEStmt struct {
 	// statement gave none. A repeated option is not an error and is kept
 	// twice; TiDB's executor takes the last.
 	Options []*BRIEOption
+	// JobID is the job of SHOW BR JOB, SHOW BR JOB QUERY and CANCEL BR JOB.
+	JobID int64
 }
 
 func (s *BRIEStmt) nodeTag()  {}
@@ -4552,3 +4593,111 @@ type FlashbackToTimestampStmt struct {
 
 func (s *FlashbackToTimestampStmt) nodeTag()  {}
 func (s *FlashbackToTimestampStmt) stmtNode() {}
+
+// RecommendIndexAction says which RECOMMEND INDEX statement a node is.
+type RecommendIndexAction int
+
+const (
+	// RecommendIndexRun is RECOMMEND INDEX RUN [FOR 'sql'] [WITH option, ...].
+	RecommendIndexRun RecommendIndexAction = iota
+	// RecommendIndexShow is RECOMMEND INDEX SHOW.
+	RecommendIndexShow
+	// RecommendIndexApply is RECOMMEND INDEX APPLY id. v8.5.5 parses it and
+	// answers 1105 "unsupported action apply" when it runs.
+	RecommendIndexApply
+	// RecommendIndexIgnore is RECOMMEND INDEX IGNORE id, answered the same way.
+	RecommendIndexIgnore
+	// RecommendIndexSet is RECOMMEND INDEX SET option, ....
+	RecommendIndexSet
+)
+
+// RecommendIndexStmt represents RECOMMEND INDEX, TiDB's index advisor.
+//
+// Ref: TiDB v8.5.5 parser.y:14346-14426 (RecommendIndexStmt).
+// Ref: https://docs.pingcap.com/tidb/stable/index-advisor/
+type RecommendIndexStmt struct {
+	Loc    Loc
+	Action RecommendIndexAction
+	// HasSQL says FOR was written, and SQL is its one string literal, which
+	// the parser does not read: `RECOMMEND INDEX RUN FOR 'x'` parses and fails
+	// when it runs. The two are apart because FOR '' is a statement of its own.
+	HasSQL bool
+	SQL    string
+	// ID is the recommendation APPLY and IGNORE name.
+	ID int64
+	// Options holds RUN's WITH list and SET's list, in written order.
+	Options []*RecommendIndexOption
+}
+
+func (s *RecommendIndexStmt) nodeTag()  {}
+func (s *RecommendIndexStmt) stmtNode() {}
+
+// RecommendIndexOption is one name = literal of a RECOMMEND INDEX statement.
+// The grammar takes a Literal, not an expression: -1, (1) and 1 + 1 are 1064s.
+type RecommendIndexOption struct {
+	Loc   Loc
+	Name  string
+	Value ExprNode
+}
+
+func (o *RecommendIndexOption) nodeTag() {}
+
+// SetConfigStmt represents SET CONFIG, which changes a cluster component's
+// configuration while it runs. The statement names either a component type or
+// one instance's address, and HasInstance says which.
+//
+// Ref: TiDB v8.5.5 parser.y:10781-10788 (SetStmt), 10931-10940 (ConfigItemName).
+// Ref: https://docs.pingcap.com/tidb/stable/dynamic-config/
+type SetConfigStmt struct {
+	Loc Loc
+	// Type is the component word, lowercased as upstream records it. The
+	// parser takes any name: v8.5.5 answers 1105 "unknown type" for the ones
+	// it does not know when the statement runs.
+	Type string
+	// HasInstance says the statement named an address, the string in Instance.
+	HasInstance bool
+	Instance    string
+	// Name is the configuration item, its parts joined by the `.` and `-` they
+	// were written with, unquoted: log.level, auto-compaction-mode.
+	Name string
+	// Value is the SetExpr, so ON and BINARY arrive as *StringLit and DEFAULT
+	// as *DefaultExpr, the way a variable assignment's do.
+	Value ExprNode
+}
+
+func (s *SetConfigStmt) nodeTag()  {}
+func (s *SetConfigStmt) stmtNode() {}
+
+// AlterRangeStmt represents ALTER RANGE name PLACEMENT POLICY ..., which sets
+// the placement of a named key range.
+//
+// The parser takes any name. v8.5.5 answers 1105 "range name is not supported"
+// for one other than global and meta when the statement runs, and 8239 for a
+// policy that does not exist.
+//
+// Ref: TiDB v8.5.5 parser.y:13764-13769 (AlterRangeStmt), 2068-2084
+// (PlacementPolicyOption).
+type AlterRangeStmt struct {
+	Loc  Loc
+	Name string
+	// Policy is the policy as written, by name or as a string, and "DEFAULT" for
+	// the keyword forms. v8.5.5 clears the policy for every spelling of default,
+	// so a consumer compares it without case: `default` and 'default' clear it
+	// just as DEFAULT and SET DEFAULT do.
+	Policy string
+}
+
+func (s *AlterRangeStmt) nodeTag()  {}
+func (s *AlterRangeStmt) stmtNode() {}
+
+// CancelDistributionJobStmt represents CANCEL DISTRIBUTION JOB job_id, which
+// cancels a DISTRIBUTE TABLE job.
+//
+// Ref: TiDB v8.5.5 parser.y:3198-3204 (CancelDistributionJobStmt).
+type CancelDistributionJobStmt struct {
+	Loc   Loc
+	JobID int64
+}
+
+func (s *CancelDistributionJobStmt) nodeTag()  {}
+func (s *CancelDistributionJobStmt) stmtNode() {}

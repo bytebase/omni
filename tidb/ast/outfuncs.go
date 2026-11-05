@@ -555,6 +555,16 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeBRIEStmt(sb, n)
 	case *BRIEOption:
 		writeBRIEOption(sb, n)
+	case *RecommendIndexStmt:
+		writeRecommendIndexStmt(sb, n)
+	case *RecommendIndexOption:
+		writeRecommendIndexOption(sb, n)
+	case *SetConfigStmt:
+		writeSetConfigStmt(sb, n)
+	case *AlterRangeStmt:
+		writeAlterRangeStmt(sb, n)
+	case *CancelDistributionJobStmt:
+		writeCancelDistributionJobStmt(sb, n)
 	case *RecoverTableStmt:
 		writeRecoverTableStmt(sb, n)
 	case *FlashbackTableStmt:
@@ -2266,18 +2276,27 @@ func writeFlushStmt(sb *strings.Builder, n *FlushStmt) {
 	if n.RelayChannel != "" {
 		fmt.Fprintf(sb, " :relay_channel \"%s\"", n.RelayChannel)
 	}
+	if len(n.Plugins) > 0 {
+		fmt.Fprintf(sb, " :plugins %q", n.Plugins)
+	}
 	sb.WriteString("}")
 }
 
 func writeKillStmt(sb *strings.Builder, n *KillStmt) {
 	sb.WriteString("{KILL")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.TiDB {
+		sb.WriteString(" :tidb true")
+	}
 	if n.Query {
 		sb.WriteString(" :query true")
 	}
 	if n.ConnectionID != nil {
 		sb.WriteString(" :connection_id ")
 		writeNode(sb, n.ConnectionID)
+	}
+	if n.ID != 0 {
+		fmt.Fprintf(sb, " :id %d", n.ID)
 	}
 	sb.WriteString("}")
 }
@@ -5883,6 +5902,17 @@ var brieKindNames = map[BRIEKind]string{
 	BRIERestore:      "RESTORE",
 	BRIEBackupLogs:   "BACKUP_LOGS",
 	BRIERestorePoint: "RESTORE_POINT",
+
+	BRIEStopLogs:           "STOP_LOGS",
+	BRIEPauseLogs:          "PAUSE_LOGS",
+	BRIEResumeLogs:         "RESUME_LOGS",
+	BRIEPurgeLogs:          "PURGE_LOGS",
+	BRIEShowLogsStatus:     "SHOW_LOGS_STATUS",
+	BRIEShowLogsMetadata:   "SHOW_LOGS_METADATA",
+	BRIEShowBackupMetadata: "SHOW_BACKUP_METADATA",
+	BRIEShowJob:            "SHOW_JOB",
+	BRIEShowJobQuery:       "SHOW_JOB_QUERY",
+	BRIECancelJob:          "CANCEL_JOB",
 }
 
 var brieOptionValueNames = map[BRIEOptionValue]string{
@@ -5940,6 +5970,9 @@ func writeBRIEStmt(sb *strings.Builder, n *BRIEStmt) {
 			writeNode(sb, opt)
 		}
 		sb.WriteString(")")
+	}
+	if n.Kind == BRIEShowJob || n.Kind == BRIEShowJobQuery || n.Kind == BRIECancelJob {
+		fmt.Fprintf(sb, " :job_id %d", n.JobID)
 	}
 	sb.WriteString("}")
 }
@@ -6010,4 +6043,59 @@ func writeFlashbackToTimestampStmt(sb *strings.Builder, n *FlashbackToTimestampS
 		fmt.Fprintf(sb, " :timestamp %q", n.Timestamp)
 	}
 	sb.WriteString("}")
+}
+
+var recommendIndexActionNames = map[RecommendIndexAction]string{
+	RecommendIndexRun:    "RUN",
+	RecommendIndexShow:   "SHOW",
+	RecommendIndexApply:  "APPLY",
+	RecommendIndexIgnore: "IGNORE",
+	RecommendIndexSet:    "SET",
+}
+
+func writeRecommendIndexStmt(sb *strings.Builder, n *RecommendIndexStmt) {
+	fmt.Fprintf(sb, "{RECOMMEND_INDEX :loc %d :action %s", n.Loc.Start, recommendIndexActionNames[n.Action])
+	if n.HasSQL {
+		fmt.Fprintf(sb, " :sql %q", n.SQL)
+	}
+	if n.Action == RecommendIndexApply || n.Action == RecommendIndexIgnore {
+		fmt.Fprintf(sb, " :id %d", n.ID)
+	}
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options (")
+		for i, opt := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, opt)
+		}
+		sb.WriteString(")")
+	}
+	sb.WriteString("}")
+}
+
+func writeRecommendIndexOption(sb *strings.Builder, n *RecommendIndexOption) {
+	fmt.Fprintf(sb, "{RECOMMEND_INDEX_OPTION :loc %d :name %q :value ", n.Loc.Start, n.Name)
+	writeNode(sb, n.Value)
+	sb.WriteString("}")
+}
+
+func writeSetConfigStmt(sb *strings.Builder, n *SetConfigStmt) {
+	fmt.Fprintf(sb, "{SET_CONFIG :loc %d", n.Loc.Start)
+	if n.HasInstance {
+		fmt.Fprintf(sb, " :instance %q", n.Instance)
+	} else {
+		fmt.Fprintf(sb, " :type %q", n.Type)
+	}
+	fmt.Fprintf(sb, " :name %q :value ", n.Name)
+	writeNode(sb, n.Value)
+	sb.WriteString("}")
+}
+
+func writeAlterRangeStmt(sb *strings.Builder, n *AlterRangeStmt) {
+	fmt.Fprintf(sb, "{ALTER_RANGE :loc %d :name %q :policy %q}", n.Loc.Start, n.Name, n.Policy)
+}
+
+func writeCancelDistributionJobStmt(sb *strings.Builder, n *CancelDistributionJobStmt) {
+	fmt.Fprintf(sb, "{CANCEL_DISTRIBUTION_JOB :loc %d :job_id %d}", n.Loc.Start, n.JobID)
 }

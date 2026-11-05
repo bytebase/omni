@@ -759,6 +759,18 @@ func isLvalueKeyword(t int) bool {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/identifiers.html
 func (p *Parser) parseIdent() (string, int, error) {
 	if p.cur.Type == tokIDENT {
+		// The lexer scans @a whole as an identifier for the expression reader, and
+		// a character set introducer such as _utf8 is one word to it. Neither is a
+		// name: `CREATE TABLE @a (b int)` and `CREATE TABLE _utf8 (b int)` are 1064s,
+		// where backquoted `@a` and `_utf8` are ordinary names.
+		switch p.lexer.inputAt(p.cur.Loc) {
+		case '@':
+			return "", 0, p.syntaxErrorAtCur()
+		case '_':
+			if isCharsetIntroducerWord(p.cur.Str) {
+				return "", 0, p.syntaxErrorAtCur()
+			}
+		}
 		tok := p.advance()
 		return tok.Str, tok.Loc, nil
 	}

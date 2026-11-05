@@ -20,8 +20,10 @@ import (
 // import and export, and parses all of it through one BRIEStmt rule. The
 // log-backup management statements of that rule -- STOP, PAUSE, RESUME and
 // PURGE BACKUP LOGS, SHOW BACKUP LOGS STATUS and METADATA, SHOW BACKUP
-// METADATA, and SHOW and CANCEL BR JOB -- start with a different word each
-// and are not read here.
+// METADATA, and SHOW and CANCEL BR JOB -- start with a different word each,
+// so each is dispatched on its own and lands in the same node, with a Kind
+// that says which. CANCEL BR JOB is read with the other CANCEL, in
+// tidb_admin.go.
 //
 // Ref: TiDB v8.5.5 parser.y:5623-5721 (BRIEStmt), 3039-3059
 // (RecoverTableStmt), 3067-3124 (FlashbackToTimestampStmt), 3134-3166
@@ -205,6 +207,153 @@ func (p *Parser) parseRestoreStmt() (nodes.Node, error) {
 	if err := p.parseBRIEStorageAndOptions(stmt); err != nil {
 		return nil, err
 	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// expectBackupLogs consumes the two words BACKUP LOGS.
+func (p *Parser) expectBackupLogs() error {
+	if _, err := p.expect(kwBACKUP); err != nil {
+		return err
+	}
+	_, err := p.expect(kwLOGS)
+	return err
+}
+
+// parseStopBackupLogsStmt parses STOP BACKUP LOGS. p.cur is kwBACKUP.
+//
+// Ref: TiDB v8.5.5 parser.y:5640-5645.
+func (p *Parser) parseStopBackupLogsStmt(start int) (nodes.Node, error) {
+	if err := p.expectBackupLogs(); err != nil {
+		return nil, err
+	}
+	return &nodes.BRIEStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Kind: nodes.BRIEStopLogs}, nil
+}
+
+// parsePauseBackupLogsStmt parses PAUSE BACKUP LOGS [option ...]. p.cur is the
+// word PAUSE. The option list is the whole of BRIEOptions: v8.5.5 takes
+// `PAUSE BACKUP LOGS concurrency 4` as readily as GC_TTL, the one it means.
+//
+// Ref: TiDB v8.5.5 parser.y:5646-5652.
+func (p *Parser) parsePauseBackupLogsStmt() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume PAUSE
+	if err := p.expectBackupLogs(); err != nil {
+		return nil, err
+	}
+	opts, err := p.parseBRIEOptions()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.BRIEStmt{
+		Loc:     nodes.Loc{Start: start, End: p.prev.End},
+		Kind:    nodes.BRIEPauseLogs,
+		Options: opts,
+	}, nil
+}
+
+// parseResumeBackupLogsStmt parses RESUME BACKUP LOGS, which takes no option: the
+// list PAUSE reads after the same words is a 1064 here. p.cur is kwRESUME.
+//
+// Ref: TiDB v8.5.5 parser.y:5653-5658.
+func (p *Parser) parseResumeBackupLogsStmt() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume RESUME
+	if err := p.expectBackupLogs(); err != nil {
+		return nil, err
+	}
+	return &nodes.BRIEStmt{Loc: nodes.Loc{Start: start, End: p.prev.End}, Kind: nodes.BRIEResumeLogs}, nil
+}
+
+// parsePurgeStmt parses PURGE, and TiDB has one:
+//
+//	PURGE BACKUP LOGS FROM 'storage' [option ...]
+//
+// MySQL's PURGE {BINARY | MASTER} LOGS is a 1064 on v8.5.5, whose grammar names
+// PURGE nowhere else. p.cur is kwPURGE.
+//
+// Ref: TiDB v8.5.5 parser.y:5659-5666.
+func (p *Parser) parsePurgeStmt() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume PURGE
+	if err := p.expectBackupLogs(); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	stmt := &nodes.BRIEStmt{Loc: nodes.Loc{Start: start}, Kind: nodes.BRIEPurgeLogs}
+	if err := p.parseBRIEStorageAndOptions(stmt); err != nil {
+		return nil, err
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// isShowBRIE reports whether the SHOW at p.cur starts one of BRIEStmt's SHOW arms.
+// Both words are told apart without leaving SHOW, since every other target goes to
+// parseShowStmt: BACKUPS is a word of its own and SHOW BACKUP alone is a 1064.
+func (p *Parser) isShowBRIE() bool {
+	next := p.peekNext()
+	return next.Type == kwBACKUP ||
+		(next.Type == tokIDENT && strings.EqualFold(next.Str, "BR") && !p.backtickQuotedAt(next.Loc))
+}
+
+// parseShowBRIEStmt parses BRIEStmt's SHOW arms. p.cur is kwSHOW, and isShowBRIE
+// has said yes. None takes a LIKE, a WHERE or an option list.
+//
+//	SHOW BACKUP LOGS STATUS
+//	SHOW BACKUP LOGS METADATA FROM 'storage'
+//	SHOW BACKUP METADATA FROM 'storage'
+//	SHOW BR JOB [QUERY] id
+//
+// Ref: TiDB v8.5.5 parser.y:5667-5693, 5701-5705.
+func (p *Parser) parseShowBRIEStmt() (nodes.Node, error) {
+	start := p.pos()
+	p.advance() // consume SHOW
+	stmt := &nodes.BRIEStmt{Loc: nodes.Loc{Start: start}}
+
+	if p.cur.Type != kwBACKUP {
+		p.advance() // consume BR
+		if _, err := p.expect(kwJOB); err != nil {
+			return nil, err
+		}
+		stmt.Kind = nodes.BRIEShowJob
+		if _, ok := p.match(kwQUERY); ok {
+			stmt.Kind = nodes.BRIEShowJobQuery
+		}
+		id, err := p.parseAdminInt64()
+		if err != nil {
+			return nil, err
+		}
+		stmt.JobID = id
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
+	p.advance() // consume BACKUP
+	if _, ok := p.match(kwLOGS); ok {
+		if _, ok := p.match(kwSTATUS); ok {
+			stmt.Kind = nodes.BRIEShowLogsStatus
+			stmt.Loc.End = p.prev.End
+			return stmt, nil
+		}
+		stmt.Kind = nodes.BRIEShowLogsMetadata
+	} else {
+		stmt.Kind = nodes.BRIEShowBackupMetadata
+	}
+	if !p.matchBRIEWord("METADATA") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	storage, loc, err := p.parseStringLit()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Storage = storage
+	stmt.StorageLoc = nodes.Loc{Start: loc, End: p.prev.End}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
