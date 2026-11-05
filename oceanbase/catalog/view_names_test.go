@@ -15,7 +15,9 @@ import (
 // spacing and comments as written (a01, a02, a05, a07), every clause of a
 // subquery (a01, a03, a04, a14), the literal forms that name themselves
 // (a06), and Name_exp_N past 64 characters (a08, a09). A view column is named
-// exactly as its select item (a13).
+// exactly as its select item (a13). An executable comment in an item's text
+// is where OceanBase names it differently from MySQL, so those names answer
+// to OceanBase, in viewExecCommentNameCases.
 //
 // A NATURAL or USING join over a join qualifies each column it joins on by the
 // table its input takes it from (b01-b05, b11), a RIGHT join takes it from its
@@ -52,8 +54,8 @@ var viewNameCases = []struct{ name, sql, want string }{
 		"select (`n1`.`a` + 1) AS `a+1`,(`n1`.`a` + 1) AS `a  +  1`,count(0) AS `count(*)`,cast(`n1`.`a` as char charset utf8mb4) AS `cast(a as char)` from `n1` group by `n1`.`a`"},
 	{`a06`, `SELECT (a), ((b)), (1), 0004, - 2, x'41', B'10', true, date '2020-01-01', ('e'), (null) FROM n1`,
 		"select `n1`.`a` AS `a`,`n1`.`b` AS `b`,1 AS `1`,4 AS `0004`,-(2) AS `- 2`,0x41 AS `x'41'`,0x02 AS `B'10'`,true AS `true`,DATE'2020-01-01' AS `date '2020-01-01'`,'e' AS `e`,NULL AS `NULL` from `n1`"},
-	{`a07`, `SELECT a /* c */ + 1, a/*!50100 +2*/ FROM n1`,
-		"select (`n1`.`a` + 1) AS `a /* c */ + 1`,(`n1`.`a` + 2) AS `a +2` from `n1`"},
+	{`a07`, `SELECT a /* c */ + 1 FROM n1`,
+		"select (`n1`.`a` + 1) AS `a /* c */ + 1` from `n1`"},
 	{`a08`, `SELECT concat('éééééééééééééééééééééééééééééééééééééééééééééééééé') FROM n1`,
 		"select concat('éééééééééééééééééééééééééééééééééééééééééééééééééé') AS `concat('éééééééééééééééééééééééééééééééééééééééééééééééééé')` from `n1`"},
 	{`a09`, `SELECT concat('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') FROM n1`,
