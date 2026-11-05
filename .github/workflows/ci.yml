@@ -67,6 +67,22 @@ jobs:
           fi
           echo "pkgs=$pkgs" | tee -a "$GITHUB_OUTPUT"
 
+      # The packages internal/sharedserver serves share one MySQL 8.0 here, each
+      # in its own database, so a PR that touches none of them boots nothing. A
+      # service would start on every run, whatever the PR touched.
+      - name: Shared MySQL 8.0
+        if: steps.affected.outputs.pkgs != ''
+        run: |
+          go list ${{ steps.affected.outputs.pkgs }} | grep -qE '/(mysql/parser|oceanbase/parser|tidb/parser|internal/sharedserver)$' || exit 0
+          name=omni-ci-mysql80-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT
+          docker run -d --name "$name" -e MYSQL_ROOT_PASSWORD=test -p 127.0.0.1::3306 mysql:8.0 --skip-log-bin --max-connections=1000
+          for _ in $(seq 180); do
+            docker exec "$name" mysql -uroot -ptest --protocol=tcp -e 'SELECT 1' >/dev/null 2>&1 && break
+            sleep 1
+          done
+          port=$(docker port "$name" 3306/tcp | head -1 | sed 's/.*://')
+          echo "OMNI_SHARED_MYSQL80_DSN=root:test@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
+
       - name: Test
         if: steps.affected.outputs.pkgs != ''
         env:
@@ -82,6 +98,10 @@ jobs:
           pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
           { grep -v /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=8 -count=1 -timeout=20m
           { grep /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m
+
+      - name: Remove the shared MySQL 8.0
+        if: always()
+        run: docker rm -f "omni-ci-mysql80-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >/dev/null 2>&1 || true
 
       - name: Nested modules (own go.mod, not reached by ./...)
         env:

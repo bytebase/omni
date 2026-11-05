@@ -47,7 +47,7 @@ func TestParenthesizedViewDefinitionOracle(t *testing.T) {
 	for _, view := range []string{"vb", "r2", "r4", "r5", "r8", "r9", "r10"} {
 		var definition string
 		if err := o.db.QueryRowContext(o.ctx,
-			"SELECT VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = ?", view,
+			"SELECT VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?", view,
 		).Scan(&definition); err != nil {
 			t.Fatalf("read VIEW_DEFINITION of %s: %v", view, err)
 		}

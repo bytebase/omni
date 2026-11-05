@@ -78,7 +78,7 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 		name := strings.Fields(ddl)[2]
 		var definition, view, createView, charset, collation string
 		if err := o.db.QueryRowContext(o.ctx,
-			"SELECT VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = ?", name,
+			"SELECT VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?", name,
 		).Scan(&definition); err != nil {
 			t.Fatalf("read VIEW_DEFINITION of %s: %v", name, err)
 		}
