@@ -22,11 +22,12 @@ import (
 //
 // TiDB reads a '(' right after the table name as the column list, so "CREATE
 // TABLE t (SELECT 1)" is 1064 there, and its stored program bodies end every
-// statement with ';' as MySQL's do.
+// statement with ';' as MySQL's do. It has no BEGIN WORK, so "BEGIN WORK" is
+// 1064 alone, where MySQL takes it.
 //
 // Not recorded here, because this parser still disagrees and the change is not
 // about it: TiDB takes AS with no query after it ("CREATE TABLE t (a INT)
-// AS"), and refuses "BEGIN WORK".
+// AS").
 //
 // Every case was measured against TiDB v8.5.5 (pingcap/tidb:v8.5.5) through
 // PREPARE on 2026-11-05. TestStatementSeparatorFormsMatchTiDB keeps it a
@@ -105,6 +106,7 @@ var separatorFormCases = []separatorFormCase{
 	{"select 1 ;", true},
 	{"select 1; -- c", true},
 	{"begin", true},
+	{"begin work", false},
 }
 
 var createTableQueryFormCases = []separatorFormCase{

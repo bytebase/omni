@@ -18,6 +18,17 @@ func TestSplitCompoundBlocks(t *testing.T) {
 			want: []string{"BEGIN WORK", " SELECT 1"}},
 		{name: "BEGIN alone is transaction", sql: "BEGIN; SELECT 1;",
 			want: []string{"BEGIN", " SELECT 1"}},
+		// TiDB's transaction modes: BEGIN PESSIMISTIC used to open a block
+		// that ran to the end of the script.
+		{name: "BEGIN PESSIMISTIC is transaction", sql: "BEGIN PESSIMISTIC; SELECT 1; COMMIT;",
+			want: []string{"BEGIN PESSIMISTIC", " SELECT 1", " COMMIT"}},
+		{name: "BEGIN OPTIMISTIC is transaction", sql: "begin optimistic;\ninsert into t values (1);\ncommit;",
+			want: []string{"begin optimistic", "\ninsert into t values (1)", "\ncommit"}},
+		// A word and a ':' is a label on the block's first statement.
+		{name: "label named work after BEGIN", sql: "CREATE PROCEDURE p() BEGIN work: WHILE 1 DO SELECT 1; END WHILE work; END; SELECT 2;",
+			want: []string{"CREATE PROCEDURE p() BEGIN work: WHILE 1 DO SELECT 1; END WHILE work; END", " SELECT 2"}},
+		{name: "label named optimistic after BEGIN", sql: "CREATE PROCEDURE p() BEGIN optimistic : WHILE 1 DO SELECT 1; END WHILE optimistic; END; SELECT 2;",
+			want: []string{"CREATE PROCEDURE p() BEGIN optimistic : WHILE 1 DO SELECT 1; END WHILE optimistic; END", " SELECT 2"}},
 		{name: "XA BEGIN is not compound", sql: "XA BEGIN 'xid'; SELECT 1;",
 			want: []string{"XA BEGIN 'xid'", " SELECT 1"}},
 		{name: "IF END IF", sql: "CREATE FUNCTION f() RETURNS INT BEGIN IF x > 0 THEN SELECT 1; END IF; RETURN 0; END; SELECT 2;",
