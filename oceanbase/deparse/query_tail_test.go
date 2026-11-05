@@ -70,6 +70,8 @@ func TestDeparseKeepsQueryTail(t *testing.T) {
 		{"SELECT 1 UNION SELECT 2 ORDER BY 1 FOR UPDATE", "select 1 AS `1` union select 2 AS `2` order by 1 for update"},
 		{"SELECT 1 UNION SELECT 2 ORDER BY 1 INTO @x", "select 1 AS `1` union select 2 AS `2` order by 1 into @`x`"},
 		{"SELECT 1 UNION (SELECT 2 FOR UPDATE)", "select 1 AS `1` union (select 2 AS `2` for update)"},
+		{"VALUES ROW(1) UNION VALUES ROW(2) INTERSECT VALUES ROW(3) ORDER BY 1 FOR UPDATE", "values row(1) union values row(2) intersect values row(3) order by 1 for update"},
+		{"SELECT 1 UNION SELECT 2 INTERSECT SELECT 3 ORDER BY 1 LIMIT 1 FOR UPDATE INTO @x", "select 1 AS `1` union select 2 AS `2` intersect select 3 AS `3` order by 1 limit 1 for update into @`x`"},
 		// An empty string is an option: it turns a default off.
 		{
 			"VALUES ROW(1) INTO OUTFILE 'f' FIELDS TERMINATED BY '' ESCAPED BY '' LINES TERMINATED BY ''",

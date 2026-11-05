@@ -222,6 +222,12 @@ func (p *Parser) parseSelectClauseAndTrailing(start int, ctes []*nodes.CommonTab
 // them, while "(SELECT 1) ORDER BY 1 FOR UPDATE" and "(SELECT 1) UNION
 // (SELECT 2) FOR UPDATE" parse.
 func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
+	// A set operation's last operand has read its clauses already, and they have
+	// moved here, so a second ORDER BY, LIMIT or locking clause has no place: "SELECT 1
+	// UNION SELECT 2 FOR UPDATE FOR UPDATE" is a 1064 (measured).
+	if stmt.SetOp != nodes.SetOpNone && (len(stmt.OrderBy) > 0 || stmt.Limit != nil || stmt.ForUpdate != nil || stmt.Into != nil) {
+		return nil
+	}
 	if p.cur.Type == kwORDER {
 		p.advance()
 		if _, err := p.expect(kwBY); err != nil {
@@ -401,22 +407,19 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		// set-operation node, which is what they apply to, so they stay in the order
 		// they were written: an ORDER BY, LIMIT, locking clause and INTO are read
 		// together by select_no_parens. A parenthesized operand is a ParenSource
-		// wrapper whose own clauses are the OUTER scope, so the walk stops at it and
-		// its inner clauses stay in place — e.g. "SELECT 1 UNION (SELECT 2 LIMIT 1)"
-		// keeps LIMIT 1 on operand 2.
+		// wrapper whose own clauses are the OUTER scope, so its inner clauses stay in
+		// place — e.g. "SELECT 1 UNION (SELECT 2 LIMIT 1)" keeps LIMIT 1 on operand 2. An
+		// operand that is itself a set operation, as the right of a UNION can be an
+		// INTERSECT, has already gathered its clauses at its own root.
 		var orderBy []*nodes.OrderByItem
 		var limit *nodes.Limit
 		var forUpdate *nodes.ForUpdate
 		var into *nodes.IntoClause
-		rightLeaf := right
-		for rightLeaf.SetOp != nodes.SetOpNone && rightLeaf.Right != nil {
-			rightLeaf = rightLeaf.Right
-		}
-		if rightLeaf.ParenSource == nil {
-			orderBy, rightLeaf.OrderBy = rightLeaf.OrderBy, nil
-			limit, rightLeaf.Limit = rightLeaf.Limit, nil
-			forUpdate, rightLeaf.ForUpdate = rightLeaf.ForUpdate, nil
-			into, rightLeaf.Into = rightLeaf.Into, nil
+		if right.ParenSource == nil {
+			orderBy, right.OrderBy = right.OrderBy, nil
+			limit, right.Limit = right.Limit, nil
+			forUpdate, right.ForUpdate = right.ForUpdate, nil
+			into, right.Into = right.Into, nil
 		}
 
 		left = &nodes.SelectStmt{

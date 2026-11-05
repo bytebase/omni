@@ -82,6 +82,20 @@ func TestValuesStatementIsAQuery(t *testing.T) {
 			t.Errorf("%s: Loc.End = %d, want %d", sql, sel.Loc.End, len(sql))
 		}
 	}
+	// An operand that is itself a set operation gives them up too, so the whole query
+	// owns them however the operators nest.
+	for _, sql := range []string{
+		"VALUES ROW(1) UNION VALUES ROW(2) INTERSECT VALUES ROW(3) ORDER BY 1 FOR UPDATE INTO @x",
+		"SELECT 1 UNION SELECT 2 INTERSECT SELECT 3 ORDER BY 1 FOR UPDATE INTO @x",
+	} {
+		sel := queryPrimaryStatement(t, sql).(*ast.SelectStmt)
+		if sel.SetOp != ast.SetOpUnion || len(sel.OrderBy) != 1 || sel.ForUpdate == nil || sel.Into == nil {
+			t.Errorf("%s: %+v", sql, sel)
+		}
+		if r := sel.Right; r.SetOp != ast.SetOpIntersect || len(r.OrderBy) != 0 || r.ForUpdate != nil || r.Into != nil {
+			t.Errorf("%s: the right operand kept clauses: %+v", sql, r)
+		}
+	}
 	// Inside parentheses they stay with the operand they scope.
 	sel := queryPrimaryStatement(t, "SELECT 1 UNION (SELECT 2 FOR UPDATE)").(*ast.SelectStmt)
 	if sel.ForUpdate != nil || sel.Right.ParenSource == nil || sel.Right.ParenSource.ForUpdate == nil {
