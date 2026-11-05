@@ -2285,6 +2285,7 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				into.Vars = append(into.Vars, &nodes.VariableRef{
 					Loc:  nodes.Loc{Start: nameStart, End: p.prev.End},
 					Name: name,
+					Bare: true,
 				})
 			} else {
 				break

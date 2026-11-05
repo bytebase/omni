@@ -175,10 +175,104 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		writeExpr(b, stmt.Limit.Count)
 	}
 
-	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
+	writeQueryTail(b, stmt)
+}
+
+// writeQueryTail writes the locking clause and INTO after a query expression, in the
+// one order OceanBase takes them: "INTO @x FOR UPDATE" is a 1064 (measured).
+func writeQueryTail(b *strings.Builder, stmt *ast.SelectStmt) {
 	if stmt.ForUpdate != nil {
 		b.WriteString(" ")
 		b.WriteString(deparseForUpdate(stmt.ForUpdate))
+	}
+	if stmt.Into != nil {
+		writeIntoClause(b, stmt.Into)
+	}
+}
+
+// writeIntoClause writes INTO @var, INTO OUTFILE and INTO DUMPFILE, with their options
+// in the order parseIntoClause reads them.
+func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
+	str := func(s string) string { return deparseStringLit(&ast.StringLit{Value: s}) }
+	b.WriteString(" into ")
+	switch {
+	case into.Dumpfile != "":
+		b.WriteString("dumpfile " + str(into.Dumpfile))
+	case into.Outfile != "":
+		b.WriteString("outfile ")
+		if into.OutfileS3 {
+			b.WriteString("s3 ")
+		}
+		b.WriteString(str(into.Outfile))
+		if into.Charset != "" {
+			b.WriteString(" character set " + into.Charset)
+		}
+		if into.Format != "" {
+			b.WriteString(" format " + strings.ToLower(into.Format))
+			if into.Header {
+				b.WriteString(" header")
+			}
+		}
+		if into.HasFieldsClause {
+			b.WriteString(" fields")
+			if into.FieldsTerminatedBy != "" {
+				b.WriteString(" terminated by " + str(into.FieldsTerminatedBy))
+			}
+			if into.FieldsEnclosedBy != "" {
+				if into.FieldsOptionalEncl {
+					b.WriteString(" optionally")
+				}
+				b.WriteString(" enclosed by " + str(into.FieldsEnclosedBy))
+			}
+			if into.FieldsEscapedBy != "" {
+				b.WriteString(" escaped by " + str(into.FieldsEscapedBy))
+			}
+		}
+		if into.HasLinesClause {
+			b.WriteString(" lines")
+			if into.LinesStartingBy != "" {
+				b.WriteString(" starting by " + str(into.LinesStartingBy))
+			}
+			if into.LinesTerminatedBy != "" {
+				b.WriteString(" terminated by " + str(into.LinesTerminatedBy))
+			}
+		}
+		if into.Manifest != "" {
+			b.WriteString(" manifest " + strings.ToLower(into.Manifest))
+		}
+		if into.Overwrite != "" {
+			b.WriteString(" overwrite " + strings.ToLower(into.Overwrite))
+		}
+		if into.Encryption != "" {
+			b.WriteString(" encryption " + strings.ToLower(into.Encryption))
+			if into.EncryptionKey != "" {
+				b.WriteString(" " + str(into.EncryptionKey))
+			}
+		}
+	default:
+		for i, v := range into.Vars {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			writeIntoVariable(b, v)
+		}
+	}
+}
+
+// writeIntoVariable writes one target of INTO: @user, @@[scope.]system, or a bare
+// stored-program variable.
+func writeIntoVariable(b *strings.Builder, v *ast.VariableRef) {
+	switch {
+	case v.System:
+		b.WriteString("@@")
+		if v.Scope != "" {
+			b.WriteString(strings.ToLower(v.Scope) + ".")
+		}
+		b.WriteString(v.Name)
+	case v.Bare:
+		b.WriteString(quoteIdent(v.Name))
+	default:
+		b.WriteString("@" + quoteIdent(v.Name))
 	}
 }
 
@@ -269,6 +363,8 @@ func writeParenSource(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bo
 		}
 		writeExpr(b, stmt.Limit.Count)
 	}
+
+	writeQueryTail(b, stmt)
 }
 
 func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
@@ -310,6 +406,7 @@ func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
 		b.WriteString(")")
 	}
 	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
+	writeQueryTail(&b, stmt)
 	return b.String()
 }
 
@@ -399,6 +496,8 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias b
 		}
 		writeExpr(b, stmt.Limit.Count)
 	}
+
+	writeQueryTail(b, stmt)
 }
 
 func deparseCTEs(ctes []*ast.CommonTableExpr) string {

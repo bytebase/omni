@@ -1251,6 +1251,7 @@ type VariableRef struct {
 	Name   string
 	System bool   // @@ (system variable) vs @ (user variable)
 	Scope  string // GLOBAL, SESSION, LOCAL for system variables
+	Bare   bool   // a bare name, the stored-program variable of SELECT ... INTO
 }
 
 func (v *VariableRef) nodeTag()  {}
