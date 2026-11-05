@@ -138,14 +138,14 @@ accept	accept	COMMIT NO RELEASE
 accept	accept	COMMIT AND NO CHAIN NO RELEASE
 accept	accept	COMMIT AND NO CHAIN RELEASE
 accept	accept	COMMIT AND CHAIN NO RELEASE
-accept	reject	COMMIT AND CHAIN RELEASE
+reject	reject	COMMIT AND CHAIN RELEASE
 accept	accept	ROLLBACK
 accept	accept	ROLLBACK AND NO CHAIN
 accept	accept	ROLLBACK NO RELEASE
 accept	accept	ROLLBACK AND NO CHAIN NO RELEASE
 accept	accept	ROLLBACK AND NO CHAIN RELEASE
 accept	accept	ROLLBACK AND CHAIN NO RELEASE
-accept	reject	ROLLBACK AND CHAIN RELEASE
+reject	reject	ROLLBACK AND CHAIN RELEASE
 accept	accept	SAVEPOINT x
 accept	accept	RELEASE SAVEPOINT x
 accept	accept	ROLLBACK TO x
@@ -495,8 +495,8 @@ reject	accept	cancel distribution job 1
 accept	accept	show table t1.t1 next_row_id
 accept	accept	show table t1 next_row_id
 reject	reject	show table next_row_id
-reject	accept	begin pessimistic
-reject	accept	begin optimistic
+accept	accept	begin pessimistic
+accept	accept	begin optimistic
 accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a int)
 accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a char(1))
 accept	accept	ADMIN REPAIR TABLE t CREATE TABLE t (a char(1), b int)
@@ -3655,14 +3655,14 @@ reject	reject	gbk1
 reject	reject	ujisx
 accept	accept	START TRANSACTION READ WRITE
 accept	accept	START TRANSACTION WITH CONSISTENT SNAPSHOT
-reject	accept	START TRANSACTION WITH CAUSAL CONSISTENCY ONLY
+accept	accept	START TRANSACTION WITH CAUSAL CONSISTENCY ONLY
 accept	accept	START TRANSACTION READ ONLY
 reject	reject	START TRANSACTION READ ONLY AS OF
 reject	reject	START TRANSACTION READ ONLY AS OF TIMESTAMP
-reject	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP '2015-09-21 00:07:01'
-reject	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(_UTF8MB4'2015-09-21 00:07:01', NOW())
-reject	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW())
-reject	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(_UTF8MB4'2015-09-21 00:07:01', '2021-04-27 11:26:13')
+accept	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP '2015-09-21 00:07:01'
+accept	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(_UTF8MB4'2015-09-21 00:07:01', NOW())
+accept	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(DATE_SUB(NOW(), INTERVAL 3 SECOND), NOW())
+accept	accept	START TRANSACTION READ ONLY AS OF TIMESTAMP TIDB_BOUNDED_STALENESS(_UTF8MB4'2015-09-21 00:07:01', '2021-04-27 11:26:13')
 accept	accept	BACKUP DATABASE a TO 'local:///tmp/archive01/'
 accept	accept	BACKUP SCHEMA a TO 'local:///tmp/archive01/'
 accept	accept	BACKUP DATABASE a,b,c TO 'noop://'

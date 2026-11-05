@@ -207,6 +207,8 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Stmts {
 			Walk(v, item)
 		}
+	case *BeginStmt:
+		Walk(v, n.AsOf)
 	case *BetweenExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Low)

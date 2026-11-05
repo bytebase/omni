@@ -1368,6 +1368,9 @@ func writePlanReplayerStmt(sb *strings.Builder, n *PlanReplayerStmt) {
 func writeBeginStmt(sb *strings.Builder, n *BeginStmt) {
 	sb.WriteString("{BEGIN")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Mode != "" {
+		fmt.Fprintf(sb, " :mode %s", n.Mode)
+	}
 	if n.ReadOnly {
 		sb.WriteString(" :read_only true")
 	}
@@ -1376,6 +1379,13 @@ func writeBeginStmt(sb *strings.Builder, n *BeginStmt) {
 	}
 	if n.WithConsistentSnapshot {
 		sb.WriteString(" :consistent_snapshot true")
+	}
+	if n.CausalConsistencyOnly {
+		sb.WriteString(" :causal_consistency_only true")
+	}
+	if n.AsOf != nil {
+		sb.WriteString(" :as_of ")
+		writeNode(sb, n.AsOf)
 	}
 	sb.WriteString("}")
 }

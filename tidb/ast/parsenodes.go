@@ -1575,10 +1575,18 @@ func (s *PlanReplayerStmt) stmtNode() {}
 
 // BeginStmt represents BEGIN / START TRANSACTION.
 type BeginStmt struct {
-	Loc                    Loc
+	Loc Loc
+	// Mode is the transaction mode BEGIN names: "PESSIMISTIC", "OPTIMISTIC",
+	// or "" for none.
+	Mode                   string
 	ReadOnly               bool
 	ReadWrite              bool
 	WithConsistentSnapshot bool
+	// CausalConsistencyOnly is START TRANSACTION WITH CAUSAL CONSISTENCY ONLY.
+	CausalConsistencyOnly bool
+	// AsOf is the expression of START TRANSACTION READ ONLY AS OF TIMESTAMP
+	// expr, the time a stale read reads at; nil when there is none.
+	AsOf ExprNode
 }
 
 func (s *BeginStmt) nodeTag()  {}
