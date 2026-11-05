@@ -397,6 +397,13 @@ type RangeTableEntryQ struct {
 	IsView        bool
 	ViewAlgorithm ViewAlgorithm
 
+	// AsOf is the canonical text of the AS OF TIMESTAMP clause of an RTERelation or
+	// RTECTE, empty when it has none. It is text and not analyzed expressions because
+	// the expression is not in the query's scope: TiDB v8.5.5 answers 1054 to `FROM t
+	// AS OF TIMESTAMP a` when t has a column a, so resolving it against FROM would
+	// bind what the engine does not.
+	AsOf string
+
 	// Sample is the canonical text of the TABLESAMPLE clause of an RTERelation or
 	// RTECTE, empty when it has none. It is text and not analyzed expressions
 	// because the engine does not resolve it either: TiDB v8.5.5 runs `FROM t

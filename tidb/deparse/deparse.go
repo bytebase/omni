@@ -44,6 +44,14 @@ func DeparseTableSample(s *ast.TableSample) string {
 	return b.String()
 }
 
+// DeparseAsOf converts an AS OF clause to its SQL text, which is what the catalog's
+// analyzed query holds for it.
+func DeparseAsOf(c *ast.AsOfClause) string {
+	var b strings.Builder
+	writeAsOf(&b, c)
+	return b.String()
+}
+
 // deparseExpr returns the text of an expression, for the callers that need it
 // as a string of its own; everything inside this file writes with writeExpr.
 func deparseExpr(node ast.ExprNode) string {
@@ -1260,14 +1268,20 @@ func deparseTableRef(t *ast.TableRef) string {
 		b.WriteString(" " + quoteIdent(t.Alias))
 	}
 	if t.AsOf != nil {
-		b.WriteString(" as of timestamp ")
-		writeExpr(&b, t.AsOf.Timestamp)
+		b.WriteByte(' ')
+		writeAsOf(&b, t.AsOf)
 	}
 	if t.Sample != nil {
 		b.WriteByte(' ')
 		writeTableSample(&b, t.Sample)
 	}
 	return b.String()
+}
+
+// writeAsOf formats an AS OF clause.
+func writeAsOf(b *strings.Builder, c *ast.AsOfClause) {
+	b.WriteString("as of timestamp ")
+	writeExpr(b, c.Timestamp)
 }
 
 // writeTableSample formats a TABLESAMPLE clause so that it reads back.
