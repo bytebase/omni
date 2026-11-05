@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -410,6 +411,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
+		if err := validateStoringColumns(tbl, con.IndexOptions); err != nil {
+			return err
+		}
 		cols := extractColumnNames(con)
 
 		switch con.Type {
@@ -1943,6 +1947,22 @@ func vectorParamsFromOption(opt *nodes.IndexOption) []string {
 	return params
 }
 
+// validateStoringColumns answers 1054 for a STORING (...) column the table lacks, as
+// 4.3.5.6 does.
+func validateStoringColumns(tbl *Table, opts []*nodes.IndexOption) error {
+	for _, opt := range opts {
+		if !strings.EqualFold(opt.Name, "STORING") {
+			continue
+		}
+		for _, name := range opt.Columns {
+			if tbl.GetColumn(name) == nil {
+				return errNoSuchColumn(name, "'"+tbl.Name+"'")
+			}
+		}
+	}
+	return nil
+}
+
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 	for _, opt := range opts {
 		switch strings.ToUpper(opt.Name) {
@@ -1967,6 +1987,10 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
 				idx.Parser = strings.ToLower(s.Value)
 			}
+		case "STORING":
+			// A second STORING adds to the first: STORING (b) STORING (c) reads back
+			// STORING (`b`, `c`) on 4.3.5.6.
+			idx.Storing = append(idx.Storing, opt.Columns...)
 		case "WITH":
 			// A later WITH replaces an earlier one.
 			idx.VectorParams = vectorParamsFromOption(opt)
@@ -2698,6 +2722,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Spatial:      srcIdx.Spatial,
 			Vector:       srcIdx.Vector,
 			VectorParams: srcIdx.VectorParams,
+			Storing:      slices.Clone(srcIdx.Storing),
 			IndexType:    srcIdx.IndexType,
 			Visible:      srcIdx.Visible,
 			Comment:      srcIdx.Comment,

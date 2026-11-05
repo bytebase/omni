@@ -307,12 +307,18 @@ type CreateIndexStmt struct {
 	Vector      bool // CREATE VECTOR INDEX
 	IfNotExists bool
 	IndexName   string
-	Table       *TableRef
-	IndexType   string // BTREE, HASH
-	Columns     []*IndexColumn
-	Options     []*IndexOption
-	Algorithm   string
-	Lock        string
+	// IndexSchema and IndexCatalog are the qualifiers CREATE INDEX lets its name carry, as
+	// in d.i and c.d.i, and IndexDBLink the name after @. OceanBase requires the schema to
+	// be the table's.
+	IndexSchema  string
+	IndexCatalog string
+	IndexDBLink  string
+	Table        *TableRef
+	IndexType    string // BTREE, HASH
+	Columns      []*IndexColumn
+	Options      []*IndexOption
+	Algorithm    string
+	Lock         string
 }
 
 func (s *CreateIndexStmt) nodeTag()  {}
@@ -334,10 +340,12 @@ type IndexOption struct {
 	Loc   Loc
 	Name  string
 	Value Node // heterogeneous: may be *String, *Integer, or other literal nodes
-	// Properties holds a key = value list: PARSER_PROPERTIES on a fulltext index, or
-	// the WITH (...) a vector index takes its parameters from. nil for every other
-	// option.
+	// Properties holds a key = value list: PARSER_PROPERTIES on a fulltext index, the
+	// WITH (...) a vector index takes its parameters from, or STORAGE_CACHE_POLICY. nil
+	// for every other option.
 	Properties []*ParserProperty
+	// Columns holds the names in a STORING (...), as written.
+	Columns []string
 }
 
 func (o *IndexOption) nodeTag() {}

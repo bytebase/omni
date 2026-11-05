@@ -303,6 +303,7 @@ func canonicalIndex(idx *Index, n *Normalizer) string {
 		"spatial", strconv.FormatBool(idx.Spatial),
 		"vector", strconv.FormatBool(idx.Vector),
 		"with", canonicalVectorParams(idx),
+		"storing", canonicalStoring(idx),
 		"using", canonicalIndexType(idx),
 		"comment", n.CanonicalComment(idx.Comment),
 		"visible", strconv.FormatBool(idx.Visible),
@@ -311,6 +312,17 @@ func canonicalIndex(idx *Index, n *Normalizer) string {
 		"parser", canonicalFulltextParser(idx),
 		"cols", strings.Join(parts, ","),
 	)
+}
+
+// canonicalStoring returns the STORING columns as a key fragment, folded and sorted: which
+// columns an index carries matters and the order they were written in does not.
+func canonicalStoring(idx *Index) string {
+	names := make([]string, 0, len(idx.Storing))
+	for _, name := range idx.Storing {
+		names = append(names, strings.ToLower(name))
+	}
+	slices.Sort(names)
+	return strings.Join(names, ",")
 }
 
 // canonicalVectorParams returns a vector index's parameters as a key fragment, in sorted

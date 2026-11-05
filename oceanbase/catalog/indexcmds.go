@@ -20,6 +20,21 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	// The name's own database must exist and be the table's: 4.3.5.6 answers 1049 for
+	// nosuch.i and 1235 for other.i, whatever the table.
+	if stmt.IndexSchema != "" {
+		if c.GetDatabase(stmt.IndexSchema) == nil {
+			return errUnknownDatabase(stmt.IndexSchema)
+		}
+		if toLower(stmt.IndexSchema) != toLower(db.Name) {
+			return &Error{Code: 1235, SQLState: "42000", Message: "Index name including database name is not supported"}
+		}
+	}
+
+	if err := validateStoringColumns(tbl, stmt.Options); err != nil {
+		return err
+	}
+
 	if err := validateNonPrimaryIndexName(stmt.IndexName); err != nil {
 		return err
 	}

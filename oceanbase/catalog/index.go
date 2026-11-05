@@ -11,6 +11,9 @@ type Index struct {
 	Fulltext bool
 	Spatial  bool
 	Vector   bool
+	// Storing is a STORING (...), the columns the index carries without keying on them,
+	// which SHOW CREATE TABLE prints after the key parts.
+	Storing []string
 	// VectorParams are a vector index's WITH (...) as SHOW CREATE TABLE writes them:
 	// upper-cased, in the order written, with the server's defaults after them.
 	VectorParams []string
