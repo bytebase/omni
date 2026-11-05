@@ -164,3 +164,25 @@ func TestVectorIndexFromMetadata(t *testing.T) {
 		t.Errorf("ki: %+v", ki)
 	}
 }
+
+// TestVectorCastViewText: a view's stored text drops a CAST's dimension, because TiDB's does.
+// v8.5.5's SHOW CREATE VIEW writes CAST(... AS VECTOR) for VECTOR(3), for VECTOR<FLOAT>(3) and
+// for a bare VECTOR (read on 2026-11-05).
+func TestVectorCastViewText(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE VIEW vv AS SELECT CAST('[1,2,3]' AS VECTOR(3)) AS v;",
+		"CREATE VIEW vv AS SELECT CAST('[1,2,3]' AS VECTOR<FLOAT>(3)) AS v;",
+		"CREATE VIEW vv AS SELECT CONVERT('[1,2,3]', VECTOR<FLOAT>(3)) AS v;",
+		"CREATE VIEW vv AS SELECT CAST('[1,2,3]' AS VECTOR) AS v;",
+	} {
+		c := newVectorCatalog(t)
+		execAll(t, c, sql)
+		def := strings.ToLower(c.GetDatabase("d").Views["vv"].Definition)
+		if !strings.Contains(def, " vector)") && !strings.Contains(def, ", vector)") {
+			t.Errorf("%s: stored %s, want the type with no dimension", sql, def)
+		}
+		if strings.Contains(def, "vector(") || strings.Contains(def, "vector<") {
+			t.Errorf("%s: stored %s, which keeps what v8.5.5 drops", sql, def)
+		}
+	}
+}
