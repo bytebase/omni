@@ -32,7 +32,7 @@ func TestBlockCommentDoesNotNest_Oracle(t *testing.T) {
 	var t2Count int
 	err := o.db.QueryRowContext(o.ctx, `
 		SELECT COUNT(*) FROM information_schema.tables
-		WHERE table_schema = 'test' AND table_name = 't2'
+		WHERE table_schema = DATABASE() AND table_name = 't2'
 	`).Scan(&t2Count)
 	if err != nil {
 		t.Fatalf("check t2 existence: %v", err)
