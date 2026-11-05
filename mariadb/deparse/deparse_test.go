@@ -1416,3 +1416,22 @@ func TestDeparse_Section_5_8_ForUpdate(t *testing.T) {
 		})
 	}
 }
+
+// TestDeparseIgnoreValue: MariaDB's IGNORE value survives a deparse, and what comes out
+// is SQL that parses to the same rows.
+func TestDeparseIgnoreValue(t *testing.T) {
+	for _, c := range []struct{ input, expected string }{
+		{"VALUES (IGNORE)", "values (ignore)"},
+		{"VALUES (IGNORE, 1), (2, IGNORE)", "values (ignore,1),(2,ignore)"},
+	} {
+		t.Run(c.input, func(t *testing.T) {
+			got := DeparseSelect(parseSelect(t, c.input))
+			if got != c.expected {
+				t.Fatalf("DeparseSelect(%q) = %q, want %q", c.input, got, c.expected)
+			}
+			if _, err := parser.Parse(got); err != nil {
+				t.Errorf("%q does not parse: %v", got, err)
+			}
+		})
+	}
+}
