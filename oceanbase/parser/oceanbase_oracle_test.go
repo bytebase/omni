@@ -23,7 +23,7 @@ func oceanBaseOracle(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("OceanBase oracle: %v", err)
 	}
-	db, err := sql.Open("mysql", dsn)
+	db, err := sharedserver.OpenOceanBase(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

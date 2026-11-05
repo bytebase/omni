@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -34,7 +33,7 @@ func oceanBaseOracle(t *testing.T) *oracleConn {
 	if err != nil {
 		t.Fatalf("OceanBase oracle: %v", err)
 	}
-	db, err := sql.Open("mysql", dsn)
+	db, err := sharedserver.OpenOceanBase(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

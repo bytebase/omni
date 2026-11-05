@@ -51,7 +51,7 @@ func TestExecFallbackScript_OceanBase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db, err := sql.Open("mysql", dsn+"?multiStatements=true")
+	db, err := sharedserver.OpenOceanBase(dsn + "?multiStatements=true")
 	if err != nil {
 		t.Fatal(err)
 	}

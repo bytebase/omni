@@ -66,6 +66,8 @@ type MySQLServer struct {
 	// start boots a testcontainer and returns it with an admin DSN, for a server
 	// the mysql module cannot start. Nil means the mysql module.
 	start func(ctx context.Context, image string) (testcontainers.Container, string, error)
+	// open connects to a DSN. Nil means sql.Open with the mysql driver.
+	open func(dsn string) (*sql.DB, error)
 
 	once      sync.Once
 	config    *gomysql.Config
@@ -92,6 +94,14 @@ var OceanBase = &MySQLServer{
 	Env:     "OMNI_SHARED_OCEANBASE_DSN",
 	DevDSN:  "root@test:@tcp(127.0.0.1:12881)/",
 	start:   StartOceanBase,
+	open:    OpenOceanBase,
+}
+
+func (s *MySQLServer) openDB(dsn string) (*sql.DB, error) {
+	if s.open != nil {
+		return s.open(dsn)
+	}
+	return sql.Open("mysql", dsn)
 }
 
 func ping(ctx context.Context, dsn string) (*sql.DB, string, error) {
@@ -114,7 +124,7 @@ func (s *MySQLServer) admin(ctx context.Context) (*sql.DB, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	db, err := sql.Open("mysql", s.config.FormatDSN())
+	db, err := s.openDB(s.config.FormatDSN())
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +229,7 @@ func (s *MySQLServer) startContainer(ctx context.Context) (string, error) {
 }
 
 func (s *MySQLServer) setUpAccount(ctx context.Context) error {
-	db, err := sql.Open("mysql", s.config.FormatDSN())
+	db, err := s.openDB(s.config.FormatDSN())
 	if err != nil {
 		return err
 	}
@@ -277,7 +287,7 @@ func (s *MySQLServer) Database(ctx context.Context, label string) (*Database, er
 		config.User += "@" + tenant
 	}
 	config.ParseTime, config.MultiStatements = true, true
-	db, err := sql.Open("mysql", config.FormatDSN())
+	db, err := s.openDB(config.FormatDSN())
 	if err != nil {
 		return nil, err
 	}

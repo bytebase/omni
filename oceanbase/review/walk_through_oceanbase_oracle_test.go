@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
@@ -168,18 +167,9 @@ func (e *mysqlEngine) oceanBaseRelation(t testing.TB, db, name string) (bool, st
 	return n > 0, ""
 }
 
-// transient reports an OceanBase error a retry may clear: the tenant's log
-// stream between leaders (4767), or a timeout.
-func transient(err error) bool {
-	var me *gomysql.MySQLError
-	if errors.As(err, &me) {
-		switch me.Number {
-		case 4767, 4038, 4012, 4023, 6005, 4721, 4109:
-			return true
-		}
-	}
-	return false
-}
+// transient reports an OceanBase error a retry may clear: see
+// sharedserver.OceanBaseTransient.
+func transient(err error) bool { return sharedserver.OceanBaseTransient(err) }
 
 // retryTransient runs f again while it returns a transient error, for up
 // to three minutes.
@@ -201,7 +191,7 @@ func oceanBaseDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("OceanBase oracle: %v", err)
 	}
-	db, err := sql.Open("mysql", dsn)
+	db, err := sharedserver.OpenOceanBase(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
