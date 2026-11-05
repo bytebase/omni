@@ -176,9 +176,9 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 	//
 	// Ref: alter_database_options in MySQL 8.0.46 sql/sql_yacc.yy.
 	if alter && p.cur.Type == kwREAD && p.peekNext().Type == kwONLY {
-		p.advance()  // consume READ
-		p.advance()  // consume ONLY
-		p.match('=') // optional =
+		p.advance()    // consume READ
+		p.advance()    // consume ONLY
+		p.matchEqual() // optional =
 		var val string
 		switch {
 		case p.cur.Type == kwDEFAULT:
@@ -215,7 +215,7 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 	case p.cur.Type == kwCHARACTER:
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
-			p.match('=') // optional =
+			p.matchEqual() // optional =
 			val, err := p.parseCharsetName()
 			if err != nil {
 				return nil, false, err
@@ -232,7 +232,7 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 		return nil, false, p.syntaxErrorAtCur()
 	case p.cur.Type == kwCHARSET:
 		p.advance()
-		p.match('=') // optional =
+		p.matchEqual() // optional =
 		val, err := p.parseCharsetName()
 		if err != nil {
 			return nil, false, err
@@ -244,7 +244,7 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 		}, true, nil
 	case p.cur.Type == kwCOLLATE:
 		p.advance()
-		p.match('=') // optional =
+		p.matchEqual() // optional =
 		val, err := p.parseCollationName()
 		if err != nil {
 			return nil, false, err
@@ -256,7 +256,7 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 		}, true, nil
 	case p.cur.Type == kwENCRYPTION:
 		p.advance()
-		p.match('=') // optional =
+		p.matchEqual() // optional =
 		// The value is a quoted 'Y' or 'N' and is required: `ENCRYPTION = N`
 		// and a bare `ENCRYPTION` are both a 1064.
 		if p.cur.Type != tokSCONST {
