@@ -64,17 +64,25 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 		return stmt, nil
 	}
 
-	// MariaDB reads VALUE as VALUES, starting a table value constructor,
-	// until a '(' or a PARTITION clause follows the table name (create sets
-	// BEFORE_OPT_LIST, MariaDB 11.8.8 sql/sql_yacc.yy line 2531; see
-	// sql/sql_lex.cc): CREATE TABLE t2 VALUE (1) and CREATE TABLE t2 AS
-	// VALUE (1) are queries, CREATE TABLE t2 (a INT) VALUE (1) is not.
-	valueIsValues := true
+	// create sets parsing_place to BEFORE_OPT_LIST before the table name
+	// (MariaDB 11.8.8 sql/sql_yacc.yy line 2531), and until something sets it
+	// back, Lex_input_stream::lex_token (sql/sql_lex.cc line 1888) reads two
+	// tokens differently:
+	//   - VALUE is VALUES, starting a table value constructor: CREATE TABLE
+	//     t2 VALUE (1) and CREATE TABLE t2 AS VALUE (1) are queries, CREATE
+	//     TABLE t2 (a INT) VALUE (1) is not;
+	//   - '(' followed by WITH is LEFT_PAREN_WITH, which only
+	//     create_select_query_expression takes, the query of CREATE TABLE and
+	//     of INSERT (see parseCreateSelect).
+	// The '(' of the column list, PARTITION, and the UNION of a UNION table
+	// option set it back. Table options before the query, IGNORE, REPLACE and
+	// AS leave it.
+	beforeOptList := true
 
 	// CREATE TABLE ... AS SELECT
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseCreateSelect(valueIsValues)
+		sel, err := p.parseCreateSelect(beforeOptList)
 		if err != nil {
 			return nil, err
 		}
@@ -85,13 +93,12 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 
 	// Parenthesized create definitions (columns and constraints)
 	if p.cur.Type == '(' {
-		valueIsValues = false
 		next := p.peekNext()
 		// Check for CREATE TABLE ... (query) — query source without AS. Let
-		// parseSelectStmt consume the parentheses and any following set-op /
+		// parseCreateSelect consume the parentheses and any following set-op /
 		// ORDER BY / LIMIT so "(SELECT 1) UNION (SELECT 2)" stays one source.
 		if next.Type == kwSELECT || next.Type == kwVALUES || next.Type == kwWITH || next.Type == '(' {
-			sel, err := p.parseSelectStmt()
+			sel, err := p.parseCreateSelect(beforeOptList)
 			if err != nil {
 				return nil, err
 			}
@@ -115,6 +122,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			return stmt, nil
 		}
 
+		beforeOptList = false
 		p.advance() // consume '('
 		if err := p.parseCreateDefinitions(stmt); err != nil {
 			return nil, err
@@ -127,7 +135,7 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 	// CREATE TABLE t (cols) [IGNORE|REPLACE] [AS] SELECT ...
 	if p.cur.Type == kwAS {
 		p.advance()
-		sel, err := p.parseCreateSelect(valueIsValues)
+		sel, err := p.parseCreateSelect(beforeOptList)
 		if err != nil {
 			return nil, err
 		}
@@ -152,12 +160,15 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
+		if opt.Name == "UNION" {
+			beforeOptList = false
+		}
 		p.match(',')
 	}
 
 	// Partition clause
 	if p.cur.Type == kwPARTITION {
-		valueIsValues = false
+		beforeOptList = false
 		part, err := p.parsePartitionClause()
 		if err != nil {
 			return nil, err
@@ -182,14 +193,14 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 	switch {
 	case p.cur.Type == kwAS:
 		p.advance()
-		sel, err := p.parseCreateSelect(valueIsValues)
+		sel, err := p.parseCreateSelect(beforeOptList)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Select = sel
 	case p.cur.Type == kwSELECT || p.cur.Type == kwVALUES || p.cur.Type == kwWITH || p.cur.Type == '(' ||
-		p.cur.Type == kwVALUE && valueIsValues:
-		sel, err := p.parseCreateSelect(valueIsValues)
+		p.cur.Type == kwVALUE && beforeOptList:
+		sel, err := p.parseCreateSelect(beforeOptList)
 		if err != nil {
 			return nil, err
 		}
@@ -202,17 +213,72 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, temporary bool) (*no
 	return stmt, nil
 }
 
-// parseCreateSelect parses the query of CREATE TABLE ... [AS] query. When
-// valueIsValues is set, MariaDB still reads VALUE as VALUES there.
-func (p *Parser) parseCreateSelect(valueIsValues bool) (*nodes.SelectStmt, error) {
-	if p.cur.Type == kwVALUE && valueIsValues {
+// parseCreateSelect parses the query of CREATE TABLE ... [AS] query,
+// create_select_query_expression in MariaDB 11.8.8 sql/sql_yacc.yy (line
+// 4832):
+//
+//	create_select_query_expression:
+//	      query_expression
+//	    | LEFT_PAREN_WITH with_clause query_expression_no_with_clause ')'
+//
+// beforeOptList reports whether the query starts where MariaDB's lexer still
+// reads VALUE as VALUES and '(' WITH as LEFT_PAREN_WITH (see
+// parseCreateTableStmt).
+//
+// query_expression is no statement, so it takes no INTO, and neither does any
+// query nested in it (see intoRefused).
+func (p *Parser) parseCreateSelect(beforeOptList bool) (*nodes.SelectStmt, error) {
+	saved := p.intoRefused
+	p.intoRefused = true
+	defer func() { p.intoRefused = saved }()
+
+	switch {
+	case p.cur.Type == kwVALUE && beforeOptList:
 		values, err := p.parseValuesConstructor()
 		if err != nil {
 			return nil, err
 		}
 		return p.parseQueryAfterValues(values)
+	case p.cur.Type == '(' && p.peekNext().Type == kwWITH:
+		return p.parseCreateSelectParenWith(beforeOptList)
 	}
 	return p.parseSelectStmt()
+}
+
+// parseCreateSelectParenWith parses a query of CREATE TABLE that starts with
+// '(' WITH. A parenthesized query in query_expression holds no WITH
+// (query_expression_body_ext_parens, sql/sql_yacc.yy line 9140), so the
+// query is the LEFT_PAREN_WITH alternative or nothing, and the lexer makes
+// that token only while parsing_place is BEFORE_OPT_LIST:
+//
+//	CREATE TABLE t (WITH c AS (SELECT 1) SELECT * FROM c)        -- a query
+//	CREATE TABLE t ENGINE=InnoDB (WITH c AS (SELECT 1) SELECT * FROM c)
+//	CREATE TABLE t (a INT) (WITH c AS (SELECT 1) SELECT * FROM c) -- 1064
+//
+// The alternative ends at its ')': no set operation, ORDER BY, LIMIT or
+// locking clause follows it, so "(WITH ...) UNION SELECT 2" is 1064 where
+// "(WITH ... UNION SELECT 2)" is a query. The tree is the one a
+// parenthesized query has: a SelectStmt whose ParenSource carries the WITH.
+func (p *Parser) parseCreateSelectParenWith(beforeOptList bool) (*nodes.SelectStmt, error) {
+	start := p.pos()
+	p.advance() // consume '('
+	if !beforeOptList {
+		return nil, p.syntaxErrorAtCur()
+	}
+	inner, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	if inner == nil { // collecting completion candidates
+		return nil, nil
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.SelectStmt{
+		Loc:         nodes.Loc{Start: start, End: p.prev.End},
+		ParenSource: inner,
+	}, nil
 }
 
 // parseCreateDefinitions parses column definitions and table constraints

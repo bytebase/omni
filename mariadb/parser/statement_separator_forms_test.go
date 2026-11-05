@@ -24,6 +24,21 @@ import (
 // (/*!80000 ... */), so the statement inside it is no second statement there,
 // and it has no TABLE query or VALUES ROW constructor.
 //
+// MariaDB reads the query of CREATE TABLE as query_expression, which is no
+// statement: no INTO anywhere in it, in a nested query either, where MySQL
+// 8.0 takes "CREATE TABLE t (a INT) SELECT 1 INTO @x". A parenthesized query
+// there holds no WITH. "(WITH ...)" is a query only as its own alternative,
+// LEFT_PAREN_WITH, a token the lexer makes until the column list, PARTITION or
+// a UNION table option, and nothing follows its ')'. Until then the lexer
+// reads VALUE as VALUES too.
+//
+// Not recorded here, because this parser still disagrees and the change is not
+// about it: this parser's parenthesized query takes WITH wherever a query goes,
+// so "CREATE TABLE t ((WITH ...))" and "CREATE TABLE t (SELECT 1) UNION
+// (WITH ...)" parse, as "(WITH ...)" does as a statement; and MariaDB takes
+// WITH SYSTEM VERSIONING after the query (opt_versioning_option), which this
+// parser refuses.
+//
 // Every case was measured against MariaDB 11.8.8 (mariadb:11.8.8) through
 // PREPARE on 2026-11-05. TestStatementSeparatorFormsOracle keeps it a
 // recording: an image upgrade that changes an answer fails there rather than
@@ -196,6 +211,96 @@ var createTableQueryFormCases = []separatorFormCase{
 	{"create table t (a int) table u table v", false},
 	{"create table t (a int) values row(1) select 1", false},
 	{"create table t (a int) (select 1) (select 2)", false},
+	// "(WITH ...)" where the lexer makes LEFT_PAREN_WITH: after the table
+	// name, the table options, IGNORE or REPLACE, and AS.
+	{"create table t engine=innodb (with c as (select 1) select * from c)", true},
+	{"create table t comment 'x' (with c as (select 1) select * from c)", true},
+	{"create table t ignore (with c as (select 1) select * from c)", true},
+	{"create table t replace (with c as (select 1) select * from c)", true},
+	{"create table t engine=innodb ignore (with c as (select 1) select * from c)", true},
+	{"create table t as (with c as (select 1) select * from c)", true},
+	{"create table t ignore as (with c as (select 1) select * from c)", true},
+	{"create table t engine=innodb as (with c as (select 1) select * from c)", true},
+	{"create table t (with recursive c as (select 1) select * from c)", true},
+	{"create table t (with c as (select 1) (select * from c))", true},
+	{"create table t (with c as (select 1) values (1))", true},
+	{"create table t (with c as (select 1) select * from c union select 2)", true},
+	{"create table t (with c as (select 1) select * from c order by 1 limit 1)", true},
+	{"create table t (with c as (select 1) select * from c for update)", true},
+	// Past the column list, the partitioning or a UNION table option, '(' is
+	// a parenthesized query, which holds no WITH.
+	{"create table t (a int) (with c as (select 1) select * from c)", false},
+	{"create table t (a int) engine=innodb (with c as (select 1) select * from c)", false},
+	{"create table t (a int) ignore (with c as (select 1) select * from c)", false},
+	{"create table t (a int) replace (with c as (select 1) select * from c)", false},
+	{"create table t (a int) as (with c as (select 1) select * from c)", false},
+	{"create table t (a int) ignore as (with c as (select 1) select * from c)", false},
+	{"create table t (a int) partition by hash(a) (partition p0) (with c as (select 1) select * from c)", false},
+	{"create table t union=(u) (with c as (select 1) select * from c)", false},
+	{"create table t union (u) (with c as (select 1) select * from c)", false},
+	{"create table t engine=innodb union=(u) (with c as (select 1) select * from c)", false},
+	{"create table t union=(u) as (with c as (select 1) select * from c)", false},
+	{"create table t union=(u) ignore (with c as (select 1) select * from c)", false},
+	{"create table t union=(u) (select 1)", true},
+	{"create table t union=(u) with c as (select 1) select * from c", true},
+	{"create table t (a int) with c as (select 1) (select * from c)", true},
+	// Nothing follows the ')' of "(WITH ...)".
+	{"create table t (with c as (select 1) select * from c) union select 2", false},
+	{"create table t (with c as (select 1) select * from c) union (select 2)", false},
+	{"create table t (with c as (select 1) select * from c) order by 1", false},
+	{"create table t (with c as (select 1) select * from c) limit 1", false},
+	{"create table t (with c as (select 1) select * from c) for update", false},
+	{"create table t as (with c as (select 1) select * from c) union select 2", false},
+	{"create table t ignore as (with c as (select 1) select * from c) union select 2", false},
+	// VALUE reads as VALUES until the same point.
+	{"create table t engine=innodb value (1)", true},
+	{"create table t ignore value (1)", true},
+	{"create table t union=(u) value (1)", false},
+	{"create table t union (u) value (1)", false},
+	{"create table t engine=innodb union=(u) value (1)", false},
+	{"create table t union=(u) engine=innodb value (1)", false},
+	{"create table t union=(u) as value (1)", false},
+	{"create table t union=(u) ignore value (1)", false},
+	{"create table t union=(u) values (1)", true},
+	// No INTO anywhere in the query.
+	{"create table t (a int) select 1 into @x", false},
+	{"create table t select 1 into @x", false},
+	{"create table t select 1 into @x, @y", false},
+	{"create table t as select 1 into @x", false},
+	{"create table t (a int) as select 1 into @x", false},
+	{"create table t ignore select 1 into @x", false},
+	{"create table t engine=innodb select 1 into @x", false},
+	{"create table t (a int) partition by hash(a) partitions 2 select 1 into @x", false},
+	{"create table t select 1 into @x from dual", false},
+	{"create table t select * into @x from u", false},
+	{"create table t select 1 from dual into @x", false},
+	{"create table t select 1 order by 1 into @x", false},
+	{"create table t select 1 limit 1 into @x", false},
+	{"create table t select 1 for update into @x", false},
+	{"create table t select 1 into @x for update", false},
+	{"create table t select 1 lock in share mode into @x", false},
+	{"create table t select 1 into outfile 'f'", false},
+	{"create table t select 1 into dumpfile 'f'", false},
+	{"create table t select * into outfile 'f' from u", false},
+	{"create table t (a int) select 1 into dumpfile 'f'", false},
+	{"create table t select 1 into", false},
+	{"create table t (select 1 into @x)", false},
+	{"create table t (select 1) into @x", false},
+	{"create table t ((select 1 into @x))", false},
+	{"create table t as (select 1 into @x)", false},
+	{"create table t (a int) (select 1 into @x)", false},
+	{"create table t select 1 union select 2 into @x", false},
+	{"create table t select 1 into @x union select 2", false},
+	{"create table t select 1 union (select 2 into @x)", false},
+	{"create table t (select 1) union select 2 into @x", false},
+	{"create table t values (1) into @x", false},
+	{"create table t with c as (select 1) select * from c into @x", false},
+	{"create table t (with c as (select 1) select * from c into @x)", false},
+	{"create table t (with c as (select 1) select * into @x from c)", false},
+	{"create table t with c as (select 1 into @x) select * from c", false},
+	{"create table t select * from (select 1 into @x) d", false},
+	{"create table t select 1 from dual where 1 in (select 1 into @x)", false},
+	{"create table t select (select 1 into @x)", false},
 }
 
 func TestStatementSeparatorForms(t *testing.T) {
@@ -232,11 +337,67 @@ func TestCreateTableQueryIsOneStatement(t *testing.T) {
 				t.Fatalf("Parse(%q) = %T, want *ast.CreateTableStmt", c.sql, list.Items[0])
 			}
 			hasQuery := strings.Contains(c.sql, "select") || strings.Contains(c.sql, "table u") ||
-				strings.Contains(c.sql, "values")
+				strings.Contains(c.sql, "value")
 			if got := stmt.Select != nil; got != hasQuery {
 				t.Errorf("Parse(%q).Select set=%v, want %v", c.sql, got, hasQuery)
 			}
 		})
+	}
+}
+
+// TestCreateTableParenWithTree holds the tree of "(WITH ...)" as the query of
+// CREATE TABLE: a parenthesized query whose ParenSource carries the WITH, as
+// before the LEFT_PAREN_WITH alternative was read on its own.
+func TestCreateTableParenWithTree(t *testing.T) {
+	sql := "create table t ignore (with c as (select 1) select * from c)"
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse(%q): %v", sql, err)
+	}
+	stmt := list.Items[0].(*nodes.CreateTableStmt)
+	sel := stmt.Select
+	if !stmt.Ignore || sel == nil || sel.ParenSource == nil {
+		t.Fatalf("Parse(%q) = Ignore %v, Select %+v, want IGNORE and a parenthesized query", sql, stmt.Ignore, sel)
+	}
+	if want := (nodes.Loc{Start: strings.Index(sql, "(with"), End: len(sql)}); sel.Loc != want {
+		t.Errorf("query Loc = %+v, want %+v", sel.Loc, want)
+	}
+	inner := sel.ParenSource
+	if want := (nodes.Loc{Start: strings.Index(sql, "with"), End: len(sql) - 1}); inner.Loc != want {
+		t.Errorf("parenthesized query Loc = %+v, want %+v", inner.Loc, want)
+	}
+	if len(inner.CTEs) != 1 || inner.CTEs[0].Name != "c" {
+		t.Errorf("parenthesized query CTEs = %+v, want one named c", inner.CTEs)
+	}
+	if stmt.Loc.End != len(sql) {
+		t.Errorf("statement Loc.End = %d, want %d", stmt.Loc.End, len(sql))
+	}
+}
+
+// TestCreateTableQueryRefusalPositions holds where a refused CREATE TABLE
+// query is reported: at the INTO, at the WITH a parenthesized query cannot
+// hold, or at the first token after "(WITH ...)" or the table options.
+func TestCreateTableQueryRefusalPositions(t *testing.T) {
+	for _, c := range []struct{ sql, at string }{
+		{"create table t (a int) select 1 into @x", "into @x"},
+		{"create table t select * into @x from u", "into @x"},
+		{"create table t select 1 for update into @x", "into @x"},
+		{"create table t select 1 union select 2 into @x", "into @x"},
+		{"create table t select 1 from dual where exists (select 1 into @x)", "into @x"},
+		{"create table t (a int) (with c as (select 1) select * from c)", "with c"},
+		{"create table t union=(u) (with c as (select 1) select * from c)", "with c"},
+		{"create table t (with c as (select 1) select * from c) union select 2", "union select 2"},
+		{"create table t union=(u) value (1)", "value (1)"},
+	} {
+		_, err := Parse(c.sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) {
+			t.Errorf("Parse(%q) = %v, want a *ParseError", c.sql, err)
+			continue
+		}
+		if pos := strings.Index(c.sql, c.at); pe.Position != pos || !strings.HasPrefix(pe.Message, "syntax error") {
+			t.Errorf("Parse(%q) error = %q at %d, want syntax error at %d", c.sql, pe.Message, pe.Position, pos)
+		}
 	}
 }
 
