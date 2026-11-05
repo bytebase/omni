@@ -366,6 +366,9 @@ var grammarActionCases = []grammarActionCase{
 	{"import into t (a) set a=1 from select 1", false},
 	{"import into t from select 1", true},
 	{"import into t from '/x' with fields_enclosed_by='aa'", true},
+	// A comment holding a comma is no scale.
+	{"create table t (a double(10 /* , */))", false},
+	{"create table t (a double(10 /* , */ , 2))", true},
 	// SignedNum and the SETVAL arm.
 	{"create sequence s start with -9223372036854775809", false},
 	{"create sequence s start with -9223372036854775808", true},

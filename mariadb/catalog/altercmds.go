@@ -1027,7 +1027,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 	// Also remove any constraint that references this index.
 	for i, con := range tbl.Constraints {
-		if toLower(con.IndexName) == key || toLower(con.Name) == key {
+		if constraintOfIndex(con, key) {
 			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
 			break
 		}

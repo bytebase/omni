@@ -591,10 +591,11 @@ func (p *Parser) parseDoublePrecision(dt *nodes.DataType) error {
 		return nil
 	}
 	start := p.cur.Loc
-	if err := p.parseOptionalPrecision(dt); err != nil {
+	hasScale, err := p.parsePrecisionAndScale(dt)
+	if err != nil {
 		return err
 	}
-	if !strings.Contains(p.inputText(start, p.prev.End), ",") {
+	if !hasScale {
 		return &ParseError{Message: "DOUBLE takes both a precision and a scale", Position: start}
 	}
 	return nil
@@ -610,9 +611,16 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 	if p.cur.Type != '(' {
 		return nil
 	}
+	_, err := p.parsePrecisionAndScale(dt)
+	return err
+}
+
+// parsePrecisionAndScale reads from the `(`, and reports whether a scale was written: DECIMAL(10,0)
+// has one and DECIMAL(10) does not, though dt.Scale is 0 for both.
+func (p *Parser) parsePrecisionAndScale(dt *nodes.DataType) (hasScale bool, err error) {
 	p.advance()
 	if p.cur.Type != tokICONST {
-		return &ParseError{
+		return false, &ParseError{
 			Message:  "expected a precision for " + dt.Name,
 			Position: p.cur.Loc,
 		}
@@ -622,22 +630,23 @@ func (p *Parser) parseOptionalPrecision(dt *nodes.DataType) error {
 	if p.cur.Type == ',' {
 		p.advance()
 		if p.cur.Type != tokICONST {
-			return &ParseError{
+			return false, &ParseError{
 				Message:  "expected a scale for " + dt.Name,
 				Position: p.cur.Loc,
 			}
 		}
 		dt.Scale = int(p.cur.Ival)
+		hasScale = true
 		p.advance()
 	}
 	if p.cur.Type != ')' {
-		return &ParseError{
+		return false, &ParseError{
 			Message:  "expected ) after the precision for " + dt.Name,
 			Position: p.cur.Loc,
 		}
 	}
 	p.advance()
-	return nil
+	return hasScale, nil
 }
 
 // parseUnsignedZerofill parses optional SIGNED, UNSIGNED, and ZEROFILL modifiers.

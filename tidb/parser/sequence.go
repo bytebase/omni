@@ -368,12 +368,13 @@ func (p *Parser) parseSetvalArgs(fc *nodes.FuncCallExpr) (nodes.ExprNode, error)
 	if err != nil {
 		return nil, err
 	}
+	end := p.prev.End
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 	fc.Args = []nodes.ExprNode{
 		&nodes.ColumnRef{Loc: table.Loc, Table: table.Schema, Column: table.Name},
-		&nodes.IntLit{Loc: nodes.Loc{Start: start, End: p.prev.Loc}, Value: value},
+		&nodes.IntLit{Loc: nodes.Loc{Start: start, End: end}, Value: value},
 	}
 	fc.Loc.End = p.prev.End
 	return fc, nil
