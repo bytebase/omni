@@ -1251,11 +1251,16 @@ type BitLit struct {
 func (l *BitLit) nodeTag()  {}
 func (l *BitLit) exprNode() {}
 
-// TemporalLit represents a temporal literal (DATE '...', TIME '...', TIMESTAMP '...').
+// TemporalLit represents a temporal literal: DATE '...', TIME '...', TIMESTAMP
+// '...', or the ODBC escape {d ...}, {t ...} or {ts ...} that means the same.
 type TemporalLit struct {
 	Loc   Loc
 	Type  string // "DATE", "TIME", "TIMESTAMP"
 	Value string
+	// Expr is the argument of an ODBC escape that is not a string, as in
+	// {d 123}: TiDB parses it and refuses it only when it evaluates it. Value
+	// is then empty.
+	Expr ExprNode
 }
 
 func (l *TemporalLit) nodeTag()  {}

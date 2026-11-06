@@ -1096,6 +1096,8 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
+	case *TemporalLit:
+		Walk(v, n.Expr)
 	case *TraceStmt:
 		Walk(v, n.Stmt)
 	case *TruncateStmt:

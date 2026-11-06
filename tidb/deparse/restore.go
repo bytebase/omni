@@ -686,7 +686,11 @@ func restoreExpr(b *restorer, node ast.ExprNode) {
 		// the lexer read it, with no character set.
 		b.WriteString(strings.ToUpper(n.Type))
 		b.WriteByte(' ')
-		restoreString(b, n.Value)
+		if n.Expr != nil {
+			restoreExpr(b, n.Expr)
+		} else {
+			restoreString(b, n.Value)
+		}
 	case *ast.ColumnRef:
 		restoreColumnRef(b, n)
 	case *ast.StarExpr:

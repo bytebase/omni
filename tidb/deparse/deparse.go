@@ -564,6 +564,9 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 		}
 		return "b'" + val + "'"
 	case *ast.TemporalLit:
+		if n.Expr != nil {
+			return n.Type + " " + deparseExprAlias(n.Expr)
+		}
 		return n.Type + " '" + n.Value + "'"
 	default:
 		// For expressions: generate a human-readable alias text without backtick quoting.
@@ -636,9 +639,14 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		}
 	case *ast.TemporalLit:
 		b.WriteString(n.Type)
-		b.WriteString(" '")
-		b.WriteString(n.Value)
-		b.WriteString("'")
+		if n.Expr != nil {
+			b.WriteString(" ")
+			writeExprAlias(b, n.Expr)
+		} else {
+			b.WriteString(" '")
+			b.WriteString(n.Value)
+			b.WriteString("'")
+		}
 	case *ast.BinaryExpr:
 		// Special operator aliases for REGEXP, ->, ->>
 		var op string
@@ -1351,9 +1359,14 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(deparseBitLit(n))
 	case *ast.TemporalLit:
 		b.WriteString(n.Type)
-		b.WriteString("'")
-		b.WriteString(n.Value)
-		b.WriteString("'")
+		if n.Expr != nil {
+			b.WriteString(" ")
+			writeExpr(b, n.Expr)
+		} else {
+			b.WriteString("'")
+			b.WriteString(n.Value)
+			b.WriteString("'")
+		}
 	case *ast.BinaryExpr:
 		writeBinaryExpr(b, n)
 	case *ast.ColumnRef:

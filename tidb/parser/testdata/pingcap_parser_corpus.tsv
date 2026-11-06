@@ -815,15 +815,15 @@ accept	accept	select time '00:00:00.111'
 reject	reject	select time 19890910
 accept	accept	select timestamp '1989-09-10 11:11:11'
 reject	reject	select timestamp 19890910
-reject	accept	select {ts '1989-09-10 11:11:11'}
-reject	accept	select {d '1989-09-10'}
-reject	accept	select {t '00:00:00.111'}
-reject	accept	select * from t where a > {ts '1989-09-10 11:11:11'}
-reject	accept	select * from t where a > {ts {abc '1989-09-10 11:11:11'}}
-reject	accept	select {ts123 '1989-09-10 11:11:11'}
-reject	accept	select {ts123 123}
-reject	accept	select {ts123 1 xor 1}
-reject	accept	select * from t where a > {ts123 '1989-09-10 11:11:11'}
+accept	accept	select {ts '1989-09-10 11:11:11'}
+accept	accept	select {d '1989-09-10'}
+accept	accept	select {t '00:00:00.111'}
+accept	accept	select * from t where a > {ts '1989-09-10 11:11:11'}
+accept	accept	select * from t where a > {ts {abc '1989-09-10 11:11:11'}}
+accept	accept	select {ts123 '1989-09-10 11:11:11'}
+accept	accept	select {ts123 123}
+accept	accept	select {ts123 1 xor 1}
+accept	accept	select * from t where a > {ts123 '1989-09-10 11:11:11'}
 reject	reject	select .t.a from t
 accept	accept	SELECT POW(1, 2)
 accept	accept	SELECT POW(1, 2, 1)
