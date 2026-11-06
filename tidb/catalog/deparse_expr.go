@@ -9,7 +9,11 @@ import (
 // DeparseAnalyzedExpr converts an analyzed expression back to SQL text.
 func DeparseAnalyzedExpr(expr AnalyzedExpr, q *Query) string {
 	var b strings.Builder
-	writeAnalyzedExpr(&b, expr, q)
+	var s *deparseScope
+	if q != nil {
+		s = &deparseScope{Query: q}
+	}
+	writeAnalyzedExpr(&b, expr, s)
 	return b.String()
 }
 
@@ -17,7 +21,7 @@ func DeparseAnalyzedExpr(expr AnalyzedExpr, q *Query) string {
 // call, like every function below: returning each level as a string of its
 // own copied the text of a long chain (1 + 1 + ..., a AND b AND ...) once per
 // level.
-func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *Query) {
+func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 	if expr == nil {
 		return
 	}
@@ -53,12 +57,12 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *Query) {
 	}
 }
 
-func writeVarExprQ(b *strings.Builder, v *VarExprQ, q *Query) {
-	if q == nil || v.RangeIdx < 0 || v.RangeIdx >= len(q.RangeTable) {
+func writeVarExprQ(b *strings.Builder, v *VarExprQ, q *deparseScope) {
+	rte := q.rteOf(v)
+	if rte == nil {
 		b.WriteString("?")
 		return
 	}
-	rte := q.RangeTable[v.RangeIdx]
 	colName := "?"
 	if v.AttNum >= 1 && v.AttNum <= len(rte.ColNames) {
 		colName = rte.ColNames[v.AttNum-1]
@@ -86,7 +90,7 @@ func writeConstExprQ(b *strings.Builder, c *ConstExprQ) {
 	b.WriteString("'")
 }
 
-func writeOpExprQ(b *strings.Builder, o *OpExprQ, q *Query) {
+func writeOpExprQ(b *strings.Builder, o *OpExprQ, q *deparseScope) {
 	b.WriteString("(")
 	switch {
 	case o.Left != nil && o.Right == nil:
@@ -111,7 +115,7 @@ func writeOpExprQ(b *strings.Builder, o *OpExprQ, q *Query) {
 	b.WriteString(")")
 }
 
-func writeBoolExprQ(b *strings.Builder, e *BoolExprQ, q *Query) {
+func writeBoolExprQ(b *strings.Builder, e *BoolExprQ, q *deparseScope) {
 	var sep string
 	switch e.Op {
 	case BoolAnd:
@@ -141,7 +145,7 @@ func writeBoolExprQ(b *strings.Builder, e *BoolExprQ, q *Query) {
 	b.WriteString(")")
 }
 
-func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *Query) {
+func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 	if f.IsAggregate && len(f.Args) == 0 && strings.ToLower(f.Name) == "count" {
 		b.WriteString("count(*)")
 		return
@@ -168,7 +172,7 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *Query) {
 	}
 }
 
-func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *Query) {
+func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *deparseScope) {
 	if w.Name != "" && len(w.PartitionBy) == 0 && len(w.OrderBy) == 0 && w.FrameClause == "" {
 		b.WriteString(backtickIDQ(w.Name))
 		return
@@ -217,7 +221,7 @@ func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *Query) {
 	b.WriteByte(')')
 }
 
-func writeCaseExprQ(b *strings.Builder, c *CaseExprQ, q *Query) {
+func writeCaseExprQ(b *strings.Builder, c *CaseExprQ, q *deparseScope) {
 	b.WriteString("case")
 	if c.TestExpr != nil {
 		b.WriteByte(' ')
@@ -236,7 +240,7 @@ func writeCaseExprQ(b *strings.Builder, c *CaseExprQ, q *Query) {
 	b.WriteString(" end")
 }
 
-func writeCoalesceExprQ(b *strings.Builder, c *CoalesceExprQ, q *Query) {
+func writeCoalesceExprQ(b *strings.Builder, c *CoalesceExprQ, q *deparseScope) {
 	b.WriteString("coalesce(")
 	for i, arg := range c.Args {
 		if i > 0 {
@@ -247,7 +251,7 @@ func writeCoalesceExprQ(b *strings.Builder, c *CoalesceExprQ, q *Query) {
 	b.WriteByte(')')
 }
 
-func writeNullTestExprQ(b *strings.Builder, n *NullTestExprQ, q *Query) {
+func writeNullTestExprQ(b *strings.Builder, n *NullTestExprQ, q *deparseScope) {
 	b.WriteString("(")
 	writeAnalyzedExpr(b, n.Arg, q)
 	if n.IsNull {
@@ -257,7 +261,7 @@ func writeNullTestExprQ(b *strings.Builder, n *NullTestExprQ, q *Query) {
 	}
 }
 
-func writeInListExprQ(b *strings.Builder, in *InListExprQ, q *Query) {
+func writeInListExprQ(b *strings.Builder, in *InListExprQ, q *deparseScope) {
 	writeAnalyzedExpr(b, in.Arg, q)
 	if in.Negated {
 		b.WriteString(" not in (")
@@ -273,7 +277,7 @@ func writeInListExprQ(b *strings.Builder, in *InListExprQ, q *Query) {
 	b.WriteByte(')')
 }
 
-func writeBetweenExprQ(b *strings.Builder, be *BetweenExprQ, q *Query) {
+func writeBetweenExprQ(b *strings.Builder, be *BetweenExprQ, q *deparseScope) {
 	b.WriteString("(")
 	writeAnalyzedExpr(b, be.Arg, q)
 	if be.Negated {
@@ -287,7 +291,9 @@ func writeBetweenExprQ(b *strings.Builder, be *BetweenExprQ, q *Query) {
 	b.WriteString(")")
 }
 
-func writeSubLinkExprQ(b *strings.Builder, s *SubLinkExprQ, q *Query) {
+// writeSubLinkExprQ writes a subquery in an expression. The subquery is one
+// level inside q: a column it takes from q has LevelsUp = 1.
+func writeSubLinkExprQ(b *strings.Builder, s *SubLinkExprQ, q *deparseScope) {
 	switch s.Kind {
 	case SubLinkExists:
 		b.WriteString("exists (")
@@ -306,17 +312,17 @@ func writeSubLinkExprQ(b *strings.Builder, s *SubLinkExprQ, q *Query) {
 		} else {
 			b.WriteString(" all (")
 		}
-		writeQueryQ(b, s.Subquery)
+		writeQueryQ(b, s.Subquery, q)
 		b.WriteString("))")
 		return
 	default: // SubLinkScalar
 		b.WriteString("(")
 	}
-	writeQueryQ(b, s.Subquery)
+	writeQueryQ(b, s.Subquery, q)
 	b.WriteString(")")
 }
 
-func writeCastExprQ(b *strings.Builder, c *CastExprQ, q *Query) {
+func writeCastExprQ(b *strings.Builder, c *CastExprQ, q *deparseScope) {
 	b.WriteString("cast(")
 	writeAnalyzedExpr(b, c.Arg, q)
 	b.WriteString(" as ")
@@ -324,7 +330,7 @@ func writeCastExprQ(b *strings.Builder, c *CastExprQ, q *Query) {
 	b.WriteString(")")
 }
 
-func writeRowExprQ(b *strings.Builder, r *RowExprQ, q *Query) {
+func writeRowExprQ(b *strings.Builder, r *RowExprQ, q *deparseScope) {
 	b.WriteString("row(")
 	for i, arg := range r.Args {
 		if i > 0 {
