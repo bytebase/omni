@@ -207,3 +207,30 @@ func TestConvertToDefaultCharsetRefused(t *testing.T) {
 		}
 	}
 }
+
+// TiDB refuses a literal default on a BLOB, TEXT or JSON column with 1101 in
+// every statement that sets one, and takes DEFAULT NULL and an expression
+// default (v8.5.5, read on 2026-11-06).
+func TestBlobTextJSONLiteralDefaultRefused(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (b BLOB DEFAULT 0x4142)",
+		"CREATE TABLE t (b BLOB DEFAULT '')",
+		"CREATE TABLE t (t TINYTEXT NOT NULL DEFAULT 'a')",
+		"CREATE TABLE t (j JSON DEFAULT '[]')",
+		"CREATE TABLE t (a INT); ALTER TABLE t ADD COLUMN b TEXT DEFAULT 'x'",
+		"CREATE TABLE t (b TEXT); ALTER TABLE t MODIFY b TEXT DEFAULT 'x'",
+		"CREATE TABLE t (b TEXT); ALTER TABLE t ALTER COLUMN b SET DEFAULT 'x'",
+	} {
+		c := wtSetup(t)
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", sql, err)
+		}
+		assertError(t, results[len(results)-1].Error, ErrBlobCantHaveDefault)
+	}
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE ok (j JSON DEFAULT (JSON_ARRAY()), b LONGBLOB DEFAULT NULL)")
+	if got := c.ShowCreateTable("testdb", "ok"); !strings.Contains(got, "`b` longblob DEFAULT NULL") {
+		t.Errorf("got:\n%s", got)
+	}
+}

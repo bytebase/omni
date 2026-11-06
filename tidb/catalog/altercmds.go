@@ -950,6 +950,11 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
 		s := defaultToSQL(cmd.DefaultExpr)
+		probe := *col
+		probe.Default = &s
+		if err := checkLiteralDefaultAllowed(&probe); err != nil {
+			return err
+		}
 		col.Default = &s
 		col.DefaultDropped = false
 	} else {
@@ -1112,6 +1117,9 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 		}
 	}
 
+	if err := checkLiteralDefaultAllowed(col); err != nil {
+		return nil, err
+	}
 	return col, nil
 }
 

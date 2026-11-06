@@ -348,6 +348,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			})
 		}
 
+		if err := checkLiteralDefaultAllowed(col); err != nil {
+			return err
+		}
+
 		tbl.Columns = append(tbl.Columns, col)
 		tbl.colByName[colKey] = i
 	}
