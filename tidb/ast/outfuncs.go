@@ -262,6 +262,12 @@ func writeNode(sb *strings.Builder, node Node) {
 	case *BitLit:
 		fmt.Fprintf(sb, "{BIT_LIT :val %s :loc %d}", n.Value, n.Loc.Start)
 	case *TemporalLit:
+		if n.Expr != nil {
+			fmt.Fprintf(sb, "{TEMPORAL_LIT :type %s :expr ", n.Type)
+			writeNode(sb, n.Expr)
+			fmt.Fprintf(sb, " :loc %d}", n.Loc.Start)
+			break
+		}
 		fmt.Fprintf(sb, "{TEMPORAL_LIT :type %s :val %s :loc %d}", n.Type, n.Value, n.Loc.Start)
 	case *VariableRef:
 		writeVariableRef(sb, n)

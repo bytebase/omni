@@ -526,6 +526,9 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case '(':
 		return p.parseParenExpr()
 
+	case '{':
+		return p.parseODBCEscape()
+
 	case kwCAST:
 		if p.funcWordIsName() {
 			return p.parseIdentExpr()

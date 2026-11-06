@@ -215,3 +215,56 @@ func (p *Parser) parseDateArgs(fc *nodes.FuncCallExpr, intervalOnly bool) error 
 	_, err = p.expect(')')
 	return err
 }
+
+// parseODBCEscape parses the ODBC escape { Identifier Expression } (SimpleExpr,
+// parser.y:7941, v8.5.5). The action compares the name as written, so only d, t
+// and ts, in lower case and backquoted or not, make a DATE, TIME or TIMESTAMP
+// literal; {D '2020-01-01'} and {abc 1} are the expression alone. Verified on
+// TiDB v8.5.5: a view stores {d '2020-01-01'} as DATE '2020-01-01' typed date,
+// and {D '2020-01-01'} as _UTF8MB4'2020-01-01' typed var_string.
+//
+// The expression alone keeps its own Loc, so an unaliased {abc 1} is named 1
+// where TiDB names it after the whole field, {abc 1}.
+func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
+	start := p.cur.Loc
+	p.advance() // consume {
+	if !p.isIdentToken() {
+		return nil, &ParseError{Message: "syntax error, expected an identifier after {", Position: p.cur.Loc}
+	}
+	nameTok := p.advance()
+	exprStart := p.pos()
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	// The argument is an Expression, which takes neither the bare DEFAULT nor
+	// the * that parseExpr also reads: {d *} and {abc DEFAULT} are 1064s on
+	// v8.5.5.
+	if err := checkRowItem(expr, exprStart); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('}'); err != nil {
+		return nil, err
+	}
+	var typ string
+	if nameTok.Type == tokIDENT {
+		switch nameTok.Str {
+		case "d":
+			typ = "DATE"
+		case "t":
+			typ = "TIME"
+		case "ts":
+			typ = "TIMESTAMP"
+		}
+	}
+	if typ == "" {
+		return expr, nil
+	}
+	lit := &nodes.TemporalLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Type: typ}
+	if s, ok := expr.(*nodes.StringLit); ok {
+		lit.Value = s.Value
+	} else {
+		lit.Expr = expr
+	}
+	return lit, nil
+}

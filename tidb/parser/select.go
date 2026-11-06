@@ -846,7 +846,13 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		ref, err := p.parseTableReference()
+		var ref nodes.TableExpr
+		var err error
+		if p.cur.Type == '{' {
+			ref, err = p.parseEscapedTableRef()
+		} else {
+			ref, err = p.parseTableReference()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -858,6 +864,27 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 	}
 
 	return refs, nil
+}
+
+// parseEscapedTableRef parses the ODBC outer join escape { Identifier TableRef }
+// (EscapedTableRef, parser.y:9895, v8.5.5), which any name opens: TiDB keeps the
+// table reference inside and drops the rest. Only TableRefs reads it, so it is
+// one item of a FROM, UPDATE or multiple-table DELETE list, or of a
+// parenthesised one, and no join follows it: `FROM {oj t1} JOIN t2` is a 1064.
+func (p *Parser) parseEscapedTableRef() (nodes.TableExpr, error) {
+	p.advance() // consume {
+	if !p.isIdentToken() {
+		return nil, &ParseError{Message: "syntax error, expected an identifier after {", Position: p.cur.Loc}
+	}
+	p.advance()
+	ref, err := p.parseTableReference()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('}'); err != nil {
+		return nil, err
+	}
+	return ref, nil
 }
 
 func foldTableReferenceList(refs []nodes.TableExpr) nodes.TableExpr {

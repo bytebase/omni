@@ -240,3 +240,38 @@ func TestViewRestorePriority(t *testing.T) {
 		})
 	}
 }
+
+// TestViewRestoreODBCEscapes: a view stores an ODBC escape as TiDB v8.5.5 stores
+// it (SHOW CREATE VIEW, 2026-11-06). {d}, {t} and {ts} become DATE, TIME and
+// TIMESTAMP literals named after the escape's text; any other name, D and TS
+// among them, leaves the bare expression, here a string; and {oj ...} leaves its
+// join. TiDB names an unaliased {abc 1} after the whole field, {abc 1}; omni names
+// it 1, because the escape leaves no node of its own (parseODBCEscape).
+func TestViewRestoreODBCEscapes(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{
+			"SELECT {d '2020-01-01'}, {t '00:00:00'}, {ts '2020-01-01 00:00:00'}",
+			"SELECT DATE '2020-01-01' AS `{d '2020-01-01'}`,TIME '00:00:00' AS `{t '00:00:00'}`," +
+				"TIMESTAMP '2020-01-01 00:00:00' AS `{ts '2020-01-01 00:00:00'}`",
+		},
+		{
+			"SELECT {D '2020-01-01'} AS x, {TS '2020-01-01 00:00:00'} AS y",
+			"SELECT _UTF8MB4'2020-01-01' AS `x`,_UTF8MB4'2020-01-01 00:00:00' AS `y`",
+		},
+		{
+			"SELECT b FROM t1 WHERE b > {d '2020-01-01'}",
+			"SELECT `b` AS `b` FROM `d`.`t1` WHERE `b`>DATE '2020-01-01'",
+		},
+		{
+			"SELECT t1.a FROM {oj t1 LEFT JOIN t2 ON t1.a = t2.a}",
+			"SELECT `t1`.`a` AS `a` FROM `d`.`t1` LEFT JOIN `d`.`t2` ON `t1`.`a`=`t2`.`a`",
+		},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			c := viewRestoreCatalog(t, "CREATE DATABASE d; USE d; CREATE TABLE t1 (a INT, b DATE); CREATE TABLE t2 (a INT); CREATE VIEW v AS "+tc.body+";")
+			if got := c.GetDatabase("d").Views["v"].Definition; got != tc.want {
+				t.Errorf("Definition =\n%s\nwant\n%s", got, tc.want)
+			}
+		})
+	}
+}

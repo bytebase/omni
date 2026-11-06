@@ -684,9 +684,17 @@ func restoreExpr(b *restorer, node ast.ExprNode) {
 	case *ast.TemporalLit:
 		// ast.FuncCallExpr.customRestore: the keyword, then the string as
 		// the lexer read it, with no character set.
-		b.WriteString(strings.ToUpper(n.Type))
-		b.WriteByte(' ')
-		restoreString(b, n.Value)
+		if n.Expr != nil {
+			// A non-string argument is written back as the escape it came
+			// from (odbcEscapeName).
+			b.WriteString("{" + odbcEscapeName(n.Type) + " ")
+			restoreExpr(b, n.Expr)
+			b.WriteByte('}')
+		} else {
+			b.WriteString(strings.ToUpper(n.Type))
+			b.WriteByte(' ')
+			restoreString(b, n.Value)
+		}
 	case *ast.ColumnRef:
 		restoreColumnRef(b, n)
 	case *ast.StarExpr:
