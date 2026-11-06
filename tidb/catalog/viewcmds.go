@@ -70,59 +70,6 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 	return nil
 }
 
-// alterView applies ALTER VIEW; source is as for createView.
-func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
-	db, err := c.resolveDatabase(stmt.Name.Schema)
-	if err != nil {
-		return err
-	}
-	key := toLower(stmt.Name.Name)
-	// ALTER VIEW requires the view to exist.
-	if _, exists := db.Views[key]; !exists {
-		return errUnknownTable(db.Name, stmt.Name.Name)
-	}
-
-	// MySQL always sets a definer. Default to `root`@`%` when not specified.
-	definer := stmt.Definer
-	if definer == "" {
-		definer = "`root`@`%`"
-	}
-
-	// Analyze the view body for semantic IR (used by lineage, SDL diff).
-	// Done before deparseViewSelect because deparse mutates the AST.
-	var analyzedQuery *Query
-	if stmt.Select != nil {
-		q, err := c.AnalyzeSelectStmt(stmt.Select)
-		if err == nil {
-			analyzedQuery = q
-		}
-	}
-
-	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
-	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
-
-	// Use explicit column list if provided, otherwise derive from SELECT target list.
-	hasExplicit := len(stmt.Columns) > 0
-	viewCols := stmt.Columns
-	if !hasExplicit {
-		viewCols = derivedCols
-	}
-
-	db.Views[key] = &View{
-		Name:            stmt.Name.Name,
-		Database:        db,
-		Definition:      definition,
-		Algorithm:       stmt.Algorithm,
-		Definer:         definer,
-		SqlSecurity:     stmt.SqlSecurity,
-		CheckOption:     stmt.CheckOption,
-		Columns:         viewCols,
-		ExplicitColumns: hasExplicit,
-		AnalyzedQuery:   analyzedQuery,
-	}
-	return nil
-}
-
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 	for _, ref := range stmt.Views {
 		db, err := c.resolveDatabase(ref.Schema)

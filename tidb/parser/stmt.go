@@ -746,7 +746,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwTABLE, kwDATABASE, kwVIEW, // TiDB has no ALTER FUNCTION/PROCEDURE/EVENT
+			kwTABLE, kwDATABASE, // TiDB has no ALTER VIEW/FUNCTION/PROCEDURE/EVENT
 			kwPLACEMENT, // TiDB: ALTER PLACEMENT POLICY
 			kwSEQUENCE,
 		} {
@@ -790,49 +790,16 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwSERVER:
 		return p.parseAlterServerStmt(start)
 
-	case kwVIEW:
-		return p.parseAlterViewStmt(start)
-
-	case kwALGORITHM:
-		// ALTER ALGORITHM = ... VIEW — delegate to ALTER VIEW parser
-		return p.parseAlterViewStmt(start)
-
-	case kwSQL:
-		// ALTER SQL SECURITY {DEFINER|INVOKER} VIEW — delegate to ALTER VIEW
-		return p.parseAlterViewStmt(start)
-
-	case kwDEFINER:
-		// ALTER DEFINER = user {VIEW|EVENT}
-		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
-		var sqlSecurity string
-		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
-			}
-		}
-		switch p.cur.Type {
-		case kwVIEW:
-			stmt, err := p.parseAlterViewStmt(start)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			if stmt.SqlSecurity == "" {
-				stmt.SqlSecurity = sqlSecurity
-			}
-			return stmt, nil
-		case kwEVENT:
-			// TiDB v8.5.0 has no events (no ALTER EVENT).
-			return nil, p.syntaxErrorAtCur()
-		default:
-			return nil, &ParseError{Message: "unexpected token after DEFINER clause in ALTER", Position: p.cur.Loc}
-		}
+	case kwVIEW, kwALGORITHM, kwSQL, kwDEFINER:
+		// TiDB has no ALTER VIEW in any spelling, and no ALTER EVENT for a
+		// DEFINER to lead into: v8.5.5 answers 1064 for `ALTER VIEW`, `ALTER
+		// ALGORITHM = ... VIEW`, `ALTER DEFINER = ...` and `ALTER SQL SECURITY
+		// ...`. A view is redefined with CREATE OR REPLACE VIEW.
+		//
+		// Ref: TiDB v8.5.5 pkg/parser/parser.y, where no rule starts with
+		// "ALTER" followed by "VIEW", ViewAlgorithm, ViewDefiner or
+		// ViewSQLSecurity.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwEVENT:
 		// TiDB v8.5.0 has no events (no ALTER EVENT).

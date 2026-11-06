@@ -3386,35 +3386,6 @@ func TestParseCreateTableLike(t *testing.T) {
 // Batch 59: CREATE TABLE depth fixes
 // ============================================================================
 
-func TestParseCreateTableColumnInvisible(t *testing.T) {
-	t.Run("column visible", func(t *testing.T) {
-		stmt := parseCreateTable(t, "CREATE TABLE t (id INT VISIBLE, name VARCHAR(100) INVISIBLE)")
-		if len(stmt.Columns) != 2 {
-			t.Fatalf("Columns count = %d, want 2", len(stmt.Columns))
-		}
-		// Check id column has VISIBLE constraint
-		found := false
-		for _, c := range stmt.Columns[0].Constraints {
-			if c.Type == ast.ColConstrVisible {
-				found = true
-			}
-		}
-		if !found {
-			t.Error("expected ColConstrVisible for id column")
-		}
-		// Check name column has INVISIBLE constraint
-		found = false
-		for _, c := range stmt.Columns[1].Constraints {
-			if c.Type == ast.ColConstrInvisible {
-				found = true
-			}
-		}
-		if !found {
-			t.Error("expected ColConstrInvisible for name column")
-		}
-	})
-}
-
 func TestParseCreateTableCheckNotEnforced(t *testing.T) {
 	t.Run("column check not enforced", func(t *testing.T) {
 		stmt := parseCreateTable(t, "CREATE TABLE t (id INT, CONSTRAINT chk_id CHECK (id > 0) NOT ENFORCED)")
@@ -4149,27 +4120,6 @@ func TestParseAlterTableRemovePartitioning(t *testing.T) {
 // Batch 58: ALTER TABLE visibility/misc
 // ============================================================================
 
-func TestParseAlterTableColumnVisible(t *testing.T) {
-	t.Run("set column visible", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN name SET VISIBLE")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATAlterColumnVisible {
-			t.Errorf("Type = %d, want ATAlterColumnVisible", cmd.Type)
-		}
-		if cmd.Name != "name" {
-			t.Errorf("Name = %s, want name", cmd.Name)
-		}
-	})
-
-	t.Run("set column invisible", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN name SET INVISIBLE")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATAlterColumnInvisible {
-			t.Errorf("Type = %d, want ATAlterColumnInvisible", cmd.Type)
-		}
-	})
-}
-
 func TestParseAlterTableIndexVisible(t *testing.T) {
 	t.Run("alter index visible", func(t *testing.T) {
 		stmt := parseAlterTable(t, "ALTER TABLE t ALTER INDEX idx_name VISIBLE")
@@ -4276,7 +4226,7 @@ func TestParseAlterTableDiscardTablespace(t *testing.T) {
 
 func TestParseAlterTableValidation(t *testing.T) {
 	t.Run("with validation", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v SET INVISIBLE, WITH VALIDATION")
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v SET DEFAULT 1, WITH VALIDATION")
 		if len(stmt.Commands) != 2 {
 			t.Fatalf("Commands count = %d, want 2", len(stmt.Commands))
 		}
@@ -4287,7 +4237,7 @@ func TestParseAlterTableValidation(t *testing.T) {
 	})
 
 	t.Run("without validation", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v SET INVISIBLE, WITHOUT VALIDATION")
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v SET DEFAULT 1, WITHOUT VALIDATION")
 		cmd := stmt.Commands[1]
 		if cmd.Type != ast.ATWithoutValidation {
 			t.Errorf("Type = %d, want ATWithoutValidation", cmd.Type)
@@ -7350,43 +7300,9 @@ func TestParseDropResourceGroup(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Batch 39: ALTER VIEW/EVENT/FUNCTION/PROCEDURE, DROP FUNCTION/PROCEDURE/TRIGGER/EVENT
+// Batch 39: DROP FUNCTION/PROCEDURE/TRIGGER/EVENT (TiDB has no ALTER VIEW;
+// view_visibility_forms_oracle_test.go pins the refusal)
 // ---------------------------------------------------------------------------
-
-func TestParseAlterView(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "ALTER VIEW v AS SELECT 1",
-			want: "{ALTER_VIEW :loc 0 :name {TABLEREF :loc 11 :name v} :select {SELECT :loc 16 :targets ({INT_LIT :val 1 :loc 23})}}",
-		},
-		{
-			sql:  "ALTER ALGORITHM = MERGE VIEW v AS SELECT 1",
-			want: "{ALTER_VIEW :loc 0 :algorithm MERGE :name {TABLEREF :loc 29 :name v} :select {SELECT :loc 34 :targets ({INT_LIT :val 1 :loc 41})}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseAlterViewParseAndCheck(t *testing.T) {
-	tests := []string{
-		"ALTER VIEW v AS SELECT 1",
-		"ALTER ALGORITHM = MERGE VIEW v AS SELECT 1",
-		"ALTER VIEW v (a, b) AS SELECT 1, 2",
-		"ALTER VIEW v AS SELECT 1 WITH CASCADED CHECK OPTION",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
 
 func TestParseDropRoutineStmt(t *testing.T) {
 	tests := []struct {
@@ -7569,7 +7485,6 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"DROP RESOURCE GROUP rg1",
 
 		// ALTER/DROP misc (batch 39)
-		"ALTER VIEW v AS SELECT 1",
 		"DROP PROCEDURE p1",
 
 		// EXPLAIN (batch 40)
@@ -8050,22 +7965,8 @@ func TestParseShowProfileLimitOffset(t *testing.T) {
 
 func TestParseCreateViewWithCheckOption(t *testing.T) {
 	tests := []string{
-		"CREATE VIEW v AS SELECT 1 WITH CHECK OPTION",
 		"CREATE VIEW v AS SELECT 1 WITH CASCADED CHECK OPTION",
 		"CREATE VIEW v AS SELECT 1 WITH LOCAL CHECK OPTION",
-		"CREATE OR REPLACE VIEW v AS SELECT * FROM t WITH CHECK OPTION",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseAlterViewWithCheckOption(t *testing.T) {
-	tests := []string{
-		"ALTER VIEW v AS SELECT 1 WITH CASCADED CHECK OPTION",
-		"ALTER VIEW v AS SELECT 1 WITH LOCAL CHECK OPTION",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -10209,21 +10110,6 @@ func TestBatch102_CreateViewFull(t *testing.T) {
 		"CREATE SQL SECURITY INVOKER VIEW v (a, b) AS SELECT 1, 2",
 		"CREATE VIEW v AS SELECT 1 WITH CASCADED CHECK OPTION",
 		"CREATE VIEW v AS SELECT 1 WITH LOCAL CHECK OPTION",
-		"CREATE VIEW v AS SELECT 1 WITH CHECK OPTION",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestBatch102_AlterViewFull(t *testing.T) {
-	tests := []string{
-		"ALTER VIEW v AS SELECT 1",
-		"ALTER ALGORITHM = TEMPTABLE VIEW v AS SELECT 1",
-		"ALTER SQL SECURITY DEFINER VIEW v (a, b) AS SELECT 1, 2",
-		"ALTER VIEW v AS SELECT 1 WITH LOCAL CHECK OPTION",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -10847,9 +10733,6 @@ func TestDefinerPropagation(t *testing.T) {
 		// CREATE VIEW with DEFINER + SQL SECURITY at dispatch layer
 		"CREATE DEFINER = 'admin'@'localhost' SQL SECURITY INVOKER VIEW v1 AS SELECT 1",
 		"CREATE DEFINER = root@localhost SQL SECURITY DEFINER VIEW v1 AS SELECT 1",
-		// ALTER VIEW with DEFINER at dispatch layer
-		"ALTER DEFINER = 'admin'@'localhost' VIEW v1 AS SELECT 2",
-		"ALTER DEFINER = CURRENT_USER() SQL SECURITY INVOKER VIEW v1 AS SELECT 2",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

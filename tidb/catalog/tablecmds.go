@@ -337,9 +337,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				})
 				// Defer implicit backing index for FK until after all explicit indexes are added.
 				pendingFKs = append(pendingFKs, pendingFK{conName: cc.Name, cols: []string{colDef.Name}, idxCols: []*IndexColumn{{Name: colDef.Name}}})
-			case nodes.ColConstrVisible:
-				col.Invisible = false
 			case nodes.ColConstrInvisible:
+				// Never parsed (TiDB has no column visibility); LoadMetadata
+				// builds it for a synced column marked invisible.
 				col.Invisible = true
 			case nodes.ColConstrCollate:
 				// Collation specified via constraint.

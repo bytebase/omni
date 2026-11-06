@@ -103,14 +103,15 @@ func TestScenario_C10(t *testing.T) {
 		}
 	})
 
-	// --- 10.3 CHECK OPTION default is CASCADED when WITH CHECK OPTION lacks a qualifier ---
-	t.Run("10_3_check_option_default_cascaded", func(t *testing.T) {
+	// --- 10.3 CHECK OPTION is CASCADED or LOCAL as written ---
+	// TiDB has no bare WITH CHECK OPTION (1064); refused_forms_test.go pins that.
+	t.Run("10_3_check_option_cascaded_or_local", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c,
 			`CREATE TABLE t (a INT);
-			 CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0 WITH CHECK OPTION;
+			 CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION;
 			 CREATE VIEW v2 AS SELECT a FROM t WHERE a > 0 WITH LOCAL CHECK OPTION;`)
 
 		// Oracle v1 → CASCADED, v2 → LOCAL.
@@ -123,8 +124,7 @@ func TestScenario_C10(t *testing.T) {
 			t.Errorf("oracle v2 CHECK_OPTION: got %q, want LOCAL", v2CheckOpt)
 		}
 
-		// omni must distinguish three states (NONE/LOCAL/CASCADED) and normalize
-		// bare WITH CHECK OPTION → CASCADED.
+		// omni must distinguish three states (NONE/LOCAL/CASCADED).
 		v1 := c10OmniView(c, "v1")
 		v2 := c10OmniView(c, "v2")
 		if v1 == nil || v2 == nil {

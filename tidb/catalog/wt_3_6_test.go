@@ -143,28 +143,24 @@ func TestWalkThrough_3_6_CreateOrReplaceView(t *testing.T) {
 	}
 }
 
-// TestWalkThrough_3_6_AlterView verifies that ALTER VIEW updates definition
-// and attributes.
+// TestWalkThrough_3_6_AlterView verifies that ALTER VIEW is refused and leaves
+// the view as it was: TiDB has no ALTER VIEW (v8.5.5 answers 1064), and a view
+// is redefined with CREATE OR REPLACE VIEW.
 func TestWalkThrough_3_6_AlterView(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t1 (id INT, name VARCHAR(100))")
 	wtExec(t, c, "CREATE VIEW v1 AS SELECT id FROM t1")
 
-	// ALTER VIEW changes definition and attributes.
-	wtExec(t, c, "ALTER VIEW v1 AS SELECT id, name FROM t1")
+	if _, err := c.Exec("ALTER VIEW v1 AS SELECT id, name FROM t1", nil); err == nil {
+		t.Fatal("Exec accepted ALTER VIEW, which TiDB refuses")
+	}
 
-	db := c.GetDatabase("testdb")
-	v := db.Views[toLower("v1")]
+	v := c.GetDatabase("testdb").Views[toLower("v1")]
 	if v == nil {
-		t.Fatal("view v1 not found after ALTER")
+		t.Fatal("view v1 not found after the refused ALTER")
 	}
-	if len(v.Columns) != 2 {
-		t.Fatalf("expected 2 columns after ALTER, got %d", len(v.Columns))
-	}
-	// Definition should be updated.
-	def := strings.ToLower(v.Definition)
-	if !strings.Contains(def, "name") {
-		t.Errorf("definition after ALTER should reference 'name', got %q", v.Definition)
+	if len(v.Columns) != 1 {
+		t.Errorf("expected the view's 1 column to stay, got %d", len(v.Columns))
 	}
 }
 

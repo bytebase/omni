@@ -9,7 +9,7 @@ import (
 // parseCreateViewStmt parses a CREATE VIEW statement.
 // The caller has already consumed CREATE [OR REPLACE].
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-view.html
+// Ref: CreateViewStmt in TiDB v8.5.5 pkg/parser/parser.y
 //
 //	CREATE
 //	    [OR REPLACE]
@@ -18,7 +18,7 @@ import (
 //	    [SQL SECURITY { DEFINER | INVOKER }]
 //	    VIEW view_name [(column_list)]
 //	    AS select_statement
-//	    [WITH [CASCADED | LOCAL] CHECK OPTION]
+//	    [WITH {CASCADED | LOCAL} CHECK OPTION]
 func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateViewStmt, error) {
 	stmt := &nodes.CreateViewStmt{
 		Loc:       nodes.Loc{Start: start},
@@ -109,21 +109,31 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 	stmt.Select = sel
 	stmt.SelectText = strings.TrimSpace(p.inputText(selectStart, p.pos()))
 
-	// WITH [CASCADED | LOCAL] CHECK OPTION
+	// WITH {CASCADED | LOCAL} CHECK OPTION
+	//
+	// TiDB spells out every word: v8.5.5 answers 1064 for MySQL's bare `WITH
+	// CHECK OPTION` and for a clause missing CHECK or OPTION.
+	//
+	// Ref: ViewCheckOption in TiDB v8.5.5 pkg/parser/parser.y, whose only arms
+	// are `"WITH" "CASCADED" "CHECK" "OPTION"` and `"WITH" "LOCAL" "CHECK"
+	// "OPTION"`.
 	if p.cur.Type == kwWITH {
 		p.advance()
-		checkOption := "CASCADED" // default
-		if p.cur.Type == kwCASCADED {
-			p.advance()
-		} else if p.cur.Type == kwLOCAL {
+		var checkOption string
+		switch p.cur.Type {
+		case kwCASCADED:
+			checkOption = "CASCADED"
+		case kwLOCAL:
 			checkOption = "LOCAL"
-			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == kwCHECK {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
+		p.advance()
+		if _, err := p.expect(kwCHECK); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwOPTION); err != nil {
+			return nil, err
 		}
 		stmt.CheckOption = checkOption
 	}

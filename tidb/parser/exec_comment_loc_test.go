@@ -85,7 +85,7 @@ var execCommentLocCases = []string{
 	"/*!*/SELECT a FROM t WHERE b = NULL",
 	"SELECT 1;\n/*!80000 SELECT a FROM t WHERE n = NULL */",
 	"CREATE TABLE t (a INT) /*!50100 PARTITION BY HASH (a) PARTITIONS 4 */",
-	"CREATE TABLE t (a INT /*!80023 INVISIBLE */, b INT)",
+	"CREATE TABLE t (a INT /*!80023 COMMENT 'x' */, b INT)",
 	"CREATE DATABASE d /*!40100 DEFAULT CHARACTER SET utf8mb4 */ /*!80016 DEFAULT ENCRYPTION='N' */",
 	"/*!50001 CREATE ALGORITHM=UNDEFINED */ /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */ /*!50001 VIEW v AS select a from t where b = 1 */",
 	"CREATE TABLE t (id BIGINT /*T![auto_rand] AUTO_RANDOM(5) */ PRIMARY KEY, a INT)",

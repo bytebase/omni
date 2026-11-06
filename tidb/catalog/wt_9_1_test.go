@@ -135,24 +135,15 @@ func TestWalkThrough_9_1_Comment(t *testing.T) {
 	}
 }
 
+// TiDB has no column visibility: v8.5.5 answers 1064 for INVISIBLE after a
+// generated column too, so the catalog refuses the statement.
 func TestWalkThrough_9_1_Invisible(t *testing.T) {
-	// Scenario 6: CREATE TABLE with generated column + INVISIBLE
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) VIRTUAL INVISIBLE)")
-
-	tbl := c.GetDatabase("testdb").GetTable("t")
-	col := tbl.GetColumn("c")
-	if col == nil {
-		t.Fatal("column c not found")
+	if _, err := c.Exec("CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) VIRTUAL INVISIBLE)", nil); err == nil {
+		t.Fatal("Exec accepted a column visibility TiDB refuses")
 	}
-	if !col.Invisible {
-		t.Error("column c should be INVISIBLE")
-	}
-
-	got := c.ShowCreateTable("testdb", "t")
-	// INVISIBLE rendered after VIRTUAL with version comment
-	if !strings.Contains(got, "INVISIBLE") {
-		t.Errorf("expected INVISIBLE in SHOW CREATE TABLE\ngot:\n%s", got)
+	if c.GetDatabase("testdb").GetTable("t") != nil {
+		t.Error("the refused statement created a table")
 	}
 }
 

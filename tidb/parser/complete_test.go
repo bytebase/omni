@@ -82,11 +82,16 @@ func TestCollect_1_2_AlterCursor(t *testing.T) {
 	if cs == nil {
 		t.Fatal("Collect returned nil")
 	}
-	// TiDB has no ALTER FUNCTION/PROCEDURE/EVENT.
-	want := []int{kwTABLE, kwDATABASE, kwVIEW}
+	want := []int{kwTABLE, kwDATABASE}
 	for _, tok := range want {
 		if !cs.HasToken(tok) {
 			t.Errorf("missing expected token %d after ALTER", tok)
+		}
+	}
+	// TiDB has no ALTER VIEW/FUNCTION/PROCEDURE/EVENT.
+	for _, tok := range []int{kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT} {
+		if cs.HasToken(tok) {
+			t.Errorf("unexpected token %d after ALTER", tok)
 		}
 	}
 }
