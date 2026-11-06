@@ -1435,7 +1435,7 @@ accept	accept	select regexp_like('aBc', 'abc', 'im');
 accept	accept	select regexp_substr('aBc', 'abc', 1, 1, 'im');
 accept	accept	select regexp_instr('aBc', 'abc', 1, 1, 0, 'im');
 accept	accept	select regexp_replace('aBc', 'abc', 'def', 1, 1, 'i');
-reject	accept	select 'aBc' ilike 'abc';
+accept	accept	select 'aBc' ilike 'abc';
 accept	accept	select `a`, `a.b`, `a b` from t
 accept	accept	create table MergeContextTest$Simple (value integer not null, primary key (value))
 accept	accept	select 1 as a, 1 as `a`, 1 as "a", 1 as 'a'
@@ -3553,7 +3553,7 @@ reject	reject	create table t1 (a int) partition by hash (a) (partition x history
 reject	reject	create table t1 (a int) partition by key (a) (partition x history, partition y current)
 reject	reject	create table t1 (a int) partition by range (a) (partition x history, partition y current)
 reject	reject	create table t1 (a int) partition by list (a) (partition x history, partition y current)
-reject	accept	create table t1 (a int) partition by system_time (partition x history, partition y current)
+accept	accept	create table t1 (a int) partition by system_time (partition x history, partition y current)
 accept	accept	create table t1 (a int) partition by hash (a)
 accept	accept	create table t1 (a int) partition by key (a)
 reject	reject	create table t1 (a int) partition by range (a)
@@ -3590,8 +3590,8 @@ reject	reject	create table t1 (a int, b int) partition by range (a) (partition x
 reject	reject	create table t1 (a int) partition by hash (a) partitions 0
 reject	reject	create table t1 (a int, b int) partition by range (a) subpartition by hash (b) subpartitions 0 (partition x values less than (10))
 reject	reject	create table t1 (a int) partition by system_time interval 7 day limit 50000 (partition x history, partition y current)
-reject	accept	create table t1 (a int) partition by system_time interval 7 day (partition x history, partition y current)
-reject	accept	create table t1 (a int) partition by system_time limit 50000 (partition x history, partition y current)
+accept	accept	create table t1 (a int) partition by system_time interval 7 day (partition x history, partition y current)
+accept	accept	create table t1 (a int) partition by system_time limit 50000 (partition x history, partition y current)
 accept	accept	create table t1 (a int) partition by hash(a) (partition x engine InnoDB comment 'xxxx' data directory '/var/data' index directory '/var/index' max_rows 70000 min_rows 50 tablespace `innodb_file_per_table` nodegroup 255)
 accept	accept	create table t1 (a int, b int) partition by range(a) subpartition by hash(b) (partition x values less than maxvalue (subpartition y engine InnoDB comment 'xxxx' data directory '/var/data' index directory '/var/index' max_rows 70000 min_rows 50 tablespace `innodb_file_per_table` nodegroup 255))
 accept	accept	select * from t partition (p0,p1)
@@ -3837,11 +3837,11 @@ accept	accept	batch on c limit 10 dry run query insert into t1 select * from t2 
 accept	accept	batch limit 10 insert into t1 select * from t2 where c = 10 on duplicate key update t1.val = t2.val
 accept	accept	batch limit 10 dry run insert into t1 select * from t2 where c = 10 on duplicate key update t1.val = t2.val
 accept	accept	batch limit 10 dry run query insert into t1 select * from t2 where c = 10 on duplicate key update t1.val = t2.val
-reject	accept	CREATE TABLE t (c1 integer,c2 integer) PARTITION BY RANGE (c1) INTERVAL (1000)
-reject	accept	CREATE TABLE t (c1 int, c2 date) PARTITION BY RANGE (c2) INTERVAL (1 Month)
+accept	accept	CREATE TABLE t (c1 integer,c2 integer) PARTITION BY RANGE (c1) INTERVAL (1000)
+accept	accept	CREATE TABLE t (c1 int, c2 date) PARTITION BY RANGE (c2) INTERVAL (1 Month)
 accept	accept	CREATE TABLE t (c1 int, c2 date) PARTITION BY RANGE (c1) (partition p1 values less than (22))
 reject	reject	CREATE TABLE t (c1 int, c2 date) PARTITION BY RANGE COLUMNS (c2) INTERVAL (1 year) first partition less than ("2022-02-01")
-reject	accept	CREATE TABLE t (c1 int, c2 datetime) PARTITION BY RANGE COLUMNS (c2) INTERVAL (1 day) first partition less than ("2022-01-02") last partition less than ("2022-06-01") NULL PARTITION MAXVALUE PARTITION
+accept	accept	CREATE TABLE t (c1 int, c2 datetime) PARTITION BY RANGE COLUMNS (c2) INTERVAL (1 day) first partition less than ("2022-01-02") last partition less than ("2022-06-01") NULL PARTITION MAXVALUE PARTITION
 accept	accept	ALTER TABLE t LAST PARTITION LESS THAN (1000)
 reject	reject	ALTER TABLE t REORGANIZE MAX PARTITION INTO NEW LAST PARTITION LESS THAN (1000)
 reject	reject	ALTER TABLE t REORGANIZE MAX PARTITION INTO LAST PARTITION LESS THAN (1000)

@@ -2050,6 +2050,13 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 				return nil, err
 			}
 		}
+		if p.cur.Type == kwINTERVAL {
+			interval, err := p.parsePartitionInterval()
+			if err != nil {
+				return nil, err
+			}
+			part.Interval = interval
+		}
 
 	case kwLIST:
 		p.advance()
@@ -2078,8 +2085,14 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 
 	default:
+		if !part.Linear && p.isBareWord("SYSTEM_TIME") {
+			if err := p.parseSystemTimeMethod(part); err != nil {
+				return nil, err
+			}
+			break
+		}
 		return nil, &ParseError{
-			Message:  "expected HASH, KEY, RANGE, or LIST after PARTITION BY",
+			Message:  "expected HASH, KEY, RANGE, LIST, or SYSTEM_TIME after PARTITION BY",
 			Position: p.cur.Loc,
 		}
 	}
@@ -2310,6 +2323,15 @@ func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBoun
 	if _, ok := p.match(kwDEFAULT); ok {
 		pd.Values = &nodes.String{Str: "DEFAULT"}
 		bound = boundIn
+	}
+
+	// PartDefValuesOpt's HISTORY and CURRENT, which only SYSTEM_TIME takes.
+	if _, ok := p.match(kwHISTORY); ok {
+		pd.Values = &nodes.String{Str: "HISTORY"}
+		bound = boundHistory
+	} else if _, ok := p.match(kwCURRENT); ok {
+		pd.Values = &nodes.String{Str: "CURRENT"}
+		bound = boundHistory
 	}
 
 	// VALUES LESS THAN or VALUES IN

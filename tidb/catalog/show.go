@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/bytebase/omni/tidb/parser"
 )
 
 // charsetForCollation derives the charset name from a collation name.
@@ -611,6 +613,10 @@ func showPartitioning(pi *PartitionInfo) string {
 		}
 	}
 
+	if pi.IntervalText != "" {
+		b.WriteString(" " + pi.IntervalText)
+	}
+
 	// Subpartition clause.
 	if pi.SubType != "" {
 		b.WriteString("\n")
@@ -646,7 +652,7 @@ func showPartitioning(pi *PartitionInfo) string {
 				b.WriteString(",\n ")
 			}
 			b.WriteString("PARTITION ")
-			b.WriteString(pd.Name)
+			b.WriteString(partitionNameInDDL(pd.Name))
 			if pd.ValueExpr != "" {
 				switch {
 				case strings.HasPrefix(pi.Type, "RANGE"):
@@ -712,4 +718,18 @@ func partitionEngine(engine string) string {
 		return "InnoDB"
 	}
 	return engine
+}
+
+// partitionNameInDDL quotes a partition name that needs it: one with other characters, as a
+// generated P_LT_2020-01-01 00:00:00 has, and a reserved word, such as ilike.
+func partitionNameInDDL(name string) string {
+	if parser.IsReservedKeyword(name) {
+		return "`" + name + "`"
+	}
+	for _, r := range name {
+		if r != '_' && (r < '0' || r > '9') && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
+			return "`" + name + "`"
+		}
+	}
+	return name
 }

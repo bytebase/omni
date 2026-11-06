@@ -162,7 +162,8 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 			level = precComparison
 			continue
 
-		case p.cur.Type == kwLIKE || (p.cur.Type == kwNOT && p.peekNext().Type == kwLIKE):
+		case p.cur.Type == kwLIKE || p.cur.Type == kwILIKE ||
+			(p.cur.Type == kwNOT && (p.peekNext().Type == kwLIKE || p.peekNext().Type == kwILIKE)):
 			left, err = p.parseLikeExpr(left, start)
 			if err != nil {
 				return nil, err
@@ -284,7 +285,7 @@ func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 	// NOT as infix: NOT IN, NOT LIKE, NOT BETWEEN, NOT REGEXP
 	case kwNOT:
 		switch p.peekNext().Type {
-		case kwIN, kwLIKE, kwBETWEEN, kwREGEXP, kwRLIKE:
+		case kwIN, kwLIKE, kwILIKE, kwBETWEEN, kwREGEXP, kwRLIKE:
 			return precPredicate, 0, true // handled specially
 		}
 		return 0, 0, false
@@ -306,7 +307,7 @@ func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 		return precComparison, nodes.BinOpGe, true
 	case kwIS:
 		return precComparison, 0, true // handled specially
-	case kwLIKE, kwREGEXP, kwRLIKE, kwIN, kwBETWEEN:
+	case kwLIKE, kwILIKE, kwREGEXP, kwRLIKE, kwIN, kwBETWEEN:
 		return precPredicate, 0, true
 	case kwMEMBER:
 		// MEMBER is not reserved here: `select 1 member` is an alias, and only
@@ -1810,13 +1811,15 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 	return inExpr, nil
 }
 
-// parseLikeExpr parses [NOT] LIKE pattern [ESCAPE escape_char].
+// parseLikeExpr parses [NOT] {LIKE | ILIKE} pattern [ESCAPE escape_char]. ILIKE is TiDB's, with
+// the same shape as LIKE in PredicateExpr and a word of its own that v8.5.5 reserves.
 func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, error) {
 	not := false
 	if _, ok := p.match(kwNOT); ok {
 		not = true
 	}
-	p.advance() // consume LIKE
+	ilike := p.cur.Type == kwILIKE
+	p.advance() // consume LIKE or ILIKE
 
 	pattern, err := p.parseExprPrec(precCollate)
 	if err != nil {
@@ -1826,6 +1829,7 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, 
 	like := &nodes.LikeExpr{
 		Loc:     nodes.Loc{Start: start},
 		Not:     not,
+		ILike:   ilike,
 		Expr:    left,
 		Pattern: pattern,
 	}
