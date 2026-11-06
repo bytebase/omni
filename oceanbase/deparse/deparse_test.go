@@ -479,6 +479,12 @@ func TestDeparse_Section_3_2_SpecialFunctionForms(t *testing.T) {
 		{"trim_trailing", "TRIM(TRAILING 'x' FROM a)", "trim(trailing 'x' from `a`)"},
 		// TRIM BOTH
 		{"trim_both", "TRIM(BOTH 'x' FROM a)", "trim(both 'x' from `a`)"},
+		// A direction with no remstr keeps FROM, as OceanBase 4.3.5 stores it.
+		{"trim_leading_no_remstr", "TRIM(LEADING FROM a)", "trim(leading from `a`)"},
+		{"trim_both_no_remstr", "TRIM(BOTH FROM a)", "trim(both from `a`)"},
+		// OceanBase 4.3.5 keeps CHAR's charset in a stored view.
+		{"char_using", "CHAR(65, 66 USING Latin1)", "char(65,66 using latin1)"},
+		{"char_no_using", "CHAR(65)", "char(65)"},
 	}
 
 	for _, tc := range cases {
