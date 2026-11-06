@@ -128,6 +128,9 @@ func analyzePositionExpr(c *Catalog, pe *nodes.PositionExpr, scope *analyzerScop
 
 // analyzeBinaryExpr resolves a binary expression.
 func analyzeBinaryExpr(c *Catalog, expr *nodes.BinaryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	if sub, ok := expr.Right.(*nodes.SubqueryExpr); ok && sub.Quantifier != "" {
+		return analyzeQuantifiedComparison(c, expr, sub, scope)
+	}
 	left, err := analyzeExpr(c, expr.Left, scope)
 	if err != nil {
 		return nil, err
@@ -145,6 +148,40 @@ func analyzeBinaryExpr(c *Catalog, expr *nodes.BinaryExpr, scope *analyzerScope)
 	default:
 		return &OpExprQ{Op: binaryOpToString(expr.Op), Left: left, Right: right}, nil
 	}
+}
+
+// analyzeQuantifiedComparison resolves `x op {ANY|SOME|ALL} (SELECT ...)`. The
+// parser keeps the quantifier on the subquery; read without it, the comparison
+// is one against a scalar subquery, and the SQL deparsed from that fails as soon
+// as the subquery returns a second row. SOME is a synonym for ANY.
+func analyzeQuantifiedComparison(c *Catalog, expr *nodes.BinaryExpr, sub *nodes.SubqueryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
+	var kind SubLinkKind
+	switch strings.ToUpper(sub.Quantifier) {
+	case "ANY", "SOME":
+		kind = SubLinkAny
+	case "ALL":
+		kind = SubLinkAll
+	default:
+		return nil, &Error{
+			Code:     0,
+			SQLState: "HY000",
+			Message:  "unsupported subquery quantifier in analyzer: " + sub.Quantifier,
+		}
+	}
+	left, err := analyzeExpr(c, expr.Left, scope)
+	if err != nil {
+		return nil, err
+	}
+	innerQ, err := c.analyzeSelectStmtInternal(sub.Select, scope)
+	if err != nil {
+		return nil, err
+	}
+	return &SubLinkExprQ{
+		Kind:     kind,
+		TestExpr: left,
+		Op:       binaryOpToString(expr.Op),
+		Subquery: innerQ,
+	}, nil
 }
 
 // analyzeUnaryExpr resolves a unary expression.
