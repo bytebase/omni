@@ -1,6 +1,7 @@
 package deparse
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1426,5 +1427,40 @@ func TestJSONValueDocumentRoundTrip(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestJSONValueReturningZeroLength: a RETURNING type read by the cast type reader keeps a
+// written length of 0, which OceanBase 4.3.5.6 stores as char(0) where it fills in a length
+// for none (TestOracle_JSONValueStoredForms).
+func TestJSONValueReturningZeroLength(t *testing.T) {
+	for _, c := range []struct{ input, want string }{
+		{"JSON_VALUE(a, '$' RETURNING CHAR(0))", "json_value(`a`,'$' RETURNING char(0) charset utf8mb4)"},
+		{"JSON_VALUE(a, '$' RETURNING BINARY(0))", "json_value(`a`,'$' RETURNING char(0) charset binary)"},
+	} {
+		if got := Deparse(parseExpr(t, c.input)); got != c.want {
+			t.Errorf("Deparse(%q) = %q, want %q", c.input, got, c.want)
+		}
+	}
+}
+
+// TestDeepCastArrayTypeIsLinear: a cast to ARRAY nested thousands deep is written once, not
+// copied at every level, so writing it allocates about its own size.
+func TestDeepCastArrayTypeIsLinear(t *testing.T) {
+	const depth = 8000
+	dt := &ast.DataType{Name: "INT"}
+	for i := 0; i < depth; i++ {
+		dt = &ast.DataType{Name: "ARRAY", ArrayElem: dt}
+	}
+	want := strings.Repeat("ARRAY(", depth-1) + "ARRAY(INT)" + strings.Repeat(")", depth-1)
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	got := CastArrayType(dt)
+	runtime.ReadMemStats(&after)
+	if got != want {
+		t.Fatalf("CastArrayType wrote %d bytes, want %d", len(got), len(want))
+	}
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 1<<20 {
+		t.Errorf("CastArrayType allocated %d bytes for %d bytes of text", allocated, len(got))
 	}
 }

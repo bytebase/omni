@@ -747,23 +747,6 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Left)
 		Walk(v, n.Right)
 		Walk(v, n.Condition)
-	case *JsonTableColumn:
-		if n.TypeName != nil {
-			Walk(v, n.TypeName)
-		}
-		for _, item := range n.NestedCols {
-			if item != nil {
-				Walk(v, item)
-			}
-		}
-	case *JsonTableExpr:
-		Walk(v, n.Expr)
-		Walk(v, n.Path)
-		for _, item := range n.Columns {
-			if item != nil {
-				Walk(v, item)
-			}
-		}
 	case *KillStmt:
 		Walk(v, n.ConnectionID)
 	case *LikeExpr:
@@ -856,6 +839,10 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		Walk(v, n.SubPartExpr)
+		if n.Interval != nil {
+			Walk(v, n.Interval)
+		}
+		Walk(v, n.SystemTimeInterval)
 		for _, item := range n.UpdateIndexes {
 			if item != nil {
 				Walk(v, item)
@@ -873,6 +860,10 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *PartitionInterval:
+		Walk(v, n.Expr)
+		Walk(v, n.First)
+		Walk(v, n.Last)
 	case *PlanReplayerStmt:
 		Walk(v, n.HistoricalStats)
 		Walk(v, n.Stmt)

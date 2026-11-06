@@ -58,6 +58,11 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	fkChecks := c.ForeignKeyChecks()
 	c.SetForeignKeyChecks(false)
 	defer c.SetForeignKeyChecks(fkChecks)
+	// A snapshot's CHECK constraints exist on the server it came from, so they
+	// are kept whatever tidb_enable_check_constraint says for this session.
+	checks := c.CheckConstraints()
+	c.SetCheckConstraints(true)
+	defer c.SetCheckConstraints(checks)
 
 	var views []*metadataObject
 	for _, o := range collectMetadataObjects(meta) {

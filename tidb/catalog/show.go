@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/bytebase/omni/tidb/parser"
 )
 
 // defaultCollationForCharset maps each charset TiDB has to its default
@@ -287,6 +289,19 @@ func formatDefault(val string, col *Column) string {
 		if lit, ok := bitDefaultLiteral(val); ok {
 			return lit
 		}
+	} else if b, ok := binaryLiteralBytes(val); ok {
+		// A hex or bit literal is the bytes it spells: a string column takes
+		// them as its text and a numeric column as an unsigned integer, so
+		// VARCHAR DEFAULT 0x41 is 'A' and INT DEFAULT 0x41 is '65'
+		// (getDefaultValue in TiDB's pkg/ddl/add_column.go).
+		if isStringType(col.DataType) {
+			return "'" + outputFormat(string(b)) + "'"
+		}
+		var n uint64
+		for _, c := range b {
+			n = n<<8 | uint64(c)
+		}
+		return "'" + strconv.FormatUint(n, 10) + "'"
 	}
 	// An expression default is written in parentheses.
 	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
@@ -296,6 +311,51 @@ func formatDefault(val string, col *Column) string {
 		return val
 	}
 	return "'" + outputFormat(val) + "'"
+}
+
+// binaryLiteralBytes decodes a hex literal (0x41, X'41') or a bit literal
+// (0b1000001, b'1000001') into the bytes it spells.
+func binaryLiteralBytes(v string) ([]byte, bool) {
+	v = strings.TrimSpace(v)
+	var digits string
+	base := 16
+	switch {
+	case len(v) > 2 && (v[:2] == "0x" || v[:2] == "0X"):
+		digits = v[2:]
+	case len(v) >= 3 && (v[0] == 'x' || v[0] == 'X') && v[1] == '\'' && v[len(v)-1] == '\'':
+		digits = v[2 : len(v)-1]
+	case len(v) > 2 && (v[:2] == "0b" || v[:2] == "0B"):
+		digits, base = v[2:], 2
+	case len(v) >= 3 && (v[0] == 'b' || v[0] == 'B') && v[1] == '\'' && v[len(v)-1] == '\'':
+		digits, base = v[2:len(v)-1], 2
+	default:
+		return nil, false
+	}
+	var out []byte
+	if base == 16 {
+		if len(digits)%2 == 1 {
+			digits = "0" + digits
+		}
+		for i := 0; i < len(digits); i += 2 {
+			n, err := strconv.ParseUint(digits[i:i+2], 16, 8)
+			if err != nil {
+				return nil, false
+			}
+			out = append(out, byte(n))
+		}
+		return out, true
+	}
+	for len(digits)%8 != 0 {
+		digits = "0" + digits
+	}
+	for i := 0; i < len(digits); i += 8 {
+		n, err := strconv.ParseUint(digits[i:i+8], 2, 8)
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, byte(n))
+	}
+	return out, true
 }
 
 // bitDefaultLiteral writes a BIT column's default as TiDB does, the value's
@@ -575,32 +635,38 @@ func showPartitioning(pi *PartitionInfo) string {
 
 	switch pi.Type {
 	case "RANGE COLUMNS", "LIST COLUMNS":
-		fmt.Fprintf(&b, "\nPARTITION BY %s(%s)\n(", typ, joinQuoted(pi.Columns))
+		fmt.Fprintf(&b, "\nPARTITION BY %s(%s)", typ, joinQuoted(pi.Columns))
 	case "KEY":
-		fmt.Fprintf(&b, "\nPARTITION BY %s (%s)\n(", typ, joinQuoted(pi.Columns))
+		fmt.Fprintf(&b, "\nPARTITION BY %s (%s)", typ, joinQuoted(pi.Columns))
 	default:
-		fmt.Fprintf(&b, "\nPARTITION BY %s (%s)\n(", typ, pi.Expr)
+		fmt.Fprintf(&b, "\nPARTITION BY %s (%s)", typ, pi.Expr)
 	}
+	// An INTERVAL clause the catalog could not expand stays as written, so the
+	// text still parses (partition_interval.go); TiDB itself prints the
+	// partitions it generated.
+	if pi.IntervalText != "" {
+		b.WriteString(" " + pi.IntervalText)
+		if len(pi.Partitions) == 0 {
+			return b.String()
+		}
+	}
+	b.WriteString("\n(")
 	for i, pd := range pi.Partitions {
 		if i > 0 {
 			b.WriteString(",\n ")
 		}
 		fmt.Fprintf(&b, "PARTITION %s", quoteIdent(pd.Name))
+		// The catalog keeps a partition's values bare, joined by bare commas
+		// (partitionValueToString), so each list takes one pair of
+		// parentheses here and a LIST COLUMNS tuple keeps its own.
 		switch {
 		case strings.HasPrefix(pi.Type, "RANGE"):
-			v := pd.ValueExpr
-			if strings.EqualFold(strings.TrimSpace(v), "MAXVALUE") {
-				v = "(MAXVALUE)"
-			}
-			if !strings.HasPrefix(v, "(") {
-				v = "(" + v + ")"
-			}
-			fmt.Fprintf(&b, " VALUES LESS THAN %s", compactValueList(v))
+			fmt.Fprintf(&b, " VALUES LESS THAN (%s)", strings.TrimSpace(pd.ValueExpr))
 		case strings.HasPrefix(pi.Type, "LIST"):
 			if v := strings.TrimSpace(pd.ValueExpr); v == "" || strings.EqualFold(v, "DEFAULT") {
 				b.WriteString(" DEFAULT")
 			} else {
-				fmt.Fprintf(&b, " VALUES IN (%s)", compactValueList(stripOuterParens(v)))
+				fmt.Fprintf(&b, " VALUES IN (%s)", v)
 			}
 		}
 		if pd.Comment != "" {
@@ -611,22 +677,16 @@ func showPartitioning(pi *PartitionInfo) string {
 	return b.String()
 }
 
-// compactValueList removes the space after each top-level comma of a value
-// list, as TiDB joins partition values with a bare comma.
-func compactValueList(s string) string {
-	var b strings.Builder
-	inStr := false
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		if ch == '\'' {
-			inStr = !inStr
-		}
-		b.WriteByte(ch)
-		if !inStr && ch == ',' {
-			for i+1 < len(s) && s[i+1] == ' ' {
-				i++
-			}
+// partitionNameInDDL quotes a partition name that needs it: one with other characters, as a
+// generated P_LT_2020-01-01 00:00:00 has, and a reserved word, such as ilike.
+func partitionNameInDDL(name string) string {
+	if parser.IsReservedKeyword(name) {
+		return "`" + name + "`"
+	}
+	for _, r := range name {
+		if r != '_' && (r < '0' || r > '9') && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
+			return "`" + name + "`"
 		}
 	}
-	return b.String()
+	return name
 }

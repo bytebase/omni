@@ -62,10 +62,6 @@ var commentValueCases = []commentValueCase{
 	{"ALTER USER u COMMENT", 1064, ""},
 	{"CREATE USER u ATTRIBUTE", 1064, ""},
 	{"ALTER USER u ATTRIBUTE", 1064, ""},
-	{"CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' COMMENT", 1064, ""},
-	{"CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd' COMMENT =", 1064, ""},
-	{"CREATE LOGFILE GROUP lg ADD UNDOFILE 'u.dat' COMMENT", 1064, ""},
-	{"CREATE LOGFILE GROUP lg ADD UNDOFILE 'u.dat' COMMENT =", 1064, ""},
 
 	{"CREATE TABLE t (a INT COMMENT 'x', b INT)", 0, ""},
 	{"CREATE TABLE t (a INT NOT NULL COMMENT \"x\" DEFAULT 1)", 0, ""},

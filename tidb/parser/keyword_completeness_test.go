@@ -375,7 +375,7 @@ var mysql8Keywords = []mysql8Keyword{
 	{"json_arrayagg", catUnambiguous},
 	{"json_duality_object", catUnambiguous},
 	{"json_objectagg", catUnambiguous},
-	{"json_table", catReserved},
+	{"json_table", catUnambiguous},
 	{"json_value", catUnambiguous},
 	{"key", catReserved},
 	{"key_block_size", catUnambiguous},

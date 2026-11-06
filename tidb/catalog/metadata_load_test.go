@@ -395,3 +395,29 @@ func TestParseExpr(t *testing.T) {
 		}
 	}
 }
+
+// TestLoadMetadataKeepsCheckConstraints: a snapshot's CHECK constraints exist on
+// the server it came from, so loading keeps them while tidb_enable_check_constraint
+// is off for the session, and leaves the session's setting as it was.
+func TestLoadMetadataKeepsCheckConstraints(t *testing.T) {
+	c, report := loadTiDBSnapshot(t, snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{
+			Name:             "t",
+			Columns:          []*metadata.ColumnMetadata{{Name: "a", Type: "int", Nullable: true}},
+			CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck_a", Expression: "(`a` > 0)"}},
+		}},
+	}))
+	requireReport(t, report)
+	var found bool
+	for _, con := range requireTable(t, c, "t").Constraints {
+		if con.Type == ConCheck && con.Name == "ck_a" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("the snapshot's CHECK ck_a was dropped")
+	}
+	if c.CheckConstraints() {
+		t.Errorf("loading left tidb_enable_check_constraint on")
+	}
+}

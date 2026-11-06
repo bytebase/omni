@@ -65,6 +65,9 @@ type PartitionInfo struct {
 	SubColumns  []string // subpartition columns
 	SubAlgo     int      // subpartition ALGORITHM
 	NumSubParts int      // SUBPARTITIONS num
+	// IntervalText is an INTERVAL clause the catalog could not expand into Partitions, as DDL
+	// (partition_interval.go). It is empty otherwise.
+	IntervalText string
 	// keyColumns are the columns the partitioning function reads, which every unique
 	// key must include (partition_key_coverage.go). Empty when the catalog cannot tell
 	// them, which skips the check.
@@ -101,6 +104,7 @@ type Column struct {
 	Comment           string
 	OnUpdate          string
 	Generated         *GeneratedColumnInfo
+	Invisible         bool
 	SRID              int          // Spatial Reference ID (0 = not set)
 	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
 	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression

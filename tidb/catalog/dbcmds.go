@@ -92,20 +92,34 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 	if err != nil {
 		return err
 	}
+	// Every option is checked before the database takes any, so a statement
+	// TiDB refuses leaves the database as it was.
+	charset, collation := "", ""
 	charsetExplicit := false
 	collationExplicit := false
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "character set", "charset":
-			db.Charset = opt.Value
+			charset = opt.Value
 			charsetExplicit = true
 		case "collate":
-			db.Collation = opt.Value
+			collation = opt.Value
 			collationExplicit = true
 		case "placement policy":
 			if err := c.validatePolicyRef(opt.Value); err != nil {
 				return err
 			}
+		}
+	}
+	var cs, coll string
+	if charsetExplicit || collationExplicit {
+		if cs, coll, err = resolveCharsetCollation(charset, collation); err != nil {
+			return err
+		}
+	}
+	for _, opt := range stmt.Options {
+		switch toLower(opt.Name) {
+		case "placement policy":
 			db.PlacementPolicy = resolvePolicyRef(opt.Value)
 		case "tiflash replica":
 			db.TiFlashReplica = opt.TiFlashReplica
@@ -113,17 +127,6 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 		}
 	}
 	if charsetExplicit || collationExplicit {
-		cs, coll := "", ""
-		if charsetExplicit {
-			cs = db.Charset
-		}
-		if collationExplicit {
-			coll = db.Collation
-		}
-		cs, coll, err := resolveCharsetCollation(cs, coll)
-		if err != nil {
-			return err
-		}
 		db.Charset, db.Collation = cs, coll
 	}
 	return nil

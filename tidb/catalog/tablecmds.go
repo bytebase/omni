@@ -615,7 +615,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 	// Process deferred FK backing indexes now that all explicit indexes are in place.
 	for _, fk := range pendingFKs {
-		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
+		if err := ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols); err != nil {
+			return err
+		}
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
@@ -625,13 +627,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 	}
 
-	// Process partition clause.
-	if stmt.Partitions != nil {
+	// Process partition clause. v8.5.5 runs SYSTEM_TIME partitioning and leaves the table with
+	// none, whatever its keys cover.
+	if stmt.Partitions != nil && stmt.Partitions.Type != nodes.PartitionSystemTime {
 		if err := validateCreateTableUniqueKeys(tbl, stmt.Partitions); err != nil {
 			return err
 		}
 		tbl.Partitioning = buildPartitionInfo(stmt.Partitions)
 		tbl.Partitioning.keyColumns = partitionKeyColumns(tbl, stmt.Partitions)
+		if stmt.Partitions.Interval != nil {
+			if err := applyPartitionInterval(tbl, stmt.Partitions, tbl.Partitioning); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
@@ -1021,13 +1029,20 @@ func fkName(con *nodes.Constraint) string {
 // if no existing index already covers them (MySQL 8.0 behavior).
 // MySQL uses the constraint name as the index name when provided;
 // otherwise falls back to the first column name via allocIndexName.
-func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn) {
+func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn) error {
 	if hasIndexCoveringColumns(tbl, cols) {
-		return
+		return nil
 	}
 	idxName := conName
 	if idxName == "" {
 		idxName = allocIndexName(tbl, cols[0])
+	}
+	// TiDB names the index after the foreign key and refuses the statement
+	// when another index already has that name, rather than choosing another:
+	// 1061 from addIndexForForeignKey in CREATE TABLE and from createIndex in
+	// ALTER TABLE (pkg/ddl/create_table.go, executor.go).
+	if indexNameExists(tbl, idxName) {
+		return errDupKeyName(idxName)
 	}
 	tbl.Indexes = append(tbl.Indexes, &Index{
 		Name:    idxName,
@@ -1035,6 +1050,7 @@ func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*
 		Columns: idxCols,
 		Visible: true,
 	})
+	return nil
 }
 
 func indexNameExists(tbl *Table, name string) bool {

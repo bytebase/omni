@@ -16,6 +16,8 @@ type Parser struct {
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
 
+	castSized bool // the cast type just read wrote a size, even one of 0 (see castArrayRefused)
+
 	// parenRunStart and parenRunPast cache the last firstTokenPastParens scan:
 	// the offset of the run's first '(' and the first token past the run.
 	parenRunStart int

@@ -254,8 +254,15 @@ func validateNewUniqueKey(tbl *Table, idx *Index) error {
 // partitions anew. The catalog does not apply a repartition, so the partitioning it
 // keeps no longer says which columns a unique key needs.
 func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
-	if pc == nil {
+	if pc == nil || pc.Type == nodes.PartitionSystemTime {
 		return nil
+	}
+	if pc.Interval != nil {
+		// The partitions are not applied, as no repartition is here, but the statement
+		// answers for them.
+		if err := applyPartitionInterval(tbl, pc, buildPartitionInfo(pc)); err != nil {
+			return err
+		}
 	}
 	// UPDATE INDEXES says what each named index becomes once the table is
 	// repartitioned, so it has to apply before the coverage check rather
