@@ -45,8 +45,16 @@ func applyPartitionInterval(tbl *Table, pc *nodes.PartitionClause, pi *Partition
 	if err != nil {
 		return err
 	}
+	// The server keeps neither of these: PARTITIONS 9 and SUBPARTITION BY are read and dropped.
+	pi.NumParts = 0
+	pi.SubType, pi.SubExpr, pi.SubColumns, pi.SubAlgo, pi.NumSubParts = "", "", nil, 0, 0
 	if !known {
 		pi.IntervalText = writtenPartitionInterval(iv)
+		// The server generates the partitions, so the empty ones PARTITIONS n made are none of
+		// them; written ones stay, to be read back beside the clause.
+		if len(pc.Partitions) == 0 {
+			pi.Partitions = nil
+		}
 		return nil
 	}
 	if len(pc.Partitions) > 0 {
@@ -61,9 +69,6 @@ func applyPartitionInterval(tbl *Table, pc *nodes.PartitionClause, pi *Partition
 	} else {
 		pi.Partitions = gen
 	}
-	// The server keeps neither of these: PARTITIONS 9 and SUBPARTITION BY are read and dropped.
-	pi.NumParts = 0
-	pi.SubType, pi.SubExpr, pi.SubColumns, pi.SubAlgo, pi.NumSubParts = "", "", nil, 0, 0
 	return nil
 }
 
@@ -90,6 +95,17 @@ func generateIntervalPartitions(iv *nodes.PartitionInterval, col *Column, tbl *T
 	}
 	if err != nil || !known {
 		return nil, known, err
+	}
+	// NULL PARTITION and MAXVALUE PARTITION count toward the limit: 8191 bounds and both are 1499.
+	total := len(bounds)
+	if iv.NullPart {
+		total++
+	}
+	if iv.MaxValPart {
+		total++
+	}
+	if total > maxIntervalPartitions {
+		return nil, false, &Error{Code: 1499, SQLState: "HY000", Message: "Too many partitions (including subpartitions) were defined"}
 	}
 	seen := make(map[string]bool, len(bounds))
 	if iv.NullPart {
@@ -122,12 +138,18 @@ func intIntervalBounds(iv *nodes.PartitionInterval) ([]string, bool, error) {
 			return nil, false, &Error{Code: 1697, SQLState: "HY000", Message: "VALUES value for partition must have type INT"}
 		}
 	}
-	step, ok1 := constantInt(iv.Expr)
-	first, ok2 := constantInt(iv.First)
-	last, ok3 := constantInt(iv.Last)
-	if !ok1 || !ok2 || !ok3 {
-		return nil, false, nil
+	var vals [3]int64
+	for i, e := range []nodes.ExprNode{iv.Expr, iv.First, iv.Last} {
+		v, ok, err := constantInt(e)
+		if err != nil {
+			return nil, false, err
+		}
+		if !ok {
+			return nil, false, nil
+		}
+		vals[i] = v
 	}
+	step, first, last := vals[0], vals[1], vals[2]
 	if step <= 0 {
 		return nil, false, errIntervalUnsupported("Unsupported INTERVAL, should be a positive number")
 	}
@@ -208,9 +230,9 @@ func timeIntervalBounds(iv *nodes.PartitionInterval, kind string) ([]string, boo
 	default:
 		return nil, false, errIntervalUnsupported("Unsupported INTERVAL partitioning, only supports YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE and SECOND as time unit")
 	}
-	step, ok := constantInt(iv.Expr)
-	if !ok {
-		return nil, false, nil
+	step, ok, err := constantInt(iv.Expr)
+	if err != nil || !ok {
+		return nil, false, err
 	}
 	if step <= 0 {
 		return nil, false, errIntervalUnsupported("Unsupported INTERVAL, should be a positive number")
@@ -325,34 +347,58 @@ func intervalNullBound(col *Column, kind string, tbl *Table, pc *nodes.Partition
 	return "-9223372036854775808"
 }
 
-// constantInt evaluates integer literals under signs, parentheses, +, - and *.
-func constantInt(e nodes.ExprNode) (int64, bool) {
+// constantInt evaluates integer literals under signs, parentheses, +, - and *, in BIGINT: a sum or
+// product past it is 1690 on v8.5.5, naming the operation, as INTERVAL (9223372036854775807 * 2 + 3)
+// answers out of range in '(9223372036854775807 * 2)'. A minus sign wraps, as the lowest BIGINT
+// negated is no positive step there either (8200).
+func constantInt(e nodes.ExprNode) (int64, bool, error) {
 	switch n := e.(type) {
 	case *nodes.IntLit:
-		return n.Value, true
+		return n.Value, true, nil
 	case *nodes.ParenExpr:
 		return constantInt(n.Expr)
 	case *nodes.UnaryExpr:
-		v, ok := constantInt(n.Operand)
-		if ok && n.Op == nodes.UnaryMinus {
-			return -v, true
+		v, ok, err := constantInt(n.Operand)
+		if err != nil || !ok {
+			return 0, false, err
+		}
+		if n.Op == nodes.UnaryMinus {
+			return -v, true, nil
 		}
 	case *nodes.BinaryExpr:
-		l, ok1 := constantInt(n.Left)
-		r, ok2 := constantInt(n.Right)
-		if !ok1 || !ok2 {
-			return 0, false
+		l, ok1, err := constantInt(n.Left)
+		if err != nil {
+			return 0, false, err
 		}
+		r, ok2, err := constantInt(n.Right)
+		if err != nil || !ok1 || !ok2 {
+			return 0, false, err
+		}
+		var v int64
+		var ok bool
+		var op string
 		switch n.Op {
 		case nodes.BinOpAdd:
-			return l + r, true
+			v, ok = addInt64(l, r)
+			op = "+"
 		case nodes.BinOpSub:
-			return l - r, true
+			v, ok = addInt64(l, -r)
+			if r == math.MinInt64 {
+				ok = false
+			}
+			op = "-"
 		case nodes.BinOpMul:
-			return l * r, true
+			v, ok = mulInt64(l, r)
+			op = "*"
+		default:
+			return 0, false, nil
 		}
+		if !ok {
+			return 0, false, errBigintOutOfRange(fmt.Sprintf("(%d %s %d)", l, op, r))
+		}
+		return v, true, nil
 	}
-	return 0, false
+	return 0, false, nil
 }
 
 // literalTime reads a string literal as a date or a datetime.

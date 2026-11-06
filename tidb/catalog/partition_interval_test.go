@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -73,12 +74,23 @@ var intervalCases = []struct {
 	{name: "a day step past the range", ddl: "CREATE TABLE t (a DATE) PARTITION BY RANGE COLUMNS (a) INTERVAL (1000000000000 DAY) FIRST PARTITION LESS THAN ('2020-01-01') LAST PARTITION LESS THAN ('2020-01-02')", code: 1441},
 	{name: "a month step past the range", ddl: "CREATE TABLE t (a DATE) PARTITION BY RANGE COLUMNS (a) INTERVAL (9223372036854775807 MONTH) FIRST PARTITION LESS THAN ('2020-01-01') LAST PARTITION LESS THAN ('2020-02-01')", code: 1441},
 	{name: "a second step past the range", ddl: "CREATE TABLE t (a DATETIME) PARTITION BY RANGE COLUMNS (a) INTERVAL (9223372036854775807 SECOND) FIRST PARTITION LESS THAN ('2020-01-01') LAST PARTITION LESS THAN ('2020-01-01 00:00:01')", code: 1441},
+	{name: "an overflowing step", ddl: "CREATE TABLE t (a BIGINT) PARTITION BY RANGE (a) INTERVAL (9223372036854775807 * 2 + 3) FIRST PARTITION LESS THAN (1) LAST PARTITION LESS THAN (2)", code: 1690},
+	{name: "an overflowing FIRST", ddl: "CREATE TABLE t (a BIGINT) PARTITION BY RANGE (a) INTERVAL (1) FIRST PARTITION LESS THAN (9223372036854775807 + 1) LAST PARTITION LESS THAN (2)", code: 1690},
+	{name: "an overflowing LAST", ddl: "CREATE TABLE t (a BIGINT) PARTITION BY RANGE (a) INTERVAL (1) FIRST PARTITION LESS THAN (1) LAST PARTITION LESS THAN (9223372036854775807 * 2)", code: 1690},
+	{name: "the lowest bigint negated", ddl: "CREATE TABLE t (a BIGINT) PARTITION BY RANGE (a) INTERVAL (-(-9223372036854775807 - 1)) FIRST PARTITION LESS THAN (1) LAST PARTITION LESS THAN (2)", code: 8200},
+	// The limit is 8192 partitions, NULL PARTITION and MAXVALUE PARTITION among them.
+	{name: "8191 bounds and MAXVALUE", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (1) FIRST PARTITION LESS THAN (0) LAST PARTITION LESS THAN (8191) MAXVALUE PARTITION", code: 1499},
+	{name: "8191 bounds and NULL", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (1) FIRST PARTITION LESS THAN (0) LAST PARTITION LESS THAN (8191) NULL PARTITION", code: 1499},
+	{name: "8191 bounds, NULL and MAXVALUE", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (1) FIRST PARTITION LESS THAN (0) LAST PARTITION LESS THAN (8190) NULL PARTITION MAXVALUE PARTITION", code: 1499},
 	{name: "too many partitions", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (1) FIRST PARTITION LESS THAN (0) LAST PARTITION LESS THAN (100000)", code: 1499},
 	{name: "partitions that differ", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (30) (PARTITION a VALUES LESS THAN (1), PARTITION b VALUES LESS THAN (2), PARTITION c VALUES LESS THAN (3))", code: 8200},
 	{name: "fewer partitions", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (30) (PARTITION p VALUES LESS THAN (1))", code: 8200},
 	{name: "fewer partitions that match as far as they go", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (30) (PARTITION p VALUES LESS THAN (10))", code: 8200},
 	{name: "a missing column", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE COLUMNS (nosuch) INTERVAL (10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (20)", code: 1488},
 	{name: "a unique key that misses it", ddl: "CREATE TABLE t (a INT, b INT, UNIQUE KEY u (b)) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (20)", code: 8264},
+
+	// A reserved word is a partition name when quoted, and stays quoted in SHOW CREATE TABLE.
+	{name: "a reserved partition name", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) (PARTITION `ilike` VALUES LESS THAN (1), PARTITION `select` VALUES LESS THAN (2))", want: []string{"ilike=1", "select=2"}},
 
 	// SYSTEM_TIME runs and leaves the table unpartitioned, whatever its keys cover.
 	{name: "SYSTEM_TIME", ddl: "CREATE TABLE t (a INT) PARTITION BY SYSTEM_TIME (PARTITION x HISTORY, PARTITION y CURRENT)"},
@@ -99,6 +111,24 @@ func catalogPartitions(c *Catalog) []string {
 }
 
 // TestIntervalPartitions holds the catalog to intervalCases.
+// The limit's other side: 8192 partitions, the last of them MAXVALUE, are taken.
+func init() {
+	want := make([]string, 0, 8192)
+	for i := 0; i <= 8190; i++ {
+		want = append(want, fmt.Sprintf("P_LT_%d=%d", i, i))
+	}
+	intervalCases = append(intervalCases, struct {
+		name string
+		ddl  string
+		code int
+		want []string
+	}{
+		name: "8191 bounds and MAXVALUE make 8192",
+		ddl:  "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (1) FIRST PARTITION LESS THAN (0) LAST PARTITION LESS THAN (8190) MAXVALUE PARTITION",
+		want: append(want, "P_MAXVALUE=MAXVALUE"),
+	})
+}
+
 func TestIntervalPartitions(t *testing.T) {
 	for _, tc := range intervalCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -187,20 +217,28 @@ func TestIntervalPartitionsOracle(t *testing.T) {
 
 // TestIntervalWrittenClause: a bound this package cannot work out keeps the clause as written,
 // which the server takes and the catalog reads back.
+//
+// PARTITIONS n beside it names no partitions of the server's, which generates them and drops the
+// count, so the empty ones it would make are not kept.
 func TestIntervalWrittenClause(t *testing.T) {
-	c := New()
-	execAll(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (ABS(10)) LAST PARTITION LESS THAN (30) NULL PARTITION;")
-	show := c.ShowCreateTable("d", "t")
-	for _, want := range []string{"INTERVAL (10) FIRST PARTITION LESS THAN (", "LAST PARTITION LESS THAN (30) NULL PARTITION"} {
-		if !strings.Contains(show, want) {
-			t.Errorf("SHOW CREATE TABLE lacks %s:\n%s", want, show)
+	for _, suffix := range []string{" NULL PARTITION", " NULL PARTITION PARTITIONS 3"} {
+		c := New()
+		execAll(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (ABS(10)) LAST PARTITION LESS THAN (30)"+suffix+";")
+		show := c.ShowCreateTable("d", "t")
+		for _, want := range []string{"INTERVAL (10) FIRST PARTITION LESS THAN (", "LAST PARTITION LESS THAN (30) NULL PARTITION"} {
+			if !strings.Contains(show, want) {
+				t.Errorf("SHOW CREATE TABLE lacks %s:\n%s", want, show)
+			}
 		}
-	}
-	again := New()
-	execAll(t, again, "CREATE DATABASE d; USE d;")
-	execAll(t, again, show+";")
-	if again.ShowCreateTable("d", "t") != show {
-		t.Errorf("the clause did not read back:\n%s\nwas:\n%s", again.ShowCreateTable("d", "t"), show)
+		if strings.Contains(show, "PARTITION p0") || strings.Contains(show, "PARTITIONS") {
+			t.Errorf("SHOW CREATE TABLE keeps what PARTITIONS made:\n%s", show)
+		}
+		again := New()
+		execAll(t, again, "CREATE DATABASE d; USE d;")
+		execAll(t, again, show+";")
+		if again.ShowCreateTable("d", "t") != show {
+			t.Errorf("the clause did not read back:\n%s\nwas:\n%s", again.ShowCreateTable("d", "t"), show)
+		}
 	}
 }
 
