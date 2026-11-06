@@ -294,16 +294,21 @@ func writeSubLinkExprQ(b *strings.Builder, s *SubLinkExprQ, q *Query) {
 	case SubLinkIn:
 		writeAnalyzedExpr(b, s.TestExpr, q)
 		b.WriteString(" in (")
-	case SubLinkAny:
+	case SubLinkAny, SubLinkAll:
+		// Parenthesized whole: comparisons associate to the left, so a bare
+		// `1 = 2 > all (...)` would read as `(1 = 2) > all (...)`.
+		b.WriteString("(")
 		writeAnalyzedExpr(b, s.TestExpr, q)
 		b.WriteString(" ")
 		b.WriteString(s.Op)
-		b.WriteString(" any (")
-	case SubLinkAll:
-		writeAnalyzedExpr(b, s.TestExpr, q)
-		b.WriteString(" ")
-		b.WriteString(s.Op)
-		b.WriteString(" all (")
+		if s.Kind == SubLinkAny {
+			b.WriteString(" any (")
+		} else {
+			b.WriteString(" all (")
+		}
+		writeQueryQ(b, s.Subquery)
+		b.WriteString("))")
+		return
 	default: // SubLinkScalar
 		b.WriteString("(")
 	}
