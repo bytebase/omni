@@ -404,7 +404,8 @@ func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/select.html
 //
 //	SELECT
-//	    [ALL | DISTINCT | DISTINCTROW] [HIGH_PRIORITY] [STRAIGHT_JOIN]
+//	    [ALL | DISTINCT | DISTINCTROW] [LOW_PRIORITY | HIGH_PRIORITY | DELAYED]
+//	    [STRAIGHT_JOIN] [SQL_CACHE | SQL_NO_CACHE]
 //	    [SQL_CALC_FOUND_ROWS] select_expr [, select_expr] ...
 //	    [FROM table_references] [WHERE where_condition]
 //	    [GROUP BY ... [WITH ROLLUP]] [HAVING ...] [WINDOW ...]
@@ -451,8 +452,10 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			stmt.DistinctKind = nodes.DistinctOn
 			p.advance()
 			continue
-		case kwHIGH_PRIORITY:
-			stmt.HighPriority = true
+		case kwLOW_PRIORITY, kwHIGH_PRIORITY, kwDELAYED:
+			// Priority is a SelectStmtOpt (parser.y:10162, v8.5.5); the list takes
+			// any number and keeps the last.
+			stmt.Priority, _ = priorityWord(p.cur.Type)
 			p.advance()
 			continue
 		case kwSTRAIGHT_JOIN:
@@ -486,6 +489,16 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			stmt.NoCache = true
 			p.advance()
 			continue
+		case tokIDENT:
+			// SQL_CACHE (SelectStmtSQLCache, parser.y:10306, v8.5.5) changes
+			// nothing: the statement skips the cache if any SQL_NO_CACHE is
+			// present. The word is unreserved there and not a keyword of this
+			// lexer, which follows MySQL 8.0's, where it was removed; beside a
+			// dot it names a table.
+			if p.isBareWord("SQL_CACHE") && p.peekNext().Type != '.' {
+				p.advance()
+				continue
+			}
 		}
 		break
 	}

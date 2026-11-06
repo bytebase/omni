@@ -287,8 +287,15 @@ func restoreSelectLeaf(b *restorer, stmt *ast.SelectStmt) {
 
 func restoreSelectBody(b *restorer, stmt *ast.SelectStmt) {
 	b.kw("SELECT ")
-	if stmt.HighPriority {
+	// SelectStmt.Restore writes the priority as Priority2Str spells it (ast/dml.go,
+	// v8.5.5).
+	switch stmt.Priority {
+	case ast.PriorityLow:
+		b.kw("LOW_PRIORITY ")
+	case ast.PriorityHigh:
 		b.kw("HIGH_PRIORITY ")
+	case ast.PriorityDelayed:
+		b.kw("DELAYED ")
 	}
 	if stmt.SmallResult {
 		b.kw("SQL_SMALL_RESULT ")

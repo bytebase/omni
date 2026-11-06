@@ -43,20 +43,9 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		IsReplace: isReplace,
 	}
 
-	// Parse priority modifiers
-	switch p.cur.Type {
-	case kwLOW_PRIORITY:
-		stmt.Priority = nodes.InsertPriorityLow
-		p.advance()
-	case kwDELAYED:
-		stmt.Priority = nodes.InsertPriorityDelayed
-		p.advance()
-	case kwHIGH_PRIORITY:
-		// TiDB takes it on REPLACE as well: ReplaceIntoStmt (parser.y, v8.5.5, line
-		// 7558) reads the same PriorityOpt as INSERT, unlike MySQL.
-		stmt.Priority = nodes.InsertPriorityHigh
-		p.advance()
-	}
+	// TiDB takes HIGH_PRIORITY on REPLACE as well: ReplaceIntoStmt (parser.y, v8.5.5,
+	// line 7558) reads the same PriorityOpt as INSERT, unlike MySQL.
+	stmt.Priority = p.parsePriorityOpt()
 
 	// Parse IGNORE. REPLACE takes none: ReplaceIntoStmt (parser.y, v8.5.5, line
 	// 7558) has no IgnoreOptional.
@@ -353,4 +342,28 @@ func (p *Parser) parseOnDuplicateKeyUpdate() ([]*nodes.Assignment, error) {
 		return nil, err
 	}
 	return p.parseAssignmentList()
+}
+
+// parsePriorityOpt reads TiDB's PriorityOpt (parser.y:9060, v8.5.5): one of
+// LOW_PRIORITY, HIGH_PRIORITY or DELAYED, or nothing.
+func (p *Parser) parsePriorityOpt() nodes.Priority {
+	pr, ok := priorityWord(p.cur.Type)
+	if ok {
+		p.advance()
+	}
+	return pr
+}
+
+// priorityWord maps a token of TiDB's Priority rule (parser.y:9046, v8.5.5) to the
+// priority it names.
+func priorityWord(tok int) (nodes.Priority, bool) {
+	switch tok {
+	case kwLOW_PRIORITY:
+		return nodes.PriorityLow, true
+	case kwHIGH_PRIORITY:
+		return nodes.PriorityHigh, true
+	case kwDELAYED:
+		return nodes.PriorityDelayed, true
+	}
+	return nodes.PriorityNone, false
 }

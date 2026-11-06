@@ -294,7 +294,7 @@ func TestValuesRowSource(t *testing.T) {
 // TestReplaceHighPriority: ReplaceIntoStmt reads the same PriorityOpt as INSERT.
 func TestReplaceHighPriority(t *testing.T) {
 	stmt := insertTree(t, "REPLACE HIGH_PRIORITY INTO t VALUES (1)")
-	if !stmt.IsReplace || stmt.Priority != ast.InsertPriorityHigh {
+	if !stmt.IsReplace || stmt.Priority != ast.PriorityHigh {
 		t.Errorf("IsReplace = %v, Priority = %d", stmt.IsReplace, stmt.Priority)
 	}
 }

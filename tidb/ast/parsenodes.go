@@ -12,7 +12,7 @@ type SelectStmt struct {
 	CTEs              []*CommonTableExpr // WITH clause (CTEs)
 	DistinctKind      DistinctKind       // DISTINCT, ALL, or none
 	CalcFoundRows     bool               // SQL_CALC_FOUND_ROWS
-	HighPriority      bool               // HIGH_PRIORITY
+	Priority          Priority           // LOW_PRIORITY, HIGH_PRIORITY or DELAYED; the last one written
 	StraightJoin      bool               // STRAIGHT_JOIN hint
 	SmallResult       bool               // SQL_SMALL_RESULT
 	BigResult         bool               // SQL_BIG_RESULT
@@ -118,7 +118,7 @@ const (
 type InsertStmt struct {
 	Loc            Loc
 	IsReplace      bool // REPLACE instead of INSERT
-	Priority       InsertPriority
+	Priority       Priority
 	Ignore         bool          // INSERT IGNORE
 	Table          *TableRef     // target table
 	Partitions     []string      // PARTITION (p0, p1, ...)
@@ -135,26 +135,28 @@ type InsertStmt struct {
 func (s *InsertStmt) nodeTag()  {}
 func (s *InsertStmt) stmtNode() {}
 
-// InsertPriority enumerates INSERT priority modifiers.
-type InsertPriority int
+// Priority is the LOW_PRIORITY, HIGH_PRIORITY or DELAYED a SELECT, INSERT,
+// REPLACE, UPDATE or DELETE carries: TiDB's Priority (parser.y:9046, v8.5.5),
+// which every one of those statements reads.
+type Priority int
 
 const (
-	InsertPriorityNone InsertPriority = iota
-	InsertPriorityLow
-	InsertPriorityDelayed
-	InsertPriorityHigh
+	PriorityNone Priority = iota
+	PriorityLow
+	PriorityDelayed
+	PriorityHigh
 )
 
 // UpdateStmt represents an UPDATE statement.
 type UpdateStmt struct {
-	Loc         Loc
-	LowPriority bool
-	Ignore      bool
-	Tables      []TableExpr    // table references (multi-table update)
-	SetList     []*Assignment  // SET clause
-	Where       ExprNode       // WHERE condition
-	OrderBy     []*OrderByItem // ORDER BY
-	Limit       *Limit         // LIMIT
+	Loc      Loc
+	Priority Priority
+	Ignore   bool
+	Tables   []TableExpr    // table references (multi-table update)
+	SetList  []*Assignment  // SET clause
+	Where    ExprNode       // WHERE condition
+	OrderBy  []*OrderByItem // ORDER BY
+	Limit    *Limit         // LIMIT
 }
 
 func (s *UpdateStmt) nodeTag()  {}
@@ -162,15 +164,15 @@ func (s *UpdateStmt) stmtNode() {}
 
 // DeleteStmt represents a DELETE statement.
 type DeleteStmt struct {
-	Loc         Loc
-	LowPriority bool
-	Quick       bool
-	Ignore      bool
-	Tables      []TableExpr    // tables to delete from
-	Using       []TableExpr    // USING clause (multi-table delete)
-	Where       ExprNode       // WHERE condition
-	OrderBy     []*OrderByItem // ORDER BY
-	Limit       *Limit         // LIMIT
+	Loc      Loc
+	Priority Priority
+	Quick    bool
+	Ignore   bool
+	Tables   []TableExpr    // tables to delete from
+	Using    []TableExpr    // USING clause (multi-table delete)
+	Where    ExprNode       // WHERE condition
+	OrderBy  []*OrderByItem // ORDER BY
+	Limit    *Limit         // LIMIT
 }
 
 func (s *DeleteStmt) nodeTag()  {}

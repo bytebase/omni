@@ -595,8 +595,8 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	if n.CalcFoundRows {
 		sb.WriteString(" :calc_found_rows true")
 	}
-	if n.HighPriority {
-		sb.WriteString(" :high_priority true")
+	if n.Priority != PriorityNone {
+		fmt.Fprintf(sb, " :priority %d", n.Priority)
 	}
 	if n.StraightJoin {
 		sb.WriteString(" :straight_join true")
@@ -707,7 +707,7 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 	if n.IsReplace {
 		sb.WriteString(" :replace true")
 	}
-	if n.Priority != InsertPriorityNone {
+	if n.Priority != PriorityNone {
 		fmt.Fprintf(sb, " :priority %d", n.Priority)
 	}
 	if n.Ignore {
@@ -794,8 +794,8 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 	sb.WriteString("{UPDATE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if n.LowPriority {
-		sb.WriteString(" :low_priority true")
+	if n.Priority != PriorityNone {
+		fmt.Fprintf(sb, " :priority %d", n.Priority)
 	}
 	if n.Ignore {
 		sb.WriteString(" :ignore true")
@@ -831,8 +831,8 @@ func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 	sb.WriteString("{DELETE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if n.LowPriority {
-		sb.WriteString(" :low_priority true")
+	if n.Priority != PriorityNone {
+		fmt.Fprintf(sb, " :priority %d", n.Priority)
 	}
 	if n.Quick {
 		sb.WriteString(" :quick true")

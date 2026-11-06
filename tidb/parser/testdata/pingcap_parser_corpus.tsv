@@ -3148,17 +3148,17 @@ accept	accept	select * from t use index for order by (idx1)
 accept	accept	select * from t force index for group by (idx1)
 accept	accept	select * from t use index for group by (idx1) use index for order by (idx2), t2
 accept	accept	select high_priority * from t
-reject	accept	select low_priority * from t
-reject	accept	select delayed * from t
+accept	accept	select low_priority * from t
+accept	accept	select delayed * from t
 accept	accept	insert high_priority into t values (1)
 accept	accept	insert LOW_PRIORITY into t values (1)
 accept	accept	insert delayed into t values (1)
 accept	accept	update low_priority t set a = 2
-reject	accept	update high_priority t set a = 2
-reject	accept	update delayed t set a = 2
+accept	accept	update high_priority t set a = 2
+accept	accept	update delayed t set a = 2
 accept	accept	delete low_priority from t where a = 2
-reject	accept	delete high_priority from t where a = 2
-reject	accept	delete delayed from t where a = 2
+accept	accept	delete high_priority from t where a = 2
+accept	accept	delete delayed from t where a = 2
 accept	accept	replace high_priority into t values (1)
 accept	accept	replace LOW_PRIORITY into t values (1)
 accept	accept	replace delayed into t values (1)
@@ -3169,7 +3169,7 @@ accept	accept	select sql_small_result sql_big_result sql_buffer_result 1
 accept	accept	select STRAIGHT_JOIN SQL_SMALL_RESULT * from t
 accept	accept	select SQL_CALC_FOUND_ROWS DISTINCT * from t
 accept	accept	select SQL_NO_CACHE * from t
-reject	accept	select SQL_CACHE * from t
+accept	accept	select SQL_CACHE * from t
 accept	accept	select * from t
 reject	reject	select """;
 accept	accept	select """";

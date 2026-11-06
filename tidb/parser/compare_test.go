@@ -1481,7 +1481,7 @@ func TestParseInsertValues(t *testing.T) {
 		colCount int
 		rowCount int
 		ignore   bool
-		priority ast.InsertPriority
+		priority ast.Priority
 	}{
 		{
 			input:    "INSERT INTO users (id, name) VALUES (1, 'alice')",
@@ -1506,7 +1506,7 @@ func TestParseInsertValues(t *testing.T) {
 			table:    "users",
 			colCount: 1,
 			rowCount: 1,
-			priority: ast.InsertPriorityLow,
+			priority: ast.PriorityLow,
 		},
 		{
 			input:    "INSERT HIGH_PRIORITY IGNORE INTO users (id) VALUES (1)",
@@ -1514,14 +1514,14 @@ func TestParseInsertValues(t *testing.T) {
 			colCount: 1,
 			rowCount: 1,
 			ignore:   true,
-			priority: ast.InsertPriorityHigh,
+			priority: ast.PriorityHigh,
 		},
 		{
 			input:    "INSERT DELAYED INTO users (id) VALUES (1)",
 			table:    "users",
 			colCount: 1,
 			rowCount: 1,
-			priority: ast.InsertPriorityDelayed,
+			priority: ast.PriorityDelayed,
 		},
 	}
 
@@ -1664,7 +1664,7 @@ func TestParseReplace(t *testing.T) {
 		table    string
 		colCount int
 		rowCount int
-		priority ast.InsertPriority
+		priority ast.Priority
 	}{
 		{
 			input:    "REPLACE INTO users (id, name) VALUES (1, 'alice')",
@@ -1683,14 +1683,14 @@ func TestParseReplace(t *testing.T) {
 			table:    "users",
 			colCount: 1,
 			rowCount: 1,
-			priority: ast.InsertPriorityLow,
+			priority: ast.PriorityLow,
 		},
 		{
 			input:    "REPLACE DELAYED INTO users (id) VALUES (1)",
 			table:    "users",
 			colCount: 1,
 			rowCount: 1,
-			priority: ast.InsertPriorityDelayed,
+			priority: ast.PriorityDelayed,
 		},
 	}
 
@@ -1893,8 +1893,8 @@ func TestParseUpdate(t *testing.T) {
 
 	t.Run("LOW_PRIORITY IGNORE", func(t *testing.T) {
 		stmt := parseUpdate(t, "UPDATE LOW_PRIORITY IGNORE users SET name = 'test'")
-		if !stmt.LowPriority {
-			t.Error("expected LowPriority = true")
+		if stmt.Priority != ast.PriorityLow {
+			t.Error("expected Priority = PriorityLow")
 		}
 		if !stmt.Ignore {
 			t.Error("expected Ignore = true")
@@ -2000,8 +2000,8 @@ func TestParseDelete(t *testing.T) {
 
 	t.Run("modifiers", func(t *testing.T) {
 		stmt := parseDelete(t, "DELETE LOW_PRIORITY QUICK IGNORE FROM users WHERE id = 1")
-		if !stmt.LowPriority {
-			t.Error("expected LowPriority = true")
+		if stmt.Priority != ast.PriorityLow {
+			t.Error("expected Priority = PriorityLow")
 		}
 		if !stmt.Quick {
 			t.Error("expected Quick = true")
