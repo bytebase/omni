@@ -600,6 +600,22 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
+		// N'text' is a string in the national character set, utf8. TiDB's lexer
+		// reads N or n directly before a quote as the introducer _utf8
+		// (startWithNn, pkg/parser/lexer.go), so N 'x' is still the column N
+		// with an alias, and N'x' 'y' is the string with the alias y, as
+		// _utf8'x' 'y' is: the introducer takes one string (Literal,
+		// "UNDERSCORE_CHARSET" stringLit, parser.y).
+		if p.atNationalString() {
+			nTok := p.advance() // consume N
+			strTok := p.advance()
+			return &nodes.StringLit{
+				Loc:     nodes.Loc{Start: nTok.Loc, End: strTok.End},
+				Value:   strTok.Str,
+				Charset: "_utf8",
+			}, nil
+		}
+
 		// Charset introducer: _utf8mb4'hello', _latin1'world'
 		if p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "_") && p.peekNext().Type == tokSCONST {
 			charsetTok := p.advance() // consume the charset identifier
@@ -618,6 +634,16 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+// atNationalString reports whether the current token is the N of N'text': an
+// unquoted N or n with a string literal directly after it.
+func (p *Parser) atNationalString() bool {
+	if p.cur.Type != tokIDENT || (p.cur.Str != "N" && p.cur.Str != "n") || p.backtickQuotedAt(p.cur.Loc) {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == tokSCONST && next.Loc == p.cur.End && p.lexer.inputAt(next.Loc) == '\''
 }
 
 // isNextValCall reports whether a call has the one argument NEXTVAL takes, TableName: one name,
@@ -891,8 +917,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		}
 	}
 
-	// Empty argument list
+	// Empty argument list. CHAR's production takes an ExpressionList, which
+	// is never empty: CHAR() is a 1064 (parser.y:8184).
 	if p.cur.Type == ')' {
+		if builtin && upperName == "CHAR" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		return p.finishFuncCall(fc, builtin)
 	}
@@ -919,6 +949,28 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			break
 		}
 		p.advance()
+	}
+
+	// CHAR(n, ... USING charset_name). Ref: TiDB v8.5.5 parser.y:8193,
+	// "CHAR" '(' ExpressionList "USING" CharsetName ')'.
+	if builtin && upperName == "CHAR" && p.cur.Type == kwUSING {
+		p.advance()
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("charset")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		cs, err := p.parseCharsetName()
+		if err != nil {
+			return nil, err
+		}
+		fc.Using = cs
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		// The production has no window.
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -1199,13 +1251,42 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 	return bound, nil
 }
 
+// parseTrimFunc parses TRIM's argument list, after the '('. A direction is
+// carried in the name (TRIM_LEADING, TRIM_TRAILING, TRIM_BOTH) and Args are
+// [remstr, str], or [str] when no remstr is written, which trims spaces.
+//
+// Ref: TiDB v8.5.5 parser.y:8336-8366:
+//
+//	builtinTrim '(' Expression ')'
+//	builtinTrim '(' Expression "FROM" Expression ')'
+//	builtinTrim '(' TrimDirection "FROM" Expression ')'
+//	builtinTrim '(' TrimDirection Expression "FROM" Expression ')'
+//
+// A direction always takes FROM: TRIM(LEADING 'x') is a 1064.
 func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
-	// Check for LEADING, TRAILING, BOTH
+	direction := false
 	switch p.cur.Type {
 	case kwLEADING, kwTRAILING, kwBOTH:
-		// Include as first "argument" indicator via the function name
 		fc.Name = "TRIM_" + strings.ToUpper(p.cur.Str)
 		p.advance()
+		direction = true
+		if p.cur.Type == kwFROM {
+			// TRIM(LEADING FROM str)
+			p.advance()
+			str, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if str == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fc.Args = []nodes.ExprNode{str}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			fc.Loc.End = p.prev.End
+			return fc, nil
+		}
 	}
 
 	arg, err := p.parseExpr()
@@ -1227,6 +1308,8 @@ func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = []nodes.ExprNode{arg, str}
+	} else if direction {
+		return nil, p.syntaxErrorAtCur()
 	} else {
 		fc.Args = []nodes.ExprNode{arg}
 	}

@@ -709,6 +709,7 @@ type FuncCallExpr struct {
 	// stored form of its own even with no clause written. Quoted or qualified, the name is an
 	// ordinary call to whatever function has that name.
 	JSONValueArm bool
+	Using        string // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
 }
 
 // JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are

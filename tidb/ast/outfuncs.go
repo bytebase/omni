@@ -2685,8 +2685,6 @@ func binaryOpStr(op BinaryOp) string {
 		return "->"
 	case BinOpJsonUnquote:
 		return "->>"
-	case BinOpSoundsLike:
-		return "SOUNDS LIKE"
 	default:
 		return fmt.Sprintf("?%d", op)
 	}
@@ -2751,6 +2749,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	}
 	if n.Star {
 		sb.WriteString(" :star true")
+	}
+	if n.Using != "" {
+		fmt.Fprintf(sb, " :using %s", n.Using)
 	}
 	if len(n.Args) > 0 {
 		sb.WriteString(" :args ")

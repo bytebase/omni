@@ -794,6 +794,7 @@ type FuncCallExpr struct {
 	OrderBy    []*OrderByItem
 	Over       *WindowDef // OVER clause for window functions
 	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Using      string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
 }
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the
@@ -1087,6 +1088,8 @@ type StringLit struct {
 	Loc     Loc
 	Value   string
 	Charset string // optional charset introducer (_utf8, etc.)
+	// National marks N'...', a string in the national character set (utf8mb3).
+	National bool
 }
 
 func (l *StringLit) nodeTag()  {}

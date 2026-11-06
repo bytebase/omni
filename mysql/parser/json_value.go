@@ -115,13 +115,21 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 // expression reader has no arm for: it would read the N as a column. The quote has to follow at
 // once, since `N 'x'` is a name and a string. It reports whether there was one.
 func (p *Parser) skipNationalPrefix() bool {
-	if strings.EqualFold(p.cur.Str, "N") && p.cur.Type == tokIDENT && !p.backtickQuotedAt(p.cur.Loc) {
-		if next := p.peekNext(); next.Type == tokSCONST && next.Loc == p.cur.End {
-			p.advance()
-			return true
-		}
+	if p.atNationalString() {
+		p.advance()
+		return true
 	}
 	return false
+}
+
+// atNationalString reports whether the current token is the N of N'text': an unquoted N or n
+// with a single-quoted string directly after it. N"x" is the column N with an alias.
+func (p *Parser) atNationalString() bool {
+	if !strings.EqualFold(p.cur.Str, "N") || p.cur.Type != tokIDENT || p.backtickQuotedAt(p.cur.Loc) {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == tokSCONST && next.Loc == p.cur.End && p.byteAt(next.Loc) == '\''
 }
 
 func (p *Parser) startsJSONValueResponse() bool {

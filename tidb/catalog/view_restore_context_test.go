@@ -166,3 +166,54 @@ func TestViewRestoreReviewForms(t *testing.T) {
 		})
 	}
 }
+
+// TestViewRestoreExprForms: the expression forms below are stored as TiDB
+// v8.5.5 stores them (SHOW CREATE VIEW, 2026-11-06): N'...' as _UTF8'...',
+// TRIM with a direction and no remstr with the space it removes, CHAR ...
+// USING as CHAR_FUNC with the charset as a string, and an (a, b) row as ROW.
+// TestDeparse_Section_7_3_ExpressionViews compares the same bodies with the
+// server's.
+func TestViewRestoreExprForms(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, want string
+		cols             []string
+	}{
+		{
+			"national string",
+			"SELECT N'nat', n'x' AS y, N'a' 'b', N'' FROM t",
+			"SELECT _UTF8'nat' AS `nat`,_UTF8'x' AS `y`,_UTF8'a' AS `b`,_UTF8'' FROM `d`.`t`",
+			[]string{"nat", "y", "b", ""},
+		},
+		{
+			"trim direction",
+			"SELECT TRIM(BOTH FROM c), TRIM(LEADING FROM c), TRIM(TRAILING 'x' FROM c) FROM t",
+			"SELECT TRIM(BOTH _UTF8MB4' ' FROM `c`) AS `TRIM(BOTH FROM c)`,TRIM(LEADING _UTF8MB4' ' FROM `c`) AS `TRIM(LEADING FROM c)`," +
+				"TRIM(TRAILING _UTF8MB4'x' FROM `c`) AS `TRIM(TRAILING 'x' FROM c)` FROM `d`.`t`",
+			[]string{"TRIM(BOTH FROM c)", "TRIM(LEADING FROM c)", "TRIM(TRAILING 'x' FROM c)"},
+		},
+		{
+			"char using",
+			"SELECT CHAR(65 USING utf8mb4), CHAR(65, 66 USING 'Latin1') AS l, CHAR(65 USING utf8mb3) AS u, CHAR(65) FROM t",
+			"SELECT CHAR_FUNC(65, 'utf8mb4') AS `CHAR(65 USING utf8mb4)`,CHAR_FUNC(65, 66, 'latin1') AS `l`," +
+				"CHAR_FUNC(65, 'utf8') AS `u`,CHAR_FUNC(65, NULL) AS `CHAR(65)` FROM `d`.`t`",
+			[]string{"CHAR(65 USING utf8mb4)", "l", "u", "CHAR(65)"},
+		},
+		{
+			"row shorthand",
+			"SELECT (a,b) IN ((1,2)), (a, b) = (1, 2) AS e FROM t",
+			"SELECT ROW(`a`,`b`) IN (ROW(1,2)) AS `(a,b) IN ((1,2))`,ROW(`a`,`b`)=ROW(1,2) AS `e` FROM `d`.`t`",
+			[]string{"(a,b) IN ((1,2))", "e"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := viewRestoreCatalog(t, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT, b INT, c VARCHAR(20)); CREATE VIEW v AS "+tc.body+";")
+			v := c.GetDatabase("d").Views["v"]
+			if v.Definition != tc.want {
+				t.Errorf("Definition =\n%s\nwant\n%s", v.Definition, tc.want)
+			}
+			if strings.Join(v.Columns, "|") != strings.Join(tc.cols, "|") {
+				t.Errorf("Columns = %q, want %q", v.Columns, tc.cols)
+			}
+		})
+	}
+}

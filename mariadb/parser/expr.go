@@ -615,6 +615,19 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
+		// N'text' is a string in the national character set (NCHAR_STRING in
+		// text_literal, MariaDB 11.8 sql/sql_yacc.yy): the lexer reads N or n
+		// directly before a quote as one token.
+		if p.atNationalString() {
+			nTok := p.advance() // consume N
+			strTok := p.advance()
+			return &nodes.StringLit{
+				Loc:      nodes.Loc{Start: nTok.Loc, End: strTok.End},
+				Value:    strTok.Str,
+				National: true,
+			}, nil
+		}
+
 		// Charset introducer: _utf8mb4'hello', _latin1'world'
 		if p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "_") && p.peekNext().Type == tokSCONST {
 			charsetTok := p.advance() // consume the charset identifier
@@ -745,8 +758,25 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 // backtickQuotedAt reports whether the token at absolute offset off is a
 // backtick-quoted identifier.
 func (p *Parser) backtickQuotedAt(off int) bool {
-	i := off - p.lexer.baseOffset
-	return i >= 0 && i < len(p.lexer.input) && p.lexer.input[i] == '`'
+	return p.byteAt(off) == '`'
+}
+
+// byteAt returns the input byte at offset off, or 0 outside the input.
+func (p *Parser) byteAt(off int) byte {
+	if i := off - p.lexer.baseOffset; i >= 0 && i < len(p.lexer.input) {
+		return p.lexer.input[i]
+	}
+	return 0
+}
+
+// atNationalString reports whether the current token is the N of N'text': an unquoted N or n
+// with a single-quoted string directly after it. N"x" and N 'x' are the column N with an alias.
+func (p *Parser) atNationalString() bool {
+	if !strings.EqualFold(p.cur.Str, "N") || p.cur.Type != tokIDENT || p.backtickQuotedAt(p.cur.Loc) {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == tokSCONST && next.Loc == p.cur.End && p.byteAt(next.Loc) == '\''
 }
 
 // parseFuncCall parses a function call after the name has been consumed.
@@ -862,8 +892,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		}
 	}
 
-	// Empty argument list
+	// Empty argument list. CHAR's expr_list is never empty: mariadb:11.8.8 answers 1064 for
+	// CHAR().
 	if p.cur.Type == ')' {
+		if builtin && upperName == "CHAR" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		if schema == "" {
 			if err := refuseNativeArgCount(upperName, 0, start); err != nil {
@@ -903,6 +937,28 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			break
 		}
 		p.advance()
+	}
+
+	// CHAR(n, ... USING charset_name). Ref: CHAR_SYM '(' expr_list USING
+	// charset_name ')' in MariaDB 11.8 sql/sql_yacc.yy.
+	if builtin && upperName == "CHAR" && p.cur.Type == kwUSING {
+		p.advance()
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("charset")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		cs, err := p.parseCharsetName()
+		if err != nil {
+			return nil, err
+		}
+		fc.Using = cs
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		// The production has no window.
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -1166,13 +1222,40 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 	return bound, nil
 }
 
+// parseTrimFunc parses TRIM's argument list, after the '('. A direction is
+// carried in the name (TRIM_LEADING, TRIM_TRAILING, TRIM_BOTH) and Args are
+// [remstr, str], or [str] when no remstr is written, which trims spaces.
+//
+// Ref: trim_operands_regular and trim_operands_special in MariaDB 11.8
+// sql/sql_yacc.yy:
+//
+//	expr | LEADING expr FROM expr | LEADING FROM expr | expr FROM expr | ...
+//
+// A direction always takes FROM: mariadb:11.8.8 answers 1064 for TRIM(LEADING 'x').
 func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
-	// Check for LEADING, TRAILING, BOTH
+	direction := false
 	switch p.cur.Type {
 	case kwLEADING, kwTRAILING, kwBOTH:
-		// Include as first "argument" indicator via the function name
 		fc.Name = "TRIM_" + strings.ToUpper(p.cur.Str)
 		p.advance()
+		direction = true
+		if p.cur.Type == kwFROM {
+			// TRIM(LEADING FROM str)
+			p.advance()
+			str, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if str == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fc.Args = []nodes.ExprNode{str}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			fc.Loc.End = p.prev.End
+			return fc, nil
+		}
 	}
 
 	arg, err := p.parseExpr()
@@ -1194,6 +1277,8 @@ func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = []nodes.ExprNode{arg, str}
+	} else if direction {
+		return nil, p.syntaxErrorAtCur()
 	} else {
 		fc.Args = []nodes.ExprNode{arg}
 	}

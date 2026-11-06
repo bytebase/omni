@@ -2192,6 +2192,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	if n.Star {
 		sb.WriteString(" :star true")
 	}
+	if n.Using != "" {
+		fmt.Fprintf(sb, " :using %s", n.Using)
+	}
 	if len(n.Args) > 0 {
 		sb.WriteString(" :args ")
 		writeExprNodeList(sb, n.Args)
@@ -2532,6 +2535,9 @@ func writeStringLit(sb *strings.Builder, n *StringLit) {
 	fmt.Fprintf(sb, " :val %q :loc %d", n.Value, n.Loc.Start)
 	if n.Charset != "" {
 		fmt.Fprintf(sb, " :charset %s", n.Charset)
+	}
+	if n.National {
+		sb.WriteString(" :national true")
 	}
 	if n.Concatenated {
 		fmt.Fprintf(sb, " :first-segment %q", n.FirstSegment)

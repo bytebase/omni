@@ -649,8 +649,6 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			op = "->"
 		case ast.BinOpJsonUnquote:
 			op = "->>"
-		case ast.BinOpSoundsLike:
-			op = " SOUNDS LIKE "
 		default:
 			op = binaryOpToStringAlias(n.Op)
 			// Use original operator text for alias when available (e.g., "MOD" instead of "%", "!=" instead of "<>")
@@ -707,6 +705,13 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(")")
 			return
 		}
+		if trimHead != "" && len(n.Args) == 1 {
+			b.WriteString(trimHead)
+			b.WriteString("FROM ")
+			writeExprAlias(b, n.Args[0])
+			b.WriteString(")")
+			return
+		}
 
 		// Handle GROUP_CONCAT: alias includes ORDER BY and SEPARATOR
 		if upperName == "GROUP_CONCAT" {
@@ -745,6 +750,10 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 				b.WriteString(", ")
 			}
 			writeExprAlias(b, arg)
+		}
+		if n.Using != "" {
+			b.WriteString(" USING ")
+			b.WriteString(n.Using)
 		}
 		b.WriteString(")")
 		if n.Over != nil {
@@ -1658,8 +1667,6 @@ func binaryOpToString(op ast.BinaryOp) string {
 		return "<<"
 	case ast.BinOpShiftRight:
 		return ">>"
-	case ast.BinOpSoundsLike:
-		return "sounds like"
 	case ast.BinOpAssign:
 		return ":="
 	default:
@@ -2047,11 +2054,11 @@ func writeTrimDirectional(b *strings.Builder, direction string, args []ast.ExprN
 		b.WriteString(")")
 		return
 	}
-	// Fallback: single arg (shouldn't happen for directional, but be safe)
+	// TRIM(LEADING FROM str): no remstr, so spaces are trimmed.
 	if len(args) == 1 {
 		b.WriteString("trim(")
 		b.WriteString(direction)
-		b.WriteString(" ")
+		b.WriteString(" from ")
 		writeExpr(b, args[0])
 		b.WriteString(")")
 		return
@@ -2116,6 +2123,10 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				b.WriteString(",")
 			}
 			writeExpr(b, arg)
+		}
+		if n.Using != "" {
+			b.WriteString(" using ")
+			b.WriteString(strings.ToLower(n.Using))
 		}
 		b.WriteString(")")
 	}

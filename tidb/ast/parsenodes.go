@@ -841,7 +841,6 @@ const (
 	BinOpAssign      // :=
 	BinOpJsonExtract // ->
 	BinOpJsonUnquote // ->>
-	BinOpSoundsLike  // SOUNDS LIKE
 )
 
 // BinaryExpr represents a binary expression (a op b).
@@ -890,6 +889,7 @@ type FuncCallExpr struct {
 	OrderBy    []*OrderByItem
 	Over       *WindowDef // OVER clause for window functions
 	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Using      string     // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
 }
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the

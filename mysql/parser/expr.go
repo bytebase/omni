@@ -632,6 +632,23 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
+		// N'text' is a string in the national character set (NCHAR_STRING in
+		// sql_yacc.yy's text_literal): the lexer reads N or n directly before
+		// a quote as one token, so N 'x' is still the column N with an alias.
+		// Adjacent strings fold into it as into any text_literal: N'x' 'y' is
+		// 'xy' (mysql:8.0.46).
+		if p.atNationalString() {
+			nTok := p.advance() // consume N
+			strTok := p.advance()
+			lit := &nodes.StringLit{
+				Loc:      nodes.Loc{Start: nTok.Loc, End: strTok.End},
+				Value:    strTok.Str,
+				National: true,
+			}
+			p.foldAdjacentStringLits(lit)
+			return lit, nil
+		}
+
 		// Charset introducer: _utf8mb4'hello', _latin1'world'. Only a real charset name,
 		// unquoted, forms one: `_latin1`'x' is a column with an alias (mysql:8.0.46 answers 1054
 		// for it after parsing), and `_latin1` X'61' is a 1064. Only a real
@@ -795,8 +812,15 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 // backtickQuotedAt reports whether the token at absolute offset off is a
 // backtick-quoted identifier.
 func (p *Parser) backtickQuotedAt(off int) bool {
-	i := off - p.lexer.baseOffset
-	return i >= 0 && i < len(p.lexer.input) && p.lexer.input[i] == '`'
+	return p.byteAt(off) == '`'
+}
+
+// byteAt returns the input byte at offset off, or 0 outside the input.
+func (p *Parser) byteAt(off int) byte {
+	if i := off - p.lexer.baseOffset; i >= 0 && i < len(p.lexer.input) {
+		return p.lexer.input[i]
+	}
+	return 0
 }
 
 // parseFuncCall parses a function call after the name has been consumed.
@@ -902,8 +926,12 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		}
 	}
 
-	// Empty argument list
+	// Empty argument list. CHAR's expr_list is never empty: mysql:8.0.46 answers 1064 for
+	// CHAR().
 	if p.cur.Type == ')' {
+		if builtin && upperName == "CHAR" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		return p.finishFuncCall(fc, builtin)
 	}
@@ -930,6 +958,29 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			break
 		}
 		p.advance()
+	}
+
+	// CHAR(n, ... USING charset_name). Ref: CHAR_SYM '(' expr_list USING
+	// charset_name ')' in MySQL 8.0 sql/sql_yacc.yy, and
+	// https://dev.mysql.com/doc/refman/8.0/en/string-functions.html#function_char.
+	if builtin && upperName == "CHAR" && p.cur.Type == kwUSING {
+		p.advance()
+		p.checkCursor()
+		if p.collectMode() {
+			p.addRuleCandidate("charset")
+			return nil, &ParseError{Message: "collecting"}
+		}
+		cs, err := p.parseCharsetName()
+		if err != nil {
+			return nil, err
+		}
+		fc.Using = cs
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		// The production has no window.
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -1211,13 +1262,40 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 	return bound, nil
 }
 
+// parseTrimFunc parses TRIM's argument list, after the '('. A direction is
+// carried in the name (TRIM_LEADING, TRIM_TRAILING, TRIM_BOTH) and Args are
+// [remstr, str], or [str] when no remstr is written, which trims spaces.
+//
+// Ref: trim_operands in MySQL 8.0 sql/sql_yacc.yy, and
+// https://dev.mysql.com/doc/refman/8.0/en/string-functions.html#function_trim:
+//
+//	TRIM([{BOTH | LEADING | TRAILING} [remstr] FROM] str), TRIM([remstr FROM] str)
+//
+// A direction always takes FROM: mysql:8.0.46 answers 1064 for TRIM(LEADING 'x').
 func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
-	// Check for LEADING, TRAILING, BOTH
+	direction := false
 	switch p.cur.Type {
 	case kwLEADING, kwTRAILING, kwBOTH:
-		// Include as first "argument" indicator via the function name
 		fc.Name = "TRIM_" + strings.ToUpper(p.cur.Str)
 		p.advance()
+		direction = true
+		if p.cur.Type == kwFROM {
+			// TRIM(LEADING FROM str)
+			p.advance()
+			str, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if str == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fc.Args = []nodes.ExprNode{str}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			fc.Loc.End = p.prev.End
+			return fc, nil
+		}
 	}
 
 	arg, err := p.parseExpr()
@@ -1246,6 +1324,8 @@ func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 			fc.Name = "TRIM_FROM"
 		}
 		fc.Args = []nodes.ExprNode{arg, str}
+	} else if direction {
+		return nil, p.syntaxErrorAtCur()
 	} else {
 		fc.Args = []nodes.ExprNode{arg}
 	}

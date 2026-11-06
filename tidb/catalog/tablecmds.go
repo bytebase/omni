@@ -1397,8 +1397,6 @@ func binaryOpToString(op nodes.BinaryOp) string {
 		return "->"
 	case nodes.BinOpJsonUnquote:
 		return "->>"
-	case nodes.BinOpSoundsLike:
-		return "SOUNDS LIKE"
 	default:
 		return "?"
 	}
