@@ -1409,7 +1409,16 @@ func formatColumnType(dt *nodes.DataType) string {
 	// GEOMETRYCOLLECTION → geomcollection (MySQL 8.0 normalized form)
 	switch name {
 	case "boolean":
-		return "tinyint(1)"
+		// BOOL takes the numeric modifiers (BooleanType FieldOpts, parser.y:12919,
+		// v8.5.5) and keeps them: TiDB writes BOOL UNSIGNED as tinyint(1) unsigned.
+		t := "tinyint(1)"
+		if dt.Unsigned || dt.Zerofill {
+			t += " unsigned"
+		}
+		if dt.Zerofill {
+			t += " zerofill"
+		}
+		return t
 	case "numeric":
 		name = "decimal"
 	case "serial":

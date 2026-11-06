@@ -761,10 +761,14 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 
 	case kwSTORAGE:
-		// STORAGE {DISK | MEMORY}
+		// "STORAGE" StorageMedia (parser.y:3768, v8.5.5): DEFAULT, DISK or MEMORY,
+		// parsed and ignored. A bare STORAGE is a 1064.
 		p.advance()
 		var val string
 		switch p.cur.Type {
+		case kwDEFAULT:
+			val = "DEFAULT"
+			p.advance()
 		case kwDISK:
 			val = "DISK"
 			p.advance()
@@ -772,7 +776,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			val = "MEMORY"
 			p.advance()
 		default:
-			return false, nil
+			return false, p.syntaxErrorAtCur()
 		}
 		col.Storage = val
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
