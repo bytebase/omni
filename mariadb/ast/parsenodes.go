@@ -267,8 +267,8 @@ const (
 	ATDiscardPartitionTablespace
 	ATImportPartitionTablespace
 	ATRemovePartitioning
-	ATAlterColumnVisible
-	ATAlterColumnInvisible
+	ATAlterColumnVisible   // never built: MariaDB's ALTER COLUMN has no SET VISIBLE
+	ATAlterColumnInvisible // never built: MariaDB's ALTER COLUMN has no SET INVISIBLE
 	// ATAlterIndexVisible and ATAlterIndexInvisible are MariaDB's
 	// ALTER {INDEX | KEY} [IF EXISTS] name NOT IGNORED and IGNORED. The names
 	// come from MySQL's ALTER INDEX ... {VISIBLE | INVISIBLE}, which MariaDB
@@ -543,7 +543,7 @@ const (
 	ColConstrComment
 	ColConstrCollate
 	ColConstrAutoIncrement
-	ColConstrVisible
+	ColConstrVisible // never built: MariaDB has no VISIBLE column attribute, only INVISIBLE
 	ColConstrInvisible
 	ColConstrColumnFormat
 	ColConstrStorage

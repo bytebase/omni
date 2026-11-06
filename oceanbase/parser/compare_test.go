@@ -4076,27 +4076,6 @@ func TestParseAlterTableRemovePartitioning(t *testing.T) {
 // Batch 58: ALTER TABLE visibility/misc
 // ============================================================================
 
-func TestParseAlterTableColumnVisible(t *testing.T) {
-	t.Run("set column visible", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN name SET VISIBLE")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATAlterColumnVisible {
-			t.Errorf("Type = %d, want ATAlterColumnVisible", cmd.Type)
-		}
-		if cmd.Name != "name" {
-			t.Errorf("Name = %s, want name", cmd.Name)
-		}
-	})
-
-	t.Run("set column invisible", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN name SET INVISIBLE")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATAlterColumnInvisible {
-			t.Errorf("Type = %d, want ATAlterColumnInvisible", cmd.Type)
-		}
-	})
-}
-
 func TestParseAlterTableIndexVisible(t *testing.T) {
 	t.Run("alter index visible", func(t *testing.T) {
 		stmt := parseAlterTable(t, "ALTER TABLE t ALTER INDEX idx_name VISIBLE")
@@ -4203,7 +4182,7 @@ func TestParseAlterTableDiscardTablespace(t *testing.T) {
 
 func TestParseAlterTableValidation(t *testing.T) {
 	t.Run("with validation", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v SET INVISIBLE, WITH VALIDATION")
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v DROP DEFAULT, WITH VALIDATION")
 		if len(stmt.Commands) != 2 {
 			t.Fatalf("Commands count = %d, want 2", len(stmt.Commands))
 		}
@@ -4214,7 +4193,7 @@ func TestParseAlterTableValidation(t *testing.T) {
 	})
 
 	t.Run("without validation", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v SET INVISIBLE, WITHOUT VALIDATION")
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v DROP DEFAULT, WITHOUT VALIDATION")
 		cmd := stmt.Commands[1]
 		if cmd.Type != ast.ATWithoutValidation {
 			t.Errorf("Type = %d, want ATWithoutValidation", cmd.Type)

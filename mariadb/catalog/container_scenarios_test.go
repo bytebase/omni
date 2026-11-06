@@ -187,7 +187,6 @@ func TestContainer_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 		{"varchar_charset_collate_not_null", "CREATE TABLE t_vccnn (a VARCHAR(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL)", "t_vccnn"},
 		{"int_not_null_comment", "CREATE TABLE t_innc (a INT NOT NULL COMMENT 'user id')", "t_innc"},
 		{"varchar_invisible", "CREATE TABLE t_vinv (a INT, b VARCHAR(255) INVISIBLE)", "t_vinv"},
-		{"int_visible_not_shown", "CREATE TABLE t_ivis (a INT VISIBLE)", "t_ivis"},
 		{"all_attributes", "CREATE TABLE t_all (a INT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'count')", "t_all"},
 	}
 
@@ -1379,16 +1378,18 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			"ALTER TABLE t_drop_def ALTER COLUMN val DROP DEFAULT",
 			"t_drop_def",
 		},
+		// ALTER COLUMN has no SET VISIBLE or SET INVISIBLE here
+		// (parser/alter_column_forms_test.go); MODIFY changes visibility.
 		{
-			"alter_column_set_visible",
+			"modify_column_visible",
 			"CREATE TABLE t_vis (id INT PRIMARY KEY, val INT /*!80023 INVISIBLE */)",
-			"ALTER TABLE t_vis ALTER COLUMN val SET VISIBLE",
+			"ALTER TABLE t_vis MODIFY val INT",
 			"t_vis",
 		},
 		{
-			"alter_column_set_invisible",
+			"modify_column_invisible",
 			"CREATE TABLE t_invis (id INT PRIMARY KEY, val INT)",
-			"ALTER TABLE t_invis ALTER COLUMN val SET INVISIBLE",
+			"ALTER TABLE t_invis MODIFY val INT INVISIBLE",
 			"t_invis",
 		},
 		{

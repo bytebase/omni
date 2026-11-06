@@ -687,14 +687,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		col.Constraints = append(col.Constraints, constr)
 		return true, nil
 
-	case kwVISIBLE:
-		p.advance()
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrVisible,
-		})
-		return true, nil
-
+	// INVISIBLE hides the column from SELECT *. MariaDB has no VISIBLE
+	// attribute to go with it: MariaDB 11.8.8 answers 1064 for `a INT VISIBLE`
+	// in CREATE TABLE, ADD, MODIFY and CHANGE, where MySQL takes it. A column
+	// is visible by leaving INVISIBLE off, so ColConstrVisible is never built.
+	// Ref: `vcol_attribute: ... | INVISIBLE_SYM` in MariaDB mariadb-11.8.8
+	// sql/sql_yacc.yy line 6384; VISIBLE_SYM is only an index option there
+	// (all_key_opt, line 7326).
 	case kwINVISIBLE:
 		p.advance()
 		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{

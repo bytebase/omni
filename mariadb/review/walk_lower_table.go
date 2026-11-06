@@ -177,8 +177,6 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
 	case ast.ATAlterColumnDefault:
-		// MySQL's SET [IN]VISIBLE, which omni's parser takes, MariaDB
-		// rejects (1064, verified): it ends the walk.
 		return b.columnNeeds(r, c.Name, rng)
 	case ast.ATAddConstraint, ast.ATAddIndex:
 		if c.Constraint == nil {

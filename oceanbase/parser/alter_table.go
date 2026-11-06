@@ -763,7 +763,7 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	return cmd, nil
 }
 
-// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET VISIBLE | SET INVISIBLE}
+// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT}
 // and ALTER INDEX index_name {VISIBLE | INVISIBLE}.
 //
 // ALTER COLUMN has no nullability: OceanBase CE 4.3.5.6 answers 1064 for `ALTER [COLUMN] c
@@ -771,17 +771,20 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 // are how a column's nullability changes. ATAlterColumnSetNotNull and
 // ATAlterColumnDropNotNull are never built.
 //
-// SET VISIBLE and SET INVISIBLE are MySQL's, and OceanBase CE 4.3.5.6 answers
-// 1064 for both too; this parser still reads them.
+// ALTER COLUMN has no visibility either: SET VISIBLE and SET INVISIBLE are
+// MySQL's, and OceanBase CE 4.3.5.6 answers 1064 for both, though it takes the
+// VISIBLE and INVISIBLE column attributes in CREATE TABLE, ADD, MODIFY and
+// CHANGE, which are how a column's visibility changes. ATAlterColumnVisible
+// and ATAlterColumnInvisible are never built.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html, and the
 // `ALTER opt_column ident` arms of alter_list_item in MySQL 8.0.46
-// sql/sql_yacc.yy: SET DEFAULT, DROP DEFAULT and SET visibility, nothing else.
-// OceanBase's own grammar is not in this tree; the verdicts above are its.
+// sql/sql_yacc.yy: SET DEFAULT, DROP DEFAULT and SET visibility, of which
+// OceanBase takes the first two. OceanBase's own grammar is not in this tree;
+// the verdicts above are its.
 //
 //	ALTER [COLUMN] col_name {
 //	    SET DEFAULT {literal | (expr)}
-//	  | SET {VISIBLE | INVISIBLE}
 //	  | DROP DEFAULT
 //	}
 //	ALTER INDEX index_name {VISIBLE | INVISIBLE}
@@ -880,10 +883,6 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 				}
 				cmd.DefaultExpr = expr
 			}
-		} else if _, ok := p.match(kwVISIBLE); ok {
-			cmd.Type = nodes.ATAlterColumnVisible
-		} else if _, ok := p.match(kwINVISIBLE); ok {
-			cmd.Type = nodes.ATAlterColumnInvisible
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}

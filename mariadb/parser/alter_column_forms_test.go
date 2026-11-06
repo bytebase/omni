@@ -6,14 +6,13 @@ import "testing"
 // on mariadb:11.8.8 on 2026-11-06: a 1064 is the parser's refusal, and any other
 // answer means the text parsed. ALTER COLUMN sets or drops a default; it has no
 // SET NOT NULL or DROP NOT NULL, and a column's nullability changes through
-// MODIFY or CHANGE.
-//
-// Not in this table, because omni still disagrees: MySQL's `ALTER COLUMN b SET
-// VISIBLE` and `SET INVISIBLE`, which MariaDB answers 1064 and omni accepts.
+// MODIFY or CHANGE. It has no SET VISIBLE or SET INVISIBLE either: a column is
+// hidden with the INVISIBLE attribute, and MariaDB has no VISIBLE attribute.
 //
 // Ref: `ALTER opt_column opt_if_exists_table_element field_ident SET DEFAULT
 // column_default_expr` and `... field_ident DROP DEFAULT` in MariaDB
-// mariadb-11.8.8 sql/sql_yacc.yy, lines 8094 and 8111.
+// mariadb-11.8.8 sql/sql_yacc.yy, lines 8094 and 8111; `vcol_attribute: ... |
+// INVISIBLE_SYM`, line 6384, with no VISIBLE_SYM arm.
 
 type alterColumnFormCase struct {
 	sql    string
@@ -52,6 +51,24 @@ var alterColumnFormCases = []alterColumnFormCase{
 	{"ALTER TABLE t MODIFY b INT NOT NULL", true},
 	{"ALTER TABLE t MODIFY COLUMN b INT NULL", true},
 	{"ALTER TABLE t CHANGE b b INT NOT NULL", true},
+
+	// visibility, which ALTER COLUMN does not change either.
+	{"ALTER TABLE t ALTER COLUMN b SET VISIBLE", false},
+	{"ALTER TABLE t ALTER b SET VISIBLE", false},
+	{"ALTER TABLE t ALTER COLUMN b SET INVISIBLE", false},
+	{"ALTER TABLE t ALTER b SET INVISIBLE", false},
+	{"alter table t alter column b set invisible", false},
+	{"ALTER TABLE t ALTER COLUMN b SET DEFAULT 1, ALTER COLUMN b SET INVISIBLE", false},
+
+	// how a column's visibility does change: INVISIBLE, never VISIBLE.
+	{"CREATE TABLE t2 (a INT, b INT INVISIBLE)", true},
+	{"CREATE TABLE t2 (a INT, b INT VISIBLE)", false},
+	{"ALTER TABLE t ADD COLUMN c INT INVISIBLE", true},
+	{"ALTER TABLE t ADD COLUMN c INT VISIBLE", false},
+	{"ALTER TABLE t MODIFY b INT INVISIBLE", true},
+	{"ALTER TABLE t MODIFY b INT VISIBLE", false},
+	{"ALTER TABLE t CHANGE b b INT INVISIBLE", true},
+	{"ALTER TABLE t CHANGE b b INT VISIBLE", false},
 }
 
 // TestAlterColumnForms holds the parser to the recorded verdicts without the

@@ -237,6 +237,9 @@ func TestWalkThrough_3_4_AlterColumnDropDefault(t *testing.T) {
 	}
 }
 
+// OceanBase CE 4.3.5.6 has no ALTER COLUMN ... SET VISIBLE or SET INVISIBLE
+// (1064): a column's visibility changes through MODIFY with the VISIBLE or
+// INVISIBLE attribute.
 func TestWalkThrough_3_4_AlterColumnVisibility(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b INT)")
@@ -245,16 +248,23 @@ func TestWalkThrough_3_4_AlterColumnVisibility(t *testing.T) {
 	if col.Invisible {
 		t.Error("column should start visible")
 	}
-	wtExec(t, c, "ALTER TABLE t ALTER COLUMN b SET INVISIBLE")
-	tbl = c.GetDatabase("testdb").GetTable("t")
-	col = tbl.GetColumn("b")
-	if !col.Invisible {
-		t.Error("column should be invisible after SET INVISIBLE")
+	for _, sql := range []string{
+		"ALTER TABLE t ALTER COLUMN b SET INVISIBLE",
+		"ALTER TABLE t ALTER COLUMN b SET VISIBLE",
+	} {
+		if _, err := c.Exec(sql, nil); err == nil {
+			t.Errorf("Exec accepted %q, which OceanBase refuses", sql)
+		}
 	}
-	wtExec(t, c, "ALTER TABLE t ALTER COLUMN b SET VISIBLE")
-	tbl = c.GetDatabase("testdb").GetTable("t")
-	col = tbl.GetColumn("b")
-	if col.Invisible {
-		t.Error("column should be visible after SET VISIBLE")
+	if c.GetDatabase("testdb").GetTable("t").GetColumn("b").Invisible {
+		t.Error("a refused statement made column b invisible")
+	}
+	wtExec(t, c, "ALTER TABLE t MODIFY b INT INVISIBLE")
+	if !c.GetDatabase("testdb").GetTable("t").GetColumn("b").Invisible {
+		t.Error("column should be invisible after MODIFY ... INVISIBLE")
+	}
+	wtExec(t, c, "ALTER TABLE t MODIFY b INT VISIBLE")
+	if c.GetDatabase("testdb").GetTable("t").GetColumn("b").Invisible {
+		t.Error("column should be visible after MODIFY ... VISIBLE")
 	}
 }

@@ -384,8 +384,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				})
 			case nodes.ColConstrReferences:
 				// MySQL parses but ignores column-level REFERENCES for non-NDB tables.
-			case nodes.ColConstrVisible:
-				col.Invisible = false
 			case nodes.ColConstrInvisible:
 				col.Invisible = true
 			case nodes.ColConstrCollate:
