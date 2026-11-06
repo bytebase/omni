@@ -706,11 +706,37 @@ type PartitionClause struct {
 	SubPartColumns []string      // SUBPARTITION BY KEY (columns)
 	SubPartAlgo    int           // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
 	NumSubParts    int           // SUBPARTITIONS num
+	// Interval is RANGE's INTERVAL clause, from which TiDB generates the partitions.
+	Interval *PartitionInterval
+	// SystemTimeInterval and SystemTimeUnit are SYSTEM_TIME INTERVAL expr unit, and
+	// HasSystemTimeLimit and SystemTimeLimit are SYSTEM_TIME LIMIT n.
+	SystemTimeInterval ExprNode
+	SystemTimeUnit     string
+	HasSystemTimeLimit bool
+	SystemTimeLimit    uint64
 	// UpdateIndexes holds the UPDATE INDEXES clause TiDB allows after the
 	// partition definitions, which says whether each named index stays global
 	// or becomes local once the table is repartitioned.
 	UpdateIndexes []*UpdateIndexSpec
 }
+
+// PartitionInterval is TiDB's INTERVAL (expr [unit]) clause on RANGE partitioning.
+//
+//	INTERVAL (expr [unit]) [FIRST PARTITION LESS THAN (expr) LAST PARTITION LESS THAN (expr)]
+//	    [NULL PARTITION] [MAXVALUE PARTITION]
+//
+// Ref: PartitionIntervalOpt in TiDB v8.5.5 pkg/parser/parser.y.
+type PartitionInterval struct {
+	Loc        Loc
+	Expr       ExprNode
+	Unit       string   // normalized time unit, "" when not written
+	First      ExprNode // FIRST PARTITION LESS THAN, nil when not written
+	Last       ExprNode // LAST PARTITION LESS THAN, nil when not written
+	NullPart   bool     // NULL PARTITION
+	MaxValPart bool     // MAXVALUE PARTITION
+}
+
+func (n *PartitionInterval) nodeTag() {}
 
 // UpdateIndexSpec is one entry of a TiDB UPDATE INDEXES clause. Global is true
 // for GLOBAL and false for LOCAL; one of the two is required, so there is no
@@ -735,6 +761,7 @@ const (
 	PartitionList
 	PartitionHash
 	PartitionKey
+	PartitionSystemTime // SYSTEM_TIME, which TiDB reads and does not apply
 )
 
 // PartitionDef represents a single partition definition.
@@ -973,6 +1000,7 @@ func (e *InExpr) exprNode() {}
 type LikeExpr struct {
 	Loc     Loc
 	Not     bool
+	ILike   bool // ILIKE, TiDB's case-insensitive LIKE
 	Expr    ExprNode
 	Pattern ExprNode
 	Escape  ExprNode // ESCAPE clause
@@ -2853,35 +2881,6 @@ type MemberOfExpr struct {
 func (e *MemberOfExpr) nodeTag()  {}
 func (e *MemberOfExpr) exprNode() {}
 
-// JsonTableExpr represents a JSON_TABLE() table function.
-type JsonTableExpr struct {
-	Loc     Loc
-	Expr    ExprNode // JSON document expression
-	Path    ExprNode // JSON path expression
-	Columns []*JsonTableColumn
-	Alias   string
-}
-
-func (e *JsonTableExpr) nodeTag()   {}
-func (e *JsonTableExpr) tableExpr() {}
-
-// JsonTableColumn represents a column definition in JSON_TABLE.
-type JsonTableColumn struct {
-	Loc         Loc
-	Name        string
-	TypeName    *DataType
-	Path        string
-	Exists      bool   // FOR ORDINALITY or EXISTS PATH
-	ErrorOption string // ERROR ON ERROR, NULL ON ERROR, DEFAULT val ON ERROR
-	EmptyOption string // ERROR ON EMPTY, NULL ON EMPTY, DEFAULT val ON EMPTY
-	Ordinality  bool   // FOR ORDINALITY
-	Nested      bool   // NESTED PATH
-	NestedPath  string
-	NestedCols  []*JsonTableColumn
-}
-
-func (c *JsonTableColumn) nodeTag() {}
-
 // SetTransactionStmt represents a SET TRANSACTION statement.
 type SetTransactionStmt struct {
 	Loc            Loc
@@ -3292,132 +3291,6 @@ type UninstallComponentStmt struct {
 
 func (s *UninstallComponentStmt) nodeTag()  {}
 func (s *UninstallComponentStmt) stmtNode() {}
-
-// CreateTablespaceStmt represents a CREATE TABLESPACE statement.
-type CreateTablespaceStmt struct {
-	Loc             Loc
-	Undo            bool   // UNDO tablespace
-	Name            string // tablespace name
-	DataFile        string // ADD DATAFILE 'file_name'
-	AutoextendSize  string // AUTOEXTEND_SIZE value
-	FileBlockSize   string // FILE_BLOCK_SIZE value
-	Encryption      string // ENCRYPTION value ('Y' or 'N')
-	UseLogfileGroup string // USE LOGFILE GROUP name
-	ExtentSize      string // EXTENT_SIZE value
-	InitialSize     string // INITIAL_SIZE value
-	MaxSize         string // MAX_SIZE value
-	NodeGroup       string // NODEGROUP value
-	Wait            bool   // WAIT
-	Comment         string // COMMENT value
-	Engine          string // ENGINE name
-	EngineAttribute string // ENGINE_ATTRIBUTE value
-}
-
-func (s *CreateTablespaceStmt) nodeTag()  {}
-func (s *CreateTablespaceStmt) stmtNode() {}
-
-// AlterTablespaceStmt represents an ALTER TABLESPACE statement.
-type AlterTablespaceStmt struct {
-	Loc             Loc
-	Undo            bool   // UNDO tablespace
-	Name            string // tablespace name
-	AddDataFile     string // ADD DATAFILE 'file_name'
-	DropDataFile    string // DROP DATAFILE 'file_name'
-	InitialSize     string // INITIAL_SIZE value
-	Wait            bool   // WAIT
-	RenameTo        string // RENAME TO tablespace_name
-	AutoextendSize  string // AUTOEXTEND_SIZE value
-	Encryption      string // ENCRYPTION value
-	Engine          string // ENGINE name
-	EngineAttribute string // ENGINE_ATTRIBUTE value
-	SetActive       bool   // SET ACTIVE
-	SetInactive     bool   // SET INACTIVE
-}
-
-func (s *AlterTablespaceStmt) nodeTag()  {}
-func (s *AlterTablespaceStmt) stmtNode() {}
-
-// DropTablespaceStmt represents a DROP TABLESPACE statement.
-type DropTablespaceStmt struct {
-	Loc    Loc
-	Undo   bool   // UNDO tablespace
-	Name   string // tablespace name
-	Engine string // ENGINE name
-}
-
-func (s *DropTablespaceStmt) nodeTag()  {}
-func (s *DropTablespaceStmt) stmtNode() {}
-
-// CreateServerStmt represents a CREATE SERVER statement.
-type CreateServerStmt struct {
-	Loc         Loc
-	Name        string   // server name
-	WrapperName string   // FOREIGN DATA WRAPPER name
-	Options     []string // OPTIONS values
-}
-
-func (s *CreateServerStmt) nodeTag()  {}
-func (s *CreateServerStmt) stmtNode() {}
-
-// AlterServerStmt represents an ALTER SERVER statement.
-type AlterServerStmt struct {
-	Loc     Loc
-	Name    string   // server name
-	Options []string // OPTIONS values
-}
-
-func (s *AlterServerStmt) nodeTag()  {}
-func (s *AlterServerStmt) stmtNode() {}
-
-// DropServerStmt represents a DROP SERVER statement.
-type DropServerStmt struct {
-	Loc      Loc
-	IfExists bool
-	Name     string // server name
-}
-
-func (s *DropServerStmt) nodeTag()  {}
-func (s *DropServerStmt) stmtNode() {}
-
-// CreateLogfileGroupStmt represents a CREATE LOGFILE GROUP statement (NDB).
-type CreateLogfileGroupStmt struct {
-	Loc            Loc
-	Name           string // logfile group name
-	UndoFile       string // ADD UNDOFILE 'file_name'
-	InitialSize    string // INITIAL_SIZE value
-	UndoBufferSize string // UNDO_BUFFER_SIZE value
-	RedoBufferSize string // REDO_BUFFER_SIZE value
-	NodeGroup      string // NODEGROUP value
-	Wait           bool   // WAIT
-	Comment        string // COMMENT 'string'
-	Engine         string // ENGINE name
-}
-
-func (s *CreateLogfileGroupStmt) nodeTag()  {}
-func (s *CreateLogfileGroupStmt) stmtNode() {}
-
-// AlterLogfileGroupStmt represents an ALTER LOGFILE GROUP statement (NDB).
-type AlterLogfileGroupStmt struct {
-	Loc         Loc
-	Name        string // logfile group name
-	UndoFile    string // ADD UNDOFILE 'file_name'
-	InitialSize string // INITIAL_SIZE value
-	Wait        bool   // WAIT
-	Engine      string // ENGINE name
-}
-
-func (s *AlterLogfileGroupStmt) nodeTag()  {}
-func (s *AlterLogfileGroupStmt) stmtNode() {}
-
-// DropLogfileGroupStmt represents a DROP LOGFILE GROUP statement (NDB).
-type DropLogfileGroupStmt struct {
-	Loc    Loc
-	Name   string // logfile group name
-	Engine string // ENGINE name
-}
-
-func (s *DropLogfileGroupStmt) nodeTag()  {}
-func (s *DropLogfileGroupStmt) stmtNode() {}
 
 // CreateSpatialRefSysStmt represents a CREATE SPATIAL REFERENCE SYSTEM statement.
 // The parser never builds one: TiDB has no spatial reference systems and answers

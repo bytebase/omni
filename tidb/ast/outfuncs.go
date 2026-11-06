@@ -371,10 +371,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeXAStmt(sb, n)
 	case *MemberOfExpr:
 		writeMemberOfExpr(sb, n)
-	case *JsonTableExpr:
-		writeJsonTableExpr(sb, n)
-	case *JsonTableColumn:
-		writeJsonTableColumn(sb, n)
 	case *CallStmt:
 		writeCallStmt(sb, n)
 	case *HandlerOpenStmt:
@@ -439,24 +435,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeInstallComponentStmt(sb, n)
 	case *UninstallComponentStmt:
 		writeUninstallComponentStmt(sb, n)
-	case *CreateTablespaceStmt:
-		writeCreateTablespaceStmt(sb, n)
-	case *AlterTablespaceStmt:
-		writeAlterTablespaceStmt(sb, n)
-	case *DropTablespaceStmt:
-		writeDropTablespaceStmt(sb, n)
-	case *CreateServerStmt:
-		writeCreateServerStmt(sb, n)
-	case *AlterServerStmt:
-		writeAlterServerStmt(sb, n)
-	case *DropServerStmt:
-		writeDropServerStmt(sb, n)
-	case *CreateLogfileGroupStmt:
-		writeCreateLogfileGroupStmt(sb, n)
-	case *AlterLogfileGroupStmt:
-		writeAlterLogfileGroupStmt(sb, n)
-	case *DropLogfileGroupStmt:
-		writeDropLogfileGroupStmt(sb, n)
 	case *CreateSpatialRefSysStmt:
 		writeCreateSpatialRefSysStmt(sb, n)
 	case *DropSpatialRefSysStmt:
@@ -2270,9 +2248,6 @@ func writeFlushStmt(sb *strings.Builder, n *FlushStmt) {
 	if n.WithReadLock {
 		sb.WriteString(" :with_read_lock true")
 	}
-	if n.ForExport {
-		sb.WriteString(" :for_export true")
-	}
 	if n.RelayChannel != "" {
 		fmt.Fprintf(sb, " :relay_channel \"%s\"", n.RelayChannel)
 	}
@@ -2882,6 +2857,9 @@ func writeLikeExpr(sb *strings.Builder, n *LikeExpr) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Not {
 		sb.WriteString(" :not true")
+	}
+	if n.ILike {
+		sb.WriteString(" :ilike true")
 	}
 	sb.WriteString(" :expr ")
 	writeNode(sb, n.Expr)
@@ -4076,62 +4054,6 @@ func writeMemberOfExpr(sb *strings.Builder, n *MemberOfExpr) {
 	sb.WriteString("}")
 }
 
-func writeJsonTableExpr(sb *strings.Builder, n *JsonTableExpr) {
-	sb.WriteString("{JSON_TABLE")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	sb.WriteString(" :expr ")
-	writeNode(sb, n.Expr)
-	sb.WriteString(" :path ")
-	writeNode(sb, n.Path)
-	if len(n.Columns) > 0 {
-		sb.WriteString(" :columns (")
-		for i, col := range n.Columns {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			writeNode(sb, col)
-		}
-		sb.WriteString(")")
-	}
-	if n.Alias != "" {
-		fmt.Fprintf(sb, " :alias %s", n.Alias)
-	}
-	sb.WriteString("}")
-}
-
-func writeJsonTableColumn(sb *strings.Builder, n *JsonTableColumn) {
-	sb.WriteString("{JT_COL")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if n.Ordinality {
-		fmt.Fprintf(sb, " :name %s :ordinality true", n.Name)
-	} else if n.Nested {
-		fmt.Fprintf(sb, " :nested_path %q", n.NestedPath)
-		if len(n.NestedCols) > 0 {
-			sb.WriteString(" :columns (")
-			for i, col := range n.NestedCols {
-				if i > 0 {
-					sb.WriteString(" ")
-				}
-				writeNode(sb, col)
-			}
-			sb.WriteString(")")
-		}
-	} else {
-		fmt.Fprintf(sb, " :name %s", n.Name)
-		if n.TypeName != nil {
-			sb.WriteString(" :type ")
-			writeNode(sb, n.TypeName)
-		}
-		if n.Path != "" {
-			fmt.Fprintf(sb, " :path %q", n.Path)
-		}
-		if n.Exists {
-			sb.WriteString(" :exists true")
-		}
-	}
-	sb.WriteString("}")
-}
-
 // -----------------------------------------------------------------------
 // Helper functions
 // -----------------------------------------------------------------------
@@ -4749,218 +4671,6 @@ func writeCloneStmt(sb *strings.Builder, n *CloneStmt) {
 		} else {
 			sb.WriteString(" :require_ssl false")
 		}
-	}
-	sb.WriteString("}")
-}
-
-func writeCreateTablespaceStmt(sb *strings.Builder, n *CreateTablespaceStmt) {
-	sb.WriteString("{CREATE_TABLESPACE")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if n.Undo {
-		sb.WriteString(" :undo true")
-	}
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.DataFile != "" {
-		fmt.Fprintf(sb, " :datafile %q", n.DataFile)
-	}
-	if n.AutoextendSize != "" {
-		fmt.Fprintf(sb, " :autoextend_size %s", n.AutoextendSize)
-	}
-	if n.FileBlockSize != "" {
-		fmt.Fprintf(sb, " :file_block_size %s", n.FileBlockSize)
-	}
-	if n.Encryption != "" {
-		fmt.Fprintf(sb, " :encryption %q", n.Encryption)
-	}
-	if n.UseLogfileGroup != "" {
-		fmt.Fprintf(sb, " :use_logfile_group %s", n.UseLogfileGroup)
-	}
-	if n.ExtentSize != "" {
-		fmt.Fprintf(sb, " :extent_size %s", n.ExtentSize)
-	}
-	if n.InitialSize != "" {
-		fmt.Fprintf(sb, " :initial_size %s", n.InitialSize)
-	}
-	if n.MaxSize != "" {
-		fmt.Fprintf(sb, " :max_size %s", n.MaxSize)
-	}
-	if n.NodeGroup != "" {
-		fmt.Fprintf(sb, " :nodegroup %s", n.NodeGroup)
-	}
-	if n.Wait {
-		sb.WriteString(" :wait true")
-	}
-	if n.Comment != "" {
-		fmt.Fprintf(sb, " :comment %q", n.Comment)
-	}
-	if n.Engine != "" {
-		fmt.Fprintf(sb, " :engine %s", n.Engine)
-	}
-	if n.EngineAttribute != "" {
-		fmt.Fprintf(sb, " :engine_attribute %q", n.EngineAttribute)
-	}
-	sb.WriteString("}")
-}
-
-func writeAlterTablespaceStmt(sb *strings.Builder, n *AlterTablespaceStmt) {
-	sb.WriteString("{ALTER_TABLESPACE")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if n.Undo {
-		sb.WriteString(" :undo true")
-	}
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.AddDataFile != "" {
-		fmt.Fprintf(sb, " :add_datafile %q", n.AddDataFile)
-	}
-	if n.DropDataFile != "" {
-		fmt.Fprintf(sb, " :drop_datafile %q", n.DropDataFile)
-	}
-	if n.InitialSize != "" {
-		fmt.Fprintf(sb, " :initial_size %s", n.InitialSize)
-	}
-	if n.Wait {
-		sb.WriteString(" :wait true")
-	}
-	if n.RenameTo != "" {
-		fmt.Fprintf(sb, " :rename_to %s", n.RenameTo)
-	}
-	if n.AutoextendSize != "" {
-		fmt.Fprintf(sb, " :autoextend_size %s", n.AutoextendSize)
-	}
-	if n.Encryption != "" {
-		fmt.Fprintf(sb, " :encryption %q", n.Encryption)
-	}
-	if n.Engine != "" {
-		fmt.Fprintf(sb, " :engine %s", n.Engine)
-	}
-	if n.EngineAttribute != "" {
-		fmt.Fprintf(sb, " :engine_attribute %q", n.EngineAttribute)
-	}
-	if n.SetActive {
-		sb.WriteString(" :set_active true")
-	}
-	if n.SetInactive {
-		sb.WriteString(" :set_inactive true")
-	}
-	sb.WriteString("}")
-}
-
-func writeDropTablespaceStmt(sb *strings.Builder, n *DropTablespaceStmt) {
-	sb.WriteString("{DROP_TABLESPACE")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if n.Undo {
-		sb.WriteString(" :undo true")
-	}
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.Engine != "" {
-		fmt.Fprintf(sb, " :engine %s", n.Engine)
-	}
-	sb.WriteString("}")
-}
-
-func writeCreateServerStmt(sb *strings.Builder, n *CreateServerStmt) {
-	sb.WriteString("{CREATE_SERVER")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.WrapperName != "" {
-		fmt.Fprintf(sb, " :wrapper %s", n.WrapperName)
-	}
-	if len(n.Options) > 0 {
-		sb.WriteString(" :options (")
-		for i, opt := range n.Options {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			fmt.Fprintf(sb, "%q", opt)
-		}
-		sb.WriteString(")")
-	}
-	sb.WriteString("}")
-}
-
-func writeAlterServerStmt(sb *strings.Builder, n *AlterServerStmt) {
-	sb.WriteString("{ALTER_SERVER")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if len(n.Options) > 0 {
-		sb.WriteString(" :options (")
-		for i, opt := range n.Options {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			fmt.Fprintf(sb, "%q", opt)
-		}
-		sb.WriteString(")")
-	}
-	sb.WriteString("}")
-}
-
-func writeDropServerStmt(sb *strings.Builder, n *DropServerStmt) {
-	sb.WriteString("{DROP_SERVER")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	if n.IfExists {
-		sb.WriteString(" :if_exists true")
-	}
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	sb.WriteString("}")
-}
-
-func writeCreateLogfileGroupStmt(sb *strings.Builder, n *CreateLogfileGroupStmt) {
-	sb.WriteString("{CREATE_LOGFILE_GROUP")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.UndoFile != "" {
-		fmt.Fprintf(sb, " :undo_file %q", n.UndoFile)
-	}
-	if n.InitialSize != "" {
-		fmt.Fprintf(sb, " :initial_size %s", n.InitialSize)
-	}
-	if n.UndoBufferSize != "" {
-		fmt.Fprintf(sb, " :undo_buffer_size %s", n.UndoBufferSize)
-	}
-	if n.RedoBufferSize != "" {
-		fmt.Fprintf(sb, " :redo_buffer_size %s", n.RedoBufferSize)
-	}
-	if n.NodeGroup != "" {
-		fmt.Fprintf(sb, " :nodegroup %s", n.NodeGroup)
-	}
-	if n.Wait {
-		sb.WriteString(" :wait true")
-	}
-	if n.Comment != "" {
-		fmt.Fprintf(sb, " :comment %q", n.Comment)
-	}
-	if n.Engine != "" {
-		fmt.Fprintf(sb, " :engine %s", n.Engine)
-	}
-	sb.WriteString("}")
-}
-
-func writeAlterLogfileGroupStmt(sb *strings.Builder, n *AlterLogfileGroupStmt) {
-	sb.WriteString("{ALTER_LOGFILE_GROUP")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.UndoFile != "" {
-		fmt.Fprintf(sb, " :undo_file %q", n.UndoFile)
-	}
-	if n.InitialSize != "" {
-		fmt.Fprintf(sb, " :initial_size %s", n.InitialSize)
-	}
-	if n.Wait {
-		sb.WriteString(" :wait true")
-	}
-	if n.Engine != "" {
-		fmt.Fprintf(sb, " :engine %s", n.Engine)
-	}
-	sb.WriteString("}")
-}
-
-func writeDropLogfileGroupStmt(sb *strings.Builder, n *DropLogfileGroupStmt) {
-	sb.WriteString("{DROP_LOGFILE_GROUP")
-	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
-	fmt.Fprintf(sb, " :name %s", n.Name)
-	if n.Engine != "" {
-		fmt.Fprintf(sb, " :engine %s", n.Engine)
 	}
 	sb.WriteString("}")
 }

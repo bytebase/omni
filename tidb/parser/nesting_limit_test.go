@@ -74,10 +74,6 @@ var nestingShapes = []struct {
 	{"parenthesized select", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION (", "SELECT 1", ")") }},
 	{"CTE", func(n int) string { return nest(n, "WITH c AS (", "SELECT 1", ") SELECT * FROM c") }},
-	{"JSON_TABLE nested columns", func(n int) string {
-		return "SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (" +
-			nest(n, "NESTED PATH '$' COLUMNS (", "a INT PATH '$'", ")") + ")) AS jt"
-	}},
 	{"BEGIN block", func(n int) string { return proc(nest(n, "BEGIN ", "SELECT 1;", " END;")) }},
 	{"IF", func(n int) string { return proc(nest(n, "IF 1 THEN ", "SELECT 1;", " END IF;")) }},
 	{"CASE statement", func(n int) string {

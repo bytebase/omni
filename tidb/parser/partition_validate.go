@@ -23,6 +23,7 @@ const (
 	boundNone partitionBound = iota + 1
 	boundLessThan
 	boundIn
+	boundHistory
 )
 
 // parsePartitionKeyAlgorithm reads KEY's optional ALGORITHM = NUM, where the equals sign
@@ -82,8 +83,11 @@ func validatePartitionClause(part *nodes.PartitionClause, bounds []partitionBoun
 			return refuse(defs[0].Loc.Start, "It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning") // 1500
 		}
 	}
-	if (part.Type == nodes.PartitionRange || part.Type == nodes.PartitionList) && len(defs) == 0 {
+	if (part.Type == nodes.PartitionRange || part.Type == nodes.PartitionList) && part.Interval == nil && len(defs) == 0 {
 		return refuse(part.Loc.Start, "For RANGE and LIST partitions each partition must be defined") // 1492
+	}
+	if part.Type == nodes.PartitionSystemTime && len(defs) < 2 {
+		return refuse(part.Loc.Start, "SYSTEM_TIME partitions must have at least two partitions: HISTORY and CURRENT") // 4128
 	}
 	for i, def := range defs {
 		if err := validatePartitionBound(part, def, bounds[i]); err != nil {
@@ -106,6 +110,12 @@ func validatePartitionBound(part *nodes.PartitionClause, def *nodes.PartitionDef
 			return refuse("Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition") // 1479
 		case nodes.PartitionList:
 			return refuse("Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition") // 1479
+		case nodes.PartitionSystemTime:
+			return refuse("SYSTEM_TIME partitions must be HISTORY or CURRENT") // 4128
+		}
+	case boundHistory:
+		if part.Type != nodes.PartitionSystemTime {
+			return refuse("Wrong partitioning type, expected type: SYSTEM_TIME") // 4113
 		}
 	case boundLessThan:
 		if part.Type != nodes.PartitionRange {
@@ -168,4 +178,114 @@ func partitionRowWidth(row nodes.Node) int {
 func isPartitionDefault(row nodes.Node) bool {
 	s, ok := row.(*nodes.String)
 	return ok && s.Str == "DEFAULT"
+}
+
+// parsePartitionInterval reads RANGE's INTERVAL clause from the INTERVAL keyword on. FIRST and LAST
+// come together or not at all, NULL PARTITION comes before MAXVALUE PARTITION, and each bound is a
+// single expression with no MAXVALUE. The server needs FIRST and LAST to create the table, and
+// answers 8200 when it runs the statement, not while it parses it.
+//
+// Ref: PartitionIntervalOpt, IntervalExpr, FirstAndLastPartOpt, NullPartOpt and MaxValPartOpt in
+// TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parsePartitionInterval() (*nodes.PartitionInterval, error) {
+	interval := &nodes.PartitionInterval{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // consume INTERVAL
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseBitExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	interval.Expr = expr
+	if p.cur.Type != ')' {
+		unit, err := p.parseTimeUnitKeyword(false)
+		if err != nil {
+			return nil, err
+		}
+		interval.Unit = unit.Keyword
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwFIRST {
+		p.advance()
+		if interval.First, err = p.parsePartitionLessThanBound(); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwLAST); err != nil {
+			return nil, err
+		}
+		if interval.Last, err = p.parsePartitionLessThanBound(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Type == kwNULL && p.peekNext().Type == kwPARTITION {
+		p.advance()
+		p.advance()
+		interval.NullPart = true
+	}
+	if p.cur.Type == kwMAXVALUE && p.peekNext().Type == kwPARTITION {
+		p.advance()
+		p.advance()
+		interval.MaxValPart = true
+	}
+	interval.Loc.End = p.prev.End
+	return interval, nil
+}
+
+// parsePartitionLessThanBound reads PARTITION LESS THAN ( expr ).
+func (p *Parser) parsePartitionLessThanBound() (nodes.ExprNode, error) {
+	for _, want := range []int{kwPARTITION, kwLESS, kwTHAN, '('} {
+		if _, err := p.expect(want); err != nil {
+			return nil, err
+		}
+	}
+	expr, err := p.parseBitExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return expr, nil
+}
+
+// parseSystemTimeMethod reads SYSTEM_TIME [INTERVAL expr unit | LIMIT n]. v8.5.5 runs the statement
+// and leaves the table unpartitioned, with a warning.
+//
+// Ref: the "SYSTEM_TIME" arms of PartitionMethod in TiDB v8.5.5 pkg/parser/parser.y.
+func (p *Parser) parseSystemTimeMethod(part *nodes.PartitionClause) error {
+	p.advance() // consume SYSTEM_TIME
+	part.Type = nodes.PartitionSystemTime
+	switch p.cur.Type {
+	case kwINTERVAL:
+		p.advance()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if expr == nil {
+			return p.syntaxErrorAtCur()
+		}
+		unit, err := p.parseTimeUnitKeyword(false)
+		if err != nil {
+			return err
+		}
+		part.SystemTimeInterval, part.SystemTimeUnit = expr, unit.Keyword
+	case kwLIMIT:
+		p.advance()
+		n, err := p.parseAdminUint64()
+		if err != nil {
+			return err
+		}
+		part.HasSystemTimeLimit, part.SystemTimeLimit = true, n
+	}
+	return nil
 }

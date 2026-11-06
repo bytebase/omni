@@ -621,13 +621,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 	}
 
-	// Process partition clause.
-	if stmt.Partitions != nil {
+	// Process partition clause. v8.5.5 runs SYSTEM_TIME partitioning and leaves the table with
+	// none, whatever its keys cover.
+	if stmt.Partitions != nil && stmt.Partitions.Type != nodes.PartitionSystemTime {
 		if err := validateCreateTableUniqueKeys(tbl, columnIndexes, stmt.Partitions); err != nil {
 			return err
 		}
 		tbl.Partitioning = buildPartitionInfo(stmt.Partitions)
 		tbl.Partitioning.keyColumns = partitionKeyColumns(tbl, stmt.Partitions)
+		if stmt.Partitions.Interval != nil {
+			if err := applyPartitionInterval(tbl, stmt.Partitions, tbl.Partitioning); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all

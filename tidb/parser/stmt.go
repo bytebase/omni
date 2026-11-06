@@ -487,15 +487,6 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	temporary := false
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseCreateTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	// CREATE [GLOBAL | SESSION] BINDING, TiDB's SQL plan binding. The scope
 	// word is read only when BINDING follows it, so `CREATE GLOBAL TEMPORARY
 	// TABLE` below and `CREATE SESSION` on its own are untouched.
@@ -643,15 +634,6 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwROLE:
 		return p.parseCreateRoleStmt(start)
 
-	case kwTABLESPACE:
-		return p.parseCreateTablespaceStmt(start, false)
-
-	case kwSERVER:
-		return p.parseCreateServerStmt(start)
-
-	case kwLOGFILE:
-		return p.parseCreateLogfileGroupStmt(start)
-
 	case kwALGORITHM:
 		// Only CREATE VIEW uses ALGORITHM
 		return p.parseCreateViewStmt(start, false)
@@ -755,15 +737,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseAlterTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
-	}
-
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseAlterTableStmt(start)
@@ -784,12 +757,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwUSER:
 		return p.parseAlterUserStmt(start)
 
-	case kwTABLESPACE:
-		return p.parseAlterTablespaceStmt(start, false)
-
-	case kwSERVER:
-		return p.parseAlterServerStmt(start)
-
 	case kwVIEW, kwALGORITHM, kwSQL, kwDEFINER:
 		// TiDB has no ALTER VIEW in any spelling, and no ALTER EVENT for a
 		// DEFINER to lead into: v8.5.5 answers 1064 for `ALTER VIEW`, `ALTER
@@ -808,9 +775,6 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwFUNCTION, kwPROCEDURE:
 		// TiDB v8.5.0 has no ALTER FUNCTION / ALTER PROCEDURE.
 		return nil, p.syntaxErrorAtCur()
-
-	case kwLOGFILE:
-		return p.parseAlterLogfileGroupStmt(start)
 
 	case kwRESOURCE:
 		p.advance() // consume RESOURCE
@@ -844,15 +808,6 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
-	}
-
-	// UNDO TABLESPACE
-	if p.cur.Type == kwUNDO {
-		p.advance()
-		if p.cur.Type == kwTABLESPACE {
-			return p.parseDropTablespaceStmt(start, true)
-		}
-		return nil, &ParseError{Message: "expected TABLESPACE after UNDO", Position: p.cur.Loc}
 	}
 
 	// DROP [GLOBAL | SESSION] BINDING, read before the GLOBAL TEMPORARY
@@ -943,15 +898,6 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	case kwEVENT:
 		// TiDB v8.5.0 has no events — DROP EVENT rejects.
 		return nil, p.syntaxErrorAtCur()
-
-	case kwTABLESPACE:
-		return p.parseDropTablespaceStmt(start, false)
-
-	case kwSERVER:
-		return p.parseDropServerStmt(start)
-
-	case kwLOGFILE:
-		return p.parseDropLogfileGroupStmt(start)
 
 	// No DROP SPATIAL REFERENCE SYSTEM: TiDB has no spatial reference systems,
 	// and v8.5.5 answers 1064 at SPATIAL.

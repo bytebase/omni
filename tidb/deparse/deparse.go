@@ -867,7 +867,10 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 	case *ast.LikeExpr:
 		writeExprAlias(b, n.Expr)
 		if n.Not {
-			b.WriteString(" NOT LIKE ")
+			b.WriteString(" NOT")
+		}
+		if n.ILike {
+			b.WriteString(" ILIKE ")
 		} else {
 			b.WriteString(" LIKE ")
 		}
@@ -1804,7 +1807,11 @@ func writeLikeExpr(b *strings.Builder, n *ast.LikeExpr) {
 	}
 	b.WriteString("(")
 	writeBitOperand(b, n.Expr)
-	b.WriteString(" like ")
+	if n.ILike {
+		b.WriteString(" ilike ")
+	} else {
+		b.WriteString(" like ")
+	}
 	writeBitOperand(b, n.Pattern)
 	if n.Escape != nil {
 		b.WriteString(" escape ")

@@ -8,10 +8,6 @@ import "testing"
 // runs, so 1064 is only one of them (prepareVerdict says how the probe tells the two
 // apart). The corpus holds what pingcap's test writes and no more, so it reaches few of
 // these. Every verdict was read from pingcap/tidb:v8.5.5 on 2026-11-05.
-//
-// Left out because omni does not read them yet, which is its own gap and not a refusal:
-// RANGE ... INTERVAL partitioning, SYSTEM_TIME partitioning and ILIKE. Left out as well:
-// CREATE TABLESPACE, which v8.5.5 has no grammar for and omni reads.
 
 type grammarActionCase struct {
 	sql    string

@@ -2302,6 +2302,9 @@ func castTypeToSQLGenerated(dt *nodes.DataType) string {
 		return ""
 	}
 	name := strings.ToLower(dt.Name)
+	if name == "array" {
+		return deparse.CastArrayType(dt)
+	}
 	if name == "binary" {
 		// CAST(x AS BINARY[(n)]) is stored as cast(x as char[(n)] charset
 		// binary) — same rewrite the view deparser applies (oracle 8.0.32 +

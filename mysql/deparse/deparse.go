@@ -1939,13 +1939,29 @@ func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
 	b.WriteString("cast(")
 	writeExpr(b, n.Expr)
 	b.WriteString(" as ")
-	b.WriteString(deparseDataType(n.TypeName))
 	// Multi-valued-index form CAST(expr AS type ARRAY); MySQL stores the trailing
 	// ARRAY in lowercase in SHOW CREATE TABLE, so emit it to keep the round-trip stable.
 	if n.Array {
+		b.WriteString(deparseArrayCastType(n.TypeName))
 		b.WriteString(" array")
+	} else {
+		b.WriteString(deparseDataType(n.TypeName))
 	}
 	b.WriteString(")")
+}
+
+// deparseArrayCastType writes the type of a CAST ... ARRAY as MySQL 8.0.46 stores it. A CHAR has
+// no character set here, because MySQL refuses one while it parses: char(3) stays char(3), and a
+// binary one, however written, is binary(3).
+func deparseArrayCastType(dt *ast.DataType) string {
+	if dt == nil || !strings.EqualFold(dt.Name, "char") && !strings.EqualFold(dt.Name, "binary") {
+		return deparseDataType(dt)
+	}
+	name := "char"
+	if strings.EqualFold(dt.Name, "binary") || strings.EqualFold(dt.Charset, "binary") {
+		name = "binary"
+	}
+	return fmt.Sprintf("%s(%d)", name, dt.Length)
 }
 
 // writePositionExpr writes POSITION(substr IN str). MySQL 8.0 and MariaDB

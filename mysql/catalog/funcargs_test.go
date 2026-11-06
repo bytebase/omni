@@ -10,8 +10,8 @@ import "testing"
 // accept/reject gate cannot see the difference.
 //
 // The stored text is the engine's: SHOW CREATE TABLE on mysql:8.0
-// renders the key part as ((cast(`b` as signed array))). The charset after a
-// CHAR cast is omni's own and predates this test.
+// renders the key part as ((cast(`b` as signed array))) and as
+// ((cast(`b` as char(10) array))), with no charset, which it refuses there.
 func TestFunctionArgumentKeyParts(t *testing.T) {
 	c := New()
 	const ddl = "CREATE DATABASE d; USE d; " +
@@ -36,7 +36,7 @@ func TestFunctionArgumentKeyParts(t *testing.T) {
 	}
 	want := map[string]string{
 		"mv":    "cast(`b` as signed array)",
-		"mvc":   "cast(`b` as char(10) charset utf8mb4 array)",
+		"mvc":   "cast(`b` as char(10) array)",
 		"plain": "cast(`b` as signed)",
 		"ex":    "extract(day_hour from `b`)",
 		"pos":   "position('x' in `b`)",
