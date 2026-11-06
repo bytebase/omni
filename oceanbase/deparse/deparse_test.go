@@ -1,6 +1,7 @@
 package deparse
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1440,5 +1441,26 @@ func TestJSONValueReturningZeroLength(t *testing.T) {
 		if got := Deparse(parseExpr(t, c.input)); got != c.want {
 			t.Errorf("Deparse(%q) = %q, want %q", c.input, got, c.want)
 		}
+	}
+}
+
+// TestDeepCastArrayTypeIsLinear: a cast to ARRAY nested thousands deep is written once, not
+// copied at every level, so writing it allocates about its own size.
+func TestDeepCastArrayTypeIsLinear(t *testing.T) {
+	const depth = 8000
+	dt := &ast.DataType{Name: "INT"}
+	for i := 0; i < depth; i++ {
+		dt = &ast.DataType{Name: "ARRAY", ArrayElem: dt}
+	}
+	want := strings.Repeat("ARRAY(", depth-1) + "ARRAY(INT)" + strings.Repeat(")", depth-1)
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	got := CastArrayType(dt)
+	runtime.ReadMemStats(&after)
+	if got != want {
+		t.Fatalf("CastArrayType wrote %d bytes, want %d", len(got), len(want))
+	}
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 1<<20 {
+		t.Errorf("CastArrayType allocated %d bytes for %d bytes of text", allocated, len(got))
 	}
 }

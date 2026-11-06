@@ -483,6 +483,11 @@ func checkSegmentLocs(sql string, seg Segment, items []ast.Node) []string {
 				break
 			}
 			starts[tok.Loc], ends[tok.End] = true, true
+			// A cast to a nested ARRAY reads >> as two closing brackets, and the inner
+			// ARRAY ends after the first.
+			if tok.Type == tokShiftRight {
+				ends[tok.Loc+1] = true
+			}
 			if tok.Type == ';' {
 				continue
 			}

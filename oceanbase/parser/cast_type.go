@@ -136,10 +136,11 @@ func (p *Parser) parseCastArrayElement() (*nodes.DataType, error) {
 		if err != nil {
 			return nil, err
 		}
-		// A nested ARRAY's last token may be the >> it shares with the one around it.
+		// A nested ARRAY may close with the first half of a >> it shares with the one around
+		// it, and then it ends after that half: ARRAY<INT> in ARRAY<ARRAY<INT>>.
 		end := p.prev.End
 		if p.castShiftHalf {
-			end = p.cur.End
+			end = p.cur.Loc + 1
 		}
 		element = &nodes.DataType{Loc: nodes.Loc{Start: start, End: end}, Name: "ARRAY", ArrayElem: inner}
 	} else {

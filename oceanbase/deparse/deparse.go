@@ -1981,13 +1981,33 @@ func writeConvertExpr(b *strings.Builder, n *ast.ConvertExpr) {
 // written: ARRAY<ARRAY<INT>> is ARRAY(ARRAY(INT)), the element's name is in capitals, and a
 // charset on it does not show. An element the server does not take, such as ENUM, still prints
 // so that it reads back.
+//
+// The nested ARRAYs are counted and written into one builder, so the text is built once
+// however deep they go.
 func CastArrayType(dt *ast.DataType) string {
+	depth := 0
+	for dt.ArrayElem != nil && strings.EqualFold(dt.ArrayElem.Name, "array") {
+		depth++
+		dt = dt.ArrayElem
+	}
+	leaf := castArrayLeaf(dt)
+	var b strings.Builder
+	b.Grow(depth*len("ARRAY()") + len(leaf))
+	for i := 0; i < depth; i++ {
+		b.WriteString("ARRAY(")
+	}
+	b.WriteString(leaf)
+	for i := 0; i < depth; i++ {
+		b.WriteByte(')')
+	}
+	return b.String()
+}
+
+// castArrayLeaf writes an ARRAY whose element is no ARRAY.
+func castArrayLeaf(dt *ast.DataType) string {
 	element := dt.ArrayElem
 	if element == nil {
 		return "ARRAY"
-	}
-	if strings.EqualFold(element.Name, "array") {
-		return "ARRAY(" + CastArrayType(element) + ")"
 	}
 	text := strings.ToUpper(element.Name)
 	switch text {
