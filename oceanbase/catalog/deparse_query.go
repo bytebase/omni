@@ -7,24 +7,50 @@ import (
 // DeparseQuery converts an analyzed Query IR back to canonical SQL text.
 func DeparseQuery(q *Query) string {
 	var b strings.Builder
-	writeQueryQ(&b, q)
+	writeQueryQ(&b, q, nil)
 	return b.String()
 }
 
+// deparseScope is the query an expression is written in, together with the
+// queries that enclose it, so that a column of an enclosing query resolves.
+// The chain follows the analyzer's scopes (analyzeSelectStmtWithCTEs): a
+// subquery in an expression is one level inside the query that holds it, and
+// a LATERAL derived table is one level inside the query whose FROM holds it.
+// A set operation adds no level: its arms see what it sees. A CTE body, and a
+// derived table that is not LATERAL, sees the queries that enclose the query
+// holding it, not that query.
+type deparseScope struct {
+	*Query
+	outer *deparseScope
+}
+
+// rteOf returns the range table entry a column reference points to, LevelsUp
+// queries out from s, or nil when the reference does not resolve.
+func (s *deparseScope) rteOf(v *VarExprQ) *RangeTableEntryQ {
+	for i := 0; s != nil && i < v.LevelsUp; i++ {
+		s = s.outer
+	}
+	if s == nil || s.Query == nil || v.LevelsUp < 0 || v.RangeIdx < 0 || v.RangeIdx >= len(s.RangeTable) {
+		return nil
+	}
+	return s.RangeTable[v.RangeIdx]
+}
+
 // writeQueryQ writes a query into the builder of the whole call (see
-// writeAnalyzedExpr); a UNION ALL chain nests one Query per arm.
-func writeQueryQ(b *strings.Builder, q *Query) {
+// writeAnalyzedExpr); a UNION ALL chain nests one Query per arm. outer is the
+// scope q is nested in, nil for the top query.
+func writeQueryQ(b *strings.Builder, q *Query, outer *deparseScope) {
 	if q == nil {
 		return
 	}
 	if q.SetOp != SetOpNone {
-		deparseSetOpQuery(b, q)
+		deparseSetOpQuery(b, q, outer)
 		return
 	}
-	deparseSimpleQuery(b, q)
+	deparseSimpleQuery(b, &deparseScope{Query: q, outer: outer})
 }
 
-func deparseSimpleQuery(b *strings.Builder, q *Query) {
+func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 	if len(q.CTEList) > 0 {
 		deparseCTEsQ(b, q)
 	}
@@ -72,7 +98,7 @@ func deparseSimpleQuery(b *strings.Builder, q *Query) {
 	}
 }
 
-func deparseCTEsQ(b *strings.Builder, q *Query) {
+func deparseCTEsQ(b *strings.Builder, q *deparseScope) {
 	b.WriteString("with ")
 	if q.IsRecursive {
 		b.WriteString("recursive ")
@@ -93,12 +119,13 @@ func deparseCTEsQ(b *strings.Builder, q *Query) {
 			b.WriteByte(')')
 		}
 		b.WriteString(" as (")
-		writeQueryQ(b, cte.Query)
+		// A CTE is analyzed in the scope that encloses its WITH clause.
+		writeQueryQ(b, cte.Query, q.outer)
 		b.WriteString(") ")
 	}
 }
 
-func deparseTargetListQ(b *strings.Builder, q *Query) {
+func deparseTargetListQ(b *strings.Builder, q *deparseScope) {
 	first := true
 	for _, te := range q.TargetList {
 		if te.ResJunk {
@@ -114,8 +141,7 @@ func deparseTargetListQ(b *strings.Builder, q *Query) {
 		// Omit alias when expression is a simple column ref whose name matches ResName.
 		needAlias := true
 		if v, ok := te.Expr.(*VarExprQ); ok {
-			if v.RangeIdx >= 0 && v.RangeIdx < len(q.RangeTable) {
-				rte := q.RangeTable[v.RangeIdx]
+			if rte := q.rteOf(v); rte != nil {
 				if v.AttNum >= 1 && v.AttNum <= len(rte.ColNames) {
 					if strings.EqualFold(rte.ColNames[v.AttNum-1], te.ResName) {
 						needAlias = false
@@ -130,7 +156,7 @@ func deparseTargetListQ(b *strings.Builder, q *Query) {
 	}
 }
 
-func deparseFromClauseQ(b *strings.Builder, q *Query) {
+func deparseFromClauseQ(b *strings.Builder, q *deparseScope) {
 	for i, node := range q.JoinTree.FromList {
 		if i > 0 {
 			b.WriteString(", ")
@@ -139,7 +165,7 @@ func deparseFromClauseQ(b *strings.Builder, q *Query) {
 	}
 }
 
-func deparseJoinNodeQ(b *strings.Builder, node JoinNode, q *Query) {
+func deparseJoinNodeQ(b *strings.Builder, node JoinNode, q *deparseScope) {
 	switch n := node.(type) {
 	case *RangeTableRefQ:
 		deparseRTERefQ(b, n.RTIndex, q)
@@ -148,7 +174,7 @@ func deparseJoinNodeQ(b *strings.Builder, node JoinNode, q *Query) {
 	}
 }
 
-func deparseRTERefQ(b *strings.Builder, idx int, q *Query) {
+func deparseRTERefQ(b *strings.Builder, idx int, q *deparseScope) {
 	if idx < 0 || idx >= len(q.RangeTable) {
 		b.WriteString("?")
 		return
@@ -166,8 +192,14 @@ func deparseRTERefQ(b *strings.Builder, idx int, q *Query) {
 			b.WriteString(backtickIDQ(rte.Alias))
 		}
 	case RTESubquery:
+		// Only a LATERAL derived table sees the query whose FROM holds it.
+		outer := q.outer
+		if rte.Lateral {
+			b.WriteString("lateral ")
+			outer = q
+		}
 		b.WriteByte('(')
-		writeQueryQ(b, rte.Subquery)
+		writeQueryQ(b, rte.Subquery, outer)
 		b.WriteString(") as ")
 		b.WriteString(backtickIDQ(rte.ERef))
 	case RTECTE:
@@ -183,7 +215,7 @@ func deparseRTERefQ(b *strings.Builder, idx int, q *Query) {
 	}
 }
 
-func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *Query) {
+func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *deparseScope) {
 	deparseJoinNodeQ(b, j.Left, q)
 	b.WriteByte(' ')
 
@@ -223,7 +255,7 @@ func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *Query) {
 	}
 }
 
-func deparseGroupByQ(b *strings.Builder, q *Query) {
+func deparseGroupByQ(b *strings.Builder, q *deparseScope) {
 	for i, sc := range q.GroupClause {
 		if i > 0 {
 			b.WriteString(", ")
@@ -234,7 +266,7 @@ func deparseGroupByQ(b *strings.Builder, q *Query) {
 	}
 }
 
-func deparseOrderByQ(b *strings.Builder, q *Query) {
+func deparseOrderByQ(b *strings.Builder, q *deparseScope) {
 	for i, sc := range q.SortClause {
 		if i > 0 {
 			b.WriteString(", ")
@@ -248,12 +280,14 @@ func deparseOrderByQ(b *strings.Builder, q *Query) {
 	}
 }
 
-func deparseSetOpQuery(b *strings.Builder, q *Query) {
+func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
+	q := &deparseScope{Query: setOp, outer: outer}
 	if len(q.CTEList) > 0 {
 		deparseCTEsQ(b, q)
 	}
 
-	writeQueryQ(b, q.LArg)
+	// Each arm is analyzed in the scope that encloses the set operation.
+	writeQueryQ(b, q.LArg, outer)
 	b.WriteByte(' ')
 
 	switch q.SetOp {
@@ -269,7 +303,7 @@ func deparseSetOpQuery(b *strings.Builder, q *Query) {
 	}
 
 	b.WriteByte(' ')
-	writeQueryQ(b, q.RArg)
+	writeQueryQ(b, q.RArg, outer)
 
 	if len(q.SortClause) > 0 {
 		b.WriteString(" order by ")
