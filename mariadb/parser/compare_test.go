@@ -3347,24 +3347,16 @@ func TestParseCreateTableLike(t *testing.T) {
 // Batch 59: CREATE TABLE depth fixes
 // ============================================================================
 
+// TestParseCreateTableColumnInvisible pins MariaDB's INVISIBLE column
+// attribute. MariaDB has no VISIBLE attribute to go with it
+// (alter_column_forms_test.go records the 1064).
 func TestParseCreateTableColumnInvisible(t *testing.T) {
-	t.Run("column visible", func(t *testing.T) {
-		stmt := parseCreateTable(t, "CREATE TABLE t (id INT VISIBLE, name VARCHAR(100) INVISIBLE)")
+	t.Run("column invisible", func(t *testing.T) {
+		stmt := parseCreateTable(t, "CREATE TABLE t (id INT, name VARCHAR(100) INVISIBLE)")
 		if len(stmt.Columns) != 2 {
 			t.Fatalf("Columns count = %d, want 2", len(stmt.Columns))
 		}
-		// Check id column has VISIBLE constraint
 		found := false
-		for _, c := range stmt.Columns[0].Constraints {
-			if c.Type == ast.ColConstrVisible {
-				found = true
-			}
-		}
-		if !found {
-			t.Error("expected ColConstrVisible for id column")
-		}
-		// Check name column has INVISIBLE constraint
-		found = false
 		for _, c := range stmt.Columns[1].Constraints {
 			if c.Type == ast.ColConstrInvisible {
 				found = true
@@ -4116,27 +4108,6 @@ func TestParseAlterTableRemovePartitioning(t *testing.T) {
 // Batch 58: ALTER TABLE visibility/misc
 // ============================================================================
 
-func TestParseAlterTableColumnVisible(t *testing.T) {
-	t.Run("set column visible", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN name SET VISIBLE")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATAlterColumnVisible {
-			t.Errorf("Type = %d, want ATAlterColumnVisible", cmd.Type)
-		}
-		if cmd.Name != "name" {
-			t.Errorf("Name = %s, want name", cmd.Name)
-		}
-	})
-
-	t.Run("set column invisible", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN name SET INVISIBLE")
-		cmd := stmt.Commands[0]
-		if cmd.Type != ast.ATAlterColumnInvisible {
-			t.Errorf("Type = %d, want ATAlterColumnInvisible", cmd.Type)
-		}
-	})
-}
-
 // TestParseAlterTableIndexVisible pins MariaDB's ALTER INDEX ... [NOT] IGNORED,
 // which reuses MySQL's visibility command types. MySQL's VISIBLE and INVISIBLE
 // are refused there (index_ignorability_test.go).
@@ -4246,7 +4217,7 @@ func TestParseAlterTableDiscardTablespace(t *testing.T) {
 
 func TestParseAlterTableValidation(t *testing.T) {
 	t.Run("with validation", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v SET INVISIBLE, WITH VALIDATION")
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v DROP DEFAULT, WITH VALIDATION")
 		if len(stmt.Commands) != 2 {
 			t.Fatalf("Commands count = %d, want 2", len(stmt.Commands))
 		}
@@ -4257,7 +4228,7 @@ func TestParseAlterTableValidation(t *testing.T) {
 	})
 
 	t.Run("without validation", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v SET INVISIBLE, WITHOUT VALIDATION")
+		stmt := parseAlterTable(t, "ALTER TABLE t ALTER COLUMN v DROP DEFAULT, WITHOUT VALIDATION")
 		cmd := stmt.Commands[1]
 		if cmd.Type != ast.ATWithoutValidation {
 			t.Errorf("Type = %d, want ATWithoutValidation", cmd.Type)

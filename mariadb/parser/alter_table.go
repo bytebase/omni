@@ -905,7 +905,7 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	return cmd, nil
 }
 
-// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET VISIBLE | SET INVISIBLE}
+// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT}
 // and ALTER {INDEX | KEY} [IF EXISTS] index_name [NOT] IGNORED.
 //
 // ALTER COLUMN has no nullability: MariaDB 11.8.8 answers 1064 for `ALTER
@@ -913,8 +913,10 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 // column's nullability changes. ATAlterColumnSetNotNull and
 // ATAlterColumnDropNotNull are never built.
 //
-// SET VISIBLE and SET INVISIBLE are MySQL's, and MariaDB 11.8.8 answers 1064
-// for both too; this parser still reads them.
+// ALTER COLUMN has no visibility either: SET VISIBLE and SET INVISIBLE are
+// MySQL's, and MariaDB 11.8.8 answers 1064 for both. A column is hidden with
+// the INVISIBLE attribute through MODIFY or CHANGE. ATAlterColumnVisible and
+// ATAlterColumnInvisible are never built.
 //
 // Ref: `ALTER opt_column opt_if_exists_table_element field_ident SET DEFAULT
 // column_default_expr` and `... field_ident DROP DEFAULT`, the only column
@@ -923,7 +925,6 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 //
 //	ALTER [COLUMN] col_name {
 //	    SET DEFAULT {literal | (expr)}
-//	  | SET {VISIBLE | INVISIBLE}
 //	  | DROP DEFAULT
 //	}
 //	ALTER {INDEX | KEY} [IF EXISTS] index_name [NOT] IGNORED
@@ -1044,10 +1045,6 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 				}
 				cmd.DefaultExpr = expr
 			}
-		} else if _, ok := p.match(kwVISIBLE); ok {
-			cmd.Type = nodes.ATAlterColumnVisible
-		} else if _, ok := p.match(kwINVISIBLE); ok {
-			cmd.Type = nodes.ATAlterColumnInvisible
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}

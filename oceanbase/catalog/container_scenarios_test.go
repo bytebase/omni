@@ -1425,16 +1425,18 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			"ALTER TABLE t_drop_def ALTER COLUMN val DROP DEFAULT",
 			"t_drop_def",
 		},
+		// ALTER COLUMN has no SET VISIBLE or SET INVISIBLE here
+		// (parser/alter_column_forms_test.go); MODIFY changes visibility.
 		{
-			"alter_column_set_visible",
+			"modify_column_visible",
 			"CREATE TABLE t_vis (id INT PRIMARY KEY, val INT /*!80023 INVISIBLE */)",
-			"ALTER TABLE t_vis ALTER COLUMN val SET VISIBLE",
+			"ALTER TABLE t_vis MODIFY val INT VISIBLE",
 			"t_vis",
 		},
 		{
-			"alter_column_set_invisible",
+			"modify_column_invisible",
 			"CREATE TABLE t_invis (id INT PRIMARY KEY, val INT)",
-			"ALTER TABLE t_invis ALTER COLUMN val SET INVISIBLE",
+			"ALTER TABLE t_invis MODIFY val INT INVISIBLE",
 			"t_invis",
 		},
 		{

@@ -408,7 +408,10 @@ ALTER TABLE t RENAME TO t2;`)
 		}
 	})
 
-	// --- AX.13 ALTER COLUMN SET/DROP DEFAULT, SET INVISIBLE/VISIBLE -----
+	// --- AX.13 ALTER COLUMN SET/DROP DEFAULT, MODIFY visibility --------
+	// MariaDB has no ALTER COLUMN ... SET INVISIBLE/VISIBLE
+	// (parser/alter_column_forms_test.go), so the column's visibility
+	// changes through MODIFY, which MySQL 8.0 takes too.
 	t.Run("AX_13_AlterColumn_default_visibility", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -448,27 +451,27 @@ ALTER TABLE t ALTER COLUMN a SET DEFAULT 5;`)
 			t.Errorf("omni a default after DROP: got %q, want nil", *colA.Default)
 		}
 
-		runOnBoth(t, mc, c, `ALTER TABLE t ALTER COLUMN b SET INVISIBLE;`)
+		runOnBoth(t, mc, c, `ALTER TABLE t MODIFY b INT INVISIBLE;`)
 		var extra string
 		oracleScan(t, mc, `SELECT EXTRA FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='b'`, &extra)
 		if !strings.Contains(strings.ToUpper(extra), "INVISIBLE") {
-			t.Errorf("oracle b EXTRA after SET INVISIBLE: got %q, want INVISIBLE", extra)
+			t.Errorf("oracle b EXTRA after MODIFY INVISIBLE: got %q, want INVISIBLE", extra)
 		}
 		colB := c.GetDatabase("testdb").GetTable("t").GetColumn("b")
 		if !colB.Invisible {
-			t.Errorf("omni b Invisible after SET INVISIBLE: got false, want true")
+			t.Errorf("omni b Invisible after MODIFY INVISIBLE: got false, want true")
 		}
 
-		runOnBoth(t, mc, c, `ALTER TABLE t ALTER COLUMN b SET VISIBLE;`)
+		runOnBoth(t, mc, c, `ALTER TABLE t MODIFY b INT;`)
 		oracleScan(t, mc, `SELECT EXTRA FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t' AND COLUMN_NAME='b'`, &extra)
 		if strings.Contains(strings.ToUpper(extra), "INVISIBLE") {
-			t.Errorf("oracle b EXTRA after SET VISIBLE: got %q, want no INVISIBLE", extra)
+			t.Errorf("oracle b EXTRA after MODIFY without INVISIBLE: got %q, want no INVISIBLE", extra)
 		}
 		colB = c.GetDatabase("testdb").GetTable("t").GetColumn("b")
 		if colB.Invisible {
-			t.Errorf("omni b Invisible after SET VISIBLE: got true, want false")
+			t.Errorf("omni b Invisible after MODIFY without INVISIBLE: got true, want false")
 		}
 	})
 

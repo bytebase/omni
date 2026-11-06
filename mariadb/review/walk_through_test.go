@@ -219,7 +219,6 @@ func TestWalkThroughMariaDBSequences(t *testing.T) {
 func TestWalkThroughMariaDBMySQLForms(t *testing.T) {
 	shop := review.Target{Schema: walkSchema()}
 	for _, sql := range []string{
-		"ALTER TABLE t ALTER COLUMN nosuch SET INVISIBLE;",
 		"ALTER TABLE t ALTER CHECK c NOT ENFORCED;\nCREATE TABLE t (a int);",
 		"ALTER TABLE t SECONDARY_LOAD;\nCREATE TABLE t (a int);",
 	} {

@@ -240,8 +240,8 @@ const (
 	ATDiscardPartitionTablespace
 	ATImportPartitionTablespace
 	ATRemovePartitioning
-	ATAlterColumnVisible
-	ATAlterColumnInvisible
+	ATAlterColumnVisible   // never built: OceanBase's ALTER COLUMN has no SET VISIBLE
+	ATAlterColumnInvisible // never built: OceanBase's ALTER COLUMN has no SET INVISIBLE
 	ATAlterIndexVisible
 	ATAlterIndexInvisible
 	ATForce

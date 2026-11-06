@@ -227,10 +227,6 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterTableOption(tbl, cmd)
 	case nodes.ATAlterColumnDefault:
 		return c.alterColumnDefault(tbl, cmd)
-	case nodes.ATAlterColumnVisible:
-		return c.alterColumnVisibility(tbl, cmd, false)
-	case nodes.ATAlterColumnInvisible:
-		return c.alterColumnVisibility(tbl, cmd, true)
 	case nodes.ATAlterIndexVisible:
 		return c.alterIndexVisibility(tbl, cmd, true)
 	case nodes.ATAlterIndexInvisible:
@@ -1366,17 +1362,6 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	return nil
 }
 
-// alterColumnVisibility toggles the INVISIBLE flag on a column.
-func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, invisible bool) error {
-	colKey := toLower(cmd.Name)
-	idx, exists := tbl.colByName[colKey]
-	if !exists {
-		return errNoSuchColumn(cmd.Name, tbl.Name)
-	}
-	tbl.Columns[idx].Invisible = invisible
-	return nil
-}
-
 // alterIndexVisibility toggles the Visible flag on an index.
 // alterIndexVisibility applies ALTER {INDEX | KEY} [IF EXISTS] name [NOT]
 // IGNORED. checkAlterIndexIgnorability has held the name to the table the
@@ -1505,8 +1490,6 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		case nodes.ColConstrAutoIncrement:
 			col.AutoIncrement = true
 			col.Nullable = false
-		case nodes.ColConstrVisible:
-			col.Invisible = false
 		case nodes.ColConstrInvisible:
 			col.Invisible = true
 		case nodes.ColConstrCollate:

@@ -6,10 +6,9 @@ import "testing"
 // read from oceanbase/oceanbase-ce:4.3.5.6-106000012026040916 on 2026-11-06: a
 // 1064 is the parser's refusal, and any other answer means the text parsed.
 // ALTER COLUMN sets or drops a default; it has no SET NOT NULL or DROP NOT NULL,
-// and a column's nullability changes through MODIFY or CHANGE.
-//
-// Not in this table, because omni still disagrees: MySQL's `ALTER COLUMN b SET
-// VISIBLE` and `SET INVISIBLE`, which OceanBase answers 1064 and omni accepts.
+// and a column's nullability changes through MODIFY or CHANGE. It has no SET
+// VISIBLE or SET INVISIBLE either, though OceanBase takes MySQL's VISIBLE and
+// INVISIBLE column attributes, which are how a column's visibility changes.
 //
 // OceanBase's own grammar is not in this tree, so the verdicts are the record.
 // They match the `ALTER opt_column ident` arms of alter_list_item in MySQL 8.0.46
@@ -52,6 +51,24 @@ var alterColumnFormCases = []alterColumnFormCase{
 	{"ALTER TABLE t MODIFY b INT NOT NULL", true},
 	{"ALTER TABLE t MODIFY COLUMN b INT NULL", true},
 	{"ALTER TABLE t CHANGE b b INT NOT NULL", true},
+
+	// visibility, which ALTER COLUMN does not change either.
+	{"ALTER TABLE t ALTER COLUMN b SET VISIBLE", false},
+	{"ALTER TABLE t ALTER b SET VISIBLE", false},
+	{"ALTER TABLE t ALTER COLUMN b SET INVISIBLE", false},
+	{"ALTER TABLE t ALTER b SET INVISIBLE", false},
+	{"alter table t alter column b set invisible", false},
+	{"ALTER TABLE t ALTER COLUMN b SET DEFAULT 1, ALTER COLUMN b SET INVISIBLE", false},
+
+	// how a column's visibility does change.
+	{"CREATE TABLE t2 (a INT, b INT INVISIBLE)", true},
+	{"CREATE TABLE t2 (a INT, b INT VISIBLE)", true},
+	{"ALTER TABLE t ADD COLUMN c INT INVISIBLE", true},
+	{"ALTER TABLE t ADD COLUMN c INT VISIBLE", true},
+	{"ALTER TABLE t MODIFY b INT INVISIBLE", true},
+	{"ALTER TABLE t MODIFY b INT VISIBLE", true},
+	{"ALTER TABLE t CHANGE b b INT INVISIBLE", true},
+	{"ALTER TABLE t CHANGE b b INT VISIBLE", true},
 }
 
 // TestAlterColumnForms holds the parser to the recorded verdicts without the
