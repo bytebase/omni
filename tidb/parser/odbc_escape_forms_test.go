@@ -52,6 +52,13 @@ var odbcEscapeCases = []odbcEscapeCase{
 	{"select {d '1' } from t where a in ({d '1'})", true},
 	{"select {oj 1}", true},
 	{"select {d '1'", false},
+	{"select {abc *} from t", false},
+	{"select {abc t.*} from t", false},
+	{"select {d *}", false},
+	{"select {d default}", false},
+	{"select {d default(a)} from t", true},
+	{"insert into t values ({d *})", false},
+	{"insert into t values ({abc default})", false},
 
 	// Table references
 	{"select * from {oj t1 left join t2 on t1.a = t2.a}", true},

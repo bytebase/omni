@@ -232,8 +232,15 @@ func (p *Parser) parseODBCEscape() (nodes.ExprNode, error) {
 		return nil, &ParseError{Message: "syntax error, expected an identifier after {", Position: p.cur.Loc}
 	}
 	nameTok := p.advance()
+	exprStart := p.pos()
 	expr, err := p.parseExpr()
 	if err != nil {
+		return nil, err
+	}
+	// The argument is an Expression, which takes neither the bare DEFAULT nor
+	// the * that parseExpr also reads: {d *} and {abc DEFAULT} are 1064s on
+	// v8.5.5.
+	if err := checkRowItem(expr, exprStart); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect('}'); err != nil {

@@ -565,7 +565,7 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 		return "b'" + val + "'"
 	case *ast.TemporalLit:
 		if n.Expr != nil {
-			return n.Type + " " + deparseExprAlias(n.Expr)
+			return "{" + odbcEscapeName(n.Type) + " " + deparseExprAlias(n.Expr) + "}"
 		}
 		return n.Type + " '" + n.Value + "'"
 	default:
@@ -638,11 +638,12 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString("'")
 		}
 	case *ast.TemporalLit:
-		b.WriteString(n.Type)
 		if n.Expr != nil {
-			b.WriteString(" ")
+			b.WriteString("{" + odbcEscapeName(n.Type) + " ")
 			writeExprAlias(b, n.Expr)
+			b.WriteString("}")
 		} else {
+			b.WriteString(n.Type)
 			b.WriteString(" '")
 			b.WriteString(n.Value)
 			b.WriteString("'")
@@ -1358,11 +1359,12 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 	case *ast.BitLit:
 		b.WriteString(deparseBitLit(n))
 	case *ast.TemporalLit:
-		b.WriteString(n.Type)
 		if n.Expr != nil {
-			b.WriteString(" ")
+			b.WriteString("{" + odbcEscapeName(n.Type) + " ")
 			writeExpr(b, n.Expr)
+			b.WriteString("}")
 		} else {
+			b.WriteString(n.Type)
 			b.WriteString("'")
 			b.WriteString(n.Value)
 			b.WriteString("'")
@@ -2392,4 +2394,18 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 // named after its source text, such as `a`+1.
 func quoteIdent(name string) string {
 	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+// odbcEscapeName is the ODBC escape name for a temporal literal's type. A
+// TemporalLit with a non-string argument, {d 123}, is written back as that escape:
+// DATE 123 does not parse. TiDB's own Restore writes DATE 123, but never stores it,
+// since a view over {d 123} fails with 1292 (v8.5.5).
+func odbcEscapeName(typ string) string {
+	switch strings.ToUpper(typ) {
+	case "TIME":
+		return "t"
+	case "TIMESTAMP":
+		return "ts"
+	}
+	return "d"
 }
