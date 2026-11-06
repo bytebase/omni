@@ -38,6 +38,17 @@ var nestingShapes = []struct {
 	{"assignment chain", func(n int) string { return "SELECT " + strings.Repeat("@a := ", n) + "1" }},
 	{"function call", func(n int) string { return "SELECT " + nest(n, "abs(", "1", ")") }},
 	{"CAST", func(n int) string { return "SELECT " + nest(n, "CAST(", "1", " AS SIGNED)") }},
+	// parseDateArgs reads both arguments itself, so each is a way back into the
+	// expression reader.
+	{"date arithmetic first argument", func(n int) string {
+		return "SELECT " + nest(n, "date_add(", "a", ", INTERVAL 1 DAY)")
+	}},
+	{"date arithmetic interval value", func(n int) string {
+		return "SELECT " + nest(n, "date_add(a, INTERVAL ", "1", " DAY)")
+	}},
+	{"date arithmetic expression argument", func(n int) string {
+		return "SELECT " + nest(n, "adddate(a, ", "1", ")")
+	}},
 	{"interval literal", func(n int) string {
 		return "SELECT " + strings.Repeat("INTERVAL ", n) + "1" + strings.Repeat(" DAY", n)
 	}},
