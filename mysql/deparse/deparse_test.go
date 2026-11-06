@@ -392,7 +392,10 @@ func TestDeparse_Section_2_6_CaseCastConvert(t *testing.T) {
 		{"json_value_clauses", "JSON_VALUE(a, '$.b' RETURNING SIGNED NULL ON EMPTY DEFAULT -1 ON ERROR)", "json_value(`a`, '$.b' returning signed null on empty default -1 on error)"},
 		{"json_value_error", "JSON_VALUE(a, '$.b' ERROR ON ERROR)", "json_value(`a`, '$.b' returning char(512) error on error)"},
 		{"cast_signed_array", "CAST(a AS SIGNED ARRAY)", "cast(`a` as signed array)"},
-		{"cast_char_array", "CAST(a AS CHAR(40) ARRAY)", "cast(`a` as char(40) charset utf8mb4 array)"},
+		{"cast_binary_array", "CAST(a AS BINARY(3) ARRAY)", "cast(`a` as binary(3) array)"},
+		{"cast_char_byte_array", "CAST(a AS CHAR(3) BYTE ARRAY)", "cast(`a` as binary(3) array)"},
+		{"cast_char_binary_charset_array", "CAST(a AS CHAR(3) CHARACTER SET binary ARRAY)", "cast(`a` as binary(3) array)"},
+		{"cast_char_array", "CAST(a AS CHAR(40) ARRAY)", "cast(`a` as char(40) array)"},
 		{"cast_decimal_array", "CAST(a AS DECIMAL(10,2) ARRAY)", "cast(`a` as decimal(10,2) array)"},
 		{"cast_date_array", "CAST(a AS DATE ARRAY)", "cast(`a` as date array)"},
 	}

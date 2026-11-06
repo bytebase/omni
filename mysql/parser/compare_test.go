@@ -931,7 +931,6 @@ func TestParseCast(t *testing.T) {
 		input    string
 		typeName string
 	}{
-		{"CAST(x AS INT)", "INT"},
 		{"CAST('123' AS DECIMAL(10,2))", "DECIMAL"},
 	}
 

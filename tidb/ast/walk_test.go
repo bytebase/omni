@@ -194,7 +194,6 @@ func allKnownNodes() []Node {
 		&ParenExpr{}, &RowExpr{},
 		&MatchExpr{}, &MemberOfExpr{}, &VariableRef{},
 		&ValuesStmt{}, // also an expression in some contexts
-		&JsonTableExpr{}, &JsonTableColumn{},
 
 		// Table expressions
 		&TableRef{}, &JoinClause{}, &TableSample{}, &AsOfClause{},

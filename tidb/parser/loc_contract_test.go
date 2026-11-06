@@ -269,8 +269,6 @@ var locSpanCases = []struct {
 	{"JoinClause", "SELECT * FROM (t1, t2)", "t1, t2", 0},
 	{"JoinClause", "SELECT * FROM t0 LEFT JOIN (t1, t2) ON t0.id = t1.id", "t0 LEFT JOIN (t1, t2) ON t0.id = t1.id", 0},
 	{"JoinClause", "SELECT * FROM t0 LEFT JOIN (t1, t2) ON t0.id = t1.id", "t1, t2", 1},
-	{"JsonTableColumn", "SELECT * FROM JSON_TABLE('[]', '$[*]' COLUMNS (v INT PATH '$')) AS j", "v INT PATH '$'", 0},
-	{"JsonTableExpr", "SELECT * FROM JSON_TABLE('[]', '$[*]' COLUMNS (v INT PATH '$')) AS j", "JSON_TABLE('[]', '$[*]' COLUMNS (v INT PATH '$')) AS j", 0},
 	{"KeywordArg", "SELECT TIMESTAMPADD(MINUTE, 30, NOW())", "MINUTE", 0},
 	{"KillStmt", "KILL 123", "KILL 123", 0},
 	{"KillStmt", "KILL TIDB QUERY 123", "KILL TIDB QUERY 123", 0},

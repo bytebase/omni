@@ -384,7 +384,6 @@ var keywordCategories = map[int]keywordCategory{
 	kwINT:                 kwCatReserved,
 	kwINTEGER:             kwCatReserved,
 	kwITERATE:             kwCatReserved,
-	kwJSON_TABLE:          kwCatUnambiguous,
 	kwKEYS:                kwCatReserved,
 	kwLATERAL:             kwCatUnambiguous,
 	kwLEADING:             kwCatReserved,
