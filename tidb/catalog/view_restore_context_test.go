@@ -217,3 +217,26 @@ func TestViewRestoreExprForms(t *testing.T) {
 		})
 	}
 }
+
+// TestViewRestorePriority: a view stores its SELECT's priority and drops
+// SQL_CACHE, as TiDB v8.5.5 stores them (SHOW CREATE VIEW, 2026-11-06). The last
+// priority written is the one kept, and SQL_NO_CACHE beats SQL_CACHE in either
+// order. TestDeparse_Section_7_3_ExpressionViews compares the same bodies with the
+// server's.
+func TestViewRestorePriority(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{"SELECT LOW_PRIORITY a FROM t", "SELECT LOW_PRIORITY `a` AS `a` FROM `d`.`t`"},
+		{"SELECT HIGH_PRIORITY a FROM t", "SELECT HIGH_PRIORITY `a` AS `a` FROM `d`.`t`"},
+		{"SELECT DELAYED a FROM t", "SELECT DELAYED `a` AS `a` FROM `d`.`t`"},
+		{"SELECT HIGH_PRIORITY LOW_PRIORITY a FROM t", "SELECT LOW_PRIORITY `a` AS `a` FROM `d`.`t`"},
+		{"SELECT SQL_CACHE a FROM t", "SELECT `a` AS `a` FROM `d`.`t`"},
+		{"SELECT SQL_CACHE SQL_NO_CACHE a FROM t", "SELECT SQL_NO_CACHE `a` AS `a` FROM `d`.`t`"},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			c := viewRestoreCatalog(t, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT); CREATE VIEW v AS "+tc.body+";")
+			if got := c.GetDatabase("d").Views["v"].Definition; got != tc.want {
+				t.Errorf("Definition =\n%s\nwant\n%s", got, tc.want)
+			}
+		})
+	}
+}

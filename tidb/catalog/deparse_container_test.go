@@ -689,6 +689,12 @@ func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 		{"trim_direction", "SELECT TRIM(BOTH FROM c), TRIM(LEADING FROM c), TRIM(TRAILING FROM c), TRIM(BOTH 'x' FROM c) FROM t"},
 		{"char_using", "SELECT CHAR(65 USING utf8mb4), CHAR(65, 66 USING 'Latin1'), CHAR(65 USING utf8mb3), CHAR(65) FROM t"},
 		{"row_shorthand", "SELECT (a, b) IN ((1, 2)), (a, b) = (1, 2), ROW(a, b) < (1, 2) FROM t"},
+		{"low_priority", "SELECT LOW_PRIORITY a FROM t"},
+		{"high_priority", "SELECT HIGH_PRIORITY a FROM t"},
+		{"delayed", "SELECT DELAYED a FROM t"},
+		{"last_priority_wins", "SELECT HIGH_PRIORITY LOW_PRIORITY a FROM t"},
+		{"sql_cache", "SELECT SQL_CACHE a FROM t"},
+		{"sql_cache_and_no_cache", "SELECT SQL_CACHE SQL_NO_CACHE a FROM t"},
 	}
 
 	for _, tc := range cases {

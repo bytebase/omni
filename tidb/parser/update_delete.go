@@ -10,7 +10,7 @@ import (
 //
 // Single-table:
 //
-//	UPDATE [LOW_PRIORITY] [IGNORE] table_reference
+//	UPDATE [LOW_PRIORITY | HIGH_PRIORITY | DELAYED] [IGNORE] table_reference
 //	    SET assignment_list
 //	    [WHERE where_condition]
 //	    [ORDER BY ...]
@@ -18,7 +18,7 @@ import (
 //
 // Multi-table:
 //
-//	UPDATE [LOW_PRIORITY] [IGNORE] table_references
+//	UPDATE [LOW_PRIORITY | HIGH_PRIORITY | DELAYED] [IGNORE] table_references
 //	    SET assignment_list
 //	    [WHERE where_condition]
 func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
@@ -35,10 +35,8 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 	stmt := &nodes.UpdateStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional modifiers
-	if _, ok := p.match(kwLOW_PRIORITY); ok {
-		stmt.LowPriority = true
-	}
+	// UpdateStmtNoWith (parser.y:13626, v8.5.5) reads PriorityOpt, then IGNORE.
+	stmt.Priority = p.parsePriorityOpt()
 	if _, ok := p.match(kwIGNORE); ok {
 		stmt.Ignore = true
 	}
@@ -114,21 +112,21 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 //
 // Single-table:
 //
-//	DELETE [LOW_PRIORITY] [QUICK] [IGNORE] FROM tbl_name
+//	DELETE [LOW_PRIORITY | HIGH_PRIORITY | DELAYED] [QUICK] [IGNORE] FROM tbl_name
 //	    [WHERE where_condition]
 //	    [ORDER BY ...]
 //	    [LIMIT row_count]
 //
 // Multi-table (syntax 1):
 //
-//	DELETE [LOW_PRIORITY] [QUICK] [IGNORE]
+//	DELETE [LOW_PRIORITY | HIGH_PRIORITY | DELAYED] [QUICK] [IGNORE]
 //	    tbl_name[.*] [, tbl_name[.*]] ...
 //	    FROM table_references
 //	    [WHERE where_condition]
 //
 // Multi-table (syntax 2):
 //
-//	DELETE [LOW_PRIORITY] [QUICK] [IGNORE]
+//	DELETE [LOW_PRIORITY | HIGH_PRIORITY | DELAYED] [QUICK] [IGNORE]
 //	    FROM tbl_name[.*] [, tbl_name[.*]] ...
 //	    USING table_references
 //	    [WHERE where_condition]
@@ -163,10 +161,9 @@ func (p *Parser) parseDeleteStmtIn(place deletePlace) (*nodes.DeleteStmt, error)
 
 	stmt := &nodes.DeleteStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional modifiers
-	if _, ok := p.match(kwLOW_PRIORITY); ok {
-		stmt.LowPriority = true
-	}
+	// DeleteWithoutUsingStmt and DeleteWithUsingStmt (parser.y:5231 and :5281,
+	// v8.5.5) read PriorityOpt, then QUICK, then IGNORE.
+	stmt.Priority = p.parsePriorityOpt()
 	if _, ok := p.match(kwQUICK); ok {
 		stmt.Quick = true
 	}
