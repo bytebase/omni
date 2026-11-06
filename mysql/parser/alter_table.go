@@ -837,17 +837,22 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	return cmd, nil
 }
 
-// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET NOT NULL | DROP NOT NULL | SET VISIBLE | SET INVISIBLE}
+// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET VISIBLE | SET INVISIBLE}
 // and ALTER INDEX index_name {VISIBLE | INVISIBLE}.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+// ALTER COLUMN has no nullability: MySQL 8.0.46 answers 1064 for `ALTER [COLUMN] c
+// SET NOT NULL` and `DROP NOT NULL`, which are PostgreSQL's; MODIFY and CHANGE
+// are how a column's nullability changes. ATAlterColumnSetNotNull and
+// ATAlterColumnDropNotNull are never built.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html, and the
+// `ALTER opt_column ident` arms of alter_list_item in MySQL 8.0.46
+// sql/sql_yacc.yy: SET DEFAULT, DROP DEFAULT and SET visibility, nothing else.
 //
 //	ALTER [COLUMN] col_name {
 //	    SET DEFAULT {literal | (expr)}
 //	  | SET {VISIBLE | INVISIBLE}
 //	  | DROP DEFAULT
-//	  | SET NOT NULL
-//	  | DROP NOT NULL
 //	}
 //	ALTER INDEX index_name {VISIBLE | INVISIBLE}
 func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
@@ -945,22 +950,23 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 				}
 				cmd.DefaultExpr = expr
 			}
-		} else if p.cur.Type == kwNOT {
-			p.advance()
-			p.match(kwNULL)
-			cmd.Type = nodes.ATAlterColumnSetNotNull
 		} else if _, ok := p.match(kwVISIBLE); ok {
 			cmd.Type = nodes.ATAlterColumnVisible
 		} else if _, ok := p.match(kwINVISIBLE); ok {
 			cmd.Type = nodes.ATAlterColumnInvisible
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 	} else if _, ok := p.match(kwDROP); ok {
 		if _, ok := p.match(kwDEFAULT); ok {
 			cmd.Type = nodes.ATAlterColumnDefault
-		} else if _, ok := p.match(kwNOT); ok {
-			p.match(kwNULL)
-			cmd.Type = nodes.ATAlterColumnDropNotNull
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
+	} else {
+		// A column name with no action is not a clause: MySQL 8.0.46 answers
+		// 1064, as it does for a SET or DROP with nothing it takes after it.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	cmd.Loc.End = p.prev.End

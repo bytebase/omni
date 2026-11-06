@@ -194,7 +194,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
-	case ast.ATAlterColumnDefault, ast.ATAlterColumnSetNotNull, ast.ATAlterColumnDropNotNull:
+	case ast.ATAlterColumnDefault:
 		return b.columnNeeds(r, c.Name, rng)
 	case ast.ATAddConstraint, ast.ATAddIndex:
 		if c.Constraint == nil {
