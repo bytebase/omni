@@ -1959,11 +1959,10 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, 
 		if len(p.cur.Str) > 1 {
 			return nil, &ParseError{Message: "Incorrect arguments to ESCAPE", Position: p.cur.Loc}
 		}
-		esc, err := p.parsePrimaryExpr()
-		if err != nil {
-			return nil, err
-		}
-		like.Escape = esc
+		// One stringLit, not a StringLiteral run: `ESCAPE 'x' 'y'` is a 1064 at
+		// 'y', where parsePrimaryExpr would fold the run into the two-byte xy.
+		tok := p.advance()
+		like.Escape = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Str}
 	}
 
 	like.Loc.End = p.prev.End

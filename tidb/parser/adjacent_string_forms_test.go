@@ -42,7 +42,9 @@ var adjacentStringCases = []adjacentStringCase{
 	{"create table t (a varchar(10) default 'a' 'b')", true},
 	{"create table t (a int comment 'x' 'y')", false},
 	{"create table t (a enum('x' 'y'))", false},
-	{"create table t (a int) comment 'x' 'y'", false},
+	{"create table t (a int) comment 'x' 'y'", false}, {"select 1 from t where 'a' like 'b' escape 'x' 'y'", false},
+	{"select 1 from t where 'a' ilike 'b' escape 'x' 'y'", false},
+	{"select 'a' like 'b' escape 'x' 'y'", true},
 }
 
 // TestAdjacentStringForms holds omni to the recorded verdicts without a server.
