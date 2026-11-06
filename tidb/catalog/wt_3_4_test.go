@@ -234,24 +234,21 @@ func TestWalkThrough_3_4_AlterColumnDropDefault(t *testing.T) {
 	}
 }
 
+// TiDB has no column visibility: v8.5.5 answers 1064 for ALTER COLUMN ... SET
+// VISIBLE and SET INVISIBLE, so the catalog refuses both and the column keeps
+// what it had.
 func TestWalkThrough_3_4_AlterColumnVisibility(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b INT)")
-	tbl := c.GetDatabase("testdb").GetTable("t")
-	col := tbl.GetColumn("b")
-	if col.Invisible {
-		t.Error("column should start visible")
+	for _, sql := range []string{
+		"ALTER TABLE t ALTER COLUMN b SET INVISIBLE",
+		"ALTER TABLE t ALTER COLUMN b SET VISIBLE",
+	} {
+		if _, err := c.Exec(sql, nil); err == nil {
+			t.Errorf("Exec accepted %q, which TiDB refuses", sql)
+		}
 	}
-	wtExec(t, c, "ALTER TABLE t ALTER COLUMN b SET INVISIBLE")
-	tbl = c.GetDatabase("testdb").GetTable("t")
-	col = tbl.GetColumn("b")
-	if !col.Invisible {
-		t.Error("column should be invisible after SET INVISIBLE")
-	}
-	wtExec(t, c, "ALTER TABLE t ALTER COLUMN b SET VISIBLE")
-	tbl = c.GetDatabase("testdb").GetTable("t")
-	col = tbl.GetColumn("b")
-	if col.Invisible {
-		t.Error("column should be visible after SET VISIBLE")
+	if c.GetDatabase("testdb").GetTable("t").GetColumn("b").Invisible {
+		t.Error("a refused statement made column b invisible")
 	}
 }

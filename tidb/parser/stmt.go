@@ -531,6 +531,17 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		temporary = true
 	}
 
+	// CreateIndexStmt (parser.y) is `"CREATE" IndexKeyTypeOpt "INDEX" ...`, with
+	// no TEMPORARY in front and INDEX the only keyword after UNIQUE, FULLTEXT,
+	// SPATIAL or VECTOR: v8.5.5 answers 1064 for `CREATE FULLTEXT KEY` and for
+	// `CREATE TEMPORARY INDEX`.
+	if temporary {
+		switch p.cur.Type {
+		case kwINDEX, kwUNIQUE, kwFULLTEXT, kwSPATIAL:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseCreateTableStmt(start, temporary, global)
@@ -547,7 +558,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwFULLTEXT:
 		p.advance()
-		// p.cur is now INDEX or KEY; parseCreateIndexStmt consumes it
+		if p.cur.Type != kwINDEX {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseCreateIndexStmt(start, false, true, false, false)
 
 	case kwVECTOR:
@@ -569,10 +582,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return stmt, nil
 
 	case kwSPATIAL:
+		// CREATE SPATIAL INDEX is the one spatial statement TiDB reads; it has
+		// no CREATE SPATIAL REFERENCE SYSTEM, and v8.5.5 answers 1064 there.
 		p.advance()
-		// Distinguish SPATIAL REFERENCE SYSTEM from SPATIAL INDEX
-		if p.cur.Type == kwREFERENCE {
-			return p.parseCreateSpatialRefSysStmt(start, false)
+		if p.cur.Type != kwINDEX {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseCreateIndexStmt(start, false, false, true, false)
 
@@ -714,7 +728,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwTABLE, kwDATABASE, kwVIEW, // TiDB has no ALTER FUNCTION/PROCEDURE/EVENT
+			kwTABLE, kwDATABASE, // TiDB has no ALTER VIEW/FUNCTION/PROCEDURE/EVENT
 			kwPLACEMENT, // TiDB: ALTER PLACEMENT POLICY
 			kwSEQUENCE,
 		} {
@@ -743,49 +757,16 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	case kwUSER:
 		return p.parseAlterUserStmt(start)
 
-	case kwVIEW:
-		return p.parseAlterViewStmt(start)
-
-	case kwALGORITHM:
-		// ALTER ALGORITHM = ... VIEW — delegate to ALTER VIEW parser
-		return p.parseAlterViewStmt(start)
-
-	case kwSQL:
-		// ALTER SQL SECURITY {DEFINER|INVOKER} VIEW — delegate to ALTER VIEW
-		return p.parseAlterViewStmt(start)
-
-	case kwDEFINER:
-		// ALTER DEFINER = user {VIEW|EVENT}
-		// Parse DEFINER = user[@host] and propagate to sub-parsers.
-		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
-		var sqlSecurity string
-		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
-			}
-		}
-		switch p.cur.Type {
-		case kwVIEW:
-			stmt, err := p.parseAlterViewStmt(start)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			if stmt.SqlSecurity == "" {
-				stmt.SqlSecurity = sqlSecurity
-			}
-			return stmt, nil
-		case kwEVENT:
-			// TiDB v8.5.0 has no events (no ALTER EVENT).
-			return nil, p.syntaxErrorAtCur()
-		default:
-			return nil, &ParseError{Message: "unexpected token after DEFINER clause in ALTER", Position: p.cur.Loc}
-		}
+	case kwVIEW, kwALGORITHM, kwSQL, kwDEFINER:
+		// TiDB has no ALTER VIEW in any spelling, and no ALTER EVENT for a
+		// DEFINER to lead into: v8.5.5 answers 1064 for `ALTER VIEW`, `ALTER
+		// ALGORITHM = ... VIEW`, `ALTER DEFINER = ...` and `ALTER SQL SECURITY
+		// ...`. A view is redefined with CREATE OR REPLACE VIEW.
+		//
+		// Ref: TiDB v8.5.5 pkg/parser/parser.y, where no rule starts with
+		// "ALTER" followed by "VIEW", ViewAlgorithm, ViewDefiner or
+		// ViewSQLSecurity.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwEVENT:
 		// TiDB v8.5.0 has no events (no ALTER EVENT).
@@ -918,9 +899,8 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		// TiDB v8.5.0 has no events — DROP EVENT rejects.
 		return nil, p.syntaxErrorAtCur()
 
-	case kwSPATIAL:
-		p.advance() // consume SPATIAL
-		return p.parseDropSpatialRefSysStmt(start)
+	// No DROP SPATIAL REFERENCE SYSTEM: TiDB has no spatial reference systems,
+	// and v8.5.5 answers 1064 at SPATIAL.
 
 	case kwRESOURCE:
 		p.advance() // consume RESOURCE

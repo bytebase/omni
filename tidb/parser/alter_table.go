@@ -917,7 +917,7 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	// Completion: after ADD, offer what can be added.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwUNIQUE, kwPRIMARY, kwFOREIGN, kwCONSTRAINT, kwCHECK, kwPARTITION, kwSPATIAL, kwFULLTEXT, kwVECTOR} {
+		for _, t := range []int{kwCOLUMN, kwINDEX, kwKEY, kwUNIQUE, kwPRIMARY, kwFOREIGN, kwCONSTRAINT, kwCHECK, kwPARTITION, kwFULLTEXT, kwVECTOR} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -1312,14 +1312,17 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	return cmd, nil
 }
 
-// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET NOT NULL | DROP NOT NULL | SET VISIBLE | SET INVISIBLE}
+// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET NOT NULL | DROP NOT NULL}
 // and ALTER INDEX index_name {VISIBLE | INVISIBLE}.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-table.html
+// TiDB has no column visibility: v8.5.5 answers 1064 for `ALTER [COLUMN] c SET
+// VISIBLE` and `SET INVISIBLE`, so ATAlterColumnVisible and ATAlterColumnInvisible
+// are never built.
+//
+// Ref: the "ALTER" arms of AlterTableSpec in TiDB v8.5.5 pkg/parser/parser.y.
 //
 //	ALTER [COLUMN] col_name {
 //	    SET DEFAULT {literal | (expr)}
-//	  | SET {VISIBLE | INVISIBLE}
 //	  | DROP DEFAULT
 //	  | SET NOT NULL
 //	  | DROP NOT NULL
@@ -1336,10 +1339,14 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			return nil, err
 		}
 		cmd.Name = name
+		// The visibility is required: v8.5.5 answers 1064 for `ALTER INDEX i` with
+		// nothing after the name. Ref: `"ALTER" "INDEX" Identifier IndexInvisible`.
 		if _, ok := p.match(kwVISIBLE); ok {
 			cmd.Type = nodes.ATAlterIndexVisible
 		} else if _, ok := p.match(kwINVISIBLE); ok {
 			cmd.Type = nodes.ATAlterIndexInvisible
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -1382,12 +1389,11 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	// ALTER [COLUMN] col_name ...
 	p.match(kwCOLUMN)
 
-	schema, table, name, err := p.parseColumnName()
+	_, _, name, err := p.parseColumnName()
 	if err != nil {
 		return nil, err
 	}
 	cmd.Name = name
-	qualified := schema != "" || table != ""
 
 	if _, ok := p.match(kwSET); ok {
 		if _, ok := p.match(kwDEFAULT); ok {
@@ -1428,14 +1434,8 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			p.advance()
 			p.match(kwNULL)
 			cmd.Type = nodes.ATAlterColumnSetNotNull
-		} else if qualified && (p.cur.Type == kwVISIBLE || p.cur.Type == kwINVISIBLE) {
-			// TiDB refuses column visibility outright, and omni still reads MySQL's form for
-			// a bare name. It takes no qualifier here, so this change adds no false accept.
+		} else {
 			return nil, p.syntaxErrorAtCur()
-		} else if _, ok := p.match(kwVISIBLE); ok {
-			cmd.Type = nodes.ATAlterColumnVisible
-		} else if _, ok := p.match(kwINVISIBLE); ok {
-			cmd.Type = nodes.ATAlterColumnInvisible
 		}
 	} else if _, ok := p.match(kwDROP); ok {
 		if _, ok := p.match(kwDEFAULT); ok {
@@ -1443,7 +1443,12 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		} else if _, ok := p.match(kwNOT); ok {
 			p.match(kwNULL)
 			cmd.Type = nodes.ATAlterColumnDropNotNull
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
+	} else {
+		// A column name with no action is not a clause: v8.5.5 answers 1064.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	cmd.Loc.End = p.prev.End

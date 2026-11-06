@@ -70,42 +70,20 @@ func TestWalkThrough_10_2_LIKEEdgeCases(t *testing.T) {
 		}
 	})
 
-	// Scenario 2: LIKE copies INVISIBLE columns
-	t.Run("like_copies_invisible_columns", func(t *testing.T) {
+	// Scenario 2: no INVISIBLE column for LIKE to copy. TiDB has no column
+	// visibility (v8.5.5 answers 1064), so the source table is refused.
+	t.Run("like_has_no_invisible_columns_to_copy", func(t *testing.T) {
 		c := wtSetup(t)
-		wtExec(t, c, `CREATE TABLE src (
+		if _, err := c.Exec(`CREATE TABLE src (
 			id INT NOT NULL,
 			visible_col VARCHAR(100),
 			hidden_col INT INVISIBLE,
 			PRIMARY KEY (id)
-		)`)
-		wtExec(t, c, `CREATE TABLE dst LIKE src`)
-
-		dstTbl := c.GetDatabase("testdb").GetTable("dst")
-		if dstTbl == nil {
-			t.Fatal("table dst not found")
+		)`, nil); err == nil {
+			t.Fatal("Exec accepted a column visibility TiDB refuses")
 		}
-
-		hiddenCol := dstTbl.GetColumn("hidden_col")
-		if hiddenCol == nil {
-			t.Fatal("column hidden_col not found in dst")
-		}
-		if !hiddenCol.Invisible {
-			t.Error("hidden_col should be INVISIBLE in dst")
-		}
-
-		visibleCol := dstTbl.GetColumn("visible_col")
-		if visibleCol == nil {
-			t.Fatal("column visible_col not found in dst")
-		}
-		if visibleCol.Invisible {
-			t.Error("visible_col should NOT be invisible in dst")
-		}
-
-		// Verify SHOW CREATE TABLE renders INVISIBLE
-		sct := c.ShowCreateTable("testdb", "dst")
-		if !strings.Contains(sct, "INVISIBLE") {
-			t.Errorf("SHOW CREATE TABLE should contain INVISIBLE keyword, got:\n%s", sct)
+		if c.GetDatabase("testdb").GetTable("src") != nil {
+			t.Error("the refused statement created a table")
 		}
 	})
 

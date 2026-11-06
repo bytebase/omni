@@ -143,8 +143,6 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.createIndex(s)
 	case *nodes.CreateViewStmt:
 		return c.createView(s, source)
-	case *nodes.AlterViewStmt:
-		return c.alterView(s, source)
 	case *nodes.AlterTableStmt:
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:
@@ -349,8 +347,6 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.CreateIndexStmt:
 		return s.Loc.Start
 	case *nodes.CreateViewStmt:
-		return s.Loc.Start
-	case *nodes.AlterViewStmt:
 		return s.Loc.Start
 	case *nodes.AlterTableStmt:
 		return s.Loc.Start

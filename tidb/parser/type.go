@@ -366,12 +366,10 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		dt.Name = "JSON"
 		p.advance()
 
-	// Spatial types
-	case kwGEOMETRY, kwPOINT, kwLINESTRING, kwPOLYGON,
-		kwMULTIPOINT, kwMULTILINESTRING, kwMULTIPOLYGON,
-		kwGEOMETRYCOLLECTION:
-		dt.Name = p.cur.Str
-		p.advance()
+	// No spatial types: TiDB v8.5.5's parser.y has no GEOMETRY, POINT,
+	// LINESTRING, POLYGON, MULTI* or GEOMETRYCOLLECTION type, and the server
+	// answers 1064 for each as a column type and as a CAST target. The words
+	// stay unreserved keywords and read as names.
 
 	// SERIAL → BIGINT UNSIGNED AUTO_INCREMENT UNIQUE
 	case kwSERIAL:

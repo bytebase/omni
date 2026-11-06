@@ -181,8 +181,9 @@ func TestWalkThroughTiDBObjects(t *testing.T) {
 	// CREATE and DROP PROCEDURE fail (8108) and end the walk.
 	noFinding(t, "CREATE PROCEDURE p() SELECT 1;\nCREATE TABLE t (a int);", shop)
 	noFinding(t, "DROP PROCEDURE IF EXISTS p;\nCREATE TABLE t (a int);", shop)
-	// ALTER VIEW, which TiDB rejects (1064), ends the walk.
-	noFinding(t, "ALTER VIEW v AS SELECT 1 AS a;\nCREATE TABLE t (a int);", shop)
+	// TiDB has no ALTER VIEW (1064): it is a syntax finding, and the walk
+	// follows nothing after it.
+	oneFinding(t, "ALTER VIEW v AS SELECT 1 AS a;\nCREATE TABLE t (a int);", 0, `syntax error at or near "VIEW"`, shop)
 	// DML runs no trigger: a temporary table stays known.
 	oneFinding(t, "INSERT INTO t (id) VALUES (1);\nDROP TEMPORARY TABLE nosuch;", 1, "Temporary table `nosuch` doesn't exist.", shop)
 	oneFinding(t, "CREATE TEMPORARY TABLE tt (a int);\nUPDATE t JOIN r ON r.id = t.a SET t.a = 1;\nCREATE TEMPORARY TABLE tt (a int);", 2, "Temporary table `tt` already exists.", shop)

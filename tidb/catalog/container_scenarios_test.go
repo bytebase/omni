@@ -186,8 +186,6 @@ func TestContainer_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 		{"varchar_not_null_default_empty", "CREATE TABLE t_vnde (a VARCHAR(100) NOT NULL DEFAULT '')", "t_vnde"},
 		{"varchar_charset_collate_not_null", "CREATE TABLE t_vccnn (a VARCHAR(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL)", "t_vccnn"},
 		{"int_not_null_comment", "CREATE TABLE t_innc (a INT NOT NULL COMMENT 'user id')", "t_innc"},
-		{"varchar_invisible", "CREATE TABLE t_vinv (a INT, b VARCHAR(255) INVISIBLE)", "t_vinv"},
-		{"int_visible_not_shown", "CREATE TABLE t_ivis (a INT VISIBLE)", "t_ivis"},
 		{"all_attributes", "CREATE TABLE t_all (a INT UNSIGNED NOT NULL DEFAULT '0' COMMENT 'count')", "t_all"},
 	}
 
@@ -850,11 +848,6 @@ func TestContainer_Section_1_9_GeneratedColumns(t *testing.T) {
 			"t_gen5",
 		},
 		{
-			"generated_invisible",
-			"CREATE TABLE t_gen6 (col1 INT, col2 INT, col3 INT GENERATED ALWAYS AS (col1 + col2) VIRTUAL INVISIBLE)",
-			"t_gen6",
-		},
-		{
 			"generated_json_extract",
 			"CREATE TABLE t_gen7 (data JSON, name VARCHAR(255) GENERATED ALWAYS AS (JSON_EXTRACT(data, '$.name')) VIRTUAL)",
 			"t_gen7",
@@ -1424,18 +1417,6 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 			"CREATE TABLE t_drop_def (id INT PRIMARY KEY, val INT DEFAULT 10)",
 			"ALTER TABLE t_drop_def ALTER COLUMN val DROP DEFAULT",
 			"t_drop_def",
-		},
-		{
-			"alter_column_set_visible",
-			"CREATE TABLE t_vis (id INT PRIMARY KEY, val INT /*!80023 INVISIBLE */)",
-			"ALTER TABLE t_vis ALTER COLUMN val SET VISIBLE",
-			"t_vis",
-		},
-		{
-			"alter_column_set_invisible",
-			"CREATE TABLE t_invis (id INT PRIMARY KEY, val INT)",
-			"ALTER TABLE t_invis ALTER COLUMN val SET INVISIBLE",
-			"t_invis",
 		},
 		{
 			"drop_column_part_of_pk",
@@ -4613,55 +4594,6 @@ func extractViewPreamble(ddl string) string {
 func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
-
-	t.Run("alter_view", func(t *testing.T) {
-		// ALTER VIEW changes the view definition.
-		// Verify both container and omni accept ALTER VIEW and update the view.
-		ctr.execSQL("DROP VIEW IF EXISTS v_alter_test")
-		ctr.execSQL("CREATE VIEW v_alter_test AS SELECT 1 AS a")
-		ctrErr := ctr.execSQL("ALTER VIEW v_alter_test AS SELECT 2 AS b, 3 AS c")
-		if ctrErr != nil {
-			t.Fatalf("container ALTER VIEW error: %v", ctrErr)
-		}
-		// Verify container view was updated.
-		ctrDDL, _ := ctr.showCreateView("v_alter_test")
-		if !strings.Contains(ctrDDL, "v_alter_test") {
-			t.Fatalf("container: view not found after ALTER VIEW")
-		}
-
-		c := New()
-		c.Exec("CREATE DATABASE test", nil)
-		c.SetCurrentDatabase("test")
-		c.Exec("CREATE VIEW v_alter_test AS SELECT 1 AS a", nil)
-		results, _ := c.Exec("ALTER VIEW v_alter_test AS SELECT 2 AS b, 3 AS c", nil)
-		if results[0].Error != nil {
-			t.Fatalf("omni ALTER VIEW error: %v", results[0].Error)
-		}
-		// Verify omni view was updated.
-		db := c.GetDatabase("test")
-		v := db.Views[toLower("v_alter_test")]
-		if v == nil {
-			t.Fatal("omni: view v_alter_test should exist after ALTER VIEW")
-		}
-		if !strings.Contains(v.Definition, "2") {
-			t.Errorf("omni: view definition should contain new select, got: %s", v.Definition)
-		}
-
-		// ALTER VIEW on nonexistent view should error on both.
-		ctr.execSQL("DROP VIEW IF EXISTS v_alter_noexist")
-		ctrErr = ctr.execSQL("ALTER VIEW v_alter_noexist AS SELECT 1")
-		if ctrErr == nil {
-			t.Fatal("container: expected error for ALTER VIEW on nonexistent view")
-		}
-
-		c2 := New()
-		c2.Exec("CREATE DATABASE test", nil)
-		c2.SetCurrentDatabase("test")
-		results2, _ := c2.Exec("ALTER VIEW v_alter_noexist AS SELECT 1", &ExecOptions{ContinueOnError: true})
-		if results2[0].Error == nil {
-			t.Fatal("omni: expected error for ALTER VIEW on nonexistent view")
-		}
-	})
 
 	t.Run("view_dependency_tracking", func(t *testing.T) {
 		// In MySQL, dropping a base table does NOT drop the view.

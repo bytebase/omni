@@ -1816,7 +1816,7 @@ func TestComplete_5_2_AlterTable(t *testing.T) {
 	// Scenario 3: ALTER TABLE t ADD | → ADD keywords
 	t.Run("alter_table_add_keywords", func(t *testing.T) {
 		candidates := Complete("ALTER TABLE t ADD ", 18, cat)
-		for _, kw := range []string{"COLUMN", "INDEX", "KEY", "UNIQUE", "PRIMARY", "FOREIGN", "CONSTRAINT", "CHECK", "PARTITION", "SPATIAL", "FULLTEXT"} {
+		for _, kw := range []string{"COLUMN", "INDEX", "KEY", "UNIQUE", "PRIMARY", "FOREIGN", "CONSTRAINT", "CHECK", "PARTITION", "FULLTEXT"} {
 			if !containsCandidate(candidates, kw, CandidateKeyword) {
 				t.Errorf("missing keyword %q; got %v", kw, candidates)
 			}
@@ -2038,9 +2038,19 @@ func TestComplete_5_3_CreateDropMisc(t *testing.T) {
 		}
 	})
 
-	// Scenario 9: ALTER VIEW v AS | → SELECT keyword
-	t.Run("alter_view_as_select", func(t *testing.T) {
-		candidates := Complete("ALTER VIEW v AS ", 16, cat)
+	// Scenario 9: TiDB has no ALTER VIEW (v8.5.5 answers 1064), so ALTER |
+	// offers no VIEW, and a view is redefined with CREATE OR REPLACE VIEW.
+	t.Run("alter_offers_no_view", func(t *testing.T) {
+		candidates := Complete("ALTER ", 6, cat)
+		if containsCandidate(candidates, "VIEW", CandidateKeyword) {
+			t.Errorf("unexpected keyword 'VIEW' after ALTER; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "TABLE", CandidateKeyword) {
+			t.Errorf("missing keyword 'TABLE' after ALTER; got %v", candidates)
+		}
+	})
+	t.Run("create_or_replace_view_as_select", func(t *testing.T) {
+		candidates := Complete("CREATE OR REPLACE VIEW v AS ", 28, cat)
 		if !containsCandidate(candidates, "SELECT", CandidateKeyword) {
 			t.Errorf("missing keyword 'SELECT'; got %v", candidates)
 		}

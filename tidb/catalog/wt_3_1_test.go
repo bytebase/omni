@@ -299,20 +299,15 @@ func TestWalkThrough_3_1_GeneratedColumnStored(t *testing.T) {
 	}
 }
 
+// TiDB has no column visibility: v8.5.5 answers 1064 for INVISIBLE after a
+// column type, so the catalog refuses the statement too.
 func TestWalkThrough_3_1_ColumnInvisible(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (a INT, b INT INVISIBLE)")
-	tbl := c.GetDatabase("testdb").GetTable("t")
-	if tbl == nil {
-		t.Fatal("table not found")
+	if _, err := c.Exec("CREATE TABLE t (a INT, b INT INVISIBLE)", nil); err == nil {
+		t.Fatal("Exec accepted a column visibility TiDB refuses")
 	}
-	colA := tbl.GetColumn("a")
-	if colA.Invisible {
-		t.Error("column a should be visible (Invisible=false)")
-	}
-	colB := tbl.GetColumn("b")
-	if !colB.Invisible {
-		t.Error("column b should be invisible (Invisible=true)")
+	if c.GetDatabase("testdb").GetTable("t") != nil {
+		t.Error("the refused statement created a table")
 	}
 }
 
