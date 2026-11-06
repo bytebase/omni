@@ -212,7 +212,10 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 		return errDupColumn(colDef.Name)
 	}
 
-	col := buildColumnFromDef(tbl, colDef)
+	col, err := buildColumnFromDef(tbl, colDef)
+	if err != nil {
+		return err
+	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
 	}
@@ -440,7 +443,10 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		}
 	}
 
-	col := buildColumnFromDef(tbl, colDef)
+	col, err := buildColumnFromDef(tbl, colDef)
+	if err != nil {
+		return err
+	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
 
@@ -573,9 +579,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrForeignKey:
+		// The key takes the next number only once it is added: TiDB keeps
+		// MaxForeignKeyID in the table's meta, which a refused statement
+		// leaves alone.
+		fkID := tbl.maxForeignKeyID + 1
 		conName := fkName(con)
 		if conName == "" {
-			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
+			conName = fmt.Sprintf("fk_%d", fkID)
+		}
+		if findForeignKey(tbl, conName) != nil {
+			return errCannotAddForeign()
 		}
 		refDBName := ""
 		refTable := ""
@@ -594,6 +607,10 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			OnDelete:    refActionToString(con.OnDelete),
 			OnUpdate:    refActionToString(con.OnUpdate),
 		}
+		// The backing index TiDB creates first takes the foreign key's name.
+		if !hasIndexCoveringColumns(tbl, cols) && indexNameExists(tbl, conName) {
+			return errDupKeyName(conName)
+		}
 		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
 		if c.foreignKeyChecks {
@@ -603,9 +620,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
-		ensureFKBackingIndex(tbl, fkName(con), cols, buildIndexColumns(con))
+		if err := ensureFKBackingIndex(tbl, conName, cols, buildIndexColumns(con)); err != nil {
+			return err
+		}
+		tbl.maxForeignKeyID = fkID
 
 	case nodes.ConstrCheck:
+		if !c.checkConstraints {
+			break
+		}
 		conName := con.Name
 		if conName == "" {
 			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
@@ -637,23 +660,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
-		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
-		} else if idxName != "" && indexNameExists(tbl, idxName) {
-			return errDupKeyName(idxName)
-		}
-		idxCols := buildIndexColumns(con)
-		ftIdx := &Index{
-			Name:      idxName,
-			Table:     tbl,
-			Columns:   idxCols,
-			Fulltext:  true,
-			IndexType: "FULLTEXT",
-			Visible:   true,
-		}
-		applyIndexOptions(ftIdx, con.IndexOptions)
-		tbl.Indexes = append(tbl.Indexes, ftIdx)
+		// ALTER TABLE ADD FULLTEXT succeeds on v8.5.5 and adds nothing, as the
+		// key does in CREATE TABLE (read on 2026-11-06).
 
 	case nodes.ConstrSpatialIndex:
 		idxName := con.Name
@@ -751,7 +759,7 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	}
 
 	if !found {
-		if cmd.IfExists {
+		if cmd.IfExists || !c.checkConstraints {
 			return nil
 		}
 		return errCantDropKey(name)
@@ -878,13 +886,17 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "engine":
 		tbl.Engine = opt.Value
 	case "charset", "character set", "default charset", "default character set":
-		tbl.Charset = opt.Value
-		// Update collation to the default for this charset.
-		if defColl, ok := defaultCollationForCharset[toLower(opt.Value)]; ok {
-			tbl.Collation = defColl
+		cs, coll, err := resolveCharsetCollation(opt.Value, "")
+		if err != nil {
+			return err
 		}
+		tbl.Charset, tbl.Collation = cs, coll
 	case "collate", "default collate":
-		tbl.Collation = opt.Value
+		cs, coll, err := resolveCharsetCollation("", opt.Value)
+		if err != nil {
+			return err
+		}
+		tbl.Charset, tbl.Collation = cs, coll
 	case "comment":
 		tbl.Comment = opt.Value
 	case "auto_increment":
@@ -928,7 +940,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
-		s := nodeToSQL(cmd.DefaultExpr)
+		s := defaultToSQL(cmd.DefaultExpr)
 		col.Default = &s
 		col.DefaultDropped = false
 	} else {
@@ -986,7 +998,7 @@ func rebuildColIndex(tbl *Table) {
 }
 
 // buildColumnFromDef builds a catalog Column from an AST ColumnDef.
-func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
+func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 	col := &Column{
 		Name:     colDef.Name,
 		Nullable: true,
@@ -1000,11 +1012,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.DataType = "geomcollection"
 		}
 		col.ColumnType = formatColumnType(colDef.TypeName)
-		if colDef.TypeName.Charset != "" {
-			col.Charset = colDef.TypeName.Charset
+		cs, coll, err := resolveCharsetCollation(colDef.TypeName.Charset, colDef.TypeName.Collate)
+		if err != nil {
+			return nil, err
 		}
-		if colDef.TypeName.Collate != "" {
-			col.Collation = colDef.TypeName.Collate
+		if cs != "" {
+			col.Charset, col.Collation = cs, coll
 		}
 
 		// MySQL converts non-ENUM/SET string columns with CHARACTER SET binary to
@@ -1051,7 +1064,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.Comment = colDef.Comment
 	}
 	if colDef.DefaultValue != nil {
-		s := nodeToSQL(colDef.DefaultValue)
+		s := defaultToSQL(colDef.DefaultValue)
 		col.Default = &s
 	}
 	if colDef.OnUpdate != nil {
@@ -1073,7 +1086,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			col.Nullable = true
 		case nodes.ColConstrDefault:
 			if cc.Expr != nil {
-				s := nodeToSQL(cc.Expr)
+				s := defaultToSQL(cc.Expr)
 				col.Default = &s
 			}
 		case nodes.ColConstrAutoIncrement:
@@ -1082,13 +1095,15 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		case nodes.ColConstrCollate:
 			if cc.Expr != nil {
 				if s, ok := cc.Expr.(*nodes.StringLit); ok {
-					col.Collation = s.Value
+					if err := applyColumnCollate(col, s.Value, colDef.TypeName != nil && colDef.TypeName.Charset != ""); err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
 	}
 
-	return col
+	return col, nil
 }
 
 // updateColumnRefsInIndexes updates index and constraint column references
@@ -1114,6 +1129,9 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 
 // alterCheckEnforced toggles the ENFORCED / NOT ENFORCED flag on a CHECK constraint.
 func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if !c.checkConstraints {
+		return nil
+	}
 	key := toLower(cmd.Name)
 	for _, con := range tbl.Constraints {
 		if toLower(con.Name) == key && con.Type == ConCheck {
@@ -1132,14 +1150,9 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 // This changes the table's default charset/collation AND converts all existing
 // string columns to the new charset/collation.
 func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	charset := cmd.Name
-	collation := cmd.NewName
-
-	// If no collation specified, use the default collation for the charset.
-	if collation == "" {
-		if defColl, ok := defaultCollationForCharset[toLower(charset)]; ok {
-			collation = defColl
-		}
+	charset, collation, err := resolveCharsetCollation(cmd.Name, cmd.NewName)
+	if err != nil {
+		return err
 	}
 
 	tbl.Charset = charset

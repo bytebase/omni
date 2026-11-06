@@ -18,10 +18,14 @@ func TestAlterTableSpaceSeparatedOptions(t *testing.T) {
 			t.Fatalf("Exec: %v", r.Error)
 		}
 	}
+	// TiDB v8.5.5 keeps ROW_FORMAT without writing it in SHOW CREATE TABLE
+	// (read on 2026-11-06), so the catalog's field is where it shows.
+	tbl := c.GetDatabase("d").GetTable("t")
+	if tbl.RowFormat != "DYNAMIC" || tbl.Comment != "x" || tbl.AutoIncrement != 5 {
+		t.Errorf("options: ROW_FORMAT=%q COMMENT=%q AUTO_INCREMENT=%d", tbl.RowFormat, tbl.Comment, tbl.AutoIncrement)
+	}
 	ddl := c.ShowCreateTable("d", "t")
-	for _, want := range []string{"ROW_FORMAT=DYNAMIC", "COMMENT='x'"} {
-		if !strings.Contains(ddl, want) {
-			t.Errorf("SHOW CREATE TABLE lacks %s:\n%s", want, ddl)
-		}
+	if !strings.Contains(ddl, "COMMENT='x'") || strings.Contains(ddl, "ROW_FORMAT") {
+		t.Errorf("SHOW CREATE TABLE:\n%s", ddl)
 	}
 }

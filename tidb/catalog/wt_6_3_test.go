@@ -77,7 +77,7 @@ func TestWalkThrough_6_3_FKActionsRendering(t *testing.T) {
 
 		got := c.ShowCreateTable("test", "child")
 		// Verify multi-column FK is rendered with both columns.
-		if !strings.Contains(got, "FOREIGN KEY (`pa`, `pb`) REFERENCES `parent` (`a`, `b`)") {
+		if !strings.Contains(got, "FOREIGN KEY (`pa`,`pb`) REFERENCES `parent` (`a`,`b`)") {
 			t.Errorf("multi-column FK not rendered correctly:\n%s", got)
 		}
 		// Actions rendered once for the whole FK.

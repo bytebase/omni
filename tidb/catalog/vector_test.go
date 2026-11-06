@@ -12,8 +12,9 @@ import (
 // These hold what the VECTOR type and a vector index leave in the catalog, not that they
 // parse. v8.5.5 runs the column forms, so their expected text is what its SHOW CREATE
 // TABLE printed (read on 2026-11-05). It refuses a vector index with 8200 on a server
-// with no TiFlash, which the test images have none of, so the index forms are held to the
-// grammar's restore text in parser_test.go instead.
+// with no TiFlash, which the test images have none of, so the index's SHOW CREATE TABLE
+// text is the one constructResultOfShowCreateTable (pkg/executor/show.go) writes:
+// VECTOR INDEX `i`((VEC_COSINE_DISTANCE(`b`))), with no USING clause.
 
 func newVectorCatalog(t *testing.T) *Catalog {
 	t.Helper()
@@ -58,7 +59,7 @@ func TestCreateVectorIndexIsAVectorIndex(t *testing.T) {
 		t.Errorf("index: %+v", idx)
 	}
 	ddl := c.ShowCreateTable("d", "t")
-	if !strings.Contains(ddl, "VECTOR INDEX `i` (") || !strings.Contains(ddl, "USING HNSW") {
+	if !strings.Contains(ddl, "VECTOR INDEX `i`((VEC_COSINE_DISTANCE(`b`))) COMMENT 'c'") {
 		t.Errorf("SHOW CREATE TABLE lost the vector index:\n%s", ddl)
 	}
 
@@ -96,7 +97,7 @@ func TestVectorIndexUnnamed(t *testing.T) {
 func TestVectorIndexLike(t *testing.T) {
 	c := newVectorCatalog(t)
 	execAll(t, c, "CREATE VECTOR INDEX i ON t ((VEC_COSINE_DISTANCE(b))); CREATE TABLE u LIKE t;")
-	if ddl := c.ShowCreateTable("d", "u"); !strings.Contains(ddl, "VECTOR INDEX `i` (") {
+	if ddl := c.ShowCreateTable("d", "u"); !strings.Contains(ddl, "VECTOR INDEX `i`((VEC_COSINE_DISTANCE(`b`)))") {
 		t.Errorf("LIKE lost the vector index:\n%s", ddl)
 	}
 }
@@ -204,7 +205,7 @@ func TestVectorIndexTypeReadsBack(t *testing.T) {
 				t.Fatal(err)
 			}
 			text := c.ShowCreateTable("d", "u")
-			if !strings.Contains(text, "USING HNSW") || strings.Contains(text, "BTREE") {
+			if idx := c.GetDatabase("d").GetTable("u").Indexes; len(idx) != 1 || idx[0].IndexType != "HNSW" || strings.Contains(text, "BTREE") {
 				t.Fatalf("the index is no HNSW one:\n%s", text)
 			}
 			again := New()

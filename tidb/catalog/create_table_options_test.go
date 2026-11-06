@@ -16,8 +16,8 @@ import (
 // table recorded as an ordinary one. Each want below is TiDB v8.5.5's own SHOW
 // CREATE TABLE, read on 2026-11-04.
 //
-// tidb/catalog's differential tests sit behind TIDB_CATALOG_PARITY, so this runs
-// unconditionally instead.
+// These run without a server, so they hold the catalog to the server's text
+// wherever the suite runs.
 func TestCreateTableOptionsCatalog(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
@@ -28,15 +28,16 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 		{
 			// SQL_TSI_YEAR is YEAR, not an unknown type, and the numeric
 			// modifiers YEAR now takes are not part of what it reports: the
-			// server writes `year` for `year unsigned zerofill`.
+			// server writes `year(4)` for `year unsigned zerofill` (re-read
+			// on 2026-11-06).
 			name:  "SQL_TSI_YEAR is the YEAR type",
 			ddl:   "CREATE TABLE y (a SQL_TSI_YEAR, b SQL_TSI_YEAR(4), c YEAR ZEROFILL, d SQL_TSI_YEAR(4) UNSIGNED ZEROFILL)",
 			table: "y",
 			want: "CREATE TABLE `y` (\n" +
-				"  `a` year DEFAULT NULL,\n" +
-				"  `b` year DEFAULT NULL,\n" +
-				"  `c` year DEFAULT NULL,\n" +
-				"  `d` year DEFAULT NULL\n" +
+				"  `a` year(4) DEFAULT NULL,\n" +
+				"  `b` year(4) DEFAULT NULL,\n" +
+				"  `c` year(4) DEFAULT NULL,\n" +
+				"  `d` year(4) DEFAULT NULL\n" +
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin",
 		},
 		{
@@ -46,11 +47,11 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			ddl:   "CREATE TABLE e (c1 ENUM(0x61, 'b'), c2 SET(0b01100001, 'b'), c3 ENUM(x'61'), c4 ENUM(b'01100001'), c5 ENUM(0x6162))",
 			table: "e",
 			want: "CREATE TABLE `e` (\n" +
-				"  `c1` enum('a','b') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
-				"  `c2` set('a','b') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
-				"  `c3` enum('a') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
-				"  `c4` enum('a') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
-				"  `c5` enum('ab') COLLATE utf8mb4_bin DEFAULT NULL\n" +
+				"  `c1` enum('a','b') DEFAULT NULL,\n" +
+				"  `c2` set('a','b') DEFAULT NULL,\n" +
+				"  `c3` enum('a') DEFAULT NULL,\n" +
+				"  `c4` enum('a') DEFAULT NULL,\n" +
+				"  `c5` enum('ab') DEFAULT NULL\n" +
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin",
 		},
 		{
@@ -63,11 +64,11 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			ddl:   "CREATE TABLE b (c1 ENUM(x'0b61'), c2 ENUM(x'0b'), c3 ENUM(x''), c4 ENUM(b'1'), c5 ENUM(0x6))",
 			table: "b",
 			want: "CREATE TABLE `b` (\n" +
-				"  `c1` enum('\v" + "a') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
-				"  `c2` enum('\v') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
-				"  `c3` enum('') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
-				"  `c4` enum('\x01') COLLATE utf8mb4_bin DEFAULT NULL,\n" +
-				"  `c5` enum('\x06') COLLATE utf8mb4_bin DEFAULT NULL\n" +
+				"  `c1` enum('\v" + "a') DEFAULT NULL,\n" +
+				"  `c2` enum('\v') DEFAULT NULL,\n" +
+				"  `c3` enum('') DEFAULT NULL,\n" +
+				"  `c4` enum('\x01') DEFAULT NULL,\n" +
+				"  `c5` enum('\x06') DEFAULT NULL\n" +
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin",
 		},
 		{
@@ -116,8 +117,7 @@ func TestCreateTableOptionsCatalog(t *testing.T) {
 			want: "CREATE GLOBAL TEMPORARY TABLE `g` (\n" +
 				"  `a` int DEFAULT NULL\n" +
 				") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin\n" +
-				"/*!50100 PARTITION BY HASH (`a`)\n" +
-				"PARTITIONS 10 */ ON COMMIT DELETE ROWS",
+				"PARTITION BY HASH (`a`) PARTITIONS 10 ON COMMIT DELETE ROWS",
 		},
 		{
 			// PRESERVE ROWS is grammar v8.5.5 parses and then refuses with

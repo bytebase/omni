@@ -185,34 +185,21 @@ func TestWalkThrough_10_1_BasicLIKECompleteness(t *testing.T) {
 		)`)
 		wtExec(t, c, `CREATE TABLE dst LIKE src`)
 
-		dstTbl := c.GetDatabase("testdb").GetTable("dst")
-		if dstTbl == nil {
-			t.Fatal("table dst not found")
-		}
-
-		var hasFT bool
-		for _, idx := range dstTbl.Indexes {
-			if idx.Fulltext {
-				hasFT = true
-				if idx.Name != "ft_content" {
-					t.Errorf("expected fulltext index named ft_content, got %q", idx.Name)
+		// TiDB keeps no FULLTEXT key, so neither table has one to copy.
+		for _, name := range []string{"src", "dst"} {
+			for _, idx := range c.GetDatabase("testdb").GetTable(name).Indexes {
+				if idx.Fulltext {
+					t.Errorf("%s kept FULLTEXT key %q", name, idx.Name)
 				}
-				break
 			}
-		}
-		if !hasFT {
-			t.Error("expected FULLTEXT index on dst table")
-		}
-
-		ddl := c.ShowCreateTable("testdb", "dst")
-		if !strings.Contains(ddl, "FULLTEXT KEY `ft_content`") {
-			t.Errorf("expected FULLTEXT KEY ft_content in DDL:\n%s", ddl)
 		}
 	})
 
 	// Scenario 6: LIKE copies CHECK constraints
 	t.Run("like_copies_check_constraints", func(t *testing.T) {
 		c := wtSetup(t)
+		// CHECK constraints exist only with tidb_enable_check_constraint on.
+		c.SetCheckConstraints(true)
 		wtExec(t, c, `CREATE TABLE src (
 			id INT NOT NULL,
 			age INT,
@@ -230,8 +217,9 @@ func TestWalkThrough_10_1_BasicLIKECompleteness(t *testing.T) {
 		for _, con := range dstTbl.Constraints {
 			if con.Type == ConCheck {
 				hasCheck = true
-				if con.Name != "chk_age" {
-					t.Errorf("expected check constraint named chk_age, got %q", con.Name)
+				// TiDB renames a copied CHECK after the new table.
+				if con.Name != "dst_chk_1" {
+					t.Errorf("expected check constraint named dst_chk_1, got %q", con.Name)
 				}
 				break
 			}
@@ -241,7 +229,7 @@ func TestWalkThrough_10_1_BasicLIKECompleteness(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "dst")
-		if !strings.Contains(ddl, "CONSTRAINT `chk_age` CHECK") {
+		if !strings.Contains(ddl, "CONSTRAINT `dst_chk_1` CHECK ((`age` >= 0))") {
 			t.Errorf("expected CHECK constraint in DDL:\n%s", ddl)
 		}
 	})

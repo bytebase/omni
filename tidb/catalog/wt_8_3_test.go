@@ -47,53 +47,35 @@ func TestWalkThrough_8_3_CollationNonDefaultSameAsTable(t *testing.T) {
 	}
 }
 
+// The SHOW CREATE TABLE text in these is what TiDB v8.5.5 writes for the same
+// statements (read on 2026-11-06).
 func TestWalkThrough_8_3_CollationDiffersFromTable(t *testing.T) {
-	// Column collation differs from table — both CHARACTER SET and COLLATE shown
+	// Column collation differs from the table's in the same charset: only
+	// COLLATE is written.
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT, name VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci")
 	got := c.ShowCreateTable("testdb", "t")
-	// Column has utf8mb4_bin which differs from table's utf8mb4_unicode_ci.
-	// Both are non-default for utf8mb4, but column differs from table.
-	// MySQL shows both CHARACTER SET and COLLATE.
-	lines := strings.Split(got, "\n")
-	foundCharset := false
-	foundCollate := false
-	for _, line := range lines {
-		if strings.Contains(line, "`name`") {
-			if strings.Contains(line, "CHARACTER SET utf8mb4") {
-				foundCharset = true
-			}
-			if strings.Contains(line, "COLLATE utf8mb4_bin") {
-				foundCollate = true
-			}
-		}
-	}
-	if !foundCharset {
-		t.Errorf("expected CHARACTER SET utf8mb4 in column def when collation differs from table\ngot:\n%s", got)
-	}
-	if !foundCollate {
-		t.Errorf("expected COLLATE utf8mb4_bin in column def when collation differs from table\ngot:\n%s", got)
+	if !strings.Contains(got, "  `name` varchar(100) COLLATE utf8mb4_bin DEFAULT NULL\n") {
+		t.Errorf("expected `name` varchar(100) COLLATE utf8mb4_bin\ngot:\n%s", got)
 	}
 }
 
 func TestWalkThrough_8_3_Utf8mb4DefaultCollation(t *testing.T) {
-	// Table with utf8mb4 default collation — COLLATE always shown for utf8mb4 (MySQL 8.0 behavior)
+	// TiDB writes the table's collation for every charset but binary.
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=utf8mb4")
 	got := c.ShowCreateTable("testdb", "t")
-	// MySQL 8.0 always shows COLLATE for utf8mb4 tables
-	if !strings.Contains(got, "COLLATE=utf8mb4_0900_ai_ci") {
-		t.Errorf("expected COLLATE=utf8mb4_0900_ai_ci in table options for utf8mb4\ngot:\n%s", got)
+	if !strings.Contains(got, ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin") {
+		t.Errorf("expected COLLATE=utf8mb4_bin in table options for utf8mb4\ngot:\n%s", got)
 	}
 }
 
 func TestWalkThrough_8_3_Latin1DefaultCollation(t *testing.T) {
-	// Table with latin1 and default collation — COLLATE not shown (latin1_swedish_ci is default)
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=latin1")
 	got := c.ShowCreateTable("testdb", "t")
-	if strings.Contains(got, "COLLATE=") {
-		t.Errorf("expected no COLLATE in table options for latin1 with default collation\ngot:\n%s", got)
+	if !strings.Contains(got, ") ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin") {
+		t.Errorf("expected COLLATE=latin1_bin in table options for latin1\ngot:\n%s", got)
 	}
 }
 
@@ -119,8 +101,8 @@ func TestWalkThrough_8_3_BinaryCharset(t *testing.T) {
 		c := wtSetup(t)
 		wtExec(t, c, "CREATE TABLE t (id INT, status ENUM('a','b','c') CHARACTER SET binary) DEFAULT CHARSET=utf8mb4")
 		got := c.ShowCreateTable("testdb", "t")
-		if !strings.Contains(got, "CHARACTER SET binary") {
-			t.Errorf("expected CHARACTER SET binary in ENUM column def\ngot:\n%s", got)
+		if !strings.Contains(got, "`status` enum('a','b','c') CHARACTER SET binary COLLATE binary DEFAULT NULL") {
+			t.Errorf("expected CHARACTER SET binary COLLATE binary in ENUM column def\ngot:\n%s", got)
 		}
 	})
 }

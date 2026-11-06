@@ -38,28 +38,7 @@ func TestContainer_Section_1_2_StringTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -86,28 +65,7 @@ func TestContainer_Section_1_4_DateTimeTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -191,28 +149,7 @@ func TestContainer_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -253,28 +190,7 @@ func TestContainer_Section_1_7_DefaultValues(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -298,28 +214,7 @@ func TestContainer_Section_1_11_PrimaryKey(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -345,28 +240,7 @@ func TestContainer_Section_1_13_RegularIndexes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -548,28 +422,7 @@ func TestContainer_Section_1_12_UniqueKeys(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -593,28 +446,7 @@ func TestContainer_Section_1_18_CheckConstraints(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -645,28 +477,7 @@ func TestContainer_Section_1_19_TableOptions(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -688,28 +499,7 @@ func TestContainer_Section_1_8_OnUpdate(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -856,28 +646,7 @@ func TestContainer_Section_1_9_GeneratedColumns(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -903,28 +672,7 @@ func TestContainer_Section_1_3_BinaryTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -944,28 +692,7 @@ func TestContainer_Section_1_6_JSONType(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -994,28 +721,7 @@ func TestContainer_Section_1_5_SpatialTypes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -1037,28 +743,7 @@ func TestContainer_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -1080,28 +765,7 @@ func TestContainer_Section_1_15_ExpressionIndexes(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }
@@ -1123,28 +787,7 @@ func TestContainer_Section_1_16_IndexOptions(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
+			assertCreateTableMatches(t, ctr, tc.sql, tc.table)
 		})
 	}
 }

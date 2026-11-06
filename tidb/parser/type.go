@@ -376,13 +376,15 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		dt.Name = p.cur.Str
 		p.advance()
 
-	// NATIONAL CHAR / NATIONAL VARCHAR → utf8mb3 character set, in the same
-	// spellings the bare types take.
+	// NATIONAL CHAR / NATIONAL VARCHAR, in the same spellings the bare types
+	// take. TiDB's grammar reads NATIONAL, NCHAR and NVARCHAR as spellings of
+	// CHAR and VARCHAR and sets no charset (NCharType and NVarcharType in
+	// v8.5.5 parser.y): the column takes the table's charset, where MySQL
+	// gives it utf8mb3.
 	case kwNATIONAL:
 		p.advance()
 		if p.cur.Type == kwCHAR || p.cur.Type == kwCHARACTER {
 			dt.Name = "CHAR"
-			dt.Charset = "utf8mb3"
 			p.advance()
 			if p.cur.Type == kwVARYING {
 				dt.Name = "VARCHAR"
@@ -398,7 +400,6 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			p.parseCharsetCollate(dt)
 		} else if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER {
 			dt.Name = "VARCHAR"
-			dt.Charset = "utf8mb3"
 			p.advance()
 			if err := p.parseRequiredLength(dt); err != nil {
 				return nil, err
@@ -411,10 +412,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			}
 		}
 
-	// NCHAR → CHAR with utf8mb3 charset, and NCHAR VARCHAR / VARCHARACTER /
-	// VARYING → VARCHAR with it.
+	// NCHAR → CHAR, and NCHAR VARCHAR / VARCHARACTER / VARYING → VARCHAR, with
+	// no charset of their own (see NATIONAL above).
 	case kwNCHAR:
-		dt.Charset = "utf8mb3"
 		p.advance()
 		if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER || p.cur.Type == kwVARYING {
 			dt.Name = "VARCHAR"
@@ -430,10 +430,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 		p.parseCharsetCollate(dt)
 
-	// NVARCHAR → VARCHAR with utf8mb3 charset
+	// NVARCHAR → VARCHAR, with no charset of its own (see NATIONAL above).
 	case kwNVARCHAR:
 		dt.Name = "VARCHAR"
-		dt.Charset = "utf8mb3"
 		p.advance()
 		if err := p.parseRequiredLength(dt); err != nil {
 			return nil, err

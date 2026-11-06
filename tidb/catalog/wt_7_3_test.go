@@ -22,8 +22,9 @@ func TestWalkThrough_7_3_HashByExpr(t *testing.T) {
 	}
 
 	// Verify partition type marker
-	if !strings.Contains(ddl, "/*!50100 PARTITION BY HASH") {
-		t.Errorf("expected /*!50100 PARTITION BY HASH, got:\n%s", ddl)
+	// TiDB v8.5.5 writes the clause with no version comment.
+	if !strings.Contains(ddl, "\nPARTITION BY HASH (`id`) PARTITIONS 4") {
+		t.Errorf("expected PARTITION BY HASH (`id`) PARTITIONS 4, got:\n%s", ddl)
 	}
 	// MySQL 8.0 backtick-quotes identifiers in HASH expression
 	if !strings.Contains(ddl, "HASH (`id`)") {
@@ -67,9 +68,10 @@ func TestWalkThrough_7_3_LinearHash(t *testing.T) {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
 
-	// LINEAR keyword should be rendered
-	if !strings.Contains(ddl, "LINEAR HASH") {
-		t.Errorf("expected LINEAR HASH in DDL:\n%s", ddl)
+	// TiDB reads LINEAR and keeps nothing of it: v8.5.5 writes LINEAR HASH
+	// as HASH (read on 2026-11-06).
+	if strings.Contains(ddl, "LINEAR") || !strings.Contains(ddl, "PARTITION BY HASH (`id`)") {
+		t.Errorf("expected PARTITION BY HASH (`id`) with no LINEAR in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
 		t.Errorf("expected PARTITIONS 4 in DDL:\n%s", ddl)
@@ -80,8 +82,8 @@ func TestWalkThrough_7_3_LinearHash(t *testing.T) {
 	if tbl.Partitioning == nil {
 		t.Fatal("partitioning is nil")
 	}
-	if !tbl.Partitioning.Linear {
-		t.Error("expected Linear=true for LINEAR HASH")
+	if tbl.Partitioning.Linear {
+		t.Error("TiDB keeps no LINEAR, the catalog kept it")
 	}
 	if tbl.Partitioning.Type != "HASH" {
 		t.Errorf("expected partition type HASH, got %q", tbl.Partitioning.Type)
@@ -102,12 +104,9 @@ func TestWalkThrough_7_3_KeyPartition(t *testing.T) {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
 
-	if !strings.Contains(ddl, "/*!50100 PARTITION BY KEY") {
-		t.Errorf("expected /*!50100 PARTITION BY KEY, got:\n%s", ddl)
-	}
 	// KEY columns are rendered without backticks (plain)
-	if !strings.Contains(ddl, "KEY (id)") {
-		t.Errorf("expected KEY (id) in DDL:\n%s", ddl)
+	if !strings.Contains(ddl, "\nPARTITION BY KEY (`id`) PARTITIONS 4") {
+		t.Errorf("expected PARTITION BY KEY (`id`) PARTITIONS 4 in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
 		t.Errorf("expected PARTITIONS 4 in DDL:\n%s", ddl)
@@ -188,9 +187,10 @@ func TestWalkThrough_7_3_KeyAlgorithm(t *testing.T) {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
 
-	// ALGORITHM=2 should be rendered as ALGORITHM = 2
-	if !strings.Contains(ddl, "KEY ALGORITHM = 2 (id)") {
-		t.Errorf("expected KEY ALGORITHM = 2 (id) in DDL:\n%s", ddl)
+	// TiDB reads ALGORITHM and keeps nothing of it: v8.5.5 writes
+	// PARTITION BY KEY (`id`) PARTITIONS 4 (read on 2026-11-06).
+	if strings.Contains(ddl, "ALGORITHM") || !strings.Contains(ddl, "PARTITION BY KEY (`id`) PARTITIONS 4") {
+		t.Errorf("expected PARTITION BY KEY (`id`) with no ALGORITHM in DDL:\n%s", ddl)
 	}
 	if !strings.Contains(ddl, "PARTITIONS 4") {
 		t.Errorf("expected PARTITIONS 4 in DDL:\n%s", ddl)
@@ -201,8 +201,8 @@ func TestWalkThrough_7_3_KeyAlgorithm(t *testing.T) {
 	if tbl.Partitioning == nil {
 		t.Fatal("partitioning is nil")
 	}
-	if tbl.Partitioning.Algorithm != 2 {
-		t.Errorf("expected Algorithm 2, got %d", tbl.Partitioning.Algorithm)
+	if tbl.Partitioning.Algorithm != 0 {
+		t.Errorf("TiDB keeps no KEY ALGORITHM, the catalog kept %d", tbl.Partitioning.Algorithm)
 	}
 }
 

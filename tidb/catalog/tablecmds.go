@@ -68,6 +68,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// Apply table options.
 	tblCharsetExplicit := false
 	tblCollationExplicit := false
+	ttlEnableSet := false
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "engine":
@@ -107,23 +108,32 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			}
 			tbl.TTLColumn = col
 			tbl.TTLInterval = interval
+			if !ttlEnableSet {
+				// TTL_ENABLE defaults to ON once a table has a TTL.
+				tbl.TTLEnable = true
+			}
 		case "ttl_enable":
 			tbl.TTLEnable = strings.EqualFold(opt.Value, "ON")
+			ttlEnableSet = true
 		case "ttl_job_interval":
 			tbl.TTLJobInterval = opt.Value
 		}
 	}
-	// When charset is specified without explicit collation, derive the default collation.
-	if tblCharsetExplicit && !tblCollationExplicit {
-		if dc, ok := defaultCollationForCharset[toLower(tbl.Charset)]; ok {
-			tbl.Collation = dc
+	// A charset or collation the statement names is checked against TiDB's
+	// list, spelled as TiDB spells it, and completes the other half.
+	if tblCharsetExplicit || tblCollationExplicit {
+		cs, coll := "", ""
+		if tblCharsetExplicit {
+			cs = tbl.Charset
 		}
-	}
-	// When collation is specified without explicit charset, derive the charset from collation.
-	if tblCollationExplicit && !tblCharsetExplicit {
-		if cs := charsetForCollation(tbl.Collation); cs != "" {
-			tbl.Charset = cs
+		if tblCollationExplicit {
+			coll = tbl.Collation
 		}
+		cs, coll, err := resolveCharsetCollation(cs, coll)
+		if err != nil {
+			return err
+		}
+		tbl.Charset, tbl.Collation = cs, coll
 	}
 	// Track whether we have a primary key (to detect multiple PKs).
 	hasPK := false
@@ -137,18 +147,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	}
 	var pendingFKs []pendingFK
 
-	// unnamedFKCount counts FKs that received an auto-generated name in this
-	// CREATE TABLE statement. Matches MySQL 8.0's generate_fk_name() counter,
-	// which is initialized to 0 for CREATE TABLE and incremented per unnamed FK,
-	// IGNORING user-named FKs. See sql/sql_table.cc:9252 (create_table_impl
-	// is called with fk_max_generated_name_number = 0) and sql/sql_table.cc:5912
-	// (generate_fk_name uses ++counter).
-	//
-	// Example: CREATE TABLE t (a INT, CONSTRAINT t_ibfk_5 FK, b INT, FK)
-	//   → first unnamed FK gets t_ibfk_1 (not t_ibfk_2 or t_ibfk_6).
-	// This differs from ALTER TABLE ADD FK, where the counter starts at
-	// max(existing) — see altercmds.go.
-	var unnamedFKCount int
+	// foreignKeyID numbers the foreign keys of this CREATE TABLE in the order
+	// they are declared, named or not, and an unnamed one takes fk_<its number>
+	// (buildTableInfo in TiDB v8.5.5 pkg/ddl/create_table.go).
+	var foreignKeyID int
 
 	// unnamedCheckCount counts CHECK constraints that received an auto-generated
 	// name in this CREATE TABLE statement. Matches MySQL 8.0's CHECK counter
@@ -163,6 +165,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// For ALTER TABLE ADD CHECK, the counter is loaded from existing max —
 	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
 	var unnamedCheckCount int
+
+	// columnChecks are the CHECK clauses written on columns. TiDB v8.5.5 adds
+	// them after the table-level constraints and numbers their unnamed ones
+	// after the table-level ones: `a INT CHECK (a > 0), CHECK (a <> b)` gives
+	// t_chk_1 for the second and t_chk_2 for the first, listed in that order
+	// (read on 2026-11-06, with tidb_enable_check_constraint ON).
+	var columnChecks []*nodes.ColumnConstraint
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
@@ -201,11 +210,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				col.DataType = typeName
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
-			if colDef.TypeName.Charset != "" {
-				col.Charset = colDef.TypeName.Charset
+			cs, coll, err := resolveCharsetCollation(colDef.TypeName.Charset, colDef.TypeName.Collate)
+			if err != nil {
+				return err
 			}
-			if colDef.TypeName.Collate != "" {
-				col.Collation = colDef.TypeName.Collate
+			if cs != "" {
+				col.Charset, col.Collation = cs, coll
 			}
 
 			// MySQL converts string types with CHARACTER SET binary to binary types.
@@ -259,7 +269,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			col.Comment = colDef.Comment
 		}
 		if colDef.DefaultValue != nil {
-			s := nodeToSQL(colDef.DefaultValue)
+			s := defaultToSQL(colDef.DefaultValue)
 			col.Default = &s
 		}
 		if colDef.OnUpdate != nil {
@@ -281,7 +291,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				col.Nullable = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
-					s := nodeToSQL(cc.Expr)
+					s := defaultToSQL(cc.Expr)
 					col.Default = &s
 				}
 			case nodes.ColConstrPrimaryKey:
@@ -298,54 +308,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				col.AutoIncrement = true
 				col.Nullable = false
 			case nodes.ColConstrCheck:
-				// Add check constraint.
-				conName := cc.Name
-				if conName == "" {
-					unnamedCheckCount++
-					conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+				// Added after the table's own constraints: see columnChecks.
+				if c.checkConstraints {
+					columnChecks = append(columnChecks, cc)
 				}
-				tbl.Constraints = append(tbl.Constraints, &Constraint{
-					Name:        conName,
-					Type:        ConCheck,
-					Table:       tbl,
-					CheckExpr:   nodeToSQL(cc.Expr),
-					NotEnforced: cc.NotEnforced,
-				})
 			case nodes.ColConstrReferences:
-				// Column-level FK.
-				refDB := ""
-				refTable := ""
-				if cc.RefTable != nil {
-					refDB = cc.RefTable.Schema
-					refTable = cc.RefTable.Name
-				}
-				conName := cc.Name
-				if conName == "" {
-					unnamedFKCount++
-					conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
-				}
-				tbl.Constraints = append(tbl.Constraints, &Constraint{
-					Name:        conName,
-					Type:        ConForeignKey,
-					Table:       tbl,
-					Columns:     []string{colDef.Name},
-					RefDatabase: refDB,
-					RefTable:    refTable,
-					RefColumns:  cc.RefColumns,
-					OnDelete:    refActionToString(cc.OnDelete),
-					OnUpdate:    refActionToString(cc.OnUpdate),
-				})
-				// Defer implicit backing index for FK until after all explicit indexes are added.
-				pendingFKs = append(pendingFKs, pendingFK{conName: cc.Name, cols: []string{colDef.Name}, idxCols: []*IndexColumn{{Name: colDef.Name}}})
-			case nodes.ColConstrInvisible:
-				// Never parsed (TiDB has no column visibility); LoadMetadata
-				// builds it for a synced column marked invisible.
-				col.Invisible = true
+				// TiDB reads a REFERENCES clause on a column and keeps nothing:
+				// v8.5.5 adds no foreign key and no index for
+				// `a INT REFERENCES p(id)` (read on 2026-11-06), as MySQL does.
 			case nodes.ColConstrCollate:
 				// Collation specified via constraint.
 				if cc.Expr != nil {
 					if s, ok := cc.Expr.(*nodes.StringLit); ok {
-						col.Collation = s.Value
+						if err := applyColumnCollate(col, s.Value, colDef.TypeName != nil && colDef.TypeName.Charset != ""); err != nil {
+							return err
+						}
 					}
 				}
 			}
@@ -495,10 +472,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			})
 
 		case nodes.ConstrForeignKey:
+			foreignKeyID++
 			conName := fkName(con)
 			if conName == "" {
-				unnamedFKCount++
-				conName = fmt.Sprintf("%s_ibfk_%d", tableName, unnamedFKCount)
+				conName = fmt.Sprintf("fk_%d", foreignKeyID)
+			}
+			if findForeignKey(tbl, conName) != nil {
+				return errCannotAddForeign()
 			}
 			refDB := ""
 			refTable := ""
@@ -518,9 +498,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				OnUpdate:    refActionToString(con.OnUpdate),
 			})
 			// Defer implicit backing index for FK until after all explicit indexes are added.
-			pendingFKs = append(pendingFKs, pendingFK{conName: fkName(con), cols: cols, idxCols: buildIndexColumns(con)})
+			pendingFKs = append(pendingFKs, pendingFK{conName: conName, cols: cols, idxCols: buildIndexColumns(con)})
 
 		case nodes.ConstrCheck:
+			if !c.checkConstraints {
+				break
+			}
 			conName := con.Name
 			if conName == "" {
 				unnamedCheckCount++
@@ -551,21 +534,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 		case nodes.ConstrFulltextIndex:
-			idxName := con.Name
-			if idxName == "" && len(cols) > 0 {
-				idxName = allocIndexName(tbl, cols[0])
-			}
-			idxCols := buildIndexColumns(con)
-			ftIdx := &Index{
-				Name:      idxName,
-				Table:     tbl,
-				Columns:   idxCols,
-				Fulltext:  true,
-				IndexType: "FULLTEXT",
-				Visible:   true,
-			}
-			applyIndexOptions(ftIdx, con.IndexOptions)
-			tbl.Indexes = append(tbl.Indexes, ftIdx)
+			// v8.5.5 reads a FULLTEXT key in CREATE TABLE and keeps nothing:
+			// SHOW CREATE TABLE lists no index and SHOW WARNINGS is empty (read
+			// on 2026-11-06). CREATE FULLTEXT INDEX is refused instead.
 
 		case nodes.ConstrSpatialIndex:
 			idxName := con.Name
@@ -609,9 +580,44 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 	}
 
+	for _, cc := range columnChecks {
+		conName := cc.Name
+		if conName == "" {
+			unnamedCheckCount++
+			conName = fmt.Sprintf("%s_chk_%d", tableName, unnamedCheckCount)
+		}
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:        conName,
+			Type:        ConCheck,
+			Table:       tbl,
+			CheckExpr:   nodeToSQL(cc.Expr),
+			NotEnforced: cc.NotEnforced,
+		})
+	}
+
+	// TiDB keeps a table's keys in the order buildTableInfo meets them: the
+	// table-level ones first, then those written on columns, in column order
+	// (`b INT UNIQUE, KEY k (a)` lists k before b, read on 2026-11-06). The
+	// catalog built the column-level ones first, for the implicit primary key
+	// check above, and moves them after the rest here.
+	if columnIndexes > 0 && columnIndexes < len(tbl.Indexes) {
+		reordered := make([]*Index, 0, len(tbl.Indexes))
+		reordered = append(reordered, tbl.Indexes[columnIndexes:]...)
+		reordered = append(reordered, tbl.Indexes[:columnIndexes]...)
+		tbl.Indexes = reordered
+	}
+
+	// TiDB numbers foreign keys by ID, not by name: a table created with one
+	// named fk_7 still gives the next unnamed one fk_2 (read on 2026-11-06).
+	// A table loaded from a snapshot comes through here too, with only its
+	// foreign keys' count to go on.
+	tbl.maxForeignKeyID = foreignKeyID
+
 	// Process deferred FK backing indexes now that all explicit indexes are in place.
 	for _, fk := range pendingFKs {
-		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
+		if err := ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols); err != nil {
+			return err
+		}
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).
@@ -624,7 +630,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// Process partition clause. v8.5.5 runs SYSTEM_TIME partitioning and leaves the table with
 	// none, whatever its keys cover.
 	if stmt.Partitions != nil && stmt.Partitions.Type != nodes.PartitionSystemTime {
-		if err := validateCreateTableUniqueKeys(tbl, columnIndexes, stmt.Partitions); err != nil {
+		if err := validateCreateTableUniqueKeys(tbl, stmt.Partitions); err != nil {
 			return err
 		}
 		tbl.Partitioning = buildPartitionInfo(stmt.Partitions)
@@ -678,10 +684,23 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 		}
 	}
 
-	// Analyze CHECK expressions on constraints.
-	// We iterate constraints and match CHECK ones; the AST sources are both
-	// column-level and table-level constraint nodes.
+	// Analyze CHECK expressions on constraints, in the order they were added:
+	// the table-level ones, then those written on columns.
 	checkIdx := 0
+	for _, con := range stmt.Constraints {
+		if con.Type == nodes.ConstrCheck && con.Expr != nil {
+			for checkIdx < len(tbl.Constraints) {
+				if tbl.Constraints[checkIdx].Type == ConCheck {
+					if analyzed, err := c.AnalyzeStandaloneExpr(con.Expr, tbl); err == nil {
+						tbl.Constraints[checkIdx].CheckAnalyzed = analyzed
+					}
+					checkIdx++
+					break
+				}
+				checkIdx++
+			}
+		}
+	}
 	for _, colDef := range stmt.Columns {
 		for _, cc := range colDef.Constraints {
 			if cc.Type == nodes.ColConstrCheck && cc.Expr != nil {
@@ -699,26 +718,15 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 			}
 		}
 	}
-	for _, con := range stmt.Constraints {
-		if con.Type == nodes.ConstrCheck && con.Expr != nil {
-			for checkIdx < len(tbl.Constraints) {
-				if tbl.Constraints[checkIdx].Type == ConCheck {
-					if analyzed, err := c.AnalyzeStandaloneExpr(con.Expr, tbl); err == nil {
-						tbl.Constraints[checkIdx].CheckAnalyzed = analyzed
-					}
-					checkIdx++
-					break
-				}
-				checkIdx++
-			}
-		}
-	}
 }
 
-// buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.
+// buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo,
+// keeping what TiDB keeps. v8.5.5 reads LINEAR, KEY ALGORITHM, a partition's
+// ENGINE and the whole SUBPARTITION clause and stores none of them: SHOW CREATE
+// TABLE writes `LINEAR HASH (a)` as `HASH (a)` and a subpartitioned table with no
+// subpartitions (read on 2026-11-06).
 func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 	pi := &PartitionInfo{
-		Linear:   pc.Linear,
 		NumParts: pc.NumParts,
 	}
 
@@ -745,22 +753,6 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 	case nodes.PartitionKey:
 		pi.Type = "KEY"
 		pi.Columns = pc.Columns
-		pi.Algorithm = pc.Algorithm
-	}
-
-	// Subpartition info.
-	if pc.SubPartType != 0 || pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0 {
-		switch pc.SubPartType {
-		case nodes.PartitionHash:
-			pi.SubType = "HASH"
-			pi.SubExpr = nodeToSQL(pc.SubPartExpr)
-		case nodes.PartitionKey:
-			pi.SubType = "KEY"
-			pi.SubColumns = pc.SubPartColumns
-			pi.SubAlgo = pc.SubPartAlgo
-		}
-		pi.SubLinear = false // TODO: track linear for subpartitions if parser supports it
-		pi.NumSubParts = pc.NumSubParts
 	}
 
 	// Partition definitions.
@@ -768,60 +760,24 @@ func buildPartitionInfo(pc *nodes.PartitionClause) *PartitionInfo {
 		pdi := &PartitionDefInfo{
 			Name: pd.Name,
 		}
-		// Values.
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, pc.Type)
 		}
-		// Options.
 		for _, opt := range pd.Options {
-			switch toLower(opt.Name) {
-			case "engine":
-				pdi.Engine = opt.Value
-			case "comment":
+			if toLower(opt.Name) == "comment" {
 				pdi.Comment = opt.Value
 			}
-		}
-		// Subpartitions.
-		for _, spd := range pd.SubPartitions {
-			spdi := &SubPartitionDefInfo{
-				Name: spd.Name,
-			}
-			for _, opt := range spd.Options {
-				switch toLower(opt.Name) {
-				case "engine":
-					spdi.Engine = opt.Value
-				case "comment":
-					spdi.Comment = opt.Value
-				}
-			}
-			pdi.SubPartitions = append(pdi.SubPartitions, spdi)
 		}
 		pi.Partitions = append(pi.Partitions, pdi)
 	}
 
-	// Auto-generate partition definitions for HASH/KEY/LINEAR HASH/LINEAR KEY
-	// when PARTITIONS N is specified without explicit partition definitions.
-	// MySQL naming convention: p0, p1, p2, ...
+	// Auto-generate partition definitions for HASH/KEY when PARTITIONS N is
+	// specified without explicit partition definitions: p0, p1, p2, ...
 	if len(pi.Partitions) == 0 && pi.NumParts > 0 {
 		for i := 0; i < pi.NumParts; i++ {
 			pi.Partitions = append(pi.Partitions, &PartitionDefInfo{
 				Name: fmt.Sprintf("p%d", i),
 			})
-		}
-	}
-
-	// Auto-generate subpartition definitions when SUBPARTITIONS N is specified
-	// without explicit subpartition definitions.
-	// MySQL naming convention: <partition_name>sp0, <partition_name>sp1, ...
-	if pi.NumSubParts > 0 {
-		for _, part := range pi.Partitions {
-			if len(part.SubPartitions) == 0 {
-				for j := 0; j < pi.NumSubParts; j++ {
-					part.SubPartitions = append(part.SubPartitions, &SubPartitionDefInfo{
-						Name: fmt.Sprintf("%ssp%d", part.Name, j),
-					})
-				}
-			}
 		}
 	}
 
@@ -1073,13 +1029,20 @@ func fkName(con *nodes.Constraint) string {
 // if no existing index already covers them (MySQL 8.0 behavior).
 // MySQL uses the constraint name as the index name when provided;
 // otherwise falls back to the first column name via allocIndexName.
-func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn) {
+func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*IndexColumn) error {
 	if hasIndexCoveringColumns(tbl, cols) {
-		return
+		return nil
 	}
 	idxName := conName
 	if idxName == "" {
 		idxName = allocIndexName(tbl, cols[0])
+	}
+	// TiDB names the index after the foreign key and refuses the statement
+	// when another index already has that name, rather than choosing another:
+	// 1061 from addIndexForForeignKey in CREATE TABLE and from createIndex in
+	// ALTER TABLE (pkg/ddl/create_table.go, executor.go).
+	if indexNameExists(tbl, idxName) {
+		return errDupKeyName(idxName)
 	}
 	tbl.Indexes = append(tbl.Indexes, &Index{
 		Name:    idxName,
@@ -1087,6 +1050,7 @@ func ensureFKBackingIndex(tbl *Table, conName string, cols []string, idxCols []*
 		Columns: idxCols,
 		Visible: true,
 	})
+	return nil
 }
 
 func indexNameExists(tbl *Table, name string) bool {
@@ -1192,52 +1156,19 @@ func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
 	}
 }
 
-// nextFKGeneratedNumber returns the next available counter for an auto-generated
-// InnoDB FK constraint name of the form "<tableName>_ibfk_<N>".
-//
-// This matches MySQL 8.0's behavior in sql/sql_table.cc:5843
-// (get_fk_max_generated_name_number): it scans existing FK constraints on the
-// table, parses any name that looks like "<tableName>_ibfk_<digits>" as a
-// generated name, and returns max(N)+1 (or 1 if no such names exist).
-//
-// Bytebase omni catalog is case-insensitive on table names (we lowercase the
-// prefix before comparison). MySQL's own comparison is case-sensitive on
-// already-lowered names, so this is equivalent for typical use.
-//
-// As in MySQL, pre-4.0.18-style names ("<tableName>_ibfk_0<digits>") are
-// ignored — we skip anything whose counter substring starts with '0'.
-func nextFKGeneratedNumber(tbl *Table, tableName string) int {
-	prefix := toLower(tableName) + "_ibfk_"
-	max := 0
+func findForeignKey(tbl *Table, name string) *Constraint {
 	for _, con := range tbl.Constraints {
-		if con.Type != ConForeignKey {
-			continue
-		}
-		name := toLower(con.Name)
-		if !strings.HasPrefix(name, prefix) {
-			continue
-		}
-		rest := name[len(prefix):]
-		if rest == "" || rest[0] == '0' {
-			continue
-		}
-		n := 0
-		ok := true
-		for _, ch := range rest {
-			if ch < '0' || ch > '9' {
-				ok = false
-				break
-			}
-			n = n*10 + int(ch-'0')
-		}
-		if !ok {
-			continue
-		}
-		if n > max {
-			max = n
+		if con.Type == ConForeignKey && eqFoldStr(con.Name, name) {
+			return con
 		}
 	}
-	return max + 1
+	return nil
+}
+
+// errCannotAddForeign is 1215, which TiDB answers for a foreign key whose name
+// another one on the table already has.
+func errCannotAddForeign() error {
+	return &Error{Code: 1215, SQLState: "HY000", Message: "Cannot add foreign key constraint"}
 }
 
 // nextCheckNumber returns the next available check constraint number for auto-naming.
@@ -1394,6 +1325,22 @@ func nodeToSQL(node nodes.ExprNode) string {
 	return deparse.Deparse(node)
 }
 
+// defaultToSQL writes a column default the way the catalog keeps it: an
+// expression default in its parentheses, so it stays apart from a literal, and
+// TRUE and FALSE as the 1 and 0 TiDB stores for them.
+func defaultToSQL(node nodes.ExprNode) string {
+	switch n := node.(type) {
+	case *nodes.ParenExpr:
+		return "(" + nodeToSQL(n.Expr) + ")"
+	case *nodes.BoolLit:
+		if n.Value {
+			return "1"
+		}
+		return "0"
+	}
+	return nodeToSQL(node)
+}
+
 func binaryOpToString(op nodes.BinaryOp) string {
 	switch op {
 	case nodes.BinOpAdd:
@@ -1479,13 +1426,15 @@ func formatColumnType(dt *nodes.DataType) string {
 	var buf strings.Builder
 	buf.WriteString(name)
 
-	// Integer display width handling for MySQL 8.0:
-	// - Display width is deprecated and NOT shown by default
-	// - EXCEPTION: When ZEROFILL is used, MySQL 8.0 still shows the display width
-	//   with default widths per type: tinyint(3), smallint(5), mediumint(8), int(10), bigint(20)
+	// Integer display width, as TiDB's FieldType.CompactStr writes it: dropped,
+	// except under ZEROFILL (with default widths per type: tinyint(3),
+	// smallint(5), mediumint(8), int(10), bigint(20)) and for tinyint(1), which
+	// keeps its width because connectors read it as a boolean.
 	isIntType := isIntegerType(name)
 	if isIntType {
-		if dt.Zerofill {
+		if name == "tinyint" && dt.Length == 1 && !dt.Zerofill {
+			buf.WriteString("(1)")
+		} else if dt.Zerofill {
 			width := dt.Length
 			if width == 0 {
 				width = defaultIntDisplayWidth(name, true) // ZEROFILL implies UNSIGNED
@@ -1501,7 +1450,10 @@ func formatColumnType(dt *nodes.DataType) string {
 		// SHOW CREATE TABLE displays just TEXT / BLOB without the length.
 		// Do not emit length.
 	} else if name == "year" {
-		// YEAR(4) is deprecated in MySQL 8.0 — SHOW CREATE TABLE shows just `year`.
+		// TiDB writes every YEAR column as year(4).
+		buf.WriteString("(4)")
+	} else if name == "bit" && dt.Length == 0 {
+		buf.WriteString("(1)")
 	} else if (name == "char" || name == "binary") && dt.Length == 0 {
 		// CHAR/BINARY with no length → MySQL shows char(1)/binary(1)
 		buf.WriteString("(1)")
@@ -1646,7 +1598,6 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Collation:     srcCol.Collation,
 			Comment:       srcCol.Comment,
 			OnUpdate:      srcCol.OnUpdate,
-			Invisible:     srcCol.Invisible,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default
@@ -1690,13 +1641,22 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		tbl.Indexes = append(tbl.Indexes, idx)
 	}
 
-	// Copy constraints (skip FK — MySQL 8.0 does not copy FKs with LIKE).
+	// Copy constraints (skip FK — LIKE copies no foreign keys). TiDB renames
+	// every CHECK it copies <new table>_chk_<n>, the named ones too: LIKE of a
+	// table with chk_age gives dst_chk_1 (v8.5.5 with
+	// tidb_enable_check_constraint ON, read on 2026-11-06).
+	checks := 0
 	for _, srcCon := range srcTbl.Constraints {
 		if srcCon.Type == ConForeignKey {
 			continue
 		}
+		name := srcCon.Name
+		if srcCon.Type == ConCheck {
+			checks++
+			name = fmt.Sprintf("%s_chk_%d", tableName, checks)
+		}
 		con := &Constraint{
-			Name:        srcCon.Name,
+			Name:        name,
 			Type:        srcCon.Type,
 			Table:       tbl,
 			Columns:     append([]string{}, srcCon.Columns...),
@@ -1772,6 +1732,8 @@ func refActionToString(action nodes.ReferenceAction) string {
 	case nodes.RefActNoAction:
 		return "NO ACTION"
 	default:
-		return "NO ACTION"
+		// No action given. TiDB writes nothing for it in SHOW CREATE TABLE,
+		// where an explicit NO ACTION is written back.
+		return ""
 	}
 }

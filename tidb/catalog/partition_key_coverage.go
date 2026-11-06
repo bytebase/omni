@@ -236,12 +236,10 @@ func errGlobalIndexNeeded(name string) error {
 
 // validateCreateTableUniqueKeys checks the keys of a CREATE TABLE in TiDB's order:
 // the table's constraints as written, then the columns' (TiDB appends a column's
-// PRIMARY KEY or UNIQUE after the table constraints), which the catalog adds first.
-func validateCreateTableUniqueKeys(tbl *Table, columnKeys int, pc *nodes.PartitionClause) error {
-	idxs := make([]*Index, 0, len(tbl.Indexes))
-	idxs = append(idxs, tbl.Indexes[columnKeys:]...)
-	idxs = append(idxs, tbl.Indexes[:columnKeys]...)
-	return checkUniqueKeysCoverPartitionColumns(tbl, idxs, partitionKeyColumns(tbl, pc))
+// PRIMARY KEY or UNIQUE after the table constraints), which is the order the
+// catalog keeps them in.
+func validateCreateTableUniqueKeys(tbl *Table, pc *nodes.PartitionClause) error {
+	return checkUniqueKeysCoverPartitionColumns(tbl, tbl.Indexes, partitionKeyColumns(tbl, pc))
 }
 
 // validateNewUniqueKey checks a key an ALTER TABLE or CREATE INDEX is about to add.

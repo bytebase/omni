@@ -587,8 +587,6 @@ const (
 	ColConstrComment
 	ColConstrCollate
 	ColConstrAutoIncrement
-	ColConstrVisible   // never parsed: TiDB has no column visibility
-	ColConstrInvisible // never parsed; LoadMetadata builds it for a synced invisible column
 	ColConstrColumnFormat
 	ColConstrStorage
 	ColConstrEngineAttribute

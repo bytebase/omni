@@ -2,61 +2,23 @@ package catalog
 
 import (
 	"fmt"
-	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/tidb/parser"
 )
 
-// charsetForCollation derives the charset name from a collation name.
-// MySQL collation names are prefixed with the charset name (e.g. latin1_swedish_ci → latin1).
-func charsetForCollation(collation string) string {
-	collation = toLower(collation)
-	// Try known charsets from longest to shortest to handle prefixes like utf8mb4 vs utf8.
-	knownCharsets := []string{
-		"utf8mb4", "utf8mb3", "utf16le", "gb18030", "geostd8", "armscii8",
-		"eucjpms", "cp1252", "gb2312", "euckr", "utf16", "utf32",
-		"latin1", "ascii", "binary", "cp932", "tis620", "hebrew",
-		"greek", "sjis", "big5", "ucs2", "utf8", "gbk",
-	}
-	for _, cs := range knownCharsets {
-		if strings.HasPrefix(collation, cs+"_") || collation == cs {
-			return cs
-		}
-	}
-	// Fallback: take prefix before first underscore.
-	if idx := strings.IndexByte(collation, '_'); idx > 0 {
-		return collation[:idx]
-	}
-	return ""
-}
-
-// defaultCollationForCharset returns the default collation for common MySQL charsets.
+// defaultCollationForCharset maps each charset TiDB has to its default
+// collation, as SHOW CHARACTER SET on v8.5.5 lists them (read on 2026-11-06):
+// the binary collation for every charset but gbk. A charset missing here is
+// one TiDB answers 1115 for.
 var defaultCollationForCharset = map[string]string{
-	"utf8mb4":  "utf8mb4_0900_ai_ci",
-	"utf8mb3":  "utf8mb3_general_ci",
-	"utf8":     "utf8mb3_general_ci",
-	"latin1":   "latin1_swedish_ci",
-	"ascii":    "ascii_general_ci",
-	"binary":   "binary",
-	"gbk":      "gbk_chinese_ci",
-	"big5":     "big5_chinese_ci",
-	"euckr":    "euckr_korean_ci",
-	"gb2312":   "gb2312_chinese_ci",
-	"sjis":     "sjis_japanese_ci",
-	"cp1252":   "cp1252_general_ci",
-	"ucs2":     "ucs2_general_ci",
-	"utf16":    "utf16_general_ci",
-	"utf16le":  "utf16le_general_ci",
-	"utf32":    "utf32_general_ci",
-	"cp932":    "cp932_japanese_ci",
-	"eucjpms":  "eucjpms_japanese_ci",
-	"gb18030":  "gb18030_chinese_ci",
-	"geostd8":  "geostd8_general_ci",
-	"tis620":   "tis620_thai_ci",
-	"hebrew":   "hebrew_general_ci",
-	"greek":    "greek_general_ci",
-	"armscii8": "armscii8_general_ci",
+	"ascii":   "ascii_bin",
+	"binary":  "binary",
+	"gbk":     "gbk_chinese_ci",
+	"latin1":  "latin1_bin",
+	"utf8":    "utf8_bin",
+	"utf8mb4": "utf8mb4_bin",
 }
 
 // binModifierCollation returns the collation the standalone BINARY modifier
@@ -69,8 +31,11 @@ func binModifierCollation(charset string) string {
 	return toLower(charset) + "_bin"
 }
 
-// ShowCreateTable produces MySQL 8.0-compatible SHOW CREATE TABLE output.
-// Returns "" if the database or table does not exist.
+// ShowCreateTable produces what TiDB v8.5.5's SHOW CREATE TABLE writes for the
+// table: constructResultOfShowCreateTable in pkg/executor/show.go and
+// AppendPartitionInfo in pkg/ddl/partition.go, checked against the server
+// (tidb/catalog's differential tests). Returns "" if the database or table does
+// not exist.
 func (c *Catalog) ShowCreateTable(database, table string) string {
 	db := c.GetDatabase(database)
 	if db == nil {
@@ -81,473 +46,555 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		return ""
 	}
 
+	tblCharset := tbl.Charset
+	if tblCharset == "" {
+		tblCharset = "utf8mb4"
+	}
+	tblCollate := tbl.Collation
+	if tblCollate == "" {
+		tblCollate = defaultCollationForCharset[toLower(tblCharset)]
+	}
+
 	var b strings.Builder
 	switch {
 	case tbl.GlobalTemporary:
-		b.WriteString(fmt.Sprintf("CREATE GLOBAL TEMPORARY TABLE `%s` (\n", tbl.Name))
+		fmt.Fprintf(&b, "CREATE GLOBAL TEMPORARY TABLE %s (\n", quoteIdent(tbl.Name))
 	case tbl.Temporary:
-		b.WriteString(fmt.Sprintf("CREATE TEMPORARY TABLE `%s` (\n", tbl.Name))
+		fmt.Fprintf(&b, "CREATE TEMPORARY TABLE %s (\n", quoteIdent(tbl.Name))
 	default:
-		b.WriteString(fmt.Sprintf("CREATE TABLE `%s` (\n", tbl.Name))
+		fmt.Fprintf(&b, "CREATE TABLE %s (\n", quoteIdent(tbl.Name))
 	}
 
-	// Columns.
 	parts := make([]string, 0, len(tbl.Columns)+len(tbl.Indexes)+len(tbl.Constraints))
 	for _, col := range tbl.Columns {
-		parts = append(parts, showColumnWithTable(col, tbl))
+		parts = append(parts, showColumn(col, tblCharset, tblCollate))
 	}
 
-	// Indexes — MySQL 8.0 orders them in groups:
-	// 1. PRIMARY KEY
-	// 2. UNIQUE KEYs (creation order)
-	// 3. Regular + SPATIAL KEYs, non-expression (creation order)
-	// 4. Expression-based KEYs (creation order)
-	// 5. FULLTEXT KEYs (creation order)
-	var idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext []*Index
+	// A clustered primary key over one integer column is the row handle, which
+	// TiDB keeps on the column rather than among the indexes, so it is written
+	// right after the columns. Every other key is written in the order the
+	// table got it.
+	var handle *Index
 	for _, idx := range tbl.Indexes {
-		switch {
-		case idx.Primary:
-			idxPrimary = append(idxPrimary, idx)
-		case idx.Unique:
-			idxUnique = append(idxUnique, idx)
-		case idx.Fulltext:
-			idxFulltext = append(idxFulltext, idx)
-		case isExpressionIndex(idx):
-			idxExpr = append(idxExpr, idx)
-		default:
-			idxRegular = append(idxRegular, idx)
+		if idx.Primary && primaryKeyClustered(tbl, idx) && isRowHandle(tbl, idx) {
+			handle = idx
+			parts = append(parts, showIndex(tbl, idx))
 		}
 	}
-	for _, group := range [][]*Index{idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext} {
-		for _, idx := range group {
-			parts = append(parts, showIndex(idx))
+	for _, idx := range tbl.Indexes {
+		if idx == handle || idx.Fulltext || idx.Spatial {
+			continue
 		}
+		parts = append(parts, showIndex(tbl, idx))
 	}
 
-	// Constraints (FK and CHECK only — PK/UNIQUE are shown via indexes).
-	// MySQL 8.0 sorts FKs alphabetically by name, then CHECKs alphabetically by name.
-	var fkConstraints, chkConstraints []*Constraint
+	// Foreign keys in the order they were added, then CHECK constraints, which
+	// exist only while tidb_enable_check_constraint is on.
 	for _, con := range tbl.Constraints {
-		switch con.Type {
-		case ConForeignKey:
-			fkConstraints = append(fkConstraints, con)
-		case ConCheck:
-			chkConstraints = append(chkConstraints, con)
+		if con.Type == ConForeignKey {
+			parts = append(parts, showForeignKey(tbl, con))
 		}
 	}
-	sort.Slice(fkConstraints, func(i, j int) bool {
-		return fkConstraints[i].Name < fkConstraints[j].Name
-	})
-	sort.Slice(chkConstraints, func(i, j int) bool {
-		return chkConstraints[i].Name < chkConstraints[j].Name
-	})
-	for _, con := range fkConstraints {
-		parts = append(parts, showConstraint(con))
-	}
-	for _, con := range chkConstraints {
-		parts = append(parts, showConstraint(con))
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck {
+			s := fmt.Sprintf("CONSTRAINT %s CHECK ((%s))", quoteIdent(con.Name), stripOuterParens(con.CheckExpr))
+			if con.NotEnforced {
+				s += " /*!80016 NOT ENFORCED */"
+			}
+			parts = append(parts, s)
+		}
 	}
 
 	b.WriteString("  ")
 	b.WriteString(strings.Join(parts, ",\n  "))
-	b.WriteString("\n)")
+	b.WriteString("\n) ")
+	b.WriteString(showTableOptions(tbl, tblCharset, tblCollate))
 
-	// Table options.
-	opts := showTableOptions(tbl)
-	if opts != "" {
-		b.WriteString(" ")
-		b.WriteString(opts)
+	// TTL goes on the options line, before the partition clause: v8.5.5 writes
+	// it there and refuses table options after the partitions (read on
+	// 2026-11-06).
+	if tbl.TTLColumn != "" {
+		b.WriteString(showTTL(tbl))
 	}
-
-	// Partition clause.
 	if tbl.Partitioning != nil {
-		b.WriteString("\n")
 		b.WriteString(showPartitioning(tbl.Partitioning))
 	}
-
-	// The ON COMMIT clause a global temporary table carries. It goes last,
-	// after the partition clause, because that is the one place the grammar
-	// takes it: `... partition by hash(a) partitions 10 on commit delete rows`
-	// parses on v8.5.5 and `... on commit delete rows comment 'x'` does not, so
-	// writing it before the partitions produced a definition this parser then
-	// refused. With no partitions it lands where the server writes it, last on
-	// the options line: `... COLLATE=utf8mb4_bin COMMENT='hi' ON COMMIT DELETE
-	// ROWS`.
-	//
-	// The server refuses the two together with 1562, "Cannot create temporary
-	// table with partitions", so a partitioned global temporary table is a state
-	// only this catalog reaches -- it does not model 1562 for an ordinary
-	// temporary table either. The order still has to be the grammar's.
+	// The ON COMMIT clause of a global temporary table goes last, after the
+	// partition clause, because that is the one place the grammar takes it:
+	// `... partition by hash(a) partitions 10 on commit delete rows` parses on
+	// v8.5.5 and `... on commit delete rows comment 'x'` does not. With no
+	// partitions it lands where the server writes it, last on the options
+	// line. The server refuses a partitioned temporary table (1562), so that
+	// state is one only this catalog reaches; the order still has to parse.
 	if tbl.OnCommit != "" {
 		b.WriteString(" ON COMMIT ")
 		b.WriteString(tbl.OnCommit)
 	}
-
 	return b.String()
 }
 
-func showColumn(col *Column) string {
-	return showColumnWithTable(col, nil)
+// quoteIdent backquotes a name, doubling any backquote in it.
+func quoteIdent(name string) string {
+	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
 }
 
-func showColumnWithTable(col *Column, tbl *Table) string {
+// outputFormat escapes a string literal's body as v8.5.5's SHOW CREATE TABLE
+// does: a quote doubled, a backslash doubled, and NUL, LF and CR as escapes
+// (`COMMENT 'it”s a \\test'` for it's a \test, read on 2026-11-06).
+func outputFormat(s string) string {
+	// Byte by byte: a binary default can hold bytes that are not UTF-8, and
+	// each must come out as itself. Every escape is ASCII, so UTF-8 text is
+	// unchanged.
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("`%s` %s", col.Name, col.ColumnType))
-
-	// CHARACTER SET and COLLATE — MySQL 8.0 display rules:
-	// - CHARACTER SET shown when column charset differs from table charset
-	// - COLLATE shown when column collation differs from the charset's default collation
-	if isStringType(col.DataType) || isEnumSetType(col.DataType) {
-		tableCharset := ""
-		if tbl != nil {
-			tableCharset = tbl.Charset
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case '\\':
+			b.WriteString(`\\`)
+		case 0:
+			b.WriteString(`\0`)
+		case '\'':
+			b.WriteString("''")
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		default:
+			b.WriteByte(c)
 		}
-		// Resolve the default collation for the column's charset.
-		colCharsetDefault := ""
-		if col.Charset != "" {
-			if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
-				colCharsetDefault = dc
+	}
+	return b.String()
+}
+
+// stripOuterParens removes one pair of parentheses that encloses the whole of
+// s, so a caller that adds its own does not double them.
+func stripOuterParens(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) < 2 || s[0] != '(' || s[len(s)-1] != ')' {
+		return s
+	}
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 && i != len(s)-1 {
+				return s
 			}
 		}
-		charsetDiffers := col.Charset != "" && !eqFoldStr(col.Charset, tableCharset)
-		// Show COLLATE when the column's collation differs from its charset's default.
-		collationNonDefault := col.Collation != "" && !eqFoldStr(col.Collation, colCharsetDefault)
+	}
+	return s[1 : len(s)-1]
+}
 
-		// Determine the table's effective collation for comparison.
-		tableCollation := ""
-		if tbl != nil {
-			tableCollation = tbl.Collation
+func showColumn(col *Column, tblCharset, tblCollate string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s %s", quoteIdent(col.Name), col.ColumnType)
+
+	// A column with a charset (a string type, which CHARACTER SET binary turns
+	// into a binary one except for ENUM and SET) names it when it differs from
+	// the table's, and names its collation when that differs from the table's
+	// or, matching it, is not its charset's default.
+	if isStringType(col.DataType) && (isEnumSetType(col.DataType) || !eqFoldStr(col.Charset, "binary")) {
+		if col.Charset != "" && !eqFoldStr(col.Charset, tblCharset) {
+			fmt.Fprintf(&b, " CHARACTER SET %s", col.Charset)
 		}
-		// Column collation differs from table collation (= explicitly set on column).
-		collationDiffersFromTable := col.Collation != "" && !eqFoldStr(col.Collation, tableCollation)
-
-		if charsetDiffers {
-			// When charset differs from table, show CHARACTER SET and always COLLATE.
-			b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
-			collation := col.Collation
-			if collation == "" {
-				collation = colCharsetDefault
+		if col.Collation != "" {
+			if !eqFoldStr(col.Collation, tblCollate) ||
+				!eqFoldStr(col.Collation, defaultCollationForCharset[toLower(col.Charset)]) {
+				fmt.Fprintf(&b, " COLLATE %s", col.Collation)
 			}
-			if collation != "" {
-				b.WriteString(fmt.Sprintf(" COLLATE %s", collation))
-			}
-		} else if collationNonDefault && collationDiffersFromTable {
-			// Collation explicitly set on column (differs from both charset default and table).
-			// MySQL shows both CHARACTER SET and COLLATE.
-			if col.Charset != "" {
-				b.WriteString(fmt.Sprintf(" CHARACTER SET %s", col.Charset))
-			}
-			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
-		} else if collationNonDefault {
-			// Collation inherited from table but non-default for charset.
-			// MySQL shows only COLLATE (no CHARACTER SET).
-			b.WriteString(fmt.Sprintf(" COLLATE %s", col.Collation))
 		}
 	}
 
-	// Generated column.
 	if col.Generated != nil {
 		mode := "VIRTUAL"
 		if col.Generated.Stored {
 			mode = "STORED"
 		}
-		b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS (%s) %s", col.Generated.Expr, mode))
+		fmt.Fprintf(&b, " GENERATED ALWAYS AS (%s) %s", stripOuterParens(col.Generated.Expr), mode)
+	}
+
+	if col.AutoIncrement {
+		b.WriteString(" NOT NULL AUTO_INCREMENT")
+	} else {
 		if !col.Nullable {
 			b.WriteString(" NOT NULL")
 		}
-		if col.Comment != "" {
-			b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
+		// A generated column has no default, and a NOT NULL column without one
+		// writes none.
+		if col.Generated == nil {
+			switch {
+			case col.Default != nil && !strings.EqualFold(*col.Default, "NULL"):
+				b.WriteString(" DEFAULT ")
+				b.WriteString(formatDefault(*col.Default, col))
+			case col.Nullable && !col.DefaultDropped:
+				if isTimestampType(col.DataType) {
+					b.WriteString(" NULL")
+				}
+				b.WriteString(" DEFAULT NULL")
+			}
 		}
-		if col.Invisible {
-			b.WriteString(" /*!80023 INVISIBLE */")
+		if col.OnUpdate != "" {
+			fmt.Fprintf(&b, " ON UPDATE %s", formatOnUpdate(col.OnUpdate, col))
 		}
-		return b.String()
 	}
 
-	// NOT NULL / NULL.
-	if !col.Nullable {
-		b.WriteString(" NOT NULL")
-	} else if isTimestampType(col.DataType) {
-		// MySQL 8.0 explicitly shows NULL for TIMESTAMP columns.
-		b.WriteString(" NULL")
+	if col.AutoRandom {
+		shard := col.AutoRandomShardBits
+		if shard == 0 {
+			shard = 5
+		}
+		if r := col.AutoRandomRangeBits; r == 0 || r == 64 {
+			fmt.Fprintf(&b, " /*T![auto_rand] AUTO_RANDOM(%d) */", shard)
+		} else {
+			fmt.Fprintf(&b, " /*T![auto_rand] AUTO_RANDOM(%d, %d) */", shard, r)
+		}
 	}
 
-	// SRID for spatial types — MySQL 8.0 places it after NOT NULL, before DEFAULT.
-	if col.SRID != 0 {
-		b.WriteString(fmt.Sprintf(" /*!80003 SRID %d */", col.SRID))
-	}
-
-	// DEFAULT.
-	if col.Default != nil {
-		b.WriteString(" DEFAULT ")
-		b.WriteString(formatDefault(*col.Default, col))
-	} else if col.Nullable && !col.AutoIncrement && !isTextBlobType(col.DataType) && !col.DefaultDropped {
-		b.WriteString(" DEFAULT NULL")
-	}
-
-	// AUTO_INCREMENT.
-	if col.AutoIncrement {
-		b.WriteString(" AUTO_INCREMENT")
-	}
-
-	// ON UPDATE.
-	if col.OnUpdate != "" {
-		b.WriteString(fmt.Sprintf(" ON UPDATE %s", formatOnUpdate(col.OnUpdate)))
-	}
-
-	// COMMENT.
 	if col.Comment != "" {
-		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
+		fmt.Fprintf(&b, " COMMENT '%s'", outputFormat(col.Comment))
 	}
-
-	// INVISIBLE.
-	if col.Invisible {
-		b.WriteString(" /*!80023 INVISIBLE */")
-	}
-
 	return b.String()
 }
 
-// formatDefault formats a default value for SHOW CREATE TABLE output.
-// MySQL 8.0 quotes numeric defaults as strings (e.g. DEFAULT '0').
+// columnFsp returns the fractional-seconds precision of a temporal column's
+// type, as in datetime(3).
+func columnFsp(col *Column) int {
+	ct := col.ColumnType
+	open := strings.IndexByte(ct, '(')
+	if open < 0 {
+		return 0
+	}
+	n := 0
+	for _, r := range ct[open+1:] {
+		if r < '0' || r > '9' {
+			break
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n
+}
+
+// formatDefault writes a column default as TiDB does: CURRENT_TIMESTAMP with
+// the column's precision, CURRENT_DATE and other expressions in parentheses, a
+// bit literal as written, and every other value quoted.
 func formatDefault(val string, col *Column) string {
-	if strings.EqualFold(val, "NULL") {
-		return "NULL"
-	}
-	// Normalize CURRENT_TIMESTAMP() → CURRENT_TIMESTAMP (MySQL 8.0 format).
-	upper := strings.ToUpper(val)
-	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" {
+	upper := strings.ToUpper(strings.TrimSpace(val))
+	switch {
+	case isCurrentTimestamp(upper):
+		if fsp := columnFsp(col); fsp > 0 && isTemporalWithFsp(col.DataType) {
+			return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", fsp)
+		}
 		return "CURRENT_TIMESTAMP"
+	case upper == "CURRENT_DATE" || upper == "CURRENT_DATE()" || upper == "CURDATE()" ||
+		upper == "(CURRENT_DATE)" || upper == "(CURRENT_DATE())" || upper == "(CURDATE())":
+		return "(CURRENT_DATE)"
 	}
-	if strings.HasPrefix(upper, "CURRENT_TIMESTAMP(") {
-		// CURRENT_TIMESTAMP(N) — keep precision, use uppercase.
-		return upper
+	if strings.EqualFold(col.DataType, "bit") {
+		if lit, ok := bitDefaultLiteral(val); ok {
+			return lit
+		}
+	} else if b, ok := binaryLiteralBytes(val); ok {
+		// A hex or bit literal is the bytes it spells: a string column takes
+		// them as its text and a numeric column as an unsigned integer, so
+		// VARCHAR DEFAULT 0x41 is 'A' and INT DEFAULT 0x41 is '65'
+		// (getDefaultValue in TiDB's pkg/ddl/add_column.go). BINARY and
+		// VARBINARY are the string field types with the binary charset there,
+		// so they take the bytes too.
+		if isStringType(col.DataType) || eqFoldStr(col.DataType, "binary") || eqFoldStr(col.DataType, "varbinary") {
+			return "'" + outputFormat(string(b)) + "'"
+		}
+		var n uint64
+		for _, c := range b {
+			n = n<<8 | uint64(c)
+		}
+		return "'" + strconv.FormatUint(n, 10) + "'"
 	}
-	if upper == "NOW()" {
-		return "CURRENT_TIMESTAMP"
-	}
-	// b'...' and 0x... bit/hex literals — not quoted.
-	if strings.HasPrefix(val, "b'") || strings.HasPrefix(val, "B'") ||
-		strings.HasPrefix(val, "0x") || strings.HasPrefix(val, "0X") {
-		return val
-	}
-	// Expression defaults: (expr) — not quoted, shown as-is.
+	// An expression default is written in parentheses.
 	if len(val) >= 2 && val[0] == '(' && val[len(val)-1] == ')' {
 		return val
 	}
-	// Already single-quoted string — return as-is.
 	if len(val) >= 2 && val[0] == '\'' && val[len(val)-1] == '\'' {
 		return val
 	}
-	// MySQL 8.0 quotes all literal defaults (including numerics).
-	return "'" + val + "'"
+	return "'" + outputFormat(val) + "'"
 }
 
-// formatOnUpdate normalizes ON UPDATE values to MySQL 8.0 format.
-func formatOnUpdate(val string) string {
-	upper := strings.ToUpper(val)
-	if upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_TIMESTAMP()" {
-		return "CURRENT_TIMESTAMP"
+// binaryLiteralBytes decodes a hex literal (0x41, X'41') or a bit literal
+// (0b1000001, b'1000001') into the bytes it spells.
+func binaryLiteralBytes(v string) ([]byte, bool) {
+	v = strings.TrimSpace(v)
+	var digits string
+	base := 16
+	switch {
+	case len(v) > 2 && (v[:2] == "0x" || v[:2] == "0X"):
+		digits = v[2:]
+	case len(v) >= 3 && (v[0] == 'x' || v[0] == 'X') && v[1] == '\'' && v[len(v)-1] == '\'':
+		digits = v[2 : len(v)-1]
+	case len(v) > 2 && (v[:2] == "0b" || v[:2] == "0B"):
+		digits, base = v[2:], 2
+	case len(v) >= 3 && (v[0] == 'b' || v[0] == 'B') && v[1] == '\'' && v[len(v)-1] == '\'':
+		digits, base = v[2:len(v)-1], 2
+	default:
+		return nil, false
 	}
-	if strings.HasPrefix(upper, "CURRENT_TIMESTAMP(") {
-		return upper
+	var out []byte
+	if base == 16 {
+		if len(digits)%2 == 1 {
+			digits = "0" + digits
+		}
+		for i := 0; i < len(digits); i += 2 {
+			n, err := strconv.ParseUint(digits[i:i+2], 16, 8)
+			if err != nil {
+				return nil, false
+			}
+			out = append(out, byte(n))
+		}
+		return out, true
 	}
-	if upper == "NOW()" {
+	for len(digits)%8 != 0 {
+		digits = "0" + digits
+	}
+	for i := 0; i < len(digits); i += 8 {
+		n, err := strconv.ParseUint(digits[i:i+8], 2, 8)
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, byte(n))
+	}
+	return out, true
+}
+
+// bitDefaultLiteral writes a BIT column's default as TiDB does, the value's
+// binary digits with no leading zeros: b'1111' for 15, 0x0f and b'00001111'.
+func bitDefaultLiteral(val string) (string, bool) {
+	v := strings.TrimSpace(val)
+	var n uint64
+	var err error
+	switch {
+	case len(v) > 3 && (v[0] == 'b' || v[0] == 'B') && v[1] == '\'':
+		n, err = strconv.ParseUint(strings.TrimSuffix(v[2:], "'"), 2, 64)
+	case strings.HasPrefix(v, "0b") || strings.HasPrefix(v, "0B"):
+		n, err = strconv.ParseUint(v[2:], 2, 64)
+	case strings.HasPrefix(v, "0x") || strings.HasPrefix(v, "0X"):
+		n, err = strconv.ParseUint(v[2:], 16, 64)
+	case len(v) > 3 && (v[0] == 'x' || v[0] == 'X') && v[1] == '\'':
+		n, err = strconv.ParseUint(strings.TrimSuffix(v[2:], "'"), 16, 64)
+	default:
+		n, err = strconv.ParseUint(strings.Trim(v, "'"), 10, 64)
+	}
+	if err != nil {
+		return "", false
+	}
+	return "b'" + strconv.FormatUint(n, 2) + "'", true
+}
+
+func isCurrentTimestamp(upper string) bool {
+	for _, name := range []string{"CURRENT_TIMESTAMP", "NOW", "LOCALTIME", "LOCALTIMESTAMP"} {
+		if upper == name || upper == name+"()" || strings.HasPrefix(upper, name+"(") {
+			return true
+		}
+	}
+	return false
+}
+
+func isTemporalWithFsp(dt string) bool {
+	switch toLower(dt) {
+	case "datetime", "timestamp", "time":
+		return true
+	}
+	return false
+}
+
+// formatOnUpdate writes ON UPDATE CURRENT_TIMESTAMP with the column's
+// precision, which is the one value TiDB takes there.
+func formatOnUpdate(val string, col *Column) string {
+	if isCurrentTimestamp(strings.ToUpper(strings.TrimSpace(val))) {
+		if fsp := columnFsp(col); fsp > 0 {
+			return fmt.Sprintf("CURRENT_TIMESTAMP(%d)", fsp)
+		}
 		return "CURRENT_TIMESTAMP"
 	}
 	return val
 }
 
-// isTimestampType returns true for TIMESTAMP/DATETIME types.
 func isTimestampType(dt string) bool {
-	switch strings.ToLower(dt) {
-	case "timestamp":
-		return true
-	}
-	return false
+	return strings.EqualFold(dt, "timestamp")
 }
 
-// isTextBlobType returns true for types where MySQL doesn't show DEFAULT NULL.
-func isTextBlobType(dt string) bool {
-	switch strings.ToLower(dt) {
-	case "text", "tinytext", "mediumtext", "longtext",
-		"blob", "tinyblob", "mediumblob", "longblob":
-		return true
-	}
-	return false
-}
-
-func showIndex(idx *Index) string {
+// showIndex writes one key. TiDB writes no DESC, no USING clause and no
+// KEY_BLOCK_SIZE, and marks every primary key CLUSTERED or NONCLUSTERED.
+func showIndex(tbl *Table, idx *Index) string {
 	var b strings.Builder
-
-	if idx.Primary {
-		b.WriteString("PRIMARY KEY (")
-	} else if idx.Unique {
-		b.WriteString(fmt.Sprintf("UNIQUE KEY `%s` (", idx.Name))
-	} else if idx.Fulltext {
-		b.WriteString(fmt.Sprintf("FULLTEXT KEY `%s` (", idx.Name))
-	} else if idx.Spatial {
-		b.WriteString(fmt.Sprintf("SPATIAL KEY `%s` (", idx.Name))
-	} else if idx.Vector {
-		b.WriteString(fmt.Sprintf("VECTOR INDEX `%s` (", idx.Name))
-	} else {
-		b.WriteString(fmt.Sprintf("KEY `%s` (", idx.Name))
+	switch {
+	case idx.Primary:
+		b.WriteString("PRIMARY KEY ")
+	case idx.Unique:
+		fmt.Fprintf(&b, "UNIQUE KEY %s ", quoteIdent(idx.Name))
+	case idx.Vector:
+		fmt.Fprintf(&b, "VECTOR INDEX %s", quoteIdent(idx.Name))
+	default:
+		fmt.Fprintf(&b, "KEY %s ", quoteIdent(idx.Name))
 	}
 
 	cols := make([]string, 0, len(idx.Columns))
 	for _, ic := range idx.Columns {
-		cols = append(cols, showIndexColumn(ic))
+		if ic.Expr != "" {
+			expr := stripOuterParens(ic.Expr)
+			if idx.Vector {
+				expr = upperFuncName(expr)
+			}
+			cols = append(cols, "("+expr+")")
+			continue
+		}
+		s := quoteIdent(ic.Name)
+		if ic.Length > 0 {
+			s += fmt.Sprintf("(%d)", ic.Length)
+		}
+		cols = append(cols, s)
 	}
-	b.WriteString(strings.Join(cols, ","))
-	b.WriteString(")")
+	// A vector index's one key part is its distance function, which TiDB
+	// writes right after the name and in capitals, with no USING clause:
+	// VECTOR INDEX `i`((VEC_COSINE_DISTANCE(`v`))) (constructResultOfShowCreateTable
+	// in pkg/executor/show.go; the test server has no TiFlash and refuses
+	// every vector index with 8200, so this one is read from the source).
+	fmt.Fprintf(&b, "(%s)", strings.Join(cols, ","))
 
-	// USING clause: shown when explicitly specified, not for PRIMARY/FULLTEXT/SPATIAL.
-	if !idx.Primary && !idx.Fulltext && !idx.Spatial && idx.IndexType != "" {
-		b.WriteString(fmt.Sprintf(" USING %s", strings.ToUpper(idx.IndexType)))
-	}
-
-	// KEY_BLOCK_SIZE is intentionally NOT rendered here: MySQL 8.0 parses
-	// the index-level KEY_BLOCK_SIZE option but does not include it in
-	// SHOW CREATE TABLE output (only the table-level KEY_BLOCK_SIZE is
-	// shown). The catalog still preserves the value for programmatic
-	// access.
-
-	// Comment.
-	if idx.Comment != "" {
-		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(idx.Comment)))
-	}
-
-	// Invisible.
 	if !idx.Visible {
 		b.WriteString(" /*!80000 INVISIBLE */")
 	}
-
-	// GLOBAL, which TiDB writes last -- after COMMENT -- in its own version
-	// comment: "UNIQUE KEY `i` (`b`) COMMENT 'kept' /*T![global_index]
-	// GLOBAL */" (read from v8.5.5 on 2026-11-04). LOCAL is the default and
-	// is written as nothing.
+	if idx.Comment != "" {
+		fmt.Fprintf(&b, " COMMENT '%s'", outputFormat(idx.Comment))
+	}
+	if idx.Primary {
+		if primaryKeyClustered(tbl, idx) {
+			b.WriteString(" /*T![clustered_index] CLUSTERED */")
+		} else {
+			b.WriteString(" /*T![clustered_index] NONCLUSTERED */")
+		}
+	}
 	if idx.Global {
 		b.WriteString(" /*T![global_index] GLOBAL */")
 	}
-
 	return b.String()
 }
 
-func showIndexColumn(ic *IndexColumn) string {
+// showForeignKey writes a foreign key as TiDB does: columns joined without
+// spaces, the referenced schema only when it is not the table's, and ON DELETE
+// and ON UPDATE whenever the statement gave them, NO ACTION included.
+func showForeignKey(tbl *Table, con *Constraint) string {
 	var b strings.Builder
-	if ic.Expr != "" {
-		b.WriteString(fmt.Sprintf("(%s)", ic.Expr))
+	fmt.Fprintf(&b, "CONSTRAINT %s FOREIGN KEY ", quoteIdent(con.Name))
+	b.WriteString("(" + joinQuoted(con.Columns) + ")")
+	if con.RefDatabase != "" && (tbl.Database == nil || !eqFoldStr(con.RefDatabase, tbl.Database.Name)) {
+		fmt.Fprintf(&b, " REFERENCES %s.%s ", quoteIdent(con.RefDatabase), quoteIdent(con.RefTable))
 	} else {
-		b.WriteString(fmt.Sprintf("`%s`", ic.Name))
-		if ic.Length > 0 {
-			b.WriteString(fmt.Sprintf("(%d)", ic.Length))
-		}
+		fmt.Fprintf(&b, " REFERENCES %s ", quoteIdent(con.RefTable))
 	}
-	if ic.Descending {
-		b.WriteString(" DESC")
+	b.WriteString("(" + joinQuoted(con.RefColumns) + ")")
+	if con.OnDelete != "" {
+		fmt.Fprintf(&b, " ON DELETE %s", strings.ToUpper(con.OnDelete))
+	}
+	if con.OnUpdate != "" {
+		fmt.Fprintf(&b, " ON UPDATE %s", strings.ToUpper(con.OnUpdate))
 	}
 	return b.String()
 }
 
-func showConstraint(con *Constraint) string {
+// upperFuncName capitalizes the function name a call starts with.
+func upperFuncName(expr string) string {
+	if i := strings.IndexByte(expr, '('); i > 0 {
+		return strings.ToUpper(expr[:i]) + expr[i:]
+	}
+	return expr
+}
+
+func joinQuoted(names []string) string {
+	q := make([]string, len(names))
+	for i, n := range names {
+		q[i] = quoteIdent(n)
+	}
+	return strings.Join(q, ",")
+}
+
+// showTableOptions writes the options TiDB keeps. ENGINE is always InnoDB, and
+// ROW_FORMAT, KEY_BLOCK_SIZE and the STATS_ options are read and dropped.
+// AUTO_INCREMENT shows only on a table with an AUTO_INCREMENT column.
+func showTableOptions(tbl *Table, charset, collate string) string {
 	var b strings.Builder
-
-	switch con.Type {
-	case ConForeignKey:
-		b.WriteString(fmt.Sprintf("CONSTRAINT `%s` FOREIGN KEY (", con.Name))
-		cols := make([]string, 0, len(con.Columns))
-		for _, c := range con.Columns {
-			cols = append(cols, fmt.Sprintf("`%s`", c))
-		}
-		b.WriteString(strings.Join(cols, ", "))
-		if con.RefDatabase != "" {
-			b.WriteString(fmt.Sprintf(") REFERENCES `%s`.`%s` (", con.RefDatabase, con.RefTable))
-		} else {
-			b.WriteString(fmt.Sprintf(") REFERENCES `%s` (", con.RefTable))
-		}
-		refCols := make([]string, 0, len(con.RefColumns))
-		for _, c := range con.RefColumns {
-			refCols = append(refCols, fmt.Sprintf("`%s`", c))
-		}
-		b.WriteString(strings.Join(refCols, ", "))
-		b.WriteString(")")
-
-		// ON DELETE — omit if RESTRICT or NO ACTION (MySQL defaults).
-		if con.OnDelete != "" && !isFKDefault(con.OnDelete) {
-			b.WriteString(fmt.Sprintf(" ON DELETE %s", strings.ToUpper(con.OnDelete)))
-		}
-		// ON UPDATE — omit if RESTRICT or NO ACTION (MySQL defaults).
-		if con.OnUpdate != "" && !isFKDefault(con.OnUpdate) {
-			b.WriteString(fmt.Sprintf(" ON UPDATE %s", strings.ToUpper(con.OnUpdate)))
-		}
-
-	case ConCheck:
-		b.WriteString(fmt.Sprintf("CONSTRAINT `%s` CHECK (%s)", con.Name, con.CheckExpr))
-		if con.NotEnforced {
-			b.WriteString(" /*!80016 NOT ENFORCED */")
-		}
+	b.WriteString("ENGINE=InnoDB")
+	if collate == "" || eqFoldStr(collate, "binary") {
+		fmt.Fprintf(&b, " DEFAULT CHARSET=%s", charset)
+	} else {
+		fmt.Fprintf(&b, " DEFAULT CHARSET=%s COLLATE=%s", charset, collate)
 	}
-
-	return b.String()
-}
-
-func showTableOptions(tbl *Table) string {
-	var parts []string
-
-	if tbl.Engine != "" {
-		parts = append(parts, fmt.Sprintf("ENGINE=%s", tbl.Engine))
-	}
-
-	// AUTO_INCREMENT — shown only when > 1.
 	if tbl.AutoIncrement > 1 {
-		parts = append(parts, fmt.Sprintf("AUTO_INCREMENT=%d", tbl.AutoIncrement))
-	}
-
-	if tbl.Charset != "" {
-		parts = append(parts, fmt.Sprintf("DEFAULT CHARSET=%s", tbl.Charset))
-	}
-
-	// MySQL 8.0 shows COLLATE when:
-	// - The collation differs from the charset's default, OR
-	// - The collation was explicitly specified, OR
-	// - The charset is utf8mb4 (MySQL 8.0 always shows collation for utf8mb4)
-	if tbl.Charset != "" {
-		effectiveCollation := tbl.Collation
-		if effectiveCollation == "" {
-			effectiveCollation = defaultCollationForCharset[toLower(tbl.Charset)]
-		}
-		defColl := defaultCollationForCharset[toLower(tbl.Charset)]
-		isNonDefaultCollation := effectiveCollation != "" && !eqFoldStr(effectiveCollation, defColl)
-		isUtf8mb4 := eqFoldStr(tbl.Charset, "utf8mb4")
-		if isNonDefaultCollation || isUtf8mb4 {
-			if effectiveCollation != "" {
-				parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
+		for _, col := range tbl.Columns {
+			if col.AutoIncrement {
+				fmt.Fprintf(&b, " AUTO_INCREMENT=%d", tbl.AutoIncrement)
+				break
 			}
 		}
 	}
-
-	// KEY_BLOCK_SIZE — shown when non-zero.
-	if tbl.KeyBlockSize > 0 {
-		parts = append(parts, fmt.Sprintf("KEY_BLOCK_SIZE=%d", tbl.KeyBlockSize))
+	if tbl.AutoIDCache != 0 {
+		fmt.Fprintf(&b, " /*T![auto_id_cache] AUTO_ID_CACHE=%d */", tbl.AutoIDCache)
 	}
-
-	// ROW_FORMAT — shown when explicitly set.
-	if tbl.RowFormat != "" {
-		parts = append(parts, fmt.Sprintf("ROW_FORMAT=%s", strings.ToUpper(tbl.RowFormat)))
+	if tbl.AutoRandomBase > 1 {
+		fmt.Fprintf(&b, " /*T![auto_rand_base] AUTO_RANDOM_BASE=%d */", tbl.AutoRandomBase)
 	}
-
+	if tbl.ShardRowIDBits > 0 {
+		fmt.Fprintf(&b, " /*T! SHARD_ROW_ID_BITS=%d ", tbl.ShardRowIDBits)
+		if tbl.PreSplitRegions > 0 {
+			fmt.Fprintf(&b, "PRE_SPLIT_REGIONS=%d ", tbl.PreSplitRegions)
+		}
+		b.WriteString("*/")
+	}
+	if tbl.PreSplitRegions > 0 && tbl.ShardRowIDBits == 0 && hasAutoRandom(tbl) {
+		fmt.Fprintf(&b, " /*T! PRE_SPLIT_REGIONS=%d */", tbl.PreSplitRegions)
+	}
 	if tbl.Comment != "" {
-		parts = append(parts, fmt.Sprintf("COMMENT='%s'", escapeComment(tbl.Comment)))
+		fmt.Fprintf(&b, " COMMENT='%s'", outputFormat(tbl.Comment))
 	}
-
-	return strings.Join(parts, " ")
+	if tbl.PlacementPolicy != "" {
+		fmt.Fprintf(&b, " /*T![placement] PLACEMENT POLICY=%s */", quoteIdent(tbl.PlacementPolicy))
+	}
+	return b.String()
 }
 
-// isFKDefault returns true if the action is a MySQL FK default that should not be shown.
-// MySQL 8.0 hides NO ACTION (the implicit default) but shows RESTRICT when explicitly specified.
-func isFKDefault(action string) bool {
-	upper := strings.ToUpper(action)
-	return upper == "NO ACTION"
+func hasAutoRandom(tbl *Table) bool {
+	for _, col := range tbl.Columns {
+		if col.AutoRandom {
+			return true
+		}
+	}
+	return false
+}
+
+// showTTL writes the three TTL options, each in its own version comment, with
+// TiDB's defaults when the statement left one out: TTL_ENABLE 'ON' and
+// TTL_JOB_INTERVAL '1h'.
+func showTTL(tbl *Table) string {
+	enable := "ON"
+	if !tbl.TTLEnable {
+		enable = "OFF"
+	}
+	job := tbl.TTLJobInterval
+	if job == "" {
+		job = "1h"
+	}
+	return fmt.Sprintf(" /*T![ttl] TTL=%s + %s */ /*T![ttl] TTL_ENABLE='%s' */ /*T![ttl] TTL_JOB_INTERVAL='%s' */",
+		quoteIdent(tbl.TTLColumn), ttlInterval(tbl.TTLInterval), enable, job)
+}
+
+// ttlInterval writes a TTL interval as TiDB does, INTERVAL and the unit in
+// capitals around the amount as written: INTERVAL 1 YEAR.
+func ttlInterval(s string) string {
+	f := strings.Fields(s)
+	if len(f) < 3 || !strings.EqualFold(f[0], "interval") {
+		return s
+	}
+	return "INTERVAL " + strings.Join(f[1:len(f)-1], " ") + " " + strings.ToUpper(f[len(f)-1])
 }
 
 func isEnumSetType(dt string) bool {
@@ -558,166 +605,94 @@ func isEnumSetType(dt string) bool {
 	return false
 }
 
-// isExpressionIndex returns true if any column in the index is an expression.
-func isExpressionIndex(idx *Index) bool {
-	for _, ic := range idx.Columns {
-		if ic.Expr != "" {
-			return true
-		}
-	}
-	return false
-}
-
 func eqFoldStr(a, b string) bool {
 	return strings.EqualFold(a, b)
 }
 
+// escapeComment escapes a comment for the MySQL-shaped SHOW CREATE output of
+// objects TiDB does not have (events, routines).
 func escapeComment(s string) string {
 	s = strings.ReplaceAll(s, "\\", "\\\\")
 	s = strings.ReplaceAll(s, "'", "''")
 	return s
 }
 
-// showPartitioning renders the partition clause for SHOW CREATE TABLE.
-// MySQL 8.0 outputs partitioning after table options with specific formatting.
+// showPartitioning writes the partition clause as AppendPartitionInfo does: no
+// version comment, HASH and KEY partitions named p0, p1, ... as a count, and
+// every other definition list in full. TiDB keeps no LINEAR, no KEY ALGORITHM,
+// no partition ENGINE and no subpartitions: v8.5.5 reads each and writes
+// `PARTITION BY HASH (a)` for `LINEAR HASH (a)` (read on 2026-11-06).
 func showPartitioning(pi *PartitionInfo) string {
 	var b strings.Builder
+	typ := pi.Type
 
-	// MySQL uses /*!50500 for RANGE COLUMNS and LIST COLUMNS, /*!50100 for others.
-	versionComment := "50100"
-	if pi.Type == "RANGE COLUMNS" || pi.Type == "LIST COLUMNS" {
-		versionComment = "50500"
-	}
-	b.WriteString(fmt.Sprintf("/*!%s PARTITION BY ", versionComment))
-	if pi.Linear {
-		b.WriteString("LINEAR ")
-	}
-	switch pi.Type {
-	case "RANGE":
-		b.WriteString(fmt.Sprintf("RANGE (%s)", pi.Expr))
-	case "RANGE COLUMNS":
-		// MySQL uses double space before COLUMNS and no backticks on column names.
-		b.WriteString(fmt.Sprintf("RANGE  COLUMNS(%s)", formatPartitionColumnsPlain(pi.Columns)))
-	case "LIST":
-		b.WriteString(fmt.Sprintf("LIST (%s)", pi.Expr))
-	case "LIST COLUMNS":
-		b.WriteString(fmt.Sprintf("LIST  COLUMNS(%s)", formatPartitionColumnsPlain(pi.Columns)))
-	case "HASH":
-		b.WriteString(fmt.Sprintf("HASH (%s)", pi.Expr))
-	case "KEY":
-		// MySQL does not backtick-quote KEY column names.
-		if pi.Algorithm > 0 {
-			b.WriteString(fmt.Sprintf("KEY ALGORITHM = %d (%s)", pi.Algorithm, formatPartitionColumnsPlain(pi.Columns)))
-		} else {
-			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumnsPlain(pi.Columns)))
+	if pi.Type == "HASH" || pi.Type == "KEY" {
+		defaults := true
+		for i, pd := range pi.Partitions {
+			if pd.Name != fmt.Sprintf("p%d", i) || pd.Comment != "" {
+				defaults = false
+				break
+			}
+		}
+		if defaults {
+			n := pi.NumParts
+			if n == 0 {
+				n = len(pi.Partitions)
+			}
+			if n == 0 {
+				n = 1
+			}
+			if pi.Type == "HASH" {
+				fmt.Fprintf(&b, "\nPARTITION BY %s (%s) PARTITIONS %d", typ, pi.Expr, n)
+			} else {
+				fmt.Fprintf(&b, "\nPARTITION BY %s (%s) PARTITIONS %d", typ, joinQuoted(pi.Columns), n)
+			}
+			return b.String()
 		}
 	}
 
+	switch pi.Type {
+	case "RANGE COLUMNS", "LIST COLUMNS":
+		fmt.Fprintf(&b, "\nPARTITION BY %s(%s)", typ, joinQuoted(pi.Columns))
+	case "KEY":
+		fmt.Fprintf(&b, "\nPARTITION BY %s (%s)", typ, joinQuoted(pi.Columns))
+	default:
+		fmt.Fprintf(&b, "\nPARTITION BY %s (%s)", typ, pi.Expr)
+	}
+	// An INTERVAL clause the catalog could not expand stays as written, so the
+	// text still parses (partition_interval.go); TiDB itself prints the
+	// partitions it generated.
 	if pi.IntervalText != "" {
 		b.WriteString(" " + pi.IntervalText)
-	}
-
-	// Subpartition clause.
-	if pi.SubType != "" {
-		b.WriteString("\n")
-		b.WriteString("SUBPARTITION BY ")
-		if pi.SubLinear {
-			b.WriteString("LINEAR ")
+		if len(pi.Partitions) == 0 {
+			return b.String()
 		}
-		switch pi.SubType {
-		case "HASH":
-			b.WriteString(fmt.Sprintf("HASH (%s)", pi.SubExpr))
-		case "KEY":
-			if pi.SubAlgo > 0 {
-				b.WriteString(fmt.Sprintf("KEY ALGORITHM = %d (%s)", pi.SubAlgo, formatPartitionColumns(pi.SubColumns)))
+	}
+	b.WriteString("\n(")
+	for i, pd := range pi.Partitions {
+		if i > 0 {
+			b.WriteString(",\n ")
+		}
+		fmt.Fprintf(&b, "PARTITION %s", quoteIdent(pd.Name))
+		// The catalog keeps a partition's values bare, joined by bare commas
+		// (partitionValueToString), so each list takes one pair of
+		// parentheses here and a LIST COLUMNS tuple keeps its own.
+		switch {
+		case strings.HasPrefix(pi.Type, "RANGE"):
+			fmt.Fprintf(&b, " VALUES LESS THAN (%s)", strings.TrimSpace(pd.ValueExpr))
+		case strings.HasPrefix(pi.Type, "LIST"):
+			if v := strings.TrimSpace(pd.ValueExpr); v == "" || strings.EqualFold(v, "DEFAULT") {
+				b.WriteString(" DEFAULT")
 			} else {
-				b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumns(pi.SubColumns)))
+				fmt.Fprintf(&b, " VALUES IN (%s)", v)
 			}
 		}
-		if pi.NumSubParts > 0 {
-			b.WriteString(fmt.Sprintf("\nSUBPARTITIONS %d", pi.NumSubParts))
+		if pd.Comment != "" {
+			fmt.Fprintf(&b, " COMMENT '%s'", outputFormat(pd.Comment))
 		}
 	}
-
-	// Partition definitions.
-	// For HASH/KEY partitions with NumParts > 0, auto-generated partition defs
-	// are rendered as "PARTITIONS N" (matching MySQL 8.0's SHOW CREATE TABLE).
-	hashKeyAutoGen := pi.NumParts > 0 && (pi.Type == "HASH" || pi.Type == "KEY")
-	if hashKeyAutoGen {
-		b.WriteString(fmt.Sprintf("\nPARTITIONS %d", pi.NumParts))
-	} else if len(pi.Partitions) > 0 {
-		b.WriteString("\n(")
-		for i, pd := range pi.Partitions {
-			if i > 0 {
-				b.WriteString(",\n ")
-			}
-			b.WriteString("PARTITION ")
-			b.WriteString(partitionNameInDDL(pd.Name))
-			if pd.ValueExpr != "" {
-				switch {
-				case strings.HasPrefix(pi.Type, "RANGE"):
-					if pd.ValueExpr == "MAXVALUE" {
-						if pi.Type == "RANGE COLUMNS" {
-							// RANGE COLUMNS uses parenthesized MAXVALUE
-							b.WriteString(" VALUES LESS THAN (MAXVALUE)")
-						} else {
-							b.WriteString(" VALUES LESS THAN MAXVALUE")
-						}
-					} else {
-						b.WriteString(fmt.Sprintf(" VALUES LESS THAN (%s)", pd.ValueExpr))
-					}
-				case strings.HasPrefix(pi.Type, "LIST"):
-					b.WriteString(fmt.Sprintf(" VALUES IN (%s)", pd.ValueExpr))
-				}
-			}
-			b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(pd.Engine)))
-			if pd.Comment != "" {
-				b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(pd.Comment)))
-			}
-			// Subpartition definitions — skip auto-generated ones (NumSubParts > 0).
-			if len(pd.SubPartitions) > 0 && pi.NumSubParts == 0 {
-				b.WriteString("\n (")
-				for j, spd := range pd.SubPartitions {
-					if j > 0 {
-						b.WriteString(",\n  ")
-					}
-					b.WriteString("SUBPARTITION ")
-					b.WriteString(spd.Name)
-					b.WriteString(fmt.Sprintf(" ENGINE = %s", partitionEngine(spd.Engine)))
-					if spd.Comment != "" {
-						b.WriteString(fmt.Sprintf(" COMMENT = '%s'", escapeComment(spd.Comment)))
-					}
-				}
-				b.WriteString(")")
-			}
-		}
-		b.WriteString(")")
-	}
-
-	b.WriteString(" */")
+	b.WriteString(")")
 	return b.String()
-}
-
-// formatPartitionColumns formats column names for partition clauses with backticks.
-func formatPartitionColumns(cols []string) string {
-	parts := make([]string, len(cols))
-	for i, c := range cols {
-		parts[i] = "`" + c + "`"
-	}
-	return strings.Join(parts, ",")
-}
-
-// formatPartitionColumnsPlain formats column names without backticks (MySQL style for RANGE COLUMNS, LIST COLUMNS, KEY).
-func formatPartitionColumnsPlain(cols []string) string {
-	return strings.Join(cols, ",")
-}
-
-// partitionEngine returns the engine for a partition, defaulting to InnoDB.
-func partitionEngine(engine string) string {
-	if engine == "" {
-		return "InnoDB"
-	}
-	return engine
 }
 
 // partitionNameInDDL quotes a partition name that needs it: one with other characters, as a
