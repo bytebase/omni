@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 
 	"google.golang.org/grpc/codes"
@@ -95,16 +94,12 @@ func TestKindOf(t *testing.T) {
 	}
 }
 
-// TestOracleLive exercises the full path against a running emulator. It skips
-// when SPANNER_EMULATOR_HOST is unset or the emulator is unreachable.
+// TestOracleLive exercises the full path against the emulator TestMain provides.
 func TestOracleLive(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-	}
 	ctx := context.Background()
 	o, err := newOracle(ctx)
 	if err != nil {
-		t.Skipf("emulator bootstrap failed (is it running?): %v", err)
+		t.Fatalf("emulator bootstrap failed: %v", err)
 	}
 	defer o.close()
 

@@ -10,7 +10,7 @@ import (
 
 	gomysql "github.com/go-sql-driver/mysql"
 
-	"github.com/bytebase/omni/internal/sharedserver"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
 type parserOracle struct {
@@ -18,22 +18,22 @@ type parserOracle struct {
 	ctx context.Context
 }
 
-// oracleDatabase is this process's database on the shared MySQL 8.0 server,
+// oracleDatabase is this process's database on the package's MySQL 8.0,
 // created by the first test that asks for it.
 var oracleDatabase struct {
 	once sync.Once
-	db   *sharedserver.Database
+	db   *testcontainer.Database
 	err  error
 }
 
 // startParserOracle returns the oracle with its database empty and selected, as a
 // server of its own would be. A statement it runs can change nothing outside that
-// database: see sharedserver.
+// database: see testcontainer.
 func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
 	ctx := context.Background()
 	oracleDatabase.once.Do(func() {
-		oracleDatabase.db, oracleDatabase.err = sharedserver.MySQL80.Database(ctx, "mysql_parser")
+		oracleDatabase.db, oracleDatabase.err = testcontainer.MySQL80.Database(ctx, "mysql_parser")
 	})
 	if oracleDatabase.err != nil {
 		t.Fatalf("MySQL 8.0 oracle: %v", oracleDatabase.err)
@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	if oracleDatabase.db != nil {
 		oracleDatabase.db.Close(context.Background())
 	}
-	sharedserver.MySQL80.Terminate()
+	testcontainer.MySQL80.Terminate()
 	os.Exit(code)
 }
 

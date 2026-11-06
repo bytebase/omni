@@ -8,7 +8,7 @@ import (
 
 	gomysql "github.com/go-sql-driver/mysql"
 
-	"github.com/bytebase/omni/internal/sharedserver"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // The OceanBase oracle. oracle_test.go holds OceanBase's inherited MySQL 8.0
@@ -16,14 +16,14 @@ import (
 // holds the one that answers for OceanBase itself.
 
 // oceanBaseOracle opens this process's own OceanBase: see
-// sharedserver.PrivateOceanBase.
+// testcontainer.OceanBase.
 func oceanBaseOracle(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn, err := sharedserver.PrivateOceanBase.DSN(context.Background())
+	dsn, err := testcontainer.OceanBase.DSN(context.Background())
 	if err != nil {
 		t.Fatalf("OceanBase oracle: %v", err)
 	}
-	db, err := sharedserver.OpenOceanBase(dsn)
+	db, err := testcontainer.OpenOceanBase(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,8 +315,8 @@ func TestOceanBaseOracleVersion(t *testing.T) {
 	if err := db.QueryRowContext(context.Background(), "SELECT VERSION()").Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != sharedserver.OceanBase.Version {
-		t.Fatalf("the oracle reports VERSION() = %q, and the verdicts here were read on %q", version, sharedserver.OceanBase.Version)
+	if version != testcontainer.OceanBaseVersion {
+		t.Fatalf("the oracle reports VERSION() = %q, and the verdicts here were read on %q", version, testcontainer.OceanBaseVersion)
 	}
 }
 

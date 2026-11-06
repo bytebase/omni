@@ -12,7 +12,7 @@ import (
 // TestAlterTableClauseFormsOceanBaseOracle asserts omni agrees with a live
 // OceanBase on alterTableClauseCases.
 //
-// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
+// It runs on the package's own OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run OceanBase -count=1
 //

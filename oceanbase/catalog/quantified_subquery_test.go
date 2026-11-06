@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bytebase/omni/internal/sharedserver"
 	nodes "github.com/bytebase/omni/oceanbase/ast"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 	"github.com/bytebase/omni/oceanbase/parser"
 	gomysql "github.com/go-sql-driver/mysql"
 )
@@ -217,7 +217,7 @@ func quantifiedOracleQueries() []string {
 // OceanBase 4.3.5.6 and requires the same answer: the same rows, or the same error.
 func TestQuantifiedComparisonOceanBase(t *testing.T) {
 	ctx := context.Background()
-	d, err := sharedserver.OceanBase.Database(ctx, "oceanbase_catalog_quantified")
+	d, err := testcontainer.OceanBase.Database(ctx, "oceanbase_catalog_quantified")
 	if err != nil {
 		t.Fatal(err)
 	}

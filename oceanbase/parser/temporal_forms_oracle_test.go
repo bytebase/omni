@@ -11,10 +11,7 @@ import (
 // 1064 where MySQL reads an ordinary call, and a literal up to 18446744073709551615
 // parses as a precision.
 //
-// The server needs about 8 GB, which CI does not have, so this reads
-// OCEANBASE_WALK_DSN and skips without it:
-//
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBaseTemporalForms -count=1
+// It runs on the package's own OceanBase (see testcontainer.OceanBase).
 func TestOceanBaseTemporalFormsMatchEngine(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

@@ -9,7 +9,7 @@ import (
 // an image upgrade that changes an answer fails here rather than leaving a stale
 // expectation behind.
 //
-// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
+// It runs on the package's own OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run InsertForms -count=1
 func TestInsertFormsMatchEngine(t *testing.T) {

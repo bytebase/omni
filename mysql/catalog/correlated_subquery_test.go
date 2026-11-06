@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bytebase/omni/internal/sharedserver"
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
 )
 
 // correlatedDDL and correlatedRows are the database every correlated-subquery
@@ -185,7 +185,7 @@ func execCorrelatedRows(t *testing.T, db *sql.DB) {
 // DeparseQuery text on MySQL 8.0 and requires the same rows.
 func TestDeparseCorrelatedSubqueryMySQL(t *testing.T) {
 	ctx := context.Background()
-	d, err := sharedserver.MySQL80.Database(ctx, "mysql_catalog_correlated")
+	d, err := testcontainer.MySQL80.Database(ctx, "mysql_catalog_correlated")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,18 +17,18 @@ import (
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk/walktest"
 
-	"github.com/bytebase/omni/internal/sharedserver"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // The WALK_THROUGH oracle for OceanBase's MySQL mode
 // (docs/specs/2026-10-27-walk-through-oceanbase.md §7). The tests run on the
-// package's own OceanBase (see sharedserver.PrivateOceanBase).
+// package's own OceanBase (see testcontainer.OceanBase).
 //
 //	go test ./oceanbase/review/ -run 'OceanBase' -count=1 -timeout 3h
 
 // oceanBaseWalkBase is walkBase with the relations only OceanBase has: an
 // external table, which reads files under secure_file_priv (set where the
-// server starts: sharedserver.StartOceanBase, CI, dev-db.sh), and a
+// server starts: testcontainer.OceanBase), and a
 // materialized view, whose
 // storage table the sync lists as a table.
 const oceanBaseWalkBase = walkBase + `
@@ -172,8 +172,8 @@ func (e *mysqlEngine) oceanBaseRelation(t testing.TB, db, name string) (bool, st
 }
 
 // transient reports an OceanBase error a retry may clear: see
-// sharedserver.OceanBaseTransient.
-func transient(err error) bool { return sharedserver.OceanBaseTransient(err) }
+// testcontainer.OceanBaseTransient.
+func transient(err error) bool { return testcontainer.OceanBaseTransient(err) }
 
 // retryTransient runs f again while it returns a transient error, for up
 // to three minutes.
@@ -187,15 +187,15 @@ func retryTransient(f func() error) error {
 }
 
 // oceanBaseDB opens this process's own OceanBase: see
-// sharedserver.PrivateOceanBase. The walk drops every user database between
+// testcontainer.OceanBase. The walk drops every user database between
 // cases and sets globals, so the server can serve nothing else.
 func oceanBaseDB(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn, err := sharedserver.PrivateOceanBase.DSN(context.Background())
+	dsn, err := testcontainer.OceanBase.DSN(context.Background())
 	if err != nil {
 		t.Fatalf("OceanBase oracle: %v", err)
 	}
-	db, err := sharedserver.OpenOceanBase(dsn)
+	db, err := testcontainer.OpenOceanBase(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

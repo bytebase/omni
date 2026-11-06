@@ -18,7 +18,7 @@ import (
 	"github.com/bytebase/omni/oceanbase/ast"
 	"github.com/bytebase/omni/review"
 
-	"github.com/bytebase/omni/internal/sharedserver"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // oracleBase is the schema every oracle case starts from.
@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	for _, c := range walkServers.containers {
 		_ = testcontainers.TerminateContainer(c)
 	}
-	sharedserver.PrivateOceanBase.Terminate()
+	testcontainer.OceanBase.Terminate()
 	os.Exit(code)
 }
 
