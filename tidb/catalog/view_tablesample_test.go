@@ -38,7 +38,7 @@ func omniTableSampleView(t *testing.T) string {
 // would still read, and would read the whole table.
 func TestTableSampleView(t *testing.T) {
 	got := omniTableSampleView(t)
-	for _, want := range []string{"tablesample regions ()", "repeatable (1)"} {
+	for _, want := range []string{"TABLESAMPLE REGIONS ()", "REPEATABLE(1)"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("SHOW CREATE VIEW lost %q: %s", want, got)
 		}
@@ -397,7 +397,7 @@ func TestTableSampleViewTiDBDiffers(t *testing.T) {
 	if !ok {
 		t.Fatalf("no body in %s", omni)
 	}
-	if !strings.Contains(body, "tablesample regions ()") {
+	if !strings.Contains(body, "TABLESAMPLE REGIONS ()") {
 		t.Fatalf("the catalog's text has no sample: %s", body)
 	}
 	body = strings.ReplaceAll(body, "`d`.", "`omni_tablesample_view`.")

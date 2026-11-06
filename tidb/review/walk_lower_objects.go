@@ -258,9 +258,16 @@ func (b *builder) set(v *ast.SetStmt) bool {
 // OFF, bare or quoted. The parser hands ON over as text and OFF as a name, because ON is
 // reserved and OFF is not (verified: each form turns a foreign key to a missing table's
 // 1824 on and off).
+//
+// A unary plus is read through, as TiDB reads it: +0 turns the checks off.
 func setSwitch(value ast.ExprNode) review.Switch {
 	word := ""
 	switch x := value.(type) {
+	case *ast.UnaryExpr:
+		if x.Op == ast.UnaryPlus {
+			return setSwitch(x.Operand)
+		}
+		return review.SwitchUnknown
 	case *ast.IntLit:
 		if x.Value != 0 {
 			return review.SwitchOn

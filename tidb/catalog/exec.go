@@ -109,8 +109,15 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 }
 
 // nodeToSQLValue extracts a simple string value from an expression node.
+// A unary plus is read through: SET foreign_key_checks = +0 turns the checks
+// off on TiDB v8.5.5, and +1 back on.
 func nodeToSQLValue(expr nodes.ExprNode) string {
 	switch e := expr.(type) {
+	case *nodes.UnaryExpr:
+		if e.Op == nodes.UnaryPlus {
+			return nodeToSQLValue(e.Operand)
+		}
+		return ""
 	case *nodes.StringLit:
 		return e.Value
 	case *nodes.IntLit:

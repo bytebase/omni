@@ -17,10 +17,14 @@ import (
 // (a17), and held to 64 bytes after the drop (a18). SELECT * over a NATURAL or
 // USING join lists the columns it joins on once, first.
 //
+// A name longer than 64 bytes stays the field's alias in the body and is
+// listed as name_exp_N, N its position, in the view's columns (a08, a09).
+// The oracle also compares SHOW CREATE VIEW, so every case pins TiDB's stored
+// body as well.
+//
 // Not covered: TiDB rejects a WITH inside a scalar subquery of a view and a
 // scalar subquery that may return more than one row (a01-a03 of the mysql
-// cases), and it lists a name longer than 64 bytes as name_exp_N in lower
-// case where the catalog writes Name_exp_N (a08, a09), a known gap.
+// cases).
 
 var viewNameSchema = []string{
 	`CREATE TABLE n1 (a INT, b INT)`,
@@ -41,6 +45,8 @@ var viewNameCases = []struct{ name, sql string }{
 	{`a05`, `SELECT a+1, a  +  1, count(*), cast(a as char) FROM n1 GROUP BY a`},
 	{`a06`, `SELECT (a), ((b)), (1), 0004, - 2, x'41', B'10', true, date '2020-01-01', ('e'), (null) FROM n1`},
 	{`a07`, `SELECT a /* c */ + 1, a/*!50100 +2*/ FROM n1`},
+	{`a08`, `SELECT concat('éééééééééééééééééééééééééééééééééééééééééééééééééé') FROM n1`},
+	{`a09`, `SELECT a, concat('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') FROM n1`},
 	{`a10`, `SELECT * FROM (SELECT a+1, b FROM n1) d`},
 	{`a11`, `SELECT (select   1), (SELECT a FROM n1 LIMIT 1) + 0 FROM n1`},
 	{`a12`, `SELECT a IN (SELECT a FROM n1), a in (1,2) FROM n1`},
@@ -115,6 +121,8 @@ func TestViewNamesAndJoinColumns(t *testing.T) {
 		"a06": {"(a)", "((b))", "1", "0004", "- 2", "x'41'", "B'10'", "TRUE", "date '2020-01-01'", "e", "NULL"},
 		"a07": {"a /* c  + 1", "a +2"},
 		"a13": {"x + y", "count(z)"},
+		"a08": {"name_exp_1"},
+		"a09": {"a", "name_exp_2"},
 		"b06": {"k1", "k2", "b", "a"},
 		"b17": {"k", "u1", "q1", "q2", "p1", "s1", "s2"},
 	} {
@@ -122,11 +130,12 @@ func TestViewNamesAndJoinColumns(t *testing.T) {
 			t.Errorf("%s: columns %q, want %q", name, got, want)
 		}
 	}
+	// TiDB keeps USING and NATURAL as written.
 	for name, want := range map[string]string{
-		"b01": "from ((`j1` join `j2` on((`j1`.`k1` = `j2`.`k1`))) join `j3` on((`j2`.`k2` = `j3`.`k2`)))",
-		"b06": "from (`j2` left join `j1` on((`j2`.`k1` = `j1`.`k1`)))",
-		"b12": "from ((select `j1`.`k1` AS `k1`,`j1`.`a` AS `a` from `j1`) `d` join `j2` on((`d`.`k1` = `j2`.`k1`)))",
-		"b23": "AS select `q`.`q1` AS `q1`,`q`.`q2` AS `q2`,`p`.`k` AS `k`,`p`.`p1` AS `p1` from (`q` left join `p` on(true))",
+		"b01": "FROM (`test`.`j1` JOIN `test`.`j2` USING (`k1`)) JOIN `test`.`j3` USING (`k2`)",
+		"b06": "FROM `test`.`j1` RIGHT JOIN `test`.`j2` USING (`k1`)",
+		"b12": "FROM (SELECT `k1` AS `k1`,`a` AS `a` FROM `test`.`j1`) AS `d` JOIN `test`.`j2` USING (`k1`)",
+		"b23": "AS SELECT `test`.`q`.`q1` AS `q1`,`test`.`q`.`q2` AS `q2`,`test`.`p`.`k` AS `k`,`test`.`p`.`p1` AS `p1` FROM `test`.`p` NATURAL RIGHT JOIN `test`.`q`",
 	} {
 		if got := c.ShowCreateView("test", name); !strings.HasSuffix(got, want) {
 			t.Errorf("%s: %s\nwant it to end with %s", name, got, want)
@@ -166,6 +175,14 @@ func TestViewNamesAndJoinColumnsOracle(t *testing.T) {
 		rows.Close()
 		if got := c.GetDatabase("test").Views[v.name].Columns; !reflect.DeepEqual(got, cols) {
 			t.Errorf("%s: catalog columns %q, TiDB columns %q", v.name, got, cols)
+		}
+		var name, ddl, cs, coll string
+		if err := tc.db.QueryRowContext(tc.ctx, "SHOW CREATE VIEW "+v.name).Scan(&name, &ddl, &cs, &coll); err != nil {
+			t.Fatal(err)
+		}
+		ddl = strings.ReplaceAll(ddl, "`omni_view_names`.", "`test`.")
+		if got := c.ShowCreateView("test", v.name); got != ddl {
+			t.Errorf("%s: SHOW CREATE VIEW\n catalog: %s\n    TiDB: %s", v.name, got, ddl)
 		}
 	}
 }

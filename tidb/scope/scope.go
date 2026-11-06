@@ -15,6 +15,16 @@ import (
 type Column struct {
 	Name     string
 	Position int // 1-based position in the table
+	// CharLength is the length TiDB gives CAST(column AS CHAR) when the
+	// cast names none, which is the display width of the column's type; 0
+	// when it is not known.
+	CharLength int
+	// Integer reports that the column has an integer type.
+	Integer bool
+	// Schema is the schema TiDB's planner carries in the column's name: a
+	// stored table's, and for a column of a derived table or CTE, that of
+	// the column its select field names, if it names one.
+	Schema string
 }
 
 // Table represents a table or virtual table in scope with its visible columns.

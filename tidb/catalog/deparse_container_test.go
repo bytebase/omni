@@ -1,9 +1,12 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+
+	mysqldriver "github.com/go-sql-driver/mysql"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
 	"github.com/bytebase/omni/tidb/deparse"
@@ -11,17 +14,17 @@ import (
 )
 
 // extractExprFromView extracts the expression portion from SHOW CREATE VIEW output.
-// MySQL 8.0 SHOW CREATE VIEW returns:
+// TiDB's SHOW CREATE VIEW returns:
 //
-//	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `test`.`v` AS select <expr> AS `<alias>` from `test`.`t`
+//	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v` (`<alias>`) AS SELECT <expr> AS `<alias>` FROM `test`.`t`
 //
-// We extract <expr> — the part between "AS select " and the first " AS `".
+// We extract <expr> — the part between "AS SELECT " and the first " AS `".
 func extractExprFromView(showCreate string) string {
-	idx := strings.Index(showCreate, " AS select ")
+	idx := strings.Index(showCreate, " AS SELECT ")
 	if idx < 0 {
 		return showCreate
 	}
-	selectPart := showCreate[idx+len(" AS select "):]
+	selectPart := showCreate[idx+len(" AS SELECT "):]
 
 	// Find " AS `" which marks the column alias
 	aliasIdx := strings.Index(selectPart, " AS `")
@@ -31,8 +34,9 @@ func extractExprFromView(showCreate string) string {
 	return selectPart[:aliasIdx]
 }
 
-// deparseExprForOracle parses a SQL expression and deparses it via our deparser.
-func deparseExprForOracle(t *testing.T, expr string) string {
+// restoreExprForOracle parses a SQL expression and writes it as TiDB stores
+// it in a view body.
+func restoreExprForOracle(t *testing.T, expr string) string {
 	t.Helper()
 	sql := "SELECT " + expr + " FROM t"
 	stmts, err := parser.Parse(sql)
@@ -51,37 +55,13 @@ func deparseExprForOracle(t *testing.T, expr string) string {
 	}
 	target := sel.TargetList[0]
 	if rt, ok := target.(*nodes.ResTarget); ok {
-		return deparse.Deparse(rt.Val)
+		return deparse.Restore(rt.Val)
 	}
-	return deparse.Deparse(target)
+	return deparse.Restore(target)
 }
 
-// deparseExprRewriteForOracle parses a SQL expression, applies RewriteExpr, and deparses.
-func deparseExprRewriteForOracle(t *testing.T, expr string) string {
-	t.Helper()
-	sql := "SELECT " + expr + " FROM t"
-	stmts, err := parser.Parse(sql)
-	if err != nil {
-		t.Fatalf("failed to parse %q: %v", sql, err)
-	}
-	if stmts.Len() == 0 {
-		t.Fatalf("no statements parsed from %q", sql)
-	}
-	sel, ok := stmts.Items[0].(*nodes.SelectStmt)
-	if !ok {
-		t.Fatalf("expected SelectStmt, got %T", stmts.Items[0])
-	}
-	if len(sel.TargetList) == 0 {
-		t.Fatalf("no target list in SELECT from %q", sql)
-	}
-	target := sel.TargetList[0]
-	if rt, ok := target.(*nodes.ResTarget); ok {
-		return deparse.Deparse(deparse.RewriteExpr(rt.Val))
-	}
-	return deparse.Deparse(deparse.RewriteExpr(target))
-}
-
-// TestDeparse_Section_4_1_Container verifies NOT folding against MySQL 8.0.
+// TestDeparse_Section_4_1_Container verifies that NOT is kept as written, as
+// TiDB keeps it: MySQL folds NOT (a > 0) into a <= 0, TiDB does not.
 func TestDeparse_Section_4_1_Container(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -109,35 +89,35 @@ func TestDeparse_Section_4_1_Container(t *testing.T) {
 			viewName := "v_" + tc.name
 			selectSQL := fmt.Sprintf("SELECT %s FROM t", tc.input)
 
-			// Create view on MySQL 8.0
+			// Create view on TiDB
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, selectSQL)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
 				t.Fatalf("CREATE VIEW failed: %v", err)
 			}
 
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
 				t.Fatalf("SHOW CREATE VIEW failed: %v", err)
 			}
 
-			// Extract just the expression from MySQL's output
-			mysqlExpr := extractExprFromView(mysqlOutput)
+			// Extract just the expression from TiDB's output
+			tidbExpr := extractExprFromView(tidbOutput)
 
-			// Our deparser output (with rewrite)
-			omniExpr := deparseExprRewriteForOracle(t, tc.input)
+			// Our restore of the expression
+			omniExpr := restoreExprForOracle(t, tc.input)
 
-			t.Logf("MySQL:  %s", mysqlExpr)
+			t.Logf("TiDB:   %s", tidbExpr)
 			t.Logf("Omni:   %s", omniExpr)
 
-			if mysqlExpr != omniExpr {
-				t.Errorf("mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlExpr, omniExpr)
+			if tidbExpr != omniExpr {
+				t.Errorf("mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbExpr, omniExpr)
 			}
 		})
 	}
 }
 
-// TestDeparse_Section_3_2_Container verifies TRIM special forms against MySQL 8.0.
+// TestDeparse_Section_3_2_Container verifies TRIM special forms against TiDB.
 func TestDeparse_Section_3_2_Container(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -160,36 +140,36 @@ func TestDeparse_Section_3_2_Container(t *testing.T) {
 			viewName := "v_" + tc.name
 			selectSQL := fmt.Sprintf("SELECT %s FROM t", tc.input)
 
-			// Create view on MySQL 8.0
+			// Create view on TiDB
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, selectSQL)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
 				t.Fatalf("CREATE VIEW failed: %v", err)
 			}
 
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
 				t.Fatalf("SHOW CREATE VIEW failed: %v", err)
 			}
 
-			// Extract just the expression from MySQL's output
-			mysqlExpr := extractExprFromView(mysqlOutput)
+			// Extract just the expression from TiDB's output
+			tidbExpr := extractExprFromView(tidbOutput)
 
 			// Our deparser output
-			omniExpr := deparseExprForOracle(t, tc.input)
+			omniExpr := restoreExprForOracle(t, tc.input)
 
-			t.Logf("MySQL:  %s", mysqlExpr)
+			t.Logf("TiDB:   %s", tidbExpr)
 			t.Logf("Omni:   %s", omniExpr)
 
-			if mysqlExpr != omniExpr {
-				t.Errorf("mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlExpr, omniExpr)
+			if tidbExpr != omniExpr {
+				t.Errorf("mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbExpr, omniExpr)
 			}
 		})
 	}
 }
 
 // extractSelectBody extracts the SELECT body from SHOW CREATE VIEW output.
-// MySQL 8.0 format:
+// TiDB format:
 //
 //	CREATE ALGORITHM=... VIEW `test`.`v` AS select ...
 //
@@ -213,15 +193,15 @@ func extractSelectBody(showCreate string) string {
 }
 
 // TestDeparse_Section_7_2_SimpleViews verifies that our catalog's SHOW CREATE VIEW
-// output matches MySQL 8.0's output for simple view definitions.
+// output matches TiDB's output for simple view definitions.
 // For each view, we compare the SELECT body portion (after "AS ").
 func TestDeparse_Section_7_2_SimpleViews(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -240,17 +220,17 @@ func TestDeparse_Section_7_2_SimpleViews(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := extractSelectBody(mysqlOutput)
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -267,63 +247,62 @@ func TestDeparse_Section_7_2_SimpleViews(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL full:  %s", mysqlOutput)
+			t.Logf("TiDB full:   %s", tidbOutput)
 			t.Logf("Omni full:   %s", omniOutput)
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparse_Section_7_4_JoinViews verifies that our catalog's SHOW CREATE VIEW
-// output matches MySQL 8.0's output for views with JOINs (INNER JOIN, LEFT JOIN,
+// output matches TiDB's output for views with JOINs (INNER JOIN, LEFT JOIN,
 // multiple tables, subquery in FROM).
 func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base tables on MySQL 8.0
+	// Setup: create base tables on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t1 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t1 on MySQL: %v", err)
+		t.Fatalf("failed to create table t1 on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t2 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t2 on MySQL: %v", err)
+		t.Fatalf("failed to create table t2 on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		createAs string // the SELECT portion after CREATE VIEW v AS
 		tables   string // additional CREATE TABLE statements for our catalog (beyond t, t1, t2)
-		partial  bool   // expected partial match (parser limitation)
 	}{
-		{"inner_join", "SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.a = t2.a", "", false},
-		{"left_join", "SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.a = t2.a", "", false},
-		{"multi_table", "SELECT t1.a FROM t1, t2 WHERE t1.a = t2.a", "", false},
-		{"subquery_from", "SELECT d.x FROM (SELECT a AS x FROM t) d", "", true},
+		{"inner_join", "SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.a = t2.a", ""},
+		{"left_join", "SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.a = t2.a", ""},
+		{"multi_table", "SELECT t1.a FROM t1, t2 WHERE t1.a = t2.a", ""},
+		{"subquery_from", "SELECT d.x FROM (SELECT a AS x FROM t) d", ""},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -337,81 +316,68 @@ func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
 			}
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL full:  %s", mysqlOutput)
+			t.Logf("TiDB full:   %s", tidbOutput)
 			t.Logf("Omni full:   %s", omniOutput)
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparse_Section_7_5_AdvancedViews verifies that our catalog's SHOW CREATE VIEW
-// output matches MySQL 8.0's output for advanced view definitions: UNION, CTE,
+// output matches TiDB's output for advanced view definitions: UNION, CTE,
 // window functions, nested subqueries, boolean expressions, and combined rewrites.
 func TestDeparse_Section_7_5_AdvancedViews(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		createAs string // the SELECT portion after CREATE VIEW v AS
-		partial  bool   // expected partial match (parser/resolver limitation)
 	}{
-		{"union_view", "SELECT a FROM t UNION SELECT b FROM t", false},
-		{"cte_view", "WITH cte AS (SELECT a FROM t) SELECT * FROM cte", false},
-		{"window_func_view", "SELECT a, ROW_NUMBER() OVER (ORDER BY a) FROM t", false},
-		{"nested_subquery_view", "SELECT * FROM t WHERE a IN (SELECT a FROM t WHERE a > 0)", false},
-		{"boolean_expr_view", "SELECT a AND b, a OR b FROM t", false},
-		{"combined_rewrite_view", "SELECT a + b, NOT (a > 0), CAST(a AS CHAR), COUNT(*) FROM t GROUP BY a, b HAVING COUNT(*) > 1", false},
+		{"union_view", "SELECT a FROM t UNION SELECT b FROM t"},
+		{"cte_view", "WITH cte AS (SELECT a FROM t) SELECT * FROM cte"},
+		{"window_func_view", "SELECT a, ROW_NUMBER() OVER (ORDER BY a) FROM t"},
+		{"nested_subquery_view", "SELECT * FROM t WHERE a IN (SELECT a FROM t WHERE a > 0)"},
+		{"boolean_expr_view", "SELECT a AND b, a OR b FROM t"},
+		{"combined_rewrite_view", "SELECT a + b, NOT (a > 0), CAST(a AS CHAR), COUNT(*) FROM t GROUP BY a, b HAVING COUNT(*) > 1"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -420,73 +386,54 @@ func TestDeparse_Section_7_5_AdvancedViews(t *testing.T) {
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser/resolver limitation)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL full:  %s", mysqlOutput)
+			t.Logf("TiDB full:   %s", tidbOutput)
 			t.Logf("Omni full:   %s", omniOutput)
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
-// stripDatabasePrefix removes the `test`. database prefix from MySQL 8.0 SHOW CREATE VIEW output.
-// MySQL 8.0 qualifies all identifiers with the database name (e.g., `test`.`t`.`a`),
-// while our catalog does not. We strip the prefix for comparison.
-func stripDatabasePrefix(s string) string {
-	return strings.ReplaceAll(s, "`test`.", "")
-}
-
 // TestDeparse_Section_7_6_Regression verifies that the deparser integration does not
 // break existing tests (scenarios 1-2 are covered by running go test ./mysql/catalog/
 // and go test ./mysql/parser/ separately) and that views with explicit column
-// aliases match MySQL 8.0 output exactly.
+// aliases match TiDB output exactly.
 func TestDeparse_Section_7_6_Regression(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	t.Run("view_with_explicit_column_aliases", func(t *testing.T) {
 		viewName := "v_col_alias"
 		createSQL := "CREATE VIEW " + viewName + "(x, y) AS SELECT a, b FROM t"
 
-		// --- MySQL 8.0 side ---
+		// --- TiDB side ---
 		ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 		if err := ctr.execSQLDirect(createSQL); err != nil {
-			t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+			t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 		}
-		mysqlOutput, err := ctr.showCreateView(viewName)
+		tidbOutput, err := ctr.showCreateView(viewName)
 		if err != nil {
-			t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+			t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 		}
 
 		// --- Our catalog side ---
@@ -503,27 +450,27 @@ func TestDeparse_Section_7_6_Regression(t *testing.T) {
 			t.Fatal("ShowCreateView returned empty")
 		}
 
-		// Compare full output (stripping database prefix from MySQL).
+		// Compare full output (stripping database prefix from TiDB).
 		// MySQL: CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `test`.`v_col_alias` (`x`,`y`) AS select ...
 		// Omni:  CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_col_alias` (`x`,`y`) AS select ...
-		mysqlNorm := stripDatabasePrefix(mysqlOutput)
+		tidbNorm := tidbOutput
 
-		t.Logf("MySQL full:  %s", mysqlOutput)
+		t.Logf("TiDB full:   %s", tidbOutput)
 		t.Logf("Omni full:   %s", omniOutput)
-		t.Logf("MySQL norm:  %s", mysqlNorm)
+		t.Logf("TiDB norm:   %s", tidbNorm)
 
 		// Compare the preamble (up to and including column list).
-		mysqlPreamble := extractViewPreamble(mysqlNorm)
+		tidbPreamble := extractViewPreamble(tidbNorm)
 		omniPreamble := extractViewPreamble(omniOutput)
-		if mysqlPreamble != omniPreamble {
-			t.Errorf("preamble mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlPreamble, omniPreamble)
+		if tidbPreamble != omniPreamble {
+			t.Errorf("preamble mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbPreamble, omniPreamble)
 		}
 
 		// Compare the SELECT body.
-		mysqlBody := extractSelectBody(mysqlNorm)
+		tidbBody := extractSelectBody(tidbNorm)
 		omniBody := extractSelectBody(omniOutput)
-		if mysqlBody != omniBody {
-			t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+		if tidbBody != omniBody {
+			t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 		}
 	})
 
@@ -542,17 +489,17 @@ func TestDeparse_Section_7_6_Regression(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_reg_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -569,60 +516,55 @@ func TestDeparse_Section_7_6_Regression(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_7_1_WindowFunctions verifies window function patterns
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 // Covers: ROW_NUMBER, SUM OVER PARTITION BY+ORDER BY, ROWS frame, RANGE frame,
 // named window, multiple window functions, LAG/LEAD.
 func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		viewName string
 		viewSQL  string
-		partial  bool
 	}{
-		{"row_number_basic", "v_wf_rownum", "CREATE VIEW v_wf_rownum AS SELECT a, ROW_NUMBER() OVER (ORDER BY a) FROM t", false},
-		{"sum_partition_orderby", "v_wf_sum_part", "CREATE VIEW v_wf_sum_part AS SELECT a, SUM(b) OVER (PARTITION BY a ORDER BY b) FROM t", false},
-		{"rows_frame", "v_wf_rows", "CREATE VIEW v_wf_rows AS SELECT a, SUM(b) OVER (PARTITION BY a ORDER BY b ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t", false},
-		{"range_frame", "v_wf_range", "CREATE VIEW v_wf_range AS SELECT a, AVG(b) OVER (ORDER BY a RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t", false},
-		{"named_window", "v_wf_named", "CREATE VIEW v_wf_named AS SELECT a, RANK() OVER w, DENSE_RANK() OVER w FROM t WINDOW w AS (ORDER BY a)", false},
-		{"multiple_window_funcs", "v_wf_multi", "CREATE VIEW v_wf_multi AS SELECT a, ROW_NUMBER() OVER (ORDER BY a), SUM(b) OVER (ORDER BY a) FROM t", false},
-		{"lag_lead", "v_wf_lagld", "CREATE VIEW v_wf_lagld AS SELECT a, LAG(a, 1) OVER (ORDER BY a), LEAD(a, 1) OVER (ORDER BY a) FROM t", false},
+		{"row_number_basic", "v_wf_rownum", "CREATE VIEW v_wf_rownum AS SELECT a, ROW_NUMBER() OVER (ORDER BY a) FROM t"},
+		{"sum_partition_orderby", "v_wf_sum_part", "CREATE VIEW v_wf_sum_part AS SELECT a, SUM(b) OVER (PARTITION BY a ORDER BY b) FROM t"},
+		{"rows_frame", "v_wf_rows", "CREATE VIEW v_wf_rows AS SELECT a, SUM(b) OVER (PARTITION BY a ORDER BY b ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM t"},
+		{"range_frame", "v_wf_range", "CREATE VIEW v_wf_range AS SELECT a, AVG(b) OVER (ORDER BY a RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM t"},
+		{"named_window", "v_wf_named", "CREATE VIEW v_wf_named AS SELECT a, RANK() OVER w, DENSE_RANK() OVER w FROM t WINDOW w AS (ORDER BY a)"},
+		{"multiple_window_funcs", "v_wf_multi", "CREATE VIEW v_wf_multi AS SELECT a, ROW_NUMBER() OVER (ORDER BY a), SUM(b) OVER (ORDER BY a) FROM t"},
+		{"lag_lead", "v_wf_lagld", "CREATE VIEW v_wf_lagld AS SELECT a, LAG(a, 1) OVER (ORDER BY a), LEAD(a, 1) OVER (ORDER BY a) FROM t"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -631,48 +573,36 @@ func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_1_1_ArithmeticComparison verifies arithmetic and comparison operators
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_1_1_ArithmeticComparison(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -695,17 +625,16 @@ func TestDeparseContainer_1_1_ArithmeticComparison(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -725,26 +654,26 @@ func TestDeparseContainer_1_1_ArithmeticComparison(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparse_Section_7_3_ExpressionViews verifies that our catalog's SHOW CREATE VIEW
-// output matches MySQL 8.0's output for views with expressions (arithmetic, functions,
+// output matches TiDB's output for views with expressions (arithmetic, functions,
 // CASE, CAST, aggregates).
 func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -762,17 +691,17 @@ func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -789,61 +718,57 @@ func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL full:  %s", mysqlOutput)
+			t.Logf("TiDB full:   %s", tidbOutput)
 			t.Logf("Omni full:   %s", omniOutput)
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
+
 // TestDeparseContainer_1_3_LiteralsSpacing verifies literals and spacing rules
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		viewName string
 		viewSQL  string
-		partial  bool // mark [~] if parser limitation
 	}{
-		{"basic_literals", "v_basic_lit", "CREATE VIEW v_basic_lit AS SELECT 1, 1.5, 'hello', NULL, TRUE, FALSE FROM t", false},
-		{"hex_bit_literals", "v_hex_bit", "CREATE VIEW v_hex_bit AS SELECT 0xFF, X'FF', 0b1010, b'1010' FROM t", false},
-		{"charset_introducers", "v_charset", "CREATE VIEW v_charset AS SELECT _utf8mb4'hello', _latin1'world' FROM t", false},
-		{"empty_string", "v_empty_str", "CREATE VIEW v_empty_str AS SELECT '' FROM t", false},
-		{"escaped_quotes", "v_esc_quotes", "CREATE VIEW v_esc_quotes AS SELECT 'it''s' FROM t", false},
-		{"escaped_backslash", "v_esc_bslash", "CREATE VIEW v_esc_bslash AS SELECT 'back\\\\slash' FROM t", false},
-		{"temporal_literals", "v_temporal", "CREATE VIEW v_temporal AS SELECT DATE '2024-01-01', TIME '12:00:00', TIMESTAMP '2024-01-01 12:00:00' FROM t", false},
-		{"func_args_no_space", "v_func_args", "CREATE VIEW v_func_args AS SELECT CONCAT(a, b, c) FROM t", false},
-		{"in_list_no_space", "v_in_list", "CREATE VIEW v_in_list AS SELECT a IN (1, 2, 3) FROM t", false},
+		{"basic_literals", "v_basic_lit", "CREATE VIEW v_basic_lit AS SELECT 1, 1.5, 'hello', NULL, TRUE, FALSE FROM t"},
+		{"hex_bit_literals", "v_hex_bit", "CREATE VIEW v_hex_bit AS SELECT 0xFF, X'FF', 0b1010, b'1010' FROM t"},
+		{"charset_introducers", "v_charset", "CREATE VIEW v_charset AS SELECT _utf8mb4'hello', _latin1'world' FROM t"},
+		{"empty_string", "v_empty_str", "CREATE VIEW v_empty_str AS SELECT '' FROM t"},
+		{"escaped_quotes", "v_esc_quotes", "CREATE VIEW v_esc_quotes AS SELECT 'it''s' FROM t"},
+		{"escaped_backslash", "v_esc_bslash", "CREATE VIEW v_esc_bslash AS SELECT 'back\\\\slash' FROM t"},
+		{"temporal_literals", "v_temporal", "CREATE VIEW v_temporal AS SELECT DATE '2024-01-01', TIME '12:00:00', TIMESTAMP '2024-01-01 12:00:00' FROM t"},
+		{"func_args_no_space", "v_func_args", "CREATE VIEW v_func_args AS SELECT CONCAT(a, b, c) FROM t"},
+		{"in_list_no_space", "v_in_list", "CREATE VIEW v_in_list AS SELECT a IN (1, 2, 3) FROM t"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -852,48 +777,36 @@ func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial — parser limitation)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_1_2_LogicalBitwiseIS verifies logical, bitwise, and IS operators
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_1_2_LogicalBitwiseIS(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -917,17 +830,16 @@ func TestDeparseContainer_1_2_LogicalBitwiseIS(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -947,18 +859,18 @@ func TestDeparseContainer_1_2_LogicalBitwiseIS(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_Section_2_1_FunctionNameRewrites verifies that function name
-// rewrites match MySQL 8.0 SHOW CREATE VIEW output.
+// rewrites match TiDB SHOW CREATE VIEW output.
 // Covers: SUBSTRING->substr, CURRENT_TIMESTAMP->now(), CURRENT_DATE->curdate(),
 // CURRENT_TIME->curtime(), CURRENT_USER->current_user(), NOW()->now(),
 // COUNT(*)->count(0), COUNT(DISTINCT).
@@ -966,9 +878,9 @@ func TestDeparseContainer_Section_2_1_FunctionNameRewrites(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -989,17 +901,16 @@ func TestDeparseContainer_Section_2_1_FunctionNameRewrites(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1019,25 +930,25 @@ func TestDeparseContainer_Section_2_1_FunctionNameRewrites(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_2_2_RegularFunctionsAggregates verifies regular functions and aggregates
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -1056,17 +967,16 @@ func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1086,11 +996,11 @@ func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
@@ -1098,17 +1008,17 @@ func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
 
 // TestDeparseContainer_2_4_CastConvertOperatorRewrites verifies CAST, CONVERT,
 // REGEXP→regexp_like, NOT REGEXP, -> (json_extract), ->> (json_unquote(json_extract))
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base tables on MySQL 8.0
+	// Setup: create base tables on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS tj (a JSON, b INT)"); err != nil {
-		t.Fatalf("failed to create table tj on MySQL: %v", err)
+		t.Fatalf("failed to create table tj on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -1116,38 +1026,33 @@ func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 		viewName string
 		viewSQL  string
 		tables   string // extra CREATE TABLE for omni catalog (beyond t)
-		partial  bool
 	}{
-		{"cast_char", "v_cast_char", "CREATE VIEW v_cast_char AS SELECT CAST(a AS CHAR) FROM t", "", false},
-		{"cast_char10", "v_cast_char10", "CREATE VIEW v_cast_char10 AS SELECT CAST(a AS CHAR(10)) FROM t", "", false},
-		{"cast_binary", "v_cast_binary", "CREATE VIEW v_cast_binary AS SELECT CAST(a AS BINARY) FROM t", "", false},
-		{"cast_signed_unsigned", "v_cast_su", "CREATE VIEW v_cast_su AS SELECT CAST(a AS SIGNED), CAST(a AS UNSIGNED) FROM t", "", false},
-		{"cast_decimal", "v_cast_dec", "CREATE VIEW v_cast_dec AS SELECT CAST(a AS DECIMAL(10,2)) FROM t", "", false},
-		{"cast_date_datetime_json", "v_cast_ddj", "CREATE VIEW v_cast_ddj AS SELECT CAST(a AS DATE), CAST(a AS DATETIME), CAST(a AS JSON) FROM t", "", false},
-		{"convert_char", "v_conv_char", "CREATE VIEW v_conv_char AS SELECT CONVERT(a, CHAR) FROM t", "", false},
-		{"convert_using", "v_conv_using", "CREATE VIEW v_conv_using AS SELECT CONVERT(a USING utf8mb4) FROM t", "", false},
-		{"regexp", "v_regexp", "CREATE VIEW v_regexp AS SELECT a REGEXP 'pattern' FROM t", "", false},
-		{"not_regexp", "v_not_regexp", "CREATE VIEW v_not_regexp AS SELECT a NOT REGEXP 'pattern' FROM t", "", false},
-		{"json_extract", "v_json_ext", "CREATE VIEW v_json_ext AS SELECT a->'$.key' FROM tj", "CREATE TABLE tj (a JSON, b INT)", false},
-		{"json_unquote", "v_json_unq", "CREATE VIEW v_json_unq AS SELECT a->>'$.key' FROM tj", "CREATE TABLE tj (a JSON, b INT)", false},
+		{"cast_char", "v_cast_char", "CREATE VIEW v_cast_char AS SELECT CAST(a AS CHAR) FROM t", ""},
+		{"cast_char10", "v_cast_char10", "CREATE VIEW v_cast_char10 AS SELECT CAST(a AS CHAR(10)) FROM t", ""},
+		{"cast_binary", "v_cast_binary", "CREATE VIEW v_cast_binary AS SELECT CAST(a AS BINARY) FROM t", ""},
+		{"cast_signed_unsigned", "v_cast_su", "CREATE VIEW v_cast_su AS SELECT CAST(a AS SIGNED), CAST(a AS UNSIGNED) FROM t", ""},
+		{"cast_decimal", "v_cast_dec", "CREATE VIEW v_cast_dec AS SELECT CAST(a AS DECIMAL(10,2)) FROM t", ""},
+		{"cast_date_datetime_json", "v_cast_ddj", "CREATE VIEW v_cast_ddj AS SELECT CAST(a AS DATE), CAST(a AS DATETIME), CAST(a AS JSON) FROM t", ""},
+		{"convert_char", "v_conv_char", "CREATE VIEW v_conv_char AS SELECT CONVERT(a, CHAR) FROM t", ""},
+		{"convert_using", "v_conv_using", "CREATE VIEW v_conv_using AS SELECT CONVERT(a USING utf8mb4) FROM t", ""},
+		{"regexp", "v_regexp", "CREATE VIEW v_regexp AS SELECT a REGEXP 'pattern' FROM t", ""},
+		{"not_regexp", "v_not_regexp", "CREATE VIEW v_not_regexp AS SELECT a NOT REGEXP 'pattern' FROM t", ""},
+		{"json_extract", "v_json_ext", "CREATE VIEW v_json_ext AS SELECT a->'$.key' FROM tj", "CREATE TABLE tj (a JSON, b INT)"},
+		{"json_unquote", "v_json_unq", "CREATE VIEW v_json_unq AS SELECT a->>'$.key' FROM tj", "CREATE TABLE tj (a JSON, b INT)"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1159,51 +1064,39 @@ func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 			}
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_2_3_SpecialFunctions verifies TRIM, GROUP_CONCAT, and simple CASE
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base tables on MySQL 8.0
+	// Setup: create base tables on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS tv (a VARCHAR(50), b VARCHAR(50), c INT)"); err != nil {
-		t.Fatalf("failed to create table tv on MySQL: %v", err)
+		t.Fatalf("failed to create table tv on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -1223,17 +1116,16 @@ func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1256,26 +1148,26 @@ func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_3_1_BooleanContextWrapping verifies that non-boolean expressions
-// in boolean context (AND/OR) get (0 <> ...) wrapping to match MySQL 8.0's
+// in boolean context (AND/OR) get (0 <> ...) wrapping to match TiDB's
 // SHOW CREATE VIEW output.
 func TestDeparseContainer_3_1_BooleanContextWrapping(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -1301,17 +1193,16 @@ func TestDeparseContainer_3_1_BooleanContextWrapping(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1331,18 +1222,18 @@ func TestDeparseContainer_3_1_BooleanContextWrapping(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_3_2_NotFoldingNoDoubleWrap verifies NOT folding and
-// no-double-wrapping of boolean expressions against MySQL 8.0.
+// no-double-wrapping of boolean expressions against TiDB.
 // Section 3.2 scenarios:
 //   - NOT(comparison) folds into inverted operator
 //   - NOT(non-boolean) becomes (0 = ...)
@@ -1355,9 +1246,9 @@ func TestDeparseContainer_3_2_NotFoldingNoDoubleWrap(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -1376,16 +1267,16 @@ func TestDeparseContainer_3_2_NotFoldingNoDoubleWrap(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1405,25 +1296,25 @@ func TestDeparseContainer_3_2_NotFoldingNoDoubleWrap(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_3_3_ComplexPrecedence verifies complex operator precedence
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_3_3_ComplexPrecedence(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table on MySQL: %v", err)
+		t.Fatalf("failed to create table on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -1442,17 +1333,16 @@ func TestDeparseContainer_3_3_ComplexPrecedence(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1472,66 +1362,61 @@ func TestDeparseContainer_3_3_ComplexPrecedence(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
-// TestDeparseContainer_4_1_AllJoinTypes verifies all JOIN types against MySQL 8.0
+// TestDeparseContainer_4_1_AllJoinTypes verifies all JOIN types against TiDB
 // SHOW CREATE VIEW output: INNER JOIN, LEFT JOIN, RIGHT JOIN→LEFT swap,
 // CROSS JOIN, NATURAL JOIN expanded, STRAIGHT_JOIN, USING expanded, comma→explicit join.
 func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base tables on MySQL 8.0
+	// Setup: create base tables on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t1 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t1 on MySQL: %v", err)
+		t.Fatalf("failed to create table t1 on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t2 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t2 on MySQL: %v", err)
+		t.Fatalf("failed to create table t2 on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		viewName string
 		viewSQL  string
-		partial  bool
 	}{
-		{"inner_join", "v_inner_join", "CREATE VIEW v_inner_join AS SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.a = t2.a", false},
-		{"left_join", "v_left_join", "CREATE VIEW v_left_join AS SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.a = t2.a", false},
-		{"right_join_swap", "v_right_join", "CREATE VIEW v_right_join AS SELECT t1.a, t2.b FROM t1 RIGHT JOIN t2 ON t1.a = t2.a", false},
-		{"cross_join", "v_cross_join", "CREATE VIEW v_cross_join AS SELECT t1.a, t2.b FROM t1 CROSS JOIN t2", false},
-		{"natural_join", "v_natural_join", "CREATE VIEW v_natural_join AS SELECT * FROM t1 NATURAL JOIN t2", false},
-		{"straight_join", "v_straight_join", "CREATE VIEW v_straight_join AS SELECT t1.a, t2.b FROM t1 STRAIGHT_JOIN t2 ON t1.a = t2.a", false},
-		{"using_expanded", "v_using", "CREATE VIEW v_using AS SELECT t1.a, t2.b FROM t1 JOIN t2 USING (a)", false},
-		{"comma_to_join", "v_comma_join", "CREATE VIEW v_comma_join AS SELECT t1.a, t2.b FROM t1, t2 WHERE t1.a = t2.a", false},
+		{"inner_join", "v_inner_join", "CREATE VIEW v_inner_join AS SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.a = t2.a"},
+		{"left_join", "v_left_join", "CREATE VIEW v_left_join AS SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.a = t2.a"},
+		{"right_join_swap", "v_right_join", "CREATE VIEW v_right_join AS SELECT t1.a, t2.b FROM t1 RIGHT JOIN t2 ON t1.a = t2.a"},
+		{"cross_join", "v_cross_join", "CREATE VIEW v_cross_join AS SELECT t1.a, t2.b FROM t1 CROSS JOIN t2"},
+		{"natural_join", "v_natural_join", "CREATE VIEW v_natural_join AS SELECT * FROM t1 NATURAL JOIN t2"},
+		{"straight_join", "v_straight_join", "CREATE VIEW v_straight_join AS SELECT t1.a, t2.b FROM t1 STRAIGHT_JOIN t2 ON t1.a = t2.a"},
+		{"using_expanded", "v_using", "CREATE VIEW v_using AS SELECT t1.a, t2.b FROM t1 JOIN t2 USING (a)"},
+		{"comma_to_join", "v_comma_join", "CREATE VIEW v_comma_join AS SELECT t1.a, t2.b FROM t1, t2 WHERE t1.a = t2.a"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1542,89 +1427,72 @@ func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
 			cat.Exec("CREATE TABLE t2 (a INT, b INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_4_2_MultiTableDerived verifies multi-table JOINs, chained LEFT JOINs,
-// derived tables, and table aliases against MySQL 8.0 SHOW CREATE VIEW output.
+// derived tables, and table aliases against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base tables on MySQL 8.0
+	// Setup: create base tables on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t1 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t1 on MySQL: %v", err)
+		t.Fatalf("failed to create table t1 on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t2 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t2 on MySQL: %v", err)
+		t.Fatalf("failed to create table t2 on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t3 (b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t3 on MySQL: %v", err)
+		t.Fatalf("failed to create table t3 on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		viewName string
 		viewSQL  string
-		partial  bool
 	}{
-		{"three_table_join", "v_3join", "CREATE VIEW v_3join AS SELECT t1.a, t2.b, t3.c FROM t1 JOIN t2 ON t1.a = t2.a JOIN t3 ON t2.b = t3.b", false},
-		{"chained_left_joins", "v_chain_left", "CREATE VIEW v_chain_left AS SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a = t2.a LEFT JOIN t3 ON t1.a = t3.b", false},
-		{"derived_table", "v_derived", "CREATE VIEW v_derived AS SELECT d.x FROM (SELECT a AS x FROM t) d", false},
-		{"derived_with_where", "v_derived_where", "CREATE VIEW v_derived_where AS SELECT d.x FROM (SELECT a AS x FROM t WHERE a > 0) AS d WHERE d.x < 10", false},
-		{"table_alias_with_as", "v_alias_as", "CREATE VIEW v_alias_as AS SELECT x.a FROM t AS x", false},
-		{"table_alias_without_as", "v_alias_noas", "CREATE VIEW v_alias_noas AS SELECT x.a FROM t x", false},
+		{"three_table_join", "v_3join", "CREATE VIEW v_3join AS SELECT t1.a, t2.b, t3.c FROM t1 JOIN t2 ON t1.a = t2.a JOIN t3 ON t2.b = t3.b"},
+		{"chained_left_joins", "v_chain_left", "CREATE VIEW v_chain_left AS SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a = t2.a LEFT JOIN t3 ON t1.a = t3.b"},
+		{"derived_table", "v_derived", "CREATE VIEW v_derived AS SELECT d.x FROM (SELECT a AS x FROM t) d"},
+		{"derived_with_where", "v_derived_where", "CREATE VIEW v_derived_where AS SELECT d.x FROM (SELECT a AS x FROM t WHERE a > 0) AS d WHERE d.x < 10"},
+		{"table_alias_with_as", "v_alias_as", "CREATE VIEW v_alias_as AS SELECT x.a FROM t AS x"},
+		{"table_alias_without_as", "v_alias_noas", "CREATE VIEW v_alias_noas AS SELECT x.a FROM t x"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1636,81 +1504,64 @@ func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
 			cat.Exec("CREATE TABLE t3 (b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_Section_5_1_SelectClauses verifies that our catalog's SHOW CREATE VIEW
-// output matches MySQL 8.0's output for views with WHERE, GROUP BY, HAVING, ORDER BY,
+// output matches TiDB's output for views with WHERE, GROUP BY, HAVING, ORDER BY,
 // LIMIT, OFFSET, DISTINCT, and expression-based GROUP BY.
 func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		viewName string
 		viewSQL  string
-		partial  bool
 	}{
-		{"all_clauses_combined", "v_all_clauses", "CREATE VIEW v_all_clauses AS SELECT a FROM t WHERE a > 1 GROUP BY a HAVING COUNT(*) > 1 ORDER BY a LIMIT 10", false},
-		{"alias_in_order_by", "v_alias_orderby", "CREATE VIEW v_alias_orderby AS SELECT a, COUNT(*) cnt FROM t GROUP BY a HAVING COUNT(*) > 1 ORDER BY cnt DESC", false},
-		{"distinct_order_by", "v_distinct_orderby", "CREATE VIEW v_distinct_orderby AS SELECT DISTINCT a FROM t ORDER BY a DESC", false},
-		{"multi_column_order_by", "v_multi_orderby", "CREATE VIEW v_multi_orderby AS SELECT a FROM t ORDER BY a, b DESC", false},
-		{"limit_offset", "v_limit_offset", "CREATE VIEW v_limit_offset AS SELECT a FROM t LIMIT 10 OFFSET 5", false},
-		{"expression_group_by", "v_expr_groupby", "CREATE VIEW v_expr_groupby AS SELECT a + b FROM t GROUP BY a + b", false},
+		{"all_clauses_combined", "v_all_clauses", "CREATE VIEW v_all_clauses AS SELECT a FROM t WHERE a > 1 GROUP BY a HAVING COUNT(*) > 1 ORDER BY a LIMIT 10"},
+		{"alias_in_order_by", "v_alias_orderby", "CREATE VIEW v_alias_orderby AS SELECT a, COUNT(*) cnt FROM t GROUP BY a HAVING COUNT(*) > 1 ORDER BY cnt DESC"},
+		{"distinct_order_by", "v_distinct_orderby", "CREATE VIEW v_distinct_orderby AS SELECT DISTINCT a FROM t ORDER BY a DESC"},
+		{"multi_column_order_by", "v_multi_orderby", "CREATE VIEW v_multi_orderby AS SELECT a FROM t ORDER BY a, b DESC"},
+		{"limit_offset", "v_limit_offset", "CREATE VIEW v_limit_offset AS SELECT a FROM t LIMIT 10 OFFSET 5"},
+		{"expression_group_by", "v_expr_groupby", "CREATE VIEW v_expr_groupby AS SELECT a + b FROM t GROUP BY a + b"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1719,78 +1570,64 @@ func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_5_2_SetOperations verifies set operations (UNION, UNION ALL,
-// multiple UNION, INTERSECT, EXCEPT, UNION+ORDER BY+LIMIT) against MySQL 8.0.
-// INTERSECT/EXCEPT require MySQL 8.0.31+; if rejected, the test is skipped.
+// multiple UNION, INTERSECT, EXCEPT, UNION+ORDER BY+LIMIT) against TiDB.
+// INTERSECT/EXCEPT require TiDB.31+; if rejected, the test is skipped.
 func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		viewName string
 		viewSQL  string
-		partial  bool
 	}{
-		{"union", "v_union", "CREATE VIEW v_union AS SELECT a FROM t UNION SELECT b FROM t", false},
-		{"union_all", "v_union_all", "CREATE VIEW v_union_all AS SELECT a FROM t UNION ALL SELECT b FROM t", false},
-		{"multiple_union", "v_multi_union", "CREATE VIEW v_multi_union AS SELECT a FROM t UNION SELECT b FROM t UNION SELECT c FROM t", false},
-		{"intersect", "v_intersect", "CREATE VIEW v_intersect AS SELECT a FROM t INTERSECT SELECT b FROM t", false},
-		{"except", "v_except", "CREATE VIEW v_except AS SELECT a FROM t EXCEPT SELECT b FROM t", false},
-		{"union_orderby_limit", "v_union_ordlim", "CREATE VIEW v_union_ordlim AS SELECT a FROM t UNION SELECT b FROM t ORDER BY 1 LIMIT 5", false},
+		{"union", "v_union", "CREATE VIEW v_union AS SELECT a FROM t UNION SELECT b FROM t"},
+		{"union_all", "v_union_all", "CREATE VIEW v_union_all AS SELECT a FROM t UNION ALL SELECT b FROM t"},
+		{"multiple_union", "v_multi_union", "CREATE VIEW v_multi_union AS SELECT a FROM t UNION SELECT b FROM t UNION SELECT c FROM t"},
+		{"intersect", "v_intersect", "CREATE VIEW v_intersect AS SELECT a FROM t INTERSECT SELECT b FROM t"},
+		{"except", "v_except", "CREATE VIEW v_except AS SELECT a FROM t EXCEPT SELECT b FROM t"},
+		{"union_orderby_limit", "v_union_ordlim", "CREATE VIEW v_union_ordlim AS SELECT a FROM t UNION SELECT b FROM t ORDER BY 1 LIMIT 5"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1799,54 +1636,42 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_5_3_ColumnAliasPatterns verifies column and alias patterns
-// against MySQL 8.0 SHOW CREATE VIEW output.
+// against TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base tables on MySQL 8.0
+	// Setup: create base tables on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t1 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t1 on MySQL: %v", err)
+		t.Fatalf("failed to create table t1 on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t2 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t2 on MySQL: %v", err)
+		t.Fatalf("failed to create table t2 on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -1854,58 +1679,45 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 		viewName string
 		viewSQL  string
 		tables   string // extra tables for omni catalog (beyond t, t1, t2)
-		partial  bool
 	}{
 		{
 			"explicit_alias_as_vs_space",
 			"v_alias_as_space",
 			"CREATE VIEW v_alias_as_space AS SELECT a AS col1, b col2 FROM t",
 			"",
-			false,
 		},
 		{
 			"expression_explicit_alias",
 			"v_expr_alias",
 			"CREATE VIEW v_expr_alias AS SELECT a + b AS sum_col FROM t",
 			"",
-			false,
 		},
 		{
 			"literal_auto_alias",
 			"v_lit_auto",
 			"CREATE VIEW v_lit_auto AS SELECT 1 FROM t",
 			"",
-			false,
 		},
 		{
 			"star_expansion",
 			"v_star",
 			"CREATE VIEW v_star AS SELECT * FROM t",
 			"",
-			false,
-		},
-		{
-			"same_name_columns_join",
-			"v_same_name_join",
-			"CREATE VIEW v_same_name_join AS SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a = t2.a",
-			"",
-			false,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + tc.viewName)
 			if err := ctr.execSQLDirect(tc.viewSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(tc.viewName)
+			tidbOutput, err := ctr.showCreateView(tc.viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Omni catalog side ---
 			cat := New()
@@ -1919,82 +1731,83 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 			}
 			results, _ := cat.Exec(tc.viewSQL, nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", tc.viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
+
+	// Two fields of the same name: TiDB refuses the view, error 1060
+	// (Duplicate column name), and so does the catalog.
+	t.Run("same_name_columns_join", func(t *testing.T) {
+		viewSQL := "CREATE VIEW v_same_name_join AS SELECT t1.a, t2.a FROM t1 JOIN t2 ON t1.a = t2.a"
+		ctr.execSQLDirect("DROP VIEW IF EXISTS v_same_name_join")
+		if code := mysqlErrorCode(ctr.execSQLDirect(viewSQL)); code != ErrDupColumn {
+			t.Errorf("TiDB: got error code %d, want %d", code, ErrDupColumn)
+		}
+		cat := New()
+		cat.Exec("CREATE DATABASE test", nil)
+		cat.SetCurrentDatabase("test")
+		cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
+		cat.Exec("CREATE TABLE t2 (a INT, b INT)", nil)
+		results, _ := cat.Exec(viewSQL, nil)
+		if len(results) == 0 || mysqlErrorCode(results[0].Error) != ErrDupColumn {
+			t.Errorf("catalog: want error %d, got %v", ErrDupColumn, results)
+		}
+	})
 }
 
 // TestDeparseContainer_Section_6_1_SubqueryPatterns verifies that subquery patterns
-// in views match MySQL 8.0 SHOW CREATE VIEW output.
+// in views match TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base tables on MySQL 8.0
+	// Setup: create base tables on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t1 (a INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t1 on MySQL: %v", err)
+		t.Fatalf("failed to create table t1 on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		createAs string
-		partial  bool
 	}{
 		{
 			"scalar_subquery_in_select",
 			"SELECT (SELECT MAX(a) FROM t) FROM t",
-			false,
 		},
 		{
 			"in_subquery",
 			"SELECT * FROM t WHERE a IN (SELECT a FROM t WHERE a > 0)",
-			false,
 		},
 		{
 			"exists_subquery",
 			"SELECT * FROM t WHERE EXISTS (SELECT 1 FROM t WHERE a > 0)",
-			false,
 		},
 		{
 			"correlated_subquery",
 			"SELECT a, (SELECT COUNT(*) FROM t t2 WHERE t2.a = t1.a) FROM t t1",
-			false,
 		},
 		{
 			"nested_subqueries_2_levels",
 			"SELECT * FROM t WHERE a IN (SELECT a FROM t WHERE b IN (SELECT b FROM t WHERE c > 0))",
-			false,
 		},
 	}
 
@@ -2002,20 +1815,17 @@ func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -2025,34 +1835,22 @@ func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 			cat.Exec("CREATE TABLE t1 (a INT, b INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
@@ -2062,70 +1860,58 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 
 	cases := []struct {
 		name     string
 		createAs string
-		partial  bool
 	}{
 		{
 			"simple_cte",
 			"WITH cte AS (SELECT a FROM t) SELECT * FROM cte",
-			false,
 		},
 		{
 			"cte_with_column_list",
 			"WITH cte(x) AS (SELECT a FROM t) SELECT x FROM cte",
-			false,
 		},
 		{
 			"recursive_cte",
 			"WITH RECURSIVE cte AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM cte WHERE n < 10) SELECT * FROM cte",
-			false,
 		},
 		{
 			"multiple_ctes",
 			"WITH c1 AS (SELECT a FROM t), c2 AS (SELECT b FROM t) SELECT c1.a, c2.b FROM c1, c2",
-			false,
 		},
 		{
 			"cte_used_in_union",
 			"WITH cte AS (SELECT a FROM t) SELECT * FROM cte UNION SELECT * FROM cte",
-			false,
 		},
 		{
 			"recursive_cte_multi_col",
 			"WITH RECURSIVE cte AS (SELECT 1 AS n, 'a' AS s UNION ALL SELECT n + 1, CONCAT(s, 'a') FROM cte WHERE n < 5) SELECT * FROM cte",
-			false,
 		},
 		{
 			"recursive_cte_join_base",
 			"WITH RECURSIVE cte AS (SELECT a, 1 AS depth FROM t WHERE a = 1 UNION ALL SELECT t.a, cte.depth + 1 FROM t JOIN cte ON t.b = cte.a WHERE cte.depth < 5) SELECT * FROM cte",
-			false,
 		},
 		{
 			"cte_references_cte",
 			"WITH c1 AS (SELECT a FROM t), c2 AS (SELECT * FROM c1 WHERE a > 0) SELECT * FROM c2",
-			false,
 		},
 		{
 			"cte_with_aggregation",
 			"WITH cte AS (SELECT a, COUNT(*) AS cnt FROM t GROUP BY a) SELECT * FROM cte",
-			false,
 		},
 		{
 			"cte_with_inner_union",
 			"WITH cte AS (SELECT a FROM t UNION SELECT b FROM t) SELECT * FROM cte",
-			false,
 		},
 		{
 			"cte_with_complex_expr",
 			"WITH cte AS (SELECT a + b AS sum_val, CASE WHEN a > 0 THEN 'pos' ELSE 'neg' END AS label FROM t) SELECT * FROM cte",
-			false,
 		},
 	}
 
@@ -2133,20 +1919,17 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				if tc.partial {
-					t.Skipf("MySQL 8.0 rejected (expected partial): %v", err)
-				}
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -2155,34 +1938,22 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 			cat.Exec("CREATE TABLE t (a INT, b INT, c INT)", nil)
 			results, _ := cat.Exec(fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs), nil)
 			if len(results) == 0 {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog returned no results (expected partial)")
-				}
 				t.Fatalf("CREATE VIEW on catalog returned no results")
 			}
 			if results[0].Error != nil {
-				if tc.partial {
-					t.Skipf("CREATE VIEW on catalog failed (expected partial): %v", results[0].Error)
-				}
 				t.Fatalf("CREATE VIEW on catalog failed: %v", results[0].Error)
 			}
 			omniOutput := cat.ShowCreateView("test", viewName)
 			if omniOutput == "" {
-				if tc.partial {
-					t.Skip("ShowCreateView returned empty (expected partial)")
-				}
 				t.Fatal("ShowCreateView returned empty")
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				if tc.partial {
-					t.Skipf("SELECT body mismatch (expected partial):\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
-				}
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
@@ -2190,32 +1961,32 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 
 // TestDeparseContainer_8_1_ViewOfViewComplexStructures verifies view-of-view,
 // many-column views, reserved word aliases, CASE without ELSE, and BETWEEN
-// with column bounds against MySQL 8.0.
+// with column bounds against TiDB.
 func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base table on MySQL 8.0
+	// Setup: create base table on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 
 	// --- Test 1: View referencing another view ---
 	t.Run("view_of_view", func(t *testing.T) {
-		// MySQL side: create v1, then v2 referencing v1
+		// TiDB side: create v1, then v2 referencing v1
 		ctr.execSQLDirect("DROP VIEW IF EXISTS v2_vov")
 		ctr.execSQLDirect("DROP VIEW IF EXISTS v1_vov")
 		if err := ctr.execSQLDirect("CREATE VIEW v1_vov AS SELECT a FROM t"); err != nil {
-			t.Fatalf("CREATE VIEW v1_vov on MySQL failed: %v", err)
+			t.Fatalf("CREATE VIEW v1_vov on TiDB failed: %v", err)
 		}
 		if err := ctr.execSQLDirect("CREATE VIEW v2_vov AS SELECT * FROM v1_vov"); err != nil {
-			t.Fatalf("CREATE VIEW v2_vov on MySQL failed: %v", err)
+			t.Fatalf("CREATE VIEW v2_vov on TiDB failed: %v", err)
 		}
-		mysqlOutput, err := ctr.showCreateView("v2_vov")
+		tidbOutput, err := ctr.showCreateView("v2_vov")
 		if err != nil {
-			t.Fatalf("SHOW CREATE VIEW v2_vov on MySQL failed: %v", err)
+			t.Fatalf("SHOW CREATE VIEW v2_vov on TiDB failed: %v", err)
 		}
-		mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+		tidbBody := extractSelectBody(tidbOutput)
 
 		// Omni side
 		cat := New()
@@ -2236,11 +2007,11 @@ func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 		}
 		omniBody := extractSelectBody(omniOutput)
 
-		t.Logf("MySQL body:  %s", mysqlBody)
+		t.Logf("TiDB body:   %s", tidbBody)
 		t.Logf("Omni body:   %s", omniBody)
 
-		if mysqlBody != omniBody {
-			t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+		if tidbBody != omniBody {
+			t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 		}
 	})
 
@@ -2271,17 +2042,17 @@ func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				t.Fatalf("CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -2301,31 +2072,31 @@ func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
 }
 
 // TestDeparseContainer_8_2_ExpressionEdgeCases verifies expression edge cases and stress tests
-// against real MySQL 8.0 SHOW CREATE VIEW output.
+// against real TiDB SHOW CREATE VIEW output.
 func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
-	// Setup: create base tables on MySQL 8.0
+	// Setup: create base tables on TiDB
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t (a INT, b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table t on MySQL: %v", err)
+		t.Fatalf("failed to create table t on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS t_rw (`select` INT, b INT)"); err != nil {
-		t.Fatalf("failed to create table t_rw on MySQL: %v", err)
+		t.Fatalf("failed to create table t_rw on TiDB: %v", err)
 	}
 	if err := ctr.execSQLDirect("CREATE TABLE IF NOT EXISTS tc (a VARCHAR(50), b INT, c INT)"); err != nil {
-		t.Fatalf("failed to create table tc on MySQL: %v", err)
+		t.Fatalf("failed to create table tc on TiDB: %v", err)
 	}
 
 	cases := []struct {
@@ -2349,14 +2120,21 @@ func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
 			"SELECT INTERVAL 1 DAY + a FROM t",
 		},
 		{
-			"sounds_like",
-			"tc",
-			"SELECT a SOUNDS LIKE b FROM tc",
-		},
-		{
 			"unary_operators",
 			"t",
 			"SELECT -a, +a FROM t",
+		},
+		{
+			// TiDB writes MOD as % with no parentheses, which regroups it;
+			// the stored text is what its view runs.
+			"mod_regrouped",
+			"t",
+			"SELECT 2*MOD(a,3), MOD(a+1, 2) FROM t",
+		},
+		{
+			"group_concat_backslash_separator",
+			"tc",
+			`SELECT GROUP_CONCAT(a SEPARATOR '\\'), GROUP_CONCAT(a SEPARATOR 'x''y') FROM tc`,
 		},
 		{
 			"long_expression_auto_alias",
@@ -2394,18 +2172,17 @@ func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			viewName := "v_82_" + tc.name
 
-			// --- MySQL 8.0 side ---
+			// --- TiDB side ---
 			ctr.execSQLDirect("DROP VIEW IF EXISTS " + viewName)
 			createSQL := fmt.Sprintf("CREATE VIEW %s AS %s", viewName, tc.createAs)
 			if err := ctr.execSQLDirect(createSQL); err != nil {
-				t.Skipf("MySQL 8.0 rejected: %v", err)
-				return
+				t.Fatalf("CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlOutput, err := ctr.showCreateView(viewName)
+			tidbOutput, err := ctr.showCreateView(viewName)
 			if err != nil {
-				t.Fatalf("SHOW CREATE VIEW on MySQL failed: %v", err)
+				t.Fatalf("SHOW CREATE VIEW on TiDB failed: %v", err)
 			}
-			mysqlBody := stripDatabasePrefix(extractSelectBody(mysqlOutput))
+			tidbBody := extractSelectBody(tidbOutput)
 
 			// --- Our catalog side ---
 			cat := New()
@@ -2433,12 +2210,40 @@ func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
 			}
 			omniBody := extractSelectBody(omniOutput)
 
-			t.Logf("MySQL body:  %s", mysqlBody)
+			t.Logf("TiDB body:   %s", tidbBody)
 			t.Logf("Omni body:   %s", omniBody)
 
-			if mysqlBody != omniBody {
-				t.Errorf("SELECT body mismatch:\n--- mysql ---\n%s\n--- omni ---\n%s", mysqlBody, omniBody)
+			if tidbBody != omniBody {
+				t.Errorf("SELECT body mismatch:\n--- tidb ---\n%s\n--- omni ---\n%s", tidbBody, omniBody)
 			}
 		})
 	}
+
+	// TiDB's grammar has no SOUNDS LIKE (error 1064). The tidb parser still
+	// accepts it, which is parser drift outside the view code; this pins
+	// TiDB's answer.
+	t.Run("sounds_like", func(t *testing.T) {
+		ctr.execSQLDirect("DROP VIEW IF EXISTS v_82_sounds_like")
+		err := ctr.execSQLDirect("CREATE VIEW v_82_sounds_like AS SELECT a SOUNDS LIKE b FROM tc")
+		if code := mysqlErrorCode(err); code != 1064 {
+			t.Errorf("TiDB: got error code %d (%v), want 1064", code, err)
+		}
+	})
+}
+
+// mysqlErrorCode returns the error number of an error from the server or the
+// catalog, or 0 when err carries none.
+func mysqlErrorCode(err error) uint16 {
+	if err == nil {
+		return 0
+	}
+	var serverErr *mysqldriver.MySQLError
+	if errors.As(err, &serverErr) {
+		return serverErr.Number
+	}
+	var catErr *Error
+	if errors.As(err, &catErr) {
+		return uint16(catErr.Code)
+	}
+	return 0
 }

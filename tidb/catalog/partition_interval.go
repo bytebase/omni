@@ -8,6 +8,7 @@ import (
 	"time"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
+	"github.com/bytebase/omni/tidb/deparse"
 )
 
 // What TiDB v8.5.5 does with RANGE ... INTERVAL when it runs the statement, read from its answers
@@ -138,6 +139,9 @@ func intIntervalBounds(iv *nodes.PartitionInterval) ([]string, bool, error) {
 			return nil, false, &Error{Code: 1697, SQLState: "HY000", Message: "VALUES value for partition must have type INT"}
 		}
 	}
+	if !intervalStepWritten(iv.Expr) {
+		return nil, false, errIntervalUnsupported("Unsupported INTERVAL, should be a positive number")
+	}
 	var vals [3]int64
 	for i, e := range []nodes.ExprNode{iv.Expr, iv.First, iv.Last} {
 		v, ok, err := constantInt(e)
@@ -229,6 +233,9 @@ func timeIntervalBounds(iv *nodes.PartitionInterval, kind string) ([]string, boo
 		seconds = 1
 	default:
 		return nil, false, errIntervalUnsupported("Unsupported INTERVAL partitioning, only supports YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE and SECOND as time unit")
+	}
+	if !intervalStepWritten(iv.Expr) {
+		return nil, false, errIntervalUnsupported("Unsupported INTERVAL, should be a positive number")
 	}
 	step, ok, err := constantInt(iv.Expr)
 	if err != nil || !ok {
@@ -347,6 +354,19 @@ func intervalNullBound(col *Column, kind string, tbl *Table, pc *nodes.Partition
 	return "-9223372036854775808"
 }
 
+// intervalStepWritten reports whether an INTERVAL step passes the check TiDB
+// makes on its text before evaluating it (pkg/ddl/partition.go,
+// GeneratePartDefsFromInterval): restored, and unquoted, it must start with a
+// digit 1 to 9. So INTERVAL (5+5) is a step of 10, while (+10), ((10)) and
+// (-1) answer 8200 (verified on v8.5.5).
+func intervalStepWritten(e nodes.ExprNode) bool {
+	text := deparse.Restore(e)
+	if len(text) >= 2 && text[0] == '\'' && text[len(text)-1] == '\'' {
+		text = text[1 : len(text)-1]
+	}
+	return text != "" && text[0] >= '1' && text[0] <= '9'
+}
+
 // constantInt evaluates integer literals under signs, parentheses, +, - and *, in BIGINT: a sum or
 // product past it is 1690 on v8.5.5, naming the operation, as INTERVAL (9223372036854775807 * 2 + 3)
 // answers out of range in '(9223372036854775807 * 2)'. A minus sign wraps, as the lowest BIGINT
@@ -362,8 +382,11 @@ func constantInt(e nodes.ExprNode) (int64, bool, error) {
 		if err != nil || !ok {
 			return 0, false, err
 		}
-		if n.Op == nodes.UnaryMinus {
+		switch n.Op {
+		case nodes.UnaryMinus:
 			return -v, true, nil
+		case nodes.UnaryPlus:
+			return v, true, nil
 		}
 	case *nodes.BinaryExpr:
 		l, ok1, err := constantInt(n.Left)

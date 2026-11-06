@@ -4238,6 +4238,36 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
+	t.Run("replace_view", func(t *testing.T) {
+		// TiDB has no ALTER VIEW (error 1064; refused_forms_test.go pins
+		// that on both sides): a view changes through CREATE OR REPLACE
+		// VIEW, which both sides must store the same way.
+		ctr.execSQL("DROP VIEW IF EXISTS v_alter_test")
+		ctr.execSQL("CREATE VIEW v_alter_test AS SELECT 1 AS a")
+		if code := mysqlErrorCode(ctr.execSQL("ALTER VIEW v_alter_test AS SELECT 2 AS b, 3 AS c")); code != 1064 {
+			t.Errorf("container ALTER VIEW: got error code %d, want 1064", code)
+		}
+		if err := ctr.execSQL("CREATE OR REPLACE VIEW v_alter_test AS SELECT 2 AS b, 3 AS c"); err != nil {
+			t.Fatalf("container CREATE OR REPLACE VIEW error: %v", err)
+		}
+		ctrDDL, err := ctr.showCreateView("v_alter_test")
+		if err != nil {
+			t.Fatalf("container SHOW CREATE VIEW error: %v", err)
+		}
+
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE VIEW v_alter_test AS SELECT 1 AS a", nil)
+		results, _ := c.Exec("CREATE OR REPLACE VIEW v_alter_test AS SELECT 2 AS b, 3 AS c", nil)
+		if results[0].Error != nil {
+			t.Fatalf("omni CREATE OR REPLACE VIEW error: %v", results[0].Error)
+		}
+		if got := c.ShowCreateView("test", "v_alter_test"); got != ctrDDL {
+			t.Errorf("SHOW CREATE VIEW after replace:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, got)
+		}
+	})
+
 	t.Run("view_dependency_tracking", func(t *testing.T) {
 		// In MySQL, dropping a base table does NOT drop the view.
 		// The view still exists but errors when queried.
@@ -4278,8 +4308,9 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 
 	t.Run("show_create_view_basic", func(t *testing.T) {
 		// SHOW CREATE VIEW output format — verify structural elements.
-		// Note: MySQL rewrites the SELECT text (lowercases keywords, backtick-quotes aliases)
-		// which requires a full SQL deparser. We verify the CREATE VIEW preamble matches.
+		// TiDB stores the SELECT restored by its parser (keywords in upper
+		// case, every field named); the catalog writes the same, so the whole
+		// statement is compared.
 		ctr.execSQL("DROP VIEW IF EXISTS v_show_basic")
 		ctr.execSQL("CREATE VIEW v_show_basic AS SELECT 1 AS a, 2 AS b")
 		ctrDDL, err := ctr.showCreateView("v_show_basic")
@@ -4306,11 +4337,14 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 			t.Errorf("preamble mismatch:\n--- container ---\n%s\n--- omni ---\n%s\n--- container full ---\n%s\n--- omni full ---\n%s",
 				oraclePreamble, omniPreamble, ctrDDL, omniDDL)
 		}
+		if ctrDDL != omniDDL {
+			t.Errorf("SHOW CREATE VIEW mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
+		}
 	})
 
 	t.Run("show_create_view_with_options", func(t *testing.T) {
 		// SHOW CREATE VIEW with SQL SECURITY INVOKER.
-		// Note: MySQL normalizes ALGORITHM to UNDEFINED for simple views even if MERGE was specified.
+		// TiDB stores the ALGORITHM declared, UNDEFINED when none is.
 		ctr.execSQL("DROP VIEW IF EXISTS v_show_opts")
 		ctr.execSQL("CREATE SQL SECURITY INVOKER VIEW v_show_opts AS SELECT 1 AS x")
 		ctrDDL, err := ctr.showCreateView("v_show_opts")
@@ -4333,6 +4367,9 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 		if oraclePreamble != omniPreamble {
 			t.Errorf("preamble mismatch:\n--- container ---\n%s\n--- omni ---\n%s\n--- container full ---\n%s\n--- omni full ---\n%s",
 				oraclePreamble, omniPreamble, ctrDDL, omniDDL)
+		}
+		if ctrDDL != omniDDL {
+			t.Errorf("SHOW CREATE VIEW mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 		}
 	})
 
@@ -4360,6 +4397,9 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 		if oraclePreamble != omniPreamble {
 			t.Errorf("preamble mismatch:\n--- container ---\n%s\n--- omni ---\n%s\n--- container full ---\n%s\n--- omni full ---\n%s",
 				oraclePreamble, omniPreamble, ctrDDL, omniDDL)
+		}
+		if ctrDDL != omniDDL {
+			t.Errorf("SHOW CREATE VIEW mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 		}
 
 		// Verify column list appears in both outputs.
@@ -4914,7 +4954,7 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 }
 
 // TestContainer_Section_6_2_ShowCreateOtherObjects tests SHOW CREATE VIEW/FUNCTION/PROCEDURE/TRIGGER/EVENT
-// output against real MySQL 8.0. This complements sections 4.2-4.5 by testing additional patterns
+// output against TiDB v8.5.5. This complements sections 4.2-4.5 by testing additional patterns
 // and verifying SHOW CREATE as a query API surface.
 func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 	ctr, cleanup := startContainer(t)
@@ -4923,7 +4963,8 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 	// --- SHOW CREATE VIEW ---
 	t.Run("show_create_view", func(t *testing.T) {
 		// Test SHOW CREATE VIEW with default options.
-		// MySQL rewrites SELECT text, so we compare preamble only.
+		// The whole statement is compared: the catalog stores the body as
+		// TiDB restores it.
 		ctr.execSQL("DROP VIEW IF EXISTS v_sc_basic")
 		ctr.execSQL("CREATE VIEW v_sc_basic AS SELECT 1 AS col1, 2 AS col2")
 		ctrDDL, err := ctr.showCreateView("v_sc_basic")
@@ -4943,12 +4984,15 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 		}
 		omniDDL := c.ShowCreateView("test", "v_sc_basic")
 
-		// Compare preamble (up to AS) — SELECT text may differ due to MySQL rewriting.
+		// Compare the preamble (up to AS), then the whole statement.
 		oraclePreamble := extractViewPreamble(ctrDDL)
 		omniPreamble := extractViewPreamble(omniDDL)
 		if oraclePreamble != omniPreamble {
 			t.Errorf("preamble mismatch:\n--- container ---\n%s\n--- omni ---\n%s\n--- container full ---\n%s\n--- omni full ---\n%s",
 				oraclePreamble, omniPreamble, ctrDDL, omniDDL)
+		}
+		if ctrDDL != omniDDL {
+			t.Errorf("SHOW CREATE VIEW mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
 		}
 
 		// Verify both contain the key structural elements.

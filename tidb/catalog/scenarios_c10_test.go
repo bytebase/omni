@@ -7,11 +7,10 @@ import (
 
 // TestScenario_C10 covers Section C10 "View metadata defaults" from
 // mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
-// a real MySQL 8.0 container and the omni catalog, then asserts that both
-// agree on the effective default for a given view-metadata behavior.
-//
-// Failed omni assertions are NOT proof failures — they are recorded in
-// mysql/catalog/scenarios_bug_queue/c10.md.
+// TiDB v8.5.5 and the omni catalog, then asserts that both agree on the
+// effective default for a given view-metadata behavior. Where TiDB answers
+// differently from MySQL -- CHECK_OPTION, IS_UPDATABLE, ALGORITHM, column
+// nullability -- the subtest asserts TiDB's answer.
 func TestScenario_C10(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -45,13 +44,16 @@ func TestScenario_C10(t *testing.T) {
 			`CREATE TABLE t (a INT);
 			 CREATE VIEW v AS SELECT a FROM t;`)
 
-		// Oracle: CHECK_OPTION=NONE, SECURITY_TYPE=DEFINER, SHOW CREATE has ALGORITHM=UNDEFINED.
+		// Oracle: SECURITY_TYPE=DEFINER, SHOW CREATE has ALGORITHM=UNDEFINED.
+		// TiDB reports CHECK_OPTION=CASCADED for a view written without the
+		// clause (MySQL reports NONE): its view model has no "none", and
+		// SHOW CREATE VIEW never writes the clause either way.
 		_, secType, checkOpt, _ := c10OracleViewRow(t, "v")
 		if secType != "DEFINER" {
 			t.Errorf("oracle SECURITY_TYPE: got %q, want %q", secType, "DEFINER")
 		}
-		if checkOpt != "NONE" {
-			t.Errorf("oracle CHECK_OPTION: got %q, want %q", checkOpt, "NONE")
+		if checkOpt != "CASCADED" {
+			t.Errorf("oracle CHECK_OPTION: got %q, want %q", checkOpt, "CASCADED")
 		}
 		showCreate := oracleShow(t, mc, "SHOW CREATE VIEW v")
 		if !strings.Contains(strings.ToUpper(showCreate), "ALGORITHM=UNDEFINED") {
@@ -70,8 +72,7 @@ func TestScenario_C10(t *testing.T) {
 		if strings.ToUpper(v.SqlSecurity) != "DEFINER" {
 			t.Errorf("omni SqlSecurity: got %q, want DEFINER", v.SqlSecurity)
 		}
-		// CheckOption may be represented as "" or "NONE" depending on omni; "NONE" semantics
-		// means "no WITH CHECK OPTION clause". Accept either.
+		// CheckOption records the clause as written: "" when there is none.
 		if v.CheckOption != "" && strings.ToUpper(v.CheckOption) != "NONE" {
 			t.Errorf("omni CheckOption: got %q, want \"\" or NONE", v.CheckOption)
 		}
@@ -139,7 +140,7 @@ func TestScenario_C10(t *testing.T) {
 		}
 	})
 
-	// --- 10.4 ALGORITHM=UNDEFINED persists at CREATE; MERGE downgrades on non-mergeable ---
+	// --- 10.4 ALGORITHM is stored as declared ---
 	t.Run("10_4_algorithm_undefined_resolution", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
@@ -149,19 +150,24 @@ func TestScenario_C10(t *testing.T) {
 			 CREATE ALGORITHM=UNDEFINED VIEW v_agg AS SELECT COUNT(*) FROM t;
 			 CREATE ALGORITHM=MERGE VIEW v_merge_bad AS SELECT DISTINCT a FROM t;`)
 
-		// Oracle: both views stored with ALGORITHM=UNDEFINED (v_merge_bad gets downgraded).
+		// Oracle: TiDB stores the algorithm declared. MySQL downgrades MERGE
+		// on a view that cannot merge (DISTINCT) to UNDEFINED; TiDB keeps
+		// ALGORITHM=MERGE.
 		showAgg := oracleShow(t, mc, "SHOW CREATE VIEW v_agg")
 		if !strings.Contains(strings.ToUpper(showAgg), "ALGORITHM=UNDEFINED") {
 			t.Errorf("oracle SHOW CREATE VIEW v_agg: got %q, want contains ALGORITHM=UNDEFINED", showAgg)
 		}
 		showMergeBad := oracleShow(t, mc, "SHOW CREATE VIEW v_merge_bad")
-		if !strings.Contains(strings.ToUpper(showMergeBad), "ALGORITHM=UNDEFINED") {
-			t.Errorf("oracle SHOW CREATE VIEW v_merge_bad (post-downgrade): got %q, want contains ALGORITHM=UNDEFINED", showMergeBad)
+		if !strings.Contains(strings.ToUpper(showMergeBad), "ALGORITHM=MERGE") {
+			t.Errorf("oracle SHOW CREATE VIEW v_merge_bad: got %q, want contains ALGORITHM=MERGE", showMergeBad)
+		}
+		for name, want := range map[string]string{"v_agg": showAgg, "v_merge_bad": showMergeBad} {
+			if got := c.ShowCreateView("testdb", name); got != want {
+				t.Errorf("omni SHOW CREATE VIEW %s:\n got: %s\nwant: %s", name, got, want)
+			}
 		}
 
-		// omni: v_agg Algorithm=UNDEFINED; v_merge_bad should record the user-declared
-		// value (MERGE) verbatim per SCENARIOS guidance — MySQL silently downgrades
-		// but the catalog representation must preserve the pre-downgrade value.
+		// omni: v_agg Algorithm=UNDEFINED; v_merge_bad records MERGE as declared.
 		vAgg := c10OmniView(c, "v_agg")
 		if vAgg == nil {
 			t.Error("omni: v_agg not found")
@@ -280,11 +286,14 @@ func TestScenario_C10(t *testing.T) {
 			 CREATE VIEW v_distinct AS SELECT DISTINCT a FROM t;
 			 CREATE ALGORITHM=TEMPTABLE VIEW v_temp AS SELECT a FROM t;`)
 
+		// TiDB reports IS_UPDATABLE=NO for every view, whatever its shape
+		// (MySQL derives YES for v_ok): it does not derive updatability, so
+		// the catalog has none to model either.
 		for _, tc := range []struct {
 			name string
 			want string
 		}{
-			{"v_ok", "YES"},
+			{"v_ok", "NO"},
 			{"v_distinct", "NO"},
 			{"v_temp", "NO"},
 		} {
@@ -297,17 +306,11 @@ func TestScenario_C10(t *testing.T) {
 				t.Errorf("oracle %s IS_UPDATABLE: got %q, want %q", tc.name, isUpd, tc.want)
 			}
 
-			// omni: the View struct has no IsUpdatable field today — see bug queue.
-			// This stanza documents the absence by asserting the view at least
-			// exists in the catalog.
 			v := c10OmniView(c, tc.name)
 			if v == nil {
 				t.Errorf("omni: view %s not found", tc.name)
 			}
 		}
-		// Explicit assertion: omni View has no IsUpdatable representation.
-		// This is the "declared bug": we want omni to carry IsUpdatable per scenario.
-		t.Error("omni: View struct is missing an IsUpdatable field (scenario 10.7 cannot be asserted positively)")
 	})
 
 	// --- 10.8 View column nullability widened vs base columns -------------
@@ -320,11 +323,10 @@ func TestScenario_C10(t *testing.T) {
 			 CREATE TABLE t2 (id INT NOT NULL, b INT NOT NULL);
 			 CREATE VIEW v AS SELECT t1.a, t2.b FROM t1 LEFT JOIN t2 ON t1.id = t2.id;`)
 
-		// Oracle (empirical, MySQL 8.0.45): t1.a stays NOT NULL (left/preserved
-		// side of LEFT JOIN), t2.b widens to nullable (right/optional side).
-		// The SCENARIOS doc text claims `a → YES` but that is incorrect; real
-		// MySQL only widens the optional side. We assert against the oracle
-		// ground truth.
+		// Oracle: TiDB reports every view column nullable, the preserved
+		// side of the LEFT JOIN included (MySQL keeps t1.a NOT NULL). A view
+		// column carries no nullability in TiDB, so the catalog's View, whose
+		// columns are names only, has none to model.
 		rows := oracleRows(t, mc,
 			`SELECT COLUMN_NAME, IS_NULLABLE FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v'
@@ -336,21 +338,20 @@ func TestScenario_C10(t *testing.T) {
 			}
 			gotNullable[asString(r[0])] = asString(r[1])
 		}
-		if gotNullable["a"] != "NO" {
-			t.Errorf("oracle view column a IS_NULLABLE: got %q, want NO (left/preserved side)", gotNullable["a"])
+		if gotNullable["a"] != "YES" {
+			t.Errorf("oracle view column a IS_NULLABLE: got %q, want YES", gotNullable["a"])
 		}
 		if gotNullable["b"] != "YES" {
 			t.Errorf("oracle view column b IS_NULLABLE: got %q, want YES (right/optional side)", gotNullable["b"])
 		}
 
-		// omni: omni's View struct does not carry per-column nullability info.
-		// The column list (v.Columns) is just names. This is the "declared bug":
-		// omni view column resolver must track outer-join nullability.
 		v := c10OmniView(c, "v")
 		if v == nil {
 			t.Error("omni: view v not found")
 			return
 		}
-		t.Error("omni: View struct has no per-column nullability; scenario 10.8 cannot be asserted positively")
+		if strings.Join(v.Columns, ",") != "a,b" {
+			t.Errorf("omni v Columns: got %v, want [a b]", v.Columns)
+		}
 	})
 }
