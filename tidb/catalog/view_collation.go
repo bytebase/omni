@@ -85,7 +85,7 @@ var (
 
 // viewScope resolves the column references of one SELECT.
 type viewScope struct {
-	relations map[string]viewRelation
+	relations []viewScopeRelation
 	// opaque is set when the FROM clause has a relation the catalog cannot
 	// list the columns of (a derived table, a CTE, a missing table), so an
 	// unqualified name may be one of its columns.
@@ -95,11 +95,20 @@ type viewScope struct {
 // viewRelation lists the derived collation of each column of a FROM item.
 type viewRelation map[string]exprCollation
 
+// viewScopeRelation is one FROM item under the name a column reference
+// qualifies it by. schema is the database of an unaliased table, which a
+// reference may name too (db.t.col), and empty for an alias, which it may not.
+// rel is nil for an item whose columns are not known.
+type viewScopeRelation struct {
+	schema, name string
+	rel          viewRelation
+}
+
 // newViewScope lists the FROM items of sel. ctes holds the CTE names an
 // enclosing query makes visible, which a WITH on a set operation or a
 // parenthesized query attaches to the outer node.
 func (c *Catalog) newViewScope(sel *nodes.SelectStmt, db *Database, ctes map[string]bool) *viewScope {
-	s := &viewScope{relations: map[string]viewRelation{}}
+	s := &viewScope{}
 	ctes = withCTENames(sel, ctes)
 	for _, from := range sel.From {
 		c.collectViewRelations(from, db, ctes, s)
@@ -126,15 +135,19 @@ func withCTENames(sel *nodes.SelectStmt, ctes map[string]bool) map[string]bool {
 func (c *Catalog) collectViewRelations(te nodes.TableExpr, db *Database, ctes map[string]bool, s *viewScope) {
 	switch n := te.(type) {
 	case *nodes.TableRef:
-		key := n.Name
-		if n.Alias != "" {
-			key = n.Alias
+		entry := viewScopeRelation{name: toLower(n.Name), rel: c.viewRelationFor(n, db, ctes)}
+		switch {
+		case n.Alias != "":
+			entry.name = toLower(n.Alias)
+		case n.Schema != "":
+			entry.schema = toLower(n.Schema)
+		case !ctes[entry.name] && db != nil:
+			entry.schema = toLower(db.Name)
 		}
-		rel := c.viewRelationFor(n, db, ctes)
-		if rel == nil {
+		if entry.rel == nil {
 			s.opaque = true
 		}
-		s.relations[toLower(key)] = rel
+		s.relations = append(s.relations, entry)
 	case *nodes.JoinClause:
 		c.collectViewRelations(n.Left, db, ctes, s)
 		c.collectViewRelations(n.Right, db, ctes, s)
@@ -173,8 +186,19 @@ func (s *viewScope) resolve(cr *nodes.ColumnRef) exprCollation {
 	}
 	col := toLower(cr.Column)
 	if cr.Table != "" {
-		rel := s.relations[toLower(cr.Table)]
-		if rel == nil {
+		// Two FROM items may share a name in different databases; a
+		// reference that names neither database, or matches both, has no
+		// answer.
+		var rel viewRelation
+		matches := 0
+		for _, r := range s.relations {
+			if r.name != toLower(cr.Table) || (cr.Schema != "" && r.schema != toLower(cr.Schema)) {
+				continue
+			}
+			matches++
+			rel = r.rel
+		}
+		if matches != 1 || rel == nil {
 			return exprCollation{}
 		}
 		return rel[col]
@@ -184,8 +208,8 @@ func (s *viewScope) resolve(cr *nodes.ColumnRef) exprCollation {
 	}
 	var out exprCollation
 	found := false
-	for _, rel := range s.relations {
-		ec, ok := rel[col]
+	for _, r := range s.relations {
+		ec, ok := r.rel[col]
 		if !ok {
 			continue
 		}
