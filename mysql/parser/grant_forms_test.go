@@ -26,6 +26,17 @@ type grantFormCase struct {
 }
 
 var grantFormCases = []grantFormCase{
+	// --- a static privilege word is no role ---
+	// role_or_privilege gives each its own arm, and the action for TO refuses the arm.
+	{"GRANT SELECT TO u1", false},
+	{"GRANT usage TO u1", false},
+	{"GRANT process TO u1", false},
+	{"GRANT `process` TO u1", true},
+	{"GRANT ALL TO u1", false},
+	{"GRANT ALL PRIVILEGES TO u1", false},
+	{"REVOKE ALL FROM u1", false},
+	{"GRANT r1 (a) TO u1", false},
+
 	// --- user@host: which half may be written how ---
 	// Username is `StringName ['@' StringName]`, and StringName is a string
 	// literal or an identifier, so both halves take all three spellings.
@@ -273,44 +284,4 @@ func TestGrantForms(t *testing.T) {
 			}
 		})
 	}
-}
-
-// grantKnownDivergences records the statements of this family this parser
-// still answers differently from mysql:8.0, with what this parser
-// answers, so each is a measured and named gap rather than an untested one.
-// Every one of them needs knowledge this parser does not hold -- which words
-// that server counts as privilege names, which user options it has -- rather
-// than a clause of the family this change closed, so each belongs to its own
-// change.
-var grantKnownDivergences = []grantFormCase{
-	// A privilege keyword is no role name, but this parser holds no list
-	// of which keywords are privileges; USAGE and PROCESS reach it as
-	// identifiers, so neither is read as the privilege it is.
-	{"GRANT SELECT TO u1", true},
-	{"GRANT usage TO u1", true},
-	{"GRANT process TO u1", true},
-}
-
-// TestGrantKnownDivergences holds the list above to this parser, so a case
-// that has started agreeing with mysql:8.0 fails here and is moved
-// into grantFormCases. It needs no container; the oracle test is what says
-// the server has not changed its mind.
-func TestGrantKnownDivergences(t *testing.T) {
-	for _, c := range grantKnownDivergences {
-		t.Run(c.sql, func(t *testing.T) {
-			_, err := Parse(c.sql)
-			if accepts := err == nil; accepts != c.accept {
-				t.Errorf("this parser now %ss %q; the list records %s, so the case belongs in grantFormCases (err=%v)",
-					grantVerdict(accepts), c.sql, grantVerdict(c.accept), err)
-			}
-		})
-	}
-}
-
-// grantVerdict names a parse outcome, for the message above.
-func grantVerdict(accepts bool) string {
-	if accepts {
-		return "accept"
-	}
-	return "reject"
 }

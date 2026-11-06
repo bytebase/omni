@@ -58,32 +58,6 @@ func TestWalkThrough_12_2(t *testing.T) {
 		}
 	})
 
-	t.Run("regular_and_expression_index_ordering", func(t *testing.T) {
-		// Scenario 2: Table with regular index + expression index — verify relative ordering
-		// MySQL 8.0: regular keys come before expression-based keys
-		c := wtSetup(t)
-		wtExec(t, c, `CREATE TABLE t (
-			id INT NOT NULL,
-			name VARCHAR(100),
-			age INT,
-			PRIMARY KEY (id),
-			KEY idx_name (name),
-			KEY idx_expr ((age * 2))
-		)`)
-
-		got := c.ShowCreateTable("testdb", "t")
-
-		assertContains(t, got, "KEY `idx_name` (`name`)")
-		assertContains(t, got, "KEY `idx_expr` ((")
-
-		posRegular := strings.Index(got, "KEY `idx_name`")
-		posExpr := strings.Index(got, "KEY `idx_expr`")
-
-		if posRegular >= posExpr {
-			t.Errorf("regular KEY should appear before expression KEY\ngot:\n%s", got)
-		}
-	})
-
 	t.Run("index_with_comment", func(t *testing.T) {
 		// Scenario 3: Index with COMMENT
 		c := wtSetup(t)

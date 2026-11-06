@@ -81,6 +81,8 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 //	CREATE [OR REPLACE] [DEFINER = user] FUNCTION [IF NOT EXISTS] sp_name
 //	    ([func_parameter[,...]]) RETURNS type_name [characteristic ...] routine_body
 func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool) (*nodes.CreateFunctionStmt, error) {
+	p.routineDepth++
+	defer func() { p.routineDepth-- }()
 	p.advance() // consume FUNCTION or PROCEDURE
 
 	// Completion: after CREATE FUNCTION / CREATE PROCEDURE, identifier context.
@@ -103,7 +105,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	stmt.IfNotExists = ifNotExists
 
 	// Function/procedure name
-	ref, err := p.parseTableRef()
+	ref, err := p.parseNamedRoutineRef()
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +196,9 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, isProcedure bool)
 	// compound statements, labels, DECLAREs, etc.). See
 	// docs/plans/2026-04-20-mysql-routine-body-grammar.md.
 	bodyStart := p.pos()
+	outerRoutine := p.routine
+	p.routine = routineScope{noResultSet: !isProcedure, function: !isProcedure}
+	defer func() { p.routine = outerRoutine }()
 	body, err := p.parseCompoundStmtOrStmt()
 	if err != nil {
 		return nil, err

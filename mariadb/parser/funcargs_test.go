@@ -70,8 +70,8 @@ var funcArgCases = []struct {
 	// optional ALL, and JSON_OBJECTAGG takes no prefix at all.
 	{"SELECT JSON_ARRAYAGG(ALL c1) FROM t", false},
 	{"SELECT JSON_ARRAYAGG(DISTINCT c1) FROM t", true},
-	{"SELECT JSON_ARRAYAGG(DISTINCT c1, c2) FROM t", true},
-	{"SELECT JSON_ARRAYAGG(c1, c2) FROM t", true},
+	{"SELECT JSON_ARRAYAGG(DISTINCT c1, c2) FROM t", false},
+	{"SELECT JSON_ARRAYAGG(c1, c2) FROM t", false},
 	{"SELECT JSON_OBJECTAGG(c1, c2) FROM t", true},
 	{"SELECT JSON_OBJECTAGG(ALL c1, c2) FROM t", false},
 	{"SELECT JSON_OBJECTAGG(c1, ALL c2) FROM t", false},
@@ -241,9 +241,8 @@ func TestMariaDBAggQuantifierTree(t *testing.T) {
 		{"SELECT GROUP_CONCAT(DISTINCTROW c2, c1) FROM t", nodes.AggQuantDistinctRow, true, 2},
 		{"SELECT BIT_AND(ALL c1) FROM t", nodes.AggQuantAll, false, 1},
 		{"SELECT STD(ALL c1) FROM t", nodes.AggQuantAll, false, 1},
-		// This engine's JSON_ARRAYAGG takes a DISTINCT and an argument list,
+		// This engine's JSON_ARRAYAGG takes a DISTINCT and one argument,
 		// where MySQL 8.0 takes one argument with an optional ALL.
-		{"SELECT JSON_ARRAYAGG(DISTINCT c1, c2) FROM t", nodes.AggQuantDistinct, true, 2},
 		{"SELECT JSON_ARRAYAGG(c1) FROM t", nodes.AggQuantNone, false, 1},
 		{"SELECT JSON_OBJECTAGG(c1, c2) FROM t", nodes.AggQuantNone, false, 2},
 	}

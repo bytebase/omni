@@ -87,33 +87,6 @@ func TestWalkThrough_9_1_VirtualConcat(t *testing.T) {
 	}
 }
 
-func TestWalkThrough_9_1_StoredNotNull(t *testing.T) {
-	// Scenario 4: CREATE TABLE with STORED generated column + NOT NULL
-	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS (a + b) STORED NOT NULL)")
-
-	tbl := c.GetDatabase("testdb").GetTable("t")
-	col := tbl.GetColumn("c")
-	if col == nil {
-		t.Fatal("column c not found")
-	}
-	if col.Generated == nil {
-		t.Fatal("column c should be generated")
-	}
-	if !col.Generated.Stored {
-		t.Error("column c should be STORED")
-	}
-	if col.Nullable {
-		t.Error("column c should be NOT NULL")
-	}
-
-	got := c.ShowCreateTable("testdb", "t")
-	// Rendering order: type, GENERATED ALWAYS AS (expr) STORED, NOT NULL
-	if !strings.Contains(got, "STORED NOT NULL") {
-		t.Errorf("expected 'STORED NOT NULL' in SHOW CREATE TABLE\ngot:\n%s", got)
-	}
-}
-
 func TestWalkThrough_9_1_Comment(t *testing.T) {
 	// Scenario 5: CREATE TABLE with generated column + COMMENT
 	c := wtSetup(t)

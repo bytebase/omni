@@ -54,8 +54,9 @@ func TestMain(m *testing.M) {
 }
 
 // checkSyntax reports whether the oracle parses sql. It runs the statement and
-// reads the error: 1064 is a parse error, anything else means the statement parsed
-// and failed for a semantic reason, such as a missing table.
+// reads the error: 1064 is a parse error, and anything else goes to prepareParses, which
+// tells a code raised while parsing from one raised for a semantic reason after it, such
+// as a missing table.
 //
 // Anything that is not a server error — a dropped connection, a timeout — is no
 // verdict at all and fails the test. Reporting it as acceptance would pass every
@@ -68,7 +69,7 @@ func (o *parserOracle) checkSyntax(t *testing.T, sql string) bool {
 	}
 	var myErr *gomysql.MySQLError
 	if errors.As(err, &myErr) {
-		return myErr.Number != 1064
+		return myErr.Number != 1064 && o.prepareParses(t, sql)
 	}
 	t.Fatalf("the oracle gave no verdict for %q: %v", sql, err)
 	return false

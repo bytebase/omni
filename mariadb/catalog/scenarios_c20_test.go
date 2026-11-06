@@ -275,51 +275,6 @@ func TestScenario_C20(t *testing.T) {
 	})
 
 	// --- 20.7 JSON/BLOB expression DEFAULT (8.0.13+) accepted -------------
-	t.Run("20_7_expression_default_accepted", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		ddl := `CREATE TABLE c20_7 (
-			id INT PRIMARY KEY,
-			tags  JSON      DEFAULT (JSON_ARRAY()),
-			meta  JSON      DEFAULT (JSON_OBJECT('v', 1)),
-			blob1 BLOB      DEFAULT (SUBSTRING('abcdef', 1, 3)),
-			pt    POINT     DEFAULT (POINT(0, 0)),
-			uuid  BINARY(16) DEFAULT (UUID_TO_BIN(UUID()))
-		)`
-		runOnBoth(t, mc, c, ddl)
-
-		// Oracle: each column must have a non-NULL COLUMN_DEFAULT (the
-		// expression text) and EXTRA containing "DEFAULT_GENERATED".
-		expressionCols := []string{"tags", "meta", "blob1", "pt", "uuid"}
-		for _, cname := range expressionCols {
-			var colDef sql.NullString
-			var extra string
-			oracleScan(t, mc, `SELECT COLUMN_DEFAULT, EXTRA FROM information_schema.COLUMNS
-				WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='c20_7' AND COLUMN_NAME='`+cname+`'`,
-				&colDef, &extra)
-			if !colDef.Valid || colDef.String == "" {
-				t.Errorf("oracle: c20_7.%s COLUMN_DEFAULT expected non-empty expression text, got NULL", cname)
-			}
-			if !strings.Contains(extra, "DEFAULT_GENERATED") {
-				t.Errorf("oracle: c20_7.%s EXTRA expected DEFAULT_GENERATED, got %q", cname, extra)
-			}
-		}
-
-		// Oracle: tables exist in omni too.
-		if c20getTable(c, "c20_7") == nil {
-			t.Errorf("omni: c20_7 expected to exist in catalog after DDL accepted")
-		}
-		for _, cname := range expressionCols {
-			col := c20getColumn(t, c, "c20_7", cname)
-			if col == nil {
-				continue
-			}
-			if col.Default == nil || *col.Default == "" {
-				t.Errorf("omni: c20_7.%s Default expected non-nil expression, got nil/empty", cname)
-			}
-		}
-	})
 
 	// --- 20.8 Generated column with DEFAULT clause → error ---------------
 	t.Run("20_8_generated_with_default_rejected", func(t *testing.T) {

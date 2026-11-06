@@ -75,7 +75,7 @@ var aggArgSpecs = map[string]aggArgSpec{
 	// optional ALL, and JSON_OBJECTAGG takes no quantifier at all
 	// (mariadb:11.8.8 answers 1064 for json_arrayagg(all c1) and for
 	// json_objectagg(all c1, c2), and parses json_arrayagg(distinct c1, c2)).
-	"JSON_ARRAYAGG":  {quant: quantDistinct, args: argList},
+	"JSON_ARRAYAGG":  {quant: quantDistinct, args: 1},
 	"JSON_OBJECTAGG": {args: 2},
 }
 

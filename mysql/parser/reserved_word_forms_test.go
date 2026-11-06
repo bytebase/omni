@@ -93,13 +93,10 @@ var reservedWordPositions = []string{
 // parser's action refusing a statement before it reads on, so it says nothing of the label. The sweep
 // fails when one starts to agree, so this list cannot outlive the gap.
 var reservedWordSweepGap = map[string]bool{
-	"create procedure p() alter: loop leave alter; end loop":   true,
 	"create procedure p() binlog: loop leave binlog; end loop": true,
-	"select default from t":                                    true,
-	"select 1 from t where a = default":                        true,
-	"select default + 1 from t":                                true,
-	"create procedure p() help: loop leave help; end loop":     true,
-	"create procedure p() unlock: loop leave unlock; end loop": true,
+	"select default from t":             true,
+	"select 1 from t where a = default": true,
+	"select default + 1 from t":         true,
 }
 
 var reservedWordCases = []asOfCase{

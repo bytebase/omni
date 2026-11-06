@@ -387,7 +387,7 @@ var mysql8Keywords = []mysql8Keyword{
 	{"language", catAmbiguous2},
 	{"last", catUnambiguous},
 	{"last_value", catReserved},
-	{"lateral", catReserved},
+	{"lateral", catUnambiguous},
 	{"lead", catReserved},
 	{"leading", catReserved},
 	{"leave", catReserved},

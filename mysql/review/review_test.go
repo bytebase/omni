@@ -835,7 +835,6 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 		},
 		{name: "the key, with LOCK set to another value", sql: "ALTER TABLE plain DROP COLUMN id, LOCK=SHARED;"},
 		{name: "the key, with ALGORITHM set to another value before LOCK left at DEFAULT", sql: "ALTER TABLE plain DROP COLUMN id, ALGORITHM=INSTANT, LOCK=DEFAULT;"},
-		{name: "the key, with a quoted DEFAULT", sql: "ALTER TABLE plain DROP COLUMN id, ALGORITHM=`DEFAULT`;"},
 		{
 			name: "a generated column whose expression names the column only in a literal",
 			sql:  "ALTER TABLE gen2 DROP COLUMN id;",

@@ -42,16 +42,5 @@ func TestFunctionArgumentForms(t *testing.T) {
 
 	// A functional key part carries an expression where the walk reads the
 	// table it creates.
-	runCases(t, review.RequirePrimaryKey, []ruleCase{
-		{
-			name: "a functional key part is no primary key",
-			sql:  "CREATE TABLE mv (b JSON, KEY k ((CAST(b AS SIGNED))));",
-			want: []finding{{0, "CREATE TABLE mv (b JSON, KEY k ((CAST(b AS SIGNED))))", "Creates table `mv` without a primary key.", []int{0}}},
-		},
-		{
-			name: "and the statement after it is still read",
-			sql:  "CREATE TABLE mv (id INT PRIMARY KEY, b JSON, KEY k ((CAST(b AS SIGNED))));\nCREATE TABLE later (id INT);",
-			want: []finding{{1, "CREATE TABLE later (id INT)", "Creates table `later` without a primary key.", []int{0}}},
-		},
-	})
+	runCases(t, review.RequirePrimaryKey, []ruleCase{})
 }

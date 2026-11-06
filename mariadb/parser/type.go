@@ -55,6 +55,21 @@ import (
 //	    JSON
 func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	start := p.pos()
+	dt, err := p.parseDataTypeNames()
+	if err != nil || dt == nil {
+		return dt, err
+	}
+	// The scale is 0 whether (M,0) wrote it or (M) left it out, and FLOAT reads those two
+	// differently.
+	hasScale := strings.Contains(p.inputText(start, p.prev.End), ",")
+	if err := refuseTypeLimits(dt, hasScale, start); err != nil {
+		return nil, err
+	}
+	return dt, nil
+}
+
+func (p *Parser) parseDataTypeNames() (*nodes.DataType, error) {
+	start := p.pos()
 	dt := &nodes.DataType{Loc: nodes.Loc{Start: start}}
 
 	switch p.cur.Type {
@@ -115,7 +130,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if p.cur.Type == kwPRECISION {
 			p.advance()
 		}
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -124,7 +139,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		// REAL → DOUBLE synonym
 		dt.Name = "DOUBLE"
 		p.advance()
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -180,7 +195,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				return nil, err
 			}
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwVARCHAR, kwVARCHARACTER:
 		dt.Name = "VARCHAR"
@@ -188,7 +205,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseRequiredLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwTEXT:
 		dt.Name = "TEXT"
@@ -196,22 +215,30 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwTINYTEXT:
 		dt.Name = "TINYTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwMEDIUMTEXT:
 		dt.Name = "MEDIUMTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwLONGTEXT:
 		dt.Name = "LONGTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	// Date/time types
 	case kwDATE:
@@ -260,22 +287,18 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
 
 	case kwTINYBLOB:
 		dt.Name = "TINYBLOB"
 		p.advance()
-		p.parseCharsetCollate(dt)
 
 	case kwMEDIUMBLOB:
 		dt.Name = "MEDIUMBLOB"
 		p.advance()
-		p.parseCharsetCollate(dt)
 
 	case kwLONGBLOB:
 		dt.Name = "LONGBLOB"
 		p.advance()
-		p.parseCharsetCollate(dt)
 
 	// Binary types
 	case kwBINARY:
@@ -309,7 +332,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			return nil, err
 		}
 		dt.EnumValues = vals
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	// SET type (the SQL SET data type, not the SET statement keyword)
 	case kwSET:
@@ -328,7 +353,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			return nil, err
 		}
 		dt.EnumValues = vals
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	// JSON type
 	case kwJSON:
@@ -365,7 +392,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 					return nil, err
 				}
 			}
-			p.parseCharsetCollate(dt)
+			if err := p.parseNationalModifiers(dt); err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER {
 			dt.Name = "VARCHAR"
 			dt.Charset = "utf8mb3"
@@ -373,7 +402,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			if err := p.parseRequiredLength(dt); err != nil {
 				return nil, err
 			}
-			p.parseCharsetCollate(dt)
+			if err := p.parseNationalModifiers(dt); err != nil {
+				return nil, err
+			}
 		} else {
 			return nil, &ParseError{
 				Message:  "expected CHAR or VARCHAR after NATIONAL",
@@ -397,7 +428,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				return nil, err
 			}
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseNationalModifiers(dt); err != nil {
+			return nil, err
+		}
 
 	// NVARCHAR → VARCHAR with utf8mb3 charset
 	case kwNVARCHAR:
@@ -407,7 +440,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseRequiredLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseNationalModifiers(dt); err != nil {
+			return nil, err
+		}
 
 	case kwINT1:
 		dt.Name = "TINYINT"
@@ -461,7 +496,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwFLOAT8:
 		dt.Name = "DOUBLE"
 		p.advance()
-		if err := p.parseOptionalPrecision(dt); err != nil {
+		if err := p.parseDoublePrecision(dt); err != nil {
 			return nil, err
 		}
 		p.parseUnsignedZerofill(dt)
@@ -477,18 +512,24 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		case p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER:
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		case (p.cur.Type == kwCHAR || p.cur.Type == kwCHARACTER) && p.peekNext().Type == kwVARYING:
 			p.advance()
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		case p.cur.Type == kwVARBINARY:
 			p.advance()
 			dt.Name = "MEDIUMBLOB"
 		default:
 			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		}
 
 	default:
@@ -715,52 +756,125 @@ func (p *Parser) parsePrecisionAndScale(dt *nodes.DataType) (hasScale bool, err 
 // parseUnsignedZerofill parses optional SIGNED, UNSIGNED, and ZEROFILL modifiers.
 // SIGNED is the default for all numeric types, so we accept and ignore it.
 func (p *Parser) parseUnsignedZerofill(dt *nodes.DataType) {
-	// SIGNED is a keyword token (kwSIGNED) — accept and ignore it (it's the default).
-	if p.cur.Type == kwSIGNED {
+	// field_options is one of a short list: SIGNED, UNSIGNED, ZEROFILL, or the last two
+	// together in either order. `INT SIGNED ZEROFILL` and `INT UNSIGNED SIGNED` are a 1064.
+	//
+	// Ref: field_options in MariaDB 11.8 sql/sql_yacc.yy.
+	switch p.cur.Type {
+	case kwSIGNED:
 		p.advance()
-	} else if _, ok := p.match(kwUNSIGNED); ok {
+	case kwUNSIGNED:
+		p.advance()
 		dt.Unsigned = true
-	}
-	if _, ok := p.match(kwZEROFILL); ok {
+		if _, ok := p.match(kwZEROFILL); ok {
+			dt.Zerofill = true
+		}
+	case kwZEROFILL:
+		p.advance()
 		dt.Zerofill = true
+		if _, ok := p.match(kwUNSIGNED); ok {
+			dt.Unsigned = true
+		}
 	}
 }
 
-// parseCharsetCollate parses optional CHARACTER SET and COLLATE clauses.
-func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
-	// CHARACTER SET charset_name | CHARSET charset_name
-	// charset/collation names can be `binary`, which is a reserved keyword,
-	// so we use parseKeywordOrIdent to accept keyword tokens as names.
-	if _, ok := p.match(kwCHARSET); ok {
-		if p.isIdentToken() || p.cur.Type == kwBINARY {
-			dt.Charset, _, _ = p.parseKeywordOrIdent()
+// parseDoublePrecision parses the precision of a type that is DOUBLE. It takes M and D
+// together or neither, which precision says and FLOAT's float_options does not: `DOUBLE(10)`
+// is a 1064.
+//
+// Ref: real_type, precision and float_options in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseDoublePrecision(dt *nodes.DataType) error {
+	if p.cur.Type != '(' {
+		return nil
+	}
+	start := p.cur.Loc
+	if err := p.parseOptionalPrecision(dt); err != nil {
+		return err
+	}
+	if !strings.Contains(p.inputText(start, p.prev.End), ",") {
+		return &ParseError{Message: "DOUBLE takes both a precision and a scale", Position: start}
+	}
+	return nil
+}
+
+// parseCharsetCollate parses the character set a string type takes and the collation after
+// it, each optional. The character set is CHARACTER SET name, ASCII, UNICODE or BYTE, and
+// BINARY may stand beside any of the first three on either side of it, or alone; it does not
+// follow COLLATE. A name is ident_or_text and required, and ASCII is latin1, UNICODE ucs2
+// and BYTE binary, so `CHAR(5) ASCII COLLATE ascii_bin` is the 1253 CHARACTER SET latin1
+// would be.
+//
+// Ref: opt_charset_with_opt_binary, ascii, unicode and opt_collate in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseCharsetCollate(dt *nodes.DataType) error {
+	binary := func() {
+		if _, ok := p.match(kwBINARY); ok {
+			dt.Binary = true
 		}
-	} else if (p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR) && p.peekNext().Type == kwSET {
+	}
+	binary()
+	switch {
+	case p.cur.Type == kwCHARSET, (p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR) && p.peekNext().Type == kwSET:
 		// CHARACTER SET x, and MySQL's two-word CHAR SET x, which is what
 		// `long char set utf8` carries. Neither token is consumed unless SET
 		// follows it: a trailing CHARACTER is not a charset clause with the
 		// name left off, and MySQL rejects `long character`.
-		p.advance()
-		p.advance()
-		if p.isIdentToken() || p.cur.Type == kwBINARY {
-			dt.Charset, _, _ = p.parseKeywordOrIdent()
+		if p.cur.Type != kwCHARSET {
+			p.advance()
 		}
+		p.advance()
+		name, err := p.parseCharsetName()
+		if err != nil {
+			return err
+		}
+		dt.Charset = name
+		if !dt.Binary {
+			binary()
+		}
+	case p.cur.Type == kwASCII:
+		p.advance()
+		dt.Charset = "latin1"
+		if !dt.Binary {
+			binary()
+		}
+	case p.cur.Type == kwUNICODE:
+		p.advance()
+		dt.Charset = "ucs2"
+		if !dt.Binary {
+			binary()
+		}
+	case p.cur.Type == kwBYTE && !dt.Binary:
+		p.advance()
+		dt.Charset = "binary"
 	}
 
-	// COLLATE collation_name
 	if _, ok := p.match(kwCOLLATE); ok {
-		if p.isIdentToken() || p.cur.Type == kwBINARY {
-			dt.Collate, _, _ = p.parseKeywordOrIdent()
+		name, err := p.parseCollationName()
+		if err != nil {
+			return err
 		}
+		dt.Collate = name
 	}
+	return nil
+}
 
-	// Standalone BINARY modifier — shorthand for CHARACTER SET binary.
-	// Valid for CHAR, VARCHAR, TEXT variants, ENUM, SET, and BLOB types.
-	// MySQL: CHAR(10) BINARY → CHAR(10) COLLATE {charset}_bin.
-	if p.cur.Type == kwBINARY {
-		p.advance()
+// parseNationalModifiers parses what a national type takes after it: BINARY and then a
+// collation, where its character set is already settled and CHARSET, ASCII and UNICODE are
+// a 1064.
+//
+// Ref: nchar and opt_bin_mod in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseNationalModifiers(dt *nodes.DataType) error {
+	if _, ok := p.match(kwBINARY); ok {
 		dt.Binary = true
 	}
+	if _, ok := p.match(kwCOLLATE); ok {
+		name, err := p.parseCollationName()
+		if err != nil {
+			return err
+		}
+		dt.Collate = name
+	}
+	return nil
 }
 
 // parseStringValueList parses a parenthesized list of string literals: ('a', 'b', 'c')

@@ -546,6 +546,10 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwLOCALTIME, kwLOCALTIMESTAMP,
 		kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
+		// The refusals read the keyword before parseTemporalKeyword consumes it.
+		if err := p.refusePartitionFunction(strings.ToUpper(p.cur.Str), false, p.cur.Loc); err != nil {
+			return nil, err
+		}
 		return p.parseTemporalKeyword()
 
 	case '*':
@@ -741,6 +745,12 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				return nil, &ParseError{Message: "collecting"}
 			}
 
+			// A three-part name holds its database to check_db_name while it parses:
+			// simple_ident_q in MySQL 8.0 sql/sql_yacc.yy.
+			if err := refuseDatabaseName(name, start); err != nil {
+				return nil, err
+			}
+
 			if p.cur.Type == '*' {
 				p.advance()
 				return &nodes.ColumnRef{
@@ -760,6 +770,11 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				Table:  name2,
 				Column: name3,
 			}, nil
+		}
+
+		// A trigger's NEW and OLD answer to its event as they are read.
+		if err := p.refuseTriggerRowRead(name, start); err != nil {
+			return nil, err
 		}
 
 		// table.col
@@ -798,6 +813,9 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// test.substring(b FROM 1), `sum`(a) OVER () and the other special forms
 	// under a quoted or qualified name. p.prev is the name's token.
 	builtin := schema == "" && !p.backtickQuotedAt(p.prev.Loc) && !p.temporalWordIsName(strings.ToUpper(name))
+	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema), start); err != nil {
+		return nil, err
+	}
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
@@ -2726,4 +2744,10 @@ func (p *Parser) parseExprList() ([]nodes.ExprNode, error) {
 		p.advance()
 	}
 	return list, nil
+}
+
+// nameQuotedFunction reports a call whose name was backquoted, which is a stored function's
+// and no built-in's where a partition clause is concerned.
+func nameQuotedFunction(p *Parser, schema string) bool {
+	return schema == "" && p.backtickQuotedAt(p.prev.Loc)
 }

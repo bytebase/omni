@@ -188,7 +188,6 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 	}{
 		// select.go: table alias parseIdentifier (2 sites — subquery AS at EOF)
 		{"subquery_as_trunc", "SELECT * FROM (SELECT 1) AS", "at end of input"},
-		{"lateral_subquery_as_trunc", "SELECT * FROM t, LATERAL (SELECT 1) AS", "at end of input"},
 		// select.go: JSON_TABLE alias (required) at EOF
 		{"json_table_alias_trunc", "SELECT * FROM JSON_TABLE('[1]', '$[*]' COLUMNS (a INT PATH '$.a')) AS", "at end of input"},
 		// select.go: INTO OUTFILE charset at EOF

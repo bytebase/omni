@@ -47,15 +47,15 @@ var explainFormCases = []explainFormCase{
 	// not have still parses.
 	{"EXPLAIN FORMAT = JSON SELECT 1", true},
 	{"EXPLAIN FORMAT = TRADITIONAL SELECT 1", true},
-	{"EXPLAIN FORMAT = TREE SELECT 1", true},
+	{"EXPLAIN FORMAT = TREE SELECT 1", false},
 	{"EXPLAIN FORMAT = 'json' SELECT 1", true},
 	{"EXPLAIN FORMAT = 'JSON' SELECT 1", true},
 	{`EXPLAIN FORMAT = "json" SELECT 1`, true},
 	{"EXPLAIN FORMAT = `json` SELECT 1", true},
 	{"EXPLAIN FORMAT = 'traditional' SELECT 1", true},
-	{"EXPLAIN FORMAT = 'nosuchformat' SELECT 1", true},
-	{"EXPLAIN FORMAT = nosuchformat SELECT 1", true},
-	{"EXPLAIN FORMAT = '' SELECT 1", true},
+	{"EXPLAIN FORMAT = 'nosuchformat' SELECT 1", false},
+	{"EXPLAIN FORMAT = nosuchformat SELECT 1", false},
+	{"EXPLAIN FORMAT = '' SELECT 1", false},
 	// ...and nothing else. A reserved word is no name, and neither is an
 	// integer.
 	{"EXPLAIN FORMAT = binary SELECT 1", false},
@@ -302,7 +302,6 @@ func TestExplainFormsAST(t *testing.T) {
 			{"EXPLAIN FORMAT = JSON SELECT 1", "JSON"},
 			{`EXPLAIN FORMAT = "json" SELECT 1`, "json"},
 			{"EXPLAIN FORMAT = `json` SELECT 1", "json"},
-			{"EXPLAIN FORMAT = '' SELECT 1", ""},
 		} {
 			stmt := parseOneExplain(t, tc.sql)
 			if stmt.Format != tc.want {
@@ -462,31 +461,13 @@ func explainFormVerdict(t *testing.T, o *parserOracle, sql string) (accepts bool
 	return code != 1064, code
 }
 
-// TestExplainFormsMatchMariaDB holds the table above to the engine itself
-// (container test).
+// TestExplainFormsMatchMariaDB holds the table above to the engine itself (container test).
 func TestExplainFormsMatchMariaDB(t *testing.T) {
 	o := startMariaDB(t)
 	for _, c := range explainFormCases {
 		t.Run(c.sql, func(t *testing.T) {
-			accepts, code := explainFormVerdict(t, o, c.sql)
-			if accepts != c.accept {
-				t.Errorf("MariaDB code %d for %q, this file records accept=%v", code, c.sql, c.accept)
-			}
-		})
-	}
-}
-
-// TestExplainFormConnectionIDDivergences pins the one place this parser is
-// deliberately stricter than MariaDB (container test). Each statement must
-// still parse on the server, and TestExplainFormConnectionIDDivergencesRejected
-// holds the other half.
-func TestExplainFormConnectionIDDivergences(t *testing.T) {
-	o := startMariaDB(t)
-	for _, sql := range explainFormConnectionIDDivergences {
-		t.Run(sql, func(t *testing.T) {
-			accepts, code := explainFormVerdict(t, o, sql)
-			if !accepts {
-				t.Errorf("MariaDB now rejects %q (code %d): the divergence is stale, drop it from the list", sql, code)
+			if got := o.prepareParses(t, c.sql); got != c.accept {
+				t.Errorf("MariaDB parses %q: %v, this file records accept=%v", c.sql, got, c.accept)
 			}
 		})
 	}

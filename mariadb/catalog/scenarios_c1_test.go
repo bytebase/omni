@@ -307,77 +307,8 @@ ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES p(id);`
 	})
 
 	// --- 1.11 Functional index auto-name functional_index[_N] ------------
-	t.Run("1_11_functional_index_auto_name", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		ddl := `CREATE TABLE t (
-    a INT,
-    INDEX ((a + 1)),
-    INDEX ((a * 2))
-);`
-		runOnBoth(t, mc, c, ddl)
-
-		rows := oracleRows(t, mc, `SELECT DISTINCT INDEX_NAME FROM information_schema.STATISTICS
-            WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='t'
-            ORDER BY INDEX_NAME`)
-		var got []string
-		for _, r := range rows {
-			got = append(got, asString(r[0]))
-		}
-		want := []string{"functional_index", "functional_index_2"}
-		assertStringEq(t, "oracle functional index names", strings.Join(got, ","), strings.Join(want, ","))
-
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl == nil {
-			// omni almost certainly fails to parse/load functional indexes.
-			t.Errorf("omni: table t missing (functional index support gap)")
-			return
-		}
-		var omniIdxNames []string
-		for _, idx := range tbl.Indexes {
-			if !idx.Primary {
-				omniIdxNames = append(omniIdxNames, idx.Name)
-			}
-		}
-		sort.Strings(omniIdxNames)
-		assertStringEq(t, "omni functional index names", strings.Join(omniIdxNames, ","), strings.Join(want, ","))
-	})
 
 	// --- 1.12 Functional index hidden generated column name --------------
-	t.Run("1_12_functional_index_hidden_col", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		ddl := `CREATE TABLE t (a INT, INDEX fx ((a + 1), (a * 2)));`
-		runOnBoth(t, mc, c, ddl)
-
-		// Oracle: hidden columns are not in information_schema.COLUMNS by
-		// default. Use a SELECT from the performance_schema / dd dumps via
-		// SHOW CREATE TABLE as a loose check. Full name verification needs
-		// a data-dictionary dump which we can't easily do from Go; document
-		// and fall back to SHOW CREATE TABLE containing the expression.
-		create := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if !strings.Contains(create, "`fx`") {
-			t.Errorf("oracle: SHOW CREATE TABLE missing index fx: %s", create)
-		}
-
-		tbl := c.GetDatabase("testdb").GetTable("t")
-		if tbl == nil {
-			t.Errorf("omni: table t missing (functional index support gap)")
-			return
-		}
-		// omni will almost certainly not synthesize hidden generated columns
-		// with MySQL's !hidden! naming scheme. Check and report.
-		hasHidden := false
-		for _, col := range tbl.Columns {
-			if strings.HasPrefix(col.Name, "!hidden!") {
-				hasHidden = true
-				break
-			}
-		}
-		assertBoolEq(t, "omni has hidden functional col", hasHidden, true)
-	})
 
 	// --- 1.13 CHECK constraint name is schema-scoped ---------------------
 	t.Run("1_13_check_name_schema_scoped", func(t *testing.T) {

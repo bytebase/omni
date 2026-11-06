@@ -1,5 +1,7 @@
 package catalog
 
+import "strings"
+
 import nodes "github.com/bytebase/omni/mariadb/ast"
 
 func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
@@ -18,10 +20,10 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "character set", "charset":
-			charset = normalizeCharsetName(opt.Value)
+			charset = c.resolveDefaultCharset(opt.Value)
 			charsetExplicit = true
 		case "collate":
-			collation = opt.Value
+			collation = c.resolveDefaultCollation(opt.Value)
 			collationExplicit = true
 		}
 	}
@@ -75,10 +77,10 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "character set", "charset":
-			db.Charset = normalizeCharsetName(opt.Value)
+			db.Charset = c.resolveDefaultCharset(opt.Value)
 			charsetExplicit = true
 		case "collate":
-			db.Collation = opt.Value
+			db.Collation = c.resolveDefaultCollation(opt.Value)
 			collationExplicit = true
 		}
 	}
@@ -89,4 +91,21 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 		}
 	}
 	return nil
+}
+
+// resolveDefaultCharset reads a database's CHARACTER SET, where DEFAULT names the server's:
+// mariadb:11.8.8 takes CREATE DATABASE d CHARACTER SET DEFAULT and stores utf8mb4.
+func (c *Catalog) resolveDefaultCharset(value string) string {
+	if strings.EqualFold(value, "default") {
+		return c.defaultCharset
+	}
+	return normalizeCharsetName(value)
+}
+
+// resolveDefaultCollation reads a database's COLLATE, where DEFAULT names the server's.
+func (c *Catalog) resolveDefaultCollation(value string) string {
+	if strings.EqualFold(value, "default") {
+		return c.defaultCollation
+	}
+	return value
 }

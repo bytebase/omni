@@ -374,15 +374,16 @@ func TestVectorStateOracle(t *testing.T) {
 	}
 }
 
-// TestFailedCreateIndexLeavesNoHiddenColumns: a statement that fails leaves the table as it was, so
-// a retry does not allocate a second set of hidden columns beside the first.
+// TestFailedCreateIndexLeavesNoHiddenColumns: a statement that fails leaves the table as it was, its
+// columns and its indexes. MariaDB 11.8.8 has no functional key part, so `((a+1))` is a 1064 the
+// parser refuses, and the statement here fails in the catalog on a column the table lacks.
 func TestFailedCreateIndexLeavesNoHiddenColumns(t *testing.T) {
 	c := New()
 	if _, err := c.Exec("CREATE DATABASE d; USE d; CREATE TABLE t (a INT)", nil); err != nil {
 		t.Fatal(err)
 	}
 	before := len(c.GetDatabase("d").GetTable("t").Columns)
-	results, err := c.Exec("CREATE INDEX i ON t ((a+1), nosuch)", nil)
+	results, err := c.Exec("CREATE INDEX i ON t (a, nosuch)", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

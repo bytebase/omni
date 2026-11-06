@@ -75,10 +75,14 @@ var nestingShapes = []struct {
 		return "SELECT 1 SOUNDS LIKE 1" + strings.Repeat(" NOT LIKE 1", n)
 	}},
 	{"derived table", func(n int) string { return nest(n, "SELECT * FROM (", "SELECT 1", ") x") }},
-	{"LATERAL derived table", func(n int) string {
-		return nest(n, "SELECT * FROM t, LATERAL (", "SELECT 1", ") x")
+	{"join group", func(n int) string {
+		var b strings.Builder
+		b.WriteString("SELECT * FROM ")
+		for i := range n {
+			fmt.Fprintf(&b, "(t%d JOIN ", i)
+		}
+		return b.String() + "t" + strings.Repeat(" ON 1)", n)
 	}},
-	{"join group", func(n int) string { return "SELECT * FROM " + nest(n, "(t JOIN ", "t", " ON 1)") }},
 	{"parenthesized table", func(n int) string { return "SELECT * FROM " + nest(n, "(", "t", ")") }},
 	{"parenthesized select", func(n int) string { return nest(n, "(", "SELECT 1", ")") }},
 	{"set operation operand", func(n int) string { return nest(n, "SELECT 1 UNION (", "SELECT 1", ")") }},
@@ -205,8 +209,22 @@ var chainShapes = []struct {
 	{"quantified comparisons", func(n int) string { return "SELECT 1" + strings.Repeat(" = ANY (SELECT 1)", n) }},
 	{"UNION ALL", func(n int) string { return strings.Repeat("SELECT 1 UNION ALL ", n) + "SELECT 1" }},
 	{"INTERSECT", func(n int) string { return strings.Repeat("SELECT 1 INTERSECT ", n) + "SELECT 1" }},
-	{"joins", func(n int) string { return "SELECT * FROM t" + strings.Repeat(" JOIN t ON 1", n) }},
-	{"parenthesized table list", func(n int) string { return "SELECT * FROM (" + strings.Repeat("t, ", n) + "t)" }},
+	{"joins", func(n int) string {
+		var b strings.Builder
+		b.WriteString("SELECT * FROM t")
+		for i := range n {
+			fmt.Fprintf(&b, " JOIN t%d ON 1", i)
+		}
+		return b.String()
+	}},
+	{"parenthesized table list", func(n int) string {
+		var b strings.Builder
+		b.WriteString("SELECT * FROM (")
+		for i := range n {
+			fmt.Fprintf(&b, "t%d, ", i)
+		}
+		return b.String() + "t)"
+	}},
 	{"INSERT VALUES", func(n int) string { return "INSERT INTO t VALUES (" + strings.Repeat("1+", n) + "1)" }},
 	{"VALUES", func(n int) string { return "VALUES (" + strings.Repeat("1+", n) + "1)" }},
 }

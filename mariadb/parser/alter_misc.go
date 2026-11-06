@@ -161,10 +161,11 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 	stmt := &nodes.AlterEventStmt{Loc: nodes.Loc{Start: start}}
 
 	// Event name
-	name, _, err := p.parseIdent()
+	schema, name, err := p.parseSpName()
 	if err != nil {
 		return nil, err
 	}
+	stmt.Schema = schema
 	stmt.Name = name
 
 	// Optional: ON SCHEDULE
@@ -202,10 +203,11 @@ func (p *Parser) parseAlterEventStmt(start int) (*nodes.AlterEventStmt, error) {
 	if p.cur.Type == kwRENAME {
 		p.advance()
 		p.match(kwTO)
-		newName, _, err := p.parseIdent()
+		renameSchema, newName, err := p.parseSpName()
 		if err != nil {
 			return nil, err
 		}
+		stmt.RenameSchema = renameSchema
 		stmt.RenameTo = newName
 	}
 
@@ -280,7 +282,7 @@ func (p *Parser) parseAlterRoutineStmt(start int, isProcedure bool) (*nodes.Alte
 	}
 
 	// Routine name
-	ref, err := p.parseTableRef()
+	ref, err := p.parseNamedRoutineRef()
 	if err != nil {
 		return nil, err
 	}
@@ -333,7 +335,7 @@ func (p *Parser) parseDropRoutineStmt(start int, isProcedure bool) (*nodes.DropR
 	}
 
 	// Routine name
-	ref, err := p.parseTableRef()
+	ref, err := p.parseNamedRoutineRef()
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +371,7 @@ func (p *Parser) parseDropTriggerStmt(start int) (*nodes.DropTriggerStmt, error)
 	}
 
 	// Trigger name (can be schema.trigger_name)
-	ref, err := p.parseTableRef()
+	ref, err := p.parseNamedRoutineRef()
 	if err != nil {
 		return nil, err
 	}
@@ -405,10 +407,11 @@ func (p *Parser) parseDropEventStmt(start int) (*nodes.DropEventStmt, error) {
 	}
 
 	// Event name
-	name, _, err := p.parseIdent()
+	schema, name, err := p.parseSpName()
 	if err != nil {
 		return nil, err
 	}
+	stmt.Schema = schema
 	stmt.Name = name
 
 	stmt.Loc.End = p.prev.End

@@ -599,6 +599,8 @@ END`,
 			}
 			// Feed BodyText back through the compound parser directly.
 			p := &Parser{lexer: NewLexer(bodyText)}
+			// A body read on its own may hold RETURN, which only a function's may.
+			p.routine.function = true
 			p.advance()
 			reparsed, err := p.parseCompoundStmtOrStmt()
 			if err != nil {

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -153,10 +154,20 @@ var parenSubqueryNesting = []struct {
 	{"subquery operand in parentheses", func(n int) string { return "SELECT " + nest(n, "(", "(SELECT 1) = 0", ")") }},
 	{"subquery operand in an IN list", func(n int) string { return "SELECT " + nest(n, "1 IN ((SELECT 1) + ", "1", ")") }},
 	{"derived-first join groups", func(n int) string {
-		return "SELECT * FROM " + nest(n, "(", "(SELECT 1) d JOIN t ON 1", ") JOIN t ON 1")
+		var b strings.Builder
+		b.WriteString("SELECT * FROM " + strings.Repeat("(", n) + "(SELECT 1) d JOIN t ON 1")
+		for i := range n {
+			fmt.Fprintf(&b, ") JOIN t%d ON 1", i)
+		}
+		return b.String()
 	}},
 	{"right-deep derived-first join groups", func(n int) string {
-		return "SELECT * FROM " + nest(n, "((SELECT 1) d JOIN ", "t", " ON 1)")
+		var b strings.Builder
+		b.WriteString("SELECT * FROM ")
+		for i := range n {
+			fmt.Fprintf(&b, "((SELECT 1) d%d JOIN ", i)
+		}
+		return b.String() + "t" + strings.Repeat(" ON 1)", n)
 	}},
 	{"derived tables over derived-first join groups", func(n int) string {
 		return nest(n, "SELECT * FROM ((", "SELECT 1", ") d JOIN t ON 1)")

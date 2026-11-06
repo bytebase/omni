@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 	"strings"
 
@@ -41,6 +42,9 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	// If we see ON, it's a privilege grant; if TO, it's a role grant.
 	if p.cur.Type == kwTO {
 		// Role grant: GRANT role TO user [, user] ... [WITH ADMIN OPTION]
+		if allPriv {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if err := p.requireSingleRole(privs, start); err != nil {
 			return nil, err
 		}
@@ -154,8 +158,11 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 			stmt.WithGrant = true
 		}
 		// resource options after GRANT OPTION or standalone
-		res := p.parseResourceOptions()
-		if res != nil {
+		if p.startsResourceOption() || !stmt.WithGrant {
+			res, err := p.parseResourceOptions()
+			if err != nil {
+				return nil, err
+			}
 			stmt.Resource = res
 		}
 	}
@@ -297,6 +304,9 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		// Role revoke: REVOKE role FROM user [, user] ...
 		if err := p.requireSingleRole(privs, start); err != nil {
 			return nil, err
+		}
+		if allPriv {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if err := p.requireRoles(privs, start); err != nil {
 			return nil, err
@@ -513,13 +523,52 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 	if err != nil {
 		return privOrRole{}, err
 	}
+	// A static privilege word is a privilege and no role, and neither is a privilege
+	// with columns: role_or_privilege gives each its own arm, and the action for TO
+	// answers 1064 for any of them, where a backquoted or dynamic name is a role.
+	if (word.keyword && staticPrivilegeWord(name)) || word.columns {
+		word.multiToken = true
+	}
+	// Nor is a reserved word a role name: 11.8.8 answers 1064 for `GRANT READ TO u`, where
+	// `GRANT BINLOG TO u` grants a role.
+	if word.keyword && !word.multiToken && IsReservedKeyword(name) {
+		word.multiToken = true
+	}
 	// GRANT on its own is no privilege name, and the word GRANT is no role
 	// name either, so a bare GRANT is neither: the server answers 1064 for
 	// `GRANT GRANT ON *.* TO u` and for `GRANT GRANT TO u`.
 	if word.keyword && name == "GRANT" {
 		return privOrRole{}, p.syntaxErrorAtCur()
 	}
-	return privOrRole{name: name, privOnly: word.multiToken}, nil
+	return privOrRole{name: name, privOnly: word.multiToken, roleOnly: !isPrivilegeName(name, word)}, nil
+}
+
+// isPrivilegeName reports a privilege word object_privilege lists. Any other name is no
+// privilege, so `GRANT r1 ON *.* TO u` is a 1064 where `GRANT r1 TO u` runs, and a name that
+// spells one is no privilege either: `GRANT `select` ON *.* TO u`.
+//
+// Ref: object_privilege in MariaDB 11.8 sql/sql_yacc.yy.
+func isPrivilegeName(name string, word privWord) bool {
+	if !word.keyword && !word.multiToken {
+		return false
+	}
+	if base, _, ok := strings.Cut(name, " ("); ok {
+		name = base
+	}
+	if base, _, ok := strings.Cut(name, "("); ok {
+		name = base
+	}
+	switch name {
+	case "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD", "SHUTDOWN", "PROCESS", "FILE",
+		"GRANT OPTION", "REFERENCES", "INDEX", "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
+		"LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT", "BINLOG MONITOR", "CREATE VIEW",
+		"SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE", "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE",
+		"DELETE HISTORY", "SET USER", "FEDERATED ADMIN", "CONNECTION ADMIN", "READ_ONLY ADMIN", "READ ONLY ADMIN",
+		"REPLICATION SLAVE ADMIN", "REPLICATION MASTER ADMIN", "BINLOG ADMIN", "BINLOG REPLAY", "SLAVE MONITOR",
+		"REPLICA MONITOR", "SHOW CREATE ROUTINE", "USAGE", "PROXY":
+		return true
+	}
+	return false
 }
 
 // requireSingleRole rejects a role list with more than one element. A
@@ -536,6 +585,36 @@ func (p *Parser) requireSingleRole(roles []privOrRole, at int) error {
 	}
 }
 
+// staticPrivilegeWord reports a reserved word that is a privilege, which no role name can be.
+//
+// Ref: object_privilege and role_name in MariaDB 11.8 sql/sql_yacc.yy.
+func staticPrivilegeWord(name string) bool {
+	switch name {
+	case "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "REFERENCES", "INDEX", "ALTER", "SHOW", "LOCK", "USAGE", "TRIGGER":
+		return true
+	}
+	return false
+}
+
+// parseUserLimit reads a number of a user's password or lock options, which the action
+// holds to a range with 1525, ER_WRONG_VALUE. A number past 64 bits is the 1064 it is on
+// any other integer here; both are refused while the statement parses.
+//
+// Ref: connect_option and the PASSWORD and account lock options in MariaDB 11.8
+// sql/sql_yacc.yy.
+func (p *Parser) parseUserLimit(minimum, maximum int64, what string) (string, error) {
+	if p.cur.Type != tokICONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	if _, err := strconv.ParseInt(p.cur.Str, 10, 64); err != nil {
+		return "", p.syntaxErrorAtCur()
+	}
+	if p.cur.Ival < minimum || p.cur.Ival > maximum {
+		return "", &ParseError{Message: "Incorrect " + what + " value: '" + p.cur.Str + "'", Position: p.cur.Loc}
+	}
+	return p.advance().Str, nil
+}
+
 // privWord records what parsePrivilegeName read. The caller needs it because
 // a privilege word and a name that happens to spell one are not the same
 // thing: mariadb:11.8, mysql:8.0 and v8.5.5 all run `GRANT `grant` TO u` and `GRANT `create view` TO u`,
@@ -549,6 +628,9 @@ type privWord struct {
 	// multiToken is true when the name spans more than one token. No role
 	// name does; a backquoted name holding a space is still one token.
 	multiToken bool
+	// columns is true when a column list follows the name. It is read off the tokens, since a
+	// backquoted role may hold a parenthesis in its name.
+	columns bool
 }
 
 // parsePrivilegeName parses a single privilege name.
@@ -592,6 +674,11 @@ func (p *Parser) parsePrivilegeName() (string, privWord, error) {
 		before := name
 		name = p.completePrivilegeName(name)
 		word.multiToken = name != before
+	}
+	if (!word.multiToken || name == "REPLICATION SLAVE") && !p.backtickQuotedAt(p.prev.Loc) {
+		before := name
+		name = p.completeAdminPrivilege(name)
+		word.multiToken = word.multiToken || name != before
 	}
 	return p.parsePrivilegeColumns(name, word)
 }
@@ -674,6 +761,67 @@ func (p *Parser) completePrivilegeName(name string) string {
 	return name
 }
 
+// completeAdminPrivilege reads the rest of a privilege MariaDB spells in words of its own.
+// The words are matched as written, plain, since they are names in every other place.
+//
+// Ref: object_privilege in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) completeAdminPrivilege(name string) string {
+	// next reads the words only all together: on a partial match it reads none, so `READ ONLY TO`
+	// stops at ONLY and is the 1064 11.8.8 answers, rather than a role READ with ONLY dropped.
+	next := func(words ...string) bool {
+		saved := p.saveScan()
+		for _, word := range words {
+			if !strings.EqualFold(p.cur.Str, word) || p.backtickQuotedAt(p.cur.Loc) {
+				p.restoreScan(saved)
+				return false
+			}
+			p.advance()
+		}
+		return true
+	}
+	switch name {
+	case "BINLOG":
+		for _, word := range []string{"ADMIN", "MONITOR", "REPLAY"} {
+			if next(word) {
+				return "BINLOG " + word
+			}
+		}
+	case "CONNECTION", "FEDERATED", "READ_ONLY":
+		if next("ADMIN") {
+			return name + " ADMIN"
+		}
+	case "DELETE":
+		if next("HISTORY") {
+			return "DELETE HISTORY"
+		}
+	case "READ":
+		if next("ONLY", "ADMIN") {
+			return "READ ONLY ADMIN"
+		}
+	case "REPLICA", "SLAVE":
+		if next("MONITOR") {
+			return name + " MONITOR"
+		}
+	case "REPLICATION":
+		if next("MASTER", "ADMIN") {
+			return "REPLICATION MASTER ADMIN"
+		}
+	case "REPLICATION SLAVE":
+		if next("ADMIN") {
+			return "REPLICATION SLAVE ADMIN"
+		}
+	case "SET":
+		if next("USER") {
+			return "SET USER"
+		}
+	case "SHOW":
+		if next("CREATE", "ROUTINE") {
+			return "SHOW CREATE ROUTINE"
+		}
+	}
+	return name
+}
+
 // parsePrivilegeColumns reads the optional column list of a column-level
 // privilege: priv_type (col_list).
 func (p *Parser) parsePrivilegeColumns(name string, word privWord) (string, privWord, error) {
@@ -696,6 +844,7 @@ func (p *Parser) parsePrivilegeColumns(name string, word privWord) (string, priv
 	if _, err := p.expect(')'); err != nil {
 		return "", word, err
 	}
+	word.columns = true
 	return name + "(" + strings.Join(cols, ", ") + ")", word, nil
 }
 
@@ -786,6 +935,18 @@ func (p *Parser) parseGrantPrivLevel() (*nodes.TableRef, error) {
 		Name: name,
 	}
 
+	// grant_ident holds a table to check_table_name and its database to check_db_name. A
+	// `*` after the database leaves it alone, which is why `a `.* runs.
+	if p.cur.Type != '.' {
+		if identifierNameRefused(name) {
+			return nil, &ParseError{Message: "Incorrect table name '" + name + "'", Position: start}
+		}
+	} else if p.peekNext().Type != '*' {
+		if err := refuseDatabaseName(name, start); err != nil {
+			return nil, err
+		}
+	}
+
 	if p.cur.Type == '.' {
 		p.advance() // consume '.'
 		if p.cur.Type == '*' {
@@ -793,9 +954,13 @@ func (p *Parser) parseGrantPrivLevel() (*nodes.TableRef, error) {
 			ref.Schema = name
 			ref.Name = "*"
 		} else {
+			nameStart := p.pos()
 			name2, _, err := p.parseIdent()
 			if err != nil {
 				return nil, err
+			}
+			if identifierNameRefused(name2) {
+				return nil, &ParseError{Message: "Incorrect table name '" + name2 + "'", Position: nameStart}
 			}
 			ref.Schema = name
 			ref.Name = name2
@@ -1024,10 +1189,11 @@ func (p *Parser) parseCreateUserStmt(start int, orReplace bool) (*nodes.CreateUs
 	// [WITH resource_option ...]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		res := p.parseResourceOptions()
-		if res != nil {
-			stmt.Resource = res
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Resource = res
 	}
 
 	// [password_option | lock_option] ...
@@ -1231,10 +1397,11 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	// [WITH resource_option ...]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		res := p.parseResourceOptions()
-		if res != nil {
-			stmt.Resource = res
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
 		}
+		stmt.Resource = res
 	}
 
 	// [password_option | lock_option] ...
@@ -1862,7 +2029,12 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 //	  | MAX_CONNECTIONS_PER_HOUR count
 //	  | MAX_USER_CONNECTIONS count
 //	}
-func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
+func (p *Parser) startsResourceOption() bool {
+	return p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
+		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS
+}
+
+func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 	var res *nodes.ResourceOption
 	for p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
 		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS {
@@ -1872,38 +2044,48 @@ func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
 		switch p.cur.Type {
 		case kwMAX_QUERIES_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxQueriesPerHour = int(p.cur.Ival)
-				res.HasMaxQueries = true
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			res.MaxQueriesPerHour = int(p.cur.Ival)
+			res.HasMaxQueries = true
+			p.advance()
 		case kwMAX_UPDATES_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxUpdatesPerHour = int(p.cur.Ival)
-				res.HasMaxUpdates = true
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			res.MaxUpdatesPerHour = int(p.cur.Ival)
+			res.HasMaxUpdates = true
+			p.advance()
 		case kwMAX_CONNECTIONS_PER_HOUR:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxConnectionsPerHour = int(p.cur.Ival)
-				res.HasMaxConnections = true
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			res.MaxConnectionsPerHour = int(p.cur.Ival)
+			res.HasMaxConnections = true
+			p.advance()
 		case kwMAX_USER_CONNECTIONS:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxUserConnections = int(p.cur.Ival)
-				res.HasMaxUserConn = true
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			// Signed, unlike the other three.
+			if _, err := strconv.ParseInt(p.cur.Str, 10, 64); err != nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			res.MaxUserConnections = int(p.cur.Ival)
+			res.HasMaxUserConn = true
+			p.advance()
 		}
 	}
-	if res != nil {
-		res.Loc.End = p.prev.End
+	// WITH takes at least one: `CREATE USER u WITH` is a 1064.
+	if res == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
-	return res
+	res.Loc.End = p.prev.End
+	return res, nil
 }
 
 // parseUserAccountOptions parses password options, lock options, comment, and attribute
@@ -1945,22 +2127,20 @@ func (p *Parser) parseUserAccountOptions(
 					p.advance()
 				} else if p.cur.Type == kwINTERVAL {
 					p.advance() // consume INTERVAL
-					n := "0"
-					if p.cur.Type == tokICONST {
-						n = p.cur.Str
-						if n == "" {
-							n = strconv.FormatInt(p.cur.Ival, 10)
-						}
-						p.advance()
+					n, err := p.parseUserLimit(1, math.MaxInt64, "PASSWORD EXPIRE INTERVAL")
+					if err != nil {
+						return err
 					}
-					// DAY
-					if p.cur.Type == kwDAY {
-						p.advance()
+					if _, err := p.expect(kwDAY); err != nil {
+						return err
 					}
 					*passwordExpire = "INTERVAL " + n + " DAY"
 				} else {
 					*passwordExpire = "EXPIRE"
 				}
+			case next.Type == kwHISTORY, next.Type == kwREUSE, next.Type == kwREQUIRE:
+				// MariaDB's PASSWORD takes EXPIRE and nothing else.
+				return p.syntaxErrorAtCur()
 			case next.Type == kwHISTORY:
 				p.advance() // consume PASSWORD
 				p.advance() // consume HISTORY
@@ -1970,13 +2150,15 @@ func (p *Parser) parseUserAccountOptions(
 				} else if p.cur.Type == tokICONST {
 					*passwordHistory = strconv.FormatInt(p.cur.Ival, 10)
 					p.advance()
+				} else {
+					return p.syntaxErrorAtCur()
 				}
 			case next.Type == kwREUSE:
 				p.advance() // consume PASSWORD
 				p.advance() // consume REUSE
 				// INTERVAL
-				if p.cur.Type == kwINTERVAL {
-					p.advance()
+				if _, err := p.expect(kwINTERVAL); err != nil {
+					return err
 				}
 				if p.cur.Type == kwDEFAULT {
 					*passwordReuseInterval = "DEFAULT"
@@ -1984,18 +2166,20 @@ func (p *Parser) parseUserAccountOptions(
 				} else if p.cur.Type == tokICONST {
 					n := strconv.FormatInt(p.cur.Ival, 10)
 					p.advance()
-					if p.cur.Type == kwDAY {
-						p.advance()
+					if _, err := p.expect(kwDAY); err != nil {
+						return err
 					}
 					*passwordReuseInterval = n + " DAY"
+				} else {
+					return p.syntaxErrorAtCur()
 				}
 			case next.Type == kwREQUIRE:
 				p.advance() // consume PASSWORD
 				p.advance() // consume REQUIRE
-				if p.cur.Type == kwDEFAULT {
-					*passwordRequireCurrent = "DEFAULT"
-					p.advance()
-				} else if p.cur.Type == kwCURRENT {
+				if p.cur.Type != kwCURRENT {
+					return p.syntaxErrorAtCur()
+				}
+				{
 					p.advance() // consume CURRENT
 					// Check for DEFAULT or OPTIONAL after CURRENT
 					if p.cur.Type == kwDEFAULT {
@@ -2012,22 +2196,30 @@ func (p *Parser) parseUserAccountOptions(
 				return nil
 			}
 
+		case p.cur.Type == kwFAILED_LOGIN_ATTEMPTS, p.cur.Type == kwPASSWORD_LOCK_TIME:
+			// No such option on MariaDB.
+			return p.syntaxErrorAtCur()
+
 		case p.cur.Type == kwFAILED_LOGIN_ATTEMPTS:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				*failedLoginAttempts = int(p.cur.Ival)
-				*hasFailedLogin = true
-				p.advance()
+			n, err := p.parseUserLimit(0, 32767, "FAILED_LOGIN_ATTEMPTS")
+			if err != nil {
+				return err
 			}
+			*failedLoginAttempts, _ = strconv.Atoi(n)
+			*hasFailedLogin = true
 
 		case p.cur.Type == kwPASSWORD_LOCK_TIME:
 			p.advance()
-			if p.cur.Type == tokICONST {
-				*passwordLockTime = strconv.FormatInt(p.cur.Ival, 10)
-				p.advance()
-			} else if p.cur.Type == kwUNBOUNDED {
+			if p.cur.Type == kwUNBOUNDED {
 				*passwordLockTime = "UNBOUNDED"
 				p.advance()
+			} else {
+				n, err := p.parseUserLimit(0, 32767, "PASSWORD_LOCK_TIME")
+				if err != nil {
+					return err
+				}
+				*passwordLockTime = n
 			}
 
 		case p.cur.Type == kwACCOUNT:
@@ -2038,6 +2230,8 @@ func (p *Parser) parseUserAccountOptions(
 			} else if p.cur.Type == kwUNLOCK {
 				*accountUnlock = true
 				p.advance()
+			} else {
+				return p.syntaxErrorAtCur()
 			}
 
 		// COMMENT and ATTRIBUTE take a quoted string; the server answers 1064

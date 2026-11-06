@@ -7,12 +7,13 @@ import (
 
 // checkRequireWhere reports an UPDATE or DELETE without a WHERE clause,
 // wherever it sits: top level, or the body of a routine, trigger, or
-// event. A statement under EXPLAIN is not judged.
+// event. A statement under EXPLAIN is not judged, but one under ANALYZE is: MariaDB runs it
+// (mariadb:11.8.8 updates the rows of ANALYZE UPDATE t SET a = 2).
 func checkRequireWhere(s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
 		case *ast.ExplainStmt:
-			return false
+			return v.Analyze
 		case *ast.UpdateStmt:
 			if v.Where == nil {
 				r.report(review.MissingWhere, s.index, rangeOf(v.Loc), noWhere("UPDATE", "of", tableExprs(v.Tables)))

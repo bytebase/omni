@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"math"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -283,8 +285,17 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	}
 	col.TypeName = dt
 
-	// Column constraints and options
+	// Column constraints and options. The generated form is an arm of field_def of its
+	// own: only COLLATE comes between the type and AS, and the attributes come after it,
+	// so `b INT NOT NULL AS (a)` and `b INT AS (a) AS (a)` are both a 1064.
+	//
+	// Ref: field_def in MySQL 8.0 sql/sql_yacc.yy.
+	sawAttribute := false
 	for {
+		if sawAttribute && (p.cur.Type == kwGENERATED || (p.cur.Type == kwAS && p.peekNext().Type == '(')) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		isCollate := p.cur.Type == kwCOLLATE
 		ok, err := p.parseColumnOption(col)
 		if err != nil {
 			return nil, err
@@ -292,10 +303,27 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		if !ok {
 			break
 		}
+		if !isCollate {
+			sawAttribute = true
+		}
 	}
 
 	col.Loc.End = p.prev.End
 	return col, nil
+}
+
+// columnHasCollation reports a column that wrote COLLATE already, beside its type or as an
+// attribute. MySQL takes one: `CHAR(5) COLLATE a COLLATE a` is a 1064 even with one name.
+func columnHasCollation(col *nodes.ColumnDef) bool {
+	if col.TypeName != nil && col.TypeName.Collate != "" {
+		return true
+	}
+	for _, c := range col.Constraints {
+		if c.Type == nodes.ColConstrCollate {
+			return true
+		}
+	}
+	return false
 }
 
 // parseColumnOption parses a single column option/constraint.
@@ -428,6 +456,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 
 	case kwCOLLATE:
+		if columnHasCollation(col) {
+			return false, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		collName, _, err := p.parseIdent()
 		if err != nil {
@@ -529,15 +560,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if next := p.peekNext(); next.Type == kwUPDATE {
 			p.advance() // consume ON
 			p.advance() // consume UPDATE
-			exprStart := p.pos()
-			expr, err := p.parseExpr()
+			expr, err := p.parseNowFunction()
 			if err != nil {
-				return false, err
-			}
-			if expr == nil {
-				return false, p.syntaxErrorAtCur()
-			}
-			if err := refuseColumnValue(expr, exprStart); err != nil {
 				return false, err
 			}
 			col.OnUpdate = expr
@@ -666,7 +690,29 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 		}
 		return &nodes.ParenExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Expr: expr}, nil
 	}
-	expr, err := p.parseExpr()
+	// Unparenthesized, it is now_or_signed_literal: a signed literal or a NOW function, and no
+	// other expression. `DEFAULT rand()`, `DEFAULT b`, `DEFAULT @a` and `DEFAULT 1 + 1` are each a
+	// 1064, and the value goes in parentheses to be one.
+	//
+	// Ref: column_attribute's DEFAULT_SYM arms and now_or_signed_literal in MySQL 8.0
+	// sql/sql_yacc.yy.
+	if startsNowFunction(p.cur) {
+		return p.parseNowFunction()
+	}
+	switch p.cur.Type {
+	case '+', '-':
+		if next := p.peekNext().Type; next != tokICONST && next != tokFCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseExpr()
+	case tokICONST, tokFCONST, tokSCONST, tokXCONST, tokBCONST, kwNULL, kwTRUE, kwFALSE:
+	default:
+		// A literal with an introducer or a temporal keyword reads as one, and nothing else.
+		if !p.startsPrefixedLiteral() {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	expr, err := p.parsePrimaryExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -674,6 +720,55 @@ func (p *Parser) parseDefaultValue() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	return expr, nil
+}
+
+// startsNowFunction reports NOW, CURRENT_TIMESTAMP, LOCALTIME or LOCALTIMESTAMP, unquoted.
+func startsNowFunction(tok Token) bool {
+	switch strings.ToUpper(tok.Str) {
+	case "NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP":
+		return tok.Type != tokSCONST
+	}
+	return false
+}
+
+// parseNowFunction reads what DEFAULT and ON UPDATE take of the clock: one of the names, with
+// an integer precision or none. `ON UPDATE 1`, `ON UPDATE NOW() + 1` and `ON UPDATE NOW(1+1)`
+// are each a 1064, and a backquoted `NOW` is a stored function.
+//
+// Ref: now in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseNowFunction() (nodes.ExprNode, error) {
+	if !startsNowFunction(p.cur) || p.backtickQuotedAt(p.cur.Loc) {
+		return nil, p.syntaxErrorAtCur()
+	}
+	// NOW is the one of them that is no word on its own: ON UPDATE NOW is a 1064.
+	if strings.EqualFold(p.cur.Str, "NOW") && p.peekNext().Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	expr, err := p.parsePrimaryExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if call, ok := expr.(*nodes.FuncCallExpr); ok && len(call.Args) > 0 {
+		if _, isInt := call.Args[0].(*nodes.IntLit); !isInt || len(call.Args) > 1 {
+			return nil, p.syntaxErrorAtTok(p.prev)
+		}
+	}
+	return expr, nil
+}
+
+// startsPrefixedLiteral reports a literal written with an introducer, a national marker or
+// the word of a temporal type, each of which the expression reader takes as a primary. An
+// introducer takes a string, a hex or a bit literal: `_binary X'FF'` and `_binary 0b1`.
+func (p *Parser) startsPrefixedLiteral() bool {
+	next := p.peekNext().Type
+	switch p.cur.Type {
+	case kwDATE, kwTIME, kwTIMESTAMP:
+		return next == tokSCONST
+	}
+	return strings.HasPrefix(p.cur.Str, "_") && (next == tokSCONST || next == tokXCONST || next == tokBCONST)
 }
 
 // parseReferenceDefinition parses a REFERENCES clause.
@@ -1178,7 +1273,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			p.addRuleCandidate("engine")
 			return nil, false, &ParseError{Message: "collecting"}
 		}
-		val, err := p.consumeOptionValue()
+		val, _, err := p.parseIdentOrText()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1187,7 +1282,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwAUTO_INCREMENT:
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeNumericOptionValue()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1251,7 +1346,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	case kwROW_FORMAT:
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeWordOptionValue("DEFAULT", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT")
 		if err != nil {
 			return nil, false, err
 		}
@@ -1281,7 +1376,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		// STORAGE {DISK | MEMORY} has no equals sign: STORAGE = DISK is a 1064
 		// (measured).
 		p.advance()
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeWordOptionValue("DISK", "MEMORY")
 		if err != nil {
 			return nil, false, err
 		}
@@ -1318,7 +1413,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		// TABLESPACE tablespace_name [STORAGE {DISK | MEMORY}]
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, _, err := p.parseIdent()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1335,10 +1430,10 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return opt, true, nil
 
 	case kwENCRYPTION:
-		// ENCRYPTION [=] {'Y' | 'N'}
+		// ENCRYPTION [=] 'string', which a table holds to Y or N only after parsing.
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeStringOptionValue()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1368,7 +1463,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			p.advance() // consume INDEX
 			p.advance() // consume DIRECTORY
 			p.matchEqual()
-			val, err := p.consumeOptionValue()
+			val, err := p.consumeStringOptionValue()
 			if err != nil {
 				return nil, false, err
 			}
@@ -1382,7 +1477,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			p.advance() // consume DATA
 			p.advance() // consume DIRECTORY
 			p.matchEqual()
-			val, err := p.consumeOptionValue()
+			val, err := p.consumeStringOptionValue()
 			if err != nil {
 				return nil, false, err
 			}
@@ -1392,11 +1487,21 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	}
 
 	// Handle keyword-token-based table options: COMPRESSION, INSERT_METHOD.
-	if p.cur.Type == kwCOMPRESSION || p.cur.Type == kwINSERT_METHOD {
+	if p.cur.Type == kwCOMPRESSION {
 		optName := p.cur.Str
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		val, err := p.consumeStringOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: val}, true, nil
+	}
+	if p.cur.Type == kwINSERT_METHOD {
+		optName := p.cur.Str
+		p.advance()
+		p.matchEqual()
+		val, err := p.consumeWordOptionValue("NO", "FIRST", "LAST")
 		if err != nil {
 			return nil, false, err
 		}
@@ -1436,16 +1541,36 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		kwSTATS_SAMPLE_PAGES, kwMAX_ROWS, kwMIN_ROWS, kwAVG_ROW_LENGTH,
 		kwPACK_KEYS, kwDELAY_KEY_WRITE, kwSECONDARY_ENGINE,
 		kwAUTOEXTEND_SIZE:
+		optType := p.cur.Type
 		optName := p.cur.Str
-		isSecondaryEngine := p.cur.Type == kwSECONDARY_ENGINE
 		p.advance()
 		p.matchEqual()
-		// SECONDARY_ENGINE alone takes NULL: SECONDARY_ENGINE_SYM opt_equal NULL_SYM.
-		if isSecondaryEngine && p.cur.Type == kwNULL {
-			p.advance()
-			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: optName, Value: "NULL"}, true, nil
+		var val string
+		var err error
+		switch optType {
+		case kwKEY_BLOCK_SIZE:
+			val, err = p.consumeBoundedOptionValue(0, 65535)
+		case kwAVG_ROW_LENGTH:
+			val, err = p.consumeBoundedOptionValue(0, math.MaxUint32)
+		case kwMAX_ROWS, kwMIN_ROWS, kwDELAY_KEY_WRITE:
+			val, err = p.consumeNumericOptionValue()
+		case kwSTATS_PERSISTENT, kwPACK_KEYS:
+			val, err = p.consumeZeroOneOrDefaultOptionValue()
+		case kwSTATS_SAMPLE_PAGES:
+			if tok, ok := p.match(kwDEFAULT); ok {
+				val = tok.Str
+			} else {
+				val, err = p.consumeBoundedOptionValue(1, 65535)
+			}
+		case kwSECONDARY_ENGINE:
+			if tok, ok := p.match(kwNULL); ok {
+				val = tok.Str
+			} else {
+				val, _, err = p.parseIdentOrText()
+			}
+		case kwAUTOEXTEND_SIZE:
+			val, err = p.consumeSizeOptionValue()
 		}
-		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
 		}
@@ -1529,12 +1654,62 @@ func (p *Parser) consumeZeroOneOrDefaultOptionValue() (string, error) {
 		p.advance()
 		return val, nil
 	}
-	if p.cur.Type != tokICONST || (p.cur.Ival != 0 && p.cur.Ival != 1) {
+	return p.consumeBoundedOptionValue(0, 1)
+}
+
+// consumeBoundedOptionValue reads an option value that must be a number the action holds
+// to a range. ulong_num reads a decimal with my_strtoll10, which stops at the point, so
+// 1.9 and 1e2 are both 1 and it is that the range sees.
+//
+// Ref: ulong_num and ternary_option in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) consumeBoundedOptionValue(minimum, maximum uint64) (string, error) {
+	if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+		return "", p.syntaxErrorAtCur()
+	}
+	digits := p.cur.Str
+	if i := strings.IndexFunc(digits, func(r rune) bool { return r < '0' || r > '9' }); i >= 0 {
+		digits = digits[:i]
+	}
+	n, err := strconv.ParseUint("0"+digits, 10, 64)
+	if err != nil || n < minimum || n > maximum {
 		return "", p.syntaxErrorAtCur()
 	}
 	val := p.cur.Str
 	p.advance()
 	return val, nil
+}
+
+// consumeWordOptionValue reads an option value that is one of a closed list of words,
+// which the grammar spells as tokens: the words in any case, and neither a string nor a
+// backquoted name.
+func (p *Parser) consumeWordOptionValue(words ...string) (string, error) {
+	if p.cur.Type == tokIDENT || p.cur.Type >= 700 {
+		if !strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "`") {
+			for _, word := range words {
+				if strings.EqualFold(p.cur.Str, word) {
+					return p.advance().Str, nil
+				}
+			}
+		}
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+// consumeSizeOptionValue reads size_number: an integer, or an integer with a K, M or G
+// after it, which lexes as a name. The action answers 1531 for any other name.
+//
+// Ref: size_number in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) consumeSizeOptionValue() (string, error) {
+	if p.cur.Type == tokICONST {
+		return p.advance().Str, nil
+	}
+	if p.cur.Type == tokIDENT {
+		digits := strings.TrimRight(p.cur.Str, "kKmMgG")
+		if len(p.cur.Str)-len(digits) == 1 && strings.Trim(digits, "0123456789") == "" {
+			return p.advance().Str, nil
+		}
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parsePartitionClause parses a PARTITION BY clause.
@@ -1568,7 +1743,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		expr, err := p.parseBitExpr()
+		expr, err := p.parsePartitionExpr(partitionExprMethod)
 		if err != nil {
 			return nil, err
 		}
@@ -1584,29 +1759,30 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		p.advance()
 		part.Type = nodes.PartitionKey
 		// Optional ALGORITHM={1|2}
-		if p.cur.Type == kwALGORITHM {
-			p.advance()
-			p.match('=')
-			if p.cur.Type == tokICONST {
-				part.Algorithm = int(p.cur.Ival)
-				p.advance()
-			}
+		algorithm, err := p.parsePartitionKeyAlgorithm()
+		if err != nil {
+			return nil, err
 		}
-		if p.cur.Type == '(' {
-			// KEY () with empty column list means "use PK columns".
-			if p.peekNext().Type == ')' {
-				p.advance() // consume '('
-				p.advance() // consume ')'
-			} else {
-				cols, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				part.Columns = cols
+		part.Algorithm = algorithm
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// KEY () with empty column list means "use PK columns".
+		if p.peekNext().Type == ')' {
+			p.advance() // consume '('
+			p.advance() // consume ')'
+		} else {
+			cols, err := p.parseParenIdentList()
+			if err != nil {
+				return nil, err
 			}
+			part.Columns = cols
 		}
 
 	case kwRANGE:
+		if part.Linear {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		part.Type = nodes.PartitionRange
 		if _, ok := p.match(kwCOLUMNS, kwFIELDS); ok {
@@ -1619,7 +1795,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			expr, err := p.parseBitExpr()
+			expr, err := p.parsePartitionExpr(partitionExprMethod)
 			if err != nil {
 				return nil, err
 			}
@@ -1633,6 +1809,9 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 
 	case kwLIST:
+		if part.Linear {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		part.Type = nodes.PartitionList
 		if _, ok := p.match(kwCOLUMNS, kwFIELDS); ok {
@@ -1645,7 +1824,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			expr, err := p.parseBitExpr()
+			expr, err := p.parsePartitionExpr(partitionExprMethod)
 			if err != nil {
 				return nil, err
 			}
@@ -1668,10 +1847,11 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	// PARTITIONS num
 	if p.cur.Type == kwPARTITIONS {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			part.NumParts = int(p.cur.Ival)
-			p.advance()
+		n, err := p.parsePartitionCount("partitions")
+		if err != nil {
+			return nil, err
 		}
+		part.NumParts = n
 	}
 
 	// SUBPARTITION BY {HASH(expr) | KEY [ALGORITHM=N] (column_list)}
@@ -1687,7 +1867,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
-			expr, err := p.parseBitExpr()
+			expr, err := p.parsePartitionExpr(partitionExprMethod)
 			if err != nil {
 				return nil, err
 			}
@@ -1702,25 +1882,17 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			p.advance()
 			part.SubPartType = nodes.PartitionKey
 			// Optional ALGORITHM = N
-			if p.cur.Type == kwALGORITHM {
-				p.advance()
-				p.match('=')
-				if p.cur.Type == tokICONST {
-					part.SubPartAlgo = int(p.cur.Ival)
-					p.advance()
-				}
+			algorithm, err := p.parsePartitionKeyAlgorithm()
+			if err != nil {
+				return nil, err
 			}
-			// KEY () with empty column list means "use PK columns".
-			if p.cur.Type == '(' && p.peekNext().Type == ')' {
-				p.advance() // consume '('
-				p.advance() // consume ')'
-			} else {
-				cols, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				part.SubPartColumns = cols
+			part.SubPartAlgo = algorithm
+			// Unlike PARTITION BY KEY, the column list is required: `KEY ()` is a 1064.
+			cols, err := p.parseParenIdentList()
+			if err != nil {
+				return nil, err
 			}
+			part.SubPartColumns = cols
 		case p.cur.Type == kwLINEAR:
 			p.advance() // LINEAR
 			if p.cur.Type == kwHASH {
@@ -1729,7 +1901,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 				if _, err := p.expect('('); err != nil {
 					return nil, err
 				}
-				expr, err := p.parseBitExpr()
+				expr, err := p.parsePartitionExpr(partitionExprMethod)
 				if err != nil {
 					return nil, err
 				}
@@ -1743,47 +1915,57 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			} else if p.cur.Type == kwKEY {
 				p.advance()
 				part.SubPartType = nodes.PartitionKey
-				if p.cur.Type == kwALGORITHM {
-					p.advance()
-					p.match('=')
-					if p.cur.Type == tokICONST {
-						part.SubPartAlgo = int(p.cur.Ival)
-						p.advance()
-					}
+				algorithm, err := p.parsePartitionKeyAlgorithm()
+				if err != nil {
+					return nil, err
 				}
+				part.SubPartAlgo = algorithm
 				cols, err := p.parseParenIdentList()
 				if err != nil {
 					return nil, err
 				}
 				part.SubPartColumns = cols
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		// SUBPARTITIONS num
 		if p.cur.Type == kwSUBPARTITIONS {
 			p.advance()
-			if p.cur.Type == tokICONST {
-				part.NumSubParts = int(p.cur.Ival)
-				p.advance()
+			n, err := p.parsePartitionCount("subpartitions")
+			if err != nil {
+				return nil, err
 			}
+			part.NumSubParts = n
 		}
 	}
 
 	// Optional partition definitions
 	if p.cur.Type == '(' {
 		p.advance()
+		var bounds []partitionBound
 		for {
-			pd, err := p.parsePartitionDef()
+			pd, bound, err := p.parsePartitionDefAndBound()
 			if err != nil {
 				return nil, err
 			}
 			part.Partitions = append(part.Partitions, pd)
+			bounds = append(bounds, bound)
 			if p.cur.Type != ',' {
 				break
 			}
 			p.advance()
 		}
 		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		if err := validatePartitionDefList(part.Partitions); err != nil {
+			return nil, err
+		}
+		if err := validatePartitionClause(part, bounds); err != nil {
 			return nil, err
 		}
 	}
@@ -1798,27 +1980,36 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 //	    [VALUES {LESS THAN (expr|MAXVALUE) | IN (value_list)}]
 //	    [table_options]
 func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
+	pd, _, err := p.parsePartitionDefAndBound()
+	return pd, err
+}
+
+// parsePartitionDefAndBound parses a single partition definition and says which bound it
+// wrote.
+func (p *Parser) parsePartitionDefAndBound() (*nodes.PartitionDef, partitionBound, error) {
 	start := p.pos()
 	if _, err := p.expect(kwPARTITION); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	name, _, err := p.parseIdent()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	pd := &nodes.PartitionDef{
 		Loc:  nodes.Loc{Start: start},
 		Name: name,
 	}
+	bound := boundNone
 
 	// VALUES LESS THAN or VALUES IN
 	if _, ok := p.match(kwVALUES); ok {
 		if p.cur.Type == kwLESS {
+			bound = boundLessThan
 			p.advance() // LESS
 			if _, err := p.expect(kwTHAN); err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			if p.cur.Type == '(' {
 				p.advance()
@@ -1829,12 +2020,12 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						items = append(items, &nodes.String{Str: "MAXVALUE"})
 						p.advance()
 					} else {
-						expr, err := p.parseBitExpr()
+						expr, err := p.parsePartitionExpr(partitionExprValue)
 						if err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						if expr == nil {
-							return nil, p.syntaxErrorAtCur()
+							return nil, 0, p.syntaxErrorAtCur()
 						}
 						items = append(items, expr)
 					}
@@ -1844,7 +2035,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					p.advance()
 				}
 				if _, err := p.expect(')'); err != nil {
-					return nil, err
+					return nil, 0, err
 				}
 				// A single bound is stored as itself, MAXVALUE as a String; a
 				// tuple keeps every column, MAXVALUE ones included, so
@@ -1858,9 +2049,10 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 				pd.Values = &nodes.String{Str: "MAXVALUE"}
 				p.advance()
 			} else {
-				return nil, p.syntaxErrorAtCur()
+				return nil, 0, p.syntaxErrorAtCur()
 			}
 		} else if _, ok := p.match(kwIN); ok {
+			bound = boundIn
 			if p.cur.Type == '(' {
 				p.advance()
 				var items []nodes.Node
@@ -1870,12 +2062,15 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 						p.advance()
 						var tupleVals []nodes.Node
 						for {
-							expr, err := p.parseBitExpr()
+							if p.startsDefaultKeyword() {
+								return nil, 0, p.syntaxErrorAtCur()
+							}
+							expr, err := p.parsePartitionExpr(partitionExprValue)
 							if err != nil {
-								return nil, err
+								return nil, 0, err
 							}
 							if expr == nil {
-								return nil, p.syntaxErrorAtCur()
+								return nil, 0, p.syntaxErrorAtCur()
 							}
 							tupleVals = append(tupleVals, expr)
 							if p.cur.Type != ',' {
@@ -1884,16 +2079,19 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 							p.advance()
 						}
 						if _, err := p.expect(')'); err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						items = append(items, &nodes.List{Items: tupleVals})
 					} else {
-						expr, err := p.parseBitExpr()
+						if p.startsDefaultKeyword() {
+							return nil, 0, p.syntaxErrorAtCur()
+						}
+						expr, err := p.parsePartitionExpr(partitionExprValue)
 						if err != nil {
-							return nil, err
+							return nil, 0, err
 						}
 						if expr == nil {
-							return nil, p.syntaxErrorAtCur()
+							return nil, 0, p.syntaxErrorAtCur()
 						}
 						items = append(items, expr)
 					}
@@ -1903,15 +2101,18 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 					p.advance()
 				}
 				if _, err := p.expect(')'); err != nil {
-					return nil, err
+					return nil, 0, err
+				}
+				if err := validatePartitionInRows(items, start); err != nil {
+					return nil, 0, err
 				}
 				pd.Values = &nodes.List{Items: items}
 			} else {
-				return nil, p.syntaxErrorAtCur()
+				return nil, 0, p.syntaxErrorAtCur()
 			}
 		} else {
 			// VALUES with neither LESS THAN nor IN after it is no bound.
-			return nil, p.syntaxErrorAtCur()
+			return nil, 0, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -1919,7 +2120,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	for {
 		opt, ok, err := p.parsePartDefOption()
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		if !ok {
 			break
@@ -1933,7 +2134,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		for {
 			spd, err := p.parseSubPartitionDef()
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			pd.SubPartitions = append(pd.SubPartitions, spd)
 			if p.cur.Type != ',' {
@@ -1942,12 +2143,12 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 			p.advance()
 		}
 		if _, err := p.expect(')'); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 	}
 
 	pd.Loc.End = p.prev.End
-	return pd, nil
+	return pd, bound, nil
 }
 
 // parseSubPartitionDef parses a single subpartition definition.
@@ -2066,9 +2267,16 @@ func (p *Parser) parsePartDefOption() (*nodes.TableOption, bool, error) {
 
 	case kwENGINE, kwTABLESPACE:
 		name := strings.ToUpper(p.cur.Str)
+		isEngine := p.cur.Type == kwENGINE
 		p.advance()
 		p.matchEqual()
-		val, err := p.consumeOptionValue()
+		var val string
+		var err error
+		if isEngine {
+			val, _, err = p.parseIdentOrText()
+		} else {
+			val, _, err = p.parseIdent()
+		}
 		if err != nil {
 			return nil, false, err
 		}

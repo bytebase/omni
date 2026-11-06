@@ -1719,6 +1719,7 @@ func (c *RoutineCharacteristic) nodeTag() {}
 
 // CreateTriggerStmt represents a CREATE TRIGGER statement.
 type CreateTriggerStmt struct {
+	Schema      string // database the trigger's name was qualified with
 	Loc         Loc
 	Definer     string
 	IfNotExists bool
@@ -1745,6 +1746,7 @@ func (o *TriggerOrder) nodeTag() {}
 
 // CreateEventStmt represents a CREATE EVENT statement.
 type CreateEventStmt struct {
+	Schema       string // database the event's name was qualified with
 	Loc          Loc
 	IfNotExists  bool
 	Definer      string
@@ -2794,12 +2796,14 @@ func (s *AlterViewStmt) stmtNode() {}
 
 // AlterEventStmt represents an ALTER EVENT statement.
 type AlterEventStmt struct {
+	Schema       string // database the event's name was qualified with
 	Loc          Loc
 	Definer      string
 	Name         string
 	Schedule     *EventSchedule
 	OnCompletion string // PRESERVE, NOT PRESERVE
 	RenameTo     string
+	RenameSchema string // database RENAME TO qualified the new name with
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
 	Comment      string
 	Body         Node   // parsed sp_proc_stmt (nil when no DO clause)
@@ -2843,6 +2847,7 @@ func (s *DropTriggerStmt) stmtNode() {}
 
 // DropEventStmt represents a DROP EVENT statement.
 type DropEventStmt struct {
+	Schema   string // database the event's name was qualified with
 	Loc      Loc
 	IfExists bool
 	Name     string

@@ -14,7 +14,11 @@ import (
 // report, and its oracle holds Parse plus Validate to the same server, so Parse
 // accepts those bodies.
 var routineParserCodes = map[uint16]bool{
+	1313: true, // ER_SP_BADRETURN: RETURN anywhere but in a function
 	1310: true, // ER_SP_LABEL_MISMATCH: an end label that does not match its begin label
+	1362: true, // ER_TRG_CANT_CHANGE_ROW: an assignment to a row a trigger can't change
+	1363: true, // ER_TRG_NO_SUCH_ROW_IN_TRG: a NEW or OLD row its event does not have
+	1415: true, // ER_SP_NO_RETSET: a result set from a function or a trigger
 	1337: true, // ER_SP_VARCOND_AFTER_CURSHNDLR: a variable or condition declared after a cursor or handler
 }
 

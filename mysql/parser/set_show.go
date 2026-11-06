@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"math"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -446,6 +448,9 @@ func (p *Parser) parseSetVariableAssignment(start int, scope string) (*nodes.Ass
 		colStart := p.pos()
 		qual := strings.ToUpper(p.advance().Str)
 		p.advance() // consume '.'
+		if err := p.refuseTriggerRowWrite(qual, colStart); err != nil {
+			return nil, err
+		}
 		colName, _, err := p.parseLvalueIdent()
 		if err != nil {
 			return nil, err
@@ -545,6 +550,9 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 		qualTok := p.advance()
 		qual := strings.ToUpper(qualTok.Str)
 		if _, err := p.expect('.'); err != nil {
+			return nil, err
+		}
+		if err := p.refuseTriggerRowWrite(qual, colStart); err != nil {
 			return nil, err
 		}
 		colName, _, err := p.parseLvalueIdent()
@@ -830,7 +838,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.addRuleCandidate("procedure_ref")
 				return nil, &ParseError{Message: "collecting"}
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseNamedRoutineRef()
 			if err != nil {
 				return nil, err
 			}
@@ -844,7 +852,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				p.addRuleCandidate("function_ref")
 				return nil, &ParseError{Message: "collecting"}
 			}
-			ref, err := p.parseTableRef()
+			ref, err := p.parseNamedRoutineRef()
 			if err != nil {
 				return nil, err
 			}
@@ -852,7 +860,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		case kwTRIGGER:
 			stmt.Type = "CREATE TRIGGER"
 			p.advance()
-			ref, err := p.parseTableRef()
+			ref, err := p.parseNamedRoutineRef()
 			if err != nil {
 				return nil, err
 			}
@@ -860,7 +868,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		case kwEVENT:
 			stmt.Type = "CREATE EVENT"
 			p.advance()
-			ref, err := p.parseTableRef()
+			ref, err := p.parseNamedRoutineRef()
 			if err != nil {
 				return nil, err
 			}
@@ -1065,56 +1073,16 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		stmt.Type = "WARNINGS"
 		p.advance()
 		// Optional LIMIT [offset,] count
-		if _, ok := p.match(kwLIMIT); ok {
-			first, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if first == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-				count, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if count == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.LimitOffset = first
-				stmt.LimitCount = count
-			} else {
-				stmt.LimitCount = first
-			}
+		if err := p.parseShowLimit(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwERRORS:
 		stmt.Type = "ERRORS"
 		p.advance()
 		// Optional LIMIT [offset,] count
-		if _, ok := p.match(kwLIMIT); ok {
-			first, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if first == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-				count, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if count == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.LimitOffset = first
-				stmt.LimitCount = count
-			} else {
-				stmt.LimitCount = first
-			}
+		if err := p.parseShowLimit(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwSTORAGE:
@@ -1233,28 +1201,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			stmt.FromPos = expr
 		}
 		// Optional LIMIT [offset,] count
-		if _, ok := p.match(kwLIMIT); ok {
-			first, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if first == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-				count, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if count == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.LimitOffset = first
-				stmt.LimitCount = count
-			} else {
-				stmt.LimitCount = first
-			}
+		if err := p.parseShowLimit(stmt); err != nil {
+			return nil, err
 		}
 
 	case kwTABLE:
@@ -1373,28 +1321,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			stmt.FromPos = expr
 		}
 		// Optional LIMIT [offset,] count
-		if _, ok := p.match(kwLIMIT); ok {
-			first, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			if first == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			if p.cur.Type == ',' {
-				p.advance() // consume ','
-				count, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if count == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				stmt.LimitOffset = first
-				stmt.LimitCount = count
-			} else {
-				stmt.LimitCount = first
-			}
+		if err := p.parseShowLimit(stmt); err != nil {
+			return nil, err
 		}
 		if err := p.parseShowChannel(stmt); err != nil {
 			return nil, err
@@ -1647,57 +1575,26 @@ func (p *Parser) parseShowProfileOptions(stmt *nodes.ShowStmt) error {
 	// Optional FOR QUERY n
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR
-		// Expect QUERY
-		if p.cur.Type == kwQUERY {
-			p.advance() // consume QUERY
-			expr, err := p.parseExpr()
-			if err != nil {
-				return err
-			}
-			if expr == nil {
-				return p.syntaxErrorAtCur()
-			}
-			stmt.ForQuery = expr
+		if _, err := p.expect(kwQUERY); err != nil {
+			return err
 		}
+		// The id is the NUM token, an integer that fits 31 bits, and no expression:
+		// FOR QUERY 2147483648 and FOR QUERY 1+1 are each a 1064.
+		if p.cur.Type != tokICONST || p.cur.Ival > math.MaxInt32 {
+			return p.syntaxErrorAtCur()
+		}
+		expr, err := p.parsePrimaryExpr()
+		if err != nil {
+			return err
+		}
+		stmt.ForQuery = expr
 	}
 
 	// Optional LIMIT {row_count | offset ',' row_count | row_count OFFSET
 	// offset}. SHOW PROFILE reads a whole opt_limit_clause, which is the
 	// comma form as well as the OFFSET one, and the two cannot be combined.
-	if _, ok := p.match(kwLIMIT); ok {
-		first, err := p.parseExpr()
-		if err != nil {
-			return err
-		}
-		if first == nil {
-			return p.syntaxErrorAtCur()
-		}
-		switch p.cur.Type {
-		case ',':
-			p.advance() // consume ','
-			count, err := p.parseExpr()
-			if err != nil {
-				return err
-			}
-			if count == nil {
-				return p.syntaxErrorAtCur()
-			}
-			stmt.LimitOffset = first
-			stmt.LimitCount = count
-		case kwOFFSET:
-			p.advance() // consume OFFSET
-			off, err := p.parseExpr()
-			if err != nil {
-				return err
-			}
-			if off == nil {
-				return p.syntaxErrorAtCur()
-			}
-			stmt.LimitCount = first
-			stmt.LimitOffset = off
-		default:
-			stmt.LimitCount = first
-		}
+	if err := p.parseShowLimit(stmt); err != nil {
+		return err
 	}
 
 	return nil
@@ -1838,6 +1735,18 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 // DESC and DESCRIBE read only the table form here. MySQL takes them as full
 // EXPLAIN synonyms -- DESC FORMAT = JSON SELECT 1 parses on 8.0.46 -- which is
 // a gap this file records rather than closes.
+// explainTakesStatement reports what can only open the statement form of DESCRIBE, where
+// a name opens the table form.
+func (p *Parser) explainTakesStatement() bool {
+	switch p.cur.Type {
+	case kwFORMAT:
+		return p.peekNext().Type == '='
+	case kwANALYZE, kwFOR, kwSELECT, kwWITH, kwTABLE, kwVALUES, kwINSERT, kwUPDATE, kwDELETE, kwREPLACE, '(':
+		return true
+	}
+	return false
+}
+
 func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 	start := p.pos()
 	isDescribe := p.cur.Type == kwDESCRIBE || p.cur.Type == kwDESC
@@ -1845,7 +1754,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 
 	stmt := &nodes.ExplainStmt{Loc: nodes.Loc{Start: start}}
 
-	if isDescribe {
+	// DESCRIBE and DESC are EXPLAIN by another name: only what follows tells the table
+	// form from the statement form, on either word.
+	if isDescribe && !p.explainTakesStatement() {
 		// Completion: after DESCRIBE/DESC, offer table_ref.
 		p.checkCursor()
 		if p.collectMode() {
@@ -1879,20 +1790,24 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 
 	// FORMAT = format, whose name is ident_or_text: an identifier, a
 	// non-reserved keyword, a backquoted identifier, or a string literal in
-	// either quote. MySQL checks the name itself after parsing (1791), so
-	// FORMAT = nosuchformat and FORMAT = 'nosuchformat' both parse, while an
-	// integer and a reserved word are a 1064: FORMAT = 1, FORMAT = binary and
-	// FORMAT = select are syntax errors.
+	// either quote. An integer and a reserved word are a 1064: FORMAT = 1,
+	// FORMAT = binary and FORMAT = select are syntax errors. A name that is no
+	// format is 1791, ER_UNKNOWN_EXPLAIN_FORMAT, from the action, so it does not
+	// parse either. FORMAT with no equals sign after it is a table.
 	hasFormat := false
-	if p.cur.Type == kwFORMAT {
+	if p.cur.Type == kwFORMAT && p.peekNext().Type == '=' {
 		hasFormat = true
 		p.advance() // consume FORMAT
-		if _, err := p.expect('='); err != nil {
-			return nil, err
-		}
+		p.advance() // consume =
+		nameStart := p.pos()
 		name, _, err := p.parseIdentOrText()
 		if err != nil {
 			return nil, err
+		}
+		switch strings.ToUpper(name) {
+		case "TRADITIONAL", "JSON", "TREE":
+		default:
+			return nil, &ParseError{Message: "Unknown EXPLAIN format name: '" + name + "'", Position: nameStart}
 		}
 		stmt.Format = name
 	}
@@ -1908,6 +1823,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 		tok, err := p.expect(tokICONST)
 		if err != nil {
 			return nil, err
+		}
+		if _, err := strconv.ParseUint(tok.Str, 10, 64); err != nil {
+			return nil, p.syntaxErrorAtTok(tok)
 		}
 		stmt.ForConnection = tok.Ival
 		stmt.Loc.End = p.prev.End
@@ -2029,5 +1947,40 @@ func (p *Parser) parseExplainColumn(showStmt *nodes.ShowStmt) error {
 		return err
 	}
 	showStmt.Like = &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: p.prev.End}, Column: name}
+	return nil
+}
+
+// parseShowLimit parses the optional LIMIT of a SHOW statement, which is the limit_clause
+// a SELECT takes: LIMIT count, LIMIT offset, count or LIMIT count OFFSET offset.
+//
+// Ref: opt_limit_clause and limit_options in MySQL 8.0 sql/sql_yacc.yy.
+func (p *Parser) parseShowLimit(stmt *nodes.ShowStmt) error {
+	if _, ok := p.match(kwLIMIT); !ok {
+		return nil
+	}
+	first, err := p.parseLimitValue()
+	if err != nil {
+		return err
+	}
+	switch p.cur.Type {
+	case ',':
+		p.advance()
+		count, err := p.parseLimitValue()
+		if err != nil {
+			return err
+		}
+		stmt.LimitOffset = first
+		stmt.LimitCount = count
+	case kwOFFSET:
+		p.advance()
+		offset, err := p.parseLimitValue()
+		if err != nil {
+			return err
+		}
+		stmt.LimitCount = first
+		stmt.LimitOffset = offset
+	default:
+		stmt.LimitCount = first
+	}
 	return nil
 }

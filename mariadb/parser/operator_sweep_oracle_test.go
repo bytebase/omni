@@ -36,7 +36,23 @@ func operatorVerdict(ctx context.Context, db *sql.DB, stmt string) (bool, error)
 	}
 	var myErr *gomysql.MySQLError
 	if errors.As(err, &myErr) {
-		return myErr.Number != 1064, nil
+		switch myErr.Number {
+		case 1064:
+			return false, nil
+		case 1115, 1128, 1193, 1253, 1273, 1286, 1289, 4081:
+			return true, nil
+		}
+		// A code the parser's actions raise comes back with a syntax error after the
+		// statement; one raised after parsing turns into that syntax error.
+		if _, err := conn.ExecContext(ctx, "SET @omni_sweep = ?", stmt+"\n; SELECT FROM"); err != nil {
+			return false, err
+		}
+		_, err := conn.ExecContext(ctx, "PREPARE omni_sweep_stmt FROM @omni_sweep")
+		var again *gomysql.MySQLError
+		if !errors.As(err, &again) {
+			return false, err
+		}
+		return again.Number != myErr.Number, nil
 	}
 	return false, err
 }
