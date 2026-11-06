@@ -86,7 +86,7 @@ func TestRecommendIndexOptionValues(t *testing.T) {
 		}},
 		{"N'x'", func(e ast.ExprNode) bool {
 			v, ok := e.(*ast.StringLit)
-			return ok && v.Value == "x" && v.Charset == "utf8"
+			return ok && v.Value == "x" && v.Charset == "_utf8"
 		}},
 		{"_utf8mb4 0x10", func(e ast.ExprNode) bool { _, ok := e.(*ast.HexLit); return ok }},
 	} {

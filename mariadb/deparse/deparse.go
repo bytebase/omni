@@ -690,6 +690,14 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(")")
 			return
 		}
+		if trimHead != "" && len(n.Args) == 1 {
+			// TRIM(LEADING FROM str): the name is the text as written.
+			b.WriteString(trimHead)
+			b.WriteString("FROM ")
+			writeExprAlias(b, n.Args[0])
+			b.WriteString(")")
+			return
+		}
 
 		// Handle GROUP_CONCAT: alias includes ORDER BY and SEPARATOR
 		if upperName == "GROUP_CONCAT" {
@@ -728,6 +736,12 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 				b.WriteString(", ")
 			}
 			writeExprAlias(b, arg)
+		}
+		if n.Using != "" {
+			// The name keeps CHAR's USING clause as written, whatever the
+			// stored body does with it.
+			b.WriteString(" USING ")
+			b.WriteString(n.Using)
 		}
 		b.WriteString(")")
 		if n.Over != nil {
@@ -2049,11 +2063,18 @@ func writeTrimDirectional(b *strings.Builder, direction string, args []ast.ExprN
 		b.WriteString(")")
 		return
 	}
-	// Fallback: single arg (shouldn't happen for directional, but be safe)
+	// TRIM(LEADING FROM str) trims spaces, which MariaDB stores as the
+	// one-sided function: ltrim(str), rtrim(str), trim(str) (mariadb:11.8.8,
+	// SHOW CREATE VIEW).
 	if len(args) == 1 {
-		b.WriteString("trim(")
-		b.WriteString(direction)
-		b.WriteString(" ")
+		switch direction {
+		case "leading":
+			b.WriteString("ltrim(")
+		case "trailing":
+			b.WriteString("rtrim(")
+		default:
+			b.WriteString("trim(")
+		}
 		writeExpr(b, args[0])
 		b.WriteString(")")
 		return
@@ -2119,6 +2140,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			}
 			writeExpr(b, arg)
 		}
+		writeCharUsing(b, n.Using)
 		b.WriteString(")")
 	}
 
@@ -2369,4 +2391,20 @@ func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 // named after its source text, such as `a`+1.
 func quoteIdent(name string) string {
 	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+// writeCharUsing writes CHAR's USING clause as MariaDB stores it: the charset
+// in lower case with utf8 as utf8mb3, and nothing for binary, the default
+// (mariadb:11.8.8, SHOW CREATE VIEW: CHAR(65 USING utf8) is char(65 using
+// utf8mb3), CHAR(65 USING binary) is char(65)).
+func writeCharUsing(b *strings.Builder, cs string) {
+	cs = strings.ToLower(cs)
+	switch cs {
+	case "", "binary":
+		return
+	case "utf8":
+		cs = "utf8mb3"
+	}
+	b.WriteString(" using ")
+	b.WriteString(cs)
 }

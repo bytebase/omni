@@ -158,7 +158,7 @@ func (p *Parser) parseGrammarLiteral() (nodes.ExprNode, error) {
 		start := p.pos()
 		p.advance() // consume N
 		tok := p.advance()
-		return &nodes.StringLit{Loc: nodes.Loc{Start: start, End: tok.End}, Value: tok.Str, Charset: "utf8"}, nil
+		return &nodes.StringLit{Loc: nodes.Loc{Start: start, End: tok.End}, Value: tok.Str, Charset: "_utf8"}, nil
 	case isCharsetIntroducerWord(word) && next.Type == tokSCONST:
 		start := p.pos()
 		p.advance() // consume the introducer

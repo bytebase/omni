@@ -685,6 +685,10 @@ func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 		{"case_expr", "SELECT CASE WHEN a > 0 THEN 'pos' ELSE 'neg' END FROM t"},
 		{"cast_expr", "SELECT CAST(a AS CHAR) FROM t"},
 		{"aggregate_expr", "SELECT COUNT(*), SUM(a) FROM t GROUP BY a HAVING SUM(a) > 10"},
+		{"national_string", "SELECT N'nat', n'x' AS y, N'a' 'b', N'' FROM t"},
+		{"trim_direction", "SELECT TRIM(BOTH FROM c), TRIM(LEADING FROM c), TRIM(TRAILING FROM c), TRIM(BOTH 'x' FROM c) FROM t"},
+		{"char_using", "SELECT CHAR(65 USING utf8mb4), CHAR(65, 66 USING 'Latin1'), CHAR(65 USING utf8mb3), CHAR(65) FROM t"},
+		{"row_shorthand", "SELECT (a, b) IN ((1, 2)), (a, b) = (1, 2), ROW(a, b) < (1, 2) FROM t"},
 	}
 
 	for _, tc := range cases {
@@ -2219,14 +2223,21 @@ func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
 		})
 	}
 
-	// TiDB's grammar has no SOUNDS LIKE (error 1064). The tidb parser still
-	// accepts it, which is parser drift outside the view code; this pins
-	// TiDB's answer.
+	// TiDB's grammar has no SOUNDS LIKE (error 1064), and the catalog
+	// refuses the view as a syntax error too.
 	t.Run("sounds_like", func(t *testing.T) {
+		const create = "CREATE VIEW v_82_sounds_like AS SELECT a SOUNDS LIKE b FROM tc"
 		ctr.execSQLDirect("DROP VIEW IF EXISTS v_82_sounds_like")
-		err := ctr.execSQLDirect("CREATE VIEW v_82_sounds_like AS SELECT a SOUNDS LIKE b FROM tc")
+		err := ctr.execSQLDirect(create)
 		if code := mysqlErrorCode(err); code != 1064 {
 			t.Errorf("TiDB: got error code %d (%v), want 1064", code, err)
+		}
+		cat := New()
+		cat.Exec("CREATE DATABASE test", nil)
+		cat.SetCurrentDatabase("test")
+		cat.Exec("CREATE TABLE tc (a VARCHAR(50), b INT, c INT)", nil)
+		if _, err := cat.Exec(create, nil); err == nil {
+			t.Error("catalog: CREATE VIEW with SOUNDS LIKE succeeded, want a syntax error")
 		}
 	})
 }

@@ -486,6 +486,13 @@ func TestDeparse_Section_3_2_SpecialFunctionForms(t *testing.T) {
 		{"trim_trailing", "TRIM(TRAILING 'x' FROM a)", "trim(trailing 'x' from `a`)"},
 		// TRIM BOTH
 		{"trim_both", "TRIM(BOTH 'x' FROM a)", "trim(both 'x' from `a`)"},
+		// A direction with no remstr keeps FROM, so the text reads back.
+		{"trim_leading_no_remstr", "TRIM(LEADING FROM a)", "trim(leading from `a`)"},
+		{"trim_both_no_remstr", "TRIM(BOTH FROM a)", "trim(both from `a`)"},
+		// MySQL 8.0.46 stores CHAR(65 USING utf8mb4) as char(65) (SHOW CREATE VIEW).
+		{"char_using", "CHAR(65 USING utf8mb4)", "char(65)"},
+		// MySQL 8.0.46 stores N'x' as 'x' (SHOW CREATE VIEW).
+		{"national_string", "CONCAT(N'x', a)", "concat('x',`a`)"},
 	}
 
 	for _, tc := range cases {

@@ -799,6 +799,14 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(")")
 			return
 		}
+		if trimHead != "" && len(n.Args) == 1 {
+			// TRIM(LEADING FROM str): the name is the text as written.
+			b.WriteString(trimHead)
+			b.WriteString("FROM ")
+			writeExprAlias(b, n.Args[0])
+			b.WriteString(")")
+			return
+		}
 
 		// Handle GROUP_CONCAT: alias includes ORDER BY and SEPARATOR
 		if upperName == "GROUP_CONCAT" {
@@ -845,6 +853,12 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 				b.WriteString(", ")
 			}
 			writeExprAlias(b, arg)
+		}
+		if n.Using != "" {
+			// The name keeps CHAR's USING clause as written, whatever the
+			// stored body does with it.
+			b.WriteString(" USING ")
+			b.WriteString(n.Using)
 		}
 		b.WriteString(")")
 		if n.Over != nil {
@@ -2188,11 +2202,12 @@ func writeTrimDirectional(b *strings.Builder, direction string, args []ast.ExprN
 		b.WriteString(")")
 		return
 	}
-	// Fallback: single arg (shouldn't happen for directional, but be safe)
+	// TRIM(LEADING FROM str): no remstr, so spaces are trimmed. OceanBase
+	// 4.3.5 stores it as trim(leading  from `c`).
 	if len(args) == 1 {
 		b.WriteString("trim(")
 		b.WriteString(direction)
-		b.WriteString(" ")
+		b.WriteString(" from ")
 		writeExpr(b, args[0])
 		b.WriteString(")")
 		return
@@ -2460,6 +2475,12 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				b.WriteString(",")
 			}
 			writeExpr(b, arg)
+		}
+		if n.Using != "" {
+			// OceanBase 4.3.5 keeps CHAR's charset in a stored view:
+			// char(65 using 'utf8mb4').
+			b.WriteString(" using ")
+			b.WriteString(strings.ToLower(n.Using))
 		}
 		b.WriteString(")")
 	}

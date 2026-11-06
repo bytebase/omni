@@ -811,7 +811,7 @@ func restoreExpr(b *restorer, node ast.ExprNode) {
 			// (ast.FuncCallExpr.Restore, case "convert"), named as the
 			// charset registry names it: USING UTF8MB4 is 'utf8mb4'.
 			b.kw(" USING ")
-			restoreString(b, strings.ToLower(n.Charset))
+			restoreString(b, charsetName(n.Charset))
 		}
 		b.WriteByte(')')
 	case *ast.CollateExpr:
@@ -920,17 +920,26 @@ func restoreColumnRef(b *restorer, n *ast.ColumnRef) {
 	restoreName(b, n.Column)
 }
 
+// charsetName is a character set as TiDB's CharsetName action names it, the
+// registry's name (charset.GetCharsetInfo): lower case, with utf8mb3 as its
+// alias utf8. CHAR(65 USING UTF8MB3) is stored as CHAR_FUNC(65, 'utf8')
+// (verified on v8.5.5).
+func charsetName(cs string) string {
+	cs = strings.ToLower(cs)
+	if cs == "utf8mb3" {
+		return "utf8"
+	}
+	return cs
+}
+
 // restoreStringLit writes a string literal with the character set TiDB gives
 // it: the introducer written, or the connection's, utf8mb4
 // (parser_driver.ValueExpr.Restore). A backslash is doubled.
 func restoreStringLit(b *restorer, n *ast.StringLit) {
+	// N'...' is read as _utf8'...', as TiDB's lexer reads it.
 	cs := strings.TrimPrefix(n.Charset, "_")
-	switch strings.ToLower(cs) {
-	case "":
+	if cs == "" {
 		cs = "utf8mb4"
-	case "n":
-		// N'...' is the national character set, utf8.
-		cs = "utf8"
 	}
 	if !b.has(RestoreStringWithoutCharset) {
 		b.WriteByte('_')
@@ -1271,14 +1280,21 @@ func restoreFuncCall(b *restorer, n *ast.FuncCallExpr) {
 			return
 		}
 	case "CHAR":
-		// CHAR(n, ...) is CHAR_FUNC(n, ..., charset), the charset NULL
-		// when no USING clause is written.
+		// CHAR(n, ... [USING cs]) is CHAR_FUNC(n, ..., charset)
+		// (parser.y:8184-8201): the charset is NULL when no USING clause is
+		// written, and otherwise a string with no introducer, named as the
+		// charset registry names it: USING UTF8MB4 is 'utf8mb4'.
 		b.kw("CHAR_FUNC(")
 		for _, arg := range n.Args {
 			restoreExpr(b, arg)
 			b.WriteString(", ")
 		}
-		b.kw("NULL)")
+		if n.Using == "" {
+			b.kw("NULL")
+		} else {
+			restoreString(b, charsetName(n.Using))
+		}
+		b.WriteByte(')')
 		return
 	case "GROUP_CONCAT":
 		restoreGroupConcat(b, n)
