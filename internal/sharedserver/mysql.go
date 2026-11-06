@@ -60,8 +60,8 @@ type MySQLServer struct {
 	Env string
 	// DevDSN is the conventional address of scripts/dev-db.sh's server.
 	DevDSN string
-	// Args are the server arguments of a testcontainer, as CI and dev-db.sh pass
-	// them.
+	// Args are the server arguments of a testcontainer, CI's included, as
+	// dev-db.sh passes them.
 	Args []string
 	// start boots a testcontainer and returns it with an admin DSN, for a server
 	// the mysql module cannot start. Nil means the mysql module.
@@ -202,12 +202,19 @@ func waitReady(ctx context.Context, dsn string) error {
 }
 
 func (s *MySQLServer) startContainer(ctx context.Context) (string, error) {
+	container, dsn, err := s.run(ctx)
+	if container != nil {
+		s.container = container
+	}
+	return dsn, err
+}
+
+// run starts a testcontainer of the server and returns it with an admin DSN. On
+// failure it still returns whatever container it created, possibly a nil
+// pointer, which testcontainers.TerminateContainer accepts.
+func (s *MySQLServer) run(ctx context.Context) (testcontainers.Container, string, error) {
 	if s.start != nil {
-		container, dsn, err := s.start(ctx, s.Image)
-		if container != nil {
-			s.container = container
-		}
-		return dsn, err
+		return s.start(ctx, s.Image)
 	}
 	container, err := tcmysql.Run(ctx, s.Image,
 		tcmysql.WithDatabase("test"),
@@ -215,17 +222,14 @@ func (s *MySQLServer) startContainer(ctx context.Context) (string, error) {
 		tcmysql.WithPassword("test"),
 		testcontainers.WithCmdArgs(s.Args...),
 	)
-	if container != nil {
-		s.container = container
-	}
 	if err != nil {
-		return "", fmt.Errorf("start %s: %w", s.Image, err)
+		return container, "", fmt.Errorf("start %s: %w", s.Image, err)
 	}
 	dsn, err := container.ConnectionString(ctx)
 	if err != nil {
-		return "", fmt.Errorf("connection string: %w", err)
+		return container, "", fmt.Errorf("connection string: %w", err)
 	}
-	return dsn, nil
+	return container, dsn, nil
 }
 
 func (s *MySQLServer) setUpAccount(ctx context.Context) error {

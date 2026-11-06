@@ -72,42 +72,37 @@ jobs:
           echo "pkgs=$pkgs" | tee -a "$GITHUB_OUTPUT"
 
       # The packages internal/sharedserver serves share one MySQL 8.0 here, each
-      # in its own database, so a PR that touches none of them boots nothing. A
-      # service would start on every run, whatever the PR touched.
-      - name: Shared MySQL 8.0
+      # in its own database, and the packages that talk to OceanBase share one
+      # OceanBase, one package at a time: the review walk drops every user
+      # database between cases. A PR that touches none of them boots nothing; a
+      # service would start on every run, whatever the PR touched. SLIM boots
+      # OceanBase from the image's prebuilt store in about 30 s and stays near
+      # 3.5 GiB.
+      #
+      # cmd/hold keeps both in the background for the rest of the job. They
+      # belong to its testcontainers reaper, so they go away when it does, even
+      # when the job dies with its runner and no later step runs
+      # (sharedserver.Hold says why that matters).
+      - name: Shared MySQL 8.0 and OceanBase
         if: steps.affected.outputs.pkgs != ''
         run: |
-          go list ${{ steps.affected.outputs.pkgs }} | grep -qE '/(mysql/parser|oceanbase/parser|tidb/parser|internal/sharedserver)$' || exit 0
-          name=omni-ci-mysql80-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT
-          docker run -d --name "$name" -e MYSQL_ROOT_PASSWORD=test -p 127.0.0.1::3306 mysql:8.0 --skip-log-bin --max-connections=1000
-          for _ in $(seq 180); do
-            docker exec "$name" mysql -uroot -ptest --protocol=tcp -e 'SELECT 1' >/dev/null 2>&1 && break
+          pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
+          servers=()
+          grep -qE '/(mysql/parser|oceanbase/parser|tidb/parser|internal/sharedserver)$' <<< "$pkgs" && servers+=(mysql80)
+          grep -qE '/(oceanbase/parser|oceanbase/catalog|oceanbase/review|internal/sharedserver)$' <<< "$pkgs" && servers+=(oceanbase)
+          [ ${#servers[@]} -gt 0 ] || exit 0
+          go build -o "$RUNNER_TEMP/hold" ./internal/sharedserver/cmd/hold
+          "$RUNNER_TEMP/hold" -env "$RUNNER_TEMP/shared.env" "${servers[@]}" > "$RUNNER_TEMP/hold.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/hold.pid"
+          until [ -f "$RUNNER_TEMP/shared.env" ]; do
+            if ! kill -0 "$(cat "$RUNNER_TEMP/hold.pid")" 2>/dev/null; then
+              cat "$RUNNER_TEMP/hold.log"
+              exit 1
+            fi
             sleep 1
           done
-          port=$(docker port "$name" 3306/tcp | head -1 | sed 's/.*://')
-          echo "OMNI_SHARED_MYSQL80_DSN=root:test@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
-
-      # The packages that talk to OceanBase run on one server here, one package at
-      # a time: the review walk drops every user database between cases. SLIM boots
-      # from the image's prebuilt store in about 30 s and stays near 3.5 GiB.
-      - name: OceanBase
-        if: steps.affected.outputs.pkgs != ''
-        run: |
-          go list ${{ steps.affected.outputs.pkgs }} | grep -qE '/(oceanbase/parser|oceanbase/catalog|oceanbase/review|internal/sharedserver)$' || exit 0
-          name=omni-ci-oceanbase-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT
-          image=$(sed -n 's/^const OceanBaseImage = "\(.*\)"$/\1/p' internal/sharedserver/oceanbase.go)
-          # The deployer refuses fewer than 20000 open files.
-          docker run -d --name "$name" -e MODE=SLIM --ulimit nofile=65536:65536 -p 127.0.0.1::2881 "$image"
-          for _ in $(seq 300); do
-            docker logs "$name" 2>&1 | grep -q 'boot success!' && break
-            sleep 1
-          done
-          # internal/sharedserver.oceanBaseSetup says why.
-          docker exec "$name" obclient -h127.1 -P2881 -uroot@sys -e "ALTER SYSTEM SET datafile_maxsize = '8G'"
-          docker exec "$name" obclient -S /root/demo/run/sql.sock -uroot@test -e "SET GLOBAL secure_file_priv = '/'"
-          port=$(docker port "$name" 2881/tcp | head -1 | sed 's/.*://')
-          echo "OCEANBASE_WALK_DSN=root@test:@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
-          echo "OMNI_SHARED_OCEANBASE_DSN=root@test:@tcp(127.0.0.1:$port)/" >> "$GITHUB_ENV"
+          cat "$RUNNER_TEMP/hold.log"
+          cat "$RUNNER_TEMP/shared.env" >> "$GITHUB_ENV"
 
       - name: Test
         if: steps.affected.outputs.pkgs != ''
@@ -140,9 +135,18 @@ jobs:
           wait "$oceanbase" || status=1
           exit "$status"
 
-      - name: Remove the shared MySQL 8.0 and OceanBase
+      # SIGTERM has hold remove its servers and exit; the wait frees their memory
+      # before the job ends.
+      - name: Stop the shared MySQL 8.0 and OceanBase
         if: always()
-        run: docker rm -f "omni-ci-mysql80-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" "omni-ci-oceanbase-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >/dev/null 2>&1 || true
+        run: |
+          [ -f "$RUNNER_TEMP/hold.pid" ] || exit 0
+          pid=$(cat "$RUNNER_TEMP/hold.pid")
+          kill "$pid" 2>/dev/null || exit 0
+          for _ in $(seq 60); do
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
 
       - name: Nested modules (own go.mod, not reached by ./...)
         env:
