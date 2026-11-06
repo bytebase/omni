@@ -330,6 +330,19 @@ var castTypeFormCases = []castTypeFormCase{
 	{"SELECT CAST(a AS CHAR BINARY COLLATE utf8mb4_bin)", false},
 	{"SELECT CAST(a AS CHAR ASCII COLLATE utf8mb4_bin)", false},
 	{"SELECT CAST(a AS BOOL ARRAY)", false},
+	// The lexer's aliases, read on 2026-11-06: INT4 is INT, INT8 is BIGINT, FLOAT4 is FLOAT
+	// and FLOAT8 is DOUBLE, so each goes where its type does; INT1 is TINYINT, which CAST
+	// does not take.
+	{"SELECT CAST(a AS FLOAT4)", true},
+	{"SELECT CAST(a AS FLOAT4(3))", true},
+	{"SELECT CAST(a AS FLOAT8)", true},
+	{"SELECT CONVERT(a, FLOAT8)", true},
+	{"SELECT CAST(a AS FLOAT8 PRECISION)", false},
+	{"SELECT CAST(a AS INT4)", true},
+	{"SELECT CAST(a AS INT8)", true},
+	{"SELECT CAST(a AS INT1)", false},
+	{"SELECT CAST(a AS SIGNED INT4)", true},
+	{"SELECT CAST(a AS UNSIGNED INT4)", true},
 }
 
 // TestCastTypeForms holds the parser to the recorded verdicts without the server.

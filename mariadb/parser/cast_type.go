@@ -22,9 +22,12 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 	dt := &nodes.DataType{Loc: nodes.Loc{Start: p.pos()}}
 	switch p.cur.Type {
 	case kwSIGNED, kwUNSIGNED:
+		// The server's lexer reads INT4 as INT, FLOAT4 as FLOAT and FLOAT8 as DOUBLE
+		// (sql/lex.h), so each alias goes where its type does. INT8 is BIGINT, which CAST
+		// does not take.
 		dt.Name = strings.ToUpper(p.advance().Str)
-		p.match(kwINTEGER, kwINT)
-	case kwINT, kwINTEGER:
+		p.match(kwINTEGER, kwINT, kwINT4)
+	case kwINT, kwINTEGER, kwINT4:
 		dt.Name = "INT"
 		p.advance()
 	case kwCHAR, kwCHARACTER:
@@ -82,10 +85,10 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		if err := p.parseOptionalPrecision(dt); err != nil {
 			return nil, err
 		}
-	case kwFLOAT:
+	case kwFLOAT, kwFLOAT4:
 		dt.Name = "FLOAT"
 		p.advance()
-	case kwDOUBLE:
+	case kwDOUBLE, kwFLOAT8:
 		// DOUBLE takes a precision and a scale together, or neither: 11.8.8 answers 1064
 		// for DOUBLE(3).
 		dt.Name = "DOUBLE"
@@ -135,7 +138,9 @@ func castTypeRefused(dt *nodes.DataType) error {
 		refused = dt.Length > maxCastLength
 	case "TIME", "DATETIME":
 		refused = dt.Length > 6
-	case "DECIMAL":
+	case "DECIMAL", "DOUBLE":
+		// DOUBLE(M,D) is held to DECIMAL's limits, with the same codes: 1426 past 65, 1425
+		// for a scale past 38, and 1427 for a scale past the precision.
 		refused = dt.Length > 65 || dt.Scale > 38 || dt.Scale > dt.Length
 	}
 	if refused {

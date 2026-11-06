@@ -23,8 +23,11 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 	dt := &nodes.DataType{Loc: nodes.Loc{Start: p.pos()}}
 	switch p.cur.Type {
 	case kwSIGNED, kwUNSIGNED:
+		// The server's lexer reads INT4 as INT, FLOAT4 as FLOAT and FLOAT8 as DOUBLE
+		// (sql/lex.h), so each alias goes where its type does. INT8 is BIGINT, which CAST
+		// does not take.
 		dt.Name = strings.ToUpper(p.advance().Str)
-		p.match(kwINTEGER, kwINT)
+		p.match(kwINTEGER, kwINT, kwINT4)
 	case kwCHAR, kwCHARACTER:
 		dt.Name = "CHAR"
 		p.advance()
@@ -80,13 +83,13 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		if err := p.parseOptionalPrecision(dt); err != nil {
 			return nil, err
 		}
-	case kwFLOAT:
+	case kwFLOAT, kwFLOAT4:
 		dt.Name = "FLOAT"
 		p.advance()
 		if err := p.parseCastSize(dt, true); err != nil {
 			return nil, err
 		}
-	case kwDOUBLE:
+	case kwDOUBLE, kwFLOAT8:
 		dt.Name = "DOUBLE"
 		p.advance()
 		p.match(kwPRECISION)

@@ -22,12 +22,14 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 	dt := &nodes.DataType{Loc: nodes.Loc{Start: p.pos()}}
 	switch p.cur.Type {
 	case kwSIGNED, kwUNSIGNED:
+		// The server reads INT4 as INT, INT8 as BIGINT, FLOAT4 as FLOAT and FLOAT8 as
+		// DOUBLE, so each alias goes where its type does.
 		dt.Name = strings.ToUpper(p.advance().Str)
-		p.match(kwINTEGER, kwINT)
-	case kwINT, kwINTEGER:
+		p.match(kwINTEGER, kwINT, kwINT4)
+	case kwINT, kwINTEGER, kwINT4:
 		dt.Name = "INT"
 		p.advance()
-	case kwBIGINT:
+	case kwBIGINT, kwINT8:
 		dt.Name = "BIGINT"
 		p.advance()
 	case kwCHAR, kwCHARACTER:
@@ -73,13 +75,13 @@ func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
 		if err := p.parseOptionalPrecision(dt); err != nil {
 			return nil, err
 		}
-	case kwFLOAT:
+	case kwFLOAT, kwFLOAT4:
 		dt.Name = "FLOAT"
 		p.advance()
 		if err := p.parseCastSize(dt, false); err != nil {
 			return nil, err
 		}
-	case kwDOUBLE:
+	case kwDOUBLE, kwFLOAT8:
 		dt.Name = "DOUBLE"
 		p.advance()
 	case kwJSON:

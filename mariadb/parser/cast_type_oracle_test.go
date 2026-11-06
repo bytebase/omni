@@ -336,6 +336,29 @@ var castTypeFormCases = []castTypeFormCase{
 	{"SELECT CAST(a AS CHAR BINARY COLLATE utf8mb4_bin)", false},
 	{"SELECT CAST(a AS CHAR ASCII COLLATE utf8mb4_bin)", true},
 	{"SELECT CAST(a AS BOOL ARRAY)", false},
+	// The lexer's aliases, read on 2026-11-06: INT4 is INT, FLOAT4 is FLOAT and FLOAT8 is
+	// DOUBLE, so each goes where its type does; INT8 is BIGINT and INT1 TINYINT, which CAST
+	// does not take.
+	{"SELECT CAST(a AS FLOAT4)", true},
+	{"SELECT CAST(a AS FLOAT4(3))", false},
+	{"SELECT CAST(a AS FLOAT8)", true},
+	{"SELECT CONVERT(a, FLOAT8)", true},
+	{"SELECT CAST(a AS FLOAT8 PRECISION)", false},
+	{"SELECT CAST(a AS FLOAT8(10,2))", true},
+	{"SELECT CAST(a AS INT4)", true},
+	{"SELECT CAST(a AS INT8)", false},
+	{"SELECT CAST(a AS INT1)", false},
+	{"SELECT CAST(a AS SIGNED INT4)", true},
+	{"SELECT CAST(a AS UNSIGNED INT4)", true},
+	{"SELECT CAST(a AS SIGNED INT8)", false},
+	// DOUBLE(M,D) is held to DECIMAL's limits while it parses: 1426, 1425 and 1427.
+	{"SELECT CAST(a AS DOUBLE(65,30))", true},
+	{"SELECT CAST(a AS DOUBLE(40,38))", true},
+	{"SELECT CAST(a AS DOUBLE(66,2))", false},
+	{"SELECT CAST(a AS DOUBLE(40,39))", false},
+	{"SELECT CAST(a AS DOUBLE(2,5))", false},
+	{"SELECT CONVERT(a, DOUBLE(2,5))", false},
+	{"SELECT CAST(a AS FLOAT8(66,2))", false},
 }
 
 // TestCastTypeForms holds the parser to the recorded verdicts without the server.
