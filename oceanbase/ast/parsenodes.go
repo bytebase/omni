@@ -1884,13 +1884,16 @@ func (s *DeallocateStmt) stmtNode() {}
 
 // AnalyzeTableStmt represents an ANALYZE TABLE statement.
 type AnalyzeTableStmt struct {
-	Loc              Loc
+	Loc Loc
+	// NoWriteToBinlog is never set: OceanBase's ANALYZE takes neither LOCAL nor
+	// NO_WRITE_TO_BINLOG. The field stays because Bytebase builds against it.
 	NoWriteToBinlog  bool
 	Tables           []*TableRef
 	HistogramOp      string   // "UPDATE" or "DROP"
 	HistogramColumns []string // column names
 	Buckets          int      // WITH N BUCKETS
-	UsingData        string   // USING DATA 'json_data'
+	// UsingData is never set: OceanBase's UPDATE HISTOGRAM takes no USING DATA.
+	UsingData string
 }
 
 func (s *AnalyzeTableStmt) nodeTag()  {}

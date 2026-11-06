@@ -2,12 +2,13 @@ package parser
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 )
 
 // derivedJoinGroupViews create views over derived tables in joins and over
-// parenthesized subquery operands; MySQL writes their definitions back with
+// parenthesized subquery operands; OceanBase writes their definitions back with
 // the shapes TestDerivedJoinGroup pins.
 var derivedJoinGroupViews = []string{
 	"CREATE VIEW v1 AS SELECT * FROM (SELECT k1 FROM j1) d JOIN j2 USING (k1)",
@@ -24,12 +25,17 @@ var derivedJoinGroupViews = []string{
 	"CREATE VIEW v12 AS SELECT d.k1 FROM ((SELECT k1 FROM j1) UNION (SELECT k1 FROM j2)) d JOIN j3 ON d.k1 = j3.k1",
 }
 
-// TestDerivedJoinGroupOracle asks MySQL 8.0 about every statement of
-// TestDerivedJoinGroup, and parses the definitions MySQL stores for views
-// over derived tables in joins. MySQL writes `SELECT * FROM (SELECT k1 FROM
-// j1) d JOIN j2 USING (k1)` back as `from ((select ...) d join j2 on(...))`,
-// a join group whose first operand is a derived table, and Bytebase parses a
+// derivedFirstGroup finds a join group whose first operand is a derived table,
+// at any depth of parentheses: OceanBase writes `from ((select ...) d join ...`
+// and, for a group nested in another, `from (((select ...`.
+var derivedFirstGroup = regexp.MustCompile(`from \(\(+select `)
+
+// TestDerivedJoinGroupOracle parses the definitions OceanBase stores for views
+// over derived tables in joins. OceanBase writes `SELECT * FROM (SELECT k1 FROM
+// j1) d JOIN j2 USING (k1)` back as `from ((select ...) d join j2 on (...))`, a
+// join group whose first operand is a derived table, and Bytebase parses a
 // synced view definition to analyze queries over the view.
+// TestDerivedJoinGroupOceanBase asks OceanBase about the statements themselves.
 func TestDerivedJoinGroupOracle(t *testing.T) {
 	o := startParserOracle(t)
 	for _, ddl := range []string{
@@ -42,34 +48,6 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 			t.Fatalf("seed %q: %v", ddl, err)
 		}
 	}
-	for _, sql := range derivedJoinGroupAccepted {
-		if !o.checkSyntax(t, sql) {
-			t.Errorf("MySQL rejects %q", sql)
-		}
-		assertOracleMatch(t, o, sql)
-	}
-	for _, sql := range derivedJoinGroupRejected {
-		if o.checkSyntax(t, sql) {
-			t.Errorf("MySQL accepts %q", sql)
-		}
-		assertOracleMatch(t, o, sql)
-	}
-	// The lone parenthesized factors are the OceanBase delta: MySQL refuses
-	// them and this parser, following OceanBase, does not, so only MySQL's
-	// half is asserted here.
-	for _, sql := range loneParenthesizedFactors {
-		if o.checkSyntax(t, sql) {
-			t.Errorf("MySQL accepts %q, so it is no longer an OceanBase delta", sql)
-		}
-	}
-	// derivedJoinGroupMySQLOnly is the delta the other way: MySQL takes them
-	// and this parser, following OceanBase, does not.
-	for _, sql := range derivedJoinGroupMySQLOnly {
-		if !o.checkSyntax(t, sql) {
-			t.Errorf("MySQL rejects %q, so it is no longer an OceanBase delta", sql)
-		}
-	}
-
 	groups := 0
 	for i, ddl := range derivedJoinGroupViews {
 		if _, err := o.db.ExecContext(o.ctx, ddl); err != nil {
@@ -90,14 +68,15 @@ func TestDerivedJoinGroupOracle(t *testing.T) {
 				t.Errorf("view %d: Parse(%q): %v", i+1, sql, err)
 			}
 		}
-		if strings.Contains(definition, "from ((select ") {
+		if derivedFirstGroup.MatchString(definition) {
 			groups++
 		}
 	}
-	// The views cover the reported shape only while MySQL still writes a
-	// join group that begins with a derived table.
+	// The views cover the reported shape only while OceanBase still writes a
+	// join group that begins with a derived table: six of them on 4.3.5.6
+	// (2026-11-05).
 	if groups < 5 {
-		t.Errorf("MySQL wrote %d view definitions with a derived-first join group, want at least 5", groups)
+		t.Errorf("OceanBase wrote %d view definitions with a derived-first join group, want at least 5", groups)
 	}
 }
 

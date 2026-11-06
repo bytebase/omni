@@ -144,12 +144,13 @@ CREATE VIEW v1 AS SELECT a FROM t WHERE a > 0 WITH CASCADED CHECK OPTION;`)
 	}
 }
 
-// DEFINER differences must NOT produce a diff (ignore-in-diff).
+// DEFINER differences must NOT produce a diff (ignore-in-diff). OceanBase takes a
+// view's DEFINER only after ALGORITHM (see oceanbase/parser's parseCreateViewStmt).
 func TestDiffViews_DefinerIgnored(t *testing.T) {
 	from := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
-CREATE DEFINER=`+"`root`@`%`"+` VIEW v1 AS SELECT a FROM t;`)
+CREATE ALGORITHM=UNDEFINED DEFINER=`+"`root`@`%`"+` VIEW v1 AS SELECT a FROM t;`)
 	to := loadViewCatalog(t, MySQL80, `CREATE TABLE t (a INT);
-CREATE DEFINER=`+"`admin`@`localhost`"+` VIEW v1 AS SELECT a FROM t;`)
+CREATE ALGORITHM=UNDEFINED DEFINER=`+"`admin`@`localhost`"+` VIEW v1 AS SELECT a FROM t;`)
 	// Sanity: the definers really differ on the loaded views.
 	if getView(t, from, "v1").Definer == getView(t, to, "v1").Definer {
 		t.Fatalf("test setup: definers should differ")
