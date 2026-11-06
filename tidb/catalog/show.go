@@ -293,8 +293,10 @@ func formatDefault(val string, col *Column) string {
 		// A hex or bit literal is the bytes it spells: a string column takes
 		// them as its text and a numeric column as an unsigned integer, so
 		// VARCHAR DEFAULT 0x41 is 'A' and INT DEFAULT 0x41 is '65'
-		// (getDefaultValue in TiDB's pkg/ddl/add_column.go).
-		if isStringType(col.DataType) {
+		// (getDefaultValue in TiDB's pkg/ddl/add_column.go). BINARY and
+		// VARBINARY are the string field types with the binary charset there,
+		// so they take the bytes too.
+		if isStringType(col.DataType) || eqFoldStr(col.DataType, "binary") || eqFoldStr(col.DataType, "varbinary") {
 			return "'" + outputFormat(string(b)) + "'"
 		}
 		var n uint64

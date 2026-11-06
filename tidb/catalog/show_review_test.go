@@ -6,11 +6,12 @@ import (
 )
 
 // A hex or bit literal default on a column that is not BIT is the value it
-// spells: text for a string column, an integer for a numeric one
-// (getDefaultValue in TiDB's pkg/ddl/add_column.go).
+// spells: text for a string or binary string column, an integer for a numeric
+// one (getDefaultValue in TiDB's pkg/ddl/add_column.go; v8.5.5's SHOW CREATE
+// TABLE for this statement, read on 2026-11-06).
 func TestShowCreateTableBinaryLiteralDefaults(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE h (a VARCHAR(10) DEFAULT 0x41, b INT DEFAULT 0x41, c VARCHAR(10) DEFAULT b'01000010', d CHAR(3) DEFAULT X'4344', e INT DEFAULT b'101')")
+	wtExec(t, c, "CREATE TABLE h (a VARCHAR(10) DEFAULT 0x41, b INT DEFAULT 0x41, c VARCHAR(10) DEFAULT b'01000010', d CHAR(3) DEFAULT X'4344', e INT DEFAULT b'101', f VARBINARY(10) DEFAULT 0x41, g BINARY(2) DEFAULT X'4344')")
 	got := c.ShowCreateTable("testdb", "h")
 	for _, want := range []string{
 		"`a` varchar(10) DEFAULT 'A'",
@@ -18,6 +19,8 @@ func TestShowCreateTableBinaryLiteralDefaults(t *testing.T) {
 		"`c` varchar(10) DEFAULT 'B'",
 		"`d` char(3) DEFAULT 'CD'",
 		"`e` int DEFAULT '5'",
+		"`f` varbinary(10) DEFAULT 'A'",
+		"`g` binary(2) DEFAULT 'CD'",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %s in:\n%s", want, got)
@@ -27,7 +30,7 @@ func TestShowCreateTableBinaryLiteralDefaults(t *testing.T) {
 
 // TiDB names a foreign key's backing index after the key and refuses the
 // statement with 1061 when an index on other columns already has that name, in
-// CREATE TABLE and in ALTER TABLE alike.
+// CREATE TABLE and in ALTER TABLE alike (v8.5.5, read on 2026-11-06).
 func TestForeignKeyBackingIndexNameTaken(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE p (id INT PRIMARY KEY)")
