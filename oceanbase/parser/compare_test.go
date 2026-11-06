@@ -7890,10 +7890,6 @@ func TestParseCreateSpatialRefSys(t *testing.T) {
 			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :srid 4120 :name "Greek" :definition "GEOGCS[\"Greek\",DATUM[\"Greek\"]]"}`,
 		},
 		{
-			sql:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek'",
-			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :or_replace true :srid 4120 :name "Greek"}`,
-		},
-		{
 			sql:  "CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 4120 NAME 'Greek'",
 			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :if_not_exists true :srid 4120 :name "Greek"}`,
 		},
@@ -10158,8 +10154,6 @@ func TestParseAnalyzeTable(t *testing.T) {
 		"ANALYZE TABLE t1",
 		"ANALYZE TABLE t1, t2, t3",
 		"ANALYZE TABLE db1.t1",
-		"ANALYZE LOCAL TABLE t1",
-		"ANALYZE NO_WRITE_TO_BINLOG TABLE t1",
 		"ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 10 BUCKETS",
 		"ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 50 BUCKETS",
 		"ANALYZE TABLE t1 DROP HISTOGRAM ON col1",
@@ -11443,30 +11437,6 @@ func TestReviewBatch110_ValuesOrderByLimit(t *testing.T) {
 
 // --- Batch 111: review_maintenance_utility ---
 
-func TestReviewBatch111_AnalyzeTableNoWriteToBinlog(t *testing.T) {
-	result := ParseAndCheck(t, "ANALYZE NO_WRITE_TO_BINLOG TABLE t1")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, ":no_write_to_binlog true") {
-		t.Errorf("expected :no_write_to_binlog true, got %s", s)
-	}
-}
-
-func TestReviewBatch111_AnalyzeTableLocal(t *testing.T) {
-	result := ParseAndCheck(t, "ANALYZE LOCAL TABLE t1")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, ":no_write_to_binlog true") {
-		t.Errorf("expected :no_write_to_binlog true, got %s", s)
-	}
-}
-
-func TestReviewBatch111_AnalyzeTableUsingData(t *testing.T) {
-	result := ParseAndCheck(t, "ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 USING DATA '{\"key\": \"value\"}'")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, ":using_data") {
-		t.Errorf("expected :using_data, got %s", s)
-	}
-}
-
 func TestReviewBatch111_AnalyzeTableHistogramBuckets(t *testing.T) {
 	result := ParseAndCheck(t, "ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 100 BUCKETS")
 	s := ast.NodeToString(result.Items[0])
@@ -11662,14 +11632,14 @@ func TestReviewBatch116_BinaryPrefix(t *testing.T) {
 
 func TestDefinerPropagation(t *testing.T) {
 	tests := []string{
-		// CREATE VIEW with DEFINER at dispatch layer
-		"CREATE DEFINER = 'admin'@'localhost' VIEW v1 AS SELECT 1",
-		"CREATE DEFINER = admin@localhost VIEW v1 AS SELECT 1",
-		"CREATE DEFINER = CURRENT_USER VIEW v1 AS SELECT 1",
-		"CREATE DEFINER = CURRENT_USER() VIEW v1 AS SELECT 1",
-		// CREATE VIEW with DEFINER + SQL SECURITY at dispatch layer
-		"CREATE DEFINER = 'admin'@'localhost' SQL SECURITY INVOKER VIEW v1 AS SELECT 1",
-		"CREATE DEFINER = root@localhost SQL SECURITY DEFINER VIEW v1 AS SELECT 1",
+		// CREATE VIEW with DEFINER, which OceanBase takes only after ALGORITHM
+		"CREATE ALGORITHM = MERGE DEFINER = 'admin'@'localhost' VIEW v1 AS SELECT 1",
+		"CREATE ALGORITHM = MERGE DEFINER = admin@localhost VIEW v1 AS SELECT 1",
+		"CREATE ALGORITHM = MERGE DEFINER = CURRENT_USER VIEW v1 AS SELECT 1",
+		"CREATE ALGORITHM = MERGE DEFINER = CURRENT_USER() VIEW v1 AS SELECT 1",
+		// CREATE VIEW with DEFINER + SQL SECURITY
+		"CREATE ALGORITHM = MERGE DEFINER = 'admin'@'localhost' SQL SECURITY INVOKER VIEW v1 AS SELECT 1",
+		"CREATE ALGORITHM = UNDEFINED DEFINER = root@localhost SQL SECURITY DEFINER VIEW v1 AS SELECT 1",
 		// CREATE FUNCTION with DEFINER at dispatch layer
 		"CREATE DEFINER = 'admin'@'localhost' FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1",
 		"CREATE DEFINER = CURRENT_USER FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1",
@@ -11682,9 +11652,9 @@ func TestDefinerPropagation(t *testing.T) {
 		// CREATE EVENT with DEFINER at dispatch layer
 		"CREATE DEFINER = 'admin'@'localhost' EVENT ev1 ON SCHEDULE EVERY 1 HOUR DO SELECT 1",
 		"CREATE DEFINER = CURRENT_USER EVENT ev1 ON SCHEDULE AT '2026-01-01 00:00:00' DO SELECT 1",
-		// ALTER VIEW with DEFINER at dispatch layer
-		"ALTER DEFINER = 'admin'@'localhost' VIEW v1 AS SELECT 2",
-		"ALTER DEFINER = CURRENT_USER() SQL SECURITY INVOKER VIEW v1 AS SELECT 2",
+		// ALTER VIEW with DEFINER, only after ALGORITHM
+		"ALTER ALGORITHM = MERGE DEFINER = 'admin'@'localhost' VIEW v1 AS SELECT 2",
+		"ALTER ALGORITHM = MERGE DEFINER = CURRENT_USER() SQL SECURITY INVOKER VIEW v1 AS SELECT 2",
 		// ALTER EVENT with DEFINER at dispatch layer
 		"ALTER DEFINER = 'admin'@'localhost' EVENT ev1 ENABLE",
 		"ALTER DEFINER = CURRENT_USER EVENT ev1 ENABLE",
@@ -11698,7 +11668,7 @@ func TestDefinerPropagation(t *testing.T) {
 
 func TestDefinerPropagation_Values(t *testing.T) {
 	// Verify DEFINER value is actually captured in AST
-	result, err := Parse("CREATE DEFINER = 'admin'@'localhost' VIEW v1 AS SELECT 1")
+	result, err := Parse("CREATE ALGORITHM = MERGE DEFINER = 'admin'@'localhost' VIEW v1 AS SELECT 1")
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
 	}
@@ -11711,7 +11681,7 @@ func TestDefinerPropagation_Values(t *testing.T) {
 	}
 
 	// Verify SQL SECURITY is captured
-	result2, err := Parse("CREATE DEFINER = root@localhost SQL SECURITY INVOKER VIEW v2 AS SELECT 2")
+	result2, err := Parse("CREATE ALGORITHM = MERGE DEFINER = root@localhost SQL SECURITY INVOKER VIEW v2 AS SELECT 2")
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
 	}

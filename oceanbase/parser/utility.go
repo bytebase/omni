@@ -8,33 +8,24 @@ import (
 
 // parseAnalyzeTableStmt parses an ANALYZE TABLE statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/analyze-table.html
+// Ref: analyze_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 15521):
 //
-//	ANALYZE [NO_WRITE_TO_BINLOG | LOCAL] TABLE tbl_name [, tbl_name] ...
+//	ANALYZE TABLE tbl_name [, tbl_name] ...
 //
-//	ANALYZE [NO_WRITE_TO_BINLOG | LOCAL] TABLE tbl_name
-//	    UPDATE HISTOGRAM ON col_name [, col_name] ...
-//	        [WITH N BUCKETS]
+//	ANALYZE TABLE tbl_name
+//	    UPDATE HISTOGRAM ON col_name [, col_name] ... [WITH N BUCKETS]
 //
-//	ANALYZE [NO_WRITE_TO_BINLOG | LOCAL] TABLE tbl_name
-//	    UPDATE HISTOGRAM ON col_name [USING DATA 'json_data']
-//
-//	ANALYZE [NO_WRITE_TO_BINLOG | LOCAL] TABLE tbl_name
+//	ANALYZE TABLE tbl_name
 //	    DROP HISTOGRAM ON col_name [, col_name] ...
+//
+// MySQL's NO_WRITE_TO_BINLOG and LOCAL, and its USING DATA, are not in that
+// rule, and 5.7.25-OceanBase_CE-v4.3.5.6 answers 1064 for each.
 func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume ANALYZE
 
 	stmt := &nodes.AnalyzeTableStmt{Loc: nodes.Loc{Start: start}}
-
-	// Optional NO_WRITE_TO_BINLOG | LOCAL
-	if p.cur.Type == kwLOCAL {
-		stmt.NoWriteToBinlog = true
-		p.advance()
-	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
-		stmt.NoWriteToBinlog = true
-		p.advance()
-	}
 
 	// TABLE is required. It used to be matched leniently, which left
 	// `ANALYZE t` -- a 1064 on OceanBase -- parsing as an ANALYZE of t.
@@ -62,7 +53,7 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		p.advance()
 	}
 
-	// UPDATE HISTOGRAM ON col [, col] [WITH N BUCKETS] | [USING DATA 'json_data']
+	// UPDATE HISTOGRAM ON col [, col] [WITH N BUCKETS]
 	if p.cur.Type == kwUPDATE {
 		p.advance()
 		if p.cur.Type == kwHISTOGRAM {
@@ -92,17 +83,6 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 			}
 			// BUCKETS keyword
 			if p.cur.Type == kwBUCKETS {
-				p.advance()
-			}
-		}
-		// USING DATA 'json_data'
-		if p.cur.Type == kwUSING {
-			p.advance() // consume USING
-			if p.cur.Type == kwDATA {
-				p.advance() // consume DATA
-			}
-			if p.cur.Type == tokSCONST {
-				stmt.UsingData = p.cur.Str
 				p.advance()
 			}
 		}

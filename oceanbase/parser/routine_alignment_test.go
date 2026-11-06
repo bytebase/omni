@@ -7,25 +7,34 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 )
 
-// routineParserCodes are the errors other than 1064 that MySQL raises while it
-// parses a routine body and that omni's parser raises too. MySQL's other
-// parse-time routine errors (1308 LEAVE with no matching label, 1313 RETURN
-// outside a function, 1331 a duplicate variable, ...) are oceanbase/validate's to
-// report, and its oracle holds Parse plus Validate to the same server, so Parse
-// accepts those bodies.
+// routineParserCodes are the errors other than 1064 that OceanBase raises while
+// it parses a routine body and that omni's parser raises too. The other routine
+// errors (1308 a label with no match, 1313 RETURN outside a function, 1327 an
+// undeclared variable, ...) come from OceanBase's resolver and are
+// oceanbase/validate's to report; its oracle holds Parse plus Validate to the
+// same server, so Parse accepts those bodies.
 var routineParserCodes = map[uint16]bool{
-	1310: true, // ER_SP_LABEL_MISMATCH: an end label that does not match its begin label
 	1337: true, // ER_SP_VARCOND_AFTER_CURSHNDLR: a variable or condition declared after a cursor or handler
 }
 
-// TestRoutineAlignment holds omni's parser to MySQL 8.0, the oracle this package
-// inherits (oracle_test.go), on a CREATE PROCEDURE /
-// FUNCTION / TRIGGER / EVENT corpus. Each probe pins the error MySQL answers
-// when it runs the statement, 0 when it creates the object. Parse must reject
-// exactly the probes MySQL answers 1064 or a code in routineParserCodes, and
-// accept every other one.
+// resolvedSyntaxErrors names the probes OceanBase answers 1064 for although its
+// grammar parses them. It reports every failure of an event body as 1064: an
+// undeclared variable there answers 1064 too, where a procedure answers 1327
+// (measured 2026-11-06), and RETURN is a statement of the PL grammar
+// (src/pl/parser/pl_parser_mysql_mode.y, v4.3.5_CE_BP6, line 2053).
+var resolvedSyntaxErrors = map[string]bool{
+	"RETURN inside event": true,
+}
+
+// TestRoutineAlignment holds omni's parser to OceanBase, the oracle of this
+// package (oracle_test.go), on a CREATE PROCEDURE / FUNCTION / TRIGGER / EVENT
+// corpus. Each probe pins the error 5.7.25-OceanBase_CE-v4.3.5.6 answers when it
+// runs the statement, 0 when it creates the object (re-measured on 2026-11-06;
+// until then these were MySQL 8.0's answers). Parse must reject exactly the
+// probes OceanBase answers 1064 or a code in routineParserCodes, apart from
+// resolvedSyntaxErrors, and accept every other one.
 //
-// The categories group probes by topic; a + marks one MySQL creates and a -
+// The categories group probes by topic; a + marks one OceanBase creates and a -
 // one it refuses. A seed creates the table the probes reference, so a body
 // that names it does not fail for a missing table.
 func TestRoutineAlignment(t *testing.T) {
@@ -43,7 +52,7 @@ func TestRoutineAlignment(t *testing.T) {
 		// dropSQL is run before sql to make the probe rerunnable.
 		dropSQL string
 		sql     string
-		// code is the error MySQL 8.0 answers, 0 when it creates the object.
+		// code is the error OceanBase answers, 0 when it creates the object.
 		code uint16
 	}
 
@@ -147,13 +156,16 @@ END`, 0},
 		{"symbol-", "OPEN undeclared cursor", dropProc("p_open_undecl"),
 			"CREATE PROCEDURE p_open_undecl() BEGIN OPEN nope; END", 1324},
 		{"symbol-", "FETCH undeclared cursor", dropProc("p_fetch_undecl"),
-			"CREATE PROCEDURE p_fetch_undecl() BEGIN FETCH nope INTO @x; END", 1324},
+			"CREATE PROCEDURE p_fetch_undecl() BEGIN DECLARE v INT; FETCH nope INTO v; END", 1324},
+		// OceanBase's grammar takes no user variable as a FETCH target.
+		{"symbol-", "FETCH into a user variable", dropProc("p_fetch_uvar"),
+			"CREATE PROCEDURE p_fetch_uvar() BEGIN DECLARE c CURSOR FOR SELECT 1; OPEN c; FETCH c INTO @x; CLOSE c; END", 1064},
 		{"symbol-", "CLOSE undeclared cursor", dropProc("p_close_undecl"),
 			"CREATE PROCEDURE p_close_undecl() BEGIN CLOSE nope; END", 1324},
 		{"symbol-", "HANDLER references undeclared condition", dropProc("p_hcond_undecl"),
 			"CREATE PROCEDURE p_hcond_undecl() BEGIN DECLARE EXIT HANDLER FOR no_such SET @e=1; SELECT 1; END", 1319},
 		{"symbol-", "SET to undeclared bare var", dropProc("p_set_undecl"),
-			"CREATE PROCEDURE p_set_undecl() BEGIN SET nope = 1; END", 1193},
+			"CREATE PROCEDURE p_set_undecl() BEGIN SET nope = 1; END", 1327},
 
 		// ---------------- E. Duplicate detection (V #8-#12) ----------------
 		{"dup-", "duplicate DECLARE VAR", dropProc("p_dup_var"),
@@ -195,7 +207,7 @@ BEGIN SIGNAL SQLSTATE '45000'; END`, 1320},
 		{"return-", "RETURN inside trigger", dropTrig("trg_ret"),
 			"CREATE TRIGGER trg_ret BEFORE INSERT ON t FOR EACH ROW BEGIN RETURN 1; END", 1313},
 		{"return-", "RETURN inside event", dropEvt("ev_ret"),
-			"CREATE EVENT ev_ret ON SCHEDULE EVERY 1 HOUR DO BEGIN RETURN 1; END", 1313},
+			"CREATE EVENT ev_ret ON SCHEDULE EVERY 1 HOUR DO BEGIN RETURN 1; END", 1064},
 
 		// ---------------- H. Label scope edges ----------------
 		{"label+", "LEAVE outer from nested loop", dropProc("p_lv_outer"),
@@ -219,7 +231,9 @@ END my`, 1308},
     SELECT 2;
 END my`, 0},
 		{"label-", "end label differs from begin label", dropProc("p_end_label"),
-			"CREATE PROCEDURE p_end_label() a: BEGIN SELECT 1; END b", 1310},
+			"CREATE PROCEDURE p_end_label() a: BEGIN SELECT 1; END b", 1308},
+		{"label-", "end label without a begin label", dropProc("p_end_only"),
+			"CREATE PROCEDURE p_end_only() BEGIN SELECT 1; END b", 1064},
 
 		// ---------------- I. Variable shadowing / SET forms ----------------
 		{"var+", "DECLARE shadows parameter in nested BEGIN", dropProc("p_shadow_param"),
@@ -297,12 +311,12 @@ END`, 0},
 			mustExec(t, o, pr.dropSQL)
 			code := routineEngineCode(t, o, pr.sql)
 			if code != pr.code {
-				t.Errorf("MySQL answered %d, want %d for %s", code, pr.code, pr.sql)
+				t.Errorf("OceanBase answered %d, want %d for %s", code, pr.code, pr.sql)
 			}
 			_, err := Parse(pr.sql)
-			wantReject := code == 1064 || routineParserCodes[code]
+			wantReject := (code == 1064 && !resolvedSyntaxErrors[pr.name]) || routineParserCodes[code]
 			if rejected := err != nil; rejected != wantReject {
-				t.Errorf("omni rejects=%v (%v), MySQL answered %d for %s", rejected, err, code, pr.sql)
+				t.Errorf("omni rejects=%v (%v), OceanBase answered %d for %s", rejected, err, code, pr.sql)
 			}
 		})
 	}

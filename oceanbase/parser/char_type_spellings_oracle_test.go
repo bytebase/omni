@@ -2,18 +2,19 @@ package parser
 
 import "testing"
 
-// MySQL spells CHAR and VARCHAR several ways: CHARACTER is CHAR, VARYING after
-// either makes it VARCHAR, VARCHARACTER is VARCHAR in one word, LONG takes the
-// VARCHAR spellings as MEDIUMTEXT, and CHAR SET is CHARACTER SET in two words.
-// https://dev.mysql.com/doc/refman/8.0/en/char.html
+// OceanBase spells CHAR and VARCHAR several ways, fewer than MySQL: CHARACTER is
+// CHAR, VARYING after it makes it VARCHAR, VARCHARACTER is VARCHAR in one word,
+// LONG is MEDIUMTEXT and takes VARCHAR after it, and CHAR SET is CHARACTER SET in
+// two words. MySQL's NCHAR VARYING, LONG CHAR VARYING and LONG CHARACTER VARYING
+// are not OceanBase's.
 //
 // The rule that separates the accepted spellings from the rejected ones is that
 // every spelling of VARCHAR carries a length and every spelling of CHAR may
-// leave it out. Rather than assert that here, this asks MySQL 8.0, the oracle this package is held to and requires
-// the parser to agree with it, so the rule is the engine's and not a memory of
-// it.
+// leave it out. Rather than assert that here, this asks OceanBase, the oracle
+// this package is held to, and requires the parser to agree with it, so the rule
+// is the engine's and not a memory of it.
 
-func TestCharTypeSpellingsMatchMySQL(t *testing.T) {
+func TestCharTypeSpellingsMatchEngine(t *testing.T) {
 	cases := []string{
 		`CREATE TABLE t (a CHARACTER)`,
 		`CREATE TABLE t (a CHARACTER(10))`,

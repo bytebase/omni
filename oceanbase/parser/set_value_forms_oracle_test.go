@@ -6,8 +6,7 @@ import (
 )
 
 // TestSetValueFormsOceanBaseOracle asserts omni agrees with a live OceanBase on
-// setValueFormCases. startParserOracle boots MySQL in this package, so a real verdict needs
-// the server itself: oceanBaseOracle runs on the package's own OceanBase (see
+// setValueFormCases. oceanBaseOracle runs on the package's own OceanBase (see
 // testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run SetValueForms -count=1

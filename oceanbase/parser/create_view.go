@@ -9,12 +9,12 @@ import (
 // parseCreateViewStmt parses a CREATE VIEW statement.
 // The caller has already consumed CREATE [OR REPLACE].
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/create-view.html
+// Ref: create_view_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 9717)
 //
 //	CREATE
 //	    [OR REPLACE]
-//	    [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}]
-//	    [DEFINER = user]
+//	    [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE} [DEFINER = user]]
 //	    [SQL SECURITY { DEFINER | INVOKER }]
 //	    VIEW view_name [(column_list)]
 //	    AS select_statement
@@ -38,9 +38,16 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 		stmt.Algorithm = name
 	}
 
-	// DEFINER = user
-	if p.cur.Type == kwDEFINER {
-		stmt.Definer = p.parseDefinerValue()
+	// DEFINER = user, only after ALGORITHM. The grammar lists opt_definer on its
+	// own, but CREATE DEFINER also heads a stored program, and 4.3.5.6 reads it
+	// that way: without ALGORITHM before it, CREATE [OR REPLACE] DEFINER = u VIEW
+	// answers 1064 (measured 2026-11-05).
+	if p.cur.Type == kwDEFINER && stmt.Algorithm != "" {
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Definer = definer
 	}
 
 	// SQL SECURITY { DEFINER | INVOKER }

@@ -8,8 +8,7 @@ import (
 // The VECTOR column type, the vector index and the WITH (...) list, as OceanBase 4.3.5.6
 // reads them. MySQL 8.0 has none of this and TiDB and MariaDB read other forms of the
 // same words, so it is inferred from neither: every verdict was read from
-// oceanbase/oceanbase-ce:4.3.5-lts on 2026-11-05, and startParserOracle, which boots
-// mysql:8.0, has no say here.
+// oceanbase/oceanbase-ce:4.3.5-lts on 2026-11-05.
 //
 // Left out because they are no part of this family: `SELECT vector(3)`, refused like
 // `SELECT comment(3)`; and `ORDER BY a <=> b APPROXIMATE`, the vector search forms.

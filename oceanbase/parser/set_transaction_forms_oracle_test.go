@@ -5,10 +5,9 @@ import (
 	"testing"
 )
 
-// TestSetTransactionFormsOceanBaseOracle asserts omni agrees with a live OceanBase on
-// setTransactionCases. startParserOracle boots MySQL in this package, so a real verdict
-// needs the server itself: oceanBaseOracle runs on the package's own OceanBase (see
-// testcontainer.OceanBase):
+// TestSetTransactionFormsOceanBaseOracle asserts omni agrees with a live
+// OceanBase on setTransactionCases. oceanBaseOracle runs on the package's own
+// OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run SetTransactionForms -count=1
 func TestSetTransactionFormsOceanBaseOracle(t *testing.T) {

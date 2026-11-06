@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// TestReservedWordFormsOceanBaseOracle asserts omni agrees with a live OceanBase on
-// reservedWordCases. startParserOracle boots MySQL in this package, so a real verdict needs the
-// server itself: oceanBaseOracle runs on the package's own OceanBase (see testcontainer.OceanBase):
+// TestReservedWordFormsOceanBaseOracle asserts omni agrees with a live
+// OceanBase on reservedWordCases. oceanBaseOracle runs on the package's own
+// OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run ReservedWord -count=1
 func TestReservedWordFormsOceanBaseOracle(t *testing.T) {

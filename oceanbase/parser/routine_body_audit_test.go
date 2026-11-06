@@ -11,14 +11,15 @@ import (
 // not match expected.
 //
 // Categories:
-//   S — Statement dispatch gap (parser should accept an sp_proc_stmt-valid
-//       statement); expected=accept; audit fails if reject.
-//   E — Expression production gap; expected=accept; audit fails if reject.
-//   C — Context-sensitive token handling; expected=accept; audit fails if reject.
-//   V — Static validation gap (MySQL CREATE-time rejects what the parser
-//       currently accepts); expected=reject; audit fails if accept.
-//       These are the items deferred to a future mysql/semantic PR, and the
-//       audit locks in "omni still accepts this" to track the backlog.
+//
+//	S — Statement dispatch gap (parser should accept an sp_proc_stmt-valid
+//	    statement); expected=accept; audit fails if reject.
+//	E — Expression production gap; expected=accept; audit fails if reject.
+//	C — Context-sensitive token handling; expected=accept; audit fails if reject.
+//	V — Static validation gap (MySQL CREATE-time rejects what the parser
+//	    currently accepts); expected=reject; audit fails if accept.
+//	    These are the items deferred to a future mysql/semantic PR, and the
+//	    audit locks in "omni still accepts this" to track the backlog.
 //
 // Test does not fail; we log a structured report so the backlog is visible
 // to reviewers and drives the follow-up work.
@@ -86,9 +87,9 @@ func TestRoutineBodyAudit(t *testing.T) {
 		accept("S", "SELECT LOCK IN SHARE MODE", `CREATE PROCEDURE p() BEGIN SELECT id FROM t WHERE id = 1 LOCK IN SHARE MODE; END`),
 
 		// --- Cursor operations (S) ---
-		accept("S", "DECLARE cursor + OPEN + FETCH + CLOSE", `CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1; OPEN c; FETCH c INTO @x; CLOSE c; END`),
-		accept("S", "FETCH NEXT FROM cursor", `CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1; OPEN c; FETCH NEXT FROM c INTO @x; CLOSE c; END`),
-		accept("S", "FETCH FROM cursor (no NEXT)", `CREATE PROCEDURE p() BEGIN DECLARE c CURSOR FOR SELECT 1; OPEN c; FETCH FROM c INTO @x; CLOSE c; END`),
+		accept("S", "DECLARE cursor + OPEN + FETCH + CLOSE", `CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE c CURSOR FOR SELECT 1; OPEN c; FETCH c INTO x; CLOSE c; END`),
+		accept("S", "FETCH NEXT FROM cursor", `CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE c CURSOR FOR SELECT 1; OPEN c; FETCH NEXT FROM c INTO x; CLOSE c; END`),
+		accept("S", "FETCH FROM cursor (no NEXT)", `CREATE PROCEDURE p() BEGIN DECLARE x INT; DECLARE c CURSOR FOR SELECT 1; OPEN c; FETCH FROM c INTO x; CLOSE c; END`),
 		accept("S", "FETCH into multiple vars", `CREATE PROCEDURE p() BEGIN DECLARE a,b INT; DECLARE c CURSOR FOR SELECT 1,2; OPEN c; FETCH c INTO a, b; CLOSE c; END`),
 
 		// --- Handler condition_value variants (S) ---

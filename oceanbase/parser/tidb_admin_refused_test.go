@@ -65,9 +65,7 @@ func TestTiDBAdminStatementsRefused(t *testing.T) {
 	}
 }
 
-// TestTiDBAdminStatementsRefusedOceanBaseOracle holds the same list to a real OceanBase.
-// startParserOracle asks MySQL 8.0 in this package, so a verdict that means OceanBase
-// has to come from here:
+// TestTiDBAdminStatementsRefusedOceanBaseOracle holds the same list to a real OceanBase:
 //
 //	go test ./oceanbase/parser/ -run TiDBAdminStatements -count=1
 func TestTiDBAdminStatementsRefusedOceanBaseOracle(t *testing.T) {
