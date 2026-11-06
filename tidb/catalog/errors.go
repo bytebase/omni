@@ -47,6 +47,11 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	ErrUnknownCharacterSet               = 1115
+	// ErrUnsupportedDDL is TiDB's 8200, for DDL it parses and does not run.
+	ErrUnsupportedDDL           = 8200
+	ErrUnknownCollation         = 1273
+	ErrCollationCharsetMismatch = 1253
 	// ErrWrongNameForIndex is "Incorrect index name '<name>'", which TiDB
 	// v8.5.5 answers for an UPDATE INDEXES entry naming an index the table
 	// does not have (read on 2026-11-04).
@@ -93,6 +98,9 @@ var sqlStateMap = map[int]string{
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
+	ErrUnknownCharacterSet:               "42000",
+	ErrUnknownCollation:                  "HY000",
+	ErrCollationCharsetMismatch:          "42000",
 	ErrPlacementPolicyExists:             "HY000",
 	ErrPlacementPolicyInUse:              "HY000",
 	ErrUnknownError:                      "HY000",

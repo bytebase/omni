@@ -32,35 +32,39 @@ type Table struct {
 	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).
 	droppedByCleanup map[string]bool
 
+	// maxForeignKeyID is the largest number a foreign key of the table has
+	// taken, which names the next unnamed one fk_<N+1> (see maxForeignKeyID).
+	maxForeignKeyID int
+
 	// TiDB-specific table metadata.
-	ShardRowIDBits  int
-	PreSplitRegions int
-	AutoIDCache     int64
-	AutoRandomBase  int64
-	PlacementPolicy string
-	TTLColumn       string // column referenced in TTL expression (e.g., "created_at")
-	TTLInterval     string // interval portion (e.g., "INTERVAL 1 YEAR")
-	TTLEnable       bool
-	TTLJobInterval  string // e.g., "1h"
-	TiFlashReplica         int      // number of TiFlash replicas (0 = none)
-	TiFlashLocationLabels  []string // optional label list for replica placement
+	ShardRowIDBits        int
+	PreSplitRegions       int
+	AutoIDCache           int64
+	AutoRandomBase        int64
+	PlacementPolicy       string
+	TTLColumn             string // column referenced in TTL expression (e.g., "created_at")
+	TTLInterval           string // interval portion (e.g., "INTERVAL 1 YEAR")
+	TTLEnable             bool
+	TTLJobInterval        string   // e.g., "1h"
+	TiFlashReplica        int      // number of TiFlash replicas (0 = none)
+	TiFlashLocationLabels []string // optional label list for replica placement
 }
 
 // PartitionInfo holds partition metadata for a table.
 type PartitionInfo struct {
-	Type       string // RANGE, LIST, HASH, KEY
-	Linear     bool   // LINEAR HASH or LINEAR KEY
-	Expr       string // partition expression (for RANGE/LIST/HASH)
-	Columns    []string // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
-	Algorithm  int    // ALGORITHM={1|2} for KEY partitioning
-	NumParts   int    // PARTITIONS num
-	Partitions []*PartitionDefInfo
-	SubType    string // subpartition type (HASH or KEY, "" if none)
-	SubLinear  bool   // LINEAR for subpartition
-	SubExpr    string // subpartition expression
-	SubColumns []string // subpartition columns
-	SubAlgo    int    // subpartition ALGORITHM
-	NumSubParts int   // SUBPARTITIONS num
+	Type        string   // RANGE, LIST, HASH, KEY
+	Linear      bool     // LINEAR HASH or LINEAR KEY
+	Expr        string   // partition expression (for RANGE/LIST/HASH)
+	Columns     []string // partition columns (for RANGE COLUMNS/LIST COLUMNS/KEY)
+	Algorithm   int      // ALGORITHM={1|2} for KEY partitioning
+	NumParts    int      // PARTITIONS num
+	Partitions  []*PartitionDefInfo
+	SubType     string   // subpartition type (HASH or KEY, "" if none)
+	SubLinear   bool     // LINEAR for subpartition
+	SubExpr     string   // subpartition expression
+	SubColumns  []string // subpartition columns
+	SubAlgo     int      // subpartition ALGORITHM
+	NumSubParts int      // SUBPARTITIONS num
 	// keyColumns are the columns the partitioning function reads, which every unique
 	// key must include (partition_key_coverage.go). Empty when the catalog cannot tell
 	// them, which skips the check.
@@ -84,21 +88,21 @@ type SubPartitionDefInfo struct {
 }
 
 type Column struct {
-	Position       int
-	Name           string
-	DataType       string // normalized (int, varchar, etc.)
-	ColumnType     string // full type string (varchar(100), int unsigned)
-	Nullable       bool
-	Default        *string
-	DefaultDropped bool // true when ALTER COLUMN DROP DEFAULT was used
-	AutoIncrement  bool
-	Charset        string
-	Collation      string
-	Comment        string
-	OnUpdate       string
+	Position          int
+	Name              string
+	DataType          string // normalized (int, varchar, etc.)
+	ColumnType        string // full type string (varchar(100), int unsigned)
+	Nullable          bool
+	Default           *string
+	DefaultDropped    bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement     bool
+	Charset           string
+	Collation         string
+	Comment           string
+	OnUpdate          string
 	Generated         *GeneratedColumnInfo
 	Invisible         bool
-	SRID              int // Spatial Reference ID (0 = not set)
+	SRID              int          // Spatial Reference ID (0 = not set)
 	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
 	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 

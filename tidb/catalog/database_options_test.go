@@ -7,6 +7,9 @@ import "testing"
 // backquoted identifier, and BINARY. A form that parses and then leaves the
 // schema's charset alone is worse than one that is rejected, because Bytebase
 // would review later migrations against a schema that never existed.
+// The charsets, collations and defaults are TiDB v8.5.5's: every charset but gbk
+// defaults to its _bin collation, and latin1_general_ci is one it refuses (read
+// on 2026-11-06).
 func TestAlterDatabaseCharsetOptions(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
@@ -18,19 +21,19 @@ func TestAlterDatabaseCharsetOptions(t *testing.T) {
 			name:          "CHARACTER SET takes a string literal",
 			alter:         "ALTER DATABASE testdb CHARACTER SET = 'latin1'",
 			wantCharset:   "latin1",
-			wantCollation: "latin1_swedish_ci",
+			wantCollation: "latin1_bin",
 		},
 		{
 			name:          "CHARSET takes a double-quoted literal",
 			alter:         `ALTER DATABASE testdb CHARSET = "ascii"`,
 			wantCharset:   "ascii",
-			wantCollation: "ascii_general_ci",
+			wantCollation: "ascii_bin",
 		},
 		{
 			name:          "CHARACTER SET takes a backquoted identifier",
 			alter:         "ALTER DATABASE testdb CHARACTER SET = `latin1`",
 			wantCharset:   "latin1",
-			wantCollation: "latin1_swedish_ci",
+			wantCollation: "latin1_bin",
 		},
 		{
 			name:          "COLLATE takes a string literal and leaves the charset",
@@ -46,9 +49,9 @@ func TestAlterDatabaseCharsetOptions(t *testing.T) {
 		},
 		{
 			name:          "DEFAULT CHARSET and DEFAULT COLLATE",
-			alter:         "ALTER SCHEMA testdb DEFAULT CHARSET = 'latin1' DEFAULT COLLATE = 'latin1_general_ci'",
-			wantCharset:   "latin1",
-			wantCollation: "latin1_general_ci",
+			alter:         "ALTER SCHEMA testdb DEFAULT CHARSET = 'utf8mb4' DEFAULT COLLATE = 'utf8mb4_general_ci'",
+			wantCharset:   "utf8mb4",
+			wantCollation: "utf8mb4_general_ci",
 		},
 		{
 			// The nameless arm applies to the database in use, which wtSetup
@@ -59,9 +62,10 @@ func TestAlterDatabaseCharsetOptions(t *testing.T) {
 			wantCollation: "utf8mb4_bin",
 		},
 		{
+			// The collation decides the charset: v8.5.5 reports binary/binary.
 			name:          "COLLATE takes the reserved word BINARY",
 			alter:         "ALTER DATABASE testdb COLLATE = binary",
-			wantCharset:   "utf8mb4",
+			wantCharset:   "binary",
 			wantCollation: "binary",
 		},
 		{

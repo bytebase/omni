@@ -165,9 +165,11 @@ func TestWalkThrough_12_1_PrefixAndExpressionIndexRendering(t *testing.T) {
 			PRIMARY KEY (id)
 		)`)
 
+		// TiDB reads DESC on a key part and keeps nothing of it (v8.5.5,
+		// read on 2026-11-06).
 		ddl := c.ShowCreateTable("testdb", "t1")
-		if !strings.Contains(ddl, "DESC") {
-			t.Errorf("expected DESC in index column rendering, got:\n%s", ddl)
+		if strings.Contains(ddl, "DESC") || !strings.Contains(ddl, "KEY `idx_desc` (`name`)") {
+			t.Errorf("expected KEY `idx_desc` (`name`) with no DESC, got:\n%s", ddl)
 		}
 		if !strings.Contains(ddl, "KEY `idx_desc`") {
 			t.Errorf("expected KEY idx_desc in SHOW CREATE TABLE, got:\n%s", ddl)

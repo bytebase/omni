@@ -73,27 +73,22 @@ func TestCreateUniqueIndex(t *testing.T) {
 	}
 }
 
+// CREATE FULLTEXT INDEX and CREATE SPATIAL INDEX parse, and TiDB v8.5.5
+// refuses both with 8200 once the table is found (read on 2026-11-06).
 func TestCreateFulltextIndex(t *testing.T) {
-	c := setupIndexTestTable(t)
-	mustExec(t, c, "CREATE FULLTEXT INDEX idx_body ON t1 (body)")
-
-	tbl := c.GetDatabase("test").GetTable("t1")
-	if len(tbl.Indexes) != 1 {
-		t.Fatalf("expected 1 index, got %d", len(tbl.Indexes))
-	}
-
-	idx := tbl.Indexes[0]
-	if idx.Name != "idx_body" {
-		t.Errorf("expected index name 'idx_body', got %q", idx.Name)
-	}
-	if !idx.Fulltext {
-		t.Error("expected fulltext index")
-	}
-	if idx.IndexType != "FULLTEXT" {
-		t.Errorf("expected IndexType 'FULLTEXT', got %q", idx.IndexType)
-	}
-	if idx.Unique {
-		t.Error("fulltext index should not be unique")
+	for _, sql := range []string{
+		"CREATE FULLTEXT INDEX idx_body ON t1 (body)",
+		"CREATE SPATIAL INDEX idx_body ON t1 (body)",
+	} {
+		c := setupIndexTestTable(t)
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatalf("%s: parse error: %v", sql, err)
+		}
+		assertError(t, results[0].Error, ErrUnsupportedDDL)
+		if n := len(c.GetDatabase("test").GetTable("t1").Indexes); n != 0 {
+			t.Errorf("%s: the refused statement left %d indexes", sql, n)
+		}
 	}
 }
 

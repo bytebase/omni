@@ -36,10 +36,17 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 	if err := c.validatePolicyRef(placementPolicy); err != nil {
 		return err
 	}
-	// When charset is specified without explicit collation, derive the default collation.
-	if charsetExplicit && !collationExplicit {
-		if dc, ok := defaultCollationForCharset[toLower(charset)]; ok {
-			collation = dc
+	if charsetExplicit || collationExplicit {
+		cs, coll := "", ""
+		if charsetExplicit {
+			cs = charset
+		}
+		if collationExplicit {
+			coll = collation
+		}
+		var err error
+		if charset, collation, err = resolveCharsetCollation(cs, coll); err != nil {
+			return err
 		}
 	}
 	db := newDatabase(name, charset, collation)
@@ -105,11 +112,19 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 			db.TiFlashLocationLabels = append([]string(nil), opt.TiFlashLocationLabels...)
 		}
 	}
-	// When charset is changed without explicit collation, derive the default collation.
-	if charsetExplicit && !collationExplicit {
-		if dc, ok := defaultCollationForCharset[toLower(db.Charset)]; ok {
-			db.Collation = dc
+	if charsetExplicit || collationExplicit {
+		cs, coll := "", ""
+		if charsetExplicit {
+			cs = db.Charset
 		}
+		if collationExplicit {
+			coll = db.Collation
+		}
+		cs, coll, err := resolveCharsetCollation(cs, coll)
+		if err != nil {
+			return err
+		}
+		db.Charset, db.Collation = cs, coll
 	}
 	return nil
 }

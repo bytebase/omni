@@ -26,17 +26,14 @@ func TestWalkThrough_7_2_ListByExpr(t *testing.T) {
 	}
 
 	// Verify partition type marker
-	if !strings.Contains(ddl, "/*!50100 PARTITION BY LIST") {
-		t.Errorf("expected /*!50100 PARTITION BY LIST, got:\n%s", ddl)
-	}
-	// MySQL 8.0 backtick-quotes identifiers in partition expressions
-	if !strings.Contains(ddl, "LIST (`region`)") {
-		t.Errorf("expected LIST (`region`), got:\n%s", ddl)
+	// TiDB v8.5.5 writes the clause with no version comment.
+	if !strings.Contains(ddl, "\nPARTITION BY LIST (`region`)\n(") {
+		t.Errorf("expected PARTITION BY LIST (`region`), got:\n%s", ddl)
 	}
 
 	// Verify partition definitions
 	for _, name := range []string{"p_east", "p_west", "p_central"} {
-		if !strings.Contains(ddl, "PARTITION "+name) {
+		if !strings.Contains(ddl, "PARTITION `"+name+"`") {
 			t.Errorf("expected PARTITION %s in DDL:\n%s", name, ddl)
 		}
 	}
@@ -84,12 +81,10 @@ func TestWalkThrough_7_2_ListColumnsSingle(t *testing.T) {
 	}
 
 	// LIST COLUMNS uses /*!50500
-	if !strings.Contains(ddl, "/*!50500 PARTITION BY LIST") {
-		t.Errorf("expected /*!50500 PARTITION BY LIST, got:\n%s", ddl)
-	}
+
 	// MySQL uses double space before COLUMNS
-	if !strings.Contains(ddl, "LIST  COLUMNS(status)") {
-		t.Errorf("expected LIST  COLUMNS(status), got:\n%s", ddl)
+	if !strings.Contains(ddl, "\nPARTITION BY LIST COLUMNS(`status`)\n(") {
+		t.Errorf("expected PARTITION BY LIST COLUMNS(`status`), got:\n%s", ddl)
 	}
 
 	// Verify VALUES IN with string values
@@ -136,8 +131,8 @@ func TestWalkThrough_7_2_ListColumnsMulti(t *testing.T) {
 		t.Fatal("ShowCreateTable returned empty string")
 	}
 
-	if !strings.Contains(ddl, "LIST  COLUMNS(a,b)") {
-		t.Errorf("expected LIST  COLUMNS(a,b), got:\n%s", ddl)
+	if !strings.Contains(ddl, "LIST COLUMNS(`a`,`b`)") {
+		t.Errorf("expected LIST COLUMNS(`a`,`b`), got:\n%s", ddl)
 	}
 
 	tbl := c.GetDatabase("testdb").GetTable("t3")

@@ -7,7 +7,8 @@ import (
 
 // --- Section 3.1 (Phase 3): RANGE Partitioning (8 scenarios) ---
 // File target: wt_7_1_test.go
-// Proof: go test ./mysql/catalog/ -count=1 -run "TestWalkThrough_7_1"
+// Proof: go test ./tidb/catalog/ -count=1 -run "TestWalkThrough_7_1"
+// Partition clauses are as TiDB v8.5.5 writes them (read on 2026-11-06).
 
 func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 	t.Run("range_expr_3_partitions_maxvalue", func(t *testing.T) {
@@ -41,13 +42,12 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t1")
-		// Verify version comment /*!50100
-		if !strings.Contains(ddl, "/*!50100") {
-			t.Errorf("expected /*!50100 version comment in DDL:\n%s", ddl)
+		// TiDB writes no version comment and parenthesizes MAXVALUE.
+		if !strings.Contains(ddl, "\nPARTITION BY RANGE (`store_id`)\n(") {
+			t.Errorf("expected a bare PARTITION BY RANGE clause in DDL:\n%s", ddl)
 		}
-		// Verify MAXVALUE without parens for plain RANGE
-		if !strings.Contains(ddl, "VALUES LESS THAN MAXVALUE") {
-			t.Errorf("expected 'VALUES LESS THAN MAXVALUE' (no parens) in DDL:\n%s", ddl)
+		if !strings.Contains(ddl, "PARTITION `p2` VALUES LESS THAN (MAXVALUE)") {
+			t.Errorf("expected 'VALUES LESS THAN (MAXVALUE)' in DDL:\n%s", ddl)
 		}
 		// Verify VALUES LESS THAN (10)
 		if !strings.Contains(ddl, "VALUES LESS THAN (10)") {
@@ -83,17 +83,12 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t2")
-		// RANGE COLUMNS uses /*!50500
-		if !strings.Contains(ddl, "/*!50500") {
-			t.Errorf("expected /*!50500 version comment in DDL:\n%s", ddl)
-		}
-		// RANGE COLUMNS MAXVALUE is parenthesized
+		// TiDB: no version comment, one space, columns backquoted.
 		if !strings.Contains(ddl, "VALUES LESS THAN (MAXVALUE)") {
 			t.Errorf("expected 'VALUES LESS THAN (MAXVALUE)' in DDL:\n%s", ddl)
 		}
-		// MySQL uses double space before COLUMNS
-		if !strings.Contains(ddl, "RANGE  COLUMNS") {
-			t.Errorf("expected 'RANGE  COLUMNS' (double space) in DDL:\n%s", ddl)
+		if !strings.Contains(ddl, "\nPARTITION BY RANGE COLUMNS(`name`)\n(") {
+			t.Errorf("expected 'PARTITION BY RANGE COLUMNS(`name`)' in DDL:\n%s", ddl)
 		}
 	})
 
@@ -129,8 +124,8 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t3")
-		if !strings.Contains(ddl, "RANGE  COLUMNS(a,b)") {
-			t.Errorf("expected 'RANGE  COLUMNS(a,b)' in DDL:\n%s", ddl)
+		if !strings.Contains(ddl, "RANGE COLUMNS(`a`,`b`)") {
+			t.Errorf("expected 'RANGE COLUMNS(`a`,`b`)' in DDL:\n%s", ddl)
 		}
 		if !strings.Contains(ddl, "VALUES LESS THAN (10,20)") {
 			t.Errorf("expected 'VALUES LESS THAN (10,20)' in DDL:\n%s", ddl)
@@ -165,7 +160,7 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t4")
-		if !strings.Contains(ddl, "PARTITION p2 VALUES LESS THAN (30)") {
+		if !strings.Contains(ddl, "PARTITION `p2` VALUES LESS THAN (30)") {
 			t.Errorf("expected p2 partition in DDL:\n%s", ddl)
 		}
 	})
@@ -242,10 +237,10 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t6")
-		if !strings.Contains(ddl, "PARTITION p1a VALUES LESS THAN (20)") {
+		if !strings.Contains(ddl, "PARTITION `p1a` VALUES LESS THAN (20)") {
 			t.Errorf("expected p1a partition in DDL:\n%s", ddl)
 		}
-		if !strings.Contains(ddl, "PARTITION p1b VALUES LESS THAN (30)") {
+		if !strings.Contains(ddl, "PARTITION `p1b` VALUES LESS THAN (30)") {
 			t.Errorf("expected p1b partition in DDL:\n%s", ddl)
 		}
 	})
@@ -284,10 +279,10 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		}
 
 		ddl := c.ShowCreateTable("testdb", "t7")
-		if !strings.Contains(ddl, "PARTITION p_merged VALUES LESS THAN (30)") {
+		if !strings.Contains(ddl, "PARTITION `p_merged` VALUES LESS THAN (30)") {
 			t.Errorf("expected p_merged partition in DDL:\n%s", ddl)
 		}
-		if strings.Contains(ddl, "PARTITION p1 ") || strings.Contains(ddl, "PARTITION p2 ") {
+		if strings.Contains(ddl, "PARTITION `p1` ") || strings.Contains(ddl, "PARTITION `p2` ") {
 			t.Errorf("old partitions p1/p2 should not appear in DDL:\n%s", ddl)
 		}
 	})
@@ -329,8 +324,8 @@ func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 		if !strings.Contains(ddl, "VALUES LESS THAN (2021)") {
 			t.Errorf("expected 'VALUES LESS THAN (2021)' in DDL:\n%s", ddl)
 		}
-		if !strings.Contains(ddl, "VALUES LESS THAN MAXVALUE") {
-			t.Errorf("expected 'VALUES LESS THAN MAXVALUE' (no parens) in DDL:\n%s", ddl)
+		if !strings.Contains(ddl, "VALUES LESS THAN (MAXVALUE)") {
+			t.Errorf("expected 'VALUES LESS THAN (MAXVALUE)' in DDL:\n%s", ddl)
 		}
 	})
 }

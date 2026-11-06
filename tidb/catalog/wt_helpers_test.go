@@ -54,3 +54,12 @@ func assertNoError(t *testing.T, err error) {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 }
+
+// assertShowCreate is SHOW CREATE TABLE compared whole, for text read from the
+// server.
+func assertShowCreate(t *testing.T, c *Catalog, table, want string) {
+	t.Helper()
+	if got := c.ShowCreateTable("testdb", table); got != want {
+		t.Errorf("SHOW CREATE TABLE %s:\ngot:\n%s\nwant:\n%s", table, got, want)
+	}
+}

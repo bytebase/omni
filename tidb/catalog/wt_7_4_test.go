@@ -8,6 +8,8 @@ import (
 // --- Section 3.4: Subpartitions and Partition Options (8 scenarios) ---
 
 // Scenario 1: RANGE partitions with SUBPARTITION BY HASH
+// TiDB v8.5.5 reads the SUBPARTITION clause and keeps none of it (read on
+// 2026-11-06).
 func TestWalkThrough_7_4_RangeSubpartByHash(t *testing.T) {
 	c := wtSetup(t)
 
@@ -23,46 +25,12 @@ func TestWalkThrough_7_4_RangeSubpartByHash(t *testing.T) {
 	    PARTITION p2 VALUES LESS THAN MAXVALUE
 	  )`)
 
-	ddl := c.ShowCreateTable("testdb", "t1")
-	if ddl == "" {
-		t.Fatal("ShowCreateTable returned empty string")
-	}
-
-	// Verify SUBPARTITION BY HASH rendering
-	if !strings.Contains(ddl, "SUBPARTITION BY HASH") {
-		t.Errorf("expected SUBPARTITION BY HASH in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "SUBPARTITIONS 2") {
-		t.Errorf("expected SUBPARTITIONS 2 in DDL:\n%s", ddl)
-	}
-	// Verify RANGE partitions still rendered
-	if !strings.Contains(ddl, "PARTITION p0 VALUES LESS THAN (2000)") {
-		t.Errorf("expected PARTITION p0 in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "PARTITION p2 VALUES LESS THAN MAXVALUE") {
-		t.Errorf("expected PARTITION p2 with MAXVALUE in DDL:\n%s", ddl)
-	}
-
-	// Verify catalog state
-	tbl := c.GetDatabase("testdb").GetTable("t1")
-	if tbl == nil {
-		t.Fatal("table t1 not found")
-	}
-	if tbl.Partitioning == nil {
-		t.Fatal("partitioning is nil")
-	}
-	if tbl.Partitioning.SubType != "HASH" {
-		t.Errorf("expected SubType HASH, got %q", tbl.Partitioning.SubType)
-	}
-	if tbl.Partitioning.NumSubParts != 2 {
-		t.Errorf("expected NumSubParts 2, got %d", tbl.Partitioning.NumSubParts)
-	}
-	if len(tbl.Partitioning.Partitions) != 3 {
-		t.Errorf("expected 3 partitions, got %d", len(tbl.Partitioning.Partitions))
-	}
+	assertNoSubpartitions(t, c, "t1")
 }
 
 // Scenario 2: RANGE partitions with SUBPARTITION BY KEY
+// TiDB v8.5.5 reads the SUBPARTITION clause and keeps none of it (read on
+// 2026-11-06).
 func TestWalkThrough_7_4_RangeSubpartByKey(t *testing.T) {
 	c := wtSetup(t)
 
@@ -77,39 +45,12 @@ func TestWalkThrough_7_4_RangeSubpartByKey(t *testing.T) {
 	    PARTITION p1 VALUES LESS THAN MAXVALUE
 	  )`)
 
-	ddl := c.ShowCreateTable("testdb", "t2")
-	if ddl == "" {
-		t.Fatal("ShowCreateTable returned empty string")
-	}
-
-	// Verify SUBPARTITION BY KEY rendering
-	if !strings.Contains(ddl, "SUBPARTITION BY KEY") {
-		t.Errorf("expected SUBPARTITION BY KEY in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "KEY (`id`)") {
-		t.Errorf("expected KEY (`id`) in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "SUBPARTITIONS 2") {
-		t.Errorf("expected SUBPARTITIONS 2 in DDL:\n%s", ddl)
-	}
-
-	// Verify catalog state
-	tbl := c.GetDatabase("testdb").GetTable("t2")
-	if tbl.Partitioning == nil {
-		t.Fatal("partitioning is nil")
-	}
-	if tbl.Partitioning.SubType != "KEY" {
-		t.Errorf("expected SubType KEY, got %q", tbl.Partitioning.SubType)
-	}
-	if len(tbl.Partitioning.SubColumns) != 1 || tbl.Partitioning.SubColumns[0] != "id" {
-		t.Errorf("expected SubColumns [id], got %v", tbl.Partitioning.SubColumns)
-	}
-	if tbl.Partitioning.NumSubParts != 2 {
-		t.Errorf("expected NumSubParts 2, got %d", tbl.Partitioning.NumSubParts)
-	}
+	assertNoSubpartitions(t, c, "t2")
 }
 
 // Scenario 3: Explicit subpartition definitions with names
+// TiDB v8.5.5 reads the SUBPARTITION clause and keeps none of it (read on
+// 2026-11-06).
 func TestWalkThrough_7_4_ExplicitSubpartNames(t *testing.T) {
 	c := wtSetup(t)
 
@@ -129,53 +70,7 @@ func TestWalkThrough_7_4_ExplicitSubpartNames(t *testing.T) {
 	    )
 	  )`)
 
-	ddl := c.ShowCreateTable("testdb", "t3")
-	if ddl == "" {
-		t.Fatal("ShowCreateTable returned empty string")
-	}
-
-	// Verify explicit subpartition names rendered
-	if !strings.Contains(ddl, "SUBPARTITION s0") {
-		t.Errorf("expected SUBPARTITION s0 in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "SUBPARTITION s1") {
-		t.Errorf("expected SUBPARTITION s1 in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "SUBPARTITION s2") {
-		t.Errorf("expected SUBPARTITION s2 in DDL:\n%s", ddl)
-	}
-	if !strings.Contains(ddl, "SUBPARTITION s3") {
-		t.Errorf("expected SUBPARTITION s3 in DDL:\n%s", ddl)
-	}
-
-	// Verify catalog state
-	tbl := c.GetDatabase("testdb").GetTable("t3")
-	if tbl.Partitioning == nil {
-		t.Fatal("partitioning is nil")
-	}
-	if len(tbl.Partitioning.Partitions) != 2 {
-		t.Fatalf("expected 2 partitions, got %d", len(tbl.Partitioning.Partitions))
-	}
-	p0 := tbl.Partitioning.Partitions[0]
-	if len(p0.SubPartitions) != 2 {
-		t.Fatalf("expected 2 subpartitions for p0, got %d", len(p0.SubPartitions))
-	}
-	if p0.SubPartitions[0].Name != "s0" {
-		t.Errorf("expected subpartition name s0, got %q", p0.SubPartitions[0].Name)
-	}
-	if p0.SubPartitions[1].Name != "s1" {
-		t.Errorf("expected subpartition name s1, got %q", p0.SubPartitions[1].Name)
-	}
-	p1 := tbl.Partitioning.Partitions[1]
-	if len(p1.SubPartitions) != 2 {
-		t.Fatalf("expected 2 subpartitions for p1, got %d", len(p1.SubPartitions))
-	}
-	if p1.SubPartitions[0].Name != "s2" {
-		t.Errorf("expected subpartition name s2, got %q", p1.SubPartitions[0].Name)
-	}
-	if p1.SubPartitions[1].Name != "s3" {
-		t.Errorf("expected subpartition name s3, got %q", p1.SubPartitions[1].Name)
-	}
+	assertNoSubpartitions(t, c, "t3")
 }
 
 // Scenario 4: Partition with ENGINE option
@@ -192,28 +87,14 @@ func TestWalkThrough_7_4_PartitionEngineOption(t *testing.T) {
 	  )`)
 
 	ddl := c.ShowCreateTable("testdb", "t4")
-	if ddl == "" {
-		t.Fatal("ShowCreateTable returned empty string")
+	// TiDB keeps no partition ENGINE: v8.5.5 writes these partitions with
+	// none (read on 2026-11-06).
+	if strings.Contains(ddl, "ENGINE = ") || !strings.Contains(ddl, "PARTITION `p0` VALUES LESS THAN (100),") {
+		t.Errorf("expected partitions with no ENGINE in DDL:\n%s", ddl)
 	}
-
-	// Verify ENGINE = InnoDB rendered per partition
-	if !strings.Contains(ddl, "ENGINE = InnoDB") {
-		t.Errorf("expected ENGINE = InnoDB per partition in DDL:\n%s", ddl)
-	}
-
-	// Count occurrences of ENGINE = InnoDB — should be 3 (one per partition)
-	count := strings.Count(ddl, "ENGINE = InnoDB")
-	if count < 3 {
-		t.Errorf("expected at least 3 occurrences of ENGINE = InnoDB, got %d in DDL:\n%s", count, ddl)
-	}
-
-	// Verify catalog state: engine defaults to InnoDB even when not specified
 	tbl := c.GetDatabase("testdb").GetTable("t4")
-	if tbl.Partitioning == nil {
-		t.Fatal("partitioning is nil")
-	}
-	if len(tbl.Partitioning.Partitions) != 3 {
-		t.Errorf("expected 3 partitions, got %d", len(tbl.Partitioning.Partitions))
+	if tbl.Partitioning == nil || len(tbl.Partitioning.Partitions) != 3 {
+		t.Fatalf("partitioning: %+v", tbl.Partitioning)
 	}
 }
 
@@ -230,34 +111,25 @@ func TestWalkThrough_7_4_PartitionCommentOption(t *testing.T) {
 	  )`)
 
 	ddl := c.ShowCreateTable("testdb", "t5")
-	if ddl == "" {
-		t.Fatal("ShowCreateTable returned empty string")
+	// TiDB writes a partition comment as COMMENT '...', with no equals sign.
+	if !strings.Contains(ddl, "PARTITION `p0` VALUES LESS THAN (100) COMMENT 'first partition'") {
+		t.Errorf("expected COMMENT 'first partition' in DDL:\n%s", ddl)
 	}
-
-	// Verify COMMENT rendered per partition
-	if !strings.Contains(ddl, "COMMENT = 'first partition'") {
-		t.Errorf("expected COMMENT = 'first partition' in DDL:\n%s", ddl)
+	if !strings.Contains(ddl, "PARTITION `p1` VALUES LESS THAN (MAXVALUE) COMMENT 'last partition'") {
+		t.Errorf("expected COMMENT 'last partition' in DDL:\n%s", ddl)
 	}
-	if !strings.Contains(ddl, "COMMENT = 'last partition'") {
-		t.Errorf("expected COMMENT = 'last partition' in DDL:\n%s", ddl)
-	}
-
-	// Verify catalog state
 	tbl := c.GetDatabase("testdb").GetTable("t5")
 	if tbl.Partitioning == nil {
 		t.Fatal("partitioning is nil")
 	}
-	p0 := tbl.Partitioning.Partitions[0]
-	if p0.Comment != "first partition" {
+	if p0 := tbl.Partitioning.Partitions[0]; p0.Comment != "first partition" {
 		t.Errorf("expected comment 'first partition', got %q", p0.Comment)
-	}
-	p1 := tbl.Partitioning.Partitions[1]
-	if p1.Comment != "last partition" {
-		t.Errorf("expected comment 'last partition', got %q", p1.Comment)
 	}
 }
 
 // Scenario 6: SUBPARTITIONS N count without explicit defs
+// TiDB v8.5.5 reads the SUBPARTITION clause and keeps none of it (read on
+// 2026-11-06).
 func TestWalkThrough_7_4_SubpartitionsNCount(t *testing.T) {
 	c := wtSetup(t)
 
@@ -272,28 +144,27 @@ func TestWalkThrough_7_4_SubpartitionsNCount(t *testing.T) {
 	    PARTITION p1 VALUES LESS THAN MAXVALUE
 	  )`)
 
-	ddl := c.ShowCreateTable("testdb", "t6")
-	if ddl == "" {
-		t.Fatal("ShowCreateTable returned empty string")
-	}
+	assertNoSubpartitions(t, c, "t6")
+}
 
-	// Verify SUBPARTITIONS 3 rendered (no explicit subpartition names)
-	if !strings.Contains(ddl, "SUBPARTITIONS 3") {
-		t.Errorf("expected SUBPARTITIONS 3 in DDL:\n%s", ddl)
+// assertNoSubpartitions holds a table to what TiDB keeps of a SUBPARTITION
+// clause: nothing, in the catalog or in SHOW CREATE TABLE.
+func assertNoSubpartitions(t *testing.T, c *Catalog, table string) {
+	t.Helper()
+	ddl := c.ShowCreateTable("testdb", table)
+	if strings.Contains(ddl, "SUBPARTITION") {
+		t.Errorf("TiDB keeps no subpartitions, the DDL has them:\n%s", ddl)
 	}
-
-	// Verify catalog state
-	tbl := c.GetDatabase("testdb").GetTable("t6")
-	if tbl.Partitioning == nil {
+	pi := c.GetDatabase("testdb").GetTable(table).Partitioning
+	if pi == nil {
 		t.Fatal("partitioning is nil")
 	}
-	if tbl.Partitioning.NumSubParts != 3 {
-		t.Errorf("expected NumSubParts 3, got %d", tbl.Partitioning.NumSubParts)
+	if pi.SubType != "" || pi.NumSubParts != 0 {
+		t.Errorf("SubType=%q NumSubParts=%d", pi.SubType, pi.NumSubParts)
 	}
-	// Auto-generated subpartitions should be present on each partition def.
-	for _, p := range tbl.Partitioning.Partitions {
-		if len(p.SubPartitions) != 3 {
-			t.Errorf("expected 3 auto-generated subpartitions for partition %s, got %d", p.Name, len(p.SubPartitions))
+	for _, p := range pi.Partitions {
+		if len(p.SubPartitions) != 0 {
+			t.Errorf("partition %s kept %d subpartitions", p.Name, len(p.SubPartitions))
 		}
 	}
 }

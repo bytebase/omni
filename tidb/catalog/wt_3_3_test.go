@@ -154,25 +154,20 @@ func TestWalkThrough_3_3_MultiColumnIndexOrder(t *testing.T) {
 
 // --- FULLTEXT index ---
 
+// TiDB v8.5.5 reads a FULLTEXT key in CREATE TABLE and in ALTER TABLE ADD and
+// keeps nothing: no index, no warning (read on 2026-11-06).
 func TestWalkThrough_3_3_FulltextIndex(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, body TEXT, FULLTEXT INDEX ft_body (body))")
+	wtExec(t, c, "ALTER TABLE t ADD FULLTEXT KEY ft_body2 (body)")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
 	}
-	var idx *Index
 	for _, i := range tbl.Indexes {
-		if i.Name == "ft_body" {
-			idx = i
-			break
+		if i.Fulltext || i.Name == "ft_body" || i.Name == "ft_body2" {
+			t.Errorf("TiDB keeps no FULLTEXT key, the catalog kept %q", i.Name)
 		}
-	}
-	if idx == nil {
-		t.Fatal("fulltext index ft_body not found")
-	}
-	if !idx.Fulltext {
-		t.Error("expected Fulltext=true")
 	}
 }
 
@@ -312,6 +307,8 @@ func TestWalkThrough_3_3_ForeignKeyBackingIndex(t *testing.T) {
 
 func TestWalkThrough_3_3_CheckConstraint(t *testing.T) {
 	c := wtSetup(t)
+	// CHECK constraints exist only with tidb_enable_check_constraint on.
+	c.SetCheckConstraints(true)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, age INT, CONSTRAINT chk_age CHECK (age >= 0))")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
@@ -338,6 +335,8 @@ func TestWalkThrough_3_3_CheckConstraint(t *testing.T) {
 
 func TestWalkThrough_3_3_CheckConstraintNotEnforced(t *testing.T) {
 	c := wtSetup(t)
+	// CHECK constraints exist only with tidb_enable_check_constraint on.
+	c.SetCheckConstraints(true)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, age INT, CONSTRAINT chk_age CHECK (age >= 0) NOT ENFORCED)")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
@@ -392,7 +391,9 @@ func TestWalkThrough_3_3_NamedConstraints(t *testing.T) {
 
 func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 	c := wtSetup(t)
-	// FK without explicit name should get auto-generated name like t_ibfk_1.
+	// CHECK constraints exist only with tidb_enable_check_constraint on.
+	c.SetCheckConstraints(true)
+	// FK without explicit name should get an auto-generated name, fk_1.
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
 	wtExec(t, c, "CREATE TABLE child (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES parent(id))")
 	tbl := c.GetDatabase("testdb").GetTable("child")
@@ -412,14 +413,15 @@ func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 	if fk.Name == "" {
 		t.Error("unnamed FK constraint should get auto-generated name")
 	}
-	// MySQL auto-names FKs as tableName_ibfk_N.
-	expected := "child_ibfk_1"
+	// TiDB names an unnamed FK fk_<its number among the table's FKs>.
+	expected := "fk_1"
 	if fk.Name != expected {
 		t.Errorf("expected auto-generated FK name %q, got %q", expected, fk.Name)
 	}
 
 	// Also test unnamed CHECK: should get tableName_chk_N.
 	c2 := wtSetup(t)
+	c2.SetCheckConstraints(true)
 	wtExec(t, c2, "CREATE TABLE t (id INT PRIMARY KEY, age INT, CHECK (age >= 0))")
 	tbl2 := c2.GetDatabase("testdb").GetTable("t")
 	if tbl2 == nil {
@@ -444,18 +446,10 @@ func TestWalkThrough_3_3_UnnamedConstraintAutoName(t *testing.T) {
 	}
 }
 
-// Bug A (CREATE path): auto-generated FK name counter increments per unnamed
-// FK, starting from 0, ignoring user-named FKs.
-//
-// MySQL reference: sql/sql_table.cc:9252 initializes the counter to 0 for
-// create_table_impl; sql/sql_table.cc:5912 generate_fk_name uses ++counter.
-// This means user-named FKs do NOT seed the counter during CREATE TABLE.
-//
-// Example: CREATE TABLE child (a INT, CONSTRAINT child_ibfk_5 FK, b INT, FK)
-// Real MySQL: unnamed FK gets "child_ibfk_1" (first auto-named, counter 0 → 1).
-// Spot-check confirmed with real MySQL 8.0 container.
-//
-// NOTE: ALTER TABLE ADD FK uses a different rule (max+1) — see the test below.
+// An unnamed foreign key in CREATE TABLE is named fk_<its number among the
+// table's foreign keys>, named ones included: TiDB v8.5.5 names the second key
+// here fk_2, and the user's child_ibfk_5 plays no part (read on 2026-11-06;
+// buildTableInfo in pkg/ddl/create_table.go).
 func TestBugFix_FKCounterCreateTable(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
@@ -480,46 +474,39 @@ func TestBugFix_FKCounterCreateTable(t *testing.T) {
 		autoGenName = con.Name
 		break
 	}
-	if autoGenName == "" {
-		t.Fatal("expected a second (auto-named) FK constraint, found none")
-	}
-	// Real MySQL 8.0 produces "child_ibfk_1" here (verified by spot-check).
-	// The user-named "child_ibfk_5" does NOT seed the counter during CREATE.
-	if autoGenName != "child_ibfk_1" {
-		t.Errorf("expected child_ibfk_1 (first unnamed FK, ignoring user-named _5), got %s", autoGenName)
+	if autoGenName != "fk_2" {
+		t.Errorf("expected fk_2 (the table's second FK), got %s", autoGenName)
 	}
 }
 
-// Bug A (ALTER path): ALTER TABLE ADD FOREIGN KEY uses max(existing)+1 logic.
-// MySQL reference: sql/sql_table.cc:14345 (ALTER TABLE) initializes the
-// counter via get_fk_max_generated_name_number(), which scans the existing
-// table definition for the max generated-name counter.
+// ALTER TABLE ADD FOREIGN KEY names an unnamed key fk_<the table's largest FK
+// ID + 1>. IDs count keys, not names: after a CREATE TABLE with one key named
+// child_ibfk_20 or fk_7, TiDB v8.5.5 names the next one fk_2 (read on
+// 2026-11-06).
 func TestBugFix_FKCounterAlterTable(t *testing.T) {
-	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
-	wtExec(t, c, `CREATE TABLE child (
-		a INT,
-		b INT,
-		CONSTRAINT child_ibfk_20 FOREIGN KEY (a) REFERENCES parent(id)
-	)`)
-	wtExec(t, c, "ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES parent(id)")
-	tbl := c.GetDatabase("testdb").GetTable("child")
-	if tbl == nil {
-		t.Fatal("table child not found")
-	}
-	var autoGenName string
-	for _, con := range tbl.Constraints {
-		if con.Type != ConForeignKey {
-			continue
+	for _, named := range []string{"child_ibfk_20", "fk_7"} {
+		c := wtSetup(t)
+		wtExec(t, c, "CREATE TABLE parent (id INT PRIMARY KEY)")
+		wtExec(t, c, `CREATE TABLE child (
+			a INT,
+			b INT,
+			CONSTRAINT `+named+` FOREIGN KEY (a) REFERENCES parent(id)
+		)`)
+		wtExec(t, c, "ALTER TABLE child ADD FOREIGN KEY (b) REFERENCES parent(id)")
+		tbl := c.GetDatabase("testdb").GetTable("child")
+		if tbl == nil {
+			t.Fatal("table child not found")
 		}
-		if con.Name == "child_ibfk_20" {
-			continue
+		var autoGenName string
+		for _, con := range tbl.Constraints {
+			if con.Type == ConForeignKey && con.Name != named {
+				autoGenName = con.Name
+				break
+			}
 		}
-		autoGenName = con.Name
-		break
-	}
-	if autoGenName != "child_ibfk_21" {
-		t.Errorf("expected child_ibfk_21 (max 20 + 1), got %s", autoGenName)
+		if autoGenName != "fk_2" {
+			t.Errorf("after %s: expected fk_2, got %s", named, autoGenName)
+		}
 	}
 }
 
@@ -563,6 +550,8 @@ func TestBugFix_TimestampNoAutoPromotion(t *testing.T) {
 // it should assign the correct counter sequence ignoring user-named entries.
 func TestBugFix_CheckCounterCreateTable(t *testing.T) {
 	c := wtSetup(t)
+	// CHECK constraints exist only with tidb_enable_check_constraint on.
+	c.SetCheckConstraints(true)
 	// Use user-named t_chk_5 so omni's unnamed-CHECK counter (starting 1)
 	// doesn't collide.
 	wtExec(t, c, `CREATE TABLE t (

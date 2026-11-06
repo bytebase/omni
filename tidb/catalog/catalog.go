@@ -9,6 +9,11 @@ type Catalog struct {
 	defaultCharset    string
 	defaultCollation  string
 	foreignKeyChecks  bool // SET foreign_key_checks (default true)
+	// checkConstraints is tidb_enable_check_constraint, OFF by default. While it
+	// is off, v8.5.5 parses CHECK and keeps nothing: a CHECK clause in CREATE or
+	// ALTER TABLE adds no constraint, and DROP CHECK, DROP CONSTRAINT and ALTER
+	// CHECK succeed whatever they name (read on 2026-11-06).
+	checkConstraints bool
 }
 
 func New() *Catalog {
@@ -21,6 +26,12 @@ func New() *Catalog {
 		foreignKeyChecks:  true,
 	}
 }
+
+// CheckConstraints reports whether tidb_enable_check_constraint is on.
+func (c *Catalog) CheckConstraints() bool { return c.checkConstraints }
+
+// SetCheckConstraints sets tidb_enable_check_constraint.
+func (c *Catalog) SetCheckConstraints(v bool) { c.checkConstraints = v }
 
 // ForeignKeyChecks returns whether FK validation is enabled.
 func (c *Catalog) ForeignKeyChecks() bool { return c.foreignKeyChecks }

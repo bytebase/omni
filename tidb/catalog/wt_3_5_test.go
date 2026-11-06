@@ -167,6 +167,8 @@ func TestWalkThrough_3_5_AddForeignKey(t *testing.T) {
 
 func TestWalkThrough_3_5_AddCheck(t *testing.T) {
 	c := wtSetup(t)
+	// CHECK constraints exist only with tidb_enable_check_constraint on.
+	c.SetCheckConstraints(true)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, age INT)")
 	wtExec(t, c, "ALTER TABLE t ADD CONSTRAINT chk_age CHECK (age >= 0)")
 
@@ -324,6 +326,8 @@ func TestWalkThrough_3_5_AlterIndexVisible(t *testing.T) {
 
 func TestWalkThrough_3_5_AlterCheckEnforced(t *testing.T) {
 	c := wtSetup(t)
+	// CHECK constraints exist only with tidb_enable_check_constraint on.
+	c.SetCheckConstraints(true)
 	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, age INT, CONSTRAINT chk_age CHECK (age >= 0))")
 
 	// Default should be enforced.

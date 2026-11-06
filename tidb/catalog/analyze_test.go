@@ -2787,6 +2787,8 @@ func TestAnalyze_13_5_UnionAllOrderByLimit(t *testing.T) {
 // are analyzed and stored as CheckAnalyzed on the Constraint.
 func TestAnalyze_15_1_CheckConstraintAnalyzed(t *testing.T) {
 	c := wtSetup(t)
+	// CHECK constraints exist only with tidb_enable_check_constraint on.
+	c.SetCheckConstraints(true)
 	wtExec(t, c, `CREATE TABLE t (a INT, b INT, CONSTRAINT chk CHECK (a > 0 AND b > 0))`)
 
 	db := c.GetDatabase("testdb")

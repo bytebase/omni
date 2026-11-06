@@ -199,9 +199,11 @@ func TestWalkThrough_3_1_TableEngine(t *testing.T) {
 	}
 }
 
+// TiDB has latin1_bin and no latin1_swedish_ci, which it refuses with 1273
+// (read on 2026-11-06).
 func TestWalkThrough_3_1_TableCharsetAndCollation(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci")
+	wtExec(t, c, "CREATE TABLE t (id INT) DEFAULT CHARSET=latin1 COLLATE=latin1_bin")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {
 		t.Fatal("table not found")
@@ -209,9 +211,15 @@ func TestWalkThrough_3_1_TableCharsetAndCollation(t *testing.T) {
 	if tbl.Charset != "latin1" {
 		t.Errorf("expected charset 'latin1', got %q", tbl.Charset)
 	}
-	if tbl.Collation != "latin1_swedish_ci" {
-		t.Errorf("expected collation 'latin1_swedish_ci', got %q", tbl.Collation)
+	if tbl.Collation != "latin1_bin" {
+		t.Errorf("expected collation 'latin1_bin', got %q", tbl.Collation)
 	}
+
+	results, err := c.Exec("CREATE TABLE t2 (id INT) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci", nil)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	assertError(t, results[0].Error, ErrUnknownCollation)
 }
 
 func TestWalkThrough_3_1_TableComment(t *testing.T) {

@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -34,8 +33,9 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 			PRIMARY KEY (id)
 		) ROW_FORMAT=DYNAMIC`)
 
+		// TiDB keeps ROW_FORMAT out of SHOW CREATE TABLE (v8.5.5).
 		got := c.ShowCreateTable("testdb", "t")
-		assertContains(t, got, "ROW_FORMAT=DYNAMIC")
+		assertNotContains(t, got, "ROW_FORMAT")
 		assertContains(t, got, "ENGINE=InnoDB")
 	})
 
@@ -47,8 +47,9 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 			PRIMARY KEY (id)
 		) KEY_BLOCK_SIZE=8`)
 
+		// TiDB keeps KEY_BLOCK_SIZE out of SHOW CREATE TABLE (v8.5.5).
 		got := c.ShowCreateTable("testdb", "t")
-		assertContains(t, got, "KEY_BLOCK_SIZE=8")
+		assertNotContains(t, got, "KEY_BLOCK_SIZE")
 		assertContains(t, got, "ENGINE=InnoDB")
 	})
 
@@ -110,32 +111,24 @@ func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 			PRIMARY KEY (id)
 		)`)
 
-		got := c.ShowCreateTable("testdb", "t")
-		assertContains(t, got, "`col_bigint` bigint")
-		assertContains(t, got, "`col_decimal` decimal(10,2)")
-		assertContains(t, got, "`col_varchar` varchar(255)")
-		assertContains(t, got, "`col_text` text")
-		assertContains(t, got, "`col_blob` blob")
-		assertContains(t, got, "`col_json` json")
-		assertContains(t, got, "`col_enum` enum('a','b','c')")
-		assertContains(t, got, "`col_set` set('x','y','z')")
-		assertContains(t, got, "`col_date` date")
-		assertContains(t, got, "`col_datetime` datetime")
-		assertContains(t, got, "`col_timestamp` timestamp")
-
-		// INT rendered
-		assertContains(t, got, "`id` int NOT NULL")
-
-		// TEXT and BLOB should NOT show DEFAULT NULL
-		if strings.Contains(got, "`col_text` text DEFAULT NULL") {
-			t.Error("TEXT column should not show DEFAULT NULL")
-		}
-		if strings.Contains(got, "`col_blob` blob DEFAULT NULL") {
-			t.Error("BLOB column should not show DEFAULT NULL")
-		}
-
-		// TIMESTAMP with explicit NULL should show NULL
-		assertContains(t, got, "`col_timestamp` timestamp NULL")
+		// What TiDB v8.5.5 writes for the same statement (read on 2026-11-06):
+		// every nullable column with no default, TEXT, BLOB and JSON included,
+		// says DEFAULT NULL.
+		assertShowCreate(t, c, "t", "CREATE TABLE `t` (\n"+
+			"  `id` int NOT NULL,\n"+
+			"  `col_bigint` bigint DEFAULT NULL,\n"+
+			"  `col_decimal` decimal(10,2) DEFAULT NULL,\n"+
+			"  `col_varchar` varchar(255) DEFAULT NULL,\n"+
+			"  `col_text` text DEFAULT NULL,\n"+
+			"  `col_blob` blob DEFAULT NULL,\n"+
+			"  `col_json` json DEFAULT NULL,\n"+
+			"  `col_enum` enum('a','b','c') DEFAULT NULL,\n"+
+			"  `col_set` set('x','y','z') DEFAULT NULL,\n"+
+			"  `col_date` date DEFAULT NULL,\n"+
+			"  `col_datetime` datetime DEFAULT NULL,\n"+
+			"  `col_timestamp` timestamp NULL DEFAULT NULL,\n"+
+			"  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */\n"+
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin")
 	})
 
 	// Scenario 8: Column with ON UPDATE CURRENT_TIMESTAMP

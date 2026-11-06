@@ -660,11 +660,11 @@ func TestParseDataTypes(t *testing.T) {
 		// TEXT with length (regression check)
 		{"TEXT(1000)", "{DATATYPE :loc 0 :name TEXT :len 1000}"},
 		// NATIONAL CHAR (regression check)
-		{"NATIONAL CHAR(10)", "{DATATYPE :loc 0 :name CHAR :len 10 :charset utf8mb3}"},
+		{"NATIONAL CHAR(10)", "{DATATYPE :loc 0 :name CHAR :len 10}"},
 		// NCHAR (regression check)
-		{"NCHAR(10)", "{DATATYPE :loc 0 :name CHAR :len 10 :charset utf8mb3}"},
+		{"NCHAR(10)", "{DATATYPE :loc 0 :name CHAR :len 10}"},
 		// NVARCHAR (regression check)
-		{"NVARCHAR(100)", "{DATATYPE :loc 0 :name VARCHAR :len 100 :charset utf8mb3}"},
+		{"NVARCHAR(100)", "{DATATYPE :loc 0 :name VARCHAR :len 100}"},
 
 		// The CHARACTER, VARYING and VARCHARACTER spellings of CHAR and
 		// VARCHAR: https://dev.mysql.com/doc/refman/8.0/en/char.html
@@ -674,14 +674,14 @@ func TestParseDataTypes(t *testing.T) {
 		{"CHARACTER VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
 		{"VARCHARACTER(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
 		{"CHARACTER VARYING(10) CHARACTER SET utf8", "{DATATYPE :loc 0 :name VARCHAR :len 10 :charset utf8}"},
-		// NATIONAL and NCHAR take the same spellings, still utf8mb3.
-		{"NATIONAL CHARACTER", "{DATATYPE :loc 0 :name CHAR :charset utf8mb3}"},
-		{"NATIONAL CHARACTER VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
-		{"NATIONAL CHAR VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
-		{"NATIONAL VARCHARACTER(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
-		{"NCHAR VARCHAR(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
-		{"NCHAR VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
-		{"NCHAR VARCHARACTER(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50 :charset utf8mb3}"},
+		// NATIONAL and NCHAR take the same spellings, with no charset of their own.
+		{"NATIONAL CHARACTER", "{DATATYPE :loc 0 :name CHAR}"},
+		{"NATIONAL CHARACTER VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
+		{"NATIONAL CHAR VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
+		{"NATIONAL VARCHARACTER(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
+		{"NCHAR VARCHAR(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
+		{"NCHAR VARYING(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
+		{"NCHAR VARCHARACTER(50)", "{DATATYPE :loc 0 :name VARCHAR :len 50}"},
 		// LONG takes them too, and carries no length with any of them.
 		{"LONG VARCHARACTER", "{DATATYPE :loc 0 :name MEDIUMTEXT}"},
 		{"LONG CHAR VARYING", "{DATATYPE :loc 0 :name MEDIUMTEXT}"},

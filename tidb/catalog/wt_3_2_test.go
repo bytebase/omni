@@ -22,9 +22,10 @@ func TestWalkThrough_3_2_AlterDatabaseCharset(t *testing.T) {
 	if db.Charset != "latin1" {
 		t.Errorf("expected charset latin1, got %s", db.Charset)
 	}
-	// When charset is changed without explicit collation, default collation is derived.
-	if db.Collation != "latin1_swedish_ci" {
-		t.Errorf("expected collation latin1_swedish_ci, got %s", db.Collation)
+	// When charset is changed without explicit collation, default collation is
+	// derived: latin1_bin on TiDB.
+	if db.Collation != "latin1_bin" {
+		t.Errorf("expected collation latin1_bin, got %s", db.Collation)
 	}
 }
 
