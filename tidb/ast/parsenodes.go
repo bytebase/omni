@@ -281,8 +281,8 @@ const (
 	ATDiscardPartitionTablespace
 	ATImportPartitionTablespace
 	ATRemovePartitioning
-	ATAlterColumnVisible
-	ATAlterColumnInvisible
+	ATAlterColumnVisible   // never built: TiDB has no column visibility
+	ATAlterColumnInvisible // never built: TiDB has no column visibility
 	ATAlterIndexVisible
 	ATAlterIndexInvisible
 	ATForce
@@ -587,8 +587,8 @@ const (
 	ColConstrComment
 	ColConstrCollate
 	ColConstrAutoIncrement
-	ColConstrVisible
-	ColConstrInvisible
+	ColConstrVisible   // never parsed: TiDB has no column visibility
+	ColConstrInvisible // never parsed; LoadMetadata builds it for a synced invisible column
 	ColConstrColumnFormat
 	ColConstrStorage
 	ColConstrEngineAttribute
@@ -3663,7 +3663,9 @@ type DropQueryWatchStmt struct {
 func (s *DropQueryWatchStmt) nodeTag()  {}
 func (s *DropQueryWatchStmt) stmtNode() {}
 
-// AlterViewStmt represents an ALTER VIEW statement.
+// AlterViewStmt represents an ALTER VIEW statement. The parser never builds it:
+// TiDB has no ALTER VIEW, and a view is redefined with CREATE OR REPLACE VIEW.
+// It stays because Bytebase's adapters for the MySQL family switch on it.
 type AlterViewStmt struct {
 	Loc         Loc
 	Algorithm   string // UNDEFINED, MERGE, TEMPTABLE

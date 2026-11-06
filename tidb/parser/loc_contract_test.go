@@ -91,7 +91,6 @@ var locSpanCases = []struct {
 	{"AlterTableStmt", "ALTER TABLE t ADD COLUMN c INT, DROP COLUMN d", "ALTER TABLE t ADD COLUMN c INT, DROP COLUMN d", 0},
 	{"AlterTablespaceStmt", "ALTER TABLESPACE ts1 RENAME TO ts2", "ALTER TABLESPACE ts1 RENAME TO ts2", 0},
 	{"AlterUserStmt", "ALTER USER USER() 2 FACTOR UNREGISTER", "ALTER USER USER() 2 FACTOR UNREGISTER", 0},
-	{"AlterViewStmt", "ALTER VIEW v AS SELECT 1", "ALTER VIEW v AS SELECT 1", 0},
 	{"AnalyzeOption", "ALTER TABLE t ANALYZE PARTITION p WITH 4 BUCKETS", "4 BUCKETS", 0},
 	{"AnalyzeTableStmt", "ANALYZE TABLE t1", "ANALYZE TABLE t1", 0},
 	{"AnalyzeTableStmt", "ANALYZE TABLE t1 PARTITION p0 INDEX a WITH 4 BUCKETS", "ANALYZE TABLE t1 PARTITION p0 INDEX a WITH 4 BUCKETS", 0},
@@ -430,6 +429,7 @@ func TestLocSpans(t *testing.T) {
 var locKindsNotBuilt = map[string]string{
 	"AlterEventStmt":          "TiDB rejects ALTER EVENT",
 	"AlterRoutineStmt":        "TiDB rejects ALTER FUNCTION and ALTER PROCEDURE",
+	"AlterViewStmt":           "TiDB rejects ALTER VIEW",
 	"CreateEventStmt":         "TiDB rejects CREATE EVENT",
 	"CreateTriggerStmt":       "TiDB rejects CREATE TRIGGER",
 	"DeclareConditionStmt":    "TiDB rejects DECLARE ... CONDITION",

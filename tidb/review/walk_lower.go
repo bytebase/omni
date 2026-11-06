@@ -11,8 +11,8 @@ import (
 // statement lowers one statement (spec §5), false when the walk does not
 // follow it, which ends the walk before it. TiDB has no triggers,
 // functions, or events (1064), and CREATE and DROP PROCEDURE fail (8108):
-// none of their statements is lowered, so each ends the walk. Neither is
-// ALTER VIEW, which TiDB rejects (1064) though the parser takes it.
+// none of their statements is lowered, so each ends the walk. ALTER VIEW
+// (1064) never reaches the walk: the parser refuses it.
 func (b *builder) statement(n ast.Node) bool {
 	switch v := n.(type) {
 	case *ast.CreateDatabaseStmt:

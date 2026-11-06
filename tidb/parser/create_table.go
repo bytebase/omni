@@ -685,21 +685,13 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		col.Constraints = append(col.Constraints, constr)
 		return true, nil
 
-	case kwVISIBLE:
-		p.advance()
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrVisible,
-		})
-		return true, nil
-
-	case kwINVISIBLE:
-		p.advance()
-		col.Constraints = append(col.Constraints, &nodes.ColumnConstraint{
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
-			Type: nodes.ColConstrInvisible,
-		})
-		return true, nil
+	// No VISIBLE or INVISIBLE: TiDB v8.5.5 has no column visibility and answers
+	// 1064 for either word after a column type, generated or not. They are index
+	// options only.
+	//
+	// Ref: ColumnOption in TiDB v8.5.5 pkg/parser/parser.y, which has no
+	// "VISIBLE" or "INVISIBLE" arm; IndexInvisible is used by index options and
+	// `ALTER INDEX` alone.
 
 	case kwCHECK:
 		cc, err := p.parseColumnCheckConstraint(start)
