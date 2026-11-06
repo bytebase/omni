@@ -517,32 +517,14 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateViewStmt(start, false)
 
 	case kwDEFINER:
-		// CREATE DEFINER=... {VIEW|FUNCTION|PROCEDURE|TRIGGER|EVENT}
-		// Parse DEFINER = user[@host] and propagate to sub-parsers.
+		// CREATE DEFINER=... {FUNCTION|PROCEDURE|TRIGGER|EVENT}. A view's DEFINER
+		// follows ALGORITHM on OceanBase, so here DEFINER heads a stored program,
+		// which takes no SQL SECURITY before its keyword: 4.3.5.6 answers 1064 at
+		// VIEW for CREATE DEFINER = u VIEW v AS SELECT 1, and at SQL for CREATE
+		// DEFINER = u SQL SECURITY INVOKER VIEW (or PROCEDURE). See
+		// parseCreateViewStmt.
 		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
-		var sqlSecurity string
-		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
-			}
-		}
-		// Now dispatch on the object keyword
 		switch p.cur.Type {
-		case kwVIEW:
-			stmt, err := p.parseCreateViewStmt(start, false)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			if stmt.SqlSecurity == "" {
-				stmt.SqlSecurity = sqlSecurity
-			}
-			return stmt, nil
 		case kwFUNCTION:
 			stmt, err := p.parseCreateFunctionStmt(start, false)
 			if err != nil {
@@ -592,16 +574,15 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 }
 
 // parseCreateOrReplace parses CREATE OR REPLACE. CREATE is consumed and p.cur
-// is OR. MySQL 8.0 takes OR REPLACE only before a view and before SPATIAL
-// REFERENCE SYSTEM; on any other object, and before TEMPORARY, the statement
-// fails at the keyword that follows OR REPLACE.
+// is OR. OceanBase takes OR REPLACE only before a view; on any other object,
+// and before TEMPORARY, the statement fails at the keyword that follows OR
+// REPLACE.
 //
-// Ref: mysql-server 8.0 sql/sql_yacc.yy — view_replace_or_algorithm (the view
-// head: OR REPLACE [ALGORITHM = ...] [DEFINER = ...] [SQL SECURITY ...] VIEW)
-// and the CREATE OR_SYM REPLACE_SYM SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM
-// branch of create, which takes no IF NOT EXISTS.
-// https://dev.mysql.com/doc/refman/8.0/en/create-view.html
-// https://dev.mysql.com/doc/refman/8.0/en/create-spatial-reference-system.html
+// Ref: create_view_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 9717): create_with_opt_hint opt_replace opt_algorithm
+// opt_definer opt_sql_security VIEW. The engine answers 1064 at DEFINER unless
+// ALGORITHM comes first (see parseCreateViewStmt), and has no CREATE OR REPLACE
+// SPATIAL REFERENCE SYSTEM, which MySQL 8.0 has.
 func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 	p.advance() // consume OR
 	if p.cur.Type != kwREPLACE {
@@ -610,17 +591,14 @@ func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 	p.advance() // consume REPLACE
 
 	switch p.cur.Type {
-	case kwVIEW, kwALGORITHM, kwDEFINER, kwSQL:
+	case kwVIEW, kwALGORITHM, kwSQL:
 		// parseCreateViewStmt reads ALGORITHM, DEFINER, and SQL SECURITY in
 		// that order and fails at whatever stands where VIEW belongs.
 		return p.parseCreateViewStmt(start, true)
-	case kwSPATIAL:
-		p.advance() // consume SPATIAL
-		if p.cur.Type != kwREFERENCE {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return p.parseCreateSpatialRefSysStmt(start, true)
 	default:
+		// DEFINER, which OceanBase takes on a view only after ALGORITHM, and
+		// SPATIAL, since OceanBase has no SPATIAL REFERENCE SYSTEM, fail here like
+		// every other object: 4.3.5.6 answers 1064 at the word after OR REPLACE.
 		return nil, p.syntaxErrorAtCur()
 	}
 }
@@ -676,31 +654,11 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		return p.parseAlterViewStmt(start)
 
 	case kwDEFINER:
-		// ALTER DEFINER = user {VIEW|EVENT}
-		// Parse DEFINER = user[@host] and propagate to sub-parsers.
+		// ALTER DEFINER = user EVENT. A view's DEFINER follows ALGORITHM on
+		// OceanBase: 4.3.5.6 answers 1064 at VIEW for ALTER DEFINER = u VIEW v AS
+		// SELECT 1, and at SQL when SQL SECURITY follows the definer.
 		definer := p.parseDefinerValue()
-		// Optional SQL SECURITY {DEFINER|INVOKER}
-		var sqlSecurity string
-		if p.cur.Type == kwSQL {
-			p.advance()
-			p.match(kwSECURITY)
-			if p.isIdentToken() {
-				sqlSecurity, _, _ = p.parseIdentifier()
-			}
-		}
 		switch p.cur.Type {
-		case kwVIEW:
-			stmt, err := p.parseAlterViewStmt(start)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			if stmt.SqlSecurity == "" {
-				stmt.SqlSecurity = sqlSecurity
-			}
-			return stmt, nil
 		case kwEVENT:
 			stmt, err := p.parseAlterEventStmt(start)
 			if err != nil {

@@ -386,11 +386,14 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			}
 		}
 
-	// NCHAR → CHAR with utf8mb3 charset
+	// NCHAR → CHAR with utf8mb3 charset. NCHAR VARCHAR is VARCHAR, but OceanBase
+	// has no NCHAR VARYING, which MySQL has: its grammar lists NCHAR VARCHAR alone
+	// (sql_parser_mysql_mode.y, v4.3.5_CE_BP6, line 6852), and 4.3.5.6 answers
+	// 1064 for NCHAR VARYING(50).
 	case kwNCHAR:
 		dt.Charset = "utf8mb3"
 		p.advance()
-		if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER || p.cur.Type == kwVARYING {
+		if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER {
 			dt.Name = "VARCHAR"
 			p.advance()
 			if err := p.parseRequiredLength(dt); err != nil {
@@ -471,20 +474,14 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 		p.parseUnsignedZerofill(dt)
 	case kwLONG:
-		// LONG and the VARCHAR spellings of it -- LONG VARCHAR, LONG
-		// VARCHARACTER, LONG CHAR VARYING, LONG CHARACTER VARYING -- are
-		// MEDIUMTEXT; LONG VARBINARY is MEDIUMBLOB. None of them carries a
-		// length. CHAR and CHARACTER after LONG are ambiguous, because
-		// `long char set utf8` is LONG with a charset clause, so the type
-		// claims either only when VARYING follows it.
+		// OceanBase reads LONG as MEDIUMTEXT, so LONG, LONG VARCHAR and LONG
+		// VARCHARACTER are MEDIUMTEXT and LONG VARBINARY is MEDIUMBLOB, none with
+		// a length (text_type_i and blob_type_i in sql_parser_mysql_mode.y,
+		// v4.3.5_CE_BP6, lines 7217 and 7226). MySQL's LONG CHAR VARYING and LONG
+		// CHARACTER VARYING are not there, and 4.3.5.6 answers 1064 for both.
 		p.advance()
 		switch {
 		case p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER:
-			p.advance()
-			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
-		case (p.cur.Type == kwCHAR || p.cur.Type == kwCHARACTER) && p.peekNext().Type == kwVARYING:
-			p.advance()
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
 			p.parseCharsetCollate(dt)

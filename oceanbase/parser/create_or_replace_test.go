@@ -7,34 +7,50 @@ import (
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
-// orReplaceCase is a CREATE statement and how MySQL 8.0 parses it, as PREPARE
-// reports it on a live mysql:8.0 (TestCreateOrReplaceOracle):
+// orReplaceCase is a CREATE statement and how OceanBase parses it, as PREPARE
+// reports it on 5.7.25-OceanBase_CE-v4.3.5.6 (TestCreateOrReplaceOracle,
+// measured 2026-11-05; until then these were MySQL 8.0's answers):
 //
 //   - code 0: PREPARE succeeds.
-//   - code 1295 (ER_UNSUPPORTED_PS): the statement parses, but PREPARE cannot
-//     hold it. CREATE SPATIAL REFERENCE SYSTEM is one such statement.
 //   - code 1064 (ER_PARSE_ERROR): rejected. near is the rest of the statement
-//     from the token MySQL rejects, as its message quotes it, so omni's
-//     ParseError must sit at len(sql)-len(near).
+//     from the token OceanBase rejects, so omni's ParseError must sit at
+//     len(sql)-len(near). OceanBase's message quotes from that token, often the
+//     token alone, and at the end of the input it quotes the last token.
+//   - any other code: the statement parsed and the resolver refused it, as with
+//     1368 for a CHECK OPTION on a view that cannot take one.
 type orReplaceCase struct {
 	sql  string
 	code uint16
 	near string
 }
 
-// createOrReplaceCases holds every CREATE form with OR REPLACE. MySQL 8.0
-// takes OR REPLACE only on a view (with ALGORITHM, DEFINER, and SQL SECURITY
-// after it) and on SPATIAL REFERENCE SYSTEM; anything else fails at the
-// keyword after OR REPLACE.
+// createOrReplaceCases holds every CREATE form with OR REPLACE. OceanBase takes
+// OR REPLACE only before a view, with ALGORITHM, DEFINER (only after ALGORITHM)
+// and SQL SECURITY after it; anything else fails at the keyword after OR
+// REPLACE, SPATIAL REFERENCE SYSTEM included.
 var createOrReplaceCases = []orReplaceCase{
 	{"CREATE OR REPLACE VIEW v AS SELECT 1", 0, ""},
 	{"CREATE OR REPLACE ALGORITHM = MERGE VIEW v AS SELECT 1", 0, ""},
 	{"CREATE OR REPLACE ALGORITHM = UNDEFINED DEFINER = CURRENT_USER SQL SECURITY INVOKER VIEW v AS SELECT 1", 0, ""},
-	{"CREATE OR REPLACE DEFINER = CURRENT_USER VIEW v AS SELECT 1", 0, ""},
-	{"CREATE OR REPLACE DEFINER = 'root'@'localhost' SQL SECURITY DEFINER VIEW v AS SELECT 1", 0, ""},
+	{"CREATE OR REPLACE ALGORITHM = MERGE DEFINER = 'root'@'localhost' SQL SECURITY DEFINER VIEW v AS SELECT 1", 0, ""},
 	{"CREATE OR REPLACE SQL SECURITY INVOKER VIEW v AS SELECT 1", 0, ""},
-	{"CREATE OR REPLACE VIEW v (a) AS SELECT 1 WITH CHECK OPTION", 0, ""},
-	{"CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[\"Greek\",DATUM[\"Greek\",SPHEROID[\"Bessel 1841\",6377397.155,299.1528128]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.017453292519943278],AXIS[\"Lat\",NORTH],AXIS[\"Lon\",EAST]]'", 1295, ""},
+	{"CREATE OR REPLACE VIEW v (a) AS SELECT 1 WITH CHECK OPTION", 1368, ""},
+
+	// DEFINER heads a view only after ALGORITHM; without it, CREATE DEFINER
+	// heads a stored program, and OR REPLACE DEFINER is no form at all.
+	{"CREATE OR REPLACE DEFINER = CURRENT_USER VIEW v AS SELECT 1", 1064, "DEFINER = CURRENT_USER VIEW v AS SELECT 1"},
+	{"CREATE OR REPLACE DEFINER = 'root'@'localhost' SQL SECURITY DEFINER VIEW v AS SELECT 1", 1064, "DEFINER = 'root'@'localhost' SQL SECURITY DEFINER VIEW v AS SELECT 1"},
+	{"CREATE DEFINER = CURRENT_USER VIEW v AS SELECT 1", 1064, "VIEW v AS SELECT 1"},
+	{"CREATE DEFINER = CURRENT_USER SQL SECURITY INVOKER VIEW v AS SELECT 1", 1064, "SQL SECURITY INVOKER VIEW v AS SELECT 1"},
+	{"CREATE DEFINER = CURRENT_USER SQL SECURITY INVOKER PROCEDURE p1() SELECT 1", 1064, "SQL SECURITY INVOKER PROCEDURE p1() SELECT 1"},
+	{"CREATE ALGORITHM = MERGE DEFINER = CURRENT_USER VIEW v AS SELECT 1", 0, ""},
+	{"ALTER DEFINER = CURRENT_USER VIEW v AS SELECT 1", 1064, "VIEW v AS SELECT 1"},
+	{"ALTER DEFINER = CURRENT_USER SQL SECURITY INVOKER VIEW v AS SELECT 1", 1064, "SQL SECURITY INVOKER VIEW v AS SELECT 1"},
+	{"ALTER ALGORITHM = MERGE DEFINER = CURRENT_USER VIEW v AS SELECT 1", 0, ""},
+	{"ALTER SQL SECURITY INVOKER VIEW v AS SELECT 1", 0, ""},
+
+	// OceanBase has no SPATIAL REFERENCE SYSTEM.
+	{"CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[\"Greek\",DATUM[\"Greek\",SPHEROID[\"Bessel 1841\",6377397.155,299.1528128]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.017453292519943278],AXIS[\"Lat\",NORTH],AXIS[\"Lon\",EAST]]'", 1064, "SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[\"Greek\",DATUM[\"Greek\",SPHEROID[\"Bessel 1841\",6377397.155,299.1528128]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.017453292519943278],AXIS[\"Lat\",NORTH],AXIS[\"Lon\",EAST]]'"},
 
 	// OR REPLACE heads the view clauses; it does not follow them.
 	{"CREATE ALGORITHM = MERGE OR REPLACE VIEW v AS SELECT 1", 1064, "OR REPLACE VIEW v AS SELECT 1"},
@@ -45,8 +61,8 @@ var createOrReplaceCases = []orReplaceCase{
 	{"CREATE OR", 1064, ""},
 	{"CREATE OR REPLACE TEMPORARY VIEW v AS SELECT 1", 1064, "TEMPORARY VIEW v AS SELECT 1"},
 	{"CREATE OR REPLACE TEMPORARY TABLE r (id INT)", 1064, "TEMPORARY TABLE r (id INT)"},
-	{"CREATE OR REPLACE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 4120 NAME 'Greek'", 1064, "IF NOT EXISTS 4120 NAME 'Greek'"},
-	{"CREATE OR REPLACE SPATIAL INDEX ix ON t (g)", 1064, "INDEX ix ON t (g)"},
+	{"CREATE OR REPLACE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 4120 NAME 'Greek'", 1064, "SPATIAL REFERENCE SYSTEM IF NOT EXISTS 4120 NAME 'Greek'"},
+	{"CREATE OR REPLACE SPATIAL INDEX ix ON t (g)", 1064, "SPATIAL INDEX ix ON t (g)"},
 
 	{"CREATE OR REPLACE TABLE r (id INT)", 1064, "TABLE r (id INT)"},
 	{"CREATE OR REPLACE DATABASE d1", 1064, "DATABASE d1"},
@@ -68,11 +84,11 @@ var createOrReplaceCases = []orReplaceCase{
 	{"CREATE OR REPLACE LOGFILE GROUP lg ADD UNDOFILE 'u.dat' ENGINE = NDB", 1064, "LOGFILE GROUP lg ADD UNDOFILE 'u.dat' ENGINE = NDB"},
 	{"CREATE OR REPLACE RESOURCE GROUP rg TYPE = USER", 1064, "RESOURCE GROUP rg TYPE = USER"},
 
-	// DEFINER after OR REPLACE heads a view, never a stored program.
-	{"CREATE OR REPLACE DEFINER = CURRENT_USER FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1", 1064, "FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1"},
-	{"CREATE OR REPLACE DEFINER = CURRENT_USER PROCEDURE p1() SELECT 1", 1064, "PROCEDURE p1() SELECT 1"},
-	{"CREATE OR REPLACE DEFINER = CURRENT_USER TRIGGER tr1 BEFORE INSERT ON t FOR EACH ROW SET @a = 1", 1064, "TRIGGER tr1 BEFORE INSERT ON t FOR EACH ROW SET @a = 1"},
-	{"CREATE OR REPLACE DEFINER = CURRENT_USER EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1", 1064, "EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1"},
+	// Nor does OR REPLACE take DEFINER before a stored program.
+	{"CREATE OR REPLACE DEFINER = CURRENT_USER FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1", 1064, "DEFINER = CURRENT_USER FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1"},
+	{"CREATE OR REPLACE DEFINER = CURRENT_USER PROCEDURE p1() SELECT 1", 1064, "DEFINER = CURRENT_USER PROCEDURE p1() SELECT 1"},
+	{"CREATE OR REPLACE DEFINER = CURRENT_USER TRIGGER tr1 BEFORE INSERT ON t FOR EACH ROW SET @a = 1", 1064, "DEFINER = CURRENT_USER TRIGGER tr1 BEFORE INSERT ON t FOR EACH ROW SET @a = 1"},
+	{"CREATE OR REPLACE DEFINER = CURRENT_USER EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1", 1064, "DEFINER = CURRENT_USER EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1"},
 	{"CREATE OR REPLACE ALGORITHM = MERGE TABLE r (id INT)", 1064, "TABLE r (id INT)"},
 
 	// The same objects without OR REPLACE parse.
@@ -80,23 +96,23 @@ var createOrReplaceCases = []orReplaceCase{
 	{"CREATE TEMPORARY TABLE r (id INT)", 0, ""},
 	{"CREATE INDEX ix ON t (n)", 0, ""},
 	{"CREATE USER u1", 0, ""},
-	{"CREATE FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1", 1295, ""},
+	{"CREATE FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1", 0, ""},
 	{"CREATE ALGORITHM = MERGE VIEW v AS SELECT 1", 0, ""},
-	{"CREATE DEFINER = CURRENT_USER SQL SECURITY INVOKER VIEW v AS SELECT 1", 0, ""},
+	{"CREATE ALGORITHM = MERGE DEFINER = CURRENT_USER SQL SECURITY INVOKER VIEW v AS SELECT 1", 0, ""},
 }
 
-// parsesInMySQL reports whether code means MySQL parsed the statement.
-func parsesInMySQL(code uint16) bool {
-	return code == 0 || code == 1295
+// parsesInEngine reports whether code means OceanBase parsed the statement.
+func parsesInEngine(code uint16) bool {
+	return code != 1064
 }
 
 // TestCreateOrReplace checks omni against createOrReplaceCases: it accepts
-// what MySQL 8.0 parses and rejects the rest at the token MySQL rejects.
+// what OceanBase parses and rejects the rest at the token OceanBase rejects.
 func TestCreateOrReplace(t *testing.T) {
 	for _, tc := range createOrReplaceCases {
 		t.Run(tc.sql, func(t *testing.T) {
 			_, err := Parse(tc.sql)
-			if parsesInMySQL(tc.code) {
+			if parsesInEngine(tc.code) {
 				if err != nil {
 					t.Fatalf("Parse: %v, want success", err)
 				}
@@ -122,7 +138,7 @@ func TestCreateOrReplaceAST(t *testing.T) {
 		{"CREATE OR REPLACE VIEW v AS SELECT 1", "", "", ""},
 		{"CREATE OR REPLACE ALGORITHM = MERGE VIEW v AS SELECT 1", "MERGE", "", ""},
 		{"CREATE OR REPLACE ALGORITHM = UNDEFINED DEFINER = CURRENT_USER SQL SECURITY INVOKER VIEW v AS SELECT 1", "UNDEFINED", "CURRENT_USER", "INVOKER"},
-		{"CREATE OR REPLACE DEFINER = CURRENT_USER VIEW v AS SELECT 1", "", "CURRENT_USER", ""},
+		{"CREATE OR REPLACE ALGORITHM = MERGE DEFINER = CURRENT_USER VIEW v AS SELECT 1", "MERGE", "CURRENT_USER", ""},
 		{"CREATE OR REPLACE SQL SECURITY DEFINER VIEW v AS SELECT 1", "", "", "DEFINER"},
 	}
 	for _, tc := range views {
@@ -142,18 +158,6 @@ func TestCreateOrReplaceAST(t *testing.T) {
 				t.Errorf("Loc = %+v, want {0 %d}", stmt.Loc, len(tc.sql))
 			}
 		})
-	}
-
-	sql := "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[]'"
-	srs, ok := parseOneOrReplace(t, sql).(*nodes.CreateSpatialRefSysStmt)
-	if !ok {
-		t.Fatalf("got %T, want *ast.CreateSpatialRefSysStmt", srs)
-	}
-	if !srs.OrReplace || srs.IfNotExists || srs.SRID != 4120 {
-		t.Errorf("OrReplace, IfNotExists, SRID = %v, %v, %d; want true, false, 4120", srs.OrReplace, srs.IfNotExists, srs.SRID)
-	}
-	if srs.Loc.Start != 0 || srs.Loc.End != len(sql) {
-		t.Errorf("Loc = %+v, want {0 %d}", srs.Loc, len(sql))
 	}
 }
 

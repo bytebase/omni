@@ -122,11 +122,38 @@ END`,
 			name: "OPEN/FETCH/CLOSE declared cursor",
 			sql: `CREATE PROCEDURE p()
 BEGIN
+    DECLARE x INT;
     DECLARE c CURSOR FOR SELECT 1;
     OPEN c;
-    FETCH c INTO @x;
+    FETCH c INTO x;
     CLOSE c;
 END`,
+		},
+		// ---------- End labels ----------
+		{
+			name: "BEGIN end label names another label",
+			sql: `CREATE PROCEDURE p()
+a: BEGIN
+    SELECT 1;
+END b`,
+			wantCode: "label_mismatch",
+		},
+		{
+			name: "LOOP end label names another label",
+			sql: `CREATE PROCEDURE p()
+BEGIN
+    foo: LOOP
+        LEAVE foo;
+    END LOOP bar;
+END`,
+			wantCode: "label_mismatch",
+		},
+		{
+			name: "end label matches case-insensitively",
+			sql: `CREATE PROCEDURE p()
+myBlock: BEGIN
+    SELECT 1;
+END MYBLOCK`,
 		},
 		{
 			name: "OPEN undeclared cursor",
@@ -140,7 +167,8 @@ END`,
 			name: "FETCH undeclared cursor",
 			sql: `CREATE PROCEDURE p()
 BEGIN
-    FETCH nope INTO @x;
+    DECLARE x INT;
+    FETCH nope INTO x;
 END`,
 			wantCode: "undeclared_cursor",
 		},

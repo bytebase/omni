@@ -209,33 +209,12 @@ func TestQuotedSpecialFormCallAST(t *testing.T) {
 	}
 }
 
-// TestQuotedBuiltinCallOracle asserts omni agrees with a live mysql:8.0 on
-// quotedBuiltinCallCases (container test).
-func TestQuotedBuiltinCallOracle(t *testing.T) {
-	o := startParserOracle(t)
-	for _, ddl := range []string{
-		"CREATE TABLE tu (a DATETIME, b DATETIME)",
-		"CREATE TABLE tq (a INT, b VARCHAR(20), d DATE)",
-		"CREATE FULLTEXT INDEX ft ON tq (b)",
-	} {
-		if _, err := o.db.ExecContext(o.ctx, ddl); err != nil {
-			t.Fatalf("seed %q: %v", ddl, err)
-		}
-	}
-	for _, tc := range quotedBuiltinCallCases {
-		if got := o.checkSyntax(t, tc.sql); got != tc.accept {
-			t.Errorf("MySQL accepts %q = %v, want %v", tc.sql, got, tc.accept)
-		}
-		assertOracleMatch(t, o, tc.sql)
-	}
-}
-
 // oceanBaseCrashCases are the quotedBuiltinCallCases kept off the OceanBase
 // oracle. OceanBase resolves a quoted name to its own function where it has
 // one, answering 1582 for `trim`() or `extract`(d), but SELECT `cast`(a)
 // FROM t took the 4.3.5.6 observer down with SIGSEGV rather than answer,
-// which would leave every later case without a verdict. The parser test and
-// the MySQL 8.0 oracle still hold it.
+// which would leave every later case without a verdict. The parser test still
+// holds it.
 var oceanBaseCrashCases = map[string]bool{
 	"SELECT `cast`(a) FROM tq": true,
 }

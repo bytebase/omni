@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-// TestLabelMatching enforces MySQL's end-label matching rule (ERR 1310).
-// Per docs/plans/2026-04-20-mysql-routine-body-grammar.md category 2, matches
-// are case-insensitive and enforced by parseBeginEndBlock, parseWhileStmt,
-// parseLoopStmt, parseRepeatStmt.
+// TestLabelMatching holds the end-label rule OceanBase's parser enforces: an end
+// label needs a begin label. Two labels that differ parse, because OceanBase
+// compares them in its resolver (1308, see checkLabelMatch), so that mismatch
+// is oceanbase/validate's label_mismatch.
 func TestLabelMatching(t *testing.T) {
 	type tc struct {
 		name    string
@@ -74,7 +74,7 @@ BEGIN
 END`,
 		},
 
-		// Negative: mismatched labels.
+		// Negative: an end label with no begin label.
 		{
 			name: "BEGIN end-label without begin-label",
 			sql: `CREATE PROCEDURE p()
@@ -84,12 +84,12 @@ END lbl`,
 			wantErr: `end label "lbl" without matching begin label`,
 		},
 		{
+			// Mismatched labels parse; oceanbase/validate reports them.
 			name: "BEGIN mismatched labels",
 			sql: `CREATE PROCEDURE p()
 foo: BEGIN
     SET @a = 1;
 END bar`,
-			wantErr: `end label "bar" does not match begin label "foo"`,
 		},
 		{
 			name: "WHILE mismatched labels",
@@ -99,17 +99,15 @@ BEGIN
         SET @i = @i + 1;
     END WHILE lbl2;
 END`,
-			wantErr: `end label "lbl2" does not match begin label "lbl1"`,
 		},
 		{
-			name: "LOOP end-label without begin-label",
+			name: "LOOP mismatched labels",
 			sql: `CREATE PROCEDURE p()
 BEGIN
     foo: LOOP
         LEAVE foo;
     END LOOP myloop;
 END`,
-			wantErr: `end label "myloop" does not match begin label "foo"`,
 		},
 		{
 			name: "REPEAT mismatched labels",
@@ -120,7 +118,16 @@ BEGIN
     UNTIL @i >= 3
     END REPEAT r2;
 END`,
-			wantErr: `end label "r2" does not match begin label "r1"`,
+		},
+		{
+			name: "WHILE end-label without begin-label",
+			sql: `CREATE PROCEDURE p()
+BEGIN
+    WHILE @i < 3 DO
+        SET @i = @i + 1;
+    END WHILE lbl;
+END`,
+			wantErr: `end label "lbl" without matching begin label`,
 		},
 	}
 	for _, c := range cases {

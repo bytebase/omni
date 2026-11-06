@@ -9,11 +9,11 @@ import (
 // parseAlterViewStmt parses an ALTER VIEW statement.
 // The caller has already consumed ALTER. The current token may be ALGORITHM, DEFINER, SQL, or VIEW.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-view.html
+// Ref: the alter_with_opt_hint arm of create_view_stmt in OceanBase's
+// src/sql/parser/sql_parser_mysql_mode.y (v4.3.5_CE_BP6, line 9739)
 //
 //	ALTER
-//	    [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}]
-//	    [DEFINER = user]
+//	    [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE} [DEFINER = user]]
 //	    [SQL SECURITY { DEFINER | INVOKER }]
 //	    VIEW view_name [(column_list)]
 //	    AS select_statement
@@ -36,26 +36,9 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 		stmt.Algorithm = name
 	}
 
-	// DEFINER = user
-	if p.cur.Type == kwDEFINER {
-		p.advance()
-		if _, err := p.expect('='); err != nil {
-			return nil, err
-		}
-		name, _, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		definer := name
-		if p.cur.Type == tokIDENT && p.cur.Str == "@" {
-			p.advance()
-			host, _, err := p.parseIdent()
-			if err != nil {
-				return nil, err
-			}
-			definer = definer + "@" + host
-		}
-		stmt.Definer = definer
+	// DEFINER = user, only after ALGORITHM, as in parseCreateViewStmt.
+	if p.cur.Type == kwDEFINER && stmt.Algorithm != "" {
+		stmt.Definer = p.parseDefinerValue()
 	}
 
 	// SQL SECURITY { DEFINER | INVOKER }

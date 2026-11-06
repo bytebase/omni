@@ -360,11 +360,12 @@ func TestScenario_C2(t *testing.T) {
   a NVARCHAR(10),
   b NATIONAL VARCHAR(10),
   cc NCHAR VARCHAR(10),
-  d NATIONAL CHAR VARYING(10),
-  e NCHAR VARYING(10)
+  d NATIONAL CHAR VARYING(10)
 )`)
+		// OceanBase has no NCHAR VARYING, which MySQL has (see oceanbase/parser's
+		// parseDataType), so the family here is OceanBase's.
 
-		for _, name := range []string{"a", "b", "cc", "d", "e"} {
+		for _, name := range []string{"a", "b", "cc", "d"} {
 			assertStringEq(t, "oracle "+name+" COLUMN_TYPE", oracleColumnType(t, name), "varchar(10)")
 			assertStringEq(t, "oracle "+name+" CHARSET", oracleCharset(t, name), "utf8mb3")
 

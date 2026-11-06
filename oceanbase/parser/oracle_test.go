@@ -18,7 +18,7 @@ type parserOracle struct {
 	ctx context.Context
 }
 
-// oracleDatabase is this process's database on the shared MySQL 8.0 server,
+// oracleDatabase is this process's database on the shared OceanBase server,
 // created by the first test that asks for it.
 var oracleDatabase struct {
 	once sync.Once
@@ -33,10 +33,10 @@ func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
 	ctx := context.Background()
 	oracleDatabase.once.Do(func() {
-		oracleDatabase.db, oracleDatabase.err = sharedserver.MySQL80.Database(ctx, "oceanbase_parser")
+		oracleDatabase.db, oracleDatabase.err = sharedserver.OceanBase.Database(ctx, "oceanbase_parser")
 	})
 	if oracleDatabase.err != nil {
-		t.Fatalf("MySQL 8.0 oracle: %v", oracleDatabase.err)
+		t.Fatalf("OceanBase oracle: %v", oracleDatabase.err)
 	}
 	if err := oracleDatabase.db.Reset(ctx); err != nil {
 		t.Fatalf("reset the oracle's database: %v", err)

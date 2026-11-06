@@ -89,7 +89,7 @@ jobs:
       - name: OceanBase
         if: steps.affected.outputs.pkgs != ''
         run: |
-          go list ${{ steps.affected.outputs.pkgs }} | grep -qE '/(oceanbase/parser|oceanbase/catalog|oceanbase/review|internal/sharedserver)$' || exit 0
+          go list ${{ steps.affected.outputs.pkgs }} | grep -qE '/(oceanbase/parser|oceanbase/catalog|oceanbase/review|oceanbase/validate|internal/sharedserver)$' || exit 0
           name=omni-ci-oceanbase-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT
           image=$(sed -n 's/^const OceanBaseImage = "\(.*\)"$/\1/p' internal/sharedserver/oceanbase.go)
           # The deployer refuses fewer than 20000 open files.
@@ -119,7 +119,7 @@ jobs:
         # the same way, one at a time, beside the rest rather than after them.
         run: |
           pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
-          ob='/(oceanbase/parser|oceanbase/catalog|oceanbase/review|internal/sharedserver)$'
+          ob='/(oceanbase/parser|oceanbase/catalog|oceanbase/review|oceanbase/validate|internal/sharedserver)$'
           { grep -E "$ob" <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m &
           oceanbase=$!
           status=0

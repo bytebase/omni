@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
+	"github.com/bytebase/omni/internal/sharedserver"
 	"github.com/bytebase/omni/oceanbase/parser"
 )
 
@@ -19,36 +20,37 @@ type routineValidationOracle struct {
 	ctx context.Context
 }
 
+// oracleDatabase is this process's database on the shared OceanBase server.
+var oracleDatabase struct {
+	once sync.Once
+	db   *sharedserver.Database
+	err  error
+}
+
+// startRoutineValidationOracle returns OceanBase with this process's database
+// empty and selected: see sharedserver.
 func startRoutineValidationOracle(t *testing.T) *routineValidationOracle {
 	t.Helper()
-
 	ctx := context.Background()
-	container, err := tcmysql.Run(ctx, "mysql:8.0",
-		tcmysql.WithDatabase("test"),
-		tcmysql.WithUsername("root"),
-		tcmysql.WithPassword("test"),
-	)
-	if err != nil {
-		t.Fatalf("failed to start MySQL container: %v", err)
+	oracleDatabase.once.Do(func() {
+		oracleDatabase.db, oracleDatabase.err = sharedserver.OceanBase.Database(ctx, "oceanbase_validate")
+	})
+	if oracleDatabase.err != nil {
+		t.Fatalf("OceanBase oracle: %v", oracleDatabase.err)
 	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
-
-	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")
-	if err != nil {
-		t.Fatalf("failed to get connection string: %v", err)
+	if err := oracleDatabase.db.Reset(ctx); err != nil {
+		t.Fatalf("reset the oracle's database: %v", err)
 	}
+	return &routineValidationOracle{db: oracleDatabase.db.DB, ctx: ctx}
+}
 
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if oracleDatabase.db != nil {
+		oracleDatabase.db.Close(context.Background())
 	}
-	t.Cleanup(func() { _ = db.Close() })
-
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("failed to ping database: %v", err)
-	}
-
-	return &routineValidationOracle{db: db, ctx: ctx}
+	sharedserver.OceanBase.Terminate()
+	os.Exit(code)
 }
 
 func TestRoutineValidationOracleAlignment(t *testing.T) {
@@ -106,6 +108,11 @@ func TestRoutineValidationOracleAlignment(t *testing.T) {
 			sql:     "CREATE PROCEDURE p_iterate_begin_label() my_block: BEGIN ITERATE my_block; END my_block",
 		},
 		{
+			name:    "end label names another label",
+			dropSQL: dropProc("p_end_label"),
+			sql:     "CREATE PROCEDURE p_end_label() a: BEGIN SELECT 1; END b",
+		},
+		{
 			name:    "OPEN undeclared cursor",
 			dropSQL: dropProc("p_open_undeclared"),
 			sql:     "CREATE PROCEDURE p_open_undeclared() BEGIN OPEN nope; END",
@@ -113,7 +120,7 @@ func TestRoutineValidationOracleAlignment(t *testing.T) {
 		{
 			name:    "FETCH undeclared cursor",
 			dropSQL: dropProc("p_fetch_undeclared"),
-			sql:     "CREATE PROCEDURE p_fetch_undeclared() BEGIN FETCH nope INTO @x; END",
+			sql:     "CREATE PROCEDURE p_fetch_undeclared() BEGIN DECLARE x INT; FETCH nope INTO x; END",
 		},
 		{
 			name:    "CLOSE undeclared cursor",
@@ -200,10 +207,10 @@ END my_block`,
 			_, _ = o.db.ExecContext(o.ctx, p.dropSQL)
 
 			omniAccept, omniDetail := parseAndValidateAccepts(p.sql)
-			mysqlAccept, mysqlDetail := mysqlExecAccepts(t, o, p.sql)
-			if omniAccept != mysqlAccept {
-				t.Fatalf("acceptance mismatch\nomni accept: %v (%s)\nmysql accept: %v (%s)\nsql: %s",
-					omniAccept, omniDetail, mysqlAccept, mysqlDetail, p.sql)
+			engineAccept, engineDetail := engineExecAccepts(t, o, p.sql)
+			if omniAccept != engineAccept {
+				t.Fatalf("acceptance mismatch\nomni accept: %v (%s)\nOceanBase accept: %v (%s)\nsql: %s",
+					omniAccept, omniDetail, engineAccept, engineDetail, p.sql)
 			}
 		})
 	}
@@ -225,13 +232,13 @@ func parseAndValidateAccepts(sql string) (bool, string) {
 	return false, strings.Join(codes, ",")
 }
 
-// mysqlExecAccepts reports whether MySQL runs sql without an error, and the error
-// it answered otherwise.
+// engineExecAccepts reports whether OceanBase runs sql without an error, and the
+// error it answered otherwise.
 //
 // Anything that is not a server error — a dropped connection, a timeout — is no
 // verdict at all and fails the test. Reporting it as a rejection would pass every
-// probe that expects MySQL to refuse, against a server that never answered.
-func mysqlExecAccepts(t testing.TB, o *routineValidationOracle, sql string) (bool, string) {
+// probe that expects OceanBase to refuse, against a server that never answered.
+func engineExecAccepts(t testing.TB, o *routineValidationOracle, sql string) (bool, string) {
 	t.Helper()
 	_, err := o.db.ExecContext(o.ctx, sql)
 	if err == nil {
@@ -241,7 +248,7 @@ func mysqlExecAccepts(t testing.TB, o *routineValidationOracle, sql string) (boo
 	if errors.As(err, &myErr) {
 		return false, "ERR " + mysqlOracleItoa(int(myErr.Number)) + ": " + trimFirstLine(myErr.Message)
 	}
-	t.Fatalf("MySQL gave no verdict for %q: %v", sql, err)
+	t.Fatalf("OceanBase gave no verdict for %q: %v", sql, err)
 	return false, ""
 }
 
