@@ -536,10 +536,11 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 	case *ast.FloatLit:
 		return n.Value
 	case *ast.StringLit:
-		if n.Value == "" {
+		name := stringLitName(n)
+		if name == "" {
 			return fmt.Sprintf("Name_exp_%d", position)
 		}
-		return n.Value
+		return name
 	case *ast.NullLit:
 		return "NULL"
 	case *ast.BoolLit:

@@ -75,8 +75,9 @@ func selfName(source string, expr ast.ExprNode) (string, bool) {
 	case *ast.StringLit:
 		// The characters before the first graphic one are dropped
 		// (planner/core buildProjectionFieldNameFromExpressions):
-		// SELECT '  x' names its column x.
-		return strings.TrimLeftFunc(n.Value, func(r rune) bool {
+		// SELECT '  x' names its column x. Adjacent strings are named after
+		// the first: SELECT '  x' 'y' names its column x (v8.5.5).
+		return strings.TrimLeftFunc(stringLitName(n), func(r rune) bool {
 			return !unicode.In(r, graphRanges...)
 		}), true
 	case *ast.NullLit:
@@ -244,4 +245,13 @@ var graphRanges = []*unicode.RangeTable{
 	unicode.Pe, unicode.Pi, unicode.Pf, unicode.Po, unicode.Sm, unicode.Sc,
 	unicode.Sk, unicode.So, unicode.Lu, unicode.Lt, unicode.Nl, unicode.Ll,
 	unicode.Lm, unicode.Lo, unicode.Mc, unicode.Nd,
+}
+
+// stringLitName is the part of a string literal TiDB names a column after: the
+// first of adjacent strings ('a' 'b' is named a), or the whole value.
+func stringLitName(n *ast.StringLit) string {
+	if n.Concatenated {
+		return n.FirstSegment
+	}
+	return n.Value
 }

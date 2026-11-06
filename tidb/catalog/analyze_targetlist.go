@@ -152,6 +152,11 @@ func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
 	case *nodes.IntLit:
 		return strconv.FormatInt(n.Value, 10)
 	case *nodes.StringLit:
+		// Adjacent strings are named after the first: SELECT 'a' 'b' is
+		// column a, value ab (StringLiteral, parser.y:7660, v8.5.5).
+		if n.Concatenated {
+			return n.FirstSegment
+		}
 		return n.Value
 	case *nodes.FloatLit:
 		return n.Value
