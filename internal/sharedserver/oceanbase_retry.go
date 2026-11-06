@@ -40,14 +40,29 @@ var (
 	retryPause  = 2 * time.Second
 )
 
+// readTimeout is how long a connection waits for the server's next packet. A
+// statement OceanBase is merely slow on answers within its own timeouts
+// (ob_query_timeout, 4012, which retry asks again), so silence this long means
+// the server or the connection is wedged. Without a limit the read never
+// returns: on a box at load average 1500 the review walk sat in one Exec until
+// go test's timeout killed the package, and in CI until the job was cancelled,
+// with no word of which statement it was waiting on (2026-11-06). With it, the
+// statement fails with mysql.ErrInvalidConn and the driver logs the i/o
+// timeout. Tests shorten it.
+var readTimeout = 3 * time.Minute
+
 // OpenOceanBase opens dsn through a connector that runs each statement again
 // while OceanBase answers a transient error, for up to three minutes, so no test
 // has to wrap its own statements. A statement still failing after that returns
-// the last error as a plain error.
+// the last error as a plain error. A server that stops answering fails the
+// statement after readTimeout, unless dsn sets its own readTimeout.
 func OpenOceanBase(dsn string) (*sql.DB, error) {
 	cfg, err := gomysql.ParseDSN(dsn)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.ReadTimeout == 0 {
+		cfg.ReadTimeout = readTimeout
 	}
 	connector, err := gomysql.NewConnector(cfg)
 	if err != nil {
