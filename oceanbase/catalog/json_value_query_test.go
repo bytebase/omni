@@ -257,3 +257,43 @@ func TestStringLiteralKeepsItsKind(t *testing.T) {
 		})
 	}
 }
+
+// TestOracle_JSONValueAlias: an unaliased JSON_VALUE is named after its clauses too, as the server
+// names it.
+func TestOracle_JSONValueAlias(t *testing.T) {
+	o := oceanBaseOracle(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	if _, err := storeAndRead(ctx, o, "zz_json_value_alias", "CREATE TABLE t (a JSON)", "t"); err != nil {
+		t.Fatal(err)
+	}
+	alias := regexp.MustCompile("AS `(.*)`$")
+	for _, form := range []string{
+		"JSON_VALUE(a, '$')",
+		"JSON_VALUE(a, '$' RETURNING SIGNED)",
+		"JSON_VALUE(a, '$' RETURNING CHAR(3))",
+		"JSON_VALUE(a, '$' NULL ON EMPTY)",
+		"JSON_VALUE(a, '$' DEFAULT 'x' ON EMPTY)",
+		"JSON_VALUE(a, '$' DEFAULT -1 ON ERROR)",
+		"JSON_VALUE(a, '$' RETURNING CHAR(3) TRUNCATE ASCII)",
+	} {
+		t.Run(form, func(t *testing.T) {
+			if _, err := o.db.ExecContext(ctx, "CREATE OR REPLACE VIEW v AS SELECT "+form+" FROM t"); err != nil {
+				t.Fatal(err)
+			}
+			var server string
+			row := o.db.QueryRowContext(ctx, "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'zz_json_value_alias' AND TABLE_NAME = 'v'")
+			if err := row.Scan(&server); err != nil {
+				t.Fatal(err)
+			}
+			list, err := parser.Parse("SELECT " + form)
+			if err != nil {
+				t.Fatal(err)
+			}
+			text := deparse.DeparseSelect(list.Items[0].(*nodes.SelectStmt))
+			if m := alias.FindStringSubmatch(text); m == nil || m[1] != server {
+				t.Errorf("omni names it from %q, the server %q", text, server)
+			}
+		})
+	}
+}

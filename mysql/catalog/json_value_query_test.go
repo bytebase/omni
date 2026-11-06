@@ -3,6 +3,10 @@ package catalog
 import (
 	"database/sql"
 	"errors"
+	nodes "github.com/bytebase/omni/mysql/ast"
+	"github.com/bytebase/omni/mysql/deparse"
+	"github.com/bytebase/omni/mysql/parser"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -270,6 +274,51 @@ func TestStringLiteralKeepsItsKind(t *testing.T) {
 			}
 			if again := DeparseQuery(second); again != first {
 				t.Errorf("deparsed %q, which reads back as %q", first, again)
+			}
+		})
+	}
+}
+
+// jsonValueAliasForms are written the way they usually are, which is the text the server names an
+// unaliased column after.
+var jsonValueAliasForms = []string{
+	"JSON_VALUE(a, '$')",
+	"JSON_VALUE(a, '$' RETURNING SIGNED)",
+	"JSON_VALUE(a, '$' RETURNING CHAR(3))",
+	"JSON_VALUE(a, '$' RETURNING DECIMAL(5,2))",
+	"JSON_VALUE(a, '$' NULL ON EMPTY)",
+	"JSON_VALUE(a, '$' ERROR ON ERROR)",
+	"JSON_VALUE(a, '$' DEFAULT 'x' ON EMPTY)",
+	"JSON_VALUE(a, '$' DEFAULT -1 ON ERROR)",
+	"JSON_VALUE(a, '$' RETURNING SIGNED DEFAULT 7 ON EMPTY ERROR ON ERROR)",
+}
+
+// TestJSONValueAliasOracle: an unaliased JSON_VALUE is named after its clauses too, as the server
+// names it, so two calls that differ only there keep different names.
+func TestJSONValueAliasOracle(t *testing.T) {
+	ctr, cleanup := startContainer(t)
+	defer cleanup()
+	if err := ctr.execSQL("DROP TABLE IF EXISTS t; CREATE TABLE t (a JSON)"); err != nil {
+		t.Fatal(err)
+	}
+	alias := regexp.MustCompile("AS `(.*)`$")
+	for _, form := range jsonValueAliasForms {
+		t.Run(form, func(t *testing.T) {
+			if err := ctr.execSQL("CREATE OR REPLACE VIEW v AS SELECT " + form + " FROM t"); err != nil {
+				t.Fatal(err)
+			}
+			var server string
+			if err := ctr.db.QueryRow("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'v'").Scan(&server); err != nil {
+				t.Fatal(err)
+			}
+			list, err := parser.Parse("SELECT " + form)
+			if err != nil {
+				t.Fatal(err)
+			}
+			text := deparse.DeparseSelect(list.Items[0].(*nodes.SelectStmt))
+			m := alias.FindStringSubmatch(text)
+			if m == nil || m[1] != server {
+				t.Errorf("omni names it from %q, the server %q", text, server)
 			}
 		})
 	}

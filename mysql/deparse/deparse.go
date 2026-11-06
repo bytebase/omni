@@ -722,6 +722,14 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			return
 		}
 
+		// JSON_VALUE's clauses are part of the text the server names the column after:
+		// mysql:8.0.46 names JSON_VALUE(a, '$' RETURNING SIGNED) after all of it, so two calls
+		// that differ only there get different names.
+		if n.JSONValueArm && n.JSONValue != nil {
+			writeJSONValueAlias(b, n)
+			return
+		}
+
 		if n.Star {
 			// COUNT(*) → alias "COUNT(*)" — keep *, not 0.
 			b.WriteString(name)
@@ -2591,6 +2599,47 @@ func writeSubqueryExpr(b *strings.Builder, n *ast.SubqueryExpr) {
 // writeGroupConcatAlias generates the MySQL 8.0 auto-alias for GROUP_CONCAT.
 // MySQL 8.0 alias format: GROUP_CONCAT(DISTINCT a ORDER BY a DESC SEPARATOR ';')
 // Uses uppercase keywords and original column names (not table-qualified).
+// writeJSONValueAlias writes JSON_VALUE as the alias text: its arguments, then its clauses as they
+// are usually written, in capitals.
+func writeJSONValueAlias(b *strings.Builder, n *ast.FuncCallExpr) {
+	b.WriteString(strings.ToUpper(n.Name))
+	b.WriteString("(")
+	for i, arg := range n.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		writeExprAlias(b, arg)
+	}
+	opts := n.JSONValue
+	if opts.Returning != nil {
+		b.WriteString(" RETURNING ")
+		b.WriteString(deparseDataTypeAlias(opts.Returning))
+	}
+	for _, r := range []struct {
+		resp *ast.JSONValueResponse
+		on   string
+	}{{opts.OnEmpty, "EMPTY"}, {opts.OnError, "ERROR"}} {
+		switch {
+		case r.resp == nil:
+			continue
+		case r.resp.Error:
+			b.WriteString(" ERROR")
+		case r.resp.Default != nil:
+			b.WriteString(" DEFAULT ")
+			if unary, ok := r.resp.Default.(*ast.UnaryExpr); ok {
+				b.WriteString("-")
+				writeExprAlias(b, unary.Operand)
+			} else {
+				writeExprAlias(b, r.resp.Default)
+			}
+		default:
+			b.WriteString(" NULL")
+		}
+		b.WriteString(" ON " + r.on)
+	}
+	b.WriteString(")")
+}
+
 func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("GROUP_CONCAT(")
 
