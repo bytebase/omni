@@ -13,7 +13,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
 
-	"github.com/bytebase/omni/internal/sharedserver"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // mysqlContainer wraps a real MySQL 8.0 container connection for container testing.
@@ -269,7 +269,7 @@ func TestMain(m *testing.M) {
 	}
 	sharedMySQL.Unlock()
 	terminateOracleFallbacks()
-	sharedserver.PrivateOceanBase.Terminate()
+	testcontainer.OceanBase.Terminate()
 	os.Exit(code)
 }
 

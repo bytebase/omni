@@ -31,7 +31,7 @@ import (
 // expectation behind.
 //
 // That oracle runs on the package's own OceanBase (see
-// sharedserver.PrivateOceanBase):
+// testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run OceanBase -count=1
 

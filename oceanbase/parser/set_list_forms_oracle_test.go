@@ -7,7 +7,7 @@ import (
 
 // TestSetListFormsOceanBaseOracle asserts omni agrees with a live OceanBase on setListCases.
 // startParserOracle boots MySQL in this package, so a real verdict needs the server itself:
-// oceanBaseOracle runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
+// oceanBaseOracle runs on the package's own OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run 'SetListForms' -count=1
 func TestSetListFormsOceanBaseOracle(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 // disagree on the auth clauses, on the REQUIRE and resource clauses of a
 // GRANT, and on what a host may hold.
 //
-// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
+// It runs on the package's own OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestGrantFormsOnOceanBase(t *testing.T) {

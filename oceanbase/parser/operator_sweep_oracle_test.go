@@ -45,7 +45,7 @@ func operatorVerdict(ctx context.Context, db *sql.DB, stmt string) (bool, error)
 // server, so an image upgrade that changes an answer fails here rather than leaving
 // a stale expectation behind.
 //
-// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
+// It runs on the package's own OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run OperatorSweep -count=1
 func TestOperatorFormsMatchEngine(t *testing.T) {
@@ -145,7 +145,7 @@ func sweepExpr(r *rand.Rand, depth int) string {
 //
 // OPERATOR_SWEEP_N and OPERATOR_SWEEP_SEED size and seed it; a failure names the seed.
 //
-// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
+// It runs on the package's own OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run OperatorSweep -count=1
 func TestOperatorSweepMatchesEngine(t *testing.T) {

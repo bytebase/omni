@@ -28,7 +28,7 @@ import "testing"
 // MySQL 8.0 accepts every TABLE form and every locking form here.
 //
 // That oracle runs on the package's own OceanBase (see
-// sharedserver.PrivateOceanBase):
+// testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run OceanBase -count=1
 

@@ -1,4 +1,4 @@
-package sharedserver
+package testcontainer
 
 import (
 	"context"

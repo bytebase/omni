@@ -7,7 +7,7 @@ import (
 
 // TestViewExprFormsOceanBaseOracle asserts omni agrees with a live OceanBase on
 // viewExprFormCases. It runs on the package's own OceanBase (see
-// sharedserver.PrivateOceanBase):
+// testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestViewExprFormsOceanBaseOracle(t *testing.T) {

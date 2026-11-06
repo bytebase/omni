@@ -411,7 +411,7 @@ func innerStart(n nodes.StmtNode) int {
 }
 
 // TestExplainFormsMatchOceanBase holds the tables above to the engine itself.
-// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
+// It runs on the package's own OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run Explain -count=1
 //

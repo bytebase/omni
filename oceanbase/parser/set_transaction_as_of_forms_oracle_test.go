@@ -8,7 +8,7 @@ import (
 // TestSetTransactionAsOfFormsOceanBaseOracle asserts omni agrees with a live OceanBase on
 // setTransactionAsOfCases. startParserOracle boots MySQL in this package, so a real verdict
 // needs the server itself: oceanBaseOracle runs on the package's own OceanBase (see
-// sharedserver.PrivateOceanBase):
+// testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run SetTransactionAsOf -count=1
 func TestSetTransactionAsOfFormsOceanBaseOracle(t *testing.T) {

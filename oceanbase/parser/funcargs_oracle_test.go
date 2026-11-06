@@ -11,7 +11,7 @@ import (
 // DISTINCT ALL anywhere, takes DISTINCT on JSON_ARRAYAGG and neither prefix on
 // JSON_OBJECTAGG, and has no SQL_TSI_ unit synonyms.
 //
-// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
+// It runs on the package's own OceanBase (see testcontainer.OceanBase):
 //
 //	go test ./oceanbase/parser/ -run OceanBaseFunctionArgument -count=1
 func TestOceanBaseFunctionArgumentOracle(t *testing.T) {

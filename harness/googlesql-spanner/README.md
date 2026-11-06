@@ -108,8 +108,8 @@ A future `googlesql/parser` diff test (build-tagged, like
 ## Tests
 
 ```bash
-# pure unit tests (classify + kind routing) — no emulator needed:
+# starts an emulator testcontainer for TestOracleLive (needs Docker):
 go test ./...
-# include the live integration test (auto-skips if the emulator is down):
+# or reuse a running emulator:
 SPANNER_EMULATOR_HOST=localhost:9010 go test ./...
 ```

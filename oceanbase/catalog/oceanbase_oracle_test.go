@@ -9,14 +9,14 @@ import (
 
 	gomysql "github.com/go-sql-driver/mysql"
 
-	"github.com/bytebase/omni/internal/sharedserver"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // The OceanBase oracle for this package. The TestOracle_* family answers for the
 // behavior this engine inherits from MySQL, against live 8.0 and 5.7; this file is
 // the one that answers for OceanBase itself.
 // oceanBaseOracle opens this process's own OceanBase: see
-// sharedserver.PrivateOceanBase.
+// testcontainer.OceanBase.
 //
 // The version is MySQL80, which the probes below measure rather than assume. Under
 // MySQL80 every probe either canonicalizes empty or disagrees only in the ROW_FORMAT
@@ -29,11 +29,11 @@ import (
 // non-empty diff rather than as a phantom change in a user's release.
 func oceanBaseOracle(t *testing.T) *oracleConn {
 	t.Helper()
-	dsn, err := sharedserver.PrivateOceanBase.DSN(context.Background())
+	dsn, err := testcontainer.OceanBase.DSN(context.Background())
 	if err != nil {
 		t.Fatalf("OceanBase oracle: %v", err)
 	}
-	db, err := sharedserver.OpenOceanBase(dsn)
+	db, err := testcontainer.OpenOceanBase(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

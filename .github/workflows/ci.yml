@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -15,9 +13,9 @@ concurrency:
 
 jobs:
   ci:
-    # One job on the org's self-hosted runners. A PR runs the tests of the
-    # engines it touches (scripts/affected-packages.sh); a push to main runs
-    # everything. Every test runs here; nothing is skipped and nothing is nightly.
+    # One job on the org's self-hosted runners. It tests what the PR touches
+    # (scripts/affected-packages.sh); every test runs here, and nothing is
+    # skipped or nightly. Tests start the servers they need as testcontainers.
     runs-on: self-hosted
     timeout-minutes: 30
     env:
@@ -26,21 +24,9 @@ jobs:
       SPLITTEST_N: '1000000'
       S3DIFF_N: '2000'
       WALK_SWEEP_N: '500'
-      # OceanBase's sweep takes its changes one at a time on its one server, about
-      # 5 s each on a busy runner, where the other engines spread theirs over
-      # several; 500 would take 40 minutes.
+      # OceanBase's walk takes its changes one at a time, about 5 s each on a
+      # busy runner; 500 would take 40 minutes.
       WALK_SWEEP_N_OCEANBASE: '40'
-    services:
-      trino:
-        # The trino oracle tests need a live Trino; the runner waits for the
-        # image's health check. Keep the tag in sync with trinooracle.DefaultImage.
-        image: trinodb/trino:482
-        ports: ['8080']
-      spanner:
-        # The googlesql differentials record verdicts from this exact emulator
-        # build (sha256:caf1bd24…); newer builds drift, so keep it pinned.
-        image: gcr.io/cloud-spanner-emulator/emulator:1.5.54
-        ports: ['9010']
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,93 +50,36 @@ jobs:
       - name: Affected packages
         id: affected
         run: |
-          if [ "${{ github.event_name }}" = pull_request ]; then
-            pkgs=$(scripts/affected-packages.sh origin/${{ github.base_ref }})
-          else
-            pkgs=./...
-          fi
-          echo "pkgs=$pkgs" | tee -a "$GITHUB_OUTPUT"
-
-      # The packages internal/sharedserver serves share one MySQL 8.0 here, each
-      # in its own database, and the packages that talk to OceanBase share one
-      # OceanBase, one package at a time: the review walk drops every user
-      # database between cases. A PR that touches none of them boots nothing; a
-      # service would start on every run, whatever the PR touched. SLIM boots
-      # OceanBase from the image's prebuilt store in about 30 s and stays near
-      # 3.5 GiB.
-      #
-      # cmd/hold keeps both in the background for the rest of the job. They
-      # belong to its testcontainers reaper, so they go away when it does, even
-      # when the job dies with its runner and no later step runs
-      # (sharedserver.Hold says why that matters).
-      - name: Shared MySQL 8.0 and OceanBase
-        if: steps.affected.outputs.pkgs != ''
-        run: |
-          pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
-          servers=()
-          grep -qE '/(mysql/parser|oceanbase/parser|tidb/parser|internal/sharedserver)$' <<< "$pkgs" && servers+=(mysql80)
-          grep -qE '/(oceanbase/parser|oceanbase/catalog|oceanbase/review|internal/sharedserver)$' <<< "$pkgs" && servers+=(oceanbase)
-          [ ${#servers[@]} -gt 0 ] || exit 0
-          go build -o "$RUNNER_TEMP/hold" ./internal/sharedserver/cmd/hold
-          "$RUNNER_TEMP/hold" -env "$RUNNER_TEMP/shared.env" "${servers[@]}" > "$RUNNER_TEMP/hold.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/hold.pid"
-          until [ -f "$RUNNER_TEMP/shared.env" ]; do
-            if ! kill -0 "$(cat "$RUNNER_TEMP/hold.pid")" 2>/dev/null; then
-              cat "$RUNNER_TEMP/hold.log"
-              exit 1
-            fi
-            sleep 1
-          done
-          cat "$RUNNER_TEMP/hold.log"
-          cat "$RUNNER_TEMP/shared.env" >> "$GITHUB_ENV"
+          targets=$(scripts/affected-packages.sh origin/${{ github.base_ref }})
+          echo "$targets"
+          echo "pkgs=$(tr ' ' '\n' <<< "$targets" | grep '^\./' | xargs)" >> "$GITHUB_OUTPUT"
+          echo "modules=$(tr ' ' '\n' <<< "$targets" | grep '^harness/' | xargs)" >> "$GITHUB_OUTPUT"
 
       - name: Test
         if: steps.affected.outputs.pkgs != ''
-        env:
-          TRINO_ORACLE_URL: http://localhost:${{ job.services.trino.ports['8080'] }}
-          SPANNER_EMULATOR_HOST: localhost:${{ job.services.spanner.ports['9010'] }}
-        # The trino packages share the one Trino service and run stateful DDL
-        # against the same names, so they run one at a time, after the rest.
-        # go test's default 10m per package is too tight: since its WALK_THROUGH
-        # sweep, oracle/review takes 7 min, and over 10 on a busy runner. 20m leaves
-        # room and still lets a hung package print its goroutine dump before
-        # the job's 30-minute cap. The OceanBase packages share their one server
-        # beside the rest rather than after them: the ones that keep to databases
-        # of their own run together, then oceanbase/review alone, since its walk
-        # drops every user database between cases.
+        # Each package starts its own servers, and Trino (a JVM sized to the
+        # host) and OceanBase (3.5 GiB) are the heavy ones, so their packages run
+        # one at a time, each engine beside the rest. go test's default 10m per
+        # package is too tight: oracle/review takes 7 min, and over 10 on a busy
+        # runner. 20m leaves room and still lets a hung package print its
+        # goroutine dump before the job's 30-minute cap.
         run: |
           pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
-          ob='/(oceanbase/parser|oceanbase/catalog|oceanbase/review|internal/sharedserver)$'
-          walk='/oceanbase/review$'
-          (
-            s=0
-            { grep -E "$ob" <<< "$pkgs" | grep -vE "$walk" || true; } | xargs -r go test -p=4 -count=1 -timeout=20m || s=1
-            { grep -E "$walk" <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m || s=1
-            exit "$s"
-          ) &
-          oceanbase=$!
+          heavy='/(trino|oceanbase)/'
+          lane() { { grep -E "$1" <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m; }
+          lane /trino/ & trino=$!
+          lane /oceanbase/ & oceanbase=$!
           status=0
-          { grep -v /trino/ <<< "$pkgs" | grep -vE "$ob" || true; } | xargs -r go test -p=8 -count=1 -timeout=20m || status=1
-          { grep /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1 -timeout=20m || status=1
+          { grep -vE "$heavy" <<< "$pkgs" || true; } | xargs -r go test -p=8 -count=1 -timeout=20m || status=1
+          wait "$trino" || status=1
           wait "$oceanbase" || status=1
           exit "$status"
 
-      # SIGTERM has hold remove its servers and exit; the wait frees their memory
-      # before the job ends.
-      - name: Stop the shared MySQL 8.0 and OceanBase
-        if: always()
-        run: |
-          [ -f "$RUNNER_TEMP/hold.pid" ] || exit 0
-          pid=$(cat "$RUNNER_TEMP/hold.pid")
-          kill "$pid" 2>/dev/null || exit 0
-          for _ in $(seq 60); do
-            kill -0 "$pid" 2>/dev/null || break
-            sleep 1
-          done
-
       - name: Nested modules (own go.mod, not reached by ./...)
-        env:
-          SPANNER_EMULATOR_HOST: localhost:${{ job.services.spanner.ports['9010'] }}
+        if: steps.affected.outputs.modules != ''
         run: |
-          (cd harness/conformance && go test -count=1 ./...)
-          (cd harness/googlesql-spanner && go test -count=1 ./...)
+          status=0
+          for m in ${{ steps.affected.outputs.modules }}; do
+            (cd "$m" && go test -count=1 ./...) || status=1
+          done
+          exit "$status"
