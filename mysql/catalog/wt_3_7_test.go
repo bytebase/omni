@@ -170,7 +170,7 @@ func TestWalkThrough_3_7_DropTrigger(t *testing.T) {
 	wtExec(t, c, `DELIMITER ;;
 CREATE TRIGGER trg1 AFTER DELETE ON t1 FOR EACH ROW
 BEGIN
-  SELECT 1;
+  SET @a = 1;
 END;;
 DELIMITER ;`)
 

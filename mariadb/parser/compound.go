@@ -17,6 +17,8 @@ import (
 //
 // The label, if any, must already be consumed by the caller and passed as labelName.
 func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.BeginEndBlock, error) {
+	p.routineDepth++
+	defer func() { p.routineDepth-- }()
 	start := labelStart
 	if labelName == "" {
 		start = p.pos()
@@ -241,6 +243,10 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 
 	// RETURN
 	if p.cur.Type == kwRETURN {
+		// Only a function returns: a procedure, a trigger and an event answer 1313 while parsing.
+		if !p.routine.function {
+			return nil, &ParseError{Message: "RETURN is only allowed in a FUNCTION", Position: p.cur.Loc}
+		}
 		return p.parseReturnStmt()
 	}
 
@@ -260,7 +266,15 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 	}
 
 	// Regular statement
-	return p.parseStmt()
+	start := p.pos()
+	stmt, err := p.parseStmt()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.refuseResultSet(stmt, start); err != nil {
+		return nil, err
+	}
+	return stmt, nil
 }
 
 // parseDeclareStmt parses DECLARE statements inside compound blocks.

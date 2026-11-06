@@ -2,6 +2,7 @@ package parser
 
 import (
 	nodes "github.com/bytebase/omni/mariadb/ast"
+	"strings"
 )
 
 // parseCreateDatabaseStmt parses a CREATE DATABASE/SCHEMA statement.
@@ -50,6 +51,9 @@ func (p *Parser) parseCreateDatabaseStmt(start int, orReplace bool) (*nodes.Crea
 		}
 		stmt.Options = append(stmt.Options, opt)
 	}
+	if err := refuseDatabaseCharsetConflict(stmt.Options); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -92,6 +96,9 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, er
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
+	}
+	if err := refuseDatabaseCharsetConflict(stmt.Options); err != nil {
+		return nil, err
 	}
 	// alter_option is a one-or-more list, so an ALTER DATABASE that names no
 	// option is a 1064 -- `ALTER DATABASE`, `ALTER DATABASE d` and
@@ -177,7 +184,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 		p.advance()
 		if _, ok := p.match(kwSET); ok {
 			p.matchEqual() // optional =
-			val, err := p.parseCharsetName()
+			val, err := p.parseCharsetNameOrDefault()
 			if err != nil {
 				return nil, false, err
 			}
@@ -194,7 +201,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	case p.cur.Type == kwCHARSET:
 		p.advance()
 		p.matchEqual() // optional =
-		val, err := p.parseCharsetName()
+		val, err := p.parseCharsetNameOrDefault()
 		if err != nil {
 			return nil, false, err
 		}
@@ -206,7 +213,7 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	case p.cur.Type == kwCOLLATE:
 		p.advance()
 		p.matchEqual() // optional =
-		val, err := p.parseCollationName()
+		val, err := p.parseCharsetNameOrDefault()
 		if err != nil {
 			return nil, false, err
 		}
@@ -248,4 +255,125 @@ func (p *Parser) parseCharsetName() (string, error) {
 // 11.8.8.
 func (p *Parser) parseCollationName() (string, error) {
 	return p.parseCharsetName()
+}
+
+// parseCharsetNameOrDefault is parseCharsetName where the DEFAULT keyword names the server's
+// own: a database or table option takes it, and a column does not.
+//
+// Ref: charset_name_or_default and collation_name_or_default in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseCharsetNameOrDefault() (string, error) {
+	if tok, ok := p.match(kwDEFAULT); ok {
+		return tok.Str, nil
+	}
+	return p.parseCharsetName()
+}
+
+// knownCharsets holds the character sets of MariaDB 11.8, read from
+// information_schema.CHARACTER_SETS, with utf8 as the alias of utf8mb3 it is.
+var knownCharsets = map[string]bool{
+	"armscii8": true, "ascii": true, "big5": true, "binary": true, "cp1250": true, "cp1251": true,
+	"cp1256": true, "cp1257": true, "cp850": true, "cp852": true, "cp866": true, "cp932": true,
+	"dec8": true, "eucjpms": true, "euckr": true, "gb2312": true, "gbk": true, "geostd8": true,
+	"greek": true, "hebrew": true, "hp8": true, "keybcs2": true, "koi8r": true, "koi8u": true,
+	"latin1": true, "latin2": true, "latin5": true, "latin7": true, "macce": true, "macroman": true,
+	"sjis": true, "swe7": true, "tis620": true, "ucs2": true, "ujis": true, "utf16": true,
+	"utf16le": true, "utf32": true, "utf8mb3": true, "utf8mb4": true,
+}
+
+func canonicalCharset(name string) string {
+	name = strings.ToLower(name)
+	if name == "utf8" {
+		return "utf8mb3"
+	}
+	return name
+}
+
+// collationCharset names the character set a collation belongs to, which is what comes
+// before its first underscore, and "" for a name no character set starts.
+func collationCharset(name string) string {
+	charset, _, _ := strings.Cut(name, "_")
+	charset = canonicalCharset(charset)
+	if !knownCharsets[charset] {
+		return ""
+	}
+	return charset
+}
+
+// charsetOption is one CHARACTER SET or COLLATE among a database's or table's options.
+type charsetOption struct {
+	collate bool
+	value   string
+	pos     int
+}
+
+// refuseCharsetConflict is the action of these options, which merges each with what the
+// options before it settled and answers 1302, ER_CONFLICTING_DECLARATIONS: two character
+// sets that differ, or two collations, on one character set or not. DEFAULT clashes with no
+// character set, and with a collation it does. Anything the server has to look up answers
+// first with its own code (1115, 1253, 1273), and those stay reading: no name is checked past
+// the first one that would. A collation whose name starts with a known character set is taken
+// at its word.
+//
+// Ref: table_option and merge_charset_and_collation in MariaDB 11.8 sql/sql_yacc.yy and
+// sql/lex_charset.cc.
+func refuseCharsetConflict(opts []charsetOption) error {
+	charset, collation := "", ""
+	for _, opt := range opts {
+		isDefault := strings.EqualFold(opt.value, "DEFAULT")
+		if opt.collate {
+			if !isDefault && collationCharset(opt.value) == "" {
+				return nil
+			}
+			name := strings.ToLower(opt.value)
+			if collation != "" && collation != name {
+				return &ParseError{
+					Message:  "Conflicting declarations: 'COLLATE " + collation + "' and 'COLLATE " + name + "'",
+					Position: opt.pos,
+				}
+			}
+			collation = name
+			continue
+		}
+		if isDefault {
+			continue
+		}
+		name := canonicalCharset(opt.value)
+		if !knownCharsets[name] {
+			return nil
+		}
+		if charset != "" && charset != name {
+			return &ParseError{
+				Message:  "Conflicting declarations: 'CHARACTER SET " + charset + "' and 'CHARACTER SET " + name + "'",
+				Position: opt.pos,
+			}
+		}
+		charset = name
+	}
+	return nil
+}
+
+func refuseDatabaseCharsetConflict(opts []*nodes.DatabaseOption) error {
+	var list []charsetOption
+	for _, opt := range opts {
+		switch opt.Name {
+		case "CHARACTER SET":
+			list = append(list, charsetOption{value: opt.Value, pos: opt.Loc.Start})
+		case "COLLATE":
+			list = append(list, charsetOption{collate: true, value: opt.Value, pos: opt.Loc.Start})
+		}
+	}
+	return refuseCharsetConflict(list)
+}
+
+func refuseTableCharsetConflict(opts []*nodes.TableOption) error {
+	var list []charsetOption
+	for _, opt := range opts {
+		switch opt.Name {
+		case "CHARACTER SET", "CHARSET":
+			list = append(list, charsetOption{value: opt.Value, pos: opt.Loc.Start})
+		case "COLLATE":
+			list = append(list, charsetOption{collate: true, value: opt.Value, pos: opt.Loc.Start})
+		}
+	}
+	return refuseCharsetConflict(list)
 }

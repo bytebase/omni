@@ -101,8 +101,8 @@ var indexClauseCases = []indexClauseCase{
 	{"CREATE INDEX i ON t (a) ALGORITHM = INPLACE", true},
 	{"CREATE INDEX i ON t (a) LOCK = NONE", true},
 	{"CREATE INDEX i ON t (a) LOCK = EXCLUSIVE", true},
-	{"CREATE INDEX i ON t (a) ALGORITHM = ident", true},
-	{"CREATE INDEX i ON t (a) ALGORITHM = `default`", true},
+	{"CREATE INDEX i ON t (a) ALGORITHM = ident", false},
+	{"CREATE INDEX i ON t (a) ALGORITHM = `default`", false},
 	{"CREATE INDEX i ON t (a) ALGORITHM = DEFAULT LOCK = DEFAULT", true},
 	{"CREATE INDEX i ON t (a) LOCK = DEFAULT ALGORITHM = DEFAULT", true},
 	// Neither value is optional, neither is a number or a string, no reserved

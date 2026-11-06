@@ -81,7 +81,7 @@ CREATE TRIGGER trg_audit BEFORE INSERT ON employees FOR EACH ROW SET NEW.created
 -- @name: create trigger after update
 -- @valid: true
 -- @source: MySQL 8.0 Reference Manual
-CREATE TRIGGER trg_update AFTER UPDATE ON employees FOR EACH ROW SET NEW.updated_at = NOW()
+CREATE TRIGGER trg_update BEFORE UPDATE ON employees FOR EACH ROW SET NEW.updated_at = NOW()
 
 -- @name: drop trigger
 -- @valid: true

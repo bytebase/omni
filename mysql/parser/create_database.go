@@ -2,6 +2,7 @@ package parser
 
 import (
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"strings"
 )
 
 // parseCreateDatabaseStmt parses a CREATE DATABASE/SCHEMA statement.
@@ -57,6 +58,9 @@ func (p *Parser) parseCreateDatabaseStmt(start int) (*nodes.CreateDatabaseStmt, 
 		}
 		stmt.Options = append(stmt.Options, opt)
 	}
+	if err := refuseCharsetConflict(stmt.Options); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -100,6 +104,9 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, er
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
+	}
+	if err := refuseCharsetConflict(stmt.Options); err != nil {
+		return nil, err
 	}
 	// alter_option is a one-or-more list, so an ALTER DATABASE that names no
 	// option is a 1064 -- `ALTER DATABASE`, `ALTER DATABASE d` and
@@ -263,6 +270,10 @@ func (p *Parser) parseDatabaseOption(alter bool) (*nodes.DatabaseOption, bool, e
 			return nil, false, p.syntaxErrorAtCur()
 		}
 		val := p.cur.Str
+		// The action holds the string to Y or N with 1525, ER_WRONG_VALUE.
+		if !strings.EqualFold(val, "Y") && !strings.EqualFold(val, "N") {
+			return nil, false, &ParseError{Message: "Incorrect argument (should be Y or N) value: '" + val + "'", Position: p.cur.Loc}
+		}
 		p.advance()
 		return &nodes.DatabaseOption{
 			Loc:   nodes.Loc{Start: start, End: p.prev.End},
@@ -300,4 +311,73 @@ func (p *Parser) parseCharsetName() (string, error) {
 // Ref: collation_name in MySQL 8.0.46 sql/sql_yacc.yy.
 func (p *Parser) parseCollationName() (string, error) {
 	return p.parseCharsetName()
+}
+
+// knownCharsets holds the character sets of MySQL 8.0, read from
+// information_schema.CHARACTER_SETS, with utf8 as the alias of utf8mb3 it is.
+var knownCharsets = map[string]bool{
+	"armscii8": true, "ascii": true, "big5": true, "binary": true, "cp1250": true, "cp1251": true,
+	"cp1256": true, "cp1257": true, "cp850": true, "cp852": true, "cp866": true, "cp932": true,
+	"dec8": true, "eucjpms": true, "euckr": true, "gb18030": true, "gb2312": true, "gbk": true,
+	"geostd8": true, "greek": true, "hebrew": true, "hp8": true, "keybcs2": true, "koi8r": true,
+	"koi8u": true, "latin1": true, "latin2": true, "latin5": true, "latin7": true, "macce": true,
+	"macroman": true, "sjis": true, "swe7": true, "tis620": true, "ucs2": true, "ujis": true,
+	"utf16": true, "utf16le": true, "utf32": true, "utf8mb3": true, "utf8mb4": true,
+}
+
+func canonicalCharset(name string) string {
+	name = strings.ToLower(name)
+	if name == "utf8" {
+		return "utf8mb3"
+	}
+	return name
+}
+
+// collationCharset names the character set a collation belongs to, which is what comes
+// before its first underscore, and "" for a name no character set starts.
+func collationCharset(name string) string {
+	charset, _, _ := strings.Cut(name, "_")
+	charset = canonicalCharset(charset)
+	if !knownCharsets[charset] {
+		return ""
+	}
+	return charset
+}
+
+// refuseCharsetConflict is the action of a database's CHARACTER SET, which merges it with
+// the character set the options before it settled and answers 1302,
+// ER_CONFLICTING_DECLARATIONS, when they differ: `CHARACTER SET a CHARACTER SET b` and
+// `COLLATE a_bin CHARACTER SET b`, where `CHARACTER SET a COLLATE b_bin` is 1253 and looks
+// the collation up later. Anything the server only knows by looking it up answers first
+// with its own code (1115, 1253, 1273), and those stay reading: a name is not checked past
+// the first one that would. A collation whose name starts with a known character set is
+// taken at its word, so `COLLATE utf8mb4_nosuch CHARACTER SET latin1` is refused here where
+// the server's 1273 says the same later.
+//
+// Ref: create_database_option and merge_charset_and_collation in MySQL 8.0 sql/sql_yacc.yy.
+func refuseCharsetConflict(opts []*nodes.DatabaseOption) error {
+	settled := ""
+	for _, opt := range opts {
+		switch opt.Name {
+		case "CHARACTER SET":
+			charset := canonicalCharset(opt.Value)
+			if !knownCharsets[charset] {
+				return nil
+			}
+			if settled != "" && settled != charset {
+				return &ParseError{
+					Message:  "Conflicting declarations: 'CHARACTER SET " + settled + "' and 'CHARACTER SET " + charset + "'",
+					Position: opt.Loc.Start,
+				}
+			}
+			settled = charset
+		case "COLLATE":
+			charset := collationCharset(opt.Value)
+			if charset == "" || (settled != "" && settled != charset) {
+				return nil
+			}
+			settled = charset
+		}
+	}
+	return nil
 }

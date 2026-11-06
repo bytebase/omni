@@ -50,6 +50,9 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := refuseFromDuplicates(tables); err != nil {
+		return nil, err
+	}
 	stmt.Tables = tables
 
 	// FOR PORTION OF <period> FROM x TO y (application-time). Valid only on a
@@ -338,6 +341,13 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		stmt.Using = using
 	}
 
+	if err := refuseFromDuplicates(stmt.Using); err != nil {
+		return nil, err
+	}
+	if err := refuseDeleteTargets(stmt.Tables, stmt.Using); err != nil {
+		return nil, err
+	}
+
 	// FOR PORTION OF <period> FROM x TO y (application-time, single-table only).
 	if len(stmt.Tables) == 1 && len(stmt.Using) == 0 && p.cur.Type == kwFOR {
 		fp, err := p.parseForPortionOf()
@@ -545,6 +555,18 @@ func (p *Parser) parseDeleteTableList() ([]nodes.TableExpr, error) {
 // parseDeleteTableName parses a single table name for DELETE,
 // handling the optional .* suffix and schema.table.* form.
 func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
+	start := p.pos()
+	dotted := p.peekNext().Type == '.'
+	ref, err := p.parseUncheckedDeleteTableName()
+	if err != nil {
+		return nil, err
+	}
+	// name.* names no database, where `name`.t does, and an empty one is no Schema.
+	qualified := ref.Schema != "" || (dotted && !strings.HasSuffix(p.inputText(start, p.prev.End), ".*"))
+	return ref, refuseTableRefName(ref, qualified, start)
+}
+
+func (p *Parser) parseUncheckedDeleteTableName() (*nodes.TableRef, error) {
 	start := p.pos()
 	name, _, err := p.parseIdent()
 	if err != nil {

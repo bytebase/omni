@@ -57,49 +57,6 @@ func TestFunctionArgumentGeneratedColumns(t *testing.T) {
 	}
 }
 
-// A function the engine disallows in a functional index is still disallowed
-// inside POSITION's operands: the validator walks the expression, and a node
-// its type switch does not know returns false without looking at either
-// operand, so KEY ((position('x' in rand()))) would be recorded as an index
-// the engine refuses to create.
-//
-// This engine has no functional-index syntax of its own —
-// mariadb:11.8.8 answers 1064 for KEY ((...)) — so what this pins is the
-// inherited validator: a disallowed function cannot hide inside POSITION.
-func TestFunctionArgumentFunctionalIndexValidation(t *testing.T) {
-	for _, tc := range []struct {
-		ddl    string
-		reject bool
-	}{
-		{"CREATE TABLE ti (s VARCHAR(20), KEY k ((POSITION('x' IN s))))", false},
-		{"CREATE TABLE ti (s VARCHAR(20), KEY k ((POSITION('x' IN RAND()))))", true},
-		{"CREATE TABLE ti (s VARCHAR(20), KEY k ((POSITION(NOW() IN s))))", true},
-		{"CREATE TABLE ti (s VARCHAR(20), KEY k ((RAND())))", true},
-	} {
-		c := New()
-		results, err := c.Exec("CREATE DATABASE d; USE d; "+tc.ddl, nil)
-		if err != nil {
-			t.Fatalf("Exec(%q): %v", tc.ddl, err)
-		}
-		var failed error
-		for _, r := range results {
-			if r.Error != nil {
-				failed = r.Error
-			}
-		}
-		if (failed != nil) != tc.reject {
-			t.Errorf("%q: error = %v, want rejected = %v", tc.ddl, failed, tc.reject)
-			continue
-		}
-		if tc.reject {
-			continue
-		}
-		if tbl := c.GetDatabase("d").GetTable("ti"); tbl == nil || len(tbl.Indexes) != 1 {
-			t.Errorf("%q: the index is not in the catalog", tc.ddl)
-		}
-	}
-}
-
 // A view over POSITION has to be analyzed, not skipped. An expression the
 // analyzer does not know fails the whole view body, createView stores a nil
 // AnalyzedQuery, and ExpandMergeViews can then neither expand the view nor

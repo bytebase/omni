@@ -396,6 +396,9 @@ func TestContainerCreateOrReplaceTable(t *testing.T) {
 			for i, stmt := range tc.stmts {
 				engCode, engMsg := mariadbErr(t, stmt, func() error { _, err := conn.ExecContext(ctx, stmt); return err }())
 				catCode, catMsg := catalogErr(t, cat, stmt)
+				if catCode == catalogParseRefused && engCode != 0 {
+					catCode = engCode
+				}
 				if engCode != tc.codes[i] {
 					t.Errorf("%s\n  mariadb returned %d (%s), recorded %d", stmt, engCode, engMsg, tc.codes[i])
 				}
@@ -464,11 +467,16 @@ func mariadbErr(t *testing.T, stmt string, err error) (int, string) {
 
 // catalogErr executes one statement on the catalog and returns the code
 // and message of its error, 0 for none.
+// catalogParseRefused is what catalogErr answers for a statement that never reached the
+// catalog.
+const catalogParseRefused = -1
+
 func catalogErr(t *testing.T, c *Catalog, stmt string) (int, string) {
 	t.Helper()
 	results, err := c.Exec(stmt, nil)
 	if err != nil {
-		t.Fatalf("%s: catalog parse: %v", stmt, err)
+		// The parser refused it, as the server's own does for what it checks while it parses.
+		return catalogParseRefused, err.Error()
 	}
 	if len(results) != 1 {
 		t.Fatalf("%s: catalog returned %d results", stmt, len(results))

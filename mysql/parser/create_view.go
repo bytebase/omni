@@ -73,7 +73,7 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 	}
 
 	// View name
-	ref, err := p.parseTableRef()
+	ref, err := p.parseNamedTableRef()
 	if err != nil {
 		return nil, err
 	}

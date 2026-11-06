@@ -661,7 +661,10 @@ func execErr(t *testing.T, ddl string) error {
 	c := New()
 	c.Exec("CREATE DATABASE test", nil)
 	c.SetCurrentDatabase("test")
-	results, _ := c.Exec(ddl, &ExecOptions{ContinueOnError: true})
+	results, err := c.Exec(ddl, &ExecOptions{ContinueOnError: true})
+	if err != nil {
+		return err
+	}
 	return results[0].Error
 }
 

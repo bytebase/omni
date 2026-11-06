@@ -1,12 +1,9 @@
 package parser
 
 import (
-	"errors"
 	"regexp"
 	"strings"
 	"testing"
-
-	gomysql "github.com/go-sql-driver/mysql"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
@@ -54,11 +51,11 @@ var explainFormCases = []explainFormCase{
 	{`EXPLAIN FORMAT = "traditional" SELECT 1`, true},
 	{"EXPLAIN FORMAT = `traditional` SELECT 1", true},
 	{"EXPLAIN FORMAT = 'json' SELECT 1", true},
-	{"EXPLAIN FORMAT = 'row' SELECT 1", true},
-	{"EXPLAIN FORMAT = 'nosuchformat' SELECT 1", true},
-	{"EXPLAIN FORMAT = nosuchformat SELECT 1", true},
-	{"EXPLAIN FORMAT = `row` SELECT 1", true},
-	{"EXPLAIN FORMAT = '' SELECT 1", true},
+	{"EXPLAIN FORMAT = 'row' SELECT 1", false},
+	{"EXPLAIN FORMAT = 'nosuchformat' SELECT 1", false},
+	{"EXPLAIN FORMAT = nosuchformat SELECT 1", false},
+	{"EXPLAIN FORMAT = `row` SELECT 1", false},
+	{"EXPLAIN FORMAT = '' SELECT 1", false},
 	{"EXPLAIN ANALYZE FORMAT = TREE SELECT 1", true},
 	{"EXPLAIN ANALYZE FORMAT = 'tree' SELECT 1", true},
 	{"EXPLAIN ANALYZE FORMAT = 'traditional' SELECT 1", true},
@@ -279,7 +276,6 @@ func TestExplainFormsAST(t *testing.T) {
 			{"EXPLAIN FORMAT = TREE SELECT 1", "TREE"},
 			{`EXPLAIN FORMAT = "tree" SELECT 1`, "tree"},
 			{"EXPLAIN FORMAT = `tree` SELECT 1", "tree"},
-			{"EXPLAIN FORMAT = '' SELECT 1", ""},
 		} {
 			stmt := parseOneExplain(t, tc.sql)
 			if stmt.Format != tc.want {
@@ -419,25 +415,13 @@ func innerStart(n nodes.StmtNode) int {
 	return start
 }
 
-// TestExplainFormsMatchMySQL holds the table above to the engine itself
-// (container test). MySQL's verdict comes from PREPARE, which parses the
-// statement without running it: 1064 is the parser's rejection, and any other
-// server error means the text parsed and failed later.
+// TestExplainFormsMatchMySQL holds the table above to the engine itself (container test).
 func TestExplainFormsMatchMySQL(t *testing.T) {
 	o := startParserOracle(t)
 	for _, c := range explainFormCases {
 		t.Run(c.sql, func(t *testing.T) {
-			var code uint16
-			_, err := o.db.ExecContext(o.ctx, "PREPARE parse_probe FROM '"+strings.ReplaceAll(c.sql, "'", "''")+"'")
-			if err != nil {
-				var myErr *gomysql.MySQLError
-				if !errors.As(err, &myErr) {
-					t.Fatalf("PREPARE %q: the oracle gave no verdict: %v", c.sql, err)
-				}
-				code = myErr.Number
-			}
-			if accepts := code != 1064; accepts != c.accept {
-				t.Errorf("MySQL code %d for %q, this file records accept=%v", code, c.sql, c.accept)
+			if got := o.prepareParses(t, c.sql); got != c.accept {
+				t.Errorf("MySQL parses %q: %v, this file records accept=%v", c.sql, got, c.accept)
 			}
 		})
 	}

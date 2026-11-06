@@ -4648,6 +4648,9 @@ func writeAlterEventStmt(sb *strings.Builder, n *AlterEventStmt) {
 	if n.RenameTo != "" {
 		fmt.Fprintf(sb, " :rename_to %s", n.RenameTo)
 	}
+	if n.RenameSchema != "" {
+		fmt.Fprintf(sb, " :rename_schema %s", n.RenameSchema)
+	}
 	if n.Enable != "" {
 		fmt.Fprintf(sb, " :enable %s", n.Enable)
 	}

@@ -8300,8 +8300,10 @@ func TestParseLateralDerivedTable(t *testing.T) {
 	// LATERAL with implicit alias
 	ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT * FROM t2) lat")
 
-	// LATERAL without alias
-	ParseAndCheck(t, "SELECT * FROM t1, LATERAL (SELECT 1)")
+	// LATERAL without an alias is 1248 from the action, like any derived table.
+	if _, err := Parse("SELECT * FROM t1, LATERAL (SELECT 1)"); err == nil {
+		t.Error("LATERAL with no alias parsed")
+	}
 
 	// LATERAL in JOIN
 	ParseAndCheck(t, "SELECT * FROM t1 JOIN LATERAL (SELECT * FROM t2 WHERE t2.a = t1.a) AS sub ON 1=1")

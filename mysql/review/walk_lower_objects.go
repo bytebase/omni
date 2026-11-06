@@ -131,8 +131,18 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 // createTrigger follows CREATE TRIGGER [IF NOT EXISTS]. Trigger names are
 // unique in the database and compare without case on 8.0 but with case on
 // 5.7, so the name is claimed taken only by the spelling the walk has.
+// createTrigger follows CREATE TRIGGER. A trigger lives with its table: its database is the one
+// its name is qualified with, or the current one, and an unqualified table is looked up there, so
+// with shop current CREATE TRIGGER q.tr ... ON t reads q.t. A table in another database answers
+// 1435 and the statement changes nothing (mysql:8.0.46, mariadb:11.8.8).
 func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
-	r, ok, lowered := b.tableOf(v.Table)
+	table := v.Table
+	if v.Schema != "" && table != nil && table.Schema == "" {
+		qualified := *table
+		qualified.Schema = v.Schema
+		table = &qualified
+	}
+	r, ok, lowered := b.tableOf(table)
 	if !ok {
 		return lowered
 	}
@@ -140,9 +150,12 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	if b.tooLong(v.Name, rng) {
 		return true
 	}
-	k, ok := b.key(spaceTrigger, v.Name)
-	if !ok {
-		return false
+	k, triggerDB, st := b.dbObject(spaceTrigger, &ast.TableRef{Schema: v.Schema, Name: v.Name})
+	if st != refOK {
+		return st == refFailed
+	}
+	if triggerDB != r.db {
+		return true
 	}
 	tk := objKey(spaceTrigger, r.db, k)
 	f, spelling := b.l.Lookup(tk)
@@ -295,16 +308,16 @@ func (b *builder) dropRoutine(v *ast.DropRoutineStmt) bool {
 	return true
 }
 
-// event resolves an event name. The parser takes no qualified one, so
-// the name is one identifier, a period and all: `shop.e` is an event of
-// the current database (verified).
-func (b *builder) event(name string) (walk.Key, refState) {
-	k, db, st := b.dbObject(spaceEvent, &ast.TableRef{Name: name})
+// event resolves an event name, with the database it was qualified with or the current one: with
+// shop current, DROP EVENT q.e drops q's, and ALTER EVENT q.e RENAME TO f makes shop.f
+// (mysql:8.0.46, mariadb:11.8.8).
+func (b *builder) event(schema, name string) (walk.Key, refState) {
+	k, db, st := b.dbObject(spaceEvent, &ast.TableRef{Schema: schema, Name: name})
 	return objKey(spaceEvent, db, k), st
 }
 
 func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
-	ek, st := b.event(v.Name)
+	ek, st := b.event(v.Schema, v.Name)
 	if st != refOK {
 		return st == refFailed
 	}
@@ -316,13 +329,13 @@ func (b *builder) createEvent(v *ast.CreateEventStmt) bool {
 }
 
 func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
-	ek, st := b.event(v.Name)
+	ek, st := b.event(v.Schema, v.Name)
 	if st != refOK {
 		return st == refFailed
 	}
 	b.need(ek, walk.Present, nil, b.anchor(), notFound("event", ident(v.Name), ""), "") // 1539
 	if v.RenameTo != "" {
-		nk, st := b.event(v.RenameTo)
+		nk, st := b.event(v.RenameSchema, v.RenameTo)
 		if st != refOK {
 			return st == refFailed
 		}
@@ -336,7 +349,7 @@ func (b *builder) alterEvent(v *ast.AlterEventStmt) bool {
 }
 
 func (b *builder) dropEvent(v *ast.DropEventStmt) bool {
-	ek, st := b.event(v.Name)
+	ek, st := b.event(v.Schema, v.Name)
 	if st != refOK {
 		return st == refFailed
 	}

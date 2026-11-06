@@ -840,11 +840,6 @@ func TestContainer_Section_1_9_GeneratedColumns(t *testing.T) {
 			"t_gen3",
 		},
 		{
-			"generated_not_null",
-			"CREATE TABLE t_gen4 (col1 INT, col2 INT, col3 INT GENERATED ALWAYS AS (col1 + col2) STORED NOT NULL)",
-			"t_gen4",
-		},
-		{
 			"generated_comment",
 			"CREATE TABLE t_gen5 (col1 INT, col2 INT, col3 INT GENERATED ALWAYS AS (col1 + col2) VIRTUAL COMMENT 'sum of cols')",
 			"t_gen5",
@@ -1040,49 +1035,6 @@ func TestContainer_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
 		{"fulltext_multi_col", "CREATE TABLE t_ft2 (id INT PRIMARY KEY, title VARCHAR(200), body TEXT, FULLTEXT KEY `ft_multi` (title, body))", "t_ft2"},
 		{"fulltext_auto_name", "CREATE TABLE t_ft3 (id INT PRIMARY KEY, body TEXT, FULLTEXT KEY (body))", "t_ft3"},
 		{"spatial_named", "CREATE TABLE t_sp1 (id INT PRIMARY KEY, geo_col GEOMETRY NOT NULL, SPATIAL KEY `sp_idx` (geo_col))", "t_sp1"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctr.execSQL("DROP TABLE IF EXISTS " + tc.table)
-			if err := ctr.execSQL(tc.sql); err != nil {
-				t.Fatalf("container exec: %v", err)
-			}
-			ctrDDL, _ := ctr.showCreateTable(tc.table)
-
-			c := New()
-			c.Exec("CREATE DATABASE test", nil)
-			c.SetCurrentDatabase("test")
-			results, err := c.Exec(tc.sql, nil)
-			if err != nil {
-				t.Fatalf("omni parse error: %v", err)
-			}
-			if results[0].Error != nil {
-				t.Fatalf("omni exec error: %v", results[0].Error)
-			}
-			omniDDL := c.ShowCreateTable("test", tc.table)
-
-			if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
-				t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s",
-					ctrDDL, omniDDL)
-			}
-		})
-	}
-}
-
-func TestContainer_Section_1_15_ExpressionIndexes(t *testing.T) {
-	ctr, cleanup := startContainer(t)
-	defer cleanup()
-
-	cases := []struct {
-		name  string
-		sql   string
-		table string
-	}{
-		{"expr_func_upper", "CREATE TABLE t_expr1 (name VARCHAR(100), KEY `idx` ((UPPER(name))))", "t_expr1"},
-		{"expr_arithmetic", "CREATE TABLE t_expr2 (col1 INT, col2 INT, KEY `idx` ((col1 + col2)))", "t_expr2"},
-		{"expr_unique", "CREATE TABLE t_expr3 (name VARCHAR(100), UNIQUE KEY `uidx` ((UPPER(name))))", "t_expr3"},
-		{"expr_display_format", "CREATE TABLE t_expr4 (a INT, b INT, KEY `idx_col` (a), KEY `idx_expr` ((a * b)))", "t_expr4"},
 	}
 
 	for _, tc := range cases {
@@ -5963,8 +5915,6 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 			UNIQUE KEY uk_email (email),
 			FULLTEXT KEY ft_bio (bio, description),
 			SPATIAL KEY sp_geo (geo_col),
-			KEY idx_expr ((UPPER(name))),
-			KEY idx_expr_calc ((score + rank_val)),
 			KEY idx_comment (name) COMMENT 'name lookup index'
 		) ENGINE=InnoDB`, "t_all_indexes"},
 

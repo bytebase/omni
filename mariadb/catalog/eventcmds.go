@@ -8,7 +8,7 @@ import (
 )
 
 func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
-	db, err := c.resolveDatabase("")
+	db, err := c.resolveDatabase(stmt.Schema)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 }
 
 func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
-	db, err := c.resolveDatabase("")
+	db, err := c.resolveDatabase(stmt.Schema)
 	if err != nil {
 		return err
 	}
@@ -62,6 +62,20 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	event, exists := db.Events[key]
 	if !exists {
 		return errNoSuchEvent(db.Name, name)
+	}
+
+	// The new name is checked before anything changes, so a statement that fails leaves the
+	// event as it was.
+	var target *Database
+	if stmt.RenameTo != "" {
+		// A new name with no database goes to the current one, whichever database the event was
+		// in: with `a` current, ALTER EVENT b.e RENAME TO f makes a.f (mysql:8.0.46, mariadb:11.8.8).
+		if target, err = c.resolveDatabase(stmt.RenameSchema); err != nil {
+			return err
+		}
+		if _, taken := target.Events[toLower(stmt.RenameTo)]; taken {
+			return errDupEvent(stmt.RenameTo)
+		}
 	}
 
 	// Update definer if specified.
@@ -95,18 +109,19 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	}
 
 	// Handle RENAME TO.
-	if stmt.RenameTo != "" {
+	if target != nil {
 		newKey := toLower(stmt.RenameTo)
 		delete(db.Events, key)
 		event.Name = stmt.RenameTo
-		db.Events[newKey] = event
+		event.Database = target
+		target.Events[newKey] = event
 	}
 
 	return nil
 }
 
 func (c *Catalog) dropEvent(stmt *nodes.DropEventStmt) error {
-	db, err := c.resolveDatabase("")
+	db, err := c.resolveDatabase(stmt.Schema)
 	if err != nil {
 		if stmt.IfExists {
 			return nil

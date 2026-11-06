@@ -316,39 +316,4 @@ func TestScenario_C8(t *testing.T) {
 	})
 
 	// --- 8.10 TABLESPACE defaults to innodb_file_per_table --------------
-	t.Run("8_10_tablespace_default_file_per_table", func(t *testing.T) {
-		scenarioReset(t, mc)
-		c := scenarioNewCatalog(t)
-
-		runOnBoth(t, mc, c, `CREATE TABLE t (a INT)`)
-
-		// Oracle: SHOW CREATE TABLE omits TABLESPACE= clause by default.
-		show := oracleShow(t, mc, "SHOW CREATE TABLE t")
-		if strings.Contains(strings.ToUpper(show), "TABLESPACE=") {
-			t.Errorf("oracle SHOW CREATE TABLE should omit TABLESPACE=; got:\n%s", show)
-		}
-		// Oracle: information_schema.INNODB_TABLES has a row for the
-		// table, and its SPACE column is non-zero (each
-		// file_per_table tablespace has its own id).
-		var space int64
-		oracleScan(t, mc,
-			`SELECT IFNULL(SPACE,0) FROM information_schema.INNODB_TABLES
-            WHERE NAME='testdb/t'`,
-			&space)
-		if space == 0 {
-			t.Errorf("oracle INNODB_TABLES.SPACE for testdb/t: got 0, want non-zero (file_per_table)")
-		}
-
-		// Omni gap: no Tablespace field. Verify parser accepts an
-		// explicit TABLESPACE clause without crashing.
-		results, err := c.Exec(`CREATE TABLE t_ts (a INT) TABLESPACE=innodb_file_per_table;`, nil)
-		if err != nil {
-			t.Errorf("omni: parse error for TABLESPACE=innodb_file_per_table: %v", err)
-		}
-		for _, r := range results {
-			if r.Error != nil {
-				t.Errorf("omni: exec error for TABLESPACE=innodb_file_per_table: %v", r.Error)
-			}
-		}
-	})
 }

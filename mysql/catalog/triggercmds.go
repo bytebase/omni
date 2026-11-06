@@ -8,26 +8,36 @@ import (
 )
 
 func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
-	// Resolve database from the table reference.
-	schema := ""
-	if stmt.Table != nil {
-		schema = stmt.Table.Schema
+	// A trigger lives with its table. Its database is the one its name is qualified with, or the
+	// current one, and an unqualified table is looked up in it: with `a` current,
+	// CREATE TRIGGER b.tr ... ON t reads b.t, and both b.tr ... ON a.t and tr ... ON b.t answer 1435.
+	// The table comes first, so a missing one answers 1146 even in the wrong database, and
+	// mysql:8.0.46 answers 1049 for a database that is missing.
+	triggerSchema := stmt.Schema
+	if triggerSchema == "" {
+		current, err := c.resolveDatabase("")
+		if err != nil {
+			return err
+		}
+		triggerSchema = current.Name
 	}
-	db, err := c.resolveDatabase(schema)
-	if err != nil {
-		return err
-	}
-
-	// Verify the table exists.
-	tableName := ""
+	tableSchema, tableName := triggerSchema, ""
 	if stmt.Table != nil {
 		tableName = stmt.Table.Name
-	}
-	if tableName != "" {
-		tbl := db.GetTable(tableName)
-		if tbl == nil {
-			return errNoSuchTable(db.Name, tableName)
+		if stmt.Table.Schema != "" {
+			tableSchema = stmt.Table.Schema
 		}
+	}
+	db := c.GetDatabase(tableSchema)
+	if db == nil {
+		_, err := c.resolveDatabase(tableSchema)
+		return err
+	}
+	if tableName != "" && db.GetTable(tableName) == nil {
+		return errNoSuchTable(db.Name, tableName)
+	}
+	if toLower(tableSchema) != toLower(triggerSchema) {
+		return errTriggerInWrongSchema()
 	}
 
 	name := stmt.Name

@@ -49,8 +49,8 @@ var databaseOptionCases = []databaseOptionCase{
 	// Several options at once, with and without DEFAULT, and conflicting
 	// charsets, which the server settles after parsing rather than refusing.
 	{"ALTER DATABASE d CHARSET = 'utf8mb4' COLLATE = 'utf8_bin'", true},
-	{"ALTER DATABASE d CHARACTER SET = 'utf8' CHARACTER SET = 'utf8mb4'", true},
-	{"ALTER DATABASE d DEFAULT CHARSET = 'utf8mb4' DEFAULT COLLATE = 'utf8mb4_general_ci' CHARACTER SET = 'utf8' COLLATE = 'utf8mb4_bin'", true},
+	{"ALTER DATABASE d CHARACTER SET = 'utf8' CHARACTER SET = 'utf8mb4'", false},
+	{"ALTER DATABASE d DEFAULT CHARSET = 'utf8mb4' DEFAULT COLLATE = 'utf8mb4_general_ci' CHARACTER SET = 'utf8' COLLATE = 'utf8mb4_bin'", false},
 	// The nameless arm, which the reserved words COLLATE and DEFAULT reach.
 	{"ALTER DATABASE COLLATE = 'utf8_bin'", true},
 	{"ALTER SCHEMA COLLATE = 'utf8_bin'", true},
@@ -153,47 +153,25 @@ var databaseOptionCases = []databaseOptionCase{
 	{"ALTER DATABASE SET TIFLASH REPLICA 1", false},
 }
 
-// prepareAccepts asks the oracle whether sql parses, without running it. The
-// statement is bound to a user variable, so its own quoting stays the server's
-// business; PREPARE then parses it and either carries it, refuses to carry it
-// (1295), or rejects the syntax (1064), and only the last of those is the
-// parser's "no".
-//
-// Anything that is not a server error -- a dropped connection, a timeout -- is
-// no verdict at all and fails the test rather than counting as acceptance.
+// prepareAccepts asks the oracle whether sql parses, without running it: the name the
+// forms tables read prepareParses by.
 func (o *parserOracle) prepareAccepts(t *testing.T, sql string) bool {
 	t.Helper()
-	conn, err := o.db.Conn(o.ctx)
-	if err != nil {
-		t.Fatalf("taking a connection for %q: %v", sql, err)
-	}
-	defer conn.Close()
-	if _, err := conn.ExecContext(o.ctx, "SET @omni_db_option = ?", sql); err != nil {
-		t.Fatalf("binding %q: %v", sql, err)
-	}
-	_, err = conn.ExecContext(o.ctx, "PREPARE omni_db_option_stmt FROM @omni_db_option")
-	if err == nil {
-		_, _ = conn.ExecContext(o.ctx, "DEALLOCATE PREPARE omni_db_option_stmt")
-		return true
-	}
-	var myErr *gomysql.MySQLError
-	if !errors.As(err, &myErr) {
-		t.Fatalf("no verdict for %q: %v", sql, err)
-	}
-	return myErr.Number != 1064
+	return o.prepareParses(t, sql)
 }
 
-// prepareParses asks the oracle whether sql parses, and reads an error beyond 1064 by
-// where it was raised. MySQL refuses some text while it parses with the code of the
-// check that refused it, as in CAST(a AS JSON ARRAY)'s 1235, which prepareAccepts reads as
-// parsed.
+// prepareParses asks the oracle whether sql parses, without running it, and reads an
+// error beyond 1064 by where it was raised. The statement is bound to a user variable, so
+// its own quoting stays the server's business. MySQL refuses some text while it parses with the code of the
+// check that refused it, as in CAST(a AS JSON ARRAY)'s 1235.
 // The server reads all of the text before it looks at anything, so a statement refused
 // after parsing answers 1064 once a syntax error follows it as a second statement, and
 // a statement refused while parsing answers its own code again.
 //
 // The names it looks up while parsing count as read, as omni holds no such list: a
-// system variable (1193), a character set (1115), a collation (1273, 1253) and a plugin
-// or function (1128).
+// system variable (1193), a character set (1115), a collation (1273, 1253), a plugin or
+// function (1128) and a storage engine (1286). So does a form a build leaves out (1289,
+// SHOW PROCEDURE CODE without debugging).
 func (o *parserOracle) prepareParses(t *testing.T, sql string) bool {
 	t.Helper()
 	conn, err := o.db.Conn(o.ctx)
@@ -218,7 +196,7 @@ func (o *parserOracle) prepareParses(t *testing.T, sql string) bool {
 	}
 	code := prepare(sql)
 	switch code {
-	case 0, 1115, 1128, 1193, 1253, 1273:
+	case 0, 1115, 1128, 1193, 1253, 1273, 1286, 1289:
 		return true
 	case 1064:
 		return false

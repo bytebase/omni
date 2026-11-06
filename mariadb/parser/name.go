@@ -2,6 +2,7 @@ package parser
 
 import (
 	nodes "github.com/bytebase/omni/mariadb/ast"
+	"unicode/utf8"
 )
 
 // keywordCategory classifies MySQL 8.0 keywords into 6 categories matching
@@ -409,7 +410,6 @@ var keywordCategories = map[int]keywordCategory{
 	kwITERATE:             kwCatReserved,
 	kwJSON_TABLE:          kwCatUnambiguous,
 	kwKEYS:                kwCatReserved,
-	kwLATERAL:             kwCatUnambiguous,
 	kwLEADING:             kwCatReserved,
 	kwLEAVE:               kwCatReserved,
 	kwLINEAR:              kwCatReserved,
@@ -587,6 +587,11 @@ func isLvalueKeyword(t int) bool {
 // Ref: mysql-server sql/sql_yacc.yy — ident rule
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/identifiers.html
 func (p *Parser) parseIdent() (string, int, error) {
+	// A name that is no valid text in the connection's character set is 1300,
+	// ER_INVALID_CHARACTER_STRING, from the action that reads it.
+	if !utf8.ValidString(p.cur.Str) {
+		return "", 0, &ParseError{Message: "Invalid utf8mb4 character string", Position: p.cur.Loc}
+	}
 	if p.cur.Type == tokIDENT {
 		if p.curIsVariableOrIntroducer() {
 			return "", 0, p.syntaxErrorAtCur()
@@ -784,6 +789,9 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 
 		// Check for table.* or schema.table.*
 		if p.cur.Type == '*' {
+			if err := p.refuseTriggerRowRead(name, start); err != nil {
+				return nil, err
+			}
 			p.advance()
 			ref.Table = name
 			ref.Column = ""
@@ -821,6 +829,11 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
+		// Only a name of two parts can be NEW or OLD: in old.t.id, old is a database (mysql:8.0.46
+		// and mariadb:11.8.8 take UPDATE old.t SET old.t.id = 1 in an INSERT trigger).
+		if err := p.refuseTriggerRowRead(name, start); err != nil {
+			return nil, err
+		}
 
 		// table.col
 		ref.Table = name
@@ -839,6 +852,18 @@ func (p *Parser) parseColumnRef() (*nodes.ColumnRef, error) {
 //	    identifier
 //	    | identifier '.' identifier
 func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
+	start := p.pos()
+	qualified := p.peekNext().Type == '.'
+	ref, err := p.parseUncheckedTableRef()
+	if err != nil {
+		return nil, err
+	}
+	return ref, refuseTableRefName(ref, qualified, start)
+}
+
+// parseUncheckedTableRef is parseTableRef for a table_ident the action does not check: a
+// foreign key's parent, which the engine reads only when it runs.
+func (p *Parser) parseUncheckedTableRef() (*nodes.TableRef, error) {
 	start := p.pos()
 	name, _, err := p.parseIdent()
 	if err != nil {
@@ -914,16 +939,16 @@ func (p *Parser) parseTableRefWithAlias(allowSystemTime bool) (*nodes.TableRef, 
 		if p.cur.Type == kwWINDOW {
 			return nil, p.syntaxErrorAtCur()
 		}
-		alias, _, err := p.parseIdentOrText()
+		alias, _, err := p.parseIdent()
 		if err != nil {
 			return nil, err
 		}
 		ref.Alias = alias
 		ref.Loc.End = p.prev.End
-	} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && p.cur.Type != kwWINDOW {
+	} else if p.isIdentToken() && p.cur.Type != kwWINDOW {
 		// Alias without AS keyword — accepts non-reserved keywords and string
 		// literals, matching MySQL's opt_table_alias: [AS] ident_or_text
-		alias, _, _ := p.parseIdentOrText()
+		alias, _, _ := p.parseIdent()
 		ref.Alias = alias
 		ref.Loc.End = p.prev.End
 	}
@@ -953,6 +978,12 @@ func (p *Parser) parseTableRefWithAlias(allowSystemTime bool) (*nodes.TableRef, 
 //	    | '@@' [GLOBAL | SESSION | LOCAL] '.' identifier ['.' identifier ...]
 //	    | '@@' identifier ['.' identifier ...]
 func (p *Parser) parseVariableRef() (*nodes.VariableRef, error) {
+	if err := p.refusePartitionVariable(p.pos()); err != nil {
+		return nil, err
+	}
+	if err := p.refuseStoredExprVariable(p.pos()); err != nil {
+		return nil, err
+	}
 	// System variable: @@...
 	if p.cur.Type == tokAt2 {
 		start := p.cur.Loc

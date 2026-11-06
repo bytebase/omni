@@ -210,6 +210,9 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 			if err != nil {
 				return nil, err
 			}
+			if err := refuseLimitedSubquery(sub.Select, subStart); err != nil {
+				return nil, err
+			}
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -502,6 +505,13 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwLOCALTIME, kwLOCALTIMESTAMP,
 		kwUTC_DATE, kwUTC_TIME, kwUTC_TIMESTAMP:
+		// The refusals read the keyword before parseTemporalKeyword consumes it.
+		if err := p.refusePartitionFunction(strings.ToUpper(p.cur.Str), false, p.cur.Loc); err != nil {
+			return nil, err
+		}
+		if err := p.refuseStoredExprClock(p.cur.Loc); err != nil {
+			return nil, err
+		}
 		return p.parseTemporalKeyword()
 
 	case '*':
@@ -712,6 +722,11 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
+		// A trigger's NEW and OLD answer to its event as they are read.
+		if err := p.refuseTriggerRowRead(name, start); err != nil {
+			return nil, err
+		}
+
 		// table.col
 		return &nodes.ColumnRef{
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
@@ -750,6 +765,18 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// token, the one after the dot when the name is qualified.
 	nameQuoted := p.backtickQuotedAt(p.prev.Loc)
 	builtin := schema == "" && !nameQuoted && !p.temporalWordIsName(strings.ToUpper(name))
+	if err := p.refuseStoredExprFunction(strings.ToUpper(name), schema != "", start); err != nil {
+		return nil, err
+	}
+	// A stored function's database is held to check_db_name as its call parses.
+	if schema != "" || strings.Contains(p.inputText(start, p.prev.Loc), ".") {
+		if err := refuseDatabaseName(schema, start); err != nil {
+			return nil, err
+		}
+	}
+	if err := p.refusePartitionFunction(strings.ToUpper(name), schema != "" || nameQuotedFunction(p, schema), start); err != nil {
+		return nil, err
+	}
 	p.advance() // consume '('
 
 	fc := &nodes.FuncCallExpr{
@@ -838,6 +865,16 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	// Empty argument list
 	if p.cur.Type == ')' {
 		p.advance()
+		if schema == "" {
+			if err := refuseNativeArgCount(upperName, 0, start); err != nil {
+				return nil, err
+			}
+		}
+		if builtin {
+			if err := p.refuseSequenceCall(fc); err != nil {
+				return nil, err
+			}
+		}
 		return p.finishFuncCall(fc, builtin)
 	}
 
@@ -870,6 +907,16 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
+	}
+	if schema == "" {
+		if err := refuseNativeArgCount(upperName, len(fc.Args), start); err != nil {
+			return nil, err
+		}
+	}
+	if builtin {
+		if err := p.refuseSequenceCall(fc); err != nil {
+			return nil, err
+		}
 	}
 
 	return p.finishFuncCall(fc, builtin)
@@ -927,6 +974,11 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	}
 
 	fc.Loc.End = p.prev.End
+	if builtin {
+		if err := p.refuseStoredExprArgCount(fc, false); err != nil {
+			return nil, err
+		}
+	}
 	return fc, nil
 }
 
@@ -1682,8 +1734,12 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, start int) (nodes.ExprNode, er
 	}
 
 	if query {
+		subStart := p.pos()
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {
+			return nil, err
+		}
+		if err := refuseLimitedSubquery(sub.Select, subStart); err != nil {
 			return nil, err
 		}
 		if _, errP := p.expect(')'); errP != nil {
@@ -2462,4 +2518,10 @@ func (p *Parser) parseExprList() ([]nodes.ExprNode, error) {
 		p.advance()
 	}
 	return list, nil
+}
+
+// nameQuotedFunction reports a call whose name was backquoted, which is a stored function's
+// and no built-in's where a partition clause is concerned.
+func nameQuotedFunction(p *Parser, schema string) bool {
+	return schema == "" && p.backtickQuotedAt(p.prev.Loc)
 }

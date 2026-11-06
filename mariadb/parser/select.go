@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -256,6 +257,12 @@ func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
 		if p.cur.Type == kwLIMIT {
 			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
 		}
+	}
+	// A leaf has read its own lock already, so one here follows a parenthesized last branch
+	// of a set operation, which the action refuses with 1221, ER_WRONG_USAGE: `(SELECT 1) FOR
+	// UPDATE` and `(SELECT 1) UNION SELECT 2 FOR UPDATE` run.
+	if stmt.SetOp != nodes.SetOpNone && (p.cur.Type == kwFOR || p.cur.Type == kwLOCK) {
+		return &ParseError{Message: "Incorrect usage of lock options and SELECT in brackets", Position: p.cur.Loc}
 	}
 	if p.cur.Type == kwFOR {
 		fu, err := p.parseForUpdateClause()
@@ -537,14 +544,27 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 
 	stmt := &nodes.SelectStmt{Loc: nodes.Loc{Start: start}}
 
-	// Parse SELECT options
+	// Parse SELECT options. They come in any order and most may repeat. ALL beside DISTINCT
+	// or DISTINCTROW is 1221, ER_WRONG_USAGE, and SQL_CACHE and SQL_NO_CACHE are 1225,
+	// ER_DUP_ARGUMENT, repeated and 1221 together, all from the action.
+	//
+	// Ref: select_option and SELECT_LEX::add_select_options in MariaDB 11.8 sql/sql_yacc.yy.
+	var sawAll, sawDistinct, sawCache, sawNoCache bool
 	for {
 		switch p.cur.Type {
 		case kwALL:
+			if sawDistinct {
+				return nil, &ParseError{Message: "Incorrect usage of ALL and DISTINCT", Position: p.cur.Loc}
+			}
+			sawAll = true
 			stmt.DistinctKind = nodes.DistinctAll
 			p.advance()
 			continue
 		case kwDISTINCT, kwDISTINCTROW:
+			if sawAll {
+				return nil, &ParseError{Message: "Incorrect usage of ALL and DISTINCT", Position: p.cur.Loc}
+			}
+			sawDistinct = true
 			stmt.DistinctKind = nodes.DistinctOn
 			p.advance()
 			continue
@@ -573,7 +593,27 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			p.advance()
 			continue
 		case kwSQL_NO_CACHE:
+			if sawCache {
+				return nil, &ParseError{Message: "Incorrect usage of SQL_CACHE and SQL_NO_CACHE", Position: p.cur.Loc}
+			}
+			if sawNoCache {
+				return nil, &ParseError{Message: "Option 'SQL_NO_CACHE' used twice in statement", Position: p.cur.Loc}
+			}
+			sawNoCache = true
 			stmt.NoCache = true
+			p.advance()
+			continue
+		}
+		// SQL_CACHE is a word of its own and a name elsewhere: a column named sql_cache is
+		// one a select item reads, so it is the option only with an item to follow.
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "SQL_CACHE") && !p.backtickQuotedAt(p.cur.Loc) {
+			if sawNoCache {
+				return nil, &ParseError{Message: "Incorrect usage of SQL_CACHE and SQL_NO_CACHE", Position: p.cur.Loc}
+			}
+			if sawCache {
+				return nil, &ParseError{Message: "Option 'SQL_CACHE' used twice in statement", Position: p.cur.Loc}
+			}
+			sawCache = true
 			p.advance()
 			continue
 		}
@@ -608,11 +648,21 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 
 	// FROM clause
 	if _, ok := p.match(kwFROM); ok {
-		from, err := p.parseTableReferenceList()
-		if err != nil {
-			return nil, err
+		// FROM DUAL stands alone: `FROM t, dual`, `FROM dual JOIN t` and `FROM (dual)` are each
+		// a 1064, and so is an alias on it.
+		if p.cur.Type == kwDUAL {
+			tok := p.advance()
+			stmt.From = []nodes.TableExpr{&nodes.TableRef{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Name: "dual"}}
+		} else {
+			from, err := p.parseTableReferenceList()
+			if err != nil {
+				return nil, err
+			}
+			if err := refuseFromDuplicates(from); err != nil {
+				return nil, err
+			}
+			stmt.From = from
 		}
-		stmt.From = from
 	}
 
 	// WHERE clause — MySQL allows WHERE without FROM (e.g., SELECT 1 WHERE 1=1)
@@ -1251,69 +1301,87 @@ func (p *Parser) scanParenBlock() {
 }
 
 // parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
+// parseOutfileFields parses the one-or-more items of a FIELDS clause in SELECT ... INTO
+// OUTFILE, the same field_term list LOAD DATA reads: BY is required, the value is a string,
+// hex or bit literal, and the items come in any order and may repeat.
+//
+// Ref: field_term in MariaDB 11.8 sql/sql_yacc.yy.
+func (p *Parser) parseOutfileFields(into *nodes.IntoClause) error {
+	for n := 0; ; n++ {
+		var target *string
+		switch p.cur.Type {
+		case kwTERMINATED:
+			target = &into.FieldsTerminatedBy
+		case kwOPTIONALLY:
+			p.advance()
+			if p.cur.Type != kwENCLOSED {
+				return p.syntaxErrorAtCur()
+			}
+			into.FieldsOptionalEncl = true
+			target = &into.FieldsEnclosedBy
+		case kwENCLOSED:
+			target = &into.FieldsEnclosedBy
+		case kwESCAPED:
+			target = &into.FieldsEscapedBy
+		default:
+			if n == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
+		if err := p.parseOutfileTerminator(target); err != nil {
+			return err
+		}
+	}
+}
+
+// parseOutfileLines parses the one-or-more items of a LINES clause, line_term.
+func (p *Parser) parseOutfileLines(into *nodes.IntoClause) error {
+	for n := 0; ; n++ {
+		var target *string
+		switch p.cur.Type {
+		case kwSTARTING:
+			target = &into.LinesStartingBy
+		case kwTERMINATED:
+			target = &into.LinesTerminatedBy
+		default:
+			if n == 0 {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
+		if err := p.parseOutfileTerminator(target); err != nil {
+			return err
+		}
+	}
+}
+
+// parseOutfileTerminator reads BY and the value after the word that opens an item.
+func (p *Parser) parseOutfileTerminator(target *string) error {
+	p.advance()
+	if _, err := p.expect(kwBY); err != nil {
+		return err
+	}
+	v, err := p.parseFieldTerminator()
+	if err != nil {
+		return err
+	}
+	*target = v
+	return nil
+}
+
+// a derived table takes in the grammar: MariaDB answers 1064 for a missing one.
+//
+// Ref: derived_table_list and table_primary_derived in MariaDB 11.8 sql/sql_yacc.yy.
+func refuseDerivedTableWithoutAlias(pos int) error {
+	return &ParseError{Message: "Every derived table must have its own alias", Position: pos}
+}
+
 func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	// LATERAL (SELECT ...) — LATERAL derived table
-	if p.cur.Type == kwLATERAL && p.peekNext().Type == '(' {
-		latStart := p.pos()
-		p.advance() // consume LATERAL
-
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-
-		if p.cur.Type != kwSELECT {
-			return nil, &ParseError{
-				Message:  "expected SELECT after LATERAL (",
-				Position: p.cur.Loc,
-			}
-		}
-
-		sel, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-
-		sub := &nodes.SubqueryExpr{
-			Loc:     nodes.Loc{Start: latStart},
-			Select:  sel,
-			Lateral: true,
-		}
-
-		// Optional alias: [AS] alias
-		if _, ok := p.match(kwAS); ok {
-			alias, _, err := p.parseIdentOrText()
-			if err != nil {
-				return nil, err
-			}
-			sub.Alias = alias
-		} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
-			alias, _, err := p.parseIdentOrText()
-			if err != nil {
-				return nil, err
-			}
-			sub.Alias = alias
-		}
-
-		// Optional derived column alias list: AS t(c1, c2)
-		if sub.Alias != "" && p.cur.Type == '(' {
-			cols, err := p.parseDerivedColumnList()
-			if err != nil {
-				return nil, err
-			}
-			sub.Columns = cols
-		}
-
-		sub.Loc.End = p.prev.End
-		return sub, nil
-	}
-
 	if p.cur.Type == '(' {
 		startPos := p.pos()
 
@@ -1342,13 +1410,13 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 				if p.cur.Type == kwWINDOW {
 					return nil, p.syntaxErrorAtCur()
 				}
-				alias, _, err := p.parseIdentOrText()
+				alias, _, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
 				sub.Alias = alias
-			} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
-				alias, _, err := p.parseIdentOrText()
+			} else if p.isIdentToken() && !p.isSelectTerminator() {
+				alias, _, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
@@ -1362,6 +1430,10 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 					return nil, err
 				}
 				sub.Columns = cols
+			}
+
+			if sub.Alias == "" {
+				return nil, refuseDerivedTableWithoutAlias(startPos)
 			}
 
 			sub.Loc.End = p.prev.End
@@ -1382,17 +1454,6 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
 	if p.cur.Type == kwJSON_TABLE && p.peekNext().Type == '(' {
 		return p.parseJsonTable()
-	}
-
-	// DUAL — MySQL reserved keyword used as a dummy table in FROM clause.
-	// After registration as a reserved keyword, parseIdent rejects it,
-	// so we handle it explicitly here.
-	if p.cur.Type == kwDUAL {
-		tok := p.advance()
-		return &nodes.TableRef{
-			Loc:  nodes.Loc{Start: tok.Loc, End: p.prev.End},
-			Name: "dual",
-		}, nil
 	}
 
 	// Regular table reference with alias
@@ -1469,7 +1530,7 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 
 	// [AS] alias (required for JSON_TABLE)
 	p.match(kwAS)
-	alias, _, aErr := p.parseIdentOrText()
+	alias, _, aErr := p.parseIdent()
 	if aErr != nil {
 		return nil, aErr
 	}
@@ -1684,9 +1745,19 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 // program's local variable, and parses anywhere (ER_SP_UNDECLARED_VAR comes later).
 func (p *Parser) parseLimitValue() (nodes.ExprNode, error) {
 	if p.cur.Type == tokICONST {
+		// limit_option takes the integer tokens up to ULONGLONG_NUM. What is past 64
+		// bits lexes as DECIMAL_NUM, which it does not take.
+		if _, err := strconv.ParseUint(p.cur.Str, 10, 64); err != nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parsePrimaryExpr()
 	}
 	if p.isIdentToken() && !p.isVariableRef() {
+		// The name is a stored program's local variable, and with no program around it to
+		// declare one the action answers 1327, ER_SP_UNDECLARED_VAR, as it reads it.
+		if p.routineDepth == 0 && !p.completing {
+			return nil, &ParseError{Message: "Undeclared variable: " + p.cur.Str, Position: p.cur.Loc}
+		}
 		start := p.pos()
 		name, _, err := p.parseIdent()
 		if err != nil {
@@ -2058,39 +2129,8 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		if p.cur.Type == kwFIELDS || p.cur.Type == kwCOLUMNS {
 			p.advance()
 			into.HasFieldsClause = true
-
-			// [TERMINATED BY 'string']
-			if p.cur.Type == kwTERMINATED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsTerminatedBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [[OPTIONALLY] ENCLOSED BY 'char']
-			if p.cur.Type == kwOPTIONALLY {
-				p.advance()
-				into.FieldsOptionalEncl = true
-			}
-			if p.cur.Type == kwENCLOSED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsEnclosedBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [ESCAPED BY 'char']
-			if p.cur.Type == kwESCAPED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.FieldsEscapedBy = p.cur.Str
-					p.advance()
-				}
+			if err := p.parseOutfileFields(into); err != nil {
+				return nil, err
 			}
 		}
 
@@ -2098,25 +2138,8 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		if p.cur.Type == kwLINES {
 			p.advance()
 			into.HasLinesClause = true
-
-			// [STARTING BY 'string']
-			if p.cur.Type == kwSTARTING {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.LinesStartingBy = p.cur.Str
-					p.advance()
-				}
-			}
-
-			// [TERMINATED BY 'string']
-			if p.cur.Type == kwTERMINATED {
-				p.advance()
-				p.match(kwBY)
-				if p.cur.Type == tokSCONST {
-					into.LinesTerminatedBy = p.cur.Str
-					p.advance()
-				}
+			if err := p.parseOutfileLines(into); err != nil {
+				return nil, err
 			}
 		}
 
@@ -2475,6 +2498,9 @@ func hasInto(sel *nodes.SelectStmt) bool {
 // parenthesized query expression. The caller owns the surrounding subquery
 // parentheses used by IN/EXISTS/scalar-subquery syntax.
 func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
+	if err := p.refuseStoredExprSubquery(p.pos(), false); err != nil {
+		return nil, err
+	}
 	start := p.pos()
 	sel, err := p.parseSelectStmt()
 	if err != nil {

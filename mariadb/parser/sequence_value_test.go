@@ -8,9 +8,8 @@ import (
 
 // TestSequenceValueAccept covers NEXT/PREVIOUS VALUE FOR in every position the
 // container parse-accepts (BYT-9135). Per the position-matrix recon, MariaDB's
-// grammar admits it as a universal primary expression — the CHECK/generated-col/
-// partition restrictions are semantic (1970/1901/1564), not 1064 — so the parser
-// must accept all of these.
+// grammar admits it as a universal primary expression, and the actions turn it away in a
+// CHECK and a generated column (1970, 1901) while they parse, which stored_expr.go follows.
 func TestSequenceValueAccept(t *testing.T) {
 	accept := []string{
 		"SELECT NEXT VALUE FOR sq",
@@ -26,8 +25,6 @@ func TestSequenceValueAccept(t *testing.T) {
 		"SELECT * FROM pt WHERE id IN (NEXT VALUE FOR sq)",
 		"CREATE TABLE d1 (id INT DEFAULT NEXT VALUE FOR sq, v INT)",
 		"CREATE TABLE d2 (id INT DEFAULT (NEXT VALUE FOR sq), v INT)",
-		"CREATE TABLE c1 (id INT CHECK (id < NEXT VALUE FOR sq))",
-		"CREATE TABLE g1 (id INT, g INT AS (NEXT VALUE FOR sq))",
 	}
 	for _, sql := range accept {
 		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
