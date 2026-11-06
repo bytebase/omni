@@ -275,14 +275,13 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// Data type (optional for generated columns with GENERATED ALWAYS AS)
-	if p.cur.Type != kwGENERATED && !p.isColumnConstraintStart() {
-		dt, err := p.parseDataType()
-		if err != nil {
-			return nil, err
-		}
-		col.TypeName = dt
+	// Data type, which no column does without: every engine answers 1064 (MariaDB 4161)
+	// for `a key`, `a comment 'x'` and `a generated always as (1)`, generated or not.
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
 	}
+	col.TypeName = dt
 
 	// Column constraints and options
 	for {
@@ -297,23 +296,6 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 	col.Loc.End = p.prev.End
 	return col, nil
-}
-
-// isColumnConstraintStart returns true if current token starts a column constraint/option.
-func (p *Parser) isColumnConstraintStart() bool {
-	switch p.cur.Type {
-	case kwNOT, kwNULL, kwDEFAULT, kwAUTO_INCREMENT, kwUNIQUE, kwPRIMARY,
-		kwKEY, kwCOMMENT, kwCOLLATE, kwREFERENCES, kwCHECK, kwGENERATED, kwON,
-		kwCOLUMN_FORMAT, kwSTORAGE:
-		return true
-	}
-	if p.cur.Type == kwENGINE_ATTRIBUTE || p.cur.Type == kwSECONDARY_ENGINE_ATTRIBUTE {
-		return true
-	}
-	if p.cur.Type == kwSRID {
-		return true
-	}
-	return false
 }
 
 // parseColumnOption parses a single column option/constraint.

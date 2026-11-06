@@ -434,6 +434,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Over)
 		}
 		Walk(v, n.Separator)
+		if n.JSONValue != nil {
+			Walk(v, n.JSONValue)
+		}
 	case *FuncParam:
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
@@ -551,6 +554,18 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *IsExpr:
 		Walk(v, n.Expr)
+	case *JSONValueOptions:
+		if n.Returning != nil {
+			Walk(v, n.Returning)
+		}
+		if n.OnEmpty != nil {
+			Walk(v, n.OnEmpty)
+		}
+		if n.OnError != nil {
+			Walk(v, n.OnError)
+		}
+	case *JSONValueResponse:
+		Walk(v, n.Default)
 	case *JoinClause:
 		Walk(v, n.Left)
 		Walk(v, n.Right)

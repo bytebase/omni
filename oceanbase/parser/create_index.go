@@ -39,11 +39,9 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 	}
 
 	// index_name
-	name, _, err := p.parseIdent()
-	if err != nil {
+	if err := p.parseIndexRelationName(stmt); err != nil {
 		return nil, err
 	}
-	stmt.IndexName = name
 
 	// Optional index_type. CREATE INDEX reads its name first and cannot leave
 	// it out, so both spellings of the clause stand here, where a key
@@ -111,6 +109,46 @@ func (p *Parser) parseCreateIndexStmt(start int, unique bool, fulltext bool, spa
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseIndexRelationName reads the name CREATE INDEX gives its index, which unlike a key
+// definition's is a normal_relation_factor: i, d.i or c.d.i, and any of them with a dblink
+// after @. A reserved word stands on either side of a dot: 4.3.5.6 parses `d.select` and
+// `select.i`, and answers 1064 for `w.x.y.i` and `.i`. It parses `CREATE INDEX q@l ON t (a)`
+// and makes the index q.
+//
+// Ref: normal_relation_factor in sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
+func (p *Parser) parseIndexRelationName(stmt *nodes.CreateIndexStmt) error {
+	var parts []string
+	for {
+		var part string
+		switch {
+		case len(parts) > 0 && p.cur.Type >= 700, p.cur.Type >= 700 && p.peekNext().Type == '.':
+			part = p.advance().Str
+		default:
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return err
+			}
+			part = name
+		}
+		parts = append(parts, part)
+		if p.cur.Type != '.' || len(parts) == 3 {
+			break
+		}
+		p.advance() // consume '.'
+	}
+	stmt.IndexName = parts[len(parts)-1]
+	if len(parts) >= 2 {
+		stmt.IndexSchema = parts[len(parts)-2]
+	}
+	if len(parts) == 3 {
+		stmt.IndexCatalog = parts[0]
+	}
+	if p.isVariableRef() {
+		stmt.IndexDBLink = strings.TrimPrefix(p.advance().Str, "@")
+	}
+	return nil
 }
 
 // parseIndexKeyPart parses a single key_part in an index column list.
@@ -218,6 +256,121 @@ func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
 	return cols, nil
 }
 
+// parseStoringOption reads STORING (col, ...): bare column names, so 4.3.5.6 answers 1064
+// for (t.b), (b(3)), (b DESC), for an empty list and a trailing comma. The column is checked
+// later (1054), and a second STORING adds to the first.
+//
+// Ref: `STORING '(' column_name_list ')'` in sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
+func (p *Parser) parseStoringOption() (*nodes.IndexOption, bool, error) {
+	start := p.pos()
+	p.advance() // consume STORING
+	if _, err := p.expect('('); err != nil {
+		return nil, false, err
+	}
+	opt := &nodes.IndexOption{Name: "STORING"}
+	for {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, false, err
+		}
+		opt.Columns = append(opt.Columns, name)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, false, err
+	}
+	opt.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return opt, true, nil
+}
+
+// parseStorageCachePolicy reads STORAGE_CACHE_POLICY [=] (...): GLOBAL = 'string' alone, or
+// a list of BOUNDARY_COLUMN = col, BOUNDARY_COLUMN_UNIT = 'string', GRANULARITY = 'string'
+// and HOT_RETENTION = n unit. 4.3.5.6 parses them and refuses them later with 1235, outside
+// shared storage, and answers 1064 for GLOBAL = hot, an empty list and a bare string.
+//
+// Ref: storage_cache_policy_attribute_list and retention_time_unit in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
+func (p *Parser) parseStorageCachePolicy() (*nodes.IndexOption, bool, error) {
+	start := p.pos()
+	p.advance() // consume STORAGE_CACHE_POLICY
+	p.match('=')
+	if _, err := p.expect('('); err != nil {
+		return nil, false, err
+	}
+	opt := &nodes.IndexOption{Name: "STORAGE_CACHE_POLICY"}
+	stringValue := func(prop *nodes.ParserProperty) error {
+		if p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
+		}
+		prop.Value = &nodes.StringLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Str}
+		p.advance()
+		return nil
+	}
+	for {
+		prop := &nodes.ParserProperty{Loc: nodes.Loc{Start: p.pos()}, Name: strings.ToLower(p.cur.Str)}
+		global := p.cur.Type == kwGLOBAL
+		if !global && p.cur.Type != tokIDENT && p.cur.Type < 700 {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume the name
+		if _, err := p.expect('='); err != nil {
+			return nil, false, err
+		}
+		var err error
+		switch prop.Name {
+		case "global", "boundary_column_unit", "granularity":
+			err = stringValue(prop)
+		case "boundary_column":
+			var col string
+			valStart := p.pos()
+			if col, _, err = p.parseIdent(); err == nil {
+				prop.Value = &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: col}
+			}
+		case "hot_retention":
+			valStart := p.pos()
+			if p.cur.Type != tokICONST {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+			count := p.advance().Str
+			if !isStorageRetentionUnit(p.cur) {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+			unit := p.advance().Str
+			prop.Value = &nodes.StringLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: count + " " + strings.ToUpper(unit)}
+		default:
+			return nil, false, &ParseError{Message: "unknown storage cache policy attribute", Position: prop.Loc.Start}
+		}
+		if err != nil {
+			return nil, false, err
+		}
+		prop.Loc.End = p.prev.End
+		opt.Properties = append(opt.Properties, prop)
+		// GLOBAL stands alone.
+		if global {
+			break
+		}
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, false, err
+	}
+	opt.Loc = nodes.Loc{Start: start, End: p.prev.End}
+	return opt, true, nil
+}
+
+// isStorageRetentionUnit reports whether tok is a unit HOT_RETENTION takes.
+func isStorageRetentionUnit(tok Token) bool {
+	switch strings.ToUpper(tok.Str) {
+	case "YEAR", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND":
+		return true
+	}
+	return false
+}
+
 // parseIndexParams reads the WITH (name = value, ...) a vector index takes its
 // parameters from: WITH (distance = l2, type = hnsw, lib = vsag).
 //
@@ -280,6 +433,11 @@ func (p *Parser) parseIndexParams() (*nodes.IndexOption, bool, error) {
 //	    KEY_BLOCK_SIZE [=] value
 //	    | USING {BTREE | HASH}
 //	    | WITH (name = value, ...)
+//	    | WITH ROWID
+//	    | PARALLEL [=] n | NOPARALLEL
+//	    | STORING (col, ...)
+//	    | DATA_TABLE_ID [=] n | INDEX_TABLE_ID [=] n | MAX_USED_PART_ID [=] n
+//	    | STORAGE_CACHE_POLICY [=] (...)
 //	    | WITH PARSER parser_name          -- fulltext only
 //	    | PARSER_PROPERTIES [=] (...)      -- fulltext only
 //	    | COMMENT 'string'
@@ -355,7 +513,59 @@ func (p *Parser) parseIndexOption(fulltext bool) (*nodes.IndexOption, bool, erro
 		if next.Type == '(' {
 			return p.parseIndexParams()
 		}
+		// WITH ROWID. It changes nothing SHOW CREATE TABLE prints.
+		if next.Type == tokIDENT && strings.EqualFold(next.Str, "ROWID") {
+			p.advance() // consume WITH
+			p.advance() // consume ROWID
+			return &nodes.IndexOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "WITH ROWID"}, true, nil
+		}
 		return nil, false, nil
+
+	// PARALLEL [=] n, n at least 1, and NOPARALLEL set the degree the index is built with.
+	// 4.3.5.6 answers 1064 for PARALLEL 0 and takes either any number of times, and neither
+	// changes what SHOW CREATE TABLE prints.
+	case p.cur.Type == kwPARALLEL:
+		p.advance()
+		p.match('=')
+		valStart := p.pos()
+		if p.cur.Type != tokICONST || p.cur.Ival < 1 {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		val := p.cur.Ival
+		p.advance()
+		return &nodes.IndexOption{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			Name:  "PARALLEL",
+			Value: &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: val},
+		}, true, nil
+
+	case p.isBareWord("NOPARALLEL"):
+		p.advance()
+		return &nodes.IndexOption{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "NOPARALLEL"}, true, nil
+
+	case p.isBareWord("STORING"):
+		return p.parseStoringOption()
+
+	// DATA_TABLE_ID, INDEX_TABLE_ID and MAX_USED_PART_ID [=] n. The first two parse and
+	// are refused later with 4179, and VIRTUAL_COLUMN_ID, which the grammar lists beside
+	// them, is a 1064 on 4.3.5.6 whatever follows it.
+	case p.isBareWord("DATA_TABLE_ID"), p.isBareWord("INDEX_TABLE_ID"), p.isBareWord("MAX_USED_PART_ID"):
+		name := strings.ToUpper(p.advance().Str)
+		p.match('=')
+		valStart := p.pos()
+		if p.cur.Type != tokICONST {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		val := p.cur.Ival
+		p.advance()
+		return &nodes.IndexOption{
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+			Name:  name,
+			Value: &nodes.IntLit{Loc: nodes.Loc{Start: valStart, End: p.prev.End}, Value: val},
+		}, true, nil
+
+	case p.isBareWord("STORAGE_CACHE_POLICY"):
+		return p.parseStorageCachePolicy()
 
 	case fulltext && p.isBareWord("PARSER_PROPERTIES"):
 		return p.parseParserProperties()

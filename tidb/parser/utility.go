@@ -463,6 +463,14 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// ProcedureCall reads `identifier` as FunctionCallGeneric does, with or without the
+	// parentheses, so what is no function name is no bare procedure name either: v8.5.5
+	// answers 1064 for CALL comment and CALL comment(1) and parses CALL `comment` and
+	// CALL d.comment. MySQL reads all four.
+	if p.cur.Type != tokIDENT && p.peekNext().Type != '.' && keywordsNotFunctionNames[strings.ToLower(p.cur.Str)] {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	name, err := p.parseTableRef()
 	if err != nil {
 		return nil, err

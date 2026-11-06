@@ -403,6 +403,18 @@ func showIndex(idx *Index) string {
 	// A fulltext index's parser, where OceanBase prints it.
 	b.WriteString(formatFulltextParser(idx))
 
+	// STORING names each column as the table does, however the DDL spelled it.
+	if len(idx.Storing) > 0 {
+		names := make([]string, 0, len(idx.Storing))
+		for _, name := range idx.Storing {
+			if col := idx.Table.GetColumn(name); col != nil {
+				name = col.Name
+			}
+			names = append(names, "`"+name+"`")
+		}
+		b.WriteString(" STORING (" + strings.Join(names, ", ") + ")")
+	}
+
 	// A vector index's parameters, straight after the key parts, as 4.3.5.6 prints them:
 	// VECTOR KEY `i` (`v`) WITH (DISTANCE=L2, TYPE=HNSW, LIB=VSAG).
 	if idx.Vector && len(idx.VectorParams) > 0 {

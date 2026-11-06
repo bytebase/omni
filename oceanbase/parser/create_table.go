@@ -279,14 +279,13 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// Data type (optional for generated columns with GENERATED ALWAYS AS)
-	if p.cur.Type != kwGENERATED && !p.isColumnConstraintStart() {
-		dt, err := p.parseDataType()
-		if err != nil {
-			return nil, err
-		}
-		col.TypeName = dt
+	// Data type, which no column does without: every engine answers 1064 (MariaDB 4161)
+	// for `a key`, `a comment 'x'` and `a generated always as (1)`, generated or not.
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
 	}
+	col.TypeName = dt
 
 	// Column constraints and options
 	for {
@@ -301,20 +300,6 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 	col.Loc.End = p.prev.End
 	return col, nil
-}
-
-// isColumnConstraintStart returns true if current token starts a column constraint/option.
-func (p *Parser) isColumnConstraintStart() bool {
-	switch p.cur.Type {
-	case kwNOT, kwNULL, kwDEFAULT, kwAUTO_INCREMENT, kwUNIQUE, kwPRIMARY,
-		kwKEY, kwCOMMENT, kwCOLLATE, kwREFERENCES, kwCHECK, kwGENERATED, kwON,
-		kwCOLUMN_FORMAT, kwSTORAGE:
-		return true
-	}
-	if p.cur.Type == kwSRID {
-		return true
-	}
-	return false
 }
 
 // parseColumnOption parses a single column option/constraint.
@@ -862,6 +847,17 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 			p.cur.Type != kwFOREIGN && p.cur.Type != kwCHECK {
 			constr.Name, _, _ = p.parseIdent()
 		}
+		// CONSTRAINT goes with these four only: 4.3.5.6 answers 1064 for `CONSTRAINT c
+		// INDEX (a)`, `CONSTRAINT KEY (a)`, `CONSTRAINT FULLTEXT (c)`, `CONSTRAINT c SPATIAL
+		// (g)` and `CONSTRAINT VECTOR INDEX (v)`, here and after ALTER TABLE ADD.
+		//
+		// Ref: table_element, constraint_definition and add_constraint_uniq_key in
+		// sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
+		switch p.cur.Type {
+		case kwPRIMARY, kwUNIQUE, kwFOREIGN, kwCHECK:
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	switch p.cur.Type {
@@ -1037,7 +1033,7 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		// it refuses later: VECTOR INDEX (a, b) and VECTOR INDEX ((f(a))) are 1235.
 		// There is no index type in front of the key parts, where the options take
 		// BTREE and HASH like any other index's and never HNSW.
-		if inAlter || afterConstraint {
+		if inAlter {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume VECTOR

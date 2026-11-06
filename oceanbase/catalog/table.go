@@ -1,5 +1,7 @@
 package catalog
 
+import "slices"
+
 type Table struct {
 	Name             string
 	Database         *Database
@@ -320,6 +322,9 @@ func cloneTable(src *Table) Table {
 		}
 		idx.Columns = cols
 		idx.ParserProperties = copyParserProperties(si.ParserProperties)
+		// Storing is renamed and filtered in place by ALTER, so a failed statement's
+		// rollback snapshot must not share its array.
+		idx.Storing = slices.Clone(si.Storing)
 		dst.Indexes[i] = &idx
 	}
 

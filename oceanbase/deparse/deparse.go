@@ -806,6 +806,14 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			return
 		}
 
+		// JSON_VALUE's clauses are part of the text the server names the column after:
+		// mysql:8.0.46 names JSON_VALUE(a, '$' RETURNING SIGNED) after all of it, so two calls
+		// that differ only there get different names.
+		if n.JSONValueArm && n.JSONValue != nil {
+			writeJSONValueAlias(b, n)
+			return
+		}
+
 		if n.Star {
 			// COUNT(*) → alias "COUNT(*)" — keep *, not 0.
 			b.WriteString(name)
@@ -2121,6 +2129,179 @@ func writeTrimDirectional(b *strings.Builder, direction string, args []ast.ExprN
 	b.WriteString("trim()")
 }
 
+// writeJSONValue writes JSON_VALUE as OceanBase 4.3.5.6 stores it, in a view and in a generated
+// column alike: no space after the comma, and strings without an introducer.
+func writeJSONValue(b *strings.Builder, n *ast.FuncCallExpr) {
+	b.WriteString("json_value(")
+	for i, arg := range n.Args {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		if i == 0 {
+			writeJSONValueDocument(b, arg)
+			continue
+		}
+		if lit, ok := arg.(*ast.StringLit); ok {
+			b.WriteString(deparseStringLit(&ast.StringLit{Value: lit.Value}))
+			continue
+		}
+		writeExpr(b, arg)
+	}
+	b.WriteString(JSONValueClauses(n.JSONValue))
+	b.WriteString(")")
+}
+
+// JSONValueClauses returns what follows JSON_VALUE's path, with its leading space, as OceanBase
+// 4.3.5.6 stores it: RETURNING is always there, since leaving it out means char(512).
+func JSONValueClauses(opts *ast.JSONValueOptions) string {
+	var b strings.Builder
+	b.WriteString(" RETURNING ")
+	var returning *ast.DataType
+	if opts != nil {
+		returning = opts.Returning
+	}
+	b.WriteString(jsonValueReturning(returning))
+	if opts != nil {
+		if opts.Truncate {
+			b.WriteString(" TRUNCATE")
+		}
+		if opts.ASCII {
+			b.WriteString(" ASCII")
+		}
+		writeJSONValueResponse(&b, opts.OnEmpty, "empty")
+		writeJSONValueResponse(&b, opts.OnError, "error")
+	}
+	return b.String()
+}
+
+// jsonValueZeroLength puts back a written length of 0, which the type writer takes for none.
+func jsonValueZeroLength(dt *ast.DataType, text string) string {
+	if dt.HasLength && dt.Length == 0 {
+		return strings.Replace(text, "char", "char(0)", 1)
+	}
+	return text
+}
+
+// jsonValueReturning writes RETURNING's type, which the server fills in where CAST's stored form
+// leaves it out, measured on 4.3.5.6: a char type always names its charset, DECIMAL is number(10,0),
+// and the temporal types name their precision.
+func jsonValueReturning(dt *ast.DataType) string {
+	if dt == nil {
+		return "char(512) charset utf8mb4"
+	}
+	switch name := strings.ToLower(dt.Name); name {
+	case "decimal", "numeric":
+		if dt.Length == 0 {
+			return "number(10,0)"
+		}
+		return fmt.Sprintf("number(%d,%d)", dt.Length, dt.Scale)
+	case "float":
+		return "float"
+	case "time", "datetime", "year":
+		return fmt.Sprintf("%s(%d)", name, dt.Length)
+	case "char":
+		// The server has one utf8: NCHAR, utf8 and utf8mb3 all store as utf8mb4.
+		if strings.EqualFold(dt.Charset, "utf8mb3") || strings.EqualFold(dt.Charset, "utf8") {
+			national := *dt
+			national.Charset = "utf8mb4"
+			return jsonValueZeroLength(dt, deparseDataType(&national))
+		}
+		return jsonValueZeroLength(dt, deparseDataType(dt))
+	case "binary":
+		return jsonValueZeroLength(dt, deparseDataType(dt))
+	default:
+		return deparseDataType(dt)
+	}
+}
+
+// writeJSONValueDocument writes JSON_VALUE's document, which the grammar reads as a simple_expr:
+// an IN over a subquery needs the parentheses that writeExpr drops from around it, or the text
+// does not read back. A quantified comparison keeps its own here.
+func writeJSONValueDocument(b *strings.Builder, doc ast.ExprNode) {
+	inner := doc
+	for {
+		paren, ok := inner.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		inner = paren.Expr
+	}
+	if in, ok := inner.(*ast.InExpr); ok && in.Select != nil {
+		b.WriteString("(")
+		writeExpr(b, inner)
+		b.WriteString(")")
+		return
+	}
+	writeExpr(b, doc)
+}
+
+func writeJSONValueResponse(b *strings.Builder, r *ast.JSONValueResponse, on string) {
+	switch {
+	case r == nil:
+		return
+	case r.Error:
+		b.WriteString(" error")
+	case r.Default != nil:
+		b.WriteString(" default ")
+		writeJSONValueDefault(b, r.Default)
+	default:
+		b.WriteString(" null")
+	}
+	b.WriteString(" on " + on)
+}
+
+// writeJSONValueDefault writes a DEFAULT literal as OceanBase 4.3.5.6 stores it. The one it does
+// not follow is a boolean: the server stores TRUE as (1 = 1), which its own grammar refuses here,
+// so this keeps the word that reads back.
+func writeJSONValueDefault(b *strings.Builder, value ast.ExprNode) {
+	switch n := value.(type) {
+	case *ast.UnaryExpr:
+		b.WriteString("-")
+		writeJSONValueDefault(b, n.Operand)
+	case *ast.StringLit:
+		b.WriteString(deparseStringLit(&ast.StringLit{Value: n.Value}))
+	case *ast.BoolLit:
+		if n.Value {
+			b.WriteString("true")
+		} else {
+			b.WriteString("false")
+		}
+	case *ast.HexLit:
+		digits := strings.TrimPrefix(strings.TrimPrefix(n.Value, "0x"), "0X")
+		if len(digits)%2 == 1 {
+			digits = "0" + digits
+		}
+		b.WriteString("X'" + strings.ToUpper(digits) + "'")
+	case *ast.BitLit:
+		// Every byte written stays: b'0000000001000001' is X'0041' and b'' is X''.
+		bits := strings.TrimPrefix(strings.TrimPrefix(n.Value, "0b"), "0B")
+		out := make([]byte, (len(bits)+7)/8)
+		for i := 0; i < len(bits); i++ {
+			if bits[len(bits)-1-i] == '1' {
+				out[len(out)-1-i/8] |= 1 << (i % 8)
+			}
+		}
+		b.WriteString(fmt.Sprintf("X'%X'", out))
+	case *ast.TemporalLit:
+		b.WriteString(n.Type + " '" + n.Value + "'")
+	case *ast.IntLit:
+		// The digits as written, since Value clamps what an int64 cannot hold. The server
+		// does not keep leading zeros.
+		if digits := strings.TrimLeft(n.Text, "0"); digits != "" {
+			b.WriteString(digits)
+		} else {
+			writeExpr(b, value)
+		}
+	case *ast.FloatLit:
+		if strings.HasPrefix(n.Value, ".") {
+			b.WriteString("0")
+		}
+		b.WriteString(n.Value)
+	default:
+		writeExpr(b, value)
+	}
+}
+
 func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	// Handle TRIM special forms: TRIM_LEADING, TRIM_TRAILING, TRIM_BOTH
 	// Parser encodes these as FuncCallExpr with Name="TRIM_LEADING" etc.
@@ -2166,6 +2347,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	// GROUP_CONCAT has special formatting
 	if name == "GROUP_CONCAT" {
 		writeGroupConcat(b, n)
+		return
+	}
+
+	if n.JSONValueArm {
+		writeJSONValue(b, n)
 		return
 	}
 
@@ -2353,6 +2539,53 @@ func writeSubqueryExpr(b *strings.Builder, n *ast.SubqueryExpr) {
 // writeGroupConcatAlias generates the MySQL 8.0 auto-alias for GROUP_CONCAT.
 // MySQL 8.0 alias format: GROUP_CONCAT(DISTINCT a ORDER BY a DESC SEPARATOR ';')
 // Uses uppercase keywords and original column names (not table-qualified).
+// writeJSONValueAlias writes JSON_VALUE as the alias text: its arguments, then its clauses as they
+// are usually written, in capitals.
+func writeJSONValueAlias(b *strings.Builder, n *ast.FuncCallExpr) {
+	b.WriteString(strings.ToUpper(n.Name))
+	b.WriteString("(")
+	for i, arg := range n.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		writeExprAlias(b, arg)
+	}
+	opts := n.JSONValue
+	if opts.Returning != nil {
+		b.WriteString(" RETURNING ")
+		b.WriteString(deparseDataTypeAlias(opts.Returning))
+		if opts.Truncate {
+			b.WriteString(" TRUNCATE")
+		}
+		if opts.ASCII {
+			b.WriteString(" ASCII")
+		}
+	}
+	for _, r := range []struct {
+		resp *ast.JSONValueResponse
+		on   string
+	}{{opts.OnEmpty, "EMPTY"}, {opts.OnError, "ERROR"}} {
+		switch {
+		case r.resp == nil:
+			continue
+		case r.resp.Error:
+			b.WriteString(" ERROR")
+		case r.resp.Default != nil:
+			b.WriteString(" DEFAULT ")
+			if unary, ok := r.resp.Default.(*ast.UnaryExpr); ok {
+				b.WriteString("-")
+				writeExprAlias(b, unary.Operand)
+			} else {
+				writeExprAlias(b, r.resp.Default)
+			}
+		default:
+			b.WriteString(" NULL")
+		}
+		b.WriteString(" ON " + r.on)
+	}
+	b.WriteString(")")
+}
+
 func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("GROUP_CONCAT(")
 

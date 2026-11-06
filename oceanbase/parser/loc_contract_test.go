@@ -79,6 +79,10 @@ var locSpanCases = []struct {
 	want string
 	nth  int
 }{
+	{"JSONValueOptions", "SELECT JSON_VALUE(a, '$' RETURNING SIGNED ERROR ON ERROR)", "RETURNING SIGNED ERROR ON ERROR", 0},
+	{"JSONValueResponse", "SELECT JSON_VALUE(a, '$' DEFAULT 1 ON ERROR)", "DEFAULT 1", 0},
+	{"StringLit", "SELECT JSON_VALUE('{}', N'$' DEFAULT N'x' ON EMPTY)", "N'$'", 1},
+	{"StringLit", "SELECT JSON_VALUE('{}', N'$' DEFAULT N'x' ON EMPTY)", "N'x'", 2},
 	{"AlterDatabaseStmt", "ALTER DATABASE mydb READ ONLY", "ALTER DATABASE mydb READ ONLY", 0},
 	{"AlterEventStmt", "ALTER EVENT ev1 ENABLE", "ALTER EVENT ev1 ENABLE", 0},
 	{"AlterInstanceStmt", "ALTER INSTANCE RELOAD TLS", "ALTER INSTANCE RELOAD TLS", 0},

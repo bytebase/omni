@@ -12,10 +12,8 @@ import (
 // mysql:8.0, has no say here.
 //
 // Left out because they are no part of this family: `SELECT vector(3)`, refused like
-// `SELECT comment(3)` and read by omni; the PARALLEL, NOPARALLEL and STORING options and
-// the qualified name every index takes and omni does not read yet; `CONSTRAINT c INDEX
-// (a)`, refused for any index and read by omni, which is what `CONSTRAINT VECTOR INDEX
-// (v)` is; and `ORDER BY a <=> b APPROXIMATE`, the vector search forms.
+// `SELECT comment(3)`; and `ORDER BY a <=> b APPROXIMATE`, the vector search forms.
+// index_options_oceanbase_oracle_test.go holds what a vector index takes from every index.
 
 type vectorFormCase struct {
 	sql    string
