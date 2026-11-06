@@ -189,6 +189,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 	case kwBOOL, kwBOOLEAN:
 		dt.Name = "BOOLEAN"
 		p.advance()
+		// BooleanType FieldOpts (parser.y:12919, v8.5.5): `BOOL UNSIGNED` is a
+		// column.
+		p.parseUnsignedZerofill(dt)
 
 	// Character string types. CHAR and CHARACTER name the same type, and
 	// VARYING after either makes it VARCHAR, as the one word VARCHARACTER
@@ -225,22 +228,22 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
+		p.parseTextCharsetOpt(dt)
 
 	case kwTINYTEXT:
 		dt.Name = "TINYTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		p.parseTextCharsetOpt(dt)
 
 	case kwMEDIUMTEXT:
 		dt.Name = "MEDIUMTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		p.parseTextCharsetOpt(dt)
 
 	case kwLONGTEXT:
 		dt.Name = "LONGTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		p.parseTextCharsetOpt(dt)
 
 	// Date/time types
 	case kwDATE:
@@ -340,7 +343,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			return nil, err
 		}
 		dt.EnumValues = vals
-		p.parseCharsetCollate(dt)
+		p.parseTextCharsetOpt(dt)
 
 	// SET type (the SQL SET data type, not the SET statement keyword)
 	case kwSET:
@@ -359,7 +362,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			return nil, err
 		}
 		dt.EnumValues = vals
-		p.parseCharsetCollate(dt)
+		p.parseTextCharsetOpt(dt)
 
 	// JSON type
 	case kwJSON:
@@ -507,18 +510,18 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		case p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER:
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
+			p.parseTextCharsetOpt(dt)
 		case (p.cur.Type == kwCHAR || p.cur.Type == kwCHARACTER) && p.peekNext().Type == kwVARYING:
 			p.advance()
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
+			p.parseTextCharsetOpt(dt)
 		case p.cur.Type == kwVARBINARY:
 			p.advance()
 			dt.Name = "MEDIUMBLOB"
 		default:
 			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
+			p.parseTextCharsetOpt(dt)
 		}
 
 	default:
@@ -647,17 +650,48 @@ func (p *Parser) parsePrecisionAndScale(dt *nodes.DataType) (hasScale bool, err 
 	return hasScale, nil
 }
 
-// parseUnsignedZerofill parses optional SIGNED, UNSIGNED, and ZEROFILL modifiers.
-// SIGNED is the default for all numeric types, so we accept and ignore it.
+// parseUnsignedZerofill parses TiDB's FieldOpts (parser.y:13472, v8.5.5): any
+// run of SIGNED, UNSIGNED and ZEROFILL in any order, so `INT SIGNED UNSIGNED` and
+// `YEAR ZEROFILL ZEROFILL` are columns. The actions set a flag for each UNSIGNED or
+// ZEROFILL and clear none, so SIGNED changes nothing.
 func (p *Parser) parseUnsignedZerofill(dt *nodes.DataType) {
-	// SIGNED is a keyword token (kwSIGNED) — accept and ignore it (it's the default).
-	if p.cur.Type == kwSIGNED {
+	for {
+		switch p.cur.Type {
+		case kwSIGNED:
+		case kwUNSIGNED:
+			dt.Unsigned = true
+		case kwZEROFILL:
+			dt.Zerofill = true
+		default:
+			return
+		}
 		p.advance()
-	} else if _, ok := p.match(kwUNSIGNED); ok {
-		dt.Unsigned = true
 	}
-	if _, ok := p.match(kwZEROFILL); ok {
-		dt.Zerofill = true
+}
+
+// parseTextCharsetOpt reads OptCharsetWithOptBinary (parser.y:13370, v8.5.5), what
+// a TEXT type, ENUM, SET, LONG and LONG VARCHAR take where the other string types
+// take a charset clause: ASCII for latin1, UNICODE for ucs2 and BYTE for binary,
+// each in place of the clause, or the clause itself. A COLLATE may follow either.
+func (p *Parser) parseTextCharsetOpt(dt *nodes.DataType) {
+	var cs string
+	switch p.cur.Type {
+	case kwASCII:
+		cs = "latin1"
+	case kwUNICODE:
+		cs = "ucs2"
+	case kwBYTE:
+		cs = "binary"
+	default:
+		p.parseCharsetCollate(dt)
+		return
+	}
+	p.advance()
+	dt.Charset = cs
+	if _, ok := p.match(kwCOLLATE); ok {
+		if p.isIdentToken() || p.cur.Type == kwBINARY {
+			dt.Collate, _, _ = p.parseKeywordOrIdent()
+		}
 	}
 }
 
