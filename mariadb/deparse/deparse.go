@@ -690,6 +690,14 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(")")
 			return
 		}
+		if trimHead != "" && len(n.Args) == 1 {
+			// TRIM(LEADING FROM str): the name is the text as written.
+			b.WriteString(trimHead)
+			b.WriteString("FROM ")
+			writeExprAlias(b, n.Args[0])
+			b.WriteString(")")
+			return
+		}
 
 		// Handle GROUP_CONCAT: alias includes ORDER BY and SEPARATOR
 		if upperName == "GROUP_CONCAT" {
@@ -728,6 +736,12 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 				b.WriteString(", ")
 			}
 			writeExprAlias(b, arg)
+		}
+		if n.Using != "" {
+			// The name keeps CHAR's USING clause as written, whatever the
+			// stored body does with it.
+			b.WriteString(" USING ")
+			b.WriteString(n.Using)
 		}
 		b.WriteString(")")
 		if n.Over != nil {
