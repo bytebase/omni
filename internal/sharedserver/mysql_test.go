@@ -10,6 +10,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if envFile := os.Getenv(holderEnv); envFile != "" {
+		holdForTest(envFile)
+	}
 	code := m.Run()
 	MySQL80.Terminate()
 	OceanBase.Terminate()

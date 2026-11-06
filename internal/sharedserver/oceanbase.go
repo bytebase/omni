@@ -21,8 +21,8 @@ const OceanBaseImage = "oceanbase/oceanbase-ce:4.3.5.6-106000012026040916"
 // OceanBaseSocket is the observer's unix socket in a SLIM container.
 const OceanBaseSocket = "/root/demo/run/sql.sock"
 
-// oceanBaseSetup runs inside a SLIM container once it boots; CI and dev-db.sh run
-// the same two commands.
+// oceanBaseSetup runs inside a SLIM container once it boots, CI's included;
+// dev-db.sh runs the same two commands.
 //
 // SLIM caps the data file at 1 GiB. With parser, catalog and review run in a row
 // on one server, the cap makes the test tenant's flushes fail with
