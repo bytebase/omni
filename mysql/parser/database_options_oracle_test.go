@@ -183,6 +183,71 @@ func (o *parserOracle) prepareAccepts(t *testing.T, sql string) bool {
 	return myErr.Number != 1064
 }
 
+// prepareParses asks the oracle whether sql parses, and reads an error beyond 1064 by
+// where it was raised. MySQL refuses some text while it parses with the code of the
+// check that refused it, as in CAST(a AS JSON ARRAY)'s 1235, which prepareAccepts reads as
+// parsed.
+// The server reads all of the text before it looks at anything, so a statement refused
+// after parsing answers 1064 once a syntax error follows it as a second statement, and
+// a statement refused while parsing answers its own code again.
+//
+// The names it looks up while parsing count as read, as omni holds no such list: a
+// system variable (1193), a character set (1115), a collation (1273, 1253) and a plugin
+// or function (1128).
+func (o *parserOracle) prepareParses(t *testing.T, sql string) bool {
+	t.Helper()
+	conn, err := o.db.Conn(o.ctx)
+	if err != nil {
+		t.Fatalf("taking a connection for %q: %v", sql, err)
+	}
+	defer conn.Close()
+	prepare := func(text string) uint16 {
+		if _, err := conn.ExecContext(o.ctx, "SET @omni_db_option = ?", text); err != nil {
+			t.Fatalf("binding %q: %v", text, err)
+		}
+		_, err := conn.ExecContext(o.ctx, "PREPARE omni_db_option_stmt FROM @omni_db_option")
+		if err == nil {
+			_, _ = conn.ExecContext(o.ctx, "DEALLOCATE PREPARE omni_db_option_stmt")
+			return 0
+		}
+		var myErr *gomysql.MySQLError
+		if !errors.As(err, &myErr) {
+			t.Fatalf("no verdict for %q: %v", text, err)
+		}
+		return myErr.Number
+	}
+	code := prepare(sql)
+	switch code {
+	case 0, 1115, 1128, 1193, 1253, 1273:
+		return true
+	case 1064:
+		return false
+	}
+	return prepare(sql+"\n; SELECT FROM") != code
+}
+
+// TestPrepareParsesControls holds prepareParses to statements whose answer is known.
+func TestPrepareParsesControls(t *testing.T) {
+	o := startParserOracle(t)
+	for _, c := range []struct {
+		sql    string
+		accept bool
+	}{
+		{"SELECT 1 FROM nosuch", true},              // 1146
+		{"SELECT nosuch", true},                     // 1054
+		{"SELECT 1 FROM nosuch -- a comment", true}, // 1146, the tail survives the comment
+		{"SELEKT 1", false},                         // 1064
+		{"SELECT CAST(a AS JSON ARRAY)", false},     // 1235, while parsing
+		{"SELECT CAST(a AS SIGNED ARRAY)", true},    // 1235, after parsing
+		{"SELECT CAST(a AS FLOAT(54))", false},      // 1426, while parsing
+		{"SELECT @@nosuch", true},                   // 1193, a name it looks up
+	} {
+		if got := o.prepareParses(t, c.sql); got != c.accept {
+			t.Errorf("%q: prepareParses=%v, want %v", c.sql, got, c.accept)
+		}
+	}
+}
+
 // TestDatabaseOptionsOracle asserts omni agrees with a live
 // MySQL 8.0 on databaseOptionCases (container test).
 func TestDatabaseOptionsOracle(t *testing.T) {

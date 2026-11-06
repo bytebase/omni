@@ -16,6 +16,8 @@ type Parser struct {
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
 
+	castShiftHalf bool // the inner of ARRAY<ARRAY<...>> has closed half of a >> (see parseCastArrayElement)
+
 	// parenRunStart and parenRunPast cache the last firstTokenPastParens scan:
 	// the offset of the run's first '(' and the first token past the run.
 	parenRunStart int

@@ -1605,46 +1605,6 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
-// parseCastDataType parses data types valid in CAST expressions.
-// CAST supports a subset of types: BINARY, CHAR, DATE, DATETIME, DECIMAL, SIGNED, UNSIGNED, TIME, JSON, etc.
-func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
-	// Completion: offer CAST/CONVERT type candidates.
-	p.checkCursor()
-	if p.collectMode() {
-		p.addRuleCandidate("type_name")
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	start := p.pos()
-
-	// SIGNED [INTEGER]
-	if p.cur.Type == kwSIGNED {
-		p.advance()
-		p.match(kwINTEGER)
-		p.match(kwINT)
-		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SIGNED"}, nil
-	}
-
-	// UNSIGNED [INTEGER]
-	if p.cur.Type == kwUNSIGNED {
-		p.advance()
-		p.match(kwINTEGER)
-		p.match(kwINT)
-		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNSIGNED"}, nil
-	}
-
-	dt, err := p.parseDataType()
-	if err != nil {
-		return nil, err
-	}
-	// CastType's action answers 1426, ErrTooBigPrecision, for a FLOAT past 53, which a
-	// column type takes no such check for.
-	if dt.Name == "FLOAT" && dt.Length >= 54 {
-		return nil, &ParseError{Message: "Too big precision specified for CAST. Maximum is 53.", Position: dt.Loc.Start}
-	}
-	return dt, nil
-}
-
 // parseConvertExpr parses CONVERT(expr, type) or CONVERT(expr USING charset).
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/cast-functions.html
@@ -1692,6 +1652,9 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 			return nil, err
 		}
 		conv.TypeName = dt
+	} else {
+		// CONVERT(expr) has no one-argument form: every engine answers 1064 for it.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if _, err := p.expect(')'); err != nil {

@@ -1890,6 +1890,9 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 	isArray := false
 	if _, ok := p.match(kwARRAY); ok {
 		isArray = true
+		if err := p.castArrayRefused(dt); err != nil {
+			return nil, err
+		}
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -1950,37 +1953,6 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
-// parseCastDataType parses data types valid in CAST expressions.
-// CAST supports a subset of types: BINARY, CHAR, DATE, DATETIME, DECIMAL, SIGNED, UNSIGNED, TIME, JSON, etc.
-func (p *Parser) parseCastDataType() (*nodes.DataType, error) {
-	// Completion: offer CAST/CONVERT type candidates.
-	p.checkCursor()
-	if p.collectMode() {
-		p.addRuleCandidate("type_name")
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	start := p.pos()
-
-	// SIGNED [INTEGER]
-	if p.cur.Type == kwSIGNED {
-		p.advance()
-		p.match(kwINTEGER)
-		p.match(kwINT)
-		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "SIGNED"}, nil
-	}
-
-	// UNSIGNED [INTEGER]
-	if p.cur.Type == kwUNSIGNED {
-		p.advance()
-		p.match(kwINTEGER)
-		p.match(kwINT)
-		return &nodes.DataType{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "UNSIGNED"}, nil
-	}
-
-	return p.parseDataType()
-}
-
 // parseConvertExpr parses CONVERT(expr, type) or CONVERT(expr USING charset).
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/cast-functions.html
@@ -2028,6 +2000,9 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 			return nil, err
 		}
 		conv.TypeName = dt
+	} else {
+		// CONVERT(expr) has no one-argument form: every engine answers 1064 for it.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if _, err := p.expect(')'); err != nil {

@@ -1428,3 +1428,17 @@ func TestJSONValueDocumentRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// TestJSONValueReturningZeroLength: a RETURNING type read by the cast type reader keeps a
+// written length of 0, which OceanBase 4.3.5.6 stores as char(0) where it fills in a length
+// for none (TestOracle_JSONValueStoredForms).
+func TestJSONValueReturningZeroLength(t *testing.T) {
+	for _, c := range []struct{ input, want string }{
+		{"JSON_VALUE(a, '$' RETURNING CHAR(0))", "json_value(`a`,'$' RETURNING char(0) charset utf8mb4)"},
+		{"JSON_VALUE(a, '$' RETURNING BINARY(0))", "json_value(`a`,'$' RETURNING char(0) charset binary)"},
+	} {
+		if got := Deparse(parseExpr(t, c.input)); got != c.want {
+			t.Errorf("Deparse(%q) = %q, want %q", c.input, got, c.want)
+		}
+	}
+}

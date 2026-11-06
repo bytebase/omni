@@ -635,12 +635,13 @@ type DataType struct {
 	Scale      int // decimal scale (e.g., DECIMAL(10,2))
 	Unsigned   bool
 	Zerofill   bool
-	Charset    string   // CHARACTER SET
-	Collate    string   // COLLATE
-	Binary     bool     // standalone BINARY modifier
-	EnumValues []string // for ENUM and SET types
-	ArrayDim   int      // not used in MySQL, but here for consistency
-	SRID       int      // Spatial Reference ID for spatial types (valid only when HasSRID)
+	Charset    string    // CHARACTER SET
+	Collate    string    // COLLATE
+	Binary     bool      // standalone BINARY modifier
+	EnumValues []string  // for ENUM and SET types
+	ArrayDim   int       // not used in MySQL, but here for consistency
+	ArrayElem  *DataType // the element of a cast to ARRAY, itself an ARRAY when they nest
+	SRID       int       // Spatial Reference ID for spatial types (valid only when HasSRID)
 	// HasSRID records whether the column declared an explicit SRID clause at all. MySQL
 	// treats `SRID 0` as present-and-distinct from a column with no SRID clause (SHOW
 	// CREATE echoes `/*!80003 SRID 0 */`; information_schema reports SRS_ID=0 vs NULL), so

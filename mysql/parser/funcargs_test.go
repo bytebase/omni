@@ -178,18 +178,17 @@ var funcArgCases = []struct {
 	{"SELECT INTERVAL(c1) OVER () FROM t", false},
 
 	// --- CAST ... ARRAY, the multi-valued index form ---
+	// The types the server refuses here while it parses, which this table's oracle cannot
+	// tell from parsed text, are in cast_type_oracle_test.go.
 	{"SELECT CAST(b AS SIGNED ARRAY) FROM t", true},
 	{"SELECT CAST(b AS UNSIGNED ARRAY) FROM t", true},
 	{"SELECT CAST(b AS SIGNED INTEGER ARRAY) FROM t", true},
-	{"SELECT CAST(b AS CHAR ARRAY) FROM t", true},
 	{"SELECT CAST(b AS CHAR(10) ARRAY) FROM t", true},
 	{"SELECT CAST(b AS DECIMAL(10,2) ARRAY) FROM t", true},
 	{"SELECT CAST(b AS DATE ARRAY) FROM t", true},
 	{"SELECT CAST(b AS DATETIME(3) ARRAY) FROM t", true},
 	{"SELECT CAST(b AS TIME ARRAY) FROM t", true},
 	{"SELECT CAST(b AS BINARY(10) ARRAY) FROM t", true},
-	{"SELECT CAST(b AS DOUBLE ARRAY) FROM t", true},
-	{"SELECT CAST(b AS CHAR(10) CHARACTER SET utf8mb4 ARRAY) FROM t", true},
 	{"CREATE INDEX idx ON t ((CAST(b AS SIGNED ARRAY)))", true},
 	// ARRAY is the cast's own tail: once, on a type, and never on CONVERT.
 	{"SELECT CAST(b AS SIGNED ARRAY ARRAY) FROM t", false},

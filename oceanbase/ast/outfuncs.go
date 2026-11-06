@@ -2872,6 +2872,10 @@ func writeDataType(sb *strings.Builder, n *DataType) {
 	if len(n.EnumValues) > 0 {
 		fmt.Fprintf(sb, " :enum_values %s", strings.Join(n.EnumValues, ", "))
 	}
+	if n.ArrayElem != nil {
+		sb.WriteString(" :array_elem ")
+		writeNode(sb, n.ArrayElem)
+	}
 	if n.ArrayDim > 0 {
 		fmt.Fprintf(sb, " :array_dim %d", n.ArrayDim)
 	}

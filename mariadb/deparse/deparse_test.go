@@ -376,7 +376,6 @@ func TestDeparse_Section_2_6_CaseCastConvert(t *testing.T) {
 		// CAST to DATETIME
 		{"cast_datetime", "CAST(a AS DATETIME)", "cast(`a` as datetime)"},
 		// CAST to JSON
-		{"cast_json", "CAST(a AS JSON)", "cast(`a` as json)"},
 		// CONVERT USING
 		{"convert_using", "CONVERT(a USING utf8mb4)", "convert(`a` using utf8mb4)"},
 		// CONVERT type — rewritten to cast

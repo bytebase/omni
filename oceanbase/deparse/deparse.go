@@ -1977,12 +1977,63 @@ func writeConvertExpr(b *strings.Builder, n *ast.ConvertExpr) {
 	b.WriteString(")")
 }
 
+// CastArrayType writes a cast to ARRAY as OceanBase 4.3.5.6 stores it, whichever way it was
+// written: ARRAY<ARRAY<INT>> is ARRAY(ARRAY(INT)), the element's name is in capitals, and a
+// charset on it does not show. An element the server does not take, such as ENUM, still prints
+// so that it reads back.
+func CastArrayType(dt *ast.DataType) string {
+	element := dt.ArrayElem
+	if element == nil {
+		return "ARRAY"
+	}
+	if strings.EqualFold(element.Name, "array") {
+		return "ARRAY(" + CastArrayType(element) + ")"
+	}
+	text := strings.ToUpper(element.Name)
+	switch text {
+	case "BOOL", "BOOLEAN":
+		return "ARRAY(TINYINT)"
+	case "TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT":
+		// An integer keeps no display width, and ZEROFILL shows as the UNSIGNED it implies.
+		if element.Unsigned || element.Zerofill {
+			text += " UNSIGNED"
+		}
+		return "ARRAY(" + text + ")"
+	case "FLOAT", "DOUBLE":
+		// Nor does a floating type keep a precision: FLOAT(30) stays FLOAT here.
+		if element.Unsigned {
+			text += " UNSIGNED"
+		}
+		return "ARRAY(" + text + ")"
+	}
+	switch {
+	case len(element.EnumValues) > 0:
+		// ENUM and SET keep their values, or the text names no type at all.
+		values := make([]string, len(element.EnumValues))
+		for i, v := range element.EnumValues {
+			values[i] = deparseStringLit(&ast.StringLit{Value: v})
+		}
+		text += "(" + strings.Join(values, ",") + ")"
+	case element.Scale > 0:
+		text += fmt.Sprintf("(%d,%d)", element.Length, element.Scale)
+	case element.Length > 0 || text == "VARCHAR" || text == "VARBINARY":
+		// VARCHAR and VARBINARY take a length always, so VARCHAR(0) keeps its 0 to read back.
+		text += fmt.Sprintf("(%d)", element.Length)
+	}
+	if element.Unsigned {
+		text += " UNSIGNED"
+	}
+	return "ARRAY(" + text + ")"
+}
+
 func deparseDataType(dt *ast.DataType) string {
 	if dt == nil {
 		return ""
 	}
 	name := strings.ToLower(dt.Name)
 	switch name {
+	case "array":
+		return CastArrayType(dt)
 	case "char":
 		result := "char"
 		if dt.Length > 0 {

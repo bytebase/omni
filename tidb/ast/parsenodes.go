@@ -2853,35 +2853,6 @@ type MemberOfExpr struct {
 func (e *MemberOfExpr) nodeTag()  {}
 func (e *MemberOfExpr) exprNode() {}
 
-// JsonTableExpr represents a JSON_TABLE() table function.
-type JsonTableExpr struct {
-	Loc     Loc
-	Expr    ExprNode // JSON document expression
-	Path    ExprNode // JSON path expression
-	Columns []*JsonTableColumn
-	Alias   string
-}
-
-func (e *JsonTableExpr) nodeTag()   {}
-func (e *JsonTableExpr) tableExpr() {}
-
-// JsonTableColumn represents a column definition in JSON_TABLE.
-type JsonTableColumn struct {
-	Loc         Loc
-	Name        string
-	TypeName    *DataType
-	Path        string
-	Exists      bool   // FOR ORDINALITY or EXISTS PATH
-	ErrorOption string // ERROR ON ERROR, NULL ON ERROR, DEFAULT val ON ERROR
-	EmptyOption string // ERROR ON EMPTY, NULL ON EMPTY, DEFAULT val ON EMPTY
-	Ordinality  bool   // FOR ORDINALITY
-	Nested      bool   // NESTED PATH
-	NestedPath  string
-	NestedCols  []*JsonTableColumn
-}
-
-func (c *JsonTableColumn) nodeTag() {}
-
 // SetTransactionStmt represents a SET TRANSACTION statement.
 type SetTransactionStmt struct {
 	Loc            Loc
