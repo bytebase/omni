@@ -49,8 +49,14 @@ func TestHoldServerGoesWithItsHolder(t *testing.T) {
 	if err := holder.Start(); err != nil {
 		t.Fatal(err)
 	}
-	exited := make(chan error, 1)
-	go func() { exited <- holder.Wait() }()
+	// exited closes when the holder ends, so the startup loop, the kill and the
+	// cleanup can each wait for it.
+	exited := make(chan struct{})
+	var waitErr error
+	go func() {
+		waitErr = holder.Wait()
+		close(exited)
+	}()
 	t.Cleanup(func() {
 		_ = holder.Process.Kill()
 		<-exited
@@ -73,8 +79,8 @@ func TestHoldServerGoesWithItsHolder(t *testing.T) {
 			t.Fatalf("holder wrote no env file in 5 minutes:\n%s", holderLog())
 		}
 		select {
-		case err := <-exited:
-			t.Fatalf("holder exited before its server answered: %v\n%s", err, holderLog())
+		case <-exited:
+			t.Fatalf("holder exited before its server answered: %v\n%s", waitErr, holderLog())
 		case <-time.After(time.Second):
 		}
 	}
@@ -89,7 +95,6 @@ func TestHoldServerGoesWithItsHolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-exited
-	exited <- nil // for the cleanup
 	killed := time.Now()
 	for {
 		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -100,8 +105,10 @@ func TestHoldServerGoesWithItsHolder(t *testing.T) {
 			return
 		}
 		db.Close()
-		if time.Since(killed) > 2*time.Minute {
-			t.Fatalf("server still answers 2 minutes after its holder was killed:\n%s", holderLog())
+		// The reaper takes about 12 s. One run on a machine with its swap full,
+		// which is when this matters, failed a 2-minute window (2026-11-06).
+		if time.Since(killed) > 5*time.Minute {
+			t.Fatalf("server still answers 5 minutes after its holder was killed:\n%s", holderLog())
 		}
 		time.Sleep(2 * time.Second)
 	}
