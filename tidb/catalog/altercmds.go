@@ -579,10 +579,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrForeignKey:
-		tbl.maxForeignKeyID++
+		// The key takes the next number only once it is added: TiDB keeps
+		// MaxForeignKeyID in the table's meta, which a refused statement
+		// leaves alone.
+		fkID := tbl.maxForeignKeyID + 1
 		conName := fkName(con)
 		if conName == "" {
-			conName = fmt.Sprintf("fk_%d", tbl.maxForeignKeyID)
+			conName = fmt.Sprintf("fk_%d", fkID)
 		}
 		if findForeignKey(tbl, conName) != nil {
 			return errCannotAddForeign()
@@ -620,6 +623,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := ensureFKBackingIndex(tbl, conName, cols, buildIndexColumns(con)); err != nil {
 			return err
 		}
+		tbl.maxForeignKeyID = fkID
 
 	case nodes.ConstrCheck:
 		if !c.checkConstraints {

@@ -102,3 +102,52 @@ func TestShowCreateTablePartitionValues(t *testing.T) {
 		}
 	}
 }
+
+// A partitioned table with a TTL writes the TTL on the options line, before
+// the partition clause, as v8.5.5 does; the server refuses table options
+// after the partitions, so the other order would not read back.
+func TestShowCreateTableTTLBeforePartitions(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (id INT, created_at DATETIME) TTL = created_at + INTERVAL 1 YEAR PARTITION BY HASH(id) PARTITIONS 2")
+	want := "CREATE TABLE `t` (\n" +
+		"  `id` int DEFAULT NULL,\n" +
+		"  `created_at` datetime DEFAULT NULL\n" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /*T![ttl] TTL=`created_at` + INTERVAL 1 YEAR */ /*T![ttl] TTL_ENABLE='ON' */ /*T![ttl] TTL_JOB_INTERVAL='1h' */\n" +
+		"PARTITION BY HASH (`id`) PARTITIONS 2"
+	assertShowCreate(t, c, "t", want)
+	again := wtSetup(t)
+	results, err := again.Exec(want, nil)
+	if err != nil || results[0].Error != nil {
+		t.Fatalf("does not read back: %v %v", err, results)
+	}
+}
+
+// A binary default holding bytes that are not UTF-8 is written byte for byte.
+func TestShowCreateTableBinaryDefaultBytes(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (a VARBINARY(4) DEFAULT 0xFF27)")
+	if got := c.ShowCreateTable("testdb", "t"); !strings.Contains(got, "`a` varbinary(4) DEFAULT '\xff'''") {
+		t.Errorf("want the bytes ff 27 escaped in place, got:\n%q", got)
+	}
+}
+
+// A refused ADD FOREIGN KEY uses no number: TiDB keeps MaxForeignKeyID in the
+// table's meta, which only a finished statement changes.
+func TestRefusedAddForeignKeyKeepsCounter(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE c (a INT)")
+	results, err := c.Exec("ALTER TABLE c ADD FOREIGN KEY (a) REFERENCES nosuch(id)", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Error == nil {
+		t.Fatal("a foreign key to a missing table was accepted")
+	}
+	wtExec(t, c, "CREATE TABLE p (id INT PRIMARY KEY)")
+	wtExec(t, c, "ALTER TABLE c ADD FOREIGN KEY (a) REFERENCES p(id)")
+	for _, con := range c.GetDatabase("testdb").GetTable("c").Constraints {
+		if con.Type == ConForeignKey && con.Name != "fk_1" {
+			t.Errorf("foreign key named %s, want fk_1", con.Name)
+		}
+	}
+}

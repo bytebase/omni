@@ -110,11 +110,14 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	b.WriteString("\n) ")
 	b.WriteString(showTableOptions(tbl, tblCharset, tblCollate))
 
-	if tbl.Partitioning != nil {
-		b.WriteString(showPartitioning(tbl.Partitioning))
-	}
+	// TTL goes on the options line, before the partition clause: v8.5.5 writes
+	// it there and refuses table options after the partitions (read on
+	// 2026-11-06).
 	if tbl.TTLColumn != "" {
 		b.WriteString(showTTL(tbl))
+	}
+	if tbl.Partitioning != nil {
+		b.WriteString(showPartitioning(tbl.Partitioning))
 	}
 	// The ON COMMIT clause of a global temporary table goes last, after the
 	// partition clause, because that is the one place the grammar takes it:
@@ -139,9 +142,12 @@ func quoteIdent(name string) string {
 // does: a quote doubled, a backslash doubled, and NUL, LF and CR as escapes
 // (`COMMENT 'it”s a \\test'` for it's a \test, read on 2026-11-06).
 func outputFormat(s string) string {
+	// Byte by byte: a binary default can hold bytes that are not UTF-8, and
+	// each must come out as itself. Every escape is ASCII, so UTF-8 text is
+	// unchanged.
 	var b strings.Builder
-	for _, r := range s {
-		switch r {
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
 		case '\\':
 			b.WriteString(`\\`)
 		case 0:
@@ -153,7 +159,7 @@ func outputFormat(s string) string {
 		case '\r':
 			b.WriteString(`\r`)
 		default:
-			b.WriteRune(r)
+			b.WriteByte(c)
 		}
 	}
 	return b.String()
@@ -578,7 +584,17 @@ func showTTL(tbl *Table) string {
 		job = "1h"
 	}
 	return fmt.Sprintf(" /*T![ttl] TTL=%s + %s */ /*T![ttl] TTL_ENABLE='%s' */ /*T![ttl] TTL_JOB_INTERVAL='%s' */",
-		quoteIdent(tbl.TTLColumn), tbl.TTLInterval, enable, job)
+		quoteIdent(tbl.TTLColumn), ttlInterval(tbl.TTLInterval), enable, job)
+}
+
+// ttlInterval writes a TTL interval as TiDB does, INTERVAL and the unit in
+// capitals around the amount as written: INTERVAL 1 YEAR.
+func ttlInterval(s string) string {
+	f := strings.Fields(s)
+	if len(f) < 3 || !strings.EqualFold(f[0], "interval") {
+		return s
+	}
+	return "INTERVAL " + strings.Join(f[1:len(f)-1], " ") + " " + strings.ToUpper(f[len(f)-1])
 }
 
 func isEnumSetType(dt string) bool {
