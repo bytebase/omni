@@ -54,11 +54,11 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// not aggregate. Also before deparseViewSelect, which expands stars and
 	// qualifies tables in place.
 	if checkBody {
-		if err := c.checkViewSelectCollations(stmt.Select, db); err != nil {
+		if err := c.checkViewSelectCollations(stmt.Select, c.viewBodyDatabase(db), nil); err != nil {
 			return err
 		}
 	}
-	collations := c.viewTargetCollations(stmt.Select, db)
+	collations := c.viewTargetCollations(stmt.Select, c.viewBodyDatabase(db))
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
@@ -124,19 +124,23 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 // offsets index into. An unaliased select item is named after its text in
 // source, as the engine names it; with no source ("" from DefineView), the
 // name is rebuilt from the AST.
+// viewBodyDatabase returns the database an unqualified table in the body of
+// a view created in db names. It is the session's, not the view's:
+// USE a; CREATE VIEW b.v AS SELECT id FROM t stores FROM `a`.`t` (verified on
+// v8.5.5). With no database selected the view's own is the only one there is.
+func (c *Catalog) viewBodyDatabase(db *Database) *Database {
+	if cur := c.GetDatabase(c.CurrentDatabase()); cur != nil {
+		return cur
+	}
+	return db
+}
+
 func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source string, db *Database) (string, []string) {
 	if sel == nil {
 		return rawText, nil
 	}
 
-	// An unqualified table in the body is the session's, not the view's:
-	// USE a; CREATE VIEW b.v AS SELECT id FROM t stores FROM `a`.`t`
-	// (verified on v8.5.5). With no database selected the view's own is
-	// the only one there is.
-	from := db
-	if cur := c.GetDatabase(c.CurrentDatabase()); cur != nil {
-		from = cur
-	}
+	from := c.viewBodyDatabase(db)
 	lookup := tableLookupForDB(from)
 	resolver := &deparse.Resolver{
 		Lookup:   lookup,

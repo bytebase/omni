@@ -95,16 +95,32 @@ type viewScope struct {
 // viewRelation lists the derived collation of each column of a FROM item.
 type viewRelation map[string]exprCollation
 
-func (c *Catalog) newViewScope(sel *nodes.SelectStmt, db *Database) *viewScope {
+// newViewScope lists the FROM items of sel. ctes holds the CTE names an
+// enclosing query makes visible, which a WITH on a set operation or a
+// parenthesized query attaches to the outer node.
+func (c *Catalog) newViewScope(sel *nodes.SelectStmt, db *Database, ctes map[string]bool) *viewScope {
 	s := &viewScope{relations: map[string]viewRelation{}}
-	ctes := map[string]bool{}
-	for _, cte := range sel.CTEs {
-		ctes[toLower(cte.Name)] = true
-	}
+	ctes = withCTENames(sel, ctes)
 	for _, from := range sel.From {
 		c.collectViewRelations(from, db, ctes, s)
 	}
 	return s
+}
+
+// withCTENames adds the names of sel's CTEs to the visible ones, copying
+// rather than changing ctes.
+func withCTENames(sel *nodes.SelectStmt, ctes map[string]bool) map[string]bool {
+	if len(sel.CTEs) == 0 {
+		return ctes
+	}
+	out := make(map[string]bool, len(ctes)+len(sel.CTEs))
+	for name := range ctes {
+		out[name] = true
+	}
+	for _, cte := range sel.CTEs {
+		out[toLower(cte.Name)] = true
+	}
+	return out
 }
 
 func (c *Catalog) collectViewRelations(te nodes.TableExpr, db *Database, ctes map[string]bool, s *viewScope) {
@@ -211,21 +227,23 @@ func columnCollation(col *Column) exprCollation {
 
 // checkViewSelectCollations derives the collation of every expression TiDB
 // builds for the view body that the catalog models, and returns the error
-// TiDB answers when two of them do not aggregate.
-func (c *Catalog) checkViewSelectCollations(sel *nodes.SelectStmt, db *Database) error {
+// TiDB answers when two of them do not aggregate. db is the database an
+// unqualified table names (viewBodyDatabase); ctes is as for newViewScope.
+func (c *Catalog) checkViewSelectCollations(sel *nodes.SelectStmt, db *Database, ctes map[string]bool) error {
 	if sel == nil {
 		return nil
 	}
 	if sel.ParenSource != nil {
-		return c.checkViewSelectCollations(sel.ParenSource, db)
+		return c.checkViewSelectCollations(sel.ParenSource, db, withCTENames(sel, ctes))
 	}
 	if sel.Left != nil || sel.Right != nil {
-		if err := c.checkViewSelectCollations(sel.Left, db); err != nil {
+		ctes = withCTENames(sel, ctes)
+		if err := c.checkViewSelectCollations(sel.Left, db, ctes); err != nil {
 			return err
 		}
-		return c.checkViewSelectCollations(sel.Right, db)
+		return c.checkViewSelectCollations(sel.Right, db, ctes)
 	}
-	s := c.newViewScope(sel, db)
+	s := c.newViewScope(sel, db, ctes)
 	for _, from := range sel.From {
 		if err := s.checkJoinConditions(from); err != nil {
 			return err
@@ -271,23 +289,31 @@ func (s *viewScope) checkJoinConditions(te nodes.TableExpr) error {
 // body that is a single SELECT, or returns nil. A star or an item the catalog
 // does not model leaves its entry unknown.
 func (c *Catalog) viewTargetCollations(sel *nodes.SelectStmt, db *Database) []exprCollation {
+	var ctes map[string]bool
 	for sel != nil && sel.ParenSource != nil {
+		ctes = withCTENames(sel, ctes)
 		sel = sel.ParenSource
 	}
 	if sel == nil || sel.Left != nil || sel.Right != nil {
 		return nil
 	}
-	s := c.newViewScope(sel, db)
+	s := c.newViewScope(sel, db, ctes)
 	out := make([]exprCollation, len(sel.TargetList))
 	for i, target := range sel.TargetList {
-		rt, ok := target.(*nodes.ResTarget)
-		if !ok {
-			return nil
+		// An item with no alias is the bare expression.
+		expr := target
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			expr = rt.Val
 		}
-		if cr, ok := rt.Val.(*nodes.ColumnRef); ok && cr.Star {
+		switch e := expr.(type) {
+		case *nodes.StarExpr:
 			return nil
+		case *nodes.ColumnRef:
+			if e.Star {
+				return nil
+			}
 		}
-		if ec, err := s.infer(rt.Val); err == nil {
+		if ec, err := s.infer(expr); err == nil {
 			out[i] = ec
 		}
 	}

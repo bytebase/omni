@@ -40,6 +40,7 @@ var viewCollationCases = []struct {
 	// Same charset: a _bin collation wins, two others give NONE.
 	{body: "SELECT CONCAT(a, g) AS c FROM t", charset: "utf8mb4", collation: "utf8mb4_bin", coer: 2},
 	{body: "SELECT CONCAT(g, u) AS c FROM t", charset: "utf8mb4", collation: "utf8mb4_bin", coer: 1},
+	{body: "SELECT g AS c FROM t", charset: "utf8mb4", collation: "utf8mb4_general_ci", coer: 2},
 	{body: "SELECT CONCAT(z, g) AS c FROM t", charset: "utf8mb4", collation: "utf8mb4_bin", coer: 1},
 	{body: "SELECT CONCAT(g, u, a) AS c FROM t", charset: "utf8mb4", collation: "utf8mb4_bin", coer: 1},
 	{body: "SELECT CONCAT(CONCAT(g, u), l) AS c FROM t", charset: "utf8mb4", collation: "utf8mb4_bin", coer: 1},
@@ -212,5 +213,93 @@ func TestContainerViewCollationRecord(t *testing.T) {
 				t.Errorf("got %s, want %s", got, want)
 			}
 		})
+	}
+}
+
+// viewCollationScopeSetup has the session in c17src, whose t has two
+// utf8mb4_general_ci columns, while c17dst's t mixes utf8mb4_general_ci and
+// utf8mb4_unicode_ci.
+const viewCollationScopeSetup = `CREATE DATABASE c17src; CREATE DATABASE c17dst;
+CREATE TABLE c17src.t (g VARCHAR(10) COLLATE utf8mb4_general_ci, u VARCHAR(10) COLLATE utf8mb4_general_ci);
+CREATE TABLE c17dst.t (g VARCHAR(10) COLLATE utf8mb4_general_ci, u VARCHAR(10) COLLATE utf8mb4_unicode_ci);
+USE c17src;`
+
+// viewCollationScopeCases records which table TiDB v8.5.5 reads a view
+// body's names from: an unqualified table is the session's even when the
+// view is created in another database, and a CTE on a set operation or a
+// parenthesized query hides the table of its name in every operand. code is
+// 0 where CREATE VIEW succeeds.
+var viewCollationScopeCases = []struct {
+	stmt string
+	code int
+}{
+	{"CREATE VIEW c17dst.v AS SELECT g FROM t WHERE g = u", 0},
+	{"CREATE VIEW c17dst.v AS SELECT g FROM c17dst.t WHERE g = u", 1267},
+	{"CREATE VIEW c17dst.v AS WITH t AS (SELECT 'x' AS g, 'x' AS u) SELECT g FROM c17dst.t AS t2 WHERE g = 'x' UNION ALL SELECT g FROM t WHERE g = u", 0},
+	{"CREATE VIEW c17dst.v AS WITH t AS (SELECT 'x' AS g, 'x' AS u) (SELECT g FROM t WHERE g = u)", 0},
+	{"CREATE VIEW c17dst.v AS SELECT g FROM c17dst.t WHERE g = u UNION ALL SELECT 'x'", 1267},
+}
+
+// TestViewCollationScopes holds the catalog to viewCollationScopeCases.
+func TestViewCollationScopes(t *testing.T) {
+	for _, tc := range viewCollationScopeCases {
+		t.Run(tc.stmt, func(t *testing.T) {
+			c := New()
+			mustExec(t, c, viewCollationScopeSetup)
+			results, err := c.Exec(tc.stmt, nil)
+			if err == nil && len(results) > 0 {
+				err = results[0].Error
+			}
+			var catErr *Error
+			switch {
+			case tc.code == 0 && err != nil:
+				t.Fatalf("CREATE VIEW: %v", err)
+			case tc.code != 0 && (!errors.As(err, &catErr) || catErr.Code != tc.code):
+				t.Fatalf("got %v, want error %d", err, tc.code)
+			}
+		})
+	}
+	// The column's collation is the session table's too.
+	c := New()
+	mustExec(t, c, viewCollationScopeSetup)
+	mustExec(t, c, "CREATE VIEW c17dst.v AS SELECT u FROM t")
+	if got := c.GetDatabase("c17dst").Views["v"].ColumnMetadata[0].Collation; got != "utf8mb4_general_ci" {
+		t.Errorf("c17dst.v.u collation %s, want utf8mb4_general_ci (c17src.t.u)", got)
+	}
+}
+
+// TestContainerViewCollationScopes asks TiDB that viewCollationScopeCases is
+// its answer.
+func TestContainerViewCollationScopes(t *testing.T) {
+	tc := startTiDBForCatalog(t)
+	drop := func() {
+		_, _ = tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS c17src")
+		_, _ = tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS c17dst")
+	}
+	drop()
+	t.Cleanup(drop)
+	mustExecTiDB(t, tc, viewCollationScopeSetup)
+	for _, c := range viewCollationScopeCases {
+		t.Run(c.stmt, func(t *testing.T) {
+			mustExecTiDB(t, tc, "DROP VIEW IF EXISTS c17dst.v")
+			_, err := tc.db.ExecContext(tc.ctx, c.stmt)
+			var myErr *gomysql.MySQLError
+			switch {
+			case c.code == 0 && err != nil:
+				t.Fatalf("CREATE VIEW: %v", err)
+			case c.code != 0 && (!errors.As(err, &myErr) || int(myErr.Number) != c.code):
+				t.Fatalf("got %v, want error %d", err, c.code)
+			}
+		})
+	}
+	var coll string
+	mustExecTiDB(t, tc, "DROP VIEW IF EXISTS c17dst.v")
+	mustExecTiDB(t, tc, "CREATE VIEW c17dst.v AS SELECT u FROM t")
+	mustExecTiDB(t, tc, "INSERT INTO c17src.t VALUES ('x', 'x')")
+	if err := tc.db.QueryRowContext(tc.ctx, "SELECT COLLATION(u) FROM c17dst.v").Scan(&coll); err != nil {
+		t.Fatal(err)
+	}
+	if coll != "utf8mb4_general_ci" {
+		t.Errorf("c17dst.v.u collation %s, want utf8mb4_general_ci", coll)
 	}
 }
