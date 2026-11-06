@@ -131,6 +131,26 @@ func TestQuantifiedComparisonAnalyze(t *testing.T) {
 		}
 	}
 
+	t.Run("aggregate in the left operand", func(t *testing.T) {
+		for _, sql := range []string{
+			"SELECT MAX(a) > ALL (SELECT a FROM qn) AS r FROM qt",
+			"SELECT MAX(a) = SOME (SELECT a FROM qn) AS r FROM qt",
+			"SELECT MAX(a) IN (SELECT a FROM qn) AS r FROM qt",
+		} {
+			if q := analyzeQuantified(t, c, sql); !q.HasAggs {
+				t.Errorf("%s: HasAggs = false, want true", sql)
+			}
+		}
+		// An aggregate inside the subquery is the subquery's own.
+		q := analyzeQuantified(t, c, "SELECT a > ALL (SELECT MAX(a) FROM qn) AS r FROM qt")
+		if q.HasAggs {
+			t.Errorf("HasAggs = true for an aggregate only inside the subquery")
+		}
+		if link, ok := q.TargetList[0].Expr.(*SubLinkExprQ); !ok || !link.Subquery.HasAggs {
+			t.Errorf("the subquery lost its own HasAggs: %#v", q.TargetList[0].Expr)
+		}
+	})
+
 	t.Run("scalar subquery stays scalar", func(t *testing.T) {
 		q := analyzeQuantified(t, c, "SELECT 1 > (SELECT 0) AS r")
 		op, ok := q.TargetList[0].Expr.(*OpExprQ)
@@ -187,6 +207,7 @@ func quantifiedOracleQueries() []string {
 		"SELECT 1 = (2 > ANY (SELECT a FROM qt)) AS r",
 		"SELECT NOT (1 = ANY (SELECT a FROM qt)) AS r",
 		"SELECT (1 + 1) <= ALL (SELECT a + 2 FROM qt) AS r",
+		"SELECT MAX(q.a) >= ALL (SELECT a FROM qt) AS r FROM qt AS q",
 	)
 }
 
