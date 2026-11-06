@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -130,17 +131,54 @@ func intIntervalBounds(iv *nodes.PartitionInterval) ([]string, bool, error) {
 	if step <= 0 {
 		return nil, false, errIntervalUnsupported("Unsupported INTERVAL, should be a positive number")
 	}
-	if last < first || (last-first)%step != 0 {
-		return nil, false, errIntervalUnsupported("Unsupported INTERVAL: expr (%d) not matching FIRST + n INTERVALs (%d + n * %d)", last, first, step)
-	}
-	if (last-first)/step+1 > maxIntervalPartitions {
-		return nil, false, &Error{Code: 1499, SQLState: "HY000", Message: "Too many partitions (including subpartitions) were defined"}
-	}
+	// Each bound is FIRST + i * INTERVAL, worked out the way v8.5.5 does: in BIGINT, so a step
+	// past it answers 1690 even where LAST is off the steps, and up to LAST, so FIRST and LAST at
+	// the top of BIGINT make one partition without stepping past it.
 	var bounds []string
-	for v := first; v <= last; v += step {
+	for i := int64(0); ; i++ {
+		if i >= maxIntervalPartitions {
+			return nil, false, &Error{Code: 1499, SQLState: "HY000", Message: "Too many partitions (including subpartitions) were defined"}
+		}
+		offset, ok := mulInt64(i, step)
+		if !ok {
+			return nil, false, errBigintOutOfRange(fmt.Sprintf("(%d * %d)", i, step))
+		}
+		v, ok := addInt64(first, offset)
+		if !ok {
+			return nil, false, errBigintOutOfRange(fmt.Sprintf("(%d + %d)", first, offset))
+		}
+		if v > last {
+			return nil, false, errIntervalUnsupported("Unsupported INTERVAL: expr (%d) not matching FIRST + n INTERVALs (%d + n * %d)", last, first, step)
+		}
 		bounds = append(bounds, strconv.FormatInt(v, 10))
+		if v == last {
+			return bounds, true, nil
+		}
 	}
-	return bounds, true, nil
+}
+
+func errBigintOutOfRange(expr string) error {
+	return &Error{Code: 1690, SQLState: "22003", Message: "BIGINT value is out of range in '" + expr + "'"}
+}
+
+// mulInt64 and addInt64 report whether the result fits in an int64.
+func mulInt64(a, b int64) (int64, bool) {
+	if a == 0 || b == 0 {
+		return 0, true
+	}
+	c := a * b
+	if c/b != a || (a == -1 && b == math.MinInt64) || (b == -1 && a == math.MinInt64) {
+		return 0, false
+	}
+	return c, true
+}
+
+func addInt64(a, b int64) (int64, bool) {
+	c := a + b
+	if (b > 0 && c < a) || (b < 0 && c > a) {
+		return 0, false
+	}
+	return c, true
 }
 
 // timeIntervalBounds works out the bounds of a DATE or DATETIME INTERVAL. Each is FIRST plus n
@@ -149,8 +187,7 @@ func timeIntervalBounds(iv *nodes.PartitionInterval, kind string) ([]string, boo
 	if iv.Unit == "" {
 		return nil, false, &Error{Code: 1292, SQLState: "22007", Message: "Truncated incorrect DOUBLE value"}
 	}
-	var months int64
-	var unit time.Duration
+	var months, seconds int64
 	switch iv.Unit {
 	case "YEAR":
 		months = 12
@@ -159,15 +196,15 @@ func timeIntervalBounds(iv *nodes.PartitionInterval, kind string) ([]string, boo
 	case "MONTH":
 		months = 1
 	case "WEEK":
-		unit = 7 * 24 * time.Hour
+		seconds = 7 * 24 * 3600
 	case "DAY":
-		unit = 24 * time.Hour
+		seconds = 24 * 3600
 	case "HOUR":
-		unit = time.Hour
+		seconds = 3600
 	case "MINUTE":
-		unit = time.Minute
+		seconds = 60
 	case "SECOND":
-		unit = time.Second
+		seconds = 1
 	default:
 		return nil, false, errIntervalUnsupported("Unsupported INTERVAL partitioning, only supports YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE and SECOND as time unit")
 	}
@@ -192,9 +229,15 @@ func timeIntervalBounds(iv *nodes.PartitionInterval, kind string) ([]string, boo
 		if n >= maxIntervalPartitions {
 			return nil, false, &Error{Code: 1499, SQLState: "HY000", Message: "Too many partitions (including subpartitions) were defined"}
 		}
-		at := first.Add(time.Duration(n*step) * unit)
+		var at time.Time
 		if months > 0 {
-			at = addMonthsClamped(first, n*step*months)
+			at, ok = addMonthsClamped(first, n, step, months)
+		} else {
+			at, ok = addSeconds(first, n, step, seconds)
+		}
+		if !ok {
+			// A bound past 9999-12-31 is 1441 on v8.5.5, however far past.
+			return nil, false, &Error{Code: 1441, SQLState: "22008", Message: "Datetime function: datetime field overflow"}
 		}
 		if at.After(last) {
 			return nil, false, errIntervalUnsupported("Unsupported INTERVAL: expr (%s) not matching FIRST + n INTERVALs", last.Format(layout))
@@ -206,15 +249,46 @@ func timeIntervalBounds(iv *nodes.PartitionInterval, kind string) ([]string, boo
 	}
 }
 
-// addMonthsClamped adds months the way DATE_ADD does, keeping to the last day of a shorter month.
-func addMonthsClamped(t time.Time, months int64) time.Time {
-	total := int64(t.Year())*12 + int64(t.Month()) - 1 + months
+// maxIntervalTime is the first instant past the DATETIME range.
+var maxIntervalTime = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+// addSeconds is t plus n steps of step units of unit seconds each, counted in whole seconds rather
+// than a time.Duration, which stops at about 292 years. It reports false past the DATETIME range.
+func addSeconds(t time.Time, n, step, unit int64) (time.Time, bool) {
+	offset, ok := mulInt64(n, step)
+	if ok {
+		offset, ok = mulInt64(offset, unit)
+	}
+	if !ok {
+		return time.Time{}, false
+	}
+	sec, ok := addInt64(t.Unix(), offset)
+	if !ok || sec >= maxIntervalTime.Unix() {
+		return time.Time{}, false
+	}
+	return time.Unix(sec, int64(t.Nanosecond())).UTC(), true
+}
+
+// addMonthsClamped is t plus n steps of step units of unit months each, the way DATE_ADD adds
+// them, keeping to the last day of a shorter month. It reports false past the DATETIME range.
+func addMonthsClamped(t time.Time, n, step, unit int64) (time.Time, bool) {
+	months, ok := mulInt64(n, step)
+	if ok {
+		months, ok = mulInt64(months, unit)
+	}
+	if !ok {
+		return time.Time{}, false
+	}
+	total, ok := addInt64(int64(t.Year())*12+int64(t.Month())-1, months)
+	if !ok || total >= 10000*12 {
+		return time.Time{}, false
+	}
 	year, month := int(total/12), time.Month(total%12+1)
 	day := t.Day()
 	if last := time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day(); day > last {
 		day = last
 	}
-	return time.Date(year, month, day, t.Hour(), t.Minute(), t.Second(), 0, time.UTC)
+	return time.Date(year, month, day, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC), true
 }
 
 // intervalNullBound is the bound of NULL PARTITION: the lowest value of a RANGE COLUMNS column's
