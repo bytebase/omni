@@ -280,9 +280,11 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	if !col.GetNullable() {
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrNotNull})
 	}
-	if col.GetIsInvisible() {
-		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrInvisible})
-	}
+	// IsInvisible is ignored. TiDB v8.5.5 has no column visibility: it answers
+	// 1064 for INVISIBLE after a column type, even inside /*!80023 ... */, and
+	// information_schema.COLUMNS.EXTRA never says INVISIBLE, so Bytebase's TiDB
+	// sync never sets the flag. Keeping it would make SHOW CREATE TABLE write
+	// text TiDB refuses.
 	def.AutoIncrement = strings.EqualFold(col.GetDefault(), autoIncrementDefault)
 	def.DefaultValue = columnDefault(col)
 	if col.GetOnUpdate() != "" {

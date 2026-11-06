@@ -34,6 +34,7 @@ func TestCatalogRefusesTiDBRefusedForms(t *testing.T) {
 			c := setupWithDB(t)
 			mustExec(t, c, "CREATE TABLE t (a INT, b INT)")
 			mustExec(t, c, "CREATE VIEW v AS SELECT 1 AS a")
+			before := c.ShowCreateTable("testdb", "t")
 			if _, err := c.Exec(sql, nil); err == nil {
 				t.Fatalf("Exec accepted %q, which TiDB refuses", sql)
 			}
@@ -41,8 +42,8 @@ func TestCatalogRefusesTiDBRefusedForms(t *testing.T) {
 			if len(db.Tables) != 1 || len(db.Views) != 1 {
 				t.Errorf("the refused statement left %d tables and %d views, want 1 and 1", len(db.Tables), len(db.Views))
 			}
-			if db.GetTable("t").GetColumn("b").Invisible {
-				t.Error("the refused statement made column b invisible")
+			if after := c.ShowCreateTable("testdb", "t"); after != before {
+				t.Errorf("the refused statement changed table t:\n%s\nwant\n%s", after, before)
 			}
 			if v := db.Views[toLower("v")]; v == nil || len(v.Columns) != 1 {
 				t.Error("the refused statement changed view v")
