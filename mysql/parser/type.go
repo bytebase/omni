@@ -516,6 +516,7 @@ func (p *Parser) parseRequiredLength(dt *nodes.DataType) error {
 		}
 	}
 	dt.Length = int(p.cur.Ival)
+	dt.HasLength = true
 	p.advance()
 	if p.cur.Type != ')' {
 		return &ParseError{

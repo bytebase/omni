@@ -143,6 +143,15 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			return &ResolvedType{BaseType: BaseTypeText}
 		}
 	case *nodes.FuncCallExpr:
+		// JSON_VALUE answers its RETURNING type, and char(512) with none: mysql:8.0.46 gives
+		// KEY ((JSON_VALUE(a,'$.x' RETURNING SIGNED))) a bigint hidden column, and one with
+		// no RETURNING a varchar(512).
+		if e.JSONValueArm {
+			if e.JSONValue != nil && e.JSONValue.Returning != nil {
+				return jsonValueIndexType(e.JSONValue.Returning)
+			}
+			return &ResolvedType{BaseType: BaseTypeVarchar, Length: 512}
+		}
 		name := strings.ToLower(e.Name)
 		switch name {
 		case "lower", "upper":
@@ -167,6 +176,46 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 		}
 	}
 	return &ResolvedType{BaseType: BaseTypeVarchar, Length: 255}
+}
+
+// jsonValueIndexType is the hidden column a functional index over JSON_VALUE ... RETURNING gets:
+// a CHAR(n) is a varchar(n), and a temporal type keeps its precision.
+//
+// A string longer than 512 characters, which is what one with no length is, is a TEXT or a BLOB,
+// and an index over it is refused: mysql:8.0.46 takes RETURNING CHAR(512) and answers 3757 for
+// CHAR(513) and for CHAR.
+func jsonValueIndexType(dt *nodes.DataType) *ResolvedType {
+	if strings.EqualFold(dt.Name, "year") {
+		return &ResolvedType{BaseType: BaseTypeYear}
+	}
+	rt := dataTypeToResolvedType(dt)
+	// CHAR ... CHARSET binary is a binary string: mysql:8.0.46 gives RETURNING CHAR(3) CHARSET
+	// binary a varbinary(3) hidden column.
+	if rt.BaseType == BaseTypeChar && strings.EqualFold(dt.Charset, "binary") {
+		rt.BaseType = BaseTypeBinary
+	}
+	switch rt.BaseType {
+	case BaseTypeChar, BaseTypeBinary:
+		long := !dt.HasLength || dt.Length > 512
+		switch {
+		case long && rt.BaseType == BaseTypeChar:
+			rt.BaseType = BaseTypeText
+		case long:
+			rt.BaseType = BaseTypeBlob
+		case rt.BaseType == BaseTypeChar:
+			rt.BaseType = BaseTypeVarchar
+		default:
+			rt.BaseType = BaseTypeVarBinary
+		}
+		rt.Length = dt.Length
+	case BaseTypeDateTime, BaseTypeTime:
+		rt.Precision = dt.Length
+	case BaseTypeDecimal:
+		if rt.Precision == 0 {
+			rt.Precision = 10
+		}
+	}
+	return rt
 }
 
 func resolvedTypeFromColumn(col *Column) *ResolvedType {
@@ -246,6 +295,26 @@ func columnFromResolvedType(rt *ResolvedType) *Column {
 	case BaseTypeText, BaseTypeTinyText, BaseTypeMediumText, BaseTypeLongText:
 		col.DataType = "text"
 		col.ColumnType = "text"
+	case BaseTypeVarBinary:
+		col.DataType = "varbinary"
+		col.ColumnType = fmt.Sprintf("varbinary(%d)", rt.Length)
+	case BaseTypeDate:
+		col.DataType, col.ColumnType = "date", "date"
+	case BaseTypeDateTime, BaseTypeTime:
+		col.DataType = "datetime"
+		if rt.BaseType == BaseTypeTime {
+			col.DataType = "time"
+		}
+		col.ColumnType = col.DataType
+		if rt.Precision > 0 {
+			col.ColumnType = fmt.Sprintf("%s(%d)", col.DataType, rt.Precision)
+		}
+	case BaseTypeDouble:
+		col.DataType, col.ColumnType = "double", "double"
+	case BaseTypeFloat:
+		col.DataType, col.ColumnType = "float", "float"
+	case BaseTypeYear:
+		col.DataType, col.ColumnType = "year", "year"
 	case BaseTypeDecimal:
 		col.DataType = "decimal"
 		if rt.Precision > 0 {
@@ -272,21 +341,30 @@ func isResolvedStringType(rt *ResolvedType) bool {
 func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNode) error {
 	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
 		return &Error{
-			Code:     3756,
+			Code:     3762,
 			SQLState: "HY000",
 			Message:  fmt.Sprintf("Functional index on a column is not supported. Consider using a regular index instead. Index '%s'.", indexName),
 		}
 	}
 	if containsDisallowedFunctionalIndexExpr(expr) {
 		return &Error{
-			Code:     3757,
+			Code:     3758,
 			SQLState: "HY000",
 			Message:  fmt.Sprintf("Expression of functional index '%s' contains a disallowed function.", indexName),
 		}
 	}
+	// A JSON or geometry result has a code of its own: mysql:8.0.46 answers 3753 for
+	// KEY ((JSON_VALUE(a,'$.x' RETURNING JSON))) and KEY ((CAST(a->'$.x' AS JSON))).
+	if rt := inferFunctionalIndexExprType(tbl, expr); rt != nil && isFunctionalIndexJSONOrGeometryType(rt) {
+		return &Error{
+			Code:     3753,
+			SQLState: "HY000",
+			Message:  "Cannot create a functional index on a function that returns a JSON or GEOMETRY value.",
+		}
+	}
 	if isFunctionalIndexLOBType(inferFunctionalIndexExprType(tbl, expr)) {
 		return &Error{
-			Code:     3754,
+			Code:     3757,
 			SQLState: "HY000",
 			Message:  "Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.",
 		}
@@ -371,6 +449,15 @@ func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
 	case *nodes.IntervalExpr:
 		// KEY ((a + interval (day(now())) day)) → 3758 (oracle 8.0.32).
 		return containsDisallowedFunctionalIndexExpr(e.Value)
+	}
+	return false
+}
+
+func isFunctionalIndexJSONOrGeometryType(rt *ResolvedType) bool {
+	switch rt.BaseType {
+	case BaseTypeJSON, BaseTypeGeometry, BaseTypePoint, BaseTypeLineString, BaseTypePolygon,
+		BaseTypeMultiPoint, BaseTypeMultiLineString, BaseTypeMultiPolygon, BaseTypeGeometryCollection:
+		return true
 	}
 	return false
 }

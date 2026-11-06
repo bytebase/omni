@@ -656,12 +656,14 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
-		// Charset introducer: _utf8mb4'hello', _latin1'world'. Only a real
+		// Charset introducer: _utf8mb4'hello', _latin1'world'. Only a real charset name,
+		// unquoted, forms one: `_latin1`'x' is a column with an alias (mysql:8.0.46 answers 1054
+		// for it after parsing), and `_latin1` X'61' is a 1064. Only a real
 		// charset name forms an introducer — MySQL lexes _typo'abc' as an
 		// identifier followed by a separate string literal (oracle 8.0.32 +
 		// 5.7.25: SELECT _typo'abc' → 1054 unknown column, not a syntax
 		// error), so an unknown name falls through to identifier parsing.
-		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && p.peekNext().Type == tokSCONST {
+		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && !p.backtickQuotedAt(p.cur.Loc) && p.peekNext().Type == tokSCONST {
 			charsetTok := p.advance() // consume the charset identifier
 			strTok := p.advance()     // consume the string literal
 			lit := &nodes.StringLit{
@@ -671,6 +673,25 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}
 			p.foldAdjacentStringLits(lit)
 			return lit, nil
+		}
+
+		// An introducer takes a hex or bit literal too, and makes it a string of that charset:
+		// mysql:8.0.46 stores _latin1 X'61' as _latin1'a'.
+		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && !p.backtickQuotedAt(p.cur.Loc) {
+			if next := p.peekNext().Type; next == tokXCONST || next == tokBCONST {
+				charsetTok := p.advance()
+				litTok := p.advance()
+				// The digits are held to the literal's own rules: X'GG', b'2' and X'6' are 1064.
+				value, err := p.decodeByteLiteral(litTok)
+				if err != nil {
+					return nil, err
+				}
+				return &nodes.StringLit{
+					Loc:     nodes.Loc{Start: charsetTok.Loc, End: litTok.End},
+					Value:   value,
+					Charset: charsetTok.Str,
+				}, nil
+			}
 		}
 
 		// Identifier — could be column ref or function call
@@ -690,6 +711,9 @@ func (p *Parser) funcWordIsName() bool {
 
 // parseIdentExpr parses an identifier that could be a column ref or function call.
 func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
+	if p.refusesFunctionName() {
+		return nil, p.syntaxErrorAtTok(p.peekNext())
+	}
 	start := p.pos()
 	name, _, err := p.parseIdentifier()
 	if err != nil {
@@ -813,6 +837,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 
 	// Handle special function forms
 	upperName := strings.ToUpper(name)
+
+	if builtin && upperName == "JSON_VALUE" {
+		return p.parseJSONValueFunc(fc)
+	}
 
 	if builtin {
 		switch upperName {
