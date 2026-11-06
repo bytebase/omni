@@ -1,93 +1,139 @@
 package catalog
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
 
-// TestScenario_C17 covers section C17 (String function charset / collation
-// propagation) from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. 8 scenarios, each
-// asserted on both a MySQL 8.0 container and the omni catalog. Every C17
-// scenario is expected to currently fail on omni because analyze_expr.go /
-// function_types.go do not track charset, collation, or derivation
-// coercibility. Each omni failure is documented in mysql/catalog/scenarios_bug_queue/c17.md
-// and reported via t.Errorf as KNOWN BUG so proof stays compile-clean.
+// TestScenario_C17 covers section C17 (string function charset / collation
+// propagation) from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md, asked
+// of TiDB v8.5.5 and of the omni catalog.
+//
+// TiDB's answers are not MySQL's (see view_collation.go): it has no
+// latin1_swedish_ci or utf8mb4_0900_as_cs under the new collation framework,
+// so the tables use collations it has; two IMPLICIT collations of one charset
+// aggregate to the charset's _bin collation with coercibility NONE instead of
+// failing, and only a comparison refuses NONE; a _bin collation wins over
+// another collation at the same coercibility; and LPAD/RPAD aggregate their
+// first and third arguments rather than taking the first one's.
+//
+// TiDB's information_schema.COLUMNS reports NULL CHARACTER_SET_NAME and
+// COLLATION_NAME for every view column, so each scenario reads the column's
+// charset and collation with SELECT CHARSET(c), COLLATION(c) over the view and
+// holds the catalog's View.ColumnMetadata to it. A body TiDB refuses must be
+// refused by the catalog with the same error.
 func TestScenario_C17(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 
-	// c17OracleViewCol fetches (CHARACTER_SET_NAME, COLLATION_NAME) for a
-	// view column, tolerating NULL as "".
-	c17OracleViewCol := func(t *testing.T, view, col string) (charset, collation string, ok bool) {
+	// A string literal takes the session's collation_connection. The Go
+	// driver sets utf8mb4_general_ci; the catalog has no session and models
+	// TiDB's server default, utf8mb4_bin, which a client that names no
+	// collation gets. The pool holds one connection (scenarioContainer), so
+	// the setting holds for every statement below and is put back after.
+	var prevCollation string
+	oracleScan(t, mc, `SELECT @@collation_connection`, &prevCollation)
+	if _, err := mc.db.ExecContext(mc.ctx, `SET NAMES utf8mb4 COLLATE utf8mb4_bin`); err != nil {
+		t.Fatalf("tidb SET NAMES: %v", err)
+	}
+	defer func() {
+		if _, err := mc.db.ExecContext(mc.ctx, `SET NAMES utf8mb4 COLLATE `+prevCollation); err != nil {
+			t.Errorf("tidb restore collation_connection %s: %v", prevCollation, err)
+		}
+	}()
+
+	// c17ViewColumn asserts what TiDB and the catalog derive for a view
+	// column: SELECT CHARSET(col), COLLATION(col) over the view, which needs a
+	// row in it, against View.ColumnMetadata. information_schema.COLUMNS has
+	// NULL for both on TiDB, which is asserted too.
+	c17ViewColumn := func(t *testing.T, c *Catalog, view, col, wantCharset, wantCollation string) {
 		t.Helper()
 		var cs, co any
-		row := mc.db.QueryRowContext(mc.ctx,
-			`SELECT CHARACTER_SET_NAME, COLLATION_NAME
-			   FROM information_schema.COLUMNS
-			  WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME=? AND COLUMN_NAME=?`,
-			view, col)
-		if err := row.Scan(&cs, &co); err != nil {
-			t.Errorf("oracle view col (%s.%s): %v", view, col, err)
-			return "", "", false
+		if err := mc.db.QueryRowContext(mc.ctx,
+			`SELECT CHARSET(`+col+`), COLLATION(`+col+`) FROM testdb.`+view+` LIMIT 1`).Scan(&cs, &co); err != nil {
+			t.Errorf("tidb CHARSET/COLLATION of %s.%s: %v", view, col, err)
+		} else {
+			assertStringEq(t, "tidb CHARSET("+view+"."+col+")", asString(cs), wantCharset)
+			assertStringEq(t, "tidb COLLATION("+view+"."+col+")", asString(co), wantCollation)
 		}
-		return asString(cs), asString(co), true
-	}
 
-	// c17OracleViewMaxLen returns CHARACTER_MAXIMUM_LENGTH for a view column.
-	c17OracleViewMaxLen := func(t *testing.T, view, col string) (int, bool) {
-		t.Helper()
-		var v any
-		row := mc.db.QueryRowContext(mc.ctx,
-			`SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
-			 WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME=? AND COLUMN_NAME=?`,
-			view, col)
-		if err := row.Scan(&v); err != nil {
-			t.Errorf("oracle max_len (%s.%s): %v", view, col, err)
-			return 0, false
+		var isCS, isCo any
+		if err := mc.db.QueryRowContext(mc.ctx,
+			`SELECT CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS
+			  WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME=? AND COLUMN_NAME=?`, view, col).Scan(&isCS, &isCo); err != nil {
+			t.Errorf("tidb information_schema.COLUMNS %s.%s: %v", view, col, err)
+		} else if isCS != nil || isCo != nil {
+			t.Errorf("tidb information_schema.COLUMNS %s.%s: charset %v, collation %v; TiDB v8.5.5 reports NULL for both", view, col, isCS, isCo)
 		}
-		switch x := v.(type) {
-		case nil:
-			return 0, false
-		case int64:
-			return int(x), true
-		case []byte:
-			n := 0
-			for _, b := range x {
-				if b >= '0' && b <= '9' {
-					n = n*10 + int(b-'0')
-				}
-			}
-			return n, true
-		}
-		return 0, false
-	}
 
-	// c17RunExpectError runs a DDL expected to fail and returns both errors.
-	c17RunExpectError := func(t *testing.T, c *Catalog, ddl string) (oracleErr, omniErr error) {
-		t.Helper()
-		_, oracleErr = mc.db.ExecContext(mc.ctx, ddl)
-		results, parseErr := c.Exec(ddl, nil)
-		if parseErr != nil {
-			omniErr = parseErr
+		db := c.GetDatabase("testdb")
+		if db == nil {
+			t.Errorf("omni: database testdb not found")
 			return
 		}
-		for _, r := range results {
-			if r.Error != nil {
-				omniErr = r.Error
+		v := db.Views[toLower(view)]
+		if v == nil {
+			t.Errorf("omni: view %s not created", view)
+			return
+		}
+		for _, meta := range v.ColumnMetadata {
+			if strings.EqualFold(meta.Name, col) {
+				assertStringEq(t, "omni "+view+"."+col+" charset", meta.Charset, wantCharset)
+				assertStringEq(t, "omni "+view+"."+col+" collation", meta.Collation, wantCollation)
 				return
 			}
 		}
-		return
+		t.Errorf("omni: view column %s.%s has no metadata", view, col)
 	}
 
-	// c17OmniViewExists checks whether omni's catalog has a view by name.
-	c17OmniViewExists := func(c *Catalog, view string) bool {
-		db := c.GetDatabase("testdb")
-		if db == nil {
-			return false
+	// c17Coercibility asserts TiDB's COERCIBILITY(col) over a view, which the
+	// catalog derives but does not store.
+	c17Coercibility := func(t *testing.T, view, col string, want int) {
+		t.Helper()
+		var got int
+		oracleScan(t, mc, `SELECT COERCIBILITY(`+col+`) FROM testdb.`+view+` LIMIT 1`, &got)
+		assertIntEq(t, "tidb COERCIBILITY("+view+"."+col+")", got, want)
+	}
+
+	// c17Refused runs a statement that TiDB refuses on both and asserts the
+	// same code and message from each.
+	c17Refused := func(t *testing.T, c *Catalog, ddl string, wantCode int, wantMsg string) {
+		t.Helper()
+		_, tidbErr := mc.db.ExecContext(mc.ctx, ddl)
+		if tidbErr == nil {
+			t.Errorf("tidb accepted %q; want error %d", ddl, wantCode)
+		} else if !strings.Contains(tidbErr.Error(), wantMsg) {
+			t.Errorf("tidb %q: got %v, want %d %q", ddl, tidbErr, wantCode, wantMsg)
 		}
-		_, ok := db.Views[toLower(view)]
-		return ok
+
+		var omniErr error
+		results, err := c.Exec(ddl, nil)
+		if err != nil {
+			omniErr = err
+		}
+		for _, r := range results {
+			if r.Error != nil && omniErr == nil {
+				omniErr = r.Error
+			}
+		}
+		var catErr *Error
+		switch {
+		case omniErr == nil:
+			t.Errorf("omni accepted %q; want error %d", ddl, wantCode)
+		case !errors.As(omniErr, &catErr):
+			t.Errorf("omni %q: got %v, want *Error %d", ddl, omniErr, wantCode)
+		default:
+			assertIntEq(t, "omni error code", catErr.Code, wantCode)
+			assertStringEq(t, "omni error message", catErr.Message, wantMsg)
+		}
+	}
+
+	c17Insert := func(t *testing.T, sql string) {
+		t.Helper()
+		if _, err := mc.db.ExecContext(mc.ctx, sql); err != nil {
+			t.Errorf("tidb %q: %v", sql, err)
+		}
 	}
 
 	// ---- 17.1 CONCAT identical charset/collation --------------------------
@@ -96,91 +142,65 @@ func TestScenario_C17(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 		)`)
 		runOnBoth(t, mc, c, `CREATE VIEW v1 AS SELECT CONCAT(a, b) AS c FROM t`)
+		c17Insert(t, `INSERT INTO testdb.t VALUES ('x', 'y')`)
 
-		cs, co, ok := c17OracleViewCol(t, "v1", "c")
-		if ok {
-			assertStringEq(t, "oracle v1.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "oracle v1.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
-		}
-		if ml, ok := c17OracleViewMaxLen(t, "v1", "c"); ok {
-			assertIntEq(t, "oracle v1.c CHARACTER_MAXIMUM_LENGTH", ml, 20)
-		}
+		c17ViewColumn(t, c, "v1", "c", "utf8mb4", "utf8mb4_general_ci")
+		c17Coercibility(t, "v1", "c", 2)
 
-		// omni: no charset metadata on the view target list (KNOWN GAP).
-		if !c17OmniViewExists(c, "v1") {
-			t.Errorf("omni: view v1 not created")
-		} else {
-			t.Errorf("omni: KNOWN GAP — CONCAT result carries no charset/collation metadata (17.1), see mysql/catalog/scenarios_bug_queue/c17.md")
-		}
+		var maxLen int
+		oracleScan(t, mc, `SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA='testdb' AND TABLE_NAME='v1' AND COLUMN_NAME='c'`, &maxLen)
+		assertIntEq(t, "tidb v1.c CHARACTER_MAXIMUM_LENGTH", maxLen, 20)
 	})
 
 	// ---- 17.2 CONCAT mixing latin1 + utf8mb4 ------------------------------
+	// At one coercibility the Unicode charset wins, in either order.
 	t.Run("17_2_CONCAT_latin1_utf8mb4_superset", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-			b VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_swedish_ci
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+			b VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_bin
 		)`)
-		runOnBoth(t, mc, c, `CREATE VIEW v2 AS SELECT CONCAT(a, b) AS c FROM t`)
+		runOnBoth(t, mc, c, `CREATE VIEW v2 AS SELECT CONCAT(a, b) AS c, CONCAT(b, a) AS d FROM t`)
+		c17Insert(t, `INSERT INTO testdb.t VALUES ('x', 'y')`)
 
-		cs, co, ok := c17OracleViewCol(t, "v2", "c")
-		if ok {
-			assertStringEq(t, "oracle v2.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "oracle v2.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
-		}
-
-		if c17OmniViewExists(c, "v2") {
-			t.Errorf("omni: KNOWN GAP — CONCAT superset widening (latin1→utf8mb4) not tracked (17.2)")
-		}
+		c17ViewColumn(t, c, "v2", "c", "utf8mb4", "utf8mb4_general_ci")
+		c17ViewColumn(t, c, "v2", "d", "utf8mb4", "utf8mb4_general_ci")
 	})
 
-	// ---- 17.3 CONCAT incompatible collations should error -----------------
+	// ---- 17.3 Two IMPLICIT collations of one charset ----------------------
+	// TiDB takes CONCAT of them, giving utf8mb4_bin with coercibility NONE,
+	// and refuses only a comparison: of the two columns, or of that NONE
+	// result. utf8mb4_bin beats another IMPLICIT collation instead.
 	t.Run("17_3_CONCAT_incompatible_collations", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+			e VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin
 		)`)
-		if _, err := mc.db.ExecContext(mc.ctx, `INSERT INTO t VALUES ('x','y')`); err != nil {
-			t.Errorf("oracle INSERT: %v", err)
-		}
+		runOnBoth(t, mc, c, `CREATE VIEW v3 AS SELECT CONCAT(a, b) AS c, CONCAT(a, e) AS d FROM t WHERE a = e`)
+		c17Insert(t, `INSERT INTO testdb.t VALUES ('x', 'y', 'x')`)
 
-		// ORACLE FINDING: MySQL 8.0.45 does NOT raise 1267 for
-		// CONCAT(utf8mb4_0900_ai_ci, utf8mb4_0900_as_cs) — the CONCAT path
-		// silently widens via a newer pad-space-compat rule. The canonical
-		// illegal-mix trigger for this pair is the `=` comparison path
-		// (Item_bool_func2::fix_length_and_dec), which we use here as the
-		// stable probe that forces DTCollation::aggregate to fail.
-		_, oracleCmpErr := mc.db.ExecContext(mc.ctx, `SELECT 1 FROM t WHERE a = b`)
-		if oracleCmpErr == nil {
-			t.Errorf("oracle: comparison of two incompatible IMPLICIT collations unexpectedly accepted — expected ER_CANT_AGGREGATE_2COLLATIONS (1267)")
-		} else if !strings.Contains(oracleCmpErr.Error(), "1267") &&
-			!strings.Contains(strings.ToLower(oracleCmpErr.Error()), "illegal mix") {
-			t.Errorf("oracle: unexpected error: %v", oracleCmpErr)
-		}
+		c17ViewColumn(t, c, "v3", "c", "utf8mb4", "utf8mb4_bin")
+		c17Coercibility(t, "v3", "c", 1)
+		c17ViewColumn(t, c, "v3", "d", "utf8mb4", "utf8mb4_bin")
+		c17Coercibility(t, "v3", "d", 2)
 
-		// omni: SELECT ... WHERE a=b must reject (aggregation gap).
-		results, parseErr := c.Exec(`CREATE VIEW v3 AS SELECT a FROM t WHERE a = b`, nil)
-		omniAccepted := parseErr == nil
-		if parseErr == nil {
-			for _, r := range results {
-				if r.Error != nil {
-					omniAccepted = false
-					break
-				}
-			}
-		}
-		if omniAccepted {
-			t.Errorf("omni: KNOWN BUG — soft-accept of illegal-mix comparison (17.3); should error 1267. See mysql/catalog/scenarios_bug_queue/c17.md")
-		}
+		c17Refused(t, c, `CREATE VIEW v3a AS SELECT a FROM t WHERE a = b`, 1267,
+			"Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf8mb4_unicode_ci,IMPLICIT) for operation '='")
+		c17Refused(t, c, `CREATE VIEW v3b AS SELECT CONCAT(a, b) = 'x' AS c FROM t`, 1267,
+			"Illegal mix of collations (utf8mb4_bin,NONE) and (utf8mb4_bin,COERCIBLE) for operation '='")
+		c17Refused(t, c, `CREATE VIEW v3c AS SELECT a FROM t WHERE a LIKE b`, 1267,
+			"Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf8mb4_unicode_ci,IMPLICIT) for operation 'like'")
 	})
 
 	// ---- 17.4 CONCAT_WS NULL skipping + separator aggregation -------------
@@ -189,142 +209,100 @@ func TestScenario_C17(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 		)`)
 		runOnBoth(t, mc, c, `CREATE VIEW v4 AS SELECT CONCAT_WS(',', a, b, NULL) AS c FROM t`)
 
-		if cs, co, ok := c17OracleViewCol(t, "v4", "c"); ok {
-			assertStringEq(t, "oracle v4.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			assertStringEq(t, "oracle v4.c COLLATION_NAME", co, "utf8mb4_0900_ai_ci")
-		}
-
 		// Runtime: CONCAT(NULL,'x') is NULL; CONCAT_WS(',',NULL,'x') is 'x'.
-		if _, err := mc.db.ExecContext(mc.ctx, `INSERT INTO t VALUES (NULL, 'x')`); err != nil {
-			t.Errorf("oracle INSERT: %v", err)
-		}
+		c17Insert(t, `INSERT INTO testdb.t VALUES (NULL, 'x')`)
 		var concatRes, cwsRes any
 		row := mc.db.QueryRowContext(mc.ctx,
-			`SELECT CONCAT(a,b), CONCAT_WS(',',a,b) FROM t LIMIT 1`)
+			`SELECT CONCAT(a,b), CONCAT_WS(',',a,b) FROM testdb.t LIMIT 1`)
 		if err := row.Scan(&concatRes, &cwsRes); err != nil {
-			t.Errorf("oracle runtime scan: %v", err)
+			t.Errorf("tidb runtime scan: %v", err)
 		} else {
 			if concatRes != nil {
-				t.Errorf("oracle CONCAT(NULL,'x'): got %v, want NULL", concatRes)
+				t.Errorf("tidb CONCAT(NULL,'x'): got %v, want NULL", concatRes)
 			}
 			if s := asString(cwsRes); s != "x" {
-				t.Errorf("oracle CONCAT_WS(',',NULL,'x'): got %q, want \"x\"", s)
+				t.Errorf("tidb CONCAT_WS(',',NULL,'x'): got %q, want \"x\"", s)
 			}
 		}
 
-		if c17OmniViewExists(c, "v4") {
-			t.Errorf("omni: KNOWN GAP — CONCAT_WS NULL-skip semantics + charset aggregation not tracked (17.4)")
-		}
+		c17ViewColumn(t, c, "v4", "c", "utf8mb4", "utf8mb4_general_ci")
 	})
 
-	// ---- 17.5 _utf8mb4'x' introducer is still COERCIBLE -------------------
+	// ---- 17.5 A literal, introducer or not, is COERCIBLE ------------------
+	// The column's charset wins over the literal's. An ascii column cannot
+	// take a non-ASCII literal, which TiDB converts by value.
 	t.Run("17_5_introducer_still_coercible", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
-		// MySQL session: force a known session charset.
-		if _, err := mc.db.ExecContext(mc.ctx, `SET NAMES utf8mb4`); err != nil {
-			t.Errorf("oracle SET NAMES: %v", err)
-		}
-
-		runOnBoth(t, mc, c,
-			`CREATE TABLE t (a VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_swedish_ci)`)
+		runOnBoth(t, mc, c, `CREATE TABLE t (
+			a VARCHAR(10) CHARACTER SET latin1 COLLATE latin1_bin,
+			s VARCHAR(10) CHARACTER SET ascii
+		)`)
 		runOnBoth(t, mc, c, `CREATE VIEW v5a AS SELECT CONCAT(a, 'x') AS c FROM t`)
 		runOnBoth(t, mc, c, `CREATE VIEW v5b AS SELECT CONCAT(a, _utf8mb4'x') AS c FROM t`)
+		runOnBoth(t, mc, c, `CREATE VIEW v5c AS SELECT CONCAT('x', s) AS c FROM t`)
+		c17Insert(t, `INSERT INTO testdb.t VALUES ('x', 'y')`)
 
-		for _, view := range []string{"v5a", "v5b"} {
-			if cs, co, ok := c17OracleViewCol(t, view, "c"); ok {
-				assertStringEq(t, "oracle "+view+".c CHARACTER_SET_NAME", cs, "latin1")
-				assertStringEq(t, "oracle "+view+".c COLLATION_NAME", co, "latin1_swedish_ci")
-			}
-		}
+		c17ViewColumn(t, c, "v5a", "c", "latin1", "latin1_bin")
+		c17ViewColumn(t, c, "v5b", "c", "latin1", "latin1_bin")
+		c17ViewColumn(t, c, "v5c", "c", "ascii", "ascii_bin")
 
-		if c17OmniViewExists(c, "v5a") || c17OmniViewExists(c, "v5b") {
-			t.Errorf("omni: KNOWN GAP — literal/introducer coercibility (COERCIBLE vs IMPLICIT) not tracked (17.5)")
-		}
+		c17Refused(t, c, `CREATE VIEW v5d AS SELECT CONCAT(s, 'é') AS c FROM t`, 1267,
+			"Illegal mix of collations (ascii_bin,IMPLICIT) and (utf8mb4_bin,COERCIBLE) for operation 'concat'")
 	})
 
-	// ---- 17.6 REPEAT / LPAD / RPAD pin to first-arg charset ---------------
-	t.Run("17_6_first_arg_pins_charset", func(t *testing.T) {
+	// ---- 17.6 REPEAT pins to its string; LPAD / RPAD aggregate the pad -----
+	// TiDB's deriveCollation aggregates LPAD and RPAD's first and third
+	// arguments, so the utf8mb4 pad wins over a latin1 string.
+	t.Run("17_6_REPEAT_LPAD_RPAD_charset", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_swedish_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			a VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_bin,
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+			u VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 		)`)
 		runOnBoth(t, mc, c, `CREATE VIEW v6a AS SELECT REPEAT(a, 3) AS c FROM t`)
 		runOnBoth(t, mc, c, `CREATE VIEW v6b AS SELECT LPAD(a, 20, b) AS c FROM t`)
 		runOnBoth(t, mc, c, `CREATE VIEW v6c AS SELECT RPAD(b, 20, a) AS c FROM t`)
+		runOnBoth(t, mc, c, `CREATE VIEW v6d AS SELECT LPAD(b, 20, u) AS c FROM t`)
+		c17Insert(t, `INSERT INTO testdb.t VALUES ('x', 'y', 'z')`)
 
-		type want struct{ cs, co string }
-		cases := map[string]want{
-			"v6a": {"latin1", "latin1_swedish_ci"},
-			"v6b": {"latin1", "latin1_swedish_ci"},
-			"v6c": {"utf8mb4", "utf8mb4_0900_ai_ci"},
-		}
-		for view, w := range cases {
-			if cs, co, ok := c17OracleViewCol(t, view, "c"); ok {
-				assertStringEq(t, "oracle "+view+".c CHARACTER_SET_NAME", cs, w.cs)
-				assertStringEq(t, "oracle "+view+".c COLLATION_NAME", co, w.co)
-			}
-		}
+		c17ViewColumn(t, c, "v6a", "c", "latin1", "latin1_bin")
+		c17ViewColumn(t, c, "v6b", "c", "utf8mb4", "utf8mb4_general_ci")
+		c17ViewColumn(t, c, "v6c", "c", "utf8mb4", "utf8mb4_general_ci")
+		c17ViewColumn(t, c, "v6d", "c", "utf8mb4", "utf8mb4_bin")
+		c17Coercibility(t, "v6d", "c", 1)
 
-		anyExists := c17OmniViewExists(c, "v6a") || c17OmniViewExists(c, "v6b") || c17OmniViewExists(c, "v6c")
-		if anyExists {
-			t.Errorf("omni: KNOWN GAP — REPEAT/LPAD/RPAD first-arg-pins rule missing (17.6). Fix in function_types.go")
-		}
+		c17Refused(t, c, `CREATE VIEW v6e AS SELECT a FROM t WHERE LPAD(b, 20, u) = 'x'`, 1267,
+			"Illegal mix of collations (utf8mb4_bin,NONE) and (utf8mb4_bin,COERCIBLE) for operation '='")
 	})
 
-	// ---- 17.7 CONVERT(x USING cs) forces charset IMPLICIT -----------------
+	// ---- 17.7 CONVERT(x USING cs) is IMPLICIT in cs's default collation ---
 	t.Run("17_7_CONVERT_USING_pins_charset", func(t *testing.T) {
 		scenarioReset(t, mc)
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci
 		)`)
-		// Without CONVERT this would be 17.3 (ER 1267). CONVERT rescues it.
-		ddl := `CREATE VIEW v7 AS SELECT CONCAT(a, CONVERT(b USING utf8mb4)) AS c FROM t`
-		_, oracleErr := mc.db.ExecContext(mc.ctx, ddl)
-		if oracleErr != nil {
-			// If MySQL rejects even one-sided CONVERT, the scenario has no
-			// oracle ground truth to compare omni against. Record this so the
-			// scenario can be refined and return — do NOT assert omni-side
-			// behavior against a missing oracle.
-			t.Skipf("17.7 oracle rejected one-sided CONVERT; scenario needs two-sided wrap. err=%v", oracleErr)
-			return
-		}
-		if cs, co, ok := c17OracleViewCol(t, "v7", "c"); ok {
-			assertStringEq(t, "oracle v7.c CHARACTER_SET_NAME", cs, "utf8mb4")
-			// The default collation of utf8mb4 is server-configurable; accept
-			// any utf8mb4_* collation. What matters is the charset pin.
-			if !strings.HasPrefix(co, "utf8mb4_") {
-				t.Errorf("oracle v7.c COLLATION_NAME: got %q, want utf8mb4_* (some utf8mb4 collation)", co)
-			}
-		}
+		// a = b is 17.3's 1267; converting b gives utf8mb4_bin, which wins.
+		runOnBoth(t, mc, c, `CREATE VIEW v7 AS
+			SELECT CONCAT(a, CONVERT(b USING utf8mb4)) AS c, CONVERT(a USING latin1) AS d
+			FROM t WHERE a = CONVERT(b USING utf8mb4)`)
+		c17Insert(t, `INSERT INTO testdb.t VALUES ('x', 'x')`)
 
-		// omni side: parse the same DDL. Only reached when oracle accepted,
-		// so the KNOWN GAP comparison is meaningful.
-		results, parseErr := c.Exec(ddl, nil)
-		omniAccepted := parseErr == nil
-		if parseErr == nil {
-			for _, r := range results {
-				if r.Error != nil {
-					omniAccepted = false
-					break
-				}
-			}
-		}
-		if omniAccepted {
-			t.Errorf("omni: KNOWN GAP — CONVERT ... USING cs accepted but charset not pinned on result (17.7), see mysql/catalog/scenarios_bug_queue/c17.md")
-		}
+		c17ViewColumn(t, c, "v7", "c", "utf8mb4", "utf8mb4_bin")
+		c17ViewColumn(t, c, "v7", "d", "latin1", "latin1_bin")
+		c17Coercibility(t, "v7", "d", 2)
 	})
 
 	// ---- 17.8 COLLATE clause is EXPLICIT — highest precedence -------------
@@ -333,55 +311,24 @@ func TestScenario_C17(t *testing.T) {
 		c := scenarioNewCatalog(t)
 
 		runOnBoth(t, mc, c, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
+			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+			l VARCHAR(10) CHARACTER SET latin1  COLLATE latin1_bin
 		)`)
 
-		// Case A: one side EXPLICIT wins.
-		ddlA := `CREATE VIEW v8a AS SELECT CONCAT(a, b COLLATE utf8mb4_bin) AS c FROM t`
-		if _, err := mc.db.ExecContext(mc.ctx, ddlA); err != nil {
-			t.Errorf("oracle v8a unexpected error: %v", err)
-		} else {
-			if cs, co, ok := c17OracleViewCol(t, "v8a", "c"); ok {
-				assertStringEq(t, "oracle v8a.c CHARACTER_SET_NAME", cs, "utf8mb4")
-				assertStringEq(t, "oracle v8a.c COLLATION_NAME", co, "utf8mb4_bin")
-			}
-		}
+		// One EXPLICIT side wins.
+		runOnBoth(t, mc, c, `CREATE VIEW v8a AS SELECT CONCAT(a, b COLLATE utf8mb4_bin) AS c FROM t`)
+		c17Insert(t, `INSERT INTO testdb.t VALUES ('x', 'y', 'z')`)
+		c17ViewColumn(t, c, "v8a", "c", "utf8mb4", "utf8mb4_bin")
+		c17Coercibility(t, "v8a", "c", 0)
 
-		// omni: same DDL should analyze — gap is that EXPLICIT derivation
-		// isn't tracked, so downstream charset metadata is missing.
-		resultsA, parseErrA := c.Exec(ddlA, nil)
-		omniAcceptedA := parseErrA == nil
-		if parseErrA == nil {
-			for _, r := range resultsA {
-				if r.Error != nil {
-					omniAcceptedA = false
-					break
-				}
-			}
-		}
-		if omniAcceptedA {
-			t.Errorf("omni: KNOWN GAP — COLLATE EXPLICIT derivation not tracked on v8a (17.8)")
-		}
-
-		// Case B: two EXPLICIT sides with different collations must error.
-		scenarioReset(t, mc)
-		cB := scenarioNewCatalog(t)
-		runOnBoth(t, mc, cB, `CREATE TABLE t (
-			a VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
-			b VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs
-		)`)
-		ddlB := `CREATE VIEW v8b AS SELECT CONCAT(a COLLATE utf8mb4_0900_ai_ci, b COLLATE utf8mb4_bin) AS c FROM t`
-		oracleErr, omniErr := c17RunExpectError(t, cB, ddlB)
-		if oracleErr == nil {
-			t.Errorf("oracle: %q unexpectedly accepted — expected illegal-mix error (1267/1270)", ddlB)
-		} else if !strings.Contains(oracleErr.Error(), "1267") &&
-			!strings.Contains(oracleErr.Error(), "1270") &&
-			!strings.Contains(strings.ToLower(oracleErr.Error()), "illegal mix") {
-			t.Errorf("oracle v8b unexpected error: %v", oracleErr)
-		}
-		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — two EXPLICIT COLLATE sides silently accepted (17.8), see mysql/catalog/scenarios_bug_queue/c17.md")
-		}
+		// Two EXPLICIT sides with different collations fail, and so does an
+		// EXPLICIT latin1 that a utf8mb4 column cannot convert to.
+		c17Refused(t, c, `CREATE VIEW v8b AS SELECT CONCAT(a COLLATE utf8mb4_general_ci, b COLLATE utf8mb4_bin) AS c FROM t`, 1267,
+			"Illegal mix of collations (utf8mb4_general_ci,EXPLICIT) and (utf8mb4_bin,EXPLICIT) for operation 'concat'")
+		c17Refused(t, c, `CREATE VIEW v8c AS SELECT CONCAT(l COLLATE latin1_bin, a) AS c FROM t`, 1267,
+			"Illegal mix of collations (latin1_bin,EXPLICIT) and (utf8mb4_general_ci,IMPLICIT) for operation 'concat'")
+		c17Refused(t, c, `CREATE VIEW v8d AS SELECT LENGTH(CONCAT(a COLLATE utf8mb4_general_ci, b COLLATE utf8mb4_bin)) AS c FROM t`, 1267,
+			"Illegal mix of collations (utf8mb4_general_ci,EXPLICIT) and (utf8mb4_bin,EXPLICIT) for operation 'concat'")
 	})
 }

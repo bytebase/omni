@@ -131,6 +131,19 @@ type View struct {
 	Columns         []string // All column names (explicit or derived from SELECT)
 	ExplicitColumns bool     // true if the user specified a column list in CREATE VIEW
 	AnalyzedQuery   *Query   // analyzed view body (populated on CREATE VIEW); nil if analysis failed
+	// ColumnMetadata holds one entry per column, in Columns order, with the
+	// charset and collation TiDB derives for it: what SELECT CHARSET(c),
+	// COLLATION(c) answers over the view (information_schema.COLUMNS has
+	// NULL for both). Both are empty for a column that is not a string or
+	// whose derivation the catalog does not model (see view_collation.go).
+	ColumnMetadata []ViewColumn
+}
+
+// ViewColumn is what the catalog derives for one column of a view.
+type ViewColumn struct {
+	Name      string
+	Charset   string
+	Collation string
 }
 
 // Routine represents a stored function or procedure in the catalog.

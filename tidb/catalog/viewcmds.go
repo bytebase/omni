@@ -11,8 +11,11 @@ import (
 )
 
 // createView applies CREATE VIEW. source is the text the statement was parsed
-// from, or "" when there is none (see deparseViewSelect).
-func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
+// from, or "" when there is none (see deparseViewSelect). checkBody refuses a
+// body TiDB cannot build, as CREATE VIEW does; DefineView installs a view
+// TiDB already has, whose body a later ALTER TABLE may have broken, and
+// leaves it unset.
+func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBody bool) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -47,6 +50,16 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 		// Definition text but without AnalyzedQuery.
 	}
 
+	// Derive each column's collation, and refuse a body whose collations do
+	// not aggregate. Also before deparseViewSelect, which expands stars and
+	// qualifies tables in place.
+	if checkBody {
+		if err := c.checkViewSelectCollations(stmt.Select, db); err != nil {
+			return err
+		}
+	}
+	collations := c.viewTargetCollations(stmt.Select, db)
+
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
 	definition, derivedCols := c.deparseViewSelect(stmt.Select, stmt.SelectText, source, db)
 
@@ -71,6 +84,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 		Columns:         viewCols,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
+		ColumnMetadata:  viewColumnMetadata(viewCols, collations),
 	}
 	return nil
 }

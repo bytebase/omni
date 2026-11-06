@@ -53,6 +53,12 @@ const (
 	ErrUnsupportedDDL           = 8200
 	ErrUnknownCollation         = 1273
 	ErrCollationCharsetMismatch = 1253
+	// ErrCantAggregate2Collations, 3 and N are "Illegal mix of collations",
+	// which TiDB answers when the arguments of a function or comparison do
+	// not aggregate (see view_collation.go).
+	ErrCantAggregate2Collations = 1267
+	ErrCantAggregate3Collations = 1270
+	ErrCantAggregateNCollations = 1271
 	// ErrWrongNameForIndex is "Incorrect index name '<name>'", which TiDB
 	// v8.5.5 answers for an UPDATE INDEXES entry naming an index the table
 	// does not have (read on 2026-11-04).
