@@ -240,6 +240,7 @@ func TestWalkThrough_3_4_AlterColumnDropDefault(t *testing.T) {
 func TestWalkThrough_3_4_AlterColumnVisibility(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b INT)")
+	before := c.ShowCreateTable("testdb", "t")
 	for _, sql := range []string{
 		"ALTER TABLE t ALTER COLUMN b SET INVISIBLE",
 		"ALTER TABLE t ALTER COLUMN b SET VISIBLE",
@@ -248,7 +249,7 @@ func TestWalkThrough_3_4_AlterColumnVisibility(t *testing.T) {
 			t.Errorf("Exec accepted %q, which TiDB refuses", sql)
 		}
 	}
-	if c.GetDatabase("testdb").GetTable("t").GetColumn("b").Invisible {
-		t.Error("a refused statement made column b invisible")
+	if after := c.ShowCreateTable("testdb", "t"); after != before {
+		t.Errorf("a refused statement changed table t:\n%s\nwant\n%s", after, before)
 	}
 }

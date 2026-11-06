@@ -247,11 +247,6 @@ func showColumn(col *Column, tblCharset, tblCollate string) string {
 	if col.Comment != "" {
 		fmt.Fprintf(&b, " COMMENT '%s'", outputFormat(col.Comment))
 	}
-	// TiDB has no invisible columns and refuses the attribute; a column marked
-	// invisible keeps MySQL's spelling so the state is not lost silently.
-	if col.Invisible {
-		b.WriteString(" /*!80023 INVISIBLE */")
-	}
 	return b.String()
 }
 

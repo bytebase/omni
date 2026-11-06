@@ -316,10 +316,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				// TiDB reads a REFERENCES clause on a column and keeps nothing:
 				// v8.5.5 adds no foreign key and no index for
 				// `a INT REFERENCES p(id)` (read on 2026-11-06), as MySQL does.
-			case nodes.ColConstrInvisible:
-				// Never parsed (TiDB has no column visibility); LoadMetadata
-				// builds it for a synced column marked invisible.
-				col.Invisible = true
 			case nodes.ColConstrCollate:
 				// Collation specified via constraint.
 				if cc.Expr != nil {
@@ -1586,7 +1582,6 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Collation:     srcCol.Collation,
 			Comment:       srcCol.Comment,
 			OnUpdate:      srcCol.OnUpdate,
-			Invisible:     srcCol.Invisible,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default
