@@ -431,8 +431,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 
 	cols := extractColumnNames(con)
-	if err := validateStoringColumns(tbl, con.IndexOptions); err != nil {
-		return err
+	// A primary key's STORING is taken and dropped unread: on 4.3.5.6, ALTER TABLE t
+	// ADD PRIMARY KEY (a) STORING (nosuch) succeeds and the key reads back without it.
+	if con.Type != nodes.ConstrPrimaryKey {
+		if err := validateStoringColumns(tbl, con.IndexOptions); err != nil {
+			return err
+		}
 	}
 
 	switch con.Type {
@@ -469,10 +473,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// (id) INVISIBLE succeeds, SHOW CREATE TABLE prints PRIMARY KEY (`id`), and
 		// information_schema.STATISTICS reports the key visible. It drops a COMMENT
 		// given here the same way, though it keeps one given in CREATE TABLE
-		// (TestOracle_OceanBaseAlterAddPrimaryKey). CREATE TABLE refuses INVISIBLE at
-		// parse time.
+		// (TestOracle_OceanBaseAlterAddPrimaryKey). It drops STORING too. CREATE TABLE
+		// refuses INVISIBLE and STORING at parse time.
 		pkIdx.Visible = true
 		pkIdx.Comment = ""
+		pkIdx.Storing = nil
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      "PRIMARY",

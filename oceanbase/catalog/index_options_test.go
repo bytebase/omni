@@ -68,6 +68,25 @@ func TestStoringFollowsItsColumns(t *testing.T) {
 	}
 }
 
+// TestStoringSurvivesAFailedAlter holds the rollback snapshot to its own copy of the
+// stored columns: a statement whose later command fails leaves the index as it was,
+// whether an earlier command renamed a stored column or dropped one.
+func TestStoringSurvivesAFailedAlter(t *testing.T) {
+	for _, stmt := range []string{
+		"ALTER TABLE t CHANGE b x INT, DROP COLUMN nosuch",
+		"ALTER TABLE t DROP COLUMN b, DROP COLUMN nosuch",
+	} {
+		c := New()
+		mustExec(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT, b INT, c INT, KEY k (a) STORING (b, c));")
+		if err := execError(t, c, stmt); err == nil {
+			t.Fatalf("%s: no error", stmt)
+		}
+		if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "KEY `k` (`a`) STORING (`b`, `c`)") {
+			t.Errorf("%s changed the index:\n%s", stmt, ddl)
+		}
+	}
+}
+
 func execError(t *testing.T, c *Catalog, sql string) error {
 	t.Helper()
 	results, err := c.Exec(sql, nil)
