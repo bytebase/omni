@@ -6,6 +6,8 @@ import (
 
 func TestBugFix_InExprNodeToSQL(t *testing.T) {
 	c := wtSetup(t)
+	// CHECK constraints exist only with tidb_enable_check_constraint on.
+	c.SetCheckConstraints(true)
 	wtExec(t, c, "CREATE TABLE t (category VARCHAR(50), CONSTRAINT chk CHECK (category IN ('a','b','c')))")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	if tbl == nil {

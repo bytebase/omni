@@ -24,8 +24,8 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if col.Charset != "utf8mb4" {
 			t.Errorf("column charset: expected utf8mb4, got %q", col.Charset)
 		}
-		if col.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("column collation: expected utf8mb4_0900_ai_ci, got %q", col.Collation)
+		if col.Collation != "utf8mb4_bin" {
+			t.Errorf("column collation: expected utf8mb4_bin, got %q", col.Collation)
 		}
 	})
 
@@ -60,8 +60,8 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if col.Charset != "utf8mb4" {
 			t.Errorf("column charset: expected utf8mb4, got %q", col.Charset)
 		}
-		if col.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("column collation: expected utf8mb4_0900_ai_ci, got %q", col.Collation)
+		if col.Collation != "utf8mb4_bin" {
+			t.Errorf("column collation: expected utf8mb4_bin, got %q", col.Collation)
 		}
 	})
 
@@ -78,8 +78,8 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if col.Charset != "latin1" {
 			t.Errorf("column charset: expected latin1, got %q", col.Charset)
 		}
-		if col.Collation != "latin1_swedish_ci" {
-			t.Errorf("column collation: expected latin1_swedish_ci, got %q", col.Collation)
+		if col.Collation != "latin1_bin" {
+			t.Errorf("column collation: expected latin1_bin, got %q", col.Collation)
 		}
 	})
 
@@ -94,9 +94,9 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if !strings.Contains(ddl, "DEFAULT CHARSET=utf8mb4") {
 			t.Errorf("SHOW CREATE TABLE should contain DEFAULT CHARSET=utf8mb4, got:\n%s", ddl)
 		}
-		// MySQL 8.0 always shows COLLATE for utf8mb4
-		if !strings.Contains(ddl, "COLLATE=utf8mb4_0900_ai_ci") {
-			t.Errorf("SHOW CREATE TABLE should contain COLLATE=utf8mb4_0900_ai_ci for utf8mb4, got:\n%s", ddl)
+		// TiDB always writes COLLATE
+		if !strings.Contains(ddl, "COLLATE=utf8mb4_bin") {
+			t.Errorf("SHOW CREATE TABLE should contain COLLATE=utf8mb4_bin for utf8mb4, got:\n%s", ddl)
 		}
 	})
 
@@ -111,8 +111,8 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if tbl.Charset != "latin1" {
 			t.Errorf("table charset: expected latin1, got %q", tbl.Charset)
 		}
-		if tbl.Collation != "latin1_swedish_ci" {
-			t.Errorf("table collation: expected latin1_swedish_ci, got %q", tbl.Collation)
+		if tbl.Collation != "latin1_bin" {
+			t.Errorf("table collation: expected latin1_bin, got %q", tbl.Collation)
 		}
 
 		// Column should also inherit
@@ -120,8 +120,8 @@ func TestWalkThrough_8_1(t *testing.T) {
 		if col.Charset != "latin1" {
 			t.Errorf("column charset: expected latin1, got %q", col.Charset)
 		}
-		if col.Collation != "latin1_swedish_ci" {
-			t.Errorf("column collation: expected latin1_swedish_ci, got %q", col.Collation)
+		if col.Collation != "latin1_bin" {
+			t.Errorf("column collation: expected latin1_bin, got %q", col.Collation)
 		}
 	})
 
@@ -130,14 +130,14 @@ func TestWalkThrough_8_1(t *testing.T) {
 		c := New()
 		mustExec(t, c, "CREATE DATABASE db7")
 		c.SetCurrentDatabase("db7")
-		mustExec(t, c, "CREATE TABLE t1 (id INT, name VARCHAR(100)) DEFAULT COLLATE=latin1_swedish_ci")
+		mustExec(t, c, "CREATE TABLE t1 (id INT, name VARCHAR(100)) DEFAULT COLLATE=latin1_bin")
 
 		tbl := c.GetDatabase("db7").GetTable("t1")
 		if tbl.Charset != "latin1" {
 			t.Errorf("table charset: expected latin1, got %q", tbl.Charset)
 		}
-		if tbl.Collation != "latin1_swedish_ci" {
-			t.Errorf("table collation: expected latin1_swedish_ci, got %q", tbl.Collation)
+		if tbl.Collation != "latin1_bin" {
+			t.Errorf("table collation: expected latin1_bin, got %q", tbl.Collation)
 		}
 
 		ddl := c.ShowCreateTable("db7", "t1")

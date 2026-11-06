@@ -418,6 +418,46 @@ func splitStatements(sqlStr string) []string {
 	return stmts
 }
 
+// assertCreateTableMatches runs one CREATE TABLE on TiDB and on a fresh
+// catalog. When TiDB refuses it, the catalog must refuse it too; when TiDB
+// takes it, SHOW CREATE TABLE must read the same from both.
+func assertCreateTableMatches(t *testing.T, ctr *mysqlContainer, sql, table string) {
+	t.Helper()
+	ctr.execSQL("DROP TABLE IF EXISTS " + table)
+	ctrErr := ctr.execSQL(sql)
+
+	c := New()
+	c.Exec("CREATE DATABASE test", nil)
+	c.SetCurrentDatabase("test")
+	results, omniErr := c.Exec(sql, nil)
+	if omniErr == nil {
+		for _, r := range results {
+			if r.Error != nil {
+				omniErr = r.Error
+				break
+			}
+		}
+	}
+
+	if ctrErr != nil {
+		if omniErr == nil {
+			t.Fatalf("TiDB refuses %q (%v) and the catalog takes it", sql, ctrErr)
+		}
+		return
+	}
+	if omniErr != nil {
+		t.Fatalf("TiDB takes %q and the catalog refuses it: %v", sql, omniErr)
+	}
+	ctrDDL, err := ctr.showCreateTable(table)
+	if err != nil {
+		t.Fatalf("TiDB SHOW CREATE TABLE %s: %v", table, err)
+	}
+	omniDDL := c.ShowCreateTable("test", table)
+	if normalizeWhitespace(ctrDDL) != normalizeWhitespace(omniDDL) {
+		t.Errorf("mismatch:\n--- container ---\n%s\n--- omni ---\n%s", ctrDDL, omniDDL)
+	}
+}
+
 // normalizeWhitespace collapses runs of whitespace to a single space and trims.
 func normalizeWhitespace(s string) string {
 	fields := strings.Fields(s)

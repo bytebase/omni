@@ -43,7 +43,7 @@ func TestWalkThrough_6_1_FKBackingIndexManagement(t *testing.T) {
 	})
 
 	// Scenario 2: CREATE TABLE with unnamed FK — implicit index uses first column name
-	t.Run("unnamed_fk_implicit_index_uses_column_name", func(t *testing.T) {
+	t.Run("unnamed_fk_implicit_index_uses_fk_name", func(t *testing.T) {
 		c := setupWithDB(t)
 		mustExec(t, c, "CREATE TABLE parent (id INT NOT NULL, PRIMARY KEY (id))")
 		mustExec(t, c, `CREATE TABLE child (
@@ -58,14 +58,15 @@ func TestWalkThrough_6_1_FKBackingIndexManagement(t *testing.T) {
 			t.Fatal("table child not found")
 		}
 
-		// Should have 2 indexes: PRIMARY and parent_id
+		// Should have 2 indexes: PRIMARY and fk_1, which TiDB names after the
+		// foreign key it serves (read on 2026-11-06).
 		if len(tbl.Indexes) != 2 {
 			t.Fatalf("expected 2 indexes, got %d", len(tbl.Indexes))
 		}
 
 		var fkIdx *Index
 		for _, idx := range tbl.Indexes {
-			if idx.Name == "parent_id" {
+			if idx.Name == "fk_1" {
 				fkIdx = idx
 				break
 			}
@@ -75,7 +76,7 @@ func TestWalkThrough_6_1_FKBackingIndexManagement(t *testing.T) {
 			for i, idx := range tbl.Indexes {
 				names[i] = idx.Name
 			}
-			t.Fatalf("expected implicit index named 'parent_id', not found; indexes: %v", names)
+			t.Fatalf("expected implicit index named 'fk_1', not found; indexes: %v", names)
 		}
 	})
 

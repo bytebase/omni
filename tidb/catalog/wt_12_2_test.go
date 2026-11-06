@@ -23,29 +23,17 @@ func TestWalkThrough_12_2(t *testing.T) {
 			FULLTEXT KEY ft_body (body)
 		)`)
 
-		got := c.ShowCreateTable("testdb", "t")
-
-		// Verify all index types are present.
-		assertContains(t, got, "PRIMARY KEY (`id`)")
-		assertContains(t, got, "UNIQUE KEY `uk_name` (`name`)")
-		assertContains(t, got, "KEY `idx_name` (`name`)")
-		assertContains(t, got, "FULLTEXT KEY `ft_body` (`body`)")
-
-		// Verify ordering: PRIMARY < UNIQUE < KEY < FULLTEXT
-		posPK := strings.Index(got, "PRIMARY KEY")
-		posUK := strings.Index(got, "UNIQUE KEY")
-		posKey := strings.Index(got, "KEY `idx_name`")
-		posFT := strings.Index(got, "FULLTEXT KEY")
-
-		if posPK >= posUK {
-			t.Error("PRIMARY KEY should appear before UNIQUE KEY")
-		}
-		if posUK >= posKey {
-			t.Error("UNIQUE KEY should appear before regular KEY")
-		}
-		if posFT <= posKey {
-			t.Error("FULLTEXT KEY should appear after regular KEY")
-		}
+		// TiDB writes the keys in the order the table got them, with an
+		// integer clustered primary key first, and keeps no FULLTEXT key
+		// (v8.5.5, read on 2026-11-06).
+		assertShowCreate(t, c, "t", "CREATE TABLE `t` (\n"+
+			"  `id` int NOT NULL,\n"+
+			"  `name` varchar(100) DEFAULT NULL,\n"+
+			"  `body` text DEFAULT NULL,\n"+
+			"  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,\n"+
+			"  KEY `idx_name` (`name`),\n"+
+			"  UNIQUE KEY `uk_name` (`name`)\n"+
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin")
 	})
 
 	t.Run("regular_and_expression_index_ordering", func(t *testing.T) {
@@ -132,8 +120,10 @@ func TestWalkThrough_12_2(t *testing.T) {
 			KEY idx_name (name) USING BTREE
 		)`)
 
+		// TiDB keeps no USING clause in SHOW CREATE TABLE.
 		got := c.ShowCreateTable("testdb", "t")
-		assertContains(t, got, "KEY `idx_name` (`name`) USING BTREE")
+		assertContains(t, got, "KEY `idx_name` (`name`)\n")
+		assertNotContains(t, got, "USING")
 	})
 
 	t.Run("index_with_using_hash", func(t *testing.T) {
@@ -146,7 +136,10 @@ func TestWalkThrough_12_2(t *testing.T) {
 			KEY idx_name (name) USING HASH
 		) ENGINE=MEMORY`)
 
+		// TiDB keeps no USING clause and no engine but InnoDB.
 		got := c.ShowCreateTable("testdb", "t")
-		assertContains(t, got, "KEY `idx_name` (`name`) USING HASH")
+		assertContains(t, got, "KEY `idx_name` (`name`)\n")
+		assertContains(t, got, ") ENGINE=InnoDB ")
+		assertNotContains(t, got, "USING")
 	})
 }

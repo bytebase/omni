@@ -185,9 +185,6 @@ func TestScenario_C24(t *testing.T) {
 		if !col.AutoIncrement {
 			t.Errorf("omni 24.2: expected AutoIncrement=true")
 		}
-		if !col.Invisible {
-			t.Errorf("omni 24.2: expected Invisible=true")
-		}
 		// PK index over my_row_id.
 		pkOK := false
 		for _, idx := range tbl.Indexes {

@@ -1147,6 +1147,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ForeignKey = true
 		// Completion: after DROP FOREIGN KEY, offer constraint_ref.
 		p.checkCursor()
 		if p.collectMode() {

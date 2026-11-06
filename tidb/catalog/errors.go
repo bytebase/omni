@@ -47,6 +47,12 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	ErrUnknownCharacterSet               = 1115
+	ErrBlobCantHaveDefault               = 1101
+	// ErrUnsupportedDDL is TiDB's 8200, for DDL it parses and does not run.
+	ErrUnsupportedDDL           = 8200
+	ErrUnknownCollation         = 1273
+	ErrCollationCharsetMismatch = 1253
 	// ErrWrongNameForIndex is "Incorrect index name '<name>'", which TiDB
 	// v8.5.5 answers for an UPDATE INDEXES entry naming an index the table
 	// does not have (read on 2026-11-04).
@@ -93,6 +99,10 @@ var sqlStateMap = map[int]string{
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
+	ErrUnknownCharacterSet:               "42000",
+	ErrBlobCantHaveDefault:               "42000",
+	ErrUnknownCollation:                  "HY000",
+	ErrCollationCharsetMismatch:          "42000",
 	ErrPlacementPolicyExists:             "HY000",
 	ErrPlacementPolicyInUse:              "HY000",
 	ErrUnknownError:                      "HY000",
@@ -281,4 +291,25 @@ func errDependentByGeneratedColumn(column, genColumn, table string) error {
 func errWrongArguments(fn string) error {
 	return &Error{Code: ErrWrongArguments, SQLState: sqlState(ErrWrongArguments),
 		Message: fmt.Sprintf("Incorrect arguments to %s", fn)}
+}
+
+// checkLiteralDefaultAllowed refuses a literal default on a BLOB, TEXT or JSON
+// column, which TiDB answers 1101 for in CREATE TABLE, ADD, MODIFY and CHANGE
+// COLUMN and ALTER COLUMN SET DEFAULT; DEFAULT NULL and an expression default
+// in parentheses are allowed (v8.5.5, read on 2026-11-06).
+func checkLiteralDefaultAllowed(col *Column) error {
+	if col.Default == nil {
+		return nil
+	}
+	v := strings.TrimSpace(*col.Default)
+	if strings.EqualFold(v, "NULL") || strings.HasPrefix(v, "(") {
+		return nil
+	}
+	switch strings.ToLower(col.DataType) {
+	case "tinyblob", "blob", "mediumblob", "longblob",
+		"tinytext", "text", "mediumtext", "longtext", "json":
+		return &Error{Code: ErrBlobCantHaveDefault, SQLState: sqlState(ErrBlobCantHaveDefault),
+			Message: fmt.Sprintf("BLOB/TEXT/JSON column '%s' can't have a default value", col.Name)}
+	}
+	return nil
 }

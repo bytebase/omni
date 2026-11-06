@@ -91,6 +91,13 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			case "1", "on", "true":
 				c.foreignKeyChecks = true
 			}
+		case "tidb_enable_check_constraint":
+			switch toLower(nodeToSQLValue(asgn.Value)) {
+			case "0", "off", "false":
+				c.checkConstraints = false
+			case "1", "on", "true":
+				c.checkConstraints = true
+			}
 		case "names", "character set":
 			// Silently accept — these affect character encoding but
 			// the in-memory catalog doesn't need to change behavior.

@@ -356,6 +356,11 @@ type AlterTableCmd struct {
 	PartitionBy           *PartitionClause // for PARTITION BY (repartition)
 	TiFlashReplica        int              // TiDB: replica count for SET TIFLASH REPLICA
 	TiFlashLocationLabels []string         // TiDB: optional LOCATION LABELS clause (empty when unset)
+	// ForeignKey marks an ATDropConstraint written DROP FOREIGN KEY, which
+	// shares the command type with DROP CHECK and DROP CONSTRAINT but not
+	// their handling: with tidb_enable_check_constraint off, TiDB lets the
+	// last two name nothing and answers 1091 for a missing foreign key.
+	ForeignKey bool
 	// IfNotExists records the IF NOT EXISTS the ADD actions TiDB and MariaDB
 	// allow it on carry: ADD [COLUMN], ADD PARTITION, ADD {INDEX | KEY} and
 	// ADD FOREIGN KEY. MySQL 8.0.46 has none of them.
@@ -587,8 +592,6 @@ const (
 	ColConstrComment
 	ColConstrCollate
 	ColConstrAutoIncrement
-	ColConstrVisible   // never parsed: TiDB has no column visibility
-	ColConstrInvisible // never parsed; LoadMetadata builds it for a synced invisible column
 	ColConstrColumnFormat
 	ColConstrStorage
 	ColConstrEngineAttribute

@@ -162,14 +162,16 @@ func TestWalkThrough_3_4_ChangeColumnName(t *testing.T) {
 func TestWalkThrough_3_4_ChangeColumnTypeAndAttrs(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b VARCHAR(50) NOT NULL)")
-	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN b b_new TEXT NULL DEFAULT 'hello'")
+	// A TEXT column cannot take a literal default on TiDB (1101), so the new
+	// type is a wider VARCHAR.
+	wtExec(t, c, "ALTER TABLE t CHANGE COLUMN b b_new VARCHAR(200) NULL DEFAULT 'hello'")
 	tbl := c.GetDatabase("testdb").GetTable("t")
 	col := tbl.GetColumn("b_new")
 	if col == nil {
 		t.Fatal("column 'b_new' not found")
 	}
-	if col.DataType != "text" {
-		t.Errorf("expected DataType 'text', got %q", col.DataType)
+	if col.DataType != "varchar" || col.ColumnType != "varchar(200)" {
+		t.Errorf("expected varchar(200), got %q %q", col.DataType, col.ColumnType)
 	}
 	if !col.Nullable {
 		t.Error("column should be nullable after CHANGE")
@@ -240,6 +242,7 @@ func TestWalkThrough_3_4_AlterColumnDropDefault(t *testing.T) {
 func TestWalkThrough_3_4_AlterColumnVisibility(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, "CREATE TABLE t (a INT, b INT)")
+	before := c.ShowCreateTable("testdb", "t")
 	for _, sql := range []string{
 		"ALTER TABLE t ALTER COLUMN b SET INVISIBLE",
 		"ALTER TABLE t ALTER COLUMN b SET VISIBLE",
@@ -248,7 +251,7 @@ func TestWalkThrough_3_4_AlterColumnVisibility(t *testing.T) {
 			t.Errorf("Exec accepted %q, which TiDB refuses", sql)
 		}
 	}
-	if c.GetDatabase("testdb").GetTable("t").GetColumn("b").Invisible {
-		t.Error("a refused statement made column b invisible")
+	if after := c.ShowCreateTable("testdb", "t"); after != before {
+		t.Errorf("a refused statement changed table t:\n%s\nwant\n%s", after, before)
 	}
 }

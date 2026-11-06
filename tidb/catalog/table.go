@@ -32,6 +32,10 @@ type Table struct {
 	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).
 	droppedByCleanup map[string]bool
 
+	// maxForeignKeyID is the largest number a foreign key of the table has
+	// taken, which names the next unnamed one fk_<N+1> (see maxForeignKeyID).
+	maxForeignKeyID int
+
 	// TiDB-specific table metadata.
 	ShardRowIDBits        int
 	PreSplitRegions       int

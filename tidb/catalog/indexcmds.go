@@ -20,6 +20,14 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	// CREATE FULLTEXT INDEX and CREATE SPATIAL INDEX parse, and v8.5.5 refuses
+	// both once the table is found: 8200 "FULLTEXT and SPATIAL index is not
+	// supported" (read on 2026-11-06).
+	if stmt.Fulltext || stmt.Spatial {
+		return &Error{Code: ErrUnsupportedDDL, SQLState: sqlState(ErrUnsupportedDDL),
+			Message: "FULLTEXT and SPATIAL index is not supported"}
+	}
+
 	// Check for duplicate key name.
 	if indexNameExists(tbl, stmt.IndexName) {
 		if stmt.IfNotExists {
