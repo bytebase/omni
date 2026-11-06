@@ -33,6 +33,17 @@ var legacyTypeCases = []legacyTypeCase{
 	{"create table t (a long varbinary ascii)", false},
 	{"create table t (a blob ascii)", false},
 	{"create table t (ascii int, byte int)", true},
+	{"create table t (a text ascii collate)", false},
+	{"create table t (a text byte collate not null)", false},
+	{"create table t (a text collate)", false},
+	{"create table t (a text collate not null)", false},
+	{"create table t (a varchar(3) collate)", false},
+	{"create table t (a varchar(3) charset)", false},
+	{"create table t (a varchar(3) character set)", false},
+	{"create table t (a varchar(3) charset not null)", false},
+	{"create table t (a enum('x') charset)", false},
+	{"create table t (a long collate)", false},
+	{"create table t (a varchar(3) charset binary collate binary)", true},
 
 	// FieldOpts (parser.y:13472): any run of UNSIGNED, SIGNED and ZEROFILL after a
 	// numeric type, BOOL and YEAR.
