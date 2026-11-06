@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-units"
+	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -125,4 +127,36 @@ func waitReady(ctx context.Context, dsn string) error {
 		}
 		time.Sleep(2 * time.Second)
 	}
+}
+
+// Database creates a database named for label on OceanBase and returns it, with
+// a pool of root connections that start in it, pinned to one connection so that
+// USE and session state hold across statements.
+func (o *oceanBase) Database(ctx context.Context, label string) (*Database, error) {
+	dsn, err := o.DSN(ctx)
+	if err != nil {
+		return nil, err
+	}
+	name := databasePrefix + labelChars.ReplaceAllString(strings.ToLower(label), "_")
+	admin, err := OpenOceanBase(dsn)
+	if err != nil {
+		return nil, err
+	}
+	defer admin.Close()
+	if _, err := admin.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
+		return nil, fmt.Errorf("create database %s: %w", name, err)
+	}
+	config, err := gomysql.ParseDSN(dsn)
+	if err != nil {
+		return nil, err
+	}
+	config.DBName = name
+	config.ParseTime, config.MultiStatements = true, true
+	db, err := OpenOceanBase(config.FormatDSN())
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	return &Database{DB: db, Name: name}, nil
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bytebase/omni/internal/sharedserver"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // correlatedDDL and correlatedRows are the database every correlated-subquery
@@ -185,7 +185,7 @@ func execCorrelatedRows(t *testing.T, db *sql.DB) {
 // DeparseQuery text on OceanBase and requires the same rows.
 func TestDeparseCorrelatedSubqueryOceanBase(t *testing.T) {
 	ctx := context.Background()
-	d, err := sharedserver.OceanBase.Database(ctx, "oceanbase_catalog_correlated")
+	d, err := testcontainer.OceanBase.Database(ctx, "oceanbase_catalog_correlated")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -55,6 +55,12 @@ jobs:
           echo "pkgs=$(tr ' ' '\n' <<< "$targets" | grep '^\./' | xargs)" >> "$GITHUB_OUTPUT"
           echo "modules=$(tr ' ' '\n' <<< "$targets" | grep '^harness/' | xargs)" >> "$GITHUB_OUTPUT"
 
+      # Builds every test binary and runs none, so a test that does not compile
+      # fails the job in a minute instead of after the half-hour run.
+      - name: Compile tests
+        if: steps.affected.outputs.pkgs != ''
+        run: go test -count=1 -exec /bin/true ${{ steps.affected.outputs.pkgs }}
+
       - name: Test
         if: steps.affected.outputs.pkgs != ''
         # Each package starts its own servers, and Trino (a JVM sized to the
