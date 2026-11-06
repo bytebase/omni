@@ -498,6 +498,12 @@ func nameViewColumns(v *View, names []string) {
 	case !slices.EqualFunc(v.Columns, names, strings.EqualFold):
 		v.Columns, v.ExplicitColumns = names, true
 	}
+	if len(v.ColumnMetadata) != len(v.Columns) {
+		v.ColumnMetadata = make([]ViewColumn, len(v.Columns))
+	}
+	for i, name := range v.Columns {
+		v.ColumnMetadata[i].Name = name
+	}
 }
 
 // --- Stand-ins ---
