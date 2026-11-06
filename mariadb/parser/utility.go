@@ -299,37 +299,33 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 
 // parseFlushStmt parses a FLUSH statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/flush.html
-//
 //	FLUSH [NO_WRITE_TO_BINLOG | LOCAL] {
 //	    flush_option [, flush_option] ...
-//	  | tables_option
+//	  | {TABLE | TABLES} [tbl_name [, tbl_name] ...] [WITH READ LOCK [AND DISABLE CHECKPOINT]]
+//	  | {TABLE | TABLES} tbl_name [, tbl_name] ... FOR EXPORT
 //	}
 //
-//	flush_option: {
-//	    BINARY LOGS
-//	  | ENGINE LOGS
-//	  | ERROR LOGS
-//	  | GENERAL LOGS
-//	  | HOSTS
-//	  | LOGS
-//	  | PRIVILEGES
-//	  | OPTIMIZER_COSTS
-//	  | RELAY LOGS [FOR CHANNEL channel]
-//	  | SLOW LOGS
-//	  | STATUS
-//	  | USER_RESOURCES
-//	}
+//	flush_option:
+//	    {ENGINE | ERROR | GENERAL | SLOW} LOGS
+//	  | BINARY LOGS [DELETE_DOMAIN_ID = ([domain_id [, domain_id] ...])]
+//	  | RELAY LOGS ['connection_name'] [FOR CHANNEL 'connection_name']
+//	  | {SLAVE | REPLICA} ['connection_name']
+//	  | QUERY CACHE | [SESSION | GLOBAL] STATUS
+//	  | HOSTS | LOGS | PRIVILEGES | MASTER | DES_KEY_FILE | USER_RESOURCES | SSL | THREADS
+//	  | information_schema_table
 //
-//	tables_option: {
-//	    table_synonym
-//	  | table_synonym tbl_name [, tbl_name] ...
-//	  | table_synonym WITH READ LOCK
-//	  | table_synonym tbl_name [, tbl_name] ... WITH READ LOCK
-//	  | table_synonym tbl_name [, tbl_name] ... FOR EXPORT
-//	}
+// The option words are keywords, so a backquoted `hosts` is a 1064, and so is a word
+// that is none of them: `FLUSH foo`, TiDB's `FLUSH TIDB PLUGINS` and MySQL's
+// OPTIMIZER_COSTS. The last form names an information_schema table that has a reset
+// function, which the server looks up while it parses and refuses with 1064 when there is
+// none; flushResetTables lists them. Three more checks run while parsing: a domain id
+// above 2^32-1 answers 1076, a connection name and FOR CHANNEL together answer 1210, and
+// RELAY LOGS or SLAVE twice in one list answers 1221. FOR EXPORT needs a table, and
+// `FLUSH TABLES FOR EXPORT` is a 1064 ("No tables used").
 //
-//	table_synonym: { TABLE | TABLES }
+// Ref: flush, flush_options, flush_lock, flush_option, opt_delete_gtid_domain and
+// for_channel in sql_yacc.yy (mariadb-11.8.8).
+// Ref: https://mariadb.com/kb/en/flush/
 func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 	start := p.pos()
 	p.advance() // consume FLUSH
@@ -346,48 +342,53 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 
 	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
 
-	if p.cur.Type == kwLOCAL {
-		stmt.NoWriteToBinlog = true
-		p.advance()
-	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
+	if p.cur.Type == kwLOCAL || p.cur.Type == kwNO_WRITE_TO_BINLOG {
 		stmt.NoWriteToBinlog = true
 		p.advance()
 	}
 
-	// FLUSH TABLES [tbl_name, ...] [WITH READ LOCK | FOR EXPORT]
 	if p.cur.Type == kwTABLES || p.cur.Type == kwTABLE {
 		stmt.Options = append(stmt.Options, "TABLES")
 		p.advance()
-		// Optional table list (but not WITH or FOR which are clause keywords)
-		if (p.isIdentToken() || p.cur.Type == tokSCONST) && p.cur.Type != kwWITH && p.cur.Type != kwFOR {
+		// WITH and FOR are reserved, so neither starts a table name.
+		if p.isIdentToken() {
 			for {
 				ref, err := p.parseTableRef()
 				if err != nil {
 					return nil, err
 				}
 				stmt.Tables = append(stmt.Tables, ref)
-				if p.cur.Type != ',' {
+				if _, ok := p.match(','); !ok {
 					break
 				}
-				p.advance()
 			}
 		}
-		// WITH READ LOCK
-		if p.cur.Type == kwWITH {
+		switch p.cur.Type {
+		case kwWITH:
 			p.advance()
-			if p.cur.Type == kwREAD {
-				p.advance()
-				if p.cur.Type == kwLOCK {
-					p.advance()
+			if _, err := p.expect(kwREAD); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(kwLOCK); err != nil {
+				return nil, err
+			}
+			stmt.WithReadLock = true
+			if _, ok := p.match(kwAND); ok {
+				if _, err := p.expect(kwDISABLE); err != nil {
+					return nil, err
 				}
-				stmt.WithReadLock = true
-			}
-		}
-		// FOR EXPORT
-		if p.cur.Type == kwFOR {
-			p.advance()
-			if p.cur.Type == kwEXPORT {
+				if p.flushWord() != "CHECKPOINT" {
+					return nil, p.syntaxErrorAtCur()
+				}
 				p.advance()
+			}
+		case kwFOR:
+			if len(stmt.Tables) == 0 {
+				return nil, &ParseError{Message: "No tables used", Position: p.cur.Loc}
+			}
+			p.advance()
+			if _, err := p.expect(kwEXPORT); err != nil {
+				return nil, err
 			}
 			stmt.ForExport = true
 		}
@@ -395,89 +396,178 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 		return stmt, nil
 	}
 
-	// Flush options list
 	for {
-		if p.cur.Type == tokEOF || p.cur.Type == ';' {
-			break
+		optLoc := p.cur.Loc
+		opt, err := p.parseFlushOption(stmt)
+		if err != nil {
+			return nil, err
 		}
-		opt := p.parseFlushOption(stmt)
-		if opt == "" {
-			break
+		if opt == "RELAY LOGS" || opt == "SLAVE" {
+			for _, seen := range stmt.Options {
+				if seen == opt {
+					return nil, &ParseError{Message: "Incorrect usage of FLUSH and " + opt, Position: optLoc}
+				}
+			}
 		}
 		stmt.Options = append(stmt.Options, opt)
-		if p.cur.Type != ',' {
+		if _, ok := p.match(','); !ok {
 			break
 		}
-		p.advance()
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseFlushOption parses a single flush_option and returns the normalized name.
-// Multi-word options (ENGINE LOGS, ERROR LOGS, etc.) are combined into one string.
-func (p *Parser) parseFlushOption(stmt *nodes.FlushStmt) string {
-	// Handle keyword tokens that are also flush options
-	switch p.cur.Type {
-	case kwBINARY:
-		p.advance()
-		if p.cur.Type == kwLOGS {
-			p.advance()
-			return "BINARY LOGS"
-		}
-		return "BINARY"
-	case kwSTATUS:
-		p.advance()
-		return "STATUS"
-	case kwPRIVILEGES:
-		p.advance()
-		return "PRIVILEGES"
-	case kwOPTIMIZER_COSTS:
-		p.advance()
-		return "OPTIMIZER_COSTS"
-	}
+// flushResetTables are the information_schema tables FLUSH can name, those with a reset
+// function: the userstat plugin's four, user_variables, and the thread pool's statistics
+// and waits, all loaded on mariadb:11.8.8 by default, and query_response_time's three,
+// which answer once the plugin is installed. The server looks the name up among the loaded
+// plugins, which a parser cannot see, so these are the ones MariaDB ships.
+//
+// Ref: reset_table in plugin/userstat, plugin/user_variables, plugin/query_response_time
+// and sql/thread_pool_info.cc (mariadb-11.8.8).
+var flushResetTables = map[string]bool{
+	"CLIENT_STATISTICS": true, "INDEX_STATISTICS": true, "TABLE_STATISTICS": true,
+	"USER_STATISTICS": true, "USER_VARIABLES": true,
+	"THREAD_POOL_STATS": true, "THREAD_POOL_WAITS": true,
+	"QUERY_RESPONSE_TIME": true, "QUERY_RESPONSE_TIME_READ": true,
+	"QUERY_RESPONSE_TIME_WRITE": true,
+}
 
-	if !p.isIdentToken() {
-		return ""
-	}
-
-	name := strings.ToUpper(p.cur.Str)
-	p.advance()
-
-	// Check for multi-word options: ENGINE LOGS, ERROR LOGS, GENERAL LOGS, RELAY LOGS, SLOW LOGS
-	switch name {
+// parseFlushOption parses one flush_option and returns its words, upper-cased and joined
+// by a space.
+func (p *Parser) parseFlushOption(stmt *nodes.FlushStmt) (string, error) {
+	word := p.flushWord()
+	switch word {
+	case "HOSTS", "LOGS", "PRIVILEGES", "STATUS", "MASTER", "DES_KEY_FILE", "USER_RESOURCES", "SSL", "THREADS":
+		p.advance()
+		return word, nil
 	case "ENGINE", "ERROR", "GENERAL", "SLOW":
-		if p.cur.Type == kwLOGS {
-			p.advance()
-			return name + " LOGS"
+		p.advance()
+		if _, err := p.expect(kwLOGS); err != nil {
+			return "", err
 		}
-		return name
-	case "RELAY":
-		if p.cur.Type == kwLOGS {
+		return word + " LOGS", nil
+	case "SESSION", "GLOBAL":
+		p.advance()
+		if _, err := p.expect(kwSTATUS); err != nil {
+			return "", err
+		}
+		return word + " STATUS", nil
+	case "QUERY":
+		p.advance()
+		if p.flushWord() != "CACHE" {
+			return "", p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return "QUERY CACHE", nil
+	case "BINARY":
+		p.advance()
+		if _, err := p.expect(kwLOGS); err != nil {
+			return "", err
+		}
+		if p.flushWord() == "DELETE_DOMAIN_ID" {
 			p.advance()
-			opt := "RELAY LOGS"
-			// Optional FOR CHANNEL channel
-			if p.cur.Type == kwFOR {
-				p.advance() // consume FOR
-				if p.cur.Type == kwCHANNEL {
-					p.advance() // consume CHANNEL
-					if p.isIdentToken() || p.cur.Type == tokSCONST {
-						if p.cur.Type == tokSCONST {
-							stmt.RelayChannel = p.cur.Str
-						} else {
-							stmt.RelayChannel = p.cur.Str
-						}
-						p.advance()
-					}
+			if err := p.parseDeleteDomainIDs(); err != nil {
+				return "", err
+			}
+		}
+		return "BINARY LOGS", nil
+	case "RELAY":
+		p.advance()
+		if _, err := p.expect(kwLOGS); err != nil {
+			return "", err
+		}
+		name, hasName := p.matchConnectionName()
+		if _, ok := p.match(kwFOR); ok {
+			if _, err := p.expect(kwCHANNEL); err != nil {
+				return "", err
+			}
+			if hasName {
+				return "", &ParseError{
+					Message:  "Incorrect arguments to CONNECTION_NAME AND FOR CHANNEL CAN NOT BE SPECIFIED AT THE SAME TIME)",
+					Position: p.prev.Loc,
 				}
 			}
-			return opt
+			if name, hasName = p.matchConnectionName(); !hasName {
+				return "", p.syntaxErrorAtCur()
+			}
 		}
-		return name
+		stmt.RelayChannel = name
+		return "RELAY LOGS", nil
+	case "SLAVE", "REPLICA":
+		p.advance()
+		p.matchConnectionName()
+		return "SLAVE", nil
 	}
+	if p.cur.Type == tokIDENT && flushResetTables[strings.ToUpper(p.cur.Str)] {
+		return strings.ToUpper(p.advance().Str), nil
+	}
+	return "", p.syntaxErrorAtCur()
+}
 
-	return name
+// matchConnectionName consumes a connection name, the grammar's TEXT_STRING_sys: one
+// quoted string, with no introducer.
+func (p *Parser) matchConnectionName() (string, bool) {
+	if p.cur.Type != tokSCONST {
+		return "", false
+	}
+	return p.advance().Str, true
+}
+
+// parseDeleteDomainIDs parses the list after BINARY LOGS DELETE_DOMAIN_ID, which may be
+// empty.
+//
+//	= ( [[+]number [, [+]number] ...] )
+//
+// Each number is any decimal literal, and the server keeps the integer digits it starts
+// with: 1.5 deletes domain 1. One above 2^32-1 is refused while parsing with 1076.
+func (p *Parser) parseDeleteDomainIDs() error {
+	if _, err := p.expect('='); err != nil {
+		return err
+	}
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	if _, ok := p.match(')'); ok {
+		return nil
+	}
+	for {
+		p.match('+')
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
+			return p.syntaxErrorAtCur()
+		}
+		if !fitsUint32Prefix(p.cur.Str) {
+			return &ParseError{
+				Message: "The value of gtid domain being deleted ('" + p.cur.Str +
+					"') exceeds its maximum size of 32 bit unsigned integer",
+				Position: p.cur.Loc,
+			}
+		}
+		p.advance()
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	_, err := p.expect(')')
+	return err
+}
+
+// fitsUint32Prefix reports whether the run of digits num starts with is at most 2^32-1,
+// as my_strtoll10 reads it.
+func fitsUint32Prefix(num string) bool {
+	digits := strings.TrimLeft(num[:len(num)-len(strings.TrimLeft(num, "0123456789"))], "0")
+	return len(digits) < 10 || (len(digits) == 10 && digits <= "4294967295")
+}
+
+// flushWord returns the word at p.cur upper-cased when it is written bare, as every
+// flush_option keyword must be, and "" otherwise.
+func (p *Parser) flushWord() string {
+	if (p.cur.Type != tokIDENT && p.cur.Type < 700) || p.backtickQuotedAt(p.cur.Loc) {
+		return ""
+	}
+	return strings.ToUpper(p.cur.Str)
 }
 
 // parseResetStmt parses a RESET statement.

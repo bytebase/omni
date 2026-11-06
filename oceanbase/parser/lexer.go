@@ -2070,10 +2070,14 @@ func (l *Lexer) nextToken() Token {
 
 	// Number: 0x hex, 0b binary, or decimal/float
 	if ch >= '0' && ch <= '9' {
+		if (l.prevToken == '.' && l.prevTokenEnd == l.pos) || l.wordBeforeDotName() {
+			// Only a separating dot (dotSeparates) is followed straight by a digit.
+			return l.scanDigitLeadingIdent(l.pos)
+		}
 		return l.scanNumber()
 	}
 	// Also handle .N float (e.g., .5)
-	if ch == '.' && l.pos+1 < len(l.input) && l.input[l.pos+1] >= '0' && l.input[l.pos+1] <= '9' {
+	if ch == '.' && l.pos+1 < len(l.input) && l.input[l.pos+1] >= '0' && l.input[l.pos+1] <= '9' && !l.dotSeparates() {
 		return l.scanNumber()
 	}
 
@@ -2525,7 +2529,53 @@ func (l *Lexer) scanIdentOrKeyword() Token {
 // a keyword, so @@global.a reads its scope, and NEW and OLD stay keywords, which is how a
 // trigger's qualifier is told from a table's.
 func (l *Lexer) beforeDotName() bool {
-	return l.pos+1 < len(l.input) && l.input[l.pos] == '.' && isIdentChar(l.input[l.pos+1])
+	return l.dotNameAt(l.pos)
+}
+
+// dotNameAt reports whether a dot and an identifier character start at i, an offset into
+// l.input.
+func (l *Lexer) dotNameAt(i int) bool {
+	return i >= 0 && i+1 < len(l.input) && l.input[i] == '.' && isIdentChar(l.input[i+1])
+}
+
+// dotSeparates reports whether the dot at l.pos separates the word before it from a name
+// after it, where it would otherwise open a number such as .5. OceanBase's flex lexer
+// takes the longest match, and {start_identifier}"."{identifier} reads a word, the dot and
+// the identifier characters after it as one qualified name, digits first or not. So
+// `SELECT t.1 FROM t`, `SELECT t.1e5 FROM t`, `SELECT t.1.5 FROM t` and `CREATE TABLE
+// d.1b (c int)` name a column, a table and a database. A quoted name does not separate, nor
+// a space: `SELECT `t`.1`, `SELECT t .1` and `SELECT t. 1` are 1064s. Nor does a word
+// straight after @@, which system_variable has already taken with the @@: `SELECT
+// @@global.1` is a 1064.
+//
+// Ref: start_identifier, system_variable and the ID_DOT_ID rules in
+// sql_parser_mysql_mode.l (oceanbase v4.3.5_CE_BP6).
+func (l *Lexer) dotSeparates() bool {
+	if l.pos == 0 || !isIdentChar(l.input[l.pos-1]) {
+		return false
+	}
+	if l.prevToken != tokIDENT && l.prevToken < 700 {
+		return false
+	}
+	start := l.pos
+	for start > 0 && isIdentChar(l.input[start-1]) {
+		start--
+	}
+	return !strings.HasSuffix(l.input[:start], "@@")
+}
+
+// wordBeforeDotName reports whether the run of identifier characters at l.pos, which starts
+// with a digit, holds a letter and runs straight into a dot and a name. start_identifier is
+// any such run, so flex reads `1e5.a`, `0x10.1` and `0b1.a` as qualified names where
+// MySQL reads a number and a 1064. A run of digits alone is a number, so `SELECT 1.5` is
+// one, and so is a number with a sign in its exponent: `SELECT 1e+5.1` is a 1064.
+func (l *Lexer) wordBeforeDotName() bool {
+	end, letter := l.pos, false
+	for end < len(l.input) && isIdentChar(l.input[end]) {
+		letter = letter || l.input[end] < '0' || l.input[end] > '9'
+		end++
+	}
+	return letter && l.dotNameAt(end)
 }
 
 func isIdentStart(ch byte) bool {

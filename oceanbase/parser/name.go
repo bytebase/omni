@@ -606,6 +606,9 @@ func isLvalueKeyword(t int) bool {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/identifiers.html
 func (p *Parser) parseIdent() (string, int, error) {
 	if p.cur.Type == tokIDENT {
+		if p.curIsVariableOrIntroducer() {
+			return "", 0, p.syntaxErrorAtCur()
+		}
 		tok := p.advance()
 		return tok.Str, tok.Loc, nil
 	}
@@ -621,6 +624,33 @@ func (p *Parser) parseIdent() (string, int, error) {
 		Message:  "expected identifier",
 		Position: p.cur.Loc,
 	}
+}
+
+// curIsVariableOrIntroducer reports whether the identifier token at p.cur is a user
+// variable or a character set introducer, neither of which is a name. The lexer scans @a
+// whole as an identifier for the expression reader, and _utf8 is one word to it, but
+// OceanBase's lexer makes them USER_VARIABLE and _UTF8 tokens, so `CREATE TABLE @a (b
+// int)`, `SELECT * FROM @a` and `CREATE TABLE _utf8 (b int)` are 1064s. Backquoted, `@a`
+// and `_utf8` are ordinary names. A word that is part of a qualified name is a name too,
+// because flex reads `d._utf8` and `_utf8.t` whole as one, the longer match: on either side
+// of a dot with nothing between, _utf8 names a table or a database.
+//
+// Ref: user_variable, _UTF8 and the ID_DOT_ID rules in sql_parser_mysql_mode.l
+// (oceanbase v4.3.5_CE_BP6).
+func (p *Parser) curIsVariableOrIntroducer() bool {
+	// The raw byte, as backtickQuotedAt reads it: inputText expands the executable comments
+	// before the token, which every name would pay for.
+	switch i := p.cur.Loc - p.lexer.baseOffset; {
+	case i < 0 || i >= len(p.lexer.input):
+		return false
+	case p.lexer.input[i] == '@':
+		return true
+	case p.lexer.input[i] == '_':
+		afterDot := p.prev.Type == '.' && p.prev.End == p.cur.Loc
+		beforeDot := p.lexer.dotNameAt(p.cur.End - p.lexer.baseOffset)
+		return !afterDot && !beforeDot && isCharsetIntroducer(p.cur.Str)
+	}
+	return false
 }
 
 // parseIdentOrText parses MySQL's `ident_or_text` grammar rule: either an

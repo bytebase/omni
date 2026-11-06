@@ -299,37 +299,25 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 
 // parseFlushStmt parses a FLUSH statement.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/flush.html
-//
 //	FLUSH [NO_WRITE_TO_BINLOG | LOCAL] {
 //	    flush_option [, flush_option] ...
-//	  | tables_option
+//	  | {TABLE | TABLES} [tbl_name [, tbl_name] ...] [WITH READ LOCK]
+//	  | {TABLE | TABLES} tbl_name [, tbl_name] ... FOR EXPORT
 //	}
 //
-//	flush_option: {
-//	    BINARY LOGS
-//	  | ENGINE LOGS
-//	  | ERROR LOGS
-//	  | GENERAL LOGS
-//	  | HOSTS
-//	  | LOGS
-//	  | PRIVILEGES
-//	  | OPTIMIZER_COSTS
-//	  | RELAY LOGS [FOR CHANNEL channel]
-//	  | SLOW LOGS
-//	  | STATUS
-//	  | USER_RESOURCES
-//	}
+//	flush_option:
+//	    {BINARY | ENGINE | ERROR | GENERAL | SLOW} LOGS
+//	  | RELAY LOGS [FOR CHANNEL 'channel']
+//	  | HOSTS | LOGS | PRIVILEGES | OPTIMIZER_COSTS | STATUS | USER_RESOURCES
 //
-//	tables_option: {
-//	    table_synonym
-//	  | table_synonym tbl_name [, tbl_name] ...
-//	  | table_synonym WITH READ LOCK
-//	  | table_synonym tbl_name [, tbl_name] ... WITH READ LOCK
-//	  | table_synonym tbl_name [, tbl_name] ... FOR EXPORT
-//	}
+// The option words are keywords, so a backquoted `hosts` is a 1064, and so is any other
+// word: `FLUSH foo` and TiDB's `FLUSH TIDB PLUGINS`. The channel is a plain string, not a
+// name, and may not hold a line feed, which the server refuses while it parses with 1525.
+// FOR EXPORT needs a table, and `FLUSH TABLES FOR EXPORT` is a 1064 ("No tables used").
 //
-//	table_synonym: { TABLE | TABLES }
+// Ref: flush, flush_options, opt_flush_lock and flush_option in sql_yacc.yy, and
+// TEXT_STRING_sys_nonewline (mysql-8.0.46).
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/flush.html
 func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 	start := p.pos()
 	p.advance() // consume FLUSH
@@ -346,48 +334,44 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 
 	stmt := &nodes.FlushStmt{Loc: nodes.Loc{Start: start}}
 
-	if p.cur.Type == kwLOCAL {
-		stmt.NoWriteToBinlog = true
-		p.advance()
-	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
+	if p.cur.Type == kwLOCAL || p.cur.Type == kwNO_WRITE_TO_BINLOG {
 		stmt.NoWriteToBinlog = true
 		p.advance()
 	}
 
-	// FLUSH TABLES [tbl_name, ...] [WITH READ LOCK | FOR EXPORT]
 	if p.cur.Type == kwTABLES || p.cur.Type == kwTABLE {
 		stmt.Options = append(stmt.Options, "TABLES")
 		p.advance()
-		// Optional table list (but not WITH or FOR which are clause keywords)
-		if (p.isIdentToken() || p.cur.Type == tokSCONST) && p.cur.Type != kwWITH && p.cur.Type != kwFOR {
+		// WITH and FOR are reserved, so neither starts a table name.
+		if p.isIdentToken() {
 			for {
 				ref, err := p.parseTableRef()
 				if err != nil {
 					return nil, err
 				}
 				stmt.Tables = append(stmt.Tables, ref)
-				if p.cur.Type != ',' {
+				if _, ok := p.match(','); !ok {
 					break
 				}
-				p.advance()
 			}
 		}
-		// WITH READ LOCK
-		if p.cur.Type == kwWITH {
+		switch p.cur.Type {
+		case kwWITH:
 			p.advance()
-			if p.cur.Type == kwREAD {
-				p.advance()
-				if p.cur.Type == kwLOCK {
-					p.advance()
-				}
-				stmt.WithReadLock = true
+			if _, err := p.expect(kwREAD); err != nil {
+				return nil, err
 			}
-		}
-		// FOR EXPORT
-		if p.cur.Type == kwFOR {
+			if _, err := p.expect(kwLOCK); err != nil {
+				return nil, err
+			}
+			stmt.WithReadLock = true
+		case kwFOR:
+			if len(stmt.Tables) == 0 {
+				return nil, &ParseError{Message: "No tables used", Position: p.cur.Loc}
+			}
 			p.advance()
-			if p.cur.Type == kwEXPORT {
-				p.advance()
+			if _, err := p.expect(kwEXPORT); err != nil {
+				return nil, err
 			}
 			stmt.ForExport = true
 		}
@@ -395,89 +379,67 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 		return stmt, nil
 	}
 
-	// Flush options list
 	for {
-		if p.cur.Type == tokEOF || p.cur.Type == ';' {
-			break
-		}
-		opt := p.parseFlushOption(stmt)
-		if opt == "" {
-			break
+		opt, err := p.parseFlushOption(stmt)
+		if err != nil {
+			return nil, err
 		}
 		stmt.Options = append(stmt.Options, opt)
-		if p.cur.Type != ',' {
+		if _, ok := p.match(','); !ok {
 			break
 		}
-		p.advance()
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseFlushOption parses a single flush_option and returns the normalized name.
-// Multi-word options (ENGINE LOGS, ERROR LOGS, etc.) are combined into one string.
-func (p *Parser) parseFlushOption(stmt *nodes.FlushStmt) string {
-	// Handle keyword tokens that are also flush options
-	switch p.cur.Type {
-	case kwBINARY:
+// parseFlushOption parses one flush_option and returns its words, upper-cased and joined
+// by a space.
+func (p *Parser) parseFlushOption(stmt *nodes.FlushStmt) (string, error) {
+	word := p.flushWord()
+	switch word {
+	case "HOSTS", "LOGS", "PRIVILEGES", "OPTIMIZER_COSTS", "STATUS", "USER_RESOURCES":
 		p.advance()
-		if p.cur.Type == kwLOGS {
-			p.advance()
-			return "BINARY LOGS"
+		return word, nil
+	case "BINARY", "ENGINE", "ERROR", "GENERAL", "SLOW":
+		p.advance()
+		if _, err := p.expect(kwLOGS); err != nil {
+			return "", err
 		}
-		return "BINARY"
-	case kwSTATUS:
-		p.advance()
-		return "STATUS"
-	case kwPRIVILEGES:
-		p.advance()
-		return "PRIVILEGES"
-	case kwOPTIMIZER_COSTS:
-		p.advance()
-		return "OPTIMIZER_COSTS"
-	}
-
-	if !p.isIdentToken() {
-		return ""
-	}
-
-	name := strings.ToUpper(p.cur.Str)
-	p.advance()
-
-	// Check for multi-word options: ENGINE LOGS, ERROR LOGS, GENERAL LOGS, RELAY LOGS, SLOW LOGS
-	switch name {
-	case "ENGINE", "ERROR", "GENERAL", "SLOW":
-		if p.cur.Type == kwLOGS {
-			p.advance()
-			return name + " LOGS"
-		}
-		return name
+		return word + " LOGS", nil
 	case "RELAY":
-		if p.cur.Type == kwLOGS {
-			p.advance()
-			opt := "RELAY LOGS"
-			// Optional FOR CHANNEL channel
-			if p.cur.Type == kwFOR {
-				p.advance() // consume FOR
-				if p.cur.Type == kwCHANNEL {
-					p.advance() // consume CHANNEL
-					if p.isIdentToken() || p.cur.Type == tokSCONST {
-						if p.cur.Type == tokSCONST {
-							stmt.RelayChannel = p.cur.Str
-						} else {
-							stmt.RelayChannel = p.cur.Str
-						}
-						p.advance()
-					}
+		p.advance()
+		if _, err := p.expect(kwLOGS); err != nil {
+			return "", err
+		}
+		if _, ok := p.match(kwFOR); ok {
+			if _, err := p.expect(kwCHANNEL); err != nil {
+				return "", err
+			}
+			if p.cur.Type != tokSCONST {
+				return "", p.syntaxErrorAtCur()
+			}
+			if strings.Contains(p.cur.Str, "\n") {
+				return "", &ParseError{
+					Message:  "Incorrect argument contains not-allowed LF value: '" + p.cur.Str + "'",
+					Position: p.cur.Loc,
 				}
 			}
-			return opt
+			stmt.RelayChannel = p.advance().Str
 		}
-		return name
+		return "RELAY LOGS", nil
 	}
+	return "", p.syntaxErrorAtCur()
+}
 
-	return name
+// flushWord returns the word at p.cur upper-cased when it is written bare, as every
+// flush_option word must be, and "" otherwise.
+func (p *Parser) flushWord() string {
+	if (p.cur.Type != tokIDENT && p.cur.Type < 700) || p.backtickQuotedAt(p.cur.Loc) {
+		return ""
+	}
+	return strings.ToUpper(p.cur.Str)
 }
 
 // parseResetStmt parses a RESET statement.

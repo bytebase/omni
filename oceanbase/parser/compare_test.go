@@ -11580,14 +11580,17 @@ func TestReviewBatch111_FlushRelayLogs(t *testing.T) {
 	}
 }
 
+// OceanBase has no FOR CHANNEL: 4.3.5.6 answers 1064, and names a relay log with RELAY LOG
+// instead (flushFormCases).
 func TestReviewBatch111_FlushRelayLogsForChannel(t *testing.T) {
-	result := ParseAndCheck(t, "FLUSH RELAY LOGS FOR CHANNEL 'channel_1'")
+	ParseExpectError(t, "FLUSH RELAY LOGS FOR CHANNEL 'channel_1'")
+	result := ParseAndCheck(t, "FLUSH RELAY LOG channel_1")
 	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, "RELAY LOGS") {
-		t.Errorf("expected RELAY LOGS, got %s", s)
+	if !strings.Contains(s, "RELAY LOG") {
+		t.Errorf("expected RELAY LOG, got %s", s)
 	}
-	if !strings.Contains(s, ":relay_channel") {
-		t.Errorf("expected :relay_channel, got %s", s)
+	if !strings.Contains(s, `:relay_channel "channel_1"`) {
+		t.Errorf(`expected :relay_channel "channel_1", got %s`, s)
 	}
 }
 
