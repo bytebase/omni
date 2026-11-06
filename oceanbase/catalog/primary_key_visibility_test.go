@@ -11,8 +11,9 @@ import (
 )
 
 // addPrimaryKeyIgnoredOptionAlters each add a primary key with an option OceanBase
-// takes and ignores: INVISIBLE, after which the key reads back visible, and COMMENT,
-// after which it reads back with none.
+// takes and ignores: INVISIBLE, after which the key reads back visible, and COMMENT
+// and STORING, after which it reads back with neither. A STORING column the table
+// lacks is not checked.
 var addPrimaryKeyIgnoredOptionAlters = []string{
 	"ALTER TABLE t ADD PRIMARY KEY (id) INVISIBLE",
 	"ALTER TABLE t ADD CONSTRAINT pkc PRIMARY KEY (id) INVISIBLE",
@@ -22,6 +23,9 @@ var addPrimaryKeyIgnoredOptionAlters = []string{
 	"ALTER TABLE t ADD PRIMARY KEY (id) COMMENT 'alter pk comment'",
 	"ALTER TABLE t ADD CONSTRAINT PRIMARY KEY (id) COMMENT 'x' INVISIBLE",
 	"ALTER TABLE t ADD PRIMARY KEY (id) KEY_BLOCK_SIZE 8 COMMENT 'pkc' USING HASH",
+	"ALTER TABLE t ADD PRIMARY KEY (id) STORING (a)",
+	"ALTER TABLE t ADD CONSTRAINT pkc PRIMARY KEY (id) COMMENT 'x' STORING (a) STORING (id)",
+	"ALTER TABLE t ADD PRIMARY KEY (id) STORING (nosuch)",
 }
 
 // createPrimaryKeyComment keeps its COMMENT on OceanBase, unlike the same key added
@@ -46,8 +50,8 @@ func primaryIndex(tbl *Table) *Index {
 }
 
 // TestAlterAddPrimaryKeyIgnoredOptions pins that an ALTER TABLE primary key is added
-// visible and without a comment, whatever the DDL asks, as OceanBase adds it. MySQL
-// refuses INVISIBLE there with 3522 and keeps the comment.
+// visible and without a comment or stored columns, whatever the DDL asks, as OceanBase
+// adds it. MySQL refuses INVISIBLE there with 3522 and keeps the comment.
 // TestOracle_OceanBaseAlterAddPrimaryKey asks the engine.
 func TestAlterAddPrimaryKeyIgnoredOptions(t *testing.T) {
 	for _, alter := range addPrimaryKeyIgnoredOptionAlters {
@@ -73,7 +77,10 @@ func TestAlterAddPrimaryKeyIgnoredOptions(t *testing.T) {
 			if pk.Comment != "" {
 				t.Errorf("the primary key has comment %q; OceanBase drops it", pk.Comment)
 			}
-			if ddl := c.ShowCreateTable("d", "t"); strings.Contains(ddl, "INVISIBLE") || strings.Contains(ddl, "COMMENT") {
+			if len(pk.Storing) > 0 {
+				t.Errorf("the primary key stores %q; OceanBase drops STORING", pk.Storing)
+			}
+			if ddl := c.ShowCreateTable("d", "t"); strings.Contains(ddl, "INVISIBLE") || strings.Contains(ddl, "COMMENT") || strings.Contains(ddl, "STORING") {
 				t.Errorf("SHOW CREATE TABLE keeps an option OceanBase drops:\n%s", ddl)
 			}
 		})

@@ -847,6 +847,17 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 			p.cur.Type != kwFOREIGN && p.cur.Type != kwCHECK {
 			constr.Name, _, _ = p.parseIdent()
 		}
+		// CONSTRAINT goes with these four only: 4.3.5.6 answers 1064 for `CONSTRAINT c
+		// INDEX (a)`, `CONSTRAINT KEY (a)`, `CONSTRAINT FULLTEXT (c)`, `CONSTRAINT c SPATIAL
+		// (g)` and `CONSTRAINT VECTOR INDEX (v)`, here and after ALTER TABLE ADD.
+		//
+		// Ref: table_element, constraint_definition and add_constraint_uniq_key in
+		// sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
+		switch p.cur.Type {
+		case kwPRIMARY, kwUNIQUE, kwFOREIGN, kwCHECK:
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	switch p.cur.Type {
@@ -1022,7 +1033,7 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		// it refuses later: VECTOR INDEX (a, b) and VECTOR INDEX ((f(a))) are 1235.
 		// There is no index type in front of the key parts, where the options take
 		// BTREE and HASH like any other index's and never HNSW.
-		if inAlter || afterConstraint {
+		if inAlter {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume VECTOR

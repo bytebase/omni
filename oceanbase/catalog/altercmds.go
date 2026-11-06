@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -300,6 +301,10 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 	newIndexes := make([]*Index, 0, len(tbl.Indexes))
 	removedIndexNames := make(map[string]bool)
 	for _, idx := range tbl.Indexes {
+		// A column dropped from a STORING goes without taking the index along: 4.3.5.6
+		// reads KEY k (a) STORING (b) back as KEY k (a) once b is gone.
+		idx.Storing = slices.DeleteFunc(idx.Storing, func(name string) bool { return toLower(name) == colKey })
+
 		// Remove the column from this index.
 		newCols := make([]*IndexColumn, 0, len(idx.Columns))
 		for _, ic := range idx.Columns {
@@ -426,6 +431,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 
 	cols := extractColumnNames(con)
+	// A primary key's STORING is taken and dropped unread: on 4.3.5.6, ALTER TABLE t
+	// ADD PRIMARY KEY (a) STORING (nosuch) succeeds and the key reads back without it.
+	if con.Type != nodes.ConstrPrimaryKey {
+		if err := validateStoringColumns(tbl, con.IndexOptions); err != nil {
+			return err
+		}
+	}
 
 	switch con.Type {
 	case nodes.ConstrPrimaryKey:
@@ -461,10 +473,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// (id) INVISIBLE succeeds, SHOW CREATE TABLE prints PRIMARY KEY (`id`), and
 		// information_schema.STATISTICS reports the key visible. It drops a COMMENT
 		// given here the same way, though it keeps one given in CREATE TABLE
-		// (TestOracle_OceanBaseAlterAddPrimaryKey). CREATE TABLE refuses INVISIBLE at
-		// parse time.
+		// (TestOracle_OceanBaseAlterAddPrimaryKey). It drops STORING too. CREATE TABLE
+		// refuses INVISIBLE and STORING at parse time.
 		pkIdx.Visible = true
 		pkIdx.Comment = ""
+		pkIdx.Storing = nil
 		tbl.Indexes = append(tbl.Indexes, pkIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      "PRIMARY",
@@ -1118,6 +1131,11 @@ func updateColumnRefsInIndexes(tbl *Table, oldName, newName string) {
 		for _, ic := range idx.Columns {
 			if toLower(ic.Name) == oldKey {
 				ic.Name = newName
+			}
+		}
+		for i, name := range idx.Storing {
+			if toLower(name) == oldKey {
+				idx.Storing[i] = newName
 			}
 		}
 	}

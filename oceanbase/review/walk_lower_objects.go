@@ -27,12 +27,31 @@ func (b *builder) tableOf(tr *ast.TableRef) (tableRef, bool, bool) {
 	return r, true, true
 }
 
+// indexInOtherDatabase is the text for an index name qualified with a database its table
+// is not in.
+func indexInOtherDatabase(schema, table string) string {
+	return "The index is named in database `" + ident(schema) + "`, which `" + table + "` is not in."
+}
+
 func (b *builder) createIndex(v *ast.CreateIndexStmt) bool {
 	r, ok, lowered := b.tableOf(v.Table)
 	if !ok {
 		return lowered
 	}
 	rng := b.anchor()
+	// The name's own database must exist and be the table's: 1049 for one that does not
+	// exist and 1235 for any other (verified on 4.3.5). The sync lists one database, so a
+	// name it does not know may be either, and the statement fails both ways.
+	if v.IndexSchema != "" {
+		if d, ok := b.key(spaceDatabase, v.IndexSchema); ok && d != r.db {
+			if f, _ := b.l.Lookup(dbKey(d)); f == walk.Absent {
+				b.databaseNeeds(d, v.IndexSchema, rng)
+			} else {
+				b.fail(rng, nil, review.CrossDatabaseReference, indexInOtherDatabase(v.IndexSchema, r.written))
+			}
+			return true
+		}
+	}
 	if b.tooLong(spaceIndex, v.IndexName, rng) {
 		return true
 	}
