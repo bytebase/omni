@@ -27,10 +27,10 @@ import "testing"
 // changes an answer fails there rather than leaving a stale expectation behind.
 // MySQL 8.0 accepts every TABLE form and every locking form here.
 //
-// OceanBase needs more memory than CI has, so that oracle reads
-// OCEANBASE_WALK_DSN and skips without it:
+// That oracle runs on the package's own OceanBase (see
+// sharedserver.PrivateOceanBase):
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 
 // queryFormCase is one statement text and whether OceanBase's parser accepts
 // it.

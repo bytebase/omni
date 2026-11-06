@@ -8,28 +8,29 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	gomysql "github.com/go-sql-driver/mysql"
-
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/review/walk/walktest"
+
+	"github.com/bytebase/omni/internal/sharedserver"
 )
 
 // The WALK_THROUGH oracle for OceanBase's MySQL mode
-// (docs/specs/2026-10-27-walk-through-oceanbase.md §7). The server needs
-// about 8 GB, which CI does not have: the tests read OCEANBASE_WALK_DSN,
-// which scripts/oceanbase-oracle.sh sets, and skip without it.
+// (docs/specs/2026-10-27-walk-through-oceanbase.md §7). The tests run on the
+// package's own OceanBase (see sharedserver.PrivateOceanBase).
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/review/ -run 'OceanBase' -count=1 -timeout 3h
+//	go test ./oceanbase/review/ -run 'OceanBase' -count=1 -timeout 3h
 
 // oceanBaseWalkBase is walkBase with the relations only OceanBase has: an
-// external table, which reads files under secure_file_priv (the script
-// sets it), and a materialized view, whose storage table the sync lists
-// as a table.
+// external table, which reads files under secure_file_priv (set where the
+// server starts: sharedserver.StartOceanBase, CI, dev-db.sh), and a
+// materialized view, whose
+// storage table the sync lists as a table.
 const oceanBaseWalkBase = walkBase + `
 CREATE EXTERNAL TABLE ext (a int) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV');
 CREATE MATERIALIZED VIEW mv AS SELECT id FROM r;
@@ -170,18 +171,9 @@ func (e *mysqlEngine) oceanBaseRelation(t testing.TB, db, name string) (bool, st
 	return n > 0, ""
 }
 
-// transient reports an OceanBase error a retry may clear: the tenant's log
-// stream between leaders (4767), or a timeout.
-func transient(err error) bool {
-	var me *gomysql.MySQLError
-	if errors.As(err, &me) {
-		switch me.Number {
-		case 4767, 4038, 4012, 4023, 6005, 4721, 4109:
-			return true
-		}
-	}
-	return false
-}
+// transient reports an OceanBase error a retry may clear: see
+// sharedserver.OceanBaseTransient.
+func transient(err error) bool { return sharedserver.OceanBaseTransient(err) }
 
 // retryTransient runs f again while it returns a transient error, for up
 // to three minutes.
@@ -194,14 +186,16 @@ func retryTransient(f func() error) error {
 	return err
 }
 
-// oceanBaseDB opens the server OCEANBASE_WALK_DSN names, or skips.
+// oceanBaseDB opens this process's own OceanBase: see
+// sharedserver.PrivateOceanBase. The walk drops every user database between
+// cases and sets globals, so the server can serve nothing else.
 func oceanBaseDB(t *testing.T) *sql.DB {
 	t.Helper()
-	dsn := os.Getenv("OCEANBASE_WALK_DSN")
-	if dsn == "" {
-		t.Skip("OCEANBASE_WALK_DSN is not set: run the test through scripts/oceanbase-oracle.sh")
+	dsn, err := sharedserver.PrivateOceanBase.DSN(context.Background())
+	if err != nil {
+		t.Fatalf("OceanBase oracle: %v", err)
 	}
-	db, err := sql.Open("mysql", dsn)
+	db, err := sharedserver.OpenOceanBase(dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -408,11 +402,20 @@ func oceanBaseSync(t *testing.T, db *sql.DB, unread bool) *metadata.DatabaseSche
 
 // TestWalkThroughSweepOceanBase runs the MySQL sweep's random changes, with
 // OceanBase's generated foreign key names. Precision must hold on every
-// one; recall is logged. WALK_SWEEP_N sets the number of changes (40 by
-// default; OceanBase's DDL is slow), WALK_SWEEP_SEED the seed.
+// one; recall is logged. WALK_SWEEP_N_OCEANBASE sets the number of changes,
+// then WALK_SWEEP_N (40 by default), and WALK_SWEEP_SEED the seed. The sweep
+// has a size of its own because it takes its changes one at a time on one
+// server, about 5 s each on a busy CI runner (2026-11-06), where the other
+// engines deal theirs over several servers.
 func TestWalkThroughSweepOceanBase(t *testing.T) {
 	db := oceanBaseDB(t)
 	n, seed, _ := walktest.SweepParams(t, 40, 20261028, "")
+	if v := os.Getenv("WALK_SWEEP_N_OCEANBASE"); v != "" {
+		var err error
+		if n, err = strconv.Atoi(v); err != nil {
+			t.Fatalf("WALK_SWEEP_N_OCEANBASE: %v", err)
+		}
+	}
 	rng := rand.New(rand.NewSource(seed))
 	var found, rejected int
 	for i := range n {

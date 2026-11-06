@@ -12,10 +12,9 @@ import (
 // TestAlterTableClauseFormsOceanBaseOracle asserts omni agrees with a live
 // OceanBase on alterTableClauseCases.
 //
-// OceanBase needs about 8 GB, which CI does not have, so this reads
-// OCEANBASE_WALK_DSN and skips without it:
+// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 //
 // The expectations in alterTableClauseCases are what
 // oceanbase/oceanbase-ce:4.3.5-lts (4.3.5.6) answered on 2026-11-04, so an

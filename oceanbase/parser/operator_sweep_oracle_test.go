@@ -45,10 +45,9 @@ func operatorVerdict(ctx context.Context, db *sql.DB, stmt string) (bool, error)
 // server, so an image upgrade that changes an answer fails here rather than leaving
 // a stale expectation behind.
 //
-// OceanBase needs about 8 GB, which CI does not have, so this reads OCEANBASE_WALK_DSN
-// and skips without it:
+// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OperatorSweep -count=1
+//	go test ./oceanbase/parser/ -run OperatorSweep -count=1
 func TestOperatorFormsMatchEngine(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()
@@ -146,10 +145,9 @@ func sweepExpr(r *rand.Rand, depth int) string {
 //
 // OPERATOR_SWEEP_N and OPERATOR_SWEEP_SEED size and seed it; a failure names the seed.
 //
-// OceanBase needs about 8 GB, which CI does not have, so this reads OCEANBASE_WALK_DSN
-// and skips without it:
+// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OperatorSweep -count=1
+//	go test ./oceanbase/parser/ -run OperatorSweep -count=1
 func TestOperatorSweepMatchesEngine(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

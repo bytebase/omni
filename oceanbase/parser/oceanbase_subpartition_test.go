@@ -193,7 +193,7 @@ func TestOceanBaseSubpartitionAST(t *testing.T) {
 // PREPARE, which parses without creating anything: 1064 is a syntax error, any other
 // answer means the statement parsed.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestOceanBaseSubpartitionGrammarOracle(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

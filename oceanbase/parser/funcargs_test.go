@@ -13,8 +13,7 @@ import (
 //
 // funcArgCases is the recorded expectation, and
 // TestOceanBaseFunctionArgumentOracle holds every row of it to a live
-// OceanBase 4.3.5, which needs more memory than CI has, so that test reads
-// OCEANBASE_WALK_DSN and skips without it.
+// OceanBase 4.3.5.
 // The accept rows alone would not pin much: the reject rows are what keep a
 // quantifier from being read where the engine has none, and a prefix the
 // engine reads from being dropped.

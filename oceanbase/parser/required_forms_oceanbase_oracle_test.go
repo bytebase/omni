@@ -294,8 +294,11 @@ var functionNameShapes = []string{
 }
 
 // functionArmsNotCovered is what the list cannot reach: `values` is read by an arm of its
-// own for ON DUPLICATE KEY UPDATE, and the engine refuses it everywhere else.
-var functionArmsNotCovered = map[string]bool{"values": true}
+// own for ON DUPLICATE KEY UPDATE, and the engine refuses it everywhere else. `cube` is
+// the engine's in GROUP BY CUBE(a, b), which this parser reads as a call, so listing it
+// would refuse that too (measured 2026-11-06); `SELECT cube(1)` stays a false accept
+// until GROUP BY has an arm for it.
+var functionArmsNotCovered = map[string]bool{"values": true, "cube": true}
 
 // judgeKeywordFunctionNames sweeps every keyword the lexer has against the engine.
 func judgeKeywordFunctionNames(t *testing.T, accepts func(sql string) bool) {

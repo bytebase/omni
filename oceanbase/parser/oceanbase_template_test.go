@@ -56,7 +56,7 @@ func TestOceanBaseTemplateGrammar(t *testing.T) {
 // TestOceanBaseTemplateGrammarOracle asks OceanBase about templateCases through
 // PREPARE, which parses without creating anything.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBase -count=1
+//	go test ./oceanbase/parser/ -run OceanBase -count=1
 func TestOceanBaseTemplateGrammarOracle(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()

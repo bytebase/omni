@@ -23,9 +23,8 @@ import (
 // The rejections are the point of this file: a parser that accepts what the
 // engine will not lets a review pass a statement that then fails on the
 // server. Every case was measured against 5.7.25-OceanBase_CE-v4.3.5.6 and
-// TestExplainFormsMatchOceanBase holds this file to the engine, which needs
-// OCEANBASE_WALK_DSN -- the tables below are checked against the parser
-// without it.
+// TestExplainFormsMatchOceanBase holds this file to the engine; the tables
+// below are also checked against the parser on their own.
 //
 // Ref: https://en.oceanbase.com/docs (EXPLAIN); measured on
 // 5.7.25-OceanBase_CE-v4.3.5.6.
@@ -412,9 +411,9 @@ func innerStart(n nodes.StmtNode) int {
 }
 
 // TestExplainFormsMatchOceanBase holds the tables above to the engine itself.
-// It needs OCEANBASE_WALK_DSN and skips without it:
+// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run Explain -count=1
+//	go test ./oceanbase/parser/ -run Explain -count=1
 //
 // The verdict comes from the statement's error: 1064 is the parser's
 // rejection, and any other server error means the text parsed and failed

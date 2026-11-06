@@ -50,6 +50,7 @@ func TestMain(m *testing.M) {
 		oracleDatabase.db.Close(context.Background())
 	}
 	sharedserver.MySQL80.Terminate()
+	sharedserver.PrivateOceanBase.Terminate()
 	os.Exit(code)
 }
 

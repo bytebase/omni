@@ -252,7 +252,7 @@ var reorganizeSubpartitionedAlters = []string{
 // requires the layout it reports, and the layout the catalog builds from its SHOW CREATE
 // TABLE, to be the one the scenario records.
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/catalog/ -run OceanBase -count=1
+//	go test ./oceanbase/catalog/ -run OceanBase -count=1
 func TestOracle_OceanBaseAddPartitionSubpartitions(t *testing.T) {
 	o := oceanBaseOracle(t)
 	ctx := context.Background()

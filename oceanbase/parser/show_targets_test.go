@@ -16,10 +16,8 @@ import "testing"
 // oversight.
 //
 // The engine column is what 5.7.25-OceanBase_CE-v4.3.5.6 answered on
-// 2026-11-04, read with scripts/oceanbase-oracle.sh. OceanBase needs about
-// 8 GB and CI has no room for it, so TestShowTargetsOceanBaseOracle reads that
-// column back from a live server only where the DSN is set; TestShowTargets
-// holds the parser to the record unconditionally, which is the gate CI runs.
+// 2026-11-04. TestShowTargetsOceanBaseOracle reads that column back from a
+// live server; TestShowTargets holds the parser to the record without one.
 //
 // overAccepted marks the 23 rows where this parser takes a statement
 // OceanBase answers 1064 on. All of them are MySQL replication, binary-log,
@@ -352,7 +350,7 @@ var showTargetCases = []showTargetCase{
 }
 
 // TestShowTargets holds the parser to the recorded OceanBase verdicts. It
-// needs no server, so it is the gate CI runs.
+// needs no server.
 func TestShowTargets(t *testing.T) {
 	for _, c := range showTargetCases {
 		t.Run(c.sql, func(t *testing.T) {

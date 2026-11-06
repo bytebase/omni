@@ -63,6 +63,11 @@ type MySQLServer struct {
 	// Args are the server arguments of a testcontainer, as CI and dev-db.sh pass
 	// them.
 	Args []string
+	// start boots a testcontainer and returns it with an admin DSN, for a server
+	// the mysql module cannot start. Nil means the mysql module.
+	start func(ctx context.Context, image string) (testcontainers.Container, string, error)
+	// open connects to a DSN. Nil means sql.Open with the mysql driver.
+	open func(dsn string) (*sql.DB, error)
 
 	once      sync.Once
 	config    *gomysql.Config
@@ -78,6 +83,25 @@ var MySQL80 = &MySQLServer{
 	Env:     "OMNI_SHARED_MYSQL80_DSN",
 	DevDSN:  "root:test@tcp(127.0.0.1:13380)/",
 	Args:    []string{"--skip-log-bin", "--max-connections=1000"},
+}
+
+// OceanBase is OceanBase CE in MySQL mode, in the build the recorded OceanBase
+// verdicts were read on (5.7.25-OceanBase_CE-v4.3.5.6). Its logins name the
+// tenant, as root@test, and the restricted account logs in the same way.
+var OceanBase = &MySQLServer{
+	Image:   OceanBaseImage,
+	Version: "5.7.25-OceanBase_CE-v4.3.5.6",
+	Env:     "OMNI_SHARED_OCEANBASE_DSN",
+	DevDSN:  "root@test:@tcp(127.0.0.1:12881)/",
+	start:   StartOceanBase,
+	open:    OpenOceanBase,
+}
+
+func (s *MySQLServer) openDB(dsn string) (*sql.DB, error) {
+	if s.open != nil {
+		return s.open(dsn)
+	}
+	return sql.Open("mysql", dsn)
 }
 
 func ping(ctx context.Context, dsn string) (*sql.DB, string, error) {
@@ -100,7 +124,7 @@ func (s *MySQLServer) admin(ctx context.Context) (*sql.DB, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	db, err := sql.Open("mysql", s.config.FormatDSN())
+	db, err := s.openDB(s.config.FormatDSN())
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +147,9 @@ func (s *MySQLServer) find(ctx context.Context) error {
 		if dsn, err = s.startContainer(ctx); err != nil {
 			return err
 		}
+	}
+	if err := waitReady(ctx, dsn); err != nil {
+		return err
 	}
 	config, err := gomysql.ParseDSN(dsn)
 	if err != nil {
@@ -156,7 +183,32 @@ func (s *MySQLServer) findDev(ctx context.Context) string {
 	return s.DevDSN
 }
 
+// waitReady pings dsn until the server answers, for up to three minutes.
+// OceanBase takes connections before its tenant can plan, so a first statement
+// can fail while the server finishes starting; MySQL answers on the first try.
+func waitReady(ctx context.Context, dsn string) error {
+	deadline := time.Now().Add(3 * time.Minute)
+	for {
+		db, _, err := ping(ctx, dsn)
+		if err == nil {
+			db.Close()
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("server does not answer: %w", err)
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
 func (s *MySQLServer) startContainer(ctx context.Context) (string, error) {
+	if s.start != nil {
+		container, dsn, err := s.start(ctx, s.Image)
+		if container != nil {
+			s.container = container
+		}
+		return dsn, err
+	}
 	container, err := tcmysql.Run(ctx, s.Image,
 		tcmysql.WithDatabase("test"),
 		tcmysql.WithUsername("root"),
@@ -177,7 +229,7 @@ func (s *MySQLServer) startContainer(ctx context.Context) (string, error) {
 }
 
 func (s *MySQLServer) setUpAccount(ctx context.Context) error {
-	db, err := sql.Open("mysql", s.config.FormatDSN())
+	db, err := s.openDB(s.config.FormatDSN())
 	if err != nil {
 		return err
 	}
@@ -229,8 +281,13 @@ func (s *MySQLServer) Database(ctx context.Context, label string) (*Database, er
 	}
 	config := s.config.Clone()
 	config.User, config.Passwd, config.DBName = account, accountSecret, name
+	// OceanBase names the tenant in the login, as root@test, and the account
+	// lives in the admin's tenant.
+	if _, tenant, ok := strings.Cut(s.config.User, "@"); ok {
+		config.User += "@" + tenant
+	}
 	config.ParseTime, config.MultiStatements = true, true
-	db, err := sql.Open("mysql", config.FormatDSN())
+	db, err := s.openDB(config.FormatDSN())
 	if err != nil {
 		return nil, err
 	}

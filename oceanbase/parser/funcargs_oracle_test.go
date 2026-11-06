@@ -11,10 +11,9 @@ import (
 // DISTINCT ALL anywhere, takes DISTINCT on JSON_ARRAYAGG and neither prefix on
 // JSON_OBJECTAGG, and has no SQL_TSI_ unit synonyms.
 //
-// The server needs about 8 GB, which CI does not have, so this reads
-// OCEANBASE_WALK_DSN and skips without it:
+// It runs on the package's own OceanBase (see sharedserver.PrivateOceanBase):
 //
-//	scripts/oceanbase-oracle.sh go test ./oceanbase/parser/ -run OceanBaseFunctionArgument -count=1
+//	go test ./oceanbase/parser/ -run OceanBaseFunctionArgument -count=1
 func TestOceanBaseFunctionArgumentOracle(t *testing.T) {
 	db := oceanBaseOracle(t)
 	ctx := context.Background()
