@@ -9,10 +9,11 @@
 # import them. Besides that:
 #
 #   - go.mod, go.sum and .github/ test everything.
-#   - Markdown tests nothing, wherever it is, and so do root files, docs/ and the
-#     scripts that are not Go.
+#   - docs/migration/<engine>/ counts as <engine>, Markdown included: googlesql
+#     reads its official corpus from .md files there.
+#   - Other Markdown tests nothing, wherever it is, and so do root files, the rest
+#     of docs/ and the scripts that are not Go.
 #   - proto/ counts as metadata, which is generated from it.
-#   - docs/migration/<engine>/ counts as <engine>: googlesql reads a corpus there.
 #   - harness/<module> tests that module, and the engine that execs it
 #     (mssql-scriptdom: mssql, googlesql-spanner: googlesql). A nested module that
 #     imports an affected engine is tested too.
@@ -32,12 +33,12 @@ while IFS= read -r f; do
 		echo ./... $modules
 		exit 0
 		;;
-	*.md) ;;
-	proto/*) dirs+=(metadata) ;;
 	docs/migration/*)
 		e=${f#docs/migration/}
 		dirs+=("${e%%/*}")
 		;;
+	*.md) ;;
+	proto/*) dirs+=(metadata) ;;
 	harness/*)
 		m=${f#harness/}
 		m=${m%%/*}
