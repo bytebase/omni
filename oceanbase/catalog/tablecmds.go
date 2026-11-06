@@ -2148,11 +2148,15 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	case *nodes.IntLit:
 		return fmt.Sprintf("%d", n.Value)
 	case *nodes.StringLit:
-		// MySQL adds charset introducer for string literals in generated columns.
+		// MySQL adds charset introducer for string literals in generated columns. The value is
+		// decoded, so a quote or a backslash in it is written escaped, or the text never closes:
+		// OceanBase 4.3.5.6 stores 'it''s' as 'it\'s' and _latin1 X'27' as '\''. It stores no
+		// introducer there either, which this package's MySQL-shaped tests still expect.
+		escaped := strings.ReplaceAll(strings.ReplaceAll(n.Value, `\`, `\\`), "'", `\'`)
 		if charset != "" {
-			return "_" + charset + "'" + n.Value + "'"
+			return "_" + charset + "'" + escaped + "'"
 		}
-		return "'" + n.Value + "'"
+		return "'" + escaped + "'"
 	case *nodes.FuncCallExpr:
 		funcName := strings.ToLower(n.Name)
 		if n.Star {

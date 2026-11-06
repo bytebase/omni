@@ -297,3 +297,36 @@ func TestOracle_JSONValueAlias(t *testing.T) {
 		})
 	}
 }
+
+// TestOracle_GeneratedString: a string in a generated column is escaped as the server stores it and
+// reads back, a quote or a backslash in it included. The server stores no introducer there, where
+// this package still writes the column's, so the comparison leaves the introducer out.
+func TestOracle_GeneratedString(t *testing.T) {
+	o := oceanBaseOracle(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	stored := regexp.MustCompile("AS \\((.*)\\) VIRTUAL")
+	for _, expr := range []string{"'it''s'", "_latin1 X'27'", "_latin1 X'5c'", `'a\\b'`} {
+		t.Run(expr, func(t *testing.T) {
+			table := "CREATE TABLE g (a VARCHAR(10) AS (" + expr + "))"
+			server, err := storeAndRead(ctx, o, "zz_generated_string", table, "g")
+			if err != nil {
+				t.Fatalf("the server refused %q: %v", table, err)
+			}
+			c := New()
+			if _, err := c.Exec("CREATE DATABASE d; USE d; "+table, nil); err != nil {
+				t.Fatal(err)
+			}
+			got := c.ShowCreateTable("d", "g")
+			introducer := regexp.MustCompile(`^_\w+'`)
+			g, w := stored.FindStringSubmatch(got), stored.FindStringSubmatch(server)
+			if g == nil || w == nil || introducer.ReplaceAllString(g[1], "'") != w[1] {
+				t.Errorf("\nomni:   %s\nserver: %s", got, server)
+			}
+			again := New()
+			if _, err := again.Exec("CREATE DATABASE d; USE d; "+got, nil); err != nil {
+				t.Fatalf("%s does not read back: %v", got, err)
+			}
+		})
+	}
+}

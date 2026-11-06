@@ -323,3 +323,37 @@ func TestJSONValueAliasOracle(t *testing.T) {
 		})
 	}
 }
+
+// TestGeneratedStringOracle: a generated column stores a string escaped, with the introducer it was
+// written with, so a quote or a backslash in it, decoded from a byte literal or not, reads back.
+func TestGeneratedStringOracle(t *testing.T) {
+	ctr, cleanup := startContainer(t)
+	defer cleanup()
+	for _, expr := range []string{"'it''s'", "_latin1 X'27'", "_latin1 X'5c'", "_latin1 X'5c6e'", `'a\\b'`, "_latin1'x'"} {
+		t.Run(expr, func(t *testing.T) {
+			table := "CREATE TABLE g (a VARCHAR(10) AS (" + expr + "))"
+			if err := ctr.execSQL("DROP TABLE IF EXISTS g"); err != nil {
+				t.Fatal(err)
+			}
+			if err := ctr.execSQL(table); err != nil {
+				t.Fatalf("the server refused %q: %v", table, err)
+			}
+			server, err := ctr.showCreateTable("g")
+			if err != nil {
+				t.Fatal(err)
+			}
+			c := New()
+			if _, err := c.Exec("CREATE DATABASE d; USE d; "+table, nil); err != nil {
+				t.Fatal(err)
+			}
+			got := c.ShowCreateTable("d", "g")
+			if got != server {
+				t.Errorf("\nomni:   %s\nserver: %s", got, server)
+			}
+			again := New()
+			if _, err := again.Exec("CREATE DATABASE d; USE d; "+got, nil); err != nil {
+				t.Fatalf("%s does not read back: %v", got, err)
+			}
+		})
+	}
+}

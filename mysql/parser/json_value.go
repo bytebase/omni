@@ -51,6 +51,10 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 		return nil, &ParseError{Message: "JSON_VALUE takes a string literal as its path", Position: pathStart.Loc}
 	}
 	pathLit.National = national
+	if national {
+		// The literal starts at its N, which the reader stepped over.
+		pathLit.Loc.Start = pathStart.Loc
+	}
 	fc.Args = []nodes.ExprNode{doc, path}
 
 	opts := &nodes.JSONValueOptions{Loc: nodes.Loc{Start: p.pos()}}
@@ -176,6 +180,9 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 	}
 	if lit, ok := value.(*nodes.StringLit); ok {
 		lit.National = national
+		if national {
+			lit.Loc.Start = start
+		}
 	}
 	return &nodes.JSONValueResponse{Loc: nodes.Loc{Start: begin, End: p.prev.End}, Default: value}, nil
 }

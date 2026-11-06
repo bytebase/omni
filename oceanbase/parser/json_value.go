@@ -35,13 +35,18 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	pathStart := p.cur
 	// Unlike MySQL, OceanBase 4.3.5.6 takes an introduced hex or bit literal as the path:
 	// JSON_VALUE('{}', _latin1 X'24') reads.
-	p.skipNationalPrefix()
+	national := p.skipNationalPrefix()
 	path, err := p.parsePrimaryExpr()
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := path.(*nodes.StringLit); !ok {
+	pathLit, ok := path.(*nodes.StringLit)
+	if !ok {
 		return nil, &ParseError{Message: "JSON_VALUE takes a string literal as its path", Position: pathStart.Loc}
+	}
+	if national {
+		// The literal starts at its N, which the reader stepped over.
+		pathLit.Loc.Start = pathStart.Loc
 	}
 	fc.Args = []nodes.ExprNode{doc, path}
 
@@ -105,10 +110,12 @@ func (p *Parser) parseJSONValueFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 // skipNationalPrefix steps over the N of N'...', which is a string literal too and which the
 // expression reader has no arm for: it would read the N as a column. The quote has to follow at
 // once, since `N 'x'` is a name and a string.
-func (p *Parser) skipNationalPrefix() {
+func (p *Parser) skipNationalPrefix() bool {
 	if p.isBareWord("N") && p.peekNext().Type == tokSCONST && p.peekNext().Loc == p.cur.End {
 		p.advance()
+		return true
 	}
+	return false
 }
 
 func (p *Parser) startsJSONValueResponse() bool {
@@ -146,7 +153,7 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 		}
 		return &nodes.JSONValueResponse{Loc: nodes.Loc{Start: begin, End: p.prev.End}, Default: value}, nil
 	}
-	p.skipNationalPrefix()
+	national := p.skipNationalPrefix()
 	// OFF reads as a boolean in an expression, and signed_literal has no arm for it: DEFAULT OFF
 	// is a 1064 where DEFAULT FALSE reads.
 	if p.cur.Type == kwOFF {
@@ -165,6 +172,10 @@ func (p *Parser) parseJSONValueResponse() (*nodes.JSONValueResponse, error) {
 	}
 	if !isJSONValueDefault(value) {
 		return nil, &ParseError{Message: "JSON_VALUE takes a literal after DEFAULT", Position: start}
+	}
+	if lit, ok := value.(*nodes.StringLit); ok && national {
+		// The literal starts at its N, which the reader stepped over.
+		lit.Loc.Start = start
 	}
 	return &nodes.JSONValueResponse{Loc: nodes.Loc{Start: begin, End: p.prev.End}, Default: value}, nil
 }

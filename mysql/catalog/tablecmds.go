@@ -2159,11 +2159,11 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	case *nodes.IntLit:
 		return fmt.Sprintf("%d", n.Value)
 	case *nodes.StringLit:
-		// MySQL adds charset introducer for string literals in generated columns.
-		if charset != "" {
-			return "_" + charset + "'" + n.Value + "'"
-		}
-		return "'" + n.Value + "'"
+		// A generated column stores a string escaped, with the introducer it was written with or
+		// else the column's charset, and N'x' as _utf8mb3'x': mysql:8.0.46 stores 'it''s' as
+		// _utf8mb4'it\'s' and _latin1 X'27' as _latin1'\''. JSON_VALUE's strings follow the
+		// same rules, so this is its writer.
+		return deparse.JSONValueString(n, charset)
 	case *nodes.FuncCallExpr:
 		funcName := strings.ToLower(n.Name)
 		if n.Star {
