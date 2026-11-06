@@ -529,6 +529,11 @@ func (p *Parser) parsePrivOrRoleElem() (privOrRole, error) {
 	if (word.keyword && staticPrivilegeWord(name)) || word.columns {
 		word.multiToken = true
 	}
+	// Nor is a reserved word a role name: 11.8.8 answers 1064 for `GRANT READ TO u`, where
+	// `GRANT BINLOG TO u` grants a role.
+	if word.keyword && !word.multiToken && IsReservedKeyword(name) {
+		word.multiToken = true
+	}
 	// GRANT on its own is no privilege name, and the word GRANT is no role
 	// name either, so a bare GRANT is neither: the server answers 1064 for
 	// `GRANT GRANT ON *.* TO u` and for `GRANT GRANT TO u`.
@@ -761,9 +766,13 @@ func (p *Parser) completePrivilegeName(name string) string {
 //
 // Ref: object_privilege in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) completeAdminPrivilege(name string) string {
+	// next reads the words only all together: on a partial match it reads none, so `READ ONLY TO`
+	// stops at ONLY and is the 1064 11.8.8 answers, rather than a role READ with ONLY dropped.
 	next := func(words ...string) bool {
+		saved := p.saveScan()
 		for _, word := range words {
 			if !strings.EqualFold(p.cur.Str, word) || p.backtickQuotedAt(p.cur.Loc) {
+				p.restoreScan(saved)
 				return false
 			}
 			p.advance()

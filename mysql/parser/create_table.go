@@ -760,14 +760,15 @@ func (p *Parser) parseNowFunction() (nodes.ExprNode, error) {
 }
 
 // startsPrefixedLiteral reports a literal written with an introducer, a national marker or
-// the word of a temporal type, each of which the expression reader takes as a primary.
+// the word of a temporal type, each of which the expression reader takes as a primary. An
+// introducer takes a string, a hex or a bit literal: `_binary X'FF'` and `_binary 0b1`.
 func (p *Parser) startsPrefixedLiteral() bool {
 	next := p.peekNext().Type
 	switch p.cur.Type {
 	case kwDATE, kwTIME, kwTIMESTAMP:
 		return next == tokSCONST
 	}
-	return strings.HasPrefix(p.cur.Str, "_") && next == tokSCONST
+	return strings.HasPrefix(p.cur.Str, "_") && (next == tokSCONST || next == tokXCONST || next == tokBCONST)
 }
 
 // parseReferenceDefinition parses a REFERENCES clause.
