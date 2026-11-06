@@ -254,8 +254,8 @@ const (
 	ATModifyColumn
 	ATChangeColumn
 	ATAlterColumnDefault
-	ATAlterColumnSetNotNull
-	ATAlterColumnDropNotNull
+	ATAlterColumnSetNotNull  // never built: TiDB's ALTER COLUMN has no SET NOT NULL
+	ATAlterColumnDropNotNull // never built: TiDB's ALTER COLUMN has no DROP NOT NULL
 	ATAddConstraint
 	ATDropConstraint
 	ATAddIndex

@@ -1312,20 +1312,21 @@ func (p *Parser) parseAlterChange(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	return cmd, nil
 }
 
-// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT | SET NOT NULL | DROP NOT NULL}
+// parseAlterColumn parses ALTER [COLUMN] col_name {SET DEFAULT | DROP DEFAULT}
 // and ALTER INDEX index_name {VISIBLE | INVISIBLE}.
 //
 // TiDB has no column visibility: v8.5.5 answers 1064 for `ALTER [COLUMN] c SET
 // VISIBLE` and `SET INVISIBLE`, so ATAlterColumnVisible and ATAlterColumnInvisible
-// are never built.
+// are never built. Nor does ALTER COLUMN change nullability: v8.5.5 answers 1064
+// for `SET NOT NULL` and `DROP NOT NULL`, so ATAlterColumnSetNotNull and
+// ATAlterColumnDropNotNull are never built either.
 //
-// Ref: the "ALTER" arms of AlterTableSpec in TiDB v8.5.5 pkg/parser/parser.y.
+// Ref: the "ALTER" arms of AlterTableSpec in TiDB v8.5.5 pkg/parser/parser.y,
+// whose only column actions are `"SET" "DEFAULT"` and `"DROP" "DEFAULT"`.
 //
 //	ALTER [COLUMN] col_name {
 //	    SET DEFAULT {literal | (expr)}
 //	  | DROP DEFAULT
-//	  | SET NOT NULL
-//	  | DROP NOT NULL
 //	}
 //	ALTER INDEX index_name {VISIBLE | INVISIBLE}
 func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
@@ -1430,19 +1431,12 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 				}
 				cmd.DefaultExpr = expr
 			}
-		} else if p.cur.Type == kwNOT {
-			p.advance()
-			p.match(kwNULL)
-			cmd.Type = nodes.ATAlterColumnSetNotNull
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
 	} else if _, ok := p.match(kwDROP); ok {
 		if _, ok := p.match(kwDEFAULT); ok {
 			cmd.Type = nodes.ATAlterColumnDefault
-		} else if _, ok := p.match(kwNOT); ok {
-			p.match(kwNULL)
-			cmd.Type = nodes.ATAlterColumnDropNotNull
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}

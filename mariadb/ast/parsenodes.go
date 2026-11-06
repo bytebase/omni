@@ -240,8 +240,8 @@ const (
 	ATModifyColumn
 	ATChangeColumn
 	ATAlterColumnDefault
-	ATAlterColumnSetNotNull
-	ATAlterColumnDropNotNull
+	ATAlterColumnSetNotNull  // never built: MariaDB's ALTER COLUMN has no SET NOT NULL
+	ATAlterColumnDropNotNull // never built: MariaDB's ALTER COLUMN has no DROP NOT NULL
 	ATAddConstraint
 	ATDropConstraint
 	ATAddIndex

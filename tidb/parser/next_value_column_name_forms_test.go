@@ -23,8 +23,9 @@ import (
 //
 // Not in this table, because omni still disagrees: `SELECT next(1)`, `SELECT lastval(a, 1)` and
 // `SELECT nextval(a) OVER ()`, which it accepts, because it lets any unreserved word be called and
-// reads OVER after any call. `ALTER TABLE t ALTER t.a SET NOT NULL` and `ALTER TABLE t ALTER a SET INVISIBLE`, which it accepts, the second a form
-// MySQL has.
+// reads OVER after any call. `ALTER TABLE t ALTER t.a SET NOT NULL` and `ALTER TABLE t ALTER a
+// SET INVISIBLE`, which omni once accepted, are in alter_column_forms_oracle_test.go and
+// view_visibility_forms_oracle_test.go.
 
 // TestNextValueColumnNameForms holds omni to the recorded verdicts without a server, so a run with
 // no Docker still reports a widened or narrowed grammar.
