@@ -177,6 +177,8 @@ func formatCreateVectorIndex(table string, idx *Index) string {
 	if len(idx.VectorParams) > 0 {
 		b.WriteString(" WITH (" + strings.Join(idx.VectorParams, ", ") + ")")
 	}
+	// The stored columns, so a changed set is applied (canonicalStoring).
+	b.WriteString(formatStoring(idx))
 	b.WriteString(formatIndexOptions(idx))
 	return b.String()
 }
@@ -396,8 +398,27 @@ func formatIndexDefinition(idx *Index, _ *Normalizer) string {
 
 	// A fulltext index's parser, so a changed one is applied (canonicalFulltextParser).
 	b.WriteString(formatFulltextParser(idx))
+	// The stored columns, so a changed set is applied (canonicalStoring).
+	b.WriteString(formatStoring(idx))
 	b.WriteString(formatIndexOptions(idx))
 	return b.String()
+}
+
+// formatStoring renders an index's STORING clause, naming each column as the table does.
+func formatStoring(idx *Index) string {
+	if len(idx.Storing) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(idx.Storing))
+	for _, name := range idx.Storing {
+		if idx.Table != nil {
+			if col := idx.Table.GetColumn(name); col != nil {
+				name = col.Name
+			}
+		}
+		names = append(names, migrationQuoteIdent(name))
+	}
+	return " STORING (" + strings.Join(names, ",") + ")"
 }
 
 // formatIndexOptions renders what follows an index's key parts and any parameters of its kind.

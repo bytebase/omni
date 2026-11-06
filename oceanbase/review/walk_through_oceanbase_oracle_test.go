@@ -72,6 +72,9 @@ var oceanBaseIncomplete = map[string]string{
 }
 
 var oceanBaseWalkCases = []oceanBaseCase{
+	// The index options change nothing the walk follows, and a qualified name is held to
+	// its table's database.
+	{walkCase: walkCase{name: "index options and qualified index names", change: "CREATE INDEX n1 ON t (a) PARALLEL 2 STORING (b);\nCREATE INDEX n1 ON t (a) NOPARALLEL;\nDROP INDEX n1 ON t;\nCREATE INDEX shop.n2 ON t (a);\nCREATE INDEX n2 ON t (a);\nCREATE INDEX shop.i ON t (a);\nCREATE INDEX nosuch.n3 ON t (a);\nCREATE DATABASE q;\nCREATE INDEX q.n4 ON t (a);\nCREATE TABLE q.x (a int);\nCREATE INDEX q.n5 ON q.x (a);\nCREATE INDEX n5 ON q.x (a);", complete: true}},
 	// A vector index is an index the walk follows. Its one-per-column limit (1235, ahead
 	// even of IF NOT EXISTS) is no name the ledger holds, so each index here is on its own
 	// column or the last one's gone.

@@ -1390,3 +1390,41 @@ func TestDeparse_Section_5_8_ForUpdate(t *testing.T) {
 		})
 	}
 }
+
+// TestJSONValueDocumentRoundTrip: JSON_VALUE's document is a simple_expr, so the parentheses
+// around a predicate over a subquery have to survive deparsing for the text to read back, with
+// or without the clauses, which print through different paths. The parentheses around anything
+// else are the printer's own business, and only the reading back is held here.
+func TestJSONValueDocumentRoundTrip(t *testing.T) {
+	documents := []string{
+		"(1 IN (SELECT 1))",
+		"(1 NOT IN (SELECT 1))",
+		"((1 IN (SELECT 1)))",
+		"(1 = ANY (SELECT 1))",
+		"(1 < ALL (SELECT 1))",
+		"(1 IN (1, 2))",
+		"(EXISTS (SELECT 1))",
+		"(SELECT 1)",
+		"(1 + 1)",
+		"(1 = 2)",
+		"(1 OR 2)",
+		"(NOT 1)",
+		"(1 IS NULL)",
+		"(1 BETWEEN 2 AND 3)",
+		"('a' LIKE 'b')",
+		"-1",
+		"a",
+		"CAST(a AS CHAR)",
+	}
+	for _, document := range documents {
+		for _, clauses := range []string{"", " NULL ON EMPTY", " RETURNING SIGNED"} {
+			input := "JSON_VALUE(" + document + ", '$'" + clauses + ")"
+			t.Run(input, func(t *testing.T) {
+				got := Deparse(parseExpr(t, input))
+				if again := Deparse(parseExpr(t, got)); again != got {
+					t.Errorf("Deparse(%q) = %q, which reads back as %q", input, got, again)
+				}
+			})
+		}
+	}
+}

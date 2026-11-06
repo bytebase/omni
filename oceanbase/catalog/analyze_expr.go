@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
+	"github.com/bytebase/omni/oceanbase/deparse"
 )
 
 // analyzeExpr is the main expression analysis dispatcher.
@@ -15,7 +16,7 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.IntLit:
 		return &ConstExprQ{Value: strconv.FormatInt(n.Value, 10)}, nil
 	case *nodes.StringLit:
-		return &ConstExprQ{Value: n.Value}, nil
+		return &ConstExprQ{Value: n.Value, IsString: true, Introducer: n.Charset}, nil
 	case *nodes.FloatLit:
 		return &ConstExprQ{Value: n.Value}, nil
 	case *nodes.NullLit:
@@ -100,6 +101,12 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 	}
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)
+	if fc.JSONValueArm {
+		result.JSONValueClauses = deparse.JSONValueClauses(fc.JSONValue)
+		if fc.JSONValue != nil && fc.JSONValue.Returning != nil {
+			result.ResultType = dataTypeToResolvedType(fc.JSONValue.Returning)
+		}
+	}
 	return result, nil
 }
 

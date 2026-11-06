@@ -598,10 +598,12 @@ func (d *PartitionDef) nodeTag() {}
 
 // DataType represents a MySQL data type.
 type DataType struct {
-	Loc        Loc
-	Name       string // INT, VARCHAR, DECIMAL, etc.
-	Length     int    // type length (e.g., VARCHAR(255))
-	Scale      int    // decimal scale (e.g., DECIMAL(10,2))
+	Loc    Loc
+	Name   string // INT, VARCHAR, DECIMAL, etc.
+	Length int    // type length (e.g., VARCHAR(255))
+	// HasLength records that a length was written, since CHAR(0) is no CHAR: Length is 0 for both.
+	HasLength  bool
+	Scale      int // decimal scale (e.g., DECIMAL(10,2))
 	Unsigned   bool
 	Zerofill   bool
 	Charset    string   // CHARACTER SET
@@ -700,9 +702,35 @@ type FuncCallExpr struct {
 	Star       bool          // COUNT(*)
 	HasParens  bool          // true if explicit parentheses were written (e.g., NOW() vs CURRENT_TIMESTAMP)
 	OrderBy    []*OrderByItem
-	Over       *WindowDef // OVER clause for window functions
-	Separator  ExprNode   // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	Over       *WindowDef        // OVER clause for window functions
+	Separator  ExprNode          // GROUP_CONCAT SEPARATOR value (nil = not specified)
+	JSONValue  *JSONValueOptions // JSON_VALUE's clauses after its path (nil when written with none)
+	// JSONValueArm marks a call read through JSON_VALUE's own arm of the grammar, which has a
+	// stored form of its own even with no clause written. Quoted or qualified, the name is an
+	// ordinary call to whatever function has that name.
+	JSONValueArm bool
 }
+
+// JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are
+// its Args.
+//
+// Ref: JSON_VALUE_SYM in MySQL 8.0 sql/sql_yacc.yy.
+type JSONValueOptions struct {
+	Loc       Loc
+	Returning *DataType          // RETURNING type (nil = not specified)
+	OnEmpty   *JSONValueResponse // ... ON EMPTY (nil = not specified)
+	OnError   *JSONValueResponse // ... ON ERROR (nil = not specified)
+}
+
+// JSONValueResponse is one ON EMPTY or ON ERROR: NULL, ERROR, or DEFAULT and a literal.
+type JSONValueResponse struct {
+	Loc     Loc
+	Error   bool     // ERROR
+	Default ExprNode // DEFAULT literal (nil with Error unset = NULL)
+}
+
+func (n *JSONValueOptions) nodeTag()  {}
+func (n *JSONValueResponse) nodeTag() {}
 
 // AggQuantifier is the prefix an aggregate's argument list carries. It is the
 // only record of what was written, so a consumer asking whether duplicates are
@@ -978,6 +1006,9 @@ type StringLit struct {
 	Loc     Loc
 	Value   string
 	Charset string // optional charset introducer (_utf8, etc.)
+	// National marks N'...'. Only JSON_VALUE's literals read it, because a generated column
+	// prints them with the charset the N stands for.
+	National bool
 	// Concatenated marks a literal folded from ADJACENT quoted segments per
 	// MySQL's adjacent string-literal concatenation ('a' 'b' → "ab"). Value
 	// holds the folded result; FirstSegment holds the first segment's value,
