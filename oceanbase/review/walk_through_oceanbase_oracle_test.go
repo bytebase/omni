@@ -7,10 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
-
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
@@ -398,11 +399,20 @@ func oceanBaseSync(t *testing.T, db *sql.DB, unread bool) *metadata.DatabaseSche
 
 // TestWalkThroughSweepOceanBase runs the MySQL sweep's random changes, with
 // OceanBase's generated foreign key names. Precision must hold on every
-// one; recall is logged. WALK_SWEEP_N sets the number of changes (40 by
-// default; OceanBase's DDL is slow), WALK_SWEEP_SEED the seed.
+// one; recall is logged. WALK_SWEEP_N_OCEANBASE sets the number of changes,
+// then WALK_SWEEP_N (40 by default), and WALK_SWEEP_SEED the seed. The sweep
+// has a size of its own because it takes its changes one at a time on one
+// server, about 5 s each on a busy CI runner (2026-11-06), where the other
+// engines deal theirs over several servers.
 func TestWalkThroughSweepOceanBase(t *testing.T) {
 	db := oceanBaseDB(t)
 	n, seed, _ := walktest.SweepParams(t, 40, 20261028, "")
+	if v := os.Getenv("WALK_SWEEP_N_OCEANBASE"); v != "" {
+		var err error
+		if n, err = strconv.Atoi(v); err != nil {
+			t.Fatalf("WALK_SWEEP_N_OCEANBASE: %v", err)
+		}
+	}
 	rng := rand.New(rand.NewSource(seed))
 	var found, rejected int
 	for i := range n {
