@@ -229,6 +229,8 @@ var categoryCaseSQLs = []string{
 	// tree never inherited from mysql.
 	"SELECT WEIGHT_STRING(name AS CHAR(4)) FROM t",
 	"SELECT WEIGHT_STRING(name LEVEL 1) FROM t",
+	// Adjacent strings fold into one wherever an expression stands, as MariaDB
+	// folds them (foldAdjacentStringLits); these assert agreement.
 	"CREATE TABLE t_adjacent_default (c VARCHAR(8) DEFAULT 'a' 'b')",
 	"SELECT * FROM t WHERE name = 'a' 'b'",
 	"SELECT * FROM (VALUES ('a' 'b')) x",
@@ -320,21 +322,6 @@ var subtractiveDivergences = []divergence{
 		sql:      "SELECT WEIGHT_STRING(name LEVEL 1) FROM t",
 		omniSide: false, // the LEVEL form of the same missing production.
 		reason:   "WEIGHT_STRING(x LEVEL n): the LEVEL form of the same missing production — ports with parseWeightStringFunc.",
-	},
-	{
-		sql:      "CREATE TABLE t_adjacent_default (c VARCHAR(8) DEFAULT 'a' 'b')",
-		omniSide: false, // MariaDB folds the adjacent literals; omni rejects.
-		reason:   "Adjacent string literals in a DEFAULT: SQL concatenates 'a' 'b' into 'ab' and MariaDB accepts it; mysql/parser folds them in foldAdjacentStringLits, which the mariadb tree never inherited, so omni rejects everywhere but the select list. Candidate: port foldAdjacentStringLits to mariadb and tidb.",
-	},
-	{
-		sql:      "SELECT * FROM t WHERE name = 'a' 'b'",
-		omniSide: false, // same missing folding, predicate position.
-		reason:   "Adjacent string literals in a predicate: same missing foldAdjacentStringLits as the DEFAULT case.",
-	},
-	{
-		sql:      "SELECT * FROM (VALUES ('a' 'b')) x",
-		omniSide: false, // same missing folding, row position.
-		reason:   "Adjacent string literals in a row: same missing foldAdjacentStringLits as the DEFAULT case.",
 	},
 }
 

@@ -1211,6 +1211,13 @@ type StringLit struct {
 	Loc     Loc
 	Value   string
 	Charset string // optional charset introducer (_utf8, etc.)
+	// Concatenated marks a literal folded from adjacent quoted strings ('a' 'b'
+	// is "ab"), TiDB's StringLiteral (parser.y:7660, v8.5.5). Value holds the
+	// folded result and FirstSegment the first string's value, because TiDB
+	// names the column after the first string only: SELECT 'a' 'b' is column a,
+	// value ab.
+	Concatenated bool
+	FirstSegment string
 }
 
 func (l *StringLit) nodeTag()  {}

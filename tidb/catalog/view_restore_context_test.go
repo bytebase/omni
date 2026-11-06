@@ -275,3 +275,45 @@ func TestViewRestoreODBCEscapes(t *testing.T) {
 		})
 	}
 }
+
+// TestViewRestoreAdjacentStrings: a view stores a run of adjacent strings as the
+// joined string, named after the first, as TiDB v8.5.5 stores it (SHOW CREATE
+// VIEW, 2026-11-06). The first string's leading spaces are dropped from the name,
+// and an empty first string leaves the item unaliased, its column named "".
+func TestViewRestoreAdjacentStrings(t *testing.T) {
+	for _, tc := range []struct {
+		body, want string
+		cols       []string
+	}{
+		{"SELECT 'a' 'b'", "SELECT _UTF8MB4'ab' AS `a`", []string{"a"}},
+		{
+			"SELECT 'a' 'b' 'c', '' 'b', '  x' 'y'",
+			"SELECT _UTF8MB4'abc' AS `a`,_UTF8MB4'b',_UTF8MB4'  xy' AS `x`",
+			[]string{"a", "", "x"},
+		},
+		{"SELECT ('a' 'b')", "SELECT (_UTF8MB4'ab') AS `a`", []string{"a"}},
+		{"SELECT 'a' 'b' AS c", "SELECT _UTF8MB4'ab' AS `c`", []string{"c"}},
+		{
+			"SELECT CONCAT('a' 'b', 'c')",
+			"SELECT CONCAT(_UTF8MB4'ab', _UTF8MB4'c') AS `CONCAT('a' 'b', 'c')`",
+			[]string{"CONCAT('a' 'b', 'c')"},
+		},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			c := viewRestoreCatalog(t, "CREATE DATABASE d; USE d; CREATE VIEW v AS "+tc.body+";")
+			v := c.GetDatabase("d").Views["v"]
+			if v.Definition != tc.want {
+				t.Errorf("Definition =\n%s\nwant\n%s", v.Definition, tc.want)
+			}
+			if strings.Join(v.Columns, "|") != strings.Join(tc.cols, "|") {
+				t.Errorf("Columns = %q, want %q", v.Columns, tc.cols)
+			}
+		})
+	}
+	t.Run("column default", func(t *testing.T) {
+		c := viewRestoreCatalog(t, "CREATE DATABASE d; USE d; CREATE TABLE td (a VARCHAR(10) DEFAULT 'a' 'b');")
+		if got := c.ShowCreateTable("d", "td"); !strings.Contains(got, "DEFAULT 'ab'") {
+			t.Errorf("SHOW CREATE TABLE = %s, want DEFAULT 'ab'", got)
+		}
+	})
+}

@@ -477,6 +477,29 @@ func (p *Parser) parseUnaryExpr(op nodes.UnaryOp) (nodes.ExprNode, error) {
 	}, nil
 }
 
+// foldAdjacentStringLits folds a run of adjacent quoted strings into lit, as
+// TiDB's StringLiteral does (parser.y:7660, v8.5.5): 'a' 'b' is one literal with
+// the value ab. Only bare strings join: an introduced string takes one
+// ("UNDERSCORE_CHARSET" stringLit, parser.y:7599), so _utf8mb4'a' 'b' and N'a' 'b'
+// stay the string a aliased b, and a string followed by an introducer or a hex
+// literal is a 1064. FirstSegment keeps the first string, which names the column
+// (SetProjectionOffset in the same action): SELECT 'a' 'b' is column a, value ab.
+func (p *Parser) foldAdjacentStringLits(lit *nodes.StringLit) {
+	if p.cur.Type != tokSCONST {
+		return
+	}
+	var sb strings.Builder
+	sb.WriteString(lit.Value)
+	lit.FirstSegment = lit.Value
+	lit.Concatenated = true
+	for p.cur.Type == tokSCONST {
+		next := p.advance()
+		sb.WriteString(next.Str)
+	}
+	lit.Value = sb.String()
+	lit.Loc.End = p.prev.End
+}
+
 // parsePrimaryExpr parses atoms: literals, column refs, subqueries, func calls, parenthesized exprs.
 func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	switch p.cur.Type {
@@ -490,7 +513,9 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case tokSCONST:
 		tok := p.advance()
-		return &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}, nil
+		lit := &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}
+		p.foldAdjacentStringLits(lit)
+		return lit, nil
 
 	case tokXCONST:
 		tok := p.advance()
@@ -1934,11 +1959,10 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode, start int) (nodes.ExprNode, 
 		if len(p.cur.Str) > 1 {
 			return nil, &ParseError{Message: "Incorrect arguments to ESCAPE", Position: p.cur.Loc}
 		}
-		esc, err := p.parsePrimaryExpr()
-		if err != nil {
-			return nil, err
-		}
-		like.Escape = esc
+		// One stringLit, not a StringLiteral run: `ESCAPE 'x' 'y'` is a 1064 at
+		// 'y', where parsePrimaryExpr would fold the run into the two-byte xy.
+		tok := p.advance()
+		like.Escape = &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Str}
 	}
 
 	like.Loc.End = p.prev.End

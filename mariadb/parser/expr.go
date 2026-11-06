@@ -461,6 +461,27 @@ func (p *Parser) parseUnaryExpr(op nodes.UnaryOp) (nodes.ExprNode, error) {
 	}, nil
 }
 
+// foldAdjacentStringLits folds a run of adjacent quoted strings into lit:
+// 'a' 'b' is one literal with the value ab (text_literal, MariaDB 11.8
+// sql/sql_yacc.yy). A run may start with an introduced or national string, whose
+// character set it keeps, and continues only with bare strings: on 11.8.8
+// _utf8mb4'a' 'b' and N'a' 'b' are ab, while 'a' _utf8mb4'b' and 'a' x'62' are
+// 1064s. MariaDB names the column after the whole value: SELECT 'a' 'b' is
+// column ab.
+func (p *Parser) foldAdjacentStringLits(lit *nodes.StringLit) {
+	if p.cur.Type != tokSCONST {
+		return
+	}
+	var sb strings.Builder
+	sb.WriteString(lit.Value)
+	for p.cur.Type == tokSCONST {
+		next := p.advance()
+		sb.WriteString(next.Str)
+	}
+	lit.Value = sb.String()
+	lit.Loc.End = p.prev.End
+}
+
 // parsePrimaryExpr parses atoms: literals, column refs, subqueries, func calls, parenthesized exprs.
 func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	switch p.cur.Type {
@@ -474,7 +495,9 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case tokSCONST:
 		tok := p.advance()
-		return &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}, nil
+		lit := &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Str}
+		p.foldAdjacentStringLits(lit)
+		return lit, nil
 
 	case tokXCONST:
 		tok := p.advance()
@@ -621,22 +644,26 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		if p.atNationalString() {
 			nTok := p.advance() // consume N
 			strTok := p.advance()
-			return &nodes.StringLit{
+			lit := &nodes.StringLit{
 				Loc:      nodes.Loc{Start: nTok.Loc, End: strTok.End},
 				Value:    strTok.Str,
 				National: true,
-			}, nil
+			}
+			p.foldAdjacentStringLits(lit)
+			return lit, nil
 		}
 
 		// Charset introducer: _utf8mb4'hello', _latin1'world'
 		if p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "_") && p.peekNext().Type == tokSCONST {
 			charsetTok := p.advance() // consume the charset identifier
 			strTok := p.advance()     // consume the string literal
-			return &nodes.StringLit{
+			lit := &nodes.StringLit{
 				Loc:     nodes.Loc{Start: charsetTok.Loc, End: strTok.End},
 				Value:   strTok.Str,
 				Charset: charsetTok.Str,
-			}, nil
+			}
+			p.foldAdjacentStringLits(lit)
+			return lit, nil
 		}
 
 		// Identifier — could be column ref or function call
