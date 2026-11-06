@@ -523,7 +523,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		// VIEW for CREATE DEFINER = u VIEW v AS SELECT 1, and at SQL for CREATE
 		// DEFINER = u SQL SECURITY INVOKER VIEW (or PROCEDURE). See
 		// parseCreateViewStmt.
-		definer := p.parseDefinerValue()
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
 		switch p.cur.Type {
 		case kwFUNCTION:
 			stmt, err := p.parseCreateFunctionStmt(start, false)
@@ -657,7 +660,10 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		// ALTER DEFINER = user EVENT. A view's DEFINER follows ALGORITHM on
 		// OceanBase: 4.3.5.6 answers 1064 at VIEW for ALTER DEFINER = u VIEW v AS
 		// SELECT 1, and at SQL when SQL SECURITY follows the definer.
-		definer := p.parseDefinerValue()
+		definer, err := p.parseDefinerValue()
+		if err != nil {
+			return nil, err
+		}
 		switch p.cur.Type {
 		case kwEVENT:
 			stmt, err := p.parseAlterEventStmt(start)
@@ -788,37 +794,22 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	}
 }
 
-// parseViewDefiner parses a view's DEFINER = user, where the = and the user are
-// both required. parseDefinerValue takes either as optional, which the stored
-// programs' dispatch relies on.
-func (p *Parser) parseViewDefiner() (string, error) {
-	if p.peekNext().Type != '=' {
-		p.advance() // consume DEFINER
-		return "", p.syntaxErrorAtCur()
-	}
-	definer := p.parseDefinerValue()
-	if p.collectMode() {
-		return "", &ParseError{Message: "collecting"}
-	}
-	if definer == "" {
-		return "", p.syntaxErrorAtCur()
-	}
-	return definer, nil
-}
-
-// parseDefinerValue parses the DEFINER = user[@host] clause and returns the
-// definer string. Handles: 'user'@'host', user@host, CURRENT_USER, CURRENT_USER().
-// The current token must be DEFINER; on return, the current token is the one
-// after the definer clause.
-func (p *Parser) parseDefinerValue() string {
+// parseDefinerValue parses DEFINER = user, where the = and the user are both
+// required, as is the ) of CURRENT_USER(): 5.7.25-OceanBase_CE-v4.3.5.6 answers
+// 1064 for DEFINER root, DEFINER = followed by the object keyword, and
+// DEFINER = CURRENT_USER( (measured 2026-11-06). It takes user@ with no host,
+// as the server does.
+func (p *Parser) parseDefinerValue() (string, error) {
 	p.advance() // consume DEFINER
-	p.match('=')
+	if _, err := p.expect('='); err != nil {
+		return "", err
+	}
 
 	// Completion: after DEFINER=, offer CURRENT_USER keyword.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwCURRENT_USER)
-		return ""
+		return "", &ParseError{Message: "collecting"}
 	}
 
 	// Parse user part: identifier, string literal, or CURRENT_USER
@@ -831,16 +822,21 @@ func (p *Parser) parseDefinerValue() string {
 		user = "CURRENT_USER"
 		p.advance()
 	} else if p.isIdentToken() {
-		user, _, _ = p.parseIdentifier()
+		var err error
+		if user, _, err = p.parseIdentifier(); err != nil {
+			return "", err
+		}
 	} else {
-		return ""
+		return "", p.syntaxErrorAtCur()
 	}
 
 	// Handle CURRENT_USER()
 	if isCurUser && p.cur.Type == '(' {
 		p.advance() // consume (
-		p.match(')')
-		return "CURRENT_USER()"
+		if _, err := p.expect(')'); err != nil {
+			return "", err
+		}
+		return "CURRENT_USER()", nil
 	}
 
 	// Handle @host: the lexer scans @host as a single tokIDENT with Str="@host",
@@ -856,14 +852,17 @@ func (p *Parser) parseDefinerValue() string {
 				host = "'" + p.cur.Str + "'"
 				p.advance()
 			} else if p.isIdentToken() {
-				host, _, _ = p.parseIdentifier()
+				var err error
+				if host, _, err = p.parseIdentifier(); err != nil {
+					return "", err
+				}
 			}
-			return user + "@" + host
+			return user + "@" + host, nil
 		}
 		// @host as single token: strip @ prefix
 		host := atHost[1:]
-		return user + "@" + host
+		return user + "@" + host, nil
 	}
 
-	return user
+	return user, nil
 }
