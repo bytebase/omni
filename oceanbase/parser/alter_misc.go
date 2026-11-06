@@ -38,7 +38,11 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 
 	// DEFINER = user, only after ALGORITHM, as in parseCreateViewStmt.
 	if p.cur.Type == kwDEFINER && stmt.Algorithm != "" {
-		stmt.Definer = p.parseDefinerValue()
+		definer, err := p.parseViewDefiner()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Definer = definer
 	}
 
 	// SQL SECURITY { DEFINER | INVOKER }

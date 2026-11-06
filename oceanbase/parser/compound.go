@@ -991,7 +991,8 @@ func (p *Parser) parseFetchCursorStmt() (*nodes.FetchCursorStmt, error) {
 	// var_name [, var_name] ... — lvalue context (assignment target)
 	var vars []string
 	for {
-		if p.cur.Type == tokIDENT && p.cur.Loc < len(p.lexer.input) && p.lexer.input[p.cur.Loc] == '@' {
+		// Token positions are absolute; the lexer's input is the segment alone.
+		if i := p.cur.Loc - p.lexer.baseOffset; p.cur.Type == tokIDENT && i >= 0 && i < len(p.lexer.input) && p.lexer.input[i] == '@' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		v, _, err := p.parseLvalueIdent()

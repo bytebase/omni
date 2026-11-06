@@ -43,7 +43,11 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 	// that way: without ALGORITHM before it, CREATE [OR REPLACE] DEFINER = u VIEW
 	// answers 1064 (measured 2026-11-05).
 	if p.cur.Type == kwDEFINER && stmt.Algorithm != "" {
-		stmt.Definer = p.parseDefinerValue()
+		definer, err := p.parseViewDefiner()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Definer = definer
 	}
 
 	// SQL SECURITY { DEFINER | INVOKER }

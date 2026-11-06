@@ -788,6 +788,24 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	}
 }
 
+// parseViewDefiner parses a view's DEFINER = user, where the = and the user are
+// both required. parseDefinerValue takes either as optional, which the stored
+// programs' dispatch relies on.
+func (p *Parser) parseViewDefiner() (string, error) {
+	if p.peekNext().Type != '=' {
+		p.advance() // consume DEFINER
+		return "", p.syntaxErrorAtCur()
+	}
+	definer := p.parseDefinerValue()
+	if p.collectMode() {
+		return "", &ParseError{Message: "collecting"}
+	}
+	if definer == "" {
+		return "", p.syntaxErrorAtCur()
+	}
+	return definer, nil
+}
+
 // parseDefinerValue parses the DEFINER = user[@host] clause and returns the
 // definer string. Handles: 'user'@'host', user@host, CURRENT_USER, CURRENT_USER().
 // The current token must be DEFINER; on return, the current token is the one
