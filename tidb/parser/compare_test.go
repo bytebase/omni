@@ -3054,13 +3054,6 @@ func TestParseCreateTableConstraints(t *testing.T) {
 		}
 	})
 
-	t.Run("spatial index", func(t *testing.T) {
-		stmt := parseCreateTable(t, "CREATE TABLE t (geo GEOMETRY, SPATIAL INDEX sp_geo (geo))")
-		if stmt.Constraints[0].Type != ast.ConstrSpatialIndex {
-			t.Errorf("Type = %d, want ConstrSpatialIndex", stmt.Constraints[0].Type)
-		}
-	})
-
 	t.Run("foreign key", func(t *testing.T) {
 		stmt := parseCreateTable(t, "CREATE TABLE orders (id INT, user_id INT, FOREIGN KEY (user_id) REFERENCES users(id))")
 		fk := stmt.Constraints[0]
@@ -3719,14 +3712,6 @@ func TestParseAlterTableAddIndex(t *testing.T) {
 		cmd := stmt.Commands[0]
 		if cmd.Constraint.Type != ast.ConstrFulltextIndex {
 			t.Errorf("Type = %d, want ConstrFulltextIndex", cmd.Constraint.Type)
-		}
-	})
-
-	t.Run("add spatial index", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t ADD SPATIAL INDEX sp_geo (geo)")
-		cmd := stmt.Commands[0]
-		if cmd.Constraint.Type != ast.ConstrSpatialIndex {
-			t.Errorf("Type = %d, want ConstrSpatialIndex", cmd.Constraint.Type)
 		}
 	})
 
@@ -7301,52 +7286,6 @@ func TestParseDropServer(t *testing.T) {
 	}
 }
 
-func TestParseCreateSpatialRefSys(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "CREATE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' DEFINITION 'GEOGCS[\"Greek\",DATUM[\"Greek\"]]'",
-			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :srid 4120 :name "Greek" :definition "GEOGCS[\"Greek\",DATUM[\"Greek\"]]"}`,
-		},
-		{
-			sql:  "CREATE SPATIAL REFERENCE SYSTEM IF NOT EXISTS 4120 NAME 'Greek'",
-			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :if_not_exists true :srid 4120 :name "Greek"}`,
-		},
-		{
-			sql:  "CREATE SPATIAL REFERENCE SYSTEM 4120 NAME 'Greek' ORGANIZATION 'EPSG' IDENTIFIED BY 4120 DESCRIPTION 'Greek coordinate system'",
-			want: `{CREATE_SPATIAL_REF_SYS :loc 0 :srid 4120 :name "Greek" :organization "EPSG" :org_srid 4120 :description "Greek coordinate system"}`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropSpatialRefSys(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP SPATIAL REFERENCE SYSTEM 4120",
-			want: "{DROP_SPATIAL_REF_SYS :loc 0 :srid 4120}",
-		},
-		{
-			sql:  "DROP SPATIAL REFERENCE SYSTEM IF EXISTS 4120",
-			want: "{DROP_SPATIAL_REF_SYS :loc 0 :if_exists true :srid 4120}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
 func TestParseCreateResourceGroup(t *testing.T) {
 	tests := []struct {
 		sql  string
@@ -7625,8 +7564,7 @@ func TestParsePhase2Dispatch(t *testing.T) {
 		"CREATE SERVER s1 FOREIGN DATA WRAPPER mysql OPTIONS (HOST '127.0.0.1')",
 		"DROP SERVER s1",
 
-		// SRS/Resource Group (batch 38)
-		"DROP SPATIAL REFERENCE SYSTEM 4326",
+		// Resource Group (batch 38)
 		"CREATE RESOURCE GROUP rg1 RU_PER_SEC = 1000",
 		"DROP RESOURCE GROUP rg1",
 

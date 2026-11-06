@@ -3420,6 +3420,8 @@ func (s *DropLogfileGroupStmt) nodeTag()  {}
 func (s *DropLogfileGroupStmt) stmtNode() {}
 
 // CreateSpatialRefSysStmt represents a CREATE SPATIAL REFERENCE SYSTEM statement.
+// The parser never builds one: TiDB has no spatial reference systems and answers
+// 1064 for the statement. The type stays because callers build against it.
 type CreateSpatialRefSysStmt struct {
 	Loc          Loc
 	OrReplace    bool   // OR REPLACE
@@ -3436,6 +3438,7 @@ func (s *CreateSpatialRefSysStmt) nodeTag()  {}
 func (s *CreateSpatialRefSysStmt) stmtNode() {}
 
 // DropSpatialRefSysStmt represents a DROP SPATIAL REFERENCE SYSTEM statement.
+// The parser never builds one, for the reason CreateSpatialRefSysStmt gives.
 type DropSpatialRefSysStmt struct {
 	Loc      Loc
 	IfExists bool

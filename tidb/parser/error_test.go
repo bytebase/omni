@@ -124,8 +124,6 @@ func TestParseError_Section_1_2_StmtDispatch(t *testing.T) {
 		{"create_resource_group_trunc", "CREATE RESOURCE GROUP", "at end of input"},
 		// parseAlterResourceGroupStmt — truncated after GROUP (needs name)
 		{"alter_resource_group_trunc", "ALTER RESOURCE GROUP", "at end of input"},
-		// parseDropSpatialRefSysStmt — truncated after SPATIAL (needs REFERENCE SYSTEM)
-		{"drop_spatial_trunc", "DROP SPATIAL", "expected REFERENCE"},
 		// parseDropResourceGroupStmt — truncated after GROUP (needs name)
 		{"drop_resource_group_trunc", "DROP RESOURCE GROUP", "at end of input"},
 	}

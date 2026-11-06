@@ -96,9 +96,7 @@ var typeKeywords = []string{
 	// JSON
 	"JSON",
 	"VECTOR",
-	// Spatial
-	"GEOMETRY", "POINT", "LINESTRING", "POLYGON",
-	"MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
+	// No spatial types: TiDB has none, and answers 1064 for each.
 	// Enum/Set
 	"ENUM", "SET",
 	// Serial

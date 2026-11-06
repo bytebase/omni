@@ -540,6 +540,17 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		temporary = true
 	}
 
+	// CreateIndexStmt (parser.y) is `"CREATE" IndexKeyTypeOpt "INDEX" ...`, with
+	// no TEMPORARY in front and INDEX the only keyword after UNIQUE, FULLTEXT,
+	// SPATIAL or VECTOR: v8.5.5 answers 1064 for `CREATE FULLTEXT KEY` and for
+	// `CREATE TEMPORARY INDEX`.
+	if temporary {
+		switch p.cur.Type {
+		case kwINDEX, kwUNIQUE, kwFULLTEXT, kwSPATIAL:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseCreateTableStmt(start, temporary, global)
@@ -556,7 +567,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwFULLTEXT:
 		p.advance()
-		// p.cur is now INDEX or KEY; parseCreateIndexStmt consumes it
+		if p.cur.Type != kwINDEX {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseCreateIndexStmt(start, false, true, false, false)
 
 	case kwVECTOR:
@@ -578,10 +591,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return stmt, nil
 
 	case kwSPATIAL:
+		// CREATE SPATIAL INDEX is the one spatial statement TiDB reads; it has
+		// no CREATE SPATIAL REFERENCE SYSTEM, and v8.5.5 answers 1064 there.
 		p.advance()
-		// Distinguish SPATIAL REFERENCE SYSTEM from SPATIAL INDEX
-		if p.cur.Type == kwREFERENCE {
-			return p.parseCreateSpatialRefSysStmt(start, false)
+		if p.cur.Type != kwINDEX {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseCreateIndexStmt(start, false, false, true, false)
 
@@ -972,9 +986,8 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	case kwLOGFILE:
 		return p.parseDropLogfileGroupStmt(start)
 
-	case kwSPATIAL:
-		p.advance() // consume SPATIAL
-		return p.parseDropSpatialRefSysStmt(start)
+	// No DROP SPATIAL REFERENCE SYSTEM: TiDB has no spatial reference systems,
+	// and v8.5.5 answers 1064 at SPATIAL.
 
 	case kwRESOURCE:
 		p.advance() // consume RESOURCE

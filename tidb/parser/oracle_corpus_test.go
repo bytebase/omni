@@ -3,10 +3,9 @@ package parser
 import "testing"
 
 func TestOracleCorpus(t *testing.T) {
+	// The oracle prepares each statement rather than running it, so the tables
+	// the statements create or read never have to exist.
 	oracle := startParserOracle(t)
-
-	// Create a dummy table for SELECT statements that reference 't'.
-	oracle.db.ExecContext(oracle.ctx, "CREATE TABLE IF NOT EXISTS t (id INT, val INT, score INT, status INT, name VARCHAR(100), dept VARCHAR(50), salary DECIMAL(10,2), d DATE, created_at DATETIME)")
 
 	// --- 3.1 Integer Types × Modifiers (12 cases) ---
 	t.Run("IntegerTypes", func(t *testing.T) {
@@ -28,10 +27,6 @@ func TestOracleCorpus(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				assertOracleMatch(t, oracle, tc.sql)
 			})
-		}
-		// Cleanup
-		for i := 1; i <= 12; i++ {
-			oracle.db.ExecContext(oracle.ctx, "DROP TABLE IF EXISTS t"+itoa(i))
 		}
 	})
 
@@ -59,9 +54,6 @@ func TestOracleCorpus(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				assertOracleMatch(t, oracle, tc.sql)
 			})
-		}
-		for i := 13; i <= 28; i++ {
-			oracle.db.ExecContext(oracle.ctx, "DROP TABLE IF EXISTS t"+itoa(i))
 		}
 	})
 
@@ -95,9 +87,6 @@ func TestOracleCorpus(t *testing.T) {
 				assertOracleMatch(t, oracle, tc.sql)
 			})
 		}
-		for i := 29; i <= 49; i++ {
-			oracle.db.ExecContext(oracle.ctx, "DROP TABLE IF EXISTS t"+itoa(i))
-		}
 	})
 
 	// --- 3.4 Date/Time, JSON, Spatial & Special (19 cases) ---
@@ -128,9 +117,6 @@ func TestOracleCorpus(t *testing.T) {
 				assertOracleMatch(t, oracle, tc.sql)
 			})
 		}
-		for i := 50; i <= 68; i++ {
-			oracle.db.ExecContext(oracle.ctx, "DROP TABLE IF EXISTS t"+itoa(i))
-		}
 	})
 
 	// --- 3.5 Window Functions (7 cases) ---
@@ -153,78 +139,39 @@ func TestOracleCorpus(t *testing.T) {
 
 	// --- 3.6 Interval Expressions (8 cases) ---
 	t.Run("IntervalExpressions", func(t *testing.T) {
-		cases := []struct {
-			name, sql     string
-			knownMismatch bool // true = omni/MySQL disagree; logged but not a test failure
-		}{
-			{"interval add DAY", "SELECT NOW() + INTERVAL 1 DAY", false},
-			{"interval sub HOUR", "SELECT NOW() - INTERVAL 2 HOUR", false},
-			{"DATE_ADD literal", "SELECT DATE_ADD('2024-01-01', INTERVAL 1 MONTH)", false},
-			{"DATE_SUB MINUTE", "SELECT DATE_SUB(NOW(), INTERVAL 30 MINUTE)", false},
-			{"TIMESTAMPADD", "SELECT TIMESTAMPADD(MINUTE, 30, NOW())", false},
-			{"EXTRACT", "SELECT EXTRACT(HOUR FROM NOW())", false},
-			{"interval in WHERE", "SELECT * FROM t WHERE created_at > NOW() - INTERVAL 7 DAY", false},
-			{"interval in BETWEEN", "SELECT * FROM t WHERE created_at BETWEEN NOW() - INTERVAL 1 MONTH AND NOW()", false},
+		cases := []struct{ name, sql string }{
+			{"interval add DAY", "SELECT NOW() + INTERVAL 1 DAY"},
+			{"interval sub HOUR", "SELECT NOW() - INTERVAL 2 HOUR"},
+			{"DATE_ADD literal", "SELECT DATE_ADD('2024-01-01', INTERVAL 1 MONTH)"},
+			{"DATE_SUB MINUTE", "SELECT DATE_SUB(NOW(), INTERVAL 30 MINUTE)"},
+			{"TIMESTAMPADD", "SELECT TIMESTAMPADD(MINUTE, 30, NOW())"},
+			{"EXTRACT", "SELECT EXTRACT(HOUR FROM NOW())"},
+			{"interval in WHERE", "SELECT * FROM t WHERE created_at > NOW() - INTERVAL 7 DAY"},
+			{"interval in BETWEEN", "SELECT * FROM t WHERE created_at BETWEEN NOW() - INTERVAL 1 MONTH AND NOW()"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-				if tc.knownMismatch {
-					assertOracleMismatch(t, oracle, tc.sql)
-				} else {
-					assertOracleMatch(t, oracle, tc.sql)
-				}
+				assertOracleMatch(t, oracle, tc.sql)
 			})
 		}
 	})
 
 	// --- 3.7 Rejected SQL (7 cases) ---
 	t.Run("RejectedSQL", func(t *testing.T) {
-		cases := []struct {
-			name, sql     string
-			knownMismatch bool
-		}{
-			{"VARCHAR UNSIGNED", "CREATE TABLE t_rej1 (a VARCHAR UNSIGNED)", false},
-			{"TEXT ZEROFILL", "CREATE TABLE t_rej2 (a TEXT ZEROFILL)", false},
-			{"JSON UNSIGNED", "CREATE TABLE t_rej3 (a JSON UNSIGNED)", false},
-			// MISMATCH: omni accepts unquoted reserved words as identifiers
-			// but MySQL correctly rejects them. Parser is too lenient.
-			{"reserved word table name", "CREATE TABLE select (a INT)", true},
-			{"reserved word col name", "CREATE TABLE t_rej5 (select INT)", true},
-			{"incomplete PARTITION BY", "ALTER TABLE t PARTITION BY", false},
-			{"invalid interval unit", "SELECT DATE_ADD(d, INTERVAL 1 INVALID_UNIT) FROM t", false},
+		cases := []struct{ name, sql string }{
+			{"VARCHAR UNSIGNED", "CREATE TABLE t_rej1 (a VARCHAR UNSIGNED)"},
+			{"TEXT ZEROFILL", "CREATE TABLE t_rej2 (a TEXT ZEROFILL)"},
+			{"JSON UNSIGNED", "CREATE TABLE t_rej3 (a JSON UNSIGNED)"},
+			{"reserved word table name", "CREATE TABLE select (a INT)"},
+			{"reserved word col name", "CREATE TABLE t_rej5 (select INT)"},
+			{"incomplete PARTITION BY", "ALTER TABLE t PARTITION BY"},
+			{"invalid interval unit", "SELECT DATE_ADD(d, INTERVAL 1 INVALID_UNIT) FROM t"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-				if tc.knownMismatch {
-					assertOracleMismatch(t, oracle, tc.sql)
-				} else {
-					assertOracleMatch(t, oracle, tc.sql)
-				}
+				assertOracleMatch(t, oracle, tc.sql)
 			})
 		}
 		// Cleanup any tables that might have been created
-		for i := 1; i <= 5; i++ {
-			oracle.db.ExecContext(oracle.ctx, "DROP TABLE IF EXISTS t_rej"+itoa(i))
-		}
 	})
-}
-
-// itoa converts an int to string without importing strconv.
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var digits []byte
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	for n > 0 {
-		digits = append([]byte{byte('0' + n%10)}, digits...)
-		n /= 10
-	}
-	if neg {
-		digits = append([]byte{'-'}, digits...)
-	}
-	return string(digits)
 }

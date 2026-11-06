@@ -318,7 +318,9 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 // isTableConstraintStart returns true if current token starts a table-level constraint.
 func (p *Parser) isTableConstraintStart() bool {
 	switch p.cur.Type {
-	case kwPRIMARY, kwUNIQUE, kwINDEX, kwKEY, kwFULLTEXT, kwSPATIAL, kwFOREIGN, kwCHECK:
+	case kwPRIMARY, kwUNIQUE, kwINDEX, kwKEY, kwFULLTEXT, kwFOREIGN, kwCHECK:
+		// No SPATIAL: TiDB's ConstraintElem has no spatial key, and v8.5.5
+		// answers 1064 for one in a table definition and in ALTER TABLE ADD.
 		return true
 	case kwCONSTRAINT:
 		return true
@@ -793,16 +795,8 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	// answers 1064 for both as a column option, as it does for both as a table
 	// option, so taking them only passed statements the server refuses.
 
-	// SRID column option (now lexes as kwSRID keyword token)
-	if p.cur.Type == kwSRID {
-		p.advance()
-		if p.cur.Type != tokICONST {
-			return false, nil
-		}
-		col.TypeName.SRID = int(p.cur.Ival)
-		p.advance()
-		return true, nil
-	}
+	// No SRID: TiDB has no spatial types and no SRID column attribute, and
+	// v8.5.5 answers 1064 for one.
 
 	return false, nil
 }
@@ -1286,23 +1280,6 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		if vectorConstraintRefused(constr) {
 			return nil, refuseVectorIndexShape(constr.Loc.Start)
-		}
-
-	case kwSPATIAL:
-		p.advance()
-		p.match(kwINDEX, kwKEY)
-		constr.Type = nodes.ConstrSpatialIndex
-		if p.isIdentToken() && p.cur.Type != '(' {
-			constr.Name, _, _ = p.parseIdent()
-		}
-		idxCols, err := p.parseParenIndexKeyParts()
-		if err != nil {
-			return nil, err
-		}
-		constr.IndexColumns = idxCols
-		constr.Columns = indexColumnsToNames(idxCols)
-		if err := p.parseConstraintIndexOptions(constr); err != nil {
-			return nil, err
 		}
 
 	default:

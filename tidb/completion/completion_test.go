@@ -1816,7 +1816,7 @@ func TestComplete_5_2_AlterTable(t *testing.T) {
 	// Scenario 3: ALTER TABLE t ADD | → ADD keywords
 	t.Run("alter_table_add_keywords", func(t *testing.T) {
 		candidates := Complete("ALTER TABLE t ADD ", 18, cat)
-		for _, kw := range []string{"COLUMN", "INDEX", "KEY", "UNIQUE", "PRIMARY", "FOREIGN", "CONSTRAINT", "CHECK", "PARTITION", "SPATIAL", "FULLTEXT"} {
+		for _, kw := range []string{"COLUMN", "INDEX", "KEY", "UNIQUE", "PRIMARY", "FOREIGN", "CONSTRAINT", "CHECK", "PARTITION", "FULLTEXT"} {
 			if !containsCandidate(candidates, kw, CandidateKeyword) {
 				t.Errorf("missing keyword %q; got %v", kw, candidates)
 			}

@@ -8,20 +8,19 @@ import (
 // --- Section 8.2 (starmap): Index Rendering in SHOW CREATE TABLE (7 scenarios) ---
 
 func TestWalkThrough_12_2(t *testing.T) {
-	t.Run("index_ordering_pk_unique_key_fulltext_spatial", func(t *testing.T) {
-		// Scenario 1: Table with PK + UNIQUE + KEY + FULLTEXT + SPATIAL — verify ordering
-		// MySQL 8.0 orders: PRIMARY → UNIQUE → regular+SPATIAL → expression → FULLTEXT
+	t.Run("index_ordering_pk_unique_key_fulltext", func(t *testing.T) {
+		// Scenario 1: Table with PK + UNIQUE + KEY + FULLTEXT — verify ordering
+		// PRIMARY → UNIQUE → regular → expression → FULLTEXT. TiDB has no
+		// spatial column type or SPATIAL KEY in a table definition (1064).
 		c := wtSetup(t)
 		wtExec(t, c, `CREATE TABLE t (
 			id INT NOT NULL,
 			name VARCHAR(100),
 			body TEXT,
-			geo GEOMETRY NOT NULL SRID 0,
 			PRIMARY KEY (id),
 			KEY idx_name (name),
 			UNIQUE KEY uk_name (name),
-			FULLTEXT KEY ft_body (body),
-			SPATIAL KEY sp_geo (geo)
+			FULLTEXT KEY ft_body (body)
 		)`)
 
 		got := c.ShowCreateTable("testdb", "t")
@@ -31,13 +30,11 @@ func TestWalkThrough_12_2(t *testing.T) {
 		assertContains(t, got, "UNIQUE KEY `uk_name` (`name`)")
 		assertContains(t, got, "KEY `idx_name` (`name`)")
 		assertContains(t, got, "FULLTEXT KEY `ft_body` (`body`)")
-		assertContains(t, got, "SPATIAL KEY `sp_geo` (`geo`)")
 
-		// Verify ordering: PRIMARY < UNIQUE < KEY/SPATIAL < FULLTEXT
+		// Verify ordering: PRIMARY < UNIQUE < KEY < FULLTEXT
 		posPK := strings.Index(got, "PRIMARY KEY")
 		posUK := strings.Index(got, "UNIQUE KEY")
 		posKey := strings.Index(got, "KEY `idx_name`")
-		posSP := strings.Index(got, "SPATIAL KEY")
 		posFT := strings.Index(got, "FULLTEXT KEY")
 
 		if posPK >= posUK {
@@ -46,15 +43,8 @@ func TestWalkThrough_12_2(t *testing.T) {
 		if posUK >= posKey {
 			t.Error("UNIQUE KEY should appear before regular KEY")
 		}
-		// SPATIAL is in the same group as regular keys, so it should come after or alongside idx_name
-		if posSP <= posUK {
-			t.Error("SPATIAL KEY should appear after UNIQUE KEY")
-		}
 		if posFT <= posKey {
 			t.Error("FULLTEXT KEY should appear after regular KEY")
-		}
-		if posFT <= posSP {
-			t.Error("FULLTEXT KEY should appear after SPATIAL KEY")
 		}
 	})
 

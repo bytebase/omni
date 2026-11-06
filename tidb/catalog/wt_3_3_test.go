@@ -178,25 +178,15 @@ func TestWalkThrough_3_3_FulltextIndex(t *testing.T) {
 
 // --- SPATIAL index ---
 
+// TiDB has no spatial column type and no SPATIAL key in a table definition:
+// v8.5.5 answers 1064 for this statement, so the catalog refuses it too.
 func TestWalkThrough_3_3_SpatialIndex(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, geo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX sp_geo (geo))")
-	tbl := c.GetDatabase("testdb").GetTable("t")
-	if tbl == nil {
-		t.Fatal("table not found")
+	if _, err := c.Exec("CREATE TABLE t (id INT PRIMARY KEY, geo GEOMETRY NOT NULL SRID 0, SPATIAL INDEX sp_geo (geo))", nil); err == nil {
+		t.Fatal("Exec accepted a spatial column and key TiDB refuses")
 	}
-	var idx *Index
-	for _, i := range tbl.Indexes {
-		if i.Name == "sp_geo" {
-			idx = i
-			break
-		}
-	}
-	if idx == nil {
-		t.Fatal("spatial index sp_geo not found")
-	}
-	if !idx.Spatial {
-		t.Error("expected Spatial=true")
+	if c.GetDatabase("testdb").GetTable("t") != nil {
+		t.Error("the refused statement created a table")
 	}
 }
 
