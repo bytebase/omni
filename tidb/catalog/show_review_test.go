@@ -151,3 +151,59 @@ func TestRefusedAddForeignKeyKeepsCounter(t *testing.T) {
 		}
 	}
 }
+
+// With tidb_enable_check_constraint off, DROP CHECK and DROP CONSTRAINT may
+// name nothing, but DROP FOREIGN KEY of a missing key is still 1091 (v8.5.5,
+// read on 2026-11-06).
+func TestDropMissingForeignKeyWithChecksOff(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE f (a INT)")
+	wtExec(t, c, "ALTER TABLE f DROP CHECK nosuch")
+	wtExec(t, c, "ALTER TABLE f DROP CONSTRAINT nosuch")
+	results, err := c.Exec("ALTER TABLE f DROP FOREIGN KEY nosuch", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertError(t, results[0].Error, ErrCantDropKey)
+}
+
+// A TTL first added by ALTER TABLE is enabled, as one given at CREATE is.
+func TestAlterTableAddsEnabledTTL(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE tt (created_at DATETIME)")
+	wtExec(t, c, "ALTER TABLE tt TTL = created_at + INTERVAL 1 DAY")
+	assertShowCreate(t, c, "tt", "CREATE TABLE `tt` (\n"+
+		"  `created_at` datetime DEFAULT NULL\n"+
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /*T![ttl] TTL=`created_at` + INTERVAL 1 DAY */ /*T![ttl] TTL_ENABLE='ON' */ /*T![ttl] TTL_JOB_INTERVAL='1h' */")
+}
+
+// CREATE TABLE LIKE keeps the source primary key's clustering.
+func TestCreateTableLikeKeepsClustering(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE src (id INT PRIMARY KEY NONCLUSTERED)")
+	wtExec(t, c, "CREATE TABLE dst LIKE src")
+	assertShowCreate(t, c, "dst", "CREATE TABLE `dst` (\n"+
+		"  `id` int NOT NULL,\n"+
+		"  PRIMARY KEY (`id`) /*T![clustered_index] NONCLUSTERED */\n"+
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin")
+}
+
+// CONVERT TO CHARACTER SET DEFAULT parses, and v8.5.5 refuses it with 1105
+// "Unknown charset " (read on 2026-11-06), leaving the table as it was.
+func TestConvertToDefaultCharsetRefused(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE cv CONVERT TO CHARSET DEFAULT",
+		"ALTER TABLE cv CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_general_ci",
+	} {
+		c := wtSetup(t)
+		wtExec(t, c, "CREATE TABLE cv (a VARCHAR(5)) CHARSET latin1")
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertError(t, results[0].Error, ErrUnknownError)
+		if tbl := c.GetDatabase("testdb").GetTable("cv"); tbl.Charset != "latin1" {
+			t.Errorf("%s changed the charset to %q", sql, tbl.Charset)
+		}
+	}
+}

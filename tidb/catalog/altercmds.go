@@ -759,7 +759,10 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	}
 
 	if !found {
-		if cmd.IfExists || !c.checkConstraints {
+		// With tidb_enable_check_constraint off, DROP CHECK and DROP
+		// CONSTRAINT succeed whatever they name; DROP FOREIGN KEY of a key
+		// the table lacks is still 1091 (v8.5.5, read on 2026-11-06).
+		if cmd.IfExists || (!c.checkConstraints && !cmd.ForeignKey) {
 			return nil
 		}
 		return errCantDropKey(name)
@@ -919,6 +922,12 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		col, interval, err := extractTTLParts(opt.Value)
 		if err != nil {
 			return err
+		}
+		if tbl.TTLColumn == "" {
+			// A table that gets its first TTL from ALTER TABLE has it
+			// enabled, as one created with it does (v8.5.5 writes
+			// TTL_ENABLE='ON', read on 2026-11-06).
+			tbl.TTLEnable = true
 		}
 		tbl.TTLColumn = col
 		tbl.TTLInterval = interval
@@ -1150,6 +1159,11 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 // This changes the table's default charset/collation AND converts all existing
 // string columns to the new charset/collation.
 func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// CONVERT TO CHARACTER SET DEFAULT parses and v8.5.5 refuses it with
+	// 1105 "Unknown charset " (read on 2026-11-06).
+	if strings.EqualFold(cmd.Name, "DEFAULT") {
+		return &Error{Code: ErrUnknownError, SQLState: sqlState(ErrUnknownError), Message: "Unknown charset "}
+	}
 	charset, collation, err := resolveCharsetCollation(cmd.Name, cmd.NewName)
 	if err != nil {
 		return err

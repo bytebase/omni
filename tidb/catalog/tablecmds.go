@@ -1627,6 +1627,10 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Visible:      srcIdx.Visible,
 			Comment:      srcIdx.Comment,
 			KeyBlockSize: srcIdx.KeyBlockSize,
+			Global:       srcIdx.Global,
+			// The copy keeps the source key's clustering: TiDB's LIKE of a
+			// NONCLUSTERED primary key is NONCLUSTERED (read on 2026-11-06).
+			addedByAlter: srcIdx.addedByAlter,
 		}
 		cols := make([]*IndexColumn, len(srcIdx.Columns))
 		for i, sc := range srcIdx.Columns {
@@ -1668,6 +1672,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			RefColumns:  append([]string{}, srcCon.RefColumns...),
 			OnDelete:    srcCon.OnDelete,
 			OnUpdate:    srcCon.OnUpdate,
+			Clustered:   srcCon.Clustered,
 		}
 		tbl.Constraints = append(tbl.Constraints, con)
 	}
