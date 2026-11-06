@@ -20,6 +20,9 @@ var intervalCases = []struct {
 	want []string
 }{
 	{name: "int", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (30)", want: []string{"P_LT_10=10", "P_LT_20=20", "P_LT_30=30"}},
+	// A sign on a bound is read through; TiDB v8.5.5 takes LESS THAN (+10).
+	{name: "signed bounds", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (+10) LAST PARTITION LESS THAN (+30)", want: []string{"P_LT_10=10", "P_LT_20=20", "P_LT_30=30"}},
+	{name: "a step written as a sum", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (5+5) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (30)", want: []string{"P_LT_10=10", "P_LT_20=20", "P_LT_30=30"}},
 	{name: "negative", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (-10) LAST PARTITION LESS THAN (10)", want: []string{"P_LT_-10=-10", "P_LT_0=0", "P_LT_10=10"}},
 	{name: "arithmetic", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (1+1) FIRST PARTITION LESS THAN (1+1) LAST PARTITION LESS THAN (2*3)", want: []string{"P_LT_2=2", "P_LT_4=4", "P_LT_6=6"}},
 	{name: "one partition", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (10)", want: []string{"P_LT_10=10"}},
@@ -64,6 +67,11 @@ var intervalCases = []struct {
 	{name: "a time unit on an int", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (10 DAY) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (30)", code: 1292},
 	{name: "no time unit on a datetime", ddl: "CREATE TABLE t (a DATETIME) PARTITION BY RANGE COLUMNS (a) INTERVAL (10) FIRST PARTITION LESS THAN ('2020-01-01') LAST PARTITION LESS THAN ('2021-01-01')", code: 1292},
 	{name: "a compound unit", ddl: "CREATE TABLE t (a DATETIME) PARTITION BY RANGE COLUMNS (a) INTERVAL (1 YEAR_MONTH) FIRST PARTITION LESS THAN ('2020-01-01') LAST PARTITION LESS THAN ('2021-01-01')", code: 8200},
+	// TiDB checks the step's text, which must start with a digit 1 to 9
+	// (v8.5.5): a sign or a parenthesis before it answers 8200.
+	{name: "a signed step", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL (+10) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (30)", code: 8200},
+	{name: "a parenthesized step", ddl: "CREATE TABLE t (a INT) PARTITION BY RANGE (a) INTERVAL ((10)) FIRST PARTITION LESS THAN (10) LAST PARTITION LESS THAN (30)", code: 8200},
+	{name: "a signed time step", ddl: "CREATE TABLE t (a DATE) PARTITION BY RANGE COLUMNS (a) INTERVAL (+1 DAY) FIRST PARTITION LESS THAN ('2020-01-01') LAST PARTITION LESS THAN ('2020-01-03')", code: 8200},
 	{name: "a negative time step", ddl: "CREATE TABLE t (a DATE) PARTITION BY RANGE COLUMNS (a) INTERVAL (-1 DAY) FIRST PARTITION LESS THAN ('2020-01-03') LAST PARTITION LESS THAN ('2020-01-01')", code: 8200},
 	{name: "a time LAST off the steps", ddl: "CREATE TABLE t (a DATETIME) PARTITION BY RANGE COLUMNS (a) INTERVAL (2 DAY) FIRST PARTITION LESS THAN ('2020-01-01') LAST PARTITION LESS THAN ('2020-01-02')", code: 8200},
 	{name: "hours on a date repeat a name", ddl: "CREATE TABLE t (a DATE) PARTITION BY RANGE COLUMNS (a) INTERVAL (1 HOUR) FIRST PARTITION LESS THAN ('2020-01-01') LAST PARTITION LESS THAN ('2020-01-02')", code: 1517},
@@ -273,13 +281,9 @@ func TestILikeViewText(t *testing.T) {
 	c := New()
 	execAll(t, c, "CREATE DATABASE d; USE d; CREATE TABLE u (a VARCHAR(9)); CREATE VIEW vv AS SELECT a ILIKE 'b' AS c, a NOT ILIKE 'b' ESCAPE 'x' AS e, a LIKE 'b' AS f FROM u;")
 	def := c.GetDatabase("d").Views["vv"].Definition
-	for _, want := range []string{" ilike ", "escape", " like "} {
-		if !strings.Contains(def, want) {
-			t.Errorf("the view lost %q: %s", want, def)
-		}
-	}
-	if strings.Count(def, " ilike ") != 2 {
-		t.Errorf("want both ILIKEs in %s", def)
+	// TiDB v8.5.5 stores this body as written below (SHOW CREATE VIEW).
+	if want := "SELECT `a` ILIKE _UTF8MB4'b' AS `c`,`a` NOT ILIKE _UTF8MB4'b' ESCAPE 'x' AS `e`,`a` LIKE _UTF8MB4'b' AS `f` FROM `d`.`u`"; def != want {
+		t.Errorf("Definition = %s\nwant %s", def, want)
 	}
 	again := New()
 	execAll(t, again, "CREATE DATABASE d; USE d; CREATE TABLE u (a VARCHAR(9)); CREATE VIEW vv AS "+def+";")

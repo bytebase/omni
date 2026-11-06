@@ -23,12 +23,14 @@ func mustParseSelect(t *testing.T, sql string) *nodes.SelectStmt {
 // text, and both go through code paths that read a target list the primary
 // does not have. Container-verified on pingcap/tidb:v8.5.5:
 //
-//	CREATE VIEW vt AS TABLE t                  → (`a`, `b`), body "TABLE `t`"
+//	CREATE VIEW vt AS TABLE t                  → (`a`, `b`), body "TABLE `test`.`t`"
 //	CREATE VIEW vu AS TABLE t UNION TABLE t    → (`a`, `b`)
 //	CREATE VIEW vv AS VALUES ROW(1,2)          → error 1051, Unknown table ''
 //
-// These run without a container, so they are outside the TIDB_CATALOG_PARITY
-// quarantine that gates the differential tests in this package.
+// The catalog stores a VALUES body in TiDB's restore format although TiDB
+// refuses one. These run without a container, so they are outside the
+// TIDB_CATALOG_PARITY quarantine that gates the differential tests in this
+// package.
 
 // TestDefineView_TablePrimaryBodyColumns: a TABLE primary is SELECT * FROM t,
 // so the view's columns are the table's. Reading the primary's (absent) target
@@ -73,10 +75,10 @@ func TestDefineView_TablePrimaryBodyDefinition(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := []struct{ view, ddl, want string }{
-		{"v1", "CREATE VIEW v1 AS TABLE t", "table `t`"},
-		{"v2", "CREATE VIEW v2 AS TABLE t ORDER BY a LIMIT 1", "table `t` order by `a` limit 1"},
-		{"v3", "CREATE VIEW v3 AS TABLE t UNION TABLE t", "table `t` union table `t`"},
-		{"v4", "CREATE VIEW v4 AS VALUES ROW(1,2)", "values row(1,2)"},
+		{"v1", "CREATE VIEW v1 AS TABLE t", "TABLE `mydb`.`t`"},
+		{"v2", "CREATE VIEW v2 AS TABLE t ORDER BY a LIMIT 1", "TABLE `mydb`.`t` ORDER BY `a` LIMIT 1"},
+		{"v3", "CREATE VIEW v3 AS TABLE t UNION TABLE t", "TABLE `mydb`.`t` UNION TABLE `mydb`.`t`"},
+		{"v4", "CREATE VIEW v4 AS VALUES ROW(1,2)", "VALUES ROW(1,2)"},
 	}
 	for _, tc := range cases {
 		if err := c.DefineView(mustParseView(t, tc.ddl)); err != nil {
@@ -121,17 +123,17 @@ func TestDefineView_PrimaryThroughCTEOrDerivedTable(t *testing.T) {
 		def       string
 	}{
 		{"v1", "CREATE VIEW v1 AS WITH c AS (TABLE t) SELECT * FROM c", []string{"a", "b"},
-			"with `c` as (table `t`) select `c`.`a` AS `a`,`c`.`b` AS `b` from `c`"},
+			"WITH `c` AS (TABLE `mydb`.`t`) SELECT `c`.`a` AS `a`,`c`.`b` AS `b` FROM `c`"},
 		{"v2", "CREATE VIEW v2 AS SELECT * FROM (TABLE t) d", []string{"a", "b"},
-			"select `d`.`a` AS `a`,`d`.`b` AS `b` from (table `t`) `d`"},
+			"SELECT `mydb`.`d`.`a` AS `a`,`mydb`.`d`.`b` AS `b` FROM (TABLE `mydb`.`t`) AS `d`"},
 		{"v3", "CREATE VIEW v3 AS SELECT * FROM (VALUES ROW(1,2)) d", []string{"column_0", "column_1"},
-			"select `d`.`column_0` AS `column_0`,`d`.`column_1` AS `column_1` from (values row(1,2)) `d`"},
+			"SELECT `d`.`column_0` AS `column_0`,`d`.`column_1` AS `column_1` FROM (VALUES ROW(1,2)) AS `d`"},
 		{"v4", "CREATE VIEW v4 AS WITH c AS (VALUES ROW(1,2)) SELECT * FROM c", []string{"column_0", "column_1"},
-			"with `c` as (values row(1,2)) select `c`.`column_0` AS `column_0`,`c`.`column_1` AS `column_1` from `c`"},
+			"WITH `c` AS (VALUES ROW(1,2)) SELECT `c`.`column_0` AS `column_0`,`c`.`column_1` AS `column_1` FROM `c`"},
 		{"v5", "CREATE VIEW v5 AS VALUES ROW(1,2) UNION VALUES ROW(3,4)", []string{"column_0", "column_1"},
-			"values row(1,2) union values row(3,4)"},
+			"VALUES ROW(1,2) UNION VALUES ROW(3,4)"},
 		{"v6", "CREATE VIEW v6 AS VALUES ROW(1,2) UNION SELECT a, b FROM t", []string{"column_0", "column_1"},
-			"values row(1,2) union select `t`.`a` AS `a`,`t`.`b` AS `b` from `t`"},
+			"VALUES ROW(1,2) UNION SELECT `a` AS `a`,`b` AS `b` FROM `mydb`.`t`"},
 	}
 	for _, tc := range cases {
 		if err := c.DefineView(mustParseView(t, tc.ddl)); err != nil {
@@ -246,11 +248,11 @@ func TestDefineView_PrimaryNamingALocalCTE(t *testing.T) {
 	c := newCatalogWithDB(t, "mydb")
 	cases := []struct{ view, ddl, def string }{
 		{"v1", "CREATE VIEW v1 AS SELECT * FROM (WITH x AS (SELECT 1 AS a) TABLE x) d",
-			"select `d`.`a` AS `a` from (with `x` as (select 1 AS `a`) table `x`) `d`"},
+			"SELECT `d`.`a` AS `a` FROM (WITH `x` AS (SELECT 1 AS `a`) TABLE `x`) AS `d`"},
 		{"v2", "CREATE VIEW v2 AS SELECT * FROM (WITH x AS (SELECT 1 AS a, 2 AS b) TABLE x) d",
-			"select `d`.`a` AS `a`,`d`.`b` AS `b` from (with `x` as (select 1 AS `a`,2 AS `b`) table `x`) `d`"},
+			"SELECT `d`.`a` AS `a`,`d`.`b` AS `b` FROM (WITH `x` AS (SELECT 1 AS `a`,2 AS `b`) TABLE `x`) AS `d`"},
 		{"v3", "CREATE VIEW v3 AS SELECT * FROM (WITH x (p, q) AS (SELECT 1, 2) TABLE x) d",
-			"select `d`.`p` AS `p`,`d`.`q` AS `q` from (with `x` (`p`,`q`) as (select 1 AS `1`,2 AS `2`) table `x`) `d`"},
+			"SELECT `d`.`p` AS `p`,`d`.`q` AS `q` FROM (WITH `x` (`p`, `q`) AS (SELECT 1 AS `1`,2 AS `2`) TABLE `x`) AS `d`"},
 	}
 	for _, tc := range cases {
 		if err := c.DefineView(mustParseView(t, tc.ddl)); err != nil {
@@ -289,11 +291,11 @@ func TestDefineView_SubqueryInsideAValuesRow(t *testing.T) {
 	}
 	cases := []struct{ view, ddl, def string }{
 		{"v1", "CREATE VIEW v1 AS VALUES ROW((SELECT * FROM t))",
-			"values row((select `t`.`a` from `t`))"},
+			"VALUES ROW((SELECT `mydb`.`t`.`a` AS `a` FROM `mydb`.`t`))"},
 		{"v2", "CREATE VIEW v2 AS VALUES ROW(1), ROW((SELECT * FROM t))",
-			"values row(1),row((select `t`.`a` from `t`))"},
+			"VALUES ROW(1), ROW((SELECT `mydb`.`t`.`a` AS `a` FROM `mydb`.`t`))"},
 		{"v3", "CREATE VIEW v3 AS SELECT * FROM (VALUES ROW((SELECT * FROM t))) d",
-			"select `d`.`column_0` AS `column_0` from (values row((select `t`.`a` from `t`))) `d`"},
+			"SELECT `d`.`column_0` AS `column_0` FROM (VALUES ROW((SELECT `mydb`.`t`.`a` AS `a` FROM `mydb`.`t`))) AS `d`"},
 	}
 	for _, tc := range cases {
 		if err := c.DefineView(mustParseView(t, tc.ddl)); err != nil {

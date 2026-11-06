@@ -399,14 +399,10 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 	case '-':
 		return p.parseUnaryExpr(nodes.UnaryMinus)
 	case '+':
-		// Unary plus — just parse the operand. It recurses here rather than
-		// through parseExprPrec, so it counts its own nesting.
-		if err := p.enterNesting(); err != nil {
-			return nil, err
-		}
-		defer p.leaveNesting()
-		p.advance()
-		return p.parsePrefixExpr()
+		// Unary plus is kept as an operator, as TiDB's grammar keeps it
+		// ('+' SimpleExpr %prec neg, an UnaryOperationExpr): a view stores
+		// SELECT +a as +`a`, named "+a" (verified on v8.5.5).
+		return p.parseUnaryExpr(nodes.UnaryPlus)
 	case '~':
 		return p.parseUnaryExpr(nodes.UnaryBitNot)
 	case '!':
@@ -1641,11 +1637,18 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 			p.addRuleCandidate("charset")
 			return nil, &ParseError{Message: "collecting"}
 		}
-		charset, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
+		// CharsetName is a StringName, an identifier or a string
+		// (parser.y): CONVERT(x USING 'utf8mb4') is the form TiDB writes
+		// into a view it stores, so it has to read back.
+		if p.cur.Type == tokSCONST {
+			conv.Charset = p.advance().Str
+		} else {
+			charset, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			conv.Charset = charset
 		}
-		conv.Charset = charset
 	} else if p.cur.Type == ',' {
 		p.advance()
 		dt, err := p.parseCastDataType()

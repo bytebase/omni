@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
 
 	ast "github.com/bytebase/omni/tidb/ast"
 )
@@ -23,11 +24,17 @@ const maxAutoNameBytes = 64
 // and spacing, 0004 is "0004", true is "TRUE", - 2 is "- 2", (a) is "(a)",
 // and (1) is "1". A name longer than 64 bytes stays Name_exp_N, as before:
 // TiDB lists it as name_exp_N in the view's column list.
-func sourceAutoName(source string, expr ast.ExprNode, position int) (string, bool) {
+//
+// With capLength false a long name is kept whole, as TiDB keeps it for the
+// field's alias in a view body; only the view's column list shortens it.
+func sourceAutoName(source string, expr ast.ExprNode, position int, capLength bool) (string, bool) {
 	if name, ok := selfName(source, expr); ok {
-		if name == "" {
+		if name == "" && capLength {
 			return fmt.Sprintf("Name_exp_%d", position), true
 		}
+		// TiDB names an empty string literal "" and writes it with no
+		// alias: SELECT '' is stored as SELECT _UTF8MB4'' (verified on
+		// v8.5.5).
 		return name, true
 	}
 	text, ok := itemText(source, expr)
@@ -35,7 +42,7 @@ func sourceAutoName(source string, expr ast.ExprNode, position int) (string, boo
 		return "", false
 	}
 	name := nameText(text)
-	if len(name) > maxAutoNameBytes {
+	if capLength && len(name) > maxAutoNameBytes {
 		return fmt.Sprintf("Name_exp_%d", position), true
 	}
 	return name, true
@@ -49,14 +56,12 @@ func sourceAutoName(source string, expr ast.ExprNode, position int) (string, boo
 // names after its text.
 func selfName(source string, expr ast.ExprNode) (string, bool) {
 	switch n := expr.(type) {
-	case *ast.ParenExpr:
-		inner := n.Expr
-		for {
-			p, ok := inner.(*ast.ParenExpr)
-			if !ok {
-				break
-			}
-			inner = p.Expr
+	case *ast.ParenExpr, *ast.UnaryExpr:
+		// Parentheses and unary plus pass a literal inside through
+		// (getInnerFromParenthesesAndUnaryPlus): (1) and +1 are named "1".
+		inner := unwrapParenPlus(expr)
+		if inner == expr {
+			return "", false
 		}
 		if _, ok := inner.(*ast.ColumnRef); ok {
 			return "", false
@@ -68,7 +73,12 @@ func selfName(source string, expr ast.ExprNode) (string, bool) {
 		}
 		return n.Column, true
 	case *ast.StringLit:
-		return n.Value, true
+		// The characters before the first graphic one are dropped
+		// (planner/core buildProjectionFieldNameFromExpressions):
+		// SELECT '  x' names its column x.
+		return strings.TrimLeftFunc(n.Value, func(r rune) bool {
+			return !unicode.In(r, graphRanges...)
+		}), true
 	case *ast.NullLit:
 		return "NULL", true
 	case *ast.BoolLit:
@@ -80,6 +90,24 @@ func selfName(source string, expr ast.ExprNode) (string, bool) {
 		return nodeText(source, n)
 	}
 	return "", false
+}
+
+// unwrapParenPlus strips the parentheses and unary pluses around an
+// expression.
+func unwrapParenPlus(expr ast.ExprNode) ast.ExprNode {
+	for {
+		switch n := expr.(type) {
+		case *ast.ParenExpr:
+			expr = n.Expr
+			continue
+		case *ast.UnaryExpr:
+			if n.Op == ast.UnaryPlus {
+				expr = n.Operand
+				continue
+			}
+		}
+		return expr
+	}
 }
 
 // itemText returns the text TiDB names an item after: the text its Loc
@@ -207,4 +235,13 @@ func commentEnd(text string, i int) int {
 		}
 	}
 	return len(text)
+}
+
+// graphRanges are the characters TiDB counts as graphic at the start of a
+// string literal that names a column (parser/mysql RangeGraph).
+var graphRanges = []*unicode.RangeTable{
+	unicode.No, unicode.Mn, unicode.Me, unicode.Pc, unicode.Pd, unicode.Ps,
+	unicode.Pe, unicode.Pi, unicode.Pf, unicode.Po, unicode.Sm, unicode.Sc,
+	unicode.Sk, unicode.So, unicode.Lu, unicode.Lt, unicode.Nl, unicode.Ll,
+	unicode.Lm, unicode.Lo, unicode.Mc, unicode.Nd,
 }

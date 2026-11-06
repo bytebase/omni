@@ -2,6 +2,8 @@ package catalog
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
@@ -54,14 +56,17 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string) error {
 	if !hasExplicit {
 		viewCols = derivedCols
 	}
+	if err := checkViewColumnNames(viewCols); err != nil {
+		return err
+	}
 
 	db.Views[key] = &View{
 		Name:            stmt.Name.Name,
 		Database:        db,
 		Definition:      definition,
-		Algorithm:       stmt.Algorithm,
+		Algorithm:       viewAlgorithm(stmt.Algorithm),
 		Definer:         definer,
-		SqlSecurity:     stmt.SqlSecurity,
+		SqlSecurity:     viewSQLSecurity(stmt.SqlSecurity),
 		CheckOption:     stmt.CheckOption,
 		Columns:         viewCols,
 		ExplicitColumns: hasExplicit,
@@ -91,10 +96,15 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 	return nil
 }
 
-// deparseViewSelect resolves, rewrites, and deparses the SELECT AST for a view.
-// If the AST is nil (parser didn't produce one), falls back to the raw SelectText.
-// Returns the deparsed definition and the derived column names from the resolved
-// SELECT target list (used when no explicit column list is specified).
+// deparseViewSelect builds the definition TiDB stores for a view body and
+// the view's column names. If the AST is nil (parser didn't produce one),
+// falls back to the raw SelectText.
+//
+// TiDB stores the body as its parser restores it after the planner has
+// prepared it (pingcap/tidb pkg/ddl/create_table.go, BuildViewInfo; see
+// deparse.RestoreSelect): every * expanded to schema-qualified columns, every
+// select field named, every table that is not a CTE qualified by its schema,
+// and otherwise the query as written, with keywords in upper case.
 //
 // source is the text the statement was parsed from, which the AST's Loc
 // offsets index into. An unaliased select item is named after its text in
@@ -105,32 +115,85 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 		return rawText, nil
 	}
 
-	// Build a TableLookup that resolves table names from this database.
-	lookup := tableLookupForDB(db)
-
-	// Determine the database charset for CAST resolution.
-	charset := db.Charset
-	if charset == "" {
-		charset = c.defaultCharset
+	// An unqualified table in the body is the session's, not the view's:
+	// USE a; CREATE VIEW b.v AS SELECT id FROM t stores FROM `a`.`t`
+	// (verified on v8.5.5). With no database selected the view's own is
+	// the only one there is.
+	from := db
+	if cur := c.GetDatabase(c.CurrentDatabase()); cur != nil {
+		from = cur
 	}
-
-	// Resolve: qualify columns, expand *, normalize JOINs.
+	lookup := tableLookupForDB(from)
 	resolver := &deparse.Resolver{
-		Lookup:         lookup,
-		DefaultCharset: charset,
-		Source:         source,
+		Lookup:   lookup,
+		Source:   source,
+		Restore:  true,
+		Database: from.Name,
+		// A table written with its schema is that schema's: its columns,
+		// and the widths CAST AS CHAR takes from them, are not the
+		// session's table of the same name.
+		LookupIn: func(schema, name string) *deparse.ResolverTable {
+			db := c.GetDatabase(schema)
+			if db == nil {
+				return nil
+			}
+			return tableLookupForDB(db)(name)
+		},
 	}
 	resolver.Resolve(sel)
 
-	// Extract column names from the resolved target list.
-	derivedCols := extractViewColumns(sel, lookup)
-
-	// Rewrite: NOT folding, boolean context wrapping.
-	deparse.RewriteSelectStmt(sel)
-
-	// Deparse: AST → canonical SQL text.
-	return deparse.DeparseSelect(sel), derivedCols
+	return deparse.RestoreSelect(sel), viewColumnNames(extractViewColumns(sel, lookup))
 }
+
+// viewAlgorithm returns the algorithm TiDB stores for a view: the one
+// declared, UNDEFINED when none is. TiDB keeps MERGE even for a view that
+// cannot merge, where MySQL downgrades it.
+func viewAlgorithm(declared string) string {
+	if declared == "" {
+		return "UNDEFINED"
+	}
+	return strings.ToUpper(declared)
+}
+
+// viewSQLSecurity returns the SQL SECURITY TiDB stores for a view: the one
+// declared, DEFINER when none is.
+func viewSQLSecurity(declared string) string {
+	if declared == "" {
+		return "DEFINER"
+	}
+	return strings.ToUpper(declared)
+}
+
+// checkViewColumnNames refuses a view whose columns repeat a name, compared
+// without case, as TiDB does (error 1060, Duplicate column name): SELECT
+// t1.a, t2.a cannot be a view.
+func checkViewColumnNames(cols []string) error {
+	seen := make(map[string]bool, len(cols))
+	for _, c := range cols {
+		k := strings.ToLower(c)
+		if seen[k] {
+			return errDupColumn(c)
+		}
+		seen[k] = true
+	}
+	return nil
+}
+
+// viewColumnNames returns the column names TiDB gives a view from the names
+// of its select fields: a name longer than a column name may be becomes
+// name_exp_N, N the column's position (planner/core
+// adjustOverlongViewColname). The field keeps its long name in the body.
+func viewColumnNames(names []string) []string {
+	for i, name := range names {
+		if len(strings.ToLower(name)) > maxColumnNameLength {
+			names[i] = fmt.Sprintf("name_exp_%d", i+1)
+		}
+	}
+	return names
+}
+
+// maxColumnNameLength is the longest column name TiDB accepts, in bytes.
+const maxColumnNameLength = 64
 
 // extractViewColumns extracts column names from a resolved SELECT target list.
 // This produces the column list that MySQL would derive for a view. lookup
@@ -169,10 +232,12 @@ func extractViewColumns(sel *nodes.SelectStmt, lookup deparse.TableLookup) []str
 	for _, target := range sel.TargetList {
 		switch t := target.(type) {
 		case *nodes.ResTarget:
-			if t.Name != "" {
-				cols = append(cols, t.Name)
-			} else if cr, ok := t.Val.(*nodes.ColumnRef); ok {
+			// The resolver names every field; only an empty string
+			// literal keeps an empty name, which TiDB gives its column.
+			if cr, ok := t.Val.(*nodes.ColumnRef); ok && t.Name == "" {
 				cols = append(cols, cr.Column)
+			} else {
+				cols = append(cols, t.Name)
 			}
 		case *nodes.ColumnRef:
 			// An unaliased column parses as a bare column reference.
@@ -194,9 +259,12 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 		if tbl != nil {
 			cols := make([]deparse.ResolverColumn, len(tbl.Columns))
 			for i, c := range tbl.Columns {
+				length, integer := castCharLength(c.ColumnType)
 				cols[i] = deparse.ResolverColumn{
-					Name:     c.Name,
-					Position: c.Position,
+					Name:       c.Name,
+					Position:   c.Position,
+					CharLength: length,
+					Integer:    integer,
 				}
 			}
 			return &deparse.ResolverTable{
@@ -223,7 +291,76 @@ func tableLookupForDB(db *Database) deparse.TableLookup {
 	}
 }
 
-// ShowCreateView produces MySQL 8.0-compatible SHOW CREATE VIEW output.
+// castCharLength returns the length TiDB gives CAST(column AS CHAR) for a
+// column of the given type, which is the type's display width, and whether
+// the type is an integer; 0 when the width is not known. The widths are the
+// ones v8.5.5 stores in a view body, whatever display width the column
+// declares: INT 11, INT UNSIGNED 10, TINYINT 4,
+// BIGINT 20, VARCHAR(10) 10, DECIMAL(10,2) 12, DATETIME 19, DATE 10,
+// TIME(2) 13, TEXT and BLOB 262140, DOUBLE 370.
+func castCharLength(columnType string) (int, bool) {
+	m := columnTypeRE.FindStringSubmatch(strings.ToLower(strings.TrimSpace(columnType)))
+	if m == nil {
+		return 0, false
+	}
+	name, unsigned := m[1], strings.Contains(m[4], "unsigned")
+	length, _ := strconv.Atoi(m[2])
+	scale, _ := strconv.Atoi(m[3])
+	intWidths := map[string][2]int{
+		"tinyint": {4, 3}, "smallint": {6, 5}, "mediumint": {9, 8},
+		"int": {11, 10}, "integer": {11, 10}, "bigint": {20, 20},
+	}
+	if w, ok := intWidths[name]; ok {
+		// The display width does not bound the value, so TiDB ignores it
+		// (expression/builtin_cast.go, adjustRetFtForCastString): INT(1)
+		// ZEROFILL casts as CHAR(10), TINYINT(1) as CHAR(4).
+		if unsigned {
+			return w[1], true
+		}
+		return w[0], true
+	}
+	switch name {
+	case "char", "varchar", "binary", "varbinary":
+		if length > 0 {
+			return length, false
+		}
+		if name == "char" || name == "binary" {
+			return 1, false
+		}
+	case "text", "blob":
+		return 262140, false
+	case "decimal", "numeric":
+		if length == 0 {
+			length = 10
+		}
+		width := length + 1
+		if scale > 0 {
+			width++
+		}
+		return width, false
+	case "datetime", "timestamp":
+		if length > 0 {
+			return 20 + length, false
+		}
+		return 19, false
+	case "time":
+		if length > 0 {
+			return 11 + length, false
+		}
+		return 10, false
+	case "date":
+		return 10, false
+	case "double":
+		return 370, false
+	}
+	return 0, false
+}
+
+// columnTypeRE splits a column type into its name, length, scale, and the
+// attributes after them.
+var columnTypeRE = regexp.MustCompile(`^([a-z]+)(?:\s*\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\))?(.*)$`)
+
+// ShowCreateView produces TiDB's SHOW CREATE VIEW output.
 // Returns "" if the database or view does not exist.
 func (c *Catalog) ShowCreateView(database, name string) string {
 	db := c.GetDatabase(database)
@@ -256,55 +393,42 @@ func formatDefiner(definer string) string {
 	return fmt.Sprintf("`%s`@`%s`", user, host)
 }
 
-// showCreateView produces the SHOW CREATE VIEW output for a view.
-// MySQL 8.0 format:
+// showCreateView produces the SHOW CREATE VIEW output for a view, as TiDB
+// writes it (pkg/executor/show.go, fetchShowCreateTable4View):
 //
-//	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `view_name` AS select_statement
-//	WITH CASCADED CHECK OPTION
+//	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v` (`a`, `b`) AS SELECT ...
+//
+// The column list is always written, explicit or derived, and the CHECK
+// OPTION never is: TiDB stores it but SHOW CREATE VIEW leaves it out.
 func showCreateView(v *View) string {
 	var b strings.Builder
 
-	b.WriteString("CREATE")
-
-	// ALGORITHM — MySQL 8.0 always shows ALGORITHM, defaults to UNDEFINED.
 	algorithm := v.Algorithm
 	if algorithm == "" {
 		algorithm = "UNDEFINED"
 	}
-	b.WriteString(fmt.Sprintf(" ALGORITHM=%s", strings.ToUpper(algorithm)))
+	fmt.Fprintf(&b, "CREATE ALGORITHM=%s", strings.ToUpper(algorithm))
 
-	// DEFINER — MySQL 8.0 always shows DEFINER with backtick-quoted user@host.
-	if v.Definer != "" {
-		b.WriteString(fmt.Sprintf(" DEFINER=%s", formatDefiner(v.Definer)))
+	definer := v.Definer
+	if definer == "" {
+		definer = "`root`@`%`"
 	}
+	fmt.Fprintf(&b, " DEFINER=%s", formatDefiner(definer))
 
-	// SQL SECURITY — MySQL 8.0 always shows SQL SECURITY, defaults to DEFINER.
 	sqlSecurity := v.SqlSecurity
 	if sqlSecurity == "" {
 		sqlSecurity = "DEFINER"
 	}
-	b.WriteString(fmt.Sprintf(" SQL SECURITY %s", strings.ToUpper(sqlSecurity)))
+	fmt.Fprintf(&b, " SQL SECURITY %s", strings.ToUpper(sqlSecurity))
 
-	// VIEW name
-	b.WriteString(" VIEW " + backtickIDQ(v.Name))
-
-	// Column list (only if explicitly specified by user in CREATE VIEW).
-	if v.ExplicitColumns && len(v.Columns) > 0 {
-		cols := make([]string, len(v.Columns))
-		for i, c := range v.Columns {
-			cols[i] = backtickIDQ(c)
+	b.WriteString(" VIEW " + backtickIDQ(v.Name) + " (")
+	for i, c := range v.Columns {
+		if i > 0 {
+			b.WriteString(", ")
 		}
-		b.WriteString(fmt.Sprintf(" (%s)", strings.Join(cols, ",")))
+		b.WriteString(backtickIDQ(c))
 	}
-
-	// AS select_statement
-	b.WriteString(" AS ")
+	b.WriteString(") AS ")
 	b.WriteString(v.Definition)
-
-	// WITH CHECK OPTION
-	if v.CheckOption != "" {
-		b.WriteString(fmt.Sprintf(" WITH %s CHECK OPTION", strings.ToUpper(v.CheckOption)))
-	}
-
 	return b.String()
 }

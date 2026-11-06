@@ -166,6 +166,18 @@ func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
 		return n.Name
 	case *nodes.ParenExpr:
 		return deriveColumnName(n.Expr, nil)
+	case *nodes.UnaryExpr:
+		// A unary plus passes a literal's name through, as TiDB names
+		// SELECT +1 "1"; over anything else it is part of the name, as in
+		// "+a" (verified on v8.5.5).
+		if n.Op == nodes.UnaryPlus {
+			switch n.Operand.(type) {
+			case *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.BoolLit, *nodes.NullLit:
+				return deriveColumnName(n.Operand, nil)
+			}
+			return "+" + deriveColumnName(n.Operand, nil)
+		}
+		return "?"
 	default:
 		return "?"
 	}

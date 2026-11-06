@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-// TestMySQL_DeparseRules creates views with specific SQL patterns and examines
-// SHOW CREATE VIEW output to discover MySQL 8.0's exact deparsing/formatting rules.
+// TestTiDB_DeparseRules creates views with specific SQL patterns and examines
+// SHOW CREATE VIEW output to discover TiDB's exact restore/formatting rules.
 // This is a research test — it asserts nothing, only logs results.
-func TestMySQL_DeparseRules(t *testing.T) {
+func TestTiDB_DeparseRules(t *testing.T) {
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -134,14 +134,14 @@ func TestMySQL_DeparseRules(t *testing.T) {
 			},
 		},
 		{
-			label: "L. Misc MySQL-specific",
+			label: "L. Misc MySQL-specific syntax",
 			views: []viewTest{
 				{"v48", "SELECT a->>'$.key' FROM t"},
 				{"v49", "SELECT INTERVAL 1 DAY + a FROM t"},
 			},
 		},
 		{
-			label: "M. Semantic Rewrites (things MySQL changes fundamentally)",
+			label: "M. Semantic Rewrites (things the server changes fundamentally)",
 			views: []viewTest{
 				// NOT LIKE → not((...like...))
 				{"v50", "SELECT a NOT LIKE 'x%' FROM t"},
@@ -307,7 +307,7 @@ func TestMySQL_DeparseRules(t *testing.T) {
 		},
 	}
 
-	t.Log("=== MySQL 8.0 Deparse Rules Research ===")
+	t.Log("=== TiDB Restore Rules Research ===")
 	t.Log("")
 
 	for _, cat := range categories {

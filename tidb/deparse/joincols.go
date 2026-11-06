@@ -32,6 +32,13 @@ type fromScope struct {
 	// item to its index there.
 	tables  []scopepkg.Entry
 	entries map[ast.TableExpr]int
+	// byName maps each lowered table name to the index of the first table
+	// in tables registered under it.
+	byName map[string]int
+
+	// schemas holds the schema of each table in tables that has one: a
+	// stored table or view, not a CTE or derived table.
+	schemas map[int]string
 
 	// spans maps each FROM item to the range [lo, hi) of tables under it.
 	spans map[ast.TableExpr][2]int
@@ -83,7 +90,37 @@ func newFromScope(from []ast.TableExpr) *fromScope {
 func (sc *fromScope) add(te ast.TableExpr, name string, table *ResolverTable) {
 	sc.Add(name, table)
 	sc.entries[te] = len(sc.tables)
+	if sc.byName == nil {
+		sc.byName = make(map[string]int)
+	}
+	if _, ok := sc.byName[strings.ToLower(name)]; !ok {
+		sc.byName[strings.ToLower(name)] = len(sc.tables)
+	}
 	sc.tables = append(sc.tables, scopepkg.Entry{Name: name, Table: table})
+}
+
+// setSchema records the schema of the table registered last.
+func (sc *fromScope) setSchema(schema string) {
+	if schema == "" {
+		return
+	}
+	if sc.schemas == nil {
+		sc.schemas = make(map[int]string)
+	}
+	sc.schemas[len(sc.tables)-1] = schema
+}
+
+// indexOf returns the index of the first table registered under name, or -1.
+func (sc *fromScope) indexOf(name string) int {
+	if i, ok := sc.byName[strings.ToLower(name)]; ok {
+		return i
+	}
+	return -1
+}
+
+// schemaOf returns the schema of the table at index, or "" when it has none.
+func (sc *fromScope) schemaOf(index int) string {
+	return sc.schemas[index]
 }
 
 // span records the tables registered for a FROM item since lo.

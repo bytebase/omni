@@ -32,7 +32,7 @@ func omniAsOfView(t *testing.T) string {
 // the current data.
 func TestAsOfView(t *testing.T) {
 	got := omniAsOfView(t)
-	if want := "as of timestamp (now() - interval 1 second)"; !strings.Contains(got, want) {
+	if want := "`d`.`tbl` AS OF TIMESTAMP DATE_SUB(NOW(), INTERVAL 1 SECOND)"; !strings.Contains(got, want) {
 		t.Errorf("SHOW CREATE VIEW lost %q: %s", want, got)
 	}
 }
@@ -241,7 +241,7 @@ func TestAsOfViewTiDBDiffers(t *testing.T) {
 	if !ok {
 		t.Fatalf("no body in %s", omni)
 	}
-	if !strings.Contains(body, "as of timestamp") {
+	if !strings.Contains(body, "AS OF TIMESTAMP") {
 		t.Fatalf("the catalog's text has no clause: %s", body)
 	}
 	body = strings.ReplaceAll(body, "`d`.", "`omni_as_of_view`.")

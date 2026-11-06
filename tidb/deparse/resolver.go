@@ -35,12 +35,163 @@ type Resolver struct {
 	// from the AST, which matches MySQL only for text written the way the
 	// rebuilt name spells it.
 	Source string
+	// Restore prepares the query for RestoreSelect the way TiDB's planner
+	// prepares a view body before storing it (planner/core
+	// logical_plan_builder.go, unfoldWildStar and addAliasName): every *
+	// becomes the columns it stands for, qualified by schema and table;
+	// every select field gets a name; a GROUP BY position becomes the field
+	// it points at; and a table that is not a CTE gets its schema. Column
+	// references, joins, and ORDER BY positions stay as written.
+	Restore bool
+	// Database is the schema Restore gives a table written without one.
+	Database string
+	// LookupIn, when set, looks up a table written with its schema
+	// (db.t) in that schema; Lookup answers for every other name. Without
+	// it a schema-qualified table is looked up by name alone.
+	LookupIn func(schema, name string) *ResolverTable
+
+	// visible holds the CTEs in scope where the resolver is working, so a
+	// subquery sees the CTEs of the query around it.
+	visible map[string]*ResolverTable
+	// fieldSchema holds, for each select field that names a column, the
+	// schema TiDB carries in its name (scope.Column.Schema).
+	fieldSchema map[*ast.ResTarget]string
+	// anonymous holds the select fields that were written with no alias
+	// and are not a column reference: the ones TiDB renames when a view's
+	// column names collide.
+	anonymous map[*ast.ResTarget]bool
+}
+
+// child returns a resolver for a CTE body, with this one's settings and the
+// given lookup.
+func (r *Resolver) child(lookup TableLookup) *Resolver {
+	return &Resolver{
+		Lookup:         lookup,
+		DefaultCharset: r.DefaultCharset,
+		Source:         r.Source,
+		Restore:        r.Restore,
+		Database:       r.Database,
+		LookupIn:       r.LookupIn,
+		visible:        r.visible,
+		anonymous:      r.anonymousSet(),
+		fieldSchema:    r.fieldSchemas(),
+	}
+}
+
+func (r *Resolver) fieldSchemas() map[*ast.ResTarget]string {
+	if r.fieldSchema == nil {
+		r.fieldSchema = make(map[*ast.ResTarget]string)
+	}
+	return r.fieldSchema
+}
+
+// annotate gives the columns of a derived table or CTE built from sel the
+// schemas their select fields carry, in Restore mode, and the names TiDB
+// gives them when no column list renames them: the field's name, empty for
+// an empty string literal (SELECT * FROM (SELECT ”) d is stored as
+// SELECT `d`.“ FROM ...).
+func (r *Resolver) annotate(vt *ResolverTable, sel *ast.SelectStmt, named bool) *ResolverTable {
+	if !r.Restore || vt == nil {
+		return vt
+	}
+	leaf := ast.LeftmostQueryLeaf(sel)
+	if leaf == nil {
+		return vt
+	}
+	if leaf.TableSource != nil && leaf.TableSource.Table != nil {
+		// TABLE t is SELECT * FROM t: each column carries t's schema.
+		for i := range vt.Columns {
+			vt.Columns[i].Schema = leaf.TableSource.Table.Schema
+		}
+		return vt
+	}
+	for i, target := range leaf.TargetList {
+		if i >= len(vt.Columns) {
+			break
+		}
+		if rt, ok := target.(*ast.ResTarget); ok {
+			vt.Columns[i].Schema = r.fieldSchema[rt]
+			if !named {
+				vt.Columns[i].Name = rt.Name
+			}
+		}
+	}
+	return vt
+}
+
+// columnSchema returns the schema TiDB carries in the name of a column of the
+// table at index in the scope (scope.Column.Schema).
+func (r *Resolver) columnSchema(sc *fromScope, index int, column string) string {
+	if index < 0 {
+		return ""
+	}
+	if schema := sc.schemaOf(index); schema != "" {
+		return schema
+	}
+	if t := sc.tables[index].Table; t != nil {
+		if c := t.GetColumn(column); c != nil {
+			return c.Schema
+		}
+	}
+	return ""
+}
+
+func (r *Resolver) anonymousSet() map[*ast.ResTarget]bool {
+	if r.anonymous == nil {
+		r.anonymous = make(map[*ast.ResTarget]bool)
+	}
+	return r.anonymous
 }
 
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
 // references fully qualified. The original AST is modified in-place.
 func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
-	return r.resolveWithCTEs(stmt, nil)
+	r.resolveWithCTEs(stmt, nil)
+	if r.Restore {
+		r.renameDuplicateFields(ast.LeftmostQueryLeaf(stmt))
+	}
+	return stmt
+}
+
+// resolveNested resolves a query nested in the one being resolved -- a
+// subquery or a derived table -- with the CTEs around it in scope.
+func (r *Resolver) resolveNested(stmt *ast.SelectStmt) {
+	r.resolveWithCTEs(stmt, r.visible)
+}
+
+// renameDuplicateFields renames the unaliased fields of the view's first
+// SELECT whose names collide with an earlier field's, as TiDB does for the
+// SELECT that names a view's columns (addAliasName, AsViewSchema): the first
+// repeat of a name n becomes Name_exp_n, the next Name_exp_1_n, and so on.
+// Names compare without case, and an aliased field or column reference keeps
+// its name and is counted first.
+func (r *Resolver) renameDuplicateFields(sel *ast.SelectStmt) {
+	if sel == nil {
+		return
+	}
+	dedup := make(map[string]int)
+	for _, target := range sel.TargetList {
+		if rt, ok := target.(*ast.ResTarget); ok && !r.anonymous[rt] {
+			dedup[strings.ToLower(rt.Name)] = 0
+		}
+	}
+	for _, target := range sel.TargetList {
+		rt, ok := target.(*ast.ResTarget)
+		if !ok || !r.anonymous[rt] {
+			continue
+		}
+		old := strings.ToLower(rt.Name)
+		if dup, ok := dedup[old]; ok {
+			if dup == 0 {
+				rt.Name = "Name_exp_" + rt.Name
+			} else {
+				rt.Name = fmt.Sprintf("Name_exp_%d_%s", dup, rt.Name)
+			}
+			dedup[old] = dup + 1
+		} else {
+			dedup[old] = 0
+		}
+	}
 }
 
 // resolveWithCTEs resolves a SelectStmt with optional CTE virtual tables
@@ -90,13 +241,9 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 			mergedCTETables[k] = v
 		}
 		for _, cte := range stmt.CTEs {
-			cteResolver := &Resolver{
-				Lookup:         r.withCTELookup(mergedCTETables),
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
-			}
+			cteResolver := r.child(r.withCTELookup(mergedCTETables))
 			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
-			if vt := buildCTEVirtualTable(cte, cteResolver.Lookup); vt != nil {
+			if vt := r.annotate(buildCTEVirtualTable(cte, cteResolver.Lookup), cte.Select, len(cte.Columns) > 0); vt != nil {
 				mergedCTETables[strings.ToLower(cte.Name)] = vt
 			}
 		}
@@ -108,7 +255,9 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		return
 	}
 	// Outer ORDER BY ordinals resolve against the inner's leftmost output SELECT.
-	resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt.ParenSource))
+	if !r.Restore {
+		resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt.ParenSource))
+	}
 }
 
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
@@ -129,13 +278,9 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 				}
 			}
 			for _, cte := range leftCTEs {
-				cteResolver := &Resolver{
-					Lookup:         r.withCTELookup(mergedCTETables),
-					DefaultCharset: r.DefaultCharset,
-					Source:         r.Source,
-				}
+				cteResolver := r.child(r.withCTELookup(mergedCTETables))
 				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
-				vt := buildCTEVirtualTable(cte, cteResolver.Lookup)
+				vt := r.annotate(buildCTEVirtualTable(cte, cteResolver.Lookup), cte.Select, len(cte.Columns) > 0)
 				if vt != nil {
 					mergedCTETables[strings.ToLower(cte.Name)] = vt
 				}
@@ -149,7 +294,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		}
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
-		if len(stmt.OrderBy) > 0 {
+		if len(stmt.OrderBy) > 0 && !r.Restore {
 			resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt))
 		}
 		return stmt
@@ -178,41 +323,42 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			sel := ast.UnwrapParenSource(cte.Select)
 
 			// Step 1: Resolve the non-recursive (left) branch
-			leftResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
-			}
+			leftResolver := r.child(r.withCTELookup(localCTETables))
 			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
 
 			// Step 2: Build virtual table from left branch's target list and add CTE to scope
-			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left, leftResolver.Lookup)
+			vt := r.annotate(buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left, leftResolver.Lookup), sel.Left, len(cte.Columns) > 0)
 			if vt != nil {
 				localCTETables[strings.ToLower(cte.Name)] = vt
 			}
 
 			// Step 3: Resolve the recursive (right) branch — CTE is now in scope
-			rightResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
-			}
+			rightResolver := r.child(r.withCTELookup(localCTETables))
 			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
 		} else {
 			// Non-recursive CTE: resolve entire SELECT, then build virtual table
-			cteResolver := &Resolver{
-				Lookup:         r.withCTELookup(localCTETables),
-				DefaultCharset: r.DefaultCharset,
-				Source:         r.Source,
-			}
+			cteResolver := r.child(r.withCTELookup(localCTETables))
 			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
 
-			vt := buildCTEVirtualTable(cte, cteResolver.Lookup)
+			vt := r.annotate(buildCTEVirtualTable(cte, cteResolver.Lookup), cte.Select, len(cte.Columns) > 0)
 			if vt != nil {
 				localCTETables[strings.ToLower(cte.Name)] = vt
 			}
 		}
 	}
+
+	// FROM DUAL is no table: TiDB's parser leaves the FROM clause empty and
+	// writes FROM DUAL back only before a WHERE (ast.SelectStmt.Restore).
+	if r.Restore && len(stmt.From) == 1 {
+		if t, ok := stmt.From[0].(*ast.TableRef); ok && t.Schema == "" && t.Alias == "" && strings.EqualFold(t.Name, "dual") {
+			stmt.From = nil
+		}
+	}
+
+	// Subqueries of this block see its CTEs.
+	origVisible := r.visible
+	r.visible = localCTETables
+	defer func() { r.visible = origVisible }()
 
 	// Build scope from FROM clause, using a lookup that includes CTE virtual tables
 	origLookup := r.Lookup
@@ -228,6 +374,13 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 
 	// Resolve target list (may expand stars)
 	stmt.TargetList = r.resolveTargetList(stmt.TargetList, sc)
+
+	// A TABLE query primary names a table TiDB qualifies like any other.
+	if r.Restore && stmt.TableSource != nil && stmt.TableSource.Table != nil {
+		if t := stmt.TableSource.Table; t.Schema == "" && !r.isCTE(t.Name) {
+			t.Schema = r.Database
+		}
+	}
 
 	// Resolve the rows of a VALUES query primary. A VALUES primary has no
 	// target list and no FROM, so nothing above reaches its rows -- and a row
@@ -247,14 +400,25 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		stmt.Where = r.resolveExpr(stmt.Where, sc)
 	}
 
-	// Resolve GROUP BY
+	// Resolve GROUP BY. TiDB's planner replaces a position with the field
+	// it points at, which the view then stores (GROUP BY 2 over b+1 is
+	// GROUP BY `b`+1; verified on v8.5.5).
 	for i, expr := range stmt.GroupBy {
+		if r.Restore {
+			if field := groupByPosition(expr, stmt.TargetList); field != nil {
+				stmt.GroupBy[i] = field
+				continue
+			}
+		}
 		stmt.GroupBy[i] = r.resolveExpr(expr, sc)
 	}
 
 	// Resolve HAVING
 	if stmt.Having != nil {
 		stmt.Having = r.resolveExpr(stmt.Having, sc)
+		if r.Restore {
+			stmt.Having = r.qualifyAggregateArgs(stmt.Having, stmt.TargetList, sc)
+		}
 	}
 
 	// Resolve WINDOW clause
@@ -270,6 +434,9 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	// Resolve ORDER BY
 	for _, item := range stmt.OrderBy {
 		item.Expr = r.resolveExpr(item.Expr, sc)
+		if r.Restore {
+			item.Expr = r.qualifyAggregateArgs(item.Expr, stmt.TargetList, sc)
+		}
 	}
 
 	return stmt
@@ -289,7 +456,18 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 	defer sc.span(tbl, len(sc.tables))
 	switch t := tbl.(type) {
 	case *ast.TableRef:
-		table := r.Lookup(t.Name)
+		written := t.Schema
+		if r.Restore && t.Schema == "" && !r.isCTE(t.Name) {
+			t.Schema = r.Database
+		}
+		var table *ResolverTable
+		if written != "" && r.LookupIn != nil {
+			// A schema-qualified name is never a CTE, and names that
+			// schema's table, not the session's.
+			table = r.LookupIn(written, t.Name)
+		} else {
+			table = r.Lookup(t.Name)
+		}
 		if table == nil {
 			return
 		}
@@ -298,6 +476,7 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 			effectiveName = t.Alias
 		}
 		sc.add(t, effectiveName, table)
+		sc.setSchema(t.Schema)
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc)
 		r.addTableExprToScope(t.Right, sc)
@@ -305,8 +484,8 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		// Derived table: resolve the inner SELECT, then build a virtual table
 		// from its target list so outer queries can reference derived columns.
 		if t.Select != nil {
-			r.Resolve(t.Select)
-			vt := buildDerivedVirtualTable(t, r.Lookup)
+			r.resolveNested(t.Select)
+			vt := r.annotate(buildDerivedVirtualTable(t, r.Lookup), t.Select, len(t.Columns) > 0)
 			if vt != nil && t.Alias != "" {
 				sc.add(t, t.Alias, vt)
 			}
@@ -350,31 +529,48 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *fromScope, position in
 
 	// Apply CAST/CONVERT charset resolution before computing auto-alias.
 	// This ensures the auto-alias includes the database charset (e.g., "charset latin1").
-	r.resolveCastCharsets(expr)
+	// TiDB keeps the cast as written.
+	if !r.Restore {
+		r.resolveCastCharsets(expr)
+	}
 
 	// Compute auto-alias from the pre-resolution expression when no explicit alias.
 	// MySQL 8.0 uses the original (unqualified) expression text for auto-aliases,
 	// so we must derive it before column qualification changes the expression.
+	anonymous := false
 	if explicitAlias == "" {
 		explicitAlias = r.autoName(expr, position)
+		_, isCol := expr.(*ast.ColumnRef)
+		anonymous = !isCol
 	}
 
 	// Resolve the expression (column qualification, etc.)
 	resolved := r.resolveExpr(expr, sc)
 
-	if isRT {
-		rt.Val = resolved
-		rt.Name = explicitAlias
-		return []ast.ExprNode{rt}
+	if !isRT {
+		rt = &ast.ResTarget{}
 	}
-	return []ast.ExprNode{&ast.ResTarget{Name: explicitAlias, Val: resolved}}
+	rt.Val = resolved
+	rt.Name = explicitAlias
+	if anonymous && r.Restore {
+		r.anonymousSet()[rt] = true
+	}
+	if col, ok := resolved.(*ast.ColumnRef); ok && r.Restore {
+		schema := col.Schema
+		if schema == "" {
+			index, _ := sc.findColumnTable(col)
+			schema = r.columnSchema(sc, index, col.Column)
+		}
+		r.fieldSchemas()[rt] = schema
+	}
+	return []ast.ExprNode{rt}
 }
 
 // autoName names an unaliased select item: from its source text when the
 // resolver has it, otherwise rebuilt from the AST.
 func (r *Resolver) autoName(expr ast.ExprNode, position int) string {
 	if r.Source != "" {
-		if name, ok := sourceAutoName(r.Source, expr, position); ok {
+		if name, ok := sourceAutoName(r.Source, expr, position, !r.Restore); ok {
 			return name
 		}
 	}
@@ -392,13 +588,14 @@ func (r *Resolver) expandStar(sc *fromScope) []ast.ExprNode {
 	}
 	result := make([]ast.ExprNode, 0, len(cols))
 	for _, c := range cols {
-		result = append(result, &ast.ResTarget{
+		rt := &ast.ResTarget{
 			Name: c.name,
-			Val: &ast.ColumnRef{
-				Table:  c.qualifier,
-				Column: c.name,
-			},
-		})
+			Val:  r.starColumn(sc, c.table, c.qualifier, c.name),
+		}
+		if r.Restore {
+			r.fieldSchemas()[rt] = r.columnSchema(sc, c.table, c.name)
+		}
+		result = append(result, rt)
 	}
 	return result
 }
@@ -419,16 +616,18 @@ func (r *Resolver) expandQualifiedStar(tableName string, sc *fromScope) []ast.Ex
 		effectiveName = entry.Name
 	}
 
+	index := sc.indexOf(tableName)
 	var result []ast.ExprNode
 	cols := sortedResolverColumns(table)
 	for _, col := range cols {
-		result = append(result, &ast.ResTarget{
+		rt := &ast.ResTarget{
 			Name: col.Name,
-			Val: &ast.ColumnRef{
-				Table:  effectiveName,
-				Column: col.Name,
-			},
-		})
+			Val:  r.starColumn(sc, index, effectiveName, col.Name),
+		}
+		if r.Restore {
+			r.fieldSchemas()[rt] = r.columnSchema(sc, index, col.Name)
+		}
+		result = append(result, rt)
 	}
 	return result
 }
@@ -467,7 +666,7 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 			n.List[i] = r.resolveExpr(item, sc)
 		}
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveNested(n.Select)
 		}
 		return n
 	case *ast.BetweenExpr:
@@ -512,11 +711,19 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		return n
 	case *ast.CastExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
-		r.resolveCastCharset(n.TypeName)
+		if r.Restore {
+			r.fillCastLength(n.TypeName, n.Expr, sc)
+		} else {
+			r.resolveCastCharset(n.TypeName)
+		}
 		return n
 	case *ast.ConvertExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
-		r.resolveCastCharset(n.TypeName)
+		if r.Restore {
+			r.fillCastLength(n.TypeName, n.Expr, sc)
+		} else {
+			r.resolveCastCharset(n.TypeName)
+		}
 		return n
 	case *ast.PositionExpr:
 		n.Substr = r.resolveExpr(n.Substr, sc)
@@ -538,12 +745,12 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		return n
 	case *ast.ExistsExpr:
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveNested(n.Select)
 		}
 		return n
 	case *ast.SubqueryExpr:
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveNested(n.Select)
 		}
 		return n
 	case *ast.ResTarget:
@@ -555,9 +762,53 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 	}
 }
 
+// starColumn returns the reference a * expands to for one column of the
+// table at index in the scope. TiDB qualifies it by the table's schema too,
+// when the table has one -- a CTE or derived table has none
+// (unfoldWildStar).
+func (r *Resolver) starColumn(sc *fromScope, index int, qualifier, name string) *ast.ColumnRef {
+	col := &ast.ColumnRef{Table: qualifier, Column: name}
+	if r.Restore {
+		col.Schema = r.qualifierSchema(qualifier, r.columnSchema(sc, index, name))
+	}
+	return col
+}
+
+// qualifierSchema returns the schema TiDB writes before table.column: none
+// when the table is named like a CTE in scope (ast.ColumnName.Restore,
+// IsCTETableName).
+func (r *Resolver) qualifierSchema(qualifier, schema string) string {
+	if r.isCTE(qualifier) {
+		return ""
+	}
+	return schema
+}
+
+// isCTE reports whether an unqualified table name denotes a CTE in scope.
+func (r *Resolver) isCTE(name string) bool {
+	_, ok := r.visible[strings.ToLower(name)]
+	return ok
+}
+
+// groupByPosition returns the select field a GROUP BY position points at, or
+// nil when expr is not a position in range.
+func groupByPosition(expr ast.ExprNode, targets []ast.ExprNode) ast.ExprNode {
+	lit, ok := expr.(*ast.IntLit)
+	if !ok || lit.Value < 1 || lit.Value > int64(len(targets)) {
+		return nil
+	}
+	if rt, ok := targets[lit.Value-1].(*ast.ResTarget); ok {
+		return rt.Val
+	}
+	return nil
+}
+
 // resolveColumnRef qualifies an unqualified column reference by finding which
-// table in scope contains the column.
+// table in scope contains the column. Restore leaves it as written.
 func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
+	if r.Restore {
+		return col
+	}
 	// Already qualified — just validate the table name maps to an alias
 	if col.Table != "" {
 		// Check if this table name is in scope (might be an alias)
@@ -616,6 +867,16 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *fromScope) {
 		r.resolveTableExpr(t.Left, sc)
 		r.resolveTableExpr(t.Right, sc)
 
+		if r.Restore {
+			// TiDB keeps NATURAL and USING as written; the scope still
+			// records the columns they join on, which * lists first.
+			r.recordJoinColumns(t, sc)
+			if on, ok := t.Condition.(*ast.OnCondition); ok {
+				on.Expr = r.resolveExpr(on.Expr, sc)
+			}
+			return
+		}
+
 		// Expand NATURAL JOIN → find common columns → build ON condition
 		if t.Type == ast.JoinNatural || t.Type == ast.JoinNaturalLeft || t.Type == ast.JoinNaturalRight {
 			r.expandNaturalJoin(t, sc)
@@ -633,6 +894,25 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *fromScope) {
 				on.Expr = r.resolveExpr(on.Expr, sc)
 			}
 		}
+	}
+}
+
+// recordJoinColumns records the columns a NATURAL or USING join joins on in
+// the scope, without rewriting the join.
+func (r *Resolver) recordJoinColumns(j *ast.JoinClause, sc *fromScope) {
+	switch j.Type {
+	case ast.JoinNatural, ast.JoinNaturalLeft, ast.JoinNaturalRight:
+		if names, ok := sc.naturalColumns(j); ok {
+			if len(names) > 0 {
+				sc.joinOn(j, names)
+			} else {
+				sc.joinOnNothing(j)
+			}
+		}
+		return
+	}
+	if using, ok := j.Condition.(*ast.UsingCondition); ok && len(using.Columns) > 0 {
+		sc.joinOn(j, using.Columns)
 	}
 }
 
@@ -1117,4 +1397,256 @@ type AmbiguousColumnError struct {
 
 func (e *AmbiguousColumnError) Error() string {
 	return fmt.Sprintf("column %q is ambiguous, found in tables: %s", e.Column, strings.Join(e.Tables, ", "))
+}
+
+// ---------------------------------------------------------------------------
+// Restore: what TiDB's planner changes in a view body
+// ---------------------------------------------------------------------------
+
+// aggregateFuncs are the aggregate functions TiDB's parser builds an
+// AggregateFuncExpr for.
+var aggregateFuncs = map[string]bool{
+	"COUNT": true, "SUM": true, "AVG": true, "MIN": true, "MAX": true,
+	"GROUP_CONCAT": true, "BIT_AND": true, "BIT_OR": true, "BIT_XOR": true,
+	"STD": true, "STDDEV": true, "STDDEV_POP": true, "STDDEV_SAMP": true,
+	"VARIANCE": true, "VAR_POP": true, "VAR_SAMP": true,
+	"JSON_ARRAYAGG": true, "JSON_OBJECTAGG": true, "APPROX_COUNT_DISTINCT": true,
+	"APPROX_PERCENTILE": true, "ANY_VALUE": true,
+}
+
+// qualifyAggregateArgs rewrites the column references inside the aggregate
+// functions of a HAVING or ORDER BY expression as TiDB's planner does
+// (logical_plan_builder.go, havingWindowAndOrderbyExprResolver): a column a
+// plain column field of the select list names becomes that field as written,
+// and any other becomes schema.table.column, with the schema the column's
+// name carries (scope.Column.Schema) and none for a CTE. The view stores the
+// rewritten expression: SELECT COUNT(*) FROM t GROUP BY a HAVING SUM(a) > 10
+// is stored with HAVING SUM(`test`.`t`.`a`)>10 (verified on v8.5.5).
+func (r *Resolver) qualifyAggregateArgs(node ast.ExprNode, targets []ast.ExprNode, sc *fromScope) ast.ExprNode {
+	return rewriteExprs(node, func(n ast.ExprNode) (ast.ExprNode, bool) {
+		fc, ok := n.(*ast.FuncCallExpr)
+		if !ok || fc.Over != nil || !aggregateFuncs[strings.ToUpper(fc.Name)] {
+			return n, false
+		}
+		for i, arg := range fc.Args {
+			fc.Args[i] = rewriteExprs(arg, func(m ast.ExprNode) (ast.ExprNode, bool) {
+				col, ok := m.(*ast.ColumnRef)
+				if !ok || col.Star {
+					return m, false
+				}
+				return r.aggregateColumn(col, targets, sc), true
+			})
+		}
+		for _, item := range fc.OrderBy {
+			item.Expr = rewriteExprs(item.Expr, func(m ast.ExprNode) (ast.ExprNode, bool) {
+				col, ok := m.(*ast.ColumnRef)
+				if !ok || col.Star {
+					return m, false
+				}
+				return r.aggregateColumn(col, targets, sc), true
+			})
+		}
+		return fc, true
+	})
+}
+
+// aggregateColumn returns what a column reference inside a HAVING or ORDER BY
+// aggregate becomes (see qualifyAggregateArgs). The schema is the one the
+// column's name carries: a derived table's column over a stored column has
+// that column's schema, so HAVING SUM(a) over (SELECT a FROM t) d is stored
+// as SUM(`test`.`d`.`a`).
+func (r *Resolver) aggregateColumn(col *ast.ColumnRef, targets []ast.ExprNode, sc *fromScope) ast.ExprNode {
+	index, table := sc.findColumnTable(col)
+	if table == nil {
+		return col
+	}
+	c := table.GetColumn(col.Column)
+	if c == nil {
+		return col
+	}
+	entry := sc.tables[index]
+	schema := r.columnSchema(sc, index, c.Name)
+	// A plain column field naming the same column answers first.
+	for _, target := range targets {
+		rt, ok := target.(*ast.ResTarget)
+		if !ok {
+			continue
+		}
+		f, ok := rt.Val.(*ast.ColumnRef)
+		if !ok || f.Star || !strings.EqualFold(f.Column, c.Name) {
+			continue
+		}
+		if f.Table != "" && !strings.EqualFold(f.Table, entry.Name) {
+			continue
+		}
+		if f.Schema != "" && !strings.EqualFold(f.Schema, schema) {
+			continue
+		}
+		return &ast.ColumnRef{Schema: f.Schema, Table: f.Table, Column: f.Column}
+	}
+	return &ast.ColumnRef{Schema: r.qualifierSchema(entry.Name, schema), Table: entry.Name, Column: c.Name}
+}
+
+// findColumnTable returns the index and table of the scope entry a column
+// reference names, or nil when none holds it.
+func (sc *fromScope) findColumnTable(col *ast.ColumnRef) (int, *ResolverTable) {
+	if col.Schema != "" && col.Table != "" {
+		// db.t.c names the table of that schema: a.t and b.t may both be
+		// in scope.
+		for i, e := range sc.tables {
+			if strings.EqualFold(e.Name, col.Table) && strings.EqualFold(sc.schemaOf(i), col.Schema) &&
+				e.Table != nil && e.Table.GetColumn(col.Column) != nil {
+				return i, e.Table
+			}
+		}
+		return -1, nil
+	}
+	name := col.Table
+	if name == "" {
+		// A column a NATURAL or USING join joins on is the copy the join
+		// keeps, the right input's in a RIGHT join.
+		if c, ok := sc.coalesced[strings.ToLower(col.Column)]; ok {
+			return c.table, sc.tables[c.table].Table
+		}
+		e, ok := sc.FirstWithColumn(col.Column)
+		if !ok {
+			return -1, nil
+		}
+		name = e.Name
+	}
+	i := sc.indexOf(name)
+	if i < 0 || sc.tables[i].Table == nil || sc.tables[i].Table.GetColumn(col.Column) == nil {
+		return -1, nil
+	}
+	return i, sc.tables[i].Table
+}
+
+// rewriteExprs walks an expression, outside its subqueries, and replaces
+// each node f answers for; f's second result stops the walk below a node.
+func rewriteExprs(node ast.ExprNode, f func(ast.ExprNode) (ast.ExprNode, bool)) ast.ExprNode {
+	if node == nil {
+		return nil
+	}
+	if out, done := f(node); done {
+		return out
+	}
+	walk := func(e ast.ExprNode) ast.ExprNode { return rewriteExprs(e, f) }
+	switch n := node.(type) {
+	case *ast.BinaryExpr:
+		n.Left, n.Right = walk(n.Left), walk(n.Right)
+	case *ast.UnaryExpr:
+		n.Operand = walk(n.Operand)
+	case *ast.ParenExpr:
+		n.Expr = walk(n.Expr)
+	case *ast.InExpr:
+		n.Expr = walk(n.Expr)
+		for i, item := range n.List {
+			n.List[i] = walk(item)
+		}
+	case *ast.BetweenExpr:
+		n.Expr, n.Low, n.High = walk(n.Expr), walk(n.Low), walk(n.High)
+	case *ast.LikeExpr:
+		n.Expr, n.Pattern = walk(n.Expr), walk(n.Pattern)
+	case *ast.IsExpr:
+		n.Expr = walk(n.Expr)
+	case *ast.CaseExpr:
+		n.Operand = walk(n.Operand)
+		for _, w := range n.Whens {
+			w.Cond, w.Result = walk(w.Cond), walk(w.Result)
+		}
+		n.Default = walk(n.Default)
+	case *ast.FuncCallExpr:
+		for i, arg := range n.Args {
+			n.Args[i] = walk(arg)
+		}
+	case *ast.CastExpr:
+		n.Expr = walk(n.Expr)
+	case *ast.ConvertExpr:
+		n.Expr = walk(n.Expr)
+	case *ast.CollateExpr:
+		n.Expr = walk(n.Expr)
+	case *ast.RowExpr:
+		for i, item := range n.Items {
+			n.Items[i] = walk(item)
+		}
+	}
+	return node
+}
+
+// fillCastLength gives CAST(expr AS CHAR) and CAST(expr AS BINARY), written
+// with no length, the length TiDB's planner gives them, which the view
+// stores: the display width of expr's type. CAST(a AS CHAR) over an INT is
+// stored as CAST(`a` AS CHAR(11)) (verified on v8.5.5). The width is known
+// here only for the forms castLength reads; for any other the cast is kept as
+// written.
+func (r *Resolver) fillCastLength(dt *ast.DataType, expr ast.ExprNode, sc *fromScope) {
+	if dt == nil || dt.Length > 0 {
+		return
+	}
+	switch strings.ToUpper(dt.Name) {
+	case "CHAR", "BINARY":
+	default:
+		return
+	}
+	if n, _, ok := castLength(expr, sc); ok {
+		dt.Length = n
+	}
+}
+
+// castLength returns the display width TiDB gives an expression's type and
+// whether that type is an integer, for the forms whose width was measured on
+// v8.5.5: a column of a stored table, an integer or string literal, integer
+// arithmetic (BIGINT, 20), CONCAT (the sum of its arguments), and NOW() (19).
+func castLength(expr ast.ExprNode, sc *fromScope) (int, bool, bool) {
+	switch n := expr.(type) {
+	case *ast.ParenExpr:
+		return castLength(n.Expr, sc)
+	case *ast.ColumnRef:
+		_, table := sc.findColumnTable(n)
+		if table == nil {
+			return 0, false, false
+		}
+		c := table.GetColumn(n.Column)
+		if c == nil || c.CharLength == 0 {
+			return 0, false, false
+		}
+		return c.CharLength, c.Integer, true
+	case *ast.IntLit:
+		return 20, true, true
+	case *ast.UnaryExpr:
+		if n.Op == ast.UnaryMinus {
+			if _, isInt, ok := castLength(n.Operand, sc); ok && isInt {
+				return 20, true, true
+			}
+		}
+	case *ast.StringLit:
+		return len([]rune(n.Value)), false, true
+	case *ast.BinaryExpr:
+		switch n.Op {
+		case ast.BinOpAdd, ast.BinOpSub, ast.BinOpMul:
+			_, li, lok := castLength(n.Left, sc)
+			_, ri, rok := castLength(n.Right, sc)
+			if lok && rok && li && ri {
+				return 20, true, true
+			}
+		}
+	case *ast.FuncCallExpr:
+		switch strings.ToUpper(n.Name) {
+		case "NOW", "CURRENT_TIMESTAMP", "LOCALTIME", "LOCALTIMESTAMP":
+			if len(n.Args) == 0 {
+				return 19, false, true
+			}
+		case "CONCAT":
+			total := 0
+			for _, arg := range n.Args {
+				l, _, ok := castLength(arg, sc)
+				if !ok {
+					return 0, false, false
+				}
+				total += l
+			}
+			return total, false, true
+		}
+	}
+	return 0, false, false
 }
